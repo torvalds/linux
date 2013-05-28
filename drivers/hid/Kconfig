@@ -240,6 +240,12 @@ config HOLTEK_FF
 	  Say Y here if you have a Holtek On Line Grip based game controller
 	  and want to have force feedback support for it.
 
+config HID_HUION
+	tristate "Huion tablets"
+	depends on USB_HID
+	---help---
+	Support for Huion 580 tablet.
+
 config HID_KEYTOUCH
 	tristate "Keytouch HID devices"
 	depends on HID
