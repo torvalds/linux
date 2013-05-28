@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 
 #include "u_ether.h"
+#include "u_ether_configfs.h"
 #include "u_eem.h"
 
 #define EEM_HLEN 2
@@ -263,8 +264,10 @@ static int eem_bind(struct usb_configuration *c, struct usb_function *f)
 	 * with regard to eem_opts->bound access
 	 */
 	if (!eem_opts->bound) {
+		mutex_lock(&eem_opts->lock);
 		gether_set_gadget(eem_opts->net, cdev->gadget);
 		status = gether_register_netdev(eem_opts->net);
+		mutex_unlock(&eem_opts->lock);
 		if (status)
 			return status;
 		eem_opts->bound = true;
@@ -533,6 +536,41 @@ error:
 	return status;
 }
 
+static inline struct f_eem_opts *to_f_eem_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_eem_opts,
+			    func_inst.group);
+}
+
+/* f_eem_item_ops */
+USB_ETHERNET_CONFIGFS_ITEM(eem);
+
+/* f_eem_opts_dev_addr */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_DEV_ADDR(eem);
+
+/* f_eem_opts_host_addr */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_HOST_ADDR(eem);
+
+/* f_eem_opts_qmult */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(eem);
+
+/* f_eem_opts_ifname */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(eem);
+
+static struct configfs_attribute *eem_attrs[] = {
+	&f_eem_opts_dev_addr.attr,
+	&f_eem_opts_host_addr.attr,
+	&f_eem_opts_qmult.attr,
+	&f_eem_opts_ifname.attr,
+	NULL,
+};
+
+static struct config_item_type eem_func_type = {
+	.ct_item_ops	= &eem_item_ops,
+	.ct_attrs	= eem_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static void eem_free_inst(struct usb_function_instance *f)
 {
 	struct f_eem_opts *opts;
@@ -552,10 +590,13 @@ static struct usb_function_instance *eem_alloc_inst(void)
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
+	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = eem_free_inst;
 	opts->net = gether_setup_default();
 	if (IS_ERR(opts->net))
 		return ERR_CAST(opts->net);
+
+	config_group_init_type_name(&opts->func_inst.group, "", &eem_func_type);
 
 	return &opts->func_inst;
 }
@@ -563,9 +604,14 @@ static struct usb_function_instance *eem_alloc_inst(void)
 static void eem_free(struct usb_function *f)
 {
 	struct f_eem *eem;
+	struct f_eem_opts *opts;
 
 	eem = func_to_eem(f);
+	opts = container_of(f->fi, struct f_eem_opts, func_inst);
 	kfree(eem);
+	mutex_lock(&opts->lock);
+	opts->refcnt--;
+	mutex_unlock(&opts->lock);
 }
 
 static void eem_unbind(struct usb_configuration *c, struct usb_function *f)
@@ -586,8 +632,11 @@ struct usb_function *eem_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(-ENOMEM);
 
 	opts = container_of(fi, struct f_eem_opts, func_inst);
+	mutex_lock(&opts->lock);
+	opts->refcnt++;
 
 	eem->port.ioport = netdev_priv(opts->net);
+	mutex_unlock(&opts->lock);
 	eem->port.cdc_filter = DEFAULT_FILTER;
 
 	eem->port.func.name = "cdc_eem";
