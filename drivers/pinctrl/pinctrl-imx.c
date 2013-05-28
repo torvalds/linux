@@ -221,13 +221,21 @@ static int imx_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 		pin_id = pins[i];
 		pin_reg = &info->pin_regs[pin_id];
 
-		if (!pin_reg->mux_reg) {
+		if (!(info->flags & ZERO_OFFSET_VALID) && !pin_reg->mux_reg) {
 			dev_err(ipctl->dev, "Pin(%s) does not support mux function\n",
 				info->pins[pin_id].name);
 			return -EINVAL;
 		}
 
-		writel(mux[i], ipctl->base + pin_reg->mux_reg);
+		if (info->flags & SHARE_MUX_CONF_REG) {
+			u32 reg;
+			reg = readl(ipctl->base + pin_reg->mux_reg);
+			reg &= ~(0x7 << 20);
+			reg |= (mux[i] << 20);
+			writel(reg, ipctl->base + pin_reg->mux_reg);
+		} else {
+			writel(mux[i], ipctl->base + pin_reg->mux_reg);
+		}
 		dev_dbg(ipctl->dev, "write: offset 0x%x val 0x%x\n",
 			pin_reg->mux_reg, mux[i]);
 
@@ -287,13 +295,16 @@ static int imx_pinconf_get(struct pinctrl_dev *pctldev,
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
 
-	if (!pin_reg->conf_reg) {
+	if (!(info->flags & ZERO_OFFSET_VALID) && !pin_reg->conf_reg) {
 		dev_err(info->dev, "Pin(%s) does not support config function\n",
 			info->pins[pin_id].name);
 		return -EINVAL;
 	}
 
 	*config = readl(ipctl->base + pin_reg->conf_reg);
+
+	if (info->flags & SHARE_MUX_CONF_REG)
+		*config &= 0xffff;
 
 	return 0;
 }
@@ -305,7 +316,7 @@ static int imx_pinconf_set(struct pinctrl_dev *pctldev,
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
 
-	if (!pin_reg->conf_reg) {
+	if (!(info->flags & ZERO_OFFSET_VALID) && !pin_reg->conf_reg) {
 		dev_err(info->dev, "Pin(%s) does not support config function\n",
 			info->pins[pin_id].name);
 		return -EINVAL;
@@ -314,7 +325,15 @@ static int imx_pinconf_set(struct pinctrl_dev *pctldev,
 	dev_dbg(ipctl->dev, "pinconf set pin %s\n",
 		info->pins[pin_id].name);
 
-	writel(config, ipctl->base + pin_reg->conf_reg);
+	if (info->flags & SHARE_MUX_CONF_REG) {
+		u32 reg;
+		reg = readl(ipctl->base + pin_reg->conf_reg);
+		reg &= ~0xffff;
+		reg |= config;
+		writel(reg, ipctl->base + pin_reg->conf_reg);
+	} else {
+		writel(config, ipctl->base + pin_reg->conf_reg);
+	}
 	dev_dbg(ipctl->dev, "write: offset 0x%x val 0x%lx\n",
 		pin_reg->conf_reg, config);
 
@@ -381,19 +400,24 @@ static struct pinctrl_desc imx_pinctrl_desc = {
  * 1 u32 CONFIG, so 24 types in total for each pin.
  */
 #define FSL_PIN_SIZE 24
+#define SHARE_FSL_PIN_SIZE 20
 
 static int imx_pinctrl_parse_groups(struct device_node *np,
 				    struct imx_pin_group *grp,
 				    struct imx_pinctrl_soc_info *info,
 				    u32 index)
 {
-	int size;
+	int size, pin_size;
 	const __be32 *list;
 	int i;
 	u32 config;
 
 	dev_dbg(info->dev, "group(%d): %s\n", index, np->name);
 
+	if (info->flags & SHARE_MUX_CONF_REG)
+		pin_size = SHARE_FSL_PIN_SIZE;
+	else
+		pin_size = FSL_PIN_SIZE;
 	/* Initialise group */
 	grp->name = np->name;
 
@@ -403,12 +427,12 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	 */
 	list = of_get_property(np, "fsl,pins", &size);
 	/* we do not check return since it's safe node passed down */
-	if (!size || size % FSL_PIN_SIZE) {
+	if (!size || size % pin_size) {
 		dev_err(info->dev, "Invalid fsl,pins property\n");
 		return -EINVAL;
 	}
 
-	grp->npins = size / FSL_PIN_SIZE;
+	grp->npins = size / pin_size;
 	grp->pins = devm_kzalloc(info->dev, grp->npins * sizeof(unsigned int),
 				GFP_KERNEL);
 	grp->mux_mode = devm_kzalloc(info->dev, grp->npins * sizeof(unsigned int),
@@ -421,10 +445,17 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 				GFP_KERNEL);
 	for (i = 0; i < grp->npins; i++) {
 		u32 mux_reg = be32_to_cpu(*list++);
-		u32 conf_reg = be32_to_cpu(*list++);
-		unsigned int pin_id = mux_reg ? mux_reg / 4 : conf_reg / 4;
-		struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
+		u32 conf_reg;
+		unsigned int pin_id;
+		struct imx_pin_reg *pin_reg;
 
+		if (info->flags & SHARE_MUX_CONF_REG)
+			conf_reg = mux_reg;
+		else
+			conf_reg = be32_to_cpu(*list++);
+
+		pin_id = mux_reg ? mux_reg / 4 : conf_reg / 4;
+		pin_reg = &info->pin_regs[pin_id];
 		grp->pins[i] = pin_id;
 		pin_reg->mux_reg = mux_reg;
 		pin_reg->conf_reg = conf_reg;
