@@ -259,12 +259,14 @@ static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 		screen->s_vsync_st = S_V_ST;
 
 		//bellow are for JettaB
+	#if defined(CONFIG_RK616_LVDS)
 		screen->pll_cfg_val = S_PLL_CFG_VAL;
 		screen->frac	    = S_FRAC;
 		screen->scl_vst	    = S_SCL_VST;
 		screen->scl_hst     = S_SCL_HST;
 		screen->vif_vst     = S_VIF_VST;
 		screen->vif_hst     = S_VIF_HST;
+	#endif
 		break;
 	case HDMI_1920x1080p_50Hz:
                 /* Scaler Timing    */
@@ -279,13 +281,15 @@ static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 		screen->s_vsync_len = S1_V_PW;
 		screen->s_hsync_st = S1_H_ST;
 		screen->s_vsync_st = S1_V_ST;
-		
+
+	#if defined(CONFIG_RK616_LVDS)
 		screen->pll_cfg_val = S1_PLL_CFG_VAL;
 		screen->frac	    = S1_FRAC;
 		screen->scl_vst	    = S1_SCL_VST;
 		screen->scl_hst     = S1_SCL_HST;
 		screen->vif_vst     = S1_VIF_VST;
 		screen->vif_hst     = S1_VIF_HST;
+	#endif
 		break;
 	case HDMI_1280x720p_60Hz:
                 /* Scaler Timing    */
@@ -300,13 +304,14 @@ static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 		screen->s_vsync_len = S2_V_PW;
 		screen->s_hsync_st = S2_H_ST;
 		screen->s_vsync_st = S2_V_ST;
-
+	#if defined(CONFIG_RK616_LVDS)
 		screen->pll_cfg_val = S2_PLL_CFG_VAL;
 		screen->frac	    = S2_FRAC;
 		screen->scl_vst	    = S2_SCL_VST;
 		screen->scl_hst     = S2_SCL_HST;
 		screen->vif_vst     = S2_VIF_VST;
 		screen->vif_hst     = S2_VIF_HST;
+	#endif
 		break;
 	case HDMI_1280x720p_50Hz:
                 /* Scaler Timing    */
@@ -321,13 +326,14 @@ static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 		screen->s_vsync_len = S3_V_PW;
 		screen->s_hsync_st = S3_H_ST;
 		screen->s_vsync_st = S3_V_ST;
-
+	#if defined(CONFIG_RK616_LVDS)
 		screen->pll_cfg_val = S3_PLL_CFG_VAL;
 		screen->frac	    = S3_FRAC;
 		screen->scl_vst	    = S3_SCL_VST;
 		screen->scl_hst     = S3_SCL_HST;
 		screen->vif_vst     = S3_VIF_VST;
 		screen->vif_hst     = S3_VIF_HST;
+	#endif
 		break;
 	case HDMI_720x576p_50Hz_4_3:
 	case HDMI_720x576p_50Hz_16_9:
@@ -343,13 +349,14 @@ static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 		screen->s_vsync_len = S4_V_PW;
 		screen->s_hsync_st = S4_H_ST;
 		screen->s_vsync_st = S4_V_ST;
-
+	#if defined(CONFIG_RK616_LVDS)
 		screen->pll_cfg_val = S4_PLL_CFG_VAL;
 		screen->frac	    = S4_FRAC;
 		screen->scl_vst	    = S4_SCL_VST;
 		screen->scl_hst     = S4_SCL_HST;
 		screen->vif_vst     = S4_VIF_VST;
 		screen->vif_hst     = S4_VIF_HST;
+	#endif
 		break;
 		
 	case HDMI_720x480p_60Hz_16_9:
@@ -366,13 +373,14 @@ static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 		screen->s_vsync_len = S5_V_PW;
 		screen->s_hsync_st = S5_H_ST;
 		screen->s_vsync_st = S5_V_ST;
-
+	#if defined(CONFIG_RK616_LVDS)
 		screen->pll_cfg_val = S5_PLL_CFG_VAL;
 		screen->frac	    = S5_FRAC;
 		screen->scl_vst	    = S5_SCL_VST;
 		screen->scl_hst     = S5_SCL_HST;
 		screen->vif_vst     = S5_VIF_VST;
 		screen->vif_hst     = S5_VIF_HST;
+	#endif
 		break;
 	default :
             	printk("%s lcd not support dual display at this hdmi resolution %d \n",__func__,hdmi_resolution);
