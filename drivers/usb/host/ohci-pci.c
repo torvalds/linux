@@ -123,13 +123,6 @@ static void ohci_quirk_nec_worker(struct work_struct *work)
 	struct ohci_hcd *ohci = container_of(work, struct ohci_hcd, nec_work);
 	int status;
 
-	status = ohci_init(ohci);
-	if (status != 0) {
-		ohci_err(ohci, "Restarting NEC controller failed in %s, %d\n",
-			 "ohci_init", status);
-		return;
-	}
-
 	status = ohci_restart(ohci);
 	if (status != 0)
 		ohci_err(ohci, "Restarting NEC controller failed in %s, %d\n",

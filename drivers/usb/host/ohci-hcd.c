@@ -79,13 +79,7 @@ static const char	hcd_name [] = "ohci_hcd";
 #include "pci-quirks.h"
 
 static void ohci_dump (struct ohci_hcd *ohci, int verbose);
-static int ohci_init (struct ohci_hcd *ohci);
 static void ohci_stop (struct usb_hcd *hcd);
-
-#if defined(CONFIG_PM) || defined(CONFIG_PCI)
-static int ohci_restart (struct ohci_hcd *ohci);
-#endif
-
 #ifdef CONFIG_PCI
 static void sb800_prefetch(struct ohci_hcd *ohci, int on);
 #else
@@ -772,6 +766,32 @@ retry:
 	return 0;
 }
 
+/* ohci_setup routine for generic controller initialization */
+
+int ohci_setup(struct usb_hcd *hcd)
+{
+	struct ohci_hcd		*ohci = hcd_to_ohci(hcd);
+
+	ohci_hcd_init(ohci);
+	
+	return ohci_init(ohci);
+}
+EXPORT_SYMBOL_GPL(ohci_setup);
+
+/* ohci_start routine for generic controller start of all OHCI bus glue */
+static int ohci_start(struct usb_hcd *hcd)
+{
+	struct ohci_hcd		*ohci = hcd_to_ohci(hcd);
+	int	ret;
+
+	ret = ohci_run(ohci);
+	if (ret < 0) {
+		ohci_err(ohci, "can't start\n");
+		ohci_stop(hcd);
+	}
+	return ret;
+}
+
 /*-------------------------------------------------------------------------*/
 
 /* an interrupt happens */
@@ -953,12 +973,13 @@ static void ohci_stop (struct usb_hcd *hcd)
 #if defined(CONFIG_PM) || defined(CONFIG_PCI)
 
 /* must not be called from interrupt context */
-static int ohci_restart (struct ohci_hcd *ohci)
+int ohci_restart(struct ohci_hcd *ohci)
 {
 	int temp;
 	int i;
 	struct urb_priv *priv;
 
+	ohci_init(ohci);
 	spin_lock_irq(&ohci->lock);
 	ohci->rh_state = OHCI_RH_HALTED;
 
@@ -1012,12 +1033,13 @@ static int ohci_restart (struct ohci_hcd *ohci)
 	ohci_dbg(ohci, "restart complete\n");
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ohci_restart);
 
 #endif
 
 #ifdef CONFIG_PM
 
-static int __maybe_unused ohci_suspend(struct usb_hcd *hcd, bool do_wakeup)
+int ohci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	unsigned long	flags;
@@ -1035,9 +1057,10 @@ static int __maybe_unused ohci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ohci_suspend);
 
 
-static int __maybe_unused ohci_resume(struct usb_hcd *hcd, bool hibernated)
+int ohci_resume(struct usb_hcd *hcd, bool hibernated)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci(hcd);
 	int			port;
@@ -1085,8 +1108,72 @@ static int __maybe_unused ohci_resume(struct usb_hcd *hcd, bool hibernated)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ohci_resume);
 
 #endif
+
+/*-------------------------------------------------------------------------*/
+
+/*
+ * Generic structure: This gets copied for platform drivers so that
+ * individual entries can be overridden as needed.
+ */
+
+static const struct hc_driver ohci_hc_driver = {
+	.description =          hcd_name,
+	.product_desc =         "OHCI Host Controller",
+	.hcd_priv_size =        sizeof(struct ohci_hcd),
+
+	/*
+	 * generic hardware linkage
+	*/
+	.irq =                  ohci_irq,
+	.flags =                HCD_MEMORY | HCD_USB11,
+
+	/*
+	* basic lifecycle operations
+	*/
+	.reset =                ohci_setup,
+	.start =                ohci_start,
+	.stop =                 ohci_stop,
+	.shutdown =             ohci_shutdown,
+
+	/*
+	 * managing i/o requests and associated device resources
+	*/
+	.urb_enqueue =          ohci_urb_enqueue,
+	.urb_dequeue =          ohci_urb_dequeue,
+	.endpoint_disable =     ohci_endpoint_disable,
+
+	/*
+	* scheduling support
+	*/
+	.get_frame_number =     ohci_get_frame,
+
+	/*
+	* root hub support
+	*/
+	.hub_status_data =      ohci_hub_status_data,
+	.hub_control =          ohci_hub_control,
+#ifdef CONFIG_PM
+	.bus_suspend =          ohci_bus_suspend,
+	.bus_resume =           ohci_bus_resume,
+#endif
+	.start_port_reset =	ohci_start_port_reset,
+};
+
+void ohci_init_driver(struct hc_driver *drv,
+		const struct ohci_driver_overrides *over)
+{
+	/* Copy the generic table to drv and then apply the overrides */
+	*drv = ohci_hc_driver;
+
+	drv->product_desc = over->product_desc;
+	drv->hcd_priv_size += over->extra_priv_size;
+	if (over->reset)
+		drv->reset = over->reset;
+}
+EXPORT_SYMBOL_GPL(ohci_init_driver);
 
 /*-------------------------------------------------------------------------*/
 
