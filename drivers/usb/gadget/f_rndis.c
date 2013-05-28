@@ -17,14 +17,15 @@
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/device.h>
 #include <linux/etherdevice.h>
 
 #include <linux/atomic.h>
 
 #include "u_ether.h"
+#include "u_rndis.h"
 #include "rndis.h"
-
 
 /*
  * This function is an RNDIS Ethernet port -- a Microsoft protocol that's
@@ -655,6 +656,13 @@ static void rndis_close(struct gether *geth)
 
 /*-------------------------------------------------------------------------*/
 
+/* Some controllers can't support RNDIS ... */
+static inline bool can_support_rndis(struct usb_configuration *c)
+{
+	/* everything else is *presumably* fine */
+	return true;
+}
+
 /* ethernet function driver setup/binding */
 
 static int
@@ -664,6 +672,45 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 	struct f_rndis		*rndis = func_to_rndis(f);
 	int			status;
 	struct usb_ep		*ep;
+
+#ifndef USB_FRNDIS_INCLUDED
+	struct f_rndis_opts *rndis_opts;
+
+	if (!can_support_rndis(c))
+		return -EINVAL;
+
+	rndis_opts = container_of(f->fi, struct f_rndis_opts, func_inst);
+
+	/*
+	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
+	 * configurations are bound in sequence with list_for_each_entry,
+	 * in each configuration its functions are bound in sequence
+	 * with list_for_each_entry, so we assume no race condition
+	 * with regard to rndis_opts->bound access
+	 */
+	if (!rndis_opts->bound) {
+		gether_set_gadget(rndis_opts->net, cdev->gadget);
+		status = gether_register_netdev(rndis_opts->net);
+		if (status)
+			return status;
+		rndis_opts->bound = true;
+	}
+#endif
+
+	if (rndis_string_defs[0].id == 0) {
+		/* ... and setup RNDIS itself */
+		status = rndis_init();
+		if (status < 0)
+			return status;
+
+		status = usb_string_ids_tab(c->cdev, rndis_string_defs);
+		if (status)
+			return status;
+
+		rndis_control_intf.iInterface = rndis_string_defs[0].id;
+		rndis_data_intf.iInterface = rndis_string_defs[1].id;
+		rndis_iad_descriptor.iFunction = rndis_string_defs[2].id;
+	}
 
 	/* allocate instance-specific interface IDs */
 	status = usb_interface_id(c, f);
@@ -741,10 +788,12 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 	rndis->port.open = rndis_open;
 	rndis->port.close = rndis_close;
 
+#ifdef USB_FRNDIS_INCLUDED
 	status = rndis_register(rndis_response_available, rndis);
 	if (status < 0)
 		goto fail;
 	rndis->config = status;
+#endif
 
 	rndis_set_param_medium(rndis->config, RNDIS_MEDIUM_802_3, 0);
 	rndis_set_host_mac(rndis->config, rndis->ethaddr);
@@ -787,8 +836,10 @@ fail:
 	return status;
 }
 
+#ifdef USB_FRNDIS_INCLUDED
+
 static void
-rndis_unbind(struct usb_configuration *c, struct usb_function *f)
+rndis_old_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_rndis		*rndis = func_to_rndis(f);
 
@@ -804,37 +855,12 @@ rndis_unbind(struct usb_configuration *c, struct usb_function *f)
 	kfree(rndis);
 }
 
-/* Some controllers can't support RNDIS ... */
-static inline bool can_support_rndis(struct usb_configuration *c)
-{
-	/* everything else is *presumably* fine */
-	return true;
-}
-
 int
 rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 		u32 vendorID, const char *manufacturer, struct eth_dev *dev)
 {
 	struct f_rndis	*rndis;
 	int		status;
-
-	if (!can_support_rndis(c) || !ethaddr)
-		return -EINVAL;
-
-	if (rndis_string_defs[0].id == 0) {
-		/* ... and setup RNDIS itself */
-		status = rndis_init();
-		if (status < 0)
-			return status;
-
-		status = usb_string_ids_tab(c->cdev, rndis_string_defs);
-		if (status)
-			return status;
-
-		rndis_control_intf.iInterface = rndis_string_defs[0].id;
-		rndis_data_intf.iInterface = rndis_string_defs[1].id;
-		rndis_iad_descriptor.iFunction = rndis_string_defs[2].id;
-	}
 
 	/* allocate and initialize one new instance */
 	status = -ENOMEM;
@@ -859,7 +885,7 @@ rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 	rndis->port.func.strings = rndis_strings;
 	/* descriptors are per-instance copies */
 	rndis->port.func.bind = rndis_bind;
-	rndis->port.func.unbind = rndis_unbind;
+	rndis->port.func.unbind = rndis_old_unbind;
 	rndis->port.func.set_alt = rndis_set_alt;
 	rndis->port.func.setup = rndis_setup;
 	rndis->port.func.disable = rndis_disable;
@@ -872,3 +898,124 @@ fail:
 	}
 	return status;
 }
+
+#else
+
+void rndis_borrow_net(struct usb_function_instance *f, struct net_device *net)
+{
+	struct f_rndis_opts *opts;
+
+	opts = container_of(f, struct f_rndis_opts, func_inst);
+	if (opts->bound)
+		gether_cleanup(netdev_priv(opts->net));
+	else
+		free_netdev(opts->net);
+	opts->borrowed_net = opts->bound = true;
+	opts->net = net;
+}
+EXPORT_SYMBOL(rndis_borrow_net);
+
+static void rndis_free_inst(struct usb_function_instance *f)
+{
+	struct f_rndis_opts *opts;
+
+	opts = container_of(f, struct f_rndis_opts, func_inst);
+	if (!opts->borrowed_net) {
+		if (opts->bound)
+			gether_cleanup(netdev_priv(opts->net));
+		else
+			free_netdev(opts->net);
+	}
+	kfree(opts);
+}
+
+static struct usb_function_instance *rndis_alloc_inst(void)
+{
+	struct f_rndis_opts *opts;
+
+	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	if (!opts)
+		return ERR_PTR(-ENOMEM);
+
+	opts->func_inst.free_func_inst = rndis_free_inst;
+	opts->net = gether_setup_default();
+	if (IS_ERR(opts->net))
+		return ERR_CAST(opts->net);
+
+	return &opts->func_inst;
+}
+
+static void rndis_free(struct usb_function *f)
+{
+	struct f_rndis *rndis;
+
+	rndis = func_to_rndis(f);
+	rndis_deregister(rndis->config);
+	kfree(rndis);
+}
+
+static void rndis_unbind(struct usb_configuration *c, struct usb_function *f)
+{
+	struct f_rndis		*rndis = func_to_rndis(f);
+
+	rndis_exit();
+	rndis_string_defs[0].id = 0;
+	usb_free_all_descriptors(f);
+
+	kfree(rndis->notify_req->buf);
+	usb_ep_free_request(rndis->notify, rndis->notify_req);
+}
+
+static struct usb_function *rndis_alloc(struct usb_function_instance *fi)
+{
+	struct f_rndis	*rndis;
+	struct f_rndis_opts *opts;
+	int status;
+
+	/* allocate and initialize one new instance */
+	rndis = kzalloc(sizeof(*rndis), GFP_KERNEL);
+	if (!rndis) {
+		rndis_exit();
+		return ERR_PTR(-ENOMEM);
+	}
+
+	opts = container_of(fi, struct f_rndis_opts, func_inst);
+
+	gether_get_host_addr_u8(opts->net, rndis->ethaddr);
+	rndis->vendorID = opts->vendor_id;
+	rndis->manufacturer = opts->manufacturer;
+
+	rndis->port.ioport = netdev_priv(opts->net);
+	/* RNDIS activates when the host changes this filter */
+	rndis->port.cdc_filter = 0;
+
+	/* RNDIS has special (and complex) framing */
+	rndis->port.header_len = sizeof(struct rndis_packet_msg_type);
+	rndis->port.wrap = rndis_add_header;
+	rndis->port.unwrap = rndis_rm_hdr;
+
+	rndis->port.func.name = "rndis";
+	rndis->port.func.strings = rndis_strings;
+	/* descriptors are per-instance copies */
+	rndis->port.func.bind = rndis_bind;
+	rndis->port.func.unbind = rndis_unbind;
+	rndis->port.func.set_alt = rndis_set_alt;
+	rndis->port.func.setup = rndis_setup;
+	rndis->port.func.disable = rndis_disable;
+	rndis->port.func.free_func = rndis_free;
+
+	status = rndis_register(rndis_response_available, rndis);
+	if (status < 0) {
+		kfree(rndis);
+		return ERR_PTR(status);
+	}
+	rndis->config = status;
+
+	return &rndis->port.func;
+}
+
+DECLARE_USB_FUNCTION_INIT(rndis, rndis_alloc_inst, rndis_alloc);
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("David Brownell");
+
+#endif

@@ -46,6 +46,7 @@ MODULE_LICENSE("GPL");
 #define USBF_ECM_INCLUDED
 #include "f_ecm.c"
 #ifdef USB_ETH_RNDIS
+#  define USB_FRNDIS_INCLUDED
 #  include "f_rndis.c"
 #  include "rndis.h"
 #endif

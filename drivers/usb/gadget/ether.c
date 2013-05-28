@@ -106,6 +106,7 @@ static inline bool has_rndis(void)
 #include "u_ecm.h"
 #include "u_gether.h"
 #ifdef	USB_ETH_RNDIS
+#define USB_FRNDIS_INCLUDED
 #include "f_rndis.c"
 #include "rndis.h"
 #endif

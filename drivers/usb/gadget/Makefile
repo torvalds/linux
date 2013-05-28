@@ -58,6 +58,8 @@ usb_f_eem-y			:= f_eem.o
 obj-$(CONFIG_USB_F_EEM)		+= usb_f_eem.o
 usb_f_ecm_subset-y		:= f_subset.o
 obj-$(CONFIG_USB_F_SUBSET)	+= usb_f_ecm_subset.o
+usb_f_rndis-y			:= f_rndis.o
+obj-$(CONFIG_USB_F_RNDIS)	+= usb_f_rndis.o
 
 #
 # USB gadget drivers
