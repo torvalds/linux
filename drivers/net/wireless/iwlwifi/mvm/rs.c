@@ -401,6 +401,17 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_mvm *mvm,
 
 	load = rs_tl_get_load(lq_data, tid);
 
+	/*
+	 * Don't create TX aggregation sessions when in high
+	 * BT traffic, as they would just be disrupted by BT.
+	 */
+	if (BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >= 2) {
+		IWL_DEBUG_COEX(mvm, "BT traffic (%d), no aggregation allowed\n",
+			       BT_MBOX_MSG(&mvm->last_bt_notif,
+					   3, TRAFFIC_LOAD));
+		return ret;
+	}
+
 	if ((iwlwifi_mod_params.auto_agg) || (load > IWL_AGG_LOAD_THRESHOLD)) {
 		IWL_DEBUG_HT(mvm, "Starting Tx agg: STA: %pM tid: %d\n",
 			     sta->addr, tid);
