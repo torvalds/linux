@@ -68,6 +68,11 @@
 #define ECR_C_PROTV_XCHG		0x03
 #define ECR_C_PROTV_MISALIG_DATA	0x04
 
+#define ECR_C_BIT_PROTV_MISALIG_DATA	10
+
+/* Machine Check Cause Code Values */
+#define ECR_C_MCHK_DUP_TLB		0x01
+
 /* DTLB Miss Exception Cause Code Values */
 #define ECR_C_BIT_DTLB_LD_MISS		8
 #define ECR_C_BIT_DTLB_ST_MISS		9

@@ -321,7 +321,10 @@ ARC_ENTRY EV_MachineCheck
 	lr  r1, [efa]
 	mov r2, sp
 
-	brne    r0, 0x200100, 1f
+	lsr  	r3, r0, 8
+	bmsk 	r3, r3, 7
+	brne    r3, ECR_C_MCHK_DUP_TLB, 1f
+
 	bl      do_tlb_overlap_fault
 	b       ret_from_exception
 
@@ -368,11 +371,11 @@ ARC_ENTRY EV_TLBProtV
 	;------ (5) Type of Protection Violation? ----------
 	;
 	; ProtV Hardware Exception is triggered for Access Faults of 2 types
-	;   -Access Violaton (WRITE to READ ONLY Page) - for linux COW
-	;   -Unaligned Access (READ/WRITE on odd boundary)
+	;   -Access Violaton	: 00_23_(00|01|02|03)_00
+	;			         x  r  w  r+w
+	;   -Unaligned Access	: 00_23_04_00
 	;
-	cmp r2, 0x230400    ; Misaligned data access ?
-	beq 4f
+	bbit1 r2, ECR_C_BIT_PROTV_MISALIG_DATA, 4f
 
 	;========= (6a) Access Violation Processing ========
 	mov r0, sp              ; pt_regs
@@ -542,7 +545,7 @@ ARC_ENTRY EV_Trap
 
 	;------- (4) What caused the Trap --------------
 	lr     r12, [ecr]
-	and.f  0, r12, ECR_PARAM_MASK
+	bmsk.f 0, r12, 7
 	bnz    trap_with_param
 
 	; ======= (5a) Trap is due to System Call ========
