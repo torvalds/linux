@@ -110,6 +110,26 @@ static inline void append_cmd(u32 *desc, u32 command)
 	(*desc)++;
 }
 
+#define append_u32 append_cmd
+
+static inline void append_u64(u32 *desc, u64 data)
+{
+	u32 *offset = desc_end(desc);
+
+	*offset = upper_32_bits(data);
+	*(++offset) = lower_32_bits(data);
+
+	(*desc) += 2;
+}
+
+/* Write command without affecting header, and return pointer to next word */
+static inline u32 *write_cmd(u32 *desc, u32 command)
+{
+	*desc = command;
+
+	return desc + 1;
+}
+
 static inline void append_cmd_ptr(u32 *desc, dma_addr_t ptr, int len,
 				  u32 command)
 {
@@ -279,7 +299,7 @@ APPEND_CMD_RAW_IMM(load, LOAD, u32);
  */
 #define APPEND_MATH(op, desc, dest, src_0, src_1, len) \
 append_cmd(desc, CMD_MATH | MATH_FUN_##op | MATH_DEST_##dest | \
-	   MATH_SRC0_##src_0 | MATH_SRC1_##src_1 | (u32) (len & MATH_LEN_MASK));
+	MATH_SRC0_##src_0 | MATH_SRC1_##src_1 | (u32)len);
 
 #define append_math_add(desc, dest, src0, src1, len) \
 	APPEND_MATH(ADD, desc, dest, src0, src1, len)
@@ -327,3 +347,34 @@ do { \
 	APPEND_MATH_IMM_u32(LSHIFT, desc, dest, src0, src1, data)
 #define append_math_rshift_imm_u32(desc, dest, src0, src1, data) \
 	APPEND_MATH_IMM_u32(RSHIFT, desc, dest, src0, src1, data)
+
+/* Exactly one source is IMM. Data is passed in as u64 value */
+#define APPEND_MATH_IMM_u64(op, desc, dest, src_0, src_1, data) \
+do { \
+	u32 upper = (data >> 16) >> 16; \
+	APPEND_MATH(op, desc, dest, src_0, src_1, CAAM_CMD_SZ * 2 | \
+		    (upper ? 0 : MATH_IFB)); \
+	if (upper) \
+		append_u64(desc, data); \
+	else \
+		append_u32(desc, data); \
+} while (0)
+
+#define append_math_add_imm_u64(desc, dest, src0, src1, data) \
+	APPEND_MATH_IMM_u64(ADD, desc, dest, src0, src1, data)
+#define append_math_sub_imm_u64(desc, dest, src0, src1, data) \
+	APPEND_MATH_IMM_u64(SUB, desc, dest, src0, src1, data)
+#define append_math_add_c_imm_u64(desc, dest, src0, src1, data) \
+	APPEND_MATH_IMM_u64(ADDC, desc, dest, src0, src1, data)
+#define append_math_sub_b_imm_u64(desc, dest, src0, src1, data) \
+	APPEND_MATH_IMM_u64(SUBB, desc, dest, src0, src1, data)
+#define append_math_and_imm_u64(desc, dest, src0, src1, data) \
+	APPEND_MATH_IMM_u64(AND, desc, dest, src0, src1, data)
+#define append_math_or_imm_u64(desc, dest, src0, src1, data) \
+	APPEND_MATH_IMM_u64(OR, desc, dest, src0, src1, data)
+#define append_math_xor_imm_u64(desc, dest, src0, src1, data) \
+	APPEND_MATH_IMM_u64(XOR, desc, dest, src0, src1, data)
+#define append_math_lshift_imm_u64(desc, dest, src0, src1, data) \
+	APPEND_MATH_IMM_u64(LSHIFT, desc, dest, src0, src1, data)
+#define append_math_rshift_imm_u64(desc, dest, src0, src1, data) \
+	APPEND_MATH_IMM_u64(RSHIFT, desc, dest, src0, src1, data)
