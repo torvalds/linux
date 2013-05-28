@@ -520,6 +520,9 @@ config USB_F_ECM
 config USB_F_PHONET
 	tristate
 
+config USB_F_EEM
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH

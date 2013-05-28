@@ -108,6 +108,8 @@ static inline bool has_rndis(void)
 #include "f_rndis.c"
 #include "rndis.h"
 #endif
+
+#define USB_FEEM_INCLUDED
 #include "f_eem.c"
 
 /*-------------------------------------------------------------------------*/
