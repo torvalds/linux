@@ -721,6 +721,9 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 		if (llcp_sock == NULL && nfc_llcp_ptype(skb) == LLCP_PDU_I) {
 			kfree_skb(skb);
 			nfc_llcp_send_symm(local->dev);
+		} else if (llcp_sock && !llcp_sock->remote_ready) {
+			skb_queue_head(&local->tx_queue, skb);
+			nfc_llcp_send_symm(local->dev);
 		} else {
 			struct sk_buff *copy_skb = NULL;
 			u8 ptype = nfc_llcp_ptype(skb);
