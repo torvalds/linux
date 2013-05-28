@@ -273,8 +273,10 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		}
 
 		/* There must be at least one IRQ source */
-		if (!i)
+		if (!i) {
+			ret = irq;
 			goto eirq;
+		}
 	}
 
 	dev_info(&pdev->dev, "%s base at 0x%08lx clock rate %u MHz\n",
