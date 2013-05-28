@@ -547,6 +547,16 @@ choice
 
 # this first set of drivers all depend on bulk-capable hardware.
 
+config USB_CONFIGFS_ECM_SUBSET
+	boolean "Ethernet Control Model (CDC ECM) subset"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_SUBSET
+	help
+	  On hardware that can't implement the full protocol,
+	  a simple CDC subset is used, placing fewer demands on USB.
+
 config USB_CONFIGFS_EEM
 	bool "Ethernet Emulation Model (EEM)"
 	depends on USB_CONFIGFS
