@@ -39,6 +39,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/migrate.h>
 #include <linux/ramfs.h>
+#include <linux/percpu-refcount.h>
 
 #include <asm/kmap_types.h>
 #include <asm/uaccess.h>
@@ -70,7 +71,7 @@ struct kioctx_cpu {
 };
 
 struct kioctx {
-	atomic_t		users;
+	struct percpu_ref	users;
 	atomic_t		dead;
 
 	/* This needs improving */
@@ -103,7 +104,7 @@ struct kioctx {
 	long			nr_pages;
 
 	struct rcu_head		rcu_head;
-	struct work_struct	rcu_work;
+	struct work_struct	free_work;
 
 	struct {
 		/*
@@ -403,8 +404,9 @@ static void free_ioctx_rcu(struct rcu_head *head)
  * and ctx->users has dropped to 0, so we know no more kiocbs can be submitted -
  * now it's safe to cancel any that need to be.
  */
-static void free_ioctx(struct kioctx *ctx)
+static void free_ioctx(struct work_struct *work)
 {
+	struct kioctx *ctx = container_of(work, struct kioctx, free_work);
 	struct aio_ring *ring;
 	struct io_event res;
 	struct kiocb *req;
@@ -462,10 +464,12 @@ static void free_ioctx(struct kioctx *ctx)
 	call_rcu(&ctx->rcu_head, free_ioctx_rcu);
 }
 
-static void put_ioctx(struct kioctx *ctx)
+static void free_ioctx_ref(struct percpu_ref *ref)
 {
-	if (unlikely(atomic_dec_and_test(&ctx->users)))
-		free_ioctx(ctx);
+	struct kioctx *ctx = container_of(ref, struct kioctx, users);
+
+	INIT_WORK(&ctx->free_work, free_ioctx);
+	schedule_work(&ctx->free_work);
 }
 
 /* ioctx_alloc
@@ -505,8 +509,9 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 
 	ctx->max_reqs = nr_events;
 
-	atomic_set(&ctx->users, 2);
-	atomic_set(&ctx->dead, 0);
+	if (percpu_ref_init(&ctx->users, free_ioctx_ref))
+		goto out_freectx;
+
 	spin_lock_init(&ctx->ctx_lock);
 	spin_lock_init(&ctx->completion_lock);
 	mutex_init(&ctx->ring_lock);
@@ -516,7 +521,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 
 	ctx->cpu = alloc_percpu(struct kioctx_cpu);
 	if (!ctx->cpu)
-		goto out_freectx;
+		goto out_freeref;
 
 	if (aio_setup_ring(ctx) < 0)
 		goto out_freepcpu;
@@ -535,6 +540,8 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	aio_nr += ctx->max_reqs;
 	spin_unlock(&aio_nr_lock);
 
+	percpu_ref_get(&ctx->users); /* io_setup() will drop this ref */
+
 	/* now link into global list. */
 	spin_lock(&mm->ioctx_lock);
 	hlist_add_head_rcu(&ctx->list, &mm->ioctx_list);
@@ -549,28 +556,14 @@ out_cleanup:
 	aio_free_ring(ctx);
 out_freepcpu:
 	free_percpu(ctx->cpu);
+out_freeref:
+	free_percpu(ctx->users.pcpu_count);
 out_freectx:
 	if (ctx->aio_ring_file)
 		fput(ctx->aio_ring_file);
 	kmem_cache_free(kioctx_cachep, ctx);
 	pr_debug("error allocating ioctx %d\n", err);
 	return ERR_PTR(err);
-}
-
-static void kill_ioctx_work(struct work_struct *work)
-{
-	struct kioctx *ctx = container_of(work, struct kioctx, rcu_work);
-
-	wake_up_all(&ctx->wait);
-	put_ioctx(ctx);
-}
-
-static void kill_ioctx_rcu(struct rcu_head *head)
-{
-	struct kioctx *ctx = container_of(head, struct kioctx, rcu_head);
-
-	INIT_WORK(&ctx->rcu_work, kill_ioctx_work);
-	schedule_work(&ctx->rcu_work);
 }
 
 /* kill_ioctx
@@ -582,6 +575,8 @@ static void kill_ioctx(struct kioctx *ctx)
 {
 	if (!atomic_xchg(&ctx->dead, 1)) {
 		hlist_del_rcu(&ctx->list);
+		/* percpu_ref_kill() will do the necessary call_rcu() */
+		wake_up_all(&ctx->wait);
 
 		/*
 		 * It'd be more correct to do this in free_ioctx(), after all
@@ -598,8 +593,7 @@ static void kill_ioctx(struct kioctx *ctx)
 		if (ctx->mmap_size)
 			vm_munmap(ctx->mmap_base, ctx->mmap_size);
 
-		/* Between hlist_del_rcu() and dropping the initial ref */
-		call_rcu(&ctx->rcu_head, kill_ioctx_rcu);
+		percpu_ref_kill(&ctx->users);
 	}
 }
 
@@ -633,12 +627,6 @@ void exit_aio(struct mm_struct *mm)
 	struct hlist_node *n;
 
 	hlist_for_each_entry_safe(ctx, n, &mm->ioctx_list, list) {
-		if (1 != atomic_read(&ctx->users))
-			printk(KERN_DEBUG
-				"exit_aio:ioctx still alive: %d %d %d\n",
-				atomic_read(&ctx->users),
-				atomic_read(&ctx->dead),
-				atomic_read(&ctx->reqs_available));
 		/*
 		 * We don't need to bother with munmap() here -
 		 * exit_mmap(mm) is coming and it'll unmap everything.
@@ -757,7 +745,7 @@ static struct kioctx *lookup_ioctx(unsigned long ctx_id)
 
 	hlist_for_each_entry_rcu(ctx, &mm->ioctx_list, list) {
 		if (ctx->user_id == ctx_id) {
-			atomic_inc(&ctx->users);
+			percpu_ref_get(&ctx->users);
 			ret = ctx;
 			break;
 		}
@@ -1054,7 +1042,7 @@ SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
 		ret = put_user(ioctx->user_id, ctxp);
 		if (ret)
 			kill_ioctx(ioctx);
-		put_ioctx(ioctx);
+		percpu_ref_put(&ioctx->users);
 	}
 
 out:
@@ -1072,7 +1060,7 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 	struct kioctx *ioctx = lookup_ioctx(ctx);
 	if (likely(NULL != ioctx)) {
 		kill_ioctx(ioctx);
-		put_ioctx(ioctx);
+		percpu_ref_put(&ioctx->users);
 		return 0;
 	}
 	pr_debug("EINVAL: io_destroy: invalid context id\n");
@@ -1394,7 +1382,7 @@ long do_io_submit(aio_context_t ctx_id, long nr,
 	}
 	blk_finish_plug(&plug);
 
-	put_ioctx(ctx);
+	percpu_ref_put(&ctx->users);
 	return i ? i : ret;
 }
 
@@ -1483,7 +1471,7 @@ SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
 			ret = -EFAULT;
 	}
 
-	put_ioctx(ctx);
+	percpu_ref_put(&ctx->users);
 
 	return ret;
 }
@@ -1512,7 +1500,7 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
 	if (likely(ioctx)) {
 		if (likely(min_nr <= nr && min_nr >= 0))
 			ret = read_events(ioctx, min_nr, nr, events, timeout);
-		put_ioctx(ioctx);
+		percpu_ref_put(&ioctx->users);
 	}
 	return ret;
 }
