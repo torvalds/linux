@@ -1584,9 +1584,8 @@ static void deferred_unmap_destructor(struct sk_buff *skb)
 	p = dui->addr;
 
 	if (skb->tail - skb->transport_header)
-		pci_unmap_single(dui->pdev, *p++,
-				 skb->tail - skb->transport_header,
-				 PCI_DMA_TODEVICE);
+		pci_unmap_single(dui->pdev, *p++, skb_tail_pointer(skb) -
+				 skb_transport_header(skb), PCI_DMA_TODEVICE);
 
 	si = skb_shinfo(skb);
 	for (i = 0; i < si->nr_frags; i++)
@@ -1647,8 +1646,8 @@ static void write_ofld_wr(struct adapter *adap, struct sk_buff *skb,
 	flits = skb_transport_offset(skb) / 8;
 	sgp = ndesc == 1 ? (struct sg_ent *)&d->flit[flits] : sgl;
 	sgl_flits = write_sgl(skb, sgp, skb_transport_header(skb),
-			     skb->tail - skb->transport_header,
-			     addr);
+			     skb_tail_pointer(skb) -
+			     skb_transport_header(skb), addr);
 	if (need_skb_unmap()) {
 		setup_deferred_unmapping(skb, adap->pdev, sgp, sgl_flits);
 		skb->destructor = deferred_unmap_destructor;
@@ -1674,7 +1673,7 @@ static inline unsigned int calc_tx_descs_ofld(const struct sk_buff *skb)
 
 	flits = skb_transport_offset(skb) / 8;	/* headers */
 	cnt = skb_shinfo(skb)->nr_frags;
-	if (skb->tail != skb->transport_header)
+	if (skb_tail_pointer(skb) != skb_transport_header(skb))
 		cnt++;
 	return flits_to_desc(flits + sgl_len(cnt));
 }
