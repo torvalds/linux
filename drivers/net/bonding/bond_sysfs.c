@@ -231,8 +231,7 @@ static ssize_t bonding_show_slaves(struct device *d,
 }
 
 /*
- * Set the slaves in the current bond.  The bond interface must be
- * up for this to succeed.
+ * Set the slaves in the current bond.
  * This is supposed to be only thin wrapper for bond_enslave and bond_release.
  * All hard work should be done there.
  */
@@ -363,7 +362,6 @@ static DEVICE_ATTR(mode, S_IRUGO | S_IWUSR,
 
 /*
  * Show and set the bonding transmit hash method.
- * The bond interface must be down to change the xmit hash policy.
  */
 static ssize_t bonding_show_xmit_hash(struct device *d,
 				      struct device_attribute *attr,
