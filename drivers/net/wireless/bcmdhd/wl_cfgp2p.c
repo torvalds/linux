@@ -67,8 +67,8 @@ static int wl_cfgp2p_if_stop(struct net_device *net);
 static const struct net_device_ops wl_cfgp2p_if_ops = {
 	.ndo_open		= wl_cfgp2p_if_open,
 	.ndo_stop		= wl_cfgp2p_if_stop,
-	.ndo_do_ioctl		= wl_cfgp2p_do_ioctl,
-	.ndo_start_xmit		= wl_cfgp2p_start_xmit,
+	.ndo_do_ioctl	= wl_cfgp2p_do_ioctl,
+	.ndo_start_xmit	= wl_cfgp2p_start_xmit,
 };
 #endif /* WL_ENABLE_P2P_IF */
 

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_wlfc.c 400998 2013-05-08 09:04:02Z $
+ * $Id: dhd_wlfc.c 402043 2013-05-14 12:11:22Z $
  *
  */
 
@@ -1127,6 +1127,7 @@ _dhd_wlfc_enque_delayq(athost_wl_status_info_t* ctx, void* pktbuf, int prec)
 			ctx->stats.delayq_full_error++;
 			return BCME_ERROR;
 		}
+
 		/*
 		A packet has been pushed, update traffic availability bitmap,
 		if applicable
@@ -2326,9 +2327,6 @@ dhd_wlfc_enable(dhd_pub_t *dhd)
 	wlfc->allow_credit_borrow = TRUE;
 	wlfc->borrow_defer_timestamp = 0;
 
-	if (dhd->plat_enable)
-		dhd->plat_enable((void *)dhd);
-
 	return BCME_OK;
 }
 
@@ -2437,8 +2435,6 @@ dhd_wlfc_deinit(dhd_pub_t *dhd)
 	dhd->wlfc_state = NULL;
 	dhd_os_wlfc_unblock(dhd);
 
-	if (dhd->plat_deinit)
-		dhd->plat_deinit((void *)dhd);
 	return;
 }
 #endif /* PROP_TXSTATUS */

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.h 396420 2013-04-12 06:55:45Z $
+ * $Id: wl_cfgp2p.h 401719 2013-05-13 12:47:24Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -72,6 +72,7 @@ struct p2p_bss {
 struct p2p_info {
 	bool on;    /* p2p on/off switch */
 	bool scan;
+	int16 search_state;
 	bool vif_created;
 	s8 vir_ifname[IFNAMSIZ];
 	unsigned long status;

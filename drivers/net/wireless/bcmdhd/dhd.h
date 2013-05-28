@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 397286 2013-04-18 01:42:19Z $
+ * $Id: dhd.h 402415 2013-05-15 14:30:44Z $
  */
 
 /****************
@@ -152,6 +152,7 @@ enum dhd_prealloc_index {
 #if defined(STATIC_WL_PRIV_STRUCT)
 	DHD_PREALLOC_WIPHY_ESCAN0 = 5,
 #endif /* STATIC_WL_PRIV_STRUCT */
+	DHD_PREALLOC_DHD_INFO = 7
 };
 
 typedef enum  {
@@ -744,7 +745,7 @@ extern uint dhd_force_tx_queueing;
 
 #ifdef RXFRAME_THREAD
 #ifndef CUSTOM_RXF_PRIO_SETTING
-#define CUSTOM_RXF_PRIO_SETTING 	(DEFAULT_DHP_DPC_PRIO + 1)
+#define CUSTOM_RXF_PRIO_SETTING		MAX((CUSTOM_DPC_PRIO_SETTING - 1), 1)
 #endif
 #endif /* RXFRAME_THREAD */
 
