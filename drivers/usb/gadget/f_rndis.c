@@ -24,6 +24,7 @@
 #include <linux/atomic.h>
 
 #include "u_ether.h"
+#include "u_ether_configfs.h"
 #include "u_rndis.h"
 #include "rndis.h"
 
@@ -903,6 +904,41 @@ void rndis_borrow_net(struct usb_function_instance *f, struct net_device *net)
 }
 EXPORT_SYMBOL(rndis_borrow_net);
 
+static inline struct f_rndis_opts *to_f_rndis_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_rndis_opts,
+			    func_inst.group);
+}
+
+/* f_rndis_item_ops */
+USB_ETHERNET_CONFIGFS_ITEM(rndis);
+
+/* f_rndis_opts_dev_addr */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_DEV_ADDR(rndis);
+
+/* f_rndis_opts_host_addr */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_HOST_ADDR(rndis);
+
+/* f_rndis_opts_qmult */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(rndis);
+
+/* f_rndis_opts_ifname */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(rndis);
+
+static struct configfs_attribute *rndis_attrs[] = {
+	&f_rndis_opts_dev_addr.attr,
+	&f_rndis_opts_host_addr.attr,
+	&f_rndis_opts_qmult.attr,
+	&f_rndis_opts_ifname.attr,
+	NULL,
+};
+
+static struct config_item_type rndis_func_type = {
+	.ct_item_ops	= &rndis_item_ops,
+	.ct_attrs	= rndis_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static void rndis_free_inst(struct usb_function_instance *f)
 {
 	struct f_rndis_opts *opts;
@@ -924,11 +960,14 @@ static struct usb_function_instance *rndis_alloc_inst(void)
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
-
+	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = rndis_free_inst;
 	opts->net = gether_setup_default();
 	if (IS_ERR(opts->net))
 		return ERR_CAST(opts->net);
+
+	config_group_init_type_name(&opts->func_inst.group, "",
+				    &rndis_func_type);
 
 	return &opts->func_inst;
 }
@@ -936,10 +975,15 @@ static struct usb_function_instance *rndis_alloc_inst(void)
 static void rndis_free(struct usb_function *f)
 {
 	struct f_rndis *rndis;
+	struct f_rndis_opts *opts;
 
 	rndis = func_to_rndis(f);
 	rndis_deregister(rndis->config);
+	opts = container_of(f->fi, struct f_rndis_opts, func_inst);
 	kfree(rndis);
+	mutex_lock(&opts->lock);
+	opts->refcnt--;
+	mutex_unlock(&opts->lock);
 }
 
 static void rndis_unbind(struct usb_configuration *c, struct usb_function *f)
@@ -964,12 +1008,15 @@ static struct usb_function *rndis_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(-ENOMEM);
 
 	opts = container_of(fi, struct f_rndis_opts, func_inst);
+	mutex_lock(&opts->lock);
+	opts->refcnt++;
 
 	gether_get_host_addr_u8(opts->net, rndis->ethaddr);
 	rndis->vendorID = opts->vendor_id;
 	rndis->manufacturer = opts->manufacturer;
 
 	rndis->port.ioport = netdev_priv(opts->net);
+	mutex_unlock(&opts->lock);
 	/* RNDIS activates when the host changes this filter */
 	rndis->port.cdc_filter = 0;
 

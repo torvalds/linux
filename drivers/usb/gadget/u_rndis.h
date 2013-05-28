@@ -25,6 +25,15 @@ struct f_rndis_opts {
 	struct net_device		*net;
 	bool				bound;
 	bool				borrowed_net;
+
+	/*
+	 * Read/write access to configfs attributes is handled by configfs.
+	 *
+	 * This is to protect the data from concurrent access by read/write
+	 * and create symlink/remove symlink.
+	 */
+	struct mutex			lock;
+	int				refcnt;
 };
 
 void rndis_borrow_net(struct usb_function_instance *f, struct net_device *net);

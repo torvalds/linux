@@ -560,6 +560,22 @@ config USB_CONFIGFS_ECM_SUBSET
 	  On hardware that can't implement the full protocol,
 	  a simple CDC subset is used, placing fewer demands on USB.
 
+config USB_CONFIGFS_RNDIS
+	bool "RNDIS"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_RNDIS
+	help
+	   Microsoft Windows XP bundles the "Remote NDIS" (RNDIS) protocol,
+	   and Microsoft provides redistributable binary RNDIS drivers for
+	   older versions of Windows.
+
+	   To make MS-Windows work with this, use Documentation/usb/linux.inf
+	   as the "driver info file".  For versions of MS-Windows older than
+	   XP, you'll need to download drivers from Microsoft's website; a URL
+	   is given in comments found in that info file.
+
 config USB_CONFIGFS_EEM
 	bool "Ethernet Emulation Model (EEM)"
 	depends on USB_CONFIGFS
