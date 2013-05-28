@@ -1590,6 +1590,7 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 	local->lto = 150; /* 1500 ms */
 	local->rw = LLCP_MAX_RW;
 	local->miux = cpu_to_be16(LLCP_MAX_MIUX);
+	local->local_wks = 0x1; /* LLC Link Management */
 
 	nfc_llcp_build_gb(local);
 
