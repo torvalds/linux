@@ -58,3 +58,22 @@
 	wp-gpios = <&gpio1 13 0>;
 	status = "okay";
 };
+
+&weim {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_weim_nor_1 &pinctrl_weim_cs0_1>;
+	#address-cells = <2>;
+	#size-cells = <1>;
+	ranges = <0 0 0x08000000 0x08000000>;
+	status = "disabled"; /* pin conflict with SPI NOR */
+
+	nor@0,0 {
+		compatible = "cfi-flash";
+		reg = <0 0 0x02000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		bank-width = <2>;
+		fsl,weim-cs-timing = <0x00620081 0x00000001 0x1c022000
+				0x0000c000 0x1404a38e 0x00000000>;
+	};
+};
