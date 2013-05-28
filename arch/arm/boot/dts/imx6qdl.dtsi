@@ -744,9 +744,11 @@
 				reg = <0x021b4000 0x4000>;
 			};
 
-			weim@021b8000 {
+			weim: weim@021b8000 {
+				compatible = "fsl,imx6q-weim";
 				reg = <0x021b8000 0x4000>;
 				interrupts = <0 14 0x04>;
+				clocks = <&clks 196>;
 			};
 
 			ocotp@021bc000 {
