@@ -1530,6 +1530,29 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
+	switch (BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		/* nothing */
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		/* avoid antenna B unless MIMO */
+		if (tbl->action == IWL_SISO_SWITCH_ANTENNA2)
+			tbl->action = IWL_SISO_SWITCH_MIMO2_AB;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		/* avoid antenna B and MIMO */
+		valid_tx_ant =
+			first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
+		if (tbl->action != IWL_SISO_SWITCH_ANTENNA1)
+			tbl->action = IWL_SISO_SWITCH_ANTENNA1;
+		break;
+	default:
+		IWL_ERR(mvm, "Invalid BT load %d",
+			BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD));
+		break;
+	}
+
 	start_action = tbl->action;
 	while (1) {
 		lq_sta->action_counter++;
@@ -1543,7 +1566,9 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 			     tx_chains_num <= 2))
 				break;
 
-			if (window->success_ratio >= IWL_RS_GOOD_RATIO)
+			if (window->success_ratio >= IWL_RS_GOOD_RATIO &&
+			    BT_MBOX_MSG(&mvm->last_bt_notif, 3,
+					TRAFFIC_LOAD) == 0)
 				break;
 
 			memcpy(search_tbl, tbl, sz);
@@ -1664,6 +1689,28 @@ static int rs_move_mimo2_to_other(struct iwl_mvm *mvm,
 	u8 tx_chains_num = num_of_ant(valid_tx_ant);
 	u8 update_search_tbl_counter = 0;
 	int ret;
+
+	switch (BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		/* nothing */
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		/* avoid antenna B and MIMO */
+		if (tbl->action != IWL_MIMO2_SWITCH_SISO_A)
+			tbl->action = IWL_MIMO2_SWITCH_SISO_A;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		/* avoid antenna B unless MIMO */
+		if (tbl->action == IWL_MIMO2_SWITCH_SISO_B ||
+		    tbl->action == IWL_MIMO2_SWITCH_SISO_C)
+			tbl->action = IWL_MIMO2_SWITCH_SISO_A;
+		break;
+	default:
+		IWL_ERR(mvm, "Invalid BT load %d",
+			BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD));
+		break;
+	}
 
 	start_action = tbl->action;
 	while (1) {
@@ -1801,6 +1848,28 @@ static int rs_move_mimo3_to_other(struct iwl_mvm *mvm,
 	u8 tx_chains_num = num_of_ant(valid_tx_ant);
 	int ret;
 	u8 update_search_tbl_counter = 0;
+
+	switch (BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		/* nothing */
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		/* avoid antenna B and MIMO */
+		if (tbl->action != IWL_MIMO3_SWITCH_SISO_A)
+			tbl->action = IWL_MIMO3_SWITCH_SISO_A;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		/* avoid antenna B unless MIMO */
+		if (tbl->action == IWL_MIMO3_SWITCH_SISO_B ||
+		    tbl->action == IWL_MIMO3_SWITCH_SISO_C)
+			tbl->action = IWL_MIMO3_SWITCH_SISO_A;
+		break;
+	default:
+		IWL_ERR(mvm, "Invalid BT load %d",
+			BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD));
+		break;
+	}
 
 	start_action = tbl->action;
 	while (1) {
@@ -2312,6 +2381,32 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	    ((sr > IWL_RATE_HIGH_TH) ||
 	     (current_tpt > (100 * tbl->expected_tpt[low]))))
 		scale_action = 0;
+
+	if ((BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >=
+	     IWL_BT_COEX_TRAFFIC_LOAD_HIGH) &&
+	     (is_mimo2(tbl->lq_type) || is_mimo3(tbl->lq_type))) {
+		if (lq_sta->last_bt_traffic >
+		    BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+			/*
+			 * don't set scale_action, don't want to scale up if
+			 * the rate scale doesn't otherwise think that is a
+			 * good idea.
+			 */
+		} else if (lq_sta->last_bt_traffic <=
+			   BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+			scale_action = -1;
+		}
+	}
+	lq_sta->last_bt_traffic =
+		BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD);
+
+	if ((BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >=
+	     IWL_BT_COEX_TRAFFIC_LOAD_HIGH) &&
+	     (is_mimo2(tbl->lq_type) || is_mimo3(tbl->lq_type))) {
+		/* search for a new modulation */
+		rs_stay_in_table(lq_sta, true);
+		goto lq_update;
+	}
 
 	switch (scale_action) {
 	case -1:
