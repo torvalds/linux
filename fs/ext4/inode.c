@@ -3681,8 +3681,11 @@ int ext4_block_zero_page_range(handle_t *handle,
 	err = 0;
 	if (ext4_should_journal_data(inode)) {
 		err = ext4_handle_dirty_metadata(handle, inode, bh);
-	} else
+	} else {
 		mark_buffer_dirty(bh);
+		if (ext4_test_inode_state(inode, EXT4_STATE_ORDERED_MODE))
+			err = ext4_jbd2_file_inode(handle, inode);
+	}
 
 unlock:
 	unlock_page(page);
