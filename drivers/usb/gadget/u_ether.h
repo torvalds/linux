@@ -272,7 +272,6 @@ int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 		struct eth_dev *dev);
 int ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 		struct eth_dev *dev);
-int eem_bind_config(struct usb_configuration *c, struct eth_dev *dev);
 
 #ifdef USB_ETH_RNDIS
 
