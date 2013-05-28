@@ -22,11 +22,11 @@
 #include <plat/sys_config.h>
 #define DRV_VERSION "0.4.3"
 
-/*控制方式寄存器*/
+/* Control registers */
 #define PCF8563_REG_ST1		0x00 /* status */
 #define PCF8563_REG_ST2		0x01
 
-/*秒~年时间寄存器*/
+/* Datetime registers */
 #define PCF8563_REG_SC		0x02 /* datetime */
 #define PCF8563_REG_MN		0x03
 #define PCF8563_REG_HR		0x04
@@ -35,19 +35,19 @@
 #define PCF8563_REG_MO		0x07
 #define PCF8563_REG_YR		0x08
 
-/*报警功能寄存器*/
-#define PCF8563_REG_AMN		0x09 /* alarm 分钟*/
-#define PCF8563_REG_AHR		0x0A /* alarm 小时*/
-#define PCF8563_REG_ADM		0x0B /* alarm 日*/
-#define PCF8563_REG_ADW		0x0C /* alarm 星期*/
+/* Alarm function registers */
+#define PCF8563_REG_AMN		0x09 /* alarm minute */
+#define PCF8563_REG_AHR		0x0A /* alarm hour */
+#define PCF8563_REG_ADM		0x0B /* alarm day */
+#define PCF8563_REG_ADW		0x0C /* alarm week */
 
 #define ALARM_FLAG_BIT      (3)
 #define ALARM_INT_BIT       (1)
 
-/*时钟输出寄存器*/
+/* Clock output register */
 #define PCF8563_REG_CLKO	0x0D /* clock out */
 
-/*定时器功能寄存器*/
+/* Timer function register */
 #define PCF8563_REG_TMRC	0x0E /* timer control */
 #define PCF8563_REG_TMR		0x0F /* timer */
 
@@ -171,11 +171,14 @@ printk("%s,line:%d\n", __func__, __LINE__);
 /*
  * In the routines that deal directly with the pcf8563 hardware, we use
  * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch.
- * 读时钟步骤：
- *		step1:取器件地址
- *		step2:读取时间的首字节地址(从秒开始读)
- *		step3:读七个时间信息
- *		step4:读取时间并放入接收缓冲区中
+ * Read clock steps：
+ *		step1: Take the device address
+ *		step2: The time to read the first byte of address (beginning
+ *                     from the second reading)
+ *		step3: Read information seven time
+ *                     Reading seven time means to read one of (second, minute,
+  *                    hour, day of month, day of week, month, year) each time.
+ *		step4: Read time and put in the receive buffer
  */
 static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
@@ -233,12 +236,15 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 }
 
 /*
-*写时钟步骤：
-*	step1:将时间装入发送缓冲区(首地址为50H)中
-*	step2:取器件地址
-*	step3:取写入寄存器的首地址(从00H开始写)
-*	step4:写7个时间信息和2个控制命令
-*	step5:写时间
+* Write Clock Steps：
+*	step1: A time into the transmit buffer (first address 50H)
+*	step2: Take the device address
+*	step3: Take the first address written to the register (from 00H to
+*              write)
+*	step4: Write information seven time and two control commands.
+*              Writing seven time means to write one of (second, minute, hour,
+*              day of month, day of week, month, year) each time.
+*	step5: Write time
 */
 static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
@@ -586,7 +592,10 @@ static int pcf8563_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
     time_gap_minute = (time_gap - time_gap_day*24*60 - time_gap_hour*60)/60;//minute
     time_gap_second = time_gap - time_gap_day*24*60*60 - time_gap_hour*60*60-time_gap_minute*60;//second
 
-    /*linux内核中有时会出现误差调整，这时候设置的值可能有误差(4sec)，time_gap_second可以确保在60sec以内*/
+    /* sometimes error adjustment occur in linux kernels, and the values set
+       during that time frame can also have error(4 secs), time_gap_second
+       can make sure the error is inside the 60 sec range.
+       error = difference */
     if (time_gap_second >= 30) {
     	time_gap_minute = time_gap_minute + 1;
     }
