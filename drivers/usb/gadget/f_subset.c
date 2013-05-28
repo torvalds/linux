@@ -296,6 +296,7 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_gether		*geth = func_to_geth(f);
+	struct usb_string	*us;
 	int			status;
 	struct usb_ep		*ep;
 
@@ -319,14 +320,13 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 		gether_opts->bound = true;
 	}
 #endif
-	/* maybe allocate device-global string IDs */
-	if (geth_string_defs[0].id == 0) {
-		status = usb_string_ids_tab(c->cdev, geth_string_defs);
-		if (status < 0)
-			return status;
-		subset_data_intf.iInterface = geth_string_defs[0].id;
-		ether_desc.iMACAddress = geth_string_defs[1].id;
-	}
+	us = usb_gstrings_attach(cdev, geth_strings,
+				 ARRAY_SIZE(geth_string_defs));
+	if (IS_ERR(us))
+		return PTR_ERR(us);
+
+	subset_data_intf.iInterface = us[0].id;
+	ether_desc.iMACAddress = us[1].id;
 
 	/* allocate instance-specific interface IDs */
 	status = usb_interface_id(c, f);
@@ -432,7 +432,6 @@ int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 	geth->port.cdc_filter = DEFAULT_FILTER;
 
 	geth->port.func.name = "cdc_subset";
-	geth->port.func.strings = geth_strings;
 	geth->port.func.bind = geth_bind;
 	geth->port.func.unbind = geth_old_unbind;
 	geth->port.func.set_alt = geth_set_alt;
@@ -514,7 +513,6 @@ static struct usb_function *geth_alloc(struct usb_function_instance *fi)
 	geth->port.cdc_filter = DEFAULT_FILTER;
 
 	geth->port.func.name = "cdc_subset";
-	geth->port.func.strings = geth_strings;
 	geth->port.func.bind = geth_bind;
 	geth->port.func.unbind = geth_unbind;
 	geth->port.func.set_alt = geth_set_alt;
