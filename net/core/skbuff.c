@@ -200,7 +200,7 @@ struct sk_buff *__alloc_skb_head(gfp_t gfp_mask, int node)
 	atomic_set(&skb->users, 1);
 
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
-	skb->mac_header = ~0U;
+	skb->mac_header = (__u16) ~0U;
 #endif
 out:
 	return skb;
@@ -276,8 +276,8 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	skb_reset_tail_pointer(skb);
 	skb->end = skb->tail + size;
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
-	skb->mac_header = ~0U;
-	skb->transport_header = ~0U;
+	skb->mac_header = (__u16) ~0U;
+	skb->transport_header = (__u16) ~0U;
 #endif
 
 	/* make sure we initialize shinfo sequentially */
@@ -345,8 +345,8 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size)
 	skb_reset_tail_pointer(skb);
 	skb->end = skb->tail + size;
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
-	skb->mac_header = ~0U;
-	skb->transport_header = ~0U;
+	skb->mac_header = (__u16) ~0U;
+	skb->transport_header = (__u16) ~0U;
 #endif
 
 	/* make sure we initialize shinfo sequentially */
