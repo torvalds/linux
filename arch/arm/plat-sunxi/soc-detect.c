@@ -207,23 +207,15 @@ enum sw_ic_ver sw_get_ic_ver(void)
 		else
 			ver = SUNXI_VER_A10C;
 	} else if (sunxi_is_sun5i()) {
-		u32 val = readl(SW_VA_SSE_IO_BASE);
-		val = (val >> 16) & 0x07;
-
-		if (val == 0)
-			ver = SUNXI_VER_A13;
-		else if (val == 1) {
-			val = readl(SW_VA_SID_IO_BASE+0x08);
-			val = (val >> 12) & 0xf;
-
-			if (val == 0 || val == 3)
-				ver = SUNXI_VER_A12;
-			else if (val == 7)
-				ver = SUNXI_VER_A10S;
-		}
-
-		if (!ver)
+		u32 val = readl(SW_VA_SID_IO_BASE + 0x08);
+		val = (val >> 12) & 0xf;
+		switch (val) {
+		case 0:	ver = SUNXI_VER_A12; break;
+		case 3: ver = SUNXI_VER_A13; break;
+		case 7: ver = SUNXI_VER_A10S; break;
+		default:
 			goto unknown_chip;
+		}
 
 		val = readl(SW_VA_SID_IO_BASE+0x00);
 		val = (val >> 8) & 0xffffff;
