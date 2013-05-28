@@ -1840,7 +1840,6 @@ fec_probe(struct platform_device *pdev)
 	struct resource *r;
 	const struct of_device_id *of_id;
 	static int dev_id;
-	struct regulator *reg_phy;
 
 	of_id = of_match_device(fec_dt_ids, &pdev->dev);
 	if (of_id)
@@ -1919,14 +1918,16 @@ fec_probe(struct platform_device *pdev)
 	clk_prepare_enable(fep->clk_enet_out);
 	clk_prepare_enable(fep->clk_ptp);
 
-	reg_phy = devm_regulator_get(&pdev->dev, "phy");
-	if (!IS_ERR(reg_phy)) {
-		ret = regulator_enable(reg_phy);
+	fep->reg_phy = devm_regulator_get(&pdev->dev, "phy");
+	if (!IS_ERR(fep->reg_phy)) {
+		ret = regulator_enable(fep->reg_phy);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"Failed to enable phy regulator: %d\n", ret);
 			goto failed_regulator;
 		}
+	} else {
+		fep->reg_phy = NULL;
 	}
 
 	fec_reset_phy(pdev);
@@ -1976,13 +1977,15 @@ fec_probe(struct platform_device *pdev)
 failed_register:
 	fec_enet_mii_remove(fep);
 failed_mii_init:
-failed_init:
+failed_irq:
 	for (i = 0; i < FEC_IRQ_NUM; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq > 0)
 			free_irq(irq, ndev);
 	}
-failed_irq:
+failed_init:
+	if (fep->reg_phy)
+		regulator_disable(fep->reg_phy);
 failed_regulator:
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
@@ -2006,17 +2009,19 @@ fec_drv_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 	fec_enet_mii_remove(fep);
 	del_timer_sync(&fep->time_keep);
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		int irq = platform_get_irq(pdev, i);
+		if (irq > 0)
+			free_irq(irq, ndev);
+	}
+	if (fep->reg_phy)
+		regulator_disable(fep->reg_phy);
 	clk_disable_unprepare(fep->clk_ptp);
 	if (fep->ptp_clock)
 		ptp_clock_unregister(fep->ptp_clock);
 	clk_disable_unprepare(fep->clk_enet_out);
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
-	for (i = 0; i < FEC_IRQ_NUM; i++) {
-		int irq = platform_get_irq(pdev, i);
-		if (irq > 0)
-			free_irq(irq, ndev);
-	}
 	free_netdev(ndev);
 
 	platform_set_drvdata(pdev, NULL);
@@ -2039,6 +2044,9 @@ fec_suspend(struct device *dev)
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
 
+	if (fep->reg_phy)
+		regulator_disable(fep->reg_phy);
+
 	return 0;
 }
 
@@ -2047,6 +2055,13 @@ fec_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
+	int ret;
+
+	if (fep->reg_phy) {
+		ret = regulator_enable(fep->reg_phy);
+		if (ret)
+			return ret;
+	}
 
 	clk_prepare_enable(fep->clk_enet_out);
 	clk_prepare_enable(fep->clk_ahb);
