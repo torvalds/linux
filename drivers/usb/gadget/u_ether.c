@@ -963,6 +963,15 @@ int gether_get_host_addr_cdc(struct net_device *net, char *host_addr, int len)
 }
 EXPORT_SYMBOL(gether_get_host_addr_cdc);
 
+void gether_get_host_addr_u8(struct net_device *net, u8 host_mac[ETH_ALEN])
+{
+	struct eth_dev *dev;
+
+	dev = netdev_priv(net);
+	memcpy(host_mac, dev->host_mac, ETH_ALEN);
+}
+EXPORT_SYMBOL(gether_get_host_addr_u8);
+
 void gether_set_qmult(struct net_device *net, unsigned qmult)
 {
 	struct eth_dev *dev;

@@ -210,6 +210,16 @@ int gether_get_host_addr(struct net_device *net, char *host_addr, int len);
 int gether_get_host_addr_cdc(struct net_device *net, char *host_addr, int len);
 
 /**
+ * gether_get_host_addr_u8 - get an ethernet-over-usb link host address
+ * @net: device representing this link
+ * @host_mac: place to store the eth address of the host
+ *
+ * This gets the binary formatted host-side Ethernet address of this
+ * ethernet-over-usb link.
+ */
+void gether_get_host_addr_u8(struct net_device *net, u8 host_mac[ETH_ALEN]);
+
+/**
  * gether_set_qmult - initialize an ethernet-over-usb link with a multiplier
  * @net: device representing this link
  * @qmult: queue multiplier
