@@ -562,7 +562,7 @@ static void s5p_mfc_handle_stream_complete(struct s5p_mfc_ctx *ctx,
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf *mb_entry;
 
-	mfc_debug(2, "Stream completed");
+	mfc_debug(2, "Stream completed\n");
 
 	s5p_mfc_clear_int_flags(dev);
 	ctx->int_type = reason;

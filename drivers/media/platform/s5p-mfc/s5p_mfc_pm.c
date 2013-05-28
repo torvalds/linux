@@ -79,7 +79,7 @@ int s5p_mfc_clock_on(void)
 	int ret;
 #ifdef CLK_DEBUG
 	atomic_inc(&clk_ref);
-	mfc_debug(3, "+ %d", atomic_read(&clk_ref));
+	mfc_debug(3, "+ %d\n", atomic_read(&clk_ref));
 #endif
 	ret = clk_enable(pm->clock_gate);
 	return ret;
@@ -89,7 +89,7 @@ void s5p_mfc_clock_off(void)
 {
 #ifdef CLK_DEBUG
 	atomic_dec(&clk_ref);
-	mfc_debug(3, "- %d", atomic_read(&clk_ref));
+	mfc_debug(3, "- %d\n", atomic_read(&clk_ref));
 #endif
 	clk_disable(pm->clock_gate);
 }

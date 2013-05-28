@@ -442,8 +442,8 @@ static int s5p_mfc_set_enc_stream_buffer_v6(struct s5p_mfc_ctx *ctx,
 	WRITEL(addr, S5P_FIMV_E_STREAM_BUFFER_ADDR_V6); /* 16B align */
 	WRITEL(size, S5P_FIMV_E_STREAM_BUFFER_SIZE_V6);
 
-	mfc_debug(2, "stream buf addr: 0x%08lx, size: 0x%d",
-		addr, size);
+	mfc_debug(2, "stream buf addr: 0x%08lx, size: 0x%d\n",
+		  addr, size);
 
 	return 0;
 }
@@ -456,8 +456,8 @@ static void s5p_mfc_set_enc_frame_buffer_v6(struct s5p_mfc_ctx *ctx,
 	WRITEL(y_addr, S5P_FIMV_E_SOURCE_LUMA_ADDR_V6); /* 256B align */
 	WRITEL(c_addr, S5P_FIMV_E_SOURCE_CHROMA_ADDR_V6);
 
-	mfc_debug(2, "enc src y buf addr: 0x%08lx", y_addr);
-	mfc_debug(2, "enc src c buf addr: 0x%08lx", c_addr);
+	mfc_debug(2, "enc src y buf addr: 0x%08lx\n", y_addr);
+	mfc_debug(2, "enc src c buf addr: 0x%08lx\n", c_addr);
 }
 
 static void s5p_mfc_get_enc_frame_buffer_v6(struct s5p_mfc_ctx *ctx,
@@ -472,8 +472,8 @@ static void s5p_mfc_get_enc_frame_buffer_v6(struct s5p_mfc_ctx *ctx,
 	enc_recon_y_addr = READL(S5P_FIMV_E_RECON_LUMA_DPB_ADDR_V6);
 	enc_recon_c_addr = READL(S5P_FIMV_E_RECON_CHROMA_DPB_ADDR_V6);
 
-	mfc_debug(2, "recon y addr: 0x%08lx", enc_recon_y_addr);
-	mfc_debug(2, "recon c addr: 0x%08lx", enc_recon_c_addr);
+	mfc_debug(2, "recon y addr: 0x%08lx\n", enc_recon_y_addr);
+	mfc_debug(2, "recon c addr: 0x%08lx\n", enc_recon_c_addr);
 }
 
 /* Set encoding ref & codec buffer */
@@ -1424,8 +1424,8 @@ static inline int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	src_y_addr = vb2_dma_contig_plane_dma_addr(src_mb->b, 0);
 	src_c_addr = vb2_dma_contig_plane_dma_addr(src_mb->b, 1);
 
-	mfc_debug(2, "enc src y addr: 0x%08lx", src_y_addr);
-	mfc_debug(2, "enc src c addr: 0x%08lx", src_c_addr);
+	mfc_debug(2, "enc src y addr: 0x%08lx\n", src_y_addr);
+	mfc_debug(2, "enc src c addr: 0x%08lx\n", src_c_addr);
 
 	s5p_mfc_set_enc_frame_buffer_v6(ctx, src_y_addr, src_c_addr);
 

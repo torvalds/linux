@@ -719,9 +719,9 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 
 	slice_type = s5p_mfc_hw_call(dev->mfc_ops, get_enc_slice_type, dev);
 	strm_size = s5p_mfc_hw_call(dev->mfc_ops, get_enc_strm_size, dev);
-	mfc_debug(2, "Encoded slice type: %d", slice_type);
-	mfc_debug(2, "Encoded stream size: %d", strm_size);
-	mfc_debug(2, "Display order: %d",
+	mfc_debug(2, "Encoded slice type: %d\n", slice_type);
+	mfc_debug(2, "Encoded stream size: %d\n", strm_size);
+	mfc_debug(2, "Display order: %d\n",
 		  mfc_read(dev, S5P_FIMV_ENC_SI_PIC_CNT));
 	spin_lock_irqsave(&dev->irqlock, flags);
 	if (slice_type >= 0) {
@@ -1546,14 +1546,14 @@ int vidioc_encoder_cmd(struct file *file, void *priv,
 
 		spin_lock_irqsave(&dev->irqlock, flags);
 		if (list_empty(&ctx->src_queue)) {
-			mfc_debug(2, "EOS: empty src queue, entering finishing state");
+			mfc_debug(2, "EOS: empty src queue, entering finishing state\n");
 			ctx->state = MFCINST_FINISHING;
 			if (s5p_mfc_ctx_ready(ctx))
 				set_work_bit_irqsave(ctx);
 			spin_unlock_irqrestore(&dev->irqlock, flags);
 			s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 		} else {
-			mfc_debug(2, "EOS: marking last buffer of stream");
+			mfc_debug(2, "EOS: marking last buffer of stream\n");
 			buf = list_entry(ctx->src_queue.prev,
 						struct s5p_mfc_buf, list);
 			if (buf->flags & MFC_BUF_FLAG_USED)
@@ -1622,9 +1622,9 @@ static int check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 			mfc_err("failed to get plane cookie\n");
 			return -EINVAL;
 		}
-		mfc_debug(2, "index: %d, plane[%d] cookie: 0x%08zx",
-				vb->v4l2_buf.index, i,
-				vb2_dma_contig_plane_dma_addr(vb, i));
+		mfc_debug(2, "index: %d, plane[%d] cookie: 0x%08zx\n",
+			  vb->v4l2_buf.index, i,
+			  vb2_dma_contig_plane_dma_addr(vb, i));
 	}
 	return 0;
 }
