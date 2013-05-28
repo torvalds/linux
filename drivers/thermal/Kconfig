@@ -169,4 +169,7 @@ config INTEL_POWERCLAMP
 	  enforce idle time which results in more package C-state residency. The
 	  user interface is exposed via generic thermal framework.
 
+menu "Texas Instruments thermal drivers"
+source "drivers/thermal/ti-soc-thermal/Kconfig"
+endmenu
 endif

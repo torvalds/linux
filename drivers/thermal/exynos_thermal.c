@@ -925,11 +925,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	INIT_WORK(&data->irq_work, exynos_tmu_work);
 
 	data->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!data->mem) {
-		dev_err(&pdev->dev, "Failed to get platform resource\n");
-		return -ENOENT;
-	}
-
 	data->base = devm_ioremap_resource(&pdev->dev, data->mem);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
@@ -1001,7 +996,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 
 	return 0;
 err_clk:
-	platform_set_drvdata(pdev, NULL);
 	clk_unprepare(data->clk);
 	return ret;
 }
@@ -1015,8 +1009,6 @@ static int exynos_tmu_remove(struct platform_device *pdev)
 	exynos_unregister_thermal();
 
 	clk_unprepare(data->clk);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
