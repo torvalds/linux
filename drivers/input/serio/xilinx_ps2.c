@@ -349,8 +349,6 @@ static int xps2_of_remove(struct platform_device *of_dev)
 
 	kfree(drvdata);
 
-	platform_set_drvdata(of_dev, NULL);
-
 	return 0;
 }
 
