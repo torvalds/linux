@@ -1496,11 +1496,9 @@ static void batadv_tt_req_list_free(struct batadv_priv *bat_priv)
 
 static void batadv_tt_save_orig_buffer(struct batadv_priv *bat_priv,
 				       struct batadv_orig_node *orig_node,
-				       const unsigned char *tt_buff,
-				       uint16_t tt_num_changes)
+				       const void *tt_buff,
+				       uint16_t tt_buff_len)
 {
-	uint16_t tt_buff_len = batadv_tt_len(tt_num_changes);
-
 	/* Replace the old buffer only if I received something in the
 	 * last OGM (the OGM could carry no changes)
 	 */
@@ -2037,8 +2035,8 @@ static void batadv_tt_update_changes(struct batadv_priv *bat_priv,
 	_batadv_tt_update_changes(bat_priv, orig_node, tt_change,
 				  tt_num_changes, ttvn);
 
-	batadv_tt_save_orig_buffer(bat_priv, orig_node,
-				   (unsigned char *)tt_change, tt_num_changes);
+	batadv_tt_save_orig_buffer(bat_priv, orig_node, tt_change,
+				   batadv_tt_len(tt_num_changes));
 	atomic_set(&orig_node->last_ttvn, ttvn);
 }
 
