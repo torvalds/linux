@@ -102,8 +102,7 @@ static inline bool has_rndis(void)
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#define USBF_ECM_INCLUDED
-#include "f_ecm.c"
+#include "u_ecm.h"
 #include "f_subset.c"
 #ifdef	USB_ETH_RNDIS
 #include "f_rndis.c"
@@ -212,6 +211,10 @@ static struct usb_gadget_strings *dev_strings[] = {
 
 static u8 host_mac[ETH_ALEN];
 static struct eth_dev *the_dev;
+
+static struct usb_function_instance *fi_ecm;
+static struct usb_function *f_ecm;
+
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -253,6 +256,8 @@ MODULE_PARM_DESC(use_eem, "use CDC EEM mode");
  */
 static int __init eth_do_config(struct usb_configuration *c)
 {
+	int status = 0;
+
 	/* FIXME alloc iConfiguration string, set it in c->strings */
 
 	if (gadget_is_otg(c->cdev->gadget)) {
@@ -262,10 +267,19 @@ static int __init eth_do_config(struct usb_configuration *c)
 
 	if (use_eem)
 		return eem_bind_config(c, the_dev);
-	else if (can_support_ecm(c->cdev->gadget))
-		return ecm_bind_config(c, host_mac, the_dev);
-	else
+	else if (can_support_ecm(c->cdev->gadget)) {
+		f_ecm = usb_get_function(fi_ecm);
+		if (IS_ERR(f_ecm))
+			return PTR_ERR(f_ecm);
+
+		status = usb_add_function(c, f_ecm);
+		if (status < 0)
+			usb_put_function(f_ecm);
+
+		return status;
+	} else
 		return geth_bind_config(c, host_mac, the_dev);
+
 }
 
 static struct usb_configuration eth_config_driver = {
@@ -280,13 +294,16 @@ static struct usb_configuration eth_config_driver = {
 static int __init eth_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
+	struct f_ecm_opts	*ecm_opts = NULL;
 	int			status;
 
-	/* set up network link layer */
-	the_dev = gether_setup(cdev->gadget, dev_addr, host_addr, host_mac,
-			       qmult);
-	if (IS_ERR(the_dev))
-		return PTR_ERR(the_dev);
+	if (use_eem || !can_support_ecm(gadget)) {
+		/* set up network link layer */
+		the_dev = gether_setup(cdev->gadget, dev_addr, host_addr,
+				host_mac, qmult);
+		if (IS_ERR(the_dev))
+			return PTR_ERR(the_dev);
+	}
 
 	/* set up main config label and device descriptor */
 	if (use_eem) {
@@ -294,8 +311,23 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 		eth_config_driver.label = "CDC Ethernet (EEM)";
 		device_desc.idVendor = cpu_to_le16(EEM_VENDOR_NUM);
 		device_desc.idProduct = cpu_to_le16(EEM_PRODUCT_NUM);
-	} else if (can_support_ecm(cdev->gadget)) {
+	} else if (can_support_ecm(gadget)) {
 		/* ECM */
+
+		fi_ecm = usb_get_function_instance("ecm");
+		if (IS_ERR(fi_ecm))
+			return PTR_ERR(fi_ecm);
+
+		ecm_opts = container_of(fi_ecm, struct f_ecm_opts, func_inst);
+
+		gether_set_qmult(ecm_opts->net, qmult);
+		if (!gether_set_host_addr(ecm_opts->net, host_addr))
+			pr_info("using host ethernet address: %s", host_addr);
+		if (!gether_set_dev_addr(ecm_opts->net, dev_addr))
+			pr_info("using self ethernet address: %s", dev_addr);
+
+		the_dev = netdev_priv(ecm_opts->net);
+
 		eth_config_driver.label = "CDC Ethernet (ECM)";
 	} else {
 		/* CDC Subset */
@@ -309,6 +341,15 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 
 	if (has_rndis()) {
 		/* RNDIS plus ECM-or-Subset */
+		if (!use_eem && can_support_ecm(gadget)) {
+			gether_set_gadget(ecm_opts->net, cdev->gadget);
+			status = gether_register_netdev(ecm_opts->net);
+			if (status)
+				goto fail;
+			ecm_opts->bound = true;
+			gether_get_host_addr_u8(ecm_opts->net, host_mac);
+		}
+
 		device_desc.idVendor = cpu_to_le16(RNDIS_VENDOR_NUM);
 		device_desc.idProduct = cpu_to_le16(RNDIS_PRODUCT_NUM);
 		device_desc.bNumConfigurations = 2;
@@ -343,13 +384,19 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 	return 0;
 
 fail:
-	gether_cleanup(the_dev);
+	if (use_eem || !can_support_ecm(gadget))
+		gether_cleanup(the_dev);
+	else
+		usb_put_function_instance(fi_ecm);
 	return status;
 }
 
 static int __exit eth_unbind(struct usb_composite_dev *cdev)
 {
-	gether_cleanup(the_dev);
+	if (use_eem || !can_support_ecm(cdev->gadget))
+		gether_cleanup(the_dev);
+	else
+		usb_put_function_instance(fi_ecm);
 	return 0;
 }
 

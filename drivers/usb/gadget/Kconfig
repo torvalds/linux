@@ -622,6 +622,7 @@ config USB_ETH
 	select USB_LIBCOMPOSITE
 	select USB_U_ETHER
 	select USB_U_RNDIS
+	select USB_F_ECM
 	select CRC32
 	help
 	  This driver implements Ethernet style communication, in one of
