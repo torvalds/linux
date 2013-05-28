@@ -56,6 +56,14 @@ config SND_SOC_BFIN_EVAL_ADAV80X
 	  Note: This driver assumes that the ADAV80X digital record and playback
 	  interfaces are connected to the first SPORT port on the BF5XX board.
 
+config SND_BF5XX_SOC_AD1836
+	tristate "SoC AD1836 Audio support for BF5xx"
+	depends on SND_BF5XX_I2S
+	select SND_BF5XX_SOC_I2S
+	select SND_SOC_AD1836
+	help
+	  Say Y if you want to add support for SoC audio on BF5xx STAMP/EZKIT.
+
 config SND_BF5XX_SOC_AD193X
 	tristate "SoC AD193X Audio support for Blackfin"
 	depends on SND_BF5XX_I2S
@@ -90,14 +98,6 @@ config SND_BF5XX_TDM
 	  the Blackfin SPORT (synchronous serial ports) interface in TDM
 	  mode.
 	  You will also need to select the audio interfaces to support below.
-
-config SND_BF5XX_SOC_AD1836
-	tristate "SoC AD1836 Audio support for BF5xx"
-	depends on SND_BF5XX_TDM
-	select SND_BF5XX_SOC_TDM
-	select SND_SOC_AD1836
-	help
-	  Say Y if you want to add support for SoC audio on BF5xx STAMP/EZKIT.
 
 config SND_BF5XX_AC97
 	tristate "SoC AC97 Audio for the ADI BF5xx chip"
