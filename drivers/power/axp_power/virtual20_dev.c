@@ -33,6 +33,8 @@
 
 #include "axp-cfg.h"
 
+#define AXP152_I2C_ADDR 48
+
 static struct platform_device virt[]={
 	{
 			.name = "reg-20-cs-ldo2",
@@ -77,11 +79,16 @@ static struct platform_device virt[]={
 
 static int __init virtual_init(void)
 {
-	int j, ret, used = 0;
+	int j, ret, used = 0, i2c_addr = 0;
 
 	ret = script_parser_fetch("pmu_para", "pmu_used", &used, sizeof(int));
 	if (ret || !used)
 		return -ENODEV;
+
+	ret = script_parser_fetch("pmu_para", "pmu_twi_addr", &i2c_addr,
+				  sizeof(int));
+	if (ret || i2c_addr == AXP152_I2C_ADDR)
+		return -ENODEV; /* AXP152 not AXP20, do not load */
 
 	for (j = 0; j < ARRAY_SIZE(virt); j++){
  		ret =  platform_device_register(&virt[j]);

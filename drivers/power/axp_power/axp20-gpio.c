@@ -32,6 +32,11 @@ struct virtual_gpio_data {
 
 int axp_gpio_set_io(int gpio, int io_state)
 {
+	if (!axp) {
+		WARN_ON_ONCE("axp gpio used without AXP");
+		return -ENODEV;
+	}
+
 	if(io_state == 1){
 		switch(gpio)
 		{
@@ -63,6 +68,12 @@ EXPORT_SYMBOL_GPL(axp_gpio_set_io);
 int axp_gpio_get_io(int gpio, int *io_state)
 {
 	uint8_t val;
+
+	if (!axp) {
+		WARN_ON_ONCE("axp gpio used without AXP");
+		return -ENODEV;
+	}
+
 	switch(gpio)
 	{
 		case 0: axp_read(&axp->dev,AXP20_GPIO0_CFG,&val);val &= 0x07;

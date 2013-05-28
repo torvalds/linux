@@ -35,6 +35,7 @@
 #include "axp-cfg.h"
 #include <plat/sys_config.h>
 
+#define AXP152_I2C_ADDR 48
 
 int pmu_used;
 int pmu_twi_id;
@@ -375,6 +376,9 @@ static int __init axp_board_init(void)
             printk("axp driver uning configuration failed(%d)\n", __LINE__);
             pmu_twi_addr = AXP20_ADDR;
         }
+	if (pmu_twi_addr == AXP152_I2C_ADDR)
+		return -ENODEV; /* AXP152 not AXP20, do not load */
+
         ret = script_parser_fetch("pmu_para", "pmu_battery_rdc", &pmu_battery_rdc, sizeof(int));
         if (ret)
         {
