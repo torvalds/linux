@@ -633,16 +633,12 @@ static ssize_t show_pch_mac(struct device *dev, struct device_attribute *attr,
 static ssize_t store_pch_mac(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
-	u8 mac[6];
+	u8 mac[ETH_ALEN];
 	ssize_t rom_size;
 	struct pch_phub_reg *chip = dev_get_drvdata(dev);
 
-	if (count != 18)
+	if (!mac_pton(buf, mac))
 		return -EINVAL;
-
-	sscanf(buf, "%02x:%02x:%02x:%02x:%02x:%02x",
-		(u32 *)&mac[0], (u32 *)&mac[1], (u32 *)&mac[2], (u32 *)&mac[3],
-		(u32 *)&mac[4], (u32 *)&mac[5]);
 
 	chip->pch_phub_extrom_base_address = pci_map_rom(chip->pdev, &rom_size);
 	if (!chip->pch_phub_extrom_base_address)
