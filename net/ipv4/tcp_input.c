@@ -2315,7 +2315,7 @@ static bool tcp_try_undo_recovery(struct sock *sk)
 }
 
 /* Try to undo cwnd reduction, because D-SACKs acked all retransmitted data */
-static void tcp_try_undo_dsack(struct sock *sk)
+static bool tcp_try_undo_dsack(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -2323,7 +2323,9 @@ static void tcp_try_undo_dsack(struct sock *sk)
 		DBGUNDO(sk, "D-SACK");
 		tcp_undo_cwnd_reduction(sk, false);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPDSACKUNDO);
+		return true;
 	}
+	return false;
 }
 
 /* We can clear retrans_stamp when there are no retransmissions in the
@@ -2750,6 +2752,10 @@ static void tcp_fastretrans_alert(struct sock *sk, const int acked,
 			/* Partial ACK arrived. Force fast retransmit. */
 			do_lost = tcp_is_reno(tp) ||
 				  tcp_fackets_out(tp) > tp->reordering;
+		}
+		if (tcp_try_undo_dsack(sk)) {
+			tcp_try_keep_open(sk);
+			return;
 		}
 		break;
 	case TCP_CA_Loss:
