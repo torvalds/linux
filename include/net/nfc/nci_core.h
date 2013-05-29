@@ -242,6 +242,7 @@ struct nci_spi_dev *nci_spi_allocate_device(struct spi_device *spi,
 void nci_spi_free_device(struct nci_spi_dev *ndev);
 int nci_spi_register_device(struct nci_spi_dev *ndev);
 void nci_spi_unregister_device(struct nci_spi_dev *ndev);
+int nci_spi_recv_frame(struct nci_spi_dev *ndev);
 
 static inline void nci_spi_set_drvdata(struct nci_spi_dev *ndev,
 					    void *data)

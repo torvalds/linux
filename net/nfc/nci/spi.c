@@ -26,6 +26,8 @@
 
 #define NCI_SPI_HDR_LEN			4
 #define NCI_SPI_CRC_LEN			2
+#define NCI_SPI_ACK_SHIFT		6
+#define NCI_SPI_MSB_PAYLOAD_MASK	0x3F
 
 #define NCI_SPI_SEND_TIMEOUT	(NCI_CMD_TIMEOUT > NCI_DATA_TIMEOUT ? \
 					NCI_CMD_TIMEOUT : NCI_DATA_TIMEOUT)
@@ -203,3 +205,175 @@ void nci_spi_unregister_device(struct nci_spi_dev *ndev)
 	nci_unregister_device(ndev->nci_dev);
 }
 EXPORT_SYMBOL_GPL(nci_spi_unregister_device);
+
+static int send_acknowledge(struct nci_spi_dev *ndev, u8 acknowledge)
+{
+	struct sk_buff *skb;
+	unsigned char *hdr;
+	u16 crc;
+	int ret;
+
+	skb = nci_skb_alloc(ndev->nci_dev, 0, GFP_KERNEL);
+
+	/* add the NCI SPI header to the start of the buffer */
+	hdr = skb_push(skb, NCI_SPI_HDR_LEN);
+	hdr[0] = NCI_SPI_DIRECT_WRITE;
+	hdr[1] = NCI_SPI_CRC_ENABLED;
+	hdr[2] = acknowledge << NCI_SPI_ACK_SHIFT;
+	hdr[3] = 0;
+
+	crc = crc_ccitt(CRC_INIT, skb->data, skb->len);
+	*skb_put(skb, 1) = crc >> 8;
+	*skb_put(skb, 1) = crc & 0xFF;
+
+	ret = __nci_spi_send(ndev, skb);
+
+	kfree_skb(skb);
+
+	return ret;
+}
+
+static struct sk_buff *__nci_spi_recv_frame(struct nci_spi_dev *ndev)
+{
+	struct sk_buff *skb;
+	struct spi_message m;
+	unsigned char req[2], resp_hdr[2];
+	struct spi_transfer tx, rx;
+	unsigned short rx_len = 0;
+	int ret;
+
+	spi_message_init(&m);
+	req[0] = NCI_SPI_DIRECT_READ;
+	req[1] = ndev->acknowledge_mode;
+	tx.tx_buf = req;
+	tx.len = 2;
+	tx.cs_change = 0;
+	spi_message_add_tail(&tx, &m);
+	rx.rx_buf = resp_hdr;
+	rx.len = 2;
+	rx.cs_change = 1;
+	spi_message_add_tail(&rx, &m);
+	ret = spi_sync(ndev->spi, &m);
+
+	if (ret)
+		return NULL;
+
+	if (ndev->acknowledge_mode == NCI_SPI_CRC_ENABLED)
+		rx_len = ((resp_hdr[0] & NCI_SPI_MSB_PAYLOAD_MASK) << 8) +
+				resp_hdr[1] + NCI_SPI_CRC_LEN;
+	else
+		rx_len = (resp_hdr[0] << 8) | resp_hdr[1];
+
+	skb = nci_skb_alloc(ndev->nci_dev, rx_len, GFP_KERNEL);
+	if (!skb)
+		return NULL;
+
+	spi_message_init(&m);
+	rx.rx_buf = skb_put(skb, rx_len);
+	rx.len = rx_len;
+	rx.cs_change = 0;
+	rx.delay_usecs = ndev->xfer_udelay;
+	spi_message_add_tail(&rx, &m);
+	ret = spi_sync(ndev->spi, &m);
+
+	if (ret)
+		goto receive_error;
+
+	if (ndev->acknowledge_mode == NCI_SPI_CRC_ENABLED) {
+		*skb_push(skb, 1) = resp_hdr[1];
+		*skb_push(skb, 1) = resp_hdr[0];
+	}
+
+	return skb;
+
+receive_error:
+	kfree_skb(skb);
+
+	return NULL;
+}
+
+static int nci_spi_check_crc(struct sk_buff *skb)
+{
+	u16 crc_data = (skb->data[skb->len - 2] << 8) |
+			skb->data[skb->len - 1];
+	int ret;
+
+	ret = (crc_ccitt(CRC_INIT, skb->data, skb->len - NCI_SPI_CRC_LEN)
+			== crc_data);
+
+	skb_trim(skb, skb->len - NCI_SPI_CRC_LEN);
+
+	return ret;
+}
+
+static u8 nci_spi_get_ack(struct sk_buff *skb)
+{
+	u8 ret;
+
+	ret = skb->data[0] >> NCI_SPI_ACK_SHIFT;
+
+	/* Remove NFCC part of the header: ACK, NACK and MSB payload len */
+	skb_pull(skb, 2);
+
+	return ret;
+}
+
+/**
+ * nci_spi_recv_frame - receive frame from NCI SPI drivers
+ *
+ * @ndev: The nci spi device
+ * Context: can sleep
+ *
+ * This call may only be used from a context that may sleep.  The sleep
+ * is non-interruptible, and has no timeout.
+ *
+ * It returns zero on success, else a negative error code.
+ */
+int nci_spi_recv_frame(struct nci_spi_dev *ndev)
+{
+	struct sk_buff *skb;
+	int ret = 0;
+
+	ndev->ops->deassert_int(ndev);
+
+	/* Retrieve frame from SPI */
+	skb = __nci_spi_recv_frame(ndev);
+	if (!skb) {
+		ret = -EIO;
+		goto done;
+	}
+
+	if (ndev->acknowledge_mode == NCI_SPI_CRC_ENABLED) {
+		if (!nci_spi_check_crc(skb)) {
+			send_acknowledge(ndev, ACKNOWLEDGE_NACK);
+			goto done;
+		}
+
+		/* In case of acknowledged mode: if ACK or NACK received,
+		 * unblock completion of latest frame sent.
+		 */
+		ndev->req_result = nci_spi_get_ack(skb);
+		if (ndev->req_result)
+			complete(&ndev->req_completion);
+	}
+
+	/* If there is no payload (ACK/NACK only frame),
+	 * free the socket buffer
+	 */
+	if (skb->len == 0) {
+		kfree_skb(skb);
+		goto done;
+	}
+
+	if (ndev->acknowledge_mode == NCI_SPI_CRC_ENABLED)
+		send_acknowledge(ndev, ACKNOWLEDGE_ACK);
+
+	/* Forward skb to NCI core layer */
+	ret = nci_recv_frame(ndev->nci_dev, skb);
+
+done:
+	ndev->ops->assert_int(ndev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nci_spi_recv_frame);
