@@ -204,7 +204,83 @@ out:
 }
 
 /**
+ *  ixgbe_read_phy_mdi - Reads a value from a specified PHY register without
+ *  the SWFW lock
+ *  @hw: pointer to hardware structure
+ *  @reg_addr: 32 bit address of PHY register to read
+ *  @phy_data: Pointer to read data from PHY register
+ **/
+s32 ixgbe_read_phy_reg_mdi(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
+		       u16 *phy_data)
+{
+	u32 i, data, command;
+
+	/* Setup and write the address cycle command */
+	command = ((reg_addr << IXGBE_MSCA_NP_ADDR_SHIFT)  |
+		   (device_type << IXGBE_MSCA_DEV_TYPE_SHIFT) |
+		   (hw->phy.mdio.prtad << IXGBE_MSCA_PHY_ADDR_SHIFT) |
+		   (IXGBE_MSCA_ADDR_CYCLE | IXGBE_MSCA_MDI_COMMAND));
+
+	IXGBE_WRITE_REG(hw, IXGBE_MSCA, command);
+
+	/* Check every 10 usec to see if the address cycle completed.
+	 * The MDI Command bit will clear when the operation is
+	 * complete
+	 */
+	for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
+		udelay(10);
+
+		command = IXGBE_READ_REG(hw, IXGBE_MSCA);
+		if ((command & IXGBE_MSCA_MDI_COMMAND) == 0)
+				break;
+	}
+
+
+	if ((command & IXGBE_MSCA_MDI_COMMAND) != 0) {
+		hw_dbg(hw, "PHY address command did not complete.\n");
+		return IXGBE_ERR_PHY;
+	}
+
+	/* Address cycle complete, setup and write the read
+	 * command
+	 */
+	command = ((reg_addr << IXGBE_MSCA_NP_ADDR_SHIFT)  |
+		   (device_type << IXGBE_MSCA_DEV_TYPE_SHIFT) |
+		   (hw->phy.mdio.prtad << IXGBE_MSCA_PHY_ADDR_SHIFT) |
+		   (IXGBE_MSCA_READ | IXGBE_MSCA_MDI_COMMAND));
+
+	IXGBE_WRITE_REG(hw, IXGBE_MSCA, command);
+
+	/* Check every 10 usec to see if the address cycle
+	 * completed. The MDI Command bit will clear when the
+	 * operation is complete
+	 */
+	for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
+		udelay(10);
+
+		command = IXGBE_READ_REG(hw, IXGBE_MSCA);
+		if ((command & IXGBE_MSCA_MDI_COMMAND) == 0)
+			break;
+	}
+
+	if ((command & IXGBE_MSCA_MDI_COMMAND) != 0) {
+		hw_dbg(hw, "PHY read command didn't complete\n");
+		return IXGBE_ERR_PHY;
+	}
+
+	/* Read operation is complete.  Get the data
+	 * from MSRWD
+	 */
+	data = IXGBE_READ_REG(hw, IXGBE_MSRWD);
+	data >>= IXGBE_MSRWD_READ_DATA_SHIFT;
+	*phy_data = (u16)(data);
+
+	return 0;
+}
+
+/**
  *  ixgbe_read_phy_reg_generic - Reads a value from a specified PHY register
+ *  using the SWFW lock - this function is needed in most cases
  *  @hw: pointer to hardware structure
  *  @reg_addr: 32 bit address of PHY register to read
  *  @phy_data: Pointer to read data from PHY register
@@ -212,10 +288,7 @@ out:
 s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
                                u32 device_type, u16 *phy_data)
 {
-	u32 command;
-	u32 i;
-	u32 data;
-	s32 status = 0;
+	s32 status;
 	u16 gssr;
 
 	if (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)
@@ -223,86 +296,93 @@ s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 	else
 		gssr = IXGBE_GSSR_PHY0_SM;
 
-	if (hw->mac.ops.acquire_swfw_sync(hw, gssr) != 0)
-		status = IXGBE_ERR_SWFW_SYNC;
-
-	if (status == 0) {
-		/* Setup and write the address cycle command */
-		command = ((reg_addr << IXGBE_MSCA_NP_ADDR_SHIFT)  |
-		           (device_type << IXGBE_MSCA_DEV_TYPE_SHIFT) |
-		           (hw->phy.mdio.prtad << IXGBE_MSCA_PHY_ADDR_SHIFT) |
-		           (IXGBE_MSCA_ADDR_CYCLE | IXGBE_MSCA_MDI_COMMAND));
-
-		IXGBE_WRITE_REG(hw, IXGBE_MSCA, command);
-
-		/*
-		 * Check every 10 usec to see if the address cycle completed.
-		 * The MDI Command bit will clear when the operation is
-		 * complete
-		 */
-		for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
-			udelay(10);
-
-			command = IXGBE_READ_REG(hw, IXGBE_MSCA);
-
-			if ((command & IXGBE_MSCA_MDI_COMMAND) == 0)
-				break;
-		}
-
-		if ((command & IXGBE_MSCA_MDI_COMMAND) != 0) {
-			hw_dbg(hw, "PHY address command did not complete.\n");
-			status = IXGBE_ERR_PHY;
-		}
-
-		if (status == 0) {
-			/*
-			 * Address cycle complete, setup and write the read
-			 * command
-			 */
-			command = ((reg_addr << IXGBE_MSCA_NP_ADDR_SHIFT)  |
-			           (device_type << IXGBE_MSCA_DEV_TYPE_SHIFT) |
-			           (hw->phy.mdio.prtad <<
-				    IXGBE_MSCA_PHY_ADDR_SHIFT) |
-			           (IXGBE_MSCA_READ | IXGBE_MSCA_MDI_COMMAND));
-
-			IXGBE_WRITE_REG(hw, IXGBE_MSCA, command);
-
-			/*
-			 * Check every 10 usec to see if the address cycle
-			 * completed. The MDI Command bit will clear when the
-			 * operation is complete
-			 */
-			for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
-				udelay(10);
-
-				command = IXGBE_READ_REG(hw, IXGBE_MSCA);
-
-				if ((command & IXGBE_MSCA_MDI_COMMAND) == 0)
-					break;
-			}
-
-			if ((command & IXGBE_MSCA_MDI_COMMAND) != 0) {
-				hw_dbg(hw, "PHY read command didn't complete\n");
-				status = IXGBE_ERR_PHY;
-			} else {
-				/*
-				 * Read operation is complete.  Get the data
-				 * from MSRWD
-				 */
-				data = IXGBE_READ_REG(hw, IXGBE_MSRWD);
-				data >>= IXGBE_MSRWD_READ_DATA_SHIFT;
-				*phy_data = (u16)(data);
-			}
-		}
-
+	if (hw->mac.ops.acquire_swfw_sync(hw, gssr) == 0) {
+		status = ixgbe_read_phy_reg_mdi(hw, reg_addr, device_type,
+						phy_data);
 		hw->mac.ops.release_swfw_sync(hw, gssr);
+	} else {
+		status = IXGBE_ERR_SWFW_SYNC;
 	}
 
 	return status;
 }
 
 /**
+ *  ixgbe_write_phy_reg_mdi - Writes a value to specified PHY register
+ *  without SWFW lock
+ *  @hw: pointer to hardware structure
+ *  @reg_addr: 32 bit PHY register to write
+ *  @device_type: 5 bit device type
+ *  @phy_data: Data to write to the PHY register
+ **/
+s32 ixgbe_write_phy_reg_mdi(struct ixgbe_hw *hw, u32 reg_addr,
+				u32 device_type, u16 phy_data)
+{
+	u32 i, command;
+
+	/* Put the data in the MDI single read and write data register*/
+	IXGBE_WRITE_REG(hw, IXGBE_MSRWD, (u32)phy_data);
+
+	/* Setup and write the address cycle command */
+	command = ((reg_addr << IXGBE_MSCA_NP_ADDR_SHIFT)  |
+		   (device_type << IXGBE_MSCA_DEV_TYPE_SHIFT) |
+		   (hw->phy.mdio.prtad << IXGBE_MSCA_PHY_ADDR_SHIFT) |
+		   (IXGBE_MSCA_ADDR_CYCLE | IXGBE_MSCA_MDI_COMMAND));
+
+	IXGBE_WRITE_REG(hw, IXGBE_MSCA, command);
+
+	/*
+	 * Check every 10 usec to see if the address cycle completed.
+	 * The MDI Command bit will clear when the operation is
+	 * complete
+	 */
+	for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
+		udelay(10);
+
+		command = IXGBE_READ_REG(hw, IXGBE_MSCA);
+		if ((command & IXGBE_MSCA_MDI_COMMAND) == 0)
+			break;
+	}
+
+	if ((command & IXGBE_MSCA_MDI_COMMAND) != 0) {
+		hw_dbg(hw, "PHY address cmd didn't complete\n");
+		return IXGBE_ERR_PHY;
+	}
+
+	/*
+	 * Address cycle complete, setup and write the write
+	 * command
+	 */
+	command = ((reg_addr << IXGBE_MSCA_NP_ADDR_SHIFT)  |
+		   (device_type << IXGBE_MSCA_DEV_TYPE_SHIFT) |
+		   (hw->phy.mdio.prtad << IXGBE_MSCA_PHY_ADDR_SHIFT) |
+		   (IXGBE_MSCA_WRITE | IXGBE_MSCA_MDI_COMMAND));
+
+	IXGBE_WRITE_REG(hw, IXGBE_MSCA, command);
+
+	/* Check every 10 usec to see if the address cycle
+	 * completed. The MDI Command bit will clear when the
+	 * operation is complete
+	 */
+	for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
+		udelay(10);
+
+		command = IXGBE_READ_REG(hw, IXGBE_MSCA);
+		if ((command & IXGBE_MSCA_MDI_COMMAND) == 0)
+			break;
+	}
+
+	if ((command & IXGBE_MSCA_MDI_COMMAND) != 0) {
+		hw_dbg(hw, "PHY write cmd didn't complete\n");
+		return IXGBE_ERR_PHY;
+	}
+
+	return 0;
+}
+
+/**
  *  ixgbe_write_phy_reg_generic - Writes a value to specified PHY register
+ *  using SWFW lock- this function is needed in most cases
  *  @hw: pointer to hardware structure
  *  @reg_addr: 32 bit PHY register to write
  *  @device_type: 5 bit device type
@@ -311,9 +391,7 @@ s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
                                 u32 device_type, u16 phy_data)
 {
-	u32 command;
-	u32 i;
-	s32 status = 0;
+	s32 status;
 	u16 gssr;
 
 	if (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)
@@ -321,74 +399,12 @@ s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 	else
 		gssr = IXGBE_GSSR_PHY0_SM;
 
-	if (hw->mac.ops.acquire_swfw_sync(hw, gssr) != 0)
-		status = IXGBE_ERR_SWFW_SYNC;
-
-	if (status == 0) {
-		/* Put the data in the MDI single read and write data register*/
-		IXGBE_WRITE_REG(hw, IXGBE_MSRWD, (u32)phy_data);
-
-		/* Setup and write the address cycle command */
-		command = ((reg_addr << IXGBE_MSCA_NP_ADDR_SHIFT)  |
-		           (device_type << IXGBE_MSCA_DEV_TYPE_SHIFT) |
-		           (hw->phy.mdio.prtad << IXGBE_MSCA_PHY_ADDR_SHIFT) |
-		           (IXGBE_MSCA_ADDR_CYCLE | IXGBE_MSCA_MDI_COMMAND));
-
-		IXGBE_WRITE_REG(hw, IXGBE_MSCA, command);
-
-		/*
-		 * Check every 10 usec to see if the address cycle completed.
-		 * The MDI Command bit will clear when the operation is
-		 * complete
-		 */
-		for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
-			udelay(10);
-
-			command = IXGBE_READ_REG(hw, IXGBE_MSCA);
-
-			if ((command & IXGBE_MSCA_MDI_COMMAND) == 0)
-				break;
-		}
-
-		if ((command & IXGBE_MSCA_MDI_COMMAND) != 0) {
-			hw_dbg(hw, "PHY address cmd didn't complete\n");
-			status = IXGBE_ERR_PHY;
-		}
-
-		if (status == 0) {
-			/*
-			 * Address cycle complete, setup and write the write
-			 * command
-			 */
-			command = ((reg_addr << IXGBE_MSCA_NP_ADDR_SHIFT)  |
-			           (device_type << IXGBE_MSCA_DEV_TYPE_SHIFT) |
-			           (hw->phy.mdio.prtad <<
-				    IXGBE_MSCA_PHY_ADDR_SHIFT) |
-			           (IXGBE_MSCA_WRITE | IXGBE_MSCA_MDI_COMMAND));
-
-			IXGBE_WRITE_REG(hw, IXGBE_MSCA, command);
-
-			/*
-			 * Check every 10 usec to see if the address cycle
-			 * completed. The MDI Command bit will clear when the
-			 * operation is complete
-			 */
-			for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
-				udelay(10);
-
-				command = IXGBE_READ_REG(hw, IXGBE_MSCA);
-
-				if ((command & IXGBE_MSCA_MDI_COMMAND) == 0)
-					break;
-			}
-
-			if ((command & IXGBE_MSCA_MDI_COMMAND) != 0) {
-				hw_dbg(hw, "PHY address cmd didn't complete\n");
-				status = IXGBE_ERR_PHY;
-			}
-		}
-
+	if (hw->mac.ops.acquire_swfw_sync(hw, gssr) == 0) {
+		status = ixgbe_write_phy_reg_mdi(hw, reg_addr, device_type,
+						 phy_data);
 		hw->mac.ops.release_swfw_sync(hw, gssr);
+	} else {
+		status = IXGBE_ERR_SWFW_SYNC;
 	}
 
 	return status;
