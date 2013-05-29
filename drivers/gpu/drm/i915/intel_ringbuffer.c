@@ -916,7 +916,8 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 			mmio = BSD_HWS_PGA_GEN7;
 			break;
 		case VECS:
-			BUG();
+			mmio = VEBOX_HWS_PGA_GEN7;
+			break;
 		}
 	} else if (IS_GEN6(ring->dev)) {
 		mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
@@ -1904,6 +1905,38 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	ring->signal_mbox[VCS] = GEN6_VBSYNC;
 	ring->signal_mbox[BCS] = GEN6_NOSYNC;
 	ring->signal_mbox[VECS] = GEN6_VEBSYNC;
+	ring->init = init_ring_common;
+
+	return intel_init_ring_buffer(dev, ring);
+}
+
+int intel_init_vebox_ring_buffer(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = &dev_priv->ring[VECS];
+
+	ring->name = "video enhancement ring";
+	ring->id = VECS;
+
+	ring->mmio_base = VEBOX_RING_BASE;
+	ring->write_tail = ring_write_tail;
+	ring->flush = gen6_ring_flush;
+	ring->add_request = gen6_add_request;
+	ring->get_seqno = gen6_ring_get_seqno;
+	ring->set_seqno = ring_set_seqno;
+	ring->irq_enable_mask = 0;
+	ring->irq_get = NULL;
+	ring->irq_put = NULL;
+	ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
+	ring->sync_to = gen6_ring_sync;
+	ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_VER;
+	ring->semaphore_register[VCS] = MI_SEMAPHORE_SYNC_VEV;
+	ring->semaphore_register[BCS] = MI_SEMAPHORE_SYNC_VEB;
+	ring->semaphore_register[VECS] = MI_SEMAPHORE_SYNC_INVALID;
+	ring->signal_mbox[RCS] = GEN6_RVESYNC;
+	ring->signal_mbox[VCS] = GEN6_VVESYNC;
+	ring->signal_mbox[BCS] = GEN6_BVESYNC;
+	ring->signal_mbox[VECS] = GEN6_NOSYNC;
 	ring->init = init_ring_common;
 
 	return intel_init_ring_buffer(dev, ring);
