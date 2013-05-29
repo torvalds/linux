@@ -269,8 +269,7 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 		/* FIXME this doesn't implement that scheduling policy ...
 		 * or handle framecounter wrapping
 		 */
-		if ((urb->transfer_flags & URB_ISO_ASAP)
-				|| (frame >= urb->start_frame)) {
+		if (1) {	/* Always assume URB_ISO_ASAP */
 			/* REVISIT the SOF irq handler shouldn't duplicate
 			 * this code; and we don't init urb->start_frame...
 			 */
