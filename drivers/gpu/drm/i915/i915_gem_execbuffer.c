@@ -885,6 +885,15 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			return -EPERM;
 		}
 		break;
+	case I915_EXEC_VEBOX:
+		ring = &dev_priv->ring[VECS];
+		if (ctx_id != 0) {
+			DRM_DEBUG("Ring %s doesn't support contexts\n",
+				  ring->name);
+			return -EPERM;
+		}
+		break;
+
 	default:
 		DRM_DEBUG("execbuf with unknown ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
