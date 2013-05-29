@@ -729,12 +729,22 @@ static int cma_addr_cmp(struct sockaddr *src, struct sockaddr *dst)
 	}
 }
 
-static inline __be16 cma_port(struct sockaddr *addr)
+static __be16 cma_port(struct sockaddr *addr)
 {
-	if (addr->sa_family == AF_INET)
+	struct sockaddr_ib *sib;
+
+	switch (addr->sa_family) {
+	case AF_INET:
 		return ((struct sockaddr_in *) addr)->sin_port;
-	else
+	case AF_INET6:
 		return ((struct sockaddr_in6 *) addr)->sin6_port;
+	case AF_IB:
+		sib = (struct sockaddr_ib *) addr;
+		return htons((u16) (be64_to_cpu(sib->sib_sid) &
+				    be64_to_cpu(sib->sib_sid_mask)));
+	default:
+		return 0;
+	}
 }
 
 static inline int cma_any_port(struct sockaddr *addr)
@@ -2139,10 +2149,29 @@ EXPORT_SYMBOL(rdma_set_afonly);
 static void cma_bind_port(struct rdma_bind_list *bind_list,
 			  struct rdma_id_private *id_priv)
 {
-	struct sockaddr_in *sin;
+	struct sockaddr *addr;
+	struct sockaddr_ib *sib;
+	u64 sid, mask;
+	__be16 port;
 
-	sin = (struct sockaddr_in *) &id_priv->id.route.addr.src_addr;
-	sin->sin_port = htons(bind_list->port);
+	addr = (struct sockaddr *) &id_priv->id.route.addr.src_addr;
+	port = htons(bind_list->port);
+
+	switch (addr->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *) addr)->sin_port = port;
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *) addr)->sin6_port = port;
+		break;
+	case AF_IB:
+		sib = (struct sockaddr_ib *) addr;
+		sid = be64_to_cpu(sib->sib_sid);
+		mask = be64_to_cpu(sib->sib_sid_mask);
+		sib->sib_sid = cpu_to_be64((sid & mask) | (u64) ntohs(port));
+		sib->sib_sid_mask = cpu_to_be64(~0ULL);
+		break;
+	}
 	id_priv->bind_list = bind_list;
 	hlist_add_head(&id_priv->node, &bind_list->owners);
 }
@@ -2269,30 +2298,66 @@ static int cma_bind_listen(struct rdma_id_private *id_priv)
 	return ret;
 }
 
+static struct idr *cma_select_inet_ps(struct rdma_id_private *id_priv)
+{
+	switch (id_priv->id.ps) {
+	case RDMA_PS_SDP:
+		return &sdp_ps;
+	case RDMA_PS_TCP:
+		return &tcp_ps;
+	case RDMA_PS_UDP:
+		return &udp_ps;
+	case RDMA_PS_IPOIB:
+		return &ipoib_ps;
+	case RDMA_PS_IB:
+		return &ib_ps;
+	default:
+		return NULL;
+	}
+}
+
+static struct idr *cma_select_ib_ps(struct rdma_id_private *id_priv)
+{
+	struct idr *ps = NULL;
+	struct sockaddr_ib *sib;
+	u64 sid_ps, mask, sid;
+
+	sib = (struct sockaddr_ib *) &id_priv->id.route.addr.src_addr;
+	mask = be64_to_cpu(sib->sib_sid_mask) & RDMA_IB_IP_PS_MASK;
+	sid = be64_to_cpu(sib->sib_sid) & mask;
+
+	if ((id_priv->id.ps == RDMA_PS_IB) && (sid == (RDMA_IB_IP_PS_IB & mask))) {
+		sid_ps = RDMA_IB_IP_PS_IB;
+		ps = &ib_ps;
+	} else if (((id_priv->id.ps == RDMA_PS_IB) || (id_priv->id.ps == RDMA_PS_TCP)) &&
+		   (sid == (RDMA_IB_IP_PS_TCP & mask))) {
+		sid_ps = RDMA_IB_IP_PS_TCP;
+		ps = &tcp_ps;
+	} else if (((id_priv->id.ps == RDMA_PS_IB) || (id_priv->id.ps == RDMA_PS_UDP)) &&
+		   (sid == (RDMA_IB_IP_PS_UDP & mask))) {
+		sid_ps = RDMA_IB_IP_PS_UDP;
+		ps = &udp_ps;
+	}
+
+	if (ps) {
+		sib->sib_sid = cpu_to_be64(sid_ps | ntohs(cma_port((struct sockaddr *) sib)));
+		sib->sib_sid_mask = cpu_to_be64(RDMA_IB_IP_PS_MASK |
+						be64_to_cpu(sib->sib_sid_mask));
+	}
+	return ps;
+}
+
 static int cma_get_port(struct rdma_id_private *id_priv)
 {
 	struct idr *ps;
 	int ret;
 
-	switch (id_priv->id.ps) {
-	case RDMA_PS_SDP:
-		ps = &sdp_ps;
-		break;
-	case RDMA_PS_TCP:
-		ps = &tcp_ps;
-		break;
-	case RDMA_PS_UDP:
-		ps = &udp_ps;
-		break;
-	case RDMA_PS_IPOIB:
-		ps = &ipoib_ps;
-		break;
-	case RDMA_PS_IB:
-		ps = &ib_ps;
-		break;
-	default:
+	if (id_priv->id.route.addr.src_addr.ss_family != AF_IB)
+		ps = cma_select_inet_ps(id_priv);
+	else
+		ps = cma_select_ib_ps(id_priv);
+	if (!ps)
 		return -EPROTONOSUPPORT;
-	}
 
 	mutex_lock(&lock);
 	if (cma_any_port((struct sockaddr *) &id_priv->id.route.addr.src_addr))

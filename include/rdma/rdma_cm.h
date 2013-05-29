@@ -70,6 +70,11 @@ enum rdma_port_space {
 	RDMA_PS_UDP   = 0x0111,
 };
 
+#define RDMA_IB_IP_PS_MASK   0xFFFFFFFFFFFF0000ULL
+#define RDMA_IB_IP_PS_TCP    0x0000000001060000ULL
+#define RDMA_IB_IP_PS_UDP    0x0000000001110000ULL
+#define RDMA_IB_IP_PS_IB     0x00000000013F0000ULL
+
 struct rdma_addr {
 	struct sockaddr_storage src_addr;
 	struct sockaddr_storage dst_addr;
