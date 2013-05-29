@@ -809,26 +809,36 @@ static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
 
 	/* calculate frame */
 	cur_frame = imx21_hc_get_frame(hcd);
-	if (urb->transfer_flags & URB_ISO_ASAP) {
-		if (list_empty(&ep_priv->td_list))
-			urb->start_frame = cur_frame + 5;
-		else
-			urb->start_frame = list_entry(
-				ep_priv->td_list.prev,
-				struct td, list)->frame + urb->interval;
-	}
-	urb->start_frame = wrap_frame(urb->start_frame);
-	if (frame_after(cur_frame, urb->start_frame)) {
-		dev_dbg(imx21->dev,
-			"enqueue: adjusting iso start %d (cur=%d) asap=%d\n",
-			urb->start_frame, cur_frame,
-			(urb->transfer_flags & URB_ISO_ASAP) != 0);
-		urb->start_frame = wrap_frame(cur_frame + 1);
+	i = 0;
+	if (list_empty(&ep_priv->td_list)) {
+		urb->start_frame = wrap_frame(cur_frame + 5);
+	} else {
+		urb->start_frame = wrap_frame(list_entry(ep_priv->td_list.prev,
+				struct td, list)->frame + urb->interval);
+
+		if (frame_after(cur_frame, urb->start_frame)) {
+			dev_dbg(imx21->dev,
+				"enqueue: adjusting iso start %d (cur=%d) asap=%d\n",
+				urb->start_frame, cur_frame,
+				(urb->transfer_flags & URB_ISO_ASAP) != 0);
+			i = DIV_ROUND_UP(wrap_frame(
+					cur_frame - urb->start_frame),
+					urb->interval);
+			if (urb->transfer_flags & URB_ISO_ASAP) {
+				urb->start_frame = wrap_frame(urb->start_frame
+						+ i * urb->interval);
+				i = 0;
+			} else if (i >= urb->number_of_packets) {
+				ret = -EXDEV;
+				goto alloc_dmem_failed;
+			}
+		}
 	}
 
 	/* set up transfers */
+	urb_priv->isoc_remaining = urb->number_of_packets - i;
 	td = urb_priv->isoc_td;
-	for (i = 0; i < urb->number_of_packets; i++, td++) {
+	for (; i < urb->number_of_packets; i++, td++) {
 		unsigned int offset = urb->iso_frame_desc[i].offset;
 		td->ep = ep;
 		td->urb = urb;
@@ -840,7 +850,6 @@ static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
 		list_add_tail(&td->list, &ep_priv->td_list);
 	}
 
-	urb_priv->isoc_remaining = urb->number_of_packets;
 	dev_vdbg(imx21->dev, "setup %d packets for iso frame %d->%d\n",
 		urb->number_of_packets, urb->start_frame, td->frame);
 
