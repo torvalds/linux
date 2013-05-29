@@ -195,7 +195,7 @@ struct dcp_hw_packet {
 	uint32_t stat;
 };
 
-struct dcp_dev *global_dev;
+static struct dcp_dev *global_dev;
 
 static inline u32 dcp_chan_reg(u32 reg, int chan)
 {
@@ -227,14 +227,14 @@ static inline unsigned int dcp_read(struct dcp_dev *dev, u32 reg)
 	return readl(dev->dcp_regs_base + reg);
 }
 
-void dcp_dma_unmap(struct dcp_dev *dev, struct dcp_hw_packet *pkt)
+static void dcp_dma_unmap(struct dcp_dev *dev, struct dcp_hw_packet *pkt)
 {
 	dma_unmap_page(dev->dev, pkt->src, pkt->size, DMA_TO_DEVICE);
 	dma_unmap_page(dev->dev, pkt->dst, pkt->size, DMA_FROM_DEVICE);
 	dev_dbg(dev->dev, "unmap packet %x", (unsigned int) pkt);
 }
 
-int dcp_dma_map(struct dcp_dev *dev,
+static int dcp_dma_map(struct dcp_dev *dev,
 	struct ablkcipher_walk *walk, struct dcp_hw_packet *pkt)
 {
 	dev_dbg(dev->dev, "map packet %x", (unsigned int) pkt);
@@ -413,7 +413,7 @@ static void dcp_done_task(unsigned long data)
 	tasklet_schedule(&dev->queue_task);
 }
 
-void dcp_watchdog(unsigned long data)
+static void dcp_watchdog(unsigned long data)
 {
 	struct dcp_dev *dev = (struct dcp_dev *)data;
 	dev->ctx->stat |= dcp_read(dev,
