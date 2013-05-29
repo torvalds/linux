@@ -329,29 +329,7 @@ static struct spi_driver wl1251_spi_driver = {
 	.remove		= wl1251_spi_remove,
 };
 
-static int __init wl1251_spi_init(void)
-{
-	int ret;
-
-	ret = spi_register_driver(&wl1251_spi_driver);
-	if (ret < 0) {
-		wl1251_error("failed to register spi driver: %d", ret);
-		goto out;
-	}
-
-out:
-	return ret;
-}
-
-static void __exit wl1251_spi_exit(void)
-{
-	spi_unregister_driver(&wl1251_spi_driver);
-
-	wl1251_notice("unloaded");
-}
-
-module_init(wl1251_spi_init);
-module_exit(wl1251_spi_exit);
+module_spi_driver(wl1251_spi_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kvalo@adurom.com>");
