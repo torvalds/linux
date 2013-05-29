@@ -613,7 +613,7 @@ static int vidioc_querystd(struct file *file, void *_fh, v4l2_std_id *a)
 	struct hdpvr_fh *fh = _fh;
 	int ret;
 
-	*a = V4L2_STD_ALL;
+	*a = V4L2_STD_UNKNOWN;
 	if (dev->options.video_input == HDPVR_COMPONENT)
 		return fh->legacy_mode ? 0 : -ENODATA;
 	ret = get_video_info(dev, &vid_info);
