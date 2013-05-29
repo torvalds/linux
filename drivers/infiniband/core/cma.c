@@ -293,16 +293,25 @@ static inline unsigned short cma_family(struct rdma_id_private *id_priv)
 	return id_priv->id.route.addr.src_addr.ss_family;
 }
 
-static int cma_set_qkey(struct rdma_id_private *id_priv)
+static int cma_set_qkey(struct rdma_id_private *id_priv, u32 qkey)
 {
 	struct ib_sa_mcmember_rec rec;
 	int ret = 0;
 
-	if (id_priv->qkey)
+	if (id_priv->qkey) {
+		if (qkey && id_priv->qkey != qkey)
+			return -EINVAL;
 		return 0;
+	}
+
+	if (qkey) {
+		id_priv->qkey = qkey;
+		return 0;
+	}
 
 	switch (id_priv->id.ps) {
 	case RDMA_PS_UDP:
+	case RDMA_PS_IB:
 		id_priv->qkey = RDMA_UDP_QKEY;
 		break;
 	case RDMA_PS_IPOIB:
@@ -689,7 +698,7 @@ static int cma_ib_init_qp_attr(struct rdma_id_private *id_priv,
 	*qp_attr_mask = IB_QP_STATE | IB_QP_PKEY_INDEX | IB_QP_PORT;
 
 	if (id_priv->id.qp_type == IB_QPT_UD) {
-		ret = cma_set_qkey(id_priv);
+		ret = cma_set_qkey(id_priv, 0);
 		if (ret)
 			return ret;
 
@@ -2624,15 +2633,10 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 			event.status = ib_event->param.sidr_rep_rcvd.status;
 			break;
 		}
-		ret = cma_set_qkey(id_priv);
+		ret = cma_set_qkey(id_priv, rep->qkey);
 		if (ret) {
 			event.event = RDMA_CM_EVENT_ADDR_ERROR;
-			event.status = -EINVAL;
-			break;
-		}
-		if (id_priv->qkey != rep->qkey) {
-			event.event = RDMA_CM_EVENT_UNREACHABLE;
-			event.status = -EINVAL;
+			event.status = ret;
 			break;
 		}
 		ib_init_ah_from_path(id_priv->id.device, id_priv->id.port_num,
@@ -2922,7 +2926,7 @@ static int cma_accept_iw(struct rdma_id_private *id_priv,
 }
 
 static int cma_send_sidr_rep(struct rdma_id_private *id_priv,
-			     enum ib_cm_sidr_status status,
+			     enum ib_cm_sidr_status status, u32 qkey,
 			     const void *private_data, int private_data_len)
 {
 	struct ib_cm_sidr_rep_param rep;
@@ -2931,7 +2935,7 @@ static int cma_send_sidr_rep(struct rdma_id_private *id_priv,
 	memset(&rep, 0, sizeof rep);
 	rep.status = status;
 	if (status == IB_SIDR_SUCCESS) {
-		ret = cma_set_qkey(id_priv);
+		ret = cma_set_qkey(id_priv, qkey);
 		if (ret)
 			return ret;
 		rep.qp_num = id_priv->qp_num;
@@ -2965,11 +2969,12 @@ int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 		if (id->qp_type == IB_QPT_UD) {
 			if (conn_param)
 				ret = cma_send_sidr_rep(id_priv, IB_SIDR_SUCCESS,
+							conn_param->qkey,
 							conn_param->private_data,
 							conn_param->private_data_len);
 			else
 				ret = cma_send_sidr_rep(id_priv, IB_SIDR_SUCCESS,
-							NULL, 0);
+							0, NULL, 0);
 		} else {
 			if (conn_param)
 				ret = cma_accept_ib(id_priv, conn_param);
@@ -3030,7 +3035,7 @@ int rdma_reject(struct rdma_cm_id *id, const void *private_data,
 	switch (rdma_node_get_transport(id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
 		if (id->qp_type == IB_QPT_UD)
-			ret = cma_send_sidr_rep(id_priv, IB_SIDR_REJECT,
+			ret = cma_send_sidr_rep(id_priv, IB_SIDR_REJECT, 0,
 						private_data, private_data_len);
 		else
 			ret = ib_send_cm_rej(id_priv->cm_id.ib,
@@ -3091,6 +3096,8 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 	    cma_disable_callback(id_priv, RDMA_CM_ADDR_RESOLVED))
 		return 0;
 
+	if (!status)
+		status = cma_set_qkey(id_priv, be32_to_cpu(multicast->rec.qkey));
 	mutex_lock(&id_priv->qp_mutex);
 	if (!status && id_priv->id.qp)
 		status = ib_attach_mcast(id_priv->id.qp, &multicast->rec.mgid,

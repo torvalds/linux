@@ -131,7 +131,7 @@ struct rdma_ucm_query_route_resp {
 
 struct rdma_ucm_conn_param {
 	__u32 qp_num;
-	__u32 reserved;
+	__u32 qkey;
 	__u8  private_data[RDMA_MAX_PRIVATE_DATA];
 	__u8  private_data_len;
 	__u8  srq;
