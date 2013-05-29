@@ -130,6 +130,8 @@ err_type:
 	lprocfs_remove(&ldlm_type_proc_dir);
 err:
 	ldlm_svc_proc_dir = NULL;
+	ldlm_type_proc_dir = NULL;
+	ldlm_ns_proc_dir = NULL;
 	RETURN(rc);
 }
 
@@ -143,6 +145,10 @@ void ldlm_proc_cleanup(void)
 
 	if (ldlm_type_proc_dir)
 		lprocfs_remove(&ldlm_type_proc_dir);
+
+	ldlm_svc_proc_dir = NULL;
+	ldlm_type_proc_dir = NULL;
+	ldlm_ns_proc_dir = NULL;
 }
 
 static int lprocfs_ns_resources_seq_show(struct seq_file *m, void *v)

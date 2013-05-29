@@ -49,7 +49,6 @@ libcfs_sock_ioctl(int cmd, unsigned long arg)
 {
 	mm_segment_t    oldmm = get_fs();
 	struct socket  *sock;
-	int	     fd = -1;
 	int	     rc;
 	struct file    *sock_filp;
 
@@ -61,6 +60,7 @@ libcfs_sock_ioctl(int cmd, unsigned long arg)
 
 	sock_filp = sock_alloc_file(sock, 0, NULL);
 	if (!sock_filp) {
+		sock_release(sock);
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -71,12 +71,7 @@ libcfs_sock_ioctl(int cmd, unsigned long arg)
 	set_fs(oldmm);
 
 	fput(sock_filp);
-
- out:
-	if (fd >= 0)
-		sys_close(fd);
-	else
-		sock_release(sock);
+out:
 	return rc;
 }
 
