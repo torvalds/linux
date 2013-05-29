@@ -408,7 +408,7 @@ static void dcp_done_task(unsigned long data)
 	ablkcipher_walk_complete(&dev->ctx->walk);
 	dev->ctx->req->base.complete(&dev->ctx->req->base,
 			dev->ctx->stat);
-	dev->ctx->req = 0;
+	dev->ctx->req = NULL;
 	/* in case there are other requests in the queue */
 	tasklet_schedule(&dev->queue_task);
 }
