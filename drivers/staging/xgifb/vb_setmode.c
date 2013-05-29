@@ -4553,13 +4553,8 @@ static void XGI_DisableBridge(struct xgifb_video_info *xgifb_info,
 		if (!(pVBInfo->VBInfo &
 		    (DisableCRT2Display | SetSimuScanMode))) {
 			if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
-				if (pVBInfo->VBInfo & SetCRT2ToDualEdge) {
+				if (pVBInfo->VBInfo & SetCRT2ToDualEdge)
 					tempah = 0x7F; /* Disable Channel A */
-					if (!(pVBInfo->VBInfo &
-					      XGI_SetCRT2ToLCDA))
-						/* Disable Channel B */
-						tempah = 0xBF;
-				}
 			}
 		}
 
@@ -4578,11 +4573,9 @@ static void XGI_DisableBridge(struct xgifb_video_info *xgifb_info,
 				       SetSimuScanMode))
 			XGI_DisplayOff(xgifb_info, HwDeviceExtension, pVBInfo);
 
-		if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
-			if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)
-				/* Power down */
-				xgifb_reg_and(pVBInfo->Part1Port, 0x1e, 0xdf);
-		}
+		if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)
+			/* Power down */
+			xgifb_reg_and(pVBInfo->Part1Port, 0x1e, 0xdf);
 
 		/* disable TV as primary VGA swap */
 		xgifb_reg_and(pVBInfo->P3c4, 0x32, 0xdf);
