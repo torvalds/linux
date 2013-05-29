@@ -65,3 +65,4 @@ obj-$(CONFIG_USB_SERIAL_VIVOPAY_SERIAL)		+= vivopay-serial.o
 obj-$(CONFIG_USB_SERIAL_XSENS_MT)		+= xsens_mt.o
 obj-$(CONFIG_USB_SERIAL_ZIO)			+= zio.o
 obj-$(CONFIG_USB_SERIAL_ZTE)			+= zte_ev.o
+obj-$(CONFIG_USB_SERIAL_FLASHLOADER)		+= flashloader.o
