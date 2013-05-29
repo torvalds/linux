@@ -1404,6 +1404,8 @@ static int mcam_vidioc_g_register(struct file *file, void *priv,
 {
 	struct mcam_camera *cam = priv;
 
+	if (reg->reg > cam->regs_size - 4)
+		return -EINVAL;
 	reg->val = mcam_reg_read(cam, reg->reg);
 	reg->size = 4;
 	return 0;
@@ -1414,6 +1416,8 @@ static int mcam_vidioc_s_register(struct file *file, void *priv,
 {
 	struct mcam_camera *cam = priv;
 
+	if (reg->reg > cam->regs_size - 4)
+		return -EINVAL;
 	mcam_reg_write(cam, reg->reg, reg->val);
 	return 0;
 }

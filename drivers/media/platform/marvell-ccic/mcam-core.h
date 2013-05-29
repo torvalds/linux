@@ -101,6 +101,7 @@ struct mcam_camera {
 	 */
 	struct i2c_adapter *i2c_adapter;
 	unsigned char __iomem *regs;
+	unsigned regs_size; /* size in bytes of the register space */
 	spinlock_t dev_lock;
 	struct device *dev; /* For messages, dma alloc */
 	enum mcam_chip_id chip_id;
