@@ -886,6 +886,9 @@
 #define GT_RENDER_DEBUG_INTERRUPT		(1 <<  1)
 #define GT_RENDER_USER_INTERRUPT		(1 <<  0)
 
+#define PM_VEBOX_CS_ERROR_INTERRUPT		(1 << 12) /* hsw+ */
+#define PM_VEBOX_USER_INTERRUPT			(1 << 10) /* hsw+ */
+
 /* These are all the "old" interrupts */
 #define ILK_BSD_USER_INTERRUPT				(1<<5)
 #define I915_PIPE_CONTROL_NOTIFY_INTERRUPT		(1<<18)
