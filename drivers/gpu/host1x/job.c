@@ -268,15 +268,15 @@ static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 	return 0;
 }
 
-static int check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
+static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 		       unsigned int offset)
 {
 	offset *= sizeof(u32);
 
 	if (reloc->cmdbuf != cmdbuf || reloc->cmdbuf_offset != offset)
-		return -EINVAL;
+		return false;
 
-	return 0;
+	return true;
 }
 
 struct host1x_firewall {
@@ -307,10 +307,10 @@ static int check_mask(struct host1x_firewall *fw)
 
 		if (mask & 1) {
 			if (fw->job->is_addr_reg(fw->dev, fw->class, reg)) {
-				bool bad_reloc = check_reloc(fw->reloc,
-							     fw->cmdbuf_id,
-							     fw->offset);
-				if (!fw->num_relocs || bad_reloc)
+				if (!fw->num_relocs)
+					return -EINVAL;
+				if (!check_reloc(fw->reloc, fw->cmdbuf_id,
+						 fw->offset))
 					return -EINVAL;
 				fw->reloc++;
 				fw->num_relocs--;
@@ -335,9 +335,9 @@ static int check_incr(struct host1x_firewall *fw)
 			return -EINVAL;
 
 		if (fw->job->is_addr_reg(fw->dev, fw->class, reg)) {
-			bool bad_reloc = check_reloc(fw->reloc, fw->cmdbuf_id,
-						     fw->offset);
-			if (!fw->num_relocs || bad_reloc)
+			if (!fw->num_relocs)
+				return -EINVAL;
+			if (!check_reloc(fw->reloc, fw->cmdbuf_id, fw->offset))
 				return -EINVAL;
 			fw->reloc++;
 			fw->num_relocs--;
@@ -361,9 +361,9 @@ static int check_nonincr(struct host1x_firewall *fw)
 			return -EINVAL;
 
 		if (is_addr_reg) {
-			bool bad_reloc = check_reloc(fw->reloc, fw->cmdbuf_id,
-						     fw->offset);
-			if (!fw->num_relocs || bad_reloc)
+			if (!fw->num_relocs)
+				return -EINVAL;
+			if (!check_reloc(fw->reloc, fw->cmdbuf_id, fw->offset))
 				return -EINVAL;
 			fw->reloc++;
 			fw->num_relocs--;
