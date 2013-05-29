@@ -105,8 +105,8 @@ struct  intel_ring_buffer {
 	int		(*sync_to)(struct intel_ring_buffer *ring,
 				   struct intel_ring_buffer *to,
 				   u32 seqno);
-
-	u32		semaphore_register[3]; /*our mbox written by others */
+	/* our mbox written by others */
+	u32		semaphore_register[I915_NUM_RINGS];
 	u32		signal_mbox[2]; /* mboxes this ring signals to */
 	/**
 	 * List of objects currently involved in rendering from the
