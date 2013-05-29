@@ -262,7 +262,7 @@ static const char * const hp_gain_num_text[] = {
 };
 
 static const struct soc_enum hp_gain_enum =
-	SOC_ENUM_SINGLE(CS42L52_PB_CTL1, 4,
+	SOC_ENUM_SINGLE(CS42L52_PB_CTL1, 5,
 		ARRAY_SIZE(hp_gain_num_text), hp_gain_num_text);
 
 static const char * const beep_pitch_text[] = {
