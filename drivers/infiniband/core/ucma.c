@@ -47,6 +47,7 @@
 #include <rdma/ib_marshall.h>
 #include <rdma/rdma_cm.h>
 #include <rdma/rdma_cm_ib.h>
+#include <rdma/ib_addr.h>
 
 MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("RDMA Userspace Connection Manager Access");
@@ -649,7 +650,7 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 				const char __user *inbuf,
 				int in_len, int out_len)
 {
-	struct rdma_ucm_query_route cmd;
+	struct rdma_ucm_query cmd;
 	struct rdma_ucm_query_route_resp resp;
 	struct ucma_context *ctx;
 	struct sockaddr *addr;
@@ -704,6 +705,76 @@ out:
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
 			 &resp, sizeof(resp)))
 		ret = -EFAULT;
+
+	ucma_put_ctx(ctx);
+	return ret;
+}
+
+static void ucma_query_device_addr(struct rdma_cm_id *cm_id,
+				   struct rdma_ucm_query_addr_resp *resp)
+{
+	if (!cm_id->device)
+		return;
+
+	resp->node_guid = (__force __u64) cm_id->device->node_guid;
+	resp->port_num = cm_id->port_num;
+	resp->pkey = (__force __u16) cpu_to_be16(
+		     ib_addr_get_pkey(&cm_id->route.addr.dev_addr));
+}
+
+static ssize_t ucma_query_addr(struct ucma_context *ctx,
+			       void __user *response, int out_len)
+{
+	struct rdma_ucm_query_addr_resp resp;
+	struct sockaddr *addr;
+	int ret = 0;
+
+	if (out_len < sizeof(resp))
+		return -ENOSPC;
+
+	memset(&resp, 0, sizeof resp);
+
+	addr = (struct sockaddr *) &ctx->cm_id->route.addr.src_addr;
+	resp.src_size = rdma_addr_size(addr);
+	memcpy(&resp.src_addr, addr, resp.src_size);
+
+	addr = (struct sockaddr *) &ctx->cm_id->route.addr.dst_addr;
+	resp.dst_size = rdma_addr_size(addr);
+	memcpy(&resp.dst_addr, addr, resp.dst_size);
+
+	ucma_query_device_addr(ctx->cm_id, &resp);
+
+	if (copy_to_user(response, &resp, sizeof(resp)))
+		ret = -EFAULT;
+
+	return ret;
+}
+
+static ssize_t ucma_query(struct ucma_file *file,
+			  const char __user *inbuf,
+			  int in_len, int out_len)
+{
+	struct rdma_ucm_query cmd;
+	struct ucma_context *ctx;
+	void __user *response;
+	int ret;
+
+	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
+		return -EFAULT;
+
+	response = (void __user *)(unsigned long) cmd.response;
+	ctx = ucma_get_ctx(file, cmd.id);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
+	switch (cmd.option) {
+	case RDMA_USER_CM_QUERY_ADDR:
+		ret = ucma_query_addr(ctx, response, out_len);
+		break;
+	default:
+		ret = -ENOSYS;
+		break;
+	}
 
 	ucma_put_ctx(ctx);
 	return ret;
@@ -1241,7 +1312,8 @@ static ssize_t (*ucma_cmd_table[])(struct ucma_file *file,
 	[RDMA_USER_CM_CMD_NOTIFY]	= ucma_notify,
 	[RDMA_USER_CM_CMD_JOIN_MCAST]	= ucma_join_multicast,
 	[RDMA_USER_CM_CMD_LEAVE_MCAST]	= ucma_leave_multicast,
-	[RDMA_USER_CM_CMD_MIGRATE_ID]	= ucma_migrate_id
+	[RDMA_USER_CM_CMD_MIGRATE_ID]	= ucma_migrate_id,
+	[RDMA_USER_CM_CMD_QUERY]	= ucma_query
 };
 
 static ssize_t ucma_write(struct file *filp, const char __user *buf,

@@ -61,7 +61,8 @@ enum {
 	RDMA_USER_CM_CMD_NOTIFY,
 	RDMA_USER_CM_CMD_JOIN_MCAST,
 	RDMA_USER_CM_CMD_LEAVE_MCAST,
-	RDMA_USER_CM_CMD_MIGRATE_ID
+	RDMA_USER_CM_CMD_MIGRATE_ID,
+	RDMA_USER_CM_CMD_QUERY
 };
 
 /*
@@ -113,10 +114,14 @@ struct rdma_ucm_resolve_route {
 	__u32 timeout_ms;
 };
 
-struct rdma_ucm_query_route {
+enum {
+	RDMA_USER_CM_QUERY_ADDR
+};
+
+struct rdma_ucm_query {
 	__u64 response;
 	__u32 id;
-	__u32 reserved;
+	__u32 option;
 };
 
 struct rdma_ucm_query_route_resp {
@@ -127,6 +132,17 @@ struct rdma_ucm_query_route_resp {
 	__u32 num_paths;
 	__u8 port_num;
 	__u8 reserved[3];
+};
+
+struct rdma_ucm_query_addr_resp {
+	__u64 node_guid;
+	__u8  port_num;
+	__u8  reserved;
+	__u16 pkey;
+	__u16 src_size;
+	__u16 dst_size;
+	struct sockaddr_storage src_addr;
+	struct sockaddr_storage dst_addr;
 };
 
 struct rdma_ucm_conn_param {
