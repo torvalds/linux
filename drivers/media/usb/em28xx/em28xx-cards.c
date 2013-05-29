@@ -37,7 +37,6 @@
 #include <media/i2c-addr.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-common.h>
-#include <media/v4l2-chip-ident.h>
 
 #include "em28xx.h"
 
@@ -2669,7 +2668,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 
 		dev->tuner_type = tv.tuner_type;
 
-		if (tv.audio_processor == V4L2_IDENT_MSPX4XX) {
+		if (tv.audio_processor == TVEEPROM_AUDPROC_MSP) {
 			dev->i2s_speed = 2048000;
 			dev->board.has_msp34xx = 1;
 		}

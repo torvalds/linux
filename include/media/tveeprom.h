@@ -1,6 +1,17 @@
 /*
  */
 
+enum tveeprom_audio_processor {
+	/* No audio processor present */
+	TVEEPROM_AUDPROC_NONE,
+	/* The audio processor is internal to the video processor */
+	TVEEPROM_AUDPROC_INTERNAL,
+	/* The audio processor is a MSPXXXX device */
+	TVEEPROM_AUDPROC_MSP,
+	/* The audio processor is another device */
+	TVEEPROM_AUDPROC_OTHER,
+};
+
 struct tveeprom {
 	u32 has_radio;
 	/* If has_ir == 0, then it is unknown what the IR capabilities are,
