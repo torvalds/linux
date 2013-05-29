@@ -2258,7 +2258,7 @@ static int vidioc_g_register (struct file *file, void *priv,
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
 
-	reg->val = saa_readb(reg->reg);
+	reg->val = saa_readb(reg->reg & 0xffffff);
 	reg->size = 1;
 	return 0;
 }
@@ -2269,7 +2269,7 @@ static int vidioc_s_register (struct file *file, void *priv,
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
 
-	saa_writeb(reg->reg&0xffffff, reg->val);
+	saa_writeb(reg->reg & 0xffffff, reg->val);
 	return 0;
 }
 #endif
