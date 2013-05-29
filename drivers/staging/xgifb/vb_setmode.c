@@ -895,16 +895,10 @@ static void XGI_SetCRT1VCLK(unsigned short ModeNo,
 	unsigned char index, data;
 	unsigned short vclkindex;
 
-	if (pVBInfo->IF_DEF_LVDS == 1) {
-		index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
-		data = xgifb_reg_get(pVBInfo->P3c4, 0x31) & 0xCF;
-		xgifb_reg_set(pVBInfo->P3c4, 0x31, data);
-		xgifb_reg_set(pVBInfo->P3c4, 0x2B, XGI_VCLKData[index].SR2B);
-		xgifb_reg_set(pVBInfo->P3c4, 0x2C, XGI_VCLKData[index].SR2C);
-		xgifb_reg_set(pVBInfo->P3c4, 0x2D, 0x01);
-	} else if ((pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV
-			| VB_SIS302LV | VB_XGI301C)) && (pVBInfo->VBInfo
-			& XGI_SetCRT2ToLCDA)) {
+	if ((pVBInfo->IF_DEF_LVDS == 0) &&
+	    (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV |
+				VB_SIS302LV | VB_XGI301C)) &&
+	    (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)) {
 		vclkindex = XGI_GetVCLK2Ptr(ModeNo, ModeIdIndex,
 				RefreshRateTableIndex, HwDeviceExtension,
 				pVBInfo);
