@@ -1962,26 +1962,21 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	if (pVBInfo->VBType & (VB_SIS301LV|VB_SIS302LV|VB_XGI301C)) {
 		if (temp & SetYPbPr) {
-			if (pVBInfo->IF_DEF_HiVision == 1) {
-				/* shampoo add for new scratch */
-				temp = xgifb_reg_get(pVBInfo->P3d4, 0x35);
-				temp &= YPbPrMode;
-				tempbx |= SetCRT2ToHiVision;
+			/* shampoo add for new scratch */
+			temp = xgifb_reg_get(pVBInfo->P3d4, 0x35);
+			temp &= YPbPrMode;
+			tempbx |= SetCRT2ToHiVision;
 
-				if (temp != YPbPrMode1080i) {
-					tempbx &= (~SetCRT2ToHiVision);
-					tempbx |= SetCRT2ToYPbPr525750;
-				}
+			if (temp != YPbPrMode1080i) {
+				tempbx &= (~SetCRT2ToHiVision);
+				tempbx |= SetCRT2ToYPbPr525750;
 			}
 		}
 	}
 
 	tempax = push; /* restore CR31 */
 
-	if (pVBInfo->IF_DEF_HiVision == 1)
-		temp = 0x09FC;
-	else
-		temp = 0x097C;
+	temp = 0x09FC;
 
 	if (!(tempbx & temp)) {
 		tempax |= DisableCRT2Display;
@@ -2031,11 +2026,9 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 	if (tempbx & SetCRT2ToYPbPr525750)
 		tempbx &= (0xFF00 | SwitchCRT2 | SetSimuScanMode);
 
-	if (pVBInfo->IF_DEF_HiVision == 1) {
-		if (tempbx & SetCRT2ToHiVision)
-			tempbx &= (0xFF00 | SetCRT2ToHiVision | SwitchCRT2 |
-				   SetSimuScanMode);
-	}
+	if (tempbx & SetCRT2ToHiVision)
+		tempbx &= (0xFF00 | SetCRT2ToHiVision | SwitchCRT2 |
+			   SetSimuScanMode);
 
 	if (tempax & DisableCRT2Display) { /* Set Display Device Info */
 		if (!(tempbx & (SwitchCRT2 | SetSimuScanMode)))
@@ -2099,10 +2092,8 @@ static void XGI_GetTVInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 				tempbx = tempbx | TVSetYPbPr750p;
 		}
 
-		if (pVBInfo->IF_DEF_HiVision == 1) {
-			if (pVBInfo->VBInfo & SetCRT2ToHiVision)
-				tempbx = tempbx | TVSetHiVision | TVSetPAL;
-		}
+		if (pVBInfo->VBInfo & SetCRT2ToHiVision)
+			tempbx = tempbx | TVSetHiVision | TVSetPAL;
 
 		if ((pVBInfo->VBInfo & SetInSlaveMode) &&
 		    (!(pVBInfo->VBInfo & SetNotSimuMode)))
@@ -5560,11 +5551,9 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 	pVBInfo->IF_DEF_LVDS = 0;
 
 	if (HwDeviceExtension->jChipType >= XG20) {
-		pVBInfo->IF_DEF_HiVision = 0;
 		pVBInfo->IF_DEF_CRT2Monitor = 0;
 		pVBInfo->VBType = 0; /*set VBType default 0*/
 	} else {
-		pVBInfo->IF_DEF_HiVision = 1;
 		pVBInfo->IF_DEF_CRT2Monitor = 1;
 	}
 
