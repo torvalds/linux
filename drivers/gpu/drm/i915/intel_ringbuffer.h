@@ -72,7 +72,9 @@ struct  intel_ring_buffer {
 	 */
 	u32		last_retired_head;
 
-	u32		irq_refcount;		/* protected by dev_priv->irq_lock */
+	struct {
+		u32	gt;
+	} irq_refcount;	/* protected by dev_priv->irq_lock */
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
 	u32		trace_irq_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
