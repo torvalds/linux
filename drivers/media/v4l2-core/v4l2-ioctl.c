@@ -1807,7 +1807,8 @@ static int v4l_dbg_g_register(const struct v4l2_ioctl_ops *ops,
 				return v4l2_subdev_call(sd, core, g_register, p);
 		return -EINVAL;
 	}
-	if (ops->vidioc_g_register)
+	if (ops->vidioc_g_register && p->match.type == V4L2_CHIP_MATCH_BRIDGE &&
+	    (ops->vidioc_g_chip_info || p->match.addr == 0))
 		return ops->vidioc_g_register(file, fh, p);
 	return -EINVAL;
 #else
@@ -1834,7 +1835,8 @@ static int v4l_dbg_s_register(const struct v4l2_ioctl_ops *ops,
 				return v4l2_subdev_call(sd, core, s_register, p);
 		return -EINVAL;
 	}
-	if (ops->vidioc_s_register)
+	if (ops->vidioc_s_register && p->match.type == V4L2_CHIP_MATCH_BRIDGE &&
+	    (ops->vidioc_g_chip_info || p->match.addr == 0))
 		return ops->vidioc_s_register(file, fh, p);
 	return -EINVAL;
 #else
