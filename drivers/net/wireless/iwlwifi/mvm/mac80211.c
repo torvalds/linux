@@ -597,21 +597,11 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	mvmvif->phy_ctxt = NULL;
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
  out_release:
-	/*
-	 * TODO: remove this temporary code.
-	 * Currently MVM FW supports power management only on single MAC.
-	 * Check if only one additional interface remains after releasing
-	 * current one. Update power mode on the remaining interface.
-	 */
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count--;
-	IWL_DEBUG_MAC80211(mvm, "Currently %d interfaces active\n",
-			   mvm->vif_count);
-	if (mvm->vif_count == 1) {
-		ieee80211_iterate_active_interfaces(
-					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-					iwl_mvm_power_update_iterator, mvm);
-	}
+	ieee80211_iterate_active_interfaces(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_power_update_iterator, mvm);
 	iwl_mvm_mac_ctxt_release(mvm, vif);
  out_unlock:
 	mutex_unlock(&mvm->mutex);
@@ -781,19 +771,9 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		iwl_mvm_remove_time_event(mvm, mvmvif,
 					  &mvmvif->time_event_data);
 	} else if (changes & BSS_CHANGED_PS) {
-		/*
-		 * TODO: remove this temporary code.
-		 * Currently MVM FW supports power management only on single
-		 * MAC. Avoid power mode update if more than one interface
-		 * is active.
-		 */
-		IWL_DEBUG_MAC80211(mvm, "Currently %d interfaces active\n",
-				   mvm->vif_count);
-		if (mvm->vif_count == 1) {
-			ret = iwl_mvm_power_update_mode(mvm, vif);
-			if (ret)
-				IWL_ERR(mvm, "failed to update power mode\n");
-		}
+		ret = iwl_mvm_power_update_mode(mvm, vif);
+		if (ret)
+			IWL_ERR(mvm, "failed to update power mode\n");
 	}
 }
 

@@ -246,6 +246,17 @@ int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
+	/*
+	 * TODO: The following vif_count verification is temporary condition.
+	 * Avoid power mode update if more than one interface is currently
+	 * active. Remove this condition when FW will support power management
+	 * on multiple MACs.
+	 */
+	IWL_DEBUG_POWER(mvm, "Currently %d interfaces active\n",
+			mvm->vif_count);
+	if (mvm->vif_count > 1)
+		return 0;
+
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 	iwl_mvm_power_log(mvm, &cmd);
 
