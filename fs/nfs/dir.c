@@ -1362,13 +1362,6 @@ static int nfs_finish_open(struct nfs_open_context *ctx,
 		ctx->dentry = dget(dentry);
 	}
 
-	/* If the open_intent is for execute, we have an extra check to make */
-	if (ctx->mode & FMODE_EXEC) {
-		err = nfs_may_open(dentry->d_inode, ctx->cred, open_flags);
-		if (err < 0)
-			goto out;
-	}
-
 	err = finish_open(file, dentry, do_open, opened);
 	if (err)
 		goto out;
