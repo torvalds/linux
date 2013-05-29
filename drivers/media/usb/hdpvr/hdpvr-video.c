@@ -285,7 +285,10 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 		return -EAGAIN;
 
 	ret = get_video_info(dev, &vidinf);
-	if (ret) {
+	if (ret < 0)
+		return ret;
+
+	if (!vidinf.valid) {
 		msleep(250);
 		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 				"no video signal at input %d\n", dev->options.video_input);
@@ -617,15 +620,12 @@ static int vidioc_querystd(struct file *file, void *_fh, v4l2_std_id *a)
 	if (dev->options.video_input == HDPVR_COMPONENT)
 		return fh->legacy_mode ? 0 : -ENODATA;
 	ret = get_video_info(dev, &vid_info);
-	if (ret)
-		return 0;
-	if (vid_info.width == 720 &&
+	if (vid_info.valid && vid_info.width == 720 &&
 	    (vid_info.height == 480 || vid_info.height == 576)) {
 		*a = (vid_info.height == 480) ?
 			V4L2_STD_525_60 : V4L2_STD_625_50;
 	}
-
-	return 0;
+	return ret;
 }
 
 static int vidioc_s_dv_timings(struct file *file, void *_fh,
@@ -679,6 +679,8 @@ static int vidioc_query_dv_timings(struct file *file, void *_fh,
 		return -ENODATA;
 	ret = get_video_info(dev, &vid_info);
 	if (ret)
+		return ret;
+	if (!vid_info.valid)
 		return -ENOLCK;
 	interlaced = vid_info.fps <= 30;
 	for (i = 0; i < ARRAY_SIZE(hdpvr_dv_timings); i++) {
@@ -1008,7 +1010,9 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *_fh,
 		struct hdpvr_video_info vid_info;
 
 		ret = get_video_info(dev, &vid_info);
-		if (ret)
+		if (ret < 0)
+			return ret;
+		if (!vid_info.valid)
 			return -EFAULT;
 		f->fmt.pix.width = vid_info.width;
 		f->fmt.pix.height = vid_info.height;

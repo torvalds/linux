@@ -49,6 +49,7 @@ int get_video_info(struct hdpvr_device *dev, struct hdpvr_video_info *vidinf)
 {
 	int ret;
 
+	vidinf->valid = false;
 	mutex_lock(&dev->usbc_mutex);
 	ret = usb_control_msg(dev->udev,
 			      usb_rcvctrlpipe(dev->udev, 0),
@@ -56,11 +57,6 @@ int get_video_info(struct hdpvr_device *dev, struct hdpvr_video_info *vidinf)
 			      0x1400, 0x0003,
 			      dev->usbc_buf, 5,
 			      1000);
-	if (ret == 5) {
-		vidinf->width	= dev->usbc_buf[1] << 8 | dev->usbc_buf[0];
-		vidinf->height	= dev->usbc_buf[3] << 8 | dev->usbc_buf[2];
-		vidinf->fps	= dev->usbc_buf[4];
-	}
 
 #ifdef HDPVR_DEBUG
 	if (hdpvr_debug & MSG_INFO) {
@@ -73,14 +69,15 @@ int get_video_info(struct hdpvr_device *dev, struct hdpvr_video_info *vidinf)
 #endif
 	mutex_unlock(&dev->usbc_mutex);
 
-	if ((ret > 0 && ret != 5) ||/* fail if unexpected byte count returned */
-	    !vidinf->width ||	/* preserve original behavior -  */
-	    !vidinf->height ||	/* fail if no signal is detected */
-	    !vidinf->fps) {
-		ret = -EFAULT;
-	}
+	if (ret < 0)
+		return ret;
 
-	return ret < 0 ? ret : 0;
+	vidinf->width	= dev->usbc_buf[1] << 8 | dev->usbc_buf[0];
+	vidinf->height	= dev->usbc_buf[3] << 8 | dev->usbc_buf[2];
+	vidinf->fps	= dev->usbc_buf[4];
+	vidinf->valid   = vidinf->width && vidinf->height && vidinf->fps;
+
+	return 0;
 }
 
 int get_input_lines_info(struct hdpvr_device *dev)

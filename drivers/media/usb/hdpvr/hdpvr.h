@@ -154,6 +154,7 @@ struct hdpvr_video_info {
 	u16	width;
 	u16	height;
 	u8	fps;
+	bool	valid;
 };
 
 enum {
