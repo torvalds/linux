@@ -271,7 +271,7 @@ static int saa7191_querystd(struct v4l2_subdev *sd, v4l2_std_id *norm)
 
 	dprintk("SAA7191 extended signal auto-detection...\n");
 
-	*norm = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
+	*norm &= V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
 	stdc &= ~SAA7191_STDC_SECS;
 	ctl3 &= ~(SAA7191_CTL3_FSEL);
 
@@ -302,7 +302,7 @@ static int saa7191_querystd(struct v4l2_subdev *sd, v4l2_std_id *norm)
 	if (status & SAA7191_STATUS_FIDT) {
 		/* 60Hz signal -> NTSC */
 		dprintk("60Hz signal: NTSC\n");
-		*norm = V4L2_STD_NTSC;
+		*norm &= V4L2_STD_NTSC;
 		return 0;
 	}
 
@@ -324,12 +324,13 @@ static int saa7191_querystd(struct v4l2_subdev *sd, v4l2_std_id *norm)
 	if (status & SAA7191_STATUS_FIDT) {
 		dprintk("No 50Hz signal\n");
 		saa7191_s_std(sd, old_norm);
-		return -EAGAIN;
+		*norm = V4L2_STD_UNKNOWN;
+		return 0;
 	}
 
 	if (status & SAA7191_STATUS_CODE) {
 		dprintk("PAL\n");
-		*norm = V4L2_STD_PAL;
+		*norm &= V4L2_STD_PAL;
 		return saa7191_s_std(sd, old_norm);
 	}
 
@@ -349,18 +350,19 @@ static int saa7191_querystd(struct v4l2_subdev *sd, v4l2_std_id *norm)
 	/* not 50Hz ? */
 	if (status & SAA7191_STATUS_FIDT) {
 		dprintk("No 50Hz signal\n");
-		err = -EAGAIN;
+		*norm = V4L2_STD_UNKNOWN;
 		goto out;
 	}
 
 	if (status & SAA7191_STATUS_CODE) {
 		/* Color detected -> SECAM */
 		dprintk("SECAM\n");
-		*norm = V4L2_STD_SECAM;
+		*norm &= V4L2_STD_SECAM;
 		return saa7191_s_std(sd, old_norm);
 	}
 
 	dprintk("No color detected with SECAM - Going back to PAL.\n");
+	*norm = V4L2_STD_UNKNOWN;
 
 out:
 	return saa7191_s_std(sd, old_norm);
