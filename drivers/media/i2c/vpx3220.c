@@ -295,7 +295,7 @@ static int vpx3220_init(struct v4l2_subdev *sd, u32 val)
 static int vpx3220_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pstd)
 {
 	int res = V4L2_IN_ST_NO_SIGNAL, status;
-	v4l2_std_id std = 0;
+	v4l2_std_id std = pstd ? *pstd : V4L2_STD_ALL;
 
 	status = vpx3220_fp_read(sd, 0x0f3);
 
@@ -312,19 +312,21 @@ static int vpx3220_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pst
 		case 0x10:
 		case 0x14:
 		case 0x18:
-			std = V4L2_STD_PAL;
+			std &= V4L2_STD_PAL;
 			break;
 
 		case 0x08:
-			std = V4L2_STD_SECAM;
+			std &= V4L2_STD_SECAM;
 			break;
 
 		case 0x04:
 		case 0x0c:
 		case 0x1c:
-			std = V4L2_STD_NTSC;
+			std &= V4L2_STD_NTSC;
 			break;
 		}
+	} else {
+		std = V4L2_STD_UNKNOWN;
 	}
 	if (pstd)
 		*pstd = std;
