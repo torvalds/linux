@@ -1849,13 +1849,8 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	struct rdma_addr *addr = &route->addr;
 	struct cma_work *work;
 	int ret;
-	struct sockaddr_in *src_addr = (struct sockaddr_in *)&route->addr.src_addr;
-	struct sockaddr_in *dst_addr = (struct sockaddr_in *)&route->addr.dst_addr;
 	struct net_device *ndev = NULL;
 	u16 vid;
-
-	if (src_addr->sin_family != dst_addr->sin_family)
-		return -EINVAL;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (!work)
@@ -2131,6 +2126,9 @@ int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 		if (ret)
 			return ret;
 	}
+
+	if (cma_family(id_priv) != dst_addr->sa_family)
+		return -EINVAL;
 
 	if (!cma_comp_exch(id_priv, RDMA_CM_ADDR_BOUND, RDMA_CM_ADDR_QUERY))
 		return -EINVAL;
