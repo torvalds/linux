@@ -542,8 +542,6 @@ static int tvp514x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 	if (std_id == NULL)
 		return -EINVAL;
 
-	*std_id = V4L2_STD_UNKNOWN;
-
 	/* To query the standard the TVP514x must power on the ADCs. */
 	if (!decoder->streaming) {
 		tvp514x_s_stream(sd, 1);
@@ -552,8 +550,10 @@ static int tvp514x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 
 	/* query the current standard */
 	current_std = tvp514x_query_current_std(sd);
-	if (current_std == STD_INVALID)
+	if (current_std == STD_INVALID) {
+		*std_id = V4L2_STD_UNKNOWN;
 		return 0;
+	}
 
 	input_sel = decoder->input;
 
@@ -594,10 +594,12 @@ static int tvp514x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 	}
 	/* check whether signal is locked */
 	sync_lock_status = tvp514x_read_reg(sd, REG_STATUS1);
-	if (lock_mask != (sync_lock_status & lock_mask))
+	if (lock_mask != (sync_lock_status & lock_mask)) {
+		*std_id = V4L2_STD_UNKNOWN;
 		return 0;	/* No input detected */
+	}
 
-	*std_id = decoder->std_list[current_std].standard.id;
+	*std_id &= decoder->std_list[current_std].standard.id;
 
 	v4l2_dbg(1, debug, sd, "Current STD: %s\n",
 			decoder->std_list[current_std].standard.name);
