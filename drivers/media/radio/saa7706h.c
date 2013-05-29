@@ -25,7 +25,6 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 
 #define DRIVER_NAME "saa7706h"
 
@@ -349,16 +348,7 @@ static int saa7706h_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return -EINVAL;
 }
 
-static int saa7706h_g_chip_ident(struct v4l2_subdev *sd,
-	struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_SAA7706H, 0);
-}
-
 static const struct v4l2_subdev_core_ops saa7706h_core_ops = {
-	.g_chip_ident = saa7706h_g_chip_ident,
 	.queryctrl = saa7706h_queryctrl,
 	.g_ctrl = saa7706h_g_ctrl,
 	.s_ctrl = saa7706h_s_ctrl,

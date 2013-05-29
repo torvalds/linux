@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 
 #define DRIVER_NAME "tef6862"
 
@@ -136,14 +135,6 @@ static int tef6862_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	return 0;
 }
 
-static int tef6862_g_chip_ident(struct v4l2_subdev *sd,
-	struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TEF6862, 0);
-}
-
 static const struct v4l2_subdev_tuner_ops tef6862_tuner_ops = {
 	.g_tuner = tef6862_g_tuner,
 	.s_tuner = tef6862_s_tuner,
@@ -151,12 +142,7 @@ static const struct v4l2_subdev_tuner_ops tef6862_tuner_ops = {
 	.g_frequency = tef6862_g_frequency,
 };
 
-static const struct v4l2_subdev_core_ops tef6862_core_ops = {
-	.g_chip_ident = tef6862_g_chip_ident,
-};
-
 static const struct v4l2_subdev_ops tef6862_ops = {
-	.core = &tef6862_core_ops,
 	.tuner = &tef6862_tuner_ops,
 };
 
