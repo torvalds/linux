@@ -32,7 +32,7 @@
 
 static struct host1x_syncpt *_host1x_syncpt_alloc(struct host1x *host,
 						  struct device *dev,
-						  int client_managed)
+						  bool client_managed)
 {
 	int i;
 	struct host1x_syncpt *sp = host->syncpt;
@@ -332,7 +332,7 @@ int host1x_syncpt_init(struct host1x *host)
 	host1x_syncpt_restore(host);
 
 	/* Allocate sync point to use for clearing waits for expired fences */
-	host->nop_sp = _host1x_syncpt_alloc(host, NULL, 0);
+	host->nop_sp = _host1x_syncpt_alloc(host, NULL, false);
 	if (!host->nop_sp)
 		return -ENOMEM;
 
@@ -340,7 +340,7 @@ int host1x_syncpt_init(struct host1x *host)
 }
 
 struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
-					    int client_managed)
+					    bool client_managed)
 {
 	struct host1x *host = dev_get_drvdata(dev->parent);
 	return _host1x_syncpt_alloc(host, dev, client_managed);
@@ -354,7 +354,7 @@ void host1x_syncpt_free(struct host1x_syncpt *sp)
 	kfree(sp->name);
 	sp->dev = NULL;
 	sp->name = NULL;
-	sp->client_managed = 0;
+	sp->client_managed = false;
 }
 
 void host1x_syncpt_deinit(struct host1x *host)

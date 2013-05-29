@@ -36,7 +36,7 @@ struct host1x_syncpt {
 	atomic_t max_val;
 	u32 base_val;
 	const char *name;
-	int client_managed;
+	bool client_managed;
 	struct host1x *host;
 	struct device *dev;
 
@@ -94,7 +94,7 @@ static inline bool host1x_syncpt_check_max(struct host1x_syncpt *sp, u32 real)
 }
 
 /* Return true if sync point is client managed. */
-static inline int host1x_syncpt_client_managed(struct host1x_syncpt *sp)
+static inline bool host1x_syncpt_client_managed(struct host1x_syncpt *sp)
 {
 	return sp->client_managed;
 }
@@ -157,7 +157,7 @@ u32 host1x_syncpt_id(struct host1x_syncpt *sp);
 
 /* Allocate a sync point for a device. */
 struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
-		int client_managed);
+					    bool client_managed);
 
 /* Free a sync point. */
 void host1x_syncpt_free(struct host1x_syncpt *sp);
