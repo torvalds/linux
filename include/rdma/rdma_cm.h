@@ -373,4 +373,11 @@ int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse);
  */
 int rdma_set_afonly(struct rdma_cm_id *id, int afonly);
 
+ /**
+ * rdma_get_service_id - Return the IB service ID for a specified address.
+ * @id: Communication identifier associated with the address.
+ * @addr: Address for the service ID.
+ */
+__be64 rdma_get_service_id(struct rdma_cm_id *id, struct sockaddr *addr);
+
 #endif /* RDMA_CM_H */
