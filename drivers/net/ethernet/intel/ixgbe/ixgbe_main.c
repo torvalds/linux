@@ -5832,10 +5832,6 @@ static void ixgbe_sfp_detection_subtask(struct ixgbe_adapter *adapter)
 	    !(adapter->flags2 & IXGBE_FLAG2_SFP_NEEDS_RESET))
 		return;
 
-	/* concurent i2c reads are not supported */
-	if (test_bit(__IXGBE_READ_I2C, &adapter->state))
-		return;
-
 	/* someone else is in init, wait until next service event */
 	if (test_and_set_bit(__IXGBE_IN_SFP_INIT, &adapter->state))
 		return;

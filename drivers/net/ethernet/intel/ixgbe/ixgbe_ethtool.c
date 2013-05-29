@@ -2910,33 +2910,21 @@ static int ixgbe_get_module_info(struct net_device *dev,
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 status;
 	u8 sff8472_rev, addr_mode;
-	int ret_val = 0;
 	bool page_swap = false;
-
-	/* avoid concurent i2c reads */
-	while (test_bit(__IXGBE_IN_SFP_INIT, &adapter->state))
-		msleep(100);
-
-	/* used by the service task */
-	set_bit(__IXGBE_READ_I2C, &adapter->state);
 
 	/* Check whether we support SFF-8472 or not */
 	status = hw->phy.ops.read_i2c_eeprom(hw,
 					     IXGBE_SFF_SFF_8472_COMP,
 					     &sff8472_rev);
-	if (status != 0) {
-		ret_val = -EIO;
-		goto err_out;
-	}
+	if (status != 0)
+		return -EIO;
 
 	/* addressing mode is not supported */
 	status = hw->phy.ops.read_i2c_eeprom(hw,
 					     IXGBE_SFF_SFF_8472_SWAP,
 					     &addr_mode);
-	if (status != 0) {
-		ret_val = -EIO;
-		goto err_out;
-	}
+	if (status != 0)
+		return -EIO;
 
 	if (addr_mode & IXGBE_SFF_ADDRESSING_MODE) {
 		e_err(drv, "Address change required to access page 0xA2, but not supported. Please report the module type to the driver maintainers.\n");
@@ -2953,9 +2941,7 @@ static int ixgbe_get_module_info(struct net_device *dev,
 		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 	}
 
-err_out:
-	clear_bit(__IXGBE_READ_I2C, &adapter->state);
-	return ret_val;
+	return 0;
 }
 
 static int ixgbe_get_module_eeprom(struct net_device *dev,
@@ -2969,47 +2955,24 @@ static int ixgbe_get_module_eeprom(struct net_device *dev,
 	int i = 0;
 	int ret_val = 0;
 
-	/* ixgbe_get_module_info is called before this function in all
-	 * cases, so we do not need any checks we already do above,
-	 * and can trust ee->len to be a known value.
-	 */
+	if (ee->len == 0)
+		return -EINVAL;
 
-	while (test_bit(__IXGBE_IN_SFP_INIT, &adapter->state))
-		msleep(100);
-	set_bit(__IXGBE_READ_I2C, &adapter->state);
+	for (i = ee->offset; i < ee->len; i++) {
+		/* I2C reads can take long time */
+		if (test_bit(__IXGBE_IN_SFP_INIT, &adapter->state))
+			return -EBUSY;
 
-	/* Read the first block, SFF-8079 */
-	for (i = 0; i < ETH_MODULE_SFF_8079_LEN; i++) {
-		status = hw->phy.ops.read_i2c_eeprom(hw, i, &databyte);
-		if (status != 0) {
-			/* Error occured while reading module */
+		if (i < ETH_MODULE_SFF_8079_LEN)
+			status  = hw->phy.ops.read_i2c_eeprom(hw, i, &databyte);
+		else
+			status = hw->phy.ops.read_i2c_sff8472(hw, i, &databyte);
+
+		if (status != 0)
 			ret_val = -EIO;
-			goto err_out;
-		}
-		data[i] = databyte;
+
+		data[i - ee->offset] = databyte;
 	}
-
-	/* If the second block is requested, check if SFF-8472 is supported. */
-	if (ee->len == ETH_MODULE_SFF_8472_LEN) {
-		if (data[IXGBE_SFF_SFF_8472_COMP] == IXGBE_SFF_SFF_8472_UNSUP)
-			return -EOPNOTSUPP;
-
-		/* Read the second block, SFF-8472 */
-		for (i = ETH_MODULE_SFF_8079_LEN;
-		     i < ETH_MODULE_SFF_8472_LEN; i++) {
-			status = hw->phy.ops.read_i2c_sff8472(hw,
-				i - ETH_MODULE_SFF_8079_LEN, &databyte);
-			if (status != 0) {
-				/* Error occured while reading module */
-				ret_val = -EIO;
-				goto err_out;
-			}
-			data[i] = databyte;
-		}
-	}
-
-err_out:
-	clear_bit(__IXGBE_READ_I2C, &adapter->state);
 
 	return ret_val;
 }
