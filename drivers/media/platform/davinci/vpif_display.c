@@ -19,7 +19,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ioctl.h>
 
 #include "vpif.h"
@@ -1501,66 +1500,6 @@ static int vpif_g_dv_timings(struct file *file, void *priv,
 }
 
 /*
- * vpif_g_chip_ident() - Identify the chip
- * @file: file ptr
- * @priv: file handle
- * @chip: chip identity
- *
- * Returns zero or -EINVAL if read operations fails.
- */
-static int vpif_g_chip_ident(struct file *file, void *priv,
-		struct v4l2_dbg_chip_ident *chip)
-{
-	chip->ident = V4L2_IDENT_NONE;
-	chip->revision = 0;
-	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
-			chip->match.type != V4L2_CHIP_MATCH_I2C_ADDR) {
-		vpif_dbg(2, debug, "match_type is invalid.\n");
-		return -EINVAL;
-	}
-
-	return v4l2_device_call_until_err(&vpif_obj.v4l2_dev, 0, core,
-			g_chip_ident, chip);
-}
-
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-/*
- * vpif_dbg_g_register() - Read register
- * @file: file ptr
- * @priv: file handle
- * @reg: register to be read
- *
- * Debugging only
- * Returns zero or -EINVAL if read operations fails.
- */
-static int vpif_dbg_g_register(struct file *file, void *priv,
-		struct v4l2_dbg_register *reg){
-	struct vpif_fh *fh = priv;
-	struct channel_obj *ch = fh->channel;
-
-	return v4l2_subdev_call(ch->sd, core, g_register, reg);
-}
-
-/*
- * vpif_dbg_s_register() - Write to register
- * @file: file ptr
- * @priv: file handle
- * @reg: register to be modified
- *
- * Debugging only
- * Returns zero or -EINVAL if write operations fails.
- */
-static int vpif_dbg_s_register(struct file *file, void *priv,
-		const struct v4l2_dbg_register *reg)
-{
-	struct vpif_fh *fh = priv;
-	struct channel_obj *ch = fh->channel;
-
-	return v4l2_subdev_call(ch->sd, core, s_register, reg);
-}
-#endif
-
-/*
  * vpif_log_status() - Status information
  * @file: file ptr
  * @priv: file handle
@@ -1599,11 +1538,6 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 	.vidioc_enum_dv_timings         = vpif_enum_dv_timings,
 	.vidioc_s_dv_timings            = vpif_s_dv_timings,
 	.vidioc_g_dv_timings            = vpif_g_dv_timings,
-	.vidioc_g_chip_ident		= vpif_g_chip_ident,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register		= vpif_dbg_g_register,
-	.vidioc_s_register		= vpif_dbg_s_register,
-#endif
 	.vidioc_log_status		= vpif_log_status,
 };
 

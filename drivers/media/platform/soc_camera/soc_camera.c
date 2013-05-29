@@ -1036,35 +1036,6 @@ static int soc_camera_s_parm(struct file *file, void *fh,
 	return -ENOIOCTLCMD;
 }
 
-static int soc_camera_g_chip_ident(struct file *file, void *fh,
-				   struct v4l2_dbg_chip_ident *id)
-{
-	struct soc_camera_device *icd = file->private_data;
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-
-	return v4l2_subdev_call(sd, core, g_chip_ident, id);
-}
-
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int soc_camera_g_register(struct file *file, void *fh,
-				 struct v4l2_dbg_register *reg)
-{
-	struct soc_camera_device *icd = file->private_data;
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-
-	return v4l2_subdev_call(sd, core, g_register, reg);
-}
-
-static int soc_camera_s_register(struct file *file, void *fh,
-				 const struct v4l2_dbg_register *reg)
-{
-	struct soc_camera_device *icd = file->private_data;
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-
-	return v4l2_subdev_call(sd, core, s_register, reg);
-}
-#endif
-
 static int soc_camera_probe(struct soc_camera_device *icd);
 
 /* So far this function cannot fail */
@@ -1495,11 +1466,6 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_s_selection	 = soc_camera_s_selection,
 	.vidioc_g_parm		 = soc_camera_g_parm,
 	.vidioc_s_parm		 = soc_camera_s_parm,
-	.vidioc_g_chip_ident     = soc_camera_g_chip_ident,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register	 = soc_camera_g_register,
-	.vidioc_s_register	 = soc_camera_s_register,
-#endif
 };
 
 static int video_dev_create(struct soc_camera_device *icd)

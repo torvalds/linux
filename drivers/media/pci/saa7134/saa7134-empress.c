@@ -28,7 +28,6 @@
 
 #include <media/saa6752hs.h>
 #include <media/v4l2-common.h>
-#include <media/v4l2-chip-ident.h>
 
 /* ------------------------------------------------------------------ */
 
@@ -413,21 +412,6 @@ static int empress_querymenu(struct file *file, void *priv,
 	return saa_call_empress(dev, core, querymenu, c);
 }
 
-static int empress_g_chip_ident(struct file *file, void *fh,
-	       struct v4l2_dbg_chip_ident *chip)
-{
-	struct saa7134_dev *dev = file->private_data;
-
-	chip->ident = V4L2_IDENT_NONE;
-	chip->revision = 0;
-	if (chip->match.type == V4L2_CHIP_MATCH_I2C_DRIVER &&
-	    !strcmp(chip->match.name, "saa6752hs"))
-		return saa_call_empress(dev, core, g_chip_ident, chip);
-	if (chip->match.type == V4L2_CHIP_MATCH_I2C_ADDR)
-		return saa_call_empress(dev, core, g_chip_ident, chip);
-	return -EINVAL;
-}
-
 static int empress_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct saa7134_dev *dev = file->private_data;
@@ -475,7 +459,6 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_querymenu		= empress_querymenu,
 	.vidioc_g_ctrl			= empress_g_ctrl,
 	.vidioc_s_ctrl			= empress_s_ctrl,
-	.vidioc_g_chip_ident 		= empress_g_chip_ident,
 	.vidioc_s_std			= empress_s_std,
 	.vidioc_g_std			= empress_g_std,
 };

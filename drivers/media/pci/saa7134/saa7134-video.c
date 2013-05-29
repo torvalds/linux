@@ -2258,8 +2258,6 @@ static int vidioc_g_register (struct file *file, void *priv,
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
 
-	if (!v4l2_chip_match_host(&reg->match))
-		return -EINVAL;
 	reg->val = saa_readb(reg->reg);
 	reg->size = 1;
 	return 0;
@@ -2271,8 +2269,6 @@ static int vidioc_s_register (struct file *file, void *priv,
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
 
-	if (!v4l2_chip_match_host(&reg->match))
-		return -EINVAL;
 	saa_writeb(reg->reg&0xffffff, reg->val);
 	return 0;
 }

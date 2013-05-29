@@ -36,7 +36,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/tuner.h>
 #include "au0828.h"
 #include "au0828-reg.h"
@@ -1638,26 +1637,6 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_chip_ident(struct file *file, void *priv,
-	       struct v4l2_dbg_chip_ident *chip)
-{
-	struct au0828_fh *fh = priv;
-	struct au0828_dev *dev = fh->dev;
-	chip->ident = V4L2_IDENT_NONE;
-	chip->revision = 0;
-
-	if (v4l2_chip_match_host(&chip->match)) {
-		chip->ident = V4L2_IDENT_AU0828;
-		return 0;
-	}
-
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_chip_ident, chip);
-	if (chip->ident == V4L2_IDENT_NONE)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int vidioc_cropcap(struct file *file, void *priv,
 			  struct v4l2_cropcap *cc)
 {
@@ -1779,15 +1758,6 @@ static int vidioc_g_register(struct file *file, void *priv,
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
 
-	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
-		return 0;
-	default:
-		if (!v4l2_chip_match_host(&reg->match))
-			return -EINVAL;
-	}
-
 	reg->val = au0828_read(dev, reg->reg);
 	return 0;
 }
@@ -1798,14 +1768,6 @@ static int vidioc_s_register(struct file *file, void *priv,
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
 
-	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
-		return 0;
-	default:
-		if (!v4l2_chip_match_host(&reg->match))
-			return -EINVAL;
-	}
 	return au0828_writereg(dev, reg->reg, reg->val);
 }
 #endif
@@ -1943,7 +1905,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_register          = vidioc_g_register,
 	.vidioc_s_register          = vidioc_s_register,
 #endif
-	.vidioc_g_chip_ident        = vidioc_g_chip_ident,
 	.vidioc_log_status	    = vidioc_log_status,
 	.vidioc_subscribe_event     = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event   = v4l2_event_unsubscribe,

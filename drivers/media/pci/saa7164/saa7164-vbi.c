@@ -1254,15 +1254,6 @@ static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_s_ext_ctrls	 = vidioc_s_ext_ctrls,
 	.vidioc_try_ext_ctrls	 = vidioc_try_ext_ctrls,
 	.vidioc_queryctrl	 = vidioc_queryctrl,
-#if 0
-	.vidioc_g_chip_ident	 = saa7164_g_chip_ident,
-#endif
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-#if 0
-	.vidioc_g_register	 = saa7164_g_register,
-	.vidioc_s_register	 = saa7164_s_register,
-#endif
-#endif
 	.vidioc_g_fmt_vbi_cap	 = saa7164_vbi_fmt,
 	.vidioc_try_fmt_vbi_cap	 = saa7164_vbi_fmt,
 	.vidioc_s_fmt_vbi_cap	 = saa7164_vbi_fmt,

@@ -1248,32 +1248,6 @@ static unsigned int sh_vou_poll(struct file *file, poll_table *wait)
 	return res;
 }
 
-static int sh_vou_g_chip_ident(struct file *file, void *fh,
-				   struct v4l2_dbg_chip_ident *id)
-{
-	struct sh_vou_device *vou_dev = video_drvdata(file);
-
-	return v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, core, g_chip_ident, id);
-}
-
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int sh_vou_g_register(struct file *file, void *fh,
-				 struct v4l2_dbg_register *reg)
-{
-	struct sh_vou_device *vou_dev = video_drvdata(file);
-
-	return v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, core, g_register, reg);
-}
-
-static int sh_vou_s_register(struct file *file, void *fh,
-				 const struct v4l2_dbg_register *reg)
-{
-	struct sh_vou_device *vou_dev = video_drvdata(file);
-
-	return v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, core, s_register, reg);
-}
-#endif
-
 /* sh_vou display ioctl operations */
 static const struct v4l2_ioctl_ops sh_vou_ioctl_ops = {
 	.vidioc_querycap        	= sh_vou_querycap,
@@ -1292,11 +1266,6 @@ static const struct v4l2_ioctl_ops sh_vou_ioctl_ops = {
 	.vidioc_cropcap			= sh_vou_cropcap,
 	.vidioc_g_crop			= sh_vou_g_crop,
 	.vidioc_s_crop			= sh_vou_s_crop,
-	.vidioc_g_chip_ident		= sh_vou_g_chip_ident,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register		= sh_vou_g_register,
-	.vidioc_s_register		= sh_vou_s_register,
-#endif
 };
 
 static const struct v4l2_file_operations sh_vou_fops = {

@@ -63,7 +63,6 @@
 #include <dmxdev.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-chip-ident.h>
 
 #include "saa7164-reg.h"
 #include "saa7164-types.h"
