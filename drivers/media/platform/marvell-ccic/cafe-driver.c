@@ -27,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <linux/device.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
@@ -469,7 +468,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		goto out;
 	cam->pdev = pdev;
 	mcam = &cam->mcam;
-	mcam->chip_id = V4L2_IDENT_CAFE;
+	mcam->chip_id = MCAM_CAFE;
 	spin_lock_init(&mcam->dev_lock);
 	init_waitqueue_head(&cam->smbus_wait);
 	mcam->plat_power_up = cafe_ctlr_power_up;

@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/mmp-camera.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -185,7 +184,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam->plat_power_down = mmpcam_power_down;
 	mcam->dev = &pdev->dev;
 	mcam->use_smbus = 0;
-	mcam->chip_id = V4L2_IDENT_ARMADA610;
+	mcam->chip_id = MCAM_ARMADA610;
 	mcam->buffer_mode = B_DMA_sg;
 	spin_lock_init(&mcam->dev_lock);
 	/*
