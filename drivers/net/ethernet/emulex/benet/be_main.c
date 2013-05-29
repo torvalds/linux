@@ -4098,6 +4098,7 @@ static int be_get_initial_config(struct be_adapter *adapter)
 
 static int lancer_recover_func(struct be_adapter *adapter)
 {
+	struct device *dev = &adapter->pdev->dev;
 	int status;
 
 	status = lancer_test_and_set_rdy_state(adapter);
@@ -4109,8 +4110,7 @@ static int lancer_recover_func(struct be_adapter *adapter)
 
 	be_clear(adapter);
 
-	adapter->hw_error = false;
-	adapter->fw_timeout = false;
+	be_clear_all_error(adapter);
 
 	status = be_setup(adapter);
 	if (status)
@@ -4122,13 +4122,13 @@ static int lancer_recover_func(struct be_adapter *adapter)
 			goto err;
 	}
 
-	dev_err(&adapter->pdev->dev,
-		"Adapter SLIPORT recovery succeeded\n");
+	dev_err(dev, "Error recovery successful\n");
 	return 0;
 err:
-	if (adapter->eeh_error)
-		dev_err(&adapter->pdev->dev,
-			"Adapter SLIPORT recovery failed\n");
+	if (status == -EAGAIN)
+		dev_err(dev, "Waiting for resource provisioning\n");
+	else
+		dev_err(dev, "Error recovery failed\n");
 
 	return status;
 }
@@ -4137,28 +4137,27 @@ static void be_func_recovery_task(struct work_struct *work)
 {
 	struct be_adapter *adapter =
 		container_of(work, struct be_adapter,  func_recovery_work.work);
-	int status;
+	int status = 0;
 
 	be_detect_error(adapter);
 
 	if (adapter->hw_error && lancer_chip(adapter)) {
-
-		if (adapter->eeh_error)
-			goto out;
 
 		rtnl_lock();
 		netif_device_detach(adapter->netdev);
 		rtnl_unlock();
 
 		status = lancer_recover_func(adapter);
-
 		if (!status)
 			netif_device_attach(adapter->netdev);
 	}
 
-out:
-	schedule_delayed_work(&adapter->func_recovery_work,
-			      msecs_to_jiffies(1000));
+	/* In Lancer, for all errors other than provisioning error (-EAGAIN),
+	 * no need to attempt further recovery.
+	 */
+	if (!status || status == -EAGAIN)
+		schedule_delayed_work(&adapter->func_recovery_work,
+				      msecs_to_jiffies(1000));
 }
 
 static void be_worker(struct work_struct *work)
@@ -4441,20 +4440,19 @@ static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
 
 	dev_err(&adapter->pdev->dev, "EEH error detected\n");
 
-	adapter->eeh_error = true;
+	if (!adapter->eeh_error) {
+		adapter->eeh_error = true;
 
-	cancel_delayed_work_sync(&adapter->func_recovery_work);
+		cancel_delayed_work_sync(&adapter->func_recovery_work);
 
-	rtnl_lock();
-	netif_device_detach(netdev);
-	rtnl_unlock();
-
-	if (netif_running(netdev)) {
 		rtnl_lock();
-		be_close(netdev);
+		netif_device_detach(netdev);
+		if (netif_running(netdev))
+			be_close(netdev);
 		rtnl_unlock();
+
+		be_clear(adapter);
 	}
-	be_clear(adapter);
 
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -4479,7 +4477,6 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 	int status;
 
 	dev_info(&adapter->pdev->dev, "EEH reset\n");
-	be_clear_all_error(adapter);
 
 	status = pci_enable_device(pdev);
 	if (status)
@@ -4497,6 +4494,7 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 
 	pci_cleanup_aer_uncorrect_error_status(pdev);
+	be_clear_all_error(adapter);
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
