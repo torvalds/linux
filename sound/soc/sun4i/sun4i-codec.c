@@ -36,6 +36,7 @@
 #include <mach/system.h>
 
 #define SCRIPT_AUDIO_OK (0)
+static int has_playback, has_capture;
 static int gpio_pa_shutdown = 0;
 struct clk *codec_apbclk,*codec_pll2clk,*codec_moduleclk;
 
@@ -471,16 +472,14 @@ static int codec_dev_free(struct snd_device *device)
 
 /*	对sun4i-codec.c各寄存器的各种设定，或读取。主要实现函数有三个.
 * 	.info = snd_codec_info_volsw, .get = snd_codec_get_volsw,\.put = snd_codec_put_volsw,
+* It should be noted that the only difference between sun4i and sun5i is the Master Playback Volume
 */
-static const struct snd_kcontrol_new codec_snd_controls_b_c[] = {
+static const struct snd_kcontrol_new sun4ibc_dac[] = {
 	//FOR B C VERSION
 	CODEC_SINGLE("Master Playback Volume", SUN4I_DAC_ACTL,0,0x3f,0),
 	CODEC_SINGLE("Playback Switch", SUN4I_DAC_ACTL,6,1,0),//全局输出开关
-	CODEC_SINGLE("Capture Volume",SUN4I_ADC_ACTL,20,7,0),//录音音量
 	CODEC_SINGLE("Fm Volume",SUN4I_DAC_ACTL,23,7,0),//Fm 音量
 	CODEC_SINGLE("Line Volume",SUN4I_DAC_ACTL,26,1,0),//Line音量
-	CODEC_SINGLE("MicL Volume",SUN4I_ADC_ACTL,25,3,0),//mic左音量
-	CODEC_SINGLE("MicR Volume",SUN4I_ADC_ACTL,23,3,0),//mic右音量
 	CODEC_SINGLE("FmL Switch",SUN4I_DAC_ACTL,17,1,0),//Fm左开关
 	CODEC_SINGLE("FmR Switch",SUN4I_DAC_ACTL,16,1,0),//Fm右开关
 	CODEC_SINGLE("LineL Switch",SUN4I_DAC_ACTL,19,1,0),//Line左开关
@@ -489,18 +488,14 @@ static const struct snd_kcontrol_new codec_snd_controls_b_c[] = {
 	CODEC_SINGLE("Rdac Right Mixer",SUN4I_DAC_ACTL,14,1,0),
 	CODEC_SINGLE("Ldac Right Mixer",SUN4I_DAC_ACTL,13,1,0),
 	CODEC_SINGLE("Mic Input Mux",SUN4I_DAC_ACTL,9,15,0),//from bit 9 to bit 12.Mic（麦克风）输入静音
-	CODEC_SINGLE("ADC Input Mux",SUN4I_ADC_ACTL,17,7,0),//ADC输入静音
 };
 
-static const struct snd_kcontrol_new codec_snd_controls_a[] = {
+static const struct snd_kcontrol_new sun4ia_dac[] = {
 	//For A VERSION
 	CODEC_SINGLE("Master Playback Volume", SUN4I_DAC_DPC,12,0x3f,0),//62 steps, 3e + 1 = 3f 主音量控制
 	CODEC_SINGLE("Playback Switch", SUN4I_DAC_ACTL,6,1,0),//全局输出开关
-	CODEC_SINGLE("Capture Volume",SUN4I_ADC_ACTL,20,7,0),//录音音量
 	CODEC_SINGLE("Fm Volume",SUN4I_DAC_ACTL,23,7,0),//Fm 音量
 	CODEC_SINGLE("Line Volume",SUN4I_DAC_ACTL,26,1,0),//Line音量
-	CODEC_SINGLE("MicL Volume",SUN4I_ADC_ACTL,25,3,0),//mic左音量
-	CODEC_SINGLE("MicR Volume",SUN4I_ADC_ACTL,23,3,0),//mic右音量
 	CODEC_SINGLE("FmL Switch",SUN4I_DAC_ACTL,17,1,0),//Fm左开关
 	CODEC_SINGLE("FmR Switch",SUN4I_DAC_ACTL,16,1,0),//Fm右开关
 	CODEC_SINGLE("LineL Switch",SUN4I_DAC_ACTL,19,1,0),//Line左开关
@@ -509,6 +504,12 @@ static const struct snd_kcontrol_new codec_snd_controls_a[] = {
 	CODEC_SINGLE("Rdac Right Mixer",SUN4I_DAC_ACTL,14,1,0),
 	CODEC_SINGLE("Ldac Right Mixer",SUN4I_DAC_ACTL,13,1,0),
 	CODEC_SINGLE("Mic Input Mux",SUN4I_DAC_ACTL,9,15,0),//from bit 9 to bit 12.Mic（麦克风）输入静音
+};
+
+static const struct snd_kcontrol_new codec_adc_controls[] = {
+	CODEC_SINGLE("Capture Volume",SUN4I_ADC_ACTL,20,7,0),//录音音量
+	CODEC_SINGLE("MicL Volume",SUN4I_ADC_ACTL,25,3,0),//mic左音量
+	CODEC_SINGLE("MicR Volume",SUN4I_ADC_ACTL,23,3,0),//mic右音量
 	CODEC_SINGLE("ADC Input Mux",SUN4I_ADC_ACTL,17,7,0),//ADC输入静音
 };
 
@@ -531,18 +532,23 @@ int __devinit snd_chip_codec_mixer_new(struct snd_card *card)
 	enum sw_ic_ver  codec_chip_ver = sw_get_ic_ver();
 
 	if (machine_is_sun4i() && codec_chip_ver == MAGIC_VER_A) {
-		for (idx = 0; idx < ARRAY_SIZE(codec_snd_controls_a); idx++) {
-			if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_snd_controls_a[idx],clnt))) < 0) {
-				return err;
-			}
-		}
-	} else if (machine_is_sun5i() || codec_chip_ver == MAGIC_VER_B ||
-					 codec_chip_ver == MAGIC_VER_C) {
-		for (idx = 0; idx < ARRAY_SIZE(codec_snd_controls_b_c); idx++) {
-			if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_snd_controls_b_c[idx],clnt))) < 0) {
-				return err;
-			}
-		}
+		if (has_playback)
+			for (idx = 0; idx < ARRAY_SIZE(sun4ia_dac); idx++)
+				if ((err = snd_ctl_add(card, snd_ctl_new1(&sun4ia_dac[idx], clnt))) < 0)
+					return err;
+		if (has_capture)
+			for (idx = 0; idx < ARRAY_SIZE(codec_adc_controls); idx++)
+				if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_adc_controls[idx], clnt))) < 0)
+					return err;
+	} else if (machine_is_sun5i() || codec_chip_ver == MAGIC_VER_B || codec_chip_ver == MAGIC_VER_C) {
+		if (has_playback)
+			for (idx = 0; idx < ARRAY_SIZE(sun4ibc_dac); idx++)
+				if ((err = snd_ctl_add(card, snd_ctl_new1(&sun4ibc_dac[idx], clnt))) < 0)
+					return err;
+		if (has_capture)
+			for (idx = 0; idx < ARRAY_SIZE(codec_adc_controls); idx++)
+				if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_adc_controls[idx], clnt))) < 0)
+					return err;
 	} else {
 		printk("[audio codec] chip version is unknown!\n");
 		return -1;
@@ -1241,23 +1247,11 @@ static struct snd_pcm_ops sun4i_pcm_capture_ops = {
 static int __init snd_card_sun4i_codec_pcm(struct sun4i_codec *sun4i_codec, int device)
 {
 	struct snd_pcm *pcm;
-	int err, playb, capt;
+	int err;
 
-	err = script_parser_fetch("audio_para", "playback_used", &playb, 1);
-	/* On error set playb to 1 as this is a linux-sunxi.org extension */
-	if (err == 0 && !playb)
-		playb = 0;
-	else
-		playb = 1;
-
-	err = script_parser_fetch("audio_para", "capture_used", &capt, 1);
-	if (err == 0 && capt)
-		capt = 1;
-	else
-		capt = 0;
-
+	/*创建PCM实例*/
 	err = snd_pcm_new(sun4i_codec->card, "M1 PCM", device,
-			  playb, capt, &pcm);
+			  has_playback, has_capture, &pcm);
 	if (err < 0) {
 		pr_err("snd_pcm_new M1 PCM failed: %d\n", err);
 		return err;
@@ -1276,10 +1270,10 @@ static int __init snd_card_sun4i_codec_pcm(struct sun4i_codec *sun4i_codec, int 
 	*	设置PCM操作，第1个参数是snd_pcm的指针，第2 个参数是SNDRV_PCM_STREAM_PLAYBACK
 	*	或SNDRV_ PCM_STREAM_CAPTURE，而第3 个参数是PCM 操作结构体snd_pcm_ops
 	*/
-	if (playb)
+	if (has_playback)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				&sun4i_pcm_playback_ops);
-	if (capt)
+	if (has_capture)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 				&sun4i_pcm_capture_ops);
 
@@ -1550,7 +1544,22 @@ static int __init sun4i_codec_init(void)
 	int ret = 0, audio_used = 0;
 
 	ret = script_parser_fetch("audio_para", "audio_used", &audio_used, 1);
-	if (ret != 0 || !audio_used)
+
+	ret = script_parser_fetch("audio_para", "playback_used", &has_playback, 1);
+	/* On error set playback to 1 as this is a linux-sunxi.org extension */
+	if (ret == 0 && !has_playback)
+		has_playback = 0;
+	else
+		has_playback = 1;
+
+	ret = script_parser_fetch("audio_para", "capture_used", &has_capture, 1);
+	/* On error set capture to 0 as this is a linux-sunxi.org extension */
+	if (ret == 0 && has_capture)
+		has_capture = 1;
+	else
+		has_capture = 0;
+
+	if (ret != 0 || !audio_used || (!has_playback && !has_capture))
 		return -ENODEV;
 
 	ret = platform_device_register(&sun4i_device_codec);
