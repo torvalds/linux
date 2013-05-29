@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/rc-core.h>
 
 #include "cx23885.h"
@@ -131,8 +130,6 @@ union cx23888_ir_fifo_rec {
 struct cx23888_ir_state {
 	struct v4l2_subdev sd;
 	struct cx23885_dev *dev;
-	u32 id;
-	u32 rev;
 
 	struct v4l2_subdev_ir_parameters rx_params;
 	struct mutex rx_params_lock;
@@ -1086,23 +1083,6 @@ static int cx23888_ir_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static inline int cx23888_ir_dbg_match(const struct v4l2_dbg_match *match)
-{
-	return match->type == V4L2_CHIP_MATCH_HOST && match->addr == 2;
-}
-
-static int cx23888_ir_g_chip_ident(struct v4l2_subdev *sd,
-				   struct v4l2_dbg_chip_ident *chip)
-{
-	struct cx23888_ir_state *state = to_state(sd);
-
-	if (cx23888_ir_dbg_match(&chip->match)) {
-		chip->ident = state->id;
-		chip->revision = state->rev;
-	}
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int cx23888_ir_g_register(struct v4l2_subdev *sd,
 				 struct v4l2_dbg_register *reg)
@@ -1110,8 +1090,6 @@ static int cx23888_ir_g_register(struct v4l2_subdev *sd,
 	struct cx23888_ir_state *state = to_state(sd);
 	u32 addr = CX23888_IR_REG_BASE + (u32) reg->reg;
 
-	if (!cx23888_ir_dbg_match(&reg->match))
-		return -EINVAL;
 	if ((addr & 0x3) != 0)
 		return -EINVAL;
 	if (addr < CX23888_IR_CNTRL_REG || addr > CX23888_IR_LEARN_REG)
@@ -1127,8 +1105,6 @@ static int cx23888_ir_s_register(struct v4l2_subdev *sd,
 	struct cx23888_ir_state *state = to_state(sd);
 	u32 addr = CX23888_IR_REG_BASE + (u32) reg->reg;
 
-	if (!cx23888_ir_dbg_match(&reg->match))
-		return -EINVAL;
 	if ((addr & 0x3) != 0)
 		return -EINVAL;
 	if (addr < CX23888_IR_CNTRL_REG || addr > CX23888_IR_LEARN_REG)
@@ -1139,7 +1115,6 @@ static int cx23888_ir_s_register(struct v4l2_subdev *sd,
 #endif
 
 static const struct v4l2_subdev_core_ops cx23888_ir_core_ops = {
-	.g_chip_ident = cx23888_ir_g_chip_ident,
 	.log_status = cx23888_ir_log_status,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = cx23888_ir_g_register,
@@ -1213,8 +1188,6 @@ int cx23888_ir_probe(struct cx23885_dev *dev)
 		return -ENOMEM;
 
 	state->dev = dev;
-	state->id = V4L2_IDENT_CX23888_IR;
-	state->rev = 0;
 	sd = &state->sd;
 
 	v4l2_subdev_init(sd, &cx23888_ir_controller_ops);
