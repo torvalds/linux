@@ -324,14 +324,14 @@ static inline
 u32 mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_inc(&sdata->u.mesh.estab_plinks);
-	return mesh_accept_plinks_update(sdata);
+	return mesh_accept_plinks_update(sdata) | BSS_CHANGED_BEACON;
 }
 
 static inline
 u32 mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_dec(&sdata->u.mesh.estab_plinks);
-	return mesh_accept_plinks_update(sdata);
+	return mesh_accept_plinks_update(sdata) | BSS_CHANGED_BEACON;
 }
 
 static inline int mesh_plink_free_count(struct ieee80211_sub_if_data *sdata)
