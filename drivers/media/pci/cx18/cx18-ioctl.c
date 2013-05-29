@@ -367,6 +367,8 @@ static int cx18_g_register(struct file *file, void *fh,
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
+	if (reg->reg & 0x3)
+		return -EINVAL;
 	if (reg->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
 		return -EINVAL;
 	reg->size = 4;
@@ -379,6 +381,8 @@ static int cx18_s_register(struct file *file, void *fh,
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
+	if (reg->reg & 0x3)
+		return -EINVAL;
 	if (reg->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
 		return -EINVAL;
 	cx18_write_enc(cx, reg->val, reg->reg);
