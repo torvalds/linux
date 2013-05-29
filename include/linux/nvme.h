@@ -572,6 +572,7 @@ struct nvme_iod {
 	int offset;		/* Of PRP list */
 	int nents;		/* Used in scatterlist */
 	int length;		/* Of data, in bytes */
+	unsigned long start_time;
 	dma_addr_t first_dma;
 	struct scatterlist sg[0];
 };
