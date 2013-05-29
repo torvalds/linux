@@ -266,7 +266,8 @@ recv_secondary_console_msg(void)
 		else {
 			cp1 = (char *) &cpu->ipc_buffer[11];
 			cp2 = buf;
-			strcpy(cp2, cp1);
+			memcpy(cp2, cp1, cnt);
+			cp2[cnt] = '\0';
 			
 			while ((cp2 = strchr(cp2, '\r')) != 0) {
 				*cp2 = ' ';
