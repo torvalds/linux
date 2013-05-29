@@ -183,66 +183,45 @@ static unsigned char XGI_AjustCRT2Rate(unsigned short ModeNo,
 	tempbx = XGI330_RefIndex[RefreshRateTableIndex + (*i)].ModeID;
 	tempax = 0;
 
-	if (pVBInfo->IF_DEF_LVDS == 0) {
-		if (pVBInfo->VBInfo & SetCRT2ToRAMDAC) {
-			tempax |= SupportRAMDAC2;
+	if (pVBInfo->VBInfo & SetCRT2ToRAMDAC) {
+		tempax |= SupportRAMDAC2;
 
-			if (pVBInfo->VBType & VB_XGI301C)
-				tempax |= SupportCRT2in301C;
-		}
+		if (pVBInfo->VBType & VB_XGI301C)
+			tempax |= SupportCRT2in301C;
+	}
 
-		/* 301b */
-		if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
-			tempax |= SupportLCD;
-
-			if (pVBInfo->LCDResInfo != Panel_1280x1024 &&
-			    pVBInfo->LCDResInfo != Panel_1280x960 &&
-			    (pVBInfo->LCDInfo & LCDNonExpanding) &&
-			    resinfo >= 9)
-				return 0;
-		}
-
-		if (pVBInfo->VBInfo & SetCRT2ToHiVision) { /* for HiTV */
-			tempax |= SupportHiVision;
-			if ((pVBInfo->VBInfo & SetInSlaveMode) &&
-			    ((resinfo == 4) ||
-			     (resinfo == 3 &&
-			      (pVBInfo->SetFlag & TVSimuMode)) ||
-			     (resinfo > 7)))
-					return 0;
-		} else if (pVBInfo->VBInfo & (SetCRT2ToAVIDEO |
-					       SetCRT2ToSVIDEO |
-					       SetCRT2ToSCART |
-					       SetCRT2ToYPbPr525750 |
-					       SetCRT2ToHiVision)) {
-			tempax |= SupportTV;
-
-			if (pVBInfo->VBType & (VB_SIS301B |
-					       VB_SIS302B |
-					       VB_SIS301LV |
-					       VB_SIS302LV |
-					       VB_XGI301C))
-				tempax |= SupportTV1024;
-
-			if (!(pVBInfo->VBInfo & TVSetPAL) &&
-			    (modeflag & NoSupportSimuTV) &&
-			    (pVBInfo->VBInfo & SetInSlaveMode) &&
-			    (!(pVBInfo->VBInfo & SetNotSimuMode)))
-				return 0;
-		}
-	} else if (pVBInfo->VBInfo & SetCRT2ToLCD) { /* for LVDS */
+	/* 301b */
+	if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
 		tempax |= SupportLCD;
 
-		if (resinfo > 0x08)
-			return 0; /* 1024x768 */
+		if (pVBInfo->LCDResInfo != Panel_1280x1024 &&
+		    pVBInfo->LCDResInfo != Panel_1280x960 &&
+		    (pVBInfo->LCDInfo & LCDNonExpanding) &&
+		    resinfo >= 9)
+			return 0;
+	}
 
-		if (pVBInfo->LCDResInfo < Panel_1024x768) {
-			if (resinfo > 0x07)
-				return 0; /* 800x600 */
+	if (pVBInfo->VBInfo & SetCRT2ToHiVision) { /* for HiTV */
+		tempax |= SupportHiVision;
+		if ((pVBInfo->VBInfo & SetInSlaveMode) &&
+		    ((resinfo == 4) ||
+		     (resinfo == 3 && (pVBInfo->SetFlag & TVSimuMode)) ||
+		     (resinfo > 7)))
+			return 0;
+	} else if (pVBInfo->VBInfo & (SetCRT2ToAVIDEO | SetCRT2ToSVIDEO |
+				      SetCRT2ToSCART | SetCRT2ToYPbPr525750 |
+				      SetCRT2ToHiVision)) {
+		tempax |= SupportTV;
 
-			if (resinfo == 0x04)
-				return 0; /* 512x384 */
-		}
+		if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV |
+				       VB_SIS302LV | VB_XGI301C))
+			tempax |= SupportTV1024;
+
+		if (!(pVBInfo->VBInfo & TVSetPAL) &&
+		    (modeflag & NoSupportSimuTV) &&
+		    (pVBInfo->VBInfo & SetInSlaveMode) &&
+		    (!(pVBInfo->VBInfo & SetNotSimuMode)))
+			return 0;
 	}
 
 	for (; XGI330_RefIndex[RefreshRateTableIndex + (*i)].ModeID ==
