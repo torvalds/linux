@@ -445,7 +445,6 @@ void asihpi_adapter_remove(struct pci_dev *pci_dev)
 	if (pa->p_buffer)
 		vfree(pa->p_buffer);
 
-	pci_set_drvdata(pci_dev, NULL);
 	if (1)
 		dev_info(&pci_dev->dev,
 			 "remove %04x:%04x,%04x:%04x,%04x, HPI index %d\n",

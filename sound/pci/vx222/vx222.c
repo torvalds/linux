@@ -254,7 +254,6 @@ static int snd_vx222_probe(struct pci_dev *pci,
 static void snd_vx222_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP

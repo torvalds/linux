@@ -2497,7 +2497,6 @@ static int snd_audiopci_probe(struct pci_dev *pci,
 static void snd_audiopci_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver ens137x_driver = {

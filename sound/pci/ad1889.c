@@ -1046,7 +1046,6 @@ static void
 snd_ad1889_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(snd_ad1889_ids) = {
