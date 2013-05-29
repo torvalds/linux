@@ -359,6 +359,9 @@ static int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
 
 	idx = hw_irq % dgc->irqs_per_chip;
 
+	if (test_bit(idx, &gc->unused))
+		return -ENOTSUPP;
+
 	if (test_bit(idx, &gc->installed))
 		return -EBUSY;
 

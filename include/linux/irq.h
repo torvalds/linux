@@ -679,6 +679,7 @@ struct irq_chip_type {
  * @num_ct:		Number of available irq_chip_type instances (usually 1)
  * @private:		Private data for non generic chip callbacks
  * @installed:		bitfield to denote installed interrupts
+ * @unused:		bitfield to denote unused interrupts
  * @domain:		irq domain pointer
  * @list:		List head for keeping track of instances
  * @chip_types:		Array of interrupt irq_chip_types
@@ -702,6 +703,7 @@ struct irq_chip_generic {
 	unsigned int		num_ct;
 	void			*private;
 	unsigned long		installed;
+	unsigned long		unused;
 	struct irq_domain	*domain;
 	struct list_head	list;
 	struct irq_chip_type	chip_types[0];
