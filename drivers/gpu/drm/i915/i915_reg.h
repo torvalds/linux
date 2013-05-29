@@ -265,13 +265,19 @@
 #define  MI_SEMAPHORE_UPDATE	    (1<<21)
 #define  MI_SEMAPHORE_COMPARE	    (1<<20)
 #define  MI_SEMAPHORE_REGISTER	    (1<<18)
-#define  MI_SEMAPHORE_SYNC_RB	    (0<<16) /* BCS wait for RCS  (BRSYNC) */
-#define  MI_SEMAPHORE_SYNC_RV	    (2<<16) /* VCS wait for RCS  (VRSYNC) */
-#define  MI_SEMAPHORE_SYNC_VR	    (0<<16) /* RCS wait for VCS  (RVSYNC) */
-#define  MI_SEMAPHORE_SYNC_VB	    (2<<16) /* BCS wait for VCS  (BVSYNC) */
-#define  MI_SEMAPHORE_SYNC_BV	    (0<<16) /* VCS wait for BCS  (VBSYNC) */
-#define  MI_SEMAPHORE_SYNC_BR	    (2<<16) /* RCS wait for BCS  (RBSYNC) */
-#define  MI_SEMAPHORE_SYNC_INVALID  (1<<0)
+#define  MI_SEMAPHORE_SYNC_VR	    (0<<16) /* RCS  wait for VCS  (RVSYNC) */
+#define  MI_SEMAPHORE_SYNC_VER	    (1<<16) /* RCS  wait for VECS (RVESYNC) */
+#define  MI_SEMAPHORE_SYNC_BR	    (2<<16) /* RCS  wait for BCS  (RBSYNC) */
+#define  MI_SEMAPHORE_SYNC_BV	    (0<<16) /* VCS  wait for BCS  (VBSYNC) */
+#define  MI_SEMAPHORE_SYNC_VEV	    (1<<16) /* VCS  wait for VECS (VVESYNC) */
+#define  MI_SEMAPHORE_SYNC_RV	    (2<<16) /* VCS  wait for RCS  (VRSYNC) */
+#define  MI_SEMAPHORE_SYNC_RB	    (0<<16) /* BCS  wait for RCS  (BRSYNC) */
+#define  MI_SEMAPHORE_SYNC_VEB	    (1<<16) /* BCS  wait for VECS (BVESYNC) */
+#define  MI_SEMAPHORE_SYNC_VB	    (2<<16) /* BCS  wait for VCS  (BVSYNC) */
+#define  MI_SEMAPHORE_SYNC_BVE	    (0<<16) /* VECS wait for BCS  (VEBSYNC) */
+#define  MI_SEMAPHORE_SYNC_VVE	    (1<<16) /* VECS wait for VCS  (VEVSYNC) */
+#define  MI_SEMAPHORE_SYNC_RVE	    (2<<16) /* VECS wait for RCS  (VERSYNC) */
+#define  MI_SEMAPHORE_SYNC_INVALID  (3<<16)
 /*
  * 3D instructions used by the kernel
  */
@@ -581,6 +587,7 @@
 #define RENDER_RING_BASE	0x02000
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000
+#define VEBOX_RING_BASE		0x1a000
 #define BLT_RING_BASE		0x22000
 #define RING_TAIL(base)		((base)+0x30)
 #define RING_HEAD(base)		((base)+0x34)
@@ -588,13 +595,20 @@
 #define RING_CTL(base)		((base)+0x3c)
 #define RING_SYNC_0(base)	((base)+0x40)
 #define RING_SYNC_1(base)	((base)+0x44)
-#define GEN6_RVSYNC (RING_SYNC_0(RENDER_RING_BASE))
-#define GEN6_RBSYNC (RING_SYNC_1(RENDER_RING_BASE))
-#define GEN6_VRSYNC (RING_SYNC_1(GEN6_BSD_RING_BASE))
-#define GEN6_VBSYNC (RING_SYNC_0(GEN6_BSD_RING_BASE))
-#define GEN6_BRSYNC (RING_SYNC_0(BLT_RING_BASE))
+#define RING_SYNC_2(base)	((base)+0x48)
+#define GEN6_RVSYNC	(RING_SYNC_0(RENDER_RING_BASE))
+#define GEN6_RBSYNC	(RING_SYNC_1(RENDER_RING_BASE))
+#define GEN6_RVESYNC	(RING_SYNC_2(RENDER_RING_BASE))
+#define GEN6_VBSYNC	(RING_SYNC_0(GEN6_BSD_RING_BASE))
+#define GEN6_VRSYNC	(RING_SYNC_1(GEN6_BSD_RING_BASE))
+#define GEN6_VVESYNC	(RING_SYNC_2(GEN6_BSD_RING_BASE))
+#define GEN6_BRSYNC	(RING_SYNC_0(BLT_RING_BASE))
+#define GEN6_BVSYNC	(RING_SYNC_1(BLT_RING_BASE))
+#define GEN6_BVESYNC	(RING_SYNC_2(BLT_RING_BASE))
+#define GEN6_VEBSYNC	(RING_SYNC_0(VEBOX_RING_BASE))
+#define GEN6_VERSYNC	(RING_SYNC_1(VEBOX_RING_BASE))
+#define GEN6_VEVSYNC	(RING_SYNC_2(VEBOX_RING_BASE))
 #define GEN6_NOSYNC 0
-#define GEN6_BVSYNC (RING_SYNC_1(BLT_RING_BASE))
 #define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
