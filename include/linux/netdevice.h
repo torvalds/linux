@@ -1609,6 +1609,12 @@ struct netdev_notifier_change_info {
 	unsigned int flags_changed;
 };
 
+static inline void netdev_notifier_info_init(struct netdev_notifier_info *info,
+					     struct net_device *dev)
+{
+	info->dev = dev;
+}
+
 static inline struct net_device *
 netdev_notifier_info_to_dev(const struct netdev_notifier_info *info)
 {

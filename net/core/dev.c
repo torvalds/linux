@@ -1391,12 +1391,6 @@ void dev_disable_lro(struct net_device *dev)
 }
 EXPORT_SYMBOL(dev_disable_lro);
 
-static void netdev_notifier_info_init(struct netdev_notifier_info *info,
-				      struct net_device *dev)
-{
-	info->dev = dev;
-}
-
 static int call_netdevice_notifier(struct notifier_block *nb, unsigned long val,
 				   struct net_device *dev)
 {
