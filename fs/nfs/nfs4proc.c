@@ -1964,6 +1964,7 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 {
 	struct nfs4_state_owner *sp = opendata->owner;
 	struct nfs_server *server = sp->so_server;
+	struct dentry *dentry;
 	struct nfs4_state *state;
 	unsigned int seq;
 	int ret;
@@ -1980,6 +1981,21 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 		goto out;
 	if (server->caps & NFS_CAP_POSIX_LOCK)
 		set_bit(NFS_STATE_POSIX_LOCKS, &state->flags);
+
+	dentry = opendata->dentry;
+	if (dentry->d_inode == NULL) {
+		/* FIXME: Is this d_drop() ever needed? */
+		d_drop(dentry);
+		dentry = d_add_unique(dentry, igrab(state->inode));
+		if (dentry == NULL) {
+			dentry = opendata->dentry;
+		} else if (dentry != ctx->dentry) {
+			dput(ctx->dentry);
+			ctx->dentry = dget(dentry);
+		}
+		nfs_set_verifier(dentry,
+				nfs_save_change_attribute(opendata->dir->d_inode));
+	}
 
 	ret = nfs4_opendata_access(sp->so_cred, opendata, state, fmode, flags);
 	if (ret != 0)
@@ -2444,7 +2460,7 @@ nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx, int open_flags
 	state = nfs4_do_open(dir, ctx, open_flags, attr);
 	if (IS_ERR(state))
 		return ERR_CAST(state);
-	return igrab(state->inode);
+	return state->inode;
 }
 
 static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
@@ -3050,13 +3066,10 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 
 	sattr->ia_mode &= ~current_umask();
 	state = nfs4_do_open(dir, ctx, flags, sattr);
-	d_drop(dentry);
 	if (IS_ERR(state)) {
 		status = PTR_ERR(state);
 		goto out;
 	}
-	d_add(dentry, igrab(state->inode));
-	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 out:
 	put_nfs_open_context(ctx);
 	return status;

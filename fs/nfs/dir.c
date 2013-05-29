@@ -1357,11 +1357,6 @@ static int nfs_finish_open(struct nfs_open_context *ctx,
 {
 	int err;
 
-	if (ctx->dentry != dentry) {
-		dput(ctx->dentry);
-		ctx->dentry = dget(dentry);
-	}
-
 	err = finish_open(file, dentry, do_open, opened);
 	if (err)
 		goto out;
@@ -1420,13 +1415,13 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	nfs_block_sillyrename(dentry->d_parent);
 	inode = NFS_PROTO(dir)->open_context(dir, ctx, open_flags, &attr);
-	d_drop(dentry);
+	nfs_unblock_sillyrename(dentry->d_parent);
 	if (IS_ERR(inode)) {
-		nfs_unblock_sillyrename(dentry->d_parent);
 		put_nfs_open_context(ctx);
 		err = PTR_ERR(inode);
 		switch (err) {
 		case -ENOENT:
+			d_drop(dentry);
 			d_add(dentry, NULL);
 			break;
 		case -EISDIR:
@@ -1442,16 +1437,8 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		}
 		goto out;
 	}
-	res = d_add_unique(dentry, inode);
-	if (res != NULL)
-		dentry = res;
 
-	nfs_unblock_sillyrename(dentry->d_parent);
-	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
-
-	err = nfs_finish_open(ctx, dentry, file, open_flags, opened);
-
-	dput(res);
+	err = nfs_finish_open(ctx, ctx->dentry, file, open_flags, opened);
 out:
 	return err;
 
