@@ -139,7 +139,7 @@ xlog_cil_prepare_log_vecs(
 
 		new_lv = kmem_zalloc(sizeof(*new_lv) +
 				niovecs * sizeof(struct xfs_log_iovec),
-				KM_SLEEP);
+				KM_SLEEP|KM_NOFS);
 
 		/* The allocated iovec region lies beyond the log vector. */
 		new_lv->lv_iovecp = (struct xfs_log_iovec *)&new_lv[1];

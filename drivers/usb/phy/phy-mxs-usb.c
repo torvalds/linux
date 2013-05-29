@@ -130,11 +130,6 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "can't get device resources\n");
-		return -ENOENT;
-	}
-
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -160,6 +155,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	mxs_phy->phy.set_suspend	= mxs_phy_suspend;
 	mxs_phy->phy.notify_connect	= mxs_phy_on_connect;
 	mxs_phy->phy.notify_disconnect	= mxs_phy_on_disconnect;
+	mxs_phy->phy.type		= USB_PHY_TYPE_USB2;
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&mxs_phy->phy.notifier);
 
@@ -179,8 +175,6 @@ static int mxs_phy_remove(struct platform_device *pdev)
 	struct mxs_phy *mxs_phy = platform_get_drvdata(pdev);
 
 	usb_remove_phy(&mxs_phy->phy);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

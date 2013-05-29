@@ -28,7 +28,6 @@
 /*
  * System setup and hardware flags..
  */
-extern void (*cpu_wait)(void);
 
 extern unsigned int vced_count, vcei_count;
 

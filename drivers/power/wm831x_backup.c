@@ -207,7 +207,6 @@ static int wm831x_backup_remove(struct platform_device *pdev)
 	struct wm831x_backup *devdata = platform_get_drvdata(pdev);
 
 	power_supply_unregister(&devdata->backup);
-	kfree(devdata->backup.name);
 
 	return 0;
 }

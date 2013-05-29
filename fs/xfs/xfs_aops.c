@@ -725,6 +725,25 @@ xfs_convert_page(
 			(xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT,
 			i_size_read(inode));
 
+	/*
+	 * If the current map does not span the entire page we are about to try
+	 * to write, then give up. The only way we can write a page that spans
+	 * multiple mappings in a single writeback iteration is via the
+	 * xfs_vm_writepage() function. Data integrity writeback requires the
+	 * entire page to be written in a single attempt, otherwise the part of
+	 * the page we don't write here doesn't get written as part of the data
+	 * integrity sync.
+	 *
+	 * For normal writeback, we also don't attempt to write partial pages
+	 * here as it simply means that write_cache_pages() will see it under
+	 * writeback and ignore the page until some point in the future, at
+	 * which time this will be the only page in the file that needs
+	 * writeback.  Hence for more optimal IO patterns, we should always
+	 * avoid partial page writeback due to multiple mappings on a page here.
+	 */
+	if (!xfs_imap_valid(inode, imap, end_offset))
+		goto fail_unlock_page;
+
 	len = 1 << inode->i_blkbits;
 	p_offset = min_t(unsigned long, end_offset & (PAGE_CACHE_SIZE - 1),
 					PAGE_CACHE_SIZE);
