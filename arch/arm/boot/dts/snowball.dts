@@ -105,7 +105,7 @@
 			ethernet@0 {
 				compatible = "smsc,lan9115";
 				reg = <0 0x10000>;
-				interrupts = <12 0x1>;
+				interrupts = <12 IRQ_TYPE_EDGE_RISING>;
 				interrupt-parent = <&gpio4>;
 				vdd33a-supply = <&en_3v3_reg>;
 				vddvario-supply = <&db8500_vape_reg>;

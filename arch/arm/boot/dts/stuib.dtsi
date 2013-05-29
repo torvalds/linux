@@ -9,13 +9,15 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <dt-bindings/interrupt-controller/irq.h>
+
 / {
 	soc {
 		i2c@80004000 {
 			stmpe1601: stmpe1601@40 {
 				compatible = "st,stmpe1601";
 				reg = <0x40>;
-				interrupts = <26 0x2>;
+				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
 				interrupt-parent = <&gpio6>;
 				interrupt-controller;
 
