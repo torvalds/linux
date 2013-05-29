@@ -35,6 +35,9 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	pVBInfo->SR18 = XGI340_SR18;
 	pVBInfo->CR40 = XGI340_cr41;
 
+	if (ChipType < XG20)
+		XGI_GetVBType(pVBInfo);
+
 	/* 310 customization related */
 	if ((pVBInfo->VBType & VB_SIS301LV) || (pVBInfo->VBType & VB_SIS302LV))
 		pVBInfo->LCDCapList = XGI_LCDDLCapList;
@@ -5733,9 +5736,6 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 				pVBInfo->IF_DEF_LVDS = 1;
 		}
 	}
-
-	if (HwDeviceExtension->jChipType < XG20)
-		XGI_GetVBType(pVBInfo);
 
 	InitTo330Pointer(HwDeviceExtension->jChipType, pVBInfo);
 	if (ModeNo & 0x80)

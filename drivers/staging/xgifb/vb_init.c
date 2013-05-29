@@ -1212,10 +1212,6 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	outb(0x67, pVBInfo->P3c2);
 
-	if (HwDeviceExtension->jChipType < XG20)
-		/* Run XGI_GetVBType before InitTo330Pointer */
-		XGI_GetVBType(pVBInfo);
-
 	InitTo330Pointer(HwDeviceExtension->jChipType, pVBInfo);
 
 	/* Openkey */
