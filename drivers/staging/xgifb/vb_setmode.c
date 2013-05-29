@@ -4555,7 +4555,7 @@ static unsigned char XGI_EnableChISLCD(struct vb_device_info *pVBInfo,
 	if (enable)
 		tempbx = pVBInfo->SetFlag & (EnableChA | EnableChB);
 	else
-		tempbx = pVBInfo->SetFlag & (DisableChA | DisableChB);
+		tempbx = pVBInfo->SetFlag & DisableChA;
 
 	tempah = ~((unsigned short) xgifb_reg_get(pVBInfo->Part1Port, 0x2E));
 
@@ -4564,7 +4564,7 @@ static unsigned char XGI_EnableChISLCD(struct vb_device_info *pVBInfo,
 			return 0;
 	}
 
-	if (!(tempbx & (EnableChB | DisableChB)))
+	if (!(tempbx & EnableChB))
 		return 0;
 
 	if (tempah & 0x01) /* Chk LCDB Mode */
@@ -4591,10 +4591,6 @@ static void XGI_DisableBridge(struct xgifb_video_info *xgifb_info,
 					      XGI_SetCRT2ToLCDA))
 						/* Disable Channel B */
 						tempah = 0xBF;
-
-					if (pVBInfo->SetFlag & DisableChB)
-						/* force to disable Cahnnel */
-						tempah &= 0xBF;
 
 					if (pVBInfo->SetFlag & DisableChA)
 						/* Force to disable Channel B */
@@ -4633,16 +4629,14 @@ static void XGI_DisableBridge(struct xgifb_video_info *xgifb_info,
 		if ((pVBInfo->VBInfo & (SetSimuScanMode | SetCRT2ToDualEdge)))
 			xgifb_reg_and(pVBInfo->Part2Port, 0x00, 0xdf);
 
-		if ((pVBInfo->SetFlag & DisableChB) ||
-		    (pVBInfo->VBInfo &
+		if ((pVBInfo->VBInfo &
 			(DisableCRT2Display | SetSimuScanMode)) ||
 		    ((!(pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)) &&
 		    (pVBInfo->VBInfo &
 			(SetCRT2ToRAMDAC | SetCRT2ToLCD | SetCRT2ToTV))))
 			xgifb_reg_or(pVBInfo->Part1Port, 0x00, 0x80);
 
-		if ((pVBInfo->SetFlag & DisableChB) ||
-		    (pVBInfo->VBInfo &
+		if ((pVBInfo->VBInfo &
 			(DisableCRT2Display | SetSimuScanMode)) ||
 		    (!(pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)) ||
 		    (pVBInfo->VBInfo &
@@ -5489,28 +5483,23 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 			}
 		}
 
-		if (!(pVBInfo->SetFlag & DisableChB)) {
-			if ((pVBInfo->SetFlag & EnableChB) || (pVBInfo->VBInfo
-					& (SetCRT2ToLCD | SetCRT2ToTV
-							| SetCRT2ToRAMDAC))) {
-				tempah = xgifb_reg_get(pVBInfo->P3c4, 0x32);
-				tempah &= 0xDF;
-				if (pVBInfo->VBInfo & SetInSlaveMode) {
-					if (!(pVBInfo->VBInfo &
-					      SetCRT2ToRAMDAC))
-						tempah |= 0x20;
-				}
-				xgifb_reg_set(pVBInfo->P3c4, 0x32, tempah);
-				xgifb_reg_or(pVBInfo->P3c4, 0x1E, 0x20);
-
-				tempah = xgifb_reg_get(pVBInfo->Part1Port,
-						       0x2E);
-
-				if (!(tempah & 0x80))
-					xgifb_reg_or(pVBInfo->Part1Port,
-							0x2E, 0x80);
-				xgifb_reg_and(pVBInfo->Part1Port, 0x00, 0x7F);
+		if ((pVBInfo->SetFlag & EnableChB) ||
+		    (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToTV |
+					SetCRT2ToRAMDAC))) {
+			tempah = xgifb_reg_get(pVBInfo->P3c4, 0x32);
+			tempah &= 0xDF;
+			if (pVBInfo->VBInfo & SetInSlaveMode) {
+				if (!(pVBInfo->VBInfo & SetCRT2ToRAMDAC))
+					tempah |= 0x20;
 			}
+			xgifb_reg_set(pVBInfo->P3c4, 0x32, tempah);
+			xgifb_reg_or(pVBInfo->P3c4, 0x1E, 0x20);
+
+			tempah = xgifb_reg_get(pVBInfo->Part1Port, 0x2E);
+
+			if (!(tempah & 0x80))
+				xgifb_reg_or(pVBInfo->Part1Port, 0x2E, 0x80);
+			xgifb_reg_and(pVBInfo->Part1Port, 0x00, 0x7F);
 		}
 
 		if ((pVBInfo->SetFlag & (EnableChA | EnableChB))
@@ -5544,9 +5533,6 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 				tempah = tempah & 0x40;
 				if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)
 					tempah = tempah ^ 0xC0;
-
-				if (pVBInfo->SetFlag & DisableChB)
-					tempah &= 0xBF;
 
 				if (pVBInfo->SetFlag &  DisableChA)
 					tempah &= 0x7F;
