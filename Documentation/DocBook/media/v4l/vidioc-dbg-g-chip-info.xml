@@ -73,8 +73,7 @@ fields of a &v4l2-dbg-chip-info;
 and call <constant>VIDIOC_DBG_G_CHIP_INFO</constant> with a pointer to
 this structure. On success the driver stores information about the
 selected chip in the <structfield>name</structfield> and
-<structfield>flags</structfield> fields. On failure the structure
-remains unchanged.</para>
+<structfield>flags</structfield> fields.</para>
 
     <para>When <structfield>match.type</structfield> is
 <constant>V4L2_CHIP_MATCH_BRIDGE</constant>,
