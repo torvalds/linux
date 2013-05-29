@@ -1423,8 +1423,6 @@ static void XGI_GetLCDSync(unsigned short *HSyncWidth,
 	Index = XGI_GetLCDCapPtr(pVBInfo);
 	*HSyncWidth = pVBInfo->LCDCapList[Index].LCD_HSyncWidth;
 	*VSyncWidth = pVBInfo->LCDCapList[Index].LCD_VSyncWidth;
-
-	return;
 }
 
 static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
@@ -1685,7 +1683,6 @@ static void XGI_GetLCDVCLKPtr(unsigned char *di_0, unsigned char *di_1,
 			*di_1 = pVBInfo->LCDCapList[index].LCDA_VCLKData2;
 		}
 	}
-	return;
 }
 
 static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
@@ -1880,8 +1877,6 @@ static void XGI_UpdateModeInfo(struct xgi_hw_device_info *HwDeviceExtension,
 
 		if (!(pVBInfo->SetFlag & ReserveTVOption))
 			xgifb_reg_set(pVBInfo->P3d4, 0x3e, tempch);
-	} else {
-		return;
 	}
 }
 
@@ -2751,7 +2746,6 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 		pVBInfo->HT = tempax;
 		pVBInfo->VT = tempbx;
-		return;
 	}
 }
 
@@ -3324,8 +3318,6 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 		temp = 0x00;
 
 	xgifb_reg_set(pVBInfo->Part1Port, 0x1A, temp); /* 0x1A SR0E */
-
-	return;
 }
 
 static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
@@ -3757,9 +3749,6 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 		if (!(pVBInfo->VBInfo & SetInSlaveMode))
 			xgifb_reg_set(pVBInfo->Part2Port, 0x0B, 0x00);
 	}
-
-	if (pVBInfo->VBInfo & SetCRT2ToTV)
-		return;
 }
 
 static void XGI_SetLCDRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
@@ -4095,8 +4084,7 @@ static void XGI_SetGroup3(unsigned short ModeNo, unsigned short ModeIdIndex,
 				xgifb_reg_set(pVBInfo->Part3Port, 0x28, 0x3f);
 		}
 	}
-	return;
-} /* {end of XGI_SetGroup3} */
+}
 
 static void XGI_SetGroup4(unsigned short ModeNo, unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex,
@@ -4280,7 +4268,6 @@ static void XGI_SetGroup5(unsigned short ModeNo, unsigned short ModeIdIndex,
 			XGINew_EnableCRT2(pVBInfo);
 		}
 	}
-	return;
 }
 
 static void XGI_DisableGatingCRT(struct xgi_hw_device_info *HwDeviceExtension,
