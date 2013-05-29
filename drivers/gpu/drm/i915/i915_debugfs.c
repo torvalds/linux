@@ -570,6 +570,7 @@ static const char *ring_str(int ring)
 	case RCS: return "render";
 	case VCS: return "bsd";
 	case BCS: return "blt";
+	case VECS: return "vebox";
 	default: return "";
 	}
 }
@@ -2222,6 +2223,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_hws", i915_hws_info, 0, (void *)RCS},
 	{"i915_gem_hws_blt", i915_hws_info, 0, (void *)BCS},
 	{"i915_gem_hws_bsd", i915_hws_info, 0, (void *)VCS},
+	{"i915_gem_hws_vebox", i915_hws_info, 0, (void *)VECS},
 	{"i915_rstdby_delays", i915_rstdby_delays, 0},
 	{"i915_cur_delayinfo", i915_cur_delayinfo, 0},
 	{"i915_delayfreq_table", i915_delayfreq_table, 0},
