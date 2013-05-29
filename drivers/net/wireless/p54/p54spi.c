@@ -713,27 +713,7 @@ static struct spi_driver p54spi_driver = {
 	.remove		= p54spi_remove,
 };
 
-static int __init p54spi_init(void)
-{
-	int ret;
-
-	ret = spi_register_driver(&p54spi_driver);
-	if (ret < 0) {
-		printk(KERN_ERR "failed to register SPI driver: %d", ret);
-		goto out;
-	}
-
-out:
-	return ret;
-}
-
-static void __exit p54spi_exit(void)
-{
-	spi_unregister_driver(&p54spi_driver);
-}
-
-module_init(p54spi_init);
-module_exit(p54spi_exit);
+module_spi_driver(p54spi_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Lamparter <chunkeey@web.de>");
