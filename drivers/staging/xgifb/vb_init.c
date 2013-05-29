@@ -1185,6 +1185,14 @@ static unsigned char GetXG27FPBits(struct vb_device_info *pVBInfo)
 	return temp;
 }
 
+static bool xgifb_bridge_is_on(struct vb_device_info *vb_info)
+{
+	u8 flag;
+
+	flag = xgifb_reg_get(vb_info->Part4Port, 0x00);
+	return flag == 1 || flag == 2;
+}
+
 unsigned char XGIInitNew(struct pci_dev *pdev)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
@@ -1321,7 +1329,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	xgifb_reg_set(pVBInfo->P3c4, 0x33, XGI330_SR33);
 
 	if (HwDeviceExtension->jChipType < XG20) {
-		if (XGI_BridgeIsOn(pVBInfo) == 1) {
+		if (xgifb_bridge_is_on(pVBInfo)) {
 			xgifb_reg_set(pVBInfo->Part2Port, 0x00, 0x1C);
 			xgifb_reg_set(pVBInfo->Part4Port,
 				      0x0D, XGI330_CRT2Data_4_D);

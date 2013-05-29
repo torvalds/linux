@@ -5290,21 +5290,6 @@ void XGI_LockCRT2(struct xgi_hw_device_info *HwDeviceExtension,
 
 }
 
-unsigned char XGI_BridgeIsOn(struct vb_device_info *pVBInfo)
-{
-	unsigned short flag;
-
-	if (pVBInfo->IF_DEF_LVDS == 1) {
-		return 1;
-	} else {
-		flag = xgifb_reg_get(pVBInfo->Part4Port, 0x00);
-		if ((flag == 1) || (flag == 2))
-			return 1; /* 301b */
-		else
-			return 0;
-	}
-}
-
 unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 		unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct vb_device_info *pVBInfo)
