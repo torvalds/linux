@@ -135,6 +135,10 @@ static void rk616_lvds_early_suspend(struct early_suspend *h)
 	val |= LVDS_PLL_PWR_DN |(LVDS_CH1_PWR_EN << 16) | (LVDS_CH0_PWR_EN << 16) |
 		(LVDS_CBG_PWR_EN << 16) | (LVDS_PLL_PWR_DN << 16);
 	ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
+
+	val = LCD1_INPUT_EN | (LCD1_INPUT_EN << 16);
+	ret = rk616->write_dev(rk616,CRU_IO_CON0,&val);
+	
 	
 }
 
