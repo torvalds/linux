@@ -155,7 +155,7 @@ static ssize_t lio_target_np_store_iser(
 	struct iscsi_tpg_np *tpg_np_iser = NULL;
 	char *endptr;
 	u32 op;
-	int rc;
+	int rc = 0;
 
 	op = simple_strtoul(page, &endptr, 0);
 	if ((op != 1) && (op != 0)) {
@@ -174,22 +174,25 @@ static ssize_t lio_target_np_store_iser(
 		return -EINVAL;
 
 	if (op) {
-		int rc = request_module("ib_isert");
-		if (rc != 0)
+		rc = request_module("ib_isert");
+		if (rc != 0) {
 			pr_warn("Unable to request_module for ib_isert\n");
+			rc = 0;
+		}
 
 		tpg_np_iser = iscsit_tpg_add_network_portal(tpg, &np->np_sockaddr,
 				np->np_ip, tpg_np, ISCSI_INFINIBAND);
-		if (!tpg_np_iser || IS_ERR(tpg_np_iser))
+		if (IS_ERR(tpg_np_iser)) {
+			rc = PTR_ERR(tpg_np_iser);
 			goto out;
+		}
 	} else {
 		tpg_np_iser = iscsit_tpg_locate_child_np(tpg_np, ISCSI_INFINIBAND);
-		if (!tpg_np_iser)
-			goto out;
-
-		rc = iscsit_tpg_del_network_portal(tpg, tpg_np_iser);
-		if (rc < 0)
-			goto out;
+		if (tpg_np_iser) {
+			rc = iscsit_tpg_del_network_portal(tpg, tpg_np_iser);
+			if (rc < 0)
+				goto out;
+		}
 	}
 
 	printk("lio_target_np_store_iser() done, op: %d\n", op);
@@ -198,7 +201,7 @@ static ssize_t lio_target_np_store_iser(
 	return count;
 out:
 	iscsit_put_tpg(tpg);
-	return -EINVAL;
+	return rc;
 }
 
 TF_NP_BASE_ATTR(lio_target, iser, S_IRUGO | S_IWUSR);
