@@ -202,7 +202,7 @@ static v4l2_std_id determine_norm(struct v4l2_subdev *sd)
 	status = saa7110_read(sd);
 	if (status & 0x40) {
 		v4l2_dbg(1, debug, sd, "status=0x%02x (no signal)\n", status);
-		return decoder->norm;	/* no change*/
+		return V4L2_STD_UNKNOWN;
 	}
 	if ((status & 3) == 0) {
 		saa7110_write(sd, 0x06, 0x83);
@@ -264,7 +264,7 @@ static int saa7110_g_input_status(struct v4l2_subdev *sd, u32 *pstatus)
 
 static int saa7110_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
-	*(v4l2_std_id *)std = determine_norm(sd);
+	*std &= determine_norm(sd);
 	return 0;
 }
 
