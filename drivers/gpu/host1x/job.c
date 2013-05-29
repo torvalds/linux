@@ -376,69 +376,60 @@ static int check_nonincr(struct host1x_firewall *fw)
 	return 0;
 }
 
-static int validate(struct host1x_job *job, struct device *dev,
-		    struct host1x_job_gather *g)
+static int validate(struct host1x_firewall *fw, struct host1x_job_gather *g)
 {
 	u32 *cmdbuf_base;
 	int err = 0;
-	struct host1x_firewall fw;
 
-	fw.job = job;
-	fw.dev = dev;
-	fw.reloc = job->relocarray;
-	fw.num_relocs = job->num_relocs;
-	fw.cmdbuf_id = g->bo;
-
-	fw.offset = 0;
-	fw.class = 0;
-
-	if (!job->is_addr_reg)
+	if (!fw->job->is_addr_reg)
 		return 0;
 
 	cmdbuf_base = host1x_bo_mmap(g->bo);
 	if (!cmdbuf_base)
 		return -ENOMEM;
+	fw->words = g->words;
+	fw->cmdbuf_id = g->bo;
+	fw->offset = 0;
 
-	fw.words = g->words;
-	while (fw.words && !err) {
-		u32 word = cmdbuf_base[fw.offset];
+	while (fw->words && !err) {
+		u32 word = cmdbuf_base[fw->offset];
 		u32 opcode = (word & 0xf0000000) >> 28;
 
-		fw.mask = 0;
-		fw.reg = 0;
-		fw.count = 0;
-		fw.words--;
-		fw.offset++;
+		fw->mask = 0;
+		fw->reg = 0;
+		fw->count = 0;
+		fw->words--;
+		fw->offset++;
 
 		switch (opcode) {
 		case 0:
-			fw.class = word >> 6 & 0x3ff;
-			fw.mask = word & 0x3f;
-			fw.reg = word >> 16 & 0xfff;
-			err = check_mask(&fw);
+			fw->class = word >> 6 & 0x3ff;
+			fw->mask = word & 0x3f;
+			fw->reg = word >> 16 & 0xfff;
+			err = check_mask(fw);
 			if (err)
 				goto out;
 			break;
 		case 1:
-			fw.reg = word >> 16 & 0xfff;
-			fw.count = word & 0xffff;
-			err = check_incr(&fw);
+			fw->reg = word >> 16 & 0xfff;
+			fw->count = word & 0xffff;
+			err = check_incr(fw);
 			if (err)
 				goto out;
 			break;
 
 		case 2:
-			fw.reg = word >> 16 & 0xfff;
-			fw.count = word & 0xffff;
-			err = check_nonincr(&fw);
+			fw->reg = word >> 16 & 0xfff;
+			fw->count = word & 0xffff;
+			err = check_nonincr(fw);
 			if (err)
 				goto out;
 			break;
 
 		case 3:
-			fw.mask = word & 0xffff;
-			fw.reg = word >> 16 & 0xfff;
-			err = check_mask(&fw);
+			fw->mask = word & 0xffff;
+			fw->reg = word >> 16 & 0xfff;
+			err = check_mask(fw);
 			if (err)
 				goto out;
 			break;
@@ -453,12 +444,10 @@ static int validate(struct host1x_job *job, struct device *dev,
 	}
 
 	/* No relocs should remain at this point */
-	if (fw.num_relocs)
+	if (fw->num_relocs)
 		err = -EINVAL;
 
 out:
-	host1x_bo_munmap(g->bo, cmdbuf_base);
-
 	return err;
 }
 
@@ -508,7 +497,14 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 	int err;
 	unsigned int i, j;
 	struct host1x *host = dev_get_drvdata(dev->parent);
+	struct host1x_firewall fw;
 	DECLARE_BITMAP(waitchk_mask, host1x_syncpt_nb_pts(host));
+
+	fw.job = job;
+	fw.dev = dev;
+	fw.reloc = job->relocarray;
+	fw.num_relocs = job->num_relocs;
+	fw.class = 0;
 
 	bitmap_zero(waitchk_mask, host1x_syncpt_nb_pts(host));
 	for (i = 0; i < job->num_waitchk; i++) {
@@ -543,7 +539,7 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 		err = 0;
 
 		if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
-			err = validate(job, dev, g);
+			err = validate(&fw, g);
 
 		if (err)
 			dev_err(dev, "Job invalid (err=%d)\n", err);
