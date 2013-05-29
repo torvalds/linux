@@ -1469,10 +1469,10 @@ static irqreturn_t r8a66597_irq(int irq, void *_r8a66597)
 	u16 savepipe;
 	u16 mask0;
 
+	spin_lock(&r8a66597->lock);
+
 	if (r8a66597_is_sudmac(r8a66597))
 		r8a66597_sudmac_irq(r8a66597);
-
-	spin_lock(&r8a66597->lock);
 
 	intsts0 = r8a66597_read(r8a66597, INTSTS0);
 	intenb0 = r8a66597_read(r8a66597, INTENB0);
