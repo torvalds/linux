@@ -17,7 +17,6 @@
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
 #include <media/v4l2-subdev.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 
 /*
@@ -97,7 +96,6 @@ struct mt9m001 {
 	const struct mt9m001_datafmt *fmt;
 	const struct mt9m001_datafmt *fmts;
 	int num_fmts;
-	int model;	/* V4L2_IDENT_MT9M001* codes from v4l2-chip-ident.h */
 	unsigned int total_h;
 	unsigned short y_skip_top;	/* Lines to skip at the top */
 };
@@ -320,35 +318,14 @@ static int mt9m001_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9m001_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *id)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct mt9m001 *mt9m001 = to_mt9m001(client);
-
-	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
-		return -EINVAL;
-
-	if (id->match.addr != client->addr)
-		return -ENODEV;
-
-	id->ident	= mt9m001->model;
-	id->revision	= 0;
-
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int mt9m001_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0xff)
+	if (reg->reg > 0xff)
 		return -EINVAL;
-
-	if (reg->match.addr != client->addr)
-		return -ENODEV;
 
 	reg->size = 2;
 	reg->val = reg_read(client, reg->reg);
@@ -364,11 +341,8 @@ static int mt9m001_s_register(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0xff)
+	if (reg->reg > 0xff)
 		return -EINVAL;
-
-	if (reg->match.addr != client->addr)
-		return -ENODEV;
 
 	if (reg_write(client, reg->reg, reg->val) < 0)
 		return -EIO;
@@ -505,11 +479,9 @@ static int mt9m001_video_probe(struct soc_camera_subdev_desc *ssdd,
 	switch (data) {
 	case 0x8411:
 	case 0x8421:
-		mt9m001->model = V4L2_IDENT_MT9M001C12ST;
 		mt9m001->fmts = mt9m001_colour_fmts;
 		break;
 	case 0x8431:
-		mt9m001->model = V4L2_IDENT_MT9M001C12STM;
 		mt9m001->fmts = mt9m001_monochrome_fmts;
 		break;
 	default:
@@ -580,7 +552,6 @@ static const struct v4l2_ctrl_ops mt9m001_ctrl_ops = {
 };
 
 static struct v4l2_subdev_core_ops mt9m001_subdev_core_ops = {
-	.g_chip_ident	= mt9m001_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9m001_g_register,
 	.s_register	= mt9m001_s_register,

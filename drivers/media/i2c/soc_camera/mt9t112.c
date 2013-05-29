@@ -27,7 +27,6 @@
 
 #include <media/mt9t112.h>
 #include <media/soc_camera.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-common.h>
 
 /* you can check PLL/clock info */
@@ -91,7 +90,6 @@ struct mt9t112_priv {
 	struct i2c_client		*client;
 	struct v4l2_rect		 frame;
 	const struct mt9t112_format	*format;
-	int				 model;
 	int				 num_formats;
 	u32				 flags;
 /* for flags */
@@ -738,17 +736,6 @@ static int mt9t112_init_camera(const struct i2c_client *client)
 /************************************************************************
 			v4l2_subdev_core_ops
 ************************************************************************/
-static int mt9t112_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *id)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct mt9t112_priv *priv = to_mt9t112(client);
-
-	id->ident    = priv->model;
-	id->revision = 0;
-
-	return 0;
-}
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int mt9t112_g_register(struct v4l2_subdev *sd,
@@ -786,7 +773,6 @@ static int mt9t112_s_power(struct v4l2_subdev *sd, int on)
 }
 
 static struct v4l2_subdev_core_ops mt9t112_subdev_core_ops = {
-	.g_chip_ident	= mt9t112_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9t112_g_register,
 	.s_register	= mt9t112_s_register,
@@ -1061,12 +1047,10 @@ static int mt9t112_camera_probe(struct i2c_client *client)
 	switch (chipid) {
 	case 0x2680:
 		devname = "mt9t111";
-		priv->model = V4L2_IDENT_MT9T111;
 		priv->num_formats = 1;
 		break;
 	case 0x2682:
 		devname = "mt9t112";
-		priv->model = V4L2_IDENT_MT9T112;
 		priv->num_formats = ARRAY_SIZE(mt9t112_cfmts);
 		break;
 	default:

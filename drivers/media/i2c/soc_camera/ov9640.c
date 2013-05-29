@@ -28,7 +28,6 @@
 #include <linux/videodev2.h>
 
 #include <media/soc_camera.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 
@@ -285,18 +284,6 @@ static int ov9640_s_ctrl(struct v4l2_ctrl *ctrl)
 		return ov9640_reg_rmw(client, OV9640_MVFP, 0, OV9640_MVFP_H);
 	}
 	return -EINVAL;
-}
-
-/* Get chip identification */
-static int ov9640_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *id)
-{
-	struct ov9640_priv *priv = to_ov9640_sensor(sd);
-
-	id->ident	= priv->model;
-	id->revision	= priv->revision;
-
-	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -615,12 +602,10 @@ static int ov9640_video_probe(struct i2c_client *client)
 	switch (VERSION(pid, ver)) {
 	case OV9640_V2:
 		devname		= "ov9640";
-		priv->model	= V4L2_IDENT_OV9640;
 		priv->revision	= 2;
 		break;
 	case OV9640_V3:
 		devname		= "ov9640";
-		priv->model	= V4L2_IDENT_OV9640;
 		priv->revision	= 3;
 		break;
 	default:
@@ -644,7 +629,6 @@ static const struct v4l2_ctrl_ops ov9640_ctrl_ops = {
 };
 
 static struct v4l2_subdev_core_ops ov9640_core_ops = {
-	.g_chip_ident		= ov9640_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register		= ov9640_get_register,
 	.s_register		= ov9640_set_register,

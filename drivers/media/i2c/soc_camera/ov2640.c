@@ -22,7 +22,6 @@
 #include <linux/videodev2.h>
 
 #include <media/soc_camera.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>
 
@@ -304,7 +303,6 @@ struct ov2640_priv {
 	struct v4l2_ctrl_handler	hdl;
 	enum v4l2_mbus_pixelcode	cfmt_code;
 	const struct ov2640_win_size	*win;
-	int				model;
 };
 
 /*
@@ -723,18 +721,6 @@ static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-static int ov2640_g_chip_ident(struct v4l2_subdev *sd,
-			       struct v4l2_dbg_chip_ident *id)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov2640_priv *priv = to_ov2640(client);
-
-	id->ident    = priv->model;
-	id->revision = 0;
-
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int ov2640_g_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
@@ -1009,7 +995,6 @@ static int ov2640_video_probe(struct i2c_client *client)
 	switch (VERSION(pid, ver)) {
 	case PID_OV2640:
 		devname     = "ov2640";
-		priv->model = V4L2_IDENT_OV2640;
 		break;
 	default:
 		dev_err(&client->dev,
@@ -1034,7 +1019,6 @@ static const struct v4l2_ctrl_ops ov2640_ctrl_ops = {
 };
 
 static struct v4l2_subdev_core_ops ov2640_subdev_core_ops = {
-	.g_chip_ident	= ov2640_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= ov2640_g_register,
 	.s_register	= ov2640_s_register,

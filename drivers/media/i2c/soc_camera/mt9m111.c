@@ -19,7 +19,6 @@
 #include <media/soc_camera.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-chip-ident.h>
 
 /*
  * MT9M111, MT9M112 and MT9M131:
@@ -205,8 +204,6 @@ struct mt9m111 {
 	struct v4l2_subdev subdev;
 	struct v4l2_ctrl_handler hdl;
 	struct v4l2_ctrl *gain;
-	int model;	/* V4L2_IDENT_MT9M111 or V4L2_IDENT_MT9M112 code
-			 * from v4l2-chip-ident.h */
 	struct mt9m111_context *ctx;
 	struct v4l2_rect rect;	/* cropping rectangle */
 	int width;		/* output */
@@ -600,24 +597,6 @@ static int mt9m111_s_fmt(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int mt9m111_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *id)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
-
-	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
-		return -EINVAL;
-
-	if (id->match.addr != client->addr)
-		return -ENODEV;
-
-	id->ident	= mt9m111->model;
-	id->revision	= 0;
-
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int mt9m111_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
@@ -625,10 +604,8 @@ static int mt9m111_g_register(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int val;
 
-	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x2ff)
+	if (reg->reg > 0x2ff)
 		return -EINVAL;
-	if (reg->match.addr != client->addr)
-		return -ENODEV;
 
 	val = mt9m111_reg_read(client, reg->reg);
 	reg->size = 2;
@@ -645,11 +622,8 @@ static int mt9m111_s_register(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x2ff)
+	if (reg->reg > 0x2ff)
 		return -EINVAL;
-
-	if (reg->match.addr != client->addr)
-		return -ENODEV;
 
 	if (mt9m111_reg_write(client, reg->reg, reg->val) < 0)
 		return -EIO;
@@ -856,7 +830,6 @@ static const struct v4l2_ctrl_ops mt9m111_ctrl_ops = {
 };
 
 static struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
-	.g_chip_ident	= mt9m111_g_chip_ident,
 	.s_power	= mt9m111_s_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9m111_g_register,
@@ -923,12 +896,10 @@ static int mt9m111_video_probe(struct i2c_client *client)
 
 	switch (data) {
 	case 0x143a: /* MT9M111 or MT9M131 */
-		mt9m111->model = V4L2_IDENT_MT9M111;
 		dev_info(&client->dev,
 			"Detected a MT9M111/MT9M131 chip ID %x\n", data);
 		break;
 	case 0x148c: /* MT9M112 */
-		mt9m111->model = V4L2_IDENT_MT9M112;
 		dev_info(&client->dev, "Detected a MT9M112 chip ID %x\n", data);
 		break;
 	default:

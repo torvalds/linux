@@ -32,7 +32,6 @@
 #include <linux/module.h>
 
 #include <media/soc_camera.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 
 /* Register definitions */
@@ -388,16 +387,6 @@ static int ov6550_s_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	return -EINVAL;
-}
-
-/* Get chip identification */
-static int ov6650_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *id)
-{
-	id->ident	= V4L2_IDENT_OV6650;
-	id->revision	= 0;
-
-	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -879,7 +868,6 @@ static const struct v4l2_ctrl_ops ov6550_ctrl_ops = {
 };
 
 static struct v4l2_subdev_core_ops ov6650_core_ops = {
-	.g_chip_ident		= ov6650_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register		= ov6650_get_register,
 	.s_register		= ov6650_set_register,

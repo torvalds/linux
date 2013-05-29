@@ -19,7 +19,6 @@
 
 #include <media/soc_camera.h>
 #include <media/v4l2-subdev.h>
-#include <media/v4l2-chip-ident.h>
 
 /* IMX074 registers */
 
@@ -251,23 +250,6 @@ static int imx074_s_stream(struct v4l2_subdev *sd, int enable)
 	return reg_write(client, MODE_SELECT, !!enable);
 }
 
-static int imx074_g_chip_ident(struct v4l2_subdev *sd,
-			       struct v4l2_dbg_chip_ident *id)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
-		return -EINVAL;
-
-	if (id->match.addr != client->addr)
-		return -ENODEV;
-
-	id->ident	= V4L2_IDENT_IMX074;
-	id->revision	= 0;
-
-	return 0;
-}
-
 static int imx074_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -299,7 +281,6 @@ static struct v4l2_subdev_video_ops imx074_subdev_video_ops = {
 };
 
 static struct v4l2_subdev_core_ops imx074_subdev_core_ops = {
-	.g_chip_ident	= imx074_g_chip_ident,
 	.s_power	= imx074_s_power,
 };
 
