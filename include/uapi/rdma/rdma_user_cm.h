@@ -62,7 +62,8 @@ enum {
 	RDMA_USER_CM_CMD_JOIN_IP_MCAST,
 	RDMA_USER_CM_CMD_LEAVE_MCAST,
 	RDMA_USER_CM_CMD_MIGRATE_ID,
-	RDMA_USER_CM_CMD_QUERY
+	RDMA_USER_CM_CMD_QUERY,
+	RDMA_USER_CM_CMD_BIND
 };
 
 /*
@@ -100,6 +101,13 @@ struct rdma_ucm_bind_ip {
 	__u64 response;
 	struct sockaddr_in6 addr;
 	__u32 id;
+};
+
+struct rdma_ucm_bind {
+	__u32 id;
+	__u16 addr_size;
+	__u16 reserved;
+	struct sockaddr_storage addr;
 };
 
 struct rdma_ucm_resolve_ip {
