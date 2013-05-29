@@ -739,9 +739,13 @@ void fhci_queue_urb(struct fhci_hcd *fhci, struct urb *urb)
 	}
 
 	/* for ISO transfer calculate start frame index */
-	if (ed->mode == FHCI_TF_ISO && urb->transfer_flags & URB_ISO_ASAP)
-		urb->start_frame = ed->td_head ? ed->last_iso + 1 :
+	if (ed->mode == FHCI_TF_ISO) {
+		/* Ignore the possibility of underruns */
+		urb->start_frame = ed->td_head ? ed->next_iso :
 						 get_frame_num(fhci);
+		ed->next_iso = (urb->start_frame + urb->interval *
+				urb->number_of_packets) & 0x07ff;
+	}
 
 	/*
 	 * OHCI handles the DATA toggle itself,we just use the USB
