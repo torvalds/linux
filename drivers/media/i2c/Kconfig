@@ -245,6 +245,15 @@ config VIDEO_KS0127
 	  To compile this driver as a module, choose M here: the
 	  module will be called ks0127.
 
+config VIDEO_ML86V7667
+	tristate "OKI ML86V7667 video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the OKI Semiconductor ML86V7667 video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ml86v7667.
+
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
 	depends on VIDEO_V4L2 && I2C
