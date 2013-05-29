@@ -385,8 +385,7 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 		/* The wm8775 module has the "2" route hardwired into
 		   the initialization. Some boards may use different
 		   routes for different inputs. HVR-1300 surely does */
-		if (core->board.audio_chip &&
-		    core->board.audio_chip == V4L2_IDENT_WM8775) {
+		if (core->sd_wm8775) {
 			call_all(core, audio, s_routing,
 				 INPUT(input).audioroute, 0, 0);
 		}
@@ -771,8 +770,7 @@ static int video_open(struct file *file)
 		cx_write(MO_GP1_IO, core->board.radio.gpio1);
 		cx_write(MO_GP2_IO, core->board.radio.gpio2);
 		if (core->board.radio.audioroute) {
-			if(core->board.audio_chip &&
-				core->board.audio_chip == V4L2_IDENT_WM8775) {
+			if (core->sd_wm8775) {
 				call_all(core, audio, s_routing,
 					core->board.radio.audioroute, 0, 0);
 			}
@@ -959,7 +957,7 @@ static int cx8800_s_aud_ctrl(struct v4l2_ctrl *ctrl)
 	u32 value,mask;
 
 	/* Pass changes onto any WM8775 */
-	if (core->board.audio_chip == V4L2_IDENT_WM8775) {
+	if (core->sd_wm8775) {
 		switch (ctrl->id) {
 		case V4L2_CID_AUDIO_MUTE:
 			wm8775_s_ctrl(core, ctrl->id, ctrl->val);
