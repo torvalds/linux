@@ -2491,6 +2491,37 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(GTIER, 0x0);
 	POSTING_READ(GTIER);
 
+	/* south display irq */
+	I915_WRITE(SDEIMR, 0xffffffff);
+	/*
+	 * SDEIER is also touched by the interrupt handler to work around missed
+	 * PCH interrupts. Hence we can't update it after the interrupt handler
+	 * is enabled - instead we unconditionally enable all PCH interrupt
+	 * sources here, but then only unmask them as needed with SDEIMR.
+	 */
+	I915_WRITE(SDEIER, 0xffffffff);
+	POSTING_READ(SDEIER);
+}
+
+static void ivybridge_irq_preinstall(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	atomic_set(&dev_priv->irq_received, 0);
+
+	I915_WRITE(HWSTAM, 0xeffe);
+
+	/* XXX hotplug from PCH */
+
+	I915_WRITE(DEIMR, 0xffffffff);
+	I915_WRITE(DEIER, 0x0);
+	POSTING_READ(DEIER);
+
+	/* and GT */
+	I915_WRITE(GTIMR, 0xffffffff);
+	I915_WRITE(GTIER, 0x0);
+	POSTING_READ(GTIER);
+
 	if (HAS_PCH_NOP(dev))
 		return;
 
@@ -3494,9 +3525,9 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->disable_vblank = valleyview_disable_vblank;
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
-		/* Share pre & uninstall handlers with ILK/SNB */
+		/* Share uninstall handlers with ILK/SNB */
 		dev->driver->irq_handler = ivybridge_irq_handler;
-		dev->driver->irq_preinstall = ironlake_irq_preinstall;
+		dev->driver->irq_preinstall = ivybridge_irq_preinstall;
 		dev->driver->irq_postinstall = ivybridge_irq_postinstall;
 		dev->driver->irq_uninstall = ironlake_irq_uninstall;
 		dev->driver->enable_vblank = ivybridge_enable_vblank;
