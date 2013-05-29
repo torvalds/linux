@@ -470,6 +470,10 @@
 		status = "okay";
 	};
 
+	usb-phy@c5008000 {
+		status = "okay";
+	};
+
 	sdhci@c8000600 {
 		cd-gpios = <&gpio 58 1>; /* gpio PH2 */
 		wp-gpios = <&gpio 59 0>; /* gpio PH3 */
