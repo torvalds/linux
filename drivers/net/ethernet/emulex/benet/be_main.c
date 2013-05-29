@@ -1599,6 +1599,8 @@ static void be_parse_rx_compl_v0(struct be_eth_rx_compl *compl,
 					       compl);
 	}
 	rxcp->port = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, port, compl);
+	rxcp->ip_frag = AMAP_GET_BITS(struct amap_eth_rx_compl_v0,
+				      ip_frag, compl);
 }
 
 static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
@@ -1619,6 +1621,9 @@ static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
 		be_parse_rx_compl_v1(compl, rxcp);
 	else
 		be_parse_rx_compl_v0(compl, rxcp);
+
+	if (rxcp->ip_frag)
+		rxcp->l4_csum = 0;
 
 	if (rxcp->vlanf) {
 		/* vlanf could be wrongly set in some cards.
@@ -2168,7 +2173,7 @@ static irqreturn_t be_msix(int irq, void *dev)
 
 static inline bool do_gro(struct be_rx_compl_info *rxcp)
 {
-	return (rxcp->tcpf && !rxcp->err) ? true : false;
+	return (rxcp->tcpf && !rxcp->err && rxcp->l4_csum) ? true : false;
 }
 
 static int be_process_rx(struct be_rx_obj *rxo, struct napi_struct *napi,
