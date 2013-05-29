@@ -134,6 +134,7 @@ struct wm8994_priv {
 	struct mutex accdet_lock;
 	struct wm8994_micdet micdet[2];
 	struct delayed_work mic_work;
+	struct delayed_work open_circuit_work;
 	bool mic_detecting;
 	bool jack_mic;
 	int btn_mask;
