@@ -2588,6 +2588,9 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 mask;
 
+	if (HAS_PCH_NOP(dev))
+		return;
+
 	if (HAS_PCH_IBX(dev)) {
 		mask = SDE_GMBUS | SDE_AUX_MASK | SDE_TRANSB_FIFO_UNDER |
 		       SDE_TRANSA_FIFO_UNDER | SDE_POISON;
@@ -2596,9 +2599,6 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 
 		I915_WRITE(SERR_INT, I915_READ(SERR_INT));
 	}
-
-	if (HAS_PCH_NOP(dev))
-		return;
 
 	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
 	I915_WRITE(SDEIMR, ~mask);
