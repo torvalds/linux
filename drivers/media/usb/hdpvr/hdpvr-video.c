@@ -281,43 +281,43 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 
 	if (dev->status == STATUS_STREAMING)
 		return 0;
-	else if (dev->status != STATUS_IDLE)
+	if (dev->status != STATUS_IDLE)
 		return -EAGAIN;
 
 	ret = get_video_info(dev, &vidinf);
-
-	if (!ret) {
-		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
-			 "video signal: %dx%d@%dhz\n", vidinf.width,
-			 vidinf.height, vidinf.fps);
-
-		/* start streaming 2 request */
-		ret = usb_control_msg(dev->udev,
-				      usb_sndctrlpipe(dev->udev, 0),
-				      0xb8, 0x38, 0x1, 0, NULL, 0, 8000);
-		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
-			 "encoder start control request returned %d\n", ret);
-		if (ret < 0)
-			return ret;
-
-		ret = hdpvr_config_call(dev, CTRL_START_STREAMING_VALUE, 0x00);
-		if (ret)
-			return ret;
-
-		dev->status = STATUS_STREAMING;
-
-		INIT_WORK(&dev->worker, hdpvr_transmit_buffers);
-		queue_work(dev->workqueue, &dev->worker);
-
-		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
-			 "streaming started\n");
-
-		return 0;
+	if (ret) {
+		msleep(250);
+		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+				"no video signal at input %d\n", dev->options.video_input);
+		return -EAGAIN;
 	}
-	msleep(250);
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
-		 "no video signal at input %d\n", dev->options.video_input);
-	return -EAGAIN;
+
+	v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+			"video signal: %dx%d@%dhz\n", vidinf.width,
+			vidinf.height, vidinf.fps);
+
+	/* start streaming 2 request */
+	ret = usb_control_msg(dev->udev,
+			usb_sndctrlpipe(dev->udev, 0),
+			0xb8, 0x38, 0x1, 0, NULL, 0, 8000);
+	v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+			"encoder start control request returned %d\n", ret);
+	if (ret < 0)
+		return ret;
+
+	ret = hdpvr_config_call(dev, CTRL_START_STREAMING_VALUE, 0x00);
+	if (ret)
+		return ret;
+
+	dev->status = STATUS_STREAMING;
+
+	INIT_WORK(&dev->worker, hdpvr_transmit_buffers);
+	queue_work(dev->workqueue, &dev->worker);
+
+	v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+			"streaming started\n");
+
+	return 0;
 }
 
 
