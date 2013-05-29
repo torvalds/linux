@@ -398,6 +398,7 @@ static int mt9t031_g_register(struct v4l2_subdev *sd,
 	if (reg->reg > 0xff)
 		return -EINVAL;
 
+	reg->size = 1;
 	reg->val = reg_read(client, reg->reg);
 
 	if (reg->val > 0xffff)
