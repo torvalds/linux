@@ -1688,9 +1688,11 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_INVALID;
 		ring->semaphore_register[VCS] = MI_SEMAPHORE_SYNC_RV;
 		ring->semaphore_register[BCS] = MI_SEMAPHORE_SYNC_RB;
+		ring->semaphore_register[VECS] = MI_SEMAPHORE_SYNC_RVE;
 		ring->signal_mbox[RCS] = GEN6_NOSYNC;
 		ring->signal_mbox[VCS] = GEN6_VRSYNC;
 		ring->signal_mbox[BCS] = GEN6_BRSYNC;
+		ring->signal_mbox[VECS] = GEN6_VERSYNC;
 	} else if (IS_GEN5(dev)) {
 		ring->add_request = pc_render_add_request;
 		ring->flush = gen4_render_ring_flush;
@@ -1848,9 +1850,11 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_VR;
 		ring->semaphore_register[VCS] = MI_SEMAPHORE_SYNC_INVALID;
 		ring->semaphore_register[BCS] = MI_SEMAPHORE_SYNC_VB;
+		ring->semaphore_register[VECS] = MI_SEMAPHORE_SYNC_VVE;
 		ring->signal_mbox[RCS] = GEN6_RVSYNC;
 		ring->signal_mbox[VCS] = GEN6_NOSYNC;
 		ring->signal_mbox[BCS] = GEN6_BVSYNC;
+		ring->signal_mbox[VECS] = GEN6_VEVSYNC;
 	} else {
 		ring->mmio_base = BSD_RING_BASE;
 		ring->flush = bsd_ring_flush;
@@ -1895,9 +1899,11 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_BR;
 	ring->semaphore_register[VCS] = MI_SEMAPHORE_SYNC_BV;
 	ring->semaphore_register[BCS] = MI_SEMAPHORE_SYNC_INVALID;
+	ring->semaphore_register[VECS] = MI_SEMAPHORE_SYNC_BVE;
 	ring->signal_mbox[RCS] = GEN6_RBSYNC;
 	ring->signal_mbox[VCS] = GEN6_VBSYNC;
 	ring->signal_mbox[BCS] = GEN6_NOSYNC;
+	ring->signal_mbox[VECS] = GEN6_VEBSYNC;
 	ring->init = init_ring_common;
 
 	return intel_init_ring_buffer(dev, ring);
