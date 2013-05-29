@@ -115,9 +115,6 @@ static inline bool host1x_syncpt_idle(struct host1x_syncpt *sp)
 /* Return pointer to struct denoting sync point id. */
 struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, u32 id);
 
-/* Request incrementing a sync point. */
-void host1x_syncpt_cpu_incr(struct host1x_syncpt *sp);
-
 /* Load current value from hardware to the shadow register. */
 u32 host1x_syncpt_load(struct host1x_syncpt *sp);
 
@@ -133,8 +130,8 @@ void host1x_syncpt_restore(struct host1x *host);
 /* Read current wait base value into shadow register and return it. */
 u32 host1x_syncpt_load_wait_base(struct host1x_syncpt *sp);
 
-/* Increment sync point and its max. */
-void host1x_syncpt_incr(struct host1x_syncpt *sp);
+/* Request incrementing a sync point. */
+int host1x_syncpt_incr(struct host1x_syncpt *sp);
 
 /* Indicate future operations by incrementing the sync point max. */
 u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs);

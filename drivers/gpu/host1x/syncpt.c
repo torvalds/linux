@@ -129,22 +129,11 @@ u32 host1x_syncpt_load_wait_base(struct host1x_syncpt *sp)
 }
 
 /*
- * Write a cpu syncpoint increment to the hardware, without touching
- * the cache. Caller is responsible for host being powered.
- */
-void host1x_syncpt_cpu_incr(struct host1x_syncpt *sp)
-{
-	host1x_hw_syncpt_cpu_incr(sp->host, sp);
-}
-
-/*
  * Increment syncpoint value from cpu, updating cache
  */
-void host1x_syncpt_incr(struct host1x_syncpt *sp)
+int host1x_syncpt_incr(struct host1x_syncpt *sp)
 {
-	if (host1x_syncpt_client_managed(sp))
-		host1x_syncpt_incr_max(sp, 1);
-	host1x_syncpt_cpu_incr(sp);
+	return host1x_hw_syncpt_cpu_incr(sp->host, sp);
 }
 
 /*

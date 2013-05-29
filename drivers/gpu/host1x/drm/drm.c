@@ -387,8 +387,7 @@ static int tegra_syncpt_incr(struct drm_device *drm, void *data,
 	if (!sp)
 		return -EINVAL;
 
-	host1x_syncpt_incr(sp);
-	return 0;
+	return host1x_syncpt_incr(sp);
 }
 
 static int tegra_syncpt_wait(struct drm_device *drm, void *data,
