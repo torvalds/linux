@@ -696,6 +696,8 @@ static int ivtv_itvc(struct ivtv *itv, bool get, u64 reg, u64 *val)
 {
 	volatile u8 __iomem *reg_start;
 
+	if (reg & 0x3)
+		return -EINVAL;
 	if (reg >= IVTV_REG_OFFSET && reg < IVTV_REG_OFFSET + IVTV_REG_SIZE)
 		reg_start = itv->reg_mem - IVTV_REG_OFFSET;
 	else if (itv->has_cx23415 && reg >= IVTV_DECODER_OFFSET &&
