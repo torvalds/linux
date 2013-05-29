@@ -45,7 +45,6 @@
 #include <linux/delay.h>
 #include <linux/math64.h>
 #include <media/v4l2-common.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/cx25840.h>
 
 #include "cx25840-core.h"
@@ -1662,8 +1661,6 @@ static int cx25840_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	reg->size = 1;
 	reg->val = cx25840_read(client, reg->reg & 0x0fff);
 	return 0;
@@ -1673,8 +1670,6 @@ static int cx25840_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	cx25840_write(client, reg->reg & 0x0fff, reg->val & 0xff);
 	return 0;
 }
@@ -1932,14 +1927,6 @@ static int cx25840_reset(struct v4l2_subdev *sd, u32 val)
 	else
 		cx25840_initialize(client);
 	return 0;
-}
-
-static int cx25840_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct cx25840_state *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, state->id, state->rev);
 }
 
 static int cx25840_log_status(struct v4l2_subdev *sd)
@@ -5047,7 +5034,6 @@ static const struct v4l2_ctrl_ops cx25840_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 	.log_status = cx25840_log_status,
-	.g_chip_ident = cx25840_g_chip_ident,
 	.g_ctrl = v4l2_subdev_g_ctrl,
 	.s_ctrl = v4l2_subdev_s_ctrl,
 	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,

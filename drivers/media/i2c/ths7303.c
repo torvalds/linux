@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 
 #include <media/ths7303.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-device.h>
 
 #define THS7303_CHANNEL_1	1
@@ -212,15 +211,6 @@ static int ths7303_s_dv_timings(struct v4l2_subdev *sd,
 	return ths7303_config(sd);
 }
 
-static int ths7303_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ths7303_state *state = to_state(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, state->driver_data, 0);
-}
-
 static const struct v4l2_subdev_video_ops ths7303_video_ops = {
 	.s_stream	= ths7303_s_stream,
 	.s_std_output	= ths7303_s_std_output,
@@ -232,11 +222,6 @@ static const struct v4l2_subdev_video_ops ths7303_video_ops = {
 static int ths7303_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-
 	reg->size = 1;
 	reg->val = ths7303_read(sd, reg->reg);
 	return 0;
@@ -245,11 +230,6 @@ static int ths7303_g_register(struct v4l2_subdev *sd,
 static int ths7303_s_register(struct v4l2_subdev *sd,
 			      const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-
 	ths7303_write(sd, reg->reg, reg->val);
 	return 0;
 }
@@ -336,7 +316,6 @@ static int ths7303_log_status(struct v4l2_subdev *sd)
 }
 
 static const struct v4l2_subdev_core_ops ths7303_core_ops = {
-	.g_chip_ident = ths7303_g_chip_ident,
 	.log_status = ths7303_log_status,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = ths7303_g_register,
@@ -398,8 +377,8 @@ static int ths7303_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ths7303_id[] = {
-	{"ths7303", V4L2_IDENT_THS7303},
-	{"ths7353", V4L2_IDENT_THS7353},
+	{"ths7303", 0},
+	{"ths7353", 0},
 	{},
 };
 

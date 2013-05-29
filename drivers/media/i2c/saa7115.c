@@ -46,7 +46,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/saa7115.h>
 #include <asm/div64.h>
 
@@ -62,6 +61,16 @@ module_param(debug, bool, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
+
+enum saa711x_model {
+	SAA7111A,
+	SAA7111,
+	SAA7113,
+	GM7113C,
+	SAA7114,
+	SAA7115,
+	SAA7118,
+};
 
 struct saa711x_state {
 	struct v4l2_subdev sd;
@@ -80,7 +89,7 @@ struct saa711x_state {
 	int radio;
 	int width;
 	int height;
-	u32 ident;
+	enum saa711x_model ident;
 	u32 audclk_freq;
 	u32 crystal_freq;
 	bool ucgc;
@@ -111,10 +120,10 @@ static inline int saa711x_write(struct v4l2_subdev *sd, u8 reg, u8 value)
 /* Sanity routine to check if a register is present */
 static int saa711x_has_reg(const int id, const u8 reg)
 {
-	if (id == V4L2_IDENT_SAA7111)
+	if (id == SAA7111)
 		return reg < 0x20 && reg != 0x01 && reg != 0x0f &&
 		       (reg < 0x13 || reg > 0x19) && reg != 0x1d && reg != 0x1e;
-	if (id == V4L2_IDENT_SAA7111A)
+	if (id == SAA7111A)
 		return reg < 0x20 && reg != 0x01 && reg != 0x0f &&
 		       reg != 0x14 && reg != 0x18 && reg != 0x19 &&
 		       reg != 0x1d && reg != 0x1e;
@@ -127,18 +136,18 @@ static int saa711x_has_reg(const int id, const u8 reg)
 		return 0;
 
 	switch (id) {
-	case V4L2_IDENT_GM7113C:
+	case GM7113C:
 		return reg != 0x14 && (reg < 0x18 || reg > 0x1e) && reg < 0x20;
-	case V4L2_IDENT_SAA7113:
+	case SAA7113:
 		return reg != 0x14 && (reg < 0x18 || reg > 0x1e) && (reg < 0x20 || reg > 0x3f) &&
 		       reg != 0x5d && reg < 0x63;
-	case V4L2_IDENT_SAA7114:
+	case SAA7114:
 		return (reg < 0x1a || reg > 0x1e) && (reg < 0x20 || reg > 0x2f) &&
 		       (reg < 0x63 || reg > 0x7f) && reg != 0x33 && reg != 0x37 &&
 		       reg != 0x81 && reg < 0xf0;
-	case V4L2_IDENT_SAA7115:
+	case SAA7115:
 		return (reg < 0x20 || reg > 0x2f) && reg != 0x65 && (reg < 0xfc || reg > 0xfe);
-	case V4L2_IDENT_SAA7118:
+	case SAA7118:
 		return (reg < 0x1a || reg > 0x1d) && (reg < 0x20 || reg > 0x22) &&
 		       (reg < 0x26 || reg > 0x28) && reg != 0x33 && reg != 0x37 &&
 		       (reg < 0x63 || reg > 0x7f) && reg != 0x81 && reg < 0xf0;
@@ -955,14 +964,14 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	// This works for NTSC-M, SECAM-L and the 50Hz PAL variants.
 	if (std & V4L2_STD_525_60) {
 		v4l2_dbg(1, debug, sd, "decoder set standard 60 Hz\n");
-		if (state->ident == V4L2_IDENT_GM7113C)
+		if (state->ident == GM7113C)
 			saa711x_writeregs(sd, gm7113c_cfg_60hz_video);
 		else
 			saa711x_writeregs(sd, saa7115_cfg_60hz_video);
 		saa711x_set_size(sd, 720, 480);
 	} else {
 		v4l2_dbg(1, debug, sd, "decoder set standard 50 Hz\n");
-		if (state->ident == V4L2_IDENT_GM7113C)
+		if (state->ident == GM7113C)
 			saa711x_writeregs(sd, gm7113c_cfg_50hz_video);
 		else
 			saa711x_writeregs(sd, saa7115_cfg_50hz_video);
@@ -978,8 +987,8 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	011 NTSC N (3.58MHz)            PAL M (3.58MHz)
 	100 reserved                    NTSC-Japan (3.58MHz)
 	*/
-	if (state->ident <= V4L2_IDENT_SAA7113 ||
-	    state->ident == V4L2_IDENT_GM7113C) {
+	if (state->ident <= SAA7113 ||
+	    state->ident == GM7113C) {
 		u8 reg = saa711x_read(sd, R_0E_CHROMA_CNTL_1) & 0x8f;
 
 		if (std == V4L2_STD_PAL_M) {
@@ -998,9 +1007,8 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 		/* restart task B if needed */
 		int taskb = saa711x_read(sd, R_80_GLOBAL_CNTL_1) & 0x10;
 
-		if (taskb && state->ident == V4L2_IDENT_SAA7114) {
+		if (taskb && state->ident == SAA7114)
 			saa711x_writeregs(sd, saa7115_cfg_vbi_on);
-		}
 
 		/* switch audio mode too! */
 		saa711x_s_clock_freq(sd, state->audclk_freq);
@@ -1022,7 +1030,7 @@ static void saa711x_set_lcr(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_forma
 
 #else
 	/* SAA7113 and SAA7118 also should support VBI - Need testing */
-	if (state->ident != V4L2_IDENT_SAA7115)
+	if (state->ident != SAA7115)
 		return;
 #endif
 
@@ -1244,14 +1252,14 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 			     u32 input, u32 output, u32 config)
 {
 	struct saa711x_state *state = to_state(sd);
-	u8 mask = (state->ident <= V4L2_IDENT_SAA7111A) ? 0xf8 : 0xf0;
+	u8 mask = (state->ident <= SAA7111A) ? 0xf8 : 0xf0;
 
 	v4l2_dbg(1, debug, sd, "decoder set input %d output %d\n",
 		input, output);
 
 	/* saa7111/3 does not have these inputs */
-	if ((state->ident <= V4L2_IDENT_SAA7113 ||
-	     state->ident == V4L2_IDENT_GM7113C) &&
+	if ((state->ident <= SAA7113 ||
+	     state->ident == GM7113C) &&
 	    (input == SAA7115_COMPOSITE4 ||
 	     input == SAA7115_COMPOSITE5)) {
 		return -EINVAL;
@@ -1266,7 +1274,7 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 	state->input = input;
 
 	/* saa7111 has slightly different input numbering */
-	if (state->ident <= V4L2_IDENT_SAA7111A) {
+	if (state->ident <= SAA7111A) {
 		if (input >= SAA7115_COMPOSITE4)
 			input -= 2;
 		/* saa7111 specific */
@@ -1289,13 +1297,13 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 			(state->input >= SAA7115_SVIDEO0 ? 0x80 : 0x0));
 
 	state->output = output;
-	if (state->ident == V4L2_IDENT_SAA7114 ||
-			state->ident == V4L2_IDENT_SAA7115) {
+	if (state->ident == SAA7114 ||
+			state->ident == SAA7115) {
 		saa711x_write(sd, R_83_X_PORT_I_O_ENA_AND_OUT_CLK,
 				(saa711x_read(sd, R_83_X_PORT_I_O_ENA_AND_OUT_CLK) & 0xfe) |
 				(state->output & 0x01));
 	}
-	if (state->ident > V4L2_IDENT_SAA7111A) {
+	if (state->ident > SAA7111A) {
 		if (config & SAA7115_IDQ_IS_DEFAULT)
 			saa711x_write(sd, R_85_I_PORT_SIGNAL_POLAR, 0x20);
 		else
@@ -1308,7 +1316,7 @@ static int saa711x_s_gpio(struct v4l2_subdev *sd, u32 val)
 {
 	struct saa711x_state *state = to_state(sd);
 
-	if (state->ident > V4L2_IDENT_SAA7111A)
+	if (state->ident > SAA7111A)
 		return -EINVAL;
 	saa711x_write(sd, 0x11, (saa711x_read(sd, 0x11) & 0x7f) |
 		(val ? 0x80 : 0));
@@ -1398,7 +1406,7 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 
 	reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
 
-	if (state->ident == V4L2_IDENT_SAA7115) {
+	if (state->ident == SAA7115) {
 		reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
 
 		v4l2_dbg(1, debug, sd, "Status byte 1 (0x1e)=0x%02x\n", reg1e);
@@ -1449,7 +1457,7 @@ static int saa711x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	int reg1f;
 
 	*status = V4L2_IN_ST_NO_SIGNAL;
-	if (state->ident == V4L2_IDENT_SAA7115)
+	if (state->ident == SAA7115)
 		reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
 	reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
 	if ((reg1f & 0xc1) == 0x81 && (reg1e & 0xc0) == 0x80)
@@ -1460,10 +1468,6 @@ static int saa711x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int saa711x_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	reg->val = saa711x_read(sd, reg->reg & 0xff);
 	reg->size = 1;
 	return 0;
@@ -1471,22 +1475,10 @@ static int saa711x_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 static int saa711x_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	saa711x_write(sd, reg->reg & 0xff, reg->val & 0xff);
 	return 0;
 }
 #endif
-
-static int saa711x_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct saa711x_state *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, state->ident, 0);
-}
 
 static int saa711x_log_status(struct v4l2_subdev *sd)
 {
@@ -1496,7 +1488,7 @@ static int saa711x_log_status(struct v4l2_subdev *sd)
 	int vcr;
 
 	v4l2_info(sd, "Audio frequency: %d Hz\n", state->audclk_freq);
-	if (state->ident != V4L2_IDENT_SAA7115) {
+	if (state->ident != SAA7115) {
 		/* status for the saa7114 */
 		reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
 		signalOk = (reg1f & 0xc1) == 0x81;
@@ -1547,7 +1539,6 @@ static const struct v4l2_ctrl_ops saa711x_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops saa711x_core_ops = {
 	.log_status = saa711x_log_status,
-	.g_chip_ident = saa711x_g_chip_ident,
 	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
 	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
 	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
@@ -1650,21 +1641,21 @@ static int saa711x_detect_chip(struct i2c_client *client,
 			if (chip_ver[0] & 0xf0) {
 				snprintf(name, CHIP_VER_SIZE, "saa711%ca", chip_id);
 				v4l_info(client, "saa7111a variant found\n");
-				return V4L2_IDENT_SAA7111A;
+				return SAA7111A;
 			}
-			return V4L2_IDENT_SAA7111;
+			return SAA7111;
 		case '3':
-			return V4L2_IDENT_SAA7113;
+			return SAA7113;
 		case '4':
-			return V4L2_IDENT_SAA7114;
+			return SAA7114;
 		case '5':
-			return V4L2_IDENT_SAA7115;
+			return SAA7115;
 		case '8':
-			return V4L2_IDENT_SAA7118;
+			return SAA7118;
 		default:
 			v4l2_info(client,
 				  "WARNING: Philips/NXP chip unknown - Falling back to saa7111\n");
-			return V4L2_IDENT_SAA7111;
+			return SAA7111;
 		}
 	}
 
@@ -1695,7 +1686,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 			"It seems to be a %s chip (%*ph) @ 0x%x.\n",
 			name, 16, chip_ver, client->addr << 1);
 
-		return V4L2_IDENT_GM7113C;
+		return GM7113C;
 	}
 
 	/* Chip was not discovered. Return its ID and don't bind */
@@ -1774,19 +1765,19 @@ static int saa711x_probe(struct i2c_client *client,
 	/* init to 60hz/48khz */
 	state->crystal_freq = SAA7115_FREQ_24_576_MHZ;
 	switch (state->ident) {
-	case V4L2_IDENT_SAA7111:
-	case V4L2_IDENT_SAA7111A:
+	case SAA7111:
+	case SAA7111A:
 		saa711x_writeregs(sd, saa7111_init);
 		break;
-	case V4L2_IDENT_GM7113C:
-	case V4L2_IDENT_SAA7113:
+	case GM7113C:
+	case SAA7113:
 		saa711x_writeregs(sd, saa7113_init);
 		break;
 	default:
 		state->crystal_freq = SAA7115_FREQ_32_11_MHZ;
 		saa711x_writeregs(sd, saa7115_init_auto_input);
 	}
-	if (state->ident > V4L2_IDENT_SAA7111A)
+	if (state->ident > SAA7111A)
 		saa711x_writeregs(sd, saa7115_init_misc);
 	saa711x_set_v4lstd(sd, V4L2_STD_NTSC);
 	v4l2_ctrl_handler_setup(hdl);

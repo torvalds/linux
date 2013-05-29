@@ -27,7 +27,6 @@
 #include <linux/types.h>
 #include <linux/videodev2.h>
 
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
@@ -722,25 +721,9 @@ static int vs6624_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int vs6624_g_chip_ident(struct v4l2_subdev *sd,
-		struct v4l2_dbg_chip_ident *chip)
-{
-	int rev;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	rev = (vs6624_read(sd, VS6624_FW_VSN_MAJOR) << 8)
-		| vs6624_read(sd, VS6624_FW_VSN_MINOR);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_VS6624, rev);
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vs6624_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	reg->val = vs6624_read(sd, reg->reg & 0xffff);
 	reg->size = 1;
 	return 0;
@@ -748,10 +731,6 @@ static int vs6624_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *r
 
 static int vs6624_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	vs6624_write(sd, reg->reg & 0xffff, reg->val & 0xff);
 	return 0;
 }
@@ -762,7 +741,6 @@ static const struct v4l2_ctrl_ops vs6624_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops vs6624_core_ops = {
-	.g_chip_ident = vs6624_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = vs6624_g_register,
 	.s_register = vs6624_s_register,

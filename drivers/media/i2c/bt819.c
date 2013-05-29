@@ -36,7 +36,6 @@
 #include <linux/videodev2.h>
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 #include <media/bt819.h>
 
@@ -57,7 +56,6 @@ struct bt819 {
 	unsigned char reg[32];
 
 	v4l2_std_id norm;
-	int ident;
 	int input;
 	int enable;
 };
@@ -373,14 +371,6 @@ static int bt819_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static int bt819_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct bt819 *decoder = to_bt819(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, decoder->ident, 0);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_ctrl_ops bt819_ctrl_ops = {
@@ -388,7 +378,6 @@ static const struct v4l2_ctrl_ops bt819_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops bt819_core_ops = {
-	.g_chip_ident = bt819_g_chip_ident,
 	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
 	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
 	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
@@ -435,15 +424,12 @@ static int bt819_probe(struct i2c_client *client,
 	switch (ver & 0xf0) {
 	case 0x70:
 		name = "bt819a";
-		decoder->ident = V4L2_IDENT_BT819A;
 		break;
 	case 0x60:
 		name = "bt817a";
-		decoder->ident = V4L2_IDENT_BT817A;
 		break;
 	case 0x20:
 		name = "bt815a";
-		decoder->ident = V4L2_IDENT_BT815A;
 		break;
 	default:
 		v4l2_dbg(1, debug, sd,

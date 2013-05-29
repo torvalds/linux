@@ -42,7 +42,6 @@
 #include <linux/videodev2.h>
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include "ks0127.h"
 
 MODULE_DESCRIPTION("KS0127 video decoder driver");
@@ -200,7 +199,6 @@ struct adjust {
 struct ks0127 {
 	struct v4l2_subdev sd;
 	v4l2_std_id	norm;
-	int		ident;
 	u8 		regs[256];
 };
 
@@ -371,11 +369,8 @@ static void ks0127_and_or(struct v4l2_subdev *sd, u8 reg, u8 and_v, u8 or_v)
 ****************************************************************************/
 static void ks0127_init(struct v4l2_subdev *sd)
 {
-	struct ks0127 *ks = to_ks0127(sd);
 	u8 *table = reg_defaults;
 	int i;
-
-	ks->ident = V4L2_IDENT_KS0127;
 
 	v4l2_dbg(1, debug, sd, "reset\n");
 	msleep(1);
@@ -397,7 +392,6 @@ static void ks0127_init(struct v4l2_subdev *sd)
 
 
 	if ((ks0127_read(sd, KS_STAT) & 0x80) == 0) {
-		ks->ident = V4L2_IDENT_KS0122S;
 		v4l2_dbg(1, debug, sd, "ks0122s found\n");
 		return;
 	}
@@ -408,7 +402,6 @@ static void ks0127_init(struct v4l2_subdev *sd)
 		break;
 
 	case 9:
-		ks->ident = V4L2_IDENT_KS0127B;
 		v4l2_dbg(1, debug, sd, "ks0127B Revision A found\n");
 		break;
 
@@ -646,18 +639,9 @@ static int ks0127_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return ks0127_status(sd, status, NULL);
 }
 
-static int ks0127_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ks0127 *ks = to_ks0127(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, ks->ident, 0);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops ks0127_core_ops = {
-	.g_chip_ident = ks0127_g_chip_ident,
 	.s_std = ks0127_s_std,
 };
 

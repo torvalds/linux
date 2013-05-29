@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 
 #define TW2804_REG_AUTOGAIN		0x02

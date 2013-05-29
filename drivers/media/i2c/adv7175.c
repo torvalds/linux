@@ -32,7 +32,6 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 
 MODULE_DESCRIPTION("Analog Devices ADV7175 video encoder driver");
 MODULE_AUTHOR("Dave Perks");
@@ -355,13 +354,6 @@ static int adv7175_s_fmt(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int adv7175_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_ADV7175, 0);
-}
-
 static int adv7175_s_power(struct v4l2_subdev *sd, int on)
 {
 	if (on)
@@ -375,7 +367,6 @@ static int adv7175_s_power(struct v4l2_subdev *sd, int on)
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops adv7175_core_ops = {
-	.g_chip_ident = adv7175_g_chip_ident,
 	.init = adv7175_init,
 	.s_power = adv7175_s_power,
 };

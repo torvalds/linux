@@ -54,7 +54,6 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/saa7127.h>
 
 static int debug;
@@ -251,10 +250,15 @@ static struct i2c_reg_value saa7127_init_config_50hz_secam[] = {
  **********************************************************************
  */
 
+enum saa712x_model {
+	SAA7127,
+	SAA7129,
+};
+
 struct saa7127_state {
 	struct v4l2_subdev sd;
 	v4l2_std_id std;
-	u32 ident;
+	enum saa712x_model ident;
 	enum saa7127_input_type input_type;
 	enum saa7127_output_type output_type;
 	int video_enable;
@@ -482,7 +486,7 @@ static int saa7127_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 		inittab = saa7127_init_config_60hz;
 		state->reg_61 = SAA7127_60HZ_DAC_CONTROL;
 
-	} else if (state->ident == V4L2_IDENT_SAA7129 &&
+	} else if (state->ident == SAA7129 &&
 		   (std & V4L2_STD_SECAM) &&
 		   !(std & (V4L2_STD_625_50 & ~V4L2_STD_SECAM))) {
 
@@ -517,7 +521,7 @@ static int saa7127_set_output_type(struct v4l2_subdev *sd, int output)
 		break;
 
 	case SAA7127_OUTPUT_TYPE_COMPOSITE:
-		if (state->ident == V4L2_IDENT_SAA7129)
+		if (state->ident == SAA7129)
 			state->reg_2d = 0x20;	/* CVBS only */
 		else
 			state->reg_2d = 0x08;	/* 00001000 CVBS only, RGB DAC's off (high impedance mode) */
@@ -525,7 +529,7 @@ static int saa7127_set_output_type(struct v4l2_subdev *sd, int output)
 		break;
 
 	case SAA7127_OUTPUT_TYPE_SVIDEO:
-		if (state->ident == V4L2_IDENT_SAA7129)
+		if (state->ident == SAA7129)
 			state->reg_2d = 0x18;	/* Y + C */
 		else
 			state->reg_2d = 0xff;   /*11111111  croma -> R, luma -> CVBS + G + B */
@@ -543,7 +547,7 @@ static int saa7127_set_output_type(struct v4l2_subdev *sd, int output)
 		break;
 
 	case SAA7127_OUTPUT_TYPE_BOTH:
-		if (state->ident == V4L2_IDENT_SAA7129)
+		if (state->ident == SAA7129)
 			state->reg_2d = 0x38;
 		else
 			state->reg_2d = 0xbf;
@@ -661,10 +665,6 @@ static int saa7127_s_vbi_data(struct v4l2_subdev *sd, const struct v4l2_sliced_v
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int saa7127_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	reg->val = saa7127_read(sd, reg->reg & 0xff);
 	reg->size = 1;
 	return 0;
@@ -672,22 +672,10 @@ static int saa7127_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 static int saa7127_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	saa7127_write(sd, reg->reg & 0xff, reg->val & 0xff);
 	return 0;
 }
 #endif
-
-static int saa7127_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct saa7127_state *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, state->ident, 0);
-}
 
 static int saa7127_log_status(struct v4l2_subdev *sd)
 {
@@ -708,7 +696,6 @@ static int saa7127_log_status(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_core_ops saa7127_core_ops = {
 	.log_status = saa7127_log_status,
-	.g_chip_ident = saa7127_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = saa7127_g_register,
 	.s_register = saa7127_s_register,
@@ -777,10 +764,10 @@ static int saa7127_probe(struct i2c_client *client,
 		if (saa7127_read(sd, SAA7129_REG_FADE_KEY_COL2) == 0xaa) {
 			saa7127_write(sd, SAA7129_REG_FADE_KEY_COL2,
 					read_result);
-			state->ident = V4L2_IDENT_SAA7129;
+			state->ident = SAA7129;
 			strlcpy(client->name, "saa7129", I2C_NAME_SIZE);
 		} else {
-			state->ident = V4L2_IDENT_SAA7127;
+			state->ident = SAA7127;
 			strlcpy(client->name, "saa7127", I2C_NAME_SIZE);
 		}
 	}
@@ -804,7 +791,7 @@ static int saa7127_probe(struct i2c_client *client,
 		saa7127_set_input_type(sd, SAA7127_INPUT_TYPE_NORMAL);
 	saa7127_set_video_enable(sd, 1);
 
-	if (state->ident == V4L2_IDENT_SAA7129)
+	if (state->ident == SAA7129)
 		saa7127_write_inittab(sd, saa7129_init_config_extra);
 	return 0;
 }
@@ -825,10 +812,10 @@ static int saa7127_remove(struct i2c_client *client)
 
 static struct i2c_device_id saa7127_id[] = {
 	{ "saa7127_auto", 0 },	/* auto-detection */
-	{ "saa7126", V4L2_IDENT_SAA7127 },
-	{ "saa7127", V4L2_IDENT_SAA7127 },
-	{ "saa7128", V4L2_IDENT_SAA7129 },
-	{ "saa7129", V4L2_IDENT_SAA7129 },
+	{ "saa7126", SAA7127 },
+	{ "saa7127", SAA7127 },
+	{ "saa7128", SAA7129 },
+	{ "saa7129", SAA7129 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, saa7127_id);

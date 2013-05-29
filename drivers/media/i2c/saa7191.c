@@ -22,7 +22,6 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 
 #include "saa7191.h"
 
@@ -567,18 +566,9 @@ static int saa7191_g_input_status(struct v4l2_subdev *sd, u32 *status)
 }
 
 
-static int saa7191_g_chip_ident(struct v4l2_subdev *sd,
-		struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_SAA7191, 0);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops saa7191_core_ops = {
-	.g_chip_ident = saa7191_g_chip_ident,
 	.g_ctrl = saa7191_g_ctrl,
 	.s_ctrl = saa7191_s_ctrl,
 	.s_std = saa7191_s_std,

@@ -29,7 +29,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-chip-ident.h>
 #include <linux/mutex.h>
 
 #define ADV7180_INPUT_CONTROL_REG			0x00
@@ -274,14 +273,6 @@ static int adv7180_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return ret;
 }
 
-static int adv7180_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_ADV7180, 0);
-}
-
 static int adv7180_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct adv7180_state *state = to_state(sd);
@@ -450,7 +441,6 @@ static const struct v4l2_subdev_video_ops adv7180_video_ops = {
 };
 
 static const struct v4l2_subdev_core_ops adv7180_core_ops = {
-	.g_chip_ident = adv7180_g_chip_ident,
 	.s_std = adv7180_s_std,
 };
 

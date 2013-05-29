@@ -33,7 +33,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include "tea6420.h"
 
 MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
@@ -90,25 +89,13 @@ static int tea6420_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tea6420_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TEA6420, 0);
-}
-
 /* ----------------------------------------------------------------------- */
-
-static const struct v4l2_subdev_core_ops tea6420_core_ops = {
-	.g_chip_ident = tea6420_g_chip_ident,
-};
 
 static const struct v4l2_subdev_audio_ops tea6420_audio_ops = {
 	.s_routing = tea6420_s_routing,
 };
 
 static const struct v4l2_subdev_ops tea6420_ops = {
-	.core = &tea6420_core_ops,
 	.audio = &tea6420_audio_ops,
 };
 

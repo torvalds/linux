@@ -35,7 +35,6 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 
 MODULE_DESCRIPTION("Philips SAA7110 video decoder driver");
@@ -352,13 +351,6 @@ static int saa7110_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static int saa7110_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_SAA7110, 0);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_ctrl_ops saa7110_ctrl_ops = {
@@ -366,7 +358,6 @@ static const struct v4l2_ctrl_ops saa7110_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops saa7110_core_ops = {
-	.g_chip_ident = saa7110_g_chip_ident,
 	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
 	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
 	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,

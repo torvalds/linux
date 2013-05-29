@@ -29,7 +29,6 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 
 MODULE_DESCRIPTION("vp27smpx driver");
 MODULE_AUTHOR("Hans Verkuil");
@@ -112,13 +111,6 @@ static int vp27smpx_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int vp27smpx_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_VP27SMPX, 0);
-}
-
 static int vp27smpx_log_status(struct v4l2_subdev *sd)
 {
 	struct vp27smpx_state *state = to_state(sd);
@@ -132,7 +124,6 @@ static int vp27smpx_log_status(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_core_ops vp27smpx_core_ops = {
 	.log_status = vp27smpx_log_status,
-	.g_chip_ident = vp27smpx_g_chip_ident,
 	.s_std = vp27smpx_s_std,
 };
 

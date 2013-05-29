@@ -977,10 +977,6 @@ static int saa717x_s_video_routing(struct v4l2_subdev *sd,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int saa717x_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	reg->val = saa717x_read(sd, reg->reg);
 	reg->size = 1;
 	return 0;
@@ -988,12 +984,9 @@ static int saa717x_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 static int saa717x_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u16 addr = reg->reg & 0xffff;
 	u8 val = reg->val & 0xff;
 
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	saa717x_write(sd, addr, val);
 	return 0;
 }

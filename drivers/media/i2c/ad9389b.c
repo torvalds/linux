@@ -32,7 +32,6 @@
 #include <linux/workqueue.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/ad9389b.h>
@@ -343,10 +342,6 @@ static const struct v4l2_ctrl_ops ad9389b_ctrl_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int ad9389b_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	reg->val = ad9389b_rd(sd, reg->reg & 0xff);
 	reg->size = 1;
 	return 0;
@@ -354,21 +349,10 @@ static int ad9389b_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 static int ad9389b_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	ad9389b_wr(sd, reg->reg & 0xff, reg->val & 0xff);
 	return 0;
 }
 #endif
-
-static int ad9389b_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_AD9389B, 0);
-}
 
 static int ad9389b_log_status(struct v4l2_subdev *sd)
 {
@@ -596,7 +580,6 @@ static int ad9389b_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 
 static const struct v4l2_subdev_core_ops ad9389b_core_ops = {
 	.log_status = ad9389b_log_status,
-	.g_chip_ident = ad9389b_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = ad9389b_g_register,
 	.s_register = ad9389b_s_register,
@@ -1303,8 +1286,8 @@ static int ad9389b_remove(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_device_id ad9389b_id[] = {
-	{ "ad9389b", V4L2_IDENT_AD9389B },
-	{ "ad9889b", V4L2_IDENT_AD9389B },
+	{ "ad9389b", 0 },
+	{ "ad9889b", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad9389b_id);

@@ -16,7 +16,6 @@
 #include <linux/module.h>
 
 #include <media/ak881x.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 
@@ -33,7 +32,6 @@ struct ak881x {
 	struct v4l2_subdev subdev;
 	struct ak881x_pdata *pdata;
 	unsigned int lines;
-	int id;	/* DEVICE_ID code V4L2_IDENT_AK881X code from v4l2-chip-ident.h */
 	char revision;	/* DEVICE_REVISION content */
 };
 
@@ -62,35 +60,14 @@ static struct ak881x *to_ak881x(const struct i2c_client *client)
 	return container_of(i2c_get_clientdata(client), struct ak881x, subdev);
 }
 
-static int ak881x_g_chip_ident(struct v4l2_subdev *sd,
-			       struct v4l2_dbg_chip_ident *id)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ak881x *ak881x = to_ak881x(client);
-
-	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
-		return -EINVAL;
-
-	if (id->match.addr != client->addr)
-		return -ENODEV;
-
-	id->ident	= ak881x->id;
-	id->revision	= ak881x->revision;
-
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int ak881x_g_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x26)
+	if (reg->reg > 0x26)
 		return -EINVAL;
-
-	if (reg->match.addr != client->addr)
-		return -ENODEV;
 
 	reg->val = reg_read(client, reg->reg);
 
@@ -105,11 +82,8 @@ static int ak881x_s_register(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x26)
+	if (reg->reg > 0x26)
 		return -EINVAL;
-
-	if (reg->match.addr != client->addr)
-		return -ENODEV;
 
 	if (reg_write(client, reg->reg, reg->val) < 0)
 		return -EIO;
@@ -229,7 +203,6 @@ static int ak881x_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static struct v4l2_subdev_core_ops ak881x_subdev_core_ops = {
-	.g_chip_ident	= ak881x_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= ak881x_g_register,
 	.s_register	= ak881x_s_register,
@@ -274,10 +247,7 @@ static int ak881x_probe(struct i2c_client *client,
 
 	switch (data) {
 	case 0x13:
-		ak881x->id = V4L2_IDENT_AK8813;
-		break;
 	case 0x14:
-		ak881x->id = V4L2_IDENT_AK8814;
 		break;
 	default:
 		dev_err(&client->dev,

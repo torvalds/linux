@@ -33,7 +33,6 @@
 
 #include <media/saa6588.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 
 
 /* insmod options */
@@ -443,17 +442,9 @@ static int saa6588_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int saa6588_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_SAA6588, 0);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops saa6588_core_ops = {
-	.g_chip_ident = saa6588_g_chip_ident,
 	.ioctl = saa6588_ioctl,
 };
 

@@ -32,7 +32,6 @@
 #include <linux/v4l2-dv-timings.h>
 #include <media/tvp7002.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include "tvp7002_reg.h"
@@ -533,29 +532,6 @@ static inline void tvp7002_write_err(struct v4l2_subdev *sd, u8 reg,
 }
 
 /*
- * tvp7002_g_chip_ident() - Get chip identification number
- * @sd: ptr to v4l2_subdev struct
- * @chip: ptr to v4l2_dbg_chip_ident struct
- *
- * Obtains the chip's identification number.
- * Returns zero or -EINVAL if read operation fails.
- */
-static int tvp7002_g_chip_ident(struct v4l2_subdev *sd,
-					struct v4l2_dbg_chip_ident *chip)
-{
-	u8 rev;
-	int error;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	error = tvp7002_read(sd, TVP7002_CHIP_REV, &rev);
-
-	if (error < 0)
-		return error;
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TVP7002, rev);
-}
-
-/*
  * tvp7002_write_inittab() - Write initialization values
  * @sd: ptr to v4l2_subdev struct
  * @regs: ptr to i2c_reg_value struct
@@ -741,12 +717,8 @@ static int tvp7002_query_dv_timings(struct v4l2_subdev *sd,
 static int tvp7002_g_register(struct v4l2_subdev *sd,
 						struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u8 val;
 	int ret;
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 
 	ret = tvp7002_read(sd, reg->reg & 0xff, &val);
 	reg->val = val;
@@ -764,11 +736,6 @@ static int tvp7002_g_register(struct v4l2_subdev *sd,
 static int tvp7002_s_register(struct v4l2_subdev *sd,
 						const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-
 	return tvp7002_write(sd, reg->reg & 0xff, reg->val & 0xff);
 }
 #endif
@@ -933,7 +900,6 @@ tvp7002_set_pad_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 
 /* V4L2 core operation handlers */
 static const struct v4l2_subdev_core_ops tvp7002_core_ops = {
-	.g_chip_ident = tvp7002_g_chip_ident,
 	.log_status = tvp7002_log_status,
 	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
 	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,

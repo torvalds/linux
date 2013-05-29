@@ -24,7 +24,6 @@
 #include <linux/videodev2.h>
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 
 MODULE_DESCRIPTION("i2c device driver for cs5345 Audio ADC");
@@ -99,10 +98,6 @@ static int cs5345_s_ctrl(struct v4l2_ctrl *ctrl)
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int cs5345_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	reg->size = 1;
 	reg->val = cs5345_read(sd, reg->reg & 0x1f);
 	return 0;
@@ -110,21 +105,10 @@ static int cs5345_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *r
 
 static int cs5345_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
 	cs5345_write(sd, reg->reg & 0x1f, reg->val & 0xff);
 	return 0;
 }
 #endif
-
-static int cs5345_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_CS5345, 0);
-}
 
 static int cs5345_log_status(struct v4l2_subdev *sd)
 {
@@ -148,7 +132,6 @@ static const struct v4l2_ctrl_ops cs5345_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops cs5345_core_ops = {
 	.log_status = cs5345_log_status,
-	.g_chip_ident = cs5345_g_chip_ident,
 	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
 	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
 	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
