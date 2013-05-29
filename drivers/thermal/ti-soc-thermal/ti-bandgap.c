@@ -469,7 +469,7 @@ static inline int ti_bandgap_validate(struct ti_bandgap *bgp, int id)
 {
 	int ret = 0;
 
-	if (IS_ERR_OR_NULL(bgp)) {
+	if (!bgp || IS_ERR(bgp)) {
 		pr_err("%s: invalid bandgap pointer\n", __func__);
 		ret = -EINVAL;
 		goto exit;
@@ -1197,7 +1197,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	int clk_rate, ret = 0, i;
 
 	bgp = ti_bandgap_build(pdev);
-	if (IS_ERR_OR_NULL(bgp)) {
+	if (IS_ERR(bgp)) {
 		dev_err(&pdev->dev, "failed to fetch platform data\n");
 		return PTR_ERR(bgp);
 	}
@@ -1213,17 +1213,19 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	}
 
 	bgp->fclock = clk_get(NULL, bgp->conf->fclock_name);
-	ret = IS_ERR_OR_NULL(bgp->fclock);
+	ret = IS_ERR(bgp->fclock);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request fclock reference\n");
+		ret = PTR_ERR(bgp->fclock);
 		goto free_irqs;
 	}
 
 	bgp->div_clk = clk_get(NULL,  bgp->conf->div_ck_name);
-	ret = IS_ERR_OR_NULL(bgp->div_clk);
+	ret = IS_ERR(bgp->div_clk);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"failed to request div_ts_ck clock ref\n");
+		ret = PTR_ERR(bgp->div_clk);
 		goto free_irqs;
 	}
 
