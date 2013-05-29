@@ -2559,6 +2559,11 @@ static void ivybridge_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(GTIER, 0x0);
 	POSTING_READ(GTIER);
 
+	/* Power management */
+	I915_WRITE(GEN6_PMIMR, 0xffffffff);
+	I915_WRITE(GEN6_PMIER, 0x0);
+	POSTING_READ(GEN6_PMIER);
+
 	if (HAS_PCH_NOP(dev))
 		return;
 
@@ -2746,6 +2751,11 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 		GEN6_BLITTER_USER_INTERRUPT | GT_GEN7_L3_PARITY_ERROR_INTERRUPT;
 	I915_WRITE(GTIER, render_irqs);
 	POSTING_READ(GTIER);
+
+	/* Power management */
+	I915_WRITE(GEN6_PMIMR, ~GEN6_PM_DEFERRED_EVENTS);
+	I915_WRITE(GEN6_PMIER, GEN6_PM_DEFERRED_EVENTS);
+	POSTING_READ(GEN6_PMIMR);
 
 	ibx_irq_postinstall(dev);
 
