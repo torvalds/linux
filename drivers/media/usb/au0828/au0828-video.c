@@ -1759,6 +1759,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 	struct au0828_dev *dev = fh->dev;
 
 	reg->val = au0828_read(dev, reg->reg);
+	reg->size = 1;
 	return 0;
 }
 
