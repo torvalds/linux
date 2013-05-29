@@ -322,12 +322,16 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	 * FW don't support scan after connection attempt
 	 */
 	set_bit(wil_status_dontscan, &wil->status);
+	set_bit(wil_status_fwconnecting, &wil->status);
 
 	rc = wmi_send(wil, WMI_CONNECT_CMDID, &conn, sizeof(conn));
 	if (rc == 0) {
 		/* Connect can take lots of time */
 		mod_timer(&wil->connect_timer,
 			  jiffies + msecs_to_jiffies(2000));
+	} else {
+		clear_bit(wil_status_dontscan, &wil->status);
+		clear_bit(wil_status_fwconnecting, &wil->status);
 	}
 
  out:

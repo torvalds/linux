@@ -34,9 +34,11 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 
 #define WIL6210_MEM_SIZE (2*1024*1024UL)
 
-#define WIL6210_RX_RING_SIZE (128)
-#define WIL6210_TX_RING_SIZE (128)
-#define WIL6210_MAX_TX_RINGS (24)
+#define WIL6210_RX_RING_SIZE	(128)
+#define WIL6210_TX_RING_SIZE	(128)
+#define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
+#define WIL6210_MAX_CID		(8) /* HW limit */
+#define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
 
 /* Hardware definitions begin */
 
@@ -184,6 +186,7 @@ struct vring {
 
 enum { /* for wil6210_priv.status */
 	wil_status_fwready = 0,
+	wil_status_fwconnecting,
 	wil_status_fwconnected,
 	wil_status_dontscan,
 	wil_status_reset_done,
@@ -239,6 +242,8 @@ struct wil6210_priv {
 	 * - consumed in thread by wmi_event_worker
 	 */
 	spinlock_t wmi_ev_lock;
+	struct napi_struct napi_rx;
+	struct napi_struct napi_tx;
 	/* DMA related */
 	struct vring vring_rx;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
@@ -267,9 +272,13 @@ struct wil6210_priv {
 #define wil_to_ndev(i) (wil_to_wdev(i)->netdev)
 #define ndev_to_wil(n) (wdev_to_wil(n->ieee80211_ptr))
 
-#define wil_dbg(wil, fmt, arg...) netdev_dbg(wil_to_ndev(wil), fmt, ##arg)
-#define wil_info(wil, fmt, arg...) netdev_info(wil_to_ndev(wil), fmt, ##arg)
-#define wil_err(wil, fmt, arg...) netdev_err(wil_to_ndev(wil), fmt, ##arg)
+int wil_dbg_trace(struct wil6210_priv *wil, const char *fmt, ...);
+int wil_err(struct wil6210_priv *wil, const char *fmt, ...);
+int wil_info(struct wil6210_priv *wil, const char *fmt, ...);
+#define wil_dbg(wil, fmt, arg...) do { \
+	netdev_dbg(wil_to_ndev(wil), fmt, ##arg); \
+	wil_dbg_trace(wil, fmt, ##arg); \
+} while (0)
 
 #define wil_dbg_irq(wil, fmt, arg...) wil_dbg(wil, "DBG[ IRQ]" fmt, ##arg)
 #define wil_dbg_txrx(wil, fmt, arg...) wil_dbg(wil, "DBG[TXRX]" fmt, ##arg)
@@ -356,10 +365,12 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 void wil_vring_fini_tx(struct wil6210_priv *wil, int id);
 
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
-void wil_tx_complete(struct wil6210_priv *wil, int ringid);
+int wil_tx_complete(struct wil6210_priv *wil, int ringid);
+void wil6210_unmask_irq_tx(struct wil6210_priv *wil);
 
 /* RX API */
-void wil_rx_handle(struct wil6210_priv *wil);
+void wil_rx_handle(struct wil6210_priv *wil, int *quota);
+void wil6210_unmask_irq_rx(struct wil6210_priv *wil);
 
 int wil_iftype_nl2wmi(enum nl80211_iftype type);
 

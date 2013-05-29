@@ -113,7 +113,9 @@ static void ath9k_htc_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	struct ath9k_htc_priv *priv = data;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
-	if ((vif->type == NL80211_IFTYPE_AP) && bss_conf->enable_beacon)
+	if ((vif->type == NL80211_IFTYPE_AP ||
+	     vif->type == NL80211_IFTYPE_MESH_POINT) &&
+	    bss_conf->enable_beacon)
 		priv->reconfig_beacon = true;
 
 	if (bss_conf->assoc) {
@@ -180,6 +182,8 @@ static void ath9k_htc_set_opmode(struct ath9k_htc_priv *priv)
 		priv->ah->opmode = NL80211_IFTYPE_ADHOC;
 	else if (priv->num_ap_vif)
 		priv->ah->opmode = NL80211_IFTYPE_AP;
+	else if (priv->num_mbss_vif)
+		priv->ah->opmode = NL80211_IFTYPE_MESH_POINT;
 	else
 		priv->ah->opmode = NL80211_IFTYPE_STATION;
 
@@ -1052,6 +1056,9 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 	case NL80211_IFTYPE_AP:
 		hvif.opmode = HTC_M_HOSTAP;
 		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		hvif.opmode = HTC_M_WDS;	/* close enough */
+		break;
 	default:
 		ath_err(common,
 			"Interface type %d not yet supported\n", vif->type);
@@ -1084,6 +1091,7 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 	INC_VIF(priv, vif->type);
 
 	if ((vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_MESH_POINT) ||
 	    (vif->type == NL80211_IFTYPE_ADHOC))
 		ath9k_htc_assign_bslot(priv, vif);
 
@@ -1134,6 +1142,7 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	DEC_VIF(priv, vif->type);
 
 	if ((vif->type == NL80211_IFTYPE_AP) ||
+	     vif->type == NL80211_IFTYPE_MESH_POINT ||
 	    (vif->type == NL80211_IFTYPE_ADHOC))
 		ath9k_htc_remove_bslot(priv, vif);
 
@@ -1525,9 +1534,10 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) && !bss_conf->enable_beacon) {
 		/*
 		 * Disable SWBA interrupt only if there are no
-		 * AP/IBSS interfaces.
+		 * concurrent AP/mesh or IBSS interfaces.
 		 */
-		if ((priv->num_ap_vif <= 1) || priv->num_ibss_vif) {
+		if ((priv->num_ap_vif + priv->num_mbss_vif <= 1) ||
+		     priv->num_ibss_vif) {
 			ath_dbg(common, CONFIG,
 				"Beacon disabled for BSS: %pM\n",
 				bss_conf->bssid);
@@ -1538,12 +1548,15 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		/*
-		 * Reset the HW TSF for the first AP interface.
+		 * Reset the HW TSF for the first AP or mesh interface.
 		 */
-		if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
-		    (priv->nvifs == 1) &&
-		    (priv->num_ap_vif == 1) &&
-		    (vif->type == NL80211_IFTYPE_AP)) {
+		if (priv->nvifs == 1 &&
+		    ((priv->ah->opmode == NL80211_IFTYPE_AP &&
+		      vif->type == NL80211_IFTYPE_AP &&
+		      priv->num_ap_vif == 1) ||
+		    (priv->ah->opmode == NL80211_IFTYPE_MESH_POINT &&
+		      vif->type == NL80211_IFTYPE_MESH_POINT &&
+		      priv->num_mbss_vif == 1))) {
 			set_bit(OP_TSF_RESET, &priv->op_flags);
 		}
 		ath_dbg(common, CONFIG,

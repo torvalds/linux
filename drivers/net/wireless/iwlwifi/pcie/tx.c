@@ -224,13 +224,13 @@ static void iwl_pcie_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 
 	switch (sec_ctl & TX_CMD_SEC_MSK) {
 	case TX_CMD_SEC_CCM:
-		len += CCMP_MIC_LEN;
+		len += IEEE80211_CCMP_MIC_LEN;
 		break;
 	case TX_CMD_SEC_TKIP:
-		len += TKIP_ICV_LEN;
+		len += IEEE80211_TKIP_ICV_LEN;
 		break;
 	case TX_CMD_SEC_WEP:
-		len += WEP_IV_LEN + WEP_ICV_LEN;
+		len += IEEE80211_WEP_IV_LEN + IEEE80211_WEP_ICV_LEN;
 		break;
 	}
 
