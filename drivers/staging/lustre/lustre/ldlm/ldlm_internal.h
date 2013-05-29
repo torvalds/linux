@@ -199,41 +199,40 @@ enum ldlm_policy_res {
 
 typedef enum ldlm_policy_res ldlm_policy_res_t;
 
-#define LDLM_POOL_PROC_READER(var, type)				    \
-	static int lprocfs_rd_##var(char *page, char **start, off_t off,    \
-				    int count, int *eof, void *data)	\
-	{								   \
-		struct ldlm_pool *pl = data;				\
-		type tmp;						   \
+#define LDLM_POOL_PROC_READER_SEQ_SHOW(var, type)			    \
+	static int lprocfs_##var##_seq_show(struct seq_file *m, void *v) \
+	{								    \
+		struct ldlm_pool *pl = m->private;			    \
+		type tmp;						    \
 									    \
 		spin_lock(&pl->pl_lock);				    \
 		tmp = pl->pl_##var;					    \
 		spin_unlock(&pl->pl_lock);				    \
 									    \
-		return lprocfs_rd_uint(page, start, off, count, eof, &tmp); \
-	}								   \
+		return lprocfs_rd_uint(m, &tmp);			    \
+	}								    \
 	struct __##var##__dummy_read {;} /* semicolon catcher */
 
 #define LDLM_POOL_PROC_WRITER(var, type)				    \
-	int lprocfs_wr_##var(struct file *file, const char *buffer,	 \
-			     unsigned long count, void *data)	       \
-	{								   \
-		struct ldlm_pool *pl = data;				\
-		type tmp;						   \
-		int rc;						     \
+	int lprocfs_wr_##var(struct file *file, const char *buffer,	    \
+			     unsigned long count, void *data)		    \
+	{								    \
+		struct ldlm_pool *pl = data;				    \
+		type tmp;						    \
+		int rc;							    \
 									    \
 		rc = lprocfs_wr_uint(file, buffer, count, &tmp);	    \
-		if (rc < 0) {					       \
+		if (rc < 0) {						    \
 			CERROR("Can't parse user input, rc = %d\n", rc);    \
-			return rc;					  \
-		}							   \
+			return rc;					    \
+		}							    \
 									    \
 		spin_lock(&pl->pl_lock);				    \
 		pl->pl_##var = tmp;					    \
 		spin_unlock(&pl->pl_lock);				    \
 									    \
-		return rc;						  \
-	}								   \
+		return rc;						    \
+	}								    \
 	struct __##var##__dummy_write {;} /* semicolon catcher */
 
 static inline int is_granted_or_cancelled(struct ldlm_lock *lock)

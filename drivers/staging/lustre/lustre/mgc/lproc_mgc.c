@@ -43,20 +43,36 @@
 
 #ifdef LPROCFS
 
+LPROC_SEQ_FOPS_RO_TYPE(mgc, uuid);
+LPROC_SEQ_FOPS_RO_TYPE(mgc, connect_flags);
+LPROC_SEQ_FOPS_RO_TYPE(mgc, server_uuid);
+LPROC_SEQ_FOPS_RO_TYPE(mgc, conn_uuid);
+LPROC_SEQ_FOPS_RO_TYPE(mgc, import);
+LPROC_SEQ_FOPS_RO_TYPE(mgc, state);
+
+LPROC_SEQ_FOPS_WR_ONLY(mgc, ping);
+
+static int mgc_ir_state_seq_show(struct seq_file *m, void *v)
+{
+	return lprocfs_mgc_rd_ir_state(m, m->private);
+}
+LPROC_SEQ_FOPS_RO(mgc_ir_state);
+
 static struct lprocfs_vars lprocfs_mgc_obd_vars[] = {
-	{ "uuid",	    lprocfs_rd_uuid,	  0, 0 },
-	{ "ping",	    0, lprocfs_wr_ping,       0, 0, 0222 },
-	{ "connect_flags",   lprocfs_rd_connect_flags, 0, 0 },
-	{ "mgs_server_uuid", lprocfs_rd_server_uuid,   0, 0 },
-	{ "mgs_conn_uuid",   lprocfs_rd_conn_uuid,     0, 0 },
-	{ "import",	  lprocfs_rd_import,	0, 0 },
-	{ "state",	   lprocfs_rd_state,	 0, 0 },
-	{ "ir_state",	lprocfs_mgc_rd_ir_state,  0, 0 },
+	{ "uuid",	     &mgc_uuid_fops,	  0, 0 },
+	{ "ping",	     &mgc_ping_fops,      0, 0222 },
+	{ "connect_flags",   &mgc_connect_flags_fops, 0, 0 },
+	{ "mgs_server_uuid", &mgc_server_uuid_fops,   0, 0 },
+	{ "mgs_conn_uuid",   &mgc_conn_uuid_fops,     0, 0 },
+	{ "import",	     &mgc_import_fops,	0, 0 },
+	{ "state",	     &mgc_state_fops,	 0, 0 },
+	{ "ir_state",	     &mgc_ir_state_fops,  0, 0 },
 	{ 0 }
 };
 
+LPROC_SEQ_FOPS_RO_TYPE(mgc, numrefs);
 static struct lprocfs_vars lprocfs_mgc_module_vars[] = {
-	{ "num_refs",	lprocfs_rd_numrefs,       0, 0 },
+	{ "num_refs",	&mgc_numrefs_fops,       0, 0 },
 	{ 0 }
 };
 

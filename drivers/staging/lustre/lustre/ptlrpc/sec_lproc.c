@@ -168,8 +168,9 @@ int sptlrpc_lprocfs_cliobd_attach(struct obd_device *dev)
 }
 EXPORT_SYMBOL(sptlrpc_lprocfs_cliobd_attach);
 
+LPROC_SEQ_FOPS_RO(sptlrpc_proc_enc_pool);
 static struct lprocfs_vars sptlrpc_lprocfs_vars[] = {
-	{ "encrypt_page_pools", sptlrpc_proc_read_enc_pool, NULL, NULL },
+	{ "encrypt_page_pools", &sptlrpc_proc_enc_pool_fops },
 	{ NULL }
 };
 

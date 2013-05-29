@@ -60,9 +60,8 @@
  * use.
  */
 static int
-seq_proc_write_common(struct file *file, const char *buffer,
-		      unsigned long count, void *data,
-		      struct lu_seq_range *range)
+lprocfs_fid_write_common(const char *buffer, unsigned long count,
+			 struct lu_seq_range *range)
 {
 	struct lu_seq_range tmp;
 	int rc;
@@ -79,151 +78,19 @@ seq_proc_write_common(struct file *file, const char *buffer,
 	RETURN(0);
 }
 
-static int
-seq_proc_read_common(char *page, char **start, off_t off,
-		     int count, int *eof, void *data,
-		     struct lu_seq_range *range)
-{
-	int rc;
-	ENTRY;
-
-	*eof = 1;
-	rc = snprintf(page, count, "["LPX64" - "LPX64"]:%x:%s\n",
-			PRANGE(range));
-	RETURN(rc);
-}
-
-/*
- * Server side procfs stuff.
- */
-static int
-seq_server_proc_write_space(struct file *file, const char *buffer,
-			    unsigned long count, void *data)
-{
-	struct lu_server_seq *seq = (struct lu_server_seq *)data;
-	int rc;
-	ENTRY;
-
-	LASSERT(seq != NULL);
-
-	mutex_lock(&seq->lss_mutex);
-	rc = seq_proc_write_common(file, buffer, count,
-				   data, &seq->lss_space);
-	if (rc == 0) {
-		CDEBUG(D_INFO, "%s: Space: "DRANGE"\n",
-		       seq->lss_name, PRANGE(&seq->lss_space));
-	}
-
-	mutex_unlock(&seq->lss_mutex);
-
-	RETURN(count);
-}
-
-static int
-seq_server_proc_read_space(char *page, char **start, off_t off,
-			   int count, int *eof, void *data)
-{
-	struct lu_server_seq *seq = (struct lu_server_seq *)data;
-	int rc;
-	ENTRY;
-
-	LASSERT(seq != NULL);
-
-	mutex_lock(&seq->lss_mutex);
-	rc = seq_proc_read_common(page, start, off, count, eof,
-				  data, &seq->lss_space);
-	mutex_unlock(&seq->lss_mutex);
-
-	RETURN(rc);
-}
-
-static int
-seq_server_proc_read_server(char *page, char **start, off_t off,
-			    int count, int *eof, void *data)
-{
-	struct lu_server_seq *seq = (struct lu_server_seq *)data;
-	struct client_obd *cli;
-	int rc;
-	ENTRY;
-
-	LASSERT(seq != NULL);
-
-	*eof = 1;
-	if (seq->lss_cli) {
-		if (seq->lss_cli->lcs_exp != NULL) {
-			cli = &seq->lss_cli->lcs_exp->exp_obd->u.cli;
-			rc = snprintf(page, count, "%s\n",
-				      cli->cl_target_uuid.uuid);
-		} else {
-			rc = snprintf(page, count, "%s\n",
-				      seq->lss_cli->lcs_srv->lss_name);
-		}
-	} else {
-		rc = snprintf(page, count, "<none>\n");
-	}
-
-	RETURN(rc);
-}
-
-static int
-seq_server_proc_write_width(struct file *file, const char *buffer,
-			    unsigned long count, void *data)
-{
-	struct lu_server_seq *seq = (struct lu_server_seq *)data;
-	int rc, val;
-	ENTRY;
-
-	LASSERT(seq != NULL);
-
-	mutex_lock(&seq->lss_mutex);
-
-	rc = lprocfs_write_helper(buffer, count, &val);
-	if (rc != 0) {
-		CERROR("%s: invalid width.\n", seq->lss_name);
-		GOTO(out_unlock, rc);
-	}
-
-	seq->lss_width = val;
-
-	CDEBUG(D_INFO, "%s: Width: "LPU64"\n",
-	       seq->lss_name, seq->lss_width);
-out_unlock:
-	mutex_unlock(&seq->lss_mutex);
-
-	RETURN(count);
-}
-
-static int
-seq_server_proc_read_width(char *page, char **start, off_t off,
-			   int count, int *eof, void *data)
-{
-	struct lu_server_seq *seq = (struct lu_server_seq *)data;
-	int rc;
-	ENTRY;
-
-	LASSERT(seq != NULL);
-
-	mutex_lock(&seq->lss_mutex);
-	rc = snprintf(page, count, LPU64"\n", seq->lss_width);
-	mutex_unlock(&seq->lss_mutex);
-
-	RETURN(rc);
-}
-
 /* Client side procfs stuff */
-static int
-seq_client_proc_write_space(struct file *file, const char *buffer,
-			    unsigned long count, void *data)
+static ssize_t
+lprocfs_fid_space_seq_write(struct file *file, const char *buffer,
+			    size_t count, loff_t *off)
 {
-	struct lu_client_seq *seq = (struct lu_client_seq *)data;
+	struct lu_client_seq *seq = ((struct seq_file *)file->private_data)->private;
 	int rc;
 	ENTRY;
 
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
-	rc = seq_proc_write_common(file, buffer, count,
-				   data, &seq->lcs_space);
+	rc = lprocfs_fid_write_common(buffer, count, &seq->lcs_space);
 
 	if (rc == 0) {
 		CDEBUG(D_INFO, "%s: Space: "DRANGE"\n",
@@ -236,42 +103,37 @@ seq_client_proc_write_space(struct file *file, const char *buffer,
 }
 
 static int
-seq_client_proc_read_space(char *page, char **start, off_t off,
-			   int count, int *eof, void *data)
+lprocfs_fid_space_seq_show(struct seq_file *m, void *unused)
 {
-	struct lu_client_seq *seq = (struct lu_client_seq *)data;
+	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 	int rc;
 	ENTRY;
 
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
-	rc = seq_proc_read_common(page, start, off, count, eof,
-				  data, &seq->lcs_space);
+	rc = seq_printf(m, "["LPX64" - "LPX64"]:%x:%s\n", PRANGE(&seq->lcs_space));
 	mutex_unlock(&seq->lcs_mutex);
 
 	RETURN(rc);
 }
 
-static int
-seq_client_proc_write_width(struct file *file, const char *buffer,
-			    unsigned long count, void *data)
+static ssize_t
+lprocfs_fid_width_seq_write(struct file *file, const char *buffer,
+			    size_t count, loff_t *off)
 {
-	struct lu_client_seq *seq = (struct lu_client_seq *)data;
+	struct lu_client_seq *seq = ((struct seq_file *)file->private_data)->private;
 	__u64  max;
 	int rc, val;
 	ENTRY;
 
 	LASSERT(seq != NULL);
 
-	mutex_lock(&seq->lcs_mutex);
-
 	rc = lprocfs_write_helper(buffer, count, &val);
-	if (rc) {
-		mutex_unlock(&seq->lcs_mutex);
+	if (rc)
 		RETURN(rc);
-	}
 
+	mutex_lock(&seq->lcs_mutex);
 	if (seq->lcs_type == LUSTRE_SEQ_DATA)
 		max = LUSTRE_DATA_SEQ_MAX_WIDTH;
 	else
@@ -292,44 +154,41 @@ seq_client_proc_write_width(struct file *file, const char *buffer,
 }
 
 static int
-seq_client_proc_read_width(char *page, char **start, off_t off,
-			   int count, int *eof, void *data)
+lprocfs_fid_width_seq_show(struct seq_file *m, void *unused)
 {
-	struct lu_client_seq *seq = (struct lu_client_seq *)data;
+	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 	int rc;
 	ENTRY;
 
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
-	rc = snprintf(page, count, LPU64"\n", seq->lcs_width);
+	rc = seq_printf(m, LPU64"\n", seq->lcs_width);
 	mutex_unlock(&seq->lcs_mutex);
 
 	RETURN(rc);
 }
 
 static int
-seq_client_proc_read_fid(char *page, char **start, off_t off,
-			 int count, int *eof, void *data)
+lprocfs_fid_fid_seq_show(struct seq_file *m, void *unused)
 {
-	struct lu_client_seq *seq = (struct lu_client_seq *)data;
+	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 	int rc;
 	ENTRY;
 
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
-	rc = snprintf(page, count, DFID"\n", PFID(&seq->lcs_fid));
+	rc = seq_printf(m, DFID"\n", PFID(&seq->lcs_fid));
 	mutex_unlock(&seq->lcs_mutex);
 
 	RETURN(rc);
 }
 
 static int
-seq_client_proc_read_server(char *page, char **start, off_t off,
-			    int count, int *eof, void *data)
+lprocfs_fid_server_seq_show(struct seq_file *m, void *unused)
 {
-	struct lu_client_seq *seq = (struct lu_client_seq *)data;
+	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 	struct client_obd *cli;
 	int rc;
 	ENTRY;
@@ -338,23 +197,26 @@ seq_client_proc_read_server(char *page, char **start, off_t off,
 
 	if (seq->lcs_exp != NULL) {
 		cli = &seq->lcs_exp->exp_obd->u.cli;
-		rc = snprintf(page, count, "%s\n", cli->cl_target_uuid.uuid);
+		rc = seq_printf(m, "%s\n", cli->cl_target_uuid.uuid);
 	} else {
-		rc = snprintf(page, count, "%s\n", seq->lcs_srv->lss_name);
+		rc = seq_printf(m, "%s\n", seq->lcs_srv->lss_name);
 	}
 	RETURN(rc);
 }
 
 struct lprocfs_vars seq_server_proc_list[] = {
-	{ "space",    seq_server_proc_read_space, seq_server_proc_write_space, NULL },
-	{ "width",    seq_server_proc_read_width, seq_server_proc_write_width, NULL },
-	{ "server",   seq_server_proc_read_server, NULL, NULL },
-	{ NULL }};
+};
+
+LPROC_SEQ_FOPS(lprocfs_fid_space);
+LPROC_SEQ_FOPS(lprocfs_fid_width);
+LPROC_SEQ_FOPS_RO(lprocfs_fid_server);
+LPROC_SEQ_FOPS_RO(lprocfs_fid_fid);
 
 struct lprocfs_vars seq_client_proc_list[] = {
-	{ "space",    seq_client_proc_read_space, seq_client_proc_write_space, NULL },
-	{ "width",    seq_client_proc_read_width, seq_client_proc_write_width, NULL },
-	{ "server",   seq_client_proc_read_server, NULL, NULL },
-	{ "fid",      seq_client_proc_read_fid, NULL, NULL },
-	{ NULL }};
+	{ "space", &lprocfs_fid_space_fops },
+	{ "width", &lprocfs_fid_width_fops },
+	{ "server", &lprocfs_fid_server_fops },
+	{ "fid", &lprocfs_fid_fid_fops },
+	{ NULL }
+};
 #endif

@@ -256,8 +256,7 @@ void sptlrpc_plain_fini(void);
 /* sec_bulk.c */
 int  sptlrpc_enc_pool_init(void);
 void sptlrpc_enc_pool_fini(void);
-int sptlrpc_proc_read_enc_pool(char *page, char **start, off_t off, int count,
-			       int *eof, void *data);
+int sptlrpc_proc_enc_pool_seq_show(struct seq_file *m, void *v);
 
 /* sec_lproc.c */
 int  sptlrpc_lproc_init(void);

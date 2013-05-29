@@ -130,14 +130,13 @@ static struct shrinker *pools_shrinker = NULL;
 /*
  * /proc/fs/lustre/sptlrpc/encrypt_page_pools
  */
-int sptlrpc_proc_read_enc_pool(char *page, char **start, off_t off, int count,
-			       int *eof, void *data)
+int sptlrpc_proc_enc_pool_seq_show(struct seq_file *m, void *v)
 {
 	int     rc;
 
 	spin_lock(&page_pools.epp_lock);
 
-	rc = snprintf(page, count,
+	rc = seq_printf(m,
 		      "physical pages:	  %lu\n"
 		      "pages per pool:	  %lu\n"
 		      "max pages:	       %lu\n"

@@ -58,7 +58,6 @@ typedef module_t			   *cfs_param_module_t;
 typedef struct proc_dir_entry		   cfs_param_dentry_t;
 typedef struct poll_table_struct		cfs_poll_table_t;
 #define CFS_PARAM_MODULE			THIS_MODULE
-#define CFS_PDE(value)			  PDE(value)
 #define cfs_file_private(file)		  (file->private_data)
 #define cfs_dentry_data(dentry)		 (dentry->data)
 #define cfs_proc_inode_pde(proc_inode)	  (proc_inode->pde)
@@ -75,52 +74,6 @@ typedef struct poll_table_struct		cfs_poll_table_t;
 							    count, ppos))
 #define cfs_seq_open(file, ops, rc)	     (rc = seq_open(file, ops))
 
-/* in lprocfs_stat.c, to protect the private data for proc entries */
-extern struct rw_semaphore		_lprocfs_lock;
-
-/* to begin from 2.6.23, Linux defines self file_operations (proc_reg_file_ops)
- * in procfs, the proc file_operation defined by Lustre (lprocfs_generic_fops)
- * will be wrapped into the new defined proc_reg_file_ops, which instroduces
- * user count in proc_dir_entrey(pde_users) to protect the proc entry from
- * being deleted. then the protection lock (_lprocfs_lock) defined by Lustre
- * isn't necessary anymore for lprocfs_generic_fops(e.g. lprocfs_fops_read).
- * see bug19706 for detailed information.
- */
-#define LPROCFS_ENTRY() do{ }while(0)
-#define LPROCFS_EXIT()  do{ }while(0)
-
-static inline
-int LPROCFS_ENTRY_AND_CHECK(struct proc_dir_entry *dp)
-{
-	int deleted = 0;
-
-	spin_lock(&(dp)->pde_unload_lock);
-	if (dp->proc_fops == NULL)
-		deleted = 1;
-	spin_unlock(&(dp)->pde_unload_lock);
-	if (deleted)
-		return -ENODEV;
-	return 0;
-}
-#define LPROCFS_SRCH_ENTRY()	    \
-do {				    \
-	down_read(&_lprocfs_lock);      \
-} while(0)
-
-#define LPROCFS_SRCH_EXIT()	     \
-do {				    \
-	up_read(&_lprocfs_lock);	\
-} while(0)
-
-#define LPROCFS_WRITE_ENTRY()		\
-do {					\
-	down_write(&_lprocfs_lock);	\
-} while(0)
-
-#define LPROCFS_WRITE_EXIT()		\
-do {					\
-	up_write(&_lprocfs_lock);	\
-} while(0)
 #else /* !LPROCFS */
 
 typedef struct cfs_params_file {
@@ -181,13 +134,7 @@ static inline cfs_proc_inode_t *FAKE_PROC_I(const cfs_inode_t *inode)
 	return container_of(inode, cfs_proc_inode_t, param_inode);
 }
 
-static inline cfs_param_dentry_t *FAKE_PDE(cfs_inode_t *inode)
-{
-	return FAKE_PROC_I(inode)->param_pde;
-}
-
 #define CFS_PARAM_MODULE			NULL
-#define CFS_PDE(value)			  FAKE_PDE(value)
 #define cfs_file_private(file)		  (file->param_private)
 #define cfs_dentry_data(dentry)		 (dentry->param_data)
 #define cfs_proc_inode(proc_inode)	      (proc_inode->param_inode)
@@ -211,17 +158,6 @@ do {						    \
 	p->op = ops;				    \
 	rc = 0;					 \
 } while(0)
-
-#define LPROCFS_ENTRY()	     do {} while(0)
-#define LPROCFS_EXIT()	      do {} while(0)
-static inline
-int LPROCFS_ENTRY_AND_CHECK(cfs_param_dentry_t *dp)
-{
-	LPROCFS_ENTRY();
-	return 0;
-}
-#define LPROCFS_WRITE_ENTRY()       do {} while(0)
-#define LPROCFS_WRITE_EXIT()	do {} while(0)
 
 #endif /* LPROCFS */
 

@@ -418,20 +418,14 @@ struct seq_operations lprocfs_jobstats_seq_sops = {
 
 static int lprocfs_jobstats_seq_open(struct inode *inode, struct file *file)
 {
-	struct proc_dir_entry *dp = PDE(inode);
 	struct seq_file *seq;
 	int rc;
 
-	if (LPROCFS_ENTRY_AND_CHECK(dp))
-		return -ENOENT;
-
 	rc = seq_open(file, &lprocfs_jobstats_seq_sops);
-	if (rc) {
-		LPROCFS_EXIT();
+	if (rc)
 		return rc;
-	}
 	seq = file->private_data;
-	seq->private = dp->data;
+	seq->private = PDE_DATA(inode);
 	return 0;
 }
 
@@ -523,30 +517,23 @@ int lprocfs_job_stats_init(struct obd_device *obd, int cntr_num,
 	stats->ojs_cleanup_interval = 600; /* 10 mins by default */
 	stats->ojs_last_cleanup = cfs_time_current_sec();
 
-	LPROCFS_WRITE_ENTRY();
-	entry = create_proc_entry("job_stats", 0644, obd->obd_proc_entry);
-	LPROCFS_WRITE_EXIT();
-	if (entry) {
-		entry->proc_fops = &lprocfs_jobstats_seq_fops;
-		entry->data = stats;
+	entry = proc_create_data("job_stats", 0644, obd->obd_proc_entry,
+				 &lprocfs_jobstats_seq_fops, stats);
+	if (entry)
 		RETURN(0);
-	} else {
-		lprocfs_job_stats_fini(obd);
+	else
 		RETURN(-ENOMEM);
-	}
 }
 EXPORT_SYMBOL(lprocfs_job_stats_init);
 
-int lprocfs_rd_job_interval(char *page, char **start, off_t off,
-			    int count, int *eof, void *data)
+int lprocfs_rd_job_interval(struct seq_file *m, void *data)
 {
 	struct obd_device *obd = (struct obd_device *)data;
 	struct obd_job_stats *stats;
 
 	LASSERT(obd != NULL);
 	stats = &obd->u.obt.obt_jobstats;
-	*eof = 1;
-	return snprintf(page, count, "%d\n", stats->ojs_cleanup_interval);
+	return seq_printf(m, "%d\n", stats->ojs_cleanup_interval);
 }
 EXPORT_SYMBOL(lprocfs_rd_job_interval);
 

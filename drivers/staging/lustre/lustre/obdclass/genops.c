@@ -247,11 +247,9 @@ int class_unregister_type(const char *name)
 		RETURN(-EBUSY);
 	}
 
-	/* we do not use type->typ_procroot as for compatibility purposes
-	 * other modules can share names (i.e. lod can use lov entry). so
-	 * we can't reference pointer as it can get invalided when another
-	 * module removes the entry */
-	lprocfs_try_remove_proc_entry(type->typ_name, proc_lustre_root);
+	if (type->typ_procroot) {
+		lprocfs_remove(&type->typ_procroot);
+	}
 
 	if (type->typ_lu)
 		lu_device_type_fini(type->typ_lu);

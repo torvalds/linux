@@ -58,12 +58,10 @@
 
 #ifdef LPROCFS
 static int
-fld_proc_read_targets(char *page, char **start, off_t off,
-		      int count, int *eof, void *data)
+fld_proc_targets_seq_show(struct seq_file *m, void *unused)
 {
-	struct lu_client_fld *fld = (struct lu_client_fld *)data;
+	struct lu_client_fld *fld = (struct lu_client_fld *)m->private;
 	struct lu_fld_target *target;
-	int total = 0, rc;
 	ENTRY;
 
 	LASSERT(fld != NULL);
@@ -71,41 +69,32 @@ fld_proc_read_targets(char *page, char **start, off_t off,
 	spin_lock(&fld->lcf_lock);
 	list_for_each_entry(target,
 				&fld->lcf_targets, ft_chain)
-	{
-		rc = snprintf(page, count, "%s\n",
-			      fld_target_name(target));
-		page += rc;
-		count -= rc;
-		total += rc;
-		if (count == 0)
-			break;
-	}
+		seq_printf(m, "%s\n", fld_target_name(target));
 	spin_unlock(&fld->lcf_lock);
-	RETURN(total);
+
+	RETURN(0);
 }
 
 static int
-fld_proc_read_hash(char *page, char **start, off_t off,
-		   int count, int *eof, void *data)
+fld_proc_hash_seq_show(struct seq_file *m, void *unused)
 {
-	struct lu_client_fld *fld = (struct lu_client_fld *)data;
-	int rc;
+	struct lu_client_fld *fld = (struct lu_client_fld *)m->private;
 	ENTRY;
 
 	LASSERT(fld != NULL);
 
 	spin_lock(&fld->lcf_lock);
-	rc = snprintf(page, count, "%s\n", fld->lcf_hash->fh_name);
+	seq_printf(m, "%s\n", fld->lcf_hash->fh_name);
 	spin_unlock(&fld->lcf_lock);
 
-	RETURN(rc);
+	RETURN(0);
 }
 
-static int
-fld_proc_write_hash(struct file *file, const char *buffer,
-		    unsigned long count, void *data)
+static ssize_t
+fld_proc_hash_seq_write(struct file *file, const char *buffer,
+			size_t count, loff_t *off)
 {
-	struct lu_client_fld *fld = (struct lu_client_fld *)data;
+	struct lu_client_fld *fld = ((struct seq_file *)file->private_data)->private;
 	struct lu_fld_hash *hash = NULL;
 	int i;
 	ENTRY;
@@ -134,11 +123,11 @@ fld_proc_write_hash(struct file *file, const char *buffer,
 	RETURN(count);
 }
 
-static int
-fld_proc_write_cache_flush(struct file *file, const char *buffer,
-			   unsigned long count, void *data)
+static ssize_t
+fld_proc_cache_flush_write(struct file *file, const char __user *buffer,
+			       size_t count, loff_t *pos)
 {
-	struct lu_client_fld *fld = (struct lu_client_fld *)data;
+	struct lu_client_fld *fld = file->private_data;
 	ENTRY;
 
 	LASSERT(fld != NULL);
@@ -149,6 +138,25 @@ fld_proc_write_cache_flush(struct file *file, const char *buffer,
 
 	RETURN(count);
 }
+
+static int fld_proc_cache_flush_open(struct inode *inode, struct file *file)
+{
+	file->private_data = PDE_DATA(inode);
+	return 0;
+}
+
+static int fld_proc_cache_flush_release(struct inode *inode, struct file *file)
+{
+	file->private_data = NULL;
+	return 0;
+}
+
+struct file_operations fld_proc_cache_flush_fops = {
+	.owner		= THIS_MODULE,
+	.open		= fld_proc_cache_flush_open,
+	.write		= fld_proc_cache_flush_write,
+	.release	= fld_proc_cache_flush_release,
+};
 
 struct fld_seq_param {
 	struct lu_env		fsp_env;
@@ -265,16 +273,14 @@ struct seq_operations fldb_sops = {
 
 static int fldb_seq_open(struct inode *inode, struct file *file)
 {
-	struct proc_dir_entry	*dp = PDE(inode);
 	struct seq_file		*seq;
-	struct lu_server_fld    *fld = (struct lu_server_fld *)dp->data;
+	struct lu_server_fld    *fld = (struct lu_server_fld *)PDE_DATA(inode);
 	struct dt_object	*obj;
 	const struct dt_it_ops  *iops;
 	struct fld_seq_param    *param = NULL;
 	int			env_init = 0;
 	int			rc;
 
-	LPROCFS_ENTRY_AND_CHECK(dp);
 	rc = seq_open(file, &fldb_sops);
 	if (rc)
 		GOTO(out, rc);
@@ -311,7 +317,6 @@ out:
 			lu_env_fini(&param->fsp_env);
 		if (param != NULL)
 			OBD_FREE_PTR(param);
-		LPROCFS_EXIT();
 	}
 	return rc;
 }
@@ -349,10 +354,13 @@ static int fldb_seq_release(struct inode *inode, struct file *file)
 struct lprocfs_vars fld_server_proc_list[] = {
 	{ NULL }};
 
+LPROC_SEQ_FOPS_RO(fld_proc_targets);
+LPROC_SEQ_FOPS(fld_proc_hash);
+
 struct lprocfs_vars fld_client_proc_list[] = {
-	{ "targets",     fld_proc_read_targets, NULL, NULL },
-	{ "hash",	fld_proc_read_hash, fld_proc_write_hash, NULL },
-	{ "cache_flush", NULL, fld_proc_write_cache_flush, NULL },
+	{ "targets", &fld_proc_targets_fops },
+	{ "hash", &fld_proc_hash_fops },
+	{ "cache_flush", &fld_proc_cache_flush_fops },
 	{ NULL }};
 
 struct file_operations fld_proc_seq_fops = {

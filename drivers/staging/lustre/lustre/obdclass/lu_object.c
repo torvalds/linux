@@ -2021,14 +2021,14 @@ static __u32 ls_stats_read(struct lprocfs_stats *stats, int idx)
  * Output site statistical counters into a buffer. Suitable for
  * lprocfs_rd_*()-style functions.
  */
-int lu_site_stats_print(const struct lu_site *s, char *page, int count)
+int lu_site_stats_print(const struct lu_site *s, struct seq_file *m)
 {
 	lu_site_stats_t stats;
 
 	memset(&stats, 0, sizeof(stats));
 	lu_site_stats_get(s->ls_obj_hash, &stats, 1);
 
-	return snprintf(page, count, "%d/%d %d/%d %d %d %d %d %d %d %d\n",
+	return seq_printf(m, "%d/%d %d/%d %d %d %d %d %d %d %d\n",
 			stats.lss_busy,
 			stats.lss_total,
 			stats.lss_populated,

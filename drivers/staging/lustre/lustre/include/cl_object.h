@@ -2598,8 +2598,6 @@ struct cache_stats {
 
 /** These are not exported so far */
 void cache_stats_init (struct cache_stats *cs, const char *name);
-int  cache_stats_print(const struct cache_stats *cs,
-		       char *page, int count, int header);
 
 /**
  * Client-side site. This represents particular client stack. "Global"
@@ -2631,7 +2629,7 @@ void cl_stack_fini(const struct lu_env *env, struct cl_device *cl);
  * Output client site statistical counters into a buffer. Suitable for
  * ll_rd_*()-style functions.
  */
-int cl_site_stats_print(const struct cl_site *s, char *page, int count);
+int cl_site_stats_print(const struct cl_site *site, struct seq_file *m);
 
 /**
  * \name helpers

@@ -108,6 +108,7 @@
  */
 
 #include <linux/libcfs/libcfs.h>
+#include <linux/seq_file.h>
 
 #if CFS_HASH_DEBUG_LEVEL >= CFS_HASH_DEBUG_1
 static unsigned int warn_on_depth = 8;
@@ -2027,9 +2028,9 @@ void cfs_hash_rehash_key(cfs_hash_t *hs, const void *old_key,
 }
 EXPORT_SYMBOL(cfs_hash_rehash_key);
 
-int cfs_hash_debug_header(char *str, int size)
+int cfs_hash_debug_header(struct seq_file *m)
 {
-	return snprintf(str, size, "%-*s%6s%6s%6s%6s%6s%6s%6s%7s%8s%8s%8s%s\n",
+	return seq_printf(m, "%-*s%6s%6s%6s%6s%6s%6s%6s%7s%8s%8s%8s%s\n",
 		 CFS_HASH_BIGNAME_LEN,
 		 "name", "cur", "min", "max", "theta", "t-min", "t-max",
 		 "flags", "rehash", "count", "maxdep", "maxdepb",
@@ -2061,38 +2062,28 @@ cfs_hash_full_nbkt(cfs_hash_t *hs)
 	       CFS_HASH_RH_NBKT(hs) : CFS_HASH_NBKT(hs);
 }
 
-int cfs_hash_debug_str(cfs_hash_t *hs, char *str, int size)
+int cfs_hash_debug_str(cfs_hash_t *hs, struct seq_file *m)
 {
 	int		    dist[8] = { 0, };
 	int		    maxdep  = -1;
 	int		    maxdepb = -1;
 	int		    total   = 0;
-	int		    c       = 0;
 	int		    theta;
 	int		    i;
-
-	if (str == NULL || size == 0)
-		return 0;
 
 	cfs_hash_lock(hs, 0);
 	theta = __cfs_hash_theta(hs);
 
-	c += snprintf(str + c, size - c, "%-*s ",
-		      CFS_HASH_BIGNAME_LEN, hs->hs_name);
-	c += snprintf(str + c, size - c, "%5d ",  1 << hs->hs_cur_bits);
-	c += snprintf(str + c, size - c, "%5d ",  1 << hs->hs_min_bits);
-	c += snprintf(str + c, size - c, "%5d ",  1 << hs->hs_max_bits);
-	c += snprintf(str + c, size - c, "%d.%03d ",
-		      __cfs_hash_theta_int(theta),
-		      __cfs_hash_theta_frac(theta));
-	c += snprintf(str + c, size - c, "%d.%03d ",
+	seq_printf(m, "%-*s %5d %5d %5d %d.%03d %d.%03d %d.%03d  0x%02x %6d ",
+		      CFS_HASH_BIGNAME_LEN, hs->hs_name,
+		      1 << hs->hs_cur_bits, 1 << hs->hs_min_bits,
+		      1 << hs->hs_max_bits,
+		      __cfs_hash_theta_int(theta), __cfs_hash_theta_frac(theta),
 		      __cfs_hash_theta_int(hs->hs_min_theta),
-		      __cfs_hash_theta_frac(hs->hs_min_theta));
-	c += snprintf(str + c, size - c, "%d.%03d ",
+		      __cfs_hash_theta_frac(hs->hs_min_theta),
 		      __cfs_hash_theta_int(hs->hs_max_theta),
-		      __cfs_hash_theta_frac(hs->hs_max_theta));
-	c += snprintf(str + c, size - c, " 0x%02x ", hs->hs_flags);
-	c += snprintf(str + c, size - c, "%6d ", hs->hs_rehash_count);
+		      __cfs_hash_theta_frac(hs->hs_max_theta),
+		      hs->hs_flags, hs->hs_rehash_count);
 
 	/*
 	 * The distribution is a summary of the chained hash depth in
@@ -2121,15 +2112,12 @@ int cfs_hash_debug_str(cfs_hash_t *hs, char *str, int size)
 		cfs_hash_bd_unlock(hs, &bd, 0);
 	}
 
-	c += snprintf(str + c, size - c, "%7d ", total);
-	c += snprintf(str + c, size - c, "%7d ", maxdep);
-	c += snprintf(str + c, size - c, "%7d ", maxdepb);
+	seq_printf(m, "%7d %7d %7d ", total, maxdep, maxdepb);
 	for (i = 0; i < 8; i++)
-		c += snprintf(str + c, size - c, "%d%c",  dist[i],
-			      (i == 7) ? '\n' : '/');
+		seq_printf(m, "%d%c",  dist[i], (i == 7) ? '\n' : '/');
 
 	cfs_hash_unlock(hs, 0);
 
-	return c;
+	return 0;
 }
 EXPORT_SYMBOL(cfs_hash_debug_str);
