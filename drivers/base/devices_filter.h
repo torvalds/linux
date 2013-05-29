@@ -115,6 +115,8 @@ static usb_parameter skip_device_list[] = {
         {0x19D2, 0x1515, NULL, NULL, NULL},//MF195
 		{0x1bbb, 0xf017, NULL, NULL, NULL},
 		{0x19d2, 0x0117, NULL, NULL, NULL},
+		{0x1C9E, 0xF001, NULL, NULL, NULL},
+		{0x1C9E, 0x9801, NULL, NULL, NULL},
 		//end xxh
 };
 
