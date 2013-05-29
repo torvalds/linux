@@ -3309,7 +3309,9 @@ static void gen6_enable_rps(struct drm_device *dev)
 	/* requires MSI enabled */
 	I915_WRITE(GEN6_PMIER, GEN6_PM_DEFERRED_EVENTS);
 	spin_lock_irq(&dev_priv->rps.lock);
-	WARN_ON(dev_priv->rps.pm_iir != 0);
+	/* FIXME: Our interrupt enabling sequence is bonghits.
+	 * dev_priv->rps.pm_iir really should be 0 here. */
+	dev_priv->rps.pm_iir = 0;
 	I915_WRITE(GEN6_PMIMR, 0);
 	spin_unlock_irq(&dev_priv->rps.lock);
 	/* enable all PM interrupts */
