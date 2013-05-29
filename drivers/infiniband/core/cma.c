@@ -3149,6 +3149,8 @@ static void cma_set_mgid(struct rdma_id_private *id_priv,
 								 0xFF10A01B)) {
 		/* IPv6 address is an SA assigned MGID. */
 		memcpy(mgid, &sin6->sin6_addr, sizeof *mgid);
+	} else if (addr->sa_family == AF_IB) {
+		memcpy(mgid, &((struct sockaddr_ib *) addr)->sib_addr, sizeof *mgid);
 	} else if ((addr->sa_family == AF_INET6)) {
 		ipv6_ib_mc_map(&sin6->sin6_addr, dev_addr->broadcast, mc_map);
 		if (id_priv->id.ps == RDMA_PS_UDP)
@@ -3176,9 +3178,12 @@ static int cma_join_ib_multicast(struct rdma_id_private *id_priv,
 	if (ret)
 		return ret;
 
+	ret = cma_set_qkey(id_priv, 0);
+	if (ret)
+		return ret;
+
 	cma_set_mgid(id_priv, (struct sockaddr *) &mc->addr, &rec.mgid);
-	if (id_priv->id.ps == RDMA_PS_UDP)
-		rec.qkey = cpu_to_be32(RDMA_UDP_QKEY);
+	rec.qkey = cpu_to_be32(id_priv->qkey);
 	rdma_addr_get_sgid(dev_addr, &rec.port_gid);
 	rec.pkey = cpu_to_be16(ib_addr_get_pkey(dev_addr));
 	rec.join_state = 1;
