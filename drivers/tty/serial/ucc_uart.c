@@ -1517,9 +1517,11 @@ static int __init ucc_uart_init(void)
 	}
 
 	ret = platform_driver_register(&ucc_uart_of_driver);
-	if (ret)
+	if (ret) {
 		printk(KERN_ERR
 		       "ucc-uart: could not register platform driver\n");
+		uart_unregister_driver(&ucc_uart_driver);
+	}
 
 	return ret;
 }
