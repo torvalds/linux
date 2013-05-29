@@ -2097,7 +2097,7 @@ int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse)
 
 	id_priv = container_of(id, struct rdma_id_private, id);
 	spin_lock_irqsave(&id_priv->lock, flags);
-	if (id_priv->state == RDMA_CM_IDLE) {
+	if (reuse || id_priv->state == RDMA_CM_IDLE) {
 		id_priv->reuseaddr = reuse;
 		ret = 0;
 	} else {
