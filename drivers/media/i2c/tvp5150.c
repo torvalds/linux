@@ -726,13 +726,11 @@ static int tvp5150_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	/* First tests should be against specific std */
 
-	if (std == V4L2_STD_ALL) {
-		fmt = VIDEO_STD_AUTO_SWITCH_BIT;	/* Autodetect mode */
-	} else if (std & V4L2_STD_NTSC_443) {
+	if (std == V4L2_STD_NTSC_443) {
 		fmt = VIDEO_STD_NTSC_4_43_BIT;
-	} else if (std & V4L2_STD_PAL_M) {
+	} else if (std == V4L2_STD_PAL_M) {
 		fmt = VIDEO_STD_PAL_M_BIT;
-	} else if (std & (V4L2_STD_PAL_N | V4L2_STD_PAL_Nc)) {
+	} else if (std == V4L2_STD_PAL_N || std == V4L2_STD_PAL_Nc) {
 		fmt = VIDEO_STD_PAL_COMBINATION_N_BIT;
 	} else {
 		/* Then, test against generic ones */
