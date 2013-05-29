@@ -93,8 +93,7 @@ static void wl1251_spi_wake(struct wl1251 *wl)
 	memset(&t, 0, sizeof(t));
 	spi_message_init(&m);
 
-	/*
-	 * Set WSPI_INIT_COMMAND
+	/* Set WSPI_INIT_COMMAND
 	 * the data is being send from the MSB to LSB
 	 */
 	cmd[2] = 0xff;
@@ -262,7 +261,8 @@ static int wl1251_spi_probe(struct spi_device *spi)
 	wl->if_ops = &wl1251_spi_ops;
 
 	/* This is the only SPI value that we need to set here, the rest
-	 * comes from the board-peripherals file */
+	 * comes from the board-peripherals file
+	 */
 	spi->bits_per_word = 32;
 
 	ret = spi_setup(spi);
