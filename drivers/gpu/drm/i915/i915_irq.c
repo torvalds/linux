@@ -833,6 +833,7 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 		ivybridge_handle_parity_error(dev);
 }
 
+/* Legacy way of handling PM interrupts */
 static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 				u32 pm_iir)
 {
@@ -910,6 +911,31 @@ static void dp_aux_irq_handler(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
 	wake_up_all(&dev_priv->gmbus_wait_queue);
+}
+
+/* Unlike gen6_queue_rps_work() from which this function is originally derived,
+ * we must be able to deal with other PM interrupts. This is complicated because
+ * of the way in which we use the masks to defer the RPS work (which for
+ * posterity is necessary because of forcewake).
+ */
+static void hsw_pm_irq_handler(struct drm_i915_private *dev_priv,
+			       u32 pm_iir)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->rps.lock, flags);
+	dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_DEFERRED_EVENTS;
+	if (dev_priv->rps.pm_iir) {
+		I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
+		/* never want to mask useful interrupts. (also posting read) */
+		WARN_ON(I915_READ_NOTRACE(GEN6_PMIMR) & ~GEN6_PM_DEFERRED_EVENTS);
+		/* TODO: if queue_work is slow, move it out of the spinlock */
+		queue_work(dev_priv->wq, &dev_priv->rps.work);
+	}
+	spin_unlock_irqrestore(&dev_priv->rps.lock, flags);
+
+	if (pm_iir & ~GEN6_PM_DEFERRED_EVENTS)
+		DRM_ERROR("Unexpected PM interrupted\n");
 }
 
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
@@ -1222,7 +1248,9 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 
 	pm_iir = I915_READ(GEN6_PMIIR);
 	if (pm_iir) {
-		if (pm_iir & GEN6_PM_DEFERRED_EVENTS)
+		if (IS_HASWELL(dev))
+			hsw_pm_irq_handler(dev_priv, pm_iir);
+		else if (pm_iir & GEN6_PM_DEFERRED_EVENTS)
 			gen6_queue_rps_work(dev_priv, pm_iir);
 		I915_WRITE(GEN6_PMIIR, pm_iir);
 		ret = IRQ_HANDLED;
