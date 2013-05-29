@@ -1913,9 +1913,6 @@ void XGI_GetVBType(struct vb_device_info *pVBInfo)
 {
 	unsigned short flag, tempbx, tempah;
 
-	if (pVBInfo->IF_DEF_LVDS != 0)
-		return;
-
 	tempbx = VB_SIS302B;
 	flag = xgifb_reg_get(pVBInfo->Part4Port, 0x00);
 	if (flag == 0x02)
