@@ -5647,24 +5647,8 @@ pfm_proc_show_header(struct seq_file *m)
 
 	list_for_each(pos, &pfm_buffer_fmt_list) {
 		entry = list_entry(pos, pfm_buffer_fmt_t, fmt_list);
-		seq_printf(m, "format                    : %02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x %s\n",
-			entry->fmt_uuid[0],
-			entry->fmt_uuid[1],
-			entry->fmt_uuid[2],
-			entry->fmt_uuid[3],
-			entry->fmt_uuid[4],
-			entry->fmt_uuid[5],
-			entry->fmt_uuid[6],
-			entry->fmt_uuid[7],
-			entry->fmt_uuid[8],
-			entry->fmt_uuid[9],
-			entry->fmt_uuid[10],
-			entry->fmt_uuid[11],
-			entry->fmt_uuid[12],
-			entry->fmt_uuid[13],
-			entry->fmt_uuid[14],
-			entry->fmt_uuid[15],
-			entry->fmt_name);
+		seq_printf(m, "format                    : %16phD %s\n",
+			   entry->fmt_uuid, entry->fmt_name);
 	}
 	spin_unlock(&pfm_buffer_fmt_lock);
 
