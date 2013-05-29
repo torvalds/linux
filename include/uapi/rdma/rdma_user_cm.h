@@ -63,7 +63,8 @@ enum {
 	RDMA_USER_CM_CMD_LEAVE_MCAST,
 	RDMA_USER_CM_CMD_MIGRATE_ID,
 	RDMA_USER_CM_CMD_QUERY,
-	RDMA_USER_CM_CMD_BIND
+	RDMA_USER_CM_CMD_BIND,
+	RDMA_USER_CM_CMD_RESOLVE_ADDR
 };
 
 /*
@@ -115,6 +116,16 @@ struct rdma_ucm_resolve_ip {
 	struct sockaddr_in6 dst_addr;
 	__u32 id;
 	__u32 timeout_ms;
+};
+
+struct rdma_ucm_resolve_addr {
+	__u32 id;
+	__u32 timeout_ms;
+	__u16 src_size;
+	__u16 dst_size;
+	__u32 reserved;
+	struct sockaddr_storage src_addr;
+	struct sockaddr_storage dst_addr;
 };
 
 struct rdma_ucm_resolve_route {
