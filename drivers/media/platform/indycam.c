@@ -23,7 +23,6 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 
 #include "indycam.h"
 
@@ -283,20 +282,9 @@ static int indycam_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 /* I2C-interface */
 
-static int indycam_g_chip_ident(struct v4l2_subdev *sd,
-		struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct indycam *camera = to_indycam(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_INDYCAM,
-		       camera->version);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops indycam_core_ops = {
-	.g_chip_ident = indycam_g_chip_ident,
 	.g_ctrl = indycam_g_ctrl,
 	.s_ctrl = indycam_s_ctrl,
 };
