@@ -512,10 +512,10 @@ static ssize_t ucma_destroy_id(struct ucma_file *file, const char __user *inbuf,
 	return ret;
 }
 
-static ssize_t ucma_bind_addr(struct ucma_file *file, const char __user *inbuf,
+static ssize_t ucma_bind_ip(struct ucma_file *file, const char __user *inbuf,
 			      int in_len, int out_len)
 {
-	struct rdma_ucm_bind_addr cmd;
+	struct rdma_ucm_bind_ip cmd;
 	struct ucma_context *ctx;
 	int ret;
 
@@ -531,11 +531,11 @@ static ssize_t ucma_bind_addr(struct ucma_file *file, const char __user *inbuf,
 	return ret;
 }
 
-static ssize_t ucma_resolve_addr(struct ucma_file *file,
-				 const char __user *inbuf,
-				 int in_len, int out_len)
+static ssize_t ucma_resolve_ip(struct ucma_file *file,
+			       const char __user *inbuf,
+			       int in_len, int out_len)
 {
-	struct rdma_ucm_resolve_addr cmd;
+	struct rdma_ucm_resolve_ip cmd;
 	struct ucma_context *ctx;
 	int ret;
 
@@ -1178,11 +1178,11 @@ static ssize_t ucma_notify(struct ucma_file *file, const char __user *inbuf,
 	return ret;
 }
 
-static ssize_t ucma_join_multicast(struct ucma_file *file,
-				   const char __user *inbuf,
-				   int in_len, int out_len)
+static ssize_t ucma_join_ip_multicast(struct ucma_file *file,
+				      const char __user *inbuf,
+				      int in_len, int out_len)
 {
-	struct rdma_ucm_join_mcast cmd;
+	struct rdma_ucm_join_ip_mcast cmd;
 	struct rdma_ucm_create_id_resp resp;
 	struct ucma_context *ctx;
 	struct ucma_multicast *mc;
@@ -1379,26 +1379,26 @@ file_put:
 static ssize_t (*ucma_cmd_table[])(struct ucma_file *file,
 				   const char __user *inbuf,
 				   int in_len, int out_len) = {
-	[RDMA_USER_CM_CMD_CREATE_ID]	= ucma_create_id,
-	[RDMA_USER_CM_CMD_DESTROY_ID]	= ucma_destroy_id,
-	[RDMA_USER_CM_CMD_BIND_ADDR]	= ucma_bind_addr,
-	[RDMA_USER_CM_CMD_RESOLVE_ADDR]	= ucma_resolve_addr,
-	[RDMA_USER_CM_CMD_RESOLVE_ROUTE]= ucma_resolve_route,
-	[RDMA_USER_CM_CMD_QUERY_ROUTE]	= ucma_query_route,
-	[RDMA_USER_CM_CMD_CONNECT]	= ucma_connect,
-	[RDMA_USER_CM_CMD_LISTEN]	= ucma_listen,
-	[RDMA_USER_CM_CMD_ACCEPT]	= ucma_accept,
-	[RDMA_USER_CM_CMD_REJECT]	= ucma_reject,
-	[RDMA_USER_CM_CMD_DISCONNECT]	= ucma_disconnect,
-	[RDMA_USER_CM_CMD_INIT_QP_ATTR]	= ucma_init_qp_attr,
-	[RDMA_USER_CM_CMD_GET_EVENT]	= ucma_get_event,
-	[RDMA_USER_CM_CMD_GET_OPTION]	= NULL,
-	[RDMA_USER_CM_CMD_SET_OPTION]	= ucma_set_option,
-	[RDMA_USER_CM_CMD_NOTIFY]	= ucma_notify,
-	[RDMA_USER_CM_CMD_JOIN_MCAST]	= ucma_join_multicast,
-	[RDMA_USER_CM_CMD_LEAVE_MCAST]	= ucma_leave_multicast,
-	[RDMA_USER_CM_CMD_MIGRATE_ID]	= ucma_migrate_id,
-	[RDMA_USER_CM_CMD_QUERY]	= ucma_query
+	[RDMA_USER_CM_CMD_CREATE_ID] 	 = ucma_create_id,
+	[RDMA_USER_CM_CMD_DESTROY_ID]	 = ucma_destroy_id,
+	[RDMA_USER_CM_CMD_BIND_IP]	 = ucma_bind_ip,
+	[RDMA_USER_CM_CMD_RESOLVE_IP]	 = ucma_resolve_ip,
+	[RDMA_USER_CM_CMD_RESOLVE_ROUTE] = ucma_resolve_route,
+	[RDMA_USER_CM_CMD_QUERY_ROUTE]	 = ucma_query_route,
+	[RDMA_USER_CM_CMD_CONNECT]	 = ucma_connect,
+	[RDMA_USER_CM_CMD_LISTEN]	 = ucma_listen,
+	[RDMA_USER_CM_CMD_ACCEPT]	 = ucma_accept,
+	[RDMA_USER_CM_CMD_REJECT]	 = ucma_reject,
+	[RDMA_USER_CM_CMD_DISCONNECT]	 = ucma_disconnect,
+	[RDMA_USER_CM_CMD_INIT_QP_ATTR]	 = ucma_init_qp_attr,
+	[RDMA_USER_CM_CMD_GET_EVENT]	 = ucma_get_event,
+	[RDMA_USER_CM_CMD_GET_OPTION]	 = NULL,
+	[RDMA_USER_CM_CMD_SET_OPTION]	 = ucma_set_option,
+	[RDMA_USER_CM_CMD_NOTIFY]	 = ucma_notify,
+	[RDMA_USER_CM_CMD_JOIN_IP_MCAST] = ucma_join_ip_multicast,
+	[RDMA_USER_CM_CMD_LEAVE_MCAST]	 = ucma_leave_multicast,
+	[RDMA_USER_CM_CMD_MIGRATE_ID]	 = ucma_migrate_id,
+	[RDMA_USER_CM_CMD_QUERY]	 = ucma_query
 };
 
 static ssize_t ucma_write(struct file *filp, const char __user *buf,
