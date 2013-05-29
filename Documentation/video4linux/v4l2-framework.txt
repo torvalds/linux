@@ -246,7 +246,6 @@ may be NULL if the subdev driver does not support anything from that category.
 It looks like this:
 
 struct v4l2_subdev_core_ops {
-	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
 	int (*init)(struct v4l2_subdev *sd, u32 val);
 	...
@@ -346,24 +345,24 @@ Afterwards the subdev module can be unloaded and sd->dev == NULL.
 
 You can call an ops function either directly:
 
-	err = sd->ops->core->g_chip_ident(sd, &chip);
+	err = sd->ops->core->g_std(sd, &norm);
 
 but it is better and easier to use this macro:
 
-	err = v4l2_subdev_call(sd, core, g_chip_ident, &chip);
+	err = v4l2_subdev_call(sd, core, g_std, &norm);
 
 The macro will to the right NULL pointer checks and returns -ENODEV if subdev
-is NULL, -ENOIOCTLCMD if either subdev->core or subdev->core->g_chip_ident is
-NULL, or the actual result of the subdev->ops->core->g_chip_ident ops.
+is NULL, -ENOIOCTLCMD if either subdev->core or subdev->core->g_std is
+NULL, or the actual result of the subdev->ops->core->g_std ops.
 
 It is also possible to call all or a subset of the sub-devices:
 
-	v4l2_device_call_all(v4l2_dev, 0, core, g_chip_ident, &chip);
+	v4l2_device_call_all(v4l2_dev, 0, core, g_std, &norm);
 
 Any subdev that does not support this ops is skipped and error results are
 ignored. If you want to check for errors use this:
 
-	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_chip_ident, &chip);
+	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_std, &norm);
 
 Any error except -ENOIOCTLCMD will exit the loop with that error. If no
 errors (except -ENOIOCTLCMD) occurred, then 0 is returned.
