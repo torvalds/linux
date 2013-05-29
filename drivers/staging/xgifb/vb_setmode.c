@@ -5290,15 +5290,10 @@ unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 
 	if (pVBInfo->SetFlag & ProgrammingCRT2) {
 		if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
-			if (pVBInfo->IF_DEF_LVDS == 0) {
-				temp = LCDARefreshIndex[
-					pVBInfo->LCDResInfo & 0x07];
+			temp = LCDARefreshIndex[pVBInfo->LCDResInfo & 0x07];
 
-				if (index > temp)
-					index = temp;
-			} else {
-				index = 0;
-			}
+			if (index > temp)
+				index = temp;
 		}
 	}
 
