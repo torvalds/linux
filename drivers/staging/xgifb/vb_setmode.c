@@ -1997,15 +1997,10 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 	/* shampoo add */
 	/* for driver abnormal */
 	if (!(tempbx & (SwitchCRT2 | SetSimuScanMode))) {
-		if (pVBInfo->IF_DEF_CRT2Monitor == 1) {
-			if (tempbx & SetCRT2ToRAMDAC) {
-				tempbx &= (0xFF00 | SetCRT2ToRAMDAC |
-					   SwitchCRT2 | SetSimuScanMode);
-				tempbx &= (0x00FF | (~SetCRT2ToYPbPr525750));
-			}
-		} else {
-			tempbx &= (~(SetCRT2ToRAMDAC | SetCRT2ToLCD |
-				     SetCRT2ToTV));
+		if (tempbx & SetCRT2ToRAMDAC) {
+			tempbx &= (0xFF00 | SetCRT2ToRAMDAC |
+				   SwitchCRT2 | SetSimuScanMode);
+			tempbx &= (0x00FF | (~SetCRT2ToYPbPr525750));
 		}
 	}
 
@@ -5550,12 +5545,8 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 	struct vb_device_info *pVBInfo = &VBINF;
 	pVBInfo->IF_DEF_LVDS = 0;
 
-	if (HwDeviceExtension->jChipType >= XG20) {
-		pVBInfo->IF_DEF_CRT2Monitor = 0;
+	if (HwDeviceExtension->jChipType >= XG20)
 		pVBInfo->VBType = 0; /*set VBType default 0*/
-	} else {
-		pVBInfo->IF_DEF_CRT2Monitor = 1;
-	}
 
 	XGIRegInit(pVBInfo, xgifb_info->vga_base);
 
