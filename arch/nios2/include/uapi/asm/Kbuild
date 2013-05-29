@@ -4,6 +4,7 @@ header-y += byteorder.h
 header-y += elf.h
 header-y += fcntl.h
 header-y += ioctls.h
+header-y += kvm_para.h
 header-y += poll.h
 header-y += posix_types.h
 header-y += processor.h
