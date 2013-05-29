@@ -91,9 +91,13 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	struct clk		*clk;
 	struct device_node	*node = pdev->dev.of_node;
 	struct mfd_cell		*cell;
+	struct property         *prop;
+	const __be32            *cur;
+	u32			val;
 	int			err, ctrl;
 	int			clk_value, clock_rate;
 	int			tsc_wires = 0, adc_channels = 0, total_channels;
+	int			readouts = 0;
 
 	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev, "Could not find valid DT data.\n");
@@ -102,10 +106,17 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 
 	node = of_get_child_by_name(pdev->dev.of_node, "tsc");
 	of_property_read_u32(node, "ti,wires", &tsc_wires);
+	of_property_read_u32(node, "ti,coordiante-readouts", &readouts);
 
 	node = of_get_child_by_name(pdev->dev.of_node, "adc");
-	of_property_read_u32(node, "ti,adc-channels", &adc_channels);
-
+	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
+		adc_channels++;
+		if (val > 7) {
+			dev_err(&pdev->dev, " PIN numbers are 0..7 (not %d)\n",
+					val);
+			return -EINVAL;
+		}
+	}
 	total_channels = tsc_wires + adc_channels;
 	if (total_channels > 8) {
 		dev_err(&pdev->dev, "Number of i/p channels more than 8\n");
@@ -113,6 +124,11 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	}
 	if (total_channels == 0) {
 		dev_err(&pdev->dev, "Need atleast one channel.\n");
+		return -EINVAL;
+	}
+
+	if (readouts * 2 + 2 + adc_channels > 16) {
+		dev_err(&pdev->dev, "Too many step configurations requested\n");
 		return -EINVAL;
 	}
 

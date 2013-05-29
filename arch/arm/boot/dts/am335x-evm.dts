@@ -255,6 +255,6 @@
 	};
 
 	adc {
-		ti,adc-channels = <4>;
+		ti,adc-channels = <4 5 6 7>;
 	};
 };
