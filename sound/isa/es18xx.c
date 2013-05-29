@@ -2235,7 +2235,6 @@ static int snd_es18xx_isa_remove(struct device *devptr,
 				 unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
-	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 
@@ -2305,7 +2304,6 @@ static int snd_audiodrive_pnp_detect(struct pnp_dev *pdev,
 static void snd_audiodrive_pnp_remove(struct pnp_dev *pdev)
 {
 	snd_card_free(pnp_get_drvdata(pdev));
-	pnp_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM
