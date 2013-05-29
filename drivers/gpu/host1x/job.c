@@ -330,7 +330,7 @@ static int check_incr(struct host1x_firewall *fw)
 	u32 count = fw->count;
 	u32 reg = fw->reg;
 
-	while (fw) {
+	while (count) {
 		if (fw->words == 0)
 			return -EINVAL;
 
