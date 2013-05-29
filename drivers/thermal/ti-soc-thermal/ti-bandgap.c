@@ -1531,6 +1531,12 @@ static const struct of_device_id of_ti_bandgap_match[] = {
 		.data = (void *)&omap5430_data,
 	},
 #endif
+#ifdef CONFIG_DRA752_THERMAL
+	{
+		.compatible = "ti,dra752-bandgap",
+		.data = (void *)&dra752_data,
+	},
+#endif
 	/* Sentinel */
 	{ },
 };
