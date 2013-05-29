@@ -520,7 +520,7 @@ static const struct block_device_operations rbd_bd_ops = {
 
 /*
  * Initialize an rbd client instance.  Success or not, this function
- * consumes ceph_opts.
+ * consumes ceph_opts.  Caller holds ctl_mutex.
  */
 static struct rbd_client *rbd_client_create(struct ceph_options *ceph_opts)
 {
@@ -535,30 +535,25 @@ static struct rbd_client *rbd_client_create(struct ceph_options *ceph_opts)
 	kref_init(&rbdc->kref);
 	INIT_LIST_HEAD(&rbdc->node);
 
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-
 	rbdc->client = ceph_create_client(ceph_opts, rbdc, 0, 0);
 	if (IS_ERR(rbdc->client))
-		goto out_mutex;
+		goto out_rbdc;
 	ceph_opts = NULL; /* Now rbdc->client is responsible for ceph_opts */
 
 	ret = ceph_open_session(rbdc->client);
 	if (ret < 0)
-		goto out_err;
+		goto out_client;
 
 	spin_lock(&rbd_client_list_lock);
 	list_add_tail(&rbdc->node, &rbd_client_list);
 	spin_unlock(&rbd_client_list_lock);
 
-	mutex_unlock(&ctl_mutex);
 	dout("%s: rbdc %p\n", __func__, rbdc);
 
 	return rbdc;
-
-out_err:
+out_client:
 	ceph_destroy_client(rbdc->client);
-out_mutex:
-	mutex_unlock(&ctl_mutex);
+out_rbdc:
 	kfree(rbdc);
 out_opt:
 	if (ceph_opts)
@@ -682,11 +677,13 @@ static struct rbd_client *rbd_get_client(struct ceph_options *ceph_opts)
 {
 	struct rbd_client *rbdc;
 
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	rbdc = rbd_client_find(ceph_opts);
 	if (rbdc)	/* using an existing client */
 		ceph_destroy_options(ceph_opts);
 	else
 		rbdc = rbd_client_create(ceph_opts);
+	mutex_unlock(&ctl_mutex);
 
 	return rbdc;
 }
