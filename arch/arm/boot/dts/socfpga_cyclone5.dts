@@ -168,26 +168,6 @@
 
 		leds {
 			compatible = "gpio-leds";
-			fpga0 {
-				label = "fpga_led0";
-				gpios = <&agpio0 0 1>;
-			};
-
-			fpga1 {
-				label = "fpga_led1";
-				gpios = <&agpio0 1 1>;
-			};
-
-			fpga2 {
-				label = "fpga_led2";
-				gpios = <&agpio0 2 1>;
-			};
-
-			fpga3 {
-				label = "fpga_led3";
-				gpios = <&agpio0 3 1>;
-			};
-
 			hps0 {
 				label = "hps_led0";
 				gpios = <&gpio1 15 1>;
