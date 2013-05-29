@@ -311,9 +311,7 @@ enum max77802_pmic_reg {
 
 /* These are not raw register numbers - we translate them for each PMIC */
 enum max77xxx_rtc_reg {
-	MAX77XXX_RTC_INT = 0,
-	MAX77XXX_RTC_INTM,
-	MAX77XXX_RTC_CONTROLM,
+	MAX77XXX_RTC_CONTROLM = 0,
 	MAX77XXX_RTC_CONTROL,
 	MAX77XXX_RTC_UPDATE0,
 	MAX77XXX_RTC_UPDATE1,
@@ -321,10 +319,10 @@ enum max77xxx_rtc_reg {
 	MAX77XXX_RTC_SEC,
 	MAX77XXX_RTC_MIN,
 	MAX77XXX_RTC_HOUR,
-
-	MAX77XXX_RTC_WEEKDAY,		/* 10 */
+	MAX77XXX_RTC_WEEKDAY,
 	MAX77XXX_RTC_MONTH,
-	MAX77XXX_RTC_YEAR,
+
+	MAX77XXX_RTC_YEAR,		/* 10 */
 	MAX77XXX_RTC_DATE,
 	MAX77XXX_ALARM1_SEC,
 	MAX77XXX_ALARM1_MIN,
@@ -332,10 +330,10 @@ enum max77xxx_rtc_reg {
 	MAX77XXX_ALARM1_WEEKDAY,
 	MAX77XXX_ALARM1_MONTH,
 	MAX77XXX_ALARM1_YEAR,
-
-	MAX77XXX_ALARM1_DATE,		/* 20 */
+	MAX77XXX_ALARM1_DATE,
 	MAX77XXX_ALARM2_SEC,
-	MAX77XXX_ALARM2_MIN,
+
+	MAX77XXX_ALARM2_MIN,		/* 20 */
 	MAX77XXX_ALARM2_HOUR,
 	MAX77XXX_ALARM2_WEEKDAY,
 	MAX77XXX_ALARM2_MONTH,
@@ -346,6 +344,16 @@ enum max77xxx_rtc_reg {
 
 	MAX77XXX_REG_COUNT,
 	MAX77XXX_REG_NONE = 0xff,
+};
+
+enum max77686_rtc_reg {
+	MAX77686_RTC_INT = 0x0,
+	MAX77686_RTC_INTM = 0x1,
+};
+
+enum max77802_rtc_reg {
+	MAX77802_RTC_INT = 0xc0,
+	MAX77802_RTC_INTM = 0xc1,
 };
 
 #define MAX77XXX_IRQSRC_PMIC	(0)
@@ -400,6 +408,10 @@ struct max77xxx_dev {
 	struct mutex irqlock;
 	int irq_masks_cur[MAX77XXX_IRQ_GROUP_NR];
 	int irq_masks_cache[MAX77XXX_IRQ_GROUP_NR];
+
+	/* Mapping from IRQ group to status/mask register numbers */
+	const u8 *irq_regs;
+	const u8 *irq_mask_regs;
 };
 
 enum max77xxx_types {

@@ -42,10 +42,28 @@ static int debug_mask;
 module_param(debug_mask, int, 0);
 MODULE_PARM_DESC(debug_mask, "Set debug_mask : 0x0=off 0x1=IRQ_INFO  0x2=IRQ_MASK 0x4=IRQ_INI)");
 
-static const u8 max77xxx_mask_reg[] = {
+static const u8 max77686_mask_reg[] = {
 	[PMIC_INT1] = MAX77XXX_REG_INT1MSK,
 	[PMIC_INT2] = MAX77XXX_REG_INT2MSK,
-	[RTC_INT] = MAX77XXX_RTC_INTM,
+	[RTC_INT] = MAX77686_RTC_INTM,
+};
+
+static const u8 max77802_mask_reg[] = {
+	[PMIC_INT1] = MAX77XXX_REG_INT1MSK,
+	[PMIC_INT2] = MAX77XXX_REG_INT2MSK,
+	[RTC_INT] = MAX77802_RTC_INTM,
+};
+
+static const u8 max77686_irq_reg[] = {
+	[PMIC_INT1] = MAX77XXX_REG_INT1,
+	[PMIC_INT2] = MAX77XXX_REG_INT2,
+	[RTC_INT] = MAX77686_RTC_INT,
+};
+
+static const u8 max77802_irq_reg[] = {
+	[PMIC_INT1] = MAX77XXX_REG_INT1,
+	[PMIC_INT2] = MAX77XXX_REG_INT2,
+	[RTC_INT] = MAX77802_RTC_INT,
 };
 
 static struct regmap *max77xxx_get_regmap(struct max77xxx_dev *max77xxx,
@@ -103,7 +121,7 @@ static void max77xxx_irq_sync_unlock(struct irq_data *data)
 	int i;
 
 	for (i = 0; i < MAX77XXX_IRQ_GROUP_NR; i++) {
-		u8 mask_reg = max77xxx_mask_reg[i];
+		u8 mask_reg = max77xxx->irq_mask_regs[i];
 		struct regmap *map = max77xxx_get_regmap(max77xxx, i);
 
 		if (debug_mask & MAX77XXX_DEBUG_IRQ_MASK)
@@ -116,8 +134,7 @@ static void max77xxx_irq_sync_unlock(struct irq_data *data)
 
 		max77xxx->irq_masks_cache[i] = max77xxx->irq_masks_cur[i];
 
-		regmap_write(map, max77xxx_mask_reg[i],
-				max77xxx->irq_masks_cur[i]);
+		regmap_write(map, mask_reg, max77xxx->irq_masks_cur[i]);
 	}
 
 	mutex_unlock(&max77xxx->irqlock);
@@ -183,7 +200,8 @@ static irqreturn_t max77xxx_irq_thread(int irq, void *data)
 
 	if (irq_src == MAX77XXX_IRQSRC_PMIC) {
 		ret = regmap_bulk_read(max77xxx->regmap,
-					 MAX77XXX_REG_INT1, irq_reg, 2);
+				       max77xxx->irq_regs[PMIC_INT1],
+				       irq_reg, 2);
 		if (ret < 0) {
 			dev_err(max77xxx->dev, "Failed to read interrupt source: %d\n",
 					ret);
@@ -197,7 +215,8 @@ static irqreturn_t max77xxx_irq_thread(int irq, void *data)
 
 	if (irq_src & MAX77XXX_IRQSRC_RTC) {
 		ret = regmap_read(max77xxx->rtc_regmap,
-					MAX77XXX_RTC_INT, &irq_reg[RTC_INT]);
+				  max77xxx->irq_regs[RTC_INT],
+				  &irq_reg[RTC_INT]);
 		if (ret < 0) {
 			dev_err(max77xxx->dev, "Failed to read interrupt source: %d\n",
 					ret);
@@ -278,6 +297,14 @@ int max77xxx_irq_init(struct max77xxx_dev *max77xxx)
 		return -ENODEV;
 	}
 
+	if (max77xxx->type == TYPE_MAX77686) {
+		max77xxx->irq_regs = max77686_irq_reg;
+		max77xxx->irq_mask_regs = max77686_mask_reg;
+	} else {
+		max77xxx->irq_regs = max77802_irq_reg;
+		max77xxx->irq_mask_regs = max77802_mask_reg;
+	}
+
 	/* Mask individual interrupt sources */
 	for (i = 0; i < MAX77XXX_IRQ_GROUP_NR; i++) {
 		max77xxx->irq_masks_cur[i] = 0xff;
@@ -286,10 +313,10 @@ int max77xxx_irq_init(struct max77xxx_dev *max77xxx)
 
 		if (IS_ERR_OR_NULL(map))
 			continue;
-		if (max77xxx_mask_reg[i] == MAX77XXX_REG_INVALID)
+		if (max77xxx->irq_mask_regs[i] == MAX77XXX_REG_INVALID)
 			continue;
 
-		regmap_write(map, max77xxx_mask_reg[i], 0xff);
+		regmap_write(map, max77xxx->irq_mask_regs[i], 0xff);
 	}
 	domain = irq_domain_add_linear(NULL, MAX77XXX_IRQ_NR,
 					&max77xxx_irq_domain_ops, max77xxx);
