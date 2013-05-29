@@ -4555,11 +4555,11 @@ static unsigned char XGI_EnableChISLCD(struct vb_device_info *pVBInfo,
 	if (enable)
 		tempbx = pVBInfo->SetFlag & EnableChA;
 	else
-		tempbx = pVBInfo->SetFlag & DisableChA;
+		tempbx = 0;
 
 	tempah = ~((unsigned short) xgifb_reg_get(pVBInfo->Part1Port, 0x2E));
 
-	if (tempbx & (EnableChA | DisableChA)) {
+	if (tempbx & EnableChA) {
 		if (!(tempah & 0x08)) /* Chk LCDA Mode */
 			return 0;
 	}
@@ -4585,10 +4585,6 @@ static void XGI_DisableBridge(struct xgifb_video_info *xgifb_info,
 					      XGI_SetCRT2ToLCDA))
 						/* Disable Channel B */
 						tempah = 0xBF;
-
-					if (pVBInfo->SetFlag & DisableChA)
-						/* Force to disable Channel B */
-						tempah &= 0x7F;
 				}
 			}
 		}
@@ -4605,14 +4601,12 @@ static void XGI_DisableBridge(struct xgifb_video_info *xgifb_info,
 				xgifb_reg_or(pVBInfo->Part4Port, 0x30, 0x80);
 		}
 
-		if ((pVBInfo->SetFlag & DisableChA) || (pVBInfo->VBInfo
-				& (DisableCRT2Display | XGI_SetCRT2ToLCDA
-						| SetSimuScanMode)))
+		if (pVBInfo->VBInfo & (DisableCRT2Display | XGI_SetCRT2ToLCDA |
+				       SetSimuScanMode))
 			XGI_DisplayOff(xgifb_info, HwDeviceExtension, pVBInfo);
 
 		if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
-			if ((pVBInfo->SetFlag & DisableChA) || (pVBInfo->VBInfo
-					& XGI_SetCRT2ToLCDA))
+			if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)
 				/* Power down */
 				xgifb_reg_and(pVBInfo->Part1Port, 0x1e, 0xdf);
 		}
@@ -5469,12 +5463,10 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 
 	if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV
 			| VB_SIS302LV | VB_XGI301C)) {
-		if (!(pVBInfo->SetFlag & DisableChA)) {
-			if ((pVBInfo->SetFlag & EnableChA) ||
-			    (pVBInfo->VBInfo & SetCRT2ToDualEdge)) {
-				/* Power on */
-				xgifb_reg_set(pVBInfo->Part1Port, 0x1E, 0x20);
-			}
+		if ((pVBInfo->SetFlag & EnableChA) ||
+		    (pVBInfo->VBInfo & SetCRT2ToDualEdge)) {
+			/* Power on */
+			xgifb_reg_set(pVBInfo->Part1Port, 0x1E, 0x20);
 		}
 
 		if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToTV |
@@ -5527,9 +5519,6 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 				if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)
 					tempah = tempah ^ 0xC0;
 
-				if (pVBInfo->SetFlag &  DisableChA)
-					tempah &= 0x7F;
-
 				if (pVBInfo->SetFlag &  EnableChA)
 					tempah |= 0x80;
 			}
@@ -5538,10 +5527,8 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 		/* EnablePart4_1F */
 		xgifb_reg_or(pVBInfo->Part4Port, 0x1F, tempah);
 
-		if (!(pVBInfo->SetFlag & DisableChA)) {
-			XGI_DisableGatingCRT(HwDeviceExtension, pVBInfo);
-			XGI_DisplayOn(xgifb_info, HwDeviceExtension, pVBInfo);
-		}
+		XGI_DisableGatingCRT(HwDeviceExtension, pVBInfo);
+		XGI_DisplayOn(xgifb_info, HwDeviceExtension, pVBInfo);
 	} /* 301 */
 	else { /* LVDS */
 		if (pVBInfo->VBInfo & (SetCRT2ToTV | SetCRT2ToLCD
