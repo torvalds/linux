@@ -700,10 +700,11 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
 	pm_imr = I915_READ(GEN6_PMIMR);
-	I915_WRITE(GEN6_PMIMR, 0);
+	/* Make sure not to corrupt PMIMR state used by ringbuffer code */
+	I915_WRITE(GEN6_PMIMR, pm_imr & ~GEN6_PM_RPS_EVENTS);
 	spin_unlock_irq(&dev_priv->rps.lock);
 
-	if ((pm_iir & GEN6_PM_DEFERRED_EVENTS) == 0)
+	if ((pm_iir & GEN6_PM_RPS_EVENTS) == 0)
 		return;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
@@ -933,17 +934,17 @@ static void hsw_pm_irq_handler(struct drm_i915_private *dev_priv,
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->rps.lock, flags);
-	dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_DEFERRED_EVENTS;
+	dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_RPS_EVENTS;
 	if (dev_priv->rps.pm_iir) {
 		I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
 		/* never want to mask useful interrupts. (also posting read) */
-		WARN_ON(I915_READ_NOTRACE(GEN6_PMIMR) & ~GEN6_PM_DEFERRED_EVENTS);
+		WARN_ON(I915_READ_NOTRACE(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
 		/* TODO: if queue_work is slow, move it out of the spinlock */
 		queue_work(dev_priv->wq, &dev_priv->rps.work);
 	}
 	spin_unlock_irqrestore(&dev_priv->rps.lock, flags);
 
-	if (pm_iir & ~GEN6_PM_DEFERRED_EVENTS)
+	if (pm_iir & ~GEN6_PM_RPS_EVENTS)
 		DRM_ERROR("Unexpected PM interrupted\n");
 }
 
@@ -1018,7 +1019,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
 			gmbus_irq_handler(dev);
 
-		if (pm_iir & GEN6_PM_DEFERRED_EVENTS)
+		if (pm_iir & GEN6_PM_RPS_EVENTS)
 			gen6_queue_rps_work(dev_priv, pm_iir);
 
 		I915_WRITE(GTIIR, gt_iir);
@@ -1259,7 +1260,7 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 	if (pm_iir) {
 		if (IS_HASWELL(dev))
 			hsw_pm_irq_handler(dev_priv, pm_iir);
-		else if (pm_iir & GEN6_PM_DEFERRED_EVENTS)
+		else if (pm_iir & GEN6_PM_RPS_EVENTS)
 			gen6_queue_rps_work(dev_priv, pm_iir);
 		I915_WRITE(GEN6_PMIIR, pm_iir);
 		ret = IRQ_HANDLED;
@@ -1374,7 +1375,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	if (IS_GEN5(dev) &&  de_iir & DE_PCU_EVENT)
 		ironlake_handle_rps_change(dev);
 
-	if (IS_GEN6(dev) && pm_iir & GEN6_PM_DEFERRED_EVENTS)
+	if (IS_GEN6(dev) && pm_iir & GEN6_PM_RPS_EVENTS)
 		gen6_queue_rps_work(dev_priv, pm_iir);
 
 	I915_WRITE(GTIIR, gt_iir);
@@ -2716,8 +2717,8 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 	POSTING_READ(GTIER);
 
 	/* Power management */
-	I915_WRITE(GEN6_PMIMR, ~GEN6_PM_DEFERRED_EVENTS);
-	I915_WRITE(GEN6_PMIER, GEN6_PM_DEFERRED_EVENTS);
+	I915_WRITE(GEN6_PMIMR, ~GEN6_PM_RPS_EVENTS);
+	I915_WRITE(GEN6_PMIER, GEN6_PM_RPS_EVENTS);
 	POSTING_READ(GEN6_PMIMR);
 
 	ibx_irq_postinstall(dev);

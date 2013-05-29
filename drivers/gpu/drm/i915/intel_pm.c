@@ -3116,7 +3116,7 @@ static void gen6_disable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 	I915_WRITE(GEN6_RPNSWREQ, 1 << 31);
 	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
-	I915_WRITE(GEN6_PMIER, 0);
+	I915_WRITE(GEN6_PMIER, I915_READ(GEN6_PMIER) & ~GEN6_PM_RPS_EVENTS);
 	/* Complete PM interrupt masking here doesn't race with the rps work
 	 * item again unmasking PM interrupts because that is using a different
 	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
@@ -3126,7 +3126,7 @@ static void gen6_disable_rps(struct drm_device *dev)
 	dev_priv->rps.pm_iir = 0;
 	spin_unlock_irq(&dev_priv->rps.lock);
 
-	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
+	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
 }
 
 static void valleyview_disable_rps(struct drm_device *dev)
@@ -3307,14 +3307,15 @@ static void gen6_enable_rps(struct drm_device *dev)
 	gen6_set_rps(dev_priv->dev, (gt_perf_status & 0xff00) >> 8);
 
 	/* requires MSI enabled */
-	I915_WRITE(GEN6_PMIER, GEN6_PM_DEFERRED_EVENTS);
+	I915_WRITE(GEN6_PMIER, I915_READ(GEN6_PMIER) | GEN6_PM_RPS_EVENTS);
 	spin_lock_irq(&dev_priv->rps.lock);
 	/* FIXME: Our interrupt enabling sequence is bonghits.
 	 * dev_priv->rps.pm_iir really should be 0 here. */
 	dev_priv->rps.pm_iir = 0;
-	I915_WRITE(GEN6_PMIMR, 0);
+	I915_WRITE(GEN6_PMIMR, I915_READ(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
+	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
 	spin_unlock_irq(&dev_priv->rps.lock);
-	/* enable all PM interrupts */
+	/* unmask all PM interrupts */
 	I915_WRITE(GEN6_PMINTRMSK, 0);
 
 	rc6vids = 0;
@@ -3577,7 +3578,7 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	valleyview_set_rps(dev_priv->dev, rpe);
 
 	/* requires MSI enabled */
-	I915_WRITE(GEN6_PMIER, GEN6_PM_DEFERRED_EVENTS);
+	I915_WRITE(GEN6_PMIER, GEN6_PM_RPS_EVENTS);
 	spin_lock_irq(&dev_priv->rps.lock);
 	WARN_ON(dev_priv->rps.pm_iir != 0);
 	I915_WRITE(GEN6_PMIMR, 0);
