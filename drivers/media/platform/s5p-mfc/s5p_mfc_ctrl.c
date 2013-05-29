@@ -38,7 +38,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 	dev->fw_virt_addr = dma_alloc_coherent(dev->mem_dev_l, dev->fw_size,
 					&dev->bank1, GFP_KERNEL);
 
-	if (IS_ERR(dev->fw_virt_addr)) {
+	if (IS_ERR_OR_NULL(dev->fw_virt_addr)) {
 		dev->fw_virt_addr = NULL;
 		mfc_err("Allocating bitprocessor buffer failed\n");
 		return -ENOMEM;
