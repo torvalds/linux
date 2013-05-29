@@ -1735,6 +1735,8 @@ static int saa711x_probe(struct i2c_client *client,
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &saa711x_ops);
 
+	v4l_info(client, "%s found @ 0x%x (%s)\n", name,
+		 client->addr << 1, client->adapter->name);
 	hdl = &state->hdl;
 	v4l2_ctrl_handler_init(hdl, 6);
 	/* add in ascending ID order */
