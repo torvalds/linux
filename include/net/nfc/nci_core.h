@@ -226,6 +226,9 @@ struct nci_spi_dev {
 						  transactions */
 	u8			acknowledge_mode;
 
+	struct completion	req_completion;
+	u8			req_result;
+
 	void			*driver_data;
 };
 

@@ -20,11 +20,24 @@
 
 #include <linux/export.h>
 #include <linux/spi/spi.h>
+#include <linux/crc-ccitt.h>
 #include <linux/nfc.h>
 #include <net/nfc/nci_core.h>
 
 #define NCI_SPI_HDR_LEN			4
 #define NCI_SPI_CRC_LEN			2
+
+#define NCI_SPI_SEND_TIMEOUT	(NCI_CMD_TIMEOUT > NCI_DATA_TIMEOUT ? \
+					NCI_CMD_TIMEOUT : NCI_DATA_TIMEOUT)
+
+#define NCI_SPI_DIRECT_WRITE	0x01
+#define NCI_SPI_DIRECT_READ	0x02
+
+#define ACKNOWLEDGE_NONE	0
+#define ACKNOWLEDGE_ACK		1
+#define ACKNOWLEDGE_NACK	2
+
+#define CRC_INIT		0xFFFF
 
 static int nci_spi_open(struct nci_dev *nci_dev)
 {
@@ -40,9 +53,65 @@ static int nci_spi_close(struct nci_dev *nci_dev)
 	return ndev->ops->close(ndev);
 }
 
+static int __nci_spi_send(struct nci_spi_dev *ndev, struct sk_buff *skb)
+{
+	struct spi_message m;
+	struct spi_transfer t;
+
+	t.tx_buf = skb->data;
+	t.len = skb->len;
+	t.cs_change = 0;
+	t.delay_usecs = ndev->xfer_udelay;
+
+	spi_message_init(&m);
+	spi_message_add_tail(&t, &m);
+
+	return spi_sync(ndev->spi, &m);
+}
+
 static int nci_spi_send(struct nci_dev *nci_dev, struct sk_buff *skb)
 {
-	return 0;
+	struct nci_spi_dev *ndev = nci_get_drvdata(nci_dev);
+	unsigned int payload_len = skb->len;
+	unsigned char *hdr;
+	int ret;
+	long completion_rc;
+
+	ndev->ops->deassert_int(ndev);
+
+	/* add the NCI SPI header to the start of the buffer */
+	hdr = skb_push(skb, NCI_SPI_HDR_LEN);
+	hdr[0] = NCI_SPI_DIRECT_WRITE;
+	hdr[1] = ndev->acknowledge_mode;
+	hdr[2] = payload_len >> 8;
+	hdr[3] = payload_len & 0xFF;
+
+	if (ndev->acknowledge_mode == NCI_SPI_CRC_ENABLED) {
+		u16 crc;
+
+		crc = crc_ccitt(CRC_INIT, skb->data, skb->len);
+		*skb_put(skb, 1) = crc >> 8;
+		*skb_put(skb, 1) = crc & 0xFF;
+	}
+
+	ret = __nci_spi_send(ndev, skb);
+
+	kfree_skb(skb);
+	ndev->ops->assert_int(ndev);
+
+	if (ret != 0 || ndev->acknowledge_mode == NCI_SPI_CRC_DISABLED)
+		goto done;
+
+	init_completion(&ndev->req_completion);
+	completion_rc =
+		wait_for_completion_interruptible_timeout(&ndev->req_completion,
+							  NCI_SPI_SEND_TIMEOUT);
+
+	if (completion_rc <= 0 || ndev->req_result == ACKNOWLEDGE_NACK)
+		ret = -EIO;
+
+done:
+	return ret;
 }
 
 static struct nci_ops nci_spi_ops = {
