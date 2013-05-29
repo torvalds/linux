@@ -4043,12 +4043,21 @@ static int i915_gem_init_rings(struct drm_device *dev)
 			goto cleanup_bsd_ring;
 	}
 
+	if (HAS_VEBOX(dev)) {
+		ret = intel_init_vebox_ring_buffer(dev);
+		if (ret)
+			goto cleanup_blt_ring;
+	}
+
+
 	ret = i915_gem_set_seqno(dev, ((u32)~0 - 0x1000));
 	if (ret)
-		goto cleanup_blt_ring;
+		goto cleanup_vebox_ring;
 
 	return 0;
 
+cleanup_vebox_ring:
+	intel_cleanup_ring_buffer(&dev_priv->ring[VECS]);
 cleanup_blt_ring:
 	intel_cleanup_ring_buffer(&dev_priv->ring[BCS]);
 cleanup_bsd_ring:
