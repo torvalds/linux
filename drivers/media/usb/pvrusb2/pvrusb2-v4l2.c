@@ -800,36 +800,6 @@ static int pvr2_log_status(struct file *file, void *priv)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int pvr2_g_register(struct file *file, void *priv, struct v4l2_dbg_register *req)
-{
-	struct pvr2_v4l2_fh *fh = file->private_data;
-	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
-	u64 val;
-	int ret;
-
-	ret = pvr2_hdw_register_access(
-			hdw, &req->match, req->reg,
-			0, &val);
-	req->val = val;
-	return ret;
-}
-
-static int pvr2_s_register(struct file *file, void *priv, const struct v4l2_dbg_register *req)
-{
-	struct pvr2_v4l2_fh *fh = file->private_data;
-	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
-	u64 val;
-	int ret;
-
-	val = req->val;
-	ret = pvr2_hdw_register_access(
-			hdw, &req->match, req->reg,
-			1, &val);
-	return ret;
-}
-#endif
-
 static const struct v4l2_ioctl_ops pvr2_ioctl_ops = {
 	.vidioc_querycap		    = pvr2_querycap,
 	.vidioc_g_priority		    = pvr2_g_priority,
@@ -864,10 +834,6 @@ static const struct v4l2_ioctl_ops pvr2_ioctl_ops = {
 	.vidioc_g_ext_ctrls		    = pvr2_g_ext_ctrls,
 	.vidioc_s_ext_ctrls		    = pvr2_s_ext_ctrls,
 	.vidioc_try_ext_ctrls		    = pvr2_try_ext_ctrls,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register		    = pvr2_g_register,
-	.vidioc_s_register		    = pvr2_s_register,
-#endif
 };
 
 static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)

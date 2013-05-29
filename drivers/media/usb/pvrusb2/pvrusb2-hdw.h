@@ -234,15 +234,6 @@ int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *,enum pvr2_v4l_type index);
 void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *,
 				     enum pvr2_v4l_type index,int);
 
-/* Direct read/write access to chip's registers:
-   match - specify criteria to identify target chip (this is a v4l dbg struct)
-   reg_id  - register number to access
-   setFl   - true to set the register, false to read it
-   val_ptr - storage location for source / result. */
-int pvr2_hdw_register_access(struct pvr2_hdw *,
-			     const struct v4l2_dbg_match *match, u64 reg_id,
-			     int setFl, u64 *val_ptr);
-
 /* The following entry points are all lower level things you normally don't
    want to worry about. */
 

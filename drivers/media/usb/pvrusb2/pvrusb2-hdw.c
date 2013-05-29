@@ -5162,39 +5162,3 @@ static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
 	} while(0); LOCK_GIVE(hdw->ctl_lock);
 	return result;
 }
-
-
-int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
-			     const struct v4l2_dbg_match *match, u64 reg_id,
-			     int setFl, u64 *val_ptr)
-{
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	struct v4l2_dbg_register req;
-	int stat = 0;
-	int okFl = 0;
-
-	req.match = *match;
-	req.reg = reg_id;
-	if (setFl) req.val = *val_ptr;
-	/* It would be nice to know if a sub-device answered the request */
-	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, g_register, &req);
-	if (!setFl) *val_ptr = req.val;
-	if (okFl) {
-		return stat;
-	}
-	return -EINVAL;
-#else
-	return -ENOSYS;
-#endif
-}
-
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */
