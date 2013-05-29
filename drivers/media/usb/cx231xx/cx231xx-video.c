@@ -1272,36 +1272,43 @@ int cx231xx_g_register(struct file *file, void *priv,
 				(u16)reg->reg, value, 4);
 		reg->val = value[0] | value[1] << 8 |
 			value[2] << 16 | value[3] << 24;
+		reg->size = 4;
 		break;
 	case 1:	/* AFE - read byte */
 		ret = cx231xx_read_i2c_data(dev, AFE_DEVICE_ADDRESS,
 				(u16)reg->reg, 2, &data, 1);
 		reg->val = data;
+		reg->size = 1;
 		break;
 	case 2:	/* Video Block - read byte */
 		ret = cx231xx_read_i2c_data(dev, VID_BLK_I2C_ADDRESS,
 				(u16)reg->reg, 2, &data, 1);
 		reg->val = data;
+		reg->size = 1;
 		break;
 	case 3:	/* I2S block - read byte */
 		ret = cx231xx_read_i2c_data(dev, I2S_BLK_DEVICE_ADDRESS,
 				(u16)reg->reg, 1, &data, 1);
 		reg->val = data;
+		reg->size = 1;
 		break;
 	case 4: /* AFE - read dword */
 		ret = cx231xx_read_i2c_data(dev, AFE_DEVICE_ADDRESS,
 				(u16)reg->reg, 2, &data, 4);
 		reg->val = data;
+		reg->size = 4;
 		break;
 	case 5: /* Video Block - read dword */
 		ret = cx231xx_read_i2c_data(dev, VID_BLK_I2C_ADDRESS,
 				(u16)reg->reg, 2, &data, 4);
 		reg->val = data;
+		reg->size = 4;
 		break;
 	case 6: /* I2S Block - read dword */
 		ret = cx231xx_read_i2c_data(dev, I2S_BLK_DEVICE_ADDRESS,
 				(u16)reg->reg, 1, &data, 4);
 		reg->val = data;
+		reg->size = 4;
 		break;
 	default:
 		return -EINVAL;
