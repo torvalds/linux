@@ -805,6 +805,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	on this subframe
  * @RX_FLAG_AMPDU_DELIM_CRC_KNOWN: The delimiter CRC field is known (the CRC
  *	is stored in the @ampdu_delimiter_crc field)
+ * @RX_FLAG_STBC_MASK: STBC 2 bit bitmask. 1 - Nss=1, 2 - Nss=2, 3 - Nss=3
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR		= BIT(0),
@@ -832,7 +833,10 @@ enum mac80211_rx_flags {
 	RX_FLAG_80MHZ			= BIT(23),
 	RX_FLAG_80P80MHZ		= BIT(24),
 	RX_FLAG_160MHZ			= BIT(25),
+	RX_FLAG_STBC_MASK		= BIT(26) | BIT(27),
 };
+
+#define RX_FLAG_STBC_SHIFT		26
 
 /**
  * struct ieee80211_rx_status - receive status
@@ -850,6 +854,10 @@ enum mac80211_rx_flags {
  * @signal: signal strength when receiving this frame, either in dBm, in dB or
  *	unspecified depending on the hardware capabilities flags
  *	@IEEE80211_HW_SIGNAL_*
+ * @chains: bitmask of receive chains for which separate signal strength
+ *	values were filled.
+ * @chain_signal: per-chain signal strength, in dBm (unlike @signal, doesn't
+ *	support dB or unspecified units)
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
@@ -881,6 +889,8 @@ struct ieee80211_rx_status {
 	u8 band;
 	u8 antenna;
 	s8 signal;
+	u8 chains;
+	s8 chain_signal[IEEE80211_MAX_CHAINS];
 	u8 ampdu_delimiter_crc;
 	u8 vendor_radiotap_align;
 	u8 vendor_radiotap_oui[3];
@@ -1235,7 +1245,7 @@ enum ieee80211_sta_rx_bandwidth {
  * struct ieee80211_sta_rates - station rate selection table
  *
  * @rcu_head: RCU head used for freeing the table on update
- * @rates: transmit rates/flags to be used by default.
+ * @rate: transmit rates/flags to be used by default.
  *	Overriding entries per-packet is possible by using cb tx control.
  */
 struct ieee80211_sta_rates {
@@ -1276,7 +1286,7 @@ struct ieee80211_sta_rates {
  *	notifications and capabilities. The value is only valid after
  *	the station moves to associated state.
  * @smps_mode: current SMPS mode (off, static or dynamic)
- * @tx_rates: rate control selection table
+ * @rates: rate control selection table
  */
 struct ieee80211_sta {
 	u32 supp_rates[IEEE80211_NUM_BANDS];
@@ -3043,7 +3053,8 @@ void ieee80211_napi_complete(struct ieee80211_hw *hw);
  * This function may not be called in IRQ context. Calls to this function
  * for a single hardware must be synchronized against each other. Calls to
  * this function, ieee80211_rx_ni() and ieee80211_rx_irqsafe() may not be
- * mixed for a single hardware.
+ * mixed for a single hardware. Must not run concurrently with
+ * ieee80211_tx_status() or ieee80211_tx_status_ni().
  *
  * In process context use instead ieee80211_rx_ni().
  *
@@ -3059,7 +3070,8 @@ void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb);
  * (internally defers to a tasklet.)
  *
  * Calls to this function, ieee80211_rx() or ieee80211_rx_ni() may not
- * be mixed for a single hardware.
+ * be mixed for a single hardware.Must not run concurrently with
+ * ieee80211_tx_status() or ieee80211_tx_status_ni().
  *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
@@ -3073,7 +3085,8 @@ void ieee80211_rx_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb);
  * (internally disables bottom halves).
  *
  * Calls to this function, ieee80211_rx() and ieee80211_rx_irqsafe() may
- * not be mixed for a single hardware.
+ * not be mixed for a single hardware. Must not run concurrently with
+ * ieee80211_tx_status() or ieee80211_tx_status_ni().
  *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
@@ -3196,7 +3209,8 @@ void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
  * This function may not be called in IRQ context. Calls to this function
  * for a single hardware must be synchronized against each other. Calls
  * to this function, ieee80211_tx_status_ni() and ieee80211_tx_status_irqsafe()
- * may not be mixed for a single hardware.
+ * may not be mixed for a single hardware. Must not run concurrently with
+ * ieee80211_rx() or ieee80211_rx_ni().
  *
  * @hw: the hardware the frame was transmitted by
  * @skb: the frame that was transmitted, owned by mac80211 after this call

@@ -161,8 +161,11 @@ void mesh_sta_cleanup(struct sta_info *sta)
 		del_timer_sync(&sta->plink_timer);
 	}
 
-	if (changed)
+	if (changed) {
+		sdata_lock(sdata);
 		ieee80211_mbss_info_change_notify(sdata, changed);
+		sdata_unlock(sdata);
+	}
 }
 
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata)
@@ -577,7 +580,9 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata)
 	mesh_path_expire(sdata);
 
 	changed = mesh_accept_plinks_update(sdata);
+	sdata_lock(sdata);
 	ieee80211_mbss_info_change_notify(sdata, changed);
+	sdata_unlock(sdata);
 
 	mod_timer(&ifmsh->housekeeping_timer,
 		  round_jiffies(jiffies +
@@ -697,25 +702,21 @@ out_free:
 }
 
 static int
-ieee80211_mesh_rebuild_beacon(struct ieee80211_if_mesh *ifmsh)
+ieee80211_mesh_rebuild_beacon(struct ieee80211_sub_if_data *sdata)
 {
 	struct beacon_data *old_bcn;
 	int ret;
 
-	mutex_lock(&ifmsh->mtx);
-
-	old_bcn = rcu_dereference_protected(ifmsh->beacon,
-					    lockdep_is_held(&ifmsh->mtx));
-	ret = ieee80211_mesh_build_beacon(ifmsh);
+	old_bcn = rcu_dereference_protected(sdata->u.mesh.beacon,
+					    lockdep_is_held(&sdata->wdev.mtx));
+	ret = ieee80211_mesh_build_beacon(&sdata->u.mesh);
 	if (ret)
 		/* just reuse old beacon */
-		goto out;
+		return ret;
 
 	if (old_bcn)
 		kfree_rcu(old_bcn, rcu_head);
-out:
-	mutex_unlock(&ifmsh->mtx);
-	return ret;
+	return 0;
 }
 
 void ieee80211_mbss_info_change_notify(struct ieee80211_sub_if_data *sdata,
@@ -726,7 +727,7 @@ void ieee80211_mbss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 			BSS_CHANGED_HT |
 			BSS_CHANGED_BASIC_RATES |
 			BSS_CHANGED_BEACON_INT)))
-		if (ieee80211_mesh_rebuild_beacon(&sdata->u.mesh))
+		if (ieee80211_mesh_rebuild_beacon(sdata))
 			return;
 	ieee80211_bss_info_change_notify(sdata, changed);
 }
@@ -741,6 +742,8 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 		      BSS_CHANGED_BASIC_RATES |
 		      BSS_CHANGED_BEACON_INT;
 	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	struct ieee80211_supported_band *sband =
+					sdata->local->hw.wiphy->bands[band];
 
 	local->fif_other_bss++;
 	/* mesh ifaces must set allmulti to forward mcast traffic */
@@ -748,7 +751,6 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	ieee80211_configure_filter(local);
 
 	ifmsh->mesh_cc_id = 0;	/* Disabled */
-	ifmsh->mesh_auth_id = 0;	/* Disabled */
 	/* register sync ops from extensible synchronization framework */
 	ifmsh->sync_ops = ieee80211_mesh_sync_ops_get(ifmsh->mesh_sp_id);
 	ifmsh->adjusting_tbtt = false;
@@ -759,8 +761,7 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.ht_operation_mode =
 				ifmsh->mshcfg.ht_opmode;
 	sdata->vif.bss_conf.enable_beacon = true;
-	sdata->vif.bss_conf.basic_rates =
-		ieee80211_mandatory_rates(local, band);
+	sdata->vif.bss_conf.basic_rates = ieee80211_mandatory_rates(sband);
 
 	changed |= ieee80211_mps_local_status_update(sdata);
 
@@ -788,12 +789,12 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.enable_beacon = false;
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
-	mutex_lock(&ifmsh->mtx);
+	sdata_lock(sdata);
 	bcn = rcu_dereference_protected(ifmsh->beacon,
-					lockdep_is_held(&ifmsh->mtx));
+					lockdep_is_held(&sdata->wdev.mtx));
 	rcu_assign_pointer(ifmsh->beacon, NULL);
 	kfree_rcu(bcn, rcu_head);
-	mutex_unlock(&ifmsh->mtx);
+	sdata_unlock(sdata);
 
 	/* flush STAs and mpaths on this iface */
 	sta_info_flush(sdata);
@@ -1041,7 +1042,6 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	spin_lock_init(&ifmsh->mesh_preq_queue_lock);
 	spin_lock_init(&ifmsh->sync_offset_lock);
 	RCU_INIT_POINTER(ifmsh->beacon, NULL);
-	mutex_init(&ifmsh->mtx);
 
 	sdata->vif.bss_conf.bssid = zero_addr;
 }

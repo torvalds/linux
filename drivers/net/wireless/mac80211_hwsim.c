@@ -1723,11 +1723,11 @@ static void mac80211_hwsim_free(void)
 	class_destroy(hwsim_class);
 }
 
-
-static struct device_driver mac80211_hwsim_driver = {
-	.name = "mac80211_hwsim",
-	.bus = &platform_bus_type,
-	.owner = THIS_MODULE,
+static struct platform_driver mac80211_hwsim_driver = {
+	.driver = {
+		.name = "mac80211_hwsim",
+		.owner = THIS_MODULE,
+	},
 };
 
 static const struct net_device_ops hwsim_netdev_ops = {
@@ -2169,7 +2169,6 @@ static const struct ieee80211_iface_limit hwsim_if_limits[] = {
 #endif
 				 BIT(NL80211_IFTYPE_AP) |
 				 BIT(NL80211_IFTYPE_P2P_GO) },
-	{ .max = 1, .types = BIT(NL80211_IFTYPE_P2P_DEVICE) },
 };
 
 static struct ieee80211_iface_combination hwsim_if_comb = {
@@ -2219,7 +2218,7 @@ static int __init init_mac80211_hwsim(void)
 	spin_lock_init(&hwsim_radio_lock);
 	INIT_LIST_HEAD(&hwsim_radios);
 
-	err = driver_register(&mac80211_hwsim_driver);
+	err = platform_driver_register(&mac80211_hwsim_driver);
 	if (err)
 		return err;
 
@@ -2254,7 +2253,7 @@ static int __init init_mac80211_hwsim(void)
 			err = -ENOMEM;
 			goto failed_drvdata;
 		}
-		data->dev->driver = &mac80211_hwsim_driver;
+		data->dev->driver = &mac80211_hwsim_driver.driver;
 		err = device_bind_driver(data->dev);
 		if (err != 0) {
 			printk(KERN_DEBUG
@@ -2295,8 +2294,7 @@ static int __init init_mac80211_hwsim(void)
 			BIT(NL80211_IFTYPE_P2P_CLIENT) |
 			BIT(NL80211_IFTYPE_P2P_GO) |
 			BIT(NL80211_IFTYPE_ADHOC) |
-			BIT(NL80211_IFTYPE_MESH_POINT) |
-			BIT(NL80211_IFTYPE_P2P_DEVICE);
+			BIT(NL80211_IFTYPE_MESH_POINT);
 
 		hw->flags = IEEE80211_HW_MFP_CAPABLE |
 			    IEEE80211_HW_SIGNAL_DBM |
@@ -2564,7 +2562,7 @@ failed_drvdata:
 failed:
 	mac80211_hwsim_free();
 failed_unregister_driver:
-	driver_unregister(&mac80211_hwsim_driver);
+	platform_driver_unregister(&mac80211_hwsim_driver);
 	return err;
 }
 module_init(init_mac80211_hwsim);
@@ -2577,6 +2575,6 @@ static void __exit exit_mac80211_hwsim(void)
 
 	mac80211_hwsim_free();
 	unregister_netdev(hwsim_mon);
-	driver_unregister(&mac80211_hwsim_driver);
+	platform_driver_unregister(&mac80211_hwsim_driver);
 }
 module_exit(exit_mac80211_hwsim);

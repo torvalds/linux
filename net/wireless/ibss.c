@@ -152,11 +152,11 @@ int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
-	mutex_lock(&rdev->devlist_mtx);
+	ASSERT_RTNL();
+
 	wdev_lock(wdev);
 	err = __cfg80211_join_ibss(rdev, dev, params, connkeys);
 	wdev_unlock(wdev);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -359,11 +359,9 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 		wdev->wext.ibss.channel_fixed = false;
 	}
 
-	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(wdev);
 	err = cfg80211_ibss_wext_join(rdev, wdev);
 	wdev_unlock(wdev);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -429,11 +427,9 @@ int cfg80211_ibss_wext_siwessid(struct net_device *dev,
 	memcpy(wdev->wext.ibss.ssid, ssid, len);
 	wdev->wext.ibss.ssid_len = len;
 
-	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(wdev);
 	err = cfg80211_ibss_wext_join(rdev, wdev);
 	wdev_unlock(wdev);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -512,11 +508,9 @@ int cfg80211_ibss_wext_siwap(struct net_device *dev,
 	} else
 		wdev->wext.ibss.bssid = NULL;
 
-	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(wdev);
 	err = cfg80211_ibss_wext_join(rdev, wdev);
 	wdev_unlock(wdev);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
