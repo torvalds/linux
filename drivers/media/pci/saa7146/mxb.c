@@ -669,6 +669,8 @@ static int vidioc_g_register(struct file *file, void *fh, struct v4l2_dbg_regist
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
+	if (reg->reg > pci_resource_len(dev->pci, 0) - 4)
+		return -EINVAL;
 	reg->val = saa7146_read(dev, reg->reg);
 	reg->size = 4;
 	return 0;
@@ -678,6 +680,8 @@ static int vidioc_s_register(struct file *file, void *fh, const struct v4l2_dbg_
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
+	if (reg->reg > pci_resource_len(dev->pci, 0) - 4)
+		return -EINVAL;
 	saa7146_write(dev, reg->reg, reg->val);
 	return 0;
 }
