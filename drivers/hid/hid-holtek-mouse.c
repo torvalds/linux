@@ -73,16 +73,5 @@ static struct hid_driver holtek_mouse_driver = {
 	.report_fixup = holtek_mouse_report_fixup,
 };
 
-static int __init holtek_mouse_init(void)
-{
-	return hid_register_driver(&holtek_mouse_driver);
-}
-
-static void __exit holtek_mouse_exit(void)
-{
-	hid_unregister_driver(&holtek_mouse_driver);
-}
-
-module_exit(holtek_mouse_exit);
-module_init(holtek_mouse_init);
+module_hid_driver(holtek_mouse_driver);
 MODULE_LICENSE("GPL");
