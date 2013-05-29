@@ -3586,33 +3586,16 @@ static int cma_get_id_stats(struct sk_buff *skb, struct netlink_callback *cb)
 			id_stats->bound_dev_if =
 				id->route.addr.dev_addr.bound_dev_if;
 
-			if (cma_family(id_priv) == AF_INET) {
-				if (ibnl_put_attr(skb, nlh,
-						  sizeof(struct sockaddr_in),
-						  cma_src_addr(id_priv),
-						  RDMA_NL_RDMA_CM_ATTR_SRC_ADDR)) {
-					goto out;
-				}
-				if (ibnl_put_attr(skb, nlh,
-						  sizeof(struct sockaddr_in),
-						  cma_dst_addr(id_priv),
-						  RDMA_NL_RDMA_CM_ATTR_DST_ADDR)) {
-					goto out;
-				}
-			} else if (cma_family(id_priv) == AF_INET6) {
-				if (ibnl_put_attr(skb, nlh,
-						  sizeof(struct sockaddr_in6),
-						  cma_src_addr(id_priv),
-						  RDMA_NL_RDMA_CM_ATTR_SRC_ADDR)) {
-					goto out;
-				}
-				if (ibnl_put_attr(skb, nlh,
-						  sizeof(struct sockaddr_in6),
-						  cma_dst_addr(id_priv),
-						  RDMA_NL_RDMA_CM_ATTR_DST_ADDR)) {
-					goto out;
-				}
-			}
+			if (ibnl_put_attr(skb, nlh,
+					  rdma_addr_size(cma_src_addr(id_priv)),
+					  cma_src_addr(id_priv),
+					  RDMA_NL_RDMA_CM_ATTR_SRC_ADDR))
+				goto out;
+			if (ibnl_put_attr(skb, nlh,
+					  rdma_addr_size(cma_src_addr(id_priv)),
+					  cma_dst_addr(id_priv),
+					  RDMA_NL_RDMA_CM_ATTR_DST_ADDR))
+				goto out;
 
 			id_stats->pid		= id_priv->owner;
 			id_stats->port_space	= id->ps;
