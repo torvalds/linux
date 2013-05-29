@@ -4552,17 +4552,8 @@ static unsigned char XGI_EnableChISLCD(struct vb_device_info *pVBInfo,
 {
 	unsigned short tempbx, tempah;
 
-	if (enable)
-		tempbx = pVBInfo->SetFlag & EnableChA;
-	else
-		tempbx = 0;
-
+	tempbx = 0;
 	tempah = ~((unsigned short) xgifb_reg_get(pVBInfo->Part1Port, 0x2E));
-
-	if (tempbx & EnableChA) {
-		if (!(tempah & 0x08)) /* Chk LCDA Mode */
-			return 0;
-	}
 
 	return 0;
 }
@@ -5463,11 +5454,9 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 
 	if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV
 			| VB_SIS302LV | VB_XGI301C)) {
-		if ((pVBInfo->SetFlag & EnableChA) ||
-		    (pVBInfo->VBInfo & SetCRT2ToDualEdge)) {
+		if (pVBInfo->VBInfo & SetCRT2ToDualEdge)
 			/* Power on */
 			xgifb_reg_set(pVBInfo->Part1Port, 0x1E, 0x20);
-		}
 
 		if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToTV |
 				       SetCRT2ToRAMDAC)) {
@@ -5487,8 +5476,7 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 			xgifb_reg_and(pVBInfo->Part1Port, 0x00, 0x7F);
 		}
 
-		if ((pVBInfo->SetFlag & EnableChA)
-				|| (!(pVBInfo->VBInfo & DisableCRT2Display))) {
+		if (!(pVBInfo->VBInfo & DisableCRT2Display)) {
 			xgifb_reg_and_or(pVBInfo->Part2Port, 0x00, ~0xE0,
 					0x20); /* shampoo 0129 */
 			if (pVBInfo->VBType & (VB_SIS302LV | VB_XGI301C)) {
@@ -5518,9 +5506,6 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 				tempah = tempah & 0x40;
 				if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)
 					tempah = tempah ^ 0xC0;
-
-				if (pVBInfo->SetFlag &  EnableChA)
-					tempah |= 0x80;
 			}
 		}
 

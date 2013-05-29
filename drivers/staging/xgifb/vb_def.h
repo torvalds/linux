@@ -30,7 +30,6 @@
 #define SetCRT2ToDualEdge   0x8000
 
 #define ReserveTVOption     0x0008
-#define EnableChA           0x8000
 
 #define SetTVLowResolution   0x0400
 #define TVSimuMode           0x0800
