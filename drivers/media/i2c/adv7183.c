@@ -374,28 +374,28 @@ static int adv7183_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	reg = adv7183_read(sd, ADV7183_STATUS_1);
 	switch ((reg >> 0x4) & 0x7) {
 	case 0:
-		*std = V4L2_STD_NTSC;
+		*std &= V4L2_STD_NTSC;
 		break;
 	case 1:
-		*std = V4L2_STD_NTSC_443;
+		*std &= V4L2_STD_NTSC_443;
 		break;
 	case 2:
-		*std = V4L2_STD_PAL_M;
+		*std &= V4L2_STD_PAL_M;
 		break;
 	case 3:
-		*std = V4L2_STD_PAL_60;
+		*std &= V4L2_STD_PAL_60;
 		break;
 	case 4:
-		*std = V4L2_STD_PAL;
+		*std &= V4L2_STD_PAL;
 		break;
 	case 5:
-		*std = V4L2_STD_SECAM;
+		*std &= V4L2_STD_SECAM;
 		break;
 	case 6:
-		*std = V4L2_STD_PAL_Nc;
+		*std &= V4L2_STD_PAL_Nc;
 		break;
 	case 7:
-		*std = V4L2_STD_SECAM;
+		*std &= V4L2_STD_SECAM;
 		break;
 	default:
 		*std = V4L2_STD_UNKNOWN;
