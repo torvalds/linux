@@ -1557,6 +1557,7 @@ static int sd_dbg_g_register(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	reg->size = 1;
 	switch (reg->match.addr) {
 	case 0:
 		if (reg->reg < 0x1000 || reg->reg > 0x11ff)
@@ -1568,6 +1569,7 @@ static int sd_dbg_g_register(struct gspca_dev *gspca_dev,
 		if (sd->sensor >= SENSOR_MT9V011 &&
 		    sd->sensor <= SENSOR_MT9M112) {
 			i2c_r2(gspca_dev, reg->reg, (u16 *) &reg->val);
+			reg->size = 2;
 		} else {
 			i2c_r1(gspca_dev, reg->reg, (u8 *) &reg->val);
 		}
