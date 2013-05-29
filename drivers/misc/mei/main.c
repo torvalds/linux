@@ -214,19 +214,21 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	if (cl->read_cb && cl->read_cb->buf_idx > *offset) {
+	if (cl->read_cb) {
 		cb = cl->read_cb;
-		goto copy_buffer;
-	} else if (cl->read_cb && cl->read_cb->buf_idx > 0 &&
-		   cl->read_cb->buf_idx <= *offset) {
-		cb = cl->read_cb;
-		rets = 0;
-		goto free;
-	} else if ((!cl->read_cb || !cl->read_cb->buf_idx) && *offset > 0) {
-		/*Offset needs to be cleaned for contiguous reads*/
+		/* read what left */
+		if (cb->buf_idx > *offset)
+			goto copy_buffer;
+		/* offset is beyond buf_idx we have no more data return 0 */
+		if (cb->buf_idx > 0 && cb->buf_idx <= *offset) {
+			rets = 0;
+			goto free;
+		}
+		/* Offset needs to be cleaned for contiguous reads*/
+		if (cb->buf_idx == 0 && *offset > 0)
+			*offset = 0;
+	} else if (*offset > 0) {
 		*offset = 0;
-		rets = 0;
-		goto out;
 	}
 
 	err = mei_cl_read_start(cl, length);
