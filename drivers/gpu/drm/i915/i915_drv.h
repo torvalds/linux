@@ -374,6 +374,7 @@ struct drm_i915_gt_funcs {
 	func(supports_tv) sep \
 	func(has_bsd_ring) sep \
 	func(has_blt_ring) sep \
+	func(has_vebox_ring) sep \
 	func(has_llc) sep \
 	func(has_ddi) sep \
 	func(has_fpga_dbg)
@@ -1373,6 +1374,7 @@ struct drm_i915_file_private {
 
 #define HAS_BSD(dev)            (INTEL_INFO(dev)->has_bsd_ring)
 #define HAS_BLT(dev)            (INTEL_INFO(dev)->has_blt_ring)
+#define HAS_VEBOX(dev)          (INTEL_INFO(dev)->has_vebox_ring)
 #define HAS_LLC(dev)            (INTEL_INFO(dev)->has_llc)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
