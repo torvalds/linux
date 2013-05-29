@@ -589,11 +589,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
-
-			// Add one of these for each child device
-			cs-gpios = <&gpio0 31 0x4 &gpio4 14 0x4 &gpio4 16 0x4
-				    &gpio6 22 0x4 &gpio7 0 0x4>;
-
 		};
 
 		uart@80120000 {
