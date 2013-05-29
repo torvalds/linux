@@ -84,6 +84,10 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	unsigned int fpos_offset;
 	unsigned int reg_offset;
 
+	/* Suppress the cache if we're using a subrange */
+	if (from)
+		return from;
+
 	/*
 	 * If we don't have a cache build one so we don't have to do a
 	 * linear scan each time.
