@@ -265,12 +265,12 @@
 #define  MI_SEMAPHORE_UPDATE	    (1<<21)
 #define  MI_SEMAPHORE_COMPARE	    (1<<20)
 #define  MI_SEMAPHORE_REGISTER	    (1<<18)
-#define  MI_SEMAPHORE_SYNC_RV	    (2<<16)
-#define  MI_SEMAPHORE_SYNC_RB	    (0<<16)
-#define  MI_SEMAPHORE_SYNC_VR	    (0<<16)
-#define  MI_SEMAPHORE_SYNC_VB	    (2<<16)
-#define  MI_SEMAPHORE_SYNC_BR	    (2<<16)
-#define  MI_SEMAPHORE_SYNC_BV	    (0<<16)
+#define  MI_SEMAPHORE_SYNC_RB	    (0<<16) /* BCS wait for RCS  (BRSYNC) */
+#define  MI_SEMAPHORE_SYNC_RV	    (2<<16) /* VCS wait for RCS  (VRSYNC) */
+#define  MI_SEMAPHORE_SYNC_VR	    (0<<16) /* RCS wait for VCS  (RVSYNC) */
+#define  MI_SEMAPHORE_SYNC_VB	    (2<<16) /* BCS wait for VCS  (BVSYNC) */
+#define  MI_SEMAPHORE_SYNC_BV	    (0<<16) /* VCS wait for BCS  (VBSYNC) */
+#define  MI_SEMAPHORE_SYNC_BR	    (2<<16) /* RCS wait for BCS  (RBSYNC) */
 #define  MI_SEMAPHORE_SYNC_INVALID  (1<<0)
 /*
  * 3D instructions used by the kernel
