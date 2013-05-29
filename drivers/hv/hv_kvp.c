@@ -86,7 +86,9 @@ static u8 *recv_buffer;
 /*
  * Register the kernel component with the user-level daemon.
  * As part of this registration, pass the LIC version number.
+ * This number has no meaning, it satisfies the registration protocol.
  */
+#define HV_DRV_VERSION           "3.1"
 
 static void
 kvp_register(int reg_value)

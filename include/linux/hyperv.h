@@ -463,27 +463,6 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
 	*read = dsize - *write;
 }
 
-
-/*
- * We use the same version numbering for all Hyper-V modules.
- *
- * Definition of versioning is as follows;
- *
- *	Major Number	Changes for these scenarios;
- *			1.	When a new version of Windows Hyper-V
- *				is released.
- *			2.	A Major change has occurred in the
- *				Linux IC's.
- *			(For example the merge for the first time
- *			into the kernel) Every time the Major Number
- *			changes, the Revision number is reset to 0.
- *	Minor Number	Changes when new functionality is added
- *			to the Linux IC's that is not a bug fix.
- *
- * 3.1 - Added completed hv_utils driver. Shutdown/Heartbeat/Timesync
- */
-#define HV_DRV_VERSION           "3.1"
-
 /*
  * VMBUS version is 32 bit entity broken up into
  * two 16 bit quantities: major_number. minor_number.

@@ -395,5 +395,4 @@ module_init(init_hyperv_utils);
 module_exit(exit_hyperv_utils);
 
 MODULE_DESCRIPTION("Hyper-V Utilities");
-MODULE_VERSION(HV_DRV_VERSION);
 MODULE_LICENSE("GPL");
