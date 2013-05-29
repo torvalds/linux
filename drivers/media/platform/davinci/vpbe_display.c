@@ -1578,31 +1578,6 @@ static int vpbe_display_release(struct file *file)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int vpbe_display_g_register(struct file *file, void *priv,
-			struct v4l2_dbg_register *reg)
-{
-	struct v4l2_dbg_match *match = &reg->match;
-	struct vpbe_fh *fh = file->private_data;
-	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
-
-	if (match->type >= 2) {
-		v4l2_subdev_call(vpbe_dev->venc,
-				 core,
-				 g_register,
-				 reg);
-	}
-
-	return 0;
-}
-
-static int vpbe_display_s_register(struct file *file, void *priv,
-			const struct v4l2_dbg_register *reg)
-{
-	return 0;
-}
-#endif
-
 /* vpbe capture ioctl operations */
 static const struct v4l2_ioctl_ops vpbe_ioctl_ops = {
 	.vidioc_querycap	 = vpbe_display_querycap,
@@ -1629,10 +1604,6 @@ static const struct v4l2_ioctl_ops vpbe_ioctl_ops = {
 	.vidioc_s_dv_timings	 = vpbe_display_s_dv_timings,
 	.vidioc_g_dv_timings	 = vpbe_display_g_dv_timings,
 	.vidioc_enum_dv_timings	 = vpbe_display_enum_dv_timings,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register	 = vpbe_display_g_register,
-	.vidioc_s_register	 = vpbe_display_s_register,
-#endif
 };
 
 static struct v4l2_file_operations vpbe_fops = {
