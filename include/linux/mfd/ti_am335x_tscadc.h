@@ -30,8 +30,8 @@
 #define REG_IDLECONFIG		0x058
 #define REG_CHARGECONFIG	0x05C
 #define REG_CHARGEDELAY		0x060
-#define REG_STEPCONFIG(n)	(0x64 + ((n - 1) * 8))
-#define REG_STEPDELAY(n)	(0x68 + ((n - 1) * 8))
+#define REG_STEPCONFIG(n)	(0x64 + ((n) * 8))
+#define REG_STEPDELAY(n)	(0x68 + ((n) * 8))
 #define REG_FIFO0CNT		0xE4
 #define REG_FIFO0THR		0xE8
 #define REG_FIFO1CNT		0xF0

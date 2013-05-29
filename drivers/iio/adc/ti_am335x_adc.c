@@ -75,7 +75,7 @@ static void tiadc_step_config(struct tiadc_device *adc_dev)
 
 	stepconfig = STEPCONFIG_AVG_16 | STEPCONFIG_FIFO1;
 
-	for (i = (steps + 1); i <= TOTAL_STEPS; i++) {
+	for (i = steps; i < TOTAL_STEPS; i++) {
 		tiadc_writel(adc_dev, REG_STEPCONFIG(i),
 				stepconfig | STEPCONFIG_INP(channels));
 		tiadc_writel(adc_dev, REG_STEPDELAY(i),

@@ -120,11 +120,9 @@ static int titsc_config_wires(struct titsc *ts_dev)
 static void titsc_step_config(struct titsc *ts_dev)
 {
 	unsigned int	config;
-	unsigned int	stepenable = 0;
-	int i, total_steps;
-
-	/* Configure the Step registers */
-	total_steps = 2 * ts_dev->coordinate_readouts;
+	int i;
+	int end_step;
+	u32 stepenable;
 
 	config = STEPCONFIG_MODE_HWSYNC |
 			STEPCONFIG_AVG_16 | ts_dev->bit_xp;
@@ -142,7 +140,9 @@ static void titsc_step_config(struct titsc *ts_dev)
 		break;
 	}
 
-	for (i = 1; i <= ts_dev->coordinate_readouts; i++) {
+	/* 1 … coordinate_readouts is for X */
+	end_step = ts_dev->coordinate_readouts;
+	for (i = 0; i < end_step; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
 		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
@@ -150,7 +150,7 @@ static void titsc_step_config(struct titsc *ts_dev)
 	config = 0;
 	config = STEPCONFIG_MODE_HWSYNC |
 			STEPCONFIG_AVG_16 | ts_dev->bit_yn |
-			STEPCONFIG_INM_ADCREFM | STEPCONFIG_FIFO1;
+			STEPCONFIG_INM_ADCREFM;
 	switch (ts_dev->wires) {
 	case 4:
 		config |= ts_dev->bit_yp | STEPCONFIG_INP(ts_dev->inp_xp);
@@ -164,12 +164,13 @@ static void titsc_step_config(struct titsc *ts_dev)
 		break;
 	}
 
-	for (i = (ts_dev->coordinate_readouts + 1); i <= total_steps; i++) {
+	/* coordinate_readouts … coordinate_readouts * 2 is for Y */
+	end_step = ts_dev->coordinate_readouts * 2;
+	for (i = ts_dev->coordinate_readouts; i < end_step; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
 		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
 
-	config = 0;
 	/* Charge step configuration */
 	config = ts_dev->bit_xp | ts_dev->bit_yn |
 			STEPCHARGE_RFP_XPUL | STEPCHARGE_RFM_XNUR |
@@ -178,35 +179,39 @@ static void titsc_step_config(struct titsc *ts_dev)
 	titsc_writel(ts_dev, REG_CHARGECONFIG, config);
 	titsc_writel(ts_dev, REG_CHARGEDELAY, CHARGEDLY_OPENDLY);
 
-	config = 0;
-	/* Configure to calculate pressure */
+	/* coordinate_readouts * 2 … coordinate_readouts * 2 + 2 is for Z */
 	config = STEPCONFIG_MODE_HWSYNC |
 			STEPCONFIG_AVG_16 | ts_dev->bit_yp |
 			ts_dev->bit_xn | STEPCONFIG_INM_ADCREFM |
 			STEPCONFIG_INP(ts_dev->inp_xp);
-	titsc_writel(ts_dev, REG_STEPCONFIG(total_steps + 1), config);
-	titsc_writel(ts_dev, REG_STEPDELAY(total_steps + 1),
+	titsc_writel(ts_dev, REG_STEPCONFIG(end_step), config);
+	titsc_writel(ts_dev, REG_STEPDELAY(end_step),
 			STEPCONFIG_OPENDLY);
 
-	config |= STEPCONFIG_INP(ts_dev->inp_yn) | STEPCONFIG_FIFO1;
-	titsc_writel(ts_dev, REG_STEPCONFIG(total_steps + 2), config);
-	titsc_writel(ts_dev, REG_STEPDELAY(total_steps + 2),
+	end_step++;
+	config |= STEPCONFIG_INP(ts_dev->inp_yn);
+	titsc_writel(ts_dev, REG_STEPCONFIG(end_step), config);
+	titsc_writel(ts_dev, REG_STEPDELAY(end_step),
 			STEPCONFIG_OPENDLY);
 
 	/* The steps1 … end and bit 0 for TS_Charge */
-	stepenable = (1 << (total_steps + 2)) - 1;
+	stepenable = (1 << (end_step + 2)) - 1;
 	am335x_tsc_se_set(ts_dev->mfd_tscadc, stepenable);
 }
 
 static void titsc_read_coordinates(struct titsc *ts_dev,
-				    unsigned int *x, unsigned int *y)
+		u32 *x, u32 *y, u32 *z1, u32 *z2)
 {
 	unsigned int fifocount = titsc_readl(ts_dev, REG_FIFO0CNT);
 	unsigned int prev_val_x = ~0, prev_val_y = ~0;
 	unsigned int prev_diff_x = ~0, prev_diff_y = ~0;
 	unsigned int read, diff;
 	unsigned int i, channel;
+	unsigned int creads = ts_dev->coordinate_readouts;
 
+	*z1 = *z2 = 0;
+	if (fifocount % (creads * 2 + 2))
+		fifocount -= fifocount % (creads * 2 + 2);
 	/*
 	 * Delta filter is used to remove large variations in sampled
 	 * values from ADC. The filter tries to predict where the next
@@ -215,32 +220,32 @@ static void titsc_read_coordinates(struct titsc *ts_dev,
 	 * algorithm compares the difference with that of a present value,
 	 * if true the value is reported to the sub system.
 	 */
-	for (i = 0; i < fifocount - 1; i++) {
+	for (i = 0; i < fifocount; i++) {
 		read = titsc_readl(ts_dev, REG_FIFO0);
-		channel = read & 0xf0000;
-		channel = channel >> 0x10;
-		if ((channel >= 0) && (channel < ts_dev->coordinate_readouts)) {
-			read &= 0xfff;
+
+		channel = (read & 0xf0000) >> 16;
+		read &= 0xfff;
+		if (channel < creads) {
 			diff = abs(read - prev_val_x);
 			if (diff < prev_diff_x) {
 				prev_diff_x = diff;
 				*x = read;
 			}
 			prev_val_x = read;
-		}
 
-		read = titsc_readl(ts_dev, REG_FIFO1);
-		channel = read & 0xf0000;
-		channel = channel >> 0x10;
-		if ((channel >= ts_dev->coordinate_readouts) &&
-			(channel < (2 * ts_dev->coordinate_readouts - 1))) {
-			read &= 0xfff;
+		} else if (channel < creads * 2) {
 			diff = abs(read - prev_val_y);
 			if (diff < prev_diff_y) {
 				prev_diff_y = diff;
 				*y = read;
 			}
 			prev_val_y = read;
+
+		} else if (channel < creads * 2 + 1) {
+			*z1 = read;
+
+		} else if (channel < creads * 2 + 2) {
+			*z2 = read;
 		}
 	}
 }
@@ -256,10 +261,8 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 
 	status = titsc_readl(ts_dev, REG_IRQSTATUS);
 	if (status & IRQENB_FIFO0THRES) {
-		titsc_read_coordinates(ts_dev, &x, &y);
 
-		z1 = titsc_readl(ts_dev, REG_FIFO0) & 0xfff;
-		z2 = titsc_readl(ts_dev, REG_FIFO1) & 0xfff;
+		titsc_read_coordinates(ts_dev, &x, &y, &z1, &z2);
 
 		if (ts_dev->pen_down && z1 != 0 && z2 != 0) {
 			/*
@@ -267,10 +270,10 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 			 * Resistance(touch) = x plate resistance *
 			 * x postion/4096 * ((z2 / z1) - 1)
 			 */
-			z = z2 - z1;
+			z = z1 - z2;
 			z *= x;
 			z *= ts_dev->x_plate_resistance;
-			z /= z1;
+			z /= z2;
 			z = (z + 2047) >> 12;
 
 			if (z <= MAX_12BIT) {
@@ -391,7 +394,8 @@ static int titsc_probe(struct platform_device *pdev)
 		goto err_free_irq;
 	}
 	titsc_step_config(ts_dev);
-	titsc_writel(ts_dev, REG_FIFO0THR, ts_dev->coordinate_readouts);
+	titsc_writel(ts_dev, REG_FIFO0THR,
+			ts_dev->coordinate_readouts * 2 + 2 - 1);
 
 	input_dev->name = "ti-tsc";
 	input_dev->dev.parent = &pdev->dev;
@@ -468,7 +472,7 @@ static int titsc_resume(struct device *dev)
 	}
 	titsc_step_config(ts_dev);
 	titsc_writel(ts_dev, REG_FIFO0THR,
-			ts_dev->coordinate_readouts);
+			ts_dev->coordinate_readouts * 2 + 2 - 1);
 	return 0;
 }
 
