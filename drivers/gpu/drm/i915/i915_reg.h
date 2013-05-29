@@ -742,24 +742,6 @@
 #define VLV_IMR		(VLV_DISPLAY_BASE + 0x20a8)
 #define VLV_ISR		(VLV_DISPLAY_BASE + 0x20ac)
 #define VLV_PCBR	(VLV_DISPLAY_BASE + 0x2120)
-#define   I915_PIPE_CONTROL_NOTIFY_INTERRUPT		(1<<18)
-#define   I915_DISPLAY_PORT_INTERRUPT			(1<<17)
-#define   I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT	(1<<15)
-#define   I915_GMCH_THERMAL_SENSOR_EVENT_INTERRUPT	(1<<14) /* p-state */
-#define   I915_HWB_OOM_INTERRUPT			(1<<13)
-#define   I915_SYNC_STATUS_INTERRUPT			(1<<12)
-#define   I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT	(1<<11)
-#define   I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT	(1<<10)
-#define   I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT	(1<<9)
-#define   I915_DISPLAY_PLANE_C_FLIP_PENDING_INTERRUPT	(1<<8)
-#define   I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT		(1<<7)
-#define   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT		(1<<6)
-#define   I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT		(1<<5)
-#define   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT		(1<<4)
-#define   I915_DEBUG_INTERRUPT				(1<<2)
-#define   I915_USER_INTERRUPT				(1<<1)
-#define   I915_ASLE_INTERRUPT				(1<<0)
-#define   I915_BSD_USER_INTERRUPT                      (1<<25)
 #define   DISPLAY_PLANE_FLIP_PENDING(plane) (1<<(11-(plane))) /* A and B only */
 #define EIR		0x020b0
 #define EMR		0x020b4
@@ -871,28 +853,6 @@
 #define CACHE_MODE_1		0x7004 /* IVB+ */
 #define   PIXEL_SUBSPAN_COLLECT_OPT_DISABLE (1<<6)
 
-/* GEN6 interrupt control
- * Note that the per-ring interrupt bits do alias with the global interrupt bits
- * in GTIMR. */
-#define GEN6_RENDER_HWSTAM	0x2098
-#define GEN6_RENDER_IMR		0x20a8
-#define   GEN6_RENDER_CONTEXT_SWITCH_INTERRUPT		(1 << 8)
-#define   GEN6_RENDER_PPGTT_PAGE_FAULT			(1 << 7)
-#define   GEN6_RENDER_TIMEOUT_COUNTER_EXPIRED		(1 << 6)
-#define   GEN6_RENDER_L3_PARITY_ERROR			(1 << 5)
-#define   GEN6_RENDER_PIPE_CONTROL_NOTIFY_INTERRUPT	(1 << 4)
-#define   GEN6_RENDER_COMMAND_PARSER_MASTER_ERROR	(1 << 3)
-#define   GEN6_RENDER_SYNC_STATUS			(1 << 2)
-#define   GEN6_RENDER_DEBUG_INTERRUPT			(1 << 1)
-#define   GEN6_RENDER_USER_INTERRUPT			(1 << 0)
-
-#define GEN6_BLITTER_HWSTAM	0x22098
-#define GEN6_BLITTER_IMR	0x220a8
-#define   GEN6_BLITTER_MI_FLUSH_DW_NOTIFY_INTERRUPT	(1 << 26)
-#define   GEN6_BLITTER_COMMAND_PARSER_MASTER_ERROR	(1 << 25)
-#define   GEN6_BLITTER_SYNC_STATUS			(1 << 24)
-#define   GEN6_BLITTER_USER_INTERRUPT			(1 << 22)
-
 #define GEN6_BLITTER_ECOSKPD	0x221d0
 #define   GEN6_BLITTER_LOCK_SHIFT			16
 #define   GEN6_BLITTER_FBC_NOTIFY			(1<<3)
@@ -903,9 +863,49 @@
 #define   GEN6_BSD_SLEEP_INDICATOR	(1 << 3)
 #define   GEN6_BSD_GO_INDICATOR		(1 << 4)
 
-#define GEN6_BSD_HWSTAM			0x12098
-#define GEN6_BSD_IMR			0x120a8
-#define   GEN6_BSD_USER_INTERRUPT	(1 << 12)
+/* On modern GEN architectures interrupt control consists of two sets
+ * of registers. The first set pertains to the ring generating the
+ * interrupt. The second control is for the functional block generating the
+ * interrupt. These are PM, GT, DE, etc.
+ *
+ * Luckily *knocks on wood* all the ring interrupt bits match up with the
+ * GT interrupt bits, so we don't need to duplicate the defines.
+ *
+ * These defines should cover us well from SNB->HSW with minor exceptions
+ * it can also work on ILK.
+ */
+#define GT_BLT_FLUSHDW_NOTIFY_INTERRUPT		(1 << 26)
+#define GT_BLT_CS_ERROR_INTERRUPT		(1 << 25)
+#define GT_BLT_USER_INTERRUPT			(1 << 22)
+#define GT_BSD_CS_ERROR_INTERRUPT		(1 << 15)
+#define GT_BSD_USER_INTERRUPT			(1 << 12)
+#define GT_RENDER_L3_PARITY_ERROR_INTERRUPT	(1 <<  5) /* !snb */
+#define GT_RENDER_PIPECTL_NOTIFY_INTERRUPT	(1 <<  4)
+#define GT_RENDER_CS_MASTER_ERROR_INTERRUPT	(1 <<  3)
+#define GT_RENDER_SYNC_STATUS_INTERRUPT		(1 <<  2)
+#define GT_RENDER_DEBUG_INTERRUPT		(1 <<  1)
+#define GT_RENDER_USER_INTERRUPT		(1 <<  0)
+
+/* These are all the "old" interrupts */
+#define ILK_BSD_USER_INTERRUPT				(1<<5)
+#define I915_PIPE_CONTROL_NOTIFY_INTERRUPT		(1<<18)
+#define I915_DISPLAY_PORT_INTERRUPT			(1<<17)
+#define I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT	(1<<15)
+#define I915_GMCH_THERMAL_SENSOR_EVENT_INTERRUPT	(1<<14) /* p-state */
+#define I915_HWB_OOM_INTERRUPT				(1<<13)
+#define I915_SYNC_STATUS_INTERRUPT			(1<<12)
+#define I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT	(1<<11)
+#define I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT	(1<<10)
+#define I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT	(1<<9)
+#define I915_DISPLAY_PLANE_C_FLIP_PENDING_INTERRUPT	(1<<8)
+#define I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT		(1<<7)
+#define I915_DISPLAY_PIPE_A_EVENT_INTERRUPT		(1<<6)
+#define I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT		(1<<5)
+#define I915_DISPLAY_PIPE_B_EVENT_INTERRUPT		(1<<4)
+#define I915_DEBUG_INTERRUPT				(1<<2)
+#define I915_USER_INTERRUPT				(1<<1)
+#define I915_ASLE_INTERRUPT				(1<<0)
+#define I915_BSD_USER_INTERRUPT				(1 << 25)
 
 #define GEN6_BSD_RNCID			0x12198
 
@@ -3713,21 +3713,6 @@
 #define DEIMR   0x44004
 #define DEIIR   0x44008
 #define DEIER   0x4400c
-
-/* GT interrupt.
- * Note that for gen6+ the ring-specific interrupt bits do alias with the
- * corresponding bits in the per-ring interrupt control registers. */
-#define GT_GEN6_BLT_FLUSHDW_NOTIFY_INTERRUPT	(1 << 26)
-#define GT_GEN6_BLT_CS_ERROR_INTERRUPT		(1 << 25)
-#define GT_GEN6_BLT_USER_INTERRUPT		(1 << 22)
-#define GT_GEN6_BSD_CS_ERROR_INTERRUPT		(1 << 15)
-#define GT_GEN6_BSD_USER_INTERRUPT		(1 << 12)
-#define GT_BSD_USER_INTERRUPT			(1 << 5) /* ilk only */
-#define GT_GEN7_L3_PARITY_ERROR_INTERRUPT	(1 << 5)
-#define GT_PIPE_NOTIFY				(1 << 4)
-#define GT_RENDER_CS_ERROR_INTERRUPT		(1 << 3)
-#define GT_SYNC_STATUS				(1 << 2)
-#define GT_USER_INTERRUPT			(1 << 0)
 
 #define GTISR   0x44010
 #define GTIMR   0x44014
