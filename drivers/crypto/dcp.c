@@ -876,7 +876,6 @@ static int dcp_remove(struct platform_device *pdev)
 	struct dcp_dev *dev;
 	int j;
 	dev = platform_get_drvdata(pdev);
-	platform_set_drvdata(pdev, NULL);
 
 	dma_free_coherent(&pdev->dev,
 			DCP_MAX_PKG * sizeof(struct dcp_hw_packet),
