@@ -75,6 +75,6 @@
 struct iwl_nvm_data *
 iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		   const __le16 *nvm_hw, const __le16 *nvm_sw,
-		   const __le16 *nvm_calib);
+		   const __le16 *nvm_calib, u8 tx_chains, u8 rx_chains);
 
 #endif /* __iwl_nvm_parse_h__ */

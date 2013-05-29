@@ -75,6 +75,54 @@
 
 #define POWER_KEEP_ALIVE_PERIOD_SEC    25
 
+static int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
+					  struct iwl_beacon_filter_cmd *cmd)
+{
+	int ret;
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_BEACON_FILTERING_CMD, CMD_SYNC,
+				   sizeof(struct iwl_beacon_filter_cmd), cmd);
+
+	if (!ret) {
+		IWL_DEBUG_POWER(mvm, "ba_enable_beacon_abort is: %d\n",
+				cmd->ba_enable_beacon_abort);
+		IWL_DEBUG_POWER(mvm, "ba_escape_timer is: %d\n",
+				cmd->ba_escape_timer);
+		IWL_DEBUG_POWER(mvm, "bf_debug_flag is: %d\n",
+				cmd->bf_debug_flag);
+		IWL_DEBUG_POWER(mvm, "bf_enable_beacon_filter is: %d\n",
+				cmd->bf_enable_beacon_filter);
+		IWL_DEBUG_POWER(mvm, "bf_energy_delta is: %d\n",
+				cmd->bf_energy_delta);
+		IWL_DEBUG_POWER(mvm, "bf_escape_timer is: %d\n",
+				cmd->bf_escape_timer);
+		IWL_DEBUG_POWER(mvm, "bf_roaming_energy_delta is: %d\n",
+				cmd->bf_roaming_energy_delta);
+		IWL_DEBUG_POWER(mvm, "bf_roaming_state is: %d\n",
+				cmd->bf_roaming_state);
+		IWL_DEBUG_POWER(mvm, "bf_temperature_delta is: %d\n",
+				cmd->bf_temperature_delta);
+	}
+	return ret;
+}
+
+static int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif, bool enable)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_beacon_filter_cmd cmd = {
+		IWL_BF_CMD_CONFIG_DEFAULTS,
+		.bf_enable_beacon_filter = 1,
+		.ba_enable_beacon_abort = enable,
+	};
+
+	if (!mvmvif->bf_enabled)
+		return 0;
+
+	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
+	return iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
+}
+
 static void iwl_mvm_power_log(struct iwl_mvm *mvm,
 			      struct iwl_powertable_cmd *cmd)
 {
@@ -91,6 +139,9 @@ static void iwl_mvm_power_log(struct iwl_mvm *mvm,
 				le32_to_cpu(cmd->tx_data_timeout));
 		IWL_DEBUG_POWER(mvm, "LP RX RSSI threshold = %u\n",
 				cmd->lprx_rssi_threshold);
+		if (cmd->flags & cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK))
+			IWL_DEBUG_POWER(mvm, "DTIM periods to skip = %u\n",
+					le32_to_cpu(cmd->skip_dtim_periods));
 	}
 }
 
@@ -103,6 +154,8 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	int dtimper, dtimper_msec;
 	int keep_alive;
 	bool radar_detect = false;
+	struct iwl_mvm_vif *mvmvif __maybe_unused =
+		iwl_mvm_vif_from_mac80211(vif);
 
 	/*
 	 * Regardless of power management state the driver must set
@@ -116,6 +169,11 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_DISABLE_POWER_OFF &&
+	    mvmvif->dbgfs_pm.disable_power_off)
+		cmd->flags &= cpu_to_le16(~POWER_FLAGS_POWER_SAVE_ENA_MSK);
+#endif
 	if (!vif->bss_conf.ps)
 		return;
 
@@ -135,8 +193,11 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/* Check skip over DTIM conditions */
 	if (!radar_detect && (dtimper <= 10) &&
-	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP))
+	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP ||
+	     mvm->cur_ucode == IWL_UCODE_WOWLAN)) {
 		cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+		cmd->skip_dtim_periods = cpu_to_le32(3);
+	}
 
 	/* Check that keep alive period is at least 3 * DTIM */
 	dtimper_msec = dtimper * vif->bss_conf.beacon_int;
@@ -145,12 +206,41 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	keep_alive = DIV_ROUND_UP(keep_alive, MSEC_PER_SEC);
 	cmd->keep_alive_seconds = keep_alive;
 
-	cmd->rx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
-	cmd->tx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
+	if (mvm->cur_ucode != IWL_UCODE_WOWLAN) {
+		cmd->rx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
+		cmd->tx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
+	} else {
+		cmd->rx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
+		cmd->tx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
+	}
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_KEEP_ALIVE)
+		cmd->keep_alive_seconds = mvmvif->dbgfs_pm.keep_alive_seconds;
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_SKIP_OVER_DTIM) {
+		if (mvmvif->dbgfs_pm.skip_over_dtim)
+			cmd->flags |=
+				cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+		else
+			cmd->flags &=
+				cpu_to_le16(~POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+	}
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_RX_DATA_TIMEOUT)
+		cmd->rx_data_timeout =
+			cpu_to_le32(mvmvif->dbgfs_pm.rx_data_timeout);
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_TX_DATA_TIMEOUT)
+		cmd->tx_data_timeout =
+			cpu_to_le32(mvmvif->dbgfs_pm.tx_data_timeout);
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_SKIP_DTIM_PERIODS)
+		cmd->skip_dtim_periods =
+			cpu_to_le32(mvmvif->dbgfs_pm.skip_dtim_periods);
+#endif /* CONFIG_IWLWIFI_DEBUGFS */
 }
 
 int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
+	int ret;
+	bool ba_enable;
 	struct iwl_powertable_cmd cmd = {};
 
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
@@ -159,13 +249,22 @@ int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 	iwl_mvm_power_log(mvm, &cmd);
 
-	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_SYNC,
-				    sizeof(cmd), &cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_SYNC,
+				   sizeof(cmd), &cmd);
+	if (ret)
+		return ret;
+
+	ba_enable = !!(cmd.flags &
+		       cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK));
+
+	return iwl_mvm_update_beacon_abort(mvm, vif, ba_enable);
 }
 
 int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_powertable_cmd cmd = {};
+	struct iwl_mvm_vif *mvmvif __maybe_unused =
+		iwl_mvm_vif_from_mac80211(vif);
 
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
@@ -173,8 +272,82 @@ int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM)
 		cmd.flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_DISABLE_POWER_OFF &&
+	    mvmvif->dbgfs_pm.disable_power_off)
+		cmd.flags &= cpu_to_le16(~POWER_FLAGS_POWER_SAVE_ENA_MSK);
+#endif
 	iwl_mvm_power_log(mvm, &cmd);
 
 	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_ASYNC,
 				    sizeof(cmd), &cmd);
+}
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+void
+iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
+					 struct iwl_beacon_filter_cmd *cmd)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_dbgfs_bf *dbgfs_bf = &mvmvif->dbgfs_bf;
+
+	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ENERGY_DELTA)
+		cmd->bf_energy_delta = dbgfs_bf->bf_energy_delta;
+	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ROAMING_ENERGY_DELTA)
+		cmd->bf_roaming_energy_delta =
+				 dbgfs_bf->bf_roaming_energy_delta;
+	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ROAMING_STATE)
+		cmd->bf_roaming_state = dbgfs_bf->bf_roaming_state;
+	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_TEMPERATURE_DELTA)
+		cmd->bf_temperature_delta = dbgfs_bf->bf_temperature_delta;
+	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_DEBUG_FLAG)
+		cmd->bf_debug_flag = dbgfs_bf->bf_debug_flag;
+	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ESCAPE_TIMER)
+		cmd->bf_escape_timer = cpu_to_le32(dbgfs_bf->bf_escape_timer);
+	if (dbgfs_bf->mask & MVM_DEBUGFS_BA_ESCAPE_TIMER)
+		cmd->ba_escape_timer = cpu_to_le32(dbgfs_bf->ba_escape_timer);
+	if (dbgfs_bf->mask & MVM_DEBUGFS_BA_ENABLE_BEACON_ABORT)
+		cmd->ba_enable_beacon_abort = dbgfs_bf->ba_enable_beacon_abort;
+}
+#endif
+
+int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_beacon_filter_cmd cmd = {
+		IWL_BF_CMD_CONFIG_DEFAULTS,
+		.bf_enable_beacon_filter = 1,
+	};
+	int ret;
+
+	if (mvmvif != mvm->bf_allowed_vif ||
+	    vif->type != NL80211_IFTYPE_STATION || vif->p2p)
+		return 0;
+
+	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
+	ret = iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
+
+	if (!ret)
+		mvmvif->bf_enabled = true;
+
+	return ret;
+}
+
+int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif)
+{
+	struct iwl_beacon_filter_cmd cmd = {};
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
+
+	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
+		return 0;
+
+	ret = iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
+
+	if (!ret)
+		mvmvif->bf_enabled = false;
+
+	return ret;
 }
