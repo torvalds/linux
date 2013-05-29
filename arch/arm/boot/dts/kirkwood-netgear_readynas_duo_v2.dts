@@ -111,6 +111,14 @@
 			status = "okay";
 			nr-ports = <2>;
 		};
+
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
 	};
 
 	gpio-leds {
