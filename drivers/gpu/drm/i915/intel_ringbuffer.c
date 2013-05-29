@@ -1565,8 +1565,8 @@ static void gen6_bsd_ring_write_tail(struct intel_ring_buffer *ring,
 		   _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
 }
 
-static int gen6_ring_flush(struct intel_ring_buffer *ring,
-			   u32 invalidate, u32 flush)
+static int gen6_bsd_ring_flush(struct intel_ring_buffer *ring,
+			       u32 invalidate, u32 flush)
 {
 	uint32_t cmd;
 	int ret;
@@ -1637,8 +1637,8 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 
 /* Blitter support (SandyBridge+) */
 
-static int blt_ring_flush(struct intel_ring_buffer *ring,
-			  u32 invalidate, u32 flush)
+static int gen6_ring_flush(struct intel_ring_buffer *ring,
+			   u32 invalidate, u32 flush)
 {
 	uint32_t cmd;
 	int ret;
@@ -1838,7 +1838,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		/* gen6 bsd needs a special wa for tail updates */
 		if (IS_GEN6(dev))
 			ring->write_tail = gen6_bsd_ring_write_tail;
-		ring->flush = gen6_ring_flush;
+		ring->flush = gen6_bsd_ring_flush;
 		ring->add_request = gen6_add_request;
 		ring->get_seqno = gen6_ring_get_seqno;
 		ring->set_seqno = ring_set_seqno;
@@ -1887,7 +1887,7 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 
 	ring->mmio_base = BLT_RING_BASE;
 	ring->write_tail = ring_write_tail;
-	ring->flush = blt_ring_flush;
+	ring->flush = gen6_ring_flush;
 	ring->add_request = gen6_add_request;
 	ring->get_seqno = gen6_ring_get_seqno;
 	ring->set_seqno = ring_set_seqno;
