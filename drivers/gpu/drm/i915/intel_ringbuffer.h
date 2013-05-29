@@ -47,8 +47,9 @@ struct  intel_ring_buffer {
 		RCS = 0x0,
 		VCS,
 		BCS,
+		VECS,
 	} id;
-#define I915_NUM_RINGS 3
+#define I915_NUM_RINGS 4
 	u32		mmio_base;
 	void		__iomem *virtual_start;
 	struct		drm_device *dev;
