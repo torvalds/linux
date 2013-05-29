@@ -265,6 +265,7 @@ int __cpuinit register_cpu(struct cpu *cpu, int num)
 	cpu->dev.bus = &cpu_subsys;
 	cpu->dev.release = cpu_device_release;
 	cpu->dev.offline_disabled = !cpu->hotpluggable;
+	cpu->dev.offline = !cpu_online(num);
 #ifdef CONFIG_ARCH_HAS_CPU_AUTOPROBE
 	cpu->dev.bus->uevent = arch_cpu_uevent;
 #endif
