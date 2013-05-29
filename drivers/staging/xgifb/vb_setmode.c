@@ -1960,20 +1960,17 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 		}
 	}
 
-	if (pVBInfo->IF_DEF_YPbPr == 1) {
-		if (pVBInfo->VBType & (VB_SIS301LV|VB_SIS302LV|VB_XGI301C)) {
-			if (temp & SetYPbPr) {
-				if (pVBInfo->IF_DEF_HiVision == 1) {
-					/* shampoo add for new scratch */
-					temp = xgifb_reg_get(pVBInfo->P3d4,
-							     0x35);
-					temp &= YPbPrMode;
-					tempbx |= SetCRT2ToHiVision;
+	if (pVBInfo->VBType & (VB_SIS301LV|VB_SIS302LV|VB_XGI301C)) {
+		if (temp & SetYPbPr) {
+			if (pVBInfo->IF_DEF_HiVision == 1) {
+				/* shampoo add for new scratch */
+				temp = xgifb_reg_get(pVBInfo->P3d4, 0x35);
+				temp &= YPbPrMode;
+				tempbx |= SetCRT2ToHiVision;
 
-					if (temp != YPbPrMode1080i) {
-						tempbx &= (~SetCRT2ToHiVision);
-						tempbx |= SetCRT2ToYPbPr525750;
-					}
+				if (temp != YPbPrMode1080i) {
+					tempbx &= (~SetCRT2ToHiVision);
+					tempbx |= SetCRT2ToYPbPr525750;
 				}
 			}
 		}
@@ -1981,16 +1978,10 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	tempax = push; /* restore CR31 */
 
-	if (pVBInfo->IF_DEF_YPbPr == 1) {
-		if (pVBInfo->IF_DEF_HiVision == 1)
-			temp = 0x09FC;
-		else
-			temp = 0x097C;
-	} else if (pVBInfo->IF_DEF_HiVision == 1) {
-		temp = 0x01FC;
-	} else {
-		temp = 0x017C;
-	}
+	if (pVBInfo->IF_DEF_HiVision == 1)
+		temp = 0x09FC;
+	else
+		temp = 0x097C;
 
 	if (!(tempbx & temp)) {
 		tempax |= DisableCRT2Display;
@@ -2037,10 +2028,8 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 		tempbx &= (0x00FF | (~SetCRT2ToYPbPr525750));
 	}
 
-	if (pVBInfo->IF_DEF_YPbPr == 1) {
-		if (tempbx & SetCRT2ToYPbPr525750)
-			tempbx &= (0xFF00 | SwitchCRT2 | SetSimuScanMode);
-	}
+	if (tempbx & SetCRT2ToYPbPr525750)
+		tempbx &= (0xFF00 | SwitchCRT2 | SetSimuScanMode);
 
 	if (pVBInfo->IF_DEF_HiVision == 1) {
 		if (tempbx & SetCRT2ToHiVision)
@@ -2097,19 +2086,17 @@ static void XGI_GetTVInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 		if (pVBInfo->VBInfo & SetCRT2ToSCART)
 			tempbx |= TVSetPAL;
 
-		if (pVBInfo->IF_DEF_YPbPr == 1) {
-			if (pVBInfo->VBInfo & SetCRT2ToYPbPr525750) {
-				index1 = xgifb_reg_get(pVBInfo->P3d4, 0x35);
-				index1 &= YPbPrMode;
+		if (pVBInfo->VBInfo & SetCRT2ToYPbPr525750) {
+			index1 = xgifb_reg_get(pVBInfo->P3d4, 0x35);
+			index1 &= YPbPrMode;
 
-				if (index1 == YPbPrMode525i)
-					tempbx |= TVSetYPbPr525i;
+			if (index1 == YPbPrMode525i)
+				tempbx |= TVSetYPbPr525i;
 
-				if (index1 == YPbPrMode525p)
-					tempbx = tempbx | TVSetYPbPr525p;
-				if (index1 == YPbPrMode750p)
-					tempbx = tempbx | TVSetYPbPr750p;
-			}
+			if (index1 == YPbPrMode525p)
+				tempbx = tempbx | TVSetYPbPr525p;
+			if (index1 == YPbPrMode750p)
+				tempbx = tempbx | TVSetYPbPr750p;
 		}
 
 		if (pVBInfo->IF_DEF_HiVision == 1) {
@@ -5573,12 +5560,10 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 	pVBInfo->IF_DEF_LVDS = 0;
 
 	if (HwDeviceExtension->jChipType >= XG20) {
-		pVBInfo->IF_DEF_YPbPr = 0;
 		pVBInfo->IF_DEF_HiVision = 0;
 		pVBInfo->IF_DEF_CRT2Monitor = 0;
 		pVBInfo->VBType = 0; /*set VBType default 0*/
 	} else {
-		pVBInfo->IF_DEF_YPbPr = 1;
 		pVBInfo->IF_DEF_HiVision = 1;
 		pVBInfo->IF_DEF_CRT2Monitor = 1;
 	}
