@@ -665,12 +665,10 @@ SHOW(__bch_cache)
 		int cmp(const void *l, const void *r)
 		{	return *((uint16_t *) r) - *((uint16_t *) l); }
 
-		/* Number of quantiles we compute */
-		const unsigned nq = 31;
-
 		size_t n = ca->sb.nbuckets, i, unused, btree;
 		uint64_t sum = 0;
-		uint16_t q[nq], *p, *cached;
+		/* Compute 31 quantiles */
+		uint16_t q[31], *p, *cached;
 		ssize_t ret;
 
 		cached = p = vmalloc(ca->sb.nbuckets * sizeof(uint16_t));
@@ -703,26 +701,29 @@ SHOW(__bch_cache)
 		if (n)
 			do_div(sum, n);
 
-		for (i = 0; i < nq; i++)
-			q[i] = INITIAL_PRIO - cached[n * (i + 1) / (nq + 1)];
+		for (i = 0; i < ARRAY_SIZE(q); i++)
+			q[i] = INITIAL_PRIO - cached[n * (i + 1) /
+				(ARRAY_SIZE(q) + 1)];
 
 		vfree(p);
 
-		ret = snprintf(buf, PAGE_SIZE,
-			       "Unused:		%zu%%\n"
-			       "Metadata:	%zu%%\n"
-			       "Average:	%llu\n"
-			       "Sectors per Q:	%zu\n"
-			       "Quantiles:	[",
-			       unused * 100 / (size_t) ca->sb.nbuckets,
-			       btree * 100 / (size_t) ca->sb.nbuckets, sum,
-			       n * ca->sb.bucket_size / (nq + 1));
+		ret = scnprintf(buf, PAGE_SIZE,
+				"Unused:		%zu%%\n"
+				"Metadata:	%zu%%\n"
+				"Average:	%llu\n"
+				"Sectors per Q:	%zu\n"
+				"Quantiles:	[",
+				unused * 100 / (size_t) ca->sb.nbuckets,
+				btree * 100 / (size_t) ca->sb.nbuckets, sum,
+				n * ca->sb.bucket_size / (ARRAY_SIZE(q) + 1));
 
-		for (i = 0; i < nq && ret < (ssize_t) PAGE_SIZE; i++)
-			ret += snprintf(buf + ret, PAGE_SIZE - ret,
-					i < nq - 1 ? "%u " : "%u]\n", q[i]);
+		for (i = 0; i < ARRAY_SIZE(q); i++)
+			ret += scnprintf(buf + ret, PAGE_SIZE - ret,
+					 "%u ", q[i]);
+		ret--;
 
-		buf[PAGE_SIZE - 1] = '\0';
+		ret += scnprintf(buf + ret, PAGE_SIZE - ret, "]\n");
+
 		return ret;
 	}
 
