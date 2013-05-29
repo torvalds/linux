@@ -68,7 +68,7 @@ static const struct sdhci_pltfm_data sdhci_hlwd_pdata = {
 
 static int sdhci_hlwd_probe(struct platform_device *pdev)
 {
-	return sdhci_pltfm_register(pdev, &sdhci_hlwd_pdata);
+	return sdhci_pltfm_register(pdev, &sdhci_hlwd_pdata, 0);
 }
 
 static int sdhci_hlwd_remove(struct platform_device *pdev)

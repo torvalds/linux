@@ -230,7 +230,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	if (!pxa)
 		return -ENOMEM;
 
-	host = sdhci_pltfm_init(pdev, &sdhci_pxav3_pdata);
+	host = sdhci_pltfm_init(pdev, &sdhci_pxav3_pdata, 0);
 	if (IS_ERR(host)) {
 		kfree(pxa);
 		return PTR_ERR(host);

@@ -96,7 +96,7 @@ static const struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
 
 static int sdhci_cns3xxx_probe(struct platform_device *pdev)
 {
-	return sdhci_pltfm_register(pdev, &sdhci_cns3xxx_pdata);
+	return sdhci_pltfm_register(pdev, &sdhci_cns3xxx_pdata, 0);
 }
 
 static int sdhci_cns3xxx_remove(struct platform_device *pdev)
