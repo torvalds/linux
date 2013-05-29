@@ -4283,12 +4283,6 @@ static void XGI_SetGroup5(unsigned short ModeNo, unsigned short ModeIdIndex,
 	return;
 }
 
-static void XGI_EnableGatingCRT(struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
-{
-	xgifb_reg_and_or(pVBInfo->P3d4, 0x63, 0xBF, 0x40);
-}
-
 static void XGI_DisableGatingCRT(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
@@ -4623,11 +4617,8 @@ static void XGI_DisableBridge(struct xgifb_video_info *xgifb_info,
 
 		if ((pVBInfo->SetFlag & DisableChA) || (pVBInfo->VBInfo
 				& (DisableCRT2Display | XGI_SetCRT2ToLCDA
-						| SetSimuScanMode))) {
-			if (pVBInfo->SetFlag & GatingCRT)
-				XGI_EnableGatingCRT(HwDeviceExtension, pVBInfo);
+						| SetSimuScanMode)))
 			XGI_DisplayOff(xgifb_info, HwDeviceExtension, pVBInfo);
-		}
 
 		if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
 			if ((pVBInfo->SetFlag & DisableChA) || (pVBInfo->VBInfo
@@ -5572,12 +5563,8 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 		xgifb_reg_or(pVBInfo->Part4Port, 0x1F, tempah);
 
 		if (!(pVBInfo->SetFlag & DisableChA)) {
-			if (!(pVBInfo->SetFlag & GatingCRT)) {
-				XGI_DisableGatingCRT(HwDeviceExtension,
-						     pVBInfo);
-				XGI_DisplayOn(xgifb_info, HwDeviceExtension,
-						pVBInfo);
-			}
+			XGI_DisableGatingCRT(HwDeviceExtension, pVBInfo);
+			XGI_DisplayOn(xgifb_info, HwDeviceExtension, pVBInfo);
 		}
 	} /* 301 */
 	else { /* LVDS */

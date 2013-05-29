@@ -30,7 +30,6 @@
 #define SetCRT2ToDualEdge   0x8000
 
 #define ReserveTVOption     0x0008
-#define GatingCRT           0x0800
 #define DisableChB          0x1000
 #define EnableChB           0x2000
 #define DisableChA          0x4000
