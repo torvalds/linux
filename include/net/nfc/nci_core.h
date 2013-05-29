@@ -3,6 +3,7 @@
  *  NFC Controller (NFCC) and a Device Host (DH).
  *
  *  Copyright (C) 2011 Texas Instruments, Inc.
+ *  Copyright (C) 2013 Intel Corporation. All rights reserved.
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
@@ -201,5 +202,53 @@ void nci_req_complete(struct nci_dev *ndev, int result);
 
 /* ----- NCI status code ----- */
 int nci_to_errno(__u8 code);
+
+/* ----- NCI over SPI acknowledge modes ----- */
+#define NCI_SPI_CRC_DISABLED	0x00
+#define NCI_SPI_CRC_ENABLED	0x01
+
+/* ----- NCI SPI structures ----- */
+struct nci_spi_dev;
+
+struct nci_spi_ops {
+	int (*open)(struct nci_spi_dev *ndev);
+	int (*close)(struct nci_spi_dev *ndev);
+	void (*assert_int)(struct nci_spi_dev *ndev);
+	void (*deassert_int)(struct nci_spi_dev *ndev);
+};
+
+struct nci_spi_dev {
+	struct nci_dev		*nci_dev;
+	struct spi_device	*spi;
+	struct nci_spi_ops	*ops;
+
+	unsigned int		xfer_udelay;	/* microseconds delay between
+						  transactions */
+	u8			acknowledge_mode;
+
+	void			*driver_data;
+};
+
+/* ----- NCI SPI Devices ----- */
+struct nci_spi_dev *nci_spi_allocate_device(struct spi_device *spi,
+						struct nci_spi_ops *ops,
+						u32 supported_protocols,
+						u32 supported_se,
+						u8 acknowledge_mode,
+						unsigned int delay);
+void nci_spi_free_device(struct nci_spi_dev *ndev);
+int nci_spi_register_device(struct nci_spi_dev *ndev);
+void nci_spi_unregister_device(struct nci_spi_dev *ndev);
+
+static inline void nci_spi_set_drvdata(struct nci_spi_dev *ndev,
+					    void *data)
+{
+	ndev->driver_data = data;
+}
+
+static inline void *nci_spi_get_drvdata(struct nci_spi_dev *ndev)
+{
+	return ndev->driver_data;
+}
 
 #endif /* __NCI_CORE_H */
