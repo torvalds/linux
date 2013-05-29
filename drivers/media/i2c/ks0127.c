@@ -609,17 +609,24 @@ static int ks0127_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pstd
 {
 	int stat = V4L2_IN_ST_NO_SIGNAL;
 	u8 status;
-	v4l2_std_id std = V4L2_STD_ALL;
+	v4l2_std_id std = pstd ? *pstd : V4L2_STD_ALL;
 
 	status = ks0127_read(sd, KS_STAT);
 	if (!(status & 0x20))		 /* NOVID not set */
 		stat = 0;
-	if (!(status & 0x01))		      /* CLOCK set */
+	if (!(status & 0x01)) {		      /* CLOCK set */
 		stat |= V4L2_IN_ST_NO_COLOR;
-	if ((status & 0x08))		   /* PALDET set */
-		std = V4L2_STD_PAL;
+		std = V4L2_STD_UNKNOWN;
+	} else {
+		if ((status & 0x08))		   /* PALDET set */
+			std &= V4L2_STD_PAL;
+		else
+			std &= V4L2_STD_NTSC;
+	}
+	if ((status & 0x10))		   /* PALDET set */
+		std &= V4L2_STD_525_60;
 	else
-		std = V4L2_STD_NTSC;
+		std &= V4L2_STD_625_50;
 	if (pstd)
 		*pstd = std;
 	if (pstatus)
