@@ -115,7 +115,8 @@ struct rdma_ucm_resolve_route {
 };
 
 enum {
-	RDMA_USER_CM_QUERY_ADDR
+	RDMA_USER_CM_QUERY_ADDR,
+	RDMA_USER_CM_QUERY_PATH
 };
 
 struct rdma_ucm_query {
@@ -143,6 +144,12 @@ struct rdma_ucm_query_addr_resp {
 	__u16 dst_size;
 	struct sockaddr_storage src_addr;
 	struct sockaddr_storage dst_addr;
+};
+
+struct rdma_ucm_query_path_resp {
+	__u32 num_paths;
+	__u32 reserved;
+	struct ib_path_rec_data path_data[0];
 };
 
 struct rdma_ucm_conn_param {
