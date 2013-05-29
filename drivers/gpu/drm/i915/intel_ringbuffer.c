@@ -915,6 +915,8 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 		case VCS:
 			mmio = BSD_HWS_PGA_GEN7;
 			break;
+		case VECS:
+			BUG();
 		}
 	} else if (IS_GEN6(ring->dev)) {
 		mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
