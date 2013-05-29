@@ -1428,6 +1428,7 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 			*std &= V4L2_STD_SECAM;
 			break;
 		default:
+			*std = V4L2_STD_UNKNOWN;
 			/* Can't detect anything */
 			break;
 		}
@@ -1436,8 +1437,10 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	v4l2_dbg(1, debug, sd, "Status byte 2 (0x1f)=0x%02x\n", reg1f);
 
 	/* horizontal/vertical not locked */
-	if (reg1f & 0x40)
+	if (reg1f & 0x40) {
+		*std = V4L2_STD_UNKNOWN;
 		goto ret;
+	}
 
 	if (reg1f & 0x20)
 		*std &= V4L2_STD_525_60;
