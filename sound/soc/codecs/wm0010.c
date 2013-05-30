@@ -972,6 +972,13 @@ static int wm0010_spi_probe(struct spi_device *spi)
 	}
 	wm0010->irq = irq;
 
+	ret = irq_set_irq_wake(irq, 1);
+	if (ret) {
+		dev_err(wm0010->dev, "Failed to set IRQ %d as wake source: %d\n",
+			irq, ret);
+		return ret;
+	}
+
 	if (spi->max_speed_hz)
 		wm0010->board_max_spi_speed = spi->max_speed_hz;
 	else
