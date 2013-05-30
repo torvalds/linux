@@ -53,8 +53,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
 #define _NETXEN_NIC_LINUX_MINOR 0
-#define _NETXEN_NIC_LINUX_SUBVERSION 80
-#define NETXEN_NIC_LINUX_VERSIONID  "4.0.80"
+#define _NETXEN_NIC_LINUX_SUBVERSION 81
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.81"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
