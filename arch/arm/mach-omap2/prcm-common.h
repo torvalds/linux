@@ -48,6 +48,17 @@
 #define OMAP3430_NEON_MOD				0xb00
 #define OMAP3430ES2_USBHOST_MOD				0xc00
 
+/*
+ * TI81XX PRM module offsets
+ */
+#define TI81XX_PRM_DEVICE_MOD			0x0000
+#define TI816X_PRM_ACTIVE_MOD			0x0a00
+#define TI81XX_PRM_DEFAULT_MOD			0x0b00
+#define TI816X_PRM_IVAHD0_MOD			0x0c00
+#define TI816X_PRM_IVAHD1_MOD			0x0d00
+#define TI816X_PRM_IVAHD2_MOD			0x0e00
+#define TI816X_PRM_SGX_MOD				0x0f00
+
 /* 24XX register bits shared between CM & PRM registers */
 
 /* CM_FCLKEN1_CORE, CM_ICLKEN1_CORE, PM_WKEN1_CORE shared bits */

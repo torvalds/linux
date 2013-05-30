@@ -336,6 +336,54 @@ static struct powerdomain dpll5_pwrdm = {
 	.voltdm		  = { .name = "core" },
 };
 
+static struct powerdomain device_81xx_pwrdm = {
+	.name		  = "device_pwrdm",
+	.prcm_offs	  = TI81XX_PRM_DEVICE_MOD,
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain active_816x_pwrdm = {
+	.name		  = "active_pwrdm",
+	.prcm_offs	  = TI816X_PRM_ACTIVE_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain default_816x_pwrdm = {
+	.name		  = "default_pwrdm",
+	.prcm_offs	  = TI81XX_PRM_DEFAULT_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain ivahd0_816x_pwrdm = {
+	.name		  = "ivahd0_pwrdm",
+	.prcm_offs	  = TI816X_PRM_IVAHD0_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "mpu_iva" },
+};
+
+static struct powerdomain ivahd1_816x_pwrdm = {
+	.name		  = "ivahd1_pwrdm",
+	.prcm_offs	  = TI816X_PRM_IVAHD1_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "mpu_iva" },
+};
+
+static struct powerdomain ivahd2_816x_pwrdm = {
+	.name		  = "ivahd2_pwrdm",
+	.prcm_offs	  = TI816X_PRM_IVAHD2_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "mpu_iva" },
+};
+
+static struct powerdomain sgx_816x_pwrdm = {
+	.name		  = "sgx_pwrdm",
+	.prcm_offs	  = TI816X_PRM_SGX_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "core" },
+};
+
 /* As powerdomains are added or removed above, this list must also be changed */
 static struct powerdomain *powerdomains_omap3430_common[] __initdata = {
 	&wkup_omap2_pwrdm,
@@ -393,6 +441,17 @@ static struct powerdomain *powerdomains_am35x[] __initdata = {
 	NULL
 };
 
+static struct powerdomain *powerdomains_ti81xx[] __initdata = {
+	&device_81xx_pwrdm,
+	&active_816x_pwrdm,
+	&default_816x_pwrdm,
+	&ivahd0_816x_pwrdm,
+	&ivahd1_816x_pwrdm,
+	&ivahd2_816x_pwrdm,
+	&sgx_816x_pwrdm,
+	NULL
+};
+
 void __init omap3xxx_powerdomains_init(void)
 {
 	unsigned int rev;
@@ -406,6 +465,9 @@ void __init omap3xxx_powerdomains_init(void)
 
 	if (rev == AM35XX_REV_ES1_0 || rev == AM35XX_REV_ES1_1) {
 		pwrdm_register_pwrdms(powerdomains_am35x);
+	} else if (rev == TI8168_REV_ES1_0 || rev == TI8168_REV_ES1_1
+			|| rev == TI8168_REV_ES2_0 || rev == TI8168_REV_ES2_1) {
+		pwrdm_register_pwrdms(powerdomains_ti81xx);
 	} else {
 		pwrdm_register_pwrdms(powerdomains_omap3430_common);
 
