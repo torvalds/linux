@@ -107,6 +107,8 @@ u32 sunxi_sc_chip_id(void)
 		return SUNXI_MACH_SUN5I;
 	case 0x1633:
 		return SUNXI_MACH_SUN6I;
+	case 0x1651:
+		return SUNXI_MACH_SUN7I;
 	default:
 		pr_err("SC: failed to identify chip-id 0x%04x (*0x%08x == 0x%08x)\n",
 		       chip_id, SC_CHIP_ID_REG, reg_val);
@@ -140,6 +142,8 @@ int sunxi_pr_chip_id(void)
 		soc_family = "sun5i";
 	else if (sunxi_is_sun6i())
 		soc_family = "sun6i";
+	else if (sunxi_is_sun7i())
+		soc_family = "sun7i";
 	else
 		soc_family = "sunNi?";
 
@@ -153,6 +157,8 @@ int sunxi_pr_chip_id(void)
 		name = "A10s";
 	else if (sunxi_is_a31())
 		name = "A31";
+	else if (sunxi_is_a20())
+		name = "A20";
 	else
 		name = NULL;
 
@@ -242,6 +248,8 @@ enum sw_ic_ver sw_get_ic_ver(void)
 		}
 	} else if (sunxi_is_sun6i())
 		ver = SUNXI_VER_A31;
+	else if (sunxi_is_sun7i())
+		ver = SUNXI_VER_A20;
 
 	goto done;
 
