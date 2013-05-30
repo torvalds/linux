@@ -82,8 +82,8 @@ extern FILE *acpi_gbl_output_file;
 #define ACPI_MSG_EXCEPTION      "ACPI Exception: "
 #define ACPI_MSG_WARNING        "ACPI Warning: "
 #define ACPI_MSG_INFO           "ACPI: "
-#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Bug: Error: "
-#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Bug: Warning: "
+#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Error (bug): "
+#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Warning (bug): "
 /*
  * Common message suffix
  */
@@ -325,7 +325,7 @@ acpi_ut_predefined_warning(const char *module_name,
 		return;
 	}
 
-	acpi_os_printf(ACPI_MSG_WARNING "For %s: ", pathname);
+	acpi_os_printf(ACPI_MSG_WARNING "%s: ", pathname);
 
 	va_start(arg_list, format);
 	acpi_os_vprintf(format, arg_list);
@@ -367,7 +367,50 @@ acpi_ut_predefined_info(const char *module_name,
 		return;
 	}
 
-	acpi_os_printf(ACPI_MSG_INFO "For %s: ", pathname);
+	acpi_os_printf(ACPI_MSG_INFO "%s: ", pathname);
+
+	va_start(arg_list, format);
+	acpi_os_vprintf(format, arg_list);
+	ACPI_MSG_SUFFIX;
+	va_end(arg_list);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_predefined_bios_error
+ *
+ * PARAMETERS:  module_name     - Caller's module name (for error output)
+ *              line_number     - Caller's line number (for error output)
+ *              pathname        - Full pathname to the node
+ *              node_flags      - From Namespace node for the method/object
+ *              format          - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: BIOS error message for predefined names. Messages
+ *              are only emitted the first time a problem with a particular
+ *              method/object is detected. This prevents a flood of
+ *              messages for methods that are repeatedly evaluated.
+ *
+ ******************************************************************************/
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_predefined_bios_error(const char *module_name,
+			      u32 line_number,
+			      char *pathname,
+			      u8 node_flags, const char *format, ...)
+{
+	va_list arg_list;
+
+	/*
+	 * Warning messages for this method/object will be disabled after the
+	 * first time a validation fails or an object is successfully repaired.
+	 */
+	if (node_flags & ANOBJ_EVALUATED) {
+		return;
+	}
+
+	acpi_os_printf(ACPI_MSG_BIOS_ERROR "%s: ", pathname);
 
 	va_start(arg_list, format);
 	acpi_os_vprintf(format, arg_list);
