@@ -87,7 +87,7 @@ acpi_ut_evaluate_object(struct acpi_namespace_node * prefix_node,
 	}
 
 	info->prefix_node = prefix_node;
-	info->pathname = path;
+	info->relative_pathname = path;
 
 	/* Evaluate the object/method */
 

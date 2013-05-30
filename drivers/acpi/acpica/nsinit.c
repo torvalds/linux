@@ -176,7 +176,7 @@ acpi_status acpi_ns_initialize_devices(void)
 	 * part of the ACPI specification.
 	 */
 	info.evaluate_info->prefix_node = acpi_gbl_root_node;
-	info.evaluate_info->pathname = METHOD_NAME__INI;
+	info.evaluate_info->relative_pathname = METHOD_NAME__INI;
 	info.evaluate_info->parameters = NULL;
 	info.evaluate_info->flags = ACPI_IGNORE_RETURN_VALUE;
 
@@ -560,7 +560,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 
 	ACPI_MEMSET(info, 0, sizeof(struct acpi_evaluate_info));
 	info->prefix_node = device_node;
-	info->pathname = METHOD_NAME__INI;
+	info->relative_pathname = METHOD_NAME__INI;
 	info->parameters = NULL;
 	info->flags = ACPI_IGNORE_RETURN_VALUE;
 
@@ -574,8 +574,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 
 		/* Ignore error and move on to next device */
 
-		char *scope_name =
-		    acpi_ns_get_external_pathname(info->resolved_node);
+		char *scope_name = acpi_ns_get_external_pathname(info->node);
 
 		ACPI_EXCEPTION((AE_INFO, status, "during %s._INI execution",
 				scope_name));

@@ -362,23 +362,6 @@ union acpi_predefined_info {
 
 #pragma pack()
 
-/* Data block used during object validation */
-
-struct acpi_predefined_data {
-	char *pathname;
-	const union acpi_predefined_info *predefined;
-	union acpi_operand_object *parent_package;
-	struct acpi_namespace_node *node;
-	u32 flags;
-	u32 return_btype;
-	u8 node_flags;
-};
-
-/* Defines for Flags field above */
-
-#define ACPI_OBJECT_REPAIRED    1
-#define ACPI_OBJECT_WRAPPED     2
-
 /* Return object auto-repair info */
 
 typedef acpi_status(*acpi_object_converter) (union acpi_operand_object

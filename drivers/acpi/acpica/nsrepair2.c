@@ -54,7 +54,7 @@ ACPI_MODULE_NAME("nsrepair2")
  * be repaired on a per-name basis.
  */
 typedef
-acpi_status(*acpi_repair_function) (struct acpi_predefined_data *data,
+acpi_status(*acpi_repair_function) (struct acpi_evaluate_info * info,
 				    union acpi_operand_object
 				    **return_object_ptr);
 
@@ -71,31 +71,31 @@ static const struct acpi_repair_info *acpi_ns_match_complex_repair(struct
 								   *node);
 
 static acpi_status
-acpi_ns_repair_ALR(struct acpi_predefined_data *data,
+acpi_ns_repair_ALR(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr);
 
 static acpi_status
-acpi_ns_repair_CID(struct acpi_predefined_data *data,
+acpi_ns_repair_CID(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr);
 
 static acpi_status
-acpi_ns_repair_FDE(struct acpi_predefined_data *data,
+acpi_ns_repair_FDE(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr);
 
 static acpi_status
-acpi_ns_repair_HID(struct acpi_predefined_data *data,
+acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr);
 
 static acpi_status
-acpi_ns_repair_PSS(struct acpi_predefined_data *data,
+acpi_ns_repair_PSS(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr);
 
 static acpi_status
-acpi_ns_repair_TSS(struct acpi_predefined_data *data,
+acpi_ns_repair_TSS(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr);
 
 static acpi_status
-acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
+acpi_ns_check_sorted_list(struct acpi_evaluate_info *info,
 			  union acpi_operand_object *return_object,
 			  u32 expected_count,
 			  u32 sort_index,
@@ -150,7 +150,7 @@ static const struct acpi_repair_info acpi_ns_repairable_names[] = {
  *
  * FUNCTION:    acpi_ns_complex_repairs
  *
- * PARAMETERS:  data                - Pointer to validation data structure
+ * PARAMETERS:  info                - Method execution information block
  *              node                - Namespace node for the method/object
  *              validate_status     - Original status of earlier validation
  *              return_object_ptr   - Pointer to the object returned from the
@@ -165,7 +165,7 @@ static const struct acpi_repair_info acpi_ns_repairable_names[] = {
  *****************************************************************************/
 
 acpi_status
-acpi_ns_complex_repairs(struct acpi_predefined_data *data,
+acpi_ns_complex_repairs(struct acpi_evaluate_info *info,
 			struct acpi_namespace_node *node,
 			acpi_status validate_status,
 			union acpi_operand_object **return_object_ptr)
@@ -180,7 +180,7 @@ acpi_ns_complex_repairs(struct acpi_predefined_data *data,
 		return (validate_status);
 	}
 
-	status = predefined->repair_function(data, return_object_ptr);
+	status = predefined->repair_function(info, return_object_ptr);
 	return (status);
 }
 
@@ -219,7 +219,7 @@ static const struct acpi_repair_info *acpi_ns_match_complex_repair(struct
  *
  * FUNCTION:    acpi_ns_repair_ALR
  *
- * PARAMETERS:  data                - Pointer to validation data structure
+ * PARAMETERS:  info                - Method execution information block
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -231,13 +231,13 @@ static const struct acpi_repair_info *acpi_ns_match_complex_repair(struct
  *****************************************************************************/
 
 static acpi_status
-acpi_ns_repair_ALR(struct acpi_predefined_data *data,
+acpi_ns_repair_ALR(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr)
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
 	acpi_status status;
 
-	status = acpi_ns_check_sorted_list(data, return_object, 2, 1,
+	status = acpi_ns_check_sorted_list(info, return_object, 2, 1,
 					   ACPI_SORT_ASCENDING,
 					   "AmbientIlluminance");
 
@@ -248,7 +248,7 @@ acpi_ns_repair_ALR(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_FDE
  *
- * PARAMETERS:  data                - Pointer to validation data structure
+ * PARAMETERS:  info                - Method execution information block
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -262,7 +262,7 @@ acpi_ns_repair_ALR(struct acpi_predefined_data *data,
  *****************************************************************************/
 
 static acpi_status
-acpi_ns_repair_FDE(struct acpi_predefined_data *data,
+acpi_ns_repair_FDE(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr)
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
@@ -285,8 +285,8 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
 		/* We can only repair if we have exactly 5 BYTEs */
 
 		if (return_object->buffer.length != ACPI_FDE_BYTE_BUFFER_SIZE) {
-			ACPI_WARN_PREDEFINED((AE_INFO, data->pathname,
-					      data->node_flags,
+			ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+					      info->node_flags,
 					      "Incorrect return buffer length %u, expected %u",
 					      return_object->buffer.length,
 					      ACPI_FDE_DWORD_BUFFER_SIZE));
@@ -316,7 +316,7 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
 
 		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
 				  "%s Expanded Byte Buffer to expected DWord Buffer\n",
-				  data->pathname));
+				  info->full_pathname));
 		break;
 
 	default:
@@ -328,7 +328,7 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
 	acpi_ut_remove_reference(return_object);
 	*return_object_ptr = buffer_object;
 
-	data->flags |= ACPI_OBJECT_REPAIRED;
+	info->return_flags |= ACPI_OBJECT_REPAIRED;
 	return (AE_OK);
 }
 
@@ -336,7 +336,7 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_CID
  *
- * PARAMETERS:  data                - Pointer to validation data structure
+ * PARAMETERS:  info                - Method execution information block
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -349,7 +349,7 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
  *****************************************************************************/
 
 static acpi_status
-acpi_ns_repair_CID(struct acpi_predefined_data *data,
+acpi_ns_repair_CID(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr)
 {
 	acpi_status status;
@@ -362,7 +362,7 @@ acpi_ns_repair_CID(struct acpi_predefined_data *data,
 	/* Check for _CID as a simple string */
 
 	if (return_object->common.type == ACPI_TYPE_STRING) {
-		status = acpi_ns_repair_HID(data, return_object_ptr);
+		status = acpi_ns_repair_HID(info, return_object_ptr);
 		return (status);
 	}
 
@@ -379,7 +379,7 @@ acpi_ns_repair_CID(struct acpi_predefined_data *data,
 		original_element = *element_ptr;
 		original_ref_count = original_element->common.reference_count;
 
-		status = acpi_ns_repair_HID(data, element_ptr);
+		status = acpi_ns_repair_HID(info, element_ptr);
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}
@@ -406,7 +406,7 @@ acpi_ns_repair_CID(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_HID
  *
- * PARAMETERS:  data                - Pointer to validation data structure
+ * PARAMETERS:  info                - Method execution information block
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -418,7 +418,7 @@ acpi_ns_repair_CID(struct acpi_predefined_data *data,
  *****************************************************************************/
 
 static acpi_status
-acpi_ns_repair_HID(struct acpi_predefined_data *data,
+acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr)
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
@@ -435,12 +435,13 @@ acpi_ns_repair_HID(struct acpi_predefined_data *data,
 	}
 
 	if (return_object->string.length == 0) {
-		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+				      info->node_flags,
 				      "Invalid zero-length _HID or _CID string"));
 
 		/* Return AE_OK anyway, let driver handle it */
 
-		data->flags |= ACPI_OBJECT_REPAIRED;
+		info->return_flags |= ACPI_OBJECT_REPAIRED;
 		return (AE_OK);
 	}
 
@@ -464,7 +465,7 @@ acpi_ns_repair_HID(struct acpi_predefined_data *data,
 
 		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
 				  "%s: Removed invalid leading asterisk\n",
-				  data->pathname));
+				  info->full_pathname));
 	}
 
 	/*
@@ -488,7 +489,7 @@ acpi_ns_repair_HID(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_TSS
  *
- * PARAMETERS:  data                - Pointer to validation data structure
+ * PARAMETERS:  info                - Method execution information block
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -500,7 +501,7 @@ acpi_ns_repair_HID(struct acpi_predefined_data *data,
  *****************************************************************************/
 
 static acpi_status
-acpi_ns_repair_TSS(struct acpi_predefined_data *data,
+acpi_ns_repair_TSS(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr)
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
@@ -515,13 +516,13 @@ acpi_ns_repair_TSS(struct acpi_predefined_data *data,
 	 * In this case, it is best to just return the _TSS package as-is.
 	 * (May, 2011)
 	 */
-	status =
-	    acpi_ns_get_node(data->node, "^_PSS", ACPI_NS_NO_UPSEARCH, &node);
+	status = acpi_ns_get_node(info->node, "^_PSS",
+				  ACPI_NS_NO_UPSEARCH, &node);
 	if (ACPI_SUCCESS(status)) {
 		return (AE_OK);
 	}
 
-	status = acpi_ns_check_sorted_list(data, return_object, 5, 1,
+	status = acpi_ns_check_sorted_list(info, return_object, 5, 1,
 					   ACPI_SORT_DESCENDING,
 					   "PowerDissipation");
 
@@ -532,7 +533,7 @@ acpi_ns_repair_TSS(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_PSS
  *
- * PARAMETERS:  data                - Pointer to validation data structure
+ * PARAMETERS:  info                - Method execution information block
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -546,7 +547,7 @@ acpi_ns_repair_TSS(struct acpi_predefined_data *data,
  *****************************************************************************/
 
 static acpi_status
-acpi_ns_repair_PSS(struct acpi_predefined_data *data,
+acpi_ns_repair_PSS(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr)
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
@@ -564,7 +565,7 @@ acpi_ns_repair_PSS(struct acpi_predefined_data *data,
 	 * incorrectly sorted, sort it. We sort by cpu_frequency, since this
 	 * should be proportional to the power.
 	 */
-	status = acpi_ns_check_sorted_list(data, return_object, 6, 0,
+	status = acpi_ns_check_sorted_list(info, return_object, 6, 0,
 					   ACPI_SORT_DESCENDING,
 					   "CpuFrequency");
 	if (ACPI_FAILURE(status)) {
@@ -584,8 +585,8 @@ acpi_ns_repair_PSS(struct acpi_predefined_data *data,
 		obj_desc = elements[1];	/* Index1 = power_dissipation */
 
 		if ((u32) obj_desc->integer.value > previous_value) {
-			ACPI_WARN_PREDEFINED((AE_INFO, data->pathname,
-					      data->node_flags,
+			ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+					      info->node_flags,
 					      "SubPackage[%u,%u] - suspicious power dissipation values",
 					      i - 1, i));
 		}
@@ -601,7 +602,7 @@ acpi_ns_repair_PSS(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_check_sorted_list
  *
- * PARAMETERS:  data                - Pointer to validation data structure
+ * PARAMETERS:  info                - Method execution information block
  *              return_object       - Pointer to the top-level returned object
  *              expected_count      - Minimum length of each sub-package
  *              sort_index          - Sub-package entry to sort on
@@ -617,7 +618,7 @@ acpi_ns_repair_PSS(struct acpi_predefined_data *data,
  *****************************************************************************/
 
 static acpi_status
-acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
+acpi_ns_check_sorted_list(struct acpi_evaluate_info *info,
 			  union acpi_operand_object *return_object,
 			  u32 expected_count,
 			  u32 sort_index,
@@ -689,11 +690,11 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 					  outer_element_count, sort_index,
 					  sort_direction);
 
-			data->flags |= ACPI_OBJECT_REPAIRED;
+			info->return_flags |= ACPI_OBJECT_REPAIRED;
 
 			ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
 					  "%s: Repaired unsorted list - now sorted by %s\n",
-					  data->pathname, sort_key_name));
+					  info->full_pathname, sort_key_name));
 			return (AE_OK);
 		}
 

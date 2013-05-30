@@ -51,12 +51,12 @@ ACPI_MODULE_NAME("nsprepkg")
 
 /* Local prototypes */
 static acpi_status
-acpi_ns_check_package_list(struct acpi_predefined_data *data,
+acpi_ns_check_package_list(struct acpi_evaluate_info *info,
 			   const union acpi_predefined_info *package,
 			   union acpi_operand_object **elements, u32 count);
 
 static acpi_status
-acpi_ns_check_package_elements(struct acpi_predefined_data *data,
+acpi_ns_check_package_elements(struct acpi_evaluate_info *info,
 			       union acpi_operand_object **elements,
 			       u8 type1,
 			       u32 count1,
@@ -66,7 +66,7 @@ acpi_ns_check_package_elements(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_check_package
  *
- * PARAMETERS:  data                - Pointer to validation data structure
+ * PARAMETERS:  info                - Method execution information block
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -78,7 +78,7 @@ acpi_ns_check_package_elements(struct acpi_predefined_data *data,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_check_package(struct acpi_predefined_data *data,
+acpi_ns_check_package(struct acpi_evaluate_info *info,
 		      union acpi_operand_object **return_object_ptr)
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
@@ -93,18 +93,18 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 
 	/* The package info for this name is in the next table entry */
 
-	package = data->predefined + 1;
+	package = info->predefined + 1;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 			  "%s Validating return Package of Type %X, Count %X\n",
-			  data->pathname, package->ret_info.type,
+			  info->full_pathname, package->ret_info.type,
 			  return_object->package.count));
 
 	/*
 	 * For variable-length Packages, we can safely remove all embedded
 	 * and trailing NULL package elements
 	 */
-	acpi_ns_remove_null_elements(data, package->ret_info.type,
+	acpi_ns_remove_null_elements(info, package->ret_info.type,
 				     return_object);
 
 	/* Extract package count and elements array */
@@ -121,7 +121,8 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 			return (AE_OK);
 		}
 
-		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+				      info->node_flags,
 				      "Return Package has no elements (empty)"));
 
 		return (AE_AML_OPERAND_VALUE);
@@ -150,13 +151,13 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 			ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
 					  "%s: Return Package is larger than needed - "
 					  "found %u, expected %u\n",
-					  data->pathname, count,
+					  info->full_pathname, count,
 					  expected_count));
 		}
 
 		/* Validate all elements of the returned package */
 
-		status = acpi_ns_check_package_elements(data, elements,
+		status = acpi_ns_check_package_elements(info, elements,
 							package->ret_info.
 							object_type1,
 							package->ret_info.
@@ -174,7 +175,7 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 		 * elements must be of the same type
 		 */
 		for (i = 0; i < count; i++) {
-			status = acpi_ns_check_object_type(data, elements,
+			status = acpi_ns_check_object_type(info, elements,
 							   package->ret_info.
 							   object_type1, i);
 			if (ACPI_FAILURE(status)) {
@@ -206,7 +207,7 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 				/* These are the required package elements (0, 1, or 2) */
 
 				status =
-				    acpi_ns_check_object_type(data, elements,
+				    acpi_ns_check_object_type(info, elements,
 							      package->
 							      ret_info3.
 							      object_type[i],
@@ -218,7 +219,7 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 				/* These are the optional package elements */
 
 				status =
-				    acpi_ns_check_object_type(data, elements,
+				    acpi_ns_check_object_type(info, elements,
 							      package->
 							      ret_info3.
 							      tail_object_type,
@@ -235,7 +236,7 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 
 		/* First element is the (Integer) revision */
 
-		status = acpi_ns_check_object_type(data, elements,
+		status = acpi_ns_check_object_type(info, elements,
 						   ACPI_RTYPE_INTEGER, 0);
 		if (ACPI_FAILURE(status)) {
 			return (status);
@@ -247,14 +248,14 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 		/* Examine the sub-packages */
 
 		status =
-		    acpi_ns_check_package_list(data, package, elements, count);
+		    acpi_ns_check_package_list(info, package, elements, count);
 		break;
 
 	case ACPI_PTYPE2_PKG_COUNT:
 
 		/* First element is the (Integer) count of sub-packages to follow */
 
-		status = acpi_ns_check_object_type(data, elements,
+		status = acpi_ns_check_object_type(info, elements,
 						   ACPI_RTYPE_INTEGER, 0);
 		if (ACPI_FAILURE(status)) {
 			return (status);
@@ -275,7 +276,7 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 		/* Examine the sub-packages */
 
 		status =
-		    acpi_ns_check_package_list(data, package, elements, count);
+		    acpi_ns_check_package_list(info, package, elements, count);
 		break;
 
 	case ACPI_PTYPE2:
@@ -300,7 +301,7 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 			/* Create the new outer package and populate it */
 
 			status =
-			    acpi_ns_wrap_with_package(data, return_object,
+			    acpi_ns_wrap_with_package(info, return_object,
 						      return_object_ptr);
 			if (ACPI_FAILURE(status)) {
 				return (status);
@@ -316,14 +317,15 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 		/* Examine the sub-packages */
 
 		status =
-		    acpi_ns_check_package_list(data, package, elements, count);
+		    acpi_ns_check_package_list(info, package, elements, count);
 		break;
 
 	default:
 
 		/* Should not get here if predefined info table is correct */
 
-		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+				      info->node_flags,
 				      "Invalid internal return type in table entry: %X",
 				      package->ret_info.type));
 
@@ -336,7 +338,7 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 
 	/* Error exit for the case with an incorrect package count */
 
-	ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+	ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname, info->node_flags,
 			      "Return Package is too small - found %u elements, expected %u",
 			      count, expected_count));
 
@@ -347,7 +349,7 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_check_package_list
  *
- * PARAMETERS:  data            - Pointer to validation data structure
+ * PARAMETERS:  info            - Method execution information block
  *              package         - Pointer to package-specific info for method
  *              elements        - Element list of parent package. All elements
  *                                of this list should be of type Package.
@@ -360,7 +362,7 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
  ******************************************************************************/
 
 static acpi_status
-acpi_ns_check_package_list(struct acpi_predefined_data *data,
+acpi_ns_check_package_list(struct acpi_evaluate_info *info,
 			   const union acpi_predefined_info *package,
 			   union acpi_operand_object **elements, u32 count)
 {
@@ -381,11 +383,11 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 	for (i = 0; i < count; i++) {
 		sub_package = *elements;
 		sub_elements = sub_package->package.elements;
-		data->parent_package = sub_package;
+		info->parent_package = sub_package;
 
 		/* Each sub-object must be of type Package */
 
-		status = acpi_ns_check_object_type(data, &sub_package,
+		status = acpi_ns_check_object_type(info, &sub_package,
 						   ACPI_RTYPE_PACKAGE, i);
 		if (ACPI_FAILURE(status)) {
 			return (status);
@@ -393,7 +395,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 
 		/* Examine the different types of expected sub-packages */
 
-		data->parent_package = sub_package;
+		info->parent_package = sub_package;
 		switch (package->ret_info.type) {
 		case ACPI_PTYPE2:
 		case ACPI_PTYPE2_PKG_COUNT:
@@ -408,7 +410,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 			}
 
 			status =
-			    acpi_ns_check_package_elements(data, sub_elements,
+			    acpi_ns_check_package_elements(info, sub_elements,
 							   package->ret_info.
 							   object_type1,
 							   package->ret_info.
@@ -434,7 +436,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 			}
 
 			status =
-			    acpi_ns_check_package_elements(data, sub_elements,
+			    acpi_ns_check_package_elements(info, sub_elements,
 							   package->ret_info.
 							   object_type1,
 							   package->ret_info.
@@ -463,7 +465,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 
 			for (j = 0; j < expected_count; j++) {
 				status =
-				    acpi_ns_check_object_type(data,
+				    acpi_ns_check_object_type(info,
 							      &sub_elements[j],
 							      package->
 							      ret_info2.
@@ -487,7 +489,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 			/* Check the type of each sub-package element */
 
 			status =
-			    acpi_ns_check_package_elements(data, sub_elements,
+			    acpi_ns_check_package_elements(info, sub_elements,
 							   package->ret_info.
 							   object_type1,
 							   sub_package->package.
@@ -503,7 +505,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 			 * First element is the (Integer) count of elements, including
 			 * the count field (the ACPI name is num_elements)
 			 */
-			status = acpi_ns_check_object_type(data, sub_elements,
+			status = acpi_ns_check_object_type(info, sub_elements,
 							   ACPI_RTYPE_INTEGER,
 							   0);
 			if (ACPI_FAILURE(status)) {
@@ -537,7 +539,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 			/* Check the type of each sub-package element */
 
 			status =
-			    acpi_ns_check_package_elements(data,
+			    acpi_ns_check_package_elements(info,
 							   (sub_elements + 1),
 							   package->ret_info.
 							   object_type1,
@@ -562,7 +564,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 
 	/* The sub-package count was smaller than required */
 
-	ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+	ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname, info->node_flags,
 			      "Return Sub-Package[%u] is too small - found %u elements, expected %u",
 			      i, sub_package->package.count, expected_count));
 
@@ -573,7 +575,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_check_package_elements
  *
- * PARAMETERS:  data            - Pointer to validation data structure
+ * PARAMETERS:  info            - Method execution information block
  *              elements        - Pointer to the package elements array
  *              type1           - Object type for first group
  *              count1          - Count for first group
@@ -589,7 +591,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
  ******************************************************************************/
 
 static acpi_status
-acpi_ns_check_package_elements(struct acpi_predefined_data *data,
+acpi_ns_check_package_elements(struct acpi_evaluate_info *info,
 			       union acpi_operand_object **elements,
 			       u8 type1,
 			       u32 count1,
@@ -605,7 +607,7 @@ acpi_ns_check_package_elements(struct acpi_predefined_data *data,
 	 * The second group can have a count of zero.
 	 */
 	for (i = 0; i < count1; i++) {
-		status = acpi_ns_check_object_type(data, this_element,
+		status = acpi_ns_check_object_type(info, this_element,
 						   type1, i + start_index);
 		if (ACPI_FAILURE(status)) {
 			return (status);
@@ -614,7 +616,7 @@ acpi_ns_check_package_elements(struct acpi_predefined_data *data,
 	}
 
 	for (i = 0; i < count2; i++) {
-		status = acpi_ns_check_object_type(data, this_element,
+		status = acpi_ns_check_object_type(info, this_element,
 						   type2,
 						   (i + count1 + start_index));
 		if (ACPI_FAILURE(status)) {

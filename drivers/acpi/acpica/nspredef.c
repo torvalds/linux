@@ -61,28 +61,29 @@ ACPI_MODULE_NAME("nspredef")
  * There are several areas that are validated:
  *
  *  1) The number of input arguments as defined by the method/object in the
- *      ASL is validated against the ACPI specification.
+ *     ASL is validated against the ACPI specification.
  *  2) The type of the return object (if any) is validated against the ACPI
- *      specification.
+ *     specification.
  *  3) For returned package objects, the count of package elements is
- *      validated, as well as the type of each package element. Nested
- *      packages are supported.
+ *     validated, as well as the type of each package element. Nested
+ *     packages are supported.
  *
  * For any problems found, a warning message is issued.
  *
  ******************************************************************************/
 /* Local prototypes */
 static acpi_status
-acpi_ns_check_reference(struct acpi_predefined_data *data,
+acpi_ns_check_reference(struct acpi_evaluate_info *info,
 			union acpi_operand_object *return_object);
 
 static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object);
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_check_predefined_names
+ * FUNCTION:    acpi_ns_check_return_value
  *
  * PARAMETERS:  node            - Namespace node for the method/object
+ *              info            - Method execution information block
  *              user_param_count - Number of parameters actually passed
  *              return_status   - Status from the object evaluation
  *              return_object_ptr - Pointer to the object returned from the
@@ -90,44 +91,28 @@ static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object);
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Check an ACPI name for a match in the predefined name list.
+ * DESCRIPTION: Check the value returned from a predefined name.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
-			       u32 user_param_count,
-			       acpi_status return_status,
-			       union acpi_operand_object **return_object_ptr)
+acpi_ns_check_return_value(struct acpi_namespace_node *node,
+			   struct acpi_evaluate_info *info,
+			   u32 user_param_count,
+			   acpi_status return_status,
+			   union acpi_operand_object **return_object_ptr)
 {
-	acpi_status status = AE_OK;
+	acpi_status status;
 	const union acpi_predefined_info *predefined;
 	char *pathname;
-	struct acpi_predefined_data *data;
 
-	/* Match the name for this method/object against the predefined list */
-
-	predefined = acpi_ut_match_predefined_method(node->name.ascii);
-
-	/* Get the full pathname to the object, for use in warning messages */
-
-	pathname = acpi_ns_get_external_pathname(node);
-	if (!pathname) {
-		return (AE_OK);	/* Could not get pathname, ignore */
-	}
-
-	/*
-	 * Check that the parameter count for this method matches the ASL
-	 * definition. For predefined names, ensure that both the caller and
-	 * the method itself are in accordance with the ACPI specification.
-	 */
-	acpi_ns_check_parameter_count(pathname, node, user_param_count,
-				      predefined);
+	predefined = info->predefined;
+	pathname = info->full_pathname;
 
 	/* If not a predefined name, we cannot validate the return object */
 
 	if (!predefined) {
-		goto cleanup;
+		return (AE_OK);
 	}
 
 	/*
@@ -135,7 +120,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	 * validate the return object
 	 */
 	if ((return_status != AE_OK) && (return_status != AE_CTRL_RETURN_VALUE)) {
-		goto cleanup;
+		return (AE_OK);
 	}
 
 	/*
@@ -154,25 +139,14 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	if (acpi_gbl_disable_auto_repair ||
 	    (!predefined->info.expected_btypes) ||
 	    (predefined->info.expected_btypes == ACPI_RTYPE_ALL)) {
-		goto cleanup;
+		return (AE_OK);
 	}
-
-	/* Create the parameter data block for object validation */
-
-	data = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_predefined_data));
-	if (!data) {
-		goto cleanup;
-	}
-	data->predefined = predefined;
-	data->node = node;
-	data->node_flags = node->flags;
-	data->pathname = pathname;
 
 	/*
 	 * Check that the type of the main return object is what is expected
 	 * for this predefined name
 	 */
-	status = acpi_ns_check_object_type(data, return_object_ptr,
+	status = acpi_ns_check_object_type(info, return_object_ptr,
 					   predefined->info.expected_btypes,
 					   ACPI_NOT_PACKAGE_ELEMENT);
 	if (ACPI_FAILURE(status)) {
@@ -184,8 +158,8 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	 * Note: Package may have been newly created by call above.
 	 */
 	if ((*return_object_ptr)->common.type == ACPI_TYPE_PACKAGE) {
-		data->parent_package = *return_object_ptr;
-		status = acpi_ns_check_package(data, return_object_ptr);
+		info->parent_package = *return_object_ptr;
+		status = acpi_ns_check_package(info, return_object_ptr);
 		if (ACPI_FAILURE(status)) {
 			goto exit;
 		}
@@ -199,7 +173,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	 * performed on a per-name basis, i.e., the code is specific to
 	 * particular predefined names.
 	 */
-	status = acpi_ns_complex_repairs(data, node, status, return_object_ptr);
+	status = acpi_ns_complex_repairs(info, node, status, return_object_ptr);
 
 exit:
 	/*
@@ -207,112 +181,18 @@ exit:
 	 * or more objects, mark the parent node to suppress further warning
 	 * messages during the next evaluation of the same method/object.
 	 */
-	if (ACPI_FAILURE(status) || (data->flags & ACPI_OBJECT_REPAIRED)) {
+	if (ACPI_FAILURE(status) || (info->return_flags & ACPI_OBJECT_REPAIRED)) {
 		node->flags |= ANOBJ_EVALUATED;
 	}
-	ACPI_FREE(data);
 
-cleanup:
-	ACPI_FREE(pathname);
 	return (status);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ns_check_parameter_count
- *
- * PARAMETERS:  pathname        - Full pathname to the node (for error msgs)
- *              node            - Namespace node for the method/object
- *              user_param_count - Number of args passed in by the caller
- *              predefined      - Pointer to entry in predefined name table
- *
- * RETURN:      None
- *
- * DESCRIPTION: Check that the declared (in ASL/AML) parameter count for a
- *              predefined name is what is expected (i.e., what is defined in
- *              the ACPI specification for this predefined name.)
- *
- ******************************************************************************/
-
-void
-acpi_ns_check_parameter_count(char *pathname,
-			      struct acpi_namespace_node *node,
-			      u32 user_param_count,
-			      const union acpi_predefined_info *predefined)
-{
-	u32 param_count;
-	u32 required_params_current;
-	u32 required_params_old;
-
-	/* Methods have 0-7 parameters. All other types have zero. */
-
-	param_count = 0;
-	if (node->type == ACPI_TYPE_METHOD) {
-		param_count = node->object->method.param_count;
-	}
-
-	if (!predefined) {
-		/*
-		 * Check the parameter count for non-predefined methods/objects.
-		 *
-		 * Warning if too few or too many arguments have been passed by the
-		 * caller. An incorrect number of arguments may not cause the method
-		 * to fail. However, the method will fail if there are too few
-		 * arguments and the method attempts to use one of the missing ones.
-		 */
-		if (user_param_count < param_count) {
-			ACPI_WARN_PREDEFINED((AE_INFO, pathname,
-					      ACPI_WARN_ALWAYS,
-					      "Insufficient arguments - needs %u, found %u",
-					      param_count, user_param_count));
-		} else if (user_param_count > param_count) {
-			ACPI_WARN_PREDEFINED((AE_INFO, pathname,
-					      ACPI_WARN_ALWAYS,
-					      "Excess arguments - needs %u, found %u",
-					      param_count, user_param_count));
-		}
-		return;
-	}
-
-	/*
-	 * Validate the user-supplied parameter count.
-	 * Allow two different legal argument counts (_SCP, etc.)
-	 */
-	required_params_current =
-	    predefined->info.argument_list & METHOD_ARG_MASK;
-	required_params_old =
-	    predefined->info.argument_list >> METHOD_ARG_BIT_WIDTH;
-
-	if (user_param_count != ACPI_UINT32_MAX) {
-		if ((user_param_count != required_params_current) &&
-		    (user_param_count != required_params_old)) {
-			ACPI_WARN_PREDEFINED((AE_INFO, pathname,
-					      ACPI_WARN_ALWAYS,
-					      "Parameter count mismatch - "
-					      "caller passed %u, ACPI requires %u",
-					      user_param_count,
-					      required_params_current));
-		}
-	}
-
-	/*
-	 * Check that the ASL-defined parameter count is what is expected for
-	 * this predefined name (parameter count as defined by the ACPI
-	 * specification)
-	 */
-	if ((param_count != required_params_current) &&
-	    (param_count != required_params_old)) {
-		ACPI_WARN_PREDEFINED((AE_INFO, pathname, node->flags,
-				      "Parameter count mismatch - ASL declared %u, ACPI requires %u",
-				      param_count, required_params_current));
-	}
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_check_object_type
  *
- * PARAMETERS:  data            - Pointer to validation data structure
+ * PARAMETERS:  info            - Method execution information block
  *              return_object_ptr - Pointer to the object returned from the
  *                                evaluation of a method or object
  *              expected_btypes - Bitmap of expected return type(s)
@@ -328,7 +208,7 @@ acpi_ns_check_parameter_count(char *pathname,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_check_object_type(struct acpi_predefined_data *data,
+acpi_ns_check_object_type(struct acpi_evaluate_info *info,
 			  union acpi_operand_object **return_object_ptr,
 			  u32 expected_btypes, u32 package_index)
 {
@@ -340,7 +220,8 @@ acpi_ns_check_object_type(struct acpi_predefined_data *data,
 
 	if (return_object &&
 	    ACPI_GET_DESCRIPTOR_TYPE(return_object) == ACPI_DESC_TYPE_NAMED) {
-		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+				      info->node_flags,
 				      "Invalid return type - Found a Namespace node [%4.4s] type %s",
 				      return_object->node.name.ascii,
 				      acpi_ut_get_type_name(return_object->node.
@@ -356,8 +237,8 @@ acpi_ns_check_object_type(struct acpi_predefined_data *data,
 	 * from all of the predefined names (including elements of returned
 	 * packages)
 	 */
-	data->return_btype = acpi_ns_get_bitmapped_type(return_object);
-	if (data->return_btype == ACPI_RTYPE_ANY) {
+	info->return_btype = acpi_ns_get_bitmapped_type(return_object);
+	if (info->return_btype == ACPI_RTYPE_ANY) {
 
 		/* Not one of the supported objects, must be incorrect */
 		goto type_error_exit;
@@ -365,16 +246,18 @@ acpi_ns_check_object_type(struct acpi_predefined_data *data,
 
 	/* For reference objects, check that the reference type is correct */
 
-	if ((data->return_btype & expected_btypes) == ACPI_RTYPE_REFERENCE) {
-		status = acpi_ns_check_reference(data, return_object);
+	if ((info->return_btype & expected_btypes) == ACPI_RTYPE_REFERENCE) {
+		status = acpi_ns_check_reference(info, return_object);
 		return (status);
 	}
 
 	/* Attempt simple repair of the returned object if necessary */
 
-	status = acpi_ns_simple_repair(data, expected_btypes,
+	status = acpi_ns_simple_repair(info, expected_btypes,
 				       package_index, return_object_ptr);
-	return (status);
+	if (ACPI_SUCCESS(status)) {
+		return (AE_OK);	/* Successful repair */
+	}
 
       type_error_exit:
 
@@ -383,12 +266,14 @@ acpi_ns_check_object_type(struct acpi_predefined_data *data,
 	acpi_ut_get_expected_return_types(type_buffer, expected_btypes);
 
 	if (package_index == ACPI_NOT_PACKAGE_ELEMENT) {
-		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+				      info->node_flags,
 				      "Return type mismatch - found %s, expected %s",
 				      acpi_ut_get_object_type_name
 				      (return_object), type_buffer));
 	} else {
-		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+				      info->node_flags,
 				      "Return Package type mismatch at index %u - "
 				      "found %s, expected %s", package_index,
 				      acpi_ut_get_object_type_name
@@ -402,7 +287,7 @@ acpi_ns_check_object_type(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_check_reference
  *
- * PARAMETERS:  data            - Pointer to validation data structure
+ * PARAMETERS:  info            - Method execution information block
  *              return_object   - Object returned from the evaluation of a
  *                                method or object
  *
@@ -415,7 +300,7 @@ acpi_ns_check_object_type(struct acpi_predefined_data *data,
  ******************************************************************************/
 
 static acpi_status
-acpi_ns_check_reference(struct acpi_predefined_data *data,
+acpi_ns_check_reference(struct acpi_evaluate_info *info,
 			union acpi_operand_object *return_object)
 {
 
@@ -428,7 +313,7 @@ acpi_ns_check_reference(struct acpi_predefined_data *data,
 		return (AE_OK);
 	}
 
-	ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+	ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname, info->node_flags,
 			      "Return type mismatch - unexpected reference object type [%s] %2.2X",
 			      acpi_ut_get_reference_name(return_object),
 			      return_object->reference.class));
