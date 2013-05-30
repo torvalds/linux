@@ -2702,7 +2702,7 @@ EXPORT_SYMBOL_GPL(regulator_get_voltage);
 /**
  * regulator_set_current_limit - set regulator output current limit
  * @regulator: regulator source
- * @min_uA: Minimuum supported current in uA
+ * @min_uA: Minimum supported current in uA
  * @max_uA: Maximum supported current in uA
  *
  * Sets current sink to the desired output current. This can be set during
