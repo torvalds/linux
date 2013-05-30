@@ -3255,6 +3255,72 @@ err:
 	return status;
 }
 
+static int lancer_wait_idle(struct be_adapter *adapter)
+{
+#define SLIPORT_IDLE_TIMEOUT 30
+	u32 reg_val;
+	int status = 0, i;
+
+	for (i = 0; i < SLIPORT_IDLE_TIMEOUT; i++) {
+		reg_val = ioread32(adapter->db + PHYSDEV_CONTROL_OFFSET);
+		if ((reg_val & PHYSDEV_CONTROL_INP_MASK) == 0)
+			break;
+
+		ssleep(1);
+	}
+
+	if (i == SLIPORT_IDLE_TIMEOUT)
+		status = -1;
+
+	return status;
+}
+
+int lancer_physdev_ctrl(struct be_adapter *adapter, u32 mask)
+{
+	int status = 0;
+
+	status = lancer_wait_idle(adapter);
+	if (status)
+		return status;
+
+	iowrite32(mask, adapter->db + PHYSDEV_CONTROL_OFFSET);
+
+	return status;
+}
+
+/* Routine to check whether dump image is present or not */
+bool dump_present(struct be_adapter *adapter)
+{
+	u32 sliport_status = 0;
+
+	sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
+	return !!(sliport_status & SLIPORT_STATUS_DIP_MASK);
+}
+
+int lancer_initiate_dump(struct be_adapter *adapter)
+{
+	int status;
+
+	/* give firmware reset and diagnostic dump */
+	status = lancer_physdev_ctrl(adapter, PHYSDEV_CONTROL_FW_RESET_MASK |
+				     PHYSDEV_CONTROL_DD_MASK);
+	if (status < 0) {
+		dev_err(&adapter->pdev->dev, "Firmware reset failed\n");
+		return status;
+	}
+
+	status = lancer_wait_idle(adapter);
+	if (status)
+		return status;
+
+	if (!dump_present(adapter)) {
+		dev_err(&adapter->pdev->dev, "Dump image not present\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 /* Uses sync mcc */
 int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain)
 {

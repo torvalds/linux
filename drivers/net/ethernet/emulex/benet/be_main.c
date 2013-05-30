@@ -3551,40 +3551,6 @@ static int be_flash_skyhawk(struct be_adapter *adapter,
 	return 0;
 }
 
-static int lancer_wait_idle(struct be_adapter *adapter)
-{
-#define SLIPORT_IDLE_TIMEOUT 30
-	u32 reg_val;
-	int status = 0, i;
-
-	for (i = 0; i < SLIPORT_IDLE_TIMEOUT; i++) {
-		reg_val = ioread32(adapter->db + PHYSDEV_CONTROL_OFFSET);
-		if ((reg_val & PHYSDEV_CONTROL_INP_MASK) == 0)
-			break;
-
-		ssleep(1);
-	}
-
-	if (i == SLIPORT_IDLE_TIMEOUT)
-		status = -1;
-
-	return status;
-}
-
-static int lancer_fw_reset(struct be_adapter *adapter)
-{
-	int status = 0;
-
-	status = lancer_wait_idle(adapter);
-	if (status)
-		return status;
-
-	iowrite32(PHYSDEV_CONTROL_FW_RESET_MASK, adapter->db +
-		  PHYSDEV_CONTROL_OFFSET);
-
-	return status;
-}
-
 static int lancer_fw_download(struct be_adapter *adapter,
 				const struct firmware *fw)
 {
@@ -3662,7 +3628,8 @@ static int lancer_fw_download(struct be_adapter *adapter,
 	}
 
 	if (change_status == LANCER_FW_RESET_NEEDED) {
-		status = lancer_fw_reset(adapter);
+		status = lancer_physdev_ctrl(adapter,
+					     PHYSDEV_CONTROL_FW_RESET_MASK);
 		if (status) {
 			dev_err(&adapter->pdev->dev,
 				"Adapter busy for FW reset.\n"

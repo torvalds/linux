@@ -669,6 +669,34 @@ be_set_phys_id(struct net_device *netdev,
 	return 0;
 }
 
+static int be_set_dump(struct net_device *netdev, struct ethtool_dump *dump)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->pdev->dev;
+	int status;
+
+	if (!lancer_chip(adapter)) {
+		dev_err(dev, "FW dump not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (dump_present(adapter)) {
+		dev_err(dev, "Previous dump not cleared, not forcing dump\n");
+		return 0;
+	}
+
+	switch (dump->flag) {
+	case LANCER_INITIATE_FW_DUMP:
+		status = lancer_initiate_dump(adapter);
+		if (!status)
+			dev_info(dev, "F/w dump initiated successfully\n");
+		break;
+	default:
+		dev_err(dev, "Invalid dump level: 0x%x\n", dump->flag);
+		return -EINVAL;
+	}
+	return status;
+}
 
 static void
 be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
@@ -1106,6 +1134,7 @@ const struct ethtool_ops be_ethtool_ops = {
 	.set_pauseparam = be_set_pauseparam,
 	.get_strings = be_get_stat_strings,
 	.set_phys_id = be_set_phys_id,
+	.set_dump = be_set_dump,
 	.get_msglevel = be_get_msg_level,
 	.set_msglevel = be_set_msg_level,
 	.get_sset_count = be_get_sset_count,
