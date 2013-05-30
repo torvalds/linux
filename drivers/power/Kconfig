@@ -16,6 +16,12 @@ config POWER_SUPPLY_DEBUG
 	  Say Y here to enable debugging messages for power supply class
 	  and drivers.
 
+config AXP152
+	bool "AXP152 PMIC driver"
+	depends on REGULATOR
+	help
+	  Say Y here to enable support for the AXP152 PMIC chip
+
 config PDA_POWER
 	tristate "Generic PDA/phone power driver"
 	depends on !S390
