@@ -9,7 +9,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
