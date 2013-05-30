@@ -39,6 +39,8 @@ struct  intel_hw_status_page {
 
 struct intel_ring_hangcheck {
 	u32 seqno;
+	u32 acthd;
+	int score;
 };
 
 struct  intel_ring_buffer {

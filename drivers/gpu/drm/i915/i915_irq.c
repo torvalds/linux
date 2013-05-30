@@ -674,7 +674,6 @@ static void notify_ring(struct drm_device *dev,
 
 	wake_up_all(&ring->irq_queue);
 	if (i915_enable_hangcheck) {
-		dev_priv->gpu_error.hangcheck_count = 0;
 		mod_timer(&dev_priv->gpu_error.hangcheck_timer,
 			  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 	}
@@ -2459,61 +2458,76 @@ static bool i915_hangcheck_hung(struct drm_device *dev)
 
 /**
  * This is called when the chip hasn't reported back with completed
- * batchbuffers in a long time. The first time this is called we simply record
- * ACTHD. If ACTHD hasn't changed by the time the hangcheck timer elapses
- * again, we assume the chip is wedged and try to fix it.
+ * batchbuffers in a long time. We keep track per ring seqno progress and
+ * if there are no progress, hangcheck score for that ring is increased.
+ * Further, acthd is inspected to see if the ring is stuck. On stuck case
+ * we kick the ring. If we see no progress on three subsequent calls
+ * we assume chip is wedged and try to fix it by resetting the chip.
  */
 void i915_hangcheck_elapsed(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	bool err = false, idle;
 	int i;
-	u32 seqno[I915_NUM_RINGS];
-	bool work_done;
+	int busy_count = 0, rings_hung = 0;
+	bool stuck[I915_NUM_RINGS];
 
 	if (!i915_enable_hangcheck)
 		return;
 
-	idle = true;
 	for_each_ring(ring, dev_priv, i) {
-		seqno[i] = ring->get_seqno(ring, false);
-		idle &= i915_hangcheck_ring_idle(ring, seqno[i], &err);
-	}
+		u32 seqno, acthd;
+		bool idle, err = false;
 
-	/* If all work is done then ACTHD clearly hasn't advanced. */
-	if (idle) {
-		if (err) {
-			if (i915_hangcheck_hung(dev))
-				return;
+		seqno = ring->get_seqno(ring, false);
+		acthd = intel_ring_get_active_head(ring);
+		idle = i915_hangcheck_ring_idle(ring, seqno, &err);
+		stuck[i] = ring->hangcheck.acthd == acthd;
 
-			goto repeat;
+		if (idle) {
+			if (err)
+				ring->hangcheck.score += 2;
+			else
+				ring->hangcheck.score = 0;
+		} else {
+			busy_count++;
+
+			if (ring->hangcheck.seqno == seqno) {
+				ring->hangcheck.score++;
+
+				/* Kick ring if stuck*/
+				if (stuck[i])
+					i915_hangcheck_ring_hung(ring);
+			} else {
+				ring->hangcheck.score = 0;
+			}
 		}
 
-		dev_priv->gpu_error.hangcheck_count = 0;
-		return;
+		ring->hangcheck.seqno = seqno;
+		ring->hangcheck.acthd = acthd;
 	}
 
-	work_done = false;
 	for_each_ring(ring, dev_priv, i) {
-		if (ring->hangcheck.seqno != seqno[i]) {
-			work_done = true;
-			ring->hangcheck.seqno = seqno[i];
+		if (ring->hangcheck.score > 2) {
+			rings_hung++;
+			DRM_ERROR("%s: %s on %s 0x%x\n", ring->name,
+				  stuck[i] ? "stuck" : "no progress",
+				  stuck[i] ? "addr" : "seqno",
+				  stuck[i] ? ring->hangcheck.acthd & HEAD_ADDR :
+				  ring->hangcheck.seqno);
 		}
 	}
 
-	if (!work_done) {
-		if (i915_hangcheck_hung(dev))
-			return;
-	} else {
-		dev_priv->gpu_error.hangcheck_count = 0;
-	}
+	if (rings_hung)
+		return i915_handle_error(dev, true);
 
-repeat:
-	/* Reset timer case chip hangs without another request being added */
-	mod_timer(&dev_priv->gpu_error.hangcheck_timer,
-		  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
+	if (busy_count)
+		/* Reset timer case chip hangs without another request
+		 * being added */
+		mod_timer(&dev_priv->gpu_error.hangcheck_timer,
+			  round_jiffies_up(jiffies +
+					   DRM_I915_HANGCHECK_JIFFIES));
 }
 
 /* drm_dma.h hooks
