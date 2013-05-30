@@ -9,6 +9,7 @@
  */
 
 #include "skeleton.dtsi"
+#include <dt-bindings/dma/at91.h>
 #include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -63,7 +64,7 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf0000000 0x600>;
 				interrupts = <21 IRQ_TYPE_LEVEL_HIGH 0>;
-				dmas = <&dma0 2 0>;
+				dmas = <&dma0 2 AT91_DMA_CFG_PER_ID(0)>;
 				dma-names = "rxtx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0 &pinctrl_mmc0_dat1_3 &pinctrl_mmc0_dat4_7>;
@@ -116,8 +117,8 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf0014000 0x4000>;
 				interrupts = <18 IRQ_TYPE_LEVEL_HIGH 6>;
-				dmas = <&dma0 2 7>,
-				       <&dma0 2 8>;
+				dmas = <&dma0 2 AT91_DMA_CFG_PER_ID(7)>,
+				       <&dma0 2 AT91_DMA_CFG_PER_ID(8)>;
 				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2c0>;
@@ -130,8 +131,8 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf0018000 0x4000>;
 				interrupts = <19 IRQ_TYPE_LEVEL_HIGH 6>;
-				dmas = <&dma0 2 9>,
-				       <&dma0 2 10>;
+				dmas = <&dma0 2 AT91_DMA_CFG_PER_ID(9)>,
+				       <&dma0 2 AT91_DMA_CFG_PER_ID(10)>;
 				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2c1>;
@@ -178,7 +179,7 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf8000000 0x600>;
 				interrupts = <22 IRQ_TYPE_LEVEL_HIGH 0>;
-				dmas = <&dma1 2 0>;
+				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(0)>;
 				dma-names = "rxtx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc1_clk_cmd_dat0 &pinctrl_mmc1_dat1_3>;
@@ -191,7 +192,7 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf8004000 0x600>;
 				interrupts = <23 IRQ_TYPE_LEVEL_HIGH 0>;
-				dmas = <&dma1 2 1>;
+				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(1)>;
 				dma-names = "rxtx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc2_clk_cmd_dat0 &pinctrl_mmc2_dat1_3>;
@@ -309,8 +310,8 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf801c000 0x4000>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH 6>;
-				dmas = <&dma1 2 11>,
-				       <&dma1 2 12>;
+				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(11)>,
+				       <&dma1 2 AT91_DMA_CFG_PER_ID(12)>;
 				dma-names = "tx", "rx";
 				#address-cells = <1>;
 				#size-cells = <0>;
