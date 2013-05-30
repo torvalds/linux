@@ -346,3 +346,15 @@ void max77xxx_irq_exit(struct max77xxx_dev *max77xxx)
 	if (max77xxx->irq)
 		free_irq(max77xxx->irq, max77xxx);
 }
+
+int max77xxx_irq_resume(struct max77xxx_dev *max77xxx)
+{
+	/*
+	 * The IRQ that woke us up may still need to be ACK'ed on resume.
+	 * If it isn't ever ACK'ed, future IRQs may not be delivered.
+	 */
+	if (max77xxx->irq)
+		max77xxx_irq_thread(0, max77xxx);
+
+	return 0;
+}

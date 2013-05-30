@@ -211,6 +211,7 @@ static int max77xxx_resume(struct device *dev)
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(max77xxx->irq);
+	max77xxx_irq_resume(max77xxx);
 
 	return 0;
 }
