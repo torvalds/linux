@@ -342,7 +342,7 @@
 						regulator-name = "V-AMIC1";
 					};
 
-					ab8500_ldo_amamic2_reg: ab8500_ldo_amamic2 {
+					ab8500_ldo_anamic2_reg: ab8500_ldo_anamic2 {
 						regulator-name = "V-AMIC2";
 					};
 

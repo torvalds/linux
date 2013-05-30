@@ -500,8 +500,8 @@
 					};
 
 					// supply for v-amic2; VAMIC2 LDO; reuse constants for AMIC1
-					ab8500_ldo_amamic2_reg: ab8500_ldo_amamic2 {
-						regulator-compatible = "ab8500_ldo_amamic2";
+					ab8500_ldo_anamic2_reg: ab8500_ldo_anamic2 {
+						regulator-compatible = "ab8500_ldo_anamic2";
 					};
 
 					// supply for v-dmic; VDMIC LDO
