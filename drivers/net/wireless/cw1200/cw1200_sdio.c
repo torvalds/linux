@@ -334,6 +334,7 @@ static void cw1200_sdio_disconnect(struct sdio_func *func)
 	}
 }
 
+#ifdef CONFIG_PM
 static int cw1200_sdio_suspend(struct device *dev)
 {
 	int ret;
@@ -360,15 +361,18 @@ static const struct dev_pm_ops cw1200_pm_ops = {
 	.suspend = cw1200_sdio_suspend,
 	.resume = cw1200_sdio_resume,
 };
+#endif
 
 static struct sdio_driver sdio_driver = {
 	.name		= "cw1200_wlan_sdio",
 	.id_table	= cw1200_sdio_ids,
 	.probe		= cw1200_sdio_probe,
 	.remove		= cw1200_sdio_disconnect,
+#ifdef CONFIG_PM
 	.drv = {
 		.pm = &cw1200_pm_ops,
 	}
+#endif
 };
 
 /* Init Module function -> Called by insmod */

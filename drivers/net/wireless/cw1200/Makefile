@@ -8,9 +8,9 @@ cw1200_core-y := \
 		wsm.o \
 		sta.o \
 		scan.o \
-		pm.o \
 		debug.o
 cw1200_core-$(CONFIG_CW1200_ITP)	+= itp.o
+cw1200_core-$(CONFIG_PM)	+= pm.o
 
 # CFLAGS_sta.o += -DDEBUG
 

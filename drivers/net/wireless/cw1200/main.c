@@ -234,8 +234,10 @@ static const struct ieee80211_ops cw1200_ops = {
 	.get_stats		= cw1200_get_stats,
 	.ampdu_action		= cw1200_ampdu_action,
 	.flush			= cw1200_flush,
+#ifdef CONFIG_PM
 	.suspend		= cw1200_wow_suspend,
 	.resume			= cw1200_wow_resume,
+#endif
 	/* Intentionally not offloaded:					*/
 	/*.channel_switch	= cw1200_channel_switch,		*/
 	/*.remain_on_channel	= cw1200_remain_on_channel,		*/
@@ -292,10 +294,12 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 					  BIT(NL80211_IFTYPE_P2P_CLIENT) |
 					  BIT(NL80211_IFTYPE_P2P_GO);
 
+#ifdef CONFIG_PM
 	/* Support only for limited wowlan functionalities */
 	hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY |
 		WIPHY_WOWLAN_DISCONNECT;
 	hw->wiphy->wowlan.n_patterns = 0;
+#endif
 
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 
@@ -419,18 +423,22 @@ static int cw1200_register_common(struct ieee80211_hw *dev)
 		goto done;
 #endif
 
+#ifdef CONFIG_PM
 	err = cw1200_pm_init(&priv->pm_state, priv);
 	if (err) {
 		pr_err("Cannot init PM. (%d).\n",
 		       err);
 		return err;
 	}
+#endif
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
 		pr_err("Cannot register device (%d).\n",
 		       err);
+#ifdef CONFIG_PM
 		cw1200_pm_deinit(&priv->pm_state);
+#endif
 		return err;
 	}
 
@@ -482,7 +490,9 @@ static void cw1200_unregister_common(struct ieee80211_hw *dev)
 		cw1200_queue_deinit(&priv->tx_queue[i]);
 
 	cw1200_queue_stats_deinit(&priv->tx_queue_stats);
+#ifdef CONFIG_PM
 	cw1200_pm_deinit(&priv->pm_state);
+#endif
 }
 
 /* Clock is in KHz */
