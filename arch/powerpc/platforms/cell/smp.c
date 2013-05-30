@@ -142,7 +142,7 @@ static int smp_cell_cpu_bootable(unsigned int nr)
 	 * during boot if the user requests it.  Odd-numbered
 	 * cpus are assumed to be secondary threads.
 	 */
-	if (system_state < SYSTEM_RUNNING &&
+	if (system_state == SYSTEM_BOOTING &&
 	    cpu_has_feature(CPU_FTR_SMT) &&
 	    !smt_enabled_at_boot && cpu_thread_in_core(nr) != 0)
 		return 0;
