@@ -3120,7 +3120,12 @@ static int register_vga_switcheroo(struct azx *chip)
  */
 static int azx_free(struct azx *chip)
 {
+	struct pci_dev *pci = chip->pci;
 	int i;
+
+	if ((chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
+			&& chip->running)
+		pm_runtime_get_noresume(&pci->dev);
 
 	azx_del_card_list(chip);
 
@@ -3755,9 +3760,6 @@ static int azx_probe(struct pci_dev *pci,
 			goto out_free;
 	}
 
-	if (pci_dev_run_wake(pci))
-		pm_runtime_put_noidle(&pci->dev);
-
 	dev++;
 	complete_all(&chip->probe_wait);
 	return 0;
@@ -3770,6 +3772,7 @@ out_free:
 
 static int azx_probe_continue(struct azx *chip)
 {
+	struct pci_dev *pci = chip->pci;
 	int dev = chip->dev_index;
 	int err;
 
@@ -3817,6 +3820,8 @@ static int azx_probe_continue(struct azx *chip)
 	power_down_all_codecs(chip);
 	azx_notifier_register(chip);
 	azx_add_card_list(chip);
+	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
+		pm_runtime_put_noidle(&pci->dev);
 
 	return 0;
 
@@ -3828,9 +3833,6 @@ out_free:
 static void azx_remove(struct pci_dev *pci)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
-
-	if (pci_dev_run_wake(pci))
-		pm_runtime_get_noresume(&pci->dev);
 
 	if (card)
 		snd_card_free(card);
