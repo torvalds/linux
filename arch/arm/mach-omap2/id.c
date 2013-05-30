@@ -407,11 +407,18 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "1.0";
 			break;
 		case 1:
-		/* FALLTHROUGH */
-		default:
 			omap_revision = TI8168_REV_ES1_1;
 			cpu_rev = "1.1";
 			break;
+		case 2:
+			omap_revision = TI8168_REV_ES2_0;
+			cpu_rev = "2.0";
+			break;
+		case 3:
+			/* FALLTHROUGH */
+		default:
+			omap_revision = TI8168_REV_ES2_1;
+			cpu_rev = "2.1";
 		}
 		break;
 	case 0xb944:
