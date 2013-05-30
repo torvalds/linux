@@ -592,6 +592,22 @@ static const struct net_device_ops netxen_netdev_ops = {
 #endif
 };
 
+static inline bool netxen_function_zero(struct pci_dev *pdev)
+{
+	return (PCI_FUNC(pdev->devfn) == 0) ? true : false;
+}
+
+static inline void netxen_set_interrupt_mode(struct netxen_adapter *adapter,
+					     u32 mode)
+{
+	NXWR32(adapter, NETXEN_INTR_MODE_REG, mode);
+}
+
+static inline u32 netxen_get_interrupt_mode(struct netxen_adapter *adapter)
+{
+	return NXRD32(adapter, NETXEN_INTR_MODE_REG);
+}
+
 static void
 netxen_initialize_interrupt_registers(struct netxen_adapter *adapter)
 {
@@ -654,10 +670,11 @@ static int netxen_setup_msi_interrupts(struct netxen_adapter *adapter,
 		return 0;
 	}
 
+	dev_err(&pdev->dev, "Failed to acquire MSI-X/MSI interrupt vector\n");
 	return -EIO;
 }
 
-static void netxen_setup_intr(struct netxen_adapter *adapter)
+static int netxen_setup_intr(struct netxen_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	int num_msix;
@@ -674,11 +691,24 @@ static void netxen_setup_intr(struct netxen_adapter *adapter)
 	netxen_initialize_interrupt_registers(adapter);
 	netxen_set_msix_bit(pdev, 0);
 
-	if (!netxen_setup_msi_interrupts(adapter, num_msix))
-		return;
+	if (netxen_function_zero(pdev)) {
+		if (!netxen_setup_msi_interrupts(adapter, num_msix))
+			netxen_set_interrupt_mode(adapter, NETXEN_MSI_MODE);
+		else
+			netxen_set_interrupt_mode(adapter, NETXEN_INTX_MODE);
+	} else {
+		if (netxen_get_interrupt_mode(adapter) == NETXEN_MSI_MODE &&
+		    netxen_setup_msi_interrupts(adapter, num_msix)) {
+			dev_err(&pdev->dev, "Co-existence of MSI-X/MSI and INTx interrupts is not supported\n");
+			return -EIO;
+		}
+	}
 
-	adapter->msix_entries[0].vector = pdev->irq;
-	dev_info(&pdev->dev, "using legacy interrupts\n");
+	if (!NETXEN_IS_MSI_FAMILY(adapter)) {
+		adapter->msix_entries[0].vector = pdev->irq;
+		dev_info(&pdev->dev, "using legacy interrupts\n");
+	}
+	return 0;
 }
 
 static void
@@ -1525,7 +1555,13 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netxen_nic_clear_stats(adapter);
 
-	netxen_setup_intr(adapter);
+	err = netxen_setup_intr(adapter);
+
+	if (err) {
+		dev_err(&adapter->pdev->dev,
+			"Failed to setup interrupts, error = %d\n", err);
+		goto err_out_disable_msi;
+	}
 
 	err = netxen_setup_netdev(adapter, netdev);
 	if (err)
@@ -1613,7 +1649,7 @@ static void netxen_nic_remove(struct pci_dev *pdev)
 	clear_bit(__NX_RESETTING, &adapter->state);
 
 	netxen_teardown_intr(adapter);
-
+	netxen_set_interrupt_mode(adapter, 0);
 	netxen_remove_diag_entries(adapter);
 
 	netxen_cleanup_pci_map(adapter);
