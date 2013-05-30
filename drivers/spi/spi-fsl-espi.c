@@ -153,7 +153,7 @@ static int fsl_espi_setup_transfer(struct spi_device *spi,
 	cs->get_tx = mpc8xxx_spi_tx_buf_u32;
 	if (bits_per_word <= 8) {
 		cs->rx_shift = 8 - bits_per_word;
-	} else
+	} else {
 		cs->rx_shift = 16 - bits_per_word;
 		if (spi->mode & SPI_LSB_FIRST)
 			cs->get_tx = fsl_espi_tx_buf_lsb;
