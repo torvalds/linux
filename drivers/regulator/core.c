@@ -1539,7 +1539,10 @@ static void regulator_ena_gpio_free(struct regulator_dev *rdev)
 }
 
 /**
- * Balance enable_count of each GPIO and actual GPIO pin control.
+ * regulator_ena_gpio_ctrl - balance enable_count of each GPIO and actual GPIO pin control
+ * @rdev: regulator_dev structure
+ * @enable: enable GPIO at initial use?
+ *
  * GPIO is enabled in case of initial use. (enable_count is 0)
  * GPIO is disabled when it is not shared any more. (enable_count <= 1)
  */
