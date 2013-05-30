@@ -61,4 +61,18 @@ extern int __apply_microcode_amd(struct microcode_amd *mc_amd);
 extern int apply_microcode_amd(int cpu);
 extern enum ucode_state load_microcode_amd(int cpu, const u8 *data, size_t size);
 
+#ifdef CONFIG_MICROCODE_AMD_EARLY
+#ifdef CONFIG_X86_32
+#define MPB_MAX_SIZE PAGE_SIZE
+extern u8 __cpuinitdata amd_bsp_mpb[MPB_MAX_SIZE];
+#endif
+extern void __init load_ucode_amd_bsp(void);
+extern void __cpuinit load_ucode_amd_ap(void);
+extern int __init save_microcode_in_initrd_amd(void);
+#else
+static inline void __init load_ucode_amd_bsp(void) {}
+static inline void __cpuinit load_ucode_amd_ap(void) {}
+static inline int __init save_microcode_in_initrd_amd(void) { return -EINVAL; }
+#endif
+
 #endif /* _ASM_X86_MICROCODE_AMD_H */

@@ -126,9 +126,20 @@ static struct ucode_patch *find_patch(unsigned int cpu)
 static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	struct ucode_patch *p;
 
 	csig->sig = cpuid_eax(0x00000001);
 	csig->rev = c->microcode;
+
+	/*
+	 * a patch could have been loaded early, set uci->mc so that
+	 * mc_bp_resume() can call apply_microcode()
+	 */
+	p = find_patch(cpu);
+	if (p && (p->patch_id == csig->rev))
+		uci->mc = p->data;
+
 	pr_info("CPU%d: patch_level=0x%08x\n", cpu, csig->rev);
 
 	return 0;
@@ -373,6 +384,17 @@ enum ucode_state load_microcode_amd(int cpu, const u8 *data, size_t size)
 	if (ret != UCODE_OK)
 		cleanup();
 
+#if defined(CONFIG_MICROCODE_AMD_EARLY) && defined(CONFIG_X86_32)
+	/* save BSP's matching patch for early load */
+	if (cpu_data(cpu).cpu_index == boot_cpu_data.cpu_index) {
+		struct ucode_patch *p = find_patch(cpu);
+		if (p) {
+			memset(amd_bsp_mpb, 0, MPB_MAX_SIZE);
+			memcpy(amd_bsp_mpb, p->data, min_t(u32, ksize(p->data),
+							   MPB_MAX_SIZE));
+		}
+	}
+#endif
 	return ret;
 }
 

@@ -18,6 +18,7 @@
  */
 #include <linux/module.h>
 #include <asm/microcode_intel.h>
+#include <asm/microcode_amd.h>
 #include <asm/processor.h>
 
 #define QCHAR(a, b, c, d) ((a) + ((b) << 8) + ((c) << 16) + ((d) << 24))
@@ -81,8 +82,18 @@ void __init load_ucode_bsp(void)
 	vendor = x86_vendor();
 	x86 = x86_family();
 
-	if (vendor == X86_VENDOR_INTEL && x86 >= 6)
-		load_ucode_intel_bsp();
+	switch (vendor) {
+	case X86_VENDOR_INTEL:
+		if (x86 >= 6)
+			load_ucode_intel_bsp();
+		break;
+	case X86_VENDOR_AMD:
+		if (x86 >= 0x10)
+			load_ucode_amd_bsp();
+		break;
+	default:
+		break;
+	}
 }
 
 void __cpuinit load_ucode_ap(void)
@@ -95,16 +106,36 @@ void __cpuinit load_ucode_ap(void)
 	vendor = x86_vendor();
 	x86 = x86_family();
 
-	if (vendor == X86_VENDOR_INTEL && x86 >= 6)
-		load_ucode_intel_ap();
+	switch (vendor) {
+	case X86_VENDOR_INTEL:
+		if (x86 >= 6)
+			load_ucode_intel_ap();
+		break;
+	case X86_VENDOR_AMD:
+		if (x86 >= 0x10)
+			load_ucode_amd_ap();
+		break;
+	default:
+		break;
+	}
 }
 
 int __init save_microcode_in_initrd(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
-	if (c->x86_vendor == X86_VENDOR_INTEL && c->x86 >= 6)
-		return save_microcode_in_initrd_intel();
+	switch (c->x86_vendor) {
+	case X86_VENDOR_INTEL:
+		if (c->x86 >= 6)
+			save_microcode_in_initrd_intel();
+		break;
+	case X86_VENDOR_AMD:
+		if (c->x86 >= 0x10)
+			save_microcode_in_initrd_amd();
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }
