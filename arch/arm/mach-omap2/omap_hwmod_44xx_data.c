@@ -21,7 +21,6 @@
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/power/smartreflex.h>
-#include <linux/platform_data/omap_ocp2scp.h>
 #include <linux/i2c-omap.h>
 
 #include <linux/omap-dma.h>
@@ -2695,25 +2694,6 @@ static struct omap_hwmod_class omap44xx_ocp2scp_hwmod_class = {
 	.sysc	= &omap44xx_ocp2scp_sysc,
 };
 
-/* ocp2scp dev_attr */
-static struct resource omap44xx_usb_phy_and_pll_addrs[] = {
-	{
-		.name		= "usb_phy",
-		.start		= 0x4a0ad080,
-		.end		= 0x4a0ae000,
-		.flags		= IORESOURCE_MEM,
-	},
-	{ }
-};
-
-static struct omap_ocp2scp_dev ocp2scp_dev_attr[] = {
-	{
-		.drv_name       = "omap-usb2",
-		.res		= omap44xx_usb_phy_and_pll_addrs,
-	},
-	{ }
-};
-
 /* ocp2scp_usb_phy */
 static struct omap_hwmod omap44xx_ocp2scp_usb_phy_hwmod = {
 	.name		= "ocp2scp_usb_phy",
@@ -2737,7 +2717,6 @@ static struct omap_hwmod omap44xx_ocp2scp_usb_phy_hwmod = {
 			.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
-	.dev_attr	= ocp2scp_dev_attr,
 };
 
 /*
