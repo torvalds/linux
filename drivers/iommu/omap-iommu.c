@@ -833,16 +833,15 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 	iopgd = iopgd_offset(obj, da);
 
 	if (!iopgd_is_table(*iopgd)) {
-		dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p "
-			"*pgd:px%08x\n", obj->name, errs, da, iopgd, *iopgd);
+		dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p *pgd:px%08x\n",
+				obj->name, errs, da, iopgd, *iopgd);
 		return IRQ_NONE;
 	}
 
 	iopte = iopte_offset(iopgd, da);
 
-	dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p *pgd:0x%08x "
-		"pte:0x%p *pte:0x%08x\n", obj->name, errs, da, iopgd, *iopgd,
-		iopte, *iopte);
+	dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p *pgd:0x%08x pte:0x%p *pte:0x%08x\n",
+			obj->name, errs, da, iopgd, *iopgd, iopte, *iopte);
 
 	return IRQ_NONE;
 }
