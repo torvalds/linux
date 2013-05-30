@@ -176,22 +176,4 @@ static struct platform_driver bcma_sflash_driver = {
  * Init
  **************************************************/
 
-static int __init bcm47xxsflash_init(void)
-{
-	int err;
-
-	err = platform_driver_register(&bcma_sflash_driver);
-	if (err)
-		pr_err("Failed to register BCMA serial flash driver: %d\n",
-		       err);
-
-	return err;
-}
-
-static void __exit bcm47xxsflash_exit(void)
-{
-	platform_driver_unregister(&bcma_sflash_driver);
-}
-
-module_init(bcm47xxsflash_init);
-module_exit(bcm47xxsflash_exit);
+module_platform_driver(bcma_sflash_driver);
