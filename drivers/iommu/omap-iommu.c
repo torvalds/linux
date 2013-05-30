@@ -1235,14 +1235,16 @@ static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
 		else if (iopte_is_large(*pte))
 			ret = omap_iommu_translate(*pte, da, IOLARGE_MASK);
 		else
-			dev_err(dev, "bogus pte 0x%x, da 0x%lx", *pte, da);
+			dev_err(dev, "bogus pte 0x%x, da 0x%llx", *pte,
+							(unsigned long long)da);
 	} else {
 		if (iopgd_is_section(*pgd))
 			ret = omap_iommu_translate(*pgd, da, IOSECTION_MASK);
 		else if (iopgd_is_super(*pgd))
 			ret = omap_iommu_translate(*pgd, da, IOSUPER_MASK);
 		else
-			dev_err(dev, "bogus pgd 0x%x, da 0x%lx", *pgd, da);
+			dev_err(dev, "bogus pgd 0x%x, da 0x%llx", *pgd,
+							(unsigned long long)da);
 	}
 
 	return ret;
