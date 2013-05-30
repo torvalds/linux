@@ -1494,6 +1494,24 @@ static const char *aif1dac_text[] = {
 	"AIF1DACDAT", "AIF3DACDAT",
 };
 
+static const char *loopback_text[] = {
+	"None", "ADCDAT",
+};
+
+static const struct soc_enum aif1_loopback_enum =
+	SOC_ENUM_SINGLE(WM8994_AIF1_CONTROL_2, WM8994_AIF1_LOOPBACK_SHIFT, 2,
+			loopback_text);
+
+static const struct snd_kcontrol_new aif1_loopback =
+	SOC_DAPM_ENUM("AIF1 Loopback", aif1_loopback_enum);
+
+static const struct soc_enum aif2_loopback_enum =
+	SOC_ENUM_SINGLE(WM8994_AIF2_CONTROL_2, WM8994_AIF2_LOOPBACK_SHIFT, 2,
+			loopback_text);
+
+static const struct snd_kcontrol_new aif2_loopback =
+	SOC_DAPM_ENUM("AIF2 Loopback", aif2_loopback_enum);
+
 static const struct soc_enum aif1dac_enum =
 	SOC_ENUM_SINGLE(WM8994_POWER_MANAGEMENT_6, 0, 2, aif1dac_text);
 
@@ -1740,6 +1758,9 @@ SND_SOC_DAPM_ADC("DMIC1R", NULL, WM8994_POWER_MANAGEMENT_4, 2, 0),
 SND_SOC_DAPM_ADC("ADCL", NULL, SND_SOC_NOPM, 1, 0),
 SND_SOC_DAPM_ADC("ADCR", NULL, SND_SOC_NOPM, 0, 0),
 
+SND_SOC_DAPM_MUX("AIF1 Loopback", SND_SOC_NOPM, 0, 0, &aif1_loopback),
+SND_SOC_DAPM_MUX("AIF2 Loopback", SND_SOC_NOPM, 0, 0, &aif2_loopback),
+
 SND_SOC_DAPM_POST("Debug log", post_ev),
 };
 
@@ -1871,9 +1892,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{ "AIF1DAC2L", NULL, "AIF1DAC Mux" },
 	{ "AIF1DAC2R", NULL, "AIF1DAC Mux" },
 
-	{ "AIF1DAC Mux", "AIF1DACDAT", "AIF1DACDAT" },
+	{ "AIF1DAC Mux", "AIF1DACDAT", "AIF1 Loopback" },
 	{ "AIF1DAC Mux", "AIF3DACDAT", "AIF3DACDAT" },
-	{ "AIF2DAC Mux", "AIF2DACDAT", "AIF2DACDAT" },
+	{ "AIF2DAC Mux", "AIF2DACDAT", "AIF2 Loopback" },
 	{ "AIF2DAC Mux", "AIF3DACDAT", "AIF3DACDAT" },
 	{ "AIF2ADC Mux", "AIF2ADCDAT", "AIF2ADCL" },
 	{ "AIF2ADC Mux", "AIF2ADCDAT", "AIF2ADCR" },
@@ -1923,6 +1944,12 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{ "AIF3ADCDAT", "AIF2ADCDAT", "AIF2ADCR" },
 	{ "AIF3ADCDAT", "AIF2DACDAT", "AIF2DACL" },
 	{ "AIF3ADCDAT", "AIF2DACDAT", "AIF2DACR" },
+
+	/* Loopback */
+	{ "AIF1 Loopback", "ADCDAT", "AIF1ADCDAT" },
+	{ "AIF1 Loopback", "None", "AIF1DACDAT" },
+	{ "AIF2 Loopback", "ADCDAT", "AIF2ADCDAT" },
+	{ "AIF2 Loopback", "None", "AIF2DACDAT" },
 
 	/* Sidetone */
 	{ "Left Sidetone", "ADC/DMIC1", "ADCL Mux" },
