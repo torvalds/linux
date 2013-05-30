@@ -117,11 +117,9 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 	struct bcm47xxsflash *b47s;
 	int err;
 
-	b47s = kzalloc(sizeof(*b47s), GFP_KERNEL);
-	if (!b47s) {
-		err = -ENOMEM;
-		goto out;
-	}
+	b47s = devm_kzalloc(&pdev->dev, sizeof(*b47s), GFP_KERNEL);
+	if (!b47s)
+		return -ENOMEM;
 	sflash->priv = b47s;
 
 	b47s->bcma_cc = container_of(sflash, struct bcma_drv_cc, sflash);
@@ -146,18 +144,13 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 	err = mtd_device_parse_register(&b47s->mtd, probes, NULL, NULL, 0);
 	if (err) {
 		pr_err("Failed to register MTD device: %d\n", err);
-		goto err_dev_reg;
+		return err;
 	}
 
 	if (bcm47xxsflash_poll(b47s, HZ / 10))
 		pr_warn("Serial flash busy\n");
 
 	return 0;
-
-err_dev_reg:
-	kfree(&b47s->mtd);
-out:
-	return err;
 }
 
 static int bcm47xxsflash_bcma_remove(struct platform_device *pdev)
@@ -166,7 +159,6 @@ static int bcm47xxsflash_bcma_remove(struct platform_device *pdev)
 	struct bcm47xxsflash *b47s = sflash->priv;
 
 	mtd_device_unregister(&b47s->mtd);
-	kfree(b47s);
 
 	return 0;
 }
