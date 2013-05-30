@@ -195,6 +195,7 @@ static struct notifier_block kvm_timer_cpu_nb = {
 
 static const struct of_device_id arch_timer_of_match[] = {
 	{ .compatible	= "arm,armv7-timer",	},
+	{ .compatible	= "arm,armv8-timer",	},
 	{},
 };
 
