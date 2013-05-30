@@ -104,7 +104,7 @@ static void mangle_contents(struct sk_buff *skb,
 	/* move post-replacement */
 	memmove(data + match_offset + rep_len,
 		data + match_offset + match_len,
-		skb->tail - (skb->network_header + dataoff +
+		skb_tail_pointer(skb) - (skb_network_header(skb) + dataoff +
 			     match_offset + match_len));
 
 	/* insert data from buffer */
