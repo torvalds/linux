@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/clk.h>
 #include <linux/interrupt.h>
 
 #include <linux/dma-mapping.h>
@@ -268,6 +269,7 @@ static irqreturn_t jz4740_dma_irq(int irq, void *dev_id)
 
 static int jz4740_dma_init(void)
 {
+	struct clk *clk;
 	unsigned int ret;
 
 	jz4740_dma_base = ioremap(JZ4740_DMAC_BASE_ADDR, 0x400);
@@ -277,11 +279,29 @@ static int jz4740_dma_init(void)
 
 	spin_lock_init(&jz4740_dma_lock);
 
+	clk = clk_get(NULL, "dma");
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		printk(KERN_ERR "JZ4740 DMA: Failed to request clock: %d\n",
+				ret);
+		goto err_iounmap;
+	}
+
 	ret = request_irq(JZ4740_IRQ_DMAC, jz4740_dma_irq, 0, "DMA", NULL);
-
-	if (ret)
+	if (ret) {
 		printk(KERN_ERR "JZ4740 DMA: Failed to request irq: %d\n", ret);
+		goto err_clkput;
+	}
 
+	clk_prepare_enable(clk);
+
+	return 0;
+
+err_clkput:
+	clk_put(clk);
+
+err_iounmap:
+	iounmap(jz4740_dma_base);
 	return ret;
 }
 arch_initcall(jz4740_dma_init);
