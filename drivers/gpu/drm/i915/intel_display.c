@@ -5868,26 +5868,8 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	int num_connectors = 0;
-	bool is_cpu_edp = false;
-	struct intel_encoder *encoder;
 	int ret;
-
-	for_each_encoder_on_crtc(dev, crtc, encoder) {
-		switch (encoder->type) {
-		case INTEL_OUTPUT_EDP:
-			if (enc_to_dig_port(&encoder->base)->port == PORT_A)
-				is_cpu_edp = true;
-			break;
-		}
-
-		num_connectors++;
-	}
-
-	WARN(num_connectors != 1, "%d connectors attached to pipe %c\n",
-	     num_connectors, pipe_name(pipe));
 
 	if (!intel_ddi_pll_mode_set(crtc))
 		return -EINVAL;
@@ -7568,28 +7550,6 @@ static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.load_lut = intel_crtc_load_lut,
 };
 
-bool intel_encoder_check_is_cloned(struct intel_encoder *encoder)
-{
-	struct intel_encoder *other_encoder;
-	struct drm_crtc *crtc = &encoder->new_crtc->base;
-
-	if (WARN_ON(!crtc))
-		return false;
-
-	list_for_each_entry(other_encoder,
-			    &crtc->dev->mode_config.encoder_list,
-			    base.head) {
-
-		if (&other_encoder->new_crtc->base != crtc ||
-		    encoder == other_encoder)
-			continue;
-		else
-			return true;
-	}
-
-	return false;
-}
-
 static bool intel_encoder_crtc_ok(struct drm_encoder *encoder,
 				  struct drm_crtc *crtc)
 {
@@ -7773,6 +7733,25 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	DRM_DEBUG_KMS("ips: %i\n", pipe_config->ips_enabled);
 }
 
+static bool check_encoder_cloning(struct drm_crtc *crtc)
+{
+	int num_encoders = 0;
+	bool uncloneable_encoders = false;
+	struct intel_encoder *encoder;
+
+	list_for_each_entry(encoder, &crtc->dev->mode_config.encoder_list,
+			    base.head) {
+		if (&encoder->new_crtc->base != crtc)
+			continue;
+
+		num_encoders++;
+		if (!encoder->cloneable)
+			uncloneable_encoders = true;
+	}
+
+	return !(num_encoders > 1 && uncloneable_encoders);
+}
+
 static struct intel_crtc_config *
 intel_modeset_pipe_config(struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb,
@@ -7784,6 +7763,11 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	struct intel_crtc_config *pipe_config;
 	int plane_bpp, ret = -EINVAL;
 	bool retry = true;
+
+	if (!check_encoder_cloning(crtc)) {
+		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
+		return ERR_PTR(-EINVAL);
+	}
 
 	pipe_config = kzalloc(sizeof(*pipe_config), GFP_KERNEL);
 	if (!pipe_config)

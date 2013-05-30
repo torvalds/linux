@@ -264,9 +264,6 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 		return false;
 	}
 
-	if (intel_encoder_check_is_cloned(&lvds_encoder->base))
-		return false;
-
 	if ((I915_READ(lvds_encoder->reg) & LVDS_A3_POWER_MASK) ==
 	    LVDS_A3_POWER_UP)
 		lvds_bpp = 8*3;
