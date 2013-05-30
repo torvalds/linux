@@ -117,6 +117,58 @@ static int batadv_is_valid_iface(const struct net_device *net_dev)
 	return 1;
 }
 
+/**
+ * batadv_is_wifi_netdev - check if the given net_device struct is a wifi
+ *  interface
+ * @net_device: the device to check
+ *
+ * Returns true if the net device is a 802.11 wireless device, false otherwise.
+ */
+static bool batadv_is_wifi_netdev(struct net_device *net_device)
+{
+#ifdef CONFIG_WIRELESS_EXT
+	/* pre-cfg80211 drivers have to implement WEXT, so it is possible to
+	 * check for wireless_handlers != NULL
+	 */
+	if (net_device->wireless_handlers)
+		return true;
+#endif
+
+	/* cfg80211 drivers have to set ieee80211_ptr */
+	if (net_device->ieee80211_ptr)
+		return true;
+
+	return false;
+}
+
+/**
+ * batadv_is_wifi_iface - check if the given interface represented by ifindex
+ *  is a wifi interface
+ * @ifindex: interface index to check
+ *
+ * Returns true if the interface represented by ifindex is a 802.11 wireless
+ * device, false otherwise.
+ */
+bool batadv_is_wifi_iface(int ifindex)
+{
+	struct net_device *net_device = NULL;
+	bool ret = false;
+
+	if (ifindex == BATADV_NULL_IFINDEX)
+		goto out;
+
+	net_device = dev_get_by_index(&init_net, ifindex);
+	if (!net_device)
+		goto out;
+
+	ret = batadv_is_wifi_netdev(net_device);
+
+out:
+	if (net_device)
+		dev_put(net_device);
+	return ret;
+}
+
 static struct batadv_hard_iface *
 batadv_hardif_get_active(const struct net_device *soft_iface)
 {
@@ -525,7 +577,7 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 
 	dev_hold(net_dev);
 
-	hard_iface = kmalloc(sizeof(*hard_iface), GFP_ATOMIC);
+	hard_iface = kzalloc(sizeof(*hard_iface), GFP_ATOMIC);
 	if (!hard_iface)
 		goto release_dev;
 
@@ -541,17 +593,15 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	INIT_WORK(&hard_iface->cleanup_work,
 		  batadv_hardif_remove_interface_finish);
 
+	hard_iface->num_bcasts = BATADV_NUM_BCASTS_DEFAULT;
+	if (batadv_is_wifi_netdev(net_dev))
+		hard_iface->num_bcasts = BATADV_NUM_BCASTS_WIRELESS;
+
 	/* extra reference for return */
 	atomic_set(&hard_iface->refcount, 2);
 
 	batadv_check_known_mac_addr(hard_iface->net_dev);
 	list_add_tail_rcu(&hard_iface->list, &batadv_hardif_list);
-
-	/* This can't be called via a bat_priv callback because
-	 * we have no bat_priv yet.
-	 */
-	atomic_set(&hard_iface->bat_iv.ogm_seqno, 1);
-	hard_iface->bat_iv.ogm_buff = NULL;
 
 	return hard_iface;
 
@@ -655,38 +705,6 @@ out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
 	return NOTIFY_DONE;
-}
-
-/* This function returns true if the interface represented by ifindex is a
- * 802.11 wireless device
- */
-bool batadv_is_wifi_iface(int ifindex)
-{
-	struct net_device *net_device = NULL;
-	bool ret = false;
-
-	if (ifindex == BATADV_NULL_IFINDEX)
-		goto out;
-
-	net_device = dev_get_by_index(&init_net, ifindex);
-	if (!net_device)
-		goto out;
-
-#ifdef CONFIG_WIRELESS_EXT
-	/* pre-cfg80211 drivers have to implement WEXT, so it is possible to
-	 * check for wireless_handlers != NULL
-	 */
-	if (net_device->wireless_handlers)
-		ret = true;
-	else
-#endif
-		/* cfg80211 drivers have to set ieee80211_ptr */
-		if (net_device->ieee80211_ptr)
-			ret = true;
-out:
-	if (net_device)
-		dev_put(net_device);
-	return ret;
 }
 
 struct notifier_block batadv_hard_if_notifier = {
