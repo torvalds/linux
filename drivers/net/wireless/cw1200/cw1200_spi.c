@@ -468,17 +468,4 @@ static struct spi_driver spi_driver = {
 	},
 };
 
-/* Init Module function -> Called by insmod */
-static int __init cw1200_spi_init(void)
-{
-	return spi_register_driver(&spi_driver);
-}
-
-/* Called at Driver Unloading */
-static void __exit cw1200_spi_exit(void)
-{
-	spi_unregister_driver(&spi_driver);
-}
-
-module_init(cw1200_spi_init);
-module_exit(cw1200_spi_exit);
+module_spi_driver(spi_driver);
