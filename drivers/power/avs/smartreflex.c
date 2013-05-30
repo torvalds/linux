@@ -449,11 +449,16 @@ int sr_disable_errgen(struct voltagedomain *voltdm)
 		return -EINVAL;
 	}
 
-	/* Disable the interrupts of ERROR module */
-	sr_modify_reg(sr, errconfig_offs, vpboundint_en | vpboundint_st, 0);
-
 	/* Disable the Sensor and errorgen */
 	sr_modify_reg(sr, SRCONFIG, SRCONFIG_SENENABLE | SRCONFIG_ERRGEN_EN, 0);
+
+	/*
+	 * Disable the interrupts of ERROR module
+	 * NOTE: modify is a read, modify,write - an implicit OCP barrier
+	 * which is required is present here - sequencing is critical
+	 * at this point (after errgen is disabled, vpboundint disable)
+	 */
+	sr_modify_reg(sr, errconfig_offs, vpboundint_en | vpboundint_st, 0);
 
 	return 0;
 }
