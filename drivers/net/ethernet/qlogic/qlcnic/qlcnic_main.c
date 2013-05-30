@@ -3232,7 +3232,6 @@ static int qlcnic_attach_func(struct pci_dev *pdev)
 	if (err)
 		return err;
 
-	pci_set_power_state(pdev, PCI_D0);
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
 
