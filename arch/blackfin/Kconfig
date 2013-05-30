@@ -317,6 +317,14 @@ config BF53x
 	depends on (BF531 || BF532 || BF533 || BF534 || BF536 || BF537)
 	default y
 
+config GPIO_ADI
+	def_bool y
+	depends on (BF51x || BF52x || BF53x || BF538 || BF539 || BF561)
+
+config PINCTRL
+	def_bool y
+	depends on BF54x || BF60x
+
 config MEM_MT48LC64M4A2FB_7E
 	bool
 	depends on (BFIN533_STAMP)

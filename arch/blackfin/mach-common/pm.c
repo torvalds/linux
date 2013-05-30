@@ -27,7 +27,7 @@ struct bfin_cpu_pm_fns *bfin_cpu_pm;
 
 void bfin_pm_suspend_standby_enter(void)
 {
-#ifndef CONFIG_BF60x
+#if !BFIN_GPIO_PINT
 	bfin_pm_standby_setup();
 #endif
 
@@ -41,7 +41,7 @@ void bfin_pm_suspend_standby_enter(void)
 # endif
 #endif
 
-#ifndef CONFIG_BF60x
+#if !BFIN_GPIO_PINT
 	bfin_pm_standby_restore();
 #endif
 
@@ -128,6 +128,7 @@ static void flushinv_all_dcache(void)
 					if ((status & 0x3) != 0x3)
 						continue;
 
+
 					/* construct the address using the tag */
 					addr = (status & 0xFFFFC800) | (subbank << 12) | (set << 5);
 
@@ -170,10 +171,8 @@ int bfin_pm_suspend_mem_enter(void)
 		return ret;
 	}
 
+#ifdef CONFIG_GPIO_ADI
 	bfin_gpio_pm_hibernate_suspend();
-
-#if BFIN_GPIO_PINT
-	bfin_pint_suspend();
 #endif
 
 #if defined(CONFIG_BFIN_EXTMEM_WRITEBACK) || defined(CONFIG_BFIN_L2_WRITEBACK)
@@ -194,11 +193,9 @@ int bfin_pm_suspend_mem_enter(void)
 	_enable_icplb();
 	_enable_dcplb();
 
-#if BFIN_GPIO_PINT
-	bfin_pint_resume();
-#endif
-
+#ifdef CONFIG_GPIO_ADI
 	bfin_gpio_pm_hibernate_restore();
+#endif
 	blackfin_dma_resume();
 
 	kfree(memptr);
