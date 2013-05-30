@@ -494,7 +494,7 @@
 						regulator-compatible = "ab8500_ldo_audio";
 					};
 
-					// supply for v-anamic1 VAMic1-LDO
+					// supply for v-anamic1 VAMIC1 LDO
 					ab8500_ldo_anamic1_reg: ab8500_ldo_anamic1 {
 						regulator-compatible = "ab8500_ldo_anamic1";
 					};
