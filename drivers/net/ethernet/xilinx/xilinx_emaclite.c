@@ -2,9 +2,9 @@
  * Xilinx EmacLite Linux driver for the Xilinx Ethernet MAC Lite device.
  *
  * This is a new flat driver which is based on the original emac_lite
- * driver from John Williams <john.williams@petalogix.com>.
+ * driver from John Williams <john.williams@xilinx.com>.
  *
- * 2007-2009 (c) Xilinx, Inc.
+ * 2007 - 2013 (c) Xilinx, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
