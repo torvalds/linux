@@ -22,12 +22,84 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/irq.h>
+#include <linux/clk.h>
 
 #include <asm/mach-jz4740/dma.h>
 
 #include "virt-dma.h"
 
 #define JZ_DMA_NR_CHANS 6
+
+#define JZ_REG_DMA_SRC_ADDR(x)		(0x00 + (x) * 0x20)
+#define JZ_REG_DMA_DST_ADDR(x)		(0x04 + (x) * 0x20)
+#define JZ_REG_DMA_TRANSFER_COUNT(x)	(0x08 + (x) * 0x20)
+#define JZ_REG_DMA_REQ_TYPE(x)		(0x0C + (x) * 0x20)
+#define JZ_REG_DMA_STATUS_CTRL(x)	(0x10 + (x) * 0x20)
+#define JZ_REG_DMA_CMD(x)		(0x14 + (x) * 0x20)
+#define JZ_REG_DMA_DESC_ADDR(x)		(0x18 + (x) * 0x20)
+
+#define JZ_REG_DMA_CTRL			0x300
+#define JZ_REG_DMA_IRQ			0x304
+#define JZ_REG_DMA_DOORBELL		0x308
+#define JZ_REG_DMA_DOORBELL_SET		0x30C
+
+#define JZ_DMA_STATUS_CTRL_NO_DESC		BIT(31)
+#define JZ_DMA_STATUS_CTRL_DESC_INV		BIT(6)
+#define JZ_DMA_STATUS_CTRL_ADDR_ERR		BIT(4)
+#define JZ_DMA_STATUS_CTRL_TRANSFER_DONE	BIT(3)
+#define JZ_DMA_STATUS_CTRL_HALT			BIT(2)
+#define JZ_DMA_STATUS_CTRL_COUNT_TERMINATE	BIT(1)
+#define JZ_DMA_STATUS_CTRL_ENABLE		BIT(0)
+
+#define JZ_DMA_CMD_SRC_INC			BIT(23)
+#define JZ_DMA_CMD_DST_INC			BIT(22)
+#define JZ_DMA_CMD_RDIL_MASK			(0xf << 16)
+#define JZ_DMA_CMD_SRC_WIDTH_MASK		(0x3 << 14)
+#define JZ_DMA_CMD_DST_WIDTH_MASK		(0x3 << 12)
+#define JZ_DMA_CMD_INTERVAL_LENGTH_MASK		(0x7 << 8)
+#define JZ_DMA_CMD_BLOCK_MODE			BIT(7)
+#define JZ_DMA_CMD_DESC_VALID			BIT(4)
+#define JZ_DMA_CMD_DESC_VALID_MODE		BIT(3)
+#define JZ_DMA_CMD_VALID_IRQ_ENABLE		BIT(2)
+#define JZ_DMA_CMD_TRANSFER_IRQ_ENABLE		BIT(1)
+#define JZ_DMA_CMD_LINK_ENABLE			BIT(0)
+
+#define JZ_DMA_CMD_FLAGS_OFFSET 22
+#define JZ_DMA_CMD_RDIL_OFFSET 16
+#define JZ_DMA_CMD_SRC_WIDTH_OFFSET 14
+#define JZ_DMA_CMD_DST_WIDTH_OFFSET 12
+#define JZ_DMA_CMD_TRANSFER_SIZE_OFFSET 8
+#define JZ_DMA_CMD_MODE_OFFSET 7
+
+#define JZ_DMA_CTRL_PRIORITY_MASK		(0x3 << 8)
+#define JZ_DMA_CTRL_HALT			BIT(3)
+#define JZ_DMA_CTRL_ADDRESS_ERROR		BIT(2)
+#define JZ_DMA_CTRL_ENABLE			BIT(0)
+
+enum jz4740_dma_width {
+	JZ4740_DMA_WIDTH_32BIT	= 0,
+	JZ4740_DMA_WIDTH_8BIT	= 1,
+	JZ4740_DMA_WIDTH_16BIT	= 2,
+};
+
+enum jz4740_dma_transfer_size {
+	JZ4740_DMA_TRANSFER_SIZE_4BYTE	= 0,
+	JZ4740_DMA_TRANSFER_SIZE_1BYTE	= 1,
+	JZ4740_DMA_TRANSFER_SIZE_2BYTE	= 2,
+	JZ4740_DMA_TRANSFER_SIZE_16BYTE = 3,
+	JZ4740_DMA_TRANSFER_SIZE_32BYTE = 4,
+};
+
+enum jz4740_dma_flags {
+	JZ4740_DMA_SRC_AUTOINC = 0x2,
+	JZ4740_DMA_DST_AUTOINC = 0x1,
+};
+
+enum jz4740_dma_mode {
+	JZ4740_DMA_MODE_SINGLE	= 0,
+	JZ4740_DMA_MODE_BLOCK	= 1,
+};
 
 struct jz4740_dma_sg {
 	dma_addr_t addr;
@@ -46,9 +118,10 @@ struct jz4740_dma_desc {
 
 struct jz4740_dmaengine_chan {
 	struct virt_dma_chan vchan;
-	struct jz4740_dma_chan *jz_chan;
+	unsigned int id;
 
 	dma_addr_t fifo_addr;
+	unsigned int transfer_shift;
 
 	struct jz4740_dma_desc *desc;
 	unsigned int next_sg;
@@ -56,9 +129,18 @@ struct jz4740_dmaengine_chan {
 
 struct jz4740_dma_dev {
 	struct dma_device ddev;
+	void __iomem *base;
+	struct clk *clk;
 
 	struct jz4740_dmaengine_chan chan[JZ_DMA_NR_CHANS];
 };
+
+static struct jz4740_dma_dev *jz4740_dma_chan_get_dev(
+	struct jz4740_dmaengine_chan *chan)
+{
+	return container_of(chan->vchan.chan.device, struct jz4740_dma_dev,
+		ddev);
+}
 
 static struct jz4740_dmaengine_chan *to_jz4740_dma_chan(struct dma_chan *c)
 {
@@ -68,6 +150,29 @@ static struct jz4740_dmaengine_chan *to_jz4740_dma_chan(struct dma_chan *c)
 static struct jz4740_dma_desc *to_jz4740_dma_desc(struct virt_dma_desc *vdesc)
 {
 	return container_of(vdesc, struct jz4740_dma_desc, vdesc);
+}
+
+static inline uint32_t jz4740_dma_read(struct jz4740_dma_dev *dmadev,
+	unsigned int reg)
+{
+	return readl(dmadev->base + reg);
+}
+
+static inline void jz4740_dma_write(struct jz4740_dma_dev *dmadev,
+	unsigned reg, uint32_t val)
+{
+	writel(val, dmadev->base + reg);
+}
+
+static inline void jz4740_dma_write_mask(struct jz4740_dma_dev *dmadev,
+	unsigned int reg, uint32_t val, uint32_t mask)
+{
+	uint32_t tmp;
+
+	tmp = jz4740_dma_read(dmadev, reg);
+	tmp &= ~mask;
+	tmp |= val;
+	jz4740_dma_write(dmadev, reg, tmp);
 }
 
 static struct jz4740_dma_desc *jz4740_dma_alloc_desc(unsigned int num_sgs)
@@ -108,30 +213,60 @@ static int jz4740_dma_slave_config(struct dma_chan *c,
 	const struct dma_slave_config *config)
 {
 	struct jz4740_dmaengine_chan *chan = to_jz4740_dma_chan(c);
-	struct jz4740_dma_config jzcfg;
+	struct jz4740_dma_dev *dmadev = jz4740_dma_chan_get_dev(chan);
+	enum jz4740_dma_width src_width;
+	enum jz4740_dma_width dst_width;
+	enum jz4740_dma_transfer_size transfer_size;
+	enum jz4740_dma_flags flags;
+	uint32_t cmd;
 
 	switch (config->direction) {
 	case DMA_MEM_TO_DEV:
-		jzcfg.flags = JZ4740_DMA_SRC_AUTOINC;
-		jzcfg.transfer_size = jz4740_dma_maxburst(config->dst_maxburst);
+		flags = JZ4740_DMA_SRC_AUTOINC;
+		transfer_size = jz4740_dma_maxburst(config->dst_maxburst);
 		chan->fifo_addr = config->dst_addr;
 		break;
 	case DMA_DEV_TO_MEM:
-		jzcfg.flags = JZ4740_DMA_DST_AUTOINC;
-		jzcfg.transfer_size = jz4740_dma_maxburst(config->src_maxburst);
+		flags = JZ4740_DMA_DST_AUTOINC;
+		transfer_size = jz4740_dma_maxburst(config->src_maxburst);
 		chan->fifo_addr = config->src_addr;
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	src_width = jz4740_dma_width(config->src_addr_width);
+	dst_width = jz4740_dma_width(config->dst_addr_width);
 
-	jzcfg.src_width = jz4740_dma_width(config->src_addr_width);
-	jzcfg.dst_width = jz4740_dma_width(config->dst_addr_width);
-	jzcfg.mode = JZ4740_DMA_MODE_SINGLE;
-	jzcfg.request_type = config->slave_id;
+	switch (transfer_size) {
+	case JZ4740_DMA_TRANSFER_SIZE_2BYTE:
+		chan->transfer_shift = 1;
+		break;
+	case JZ4740_DMA_TRANSFER_SIZE_4BYTE:
+		chan->transfer_shift = 2;
+		break;
+	case JZ4740_DMA_TRANSFER_SIZE_16BYTE:
+		chan->transfer_shift = 4;
+		break;
+	case JZ4740_DMA_TRANSFER_SIZE_32BYTE:
+		chan->transfer_shift = 5;
+		break;
+	default:
+		chan->transfer_shift = 0;
+		break;
+	}
 
-	jz4740_dma_configure(chan->jz_chan, &jzcfg);
+	cmd = flags << JZ_DMA_CMD_FLAGS_OFFSET;
+	cmd |= src_width << JZ_DMA_CMD_SRC_WIDTH_OFFSET;
+	cmd |= dst_width << JZ_DMA_CMD_DST_WIDTH_OFFSET;
+	cmd |= transfer_size << JZ_DMA_CMD_TRANSFER_SIZE_OFFSET;
+	cmd |= JZ4740_DMA_MODE_SINGLE << JZ_DMA_CMD_MODE_OFFSET;
+	cmd |= JZ_DMA_CMD_TRANSFER_IRQ_ENABLE;
+
+	jz4740_dma_write(dmadev, JZ_REG_DMA_CMD(chan->id), cmd);
+	jz4740_dma_write(dmadev, JZ_REG_DMA_STATUS_CTRL(chan->id), 0);
+	jz4740_dma_write(dmadev, JZ_REG_DMA_REQ_TYPE(chan->id),
+		config->slave_id);
 
 	return 0;
 }
@@ -139,11 +274,13 @@ static int jz4740_dma_slave_config(struct dma_chan *c,
 static int jz4740_dma_terminate_all(struct dma_chan *c)
 {
 	struct jz4740_dmaengine_chan *chan = to_jz4740_dma_chan(c);
+	struct jz4740_dma_dev *dmadev = jz4740_dma_chan_get_dev(chan);
 	unsigned long flags;
 	LIST_HEAD(head);
 
 	spin_lock_irqsave(&chan->vchan.lock, flags);
-	jz4740_dma_disable(chan->jz_chan);
+	jz4740_dma_write_mask(dmadev, JZ_REG_DMA_STATUS_CTRL(chan->id), 0,
+			JZ_DMA_STATUS_CTRL_ENABLE);
 	chan->desc = NULL;
 	vchan_get_all_descriptors(&chan->vchan, &head);
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
@@ -170,11 +307,13 @@ static int jz4740_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 
 static int jz4740_dma_start_transfer(struct jz4740_dmaengine_chan *chan)
 {
+	struct jz4740_dma_dev *dmadev = jz4740_dma_chan_get_dev(chan);
 	dma_addr_t src_addr, dst_addr;
 	struct virt_dma_desc *vdesc;
 	struct jz4740_dma_sg *sg;
 
-	jz4740_dma_disable(chan->jz_chan);
+	jz4740_dma_write_mask(dmadev, JZ_REG_DMA_STATUS_CTRL(chan->id), 0,
+			JZ_DMA_STATUS_CTRL_ENABLE);
 
 	if (!chan->desc) {
 		vdesc = vchan_next_desc(&chan->vchan);
@@ -196,22 +335,27 @@ static int jz4740_dma_start_transfer(struct jz4740_dmaengine_chan *chan)
 		src_addr = chan->fifo_addr;
 		dst_addr = sg->addr;
 	}
-	jz4740_dma_set_src_addr(chan->jz_chan, src_addr);
-	jz4740_dma_set_dst_addr(chan->jz_chan, dst_addr);
-	jz4740_dma_set_transfer_count(chan->jz_chan, sg->len);
+	jz4740_dma_write(dmadev, JZ_REG_DMA_SRC_ADDR(chan->id), src_addr);
+	jz4740_dma_write(dmadev, JZ_REG_DMA_DST_ADDR(chan->id), dst_addr);
+	jz4740_dma_write(dmadev, JZ_REG_DMA_TRANSFER_COUNT(chan->id),
+			sg->len >> chan->transfer_shift);
 
 	chan->next_sg++;
 
-	jz4740_dma_enable(chan->jz_chan);
+	jz4740_dma_write_mask(dmadev, JZ_REG_DMA_STATUS_CTRL(chan->id),
+			JZ_DMA_STATUS_CTRL_NO_DESC | JZ_DMA_STATUS_CTRL_ENABLE,
+			JZ_DMA_STATUS_CTRL_HALT | JZ_DMA_STATUS_CTRL_NO_DESC |
+			JZ_DMA_STATUS_CTRL_ENABLE);
+
+	jz4740_dma_write_mask(dmadev, JZ_REG_DMA_CTRL,
+			JZ_DMA_CTRL_ENABLE,
+			JZ_DMA_CTRL_HALT | JZ_DMA_CTRL_ENABLE);
 
 	return 0;
 }
 
-static void jz4740_dma_complete_cb(struct jz4740_dma_chan *jz_chan, int error,
-	void *devid)
+static void jz4740_dma_chan_irq(struct jz4740_dmaengine_chan *chan)
 {
-	struct jz4740_dmaengine_chan *chan = devid;
-
 	spin_lock(&chan->vchan.lock);
 	if (chan->desc) {
 		if (chan->desc && chan->desc->cyclic) {
@@ -225,6 +369,28 @@ static void jz4740_dma_complete_cb(struct jz4740_dma_chan *jz_chan, int error,
 	}
 	jz4740_dma_start_transfer(chan);
 	spin_unlock(&chan->vchan.lock);
+}
+
+static irqreturn_t jz4740_dma_irq(int irq, void *devid)
+{
+	struct jz4740_dma_dev *dmadev = devid;
+	uint32_t irq_status;
+	unsigned int i;
+
+	irq_status = readl(dmadev->base + JZ_REG_DMA_IRQ);
+
+	for (i = 0; i < 6; ++i) {
+		if (irq_status & (1 << i)) {
+			jz4740_dma_write_mask(dmadev,
+				JZ_REG_DMA_STATUS_CTRL(i), 0,
+				JZ_DMA_STATUS_CTRL_ENABLE |
+				JZ_DMA_STATUS_CTRL_TRANSFER_DONE);
+
+			jz4740_dma_chan_irq(&dmadev->chan[i]);
+		}
+	}
+
+	return IRQ_HANDLED;
 }
 
 static void jz4740_dma_issue_pending(struct dma_chan *c)
@@ -298,7 +464,8 @@ static struct dma_async_tx_descriptor *jz4740_dma_prep_dma_cyclic(
 static size_t jz4740_dma_desc_residue(struct jz4740_dmaengine_chan *chan,
 	struct jz4740_dma_desc *desc, unsigned int next_sg)
 {
-	size_t residue = 0;
+	struct jz4740_dma_dev *dmadev = jz4740_dma_chan_get_dev(chan);
+	unsigned int residue, count;
 	unsigned int i;
 
 	residue = 0;
@@ -306,8 +473,11 @@ static size_t jz4740_dma_desc_residue(struct jz4740_dmaengine_chan *chan,
 	for (i = next_sg; i < desc->num_sgs; i++)
 		residue += desc->sg[i].len;
 
-	if (next_sg != 0)
-		residue += jz4740_dma_get_residue(chan->jz_chan);
+	if (next_sg != 0) {
+		count = jz4740_dma_read(dmadev,
+			JZ_REG_DMA_TRANSFER_COUNT(chan->id));
+		residue += count << chan->transfer_shift;
+	}
 
 	return residue;
 }
@@ -342,24 +512,12 @@ static enum dma_status jz4740_dma_tx_status(struct dma_chan *c,
 
 static int jz4740_dma_alloc_chan_resources(struct dma_chan *c)
 {
-	struct jz4740_dmaengine_chan *chan = to_jz4740_dma_chan(c);
-
-	chan->jz_chan = jz4740_dma_request(chan, NULL);
-	if (!chan->jz_chan)
-		return -EBUSY;
-
-	jz4740_dma_set_complete_cb(chan->jz_chan, jz4740_dma_complete_cb);
-
 	return 0;
 }
 
 static void jz4740_dma_free_chan_resources(struct dma_chan *c)
 {
-	struct jz4740_dmaengine_chan *chan = to_jz4740_dma_chan(c);
-
-	vchan_free_chan_resources(&chan->vchan);
-	jz4740_dma_free(chan->jz_chan);
-	chan->jz_chan = NULL;
+	vchan_free_chan_resources(to_virt_chan(c));
 }
 
 static void jz4740_dma_desc_free(struct virt_dma_desc *vdesc)
@@ -373,13 +531,26 @@ static int jz4740_dma_probe(struct platform_device *pdev)
 	struct jz4740_dma_dev *dmadev;
 	struct dma_device *dd;
 	unsigned int i;
+	struct resource *res;
 	int ret;
+	int irq;
 
 	dmadev = devm_kzalloc(&pdev->dev, sizeof(*dmadev), GFP_KERNEL);
 	if (!dmadev)
 		return -EINVAL;
 
 	dd = &dmadev->ddev;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	dmadev->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dmadev->base))
+		return PTR_ERR(dmadev->base);
+
+	dmadev->clk = clk_get(&pdev->dev, "dma");
+	if (IS_ERR(dmadev->clk))
+		return PTR_ERR(dmadev->clk);
+
+	clk_prepare_enable(dmadev->clk);
 
 	dma_cap_set(DMA_SLAVE, dd->cap_mask);
 	dma_cap_set(DMA_CYCLIC, dd->cap_mask);
@@ -396,6 +567,7 @@ static int jz4740_dma_probe(struct platform_device *pdev)
 
 	for (i = 0; i < dd->chancnt; i++) {
 		chan = &dmadev->chan[i];
+		chan->id = i;
 		chan->vchan.desc_free = jz4740_dma_desc_free;
 		vchan_init(&chan->vchan, dd);
 	}
@@ -404,16 +576,28 @@ static int jz4740_dma_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	irq = platform_get_irq(pdev, 0);
+	ret = request_irq(irq, jz4740_dma_irq, 0, dev_name(&pdev->dev), dmadev);
+	if (ret)
+		goto err_unregister;
+
 	platform_set_drvdata(pdev, dmadev);
 
 	return 0;
+
+err_unregister:
+	dma_async_device_unregister(dd);
+	return ret;
 }
 
 static int jz4740_dma_remove(struct platform_device *pdev)
 {
 	struct jz4740_dma_dev *dmadev = platform_get_drvdata(pdev);
+	int irq = platform_get_irq(pdev, 0);
 
+	free_irq(irq, dmadev);
 	dma_async_device_unregister(&dmadev->ddev);
+	clk_disable_unprepare(dmadev->clk);
 
 	return 0;
 }
