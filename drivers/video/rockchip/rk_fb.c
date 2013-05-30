@@ -114,6 +114,55 @@ struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name)
 	return inf->lcdc_dev_drv[i];
 	
 }
+
+static struct rk_lcdc_device_driver * rk_get_prmry_lcdc_drv(void)
+{
+	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
+	struct rk_lcdc_device_driver *dev_drv = NULL;
+	int i = 0;
+	
+	for(i = 0; i < inf->num_lcdc;i++)
+	{
+		if(inf->lcdc_dev_drv[i]->screen_ctr_info->prop ==  PRMRY)
+		{
+			dev_drv = inf->lcdc_dev_drv[i];
+			break;
+		}
+	}
+
+	return dev_drv;
+}
+
+static struct rk_lcdc_device_driver * rk_get_extend_lcdc_drv(void)
+{
+	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
+	struct rk_lcdc_device_driver *dev_drv = NULL;
+	int i = 0;
+	
+	for(i = 0; i < inf->num_lcdc; i++)
+	{
+		if(inf->lcdc_dev_drv[i]->screen_ctr_info->prop == EXTEND)
+		{
+			dev_drv = inf->lcdc_dev_drv[i];
+			break;
+		}
+	}
+
+	return dev_drv;
+}
+
+rk_screen *rk_fb_get_prmry_screen(void)
+{
+	struct rk_lcdc_device_driver *dev_drv = rk_get_prmry_lcdc_drv();
+	return dev_drv->screen0;
+	
+}
+
+u32 rk_fb_get_prmry_screen_pixclock(void)
+{
+	struct rk_lcdc_device_driver *dev_drv = rk_get_prmry_lcdc_drv();
+	return dev_drv->pixclock;
+}
 static int rk_fb_open(struct fb_info *info,int user)
 {
     struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
@@ -164,18 +213,6 @@ static int rk_fb_close(struct fb_info *info,int user)
 		info->var.vsync_len = dev_drv->screen0->vsync_len;
 		info->var.hsync_len = dev_drv->screen0->hsync_len;
     }
-	/*struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
-    	int layer_id;
-    	CHK_SUSPEND(dev_drv);
-    	layer_id = get_fb_layer_id(&info->fix);
-	if(!dev_drv->layer_par[layer_id]->state)
-	{
-		return 0;
-	}
-	else
-	{
-    		dev_drv->open(dev_drv,layer_id,0);
-	}*/
 	
     	return 0;
 }
@@ -822,8 +859,8 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	struct fb_var_screeninfo *pmy_var = NULL;      //var for primary screen
 	struct fb_info *pmy_info = NULL;
 	struct fb_fix_screeninfo *pmy_fix = NULL;
-	int i;
 #endif
+	int i;
 	struct fb_fix_screeninfo *hdmi_fix    = NULL;
 	char name[6];
 	int ret;
@@ -893,6 +930,10 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 			dev_drv->cur_screen = dev_drv->screen0;
 			dev_drv->screen_ctr_info->set_screen_info(dev_drv->cur_screen,
 			dev_drv->screen_ctr_info->lcd_info);
+			if(dev_drv->screen0->sscreen_set)
+			{
+				dev_drv->screen0->sscreen_set(dev_drv->screen0,0);
+			}
 			
 		}
 	}
