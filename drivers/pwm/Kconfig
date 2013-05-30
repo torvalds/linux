@@ -97,6 +97,15 @@ config PWM_MXS
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-mxs.
 
+config PWM_PCA9685
+	tristate "NXP PCA9685 PWM driver"
+	depends on OF && REGMAP_I2C
+	help
+	  Generic PWM framework driver for NXP PCA9685 LED controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-pca9685.
+
 config PWM_PUV3
 	tristate "PKUnity NetBook-0916 PWM support"
 	depends on ARCH_PUV3
