@@ -192,6 +192,16 @@ config USB_FUSB300
 	help
 	   Faraday usb device controller FUSB300 driver
 
+config USB_FOTG210_UDC
+	tristate "Faraday FOTG210 USB Peripheral Controller"
+	help
+	   Faraday USB2.0 OTG controller which can be configured as
+	   high speed or full speed USB device. This driver supppors
+	   Bulk Transfer so far.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "fotg210_udc".
+
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
 	depends on ARCH_OMAP1
