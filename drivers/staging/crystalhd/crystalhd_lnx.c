@@ -255,10 +255,7 @@ static int chd_dec_api_cmd(struct crystalhd_adp *adp, unsigned long ua,
 		rc = chd_dec_proc_user_data(adp, temp, ua, 1);
 	}
 
-	if (temp) {
-		chd_dec_free_iodata(adp, temp, 0);
-		temp = NULL;
-	}
+	chd_dec_free_iodata(adp, temp, 0);
 
 	return rc;
 }
