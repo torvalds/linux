@@ -78,9 +78,6 @@ static struct device_driver acpi_processor_driver = {
 	.remove = acpi_processor_stop,
 };
 
-DEFINE_PER_CPU(struct acpi_processor *, processors);
-EXPORT_PER_CPU_SYMBOL(processors);
-
 static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *device = data;
@@ -268,8 +265,6 @@ static int acpi_processor_stop(struct device *dev)
 		thermal_cooling_device_unregister(pr->cdev);
 		pr->cdev = NULL;
 	}
-
-	per_cpu(processors, pr->id) = NULL;
 	return 0;
 }
 
