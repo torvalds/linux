@@ -27,6 +27,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/power/smartreflex.h>
 
+#define DRIVER_NAME	"smartreflex"
 #define SMARTREFLEX_NAME_LEN	16
 #define NVALUE_NAME_LEN		40
 #define SR_DISABLE_TIMEOUT	200
@@ -1070,7 +1071,7 @@ static struct platform_driver smartreflex_driver = {
 	.remove         = omap_sr_remove,
 	.shutdown	= omap_sr_shutdown,
 	.driver		= {
-		.name	= "smartreflex",
+		.name	= DRIVER_NAME,
 	},
 };
 
