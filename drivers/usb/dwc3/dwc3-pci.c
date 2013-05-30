@@ -133,7 +133,6 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 		return -ENODEV;
 	}
 
-	pci_set_power_state(pci, PCI_D0);
 	pci_set_master(pci);
 
 	ret = dwc3_pci_register_phys(glue);
