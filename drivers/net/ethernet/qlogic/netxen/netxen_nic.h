@@ -1855,7 +1855,7 @@ static const struct netxen_brdinfo netxen_boards[] = {
 
 #define NUM_SUPPORTED_BOARDS ARRAY_SIZE(netxen_boards)
 
-static inline void get_brd_name_by_type(u32 type, char *name)
+static inline int netxen_nic_get_brd_name_by_type(u32 type, char *name)
 {
 	int i, found = 0;
 	for (i = 0; i < NUM_SUPPORTED_BOARDS; ++i) {
@@ -1864,10 +1864,14 @@ static inline void get_brd_name_by_type(u32 type, char *name)
 			found = 1;
 			break;
 		}
-
 	}
-	if (!found)
-		name = "Unknown";
+
+	if (!found) {
+		strcpy(name, "Unknown");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static inline u32 netxen_tx_avail(struct nx_host_tx_ring *tx_ring)

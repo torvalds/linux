@@ -841,7 +841,9 @@ netxen_check_options(struct netxen_adapter *adapter)
 	}
 
 	if (adapter->portnum == 0) {
-		get_brd_name_by_type(adapter->ahw.board_type, brd_name);
+		if (netxen_nic_get_brd_name_by_type(adapter->ahw.board_type,
+						    brd_name))
+			strcpy(serial_num, "Unknown");
 
 		pr_info("%s: %s Board S/N %s  Chip rev 0x%x\n",
 				module_name(THIS_MODULE),
