@@ -378,14 +378,6 @@ config MACH_TI8148EVM
 	depends on SOC_TI81XX
 	default y
 
-config MACH_OMAP_4430SDP
-	bool "OMAP 4430 SDP board"
-	default y
-	depends on ARCH_OMAP4
-	select OMAP_PACKAGE_CBL
-	select OMAP_PACKAGE_CBS
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-
 config MACH_OMAP4_PANDA
 	bool "OMAP4 Panda Board"
 	default y
