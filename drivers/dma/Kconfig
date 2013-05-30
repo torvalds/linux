@@ -294,6 +294,12 @@ config MMP_PDMA
 	help
 	  Support the MMP PDMA engine for PXA and MMP platfrom.
 
+config DMA_JZ4740
+	tristate "JZ4740 DMA support"
+	depends on MACH_JZ4740
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+
 config DMA_ENGINE
 	bool
 
