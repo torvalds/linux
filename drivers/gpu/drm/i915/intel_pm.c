@@ -5024,17 +5024,11 @@ bool intel_display_power_enabled(struct drm_device *dev,
 	}
 }
 
-void intel_set_power_well(struct drm_device *dev, bool enable)
+static void __intel_set_power_well(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool is_enabled, enable_requested;
 	uint32_t tmp;
-
-	if (!HAS_POWER_WELL(dev))
-		return;
-
-	if (!i915_disable_power_well && !enable)
-		return;
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
 	is_enabled = tmp & HSW_PWR_WELL_STATE;
@@ -5056,6 +5050,79 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 			DRM_DEBUG_KMS("Requesting to disable the power well\n");
 		}
 	}
+}
+
+static struct i915_power_well *hsw_pwr;
+
+/* Display audio driver power well request */
+void i915_request_power_well(void)
+{
+	if (WARN_ON(!hsw_pwr))
+		return;
+
+	spin_lock_irq(&hsw_pwr->lock);
+	if (!hsw_pwr->count++ &&
+			!hsw_pwr->i915_request)
+		__intel_set_power_well(hsw_pwr->device, true);
+	spin_unlock_irq(&hsw_pwr->lock);
+}
+EXPORT_SYMBOL_GPL(i915_request_power_well);
+
+/* Display audio driver power well release */
+void i915_release_power_well(void)
+{
+	if (WARN_ON(!hsw_pwr))
+		return;
+
+	spin_lock_irq(&hsw_pwr->lock);
+	WARN_ON(!hsw_pwr->count);
+	if (!--hsw_pwr->count &&
+		       !hsw_pwr->i915_request)
+		__intel_set_power_well(hsw_pwr->device, false);
+	spin_unlock_irq(&hsw_pwr->lock);
+}
+EXPORT_SYMBOL_GPL(i915_release_power_well);
+
+int i915_init_power_well(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	hsw_pwr = &dev_priv->power_well;
+
+	hsw_pwr->device = dev;
+	spin_lock_init(&hsw_pwr->lock);
+	hsw_pwr->count = 0;
+
+	return 0;
+}
+
+void i915_remove_power_well(struct drm_device *dev)
+{
+	hsw_pwr = NULL;
+}
+
+void intel_set_power_well(struct drm_device *dev, bool enable)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_well *power_well = &dev_priv->power_well;
+
+	if (!HAS_POWER_WELL(dev))
+		return;
+
+	if (!i915_disable_power_well && !enable)
+		return;
+
+	spin_lock_irq(&power_well->lock);
+	power_well->i915_request = enable;
+
+	/* only reject "disable" power well request */
+	if (power_well->count && !enable) {
+		spin_unlock_irq(&power_well->lock);
+		return;
+	}
+
+	__intel_set_power_well(dev, enable);
+	spin_unlock_irq(&power_well->lock);
 }
 
 /*

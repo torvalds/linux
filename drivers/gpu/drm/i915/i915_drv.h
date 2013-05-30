@@ -741,6 +741,15 @@ struct intel_ilk_power_mgmt {
 	struct drm_i915_gem_object *renderctx;
 };
 
+/* Power well structure for haswell */
+struct i915_power_well {
+	struct drm_device *device;
+	spinlock_t lock;
+	/* power well enable/disable usage count */
+	int count;
+	int i915_request;
+};
+
 struct i915_dri1_state {
 	unsigned allow_batchbuffer : 1;
 	u32 __iomem *gfx_hws_cpu_addr;
@@ -1099,6 +1108,9 @@ typedef struct drm_i915_private {
 	/* ilk-only ips/rps state. Everything in here is protected by the global
 	 * mchdev_lock in intel_pm.c */
 	struct intel_ilk_power_mgmt ips;
+
+	/* Haswell power well */
+	struct i915_power_well power_well;
 
 	enum no_fbc_reason no_fbc_reason;
 

@@ -1642,6 +1642,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	/* Start out suspended */
 	dev_priv->mm.suspended = 1;
 
+	if (HAS_POWER_WELL(dev))
+		i915_init_power_well(dev);
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = i915_load_modeset_init(dev);
 		if (ret < 0) {
@@ -1693,6 +1696,9 @@ int i915_driver_unload(struct drm_device *dev)
 	int ret;
 
 	intel_gpu_ips_teardown();
+
+	if (HAS_POWER_WELL(dev))
+		i915_remove_power_well(dev);
 
 	i915_teardown_sysfs(dev);
 
