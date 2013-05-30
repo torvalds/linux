@@ -1240,9 +1240,12 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	ctxt->modrm_seg = VCPU_SREG_DS;
 
 	if (ctxt->modrm_mod == 3) {
+		int highbyte_regs = ctxt->rex_prefix == 0;
+
 		op->type = OP_REG;
 		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
-		op->addr.reg = decode_register(ctxt, ctxt->modrm_rm, ctxt->d & ByteOp);
+		op->addr.reg = decode_register(ctxt, ctxt->modrm_rm,
+					       highbyte_regs && (ctxt->d & ByteOp));
 		if (ctxt->d & Sse) {
 			op->type = OP_XMM;
 			op->bytes = 16;
