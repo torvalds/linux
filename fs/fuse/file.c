@@ -2373,6 +2373,11 @@ static void fuse_do_truncate(struct file *file)
 	fuse_do_setattr(inode, &attr, file);
 }
 
+static inline loff_t fuse_round_up(loff_t off)
+{
+	return round_up(off, FUSE_MAX_PAGES_PER_REQ << PAGE_SHIFT);
+}
+
 static ssize_t
 fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs)
@@ -2380,6 +2385,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	ssize_t ret = 0;
 	struct file *file = iocb->ki_filp;
 	struct fuse_file *ff = file->private_data;
+	bool async_dio = ff->fc->async_dio;
 	loff_t pos = 0;
 	struct inode *inode;
 	loff_t i_size;
@@ -2391,10 +2397,10 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	i_size = i_size_read(inode);
 
 	/* optimization for short read */
-	if (rw != WRITE && offset + count > i_size) {
+	if (async_dio && rw != WRITE && offset + count > i_size) {
 		if (offset >= i_size)
 			return 0;
-		count = i_size - offset;
+		count = min_t(loff_t, count, fuse_round_up(i_size - offset));
 	}
 
 	io = kmalloc(sizeof(struct fuse_io_priv), GFP_KERNEL);
@@ -2412,7 +2418,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	 * By default, we want to optimize all I/Os with async request
 	 * submission to the client filesystem if supported.
 	 */
-	io->async = ff->fc->async_dio;
+	io->async = async_dio;
 	io->iocb = iocb;
 
 	/*
@@ -2420,7 +2426,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	 * to wait on real async I/O requests, so we must submit this request
 	 * synchronously.
 	 */
-	if (!is_sync_kiocb(iocb) && (offset + count > i_size))
+	if (!is_sync_kiocb(iocb) && (offset + count > i_size) && rw == WRITE)
 		io->async = false;
 
 	if (rw == WRITE)
