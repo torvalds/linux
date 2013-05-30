@@ -958,15 +958,15 @@ module_init(marvell_init);
 module_exit(marvell_exit);
 
 static struct mdio_device_id __maybe_unused marvell_tbl[] = {
-	{ 0x01410c60, 0xfffffff0 },
-	{ 0x01410c90, 0xfffffff0 },
-	{ 0x01410cc0, 0xfffffff0 },
-	{ 0x01410e10, 0xfffffff0 },
-	{ 0x01410cb0, 0xfffffff0 },
-	{ 0x01410cd0, 0xfffffff0 },
-	{ 0x01410e50, 0xfffffff0 },
-	{ 0x01410e30, 0xfffffff0 },
-	{ 0x01410e90, 0xfffffff0 },
+	{ MARVELL_PHY_ID_88E1101, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1112, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1111, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1118, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1121R, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1145, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1149R, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1240, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1318S, MARVELL_PHY_ID_MASK },
 	{ }
 };
 
