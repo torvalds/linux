@@ -3842,6 +3842,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 		snd_soc_jack_report(wm8994->micdet[0].jack, 0,
 				    SND_JACK_MECHANICAL | SND_JACK_HEADSET |
 				    wm8994->btn_mask);
+		wm8994->mic_detecting = true;
 		goto out;
 	}
 
