@@ -428,9 +428,19 @@ struct qib_verbs_txreq {
 #define ACTIVITY_TIMER 5
 
 #define MAX_NAME_SIZE 64
+
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+struct qib_irq_notify;
+#endif
+
 struct qib_msix_entry {
 	struct msix_entry msix;
 	void *arg;
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	int dca;
+	int rcv;
+	struct qib_irq_notify *notifier;
+#endif
 	char name[MAX_NAME_SIZE];
 	cpumask_var_t mask;
 };
@@ -828,6 +838,9 @@ struct qib_devdata {
 		struct qib_ctxtdata *);
 	void (*f_writescratch)(struct qib_devdata *, u32);
 	int (*f_tempsense_rd)(struct qib_devdata *, int regnum);
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	int (*f_notify_dca)(struct qib_devdata *, unsigned long event);
+#endif
 
 	char *boardname; /* human readable board info */
 

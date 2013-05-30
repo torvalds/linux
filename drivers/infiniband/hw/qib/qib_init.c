@@ -39,6 +39,9 @@
 #include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/printk.h>
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+#include <linux/dca.h>
+#endif
 
 #include "qib.h"
 #include "qib_common.h"
@@ -1158,6 +1161,35 @@ struct pci_driver qib_driver = {
 	.err_handler = &qib_pci_err_handler,
 };
 
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+
+static int qib_notify_dca(struct notifier_block *, unsigned long, void *);
+static struct notifier_block dca_notifier = {
+	.notifier_call  = qib_notify_dca,
+	.next           = NULL,
+	.priority       = 0
+};
+
+static int qib_notify_dca_device(struct device *device, void *data)
+{
+	struct qib_devdata *dd = dev_get_drvdata(device);
+	unsigned long event = *(unsigned long *)data;
+
+	return dd->f_notify_dca(dd, event);
+}
+
+static int qib_notify_dca(struct notifier_block *nb, unsigned long event,
+					  void *p)
+{
+	int rval;
+
+	rval = driver_for_each_device(&qib_driver.driver, NULL,
+				      &event, qib_notify_dca_device);
+	return rval ? NOTIFY_BAD : NOTIFY_DONE;
+}
+
+#endif
+
 /*
  * Do all the generic driver unit- and chip-independent memory
  * allocation and initialization.
@@ -1182,6 +1214,9 @@ static int __init qlogic_ib_init(void)
 	 */
 	idr_init(&qib_unit_table);
 
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	dca_register_notify(&dca_notifier);
+#endif
 	ret = pci_register_driver(&qib_driver);
 	if (ret < 0) {
 		pr_err("Unable to register driver: error %d\n", -ret);
@@ -1194,6 +1229,9 @@ static int __init qlogic_ib_init(void)
 	goto bail; /* all OK */
 
 bail_unit:
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	dca_unregister_notify(&dca_notifier);
+#endif
 	idr_destroy(&qib_unit_table);
 	destroy_workqueue(qib_cq_wq);
 bail_dev:
@@ -1217,6 +1255,9 @@ static void __exit qlogic_ib_cleanup(void)
 			"Unable to cleanup counter filesystem: error %d\n",
 			-ret);
 
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	dca_unregister_notify(&dca_notifier);
+#endif
 	pci_unregister_driver(&qib_driver);
 
 	destroy_workqueue(qib_cq_wq);
