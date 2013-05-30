@@ -768,6 +768,10 @@ extern void intel_update_fbc(struct drm_device *dev);
 extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 extern void intel_gpu_ips_teardown(void);
 
+/* Power well */
+extern int i915_init_power_well(struct drm_device *dev);
+extern void i915_remove_power_well(struct drm_device *dev);
+
 extern bool intel_display_power_enabled(struct drm_device *dev,
 					enum intel_display_power_domain domain);
 extern void intel_init_power_well(struct drm_device *dev);
