@@ -98,3 +98,13 @@ void __cpuinit load_ucode_ap(void)
 	if (vendor == X86_VENDOR_INTEL && x86 >= 6)
 		load_ucode_intel_ap();
 }
+
+int __init save_microcode_in_initrd(void)
+{
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	if (c->x86_vendor == X86_VENDOR_INTEL && c->x86 >= 6)
+		return save_microcode_in_initrd_intel();
+
+	return 0;
+}

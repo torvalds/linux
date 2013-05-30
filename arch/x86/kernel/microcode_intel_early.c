@@ -699,7 +699,7 @@ static int __cpuinit apply_microcode_early(struct mc_saved_data *mc_saved_data,
  * This function converts microcode patch offsets previously stored in
  * mc_saved_in_initrd to pointers and stores the pointers in mc_saved_data.
  */
-int __init save_microcode_in_initrd(void)
+int __init save_microcode_in_initrd_intel(void)
 {
 	unsigned int count = mc_saved_data.mc_saved_count;
 	struct microcode_intel *mc_saved[MAX_UCODE_COUNT];
