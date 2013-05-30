@@ -2432,7 +2432,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 		fuse_aio_complete(io, ret < 0 ? ret : 0, -1);
 
 		/* we have a non-extending, async request, so return */
-		if (ret > 0 && !is_sync_kiocb(iocb))
+		if (!is_sync_kiocb(iocb))
 			return -EIOCBQUEUED;
 
 		ret = wait_on_sync_kiocb(iocb);
