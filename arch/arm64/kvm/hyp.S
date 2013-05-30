@@ -412,14 +412,14 @@ CPU_BE(	rev	w9,  w9  )
 CPU_BE(	rev	w10, w10 )
 CPU_BE(	rev	w11, w11 )
 
-	str	w4, [x3, #VGIC_CPU_HCR]
-	str	w5, [x3, #VGIC_CPU_VMCR]
-	str	w6, [x3, #VGIC_CPU_MISR]
-	str	w7, [x3, #VGIC_CPU_EISR]
-	str	w8, [x3, #(VGIC_CPU_EISR + 4)]
-	str	w9, [x3, #VGIC_CPU_ELRSR]
-	str	w10, [x3, #(VGIC_CPU_ELRSR + 4)]
-	str	w11, [x3, #VGIC_CPU_APR]
+	str	w4, [x3, #VGIC_V2_CPU_HCR]
+	str	w5, [x3, #VGIC_V2_CPU_VMCR]
+	str	w6, [x3, #VGIC_V2_CPU_MISR]
+	str	w7, [x3, #VGIC_V2_CPU_EISR]
+	str	w8, [x3, #(VGIC_V2_CPU_EISR + 4)]
+	str	w9, [x3, #VGIC_V2_CPU_ELRSR]
+	str	w10, [x3, #(VGIC_V2_CPU_ELRSR + 4)]
+	str	w11, [x3, #VGIC_V2_CPU_APR]
 
 	/* Clear GICH_HCR */
 	str	wzr, [x2, #GICH_HCR]
@@ -427,7 +427,7 @@ CPU_BE(	rev	w11, w11 )
 	/* Save list registers */
 	add	x2, x2, #GICH_LR0
 	ldr	w4, [x3, #VGIC_CPU_NR_LR]
-	add	x3, x3, #VGIC_CPU_LR
+	add	x3, x3, #VGIC_V2_CPU_LR
 1:	ldr	w5, [x2], #4
 CPU_BE(	rev	w5, w5 )
 	str	w5, [x3], #4
@@ -452,9 +452,9 @@ CPU_BE(	rev	w5, w5 )
 	add	x3, x0, #VCPU_VGIC_CPU
 
 	/* We only restore a minimal set of registers */
-	ldr	w4, [x3, #VGIC_CPU_HCR]
-	ldr	w5, [x3, #VGIC_CPU_VMCR]
-	ldr	w6, [x3, #VGIC_CPU_APR]
+	ldr	w4, [x3, #VGIC_V2_CPU_HCR]
+	ldr	w5, [x3, #VGIC_V2_CPU_VMCR]
+	ldr	w6, [x3, #VGIC_V2_CPU_APR]
 CPU_BE(	rev	w4, w4 )
 CPU_BE(	rev	w5, w5 )
 CPU_BE(	rev	w6, w6 )
@@ -466,7 +466,7 @@ CPU_BE(	rev	w6, w6 )
 	/* Restore list registers */
 	add	x2, x2, #GICH_LR0
 	ldr	w4, [x3, #VGIC_CPU_NR_LR]
-	add	x3, x3, #VGIC_CPU_LR
+	add	x3, x3, #VGIC_V2_CPU_LR
 1:	ldr	w5, [x3], #4
 CPU_BE(	rev	w5, w5 )
 	str	w5, [x2], #4

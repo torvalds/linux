@@ -110,6 +110,16 @@ struct vgic_dist {
 #endif
 };
 
+struct vgic_v2_cpu_if {
+	u32		vgic_hcr;
+	u32		vgic_vmcr;
+	u32		vgic_misr;	/* Saved only */
+	u32		vgic_eisr[2];	/* Saved only */
+	u32		vgic_elrsr[2];	/* Saved only */
+	u32		vgic_apr;
+	u32		vgic_lr[VGIC_MAX_LRS];
+};
+
 struct vgic_cpu {
 #ifdef CONFIG_KVM_ARM_VGIC
 	/* per IRQ to LR mapping */
@@ -126,13 +136,9 @@ struct vgic_cpu {
 	int		nr_lr;
 
 	/* CPU vif control registers for world switch */
-	u32		vgic_hcr;
-	u32		vgic_vmcr;
-	u32		vgic_misr;	/* Saved only */
-	u32		vgic_eisr[2];	/* Saved only */
-	u32		vgic_elrsr[2];	/* Saved only */
-	u32		vgic_apr;
-	u32		vgic_lr[VGIC_MAX_LRS];
+	union {
+		struct vgic_v2_cpu_if	vgic_v2;
+	};
 #endif
 };
 
