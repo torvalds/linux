@@ -104,13 +104,10 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 {
 	acpi_status status;
 	const union acpi_predefined_info *predefined;
-	char *pathname;
-
-	predefined = info->predefined;
-	pathname = info->full_pathname;
 
 	/* If not a predefined name, we cannot validate the return object */
 
+	predefined = info->predefined;
 	if (!predefined) {
 		return (AE_OK);
 	}
