@@ -519,7 +519,7 @@ static void fp_roundint(struct fp_ext *dest, int mode)
 				return;
 			break;
 		case 0x401e:
-			if (!(oldmant.m32[1] >= 0))
+			if (oldmant.m32[1] & 0x80000000)
 				return;
 			if (oldmant.m32[0] & 1)
 				break;
