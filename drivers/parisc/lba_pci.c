@@ -1096,6 +1096,7 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 	r->name = "LBA PCI Busses";
 	r->start = lba_num & 0xff;
 	r->end = (lba_num>>8) & 0xff;
+	r->flags = IORESOURCE_BUS;
 
 	/* Set up local PCI Bus resources - we don't need them for
 	** Legacy boxes but it's nice to see in /proc/iomem.
