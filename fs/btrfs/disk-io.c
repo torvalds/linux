@@ -3514,13 +3514,13 @@ int close_ctree(struct btrfs_root *root)
 
 	btrfs_free_block_groups(fs_info);
 
-	free_root_pointers(fs_info, 1);
+	btrfs_stop_all_workers(fs_info);
 
 	del_fs_roots(fs_info);
 
-	iput(fs_info->btree_inode);
+	free_root_pointers(fs_info, 1);
 
-	btrfs_stop_all_workers(fs_info);
+	iput(fs_info->btree_inode);
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	if (btrfs_test_opt(root, CHECK_INTEGRITY))
