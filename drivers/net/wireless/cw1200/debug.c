@@ -357,12 +357,6 @@ static const struct file_operations fops_counters = {
 	.owner = THIS_MODULE,
 };
 
-static int cw1200_generic_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 #ifdef CONFIG_CW1200_ETF
 static int cw1200_etf_out_show(struct seq_file *seq, void *v)
 {
@@ -511,7 +505,7 @@ static ssize_t cw1200_wsm_dumps(struct file *file,
 }
 
 static const struct file_operations fops_wsm_dumps = {
-	.open = cw1200_generic_open,
+	.open = simple_open,
 	.write = cw1200_wsm_dumps,
 	.llseek = default_llseek,
 };
