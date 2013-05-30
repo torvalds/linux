@@ -444,6 +444,11 @@
 				codec: ab8500-codec {
 					compatible = "stericsson,ab8500-codec";
 
+					V-AUD-supply = <&ab8500_ldo_audio_reg>;
+					V-AMIC1-supply = <&ab8500_ldo_anamic1_reg>;
+					V-AMIC2-supply = <&ab8500_ldo_anamic2_reg>;
+					V-DMIC-supply = <&ab8500_ldo_dmic_reg>;
+
 					stericsson,earpeice-cmv = <950>; /* Units in mV. */
 				};
 
