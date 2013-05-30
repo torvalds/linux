@@ -276,6 +276,10 @@ static int rk616_hdmi_config_video(struct hdmi_video_para *vpara)
 		hdmi_dbg(hdmi->dev, "[%s] sucess output DVI.\n", __FUNCTION__);	
 	}
 	
+#if 1
+        HDMIWrReg(0xed, 0x0f);
+        HDMIWrReg(0xe7, 0x96);
+#else
 	if(hdmi->tmdsclk >= 148500000) {
 		HDMIWrReg(0xed, 0xc);
 		HDMIWrReg(0xe7, 0x78);
@@ -284,6 +288,7 @@ static int rk616_hdmi_config_video(struct hdmi_video_para *vpara)
 		HDMIWrReg(0xed, 0x3);
 		HDMIWrReg(0xe7, 0x1e);
 	}
+#endif
 	return 0;
 }
 
