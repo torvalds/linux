@@ -13,3 +13,13 @@ menuconfig RESET_CONTROLLER
 	  If unsure, say no.
 
 source "drivers/reset/sti/Kconfig"
+if RESET_CONTROLLER
+
+config RESET_GPIO
+	tristate "GPIO reset controller support"
+	depends on GPIOLIB && OF
+	help
+	  This driver provides support for reset lines that are controlled
+	  directly by GPIOs.
+
+endif

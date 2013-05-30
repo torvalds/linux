@@ -1,0 +1,35 @@
+GPIO reset controller
+=====================
+
+A GPIO reset controller controls a single GPIO that is connected to the reset
+pin of a peripheral IC. Please also refer to reset.txt in this directory for
+common reset controller binding usage.
+
+Required properties:
+- compatible: Should be "gpio-reset"
+- reset-gpios: A gpio used as reset line. The gpio specifier for this property
+               depends on the gpio controller that provides the gpio.
+- #reset-cells: 0, see below
+
+Optional properties:
+- reset-delay-us: delay in microseconds. The gpio reset line will be asserted for
+                  this duration to reset.
+- initially-in-reset: boolean. If not set, the initial state should be a
+                      deasserted reset line. If this property exists, the
+                      reset line should be kept in reset.
+
+example:
+
+sii902x_reset: gpio-reset {
+	compatible = "gpio-reset";
+	reset-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
+	reset-delay-us = <10000>;
+	initially-in-reset;
+	#reset-cells = <0>;
+};
+
+/* Device with nRESET pin connected to GPIO5_0 */
+sii902x@39 {
+	/* ... */
+	resets = <&sii902x_reset>; /* active-low GPIO5_0, 10 ms delay */
+};
