@@ -3660,6 +3660,8 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 
 	pm_runtime_get_sync(codec->dev);
 
+	cancel_delayed_work_sync(&wm8994->mic_complete_work);
+
 	mutex_lock(&wm8994->accdet_lock);
 
 	reg = snd_soc_read(codec, WM1811_JACKDET_CTRL);
@@ -3842,11 +3844,33 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 }
 EXPORT_SYMBOL_GPL(wm8958_mic_detect);
 
+static void wm8958_mic_work(struct work_struct *work)
+{
+	struct wm8994_priv *wm8994 = container_of(work,
+						  struct wm8994_priv,
+						  mic_complete_work.work);
+	struct snd_soc_codec *codec = wm8994->hubs.codec;
+
+	dev_crit(codec->dev, "MIC WORK %x\n", wm8994->mic_status);
+
+	pm_runtime_get_sync(codec->dev);
+
+	mutex_lock(&wm8994->accdet_lock);
+
+	wm8994->mic_id_cb(wm8994->mic_id_cb_data, wm8994->mic_status);
+
+	mutex_unlock(&wm8994->accdet_lock);
+
+	pm_runtime_put(codec->dev);
+
+	dev_crit(codec->dev, "MIC WORK %x DONE\n", wm8994->mic_status);
+}
+
 static irqreturn_t wm8958_mic_irq(int irq, void *data)
 {
 	struct wm8994_priv *wm8994 = data;
 	struct snd_soc_codec *codec = wm8994->hubs.codec;
-	int reg, count, ret;
+	int reg, count, ret, id_delay;
 
 	/*
 	 * Jack detection may have detected a removal simulataneously
@@ -3856,6 +3880,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	if (!(snd_soc_read(codec, WM8958_MIC_DETECT_1) & WM8958_MICD_ENA))
 		return IRQ_HANDLED;
 
+	cancel_delayed_work_sync(&wm8994->mic_complete_work);
 	cancel_delayed_work_sync(&wm8994->open_circuit_work);
 
 	pm_runtime_get_sync(codec->dev);
@@ -3904,8 +3929,12 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 		}
 	}
 
+	wm8994->mic_status = reg;
+	id_delay = wm8994->wm8994->pdata.mic_id_delay;
+
 	if (wm8994->mic_detecting)
-		wm8994->mic_id_cb(wm8994->mic_id_cb_data, reg);
+		schedule_delayed_work(&wm8994->mic_complete_work,
+				      msecs_to_jiffies(id_delay));
 	else
 		wm8958_button_det(codec, reg);
 
@@ -3970,6 +3999,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	default:
 		break;
 	}
+
+	INIT_DELAYED_WORK(&wm8994->mic_complete_work, wm8958_mic_work);
 
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll_locked); i++)
 		init_completion(&wm8994->fll_locked[i]);
