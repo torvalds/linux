@@ -127,8 +127,6 @@ static int dwc2_driver_probe(struct pci_dev *dev,
 	if (!hsotg)
 		return -ENOMEM;
 
-	pci_set_power_state(dev, PCI_D0);
-
 	hsotg->dev = &dev->dev;
 	hsotg->regs = devm_ioremap_resource(&dev->dev, &dev->resource[0]);
 	if (IS_ERR(hsotg->regs))
