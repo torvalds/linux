@@ -21,9 +21,8 @@ config DISPLAY_SUPPORT
 
 comment "Display hardware drivers"
 	depends on DISPLAY_SUPPORT
+if ARCH_RK29
 source "drivers/video/display/screen/Kconfig"
-source "drivers/video/display/transmitter/Kconfig"
-source "drivers/video/display/tve/Kconfig"
-
+endif
 endmenu
 
