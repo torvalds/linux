@@ -601,7 +601,7 @@ static bool handle_mmio_sgi_reg(struct kvm_vcpu *vcpu,
 static void vgic_retire_lr(int lr_nr, int irq, struct vgic_cpu *vgic_cpu)
 {
 	clear_bit(lr_nr, vgic_cpu->lr_used);
-	vgic_cpu->vgic_lr[lr_nr] &= ~GICH_LR_STATE;
+	vgic_cpu->vgic_v2.vgic_lr[lr_nr] &= ~GICH_LR_STATE;
 	vgic_cpu->vgic_irq_lr_map[irq] = LR_EMPTY;
 }
 
@@ -626,7 +626,7 @@ static void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 	u32 *lr;
 
 	for_each_set_bit(i, vgic_cpu->lr_used, vgic_cpu->nr_lr) {
-		lr = &vgic_cpu->vgic_lr[i];
+		lr = &vgic_cpu->vgic_v2.vgic_lr[i];
 		irq = LR_IRQID(*lr);
 		source_cpu = LR_CPUID(*lr);
 
@@ -1007,7 +1007,7 @@ static void vgic_retire_disabled_irqs(struct kvm_vcpu *vcpu)
 	int lr;
 
 	for_each_set_bit(lr, vgic_cpu->lr_used, vgic_cpu->nr_lr) {
-		int irq = vgic_cpu->vgic_lr[lr] & GICH_LR_VIRTUALID;
+		int irq = vgic_cpu->vgic_v2.vgic_lr[lr] & GICH_LR_VIRTUALID;
 
 		if (!vgic_irq_is_enabled(vcpu, irq)) {
 			vgic_retire_lr(lr, irq, vgic_cpu);
@@ -1037,11 +1037,11 @@ static bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq)
 
 	/* Do we have an active interrupt for the same CPUID? */
 	if (lr != LR_EMPTY &&
-	    (LR_CPUID(vgic_cpu->vgic_lr[lr]) == sgi_source_id)) {
+	    (LR_CPUID(vgic_cpu->vgic_v2.vgic_lr[lr]) == sgi_source_id)) {
 		kvm_debug("LR%d piggyback for IRQ%d %x\n",
-			  lr, irq, vgic_cpu->vgic_lr[lr]);
+			  lr, irq, vgic_cpu->vgic_v2.vgic_lr[lr]);
 		BUG_ON(!test_bit(lr, vgic_cpu->lr_used));
-		vgic_cpu->vgic_lr[lr] |= GICH_LR_PENDING_BIT;
+		vgic_cpu->vgic_v2.vgic_lr[lr] |= GICH_LR_PENDING_BIT;
 		return true;
 	}
 
@@ -1052,12 +1052,12 @@ static bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq)
 		return false;
 
 	kvm_debug("LR%d allocated for IRQ%d %x\n", lr, irq, sgi_source_id);
-	vgic_cpu->vgic_lr[lr] = MK_LR_PEND(sgi_source_id, irq);
+	vgic_cpu->vgic_v2.vgic_lr[lr] = MK_LR_PEND(sgi_source_id, irq);
 	vgic_cpu->vgic_irq_lr_map[irq] = lr;
 	set_bit(lr, vgic_cpu->lr_used);
 
 	if (!vgic_irq_is_edge(vcpu, irq))
-		vgic_cpu->vgic_lr[lr] |= GICH_LR_EOI;
+		vgic_cpu->vgic_v2.vgic_lr[lr] |= GICH_LR_EOI;
 
 	return true;
 }
@@ -1155,9 +1155,9 @@ static void __kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 
 epilog:
 	if (overflow) {
-		vgic_cpu->vgic_hcr |= GICH_HCR_UIE;
+		vgic_cpu->vgic_v2.vgic_hcr |= GICH_HCR_UIE;
 	} else {
-		vgic_cpu->vgic_hcr &= ~GICH_HCR_UIE;
+		vgic_cpu->vgic_v2.vgic_hcr &= ~GICH_HCR_UIE;
 		/*
 		 * We're about to run this VCPU, and we've consumed
 		 * everything the distributor had in store for
@@ -1173,21 +1173,21 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	bool level_pending = false;
 
-	kvm_debug("MISR = %08x\n", vgic_cpu->vgic_misr);
+	kvm_debug("MISR = %08x\n", vgic_cpu->vgic_v2.vgic_misr);
 
-	if (vgic_cpu->vgic_misr & GICH_MISR_EOI) {
+	if (vgic_cpu->vgic_v2.vgic_misr & GICH_MISR_EOI) {
 		/*
 		 * Some level interrupts have been EOIed. Clear their
 		 * active bit.
 		 */
 		int lr, irq;
 
-		for_each_set_bit(lr, (unsigned long *)vgic_cpu->vgic_eisr,
+		for_each_set_bit(lr, (unsigned long *)vgic_cpu->vgic_v2.vgic_eisr,
 				 vgic_cpu->nr_lr) {
-			irq = vgic_cpu->vgic_lr[lr] & GICH_LR_VIRTUALID;
+			irq = vgic_cpu->vgic_v2.vgic_lr[lr] & GICH_LR_VIRTUALID;
 
 			vgic_irq_clear_active(vcpu, irq);
-			vgic_cpu->vgic_lr[lr] &= ~GICH_LR_EOI;
+			vgic_cpu->vgic_v2.vgic_lr[lr] &= ~GICH_LR_EOI;
 
 			/* Any additional pending interrupt? */
 			if (vgic_dist_irq_is_pending(vcpu, irq)) {
@@ -1201,13 +1201,13 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 			 * Despite being EOIed, the LR may not have
 			 * been marked as empty.
 			 */
-			set_bit(lr, (unsigned long *)vgic_cpu->vgic_elrsr);
-			vgic_cpu->vgic_lr[lr] &= ~GICH_LR_ACTIVE_BIT;
+			set_bit(lr, (unsigned long *)vgic_cpu->vgic_v2.vgic_elrsr);
+			vgic_cpu->vgic_v2.vgic_lr[lr] &= ~GICH_LR_ACTIVE_BIT;
 		}
 	}
 
-	if (vgic_cpu->vgic_misr & GICH_MISR_U)
-		vgic_cpu->vgic_hcr &= ~GICH_HCR_UIE;
+	if (vgic_cpu->vgic_v2.vgic_misr & GICH_MISR_U)
+		vgic_cpu->vgic_v2.vgic_hcr &= ~GICH_HCR_UIE;
 
 	return level_pending;
 }
@@ -1226,21 +1226,21 @@ static void __kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 	level_pending = vgic_process_maintenance(vcpu);
 
 	/* Clear mappings for empty LRs */
-	for_each_set_bit(lr, (unsigned long *)vgic_cpu->vgic_elrsr,
+	for_each_set_bit(lr, (unsigned long *)vgic_cpu->vgic_v2.vgic_elrsr,
 			 vgic_cpu->nr_lr) {
 		int irq;
 
 		if (!test_and_clear_bit(lr, vgic_cpu->lr_used))
 			continue;
 
-		irq = vgic_cpu->vgic_lr[lr] & GICH_LR_VIRTUALID;
+		irq = vgic_cpu->vgic_v2.vgic_lr[lr] & GICH_LR_VIRTUALID;
 
 		BUG_ON(irq >= VGIC_NR_IRQS);
 		vgic_cpu->vgic_irq_lr_map[irq] = LR_EMPTY;
 	}
 
 	/* Check if we still have something up our sleeve... */
-	pending = find_first_zero_bit((unsigned long *)vgic_cpu->vgic_elrsr,
+	pending = find_first_zero_bit((unsigned long *)vgic_cpu->vgic_v2.vgic_elrsr,
 				      vgic_cpu->nr_lr);
 	if (level_pending || pending < vgic_cpu->nr_lr)
 		set_bit(vcpu->vcpu_id, &dist->irq_pending_on_cpu);
@@ -1436,10 +1436,10 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 	 * points to their reset values. Anything else resets to zero
 	 * anyway.
 	 */
-	vgic_cpu->vgic_vmcr = 0;
+	vgic_cpu->vgic_v2.vgic_vmcr = 0;
 
 	vgic_cpu->nr_lr = vgic_nr_lr;
-	vgic_cpu->vgic_hcr = GICH_HCR_EN; /* Get the show on the road... */
+	vgic_cpu->vgic_v2.vgic_hcr = GICH_HCR_EN; /* Get the show on the road... */
 
 	return 0;
 }
@@ -1746,15 +1746,15 @@ static bool handle_cpu_mmio_misc(struct kvm_vcpu *vcpu,
 	}
 
 	if (!mmio->is_write) {
-		reg = (vgic_cpu->vgic_vmcr & mask) >> shift;
+		reg = (vgic_cpu->vgic_v2.vgic_vmcr & mask) >> shift;
 		mmio_data_write(mmio, ~0, reg);
 	} else {
 		reg = mmio_data_read(mmio, ~0);
 		reg = (reg << shift) & mask;
-		if (reg != (vgic_cpu->vgic_vmcr & mask))
+		if (reg != (vgic_cpu->vgic_v2.vgic_vmcr & mask))
 			updated = true;
-		vgic_cpu->vgic_vmcr &= ~mask;
-		vgic_cpu->vgic_vmcr |= reg;
+		vgic_cpu->vgic_v2.vgic_vmcr &= ~mask;
+		vgic_cpu->vgic_v2.vgic_vmcr |= reg;
 	}
 	return updated;
 }
