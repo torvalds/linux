@@ -64,12 +64,11 @@ unsigned char Wb35Reg_BurstWrite(struct hw_data *pHwData, u16 RegisterNo, u32 *p
 
 		return true;
 	} else {
-		if (urb)
-			usb_free_urb(urb);
+		usb_free_urb(urb);
 		kfree(reg_queue);
 		return false;
 	}
-   return false;
+	return false;
 }
 
 void Wb35Reg_Update(struct hw_data *pHwData,  u16 RegisterNo,  u32 RegisterValue)
@@ -206,8 +205,7 @@ unsigned char Wb35Reg_Write(struct hw_data *pHwData, u16 RegisterNo, u32 Registe
 
 		return true;
 	} else {
-		if (urb)
-			usb_free_urb(urb);
+		usb_free_urb(urb);
 		kfree(reg_queue);
 		return false;
 	}
@@ -270,8 +268,7 @@ unsigned char Wb35Reg_WriteWithCallbackValue(struct hw_data *pHwData,
 		Wb35Reg_EP0VM_start(pHwData);
 		return true;
 	} else {
-		if (urb)
-			usb_free_urb(urb);
+		usb_free_urb(urb);
 		kfree(reg_queue);
 		return false;
 	}
@@ -374,8 +371,7 @@ unsigned char Wb35Reg_Read(struct hw_data *pHwData, u16 RegisterNo, u32 *pRegist
 
 		return true;
 	} else {
-		if (urb)
-			usb_free_urb(urb);
+		usb_free_urb(urb);
 		kfree(reg_queue);
 		return false;
 	}
