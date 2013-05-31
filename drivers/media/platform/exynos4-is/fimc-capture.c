@@ -496,7 +496,7 @@ static int fimc_capture_open(struct file *file)
 
 	ret = v4l2_fh_open(file);
 	if (ret) {
-		pm_runtime_put(&fimc->pdev->dev);
+		pm_runtime_put_sync(&fimc->pdev->dev);
 		goto unlock;
 	}
 
@@ -564,7 +564,7 @@ static int fimc_capture_release(struct file *file)
 		fimc_md_graph_unlock(&vc->ve);
 	}
 
-	pm_runtime_put(&fimc->pdev->dev);
+	pm_runtime_put_sync(&fimc->pdev->dev);
 	mutex_unlock(&fimc->lock);
 
 	return ret;
