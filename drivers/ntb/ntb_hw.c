@@ -531,9 +531,9 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 	}
 
 	if (val & SNB_PPD_DEV_TYPE)
-		ndev->dev_type = NTB_DEV_DSD;
-	else
 		ndev->dev_type = NTB_DEV_USD;
+	else
+		ndev->dev_type = NTB_DEV_DSD;
 
 	ndev->reg_ofs.pdb = ndev->reg_base + SNB_PDOORBELL_OFFSET;
 	ndev->reg_ofs.pdb_mask = ndev->reg_base + SNB_PDBMSK_OFFSET;
@@ -646,6 +646,9 @@ static int ntb_device_setup(struct ntb_device *ndev)
 
 	if (rc)
 		return rc;
+
+	dev_info(&ndev->pdev->dev, "Device Type = %s\n",
+		 ndev->dev_type == NTB_DEV_USD ? "USD/DSP" : "DSD/USP");
 
 	/* Enable Bus Master and Memory Space on the secondary side */
 	writew(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER, ndev->reg_ofs.spci_cmd);
