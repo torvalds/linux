@@ -61,11 +61,11 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 	seq_printf(m, "gen: %d\n", info->gen);
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(dev));
-#define DEV_INFO_FLAG(x) seq_printf(m, #x ": %s\n", yesno(info->x))
-#define DEV_INFO_SEP ;
-	DEV_INFO_FLAGS;
-#undef DEV_INFO_FLAG
-#undef DEV_INFO_SEP
+#define PRINT_FLAG(x)  seq_printf(m, #x ": %s\n", yesno(info->x))
+#define SEP_SEMICOLON ;
+	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG, SEP_SEMICOLON);
+#undef PRINT_FLAG
+#undef SEP_SEMICOLON
 
 	return 0;
 }
@@ -941,7 +941,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 			   MEMSTAT_VID_SHIFT);
 		seq_printf(m, "Current P-state: %d\n",
 			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
-	} else if (IS_GEN6(dev) || IS_GEN7(dev)) {
+	} else if ((IS_GEN6(dev) || IS_GEN7(dev)) && !IS_VALLEYVIEW(dev)) {
 		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
 		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
@@ -1009,6 +1009,27 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
 			   dev_priv->rps.hw_max * GT_FREQUENCY_MULTIPLIER);
+	} else if (IS_VALLEYVIEW(dev)) {
+		u32 freq_sts, val;
+
+		mutex_lock(&dev_priv->rps.hw_lock);
+		valleyview_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS,
+				      &freq_sts);
+		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
+		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
+
+		valleyview_punit_read(dev_priv, PUNIT_FUSE_BUS1, &val);
+		seq_printf(m, "max GPU freq: %d MHz\n",
+			   vlv_gpu_freq(dev_priv->mem_freq, val));
+
+		valleyview_punit_read(dev_priv, PUNIT_REG_GPU_LFM, &val);
+		seq_printf(m, "min GPU freq: %d MHz\n",
+			   vlv_gpu_freq(dev_priv->mem_freq, val));
+
+		seq_printf(m, "current GPU freq: %d MHz\n",
+			   vlv_gpu_freq(dev_priv->mem_freq,
+					(freq_sts >> 8) & 0xff));
+		mutex_unlock(&dev_priv->rps.hw_lock);
 	} else {
 		seq_printf(m, "no P-state info available\n");
 	}
@@ -1812,7 +1833,11 @@ i915_max_freq_get(void *data, u64 *val)
 	if (ret)
 		return ret;
 
-	*val = dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER;
+	if (IS_VALLEYVIEW(dev))
+		*val = vlv_gpu_freq(dev_priv->mem_freq,
+				    dev_priv->rps.max_delay);
+	else
+		*val = dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
@@ -1837,9 +1862,16 @@ i915_max_freq_set(void *data, u64 val)
 	/*
 	 * Turbo will still be enabled, but won't go above the set value.
 	 */
-	do_div(val, GT_FREQUENCY_MULTIPLIER);
-	dev_priv->rps.max_delay = val;
-	gen6_set_rps(dev, val);
+	if (IS_VALLEYVIEW(dev)) {
+		val = vlv_freq_opcode(dev_priv->mem_freq, val);
+		dev_priv->rps.max_delay = val;
+		gen6_set_rps(dev, val);
+	} else {
+		do_div(val, GT_FREQUENCY_MULTIPLIER);
+		dev_priv->rps.max_delay = val;
+		gen6_set_rps(dev, val);
+	}
+
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
@@ -1863,7 +1895,11 @@ i915_min_freq_get(void *data, u64 *val)
 	if (ret)
 		return ret;
 
-	*val = dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER;
+	if (IS_VALLEYVIEW(dev))
+		*val = vlv_gpu_freq(dev_priv->mem_freq,
+				    dev_priv->rps.min_delay);
+	else
+		*val = dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
@@ -1888,9 +1924,15 @@ i915_min_freq_set(void *data, u64 val)
 	/*
 	 * Turbo will still be enabled, but won't go below the set value.
 	 */
-	do_div(val, GT_FREQUENCY_MULTIPLIER);
-	dev_priv->rps.min_delay = val;
-	gen6_set_rps(dev, val);
+	if (IS_VALLEYVIEW(dev)) {
+		val = vlv_freq_opcode(dev_priv->mem_freq, val);
+		dev_priv->rps.min_delay = val;
+		valleyview_set_rps(dev, val);
+	} else {
+		do_div(val, GT_FREQUENCY_MULTIPLIER);
+		dev_priv->rps.min_delay = val;
+		gen6_set_rps(dev, val);
+	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;

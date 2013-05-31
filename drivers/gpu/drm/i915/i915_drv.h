@@ -76,6 +76,8 @@ enum plane {
 };
 #define plane_name(p) ((p) + 'A')
 
+#define sprite_name(p, s) ((p) * dev_priv->num_plane + (s) + 'A')
+
 enum port {
 	PORT_A = 0,
 	PORT_B,
@@ -85,6 +87,24 @@ enum port {
 	I915_MAX_PORTS
 };
 #define port_name(p) ((p) + 'A')
+
+enum intel_display_power_domain {
+	POWER_DOMAIN_PIPE_A,
+	POWER_DOMAIN_PIPE_B,
+	POWER_DOMAIN_PIPE_C,
+	POWER_DOMAIN_PIPE_A_PANEL_FITTER,
+	POWER_DOMAIN_PIPE_B_PANEL_FITTER,
+	POWER_DOMAIN_PIPE_C_PANEL_FITTER,
+	POWER_DOMAIN_TRANSCODER_A,
+	POWER_DOMAIN_TRANSCODER_B,
+	POWER_DOMAIN_TRANSCODER_C,
+	POWER_DOMAIN_TRANSCODER_EDP = POWER_DOMAIN_TRANSCODER_A + 0xF,
+};
+
+#define POWER_DOMAIN_PIPE(pipe) ((pipe) + POWER_DOMAIN_PIPE_A)
+#define POWER_DOMAIN_PIPE_PANEL_FITTER(pipe) \
+		((pipe) + POWER_DOMAIN_PIPE_A_PANEL_FITTER)
+#define POWER_DOMAIN_TRANSCODER(tran) ((tran) + POWER_DOMAIN_TRANSCODER_A)
 
 enum hpd_pin {
 	HPD_NONE = 0,
@@ -331,67 +351,54 @@ struct drm_i915_gt_funcs {
 	void (*force_wake_put)(struct drm_i915_private *dev_priv);
 };
 
-#define DEV_INFO_FLAGS \
-	DEV_INFO_FLAG(is_mobile) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_i85x) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_i915g) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_i945gm) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_g33) DEV_INFO_SEP \
-	DEV_INFO_FLAG(need_gfx_hws) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_g4x) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_pineview) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_broadwater) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_crestline) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_ivybridge) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_valleyview) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_haswell) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_force_wake) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_fbc) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_pipe_cxsr) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_hotplug) DEV_INFO_SEP \
-	DEV_INFO_FLAG(cursor_needs_physical) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_overlay) DEV_INFO_SEP \
-	DEV_INFO_FLAG(overlay_needs_physical) DEV_INFO_SEP \
-	DEV_INFO_FLAG(supports_tv) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_bsd_ring) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_blt_ring) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_llc)
+#define DEV_INFO_FOR_EACH_FLAG(func, sep) \
+	func(is_mobile) sep \
+	func(is_i85x) sep \
+	func(is_i915g) sep \
+	func(is_i945gm) sep \
+	func(is_g33) sep \
+	func(need_gfx_hws) sep \
+	func(is_g4x) sep \
+	func(is_pineview) sep \
+	func(is_broadwater) sep \
+	func(is_crestline) sep \
+	func(is_ivybridge) sep \
+	func(is_valleyview) sep \
+	func(is_haswell) sep \
+	func(has_force_wake) sep \
+	func(has_fbc) sep \
+	func(has_pipe_cxsr) sep \
+	func(has_hotplug) sep \
+	func(cursor_needs_physical) sep \
+	func(has_overlay) sep \
+	func(overlay_needs_physical) sep \
+	func(supports_tv) sep \
+	func(has_bsd_ring) sep \
+	func(has_blt_ring) sep \
+	func(has_llc) sep \
+	func(has_ddi) sep \
+	func(has_fpga_dbg)
+
+#define DEFINE_FLAG(name) u8 name:1
+#define SEP_SEMICOLON ;
 
 struct intel_device_info {
 	u32 display_mmio_offset;
 	u8 num_pipes:3;
 	u8 gen;
-	u8 is_mobile:1;
-	u8 is_i85x:1;
-	u8 is_i915g:1;
-	u8 is_i945gm:1;
-	u8 is_g33:1;
-	u8 need_gfx_hws:1;
-	u8 is_g4x:1;
-	u8 is_pineview:1;
-	u8 is_broadwater:1;
-	u8 is_crestline:1;
-	u8 is_ivybridge:1;
-	u8 is_valleyview:1;
-	u8 has_force_wake:1;
-	u8 is_haswell:1;
-	u8 has_fbc:1;
-	u8 has_pipe_cxsr:1;
-	u8 has_hotplug:1;
-	u8 cursor_needs_physical:1;
-	u8 has_overlay:1;
-	u8 overlay_needs_physical:1;
-	u8 supports_tv:1;
-	u8 has_bsd_ring:1;
-	u8 has_blt_ring:1;
-	u8 has_llc:1;
+	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG, SEP_SEMICOLON);
 };
+
+#undef DEFINE_FLAG
+#undef SEP_SEMICOLON
 
 enum i915_cache_level {
 	I915_CACHE_NONE = 0,
 	I915_CACHE_LLC,
 	I915_CACHE_LLC_MLC, /* gen6+, in docs at least! */
 };
+
+typedef uint32_t gen6_gtt_pte_t;
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a
  * Graphics Virtual Address into a Physical Address. In addition to the normal
@@ -428,6 +435,9 @@ struct i915_gtt {
 				   struct sg_table *st,
 				   unsigned int pg_start,
 				   enum i915_cache_level cache_level);
+	gen6_gtt_pte_t (*pte_encode)(struct drm_device *dev,
+				     dma_addr_t addr,
+				     enum i915_cache_level level);
 };
 #define gtt_total_entries(gtt) ((gtt).total >> PAGE_SHIFT)
 
@@ -449,6 +459,9 @@ struct i915_hw_ppgtt {
 			       struct sg_table *st,
 			       unsigned int pg_start,
 			       enum i915_cache_level cache_level);
+	gen6_gtt_pte_t (*pte_encode)(struct drm_device *dev,
+				     dma_addr_t addr,
+				     enum i915_cache_level level);
 	int (*enable)(struct drm_device *dev);
 	void (*cleanup)(struct i915_hw_ppgtt *ppgtt);
 };
@@ -457,6 +470,7 @@ struct i915_hw_ppgtt {
 /* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_ID 0
 struct i915_hw_context {
+	struct kref ref;
 	int id;
 	bool is_initialized;
 	struct drm_i915_file_private *file_priv;
@@ -658,6 +672,7 @@ struct i915_suspend_saved_registers {
 
 struct intel_gen6_power_mgmt {
 	struct work_struct work;
+	struct delayed_work vlv_work;
 	u32 pm_iir;
 	/* lock - irqsave spinlock that protectects the work_struct and
 	 * pm_iir. */
@@ -668,6 +683,7 @@ struct intel_gen6_power_mgmt {
 	u8 cur_delay;
 	u8 min_delay;
 	u8 max_delay;
+	u8 rpe_delay;
 	u8 hw_max;
 
 	struct delayed_work delayed_resume_work;
@@ -875,6 +891,37 @@ enum modeset_restore {
 	MODESET_SUSPENDED,
 };
 
+struct intel_vbt_data {
+	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
+	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
+
+	/* Feature bits */
+	unsigned int int_tv_support:1;
+	unsigned int lvds_dither:1;
+	unsigned int lvds_vbt:1;
+	unsigned int int_crt_support:1;
+	unsigned int lvds_use_ssc:1;
+	unsigned int display_clock_mode:1;
+	unsigned int fdi_rx_polarity_inverted:1;
+	int lvds_ssc_freq;
+	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
+
+	/* eDP */
+	int edp_rate;
+	int edp_lanes;
+	int edp_preemphasis;
+	int edp_vswing;
+	bool edp_initialized;
+	bool edp_support;
+	int edp_bpp;
+	struct edp_power_seq edp_pps;
+
+	int crt_ddc_pin;
+
+	int child_dev_num;
+	struct child_device_config *child_dev;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
@@ -941,6 +988,7 @@ typedef struct drm_i915_private {
 			HPD_MARK_DISABLED = 2
 		} hpd_mark;
 	} hpd_stats[HPD_NUM_PINS];
+	u32 hpd_event_bits;
 	struct timer_list hotplug_reenable_timer;
 
 	int num_pch_pll;
@@ -953,6 +1001,7 @@ typedef struct drm_i915_private {
 	struct intel_fbc_work *fbc_work;
 
 	struct intel_opregion opregion;
+	struct intel_vbt_data vbt;
 
 	/* overlay */
 	struct intel_overlay *overlay;
@@ -962,37 +1011,15 @@ typedef struct drm_i915_private {
 	struct {
 		int level;
 		bool enabled;
+		spinlock_t lock; /* bl registers and the above bl fields */
 		struct backlight_device *device;
 	} backlight;
 
 	/* LVDS info */
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
-
-	/* Feature bits from the VBIOS */
-	unsigned int int_tv_support:1;
-	unsigned int lvds_dither:1;
-	unsigned int lvds_vbt:1;
-	unsigned int int_crt_support:1;
-	unsigned int lvds_use_ssc:1;
-	unsigned int display_clock_mode:1;
-	unsigned int fdi_rx_polarity_inverted:1;
-	int lvds_ssc_freq;
-	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
-	struct {
-		int rate;
-		int lanes;
-		int preemphasis;
-		int vswing;
-
-		bool initialized;
-		bool support;
-		int bpp;
-		struct edp_power_seq pps;
-	} edp;
 	bool no_aux_handshake;
 
-	int crt_ddc_pin;
 	struct drm_i915_fence_reg fence_regs[I915_MAX_NUM_FENCES]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
@@ -1020,10 +1047,6 @@ typedef struct drm_i915_private {
 	/* Kernel Modesetting */
 
 	struct sdvo_device_mapping sdvo_mappings[2];
-	/* indicate whether the LVDS_BORDER should be enabled or not */
-	unsigned int lvds_border_bits;
-	/* Panel fitter placement and size for Ironlake+ */
-	u32 pch_pf_pos, pch_pf_size;
 
 	struct drm_crtc *plane_to_crtc_mapping[3];
 	struct drm_crtc *pipe_to_crtc_mapping[3];
@@ -1038,8 +1061,6 @@ typedef struct drm_i915_private {
 	/* indicates the reduced downclock for LVDS*/
 	int lvds_downclock;
 	u16 orig_clock;
-	int child_dev_num;
-	struct child_device_config *child_dev;
 
 	bool mchbar_need_disable;
 
@@ -1058,6 +1079,8 @@ typedef struct drm_i915_private {
 	struct drm_mm_node *compressed_llb;
 
 	struct i915_gpu_error gpu_error;
+
+	struct drm_i915_gem_object *vlv_pctx;
 
 	/* list of fbdev register on this device */
 	struct intel_fbdev *fbdev;
@@ -1274,6 +1297,9 @@ struct drm_i915_gem_request {
 	/** Postion in the ringbuffer of the end of the request */
 	u32 tail;
 
+	/** Context related to this request */
+	struct i915_hw_context *ctx;
+
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
 
@@ -1373,8 +1399,9 @@ struct drm_i915_file_private {
 
 #define HAS_PIPE_CONTROL(dev) (INTEL_INFO(dev)->gen >= 5)
 
-#define HAS_DDI(dev)		(IS_HASWELL(dev))
+#define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
 #define HAS_POWER_WELL(dev)	(IS_HASWELL(dev))
+#define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
@@ -1485,8 +1512,6 @@ i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
 
 void
 i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
-
-void intel_enable_asle(struct drm_device *dev);
 
 #ifdef CONFIG_DEBUG_FS
 extern void i915_destroy_error_state(struct drm_device *dev);
@@ -1703,6 +1728,17 @@ void i915_gem_context_fini(struct drm_device *dev);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct intel_ring_buffer *ring,
 			struct drm_file *file, int to_id);
+void i915_gem_context_free(struct kref *ctx_ref);
+static inline void i915_gem_context_reference(struct i915_hw_context *ctx)
+{
+	kref_get(&ctx->ref);
+}
+
+static inline void i915_gem_context_unreference(struct i915_hw_context *ctx)
+{
+	kref_put(&ctx->ref, i915_gem_context_free);
+}
+
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file);
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
@@ -1800,7 +1836,7 @@ void i915_teardown_sysfs(struct drm_device *dev_priv);
 /* intel_i2c.c */
 extern int intel_setup_gmbus(struct drm_device *dev);
 extern void intel_teardown_gmbus(struct drm_device *dev);
-extern inline bool intel_gmbus_is_port_valid(unsigned port)
+static inline bool intel_gmbus_is_port_valid(unsigned port)
 {
 	return (port >= GMBUS_PORT_SSC && port <= GMBUS_PORT_DPD);
 }
@@ -1809,7 +1845,7 @@ extern struct i2c_adapter *intel_gmbus_get_adapter(
 		struct drm_i915_private *dev_priv, unsigned port);
 extern void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed);
 extern void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit);
-extern inline bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
+static inline bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
 {
 	return container_of(adapter, struct intel_gmbus, adapter)->force_bit;
 }
@@ -1821,14 +1857,10 @@ extern int intel_opregion_setup(struct drm_device *dev);
 extern void intel_opregion_init(struct drm_device *dev);
 extern void intel_opregion_fini(struct drm_device *dev);
 extern void intel_opregion_asle_intr(struct drm_device *dev);
-extern void intel_opregion_gse_intr(struct drm_device *dev);
-extern void intel_opregion_enable_asle(struct drm_device *dev);
 #else
 static inline void intel_opregion_init(struct drm_device *dev) { return; }
 static inline void intel_opregion_fini(struct drm_device *dev) { return; }
 static inline void intel_opregion_asle_intr(struct drm_device *dev) { return; }
-static inline void intel_opregion_gse_intr(struct drm_device *dev) { return; }
-static inline void intel_opregion_enable_asle(struct drm_device *dev) { return; }
 #endif
 
 /* intel_acpi.c */
@@ -1842,6 +1874,7 @@ static inline void intel_unregister_dsm_handler(void) { return; }
 
 /* modesetting */
 extern void intel_modeset_init_hw(struct drm_device *dev);
+extern void intel_modeset_suspend_hw(struct drm_device *dev);
 extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_gem_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
@@ -1854,6 +1887,9 @@ extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void intel_init_pch_refclk(struct drm_device *dev);
 extern void gen6_set_rps(struct drm_device *dev, u8 val);
+extern void valleyview_set_rps(struct drm_device *dev, u8 val);
+extern int valleyview_rps_max_freq(struct drm_i915_private *dev_priv);
+extern int valleyview_rps_min_freq(struct drm_i915_private *dev_priv);
 extern void intel_detect_pch(struct drm_device *dev);
 extern int intel_trans_dp_port_sel(struct drm_crtc *crtc);
 extern int intel_enable_rc6(const struct drm_device *dev);
@@ -1885,6 +1921,10 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val)
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val);
 int valleyview_punit_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val);
 int valleyview_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val);
+int valleyview_nc_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val);
+
+int vlv_gpu_freq(int ddr_freq, int val);
+int vlv_freq_opcode(int ddr_freq, int val);
 
 #define __i915_read(x, y) \
 	u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg);

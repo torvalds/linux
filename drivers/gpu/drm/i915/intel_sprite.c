@@ -32,6 +32,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_rect.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -583,6 +584,20 @@ ilk_get_colorkey(struct drm_plane *plane, struct drm_intel_sprite_colorkey *key)
 		key->flags = I915_SET_COLORKEY_NONE;
 }
 
+static bool
+format_is_yuv(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_YVYU:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int
 intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		   struct drm_framebuffer *fb, int crtc_x, int crtc_y,
@@ -600,9 +615,29 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
 	int ret = 0;
-	int x = src_x >> 16, y = src_y >> 16;
-	int primary_w = crtc->mode.hdisplay, primary_h = crtc->mode.vdisplay;
 	bool disable_primary = false;
+	bool visible;
+	int hscale, vscale;
+	int max_scale, min_scale;
+	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	struct drm_rect src = {
+		/* sample coordinates in 16.16 fixed point */
+		.x1 = src_x,
+		.x2 = src_x + src_w,
+		.y1 = src_y,
+		.y2 = src_y + src_h,
+	};
+	struct drm_rect dst = {
+		/* integer pixels */
+		.x1 = crtc_x,
+		.x2 = crtc_x + crtc_w,
+		.y1 = crtc_y,
+		.y2 = crtc_y + crtc_h,
+	};
+	const struct drm_rect clip = {
+		.x2 = crtc->mode.hdisplay,
+		.y2 = crtc->mode.vdisplay,
+	};
 
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
@@ -618,19 +653,23 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	intel_plane->src_w = src_w;
 	intel_plane->src_h = src_h;
 
-	src_w = src_w >> 16;
-	src_h = src_h >> 16;
-
 	/* Pipe must be running... */
-	if (!(I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_ENABLE))
+	if (!(I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_ENABLE)) {
+		DRM_DEBUG_KMS("Pipe disabled\n");
 		return -EINVAL;
-
-	if (crtc_x >= primary_w || crtc_y >= primary_h)
-		return -EINVAL;
+	}
 
 	/* Don't modify another pipe's plane */
-	if (intel_plane->pipe != intel_crtc->pipe)
+	if (intel_plane->pipe != intel_crtc->pipe) {
+		DRM_DEBUG_KMS("Wrong plane <-> crtc mapping\n");
 		return -EINVAL;
+	}
+
+	/* FIXME check all gen limits */
+	if (fb->width < 3 || fb->height < 3 || fb->pitches[0] > 16384) {
+		DRM_DEBUG_KMS("Unsuitable framebuffer for plane\n");
+		return -EINVAL;
+	}
 
 	/* Sprite planes can be linear or x-tiled surfaces */
 	switch (obj->tiling_mode) {
@@ -638,55 +677,123 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		case I915_TILING_X:
 			break;
 		default:
+			DRM_DEBUG_KMS("Unsupported tiling mode\n");
 			return -EINVAL;
 	}
 
 	/*
-	 * Clamp the width & height into the visible area.  Note we don't
-	 * try to scale the source if part of the visible region is offscreen.
-	 * The caller must handle that by adjusting source offset and size.
+	 * FIXME the following code does a bunch of fuzzy adjustments to the
+	 * coordinates and sizes. We probably need some way to decide whether
+	 * more strict checking should be done instead.
 	 */
-	if ((crtc_x < 0) && ((crtc_x + crtc_w) > 0)) {
-		crtc_w += crtc_x;
-		crtc_x = 0;
+	max_scale = intel_plane->max_downscale << 16;
+	min_scale = intel_plane->can_scale ? 1 : (1 << 16);
+
+	hscale = drm_rect_calc_hscale_relaxed(&src, &dst, min_scale, max_scale);
+	BUG_ON(hscale < 0);
+
+	vscale = drm_rect_calc_vscale_relaxed(&src, &dst, min_scale, max_scale);
+	BUG_ON(vscale < 0);
+
+	visible = drm_rect_clip_scaled(&src, &dst, &clip, hscale, vscale);
+
+	crtc_x = dst.x1;
+	crtc_y = dst.y1;
+	crtc_w = drm_rect_width(&dst);
+	crtc_h = drm_rect_height(&dst);
+
+	if (visible) {
+		/* check again in case clipping clamped the results */
+		hscale = drm_rect_calc_hscale(&src, &dst, min_scale, max_scale);
+		if (hscale < 0) {
+			DRM_DEBUG_KMS("Horizontal scaling factor out of limits\n");
+			drm_rect_debug_print(&src, true);
+			drm_rect_debug_print(&dst, false);
+
+			return hscale;
+		}
+
+		vscale = drm_rect_calc_vscale(&src, &dst, min_scale, max_scale);
+		if (vscale < 0) {
+			DRM_DEBUG_KMS("Vertical scaling factor out of limits\n");
+			drm_rect_debug_print(&src, true);
+			drm_rect_debug_print(&dst, false);
+
+			return vscale;
+		}
+
+		/* Make the source viewport size an exact multiple of the scaling factors. */
+		drm_rect_adjust_size(&src,
+				     drm_rect_width(&dst) * hscale - drm_rect_width(&src),
+				     drm_rect_height(&dst) * vscale - drm_rect_height(&src));
+
+		/* sanity check to make sure the src viewport wasn't enlarged */
+		WARN_ON(src.x1 < (int) src_x ||
+			src.y1 < (int) src_y ||
+			src.x2 > (int) (src_x + src_w) ||
+			src.y2 > (int) (src_y + src_h));
+
+		/*
+		 * Hardware doesn't handle subpixel coordinates.
+		 * Adjust to (macro)pixel boundary, but be careful not to
+		 * increase the source viewport size, because that could
+		 * push the downscaling factor out of bounds.
+		 */
+		src_x = src.x1 >> 16;
+		src_w = drm_rect_width(&src) >> 16;
+		src_y = src.y1 >> 16;
+		src_h = drm_rect_height(&src) >> 16;
+
+		if (format_is_yuv(fb->pixel_format)) {
+			src_x &= ~1;
+			src_w &= ~1;
+
+			/*
+			 * Must keep src and dst the
+			 * same if we can't scale.
+			 */
+			if (!intel_plane->can_scale)
+				crtc_w &= ~1;
+
+			if (crtc_w == 0)
+				visible = false;
+		}
 	}
-	if ((crtc_x + crtc_w) <= 0) /* Nothing to display */
-		goto out;
-	if ((crtc_x + crtc_w) > primary_w)
-		crtc_w = primary_w - crtc_x;
 
-	if ((crtc_y < 0) && ((crtc_y + crtc_h) > 0)) {
-		crtc_h += crtc_y;
-		crtc_y = 0;
+	/* Check size restrictions when scaling */
+	if (visible && (src_w != crtc_w || src_h != crtc_h)) {
+		unsigned int width_bytes;
+
+		WARN_ON(!intel_plane->can_scale);
+
+		/* FIXME interlacing min height is 6 */
+
+		if (crtc_w < 3 || crtc_h < 3)
+			visible = false;
+
+		if (src_w < 3 || src_h < 3)
+			visible = false;
+
+		width_bytes = ((src_x * pixel_size) & 63) + src_w * pixel_size;
+
+		if (src_w > 2048 || src_h > 2048 ||
+		    width_bytes > 4096 || fb->pitches[0] > 4096) {
+			DRM_DEBUG_KMS("Source dimensions exceed hardware limits\n");
+			return -EINVAL;
+		}
 	}
-	if ((crtc_y + crtc_h) <= 0) /* Nothing to display */
-		goto out;
-	if (crtc_y + crtc_h > primary_h)
-		crtc_h = primary_h - crtc_y;
 
-	if (!crtc_w || !crtc_h) /* Again, nothing to display */
-		goto out;
-
-	/*
-	 * We may not have a scaler, eg. HSW does not have it any more
-	 */
-	if (!intel_plane->can_scale && (crtc_w != src_w || crtc_h != src_h))
-		return -EINVAL;
-
-	/*
-	 * We can take a larger source and scale it down, but
-	 * only so much...  16x is the max on SNB.
-	 */
-	if (((src_w * src_h) / (crtc_w * crtc_h)) > intel_plane->max_downscale)
-		return -EINVAL;
+	dst.x1 = crtc_x;
+	dst.x2 = crtc_x + crtc_w;
+	dst.y1 = crtc_y;
+	dst.y2 = crtc_y + crtc_h;
 
 	/*
 	 * If the sprite is completely covering the primary plane,
 	 * we can disable the primary and save power.
 	 */
-	if ((crtc_x == 0) && (crtc_y == 0) &&
-	    (crtc_w == primary_w) && (crtc_h == primary_h))
-		disable_primary = true;
+	disable_primary = drm_rect_equals(&dst, &clip);
+	WARN_ON(disable_primary && !visible);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -708,8 +815,12 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (!disable_primary)
 		intel_enable_primary(crtc);
 
-	intel_plane->update_plane(plane, fb, obj, crtc_x, crtc_y,
-				  crtc_w, crtc_h, x, y, src_w, src_h);
+	if (visible)
+		intel_plane->update_plane(plane, fb, obj,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  src_x, src_y, src_w, src_h);
+	else
+		intel_plane->disable_plane(plane);
 
 	if (disable_primary)
 		intel_disable_primary(crtc);
@@ -732,7 +843,6 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
-out:
 	return ret;
 }
 
@@ -918,13 +1028,15 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		break;
 
 	case 7:
-		if (IS_HASWELL(dev) || IS_VALLEYVIEW(dev))
-			intel_plane->can_scale = false;
-		else
+		if (IS_IVYBRIDGE(dev)) {
 			intel_plane->can_scale = true;
+			intel_plane->max_downscale = 2;
+		} else {
+			intel_plane->can_scale = false;
+			intel_plane->max_downscale = 1;
+		}
 
 		if (IS_VALLEYVIEW(dev)) {
-			intel_plane->max_downscale = 1;
 			intel_plane->update_plane = vlv_update_plane;
 			intel_plane->disable_plane = vlv_disable_plane;
 			intel_plane->update_colorkey = vlv_update_colorkey;
@@ -933,7 +1045,6 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 			plane_formats = vlv_plane_formats;
 			num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
 		} else {
-			intel_plane->max_downscale = 2;
 			intel_plane->update_plane = ivb_update_plane;
 			intel_plane->disable_plane = ivb_disable_plane;
 			intel_plane->update_colorkey = ivb_update_colorkey;
