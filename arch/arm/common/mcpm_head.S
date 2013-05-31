@@ -32,11 +32,11 @@
 1901:	adr	r0, 1902b
 	bl	printascii
 	mov	r0, r9
-	bl	printhex8
+	bl	printhex2
 	adr	r0, 1903b
 	bl	printascii
 	mov	r0, r10
-	bl	printhex8
+	bl	printhex2
 	adr	r0, 1904b
 	bl	printascii
 #endif
