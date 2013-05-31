@@ -471,8 +471,6 @@ struct saa7134_dmaqueue {
 struct saa7134_fh {
 	struct v4l2_fh             fh;
 	struct saa7134_dev         *dev;
-	unsigned int               radio;
-	enum v4l2_buf_type         type;
 	unsigned int               resources;
 	struct pm_qos_request	   qos_request;
 
