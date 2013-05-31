@@ -141,7 +141,9 @@ struct rk610_ctl_platform_data {
 };
 struct rk610_core_info{
     struct i2c_client *client;
+    struct device *dev;
     struct rk610_ctl_platform_data *pdata;
+    struct dentry *debugfs_dir;
     void *lcd_pdata;
 };
 

@@ -109,7 +109,7 @@ struct rk29lcd_info {
 typedef struct rk29fb_screen {
 	/* screen type & hardware connect format & out face */
 	u16 type;
-	u16 hw_format;  //lvds data format
+	u16 lvds_format;  //lvds data format
 	u16 face;
 	u8 lcdc_id;    //which output interface the screeen connect to
 	u8 screen_id; //screen number

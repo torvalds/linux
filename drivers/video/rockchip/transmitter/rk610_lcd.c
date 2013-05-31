@@ -6,7 +6,7 @@
 #include "rk610_lcd.h"
 #include <linux/mfd/rk610_core.h>
 #include <linux/rk_fb.h>
-#include "../../rockchip/hdmi/rk_hdmi.h"
+#include "../hdmi/rk_hdmi.h"
 
 static struct rk610_lcd_info *g_lcd_inf = NULL;
 //static int rk610_scaler_read_p0_reg(struct i2c_client *client, char reg, char *val)
@@ -80,7 +80,7 @@ static int rk610_output_config(struct i2c_client *client,struct rk29fb_screen *s
         if(mode == LCD_OUT_SCL || mode == LCD_OUT_BYPASS){
             c = LVDS_OUT_CLK_PIN(0) |LVDS_OUT_CLK_PWR_PIN(1) |LVDS_PLL_PWR_PIN(0) \
                 |LVDS_LANE_IN_FORMAT(DATA_D0_MSB) |LVDS_INPUT_SOURCE(FROM_LCD0_OR_SCL) \
-                |LVDS_OUTPUT_FORMAT(screen->hw_format) | LVDS_BIASE_PWR(1); 
+                |LVDS_OUTPUT_FORMAT(screen->lvds_format) | LVDS_BIASE_PWR(1); 
 	        rk610_scaler_write_p0_reg(client, LVDS_CON0, &c);
             c = LVDS_OUT_ENABLE(0x0) |LVDS_TX_PWR_ENABLE(0x0); 
 	        rk610_scaler_write_p0_reg(client, LVDS_CON1, &c);
@@ -88,7 +88,7 @@ static int rk610_output_config(struct i2c_client *client,struct rk29fb_screen *s
 	    else{
 	        c = LVDS_OUT_CLK_PIN(0) |LVDS_OUT_CLK_PWR_PIN(0) |LVDS_PLL_PWR_PIN(1) \
                 |LVDS_LANE_IN_FORMAT(DATA_D0_MSB) |LVDS_INPUT_SOURCE(FROM_LCD0_OR_SCL) \
-                |LVDS_OUTPUT_FORMAT(screen->hw_format) | LVDS_BIASE_PWR(0); 
+                |LVDS_OUTPUT_FORMAT(screen->lvds_format) | LVDS_BIASE_PWR(0); 
 	        rk610_scaler_write_p0_reg(client, LVDS_CON0, &c);
             c = LVDS_OUT_ENABLE(0xf) |LVDS_TX_PWR_ENABLE(0xf); 
 	        rk610_scaler_write_p0_reg(client, LVDS_CON1, &c);
@@ -412,3 +412,64 @@ int rk610_lcd_init(struct rk610_core_info *rk610_core_info)
     g_lcd_inf->disp_mode = LCD_OUT_BYPASS;
     return 0;
 }
+
+static int rk610_lcd_probe(struct platform_device *pdev)
+{
+	struct rk610_core_info *core_info = NULL;
+	rk_screen *screen = NULL;
+
+	core_info = dev_get_drvdata(pdev->dev.parent);
+	if(!core_info)
+	{
+		dev_err(&pdev->dev,"rk610 core info is null\n");
+		return -ENODEV;
+	}
+	screen = rk_fb_get_prmry_screen();
+	if(!screen)
+	{
+		dev_err(&pdev->dev,"the fb prmry screen is null!\n");
+		return -ENODEV;
+	}
+	
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+	screen->sscreen_set = rk610_lcd_scaler_set_param;
+#endif
+ 	rk610_lcd_init(core_info);
+	rk610_lcd_scaler_set_param(screen,0);
+
+	return 0;
+	
+}
+static int rk610_lcd_remove(struct platform_device *pdev)
+{
+	
+	return 0;
+}
+
+static void rk610_lcd_shutdown(struct platform_device *pdev)
+{
+	
+	return;
+}
+
+static struct platform_driver rk610_lcd_driver = {
+	.driver		= {
+		.name	= "rk610-lcd",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= rk610_lcd_probe,
+	.remove		= rk610_lcd_remove,
+	.shutdown	= rk610_lcd_shutdown,
+};
+
+static int __init rk610_lcd_module_init(void)
+{
+	return platform_driver_register(&rk610_lcd_driver);
+}
+fs_initcall(rk610_lcd_module_init);
+static void __exit rk610_lcd_exit(void)
+{
+	platform_driver_unregister(&rk610_lcd_driver);
+}
+module_exit(rk610_lcd_exit);
+

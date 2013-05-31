@@ -4,19 +4,22 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <asm/gpio.h>
+#include <linux/mfd/core.h>
 #include <linux/mfd/rk610_core.h>
 #include <linux/clk.h>
 #include <mach/iomux.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 
-#if defined(CONFIG_ARCH_RK3066B)
-#define RK610_RESET_PIN   RK30_PIN2_PC5
-#elif defined(CONFIG_ARCH_RK30)
-#define RK610_RESET_PIN   RK30_PIN0_PC6
-#else
-#define RK610_RESET_PIN   RK29_PIN6_PC1
+#if defined(CONFIG_DEBUG_FS)
+#include <linux/fs.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+#include <linux/uaccess.h>
+
 #endif
+
+
 
 /*
  * Debug
@@ -28,11 +31,15 @@
 #endif
 
 static struct i2c_client *rk610_control_client = NULL;
-#ifdef CONFIG_RK610_LVDS
-extern int rk610_lcd_init(struct rk610_core_info *rk610_core_info);
-#else
-int rk610_lcd_init(struct rk610_core_info *rk610_core_info){}
-#endif
+
+
+static struct mfd_cell rk610_devs[] = {
+	{
+		.name = "rk610-lcd",
+		.id = 0,
+	},
+};
+
 int rk610_control_send_byte(const char reg, const char data)
 {
 	int ret;
@@ -157,7 +164,7 @@ void rk610_control_init_codec(void)
     DBG("[%s] RK610_CONTROL_REG_CLOCK_CON1 is %x\n", __FUNCTION__, data);
 }
 #endif
-#ifdef RK610_DEBUG
+
 static int rk610_read_p0_reg(struct i2c_client *client, char reg, char *val)
 {
 	return i2c_master_reg8_recv(client, reg, val, 1, 100*1000) > 0? 0: -EINVAL;
@@ -167,43 +174,58 @@ static int rk610_write_p0_reg(struct i2c_client *client, char reg, char *val)
 {
 	return i2c_master_reg8_send(client, reg, val, 1, 100*1000) > 0? 0: -EINVAL;
 }
-static ssize_t rk610_show_reg_attrs(struct device *dev,
-					      struct device_attribute *attr,
-					      char *buf)
+
+
+#if defined(CONFIG_DEBUG_FS)
+static int rk610_reg_show(struct seq_file *s, void *v)
 {
-
-	int i,size=0;
-	char val;
-	struct i2c_client *client=rk610_control_client;
-
-	for(i=0;i<256;i++)
+	char reg = 0;
+	u8 val = 0;
+	struct rk610_core_info *core_info = s->private;
+	if(!core_info)
 	{
-		rk610_read_p0_reg(client, i,  &val);
-		if(i%16==0)
-			size += sprintf(buf+size,"\n>>>rk610_ctl %x:",i);
-		size += sprintf(buf+size," %2x",val);
+		dev_err(core_info->dev,"no mfd rk610!\n");
+		return 0;
 	}
 
-	return size;
+	for(reg=C_PLL_CON0;reg<= I2C_CON;reg++)
+	{
+		rk610_read_p0_reg(core_info->client, reg,  &val);
+		if(reg%8==0)
+			seq_printf(s,"\n0x%02x:",reg);
+		seq_printf(s," %02x",val);
+	}
+	seq_printf(s,"\n");
+
+	return 0;
 }
-static ssize_t rk610_store_reg_attrs(struct device *dev,
-						struct device_attribute *attr,
-			 			const char *buf, size_t size)
+
+static ssize_t rk610_reg_write (struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{ 
+	struct rk610_core_info *core_info = file->f_path.dentry->d_inode->i_private;
+	u32 reg,val;
+	
+	char kbuf[25];
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+	sscanf(kbuf, "%x%x", &reg,&val);
+	rk610_write_p0_reg(core_info->client, reg,  (u8*)&val);
+	return count;
+}
+
+static int rk610_reg_open(struct inode *inode, struct file *file)
 {
-	struct i2c_client *client=NULL;
-	static char val=0,reg=0;
-	client = rk610_control_client;
-	DBG("/**********rk610 reg config******/");
-
-	sscanf(buf, "%x%x", &val,&reg);
-	DBG("reg=%x val=%x\n",reg,val);
-	rk610_write_p0_reg(client, reg,  &val);
-	DBG("val=%x\n",val);
-	return size;
+	struct rk610_core_info *core_info = inode->i_private;
+	return single_open(file,rk610_reg_show,core_info);
 }
 
-static struct device_attribute rk610_attrs[] = {
-	__ATTR(reg_ctl, 0777,rk610_show_reg_attrs,rk610_store_reg_attrs),
+static const struct file_operations rk610_reg_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rk610_reg_open,
+	.read		= seq_read,
+	.write          = rk610_reg_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 #endif
 
@@ -248,14 +270,25 @@ static int rk610_control_probe(struct i2c_client *client,
 	}
 
 	rk610_control_client = client;
-	msleep(100);
 	if(core_info->pdata->rk610_power_on_init)
 		core_info->pdata->rk610_power_on_init();
 	core_info->client = client;
-	rk610_lcd_init(core_info);
-#ifdef RK610_DEBUG
-	device_create_file(&(client->dev), &rk610_attrs[0]);
+	core_info->dev = &client->dev;
+	i2c_set_clientdata(client,core_info);
+	ret = mfd_add_devices(&client->dev, -1,
+				      rk610_devs, ARRAY_SIZE(rk610_devs),
+				      NULL,0);
+	
+#if defined(CONFIG_DEBUG_FS)
+	core_info->debugfs_dir = debugfs_create_dir("rk610", NULL);
+	if (IS_ERR(core_info->debugfs_dir))
+	{
+		dev_err(&client->dev,"failed to create debugfs dir for rk610!\n");
+	}
+	else
+		debugfs_create_file("core", S_IRUSR,core_info->debugfs_dir,core_info,&rk610_reg_fops);
 #endif
+
     return 0;
 }
 
@@ -281,7 +314,6 @@ static struct i2c_driver rk610_control_driver = {
 
 static int __init rk610_control_init(void)
 {
-	DBG("[%s] start\n", __FUNCTION__);
 	return i2c_add_driver(&rk610_control_driver);
 }
 
@@ -291,7 +323,6 @@ static void __exit rk610_control_exit(void)
 }
 
 subsys_initcall_sync(rk610_control_init);
-//module_init(rk610_control_init);
 module_exit(rk610_control_exit);
 
 

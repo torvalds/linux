@@ -39,7 +39,7 @@ static int rk616_lvds_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 				val = 0;
 				val &= ~(LVDS_CH0TTL_EN | LVDS_CH1TTL_EN | LVDS_PLL_PWR_DN);
 				val = (LVDS_DCLK_INV)|(LVDS_CH1_PWR_EN) |(LVDS_CH0_PWR_EN) | LVDS_HBP_ODD(odd) |
-					(LVDS_CBG_PWR_EN) | (LVDS_CH_SEL) | (LVDS_OUT_FORMAT(screen->hw_format)) | 
+					(LVDS_CBG_PWR_EN) | (LVDS_CH_SEL) | (LVDS_OUT_FORMAT(screen->lvds_format)) | 
 					(LVDS_CH0TTL_EN << 16) | (LVDS_CH1TTL_EN << 16) |(LVDS_CH1_PWR_EN << 16) | 
 					(LVDS_CH0_PWR_EN << 16) | (LVDS_CBG_PWR_EN << 16) | (LVDS_CH_SEL << 16) | 
 					(LVDS_OUT_FORMAT_MASK) | (LVDS_DCLK_INV << 16) | (LVDS_PLL_PWR_DN << 16) |
@@ -52,7 +52,7 @@ static int rk616_lvds_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 			{
 				val = 0;
 				val &= ~(LVDS_CH0TTL_EN | LVDS_CH1TTL_EN | LVDS_CH1_PWR_EN | LVDS_PLL_PWR_DN | LVDS_CH_SEL); //use channel 0
-				val |= (LVDS_CH0_PWR_EN) |(LVDS_CBG_PWR_EN) | (LVDS_OUT_FORMAT(screen->hw_format)) | 
+				val |= (LVDS_CH0_PWR_EN) |(LVDS_CBG_PWR_EN) | (LVDS_OUT_FORMAT(screen->lvds_format)) | 
 				      (LVDS_CH0TTL_EN << 16) | (LVDS_CH1TTL_EN << 16) |(LVDS_CH0_PWR_EN << 16) | 
 				       (LVDS_DCLK_INV ) | (LVDS_CH0TTL_EN << 16) | (LVDS_CH1TTL_EN << 16) |(LVDS_CH0_PWR_EN << 16) | 
 				        (LVDS_CBG_PWR_EN << 16)|(LVDS_CH_SEL << 16) | (LVDS_PLL_PWR_DN << 16)| 
@@ -104,7 +104,7 @@ static int rk616_dither_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enabl
 
 
 
-int rk610_lcd_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 1: scale
+int rk616_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 1: scale
 {
 	int ret;
 	struct mfd_rk616 *rk616 = g_lvds->rk616;
@@ -113,7 +113,7 @@ int rk610_lcd_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 
 		printk(KERN_ERR "%s:mfd rk616 is null!\n",__func__);
 		return -1;
 	}
-	g_lvds->screen = screen;
+	
 	ret = rk616_display_router_cfg(rk616,screen,enable);
 	
 	ret = rk616_dither_cfg(rk616,screen,enable);
@@ -122,6 +122,16 @@ int rk610_lcd_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 
 }
 
 
+static int rk616_lvds_init_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
+{
+	int ret ;
+	ret = rk616_display_router_cfg(rk616,screen,0);
+	
+	ret = rk616_dither_cfg(rk616,screen,0);
+	ret = rk616_lvds_cfg(rk616,screen);
+
+	return ret;
+}
 
 #if	defined(CONFIG_HAS_EARLYSUSPEND)
 static void rk616_lvds_early_suspend(struct early_suspend *h)
@@ -155,7 +165,7 @@ static int rk616_lvds_probe(struct platform_device *pdev)
 {
 	struct rk616_lvds *lvds = NULL; 
 	struct mfd_rk616 *rk616 = NULL;
-
+	rk_screen *screen = NULL;
 	lvds = kzalloc(sizeof(struct rk616_lvds),GFP_KERNEL);
 	if(!lvds)
 	{
@@ -171,8 +181,19 @@ static int rk616_lvds_probe(struct platform_device *pdev)
 	}
 	else
 		g_lvds = lvds;
-		lvds->rk616 = rk616;
-
+	lvds->rk616 = rk616;
+	
+	screen = rk_fb_get_prmry_screen();
+	if(!screen)
+	{
+		dev_err(&pdev->dev,"the fb prmry screen is null!\n");
+		return -ENODEV;
+	}
+	lvds->screen = screen;
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+	screen->sscreen_set = rk616_scaler_set_param;
+#endif
+ 	rk616_lvds_init_cfg(rk616,screen);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	lvds->early_suspend.suspend = rk616_lvds_early_suspend;
 	lvds->early_suspend.resume = rk616_lvds_late_resume;
@@ -213,8 +234,7 @@ static int __init rk616_lvds_init(void)
 {
 	return platform_driver_register(&rk616_lvds_driver);
 }
-subsys_initcall_sync(rk616_lvds_init);
-
+fs_initcall(rk616_lvds_init);
 static void __exit rk616_lvds_exit(void)
 {
 	platform_driver_unregister(&rk616_lvds_driver);
