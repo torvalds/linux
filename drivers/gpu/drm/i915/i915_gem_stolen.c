@@ -279,7 +279,7 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 		goto cleanup;
 
 	obj->has_dma_mapping = true;
-	obj->pages_pin_count = 1;
+	i915_gem_object_pin_pages(obj);
 	obj->stolen = stolen;
 
 	obj->base.write_domain = I915_GEM_DOMAIN_GTT;
