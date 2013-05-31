@@ -1225,7 +1225,7 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 		 */
 		if (rate != 0 &&
 		(status2 & HDSPM_SelSyncRefMask) == HDSPM_SelSyncRef_WORD)
-			return rate;
+			return hdspm_rate_multiplier(hdspm, rate);
 
 		/* maybe a madi input (which is taken if sel sync is madi) */
 		if (status & HDSPM_madiLock) {
