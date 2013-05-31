@@ -7060,16 +7060,13 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 * If memory slot is created, or moved, we need to clear all
 	 * mmio sptes.
 	 */
-	if ((change == KVM_MR_CREATE) || (change == KVM_MR_MOVE)) {
+	if ((change == KVM_MR_CREATE) || (change == KVM_MR_MOVE))
 		kvm_mmu_zap_mmio_sptes(kvm);
-		kvm_reload_remote_mmus(kvm);
-	}
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
 {
 	kvm_mmu_zap_all(kvm);
-	kvm_reload_remote_mmus(kvm);
 }
 
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
