@@ -8,7 +8,7 @@
  * Licensed under GPLv2 or later.
  */
 /dts-v1/;
-/include/ "at91sam9g20.dtsi"
+#include "at91sam9g20.dtsi"
 
 / {
 	model = "Acme Systems FoxG20";
@@ -36,7 +36,7 @@
 	ahb {
 		apb {
 			usb1: gadget@fffa4000 {
-				atmel,vbus-gpio = <&pioC 6 0>;
+				atmel,vbus-gpio = <&pioC 6 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
 
@@ -95,22 +95,22 @@
 				board {
 					pinctrl_pck0_as_mck: pck0_as_mck {
 						atmel,pins =
-							<2 1 0x2 0x0>;	/* PC1 periph B */
+							<AT91_PIOC 1 AT91_PERIPH_B AT91_PINCTRL_NONE>;
 					};
 				};
 
 				mmc0_slot1 {
 					pinctrl_board_mmc0_slot1: mmc0_slot1-board {
 						atmel,pins =
-							<2 9 0x0 0x5>;	/* PC9 gpio CD pin pull up and deglitch */
+							<AT91_PIOC 9 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* CD pin */
 					};
 				};
 
 				i2c0 {
 					pinctrl_i2c0: i2c0-0 {
 						atmel,pins =
-							<0 23 0x1 0x2	/* TWD (SDA) PA23 periph A, open drain */
-							 0 24 0x1 0x2>;	/* TWCK (SCL) PA24 periph A, open drain */
+							<AT91_PIOA 23 AT91_PERIPH_A AT91_PINCTRL_MULTI_DRIVE	/* TWD (SDA), open drain */
+							 AT91_PIOA 24 AT91_PERIPH_A AT91_PINCTRL_MULTI_DRIVE>;	/* TWCK (SCL), open drain */
 					};
 				};
 			};
@@ -139,7 +139,7 @@
 		/* red LED marked "PC7" near mini USB (device) receptacle */
 		user_led {
 			label = "user_led";
-			gpios = <&pioC 7 0>;	/* PC7 */
+			gpios = <&pioC 7 GPIO_ACTIVE_HIGH>;	/* PC7 */
 			linux,default-trigger = "heartbeat";
 		};
 	};
@@ -149,7 +149,7 @@
 
 		btn {
 			label = "Button";
-			gpios = <&pioC 4 1>;
+			gpios = <&pioC 4 GPIO_ACTIVE_LOW>;
 			linux,code = <0x103>;
 			gpio-key,wakeup;
 		};
