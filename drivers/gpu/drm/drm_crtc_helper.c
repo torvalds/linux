@@ -189,13 +189,14 @@ prune:
 	if (list_empty(&connector->modes))
 		return 0;
 
+	list_for_each_entry(mode, &connector->modes, head)
+		mode->vrefresh = drm_mode_vrefresh(mode);
+
 	drm_mode_sort(&connector->modes);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] probed modes :\n", connector->base.id,
 			drm_get_connector_name(connector));
 	list_for_each_entry(mode, &connector->modes, head) {
-		mode->vrefresh = drm_mode_vrefresh(mode);
-
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 		drm_mode_debug_printmodeline(mode);
 	}

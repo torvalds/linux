@@ -1020,6 +1020,11 @@ static int drm_mode_compare(void *priv, struct list_head *lh_a, struct list_head
 	diff = b->hdisplay * b->vdisplay - a->hdisplay * a->vdisplay;
 	if (diff)
 		return diff;
+
+	diff = b->vrefresh - a->vrefresh;
+	if (diff)
+		return diff;
+
 	diff = b->clock - a->clock;
 	return diff;
 }
