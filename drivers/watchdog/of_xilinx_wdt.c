@@ -1,23 +1,13 @@
 /*
-*   of_xilinx_wdt.c  1.01  A Watchdog Device Driver for Xilinx xps_timebase_wdt
-*
-*   (C) Copyright 2011 (Alejandro Cabrera <aldaya@gmail.com>)
-*
-*       -----------------------
-*
-*   This program is free software; you can redistribute it and/or
-*   modify it under the terms of the GNU General Public License
-*   as published by the Free Software Foundation; either version
-*   2 of the License, or (at your option) any later version.
-*
-*       -----------------------
-*	30-May-2011 Alejandro Cabrera <aldaya@gmail.com>
-*		- If "xlnx,wdt-enable-once" wasn't found on device tree the
-*		  module will use CONFIG_WATCHDOG_NOWAYOUT
-*		- If the device tree parameters ("clock-frequency" and
-*		  "xlnx,wdt-interval") wasn't found the driver won't
-*		  know the wdt reset interval
-*/
+ * Watchdog Device Driver for Xilinx axi/xps_timebase_wdt
+ *
+ * (C) Copyright 2011 (Alejandro Cabrera <aldaya@gmail.com>)
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -413,5 +403,5 @@ module_platform_driver(xwdt_driver);
 
 MODULE_AUTHOR("Alejandro Cabrera <aldaya@gmail.com>");
 MODULE_DESCRIPTION("Xilinx Watchdog driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
