@@ -26,6 +26,11 @@
 #include <media/v4l2-mediabus.h>
 #include <media/s5p_fimc.h>
 
+extern int fimc_isp_debug;
+
+#define isp_dbg(level, dev, fmt, arg...) \
+	v4l2_dbg(level, fimc_isp_debug, dev, fmt, ## arg)
+
 /* FIXME: revisit these constraints */
 #define FIMC_ISP_SINK_WIDTH_MIN		(16 + 8)
 #define FIMC_ISP_SINK_HEIGHT_MIN	(12 + 8)

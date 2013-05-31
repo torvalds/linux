@@ -30,8 +30,8 @@
 #include "fimc-is-regs.h"
 #include "fimc-is.h"
 
-static int debug;
-module_param_named(debug_isp, debug, int, S_IRUGO | S_IWUSR);
+int fimc_isp_debug;
+module_param_named(debug_isp, fimc_isp_debug, int, S_IRUGO | S_IWUSR);
 
 static const struct fimc_fmt fimc_isp_formats[FIMC_ISP_NUM_FORMATS] = {
 	{
@@ -157,8 +157,8 @@ static int fimc_isp_subdev_get_fmt(struct v4l2_subdev *sd,
 
 	mutex_unlock(&isp->subdev_lock);
 
-	v4l2_dbg(1, debug, sd, "%s: pad%d: fmt: 0x%x, %dx%d\n",
-		 __func__, fmt->pad, mf->code, mf->width, mf->height);
+	isp_dbg(1, sd, "%s: pad%d: fmt: 0x%x, %dx%d\n", __func__,
+		fmt->pad, mf->code, mf->width, mf->height);
 
 	return 0;
 }
@@ -191,7 +191,7 @@ static int fimc_isp_subdev_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
 	int ret = 0;
 
-	v4l2_dbg(1, debug, sd, "%s: pad%d: code: 0x%x, %dx%d\n",
+	isp_dbg(1, sd, "%s: pad%d: code: 0x%x, %dx%d\n",
 		 __func__, fmt->pad, mf->code, mf->width, mf->height);
 
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
@@ -221,7 +221,7 @@ static int fimc_isp_subdev_s_stream(struct v4l2_subdev *sd, int on)
 	struct fimc_is *is = fimc_isp_to_is(isp);
 	int ret;
 
-	v4l2_dbg(1, debug, sd, "%s: on: %d\n", __func__, on);
+	isp_dbg(1, sd, "%s: on: %d\n", __func__, on);
 
 	if (!test_bit(IS_ST_INIT_DONE, &is->state))
 		return -EBUSY;
@@ -235,8 +235,8 @@ static int fimc_isp_subdev_s_stream(struct v4l2_subdev *sd, int on)
 				return ret;
 		}
 
-		v4l2_dbg(1, debug, sd, "changing mode to %d\n",
-						is->config_index);
+		isp_dbg(1, sd, "changing mode to %d\n", is->config_index);
+
 		ret = fimc_is_itf_mode_change(is);
 		if (ret)
 			return -EINVAL;
