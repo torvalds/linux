@@ -1435,6 +1435,25 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_ips_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_ULT(dev)) {
+		seq_puts(m, "not supported\n");
+		return 0;
+	}
+
+	if (I915_READ(IPS_CTL) & IPS_ENABLE)
+		seq_puts(m, "enabled\n");
+	else
+		seq_puts(m, "disabled\n");
+
+	return 0;
+}
+
 static int i915_sr_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -2233,6 +2252,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_ring_freq_table", i915_ring_freq_table, 0},
 	{"i915_gfxec", i915_gfxec, 0},
 	{"i915_fbc_status", i915_fbc_status, 0},
+	{"i915_ips_status", i915_ips_status, 0},
 	{"i915_sr_status", i915_sr_status, 0},
 	{"i915_opregion", i915_opregion, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
