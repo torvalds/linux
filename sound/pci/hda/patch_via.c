@@ -231,9 +231,14 @@ static void vt1708_update_hp_work(struct hda_codec *codec)
 
 static void set_widgets_power_state(struct hda_codec *codec)
 {
+#if 0 /* FIXME: the assumed connections don't match always with the
+       * actual routes by the generic parser, so better to disable
+       * the control for safety.
+       */
 	struct via_spec *spec = codec->spec;
 	if (spec->set_widgets_power_state)
 		spec->set_widgets_power_state(codec);
+#endif
 }
 
 static void update_power_state(struct hda_codec *codec, hda_nid_t nid,
