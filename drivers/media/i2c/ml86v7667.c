@@ -169,10 +169,10 @@ static int ml86v7667_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	if (status < 0)
 		return status;
 
-	if (!(status & STATUS_HLOCK_DETECT))
-		return V4L2_STD_UNKNOWN;
-
-	*std = status & STATUS_NTSCPAL ? V4L2_STD_625_50 : V4L2_STD_525_60;
+	if (status & STATUS_HLOCK_DETECT)
+		*std &= status & STATUS_NTSCPAL ? V4L2_STD_625_50 : V4L2_STD_525_60;
+	else
+		*std = V4L2_STD_UNKNOWN;
 
 	return 0;
 }
