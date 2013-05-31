@@ -612,9 +612,11 @@ retry:
 		__cap_delay_requeue(mdsc, ci);
 	}
 
-	if (flags & CEPH_CAP_FLAG_AUTH)
-		ci->i_auth_cap = cap;
-	else if (ci->i_auth_cap == cap) {
+	if (flags & CEPH_CAP_FLAG_AUTH) {
+		if (ci->i_auth_cap == NULL ||
+		    ceph_seq_cmp(ci->i_auth_cap->mseq, mseq) < 0)
+			ci->i_auth_cap = cap;
+	} else if (ci->i_auth_cap == cap) {
 		ci->i_auth_cap = NULL;
 		spin_lock(&mdsc->cap_dirty_lock);
 		if (!list_empty(&ci->i_dirty_item)) {
