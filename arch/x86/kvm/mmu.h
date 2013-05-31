@@ -97,4 +97,5 @@ static inline bool permission_fault(struct kvm_mmu *mmu, unsigned pte_access,
 	return (mmu->permissions[pfec >> 1] >> pte_access) & 1;
 }
 
+void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm);
 #endif
