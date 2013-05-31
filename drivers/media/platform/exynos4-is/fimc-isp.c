@@ -317,8 +317,8 @@ static int fimc_isp_subdev_s_power(struct v4l2_subdev *sd, int on)
 		clear_bit(IS_ST_PWR_ON, &is->state);
 		clear_bit(IS_ST_INIT_DONE, &is->state);
 		is->state = 0;
-		is->config[is->config_index].p_region_index1 = 0;
-		is->config[is->config_index].p_region_index2 = 0;
+		is->config[is->config_index].p_region_index[0] = 0;
+		is->config[is->config_index].p_region_index[1] = 0;
 		set_bit(IS_ST_IDLE, &is->state);
 		wmb();
 	}

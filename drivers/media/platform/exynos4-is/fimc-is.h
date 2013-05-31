@@ -226,8 +226,7 @@ struct chain_config {
 	struct drc_param	drc;
 	struct fd_param		fd;
 
-	unsigned long		p_region_index1;
-	unsigned long		p_region_index2;
+	unsigned long		p_region_index[2];
 };
 
 /**
@@ -304,10 +303,7 @@ static inline void fimc_is_set_param_bit(struct fimc_is *is, int num)
 {
 	struct chain_config *cfg = &is->config[is->config_index];
 
-	if (num >= 32)
-		set_bit(num - 32, &cfg->p_region_index2);
-	else
-		set_bit(num, &cfg->p_region_index1);
+	set_bit(num, &cfg->p_region_index[0]);
 }
 
 static inline void fimc_is_set_param_ctrl_cmd(struct fimc_is *is, int cmd)
