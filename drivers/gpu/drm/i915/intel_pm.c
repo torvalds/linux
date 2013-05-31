@@ -2335,7 +2335,8 @@ hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 static void hsw_compute_wm_parameters(struct drm_device *dev,
 				      struct hsw_pipe_wm_parameters *params,
 				      uint32_t *wm,
-				      struct hsw_wm_maximums *lp_max_1_2)
+				      struct hsw_wm_maximums *lp_max_1_2,
+				      struct hsw_wm_maximums *lp_max_5_6)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
@@ -2391,15 +2392,17 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 	}
 
 	if (pipes_active > 1) {
-		lp_max_1_2->pri = sprites_enabled ? 128 : 256;
-		lp_max_1_2->spr = 128;
-		lp_max_1_2->cur = 64;
+		lp_max_1_2->pri = lp_max_5_6->pri = sprites_enabled ? 128 : 256;
+		lp_max_1_2->spr = lp_max_5_6->spr = 128;
+		lp_max_1_2->cur = lp_max_5_6->cur = 64;
 	} else {
 		lp_max_1_2->pri = sprites_enabled ? 384 : 768;
+		lp_max_5_6->pri = sprites_enabled ? 128 : 768;
 		lp_max_1_2->spr = 384;
-		lp_max_1_2->cur = 255;
+		lp_max_5_6->spr = 640;
+		lp_max_1_2->cur = lp_max_5_6->cur = 255;
 	}
-	lp_max_1_2->fbc = 15;
+	lp_max_1_2->fbc = lp_max_5_6->fbc = 15;
 }
 
 static void hsw_compute_wm_results(struct drm_device *dev,
@@ -2454,6 +2457,32 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 	for_each_pipe(pipe) {
 		crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 		results->wm_linetime[pipe] = hsw_compute_linetime_wm(dev, crtc);
+	}
+}
+
+/* Find the result with the highest level enabled. Check for enable_fbc_wm in
+ * case both are at the same level. Prefer r1 in case they're the same. */
+struct hsw_wm_values *hsw_find_best_result(struct hsw_wm_values *r1,
+					   struct hsw_wm_values *r2)
+{
+	int i, val_r1 = 0, val_r2 = 0;
+
+	for (i = 0; i < 3; i++) {
+		if (r1->wm_lp[i] & WM3_LP_EN)
+			val_r1 = r1->wm_lp[i] & WM1_LP_LATENCY_MASK;
+		if (r2->wm_lp[i] & WM3_LP_EN)
+			val_r2 = r2->wm_lp[i] & WM1_LP_LATENCY_MASK;
+	}
+
+	if (val_r1 == val_r2) {
+		if (r2->enable_fbc_wm && !r1->enable_fbc_wm)
+			return r2;
+		else
+			return r1;
+	} else if (val_r1 > val_r2) {
+		return r1;
+	} else {
+		return r2;
 	}
 }
 
@@ -2557,14 +2586,27 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 static void haswell_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct hsw_wm_maximums lp_max_1_2;
+	struct hsw_wm_maximums lp_max_1_2, lp_max_5_6;
 	struct hsw_pipe_wm_parameters params[3];
-	struct hsw_wm_values results;
+	struct hsw_wm_values results_1_2, results_5_6, *best_results;
 	uint32_t wm[5];
+	enum hsw_data_buf_partitioning partitioning;
 
-	hsw_compute_wm_parameters(dev, params, wm, &lp_max_1_2);
-	hsw_compute_wm_results(dev, params, wm, &lp_max_1_2, &results);
-	hsw_write_wm_values(dev_priv, &results, HSW_DATA_BUF_PART_1_2);
+	hsw_compute_wm_parameters(dev, params, wm, &lp_max_1_2, &lp_max_5_6);
+
+	hsw_compute_wm_results(dev, params, wm, &lp_max_1_2, &results_1_2);
+	if (lp_max_1_2.pri != lp_max_5_6.pri) {
+		hsw_compute_wm_results(dev, params, wm, &lp_max_5_6,
+				       &results_5_6);
+		best_results = hsw_find_best_result(&results_1_2, &results_5_6);
+	} else {
+		best_results = &results_1_2;
+	}
+
+	partitioning = (best_results == &results_1_2) ?
+		       HSW_DATA_BUF_PART_1_2 : HSW_DATA_BUF_PART_5_6;
+
+	hsw_write_wm_values(dev_priv, best_results, partitioning);
 }
 
 static void haswell_update_sprite_wm(struct drm_device *dev, int pipe,
