@@ -4030,7 +4030,8 @@ retry:
 static void hsw_compute_ips_config(struct intel_crtc *crtc,
 				   struct intel_crtc_config *pipe_config)
 {
-	pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
+	pipe_config->ips_enabled = i915_enable_ips &&
+				   hsw_crtc_supports_ips(crtc) &&
 				   pipe_config->pipe_bpp == 24;
 }
 
