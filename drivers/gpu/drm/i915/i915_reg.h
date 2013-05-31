@@ -1023,6 +1023,8 @@
 /* Framebuffer compression for Ivybridge */
 #define IVB_FBC_RT_BASE			0x7020
 
+#define IPS_CTL		0x43408
+#define   IPS_ENABLE	(1 << 31)
 
 #define _HSW_PIPE_SLICE_CHICKEN_1_A	0x420B0
 #define _HSW_PIPE_SLICE_CHICKEN_1_B	0x420B4
@@ -3665,6 +3667,15 @@
 #define _LGC_PALETTE_A           0x4a000
 #define _LGC_PALETTE_B           0x4a800
 #define LGC_PALETTE(pipe) _PIPE(pipe, _LGC_PALETTE_A, _LGC_PALETTE_B)
+
+#define _GAMMA_MODE_A		0x4a480
+#define _GAMMA_MODE_B		0x4ac80
+#define GAMMA_MODE(pipe) _PIPE(pipe, _GAMMA_MODE_A, _GAMMA_MODE_B)
+#define GAMMA_MODE_MODE_MASK	(3 << 0)
+#define GAMMA_MODE_MODE_8bit	(0 << 0)
+#define GAMMA_MODE_MODE_10bit	(1 << 0)
+#define GAMMA_MODE_MODE_12bit	(2 << 0)
+#define GAMMA_MODE_MODE_SPLIT	(3 << 0)
 
 /* interrupts */
 #define DE_MASTER_IRQ_CONTROL   (1 << 31)
