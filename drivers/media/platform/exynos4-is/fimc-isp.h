@@ -118,7 +118,6 @@ struct fimc_is_video {
 	unsigned int		frame_count;
 	unsigned int		reqbufs_count;
 	int			streaming;
-	unsigned long		payload[FIMC_ISP_MAX_PLANES];
 	const struct fimc_fmt	*format;
 };
 
@@ -128,15 +127,9 @@ struct fimc_is_video {
  * @alloc_ctx: videobuf2 memory allocator context
  * @subdev: ISP v4l2_subdev
  * @subdev_pads: the ISP subdev media pads
- * @ctrl_handler: v4l2 controls handler
  * @test_pattern: test pattern controls
- * @pipeline: video capture pipeline data structure
+ * @ctrls: v4l2 controls structure
  * @video_lock: mutex serializing video device and the subdev operations
- * @fmt: pointer to color format description structure
- * @payload: image size in bytes (w x h x bpp)
- * @inp_frame: camera input frame structure
- * @out_frame: DMA output frame structure
- * @source_subdev_grp_id: group id of remote source subdev
  * @cac_margin_x: horizontal CAC margin in pixels
  * @cac_margin_y: vertical CAC margin in pixels
  * @state: driver state flags
@@ -153,10 +146,6 @@ struct fimc_isp {
 
 	struct mutex			video_lock;
 	struct mutex			subdev_lock;
-
-	struct fimc_isp_frame		inp_frame;
-	struct fimc_isp_frame		out_frame;
-	unsigned int			source_subdev_grp_id;
 
 	unsigned int			cac_margin_x;
 	unsigned int			cac_margin_y;

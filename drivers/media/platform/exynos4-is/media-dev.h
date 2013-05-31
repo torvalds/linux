@@ -133,14 +133,6 @@ struct fimc_md {
 	struct list_head pipelines;
 };
 
-#define is_subdev_pad(pad) (pad == NULL || \
-	media_entity_type(pad->entity) == MEDIA_ENT_T_V4L2_SUBDEV)
-
-#define me_subtype(me) \
-	((me->type) & (MEDIA_ENT_TYPE_MASK | MEDIA_ENT_SUBTYPE_MASK))
-
-#define subdev_has_devnode(__sd) (__sd->flags & V4L2_SUBDEV_FL_HAS_DEVNODE)
-
 static inline
 struct fimc_sensor_info *source_to_sensor_info(struct fimc_source_info *si)
 {
