@@ -1035,8 +1035,7 @@ static struct sock *ping_get_idx(struct seq_file *seq, loff_t pos)
 	return pos ? NULL : sk;
 }
 
-static void *ping_seq_start(struct seq_file *seq, loff_t *pos,
-			    sa_family_t family)
+void *ping_seq_start(struct seq_file *seq, loff_t *pos, sa_family_t family)
 {
 	struct ping_iter_state *state = seq->private;
 	state->bucket = 0;
@@ -1046,13 +1045,14 @@ static void *ping_seq_start(struct seq_file *seq, loff_t *pos,
 
 	return *pos ? ping_get_idx(seq, *pos-1) : SEQ_START_TOKEN;
 }
+EXPORT_SYMBOL_GPL(ping_seq_start);
 
 static void *ping_v4_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	return ping_seq_start(seq, pos, AF_INET);
 }
 
-static void *ping_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+void *ping_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct sock *sk;
 
@@ -1064,11 +1064,13 @@ static void *ping_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	++*pos;
 	return sk;
 }
+EXPORT_SYMBOL_GPL(ping_seq_next);
 
-static void ping_seq_stop(struct seq_file *seq, void *v)
+void ping_seq_stop(struct seq_file *seq, void *v)
 {
 	read_unlock_bh(&ping_table.lock);
 }
+EXPORT_SYMBOL_GPL(ping_seq_stop);
 
 static void ping_v4_format_sock(struct sock *sp, struct seq_file *f,
 		int bucket, int *len)
@@ -1122,12 +1124,13 @@ static int ping_seq_open(struct inode *inode, struct file *file)
 			   sizeof(struct ping_iter_state));
 }
 
-static const struct file_operations ping_seq_fops = {
+const struct file_operations ping_seq_fops = {
 	.open		= ping_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release_net,
 };
+EXPORT_SYMBOL_GPL(ping_seq_fops);
 
 static struct ping_seq_afinfo ping_v4_seq_afinfo = {
 	.name		= "icmp",
@@ -1141,7 +1144,7 @@ static struct ping_seq_afinfo ping_v4_seq_afinfo = {
 	},
 };
 
-static int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo)
+int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo)
 {
 	struct proc_dir_entry *p;
 	p = proc_create_data(afinfo->name, S_IRUGO, net->proc_net,
@@ -1150,13 +1153,13 @@ static int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo)
 		return -ENOMEM;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ping_proc_register);
 
-static void ping_proc_unregister(struct net *net,
-				 struct ping_seq_afinfo *afinfo)
+void ping_proc_unregister(struct net *net, struct ping_seq_afinfo *afinfo)
 {
 	remove_proc_entry(afinfo->name, net->proc_net);
 }
-
+EXPORT_SYMBOL_GPL(ping_proc_unregister);
 
 static int __net_init ping_v4_proc_init_net(struct net *net)
 {

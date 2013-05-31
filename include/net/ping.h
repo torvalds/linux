@@ -95,6 +95,14 @@ struct ping_seq_afinfo {
 	const struct seq_operations	seq_ops;
 };
 
+extern const struct file_operations ping_seq_fops;
+
+void *ping_seq_start(struct seq_file *seq, loff_t *pos, sa_family_t family);
+void *ping_seq_next(struct seq_file *seq, void *v, loff_t *pos);
+void ping_seq_stop(struct seq_file *seq, void *v);
+int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo);
+void ping_proc_unregister(struct net *net, struct ping_seq_afinfo *afinfo);
+
 extern int __init ping_proc_init(void);
 extern void ping_proc_exit(void);
 #endif

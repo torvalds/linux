@@ -78,29 +78,6 @@ int dummy_ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
 	return 0;
 }
 
-int __init pingv6_init(void)
-{
-	pingv6_ops.ipv6_recv_error = ipv6_recv_error;
-	pingv6_ops.ip6_datagram_recv_ctl = ip6_datagram_recv_ctl;
-	pingv6_ops.icmpv6_err_convert = icmpv6_err_convert;
-	pingv6_ops.ipv6_icmp_error = ipv6_icmp_error;
-	pingv6_ops.ipv6_chk_addr = ipv6_chk_addr;
-	return inet6_register_protosw(&pingv6_protosw);
-}
-
-/* This never gets called because it's not possible to unload the ipv6 module,
- * but just in case.
- */
-void pingv6_exit(void)
-{
-	pingv6_ops.ipv6_recv_error = dummy_ipv6_recv_error;
-	pingv6_ops.ip6_datagram_recv_ctl = dummy_ip6_datagram_recv_ctl;
-	pingv6_ops.icmpv6_err_convert = dummy_icmpv6_err_convert;
-	pingv6_ops.ipv6_icmp_error = dummy_ipv6_icmp_error;
-	pingv6_ops.ipv6_chk_addr = dummy_ipv6_chk_addr;
-	inet6_unregister_protosw(&pingv6_protosw);
-}
-
 int ping_v6_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		    size_t len)
 {
@@ -213,4 +190,83 @@ int ping_v6_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	}
 
 	return err;
+}
+
+#ifdef CONFIG_PROC_FS
+static void *ping_v6_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	return ping_seq_start(seq, pos, AF_INET6);
+}
+
+int ping_v6_seq_show(struct seq_file *seq, void *v)
+{
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq, IPV6_SEQ_DGRAM_HEADER);
+	} else {
+		int bucket = ((struct ping_iter_state *) seq->private)->bucket;
+		struct inet_sock *inet = inet_sk(v);
+		__u16 srcp = ntohs(inet->inet_sport);
+		__u16 destp = ntohs(inet->inet_dport);
+		ip6_dgram_sock_seq_show(seq, v, srcp, destp, bucket);
+	}
+	return 0;
+}
+
+static struct ping_seq_afinfo ping_v6_seq_afinfo = {
+	.name		= "icmp6",
+	.family		= AF_INET6,
+	.seq_fops       = &ping_seq_fops,
+	.seq_ops	= {
+		.start		= ping_v6_seq_start,
+		.show		= ping_v6_seq_show,
+		.next		= ping_seq_next,
+		.stop		= ping_seq_stop,
+	},
+};
+
+static int __net_init ping_v6_proc_init_net(struct net *net)
+{
+	return ping_proc_register(net, &ping_v6_seq_afinfo);
+}
+
+static void __net_init ping_v6_proc_exit_net(struct net *net)
+{
+	return ping_proc_unregister(net, &ping_v6_seq_afinfo);
+}
+
+static struct pernet_operations ping_v6_net_ops = {
+	.init = ping_v6_proc_init_net,
+	.exit = ping_v6_proc_exit_net,
+};
+#endif
+
+int __init pingv6_init(void)
+{
+#ifdef CONFIG_PROC_FS
+	int ret = register_pernet_subsys(&ping_v6_net_ops);
+	if (ret)
+		return ret;
+#endif
+	pingv6_ops.ipv6_recv_error = ipv6_recv_error;
+	pingv6_ops.ip6_datagram_recv_ctl = ip6_datagram_recv_ctl;
+	pingv6_ops.icmpv6_err_convert = icmpv6_err_convert;
+	pingv6_ops.ipv6_icmp_error = ipv6_icmp_error;
+	pingv6_ops.ipv6_chk_addr = ipv6_chk_addr;
+	return inet6_register_protosw(&pingv6_protosw);
+}
+
+/* This never gets called because it's not possible to unload the ipv6 module,
+ * but just in case.
+ */
+void pingv6_exit(void)
+{
+	pingv6_ops.ipv6_recv_error = dummy_ipv6_recv_error;
+	pingv6_ops.ip6_datagram_recv_ctl = dummy_ip6_datagram_recv_ctl;
+	pingv6_ops.icmpv6_err_convert = dummy_icmpv6_err_convert;
+	pingv6_ops.ipv6_icmp_error = dummy_ipv6_icmp_error;
+	pingv6_ops.ipv6_chk_addr = dummy_ipv6_chk_addr;
+#ifdef CONFIG_PROC_FS
+	unregister_pernet_subsys(&ping_v6_net_ops);
+#endif
+	inet6_unregister_protosw(&pingv6_protosw);
 }
