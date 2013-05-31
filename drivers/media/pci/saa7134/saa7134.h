@@ -474,11 +474,6 @@ struct saa7134_fh {
 	unsigned int               resources;
 	struct pm_qos_request	   qos_request;
 
-	/* video overlay */
-	struct v4l2_window         win;
-	struct v4l2_clip           clips[8];
-	unsigned int               nclips;
-
 	/* video capture */
 	struct saa7134_format      *fmt;
 	unsigned int               width,height;
@@ -590,6 +585,10 @@ struct saa7134_dev {
 	struct saa7134_format      *ovfmt;
 	unsigned int               ovenable;
 	enum v4l2_field            ovfield;
+	struct v4l2_window         win;
+	struct v4l2_clip           clips[8];
+	unsigned int               nclips;
+
 
 	/* video+ts+vbi capture */
 	struct saa7134_dmaqueue    video_q;

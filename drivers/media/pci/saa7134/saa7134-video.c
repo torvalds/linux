@@ -872,20 +872,20 @@ static int start_preview(struct saa7134_dev *dev, struct saa7134_fh *fh)
 	unsigned long base,control,bpl;
 	int err;
 
-	err = verify_preview(dev,&fh->win);
+	err = verify_preview(dev, &dev->win);
 	if (0 != err)
 		return err;
 
-	dev->ovfield = fh->win.field;
+	dev->ovfield = dev->win.field;
 	dprintk("start_preview %dx%d+%d+%d %s field=%s\n",
-		fh->win.w.width,fh->win.w.height,
-		fh->win.w.left,fh->win.w.top,
-		dev->ovfmt->name,v4l2_field_names[dev->ovfield]);
+		dev->win.w.width, dev->win.w.height,
+		dev->win.w.left, dev->win.w.top,
+		dev->ovfmt->name, v4l2_field_names[dev->ovfield]);
 
 	/* setup window + clipping */
-	set_size(dev,TASK_B,fh->win.w.width,fh->win.w.height,
+	set_size(dev, TASK_B, dev->win.w.width, dev->win.w.height,
 		 V4L2_FIELD_HAS_BOTH(dev->ovfield));
-	setup_clipping(dev,fh->clips,fh->nclips,
+	setup_clipping(dev, dev->clips, dev->nclips,
 		       V4L2_FIELD_HAS_BOTH(dev->ovfield));
 	if (dev->ovfmt->yuv)
 		saa_andorb(SAA7134_DATA_PATH(TASK_B), 0x3f, 0x03);
@@ -895,8 +895,8 @@ static int start_preview(struct saa7134_dev *dev, struct saa7134_fh *fh)
 
 	/* dma: setup channel 1 (= Video Task B) */
 	base  = (unsigned long)dev->ovbuf.base;
-	base += dev->ovbuf.fmt.bytesperline * fh->win.w.top;
-	base += dev->ovfmt->depth/8         * fh->win.w.left;
+	base += dev->ovbuf.fmt.bytesperline * dev->win.w.top;
+	base += dev->ovfmt->depth/8         * dev->win.w.left;
 	bpl   = dev->ovbuf.fmt.bytesperline;
 	control = SAA7134_RS_CONTROL_BURST_16;
 	if (dev->ovfmt->bswap)
@@ -1572,12 +1572,13 @@ static int saa7134_g_fmt_vid_overlay(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
 
 	if (saa7134_no_overlay > 0) {
 		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
 		return -EINVAL;
 	}
-	f->fmt.win = fh->win;
+	f->fmt.win = dev->win;
 
 	return 0;
 }
@@ -1682,14 +1683,14 @@ static int saa7134_s_fmt_vid_overlay(struct file *file, void *priv,
 
 	mutex_lock(&dev->lock);
 
-	fh->win    = f->fmt.win;
-	fh->nclips = f->fmt.win.clipcount;
+	dev->win    = f->fmt.win;
+	dev->nclips = f->fmt.win.clipcount;
 
-	if (fh->nclips > 8)
-		fh->nclips = 8;
+	if (dev->nclips > 8)
+		dev->nclips = 8;
 
-	if (copy_from_user(fh->clips, f->fmt.win.clips,
-			   sizeof(struct v4l2_clip)*fh->nclips)) {
+	if (copy_from_user(dev->clips, f->fmt.win.clips,
+			   sizeof(struct v4l2_clip) * dev->nclips)) {
 		mutex_unlock(&dev->lock);
 		return -EFAULT;
 	}
