@@ -696,7 +696,7 @@ config USB_SW_SUN3I_HCD2
 #
 #-----------------------------------------------------
 config USB_SW_SUNXI_HCD0
-	tristate "SoftWinner SUNXI USB Host Controller0 (OTG)"
+	boolean "SoftWinner SUNXI USB Host Controller0 (OTG)"
 	depends on USB && USB_SW_SUNXI_USB_MANAGER
 	help
 	    SoftWinner SUNXI USB2.0 Host Controller0, OTG port.
