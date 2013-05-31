@@ -59,6 +59,10 @@
 				status = "okay";
 			};
 
+			watchdog@fffffd40 {
+				status = "okay";
+			};
+
 			mmc0: mmc@fff80000 {
 				pinctrl-0 = <
 					&pinctrl_board_mmc0

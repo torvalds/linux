@@ -104,6 +104,10 @@
 					reg = <1>;
 				};
 			};
+
+			watchdog@fffffd40 {
+				status = "okay";
+			};
 		};
 
 		nand0: nand@40000000 {

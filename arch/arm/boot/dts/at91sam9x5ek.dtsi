@@ -81,6 +81,10 @@
 					reg = <0>;
 				};
 			};
+
+			watchdog@fffffe40 {
+				status = "okay";
+			};
 		};
 
 		usb0: ohci@00600000 {
