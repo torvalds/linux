@@ -3875,6 +3875,36 @@ static void update_automute_all(struct hda_codec *codec)
 		snd_hda_gen_mic_autoswitch(codec, NULL);
 }
 
+/* call appropriate hooks */
+static void call_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	if (spec->hp_automute_hook)
+		spec->hp_automute_hook(codec, jack);
+	else
+		snd_hda_gen_hp_automute(codec, jack);
+}
+
+static void call_line_automute(struct hda_codec *codec,
+			       struct hda_jack_tbl *jack)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	if (spec->line_automute_hook)
+		spec->line_automute_hook(codec, jack);
+	else
+		snd_hda_gen_line_automute(codec, jack);
+}
+
+static void call_mic_autoswitch(struct hda_codec *codec,
+				struct hda_jack_tbl *jack)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	if (spec->mic_autoswitch_hook)
+		spec->mic_autoswitch_hook(codec, jack);
+	else
+		snd_hda_gen_mic_autoswitch(codec, jack);
+}
+
 /*
  * Auto-Mute mode mixer enum support
  */
@@ -4009,9 +4039,7 @@ static int check_auto_mute_availability(struct hda_codec *codec)
 		snd_printdd("hda-codec: Enable HP auto-muting on NID 0x%x\n",
 			    nid);
 		snd_hda_jack_detect_enable_callback(codec, nid, HDA_GEN_HP_EVENT,
-						    spec->hp_automute_hook ?
-						    spec->hp_automute_hook :
-						    snd_hda_gen_hp_automute);
+						    call_hp_automute);
 		spec->detect_hp = 1;
 	}
 
@@ -4024,9 +4052,7 @@ static int check_auto_mute_availability(struct hda_codec *codec)
 				snd_printdd("hda-codec: Enable Line-Out auto-muting on NID 0x%x\n", nid);
 				snd_hda_jack_detect_enable_callback(codec, nid,
 								    HDA_GEN_FRONT_EVENT,
-								    spec->line_automute_hook ?
-								    spec->line_automute_hook :
-								    snd_hda_gen_line_automute);
+								    call_line_automute);
 				spec->detect_lo = 1;
 			}
 		spec->automute_lo_possible = spec->detect_hp;
@@ -4068,9 +4094,7 @@ static bool auto_mic_check_imux(struct hda_codec *codec)
 		snd_hda_jack_detect_enable_callback(codec,
 						    spec->am_entry[i].pin,
 						    HDA_GEN_MIC_EVENT,
-						    spec->mic_autoswitch_hook ?
-						    spec->mic_autoswitch_hook :
-						    snd_hda_gen_mic_autoswitch);
+						    call_mic_autoswitch);
 	return true;
 }
 
