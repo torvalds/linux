@@ -825,20 +825,22 @@ static int setup_clipping(struct saa7134_dev *dev, struct v4l2_clip *clips,
 	return 0;
 }
 
-static int verify_preview(struct saa7134_dev *dev, struct v4l2_window *win)
+static int verify_preview(struct saa7134_dev *dev, struct v4l2_window *win, bool try)
 {
 	enum v4l2_field field;
 	int maxw, maxh;
 
-	if (NULL == dev->ovbuf.base)
+	if (!try && (dev->ovbuf.base == NULL || dev->ovfmt == NULL))
 		return -EINVAL;
-	if (NULL == dev->ovfmt)
-		return -EINVAL;
-	if (win->w.width < 48 || win->w.height <  32)
-		return -EINVAL;
-	if (win->clipcount > 2048)
-		return -EINVAL;
+	if (win->w.width < 48)
+		win->w.width = 48;
+	if (win->w.height < 32)
+		win->w.height = 32;
+	if (win->clipcount > 8)
+		win->clipcount = 8;
 
+	win->chromakey = 0;
+	win->global_alpha = 0;
 	field = win->field;
 	maxw  = dev->crop_current.width;
 	maxh  = dev->crop_current.height;
@@ -853,10 +855,9 @@ static int verify_preview(struct saa7134_dev *dev, struct v4l2_window *win)
 	case V4L2_FIELD_BOTTOM:
 		maxh = maxh / 2;
 		break;
-	case V4L2_FIELD_INTERLACED:
-		break;
 	default:
-		return -EINVAL;
+		field = V4L2_FIELD_INTERLACED;
+		break;
 	}
 
 	win->field = field;
@@ -872,7 +873,7 @@ static int start_preview(struct saa7134_dev *dev, struct saa7134_fh *fh)
 	unsigned long base,control,bpl;
 	int err;
 
-	err = verify_preview(dev, &dev->win);
+	err = verify_preview(dev, &dev->win, false);
 	if (0 != err)
 		return err;
 
@@ -1564,6 +1565,8 @@ static int saa7134_g_fmt_vid_cap(struct file *file, void *priv,
 		(f->fmt.pix.width * dev->fmt->depth) >> 3;
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
+	f->fmt.pix.priv = 0;
 	return 0;
 }
 
@@ -1572,14 +1575,32 @@ static int saa7134_g_fmt_vid_overlay(struct file *file, void *priv,
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
+	struct v4l2_clip *clips = f->fmt.win.clips;
+	u32 clipcount = f->fmt.win.clipcount;
+	int err = 0;
+	int i;
 
 	if (saa7134_no_overlay > 0) {
 		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
 		return -EINVAL;
 	}
+	mutex_lock(&dev->lock);
 	f->fmt.win = dev->win;
+	f->fmt.win.clips = clips;
+	if (clips == NULL)
+		clipcount = 0;
+	if (dev->nclips < clipcount)
+		clipcount = dev->nclips;
+	f->fmt.win.clipcount = clipcount;
 
-	return 0;
+	for (i = 0; !err && i < clipcount; i++) {
+		if (copy_to_user(&f->fmt.win.clips[i].c, &dev->clips[i].c,
+					sizeof(struct v4l2_rect)))
+			err = -EFAULT;
+	}
+	mutex_unlock(&dev->lock);
+
+	return err;
 }
 
 static int saa7134_try_fmt_vid_cap(struct file *file, void *priv,
@@ -1609,10 +1630,9 @@ static int saa7134_try_fmt_vid_cap(struct file *file, void *priv,
 	case V4L2_FIELD_BOTTOM:
 		maxh = maxh / 2;
 		break;
-	case V4L2_FIELD_INTERLACED:
-		break;
 	default:
-		return -EINVAL;
+		field = V4L2_FIELD_INTERLACED;
+		break;
 	}
 
 	f->fmt.pix.field = field;
@@ -1629,6 +1649,8 @@ static int saa7134_try_fmt_vid_cap(struct file *file, void *priv,
 		(f->fmt.pix.width * fmt->depth) >> 3;
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
+	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -1644,7 +1666,9 @@ static int saa7134_try_fmt_vid_overlay(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	return verify_preview(dev, &f->fmt.win);
+	if (f->fmt.win.clips == NULL)
+		f->fmt.win.clipcount = 0;
+	return verify_preview(dev, &f->fmt.win, true);
 }
 
 static int saa7134_s_fmt_vid_cap(struct file *file, void *priv,
@@ -1677,7 +1701,9 @@ static int saa7134_s_fmt_vid_overlay(struct file *file, void *priv,
 		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
 		return -EINVAL;
 	}
-	err = verify_preview(dev, &f->fmt.win);
+	if (f->fmt.win.clips == NULL)
+		f->fmt.win.clipcount = 0;
+	err = verify_preview(dev, &f->fmt.win, true);
 	if (0 != err)
 		return err;
 
@@ -1685,9 +1711,6 @@ static int saa7134_s_fmt_vid_overlay(struct file *file, void *priv,
 
 	dev->win    = f->fmt.win;
 	dev->nclips = f->fmt.win.clipcount;
-
-	if (dev->nclips > 8)
-		dev->nclips = 8;
 
 	if (copy_from_user(dev->clips, f->fmt.win.clips,
 			   sizeof(struct v4l2_clip) * dev->nclips)) {
@@ -2454,6 +2477,13 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	dev->fmt = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 	dev->width    = 720;
 	dev->height   = 576;
+	dev->win.w.width = dev->width;
+	dev->win.w.height = dev->height;
+	dev->win.field = V4L2_FIELD_INTERLACED;
+	dev->ovbuf.fmt.width = dev->width;
+	dev->ovbuf.fmt.height = dev->height;
+	dev->ovbuf.fmt.pixelformat = dev->fmt->fourcc;
+	dev->ovbuf.fmt.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	if (saa7134_boards[dev->board].video_out)
 		saa7134_videoport_init(dev);
