@@ -67,7 +67,7 @@ static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 			}
 			if (sync) {
 				if (ha->synced)
-					return 0;
+					return -EEXIST;
 				else
 					ha->synced = true;
 			}
@@ -140,10 +140,13 @@ static int __hw_addr_sync_one(struct netdev_hw_addr_list *to_list,
 
 	err = __hw_addr_add_ex(to_list, ha->addr, addr_len, ha->type,
 			       false, true);
-	if (err)
+	if (err && err != -EEXIST)
 		return err;
-	ha->sync_cnt++;
-	ha->refcount++;
+
+	if (!err) {
+		ha->sync_cnt++;
+		ha->refcount++;
+	}
 
 	return 0;
 }
