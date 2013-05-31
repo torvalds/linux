@@ -1166,13 +1166,14 @@ lpfc_get_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 static struct lpfc_scsi_buf*
 lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
-	struct lpfc_scsi_buf *lpfc_cmd ;
+	struct lpfc_scsi_buf *lpfc_cmd, *lpfc_cmd_next;
 	unsigned long gflag = 0;
 	unsigned long pflag = 0;
 	int found = 0;
 
 	spin_lock_irqsave(&phba->scsi_buf_list_get_lock, gflag);
-	list_for_each_entry(lpfc_cmd, &phba->lpfc_scsi_buf_list_get, list) {
+	list_for_each_entry_safe(lpfc_cmd, lpfc_cmd_next,
+				 &phba->lpfc_scsi_buf_list_get, list) {
 		if (lpfc_test_rrq_active(phba, ndlp,
 					 lpfc_cmd->cur_iocbq.sli4_lxritag))
 			continue;
@@ -1186,8 +1187,8 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 			    &phba->lpfc_scsi_buf_list_get);
 		INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_put);
 		spin_unlock_irqrestore(&phba->scsi_buf_list_put_lock, pflag);
-		list_for_each_entry(lpfc_cmd, &phba->lpfc_scsi_buf_list_get,
-				    list) {
+		list_for_each_entry_safe(lpfc_cmd, lpfc_cmd_next,
+					 &phba->lpfc_scsi_buf_list_get, list) {
 			if (lpfc_test_rrq_active(
 				phba, ndlp, lpfc_cmd->cur_iocbq.sli4_lxritag))
 				continue;
