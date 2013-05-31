@@ -1982,8 +1982,15 @@ static void kick_flushing_inode_caps(struct ceph_mds_client *mdsc,
 	cap = ci->i_auth_cap;
 	dout("kick_flushing_inode_caps %p flushing %s flush_seq %lld\n", inode,
 	     ceph_cap_string(ci->i_flushing_caps), ci->i_cap_flush_seq);
+
 	__ceph_flush_snaps(ci, &session, 1);
+
 	if (ci->i_flushing_caps) {
+		spin_lock(&mdsc->cap_dirty_lock);
+		list_move_tail(&ci->i_flushing_item,
+			       &cap->session->s_cap_flushing);
+		spin_unlock(&mdsc->cap_dirty_lock);
+
 		delayed = __send_cap(mdsc, cap, CEPH_CAP_OP_FLUSH,
 				     __ceph_caps_used(ci),
 				     __ceph_caps_wanted(ci),
