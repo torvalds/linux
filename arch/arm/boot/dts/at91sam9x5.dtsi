@@ -724,6 +724,9 @@
 				compatible = "atmel,at91rm9200-spi";
 				reg = <0xf0000000 0x100>;
 				interrupts = <13 IRQ_TYPE_LEVEL_HIGH 3>;
+				dmas = <&dma0 1 AT91_DMA_CFG_PER_ID(1)>,
+				       <&dma0 1 AT91_DMA_CFG_PER_ID(2)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi0>;
 				status = "disabled";
@@ -735,6 +738,9 @@
 				compatible = "atmel,at91rm9200-spi";
 				reg = <0xf0004000 0x100>;
 				interrupts = <14 IRQ_TYPE_LEVEL_HIGH 3>;
+				dmas = <&dma1 1 AT91_DMA_CFG_PER_ID(1)>,
+				       <&dma1 1 AT91_DMA_CFG_PER_ID(2)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi1>;
 				status = "disabled";
