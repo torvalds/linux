@@ -573,6 +573,7 @@ static struct irq_chip twl4030_sih_irq_chip = {
 	.irq_set_type	= twl4030_sih_set_type,
 	.irq_bus_lock	= twl4030_sih_bus_lock,
 	.irq_bus_sync_unlock = twl4030_sih_bus_sync_unlock,
+	.flags		= IRQCHIP_SKIP_SET_WAKE,
 };
 
 /*----------------------------------------------------------------------*/
