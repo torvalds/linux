@@ -391,8 +391,6 @@ static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
 	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
 		rbnode = rb_entry(node, struct regcache_rbtree_node, node);
 
-		if (rbnode->base_reg < min)
-			continue;
 		if (rbnode->base_reg > max)
 			break;
 		if (rbnode->base_reg + rbnode->blklen < min)
