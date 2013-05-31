@@ -220,15 +220,15 @@ static int __fimc_pipeline_close(struct exynos_media_pipeline *ep)
 	struct fimc_pipeline *p = to_fimc_pipeline(ep);
 	struct v4l2_subdev *sd = p ? p->subdevs[IDX_SENSOR] : NULL;
 	struct fimc_md *fmd;
-	int ret = 0;
+	int ret;
 
-	if (WARN_ON(sd == NULL))
-		return -EINVAL;
-
-	if (p->subdevs[IDX_SENSOR]) {
-		ret = fimc_pipeline_s_power(p, 0);
-		fimc_md_set_camclk(sd, false);
+	if (sd == NULL) {
+		pr_warn("%s(): No sensor subdev\n", __func__);
+		return 0;
 	}
+
+	ret = fimc_pipeline_s_power(p, 0);
+	fimc_md_set_camclk(sd, false);
 
 	fmd = entity_to_fimc_mdev(&sd->entity);
 
