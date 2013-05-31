@@ -484,7 +484,6 @@ static int fimc_capture_open(struct file *file)
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
 
-	fimc_md_graph_lock(ve);
 	mutex_lock(&fimc->lock);
 
 	if (fimc_m2m_active(fimc))
@@ -502,6 +501,8 @@ static int fimc_capture_open(struct file *file)
 	}
 
 	if (v4l2_fh_is_singular_file(file)) {
+		fimc_md_graph_lock(ve);
+
 		ret = fimc_pipeline_call(fimc, open, &fimc->pipeline,
 					 &fimc->vid_cap.ve.vdev.entity, true);
 		if (ret == 0)
@@ -518,18 +519,19 @@ static int fimc_capture_open(struct file *file)
 			if (ret == 0)
 				vc->inh_sensor_ctrls = false;
 		}
+		if (ret == 0)
+			ve->vdev.entity.use_count++;
+
+		fimc_md_graph_unlock(ve);
 
 		if (ret < 0) {
 			clear_bit(ST_CAPT_BUSY, &fimc->state);
 			pm_runtime_put_sync(&fimc->pdev->dev);
 			v4l2_fh_release(file);
-		} else {
-			fimc->vid_cap.refcnt++;
 		}
 	}
 unlock:
 	mutex_unlock(&fimc->lock);
-	fimc_md_graph_unlock(ve);
 	return ret;
 }
 
@@ -537,26 +539,32 @@ static int fimc_capture_release(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
+	bool close = v4l2_fh_is_singular_file(file);
 	int ret;
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
 
 	mutex_lock(&fimc->lock);
 
-	if (v4l2_fh_is_singular_file(file)) {
-		if (vc->streaming) {
-			media_entity_pipeline_stop(&vc->ve.vdev.entity);
-			vc->streaming = false;
-		}
+	if (close && vc->streaming) {
+		media_entity_pipeline_stop(&vc->ve.vdev.entity);
+		vc->streaming = false;
+	}
+
+	ret = vb2_fop_release(file);
+
+	if (close) {
 		clear_bit(ST_CAPT_BUSY, &fimc->state);
 		fimc_stop_capture(fimc, false);
 		fimc_pipeline_call(fimc, close, &fimc->pipeline);
 		clear_bit(ST_CAPT_SUSPENDED, &fimc->state);
-		fimc->vid_cap.refcnt--;
+
+		fimc_md_graph_lock(&vc->ve);
+		vc->ve.vdev.entity.use_count--;
+		fimc_md_graph_unlock(&vc->ve);
 	}
 
 	pm_runtime_put(&fimc->pdev->dev);
-	ret = vb2_fop_release(file);
 	mutex_unlock(&fimc->lock);
 
 	return ret;
@@ -921,9 +929,6 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 	struct fimc_fmt *ffmt = NULL;
 	int ret = 0;
 
-	fimc_md_graph_lock(ve);
-	mutex_lock(&fimc->lock);
-
 	if (fimc_jpeg_fourcc(pix->pixelformat)) {
 		fimc_capture_try_format(ctx, &pix->width, &pix->height,
 					NULL, &pix->pixelformat,
@@ -934,16 +939,18 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 	ffmt = fimc_capture_try_format(ctx, &pix->width, &pix->height,
 				       NULL, &pix->pixelformat,
 				       FIMC_SD_PAD_SOURCE);
-	if (!ffmt) {
-		ret = -EINVAL;
-		goto unlock;
-	}
+	if (!ffmt)
+		return -EINVAL;
 
 	if (!fimc->vid_cap.user_subdev_api) {
 		mf.width = pix->width;
 		mf.height = pix->height;
 		mf.code = ffmt->mbus_code;
+
+		fimc_md_graph_lock(ve);
 		fimc_pipeline_try_format(ctx, &mf, &ffmt, false);
+		fimc_md_graph_unlock(ve);
+
 		pix->width = mf.width;
 		pix->height = mf.height;
 		if (ffmt)
@@ -955,9 +962,6 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 	if (ffmt->flags & FMT_FLAGS_COMPRESSED)
 		fimc_get_sensor_frame_desc(fimc->pipeline.subdevs[IDX_SENSOR],
 					pix->plane_fmt, ffmt->memplanes, true);
-unlock:
-	mutex_unlock(&fimc->lock);
-	fimc_md_graph_unlock(ve);
 
 	return ret;
 }
@@ -1059,19 +1063,14 @@ static int fimc_cap_s_fmt_mplane(struct file *file, void *priv,
 	int ret;
 
 	fimc_md_graph_lock(&fimc->vid_cap.ve);
-	mutex_lock(&fimc->lock);
 	/*
 	 * The graph is walked within __fimc_capture_set_format() to set
 	 * the format at subdevs thus the graph mutex needs to be held at
-	 * this point and acquired before the video mutex, to avoid  AB-BA
-	 * deadlock when fimc_md_link_notify() is called by other thread.
-	 * Ideally the graph walking and setting format at the whole pipeline
-	 * should be removed from this driver and handled in userspace only.
+	 * this point.
 	 */
 	ret = __fimc_capture_set_format(fimc, f);
 
 	fimc_md_graph_unlock(&fimc->vid_cap.ve);
-	mutex_unlock(&fimc->lock);
 	return ret;
 }
 
@@ -1790,12 +1789,6 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	ret = fimc_ctrls_create(ctx);
 	if (ret)
 		goto err_me_cleanup;
-	/*
-	 * For proper order of acquiring/releasing the video
-	 * and the graph mutex.
-	 */
-	v4l2_disable_ioctl_locking(vfd, VIDIOC_TRY_FMT);
-	v4l2_disable_ioctl_locking(vfd, VIDIOC_S_FMT);
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret)

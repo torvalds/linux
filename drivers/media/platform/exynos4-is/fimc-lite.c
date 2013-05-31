@@ -461,8 +461,6 @@ static int fimc_lite_open(struct file *file)
 	struct media_entity *me = &fimc->ve.vdev.entity;
 	int ret;
 
-	mutex_lock(&me->parent->graph_mutex);
-
 	mutex_lock(&fimc->lock);
 	if (atomic_read(&fimc->out_path) != FIMC_IO_DMA) {
 		ret = -EBUSY;
@@ -482,11 +480,19 @@ static int fimc_lite_open(struct file *file)
 	    atomic_read(&fimc->out_path) != FIMC_IO_DMA)
 		goto unlock;
 
+	mutex_lock(&me->parent->graph_mutex);
+
 	ret = fimc_pipeline_call(fimc, open, &fimc->pipeline,
 						me, true);
+
+	/* Mark video pipeline ending at this video node as in use. */
+	if (ret == 0)
+		me->use_count++;
+
+	mutex_unlock(&me->parent->graph_mutex);
+
 	if (!ret) {
 		fimc_lite_clear_event_counters(fimc);
-		fimc->ref_count++;
 		goto unlock;
 	}
 
@@ -496,26 +502,28 @@ err_pm:
 	clear_bit(ST_FLITE_IN_USE, &fimc->state);
 unlock:
 	mutex_unlock(&fimc->lock);
-	mutex_unlock(&me->parent->graph_mutex);
 	return ret;
 }
 
 static int fimc_lite_release(struct file *file)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
+	struct media_entity *entity = &fimc->ve.vdev.entity;
 
 	mutex_lock(&fimc->lock);
 
 	if (v4l2_fh_is_singular_file(file) &&
 	    atomic_read(&fimc->out_path) == FIMC_IO_DMA) {
 		if (fimc->streaming) {
-			media_entity_pipeline_stop(&fimc->ve.vdev.entity);
+			media_entity_pipeline_stop(entity);
 			fimc->streaming = false;
 		}
 		clear_bit(ST_FLITE_IN_USE, &fimc->state);
 		fimc_lite_stop_capture(fimc, false);
 		fimc_pipeline_call(fimc, close, &fimc->pipeline);
-		fimc->ref_count--;
+		mutex_lock(&entity->parent->graph_mutex);
+		entity->use_count--;
+		mutex_unlock(&entity->parent->graph_mutex);
 	}
 
 	vb2_fop_release(file);
@@ -954,8 +962,6 @@ static int fimc_lite_link_setup(struct media_entity *entity,
 		 __func__, remote->entity->name, local->entity->name,
 		 flags, fimc->source_subdev_grp_id);
 
-	mutex_lock(&fimc->lock);
-
 	switch (local->index) {
 	case FLITE_SD_PAD_SINK:
 		if (remote_ent_type != MEDIA_ENT_T_V4L2_SUBDEV) {
@@ -997,7 +1003,6 @@ static int fimc_lite_link_setup(struct media_entity *entity,
 	}
 	mb();
 
-	mutex_unlock(&fimc->lock);
 	return ret;
 }
 

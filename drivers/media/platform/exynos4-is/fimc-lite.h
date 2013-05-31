@@ -125,7 +125,6 @@ struct flite_buffer {
  * @active_buf_count: number of video buffers scheduled in hardware
  * @frame_count: the captured frames counter
  * @reqbufs_count: the number of buffers requested with REQBUFS ioctl
- * @ref_count: driver's private reference counter
  */
 struct fimc_lite {
 	struct platform_device	*pdev;
@@ -163,7 +162,6 @@ struct fimc_lite {
 	struct vb2_queue	vb_queue;
 	unsigned int		frame_count;
 	unsigned int		reqbufs_count;
-	int			ref_count;
 
 	struct fimc_lite_events	events;
 	bool			streaming;

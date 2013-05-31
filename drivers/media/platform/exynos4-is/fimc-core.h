@@ -298,7 +298,6 @@ struct fimc_m2m_device {
  * @frame_count: the frame counter for statistics
  * @reqbufs_count: the number of buffers requested in REQBUFS ioctl
  * @input_index: input (camera sensor) index
- * @refcnt: driver's private reference counter
  * @input: capture input type, grp_id of the attached subdev
  * @user_subdev_api: true if subdevs are not configured by the host driver
  * @inh_sensor_ctrls: a flag indicating v4l2 controls are inherited from
@@ -323,7 +322,6 @@ struct fimc_vid_cap {
 	unsigned int			reqbufs_count;
 	bool				streaming;
 	int				input_index;
-	int				refcnt;
 	u32				input;
 	bool				user_subdev_api;
 	bool				inh_sensor_ctrls;
