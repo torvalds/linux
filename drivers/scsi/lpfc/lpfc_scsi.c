@@ -3088,9 +3088,9 @@ lpfc_calc_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 			chk_guard = 1;
 		guard_type = scsi_host_get_guard(cmd->device->host);
 
+		src = (struct scsi_dif_tuple *)sg_virt(sgpe);
 		start_ref_tag = (uint32_t)scsi_get_lba(cmd); /* Truncate LBA */
 		start_app_tag = src->app_tag;
-		src = (struct scsi_dif_tuple *)sg_virt(sgpe);
 		len = sgpe->length;
 		while (src && protsegcnt) {
 			while (len) {
