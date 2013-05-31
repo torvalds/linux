@@ -256,22 +256,12 @@ void __init nmdk_timer_init(void __iomem *base, int irq)
 	__nmdk_timer_init(base, irq, pclk0, clk0);
 }
 
-static struct of_device_id nmdk_timer_match[] __initconst = {
-	{ .compatible = "st,nomadik-mtu" },
-	{}
-};
-
-static void __init nmdk_timer_of_init(void)
+static void __init nmdk_timer_of_init(struct device_node *node)
 {
-	struct device_node *node;
 	struct clk *pclk;
 	struct clk *clk;
 	void __iomem *base;
 	int irq;
-
-	node = of_find_matching_node(NULL, nmdk_timer_match);
-	if (!node)
-		panic("No timer node");
 
 	base = of_iomap(node, 0);
 	if (!base)
