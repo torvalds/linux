@@ -18,7 +18,7 @@ config ARM_DT_BL_CPUFREQ
 config ARM_VEXPRESS_BL_CPUFREQ
 	tristate "ARM Vexpress big LITTLE CPUfreq driver"
 	select ARM_BIG_LITTLE_CPUFREQ
-	depends on ARM_SPC
+	depends on VEXPRESS_SPC
 	help
 	  This enables the CPUfreq driver for ARM Vexpress big.LITTLE platform.
 	  If in doubt, say N.

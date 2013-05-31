@@ -30,9 +30,10 @@
 static int vexpress_init_opp_table(struct device *cpu_dev)
 {
 	int i = -1, count, cluster = cpu_to_cluster(cpu_dev->id);
-	unsigned int *table = vexpress_spc_get_freq_table(cluster, &count);
+	u32 *table;
 	int ret;
 
+	count = vexpress_spc_get_freq_table(cluster, &table);
 	if (!table || !count) {
 		pr_err("SPC controller returned invalid freq table");
 		return -EINVAL;
