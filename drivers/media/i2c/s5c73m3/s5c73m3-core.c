@@ -1385,9 +1385,12 @@ static int __s5c73m3_power_off(struct s5c73m3 *state)
 	}
 	return 0;
 err:
-	for (++i; i < S5C73M3_MAX_SUPPLIES; i++)
-		regulator_enable(state->supplies[i].consumer);
-
+	for (++i; i < S5C73M3_MAX_SUPPLIES; i++) {
+		int r = regulator_enable(state->supplies[i].consumer);
+		if (r < 0)
+			v4l2_err(&state->oif_sd, "Failed to reenable %s: %d\n",
+				 state->supplies[i].supply, r);
+	}
 	return ret;
 }
 
