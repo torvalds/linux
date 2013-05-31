@@ -102,6 +102,7 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 	/* MCLK must be 12M when HDMI is in */
 	if (get_hdmi_state()) {
 		DBG("%s : HDMI is in, do not set sys clk\n",__FUNCTION__);
+		return 0;
 	}
 
 	/* set codec DAI configuration */
@@ -181,6 +182,7 @@ static int rk_voice_hw_params(struct snd_pcm_substream *substream,
 	/* MCLK must be 12M when HDMI is in */
 	if (get_hdmi_state()) {
 		DBG("%s : HDMI is in, do not set sys clk\n",__FUNCTION__);
+		return 0;
 	}
 
 	/* set codec DAI configuration */
