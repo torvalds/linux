@@ -302,10 +302,6 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
     	{
     		screen->init();
     	}
-	if(screen->sscreen_set)
-        {
-                screen->sscreen_set(screen,!initscreen);
-        }
 	
 	printk("%s for lcdc%d ok!\n",__func__,lcdc_dev->id);
 	return 0;

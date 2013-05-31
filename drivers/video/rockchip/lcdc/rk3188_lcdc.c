@@ -551,11 +551,6 @@ static int rk3188_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
     	{
     		screen->init();
     	}
-
-	if(screen->sscreen_set)
-	{
-		screen->sscreen_set(screen,!initscreen);
-	}
 	
 	dev_info(dev_drv->dev,"%s for lcdc%d ok!\n",__func__,lcdc_dev->id);
 	return 0;
