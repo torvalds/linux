@@ -71,7 +71,6 @@ static void fimc_is_put_clocks(struct fimc_is *is)
 	for (i = 0; i < ISS_CLKS_MAX; i++) {
 		if (IS_ERR(is->clocks[i]))
 			continue;
-		clk_unprepare(is->clocks[i]);
 		clk_put(is->clocks[i]);
 		is->clocks[i] = ERR_PTR(-EINVAL);
 	}
@@ -90,12 +89,6 @@ static int fimc_is_get_clocks(struct fimc_is *is)
 			ret = PTR_ERR(is->clocks[i]);
 			goto err;
 		}
-		ret = clk_prepare(is->clocks[i]);
-		if (ret < 0) {
-			clk_put(is->clocks[i]);
-			is->clocks[i] = ERR_PTR(-EINVAL);
-			goto err;
-		}
 	}
 
 	return 0;
@@ -103,7 +96,7 @@ err:
 	fimc_is_put_clocks(is);
 	dev_err(&is->pdev->dev, "failed to get clock: %s\n",
 		fimc_is_clocks[i]);
-	return -ENXIO;
+	return ret;
 }
 
 static int fimc_is_setup_clocks(struct fimc_is *is)
@@ -144,7 +137,7 @@ int fimc_is_enable_clocks(struct fimc_is *is)
 	for (i = 0; i < ISS_GATE_CLKS_MAX; i++) {
 		if (IS_ERR(is->clocks[i]))
 			continue;
-		ret = clk_enable(is->clocks[i]);
+		ret = clk_prepare_enable(is->clocks[i]);
 		if (ret < 0) {
 			dev_err(&is->pdev->dev, "clock %s enable failed\n",
 				fimc_is_clocks[i]);
@@ -163,7 +156,7 @@ void fimc_is_disable_clocks(struct fimc_is *is)
 
 	for (i = 0; i < ISS_GATE_CLKS_MAX; i++) {
 		if (!IS_ERR(is->clocks[i])) {
-			clk_disable(is->clocks[i]);
+			clk_disable_unprepare(is->clocks[i]);
 			pr_debug("disabled clock: %s\n", fimc_is_clocks[i]);
 		}
 	}
