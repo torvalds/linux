@@ -218,6 +218,8 @@ int f2fs_getxattr(struct inode *inode, int name_index, const char *name,
 		return -ENODATA;
 
 	page = get_node_page(sbi, fi->i_xattr_nid);
+	if (IS_ERR(page))
+		return PTR_ERR(page);
 	base_addr = page_address(page);
 
 	list_for_each_xattr(entry, base_addr) {
@@ -268,6 +270,8 @@ ssize_t f2fs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 		return 0;
 
 	page = get_node_page(sbi, fi->i_xattr_nid);
+	if (IS_ERR(page))
+		return PTR_ERR(page);
 	base_addr = page_address(page);
 
 	list_for_each_xattr(entry, base_addr) {
