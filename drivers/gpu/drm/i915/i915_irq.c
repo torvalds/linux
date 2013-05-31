@@ -1681,7 +1681,7 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
 	struct drm_i915_gem_object *obj;
 	int i = 0;
 
-	list_for_each_entry(obj, head, gtt_list) {
+	list_for_each_entry(obj, head, global_list) {
 		if (obj->pin_count == 0)
 			continue;
 
@@ -1823,7 +1823,7 @@ static void i915_gem_record_active_context(struct intel_ring_buffer *ring,
 	if (ring->id != RCS || !error->ccid)
 		return;
 
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		if ((error->ccid & PAGE_MASK) == obj->gtt_offset) {
 			ering->ctx = i915_error_object_create_sized(dev_priv,
 								    obj, 1);
@@ -1960,7 +1960,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list)
 		i++;
 	error->active_bo_count = i;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list)
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
 		if (obj->pin_count)
 			i++;
 	error->pinned_bo_count = i - error->active_bo_count;

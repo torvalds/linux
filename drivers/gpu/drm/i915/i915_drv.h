@@ -1155,7 +1155,7 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *gtt_space;
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
-	struct list_head gtt_list;
+	struct list_head global_list;
 
 	/** This object's place on the active/inactive lists */
 	struct list_head ring_list;

@@ -176,7 +176,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 
 	pinned = 0;
 	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list)
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
 		if (obj->pin_count)
 			pinned += obj->gtt_space->size;
 	mutex_unlock(&dev->struct_mutex);
@@ -1677,7 +1677,7 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	/* ->put_pages might need to allocate memory for the bit17 swizzle
 	 * array, hence protect them from being reaped by removing them from gtt
 	 * lists early. */
-	list_del(&obj->gtt_list);
+	list_del(&obj->global_list);
 
 	ops->put_pages(obj);
 	obj->pages = NULL;
@@ -1697,7 +1697,7 @@ __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 
 	list_for_each_entry_safe(obj, next,
 				 &dev_priv->mm.unbound_list,
-				 gtt_list) {
+				 global_list) {
 		if ((i915_gem_object_is_purgeable(obj) || !purgeable_only) &&
 		    i915_gem_object_put_pages(obj) == 0) {
 			count += obj->base.size >> PAGE_SHIFT;
@@ -1734,7 +1734,8 @@ i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 
 	i915_gem_evict_everything(dev_priv->dev);
 
-	list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list, gtt_list)
+	list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list,
+				 global_list)
 		i915_gem_object_put_pages(obj);
 }
 
@@ -1868,7 +1869,7 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 	if (ret)
 		return ret;
 
-	list_add_tail(&obj->gtt_list, &dev_priv->mm.unbound_list);
+	list_add_tail(&obj->global_list, &dev_priv->mm.unbound_list);
 	return 0;
 }
 
@@ -2524,7 +2525,7 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	i915_gem_object_unpin_pages(obj);
 
 	list_del(&obj->mm_list);
-	list_move_tail(&obj->gtt_list, &dev_priv->mm.unbound_list);
+	list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
 	/* Avoid an unnecessary call to unbind on rebind. */
 	obj->map_and_fenceable = true;
 
@@ -2954,7 +2955,7 @@ static void i915_gem_verify_gtt(struct drm_device *dev)
 	struct drm_i915_gem_object *obj;
 	int err = 0;
 
-	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
+	list_for_each_entry(obj, &dev_priv->mm.gtt_list, global_list) {
 		if (obj->gtt_space == NULL) {
 			printk(KERN_ERR "object found on GTT list with no space reserved\n");
 			err++;
@@ -3078,7 +3079,7 @@ search_free:
 		return ret;
 	}
 
-	list_move_tail(&obj->gtt_list, &dev_priv->mm.bound_list);
+	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
 	obj->gtt_space = node;
@@ -3792,7 +3793,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops)
 {
 	INIT_LIST_HEAD(&obj->mm_list);
-	INIT_LIST_HEAD(&obj->gtt_list);
+	INIT_LIST_HEAD(&obj->global_list);
 	INIT_LIST_HEAD(&obj->ring_list);
 	INIT_LIST_HEAD(&obj->exec_list);
 
@@ -4538,7 +4539,7 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 	}
 
 	cnt = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, gtt_list)
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list)
 		if (obj->pages_pin_count == 0)
 			cnt += obj->base.size >> PAGE_SHIFT;
 	list_for_each_entry(obj, &dev_priv->mm.inactive_list, mm_list)

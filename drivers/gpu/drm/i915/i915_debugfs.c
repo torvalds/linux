@@ -215,7 +215,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   dev_priv->mm.object_memory);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&dev_priv->mm.bound_list, gtt_list);
+	count_objects(&dev_priv->mm.bound_list, global_list);
 	seq_printf(m, "%u [%u] objects, %zu [%zu] bytes in gtt\n",
 		   count, mappable_count, size, mappable_size);
 
@@ -230,7 +230,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   count, mappable_count, size, mappable_size);
 
 	size = count = purgeable_size = purgeable_count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, gtt_list) {
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
 		size += obj->base.size, ++count;
 		if (obj->madv == I915_MADV_DONTNEED)
 			purgeable_size += obj->base.size, ++purgeable_count;
@@ -238,7 +238,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	seq_printf(m, "%u unbound objects, %zu bytes\n", count, size);
 
 	size = count = mappable_size = mappable_count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		if (obj->fault_mappable) {
 			size += obj->gtt_space->size;
 			++count;
@@ -283,7 +283,7 @@ static int i915_gem_gtt_info(struct seq_file *m, void* data)
 		return ret;
 
 	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		if (list == PINNED_LIST && obj->pin_count == 0)
 			continue;
 
@@ -1944,7 +1944,8 @@ i915_drop_caches_set(void *data, u64 val)
 	}
 
 	if (val & DROP_UNBOUND) {
-		list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list, gtt_list)
+		list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list,
+					 global_list)
 			if (obj->pages_pin_count == 0) {
 				ret = i915_gem_object_put_pages(obj);
 				if (ret)
