@@ -95,8 +95,8 @@ struct flite_buffer {
  * struct fimc_lite - fimc lite structure
  * @pdev: pointer to FIMC-LITE platform device
  * @dd: SoC specific driver data structure
+ * @ve: exynos video device entity structure
  * @v4l2_dev: pointer to top the level v4l2_device
- * @vfd: video device node
  * @fh: v4l2 file handle
  * @alloc_ctx: videobuf2 memory allocator context
  * @subdev: FIMC-LITE subdev
@@ -130,8 +130,8 @@ struct flite_buffer {
 struct fimc_lite {
 	struct platform_device	*pdev;
 	struct flite_drvdata	*dd;
+	struct exynos_video_entity ve;
 	struct v4l2_device	*v4l2_dev;
-	struct video_device	vfd;
 	struct v4l2_fh		fh;
 	struct vb2_alloc_ctx	*alloc_ctx;
 	struct v4l2_subdev	subdev;

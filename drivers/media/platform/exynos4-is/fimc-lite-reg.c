@@ -137,7 +137,7 @@ void flite_hw_set_source_format(struct fimc_lite *dev, struct flite_frame *f)
 	}
 
 	if (i == 0 && src_pixfmt_map[i][0] != pixelcode) {
-		v4l2_err(&dev->vfd,
+		v4l2_err(&dev->ve.vdev,
 			 "Unsupported pixel code, falling back to %#08x\n",
 			 src_pixfmt_map[i][0]);
 	}

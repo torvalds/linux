@@ -283,8 +283,8 @@ struct fimc_m2m_device {
 /**
  * struct fimc_vid_cap - camera capture device information
  * @ctx: hardware context data
- * @vfd: video device node for camera capture mode
  * @subdev: subdev exposing the FIMC processing block
+ * @ve: exynos video device entity structure
  * @vd_pad: fimc video capture node pad
  * @sd_pads: fimc video processing block pads
  * @ci_fmt: image format at the FIMC camera input (and the scaler output)
@@ -305,8 +305,8 @@ struct fimc_m2m_device {
 struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
 	struct vb2_alloc_ctx		*alloc_ctx;
-	struct video_device		vfd;
 	struct v4l2_subdev		subdev;
+	struct exynos_video_entity	ve;
 	struct media_pad		vd_pad;
 	struct media_pad		sd_pads[FIMC_SD_PADS_NUM];
 	struct v4l2_mbus_framefmt	ci_fmt;

@@ -13,6 +13,7 @@
 #define S5P_FIMC_H_
 
 #include <media/media-entity.h>
+#include <media/v4l2-dev.h>
 #include <media/v4l2-mediabus.h>
 
 /*
@@ -155,6 +156,10 @@ struct v4l2_subdev;
 struct fimc_pipeline {
 	struct v4l2_subdev *subdevs[IDX_MAX];
 	struct media_pipeline *m_pipeline;
+};
+
+struct exynos_video_entity {
+	struct video_device vdev;
 };
 
 /*
