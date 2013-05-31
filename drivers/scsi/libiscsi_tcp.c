@@ -558,7 +558,7 @@ static int iscsi_tcp_r2t_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 	if (!rc) {
 		iscsi_conn_printk(KERN_ERR, conn, "Could not allocate R2T. "
 				  "Target has sent more R2Ts than it "
-				  "negotiated for or driver has has leaked.\n");
+				  "negotiated for or driver has leaked.\n");
 		return ISCSI_ERR_PROTO;
 	}
 

@@ -98,7 +98,7 @@ MODULE_PARM_DESC(log_num_mgm_entry_size, "log mgm size, that defines the num"
 static bool enable_64b_cqe_eqe;
 module_param(enable_64b_cqe_eqe, bool, 0444);
 MODULE_PARM_DESC(enable_64b_cqe_eqe,
-		 "Enable 64 byte CQEs/EQEs when the the FW supports this");
+		 "Enable 64 byte CQEs/EQEs when the FW supports this");
 
 #define HCA_GLOBAL_CAP_MASK            0
 

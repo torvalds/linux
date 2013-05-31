@@ -6092,7 +6092,7 @@ static int __init pmcraid_init(void)
 
 	if (IS_ERR(pmcraid_class)) {
 		error = PTR_ERR(pmcraid_class);
-		pmcraid_err("failed to register with with sysfs, error = %x\n",
+		pmcraid_err("failed to register with sysfs, error = %x\n",
 			    error);
 		goto out_unreg_chrdev;
 	}

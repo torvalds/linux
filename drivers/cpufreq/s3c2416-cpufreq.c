@@ -205,7 +205,7 @@ static int s3c2416_cpufreq_leave_dvs(struct s3c2416_data *s3c_freq, int idx)
 		ret = s3c2416_cpufreq_set_armdiv(s3c_freq,
 					clk_get_rate(s3c_freq->hclk) / 1000);
 		if (ret < 0) {
-			pr_err("cpufreq: Failed to to set the armdiv to %lukHz: %d\n",
+			pr_err("cpufreq: Failed to set the armdiv to %lukHz: %d\n",
 			       clk_get_rate(s3c_freq->hclk) / 1000, ret);
 			return ret;
 		}
