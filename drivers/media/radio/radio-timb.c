@@ -126,6 +126,15 @@ static int timbradio_probe(struct platform_device *pdev)
 
 	tr->video_dev.v4l2_dev = &tr->v4l2_dev;
 
+	tr->sd_tuner = v4l2_i2c_new_subdev_board(&tr->v4l2_dev,
+		i2c_get_adapter(pdata->i2c_adapter), pdata->tuner, NULL);
+	tr->sd_dsp = v4l2_i2c_new_subdev_board(&tr->v4l2_dev,
+		i2c_get_adapter(pdata->i2c_adapter), pdata->dsp, NULL);
+	if (tr->sd_tuner == NULL || tr->sd_dsp == NULL)
+		goto err_video_req;
+
+	tr->v4l2_dev.ctrl_handler = tr->sd_dsp->ctrl_handler;
+
 	err = video_register_device(&tr->video_dev, VFL_TYPE_RADIO, -1);
 	if (err) {
 		dev_err(&pdev->dev, "Error reg video\n");
@@ -138,7 +147,6 @@ static int timbradio_probe(struct platform_device *pdev)
 	return 0;
 
 err_video_req:
-	video_device_release_empty(&tr->video_dev);
 	v4l2_device_unregister(&tr->v4l2_dev);
 err:
 	dev_err(&pdev->dev, "Failed to register: %d\n", err);
@@ -151,10 +159,7 @@ static int timbradio_remove(struct platform_device *pdev)
 	struct timbradio *tr = platform_get_drvdata(pdev);
 
 	video_unregister_device(&tr->video_dev);
-	video_device_release_empty(&tr->video_dev);
-
 	v4l2_device_unregister(&tr->v4l2_dev);
-
 	return 0;
 }
 
