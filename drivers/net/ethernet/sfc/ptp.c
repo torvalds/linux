@@ -313,6 +313,8 @@ static int efx_phc_enable(struct ptp_clock_info *ptp,
 static int efx_ptp_enable(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_ENABLE_LEN);
+	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, 0);
+	int rc;
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_ENABLE);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
@@ -320,8 +322,14 @@ static int efx_ptp_enable(struct efx_nic *efx)
 		       efx->ptp_data->channel->channel);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ENABLE_MODE, efx->ptp_data->mode);
 
-	return efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-			    NULL, 0, NULL);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), NULL);
+	rc = (rc == -EALREADY) ? 0 : rc;
+	if (rc)
+		efx_mcdi_display_error(efx, MC_CMD_PTP,
+				       MC_CMD_PTP_IN_ENABLE_LEN,
+				       outbuf, sizeof(outbuf), rc);
+	return rc;
 }
 
 /* Disable MCDI PTP support.
@@ -332,11 +340,19 @@ static int efx_ptp_enable(struct efx_nic *efx)
 static int efx_ptp_disable(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_DISABLE_LEN);
+	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, 0);
+	int rc;
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_DISABLE);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
-	return efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-			    NULL, 0, NULL);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), NULL);
+	rc = (rc == -EALREADY) ? 0 : rc;
+	if (rc)
+		efx_mcdi_display_error(efx, MC_CMD_PTP,
+				       MC_CMD_PTP_IN_DISABLE_LEN,
+				       outbuf, sizeof(outbuf), rc);
+	return rc;
 }
 
 static void efx_ptp_deliver_rx_queue(struct sk_buff_head *q)

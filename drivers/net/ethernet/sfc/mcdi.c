@@ -42,6 +42,7 @@ struct efx_mcdi_async_param {
 	unsigned int cmd;
 	size_t inlen;
 	size_t outlen;
+	bool quiet;
 	efx_mcdi_async_completer *complete;
 	unsigned long cookie;
 	/* followed by request/response buffer */
@@ -402,8 +403,9 @@ static bool efx_mcdi_complete_async(struct efx_mcdi_iface *mcdi, bool timeout)
 {
 	struct efx_nic *efx = mcdi->efx;
 	struct efx_mcdi_async_param *async;
-	size_t hdr_len, data_len;
+	size_t hdr_len, data_len, err_len;
 	efx_dword_t *outbuf;
+	MCDI_DECLARE_BUF_OUT_OR_ERR(errbuf, 0);
 	int rc;
 
 	if (cmpxchg(&mcdi->state,
@@ -444,6 +446,13 @@ static bool efx_mcdi_complete_async(struct efx_mcdi_iface *mcdi, bool timeout)
 	outbuf = (efx_dword_t *)(async + 1);
 	efx->type->mcdi_read_response(efx, outbuf, hdr_len,
 				      min(async->outlen, data_len));
+	if (!timeout && rc && !async->quiet) {
+		err_len = min(sizeof(errbuf), data_len);
+		efx->type->mcdi_read_response(efx, errbuf, hdr_len,
+					      sizeof(errbuf));
+		efx_mcdi_display_error(efx, async->cmd, async->inlen, errbuf,
+				       err_len, rc);
+	}
 	async->complete(efx, async->cookie, rc, outbuf, data_len);
 	kfree(async);
 
@@ -519,115 +528,12 @@ efx_mcdi_check_supported(struct efx_nic *efx, unsigned int cmd, size_t inlen)
 	return 0;
 }
 
-int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
-		 const efx_dword_t *inbuf, size_t inlen,
-		 efx_dword_t *outbuf, size_t outlen,
-		 size_t *outlen_actual)
-{
-	int rc;
-
-	rc = efx_mcdi_rpc_start(efx, cmd, inbuf, inlen);
-	if (rc)
-		return rc;
-	return efx_mcdi_rpc_finish(efx, cmd, inlen,
-				   outbuf, outlen, outlen_actual);
-}
-
-int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
-		       const efx_dword_t *inbuf, size_t inlen)
+static int _efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
+				efx_dword_t *outbuf, size_t outlen,
+				size_t *outlen_actual, bool quiet)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
-	int rc;
-
-	rc = efx_mcdi_check_supported(efx, cmd, inlen);
-	if (rc)
-		return rc;
-
-	if (efx->mc_bist_for_other_fn)
-		return -ENETDOWN;
-
-	efx_mcdi_acquire_sync(mcdi);
-	efx_mcdi_send_request(efx, cmd, inbuf, inlen);
-	return 0;
-}
-
-/**
- * efx_mcdi_rpc_async - Schedule an MCDI command to run asynchronously
- * @efx: NIC through which to issue the command
- * @cmd: Command type number
- * @inbuf: Command parameters
- * @inlen: Length of command parameters, in bytes
- * @outlen: Length to allocate for response buffer, in bytes
- * @complete: Function to be called on completion or cancellation.
- * @cookie: Arbitrary value to be passed to @complete.
- *
- * This function does not sleep and therefore may be called in atomic
- * context.  It will fail if event queues are disabled or if MCDI
- * event completions have been disabled due to an error.
- *
- * If it succeeds, the @complete function will be called exactly once
- * in atomic context, when one of the following occurs:
- * (a) the completion event is received (in NAPI context)
- * (b) event queues are disabled (in the process that disables them)
- * (c) the request times-out (in timer context)
- */
-int
-efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
-		   const efx_dword_t *inbuf, size_t inlen, size_t outlen,
-		   efx_mcdi_async_completer *complete, unsigned long cookie)
-{
-	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
-	struct efx_mcdi_async_param *async;
-	int rc;
-
-	rc = efx_mcdi_check_supported(efx, cmd, inlen);
-	if (rc)
-		return rc;
-
-	if (efx->mc_bist_for_other_fn)
-		return -ENETDOWN;
-
-	async = kmalloc(sizeof(*async) + ALIGN(max(inlen, outlen), 4),
-			GFP_ATOMIC);
-	if (!async)
-		return -ENOMEM;
-
-	async->cmd = cmd;
-	async->inlen = inlen;
-	async->outlen = outlen;
-	async->complete = complete;
-	async->cookie = cookie;
-	memcpy(async + 1, inbuf, inlen);
-
-	spin_lock_bh(&mcdi->async_lock);
-
-	if (mcdi->mode == MCDI_MODE_EVENTS) {
-		list_add_tail(&async->list, &mcdi->async_list);
-
-		/* If this is at the front of the queue, try to start it
-		 * immediately
-		 */
-		if (mcdi->async_list.next == &async->list &&
-		    efx_mcdi_acquire_async(mcdi)) {
-			efx_mcdi_send_request(efx, cmd, inbuf, inlen);
-			mod_timer(&mcdi->async_timer,
-				  jiffies + MCDI_RPC_TIMEOUT);
-		}
-	} else {
-		kfree(async);
-		rc = -ENETDOWN;
-	}
-
-	spin_unlock_bh(&mcdi->async_lock);
-
-	return rc;
-}
-
-int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
-			efx_dword_t *outbuf, size_t outlen,
-			size_t *outlen_actual)
-{
-	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+	MCDI_DECLARE_BUF_OUT_OR_ERR(errbuf, 0);
 	int rc;
 
 	if (mcdi->mode == MCDI_MODE_POLL)
@@ -656,8 +562,11 @@ int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 		spin_unlock_bh(&mcdi->iface_lock);
 	}
 
-	if (rc == 0) {
-		size_t hdr_len, data_len;
+	if (rc != 0) {
+		if (outlen_actual)
+			*outlen_actual = 0;
+	} else {
+		size_t hdr_len, data_len, err_len;
 
 		/* At the very least we need a memory barrier here to ensure
 		 * we pick up changes from efx_mcdi_ev_cpl(). Protect against
@@ -667,25 +576,28 @@ int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 		rc = mcdi->resprc;
 		hdr_len = mcdi->resp_hdr_len;
 		data_len = mcdi->resp_data_len;
+		err_len = min(sizeof(errbuf), data_len);
 		spin_unlock_bh(&mcdi->iface_lock);
 
 		BUG_ON(rc > 0);
 
-		if (rc == 0) {
-			efx->type->mcdi_read_response(efx, outbuf, hdr_len,
-						      min(outlen, data_len));
-			if (outlen_actual != NULL)
-				*outlen_actual = data_len;
-		} else if (cmd == MC_CMD_REBOOT && rc == -EIO)
-			; /* Don't reset if MC_CMD_REBOOT returns EIO */
-		else if (rc == -EIO || rc == -EINTR) {
+		efx->type->mcdi_read_response(efx, outbuf, hdr_len,
+					      min(outlen, data_len));
+		if (outlen_actual)
+			*outlen_actual = data_len;
+
+		efx->type->mcdi_read_response(efx, errbuf, hdr_len, err_len);
+
+		if (cmd == MC_CMD_REBOOT && rc == -EIO) {
+			/* Don't reset if MC_CMD_REBOOT returns EIO */
+		} else if (rc == -EIO || rc == -EINTR) {
 			netif_err(efx, hw, efx->net_dev, "MC fatal error %d\n",
 				  -rc);
 			efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
-		} else
-			netif_dbg(efx, hw, efx->net_dev,
-				  "MC command 0x%x inlen %d failed rc=%d\n",
-				  cmd, (int)inlen, -rc);
+		} else if (rc && !quiet) {
+			efx_mcdi_display_error(efx, cmd, inlen, errbuf, err_len,
+					       rc);
+		}
 
 		if (rc == -EIO || rc == -EINTR) {
 			msleep(MCDI_STATUS_SLEEP_MS);
@@ -696,6 +608,190 @@ int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 
 	efx_mcdi_release(mcdi);
 	return rc;
+}
+
+static int _efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
+			 const efx_dword_t *inbuf, size_t inlen,
+			 efx_dword_t *outbuf, size_t outlen,
+			 size_t *outlen_actual, bool quiet)
+{
+	int rc;
+
+	rc = efx_mcdi_rpc_start(efx, cmd, inbuf, inlen);
+	if (rc) {
+		if (outlen_actual)
+			*outlen_actual = 0;
+		return rc;
+	}
+	return _efx_mcdi_rpc_finish(efx, cmd, inlen, outbuf, outlen,
+				    outlen_actual, quiet);
+}
+
+int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
+		 const efx_dword_t *inbuf, size_t inlen,
+		 efx_dword_t *outbuf, size_t outlen,
+		 size_t *outlen_actual)
+{
+	return _efx_mcdi_rpc(efx, cmd, inbuf, inlen, outbuf, outlen,
+			     outlen_actual, false);
+}
+
+/* Normally, on receiving an error code in the MCDI response,
+ * efx_mcdi_rpc will log an error message containing (among other
+ * things) the raw error code, by means of efx_mcdi_display_error.
+ * This _quiet version suppresses that; if the caller wishes to log
+ * the error conditionally on the return code, it should call this
+ * function and is then responsible for calling efx_mcdi_display_error
+ * as needed.
+ */
+int efx_mcdi_rpc_quiet(struct efx_nic *efx, unsigned cmd,
+		       const efx_dword_t *inbuf, size_t inlen,
+		       efx_dword_t *outbuf, size_t outlen,
+		       size_t *outlen_actual)
+{
+	return _efx_mcdi_rpc(efx, cmd, inbuf, inlen, outbuf, outlen,
+			     outlen_actual, true);
+}
+
+int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
+		       const efx_dword_t *inbuf, size_t inlen)
+{
+	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+	int rc;
+
+	rc = efx_mcdi_check_supported(efx, cmd, inlen);
+	if (rc)
+		return rc;
+
+	if (efx->mc_bist_for_other_fn)
+		return -ENETDOWN;
+
+	efx_mcdi_acquire_sync(mcdi);
+	efx_mcdi_send_request(efx, cmd, inbuf, inlen);
+	return 0;
+}
+
+static int _efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
+			       const efx_dword_t *inbuf, size_t inlen,
+			       size_t outlen,
+			       efx_mcdi_async_completer *complete,
+			       unsigned long cookie, bool quiet)
+{
+	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+	struct efx_mcdi_async_param *async;
+	int rc;
+
+	rc = efx_mcdi_check_supported(efx, cmd, inlen);
+	if (rc)
+		return rc;
+
+	if (efx->mc_bist_for_other_fn)
+		return -ENETDOWN;
+
+	async = kmalloc(sizeof(*async) + ALIGN(max(inlen, outlen), 4),
+			GFP_ATOMIC);
+	if (!async)
+		return -ENOMEM;
+
+	async->cmd = cmd;
+	async->inlen = inlen;
+	async->outlen = outlen;
+	async->quiet = quiet;
+	async->complete = complete;
+	async->cookie = cookie;
+	memcpy(async + 1, inbuf, inlen);
+
+	spin_lock_bh(&mcdi->async_lock);
+
+	if (mcdi->mode == MCDI_MODE_EVENTS) {
+		list_add_tail(&async->list, &mcdi->async_list);
+
+		/* If this is at the front of the queue, try to start it
+		 * immediately
+		 */
+		if (mcdi->async_list.next == &async->list &&
+		    efx_mcdi_acquire_async(mcdi)) {
+			efx_mcdi_send_request(efx, cmd, inbuf, inlen);
+			mod_timer(&mcdi->async_timer,
+				  jiffies + MCDI_RPC_TIMEOUT);
+		}
+	} else {
+		kfree(async);
+		rc = -ENETDOWN;
+	}
+
+	spin_unlock_bh(&mcdi->async_lock);
+
+	return rc;
+}
+
+/**
+ * efx_mcdi_rpc_async - Schedule an MCDI command to run asynchronously
+ * @efx: NIC through which to issue the command
+ * @cmd: Command type number
+ * @inbuf: Command parameters
+ * @inlen: Length of command parameters, in bytes
+ * @outlen: Length to allocate for response buffer, in bytes
+ * @complete: Function to be called on completion or cancellation.
+ * @cookie: Arbitrary value to be passed to @complete.
+ *
+ * This function does not sleep and therefore may be called in atomic
+ * context.  It will fail if event queues are disabled or if MCDI
+ * event completions have been disabled due to an error.
+ *
+ * If it succeeds, the @complete function will be called exactly once
+ * in atomic context, when one of the following occurs:
+ * (a) the completion event is received (in NAPI context)
+ * (b) event queues are disabled (in the process that disables them)
+ * (c) the request times-out (in timer context)
+ */
+int
+efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
+		   const efx_dword_t *inbuf, size_t inlen, size_t outlen,
+		   efx_mcdi_async_completer *complete, unsigned long cookie)
+{
+	return _efx_mcdi_rpc_async(efx, cmd, inbuf, inlen, outlen, complete,
+				   cookie, false);
+}
+
+int efx_mcdi_rpc_async_quiet(struct efx_nic *efx, unsigned int cmd,
+			     const efx_dword_t *inbuf, size_t inlen,
+			     size_t outlen, efx_mcdi_async_completer *complete,
+			     unsigned long cookie)
+{
+	return _efx_mcdi_rpc_async(efx, cmd, inbuf, inlen, outlen, complete,
+				   cookie, true);
+}
+
+int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
+			efx_dword_t *outbuf, size_t outlen,
+			size_t *outlen_actual)
+{
+	return _efx_mcdi_rpc_finish(efx, cmd, inlen, outbuf, outlen,
+				    outlen_actual, false);
+}
+
+int efx_mcdi_rpc_finish_quiet(struct efx_nic *efx, unsigned cmd, size_t inlen,
+			      efx_dword_t *outbuf, size_t outlen,
+			      size_t *outlen_actual)
+{
+	return _efx_mcdi_rpc_finish(efx, cmd, inlen, outbuf, outlen,
+				    outlen_actual, true);
+}
+
+void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
+			    size_t inlen, efx_dword_t *outbuf,
+			    size_t outlen, int rc)
+{
+	int code = 0, err_arg = 0;
+
+	if (outlen >= MC_CMD_ERR_CODE_OFST + 4)
+		code = MCDI_DWORD(outbuf, ERR_CODE);
+	if (outlen >= MC_CMD_ERR_ARG_OFST + 4)
+		err_arg = MCDI_DWORD(outbuf, ERR_ARG);
+	netif_err(efx, hw, efx->net_dev,
+		  "MC command 0x%x inlen %d failed rc=%d (raw=%d) arg=%d\n",
+		  cmd, (int)inlen, rc, code, err_arg);
 }
 
 /* Switch to polled MCDI completions.  This can be called in various
@@ -1131,13 +1227,6 @@ int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart, u32 dest_evq)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_LOG_CTRL, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -1254,7 +1343,7 @@ fail1:
 static int efx_mcdi_read_assertion(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_GET_ASSERTS_IN_LEN);
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_ASSERTS_OUT_LEN);
+	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, MC_CMD_GET_ASSERTS_OUT_LEN);
 	unsigned int flags, index;
 	const char *reason;
 	size_t outlen;
@@ -1269,13 +1358,17 @@ static int efx_mcdi_read_assertion(struct efx_nic *efx)
 	retry = 2;
 	do {
 		MCDI_SET_DWORD(inbuf, GET_ASSERTS_IN_CLEAR, 1);
-		rc = efx_mcdi_rpc(efx, MC_CMD_GET_ASSERTS,
-				  inbuf, MC_CMD_GET_ASSERTS_IN_LEN,
-				  outbuf, sizeof(outbuf), &outlen);
+		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_GET_ASSERTS,
+					inbuf, MC_CMD_GET_ASSERTS_IN_LEN,
+					outbuf, sizeof(outbuf), &outlen);
 	} while ((rc == -EINTR || rc == -EIO) && retry-- > 0);
 
-	if (rc)
+	if (rc) {
+		efx_mcdi_display_error(efx, MC_CMD_GET_ASSERTS,
+				       MC_CMD_GET_ASSERTS_IN_LEN, outbuf,
+				       outlen, rc);
 		return rc;
+	}
 	if (outlen < MC_CMD_GET_ASSERTS_OUT_LEN)
 		return -EIO;
 
@@ -1353,18 +1446,11 @@ void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_SET_ID_LED, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
-	if (rc)
-		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
-			  __func__, rc);
 }
 
 static int efx_mcdi_reset_port(struct efx_nic *efx)
 {
-	int rc = efx_mcdi_rpc(efx, MC_CMD_ENTITY_RESET, NULL, 0, NULL, 0, NULL);
-	if (rc)
-		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
-			  __func__, rc);
-	return rc;
+	return efx_mcdi_rpc(efx, MC_CMD_ENTITY_RESET, NULL, 0, NULL, 0, NULL);
 }
 
 static int efx_mcdi_reset_mc(struct efx_nic *efx)
@@ -1381,7 +1467,6 @@ static int efx_mcdi_reset_mc(struct efx_nic *efx)
 		return 0;
 	if (rc == 0)
 		rc = -EIO;
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -1483,13 +1568,6 @@ int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_WOL_FILTER_REMOVE, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -1530,13 +1608,6 @@ int efx_mcdi_wol_filter_reset(struct efx_nic *efx)
 	int rc;
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_WOL_FILTER_RESET, NULL, 0, NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -1566,13 +1637,6 @@ static int efx_mcdi_nvram_update_start(struct efx_nic *efx, unsigned int type)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_START, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -1592,14 +1656,10 @@ static int efx_mcdi_nvram_read(struct efx_nic *efx, unsigned int type,
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_READ, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
-		goto fail;
+		return rc;
 
 	memcpy(buffer, MCDI_PTR(outbuf, NVRAM_READ_OUT_READ_BUFFER), length);
 	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
-	return rc;
 }
 
 static int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
@@ -1619,13 +1679,6 @@ static int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_WRITE, inbuf,
 			  ALIGN(MC_CMD_NVRAM_WRITE_IN_LEN(length), 4),
 			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -1643,13 +1696,6 @@ static int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_ERASE, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -1664,13 +1710,6 @@ static int efx_mcdi_nvram_update_finish(struct efx_nic *efx, unsigned int type)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_FINISH, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 

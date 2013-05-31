@@ -90,13 +90,6 @@ static int efx_mcdi_set_link(struct efx_nic *efx, u32 capabilities,
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_SET_LINK, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -143,17 +136,13 @@ static int efx_mcdi_mdio_read(struct net_device *net_dev,
 	rc = efx_mcdi_rpc(efx, MC_CMD_MDIO_READ, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
-		goto fail;
+		return rc;
 
 	if (MCDI_DWORD(outbuf, MDIO_READ_OUT_STATUS) !=
 	    MC_CMD_MDIO_STATUS_GOOD)
 		return -EIO;
 
 	return (u16)MCDI_DWORD(outbuf, MDIO_READ_OUT_VALUE);
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
-	return rc;
 }
 
 static int efx_mcdi_mdio_write(struct net_device *net_dev,
@@ -174,17 +163,13 @@ static int efx_mcdi_mdio_write(struct net_device *net_dev,
 	rc = efx_mcdi_rpc(efx, MC_CMD_MDIO_WRITE, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
-		goto fail;
+		return rc;
 
 	if (MCDI_DWORD(outbuf, MDIO_WRITE_OUT_STATUS) !=
 	    MC_CMD_MDIO_STATUS_GOOD)
 		return -EIO;
 
 	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
-	return rc;
 }
 
 static u32 mcdi_to_ethtool_cap(u32 media, u32 cap)
@@ -487,17 +472,14 @@ static bool efx_mcdi_phy_poll(struct efx_nic *efx)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), NULL);
-	if (rc) {
-		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
-			  __func__, rc);
+	if (rc)
 		efx->link_state.up = false;
-	} else {
+	else
 		efx_mcdi_phy_decode_link(
 			efx, &efx->link_state,
 			MCDI_DWORD(outbuf, GET_LINK_OUT_LINK_SPEED),
 			MCDI_DWORD(outbuf, GET_LINK_OUT_FLAGS),
 			MCDI_DWORD(outbuf, GET_LINK_OUT_FCNTL));
-	}
 
 	return !efx_link_state_equal(&efx->link_state, &old_state);
 }
@@ -531,11 +513,8 @@ static void efx_mcdi_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *e
 	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), NULL);
-	if (rc) {
-		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
-			  __func__, rc);
+	if (rc)
 		return;
-	}
 	ecmd->lp_advertising =
 		mcdi_to_ethtool_cap(phy_cfg->media,
 				    MCDI_DWORD(outbuf, GET_LINK_OUT_LP_CAP));
@@ -918,11 +897,8 @@ bool efx_mcdi_mac_check_fault(struct efx_nic *efx)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlength);
-	if (rc) {
-		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
-			  __func__, rc);
+	if (rc)
 		return true;
-	}
 
 	return MCDI_DWORD(outbuf, GET_LINK_OUT_MAC_FAULT) != 0;
 }
@@ -960,14 +936,6 @@ static int efx_mcdi_mac_stats(struct efx_nic *efx,
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_MAC_STATS, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: action %d failed rc=%d\n",
-		  __func__, action, rc);
 	return rc;
 }
 
