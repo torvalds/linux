@@ -338,4 +338,22 @@ struct panel_tpo_td043mtea1_platform_data {
 	int nreset_gpio;
 };
 
+/**
+ * panel-nec-nl8048hl11 platform data
+ * @name: name for this display entity
+ * @source: name of the display entity used as a video source
+ * @data_lines: number of DPI datalines
+ * @res_gpio: reset signal
+ * @qvga_gpio: selection for resolution(QVGA/WVGA)
+ */
+struct panel_nec_nl8048hl11_platform_data {
+	const char *name;
+	const char *source;
+
+	int data_lines;
+
+	int res_gpio;
+	int qvga_gpio;
+};
+
 #endif /* __OMAP_PANEL_DATA_H */

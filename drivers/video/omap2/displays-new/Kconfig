@@ -62,4 +62,12 @@ config DISPLAY_PANEL_TPO_TD043MTEA1
         help
           LCD Panel used in OMAP3 Pandora
 
+config DISPLAY_PANEL_NEC_NL8048HL11
+	tristate "NEC NL8048HL11 Panel"
+	depends on SPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+		This NEC NL8048HL11 panel is TFT LCD used in the
+		Zoom2/3/3630 sdp boards.
+
 endmenu
