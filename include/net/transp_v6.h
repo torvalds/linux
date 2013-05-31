@@ -49,6 +49,12 @@ extern int		ip6_datagram_send_ctl(struct net *net,
 					      int *hlimit, int *tclass,
 					      int *dontfrag);
 
+extern void		ip6_dgram_sock_seq_show(struct seq_file *seq,
+						struct sock *sp,
+						__u16 srcp,
+						__u16 destp,
+						int bucket);
+
 #define		LOOPBACK4_IPV6		cpu_to_be32(0x7f000006)
 
 /*
@@ -57,5 +63,12 @@ extern int		ip6_datagram_send_ctl(struct net *net,
 extern const struct inet_connection_sock_af_ops ipv4_specific;
 
 extern void inet6_destroy_sock(struct sock *sk);
+
+#define IPV6_SEQ_DGRAM_HEADER \
+			   "  sl  "					\
+			   "local_address                         "	\
+			   "remote_address                        "	\
+			   "st tx_queue rx_queue tr tm->when retrnsmt"	\
+			   "   uid  timeout inode ref pointer drops\n"
 
 #endif
