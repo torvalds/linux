@@ -25,8 +25,8 @@
 
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
-		interrupts = <0 54 0x4>,
-			     <0 55 0x4>;
+		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		ti,hwmods = "debugss";
 	};
 };

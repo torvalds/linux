@@ -306,7 +306,7 @@
 	twl: twl@48 {
 		reg = <0x48>;
 		/* SPI = 0, IRQ# = 7, 4 = active high level-sensitive */
-		interrupts = <0 7 4>; /* IRQ_SYS_1N cascaded to gic */
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_1N cascaded to gic */
 		interrupt-parent = <&gic>;
 	};
 
@@ -314,7 +314,7 @@
 		compatible = "ti,twl6040";
 		reg = <0x4b>;
 		/* SPI = 0, IRQ# = 119, 4 = active high level-sensitive */
-		interrupts = <0 119 4>; /* IRQ_SYS_2N cascaded to gic */
+		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_2N cascaded to gic */
 		interrupt-parent = <&gic>;
 		ti,audpwron-gpio = <&gpio4 31 0>;  /* gpio line 127 */
 
@@ -395,7 +395,7 @@
 		spi-max-frequency = <24000000>;
 		reg = <0>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <2 8>; /* gpio line 34, low triggered */
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>; /* gpio line 34 */
 		vdd-supply = <&vdd_eth>;
 	};
 };

@@ -34,7 +34,7 @@
 	twl: twl@48 {
 		reg = <0x48>;
 		/* SPI = 0, IRQ# = 7, 4 = active high level-sensitive */
-		interrupts = <0 7 4>; /* IRQ_SYS_1N cascaded to gic */
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_1N cascaded to gic */
 		interrupt-parent = <&gic>;
 	};
 };
@@ -68,7 +68,7 @@
 		spi-max-frequency = <24000000>;
 		reg = <0>;
 		interrupt-parent = <&gpio6>;
-		interrupts = <11 8>; /* gpio line 171, low triggered */
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>; /* gpio line 171 */
 		vdd-supply = <&vdd_eth>;
 	};
 };
