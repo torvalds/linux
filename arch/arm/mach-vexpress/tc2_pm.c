@@ -59,7 +59,7 @@ static int tc2_pm_power_up(unsigned int cpu, unsigned int cluster)
 
 	tc2_pm_use_count[cpu][cluster]++;
 	if (tc2_pm_use_count[cpu][cluster] == 1) {
-		vexpress_spc_write_bxaddr_reg(cluster, cpu,
+		vexpress_spc_write_resume_reg(cluster, cpu,
 					      virt_to_phys(mcpm_entry_point));
 		vexpress_spc_set_cpu_wakeup_irq(cpu, cluster, 1);
 	} else if (tc2_pm_use_count[cpu][cluster] != 2) {
@@ -178,7 +178,7 @@ static void tc2_pm_suspend(u64 residency)
 	mpidr = read_cpuid_mpidr();
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
-	vexpress_spc_write_bxaddr_reg(cluster, cpu,
+	vexpress_spc_write_resume_reg(cluster, cpu,
 				      virt_to_phys(tc2_resume));
 
 	tc2_pm_down(residency);
@@ -210,7 +210,7 @@ static void tc2_pm_powered_up(void)
 		tc2_pm_use_count[cpu][cluster] = 1;
 
 	vexpress_spc_set_cpu_wakeup_irq(cpu, cluster, 0);
-	vexpress_spc_write_bxaddr_reg(cluster, cpu, 0);
+	vexpress_spc_write_resume_reg(cluster, cpu, 0);
 
 	arch_spin_unlock(&tc2_pm_lock);
 	local_irq_restore(flags);
