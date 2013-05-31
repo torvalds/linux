@@ -1300,11 +1300,15 @@ static void fimc_lite_subdev_unregistered(struct v4l2_subdev *sd)
 	if (fimc == NULL)
 		return;
 
+	mutex_lock(&fimc->lock);
+
 	if (video_is_registered(&fimc->ve.vdev)) {
 		video_unregister_device(&fimc->ve.vdev);
 		media_entity_cleanup(&fimc->ve.vdev.entity);
 		fimc->ve.pipe = NULL;
 	}
+
+	mutex_unlock(&fimc->lock);
 }
 
 static const struct v4l2_subdev_internal_ops fimc_lite_subdev_internal_ops = {

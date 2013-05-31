@@ -1855,6 +1855,8 @@ static void fimc_capture_subdev_unregistered(struct v4l2_subdev *sd)
 	if (fimc == NULL)
 		return;
 
+	mutex_lock(&fimc->lock);
+
 	fimc_unregister_m2m_device(fimc);
 	vdev = &fimc->vid_cap.ve.vdev;
 
@@ -1866,6 +1868,8 @@ static void fimc_capture_subdev_unregistered(struct v4l2_subdev *sd)
 	}
 	kfree(fimc->vid_cap.ctx);
 	fimc->vid_cap.ctx = NULL;
+
+	mutex_unlock(&fimc->lock);
 }
 
 static const struct v4l2_subdev_internal_ops fimc_capture_sd_internal_ops = {
