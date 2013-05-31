@@ -161,7 +161,7 @@ static void slc_bump(struct slcan *sl)
 
 	sl->rbuff[dlc_pos] = 0; /* terminate can_id string */
 
-	if (strict_strtoul(sl->rbuff+1, 16, &ultmp))
+	if (kstrtoul(sl->rbuff+1, 16, &ultmp))
 		return;
 
 	cf.can_id = ultmp;

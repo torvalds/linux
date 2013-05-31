@@ -1220,7 +1220,7 @@ static ssize_t at91_sysfs_set_mb0_id(struct device *dev,
 		goto out;
 	}
 
-	err = strict_strtoul(buf, 0, &can_id);
+	err = kstrtoul(buf, 0, &can_id);
 	if (err) {
 		ret = err;
 		goto out;
