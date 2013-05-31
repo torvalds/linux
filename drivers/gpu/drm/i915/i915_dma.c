@@ -1002,8 +1002,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = 1;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
-				 param->param);
+		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
 	}
 
