@@ -27,9 +27,10 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
 
-#include "media-dev.h"
+#include "common.h"
 #include "fimc-core.h"
 #include "fimc-reg.h"
+#include "media-dev.h"
 
 static int fimc_capture_hw_init(struct fimc_dev *fimc)
 {
@@ -472,40 +473,13 @@ static struct vb2_ops fimc_capture_qops = {
 	.stop_streaming		= stop_streaming,
 };
 
-/**
- * fimc_capture_ctrls_create - initialize the control handler
- * Initialize the capture video node control handler and fill it
- * with the FIMC controls. Inherit any sensor's controls if the
- * 'user_subdev_api' flag is false (default behaviour).
- * This function need to be called with the graph mutex held.
- */
-int fimc_capture_ctrls_create(struct fimc_dev *fimc)
-{
-	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
-	struct v4l2_subdev *sensor = fimc->pipeline.subdevs[IDX_SENSOR];
-	int ret;
-
-	if (WARN_ON(vid_cap->ctx == NULL))
-		return -ENXIO;
-	if (vid_cap->ctx->ctrls.ready)
-		return 0;
-
-	ret = fimc_ctrls_create(vid_cap->ctx);
-
-	if (ret || vid_cap->user_subdev_api || !sensor ||
-	    !vid_cap->ctx->ctrls.ready)
-		return ret;
-
-	return v4l2_ctrl_add_handler(&vid_cap->ctx->ctrls.handler,
-				     sensor->ctrl_handler, NULL);
-}
-
 static int fimc_capture_set_default_format(struct fimc_dev *fimc);
 
 static int fimc_capture_open(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	struct exynos_video_entity *ve = &fimc->vid_cap.ve;
+	struct fimc_vid_cap *vc = &fimc->vid_cap;
+	struct exynos_video_entity *ve = &vc->ve;
 	int ret = -EBUSY;
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
@@ -530,12 +504,20 @@ static int fimc_capture_open(struct file *file)
 	if (v4l2_fh_is_singular_file(file)) {
 		ret = fimc_pipeline_call(fimc, open, &fimc->pipeline,
 					 &fimc->vid_cap.ve.vdev.entity, true);
-
-		if (!ret && !fimc->vid_cap.user_subdev_api)
+		if (ret == 0)
 			ret = fimc_capture_set_default_format(fimc);
 
-		if (!ret)
-			ret = fimc_capture_ctrls_create(fimc);
+		if (ret == 0 && vc->user_subdev_api && vc->inh_sensor_ctrls) {
+			/*
+			 * Recreate controls of the the video node to drop
+			 * any controls inherited from the sensor subdev.
+			 */
+			fimc_ctrls_delete(vc->ctx);
+
+			ret = fimc_ctrls_create(vc->ctx);
+			if (ret == 0)
+				vc->inh_sensor_ctrls = false;
+		}
 
 		if (ret < 0) {
 			clear_bit(ST_CAPT_BUSY, &fimc->state);
@@ -574,10 +556,6 @@ static int fimc_capture_release(struct file *file)
 	}
 
 	pm_runtime_put(&fimc->pdev->dev);
-
-	if (v4l2_fh_is_singular_file(file))
-		fimc_ctrls_delete(fimc->vid_cap.ctx);
-
 	ret = vb2_fop_release(file);
 	mutex_unlock(&fimc->lock);
 
@@ -1410,6 +1388,8 @@ static int fimc_link_setup(struct media_entity *entity,
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
+	struct fimc_vid_cap *vc = &fimc->vid_cap;
+	struct v4l2_subdev *sensor;
 
 	if (media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 		return -EINVAL;
@@ -1421,15 +1401,26 @@ static int fimc_link_setup(struct media_entity *entity,
 	    local->entity->name, remote->entity->name, flags,
 	    fimc->vid_cap.input);
 
-	if (flags & MEDIA_LNK_FL_ENABLED) {
-		if (fimc->vid_cap.input != 0)
-			return -EBUSY;
-		fimc->vid_cap.input = sd->grp_id;
+	if (!(flags & MEDIA_LNK_FL_ENABLED)) {
+		fimc->vid_cap.input = 0;
 		return 0;
 	}
 
-	fimc->vid_cap.input = 0;
-	return 0;
+	if (vc->input != 0)
+		return -EBUSY;
+
+	vc->input = sd->grp_id;
+
+	if (vc->user_subdev_api || vc->inh_sensor_ctrls)
+		return 0;
+
+	/* Inherit V4L2 controls from the image sensor subdev. */
+	sensor = fimc_find_remote_sensor(&vc->subdev.entity);
+	if (sensor == NULL)
+		return 0;
+
+	return v4l2_ctrl_add_handler(&vc->ctx->ctrls.handler,
+				     sensor->ctrl_handler, NULL);
 }
 
 static const struct media_entity_operations fimc_sd_media_ops = {
@@ -1789,12 +1780,16 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 
 	ret = vb2_queue_init(q);
 	if (ret)
-		goto err_ent;
+		goto err_free_ctx;
 
 	vid_cap->vd_pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_init(&vfd->entity, 1, &vid_cap->vd_pad, 0);
 	if (ret)
-		goto err_ent;
+		goto err_free_ctx;
+
+	ret = fimc_ctrls_create(ctx);
+	if (ret)
+		goto err_me_cleanup;
 	/*
 	 * For proper order of acquiring/releasing the video
 	 * and the graph mutex.
@@ -1804,7 +1799,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret)
-		goto err_vd;
+		goto err_ctrl_free;
 
 	v4l2_info(v4l2_dev, "Registered %s as /dev/%s\n",
 		  vfd->name, video_device_node_name(vfd));
@@ -1812,9 +1807,11 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	vfd->ctrl_handler = &ctx->ctrls.handler;
 	return 0;
 
-err_vd:
+err_ctrl_free:
+	fimc_ctrls_delete(ctx);
+err_me_cleanup:
 	media_entity_cleanup(&vfd->entity);
-err_ent:
+err_free_ctx:
 	kfree(ctx);
 	return ret;
 }
@@ -1856,6 +1853,7 @@ static void fimc_capture_subdev_unregistered(struct v4l2_subdev *sd)
 	if (video_is_registered(vdev)) {
 		video_unregister_device(vdev);
 		media_entity_cleanup(&vdev->entity);
+		fimc_ctrls_delete(fimc->vid_cap.ctx);
 		fimc->pipeline_ops = NULL;
 	}
 	kfree(fimc->vid_cap.ctx);
