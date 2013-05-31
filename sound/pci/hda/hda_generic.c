@@ -1940,17 +1940,7 @@ static int create_speaker_out_ctls(struct hda_codec *codec)
  * independent HP controls
  */
 
-/* update HP auto-mute state too */
-static void update_hp_automute_hook(struct hda_codec *codec)
-{
-	struct hda_gen_spec *spec = codec->spec;
-
-	if (spec->hp_automute_hook)
-		spec->hp_automute_hook(codec, NULL);
-	else
-		snd_hda_gen_hp_automute(codec, NULL);
-}
-
+static void call_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *jack);
 static int indep_hp_info(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_info *uinfo)
 {
@@ -2011,7 +2001,7 @@ static int indep_hp_put(struct snd_kcontrol *kcontrol,
 		else
 			*dacp = spec->alt_dac_nid;
 
-		update_hp_automute_hook(codec);
+		call_hp_automute(codec, NULL);
 		ret = 1;
 	}
  unlock:
@@ -2307,7 +2297,7 @@ static void update_hp_mic(struct hda_codec *codec, int adc_mux, bool force)
 		else
 			val = PIN_HP;
 		set_pin_target(codec, pin, val, true);
-		update_hp_automute_hook(codec);
+		call_hp_automute(codec, NULL);
 	}
 }
 
@@ -2716,7 +2706,7 @@ static int hp_mic_jack_mode_put(struct snd_kcontrol *kcontrol,
 			val = snd_hda_get_default_vref(codec, nid);
 	}
 	snd_hda_set_pin_ctl_cache(codec, nid, val);
-	update_hp_automute_hook(codec);
+	call_hp_automute(codec, NULL);
 
 	return 1;
 }
@@ -3861,22 +3851,6 @@ void snd_hda_gen_mic_autoswitch(struct hda_codec *codec, struct hda_jack_tbl *ja
 }
 EXPORT_SYMBOL_HDA(snd_hda_gen_mic_autoswitch);
 
-/* update jack retasking */
-static void update_automute_all(struct hda_codec *codec)
-{
-	struct hda_gen_spec *spec = codec->spec;
-
-	update_hp_automute_hook(codec);
-	if (spec->line_automute_hook)
-		spec->line_automute_hook(codec, NULL);
-	else
-		snd_hda_gen_line_automute(codec, NULL);
-	if (spec->mic_autoswitch_hook)
-		spec->mic_autoswitch_hook(codec, NULL);
-	else
-		snd_hda_gen_mic_autoswitch(codec, NULL);
-}
-
 /* call appropriate hooks */
 static void call_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
 {
@@ -3905,6 +3879,14 @@ static void call_mic_autoswitch(struct hda_codec *codec,
 		spec->mic_autoswitch_hook(codec, jack);
 	else
 		snd_hda_gen_mic_autoswitch(codec, jack);
+}
+
+/* update jack retasking */
+static void update_automute_all(struct hda_codec *codec)
+{
+	call_hp_automute(codec, NULL);
+	call_line_automute(codec, NULL);
+	call_mic_autoswitch(codec, NULL);
 }
 
 /*
