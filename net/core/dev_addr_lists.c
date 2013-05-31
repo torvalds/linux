@@ -160,7 +160,8 @@ static void __hw_addr_unsync_one(struct netdev_hw_addr_list *to_list,
 	if (err)
 		return;
 	ha->sync_cnt--;
-	__hw_addr_del_entry(from_list, ha, false, true);
+	/* address on from list is not marked synced */
+	__hw_addr_del_entry(from_list, ha, false, false);
 }
 
 static int __hw_addr_sync_multiple(struct netdev_hw_addr_list *to_list,
