@@ -21,9 +21,9 @@ static u32 ucode_new_rev;
  * Microcode patch container file is prepended to the initrd in cpio format.
  * See Documentation/x86/early-microcode.txt
  */
-static __initdata char ucode_path[] = "kernel/x86/microcode/AuthenticAMD.bin";
+static __cpuinitdata char ucode_path[] = "kernel/x86/microcode/AuthenticAMD.bin";
 
-static struct cpio_data __init find_ucode_in_initrd(void)
+static struct cpio_data __cpuinit find_ucode_in_initrd(void)
 {
 	long offset = 0;
 	struct cpio_data cd;
@@ -62,7 +62,7 @@ static struct cpio_data __init find_ucode_in_initrd(void)
  * load_microcode_amd() to save equivalent cpu table and microcode patches in
  * kernel heap memory.
  */
-static void __init apply_ucode_in_initrd(void)
+static void __cpuinit apply_ucode_in_initrd(void)
 {
 	struct cpio_data cd;
 	struct equiv_cpu_entry *eq;
@@ -133,7 +133,7 @@ void __init load_ucode_amd_bsp(void)
 }
 
 #ifdef CONFIG_X86_32
-u8 __cpuinitdata amd_bsp_mpb[MPB_MAX_SIZE];
+u8 amd_bsp_mpb[MPB_MAX_SIZE];
 
 /*
  * On 32-bit, since AP's early load occurs before paging is turned on, we

@@ -64,7 +64,7 @@ extern enum ucode_state load_microcode_amd(int cpu, const u8 *data, size_t size)
 #ifdef CONFIG_MICROCODE_AMD_EARLY
 #ifdef CONFIG_X86_32
 #define MPB_MAX_SIZE PAGE_SIZE
-extern u8 __cpuinitdata amd_bsp_mpb[MPB_MAX_SIZE];
+extern u8 amd_bsp_mpb[MPB_MAX_SIZE];
 #endif
 extern void __init load_ucode_amd_bsp(void);
 extern void __cpuinit load_ucode_amd_ap(void);
