@@ -183,7 +183,7 @@
 #define U8500_IO_VIRTUAL	0xf0000000
 #define U8500_IO_PHYSICAL	0xa0000000
 /* This is where we map in the ROM to check ASIC IDs */
-#define UX500_VIRT_ROM		0xf0000000
+#define UX500_VIRT_ROM		IOMEM(0xf0000000)
 
 /* This macro is used in assembly, so no cast */
 #define IO_ADDRESS(x)           \
