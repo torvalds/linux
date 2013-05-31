@@ -49,4 +49,10 @@ config DISPLAY_PANEL_LGPHILIPS_LB035Q02
 	depends on SPI
 	help
 	  LCD Panel used on the Gumstix Overo Palo35
+
+config DISPLAY_PANEL_SHARP_LS037V7DW01
+        tristate "Sharp LS037V7DW01 LCD Panel"
+        depends on BACKLIGHT_CLASS_DEVICE
+        help
+          LCD Panel used in TI's SDP3430 and EVM boards
 endmenu

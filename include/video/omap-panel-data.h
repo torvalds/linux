@@ -298,4 +298,28 @@ struct panel_lb035q02_platform_data {
 	int enable_gpio;
 };
 
+/**
+ * panel_sharp_ls037v7dw01 platform data
+ * @name: name for this display entity
+ * @source: name of the display entity used as a video source
+ * @data_lines: number of DPI datalines
+ * @resb_gpio: reset signal GPIO
+ * @ini_gpio: power on control GPIO
+ * @mo_gpio: selection for resolution(VGA/QVGA) GPIO
+ * @lr_gpio: selection for horizontal scanning direction GPIO
+ * @ud_gpio: selection for vertical scanning direction GPIO
+ */
+struct panel_sharp_ls037v7dw01_platform_data {
+	const char *name;
+	const char *source;
+
+	int data_lines;
+
+	int resb_gpio;
+	int ini_gpio;
+	int mo_gpio;
+	int lr_gpio;
+	int ud_gpio;
+};
+
 #endif /* __OMAP_PANEL_DATA_H */
