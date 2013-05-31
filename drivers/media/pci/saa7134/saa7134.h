@@ -472,7 +472,6 @@ struct saa7134_fh {
 	struct v4l2_fh             fh;
 	struct saa7134_dev         *dev;
 	unsigned int               resources;
-	struct pm_qos_request	   qos_request;
 
 	/* video capture */
 	struct videobuf_queue      cap;
@@ -595,6 +594,7 @@ struct saa7134_dev {
 	unsigned int               vbi_fieldcount;
 	struct saa7134_format      *fmt;
 	unsigned int               width, height;
+	struct pm_qos_request	   qos_request;
 
 	/* various v4l controls */
 	struct saa7134_tvnorm      *tvnorm;              /* video */

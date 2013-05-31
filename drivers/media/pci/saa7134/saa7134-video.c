@@ -2205,7 +2205,7 @@ static int saa7134_streamon(struct file *file, void *priv,
 	 * Unfortunately, I lack register-level documentation to check the
 	 * Linux FIFO setup and confirm the perfect value.
 	 */
-	pm_qos_add_request(&fh->qos_request,
+	pm_qos_add_request(&dev->qos_request,
 			   PM_QOS_CPU_DMA_LATENCY,
 			   20);
 
@@ -2220,7 +2220,7 @@ static int saa7134_streamoff(struct file *file, void *priv,
 	struct saa7134_dev *dev = fh->dev;
 	int res = saa7134_resource(file);
 
-	pm_qos_remove_request(&fh->qos_request);
+	pm_qos_remove_request(&dev->qos_request);
 
 	err = videobuf_streamoff(saa7134_queue(file));
 	if (err < 0)
