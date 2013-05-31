@@ -607,6 +607,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 		break;
 
 	case L2CAP_MODE_LE_FLOWCTL:
+		skb_queue_purge(&chan->tx_q);
 		break;
 
 	case L2CAP_MODE_ERTM:
@@ -1194,11 +1195,23 @@ static void l2cap_move_done(struct l2cap_chan *chan)
 	}
 }
 
+static void l2cap_le_flowctl_start(struct l2cap_chan *chan)
+{
+	chan->sdu = NULL;
+	chan->sdu_last_frag = NULL;
+	chan->sdu_len = 0;
+
+	skb_queue_head_init(&chan->tx_q);
+}
+
 static void l2cap_chan_ready(struct l2cap_chan *chan)
 {
 	/* This clears all conf flags, including CONF_NOT_COMPLETE */
 	chan->conf_state = 0;
 	__clear_chan_timer(chan);
+
+	if (chan->mode == L2CAP_MODE_LE_FLOWCTL)
+		l2cap_le_flowctl_start(chan);
 
 	chan->state = BT_CONNECTED;
 
@@ -2521,6 +2534,89 @@ static int l2cap_segment_sdu(struct l2cap_chan *chan,
 	return 0;
 }
 
+static struct sk_buff *l2cap_create_le_flowctl_pdu(struct l2cap_chan *chan,
+						   struct msghdr *msg,
+						   size_t len, u16 sdulen)
+{
+	struct l2cap_conn *conn = chan->conn;
+	struct sk_buff *skb;
+	int err, count, hlen;
+	struct l2cap_hdr *lh;
+
+	BT_DBG("chan %p len %zu", chan, len);
+
+	if (!conn)
+		return ERR_PTR(-ENOTCONN);
+
+	hlen = L2CAP_HDR_SIZE;
+
+	if (sdulen)
+		hlen += L2CAP_SDULEN_SIZE;
+
+	count = min_t(unsigned int, (conn->mtu - hlen), len);
+
+	skb = chan->ops->alloc_skb(chan, count + hlen,
+				   msg->msg_flags & MSG_DONTWAIT);
+	if (IS_ERR(skb))
+		return skb;
+
+	/* Create L2CAP header */
+	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
+	lh->cid = cpu_to_le16(chan->dcid);
+	lh->len = cpu_to_le16(len + (hlen - L2CAP_HDR_SIZE));
+
+	if (sdulen)
+		put_unaligned_le16(sdulen, skb_put(skb, L2CAP_SDULEN_SIZE));
+
+	err = l2cap_skbuff_fromiovec(chan, msg, len, count, skb);
+	if (unlikely(err < 0)) {
+		kfree_skb(skb);
+		return ERR_PTR(err);
+	}
+
+	return skb;
+}
+
+static int l2cap_segment_le_sdu(struct l2cap_chan *chan,
+				struct sk_buff_head *seg_queue,
+				struct msghdr *msg, size_t len)
+{
+	struct sk_buff *skb;
+	size_t pdu_len;
+	u16 sdu_len;
+
+	BT_DBG("chan %p, msg %p, len %zu", chan, msg, len);
+
+	pdu_len = chan->conn->mtu - L2CAP_HDR_SIZE;
+
+	pdu_len = min_t(size_t, pdu_len, chan->remote_mps);
+
+	sdu_len = len;
+	pdu_len -= L2CAP_SDULEN_SIZE;
+
+	while (len > 0) {
+		if (len <= pdu_len)
+			pdu_len = len;
+
+		skb = l2cap_create_le_flowctl_pdu(chan, msg, pdu_len, sdu_len);
+		if (IS_ERR(skb)) {
+			__skb_queue_purge(seg_queue);
+			return PTR_ERR(skb);
+		}
+
+		__skb_queue_tail(seg_queue, skb);
+
+		len -= pdu_len;
+
+		if (sdu_len) {
+			sdu_len = 0;
+			pdu_len += L2CAP_SDULEN_SIZE;
+		}
+	}
+
+	return 0;
+}
+
 int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 		    u32 priority)
 {
@@ -2543,10 +2639,39 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 
 	switch (chan->mode) {
 	case L2CAP_MODE_LE_FLOWCTL:
+		/* Check outgoing MTU */
+		if (len > chan->omtu)
+			return -EMSGSIZE;
+
 		if (!chan->tx_credits)
 			return -EAGAIN;
 
-		/* fall through */
+		__skb_queue_head_init(&seg_queue);
+
+		err = l2cap_segment_le_sdu(chan, &seg_queue, msg, len);
+
+		if (chan->state != BT_CONNECTED) {
+			__skb_queue_purge(&seg_queue);
+			err = -ENOTCONN;
+		}
+
+		if (err)
+			return err;
+
+		skb_queue_splice_tail_init(&seg_queue, &chan->tx_q);
+
+		while (chan->tx_credits && !skb_queue_empty(&chan->tx_q)) {
+			l2cap_do_send(chan, skb_dequeue(&chan->tx_q));
+			chan->tx_credits--;
+		}
+
+		if (!chan->tx_credits)
+			chan->ops->suspend(chan);
+
+		err = len;
+
+		break;
+
 	case L2CAP_MODE_BASIC:
 		/* Check outgoing MTU */
 		if (len > chan->omtu)
