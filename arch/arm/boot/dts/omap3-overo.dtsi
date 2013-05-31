@@ -50,6 +50,7 @@
 };
 
 #include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
 
 /* i2c2 pins are used for gpio */
 &i2c2 {

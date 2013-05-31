@@ -135,6 +135,7 @@
 };
 
 #include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
 
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
