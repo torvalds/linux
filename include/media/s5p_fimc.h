@@ -141,41 +141,40 @@ struct fimc_fmt {
 #define FMT_FLAGS_YUV		(1 << 7)
 };
 
-enum fimc_subdev_index {
-	IDX_SENSOR,
-	IDX_CSIS,
-	IDX_FLITE,
-	IDX_IS_ISP,
-	IDX_FIMC,
-	IDX_MAX,
-};
+struct exynos_media_pipeline;
 
-struct media_pipeline;
-struct v4l2_subdev;
-
-struct fimc_pipeline {
-	struct v4l2_subdev *subdevs[IDX_MAX];
-	struct media_pipeline *m_pipeline;
+/*
+ * Media pipeline operations to be called from within a video node,  i.e. the
+ * last entity within the pipeline. Implemented by related media device driver.
+ */
+struct exynos_media_pipeline_ops {
+	int (*prepare)(struct exynos_media_pipeline *p,
+						struct media_entity *me);
+	int (*unprepare)(struct exynos_media_pipeline *p);
+	int (*open)(struct exynos_media_pipeline *p, struct media_entity *me,
+							bool resume);
+	int (*close)(struct exynos_media_pipeline *p);
+	int (*set_stream)(struct exynos_media_pipeline *p, bool state);
 };
 
 struct exynos_video_entity {
 	struct video_device vdev;
+	struct exynos_media_pipeline *pipe;
 };
 
-/*
- * Media pipeline operations to be called from within the fimc(-lite)
- * video node when it is the last entity of the pipeline. Implemented
- * by corresponding media device driver.
- */
-struct fimc_pipeline_ops {
-	int (*open)(struct fimc_pipeline *p, struct media_entity *me,
-			  bool resume);
-	int (*close)(struct fimc_pipeline *p);
-	int (*set_stream)(struct fimc_pipeline *p, bool state);
+struct exynos_media_pipeline {
+	struct media_pipeline mp;
+	const struct exynos_media_pipeline_ops *ops;
 };
 
-#define fimc_pipeline_call(f, op, p, args...)				\
-	(!(f) ? -ENODEV : (((f)->pipeline_ops && (f)->pipeline_ops->op) ? \
-			    (f)->pipeline_ops->op((p), ##args) : -ENOIOCTLCMD))
+static inline struct exynos_video_entity *vdev_to_exynos_video_entity(
+					struct video_device *vdev)
+{
+	return container_of(vdev, struct exynos_video_entity, vdev);
+}
+
+#define fimc_pipeline_call(ent, op, args...)				  \
+	(!(ent) ? -ENOENT : (((ent)->pipe->ops && (ent)->pipe->ops->op) ? \
+	(ent)->pipe->ops->op(((ent)->pipe), ##args) : -ENOIOCTLCMD))	  \
 
 #endif /* S5P_FIMC_H_ */

@@ -18,6 +18,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
+#include <media/s5p_fimc.h>
 
 #include "fimc-core.h"
 #include "fimc-lite.h"
@@ -39,6 +40,29 @@ enum {
 	CLK_IDX_WB_B,
 	FIMC_MAX_WBCLKS
 };
+
+enum fimc_subdev_index {
+	IDX_SENSOR,
+	IDX_CSIS,
+	IDX_FLITE,
+	IDX_IS_ISP,
+	IDX_FIMC,
+	IDX_MAX,
+};
+
+/*
+ * This structure represents a chain of media entities, including a data
+ * source entity (e.g. an image sensor subdevice), a data capture entity
+ * - a video capture device node and any remaining entities.
+ */
+struct fimc_pipeline {
+	struct exynos_media_pipeline ep;
+	struct list_head list;
+	struct media_entity *vdev_entity;
+	struct v4l2_subdev *subdevs[IDX_MAX];
+};
+
+#define to_fimc_pipeline(_ep) container_of(_ep, struct fimc_pipeline, ep)
 
 struct fimc_csis_info {
 	struct v4l2_subdev *sd;
@@ -104,7 +128,9 @@ struct fimc_md {
 		struct pinctrl_state *state_idle;
 	} pinctl;
 	bool user_subdev_api;
+
 	spinlock_t slock;
+	struct list_head pipelines;
 };
 
 #define is_subdev_pad(pad) (pad == NULL || \
@@ -148,5 +174,17 @@ static inline bool fimc_md_is_isp_available(struct device_node *node)
 #else
 #define fimc_md_is_isp_available(node) (false)
 #endif /* CONFIG_OF */
+
+static inline struct v4l2_subdev *__fimc_md_get_subdev(
+				struct exynos_media_pipeline *ep,
+				unsigned int index)
+{
+	struct fimc_pipeline *p = to_fimc_pipeline(ep);
+
+	if (!p || index >= IDX_MAX)
+		return NULL;
+	else
+		return p->subdevs[index];
+}
 
 #endif

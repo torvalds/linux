@@ -210,7 +210,7 @@ static int fimc_lite_reinit(struct fimc_lite *fimc, bool suspend)
 	if (!streaming)
 		return 0;
 
-	return fimc_pipeline_call(fimc, set_stream, &fimc->pipeline, 0);
+	return fimc_pipeline_call(&fimc->ve, set_stream, 0);
 }
 
 static int fimc_lite_stop_capture(struct fimc_lite *fimc, bool suspend)
@@ -324,8 +324,7 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 		flite_hw_capture_start(fimc);
 
 		if (!test_and_set_bit(ST_SENSOR_STREAM, &fimc->state))
-			fimc_pipeline_call(fimc, set_stream,
-					   &fimc->pipeline, 1);
+			fimc_pipeline_call(&fimc->ve, set_stream, 1);
 	}
 	if (debug > 0)
 		flite_hw_dump_regs(fimc, __func__);
@@ -429,8 +428,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 		spin_unlock_irqrestore(&fimc->slock, flags);
 
 		if (!test_and_set_bit(ST_SENSOR_STREAM, &fimc->state))
-			fimc_pipeline_call(fimc, set_stream,
-					   &fimc->pipeline, 1);
+			fimc_pipeline_call(&fimc->ve, set_stream, 1);
 		return;
 	}
 	spin_unlock_irqrestore(&fimc->slock, flags);
@@ -482,8 +480,7 @@ static int fimc_lite_open(struct file *file)
 
 	mutex_lock(&me->parent->graph_mutex);
 
-	ret = fimc_pipeline_call(fimc, open, &fimc->pipeline,
-						me, true);
+	ret = fimc_pipeline_call(&fimc->ve, open, me, true);
 
 	/* Mark video pipeline ending at this video node as in use. */
 	if (ret == 0)
@@ -518,9 +515,10 @@ static int fimc_lite_release(struct file *file)
 			media_entity_pipeline_stop(entity);
 			fimc->streaming = false;
 		}
-		clear_bit(ST_FLITE_IN_USE, &fimc->state);
 		fimc_lite_stop_capture(fimc, false);
-		fimc_pipeline_call(fimc, close, &fimc->pipeline);
+		fimc_pipeline_call(&fimc->ve, close);
+		clear_bit(ST_FLITE_IN_USE, &fimc->state);
+
 		mutex_lock(&entity->parent->graph_mutex);
 		entity->use_count--;
 		mutex_unlock(&entity->parent->graph_mutex);
@@ -801,13 +799,12 @@ static int fimc_lite_streamon(struct file *file, void *priv,
 {
 	struct fimc_lite *fimc = video_drvdata(file);
 	struct media_entity *entity = &fimc->ve.vdev.entity;
-	struct fimc_pipeline *p = &fimc->pipeline;
 	int ret;
 
 	if (fimc_lite_active(fimc))
 		return -EBUSY;
 
-	ret = media_entity_pipeline_start(entity, p->m_pipeline);
+	ret = media_entity_pipeline_start(entity, &fimc->ve.pipe->mp);
 	if (ret < 0)
 		return ret;
 
@@ -1282,12 +1279,12 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 		return ret;
 
 	video_set_drvdata(vfd, fimc);
-	fimc->pipeline_ops = v4l2_get_subdev_hostdata(sd);
+	fimc->ve.pipe = v4l2_get_subdev_hostdata(sd);
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		media_entity_cleanup(&vfd->entity);
-		fimc->pipeline_ops = NULL;
+		fimc->ve.pipe = NULL;
 		return ret;
 	}
 
@@ -1306,7 +1303,7 @@ static void fimc_lite_subdev_unregistered(struct v4l2_subdev *sd)
 	if (video_is_registered(&fimc->ve.vdev)) {
 		video_unregister_device(&fimc->ve.vdev);
 		media_entity_cleanup(&fimc->ve.vdev.entity);
-		fimc->pipeline_ops = NULL;
+		fimc->ve.pipe = NULL;
 	}
 }
 
@@ -1552,7 +1549,7 @@ static int fimc_lite_resume(struct device *dev)
 		return 0;
 
 	INIT_LIST_HEAD(&fimc->active_buf_q);
-	fimc_pipeline_call(fimc, open, &fimc->pipeline,
+	fimc_pipeline_call(&fimc->ve, open,
 			   &fimc->ve.vdev.entity, false);
 	fimc_lite_hw_init(fimc, atomic_read(&fimc->out_path) == FIMC_IO_ISP);
 	clear_bit(ST_FLITE_SUSPENDED, &fimc->state);
@@ -1579,7 +1576,7 @@ static int fimc_lite_suspend(struct device *dev)
 	if (ret < 0 || !fimc_lite_active(fimc))
 		return ret;
 
-	return fimc_pipeline_call(fimc, close, &fimc->pipeline);
+	return fimc_pipeline_call(&fimc->ve, close);
 }
 #endif /* CONFIG_PM_SLEEP */
 
