@@ -65,7 +65,7 @@ static void transport_complete_task_attr(struct se_cmd *cmd);
 static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev);
 static int transport_generic_get_mem(struct se_cmd *cmd);
-static void transport_put_cmd(struct se_cmd *cmd);
+static int transport_put_cmd(struct se_cmd *cmd);
 static void target_complete_ok_work(struct work_struct *work);
 
 int init_se_kmem_caches(void)
@@ -1944,7 +1944,7 @@ static inline void transport_free_pages(struct se_cmd *cmd)
  * This routine unconditionally frees a command, and reference counting
  * or list removal must be done in the caller.
  */
-static void transport_release_cmd(struct se_cmd *cmd)
+static int transport_release_cmd(struct se_cmd *cmd)
 {
 	BUG_ON(!cmd->se_tfo);
 
@@ -1956,11 +1956,11 @@ static void transport_release_cmd(struct se_cmd *cmd)
 	 * If this cmd has been setup with target_get_sess_cmd(), drop
 	 * the kref and call ->release_cmd() in kref callback.
 	 */
-	 if (cmd->check_release != 0) {
-		target_put_sess_cmd(cmd->se_sess, cmd);
-		return;
-	}
+	 if (cmd->check_release != 0)
+		return target_put_sess_cmd(cmd->se_sess, cmd);
+
 	cmd->se_tfo->release_cmd(cmd);
+	return 1;
 }
 
 /**
@@ -1969,7 +1969,7 @@ static void transport_release_cmd(struct se_cmd *cmd)
  *
  * This routine releases our reference to the command and frees it if possible.
  */
-static void transport_put_cmd(struct se_cmd *cmd)
+static int transport_put_cmd(struct se_cmd *cmd)
 {
 	unsigned long flags;
 
@@ -1977,7 +1977,7 @@ static void transport_put_cmd(struct se_cmd *cmd)
 	if (atomic_read(&cmd->t_fe_count) &&
 	    !atomic_dec_and_test(&cmd->t_fe_count)) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
+		return 0;
 	}
 
 	if (cmd->transport_state & CMD_T_DEV_ACTIVE) {
@@ -1987,8 +1987,7 @@ static void transport_put_cmd(struct se_cmd *cmd)
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	transport_free_pages(cmd);
-	transport_release_cmd(cmd);
-	return;
+	return transport_release_cmd(cmd);
 }
 
 void *transport_kmap_data_sg(struct se_cmd *cmd)
@@ -2153,13 +2152,15 @@ static void transport_write_pending_qf(struct se_cmd *cmd)
 	}
 }
 
-void transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
+int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
+	int ret = 0;
+
 	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD)) {
 		if (wait_for_tasks && (cmd->se_cmd_flags & SCF_SCSI_TMR_CDB))
 			 transport_wait_for_tasks(cmd);
 
-		transport_release_cmd(cmd);
+		ret = transport_release_cmd(cmd);
 	} else {
 		if (wait_for_tasks)
 			transport_wait_for_tasks(cmd);
@@ -2167,8 +2168,9 @@ void transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 		if (cmd->se_lun)
 			transport_lun_remove_cmd(cmd);
 
-		transport_put_cmd(cmd);
+		ret = transport_put_cmd(cmd);
 	}
+	return ret;
 }
 EXPORT_SYMBOL(transport_generic_free_cmd);
 
