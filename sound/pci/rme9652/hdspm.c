@@ -400,8 +400,8 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 
 #define HDSPM_wc_freq0 (1<<5)	/* input freq detected via autosync  */
 #define HDSPM_wc_freq1 (1<<6)	/* 001=32, 010==44.1, 011=48, */
-#define HDSPM_wc_freq2 (1<<7)	/* 100=64, 101=88.2, 110=96, */
-/* missing Bit   for               111=128, 1000=176.4, 1001=192 */
+#define HDSPM_wc_freq2 (1<<7)	/* 100=64, 101=88.2, 110=96, 111=128 */
+#define HDSPM_wc_freq3 0x800	/* 1000=176.4, 1001=192 */
 
 #define HDSPM_SyncRef0 0x10000  /* Sync Reference */
 #define HDSPM_SyncRef1 0x20000
@@ -412,13 +412,17 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 
 #define HDSPM_wc_valid (HDSPM_wcLock|HDSPM_wcSync)
 
-#define HDSPM_wcFreqMask  (HDSPM_wc_freq0|HDSPM_wc_freq1|HDSPM_wc_freq2)
+#define HDSPM_wcFreqMask  (HDSPM_wc_freq0|HDSPM_wc_freq1|HDSPM_wc_freq2|\
+			    HDSPM_wc_freq3)
 #define HDSPM_wcFreq32    (HDSPM_wc_freq0)
 #define HDSPM_wcFreq44_1  (HDSPM_wc_freq1)
 #define HDSPM_wcFreq48    (HDSPM_wc_freq0|HDSPM_wc_freq1)
 #define HDSPM_wcFreq64    (HDSPM_wc_freq2)
 #define HDSPM_wcFreq88_2  (HDSPM_wc_freq0|HDSPM_wc_freq2)
 #define HDSPM_wcFreq96    (HDSPM_wc_freq1|HDSPM_wc_freq2)
+#define HDSPM_wcFreq128   (HDSPM_wc_freq0|HDSPM_wc_freq1|HDSPM_wc_freq2)
+#define HDSPM_wcFreq176_4 (HDSPM_wc_freq3)
+#define HDSPM_wcFreq192   (HDSPM_wc_freq0|HDSPM_wc_freq3)
 
 #define HDSPM_status1_F_0 0x0400000
 #define HDSPM_status1_F_1 0x0800000
@@ -1180,6 +1184,15 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 				break;
 			case HDSPM_wcFreq96:
 				rate = 96000;
+				break;
+			case HDSPM_wcFreq128:
+				rate = 128000;
+				break;
+			case HDSPM_wcFreq176_4:
+				rate = 176400;
+				break;
+			case HDSPM_wcFreq192:
+				rate = 192000;
 				break;
 			default:
 				rate = 0;
