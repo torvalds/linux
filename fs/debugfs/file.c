@@ -473,6 +473,7 @@ static ssize_t write_file_bool(struct file *file, const char __user *user_buf,
 	if (copy_from_user(buf, user_buf, buf_size))
 		return -EFAULT;
 
+	buf[buf_size] = '\0';
 	if (strtobool(buf, &bv) == 0)
 		*val = bv;
 
