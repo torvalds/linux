@@ -3392,6 +3392,7 @@ static int lpfc_bsg_check_cmd_access(struct lpfc_hba *phba,
 	case MBX_DOWN_LOAD:
 	case MBX_UPDATE_CFG:
 	case MBX_KILL_BOARD:
+	case MBX_READ_TOPOLOGY:
 	case MBX_LOAD_AREA:
 	case MBX_LOAD_EXP_ROM:
 	case MBX_BEACON:
@@ -3422,7 +3423,6 @@ static int lpfc_bsg_check_cmd_access(struct lpfc_hba *phba,
 		}
 		break;
 	case MBX_READ_SPARM64:
-	case MBX_READ_TOPOLOGY:
 	case MBX_REG_LOGIN:
 	case MBX_REG_LOGIN64:
 	case MBX_CONFIG_PORT:
