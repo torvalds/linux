@@ -384,6 +384,7 @@ static int xwdt_remove(struct platform_device *dev)
 
 /* Match table for of_platform binding */
 static struct of_device_id xwdt_of_match[] = {
+	{ .compatible = "xlnx,xps-timebase-wdt-1.00.a", },
 	{ .compatible = "xlnx,xps-timebase-wdt-1.01.a", },
 	{},
 };
