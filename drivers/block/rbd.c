@@ -489,10 +489,8 @@ static int rbd_open(struct block_device *bdev, fmode_t mode)
 	if (removing)
 		return -ENOENT;
 
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	(void) get_device(&rbd_dev->dev);
 	set_device_ro(bdev, rbd_dev->mapping.read_only);
-	mutex_unlock(&ctl_mutex);
 
 	return 0;
 }
@@ -507,9 +505,7 @@ static void rbd_release(struct gendisk *disk, fmode_t mode)
 	spin_unlock_irq(&rbd_dev->lock);
 	rbd_assert(open_count_before > 0);
 
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	put_device(&rbd_dev->dev);
-	mutex_unlock(&ctl_mutex);
 }
 
 static const struct block_device_operations rbd_bd_ops = {
@@ -4332,8 +4328,6 @@ static int rbd_bus_add_dev(struct rbd_device *rbd_dev)
 	struct device *dev;
 	int ret;
 
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-
 	dev = &rbd_dev->dev;
 	dev->bus = &rbd_bus_type;
 	dev->type = &rbd_device_type;
@@ -4341,8 +4335,6 @@ static int rbd_bus_add_dev(struct rbd_device *rbd_dev)
 	dev->release = rbd_dev_device_release;
 	dev_set_name(dev, "%d", rbd_dev->dev_id);
 	ret = device_register(dev);
-
-	mutex_unlock(&ctl_mutex);
 
 	return ret;
 }
@@ -5149,8 +5141,6 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	if (dev_id != ul)
 		return -EINVAL;
 
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-
 	ret = -ENOENT;
 	spin_lock(&rbd_dev_list_lock);
 	list_for_each(tmp, &rbd_dev_list) {
@@ -5171,7 +5161,7 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	}
 	spin_unlock(&rbd_dev_list_lock);
 	if (ret < 0 || already)
-		goto done;
+		return ret;
 
 	rbd_bus_del_dev(rbd_dev);
 	ret = rbd_dev_header_watch_sync(rbd_dev, false);
@@ -5179,11 +5169,8 @@ static ssize_t rbd_remove(struct bus_type *bus,
 		rbd_warn(rbd_dev, "failed to cancel watch event (%d)\n", ret);
 	rbd_dev_image_release(rbd_dev);
 	module_put(THIS_MODULE);
-	ret = count;
-done:
-	mutex_unlock(&ctl_mutex);
 
-	return ret;
+	return count;
 }
 
 /*
