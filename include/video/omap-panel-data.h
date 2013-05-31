@@ -322,4 +322,20 @@ struct panel_sharp_ls037v7dw01_platform_data {
 	int ud_gpio;
 };
 
+/**
+ * panel-tpo-td043mtea1 platform data
+ * @name: name for this display entity
+ * @source: name of the display entity used as a video source
+ * @data_lines: number of DPI datalines
+ * @nreset_gpio: reset signal
+ */
+struct panel_tpo_td043mtea1_platform_data {
+	const char *name;
+	const char *source;
+
+	int data_lines;
+
+	int nreset_gpio;
+};
+
 #endif /* __OMAP_PANEL_DATA_H */

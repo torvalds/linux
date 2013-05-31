@@ -55,4 +55,11 @@ config DISPLAY_PANEL_SHARP_LS037V7DW01
         depends on BACKLIGHT_CLASS_DEVICE
         help
           LCD Panel used in TI's SDP3430 and EVM boards
+
+config DISPLAY_PANEL_TPO_TD043MTEA1
+        tristate "TPO TD043MTEA1 LCD Panel"
+        depends on SPI
+        help
+          LCD Panel used in OMAP3 Pandora
+
 endmenu
