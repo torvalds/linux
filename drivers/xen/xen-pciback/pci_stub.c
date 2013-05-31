@@ -1196,19 +1196,23 @@ static ssize_t pcistub_irq_handler_switch(struct device_driver *drv,
 	struct pcistub_device *psdev;
 	struct xen_pcibk_dev_data *dev_data;
 	int domain, bus, slot, func;
-	int err = -ENOENT;
+	int err;
 
 	err = str_to_slot(buf, &domain, &bus, &slot, &func);
 	if (err)
 		return err;
 
 	psdev = pcistub_device_find(domain, bus, slot, func);
-	if (!psdev)
+	if (!psdev) {
+		err = -ENOENT;
 		goto out;
+	}
 
 	dev_data = pci_get_drvdata(psdev->dev);
-	if (!dev_data)
+	if (!dev_data) {
+		err = -ENOENT;
 		goto out;
+	}
 
 	dev_dbg(&psdev->dev->dev, "%s fake irq handler: %d->%d\n",
 		dev_data->irq_name, dev_data->isr_on,
