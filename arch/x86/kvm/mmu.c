@@ -4197,14 +4197,18 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 	spin_unlock(&kvm->mmu_lock);
 }
 
+#define BATCH_ZAP_PAGES	10
 static void kvm_zap_obsolete_pages(struct kvm *kvm)
 {
 	struct kvm_mmu_page *sp, *node;
 	LIST_HEAD(invalid_list);
+	int batch = 0;
 
 restart:
 	list_for_each_entry_safe_reverse(sp, node,
 	      &kvm->arch.active_mmu_pages, link) {
+		int ret;
+
 		/*
 		 * No obsolete page exists before new created page since
 		 * active_mmu_pages is the FIFO list.
@@ -4213,28 +4217,6 @@ restart:
 			break;
 
 		/*
-		 * Do not repeatedly zap a root page to avoid unnecessary
-		 * KVM_REQ_MMU_RELOAD, otherwise we may not be able to
-		 * progress:
-		 *    vcpu 0                        vcpu 1
-		 *                         call vcpu_enter_guest():
-		 *                            1): handle KVM_REQ_MMU_RELOAD
-		 *                                and require mmu-lock to
-		 *                                load mmu
-		 * repeat:
-		 *    1): zap root page and
-		 *        send KVM_REQ_MMU_RELOAD
-		 *
-		 *    2): if (cond_resched_lock(mmu-lock))
-		 *
-		 *                            2): hold mmu-lock and load mmu
-		 *
-		 *                            3): see KVM_REQ_MMU_RELOAD bit
-		 *                                on vcpu->requests is set
-		 *                                then return 1 to call
-		 *                                vcpu_enter_guest() again.
-		 *            goto repeat;
-		 *
 		 * Since we are reversely walking the list and the invalid
 		 * list will be moved to the head, skip the invalid page
 		 * can help us to avoid the infinity list walking.
@@ -4242,13 +4224,18 @@ restart:
 		if (sp->role.invalid)
 			continue;
 
-		if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
+		if (batch >= BATCH_ZAP_PAGES &&
+		      (need_resched() || spin_needbreak(&kvm->mmu_lock))) {
+			batch = 0;
 			kvm_mmu_commit_zap_page(kvm, &invalid_list);
 			cond_resched_lock(&kvm->mmu_lock);
 			goto restart;
 		}
 
-		if (kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list))
+		ret = kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list);
+		batch += ret;
+
+		if (ret)
 			goto restart;
 	}
 
