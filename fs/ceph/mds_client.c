@@ -1391,6 +1391,7 @@ static void discard_cap_releases(struct ceph_mds_client *mdsc,
 	num = le32_to_cpu(head->num);
 	dout("discard_cap_releases mds%d %p %u\n", session->s_mds, msg, num);
 	head->num = cpu_to_le32(0);
+	msg->front.iov_len = sizeof(*head);
 	session->s_num_cap_releases += num;
 
 	/* requeue completed messages */
