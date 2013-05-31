@@ -8,7 +8,7 @@
  * kind, whether express or implied.
  */
 
-/include/ "omap4.dtsi"
+#include "omap4.dtsi"
 
 / {
 	cpus {

@@ -7,8 +7,8 @@
  */
 /dts-v1/;
 
-/include/ "omap4460.dtsi"
-/include/ "omap4-panda-common.dtsi"
+#include "omap4460.dtsi"
+#include "omap4-panda-common.dtsi"
 
 /* Audio routing is differnet between PandaBoard4430 and PandaBoardES */
 &sound {

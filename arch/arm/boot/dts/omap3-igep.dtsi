@@ -10,7 +10,7 @@
  */
 /dts-v1/;
 
-/include/ "omap34xx.dtsi"
+#include "omap34xx.dtsi"
 
 / {
 	memory {
@@ -86,7 +86,7 @@
 	};
 };
 
-/include/ "twl4030.dtsi"
+#include "twl4030.dtsi"
 
 &i2c2 {
 	clock-frequency = <400000>;

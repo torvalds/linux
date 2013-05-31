@@ -7,8 +7,8 @@
  */
 /dts-v1/;
 
-/include/ "omap443x.dtsi"
-/include/ "elpida_ecb240abacn.dtsi"
+#include "omap443x.dtsi"
+#include "elpida_ecb240abacn.dtsi"
 
 / {
 	model = "TI OMAP4 SDP board";
@@ -336,7 +336,7 @@
 	};
 };
 
-/include/ "twl6030.dtsi"
+#include "twl6030.dtsi"
 
 &i2c2 {
 	pinctrl-names = "default";

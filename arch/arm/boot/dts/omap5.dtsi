@@ -7,7 +7,7 @@
  * Based on "omap4.dtsi"
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	#address-cells = <1>;

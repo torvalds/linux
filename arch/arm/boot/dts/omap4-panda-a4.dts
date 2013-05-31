@@ -7,8 +7,8 @@
  */
 /dts-v1/;
 
-/include/ "omap443x.dtsi"
-/include/ "omap4-panda-common.dtsi"
+#include "omap443x.dtsi"
+#include "omap4-panda-common.dtsi"
 
 /* Pandaboard Rev A4+ have external pullups on SCL & SDA */
 &dss_hdmi_pins {

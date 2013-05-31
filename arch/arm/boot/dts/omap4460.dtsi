@@ -7,7 +7,7 @@
  * version 2.  This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
  */
-/include/ "omap4.dtsi"
+#include "omap4.dtsi"
 
 / {
 	cpus {

@@ -7,8 +7,8 @@
  */
 /dts-v1/;
 
-/include/ "omap5.dtsi"
-/include/ "samsung_k3pe0e000b.dtsi"
+#include "omap5.dtsi"
+#include "samsung_k3pe0e000b.dtsi"
 
 / {
 	model = "TI OMAP5 EVM board";

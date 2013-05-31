@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-/include/ "omap36xx.dtsi"
+#include "omap36xx.dtsi"
 
 / {
 	model = "TI OMAP3 BeagleBoard xM";
@@ -75,7 +75,7 @@
 	};
 };
 
-/include/ "twl4030.dtsi"
+#include "twl4030.dtsi"
 
 &i2c2 {
 	clock-frequency = <400000>;

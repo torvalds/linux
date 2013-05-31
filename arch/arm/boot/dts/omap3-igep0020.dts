@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  */
 
-/include/ "omap3-igep.dtsi"
+#include "omap3-igep.dtsi"
 
 / {
 	model = "IGEPv2";
