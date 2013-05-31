@@ -60,8 +60,9 @@ static struct fb_ops intelfb_ops = {
 static int intelfb_create(struct drm_fb_helper *helper,
 			  struct drm_fb_helper_surface_size *sizes)
 {
-	struct intel_fbdev *ifbdev = (struct intel_fbdev *)helper;
-	struct drm_device *dev = ifbdev->helper.dev;
+	struct intel_fbdev *ifbdev =
+		container_of(helper, struct intel_fbdev, helper);
+	struct drm_device *dev = helper->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
@@ -108,7 +109,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out_unpin;
 	}
 
-	info->par = ifbdev;
+	info->par = helper;
 
 	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, obj);
 	if (ret)
