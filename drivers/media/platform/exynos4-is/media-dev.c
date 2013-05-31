@@ -1287,39 +1287,98 @@ int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on)
 	return __fimc_md_set_camclk(fmd, si, on);
 }
 
-static int fimc_md_link_notify(struct media_link *link, u32 flags,
-						unsigned int notification)
+static int __fimc_md_modify_pipeline(struct media_entity *entity, bool enable)
 {
-	struct media_entity *sink = link->sink->entity;
 	struct exynos_video_entity *ve;
+	struct fimc_pipeline *p;
 	struct video_device *vdev;
-	struct fimc_pipeline *pipeline;
-	int i, ret = 0;
+	int ret;
 
-	if (media_entity_type(sink) != MEDIA_ENT_T_DEVNODE_V4L ||
-	    notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH)
+	vdev = media_entity_to_video_device(entity);
+	if (vdev->entity.use_count == 0)
 		return 0;
 
-	vdev = media_entity_to_video_device(sink);
 	ve = vdev_to_exynos_video_entity(vdev);
-	pipeline = to_fimc_pipeline(ve->pipe);
+	p = to_fimc_pipeline(ve->pipe);
+	/*
+	 * Nothing to do if we are disabling the pipeline, some link
+	 * has been disconnected and p->subdevs array is cleared now.
+	 */
+	if (!enable && p->subdevs[IDX_SENSOR] == NULL)
+		return 0;
 
-	if (!(link->flags & MEDIA_LNK_FL_ENABLED) && pipeline->subdevs[IDX_SENSOR]) {
-		if (sink->use_count > 0)
-			ret = __fimc_pipeline_close(ve->pipe);
+	if (enable)
+		ret = __fimc_pipeline_open(ve->pipe, entity, true);
+	else
+		ret = __fimc_pipeline_close(ve->pipe);
 
-		for (i = 0; i < IDX_MAX; i++)
-			pipeline->subdevs[i] = NULL;
-	} else if (sink->use_count > 0) {
-		/*
-		 * Link activation. Enable power of pipeline elements only if
-		 * the pipeline is already in use, i.e. its video node is open.
-		 * Recreate the controls destroyed during the link deactivation.
-		 */
-		ret = __fimc_pipeline_open(ve->pipe, sink, true);
+	if (ret == 0 && !enable)
+		memset(p->subdevs, 0, sizeof(p->subdevs));
+
+	return ret;
+}
+
+/* Locking: called with entity->parent->graph_mutex mutex held. */
+static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable)
+{
+	struct media_entity *entity_err = entity;
+	struct media_entity_graph graph;
+	int ret;
+
+	/*
+	 * Walk current graph and call the pipeline open/close routine for each
+	 * opened video node that belongs to the graph of entities connected
+	 * through active links. This is needed as we cannot power on/off the
+	 * subdevs in random order.
+	 */
+	media_entity_graph_walk_start(&graph, entity);
+
+	while ((entity = media_entity_graph_walk_next(&graph))) {
+		if (media_entity_type(entity) != MEDIA_ENT_T_DEVNODE)
+			continue;
+
+		ret  = __fimc_md_modify_pipeline(entity, enable);
+
+		if (ret < 0)
+			goto err;
 	}
 
-	return ret ? -EPIPE : ret;
+	return 0;
+ err:
+	media_entity_graph_walk_start(&graph, entity_err);
+
+	while ((entity_err = media_entity_graph_walk_next(&graph))) {
+		if (media_entity_type(entity_err) != MEDIA_ENT_T_DEVNODE)
+			continue;
+
+		__fimc_md_modify_pipeline(entity_err, !enable);
+
+		if (entity_err == entity)
+			break;
+	}
+
+	return ret;
+}
+
+static int fimc_md_link_notify(struct media_link *link, unsigned int flags,
+				unsigned int notification)
+{
+	struct media_entity *sink = link->sink->entity;
+	int ret = 0;
+
+	/* Before link disconnection */
+	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH) {
+		if (!(flags & MEDIA_LNK_FL_ENABLED))
+			ret = __fimc_md_modify_pipelines(sink, false);
+		else
+			; /* TODO: Link state change validation */
+	/* After link activation */
+	} else if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
+		   (link->flags & MEDIA_LNK_FL_ENABLED)) {
+		ret = __fimc_md_modify_pipelines(sink, true);
+	}
+
+	return ret ? -EPIPE : 0;
 }
 
 static ssize_t fimc_md_sysfs_show(struct device *dev,
