@@ -475,8 +475,6 @@ struct saa7134_fh {
 	struct pm_qos_request	   qos_request;
 
 	/* video capture */
-	struct saa7134_format      *fmt;
-	unsigned int               width,height;
 	struct videobuf_queue      cap;
 	struct saa7134_pgtable     pt_cap;
 
@@ -595,6 +593,8 @@ struct saa7134_dev {
 	struct saa7134_dmaqueue    vbi_q;
 	unsigned int               video_fieldcount;
 	unsigned int               vbi_fieldcount;
+	struct saa7134_format      *fmt;
+	unsigned int               width, height;
 
 	/* various v4l controls */
 	struct saa7134_tvnorm      *tvnorm;              /* video */
