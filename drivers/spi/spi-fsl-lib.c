@@ -61,7 +61,7 @@ struct mpc8xxx_spi_probe_info *to_of_pinfo(struct fsl_spi_platform_data *pdata)
 	return container_of(pdata, struct mpc8xxx_spi_probe_info, pdata);
 }
 
-void mpc8xxx_spi_work(struct work_struct *work)
+static void mpc8xxx_spi_work(struct work_struct *work)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi = container_of(work, struct mpc8xxx_spi,
 						       work);
