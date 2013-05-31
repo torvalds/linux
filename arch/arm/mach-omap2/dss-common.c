@@ -181,28 +181,7 @@ static struct platform_device sdp4430_tpd_device = {
 };
 
 
-static struct picodlp_panel_data sdp4430_picodlp_pdata = {
-	.picodlp_adapter_id	= 2,
-	.emu_done_gpio		= 44,
-	.pwrgood_gpio		= 45,
-};
-
-static struct omap_dss_device sdp4430_picodlp_device = {
-	.name			= "picodlp",
-	.driver_name		= "picodlp_panel",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 24,
-	.channel		= OMAP_DSS_CHANNEL_LCD2,
-	.data			= &sdp4430_picodlp_pdata,
-};
-
-static struct omap_dss_device *sdp4430_dss_devices[] = {
-	&sdp4430_picodlp_device,
-};
-
 static struct omap_dss_board_info sdp4430_dss_data = {
-	.num_devices	= ARRAY_SIZE(sdp4430_dss_devices),
-	.devices	= sdp4430_dss_devices,
 	.default_display_name = "lcd",
 };
 
