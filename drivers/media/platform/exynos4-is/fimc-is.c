@@ -326,6 +326,11 @@ int fimc_is_start_firmware(struct fimc_is *is)
 	struct device *dev = &is->pdev->dev;
 	int ret;
 
+	if (is->fw.f_w == NULL) {
+		dev_err(dev, "firmware is not loaded\n");
+		return -EINVAL;
+	}
+
 	memcpy(is->memory.vaddr, is->fw.f_w->data, is->fw.f_w->size);
 	wmb();
 
@@ -941,7 +946,8 @@ static int fimc_is_remove(struct platform_device *pdev)
 	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
 	fimc_is_put_clocks(is);
 	fimc_is_debugfs_remove(is);
-	release_firmware(is->fw.f_w);
+	if (is->fw.f_w)
+		release_firmware(is->fw.f_w);
 	fimc_is_free_cpu_memory(is);
 
 	return 0;
