@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -4070,11 +4070,28 @@ LPFC_VPORT_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands "
 		 "during discovery");
 
 /*
-# lpfc_max_luns: maximum allowed LUN.
+# lpfc_max_luns: maximum allowed LUN ID. This is the highest LUN ID that
+#    will be scanned by the SCSI midlayer when sequential scanning is
+#    used; and is also the highest LUN ID allowed when the SCSI midlayer
+#    parses REPORT_LUN responses. The lpfc driver has no LUN count or
+#    LUN ID limit, but the SCSI midlayer requires this field for the uses
+#    above. The lpfc driver limits the default value to 255 for two reasons.
+#    As it bounds the sequential scan loop, scanning for thousands of luns
+#    on a target can take minutes of wall clock time.  Additionally,
+#    there are FC targets, such as JBODs, that only recognize 8-bits of
+#    LUN ID. When they receive a value greater than 8 bits, they chop off
+#    the high order bits. In other words, they see LUN IDs 0, 256, 512,
+#    and so on all as LUN ID 0. This causes the linux kernel, which sees
+#    valid responses at each of the LUN IDs, to believe there are multiple
+#    devices present, when in fact, there is only 1.
+#    A customer that is aware of their target behaviors, and the results as
+#    indicated above, is welcome to increase the lpfc_max_luns value.
+#    As mentioned, this value is not used by the lpfc driver, only the
+#    SCSI midlayer.
 # Value range is [0,65535]. Default value is 255.
 # NOTE: The SCSI layer might probe all allowed LUN on some old targets.
 */
-LPFC_VPORT_ATTR_R(max_luns, 255, 0, 65535, "Maximum allowed LUN");
+LPFC_VPORT_ATTR_R(max_luns, 255, 0, 65535, "Maximum allowed LUN ID");
 
 /*
 # lpfc_poll_tmo: .Milliseconds driver will wait between polling FCP ring.
