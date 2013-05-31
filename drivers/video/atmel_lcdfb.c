@@ -223,8 +223,14 @@ static void init_backlight(struct atmel_lcdfb_info *sinfo)
 
 static void exit_backlight(struct atmel_lcdfb_info *sinfo)
 {
-	if (sinfo->backlight)
-		backlight_device_unregister(sinfo->backlight);
+	if (!sinfo->backlight)
+		return;
+
+	if (sinfo->backlight->ops) {
+		sinfo->backlight->props.power = FB_BLANK_POWERDOWN;
+		sinfo->backlight->ops->update_status(sinfo->backlight);
+	}
+	backlight_device_unregister(sinfo->backlight);
 }
 
 #else
