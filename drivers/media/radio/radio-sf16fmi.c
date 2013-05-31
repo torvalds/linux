@@ -55,8 +55,8 @@ static struct fmi fmi_card;
 static struct pnp_dev *dev;
 bool pnp_attached;
 
-#define RSF16_MINFREQ (87 * 16000)
-#define RSF16_MAXFREQ (108 * 16000)
+#define RSF16_MINFREQ (87U * 16000)
+#define RSF16_MAXFREQ (108U * 16000)
 
 #define FMI_BIT_TUN_CE		(1 << 0)
 #define FMI_BIT_TUN_CLK		(1 << 1)
@@ -155,15 +155,14 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 					const struct v4l2_frequency *f)
 {
 	struct fmi *fmi = video_drvdata(file);
+	unsigned freq = f->frequency;
 
 	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
-	if (f->frequency < RSF16_MINFREQ ||
-			f->frequency > RSF16_MAXFREQ)
-		return -EINVAL;
+	clamp(freq, RSF16_MINFREQ, RSF16_MAXFREQ);
 	/* rounding in steps of 800 to match the freq
 	   that will be used */
-	lm7000_set_freq((f->frequency / 800) * 800, fmi, fmi_set_pins);
+	lm7000_set_freq((freq / 800) * 800, fmi, fmi_set_pins);
 	return 0;
 }
 
