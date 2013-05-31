@@ -5061,23 +5061,6 @@ err_out_module:
 	return (ssize_t)rc;
 }
 
-static struct rbd_device *__rbd_get_dev(unsigned long dev_id)
-{
-	struct list_head *tmp;
-	struct rbd_device *rbd_dev;
-
-	spin_lock(&rbd_dev_list_lock);
-	list_for_each(tmp, &rbd_dev_list) {
-		rbd_dev = list_entry(tmp, struct rbd_device, node);
-		if (rbd_dev->dev_id == dev_id) {
-			spin_unlock(&rbd_dev_list_lock);
-			return rbd_dev;
-		}
-	}
-	spin_unlock(&rbd_dev_list_lock);
-	return NULL;
-}
-
 static void rbd_dev_device_release(struct device *dev)
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
@@ -5122,7 +5105,8 @@ static ssize_t rbd_remove(struct bus_type *bus,
 			  size_t count)
 {
 	struct rbd_device *rbd_dev = NULL;
-	int target_id;
+	struct list_head *tmp;
+	int dev_id;
 	unsigned long ul;
 	int ret;
 
@@ -5131,26 +5115,33 @@ static ssize_t rbd_remove(struct bus_type *bus,
 		return ret;
 
 	/* convert to int; abort if we lost anything in the conversion */
-	target_id = (int) ul;
-	if (target_id != ul)
+	dev_id = (int)ul;
+	if (dev_id != ul)
 		return -EINVAL;
 
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 
-	rbd_dev = __rbd_get_dev(target_id);
-	if (!rbd_dev) {
-		ret = -ENOENT;
-		goto done;
+	ret = -ENOENT;
+	spin_lock(&rbd_dev_list_lock);
+	list_for_each(tmp, &rbd_dev_list) {
+		rbd_dev = list_entry(tmp, struct rbd_device, node);
+		if (rbd_dev->dev_id == dev_id) {
+			ret = 0;
+			break;
+		}
 	}
-
-	spin_lock_irq(&rbd_dev->lock);
-	if (rbd_dev->open_count)
-		ret = -EBUSY;
-	else
-		set_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags);
-	spin_unlock_irq(&rbd_dev->lock);
+	if (!ret) {
+		spin_lock_irq(&rbd_dev->lock);
+		if (rbd_dev->open_count)
+			ret = -EBUSY;
+		else
+			set_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags);
+		spin_unlock_irq(&rbd_dev->lock);
+	}
+	spin_unlock(&rbd_dev_list_lock);
 	if (ret < 0)
 		goto done;
+
 	rbd_bus_del_dev(rbd_dev);
 	ret = rbd_dev_header_watch_sync(rbd_dev, false);
 	if (ret)
