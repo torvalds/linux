@@ -4566,7 +4566,8 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		} else {
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"2708 This device does not support "
-					"Advanced Error Reporting (AER)\n");
+					"Advanced Error Reporting (AER): %d\n",
+					rc);
 			phba->cfg_aer_support = 0;
 		}
 	}
