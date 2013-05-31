@@ -54,7 +54,7 @@ static int hex2sprom(u16 *sprom, const char *dump, size_t len,
 	while (cnt < sprom_size_words) {
 		memcpy(tmp, dump, 4);
 		dump += 4;
-		err = strict_strtoul(tmp, 16, &parsed);
+		err = kstrtoul(tmp, 16, &parsed);
 		if (err)
 			return err;
 		sprom[cnt++] = swab16((u16)parsed);
