@@ -3780,11 +3780,10 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 	pr_debug("bond=%p, name=%s\n",
 		 bond, bond_dev ? bond_dev->name : "None");
 
-	/*
-	 * If fail_over_mac is set to active, do nothing and return
-	 * success.  Returning an error causes ifenslave to fail.
+	/* If fail_over_mac is enabled, do nothing and return success.
+	 * Returning an error causes ifenslave to fail.
 	 */
-	if (bond->params.fail_over_mac == BOND_FOM_ACTIVE)
+	if (bond->params.fail_over_mac)
 		return 0;
 
 	if (!is_valid_ether_addr(sa->sa_data))
