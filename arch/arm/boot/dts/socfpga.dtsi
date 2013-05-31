@@ -594,6 +594,7 @@
 			reg-names = "nand_data", "denali_reg";
 			interrupts = <0 144 4>;
 			dma-mask = <0xffffffff>;
+			clocks = <&nand_clk>;
 			};
 
 		pmu {
