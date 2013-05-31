@@ -13,7 +13,7 @@ SYNOPSIS
 DESCRIPTION
 -----------
 This command runs runs perf-buildid-list --with-hits, and collects the files
-with the buildids found so that analisys of perf.data contents can be possible
+with the buildids found so that analysis of perf.data contents can be possible
 on another machine.
 
 

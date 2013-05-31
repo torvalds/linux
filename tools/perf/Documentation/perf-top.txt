@@ -155,6 +155,10 @@ Default is to monitor all CPUS.
 
 	Default: fractal,0.5,callee.
 
+--percent-limit::
+	Do not show entries which have an overhead under that percent.
+	(Default: 0).
+
 INTERACTIVE PROMPTING KEYS
 --------------------------
 

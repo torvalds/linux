@@ -2391,7 +2391,6 @@ out_err_write:
 	}
 	lseek(fd, header->data_offset + header->data_size, SEEK_SET);
 
-	header->frozen = 1;
 	return 0;
 }
 
@@ -2871,7 +2870,6 @@ int perf_session__read_header(struct perf_session *session, int fd)
 						   session->pevent))
 		goto out_delete_evlist;
 
-	header->frozen = 1;
 	return 0;
 out_errno:
 	return -errno;

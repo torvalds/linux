@@ -776,6 +776,8 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 		if (pipe_output)
 			dup2(2, 1);
 
+		signal(SIGTERM, SIG_DFL);
+
 		close(child_ready_pipe[0]);
 		close(go_pipe[1]);
 		fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
