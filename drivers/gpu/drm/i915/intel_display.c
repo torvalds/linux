@@ -5793,23 +5793,13 @@ static void haswell_modeset_global_resources(struct drm_device *dev)
 {
 	bool enable = false;
 	struct intel_crtc *crtc;
-	struct intel_encoder *encoder;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
-		if (crtc->pipe != PIPE_A && crtc->base.enabled)
-			enable = true;
-		/* XXX: Should check for edp transcoder here, but thanks to init
-		 * sequence that's not yet available. Just in case desktop eDP
-		 * on PORT D is possible on haswell, too. */
-		/* Even the eDP panel fitter is outside the always-on well. */
-		if (crtc->config.pch_pfit.size && crtc->base.enabled)
-			enable = true;
-	}
+		if (!crtc->base.enabled)
+			continue;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
-			    base.head) {
-		if (encoder->type != INTEL_OUTPUT_EDP &&
-		    encoder->connectors_active)
+		if (crtc->pipe != PIPE_A || crtc->config.pch_pfit.size ||
+		    crtc->config.cpu_transcoder != TRANSCODER_EDP)
 			enable = true;
 	}
 
