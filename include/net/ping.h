@@ -49,6 +49,7 @@ struct ping_table {
 struct ping_iter_state {
 	struct seq_net_private  p;
 	int			bucket;
+	sa_family_t		family;
 };
 
 extern struct proto ping_prot;
@@ -87,6 +88,13 @@ int  ping_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
 void ping_rcv(struct sk_buff *skb);
 
 #ifdef CONFIG_PROC_FS
+struct ping_seq_afinfo {
+	char				*name;
+	sa_family_t			family;
+	const struct file_operations	*seq_fops;
+	const struct seq_operations	seq_ops;
+};
+
 extern int __init ping_proc_init(void);
 extern void ping_proc_exit(void);
 #endif
