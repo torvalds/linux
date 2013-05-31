@@ -454,6 +454,11 @@ __BUILDIO(q, u64)
 #define readl_relaxed			readl
 #define readq_relaxed			readq
 
+#define writeb_relaxed			writeb
+#define writew_relaxed			writew
+#define writel_relaxed			writel
+#define writeq_relaxed			writeq
+
 #define readb_be(addr)							\
 	__raw_readb((__force unsigned *)(addr))
 #define readw_be(addr)							\
