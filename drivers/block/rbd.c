@@ -5108,6 +5108,7 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	struct list_head *tmp;
 	int dev_id;
 	unsigned long ul;
+	bool already = false;
 	int ret;
 
 	ret = strict_strtoul(buf, 10, &ul);
@@ -5135,11 +5136,12 @@ static ssize_t rbd_remove(struct bus_type *bus,
 		if (rbd_dev->open_count)
 			ret = -EBUSY;
 		else
-			set_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags);
+			already = test_and_set_bit(RBD_DEV_FLAG_REMOVING,
+							&rbd_dev->flags);
 		spin_unlock_irq(&rbd_dev->lock);
 	}
 	spin_unlock(&rbd_dev_list_lock);
-	if (ret < 0)
+	if (ret < 0 || already)
 		goto done;
 
 	rbd_bus_del_dev(rbd_dev);
