@@ -96,7 +96,7 @@ static ssize_t write_file_dfs(struct file *file, const char __user *user_buf,
 		return -EFAULT;
 
 	buf[len] = '\0';
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val == DFS_STATS_RESET_MAGIC)

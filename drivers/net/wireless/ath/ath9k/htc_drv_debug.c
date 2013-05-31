@@ -471,7 +471,7 @@ static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
 		return -EFAULT;
 
 	buf[len] = '\0';
-	if (strict_strtoul(buf, 0, &mask))
+	if (kstrtoul(buf, 0, &mask))
 		return -EINVAL;
 
 	common->debug_mask = mask;

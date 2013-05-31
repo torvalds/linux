@@ -240,7 +240,7 @@ static ssize_t lbs_prb_rsp_limit_set(struct device *dev,
 	memset(&mesh_access, 0, sizeof(mesh_access));
 	mesh_access.data[0] = cpu_to_le32(CMD_ACT_SET);
 
-	if (!strict_strtoul(buf, 10, &retry_limit))
+	if (!kstrtoul(buf, 10, &retry_limit))
 		return -ENOTSUPP;
 	if (retry_limit > 15)
 		return -ENOTSUPP;
