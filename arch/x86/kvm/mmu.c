@@ -1654,6 +1654,16 @@ static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 				    struct list_head *invalid_list);
 
+/*
+ * NOTE: we should pay more attention on the zapped-obsolete page
+ * (is_obsolete_sp(sp) && sp->role.invalid) when you do hash list walk
+ * since it has been deleted from active_mmu_pages but still can be found
+ * at hast list.
+ *
+ * for_each_gfn_indirect_valid_sp has skipped that kind of page and
+ * kvm_mmu_get_page(), the only user of for_each_gfn_sp(), has skipped
+ * all the obsolete pages.
+ */
 #define for_each_gfn_sp(_kvm, _sp, _gfn)				\
 	hlist_for_each_entry(_sp,					\
 	  &(_kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(_gfn)], hash_link) \
@@ -4224,11 +4234,13 @@ restart:
 		if (sp->role.invalid)
 			continue;
 
+		/*
+		 * Need not flush tlb since we only zap the sp with invalid
+		 * generation number.
+		 */
 		if (batch >= BATCH_ZAP_PAGES &&
-		      (need_resched() || spin_needbreak(&kvm->mmu_lock))) {
+		      cond_resched_lock(&kvm->mmu_lock)) {
 			batch = 0;
-			kvm_mmu_commit_zap_page(kvm, &invalid_list);
-			cond_resched_lock(&kvm->mmu_lock);
 			goto restart;
 		}
 
@@ -4239,6 +4251,10 @@ restart:
 			goto restart;
 	}
 
+	/*
+	 * Should flush tlb before free page tables since lockless-walking
+	 * may use the pages.
+	 */
 	kvm_mmu_commit_zap_page(kvm, &invalid_list);
 }
 
@@ -4256,6 +4272,17 @@ void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm)
 	spin_lock(&kvm->mmu_lock);
 	trace_kvm_mmu_invalidate_zap_all_pages(kvm);
 	kvm->arch.mmu_valid_gen++;
+
+	/*
+	 * Notify all vcpus to reload its shadow page table
+	 * and flush TLB. Then all vcpus will switch to new
+	 * shadow page table with the new mmu_valid_gen.
+	 *
+	 * Note: we should do this under the protection of
+	 * mmu-lock, otherwise, vcpu would purge shadow page
+	 * but miss tlb flush.
+	 */
+	kvm_reload_remote_mmus(kvm);
 
 	kvm_zap_obsolete_pages(kvm);
 	spin_unlock(&kvm->mmu_lock);
