@@ -22,21 +22,21 @@
 
 		heartbeat {
 			label = "devkit8000::led1";
-			gpios = <&gpio6 26 0>;	/* 186 -> LED1 */
+			gpios = <&gpio6 26 GPIO_ACTIVE_HIGH>;	/* 186 -> LED1 */
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
 
 		mmc {
 			label = "devkit8000::led2";
-			gpios = <&gpio6 3 0>;	/* 163 -> LED2 */
+			gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>;	/* 163 -> LED2 */
 			default-state = "on";
 			linux,default-trigger = "none";
 		};
 
 		usr {
 			label = "devkit8000::led3";
-			gpios = <&gpio6 4 0>;	/* 164 -> LED3 */
+			gpios = <&gpio6 4 GPIO_ACTIVE_HIGH>;	/* 164 -> LED3 */
 			default-state = "on";
 			linux,default-trigger = "usr";
                 };

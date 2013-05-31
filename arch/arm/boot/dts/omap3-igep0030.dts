@@ -19,25 +19,25 @@
 		compatible = "gpio-leds";
 		boot {
 			 label = "omap3:green:boot";
-			 gpios = <&twl_gpio 13 1>;
+			 gpios = <&twl_gpio 13 GPIO_ACTIVE_LOW>;
 			 default-state = "on";
 		};
 
 		user0 {
 			 label = "omap3:red:user0";
-			 gpios = <&twl_gpio 18 1>; /* LEDA */
+			 gpios = <&twl_gpio 18 GPIO_ACTIVE_LOW>; /* LEDA */
 			 default-state = "off";
 		};
 
 		user1 {
 			 label = "omap3:green:user1";
-			 gpios = <&twl_gpio 19 1>; /* LEDB */
+			 gpios = <&twl_gpio 19 GPIO_ACTIVE_LOW>; /* LEDB */
 			 default-state = "off";
 		};
 
 		user2 {
 			 label = "omap3:red:user1";
-			 gpios = <&gpio1 16 1>;
+			 gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 			 default-state = "off";
 		};
 	};

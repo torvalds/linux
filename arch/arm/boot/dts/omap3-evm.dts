@@ -28,7 +28,7 @@
 		compatible = "gpio-leds";
 		ledb {
 			label = "omap3evm::ledb";
-			gpios = <&twl_gpio 19 0>; /* LEDB */
+			gpios = <&twl_gpio 19 GPIO_ACTIVE_HIGH>; /* LEDB */
 			linux,default-trigger = "default-on";
 		};
 	};
