@@ -1572,10 +1572,6 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 {
 	int ret = -EINVAL;
 
-	policy = cpufreq_cpu_get(policy->cpu);
-	if (!policy)
-		goto no_policy;
-
 	if (unlikely(lock_policy_rwsem_write(policy->cpu)))
 		goto fail;
 
@@ -1584,30 +1580,19 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 	unlock_policy_rwsem_write(policy->cpu);
 
 fail:
-	cpufreq_cpu_put(policy);
-no_policy:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_target);
 
 int __cpufreq_driver_getavg(struct cpufreq_policy *policy, unsigned int cpu)
 {
-	int ret = 0;
-
 	if (cpufreq_disabled())
-		return ret;
+		return 0;
 
 	if (!cpufreq_driver->getavg)
 		return 0;
 
-	policy = cpufreq_cpu_get(policy->cpu);
-	if (!policy)
-		return -EINVAL;
-
-	ret = cpufreq_driver->getavg(policy, cpu);
-
-	cpufreq_cpu_put(policy);
-	return ret;
+	return cpufreq_driver->getavg(policy, cpu);
 }
 EXPORT_SYMBOL_GPL(__cpufreq_driver_getavg);
 
