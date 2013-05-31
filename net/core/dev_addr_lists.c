@@ -39,6 +39,7 @@ static int __hw_addr_create_ex(struct netdev_hw_addr_list *list,
 	ha->refcount = 1;
 	ha->global_use = global;
 	ha->synced = sync;
+	ha->sync_cnt = 0;
 	list_add_tail_rcu(&ha->list, &list->list);
 	list->count++;
 
