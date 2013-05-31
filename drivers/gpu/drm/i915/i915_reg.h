@@ -3100,6 +3100,10 @@
 #define WM3S_LP_IVB		0x45128
 #define  WM1S_LP_EN		(1<<31)
 
+#define HSW_WM_LP_VAL(lat, fbc, pri, cur) \
+	(WM3_LP_EN | ((lat) << WM1_LP_LATENCY_SHIFT) | \
+	 ((fbc) << WM1_LP_FBC_SHIFT) | ((pri) << WM1_LP_SR_SHIFT) | (cur))
+
 /* Memory latency timer register */
 #define MLTR_ILK		0x11222
 #define  MLTR_WM1_SHIFT		0
