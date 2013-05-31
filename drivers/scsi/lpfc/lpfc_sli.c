@@ -16286,7 +16286,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 	union lpfc_wqe wqe;
 	int txq_cnt = 0;
 
-	spin_lock_irqsave(&phba->hbalock, iflags);
+	spin_lock_irqsave(&pring->ring_lock, iflags);
 	list_for_each_entry(piocbq, &pring->txq, list) {
 		txq_cnt++;
 	}
@@ -16294,14 +16294,14 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 	if (txq_cnt > pring->txq_max)
 		pring->txq_max = txq_cnt;
 
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	spin_unlock_irqrestore(&pring->ring_lock, iflags);
 
 	while (!list_empty(&pring->txq)) {
-		spin_lock_irqsave(&phba->hbalock, iflags);
+		spin_lock_irqsave(&pring->ring_lock, iflags);
 
 		piocbq = lpfc_sli_ringtx_get(phba, pring);
 		if (!piocbq) {
-			spin_unlock_irqrestore(&phba->hbalock, iflags);
+			spin_unlock_irqrestore(&pring->ring_lock, iflags);
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"2823 txq empty and txq_cnt is %d\n ",
 				txq_cnt);
@@ -16310,7 +16310,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		sglq = __lpfc_sli_get_sglq(phba, piocbq);
 		if (!sglq) {
 			__lpfc_sli_ringtx_put(phba, pring, piocbq);
-			spin_unlock_irqrestore(&phba->hbalock, iflags);
+			spin_unlock_irqrestore(&pring->ring_lock, iflags);
 			break;
 		}
 		txq_cnt--;
@@ -16338,7 +16338,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 					piocbq->iotag, piocbq->sli4_xritag);
 			list_add_tail(&piocbq->list, &completions);
 		}
-		spin_unlock_irqrestore(&phba->hbalock, iflags);
+		spin_unlock_irqrestore(&pring->ring_lock, iflags);
 	}
 
 	/* Cancel all the IOCBs that cannot be issued */
