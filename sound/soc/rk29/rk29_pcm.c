@@ -149,7 +149,6 @@ static void rockchip_pcm_enqueue(struct snd_pcm_substream *substream)
 				DBG("size = 1, channel = %d, flag = %d\n",prtd->params->channel,prtd->params->flag);
 			}
 
-
 			ret = rk29_dma_enqueue(prtd->params->channel,substream, pos, len);
 	//		if(prtd->params->channel == 2)
 				DBG("Enter::%s, %d, ret=%d, Channel=%d, Addr=0x%X, Len=%lu\n",
@@ -277,12 +276,14 @@ static int rockchip_pcm_hw_params(struct snd_pcm_substream *substream,
 	prtd->dma_period = params_period_bytes(params);
 	prtd->dma_start = runtime->dma_addr;
 	prtd->dma_pos = prtd->dma_start;
-	prtd->dma_end = prtd->dma_start + totbytes;
+	prtd->dma_end = prtd->dma_start + prtd->dma_limit*prtd->dma_period;
 	prtd->transfer_first = 1;
 	prtd->curr = NULL;
 	prtd->next = NULL;
 	prtd->end = NULL;
 	spin_unlock_irq(&prtd->lock);
+	printk(KERN_DEBUG "i2s dma info:periodsize(%ld),limit(%d),buffersize(%d),over(%d)\n",
+			prtd->dma_period,prtd->dma_limit,totbytes,totbytes-(prtd->dma_period*prtd->dma_limit));
 	return ret;
 }
 
