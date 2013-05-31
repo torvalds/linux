@@ -108,7 +108,7 @@ void __init vexpress_clk_of_register_spc(void)
 	const u32 *val;
 	int cluster_id = 0, len;
 
-	if (!of_find_compatible_node(NULL, NULL, "arm,spc")) {
+	if (!of_find_compatible_node(NULL, NULL, "arm,vexpress-spc")) {
 		pr_debug("%s: No SPC found, Exiting!!\n", __func__);
 		return;
 	}
@@ -127,5 +127,5 @@ void __init vexpress_clk_of_register_spc(void)
 		clk_register_clkdev(clk, NULL, name);
 	}
 }
-CLK_OF_DECLARE(spc, "arm,spc", vexpress_clk_of_register_spc);
+CLK_OF_DECLARE(spc, "arm,vexpress-spc", vexpress_clk_of_register_spc);
 #endif
