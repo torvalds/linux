@@ -136,6 +136,7 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 		spec->codec_type = VT1708S;
 	spec->no_pin_power_ctl = 1;
 	spec->gen.indep_hp = 1;
+	spec->gen.keep_eapd_on = 1;
 	spec->gen.pcm_playback_hook = via_playback_pcm_hook;
 	return spec;
 }
