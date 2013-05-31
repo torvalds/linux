@@ -444,7 +444,6 @@ struct lpfc_vector_map_info {
 	struct cpumask	maskbits;
 };
 #define LPFC_VECTOR_MAP_EMPTY	0xffff
-#define LPFC_MAX_CPU		256
 
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hba {

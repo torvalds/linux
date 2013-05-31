@@ -60,7 +60,8 @@ unsigned long _dump_buf_dif_order;
 spinlock_t _dump_buf_lock;
 
 /* Used when mapping IRQ vectors in a driver centric manner */
-uint16_t lpfc_used_cpu[LPFC_MAX_CPU];
+uint16_t *lpfc_used_cpu;
+uint32_t lpfc_present_cpu;
 
 static void lpfc_get_hba_model_desc(struct lpfc_hba *, uint8_t *, uint8_t *);
 static int lpfc_post_rcv_buf(struct lpfc_hba *);
@@ -5213,6 +5214,21 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		rc = -ENOMEM;
 		goto out_free_msix;
 	}
+	if (lpfc_used_cpu == NULL) {
+		lpfc_used_cpu = kzalloc((sizeof(uint16_t) * lpfc_present_cpu),
+					 GFP_KERNEL);
+		if (!lpfc_used_cpu) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3335 Failed allocate memory for msi-x "
+					"interrupt vector mapping\n");
+			kfree(phba->sli4_hba.cpu_map);
+			rc = -ENOMEM;
+			goto out_free_msix;
+		}
+		for (i = 0; i < lpfc_present_cpu; i++)
+			lpfc_used_cpu[i] = LPFC_VECTOR_MAP_EMPTY;
+	}
+
 	/* Initialize io channels for round robin */
 	cpup = phba->sli4_hba.cpu_map;
 	rc = 0;
@@ -6824,8 +6840,6 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 	int cfg_fcp_io_channel;
 	uint32_t cpu;
 	uint32_t i = 0;
-	uint32_t j = 0;
-
 
 	/*
 	 * Sanity check for configured queue parameters against the run-time
@@ -6839,10 +6853,9 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 	for_each_present_cpu(cpu) {
 		if (cpu_online(cpu))
 			i++;
-		j++;
 	}
 	phba->sli4_hba.num_online_cpu = i;
-	phba->sli4_hba.num_present_cpu = j;
+	phba->sli4_hba.num_present_cpu = lpfc_present_cpu;
 
 	if (i < cfg_fcp_io_channel) {
 		lpfc_printf_log(phba,
@@ -10967,8 +10980,10 @@ lpfc_init(void)
 	}
 
 	/* Initialize in case vector mapping is needed */
-	for (cpu = 0; cpu < LPFC_MAX_CPU; cpu++)
-		lpfc_used_cpu[cpu] = LPFC_VECTOR_MAP_EMPTY;
+	lpfc_used_cpu = NULL;
+	lpfc_present_cpu = 0;
+	for_each_present_cpu(cpu)
+		lpfc_present_cpu++;
 
 	error = pci_register_driver(&lpfc_driver);
 	if (error) {
@@ -11008,6 +11023,7 @@ lpfc_exit(void)
 				(1L << _dump_buf_dif_order), _dump_buf_dif);
 		free_pages((unsigned long)_dump_buf_dif, _dump_buf_dif_order);
 	}
+	kfree(lpfc_used_cpu);
 }
 
 module_init(lpfc_init);
