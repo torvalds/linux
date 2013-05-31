@@ -93,40 +93,50 @@ static void __init omap3_stalker_display_init(void)
 {
 	return;
 }
+static struct connector_dvi_platform_data omap3stalker_dvi_connector_pdata = {
+	.name                   = "dvi",
+	.source                 = "tfp410.0",
+	.i2c_bus_num            = -1,
+};
 
-static struct omap_dss_device omap3_stalker_tv_device = {
-	.name			= "tv",
-	.driver_name		= "venc",
-	.type			= OMAP_DISPLAY_TYPE_VENC,
+static struct platform_device omap3stalker_dvi_connector_device = {
+	.name                   = "connector-dvi",
+	.id                     = 0,
+	.dev.platform_data      = &omap3stalker_dvi_connector_pdata,
+};
+
+static struct encoder_tfp410_platform_data omap3stalker_tfp410_pdata = {
+	.name                   = "tfp410.0",
+	.source                 = "dpi.0",
+	.data_lines             = 24,
+	.power_down_gpio        = DSS_ENABLE_GPIO,
+};
+
+static struct platform_device omap3stalker_tfp410_device = {
+	.name                   = "tfp410",
+	.id                     = 0,
+	.dev.platform_data      = &omap3stalker_tfp410_pdata,
+};
+
+static struct connector_atv_platform_data omap3stalker_tv_pdata = {
+	.name = "tv",
+	.source = "venc.0",
 #if defined(CONFIG_OMAP2_VENC_OUT_TYPE_SVIDEO)
-	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
+	.connector_type = OMAP_DSS_VENC_TYPE_SVIDEO,
 #elif defined(CONFIG_OMAP2_VENC_OUT_TYPE_COMPOSITE)
-	.u.venc.type		= OMAP_DSS_VENC_TYPE_COMPOSITE,
+	.connector_type = OMAP_DSS_VENC_TYPE_COMPOSITE,
 #endif
+	.invert_polarity = false,
 };
 
-static struct tfp410_platform_data dvi_panel = {
-	.power_down_gpio	= DSS_ENABLE_GPIO,
-	.i2c_bus_num		= -1,
-};
-
-static struct omap_dss_device omap3_stalker_dvi_device = {
-	.name			= "dvi",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "tfp410",
-	.data			= &dvi_panel,
-	.phy.dpi.data_lines	= 24,
-};
-
-static struct omap_dss_device *omap3_stalker_dss_devices[] = {
-	&omap3_stalker_tv_device,
-	&omap3_stalker_dvi_device,
+static struct platform_device omap3stalker_tv_connector_device = {
+	.name                   = "connector-analog-tv",
+	.id                     = 0,
+	.dev.platform_data      = &omap3stalker_tv_pdata,
 };
 
 static struct omap_dss_board_info omap3_stalker_dss_data = {
-	.num_devices	= ARRAY_SIZE(omap3_stalker_dss_devices),
-	.devices	= omap3_stalker_dss_devices,
-	.default_device	= &omap3_stalker_dvi_device,
+	.default_display_name = "dvi",
 };
 
 static struct regulator_consumer_supply omap3stalker_vmmc1_supply[] = {
@@ -356,6 +366,9 @@ static struct usbhs_phy_data phy_data[] __initdata = {
 
 static struct platform_device *omap3_stalker_devices[] __initdata = {
 	&keys_gpio,
+	&omap3stalker_tfp410_device,
+	&omap3stalker_dvi_connector_device,
+	&omap3stalker_tv_connector_device,
 };
 
 static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
