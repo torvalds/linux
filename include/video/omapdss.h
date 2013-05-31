@@ -250,19 +250,6 @@ struct rfbi_timings {
 	int converted;
 };
 
-void omap_rfbi_write_command(const void *buf, u32 len);
-void omap_rfbi_read_data(void *buf, u32 len);
-void omap_rfbi_write_data(const void *buf, u32 len);
-void omap_rfbi_write_pixels(const void __iomem *buf, int scr_width,
-		u16 x, u16 y,
-		u16 w, u16 h);
-int omap_rfbi_enable_te(bool enable, unsigned line);
-int omap_rfbi_setup_te(enum omap_rfbi_te_mode mode,
-			     unsigned hs_pulse_time, unsigned vs_pulse_time,
-			     int hs_pol_inv, int vs_pol_inv, int extif_div);
-void rfbi_bus_lock(void);
-void rfbi_bus_unlock(void);
-
 /* DSI */
 
 enum omap_dss_dsi_trans_mode {
@@ -986,19 +973,6 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 
 #define to_dss_driver(x) container_of((x), struct omap_dss_driver, driver)
 #define to_dss_device(x) container_of((x), struct omap_dss_device, old_dev)
-
-int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev);
-void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev);
-int omap_rfbi_update(struct omap_dss_device *dssdev, void (*callback)(void *),
-		void *data);
-int omap_rfbi_configure(struct omap_dss_device *dssdev);
-void omapdss_rfbi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h);
-void omapdss_rfbi_set_pixel_size(struct omap_dss_device *dssdev,
-		int pixel_size);
-void omapdss_rfbi_set_data_lines(struct omap_dss_device *dssdev,
-		int data_lines);
-void omapdss_rfbi_set_interface_timings(struct omap_dss_device *dssdev,
-		struct rfbi_timings *timings);
 
 int omapdss_compat_init(void);
 void omapdss_compat_uninit(void);
