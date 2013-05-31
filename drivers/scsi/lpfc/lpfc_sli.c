@@ -10092,12 +10092,13 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 			 uint32_t timeout)
 {
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(done_q);
+	MAILBOX_t *mb = NULL;
 	int retval;
 	unsigned long flag;
 
-	/* The caller must leave context1 empty. */
+	/* The caller might set context1 for extended buffer */
 	if (pmboxq->context1)
-		return MBX_NOT_FINISHED;
+		mb = (MAILBOX_t *)pmboxq->context1;
 
 	pmboxq->mbox_flag &= ~LPFC_MBX_WAKE;
 	/* setup wake call as IOCB callback */
@@ -10113,7 +10114,8 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 				msecs_to_jiffies(timeout * 1000));
 
 		spin_lock_irqsave(&phba->hbalock, flag);
-		pmboxq->context1 = NULL;
+		/* restore the possible extended buffer for free resource */
+		pmboxq->context1 = (uint8_t *)mb;
 		/*
 		 * if LPFC_MBX_WAKE flag is set the mailbox is completed
 		 * else do not free the resources.
@@ -10126,6 +10128,9 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		}
 		spin_unlock_irqrestore(&phba->hbalock, flag);
+	} else {
+		/* restore the possible extended buffer for free resource */
+		pmboxq->context1 = (uint8_t *)mb;
 	}
 
 	return retval;
