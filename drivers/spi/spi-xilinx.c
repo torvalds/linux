@@ -534,7 +534,6 @@ static int xilinx_spi_probe(struct platform_device *dev)
 static int xilinx_spi_remove(struct platform_device *dev)
 {
 	xilinx_spi_deinit(platform_get_drvdata(dev));
-	platform_set_drvdata(dev, 0);
 
 	return 0;
 }
