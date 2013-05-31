@@ -41,7 +41,7 @@
 
 static wait_queue_head_t        eint_wait;
 static struct work_struct       rda_bt_event_work;
-static struct workqueue_struct *rda_bt_workqueue;
+//static struct workqueue_struct *rda_bt_workqueue;
 
 static int irq_num  = -1;
 static int eint_gen;
@@ -49,24 +49,28 @@ static int eint_mask;
 static struct class *bt_dev_class;
 static struct mutex  sem;
 static struct tcc_bt_platform_data *tcc_bt_pdata = NULL;
+static int irq_flag = 0;
 
 
 static void rda_bt_enable_irq(void)
 {
-    if(irq_num != -1) 
+    if((irq_num != -1) && (irq_flag == 0))
     {
         enable_irq(irq_num);
+        irq_flag = 1;
     }
 }
 
 static void rda_bt_disable_irq(void)
 {
-    if(irq_num != -1)
+    if((irq_num != -1) && (irq_flag == 1))
     {	
         disable_irq_nosync(irq_num);
-    }        
+        irq_flag = 0;
+    }       
 }
 
+#if 0
 static void rda_bt_work_fun(struct work_struct *work)
 {
     struct hci_dev *hdev = NULL;
@@ -87,7 +91,7 @@ static void rda_bt_work_fun(struct work_struct *work)
     
     rda_bt_enable_irq();
 }
-
+#endif
 
 static int tcc_bt_dev_open(struct inode *inode, struct file *file)
 {
@@ -141,13 +145,13 @@ static int tcc_bt_power_control(int on_off)
     {	    
      	 gpio_direction_output(tcc_bt_pdata->power_gpio.io, tcc_bt_pdata->power_gpio.enable);
     	 msleep(500);
-        enable_irq(irq_num); 
+         rda_bt_enable_irq();
     }
     else
     {
       	gpio_direction_output(tcc_bt_pdata->power_gpio.io, !tcc_bt_pdata->power_gpio.enable);
-    	disable_irq(irq_num);
-       msleep(500);
+    	rda_bt_disable_irq();
+        msleep(500);
     }
 
     return 0;
@@ -176,7 +180,7 @@ static long  tcc_bt_dev_ioctl(struct file *file, unsigned int cmd,unsigned long 
 		
         case IOCTL_BT_SET_EINT:
         {
-	        if (copy_from_user(&rate, argp, sizeof(rate)))
+	    if (copy_from_user(&rate, argp, sizeof(rate)))
                 return -EFAULT;
             printk("[## BT ##] IOCTL_BT_SET_EINT cmd[%d].\n", cmd);
             mutex_lock(&sem); 
@@ -223,17 +227,13 @@ struct wake_lock rda_bt_wakelock;
 static irqreturn_t rda_bt_host_wake_irq(int irq, void *dev)
 {
     printk("rda_bt_host_wake_irq.\n");
-	
+    rda_bt_disable_irq();	
+
 #ifdef HOST_WAKE_DELAY
     wake_lock_timeout(&rda_bt_wakelock, 3 * HZ); 
 #endif
 
-    if(irq_num != -1) 
-    {	
-        disable_irq_nosync(irq_num);
-    }   
-
-#ifdef CONFIG_BT_HCIUART
+#if 0 //CONFIG_BT_HCIUART
     if(rda_bt_workqueue)
         queue_work(rda_bt_workqueue, &rda_bt_event_work);
 #else
@@ -242,7 +242,7 @@ static irqreturn_t rda_bt_host_wake_irq(int irq, void *dev)
     wake_up_interruptible(&eint_wait);
     /* Send host wakeup command in user space, enable irq then */
 #endif
-   
+    
     return IRQ_HANDLED;
 }
 
@@ -254,7 +254,7 @@ static int tcc_bt_probe(struct platform_device *pdev)
     
     printk("tcc_bt_probe.\n");
     if(pdata == NULL) {
-    	printk("mt6622_probe failed.\n");
+    	printk("tcc_bt_probe failed.\n");
     	return -1;
     }
     tcc_bt_pdata = pdata;
@@ -289,6 +289,9 @@ static int tcc_bt_probe(struct platform_device *pdev)
         goto error;
     }
 
+    enable_irq_wake(irq_num);
+    irq_flag = 1;
+    rda_bt_disable_irq();
 
     mutex_init(&sem);	
     printk("[## BT ##] init_module\n");
@@ -310,18 +313,18 @@ static int tcc_bt_probe(struct platform_device *pdev)
     device_create(bt_dev_class, NULL, MKDEV(BT_DEV_MAJOR_NUM, BT_DEV_MINOR_NUM), NULL, DEV_NAME);
 
     init_waitqueue_head(&eint_wait);
-    
+   
+    /*
     INIT_WORK(&rda_bt_event_work, rda_bt_work_fun);
-    
     rda_bt_workqueue = create_singlethread_workqueue("rda_bt");
-    
     if (!rda_bt_workqueue)
     {
         printk("create_singlethread_workqueue failed.\n");
         ret = -ESRCH;
         goto error;
-    }  
-
+    } 
+    */
+ 
     return 0;
     
 error:
@@ -333,12 +336,13 @@ error:
 static int tcc_bt_remove(struct platform_device *pdev)
 {
     printk("[## BT ##] cleanup_module.\n");
+    free_irq(irq_num, NULL);
     unregister_chrdev(BT_DEV_MAJOR_NUM, DEV_NAME);
     if(tcc_bt_pdata)
         tcc_bt_pdata = NULL;
 
     cancel_work_sync(&rda_bt_event_work);
-    destroy_workqueue(rda_bt_workqueue);    
+    //destroy_workqueue(rda_bt_workqueue);    
     
 #ifdef HOST_WAKE_DELAY    
     wake_lock_destroy(&rda_bt_wakelock);
