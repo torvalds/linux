@@ -30,8 +30,8 @@
 
 #define FREQ_MUL 16000
 
-#define TEF6862_LO_FREQ (875 * FREQ_MUL / 10)
-#define TEF6862_HI_FREQ (108 * FREQ_MUL)
+#define TEF6862_LO_FREQ (875U * FREQ_MUL / 10)
+#define TEF6862_HI_FREQ (108U * FREQ_MUL)
 
 /* Write mode sub addresses */
 #define WM_SUB_BANDWIDTH	0x0
@@ -104,6 +104,7 @@ static int tef6862_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequen
 {
 	struct tef6862_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	unsigned freq = f->frequency;
 	u16 pll;
 	u8 i2cmsg[3];
 	int err;
@@ -111,7 +112,8 @@ static int tef6862_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequen
 	if (f->tuner != 0)
 		return -EINVAL;
 
-	pll = 1964 + ((f->frequency - TEF6862_LO_FREQ) * 20) / FREQ_MUL;
+	clamp(freq, TEF6862_LO_FREQ, TEF6862_HI_FREQ);
+	pll = 1964 + ((freq - TEF6862_LO_FREQ) * 20) / FREQ_MUL;
 	i2cmsg[0] = (MODE_PRESET << MODE_SHIFT) | WM_SUB_PLLM;
 	i2cmsg[1] = (pll >> 8) & 0xff;
 	i2cmsg[2] = pll & 0xff;
@@ -120,7 +122,7 @@ static int tef6862_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequen
 	if (err != sizeof(i2cmsg))
 		return err < 0 ? err : -EIO;
 
-	state->freq = f->frequency;
+	state->freq = freq;
 	return 0;
 }
 
