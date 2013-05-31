@@ -3860,6 +3860,11 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 		dev_priv->mm.interruptible = was_interruptible;
 	}
 
+	/* Stolen objects don't hold a ref, but do hold pin count. Fix that up
+	 * before progressing. */
+	if (obj->stolen)
+		i915_gem_object_unpin_pages(obj);
+
 	obj->pages_pin_count = 0;
 	i915_gem_object_put_pages(obj);
 	i915_gem_object_free_mmap_offset(obj);
