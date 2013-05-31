@@ -77,36 +77,12 @@ static int timbradio_vidioc_g_frequency(struct file *file, void *priv,
 	return v4l2_subdev_call(tr->sd_tuner, tuner, g_frequency, f);
 }
 
-static int timbradio_vidioc_queryctrl(struct file *file, void *priv,
-	struct v4l2_queryctrl *qc)
-{
-	struct timbradio *tr = video_drvdata(file);
-	return v4l2_subdev_call(tr->sd_dsp, core, queryctrl, qc);
-}
-
-static int timbradio_vidioc_g_ctrl(struct file *file, void *priv,
-	struct v4l2_control *ctrl)
-{
-	struct timbradio *tr = video_drvdata(file);
-	return v4l2_subdev_call(tr->sd_dsp, core, g_ctrl, ctrl);
-}
-
-static int timbradio_vidioc_s_ctrl(struct file *file, void *priv,
-	struct v4l2_control *ctrl)
-{
-	struct timbradio *tr = video_drvdata(file);
-	return v4l2_subdev_call(tr->sd_dsp, core, s_ctrl, ctrl);
-}
-
 static const struct v4l2_ioctl_ops timbradio_ioctl_ops = {
 	.vidioc_querycap	= timbradio_vidioc_querycap,
 	.vidioc_g_tuner		= timbradio_vidioc_g_tuner,
 	.vidioc_s_tuner		= timbradio_vidioc_s_tuner,
 	.vidioc_g_frequency	= timbradio_vidioc_g_frequency,
 	.vidioc_s_frequency	= timbradio_vidioc_s_frequency,
-	.vidioc_queryctrl	= timbradio_vidioc_queryctrl,
-	.vidioc_g_ctrl		= timbradio_vidioc_g_ctrl,
-	.vidioc_s_ctrl		= timbradio_vidioc_s_ctrl
 };
 
 static const struct v4l2_file_operations timbradio_fops = {
