@@ -1522,6 +1522,8 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	for (i = 0; i < numops; i++)
 		req->r_reply_op_result[i] = ceph_decode_32(&p);
 
+	already_completed = req->r_got_reply;
+
 	if (!req->r_got_reply) {
 
 		req->r_result = result;
@@ -1552,16 +1554,14 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	    ((flags & CEPH_OSD_FLAG_WRITE) == 0))
 		__unregister_request(osdc, req);
 
-	already_completed = req->r_completed;
-	req->r_completed = 1;
 	mutex_unlock(&osdc->request_mutex);
-	if (already_completed)
-		goto done;
 
-	if (req->r_callback)
-		req->r_callback(req, msg);
-	else
-		complete_all(&req->r_completion);
+	if (!already_completed) {
+		if (req->r_callback)
+			req->r_callback(req, msg);
+		else
+			complete_all(&req->r_completion);
+	}
 
 	if (flags & CEPH_OSD_FLAG_ONDISK)
 		complete_request(req);
@@ -2121,7 +2121,6 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 	__register_request(osdc, req);
 	req->r_sent = 0;
 	req->r_got_reply = 0;
-	req->r_completed = 0;
 	rc = __map_request(osdc, req, 0);
 	if (rc < 0) {
 		if (nofail) {
