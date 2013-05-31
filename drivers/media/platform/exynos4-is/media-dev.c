@@ -804,8 +804,6 @@ static int fimc_md_pdev_match(struct device *dev, void *data)
 
 	if (!strcmp(pdev->name, CSIS_DRIVER_NAME)) {
 		plat_entity = IDX_CSIS;
-	} else if (!strcmp(pdev->name, FIMC_LITE_DRV_NAME)) {
-		plat_entity = IDX_FLITE;
 	} else {
 		p = strstr(pdev->name, "fimc");
 		if (p && *(p + 4) == 0)
