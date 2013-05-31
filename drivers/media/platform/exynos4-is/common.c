@@ -38,4 +38,16 @@ struct v4l2_subdev *fimc_find_remote_sensor(struct media_entity *entity)
 }
 EXPORT_SYMBOL(fimc_find_remote_sensor);
 
+void __fimc_vidioc_querycap(struct device *dev, struct v4l2_capability *cap,
+						unsigned int caps)
+{
+	strlcpy(cap->driver, dev->driver->name, sizeof(cap->driver));
+	strlcpy(cap->card, dev->driver->name, sizeof(cap->card));
+	snprintf(cap->bus_info, sizeof(cap->bus_info),
+				"platform:%s", dev_name(dev));
+	cap->device_caps = caps;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+}
+EXPORT_SYMBOL(__fimc_vidioc_querycap);
+
 MODULE_LICENSE("GPL");
