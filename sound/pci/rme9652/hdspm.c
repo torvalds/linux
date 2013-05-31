@@ -1091,6 +1091,26 @@ static int hdspm_round_frequency(int rate)
 		return 48000;
 }
 
+/* QS and DS rates normally can not be detected
+ * automatically by the card. Only exception is MADI
+ * in 96k frame mode.
+ *
+ * So if we read SS values (32 .. 48k), check for
+ * user-provided DS/QS bits in the control register
+ * and multiply the base frequency accordingly.
+ */
+static int hdspm_rate_multiplier(struct hdspm *hdspm, int rate)
+{
+	if (rate <= 48000) {
+		if (hdspm->control_register & HDSPM_QuadSpeed)
+			return rate * 4;
+		else if (hdspm->control_register &
+				HDSPM_DoubleSpeed)
+			return rate * 2;
+	};
+	return rate;
+}
+
 static int hdspm_tco_sync_check(struct hdspm *hdspm);
 static int hdspm_sync_in_sync_check(struct hdspm *hdspm);
 
@@ -1268,21 +1288,8 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 			}
 		}
 
-		/* QS and DS rates normally can not be detected
-		 * automatically by the card. Only exception is MADI
-		 * in 96k frame mode.
-		 *
-		 * So if we read SS values (32 .. 48k), check for
-		 * user-provided DS/QS bits in the control register
-		 * and multiply the base frequency accordingly.
-		 */
-		if (rate <= 48000) {
-			if (hdspm->control_register & HDSPM_QuadSpeed)
-				rate *= 4;
-			else if (hdspm->control_register &
-					HDSPM_DoubleSpeed)
-				rate *= 2;
-		}
+		rate = hdspm_rate_multiplier(hdspm, rate);
+
 		break;
 	}
 
