@@ -241,14 +241,14 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
 	struct victim_sel_policy p;
-	unsigned int secno;
+	unsigned int secno, max_cost;
 	int nsearched = 0;
 
 	p.alloc_mode = alloc_mode;
 	select_policy(sbi, gc_type, type, &p);
 
 	p.min_segno = NULL_SEGNO;
-	p.min_cost = get_max_cost(sbi, &p);
+	p.min_cost = max_cost = get_max_cost(sbi, &p);
 
 	mutex_lock(&dirty_i->seglist_lock);
 
@@ -287,7 +287,7 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 			p.min_cost = cost;
 		}
 
-		if (cost == get_max_cost(sbi, &p))
+		if (cost == max_cost)
 			continue;
 
 		if (nsearched++ >= MAX_VICTIM_SEARCH) {
@@ -295,8 +295,8 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 			break;
 		}
 	}
-got_it:
 	if (p.min_segno != NULL_SEGNO) {
+got_it:
 		if (p.alloc_mode == LFS) {
 			secno = GET_SECNO(sbi, p.min_segno);
 			if (gc_type == FG_GC)
