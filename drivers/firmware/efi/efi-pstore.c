@@ -79,10 +79,9 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 			   &entry->var.DataSize, entry->var.Data);
 	size = entry->var.DataSize;
 
-	*cb_data->buf = kmalloc(size, GFP_KERNEL);
+	*cb_data->buf = kmemdup(entry->var.Data, size, GFP_KERNEL);
 	if (*cb_data->buf == NULL)
 		return -ENOMEM;
-	memcpy(*cb_data->buf, entry->var.Data, size);
 	return size;
 }
 
