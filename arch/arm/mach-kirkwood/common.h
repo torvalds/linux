@@ -121,6 +121,12 @@ void km_kirkwood_init(void);
 static inline void km_kirkwood_init(void) {};
 #endif
 
+#ifdef CONFIG_MACH_DB88F628X_BP_DT
+void db88f628x_init(void);
+#else
+static inline void db88f628x_init(void) {};
+#endif
+
 #ifdef CONFIG_MACH_MPLCEC4_DT
 void mplcec4_init(void);
 #else

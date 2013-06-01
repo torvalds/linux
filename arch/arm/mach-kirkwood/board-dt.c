@@ -144,6 +144,10 @@ static void __init kirkwood_dt_init(void)
 	    of_machine_is_compatible("lacie,netspace_v2"))
 		ns2_init();
 
+	if (of_machine_is_compatible("marvell,db-88f6281-bp") ||
+	    of_machine_is_compatible("marvell,db-88f6282-bp"))
+		db88f628x_init();
+
 	if (of_machine_is_compatible("mpl,cec4"))
 		mplcec4_init();
 
@@ -178,6 +182,8 @@ static const char * const kirkwood_dt_board_compat[] = {
 	"lacie,netspace_max_v2",
 	"lacie,netspace_mini_v2",
 	"lacie,netspace_v2",
+	"marvell,db-88f6281-bp",
+	"marvell,db-88f6282-bp",
 	"mpl,cec4",
 	"netgear,readynas-duo-v2",
 	"plathome,openblocks-a6",

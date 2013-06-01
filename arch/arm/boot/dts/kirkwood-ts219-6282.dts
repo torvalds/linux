@@ -1,7 +1,8 @@
 /dts-v1/;
 
-/include/ "kirkwood-ts219.dtsi"
+/include/ "kirkwood.dtsi"
 /include/ "kirkwood-6282.dtsi"
+/include/ "kirkwood-ts219.dtsi"
 
 / {
 	ocp@f1000000 {

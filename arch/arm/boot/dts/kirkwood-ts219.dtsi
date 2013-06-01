@@ -1,5 +1,3 @@
-/include/ "kirkwood.dtsi"
-
 / {
 	model = "QNAP TS219 family";
 	compatible = "qnap,ts219", "marvell,kirkwood";
@@ -73,6 +71,13 @@
 		sata@80000 {
 			status = "okay";
 			nr-ports = <2>;
+		};
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
 		};
 	};
 };
