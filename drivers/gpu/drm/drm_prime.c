@@ -297,7 +297,7 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 
 	attach = dma_buf_attach(dma_buf, dev->dev);
 	if (IS_ERR(attach))
-		return ERR_PTR(PTR_ERR(attach));
+		return ERR_CAST(attach);
 
 	get_dma_buf(dma_buf);
 
