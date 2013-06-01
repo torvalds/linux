@@ -3999,8 +3999,7 @@ retry:
 	link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
 
 	fdi_dotclock = adjusted_mode->clock;
-	if (pipe_config->pixel_multiplier > 1)
-		fdi_dotclock /= pipe_config->pixel_multiplier;
+	fdi_dotclock /= pipe_config->pixel_multiplier;
 
 	lane = ironlake_get_lanes_required(fdi_dotclock, link_bw,
 					   pipe_config->pipe_bpp);
@@ -4454,11 +4453,8 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	if (wait_for(((I915_READ(DPLL(pipe)) & DPLL_LOCK_VLV) == DPLL_LOCK_VLV), 1))
 		DRM_ERROR("DPLL %d failed to lock\n", pipe);
 
-	dpll_md = 0;
-	if (crtc->config.pixel_multiplier > 1) {
-		dpll_md = (crtc->config.pixel_multiplier - 1)
-			<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
-	}
+	dpll_md = (crtc->config.pixel_multiplier - 1)
+		<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
 	I915_WRITE(DPLL_MD(pipe), dpll_md);
 	POSTING_READ(DPLL_MD(pipe));
 
@@ -4492,8 +4488,7 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 	else
 		dpll |= DPLLB_MODE_DAC_SERIAL;
 
-	if ((crtc->config.pixel_multiplier > 1) &&
-	    (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))) {
+	if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
 		dpll |= (crtc->config.pixel_multiplier - 1)
 			<< SDVO_MULTIPLIER_SHIFT_HIRES;
 	}
@@ -4556,11 +4551,8 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 	udelay(150);
 
 	if (INTEL_INFO(dev)->gen >= 4) {
-		u32 dpll_md = 0;
-		if (crtc->config.pixel_multiplier > 1) {
-			dpll_md = (crtc->config.pixel_multiplier - 1)
-				<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
-		}
+		u32 dpll_md = (crtc->config.pixel_multiplier - 1)
+			<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
 		I915_WRITE(DPLL_MD(pipe), dpll_md);
 	} else {
 		/* The pixel multiplier can only be updated once the
@@ -5613,10 +5605,8 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	else
 		dpll |= DPLLB_MODE_DAC_SERIAL;
 
-	if (intel_crtc->config.pixel_multiplier > 1) {
-		dpll |= (intel_crtc->config.pixel_multiplier - 1)
-			<< PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
-	}
+	dpll |= (intel_crtc->config.pixel_multiplier - 1)
+		<< PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
 
 	if (is_sdvo)
 		dpll |= DPLL_DVO_HIGH_SPEED;
@@ -7787,8 +7777,9 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		goto fail;
 
 encoder_retry:
-	/* Ensure the port clock default is reset when retrying. */
+	/* Ensure the port clock defaults are reset when retrying. */
 	pipe_config->port_clock = 0;
+	pipe_config->pixel_multiplier = 1;
 
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also

@@ -1219,6 +1219,7 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 
 	switch (intel_crtc->config.pixel_multiplier) {
 	default:
+		WARN(1, "unknown pixel mutlipler specified\n");
 	case 1: rate = SDVO_CLOCK_RATE_MULT_1X; break;
 	case 2: rate = SDVO_CLOCK_RATE_MULT_2X; break;
 	case 4: rate = SDVO_CLOCK_RATE_MULT_4X; break;

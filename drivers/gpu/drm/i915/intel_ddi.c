@@ -1286,7 +1286,6 @@ static void intel_ddi_get_config(struct intel_encoder *encoder,
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
 	pipe_config->adjusted_mode.flags |= flags;
-	pipe_config->pixel_multiplier = 1;
 }
 
 static void intel_ddi_destroy(struct drm_encoder *encoder)
