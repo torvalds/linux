@@ -97,10 +97,13 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 		    int target, int refclk, intel_clock_t *match_clock,
 		    intel_clock_t *best_clock);
 static bool
+intel_pnv_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
+			int target, int refclk, intel_clock_t *match_clock,
+			intel_clock_t *best_clock);
+static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *match_clock,
 			intel_clock_t *best_clock);
-
 static bool
 intel_vlv_find_best_pll(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *match_clock,
@@ -246,7 +249,7 @@ static const intel_limit_t intel_limits_pineview_sdvo = {
 	.p1 = { .min = 1, .max = 8 },
 	.p2 = { .dot_limit = 200000,
 		.p2_slow = 10, .p2_fast = 5 },
-	.find_pll = intel_find_best_PLL,
+	.find_pll = intel_pnv_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_pineview_lvds = {
@@ -260,7 +263,7 @@ static const intel_limit_t intel_limits_pineview_lvds = {
 	.p1 = { .min = 1, .max = 8 },
 	.p2 = { .dot_limit = 112000,
 		.p2_slow = 14, .p2_fast = 14 },
-	.find_pll = intel_find_best_PLL,
+	.find_pll = intel_pnv_find_best_PLL,
 };
 
 /* Ironlake / Sandybridge
@@ -475,12 +478,8 @@ static uint32_t i9xx_dpll_compute_m(struct dpll *dpll)
 	return 5 * (dpll->m1 + 2) + (dpll->m2 + 2);
 }
 
-static void intel_clock(struct drm_device *dev, int refclk, intel_clock_t *clock)
+static void i9xx_clock(int refclk, intel_clock_t *clock)
 {
-	if (IS_PINEVIEW(dev)) {
-		pineview_clock(refclk, clock);
-		return;
-	}
 	clock->m = i9xx_dpll_compute_m(clock);
 	clock->p = clock->p1 * clock->p2;
 	clock->vco = refclk * clock->m / (clock->n + 2);
@@ -541,7 +540,6 @@ static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 		    int target, int refclk, intel_clock_t *match_clock,
 		    intel_clock_t *best_clock)
-
 {
 	struct drm_device *dev = crtc->dev;
 	intel_clock_t clock;
@@ -579,7 +577,69 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 					clock.p1 <= limit->p1.max; clock.p1++) {
 					int this_err;
 
-					intel_clock(dev, refclk, &clock);
+					i9xx_clock(refclk, &clock);
+					if (!intel_PLL_is_valid(dev, limit,
+								&clock))
+						continue;
+					if (match_clock &&
+					    clock.p != match_clock->p)
+						continue;
+
+					this_err = abs(clock.dot - target);
+					if (this_err < err) {
+						*best_clock = clock;
+						err = this_err;
+					}
+				}
+			}
+		}
+	}
+
+	return (err != target);
+}
+
+static bool
+intel_pnv_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
+			int target, int refclk, intel_clock_t *match_clock,
+			intel_clock_t *best_clock)
+{
+	struct drm_device *dev = crtc->dev;
+	intel_clock_t clock;
+	int err = target;
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+		/*
+		 * For LVDS just rely on its current settings for dual-channel.
+		 * We haven't figured out how to reliably set up different
+		 * single/dual channel state, if we even can.
+		 */
+		if (intel_is_dual_link_lvds(dev))
+			clock.p2 = limit->p2.p2_fast;
+		else
+			clock.p2 = limit->p2.p2_slow;
+	} else {
+		if (target < limit->p2.dot_limit)
+			clock.p2 = limit->p2.p2_slow;
+		else
+			clock.p2 = limit->p2.p2_fast;
+	}
+
+	memset(best_clock, 0, sizeof(*best_clock));
+
+	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max;
+	     clock.m1++) {
+		for (clock.m2 = limit->m2.min;
+		     clock.m2 <= limit->m2.max; clock.m2++) {
+			/* m1 is always 0 in Pineview */
+			if (clock.m2 >= clock.m1 && !IS_PINEVIEW(dev))
+				break;
+			for (clock.n = limit->n.min;
+			     clock.n <= limit->n.max; clock.n++) {
+				for (clock.p1 = limit->p1.min;
+					clock.p1 <= limit->p1.max; clock.p1++) {
+					int this_err;
+
+					pineview_clock(refclk, &clock);
 					if (!intel_PLL_is_valid(dev, limit,
 								&clock))
 						continue;
@@ -638,7 +698,7 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 				     clock.p1 >= limit->p1.min; clock.p1--) {
 					int this_err;
 
-					intel_clock(dev, refclk, &clock);
+					i9xx_clock(refclk, &clock);
 					if (!intel_PLL_is_valid(dev, limit,
 								&clock))
 						continue;
@@ -6910,8 +6970,10 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 			return 0;
 		}
 
-		/* XXX: Handle the 100Mhz refclk */
-		intel_clock(dev, 96000, &clock);
+		if (IS_PINEVIEW(dev))
+			pineview_clock(96000, &clock);
+		else
+			i9xx_clock(96000, &clock);
 	} else {
 		bool is_lvds = (pipe == 1) && (I915_READ(LVDS) & LVDS_PORT_EN);
 
@@ -6923,9 +6985,9 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 			if ((dpll & PLL_REF_INPUT_MASK) ==
 			    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
 				/* XXX: might not be 66MHz */
-				intel_clock(dev, 66000, &clock);
+				i9xx_clock(66000, &clock);
 			} else
-				intel_clock(dev, 48000, &clock);
+				i9xx_clock(48000, &clock);
 		} else {
 			if (dpll & PLL_P1_DIVIDE_BY_TWO)
 				clock.p1 = 2;
@@ -6938,7 +7000,7 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 			else
 				clock.p2 = 2;
 
-			intel_clock(dev, 48000, &clock);
+			i9xx_clock(48000, &clock);
 		}
 	}
 
