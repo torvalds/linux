@@ -7,7 +7,7 @@
  * Licensed under GPLv2 or later.
  */
 
-/include/ "at91sam9260.dtsi"
+#include "at91sam9260.dtsi"
 
 / {
 	clocks {

@@ -14,15 +14,11 @@ config ARCH_AT91RM9200
 	select SOC_AT91RM9200
 
 config ARCH_AT91SAM9260
-	bool "AT91SAM9260 or AT91SAM9XE"
+	bool "AT91SAM9260 or AT91SAM9XE or AT91SAM9G20"
 	select SOC_AT91SAM9260
 
 config ARCH_AT91SAM9261
-	bool "AT91SAM9261"
-	select SOC_AT91SAM9261
-
-config ARCH_AT91SAM9G10
-	bool "AT91SAM9G10"
+	bool "AT91SAM9261 or AT91SAM9G10"
 	select SOC_AT91SAM9261
 
 config ARCH_AT91SAM9263
@@ -32,10 +28,6 @@ config ARCH_AT91SAM9263
 config ARCH_AT91SAM9RL
 	bool "AT91SAM9RL"
 	select SOC_AT91SAM9RL
-
-config ARCH_AT91SAM9G20
-	bool "AT91SAM9G20"
-	select SOC_AT91SAM9260
 
 config ARCH_AT91SAM9G45
 	bool "AT91SAM9G45"
@@ -49,6 +41,14 @@ config ARCH_AT91X40
 	select SPARSE_IRQ
 
 endchoice
+
+config ARCH_AT91SAM9G20
+	bool
+	select ARCH_AT91SAM9260
+
+config ARCH_AT91SAM9G10
+	bool
+	select ARCH_AT91SAM9261
 
 # ----------------------------------------------------------
 
@@ -183,12 +183,6 @@ config MACH_AFEB9260
 	  <svn://194.85.238.22/home/users/george/svn/arm9eb>
 	  <http://groups.google.com/group/arm9fpga-evolution-board>
 
-config MACH_USB_A9260
-	bool "CALAO USB-A9260"
-	help
-	  Select this if you are using a Calao Systems USB-A9260.
-	  <http://www.calao-systems.com>
-
 config MACH_QIL_A9260
 	bool "CALAO QIL-A9260 board"
 	help
@@ -206,76 +200,6 @@ config MACH_FLEXIBITY
 	help
 	  Select this if you are using Flexibity Connect board
 	  <http://www.flexibity.com>
-
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT91SAM9261
-
-comment "AT91SAM9261 Board Type"
-
-config MACH_AT91SAM9261EK
-	bool "Atmel AT91SAM9261-EK Evaluation Kit"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Atmel's AT91SAM9261-EK Evaluation Kit.
-	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3820>
-
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT91SAM9G10
-
-comment "AT91SAM9G10 Board Type"
-
-config MACH_AT91SAM9G10EK
-	bool "Atmel AT91SAM9G10-EK Evaluation Kit"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Atmel's AT91SAM9G10-EK Evaluation Kit.
-	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4588>
-
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT91SAM9263
-
-comment "AT91SAM9263 Board Type"
-
-config MACH_AT91SAM9263EK
-	bool "Atmel AT91SAM9263-EK Evaluation Kit"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Atmel's AT91SAM9263-EK Evaluation Kit.
-	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4057>
-
-config MACH_USB_A9263
-	bool "CALAO USB-A9263"
-	help
-	  Select this if you are using a Calao Systems USB-A9263.
-	  <http://www.calao-systems.com>
-
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT91SAM9RL
-
-comment "AT91SAM9RL Board Type"
-
-config MACH_AT91SAM9RLEK
-	bool "Atmel AT91SAM9RL-EK Evaluation Kit"
-	help
-	  Select this if you are using Atmel's AT91SAM9RL-EK Evaluation Kit.
-
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT91SAM9G20
 
 comment "AT91SAM9G20 Board Type"
 
@@ -334,24 +258,64 @@ config MACH_GSIA18S
 	  produced by GeoSIG Ltd company. This is an internet accelerograph.
 	  <http://www.geosig.com>
 
-config MACH_USB_A9G20
-	bool "CALAO USB-A9G20"
-	depends on ARCH_AT91SAM9G20
+config MACH_SNAPPER_9260
+	bool "Bluewater Systems Snapper 9260/9G20 module"
 	help
-	  Select this if you are using a Calao Systems USB-A9G20.
-	  <http://www.calao-systems.com>
+	  Select this if you are using the Bluewater Systems Snapper 9260 or
+	  Snapper 9G20 modules.
+	  <http://www.bluewatersys.com/>
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9261
+
+comment "AT91SAM9261 Board Type"
+
+config MACH_AT91SAM9261EK
+	bool "Atmel AT91SAM9261-EK Evaluation Kit"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using Atmel's AT91SAM9261-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3820>
+
+comment "AT91SAM9G10 Board Type"
+
+config MACH_AT91SAM9G10EK
+	bool "Atmel AT91SAM9G10-EK Evaluation Kit"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using Atmel's AT91SAM9G10-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4588>
 
 endif
 
-if (ARCH_AT91SAM9260 || ARCH_AT91SAM9G20)
-comment "AT91SAM9260/AT91SAM9G20 boards"
+# ----------------------------------------------------------
 
-config MACH_SNAPPER_9260
-        bool "Bluewater Systems Snapper 9260/9G20 module"
-        help
-          Select this if you are using the Bluewater Systems Snapper 9260 or
-          Snapper 9G20 modules.
-          <http://www.bluewatersys.com/>
+if ARCH_AT91SAM9263
+
+comment "AT91SAM9263 Board Type"
+
+config MACH_AT91SAM9263EK
+	bool "Atmel AT91SAM9263-EK Evaluation Kit"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using Atmel's AT91SAM9263-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4057>
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9RL
+
+comment "AT91SAM9RL Board Type"
+
+config MACH_AT91SAM9RLEK
+	bool "Atmel AT91SAM9RL-EK Evaluation Kit"
+	help
+	  Select this if you are using Atmel's AT91SAM9RL-EK Evaluation Kit.
+
 endif
 
 # ----------------------------------------------------------

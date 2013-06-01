@@ -9,7 +9,7 @@
 
 /dts-v1/;
 
-/include/ "ge863-pro3.dtsi"
+#include "ge863-pro3.dtsi"
 
 / {
 	chosen {
@@ -46,7 +46,7 @@
 			};
 
 			usb1: gadget@fffa4000 {
-				atmel,vbus-gpio = <&pioC 15 0>;
+				atmel,vbus-gpio = <&pioC 15 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
 		};
@@ -90,23 +90,23 @@
 		compatible = "gpio-leds";
 
 		red {
-			gpios = <&pioC 10 0>;
+			gpios = <&pioC 10 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "none";
 		};
 
 		green {
-			gpios = <&pioA 5 1>;
+			gpios = <&pioA 5 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "none";
 			default-state = "on";
 		};
 
 		yellow {
-			gpios = <&pioB 20 1>;
+			gpios = <&pioB 20 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "none";
 		};
 
 		blue {
-			gpios = <&pioB 21 1>;
+			gpios = <&pioB 21 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "none";
 		};
 	};

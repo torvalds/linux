@@ -6,7 +6,7 @@
  *
  * Licensed under GPLv2 or later.
  */
-/include/ "at91sam9x5cm.dtsi"
+#include "at91sam9x5cm.dtsi"
 
 / {
 	model = "Atmel AT91SAM9X5-EK";
@@ -27,7 +27,7 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioD 15 0>;
+					cd-gpios = <&pioD 15 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -40,7 +40,7 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioD 14 0>;
+					cd-gpios = <&pioD 14 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -60,14 +60,14 @@
 				mmc0 {
 					pinctrl_board_mmc0: mmc0-board {
 						atmel,pins =
-							<3 15 0x0 0x5>;	/* PD15 gpio CD pin pull up and deglitch */
+							<AT91_PIOD 15 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PD15 gpio CD pin pull up and deglitch */
 					};
 				};
 
 				mmc1 {
 					pinctrl_board_mmc1: mmc1-board {
 						atmel,pins =
-							<3 14 0x0 0x5>;	/* PD14 gpio CD pin pull up and deglitch */
+							<AT91_PIOD 14 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PD14 gpio CD pin pull up and deglitch */
 					};
 				};
 			};
@@ -81,13 +81,17 @@
 					reg = <0>;
 				};
 			};
+
+			watchdog@fffffe40 {
+				status = "okay";
+			};
 		};
 
 		usb0: ohci@00600000 {
 			status = "okay";
 			num-ports = <2>;
-			atmel,vbus-gpio = <&pioD 19 1
-					   &pioD 20 1
+			atmel,vbus-gpio = <&pioD 19 GPIO_ACTIVE_LOW
+					   &pioD 20 GPIO_ACTIVE_LOW
 					  >;
 		};
 

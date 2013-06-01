@@ -7,7 +7,7 @@
  * Licensed under GPLv2 or later.
  */
 /dts-v1/;
-/include/ "at91sam9g45.dtsi"
+#include "at91sam9g45.dtsi"
 
 / {
 	model = "Atmel AT91SAM9M10G45-EK";
@@ -59,6 +59,10 @@
 				status = "okay";
 			};
 
+			watchdog@fffffd40 {
+				status = "okay";
+			};
+
 			mmc0: mmc@fff80000 {
 				pinctrl-0 = <
 					&pinctrl_board_mmc0
@@ -68,7 +72,7 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioD 10 0>;
+					cd-gpios = <&pioD 10 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -81,8 +85,8 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioD 11 0>;
-					wp-gpios = <&pioD 29 0>;
+					cd-gpios = <&pioD 11 GPIO_ACTIVE_HIGH>;
+					wp-gpios = <&pioD 29 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -90,15 +94,15 @@
 				mmc0 {
 					pinctrl_board_mmc0: mmc0-board {
 						atmel,pins =
-							<3 10 0x0 0x5>;	/* PD10 gpio CD pin pull up and deglitch */
+							<AT91_PIOD 10 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PD10 gpio CD pin pull up and deglitch */
 					};
 				};
 
 				mmc1 {
 					pinctrl_board_mmc1: mmc1-board {
 						atmel,pins =
-							<3 11 0x0 0x5	/* PD11 gpio CD pin pull up and deglitch */
-							 3 29 0x0 0x1>;	/* PD29 gpio WP pin pull up */
+							<AT91_PIOD 11 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH	/* PD11 gpio CD pin pull up and deglitch */
+							 AT91_PIOD 29 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* PD29 gpio WP pin pull up */
 					};
 				};
 			};
@@ -139,8 +143,8 @@
 		usb0: ohci@00700000 {
 			status = "okay";
 			num-ports = <2>;
-			atmel,vbus-gpio = <&pioD 1 1
-					   &pioD 3 1>;
+			atmel,vbus-gpio = <&pioD 1 GPIO_ACTIVE_LOW
+					   &pioD 3 GPIO_ACTIVE_LOW>;
 		};
 
 		usb1: ehci@00800000 {
@@ -153,19 +157,19 @@
 
 		d8 {
 			label = "d8";
-			gpios = <&pioD 30 0>;
+			gpios = <&pioD 30 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		d6 {
 			label = "d6";
-			gpios = <&pioD 0 1>;
+			gpios = <&pioD 0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "nand-disk";
 		};
 
 		d7 {
 			label = "d7";
-			gpios = <&pioD 31 1>;
+			gpios = <&pioD 31 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "mmc0";
 		};
 	};
@@ -175,45 +179,45 @@
 
 		left_click {
 			label = "left_click";
-			gpios = <&pioB 6 1>;
+			gpios = <&pioB 6 GPIO_ACTIVE_LOW>;
 			linux,code = <272>;
 			gpio-key,wakeup;
 		};
 
 		right_click {
 			label = "right_click";
-			gpios = <&pioB 7 1>;
+			gpios = <&pioB 7 GPIO_ACTIVE_LOW>;
 			linux,code = <273>;
 			gpio-key,wakeup;
 		};
 
 		left {
 			label = "Joystick Left";
-			gpios = <&pioB 14 1>;
+			gpios = <&pioB 14 GPIO_ACTIVE_LOW>;
 			linux,code = <105>;
 		};
 
 		right {
 			label = "Joystick Right";
-			gpios = <&pioB 15 1>;
+			gpios = <&pioB 15 GPIO_ACTIVE_LOW>;
 			linux,code = <106>;
 		};
 
 		up {
 			label = "Joystick Up";
-			gpios = <&pioB 16 1>;
+			gpios = <&pioB 16 GPIO_ACTIVE_LOW>;
 			linux,code = <103>;
 		};
 
 		down {
 			label = "Joystick Down";
-			gpios = <&pioB 17 1>;
+			gpios = <&pioB 17 GPIO_ACTIVE_LOW>;
 			linux,code = <108>;
 		};
 
 		enter {
 			label = "Joystick Press";
-			gpios = <&pioB 18 1>;
+			gpios = <&pioB 18 GPIO_ACTIVE_LOW>;
 			linux,code = <28>;
 		};
 	};
