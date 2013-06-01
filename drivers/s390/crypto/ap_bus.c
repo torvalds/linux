@@ -1795,7 +1795,7 @@ static int ap_poll_thread_start(void)
 	mutex_lock(&ap_poll_thread_mutex);
 	if (!ap_poll_kthread) {
 		ap_poll_kthread = kthread_run(ap_poll_thread, NULL, "appoll");
-		rc = IS_ERR(ap_poll_kthread) ? PTR_ERR(ap_poll_kthread) : 0;
+		rc = PTR_RET(ap_poll_kthread);
 		if (rc)
 			ap_poll_kthread = NULL;
 	}
@@ -1904,7 +1904,7 @@ int __init ap_module_init(void)
 
 	/* Create /sys/devices/ap. */
 	ap_root_device = root_device_register("ap");
-	rc = IS_ERR(ap_root_device) ? PTR_ERR(ap_root_device) : 0;
+	rc = PTR_RET(ap_root_device);
 	if (rc)
 		goto out_bus;
 
