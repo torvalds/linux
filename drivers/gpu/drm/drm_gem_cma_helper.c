@@ -215,10 +215,7 @@ int drm_gem_cma_dumb_create(struct drm_file *file_priv,
 
 	cma_obj = drm_gem_cma_create_with_handle(file_priv, dev,
 			args->size, &args->handle);
-	if (IS_ERR(cma_obj))
-		return PTR_ERR(cma_obj);
-
-	return 0;
+	return PTR_RET(cma_obj);
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_create);
 
