@@ -660,7 +660,7 @@ static ssize_t max1363_monitor_store_freq(struct device *dev,
 	unsigned long val;
 	bool found = false;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (ret)
 		return -EINVAL;
 	for (i = 0; i < ARRAY_SIZE(max1363_monitor_speeds); i++)
