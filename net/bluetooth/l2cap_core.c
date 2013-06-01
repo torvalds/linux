@@ -6818,18 +6818,91 @@ static void l2cap_chan_le_send_credits(struct l2cap_chan *chan)
 
 static int l2cap_le_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
 {
-	if (!chan->rx_credits)
-		return -ENOBUFS;
+	int err;
 
-	if (chan->imtu < skb->len)
+	if (!chan->rx_credits) {
+		BT_ERR("No credits to receive LE L2CAP data");
 		return -ENOBUFS;
+	}
+
+	if (chan->imtu < skb->len) {
+		BT_ERR("Too big LE L2CAP PDU");
+		return -ENOBUFS;
+	}
 
 	chan->rx_credits--;
 	BT_DBG("rx_credits %u -> %u", chan->rx_credits + 1, chan->rx_credits);
 
 	l2cap_chan_le_send_credits(chan);
 
-	return chan->ops->recv(chan, skb);
+	err = 0;
+
+	if (!chan->sdu) {
+		u16 sdu_len;
+
+		sdu_len = get_unaligned_le16(skb->data);
+		skb_pull(skb, L2CAP_SDULEN_SIZE);
+
+		BT_DBG("Start of new SDU. sdu_len %u skb->len %u imtu %u",
+		       sdu_len, skb->len, chan->imtu);
+
+		if (sdu_len > chan->imtu) {
+			BT_ERR("Too big LE L2CAP SDU length received");
+			err = -EMSGSIZE;
+			goto failed;
+		}
+
+		if (skb->len > sdu_len) {
+			BT_ERR("Too much LE L2CAP data received");
+			err = -EINVAL;
+			goto failed;
+		}
+
+		if (skb->len == sdu_len)
+			return chan->ops->recv(chan, skb);
+
+		chan->sdu = skb;
+		chan->sdu_len = sdu_len;
+		chan->sdu_last_frag = skb;
+
+		return 0;
+	}
+
+	BT_DBG("SDU fragment. chan->sdu->len %u skb->len %u chan->sdu_len %u",
+	       chan->sdu->len, skb->len, chan->sdu_len);
+
+	if (chan->sdu->len + skb->len > chan->sdu_len) {
+		BT_ERR("Too much LE L2CAP data received");
+		err = -EINVAL;
+		goto failed;
+	}
+
+	append_skb_frag(chan->sdu, skb, &chan->sdu_last_frag);
+	skb = NULL;
+
+	if (chan->sdu->len == chan->sdu_len) {
+		err = chan->ops->recv(chan, chan->sdu);
+		if (!err) {
+			chan->sdu = NULL;
+			chan->sdu_last_frag = NULL;
+			chan->sdu_len = 0;
+		}
+	}
+
+failed:
+	if (err) {
+		kfree_skb(skb);
+		kfree_skb(chan->sdu);
+		chan->sdu = NULL;
+		chan->sdu_last_frag = NULL;
+		chan->sdu_len = 0;
+	}
+
+	/* We can't return an error here since we took care of the skb
+	 * freeing internally. An error return would cause the caller to
+	 * do a double-free of the skb.
+	 */
+	return 0;
 }
 
 static void l2cap_data_channel(struct l2cap_conn *conn, u16 cid,
