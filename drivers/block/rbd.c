@@ -5272,6 +5272,7 @@ static void __exit rbd_exit(void)
 module_init(rbd_init);
 module_exit(rbd_exit);
 
+MODULE_AUTHOR("Alex Elder <elder@inktank.com>");
 MODULE_AUTHOR("Sage Weil <sage@newdream.net>");
 MODULE_AUTHOR("Yehuda Sadeh <yehuda@hq.newdream.net>");
 MODULE_DESCRIPTION("rados block device");
