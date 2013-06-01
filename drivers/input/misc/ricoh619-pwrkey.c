@@ -39,15 +39,15 @@
 #include <linux/mfd/ricoh619.h>
 
 #define RICOH619_ONKEY_TRIGGER_LEVEL	0
-#define RICOH619_ONKEY_OFF_IRQ 			0
+#define RICOH619_ONKEY_OFF_IRQ		0
 
 struct ricoh619_pwrkey {
-	struct device * dev;
+	struct device *dev;
 	struct input_dev *pwr;
 	#if RICOH619_ONKEY_TRIGGER_LEVEL
 		struct timer_list timer;
 	#endif
-	struct workqueue_struct * workqueue;
+	struct workqueue_struct *workqueue;
 	struct work_struct work;
 	unsigned long delay;
 	int key_irq;
@@ -57,7 +57,6 @@ struct ricoh619_pwrkey {
 };
 
 struct ricoh619_pwrkey *g_pwrkey;
-//static int test_set = 0;
 
 #if RICOH619_ONKEY_TRIGGER_LEVEL
 void ricoh619_pwrkey_timer(unsigned long t)
@@ -66,10 +65,9 @@ void ricoh619_pwrkey_timer(unsigned long t)
 }
 #endif
 
-extern int pwrkey_wakeup;
-static void ricoh619_irq_work(struct work_struct * work)
+static void ricoh619_irq_work(struct work_struct *work)
 {
-	unsigned long flags;
+	/* unsigned long flags; */
 	uint8_t val;
 
 //	printk("PMU: %s: \n",__func__);
@@ -86,8 +84,9 @@ static void ricoh619_irq_work(struct work_struct * work)
 		return;
 	}
 	ricoh619_read(g_pwrkey->dev->parent, RICOH619_INT_MON_SYS, &val);
-	dev_dbg(g_pwrkey->dev, "pwrkey is pressed?(0x%x): 0x%x\n", RICOH619_INT_MON_SYS, val);
-//	printk("PMU: %s: val=0x%x\n",__func__,val);
+	dev_dbg(g_pwrkey->dev, "pwrkey is pressed?(0x%x): 0x%x\n",
+						RICOH619_INT_MON_SYS, val);
+//	printk(KERN_INFO "PMU: %s: val=0x%x\n", __func__, val);
 	val &= 0x1;
 	if(val){
 		#if (RICOH619_ONKEY_TRIGGER_LEVEL)
@@ -102,32 +101,30 @@ static void ricoh619_irq_work(struct work_struct * work)
 			input_event(g_pwrkey->pwr, EV_KEY, KEY_POWER, 1);
 			input_event(g_pwrkey->pwr, EV_SYN, 0, 0);
 		}
-	}
-	else{
-	if (g_pwrkey->pressed_first){
-//			printk("PMU2: %s: Power Key!!!\n",__func__);
-			//input_report_key(g_pwrkey->pwr, KEY_POWER, 0);
-			//input_sync(g_pwrkey->pwr);
+	} else {
+		if (g_pwrkey->pressed_first) {
+//			printk(KERN_INFO "PMU2: %s: Power Key!!!\n", __func__);
+			/* input_report_key(g_pwrkey->pwr, KEY_POWER, 0); */
+			/* input_sync(g_pwrkey->pwr); */
 			input_event(g_pwrkey->pwr, EV_KEY, KEY_POWER, 0);
 			input_event(g_pwrkey->pwr, EV_SYN, 0, 0);
 		}
 		g_pwrkey->pressed_first = false;
 	}
 
-	//spin_unlock_irqrestore(&g_pwrkey->lock, flags);
+	/* spin_unlock_irqrestore(&g_pwrkey->lock, flags); */
 }
-extern struct ricoh619 *g_ricoh619;
+
 static irqreturn_t pwrkey_irq(int irq, void *_pwrkey)
 {
-//	printk("PMU: %s: \n",__func__);
-	struct ricoh619 *ricoh619 = g_ricoh619;
+//	printk(KERN_INFO "PMU: %s:\n", __func__);
+
 	#if (RICOH619_ONKEY_TRIGGER_LEVEL)
 	g_pwrkey->timer.expires = jiffies + g_pwrkey->delay;
 	add_timer(&g_pwrkey->timer);
 	#else
 	queue_work(g_pwrkey->workqueue, &g_pwrkey->work);
 	#endif
-	ricoh619_clr_bits(g_ricoh619->dev, RICOH619_INT_IR_SYS, 0x1); //clr power-on interrupt
 	return IRQ_HANDLED;
 }
 
@@ -191,7 +188,7 @@ static int __devinit ricoh619_pwrkey_probe(struct platform_device *pdev)
 	pwrkey->pwr = pwr;
 	platform_set_drvdata(pdev, pwrkey);
 
-	// Check if power-key is pressed at boot up
+	/* Check if power-key is pressed at boot up */
 	err = ricoh619_read(pwrkey->dev->parent, RICOH619_INT_MON_SYS, &val);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Key-press status at boot failed rc=%d\n",
@@ -207,7 +204,8 @@ static int __devinit ricoh619_pwrkey_probe(struct platform_device *pdev)
 	}
 
 	#if !(RICOH619_ONKEY_TRIGGER_LEVEL)
-		ricoh619_set_bits(pwrkey->dev->parent, RICOH619_PWR_IRSEL, 0x1); //trigger both edge
+		/* trigger both edge */
+		ricoh619_set_bits(pwrkey->dev->parent, RICOH619_PWR_IRSEL, 0x1);
 	#endif
 
 	err = request_threaded_irq(key_irq, NULL, pwrkey_irq,

@@ -267,14 +267,14 @@ static irqreturn_t ricoh619_rtc_irq(int irq, void *data)
 
 	/* clear alarm-D status bits.*/
 	err = ricoh619_read_regs(dev, rtc_ctrl2, 1, &reg);
-	if (err) {
+	if (err)
 		dev_err(dev->parent, "unable to read rtc_ctrl2 reg\n");
-	}
-	reg &= ~0x81;	/* to clear alarm-D flag, and set adjustment parameter */
+
+	/* to clear alarm-D flag, and set adjustment parameter */
+	reg &= ~0x81;
 	err = ricoh619_write_regs(dev, rtc_ctrl2, 1, &reg);
-	if (err) {
+	if (err)
 		dev_err(dev->parent, "unable to program rtc_status reg\n");
-	}
 
 	rtc_update_irq(rtc->rtc, 1, RTC_IRQF | RTC_AF);
 	return IRQ_HANDLED;
@@ -313,13 +313,6 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	reg = 0x20; /* to clear power-on-reset flag */ 
-	err = ricoh619_write_regs(&pdev->dev, rtc_ctrl2, 1, &reg);
-	if (err) {
-		dev_err(&pdev->dev, "failed rtc setup\n");
-		return -EBUSY;
-	}
-
 	reg = 0x60; /* to enable alarm_d and 24-hour format */
 	err = ricoh619_write_regs(&pdev->dev, rtc_ctrl1, 1, &reg);
 	if (err) {
@@ -333,11 +326,35 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to program rtc_adjust reg\n");
 		return -EBUSY;
 	}
-
-	err = ricoh619_rtc_read_time(&pdev->dev, &tm);
+	/* Set default time-1970.1.1-0h:0m:0s if PON is on */
+	err = ricoh619_read_regs(&pdev->dev, rtc_ctrl2, 1, &reg);
 	if (err) {
-		dev_err(&pdev->dev, "\n failed to read time\n");
-		return err;
+		dev_err(&pdev->dev, "\n failed to read rtc ctl2 reg\n");
+		return -EBUSY;
+	}
+	if (reg&0x10) {
+		printk("%s,PON=1 -- CTRL2=%x\n", __func__, reg);
+		tm.tm_sec  = 0;
+		tm.tm_min  = 0;
+		tm.tm_hour = 0;
+		tm.tm_wday = 4;
+		tm.tm_mday = 1;
+		tm.tm_mon  = 0;
+		tm.tm_year = 0x70;
+		/* VDET & PON = 0, others are not changed */
+		reg &= ~0x50;
+		err = ricoh619_write_regs(&pdev->dev, rtc_ctrl2, 1, &reg);
+		if (err) {
+			dev_err(&pdev->dev, "\n failed to write rtc ctl2 reg\n");
+			return -EBUSY;
+		}
+		
+	} else {
+		err = ricoh619_rtc_read_time(&pdev->dev, &tm);
+		if (err) {
+			dev_err(&pdev->dev, "\n failed to read time\n");
+			return err;
+		}
 	}
 	if (ricoh619_rtc_valid_tm(&pdev->dev, &tm)) {
 		if (pdata->time.tm_year < 2000 || pdata->time.tm_year > 2100) {

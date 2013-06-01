@@ -26,7 +26,7 @@
 /* #include <linux/types.h> */
 
 #if 0
-#define RICOH_FG_DBG(fmt, args...) printk(KERN_DEBUG "RICOH_FG_DBG:\t"fmt, ##args)
+#define RICOH_FG_DBG(fmt, args...) printk( "RICOH_FG_DBG:\t"fmt, ##args)
 #else
 #define RICOH_FG_DBG(fmt, args...) {while(0);}
 #endif
@@ -45,6 +45,9 @@
 #define	ADCCNT3_REG		0x66
 #define	VBATDATAH_REG		0x6A
 #define	VBATDATAL_REG		0x6B
+
+#define VSYSDATAH_REG	0x70
+#define VSYSDATAL_REG	0x71
 
 #define CHGCTL1_REG		0xB3
 #define	REGISET1_REG	0xB6

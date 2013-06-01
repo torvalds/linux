@@ -345,29 +345,6 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-/* Mask Charger Interrupt */
-	if((CHG_INT | ADC_INT) & master_int){
-		for (i=8; i < MAX_INTERRUPT_MASKS; i++) {
-			ret = ricoh619_write(ricoh619->dev,
-							irq_en_add[i], 0xff);
-				if (ret < 0) {
-					dev_err(ricoh619->dev,
-						"Error in write reg 0x%02x "
-							"error: %d\n",
-							irq_en_add[i], ret);
-				}
-		}
-		//Disable ADC interrupt
-		for (i=3; i < 6; i++) {
-			ret = ricoh619_write(ricoh619->dev, irq_en_add[i], 0x0);
-			if (ret < 0) {
-				dev_err(ricoh619->dev, "Error in write reg 0x%02x "
-						"error: %d\n", irq_en_add[i],
-									ret);
-			}
-		}
-	}
-	
 	for (i = 0; i < MAX_INTERRUPT_MASKS; ++i) {
 		/* Even if INTC_INTMON register = 1, INT signal might not output
 	  	 because INTC_INTMON register indicates only interrupt facter level.
@@ -393,16 +370,41 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 			if (int_sts[i] & 0x4)
 				rtc_int_sts |= BIT(0);
 		}
-
-		ret = ricoh619_write(ricoh619->dev,
-				irq_clr_add[i], ~int_sts[i]);
-		if (ret < 0) {
-			dev_err(ricoh619->dev, "Error in reading reg 0x%02x "
-				"error: %d\n", irq_clr_add[i], ret);
+		if (i != 2) {
+			ret = ricoh619_write(ricoh619->dev,
+					irq_clr_add[i], ~int_sts[i]);
+			if (ret < 0) {
+				dev_err(ricoh619->dev, "Error in reading reg 0x%02x "
+					"error: %d\n", irq_clr_add[i], ret);
+			}
 		}
 		
 		if (main_int_type[i] & RTC_INT)
 			int_sts[i] = rtc_int_sts;
+		
+		/* Mask Charger Interrupt */
+		if (main_int_type[i] & CHG_INT) {
+			if (int_sts[i])
+				ret = ricoh619_write(ricoh619->dev,
+							irq_en_add[i], 0xff);
+				if (ret < 0) {
+					dev_err(ricoh619->dev,
+						"Error in write reg 0x%02x error: %d\n",
+							irq_en_add[i], ret);
+				}
+		}
+		/* Mask ADC Interrupt */
+		if (main_int_type[i] & ADC_INT) {
+			if (int_sts[i])
+				ret = ricoh619_write(ricoh619->dev,
+							irq_en_add[i], 0);
+				if (ret < 0) {
+					dev_err(ricoh619->dev,
+						"Error in write reg 0x%02x error: %d\n",
+							irq_en_add[i], ret);
+				}
+		}
+		
 
 	}
 
