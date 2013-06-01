@@ -18,9 +18,7 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_nand &pmx_i2c_gpio_sda
-				&pmx_i2c_gpio_scl >;
+			pinctrl-0 = < &pmx_i2c_gpio_sda &pmx_i2c_gpio_scl >;
 			pinctrl-names = "default";
 
 			pmx_i2c_gpio_sda: pmx-gpio-sda {
@@ -38,6 +36,8 @@
 		};
 
 		nand@3000000 {
+			pinctrl-0 = <&pmx_nand>;
+			pinctrl-names = "default";
 			status = "ok";
 			chip-delay = <25>;
 		};

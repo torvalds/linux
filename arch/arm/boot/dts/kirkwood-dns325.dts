@@ -17,6 +17,11 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_power &pmx_led_red_usb_325
+			     &pmx_led_red_left_hdd &pmx_led_red_right_hdd
+			     &pmx_led_white_usb>;
+		pinctrl-names = "default";
+
 		white-power {
 			label = "dns325:white:power";
 			gpios = <&gpio0 26 1>; /* GPIO 26 Active Low */

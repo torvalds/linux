@@ -30,6 +30,9 @@
 	};
 
 	soc {
+		ranges = <0          0 0xd0000000 0x100000	/* Internal registers 1MiB */
+			  0xf0000000 0 0xf0000000 0x1000000>;	/* Device Bus, NOR 16MiB   */
+
 		internal-regs {
 			serial@12000 {
 				clock-frequency = <250000000>;
@@ -97,6 +100,7 @@
 				pinctrl-names = "default";
 				status = "okay";
 				/* No CD or WP GPIOs */
+				broken-cd;
 			};
 
 			usb@50000 {
@@ -153,6 +157,35 @@
 				pcie@10,0 {
 					/* Port 3, Lane 0 */
 					status = "okay";
+				};
+			};
+
+			devbus-bootcs@10400 {
+				status = "okay";
+				ranges = <0 0xf0000000 0x1000000>;
+
+				/* Device Bus parameters are required */
+
+				/* Read parameters */
+				devbus,bus-width    = <8>;
+				devbus,turn-off-ps  = <60000>;
+				devbus,badr-skew-ps = <0>;
+				devbus,acc-first-ps = <124000>;
+				devbus,acc-next-ps  = <248000>;
+				devbus,rd-setup-ps  = <0>;
+				devbus,rd-hold-ps   = <0>;
+
+				/* Write parameters */
+				devbus,sync-enable = <0>;
+				devbus,wr-high-ps  = <60000>;
+				devbus,wr-low-ps   = <60000>;
+				devbus,ale-wr-ps   = <60000>;
+
+				/* NOR 16 MiB */
+				nor@0 {
+					compatible = "cfi-flash";
+					reg = <0 0x1000000>;
+					bank-width = <2>;
 				};
 			};
 		};

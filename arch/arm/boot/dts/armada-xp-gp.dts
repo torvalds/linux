@@ -104,6 +104,16 @@
 				phy-mode = "rgmii-id";
 			};
 
+			/* Front-side USB slot */
+			usb@50000 {
+				status = "okay";
+			};
+
+			/* Back-side USB slot */
+			usb@51000 {
+				status = "okay";
+			};
+
 			spi0: spi@10600 {
 				status = "okay";
 

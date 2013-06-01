@@ -18,10 +18,6 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-			pinctrl-0 = < &pmx_spi &pmx_uart0
-					&pmx_cloudbox_sata0 >;
-			pinctrl-names = "default";
-
 			pmx_cloudbox_sata0: pmx-cloudbox-sata0 {
 				marvell,pins = "mpp15";
 				marvell,function = "sata0";
@@ -29,16 +25,22 @@
 		};
 
 		serial@12000 {
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
 			clock-frequency = <166666667>;
 			status = "okay";
 		};
 
 		sata@80000 {
+			pinctrl-0 = <&pmx_cloudbox_sata0>;
+			pinctrl-names = "default";
 			status = "okay";
 			nr-ports = <1>;
 		};
 
 		spi@10600 {
+			pinctrl-0 = <&pmx_spi>;
+			pinctrl-names = "default";
 			status = "okay";
 
 			flash@0 {

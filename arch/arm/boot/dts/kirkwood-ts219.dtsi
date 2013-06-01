@@ -17,6 +17,8 @@
 		i2c@11000 {
 			status = "okay";
 			clock-frequency = <400000>;
+			pinctrl-0 = <&pmx_twsi0>;
+			pinctrl-names = "default";
 
 			s35390a: s35390a@30 {
 				compatible = "s35390a";
@@ -26,13 +28,19 @@
 		serial@12000 {
 			clock-frequency = <200000000>;
 			status = "okay";
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
 		};
 		serial@12100 {
 			clock-frequency = <200000000>;
 			status = "okay";
+			pinctrl-0 = <&pmx_uart1>;
+			pinctrl-names = "default";
 		};
 		spi@10600 {
 			status = "okay";
+			pinctrl-0 = <&pmx_spi>;
+			pinctrl-names = "default";
 
 			m25p128@0 {
 				#address-cells = <1>;
@@ -71,6 +79,8 @@
 			};
 		};
 		sata@80000 {
+			pinctrl-0 = <&pmx_sata0 &pmx_sata1>;
+			pinctrl-names = "default";
 			status = "okay";
 			nr-ports = <2>;
 		};

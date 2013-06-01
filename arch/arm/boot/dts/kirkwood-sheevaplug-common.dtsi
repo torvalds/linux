@@ -1,38 +1,50 @@
-/dts-v1/;
+/*
+ * kirkwood-sheevaplug-common.dts - Common parts for Sheevaplugs
+ *
+ * Copyright (C) 2013 Simon Baatz <gmbnomis@gmail.com>
+ *
+ * Licensed under GPLv2
+ */
 
 /include/ "kirkwood.dtsi"
 /include/ "kirkwood-6281.dtsi"
 
 / {
-	model = "Seagate FreeAgent Dockstar";
-	compatible = "seagate,dockstar", "marvell,kirkwood-88f6281", "marvell,kirkwood";
-
 	memory {
 		device_type = "memory";
-		reg = <0x00000000 0x8000000>;
+		reg = <0x00000000 0x20000000>;
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200n8 earlyprintk root=/dev/sda1 rootdelay=10";
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
 	};
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
+
 			pmx_usb_power_enable: pmx-usb-power-enable {
 				marvell,pins = "mpp29";
 				marvell,function = "gpio";
 			};
-			pmx_led_green: pmx-led-green {
+			pmx_led_red: pmx-led-red {
 				marvell,pins = "mpp46";
 				marvell,function = "gpio";
 			};
-			pmx_led_orange: pmx-led-orange {
+			pmx_led_blue: pmx-led-blue {
+				marvell,pins = "mpp49";
+				marvell,function = "gpio";
+			};
+			pmx_sdio_cd: pmx-sdio-cd {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+			pmx_sdio_wp: pmx-sdio-wp {
 				marvell,pins = "mpp47";
 				marvell,function = "gpio";
 			};
 		};
 		serial@12000 {
-			status = "ok";
+			status = "okay";
 		};
 
 		nand@3000000 {
@@ -41,7 +53,6 @@
 			partition@0 {
 				label = "u-boot";
 				reg = <0x0000000 0x100000>;
-				read-only;
 			};
 
 			partition@100000 {
@@ -50,32 +61,16 @@
 			};
 
 			partition@500000 {
-				label = "data";
-				reg = <0x0500000 0xfb00000>;
+				label = "root";
+				reg = <0x0500000 0x1fb00000>;
 			};
 		};
 	};
-	gpio-leds {
-		compatible = "gpio-leds";
-		pinctrl-0 = <&pmx_led_green &pmx_led_orange>;
-		pinctrl-names = "default";
 
-		health {
-			label = "status:green:health";
-			gpios = <&gpio1 14 1>;
-			linux,default-trigger = "default-on";
-		};
-		fault {
-			label = "status:orange:fault";
-			gpios = <&gpio1 15 1>;
-		};
-	};
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-0 = <&pmx_usb_power_enable>;
-		pinctrl-names = "default";
 
 		usb_power: regulator@1 {
 			compatible = "regulator-fixed";
@@ -87,6 +82,16 @@
 			regulator-always-on;
 			regulator-boot-on;
 			gpio = <&gpio0 29 0>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		health {
+			label = "sheevaplug:blue:health";
+			gpios = <&gpio1 17 1>;
+			linux,default-trigger = "default-on";
 		};
 	};
 };

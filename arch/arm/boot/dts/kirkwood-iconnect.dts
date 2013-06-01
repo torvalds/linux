@@ -20,51 +20,43 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_gpio_12 &pmx_gpio_35
-				      &pmx_gpio_41 &pmx_gpio_42
-				      &pmx_gpio_43 &pmx_gpio_44
-				      &pmx_gpio_45 &pmx_gpio_46
-				      &pmx_gpio_47 &pmx_gpio_48 >;
-			pinctrl-names = "default";
-
-			pmx_gpio_12: pmx-gpio-12 {
+			pmx_button_reset: pmx-button-reset {
 				marvell,pins = "mpp12";
 				marvell,function = "gpio";
 			};
-			pmx_gpio_35: pmx-gpio-35 {
+			pmx_button_otb: pmx-button-otb {
 				marvell,pins = "mpp35";
 				marvell,function = "gpio";
 			};
-			pmx_gpio_41: pmx-gpio-41 {
+			pmx_led_level: pmx-led-level {
 				marvell,pins = "mpp41";
 				marvell,function = "gpio";
 			};
-			pmx_gpio_42: pmx-gpio-42 {
+			pmx_led_power_blue: pmx-led-power-blue {
 				marvell,pins = "mpp42";
 				marvell,function = "gpio";
 			};
-			pmx_gpio_43: pmx-gpio-43 {
+			pmx_led_power_red: pmx-power-red {
 				marvell,pins = "mpp43";
 				marvell,function = "gpio";
 			};
-			pmx_gpio_44: pmx-gpio-44 {
+			pmx_led_usb1: pmx-led-usb1 {
 				marvell,pins = "mpp44";
 				marvell,function = "gpio";
 			};
-			pmx_gpio_45: pmx-gpio-45 {
+			pmx_led_usb2: pmx-led-usb2 {
 				marvell,pins = "mpp45";
 				marvell,function = "gpio";
 			};
-			pmx_gpio_46: pmx-gpio-46 {
+			pmx_led_usb3: pmx-led-usb3 {
 				marvell,pins = "mpp46";
 				marvell,function = "gpio";
 			};
-			pmx_gpio_47: pmx-gpio-47 {
+			pmx_led_usb4: pmx-led-usb4 {
 				marvell,pins = "mpp47";
 				marvell,function = "gpio";
 			};
-			pmx_gpio_48: pmx-gpio-48 {
+			pmx_led_otb: pmx-led-otb {
 				marvell,pins = "mpp48";
 				marvell,function = "gpio";
 			};
@@ -113,6 +105,11 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = < &pmx_led_level &pmx_led_power_blue
+			      &pmx_led_power_red &pmx_led_usb1
+			      &pmx_led_usb2 &pmx_led_usb3
+			      &pmx_led_usb4 &pmx_led_otb >;
+		pinctrl-names = "default";
 
 		led-level {
 			label = "led_level";
@@ -154,6 +151,9 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = < &pmx_button_reset &pmx_button_otb >;
+		pinctrl-names = "default";
+
 		button@1 {
 			label = "OTB Button";
 			linux,code = <133>;

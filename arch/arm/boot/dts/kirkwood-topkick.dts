@@ -19,18 +19,6 @@
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
 			/*
-			 * GPIO LED layout
-			 *
-			 *       /-SYS_LED(2)
-			 *       |
-			 *       |   /-DISK_LED
-			 *       |   |
-			 *       |   |   /-WLAN_LED(2)
-			 *       |   |   |
-			 * [SW] [*] [*] [*]
-			 */
-
-			/*
 			 * Switch positions
 			 *
 			 *     /-SW_LEFT(2)
@@ -41,19 +29,8 @@
 			 *     |   |   |
 			 * PS [L] [I] [R] LEDS
 			 */
-			pinctrl-0 = < &pmx_led_disk_yellow
-				      &pmx_sata0_pwr_enable
-				      &pmx_led_sys_red
-				      &pmx_led_sys_blue
-				      &pmx_led_wifi_green
-				      &pmx_sw_left
-				      &pmx_sw_right
-				      &pmx_sw_idle
-				      &pmx_sw_left2
-				      &pmx_led_wifi_yellow
-				      &pmx_uart0
-				      &pmx_nand
-				      &pmx_twsi0 >;
+			pinctrl-0 = <&pmx_sw_left &pmx_sw_right
+				     &pmx_sw_idle &pmx_sw_left2>;
 			pinctrl-names = "default";
 
 			pmx_led_disk_yellow: pmx-led-disk-yellow {
@@ -109,10 +86,14 @@
 
 		serial@12000 {
 			status = "ok";
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
 		};
 
 		nand@3000000 {
 			status = "okay";
+			pinctrl-0 = <&pmx_nand>;
+			pinctrl-names = "default";
 
 			partition@0 {
 				label = "u-boot";
@@ -147,6 +128,8 @@
 
 		i2c@11000 {
 			status = "ok";
+			pinctrl-0 = <&pmx_twsi0>;
+			pinctrl-names = "default";
 		};
 
 		mvsdio@90000 {
@@ -154,11 +137,28 @@
 			pinctrl-names = "default";
 			status = "okay";
 			/* No CD or WP GPIOs */
+			broken-cd;
 		};
 	};
 
 	gpio-leds {
+		/*
+		 * GPIO LED layout
+		 *
+		 *       /-SYS_LED(2)
+		 *       |
+		 *       |   /-DISK_LED
+		 *       |   |
+		 *       |   |   /-WLAN_LED(2)
+		 *       |   |   |
+		 * [SW] [*] [*] [*]
+		 */
+
 		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_disk_yellow &pmx_led_sys_red
+			     &pmx_led_sys_blue &pmx_led_wifi_green
+			     &pmx_led_wifi_yellow>;
+		pinctrl-names = "default";
 
 		disk {
 			label = "topkick:yellow:disk";
@@ -187,6 +187,8 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_sata0_pwr_enable>;
+		pinctrl-names = "default";
 
 		sata0_power: regulator@1 {
 			compatible = "regulator-fixed";

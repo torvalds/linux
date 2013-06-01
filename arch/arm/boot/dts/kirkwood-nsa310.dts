@@ -17,22 +17,7 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-			pinctrl-0 = < &pmx_led_esata_green
-				      &pmx_led_esata_red
-				      &pmx_led_usb_green
-				      &pmx_led_usb_red
-				      &pmx_usb_power_off
-				      &pmx_led_sys_green
-				      &pmx_led_sys_red
-				      &pmx_btn_reset
-				      &pmx_btn_copy
-				      &pmx_led_copy_green
-				      &pmx_led_copy_red
-				      &pmx_led_hdd_green
-				      &pmx_led_hdd_red
-				      &pmx_unknown
-				      &pmx_btn_power
-				      &pmx_pwr_off >;
+			pinctrl-0 = <&pmx_unknown>;
 			pinctrl-names = "default";
 
 			pmx_led_esata_green: pmx-led-esata-green {
@@ -182,6 +167,8 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_btn_reset &pmx_btn_copy &pmx_btn_power>;
+		pinctrl-names = "default";
 
 		button@1 {
 			label = "Power Button";
@@ -202,6 +189,12 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_esata_green &pmx_led_esata_red
+			     &pmx_led_usb_green &pmx_led_usb_red
+			     &pmx_led_sys_green &pmx_led_sys_red
+			     &pmx_led_copy_green &pmx_led_copy_red
+			     &pmx_led_hdd_green &pmx_led_hdd_red>;
+		pinctrl-names = "default";
 
 		green-sys {
 			label = "nsa310:green:sys";
@@ -247,6 +240,8 @@
 
 	gpio_poweroff {
 		compatible = "gpio-poweroff";
+		pinctrl-0 = <&pmx_pwr_off>;
+		pinctrl-names = "default";
 		gpios = <&gpio1 16 0>;
 	};
 
@@ -254,6 +249,8 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_usb_power_off>;
+		pinctrl-names = "default";
 
 		usb0_power_off: regulator@1 {
 			compatible = "regulator-fixed";
