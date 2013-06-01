@@ -81,12 +81,12 @@
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
 		.max = 1,
-		.types = BIT(NL80211_IFTYPE_STATION) |
-			BIT(NL80211_IFTYPE_AP),
+		.types = BIT(NL80211_IFTYPE_STATION),
 	},
 	{
 		.max = 1,
-		.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
+		.types = BIT(NL80211_IFTYPE_AP) |
+			BIT(NL80211_IFTYPE_P2P_CLIENT) |
 			BIT(NL80211_IFTYPE_P2P_GO),
 	},
 	{
