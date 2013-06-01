@@ -37,6 +37,7 @@
 #include <asm/cputype.h>
 #include <asm/elf.h>
 #include <asm/procinfo.h>
+#include <asm/psci.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp_plat.h>
@@ -128,7 +129,9 @@ struct stack {
 	u32 und[3];
 } ____cacheline_aligned;
 
+#ifndef CONFIG_CPU_V7M
 static struct stack stacks[NR_CPUS];
+#endif
 
 char elf_platform[ELF_PLATFORM_SIZE];
 EXPORT_SYMBOL(elf_platform);
@@ -207,7 +210,7 @@ static const char *proc_arch[] = {
 	"5TEJ",
 	"6TEJ",
 	"7",
-	"?(11)",
+	"7M",
 	"?(12)",
 	"?(13)",
 	"?(14)",
@@ -216,6 +219,12 @@ static const char *proc_arch[] = {
 	"?(17)",
 };
 
+#ifdef CONFIG_CPU_V7M
+static int __get_cpu_architecture(void)
+{
+	return CPU_ARCH_ARMv7M;
+}
+#else
 static int __get_cpu_architecture(void)
 {
 	int cpu_arch;
@@ -248,6 +257,7 @@ static int __get_cpu_architecture(void)
 
 	return cpu_arch;
 }
+#endif
 
 int __pure cpu_architecture(void)
 {
@@ -293,7 +303,9 @@ static void __init cacheid_init(void)
 {
 	unsigned int arch = cpu_architecture();
 
-	if (arch >= CPU_ARCH_ARMv6) {
+	if (arch == CPU_ARCH_ARMv7M) {
+		cacheid = 0;
+	} else if (arch >= CPU_ARCH_ARMv6) {
 		unsigned int cachetype = read_cpuid_cachetype();
 		if ((cachetype & (7 << 29)) == 4 << 29) {
 			/* ARMv7 register format */
@@ -392,6 +404,7 @@ static void __init feat_v6_fixup(void)
  */
 void notrace cpu_init(void)
 {
+#ifndef CONFIG_CPU_V7M
 	unsigned int cpu = smp_processor_id();
 	struct stack *stk = &stacks[cpu];
 
@@ -442,6 +455,7 @@ void notrace cpu_init(void)
 	      "I" (offsetof(struct stack, und[0])),
 	      PLC (PSR_F_BIT | PSR_I_BIT | SVC_MODE)
 	    : "r14");
+#endif
 }
 
 int __cpu_logical_map[NR_CPUS];
@@ -796,9 +810,15 @@ void __init setup_arch(char **cmdline_p)
 	unflatten_device_tree();
 
 	arm_dt_init_cpu_maps();
+	psci_init();
 #ifdef CONFIG_SMP
 	if (is_smp()) {
-		smp_set_ops(mdesc->smp);
+		if (!mdesc->smp_init || !mdesc->smp_init()) {
+			if (psci_smp_available())
+				smp_set_ops(&psci_smp_ops);
+			else if (mdesc->smp)
+				smp_set_ops(mdesc->smp);
+		}
 		smp_init_cpus();
 	}
 #endif

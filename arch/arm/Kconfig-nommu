@@ -28,7 +28,7 @@ config FLASH_SIZE
 config PROCESSOR_ID
 	hex 'Hard wire the processor ID'
 	default 0x00007700
-	depends on !CPU_CP15
+	depends on !(CPU_CP15 || CPU_V7M)
 	help
 	  If processor has no CP15 register, this processor ID is
 	  used instead of the auto-probing which utilizes the register.

@@ -34,28 +34,47 @@
 
 /*
  * PSR bits
+ * Note on V7M there is no mode contained in the PSR
  */
 #define USR26_MODE	0x00000000
 #define FIQ26_MODE	0x00000001
 #define IRQ26_MODE	0x00000002
 #define SVC26_MODE	0x00000003
+#if defined(__KERNEL__) && defined(CONFIG_CPU_V7M)
+/*
+ * Use 0 here to get code right that creates a userspace
+ * or kernel space thread.
+ */
+#define USR_MODE	0x00000000
+#define SVC_MODE	0x00000000
+#else
 #define USR_MODE	0x00000010
+#define SVC_MODE	0x00000013
+#endif
 #define FIQ_MODE	0x00000011
 #define IRQ_MODE	0x00000012
-#define SVC_MODE	0x00000013
 #define ABT_MODE	0x00000017
 #define HYP_MODE	0x0000001a
 #define UND_MODE	0x0000001b
 #define SYSTEM_MODE	0x0000001f
 #define MODE32_BIT	0x00000010
 #define MODE_MASK	0x0000001f
-#define PSR_T_BIT	0x00000020
-#define PSR_F_BIT	0x00000040
-#define PSR_I_BIT	0x00000080
-#define PSR_A_BIT	0x00000100
-#define PSR_E_BIT	0x00000200
-#define PSR_J_BIT	0x01000000
-#define PSR_Q_BIT	0x08000000
+
+#define V4_PSR_T_BIT	0x00000020	/* >= V4T, but not V7M */
+#define V7M_PSR_T_BIT	0x01000000
+#if defined(__KERNEL__) && defined(CONFIG_CPU_V7M)
+#define PSR_T_BIT	V7M_PSR_T_BIT
+#else
+/* for compatibility */
+#define PSR_T_BIT	V4_PSR_T_BIT
+#endif
+
+#define PSR_F_BIT	0x00000040	/* >= V4, but not V7M */
+#define PSR_I_BIT	0x00000080	/* >= V4, but not V7M */
+#define PSR_A_BIT	0x00000100	/* >= V6, but not V7M */
+#define PSR_E_BIT	0x00000200	/* >= V6, but not V7M */
+#define PSR_J_BIT	0x01000000	/* >= V5J, but not V7M */
+#define PSR_Q_BIT	0x08000000	/* >= V5E, including V7M */
 #define PSR_V_BIT	0x10000000
 #define PSR_C_BIT	0x20000000
 #define PSR_Z_BIT	0x40000000
