@@ -104,6 +104,7 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx27-apf27dev.dtb \
 	imx27-pdk.dtb \
 	imx27-phytec-phycore-som.dtb \
+	imx27-phytec-phycore-rdk.dtb \
 	imx31-bug.dtb \
 	imx51-apf51.dtb \
 	imx51-apf51dev.dtb \
