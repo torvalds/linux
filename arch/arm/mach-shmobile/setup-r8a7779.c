@@ -391,7 +391,7 @@ static struct platform_device sata_device = {
 /* USB PHY */
 static struct resource usb_phy_resources[] = {
 	[0] = {
-		.start		= 0xffe70000,
+		.start		= 0xffe70800,
 		.end		= 0xffe70900 - 1,
 		.flags		= IORESOURCE_MEM,
 	},
