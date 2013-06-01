@@ -223,7 +223,7 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		hub->gpio_connect = of_get_named_gpio(np, "intn-gpios", 0);
 		if (hub->gpio_connect == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		hub->gpio_reset	= of_get_named_gpio(np, "reset-gpios", 0);
+		hub->gpio_reset = of_get_named_gpio(np, "reset-gpios", 0);
 		if (hub->gpio_reset == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		of_property_read_u32(np, "initial-mode", &mode);
