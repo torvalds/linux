@@ -227,6 +227,7 @@ config MACH_KM_KIRKWOOD_DT
 config MACH_LSXL_DT
 	bool "Buffalo Linkstation LS-XHL, LS-CHLv2 (Flattened Device Tree)"
 	select ARCH_KIRKWOOD_DT
+	select POWER_RESET_RESTART
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Buffalo Linkstation LS-XHL & LS-CHLv2 devices, using
@@ -296,6 +297,13 @@ config MACH_READYNAS_DT
 	  Say 'Y' here if you want your kernel to support the
 	  NETGEAR ReadyNAS Duo v2 using Fattened Device Tree.
 
+config MACH_SHEEVAPLUG_DT
+	bool "Marvell (eSATA) SheevaPlug (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell (eSATA) SheevaPlug (Flattened Device Tree).
+
 config MACH_TOPKICK_DT
 	bool "USI Topkick (Flattened Device Tree)"
 	select ARCH_KIRKWOOD_DT
@@ -308,6 +316,7 @@ config MACH_TS219_DT
 	select ARCH_KIRKWOOD_DT
 	select ARM_APPENDED_DTB
 	select ARM_ATAG_DTB_COMPAT
+	select POWER_RESET_QNAP
 	help
 	  Say 'Y' here if you want your kernel to support the QNAP
 	  TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and

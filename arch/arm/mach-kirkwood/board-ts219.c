@@ -23,7 +23,6 @@
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
 #include "common.h"
-#include "tsx1x-common.h"
 
 static struct mv643xx_eth_platform_data qnap_ts219_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
@@ -38,8 +37,6 @@ void __init qnap_dt_ts219_init(void)
 		qnap_ts219_ge00_data.phy_addr = MV643XX_ETH_PHY_ADDR(0);
 
 	kirkwood_ge00_init(&qnap_ts219_ge00_data);
-
-	pm_power_off = qnap_tsx1x_power_off;
 }
 
 /* FIXME: Will not work with DT. Maybe use MPP40_GPIO? */
