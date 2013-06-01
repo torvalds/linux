@@ -16,6 +16,8 @@ config ARCH_MVEBU
 	select MVEBU_MBUS
 	select ZONE_DMA if ARM_LPAE
 	select ARCH_REQUIRE_GPIOLIB
+	select MIGHT_HAVE_PCI
+	select PCI_QUIRKS if PCI
 
 if ARCH_MVEBU
 
