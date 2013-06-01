@@ -2441,7 +2441,7 @@ __init lcs_init_module(void)
 	if (rc)
 		goto out_err;
 	lcs_root_dev = root_device_register("lcs");
-	rc = IS_ERR(lcs_root_dev) ? PTR_ERR(lcs_root_dev) : 0;
+	rc = PTR_RET(lcs_root_dev);
 	if (rc)
 		goto register_err;
 	rc = ccw_driver_register(&lcs_ccw_driver);
