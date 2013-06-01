@@ -9,13 +9,13 @@
 #endif
 
  
-#if  defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_VIF) 
+#if  defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS) 
 #include "../transmitter/rk610_lcd.h"
 #endif
 
 
 /* Base */
-#if  defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_VIF)
+#if  defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS)
 #define OUT_TYPE	    	SCREEN_LVDS
 #define LVDS_FORMAT      	LVDS_8BIT_1
 #else
@@ -42,7 +42,7 @@
 #define LCD_WIDTH          	217
 #define LCD_HEIGHT         	136
 /* Other */
-#if defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_VIF)  
+#if defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS)  
 #define DCLK_POL	1
 #else
 #define DCLK_POL	0
@@ -90,7 +90,7 @@ int dsp_lut[256] ={
 		0x00f8f8f8, 0x00f9f9f9, 0x00fafafa, 0x00fbfbfb, 0x00fcfcfc, 0x00fdfdfd, 0x00fefefe, 0x00ffffff, 
 };
 
-#if  defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&& ( defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_VIF))
+#if  defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&& ( defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS))
 
 /* scaler Timing    */
 //1920*1080*60
@@ -383,7 +383,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->standby = NULL;
 	screen->dsp_lut = dsp_lut;
 	screen->sscreen_get = set_scaler_info;
-#if defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_VIF)
+#if defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS)
     	screen->sscreen_set = rk610_lcd_scaler_set_param;
 #endif
 }
