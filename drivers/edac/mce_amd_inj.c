@@ -43,7 +43,7 @@ static ssize_t edac_inject_##reg##_store(struct kobject *kobj,		\
 	int ret = 0;							\
 	unsigned long value;						\
 									\
-	ret = strict_strtoul(data, 16, &value);				\
+	ret = kstrtoul(data, 16, &value);				\
 	if (ret < 0)							\
 		printk(KERN_ERR "Error writing MCE " #reg " field.\n");	\
 									\
@@ -83,7 +83,7 @@ static ssize_t edac_inject_bank_store(struct kobject *kobj,
 	int ret = 0;
 	unsigned long value;
 
-	ret = strict_strtoul(data, 10, &value);
+	ret = kstrtoul(data, 10, &value);
 	if (ret < 0) {
 		printk(KERN_ERR "Invalid bank value!\n");
 		return -EINVAL;
