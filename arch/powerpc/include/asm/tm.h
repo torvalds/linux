@@ -5,6 +5,8 @@
  * Copyright 2012 Matt Evans & Michael Neuling, IBM Corporation.
  */
 
+#include <uapi/asm/tm.h>
+
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 extern void do_load_up_transact_fpu(struct thread_struct *thread);
 extern void do_load_up_transact_altivec(struct thread_struct *thread);
