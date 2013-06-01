@@ -5803,6 +5803,14 @@ static void ironlake_get_pfit_config(struct intel_crtc *crtc,
 	if (tmp & PF_ENABLE) {
 		pipe_config->pch_pfit.pos = I915_READ(PF_WIN_POS(crtc->pipe));
 		pipe_config->pch_pfit.size = I915_READ(PF_WIN_SZ(crtc->pipe));
+
+		/* We currently do not free assignements of panel fitters on
+		 * ivb/hsw (since we don't use the higher upscaling modes which
+		 * differentiates them) so just WARN about this case for now. */
+		if (IS_GEN7(dev)) {
+			WARN_ON((tmp & PF_PIPE_SEL_MASK_IVB) !=
+				PF_PIPE_SEL_IVB(crtc->pipe));
+		}
 	}
 }
 
