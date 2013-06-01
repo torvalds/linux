@@ -1326,7 +1326,7 @@ static int serial_omap_resume(struct device *dev)
 }
 #else
 #define serial_omap_prepare NULL
-#define serial_omap_prepare NULL
+#define serial_omap_complete NULL
 #endif /* CONFIG_PM_SLEEP */
 
 static void omap_serial_fill_features_erratas(struct uart_omap_port *up)
