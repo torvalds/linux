@@ -504,7 +504,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 	 * First, parse the in-order required arguments
 	 * "chunk_size" is the only argument of this type.
 	 */
-	if ((strict_strtoul(argv[0], 10, &value) < 0)) {
+	if ((kstrtoul(argv[0], 10, &value) < 0)) {
 		rs->ti->error = "Bad chunk size";
 		return -EINVAL;
 	} else if (rs->raid_type->level == 1) {
@@ -585,7 +585,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 			continue;
 		}
 
-		if (strict_strtoul(argv[i], 10, &value) < 0) {
+		if (kstrtoul(argv[i], 10, &value) < 0) {
 			rs->ti->error = "Bad numerical argument given in raid params";
 			return -EINVAL;
 		}
@@ -1181,7 +1181,7 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	argv++;
 
 	/* number of RAID parameters */
-	if (strict_strtoul(argv[0], 10, &num_raid_params) < 0) {
+	if (kstrtoul(argv[0], 10, &num_raid_params) < 0) {
 		ti->error = "Cannot understand number of RAID parameters";
 		return -EINVAL;
 	}
@@ -1194,7 +1194,7 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		return -EINVAL;
 	}
 
-	if ((strict_strtoul(argv[num_raid_params], 10, &num_raid_devs) < 0) ||
+	if ((kstrtoul(argv[num_raid_params], 10, &num_raid_devs) < 0) ||
 	    (num_raid_devs >= INT_MAX)) {
 		ti->error = "Cannot understand number of raid devices";
 		return -EINVAL;

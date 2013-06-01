@@ -4924,7 +4924,7 @@ raid5_store_stripe_cache_size(struct mddev *mddev, const char *page, size_t len)
 	if (!conf)
 		return -ENODEV;
 
-	if (strict_strtoul(page, 10, &new))
+	if (kstrtoul(page, 10, &new))
 		return -EINVAL;
 	err = raid5_set_cache_size(mddev, new);
 	if (err)
@@ -4957,7 +4957,7 @@ raid5_store_preread_threshold(struct mddev *mddev, const char *page, size_t len)
 	if (!conf)
 		return -ENODEV;
 
-	if (strict_strtoul(page, 10, &new))
+	if (kstrtoul(page, 10, &new))
 		return -EINVAL;
 	if (new > conf->max_nr_stripes)
 		return -EINVAL;
