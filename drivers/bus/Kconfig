@@ -26,4 +26,11 @@ config OMAP_INTERCONNECT
 
 	help
 	  Driver to enable OMAP interconnect error handling driver.
+
+config ARM_CCI
+	bool "ARM CCI driver support"
+	depends on ARM
+	help
+	  Driver supporting the CCI cache coherent interconnect for ARM
+	  platforms.
 endmenu
