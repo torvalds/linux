@@ -714,10 +714,6 @@ void pcie_aspm_powersave_config_link(struct pci_dev *pdev)
 	up_read(&pci_bus_sem);
 }
 
-/*
- * pci_disable_link_state - disable pci device's link state, so the link will
- * never enter specific states
- */
 static void __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem,
 				     bool force)
 {
@@ -771,6 +767,15 @@ void pci_disable_link_state_locked(struct pci_dev *pdev, int state)
 }
 EXPORT_SYMBOL(pci_disable_link_state_locked);
 
+/**
+ * pci_disable_link_state - Disable device's link state, so the link will
+ * never enter specific states.  Note that if the BIOS didn't grant ASPM
+ * control to the OS, this does nothing because we can't touch the LNKCTL
+ * register.
+ *
+ * @pdev: PCI device
+ * @state: ASPM link state to disable
+ */
 void pci_disable_link_state(struct pci_dev *pdev, int state)
 {
 	__pci_disable_link_state(pdev, state, true, false);

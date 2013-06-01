@@ -66,7 +66,7 @@ static ssize_t broken_parity_status_store(struct device *dev,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val) < 0)
+	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	pdev->broken_parity_status = !!val;
@@ -188,7 +188,7 @@ static ssize_t is_enabled_store(struct device *dev,
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	unsigned long val;
-	ssize_t result = strict_strtoul(buf, 0, &val);
+	ssize_t result = kstrtoul(buf, 0, &val);
 
 	if (result < 0)
 		return result;
@@ -259,7 +259,7 @@ msi_bus_store(struct device *dev, struct device_attribute *attr,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val) < 0)
+	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	/* bad things may happen if the no_msi flag is changed
@@ -291,7 +291,7 @@ static ssize_t bus_rescan_store(struct bus_type *bus, const char *buf,
 	unsigned long val;
 	struct pci_bus *b = NULL;
 
-	if (strict_strtoul(buf, 0, &val) < 0)
+	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val) {
@@ -315,7 +315,7 @@ dev_rescan_store(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	struct pci_dev *pdev = to_pci_dev(dev);
 
-	if (strict_strtoul(buf, 0, &val) < 0)
+	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val) {
@@ -342,7 +342,7 @@ remove_store(struct device *dev, struct device_attribute *dummy,
 	int ret = 0;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val) < 0)
+	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	/* An attribute cannot be unregistered by one of its own methods,
@@ -362,7 +362,7 @@ dev_bus_rescan_store(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	struct pci_bus *bus = to_pci_bus(dev);
 
-	if (strict_strtoul(buf, 0, &val) < 0)
+	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val) {
@@ -384,7 +384,7 @@ static ssize_t d3cold_allowed_store(struct device *dev,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val) < 0)
+	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	pdev->d3cold_allowed = !!val;
@@ -1236,7 +1236,7 @@ static ssize_t reset_store(struct device *dev,
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	unsigned long val;
-	ssize_t result = strict_strtoul(buf, 0, &val);
+	ssize_t result = kstrtoul(buf, 0, &val);
 
 	if (result < 0)
 		return result;
