@@ -16,13 +16,13 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 
-/* USBH common register */
-#define USBPCTRL0	0x0800
-#define USBPCTRL1	0x0804
-#define USBST		0x0808
-#define USBEH0		0x080C
-#define USBOH0		0x081C
-#define USBCTL0		0x0858
+/* REGS block */
+#define USBPCTRL0	0x00
+#define USBPCTRL1	0x04
+#define USBST		0x08
+#define USBEH0		0x0C
+#define USBOH0		0x1C
+#define USBCTL0		0x58
 
 /* USBPCTRL1 */
 #define PHY_RST		(1 << 2)
@@ -139,17 +139,9 @@ static int rcar_usb_phy_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/*
-	 * CAUTION
-	 *
-	 * Because this phy address is also mapped under OHCI/EHCI address area,
-	 * this driver can't use devm_request_and_ioremap(dev, res) here
-	 */
-	reg0 = devm_ioremap_nocache(dev, res0->start, resource_size(res0));
-	if (!reg0) {
-		dev_err(dev, "ioremap error\n");
-		return -ENOMEM;
-	}
+	reg0 = devm_ioremap_resource(dev, res0);
+	if (IS_ERR(reg0))
+		return PTR_ERR(reg0);
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
