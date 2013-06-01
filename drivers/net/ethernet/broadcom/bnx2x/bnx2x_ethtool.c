@@ -1390,7 +1390,8 @@ static bool bnx2x_is_nvm_accessible(struct bnx2x *bp)
 		rc = pci_read_config_word(bp->pdev,
 					  bp->pm_cap + PCI_PM_CTRL, &pm);
 
-	if ((rc && !netif_running(dev)) || (!rc && ((pm & PCI_D0) != PCI_D0)))
+	if ((rc && !netif_running(dev)) ||
+	    (!rc && ((pm & PCI_PM_CTRL_STATE_MASK) != PCI_D0)))
 		return false;
 
 	return true;
