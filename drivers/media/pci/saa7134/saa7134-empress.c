@@ -212,7 +212,7 @@ static int empress_enum_fmt_vid_cap(struct file *file, void  *priv,
 
 	strlcpy(f->description, "MPEG TS", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_MPEG;
-
+	f->flags = V4L2_FMT_FLAG_COMPRESSED;
 	return 0;
 }
 
@@ -227,6 +227,8 @@ static int empress_g_fmt_vid_cap(struct file *file, void *priv,
 	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
+	f->fmt.pix.bytesperline = 0;
+	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -243,6 +245,8 @@ static int empress_s_fmt_vid_cap(struct file *file, void *priv,
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
+	f->fmt.pix.bytesperline = 0;
+	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -251,9 +255,16 @@ static int empress_try_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct saa7134_dev *dev = file->private_data;
+	struct v4l2_mbus_framefmt mbus_fmt;
+
+	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
+	saa_call_all(dev, video, try_mbus_fmt, &mbus_fmt);
+	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
+	f->fmt.pix.bytesperline = 0;
+	f->fmt.pix.priv = 0;
 
 	return 0;
 }
