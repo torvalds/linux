@@ -63,7 +63,24 @@ static struct sh_mobile_sdhi_info sdhi0_info = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
 };
 
+static struct sh_eth_plat_data ether_platform_data __initdata = {
+	.phy		= 0x01,
+	.edmac_endian	= EDMAC_LITTLE_ENDIAN,
+	.register_type	= SH_ETH_REG_FAST_RCAR,
+	.phy_interface	= PHY_INTERFACE_MODE_RMII,
+	/*
+	 * Although the LINK signal is available on the board, it's connected to
+	 * the link/activity LED output of the PHY, thus the link disappears and
+	 * reappears after each packet.  We'd be better off ignoring such signal
+	 * and getting the link state from the PHY indirectly.
+	 */
+	.no_ether_link	= 1,
+};
+
 static const struct pinctrl_map bockw_pinctrl_map[] = {
+	/* Ether */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-eth", "pfc-r8a7778",
+				  "ether_rmii", "ether"),
 	/* SCIF0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.0", "pfc-r8a7778",
 				  "scif0_data_a", "scif0"),
@@ -85,6 +102,7 @@ static void __init bockw_init(void)
 	r8a7778_clock_init();
 	r8a7778_init_irq_extpin(1);
 	r8a7778_add_standard_devices();
+	r8a7778_add_ether_device(&ether_platform_data);
 
 	pinctrl_register_mappings(bockw_pinctrl_map,
 				  ARRAY_SIZE(bockw_pinctrl_map));
