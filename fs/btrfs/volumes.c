@@ -3283,10 +3283,7 @@ int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info)
 	}
 
 	tsk = kthread_run(balance_kthread, fs_info, "btrfs-balance");
-	if (IS_ERR(tsk))
-		return PTR_ERR(tsk);
-
-	return 0;
+	return PTR_RET(tsk);
 }
 
 int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
