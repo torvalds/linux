@@ -932,7 +932,7 @@ static int sysrq_reset_seq_param_set(const char *buffer,
 	unsigned long val;
 	int error;
 
-	error = strict_strtoul(buffer, 0, &val);
+	error = kstrtoul(buffer, 0, &val);
 	if (error < 0)
 		return error;
 
