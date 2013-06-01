@@ -1,8 +1,9 @@
 /*
  * Renesas R-Car USB phy driver
  *
- * Copyright (C) 2012 Renesas Solutions Corp.
+ * Copyright (C) 2012-2013 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2013 Cogent Embedded, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
+#include <linux/platform_data/usb-rcar-phy.h>
 
 /* REGS block */
 #define USBPCTRL0	0x00
@@ -24,6 +26,25 @@
 #define USBOH0		0x1C
 #define USBCTL0		0x58
 
+/* USBPCTRL0 */
+#define OVC2		(1 << 10) /* Switches the OVC input pin for port 2: */
+				/* 1: USB_OVC2, 0: OVC2			*/
+#define OVC1_VBUS1	(1 << 9) /* Switches the OVC input pin for port 1: */
+				/* 1: USB_OVC1, 0: OVC1/VBUS1		*/
+				/* Function mode: set to 0		*/
+#define OVC0		(1 << 8) /* Switches the OVC input pin for port 0: */
+				/* 1: USB_OVC0 pin, 0: OVC0		*/
+#define OVC2_ACT 	(1 << 6) /* Host mode: OVC2 polarity:		*/
+				/* 1: active-high, 0: active-low	*/
+#define PENC		(1 << 4) /* Function mode: output level of PENC1 pin: */
+				/* 1: high, 0: low			*/
+#define OVC0_ACT 	(1 << 3) /* Host mode: OVC0 polarity:		*/
+				/* 1: active-high, 0: active-low	*/
+#define OVC1_ACT	(1 << 1) /* Host mode: OVC1 polarity:		*/
+				/* 1: active-high, 0: active-low	*/
+				/* Function mode: be sure to set to 1	*/
+#define PORT1		(1 << 0) /* Selects port 1 mode:		*/
+				/* 1: function, 0: host			*/
 /* USBPCTRL1 */
 #define PHY_RST		(1 << 2)
 #define PLL_ENB		(1 << 1)
@@ -55,7 +76,9 @@ static int rcar_usb_phy_init(struct usb_phy *phy)
 {
 	struct rcar_usb_phy_priv *priv = usb_phy_to_priv(phy);
 	struct device *dev = phy->dev;
+	struct rcar_phy_platform_data *pdata = dev->platform_data;
 	void __iomem *reg0 = priv->reg0;
+	static const u8 ovcn_act[] = { OVC0_ACT, OVC1_ACT, OVC2_ACT };
 	int i;
 	u32 val;
 	unsigned long flags;
@@ -89,8 +112,21 @@ static int rcar_usb_phy_init(struct usb_phy *phy)
 		/* (4) USB-PHY reset clear */
 		iowrite32(PHY_ENB | PLL_ENB | PHY_RST, (reg0 + USBPCTRL1));
 
-		/* set platform specific port settings */
-		iowrite32(0x00000000, (reg0 + USBPCTRL0));
+		/* Board specific port settings */
+		val = 0;
+		if (pdata->port1_func)
+			val |= PORT1;
+		if (pdata->penc1)
+			val |= PENC;
+		for (i = 0; i < 3; i++) {
+			/* OVCn bits follow each other in the right order */
+			if (pdata->ovc_pin[i].select_3_3v)
+				val |= OVC0 << i;
+			/* OVCn_ACT bits are spaced by irregular intervals */
+			if (pdata->ovc_pin[i].active_high)
+				val |= ovcn_act[i];
+		}
+		iowrite32(val, (reg0 + USBPCTRL0));
 
 		/*
 		 * Bus alignment settings
@@ -117,10 +153,8 @@ static void rcar_usb_phy_shutdown(struct usb_phy *phy)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (priv->counter-- == 1) { /* last user */
-		iowrite32(0x00000000, (reg0 + USBPCTRL0));
+	if (priv->counter-- == 1)	/* last user */
 		iowrite32(0x00000000, (reg0 + USBPCTRL1));
-	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
@@ -132,6 +166,11 @@ static int rcar_usb_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	void __iomem *reg0;
 	int ret;
+
+	if (!pdev->dev.platform_data) {
+		dev_err(dev, "No platform data\n");
+		return -EINVAL;
+	}
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res0) {
