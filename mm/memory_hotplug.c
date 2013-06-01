@@ -1822,11 +1822,5 @@ void __ref remove_memory(int nid, u64 start, u64 size)
 
 	unlock_memory_hotplug();
 }
-#else
-int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
-{
-	return -EINVAL;
-}
-void remove_memory(int nid, u64 start, u64 size) {}
-#endif /* CONFIG_MEMORY_HOTREMOVE */
 EXPORT_SYMBOL_GPL(remove_memory);
+#endif /* CONFIG_MEMORY_HOTREMOVE */
