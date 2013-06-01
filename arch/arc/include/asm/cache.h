@@ -9,6 +9,8 @@
 #ifndef __ARC_ASM_CACHE_H
 #define __ARC_ASM_CACHE_H
 
+#include <asm/mmu.h>	/* some of cache registers depend on MMU ver */
+
 /* In case $$ not config, setup a dummy number for rest of kernel */
 #ifndef CONFIG_ARC_CACHE_LINE_SHIFT
 #define L1_CACHE_SHIFT		6

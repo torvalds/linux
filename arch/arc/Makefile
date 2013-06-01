@@ -16,13 +16,11 @@ KBUILD_DEFCONFIG := fpga_defconfig
 
 cflags-y	+= -mA7 -fno-common -pipe -fno-builtin -D__linux__
 
-LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/defines.h
-
 ifdef CONFIG_ARC_CURR_IN_REG
 # For a global register defintion, make sure it gets passed to every file
 # We had a customer reported bug where some code built in kernel was NOT using
 # any kernel headers, and missing the r25 global register
-# Can't do unconditionally (like above) because of recursive include issues
+# Can't do unconditionally because of recursive include issues
 # due to <linux/thread_info.h>
 LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/current.h
 endif

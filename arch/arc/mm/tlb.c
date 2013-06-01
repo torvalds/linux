@@ -505,7 +505,7 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 		       "J-TLB %d (%dx%d), uDTLB %d, uITLB %d, %s\n",
 		       p_mmu->num_tlb, p_mmu->sets, p_mmu->ways,
 		       p_mmu->u_dtlb, p_mmu->u_itlb,
-		       __CONFIG_ARC_MMU_SASID_VAL ? "SASID" : "");
+		       IS_ENABLED(CONFIG_ARC_MMU_SASID) ? "SASID" : "");
 
 	return buf;
 }

@@ -182,7 +182,7 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	FIX_PTR(cpu);
 #define IS_AVAIL1(var, str)	((var) ? str : "")
 #define IS_AVAIL2(var, str)	((var == 0x2) ? str : "")
-#define IS_USED(var)		((var) ? "(in-use)" : "(not used)")
+#define IS_USED(cfg)		(IS_ENABLED(cfg) ? "(in-use)" : "(not used)")
 
 	n += scnprintf(buf + n, len - n,
 		       "Extn [700-Base]\t: %s %s %s %s %s %s\n",
@@ -202,9 +202,9 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	if (cpu->core.family == 0x34) {
 		n += scnprintf(buf + n, len - n,
 		"Extn [700-4.10]\t: LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
-			       IS_USED(__CONFIG_ARC_HAS_LLSC_VAL),
-			       IS_USED(__CONFIG_ARC_HAS_SWAPE_VAL),
-			       IS_USED(__CONFIG_ARC_HAS_RTSC_VAL));
+			       IS_USED(CONFIG_ARC_HAS_LLSC),
+			       IS_USED(CONFIG_ARC_HAS_SWAPE),
+			       IS_USED(CONFIG_ARC_HAS_RTSC));
 	}
 
 	n += scnprintf(buf + n, len - n, "Extn [CCM]\t: %s",

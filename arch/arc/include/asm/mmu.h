@@ -9,6 +9,14 @@
 #ifndef _ASM_ARC_MMU_H
 #define _ASM_ARC_MMU_H
 
+#if defined(CONFIG_ARC_MMU_V1)
+#define CONFIG_ARC_MMU_VER 1
+#elif defined(CONFIG_ARC_MMU_V2)
+#define CONFIG_ARC_MMU_VER 2
+#elif defined(CONFIG_ARC_MMU_V3)
+#define CONFIG_ARC_MMU_VER 3
+#endif
+
 #ifndef __ASSEMBLY__
 
 typedef struct {

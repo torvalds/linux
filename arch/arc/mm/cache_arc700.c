@@ -89,8 +89,10 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len)
 			enb ?  "" : "DISABLED (kernel-build)");		\
 }
 
-	PR_CACHE(&cpuinfo_arc700[c].icache, __CONFIG_ARC_HAS_ICACHE, "I-Cache");
-	PR_CACHE(&cpuinfo_arc700[c].dcache, __CONFIG_ARC_HAS_DCACHE, "D-Cache");
+	PR_CACHE(&cpuinfo_arc700[c].icache, IS_ENABLED(CONFIG_ARC_HAS_ICACHE),
+			"I-Cache");
+	PR_CACHE(&cpuinfo_arc700[c].dcache, IS_ENABLED(CONFIG_ARC_HAS_DCACHE),
+			"D-Cache");
 
 	return buf;
 }
