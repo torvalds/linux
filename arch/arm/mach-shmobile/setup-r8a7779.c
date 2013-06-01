@@ -33,6 +33,7 @@
 #include <linux/sh_timer.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/hcd.h>
 #include <linux/usb/ehci_pdriver.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/pm_runtime.h>
@@ -435,10 +436,25 @@ static void usb_power_off(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
+static int ehci_init_internal_buffer(struct usb_hcd *hcd)
+{
+	/*
+	 * Below are recommended values from the datasheet;
+	 * see [USB :: Setting of EHCI Internal Buffer].
+	 */
+	/* EHCI IP internal buffer setting */
+	iowrite32(0x00ff0040, hcd->regs + 0x0094);
+	/* EHCI IP internal buffer enable */
+	iowrite32(0x00000001, hcd->regs + 0x009C);
+
+	return 0;
+}
+
 static struct usb_ehci_pdata ehcix_pdata = {
 	.power_on	= usb_power_on,
 	.power_off	= usb_power_off,
 	.power_suspend	= usb_power_off,
+	.pre_setup	= ehci_init_internal_buffer,
 };
 
 static struct resource ehci0_resources[] = {
