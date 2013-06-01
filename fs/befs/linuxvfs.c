@@ -265,8 +265,8 @@ befs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		result = filldir(dirent, keybuf, keysize, filp->f_pos,
 				 (ino_t) value, d_type);
 	}
-
-	filp->f_pos++;
+	if (!result)
+		filp->f_pos++;
 
 	befs_debug(sb, "<--- befs_readdir() filp->f_pos %Ld", filp->f_pos);
 
