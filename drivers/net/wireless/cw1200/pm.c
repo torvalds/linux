@@ -15,7 +15,7 @@
 #include "pm.h"
 #include "sta.h"
 #include "bh.h"
-#include "sbus.h"
+#include "hwbus.h"
 
 #define CW1200_BEACON_SKIPPING_MULTIPLIER 3
 
@@ -264,7 +264,7 @@ int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	pm_state->suspend_state = state;
 
 	/* Enable IRQ wake */
-	ret = priv->sbus_ops->power_mgmt(priv->sbus_priv, true);
+	ret = priv->hwbus_ops->power_mgmt(priv->hwbus_priv, true);
 	if (ret) {
 		wiphy_err(priv->hw->wiphy,
 			  "PM request failed: %d. WoW is disabled.\n", ret);
@@ -313,7 +313,7 @@ int cw1200_wow_resume(struct ieee80211_hw *hw)
 	pm_state->suspend_state = NULL;
 
 	/* Disable IRQ wake */
-	priv->sbus_ops->power_mgmt(priv->sbus_priv, false);
+	priv->hwbus_ops->power_mgmt(priv->hwbus_priv, false);
 
 	/* Scan.lock must be released before BH is resumed other way
 	 * in case when BSS_LOST command arrived the processing of the

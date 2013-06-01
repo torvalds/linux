@@ -31,7 +31,7 @@
 
 #include "cw1200.h"
 #include "txrx.h"
-#include "sbus.h"
+#include "hwbus.h"
 #include "fwio.h"
 #include "hwio.h"
 #include "bh.h"
@@ -528,8 +528,8 @@ u32 cw1200_dpll_from_clk(u16 clk_khz)
 	}
 }
 
-int cw1200_core_probe(const struct sbus_ops *sbus_ops,
-		      struct sbus_priv *sbus,
+int cw1200_core_probe(const struct hwbus_ops *hwbus_ops,
+		      struct hwbus_priv *hwbus,
 		      struct device *pdev,
 		      struct cw1200_common **core,
 		      int ref_clk, const u8 *macaddr,
@@ -556,8 +556,8 @@ int cw1200_core_probe(const struct sbus_ops *sbus_ops,
 	if (cw1200_sdd_path)
 		priv->sdd_path = cw1200_sdd_path;
 
-	priv->sbus_ops = sbus_ops;
-	priv->sbus_priv = sbus;
+	priv->hwbus_ops = hwbus_ops;
+	priv->hwbus_priv = hwbus;
 	priv->pdev = pdev;
 	SET_IEEE80211_DEV(priv->hw, pdev);
 
@@ -616,9 +616,9 @@ EXPORT_SYMBOL_GPL(cw1200_core_probe);
 void cw1200_core_release(struct cw1200_common *self)
 {
 	/* Disable device interrupts */
-	self->sbus_ops->lock(self->sbus_priv);
+	self->hwbus_ops->lock(self->hwbus_priv);
 	__cw1200_irq_enable(self, 0);
-	self->sbus_ops->unlock(self->sbus_priv);
+	self->hwbus_ops->unlock(self->hwbus_priv);
 
 	/* And then clean up */
 	cw1200_unregister_common(self->hw);

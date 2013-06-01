@@ -24,7 +24,7 @@
 #include <linux/device.h>
 
 #include "cw1200.h"
-#include "sbus.h"
+#include "hwbus.h"
 #include <linux/cw1200_platform.h>
 #include "hwio.h"
 
@@ -35,7 +35,7 @@ MODULE_ALIAS("spi:cw1200_wlan_spi");
 
 /* #define SPI_DEBUG */
 
-struct sbus_priv {
+struct hwbus_priv {
 	struct spi_device	*func;
 	struct cw1200_common	*core;
 	const struct cw1200_platform_data_spi *pdata;
@@ -58,7 +58,7 @@ struct sbus_priv {
 
 */
 
-static int cw1200_spi_memcpy_fromio(struct sbus_priv *self,
+static int cw1200_spi_memcpy_fromio(struct hwbus_priv *self,
 				     unsigned int addr,
 				     void *dst, int count)
 {
@@ -119,7 +119,7 @@ static int cw1200_spi_memcpy_fromio(struct sbus_priv *self,
 	return ret;
 }
 
-static int cw1200_spi_memcpy_toio(struct sbus_priv *self,
+static int cw1200_spi_memcpy_toio(struct hwbus_priv *self,
 				   unsigned int addr,
 				   const void *src, int count)
 {
@@ -187,7 +187,7 @@ static int cw1200_spi_memcpy_toio(struct sbus_priv *self,
 	return rval;
 }
 
-static void cw1200_spi_lock(struct sbus_priv *self)
+static void cw1200_spi_lock(struct hwbus_priv *self)
 {
 	unsigned long flags;
 
@@ -209,7 +209,7 @@ static void cw1200_spi_lock(struct sbus_priv *self)
 	return;
 }
 
-static void cw1200_spi_unlock(struct sbus_priv *self)
+static void cw1200_spi_unlock(struct hwbus_priv *self)
 {
 	unsigned long flags;
 
@@ -221,7 +221,7 @@ static void cw1200_spi_unlock(struct sbus_priv *self)
 
 static irqreturn_t cw1200_spi_irq_handler(int irq, void *dev_id)
 {
-	struct sbus_priv *self = dev_id;
+	struct hwbus_priv *self = dev_id;
 
 	if (self->core) {
 		cw1200_irq_handler(self->core);
@@ -231,7 +231,7 @@ static irqreturn_t cw1200_spi_irq_handler(int irq, void *dev_id)
 	}
 }
 
-static int cw1200_spi_irq_subscribe(struct sbus_priv *self)
+static int cw1200_spi_irq_subscribe(struct hwbus_priv *self)
 {
 	int ret;
 
@@ -255,7 +255,7 @@ exit:
 	return ret;
 }
 
-static int cw1200_spi_irq_unsubscribe(struct sbus_priv *self)
+static int cw1200_spi_irq_unsubscribe(struct hwbus_priv *self)
 {
 	int ret = 0;
 
@@ -331,19 +331,19 @@ static int cw1200_spi_on(const struct cw1200_platform_data_spi *pdata)
 	return 0;
 }
 
-static size_t cw1200_spi_align_size(struct sbus_priv *self, size_t size)
+static size_t cw1200_spi_align_size(struct hwbus_priv *self, size_t size)
 {
 	return size & 1 ? size + 1 : size;
 }
 
-static int cw1200_spi_pm(struct sbus_priv *self, bool suspend)
+static int cw1200_spi_pm(struct hwbus_priv *self, bool suspend)
 {
 	return irq_set_irq_wake(self->func->irq, suspend);
 }
 
-static struct sbus_ops cw1200_spi_sbus_ops = {
-	.sbus_memcpy_fromio	= cw1200_spi_memcpy_fromio,
-	.sbus_memcpy_toio	= cw1200_spi_memcpy_toio,
+static struct hwbus_ops cw1200_spi_hwbus_ops = {
+	.hwbus_memcpy_fromio	= cw1200_spi_memcpy_fromio,
+	.hwbus_memcpy_toio	= cw1200_spi_memcpy_toio,
 	.lock			= cw1200_spi_lock,
 	.unlock			= cw1200_spi_unlock,
 	.align_size		= cw1200_spi_align_size,
@@ -355,7 +355,7 @@ static int cw1200_spi_probe(struct spi_device *func)
 {
 	const struct cw1200_platform_data_spi *plat_data =
 		func->dev.platform_data;
-	struct sbus_priv *self;
+	struct hwbus_priv *self;
 	int status;
 
 	/* Sanity check speed */
@@ -389,7 +389,7 @@ static int cw1200_spi_probe(struct spi_device *func)
 
 	self = kzalloc(sizeof(*self), GFP_KERNEL);
 	if (!self) {
-		pr_err("Can't allocate SPI sbus_priv.");
+		pr_err("Can't allocate SPI hwbus_priv.");
 		return -ENOMEM;
 	}
 
@@ -401,7 +401,7 @@ static int cw1200_spi_probe(struct spi_device *func)
 
 	status = cw1200_spi_irq_subscribe(self);
 
-	status = cw1200_core_probe(&cw1200_spi_sbus_ops,
+	status = cw1200_core_probe(&cw1200_spi_hwbus_ops,
 				   self, &func->dev, &self->core,
 				   self->pdata->ref_clk,
 				   self->pdata->macaddr,
@@ -420,7 +420,7 @@ static int cw1200_spi_probe(struct spi_device *func)
 /* Disconnect Function to be called by SPI stack when device is disconnected */
 static int cw1200_spi_disconnect(struct spi_device *func)
 {
-	struct sbus_priv *self = spi_get_drvdata(func);
+	struct hwbus_priv *self = spi_get_drvdata(func);
 
 	if (self) {
 		cw1200_spi_irq_unsubscribe(self);
@@ -438,7 +438,7 @@ static int cw1200_spi_disconnect(struct spi_device *func)
 #ifdef CONFIG_PM
 static int cw1200_spi_suspend(struct device *dev, pm_message_t state)
 {
-	struct sbus_priv *self = spi_get_drvdata(to_spi_device(dev));
+	struct hwbus_priv *self = spi_get_drvdata(to_spi_device(dev));
 
 	if (!cw1200_can_suspend(self->core))
 		return -EAGAIN;

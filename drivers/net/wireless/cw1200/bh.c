@@ -23,7 +23,7 @@
 #include "bh.h"
 #include "hwio.h"
 #include "wsm.h"
-#include "sbus.h"
+#include "hwbus.h"
 #include "debug.h"
 #include "fwio.h"
 
@@ -103,7 +103,7 @@ void cw1200_irq_handler(struct cw1200_common *priv)
 	pr_debug("[BH] irq.\n");
 
 	/* Disable Interrupts! */
-	/* NOTE:  sbus_ops->lock already held */
+	/* NOTE:  hwbus_ops->lock already held */
 	__cw1200_irq_enable(priv, 0);
 
 	if (/* WARN_ON */(priv->bh_error))
@@ -265,8 +265,8 @@ static int cw1200_bh_rx_helper(struct cw1200_common *priv,
 	 * to the NEXT Message length + 2 Bytes for SKB */
 	read_len = read_len + 2;
 
-	alloc_len = priv->sbus_ops->align_size(
-		priv->sbus_priv, read_len);
+	alloc_len = priv->hwbus_ops->align_size(
+		priv->hwbus_priv, read_len);
 
 	/* Check if not exceeding CW1200 capabilities */
 	if (WARN_ON_ONCE(alloc_len > EFFECTIVE_BUF_SIZE)) {
@@ -384,8 +384,8 @@ static int cw1200_bh_tx_helper(struct cw1200_common *priv,
 
 	atomic_add(1, &priv->bh_tx);
 
-	tx_len = priv->sbus_ops->align_size(
-		priv->sbus_priv, tx_len);
+	tx_len = priv->hwbus_ops->align_size(
+		priv->hwbus_priv, tx_len);
 
 	/* Check if not exceeding CW1200 capabilities */
 	if (WARN_ON_ONCE(tx_len > EFFECTIVE_BUF_SIZE))
@@ -597,15 +597,15 @@ static int cw1200_bh(void *arg)
 
 	done:
 		/* Re-enable device interrupts */
-		priv->sbus_ops->lock(priv->sbus_priv);
+		priv->hwbus_ops->lock(priv->hwbus_priv);
 		__cw1200_irq_enable(priv, 1);
-		priv->sbus_ops->unlock(priv->sbus_priv);
+		priv->hwbus_ops->unlock(priv->hwbus_priv);
 	}
 
 	/* Explicitly disable device interrupts */
-	priv->sbus_ops->lock(priv->sbus_priv);
+	priv->hwbus_ops->lock(priv->hwbus_priv);
 	__cw1200_irq_enable(priv, 0);
-	priv->sbus_ops->unlock(priv->sbus_priv);
+	priv->hwbus_ops->unlock(priv->hwbus_priv);
 
 	if (!term) {
 		pr_err("[BH] Fatal error, exiting.\n");

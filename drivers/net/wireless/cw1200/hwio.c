@@ -18,7 +18,7 @@
 
 #include "cw1200.h"
 #include "hwio.h"
-#include "sbus.h"
+#include "hwbus.h"
 
  /* Sdio addr is 4*spi_addr */
 #define SPI_REG_ADDR_TO_SDIO(spi_reg_addr) ((spi_reg_addr) << 2)
@@ -46,7 +46,7 @@ static int __cw1200_reg_read(struct cw1200_common *priv, u16 addr,
 	addr_sdio = SPI_REG_ADDR_TO_SDIO(addr);
 	sdio_reg_addr_17bit = SDIO_ADDR17BIT(buf_id, 0, 0, addr_sdio);
 
-	return priv->sbus_ops->sbus_memcpy_fromio(priv->sbus_priv,
+	return priv->hwbus_ops->hwbus_memcpy_fromio(priv->hwbus_priv,
 						  sdio_reg_addr_17bit,
 						  buf, buf_len);
 }
@@ -61,7 +61,7 @@ static int __cw1200_reg_write(struct cw1200_common *priv, u16 addr,
 	addr_sdio = SPI_REG_ADDR_TO_SDIO(addr);
 	sdio_reg_addr_17bit = SDIO_ADDR17BIT(buf_id, 0, 0, addr_sdio);
 
-	return priv->sbus_ops->sbus_memcpy_toio(priv->sbus_priv,
+	return priv->hwbus_ops->hwbus_memcpy_toio(priv->hwbus_priv,
 						sdio_reg_addr_17bit,
 						buf, buf_len);
 }
@@ -100,9 +100,9 @@ int cw1200_reg_read(struct cw1200_common *priv, u16 addr, void *buf,
 			size_t buf_len)
 {
 	int ret;
-	priv->sbus_ops->lock(priv->sbus_priv);
+	priv->hwbus_ops->lock(priv->hwbus_priv);
 	ret = __cw1200_reg_read(priv, addr, buf, buf_len, 0);
-	priv->sbus_ops->unlock(priv->sbus_priv);
+	priv->hwbus_ops->unlock(priv->hwbus_priv);
 	return ret;
 }
 
@@ -110,9 +110,9 @@ int cw1200_reg_write(struct cw1200_common *priv, u16 addr, const void *buf,
 			size_t buf_len)
 {
 	int ret;
-	priv->sbus_ops->lock(priv->sbus_priv);
+	priv->hwbus_ops->lock(priv->hwbus_priv);
 	ret = __cw1200_reg_write(priv, addr, buf, buf_len, 0);
-	priv->sbus_ops->unlock(priv->sbus_priv);
+	priv->hwbus_ops->unlock(priv->hwbus_priv);
 	return ret;
 }
 
@@ -121,7 +121,7 @@ int cw1200_data_read(struct cw1200_common *priv, void *buf, size_t buf_len)
 	int ret, retry = 1;
 	int buf_id_rx = priv->buf_id_rx;
 
-	priv->sbus_ops->lock(priv->sbus_priv);
+	priv->hwbus_ops->lock(priv->hwbus_priv);
 
 	while (retry <= MAX_RETRY) {
 		ret = __cw1200_reg_read(priv,
@@ -138,7 +138,7 @@ int cw1200_data_read(struct cw1200_common *priv, void *buf, size_t buf_len)
 		}
 	}
 
-	priv->sbus_ops->unlock(priv->sbus_priv);
+	priv->hwbus_ops->unlock(priv->hwbus_priv);
 	return ret;
 }
 
@@ -148,7 +148,7 @@ int cw1200_data_write(struct cw1200_common *priv, const void *buf,
 	int ret, retry = 1;
 	int buf_id_tx = priv->buf_id_tx;
 
-	priv->sbus_ops->lock(priv->sbus_priv);
+	priv->hwbus_ops->lock(priv->hwbus_priv);
 
 	while (retry <= MAX_RETRY) {
 		ret = __cw1200_reg_write(priv,
@@ -165,7 +165,7 @@ int cw1200_data_write(struct cw1200_common *priv, const void *buf,
 		}
 	}
 
-	priv->sbus_ops->unlock(priv->sbus_priv);
+	priv->hwbus_ops->unlock(priv->hwbus_priv);
 	return ret;
 }
 
@@ -181,7 +181,7 @@ int cw1200_indirect_read(struct cw1200_common *priv, u32 addr, void *buf,
 		goto out;
 	}
 
-	priv->sbus_ops->lock(priv->sbus_priv);
+	priv->hwbus_ops->lock(priv->hwbus_priv);
 	/* Write address */
 	ret = __cw1200_reg_write_32(priv, ST90TDS_SRAM_BASE_ADDR_REG_ID, addr);
 	if (ret < 0) {
@@ -230,7 +230,7 @@ int cw1200_indirect_read(struct cw1200_common *priv, u32 addr, void *buf,
 	}
 
 out:
-	priv->sbus_ops->unlock(priv->sbus_priv);
+	priv->hwbus_ops->unlock(priv->hwbus_priv);
 	return ret;
 }
 
@@ -244,7 +244,7 @@ int cw1200_apb_write(struct cw1200_common *priv, u32 addr, const void *buf,
 		return -EINVAL;
 	}
 
-	priv->sbus_ops->lock(priv->sbus_priv);
+	priv->hwbus_ops->lock(priv->hwbus_priv);
 
 	/* Write address */
 	ret = __cw1200_reg_write_32(priv, ST90TDS_SRAM_BASE_ADDR_REG_ID, addr);
@@ -262,7 +262,7 @@ int cw1200_apb_write(struct cw1200_common *priv, u32 addr, const void *buf,
 	}
 
 out:
-	priv->sbus_ops->unlock(priv->sbus_priv);
+	priv->hwbus_ops->unlock(priv->hwbus_priv);
 	return ret;
 }
 

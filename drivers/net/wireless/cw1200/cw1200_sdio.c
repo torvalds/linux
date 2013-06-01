@@ -19,7 +19,7 @@
 #include <net/mac80211.h>
 
 #include "cw1200.h"
-#include "sbus.h"
+#include "hwbus.h"
 #include <linux/cw1200_platform.h>
 #include "hwio.h"
 
@@ -29,7 +29,7 @@ MODULE_LICENSE("GPL");
 
 #define SDIO_BLOCK_SIZE (512)
 
-struct sbus_priv {
+struct hwbus_priv {
 	struct sdio_func	*func;
 	struct cw1200_common	*core;
 	const struct cw1200_platform_data_sdio *pdata;
@@ -48,35 +48,35 @@ static const struct sdio_device_id cw1200_sdio_ids[] = {
 	{ /* end: all zeroes */			},
 };
 
-/* sbus_ops implemetation */
+/* hwbus_ops implemetation */
 
-static int cw1200_sdio_memcpy_fromio(struct sbus_priv *self,
+static int cw1200_sdio_memcpy_fromio(struct hwbus_priv *self,
 				     unsigned int addr,
 				     void *dst, int count)
 {
 	return sdio_memcpy_fromio(self->func, dst, addr, count);
 }
 
-static int cw1200_sdio_memcpy_toio(struct sbus_priv *self,
+static int cw1200_sdio_memcpy_toio(struct hwbus_priv *self,
 				   unsigned int addr,
 				   const void *src, int count)
 {
 	return sdio_memcpy_toio(self->func, addr, (void *)src, count);
 }
 
-static void cw1200_sdio_lock(struct sbus_priv *self)
+static void cw1200_sdio_lock(struct hwbus_priv *self)
 {
 	sdio_claim_host(self->func);
 }
 
-static void cw1200_sdio_unlock(struct sbus_priv *self)
+static void cw1200_sdio_unlock(struct hwbus_priv *self)
 {
 	sdio_release_host(self->func);
 }
 
 static void cw1200_sdio_irq_handler(struct sdio_func *func)
 {
-	struct sbus_priv *self = sdio_get_drvdata(func);
+	struct hwbus_priv *self = sdio_get_drvdata(func);
 
 	/* note:  sdio_host already claimed here. */
 	if (self->core)
@@ -90,7 +90,7 @@ static irqreturn_t cw1200_gpio_hardirq(int irq, void *dev_id)
 
 static irqreturn_t cw1200_gpio_irq(int irq, void *dev_id)
 {
-	struct sbus_priv *self = dev_id;
+	struct hwbus_priv *self = dev_id;
 
 	if (self->core) {
 		sdio_claim_host(self->func);
@@ -102,7 +102,7 @@ static irqreturn_t cw1200_gpio_irq(int irq, void *dev_id)
 	}
 }
 
-static int cw1200_request_irq(struct sbus_priv *self)
+static int cw1200_request_irq(struct hwbus_priv *self)
 {
 	int ret;
 	const struct resource *irq = self->pdata->irq;
@@ -140,7 +140,7 @@ err:
 	return ret;
 }
 
-static int cw1200_sdio_irq_subscribe(struct sbus_priv *self)
+static int cw1200_sdio_irq_subscribe(struct hwbus_priv *self)
 {
 	int ret = 0;
 
@@ -155,7 +155,7 @@ static int cw1200_sdio_irq_subscribe(struct sbus_priv *self)
 	return ret;
 }
 
-static int cw1200_sdio_irq_unsubscribe(struct sbus_priv *self)
+static int cw1200_sdio_irq_unsubscribe(struct hwbus_priv *self)
 {
 	int ret = 0;
 
@@ -237,7 +237,7 @@ static int cw1200_sdio_on(const struct cw1200_platform_data_sdio *pdata)
 	return 0;
 }
 
-static size_t cw1200_sdio_align_size(struct sbus_priv *self, size_t size)
+static size_t cw1200_sdio_align_size(struct hwbus_priv *self, size_t size)
 {
 	if (self->pdata->no_nptb)
 		size = round_up(size, SDIO_BLOCK_SIZE);
@@ -247,7 +247,7 @@ static size_t cw1200_sdio_align_size(struct sbus_priv *self, size_t size)
 	return size;
 }
 
-static int cw1200_sdio_pm(struct sbus_priv *self, bool suspend)
+static int cw1200_sdio_pm(struct hwbus_priv *self, bool suspend)
 {
 	int ret = 0;
 
@@ -256,9 +256,9 @@ static int cw1200_sdio_pm(struct sbus_priv *self, bool suspend)
 	return ret;
 }
 
-static struct sbus_ops cw1200_sdio_sbus_ops = {
-	.sbus_memcpy_fromio	= cw1200_sdio_memcpy_fromio,
-	.sbus_memcpy_toio	= cw1200_sdio_memcpy_toio,
+static struct hwbus_ops cw1200_sdio_hwbus_ops = {
+	.hwbus_memcpy_fromio	= cw1200_sdio_memcpy_fromio,
+	.hwbus_memcpy_toio	= cw1200_sdio_memcpy_toio,
 	.lock			= cw1200_sdio_lock,
 	.unlock			= cw1200_sdio_unlock,
 	.align_size		= cw1200_sdio_align_size,
@@ -269,7 +269,7 @@ static struct sbus_ops cw1200_sdio_sbus_ops = {
 static int cw1200_sdio_probe(struct sdio_func *func,
 				       const struct sdio_device_id *id)
 {
-	struct sbus_priv *self;
+	struct hwbus_priv *self;
 	int status;
 
 	pr_info("cw1200_wlan_sdio: Probe called\n");
@@ -280,7 +280,7 @@ static int cw1200_sdio_probe(struct sdio_func *func,
 
 	self = kzalloc(sizeof(*self), GFP_KERNEL);
 	if (!self) {
-		pr_err("Can't allocate SDIO sbus_priv.\n");
+		pr_err("Can't allocate SDIO hwbus_priv.\n");
 		return -ENOMEM;
 	}
 
@@ -295,7 +295,7 @@ static int cw1200_sdio_probe(struct sdio_func *func,
 
 	status = cw1200_sdio_irq_subscribe(self);
 
-	status = cw1200_core_probe(&cw1200_sdio_sbus_ops,
+	status = cw1200_core_probe(&cw1200_sdio_hwbus_ops,
 				   self, &func->dev, &self->core,
 				   self->pdata->ref_clk,
 				   self->pdata->macaddr,
@@ -317,7 +317,7 @@ static int cw1200_sdio_probe(struct sdio_func *func,
  * device is disconnected */
 static void cw1200_sdio_disconnect(struct sdio_func *func)
 {
-	struct sbus_priv *self = sdio_get_drvdata(func);
+	struct hwbus_priv *self = sdio_get_drvdata(func);
 
 	if (self) {
 		cw1200_sdio_irq_unsubscribe(self);
@@ -338,7 +338,7 @@ static int cw1200_sdio_suspend(struct device *dev)
 {
 	int ret;
 	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct sbus_priv *self = sdio_get_drvdata(func);
+	struct hwbus_priv *self = sdio_get_drvdata(func);
 
 	if (!cw1200_can_suspend(self->core))
 		return -EAGAIN;

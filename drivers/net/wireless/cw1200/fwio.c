@@ -22,7 +22,7 @@
 #include "cw1200.h"
 #include "fwio.h"
 #include "hwio.h"
-#include "sbus.h"
+#include "hwbus.h"
 #include "bh.h"
 
 static int cw1200_get_hw_type(u32 config_reg_val, int *major_revision)
@@ -489,9 +489,9 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 	}
 
 	/* Enable interrupt signalling */
-	priv->sbus_ops->lock(priv->sbus_priv);
+	priv->hwbus_ops->lock(priv->hwbus_priv);
 	ret = __cw1200_irq_enable(priv, 1);
-	priv->sbus_ops->unlock(priv->sbus_priv);
+	priv->hwbus_ops->unlock(priv->hwbus_priv);
 	if (ret < 0)
 		goto unsubscribe;
 
@@ -518,8 +518,8 @@ out:
 
 unsubscribe:
 	/* Disable interrupt signalling */
-	priv->sbus_ops->lock(priv->sbus_priv);
+	priv->hwbus_ops->lock(priv->hwbus_priv);
 	ret = __cw1200_irq_enable(priv, 0);
-	priv->sbus_ops->unlock(priv->sbus_priv);
+	priv->hwbus_ops->unlock(priv->hwbus_priv);
 	return ret;
 }
