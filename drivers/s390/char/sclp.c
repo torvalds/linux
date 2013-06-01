@@ -1170,7 +1170,7 @@ static __init int sclp_initcall(void)
 		return rc;
 
 	sclp_pdev = platform_device_register_simple("sclp", -1, NULL, 0);
-	rc = IS_ERR(sclp_pdev) ? PTR_ERR(sclp_pdev) : 0;
+	rc = PTR_RET(sclp_pdev);
 	if (rc)
 		goto fail_platform_driver_unregister;
 

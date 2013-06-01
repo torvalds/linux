@@ -668,7 +668,7 @@ static int __init sclp_detect_standby_memory(void)
 	if (rc)
 		goto out;
 	sclp_pdev = platform_device_register_simple("sclp_mem", -1, NULL, 0);
-	rc = IS_ERR(sclp_pdev) ? PTR_ERR(sclp_pdev) : 0;
+	rc = PTR_RET(sclp_pdev);
 	if (rc)
 		goto out_driver;
 	sclp_add_standby_memory();
