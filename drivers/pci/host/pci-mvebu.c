@@ -51,6 +51,7 @@
 #define  PCIE_CTRL_X1_MODE		0x0001
 #define PCIE_STAT_OFF		0x1a04
 #define  PCIE_STAT_BUS                  0xff00
+#define  PCIE_STAT_DEV                  0x1f0000
 #define  PCIE_STAT_LINK_DOWN		BIT(0)
 #define PCIE_DEBUG_CTRL         0x1a60
 #define  PCIE_DEBUG_SOFT_RESET		BIT(20)
@@ -68,7 +69,6 @@ struct mvebu_sw_pci_bridge {
 	u16 vendor;
 	u16 device;
 	u16 command;
-	u16 status;
 	u16 class;
 	u8 interface;
 	u8 revision;
@@ -145,6 +145,16 @@ static void mvebu_pcie_set_local_bus_nr(struct mvebu_pcie_port *port, int nr)
 	stat = readl(port->base + PCIE_STAT_OFF);
 	stat &= ~PCIE_STAT_BUS;
 	stat |= nr << 8;
+	writel(stat, port->base + PCIE_STAT_OFF);
+}
+
+static void mvebu_pcie_set_local_dev_nr(struct mvebu_pcie_port *port, int nr)
+{
+	u32 stat;
+
+	stat = readl(port->base + PCIE_STAT_OFF);
+	stat &= ~PCIE_STAT_DEV;
+	stat |= nr << 16;
 	writel(stat, port->base + PCIE_STAT_OFF);
 }
 
@@ -348,7 +358,6 @@ static void mvebu_sw_pci_bridge_init(struct mvebu_pcie_port *port)
 
 	memset(bridge, 0, sizeof(struct mvebu_sw_pci_bridge));
 
-	bridge->status = PCI_STATUS_CAP_LIST;
 	bridge->class = PCI_CLASS_BRIDGE_PCI;
 	bridge->vendor = PCI_VENDOR_ID_MARVELL;
 	bridge->device = MARVELL_EMULATED_PCI_PCI_BRIDGE_ID;
@@ -375,7 +384,7 @@ static int mvebu_sw_pci_bridge_read(struct mvebu_pcie_port *port,
 		break;
 
 	case PCI_COMMAND:
-		*value = bridge->status << 16 | bridge->command;
+		*value = bridge->command;
 		break;
 
 	case PCI_CLASS_REVISION:
@@ -468,7 +477,6 @@ static int mvebu_sw_pci_bridge_write(struct mvebu_pcie_port *port,
 	switch (where & ~3) {
 	case PCI_COMMAND:
 		bridge->command = value & 0xffff;
-		bridge->status = value >> 16;
 		break;
 
 	case PCI_BASE_ADDRESS_0 ... PCI_BASE_ADDRESS_1:
@@ -543,7 +551,8 @@ mvebu_pcie_find_port(struct mvebu_pcie *pcie, struct pci_bus *bus,
 		if (bus->number == 0 && port->devfn == devfn)
 			return port;
 		if (bus->number != 0 &&
-		    port->bridge.secondary_bus == bus->number)
+		    bus->number >= port->bridge.secondary_bus &&
+		    bus->number <= port->bridge.subordinate_bus)
 			return port;
 	}
 
@@ -567,13 +576,23 @@ static int mvebu_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	if (bus->number == 0)
 		return mvebu_sw_pci_bridge_write(port, where, size, val);
 
-	if (!port->haslink || PCI_SLOT(devfn) != 0)
+	if (!port->haslink)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	/*
+	 * On the secondary bus, we don't want to expose any other
+	 * device than the device physically connected in the PCIe
+	 * slot, visible in slot 0. In slot 1, there's a special
+	 * Marvell device that only makes sense when the Armada is
+	 * used as a PCIe endpoint.
+	 */
+	if (bus->number == port->bridge.secondary_bus &&
+	    PCI_SLOT(devfn) != 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Access the real PCIe interface */
 	spin_lock_irqsave(&port->conf_lock, flags);
-	ret = mvebu_pcie_hw_wr_conf(port, bus,
-				    PCI_DEVFN(1, PCI_FUNC(devfn)),
+	ret = mvebu_pcie_hw_wr_conf(port, bus, devfn,
 				    where, size, val);
 	spin_unlock_irqrestore(&port->conf_lock, flags);
 
@@ -599,15 +618,27 @@ static int mvebu_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 	if (bus->number == 0)
 		return mvebu_sw_pci_bridge_read(port, where, size, val);
 
-	if (!port->haslink || PCI_SLOT(devfn) != 0) {
+	if (!port->haslink) {
+		*val = 0xffffffff;
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
+	/*
+	 * On the secondary bus, we don't want to expose any other
+	 * device than the device physically connected in the PCIe
+	 * slot, visible in slot 0. In slot 1, there's a special
+	 * Marvell device that only makes sense when the Armada is
+	 * used as a PCIe endpoint.
+	 */
+	if (bus->number == port->bridge.secondary_bus &&
+	    PCI_SLOT(devfn) != 0) {
 		*val = 0xffffffff;
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
 	/* Access the real PCIe interface */
 	spin_lock_irqsave(&port->conf_lock, flags);
-	ret = mvebu_pcie_hw_rd_conf(port, bus,
-				    PCI_DEVFN(1, PCI_FUNC(devfn)),
+	ret = mvebu_pcie_hw_rd_conf(port, bus, devfn,
 				    where, size, val);
 	spin_unlock_irqrestore(&port->conf_lock, flags);
 
@@ -816,6 +847,8 @@ static int __init mvebu_pcie_probe(struct platform_device *pdev)
 				port->port, port->lane);
 			continue;
 		}
+
+		mvebu_pcie_set_local_dev_nr(port, 1);
 
 		if (mvebu_pcie_link_up(port)) {
 			port->haslink = 1;
