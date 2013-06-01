@@ -105,11 +105,9 @@ static int usb3503_reset(int gpio_reset, int state)
 	if (gpio_is_valid(gpio_reset))
 		gpio_set_value(gpio_reset, state);
 
-	/* Wait RefClk when RESET_N is released, otherwise Hub will
-	 * not transition to Hub Communication Stage.
-	 */
+	/* Wait T_HUBINIT == 4ms for hub logic to stabilize */
 	if (state)
-		msleep(100);
+		usleep_range(4000, 10000);
 
 	return 0;
 }
