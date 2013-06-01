@@ -8985,7 +8985,7 @@ S:	Maintained
 F:	drivers/net/wireless/wl3501*
 
 WM97XX TOUCHSCREEN DRIVERS
-M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
+M:	Mark Brown <broonie@kernel.org>
 M:	Liam Girdwood <lrg@slimlogic.co.uk>
 L:	linux-input@vger.kernel.org
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-touch
@@ -8995,7 +8995,6 @@ F:	drivers/input/touchscreen/*wm97*
 F:	include/linux/wm97xx.h
 
 WOLFSON MICROELECTRONICS DRIVERS
-M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
 L:	patches@opensource.wolfsonmicro.com
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-asoc
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
