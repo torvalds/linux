@@ -3989,7 +3989,7 @@ static int ironlake_fdi_compute_config(struct intel_crtc *intel_crtc,
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
-	int target_clock, lane, link_bw, fdi_dotclock;
+	int lane, link_bw, fdi_dotclock;
 	bool setup_ok, needs_recompute = false;
 
 retry:
@@ -4002,12 +4002,7 @@ retry:
 	 */
 	link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
 
-	if (pipe_config->pixel_target_clock)
-		target_clock = pipe_config->pixel_target_clock;
-	else
-		target_clock = adjusted_mode->clock;
-
-	fdi_dotclock = target_clock;
+	fdi_dotclock = adjusted_mode->clock;
 	if (pipe_config->pixel_multiplier > 1)
 		fdi_dotclock /= pipe_config->pixel_multiplier;
 
@@ -4357,8 +4352,6 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_display_mode *adjusted_mode =
-		&crtc->config.adjusted_mode;
 	struct intel_encoder *encoder;
 	int pipe = crtc->pipe;
 	u32 dpll, mdiv;
@@ -4411,7 +4404,7 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	vlv_dpio_write(dev_priv, DPIO_DIV(pipe), mdiv);
 
 	/* Set HBR and RBR LPF coefficients */
-	if (adjusted_mode->clock == 162000 ||
+	if (crtc->config.port_clock == 162000 ||
 	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_HDMI))
 		vlv_dpio_write(dev_priv, DPIO_LFP_COEFF(pipe),
 				 0x005f0021);
@@ -4856,7 +4849,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
 	limit = intel_limit(crtc, refclk);
-	ok = dev_priv->display.find_dpll(limit, crtc, adjusted_mode->clock,
+	ok = dev_priv->display.find_dpll(limit, crtc,
+					 intel_crtc->config.port_clock,
 					 refclk, NULL, &clock);
 	if (!ok && !intel_crtc->config.clock_set) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
@@ -5464,7 +5458,6 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc)
 }
 
 static bool ironlake_compute_clocks(struct drm_crtc *crtc,
-				    struct drm_display_mode *adjusted_mode,
 				    intel_clock_t *clock,
 				    bool *has_reduced_clock,
 				    intel_clock_t *reduced_clock)
@@ -5492,7 +5485,8 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
 	limit = intel_limit(crtc, refclk);
-	ret = dev_priv->display.find_dpll(limit, crtc, adjusted_mode->clock,
+	ret = dev_priv->display.find_dpll(limit, crtc,
+					  to_intel_crtc(crtc)->config.port_clock,
 					  refclk, NULL, clock);
 	if (!ret)
 		return false;
@@ -5692,7 +5686,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	WARN(!(HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)),
 	     "Unexpected PCH type %d\n", INTEL_PCH_TYPE(dev));
 
-	ok = ironlake_compute_clocks(crtc, adjusted_mode, &clock,
+	ok = ironlake_compute_clocks(crtc, &clock,
 				     &has_reduced_clock, &reduced_clock);
 	if (!ok && !intel_crtc->config.clock_set) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
@@ -5895,7 +5889,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	WARN(num_connectors != 1, "%d connectors attached to pipe %c\n",
 	     num_connectors, pipe_name(pipe));
 
-	if (!intel_ddi_pll_mode_set(crtc, adjusted_mode->clock))
+	if (!intel_ddi_pll_mode_set(crtc))
 		return -EINVAL;
 
 	/* Ensure that the cursor is valid for the new mode before changing... */
@@ -7805,6 +7799,9 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		goto fail;
 
 encoder_retry:
+	/* Ensure the port clock default is reset when retrying. */
+	pipe_config->port_clock = 0;
+
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also
 	 * a chance to reject the mode entirely.
@@ -7832,6 +7829,11 @@ encoder_retry:
 			goto fail;
 		}
 	}
+
+	/* Set default port clock if not overwritten by the encoder. Needs to be
+	 * done afterwards in case the encoder adjusts the mode. */
+	if (!pipe_config->port_clock)
+		pipe_config->port_clock = pipe_config->adjusted_mode.clock;
 
 	ret = intel_crtc_compute_config(crtc, pipe_config);
 	if (ret < 0) {

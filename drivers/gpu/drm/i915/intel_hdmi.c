@@ -835,9 +835,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 		desired_bpp = 12*3;
 
 		/* Need to adjust the port link by 1.5x for 12bpc. */
-		adjusted_mode->clock = clock_12bpc;
-		pipe_config->pixel_target_clock =
-			pipe_config->requested_mode.clock;
+		pipe_config->port_clock = clock_12bpc;
 	} else {
 		DRM_DEBUG_KMS("picking bpc to 8 for HDMI output\n");
 		desired_bpp = 8*3;

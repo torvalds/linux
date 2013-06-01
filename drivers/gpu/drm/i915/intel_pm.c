@@ -2078,10 +2078,7 @@ static uint32_t hsw_wm_get_pixel_rate(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t pixel_rate, pfit_size;
 
-	if (intel_crtc->config.pixel_target_clock)
-		pixel_rate = intel_crtc->config.pixel_target_clock;
-	else
-		pixel_rate = intel_crtc->config.adjusted_mode.clock;
+	pixel_rate = intel_crtc->config.adjusted_mode.clock;
 
 	/* We only use IF-ID interlacing. If we ever use PF-ID we'll need to
 	 * adjust the pixel_rate here. */

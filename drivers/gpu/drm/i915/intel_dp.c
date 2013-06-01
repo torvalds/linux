@@ -677,7 +677,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int max_clock = intel_dp_max_link_bw(intel_dp) == DP_LINK_BW_2_7 ? 1 : 0;
 	int bpp, mode_rate;
 	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };
-	int target_clock, link_avail, link_clock;
+	int link_avail, link_clock;
 
 	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
@@ -694,8 +694,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			intel_pch_panel_fitting(intel_crtc, pipe_config,
 						intel_connector->panel.fitting_mode);
 	}
-	/* We need to take the panel's fixed mode into account. */
-	target_clock = adjusted_mode->clock;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return false;
@@ -711,7 +709,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		bpp = min_t(int, bpp, dev_priv->vbt.edp_bpp);
 
 	for (; bpp >= 6*3; bpp -= 2*3) {
-		mode_rate = intel_dp_link_required(target_clock, bpp);
+		mode_rate = intel_dp_link_required(adjusted_mode->clock, bpp);
 
 		for (clock = 0; clock <= max_clock; clock++) {
 			for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
@@ -746,18 +744,17 @@ found:
 
 	intel_dp->link_bw = bws[clock];
 	intel_dp->lane_count = lane_count;
-	adjusted_mode->clock = drm_dp_bw_code_to_link_rate(intel_dp->link_bw);
 	pipe_config->pipe_bpp = bpp;
-	pipe_config->pixel_target_clock = target_clock;
+	pipe_config->port_clock = drm_dp_bw_code_to_link_rate(intel_dp->link_bw);
 
 	DRM_DEBUG_KMS("DP link bw %02x lane count %d clock %d bpp %d\n",
 		      intel_dp->link_bw, intel_dp->lane_count,
-		      adjusted_mode->clock, bpp);
+		      pipe_config->port_clock, bpp);
 	DRM_DEBUG_KMS("DP link bw required %i available %i\n",
 		      mode_rate, link_avail);
 
 	intel_link_compute_m_n(bpp, lane_count,
-			       target_clock, adjusted_mode->clock,
+			       adjusted_mode->clock, pipe_config->port_clock,
 			       &pipe_config->dp_m_n);
 
 	intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
@@ -788,12 +785,11 @@ static void ironlake_set_pll_cpu_edp(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 dpa_ctl;
 
-	DRM_DEBUG_KMS("eDP PLL enable for clock %d\n",
-		      crtc->config.adjusted_mode.clock);
+	DRM_DEBUG_KMS("eDP PLL enable for clock %d\n", crtc->config.port_clock);
 	dpa_ctl = I915_READ(DP_A);
 	dpa_ctl &= ~DP_PLL_FREQ_MASK;
 
-	if (crtc->config.adjusted_mode.clock == 162000) {
+	if (crtc->config.port_clock == 162000) {
 		/* For a long time we've carried around a ILK-DevA w/a for the
 		 * 160MHz clock. If we're really unlucky, it's still required.
 		 */
