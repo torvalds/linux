@@ -2333,7 +2333,7 @@ static struct clk clk_emmc = {
 	.parent		= &hclk_periph,
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
-	.set_rate	= clksel_set_rate_freediv,
+	.set_rate	= clksel_set_rate_even,
 	.gate_idx	= CLK_GATE_EMMC_SRC,
 	.clksel_con 	= CRU_CLKSELS_CON(12),
 	CRU_DIV_SET(0x3f, 8, 64),
