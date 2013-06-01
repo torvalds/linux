@@ -58,6 +58,7 @@
 
 		aipi@10020000 { /* aipi2 */
 			ethernet@1002b000 {
+				phy-reset-gpios = <&gpio3 30 0>;
 				status = "okay";
 			};
 		};
