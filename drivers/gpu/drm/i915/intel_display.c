@@ -3985,7 +3985,7 @@ static int ironlake_fdi_compute_config(struct intel_crtc *intel_crtc,
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
-	int target_clock, lane, link_bw;
+	int target_clock, lane, link_bw, fdi_dotclock;
 	bool setup_ok, needs_recompute = false;
 
 retry:
@@ -4003,14 +4003,16 @@ retry:
 	else
 		target_clock = adjusted_mode->clock;
 
-	lane = ironlake_get_lanes_required(target_clock, link_bw,
+	fdi_dotclock = target_clock;
+	if (pipe_config->pixel_multiplier > 1)
+		fdi_dotclock /= pipe_config->pixel_multiplier;
+
+	lane = ironlake_get_lanes_required(fdi_dotclock, link_bw,
 					   pipe_config->pipe_bpp);
 
 	pipe_config->fdi_lanes = lane;
 
-	if (pipe_config->pixel_multiplier > 1)
-		link_bw *= pipe_config->pixel_multiplier;
-	intel_link_compute_m_n(pipe_config->pipe_bpp, lane, target_clock,
+	intel_link_compute_m_n(pipe_config->pipe_bpp, lane, fdi_dotclock,
 			       link_bw, &pipe_config->fdi_m_n);
 
 	setup_ok = ironlake_check_fdi_lanes(intel_crtc->base.dev,
