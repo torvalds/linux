@@ -542,7 +542,7 @@ static struct platform_device bfin_dpmc = {
 };
 
 #if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE) || \
-	|| defined(CONFIG_SND_BF5XX_AC97) || \
+	defined(CONFIG_SND_BF5XX_AC97) || \
 	defined(CONFIG_SND_BF5XX_AC97_MODULE)
 
 #include <asm/bfin_sport.h>
