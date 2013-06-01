@@ -17,6 +17,7 @@
 #define CPU_CONFIG_ERROR_PROP	0x00000004
 
 #define CPU_CONTROL		(BRIDGE_VIRT_BASE + 0x0104)
+#define CPU_CONTROL_PHYS	(BRIDGE_PHYS_BASE + 0x0104)
 #define CPU_RESET		0x00000002
 
 #define RSTOUTn_MASK		(BRIDGE_VIRT_BASE + 0x0108)
@@ -69,6 +70,7 @@
 #define CGC_RUNIT		(1 << 7)
 #define CGC_XOR0		(1 << 8)
 #define CGC_AUDIO		(1 << 9)
+#define CGC_POWERSAVE           (1 << 11)
 #define CGC_SATA0		(1 << 14)
 #define CGC_SATA1		(1 << 15)
 #define CGC_XOR1		(1 << 16)

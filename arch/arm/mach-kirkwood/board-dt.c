@@ -25,11 +25,6 @@
 #include <plat/common.h>
 #include "common.h"
 
-static struct of_device_id kirkwood_dt_match_table[] __initdata = {
-	{ .compatible = "simple-bus", },
-	{ }
-};
-
 /*
  * There are still devices that doesn't know about DT yet.  Get clock
  * gates here and add a clock lookup alias, so that old platform
@@ -97,6 +92,8 @@ static void __init kirkwood_dt_init(void)
 
 	kirkwood_l2_init();
 
+	kirkwood_cpufreq_init();
+
 	/* Setup root of clk tree */
 	kirkwood_of_clk_init();
 
@@ -159,7 +156,7 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("usi,topkick"))
 		usi_topkick_init();
 
-	of_platform_populate(NULL, kirkwood_dt_match_table, NULL, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char * const kirkwood_dt_board_compat[] = {
