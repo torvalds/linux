@@ -243,12 +243,13 @@ struct intel_crtc_config {
 
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
-	/**
-	 * This is currently used by DP and HDMI encoders since those can have a
-	 * target pixel clock != the port link clock (which is currently stored
-	 * in adjusted_mode->clock).
+
+	/*
+	 * Frequence the dpll for the port should run at. Differs from the
+	 * adjusted dotclock e.g. for DP or 12bpc hdmi mode.
 	 */
-	int pixel_target_clock;
+	int port_clock;
+
 	/* Used by SDVO (and if we ever fix it, HDMI). */
 	unsigned pixel_multiplier;
 
@@ -786,7 +787,7 @@ extern void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
 extern void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc);
 extern void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc);
 extern void intel_ddi_setup_hw_pll_state(struct drm_device *dev);
-extern bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock);
+extern bool intel_ddi_pll_mode_set(struct drm_crtc *crtc);
 extern void intel_ddi_put_crtc_pll(struct drm_crtc *crtc);
 extern void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
 extern void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);
