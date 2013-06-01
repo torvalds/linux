@@ -573,7 +573,7 @@ static ssize_t taal_store_esd_interval(struct device *dev,
 	unsigned long t;
 	int r;
 
-	r = strict_strtoul(buf, 10, &t);
+	r = kstrtoul(buf, 10, &t);
 	if (r)
 		return r;
 
@@ -611,7 +611,7 @@ static ssize_t taal_store_ulps(struct device *dev,
 	unsigned long t;
 	int r;
 
-	r = strict_strtoul(buf, 10, &t);
+	r = kstrtoul(buf, 10, &t);
 	if (r)
 		return r;
 
@@ -660,7 +660,7 @@ static ssize_t taal_store_ulps_timeout(struct device *dev,
 	unsigned long t;
 	int r;
 
-	r = strict_strtoul(buf, 10, &t);
+	r = kstrtoul(buf, 10, &t);
 	if (r)
 		return r;
 
