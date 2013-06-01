@@ -588,7 +588,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		inode = gfs2_lookupi(dir, &dentry->d_name, 0);
 		gfs2_glock_dq_uninit(ghs);
 		d_instantiate(dentry, inode);
-		return IS_ERR(inode) ? PTR_ERR(inode) : 0;
+		return PTR_RET(inode);
 	}
 	if (error)
 		goto fail_gunlock;
