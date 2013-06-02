@@ -2212,7 +2212,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	crtc->y = y;
 
 	if (old_fb) {
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
+		if (intel_crtc->active && old_fb != fb)
+			intel_wait_for_vblank(dev, intel_crtc->pipe);
 		intel_unpin_fb_obj(to_intel_framebuffer(old_fb)->obj);
 	}
 
