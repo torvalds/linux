@@ -2310,8 +2310,6 @@ struct dvb_frontend *r820t_attach(struct dvb_frontend *fe,
 		break;
 	}
 
-	memcpy(&fe->ops.tuner_ops, &r820t_tuner_ops, sizeof(r820t_tuner_ops));
-
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
@@ -2326,14 +2324,13 @@ struct dvb_frontend *r820t_attach(struct dvb_frontend *fe,
 
 	tuner_info("Rafael Micro r820t successfully identified\n");
 
-	fe->tuner_priv = priv;
-	memcpy(&fe->ops.tuner_ops, &r820t_tuner_ops,
-			sizeof(struct dvb_tuner_ops));
-
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
 	mutex_unlock(&r820t_list_mutex);
+
+	memcpy(&fe->ops.tuner_ops, &r820t_tuner_ops,
+			sizeof(struct dvb_tuner_ops));
 
 	return fe;
 err:
