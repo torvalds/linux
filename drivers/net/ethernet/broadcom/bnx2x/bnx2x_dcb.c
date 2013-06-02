@@ -253,7 +253,6 @@ static void bnx2x_dcbx_get_ets_feature(struct bnx2x *bp,
 
 	memset(&pg_help_data, 0, sizeof(struct pg_help_data));
 
-
 	if (GET_FLAGS(error, DCBX_LOCAL_ETS_ERROR))
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_ETS_ERROR\n");
 
@@ -298,7 +297,6 @@ static void bnx2x_dcbx_get_ets_feature(struct bnx2x *bp,
 static void  bnx2x_dcbx_get_pfc_feature(struct bnx2x *bp,
 					struct dcbx_pfc_feature *pfc, u32 error)
 {
-
 	if (GET_FLAGS(error, DCBX_LOCAL_PFC_ERROR))
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_PFC_ERROR\n");
 
@@ -366,7 +364,6 @@ static int bnx2x_dcbx_read_mib(struct bnx2x *bp,
 	u32 mib_size, prefix_seq_num, suffix_seq_num;
 	struct lldp_remote_mib *remote_mib ;
 	struct lldp_local_mib  *local_mib;
-
 
 	switch (read_mib_type) {
 	case DCBX_READ_LOCAL_MIB:
@@ -628,7 +625,6 @@ static int bnx2x_dcbx_read_shmem_neg_results(struct bnx2x *bp)
 	bp->dcbx_error = local_mib.error;
 	return 0;
 }
-
 
 #ifdef BCM_DCBNL
 static inline
@@ -896,13 +892,11 @@ static void bnx2x_dcbx_admin_mib_updated_params(struct bnx2x *bp,
 		}
 
 		af->app.default_pri = (u8)dp->admin_default_priority;
-
 	}
 
 	/* Write the data. */
 	bnx2x_write_data(bp, (u32 *)&admin_mib, offset,
 			 sizeof(struct lldp_admin_mib));
-
 }
 
 void bnx2x_dcbx_set_state(struct bnx2x *bp, bool dcb_on, u32 dcbx_enabled)
@@ -1180,7 +1174,6 @@ static void bnx2x_dcbx_separate_pauseable_from_non(struct bnx2x *bp,
 	    (0 == cos_data->data[1].pri_join_mask))
 		BNX2X_ERR("dcbx error: Both groups must have priorities\n");
 }
-
 
 #ifndef POWER_OF_2
 #define POWER_OF_2(x)	((0 != x) && (0 == (x & (x-1))))
@@ -1524,7 +1517,6 @@ static void bnx2x_dcbx_2cos_limit_cee_three_pg_to_cos_params(
 	}
 }
 
-
 static void bnx2x_dcbx_2cos_limit_cee_fill_cos_params(struct bnx2x *bp,
 				       struct pg_help_data *help_data,
 				       struct dcbx_ets_feature *ets,
@@ -1533,7 +1525,6 @@ static void bnx2x_dcbx_2cos_limit_cee_fill_cos_params(struct bnx2x *bp,
 				       u32 pri_join_mask,
 				       u8 num_of_dif_pri)
 {
-
 	/* default E2 settings */
 	cos_data->num_of_cos = DCBX_COS_MAX_NUM_E2;
 
@@ -1629,7 +1620,6 @@ static u8 bnx2x_dcbx_cee_fill_strict_pri(struct bnx2x *bp,
 					 u8 num_spread_of_entries,
 					 u8 strict_app_pris)
 {
-
 	if (bnx2x_dcbx_spread_strict_pri(bp, cos_data, entry,
 					 num_spread_of_entries,
 					 strict_app_pris)) {
@@ -1876,7 +1866,6 @@ void bnx2x_dcbx_pmf_update(struct bnx2x *bp)
 		 * dcbx negotiation.
 		 */
 		bnx2x_dcbx_update_tc_mapping(bp);
-
 	}
 }
 

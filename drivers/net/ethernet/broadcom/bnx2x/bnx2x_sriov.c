@@ -3024,7 +3024,6 @@ void bnx2x_unlock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 {
-
 	struct bnx2x *bp = netdev_priv(pci_get_drvdata(dev));
 
 	DP(BNX2X_MSG_IOV, "bnx2x_sriov_configure called with %d, BNX2X_NR_VIRTFN(bp) was %d\n",

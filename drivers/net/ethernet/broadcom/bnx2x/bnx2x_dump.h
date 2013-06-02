@@ -28,7 +28,6 @@
 #define DRV_DUMP_USTORM_WAITP_ADDRESS    0x338a80
 #define DRV_DUMP_CSTORM_WAITP_ADDRESS    0x238a80
 
-
 /* Possible Chips */
 #define DUMP_CHIP_E1 1
 #define DUMP_CHIP_E1H 2

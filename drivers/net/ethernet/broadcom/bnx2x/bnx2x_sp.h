@@ -1377,7 +1377,6 @@ void bnx2x_init_vlan_credit_pool(struct bnx2x *bp,
 				 struct bnx2x_credit_pool_obj *p, u8 func_id,
 				 u8 func_num);
 
-
 /****************** RSS CONFIGURATION ****************/
 void bnx2x_init_rss_config_obj(struct bnx2x *bp,
 			       struct bnx2x_rss_config_obj *rss_obj,

@@ -722,7 +722,6 @@ u32 bnx2x_crc_vf_bulletin(struct bnx2x *bp,
 			  struct pf_vf_bulletin_content *bulletin);
 int bnx2x_post_vf_bulletin(struct bnx2x *bp, int vf);
 
-
 enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp);
 
 /* VF side vfpf channel functions */
