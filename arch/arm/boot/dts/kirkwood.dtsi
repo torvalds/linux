@@ -4,6 +4,18 @@
 	compatible = "marvell,kirkwood";
 	interrupt-parent = <&intc>;
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "marvell,feroceon";
+			clocks = <&core_clk 1>, <&core_clk 3>, <&gate_clk 11>;
+			clock-names = "cpu_clk", "ddrclk", "powersave";
+		};
+	};
+
 	aliases {
 	       gpio0 = &gpio0;
 	       gpio1 = &gpio1;
