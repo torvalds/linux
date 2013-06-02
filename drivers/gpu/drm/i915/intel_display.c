@@ -7656,13 +7656,39 @@ static void intel_modeset_commit_output_state(struct drm_device *dev)
 	}
 }
 
-static int
-pipe_config_set_bpp(struct drm_crtc *crtc,
-		    struct drm_framebuffer *fb,
-		    struct intel_crtc_config *pipe_config)
+static void
+connected_sink_compute_bpp(struct intel_connector * connector,
+			   struct intel_crtc_config *pipe_config)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_connector *connector;
+	int bpp = pipe_config->pipe_bpp;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] checking for sink bpp constrains\n",
+		connector->base.base.id,
+		drm_get_connector_name(&connector->base));
+
+	/* Don't use an invalid EDID bpc value */
+	if (connector->base.display_info.bpc &&
+	    connector->base.display_info.bpc * 3 < bpp) {
+		DRM_DEBUG_KMS("clamping display bpp (was %d) to EDID reported max of %d\n",
+			      bpp, connector->base.display_info.bpc*3);
+		pipe_config->pipe_bpp = connector->base.display_info.bpc*3;
+	}
+
+	/* Clamp bpp to 8 on screens without EDID 1.4 */
+	if (connector->base.display_info.bpc == 0 && bpp > 24) {
+		DRM_DEBUG_KMS("clamping display bpp (was %d) to default limit of 24\n",
+			      bpp);
+		pipe_config->pipe_bpp = 24;
+	}
+}
+
+static int
+compute_baseline_pipe_bpp(struct intel_crtc *crtc,
+			  struct drm_framebuffer *fb,
+			  struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_connector *connector;
 	int bpp;
 
 	switch (fb->pixel_format) {
@@ -7705,24 +7731,12 @@ pipe_config_set_bpp(struct drm_crtc *crtc,
 
 	/* Clamp display bpp to EDID value */
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    head) {
-		if (connector->encoder && connector->encoder->crtc != crtc)
+			    base.head) {
+		if (connector->base.encoder &&
+		    connector->base.encoder->crtc != crtc)
 			continue;
 
-		/* Don't use an invalid EDID bpc value */
-		if (connector->display_info.bpc &&
-		    connector->display_info.bpc * 3 < bpp) {
-			DRM_DEBUG_KMS("clamping display bpp (was %d) to EDID reported max of %d\n",
-				      bpp, connector->display_info.bpc*3);
-			pipe_config->pipe_bpp = connector->display_info.bpc*3;
-		}
-
-		/* Clamp bpp to 8 on screens without EDID 1.4 */
-		if (connector->display_info.bpc == 0 && bpp > 24) {
-			DRM_DEBUG_KMS("clamping display bpp (was %d) to default limit of 24\n",
-				      bpp);
-			pipe_config->pipe_bpp = 24;
-		}
+		connected_sink_compute_bpp(connector, pipe_config);
 	}
 
 	return bpp;
@@ -7778,7 +7792,12 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	drm_mode_copy(&pipe_config->requested_mode, mode);
 	pipe_config->cpu_transcoder = to_intel_crtc(crtc)->pipe;
 
-	plane_bpp = pipe_config_set_bpp(crtc, fb, pipe_config);
+	/* Compute a starting value for pipe_config->pipe_bpp taking the source
+	 * plane pixel format and any sink constraints into account. Returns the
+	 * source plane bpp so that dithering can be selected on mismatches
+	 * after encoders and crtc also have had their say. */
+	plane_bpp = compute_baseline_pipe_bpp(to_intel_crtc(crtc),
+					      fb, pipe_config);
 	if (plane_bpp < 0)
 		goto fail;
 
