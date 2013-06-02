@@ -150,6 +150,7 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	struct clk_divider *divider = to_clk_divider(hw);
 	int i, bestdiv = 0;
 	unsigned long parent_rate, best = 0, now, maxdiv;
+	unsigned long parent_rate_saved = *best_parent_rate;
 
 	if (!rate)
 		rate = 1;
@@ -173,6 +174,15 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	for (i = 1; i <= maxdiv; i++) {
 		if (!_is_valid_div(divider, i))
 			continue;
+		if (rate * i == parent_rate_saved) {
+			/*
+			 * It's the most ideal case if the requested rate can be
+			 * divided from parent clock without needing to change
+			 * parent rate, so return the divider immediately.
+			 */
+			*best_parent_rate = parent_rate_saved;
+			return i;
+		}
 		parent_rate = __clk_round_rate(__clk_get_parent(hw->clk),
 				MULT_ROUND_UP(rate, i));
 		now = parent_rate / i;
