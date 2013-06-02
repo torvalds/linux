@@ -2162,10 +2162,10 @@ static int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
 	bp->fw_stats_data_mapping = bp->fw_stats_mapping +
 		bp->fw_stats_req_sz;
 
-	DP(BNX2X_MSG_SP, "statistics request base address set to %x %x",
+	DP(BNX2X_MSG_SP, "statistics request base address set to %x %x\n",
 	   U64_HI(bp->fw_stats_req_mapping),
 	   U64_LO(bp->fw_stats_req_mapping));
-	DP(BNX2X_MSG_SP, "statistics data base address set to %x %x",
+	DP(BNX2X_MSG_SP, "statistics data base address set to %x %x\n",
 	   U64_HI(bp->fw_stats_data_mapping),
 	   U64_LO(bp->fw_stats_data_mapping));
 	return 0;
@@ -2240,7 +2240,7 @@ int bnx2x_nic_load_analyze_req(struct bnx2x *bp, u32 load_code)
 
 		/* abort nic load if version mismatch */
 		if (my_fw != loaded_fw) {
-			BNX2X_ERR("bnx2x with FW %x was already loaded which mismatches my %x FW. aborting\n",
+			BNX2X_ERR("bnx2x with FW %x was already loaded which mismatches my %x FW. Aborting\n",
 				  loaded_fw, my_fw);
 			return -EBUSY;
 		}
@@ -3977,7 +3977,7 @@ int bnx2x_setup_tc(struct net_device *dev, u8 num_tc)
 
 	/* requested to support too many traffic classes */
 	if (num_tc > bp->max_cos) {
-		BNX2X_ERR("support for too many traffic classes requested: %d. max supported is %d\n",
+		BNX2X_ERR("support for too many traffic classes requested: %d. Max supported is %d\n",
 			  num_tc, bp->max_cos);
 		return -EINVAL;
 	}

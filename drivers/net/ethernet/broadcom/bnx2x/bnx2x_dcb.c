@@ -2381,7 +2381,7 @@ static u8 bnx2x_dcbnl_get_featcfg(struct net_device *netdev, int featid,
 				*flags |= DCB_FEATCFG_ERROR;
 			break;
 		default:
-			BNX2X_ERR("Non valid featrue-ID\n");
+			BNX2X_ERR("Non valid feature-ID\n");
 			rval = 1;
 			break;
 		}
@@ -2422,7 +2422,7 @@ static u8 bnx2x_dcbnl_set_featcfg(struct net_device *netdev, int featid,
 				flags & DCB_FEATCFG_WILLING ? 1 : 0;
 			break;
 		default:
-			BNX2X_ERR("Non valid featrue-ID\n");
+			BNX2X_ERR("Non valid feature-ID\n");
 			rval = 1;
 			break;
 		}

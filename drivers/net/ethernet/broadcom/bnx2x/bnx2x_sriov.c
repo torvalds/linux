@@ -1620,7 +1620,7 @@ next_vf_to_clean:
 	     i++)
 		;
 
-	DP(BNX2X_MSG_IOV, "next vf to cleanup: %d. num of vfs: %d\n", i,
+	DP(BNX2X_MSG_IOV, "next vf to cleanup: %d. Num of vfs: %d\n", i,
 	   BNX2X_NR_VIRTFN(bp));
 
 	if (i < BNX2X_NR_VIRTFN(bp)) {
@@ -3031,7 +3031,7 @@ int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 
 	/* HW channel is only operational when PF is up */
 	if (bp->state != BNX2X_STATE_OPEN) {
-		BNX2X_ERR("VF num configurtion via sysfs not supported while PF is down");
+		BNX2X_ERR("VF num configuration via sysfs not supported while PF is down\n");
 		return -EINVAL;
 	}
 
@@ -3391,7 +3391,7 @@ enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
 			if (bulletin.crc == bnx2x_crc_vf_bulletin(bp,
 								  &bulletin))
 				break;
-			BNX2X_ERR("bad crc on bulletin board. contained %x computed %x\n",
+			BNX2X_ERR("bad crc on bulletin board. Contained %x computed %x\n",
 				  bulletin.crc,
 				  bnx2x_crc_vf_bulletin(bp, &bulletin));
 		}

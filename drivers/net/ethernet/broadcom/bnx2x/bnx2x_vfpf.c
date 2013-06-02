@@ -333,7 +333,7 @@ int bnx2x_vfpf_release(struct bnx2x *bp)
 		DP(BNX2X_MSG_SP, "vf released\n");
 	} else {
 		/* PF reports error */
-		BNX2X_ERR("PF failed our release request - are we out of sync? response status: %d\n",
+		BNX2X_ERR("PF failed our release request - are we out of sync? Response status: %d\n",
 			  resp->hdr.status);
 		rc = -EAGAIN;
 		goto out;
@@ -844,7 +844,6 @@ static int bnx2x_copy32_vf_dmae(struct bnx2x *bp, u8 from_vf,
 		dmae.dst_addr_hi = vf_addr_hi;
 	}
 	dmae.len = len32;
-	bnx2x_dp_dmae(bp, &dmae, BNX2X_MSG_DMAE);
 
 	/* issue the command and wait for completion */
 	return bnx2x_issue_dmae_with_comp(bp, &dmae);
@@ -1588,8 +1587,9 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		 * support them. Or this may be because someone wrote a crappy
 		 * VF driver and is sending garbage over the channel.
 		 */
-		BNX2X_ERR("unknown TLV. type %d length %d. first 20 bytes of mailbox buffer:\n",
-			  mbx->first_tlv.tl.type, mbx->first_tlv.tl.length);
+		BNX2X_ERR("unknown TLV. type %d length %d vf->state was %d. first 20 bytes of mailbox buffer:\n",
+			  mbx->first_tlv.tl.type, mbx->first_tlv.tl.length,
+			  vf->state);
 		for (i = 0; i < 20; i++)
 			DP_CONT(BNX2X_MSG_IOV, "%x ",
 				mbx->msg->req.tlv_buf_size.tlv_buffer[i]);

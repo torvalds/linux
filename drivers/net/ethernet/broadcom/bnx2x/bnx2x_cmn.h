@@ -49,13 +49,15 @@ extern int int_mode;
 		} \
 	} while (0)
 
-#define BNX2X_PCI_ALLOC(x, y, size)				\
-do {								\
-	x = dma_alloc_coherent(&bp->pdev->dev, size, y,		\
-			       GFP_KERNEL | __GFP_ZERO);	\
-	if (x == NULL)						\
-		goto alloc_mem_err;				\
-} while (0)
+#define BNX2X_PCI_ALLOC(x, y, size) \
+	do { \
+		x = dma_alloc_coherent(&bp->pdev->dev, size, y, \
+				       GFP_KERNEL | __GFP_ZERO); \
+		if (x == NULL) \
+			goto alloc_mem_err; \
+		DP(NETIF_MSG_HW, "BNX2X_PCI_ALLOC: Physical %Lx Virtual %p\n", \
+		   (unsigned long long)(*y), x); \
+	} while (0)
 
 #define BNX2X_ALLOC(x, size) \
 	do { \

@@ -496,7 +496,7 @@ enum {
 		else if ((next) == VFOP_VERIFY_PEND)			\
 			BNX2X_ERR("expected pending\n");		\
 		else {							\
-			DP(BNX2X_MSG_IOV, "no ramrod. scheduling\n");	\
+			DP(BNX2X_MSG_IOV, "no ramrod. Scheduling\n");	\
 			atomic_set(&vf->op_in_progress, 1);		\
 			queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);  \
 			return;						\
