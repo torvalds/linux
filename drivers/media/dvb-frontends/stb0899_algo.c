@@ -425,6 +425,14 @@ static enum stb0899_status stb0899_search_data(struct stb0899_state *state)
 
 	if (internal->status == DATAOK) {
 		stb0899_read_regs(state, STB0899_CFRM, cfr, 2); /* get derotator frequency */
+
+		/* store autodetected IQ swapping as default for DVB-S2 tuning */
+		reg = stb0899_read_reg(state, STB0899_IQSWAP);
+		if (STB0899_GETFIELD(SYM, reg))
+			internal->inversion = IQ_SWAP_ON;
+		else
+			internal->inversion = IQ_SWAP_OFF;
+
 		internal->derot_freq = state->config->inversion * MAKEWORD16(cfr[0], cfr[1]);
 		dprintk(state->verbose, FE_DEBUG, 1, "------> DATAOK ! Derot Freq=%d", internal->derot_freq);
 	}
