@@ -1488,9 +1488,15 @@ enum stb0899_status stb0899_dvbs2_algo(struct stb0899_state *state)
 
 		offsetfreq = offsetfreq / ((1 << 30) / 1000);
 		offsetfreq *= (internal->master_clk / 1000000);
+
+		/* store current inversion for next run */
 		reg = STB0899_READ_S2REG(STB0899_S2DEMOD, DMD_CNTRL2);
 		if (STB0899_GETFIELD(SPECTRUM_INVERT, reg))
-			offsetfreq *= -1;
+			internal->inversion = IQ_SWAP_ON;
+		else
+			internal->inversion = IQ_SWAP_OFF;
+
+		offsetfreq *= internal->inversion;
 
 		internal->freq = internal->freq - offsetfreq;
 		internal->srate = stb0899_dvbs2_get_srate(state);
