@@ -1373,9 +1373,6 @@ enum stb0899_status stb0899_dvbs2_algo(struct stb0899_state *state)
 	case IQ_SWAP_ON:
 		STB0899_SETFIELD_VAL(SPECTRUM_INVERT, reg, 1);
 		break;
-	case IQ_SWAP_AUTO:	/* use last successful search first	*/
-		STB0899_SETFIELD_VAL(SPECTRUM_INVERT, reg, 1);
-		break;
 	}
 	stb0899_write_s2reg(state, STB0899_S2DEMOD, STB0899_BASE_DMD_CNTRL2, STB0899_OFF0_DMD_CNTRL2, reg);
 	stb0899_dvbs2_reacquire(state);
@@ -1405,41 +1402,39 @@ enum stb0899_status stb0899_dvbs2_algo(struct stb0899_state *state)
 	}
 
 	if (internal->status != DVBS2_FEC_LOCK) {
-		if (internal->inversion == IQ_SWAP_AUTO) {
-			reg = STB0899_READ_S2REG(STB0899_S2DEMOD, DMD_CNTRL2);
-			iqSpectrum = STB0899_GETFIELD(SPECTRUM_INVERT, reg);
-			/* IQ Spectrum Inversion	*/
-			STB0899_SETFIELD_VAL(SPECTRUM_INVERT, reg, !iqSpectrum);
-			stb0899_write_s2reg(state, STB0899_S2DEMOD, STB0899_BASE_DMD_CNTRL2, STB0899_OFF0_DMD_CNTRL2, reg);
-			/* start acquistion process	*/
-			stb0899_dvbs2_reacquire(state);
+		reg = STB0899_READ_S2REG(STB0899_S2DEMOD, DMD_CNTRL2);
+		iqSpectrum = STB0899_GETFIELD(SPECTRUM_INVERT, reg);
+		/* IQ Spectrum Inversion	*/
+		STB0899_SETFIELD_VAL(SPECTRUM_INVERT, reg, !iqSpectrum);
+		stb0899_write_s2reg(state, STB0899_S2DEMOD, STB0899_BASE_DMD_CNTRL2, STB0899_OFF0_DMD_CNTRL2, reg);
+		/* start acquistion process	*/
+		stb0899_dvbs2_reacquire(state);
 
-			/* Wait for demod lock (UWP and CSM)	*/
-			internal->status = stb0899_dvbs2_get_dmd_status(state, searchTime);
-			if (internal->status == DVBS2_DEMOD_LOCK) {
-				i = 0;
-				/* Demod Locked, check FEC	*/
-				internal->status = stb0899_dvbs2_get_fec_status(state, FecLockTime);
-				/*try thrice for false locks, (UWP and CSM Locked but no FEC)	*/
-				while ((internal->status != DVBS2_FEC_LOCK) && (i < 3)) {
-					/*	Read the frequency offset*/
-					offsetfreq = STB0899_READ_S2REG(STB0899_S2DEMOD, CRL_FREQ);
+		/* Wait for demod lock (UWP and CSM)	*/
+		internal->status = stb0899_dvbs2_get_dmd_status(state, searchTime);
+		if (internal->status == DVBS2_DEMOD_LOCK) {
+			i = 0;
+			/* Demod Locked, check FEC	*/
+			internal->status = stb0899_dvbs2_get_fec_status(state, FecLockTime);
+			/*try thrice for false locks, (UWP and CSM Locked but no FEC)	*/
+			while ((internal->status != DVBS2_FEC_LOCK) && (i < 3)) {
+				/*	Read the frequency offset*/
+				offsetfreq = STB0899_READ_S2REG(STB0899_S2DEMOD, CRL_FREQ);
 
-					/* Set the Nominal frequency to the found frequency offset for the next reacquire*/
-					reg = STB0899_READ_S2REG(STB0899_S2DEMOD, CRL_NOM_FREQ);
-					STB0899_SETFIELD_VAL(CRL_NOM_FREQ, reg, offsetfreq);
-					stb0899_write_s2reg(state, STB0899_S2DEMOD, STB0899_BASE_CRL_NOM_FREQ, STB0899_OFF0_CRL_NOM_FREQ, reg);
+				/* Set the Nominal frequency to the found frequency offset for the next reacquire*/
+				reg = STB0899_READ_S2REG(STB0899_S2DEMOD, CRL_NOM_FREQ);
+				STB0899_SETFIELD_VAL(CRL_NOM_FREQ, reg, offsetfreq);
+				stb0899_write_s2reg(state, STB0899_S2DEMOD, STB0899_BASE_CRL_NOM_FREQ, STB0899_OFF0_CRL_NOM_FREQ, reg);
 
-					stb0899_dvbs2_reacquire(state);
-					internal->status = stb0899_dvbs2_get_fec_status(state, searchTime);
-					i++;
-				}
+				stb0899_dvbs2_reacquire(state);
+				internal->status = stb0899_dvbs2_get_fec_status(state, searchTime);
+				i++;
 			}
-/*
-			if (pParams->DVBS2State == FE_DVBS2_FEC_LOCKED)
-				pParams->IQLocked = !iqSpectrum;
-*/
 		}
+/*
+		if (pParams->DVBS2State == FE_DVBS2_FEC_LOCKED)
+			pParams->IQLocked = !iqSpectrum;
+*/
 	}
 	if (internal->status == DVBS2_FEC_LOCK) {
 		dprintk(state->verbose, FE_DEBUG, 1, "----------------> DVB-S2 FEC Lock !");
