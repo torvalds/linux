@@ -1090,9 +1090,9 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 
 	memset(&opt, 0, sizeof(opt));
 
-	opt.rate.rate = psched_ratecfg_getrate(&cl->rate);
+	psched_ratecfg_getrate(&opt.rate, &cl->rate);
 	opt.buffer = PSCHED_NS2TICKS(cl->buffer);
-	opt.ceil.rate = psched_ratecfg_getrate(&cl->ceil);
+	psched_ratecfg_getrate(&opt.ceil, &cl->ceil);
 	opt.cbuffer = PSCHED_NS2TICKS(cl->cbuffer);
 	opt.quantum = cl->quantum;
 	opt.prio = cl->prio;
@@ -1459,8 +1459,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			cl->prio = TC_HTB_NUMPRIO - 1;
 	}
 
-	psched_ratecfg_precompute(&cl->rate, hopt->rate.rate);
-	psched_ratecfg_precompute(&cl->ceil, hopt->ceil.rate);
+	psched_ratecfg_precompute(&cl->rate, &hopt->rate);
+	psched_ratecfg_precompute(&cl->ceil, &hopt->ceil);
 
 	cl->buffer = PSCHED_TICKS2NS(hopt->buffer);
 	cl->cbuffer = PSCHED_TICKS2NS(hopt->buffer);
