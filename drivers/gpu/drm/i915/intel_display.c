@@ -7728,8 +7728,8 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 	/* Clamp display bpp to EDID value */
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    base.head) {
-		if (connector->base.encoder &&
-		    connector->base.encoder->crtc != crtc)
+		if (!connector->new_encoder ||
+		    connector->new_encoder->new_crtc != crtc)
 			continue;
 
 		connected_sink_compute_bpp(connector, pipe_config);
