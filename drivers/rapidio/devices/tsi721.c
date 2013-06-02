@@ -555,7 +555,7 @@ static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 	/* For MSI mode re-enable device-level interrupts */
 	if (priv->flags & TSI721_USING_MSI) {
 		dev_int = TSI721_DEV_INT_SR2PC_CH | TSI721_DEV_INT_SRIO |
-			TSI721_DEV_INT_SMSG_CH | TSI721_DEV_INT_BDMA_CH;
+			TSI721_DEV_INT_SMSG_CH;
 		iowrite32(dev_int, priv->regs + TSI721_DEV_INTE);
 	}
 
