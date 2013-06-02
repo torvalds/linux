@@ -226,8 +226,8 @@ static enum stb0899_status stb0899_search_tmg(struct stb0899_state *state)
 			next_loop--;
 
 		if (next_loop) {
-			STB0899_SETFIELD_VAL(CFRM, cfr[0], MSB(state->config->inversion * derot_freq));
-			STB0899_SETFIELD_VAL(CFRL, cfr[1], LSB(state->config->inversion * derot_freq));
+			STB0899_SETFIELD_VAL(CFRM, cfr[0], MSB(internal->inversion * derot_freq));
+			STB0899_SETFIELD_VAL(CFRL, cfr[1], LSB(internal->inversion * derot_freq));
 			stb0899_write_regs(state, STB0899_CFRM, cfr, 2); /* derotator frequency		*/
 		}
 		internal->direction = -internal->direction;	/* Change zigzag direction		*/
@@ -235,7 +235,7 @@ static enum stb0899_status stb0899_search_tmg(struct stb0899_state *state)
 
 	if (internal->status == TIMINGOK) {
 		stb0899_read_regs(state, STB0899_CFRM, cfr, 2); /* get derotator frequency		*/
-		internal->derot_freq = state->config->inversion * MAKEWORD16(cfr[0], cfr[1]);
+		internal->derot_freq = internal->inversion * MAKEWORD16(cfr[0], cfr[1]);
 		dprintk(state->verbose, FE_DEBUG, 1, "------->TIMING OK ! Derot Freq = %d", internal->derot_freq);
 	}
 
@@ -306,8 +306,8 @@ static enum stb0899_status stb0899_search_carrier(struct stb0899_state *state)
 				STB0899_SETFIELD_VAL(CFD_ON, reg, 1);
 				stb0899_write_reg(state, STB0899_CFD, reg);
 
-				STB0899_SETFIELD_VAL(CFRM, cfr[0], MSB(state->config->inversion * derot_freq));
-				STB0899_SETFIELD_VAL(CFRL, cfr[1], LSB(state->config->inversion * derot_freq));
+				STB0899_SETFIELD_VAL(CFRM, cfr[0], MSB(internal->inversion * derot_freq));
+				STB0899_SETFIELD_VAL(CFRL, cfr[1], LSB(internal->inversion * derot_freq));
 				stb0899_write_regs(state, STB0899_CFRM, cfr, 2); /* derotator frequency	*/
 			}
 		}
@@ -317,7 +317,7 @@ static enum stb0899_status stb0899_search_carrier(struct stb0899_state *state)
 
 	if (internal->status == CARRIEROK) {
 		stb0899_read_regs(state, STB0899_CFRM, cfr, 2); /* get derotator frequency */
-		internal->derot_freq = state->config->inversion * MAKEWORD16(cfr[0], cfr[1]);
+		internal->derot_freq = internal->inversion * MAKEWORD16(cfr[0], cfr[1]);
 		dprintk(state->verbose, FE_DEBUG, 1, "----> CARRIER OK !, Derot Freq=%d", internal->derot_freq);
 	} else {
 		internal->derot_freq = last_derot_freq;
@@ -412,8 +412,8 @@ static enum stb0899_status stb0899_search_data(struct stb0899_state *state)
 				STB0899_SETFIELD_VAL(CFD_ON, reg, 1);
 				stb0899_write_reg(state, STB0899_CFD, reg);
 
-				STB0899_SETFIELD_VAL(CFRM, cfr[0], MSB(state->config->inversion * derot_freq));
-				STB0899_SETFIELD_VAL(CFRL, cfr[1], LSB(state->config->inversion * derot_freq));
+				STB0899_SETFIELD_VAL(CFRM, cfr[0], MSB(internal->inversion * derot_freq));
+				STB0899_SETFIELD_VAL(CFRL, cfr[1], LSB(internal->inversion * derot_freq));
 				stb0899_write_regs(state, STB0899_CFRM, cfr, 2); /* derotator frequency	*/
 
 				stb0899_check_carrier(state);
@@ -433,7 +433,7 @@ static enum stb0899_status stb0899_search_data(struct stb0899_state *state)
 		else
 			internal->inversion = IQ_SWAP_OFF;
 
-		internal->derot_freq = state->config->inversion * MAKEWORD16(cfr[0], cfr[1]);
+		internal->derot_freq = internal->inversion * MAKEWORD16(cfr[0], cfr[1]);
 		dprintk(state->verbose, FE_DEBUG, 1, "------> DATAOK ! Derot Freq=%d", internal->derot_freq);
 	}
 
