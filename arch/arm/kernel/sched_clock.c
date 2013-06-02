@@ -24,7 +24,6 @@ struct clock_data {
 	u32 mult;
 	u32 shift;
 	bool suspended;
-	bool needs_suspend;
 };
 
 static void sched_clock_poll(unsigned long wrap_ticks);
