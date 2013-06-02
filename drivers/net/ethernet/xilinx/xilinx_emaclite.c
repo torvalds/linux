@@ -877,7 +877,7 @@ static int xemaclite_mdio_setup(struct net_local *lp, struct device *dev)
 
 	bus = mdiobus_alloc();
 	if (!bus) {
-		dev_err(dev, "Failed to allocal mdiobus\n");
+		dev_err(dev, "Failed to allocate mdiobus\n");
 		return -ENOMEM;
 	}
 
