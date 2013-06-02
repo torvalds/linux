@@ -733,12 +733,14 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 
 	object_size = le32_to_cpu(layout->fl_object_size);
 	object_base = off - objoff;
-	if (truncate_size <= object_base) {
-		truncate_size = 0;
-	} else {
-		truncate_size -= object_base;
-		if (truncate_size > object_size)
-			truncate_size = object_size;
+	if (!(truncate_seq == 1 && truncate_size == -1ULL)) {
+		if (truncate_size <= object_base) {
+			truncate_size = 0;
+		} else {
+			truncate_size -= object_base;
+			if (truncate_size > object_size)
+				truncate_size = object_size;
+		}
 	}
 
 	osd_req_op_extent_init(req, 0, opcode, objoff, objlen,
