@@ -1341,7 +1341,7 @@ int bnx2x_vfop_qdown_cmd(struct bnx2x *bp,
  */
 
 /* internal vf enable - until vf is enabled internally all transactions
- * are blocked. this routine should always be called last with pretend.
+ * are blocked. This routine should always be called last with pretend.
  */
 static void bnx2x_vf_enable_internal(struct bnx2x *bp, u8 enable)
 {
@@ -1743,7 +1743,7 @@ void bnx2x_iov_init_dq(struct bnx2x *bp)
 	REG_WR(bp, DORQ_REG_VF_TYPE_MIN_MCID_0, 0);
 	REG_WR(bp, DORQ_REG_VF_TYPE_MAX_MCID_0, 0x1ffff);
 
-	/* set the number of VF alllowed doorbells to the full DQ range */
+	/* set the number of VF allowed doorbells to the full DQ range */
 	REG_WR(bp, DORQ_REG_VF_NORM_MAX_CID_COUNT, 0x20000);
 
 	/* set the VF doorbell threshold */
@@ -2403,7 +2403,7 @@ int bnx2x_iov_eq_sp_event(struct bnx2x *bp, union event_ring_elem *elem)
 
 	/* extract vf and rxq index from vf_cid - relies on the following:
 	 * 1. vfid on cid reflects the true abs_vfid
-	 * 2. the max number of VFs (per path) is 64
+	 * 2. The max number of VFs (per path) is 64
 	 */
 	qidx = cid & ((1 << BNX2X_VF_CID_WND)-1);
 	abs_vfid = (cid >> BNX2X_VF_CID_WND) & (BNX2X_MAX_NUM_OF_VFS-1);
@@ -2461,7 +2461,7 @@ static struct bnx2x_virtf *bnx2x_vf_by_cid(struct bnx2x *bp, int vf_cid)
 {
 	/* extract the vf from vf_cid - relies on the following:
 	 * 1. vfid on cid reflects the true abs_vfid
-	 * 2. the max number of VFs (per path) is 64
+	 * 2. The max number of VFs (per path) is 64
 	 */
 	int abs_vfid = (vf_cid >> BNX2X_VF_CID_WND) & (BNX2X_MAX_NUM_OF_VFS-1);
 	return bnx2x_vf_by_abs_fid(bp, abs_vfid);
@@ -2480,7 +2480,7 @@ void bnx2x_iov_set_queue_sp_obj(struct bnx2x *bp, int vf_cid,
 	if (vf) {
 		/* extract queue index from vf_cid - relies on the following:
 		 * 1. vfid on cid reflects the true abs_vfid
-		 * 2. the max number of VFs (per path) is 64
+		 * 2. The max number of VFs (per path) is 64
 		 */
 		int q_index = vf_cid & ((1 << BNX2X_VF_CID_WND)-1);
 		*q_obj = &bnx2x_vfq(vf, q_index, sp_obj);
@@ -2705,7 +2705,7 @@ int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	}
 
 	/* static allocation:
-	 * the global maximum number are fixed per VF. fail the request if
+	 * the global maximum number are fixed per VF. Fail the request if
 	 * requested number exceed these globals
 	 */
 	if (!bnx2x_vf_chk_avail_resc(bp, vf, resc)) {
@@ -2890,7 +2890,7 @@ int bnx2x_vfop_close_cmd(struct bnx2x *bp,
 	return -ENOMEM;
 }
 
-/* VF release can be called either: 1. the VF was acquired but
+/* VF release can be called either: 1. The VF was acquired but
  * not enabled 2. the vf was enabled or in the process of being
  * enabled
  */
@@ -3140,7 +3140,7 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 			/* mac configured by ndo so its in bulletin board */
 			memcpy(&ivi->mac, bulletin->mac, ETH_ALEN);
 		else
-			/* funtion has not been loaded yet. Show mac as 0s */
+			/* function has not been loaded yet. Show mac as 0s */
 			memset(&ivi->mac, 0, ETH_ALEN);
 
 		/* vlan */
@@ -3148,7 +3148,7 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 			/* vlan configured by ndo so its in bulletin board */
 			memcpy(&ivi->vlan, &bulletin->vlan, VLAN_HLEN);
 		else
-			/* funtion has not been loaded yet. Show vlans as 0s */
+			/* function has not been loaded yet. Show vlans as 0s */
 			memset(&ivi->vlan, 0, VLAN_HLEN);
 	}
 
@@ -3188,7 +3188,7 @@ int bnx2x_set_vf_mac(struct net_device *dev, int vfidx, u8 *mac)
 		return -EINVAL;
 	}
 
-	/* update PF's copy of the VF's bulletin. will no longer accept mac
+	/* update PF's copy of the VF's bulletin. Will no longer accept mac
 	 * configuration requests from vf unless match this mac
 	 */
 	bulletin->valid_bitmap |= 1 << MAC_ADDR_VALID;
@@ -3357,8 +3357,11 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 	return 0;
 }
 
-/* crc is the first field in the bulletin board. compute the crc over the
- * entire bulletin board excluding the crc field itself
+/* crc is the first field in the bulletin board. Compute the crc over the
+ * entire bulletin board excluding the crc field itself. Use the length field
+ * as the Bulletin Board was posted by a PF with possibly a different version
+ * from the vf which will sample it. Therefore, the length is computed by the
+ * PF and the used blindly by the VF.
  */
 u32 bnx2x_crc_vf_bulletin(struct bnx2x *bp,
 			  struct pf_vf_bulletin_content *bulletin)
@@ -3451,7 +3454,7 @@ int bnx2x_open_epilog(struct bnx2x *bp)
 	 * register_netdevice which must have rtnl lock taken. As we are holding
 	 * the lock right now, that could only work if the probe would not take
 	 * the lock. However, as the probe of the vf may be called from other
-	 * contexts as well (such as passthrough to vm failes) it can't assume
+	 * contexts as well (such as passthrough to vm fails) it can't assume
 	 * the lock is being held for it. Using delayed work here allows the
 	 * probe code to simply take the lock (i.e. wait for it to be released
 	 * if it is being held). We only want to do this if the number of VFs

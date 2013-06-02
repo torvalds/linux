@@ -362,7 +362,7 @@ union db_prod {
 /*
  * Number of required  SGEs is the sum of two:
  * 1. Number of possible opened aggregations (next packet for
- *    these aggregations will probably consume SGE immidiatelly)
+ *    these aggregations will probably consume SGE immediately)
  * 2. Rest of BRB blocks divided by 2 (block will consume new SGE only
  *    after placement on BD for new TPA aggregation)
  *
@@ -486,10 +486,10 @@ struct bnx2x_fastpath {
 
 	struct napi_struct	napi;
 	union host_hc_status_block	status_blk;
-	/* chip independed shortcuts into sb structure */
+	/* chip independent shortcuts into sb structure */
 	__le16			*sb_index_values;
 	__le16			*sb_running_index;
-	/* chip independed shortcut into rx_prods_offset memory */
+	/* chip independent shortcut into rx_prods_offset memory */
 	u32			ustorm_rx_prods_offset;
 
 	u32			rx_buf_size;
@@ -603,7 +603,7 @@ struct bnx2x_fastpath {
  * START_BD(splitted)	- includes unpaged data segment for GSO
  * PARSING_BD		- for TSO and CSUM data
  * PARSING_BD2		- for encapsulation data
- * Frag BDs		- decribes pages for frags
+ * Frag BDs		- describes pages for frags
  */
 #define BDS_PER_TX_PKT		4
 #define MAX_BDS_PER_TX_PKT	(MAX_SKB_FRAGS + BDS_PER_TX_PKT)
@@ -886,14 +886,14 @@ struct bnx2x_common {
 #define CHIP_IS_E3A0(bp)		(CHIP_IS_E3(bp) && \
 					 (CHIP_REV(bp) == CHIP_REV_Ax))
 /* This define is used in two main places:
- * 1. In the early stages of nic_load, to know if to configrue Parser / Searcher
+ * 1. In the early stages of nic_load, to know if to configure Parser / Searcher
  * to nic-only mode or to offload mode. Offload mode is configured if either the
  * chip is E1x (where MIC_MODE register is not applicable), or if cnic already
  * registered for this port (which means that the user wants storage services).
  * 2. During cnic-related load, to know if offload mode is already configured in
- * the HW or needs to be configrued.
+ * the HW or needs to be configured.
  * Since the transition from nic-mode to offload-mode in HW causes traffic
- * coruption, nic-mode is configured only in ports on which storage services
+ * corruption, nic-mode is configured only in ports on which storage services
  * where never requested.
  */
 #define CONFIGURE_NIC_MODE(bp)		(!CHIP_IS_E1x(bp) && !CNIC_ENABLED(bp))
@@ -994,14 +994,14 @@ extern struct workqueue_struct *bnx2x_wq;
  * If the maximum number of FP-SB available is X then:
  * a. If CNIC is supported it consumes 1 FP-SB thus the max number of
  *    regular L2 queues is Y=X-1
- * b. in MF mode the actual number of L2 queues is Y= (X-1/MF_factor)
+ * b. In MF mode the actual number of L2 queues is Y= (X-1/MF_factor)
  * c. If the FCoE L2 queue is supported the actual number of L2 queues
  *    is Y+1
  * d. The number of irqs (MSIX vectors) is either Y+1 (one extra for
  *    slow-path interrupts) or Y+2 if CNIC is supported (one additional
  *    FP interrupt context for the CNIC).
  * e. The number of HW context (CID count) is always X or X+1 if FCoE
- *    L2 queue is supported. the cid for the FCoE L2 queue is always X.
+ *    L2 queue is supported. The cid for the FCoE L2 queue is always X.
  */
 
 /* fast-path interrupt contexts E1x */
@@ -1568,7 +1568,7 @@ struct bnx2x {
 	struct mutex		cnic_mutex;
 	struct bnx2x_vlan_mac_obj iscsi_l2_mac_obj;
 
-	/* Start index of the "special" (CNIC related) L2 cleints */
+	/* Start index of the "special" (CNIC related) L2 clients */
 	u8				cnic_base_cl_id;
 
 	int			dmae_ready;
@@ -1682,7 +1682,7 @@ struct bnx2x {
 	/* operation indication for the sp_rtnl task */
 	unsigned long				sp_rtnl_state;
 
-	/* DCBX Negotation results */
+	/* DCBX Negotiation results */
 	struct dcbx_features			dcbx_local_feat;
 	u32					dcbx_error;
 
@@ -2042,7 +2042,8 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 #define DMAE_LEN32_WR_MAX(bp)		(CHIP_IS_E1(bp) ? 0x400 : 0x2000)
 
 #define DMAE_COMP_VAL			0x60d0d0ae /* E2 and on - upper bit
-							indicates eror */
+						    * indicates error
+						    */
 
 #define MAX_DMAE_C_PER_PORT		8
 #define INIT_DMAE_C(bp)			(BP_PORT(bp) * MAX_DMAE_C_PER_PORT + \

@@ -808,8 +808,8 @@ static void bnx2x_hc_int_disable(struct bnx2x *bp)
 	u32 val = REG_RD(bp, addr);
 
 	/* in E1 we must use only PCI configuration space to disable
-	 * MSI/MSIX capablility
-	 * It's forbitten to disable IGU_PF_CONF_MSI_MSIX_EN in HC block
+	 * MSI/MSIX capability
+	 * It's forbidden to disable IGU_PF_CONF_MSI_MSIX_EN in HC block
 	 */
 	if (CHIP_IS_E1(bp)) {
 		/* Since IGU_PF_CONF_MSI_MSIX_EN still always on
@@ -1012,7 +1012,7 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 				hc_sm_p[j].timer_value);
 		}
 
-		/* Indecies data */
+		/* Indices data */
 		for (j = 0; j < loop; j++) {
 			pr_cont("INDEX[%d] flags (0x%x) timeout (0x%x)\n", j,
 			       hc_index_p[j].flags,
@@ -1107,7 +1107,7 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
  * bnx2x_pf_flr_clnup() is called during nic_load in the per function HW
  * initialization.
  */
-#define FLR_WAIT_USEC		10000	/* 10 miliseconds */
+#define FLR_WAIT_USEC		10000	/* 10 milliseconds */
 #define FLR_WAIT_INTERVAL	50	/* usec */
 #define	FLR_POLL_CNT		(FLR_WAIT_USEC/FLR_WAIT_INTERVAL) /* 200 */
 
@@ -1327,7 +1327,7 @@ int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func, u32 poll_cnt)
 		bnx2x_panic();
 		return 1;
 	}
-	/* Zero completion for nxt FLR */
+	/* Zero completion for next FLR */
 	REG_WR(bp, comp_addr, 0);
 
 	return ret;
@@ -2343,7 +2343,7 @@ u8 bnx2x_link_test(struct bnx2x *bp, u8 is_serdes)
      sum of vn_min_rates.
        or
      0 - if all the min_rates are 0.
-     In the later case fainess algorithm should be deactivated.
+     In the later case fairness algorithm should be deactivated.
      If not all min_rates are zero then those that are zeroes will be set to 1.
  */
 static void bnx2x_calc_vn_min(struct bnx2x *bp,
@@ -2423,7 +2423,7 @@ void bnx2x_read_mf_cfg(struct bnx2x *bp)
 	int vn, n = (CHIP_MODE_IS_4_PORT(bp) ? 2 : 1);
 
 	if (BP_NOMCP(bp))
-		return; /* what should be the default bvalue in this case */
+		return; /* what should be the default value in this case */
 
 	/* For 2 port configuration the absolute function number formula
 	 * is:
@@ -2922,7 +2922,7 @@ void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p)
 }
 
 /**
- * bnx2x_get_tx_only_flags - Return common flags
+ * bnx2x_get_common_flags - Return common flags
  *
  * @bp		device handle
  * @fp		queue handle
@@ -3110,7 +3110,7 @@ static void bnx2x_pf_tx_q_prep(struct bnx2x *bp,
 	txq_init->fw_sb_id = fp->fw_sb_id;
 
 	/*
-	 * set the tss leading client id for TX classfication ==
+	 * set the tss leading client id for TX classification ==
 	 * leading RSS client id
 	 */
 	txq_init->tss_leading_cl_id = bnx2x_fp(bp, 0, cl_id);
@@ -3197,7 +3197,7 @@ static void bnx2x_e1h_enable(struct bnx2x *bp)
 
 	REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 1);
 
-	/* Tx queue should be only reenabled */
+	/* Tx queue should be only re-enabled */
 	netif_tx_wake_all_queues(bp->dev);
 
 	/*
@@ -3591,7 +3591,7 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 	/*
 	 * It's ok if the actual decrement is issued towards the memory
 	 * somewhere between the spin_lock and spin_unlock. Thus no
-	 * more explict memory barrier is needed.
+	 * more explicit memory barrier is needed.
 	 */
 	if (common)
 		atomic_dec(&bp->eq_spq_left);
@@ -3660,7 +3660,7 @@ static u16 bnx2x_update_dsb_idx(struct bnx2x *bp)
 		rc |= BNX2X_DEF_SB_IDX;
 	}
 
-	/* Do not reorder: indecies reading should complete before handling */
+	/* Do not reorder: indices reading should complete before handling */
 	barrier();
 	return rc;
 }
@@ -3809,8 +3809,7 @@ static void bnx2x_fan_failure(struct bnx2x *bp)
 	netdev_err(bp->dev, "Fan Failure on Network Controller has caused the driver to shutdown the card to prevent permanent damage.\n"
 			    "Please contact OEM Support for assistance\n");
 
-	/*
-	 * Schedule device reset (unload)
+	/* Schedule device reset (unload)
 	 * This is due to some boards consuming sufficient power when driver is
 	 * up to overheat if fan fails.
 	 */
@@ -4987,7 +4986,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 	hw_cons = le16_to_cpu(*bp->eq_cons_sb);
 
 	/* The hw_cos range is 1-255, 257 - the sw_cons range is 0-254, 256.
-	 * when we get the the next-page we nned to adjust so the loop
+	 * when we get the next-page we need to adjust so the loop
 	 * condition below will be met. The next element is the size of a
 	 * regular element and hence incrementing by 1
 	 */
@@ -5194,7 +5193,7 @@ static void bnx2x_sp_task(struct work_struct *work)
 
 	DP(BNX2X_MSG_SP, "sp task invoked\n");
 
-	/* make sure the atomic interupt_occurred has been written */
+	/* make sure the atomic interrupt_occurred has been written */
 	smp_rmb();
 	if (atomic_read(&bp->interrupt_occurred)) {
 
@@ -5670,7 +5669,7 @@ static void bnx2x_init_eq_ring(struct bnx2x *bp)
 	bp->eq_cons = 0;
 	bp->eq_prod = NUM_EQ_DESC;
 	bp->eq_cons_sb = BNX2X_EQ_INDEX;
-	/* we want a warning message before it gets rought... */
+	/* we want a warning message before it gets wrought... */
 	atomic_set(&bp->eq_spq_left,
 		min_t(int, MAX_SP_DESC_CNT - MAX_SPQ_PENDING, NUM_EQ_DESC) - 1);
 }
@@ -5754,7 +5753,7 @@ static int bnx2x_fill_accept_flags(struct bnx2x *bp, u32 rx_mode,
 
 		break;
 	case BNX2X_RX_MODE_PROMISC:
-		/* According to deffinition of SI mode, iface in promisc mode
+		/* According to definition of SI mode, iface in promisc mode
 		 * should receive matched and unmatched (in resolution of port)
 		 * unicast packets.
 		 */
@@ -5897,7 +5896,7 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 	/* init shortcut */
 	fp->ustorm_rx_prods_offset = bnx2x_rx_ustorm_prods_offset(fp);
 
-	/* Setup SB indicies */
+	/* Setup SB indices */
 	fp->rx_cons_sb = BNX2X_RX_SB_INDEX;
 
 	/* Configure Queue State object */
@@ -6652,7 +6651,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
  *		    stay set)
  *		f.  If this is VNIC 3 of a port then also init
  *		    first_timers_ilt_entry to zero and last_timers_ilt_entry
- *		    to the last enrty in the ILT.
+ *		    to the last entry in the ILT.
  *
  *	Notes:
  *	Currently the PF error in the PGLC is non recoverable.
@@ -7118,8 +7117,8 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_MISC_AEU, init_phase);
 	/* init aeu_mask_attn_func_0/1:
-	 *  - SF mode: bits 3-7 are masked. only bits 0-2 are in use
-	 *  - MF mode: bit 3 is masked. bits 0-2 are in use as in SF
+	 *  - SF mode: bits 3-7 are masked. Only bits 0-2 are in use
+	 *  - MF mode: bit 3 is masked. Bits 0-2 are in use as in SF
 	 *             bits 4-7 are used for "per vn group attention" */
 	val = IS_MF(bp) ? 0xF7 : 0x7;
 	/* Enable DCBX attention for all but E1 */
@@ -7371,7 +7370,7 @@ int bnx2x_init_hw_func_cnic(struct bnx2x *bp)
 	bnx2x_ilt_init_op_cnic(bp, INITOP_SET);
 
 	if (CONFIGURE_NIC_MODE(bp)) {
-		/* Configrue searcher as part of function hw init */
+		/* Configure searcher as part of function hw init */
 		bnx2x_init_searcher(bp);
 
 		/* Reset NIC mode */
@@ -7641,7 +7640,7 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 			}
 			bnx2x_igu_clear_sb(bp, bp->igu_dsb_id);
 
-			/* !!! these should become driver const once
+			/* !!! These should become driver const once
 			   rf-tool supports split-68 const */
 			REG_WR(bp, IGU_REG_SB_INT_BEFORE_MASK_LSB, 0);
 			REG_WR(bp, IGU_REG_SB_INT_BEFORE_MASK_MSB, 0);
@@ -7755,7 +7754,7 @@ int bnx2x_alloc_mem_cnic(struct bnx2x *bp)
 				       host_hc_status_block_e1x));
 
 	if (CONFIGURE_NIC_MODE(bp) && !bp->t2)
-		/* allocate searcher T2 table, as it wan't allocated before */
+		/* allocate searcher T2 table, as it wasn't allocated before */
 		BNX2X_PCI_ALLOC(bp->t2, &bp->t2_mapping, SRC_T2_SZ);
 
 	/* write address to which L5 should insert its values */
@@ -8093,7 +8092,7 @@ static void bnx2x_pf_q_prep_init(struct bnx2x *bp,
 		__set_bit(BNX2X_Q_FLG_HC, &init_params->rx.flags);
 		__set_bit(BNX2X_Q_FLG_HC, &init_params->tx.flags);
 
-		/* If HC is supporterd, enable host coalescing in the transition
+		/* If HC is supported, enable host coalescing in the transition
 		 * to INIT state.
 		 */
 		__set_bit(BNX2X_Q_FLG_HC_EN, &init_params->rx.flags);
@@ -8579,14 +8578,14 @@ static int bnx2x_func_wait_started(struct bnx2x *bp)
 
 	/*
 	 * (assumption: No Attention from MCP at this stage)
-	 * PMF probably in the middle of TXdisable/enable transaction
+	 * PMF probably in the middle of TX disable/enable transaction
 	 * 1. Sync IRS for default SB
-	 * 2. Sync SP queue - this guarantes us that attention handling started
-	 * 3. Wait, that TXdisable/enable transaction completes
+	 * 2. Sync SP queue - this guarantees us that attention handling started
+	 * 3. Wait, that TX disable/enable transaction completes
 	 *
-	 * 1+2 guranty that if DCBx attention was scheduled it already changed
-	 * pending bit of transaction from STARTED-->TX_STOPPED, if we alredy
-	 * received complettion for the transaction the state is TX_STOPPED.
+	 * 1+2 guarantee that if DCBx attention was scheduled it already changed
+	 * pending bit of transaction from STARTED-->TX_STOPPED, if we already
+	 * received completion for the transaction the state is TX_STOPPED.
 	 * State will return to STARTED after completion of TX_STOPPED-->STARTED
 	 * transaction.
 	 */
@@ -8705,7 +8704,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode, bool keep_link)
 
 	/*
 	 * (assumption: No Attention from MCP at this stage)
-	 * PMF probably in the middle of TXdisable/enable transaction
+	 * PMF probably in the middle of TX disable/enable transaction
 	 */
 	rc = bnx2x_func_wait_started(bp);
 	if (rc) {
@@ -9320,7 +9319,7 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 				 * the first leader that performs a
 				 * leader_reset() reset the global blocks in
 				 * order to clear global attentions. Otherwise
-				 * the the gates will remain closed for that
+				 * the gates will remain closed for that
 				 * engine.
 				 */
 				if (load_status ||
@@ -10056,7 +10055,7 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 			break;
 		}
 
-		/* non-common reply from MCP night require looping */
+		/* non-common reply from MCP might require looping */
 		rc = bnx2x_prev_unload_uncommon(bp);
 		if (rc != BNX2X_PREV_WAIT_NEEDED)
 			break;
@@ -11034,7 +11033,7 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 	} else {
 		bp->common.int_block = INT_BLOCK_IGU;
 
-		/* do not allow device reset during IGU info preocessing */
+		/* do not allow device reset during IGU info processing */
 		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 
 		val = REG_RD(bp, IGU_REG_BLOCK_CONFIGURATION);
@@ -11113,7 +11112,7 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 				E1H_FUNC_MAX * sizeof(struct drv_func_mb);
 		/*
 		 * get mf configuration:
-		 * 1. existence of MF configuration
+		 * 1. Existence of MF configuration
 		 * 2. MAC address must be legal (check only upper bytes)
 		 *    for  Switch-Independent mode;
 		 *    OVLAN must be legal for Switch-Dependent mode
@@ -11490,7 +11489,7 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 
 	/* We need at least one default status block for slow-path events,
 	 * second status block for the L2 queue, and a third status block for
-	 * CNIC if supproted.
+	 * CNIC if supported.
 	 */
 	if (CNIC_SUPPORT(bp))
 		bp->min_msix_vec_cnt = 3;
@@ -12874,7 +12873,7 @@ static pci_ers_result_t bnx2x_io_slot_reset(struct pci_dev *pdev)
 
 		bnx2x_prev_unload(bp);
 
-		/* We should have resetted the engine, so It's fair to
+		/* We should have reseted the engine, so It's fair to
 		 * assume the FW will no longer write to the bnx2x driver.
 		 */
 		bnx2x_squeeze_objects(bp);
@@ -12993,7 +12992,7 @@ static void __exit bnx2x_cleanup(void)
 
 	destroy_workqueue(bnx2x_wq);
 
-	/* Free globablly allocated resources */
+	/* Free globally allocated resources */
 	list_for_each_safe(pos, q, &bnx2x_prev_list) {
 		struct bnx2x_prev_path_list *tmp =
 			list_entry(pos, struct bnx2x_prev_path_list, list);
@@ -13016,7 +13015,7 @@ module_exit(bnx2x_cleanup);
  * @bp:		driver handle
  * @set:	set or clear the CAM entry
  *
- * This function will wait until the ramdord completion returns.
+ * This function will wait until the ramrod completion returns.
  * Return 0 if success, -ENODEV if ramrod doesn't return.
  */
 static int bnx2x_set_iscsi_eth_mac_addr(struct bnx2x *bp)

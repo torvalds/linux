@@ -233,7 +233,7 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 
 		attempts++;
 
-		/* test whether the PF accepted our request. If not, humble the
+		/* test whether the PF accepted our request. If not, humble
 		 * the request and try again.
 		 */
 		if (bp->acquire_resp.hdr.status == PFVF_STATUS_SUCCESS) {
@@ -787,7 +787,7 @@ static inline void bnx2x_set_vf_mbxs_valid(struct bnx2x *bp)
 		storm_memset_vf_mbx_valid(bp, bnx2x_vf(bp, i, abs_vfid));
 }
 
-/* enable vf_pf mailbox (aka vf-pf-chanell) */
+/* enable vf_pf mailbox (aka vf-pf-channel) */
 void bnx2x_vf_enable_mbx(struct bnx2x *bp, u8 abs_vfid)
 {
 	bnx2x_vf_flr_clnup_epilog(bp, abs_vfid);
@@ -1072,7 +1072,7 @@ static void bnx2x_vf_mbx_set_q_flags(struct bnx2x *bp, u32 mbx_q_flags,
 	if (mbx_q_flags & VFPF_QUEUE_FLG_DHC)
 		__set_bit(BNX2X_Q_FLG_DHC, sp_q_flags);
 
-	/* outer vlan removal is set according to the PF's multi fuction mode */
+	/* outer vlan removal is set according to PF's multi function mode */
 	if (IS_MF_SD(bp))
 		__set_bit(BNX2X_Q_FLG_OV, sp_q_flags);
 }
@@ -1104,7 +1104,7 @@ static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		struct bnx2x_queue_init_params *init_p;
 		struct bnx2x_queue_setup_params *setup_p;
 
-		/* reinit the VF operation context */
+		/* re-init the VF operation context */
 		memset(&vf->op_params.qctor, 0 , sizeof(vf->op_params.qctor));
 		setup_p = &vf->op_params.qctor.prep_qsetup;
 		init_p =  &vf->op_params.qctor.qstate.params.init;

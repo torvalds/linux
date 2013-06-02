@@ -197,7 +197,7 @@ struct bnx2x_virtf {
 
 	u8 state;
 #define VF_FREE		0	/* VF ready to be acquired holds no resc */
-#define VF_ACQUIRED	1	/* VF aquired, but not initalized */
+#define VF_ACQUIRED	1	/* VF acquired, but not initialized */
 #define VF_ENABLED	2	/* VF Enabled */
 #define VF_RESET	3	/* VF FLR'd, pending cleanup */
 
