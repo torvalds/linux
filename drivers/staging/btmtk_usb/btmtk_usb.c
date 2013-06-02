@@ -1596,7 +1596,7 @@ static int btmtk_usb_probe(struct usb_interface *intf,
 		}
 	}
 
-	data->io_buf = kmalloc(256, GFP_ATOMIC);
+	data->io_buf = kmalloc(256, GFP_KERNEL);
 	if (!data->io_buf) {
 		hci_free_dev(hdev);
 		kfree(data);
