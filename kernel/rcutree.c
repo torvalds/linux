@@ -1451,9 +1451,9 @@ static int rcu_gp_init(struct rcu_state *rsp)
 					    rnp->grphi, rnp->qsmask);
 		raw_spin_unlock_irq(&rnp->lock);
 #ifdef CONFIG_PROVE_RCU_DELAY
-		if ((prandom_u32() % (rcu_num_nodes * 8)) == 0 &&
+		if ((prandom_u32() % (rcu_num_nodes + 1)) == 0 &&
 		    system_state == SYSTEM_RUNNING)
-			schedule_timeout_uninterruptible(2);
+			udelay(200);
 #endif /* #ifdef CONFIG_PROVE_RCU_DELAY */
 		cond_resched();
 	}
