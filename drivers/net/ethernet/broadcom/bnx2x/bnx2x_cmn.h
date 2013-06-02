@@ -493,9 +493,6 @@ void bnx2x_update_max_mf_config(struct bnx2x *bp, u32 value);
 /* Error handling */
 void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl);
 
-/* validate currect fw is loaded */
-bool bnx2x_test_firmware_version(struct bnx2x *bp, bool is_err);
-
 /* dev_close main block */
 int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link);
 

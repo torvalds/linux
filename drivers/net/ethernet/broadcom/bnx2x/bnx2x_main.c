@@ -102,8 +102,6 @@ static int disable_tpa;
 module_param(disable_tpa, int, 0);
 MODULE_PARM_DESC(disable_tpa, " Disable the TPA (LRO) feature");
 
-#define INT_MODE_INTx			1
-#define INT_MODE_MSI			2
 int int_mode;
 module_param(int_mode, int, 0);
 MODULE_PARM_DESC(int_mode, " Force interrupt mode other than MSI-X "
@@ -3068,7 +3066,7 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 	 * placed on the BD (not including paddings).
 	 */
 	rxq_init->buf_sz = fp->rx_buf_size - BNX2X_FW_RX_ALIGN_START -
-		BNX2X_FW_RX_ALIGN_END -	IP_HEADER_ALIGNMENT_PADDING;
+			   BNX2X_FW_RX_ALIGN_END - IP_HEADER_ALIGNMENT_PADDING;
 
 	rxq_init->cl_qzone_id = fp->cl_qzone_id;
 	rxq_init->tpa_agg_sz = tpa_agg_size;
@@ -3619,15 +3617,14 @@ static int bnx2x_acquire_alr(struct bnx2x *bp)
 
 	might_sleep();
 	for (j = 0; j < 1000; j++) {
-		val = (1UL << 31);
-		REG_WR(bp, GRCBASE_MCP + 0x9c, val);
-		val = REG_RD(bp, GRCBASE_MCP + 0x9c);
-		if (val & (1L << 31))
+		REG_WR(bp, MCP_REG_MCPR_ACCESS_LOCK, MCPR_ACCESS_LOCK_LOCK);
+		val = REG_RD(bp, MCP_REG_MCPR_ACCESS_LOCK);
+		if (val & MCPR_ACCESS_LOCK_LOCK)
 			break;
 
 		msleep(5);
 	}
-	if (!(val & (1L << 31))) {
+	if (!(val & MCPR_ACCESS_LOCK_LOCK)) {
 		BNX2X_ERR("Cannot acquire MCP access lock register\n");
 		rc = -EBUSY;
 	}
@@ -3638,7 +3635,7 @@ static int bnx2x_acquire_alr(struct bnx2x *bp)
 /* release split MCP access lock register */
 static void bnx2x_release_alr(struct bnx2x *bp)
 {
-	REG_WR(bp, GRCBASE_MCP + 0x9c, 0);
+	REG_WR(bp, MCP_REG_MCPR_ACCESS_LOCK, 0);
 }
 
 #define BNX2X_DEF_SB_ATT_IDX	0x0001
@@ -4086,7 +4083,7 @@ static void bnx2x_clear_reset_global(struct bnx2x *bp)
  */
 static bool bnx2x_reset_is_global(struct bnx2x *bp)
 {
-	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
 
 	DP(NETIF_MSG_HW, "GEN_REG_VAL=0x%08x\n", val);
 	return (val & BNX2X_GLOBAL_RESET_BIT) ? true : false;
@@ -4137,7 +4134,7 @@ void bnx2x_set_reset_in_progress(struct bnx2x *bp)
  */
 bool bnx2x_reset_is_done(struct bnx2x *bp, int engine)
 {
-	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
 	u32 bit = engine ?
 		BNX2X_PATH1_RST_IN_PROG_BIT : BNX2X_PATH0_RST_IN_PROG_BIT;
 
@@ -6013,11 +6010,6 @@ void bnx2x_pre_irq_nic_init(struct bnx2x *bp)
 	bnx2x_init_rx_rings(bp);
 	bnx2x_init_tx_rings(bp);
 
-	if (IS_VF(bp)) {
-		bnx2x_memset_stats(bp);
-		return;
-	}
-
 	if (IS_PF(bp)) {
 		/* Initialize MOD_ABS interrupts */
 		bnx2x_init_mod_abs_int(bp, &bp->link_vars, bp->common.chip_id,
@@ -6028,6 +6020,8 @@ void bnx2x_pre_irq_nic_init(struct bnx2x *bp)
 		bnx2x_init_def_sb(bp);
 		bnx2x_update_dsb_idx(bp);
 		bnx2x_init_sp_ring(bp);
+	} else {
+		bnx2x_memset_stats(bp);
 	}
 }
 
@@ -10011,7 +10005,7 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 		      (MISC_REG_DRIVER_CONTROL_1 + BP_FUNC(bp) * 8) :
 		      (MISC_REG_DRIVER_CONTROL_7 + (BP_FUNC(bp) - 6) * 8);
 
-	hw_lock_val = (REG_RD(bp, hw_lock_reg));
+	hw_lock_val = REG_RD(bp, hw_lock_reg);
 	if (hw_lock_val) {
 		if (hw_lock_val & HW_LOCK_RESOURCE_NVRAM) {
 			BNX2X_DEV_INFO("Release Previously held NVRAM lock\n");
@@ -10026,7 +10020,7 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 
 	if (MCPR_ACCESS_LOCK_LOCK & REG_RD(bp, MCP_REG_MCPR_ACCESS_LOCK)) {
 		BNX2X_DEV_INFO("Release previously held alr\n");
-		REG_WR(bp, MCP_REG_MCPR_ACCESS_LOCK, 0);
+		bnx2x_release_alr(bp);
 	}
 
 	do {
@@ -11878,7 +11872,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_setup_tc		= bnx2x_setup_tc,
 #ifdef CONFIG_BNX2X_SRIOV
 	.ndo_set_vf_mac		= bnx2x_set_vf_mac,
-	.ndo_set_vf_vlan        = bnx2x_set_vf_vlan,
+	.ndo_set_vf_vlan	= bnx2x_set_vf_vlan,
 	.ndo_get_vf_config	= bnx2x_get_vf_config,
 #endif
 #ifdef NETDEV_FCOE_WWNN
