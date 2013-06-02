@@ -20,7 +20,7 @@
 
 #include "cw1200.h"
 #include "hwbus.h"
-#include <linux/cw1200_platform.h>
+#include <linux/platform_data/cw1200_platform.h>
 #include "hwio.h"
 
 MODULE_AUTHOR("Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>");

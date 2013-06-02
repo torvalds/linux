@@ -10,7 +10,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/cw1200_platform.h>
+#include <linux/platform_data/cw1200_platform.h>
 
 MODULE_AUTHOR("Solomon Peachy <speachy@sagrad.com>");
 MODULE_DESCRIPTION("ST-Ericsson CW1200 Platform glue driver");
