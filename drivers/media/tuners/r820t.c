@@ -364,8 +364,8 @@ static void shadow_store(struct r820t_priv *priv, u8 reg, const u8 *val,
 	}
 	if (len <= 0)
 		return;
-	if (len > NUM_REGS)
-		len = NUM_REGS;
+	if (len > NUM_REGS - r)
+		len = NUM_REGS - r;
 
 	tuner_dbg("%s: prev  reg=%02x len=%d: %*ph\n",
 		  __func__, r + REG_SHADOW_START, len, len, val);
