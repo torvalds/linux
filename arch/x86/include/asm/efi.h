@@ -52,40 +52,40 @@ extern u64 efi_call6(void *fp, u64 arg1, u64 arg2, u64 arg3,
 		     u64 arg4, u64 arg5, u64 arg6);
 
 #define efi_call_phys0(f)			\
-	efi_call0((void *)(f))
+	efi_call0((f))
 #define efi_call_phys1(f, a1)			\
-	efi_call1((void *)(f), (u64)(a1))
+	efi_call1((f), (u64)(a1))
 #define efi_call_phys2(f, a1, a2)			\
-	efi_call2((void *)(f), (u64)(a1), (u64)(a2))
+	efi_call2((f), (u64)(a1), (u64)(a2))
 #define efi_call_phys3(f, a1, a2, a3)				\
-	efi_call3((void *)(f), (u64)(a1), (u64)(a2), (u64)(a3))
+	efi_call3((f), (u64)(a1), (u64)(a2), (u64)(a3))
 #define efi_call_phys4(f, a1, a2, a3, a4)				\
-	efi_call4((void *)(f), (u64)(a1), (u64)(a2), (u64)(a3),		\
+	efi_call4((f), (u64)(a1), (u64)(a2), (u64)(a3),		\
 		  (u64)(a4))
 #define efi_call_phys5(f, a1, a2, a3, a4, a5)				\
-	efi_call5((void *)(f), (u64)(a1), (u64)(a2), (u64)(a3),		\
+	efi_call5((f), (u64)(a1), (u64)(a2), (u64)(a3),		\
 		  (u64)(a4), (u64)(a5))
 #define efi_call_phys6(f, a1, a2, a3, a4, a5, a6)			\
-	efi_call6((void *)(f), (u64)(a1), (u64)(a2), (u64)(a3),		\
+	efi_call6((f), (u64)(a1), (u64)(a2), (u64)(a3),		\
 		  (u64)(a4), (u64)(a5), (u64)(a6))
 
 #define efi_call_virt0(f)				\
-	efi_call0((void *)(efi.systab->runtime->f))
+	efi_call0((efi.systab->runtime->f))
 #define efi_call_virt1(f, a1)					\
-	efi_call1((void *)(efi.systab->runtime->f), (u64)(a1))
+	efi_call1((efi.systab->runtime->f), (u64)(a1))
 #define efi_call_virt2(f, a1, a2)					\
-	efi_call2((void *)(efi.systab->runtime->f), (u64)(a1), (u64)(a2))
+	efi_call2((efi.systab->runtime->f), (u64)(a1), (u64)(a2))
 #define efi_call_virt3(f, a1, a2, a3)					\
-	efi_call3((void *)(efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
+	efi_call3((efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
 		  (u64)(a3))
 #define efi_call_virt4(f, a1, a2, a3, a4)				\
-	efi_call4((void *)(efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
+	efi_call4((efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
 		  (u64)(a3), (u64)(a4))
 #define efi_call_virt5(f, a1, a2, a3, a4, a5)				\
-	efi_call5((void *)(efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
+	efi_call5((efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
 		  (u64)(a3), (u64)(a4), (u64)(a5))
 #define efi_call_virt6(f, a1, a2, a3, a4, a5, a6)			\
-	efi_call6((void *)(efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
+	efi_call6((efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
 		  (u64)(a3), (u64)(a4), (u64)(a5), (u64)(a6))
 
 extern void __iomem *efi_ioremap(unsigned long addr, unsigned long size,
