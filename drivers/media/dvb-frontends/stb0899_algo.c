@@ -1487,6 +1487,10 @@ enum stb0899_status stb0899_dvbs2_algo(struct stb0899_state *state)
 		/* Store signal parameters	*/
 		offsetfreq = STB0899_READ_S2REG(STB0899_S2DEMOD, CRL_FREQ);
 
+		/* sign extend 30 bit value before using it in calculations */
+		if (offsetfreq & (1 << 29))
+			offsetfreq |= -1 << 30;
+
 		offsetfreq = offsetfreq / ((1 << 30) / 1000);
 		offsetfreq *= (internal->master_clk / 1000000);
 		reg = STB0899_READ_S2REG(STB0899_S2DEMOD, DMD_CNTRL2);
