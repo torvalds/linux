@@ -105,7 +105,6 @@ static irqreturn_t cw1200_gpio_irq(int irq, void *dev_id)
 static int cw1200_request_irq(struct hwbus_priv *self)
 {
 	int ret;
-	const struct resource *irq = self->pdata->irq;
 	u8 cccr;
 
 	cccr = sdio_f0_readb(self->func, SDIO_CCCR_IENx, &ret);
@@ -122,15 +121,15 @@ static int cw1200_request_irq(struct hwbus_priv *self)
 	if (WARN_ON(ret))
 		goto err;
 
-	ret = enable_irq_wake(irq->start);
+	ret = enable_irq_wake(self->pdata->irq);
 	if (WARN_ON(ret))
 		goto err;
 
 	/* Request the IRQ */
-	ret =  request_threaded_irq(irq->start, cw1200_gpio_hardirq,
+	ret =  request_threaded_irq(self->pdata->irq, cw1200_gpio_hardirq,
 				    cw1200_gpio_irq,
 				    IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-				    irq->name, self);
+				    "cw1200_wlan_irq", self);
 	if (WARN_ON(ret))
 		goto err;
 
@@ -162,8 +161,8 @@ static int cw1200_sdio_irq_unsubscribe(struct hwbus_priv *self)
 	pr_debug("SW IRQ unsubscribe\n");
 
 	if (self->pdata->irq) {
-		disable_irq_wake(self->pdata->irq->start);
-		free_irq(self->pdata->irq->start, self);
+		disable_irq_wake(self->pdata->irq);
+		free_irq(self->pdata->irq, self);
 	} else {
 		sdio_claim_host(self->func);
 		ret = sdio_release_irq(self->func);
@@ -174,12 +173,10 @@ static int cw1200_sdio_irq_unsubscribe(struct hwbus_priv *self)
 
 static int cw1200_sdio_off(const struct cw1200_platform_data_sdio *pdata)
 {
-	const struct resource *reset = pdata->reset;
-
-	if (reset) {
-		gpio_set_value(reset->start, 0);
+	if (pdata->reset) {
+		gpio_set_value(pdata->reset, 0);
 		msleep(30); /* Min is 2 * CLK32K cycles */
-		gpio_free(reset->start);
+		gpio_free(pdata->reset);
 	}
 
 	if (pdata->power_ctrl)
@@ -192,20 +189,17 @@ static int cw1200_sdio_off(const struct cw1200_platform_data_sdio *pdata)
 
 static int cw1200_sdio_on(const struct cw1200_platform_data_sdio *pdata)
 {
-	const struct resource *reset = pdata->reset;
-	const struct resource *powerup = pdata->powerup;
-
 	/* Ensure I/Os are pulled low */
-	if (reset) {
-		gpio_request(reset->start, reset->name);
-		gpio_direction_output(reset->start, 0);
+	if (pdata->reset) {
+		gpio_request(pdata->reset, "cw1200_wlan_reset");
+		gpio_direction_output(pdata->reset, 0);
 	}
-	if (powerup) {
-		gpio_request(powerup->start, powerup->name);
-		gpio_direction_output(powerup->start, 0);
+	if (pdata->powerup) {
+		gpio_request(pdata->powerup, "cw1200_wlan_powerup");
+		gpio_direction_output(pdata->powerup, 0);
 	}
-	if (reset || powerup)
-		msleep(50); /* Settle time */
+	if (pdata->reset || pdata->powerup)
+		msleep(10); /* Settle time? */
 
 	/* Enable 3v3 and 1v8 to hardware */
 	if (pdata->power_ctrl) {
@@ -225,13 +219,13 @@ static int cw1200_sdio_on(const struct cw1200_platform_data_sdio *pdata)
 	}
 
 	/* Enable POWERUP signal */
-	if (powerup) {
-		gpio_set_value(powerup->start, 1);
+	if (pdata->powerup) {
+		gpio_set_value(pdata->powerup, 1);
 		msleep(250); /* or more..? */
 	}
 	/* Enable RSTn signal */
-	if (reset) {
-		gpio_set_value(reset->start, 1);
+	if (pdata->reset) {
+		gpio_set_value(pdata->reset, 1);
 		msleep(50); /* Or more..? */
 	}
 	return 0;
@@ -252,7 +246,7 @@ static int cw1200_sdio_pm(struct hwbus_priv *self, bool suspend)
 	int ret = 0;
 
 	if (self->pdata->irq)
-		ret = irq_set_irq_wake(self->pdata->irq->start, suspend);
+		ret = irq_set_irq_wake(self->pdata->irq, suspend);
 	return ret;
 }
 
@@ -274,7 +268,7 @@ static int cw1200_sdio_probe(struct sdio_func *func,
 
 	pr_info("cw1200_wlan_sdio: Probe called\n");
 
-       /* We are only able to handle the wlan function */
+	/* We are only able to handle the wlan function */
 	if (func->num != 0x01)
 		return -ENODEV;
 

@@ -268,12 +268,10 @@ static int cw1200_spi_irq_unsubscribe(struct hwbus_priv *self)
 
 static int cw1200_spi_off(const struct cw1200_platform_data_spi *pdata)
 {
-	const struct resource *reset = pdata->reset;
-
-	if (reset) {
-		gpio_set_value(reset->start, 0);
+	if (pdata->reset) {
+		gpio_set_value(pdata->reset, 0);
 		msleep(30); /* Min is 2 * CLK32K cycles */
-		gpio_free(reset->start);
+		gpio_free(pdata->reset);
 	}
 
 	if (pdata->power_ctrl)
@@ -286,19 +284,16 @@ static int cw1200_spi_off(const struct cw1200_platform_data_spi *pdata)
 
 static int cw1200_spi_on(const struct cw1200_platform_data_spi *pdata)
 {
-	const struct resource *reset = pdata->reset;
-	const struct resource *powerup = pdata->powerup;
-
 	/* Ensure I/Os are pulled low */
-	if (reset) {
-		gpio_request(reset->start, reset->name);
-		gpio_direction_output(reset->start, 0);
+	if (pdata->reset) {
+		gpio_request(pdata->reset, "cw1200_wlan_reset");
+		gpio_direction_output(pdata->reset, 0);
 	}
-	if (powerup) {
-		gpio_request(powerup->start, powerup->name);
-		gpio_direction_output(powerup->start, 0);
+	if (pdata->powerup) {
+		gpio_request(pdata->powerup, "cw1200_wlan_powerup");
+		gpio_direction_output(pdata->powerup, 0);
 	}
-	if (reset || powerup)
+	if (pdata->reset || pdata->powerup)
 		msleep(10); /* Settle time? */
 
 	/* Enable 3v3 and 1v8 to hardware */
@@ -319,13 +314,13 @@ static int cw1200_spi_on(const struct cw1200_platform_data_spi *pdata)
 	}
 
 	/* Enable POWERUP signal */
-	if (powerup) {
-		gpio_set_value(powerup->start, 1);
+	if (pdata->powerup) {
+		gpio_set_value(pdata->powerup, 1);
 		msleep(250); /* or more..? */
 	}
 	/* Enable RSTn signal */
-	if (reset) {
-		gpio_set_value(reset->start, 1);
+	if (pdata->reset) {
+		gpio_set_value(pdata->reset, 1);
 		msleep(50); /* Or more..? */
 	}
 	return 0;

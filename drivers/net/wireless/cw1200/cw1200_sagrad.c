@@ -21,29 +21,6 @@ MODULE_LICENSE("GPL");
 /* #define SAGRAD_1091_1098_EVK_SPI */
 
 #ifdef SAGRAD_1091_1098_EVK_SDIO
-#if 0
-static struct resource cw1200_href_resources[] = {
-	{
-		.start = 215,  /* fix me as appropriate */
-		.end = 215,    /* ditto */
-		.flags = IORESOURCE_IO,
-		.name = "cw1200_wlan_reset",
-	},
-	{
-		.start = 216,  /* fix me as appropriate */
-		.end = 216,    /* ditto */
-		.flags = IORESOURCE_IO,
-		.name = "cw1200_wlan_powerup",
-	},
-	{
-		.start = NOMADIK_GPIO_TO_IRQ(216), /* fix me as appropriate */
-		.end = NOMADIK_GPIO_TO_IRQ(216),   /* ditto */
-		.flags = IORESOURCE_IRQ,
-		.name = "cw1200_wlan_irq",
-	},
-};
-#endif
-
 static int cw1200_power_ctrl(const struct cw1200_platform_data_sdio *pdata,
 			     bool enable)
 {
@@ -68,9 +45,9 @@ static struct cw1200_platform_data_sdio cw1200_platform_data = {
 	.ref_clk = 38400,
 	.have_5ghz = false,
 #if 0
-	.reset = &cw1200_href_resources[0],
-	.powerup = &cw1200_href_resources[1],
-	.irq = &cw1200_href_resources[2],
+	.reset = GPIO_RF_RESET, /* Replace as appropriate */
+	.powerup = GPIO_RF_POWERUP, /* Replace as appropriate */
+	.irq = GPIO_TO_IRQ(GPIO_RF_IRQ), /* Replace as appropriate */
 #endif
 	.power_ctrl = cw1200_power_ctrl,
 	.clk_ctrl = cw1200_clk_ctrl,
@@ -80,22 +57,6 @@ static struct cw1200_platform_data_sdio cw1200_platform_data = {
 #endif
 
 #ifdef SAGRAD_1091_1098_EVK_SPI
-/* Note that this is an example of integrating into your board support file */
-static struct resource cw1200_href_resources[] = {
-	{
-		.start = GPIO_RF_RESET,
-		.end = GPIO_RF_RESET,
-		.flags = IORESOURCE_IO,
-		.name = "cw1200_wlan_reset",
-	},
-	{
-		.start = GPIO_RF_POWERUP,
-		.end = GPIO_RF_POWERUP,
-		.flags = IORESOURCE_IO,
-		.name = "cw1200_wlan_powerup",
-	},
-};
-
 static int cw1200_power_ctrl(const struct cw1200_platform_data_spi *pdata,
 			     bool enable)
 {
@@ -118,8 +79,8 @@ static int cw1200_clk_ctrl(const struct cw1200_platform_data_spi *pdata,
 static struct cw1200_platform_data_spi cw1200_platform_data = {
 	.ref_clk = 38400,
 	.spi_bits_per_word = 16,
-	.reset = &cw1200_href_resources[0],
-	.powerup = &cw1200_href_resources[1],
+	.reset = GPIO_RF_RESET, /* Replace as appropriate */
+	.powerup = GPIO_RF_POWERUP, /* Replace as appropriate */
 	.power_ctrl = cw1200_power_ctrl,
 	.clk_ctrl = cw1200_clk_ctrl,
 /*	.macaddr = ??? */
