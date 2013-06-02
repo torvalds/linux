@@ -29,6 +29,21 @@ MODULE_LICENSE("GPL");
 
 #define SDIO_BLOCK_SIZE (512)
 
+/* Default platform data for Sagrad modules */
+static struct cw1200_platform_data_sdio sagrad_109x_evk_platform_data = {
+	.ref_clk = 38400,
+	.have_5ghz = false,
+	.sdd_file = "sdd_sagrad_1091_1098.bin",
+};
+
+/* Allow platform data to be overridden */
+static struct cw1200_platform_data_sdio *global_plat_data = &sagrad_109x_evk_platform_data;
+
+void __init cw1200_sdio_set_platform_data(struct cw1200_platform_data_sdio *pdata)
+{
+	global_plat_data = pdata;
+}
+
 struct hwbus_priv {
 	struct sdio_func	*func;
 	struct cw1200_common	*core;
@@ -261,7 +276,7 @@ static struct hwbus_ops cw1200_sdio_hwbus_ops = {
 
 /* Probe Function to be called by SDIO stack when device is discovered */
 static int cw1200_sdio_probe(struct sdio_func *func,
-				       const struct sdio_device_id *id)
+			     const struct sdio_device_id *id)
 {
 	struct hwbus_priv *self;
 	int status;
@@ -280,7 +295,7 @@ static int cw1200_sdio_probe(struct sdio_func *func,
 
 	func->card->quirks |= MMC_QUIRK_LENIENT_FN0;
 
-	self->pdata = cw1200_get_platform_data();
+	self->pdata = global_plat_data; /* FIXME */
 	self->func = func;
 	sdio_set_drvdata(func, self);
 	sdio_claim_host(func);
@@ -374,7 +389,8 @@ static int __init cw1200_sdio_init(void)
 	const struct cw1200_platform_data_sdio *pdata;
 	int ret;
 
-	pdata = cw1200_get_platform_data();
+	/* FIXME -- this won't support multiple devices */
+	pdata = global_plat_data;
 
 	if (cw1200_sdio_on(pdata)) {
 		ret = -1;
@@ -396,7 +412,9 @@ err:
 static void __exit cw1200_sdio_exit(void)
 {
 	const struct cw1200_platform_data_sdio *pdata;
-	pdata = cw1200_get_platform_data();
+
+	/* FIXME -- this won't support multiple devices */
+	pdata = global_plat_data;
 	sdio_unregister_driver(&sdio_driver);
 	cw1200_sdio_off(pdata);
 }

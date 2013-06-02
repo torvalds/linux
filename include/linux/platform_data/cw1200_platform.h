@@ -41,6 +41,41 @@ struct cw1200_platform_data_sdio {
 	const char *sdd_file;  /* if NULL, will use default for detected hw type */
 };
 
-const void *cw1200_get_platform_data(void);
+
+/* An example of SPI support in your board setup file:
+
+   static struct cw1200_platform_data_spi cw1200_platform_data = {
+       .ref_clk = 38400,
+       .spi_bits_per_word = 16,
+       .reset = GPIO_RF_RESET,
+       .powerup = GPIO_RF_POWERUP,
+       .macaddr = wifi_mac_addr,
+       .sdd_file = "sdd_sagrad_1091_1098.bin",
+  };
+  static struct spi_board_info myboard_spi_devices[] __initdata = {
+       {
+               .modalias = "cw1200_wlan_spi",
+               .max_speed_hz = 52000000,
+               .bus_num = 0,
+               .irq = WIFI_IRQ,
+               .platform_data = &cw1200_platform_data,
+               .chip_select = 0,
+       },
+  };
+
+ */
+
+/* An example of SDIO support in your board setup file:
+
+  static struct cw1200_platform_data_sdio my_cw1200_platform_data = {
+	.ref_clk = 38400,
+	.have_5ghz = false,
+	.sdd_file = "sdd_myplatform.bin",
+  };
+  cw1200_sdio_set_platform_data(&my_cw1200_platform_data);
+
+ */
+
+void __init cw1200_sdio_set_platform_data(struct cw1200_platform_data_sdio *pdata);
 
 #endif /* CW1200_PLAT_H_INCLUDED */
