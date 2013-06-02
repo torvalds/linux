@@ -1504,9 +1504,7 @@ enum stb0899_status stb0899_dvbs2_algo(struct stb0899_state *state)
 		else
 			internal->inversion = IQ_SWAP_OFF;
 
-		offsetfreq *= internal->inversion;
-
-		internal->freq = internal->freq - offsetfreq;
+		internal->freq = internal->freq + offsetfreq;
 		internal->srate = stb0899_dvbs2_get_srate(state);
 
 		reg = STB0899_READ_S2REG(STB0899_S2DEMOD, UWP_STAT2);
