@@ -193,12 +193,12 @@ ssize_t device_show_bool(struct device *dev, struct device_attribute *attr,
 EXPORT_SYMBOL_GPL(device_show_bool);
 
 /**
- *	device_release - free device structure.
- *	@kobj:	device's kobject.
+ * device_release - free device structure.
+ * @kobj: device's kobject.
  *
- *	This is called once the reference count for the object
- *	reaches 0. We forward the call to the device's release
- *	method, which should handle actually freeing the structure.
+ * This is called once the reference count for the object
+ * reaches 0. We forward the call to the device's release
+ * method, which should handle actually freeing the structure.
  */
 static void device_release(struct kobject *kobj)
 {
@@ -1334,8 +1334,8 @@ const char *device_get_devnode(struct device *dev,
 /**
  * device_for_each_child - device child iterator.
  * @parent: parent struct device.
- * @data: data for the callback.
  * @fn: function to be called for each device.
+ * @data: data for the callback.
  *
  * Iterate over @parent's child devices, and call @fn for each,
  * passing it @data.
@@ -1363,8 +1363,8 @@ int device_for_each_child(struct device *parent, void *data,
 /**
  * device_find_child - device iterator for locating a particular device.
  * @parent: parent struct device
- * @data: Data to pass to match function
  * @match: Callback function to check device
+ * @data: Data to pass to match function
  *
  * This is similar to the device_for_each_child() function above, but it
  * returns a reference to a device that is 'found' for later use, as
