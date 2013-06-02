@@ -444,7 +444,7 @@ static enum stb0899_status stb0899_check_range(struct stb0899_state *state)
 	int range_offst, tp_freq;
 
 	range_offst = internal->srch_range / 2000;
-	tp_freq = internal->freq + (internal->derot_freq * internal->mclk) / 1000;
+	tp_freq = internal->freq - (internal->derot_freq * internal->mclk) / 1000;
 
 	if ((tp_freq >= params->freq - range_offst) && (tp_freq <= params->freq + range_offst)) {
 		internal->status = RANGEOK;
@@ -638,7 +638,7 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 							"RANGE OK ! derot freq=%d, mclk=%d",
 							internal->derot_freq, internal->mclk);
 
-						internal->freq = params->freq + ((internal->derot_freq * internal->mclk) / 1000);
+						internal->freq = params->freq - ((internal->derot_freq * internal->mclk) / 1000);
 						reg = stb0899_read_reg(state, STB0899_PLPARM);
 						internal->fecrate = STB0899_GETFIELD(VITCURPUN, reg);
 						dprintk(state->verbose, FE_DEBUG, 1,
