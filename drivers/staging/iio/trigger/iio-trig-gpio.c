@@ -19,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/slab.h>
 
 #include <linux/iio/iio.h>
@@ -122,7 +121,7 @@ error_free_completed_registrations:
 				 &iio_gpio_trigger_list,
 				 alloc_list) {
 		trig_info = iio_trigger_get_drvdata(trig);
-		free_irq(gpio_to_irq(trig_info->irq), trig);
+		free_irq(trig_info->irq, trig);
 		kfree(trig_info);
 		iio_trigger_unregister(trig);
 	}
