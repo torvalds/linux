@@ -193,7 +193,7 @@ static int cw1200_sdio_off(const struct cw1200_platform_data_sdio *pdata)
 static int cw1200_sdio_on(const struct cw1200_platform_data_sdio *pdata)
 {
 	const struct resource *reset = pdata->reset;
-	const struct resource *powerup = pdata->reset;
+	const struct resource *powerup = pdata->powerup;
 
 	/* Ensure I/Os are pulled low */
 	if (reset) {

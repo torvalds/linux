@@ -287,7 +287,7 @@ static int cw1200_spi_off(const struct cw1200_platform_data_spi *pdata)
 static int cw1200_spi_on(const struct cw1200_platform_data_spi *pdata)
 {
 	const struct resource *reset = pdata->reset;
-	const struct resource *powerup = pdata->reset;
+	const struct resource *powerup = pdata->powerup;
 
 	/* Ensure I/Os are pulled low */
 	if (reset) {
