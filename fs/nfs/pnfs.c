@@ -377,7 +377,7 @@ end_offset(u64 start, u64 len)
  *           [----------------)
  */
 static bool
-lo_seg_contained(const struct pnfs_layout_range *l1,
+pnfs_lseg_range_contained(const struct pnfs_layout_range *l1,
 		 const struct pnfs_layout_range *l2)
 {
 	u64 start1 = l1->offset;
@@ -396,7 +396,7 @@ lo_seg_contained(const struct pnfs_layout_range *l1,
  *                              [----------------)
  */
 static bool
-lo_seg_intersecting(const struct pnfs_layout_range *l1,
+pnfs_lseg_range_intersecting(const struct pnfs_layout_range *l1,
 		    const struct pnfs_layout_range *l2)
 {
 	u64 start1 = l1->offset;
@@ -414,7 +414,7 @@ should_free_lseg(const struct pnfs_layout_range *lseg_range,
 {
 	return (recall_range->iomode == IOMODE_ANY ||
 		lseg_range->iomode == recall_range->iomode) &&
-	       lo_seg_intersecting(lseg_range, recall_range);
+	       pnfs_lseg_range_intersecting(lseg_range, recall_range);
 }
 
 static bool pnfs_lseg_dec_and_remove_zero(struct pnfs_layout_segment *lseg,
@@ -986,7 +986,7 @@ out:
  * are seen first.
  */
 static s64
-cmp_layout(const struct pnfs_layout_range *l1,
+pnfs_lseg_range_cmp(const struct pnfs_layout_range *l1,
 	   const struct pnfs_layout_range *l2)
 {
 	s64 d;
@@ -1014,7 +1014,7 @@ pnfs_layout_insert_lseg(struct pnfs_layout_hdr *lo,
 	dprintk("%s:Begin\n", __func__);
 
 	list_for_each_entry(lp, &lo->plh_segs, pls_list) {
-		if (cmp_layout(&lseg->pls_range, &lp->pls_range) > 0)
+		if (pnfs_lseg_range_cmp(&lseg->pls_range, &lp->pls_range) > 0)
 			continue;
 		list_add_tail(&lseg->pls_list, &lp->pls_list);
 		dprintk("%s: inserted lseg %p "
@@ -1094,20 +1094,20 @@ out_existing:
  * READ		RW	true
  */
 static bool
-is_matching_lseg(const struct pnfs_layout_range *ls_range,
+pnfs_lseg_range_match(const struct pnfs_layout_range *ls_range,
 		 const struct pnfs_layout_range *range)
 {
 	struct pnfs_layout_range range1;
 
 	if ((range->iomode == IOMODE_RW &&
 	     ls_range->iomode != IOMODE_RW) ||
-	    !lo_seg_intersecting(ls_range, range))
+	    !pnfs_lseg_range_intersecting(ls_range, range))
 		return 0;
 
 	/* range1 covers only the first byte in the range */
 	range1 = *range;
 	range1.length = 1;
-	return lo_seg_contained(ls_range, &range1);
+	return pnfs_lseg_range_contained(ls_range, &range1);
 }
 
 /*
@@ -1123,7 +1123,7 @@ pnfs_find_lseg(struct pnfs_layout_hdr *lo,
 
 	list_for_each_entry(lseg, &lo->plh_segs, pls_list) {
 		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags) &&
-		    is_matching_lseg(&lseg->pls_range, range)) {
+		    pnfs_lseg_range_match(&lseg->pls_range, range)) {
 			ret = pnfs_get_lseg(lseg);
 			break;
 		}
