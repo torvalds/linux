@@ -3009,6 +3009,9 @@ static int ll_layout_lock_set(struct lustre_handle *lockh, ldlm_mode_t mode,
 	LDLM_DEBUG(lock, "File %p/"DFID" being reconfigured: %d.\n",
 		inode, PFID(&lli->lli_fid), reconf);
 
+	/* in case this is a caching lock and reinstate with new inode */
+	md_set_lock_data(sbi->ll_md_exp, &lockh->cookie, inode, NULL);
+
 	lock_res_and_lock(lock);
 	lvb_ready = !!(lock->l_flags & LDLM_FL_LVB_READY);
 	unlock_res_and_lock(lock);
@@ -3176,8 +3179,6 @@ again:
 	it.d.lustre.it_data = NULL;
 
 	ll_finish_md_op_data(op_data);
-
-	md_set_lock_data(sbi->ll_md_exp, &it.d.lustre.it_lock_handle, inode, NULL);
 
 	mode = it.d.lustre.it_lock_mode;
 	it.d.lustre.it_lock_mode = 0;
