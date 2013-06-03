@@ -350,6 +350,7 @@ static struct of_device_id ssbi_match_table[] = {
 	{ .compatible = "qcom,ssbi" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, ssbi_match_table);
 
 static struct platform_driver ssbi_driver = {
 	.probe		= ssbi_probe,
