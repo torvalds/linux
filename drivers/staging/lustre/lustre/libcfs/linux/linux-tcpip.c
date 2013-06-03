@@ -59,9 +59,9 @@ libcfs_sock_ioctl(int cmd, unsigned long arg)
 	}
 
 	sock_filp = sock_alloc_file(sock, 0, NULL);
-	if (!sock_filp) {
+	if (IS_ERR(sock_filp)) {
 		sock_release(sock);
-		rc = -ENOMEM;
+		rc = PTR_ERR(sock_filp);
 		goto out;
 	}
 
