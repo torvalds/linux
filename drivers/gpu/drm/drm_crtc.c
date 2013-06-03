@@ -592,16 +592,8 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 		}
 
 		list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
-			if (plane->fb == fb) {
-				/* should turn off the crtc */
-				ret = plane->funcs->disable_plane(plane);
-				if (ret)
-					DRM_ERROR("failed to disable plane with busy fb\n");
-				/* disconnect the plane from the fb and crtc: */
-				__drm_framebuffer_unreference(plane->fb);
-				plane->fb = NULL;
-				plane->crtc = NULL;
-			}
+			if (plane->fb == fb)
+				drm_plane_force_disable(plane);
 		}
 		drm_modeset_unlock_all(dev);
 	}
@@ -890,6 +882,23 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	drm_modeset_unlock_all(dev);
 }
 EXPORT_SYMBOL(drm_plane_cleanup);
+
+void drm_plane_force_disable(struct drm_plane *plane)
+{
+	int ret;
+
+	if (!plane->fb)
+		return;
+
+	ret = plane->funcs->disable_plane(plane);
+	if (ret)
+		DRM_ERROR("failed to disable plane with busy fb\n");
+	/* disconnect the plane from the fb and crtc: */
+	__drm_framebuffer_unreference(plane->fb);
+	plane->fb = NULL;
+	plane->crtc = NULL;
+}
+EXPORT_SYMBOL(drm_plane_force_disable);
 
 /**
  * drm_mode_create - create a new display mode
