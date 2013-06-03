@@ -1583,7 +1583,7 @@ static void deferred_unmap_destructor(struct sk_buff *skb)
 	dui = (struct deferred_unmap_info *)skb->head;
 	p = dui->addr;
 
-	if (skb->tail - skb->transport_header)
+	if (skb_tail_pointer(skb) - skb_transport_header(skb))
 		pci_unmap_single(dui->pdev, *p++, skb_tail_pointer(skb) -
 				 skb_transport_header(skb), PCI_DMA_TODEVICE);
 
