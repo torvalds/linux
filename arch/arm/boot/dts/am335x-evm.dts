@@ -264,12 +264,12 @@
 		debounce-delay-ms = <5>;
 		col-scan-delay-us = <2>;
 
-		row-gpios = <&gpio1 25 0	/* Bank1, pin25 */
-			     &gpio1 26 0	/* Bank1, pin26 */
-			     &gpio1 27 0>;	/* Bank1, pin27 */
+		row-gpios = <&gpio1 25 GPIO_ACTIVE_HIGH		/* Bank1, pin25 */
+			     &gpio1 26 GPIO_ACTIVE_HIGH		/* Bank1, pin26 */
+			     &gpio1 27 GPIO_ACTIVE_HIGH>;	/* Bank1, pin27 */
 
-		col-gpios = <&gpio1 21 0	/* Bank1, pin21 */
-			     &gpio1 22 0>;	/* Bank1, pin22 */
+		col-gpios = <&gpio1 21 GPIO_ACTIVE_HIGH		/* Bank1, pin21 */
+			     &gpio1 22 GPIO_ACTIVE_HIGH>;	/* Bank1, pin22 */
 
 		linux,keymap = <0x0000008b	/* MENU */
 				0x0100009e	/* BACK */
@@ -288,14 +288,14 @@
 		switch@9 {
 			label = "volume-up";
 			linux,code = <115>;
-			gpios = <&gpio0 2 1>;
+			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
 			gpio-key,wakeup;
 		};
 
 		switch@10 {
 			label = "volume-down";
 			linux,code = <114>;
-			gpios = <&gpio0 3 1>;
+			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
 			gpio-key,wakeup;
 		};
 	};
