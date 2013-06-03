@@ -785,6 +785,8 @@ static int __init octeon_usb_module_init(void)
         pdev = platform_device_register_simple((char*)octeon_usb_driver.name, device, &irq_resource, 1);
         if (IS_ERR(pdev)) {
             DEBUG_FATAL("OcteonUSB: Failed to allocate platform device for USB%d\n", device);
+		driver_unregister(&octeon_usb_driver);
+		octeon_usb_registered = 0;
             return PTR_ERR(pdev);
         }
         if (device < MAX_USB_PORTS)
