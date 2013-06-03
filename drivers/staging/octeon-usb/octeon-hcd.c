@@ -23,6 +23,8 @@
 
 #include <linux/usb/hcd.h>
 
+#include <linux/err.h>
+
 //#define DEBUG_CALL(format, ...)         printk(format, ##__VA_ARGS__)
 #define DEBUG_CALL(format, ...)         do {} while (0)
 //#define DEBUG_SUBMIT(format, ...)       printk(format, ##__VA_ARGS__)
@@ -781,9 +783,9 @@ static int __init octeon_usb_module_init(void)
         irq_resource.end = irq_resource.start;
         irq_resource.flags = IORESOURCE_IRQ;
         pdev = platform_device_register_simple((char*)octeon_usb_driver.name, device, &irq_resource, 1);
-        if (!pdev) {
+        if (IS_ERR(pdev)) {
             DEBUG_FATAL("OcteonUSB: Failed to allocate platform device for USB%d\n", device);
-            return -ENOMEM;
+            return PTR_ERR(pdev);
         }
         if (device < MAX_USB_PORTS)
             pdev_glob[device] = pdev;
