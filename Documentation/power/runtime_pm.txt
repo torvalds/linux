@@ -660,11 +660,6 @@ Subsystems may wish to conserve code space by using the set of generic power
 management callbacks provided by the PM core, defined in
 driver/base/power/generic_ops.c:
 
-  int pm_generic_runtime_idle(struct device *dev);
-    - invoke the ->runtime_idle() callback provided by the driver of this
-      device, if defined, and call pm_runtime_suspend() for this device if the
-      return value is 0 or the callback is not defined
-
   int pm_generic_runtime_suspend(struct device *dev);
     - invoke the ->runtime_suspend() callback provided by the driver of this
       device and return its result, or return -EINVAL if not defined

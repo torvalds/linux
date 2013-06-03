@@ -435,7 +435,7 @@ static const struct dev_pm_ops i2c_device_pm_ops = {
 	SET_RUNTIME_PM_OPS(
 		pm_generic_runtime_suspend,
 		pm_generic_runtime_resume,
-		pm_generic_runtime_idle
+		NULL
 	)
 };
 

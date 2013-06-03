@@ -5430,7 +5430,7 @@ static int ata_port_runtime_idle(struct device *dev)
 				return -EBUSY;
 	}
 
-	return pm_runtime_suspend(dev);
+	return 0;
 }
 
 static int ata_port_runtime_suspend(struct device *dev)

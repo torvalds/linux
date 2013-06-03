@@ -1050,26 +1050,22 @@ static int pci_pm_runtime_idle(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+	int ret = 0;
 
 	/*
 	 * If pci_dev->driver is not set (unbound), the device should
 	 * always remain in D0 regardless of the runtime PM status
 	 */
 	if (!pci_dev->driver)
-		goto out;
+		return 0;
 
 	if (!pm)
 		return -ENOSYS;
 
-	if (pm->runtime_idle) {
-		int ret = pm->runtime_idle(dev);
-		if (ret)
-			return ret;
-	}
+	if (pm->runtime_idle)
+		ret = pm->runtime_idle(dev);
 
-out:
-	pm_runtime_suspend(dev);
-	return 0;
+	return ret;
 }
 
 #else /* !CONFIG_PM_RUNTIME */

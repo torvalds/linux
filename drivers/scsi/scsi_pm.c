@@ -229,8 +229,6 @@ static int scsi_runtime_resume(struct device *dev)
 
 static int scsi_runtime_idle(struct device *dev)
 {
-	int err;
-
 	dev_dbg(dev, "scsi_runtime_idle\n");
 
 	/* Insert hooks here for targets, hosts, and transport classes */
@@ -240,14 +238,11 @@ static int scsi_runtime_idle(struct device *dev)
 
 		if (sdev->request_queue->dev) {
 			pm_runtime_mark_last_busy(dev);
-			err = pm_runtime_autosuspend(dev);
-		} else {
-			err = pm_runtime_suspend(dev);
+			pm_runtime_autosuspend(dev);
+			return -EBUSY;
 		}
-	} else {
-		err = pm_runtime_suspend(dev);
 	}
-	return err;
+	return 0;
 }
 
 int scsi_autopm_get_device(struct scsi_device *sdev)

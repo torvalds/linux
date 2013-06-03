@@ -223,7 +223,7 @@ static const struct dev_pm_ops spi_pm = {
 	SET_RUNTIME_PM_OPS(
 		pm_generic_runtime_suspend,
 		pm_generic_runtime_resume,
-		pm_generic_runtime_idle
+		NULL
 	)
 };
 
