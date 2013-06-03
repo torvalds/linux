@@ -98,12 +98,10 @@ static struct cpufreq_div_order sun4i_div_order_tbl[] = {
 #ifdef CONFIG_CPU_FREQ_DVFS
 static struct cpufreq_dvfs sun4i_dvfs_table[] = {
     {.freq = 1056000000, .volt = 1500}, /* core vdd is 1.50v if cpu frequency is (1008Mhz, xxxxMhz] */
-    {.freq = 1008000000, .volt = 1400}, /* core vdd is 1.40v if cpu frequency is (960Mhz, 1008Mhz]  */
-    {.freq = 960000000,  .volt = 1400}, /* core vdd is 1.40v if cpu frequency is (912Mhz, 960Mhz]   */
-    {.freq = 912000000,  .volt = 1350}, /* core vdd is 1.35v if cpu frequency is (864Mhz, 912Mhz]   */
-    {.freq = 864000000,  .volt = 1300}, /* core vdd is 1.30v if cpu frequency is (624Mhz, 864Mhz]   */
-    {.freq = 624000000,  .volt = 1250}, /* core vdd is 1.25v if cpu frequency is (432Mhz, 624Mhz]   */
-    {.freq = 432000000,  .volt = 1250}, /* core vdd is 1.25v if cpu frequency is (0, 432Mhz]        */
+    {.freq = 1008000000, .volt = 1400}, /* core vdd is 1.40v if cpu frequency is (912Mhz,  1008Mhz] */
+    {.freq = 912000000,  .volt = 1350}, /* core vdd is 1.35v if cpu frequency is (864Mhz,   912Mhz] */
+    {.freq = 864000000,  .volt = 1300}, /* core vdd is 1.30v if cpu frequency is (624Mhz,   864Mhz] */
+    {.freq = 624000000,  .volt = 1250}, /* core vdd is 1.25v if cpu frequency is (60Mhz,    624Mhz] */
     {.freq = 0,          .volt = 1000}, /* end of cpu dvfs table                                    */
 };
 #endif
