@@ -1674,15 +1674,13 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
 
         usbc_hcintmsk.u32 = 0;
         usbc_hcintmsk.s.chhltdmsk = 1;
-        if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
-        {
+        if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA) {
             /* Channels need these extra interrupts when we aren't in DMA mode */
             usbc_hcintmsk.s.datatglerrmsk = 1;
             usbc_hcintmsk.s.frmovrunmsk = 1;
             usbc_hcintmsk.s.bblerrmsk = 1;
             usbc_hcintmsk.s.xacterrmsk = 1;
-            if (__cvmx_usb_pipe_needs_split(usb, pipe))
-            {
+            if (__cvmx_usb_pipe_needs_split(usb, pipe)) {
                 /* Splits don't generate xfercompl, so we need ACK and NYET */
                 usbc_hcintmsk.s.nyetmsk = 1;
                 usbc_hcintmsk.s.ackmsk = 1;
@@ -1722,13 +1720,11 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
 
         /* We need to do split transactions when we are talking to non high
             speed devices that are behind a high speed hub */
-        if (__cvmx_usb_pipe_needs_split(usb, pipe))
-        {
+        if (__cvmx_usb_pipe_needs_split(usb, pipe)) {
             /* On the start split phase (stage is even) record the frame number we
                 will need to send the split complete. We only store the lower two bits
                 since the time ahead can only be two frames */
-            if ((transaction->stage&1) == 0)
-            {
+            if ((transaction->stage&1) == 0) {
                 if (transaction->type == CVMX_USB_TRANSFER_BULK)
                     pipe->split_sc_frame = (usb->frame_number + 1) & 0x7f;
                 else
@@ -1752,14 +1748,12 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
                 begin/middle/end of the data or all */
             if (!usbc_hcsplt.s.compsplt &&
                 (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT) &&
-                (pipe->transfer_type == CVMX_USB_TRANSFER_ISOCHRONOUS))
-            {
+                (pipe->transfer_type == CVMX_USB_TRANSFER_ISOCHRONOUS)) {
                 /* Clear the split complete frame number as there isn't going
                     to be a split complete */
                 pipe->split_sc_frame = -1;
                 /* See if we've started this transfer and sent data */
-                if (transaction->actual_bytes == 0)
-                {
+                if (transaction->actual_bytes == 0) {
                     /* Nothing sent yet, this is either a begin or the
                         entire payload */
                     if (bytes_to_transfer <= 188)
@@ -1767,8 +1761,7 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
                     else
                         usbc_hcsplt.s.xactpos = 2; /* First part of payload */
                 }
-                else
-                {
+                else {
                     /* Continuing the previous data, we must either be
                         in the middle or at the end */
                     if (bytes_to_transfer <= 188)
@@ -1784,8 +1777,7 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
 
         /* Make sure the transfer never exceeds the byte limit of the hardware.
             Further bytes will be sent as continued transactions */
-        if (bytes_to_transfer > MAX_TRANSFER_BYTES)
-        {
+        if (bytes_to_transfer > MAX_TRANSFER_BYTES) {
             /* Round MAX_TRANSFER_BYTES to a multiple of out packet size */
             bytes_to_transfer = MAX_TRANSFER_BYTES / pipe->max_packet;
             bytes_to_transfer *= pipe->max_packet;
@@ -1796,16 +1788,14 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
         packets_to_transfer = (bytes_to_transfer + pipe->max_packet - 1) / pipe->max_packet;
         if (packets_to_transfer == 0)
             packets_to_transfer = 1;
-        else if ((packets_to_transfer>1) && (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA))
-        {
+        else if ((packets_to_transfer>1) && (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)) {
             /* Limit to one packet when not using DMA. Channels must be restarted
                 between every packet for IN transactions, so there is no reason to
                 do multiple packets in a row */
             packets_to_transfer = 1;
             bytes_to_transfer = packets_to_transfer * pipe->max_packet;
         }
-        else if (packets_to_transfer > MAX_TRANSFER_PACKETS)
-        {
+        else if (packets_to_transfer > MAX_TRANSFER_PACKETS) {
             /* Limit the number of packet and data transferred to what the
                 hardware can handle */
             packets_to_transfer = MAX_TRANSFER_PACKETS;
@@ -1856,8 +1846,7 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
     }
 
     /* Do transaction type specific fixups as needed */
-    switch (transaction->type)
-    {
+    switch (transaction->type) {
         case CVMX_USB_TRANSFER_CONTROL:
             __cvmx_usb_start_channel_control(usb, channel, pipe);
             break;
@@ -1865,12 +1854,10 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
         case CVMX_USB_TRANSFER_INTERRUPT:
             break;
         case CVMX_USB_TRANSFER_ISOCHRONOUS:
-            if (!__cvmx_usb_pipe_needs_split(usb, pipe))
-            {
+            if (!__cvmx_usb_pipe_needs_split(usb, pipe)) {
                 /* ISO transactions require different PIDs depending on direction
                     and how many packets are needed */
-                if (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT)
-                {
+                if (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT) {
                     if (pipe->multi_count < 2) /* Need DATA0 */
                         USB_SET_FIELD32(CVMX_USBCX_HCTSIZX(channel, usb->index), cvmx_usbcx_hctsizx_t, pid, 0);
                     else /* Need MDATA */
@@ -1908,13 +1895,11 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
 static cvmx_usb_pipe_t *__cvmx_usb_find_ready_pipe(cvmx_usb_internal_state_t *usb, cvmx_usb_pipe_list_t *list, uint64_t current_frame)
 {
     cvmx_usb_pipe_t *pipe = list->head;
-    while (pipe)
-    {
+    while (pipe) {
         if (!(pipe->flags & __CVMX_USB_PIPE_FLAGS_SCHEDULED) && pipe->head &&
             (pipe->next_tx_frame <= current_frame) &&
             ((pipe->split_sc_frame == -1) || ((((int)current_frame - (int)pipe->split_sc_frame) & 0x7f) < 0x40)) &&
-            (!usb->active_split || (usb->active_split == pipe->head)))
-        {
+            (!usb->active_split || (usb->active_split == pipe->head))) {
             CVMX_PREFETCH(pipe, 128);
             CVMX_PREFETCH(pipe->head, 0);
             return pipe;
@@ -1944,8 +1929,7 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
     CVMX_USB_LOG_CALLED();
     CVMX_USB_LOG_PARAM("%p", usb);
 
-    if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
-    {
+    if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA) {
         /* Without DMA we need to be careful to not schedule something at the end of a frame and cause an overrun */
         cvmx_usbcx_hfnum_t hfnum = {.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HFNUM(usb->index))};
         cvmx_usbcx_hfir_t hfir = {.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HFIR(usb->index))};
@@ -1953,13 +1937,11 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
             goto done;
     }
 
-    while (usb->idle_hardware_channels)
-    {
+    while (usb->idle_hardware_channels) {
         /* Find an idle channel */
         CVMX_CLZ(channel, usb->idle_hardware_channels);
         channel = 31 - channel;
-        if (cvmx_unlikely(channel > 7))
-        {
+        if (cvmx_unlikely(channel > 7)) {
             if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
                 cvmx_dprintf("%s: Idle hardware channels has a channel higher than 7. This is wrong\n", __FUNCTION__);
             break;
@@ -1967,8 +1949,7 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
 
         /* Find a pipe needing service */
         pipe = NULL;
-        if (is_sof)
-        {
+        if (is_sof) {
             /* Only process periodic pipes on SOF interrupts. This way we are
                 sure that the periodic data is sent in the beginning of the
                 frame */
@@ -1976,8 +1957,7 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
             if (cvmx_likely(!pipe))
                 pipe = __cvmx_usb_find_ready_pipe(usb, usb->active_pipes + CVMX_USB_TRANSFER_INTERRUPT, usb->frame_number);
         }
-        if (cvmx_likely(!pipe))
-        {
+        if (cvmx_likely(!pipe)) {
             pipe = __cvmx_usb_find_ready_pipe(usb, usb->active_pipes + CVMX_USB_TRANSFER_CONTROL, usb->frame_number);
             if (cvmx_likely(!pipe))
                 pipe = __cvmx_usb_find_ready_pipe(usb, usb->active_pipes + CVMX_USB_TRANSFER_BULK, usb->frame_number);
@@ -1989,14 +1969,12 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
         CVMX_USB_LOG_PARAM("%p", pipe);
 
         if (cvmx_unlikely((usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_TRANSFERS) ||
-            (pipe->flags & CVMX_USB_PIPE_FLAGS_DEBUG_TRANSFERS)))
-        {
+            (pipe->flags & CVMX_USB_PIPE_FLAGS_DEBUG_TRANSFERS))) {
             cvmx_usb_transaction_t *transaction = pipe->head;
             const cvmx_usb_control_header_t *header = (transaction->control_header) ? cvmx_phys_to_ptr(transaction->control_header) : NULL;
             const char *dir = (pipe->transfer_dir == CVMX_USB_DIRECTION_IN) ? "IN" : "OUT";
             const char *type;
-            switch (pipe->transfer_type)
-            {
+            switch (pipe->transfer_type) {
                 case CVMX_USB_TRANSFER_CONTROL:
                     type = "SETUP";
                     dir = (header->s.request_type & 0x80) ? "IN" : "OUT";
@@ -2025,13 +2003,10 @@ done:
     /* Only enable SOF interrupts when we have transactions pending in the
         future that might need to be scheduled */
     need_sof = 0;
-    for (ttype=CVMX_USB_TRANSFER_CONTROL; ttype<=CVMX_USB_TRANSFER_INTERRUPT; ttype++)
-    {
+    for (ttype=CVMX_USB_TRANSFER_CONTROL; ttype<=CVMX_USB_TRANSFER_INTERRUPT; ttype++) {
         pipe = usb->active_pipes[ttype].head;
-        while (pipe)
-        {
-            if (pipe->next_tx_frame > usb->frame_number)
-            {
+        while (pipe) {
+            if (pipe->next_tx_frame > usb->frame_number) {
                 need_sof = 1;
                 break;
             }
@@ -2071,13 +2046,11 @@ static void __cvmx_usb_perform_callback(cvmx_usb_internal_state_t *usb,
     if (pipe)
         pipe_handle = __cvmx_usb_get_pipe_handle(usb, pipe);
 
-    if (transaction)
-    {
+    if (transaction) {
         submit_handle = __cvmx_usb_get_submit_handle(usb, transaction);
         bytes_transferred = transaction->actual_bytes;
         /* Transactions are allowed to override the default callback */
-        if ((reason == CVMX_USB_CALLBACK_TRANSFER_COMPLETE) && transaction->callback)
-        {
+        if ((reason == CVMX_USB_CALLBACK_TRANSFER_COMPLETE) && transaction->callback) {
             callback = transaction->callback;
             user_data = transaction->callback_data;
         }
@@ -2132,16 +2105,14 @@ static void __cvmx_usb_perform_complete(cvmx_usb_internal_state_t * usb,
 
     /* Isochronous transactions need extra processing as they might not be done
         after a single data transfer */
-    if (cvmx_unlikely(transaction->type == CVMX_USB_TRANSFER_ISOCHRONOUS))
-    {
+    if (cvmx_unlikely(transaction->type == CVMX_USB_TRANSFER_ISOCHRONOUS)) {
         /* Update the number of bytes transferred in this ISO packet */
         transaction->iso_packets[0].length = transaction->actual_bytes;
         transaction->iso_packets[0].status = complete_code;
 
         /* If there are more ISOs pending and we succeeded, schedule the next
             one */
-        if ((transaction->iso_number_packets > 1) && (complete_code == CVMX_USB_COMPLETE_SUCCESS))
-        {
+        if ((transaction->iso_number_packets > 1) && (complete_code == CVMX_USB_COMPLETE_SUCCESS)) {
             transaction->actual_bytes = 0;      /* No bytes transferred for this packet as of yet */
             transaction->iso_number_packets--;  /* One less ISO waiting to transfer */
             transaction->iso_packets++;         /* Increment to the next location in our packet array */
@@ -2159,8 +2130,7 @@ static void __cvmx_usb_perform_complete(cvmx_usb_internal_state_t * usb,
         transaction->prev->next = transaction->next;
     else
         pipe->head = transaction->next;
-    if (!pipe->head)
-    {
+    if (!pipe->head) {
         __cvmx_usb_remove_pipe(usb->active_pipes + pipe->transfer_type, pipe);
         __cvmx_usb_append_pipe(&usb->idle_pipes, pipe);
 
@@ -2247,13 +2217,11 @@ static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
         transaction->stage = CVMX_USB_STAGE_NON_CONTROL;
 
     transaction->next = NULL;
-    if (pipe->tail)
-    {
+    if (pipe->tail) {
         transaction->prev = pipe->tail;
         transaction->prev->next = transaction;
     }
-    else
-    {
+    else {
         if (pipe->next_tx_frame < usb->frame_number)
             pipe->next_tx_frame = usb->frame_number + pipe->interval -
                 (usb->frame_number - pipe->next_tx_frame) % pipe->interval;
@@ -2626,8 +2594,7 @@ cvmx_usb_status_t cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle,
     /* If the transaction is the HEAD of the queue and scheduled. We need to
         treat it special */
     if ((pipe->head == transaction) &&
-        (pipe->flags & __CVMX_USB_PIPE_FLAGS_SCHEDULED))
-    {
+        (pipe->flags & __CVMX_USB_PIPE_FLAGS_SCHEDULED)) {
         cvmx_usbcx_hccharx_t usbc_hcchar;
 
         usb->pipe_for_channel[pipe->channel] = NULL;
@@ -2637,8 +2604,7 @@ cvmx_usb_status_t cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle,
 
         usbc_hcchar.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HCCHARX(pipe->channel, usb->index));
         /* If the channel isn't enabled then the transaction already completed */
-        if (usbc_hcchar.s.chena)
-        {
+        if (usbc_hcchar.s.chena) {
             usbc_hcchar.s.chdis = 1;
             __cvmx_usb_write_csr32(usb, CVMX_USBCX_HCCHARX(pipe->channel, usb->index), usbc_hcchar.u32);
         }
@@ -2676,8 +2642,7 @@ cvmx_usb_status_t cvmx_usb_cancel_all(cvmx_usb_state_t *state, int pipe_handle)
         CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
 
     /* Simply loop through and attempt to cancel each transaction */
-    while (pipe->head)
-    {
+    while (pipe->head) {
         cvmx_usb_status_t result = cvmx_usb_cancel(state, pipe_handle,
             __cvmx_usb_get_submit_handle(usb, pipe->head));
         if (cvmx_unlikely(result != CVMX_USB_SUCCESS))
@@ -2814,12 +2779,10 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
     /* Read the interrupt status bits for the channel */
     usbc_hcint.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HCINTX(channel, usb->index));
 
-    if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
-    {
+    if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA) {
         usbc_hcchar.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HCCHARX(channel, usb->index));
 
-        if (usbc_hcchar.s.chena && usbc_hcchar.s.chdis)
-        {
+        if (usbc_hcchar.s.chena && usbc_hcchar.s.chdis) {
             /* There seems to be a bug in CN31XX which can cause interrupt
                 IN transfers to get stuck until we do a write of HCCHARX
                 without changing things */
@@ -2829,10 +2792,8 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
 
         /* In non DMA mode the channels don't halt themselves. We need to
             manually disable channels that are left running */
-        if (!usbc_hcint.s.chhltd)
-        {
-            if (usbc_hcchar.s.chena)
-            {
+        if (!usbc_hcint.s.chhltd) {
+            if (usbc_hcchar.s.chena) {
                 cvmx_usbcx_hcintmskx_t hcintmsk;
                 /* Disable all interrupts except CHHLTD */
                 hcintmsk.u32 = 0;
@@ -2842,19 +2803,16 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
                 __cvmx_usb_write_csr32(usb, CVMX_USBCX_HCCHARX(channel, usb->index), usbc_hcchar.u32);
                 CVMX_USB_RETURN(0);
             }
-            else if (usbc_hcint.s.xfercompl)
-            {
+            else if (usbc_hcint.s.xfercompl) {
                 /* Successful IN/OUT with transfer complete. Channel halt isn't needed */
             }
-            else
-            {
+            else {
                 cvmx_dprintf("USB%d: Channel %d interrupt without halt\n", usb->index, channel);
                 CVMX_USB_RETURN(0);
             }
         }
     }
-    else
-    {
+    else {
         /* There is are no interrupts that we need to process when the channel is
             still running */
         if (!usbc_hcint.s.chhltd)
@@ -2887,16 +2845,14 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
     /* Calculating the number of bytes successfully transferred is dependent on
         the transfer direction */
     packets_processed = transaction->pktcnt - usbc_hctsiz.s.pktcnt;
-    if (usbc_hcchar.s.epdir)
-    {
+    if (usbc_hcchar.s.epdir) {
         /* IN transactions are easy. For every byte received the hardware
             decrements xfersize. All we need to do is subtract the current
             value of xfersize from its starting value and we know how many
             bytes were written to the buffer */
         bytes_this_transfer = transaction->xfersize - usbc_hctsiz.s.xfersize;
     }
-    else
-    {
+    else {
         /* OUT transaction don't decrement xfersize. Instead pktcnt is
             decremented on every successful packet send. The hardware does
             this when it receives an ACK, or NYET. If it doesn't
@@ -2950,8 +2906,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
         (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT))
         pipe->flags |= __CVMX_USB_PIPE_FLAGS_NEED_PING;
 
-    if (usbc_hcint.s.stall)
-    {
+    if (usbc_hcint.s.stall) {
         /* STALL as a response means this transaction cannot be completed
             because the device can't process transactions. Tell the user. Any
             data that was transferred will be counted on the actual bytes
@@ -2959,20 +2914,17 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
         pipe->pid_toggle = 0;
         __cvmx_usb_perform_complete(usb, pipe, transaction, CVMX_USB_COMPLETE_STALL);
     }
-    else if (usbc_hcint.s.xacterr)
-    {
+    else if (usbc_hcint.s.xacterr) {
         /* We know at least one packet worked if we get a ACK or NAK. Reset the retry counter */
         if (usbc_hcint.s.nak || usbc_hcint.s.ack)
             transaction->retries = 0;
         transaction->retries++;
-        if (transaction->retries > MAX_RETRIES)
-        {
+        if (transaction->retries > MAX_RETRIES) {
             /* XactErr as a response means the device signaled something wrong with
                 the transfer. For example, PID toggle errors cause these */
             __cvmx_usb_perform_complete(usb, pipe, transaction, CVMX_USB_COMPLETE_XACTERR);
         }
-        else
-        {
+        else {
             /* If this was a split then clear our split in progress marker */
             if (usb->active_split == transaction)
                 usb->active_split = NULL;
@@ -2996,27 +2948,23 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
         /* We'll retry the exact same transaction again */
         transaction->retries++;
     }
-    else if (usbc_hcint.s.nyet)
-    {
+    else if (usbc_hcint.s.nyet) {
         /* NYET as a response is only allowed in three cases: as a response to
             a ping, as a response to a split transaction, and as a response to
             a bulk out. The ping case is handled by hardware, so we only have
             splits and bulk out */
-        if (!__cvmx_usb_pipe_needs_split(usb, pipe))
-        {
+        if (!__cvmx_usb_pipe_needs_split(usb, pipe)) {
             transaction->retries = 0;
             /* If there is more data to go then we need to try again. Otherwise
                 this transaction is complete */
             if ((buffer_space_left == 0) || (bytes_in_last_packet < pipe->max_packet))
                 __cvmx_usb_perform_complete(usb, pipe, transaction, CVMX_USB_COMPLETE_SUCCESS);
         }
-        else
-        {
+        else {
             /* Split transactions retry the split complete 4 times then rewind
                 to the start split and do the entire transactions again */
             transaction->retries++;
-            if ((transaction->retries & 0x3) == 0)
-            {
+            if ((transaction->retries & 0x3) == 0) {
                 /* Rewind to the beginning of the transaction by anding off the
                     split complete bit */
                 transaction->stage &= ~1;
@@ -3024,8 +2972,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
             }
         }
     }
-    else if (usbc_hcint.s.ack)
-    {
+    else if (usbc_hcint.s.ack) {
         transaction->retries = 0;
         /* The ACK bit can only be checked after the other error bits. This is
             because a multi packet transfer may succeed in a number of packets
@@ -3052,8 +2999,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
                         pipe->pid_toggle = 1;
                         if (__cvmx_usb_pipe_needs_split(usb, pipe))
                             transaction->stage = CVMX_USB_STAGE_SETUP_SPLIT_COMPLETE;
-                        else
-                        {
+                        else {
                             cvmx_usb_control_header_t *header = cvmx_phys_to_ptr(transaction->control_header);
                             if (header->s.length)
                                 transaction->stage = CVMX_USB_STAGE_DATA;
@@ -3071,34 +3017,29 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
                         }
                         break;
                     case CVMX_USB_STAGE_DATA:
-                        if (__cvmx_usb_pipe_needs_split(usb, pipe))
-                        {
+                        if (__cvmx_usb_pipe_needs_split(usb, pipe)) {
                             transaction->stage = CVMX_USB_STAGE_DATA_SPLIT_COMPLETE;
                             /* For setup OUT data that are splits, the hardware
                                 doesn't appear to count transferred data. Here
                                 we manually update the data transferred */
-                            if (!usbc_hcchar.s.epdir)
-                            {
+                            if (!usbc_hcchar.s.epdir) {
                                 if (buffer_space_left < pipe->max_packet)
                                     transaction->actual_bytes += buffer_space_left;
                                 else
                                     transaction->actual_bytes += pipe->max_packet;
                             }
                         }
-                        else if ((buffer_space_left == 0) || (bytes_in_last_packet < pipe->max_packet))
-                        {
+                        else if ((buffer_space_left == 0) || (bytes_in_last_packet < pipe->max_packet)) {
                             pipe->pid_toggle = 1;
                             transaction->stage = CVMX_USB_STAGE_STATUS;
                         }
                         break;
                     case CVMX_USB_STAGE_DATA_SPLIT_COMPLETE:
-                        if ((buffer_space_left == 0) || (bytes_in_last_packet < pipe->max_packet))
-                        {
+                        if ((buffer_space_left == 0) || (bytes_in_last_packet < pipe->max_packet)) {
                             pipe->pid_toggle = 1;
                             transaction->stage = CVMX_USB_STAGE_STATUS;
                         }
-                        else
-                        {
+                        else {
                             transaction->stage = CVMX_USB_STAGE_DATA;
                         }
                         break;
@@ -3119,31 +3060,26 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
                     it finishes with an ACK is during a split transaction. For
                     splits we need to continue the transfer if more data is
                     needed */
-                if (__cvmx_usb_pipe_needs_split(usb, pipe))
-                {
+                if (__cvmx_usb_pipe_needs_split(usb, pipe)) {
                     if (transaction->stage == CVMX_USB_STAGE_NON_CONTROL)
                         transaction->stage = CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE;
-                    else
-                    {
+                    else {
                         if (buffer_space_left && (bytes_in_last_packet == pipe->max_packet))
                             transaction->stage = CVMX_USB_STAGE_NON_CONTROL;
-                        else
-                        {
+                        else {
                             if (transaction->type == CVMX_USB_TRANSFER_INTERRUPT)
                                 pipe->next_tx_frame += pipe->interval;
                             __cvmx_usb_perform_complete(usb, pipe, transaction, CVMX_USB_COMPLETE_SUCCESS);
                         }
                     }
                 }
-                else
-                {
+                else {
                     if ((pipe->device_speed == CVMX_USB_SPEED_HIGH) &&
                         (pipe->transfer_type == CVMX_USB_TRANSFER_BULK) &&
                         (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT) &&
                         (usbc_hcint.s.nak))
                         pipe->flags |= __CVMX_USB_PIPE_FLAGS_NEED_PING;
-                    if (!buffer_space_left || (bytes_in_last_packet < pipe->max_packet))
-                    {
+                    if (!buffer_space_left || (bytes_in_last_packet < pipe->max_packet)) {
                         if (transaction->type == CVMX_USB_TRANSFER_INTERRUPT)
                             pipe->next_tx_frame += pipe->interval;
                         __cvmx_usb_perform_complete(usb, pipe, transaction, CVMX_USB_COMPLETE_SUCCESS);
@@ -3151,32 +3087,26 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
                 }
                 break;
             case CVMX_USB_TRANSFER_ISOCHRONOUS:
-                if (__cvmx_usb_pipe_needs_split(usb, pipe))
-                {
+                if (__cvmx_usb_pipe_needs_split(usb, pipe)) {
                     /* ISOCHRONOUS OUT splits don't require a complete split stage.
                         Instead they use a sequence of begin OUT splits to transfer
                         the data 188 bytes at a time. Once the transfer is complete,
                         the pipe sleeps until the next schedule interval */
-                    if (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT)
-                    {
+                    if (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT) {
                         /* If no space left or this wasn't a max size packet then
                             this transfer is complete. Otherwise start it again
                             to send the next 188 bytes */
-                        if (!buffer_space_left || (bytes_this_transfer < 188))
-                        {
+                        if (!buffer_space_left || (bytes_this_transfer < 188)) {
                             pipe->next_tx_frame += pipe->interval;
                             __cvmx_usb_perform_complete(usb, pipe, transaction, CVMX_USB_COMPLETE_SUCCESS);
                         }
                     }
-                    else
-                    {
-                        if (transaction->stage == CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE)
-                        {
+                    else {
+                        if (transaction->stage == CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE) {
                             /* We are in the incoming data phase. Keep getting
                                 data until we run out of space or get a small
                                 packet */
-                            if ((buffer_space_left == 0) || (bytes_in_last_packet < pipe->max_packet))
-                            {
+                            if ((buffer_space_left == 0) || (bytes_in_last_packet < pipe->max_packet)) {
                                 pipe->next_tx_frame += pipe->interval;
                                 __cvmx_usb_perform_complete(usb, pipe, transaction, CVMX_USB_COMPLETE_SUCCESS);
                             }
@@ -3185,16 +3115,14 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
                             transaction->stage = CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE;
                     }
                 }
-                else
-                {
+                else {
                     pipe->next_tx_frame += pipe->interval;
                     __cvmx_usb_perform_complete(usb, pipe, transaction, CVMX_USB_COMPLETE_SUCCESS);
                 }
                 break;
         }
     }
-    else if (usbc_hcint.s.nak)
-    {
+    else if (usbc_hcint.s.nak) {
         /* If this was a split then clear our split in progress marker */
         if (usb->active_split == transaction)
             usb->active_split = NULL;
@@ -3209,8 +3137,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
             pipe->next_tx_frame = usb->frame_number + pipe->interval -
                 (usb->frame_number - pipe->next_tx_frame) % pipe->interval;
     }
-    else
-    {
+    else {
         cvmx_usb_port_status_t port;
         port = cvmx_usb_get_status((cvmx_usb_state_t *)usb);
         if (port.port_enabled)
@@ -3269,8 +3196,7 @@ cvmx_usb_status_t cvmx_usb_poll(cvmx_usb_state_t *state)
     /* Clear the interrupts now that we know about them */
     __cvmx_usb_write_csr32(usb, CVMX_USBCX_GINTSTS(usb->index), usbc_gintsts.u32);
 
-    if (usbc_gintsts.s.rxflvl)
-    {
+    if (usbc_gintsts.s.rxflvl) {
         /* RxFIFO Non-Empty (RxFLvl)
             Indicates that there is at least one packet pending to be read
             from the RxFIFO. */
@@ -3278,14 +3204,12 @@ cvmx_usb_status_t cvmx_usb_poll(cvmx_usb_state_t *state)
         if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
             __cvmx_usb_poll_rx_fifo(usb);
     }
-    if (usbc_gintsts.s.ptxfemp || usbc_gintsts.s.nptxfemp)
-    {
+    if (usbc_gintsts.s.ptxfemp || usbc_gintsts.s.nptxfemp) {
         /* Fill the Tx FIFOs when not in DMA mode */
         if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
             __cvmx_usb_poll_tx_fifo(usb);
     }
-    if (usbc_gintsts.s.disconnint || usbc_gintsts.s.prtint)
-    {
+    if (usbc_gintsts.s.disconnint || usbc_gintsts.s.prtint) {
         cvmx_usbcx_hprt_t usbc_hprt;
         /* Disconnect Detected Interrupt (DisconnInt)
             Asserted when a device disconnect is detected. */
@@ -3307,8 +3231,7 @@ cvmx_usb_status_t cvmx_usb_poll(cvmx_usb_state_t *state)
         usbc_hprt.s.prtena = 0;
         __cvmx_usb_write_csr32(usb, CVMX_USBCX_HPRT(usb->index), usbc_hprt.u32);
     }
-    if (usbc_gintsts.s.hchint)
-    {
+    if (usbc_gintsts.s.hchint) {
         /* Host Channels Interrupt (HChInt)
             The core sets this bit to indicate that an interrupt is pending on
             one of the channels of the core (in Host mode). The application
@@ -3320,8 +3243,7 @@ cvmx_usb_status_t cvmx_usb_poll(cvmx_usb_state_t *state)
             appropriate status bit in the HCINTn register to clear this bit. */
         cvmx_usbcx_haint_t usbc_haint;
         usbc_haint.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HAINT(usb->index));
-        while (usbc_haint.u32)
-        {
+        while (usbc_haint.u32) {
             int channel;
             CVMX_CLZ(channel, usbc_haint.u32);
             channel = 31 - channel;
