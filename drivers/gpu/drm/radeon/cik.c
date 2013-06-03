@@ -5467,10 +5467,11 @@ static int cik_startup(struct radeon_device *rdev)
 		return r;
 
 	/* set up the compute queues */
+	/* type-2 packets are deprecated on MEC, use type-3 instead */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP1_RPTR_OFFSET,
 			     CP_HQD_PQ_RPTR, CP_HQD_PQ_WPTR,
-			     0, 0xfffff, RADEON_CP_PACKET2);
+			     0, 0xfffff, PACKET3(PACKET3_NOP, 0x3FFF));
 	if (r)
 		return r;
 	ring->me = 1; /* first MEC */
@@ -5478,10 +5479,11 @@ static int cik_startup(struct radeon_device *rdev)
 	ring->queue = 0; /* first queue */
 	ring->wptr_offs = CIK_WB_CP1_WPTR_OFFSET;
 
+	/* type-2 packets are deprecated on MEC, use type-3 instead */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP2_RPTR_OFFSET,
 			     CP_HQD_PQ_RPTR, CP_HQD_PQ_WPTR,
-			     0, 0xffffffff, RADEON_CP_PACKET2);
+			     0, 0xffffffff, PACKET3(PACKET3_NOP, 0x3FFF));
 	if (r)
 		return r;
 	/* dGPU only have 1 MEC */
