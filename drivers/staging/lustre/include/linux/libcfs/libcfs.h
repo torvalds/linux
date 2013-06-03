@@ -213,35 +213,6 @@ void cfs_stack_trace_fill(struct cfs_stack_trace *trace);
  */
 void *cfs_stack_trace_frame(struct cfs_stack_trace *trace, int frame_no);
 
-#ifndef O_NOACCESS
-#define O_NOACCESS O_NONBLOCK
-#endif
-
-/*
- * Universal open flags.
- */
-#define CFS_O_NOACCESS	  0003
-#define CFS_O_ACCMODE	   CFS_O_NOACCESS
-#define CFS_O_CREAT	     0100
-#define CFS_O_EXCL	      0200
-#define CFS_O_NOCTTY	    0400
-#define CFS_O_TRUNC	     01000
-#define CFS_O_APPEND	    02000
-#define CFS_O_NONBLOCK	  04000
-#define CFS_O_NDELAY	    CFS_O_NONBLOCK
-#define CFS_O_SYNC	      010000
-#define CFS_O_ASYNC	     020000
-#define CFS_O_DIRECT	    040000
-#define CFS_O_LARGEFILE	 0100000
-#define CFS_O_DIRECTORY	 0200000
-#define CFS_O_NOFOLLOW	  0400000
-#define CFS_O_NOATIME	   01000000
-
-/* convert local open flags to universal open flags */
-int cfs_oflags2univ(int flags);
-/* convert universal open flags to local open flags */
-int cfs_univ2oflags(int flags);
-
 /*
  * Random number handling
  */

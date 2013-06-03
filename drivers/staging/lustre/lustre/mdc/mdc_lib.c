@@ -199,7 +199,7 @@ static __u64 mds_pack_open_flags(__u32 flags, __u32 mode)
 	if (flags & O_LOV_DELAY_CREATE)
 		cr_flags |= MDS_OPEN_DELAY_CREATE;
 
-	if ((flags & O_NOACCESS) || (flags & O_NONBLOCK))
+	if (flags & O_NONBLOCK)
 		cr_flags |= MDS_OPEN_NORESTORE;
 
 	return cr_flags;

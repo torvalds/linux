@@ -2,7 +2,7 @@ obj-$(CONFIG_LUSTRE_FS) += libcfs.o
 
 libcfs-linux-objs := linux-tracefile.o linux-debug.o
 libcfs-linux-objs += linux-prim.o linux-mem.o linux-cpu.o
-libcfs-linux-objs += linux-fs.o linux-sync.o linux-tcpip.o
+libcfs-linux-objs += linux-sync.o linux-tcpip.o
 libcfs-linux-objs += linux-proc.o linux-curproc.o
 libcfs-linux-objs += linux-utils.o linux-module.o
 libcfs-linux-objs += linux-crypto.o linux-crypto-crc32.o

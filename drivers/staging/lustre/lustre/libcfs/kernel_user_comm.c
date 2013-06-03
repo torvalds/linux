@@ -155,6 +155,9 @@ int libcfs_ukuc_msg_get(lustre_kernelcomm *link, char *buf, int maxsize,
 int libcfs_kkuc_msg_put(struct file *filp, void *payload)
 {
 	struct kuc_hdr *kuch = (struct kuc_hdr *)payload;
+	ssize_t count = kuch->kuc_msglen;
+	loff_t offset = 0;
+	mm_segment_t fs;
 	int rc = -ENOSYS;
 
 	if (filp == NULL || IS_ERR(filp))
@@ -165,11 +168,18 @@ int libcfs_kkuc_msg_put(struct file *filp, void *payload)
 		return -ENOSYS;
 	}
 
-	{
-		loff_t offset = 0;
-		rc = filp_user_write(filp, payload, kuch->kuc_msglen,
-				     &offset);
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	while ((ssize_t)count > 0) {
+		rc = vfs_write(filp, (const void __user *)payload,
+			       count, &offset);
+		if (rc < 0)
+			break;
+		count -= rc;
+		payload += rc;
+		rc = 0;
 	}
+	set_fs(fs);
 
 	if (rc < 0)
 		CWARN("message send failed (%d)\n", rc);
