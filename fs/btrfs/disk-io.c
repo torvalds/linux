@@ -3762,6 +3762,7 @@ int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 
 	while ((node = rb_first(&delayed_refs->root)) != NULL) {
 		struct btrfs_delayed_ref_head *head = NULL;
+		bool pin_bytes = false;
 
 		ref = rb_entry(node, struct btrfs_delayed_ref_node, rb_node);
 		atomic_set(&ref->refs, 1);
@@ -3782,8 +3783,7 @@ int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 			}
 
 			if (head->must_insert_reserved)
-				btrfs_pin_extent(root, ref->bytenr,
-						 ref->num_bytes, 1);
+				pin_bytes = true;
 			btrfs_free_delayed_extent_op(head->extent_op);
 			delayed_refs->num_heads--;
 			if (list_empty(&head->cluster))
@@ -3794,9 +3794,13 @@ int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 		ref->in_tree = 0;
 		rb_erase(&ref->rb_node, &delayed_refs->root);
 		delayed_refs->num_entries--;
-		if (head)
-			mutex_unlock(&head->mutex);
 		spin_unlock(&delayed_refs->lock);
+		if (head) {
+			if (pin_bytes)
+				btrfs_pin_extent(root, ref->bytenr,
+						 ref->num_bytes, 1);
+			mutex_unlock(&head->mutex);
+		}
 		btrfs_put_delayed_ref(ref);
 
 		cond_resched();
