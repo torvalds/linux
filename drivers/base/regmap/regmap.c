@@ -123,7 +123,10 @@ bool regmap_volatile(struct regmap *map, unsigned int reg)
 	if (map->volatile_table)
 		return _regmap_check_range_table(map, reg, map->volatile_table);
 
-	return true;
+	if (map->cache_ops)
+		return false;
+	else
+		return true;
 }
 
 bool regmap_precious(struct regmap *map, unsigned int reg)
