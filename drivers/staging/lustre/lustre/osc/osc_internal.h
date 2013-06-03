@@ -205,6 +205,4 @@ int osc_quotacheck(struct obd_device *unused, struct obd_export *exp,
 		   struct obd_quotactl *oqctl);
 int osc_quota_poll_check(struct obd_export *exp, struct if_quotacheck *qchk);
 
-void osc_inc_unstable_pages(struct ptlrpc_request *req);
-void osc_dec_unstable_pages(struct ptlrpc_request *req);
 #endif /* OSC_INTERNAL_H */

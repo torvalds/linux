@@ -725,23 +725,6 @@ static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 }
 LPROC_SEQ_FOPS_RO(ll_sbi_flags);
 
-static int ll_unstable_stats_seq_show(struct seq_file *m, void *v)
-{
-	struct super_block	*sb    = m->private;
-	struct ll_sb_info	*sbi   = ll_s2sbi(sb);
-	struct cl_client_cache	*cache = &sbi->ll_cache;
-	int pages, mb, rc;
-
-	pages = atomic_read(&cache->ccc_unstable_nr);
-	mb    = (pages * PAGE_CACHE_SIZE) >> 20;
-
-	rc = seq_printf(m, "unstable_pages: %8d\n"
-			   "unstable_mb:    %8d\n", pages, mb);
-
-	return rc;
-}
-LPROC_SEQ_FOPS_RO(ll_unstable_stats);
-
 static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "uuid",	  &ll_sb_uuid_fops,	  0, 0 },
 	//{ "mntpt_path",   ll_rd_path,	     0, 0 },
@@ -770,7 +753,6 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "lazystatfs",       &ll_lazystatfs_fops, 0 },
 	{ "max_easize",       &ll_maxea_size_fops, 0, 0 },
 	{ "sbi_flags",	      &ll_sbi_flags_fops, 0, 0 },
-	{ "unstable_stats",   &ll_unstable_stats_fops, 0, 0},
 	{ 0 }
 };
 

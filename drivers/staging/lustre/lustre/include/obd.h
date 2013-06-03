@@ -678,7 +678,7 @@ struct lov_obd {
 	proc_dir_entry_t   *lov_pool_proc_entry;
 	enum lustre_sec_part    lov_sp_me;
 
-	/* Cached LRU and unstable data from upper layer */
+	/* Cached LRU pages from upper layer */
 	void		       *lov_cache;
 
 	struct rw_semaphore     lov_notify_lock;
