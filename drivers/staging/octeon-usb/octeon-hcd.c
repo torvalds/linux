@@ -142,23 +142,18 @@ static void octeon_usb_urb_complete_callback(cvmx_usb_state_t *usb,
 
     /* For Isochronous transactions we need to update the URB packet status
         list from data in our private copy */
-    if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
-    {
+    if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
         int i;
         /* The pointer to the private list is stored in the setup_packet field */
         cvmx_usb_iso_packet_t *iso_packet = (cvmx_usb_iso_packet_t *)urb->setup_packet;
         /* Recalculate the transfer size by adding up each packet */
         urb->actual_length = 0;
-        for (i=0; i<urb->number_of_packets; i++)
-        {
-            if (iso_packet[i].status == CVMX_USB_COMPLETE_SUCCESS)
-            {
+        for (i=0; i<urb->number_of_packets; i++) {
+            if (iso_packet[i].status == CVMX_USB_COMPLETE_SUCCESS) {
                 urb->iso_frame_desc[i].status = 0;
                 urb->iso_frame_desc[i].actual_length = iso_packet[i].length;
                 urb->actual_length += urb->iso_frame_desc[i].actual_length;
-            }
-            else
-            {
+            } else {
                 DEBUG_ERROR("%s: ISOCHRONOUS packet=%d of %d status=%d pipe=%d submit=%d size=%d\n",
                             __FUNCTION__, i, urb->number_of_packets,
                             iso_packet[i].status, pipe_handle,
@@ -171,8 +166,7 @@ static void octeon_usb_urb_complete_callback(cvmx_usb_state_t *usb,
         urb->setup_packet = NULL;
     }
 
-    switch (status)
-    {
+    switch (status) {
         case CVMX_USB_COMPLETE_SUCCESS:
             urb->status = 0;
             break;
@@ -222,14 +216,12 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
     INIT_LIST_HEAD(&urb->urb_list); /* not enqueued on dequeue_list */
     spin_lock_irqsave(&priv->lock, flags);
 
-    if (!ep->hcpriv)
-    {
+    if (!ep->hcpriv) {
         cvmx_usb_transfer_t transfer_type;
         cvmx_usb_speed_t speed;
         int split_device = 0;
         int split_port = 0;
-        switch (usb_pipetype(urb->pipe))
-        {
+        switch (usb_pipetype(urb->pipe)) {
             case PIPE_ISOCHRONOUS:
                 transfer_type = CVMX_USB_TRANSFER_ISOCHRONOUS;
                 break;
@@ -243,8 +235,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
                 transfer_type = CVMX_USB_TRANSFER_BULK;
                 break;
         }
-        switch (urb->dev->speed)
-        {
+        switch (urb->dev->speed) {
             case USB_SPEED_LOW:
                 speed = CVMX_USB_SPEED_LOW;
                 break;
@@ -258,15 +249,12 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
         /* For slow devices on high speed ports we need to find the hub that
             does the speed translation so we know where to send the split
             transactions */
-        if (speed != CVMX_USB_SPEED_HIGH)
-        {
+        if (speed != CVMX_USB_SPEED_HIGH) {
             /* Start at this device and work our way up the usb tree */
             struct usb_device *dev = urb->dev;
-            while (dev->parent)
-            {
+            while (dev->parent) {
                 /* If our parent is high speed then he'll receive the splits */
-                if (dev->parent->speed == USB_SPEED_HIGH)
-                {
+                if (dev->parent->speed == USB_SPEED_HIGH) {
                     split_device = dev->parent->devnum;
                     split_port = dev->portnum;
                     break;
@@ -289,8 +277,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
                                          (le16_to_cpu(ep->desc.wMaxPacketSize)>>11) & 0x3,
                                          split_device,
                                          split_port);
-        if (pipe_handle < 0)
-        {
+        if (pipe_handle < 0) {
             spin_unlock_irqrestore(&priv->lock, flags);
             DEBUG_ERROR("OcteonUSB: %s failed to create pipe\n", __FUNCTION__);
             return -ENOMEM;
@@ -300,19 +287,16 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
     else
         pipe_handle = 0xffff & (long)ep->hcpriv;
 
-    switch (usb_pipetype(urb->pipe))
-    {
+    switch (usb_pipetype(urb->pipe)) {
         case PIPE_ISOCHRONOUS:
             DEBUG_SUBMIT("OcteonUSB: %s submit isochronous to %d.%d\n", __FUNCTION__, usb_pipedevice(urb->pipe), usb_pipeendpoint(urb->pipe));
             /* Allocate a structure to use for our private list of isochronous
                 packets */
             iso_packet = kmalloc(urb->number_of_packets * sizeof(cvmx_usb_iso_packet_t), GFP_ATOMIC);
-            if (iso_packet)
-            {
+            if (iso_packet) {
                 int i;
                 /* Fill the list with the data from the URB */
-                for (i=0; i<urb->number_of_packets; i++)
-                {
+                for (i=0; i<urb->number_of_packets; i++) {
                     iso_packet[i].offset = urb->iso_frame_desc[i].offset;
                     iso_packet[i].length = urb->iso_frame_desc[i].length;
                     iso_packet[i].status = CVMX_USB_COMPLETE_ERROR;
@@ -331,8 +315,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
                                                             octeon_usb_urb_complete_callback,
                                                             urb);
                 /* If submit failed we need to free our private packet list */
-                if (submit_handle < 0)
-                {
+                if (submit_handle < 0) {
                     urb->setup_packet = NULL;
                     kfree(iso_packet);
                 }
@@ -364,8 +347,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
                                                  urb);
             break;
     }
-    if (submit_handle < 0)
-    {
+    if (submit_handle < 0) {
         spin_unlock_irqrestore(&priv->lock, flags);
         DEBUG_ERROR("OcteonUSB: %s failed to submit\n", __FUNCTION__);
         return -ENOMEM;
@@ -422,8 +404,7 @@ static int octeon_usb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int stat
 static void octeon_usb_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 {
     DEBUG_CALL("OcteonUSB: %s called\n", __FUNCTION__);
-    if (ep->hcpriv)
-    {
+    if (ep->hcpriv) {
         struct octeon_hcd *priv = hcd_to_octeon(hcd);
         int pipe_handle = 0xffff & (long)ep->hcpriv;
         unsigned long flags;
@@ -461,12 +442,10 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
     struct usb_hub_descriptor *desc;
     unsigned long flags;
 
-    switch (typeReq)
-    {
+    switch (typeReq) {
         case ClearHubFeature:
             DEBUG_ROOT_HUB("OcteonUSB: ClearHubFeature\n");
-            switch (wValue)
-            {
+            switch (wValue) {
                 case C_HUB_LOCAL_POWER:
                 case C_HUB_OVER_CURRENT:
                     /* Nothing required here */
@@ -477,14 +456,12 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
             break;
         case ClearPortFeature:
             DEBUG_ROOT_HUB("OcteonUSB: ClearPortFeature");
-            if (wIndex != 1)
-            {
+            if (wIndex != 1) {
                 DEBUG_ROOT_HUB(" INVALID\n");
                 return -EINVAL;
             }
 
-            switch (wValue)
-            {
+            switch (wValue) {
                 case USB_PORT_FEAT_ENABLE:
                     DEBUG_ROOT_HUB(" ENABLE");
                     spin_lock_irqsave(&priv->lock, flags);
@@ -561,8 +538,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
             break;
         case GetPortStatus:
             DEBUG_ROOT_HUB("OcteonUSB: GetPortStatus");
-            if (wIndex != 1)
-            {
+            if (wIndex != 1) {
                 DEBUG_ROOT_HUB(" INVALID\n");
                 return -EINVAL;
             }
@@ -572,49 +548,40 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
             spin_unlock_irqrestore(&priv->lock, flags);
             port_status = 0;
 
-            if (usb_port_status.connect_change)
-            {
+            if (usb_port_status.connect_change) {
                 port_status |= (1 << USB_PORT_FEAT_C_CONNECTION);
                 DEBUG_ROOT_HUB(" C_CONNECTION");
             }
 
-            if (usb_port_status.port_enabled)
-            {
+            if (usb_port_status.port_enabled) {
                 port_status |= (1 << USB_PORT_FEAT_C_ENABLE);
                 DEBUG_ROOT_HUB(" C_ENABLE");
             }
 
-            if (usb_port_status.connected)
-            {
+            if (usb_port_status.connected) {
                 port_status |= (1 << USB_PORT_FEAT_CONNECTION);
                 DEBUG_ROOT_HUB(" CONNECTION");
             }
 
-            if (usb_port_status.port_enabled)
-            {
+            if (usb_port_status.port_enabled) {
                 port_status |= (1 << USB_PORT_FEAT_ENABLE);
                 DEBUG_ROOT_HUB(" ENABLE");
             }
 
-            if (usb_port_status.port_over_current)
-            {
+            if (usb_port_status.port_over_current) {
                 port_status |= (1 << USB_PORT_FEAT_OVER_CURRENT);
                 DEBUG_ROOT_HUB(" OVER_CURRENT");
             }
 
-            if (usb_port_status.port_powered)
-            {
+            if (usb_port_status.port_powered) {
                 port_status |= (1 << USB_PORT_FEAT_POWER);
                 DEBUG_ROOT_HUB(" POWER");
             }
 
-            if (usb_port_status.port_speed == CVMX_USB_SPEED_HIGH)
-            {
+            if (usb_port_status.port_speed == CVMX_USB_SPEED_HIGH) {
 		port_status |= USB_PORT_STAT_HIGH_SPEED;
                 DEBUG_ROOT_HUB(" HIGHSPEED");
-            }
-            else if (usb_port_status.port_speed == CVMX_USB_SPEED_LOW)
-            {
+            } else if (usb_port_status.port_speed == CVMX_USB_SPEED_LOW) {
                 port_status |= (1 << USB_PORT_FEAT_LOWSPEED);
                 DEBUG_ROOT_HUB(" LOWSPEED");
             }
@@ -628,14 +595,12 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
             break;
         case SetPortFeature:
             DEBUG_ROOT_HUB("OcteonUSB: SetPortFeature");
-            if (wIndex != 1)
-            {
+            if (wIndex != 1) {
                 DEBUG_ROOT_HUB(" INVALID\n");
                 return -EINVAL;
             }
 
-            switch (wValue)
-            {
+            switch (wValue) {
                 case USB_PORT_FEAT_SUSPEND:
                     DEBUG_ROOT_HUB(" SUSPEND\n");
                     return -EINVAL;
@@ -701,8 +666,7 @@ static int octeon_usb_driver_probe(struct device *dev)
     dev->dma_mask = &dev->coherent_dma_mask;
 
     hcd = usb_create_hcd(&octeon_hc_driver, dev, dev_name(dev));
-    if (!hcd)
-    {
+    if (!hcd) {
         DEBUG_FATAL("OcteonUSB: Failed to allocate memory for HCD\n");
         return -1;
     }
@@ -716,8 +680,7 @@ static int octeon_usb_driver_probe(struct device *dev)
 
     //status = cvmx_usb_initialize(&priv->usb, usb_num, CVMX_USB_INITIALIZE_FLAGS_CLOCK_AUTO | CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO | CVMX_USB_INITIALIZE_FLAGS_DEBUG_TRANSFERS | CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLBACKS);
     status = cvmx_usb_initialize(&priv->usb, usb_num, CVMX_USB_INITIALIZE_FLAGS_CLOCK_AUTO);
-    if (status)
-    {
+    if (status) {
         DEBUG_FATAL("OcteonUSB: USB initialization failed with %d\n", status);
         kfree(hcd);
         return -1;
@@ -731,8 +694,7 @@ static int octeon_usb_driver_probe(struct device *dev)
     spin_unlock_irqrestore(&priv->lock, flags);
 
     status = usb_add_hcd(hcd, irq, IRQF_SHARED);
-    if (status)
-    {
+    if (status) {
         DEBUG_FATAL("OcteonUSB: USB add HCD failed with %d\n", status);
         kfree(hcd);
         return -1;
@@ -784,8 +746,7 @@ static int __init octeon_usb_module_init(void)
     if (usb_disabled() || num_devices == 0)
 	return -ENODEV;
 
-    if (driver_register(&octeon_usb_driver))
-    {
+    if (driver_register(&octeon_usb_driver)) {
         DEBUG_FATAL("OcteonUSB: Failed to register driver\n");
         return -ENOMEM;
     }
@@ -812,8 +773,7 @@ static int __init octeon_usb_module_init(void)
 		cvmx_write_csr(CVMX_IOB_N2C_L2C_PRI_CNT, pri_cnt.u64);
 	}
 
-    for (device = 0; device < num_devices; device++)
-    {
+    for (device = 0; device < num_devices; device++) {
         struct resource irq_resource;
         struct platform_device *pdev;
         memset(&irq_resource, 0, sizeof(irq_resource));
@@ -821,8 +781,7 @@ static int __init octeon_usb_module_init(void)
         irq_resource.end = irq_resource.start;
         irq_resource.flags = IORESOURCE_IRQ;
         pdev = platform_device_register_simple((char*)octeon_usb_driver.name, device, &irq_resource, 1);
-        if (!pdev)
-        {
+        if (!pdev) {
             DEBUG_FATAL("OcteonUSB: Failed to allocate platform device for USB%d\n", device);
             return -ENOMEM;
         }
@@ -838,8 +797,7 @@ static void __exit octeon_usb_module_cleanup(void)
     int i;
     DEBUG_CALL("OcteonUSB: %s called\n", __FUNCTION__);
     for (i = 0; i <MAX_USB_PORTS; i++)
-        if (pdev_glob[i])
-        {
+        if (pdev_glob[i]) {
             platform_device_unregister(pdev_glob[i]);
             pdev_glob[i] = NULL;
         }
