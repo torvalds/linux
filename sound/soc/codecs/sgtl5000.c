@@ -907,10 +907,25 @@ static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
 			if (ret)
 				return ret;
 			udelay(10);
+
+			regcache_cache_only(sgtl5000->regmap, false);
+
+			ret = regcache_sync(sgtl5000->regmap);
+			if (ret != 0) {
+				dev_err(codec->dev,
+					"Failed to restore cache: %d\n", ret);
+
+				regcache_cache_only(sgtl5000->regmap, true);
+				regulator_bulk_disable(ARRAY_SIZE(sgtl5000->supplies),
+						       sgtl5000->supplies);
+
+				return ret;
+			}
 		}
 
 		break;
 	case SND_SOC_BIAS_OFF:
+		regcache_cache_only(sgtl5000->regmap, true);
 		regulator_bulk_disable(ARRAY_SIZE(sgtl5000->supplies),
 					sgtl5000->supplies);
 		break;
