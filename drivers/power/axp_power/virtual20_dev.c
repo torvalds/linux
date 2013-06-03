@@ -58,7 +58,7 @@ static struct platform_device virt[]={
 			.name = "reg-20-cs-buck2",
 			.id = -1,
 			.dev		= {
-				.platform_data = "axp20_core",
+				.platform_data = "Vcore",
 			}
  	},{
 			.name = "reg-20-cs-buck3",

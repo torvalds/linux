@@ -151,7 +151,7 @@ static struct regulator_consumer_supply ldoio0_data[] = {
 
 static struct regulator_consumer_supply buck2_data[] = {
 		{
-			.supply = "axp20_core",
+			.supply = "Vcore",
 		},
 	};
 
