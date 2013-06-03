@@ -904,7 +904,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_channel *chan = ah->curchan;
-	struct ar5416AniState *aniState = &chan->ani;
+	struct ar5416AniState *aniState = &ah->ani;
 	s32 value, value2;
 
 	switch (cmd & ah->ani_function) {
@@ -1172,7 +1172,7 @@ static void ar9003_hw_ani_cache_ini_regs(struct ath_hw *ah)
 	struct ath9k_ani_default *iniDef;
 	u32 val;
 
-	aniState = &ah->curchan->ani;
+	aniState = &ah->ani;
 	iniDef = &aniState->iniDef;
 
 	ath_dbg(common, ANI, "ver %d.%d opmode %u chan %d Mhz/0x%x\n",
