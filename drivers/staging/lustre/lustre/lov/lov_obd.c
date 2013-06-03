@@ -730,9 +730,11 @@ static void __lov_del_obd(struct obd_device *obd, struct lov_tgt_desc *tgt)
 
 void lov_fix_desc_stripe_size(__u64 *val)
 {
-	if (*val < LOV_DEFAULT_STRIPE_SIZE) {
-		LCONSOLE_WARN("Increasing default stripe size to min %u\n",
-			      LOV_DEFAULT_STRIPE_SIZE);
+	if (*val < LOV_MIN_STRIPE_SIZE) {
+		if (*val != 0)
+			LCONSOLE_INFO("Increasing default stripe size to "
+				      "minimum %u\n",
+				      LOV_DEFAULT_STRIPE_SIZE);
 		*val = LOV_DEFAULT_STRIPE_SIZE;
 	} else if (*val & (LOV_MIN_STRIPE_SIZE - 1)) {
 		*val &= ~(LOV_MIN_STRIPE_SIZE - 1);
