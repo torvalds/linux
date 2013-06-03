@@ -219,7 +219,7 @@ isp_video_remote_subdev(struct isp_video *video, u32 *pad)
 {
 	struct media_pad *remote;
 
-	remote = media_entity_remote_source(&video->pad);
+	remote = media_entity_remote_pad(&video->pad);
 
 	if (remote == NULL ||
 	    media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
@@ -314,7 +314,7 @@ static int isp_video_validate_pipeline(struct isp_pipeline *pipe)
 		 * entity can be found, and stop checking the pipeline if the
 		 * source entity isn't a subdev.
 		 */
-		pad = media_entity_remote_source(pad);
+		pad = media_entity_remote_pad(pad);
 		if (pad == NULL)
 			return -EPIPE;
 
@@ -901,7 +901,7 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 			continue;
 
 		/* ISP entities have always sink pad == 0. Find source. */
-		source_pad = media_entity_remote_source(&ents[i]->pads[0]);
+		source_pad = media_entity_remote_pad(&ents[i]->pads[0]);
 		if (source_pad == NULL)
 			continue;
 

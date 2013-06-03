@@ -360,7 +360,7 @@ static int ccp2_if_configure(struct isp_ccp2_device *ccp2)
 
 	ccp2_pwr_cfg(ccp2);
 
-	pad = media_entity_remote_source(&ccp2->pads[CCP2_PAD_SINK]);
+	pad = media_entity_remote_pad(&ccp2->pads[CCP2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
 	pdata = sensor->host_priv;
 

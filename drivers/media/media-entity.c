@@ -560,17 +560,16 @@ media_entity_find_link(struct media_pad *source, struct media_pad *sink)
 EXPORT_SYMBOL_GPL(media_entity_find_link);
 
 /**
- * media_entity_remote_source - Find the source pad at the remote end of a link
- * @pad: Sink pad at the local end of the link
+ * media_entity_remote_pad - Find the pad at the remote end of a link
+ * @pad: Pad at the local end of the link
  *
- * Search for a remote source pad connected to the given sink pad by iterating
- * over all links originating or terminating at that pad until an enabled link
- * is found.
+ * Search for a remote pad connected to the given pad by iterating over all
+ * links originating or terminating at that pad until an enabled link is found.
  *
  * Return a pointer to the pad at the remote end of the first found enabled
  * link, or NULL if no enabled link has been found.
  */
-struct media_pad *media_entity_remote_source(struct media_pad *pad)
+struct media_pad *media_entity_remote_pad(struct media_pad *pad)
 {
 	unsigned int i;
 
@@ -590,4 +589,4 @@ struct media_pad *media_entity_remote_source(struct media_pad *pad)
 	return NULL;
 
 }
-EXPORT_SYMBOL_GPL(media_entity_remote_source);
+EXPORT_SYMBOL_GPL(media_entity_remote_pad);

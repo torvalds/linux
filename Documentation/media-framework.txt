@@ -265,7 +265,7 @@ connected to another pad through an enabled link
 	media_entity_find_link(struct media_pad *source,
 			       struct media_pad *sink);
 
-	media_entity_remote_source(struct media_pad *pad);
+	media_entity_remote_pad(struct media_pad *pad);
 
 Refer to the kerneldoc documentation for more information.
 
