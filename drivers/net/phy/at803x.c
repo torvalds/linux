@@ -108,8 +108,9 @@ static int at803x_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-/* ATHEROS 8035 */
-static struct phy_driver at8035_driver = {
+static struct phy_driver at803x_driver[] = {
+{
+	/* ATHEROS 8035 */
 	.phy_id		= 0x004dd072,
 	.name		= "Atheros 8035 ethernet",
 	.phy_id_mask	= 0xffffffef,
@@ -121,10 +122,8 @@ static struct phy_driver at8035_driver = {
 	.driver		= {
 		.owner = THIS_MODULE,
 	},
-};
-
-/* ATHEROS 8030 */
-static struct phy_driver at8030_driver = {
+}, {
+	/* ATHEROS 8030 */
 	.phy_id		= 0x004dd076,
 	.name		= "Atheros 8030 ethernet",
 	.phy_id_mask	= 0xffffffef,
@@ -136,32 +135,18 @@ static struct phy_driver at8030_driver = {
 	.driver		= {
 		.owner = THIS_MODULE,
 	},
-};
+} };
 
 static int __init atheros_init(void)
 {
-	int ret;
-
-	ret = phy_driver_register(&at8035_driver);
-	if (ret)
-		goto err1;
-
-	ret = phy_driver_register(&at8030_driver);
-	if (ret)
-		goto err2;
-
-	return 0;
-
-err2:
-	phy_driver_unregister(&at8035_driver);
-err1:
-	return ret;
+	return phy_drivers_register(at803x_driver,
+				    ARRAY_SIZE(at803x_driver));
 }
 
 static void __exit atheros_exit(void)
 {
-	phy_driver_unregister(&at8035_driver);
-	phy_driver_unregister(&at8030_driver);
+	return phy_drivers_unregister(at803x_driver,
+				      ARRAY_SIZE(at803x_driver));
 }
 
 module_init(atheros_init);
