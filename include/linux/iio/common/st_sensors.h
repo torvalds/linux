@@ -24,9 +24,7 @@
 #define ST_SENSORS_FULLSCALE_AVL_MAX		10
 
 #define ST_SENSORS_NUMBER_ALL_CHANNELS		4
-#define ST_SENSORS_NUMBER_DATA_CHANNELS		3
 #define ST_SENSORS_ENABLE_ALL_AXIS		0x07
-#define ST_SENSORS_BYTE_FOR_CHANNEL		2
 #define ST_SENSORS_SCAN_X			0
 #define ST_SENSORS_SCAN_Y			1
 #define ST_SENSORS_SCAN_Z			2
@@ -202,6 +200,7 @@ struct st_sensors {
  * @multiread_bit: Use or not particular bit for [I2C/SPI] multiread.
  * @buffer_data: Data used by buffer part.
  * @odr: Output data rate of the sensor [Hz].
+ * num_data_channels: Number of data channels used in buffer.
  * @get_irq_data_ready: Function to get the IRQ used for data ready signal.
  * @tf: Transfer function structure used by I/O operations.
  * @tb: Transfer buffers and mutex used by I/O operations.
@@ -218,6 +217,7 @@ struct st_sensor_data {
 	char *buffer_data;
 
 	unsigned int odr;
+	unsigned int num_data_channels;
 
 	unsigned int (*get_irq_data_ready) (struct iio_dev *indio_dev);
 

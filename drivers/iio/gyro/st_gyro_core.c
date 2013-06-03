@@ -27,6 +27,8 @@
 #include <linux/iio/common/st_sensors.h>
 #include "st_gyro.h"
 
+#define ST_GYRO_NUMBER_DATA_CHANNELS		3
+
 /* DEFAULT VALUE FOR SENSORS */
 #define ST_GYRO_DEFAULT_OUT_X_L_ADDR		0x28
 #define ST_GYRO_DEFAULT_OUT_Y_L_ADDR		0x2a
@@ -313,6 +315,7 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		goto st_gyro_common_probe_error;
 
+	gdata->num_data_channels = ST_GYRO_NUMBER_DATA_CHANNELS;
 	gdata->multiread_bit = gdata->sensor->multi_read_bit;
 	indio_dev->channels = gdata->sensor->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;

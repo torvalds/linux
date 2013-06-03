@@ -26,6 +26,8 @@
 #include <linux/iio/common/st_sensors.h>
 #include "st_magn.h"
 
+#define ST_MAGN_NUMBER_DATA_CHANNELS		3
+
 /* DEFAULT VALUE FOR SENSORS */
 #define ST_MAGN_DEFAULT_OUT_X_L_ADDR		0X04
 #define ST_MAGN_DEFAULT_OUT_Y_L_ADDR		0X08
@@ -356,6 +358,7 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		goto st_magn_common_probe_error;
 
+	mdata->num_data_channels = ST_MAGN_NUMBER_DATA_CHANNELS;
 	mdata->multiread_bit = mdata->sensor->multi_read_bit;
 	indio_dev->channels = mdata->sensor->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;

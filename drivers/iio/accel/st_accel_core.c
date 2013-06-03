@@ -26,6 +26,8 @@
 #include <linux/iio/common/st_sensors.h>
 #include "st_accel.h"
 
+#define ST_ACCEL_NUMBER_DATA_CHANNELS		3
+
 /* DEFAULT VALUE FOR SENSORS */
 #define ST_ACCEL_DEFAULT_OUT_X_L_ADDR		0x28
 #define ST_ACCEL_DEFAULT_OUT_Y_L_ADDR		0x2a
@@ -454,6 +456,7 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		goto st_accel_common_probe_error;
 
+	adata->num_data_channels = ST_ACCEL_NUMBER_DATA_CHANNELS;
 	adata->multiread_bit = adata->sensor->multi_read_bit;
 	indio_dev->channels = adata->sensor->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
