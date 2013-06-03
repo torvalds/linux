@@ -193,7 +193,20 @@
 #define EM2874_R50_IR_CONFIG    0x50
 #define EM2874_R51_IR           0x51
 #define EM2874_R5F_TS_ENABLE    0x5f
-#define EM2874_R80_GPIO         0x80
+
+/* em2874/174/84, em25xx, em276x/7x/8x GPIO registers */
+/*
+ * NOTE: not all ports are bonded out;
+ * Some ports are multiplexed with special function I/O
+ */
+#define EM2874_R80_GPIO_P0_CTRL    0x80
+#define EM2874_R81_GPIO_P1_CTRL    0x81
+#define EM2874_R82_GPIO_P2_CTRL    0x82
+#define EM2874_R83_GPIO_P3_CTRL    0x83
+#define EM2874_R84_GPIO_P0_STATE   0x84
+#define EM2874_R85_GPIO_P1_STATE   0x85
+#define EM2874_R86_GPIO_P2_STATE   0x86
+#define EM2874_R87_GPIO_P3_STATE   0x87
 
 /* em2874 IR config register (0x50) */
 #define EM2874_IR_NEC           0x00

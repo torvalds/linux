@@ -285,14 +285,14 @@ static struct em28xx_reg_seq dikom_dk300_digital[] = {
 
 /* Reset for the most [digital] boards */
 static struct em28xx_reg_seq leadership_digital[] = {
-	{EM2874_R80_GPIO,	0x70,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0x70,	0xff,	10},
 	{	-1,		-1,	-1,	-1},
 };
 
 static struct em28xx_reg_seq leadership_reset[] = {
-	{EM2874_R80_GPIO,	0xf0,	0xff,	10},
-	{EM2874_R80_GPIO,	0xb0,	0xff,	10},
-	{EM2874_R80_GPIO,	0xf0,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xf0,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xb0,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xf0,	0xff,	10},
 	{	-1,		-1,	-1,	-1},
 };
 
@@ -301,25 +301,25 @@ static struct em28xx_reg_seq leadership_reset[] = {
  * GPIO_7 - LED
  */
 static struct em28xx_reg_seq pctv_290e[] = {
-	{EM2874_R80_GPIO,	0x00,	0xff,		80},
-	{EM2874_R80_GPIO,	0x40,	0xff,		80}, /* GPIO_6 = 1 */
-	{EM2874_R80_GPIO,	0xc0,	0xff,		80}, /* GPIO_7 = 1 */
+	{EM2874_R80_GPIO_P0_CTRL,	0x00,	0xff,	80},
+	{EM2874_R80_GPIO_P0_CTRL,	0x40,	0xff,	80}, /* GPIO_6 = 1 */
+	{EM2874_R80_GPIO_P0_CTRL,	0xc0,	0xff,	80}, /* GPIO_7 = 1 */
 	{-1,			-1,	-1,		-1},
 };
 
 #if 0
 static struct em28xx_reg_seq terratec_h5_gpio[] = {
 	{EM28XX_R08_GPIO,	0xff,	0xff,	10},
-	{EM2874_R80_GPIO,	0xf6,	0xff,	100},
-	{EM2874_R80_GPIO,	0xf2,	0xff,	50},
-	{EM2874_R80_GPIO,	0xf6,	0xff,	50},
+	{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
+	{EM2874_R80_GPIO_P0_CTRL,	0xf2,	0xff,	50},
+	{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	50},
 	{ -1,			-1,	-1,	-1},
 };
 
 static struct em28xx_reg_seq terratec_h5_digital[] = {
-	{EM2874_R80_GPIO,	0xf6,	0xff,	10},
-	{EM2874_R80_GPIO,	0xe6,	0xff,	100},
-	{EM2874_R80_GPIO,	0xa6,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
+	{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	10},
 	{ -1,			-1,	-1,	-1},
 };
 #endif
@@ -335,39 +335,39 @@ static struct em28xx_reg_seq terratec_h5_digital[] = {
  * GPIO_7 - LED (green LED)
  */
 static struct em28xx_reg_seq pctv_460e[] = {
-	{EM2874_R80_GPIO, 0x01, 0xff,  50},
+	{EM2874_R80_GPIO_P0_CTRL, 0x01, 0xff,  50},
 	{0x0d,            0xff, 0xff,  50},
-	{EM2874_R80_GPIO, 0x41, 0xff,  50}, /* GPIO_6=1 */
+	{EM2874_R80_GPIO_P0_CTRL, 0x41, 0xff,  50}, /* GPIO_6=1 */
 	{0x0d,            0x42, 0xff,  50},
-	{EM2874_R80_GPIO, 0x61, 0xff,  50}, /* GPIO_5=1 */
+	{EM2874_R80_GPIO_P0_CTRL, 0x61, 0xff,  50}, /* GPIO_5=1 */
 	{             -1,   -1,   -1,  -1},
 };
 
 static struct em28xx_reg_seq c3tech_digital_duo_digital[] = {
-	{EM2874_R80_GPIO,	0xff,	0xff,	10},
-	{EM2874_R80_GPIO,	0xfd,	0xff,	10}, /* xc5000 reset */
-	{EM2874_R80_GPIO,	0xf9,	0xff,	35},
-	{EM2874_R80_GPIO,	0xfd,	0xff,	10},
-	{EM2874_R80_GPIO,	0xff,	0xff,	10},
-	{EM2874_R80_GPIO,	0xfe,	0xff,	10},
-	{EM2874_R80_GPIO,	0xbe,	0xff,	10},
-	{EM2874_R80_GPIO,	0xfe,	0xff,	20},
+	{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfd,	0xff,	10}, /* xc5000 reset */
+	{EM2874_R80_GPIO_P0_CTRL,	0xf9,	0xff,	35},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfd,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfe,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xbe,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfe,	0xff,	20},
 	{ -1,			-1,	-1,	-1},
 };
 
 #if 0
 static struct em28xx_reg_seq hauppauge_930c_gpio[] = {
-	{EM2874_R80_GPIO,	0x6f,	0xff,	10},
-	{EM2874_R80_GPIO,	0x4f,	0xff,	10}, /* xc5000 reset */
-	{EM2874_R80_GPIO,	0x6f,	0xff,	10},
-	{EM2874_R80_GPIO,	0x4f,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0x6f,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0x4f,	0xff,	10}, /* xc5000 reset */
+	{EM2874_R80_GPIO_P0_CTRL,	0x6f,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0x4f,	0xff,	10},
 	{ -1,			-1,	-1,	-1},
 };
 
 static struct em28xx_reg_seq hauppauge_930c_digital[] = {
-	{EM2874_R80_GPIO,	0xf6,	0xff,	10},
-	{EM2874_R80_GPIO,	0xe6,	0xff,	100},
-	{EM2874_R80_GPIO,	0xa6,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
+	{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	10},
 	{ -1,			-1,	-1,	-1},
 };
 #endif
@@ -378,9 +378,9 @@ static struct em28xx_reg_seq hauppauge_930c_digital[] = {
  * GPIO_7 - LED, 0=active
  */
 static struct em28xx_reg_seq maxmedia_ub425_tc[] = {
-	{EM2874_R80_GPIO,  0x83,  0xff,  100},
-	{EM2874_R80_GPIO,  0xc3,  0xff,  100}, /* GPIO_6 = 1 */
-	{EM2874_R80_GPIO,  0x43,  0xff,  000}, /* GPIO_7 = 0 */
+	{EM2874_R80_GPIO_P0_CTRL,  0x83,  0xff,  100},
+	{EM2874_R80_GPIO_P0_CTRL,  0xc3,  0xff,  100}, /* GPIO_6 = 1 */
+	{EM2874_R80_GPIO_P0_CTRL,  0x43,  0xff,  000}, /* GPIO_7 = 0 */
 	{-1,                 -1,    -1,   -1},
 };
 
@@ -391,9 +391,9 @@ static struct em28xx_reg_seq maxmedia_ub425_tc[] = {
  * GPIO_7: LED, 1=active
  */
 static struct em28xx_reg_seq pctv_510e[] = {
-	{EM2874_R80_GPIO, 0x10, 0xff, 100},
-	{EM2874_R80_GPIO, 0x14, 0xff, 100}, /* GPIO_2 = 1 */
-	{EM2874_R80_GPIO, 0x54, 0xff, 050}, /* GPIO_6 = 1 */
+	{EM2874_R80_GPIO_P0_CTRL, 0x10, 0xff, 100},
+	{EM2874_R80_GPIO_P0_CTRL, 0x14, 0xff, 100}, /* GPIO_2 = 1 */
+	{EM2874_R80_GPIO_P0_CTRL, 0x54, 0xff, 050}, /* GPIO_6 = 1 */
 	{             -1,   -1,   -1,  -1},
 };
 
@@ -404,10 +404,10 @@ static struct em28xx_reg_seq pctv_510e[] = {
  * GPIO_7: LED, 1=active
  */
 static struct em28xx_reg_seq pctv_520e[] = {
-	{EM2874_R80_GPIO, 0x10, 0xff, 100},
-	{EM2874_R80_GPIO, 0x14, 0xff, 100}, /* GPIO_2 = 1 */
-	{EM2874_R80_GPIO, 0x54, 0xff, 050}, /* GPIO_6 = 1 */
-	{EM2874_R80_GPIO, 0xd4, 0xff, 000}, /* GPIO_7 = 1 */
+	{EM2874_R80_GPIO_P0_CTRL, 0x10, 0xff, 100},
+	{EM2874_R80_GPIO_P0_CTRL, 0x14, 0xff, 100}, /* GPIO_2 = 1 */
+	{EM2874_R80_GPIO_P0_CTRL, 0x54, 0xff, 050}, /* GPIO_6 = 1 */
+	{EM2874_R80_GPIO_P0_CTRL, 0xd4, 0xff, 000}, /* GPIO_7 = 1 */
 	{             -1,   -1,   -1,  -1},
 };
 
@@ -2947,13 +2947,13 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			break;
 		case CHIP_ID_EM2874:
 			chip_name = "em2874";
-			dev->reg_gpio_num = EM2874_R80_GPIO;
+			dev->reg_gpio_num = EM2874_R80_GPIO_P0_CTRL;
 			dev->wait_after_write = 0;
 			dev->eeprom_addrwidth_16bit = 1;
 			break;
 		case CHIP_ID_EM28174:
 			chip_name = "em28174";
-			dev->reg_gpio_num = EM2874_R80_GPIO;
+			dev->reg_gpio_num = EM2874_R80_GPIO_P0_CTRL;
 			dev->wait_after_write = 0;
 			dev->eeprom_addrwidth_16bit = 1;
 			break;
@@ -2963,7 +2963,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			break;
 		case CHIP_ID_EM2884:
 			chip_name = "em2884";
-			dev->reg_gpio_num = EM2874_R80_GPIO;
+			dev->reg_gpio_num = EM2874_R80_GPIO_P0_CTRL;
 			dev->wait_after_write = 0;
 			dev->eeprom_addrwidth_16bit = 1;
 			break;
