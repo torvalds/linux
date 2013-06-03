@@ -640,7 +640,7 @@ int rts51x_get_epc_status(struct rts51x_chip *chip, u16 *status)
 	usb_fill_int_urb(chip->usb->intr_urb, chip->usb->pusb_dev, pipe,
 			 status, 2, urb_done_completion, &urb_done, 1);
 
-	result = rts51x_msg_common(chip, chip->usb->intr_urb, 50);
+	result = rts51x_msg_common(chip, chip->usb->intr_urb, 100);
 
 	return interpret_urb_result(chip, pipe, 2, result,
 				    chip->usb->intr_urb->actual_length);
