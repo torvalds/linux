@@ -421,6 +421,9 @@ struct ohci_hcd {
 	struct dentry		*debug_periodic;
 	struct dentry		*debug_registers;
 #endif
+	/* platform-specific data -- must come last */
+	unsigned long           priv[0] __aligned(sizeof(s64));
+
 };
 
 #ifdef CONFIG_PCI
