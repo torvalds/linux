@@ -95,8 +95,9 @@ static void ll_prepare_close(struct inode *inode, struct md_op_data *op_data,
 {
 	ENTRY;
 
-	op_data->op_attr.ia_valid = ATTR_MODE | ATTR_ATIME_SET |
-				 ATTR_MTIME_SET | ATTR_CTIME_SET;
+	op_data->op_attr.ia_valid = ATTR_MODE | ATTR_ATIME | ATTR_ATIME_SET |
+					ATTR_MTIME | ATTR_MTIME_SET |
+					ATTR_CTIME | ATTR_CTIME_SET;
 
 	if (!(och->och_flags & FMODE_WRITE))
 		goto out;
