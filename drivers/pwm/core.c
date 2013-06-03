@@ -694,7 +694,7 @@ struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id)
 {
 	struct pwm_device **ptr, *pwm;
 
-	ptr = devres_alloc(devm_pwm_release, sizeof(**ptr), GFP_KERNEL);
+	ptr = devres_alloc(devm_pwm_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
@@ -724,7 +724,7 @@ struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
 {
 	struct pwm_device **ptr, *pwm;
 
-	ptr = devres_alloc(devm_pwm_release, sizeof(**ptr), GFP_KERNEL);
+	ptr = devres_alloc(devm_pwm_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
