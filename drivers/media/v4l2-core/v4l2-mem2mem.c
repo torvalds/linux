@@ -196,6 +196,10 @@ static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
  * 2) at least one destination buffer has to be queued,
  * 3) streaming has to be on.
  *
+ * If a queue is buffered (for example a decoder hardware ringbuffer that has
+ * to be drained before doing streamoff), allow scheduling without v4l2 buffers
+ * on that queue.
+ *
  * There may also be additional, custom requirements. In such case the driver
  * should supply a custom callback (job_ready in v4l2_m2m_ops) that should
  * return 1 if the instance is ready.
@@ -224,7 +228,8 @@ static void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
 	}
 
 	spin_lock_irqsave(&m2m_ctx->out_q_ctx.rdy_spinlock, flags_out);
-	if (list_empty(&m2m_ctx->out_q_ctx.rdy_queue)) {
+	if (list_empty(&m2m_ctx->out_q_ctx.rdy_queue)
+	    && !m2m_ctx->out_q_ctx.buffered) {
 		spin_unlock_irqrestore(&m2m_ctx->out_q_ctx.rdy_spinlock,
 					flags_out);
 		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
@@ -232,7 +237,8 @@ static void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
 		return;
 	}
 	spin_lock_irqsave(&m2m_ctx->cap_q_ctx.rdy_spinlock, flags_cap);
-	if (list_empty(&m2m_ctx->cap_q_ctx.rdy_queue)) {
+	if (list_empty(&m2m_ctx->cap_q_ctx.rdy_queue)
+	    && !m2m_ctx->cap_q_ctx.buffered) {
 		spin_unlock_irqrestore(&m2m_ctx->cap_q_ctx.rdy_spinlock,
 					flags_cap);
 		spin_unlock_irqrestore(&m2m_ctx->out_q_ctx.rdy_spinlock,
