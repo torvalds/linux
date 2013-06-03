@@ -2465,9 +2465,9 @@ static ssize_t charge_full_store(struct ab8500_fg *di, const char *buf,
 				 size_t count)
 {
 	unsigned long charge_full;
-	ssize_t ret = -EINVAL;
+	ssize_t ret;
 
-	ret = strict_strtoul(buf, 10, &charge_full);
+	ret = kstrtoul(buf, 10, &charge_full);
 
 	dev_dbg(di->dev, "Ret %zd charge_full %lu", ret, charge_full);
 
@@ -2489,7 +2489,7 @@ static ssize_t charge_now_store(struct ab8500_fg *di, const char *buf,
 	unsigned long charge_now;
 	ssize_t ret;
 
-	ret = strict_strtoul(buf, 10, &charge_now);
+	ret = kstrtoul(buf, 10, &charge_now);
 
 	dev_dbg(di->dev, "Ret %zd charge_now %lu was %d",
 		ret, charge_now, di->bat_cap.prev_mah);
