@@ -243,7 +243,6 @@ static void v4l_print_format(const void *arg, bool write_only)
 	const struct v4l2_vbi_format *vbi;
 	const struct v4l2_sliced_vbi_format *sliced;
 	const struct v4l2_window *win;
-	const struct v4l2_clip *clip;
 	unsigned i;
 
 	pr_cont("type=%s", prt_names(p->type, v4l2_type_names));
@@ -253,7 +252,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 		pix = &p->fmt.pix;
 		pr_cont(", width=%u, height=%u, "
 			"pixelformat=%c%c%c%c, field=%s, "
-			"bytesperline=%u sizeimage=%u, colorspace=%d\n",
+			"bytesperline=%u, sizeimage=%u, colorspace=%d\n",
 			pix->width, pix->height,
 			(pix->pixelformat & 0xff),
 			(pix->pixelformat >>  8) & 0xff,
@@ -284,20 +283,14 @@ static void v4l_print_format(const void *arg, bool write_only)
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
 		win = &p->fmt.win;
-		pr_cont(", wxh=%dx%d, x,y=%d,%d, field=%s, "
-			"chromakey=0x%08x, bitmap=%p, "
-			"global_alpha=0x%02x\n",
-			win->w.width, win->w.height,
-			win->w.left, win->w.top,
+		/* Note: we can't print the clip list here since the clips
+		 * pointer is a userspace pointer, not a kernelspace
+		 * pointer. */
+		pr_cont(", wxh=%dx%d, x,y=%d,%d, field=%s, chromakey=0x%08x, clipcount=%u, clips=%p, bitmap=%p, global_alpha=0x%02x\n",
+			win->w.width, win->w.height, win->w.left, win->w.top,
 			prt_names(win->field, v4l2_field_names),
-			win->chromakey, win->bitmap, win->global_alpha);
-		clip = win->clips;
-		for (i = 0; i < win->clipcount; i++) {
-			printk(KERN_DEBUG "clip %u: wxh=%dx%d, x,y=%d,%d\n",
-					i, clip->c.width, clip->c.height,
-					clip->c.left, clip->c.top);
-			clip = clip->next;
-		}
+			win->chromakey, win->clipcount, win->clips,
+			win->bitmap, win->global_alpha);
 		break;
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
@@ -332,7 +325,7 @@ static void v4l_print_framebuffer(const void *arg, bool write_only)
 
 	pr_cont("capability=0x%x, flags=0x%x, base=0x%p, width=%u, "
 		"height=%u, pixelformat=%c%c%c%c, "
-		"bytesperline=%u sizeimage=%u, colorspace=%d\n",
+		"bytesperline=%u, sizeimage=%u, colorspace=%d\n",
 			p->capability, p->flags, p->base,
 			p->fmt.width, p->fmt.height,
 			(p->fmt.pixelformat & 0xff),
@@ -353,7 +346,7 @@ static void v4l_print_modulator(const void *arg, bool write_only)
 	const struct v4l2_modulator *p = arg;
 
 	if (write_only)
-		pr_cont("index=%u, txsubchans=0x%x", p->index, p->txsubchans);
+		pr_cont("index=%u, txsubchans=0x%x\n", p->index, p->txsubchans);
 	else
 		pr_cont("index=%u, name=%.*s, capability=0x%x, "
 			"rangelow=%u, rangehigh=%u, txsubchans=0x%x\n",
@@ -445,13 +438,13 @@ static void v4l_print_buffer(const void *arg, bool write_only)
 		for (i = 0; i < p->length; ++i) {
 			plane = &p->m.planes[i];
 			printk(KERN_DEBUG
-				"plane %d: bytesused=%d, data_offset=0x%08x "
+				"plane %d: bytesused=%d, data_offset=0x%08x, "
 				"offset/userptr=0x%lx, length=%d\n",
 				i, plane->bytesused, plane->data_offset,
 				plane->m.userptr, plane->length);
 		}
 	} else {
-		pr_cont("bytesused=%d, offset/userptr=0x%lx, length=%d\n",
+		pr_cont(", bytesused=%d, offset/userptr=0x%lx, length=%d\n",
 			p->bytesused, p->m.userptr, p->length);
 	}
 
@@ -504,6 +497,8 @@ static void v4l_print_streamparm(const void *arg, bool write_only)
 			c->capability, c->outputmode,
 			c->timeperframe.numerator, c->timeperframe.denominator,
 			c->extendedmode, c->writebuffers);
+	} else {
+		pr_cont("\n");
 	}
 }
 
@@ -734,11 +729,11 @@ static void v4l_print_frmsizeenum(const void *arg, bool write_only)
 			p->type);
 	switch (p->type) {
 	case V4L2_FRMSIZE_TYPE_DISCRETE:
-		pr_cont(" wxh=%ux%u\n",
+		pr_cont(", wxh=%ux%u\n",
 			p->discrete.width, p->discrete.height);
 		break;
 	case V4L2_FRMSIZE_TYPE_STEPWISE:
-		pr_cont(" min=%ux%u, max=%ux%u, step=%ux%u\n",
+		pr_cont(", min=%ux%u, max=%ux%u, step=%ux%u\n",
 				p->stepwise.min_width,  p->stepwise.min_height,
 				p->stepwise.step_width, p->stepwise.step_height,
 				p->stepwise.max_width,  p->stepwise.max_height);
@@ -764,12 +759,12 @@ static void v4l_print_frmivalenum(const void *arg, bool write_only)
 			p->width, p->height, p->type);
 	switch (p->type) {
 	case V4L2_FRMIVAL_TYPE_DISCRETE:
-		pr_cont(" fps=%d/%d\n",
+		pr_cont(", fps=%d/%d\n",
 				p->discrete.numerator,
 				p->discrete.denominator);
 		break;
 	case V4L2_FRMIVAL_TYPE_STEPWISE:
-		pr_cont(" min=%d/%d, max=%d/%d, step=%d/%d\n",
+		pr_cont(", min=%d/%d, max=%d/%d, step=%d/%d\n",
 				p->stepwise.min.numerator,
 				p->stepwise.min.denominator,
 				p->stepwise.max.numerator,
@@ -807,8 +802,8 @@ static void v4l_print_event(const void *arg, bool write_only)
 			pr_cont("value64=%lld, ", c->value64);
 		else
 			pr_cont("value=%d, ", c->value);
-		pr_cont("flags=0x%x, minimum=%d, maximum=%d, step=%d,"
-				" default_value=%d\n",
+		pr_cont("flags=0x%x, minimum=%d, maximum=%d, step=%d, "
+			"default_value=%d\n",
 			c->flags, c->minimum, c->maximum,
 			c->step, c->default_value);
 		break;
@@ -845,7 +840,7 @@ static void v4l_print_freq_band(const void *arg, bool write_only)
 	const struct v4l2_frequency_band *p = arg;
 
 	pr_cont("tuner=%u, type=%u, index=%u, capability=0x%x, "
-			"rangelow=%u, rangehigh=%u, modulation=0x%x\n",
+		"rangelow=%u, rangehigh=%u, modulation=0x%x\n",
 			p->tuner, p->type, p->index,
 			p->capability, p->rangelow,
 			p->rangehigh, p->modulation);
