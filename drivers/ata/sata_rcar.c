@@ -186,7 +186,7 @@ static void sata_rcar_thaw(struct ata_port *ap)
 	void __iomem *base = priv->base;
 
 	/* ack */
-	iowrite32(~SATA_RCAR_INT_MASK, base + SATAINTSTAT_REG);
+	iowrite32(~(u32)SATA_RCAR_INT_MASK, base + SATAINTSTAT_REG);
 
 	ata_sff_thaw(ap);
 
