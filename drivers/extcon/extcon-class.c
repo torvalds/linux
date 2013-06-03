@@ -481,6 +481,7 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 		return -ENODEV;
 	}
 }
+EXPORT_SYMBOL_GPL(extcon_register_interest);
 
 /**
  * extcon_unregister_interest() - Unregister the notifier registered by
@@ -495,6 +496,7 @@ int extcon_unregister_interest(struct extcon_specific_cable_nb *obj)
 
 	return raw_notifier_chain_unregister(&obj->edev->nh, &obj->internal_nb);
 }
+EXPORT_SYMBOL_GPL(extcon_unregister_interest);
 
 /**
  * extcon_register_notifier() - Register a notifiee to get notified by
