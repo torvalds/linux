@@ -383,6 +383,8 @@ extern void lustre_hsm_swab(struct hsm_attrs *attrs);
  * fid constants
  */
 enum {
+	/** LASTID file has zero OID */
+	LUSTRE_FID_LASTID_OID = 0UL,
 	/** initial fid id value */
 	LUSTRE_FID_INIT_OID  = 1UL
 };
@@ -501,8 +503,8 @@ static inline int fid_seq_is_llog(obd_seq seq)
 
 static inline int fid_is_llog(const struct lu_fid *fid)
 {
-	/* file with OID == 1 is not llog but contains last oid */
-	return fid_seq_is_llog(fid_seq(fid)) && fid_oid(fid) > 1;
+	/* file with OID == 0 is not llog but contains last oid */
+	return fid_seq_is_llog(fid_seq(fid)) && fid_oid(fid) > 0;
 }
 
 static inline int fid_seq_is_rsvd(const __u64 seq)
@@ -785,8 +787,7 @@ static inline int fid_to_ostid(const struct lu_fid *fid, struct ost_id *ostid)
 /* Check whether the fid is for LAST_ID */
 static inline int fid_is_last_id(const struct lu_fid *fid)
 {
-	return (fid_is_idif(fid) || fid_is_norm(fid) || fid_is_echo(fid)) &&
-		fid_oid(fid) == 0;
+	return (fid_oid(fid) == 0);
 }
 
 /**

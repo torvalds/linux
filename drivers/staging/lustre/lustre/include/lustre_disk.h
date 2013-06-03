@@ -518,16 +518,6 @@ struct lustre_mount_info {
 	struct list_head	    lmi_list_chain;
 };
 
-/* on-disk structure describing local object OIDs storage
- * the structure to be used with any sequence managed by
- * local object library */
-struct los_ondisk {
-	__u32 lso_magic;
-	__u32 lso_next_oid;
-};
-
-#define LOS_MAGIC	0xdecafbee
-
 /****************** prototypes *********************/
 
 /* obd_mount.c */

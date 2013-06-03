@@ -208,7 +208,7 @@ int local_object_fid_generate(const struct lu_env *env,
 
 	mutex_lock(&los->los_id_lock);
 	fid->f_seq = los->los_seq;
-	fid->f_oid = los->los_last_oid++;
+	fid->f_oid = ++los->los_last_oid;
 	fid->f_ver = 0;
 	mutex_unlock(&los->los_id_lock);
 
@@ -252,7 +252,7 @@ int local_object_create(const struct lu_env *env,
 			struct dt_object_format *dof, struct thandle *th)
 {
 	struct dt_thread_info	*dti = dt_info(env);
-	struct los_ondisk	 losd;
+	obd_id			 lastid;
 	int			 rc;
 
 	ENTRY;
@@ -274,12 +274,11 @@ int local_object_create(const struct lu_env *env,
 
 	/* update local oid number on disk so that
 	 * we know the last one used after reboot */
-	losd.lso_magic = cpu_to_le32(LOS_MAGIC);
-	losd.lso_next_oid = cpu_to_le32(los->los_last_oid);
+	lastid = cpu_to_le64(los->los_last_oid);
 
 	dti->dti_off = 0;
-	dti->dti_lb.lb_buf = &losd;
-	dti->dti_lb.lb_len = sizeof(losd);
+	dti->dti_lb.lb_buf = &lastid;
+	dti->dti_lb.lb_len = sizeof(lastid);
 	rc = dt_record_write(env, los->los_obj, &dti->dti_lb, &dti->dti_off,
 			     th);
 	mutex_unlock(&los->los_id_lock);
@@ -660,6 +659,79 @@ void dt_los_put(struct local_oid_storage *los)
 	return;
 }
 
+/* after Lustre 2.3 release there may be old file to store last generated FID
+ * If such file exists then we have to read its content
+ */
+int lastid_compat_check(const struct lu_env *env, struct dt_device *dev,
+			__u64 lastid_seq, __u32 *first_oid, struct ls_device *ls)
+{
+	struct dt_thread_info	*dti = dt_info(env);
+	struct dt_object	*root = NULL;
+	struct los_ondisk	 losd;
+	struct dt_object	*o = NULL;
+	int			 rc = 0;
+
+	rc = dt_root_get(env, dev, &dti->dti_fid);
+	if (rc)
+		return rc;
+
+	root = ls_locate(env, ls, &dti->dti_fid);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+
+	/* find old last_id file */
+	snprintf(dti->dti_buf, sizeof(dti->dti_buf), "seq-"LPX64"-lastid",
+		 lastid_seq);
+	rc = dt_lookup_dir(env, root, dti->dti_buf, &dti->dti_fid);
+	lu_object_put_nocache(env, &root->do_lu);
+	if (rc == -ENOENT) {
+		/* old llog lastid accessed by FID only */
+		if (lastid_seq != FID_SEQ_LLOG)
+			return 0;
+		dti->dti_fid.f_seq = FID_SEQ_LLOG;
+		dti->dti_fid.f_oid = 1;
+		dti->dti_fid.f_ver = 0;
+		o = ls_locate(env, ls, &dti->dti_fid);
+		if (IS_ERR(o))
+			return PTR_ERR(o);
+
+		if (!dt_object_exists(o)) {
+			lu_object_put_nocache(env, &o->do_lu);
+			return 0;
+		}
+		CDEBUG(D_INFO, "Found old llog lastid file\n");
+	} else if (rc < 0) {
+		return rc;
+	} else {
+		CDEBUG(D_INFO, "Found old lastid file for sequence "LPX64"\n",
+		       lastid_seq);
+		o = ls_locate(env, ls, &dti->dti_fid);
+		if (IS_ERR(o))
+			return PTR_ERR(o);
+	}
+	/* let's read seq-NNNNNN-lastid file value */
+	LASSERT(dt_object_exists(o));
+	dti->dti_off = 0;
+	dti->dti_lb.lb_buf = &losd;
+	dti->dti_lb.lb_len = sizeof(losd);
+	dt_read_lock(env, o, 0);
+	rc = dt_record_read(env, o, &dti->dti_lb, &dti->dti_off);
+	dt_read_unlock(env, o);
+	lu_object_put_nocache(env, &o->do_lu);
+	if (rc == 0 && le32_to_cpu(losd.lso_magic) != LOS_MAGIC) {
+		CERROR("%s: wrong content of seq-"LPX64"-lastid file, magic %x\n",
+		       o->do_lu.lo_dev->ld_obd->obd_name, lastid_seq,
+		       le32_to_cpu(losd.lso_magic));
+		return -EINVAL;
+	} else if (rc < 0) {
+		CERROR("%s: failed to read seq-"LPX64"-lastid: rc = %d\n",
+		       o->do_lu.lo_dev->ld_obd->obd_name, lastid_seq, rc);
+		return rc;
+	}
+	*first_oid = le32_to_cpu(losd.lso_next_oid);
+	return rc;
+}
+
 /**
  * Initialize local OID storage for required sequence.
  * That may be needed for services that uses local files and requires
@@ -683,11 +755,11 @@ int local_oid_storage_init(const struct lu_env *env, struct dt_device *dev,
 {
 	struct dt_thread_info	*dti = dt_info(env);
 	struct ls_device	*ls;
-	struct los_ondisk	 losd;
-	struct dt_object	*root = NULL;
+	obd_id			 lastid;
 	struct dt_object	*o = NULL;
 	struct thandle		*th;
-	int			 rc;
+	__u32			 first_oid = fid_oid(first_fid);
+	int			 rc = 0;
 
 	ENTRY;
 
@@ -711,30 +783,21 @@ int local_oid_storage_init(const struct lu_env *env, struct dt_device *dev,
 	atomic_inc(&ls->ls_refcount);
 	list_add(&(*los)->los_list, &ls->ls_los_list);
 
-	rc = dt_root_get(env, dev, &dti->dti_fid);
-	if (rc)
-		GOTO(out_los, rc);
-
-	root = ls_locate(env, ls, &dti->dti_fid);
-	if (IS_ERR(root))
-		GOTO(out_los, rc = PTR_ERR(root));
-
-	/* initialize data allowing to generate new fids,
-	 * literally we need a sequence */
-	snprintf(dti->dti_buf, sizeof(dti->dti_buf), "seq-%Lx-lastid",
-		 fid_seq(first_fid));
-	rc = dt_lookup_dir(env, root, dti->dti_buf, &dti->dti_fid);
-	if (rc == -ENOENT)
-		dti->dti_fid = *first_fid;
-	else if (rc < 0)
-		GOTO(out_los, rc);
-
+	/* Use {seq, 0, 0} to create the LAST_ID file for every
+	 * sequence.  OIDs start at LUSTRE_FID_INIT_OID.
+	 */
+	dti->dti_fid.f_seq = fid_seq(first_fid);
+	dti->dti_fid.f_oid = LUSTRE_FID_LASTID_OID;
+	dti->dti_fid.f_ver = 0;
 	o = ls_locate(env, ls, &dti->dti_fid);
 	if (IS_ERR(o))
 		GOTO(out_los, rc = PTR_ERR(o));
-	LASSERT(fid_seq(&dti->dti_fid) == fid_seq(first_fid));
+
 	if (!dt_object_exists(o)) {
-		LASSERT(rc == -ENOENT);
+		rc = lastid_compat_check(env, dev, fid_seq(first_fid),
+					 &first_oid, ls);
+		if (rc < 0)
+			GOTO(out_los, rc);
 
 		th = dt_trans_create(env, dev);
 		if (IS_ERR(th))
@@ -749,14 +812,7 @@ int local_oid_storage_init(const struct lu_env *env, struct dt_device *dev,
 		if (rc)
 			GOTO(out_trans, rc);
 
-		rc = dt_declare_insert(env, root,
-				       (const struct dt_rec *)&dti->dti_fid,
-				       (const struct dt_key *)dti->dti_buf,
-				       th);
-		if (rc)
-			GOTO(out_trans, rc);
-
-		rc = dt_declare_record_write(env, o, sizeof(losd), 0, th);
+		rc = dt_declare_record_write(env, o, sizeof(lastid), 0, th);
 		if (rc)
 			GOTO(out_trans, rc);
 
@@ -764,7 +820,6 @@ int local_oid_storage_init(const struct lu_env *env, struct dt_device *dev,
 		if (rc)
 			GOTO(out_trans, rc);
 
-		dt_write_lock(env, root, 0);
 		dt_write_lock(env, o, 0);
 		if (dt_object_exists(o))
 			GOTO(out_lock, rc = 0);
@@ -774,43 +829,33 @@ int local_oid_storage_init(const struct lu_env *env, struct dt_device *dev,
 		if (rc)
 			GOTO(out_lock, rc);
 
-		losd.lso_magic = cpu_to_le32(LOS_MAGIC);
-		losd.lso_next_oid = cpu_to_le32(fid_oid(first_fid) + 1);
+		lastid = cpu_to_le64(first_oid);
 
 		dti->dti_off = 0;
-		dti->dti_lb.lb_buf = &losd;
-		dti->dti_lb.lb_len = sizeof(losd);
+		dti->dti_lb.lb_buf = &lastid;
+		dti->dti_lb.lb_len = sizeof(lastid);
 		rc = dt_record_write(env, o, &dti->dti_lb, &dti->dti_off, th);
-		if (rc)
-			GOTO(out_lock, rc);
-		rc = dt_insert(env, root,
-			       (const struct dt_rec *)&dti->dti_fid,
-			       (const struct dt_key *)dti->dti_buf,
-			       th, BYPASS_CAPA, 1);
 		if (rc)
 			GOTO(out_lock, rc);
 out_lock:
 		dt_write_unlock(env, o);
-		dt_write_unlock(env, root);
 out_trans:
 		dt_trans_stop(env, dev, th);
 	} else {
 		dti->dti_off = 0;
-		dti->dti_lb.lb_buf = &losd;
-		dti->dti_lb.lb_len = sizeof(losd);
+		dti->dti_lb.lb_buf = &lastid;
+		dti->dti_lb.lb_len = sizeof(lastid);
 		dt_read_lock(env, o, 0);
 		rc = dt_record_read(env, o, &dti->dti_lb, &dti->dti_off);
 		dt_read_unlock(env, o);
-		if (rc == 0 && le32_to_cpu(losd.lso_magic) != LOS_MAGIC) {
-			CERROR("local storage file "DFID" is corrupted\n",
-			       PFID(first_fid));
+		if (rc == 0 && le64_to_cpu(lastid) > OBIF_MAX_OID) {
+			CERROR("%s: bad oid "LPU64" is read from LAST_ID\n",
+			       o->do_lu.lo_dev->ld_obd->obd_name,
+			       le64_to_cpu(lastid));
 			rc = -EINVAL;
 		}
 	}
 out_los:
-	if (root != NULL && !IS_ERR(root))
-		lu_object_put_nocache(env, &root->do_lu);
-
 	if (rc != 0) {
 		list_del(&(*los)->los_list);
 		atomic_dec(&ls->ls_refcount);
@@ -820,8 +865,11 @@ out_los:
 			lu_object_put_nocache(env, &o->do_lu);
 	} else {
 		(*los)->los_seq = fid_seq(first_fid);
-		(*los)->los_last_oid = le32_to_cpu(losd.lso_next_oid);
+		(*los)->los_last_oid = le64_to_cpu(lastid);
 		(*los)->los_obj = o;
+		/* read value should not be less than initial one */
+		LASSERTF((*los)->los_last_oid >= first_oid, "%u < %u\n",
+			 (*los)->los_last_oid, first_oid);
 	}
 out:
 	mutex_unlock(&ls->ls_los_mutex);
