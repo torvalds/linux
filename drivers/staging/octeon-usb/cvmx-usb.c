@@ -89,8 +89,7 @@
 #define cvmx_read_csr use_cvmx_usb_read_csr64_instead_of_cvmx_read_csr
 #define cvmx_write_csr use_cvmx_usb_write_csr64_instead_of_cvmx_write_csr
 
-typedef enum
-{
+typedef enum {
     __CVMX_USB_TRANSACTION_FLAGS_IN_USE = 1<<16,
 } cvmx_usb_transaction_flags_t;
 
@@ -109,8 +108,7 @@ enum {
  * the NAK handler can backup to the previous low level
  * transaction with a simple clearing of bit 0.
  */
-typedef enum
-{
+typedef enum {
     CVMX_USB_STAGE_NON_CONTROL,
     CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE,
     CVMX_USB_STAGE_SETUP,
@@ -126,8 +124,7 @@ typedef enum
  * regardless of type. These are linked together to form a list
  * of pending requests for a pipe.
  */
-typedef struct cvmx_usb_transaction
-{
+typedef struct cvmx_usb_transaction {
     struct cvmx_usb_transaction *prev;  /**< Transaction before this one in the pipe */
     struct cvmx_usb_transaction *next;  /**< Transaction after this one in the pipe */
     cvmx_usb_transfer_t type;           /**< Type of transaction, duplicated of the pipe */
@@ -151,8 +148,7 @@ typedef struct cvmx_usb_transaction
  * A pipe represents a virtual connection between Octeon and some
  * USB device. It contains a list of pending request to the device.
  */
-typedef struct cvmx_usb_pipe
-{
+typedef struct cvmx_usb_pipe {
     struct cvmx_usb_pipe *prev;         /**< Pipe before this one in the list */
     struct cvmx_usb_pipe *next;         /**< Pipe after this one in the list */
     cvmx_usb_transaction_t *head;       /**< The first pending transaction */
@@ -174,16 +170,13 @@ typedef struct cvmx_usb_pipe
     int8_t  split_sc_frame;             /**< The low order bits of the frame number the split complete should be sent on */
 } cvmx_usb_pipe_t;
 
-typedef struct
-{
+typedef struct {
     cvmx_usb_pipe_t *head;              /**< Head of the list, or NULL if empty */
     cvmx_usb_pipe_t *tail;              /**< Tail if the list, or NULL if empty */
 } cvmx_usb_pipe_list_t;
 
-typedef struct
-{
-    struct
-    {
+typedef struct {
+    struct {
         int channel;
         int size;
         uint64_t address;
@@ -195,8 +188,7 @@ typedef struct
 /**
  * The state of the USB block is stored in this structure
  */
-typedef struct
-{
+typedef struct {
     int init_flags;                     /**< Flags passed to initialize */
     int index;                          /**< Which USB block this is for */
     int idle_hardware_channels;         /**< Bit set for every idle hardware channel */
