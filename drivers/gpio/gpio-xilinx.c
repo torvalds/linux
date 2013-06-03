@@ -94,9 +94,9 @@ static void xgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 
 	/* Write to GPIO signal and set its direction to output */
 	if (val)
-		chip->gpio_state |= 1 << gpio;
+		chip->gpio_state |= BIT(gpio);
 	else
-		chip->gpio_state &= ~(1 << gpio);
+		chip->gpio_state &= ~BIT(gpio);
 
 	xgpio_writereg(regs + chip->offset + XGPIO_DATA_OFFSET,
 							 chip->gpio_state);
@@ -124,7 +124,7 @@ static int xgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 	spin_lock_irqsave(&chip->gpio_lock, flags);
 
 	/* Set the GPIO bit in shadow register and set direction as input */
-	chip->gpio_dir |= (1 << gpio);
+	chip->gpio_dir |= BIT(gpio);
 	xgpio_writereg(regs + chip->offset + XGPIO_TRI_OFFSET, chip->gpio_dir);
 
 	spin_unlock_irqrestore(&chip->gpio_lock, flags);
@@ -154,14 +154,14 @@ static int xgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 	/* Write state of GPIO signal */
 	if (val)
-		chip->gpio_state |= 1 << gpio;
+		chip->gpio_state |= BIT(gpio);
 	else
-		chip->gpio_state &= ~(1 << gpio);
+		chip->gpio_state &= ~BIT(gpio);
 	xgpio_writereg(regs + chip->offset + XGPIO_DATA_OFFSET,
 		       chip->gpio_state);
 
 	/* Clear the GPIO bit in shadow register and set direction as output */
-	chip->gpio_dir &= (~(1 << gpio));
+	chip->gpio_dir &= ~BIT(gpio);
 	xgpio_writereg(regs + chip->offset + XGPIO_TRI_OFFSET, chip->gpio_dir);
 
 	spin_unlock_irqrestore(&chip->gpio_lock, flags);
