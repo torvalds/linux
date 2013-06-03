@@ -161,8 +161,8 @@ do {									    \
 do {									    \
 	LIBCFS_ALLOC_PRE((size), (mask));				    \
 	(ptr) = (size) <= LIBCFS_VMALLOC_SIZE ?				    \
-		cfs_cpt_malloc((cptab), (cpt), (size), (mask)) :	    \
-		cfs_cpt_vmalloc((cptab), (cpt), (size));		    \
+		kmalloc_node((size), (mask), cfs_cpt_spread_node(cptab, cpt)) :\
+		vmalloc_node(size, cfs_cpt_spread_node(cptab, cpt));	    \
 	LIBCFS_ALLOC_POST((ptr), (size));				    \
 } while (0)
 

@@ -592,7 +592,7 @@ static inline void obd_pages_sub(int order)
 do {									      \
 	(ptr) = (cptab) == NULL ?					      \
 		kmalloc(size, flags) :				      \
-		cfs_cpt_malloc(cptab, cpt, size, flags);		      \
+		kmalloc_node(size, flags, cfs_cpt_spread_node(cptab, cpt));   \
 	if (unlikely((ptr) == NULL)) {					\
 		CERROR("kmalloc of '" #ptr "' (%d bytes) failed at %s:%d\n",  \
 		       (int)(size), __FILE__, __LINE__);		      \
@@ -614,14 +614,14 @@ do {									      \
 #define __OBD_MALLOC_VERBOSE(ptr, cptab, cpt, size, flags)		      \
 do {									      \
 	(ptr) = (cptab) == NULL ?					      \
-		kmalloc(size, flags) :				      \
-		cfs_cpt_malloc(cptab, cpt, size, flags);		      \
+		kmalloc(size, flags | __GFP_ZERO) :			      \
+		kmalloc_node(size, flags | __GFP_ZERO,			      \
+			     cfs_cpt_spread_node(cptab, cpt));		      \
 	if (likely((ptr) != NULL &&					   \
 		   (!HAS_FAIL_ALLOC_FLAG || obd_alloc_fail_rate == 0 ||       \
 		    !obd_alloc_fail(ptr, #ptr, "km", size,		    \
 				    __FILE__, __LINE__) ||		    \
 		    OBD_FREE_RTN0(ptr)))){				    \
-		memset(ptr, 0, size);					 \
 		OBD_ALLOC_POST(ptr, size, "kmalloced");		       \
 	}								     \
 } while (0)
@@ -647,15 +647,14 @@ do {									      \
 # define __OBD_VMALLOC_VEROBSE(ptr, cptab, cpt, size)			      \
 do {									      \
 	(ptr) = cptab == NULL ?						      \
-		vmalloc(size) :					      \
-		cfs_cpt_vmalloc(cptab, cpt, size);			      \
+		vzalloc(size) :						      \
+		vzalloc_node(size, cfs_cpt_spread_node(cptab, cpt));	      \
 	if (unlikely((ptr) == NULL)) {					\
 		CERROR("vmalloc of '" #ptr "' (%d bytes) failed\n",	   \
 		       (int)(size));					  \
 		CERROR(LPU64" total bytes allocated by Lustre, %d by LNET\n", \
 		       obd_memory_sum(), atomic_read(&libcfs_kmemory));   \
 	} else {							      \
-		memset(ptr, 0, size);					 \
 		OBD_ALLOC_POST(ptr, size, "vmalloced");		       \
 	}								     \
 } while(0)
@@ -756,14 +755,14 @@ do {									      \
 do {									      \
 	LASSERT(ergo((type) != GFP_ATOMIC, !in_interrupt()));	      \
 	(ptr) = (cptab) == NULL ?					      \
-		kmem_cache_alloc(slab, type) :			      \
-		cfs_mem_cache_cpt_alloc(slab, cptab, cpt, type);	      \
+		kmem_cache_alloc(slab, type | __GFP_ZERO) :		\
+		kmem_cache_alloc_node(slab, type | __GFP_ZERO,		\
+				      cfs_cpt_spread_node(cptab, cpt));	\
 	if (likely((ptr) != NULL &&					   \
 		   (!HAS_FAIL_ALLOC_FLAG || obd_alloc_fail_rate == 0 ||       \
 		    !obd_alloc_fail(ptr, #ptr, "slab-", size,		 \
 				    __FILE__, __LINE__) ||		    \
 		    OBD_SLAB_FREE_RTN0(ptr, slab)))) {			\
-		memset(ptr, 0, size);					 \
 		OBD_ALLOC_POST(ptr, size, "slab-alloced");		    \
 	}								     \
 } while(0)
@@ -811,7 +810,7 @@ do {									  \
 do {									      \
 	(ptr) = (cptab) == NULL ?					      \
 		alloc_page(gfp_mask) :				      \
-		cfs_page_cpt_alloc(cptab, cpt, gfp_mask);		      \
+		alloc_pages_node(cfs_cpt_spread_node(cptab, cpt), gfp_mask, 0);\
 	if (unlikely((ptr) == NULL)) {					\
 		CERROR("alloc_pages of '" #ptr "' %d page(s) / "LPU64" bytes "\
 		       "failed\n", (int)1,				    \

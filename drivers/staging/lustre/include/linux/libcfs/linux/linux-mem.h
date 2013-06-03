@@ -79,25 +79,6 @@
 	do { __oldfs = get_fs(); set_fs(get_ds());} while(0)
 #define MMSPACE_CLOSE	       set_fs(__oldfs)
 
-
-/*
- * NUMA allocators
- *
- * NB: we will rename these functions in a separate patch:
- * - rename kmalloc to cfs_malloc
- * - rename kmalloc/free_page to cfs_page_alloc/free
- * - rename kmalloc/free_large to cfs_vmalloc/vfree
- */
-extern void *cfs_cpt_malloc(struct cfs_cpt_table *cptab, int cpt,
-			    size_t nr_bytes, unsigned int flags);
-extern void *cfs_cpt_vmalloc(struct cfs_cpt_table *cptab, int cpt,
-			     size_t nr_bytes);
-extern struct page *cfs_page_cpt_alloc(struct cfs_cpt_table *cptab,
-				      int cpt, unsigned int flags);
-extern void *cfs_mem_cache_cpt_alloc(struct kmem_cache *cachep,
-				     struct cfs_cpt_table *cptab,
-				     int cpt, unsigned int flags);
-
 /*
  * Shrinker
  */
