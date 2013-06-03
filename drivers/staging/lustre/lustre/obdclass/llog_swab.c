@@ -78,12 +78,19 @@ void lustre_swab_ost_id(struct ost_id *oid)
 }
 EXPORT_SYMBOL(lustre_swab_ost_id);
 
+void lustre_swab_llog_id(struct llog_logid *log_id)
+{
+	__swab64s(&log_id->lgl_oi.oi.oi_id);
+	__swab64s(&log_id->lgl_oi.oi.oi_seq);
+        __swab32s(&log_id->lgl_ogen);
+}
+EXPORT_SYMBOL(lustre_swab_llog_id);
+
 void lustre_swab_llogd_body (struct llogd_body *d)
 {
 	ENTRY;
 	print_llogd_body(d);
-	lustre_swab_ost_id(&d->lgd_logid.lgl_oi);
-	__swab32s (&d->lgd_logid.lgl_ogen);
+	lustre_swab_llog_id(&d->lgd_logid);
 	__swab32s (&d->lgd_ctxt_idx);
 	__swab32s (&d->lgd_llh_flags);
 	__swab32s (&d->lgd_index);
@@ -99,8 +106,7 @@ void lustre_swab_llogd_conn_body (struct llogd_conn_body *d)
 {
 	__swab64s (&d->lgdc_gen.mnt_cnt);
 	__swab64s (&d->lgdc_gen.conn_cnt);
-	lustre_swab_ost_id(&d->lgdc_logid.lgl_oi);
-	__swab32s (&d->lgdc_logid.lgl_ogen);
+	lustre_swab_llog_id(&d->lgdc_logid);
 	__swab32s (&d->lgdc_ctxt_idx);
 }
 EXPORT_SYMBOL(lustre_swab_llogd_conn_body);
@@ -230,8 +236,7 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 	{
 		struct llog_logid_rec *lid = (struct llog_logid_rec *)rec;
 
-		lustre_swab_ost_id(&lid->lid_id.lgl_oi);
-		__swab32s(&lid->lid_id.lgl_ogen);
+		lustre_swab_llog_id(&lid->lid_id);
 		tail = &lid->lid_tail;
 		break;
 	}

@@ -3268,6 +3268,7 @@ extern void lustre_swab_llogd_body (struct llogd_body *d);
 extern void lustre_swab_llog_hdr (struct llog_log_hdr *h);
 extern void lustre_swab_llogd_conn_body (struct llogd_conn_body *d);
 extern void lustre_swab_llog_rec(struct llog_rec_hdr *rec);
+extern void lustre_swab_llog_id(struct llog_logid *lid);
 
 struct lustre_cfg;
 extern void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg);
