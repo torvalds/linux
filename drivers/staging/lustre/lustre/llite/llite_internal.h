@@ -1525,13 +1525,14 @@ static inline void __d_lustre_invalidate(struct dentry *dentry)
  * ll_md_blocking_ast), unhash this dentry, and let dcache to reclaim it later;
  * else dput() of the last refcount will unhash this dentry and kill it.
  */
-static inline void d_lustre_invalidate(struct dentry *dentry)
+static inline void d_lustre_invalidate(struct dentry *dentry, int nested)
 {
 	CDEBUG(D_DENTRY, "invalidate dentry %.*s (%p) parent %p inode %p "
 	       "refc %d\n", dentry->d_name.len, dentry->d_name.name, dentry,
 	       dentry->d_parent, dentry->d_inode, d_refcount(dentry));
 
-	spin_lock(&dentry->d_lock);
+	spin_lock_nested(&dentry->d_lock,
+			 nested ? DENTRY_D_LOCK_NESTED : DENTRY_D_LOCK_NORMAL);
 	__d_lustre_invalidate(dentry);
 	if (d_refcount(dentry) == 0)
 		__d_drop(dentry);

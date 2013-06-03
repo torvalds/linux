@@ -303,7 +303,7 @@ void ll_invalidate_aliases(struct inode *inode)
 			libcfs_debug_dumpstack(NULL);
 		}
 
-		d_lustre_invalidate(dentry);
+		d_lustre_invalidate(dentry, 0);
 	}
 	ll_unlock_dcache(inode);
 

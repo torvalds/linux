@@ -187,7 +187,7 @@ static void ll_invalidate_negative_children(struct inode *dir)
 						 &dentry->d_subdirs,
 						 d_u.d_child) {
 				if (child->d_inode == NULL)
-					d_lustre_invalidate(child);
+					d_lustre_invalidate(child, 1);
 			}
 		}
 		spin_unlock(&dentry->d_lock);
