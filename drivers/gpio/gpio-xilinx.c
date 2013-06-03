@@ -30,8 +30,13 @@
 #define XGPIO_CHANNEL_OFFSET	0x8
 
 /* Read/Write access to the GPIO registers */
-#define xgpio_readreg(offset)		in_be32(offset)
-#define xgpio_writereg(offset, val)	out_be32(offset, val)
+#ifdef CONFIG_ARCH_ZYNQ
+# define xgpio_readreg(offset)		readl(offset)
+# define xgpio_writereg(offset, val)	writel(val, offset)
+#else
+# define xgpio_readreg(offset)		__raw_readl(offset)
+# define xgpio_writereg(offset, val)	__raw_writel(val, offset)
+#endif
 
 /**
  * struct xgpio_instance - Stores information about GPIO device
