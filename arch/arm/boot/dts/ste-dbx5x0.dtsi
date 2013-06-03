@@ -603,6 +603,8 @@
 			v-i2c-supply = <&db8500_vape_reg>;
 
 			clock-frequency = <400000>;
+			clocks = <&prcc_kclk 3 3>, <&prcc_pclk 3 3>;
+			clock-names = "i2cclk", "apb_pclk";
 		};
 
 		i2c@80122000 {
@@ -615,6 +617,9 @@
 			v-i2c-supply = <&db8500_vape_reg>;
 
 			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 1 2>, <&prcc_pclk 1 2>;
+			clock-names = "i2cclk", "apb_pclk";
 		};
 
 		i2c@80128000 {
@@ -627,6 +632,9 @@
 			v-i2c-supply = <&db8500_vape_reg>;
 
 			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 1 6>, <&prcc_pclk 1 6>;
+			clock-names = "i2cclk", "apb_pclk";
 		};
 
 		i2c@80110000 {
@@ -639,6 +647,9 @@
 			v-i2c-supply = <&db8500_vape_reg>;
 
 			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 2 0>, <&prcc_pclk 2 0>;
+			clock-names = "i2cclk", "apb_pclk";
 		};
 
 		i2c@8012a000 {
@@ -651,6 +662,9 @@
 			v-i2c-supply = <&db8500_vape_reg>;
 
 			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 1 9>, <&prcc_pclk 1 9>;
+			clock-names = "i2cclk", "apb_pclk";
 		};
 
 		ssp@80002000 {
