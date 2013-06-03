@@ -183,6 +183,21 @@ static struct phy_driver at803x_driver[] = {
 	.driver		= {
 		.owner = THIS_MODULE,
 	},
+}, {
+	/* ATHEROS 8031 */
+	.phy_id		= 0x004dd074,
+	.name		= "Atheros 8031 ethernet",
+	.phy_id_mask	= 0xffffffef,
+	.config_init	= at803x_config_init,
+	.set_wol	= at803x_set_wol,
+	.get_wol	= at803x_get_wol,
+	.features	= PHY_GBIT_FEATURES,
+	.flags		= PHY_HAS_INTERRUPT,
+	.config_aneg	= &genphy_config_aneg,
+	.read_status	= &genphy_read_status,
+	.driver		= {
+		.owner = THIS_MODULE,
+	},
 } };
 
 static int __init atheros_init(void)
