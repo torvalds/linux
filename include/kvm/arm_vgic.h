@@ -68,6 +68,24 @@ struct vgic_bytemap {
 	u32 shared[VGIC_NR_SHARED_IRQS  / 4];
 };
 
+struct kvm_vcpu;
+
+#define LR_STATE_PENDING	(1 << 0)
+#define LR_STATE_ACTIVE		(1 << 1)
+#define LR_STATE_MASK		(3 << 0)
+#define LR_EOI_INT		(1 << 2)
+
+struct vgic_lr {
+	u16	irq;
+	u8	source;
+	u8	state;
+};
+
+struct vgic_ops {
+	struct vgic_lr	(*get_lr)(const struct kvm_vcpu *, int);
+	void	(*set_lr)(struct kvm_vcpu *, int, struct vgic_lr);
+};
+
 struct vgic_dist {
 #ifdef CONFIG_KVM_ARM_VGIC
 	spinlock_t		lock;
