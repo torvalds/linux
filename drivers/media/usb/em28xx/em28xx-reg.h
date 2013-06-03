@@ -68,7 +68,8 @@
 
 
 #define EM28XX_R0A_CHIPID	0x0a
-#define EM28XX_R0C_USBSUSP	0x0c	/* */
+#define EM28XX_R0C_USBSUSP	0x0c
+#define   EM28XX_R0C_USBSUSP_SNAPSHOT	0x20 /* 1=button pressed, needs reset */
 
 #define EM28XX_R0E_AUDIOSRC	0x0e
 #define EM28XX_R0F_XCLK	0x0f
