@@ -484,7 +484,9 @@ static int via_suspend(struct hda_codec *codec)
 		/* Fix pop noise on headphones */
 		int i;
 		for (i = 0; i < spec->gen.autocfg.hp_outs; i++)
-			snd_hda_set_pin_ctl(codec, spec->gen.autocfg.hp_pins[i], 0);
+			snd_hda_codec_write(codec, spec->gen.autocfg.hp_pins[i],
+					    0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    0x00);
 	}
 
 	return 0;
