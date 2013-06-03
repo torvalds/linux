@@ -750,6 +750,10 @@ static void netlink_skb_destructor(struct sk_buff *skb)
 		skb->head = NULL;
 	}
 #endif
+	if (is_vmalloc_addr(skb->head)) {
+		vfree(skb->head);
+		skb->head = NULL;
+	}
 	if (skb->sk != NULL)
 		sock_rfree(skb);
 }
@@ -1420,6 +1424,35 @@ struct sock *netlink_getsockbyfilp(struct file *filp)
 	return sock;
 }
 
+static struct sk_buff *netlink_alloc_large_skb(unsigned int size)
+{
+	struct sk_buff *skb;
+	void *data;
+
+	if (size <= NLMSG_GOODSIZE)
+		return alloc_skb(size, GFP_KERNEL);
+
+	skb = alloc_skb_head(GFP_KERNEL);
+	if (skb == NULL)
+		return NULL;
+
+	data = vmalloc(size);
+	if (data == NULL)
+		goto err;
+
+	skb->head	= data;
+	skb->data	= data;
+	skb_reset_tail_pointer(skb);
+	skb->end	= skb->tail + size;
+	skb->len	= 0;
+	skb->destructor = netlink_skb_destructor;
+
+	return skb;
+err:
+	kfree_skb(skb);
+	return NULL;
+}
+
 /*
  * Attach a skb to a netlink socket.
  * The caller must hold a reference to the destination socket. On error, the
@@ -1510,7 +1543,7 @@ static struct sk_buff *netlink_trim(struct sk_buff *skb, gfp_t allocation)
 		return skb;
 
 	delta = skb->end - skb->tail;
-	if (delta * 2 < skb->truesize)
+	if (is_vmalloc_addr(skb->head) || delta * 2 < skb->truesize)
 		return skb;
 
 	if (skb_shared(skb)) {
@@ -2096,7 +2129,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (len > sk->sk_sndbuf - 32)
 		goto out;
 	err = -ENOBUFS;
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = netlink_alloc_large_skb(len);
 	if (skb == NULL)
 		goto out;
 
