@@ -234,7 +234,7 @@ config GPIO_TS5500
 
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
-	depends on PPC_OF || MICROBLAZE
+	depends on PPC_OF || MICROBLAZE || ARCH_ZYNQ
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
