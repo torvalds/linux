@@ -974,6 +974,7 @@ static int exynos4_busfreq_pm_notifier_event(struct notifier_block *this,
 			rcu_read_unlock();
 			dev_err(data->dev, "%s: unable to find a min freq\n",
 				__func__);
+			mutex_unlock(&data->lock);
 			return PTR_ERR(opp);
 		}
 		new_oppinfo.rate = opp_get_freq(opp);
