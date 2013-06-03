@@ -2426,6 +2426,16 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 #endif
 };
 
+#ifdef CONFIG_PM
+static const struct wiphy_wowlan_support mwifiex_wowlan_support = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT,
+	.n_patterns = MWIFIEX_MAX_FILTERS,
+	.pattern_min_len = 1,
+	.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN,
+	.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN,
+};
+#endif
+
 /*
  * This function registers the device with CFG802.11 subsystem.
  *
@@ -2483,11 +2493,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy_apply_custom_regulatory(wiphy, &mwifiex_world_regdom_custom);
 
 #ifdef CONFIG_PM
-	wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT;
-	wiphy->wowlan.n_patterns = MWIFIEX_MAX_FILTERS;
-	wiphy->wowlan.pattern_min_len = 1;
-	wiphy->wowlan.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN;
-	wiphy->wowlan.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN;
+	wiphy->wowlan = &mwifiex_wowlan_support;
 #endif
 
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |

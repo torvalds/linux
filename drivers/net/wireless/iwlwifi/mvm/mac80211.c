@@ -222,20 +222,20 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	    mvm->trans->ops->d3_suspend &&
 	    mvm->trans->ops->d3_resume &&
 	    device_can_wakeup(mvm->trans->dev)) {
-		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
-					  WIPHY_WOWLAN_DISCONNECT |
-					  WIPHY_WOWLAN_EAP_IDENTITY_REQ |
-					  WIPHY_WOWLAN_RFKILL_RELEASE;
+		mvm->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
+				    WIPHY_WOWLAN_DISCONNECT |
+				    WIPHY_WOWLAN_EAP_IDENTITY_REQ |
+				    WIPHY_WOWLAN_RFKILL_RELEASE;
 		if (!iwlwifi_mod_params.sw_crypto)
-			hw->wiphy->wowlan.flags |=
-				WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
-				WIPHY_WOWLAN_GTK_REKEY_FAILURE |
-				WIPHY_WOWLAN_4WAY_HANDSHAKE;
+			mvm->wowlan.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
+					     WIPHY_WOWLAN_GTK_REKEY_FAILURE |
+					     WIPHY_WOWLAN_4WAY_HANDSHAKE;
 
-		hw->wiphy->wowlan.n_patterns = IWL_WOWLAN_MAX_PATTERNS;
-		hw->wiphy->wowlan.pattern_min_len = IWL_WOWLAN_MIN_PATTERN_LEN;
-		hw->wiphy->wowlan.pattern_max_len = IWL_WOWLAN_MAX_PATTERN_LEN;
-		hw->wiphy->wowlan.tcp = &iwl_mvm_wowlan_tcp_support;
+		mvm->wowlan.n_patterns = IWL_WOWLAN_MAX_PATTERNS;
+		mvm->wowlan.pattern_min_len = IWL_WOWLAN_MIN_PATTERN_LEN;
+		mvm->wowlan.pattern_max_len = IWL_WOWLAN_MAX_PATTERN_LEN;
+		mvm->wowlan.tcp = &iwl_mvm_wowlan_tcp_support;
+		hw->wiphy->wowlan = &mvm->wowlan;
 	}
 #endif
 
