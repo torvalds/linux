@@ -414,7 +414,7 @@ libcfs_nid2str(lnet_nid_t nid)
 static struct netstrfns *
 libcfs_str2net_internal(const char *str, __u32 *net)
 {
-	struct netstrfns *nf;
+	struct netstrfns *uninitialized_var(nf);
 	int	       nob;
 	int	       netnum;
 	int	       i;
