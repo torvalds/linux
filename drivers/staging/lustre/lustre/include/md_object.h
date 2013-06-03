@@ -859,44 +859,6 @@ struct lu_local_obj_desc {
 	struct list_head		       llod_linkage;
 };
 
-struct md_object *llo_store_resolve(const struct lu_env *env,
-				    struct md_device *md,
-				    struct dt_device *dt,
-				    const char *path,
-				    struct lu_fid *fid);
-
-struct md_object *llo_store_open(const struct lu_env *env,
-				 struct md_device *md,
-				 struct dt_device *dt,
-				 const char *dirname,
-				 const char *objname,
-				 struct lu_fid *fid);
-
-struct md_object *llo_store_create_index(const struct lu_env *env,
-					 struct md_device *md,
-					 struct dt_device *dt,
-					 const char *dirname,
-					 const char *objname,
-					 const struct lu_fid *fid,
-					 const struct dt_index_features *feat);
-
-struct md_object *llo_store_create(const struct lu_env *env,
-				   struct md_device *md,
-				   struct dt_device *dt,
-				   const char *dirname,
-				   const char *objname,
-				   const struct lu_fid *fid);
-
-void llo_local_obj_register(struct lu_local_obj_desc *);
-void llo_local_obj_unregister(struct lu_local_obj_desc *);
-
-int llo_local_objects_setup(const struct lu_env *env,
-			     struct md_device * md,
-			     struct dt_device * dt);
-
-int llo_global_init(void);
-void llo_global_fini(void);
-
 int lustre_buf2som(void *buf, int rc, struct md_som_data *msd);
 int lustre_buf2hsm(void *buf, int rc, struct md_hsm *mh);
 void lustre_hsm2buf(void *buf, struct md_hsm *mh);
