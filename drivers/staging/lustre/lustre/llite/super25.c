@@ -100,7 +100,7 @@ struct super_operations lustre_super_operations =
 	.remount_fs    = ll_remount_fs,
 	.show_options  = ll_show_options,
 };
-
+MODULE_ALIAS_FS("lustre");
 
 void lustre_register_client_process_config(int (*cpc)(struct lustre_cfg *lcfg));
 
