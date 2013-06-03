@@ -2582,12 +2582,14 @@ static void mv643xx_eth_shared_of_remove(void)
 	}
 }
 #else
-static int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
+static inline int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
 {
-	return 0
+	return 0;
 }
 
-#define mv643xx_eth_shared_of_remove()
+static inline void mv643xx_eth_shared_of_remove(void)
+{
+}
 #endif
 
 static int mv643xx_eth_shared_probe(struct platform_device *pdev)
