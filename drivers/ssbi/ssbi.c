@@ -268,35 +268,23 @@ static int ssbi_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *mem_res;
 	struct ssbi *ssbi;
-	int ret = 0;
 	const char *type;
 
-	ssbi = kzalloc(sizeof(struct ssbi), GFP_KERNEL);
-	if (!ssbi) {
-		pr_err("can not allocate ssbi_data\n");
+	ssbi = devm_kzalloc(&pdev->dev, sizeof(*ssbi), GFP_KERNEL);
+	if (!ssbi)
 		return -ENOMEM;
-	}
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		pr_err("missing mem resource\n");
-		ret = -EINVAL;
-		goto err_get_mem_res;
-	}
+	ssbi->base = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(ssbi->base))
+		return PTR_ERR(ssbi->base);
 
-	ssbi->base = ioremap(mem_res->start, resource_size(mem_res));
-	if (!ssbi->base) {
-		pr_err("ioremap of 0x%p failed\n", (void *)mem_res->start);
-		ret = -EINVAL;
-		goto err_ioremap;
-	}
 	platform_set_drvdata(pdev, ssbi);
 
 	type = of_get_property(np, "qcom,controller-type", NULL);
 	if (type == NULL) {
-		pr_err("Missing qcom,controller-type property\n");
-		ret = -EINVAL;
-		goto err_ssbi_controller;
+		dev_err(&pdev->dev, "Missing qcom,controller-type property\n");
+		return -EINVAL;
 	}
 	dev_info(&pdev->dev, "SSBI controller type: '%s'\n", type);
 	if (strcmp(type, "ssbi") == 0)
@@ -306,9 +294,8 @@ static int ssbi_probe(struct platform_device *pdev)
 	else if (strcmp(type, "pmic-arbiter") == 0)
 		ssbi->controller_type = MSM_SBI_CTRL_PMIC_ARBITER;
 	else {
-		pr_err("Unknown qcom,controller-type\n");
-		ret = -EINVAL;
-		goto err_ssbi_controller;
+		dev_err(&pdev->dev, "Unknown qcom,controller-type\n");
+		return -EINVAL;
 	}
 
 	if (ssbi->controller_type == MSM_SBI_CTRL_PMIC_ARBITER) {
@@ -321,29 +308,7 @@ static int ssbi_probe(struct platform_device *pdev)
 
 	spin_lock_init(&ssbi->lock);
 
-	ret = of_platform_populate(np, NULL, NULL, &pdev->dev);
-	if (ret)
-		goto err_ssbi_controller;
-
-	return 0;
-
-err_ssbi_controller:
-	platform_set_drvdata(pdev, NULL);
-	iounmap(ssbi->base);
-err_ioremap:
-err_get_mem_res:
-	kfree(ssbi);
-	return ret;
-}
-
-static int ssbi_remove(struct platform_device *pdev)
-{
-	struct ssbi *ssbi = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
-	iounmap(ssbi->base);
-	kfree(ssbi);
-	return 0;
+	return of_platform_populate(np, NULL, NULL, &pdev->dev);
 }
 
 static struct of_device_id ssbi_match_table[] = {
@@ -353,25 +318,13 @@ static struct of_device_id ssbi_match_table[] = {
 
 static struct platform_driver ssbi_driver = {
 	.probe		= ssbi_probe,
-	.remove		= ssbi_remove,
 	.driver		= {
 		.name	= "ssbi",
 		.owner	= THIS_MODULE,
 		.of_match_table = ssbi_match_table,
 	},
 };
-
-static int __init ssbi_init(void)
-{
-	return platform_driver_register(&ssbi_driver);
-}
-module_init(ssbi_init);
-
-static void __exit ssbi_exit(void)
-{
-	platform_driver_unregister(&ssbi_driver);
-}
-module_exit(ssbi_exit)
+module_platform_driver(ssbi_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("1.0");
