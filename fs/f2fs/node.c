@@ -433,7 +433,7 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 			}
 
 			dn->nid = nids[i];
-			npage[i] = new_node_page(dn, noffset[i]);
+			npage[i] = new_node_page(dn, noffset[i], NULL);
 			if (IS_ERR(npage[i])) {
 				alloc_nid_failed(sbi, nids[i]);
 				err = PTR_ERR(npage[i]);
@@ -814,10 +814,11 @@ struct page *new_inode_page(struct inode *inode, const struct qstr *name)
 	set_new_dnode(&dn, inode, NULL, NULL, inode->i_ino);
 
 	/* caller should f2fs_put_page(page, 1); */
-	return new_node_page(&dn, 0);
+	return new_node_page(&dn, 0, NULL);
 }
 
-struct page *new_node_page(struct dnode_of_data *dn, unsigned int ofs)
+struct page *new_node_page(struct dnode_of_data *dn,
+				unsigned int ofs, struct page *ipage)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(dn->inode->i_sb);
 	struct address_space *mapping = sbi->node_inode->i_mapping;
@@ -850,7 +851,10 @@ struct page *new_node_page(struct dnode_of_data *dn, unsigned int ofs)
 	set_cold_node(dn->inode, page);
 
 	dn->node_page = page;
-	sync_inode_page(dn);
+	if (ipage)
+		update_inode(dn->inode, ipage);
+	else
+		sync_inode_page(dn);
 	set_page_dirty(page);
 	if (ofs == 0)
 		inc_valid_inode_count(sbi);
