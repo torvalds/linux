@@ -549,6 +549,14 @@ config COMEDI_POC
 	  To compile this driver as a module, choose M here: the module will be
 	  called poc.
 
+config COMEDI_S526
+	tristate "Sensoray s526 support"
+	---help---
+	  Enable support for Sensoray s526
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called s526.
+
 endif # COMEDI_ISA_DRIVERS
 
 menuconfig COMEDI_PCI_DRIVERS
@@ -1075,14 +1083,6 @@ config COMEDI_RTD520
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called rtd520.
-
-config COMEDI_S526
-	tristate "Sensoray s526 support"
-	---help---
-	  Enable support for Sensoray s526
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called s526.
 
 config COMEDI_S626
 	tristate "Sensoray 626 support"

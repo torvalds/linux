@@ -55,6 +55,7 @@ obj-$(CONFIG_COMEDI_PCMMIO)		+= pcmmio.o
 obj-$(CONFIG_COMEDI_PCMUIO)		+= pcmuio.o
 obj-$(CONFIG_COMEDI_MULTIQ3)		+= multiq3.o
 obj-$(CONFIG_COMEDI_POC)		+= poc.o
+obj-$(CONFIG_COMEDI_S526)		+= s526.o
 
 # Comedi PCI drivers
 obj-$(CONFIG_COMEDI_8255_PCI)		+= 8255_pci.o
@@ -110,7 +111,6 @@ obj-$(CONFIG_COMEDI_NI_LABPC_PCI)	+= ni_labpc_pci.o
 obj-$(CONFIG_COMEDI_NI_PCIDIO)		+= ni_pcidio.o
 obj-$(CONFIG_COMEDI_NI_PCIMIO)		+= ni_pcimio.o
 obj-$(CONFIG_COMEDI_RTD520)		+= rtd520.o
-obj-$(CONFIG_COMEDI_S526)		+= s526.o
 obj-$(CONFIG_COMEDI_S626)		+= s626.o
 obj-$(CONFIG_COMEDI_SSV_DNP)		+= ssv_dnp.o
 
