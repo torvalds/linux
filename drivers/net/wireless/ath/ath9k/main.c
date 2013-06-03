@@ -2003,7 +2003,6 @@ static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_hw_capabilities *pcaps = &ah->caps;
 	int pattern_count = 0;
 	int i, byte_cnt;
 	u8 dis_deauth_pattern[MAX_PATTERN_SIZE];
@@ -2073,36 +2072,9 @@ static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 
 	/* Create Disassociate pattern mask */
 
-	if (pcaps->hw_caps & ATH9K_HW_WOW_PATTERN_MATCH_EXACT) {
-
-		if (pcaps->hw_caps & ATH9K_HW_WOW_PATTERN_MATCH_DWORD) {
-			/*
-			 * for AR9280, because of hardware limitation, the
-			 * first 4 bytes have to be matched for all patterns.
-			 * the mask for disassociation and de-auth pattern
-			 * matching need to enable the first 4 bytes.
-			 * also the duration field needs to be filled.
-			 */
-			dis_deauth_mask[0] = 0xf0;
-
-			/*
-			 * fill in duration field
-			 FIXME: what is the exact value ?
-			 */
-			dis_deauth_pattern[2] = 0xff;
-			dis_deauth_pattern[3] = 0xff;
-		} else {
-			dis_deauth_mask[0] = 0xfe;
-		}
-
-		dis_deauth_mask[1] = 0x03;
-		dis_deauth_mask[2] = 0xc0;
-	} else {
-		dis_deauth_mask[0] = 0xef;
-		dis_deauth_mask[1] = 0x3f;
-		dis_deauth_mask[2] = 0x00;
-		dis_deauth_mask[3] = 0xfc;
-	}
+	dis_deauth_mask[0] = 0xfe;
+	dis_deauth_mask[1] = 0x03;
+	dis_deauth_mask[2] = 0xc0;
 
 	ath_dbg(common, WOW, "Adding disassoc/deauth patterns for WoW\n");
 
