@@ -251,45 +251,6 @@ struct ath_stats {
 	u32 reset[__RESET_TYPE_MAX];
 };
 
-#define ATH_DBG_MAX_SAMPLES	10
-struct ath_dbg_bb_mac_samp {
-	u32 dma_dbg_reg_vals[ATH9K_NUM_DMA_DEBUG_REGS];
-	u32 pcu_obs, pcu_cr, noise;
-	struct {
-		u64 jiffies;
-		int8_t rssi_ctl0;
-		int8_t rssi_ctl1;
-		int8_t rssi_ctl2;
-		int8_t rssi_ext0;
-		int8_t rssi_ext1;
-		int8_t rssi_ext2;
-		int8_t rssi;
-		bool isok;
-		u8 rts_fail_cnt;
-		u8 data_fail_cnt;
-		u8 rateindex;
-		u8 qid;
-		u8 tid;
-		u32 ba_low;
-		u32 ba_high;
-	} ts[ATH_DBG_MAX_SAMPLES];
-	struct {
-		u64 jiffies;
-		int8_t rssi_ctl0;
-		int8_t rssi_ctl1;
-		int8_t rssi_ctl2;
-		int8_t rssi_ext0;
-		int8_t rssi_ext1;
-		int8_t rssi_ext2;
-		int8_t rssi;
-		bool is_mybeacon;
-		u8 antenna;
-		u8 rate;
-	} rs[ATH_DBG_MAX_SAMPLES];
-	struct ath_cycle_counters cc;
-	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
-};
-
 struct ath9k_debug {
 	struct dentry *debugfs_phy;
 	u32 regidx;
