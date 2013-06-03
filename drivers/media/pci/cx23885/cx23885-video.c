@@ -1254,8 +1254,7 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 	dprintk(1, "%s()\n", __func__);
 
-	call_all(dev, core, g_std, id);
-
+	*id = dev->tvnorm;
 	return 0;
 }
 
@@ -1743,7 +1742,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_dqbuf         = vidioc_dqbuf,
 	.vidioc_s_std         = vidioc_s_std,
 	.vidioc_g_std         = vidioc_g_std,
-	.vidioc_querystd      = vidioc_g_std,
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
 	.vidioc_s_input       = vidioc_s_input,
@@ -1773,7 +1771,6 @@ static struct video_device cx23885_video_template = {
 	.fops                 = &video_fops,
 	.ioctl_ops 	      = &video_ioctl_ops,
 	.tvnorms              = CX23885_NORMS,
-	.current_norm         = V4L2_STD_NTSC_M,
 };
 
 static const struct v4l2_file_operations radio_fops = {
@@ -1822,7 +1819,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	cx23885_vbi_template = cx23885_video_template;
 	strcpy(cx23885_vbi_template.name, "cx23885-vbi");
 
-	dev->tvnorm = cx23885_video_template.current_norm;
+	dev->tvnorm = V4L2_STD_NTSC_M;
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
