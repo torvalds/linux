@@ -824,6 +824,7 @@ config SOC_IMX6SL
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
+	select MFD_SYSCON
 	select PINCTRL
 	select PINCTRL_IMX6SL
 	select PL310_ERRATA_588369 if CACHE_PL310
