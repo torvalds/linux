@@ -91,9 +91,10 @@ static int af9035_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 	checksum = af9035_checksum(state->buf, rlen - 2);
 	tmp_checksum = (state->buf[rlen - 2] << 8) | state->buf[rlen - 1];
 	if (tmp_checksum != checksum) {
-		dev_err(&d->udev->dev, "%s: command=%02x checksum mismatch " \
-				"(%04x != %04x)\n", KBUILD_MODNAME, req->cmd,
-				tmp_checksum, checksum);
+		dev_err(&d->udev->dev,
+				"%s: command=%02x checksum mismatch (%04x != %04x)\n",
+				KBUILD_MODNAME, req->cmd, tmp_checksum,
+				checksum);
 		ret = -EIO;
 		goto exit;
 	}
@@ -400,9 +401,10 @@ static int af9035_download_firmware_old(struct dvb_usb_device *d,
 		hdr_checksum = fw->data[fw->size - i + 5] << 8;
 		hdr_checksum |= fw->data[fw->size - i + 6] << 0;
 
-		dev_dbg(&d->udev->dev, "%s: core=%d addr=%04x data_len=%d " \
-				"checksum=%04x\n", __func__, hdr_core, hdr_addr,
-				hdr_data_len, hdr_checksum);
+		dev_dbg(&d->udev->dev,
+				"%s: core=%d addr=%04x data_len=%d checksum=%04x\n",
+				__func__, hdr_core, hdr_addr, hdr_data_len,
+				hdr_checksum);
 
 		if (((hdr_core != 1) && (hdr_core != 2)) ||
 				(hdr_data_len > i)) {
@@ -507,7 +509,7 @@ static int af9035_download_firmware(struct dvb_usb_device *d,
 	u8 rbuf[4];
 	u8 tmp;
 	struct usb_req req = { 0, 0, 0, NULL, 0, NULL };
-	struct usb_req req_fw_ver = { CMD_FW_QUERYINFO, 0, 1, wbuf, 4, rbuf } ;
+	struct usb_req req_fw_ver = { CMD_FW_QUERYINFO, 0, 1, wbuf, 4, rbuf };
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
 	/*
@@ -1218,9 +1220,9 @@ static int af9035_init(struct dvb_usb_device *d)
 		{ 0x80f9a4, 0x00, 0x01 },
 	};
 
-	dev_dbg(&d->udev->dev, "%s: USB speed=%d frame_size=%04x " \
-			"packet_size=%02x\n", __func__,
-			d->udev->speed, frame_size, packet_size);
+	dev_dbg(&d->udev->dev,
+			"%s: USB speed=%d frame_size=%04x packet_size=%02x\n",
+			__func__, d->udev->speed, frame_size, packet_size);
 
 	/* init endpoints */
 	for (i = 0; i < ARRAY_SIZE(tab); i++) {
@@ -1495,7 +1497,7 @@ static const struct usb_device_id af9035_id_table[] = {
 		&af9035_props, "AVerMedia Twinstar (A825)", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_ASUS, USB_PID_ASUS_U3100MINI_PLUS,
 		&af9035_props, "Asus U3100Mini Plus", NULL) },
-        { DVB_USB_DEVICE(USB_VID_TERRATEC, 0x00aa,
+	{ DVB_USB_DEVICE(USB_VID_TERRATEC, 0x00aa,
 		&af9035_props, "TerraTec Cinergy T Stick (rev. 2)", NULL) },
 	/* IT9135 devices */
 #if 0
