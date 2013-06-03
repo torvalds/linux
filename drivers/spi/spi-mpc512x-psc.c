@@ -33,7 +33,6 @@
 
 struct mpc512x_psc_spi {
 	void (*cs_control)(struct spi_device *spi, bool on);
-	u32 sysclk;
 
 	/* driver internal data */
 	struct mpc52xx_psc __iomem *psc;
@@ -42,7 +41,6 @@ struct mpc512x_psc_spi {
 	u8 bits_per_word;
 	u8 busy;
 	u32 mclk;
-	u8 eofbyte;
 
 	struct workqueue_struct *workqueue;
 	struct work_struct work;
@@ -50,7 +48,7 @@ struct mpc512x_psc_spi {
 	struct list_head queue;
 	spinlock_t lock;	/* Message queue lock */
 
-	struct completion done;
+	struct completion txisrdone;
 };
 
 /* controller state */
@@ -138,7 +136,7 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 	struct mpc512x_psc_spi *mps = spi_master_get_devdata(spi->master);
 	struct mpc52xx_psc __iomem *psc = mps->psc;
 	struct mpc512x_psc_fifo __iomem *fifo = mps->fifo;
-	size_t len = t->len;
+	size_t tx_len = t->len;
 	u8 *tx_buf = (u8 *)t->tx_buf;
 	u8 *rx_buf = (u8 *)t->rx_buf;
 
@@ -152,58 +150,57 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 	/* enable transmiter/receiver */
 	out_8(&psc->command, MPC52xx_PSC_TX_ENABLE | MPC52xx_PSC_RX_ENABLE);
 
-	while (len) {
-		int count;
+	while (tx_len) {
+		size_t txcount;
 		int i;
 		u8 data;
 		size_t fifosz;
-		int rxcount;
+		size_t rxcount;
 
 		/*
 		 * The number of bytes that can be sent at a time
 		 * depends on the fifo size.
 		 */
 		fifosz = MPC512x_PSC_FIFO_SZ(in_be32(&fifo->txsz));
-		count = min(fifosz, len);
+		txcount = min(fifosz, tx_len);
 
-		for (i = count; i > 0; i--) {
+		for (i = txcount; i > 0; i--) {
 			data = tx_buf ? *tx_buf++ : 0;
-			if (len == EOFBYTE && t->cs_change)
+			if (tx_len == EOFBYTE && t->cs_change)
 				setbits32(&fifo->txcmd, MPC512x_PSC_FIFO_EOF);
 			out_8(&fifo->txdata_8, data);
-			len--;
+			tx_len--;
 		}
 
-		INIT_COMPLETION(mps->done);
+		INIT_COMPLETION(mps->txisrdone);
 
 		/* interrupt on tx fifo empty */
 		out_be32(&fifo->txisr, MPC512x_PSC_FIFO_EMPTY);
 		out_be32(&fifo->tximr, MPC512x_PSC_FIFO_EMPTY);
 
-		wait_for_completion(&mps->done);
+		wait_for_completion(&mps->txisrdone);
 
 		mdelay(1);
 
-		/* rx fifo should have count bytes in it */
+		/* rx fifo should have txcount bytes in it */
 		rxcount = in_be32(&fifo->rxcnt);
-		if (rxcount != count)
+		if (rxcount != txcount)
 			mdelay(1);
 
 		rxcount = in_be32(&fifo->rxcnt);
-		if (rxcount != count) {
+		if (rxcount != txcount) {
 			dev_warn(&spi->dev, "expected %d bytes in rx fifo "
-				 "but got %d\n", count, rxcount);
+				 "but got %d\n", txcount, rxcount);
 		}
 
-		rxcount = min(rxcount, count);
+		rxcount = min(rxcount, txcount);
 		for (i = rxcount; i > 0; i--) {
 			data = in_8(&fifo->rxdata_8);
 			if (rx_buf)
 				*rx_buf++ = data;
 		}
-		while (in_be32(&fifo->rxcnt)) {
+		while (in_be32(&fifo->rxcnt))
 			in_8(&fifo->rxdata_8);
-		}
 	}
 	/* disable transmiter/receiver and fifo interrupt */
 	out_8(&psc->command, MPC52xx_PSC_TX_DISABLE | MPC52xx_PSC_RX_DISABLE);
@@ -412,7 +409,7 @@ static irqreturn_t mpc512x_psc_spi_isr(int irq, void *dev_id)
 	    in_be32(&fifo->tximr) & MPC512x_PSC_FIFO_EMPTY) {
 		out_be32(&fifo->txisr, MPC512x_PSC_FIFO_EMPTY);
 		out_be32(&fifo->tximr, 0);
-		complete(&mps->done);
+		complete(&mps->txisrdone);
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -444,11 +441,9 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 
 	if (pdata == NULL) {
 		mps->cs_control = mpc512x_spi_cs_control;
-		mps->sysclk = 0;
 		master->bus_num = bus_num;
 	} else {
 		mps->cs_control = pdata->cs_control;
-		mps->sysclk = pdata->sysclk;
 		master->bus_num = pdata->bus_num;
 		master->num_chipselect = pdata->max_chipselect;
 	}
@@ -479,7 +474,7 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 		goto free_irq;
 
 	spin_lock_init(&mps->lock);
-	init_completion(&mps->done);
+	init_completion(&mps->txisrdone);
 	INIT_WORK(&mps->work, mpc512x_psc_spi_work);
 	INIT_LIST_HEAD(&mps->queue);
 
