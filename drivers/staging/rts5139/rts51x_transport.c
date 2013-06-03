@@ -635,10 +635,10 @@ int rts51x_get_epc_status(struct rts51x_chip *chip, u16 *status)
 	ep = chip->usb->pusb_dev->ep_in[usb_pipeendpoint(pipe)];
 
 	/* fill and submit the URB */
-	/* We set interval to 1 here, so the polling interval is controlled
-	 * by our polling thread */
+	/* Set interval to 10 here to match the endpoint descriptor,
+	 * the polling interval is controlled by the polling thread */
 	usb_fill_int_urb(chip->usb->intr_urb, chip->usb->pusb_dev, pipe,
-			 status, 2, urb_done_completion, &urb_done, 1);
+			 status, 2, urb_done_completion, &urb_done, 10);
 
 	result = rts51x_msg_common(chip, chip->usb->intr_urb, 100);
 
