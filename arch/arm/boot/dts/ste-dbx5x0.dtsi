@@ -240,6 +240,8 @@
 				    "iep_6_14", "oep_6_14",
 				    "iep_7_15", "oep_7_15",
 				    "iep_8",    "oep_8";
+
+			clocks = <&prcc_pclk 5 0>;
 		};
 
 		dma: dma-controller@801C0000 {
