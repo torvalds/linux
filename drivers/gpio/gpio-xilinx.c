@@ -170,24 +170,20 @@ static int xgpio_of_probe(struct device_node *np)
 		return -ENOMEM;
 
 	/* Update GPIO state shadow register with default value */
-	tree_info = of_get_property(np, "xlnx,dout-default", NULL);
-	if (tree_info)
-		chip->gpio_state = be32_to_cpup(tree_info);
+	of_property_read_u32(np, "xlnx,dout-default", &chip->gpio_state);
+
+	/* By default, all pins are inputs */
+	chip->gpio_dir = 0xFFFFFFFF;
 
 	/* Update GPIO direction shadow register with default value */
-	chip->gpio_dir = 0xFFFFFFFF; /* By default, all pins are inputs */
-	tree_info = of_get_property(np, "xlnx,tri-default", NULL);
-	if (tree_info)
-		chip->gpio_dir = be32_to_cpup(tree_info);
+	of_property_read_u32(np, "xlnx,tri-default", &chip->gpio_dir);
+
+	/* By default assume full GPIO controller */
+	chip->mmchip.gc.ngpio = 32;
 
 	/* Check device node and parent device node for device width */
-	chip->mmchip.gc.ngpio = 32; /* By default assume full GPIO controller */
-	tree_info = of_get_property(np, "xlnx,gpio-width", NULL);
-	if (!tree_info)
-		tree_info = of_get_property(np->parent,
-					    "xlnx,gpio-width", NULL);
-	if (tree_info)
-		chip->mmchip.gc.ngpio = be32_to_cpup(tree_info);
+	of_property_read_u32(np, "xlnx,gpio-width",
+			      (u32 *)&chip->mmchip.gc.ngpio);
 
 	spin_lock_init(&chip->gpio_lock);
 
