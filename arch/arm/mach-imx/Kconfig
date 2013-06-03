@@ -173,6 +173,7 @@ config ARCH_MX1ADS
 config MACH_SCB9328
 	bool "Synertronixx scb9328"
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select SOC_IMX1
 	help
 	  Say Y here if you are using a Synertronixx scb9328 board
 
