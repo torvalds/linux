@@ -584,8 +584,6 @@ enum osc_extent_state {
 	OES_TRUNC     = 6, /** being truncated */
 	OES_STATE_MAX
 };
-#define OES_STRINGS { "inv", "active", "cache", "locking", "lockdone", "rpc", \
-		      "trunc", NULL }
 
 /**
  * osc_extent data to manage dirty pages.

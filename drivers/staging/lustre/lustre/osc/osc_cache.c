@@ -99,10 +99,11 @@ static inline char list_empty_marker(struct list_head *list)
 
 #define EXTSTR       "[%lu -> %lu/%lu]"
 #define EXTPARA(ext) (ext)->oe_start, (ext)->oe_end, (ext)->oe_max_end
+static const char *oes_strings[] = {
+	"inv", "active", "cache", "locking", "lockdone", "rpc", "trunc", NULL };
 
 #define OSC_EXTENT_DUMP(lvl, extent, fmt, ...) do {			      \
 	struct osc_extent *__ext = (extent);				      \
-	const char *__str[] = OES_STRINGS;				      \
 	char __buf[16];							      \
 									      \
 	CDEBUG(lvl,							      \
@@ -114,7 +115,7 @@ static inline char list_empty_marker(struct list_head *list)
 		atomic_read(&__ext->oe_refc),			      \
 		atomic_read(&__ext->oe_users),			      \
 		list_empty_marker(&__ext->oe_link),			      \
-		__str[__ext->oe_state], ext_flags(__ext, __buf),	      \
+		oes_strings[__ext->oe_state], ext_flags(__ext, __buf),	      \
 		__ext->oe_obj,						      \
 		/* ----- part 2 ----- */				      \
 		__ext->oe_grants, __ext->oe_nr_pages,			      \
@@ -128,10 +129,10 @@ static inline char list_empty_marker(struct list_head *list)
 #undef EASSERTF
 #define EASSERTF(expr, ext, fmt, args...) do {				\
 	if (!(expr)) {							\
-		OSC_EXTENT_DUMP(D_ERROR, (ext), fmt, ##args);		 \
-		osc_extent_tree_dump(D_ERROR, (ext)->oe_obj);		 \
+		OSC_EXTENT_DUMP(D_ERROR, (ext), fmt, ##args);		\
+		osc_extent_tree_dump(D_ERROR, (ext)->oe_obj);		\
 		LASSERT(expr);						\
-	}								     \
+	}								\
 } while (0)
 
 #undef EASSERT
@@ -2125,27 +2126,24 @@ static void osc_check_rpcs(const struct lu_env *env, struct client_obd *cli,
 static int osc_io_unplug0(const struct lu_env *env, struct client_obd *cli,
 			  struct osc_object *osc, pdl_policy_t pol, int async)
 {
-	int has_rpcs = 1;
 	int rc = 0;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
-	if (osc != NULL)
-		has_rpcs = __osc_list_maint(cli, osc);
-	if (has_rpcs) {
-		if (!async) {
-			/* disable osc_lru_shrink() temporarily to avoid
-			 * potential stack overrun problem. LU-2859 */
-			atomic_inc(&cli->cl_lru_shrinkers);
-			osc_check_rpcs(env, cli, pol);
-			atomic_dec(&cli->cl_lru_shrinkers);
-		} else {
-			CDEBUG(D_CACHE, "Queue writeback work for client %p.\n",
-			       cli);
-			LASSERT(cli->cl_writeback_work != NULL);
-			rc = ptlrpcd_queue_work(cli->cl_writeback_work);
-		}
+	if (osc != NULL && osc_list_maint(cli, osc) == 0)
+		return 0;
+
+	if (!async) {
+		/* disable osc_lru_shrink() temporarily to avoid
+		 * potential stack overrun problem. LU-2859 */
+		atomic_inc(&cli->cl_lru_shrinkers);
+		client_obd_list_lock(&cli->cl_loi_list_lock);
+		osc_check_rpcs(env, cli, pol);
+		client_obd_list_unlock(&cli->cl_loi_list_lock);
+		atomic_dec(&cli->cl_lru_shrinkers);
+	} else {
+		CDEBUG(D_CACHE, "Queue writeback work for client %p.\n", cli);
+		LASSERT(cli->cl_writeback_work != NULL);
+		rc = ptlrpcd_queue_work(cli->cl_writeback_work);
 	}
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
 	return rc;
 }
 
