@@ -369,6 +369,7 @@ static __s32 ParseEDID_CEA861_extension_block(__u32 i, __u8 *EDID_Buf)
 
 #define DDC_ADDR 0x50
 #define EDID_LENGTH 0x80
+#define TRIES 3
 static int probe_ddc_edid(struct i2c_adapter *adapter,
 		int block, unsigned char *buf)
 {
@@ -396,8 +397,29 @@ static int probe_ddc_edid(struct i2c_adapter *adapter,
 	if (i2c_transfer(adapter, msgs, 2) == 2)
 		return 0;
 
-	dev_warn(&adapter->dev, "unable to read EDID block.\n");
 	return -EIO;
+}
+
+static int get_edid_block(int block, unsigned char *buf)
+{
+	int i;
+
+	for (i = 1; i <= TRIES; i++) {
+		if (probe_ddc_edid(&sunxi_hdmi_i2c_adapter, block, buf)) {
+			dev_warn(&sunxi_hdmi_i2c_adapter.dev,
+				 "unable to read EDID block %d, try %d/%d\n",
+				 block, i, TRIES);
+			continue;
+		}
+		if (EDID_CheckSum(block, buf) != 0) {
+			dev_warn(&sunxi_hdmi_i2c_adapter.dev,
+				 "EDID block %d checksum error, try %d/%d\n",
+				 block, i, TRIES);
+			continue;
+		}
+		break;
+	}
+	return (i <= TRIES) ? 0 : -EIO;
 }
 
 /*
@@ -422,10 +444,7 @@ __s32 ParseEDID(void)
 		memset(Device_Support_VIC, 0, HDMI_DEVICE_SUPPORT_VIC_SIZE);
 	}
 
-	if (probe_ddc_edid(&sunxi_hdmi_i2c_adapter, 0, EDID_Buf))
-		goto ret;
-
-	if (EDID_CheckSum(0, EDID_Buf) != 0)
+	if (get_edid_block(0, EDID_Buf) != 0)
 		goto ret;
 
 	if (EDID_Header_Check(EDID_Buf) != 0)
@@ -443,9 +462,7 @@ __s32 ParseEDID(void)
 		BlockCount = 5;
 
 	for (i = 1; i < BlockCount; i++) {
-		if (probe_ddc_edid(&sunxi_hdmi_i2c_adapter, i, EDID_Buf))
-			break;
-		if (EDID_CheckSum(i, EDID_Buf) != 0) {
+		if (get_edid_block(i, EDID_Buf) != 0) {
 			BlockCount = i;
 			break;
 		}
