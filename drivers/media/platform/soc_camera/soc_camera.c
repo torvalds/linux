@@ -235,7 +235,6 @@ static int soc_camera_enum_input(struct file *file, void *priv,
 
 	/* default is camera */
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
-	inp->std  = V4L2_STD_UNKNOWN;
 	strcpy(inp->name, "Camera");
 
 	return 0;
@@ -1479,11 +1478,9 @@ static int video_dev_create(struct soc_camera_device *icd)
 	strlcpy(vdev->name, ici->drv_name, sizeof(vdev->name));
 
 	vdev->parent		= icd->pdev;
-	vdev->current_norm	= V4L2_STD_UNKNOWN;
 	vdev->fops		= &soc_camera_fops;
 	vdev->ioctl_ops		= &soc_camera_ioctl_ops;
 	vdev->release		= video_device_release;
-	vdev->tvnorms		= V4L2_STD_UNKNOWN;
 	vdev->ctrl_handler	= &icd->ctrl_handler;
 	vdev->lock		= &ici->host_lock;
 
