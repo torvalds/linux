@@ -294,6 +294,10 @@ asmlinkage void plat_irq_dispatch(void)
 
 		if (cause & CAUSEF_IP7)
 			do_IRQ(7);
+		if (cause & CAUSEF_IP0)
+			do_IRQ(0);
+		if (cause & CAUSEF_IP1)
+			do_IRQ(1);
 		if (cause & CAUSEF_IP2)
 			dispatch_internal();
 		if (!is_ext_irq_cascaded) {
