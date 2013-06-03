@@ -57,7 +57,7 @@
  * In case of direct PLB access the second control register will be at
  * an offset of 4 as compared to the DCR access where the offset is 1
  * i.e. REG_CTRL. So this is taken care in the function
- * xilinx_fb_out_be32 where it left shifts the offset 2 times in case of
+ * xilinx_fb_out32 where it left shifts the offset 2 times in case of
  * direct PLB access.
  */
 #define NUM_REGS	2
@@ -150,7 +150,7 @@ struct xilinxfb_drvdata {
  * To perform the read/write on the registers we need to check on
  * which bus its connected and call the appropriate write API.
  */
-static void xilinx_fb_out_be32(struct xilinxfb_drvdata *drvdata, u32 offset,
+static void xilinx_fb_out32(struct xilinxfb_drvdata *drvdata, u32 offset,
 				u32 val)
 {
 	if (drvdata->flags & PLB_ACCESS_FLAG)
@@ -197,7 +197,7 @@ xilinx_fb_blank(int blank_mode, struct fb_info *fbi)
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		/* turn on panel */
-		xilinx_fb_out_be32(drvdata, REG_CTRL, drvdata->reg_ctrl_default);
+		xilinx_fb_out32(drvdata, REG_CTRL, drvdata->reg_ctrl_default);
 		break;
 
 	case FB_BLANK_NORMAL:
@@ -205,7 +205,7 @@ xilinx_fb_blank(int blank_mode, struct fb_info *fbi)
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_POWERDOWN:
 		/* turn off panel */
-		xilinx_fb_out_be32(drvdata, REG_CTRL, 0);
+		xilinx_fb_out32(drvdata, REG_CTRL, 0);
 	default:
 		break;
 
@@ -280,13 +280,13 @@ static int xilinxfb_assign(struct device *dev,
 	memset_io((void __iomem *)drvdata->fb_virt, 0, fbsize);
 
 	/* Tell the hardware where the frame buffer is */
-	xilinx_fb_out_be32(drvdata, REG_FB_ADDR, drvdata->fb_phys);
+	xilinx_fb_out32(drvdata, REG_FB_ADDR, drvdata->fb_phys);
 
 	/* Turn on the display */
 	drvdata->reg_ctrl_default = REG_CTRL_ENABLE;
 	if (pdata->rotate_screen)
 		drvdata->reg_ctrl_default |= REG_CTRL_ROTATE;
-	xilinx_fb_out_be32(drvdata, REG_CTRL,
+	xilinx_fb_out32(drvdata, REG_CTRL,
 					drvdata->reg_ctrl_default);
 
 	/* Fill struct fb_info */
@@ -345,7 +345,7 @@ err_cmap:
 		iounmap(drvdata->fb_virt);
 
 	/* Turn off the display */
-	xilinx_fb_out_be32(drvdata, REG_CTRL, 0);
+	xilinx_fb_out32(drvdata, REG_CTRL, 0);
 
 err_fbmem:
 	if (drvdata->flags & PLB_ACCESS_FLAG)
@@ -381,7 +381,7 @@ static int xilinxfb_release(struct device *dev)
 		iounmap(drvdata->fb_virt);
 
 	/* Turn off the display */
-	xilinx_fb_out_be32(drvdata, REG_CTRL, 0);
+	xilinx_fb_out32(drvdata, REG_CTRL, 0);
 
 	/* Release the resources, as allocated based on interface */
 	if (drvdata->flags & PLB_ACCESS_FLAG) {
