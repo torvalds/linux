@@ -349,10 +349,25 @@
 #define APnMR_BM_AD		(2 << 4)	/* Auto Display Change Mode */
 
 #define APnMWR			0x0a104
+
+#define APnDSXR			0x0a110
+#define APnDSYR			0x0a114
+#define APnDPXR			0x0a118
+#define APnDPYR			0x0a11c
+
 #define APnDSA0R		0x0a120
 #define APnDSA1R		0x0a124
 #define APnDSA2R		0x0a128
+
+#define APnSPXR			0x0a130
+#define APnSPYR			0x0a134
+#define APnWASPR		0x0a138
+#define APnWAMWR		0x0a13c
+
+#define APnBTR			0x0a140
+
 #define APnMLR			0x0a150
+#define APnSWAPR		0x0a180
 
 /* -----------------------------------------------------------------------------
  * Display Capture Registers
