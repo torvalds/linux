@@ -2501,7 +2501,7 @@ static void pn533_acr122_poweron_rdr_resp(struct urb *urb)
 
 	nfc_dev_dbg(&urb->dev->dev, "%s", __func__);
 
-	print_hex_dump(KERN_ERR, "ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
 		       urb->transfer_buffer, urb->transfer_buffer_length,
 		       false);
 
@@ -2532,7 +2532,7 @@ static int pn533_acr122_poweron_rdr(struct pn533 *dev)
 	dev->out_urb->transfer_buffer = cmd;
 	dev->out_urb->transfer_buffer_length = sizeof(cmd);
 
-	print_hex_dump(KERN_ERR, "ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
 		       cmd, sizeof(cmd), false);
 
 	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
@@ -2786,8 +2786,8 @@ static int pn533_probe(struct usb_interface *interface,
 		goto destroy_wq;
 
 	nfc_dev_info(&dev->interface->dev,
-		     "NXP PN533 firmware ver %d.%d now attached",
-		     fw_ver.ver, fw_ver.rev);
+		     "NXP PN5%02X firmware ver %d.%d now attached",
+		     fw_ver.ic, fw_ver.ver, fw_ver.rev);
 
 
 	dev->nfc_dev = nfc_allocate_device(&pn533_nfc_ops, protocols,
