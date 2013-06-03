@@ -360,7 +360,7 @@ pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 }
 EXPORT_SYMBOL_GPL(pnfs_put_lseg);
 
-static inline u64
+static u64
 end_offset(u64 start, u64 len)
 {
 	u64 end;
@@ -376,9 +376,9 @@ end_offset(u64 start, u64 len)
  *           start2           end2
  *           [----------------)
  */
-static inline int
-lo_seg_contained(struct pnfs_layout_range *l1,
-		 struct pnfs_layout_range *l2)
+static bool
+lo_seg_contained(const struct pnfs_layout_range *l1,
+		 const struct pnfs_layout_range *l2)
 {
 	u64 start1 = l1->offset;
 	u64 end1 = end_offset(start1, l1->length);
@@ -395,9 +395,9 @@ lo_seg_contained(struct pnfs_layout_range *l1,
  *                              start2           end2
  *                              [----------------)
  */
-static inline int
-lo_seg_intersecting(struct pnfs_layout_range *l1,
-		    struct pnfs_layout_range *l2)
+static bool
+lo_seg_intersecting(const struct pnfs_layout_range *l1,
+		    const struct pnfs_layout_range *l2)
 {
 	u64 start1 = l1->offset;
 	u64 end1 = end_offset(start1, l1->length);
@@ -409,8 +409,8 @@ lo_seg_intersecting(struct pnfs_layout_range *l1,
 }
 
 static bool
-should_free_lseg(struct pnfs_layout_range *lseg_range,
-		 struct pnfs_layout_range *recall_range)
+should_free_lseg(const struct pnfs_layout_range *lseg_range,
+		 const struct pnfs_layout_range *recall_range)
 {
 	return (recall_range->iomode == IOMODE_ANY ||
 		lseg_range->iomode == recall_range->iomode) &&
@@ -986,8 +986,8 @@ out:
  * are seen first.
  */
 static s64
-cmp_layout(struct pnfs_layout_range *l1,
-	   struct pnfs_layout_range *l2)
+cmp_layout(const struct pnfs_layout_range *l1,
+	   const struct pnfs_layout_range *l2)
 {
 	s64 d;
 
@@ -1093,9 +1093,9 @@ out_existing:
  * READ		READ	true
  * READ		RW	true
  */
-static int
-is_matching_lseg(struct pnfs_layout_range *ls_range,
-		 struct pnfs_layout_range *range)
+static bool
+is_matching_lseg(const struct pnfs_layout_range *ls_range,
+		 const struct pnfs_layout_range *range)
 {
 	struct pnfs_layout_range range1;
 
