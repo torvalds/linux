@@ -724,8 +724,10 @@ void ll_kill_super(struct super_block *sb)
 	/* we need restore s_dev from changed for clustred NFS before put_super
 	 * because new kernels have cached s_dev and change sb->s_dev in
 	 * put_super not affected real removing devices */
-	if (sbi)
+	if (sbi) {
 		sb->s_dev = sbi->ll_sdev_orig;
+		sbi->ll_umounting = 1;
+	}
 	EXIT;
 }
 
@@ -1856,7 +1858,8 @@ void ll_delete_inode(struct inode *inode)
 	if (S_ISREG(inode->i_mode) && lli->lli_clob != NULL)
 		/* discard all dirty pages before truncating them, required by
 		 * osc_extent implementation at LU-1030. */
-		cl_sync_file_range(inode, 0, OBD_OBJECT_EOF, CL_FSYNC_DISCARD);
+		cl_sync_file_range(inode, 0, OBD_OBJECT_EOF,
+				   CL_FSYNC_DISCARD, 1);
 
 	truncate_inode_pages(&inode->i_data, 0);
 
@@ -2025,7 +2028,6 @@ void ll_umount_begin(struct super_block *sb)
 
 		OBD_FREE_PTR(ioc_data);
 	}
-
 
 	/* Really, we'd like to wait until there are no requests outstanding,
 	 * and then continue.  For now, we just invalidate the requests,

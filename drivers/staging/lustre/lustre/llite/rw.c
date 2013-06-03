@@ -1213,7 +1213,7 @@ int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
 		 * PageWriteback or clean the page. */
 		result = cl_sync_file_range(inode, offset,
 					    offset + PAGE_CACHE_SIZE - 1,
-					    CL_FSYNC_LOCAL);
+					    CL_FSYNC_LOCAL, 1);
 		if (result > 0) {
 			/* actually we may have written more than one page.
 			 * decreasing this page because the caller will count
@@ -1240,11 +1240,13 @@ out:
 int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
+	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	loff_t start;
 	loff_t end;
 	enum cl_fsync_mode mode;
 	int range_whole = 0;
 	int result;
+	int ignore_layout = 0;
 	ENTRY;
 
 	if (wbc->range_cyclic) {
@@ -1263,7 +1265,12 @@ int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		mode = CL_FSYNC_LOCAL;
 
-	result = cl_sync_file_range(inode, start, end, mode);
+	if (sbi->ll_umounting)
+		/* if the mountpoint is being umounted, all pages have to be
+		 * evicted to avoid hitting LBUG when truncate_inode_pages()
+		 * is called later on. */
+		ignore_layout = 1;
+	result = cl_sync_file_range(inode, start, end, mode, ignore_layout);
 	if (result > 0) {
 		wbc->nr_to_write -= result;
 		result = 0;
