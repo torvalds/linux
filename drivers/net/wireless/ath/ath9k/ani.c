@@ -118,7 +118,7 @@ static void ath9k_ani_restart(struct ath_hw *ah)
 {
 	struct ar5416AniState *aniState;
 
-	if (!DO_ANI(ah))
+	if (!ah->curchan)
 		return;
 
 	aniState = &ah->curchan->ani;
@@ -195,7 +195,7 @@ static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hw *ah)
 {
 	struct ar5416AniState *aniState;
 
-	if (!DO_ANI(ah))
+	if (!ah->curchan)
 		return;
 
 	aniState = &ah->curchan->ani;
@@ -251,7 +251,7 @@ static void ath9k_hw_ani_cck_err_trigger(struct ath_hw *ah)
 {
 	struct ar5416AniState *aniState;
 
-	if (!DO_ANI(ah))
+	if (!ah->curchan)
 		return;
 
 	aniState = &ah->curchan->ani;
@@ -297,7 +297,7 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 	struct ath_common *common = ath9k_hw_common(ah);
 	int ofdm_nil, cck_nil;
 
-	if (!DO_ANI(ah))
+	if (!ah->curchan)
 		return;
 
 	BUG_ON(aniState == NULL);
@@ -415,7 +415,7 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan)
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 ofdmPhyErrRate, cckPhyErrRate;
 
-	if (!DO_ANI(ah))
+	if (!ah->curchan)
 		return;
 
 	aniState = &ah->curchan->ani;
@@ -523,9 +523,6 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 	 */
 	ah->aniperiod = ATH9K_ANI_PERIOD;
 	ah->config.ani_poll_interval = ATH9K_ANI_POLLINTERVAL;
-
-	if (ah->config.enable_ani)
-		ah->proc_phyerr |= HAL_PROCESS_ANI;
 
 	ath9k_ani_restart(ah);
 	ath9k_enable_mib_counters(ah);
