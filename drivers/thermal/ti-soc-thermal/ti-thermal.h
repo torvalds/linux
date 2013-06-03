@@ -38,6 +38,9 @@
 #define OMAP_GRADIENT_SLOPE_5430_GPU				117
 #define OMAP_GRADIENT_CONST_5430_GPU				-2992
 
+#define DRA752_GRADIENT_SLOPE					0
+#define DRA752_GRADIENT_CONST					2000
+
 /* PCB sensor calculation constants */
 #define OMAP_GRADIENT_SLOPE_W_PCB_4430				0
 #define OMAP_GRADIENT_CONST_W_PCB_4430				20000
@@ -50,6 +53,9 @@
 #define OMAP_GRADIENT_CONST_W_PCB_5430_CPU			484
 #define OMAP_GRADIENT_SLOPE_W_PCB_5430_GPU			464
 #define OMAP_GRADIENT_CONST_W_PCB_5430_GPU			-5102
+
+#define DRA752_GRADIENT_SLOPE_W_PCB				0
+#define DRA752_GRADIENT_CONST_W_PCB				2000
 
 /* trip points of interest in milicelsius (at hotspot level) */
 #define OMAP_TRIP_COLD						100000
