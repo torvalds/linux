@@ -450,7 +450,7 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 	s64 raw64 = raw;
 	int ret;
 
-	ret = iio_channel_read(chan, &offset, NULL, IIO_CHAN_INFO_SCALE);
+	ret = iio_channel_read(chan, &offset, NULL, IIO_CHAN_INFO_OFFSET);
 	if (ret == 0)
 		raw64 += offset;
 
