@@ -143,7 +143,7 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 	int registers = 0;
 	int this_registers, average;
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 
 	mem_size = sizeof(*rbtree_ctx);
 	mem_size += BITS_TO_LONGS(map->cache_present_nbits) * sizeof(long);
@@ -170,7 +170,7 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 	seq_printf(s, "%d nodes, %d registers, average %d registers, used %zu bytes\n",
 		   nodes, registers, average, mem_size);
 
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 
 	return 0;
 }
@@ -391,8 +391,6 @@ static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
 	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
 		rbnode = rb_entry(node, struct regcache_rbtree_node, node);
 
-		if (rbnode->base_reg < min)
-			continue;
 		if (rbnode->base_reg > max)
 			break;
 		if (rbnode->base_reg + rbnode->blklen < min)
