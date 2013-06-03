@@ -765,3 +765,25 @@ static int __init clk_proc_init(void)
 late_initcall(clk_proc_init);
 #endif /* CONFIG_RK_CLOCK_PROC */
 
+static int clk_panic(struct notifier_block *this, unsigned long ev, void *ptr)
+{
+#ifdef RK30_CRU_BASE
+#define CRU_BASE RK30_CRU_BASE
+#elif defined(RK2928_CRU_BASE)
+#define CRU_BASE RK2928_CRU_BASE
+#endif
+#ifdef CRU_BASE
+	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_ADDRESS, 16, 4, CRU_BASE, 0x150, false);
+#endif
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block clk_panic_block = {
+	.notifier_call = clk_panic,
+};
+
+static int __init clk_panic_init(void)
+{
+	return atomic_notifier_chain_register(&panic_notifier_list, &clk_panic_block);
+}
+pure_initcall(clk_panic_init);
