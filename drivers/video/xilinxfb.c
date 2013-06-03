@@ -117,6 +117,7 @@ static struct fb_var_screeninfo xilinx_fb_var = {
 
 
 #define BUS_ACCESS_FLAG		0x1 /* 1 = BUS, 0 = DCR */
+#define LITTLE_ENDIAN_ACCESS	0x2 /* LITTLE ENDIAN IO functions */
 
 struct xilinxfb_drvdata {
 
@@ -153,12 +154,31 @@ struct xilinxfb_drvdata {
 static void xilinx_fb_out32(struct xilinxfb_drvdata *drvdata, u32 offset,
 				u32 val)
 {
-	if (drvdata->flags & BUS_ACCESS_FLAG)
-		out_be32(drvdata->regs + (offset << 2), val);
+	if (drvdata->flags & BUS_ACCESS_FLAG) {
+		if (drvdata->flags & LITTLE_ENDIAN_ACCESS)
+			iowrite32(val, drvdata->regs + (offset << 2));
+		else
+			iowrite32be(val, drvdata->regs + (offset << 2));
+	}
 #ifdef CONFIG_PPC_DCR
 	else
 		dcr_write(drvdata->dcr_host, offset, val);
 #endif
+}
+
+static u32 xilinx_fb_in32(struct xilinxfb_drvdata *drvdata, u32 offset)
+{
+	if (drvdata->flags & BUS_ACCESS_FLAG) {
+		if (drvdata->flags & LITTLE_ENDIAN_ACCESS)
+			return ioread32(drvdata->regs + (offset << 2));
+		else
+			return ioread32be(drvdata->regs + (offset << 2));
+	}
+#ifdef CONFIG_PPC_DCR
+	else
+		return dcr_read(drvdata->dcr_host, offset);
+#endif
+	return 0;
 }
 
 static int
@@ -271,6 +291,12 @@ static int xilinxfb_assign(struct platform_device *pdev,
 
 	/* Tell the hardware where the frame buffer is */
 	xilinx_fb_out32(drvdata, REG_FB_ADDR, drvdata->fb_phys);
+	rc = xilinx_fb_in32(drvdata, REG_FB_ADDR);
+	/* Endianess detection */
+	if (rc != drvdata->fb_phys) {
+		drvdata->flags |= LITTLE_ENDIAN_ACCESS;
+		xilinx_fb_out32(drvdata, REG_FB_ADDR, drvdata->fb_phys);
+	}
 
 	/* Turn on the display */
 	drvdata->reg_ctrl_default = REG_CTRL_ENABLE;
