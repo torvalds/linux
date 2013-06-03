@@ -466,16 +466,14 @@ static inline cvmx_usb_transaction_t *__cvmx_usb_alloc_transaction(cvmx_usb_inte
 {
     cvmx_usb_transaction_t *t;
     t = usb->free_transaction_head;
-    if (t)
-    {
+    if (t) {
         usb->free_transaction_head = t->next;
         if (!usb->free_transaction_head)
             usb->free_transaction_tail = NULL;
     }
     else if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
         cvmx_dprintf("%s: Failed to allocate a transaction\n", __FUNCTION__);
-    if (t)
-    {
+    if (t) {
         memset(t, 0, sizeof(*t));
         t->flags = __CVMX_USB_TRANSACTION_FLAGS_IN_USE;
     }
@@ -532,8 +530,7 @@ static inline void __cvmx_usb_append_pipe(cvmx_usb_pipe_list_t *list, cvmx_usb_p
  */
 static inline void __cvmx_usb_remove_pipe(cvmx_usb_pipe_list_t *list, cvmx_usb_pipe_t *pipe)
 {
-    if (list->head == pipe)
-    {
+    if (list->head == pipe) {
         list->head = pipe->next;
         pipe->next = NULL;
         if (list->head)
@@ -541,14 +538,12 @@ static inline void __cvmx_usb_remove_pipe(cvmx_usb_pipe_list_t *list, cvmx_usb_p
         else
             list->tail = NULL;
     }
-    else if (list->tail == pipe)
-    {
+    else if (list->tail == pipe) {
         list->tail = pipe->prev;
         list->tail->next = NULL;
         pipe->prev = NULL;
     }
-    else
-    {
+    else {
         pipe->prev->next = pipe->next;
         pipe->next->prev = pipe->prev;
         pipe->prev = NULL;
@@ -600,20 +595,17 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
         CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
     /* Try to determine clock type automatically */
     if ((flags & (CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI |
-                  CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND)) == 0)
-    {
+                  CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND)) == 0) {
         if (octeon_usb_get_clock_type() == USB_CLOCK_TYPE_CRYSTAL_12)
             flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI;  /* Only 12 MHZ crystals are supported */
         else
             flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND;
     }
 
-    if (flags & CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND)
-    {
+    if (flags & CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND) {
         /* Check for auto ref clock frequency */
         if (!(flags & CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK))
-            switch (octeon_usb_get_clock_type())
-            {
+            switch (octeon_usb_get_clock_type()) {
                 case USB_CLOCK_TYPE_REF_12:
                     flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ;
                     break;
@@ -659,13 +651,11 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
     usbn_clk_ctl.s.enable = 0;
     /* 2b. Select the USB reference clock/crystal parameters by writing
         appropriate values to USBN0/1_CLK_CTL[P_C_SEL, P_RTYPE, P_COM_ON] */
-    if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND)
-    {
+    if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND) {
         /* The USB port uses 12/24/48MHz 2.5V board clock
             source at USB_XO. USB_XI should be tied to GND.
             Most Octeon evaluation boards require this setting */
-        if (OCTEON_IS_MODEL(OCTEON_CN3XXX))
-        {
+        if (OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
             usbn_clk_ctl.cn31xx.p_rclk  = 1; /* From CN31XX,CN30XX manual */
             usbn_clk_ctl.cn31xx.p_xenbn = 0;
         }
@@ -674,8 +664,7 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
         else
             usbn_clk_ctl.cn52xx.p_rtype = 1; /* From CN52XX manual */
 
-        switch (flags & CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK)
-        {
+        switch (flags & CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK) {
             case CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ:
                 usbn_clk_ctl.s.p_c_sel = 0;
                 break;
@@ -687,12 +676,10 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
                 break;
         }
     }
-    else
-    {
+    else {
         /* The USB port uses a 12MHz crystal as clock source
             at USB_XO and USB_XI */
-        if (OCTEON_IS_MODEL(OCTEON_CN3XXX))
-        {
+        if (OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
             usbn_clk_ctl.cn31xx.p_rclk  = 1; /* From CN31XX,CN30XX manual */
             usbn_clk_ctl.cn31xx.p_xenbn = 1;
         }
@@ -935,8 +922,7 @@ cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
         CVMX_USB_RETURN(CVMX_USB_SUCCESS);
 
     /* If there is nothing plugged into the port then fail immediately */
-    if (!usb->usbcx_hprt.s.prtconnsts)
-    {
+    if (!usb->usbcx_hprt.s.prtconnsts) {
         if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
             cvmx_dprintf("%s: USB%d Nothing plugged into the port\n", __FUNCTION__, usb->index);
         CVMX_USB_RETURN(CVMX_USB_TIMEOUT);
@@ -954,8 +940,7 @@ cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
 
     /* Wait for the USBC_HPRT[PRTENA]. */
     if (CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_HPRT(usb->index), cvmx_usbcx_hprt_t,
-                              prtena, ==, 1, 100000))
-    {
+                              prtena, ==, 1, 100000)) {
         if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
             cvmx_dprintf("%s: Timeout waiting for the port to finish reset\n",
                          __FUNCTION__);
@@ -1264,14 +1249,12 @@ int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
         if one wasn't supplied */
     if (!interval)
         interval = 1;
-    if (__cvmx_usb_pipe_needs_split(usb, pipe))
-    {
+    if (__cvmx_usb_pipe_needs_split(usb, pipe)) {
         pipe->interval = interval*8;
         /* Force start splits to be schedule on uFrame 0 */
         pipe->next_tx_frame = ((usb->frame_number+7)&~7) + pipe->interval;
     }
-    else
-    {
+    else {
         pipe->interval = interval;
         pipe->next_tx_frame = usb->frame_number + pipe->interval;
     }
@@ -1328,8 +1311,7 @@ static void __cvmx_usb_poll_rx_fifo(cvmx_usb_internal_state_t *usb)
     __cvmx_usb_write_csr64(usb, CVMX_USBNX_DMA0_INB_CHN0(usb->index) + channel*8, address + bytes);
 
     /* Loop writing the FIFO data for this packet into memory */
-    while (bytes > 0)
-    {
+    while (bytes > 0) {
         *ptr++ = __cvmx_usb_read_csr32(usb, USB_FIFO_ADDRESS(channel, usb->index));
         bytes -= 4;
     }
@@ -1360,16 +1342,14 @@ static int __cvmx_usb_fill_tx_hw(cvmx_usb_internal_state_t *usb, cvmx_usb_tx_fif
 
     /* We're done either when there isn't anymore space or the software FIFO
         is empty */
-    while (available && (fifo->head != fifo->tail))
-    {
+    while (available && (fifo->head != fifo->tail)) {
         int i = fifo->tail;
         const uint32_t *ptr = cvmx_phys_to_ptr(fifo->entry[i].address);
         uint64_t csr_address = USB_FIFO_ADDRESS(fifo->entry[i].channel, usb->index) ^ 4;
         int words = available;
 
         /* Limit the amount of data to waht the SW fifo has */
-        if (fifo->entry[i].size <= available)
-        {
+        if (fifo->entry[i].size <= available) {
             words = fifo->entry[i].size;
             fifo->tail++;
             if (fifo->tail > MAX_CHANNELS)
@@ -1383,8 +1363,7 @@ static int __cvmx_usb_fill_tx_hw(cvmx_usb_internal_state_t *usb, cvmx_usb_tx_fif
 
         /* Write the HW fifo data. The read every three writes is due
             to an errata on CN3XXX chips */
-        while (words > 3)
-        {
+        while (words > 3) {
             cvmx_write64_uint32(csr_address, *ptr++);
             cvmx_write64_uint32(csr_address, *ptr++);
             cvmx_write64_uint32(csr_address, *ptr++);
@@ -1392,8 +1371,7 @@ static int __cvmx_usb_fill_tx_hw(cvmx_usb_internal_state_t *usb, cvmx_usb_tx_fif
             words -= 3;
         }
         cvmx_write64_uint32(csr_address, *ptr++);
-        if (--words)
-        {
+        if (--words) {
             cvmx_write64_uint32(csr_address, *ptr++);
             if (--words)
                 cvmx_write64_uint32(csr_address, *ptr++);
@@ -1415,8 +1393,7 @@ static void __cvmx_usb_poll_tx_fifo(cvmx_usb_internal_state_t *usb)
     CVMX_USB_LOG_CALLED();
     CVMX_USB_LOG_PARAM("%p", usb);
 
-    if (usb->periodic.head != usb->periodic.tail)
-    {
+    if (usb->periodic.head != usb->periodic.tail) {
         cvmx_usbcx_hptxsts_t tx_status;
         tx_status.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HPTXSTS(usb->index));
         if (__cvmx_usb_fill_tx_hw(usb, &usb->periodic, tx_status.s.ptxfspcavail))
@@ -1425,8 +1402,7 @@ static void __cvmx_usb_poll_tx_fifo(cvmx_usb_internal_state_t *usb)
             USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index), cvmx_usbcx_gintmsk_t, ptxfempmsk, 0);
     }
 
-    if (usb->nonperiodic.head != usb->nonperiodic.tail)
-    {
+    if (usb->nonperiodic.head != usb->nonperiodic.tail) {
         cvmx_usbcx_gnptxsts_t tx_status;
         tx_status.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_GNPTXSTS(usb->index));
         if (__cvmx_usb_fill_tx_hw(usb, &usb->nonperiodic, tx_status.s.nptxfspcavail))
@@ -1519,8 +1495,7 @@ static void __cvmx_usb_start_channel_control(cvmx_usb_internal_state_t *usb,
 
     usbc_hctsiz.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HCTSIZX(channel, usb->index));
 
-    switch (transaction->stage)
-    {
+    switch (transaction->stage) {
         case CVMX_USB_STAGE_NON_CONTROL:
         case CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE:
             cvmx_dprintf("%s: ERROR - Non control stage\n", __FUNCTION__);
@@ -1543,8 +1518,7 @@ static void __cvmx_usb_start_channel_control(cvmx_usb_internal_state_t *usb,
             break;
         case CVMX_USB_STAGE_DATA:
             usbc_hctsiz.s.pid = __cvmx_usb_get_data_pid(pipe);
-            if (__cvmx_usb_pipe_needs_split(usb, pipe))
-            {
+            if (__cvmx_usb_pipe_needs_split(usb, pipe)) {
                 if (header->s.request_type & 0x80)
                     bytes_to_transfer = 0;
                 else if (bytes_to_transfer > pipe->max_packet)
@@ -1588,8 +1562,7 @@ static void __cvmx_usb_start_channel_control(cvmx_usb_internal_state_t *usb,
 
     /* Make sure the transfer never exceeds the byte limit of the hardware.
         Further bytes will be sent as continued transactions */
-    if (bytes_to_transfer > MAX_TRANSFER_BYTES)
-    {
+    if (bytes_to_transfer > MAX_TRANSFER_BYTES) {
         /* Round MAX_TRANSFER_BYTES to a multiple of out packet size */
         bytes_to_transfer = MAX_TRANSFER_BYTES / pipe->max_packet;
         bytes_to_transfer *= pipe->max_packet;
@@ -1600,16 +1573,14 @@ static void __cvmx_usb_start_channel_control(cvmx_usb_internal_state_t *usb,
     packets_to_transfer = (bytes_to_transfer + pipe->max_packet - 1) / pipe->max_packet;
     if (packets_to_transfer == 0)
         packets_to_transfer = 1;
-    else if ((packets_to_transfer>1) && (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA))
-    {
+    else if ((packets_to_transfer>1) && (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)) {
         /* Limit to one packet when not using DMA. Channels must be restarted
             between every packet for IN transactions, so there is no reason to
             do multiple packets in a row */
         packets_to_transfer = 1;
         bytes_to_transfer = packets_to_transfer * pipe->max_packet;
     }
-    else if (packets_to_transfer > MAX_TRANSFER_PACKETS)
-    {
+    else if (packets_to_transfer > MAX_TRANSFER_PACKETS) {
         /* Limit the number of packet and data transferred to what the
             hardware can handle */
         packets_to_transfer = MAX_TRANSFER_PACKETS;
