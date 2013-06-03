@@ -347,7 +347,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		dev_err(dev, "get_sync failed with err %d\n", ret);
-		return ret;
+		goto err0;
 	}
 
 	reg = dwc3_omap_readl(omap->base, USBOTGSS_UTMI_OTG_STATUS);
@@ -376,7 +376,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "failed to request IRQ #%d --> %d\n",
 				omap->irq, ret);
-		return ret;
+		goto err1;
 	}
 
 	dwc3_omap_enable_irqs(omap);
@@ -384,10 +384,21 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	ret = of_platform_populate(node, NULL, NULL, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to create dwc3 core\n");
-		return ret;
+		goto err2;
 	}
 
 	return 0;
+
+err2:
+	dwc3_omap_disable_irqs(omap);
+
+err1:
+	pm_runtime_put_sync(dev);
+
+err0:
+	pm_runtime_disable(dev);
+
+	return ret;
 }
 
 static int dwc3_omap_remove(struct platform_device *pdev)
