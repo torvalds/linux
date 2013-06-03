@@ -44,7 +44,7 @@
 
 
 /*
- * Xilinx calls it "PLB TFT LCD Controller" though it can also be used for
+ * Xilinx calls it "TFT LCD Controller" though it can also be used for
  * the VGA port on the Xilinx ML40x board. This is a hardware display
  * controller for a 640x480 resolution TFT or VGA screen.
  *
@@ -54,11 +54,11 @@
  * don't start thinking about scrolling).  The second allows the LCD to
  * be turned on or off as well as rotated 180 degrees.
  *
- * In case of direct PLB access the second control register will be at
+ * In case of direct BUS access the second control register will be at
  * an offset of 4 as compared to the DCR access where the offset is 1
  * i.e. REG_CTRL. So this is taken care in the function
  * xilinx_fb_out32 where it left shifts the offset 2 times in case of
- * direct PLB access.
+ * direct BUS access.
  */
 #define NUM_REGS	2
 #define REG_FB_ADDR	0
@@ -116,7 +116,7 @@ static struct fb_var_screeninfo xilinx_fb_var = {
 };
 
 
-#define PLB_ACCESS_FLAG	0x1		/* 1 = PLB, 0 = DCR */
+#define BUS_ACCESS_FLAG		0x1 /* 1 = BUS, 0 = DCR */
 
 struct xilinxfb_drvdata {
 
@@ -146,14 +146,14 @@ struct xilinxfb_drvdata {
 	container_of(_info, struct xilinxfb_drvdata, info)
 
 /*
- * The XPS TFT Controller can be accessed through PLB or DCR interface.
+ * The XPS TFT Controller can be accessed through BUS or DCR interface.
  * To perform the read/write on the registers we need to check on
  * which bus its connected and call the appropriate write API.
  */
 static void xilinx_fb_out32(struct xilinxfb_drvdata *drvdata, u32 offset,
 				u32 val)
 {
-	if (drvdata->flags & PLB_ACCESS_FLAG)
+	if (drvdata->flags & BUS_ACCESS_FLAG)
 		out_be32(drvdata->regs + (offset << 2), val);
 #ifdef CONFIG_PPC_DCR
 	else
@@ -235,10 +235,10 @@ static int xilinxfb_assign(struct device *dev,
 	int rc;
 	int fbsize = pdata->xvirt * pdata->yvirt * BYTES_PER_PIXEL;
 
-	if (drvdata->flags & PLB_ACCESS_FLAG) {
+	if (drvdata->flags & BUS_ACCESS_FLAG) {
 		/*
 		 * Map the control registers in if the controller
-		 * is on direct PLB interface.
+		 * is on direct BUS interface.
 		 */
 		if (!request_mem_region(physaddr, 8, DRIVER_NAME)) {
 			dev_err(dev, "Couldn't lock memory region at 0x%08lX\n",
@@ -270,7 +270,7 @@ static int xilinxfb_assign(struct device *dev,
 	if (!drvdata->fb_virt) {
 		dev_err(dev, "Could not allocate frame buffer memory\n");
 		rc = -ENOMEM;
-		if (drvdata->flags & PLB_ACCESS_FLAG)
+		if (drvdata->flags & BUS_ACCESS_FLAG)
 			goto err_fbmem;
 		else
 			goto err_region;
@@ -323,7 +323,7 @@ static int xilinxfb_assign(struct device *dev,
 		goto err_regfb;
 	}
 
-	if (drvdata->flags & PLB_ACCESS_FLAG) {
+	if (drvdata->flags & BUS_ACCESS_FLAG) {
 		/* Put a banner in the log (for DEBUG) */
 		dev_dbg(dev, "regs: phys=%lx, virt=%p\n", physaddr,
 					drvdata->regs);
@@ -348,11 +348,11 @@ err_cmap:
 	xilinx_fb_out32(drvdata, REG_CTRL, 0);
 
 err_fbmem:
-	if (drvdata->flags & PLB_ACCESS_FLAG)
+	if (drvdata->flags & BUS_ACCESS_FLAG)
 		iounmap(drvdata->regs);
 
 err_map:
-	if (drvdata->flags & PLB_ACCESS_FLAG)
+	if (drvdata->flags & BUS_ACCESS_FLAG)
 		release_mem_region(physaddr, 8);
 
 err_region:
@@ -384,7 +384,7 @@ static int xilinxfb_release(struct device *dev)
 	xilinx_fb_out32(drvdata, REG_CTRL, 0);
 
 	/* Release the resources, as allocated based on interface */
-	if (drvdata->flags & PLB_ACCESS_FLAG) {
+	if (drvdata->flags & BUS_ACCESS_FLAG) {
 		iounmap(drvdata->regs);
 		release_mem_region(drvdata->regs_phys, 8);
 	}
@@ -423,18 +423,18 @@ static int xilinxfb_of_probe(struct platform_device *op)
 	}
 
 	/*
-	 * To check whether the core is connected directly to DCR or PLB
+	 * To check whether the core is connected directly to DCR or BUS
 	 * interface and initialize the tft_access accordingly.
 	 */
 	of_property_read_u32(op->dev.of_node, "xlnx,dcr-splb-slave-if",
 			     &tft_access);
 
 	/*
-	 * Fill the resource structure if its direct PLB interface
+	 * Fill the resource structure if its direct BUS interface
 	 * otherwise fill the dcr_host structure.
 	 */
 	if (tft_access) {
-		drvdata->flags |= PLB_ACCESS_FLAG;
+		drvdata->flags |= BUS_ACCESS_FLAG;
 		rc = of_address_to_resource(op->dev.of_node, 0, &res);
 		if (rc) {
 			dev_err(&op->dev, "invalid address\n");
