@@ -1469,7 +1469,7 @@ struct changelog_show {
 	struct obd_device *cs_obd;
 };
 
-static int changelog_show_cb(const struct lu_env *env, struct llog_handle *llh,
+static int changelog_kkuc_cb(const struct lu_env *env, struct llog_handle *llh,
 			     struct llog_rec_hdr *hdr, void *data)
 {
 	struct changelog_show *cs = data;
@@ -1478,11 +1478,12 @@ static int changelog_show_cb(const struct lu_env *env, struct llog_handle *llh,
 	int len, rc;
 	ENTRY;
 
-	if ((rec->cr_hdr.lrh_type != CHANGELOG_REC) ||
-	    (rec->cr.cr_type >= CL_LAST)) {
-		CERROR("Not a changelog rec %d/%d\n", rec->cr_hdr.lrh_type,
-		       rec->cr.cr_type);
-		RETURN(-EINVAL);
+	if (rec->cr_hdr.lrh_type != CHANGELOG_REC) {
+		rc = -EINVAL;
+		CERROR("%s: not a changelog rec %x/%d: rc = %d\n",
+		       cs->cs_obd->obd_name, rec->cr_hdr.lrh_type,
+		       rec->cr.cr_type, rc);
+		RETURN(rc);
 	}
 
 	if (rec->cr.cr_index < cs->cs_startrec) {
@@ -1543,7 +1544,7 @@ static int mdc_changelog_send_thread(void *csdata)
 		GOTO(out, rc);
 	}
 
-	rc = llog_cat_process(NULL, llh, changelog_show_cb, cs, 0, 0);
+	rc = llog_cat_process(NULL, llh, changelog_kkuc_cb, cs, 0, 0);
 
 	/* Send EOF no matter what our result */
 	if ((kuch = changelog_kuc_hdr(cs->cs_buf, sizeof(*kuch),
