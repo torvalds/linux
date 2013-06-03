@@ -49,8 +49,9 @@
 
 
 /* GPIO/GPO registers */
-#define EM2880_R04_GPO	0x04    /* em2880-em2883 only */
-#define EM28XX_R08_GPIO	0x08	/* em2820 or upper */
+#define EM2880_R04_GPO		0x04    /* em2880-em2883 only */
+#define EM2820_R08_GPIO_CTRL	0x08	/* em2820-em2873/83 only */
+#define EM2820_R09_GPIO_STATE	0x09	/* em2820-em2873/83 only */
 
 #define EM28XX_R06_I2C_CLK	0x06
 
