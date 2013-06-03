@@ -325,7 +325,7 @@ static int xilinxfb_assign(struct device *dev,
 
 	if (drvdata->flags & BUS_ACCESS_FLAG) {
 		/* Put a banner in the log (for DEBUG) */
-		dev_dbg(dev, "regs: phys=%lx, virt=%p\n", physaddr,
+		dev_dbg(dev, "regs: phys=%x, virt=%p\n", drvdata->regs_phys,
 					drvdata->regs);
 	}
 	/* Put a banner in the log (for DEBUG) */
@@ -353,7 +353,7 @@ err_fbmem:
 
 err_map:
 	if (drvdata->flags & BUS_ACCESS_FLAG)
-		release_mem_region(physaddr, 8);
+		release_mem_region(drvdata->regs_phys, 8);
 
 err_region:
 	kfree(drvdata);
