@@ -995,11 +995,8 @@ static void rtl8192_rx_isr(struct urb *urb)
 		netdev_err(dev, "can not submit rxurb, err is %x, URB status is %x\n", err, urb->status);
 }
 
-u32
-rtl819xusb_rx_command_packet(
-	struct net_device *dev,
-	struct ieee80211_rx_stats *pstats
-	)
+u32 rtl819xusb_rx_command_packet(struct net_device *dev,
+				 struct ieee80211_rx_stats *pstats)
 {
 	u32	status;
 
@@ -1493,12 +1490,8 @@ inline u8 rtl8192_IsWirelessBMode(u16 rate)
 
 u16 N_DBPSOfRate(u16 DataRate);
 
-u16 ComputeTxTime(
-	u16		FrameLength,
-	u16		DataRate,
-	u8		bManagementFrame,
-	u8		bShortPreamble
-)
+u16 ComputeTxTime(u16 FrameLength, u16 DataRate, u8 bManagementFrame,
+		  u8 bShortPreamble)
 {
 	u16	FrameTime;
 	u16	N_DBPS;
@@ -3170,10 +3163,7 @@ static struct net_device_stats *rtl8192_stats(struct net_device *dev)
 	return &priv->ieee80211->stats;
 }
 
-bool
-HalTxCheckStuck819xUsb(
-	struct net_device *dev
-	)
+bool HalTxCheckStuck819xUsb(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16		RegTxCounter = read_nic_word(dev, 0x128);
@@ -3191,8 +3181,7 @@ HalTxCheckStuck819xUsb(
 *	<Assumption: RT_TX_SPINLOCK is acquired.>
 *	First added: 2006.11.19 by emily
 */
-RESET_TYPE
-TxCheckStuck(struct net_device *dev)
+RESET_TYPE TxCheckStuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8			QueueID;
@@ -3223,8 +3212,7 @@ TxCheckStuck(struct net_device *dev)
 	return RESET_TYPE_NORESET;
 }
 
-bool
-HalRxCheckStuck819xUsb(struct net_device *dev)
+bool HalRxCheckStuck819xUsb(struct net_device *dev)
 {
 	u16	RegRxCounter = read_nic_word(dev, 0x130);
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -3265,8 +3253,7 @@ HalRxCheckStuck819xUsb(struct net_device *dev)
 	return bStuck;
 }
 
-RESET_TYPE
-RxCheckStuck(struct net_device *dev)
+RESET_TYPE RxCheckStuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool        bRxCheck = FALSE;
@@ -3296,8 +3283,7 @@ RxCheckStuck(struct net_device *dev)
 *
 *	8185 and 8185b does not implement this function. This is added by Emily at 2006.11.24
 */
-RESET_TYPE
-rtl819x_ifcheck_resetornot(struct net_device *dev)
+RESET_TYPE rtl819x_ifcheck_resetornot(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	RESET_TYPE	TxResetType = RESET_TYPE_NORESET;
@@ -3336,8 +3322,7 @@ int rtl8192_close(struct net_device *dev);
 
 
 
-void
-CamRestoreAllEntry(struct net_device *dev)
+void CamRestoreAllEntry(struct net_device *dev)
 {
 	u8 EntryId = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -3455,8 +3440,7 @@ CamRestoreAllEntry(struct net_device *dev)
 // The method checking Tx/Rx stuck of this function is supported by FW,
 // which reports Tx and Rx counter to register 0x128 and 0x130.
 //////////////////////////////////////////////////////////////
-void
-rtl819x_ifsilentreset(struct net_device *dev)
+void rtl819x_ifsilentreset(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8	reset_times = 0;
@@ -3548,10 +3532,7 @@ RESET_START:
 	}
 }
 
-void CAM_read_entry(
-	struct net_device *dev,
-	u32			iIndex
-)
+void CAM_read_entry(struct net_device *dev, u32 iIndex)
 {
 	u32 target_command = 0;
 	 u32 target_content = 0;
@@ -3579,11 +3560,8 @@ void CAM_read_entry(
 	printk("\n");
 }
 
-void rtl819x_update_rxcounts(
-	struct r8192_priv *priv,
-	u32 *TotalRxBcnNum,
-	u32 *TotalRxDataNum
-)
+void rtl819x_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
+			     u32 *TotalRxDataNum)
 {
 	u16			SlotIndex;
 	u8			i;
@@ -3601,7 +3579,7 @@ void rtl819x_update_rxcounts(
 }
 
 
-extern	void	rtl819x_watchdog_wqcallback(struct work_struct *work)
+extern void rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
        struct r8192_priv *priv = container_of(dwork, struct r8192_priv, watch_dog_wq);
@@ -4236,9 +4214,7 @@ void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer, struct ieee802
  *	05/26/2008	amy		Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-static u8 rtl819x_query_rxpwrpercentage(
-	char		antpower
-	)
+static u8 rtl819x_query_rxpwrpercentage(char antpower)
 {
 	if ((antpower <= -100) || (antpower >= 20))
 		return	0;
@@ -4249,10 +4225,7 @@ static u8 rtl819x_query_rxpwrpercentage(
 
 }	/* QueryRxPwrPercentage */
 
-static u8
-rtl819x_evm_dbtopercentage(
-    char value
-    )
+static u8 rtl819x_evm_dbtopercentage(char value)
 {
     char ret_val;
 
@@ -4273,10 +4246,7 @@ rtl819x_evm_dbtopercentage(
 //	We want good-looking for signal strength/quality
 //	2007/7/19 01:09, by cosa.
 //
-long
-rtl819x_signal_scale_mapping(
-	long currsig
-	)
+long rtl819x_signal_scale_mapping(long currsig)
 {
 	long retsig;
 
@@ -4305,16 +4275,14 @@ rtl819x_signal_scale_mapping(
 	return retsig;
 }
 
-static void rtl8192_query_rxphystatus(
-	struct r8192_priv *priv,
-	struct ieee80211_rx_stats *pstats,
-	rx_drvinfo_819x_usb  *pdrvinfo,
-	struct ieee80211_rx_stats *precord_stats,
-	bool bpacket_match_bssid,
-	bool bpacket_toself,
-	bool bPacketBeacon,
-	bool bToSelfBA
-	)
+static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
+				      struct ieee80211_rx_stats *pstats,
+				      rx_drvinfo_819x_usb  *pdrvinfo,
+				      struct ieee80211_rx_stats *precord_stats,
+				      bool bpacket_match_bssid,
+				      bool bpacket_toself,
+				      bool bPacketBeacon,
+				      bool bToSelfBA)
 {
 	phy_sts_ofdm_819xusb_t *pofdm_buf;
 	phy_sts_cck_819xusb_t	*pcck_buf;
@@ -4522,11 +4490,8 @@ static void rtl8192_query_rxphystatus(
 	}
 }	/* QueryRxPhyStatus8190Pci */
 
-void
-rtl8192_record_rxdesc_forlateruse(
-	struct ieee80211_rx_stats *psrc_stats,
-	struct ieee80211_rx_stats *ptarget_stats
-)
+void rtl8192_record_rxdesc_forlateruse(struct ieee80211_rx_stats *psrc_stats,
+				       struct ieee80211_rx_stats *ptarget_stats)
 {
 	ptarget_stats->bIsAMPDU = psrc_stats->bIsAMPDU;
 	ptarget_stats->bFirstMPDU = psrc_stats->bFirstMPDU;
@@ -4605,11 +4570,8 @@ void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 * Return:
 *		None
 */
-void
-UpdateReceivedRateHistogramStatistics8190(
-	struct net_device *dev,
-	struct ieee80211_rx_stats *stats
-	)
+void UpdateReceivedRateHistogramStatistics8190(struct net_device *dev,
+					       struct ieee80211_rx_stats *stats)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	u32 rcvType = 1;   //0: Total, 1:OK, 2:CRC, 3:ICV
@@ -4947,11 +4909,8 @@ void rtl8192_rx_nomal(struct sk_buff *skb)
 
 }
 
-void
-rtl819xusb_process_received_packet(
-	struct net_device *dev,
-	struct ieee80211_rx_stats *pstats
-	)
+void rtl819xusb_process_received_packet(struct net_device *dev,
+					struct ieee80211_rx_stats *pstats)
 {
 	u8	*frame;
 	u16     frame_len = 0;
@@ -5300,13 +5259,8 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 }
 
 
-void setKey(struct net_device *dev,
-	    u8 EntryNo,
-	    u8 KeyIndex,
-	    u16 KeyType,
-	    u8 *MacAddr,
-	    u8 DefaultKey,
-	    u32 *KeyContent)
+void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
+	    u8 *MacAddr, u8 DefaultKey, u32 *KeyContent)
 {
 	u32 TargetCommand = 0;
 	u32 TargetContent = 0;
