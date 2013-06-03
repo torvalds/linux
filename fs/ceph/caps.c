@@ -3042,21 +3042,19 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 		     (cap->issued & unless) == 0)) {
 			if ((cap->issued & drop) &&
 			    (cap->issued & unless) == 0) {
-				dout("encode_inode_release %p cap %p %s -> "
-				     "%s\n", inode, cap,
+				int wanted = __ceph_caps_wanted(ci);
+				if ((ci->i_ceph_flags & CEPH_I_NODELAY) == 0)
+					wanted |= cap->mds_wanted;
+				dout("encode_inode_release %p cap %p "
+				     "%s -> %s, wanted %s -> %s\n", inode, cap,
 				     ceph_cap_string(cap->issued),
-				     ceph_cap_string(cap->issued & ~drop));
+				     ceph_cap_string(cap->issued & ~drop),
+				     ceph_cap_string(cap->mds_wanted),
+				     ceph_cap_string(wanted));
+
 				cap->issued &= ~drop;
 				cap->implemented &= ~drop;
-				if (ci->i_ceph_flags & CEPH_I_NODELAY) {
-					int wanted = __ceph_caps_wanted(ci);
-					dout("  wanted %s -> %s (act %s)\n",
-					     ceph_cap_string(cap->mds_wanted),
-					     ceph_cap_string(cap->mds_wanted &
-							     ~wanted),
-					     ceph_cap_string(wanted));
-					cap->mds_wanted &= wanted;
-				}
+				cap->mds_wanted = wanted;
 			} else {
 				dout("encode_inode_release %p cap %p %s"
 				     " (force)\n", inode, cap,
