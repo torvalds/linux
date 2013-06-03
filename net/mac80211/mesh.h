@@ -188,7 +188,6 @@ struct mesh_rmc {
 	u32 idx_mask;
 };
 
-#define IEEE80211_MESH_PEER_INACTIVITY_LIMIT (1800 * HZ)
 #define IEEE80211_MESH_HOUSEKEEPING_INTERVAL (60 * HZ)
 
 #define MESH_PATH_EXPIRE (600 * HZ)
