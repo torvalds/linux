@@ -3817,8 +3817,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			bnx2x_set_pbd_gso_e2(skb, &pbd_e2_parsing_data,
 					     xmit_type);
 		else
-			bnx2x_set_pbd_gso(skb, pbd_e1x, tx_start_bd,
-					  xmit_type);
+			bnx2x_set_pbd_gso(skb, pbd_e1x, first_bd, xmit_type);
 	}
 
 	/* Set the PBD's parsing_data field if not zero
