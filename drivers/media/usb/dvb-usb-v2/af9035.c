@@ -518,11 +518,11 @@ static int af9035_download_firmware(struct dvb_usb_device *d,
 	 * which is done by master demod.
 	 * Master feeds also clock and controls power via GPIO.
 	 */
-	ret = af9035_rd_reg(d, state->eeprom_addr + EEPROM_DUAL_MODE, &tmp);
+	ret = af9035_rd_reg(d, state->eeprom_addr + EEPROM_TS_MODE, &tmp);
 	if (ret < 0)
 		goto err;
 
-	if (tmp) {
+	if (tmp == 1 || tmp == 3) {
 		/* configure gpioh1, reset & power slave demod */
 		ret = af9035_wr_reg_mask(d, 0x00d8b0, 0x01, 0x01);
 		if (ret < 0)
@@ -640,13 +640,15 @@ static int af9035_read_config(struct dvb_usb_device *d)
 	}
 
 	/* check if there is dual tuners */
-	ret = af9035_rd_reg(d, state->eeprom_addr + EEPROM_DUAL_MODE, &tmp);
+	ret = af9035_rd_reg(d, state->eeprom_addr + EEPROM_TS_MODE, &tmp);
 	if (ret < 0)
 		goto err;
 
-	state->dual_mode = tmp;
-	dev_dbg(&d->udev->dev, "%s: dual mode=%d\n", __func__,
-			state->dual_mode);
+	if (tmp == 1 || tmp == 3)
+		state->dual_mode = true;
+
+	dev_dbg(&d->udev->dev, "%s: ts mode=%d dual mode=%d\n", __func__,
+			tmp, state->dual_mode);
 
 	if (state->dual_mode) {
 		/* read 2nd demodulator I2C address */
