@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/irq_work.h>
+#include <linux/tick.h>
 
 #include <asm/paravirt.h>
 #include <asm/desc.h>
@@ -447,6 +448,13 @@ static void __cpuinit xen_play_dead(void) /* used only with HOTPLUG_CPU */
 	play_dead_common();
 	HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL);
 	cpu_bringup();
+	/*
+	 * commit 4b0c0f294 (tick: Cleanup NOHZ per cpu data on cpu down)
+	 * clears certain data that the cpu_idle loop (which called us
+	 * and that we return from) expects. The only way to get that
+	 * data back is to call:
+	 */
+	tick_nohz_idle_enter();
 }
 
 #else /* !CONFIG_HOTPLUG_CPU */
