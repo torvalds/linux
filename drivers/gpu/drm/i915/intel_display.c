@@ -515,8 +515,7 @@ i9xx_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	     clock.m1++) {
 		for (clock.m2 = limit->m2.min;
 		     clock.m2 <= limit->m2.max; clock.m2++) {
-			/* m1 is always 0 in Pineview */
-			if (clock.m2 >= clock.m1 && !IS_PINEVIEW(dev))
+			if (clock.m2 >= clock.m1)
 				break;
 			for (clock.n = limit->n.min;
 			     clock.n <= limit->n.max; clock.n++) {
@@ -577,9 +576,6 @@ pnv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	     clock.m1++) {
 		for (clock.m2 = limit->m2.min;
 		     clock.m2 <= limit->m2.max; clock.m2++) {
-			/* m1 is always 0 in Pineview */
-			if (clock.m2 >= clock.m1 && !IS_PINEVIEW(dev))
-				break;
 			for (clock.n = limit->n.min;
 			     clock.n <= limit->n.max; clock.n++) {
 				for (clock.p1 = limit->p1.min;
