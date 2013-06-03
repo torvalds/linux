@@ -18,6 +18,8 @@
 #include <linux/gpio.h>
 #include <asm/div64.h>
 #include <linux/clk.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -375,13 +377,137 @@ static const struct iio_info adf4350_info = {
 	.driver_module = THIS_MODULE,
 };
 
+#ifdef CONFIG_OF
+static struct adf4350_platform_data *adf4350_parse_dt(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct adf4350_platform_data *pdata;
+	unsigned int tmp;
+	int ret;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "could not allocate memory for platform data\n");
+		return NULL;
+	}
+
+	strncpy(&pdata->name[0], np->name, SPI_NAME_SIZE - 1);
+
+	tmp = 10000;
+	of_property_read_u32(np, "adi,channel-spacing", &tmp);
+	pdata->channel_spacing = tmp;
+
+	tmp = 0;
+	of_property_read_u32(np, "adi,power-up-frequency", &tmp);
+	pdata->power_up_frequency = tmp;
+
+	tmp = 0;
+	of_property_read_u32(np, "adi,reference-div-factor", &tmp);
+	pdata->ref_div_factor = tmp;
+
+	ret = of_get_gpio(np, 0);
+	if (ret < 0)
+		pdata->gpio_lock_detect = -1;
+	else
+		pdata->gpio_lock_detect = ret;
+
+	pdata->ref_doubler_en = of_property_read_bool(np,
+			"adi,reference-doubler-enable");
+	pdata->ref_div2_en = of_property_read_bool(np,
+			"adi,reference-div2-enable");
+
+	/* r2_user_settings */
+	pdata->r2_user_settings = of_property_read_bool(np,
+			"adi,phase-detector-polarity-positive-enable") ?
+			ADF4350_REG2_PD_POLARITY_POS : 0;
+	pdata->r2_user_settings |= of_property_read_bool(np,
+			"adi,lock-detect-precision-6ns-enable") ?
+			ADF4350_REG2_LDP_6ns : 0;
+	pdata->r2_user_settings |= of_property_read_bool(np,
+			"adi,lock-detect-function-integer-n-enable") ?
+			ADF4350_REG2_LDF_INT_N : 0;
+
+	tmp = 2500;
+	of_property_read_u32(np, "adi,charge-pump-current", &tmp);
+	pdata->r2_user_settings |= ADF4350_REG2_CHARGE_PUMP_CURR_uA(tmp);
+
+	tmp = 0;
+	of_property_read_u32(np, "adi,muxout-select", &tmp);
+	pdata->r2_user_settings |= ADF4350_REG2_MUXOUT(tmp);
+
+	pdata->r2_user_settings |= of_property_read_bool(np,
+			"adi,low-spur-mode-enable") ?
+			ADF4350_REG2_NOISE_MODE(0x3) : 0;
+
+	/* r3_user_settings */
+
+	pdata->r3_user_settings = of_property_read_bool(np,
+			"adi,cycle-slip-reduction-enable") ?
+			ADF4350_REG3_12BIT_CSR_EN : 0;
+	pdata->r3_user_settings |= of_property_read_bool(np,
+			"adi,charge-cancellation-enable") ?
+			ADF4351_REG3_CHARGE_CANCELLATION_EN : 0;
+
+	pdata->r3_user_settings |= of_property_read_bool(np,
+			"adi,anti-backlash-3ns-enable") ?
+			ADF4351_REG3_ANTI_BACKLASH_3ns_EN : 0;
+	pdata->r3_user_settings |= of_property_read_bool(np,
+			"adi,band-select-clock-mode-high-enable") ?
+			ADF4351_REG3_BAND_SEL_CLOCK_MODE_HIGH : 0;
+
+	tmp = 0;
+	of_property_read_u32(np, "adi,12bit-clk-divider", &tmp);
+	pdata->r3_user_settings |= ADF4350_REG3_12BIT_CLKDIV(tmp);
+
+	tmp = 0;
+	of_property_read_u32(np, "adi,clk-divider-mode", &tmp);
+	pdata->r3_user_settings |= ADF4350_REG3_12BIT_CLKDIV_MODE(tmp);
+
+	/* r4_user_settings */
+
+	pdata->r4_user_settings = of_property_read_bool(np,
+			"adi,aux-output-enable") ?
+			ADF4350_REG4_AUX_OUTPUT_EN : 0;
+	pdata->r4_user_settings |= of_property_read_bool(np,
+			"adi,aux-output-fundamental-enable") ?
+			ADF4350_REG4_AUX_OUTPUT_FUND : 0;
+	pdata->r4_user_settings |= of_property_read_bool(np,
+			"adi,mute-till-lock-enable") ?
+			ADF4350_REG4_MUTE_TILL_LOCK_EN : 0;
+
+	tmp = 0;
+	of_property_read_u32(np, "adi,output-power", &tmp);
+	pdata->r4_user_settings |= ADF4350_REG4_OUTPUT_PWR(tmp);
+
+	tmp = 0;
+	of_property_read_u32(np, "adi,aux-output-power", &tmp);
+	pdata->r4_user_settings |= ADF4350_REG4_AUX_OUTPUT_PWR(tmp);
+
+	return pdata;
+}
+#else
+static
+struct adf4350_platform_data *adf4350_parse_dt(struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static int adf4350_probe(struct spi_device *spi)
 {
-	struct adf4350_platform_data *pdata = spi->dev.platform_data;
+	struct adf4350_platform_data *pdata;
 	struct iio_dev *indio_dev;
 	struct adf4350_state *st;
 	struct clk *clk = NULL;
 	int ret;
+
+	if (spi->dev.of_node) {
+		pdata = adf4350_parse_dt(&spi->dev);
+		if (pdata == NULL)
+			return -EINVAL;
+	} else {
+		pdata = spi->dev.platform_data;
+	}
 
 	if (!pdata) {
 		dev_warn(&spi->dev, "no platform data? using default\n");
