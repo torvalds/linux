@@ -869,10 +869,6 @@ static int emac_probe(struct platform_device *pdev)
 	ndev->watchdog_timeo = msecs_to_jiffies(watchdog);
 	ndev->ethtool_ops = &emac_ethtool_ops;
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	ndev->poll_controller = &emac_poll_controller;
-#endif
-
 	platform_set_drvdata(pdev, ndev);
 
 	/* Carrier starts down, phylib will bring it up */
