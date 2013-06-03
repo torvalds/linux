@@ -107,22 +107,11 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
  */
 void percpu_ref_kill(struct percpu_ref *ref)
 {
-	unsigned __percpu *pcpu_count, *old, *new;
+	WARN_ONCE(REF_STATUS(ref->pcpu_count) == PCPU_REF_DEAD,
+		  "percpu_ref_kill() called more than once!\n");
 
-	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
-
-	do {
-		if (REF_STATUS(pcpu_count) == PCPU_REF_DEAD) {
-			WARN(1, "percpu_ref_kill() called more than once!\n");
-			return;
-		}
-
-		old = pcpu_count;
-		new = (unsigned __percpu *)
-			(((unsigned long) pcpu_count)|PCPU_REF_DEAD);
-
-		pcpu_count = cmpxchg(&ref->pcpu_count, old, new);
-	} while (pcpu_count != old);
+	ref->pcpu_count = (unsigned __percpu *)
+		(((unsigned long) ref->pcpu_count)|PCPU_REF_DEAD);
 
 	call_rcu(&ref->rcu, percpu_ref_kill_rcu);
 }
