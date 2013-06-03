@@ -3234,13 +3234,16 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 			/* 1 for the orphan item deletion. */
 			trans = btrfs_start_transaction(root, 1);
 			if (IS_ERR(trans)) {
+				iput(inode);
 				ret = PTR_ERR(trans);
 				goto out;
 			}
 			ret = btrfs_orphan_add(trans, inode);
 			btrfs_end_transaction(trans, root);
-			if (ret)
+			if (ret) {
+				iput(inode);
 				goto out;
+			}
 
 			ret = btrfs_truncate(inode);
 			if (ret)
