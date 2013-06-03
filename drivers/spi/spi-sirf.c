@@ -425,6 +425,8 @@ spi_sirfsoc_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		rxfifo_ctrl = SIRFSOC_SPI_FIFO_THD(SIRFSOC_SPI_FIFO_SIZE / 2) |
 					SIRFSOC_SPI_FIFO_WIDTH_DWORD;
 		break;
+	default:
+		BUG();
 	}
 
 	if (!(spi->mode & SPI_CS_HIGH))
