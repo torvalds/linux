@@ -1154,11 +1154,6 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 	return error;
 }
 
-static int gfs2_quota_sync_timeo(struct super_block *sb, int type)
-{
-	return gfs2_quota_sync(sb, type);
-}
-
 int gfs2_quota_refresh(struct gfs2_sbd *sdp, struct kqid qid)
 {
 	struct gfs2_quota_data *qd;
@@ -1414,7 +1409,7 @@ int gfs2_quotad(void *data)
 					   &tune->gt_statfs_quantum);
 
 		/* Update quota file */
-		quotad_check_timeo(sdp, "sync", gfs2_quota_sync_timeo, t,
+		quotad_check_timeo(sdp, "sync", gfs2_quota_sync, t,
 				   &quotad_timeo, &tune->gt_quota_quantum);
 
 		/* Check for & recover partially truncated inodes */
