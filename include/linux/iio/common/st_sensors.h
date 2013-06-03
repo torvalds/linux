@@ -30,8 +30,6 @@
 #define ST_SENSORS_SCAN_X			0
 #define ST_SENSORS_SCAN_Y			1
 #define ST_SENSORS_SCAN_Z			2
-#define ST_SENSORS_DEFAULT_12_REALBITS		12
-#define ST_SENSORS_DEFAULT_16_REALBITS		16
 #define ST_SENSORS_DEFAULT_POWER_ON_VALUE	0x01
 #define ST_SENSORS_DEFAULT_POWER_OFF_VALUE	0x00
 #define ST_SENSORS_DEFAULT_WAI_ADDRESS		0x0f
@@ -42,20 +40,20 @@
 #define ST_SENSORS_MAX_NAME			17
 #define ST_SENSORS_MAX_4WAI			7
 
-#define ST_SENSORS_LSM_CHANNELS(device_type, index, mod, endian, bits, addr) \
+#define ST_SENSORS_LSM_CHANNELS(device_type, mask, index, mod, \
+					ch2, s, endian, rbits, sbits, addr) \
 { \
 	.type = device_type, \
-	.modified = 1, \
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
-			BIT(IIO_CHAN_INFO_SCALE), \
+	.modified = mod, \
+	.info_mask_separate = mask, \
 	.scan_index = index, \
-	.channel2 = mod, \
+	.channel2 = ch2, \
 	.address = addr, \
 	.scan_type = { \
-		.sign = 's', \
-		.realbits = bits, \
-		.shift = 16 - bits, \
-		.storagebits = 16, \
+		.sign = s, \
+		.realbits = rbits, \
+		.shift = sbits - rbits, \
+		.storagebits = sbits, \
 		.endianness = endian, \
 	}, \
 }
