@@ -505,14 +505,10 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 		struct ar5416AniState *ani = &chan->ani;
 
 		ani->spurImmunityLevel = ATH9K_ANI_SPUR_IMMUNE_LVL;
-
 		ani->firstepLevel = ATH9K_ANI_FIRSTEP_LVL;
-
 		ani->mrcCCK = AR_SREV_9300_20_OR_LATER(ah) ? true : false;
-
 		ani->ofdmsTurn = true;
-
-		ani->ofdmWeakSigDetect = ATH9K_ANI_USE_OFDM_WEAK_SIG;
+		ani->ofdmWeakSigDetect = true;
 		ani->cckNoiseImmunityLevel = ATH9K_ANI_CCK_DEF_LEVEL;
 		ani->ofdmNoiseImmunityLevel = ATH9K_ANI_OFDM_DEF_LEVEL;
 	}

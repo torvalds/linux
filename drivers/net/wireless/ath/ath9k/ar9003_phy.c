@@ -1213,7 +1213,7 @@ static void ar9003_hw_ani_cache_ini_regs(struct ath_hw *ah)
 	/* these levels just got reset to defaults by the INI */
 	aniState->spurImmunityLevel = ATH9K_ANI_SPUR_IMMUNE_LVL;
 	aniState->firstepLevel = ATH9K_ANI_FIRSTEP_LVL;
-	aniState->ofdmWeakSigDetect = ATH9K_ANI_USE_OFDM_WEAK_SIG;
+	aniState->ofdmWeakSigDetect = true;
 	aniState->mrcCCK = true;
 }
 
