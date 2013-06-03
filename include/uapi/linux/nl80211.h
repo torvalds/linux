@@ -2577,6 +2577,10 @@ enum nl80211_mesh_power_mode {
  *
  * @NL80211_MESHCONF_AWAKE_WINDOW: awake window duration (in TUs)
  *
+ * @NL80211_MESHCONF_PLINK_TIMEOUT: If no tx activity is seen from a STA we've
+ *	established peering with for longer than this time (in seconds), then
+ *	remove it from the STA's list of peers.  Default is 30 minutes.
+ *
  * @__NL80211_MESHCONF_ATTR_AFTER_LAST: internal use
  */
 enum nl80211_meshconf_params {
@@ -2608,6 +2612,7 @@ enum nl80211_meshconf_params {
 	NL80211_MESHCONF_HWMP_CONFIRMATION_INTERVAL,
 	NL80211_MESHCONF_POWER_MODE,
 	NL80211_MESHCONF_AWAKE_WINDOW,
+	NL80211_MESHCONF_PLINK_TIMEOUT,
 
 	/* keep last */
 	__NL80211_MESHCONF_ATTR_AFTER_LAST,

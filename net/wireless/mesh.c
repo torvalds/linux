@@ -18,6 +18,7 @@
 #define MESH_PATH_TO_ROOT_TIMEOUT      6000
 #define MESH_ROOT_INTERVAL     5000
 #define MESH_ROOT_CONFIRMATION_INTERVAL 2000
+#define MESH_DEFAULT_PLINK_TIMEOUT	1800 /* timeout in seconds */
 
 /*
  * Minimum interval between two consecutive PREQs originated by the same
@@ -75,6 +76,7 @@ const struct mesh_config default_mesh_config = {
 	.dot11MeshHWMPconfirmationInterval = MESH_ROOT_CONFIRMATION_INTERVAL,
 	.power_mode = NL80211_MESH_POWER_ACTIVE,
 	.dot11MeshAwakeWindowDuration = MESH_DEFAULT_AWAKE_WINDOW,
+	.plink_timeout = MESH_DEFAULT_PLINK_TIMEOUT,
 };
 
 const struct mesh_setup default_mesh_setup = {
