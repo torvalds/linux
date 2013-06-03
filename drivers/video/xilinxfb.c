@@ -227,33 +227,23 @@ static struct fb_ops xilinxfb_ops =
  * Bus independent setup/teardown
  */
 
-static int xilinxfb_assign(struct device *dev,
+static int xilinxfb_assign(struct platform_device *pdev,
 			   struct xilinxfb_drvdata *drvdata,
-			   unsigned long physaddr,
 			   struct xilinxfb_platform_data *pdata)
 {
 	int rc;
+	struct device *dev = &pdev->dev;
 	int fbsize = pdata->xvirt * pdata->yvirt * BYTES_PER_PIXEL;
 
 	if (drvdata->flags & BUS_ACCESS_FLAG) {
-		/*
-		 * Map the control registers in if the controller
-		 * is on direct BUS interface.
-		 */
-		if (!request_mem_region(physaddr, 8, DRIVER_NAME)) {
-			dev_err(dev, "Couldn't lock memory region at 0x%08lX\n",
-				physaddr);
-			rc = -ENODEV;
-			goto err_region;
-		}
+		struct resource *res;
 
-		drvdata->regs_phys = physaddr;
-		drvdata->regs = ioremap(physaddr, 8);
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		drvdata->regs_phys = res->start;
+		drvdata->regs = devm_request_and_ioremap(&pdev->dev, res);
 		if (!drvdata->regs) {
-			dev_err(dev, "Couldn't lock memory region at 0x%08lX\n",
-				physaddr);
-			rc = -ENODEV;
-			goto err_map;
+			rc = -EADDRNOTAVAIL;
+			goto err_region;
 		}
 	}
 
@@ -349,11 +339,7 @@ err_cmap:
 
 err_fbmem:
 	if (drvdata->flags & BUS_ACCESS_FLAG)
-		iounmap(drvdata->regs);
-
-err_map:
-	if (drvdata->flags & BUS_ACCESS_FLAG)
-		release_mem_region(drvdata->regs_phys, 8);
+		devm_iounmap(dev, drvdata->regs);
 
 err_region:
 	kfree(drvdata);
@@ -384,10 +370,8 @@ static int xilinxfb_release(struct device *dev)
 	xilinx_fb_out32(drvdata, REG_CTRL, 0);
 
 	/* Release the resources, as allocated based on interface */
-	if (drvdata->flags & BUS_ACCESS_FLAG) {
-		iounmap(drvdata->regs);
-		release_mem_region(drvdata->regs_phys, 8);
-	}
+	if (drvdata->flags & BUS_ACCESS_FLAG)
+		devm_iounmap(dev, drvdata->regs);
 #ifdef CONFIG_PPC_DCR
 	else
 		dcr_unmap(drvdata->dcr_host, drvdata->dcr_len);
@@ -408,8 +392,7 @@ static int xilinxfb_of_probe(struct platform_device *op)
 	const u32 *prop;
 	u32 tft_access = 0;
 	struct xilinxfb_platform_data pdata;
-	struct resource res;
-	int size, rc;
+	int size;
 	struct xilinxfb_drvdata *drvdata;
 
 	/* Copy with the default pdata (not a ptr reference!) */
@@ -435,22 +418,17 @@ static int xilinxfb_of_probe(struct platform_device *op)
 	 */
 	if (tft_access) {
 		drvdata->flags |= BUS_ACCESS_FLAG;
-		rc = of_address_to_resource(op->dev.of_node, 0, &res);
-		if (rc) {
-			dev_err(&op->dev, "invalid address\n");
-			goto err;
-		}
 	}
 #ifdef CONFIG_PPC_DCR
 	else {
 		int start;
-		res.start = 0;
 		start = dcr_resource_start(op->dev.of_node, 0);
 		drvdata->dcr_len = dcr_resource_len(op->dev.of_node, 0);
 		drvdata->dcr_host = dcr_map(op->dev.of_node, start, drvdata->dcr_len);
 		if (!DCR_MAP_OK(drvdata->dcr_host)) {
 			dev_err(&op->dev, "invalid DCR address\n");
-			goto err;
+			kfree(drvdata);
+			return -ENODEV;
 		}
 	}
 #endif
@@ -477,11 +455,7 @@ static int xilinxfb_of_probe(struct platform_device *op)
 		pdata.rotate_screen = 1;
 
 	dev_set_drvdata(&op->dev, drvdata);
-	return xilinxfb_assign(&op->dev, drvdata, res.start, &pdata);
-
- err:
-	kfree(drvdata);
-	return -ENODEV;
+	return xilinxfb_assign(op, drvdata, &pdata);
 }
 
 static int xilinxfb_of_remove(struct platform_device *op)
