@@ -59,24 +59,6 @@ typedef struct intel_limit intel_limit_t;
 struct intel_limit {
 	intel_range_t   dot, vco, n, m, m1, m2, p, p1;
 	intel_p2_t	    p2;
-	/**
-	 * find_pll() - Find the best values for the PLL
-	 * @limit: limits for the PLL
-	 * @crtc: current CRTC
-	 * @target: target frequency in kHz
-	 * @refclk: reference clock frequency in kHz
-	 * @match_clock: if provided, @best_clock P divider must
-	 *               match the P divider from @match_clock
-	 *               used for LVDS downclocking
-	 * @best_clock: best PLL values found
-	 *
-	 * Returns true on success, false on failure.
-	 */
-	bool (*find_pll)(const intel_limit_t *limit,
-			 struct drm_crtc *crtc,
-			 int target, int refclk,
-			 intel_clock_t *match_clock,
-			 intel_clock_t *best_clock);
 };
 
 /* FDI */
@@ -91,23 +73,6 @@ intel_pch_rawclk(struct drm_device *dev)
 
 	return I915_READ(PCH_RAWCLK_FREQ) & RAWCLK_FREQ_MASK;
 }
-
-static bool
-intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-		    int target, int refclk, intel_clock_t *match_clock,
-		    intel_clock_t *best_clock);
-static bool
-intel_pnv_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *match_clock,
-			intel_clock_t *best_clock);
-static bool
-intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *match_clock,
-			intel_clock_t *best_clock);
-static bool
-intel_vlv_find_best_pll(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *match_clock,
-			intel_clock_t *best_clock);
 
 static inline u32 /* units of 100MHz */
 intel_fdi_link_freq(struct drm_device *dev)
@@ -130,7 +95,6 @@ static const intel_limit_t intel_limits_i8xx_dvo = {
 	.p1 = { .min = 2, .max = 33 },
 	.p2 = { .dot_limit = 165000,
 		.p2_slow = 4, .p2_fast = 2 },
-	.find_pll = intel_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_i8xx_lvds = {
@@ -144,7 +108,6 @@ static const intel_limit_t intel_limits_i8xx_lvds = {
 	.p1 = { .min = 1, .max = 6 },
 	.p2 = { .dot_limit = 165000,
 		.p2_slow = 14, .p2_fast = 7 },
-	.find_pll = intel_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_i9xx_sdvo = {
@@ -158,7 +121,6 @@ static const intel_limit_t intel_limits_i9xx_sdvo = {
 	.p1 = { .min = 1, .max = 8 },
 	.p2 = { .dot_limit = 200000,
 		.p2_slow = 10, .p2_fast = 5 },
-	.find_pll = intel_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_i9xx_lvds = {
@@ -172,7 +134,6 @@ static const intel_limit_t intel_limits_i9xx_lvds = {
 	.p1 = { .min = 1, .max = 8 },
 	.p2 = { .dot_limit = 112000,
 		.p2_slow = 14, .p2_fast = 7 },
-	.find_pll = intel_find_best_PLL,
 };
 
 
@@ -189,7 +150,6 @@ static const intel_limit_t intel_limits_g4x_sdvo = {
 		.p2_slow = 10,
 		.p2_fast = 10
 	},
-	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_hdmi = {
@@ -203,7 +163,6 @@ static const intel_limit_t intel_limits_g4x_hdmi = {
 	.p1 = { .min = 1, .max = 8},
 	.p2 = { .dot_limit = 165000,
 		.p2_slow = 10, .p2_fast = 5 },
-	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
@@ -218,7 +177,6 @@ static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
 	.p2 = { .dot_limit = 0,
 		.p2_slow = 14, .p2_fast = 14
 	},
-	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
@@ -233,7 +191,6 @@ static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
 	.p2 = { .dot_limit = 0,
 		.p2_slow = 7, .p2_fast = 7
 	},
-	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_pineview_sdvo = {
@@ -249,7 +206,6 @@ static const intel_limit_t intel_limits_pineview_sdvo = {
 	.p1 = { .min = 1, .max = 8 },
 	.p2 = { .dot_limit = 200000,
 		.p2_slow = 10, .p2_fast = 5 },
-	.find_pll = intel_pnv_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_pineview_lvds = {
@@ -263,7 +219,6 @@ static const intel_limit_t intel_limits_pineview_lvds = {
 	.p1 = { .min = 1, .max = 8 },
 	.p2 = { .dot_limit = 112000,
 		.p2_slow = 14, .p2_fast = 14 },
-	.find_pll = intel_pnv_find_best_PLL,
 };
 
 /* Ironlake / Sandybridge
@@ -282,7 +237,6 @@ static const intel_limit_t intel_limits_ironlake_dac = {
 	.p1 = { .min = 1, .max = 8 },
 	.p2 = { .dot_limit = 225000,
 		.p2_slow = 10, .p2_fast = 5 },
-	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_single_lvds = {
@@ -296,7 +250,6 @@ static const intel_limit_t intel_limits_ironlake_single_lvds = {
 	.p1 = { .min = 2, .max = 8 },
 	.p2 = { .dot_limit = 225000,
 		.p2_slow = 14, .p2_fast = 14 },
-	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_dual_lvds = {
@@ -310,7 +263,6 @@ static const intel_limit_t intel_limits_ironlake_dual_lvds = {
 	.p1 = { .min = 2, .max = 8 },
 	.p2 = { .dot_limit = 225000,
 		.p2_slow = 7, .p2_fast = 7 },
-	.find_pll = intel_g4x_find_best_PLL,
 };
 
 /* LVDS 100mhz refclk limits. */
@@ -325,7 +277,6 @@ static const intel_limit_t intel_limits_ironlake_single_lvds_100m = {
 	.p1 = { .min = 2, .max = 8 },
 	.p2 = { .dot_limit = 225000,
 		.p2_slow = 14, .p2_fast = 14 },
-	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_dual_lvds_100m = {
@@ -339,7 +290,6 @@ static const intel_limit_t intel_limits_ironlake_dual_lvds_100m = {
 	.p1 = { .min = 2, .max = 6 },
 	.p2 = { .dot_limit = 225000,
 		.p2_slow = 7, .p2_fast = 7 },
-	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_vlv_dac = {
@@ -353,7 +303,6 @@ static const intel_limit_t intel_limits_vlv_dac = {
 	.p1 = { .min = 1, .max = 3 },
 	.p2 = { .dot_limit = 270000,
 		.p2_slow = 2, .p2_fast = 20 },
-	.find_pll = intel_vlv_find_best_pll,
 };
 
 static const intel_limit_t intel_limits_vlv_hdmi = {
@@ -367,7 +316,6 @@ static const intel_limit_t intel_limits_vlv_hdmi = {
 	.p1 = { .min = 2, .max = 3 },
 	.p2 = { .dot_limit = 270000,
 		.p2_slow = 2, .p2_fast = 20 },
-	.find_pll = intel_vlv_find_best_pll,
 };
 
 static const intel_limit_t intel_limits_vlv_dp = {
@@ -381,7 +329,6 @@ static const intel_limit_t intel_limits_vlv_dp = {
 	.p1 = { .min = 1, .max = 3 },
 	.p2 = { .dot_limit = 270000,
 		.p2_slow = 2, .p2_fast = 20 },
-	.find_pll = intel_vlv_find_best_pll,
 };
 
 static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc,
@@ -537,7 +484,7 @@ static bool intel_PLL_is_valid(struct drm_device *dev,
 }
 
 static bool
-intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
+i9xx_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 		    int target, int refclk, intel_clock_t *match_clock,
 		    intel_clock_t *best_clock)
 {
@@ -599,9 +546,9 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 }
 
 static bool
-intel_pnv_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *match_clock,
-			intel_clock_t *best_clock)
+pnv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
+		   int target, int refclk, intel_clock_t *match_clock,
+		   intel_clock_t *best_clock)
 {
 	struct drm_device *dev = crtc->dev;
 	intel_clock_t clock;
@@ -661,9 +608,9 @@ intel_pnv_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 }
 
 static bool
-intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *match_clock,
-			intel_clock_t *best_clock)
+g4x_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
+		   int target, int refclk, intel_clock_t *match_clock,
+		   intel_clock_t *best_clock)
 {
 	struct drm_device *dev = crtc->dev;
 	intel_clock_t clock;
@@ -718,9 +665,9 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 }
 
 static bool
-intel_vlv_find_best_pll(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *match_clock,
-			intel_clock_t *best_clock)
+vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
+		   int target, int refclk, intel_clock_t *match_clock,
+		   intel_clock_t *best_clock)
 {
 	u32 p1, p2, m1, m2, vco, bestn, bestm1, bestm2, bestp1, bestp2;
 	u32 m, n, fastclk;
@@ -4911,9 +4858,9 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
 	limit = intel_limit(crtc, refclk);
-	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, NULL,
-			     &clock);
-	if (!ok) {
+	ok = dev_priv->display.find_dpll(limit, crtc, adjusted_mode->clock,
+					 refclk, NULL, &clock);
+	if (!ok && !intel_crtc->config.clock_set) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
 		return -EINVAL;
 	}
@@ -4928,10 +4875,10 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		 * by using the FP0/FP1. In such case we will disable the LVDS
 		 * downclock feature.
 		*/
-		has_reduced_clock = limit->find_pll(limit, crtc,
+		has_reduced_clock =
+			dev_priv->display.find_dpll(limit, crtc,
 						    dev_priv->lvds_downclock,
-						    refclk,
-						    &clock,
+						    refclk, &clock,
 						    &reduced_clock);
 	}
 	/* Compat-code for transition, will disappear. */
@@ -5547,8 +5494,8 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
 	limit = intel_limit(crtc, refclk);
-	ret = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, NULL,
-			      clock);
+	ret = dev_priv->display.find_dpll(limit, crtc, adjusted_mode->clock,
+					  refclk, NULL, clock);
 	if (!ret)
 		return false;
 
@@ -5559,11 +5506,11 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 		 * by using the FP0/FP1. In such case we will disable the LVDS
 		 * downclock feature.
 		*/
-		*has_reduced_clock = limit->find_pll(limit, crtc,
-						     dev_priv->lvds_downclock,
-						     refclk,
-						     clock,
-						     reduced_clock);
+		*has_reduced_clock =
+			dev_priv->display.find_dpll(limit, crtc,
+						    dev_priv->lvds_downclock,
+						    refclk, clock,
+						    reduced_clock);
 	}
 
 	return true;
@@ -5749,7 +5696,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	ok = ironlake_compute_clocks(crtc, adjusted_mode, &clock,
 				     &has_reduced_clock, &reduced_clock);
-	if (!ok) {
+	if (!ok && !intel_crtc->config.clock_set) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
 		return -EINVAL;
 	}
@@ -9103,6 +9050,15 @@ static const struct drm_mode_config_funcs intel_mode_funcs = {
 static void intel_init_display(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (HAS_PCH_SPLIT(dev) || IS_G4X(dev))
+		dev_priv->display.find_dpll = g4x_find_best_dpll;
+	else if (IS_VALLEYVIEW(dev))
+		dev_priv->display.find_dpll = vlv_find_best_dpll;
+	else if (IS_PINEVIEW(dev))
+		dev_priv->display.find_dpll = pnv_find_best_dpll;
+	else
+		dev_priv->display.find_dpll = i9xx_find_best_dpll;
 
 	if (HAS_DDI(dev)) {
 		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
