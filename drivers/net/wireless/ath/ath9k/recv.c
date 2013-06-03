@@ -955,10 +955,10 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	if (rx_stats->rs_more)
 		return 0;
 
-	ath9k_process_rssi(common, hw, hdr, rx_stats);
-
 	if (ath9k_process_rate(common, hw, rx_stats, rx_status))
 		return -EINVAL;
+
+	ath9k_process_rssi(common, hw, hdr, rx_stats);
 
 	rx_status->band = hw->conf.chandef.chan->band;
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
