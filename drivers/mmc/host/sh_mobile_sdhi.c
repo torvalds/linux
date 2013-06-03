@@ -51,7 +51,7 @@ struct sh_mobile_sdhi {
 
 static int sh_mobile_sdhi_clk_enable(struct platform_device *pdev, unsigned int *f)
 {
-	struct mmc_host *mmc = dev_get_drvdata(&pdev->dev);
+	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
 	int ret = clk_enable(priv->clk);
@@ -64,7 +64,7 @@ static int sh_mobile_sdhi_clk_enable(struct platform_device *pdev, unsigned int 
 
 static void sh_mobile_sdhi_clk_disable(struct platform_device *pdev)
 {
-	struct mmc_host *mmc = dev_get_drvdata(&pdev->dev);
+	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
 	clk_disable(priv->clk);
@@ -119,7 +119,7 @@ static int sh_mobile_sdhi_write16_hook(struct tmio_mmc_host *host, int addr)
 
 static void sh_mobile_sdhi_cd_wakeup(const struct platform_device *pdev)
 {
-	mmc_detect_change(dev_get_drvdata(&pdev->dev), msecs_to_jiffies(100));
+	mmc_detect_change(platform_get_drvdata(pdev), msecs_to_jiffies(100));
 }
 
 static const struct sh_mobile_sdhi_ops sdhi_ops = {
