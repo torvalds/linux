@@ -685,6 +685,9 @@
 			       <&dma 13 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 
+			clocks = <&prcc_kclk 1 0>, <&prcc_pclk 1 0>;
+			clock-names = "uart", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -697,6 +700,9 @@
 			       <&dma 12 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 
+			clocks = <&prcc_kclk 1 1>, <&prcc_pclk 1 1>;
+			clock-names = "uart", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -708,6 +714,9 @@
 			dmas = <&dma 11 0 0x2>, /* Logical - DevToMem */
 			       <&dma 11 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 3 6>, <&prcc_pclk 3 6>;
+			clock-names = "uart", "apb_pclk";
 
 			status = "disabled";
 		};
