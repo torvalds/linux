@@ -180,7 +180,7 @@ static void sata_rcar_thaw(struct ata_port *ap)
 	struct sata_rcar_priv *priv = ap->host->private_data;
 
 	/* ack */
-	iowrite32(~SATA_RCAR_INT_MASK, priv->base + SATAINTSTAT_REG);
+	iowrite32(~(u32)SATA_RCAR_INT_MASK, priv->base + SATAINTSTAT_REG);
 
 	ata_sff_thaw(ap);
 
