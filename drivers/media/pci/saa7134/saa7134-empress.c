@@ -471,7 +471,6 @@ static struct video_device saa7134_empress_template = {
 	.ioctl_ops     = &ts_ioctl_ops,
 
 	.tvnorms			= SAA7134_NORMS,
-	.current_norm			= V4L2_STD_PAL,
 };
 
 static void empress_signal_update(struct work_struct *work)

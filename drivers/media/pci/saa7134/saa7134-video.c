@@ -2439,7 +2439,6 @@ struct video_device saa7134_video_template = {
 	.fops				= &video_fops,
 	.ioctl_ops 			= &video_ioctl_ops,
 	.tvnorms			= SAA7134_NORMS,
-	.current_norm			= V4L2_STD_PAL,
 };
 
 struct video_device saa7134_radio_template = {
