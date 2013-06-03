@@ -829,7 +829,6 @@ static struct video_device dt3155_vdev = {
 	.minor = -1,
 	.release = video_device_release,
 	.tvnorms = DT3155_CURRENT_NORM,
-	.current_norm = DT3155_CURRENT_NORM,
 };
 
 /* same as in drivers/base/dma-coherent.c */
