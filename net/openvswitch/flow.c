@@ -590,10 +590,10 @@ out:
  *    - skb->network_header: just past the Ethernet header, or just past the
  *      VLAN header, to the first byte of the Ethernet payload.
  *
- *    - skb->transport_header: If key->dl_type is ETH_P_IP or ETH_P_IPV6
+ *    - skb->transport_header: If key->eth.type is ETH_P_IP or ETH_P_IPV6
  *      on output, then just past the IP header, if one is present and
  *      of a correct length, otherwise the same as skb->network_header.
- *      For other key->dl_type values it is left untouched.
+ *      For other key->eth.type values it is left untouched.
  */
 int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key,
 		 int *key_lenp)
