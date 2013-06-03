@@ -837,6 +837,12 @@ static int viacam_s_std(struct file *filp, void *priv, v4l2_std_id std)
 	return 0;
 }
 
+static int viacam_g_std(struct file *filp, void *priv, v4l2_std_id *std)
+{
+	*std = V4L2_STD_NTSC_M;
+	return 0;
+}
+
 /*
  * Video format stuff.	Here is our default format until
  * user space messes with things.
@@ -1163,6 +1169,7 @@ static const struct v4l2_ioctl_ops viacam_ioctl_ops = {
 	.vidioc_g_input		= viacam_g_input,
 	.vidioc_s_input		= viacam_s_input,
 	.vidioc_s_std		= viacam_s_std,
+	.vidioc_g_std		= viacam_g_std,
 	.vidioc_enum_fmt_vid_cap = viacam_enum_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap = viacam_try_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap	= viacam_g_fmt_vid_cap,
@@ -1250,7 +1257,6 @@ static struct video_device viacam_v4l_template = {
 	.name		= "via-camera",
 	.minor		= -1,
 	.tvnorms	= V4L2_STD_NTSC_M,
-	.current_norm	= V4L2_STD_NTSC_M,
 	.fops		= &viacam_fops,
 	.ioctl_ops	= &viacam_ioctl_ops,
 	.release	= video_device_release_empty, /* Check this */
