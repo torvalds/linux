@@ -776,7 +776,7 @@ static int init_controller(void __iomem *mmio_base, u16 hctl)
 #ifdef CONFIG_PM
 static int inic_pci_device_resume(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	struct inic_host_priv *hpriv = host->private_data;
 	int rc;
 

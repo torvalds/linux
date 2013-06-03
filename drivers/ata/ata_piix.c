@@ -988,7 +988,7 @@ static int piix_broken_suspend(void)
 
 static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	unsigned long flags;
 	int rc = 0;
 
@@ -1023,7 +1023,7 @@ static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 
 static int piix_pci_device_resume(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	unsigned long flags;
 	int rc;
 
@@ -1736,7 +1736,7 @@ static int piix_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 static void piix_remove_one(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	struct piix_host_priv *hpriv = host->private_data;
 
 	pci_write_config_dword(pdev, PIIX_IOCFG, hpriv->saved_iocfg);

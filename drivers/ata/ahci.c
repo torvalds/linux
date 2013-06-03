@@ -616,7 +616,7 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 #ifdef CONFIG_PM
 static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	void __iomem *mmio = hpriv->mmio;
 	u32 ctl;
@@ -644,7 +644,7 @@ static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 
 static int ahci_pci_device_resume(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	int rc;
 
 	rc = ata_pci_device_do_resume(pdev);
