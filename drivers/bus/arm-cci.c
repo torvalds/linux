@@ -253,7 +253,7 @@ EXPORT_SYMBOL_GPL(cci_disable_port_by_cpu);
 asmlinkage void __naked cci_enable_port_for_self(void)
 {
 	asm volatile ("\n"
-
+"	.arch armv7-a\n"
 "	mrc	p15, 0, r0, c0, c0, 5	@ get MPIDR value \n"
 "	and	r0, r0, #"__stringify(MPIDR_HWID_BITMASK)" \n"
 "	adr	r1, 5f \n"
