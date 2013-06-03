@@ -821,7 +821,7 @@ static int emac_probe(struct platform_device *pdev)
 	db->membase = of_iomap(np, 0);
 	if (!db->membase) {
 		dev_err(&pdev->dev, "failed to remap registers\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 
