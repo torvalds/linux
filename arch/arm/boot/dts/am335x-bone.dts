@@ -30,30 +30,30 @@
 
 		user_leds_s0: user_leds_s0 {
 			pinctrl-single,pins = <
-				0x54 0x7	/* gpmc_a5.gpio1_21, OUTPUT | MODE7 */
-				0x58 0x17	/* gpmc_a6.gpio1_22, OUTPUT_PULLUP | MODE7 */
-				0x5c 0x7	/* gpmc_a7.gpio1_23, OUTPUT | MODE7 */
-				0x60 0x17	/* gpmc_a8.gpio1_24, OUTPUT_PULLUP | MODE7 */
+				0x54 (PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* gpmc_a5.gpio1_21 */
+				0x58 (PIN_OUTPUT_PULLUP | MUX_MODE7)	/* gpmc_a6.gpio1_22 */
+				0x5c (PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* gpmc_a7.gpio1_23 */
+				0x60 (PIN_OUTPUT_PULLUP | MUX_MODE7)	/* gpmc_a8.gpio1_24 */
 			>;
 		};
 
 		i2c0_pins: pinmux_i2c0_pins {
 			pinctrl-single,pins = <
-				0x188 0x30	/* i2c0_sda.i2c0_sda PULLUP | INPUTENABLE | MODE0 */
-				0x18c 0x30	/* i2c0_scl.i2c0_scl PULLUP | INPUTENABLE | MODE0 */
+				0x188 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_sda.i2c0_sda */
+				0x18c (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_scl.i2c0_scl */
 			>;
 		};
 
 		uart0_pins: pinmux_uart0_pins {
 			pinctrl-single,pins = <
-				0x170 0x30	/* uart0_rxd.uart0_rxd PULLUP | INPUTENABLE | MODE0 */
-				0x174 0x00	/* uart0_txd.uart0_txd PULLDOWN | MODE0 */
+				0x170 (PIN_INPUT_PULLUP | MUX_MODE0)	/* uart0_rxd.uart0_rxd */
+				0x174 (PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* uart0_txd.uart0_txd */
 			>;
 		};
 
 		clkout2_pin: pinmux_clkout2_pin {
 			pinctrl-single,pins = <
-				0x1b4 0x03	/* xdma_event_intr1.clkout2 OMAP_MUX_MODE3 | AM33XX_PIN_OUTPUT */
+				0x1b4 (PIN_OUTPUT_PULLDOWN | MUX_MODE3)	/* xdma_event_intr1.clkout2 */
 			>;
 		};
 	};

@@ -36,39 +36,39 @@
 
 		user_leds_s0: user_leds_s0 {
 			pinctrl-single,pins = <
-				0x10 0x7	/* gpmc_ad4.gpio1_4, OUTPUT | MODE7 */
-				0x14 0x7	/* gpmc_ad5.gpio1_5, OUTPUT | MODE7 */
-				0x18 0x7	/* gpmc_ad6.gpio1_6, OUTPUT | MODE7 */
-				0x1c 0x7	/* gpmc_ad7.gpio1_7, OUTPUT | MODE7 */
+				0x10 (PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad4.gpio1_4 */
+				0x14 (PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad5.gpio1_5 */
+				0x18 (PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad6.gpio1_6 */
+				0x1c (PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ad7.gpio1_7 */
 			>;
 		};
 
 		gpio_keys_s0: gpio_keys_s0 {
 			pinctrl-single,pins = <
-				0x94 0x27	/* gpmc_oen_ren.gpio2_3, INPUT | MODE7 */
-				0x90 0x27	/* gpmc_advn_ale.gpio2_2, INPUT | MODE7 */
-				0x70 0x27	/* gpmc_wait0.gpio0_30, INPUT | MODE7 */
-				0x9c 0x27	/* gpmc_ben0_cle.gpio2_5, INPUT | MODE7 */
+				0x94 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_oen_ren.gpio2_3 */
+				0x90 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_advn_ale.gpio2_2 */
+				0x70 (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_wait0.gpio0_30 */
+				0x9c (PIN_INPUT_PULLDOWN | MUX_MODE7)	/* gpmc_ben0_cle.gpio2_5 */
 			>;
 		};
 
 		i2c0_pins: pinmux_i2c0_pins {
 			pinctrl-single,pins = <
-				0x188 0x30	/* i2c0_sda.i2c0_sda PULLUP | INPUTENABLE | MODE0 */
-				0x18c 0x30	/* i2c0_scl.i2c0_scl PULLUP | INPUTENABLE | MODE0 */
+				0x188 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_sda.i2c0_sda */
+				0x18c (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_scl.i2c0_scl */
 			>;
 		};
 
 		uart0_pins: pinmux_uart0_pins {
 			pinctrl-single,pins = <
-				0x170 0x30	/* uart0_rxd.uart0_rxd PULLUP | INPUTENABLE | MODE0 */
-				0x174 0x00	/* uart0_txd.uart0_txd PULLDOWN | MODE0 */
+				0x170 (PIN_INPUT_PULLUP | MUX_MODE0)	/* uart0_rxd.uart0_rxd */
+				0x174 (PIN_OUTPUT_PULLDOWN | MUX_MODE0)		/* uart0_txd.uart0_txd */
 			>;
 		};
 
 		clkout2_pin: pinmux_clkout2_pin {
 			pinctrl-single,pins = <
-				0x1b4 0x03	/* xdma_event_intr1.clkout2 OMAP_MUX_MODE3 | AM33XX_PIN_OUTPUT */
+				0x1b4 (PIN_OUTPUT_PULLDOWN | MUX_MODE3)		/* xdma_event_intr1.clkout2 */
 			>;
 		};
 	};
