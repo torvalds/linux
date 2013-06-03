@@ -137,6 +137,7 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 	struct mpc52xx_psc __iomem *psc = mps->psc;
 	struct mpc512x_psc_fifo __iomem *fifo = mps->fifo;
 	size_t tx_len = t->len;
+	size_t rx_len = t->len;
 	u8 *tx_buf = (u8 *)t->tx_buf;
 	u8 *rx_buf = (u8 *)t->rx_buf;
 
@@ -150,57 +151,129 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 	/* enable transmiter/receiver */
 	out_8(&psc->command, MPC52xx_PSC_TX_ENABLE | MPC52xx_PSC_RX_ENABLE);
 
-	while (tx_len) {
+	while (rx_len || tx_len) {
 		size_t txcount;
-		int i;
 		u8 data;
 		size_t fifosz;
 		size_t rxcount;
+		int rxtries;
 
 		/*
-		 * The number of bytes that can be sent at a time
-		 * depends on the fifo size.
+		 * send the TX bytes in as large a chunk as possible
+		 * but neither exceed the TX nor the RX FIFOs
 		 */
 		fifosz = MPC512x_PSC_FIFO_SZ(in_be32(&fifo->txsz));
 		txcount = min(fifosz, tx_len);
+		fifosz = MPC512x_PSC_FIFO_SZ(in_be32(&fifo->rxsz));
+		fifosz -= in_be32(&fifo->rxcnt) + 1;
+		txcount = min(fifosz, txcount);
+		if (txcount) {
 
-		for (i = txcount; i > 0; i--) {
-			data = tx_buf ? *tx_buf++ : 0;
-			if (tx_len == EOFBYTE && t->cs_change)
-				setbits32(&fifo->txcmd, MPC512x_PSC_FIFO_EOF);
-			out_8(&fifo->txdata_8, data);
-			tx_len--;
+			/* fill the TX FIFO */
+			while (txcount-- > 0) {
+				data = tx_buf ? *tx_buf++ : 0;
+				if (tx_len == EOFBYTE && t->cs_change)
+					setbits32(&fifo->txcmd,
+						  MPC512x_PSC_FIFO_EOF);
+				out_8(&fifo->txdata_8, data);
+				tx_len--;
+			}
+
+			/* have the ISR trigger when the TX FIFO is empty */
+			INIT_COMPLETION(mps->txisrdone);
+			out_be32(&fifo->txisr, MPC512x_PSC_FIFO_EMPTY);
+			out_be32(&fifo->tximr, MPC512x_PSC_FIFO_EMPTY);
+			wait_for_completion(&mps->txisrdone);
 		}
 
-		INIT_COMPLETION(mps->txisrdone);
+		/*
+		 * consume as much RX data as the FIFO holds, while we
+		 * iterate over the transfer's TX data length
+		 *
+		 * only insist in draining all the remaining RX bytes
+		 * when the TX bytes were exhausted (that's at the very
+		 * end of this transfer, not when still iterating over
+		 * the transfer's chunks)
+		 */
+		rxtries = 50;
+		do {
 
-		/* interrupt on tx fifo empty */
-		out_be32(&fifo->txisr, MPC512x_PSC_FIFO_EMPTY);
-		out_be32(&fifo->tximr, MPC512x_PSC_FIFO_EMPTY);
+			/*
+			 * grab whatever was in the FIFO when we started
+			 * looking, don't bother fetching what was added to
+			 * the FIFO while we read from it -- we'll return
+			 * here eventually and prefer sending out remaining
+			 * TX data
+			 */
+			fifosz = in_be32(&fifo->rxcnt);
+			rxcount = min(fifosz, rx_len);
+			while (rxcount-- > 0) {
+				data = in_8(&fifo->rxdata_8);
+				if (rx_buf)
+					*rx_buf++ = data;
+				rx_len--;
+			}
 
-		wait_for_completion(&mps->txisrdone);
+			/*
+			 * come back later if there still is TX data to send,
+			 * bail out of the RX drain loop if all of the TX data
+			 * was sent and all of the RX data was received (i.e.
+			 * when the transmission has completed)
+			 */
+			if (tx_len)
+				break;
+			if (!rx_len)
+				break;
 
-		mdelay(1);
+			/*
+			 * TX data transmission has completed while RX data
+			 * is still pending -- that's a transient situation
+			 * which depends on wire speed and specific
+			 * hardware implementation details (buffering) yet
+			 * should resolve very quickly
+			 *
+			 * just yield for a moment to not hog the CPU for
+			 * too long when running SPI at low speed
+			 *
+			 * the timeout range is rather arbitrary and tries
+			 * to balance throughput against system load; the
+			 * chosen values result in a minimal timeout of 50
+			 * times 10us and thus work at speeds as low as
+			 * some 20kbps, while the maximum timeout at the
+			 * transfer's end could be 5ms _if_ nothing else
+			 * ticks in the system _and_ RX data still wasn't
+			 * received, which only occurs in situations that
+			 * are exceptional; removing the unpredictability
+			 * of the timeout either decreases throughput
+			 * (longer timeouts), or puts more load on the
+			 * system (fixed short timeouts) or requires the
+			 * use of a timeout API instead of a counter and an
+			 * unknown inner delay
+			 */
+			usleep_range(10, 100);
 
-		/* rx fifo should have txcount bytes in it */
-		rxcount = in_be32(&fifo->rxcnt);
-		if (rxcount != txcount)
-			mdelay(1);
-
-		rxcount = in_be32(&fifo->rxcnt);
-		if (rxcount != txcount) {
-			dev_warn(&spi->dev, "expected %d bytes in rx fifo "
-				 "but got %d\n", txcount, rxcount);
+		} while (--rxtries > 0);
+		if (!tx_len && rx_len && !rxtries) {
+			/*
+			 * not enough RX bytes even after several retries
+			 * and the resulting rather long timeout?
+			 */
+			rxcount = in_be32(&fifo->rxcnt);
+			dev_warn(&spi->dev,
+				 "short xfer, missing %zd RX bytes, FIFO level %zd\n",
+				 rx_len, rxcount);
 		}
 
-		rxcount = min(rxcount, txcount);
-		for (i = rxcount; i > 0; i--) {
-			data = in_8(&fifo->rxdata_8);
-			if (rx_buf)
-				*rx_buf++ = data;
+		/*
+		 * drain and drop RX data which "should not be there" in
+		 * the first place, for undisturbed transmission this turns
+		 * into a NOP (except for the FIFO level fetch)
+		 */
+		if (!tx_len && !rx_len) {
+			while (in_be32(&fifo->rxcnt))
+				in_8(&fifo->rxdata_8);
 		}
-		while (in_be32(&fifo->rxcnt))
-			in_8(&fifo->rxdata_8);
+
 	}
 	/* disable transmiter/receiver and fifo interrupt */
 	out_8(&psc->command, MPC52xx_PSC_TX_DISABLE | MPC52xx_PSC_RX_DISABLE);
