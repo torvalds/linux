@@ -1282,7 +1282,6 @@ static const struct video_device sh_vou_video_template = {
 	.fops		= &sh_vou_fops,
 	.ioctl_ops	= &sh_vou_ioctl_ops,
 	.tvnorms	= V4L2_STD_525_60, /* PAL only supported in 8-bit non-bt656 mode */
-	.current_norm	= V4L2_STD_NTSC_M,
 	.vfl_dir	= VFL_DIR_TX,
 };
 
@@ -1321,7 +1320,7 @@ static int sh_vou_probe(struct platform_device *pdev)
 	pix = &vou_dev->pix;
 
 	/* Fill in defaults */
-	vou_dev->std		= sh_vou_video_template.current_norm;
+	vou_dev->std		= V4L2_STD_NTSC_M;
 	rect->left		= 0;
 	rect->top		= 0;
 	rect->width		= VOU_MAX_IMAGE_WIDTH;
