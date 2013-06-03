@@ -57,30 +57,29 @@ struct lovea_unpack_args {
 static int lsm_lmm_verify_common(struct lov_mds_md *lmm, int lmm_bytes,
 				 __u16 stripe_count)
 {
-
 	if (stripe_count == 0 || stripe_count > LOV_V1_INSANE_STRIPE_COUNT) {
 		CERROR("bad stripe count %d\n", stripe_count);
-		lov_dump_lmm(D_WARNING, lmm);
+		lov_dump_lmm_common(D_WARNING, lmm);
 		return -EINVAL;
 	}
 
 	if (lmm_oi_id(&lmm->lmm_oi) == 0) {
 		CERROR("zero object id\n");
-		lov_dump_lmm(D_WARNING, lmm);
+		lov_dump_lmm_common(D_WARNING, lmm);
 		return -EINVAL;
 	}
 
 	if (lmm->lmm_pattern != cpu_to_le32(LOV_PATTERN_RAID0)) {
 		CERROR("bad striping pattern\n");
-		lov_dump_lmm(D_WARNING, lmm);
+		lov_dump_lmm_common(D_WARNING, lmm);
 		return -EINVAL;
 	}
 
 	if (lmm->lmm_stripe_size == 0 ||
-	     (le32_to_cpu(lmm->lmm_stripe_size)&(LOV_MIN_STRIPE_SIZE-1)) != 0) {
+	    (le32_to_cpu(lmm->lmm_stripe_size)&(LOV_MIN_STRIPE_SIZE-1)) != 0) {
 		CERROR("bad stripe size %u\n",
 		       le32_to_cpu(lmm->lmm_stripe_size));
-		lov_dump_lmm(D_WARNING, lmm);
+		lov_dump_lmm_common(D_WARNING, lmm);
 		return -EINVAL;
 	}
 	return 0;
@@ -202,7 +201,7 @@ static int lsm_lmm_verify_v1(struct lov_mds_md_v1 *lmm, int lmm_bytes,
 	if (lmm_bytes < lov_mds_md_size(*stripe_count, LOV_MAGIC_V1)) {
 		CERROR("LOV EA V1 too small: %d, need %d\n",
 		       lmm_bytes, lov_mds_md_size(*stripe_count, LOV_MAGIC_V1));
-		lov_dump_lmm_v1(D_WARNING, lmm);
+		lov_dump_lmm_common(D_WARNING, lmm);
 		return -EINVAL;
 	}
 
@@ -272,7 +271,7 @@ static int lsm_lmm_verify_v3(struct lov_mds_md *lmmv1, int lmm_bytes,
 	if (lmm_bytes < lov_mds_md_size(*stripe_count, LOV_MAGIC_V3)) {
 		CERROR("LOV EA V3 too small: %d, need %d\n",
 		       lmm_bytes, lov_mds_md_size(*stripe_count, LOV_MAGIC_V3));
-		lov_dump_lmm_v3(D_WARNING, lmm);
+		lov_dump_lmm_common(D_WARNING, lmm);
 		return -EINVAL;
 	}
 

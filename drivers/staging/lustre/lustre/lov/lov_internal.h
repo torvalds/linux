@@ -271,6 +271,7 @@ int lov_free_memmd(struct lov_stripe_md **lsmp);
 
 void lov_dump_lmm_v1(int level, struct lov_mds_md_v1 *lmm);
 void lov_dump_lmm_v3(int level, struct lov_mds_md_v3 *lmm);
+void lov_dump_lmm_common(int level, void *lmmp);
 void lov_dump_lmm(int level, void *lmm);
 
 /* lov_ea.c */
