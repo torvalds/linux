@@ -654,11 +654,7 @@ struct drm_plane_funcs {
  * @format_count: number of formats supported
  * @crtc: currently bound CRTC
  * @fb: currently bound fb
- * @gamma_size: size of gamma table
- * @gamma_store: gamma correction table
- * @enabled: enabled flag
  * @funcs: helper functions
- * @helper_private: storage for drver layer
  * @properties: property tracking for this plane
  */
 struct drm_plane {
@@ -674,14 +670,7 @@ struct drm_plane {
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
 
-	/* CRTC gamma size for reporting to userspace */
-	uint32_t gamma_size;
-	uint16_t *gamma_store;
-
-	bool enabled;
-
 	const struct drm_plane_funcs *funcs;
-	void *helper_private;
 
 	struct drm_object_properties properties;
 };

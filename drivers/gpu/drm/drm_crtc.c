@@ -1805,7 +1805,7 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 
 	plane_resp->plane_id = plane->base.id;
 	plane_resp->possible_crtcs = plane->possible_crtcs;
-	plane_resp->gamma_size = plane->gamma_size;
+	plane_resp->gamma_size = 0;
 
 	/*
 	 * This ioctl is called twice, once to determine how much space is
