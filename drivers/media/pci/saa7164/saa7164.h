@@ -375,6 +375,7 @@ struct saa7164_port {
 	/* Encoder */
 	/* Defaults established in saa7164-encoder.c */
 	struct saa7164_tvnorm encodernorm;
+	v4l2_std_id std;
 	u32 height;
 	u32 width;
 	u32 freq;

@@ -200,6 +200,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 		return -EINVAL;
 
 	port->encodernorm = saa7164_tvnorms[i];
+	port->std = id;
 
 	/* Update the audio decoder while is not running in
 	 * auto detect mode.
@@ -208,6 +209,15 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 
 	dprintk(DBGLVL_VBI, "%s(id=0x%x) OK\n", __func__, (u32)id);
 
+	return 0;
+}
+
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct saa7164_encoder_fh *fh = file->private_data;
+	struct saa7164_port *port = fh->port;
+
+	*id = port->std;
 	return 0;
 }
 
@@ -1236,6 +1246,7 @@ static const struct v4l2_file_operations vbi_fops = {
 
 static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_s_std		 = vidioc_s_std,
+	.vidioc_g_std		 = vidioc_g_std,
 	.vidioc_enum_input	 = vidioc_enum_input,
 	.vidioc_g_input		 = vidioc_g_input,
 	.vidioc_s_input		 = vidioc_s_input,
@@ -1265,7 +1276,6 @@ static struct video_device saa7164_vbi_template = {
 	.ioctl_ops     = &vbi_ioctl_ops,
 	.minor         = -1,
 	.tvnorms       = SAA7164_NORMS,
-	.current_norm  = V4L2_STD_NTSC_M,
 };
 
 static struct video_device *saa7164_vbi_alloc(
@@ -1324,6 +1334,7 @@ int saa7164_vbi_register(struct saa7164_port *port)
 		goto failed;
 	}
 
+	port->std = V4L2_STD_NTSC_M;
 	video_set_drvdata(port->v4l_device, port);
 	result = video_register_device(port->v4l_device,
 		VFL_TYPE_VBI, -1);
