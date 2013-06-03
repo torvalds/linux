@@ -1,6 +1,6 @@
 config LUSTRE_FS
 	tristate "Lustre file system client support"
-	depends on STAGING && INET && BROKEN
+	depends on STAGING && INET
 	select LNET
 	help
 	  This option enables Lustre file system client support. Choose Y
