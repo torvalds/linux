@@ -195,6 +195,15 @@ struct nps_host_reg_aux_lpc {
 #define REG_GIM_P_INT_DST_25    nps_host_reg_non_cl(NPS_GIM_BLKID, 0x149)
 #define REG_GIM_P_INT_DST_26    nps_host_reg_non_cl(NPS_GIM_BLKID, 0x14A)
 
+#else
+
+.macro  GET_CPU_ID  reg
+	lr  \reg, [CTOP_AUX_LOGIC_GLOBAL_ID]
+#ifndef CONFIG_EZNPS_MTM_EXT
+	lsr \reg, \reg, 4
+#endif
+.endm
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _PLAT_EZNPS_CTOP_H */
