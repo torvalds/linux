@@ -1040,9 +1040,8 @@ static ssize_t lprocfs_stats_seq_write(struct file *file,
 static void *lprocfs_stats_seq_start(struct seq_file *p, loff_t *pos)
 {
 	struct lprocfs_stats *stats = p->private;
-	/* return 1st cpu location */
-	return (*pos >= stats->ls_num) ? NULL :
-		lprocfs_stats_counter_get(stats, 0, *pos);
+
+	return (*pos < stats->ls_num) ? pos : NULL;
 }
 
 static void lprocfs_stats_seq_stop(struct seq_file *p, void *v)
@@ -1051,24 +1050,20 @@ static void lprocfs_stats_seq_stop(struct seq_file *p, void *v)
 
 static void *lprocfs_stats_seq_next(struct seq_file *p, void *v, loff_t *pos)
 {
-	struct lprocfs_stats *stats = p->private;
-	++*pos;
-	return (*pos >= stats->ls_num) ? NULL :
-		lprocfs_stats_counter_get(stats, 0, *pos);
+	(*pos)++;
+	return lprocfs_stats_seq_start(p, pos);
 }
 
 /* seq file export of one lprocfs counter */
 static int lprocfs_stats_seq_show(struct seq_file *p, void *v)
 {
 	struct lprocfs_stats		*stats	= p->private;
-	struct lprocfs_counter		*cntr	= v;
-	struct lprocfs_counter		ret;
-	struct lprocfs_counter_header	*header;
-	int				entry_size;
-	int				idx;
-	int				rc	= 0;
+	struct lprocfs_counter_header   *hdr;
+	struct lprocfs_counter           ctr;
+	int                              idx    = *(loff_t *)v;
+	int                              rc     = 0;
 
-	if (cntr == &(stats->ls_percpu[0])->lp_cntr[0]) {
+	if (idx == 0) {
 		struct timeval now;
 		do_gettimeofday(&now);
 		rc = seq_printf(p, "%-25s %lu.%lu secs.usecs\n",
@@ -1076,45 +1071,38 @@ static int lprocfs_stats_seq_show(struct seq_file *p, void *v)
 		if (rc < 0)
 			return rc;
 	}
-	entry_size = sizeof(*cntr);
-	if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
-		entry_size += sizeof(__s64);
-	idx = ((void *)cntr - (void *)&(stats->ls_percpu[0])->lp_cntr[0]) /
-		entry_size;
+	hdr = &stats->ls_cnt_header[idx];
+	lprocfs_stats_collect(stats, idx, &ctr);
 
-	header = &stats->ls_cnt_header[idx];
-	lprocfs_stats_collect(stats, idx, &ret);
-
-	if (ret.lc_count == 0)
+	if (ctr.lc_count == 0)
 		goto out;
 
-	rc = seq_printf(p, "%-25s "LPD64" samples [%s]", header->lc_name,
-			ret.lc_count, header->lc_units);
+	rc = seq_printf(p, "%-25s "LPD64" samples [%s]", hdr->lc_name,
+			ctr.lc_count, hdr->lc_units);
 
 	if (rc < 0)
 		goto out;
 
-	if ((header->lc_config & LPROCFS_CNTR_AVGMINMAX) &&
-	    (ret.lc_count > 0)) {
+	if ((hdr->lc_config & LPROCFS_CNTR_AVGMINMAX) && (ctr.lc_count > 0)) {
 		rc = seq_printf(p, " "LPD64" "LPD64" "LPD64,
-				ret.lc_min, ret.lc_max, ret.lc_sum);
+				ctr.lc_min, ctr.lc_max, ctr.lc_sum);
 		if (rc < 0)
 			goto out;
-		if (header->lc_config & LPROCFS_CNTR_STDDEV)
-			rc = seq_printf(p, " "LPD64, ret.lc_sumsquare);
+		if (hdr->lc_config & LPROCFS_CNTR_STDDEV)
+			rc = seq_printf(p, " "LPD64, ctr.lc_sumsquare);
 		if (rc < 0)
 			goto out;
 	}
 	rc = seq_printf(p, "\n");
- out:
+out:
 	return (rc < 0) ? rc : 0;
 }
 
 struct seq_operations lprocfs_stats_seq_sops = {
-	start: lprocfs_stats_seq_start,
-	stop:  lprocfs_stats_seq_stop,
-	next:  lprocfs_stats_seq_next,
-	show:  lprocfs_stats_seq_show,
+	.start	= lprocfs_stats_seq_start,
+	.stop	= lprocfs_stats_seq_stop,
+	.next	= lprocfs_stats_seq_next,
+	.show	= lprocfs_stats_seq_show,
 };
 
 static int lprocfs_stats_seq_open(struct inode *inode, struct file *file)
