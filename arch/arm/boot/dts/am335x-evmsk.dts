@@ -13,7 +13,7 @@
 
 /dts-v1/;
 
-/include/ "am33xx.dtsi"
+#include "am33xx.dtsi"
 
 / {
 	model = "TI AM335x EVM-SK";
@@ -201,7 +201,7 @@
 	};
 };
 
-/include/ "tps65910.dtsi"
+#include "tps65910.dtsi"
 
 &tps {
 	vcc1-supply = <&vbat>;
