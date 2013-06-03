@@ -55,7 +55,7 @@ static int af9035_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 	if (req->wlen > (BUF_LEN - REQ_HDR_LEN - CHECKSUM_LEN) ||
 			req->rlen > (BUF_LEN - ACK_HDR_LEN - CHECKSUM_LEN)) {
 		dev_err(&d->udev->dev, "%s: too much data wlen=%d rlen=%d\n",
-				__func__, req->wlen, req->rlen);
+				KBUILD_MODNAME, req->wlen, req->rlen);
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -336,8 +336,8 @@ static int af9035_identify_state(struct dvb_usb_device *d, const char **name)
 
 	dev_info(&d->udev->dev,
 			"%s: prechip_version=%02x chip_version=%02x chip_type=%04x\n",
-			__func__, state->prechip_version, state->chip_version,
-			state->chip_type);
+			KBUILD_MODNAME, state->prechip_version,
+			state->chip_version, state->chip_type);
 
 	if (state->chip_type == 0x9135) {
 		if (state->chip_version == 0x02)
