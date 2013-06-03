@@ -162,6 +162,16 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		setup->chandef.center_freq1 = setup->chandef.chan->center_freq;
 	}
 
+	/*
+	 * check if basic rates are available otherwise use mandatory rates as
+	 * basic rates
+	 */
+	if (!setup->basic_rates) {
+		struct ieee80211_supported_band *sband =
+				rdev->wiphy.bands[setup->chandef.chan->band];
+		setup->basic_rates = ieee80211_mandatory_rates(sband);
+	}
+
 	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &setup->chandef))
 		return -EINVAL;
 
