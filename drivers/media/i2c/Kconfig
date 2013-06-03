@@ -434,6 +434,15 @@ config VIDEO_AK881X
 	help
 	  Video output driver for AKM AK8813 and AK8814 TV encoders
 
+config VIDEO_THS8200
+	tristate "Texas Instruments THS8200 video encoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Texas Instruments THS8200 video encoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ths8200.
+
 comment "Camera sensor devices"
 
 config VIDEO_APTINA_PLL
