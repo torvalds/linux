@@ -190,29 +190,6 @@ void cfs_restore_sigs(sigset_t);
 int cfs_signal_pending(void);
 void cfs_clear_sigpending(void);
 
-int convert_server_error(__u64 ecode);
-int convert_client_oflag(int cflag, int *result);
-
-/*
- * Stack-tracing filling.
- */
-
-/*
- * Platform-dependent data-type to hold stack frames.
- */
-struct cfs_stack_trace;
-
-/*
- * Fill @trace with current back-trace.
- */
-void cfs_stack_trace_fill(struct cfs_stack_trace *trace);
-
-/*
- * Return instruction pointer for frame @frame_no. NULL if @frame_no is
- * invalid.
- */
-void *cfs_stack_trace_frame(struct cfs_stack_trace *trace, int frame_no);
-
 /*
  * Random number handling
  */

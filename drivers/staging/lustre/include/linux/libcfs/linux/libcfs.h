@@ -111,12 +111,6 @@ do {								    \
 
 #include <linux/capability.h>
 
-/*
- * No stack-back-tracing in Linux for now.
- */
-struct cfs_stack_trace {
-};
-
 /* long integer with size equal to pointer */
 typedef unsigned long ulong_ptr_t;
 typedef long long_ptr_t;
