@@ -144,8 +144,12 @@ The action performed by the idle callback is totally dependent on the subsystem
 (or driver) in question, but the expected and recommended action is to check
 if the device can be suspended (i.e. if all of the conditions necessary for
 suspending the device are satisfied) and to queue up a suspend request for the
-device in that case.  The value returned by this callback is ignored by the PM
-core.
+device in that case.  If there is no idle callback, or if the callback returns
+0, then the PM core will attempt to carry out a runtime suspend of the device;
+in essence, it will call pm_runtime_suspend() directly.  To prevent this (for
+example, if the callback routine has started a delayed suspend), the routine
+should return a non-zero value.  Negative error return codes are ignored by the
+PM core.
 
 The helper functions provided by the PM core, described in Section 4, guarantee
 that the following constraints are met with respect to runtime PM callbacks for
@@ -301,9 +305,10 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       removing the device from device hierarchy
 
   int pm_runtime_idle(struct device *dev);
-    - execute the subsystem-level idle callback for the device; returns 0 on
-      success or error code on failure, where -EINPROGRESS means that
-      ->runtime_idle() is already being executed
+    - execute the subsystem-level idle callback for the device; returns an
+      error code on failure, where -EINPROGRESS means that ->runtime_idle() is
+      already being executed; if there is no callback or the callback returns 0
+      then run pm_runtime_suspend(dev) and return its result
 
   int pm_runtime_suspend(struct device *dev);
     - execute the subsystem-level suspend callback for the device; returns 0 on
