@@ -129,7 +129,6 @@ struct video_device
 
 	/* Video standard vars */
 	v4l2_std_id tvnorms;		/* Supported tv norms */
-	v4l2_std_id current_norm;	/* Current tvnorm */
 
 	/* callbacks */
 	void (*release)(struct video_device *vdev);
