@@ -3062,15 +3062,52 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 		ptlrpc_req_finished(req);
 		RETURN(rc);
 	} else if (KEY_IS(KEY_FIEMAP)) {
-		struct ptlrpc_request *req;
-		struct ll_user_fiemap *reply;
-		char *tmp;
-		int rc;
+		struct ll_fiemap_info_key *fm_key =
+				(struct ll_fiemap_info_key *)key;
+		struct ldlm_res_id	 res_id;
+		ldlm_policy_data_t	 policy;
+		struct lustre_handle	 lockh;
+		ldlm_mode_t		 mode = 0;
+		struct ptlrpc_request	*req;
+		struct ll_user_fiemap	*reply;
+		char			*tmp;
+		int			 rc;
 
+		if (!(fm_key->fiemap.fm_flags & FIEMAP_FLAG_SYNC))
+			goto skip_locking;
+
+		policy.l_extent.start = fm_key->fiemap.fm_start &
+						CFS_PAGE_MASK;
+
+		if (OBD_OBJECT_EOF - fm_key->fiemap.fm_length <=
+		    fm_key->fiemap.fm_start + PAGE_CACHE_SIZE - 1)
+			policy.l_extent.end = OBD_OBJECT_EOF;
+		else
+			policy.l_extent.end = (fm_key->fiemap.fm_start +
+				fm_key->fiemap.fm_length +
+				PAGE_CACHE_SIZE - 1) & CFS_PAGE_MASK;
+
+		ostid_build_res_name(&fm_key->oa.o_oi, &res_id);
+		mode = ldlm_lock_match(exp->exp_obd->obd_namespace,
+				       LDLM_FL_BLOCK_GRANTED |
+				       LDLM_FL_LVB_READY,
+				       &res_id, LDLM_EXTENT, &policy,
+				       LCK_PR | LCK_PW, &lockh, 0);
+		if (mode) { /* lock is cached on client */
+			if (mode != LCK_PR) {
+				ldlm_lock_addref(&lockh, LCK_PR);
+				ldlm_lock_decref(&lockh, LCK_PW);
+			}
+		} else { /* no cached lock, needs acquire lock on server side */
+			fm_key->oa.o_valid |= OBD_MD_FLFLAGS;
+			fm_key->oa.o_flags |= OBD_FL_SRVLOCK;
+		}
+
+skip_locking:
 		req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 					   &RQF_OST_GET_INFO_FIEMAP);
 		if (req == NULL)
-			RETURN(-ENOMEM);
+			GOTO(drop_lock, rc = -ENOMEM);
 
 		req_capsule_set_size(&req->rq_pill, &RMF_FIEMAP_KEY,
 				     RCL_CLIENT, keylen);
@@ -3082,7 +3119,7 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 		rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_GET_INFO);
 		if (rc) {
 			ptlrpc_request_free(req);
-			RETURN(rc);
+			GOTO(drop_lock, rc);
 		}
 
 		tmp = req_capsule_client_get(&req->rq_pill, &RMF_FIEMAP_KEY);
@@ -3093,16 +3130,18 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 		ptlrpc_request_set_replen(req);
 		rc = ptlrpc_queue_wait(req);
 		if (rc)
-			GOTO(out1, rc);
+			GOTO(fini_req, rc);
 
 		reply = req_capsule_server_get(&req->rq_pill, &RMF_FIEMAP_VAL);
 		if (reply == NULL)
-			GOTO(out1, rc = -EPROTO);
+			GOTO(fini_req, rc = -EPROTO);
 
 		memcpy(val, reply, *vallen);
-	out1:
+fini_req:
 		ptlrpc_req_finished(req);
-
+drop_lock:
+		if (mode)
+			ldlm_lock_decref(&lockh, LCK_PR);
 		RETURN(rc);
 	}
 
