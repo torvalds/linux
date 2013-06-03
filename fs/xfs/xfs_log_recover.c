@@ -2266,6 +2266,12 @@ xfs_qm_dqcheck(
 	d->dd_diskdq.d_flags = type;
 	d->dd_diskdq.d_id = cpu_to_be32(id);
 
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		uuid_copy(&d->dd_uuid, &mp->m_sb.sb_uuid);
+		xfs_update_cksum((char *)d, sizeof(struct xfs_dqblk),
+				 XFS_DQUOT_CRC_OFF);
+	}
+
 	return errs;
 }
 
@@ -2793,6 +2799,10 @@ xlog_recover_dquot_pass2(
 	}
 
 	memcpy(ddq, recddq, item->ri_buf[1].i_len);
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		xfs_update_cksum((char *)ddq, sizeof(struct xfs_dqblk),
+				 XFS_DQUOT_CRC_OFF);
+	}
 
 	ASSERT(dq_f->qlf_size == 2);
 	ASSERT(bp->b_target->bt_mount == mp);
