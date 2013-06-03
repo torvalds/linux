@@ -98,11 +98,11 @@
 #define MLX4_EN_ALLOC_SIZE	PAGE_ALIGN(16384)
 #define MLX4_EN_ALLOC_ORDER	get_order(MLX4_EN_ALLOC_SIZE)
 
-/* Receive fragment sizes; we use at most 4 fragments (for 9600 byte MTU
+/* Receive fragment sizes; we use at most 3 fragments (for 9600 byte MTU
  * and 4K allocations) */
 enum {
-	FRAG_SZ0 = 512 - NET_IP_ALIGN,
-	FRAG_SZ1 = 1024,
+	FRAG_SZ0 = 1536 - NET_IP_ALIGN,
+	FRAG_SZ1 = 4096,
 	FRAG_SZ2 = 4096,
 	FRAG_SZ3 = MLX4_EN_ALLOC_SIZE
 };
