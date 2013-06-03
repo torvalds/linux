@@ -111,8 +111,6 @@ struct ar5416AniState {
 };
 
 struct ar5416Stats {
-	u32 ast_ani_niup;
-	u32 ast_ani_nidown;
 	u32 ast_ani_spurup;
 	u32 ast_ani_spurdown;
 	u32 ast_ani_ofdmon;
