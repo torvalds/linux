@@ -27,6 +27,10 @@
 #define AT803X_MMD_ACCESS_CONTROL		0x0D
 #define AT803X_MMD_ACCESS_CONTROL_DATA		0x0E
 #define AT803X_FUNC_DATA			0x4003
+#define AT803X_DEBUG_ADDR			0x1D
+#define AT803X_DEBUG_DATA			0x1E
+#define AT803X_DEBUG_SYSTEM_MODE_CTRL		0x05
+#define AT803X_DEBUG_RGMII_TX_CLK_DLY		BIT(8)
 
 MODULE_DESCRIPTION("Atheros 803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
@@ -99,6 +103,7 @@ static void at803x_get_wol(struct phy_device *phydev,
 static int at803x_config_init(struct phy_device *phydev)
 {
 	int val;
+	int ret;
 	u32 features;
 
 	features = SUPPORTED_TP | SUPPORTED_MII | SUPPORTED_AUI |
@@ -132,6 +137,17 @@ static int at803x_config_init(struct phy_device *phydev)
 
 	phydev->supported = features;
 	phydev->advertising = features;
+
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID) {
+		ret = phy_write(phydev, AT803X_DEBUG_ADDR,
+				AT803X_DEBUG_SYSTEM_MODE_CTRL);
+		if (ret)
+			return ret;
+		ret = phy_write(phydev, AT803X_DEBUG_DATA,
+				AT803X_DEBUG_RGMII_TX_CLK_DLY);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
