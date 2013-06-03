@@ -2699,7 +2699,7 @@ again:
 		 * should take care of it. */
 		rc = osc_extent_wait(env, waiting, OES_INV);
 		if (rc < 0)
-			OSC_EXTENT_DUMP(D_CACHE, ext, "wait error: %d.\n", rc);
+			OSC_EXTENT_DUMP(D_CACHE, waiting, "error: %d.\n", rc);
 
 		osc_extent_put(env, waiting);
 		waiting = NULL;
