@@ -26,13 +26,6 @@
 
 #include <mach/irqs.h>
 
-#ifdef CONFIG_CPU_MMP2
-#include <mach/pm-mmp2.h>
-#endif
-#ifdef CONFIG_CPU_PXA910
-#include <mach/pm-pxa910.h>
-#endif
-
 #include "irqchip.h"
 
 #define MAX_ICU_NR		16
@@ -132,7 +125,7 @@ static void icu_unmask_irq(struct irq_data *d)
 	}
 }
 
-static struct irq_chip icu_irq_chip = {
+struct irq_chip icu_irq_chip = {
 	.name		= "icu_irq",
 	.irq_mask	= icu_mask_irq,
 	.irq_mask_ack	= icu_mask_ack_irq,
@@ -251,9 +244,6 @@ void __init icu_init_irq(void)
 	}
 	irq_set_default_host(icu_data[0].domain);
 	set_handle_irq(mmp_handle_irq);
-#ifdef CONFIG_CPU_PXA910
-	icu_irq_chip.irq_set_wake = pxa910_set_wake;
-#endif
 }
 
 /* MMP2 (ARMv7) */
@@ -358,9 +348,6 @@ void __init mmp2_init_icu(void)
 	}
 	irq_set_default_host(icu_data[0].domain);
 	set_handle_irq(mmp2_handle_irq);
-#ifdef CONFIG_CPU_MMP2
-	icu_irq_chip.irq_set_wake = mmp2_set_wake;
-#endif
 }
 
 #ifdef CONFIG_OF
