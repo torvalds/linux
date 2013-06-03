@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
+#include <plat/system.h>
 #include "cpu-freq.h"
 
 static struct cpufreq_frequency_table sun4i_freq_tbl[] = {
@@ -104,22 +105,30 @@ static struct cpufreq_dvfs sun4i_dvfs_table[] = {
     {.freq = 624000000,  .volt = 1250}, /* core vdd is 1.25v if cpu frequency is (60Mhz,    624Mhz] */
     {.freq = 0,          .volt = 1000}, /* end of cpu dvfs table                                    */
 };
+
+static struct cpufreq_dvfs sun5i_dvfs_table[] = {
+    {.freq = 1104000000, .volt = 1500}, /* core vdd is 1.50v if cpu frequency is (1008Mhz, xxxxMhz] */
+    {.freq = 1008000000, .volt = 1400}, /* core vdd is 1.40v if cpu frequency is (912Mhz,  1008Mhz] */
+    {.freq = 912000000,  .volt = 1350}, /* core vdd is 1.35v if cpu frequency is (864Mhz,   912Mhz] */
+    {.freq = 864000000,  .volt = 1300}, /* core vdd is 1.30v if cpu frequency is (624Mhz,   864Mhz] */
+    {.freq = 624000000,  .volt = 1200}, /* core vdd is 1.20v if cpu frequency is (576Mhz,   624Mhz] */
+    {.freq = 576000000,  .volt = 1100}, /* core vdd is 1.10v if cpu frequency is (432Mhz,   576Mhz] */
+    {.freq = 432000000,  .volt = 1000}, /* core vdd is 1.00v if cpu frequency is (60Mhz,    432Mhz] */
+    {.freq = 0,          .volt = 700 }, /* end of cpu dvfs table                                    */
+};
 #endif
 
 struct cpufreq_frequency_table * sunxi_cpufreq_table(void) {
-    /* TODO: improve to handle A13 and others */
     return sun4i_freq_tbl;
 }
 
 struct cpufreq_div_order * sunxi_div_order_table(int *length) {
-    /* TODO: improve to handle A13 and others */
     *length = ARRAY_SIZE(sun4i_div_order_tbl);
     return sun4i_div_order_tbl;
 }
 
 #ifdef CONFIG_CPU_FREQ_DVFS
 struct cpufreq_dvfs * sunxi_dvfs_table(void) {
-    /* TODO: improve to handle A13 and others */
-    return sun4i_dvfs_table;
+    return sunxi_is_sun4i() ? sun4i_dvfs_table : sun5i_dvfs_table;
 }
 #endif
