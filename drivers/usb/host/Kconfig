@@ -481,7 +481,7 @@ config USB_CNS3XXX_OHCI
 	  It is needed for low-speed USB 1.0 device support.
 
 config USB_OHCI_HCD_PLATFORM
-	bool "Generic OHCI driver for a platform device"
+	tristate "Generic OHCI driver for a platform device"
 	default n
 	---help---
 	  Adds an OHCI host driver for a generic platform device, which

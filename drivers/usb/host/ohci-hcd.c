@@ -1262,12 +1262,8 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_tilegx_driver
 #endif
 
-#ifdef CONFIG_USB_OHCI_HCD_PLATFORM
-#include "ohci-platform.c"
-#define PLATFORM_DRIVER		ohci_platform_driver
-#endif
-
 #if	!IS_ENABLED(CONFIG_USB_OHCI_HCD_PCI) &&	\
+	!IS_ENABLED(CONFIG_USB_OHCI_HCD_PLATFORM) && \
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OMAP1_PLATFORM_DRIVER) &&	\
 	!defined(OMAP3_PLATFORM_DRIVER) &&	\
