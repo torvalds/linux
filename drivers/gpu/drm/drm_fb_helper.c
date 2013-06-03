@@ -284,13 +284,27 @@ EXPORT_SYMBOL(drm_fb_helper_debug_leave);
  */
 bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 {
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_plane *plane;
 	bool error = false;
-	int i, ret;
+	int i;
 
-	drm_warn_on_modeset_not_all_locked(fb_helper->dev);
+	drm_warn_on_modeset_not_all_locked(dev);
+
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head)
+		drm_plane_force_disable(plane);
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
+		struct drm_crtc *crtc = mode_set->crtc;
+		int ret;
+
+		if (crtc->funcs->cursor_set) {
+			ret = crtc->funcs->cursor_set(crtc, NULL, 0, 0, 0);
+			if (ret)
+				error = true;
+		}
+
 		ret = drm_mode_set_config_internal(mode_set);
 		if (ret)
 			error = true;
