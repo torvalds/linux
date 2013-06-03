@@ -9,3 +9,4 @@ obj-$(CONFIG_BP_AUTO)                           += c66a.o
 obj-$(CONFIG_BP_AUTO)                           += sew290.o
 obj-$(CONFIG_BP_AUTO)                           += u7501.o
 obj-$(CONFIG_BP_AUTO)                           += a85xx.o
+obj-$(CONFIG_BP_AUTO)                           += u5501.o
