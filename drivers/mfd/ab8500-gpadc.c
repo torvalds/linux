@@ -886,12 +886,6 @@ static int ab8500_gpadc_runtime_resume(struct device *dev)
 	return ret;
 }
 
-static int ab8500_gpadc_runtime_idle(struct device *dev)
-{
-	pm_runtime_suspend(dev);
-	return 0;
-}
-
 static int ab8500_gpadc_suspend(struct device *dev)
 {
 	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
@@ -1039,7 +1033,7 @@ static int ab8500_gpadc_remove(struct platform_device *pdev)
 static const struct dev_pm_ops ab8500_gpadc_pm_ops = {
 	SET_RUNTIME_PM_OPS(ab8500_gpadc_runtime_suspend,
 			   ab8500_gpadc_runtime_resume,
-			   ab8500_gpadc_runtime_idle)
+			   NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(ab8500_gpadc_suspend,
 				ab8500_gpadc_resume)
 
