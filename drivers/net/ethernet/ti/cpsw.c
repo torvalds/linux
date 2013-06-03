@@ -1554,6 +1554,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		if (mac_addr)
 			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);
 
+		slave_data->phy_if = of_get_phy_mode(slave_node);
+
 		if (data->dual_emac) {
 			if (of_property_read_u32(slave_node, "dual_emac_res_vlan",
 						 &prop)) {
