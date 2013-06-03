@@ -658,7 +658,8 @@ static void icmp_socket_deliver(struct sk_buff *skb, u32 info)
 }
 
 /*
- *	Handle ICMP_DEST_UNREACH, ICMP_TIME_EXCEED, and ICMP_QUENCH.
+ *	Handle ICMP_DEST_UNREACH, ICMP_TIME_EXCEED, ICMP_QUENCH, and
+ *	ICMP_PARAMETERPROB.
  */
 
 static void icmp_unreach(struct sk_buff *skb)
