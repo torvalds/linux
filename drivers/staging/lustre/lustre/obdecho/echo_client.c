@@ -1081,8 +1081,9 @@ static struct echo_object *cl_echo_object_find(struct echo_device *d,
 	LASSERT(lsmp);
 	lsm = *lsmp;
 	LASSERT(lsm);
-	LASSERT(ostid_id(&lsm->lsm_oi) != 0);
-	LASSERT(ostid_seq(&lsm->lsm_oi) == FID_SEQ_ECHO);
+	LASSERTF(ostid_id(&lsm->lsm_oi) != 0, DOSTID"\n", POSTID(&lsm->lsm_oi));
+	LASSERTF(ostid_seq(&lsm->lsm_oi) == FID_SEQ_ECHO, DOSTID"\n",
+		 POSTID(&lsm->lsm_oi));
 
 	/* Never return an object if the obd is to be freed. */
 	if (echo_dev2cl(d)->cd_lu_dev.ld_obd->obd_stopping)
