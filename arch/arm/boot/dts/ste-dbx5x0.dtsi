@@ -808,6 +808,10 @@
 			reg = <0x80123000 0x1000>;
 			interrupts = <0 31 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
+
+			clocks = <&prcc_kclk 1 3>, <&prcc_pclk 1 3>;
+			clock-names = "msp", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -816,6 +820,10 @@
 			reg = <0x80124000 0x1000>;
 			interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
+
+			clocks = <&prcc_kclk 1 4>, <&prcc_pclk 1 4>;
+			clock-names = "msp", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -825,6 +833,10 @@
 			reg = <0x80117000 0x1000>;
 			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
+
+			clocks = <&prcc_kclk 2 3>, <&prcc_pclk 2 5>;
+			clock-names = "msp", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -833,6 +845,10 @@
 			reg = <0x80125000 0x1000>;
 			interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
+
+			clocks = <&prcc_kclk 1 10>, <&prcc_pclk 1 11>;
+			clock-names = "msp", "apb_pclk";
+
 			status = "disabled";
 		};
 
