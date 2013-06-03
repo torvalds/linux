@@ -3225,7 +3225,7 @@ static inline void lustre_set_wire_obdo(struct obd_connect_data *ocd,
 		return;
 
 	if (unlikely(!(ocd->ocd_connect_flags & OBD_CONNECT_FID)) &&
-	    fid_seq_is_echo(fid_seq(&lobdo->o_oi.oi_fid))) {
+	    fid_seq_is_echo(ostid_seq(&lobdo->o_oi))) {
 		/* Currently OBD_FL_OSTID will only be used when 2.4 echo
 		 * client communicate with pre-2.4 server */
 		wobdo->o_oi.oi.oi_id = fid_oid(&lobdo->o_oi.oi_fid);
