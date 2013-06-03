@@ -2396,6 +2396,7 @@ static int ptlrpc_main(void *arg)
 		/* Process all incoming reqs before handling any */
 		if (ptlrpc_server_request_incoming(svcpt)) {
 			lu_context_enter(&env->le_ctx);
+			env->le_ses = NULL;
 			ptlrpc_server_handle_req_in(svcpt, thread);
 			lu_context_exit(&env->le_ctx);
 
