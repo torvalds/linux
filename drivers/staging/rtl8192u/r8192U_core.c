@@ -103,8 +103,7 @@ double __extendsfdf2(float a)
 
 #include "dot11d.h"
 //set here to open your trace code. //WB
-u32 rt_global_debug_component = \
-				COMP_DOWN	|
+u32 rt_global_debug_component = COMP_DOWN	|
 				COMP_SEC	|
 				COMP_ERR; //always open err flags on
 
@@ -827,7 +826,7 @@ void rtl8192_set_rxconf(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC)
 		DMESG("NIC in promisc mode");
 
-	if (priv->ieee80211->iw_mode == IW_MODE_MONITOR || \
+	if (priv->ieee80211->iw_mode == IW_MODE_MONITOR ||
 	   dev->flags & IFF_PROMISC) {
 		rxconf = rxconf | RCR_AAP;
 	} else {
@@ -879,8 +878,7 @@ void rtl8192_rtx_disable(struct net_device *dev)
 	struct rtl8192_rx_info *info;
 
 	cmd = read_nic_byte(dev, CMDR);
-	write_nic_byte(dev, CMDR, cmd & \
-		~(CR_TE|CR_RE));
+	write_nic_byte(dev, CMDR, cmd & ~(CR_TE|CR_RE));
 	force_pci_posting(dev);
 	mdelay(10);
 
@@ -1170,7 +1168,7 @@ struct sk_buff *DrvAggr_Aggregation(struct net_device *dev, struct ieee80211_drv
 		tx_fwinfo->RtsRate =  MRateToHwRate8190Pci((u8)tcb_desc->rts_rate);
 		tx_fwinfo->RtsSubcarrier = (tx_fwinfo->RtsHT == 0)?(tcb_desc->RTSSC):0;
 		tx_fwinfo->RtsBandwidth = (tx_fwinfo->RtsHT == 1)?((tcb_desc->bRTSBW)?1:0):0;
-		tx_fwinfo->RtsShort = (tx_fwinfo->RtsHT == 0)?(tcb_desc->bRTSUseShortPreamble?1:0):\
+		tx_fwinfo->RtsShort = (tx_fwinfo->RtsHT == 0)?(tcb_desc->bRTSUseShortPreamble?1:0):
 				      (tcb_desc->bRTSUseShortGI?1:0);
 
 		/* Set Bandwidth and sub-channel settings. */
@@ -1313,7 +1311,7 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 		/* Handle MPDU in wait queue. */
 		if (queue_index != BEACON_QUEUE) {
 			/* Don't send data frame during scanning.*/
-			if ((skb_queue_len(&priv->ieee80211->skb_waitQ[queue_index]) != 0)&&\
+			if ((skb_queue_len(&priv->ieee80211->skb_waitQ[queue_index]) != 0)&&
 					(!(priv->ieee80211->queue_stop))) {
 				if (NULL != (skb = skb_dequeue(&(priv->ieee80211->skb_waitQ[queue_index]))))
 					priv->ieee80211->softmac_hard_start_xmit(skb, dev);
@@ -1321,7 +1319,7 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 				return; //modified by david to avoid further processing AMSDU
 			}
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-			else if ((skb_queue_len(&priv->ieee80211->skb_drv_aggQ[queue_index]) != 0)&&\
+			else if ((skb_queue_len(&priv->ieee80211->skb_drv_aggQ[queue_index]) != 0)&&
 				(!(priv->ieee80211->queue_stop))) {
 				// Tx Driver Aggregation process
 				/* The driver will aggregation the packets according to the following stats
@@ -1613,7 +1611,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 		printk("%8x ", tx[i]);
 	printk("\n");
 #endif
-	usb_fill_bulk_urb(tx_urb, priv->udev, usb_sndbulkpipe(priv->udev, idx_pipe), \
+	usb_fill_bulk_urb(tx_urb, priv->udev, usb_sndbulkpipe(priv->udev, idx_pipe),
 			skb->data, skb->len, rtl8192_tx_isr, skb);
 
 	status = usb_submit_urb(tx_urb, GFP_ATOMIC);
@@ -1798,7 +1796,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	tx_fwinfo->RtsRate =  MRateToHwRate8190Pci((u8)tcb_desc->rts_rate);
 	tx_fwinfo->RtsSubcarrier = (tx_fwinfo->RtsHT == 0)?(tcb_desc->RTSSC):0;
 	tx_fwinfo->RtsBandwidth = (tx_fwinfo->RtsHT == 1)?((tcb_desc->bRTSBW)?1:0):0;
-	tx_fwinfo->RtsShort = (tx_fwinfo->RtsHT == 0)?(tcb_desc->bRTSUseShortPreamble?1:0):\
+	tx_fwinfo->RtsShort = (tx_fwinfo->RtsHT == 0)?(tcb_desc->bRTSUseShortPreamble?1:0):
 				(tcb_desc->bRTSUseShortGI?1:0);
 
 	/* Set Bandwidth and sub-channel settings. */
@@ -2156,7 +2154,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 					"qos_activate\n");
 		}
 	} else {
-		memcpy(&priv->ieee80211->current_network.qos_data.parameters,\
+		memcpy(&priv->ieee80211->current_network.qos_data.parameters,
 		       &def_qos_parameters, size);
 
 		if ((network->qos_data.active == 1) && (active_network == 1)) {
@@ -2207,18 +2205,18 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 
 	spin_lock_irqsave(&priv->ieee80211->lock, flags);
 	if (network->flags & NETWORK_HAS_QOS_PARAMETERS) {
-		memcpy(&priv->ieee80211->current_network.qos_data.parameters,\
-			 &network->qos_data.parameters,\
+		memcpy(&priv->ieee80211->current_network.qos_data.parameters,
+			 &network->qos_data.parameters,
 			sizeof(struct ieee80211_qos_parameters));
 		priv->ieee80211->current_network.qos_data.active = 1;
 			set_qos_param = 1;
 			/* update qos parameter for current network */
-			priv->ieee80211->current_network.qos_data.old_param_count = \
+			priv->ieee80211->current_network.qos_data.old_param_count =
 				 priv->ieee80211->current_network.qos_data.param_count;
-			priv->ieee80211->current_network.qos_data.param_count = \
+			priv->ieee80211->current_network.qos_data.param_count =
 				 network->qos_data.param_count;
 	} else {
-		memcpy(&priv->ieee80211->current_network.qos_data.parameters,\
+		memcpy(&priv->ieee80211->current_network.qos_data.parameters,
 		       &def_qos_parameters, size);
 		priv->ieee80211->current_network.qos_data.active = 0;
 		priv->ieee80211->current_network.qos_data.supported = 0;
@@ -2913,7 +2911,7 @@ void rtl8192_hwconfig(struct net_device *dev)
 	// Set Retry Limit here
 	//
 	write_nic_word(dev, RETRY_LIMIT,
-			priv->ShortRetryLimit << RETRY_LIMIT_SHORT_SHIFT | \
+			priv->ShortRetryLimit << RETRY_LIMIT_SHORT_SHIFT |
 			priv->LongRetryLimit << RETRY_LIMIT_LONG_SHIFT);
 	// Set Contention Window here
 
@@ -2992,13 +2990,13 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	write_nic_dword(dev, RCR, priv->ReceiveConfig);
 
 	//Initialize Number of Reserved Pages in Firmware Queue
-	write_nic_dword(dev, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK << RSVD_FW_QUEUE_PAGE_BK_SHIFT |\
-						NUM_OF_PAGE_IN_FW_QUEUE_BE << RSVD_FW_QUEUE_PAGE_BE_SHIFT | \
-						NUM_OF_PAGE_IN_FW_QUEUE_VI << RSVD_FW_QUEUE_PAGE_VI_SHIFT | \
+	write_nic_dword(dev, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK << RSVD_FW_QUEUE_PAGE_BK_SHIFT |
+						NUM_OF_PAGE_IN_FW_QUEUE_BE << RSVD_FW_QUEUE_PAGE_BE_SHIFT |
+						NUM_OF_PAGE_IN_FW_QUEUE_VI << RSVD_FW_QUEUE_PAGE_VI_SHIFT |
 						NUM_OF_PAGE_IN_FW_QUEUE_VO <<RSVD_FW_QUEUE_PAGE_VO_SHIFT);
-	write_nic_dword(dev, RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT << RSVD_FW_QUEUE_PAGE_MGNT_SHIFT |\
+	write_nic_dword(dev, RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT << RSVD_FW_QUEUE_PAGE_MGNT_SHIFT |
 						NUM_OF_PAGE_IN_FW_QUEUE_CMD << RSVD_FW_QUEUE_PAGE_CMD_SHIFT);
-	write_nic_dword(dev, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW| \
+	write_nic_dword(dev, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW|
 						NUM_OF_PAGE_IN_FW_QUEUE_BCN<<RSVD_FW_QUEUE_PAGE_BCN_SHIFT
 						);
 	write_nic_dword(dev, RATR0+4*7, (RATE_ALL_OFDM_AG | RATE_ALL_CCK));
@@ -4683,7 +4681,7 @@ void query_rxdesc_status(struct sk_buff *skb, struct ieee80211_rx_stats *stats, 
 	// TODO: Need to verify it on FGPA platform
 	//Driver info are written to the RxBuffer following rx desc
 	if (stats->RxDrvInfoSize != 0) {
-		driver_info = (rx_drvinfo_819x_usb *)(skb->data + sizeof(rx_desc_819x_usb) + \
+		driver_info = (rx_drvinfo_819x_usb *)(skb->data + sizeof(rx_desc_819x_usb) +
 				stats->RxBufShift);
 		/* unit: 0.5M */
 		/* TODO */
@@ -5013,14 +5011,14 @@ void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 
 			/* Command packet pipe */
 		case 9:
-			RT_TRACE(COMP_RECV, "command in-pipe index(%d)\n",\
+			RT_TRACE(COMP_RECV, "command in-pipe index(%d)\n",
 					info->out_pipe);
 
 			rtl8192_rx_cmd(skb);
 			break;
 
 		default: /* should never get here! */
-			RT_TRACE(COMP_ERR, "Unknown in-pipe index(%d)\n",\
+			RT_TRACE(COMP_ERR, "Unknown in-pipe index(%d)\n",
 					info->out_pipe);
 			dev_kfree_skb(skb);
 			break;
@@ -5253,7 +5251,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 		ieee->hwsec_active = 0;
 		SECR_value &= ~SCR_RxDecEnable;
 	}
-	RT_TRACE(COMP_SEC, "%s:, hwsec:%d, pairwise_key:%d, SECR_value:%x\n", __func__, \
+	RT_TRACE(COMP_SEC, "%s:, hwsec:%d, pairwise_key:%d, SECR_value:%x\n", __func__,
 			ieee->hwsec_active, ieee->pairwise_key_type, SECR_value);
 		write_nic_byte(dev, SECR,  SECR_value);
 }
