@@ -2380,7 +2380,10 @@ struct ext4_attr {
 	ssize_t (*show)(struct ext4_attr *, struct ext4_sb_info *, char *);
 	ssize_t (*store)(struct ext4_attr *, struct ext4_sb_info *,
 			 const char *, size_t);
-	int offset;
+	union {
+		int offset;
+		int deprecated_val;
+	} u;
 };
 
 static int parse_strtoull(const char *buf,
@@ -2449,7 +2452,7 @@ static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
 static ssize_t sbi_ui_show(struct ext4_attr *a,
 			   struct ext4_sb_info *sbi, char *buf)
 {
-	unsigned int *ui = (unsigned int *) (((char *) sbi) + a->offset);
+	unsigned int *ui = (unsigned int *) (((char *) sbi) + a->u.offset);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", *ui);
 }
@@ -2458,7 +2461,7 @@ static ssize_t sbi_ui_store(struct ext4_attr *a,
 			    struct ext4_sb_info *sbi,
 			    const char *buf, size_t count)
 {
-	unsigned int *ui = (unsigned int *) (((char *) sbi) + a->offset);
+	unsigned int *ui = (unsigned int *) (((char *) sbi) + a->u.offset);
 	unsigned long t;
 	int ret;
 
@@ -2507,12 +2510,20 @@ static ssize_t trigger_test_error(struct ext4_attr *a,
 	return count;
 }
 
+static ssize_t sbi_deprecated_show(struct ext4_attr *a,
+				   struct ext4_sb_info *sbi, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", a->u.deprecated_val);
+}
+
 #define EXT4_ATTR_OFFSET(_name,_mode,_show,_store,_elname) \
 static struct ext4_attr ext4_attr_##_name = {			\
 	.attr = {.name = __stringify(_name), .mode = _mode },	\
 	.show	= _show,					\
 	.store	= _store,					\
-	.offset = offsetof(struct ext4_sb_info, _elname),	\
+	.u = {							\
+		.offset = offsetof(struct ext4_sb_info, _elname),\
+	},							\
 }
 #define EXT4_ATTR(name, mode, show, store) \
 static struct ext4_attr ext4_attr_##name = __ATTR(name, mode, show, store)
@@ -2523,6 +2534,14 @@ static struct ext4_attr ext4_attr_##name = __ATTR(name, mode, show, store)
 #define EXT4_RW_ATTR_SBI_UI(name, elname)	\
 	EXT4_ATTR_OFFSET(name, 0644, sbi_ui_show, sbi_ui_store, elname)
 #define ATTR_LIST(name) &ext4_attr_##name.attr
+#define EXT4_DEPRECATED_ATTR(_name, _val)	\
+static struct ext4_attr ext4_attr_##_name = {			\
+	.attr = {.name = __stringify(_name), .mode = 0444 },	\
+	.show	= sbi_deprecated_show,				\
+	.u = {							\
+		.deprecated_val = _val,				\
+	},							\
+}
 
 EXT4_RO_ATTR(delayed_allocation_blocks);
 EXT4_RO_ATTR(session_write_kbytes);
@@ -2537,7 +2556,7 @@ EXT4_RW_ATTR_SBI_UI(mb_min_to_scan, s_mb_min_to_scan);
 EXT4_RW_ATTR_SBI_UI(mb_order2_req, s_mb_order2_reqs);
 EXT4_RW_ATTR_SBI_UI(mb_stream_req, s_mb_stream_request);
 EXT4_RW_ATTR_SBI_UI(mb_group_prealloc, s_mb_group_prealloc);
-EXT4_RW_ATTR_SBI_UI(max_writeback_mb_bump, s_max_writeback_mb_bump);
+EXT4_DEPRECATED_ATTR(max_writeback_mb_bump, 128);
 EXT4_RW_ATTR_SBI_UI(extent_max_zeroout_kb, s_extent_max_zeroout_kb);
 EXT4_ATTR(trigger_fs_error, 0200, NULL, trigger_test_error);
 
@@ -3790,7 +3809,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	sbi->s_stripe = ext4_get_stripe_size(sbi);
-	sbi->s_max_writeback_mb_bump = 128;
 	sbi->s_extent_max_zeroout_kb = 32;
 
 	/*
