@@ -41,9 +41,6 @@ static int zte_ev_usb_serial_open(struct tty_struct *tty,
 	int len;
 	unsigned char *buf;
 
-	if (port->number != 0)
-		return -ENODEV;
-
 	buf = kmalloc(MAX_SETUP_DATA_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -165,9 +162,6 @@ static void zte_ev_usb_serial_close(struct usb_serial_port *port)
 	int result = 0;
 	int len;
 	unsigned char *buf;
-
-	if (port->number != 0)
-		return;
 
 	buf = kmalloc(MAX_SETUP_DATA_SIZE, GFP_KERNEL);
 	if (!buf)
