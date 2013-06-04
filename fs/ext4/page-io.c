@@ -58,8 +58,10 @@ void ext4_ioend_shutdown(struct inode *inode)
 	 * We need to make sure the work structure is finished being
 	 * used before we let the inode get destroyed.
 	 */
-	if (work_pending(&EXT4_I(inode)->i_unwritten_work))
-		cancel_work_sync(&EXT4_I(inode)->i_unwritten_work);
+	if (work_pending(&EXT4_I(inode)->i_rsv_conversion_work))
+		cancel_work_sync(&EXT4_I(inode)->i_rsv_conversion_work);
+	if (work_pending(&EXT4_I(inode)->i_unrsv_conversion_work))
+		cancel_work_sync(&EXT4_I(inode)->i_unrsv_conversion_work);
 }
 
 static void ext4_release_io_end(ext4_io_end_t *io_end)
@@ -114,20 +116,17 @@ static int ext4_end_io(ext4_io_end_t *io)
 	return ret;
 }
 
-static void dump_completed_IO(struct inode *inode)
+static void dump_completed_IO(struct inode *inode, struct list_head *head)
 {
 #ifdef	EXT4FS_DEBUG
 	struct list_head *cur, *before, *after;
 	ext4_io_end_t *io, *io0, *io1;
 
-	if (list_empty(&EXT4_I(inode)->i_completed_io_list)) {
-		ext4_debug("inode %lu completed_io list is empty\n",
-			   inode->i_ino);
+	if (list_empty(head))
 		return;
-	}
 
-	ext4_debug("Dump inode %lu completed_io list\n", inode->i_ino);
-	list_for_each_entry(io, &EXT4_I(inode)->i_completed_io_list, list) {
+	ext4_debug("Dump inode %lu completed io list\n", inode->i_ino);
+	list_for_each_entry(io, head, list) {
 		cur = &io->list;
 		before = cur->prev;
 		io0 = container_of(before, ext4_io_end_t, list);
@@ -148,16 +147,23 @@ static void ext4_add_complete_io(ext4_io_end_t *io_end)
 	unsigned long flags;
 
 	BUG_ON(!(io_end->flag & EXT4_IO_END_UNWRITTEN));
-	wq = EXT4_SB(io_end->inode->i_sb)->dio_unwritten_wq;
-
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	if (list_empty(&ei->i_completed_io_list))
-		queue_work(wq, &ei->i_unwritten_work);
-	list_add_tail(&io_end->list, &ei->i_completed_io_list);
+	if (io_end->handle) {
+		wq = EXT4_SB(io_end->inode->i_sb)->rsv_conversion_wq;
+		if (list_empty(&ei->i_rsv_conversion_list))
+			queue_work(wq, &ei->i_rsv_conversion_work);
+		list_add_tail(&io_end->list, &ei->i_rsv_conversion_list);
+	} else {
+		wq = EXT4_SB(io_end->inode->i_sb)->unrsv_conversion_wq;
+		if (list_empty(&ei->i_unrsv_conversion_list))
+			queue_work(wq, &ei->i_unrsv_conversion_work);
+		list_add_tail(&io_end->list, &ei->i_unrsv_conversion_list);
+	}
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 }
 
-static int ext4_do_flush_completed_IO(struct inode *inode)
+static int ext4_do_flush_completed_IO(struct inode *inode,
+				      struct list_head *head)
 {
 	ext4_io_end_t *io;
 	struct list_head unwritten;
@@ -166,8 +172,8 @@ static int ext4_do_flush_completed_IO(struct inode *inode)
 	int err, ret = 0;
 
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	dump_completed_IO(inode);
-	list_replace_init(&ei->i_completed_io_list, &unwritten);
+	dump_completed_IO(inode, head);
+	list_replace_init(head, &unwritten);
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 
 	while (!list_empty(&unwritten)) {
@@ -183,21 +189,34 @@ static int ext4_do_flush_completed_IO(struct inode *inode)
 }
 
 /*
- * work on completed aio dio IO, to convert unwritten extents to extents
+ * work on completed IO, to convert unwritten extents to extents
  */
-void ext4_end_io_work(struct work_struct *work)
+void ext4_end_io_rsv_work(struct work_struct *work)
 {
 	struct ext4_inode_info *ei = container_of(work, struct ext4_inode_info,
-						  i_unwritten_work);
-	ext4_do_flush_completed_IO(&ei->vfs_inode);
+						  i_rsv_conversion_work);
+	ext4_do_flush_completed_IO(&ei->vfs_inode, &ei->i_rsv_conversion_list);
+}
+
+void ext4_end_io_unrsv_work(struct work_struct *work)
+{
+	struct ext4_inode_info *ei = container_of(work, struct ext4_inode_info,
+						  i_unrsv_conversion_work);
+	ext4_do_flush_completed_IO(&ei->vfs_inode, &ei->i_unrsv_conversion_list);
 }
 
 int ext4_flush_unwritten_io(struct inode *inode)
 {
-	int ret;
+	int ret, err;
+
 	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex) &&
 		     !(inode->i_state & I_FREEING));
-	ret = ext4_do_flush_completed_IO(inode);
+	ret = ext4_do_flush_completed_IO(inode,
+					 &EXT4_I(inode)->i_rsv_conversion_list);
+	err = ext4_do_flush_completed_IO(inode,
+					 &EXT4_I(inode)->i_unrsv_conversion_list);
+	if (!ret)
+		ret = err;
 	ext4_unwritten_wait(inode);
 	return ret;
 }
