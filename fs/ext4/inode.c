@@ -421,66 +421,6 @@ static int __check_block_validity(struct inode *inode, const char *func,
 #define check_block_validity(inode, map)	\
 	__check_block_validity((inode), __func__, __LINE__, (map))
 
-/*
- * Return the number of contiguous dirty pages in a given inode
- * starting at page frame idx.
- */
-static pgoff_t ext4_num_dirty_pages(struct inode *inode, pgoff_t idx,
-				    unsigned int max_pages)
-{
-	struct address_space *mapping = inode->i_mapping;
-	pgoff_t	index;
-	struct pagevec pvec;
-	pgoff_t num = 0;
-	int i, nr_pages, done = 0;
-
-	if (max_pages == 0)
-		return 0;
-	pagevec_init(&pvec, 0);
-	while (!done) {
-		index = idx;
-		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
-					      PAGECACHE_TAG_DIRTY,
-					      (pgoff_t)PAGEVEC_SIZE);
-		if (nr_pages == 0)
-			break;
-		for (i = 0; i < nr_pages; i++) {
-			struct page *page = pvec.pages[i];
-			struct buffer_head *bh, *head;
-
-			lock_page(page);
-			if (unlikely(page->mapping != mapping) ||
-			    !PageDirty(page) ||
-			    PageWriteback(page) ||
-			    page->index != idx) {
-				done = 1;
-				unlock_page(page);
-				break;
-			}
-			if (page_has_buffers(page)) {
-				bh = head = page_buffers(page);
-				do {
-					if (!buffer_delay(bh) &&
-					    !buffer_unwritten(bh))
-						done = 1;
-					bh = bh->b_this_page;
-				} while (!done && (bh != head));
-			}
-			unlock_page(page);
-			if (done)
-				break;
-			idx++;
-			num++;
-			if (num >= max_pages) {
-				done = 1;
-				break;
-			}
-		}
-		pagevec_release(&pvec);
-	}
-	return num;
-}
-
 #ifdef ES_AGGRESSIVE_TEST
 static void ext4_map_blocks_es_recheck(handle_t *handle,
 				       struct inode *inode,
@@ -2462,10 +2402,8 @@ static int ext4_da_writepages(struct address_space *mapping,
 	struct mpage_da_data mpd;
 	struct inode *inode = mapping->host;
 	int pages_written = 0;
-	unsigned int max_pages;
 	int range_cyclic, cycled = 1, io_done = 0;
 	int needed_blocks, ret = 0;
-	long desired_nr_to_write, nr_to_writebump = 0;
 	loff_t range_start = wbc->range_start;
 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
 	pgoff_t done_index = 0;
@@ -2510,39 +2448,6 @@ static int ext4_da_writepages(struct address_space *mapping,
 	} else {
 		index = wbc->range_start >> PAGE_CACHE_SHIFT;
 		end = wbc->range_end >> PAGE_CACHE_SHIFT;
-	}
-
-	/*
-	 * This works around two forms of stupidity.  The first is in
-	 * the writeback code, which caps the maximum number of pages
-	 * written to be 1024 pages.  This is wrong on multiple
-	 * levels; different architectues have a different page size,
-	 * which changes the maximum amount of data which gets
-	 * written.  Secondly, 4 megabytes is way too small.  XFS
-	 * forces this value to be 16 megabytes by multiplying
-	 * nr_to_write parameter by four, and then relies on its
-	 * allocator to allocate larger extents to make them
-	 * contiguous.  Unfortunately this brings us to the second
-	 * stupidity, which is that ext4's mballoc code only allocates
-	 * at most 2048 blocks.  So we force contiguous writes up to
-	 * the number of dirty blocks in the inode, or
-	 * sbi->max_writeback_mb_bump whichever is smaller.
-	 */
-	max_pages = sbi->s_max_writeback_mb_bump << (20 - PAGE_CACHE_SHIFT);
-	if (!range_cyclic && range_whole) {
-		if (wbc->nr_to_write == LONG_MAX)
-			desired_nr_to_write = wbc->nr_to_write;
-		else
-			desired_nr_to_write = wbc->nr_to_write * 8;
-	} else
-		desired_nr_to_write = ext4_num_dirty_pages(inode, index,
-							   max_pages);
-	if (desired_nr_to_write > max_pages)
-		desired_nr_to_write = max_pages;
-
-	if (wbc->nr_to_write < desired_nr_to_write) {
-		nr_to_writebump = desired_nr_to_write - wbc->nr_to_write;
-		wbc->nr_to_write = desired_nr_to_write;
 	}
 
 retry:
@@ -2637,7 +2542,6 @@ retry:
 		mapping->writeback_index = done_index;
 
 out_writepages:
-	wbc->nr_to_write -= nr_to_writebump;
 	wbc->range_start = range_start;
 	trace_ext4_da_writepages_result(inode, wbc, ret, pages_written);
 	return ret;
