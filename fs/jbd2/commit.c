@@ -30,15 +30,22 @@
 #include <trace/events/jbd2.h>
 
 /*
- * Default IO end handler for temporary BJ_IO buffer_heads.
+ * IO end handler for temporary buffer_heads handling writes to the journal.
  */
 static void journal_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
 {
+	struct buffer_head *orig_bh = bh->b_private;
+
 	BUFFER_TRACE(bh, "");
 	if (uptodate)
 		set_buffer_uptodate(bh);
 	else
 		clear_buffer_uptodate(bh);
+	if (orig_bh) {
+		clear_bit_unlock(BH_Shadow, &orig_bh->b_state);
+		smp_mb__after_clear_bit();
+		wake_up_bit(&orig_bh->b_state, BH_Shadow);
+	}
 	unlock_buffer(bh);
 }
 
@@ -832,6 +839,7 @@ start_journal_io:
 		bh = jh2bh(jh);
 		clear_buffer_jwrite(bh);
 		J_ASSERT_BH(bh, buffer_jbddirty(bh));
+		J_ASSERT_BH(bh, !buffer_shadow(bh));
 
 		/* The metadata is now released for reuse, but we need
                    to remember it against this transaction so that when
@@ -839,14 +847,6 @@ start_journal_io:
                    required. */
 		JBUFFER_TRACE(jh, "file as BJ_Forget");
 		jbd2_journal_file_buffer(jh, commit_transaction, BJ_Forget);
-		/*
-		 * Wake up any transactions which were waiting for this IO to
-		 * complete. The barrier must be here so that changes by
-		 * jbd2_journal_file_buffer() take effect before wake_up_bit()
-		 * does the waitqueue check.
-		 */
-		smp_mb();
-		wake_up_bit(&bh->b_state, BH_Unshadow);
 		JBUFFER_TRACE(jh, "brelse shadowed buffer");
 		__brelse(bh);
 	}

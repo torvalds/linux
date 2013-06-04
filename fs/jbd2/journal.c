@@ -451,6 +451,7 @@ repeat:
 	new_bh->b_size = bh_in->b_size;
 	new_bh->b_bdev = journal->j_dev;
 	new_bh->b_blocknr = blocknr;
+	new_bh->b_private = bh_in;
 	set_buffer_mapped(new_bh);
 	set_buffer_dirty(new_bh);
 
@@ -465,6 +466,7 @@ repeat:
 	spin_lock(&journal->j_list_lock);
 	__jbd2_journal_file_buffer(jh_in, transaction, BJ_Shadow);
 	spin_unlock(&journal->j_list_lock);
+	set_buffer_shadow(bh_in);
 	jbd_unlock_bh_state(bh_in);
 
 	return do_escape | (done_copy_out << 1);

@@ -619,6 +619,12 @@ static void warn_dirty_buffer(struct buffer_head *bh)
 	       bdevname(bh->b_bdev, b), (unsigned long long)bh->b_blocknr);
 }
 
+static int sleep_on_shadow_bh(void *word)
+{
+	io_schedule();
+	return 0;
+}
+
 /*
  * If the buffer is already part of the current transaction, then there
  * is nothing we need to do.  If it is already part of a prior
@@ -754,41 +760,29 @@ repeat:
 		 * journaled.  If the primary copy is already going to
 		 * disk then we cannot do copy-out here. */
 
-		if (jh->b_jlist == BJ_Shadow) {
-			DEFINE_WAIT_BIT(wait, &bh->b_state, BH_Unshadow);
-			wait_queue_head_t *wqh;
-
-			wqh = bit_waitqueue(&bh->b_state, BH_Unshadow);
-
+		if (buffer_shadow(bh)) {
 			JBUFFER_TRACE(jh, "on shadow: sleep");
 			jbd_unlock_bh_state(bh);
-			/* commit wakes up all shadow buffers after IO */
-			for ( ; ; ) {
-				prepare_to_wait(wqh, &wait.wait,
-						TASK_UNINTERRUPTIBLE);
-				if (jh->b_jlist != BJ_Shadow)
-					break;
-				schedule();
-			}
-			finish_wait(wqh, &wait.wait);
+			wait_on_bit(&bh->b_state, BH_Shadow,
+				    sleep_on_shadow_bh, TASK_UNINTERRUPTIBLE);
 			goto repeat;
 		}
 
-		/* Only do the copy if the currently-owning transaction
-		 * still needs it.  If it is on the Forget list, the
-		 * committing transaction is past that stage.  The
-		 * buffer had better remain locked during the kmalloc,
-		 * but that should be true --- we hold the journal lock
-		 * still and the buffer is already on the BUF_JOURNAL
-		 * list so won't be flushed.
+		/*
+		 * Only do the copy if the currently-owning transaction still
+		 * needs it. If buffer isn't on BJ_Metadata list, the
+		 * committing transaction is past that stage (here we use the
+		 * fact that BH_Shadow is set under bh_state lock together with
+		 * refiling to BJ_Shadow list and at this point we know the
+		 * buffer doesn't have BH_Shadow set).
 		 *
 		 * Subtle point, though: if this is a get_undo_access,
 		 * then we will be relying on the frozen_data to contain
 		 * the new value of the committed_data record after the
 		 * transaction, so we HAVE to force the frozen_data copy
-		 * in that case. */
-
-		if (jh->b_jlist != BJ_Forget || force_copy) {
+		 * in that case.
+		 */
+		if (jh->b_jlist == BJ_Metadata || force_copy) {
 			JBUFFER_TRACE(jh, "generate frozen data");
 			if (!frozen_buffer) {
 				JBUFFER_TRACE(jh, "allocate memory for buffer");
