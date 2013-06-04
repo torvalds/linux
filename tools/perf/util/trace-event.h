@@ -10,7 +10,6 @@ struct perf_sample;
 union perf_event;
 struct perf_tool;
 
-extern bool latency_format;
 extern struct pevent *perf_pevent;
 
 enum {

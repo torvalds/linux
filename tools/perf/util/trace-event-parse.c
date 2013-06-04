@@ -28,8 +28,6 @@
 #include "util.h"
 #include "trace-event.h"
 
-bool latency_format;
-
 struct pevent *read_trace_init(int file_bigendian, int host_bigendian)
 {
 	struct pevent *pevent = pevent_alloc();
