@@ -22,6 +22,7 @@ config DW_APB_TIMER
 config DW_APB_TIMER_OF
 	bool
 	select DW_APB_TIMER
+	select CLKSRC_OF
 
 config ARMADA_370_XP_TIMER
 	bool
