@@ -433,11 +433,13 @@ int jbd2_journal_extend(handle_t *handle, int nblocks)
 	}
 
 	spin_lock(&transaction->t_handle_lock);
-	wanted = atomic_read(&transaction->t_outstanding_credits) + nblocks;
+	wanted = atomic_add_return(nblocks,
+				   &transaction->t_outstanding_credits);
 
 	if (wanted > journal->j_max_transaction_buffers) {
 		jbd_debug(3, "denied handle %p %d blocks: "
 			  "transaction too large\n", handle, nblocks);
+		atomic_sub(nblocks, &transaction->t_outstanding_credits);
 		goto unlock;
 	}
 
@@ -445,6 +447,7 @@ int jbd2_journal_extend(handle_t *handle, int nblocks)
 	    jbd2_log_space_left(journal)) {
 		jbd_debug(3, "denied handle %p %d blocks: "
 			  "insufficient log space\n", handle, nblocks);
+		atomic_sub(nblocks, &transaction->t_outstanding_credits);
 		goto unlock;
 	}
 
@@ -456,7 +459,6 @@ int jbd2_journal_extend(handle_t *handle, int nblocks)
 
 	handle->h_buffer_credits += nblocks;
 	handle->h_requested_credits += nblocks;
-	atomic_add(nblocks, &transaction->t_outstanding_credits);
 	result = 0;
 
 	jbd_debug(3, "extended handle %p by %d\n", handle, nblocks);
