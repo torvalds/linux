@@ -3219,6 +3219,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	intel_enable_pipe(dev_priv, pipe,
 			  intel_crtc->config.has_pch_encoder);
 	intel_enable_plane(dev_priv, plane, pipe);
+	intel_crtc_update_cursor(crtc, true);
 
 	if (intel_crtc->config.has_pch_encoder)
 		ironlake_pch_enable(crtc);
@@ -3226,8 +3227,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
 	mutex_unlock(&dev->struct_mutex);
-
-	intel_crtc_update_cursor(crtc, true);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
@@ -3328,6 +3327,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_enable_pipe(dev_priv, pipe,
 			  intel_crtc->config.has_pch_encoder);
 	intel_enable_plane(dev_priv, plane, pipe);
+	intel_crtc_update_cursor(crtc, true);
 
 	hsw_enable_ips(intel_crtc);
 
@@ -3337,8 +3337,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
 	mutex_unlock(&dev->struct_mutex);
-
-	intel_crtc_update_cursor(crtc, true);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
@@ -3622,12 +3620,12 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	intel_enable_pipe(dev_priv, pipe, false);
 	intel_enable_plane(dev_priv, plane, pipe);
+	intel_crtc_update_cursor(crtc, true);
 
 	intel_update_fbc(dev);
 
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
 	intel_crtc_dpms_overlay(intel_crtc, true);
-	intel_crtc_update_cursor(crtc, true);
 
 	mutex_unlock(&dev_priv->dpio_lock);
 }
@@ -3662,6 +3660,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	intel_enable_pipe(dev_priv, pipe, false);
 	intel_enable_plane(dev_priv, plane, pipe);
+	intel_crtc_update_cursor(crtc, true);
 	if (IS_G4X(dev))
 		g4x_fixup_plane(dev_priv, pipe);
 
@@ -3669,7 +3668,6 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
 	intel_crtc_dpms_overlay(intel_crtc, true);
-	intel_crtc_update_cursor(crtc, true);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
