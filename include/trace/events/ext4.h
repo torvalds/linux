@@ -324,43 +324,59 @@ TRACE_EVENT(ext4_da_writepages,
 );
 
 TRACE_EVENT(ext4_da_write_pages,
-	TP_PROTO(struct inode *inode, struct mpage_da_data *mpd),
+	TP_PROTO(struct inode *inode, pgoff_t first_page,
+		 struct writeback_control *wbc),
 
-	TP_ARGS(inode, mpd),
+	TP_ARGS(inode, first_page, wbc),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
 		__field(	ino_t,	ino			)
-		__field(	__u64,	b_blocknr		)
-		__field(	__u32,	b_size			)
-		__field(	__u32,	b_state			)
-		__field(	unsigned long,	first_page	)
-		__field(	int,	io_done			)
-		__field(	int,	pages_written		)
-		__field(	int,	sync_mode		)
+		__field(      pgoff_t,	first_page		)
+		__field(	 long,	nr_to_write		)
+		__field(	  int,	sync_mode		)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= inode->i_sb->s_dev;
 		__entry->ino		= inode->i_ino;
-		__entry->b_blocknr	= mpd->b_blocknr;
-		__entry->b_size		= mpd->b_size;
-		__entry->b_state	= mpd->b_state;
-		__entry->first_page	= mpd->first_page;
-		__entry->io_done	= mpd->io_done;
-		__entry->pages_written	= mpd->pages_written;
-		__entry->sync_mode	= mpd->wbc->sync_mode;
+		__entry->first_page	= first_page;
+		__entry->nr_to_write	= wbc->nr_to_write;
+		__entry->sync_mode	= wbc->sync_mode;
 	),
 
-	TP_printk("dev %d,%d ino %lu b_blocknr %llu b_size %u b_state 0x%04x "
-		  "first_page %lu io_done %d pages_written %d sync_mode %d",
+	TP_printk("dev %d,%d ino %lu first_page %lu nr_to_write %ld "
+		  "sync_mode %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  (unsigned long) __entry->ino,
-		  __entry->b_blocknr, __entry->b_size,
-		  __entry->b_state, __entry->first_page,
-		  __entry->io_done, __entry->pages_written,
-		  __entry->sync_mode
-                  )
+		  (unsigned long) __entry->ino, __entry->first_page,
+		  __entry->nr_to_write, __entry->sync_mode)
+);
+
+TRACE_EVENT(ext4_da_write_pages_extent,
+	TP_PROTO(struct inode *inode, struct ext4_map_blocks *map),
+
+	TP_ARGS(inode, map),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	__u64,	lblk			)
+		__field(	__u32,	len			)
+		__field(	__u32,	flags			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= inode->i_sb->s_dev;
+		__entry->ino		= inode->i_ino;
+		__entry->lblk		= map->m_lblk;
+		__entry->len		= map->m_len;
+		__entry->flags		= map->m_flags;
+	),
+
+	TP_printk("dev %d,%d ino %lu lblk %llu len %u flags 0x%04x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long) __entry->ino, __entry->lblk, __entry->len,
+		  __entry->flags)
 );
 
 TRACE_EVENT(ext4_da_writepages_result,

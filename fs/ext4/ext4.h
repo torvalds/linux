@@ -177,21 +177,6 @@ struct ext4_map_blocks {
 };
 
 /*
- * For delayed allocation tracking
- */
-struct mpage_da_data {
-	struct inode *inode;
-	sector_t b_blocknr;		/* start block number of extent */
-	size_t b_size;			/* size of extent */
-	unsigned long b_state;		/* state of the extent */
-	unsigned long first_page, next_page;	/* extent of pages */
-	struct writeback_control *wbc;
-	int io_done;
-	int pages_written;
-	int retval;
-};
-
-/*
  * Flags for ext4_io_end->flags
  */
 #define	EXT4_IO_END_UNWRITTEN	0x0001

@@ -360,9 +360,6 @@ static int io_submit_init_bio(struct ext4_io_submit *io,
 	bio->bi_bdev = bh->b_bdev;
 	bio->bi_end_io = ext4_end_bio;
 	bio->bi_private = ext4_get_io_end(io->io_end);
-	if (!io->io_end->size)
-		io->io_end->offset = (bh->b_page->index << PAGE_CACHE_SHIFT)
-				     + bh_offset(bh);
 	io->io_bio = bio;
 	io->io_next_block = bh->b_blocknr;
 	return 0;
@@ -390,7 +387,6 @@ submit_and_retry:
 	io_end = io->io_end;
 	if (test_clear_buffer_uninit(bh))
 		ext4_set_io_unwritten_flag(inode, io_end);
-	io_end->size += bh->b_size;
 	io->io_next_block++;
 	return 0;
 }
