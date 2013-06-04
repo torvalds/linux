@@ -99,6 +99,7 @@ struct vgic_ops {
 	void	(*disable_underflow)(struct kvm_vcpu *vcpu);
 	void	(*get_vmcr)(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 	void	(*set_vmcr)(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
+	void	(*enable)(struct kvm_vcpu *vcpu);
 };
 
 struct vgic_dist {
