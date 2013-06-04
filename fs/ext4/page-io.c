@@ -281,22 +281,6 @@ void ext4_end_io_unrsv_work(struct work_struct *work)
 	ext4_do_flush_completed_IO(&ei->vfs_inode, &ei->i_unrsv_conversion_list);
 }
 
-int ext4_flush_unwritten_io(struct inode *inode)
-{
-	int ret, err;
-
-	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex) &&
-		     !(inode->i_state & I_FREEING));
-	ret = ext4_do_flush_completed_IO(inode,
-					 &EXT4_I(inode)->i_rsv_conversion_list);
-	err = ext4_do_flush_completed_IO(inode,
-					 &EXT4_I(inode)->i_unrsv_conversion_list);
-	if (!ret)
-		ret = err;
-	ext4_unwritten_wait(inode);
-	return ret;
-}
-
 ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 {
 	ext4_io_end_t *io = kmem_cache_zalloc(io_end_cachep, flags);

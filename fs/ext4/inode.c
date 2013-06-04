@@ -3522,9 +3522,6 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 
 	/* Wait all existing dio workers, newcomers will block on i_mutex */
 	ext4_inode_block_unlocked_dio(inode);
-	ret = ext4_flush_unwritten_io(inode);
-	if (ret)
-		goto out_dio;
 	inode_dio_wait(inode);
 
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
