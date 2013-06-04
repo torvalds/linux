@@ -1050,12 +1050,26 @@ static u64 vgic_v2_get_eisr(const struct kvm_vcpu *vcpu)
 	return val;
 }
 
+static u32 vgic_v2_get_interrupt_status(const struct kvm_vcpu *vcpu)
+{
+	u32 misr = vcpu->arch.vgic_cpu.vgic_v2.vgic_misr;
+	u32 ret = 0;
+
+	if (misr & GICH_MISR_EOI)
+		ret |= INT_STATUS_EOI;
+	if (misr & GICH_MISR_U)
+		ret |= INT_STATUS_UNDERFLOW;
+
+	return ret;
+}
+
 static const struct vgic_ops vgic_ops = {
 	.get_lr			= vgic_v2_get_lr,
 	.set_lr			= vgic_v2_set_lr,
 	.sync_lr_elrsr		= vgic_v2_sync_lr_elrsr,
 	.get_elrsr		= vgic_v2_get_elrsr,
 	.get_eisr		= vgic_v2_get_eisr,
+	.get_interrupt_status	= vgic_v2_get_interrupt_status,
 };
 
 static struct vgic_lr vgic_get_lr(const struct kvm_vcpu *vcpu, int lr)
@@ -1083,6 +1097,11 @@ static inline u64 vgic_get_elrsr(struct kvm_vcpu *vcpu)
 static inline u64 vgic_get_eisr(struct kvm_vcpu *vcpu)
 {
 	return vgic_ops.get_eisr(vcpu);
+}
+
+static inline u32 vgic_get_interrupt_status(struct kvm_vcpu *vcpu)
+{
+	return vgic_ops.get_interrupt_status(vcpu);
 }
 
 static void vgic_retire_lr(int lr_nr, int irq, struct kvm_vcpu *vcpu)
@@ -1282,11 +1301,12 @@ epilog:
 static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	u32 status = vgic_get_interrupt_status(vcpu);
 	bool level_pending = false;
 
-	kvm_debug("MISR = %08x\n", vgic_cpu->vgic_v2.vgic_misr);
+	kvm_debug("STATUS = %08x\n", status);
 
-	if (vgic_cpu->vgic_v2.vgic_misr & GICH_MISR_EOI) {
+	if (status & INT_STATUS_EOI) {
 		/*
 		 * Some level interrupts have been EOIed. Clear their
 		 * active bit.
@@ -1319,7 +1339,7 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	if (vgic_cpu->vgic_v2.vgic_misr & GICH_MISR_U)
+	if (status & INT_STATUS_UNDERFLOW)
 		vgic_cpu->vgic_v2.vgic_hcr &= ~GICH_HCR_UIE;
 
 	return level_pending;
