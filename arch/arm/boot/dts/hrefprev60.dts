@@ -41,7 +41,7 @@
 		};
 
 		i2c@80110000 {
-			bu21013_tp@0x5c {
+			bu21013_tp@5c {
 				reset-gpio = <&tc3589x_gpio 13 0x4>;
 			};
 		};

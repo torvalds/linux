@@ -178,15 +178,15 @@
 		};
 
 		i2c@80128000 {
-			lp5521@0x33 {
+			lp5521@33 {
 				// compatible = "lp5521";
 				reg = <0x33>;
 			};
-			lp5521@0x34 {
+			lp5521@34 {
 				// compatible = "lp5521";
 				reg = <0x34>;
 			};
-			bh1780@0x29 {
+			bh1780@29 {
 				// compatible = "rohm,bh1780gli";
 				reg = <0x33>;
 			};

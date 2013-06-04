@@ -100,7 +100,7 @@
 					max-cur = /bits/ 8 <0x5f>;
 				};
 			};
-			bh1780@0x29 {
+			bh1780@29 {
 				compatible = "rohm,bh1780gli";
 				reg = <0x33>;
 			};
