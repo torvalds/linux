@@ -158,7 +158,14 @@ static void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
 		wake_up_all(ext4_ioend_wq(inode));
 }
 
-/* check a range of space and convert unwritten extents to written. */
+/*
+ * Check a range of space and convert unwritten extents to written. Note that
+ * we are protected from truncate touching same part of extent tree by the
+ * fact that truncate code waits for all DIO to finish (thus exclusion from
+ * direct IO is achieved) and also waits for PageWriteback bits. Thus we
+ * cannot get to ext4_ext_truncate() before all IOs overlapping that range are
+ * completed (happens from ext4_free_ioend()).
+ */
 static int ext4_end_io(ext4_io_end_t *io)
 {
 	struct inode *inode = io->inode;
