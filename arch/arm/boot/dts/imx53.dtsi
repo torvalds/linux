@@ -1066,6 +1066,16 @@
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};
+
+			tve: tve@63ff0000 {
+				compatible = "fsl,imx53-tve";
+				reg = <0x63ff0000 0x1000>;
+				interrupts = <92>;
+				clocks = <&clks 69>, <&clks 116>;
+				clock-names = "tve", "di_sel";
+				crtcs = <&ipu 1>;
+				status = "disabled";
+			};
 		};
 	};
 };
