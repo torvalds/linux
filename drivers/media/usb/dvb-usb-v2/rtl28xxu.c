@@ -1386,6 +1386,8 @@ static const struct usb_device_id rtl28xxu_id_table[] = {
 		&rtl2832u_props, "MaxMedia HU394-T", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_LEADTEK, 0x6a03,
 		&rtl2832u_props, "Leadtek WinFast DTV Dongle mini", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_GTEK, USB_PID_CPYTO_REDI_PC50A,
+		&rtl2832u_props, "Crypto Redi PC50A", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, rtl28xxu_id_table);
