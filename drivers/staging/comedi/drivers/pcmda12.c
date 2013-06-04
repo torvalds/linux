@@ -56,13 +56,13 @@ Configuration Options:
 #define LSB_PORT(chan) (dev->iobase + (chan)*2)
 #define MSB_PORT(chan) (LSB_PORT(chan)+1)
 
-/* note these have no effect and are merely here for reference..
-   these are configured by jumpering the board! */
+/* AI range is not configurable, it's set by jumpers on the board */
 static const struct comedi_lrange pcmda12_ranges = {
-	3,
-	{
-	 UNI_RANGE(5), UNI_RANGE(10), BIP_RANGE(5)
-	 }
+	3, {
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(5)
+	}
 };
 
 struct pcmda12_private {
