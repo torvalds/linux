@@ -36,4 +36,7 @@ config MACH_RK3188_JETTAB
 config MACH_RK3188M_TB
 	bool "RK3188m Top Board"
 
+config MACH_RK3188_FT
+	bool "RK3188 FT Board"
+
 endchoice
