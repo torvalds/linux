@@ -447,154 +447,131 @@ static void pcmuio_stop_intr(struct comedi_device *dev,
 	}
 }
 
-static irqreturn_t interrupt_pcmuio(int irq, void *d)
+static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      unsigned triggered)
 {
-	struct comedi_device *dev = (struct comedi_device *)d;
+	struct pcmuio_subdev_private *subpriv = s->private;
+	unsigned int len = s->async->cmd.chanlist_len;
+	unsigned oldevents = s->async->events;
+	unsigned int val = 0;
+	unsigned long flags;
+	unsigned mytrig;
+	unsigned int i;
+
+	spin_lock_irqsave(&subpriv->intr.spinlock, flags);
+
+	if (!subpriv->intr.active)
+		goto done;
+
+	mytrig = triggered >> subpriv->intr.asic_chan;
+	mytrig &= ((0x1 << subpriv->intr.num_asic_chans) - 1);
+	mytrig <<= subpriv->intr.first_chan;
+
+	if (!(mytrig & subpriv->intr.enabled_mask))
+		goto done;
+
+	for (i = 0; i < len; i++) {
+		unsigned int chan = CR_CHAN(s->async->cmd.chanlist[i]);
+		if (mytrig & (1U << chan))
+			val |= (1U << i);
+	}
+
+	/* Write the scan to the buffer. */
+	if (comedi_buf_put(s->async, ((short *)&val)[0]) &&
+	    comedi_buf_put(s->async, ((short *)&val)[1])) {
+		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
+	} else {
+		/* Overflow! Stop acquisition!! */
+		/* TODO: STOP_ACQUISITION_CALL_HERE!! */
+		pcmuio_stop_intr(dev, s);
+	}
+
+	/* Check for end of acquisition. */
+	if (!subpriv->intr.continuous) {
+		/* stop_src == TRIG_COUNT */
+		if (subpriv->intr.stop_count > 0) {
+			subpriv->intr.stop_count--;
+			if (subpriv->intr.stop_count == 0) {
+				s->async->events |= COMEDI_CB_EOA;
+				/* TODO: STOP_ACQUISITION_CALL_HERE!! */
+				pcmuio_stop_intr(dev, s);
+			}
+		}
+	}
+
+done:
+	spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
+
+	if (oldevents != s->async->events)
+		comedi_event(dev, s);
+}
+
+static int pcmuio_handle_asic_interrupt(struct comedi_device *dev, int asic)
+{
 	struct pcmuio_private *devpriv = dev->private;
 	struct pcmuio_subdev_private *subpriv;
-	int asic, got1 = 0;
+	unsigned long iobase = devpriv->asics[asic].iobase;
+	unsigned triggered = 0;
+	int got1 = 0;
+	unsigned long flags;
+	unsigned char int_pend;
 	int i;
+
+	spin_lock_irqsave(&devpriv->asics[asic].spinlock, flags);
+
+	int_pend = inb(iobase + REG_INT_PENDING) & 0x07;
+	if (int_pend) {
+		for (i = 0; i < INTR_PORTS_PER_ASIC; ++i) {
+			if (int_pend & (0x1 << i)) {
+				unsigned char val;
+
+				switch_page(dev, asic, PAGE_INT_ID);
+				val = inb(iobase + REG_INT_ID0 + i);
+				if (val)
+					/* clear pending interrupt */
+					outb(0, iobase + REG_INT_ID0 + i);
+
+					triggered |= (val << (i * 8));
+			}
+		}
+
+		++got1;
+	}
+
+	spin_unlock_irqrestore(&devpriv->asics[asic].spinlock, flags);
+
+	if (triggered) {
+		struct comedi_subdevice *s;
+		/* TODO here: dispatch io lines to subdevs with commands.. */
+		for (i = 0; i < dev->n_subdevices; i++) {
+			s = &dev->subdevices[i];
+			subpriv = s->private;
+			if (subpriv->intr.asic == asic) {
+				/*
+				 * This is an interrupt subdev, and it
+				 * matches this asic!
+				 */
+				pcmuio_handle_intr_subdev(dev, s,
+							  triggered);
+			}
+		}
+	}
+	return got1;
+}
+
+static irqreturn_t interrupt_pcmuio(int irq, void *d)
+{
+	struct comedi_device *dev = d;
+	struct pcmuio_private *devpriv = dev->private;
+	int got1 = 0;
+	int asic;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
 		if (irq == devpriv->asics[asic].irq) {
-			unsigned long flags;
-			unsigned triggered = 0;
-			unsigned long iobase = devpriv->asics[asic].iobase;
 			/* it is an interrupt for ASIC #asic */
-			unsigned char int_pend;
-
-			spin_lock_irqsave(&devpriv->asics[asic].spinlock,
-					  flags);
-
-			int_pend = inb(iobase + REG_INT_PENDING) & 0x07;
-
-			if (int_pend) {
-				int port;
-				for (port = 0; port < INTR_PORTS_PER_ASIC;
-				     ++port) {
-					if (int_pend & (0x1 << port)) {
-						unsigned char
-						    io_lines_with_edges = 0;
-						switch_page(dev, asic,
-							    PAGE_INT_ID);
-						io_lines_with_edges =
-						    inb(iobase +
-							REG_INT_ID0 + port);
-
-						if (io_lines_with_edges)
-							/* clear pending interrupt */
-							outb(0, iobase +
-							     REG_INT_ID0 +
-							     port);
-
-						triggered |=
-						    io_lines_with_edges <<
-						    port * 8;
-					}
-				}
-
-				++got1;
-			}
-
-			spin_unlock_irqrestore(&devpriv->asics[asic].spinlock,
-					       flags);
-
-			if (triggered) {
-				struct comedi_subdevice *s;
-				/* TODO here: dispatch io lines to subdevs with commands.. */
-				printk
-				    ("PCMUIO DEBUG: got edge detect interrupt %d asic %d which_chans: %06x\n",
-				     irq, asic, triggered);
-				for (i = 0; i < dev->n_subdevices; i++) {
-					s = &dev->subdevices[i];
-					subpriv = s->private;
-					if (subpriv->intr.asic == asic) {	/* this is an interrupt subdev, and it matches this asic! */
-						unsigned long flags;
-						unsigned oldevents;
-
-						spin_lock_irqsave(&subpriv->
-								  intr.spinlock,
-								  flags);
-
-						oldevents = s->async->events;
-
-						if (subpriv->intr.active) {
-							unsigned mytrig =
-							    ((triggered >>
-							      subpriv->intr.asic_chan)
-							     &
-							     ((0x1 << subpriv->
-							       intr.
-							       num_asic_chans) -
-							      1)) << subpriv->
-							    intr.first_chan;
-							if (mytrig &
-							    subpriv->intr.enabled_mask)
-							{
-								unsigned int val
-								    = 0;
-								unsigned int n,
-								    ch, len;
-
-								len =
-								    s->
-								    async->cmd.chanlist_len;
-								for (n = 0;
-								     n < len;
-								     n++) {
-									ch = CR_CHAN(s->async->cmd.chanlist[n]);
-									if (mytrig & (1U << ch)) {
-										val |= (1U << n);
-									}
-								}
-								/* Write the scan to the buffer. */
-								if (comedi_buf_put(s->async, ((short *)&val)[0])
-								    &&
-								    comedi_buf_put
-								    (s->async,
-								     ((short *)
-								      &val)[1]))
-								{
-									s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
-								} else {
-									/* Overflow! Stop acquisition!! */
-									/* TODO: STOP_ACQUISITION_CALL_HERE!! */
-									pcmuio_stop_intr
-									    (dev,
-									     s);
-								}
-
-								/* Check for end of acquisition. */
-								if (!subpriv->intr.continuous) {
-									/* stop_src == TRIG_COUNT */
-									if (subpriv->intr.stop_count > 0) {
-										subpriv->intr.stop_count--;
-										if (subpriv->intr.stop_count == 0) {
-											s->async->events |= COMEDI_CB_EOA;
-											/* TODO: STOP_ACQUISITION_CALL_HERE!! */
-											pcmuio_stop_intr
-											    (dev,
-											     s);
-										}
-									}
-								}
-							}
-						}
-
-						spin_unlock_irqrestore
-						    (&subpriv->intr.spinlock,
-						     flags);
-
-						if (oldevents !=
-						    s->async->events) {
-							comedi_event(dev, s);
-						}
-
-					}
-
-				}
-			}
-
+			if (pcmuio_handle_asic_interrupt(dev, asic))
+				got1++;
 		}
 	}
 	if (!got1)
