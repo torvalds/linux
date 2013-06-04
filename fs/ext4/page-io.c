@@ -66,6 +66,7 @@ static void ext4_release_io_end(ext4_io_end_t *io_end)
 {
 	BUG_ON(!list_empty(&io_end->list));
 	BUG_ON(io_end->flag & EXT4_IO_END_UNWRITTEN);
+	WARN_ON(io_end->handle);
 
 	if (atomic_dec_and_test(&EXT4_I(io_end->inode)->i_ioend_count))
 		wake_up_all(ext4_ioend_wq(io_end->inode));
@@ -92,13 +93,15 @@ static int ext4_end_io(ext4_io_end_t *io)
 	struct inode *inode = io->inode;
 	loff_t offset = io->offset;
 	ssize_t size = io->size;
+	handle_t *handle = io->handle;
 	int ret = 0;
 
 	ext4_debug("ext4_end_io_nolock: io 0x%p from inode %lu,list->next 0x%p,"
 		   "list->prev 0x%p\n",
 		   io, inode->i_ino, io->list.next, io->list.prev);
 
-	ret = ext4_convert_unwritten_extents(inode, offset, size);
+	io->handle = NULL;	/* Following call will use up the handle */
+	ret = ext4_convert_unwritten_extents(handle, inode, offset, size);
 	if (ret < 0) {
 		ext4_msg(inode->i_sb, KERN_EMERG,
 			 "failed to convert unwritten extents to written "
@@ -228,8 +231,10 @@ int ext4_put_io_end(ext4_io_end_t *io_end)
 
 	if (atomic_dec_and_test(&io_end->count)) {
 		if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
-			err = ext4_convert_unwritten_extents(io_end->inode,
-						io_end->offset, io_end->size);
+			err = ext4_convert_unwritten_extents(io_end->handle,
+						io_end->inode, io_end->offset,
+						io_end->size);
+			io_end->handle = NULL;
 			ext4_clear_io_unwritten_flag(io_end);
 		}
 		ext4_release_io_end(io_end);

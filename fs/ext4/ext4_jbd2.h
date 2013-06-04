@@ -134,7 +134,8 @@ static inline int ext4_jbd2_credits_xattr(struct inode *inode)
 #define EXT4_HT_MIGRATE          8
 #define EXT4_HT_MOVE_EXTENTS     9
 #define EXT4_HT_XATTR           10
-#define EXT4_HT_MAX             11
+#define EXT4_HT_EXT_CONVERT     11
+#define EXT4_HT_MAX             12
 
 /**
  *   struct ext4_journal_cb_entry - Base structure for callback information.
@@ -319,7 +320,7 @@ static inline handle_t *__ext4_journal_start(struct inode *inode,
 #define ext4_journal_stop(handle) \
 	__ext4_journal_stop(__func__, __LINE__, (handle))
 
-#define ext4_journal_start_reserve(handle, type) \
+#define ext4_journal_start_reserved(handle, type) \
 	__ext4_journal_start_reserved((handle), __LINE__, (type))
 
 handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,

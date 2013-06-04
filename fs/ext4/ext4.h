@@ -184,10 +184,13 @@ struct ext4_map_blocks {
 #define EXT4_IO_END_DIRECT	0x0004
 
 /*
- * For converting uninitialized extents on a work queue.
+ * For converting uninitialized extents on a work queue. 'handle' is used for
+ * buffered writeback.
  */
 typedef struct ext4_io_end {
 	struct list_head	list;		/* per-file finished IO list */
+	handle_t		*handle;	/* handle reserved for extent
+						 * conversion */
 	struct inode		*inode;		/* file being written to */
 	unsigned int		flag;		/* unwritten or not */
 	loff_t			offset;		/* offset in the file */
@@ -1322,6 +1325,9 @@ static inline void ext4_set_io_unwritten_flag(struct inode *inode,
 					      struct ext4_io_end *io_end)
 {
 	if (!(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
+		/* Writeback has to have coversion transaction reserved */
+		WARN_ON(EXT4_SB(inode->i_sb)->s_journal && !io_end->handle &&
+			!(io_end->flag & EXT4_IO_END_DIRECT));
 		io_end->flag |= EXT4_IO_END_UNWRITTEN;
 		atomic_inc(&EXT4_I(inode)->i_unwritten);
 	}
@@ -2591,8 +2597,8 @@ extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
 extern long ext4_fallocate(struct file *file, int mode, loff_t offset,
 			  loff_t len);
-extern int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
-			  ssize_t len);
+extern int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
+					  loff_t offset, ssize_t len);
 extern int ext4_map_blocks(handle_t *handle, struct inode *inode,
 			   struct ext4_map_blocks *map, int flags);
 extern int ext4_ext_calc_metadata_amount(struct inode *inode,

@@ -1410,6 +1410,7 @@ static void ext4_da_page_release_reservation(struct page *page,
 struct mpage_da_data {
 	struct inode *inode;
 	struct writeback_control *wbc;
+
 	pgoff_t first_page;	/* The first page to write */
 	pgoff_t next_page;	/* Current page to examine */
 	pgoff_t last_page;	/* Last page to examine */
@@ -2108,8 +2109,14 @@ static int mpage_map_one_extent(handle_t *handle, struct mpage_da_data *mpd)
 	err = ext4_map_blocks(handle, inode, map, get_blocks_flags);
 	if (err < 0)
 		return err;
-	if (map->m_flags & EXT4_MAP_UNINIT)
+	if (map->m_flags & EXT4_MAP_UNINIT) {
+		if (!mpd->io_submit.io_end->handle &&
+		    ext4_handle_valid(handle)) {
+			mpd->io_submit.io_end->handle = handle->h_rsv_handle;
+			handle->h_rsv_handle = NULL;
+		}
 		ext4_set_io_unwritten_flag(inode, mpd->io_submit.io_end);
+	}
 
 	BUG_ON(map->m_len == 0);
 	if (map->m_flags & EXT4_MAP_NEW) {
@@ -2351,7 +2358,7 @@ static int ext4_da_writepages(struct address_space *mapping,
 	handle_t *handle = NULL;
 	struct mpage_da_data mpd;
 	struct inode *inode = mapping->host;
-	int needed_blocks, ret = 0;
+	int needed_blocks, rsv_blocks = 0, ret = 0;
 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
 	bool done;
 	struct blk_plug plug;
@@ -2378,6 +2385,14 @@ static int ext4_da_writepages(struct address_space *mapping,
 	 */
 	if (unlikely(sbi->s_mount_flags & EXT4_MF_FS_ABORTED))
 		return -EROFS;
+
+	if (ext4_should_dioread_nolock(inode)) {
+		/*
+		 * We may need to convert upto one extent per block in
+		 * the page and we may dirty the inode.
+		 */
+		rsv_blocks = 1 + (PAGE_CACHE_SIZE >> inode->i_blkbits);
+	}
 
 	/*
 	 * If we have inline data and arrive here, it means that
@@ -2438,8 +2453,8 @@ retry:
 		needed_blocks = ext4_da_writepages_trans_blocks(inode);
 
 		/* start a new transaction */
-		handle = ext4_journal_start(inode, EXT4_HT_WRITE_PAGE,
-					    needed_blocks);
+		handle = ext4_journal_start_with_reserve(inode,
+				EXT4_HT_WRITE_PAGE, needed_blocks, rsv_blocks);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
 			ext4_msg(inode->i_sb, KERN_CRIT, "%s: jbd2_start: "
@@ -3120,7 +3135,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 		 * for non AIO case, since the IO is already
 		 * completed, we could do the conversion right here
 		 */
-		err = ext4_convert_unwritten_extents(inode,
+		err = ext4_convert_unwritten_extents(NULL, inode,
 						     offset, ret);
 		if (err < 0)
 			ret = err;
