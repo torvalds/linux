@@ -527,8 +527,15 @@ static int tegra30_i2s_suspend(struct device *dev)
 static int tegra30_i2s_resume(struct device *dev)
 {
 	struct tegra30_i2s *i2s = dev_get_drvdata(dev);
+	int ret;
 
-	return regcache_sync(i2s->regmap);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
+		return ret;
+	ret = regcache_sync(i2s->regmap);
+	pm_runtime_put(dev);
+
+	return ret;
 }
 #endif
 
