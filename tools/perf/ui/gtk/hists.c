@@ -124,6 +124,55 @@ void perf_gtk__init_hpp(void)
 				perf_gtk__hpp_color_overhead_guest_us;
 }
 
+static void callchain_list__sym_name(struct callchain_list *cl,
+				     char *bf, size_t bfsize)
+{
+	if (cl->ms.sym)
+		scnprintf(bf, bfsize, "%s", cl->ms.sym->name);
+	else
+		scnprintf(bf, bfsize, "%#" PRIx64, cl->ip);
+}
+
+static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
+				    GtkTreeIter *parent, int col)
+{
+	struct rb_node *nd;
+	bool has_single_node = (rb_first(root) == rb_last(root));
+
+	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
+		struct callchain_node *node;
+		struct callchain_list *chain;
+		GtkTreeIter iter, new_parent;
+		bool need_new_parent;
+
+		node = rb_entry(nd, struct callchain_node, rb_node);
+
+		new_parent = *parent;
+		need_new_parent = !has_single_node && (node->val_nr > 1);
+
+		list_for_each_entry(chain, &node->val, list) {
+			char buf[128];
+
+			gtk_tree_store_append(store, &iter, &new_parent);
+
+			callchain_list__sym_name(chain, buf, sizeof(buf));
+			gtk_tree_store_set(store, &iter, col, buf, -1);
+
+			if (need_new_parent) {
+				/*
+				 * Only show the top-most symbol in a callchain
+				 * if it's not the only callchain.
+				 */
+				new_parent = iter;
+				need_new_parent = false;
+			}
+		}
+
+		/* Now 'iter' contains info of the last callchain_list */
+		perf_gtk__add_callchain(&node->rb_root, store, &iter, col);
+	}
+}
+
 static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 				 float min_pcnt)
 {
@@ -135,6 +184,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 	struct rb_node *nd;
 	GtkWidget *view;
 	int col_idx;
+	int sym_col = -1;
 	int nr_cols;
 	char s[512];
 
@@ -152,6 +202,9 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
 			continue;
+
+		if (se == &sort_sym)
+			sym_col = nr_cols;
 
 		col_types[nr_cols++] = G_TYPE_STRING;
 	}
@@ -181,6 +234,13 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 							    -1, se->se_header,
 							    renderer, "text",
 							    col_idx++, NULL);
+	}
+
+	if (symbol_conf.use_callchain && sort__has_sym) {
+		GtkTreeViewColumn *column;
+
+		column = gtk_tree_view_get_column(GTK_TREE_VIEW(view), sym_col);
+		gtk_tree_view_set_expander_column(GTK_TREE_VIEW(view), column);
 	}
 
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), GTK_TREE_MODEL(store));
@@ -220,6 +280,11 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 					hists__col_len(hists, se->se_width_idx));
 
 			gtk_tree_store_set(store, &iter, col_idx++, s, -1);
+		}
+
+		if (symbol_conf.use_callchain && sort__has_sym) {
+			perf_gtk__add_callchain(&h->sorted_chain, store, &iter,
+						sym_col);
 		}
 	}
 
