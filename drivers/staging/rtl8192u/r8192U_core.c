@@ -236,12 +236,6 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv *priv)
 }
 
 
-#define		rx_hal_is_cck_rate(_pdrvinfo)\
-			(_pdrvinfo->RxRate == DESC90_RATE1M ||\
-			_pdrvinfo->RxRate == DESC90_RATE2M ||\
-			_pdrvinfo->RxRate == DESC90_RATE5_5M ||\
-			_pdrvinfo->RxRate == DESC90_RATE11M) &&\
-			!_pdrvinfo->RxHT\
 
 
 void CamResetAllEntry(struct net_device *dev)
@@ -4226,6 +4220,22 @@ long rtl819x_signal_scale_mapping(long currsig)
 		retsig = currsig;
 
 	return retsig;
+}
+
+static inline bool rx_hal_is_cck_rate(struct rx_drvinfo_819x_usb *pdrvinfo)
+{
+	if (pdrvinfo->RxHT)
+		return false;
+
+	switch (pdrvinfo->RxRate) {
+	case DESC90_RATE1M:
+	case DESC90_RATE2M:
+	case DESC90_RATE5_5M:
+	case DESC90_RATE11M:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
