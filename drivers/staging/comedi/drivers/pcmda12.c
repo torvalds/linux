@@ -117,35 +117,26 @@ static int pcmda12_ao_insn_write(struct comedi_device *dev,
 	return i;
 }
 
-/* AO subdevices should have a read insn as well as a write insn.
-
-   Usually this means copying a value stored in devpriv->ao_readback.
-   However, since this driver supports simultaneous xfer then sometimes
-   this function actually accomplishes work.
-
-   Simultaneaous xfer mode is accomplished by loading ALL the values
-   you want for AO in all the channels, then READing off one of the AO
-   registers to initiate the instantaneous simultaneous update of all
-   DAC outputs, which makes all AO channels update simultaneously.
-   This is useful for some control applications, I would imagine.
-*/
 static int pcmda12_ao_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
 	struct pcmda12_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
 
-	for (i = 0; i < insn->n; i++) {
-		if (devpriv->simultaneous_xfer_mode)
-			inb(LSB_PORT(chan));
-		/* read back shadow register */
+	/*
+	 * Initiate simultaneaous xfer mode by reading one of the
+	 * AO registers. All analog outputs will then be updated.
+	 */
+	if (devpriv->simultaneous_xfer_mode)
+		inb(LSB_PORT(chan));
+
+	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
-	}
 
-	return i;
+	return insn->n;
 }
 
 static int pcmda12_attach(struct comedi_device *dev,
