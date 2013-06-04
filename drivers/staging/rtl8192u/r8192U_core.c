@@ -1376,7 +1376,7 @@ void rtl8192_config_rate(struct net_device *dev, u16 *rate_config)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_network *net;
 	u8 i = 0, basic_rate = 0;
-	net = & priv->ieee80211->current_network;
+	net = &priv->ieee80211->current_network;
 
 	for (i = 0; i < net->rates_len; i++) {
 		basic_rate = net->rates[i]&0x7f;
@@ -1447,7 +1447,7 @@ void rtl8192_net_update(struct net_device *dev)
 	struct ieee80211_network *net;
 	u16 BcnTimeCfg = 0, BcnCW = 6, BcnIFS = 0xf;
 	u16 rate_config = 0;
-	net = & priv->ieee80211->current_network;
+	net = &priv->ieee80211->current_network;
 
 	rtl8192_config_rate(dev, &rate_config);
 	priv->basic_rate = rate_config &= 0x15f;
