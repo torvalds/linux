@@ -903,7 +903,17 @@ unsigned int wemac_powerup(struct net_device *ndev)
 		for (i = 0; i < 6; i++, p++)
 			mac_addr[i] = simple_strtoul(p, &p, 16);
 	} else if (SCRIPT_PARSER_OK != script_parser_fetch("dynamic", "MAC", (int *)emac_mac, 3)) {
-		printk(KERN_WARNING "emac MAC isn't valid!\n");
+		mac_addr[0] = 0x02; /* Non OUI / registered MAC address */
+		reg_val = readl(SW_VA_SID_IO_BASE);
+		mac_addr[1] = (reg_val >>  0) & 0xff;
+		reg_val = readl(SW_VA_SID_IO_BASE + 0x0c);
+		mac_addr[2] = (reg_val >> 24) & 0xff;
+		mac_addr[3] = (reg_val >> 16) & 0xff;
+		mac_addr[4] = (reg_val >>  8) & 0xff;
+		mac_addr[5] = (reg_val >>  0) & 0xff;
+		pr_info("%s Using MAC from SID: 00:%02x:%02x:%02x:%02x:%02x",
+			CARDNAME, mac_addr[1], mac_addr[2], mac_addr[3],
+			mac_addr[4], mac_addr[5]);
 	} else {
 		emac_mac[12] = '\0';
 		for (i = 0; i < 6; i++) {
