@@ -476,8 +476,6 @@ static int tracing_data_header(void)
 	else
 		buf[0] = 0;
 
-	read_trace_init(buf[0], buf[0]);
-
 	if (write(output_fd, buf, 1) != 1)
 		return -1;
 
