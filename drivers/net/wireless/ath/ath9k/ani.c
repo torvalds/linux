@@ -186,14 +186,6 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel,
 				     ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 				     entry_ofdm->ofdm_weak_signal_on);
 	}
-
-	if (aniState->ofdmNoiseImmunityLevel >= ATH9K_ANI_OFDM_DEF_LEVEL) {
-		ah->config.ofdm_trig_high = ATH9K_ANI_OFDM_TRIG_HIGH;
-		ah->config.ofdm_trig_low = ATH9K_ANI_OFDM_TRIG_LOW_ABOVE_INI;
-	} else {
-		ah->config.ofdm_trig_high = ATH9K_ANI_OFDM_TRIG_HIGH_BELOW_INI;
-		ah->config.ofdm_trig_low = ATH9K_ANI_OFDM_TRIG_LOW;
-	}
 }
 
 static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hw *ah)
@@ -439,12 +431,25 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan)
 		ofdmPhyErrRate, aniState->cckNoiseImmunityLevel,
 		cckPhyErrRate, aniState->ofdmsTurn);
 
-	if (aniState->listenTime > ah->aniperiod) {
-		if (cckPhyErrRate < ah->config.cck_trig_low &&
-		    ofdmPhyErrRate < ah->config.ofdm_trig_low) {
+	if (aniState->listenTime > 5 * ah->aniperiod) {
+		/*
+		 * Check if we need to lower immunity if
+		 * 5 ani_periods have passed.
+		 */
+		if (ofdmPhyErrRate <= ah->config.ofdm_trig_low &&
+		    cckPhyErrRate <= ah->config.cck_trig_low) {
 			ath9k_hw_ani_lower_immunity(ah);
 			aniState->ofdmsTurn = !aniState->ofdmsTurn;
-		} else if (ofdmPhyErrRate > ah->config.ofdm_trig_high) {
+		}
+		ath9k_ani_restart(ah);
+	} else if (aniState->listenTime > ah->aniperiod) {
+		/*
+		 * Check if immunity has to be raised,
+		 * (either OFDM or CCK).
+		 */
+		if (ofdmPhyErrRate > ah->config.ofdm_trig_high &&
+		    (cckPhyErrRate <= ah->config.cck_trig_high ||
+		     aniState->ofdmsTurn)) {
 			ath9k_hw_ani_ofdm_err_trigger(ah);
 			aniState->ofdmsTurn = false;
 		} else if (cckPhyErrRate > ah->config.cck_trig_high) {

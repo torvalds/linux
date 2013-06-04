@@ -21,11 +21,9 @@
 
 /* units are errors per second */
 #define ATH9K_ANI_OFDM_TRIG_HIGH          3500
-#define ATH9K_ANI_OFDM_TRIG_HIGH_BELOW_INI 1000
 
 /* units are errors per second */
 #define ATH9K_ANI_OFDM_TRIG_LOW           400
-#define ATH9K_ANI_OFDM_TRIG_LOW_ABOVE_INI 900
 
 /* units are errors per second */
 #define ATH9K_ANI_CCK_TRIG_HIGH           600
