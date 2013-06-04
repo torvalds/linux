@@ -1345,7 +1345,7 @@ get_reg_request_treatment(struct wiphy *wiphy,
 				return REG_REQ_OK;
 			return REG_REQ_ALREADY_SET;
 		}
-		return 0;
+		return REG_REQ_OK;
 	case NL80211_REGDOM_SET_BY_DRIVER:
 		if (lr->initiator == NL80211_REGDOM_SET_BY_CORE) {
 			if (regdom_changes(pending_request->alpha2))
