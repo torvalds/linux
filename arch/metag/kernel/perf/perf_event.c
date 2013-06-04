@@ -882,7 +882,7 @@ static int __init init_hw_perf_events(void)
 	}
 
 	register_cpu_notifier(&metag_pmu_notifier);
-	ret = perf_pmu_register(&pmu, (char *)metag_pmu->name, PERF_TYPE_RAW);
+	ret = perf_pmu_register(&pmu, metag_pmu->name, PERF_TYPE_RAW);
 out:
 	return ret;
 }
