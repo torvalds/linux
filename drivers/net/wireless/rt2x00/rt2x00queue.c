@@ -1276,33 +1276,6 @@ void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
-static const struct data_queue_desc *
-rt2x00queue_get_qdesc_by_qid(struct rt2x00_dev *rt2x00dev,
-			     enum data_queue_qid qid)
-{
-	switch (qid) {
-	case QID_RX:
-		return rt2x00dev->ops->rx;
-
-	case QID_AC_BE:
-	case QID_AC_BK:
-	case QID_AC_VO:
-	case QID_AC_VI:
-		return rt2x00dev->ops->tx;
-
-	case QID_BEACON:
-		return rt2x00dev->ops->bcn;
-
-	case QID_ATIM:
-		return rt2x00dev->ops->atim;
-
-	default:
-		break;
-	}
-
-	return NULL;
-}
-
 static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 			     struct data_queue *queue, enum data_queue_qid qid)
 {
@@ -1317,20 +1290,7 @@ static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 	queue->cw_min = 5;
 	queue->cw_max = 10;
 
-	if (rt2x00dev->ops->queue_init) {
-		rt2x00dev->ops->queue_init(queue);
-	} else {
-		const struct data_queue_desc *qdesc;
-
-		qdesc = rt2x00queue_get_qdesc_by_qid(rt2x00dev, qid);
-		BUG_ON(!qdesc);
-
-		queue->limit = qdesc->entry_num;
-		queue->data_size = qdesc->data_size;
-		queue->desc_size = qdesc->desc_size;
-		queue->winfo_size = qdesc->winfo_size;
-		queue->priv_size = qdesc->priv_size;
-	}
+	rt2x00dev->ops->queue_init(queue);
 
 	queue->threshold = DIV_ROUND_UP(queue->limit, 10);
 }

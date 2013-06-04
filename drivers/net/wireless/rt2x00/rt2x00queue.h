@@ -489,25 +489,6 @@ struct data_queue {
 };
 
 /**
- * struct data_queue_desc: Data queue description
- *
- * The information in this structure is used by drivers
- * to inform rt2x00lib about the creation of the data queue.
- *
- * @entry_num: Maximum number of entries for a queue.
- * @data_size: Maximum data size for the frames in this queue.
- * @desc_size: Hardware descriptor size for the data in this queue.
- * @priv_size: Size of per-queue_entry private data.
- */
-struct data_queue_desc {
-	unsigned short entry_num;
-	unsigned short data_size;
-	unsigned char  desc_size;
-	unsigned char  winfo_size;
-	unsigned short priv_size;
-};
-
-/**
  * queue_end - Return pointer to the last queue (HELPER MACRO).
  * @__dev: Pointer to &struct rt2x00_dev
  *

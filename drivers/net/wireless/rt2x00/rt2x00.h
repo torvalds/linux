@@ -649,10 +649,6 @@ struct rt2x00_ops {
 	const unsigned int rf_size;
 	const unsigned int tx_queues;
 	const unsigned int extra_tx_headroom;
-	const struct data_queue_desc *rx;
-	const struct data_queue_desc *tx;
-	const struct data_queue_desc *bcn;
-	const struct data_queue_desc *atim;
 	void (*queue_init)(struct data_queue *queue);
 	const struct rt2x00lib_ops *lib;
 	const void *drv;
