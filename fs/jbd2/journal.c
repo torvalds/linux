@@ -1027,9 +1027,7 @@ static journal_t * journal_init_common (void)
 		return NULL;
 
 	init_waitqueue_head(&journal->j_wait_transaction_locked);
-	init_waitqueue_head(&journal->j_wait_logspace);
 	init_waitqueue_head(&journal->j_wait_done_commit);
-	init_waitqueue_head(&journal->j_wait_checkpoint);
 	init_waitqueue_head(&journal->j_wait_commit);
 	init_waitqueue_head(&journal->j_wait_updates);
 	mutex_init(&journal->j_barrier);
