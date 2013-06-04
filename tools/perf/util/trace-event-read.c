@@ -41,7 +41,6 @@ static int input_fd;
 
 int file_bigendian;
 int host_bigendian;
-static int long_size;
 
 static ssize_t trace_data_size;
 static bool repipe;
@@ -231,12 +230,6 @@ static int read_header_files(struct pevent *pevent)
 	size = read8(pevent);
 	skip(size);
 
-	/*
-	 * The size field in the page is of type long,
-	 * use that instead, since it represents the kernel.
-	 */
-	long_size = header_page_size_size;
-
 	if (do_read(buf, 13) < 0)
 		return -1;
 
@@ -349,6 +342,7 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 	int show_funcs = 0;
 	int show_printk = 0;
 	ssize_t size = -1;
+	int file_long_size;
 	int file_page_size;
 	struct pevent *pevent;
 	int err;
@@ -392,12 +386,13 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 
 	if (do_read(buf, 1) < 0)
 		goto out;
-	long_size = buf[0];
+	file_long_size = buf[0];
 
 	file_page_size = read4(pevent);
 	if (!file_page_size)
 		goto out;
 
+	pevent_set_long_size(pevent, file_long_size);
 	pevent_set_page_size(pevent, file_page_size);
 
 	err = read_header_files(pevent);
