@@ -316,8 +316,12 @@ static ssize_t pcie_gadget_store_no_of_msi(
 		struct spear_pcie_gadget_config *config,
 		const char *buf, size_t count)
 {
-	if (strict_strtoul(buf, 0, &config->requested_msi))
-		return -EINVAL;
+	int ret;
+
+	ret = kstrtoul(buf, 0, &config->requested_msi);
+	if (ret)
+		return ret;
+
 	if (config->requested_msi > 32)
 		config->requested_msi = 32;
 
@@ -330,9 +334,11 @@ static ssize_t pcie_gadget_store_inta(
 {
 	struct pcie_app_reg __iomem *app_reg = config->va_app_base;
 	ulong en;
+	int ret;
 
-	if (strict_strtoul(buf, 0, &en))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &en);
+	if (ret)
+		return ret;
 
 	if (en)
 		writel(readl(&app_reg->app_ctrl_0) | (1 << SYS_INT_ID),
@@ -351,9 +357,11 @@ static ssize_t pcie_gadget_store_send_msi(
 	struct pcie_app_reg __iomem *app_reg = config->va_app_base;
 	ulong vector;
 	u32 ven_msi;
+	int ret;
 
-	if (strict_strtoul(buf, 0, &vector))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &vector);
+	if (ret)
+		return ret;
 
 	if (!config->configured_msi)
 		return -EINVAL;
@@ -395,9 +403,11 @@ static ssize_t pcie_gadget_store_vendor_id(
 		const char *buf, size_t count)
 {
 	ulong id;
+	int ret;
 
-	if (strict_strtoul(buf, 0, &id))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &id);
+	if (ret)
+		return ret;
 
 	spear_dbi_write_reg(config, PCI_VENDOR_ID, 2, id);
 
@@ -420,9 +430,11 @@ static ssize_t pcie_gadget_store_device_id(
 		const char *buf, size_t count)
 {
 	ulong id;
+	int ret;
 
-	if (strict_strtoul(buf, 0, &id))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &id);
+	if (ret)
+		return ret;
 
 	spear_dbi_write_reg(config, PCI_DEVICE_ID, 2, id);
 
@@ -443,9 +455,12 @@ static ssize_t pcie_gadget_store_bar0_size(
 	ulong size;
 	u32 pos, pos1;
 	u32 no_of_bit = 0;
+	int ret;
 
-	if (strict_strtoul(buf, 0, &size))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &size);
+	if (ret)
+		return ret;
+
 	/* min bar size is 256 */
 	if (size <= 0x100)
 		size = 0x100;
@@ -490,9 +505,11 @@ static ssize_t pcie_gadget_store_bar0_address(
 {
 	struct pcie_app_reg __iomem *app_reg = config->va_app_base;
 	ulong address;
+	int ret;
 
-	if (strict_strtoul(buf, 0, &address))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &address);
+	if (ret)
+		return ret;
 
 	address &= ~(config->bar0_size - 1);
 	if (config->va_bar0_address)
@@ -518,9 +535,11 @@ static ssize_t pcie_gadget_store_bar0_rw_offset(
 		const char *buf, size_t count)
 {
 	ulong offset;
+	int ret;
 
-	if (strict_strtoul(buf, 0, &offset))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &offset);
+	if (ret)
+		return ret;
 
 	if (offset % 4)
 		return -EINVAL;
@@ -549,9 +568,11 @@ static ssize_t pcie_gadget_store_bar0_data(
 		const char *buf, size_t count)
 {
 	ulong data;
+	int ret;
 
-	if (strict_strtoul(buf, 0, &data))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &data);
+	if (ret)
+		return ret;
 
 	if (!config->va_bar0_address)
 		return -ENOMEM;
