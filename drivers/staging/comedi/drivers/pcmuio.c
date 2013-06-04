@@ -164,7 +164,6 @@ static const struct pcmuio_board pcmuio_boards[] = {
 	},
 };
 
-/* this structure is for data unique to this subdevice.  */
 struct pcmuio_subdev_private {
 	/* mapping of halfwords (bytes) in port/chanarray to iobase */
 	unsigned long iobases[PORTS_PER_SUBDEV];
@@ -187,9 +186,6 @@ struct pcmuio_subdev_private {
 	} intr;
 };
 
-/* this structure is for data unique to this hardware driver.  If
-   several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct pcmuio_private {
 	struct {
 		unsigned char pagelock;	/* current page and lock */
@@ -203,11 +199,6 @@ struct pcmuio_private {
 	struct pcmuio_subdev_private *sprivs;
 };
 
-/* DIO devices are slightly special.  Although it is possible to
- * implement the insn_read/insn_write interface, it is much more
- * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
 static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -283,10 +274,6 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* The input or output configuration of each digital line is
- * configured by a special insn_config instruction.  chanspec
- * contains the channel to be changed, and data[0] contains the
- * value COMEDI_INPUT or COMEDI_OUTPUT. */
 static int pcmuio_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
