@@ -431,7 +431,7 @@ void intel_disable_fbc(struct drm_device *dev)
  *   - no pixel mulitply/line duplication
  *   - no alpha buffer discard
  *   - no dual wide
- *   - framebuffer <= 2048 in width, 1536 in height
+ *   - framebuffer <= max_hdisplay in width, max_vdisplay in height
  *
  * We can't assume that any compression will take place (worst case),
  * so the compressed buffer has to be the same size as the uncompressed
@@ -449,6 +449,7 @@ void intel_update_fbc(struct drm_device *dev)
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj;
 	int enable_fbc;
+	unsigned int max_hdisplay, max_vdisplay;
 
 	if (!i915_powersave)
 		return;
@@ -507,8 +508,16 @@ void intel_update_fbc(struct drm_device *dev)
 		dev_priv->no_fbc_reason = FBC_UNSUPPORTED_MODE;
 		goto out_disable;
 	}
-	if ((crtc->mode.hdisplay > 2048) ||
-	    (crtc->mode.vdisplay > 1536)) {
+
+	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+		max_hdisplay = 4096;
+		max_vdisplay = 2048;
+	} else {
+		max_hdisplay = 2048;
+		max_vdisplay = 1536;
+	}
+	if ((crtc->mode.hdisplay > max_hdisplay) ||
+	    (crtc->mode.vdisplay > max_vdisplay)) {
 		DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		dev_priv->no_fbc_reason = FBC_MODE_TOO_LARGE;
 		goto out_disable;
