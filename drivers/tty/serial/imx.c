@@ -700,6 +700,14 @@ static int imx_startup(struct uart_port *port)
 	int retval;
 	unsigned long flags, temp;
 
+	retval = clk_prepare_enable(sport->clk_per);
+	if (retval)
+		goto error_out1;
+
+	retval = clk_prepare_enable(sport->clk_ipg);
+	if (retval)
+		goto error_out1;
+
 	imx_setup_ufcr(sport, 0);
 
 	/* disable the DREN bit (Data Ready interrupt enable) before
@@ -885,6 +893,9 @@ static void imx_shutdown(struct uart_port *port)
 
 	writel(temp, sport->port.membase + UCR1);
 	spin_unlock_irqrestore(&sport->port.lock, flags);
+
+	clk_disable_unprepare(sport->clk_per);
+	clk_disable_unprepare(sport->clk_ipg);
 }
 
 static void
@@ -1563,6 +1574,9 @@ static int serial_imx_probe(struct platform_device *pdev)
 		goto deinit;
 	platform_set_drvdata(pdev, sport);
 
+	clk_disable_unprepare(sport->clk_per);
+	clk_disable_unprepare(sport->clk_ipg);
+
 	return 0;
 deinit:
 	if (pdata && pdata->exit)
@@ -1583,9 +1597,6 @@ static int serial_imx_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	uart_remove_one_port(&imx_reg, &sport->port);
-
-	clk_disable_unprepare(sport->clk_per);
-	clk_disable_unprepare(sport->clk_ipg);
 
 	if (pdata && pdata->exit)
 		pdata->exit(pdev);
