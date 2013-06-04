@@ -1323,6 +1323,7 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 			priv->last_moder_time[ring] = moder_time;
 			cq = &priv->rx_cq[ring];
 			cq->moder_time = moder_time;
+			cq->moder_cnt = priv->rx_frames;
 			err = mlx4_en_set_cq_moder(priv, cq);
 			if (err)
 				en_err(priv, "Failed modifying moderation for cq:%d\n",
