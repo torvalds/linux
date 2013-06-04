@@ -62,7 +62,7 @@ static inline void __flush_tlb_all(void)
 
 static inline void __flush_tlb_one(unsigned long addr)
 {
-		__flush_tlb_single(addr);
+	__flush_tlb_single(addr);
 }
 
 #define TLB_FLUSH_ALL	-1UL
