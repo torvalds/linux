@@ -2502,11 +2502,11 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 
 	/* Tx related queue */
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_head_init(&priv->ieee80211->skb_waitQ [i]);
+		skb_queue_head_init(&priv->ieee80211->skb_waitQ[i]);
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_head_init(&priv->ieee80211->skb_aggQ [i]);
+		skb_queue_head_init(&priv->ieee80211->skb_aggQ[i]);
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_head_init(&priv->ieee80211->skb_drv_aggQ [i]);
+		skb_queue_head_init(&priv->ieee80211->skb_drv_aggQ[i]);
 	priv->rf_set_chan = rtl8192_phy_SwChnl;
 }
 
@@ -3686,12 +3686,12 @@ int rtl8192_down(struct net_device *dev)
 
 	/* Tx related queue release */
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_purge(&priv->ieee80211->skb_waitQ [i]);
+		skb_queue_purge(&priv->ieee80211->skb_waitQ[i]);
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_purge(&priv->ieee80211->skb_aggQ [i]);
+		skb_queue_purge(&priv->ieee80211->skb_aggQ[i]);
 
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_purge(&priv->ieee80211->skb_drv_aggQ [i]);
+		skb_queue_purge(&priv->ieee80211->skb_drv_aggQ[i]);
 
 	//as cancel_delayed_work will del work->timer, so if work is not defined as struct delayed_work, it will corrupt
 	rtl8192_cancel_deferred_work(priv);
