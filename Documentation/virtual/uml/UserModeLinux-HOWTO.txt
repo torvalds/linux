@@ -3127,7 +3127,7 @@
            at process_kern.c:156
        #3  0x1006a052 in switch_to (prev=0x50072000, next=0x507e8000, last=0x50072000)
            at process_kern.c:161
-       #4  0x10001d12 in schedule () at sched.c:777
+       #4  0x10001d12 in schedule () at core.c:777
        #5  0x1006a744 in __down (sem=0x507d241c) at semaphore.c:71
        #6  0x1006aa10 in __down_failed () at semaphore.c:157
        #7  0x1006c5d8 in segv_handler (sc=0x5006e940) at trap_user.c:174
@@ -3191,7 +3191,7 @@
            at process_kern.c:161
        161       _switch_to(prev, next);
        (gdb)
-       #4  0x10001d12 in schedule () at sched.c:777
+       #4  0x10001d12 in schedule () at core.c:777
        777             switch_to(prev, next, prev);
        (gdb)
        #5  0x1006a744 in __down (sem=0x507d241c) at semaphore.c:71
