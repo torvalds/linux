@@ -10,10 +10,6 @@ struct perf_sample;
 union perf_event;
 struct perf_tool;
 
-extern int header_page_size_size;
-extern int header_page_ts_size;
-extern int header_page_data_offset;
-
 extern bool latency_format;
 extern struct pevent *perf_pevent;
 
