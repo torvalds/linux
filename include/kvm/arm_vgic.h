@@ -84,6 +84,8 @@ struct vgic_lr {
 struct vgic_ops {
 	struct vgic_lr	(*get_lr)(const struct kvm_vcpu *, int);
 	void	(*set_lr)(struct kvm_vcpu *, int, struct vgic_lr);
+	void	(*sync_lr_elrsr)(struct kvm_vcpu *, int, struct vgic_lr);
+	u64	(*get_elrsr)(const struct kvm_vcpu *vcpu);
 };
 
 struct vgic_dist {
