@@ -1,75 +1,77 @@
 /*
-    comedi/drivers/pcmuio.c
-    Driver for Winsystems PC-104 based 48-channel and 96-channel DIO boards.
+ * pcmuio.c
+ * Comedi driver for Winsystems PC-104 based 48/96-channel DIO boards.
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2006 Calin A. Culianu <calin@ajvar.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2006 Calin A. Culianu <calin@ajvar.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: pcmuio
-Description: A driver for the PCM-UIO48A and PCM-UIO96A boards from Winsystems.
-Devices: [Winsystems] PCM-UIO48A (pcmuio48), PCM-UIO96A (pcmuio96)
-Author: Calin Culianu <calin@ajvar.org>
-Updated: Fri, 13 Jan 2006 12:01:01 -0500
-Status: works
-
-A driver for the relatively straightforward-to-program PCM-UIO48A and
-PCM-UIO96A boards from Winsystems.  These boards use either one or two
-(in the 96-DIO version) WS16C48 ASIC HighDensity I/O Chips (HDIO).
-This chip is interesting in that each I/O line is individually
-programmable for INPUT or OUTPUT (thus comedi_dio_config can be done
-on a per-channel basis).  Also, each chip supports edge-triggered
-interrupts for the first 24 I/O lines.  Of course, since the
-96-channel version of the board has two ASICs, it can detect polarity
-changes on up to 48 I/O lines.  Since this is essentially an (non-PnP)
-ISA board, I/O Address and IRQ selection are done through jumpers on
-the board.  You need to pass that information to this driver as the
-first and second comedi_config option, respectively.  Note that the
-48-channel version uses 16 bytes of IO memory and the 96-channel
-version uses 32-bytes (in case you are worried about conflicts).  The
-48-channel board is split into two 24-channel comedi subdevices.
-The 96-channel board is split into 4 24-channel DIO subdevices.
-
-Note that IRQ support has been added, but it is untested.
-
-To use edge-detection IRQ support, pass the IRQs of both ASICS
-(for the 96 channel version) or just 1 ASIC (for 48-channel version).
-Then, use use comedi_commands with TRIG_NOW.
-Your callback will be called each time an edge is triggered, and the data
-values will be two sample_t's, which should be concatenated to form one
-32-bit unsigned int.  This value is the mask of channels that had
-edges detected from your channel list.  Note that the bits positions
-in the mask correspond to positions in your chanlist when you specified
-the command and *not* channel id's!
-
-To set the polarity of the edge-detection interrupts pass a nonzero value for
-either CR_RANGE or CR_AREF for edge-up polarity, or a zero value for both
-CR_RANGE and CR_AREF if you want edge-down polarity.
-
-In the 48-channel version:
-
-On subdev 0, the first 24 channels channels are edge-detect channels.
-
-In the 96-channel board you have the collowing channels that can do edge detection:
-
-subdev 0, channels 0-24  (first 24 channels of 1st ASIC)
-subdev 2, channels 0-24  (first 24 channels of 2nd ASIC)
-
-Configuration Options:
-  [0] - I/O port base address
-  [1] - IRQ (for first ASIC, or first 24 channels)
-  [2] - IRQ for second ASIC (pcmuio96 only - IRQ for chans 48-72 .. can be the same as first irq!)
-*/
+ * Driver: pcmuio
+ * Description: Winsystems PC-104 based 48/96-channel DIO boards.
+ * Devices: (Winsystems) PCM-UIO48A [pcmuio48]
+ *	    (Winsystems) PCM-UIO96A [pcmuio96]
+ * Author: Calin Culianu <calin@ajvar.org>
+ * Updated: Fri, 13 Jan 2006 12:01:01 -0500
+ * Status: works
+ *
+ * A driver for the relatively straightforward-to-program PCM-UIO48A and
+ * PCM-UIO96A boards from Winsystems. These boards use either one or two
+ * (in the 96-DIO version) WS16C48 ASIC HighDensity I/O Chips (HDIO). This
+ * chip is interesting in that each I/O line is individually programmable
+ * for INPUT or OUTPUT (thus comedi_dio_config can be done on a per-channel
+ * basis). Also, each chip supports edge-triggered interrupts for the first
+ * 24 I/O lines. Of course, since the 96-channel version of the board has
+ * two ASICs, it can detect polarity changes on up to 48 I/O lines. Since
+ * this is essentially an (non-PnP) ISA board, I/O Address and IRQ selection
+ * are done through jumpers on the board. You need to pass that information
+ * to this driver as the first and second comedi_config option, respectively.
+ * Note that the 48-channel version uses 16 bytes of IO memory and the 96-
+ * channel version uses 32-bytes (in case you are worried about conflicts).
+ * The 48-channel board is split into two 24-channel comedi subdevices. The
+ * 96-channel board is split into 4 24-channel DIO subdevices.
+ *
+ * Note that IRQ support has been added, but it is untested.
+ *
+ * To use edge-detection IRQ support, pass the IRQs of both ASICS (for the
+ * 96 channel version) or just 1 ASIC (for 48-channel version). Then, use
+ * comedi_commands with TRIG_NOW. Your callback will be called each time an
+ * edge is triggered, and the data values will be two sample_t's, which
+ * should be concatenated to form one 32-bit unsigned int.  This value is
+ * the mask of channels that had edges detected from your channel list. Note
+ * that the bits positions in the mask correspond to positions in your
+ * chanlist when you specified the command and *not* channel id's!
+ *
+ * To set the polarity of the edge-detection interrupts pass a nonzero value
+ * for either CR_RANGE or CR_AREF for edge-up polarity, or a zero value for
+ * both CR_RANGE and CR_AREF if you want edge-down polarity.
+ *
+ * In the 48-channel version:
+ *
+ * On subdev 0, the first 24 channels channels are edge-detect channels.
+ *
+ * In the 96-channel board you have the following channels that can do edge
+ * detection:
+ *
+ * subdev 0, channels 0-24  (first 24 channels of 1st ASIC)
+ * subdev 2, channels 0-24  (first 24 channels of 2nd ASIC)
+ *
+ * Configuration Options:
+ *  [0] - I/O port base address
+ *  [1] - IRQ (for first ASIC, or first 24 channels)
+ *  [2] - IRQ (for second ASIC, pcmuio96 only - IRQ for chans 48-72
+ *             can be the same as first irq!)
+ */
 
 #include <linux/interrupt.h>
 #include <linux/slab.h>
