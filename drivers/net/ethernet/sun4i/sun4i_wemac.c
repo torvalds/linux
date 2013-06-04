@@ -37,6 +37,7 @@
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/workqueue.h>
 
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
@@ -54,6 +55,9 @@
 #define DRV_VERSION	"1.01"
 #define DMA_CPU_TRRESHOLD 2000
 #define TOLOWER(x) ((x) | 0x20)
+/* bit_flags */
+#define EMAC_TX_TIMEOUT_PENDING		0
+
 /*
  * Transmit timeout, default 5 seconds.
  */
@@ -105,6 +109,7 @@ typedef struct wemac_board_info {
 	unsigned int	flags;
 	unsigned int	in_suspend:1;
 	int		debug_level;
+	unsigned long	bit_flags;
 
 	void (*inblk)(void __iomem *port, void *data, int length);
 	void (*outblk)(void __iomem *port, void *data, int length);
@@ -127,6 +132,7 @@ typedef struct wemac_board_info {
 	struct mutex	 addr_lock;	/* phy and eeprom access lock */
 
 	struct delayed_work phy_poll;
+	struct work_struct  tx_timeout_work;
 	struct net_device  *ndev;
 
 	spinlock_t	lock;
@@ -1126,23 +1132,29 @@ wemac_init_wemac(struct net_device *dev)
 static void wemac_timeout(struct net_device *dev)
 {
 	wemac_board_info_t *db = netdev_priv(dev);
-	unsigned long flags;
+
+	/* init_wemac uses phy_r/w which can sleep, so use a work_queue */
+	if (!test_and_set_bit(EMAC_TX_TIMEOUT_PENDING, &db->bit_flags)) {
+		netif_stop_queue(dev);
+		schedule_work(&db->tx_timeout_work);
+	}
+}
+
+/* The real tx timeout handle work is done here, where we can sleep */
+static void wemac_timeout_work(struct work_struct *work)
+{
+	wemac_board_info_t *db =
+		container_of(work, wemac_board_info_t, tx_timeout_work);
 
 	if (netif_msg_timer(db))
-		dev_err(db->dev, "tx time out.\n");
+		dev_err(db->dev, "tx time out, resetting emac\n");
 
-	/* Save previous register address */
-	spin_lock_irqsave(&db->lock, flags);
-
-	netif_stop_queue(dev);
 	wemac_reset(db);
-	wemac_init_wemac(dev);
+	wemac_init_wemac(db->ndev);
 	/* We can accept TX packets again */
-	dev->trans_start = jiffies;
-	netif_wake_queue(dev);
-
-	/* Restore previous register address */
-	spin_unlock_irqrestore(&db->lock, flags);
+	db->ndev->trans_start = jiffies;
+	netif_wake_queue(db->ndev);
+	clear_bit(EMAC_TX_TIMEOUT_PENDING, &db->bit_flags);
 }
 
 #define PINGPANG_BUF 1
@@ -1722,6 +1734,7 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	mutex_init(&db->addr_lock);
 
 	INIT_DELAYED_WORK(&db->phy_poll, wemac_poll_work);
+	INIT_WORK(&db->tx_timeout_work, wemac_timeout_work);
 
 	db->emac_base_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	db->sram_base_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
