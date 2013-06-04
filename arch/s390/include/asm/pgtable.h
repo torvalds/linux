@@ -704,17 +704,19 @@ static inline void pgste_set_key(pte_t *ptep, pgste_t pgste, pte_t entry)
 {
 #ifdef CONFIG_PGSTE
 	unsigned long address;
-	unsigned long okey, nkey;
+	unsigned long nkey;
 
 	if (pte_val(entry) & _PAGE_INVALID)
 		return;
+	VM_BUG_ON(!(pte_val(*ptep) & _PAGE_INVALID));
 	address = pte_val(entry) & PAGE_MASK;
-	okey = nkey = page_get_storage_key(address);
-	nkey &= ~(_PAGE_ACC_BITS | _PAGE_FP_BIT);
-	/* Set page access key and fetch protection bit from pgste */
-	nkey |= (pgste_val(pgste) & (RCP_ACC_BITS | RCP_FP_BIT)) >> 56;
-	if (okey != nkey)
-		page_set_storage_key(address, nkey, 0);
+	/*
+	 * Set page access key and fetch protection bit from pgste.
+	 * The guest C/R information is still in the PGSTE, set real
+	 * key C/R to 0.
+	 */
+	nkey = (pgste_val(pgste) & (RCP_ACC_BITS | RCP_FP_BIT)) >> 56;
+	page_set_storage_key(address, nkey, 0);
 #endif
 }
 
