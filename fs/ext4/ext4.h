@@ -2596,8 +2596,7 @@ struct ext4_extent;
 
 extern int ext4_ext_tree_init(handle_t *handle, struct inode *);
 extern int ext4_ext_writepage_trans_blocks(struct inode *, int);
-extern int ext4_ext_index_trans_blocks(struct inode *inode, int nrblocks,
-				       int chunk);
+extern int ext4_ext_index_trans_blocks(struct inode *inode, int extents);
 extern int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 			       struct ext4_map_blocks *map, int flags);
 extern void ext4_ext_truncate(handle_t *, struct inode *);

@@ -2328,17 +2328,15 @@ int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int nrblocks,
 }
 
 /*
- * How many index/leaf blocks need to change/allocate to modify nrblocks?
+ * How many index/leaf blocks need to change/allocate to add @extents extents?
  *
- * if nrblocks are fit in a single extent (chunk flag is 1), then
- * in the worse case, each tree level index/leaf need to be changed
- * if the tree split due to insert a new extent, then the old tree
- * index/leaf need to be updated too
+ * If we add a single extent, then in the worse case, each tree level
+ * index/leaf need to be changed in case of the tree split.
  *
- * If the nrblocks are discontiguous, they could cause
- * the whole tree split more than once, but this is really rare.
+ * If more extents are inserted, they could cause the whole tree split more
+ * than once, but this is really rare.
  */
-int ext4_ext_index_trans_blocks(struct inode *inode, int nrblocks, int chunk)
+int ext4_ext_index_trans_blocks(struct inode *inode, int extents)
 {
 	int index;
 	int depth;
@@ -2349,7 +2347,7 @@ int ext4_ext_index_trans_blocks(struct inode *inode, int nrblocks, int chunk)
 
 	depth = ext_depth(inode);
 
-	if (chunk)
+	if (extents <= 1)
 		index = depth * 2;
 	else
 		index = depth * 3;

@@ -136,6 +136,8 @@ static void ext4_invalidatepage(struct page *page, unsigned int offset,
 				unsigned int length);
 static int __ext4_journalled_writepage(struct page *page, unsigned int len);
 static int ext4_bh_delay_or_unwritten(handle_t *handle, struct buffer_head *bh);
+static int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
+				  int pextents);
 
 /*
  * Test whether an inode is a fast symlink.
@@ -2203,28 +2205,25 @@ static int ext4_writepage(struct page *page,
 }
 
 /*
- * This is called via ext4_da_writepages() to
- * calculate the total number of credits to reserve to fit
- * a single extent allocation into a single transaction,
- * ext4_da_writpeages() will loop calling this before
- * the block allocation.
+ * mballoc gives us at most this number of blocks...
+ * XXX: That seems to be only a limitation of ext4_mb_normalize_request().
+ * The rest of mballoc seems to handle chunks upto full group size.
  */
+#define MAX_WRITEPAGES_EXTENT_LEN 2048
 
+/*
+ * Calculate the total number of credits to reserve for one writepages
+ * iteration. This is called from ext4_da_writepages(). We map an extent of
+ * upto MAX_WRITEPAGES_EXTENT_LEN blocks and then we go on and finish mapping
+ * the last partial page. So in total we can map MAX_WRITEPAGES_EXTENT_LEN +
+ * bpp - 1 blocks in bpp different extents.
+ */
 static int ext4_da_writepages_trans_blocks(struct inode *inode)
 {
-	int max_blocks = EXT4_I(inode)->i_reserved_data_blocks;
+	int bpp = ext4_journal_blocks_per_page(inode);
 
-	/*
-	 * With non-extent format the journal credit needed to
-	 * insert nrblocks contiguous block is dependent on
-	 * number of contiguous block. So we will limit
-	 * number of contiguous block to a sane value
-	 */
-	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) &&
-	    (max_blocks > EXT4_MAX_TRANS_DATA))
-		max_blocks = EXT4_MAX_TRANS_DATA;
-
-	return ext4_chunk_trans_blocks(inode, max_blocks);
+	return ext4_meta_trans_blocks(inode,
+				MAX_WRITEPAGES_EXTENT_LEN + bpp - 1, bpp);
 }
 
 /*
@@ -4650,11 +4649,12 @@ int ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	return 0;
 }
 
-static int ext4_index_trans_blocks(struct inode *inode, int nrblocks, int chunk)
+static int ext4_index_trans_blocks(struct inode *inode, int lblocks,
+				   int pextents)
 {
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
-		return ext4_ind_trans_blocks(inode, nrblocks);
-	return ext4_ext_index_trans_blocks(inode, nrblocks, chunk);
+		return ext4_ind_trans_blocks(inode, lblocks);
+	return ext4_ext_index_trans_blocks(inode, pextents);
 }
 
 /*
@@ -4668,7 +4668,8 @@ static int ext4_index_trans_blocks(struct inode *inode, int nrblocks, int chunk)
  *
  * Also account for superblock, inode, quota and xattr blocks
  */
-static int ext4_meta_trans_blocks(struct inode *inode, int nrblocks, int chunk)
+static int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
+				  int pextents)
 {
 	ext4_group_t groups, ngroups = ext4_get_groups_count(inode->i_sb);
 	int gdpblocks;
@@ -4676,14 +4677,10 @@ static int ext4_meta_trans_blocks(struct inode *inode, int nrblocks, int chunk)
 	int ret = 0;
 
 	/*
-	 * How many index blocks need to touch to modify nrblocks?
-	 * The "Chunk" flag indicating whether the nrblocks is
-	 * physically contiguous on disk
-	 *
-	 * For Direct IO and fallocate, they calls get_block to allocate
-	 * one single extent at a time, so they could set the "Chunk" flag
+	 * How many index blocks need to touch to map @lblocks logical blocks
+	 * to @pextents physical extents?
 	 */
-	idxblocks = ext4_index_trans_blocks(inode, nrblocks, chunk);
+	idxblocks = ext4_index_trans_blocks(inode, lblocks, pextents);
 
 	ret = idxblocks;
 
@@ -4691,12 +4688,7 @@ static int ext4_meta_trans_blocks(struct inode *inode, int nrblocks, int chunk)
 	 * Now let's see how many group bitmaps and group descriptors need
 	 * to account
 	 */
-	groups = idxblocks;
-	if (chunk)
-		groups += 1;
-	else
-		groups += nrblocks;
-
+	groups = idxblocks + pextents;
 	gdpblocks = groups;
 	if (groups > ngroups)
 		groups = ngroups;
@@ -4727,7 +4719,7 @@ int ext4_writepage_trans_blocks(struct inode *inode)
 	int bpp = ext4_journal_blocks_per_page(inode);
 	int ret;
 
-	ret = ext4_meta_trans_blocks(inode, bpp, 0);
+	ret = ext4_meta_trans_blocks(inode, bpp, bpp);
 
 	/* Account for data blocks for journalled mode */
 	if (ext4_should_journal_data(inode))
