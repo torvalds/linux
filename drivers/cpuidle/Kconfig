@@ -39,4 +39,10 @@ config CPU_IDLE_CALXEDA
 	help
 	  Select this to enable cpuidle on Calxeda processors.
 
+config CPU_IDLE_ZYNQ
+	bool "CPU Idle Driver for Xilinx Zynq processors"
+	depends on ARCH_ZYNQ
+	help
+	  Select this to enable cpuidle on Xilinx Zynq processors.
+
 endif

@@ -1310,6 +1310,7 @@ W:	http://wiki.xilinx.com
 T:	git git://git.xilinx.com/linux-xlnx.git
 S:	Supported
 F:	arch/arm/mach-zynq/
+F:	drivers/cpuidle/cpuidle-zynq.c
 
 ARM64 PORT (AARCH64 ARCHITECTURE)
 M:	Catalin Marinas <catalin.marinas@arm.com>
