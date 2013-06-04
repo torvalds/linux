@@ -988,7 +988,7 @@ late_initcall(sync_debugfs_init);
 
 #define DUMP_CHUNK 256
 static char sync_dump_buf[64 * 1024];
-void sync_dump(void)
+static void sync_dump(void)
 {
 	struct seq_file s = {
 		.buf = sync_dump_buf,
