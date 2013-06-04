@@ -105,8 +105,9 @@ static void suspend_cpu_complex(void)
 	flowctrl_cpu_suspend_enter(cpu);
 }
 
-void tegra_clear_cpu_in_lp2(int phy_cpu_id)
+void tegra_clear_cpu_in_lp2(void)
 {
+	int phy_cpu_id = cpu_logical_map(smp_processor_id());
 	u32 *cpu_in_lp2 = tegra_cpu_lp2_mask;
 
 	spin_lock(&tegra_lp2_lock);
@@ -117,8 +118,9 @@ void tegra_clear_cpu_in_lp2(int phy_cpu_id)
 	spin_unlock(&tegra_lp2_lock);
 }
 
-bool tegra_set_cpu_in_lp2(int phy_cpu_id)
+bool tegra_set_cpu_in_lp2(void)
 {
+	int phy_cpu_id = cpu_logical_map(smp_processor_id());
 	bool last_cpu = false;
 	cpumask_t *cpu_lp2_mask = tegra_cpu_lp2_mask;
 	u32 *cpu_in_lp2 = tegra_cpu_lp2_mask;
@@ -206,7 +208,7 @@ static int __cpuinit tegra_suspend_enter(suspend_state_t state)
 	suspend_cpu_complex();
 	switch (mode) {
 	case TEGRA_SUSPEND_LP2:
-		tegra_set_cpu_in_lp2(0);
+		tegra_set_cpu_in_lp2();
 		break;
 	default:
 		break;
@@ -216,7 +218,7 @@ static int __cpuinit tegra_suspend_enter(suspend_state_t state)
 
 	switch (mode) {
 	case TEGRA_SUSPEND_LP2:
-		tegra_clear_cpu_in_lp2(0);
+		tegra_clear_cpu_in_lp2();
 		break;
 	default:
 		break;

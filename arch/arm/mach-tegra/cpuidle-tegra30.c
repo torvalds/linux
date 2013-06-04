@@ -114,16 +114,15 @@ static int tegra30_idle_lp2(struct cpuidle_device *dev,
 			    struct cpuidle_driver *drv,
 			    int index)
 {
-	u32 cpu = is_smp() ? cpu_logical_map(dev->cpu) : dev->cpu;
 	bool entered_lp2 = false;
 	bool last_cpu;
 
 	local_fiq_disable();
 
-	last_cpu = tegra_set_cpu_in_lp2(cpu);
+	last_cpu = tegra_set_cpu_in_lp2();
 	cpu_pm_enter();
 
-	if (cpu == 0) {
+	if (dev->cpu == 0) {
 		if (last_cpu)
 			entered_lp2 = tegra30_cpu_cluster_power_down(dev, drv,
 								     index);
@@ -134,7 +133,7 @@ static int tegra30_idle_lp2(struct cpuidle_device *dev,
 	}
 
 	cpu_pm_exit();
-	tegra_clear_cpu_in_lp2(cpu);
+	tegra_clear_cpu_in_lp2();
 
 	local_fiq_enable();
 
