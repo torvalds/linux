@@ -1306,8 +1306,6 @@ rt2x00queue_get_qdesc_by_qid(struct rt2x00_dev *rt2x00dev,
 static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 			     struct data_queue *queue, enum data_queue_qid qid)
 {
-	const struct data_queue_desc *qdesc;
-
 	mutex_init(&queue->status_lock);
 	spin_lock_init(&queue->tx_lock);
 	spin_lock_init(&queue->index_lock);
@@ -1319,14 +1317,20 @@ static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 	queue->cw_min = 5;
 	queue->cw_max = 10;
 
-	qdesc = rt2x00queue_get_qdesc_by_qid(rt2x00dev, qid);
-	BUG_ON(!qdesc);
+	if (rt2x00dev->ops->queue_init) {
+		rt2x00dev->ops->queue_init(queue);
+	} else {
+		const struct data_queue_desc *qdesc;
 
-	queue->limit = qdesc->entry_num;
-	queue->data_size = qdesc->data_size;
-	queue->desc_size = qdesc->desc_size;
-	queue->winfo_size = qdesc->winfo_size;
-	queue->priv_size = qdesc->priv_size;
+		qdesc = rt2x00queue_get_qdesc_by_qid(rt2x00dev, qid);
+		BUG_ON(!qdesc);
+
+		queue->limit = qdesc->entry_num;
+		queue->data_size = qdesc->data_size;
+		queue->desc_size = qdesc->desc_size;
+		queue->winfo_size = qdesc->winfo_size;
+		queue->priv_size = qdesc->priv_size;
+	}
 
 	queue->threshold = DIV_ROUND_UP(queue->limit, 10);
 }
