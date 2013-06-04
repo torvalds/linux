@@ -1328,6 +1328,20 @@ static void bcm_enet_get_ethtool_stats(struct net_device *netdev,
 	mutex_unlock(&priv->mib_update_lock);
 }
 
+static int bcm_enet_nway_reset(struct net_device *dev)
+{
+	struct bcm_enet_priv *priv;
+
+	priv = netdev_priv(dev);
+	if (priv->has_phy) {
+		if (!priv->phydev)
+			return -ENODEV;
+		return genphy_restart_aneg(priv->phydev);
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static int bcm_enet_get_settings(struct net_device *dev,
 				 struct ethtool_cmd *cmd)
 {
@@ -1470,6 +1484,7 @@ static const struct ethtool_ops bcm_enet_ethtool_ops = {
 	.get_strings		= bcm_enet_get_strings,
 	.get_sset_count		= bcm_enet_get_sset_count,
 	.get_ethtool_stats      = bcm_enet_get_ethtool_stats,
+	.nway_reset		= bcm_enet_nway_reset,
 	.get_settings		= bcm_enet_get_settings,
 	.set_settings		= bcm_enet_set_settings,
 	.get_drvinfo		= bcm_enet_get_drvinfo,
