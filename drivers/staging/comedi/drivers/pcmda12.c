@@ -49,8 +49,6 @@ Configuration Options:
 
 #include "../comedidev.h"
 
-#define IOSIZE 16
-
 /* AI range is not configurable, it's set by jumpers on the board */
 static const struct comedi_lrange pcmda12_ranges = {
 	3, {
@@ -135,7 +133,7 @@ static int pcmda12_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], IOSIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
