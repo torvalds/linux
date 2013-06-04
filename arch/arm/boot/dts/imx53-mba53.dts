@@ -114,6 +114,15 @@
 	status = "okay";
 };
 
+&usbotg {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};
+
 &uart1 {
 	status = "okay";
 };
