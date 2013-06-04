@@ -349,6 +349,7 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 	int show_funcs = 0;
 	int show_printk = 0;
 	ssize_t size = -1;
+	int file_page_size;
 	struct pevent *pevent;
 	int err;
 
@@ -393,9 +394,11 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 		goto out;
 	long_size = buf[0];
 
-	page_size = read4(pevent);
-	if (!page_size)
+	file_page_size = read4(pevent);
+	if (!file_page_size)
 		goto out;
+
+	pevent_set_page_size(pevent, file_page_size);
 
 	err = read_header_files(pevent);
 	if (err)
