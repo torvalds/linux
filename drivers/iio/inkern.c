@@ -124,7 +124,7 @@ static int __of_iio_channel_get(struct iio_channel *channel,
 	channel->indio_dev = indio_dev;
 	index = iiospec.args_count ? iiospec.args[0] : 0;
 	if (index >= indio_dev->num_channels) {
-		return -EINVAL;
+		err = -EINVAL;
 		goto err_put;
 	}
 	channel->channel = &indio_dev->channels[index];
