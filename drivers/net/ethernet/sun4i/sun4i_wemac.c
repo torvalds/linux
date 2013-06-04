@@ -857,6 +857,14 @@ unsigned int emac_setup(struct net_device *ndev)
 	return 1;
 }
 
+static void wemac_set_mac_addr(wemac_board_info_t *db, unsigned char *buf)
+{
+	writel(buf[0] << 16 | buf[1] << 8 | buf[2],
+	       db->emac_vbase + EMAC_MAC_A1_REG);
+	writel(buf[3] << 16 | buf[4] << 8 | buf[5],
+	       db->emac_vbase + EMAC_MAC_A0_REG);
+}
+
 unsigned int wemac_powerup(struct net_device *ndev)
 {
 	wemac_board_info_t *db = netdev_priv(ndev);
@@ -923,10 +931,7 @@ unsigned int wemac_powerup(struct net_device *ndev)
 			mac_addr[i] = simple_strtoul(emac_tmp, NULL, 16);
 		}
 	}
-	writel(mac_addr[0]<<16 | mac_addr[1]<<8 | mac_addr[2],
-			db->emac_vbase + EMAC_MAC_A1_REG);
-	writel(mac_addr[3]<<16 | mac_addr[4]<<8 | mac_addr[5],
-			db->emac_vbase + EMAC_MAC_A0_REG);
+	wemac_set_mac_addr(db, mac_addr);
 
 	mdelay(1);
 
@@ -1072,11 +1077,7 @@ static void read_random_macaddr(unsigned char *mac, struct net_device *ndev)
 	buf[0] |= 0x02;		/*  the 47bit must set 1  */
 
 	/*  we write the random number into chip  */
-	writel(buf[0]<<16 | buf[1]<<8 | buf[2],
-			db->emac_vbase + EMAC_MAC_A1_REG);
-	writel(buf[3]<<16 | buf[4]<<8 | buf[5],
-			db->emac_vbase + EMAC_MAC_A0_REG);
-
+	wemac_set_mac_addr(db, buf);
 }
 
 static int wemac_set_mac_address(struct net_device *dev, void *p)
@@ -1094,11 +1095,7 @@ static int wemac_set_mac_address(struct net_device *dev, void *p)
 	}
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-
-	writel(dev->dev_addr[0]<<16 | dev->dev_addr[1]<<8 | dev->dev_addr[2],
-			db->emac_vbase + EMAC_MAC_A1_REG);
-	writel(dev->dev_addr[3]<<16 | dev->dev_addr[4]<<8 | dev->dev_addr[5],
-			db->emac_vbase + EMAC_MAC_A0_REG);
+	wemac_set_mac_addr(db, dev->dev_addr);
 
 	return 0;
 }
