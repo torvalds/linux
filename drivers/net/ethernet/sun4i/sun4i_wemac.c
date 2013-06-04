@@ -44,6 +44,7 @@
 
 #include <plat/dma.h>
 #include <plat/sys_config.h>
+#include <plat/system.h>
 #include <mach/clock.h>
 
 #include "sun4i_wemac.h"
@@ -61,6 +62,7 @@
 /*
  * Transmit timeout, default 5 seconds.
  */
+static int emac_used;
 static int watchdog = 5000;
 static unsigned char mac_addr[6] = {0x00};
 static char *mac_addr_param = ":";
@@ -535,36 +537,55 @@ unsigned int phy_link_check(struct net_device *dev)
 	}
 }
 
+static void emac_gpio_pin_function(wemac_board_info_t *db, int cfg0, int pin,
+	int func, int set)
+{
+	unsigned int orig, val, mask;
+
+	orig = val = readl(db->gpio_vbase + cfg0 + (pin / 8) * 4);
+
+	mask =    7 << ((pin & 7) * 4);
+	func = func << ((pin & 7) * 4);
+
+	if (set) {
+		val &= ~mask;
+		val |= func;
+	} else {
+		/* Only clear if the current function is emac */
+		if ((val & mask) == func)
+			val &= ~mask; /* Set as input gpio pin */
+	}
+	if (val != orig)
+		writel(val, db->gpio_vbase + cfg0 + (pin / 8) * 4);
+}
+
 void emac_sys_setup(wemac_board_info_t *db)
 {
 	struct clk *tmpClk;
 	unsigned int reg_val;
+	int i;
 
 	/*  map SRAM to EMAC  */
 	reg_val = readl(db->sram_vbase + SRAMC_CFG_REG);
 	reg_val |= 0x5<<2;
 	writel(reg_val, db->sram_vbase + SRAMC_CFG_REG);
 
-#ifdef EMAC_MAP1
+	/* Set function for PA, if emac_used == 1 configure PA for emac, else
+	   make sure it is *not* set for emac */
+	for (i = 0; i <= 17; i++)
+		emac_gpio_pin_function(db, PA_CFG0_REG, i, 2, emac_used == 1);
 
-	/*  PA0~PA7  */
-	reg_val = readl(db->gpio_vbase + PA_CFG0_REG);
-	reg_val &= 0xAAAAAAAA;
-	reg_val |= 0x22222222;
-	writel(reg_val, db->gpio_vbase + PA_CFG0_REG);
-
-	/*  PA8~PA15  */
-	reg_val = readl(db->gpio_vbase + PA_CFG1_REG);
-	reg_val &= 0xAAAAAAAA;
-	reg_val |= 0x22222222;
-	writel(reg_val, db->gpio_vbase + PA_CFG1_REG);
-
-	/*  PA16~PA17  */
-	reg_val = readl(db->gpio_vbase + PA_CFG2_REG);
-	reg_val &= 0xffffffAA;
-	reg_val |= 0x00000022;
-	writel(reg_val, db->gpio_vbase + PA_CFG2_REG);
-#endif
+	/* On sun5i PD can be used instead, in this case emac_used == 2 */
+	if (sunxi_is_sun5i()) {
+		emac_gpio_pin_function(db, PD_CFG0_REG, 6, 3, emac_used == 2);
+		emac_gpio_pin_function(db, PD_CFG0_REG, 7, 3, emac_used == 2);
+		for (i = 10; i <= 15; i++)
+			emac_gpio_pin_function(db, PD_CFG0_REG, i, 3,
+					       emac_used == 2);
+		for (i = 18; i <= 27; i++)
+			emac_gpio_pin_function(db, PD_CFG0_REG, i, 3,
+					       emac_used == 2);
+	}
 
 	/*  set up clock gating  */
 	tmpClk = clk_get(NULL, "ahb_emac");
@@ -2051,8 +2072,6 @@ static struct platform_driver wemac_driver = {
 
 static int __init wemac_init(void)
 {
-	int emac_used = 0;
-
 	if (SCRIPT_PARSER_OK != script_parser_fetch("emac_para", "emac_used", &emac_used, 1))
 		printk(KERN_WARNING "emac_init fetch emac using configuration failed\n");
 
@@ -2061,7 +2080,18 @@ static int __init wemac_init(void)
 		return 0;
 	}
 
+	if (emac_used != 1 && emac_used != 2) {
+		pr_err("Error invalid value for emac_used: %d\n", emac_used);
+		return -ENODEV;
+	}
+
+	if (emac_used == 2 && !sunxi_is_sun5i()) {
+		pr_err("Error emac_used = 2 is only supported on sun5i\n");
+		return -ENODEV;
+	}
+
 	printk(KERN_INFO "%s Ethernet Driver, V%s in file:%s\n", CARDNAME, DRV_VERSION, __FILE__);
+	pr_info("%s Using mii phy on Port%c\n", CARDNAME, 'A' + emac_used - 1);
 
 	platform_device_register(&wemac_device);
 	return platform_driver_register(&wemac_driver);
