@@ -49,7 +49,6 @@ Configuration Options:
 
 #include "../comedidev.h"
 
-#define CHANS 8
 #define IOSIZE 16
 
 /* AI range is not configurable, it's set by jumpers on the board */
@@ -62,23 +61,9 @@ static const struct comedi_lrange pcmda12_ranges = {
 };
 
 struct pcmda12_private {
-
-	unsigned int ao_readback[CHANS];
+	unsigned int ao_readback[8];
 	int simultaneous_xfer_mode;
 };
-
-static void zero_chans(struct comedi_device *dev)
-{
-	int i;
-
-	for (i = 0; i < CHANS; ++i) {
-
-		outb(0, dev->iobase + (i * 2));
-		outb(0, dev->iobase + (i * 2) + 1);
-	}
-	/* Initiate transfer by reading one of the AO registers. */
-	inb(dev->iobase);
-}
 
 static int pcmda12_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
@@ -130,6 +115,19 @@ static int pcmda12_ao_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
+static void pcmda12_ao_reset(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
+{
+	int i;
+
+	for (i = 0; i < s->n_chan; ++i) {
+		outb(0, dev->iobase + (i * 2));
+		outb(0, dev->iobase + (i * 2) + 1);
+	}
+	/* Initiate transfer by reading one of the AO registers. */
+	inb(dev->iobase);
+}
+
 static int pcmda12_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
@@ -155,13 +153,13 @@ static int pcmda12_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-	s->n_chan	= CHANS;
+	s->n_chan	= 8;
 	s->maxdata	= 0x0fff;
 	s->range_table	= &pcmda12_ranges;
 	s->insn_write	= pcmda12_ao_insn_write;
 	s->insn_read	= pcmda12_ao_insn_read;
 
-	zero_chans(dev);	/* clear out all the registers, basically */
+	pcmda12_ao_reset(dev, s);
 
 	return 1;
 }
