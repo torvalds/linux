@@ -1161,8 +1161,7 @@ void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
-static int rt2x00queue_alloc_entries(struct data_queue *queue,
-				     const struct data_queue_desc *qdesc)
+static int rt2x00queue_alloc_entries(struct data_queue *queue)
 {
 	struct queue_entry *entries;
 	unsigned int entry_size;
@@ -1231,23 +1230,22 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 	int status;
 
-	status = rt2x00queue_alloc_entries(rt2x00dev->rx, rt2x00dev->ops->rx);
+	status = rt2x00queue_alloc_entries(rt2x00dev->rx);
 	if (status)
 		goto exit;
 
 	tx_queue_for_each(rt2x00dev, queue) {
-		status = rt2x00queue_alloc_entries(queue, rt2x00dev->ops->tx);
+		status = rt2x00queue_alloc_entries(queue);
 		if (status)
 			goto exit;
 	}
 
-	status = rt2x00queue_alloc_entries(rt2x00dev->bcn, rt2x00dev->ops->bcn);
+	status = rt2x00queue_alloc_entries(rt2x00dev->bcn);
 	if (status)
 		goto exit;
 
 	if (test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags)) {
-		status = rt2x00queue_alloc_entries(rt2x00dev->atim,
-						   rt2x00dev->ops->atim);
+		status = rt2x00queue_alloc_entries(rt2x00dev->atim);
 		if (status)
 			goto exit;
 	}
