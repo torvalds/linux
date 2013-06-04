@@ -1106,6 +1106,9 @@ wemac_init_wemac(struct net_device *dev)
 	if (db->mos_pin_handler) {
 		db->mos_gpio->data = 1;
 		gpio_set_one_pin_status(db->mos_pin_handler, db->mos_gpio, "emac_power", 1);
+		/* Give the phy some time to "boot", this is necessary to avoid
+		   ending up with 10 Mbit half-duplex on 100 Mbit networks */
+		msleep(20);
 	}
 
 	/* PHY POWER UP */
