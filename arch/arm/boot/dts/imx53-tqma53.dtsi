@@ -149,7 +149,7 @@
 		reg = <0x8>;
 		fsl,mc13xxx-uses-rtc;
 		interrupt-parent = <&gpio2>;
-		interrupts = <6 8>; /* PDATA_DATA6, low active */
+		interrupts = <6 4>; /* PATA_DATA6, active high */
 	};
 
 	sensor1: lm75@48 {
