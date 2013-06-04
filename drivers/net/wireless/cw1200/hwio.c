@@ -178,7 +178,6 @@ int cw1200_indirect_read(struct cw1200_common *priv, u32 addr, void *buf,
 	if ((buf_len / 2) >= 0x1000) {
 		pr_err("Can't read more than 0xfff words.\n");
 		return -EINVAL;
-		goto out;
 	}
 
 	priv->hwbus_ops->lock(priv->hwbus_priv);
