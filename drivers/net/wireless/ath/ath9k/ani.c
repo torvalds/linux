@@ -360,18 +360,7 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 	ath9k_hw_set_ofdm_nil(ah, ofdm_nil, is_scanning);
 	ath9k_hw_set_cck_nil(ah, cck_nil, is_scanning);
 
-	/*
-	 * enable phy counters if hw supports or if not, enable phy
-	 * interrupts (so we can count each one)
-	 */
 	ath9k_ani_restart(ah);
-
-	ENABLE_REGWRITE_BUFFER(ah);
-
-	REG_WRITE(ah, AR_PHY_ERR_MASK_1, AR_PHY_ERR_OFDM_TIMING);
-	REG_WRITE(ah, AR_PHY_ERR_MASK_2, AR_PHY_ERR_CCK_TIMING);
-
-	REGWRITE_BUFFER_FLUSH(ah);
 }
 
 static bool ath9k_hw_ani_read_counters(struct ath_hw *ah)
