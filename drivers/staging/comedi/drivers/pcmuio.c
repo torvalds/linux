@@ -831,7 +831,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		/* save the ioport address for each 'port' of 8 channels in the
 		   subdevice */
-		for (byte_no = 0; byte_no < PORTS_PER_SUBDEV; ++byte_no, ++port) {
+		for (byte_no = 0; byte_no < PORTS_PER_SUBDEV;
+		     ++byte_no, ++port) {
 			if (port >= PORTS_PER_ASIC) {
 				port = 0;
 				++asic;
