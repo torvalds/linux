@@ -167,6 +167,8 @@ enum batadv_uev_type {
 #include <net/rtnetlink.h>
 #include <linux/jiffies.h>
 #include <linux/seq_file.h>
+#include <linux/if_vlan.h>
+
 #include "types.h"
 
 #define BATADV_PRINT_VID(vid) (vid & BATADV_VLAN_HAS_TAG ? \
