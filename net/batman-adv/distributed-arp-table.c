@@ -905,7 +905,8 @@ bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
 		 * additional DAT answer may trigger kernel warnings about
 		 * a packet coming from the wrong port.
 		 */
-		if (batadv_is_my_client(bat_priv, dat_entry->mac_addr)) {
+		if (batadv_is_my_client(bat_priv, dat_entry->mac_addr,
+					BATADV_NO_FLAGS)) {
 			ret = true;
 			goto out;
 		}
@@ -990,9 +991,11 @@ bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
 	 */
 	if (hdr_size == sizeof(struct batadv_unicast_4addr_packet))
 		err = batadv_send_skb_unicast_4addr(bat_priv, skb_new,
-						    BATADV_P_DAT_CACHE_REPLY);
+						    BATADV_P_DAT_CACHE_REPLY,
+						    BATADV_NO_FLAGS);
 	else
-		err = batadv_send_skb_unicast(bat_priv, skb_new);
+		err = batadv_send_skb_unicast(bat_priv, skb_new,
+					      BATADV_NO_FLAGS);
 
 	if (!err) {
 		batadv_inc_counter(bat_priv, BATADV_CNT_DAT_CACHED_REPLY_TX);
@@ -1080,7 +1083,7 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 	/* if this REPLY is directed to a client of mine, let's deliver the
 	 * packet to the interface
 	 */
-	ret = !batadv_is_my_client(bat_priv, hw_dst);
+	ret = !batadv_is_my_client(bat_priv, hw_dst, BATADV_NO_FLAGS);
 out:
 	if (ret)
 		kfree_skb(skb);

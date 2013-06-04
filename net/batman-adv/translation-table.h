@@ -22,10 +22,10 @@
 
 int batadv_tt_init(struct batadv_priv *bat_priv);
 void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
-			 int ifindex);
+			 unsigned short vid, int ifindex);
 uint16_t batadv_tt_local_remove(struct batadv_priv *bat_priv,
-				const uint8_t *addr, const char *message,
-				bool roaming);
+				const uint8_t *addr, unsigned short vid,
+				const char *message, bool roaming);
 int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset);
 int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset);
 void batadv_tt_global_del_orig(struct batadv_priv *bat_priv,
@@ -33,18 +33,21 @@ void batadv_tt_global_del_orig(struct batadv_priv *bat_priv,
 			       const char *message);
 struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
 						  const uint8_t *src,
-						  const uint8_t *addr);
+						  const uint8_t *addr,
+						  unsigned short vid);
 void batadv_tt_free(struct batadv_priv *bat_priv);
-bool batadv_is_my_client(struct batadv_priv *bat_priv, const uint8_t *addr);
+bool batadv_is_my_client(struct batadv_priv *bat_priv, const uint8_t *addr,
+			 unsigned short vid);
 bool batadv_is_ap_isolated(struct batadv_priv *bat_priv, uint8_t *src,
 			   uint8_t *dst);
 void batadv_tt_local_commit_changes(struct batadv_priv *bat_priv);
 bool batadv_tt_global_client_is_roaming(struct batadv_priv *bat_priv,
-					uint8_t *addr);
+					uint8_t *addr, unsigned short vid);
 bool batadv_tt_local_client_is_roaming(struct batadv_priv *bat_priv,
-				       uint8_t *addr);
+				       uint8_t *addr, unsigned short vid);
 bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 					  struct batadv_orig_node *orig_node,
-					  const unsigned char *addr);
+					  const unsigned char *addr,
+					  unsigned short vid);
 
 #endif /* _NET_BATMAN_ADV_TRANSLATION_TABLE_H_ */

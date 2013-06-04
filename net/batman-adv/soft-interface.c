@@ -118,9 +118,10 @@ static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 
 	/* only modify transtable if it has been initialized before */
 	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_ACTIVE) {
-		batadv_tt_local_remove(bat_priv, old_addr,
+		batadv_tt_local_remove(bat_priv, old_addr, BATADV_NO_FLAGS,
 				       "mac address changed", false);
-		batadv_tt_local_add(dev, addr->sa_data, BATADV_NULL_IFINDEX);
+		batadv_tt_local_add(dev, addr->sa_data, BATADV_NO_FLAGS,
+				    BATADV_NULL_IFINDEX);
 	}
 
 	return 0;
@@ -152,33 +153,33 @@ static void batadv_interface_set_rx_mode(struct net_device *dev)
 static int batadv_interface_tx(struct sk_buff *skb,
 			       struct net_device *soft_iface)
 {
-	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
+	struct ethhdr *ethhdr;
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_bcast_packet *bcast_packet;
-	struct vlan_ethhdr *vhdr;
 	__be16 ethertype = htons(ETH_P_BATMAN);
 	static const uint8_t stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00,
 						   0x00, 0x00};
 	static const uint8_t ectp_addr[ETH_ALEN] = {0xCF, 0x00, 0x00, 0x00,
 						    0x00, 0x00};
+	struct vlan_ethhdr *vhdr;
 	unsigned int header_len = 0;
 	int data_len = skb->len, ret;
-	unsigned short vid __maybe_unused = BATADV_NO_FLAGS;
-	bool do_bcast = false;
-	uint32_t seqno;
 	unsigned long brd_delay = 1;
+	bool do_bcast = false;
+	unsigned short vid;
+	uint32_t seqno;
 
 	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 		goto dropped;
 
 	soft_iface->trans_start = jiffies;
+	vid = batadv_get_vid(skb, 0);
+	ethhdr = (struct ethhdr *)skb->data;
 
 	switch (ntohs(ethhdr->h_proto)) {
 	case ETH_P_8021Q:
 		vhdr = (struct vlan_ethhdr *)skb->data;
-		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
-		vid |= BATADV_VLAN_HAS_TAG;
 
 		if (vhdr->h_vlan_encapsulated_proto != ethertype)
 			break;
@@ -196,7 +197,8 @@ static int batadv_interface_tx(struct sk_buff *skb,
 
 	/* Register the client MAC in the transtable */
 	if (!is_multicast_ether_addr(ethhdr->h_source))
-		batadv_tt_local_add(soft_iface, ethhdr->h_source, skb->skb_iif);
+		batadv_tt_local_add(soft_iface, ethhdr->h_source, vid,
+				    skb->skb_iif);
 
 	/* don't accept stp packets. STP does not help in meshes.
 	 * better use the bridge loop avoidance ...
@@ -296,7 +298,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 
 		batadv_dat_snoop_outgoing_arp_reply(bat_priv, skb);
 
-		ret = batadv_send_skb_unicast(bat_priv, skb);
+		ret = batadv_send_skb_unicast(bat_priv, skb, vid);
 		if (ret != 0)
 			goto dropped_freed;
 	}
@@ -319,12 +321,12 @@ void batadv_interface_rx(struct net_device *soft_iface,
 			 struct sk_buff *skb, struct batadv_hard_iface *recv_if,
 			 int hdr_size, struct batadv_orig_node *orig_node)
 {
-	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
-	struct ethhdr *ethhdr;
-	struct vlan_ethhdr *vhdr;
 	struct batadv_header *batadv_header = (struct batadv_header *)skb->data;
-	unsigned short vid __maybe_unused = BATADV_NO_FLAGS;
+	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 	__be16 ethertype = htons(ETH_P_BATMAN);
+	struct vlan_ethhdr *vhdr;
+	struct ethhdr *ethhdr;
+	unsigned short vid;
 	bool is_bcast;
 
 	is_bcast = (batadv_header->packet_type == BATADV_BCAST);
@@ -336,13 +338,12 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	skb_pull_rcsum(skb, hdr_size);
 	skb_reset_mac_header(skb);
 
+	vid = batadv_get_vid(skb, hdr_size);
 	ethhdr = eth_hdr(skb);
 
 	switch (ntohs(ethhdr->h_proto)) {
 	case ETH_P_8021Q:
 		vhdr = (struct vlan_ethhdr *)skb->data;
-		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
-		vid |= BATADV_VLAN_HAS_TAG;
 
 		if (vhdr->h_vlan_encapsulated_proto != ethertype)
 			break;
@@ -378,7 +379,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 
 	if (orig_node)
 		batadv_tt_add_temporary_global_entry(bat_priv, orig_node,
-						     ethhdr->h_source);
+						     ethhdr->h_source, vid);
 
 	if (batadv_is_ap_isolated(bat_priv, ethhdr->h_source, ethhdr->h_dest))
 		goto dropped;

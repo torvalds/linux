@@ -715,6 +715,7 @@ struct batadv_bla_claim {
 /**
  * struct batadv_tt_common_entry - tt local & tt global common data
  * @addr: mac address of non-mesh client
+ * @vid: VLAN identifier
  * @hash_entry: hlist node for batadv_priv_tt::local_hash or for
  *  batadv_priv_tt::global_hash
  * @flags: various state handling flags (see batadv_tt_client_flags)
@@ -724,6 +725,7 @@ struct batadv_bla_claim {
  */
 struct batadv_tt_common_entry {
 	uint8_t addr[ETH_ALEN];
+	unsigned short vid;
 	struct hlist_node hash_entry;
 	uint16_t flags;
 	unsigned long added_at;

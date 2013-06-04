@@ -240,12 +240,14 @@ out:
  * @packet_type: the batman unicast packet type to use
  * @packet_subtype: the unicast 4addr packet subtype (only relevant for unicast
  *  4addr packets)
+ * @vid: the vid to be used to search the translation table
  *
  * Returns 1 in case of error or 0 otherwise.
  */
 int batadv_send_skb_generic_unicast(struct batadv_priv *bat_priv,
 				    struct sk_buff *skb, int packet_type,
-				    int packet_subtype)
+				    int packet_subtype,
+				    unsigned short vid)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct batadv_unicast_packet *unicast_packet;
@@ -260,7 +262,7 @@ int batadv_send_skb_generic_unicast(struct batadv_priv *bat_priv,
 		 * returns NULL in case of AP isolation
 		 */
 		orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
-						     ethhdr->h_dest);
+						     ethhdr->h_dest, vid);
 
 	if (!orig_node)
 		goto out;
@@ -290,7 +292,7 @@ int batadv_send_skb_generic_unicast(struct batadv_priv *bat_priv,
 	 * try to reroute it because the ttvn contained in the header is less
 	 * than the current one
 	 */
-	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest))
+	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest, vid))
 		unicast_packet->ttvn = unicast_packet->ttvn - 1;
 
 	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)

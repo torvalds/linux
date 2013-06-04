@@ -132,7 +132,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 		goto err;
 
 	batadv_tt_local_add(soft_iface, soft_iface->dev_addr,
-			    BATADV_NULL_IFINDEX);
+			    BATADV_NO_FLAGS, BATADV_NULL_IFINDEX);
 
 	ret = batadv_bla_init(bat_priv);
 	if (ret < 0)
@@ -1142,6 +1142,33 @@ out:
 		kfree_skb(skb);
 	if (orig_node)
 		batadv_orig_node_free_ref(orig_node);
+}
+
+/**
+ * batadv_get_vid - extract the VLAN identifier from skb if any
+ * @skb: the buffer containing the packet
+ * @header_len: length of the batman header preceding the ethernet header
+ *
+ * If the packet embedded in the skb is vlan tagged this function returns the
+ * VID with the BATADV_VLAN_HAS_TAG flag. Otherwise BATADV_NO_FLAGS is returned.
+ */
+unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len)
+{
+	struct ethhdr *ethhdr = (struct ethhdr *)(skb->data + header_len);
+	struct vlan_ethhdr *vhdr;
+	unsigned short vid;
+
+	if (ethhdr->h_proto != htons(ETH_P_8021Q))
+		return BATADV_NO_FLAGS;
+
+	if (!pskb_may_pull(skb, header_len + VLAN_ETH_HLEN))
+		return BATADV_NO_FLAGS;
+
+	vhdr = (struct vlan_ethhdr *)(skb->data + header_len);
+	vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
+	vid |= BATADV_VLAN_HAS_TAG;
+
+	return vid;
 }
 
 static int batadv_param_set_ra(const char *val, const struct kernel_param *kp)

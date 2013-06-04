@@ -34,6 +34,7 @@ static struct lock_class_key batadv_tt_local_hash_lock_class_key;
 static struct lock_class_key batadv_tt_global_hash_lock_class_key;
 
 static void batadv_send_roam_adv(struct batadv_priv *bat_priv, uint8_t *client,
+				 unsigned short vid,
 				 struct batadv_orig_node *orig_node);
 static void batadv_tt_purge(struct work_struct *work);
 static void
@@ -41,7 +42,8 @@ batadv_tt_global_del_orig_list(struct batadv_tt_global_entry *tt_global_entry);
 static void batadv_tt_global_del(struct batadv_priv *bat_priv,
 				 struct batadv_orig_node *orig_node,
 				 const unsigned char *addr,
-				 const char *message, bool roaming);
+				 unsigned short vid, const char *message,
+				 bool roaming);
 
 /* returns 1 if they are the same mac addr */
 static int batadv_compare_tt(const struct hlist_node *node, const void *data2)
@@ -52,43 +54,93 @@ static int batadv_compare_tt(const struct hlist_node *node, const void *data2)
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
 
+/**
+ * batadv_choose_tt - return the index of the tt entry in the hash table
+ * @data: pointer to the tt_common_entry object to map
+ * @size: the size of the hash table
+ *
+ * Returns the hash index where the object represented by 'data' should be
+ * stored at.
+ */
+static inline uint32_t batadv_choose_tt(const void *data, uint32_t size)
+{
+	struct batadv_tt_common_entry *tt;
+	uint32_t hash = 0;
+
+	tt = (struct batadv_tt_common_entry *)data;
+	hash = batadv_hash_bytes(hash, &tt->addr, ETH_ALEN);
+	hash = batadv_hash_bytes(hash, &tt->vid, sizeof(tt->vid));
+
+	hash += (hash << 3);
+	hash ^= (hash >> 11);
+	hash += (hash << 15);
+
+	return hash % size;
+}
+
+/**
+ * batadv_tt_hash_find - look for a client in the given hash table
+ * @hash: the hash table to search
+ * @addr: the mac address of the client to look for
+ * @vid: VLAN identifier
+ *
+ * Returns a pointer to the tt_common struct belonging to the searched client if
+ * found, NULL otherwise.
+ */
 static struct batadv_tt_common_entry *
-batadv_tt_hash_find(struct batadv_hashtable *hash, const void *data)
+batadv_tt_hash_find(struct batadv_hashtable *hash, const uint8_t *addr,
+		    unsigned short vid)
 {
 	struct hlist_head *head;
-	struct batadv_tt_common_entry *tt_common_entry;
-	struct batadv_tt_common_entry *tt_common_entry_tmp = NULL;
+	struct batadv_tt_common_entry to_search, *tt, *tt_tmp = NULL;
 	uint32_t index;
 
 	if (!hash)
 		return NULL;
 
-	index = batadv_choose_orig(data, hash->size);
+	memcpy(to_search.addr, addr, ETH_ALEN);
+	to_search.vid = vid;
+
+	index = batadv_choose_tt(&to_search, hash->size);
 	head = &hash->table[index];
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(tt_common_entry, head, hash_entry) {
-		if (!batadv_compare_eth(tt_common_entry, data))
+	hlist_for_each_entry_rcu(tt, head, hash_entry) {
+		if (!batadv_compare_eth(tt, addr))
 			continue;
 
-		if (!atomic_inc_not_zero(&tt_common_entry->refcount))
+		if (tt->vid != vid)
 			continue;
 
-		tt_common_entry_tmp = tt_common_entry;
+		if (!atomic_inc_not_zero(&tt->refcount))
+			continue;
+
+		tt_tmp = tt;
 		break;
 	}
 	rcu_read_unlock();
 
-	return tt_common_entry_tmp;
+	return tt_tmp;
 }
 
+/**
+ * batadv_tt_local_hash_find - search the local table for a given client
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: the mac address of the client to look for
+ * @vid: VLAN identifier
+ *
+ * Returns a pointer to the corresponding tt_local_entry struct if the client is
+ * found, NULL otherwise.
+ */
 static struct batadv_tt_local_entry *
-batadv_tt_local_hash_find(struct batadv_priv *bat_priv, const void *data)
+batadv_tt_local_hash_find(struct batadv_priv *bat_priv, const uint8_t *addr,
+			  unsigned short vid)
 {
 	struct batadv_tt_common_entry *tt_common_entry;
 	struct batadv_tt_local_entry *tt_local_entry = NULL;
 
-	tt_common_entry = batadv_tt_hash_find(bat_priv->tt.local_hash, data);
+	tt_common_entry = batadv_tt_hash_find(bat_priv->tt.local_hash, addr,
+					      vid);
 	if (tt_common_entry)
 		tt_local_entry = container_of(tt_common_entry,
 					      struct batadv_tt_local_entry,
@@ -96,13 +148,24 @@ batadv_tt_local_hash_find(struct batadv_priv *bat_priv, const void *data)
 	return tt_local_entry;
 }
 
+/**
+ * batadv_tt_global_hash_find - search the global table for a given client
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: the mac address of the client to look for
+ * @vid: VLAN identifier
+ *
+ * Returns a pointer to the corresponding tt_global_entry struct if the client
+ * is found, NULL otherwise.
+ */
 static struct batadv_tt_global_entry *
-batadv_tt_global_hash_find(struct batadv_priv *bat_priv, const void *data)
+batadv_tt_global_hash_find(struct batadv_priv *bat_priv, const uint8_t *addr,
+			   unsigned short vid)
 {
 	struct batadv_tt_common_entry *tt_common_entry;
 	struct batadv_tt_global_entry *tt_global_entry = NULL;
 
-	tt_common_entry = batadv_tt_hash_find(bat_priv->tt.global_hash, data);
+	tt_common_entry = batadv_tt_hash_find(bat_priv->tt.global_hash, addr,
+					      vid);
 	if (tt_common_entry)
 		tt_global_entry = container_of(tt_common_entry,
 					       struct batadv_tt_global_entry,
@@ -178,6 +241,7 @@ static void batadv_tt_local_event(struct batadv_priv *bat_priv,
 	tt_change_node->change.flags = flags;
 	tt_change_node->change.reserved = 0;
 	memcpy(tt_change_node->change.addr, common->addr, ETH_ALEN);
+	tt_change_node->change.vid = htons(common->vid);
 
 	del_op_requested = flags & BATADV_TT_CLIENT_DEL;
 
@@ -268,12 +332,21 @@ static void batadv_tt_global_free(struct batadv_priv *bat_priv,
 		   tt_global->common.addr, message);
 
 	batadv_hash_remove(bat_priv->tt.global_hash, batadv_compare_tt,
-			   batadv_choose_orig, tt_global->common.addr);
+			   batadv_choose_tt, &tt_global->common);
 	batadv_tt_global_entry_free_ref(tt_global);
 }
 
+/**
+ * batadv_tt_local_add - add a new client to the local table or update an
+ *  existing client
+ * @soft_iface: netdev struct of the mesh interface
+ * @addr: the mac address of the client to add
+ * @vid: VLAN identifier
+ * @ifindex: index of the interface where the client is connected to (useful to
+ *  identify wireless clients)
+ */
 void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
-			 int ifindex)
+			 unsigned short vid, int ifindex)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 	struct batadv_tt_local_entry *tt_local;
@@ -283,8 +356,8 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	int hash_added;
 	bool roamed_back = false;
 
-	tt_local = batadv_tt_local_hash_find(bat_priv, addr);
-	tt_global = batadv_tt_global_hash_find(bat_priv, addr);
+	tt_local = batadv_tt_local_hash_find(bat_priv, addr, vid);
+	tt_global = batadv_tt_global_hash_find(bat_priv, addr, vid);
 
 	if (tt_local) {
 		tt_local->last_seen = jiffies;
@@ -329,6 +402,7 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	 * (consistency check)
 	 */
 	tt_local->common.flags = BATADV_TT_CLIENT_NEW;
+	tt_local->common.vid = vid;
 	if (batadv_is_wifi_iface(ifindex))
 		tt_local->common.flags |= BATADV_TT_CLIENT_WIFI;
 	atomic_set(&tt_local->common.refcount, 2);
@@ -340,7 +414,7 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 		tt_local->common.flags |= BATADV_TT_CLIENT_NOPURGE;
 
 	hash_added = batadv_hash_add(bat_priv->tt.local_hash, batadv_compare_tt,
-				     batadv_choose_orig, &tt_local->common,
+				     batadv_choose_tt, &tt_local->common,
 				     &tt_local->common.hash_entry);
 
 	if (unlikely(hash_added != 0)) {
@@ -362,6 +436,7 @@ check_roaming:
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_entry, head, list) {
 			batadv_send_roam_adv(bat_priv, tt_global->common.addr,
+					     tt_global->common.vid,
 					     orig_entry->orig_node);
 		}
 		rcu_read_unlock();
@@ -550,19 +625,20 @@ batadv_tt_local_set_pending(struct batadv_priv *bat_priv,
  * batadv_tt_local_remove - logically remove an entry from the local table
  * @bat_priv: the bat priv with all the soft interface information
  * @addr: the MAC address of the client to remove
+ * @vid: VLAN identifier
  * @message: message to append to the log on deletion
  * @roaming: true if the deletion is due to a roaming event
  *
  * Returns the flags assigned to the local entry before being deleted
  */
 uint16_t batadv_tt_local_remove(struct batadv_priv *bat_priv,
-				const uint8_t *addr, const char *message,
-				bool roaming)
+				const uint8_t *addr, unsigned short vid,
+				const char *message, bool roaming)
 {
 	struct batadv_tt_local_entry *tt_local_entry;
 	uint16_t flags, curr_flags = BATADV_NO_FLAGS;
 
-	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr);
+	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr, vid);
 	if (!tt_local_entry)
 		goto out;
 
@@ -798,6 +874,7 @@ out:
  * @bat_priv: the bat priv with all the soft interface information
  * @orig_node: the originator announcing the client
  * @tt_addr: the mac address of the non-mesh client
+ * @vid: VLAN identifier
  * @flags: TT flags that have to be set for this non-mesh client
  * @ttvn: the tt version number ever announcing this non-mesh client
  *
@@ -813,7 +890,8 @@ out:
  */
 static bool batadv_tt_global_add(struct batadv_priv *bat_priv,
 				 struct batadv_orig_node *orig_node,
-				 const unsigned char *tt_addr, uint16_t flags,
+				 const unsigned char *tt_addr,
+				 unsigned short vid, uint16_t flags,
 				 uint8_t ttvn)
 {
 	struct batadv_tt_global_entry *tt_global_entry;
@@ -823,8 +901,8 @@ static bool batadv_tt_global_add(struct batadv_priv *bat_priv,
 	struct batadv_tt_common_entry *common;
 	uint16_t local_flags;
 
-	tt_global_entry = batadv_tt_global_hash_find(bat_priv, tt_addr);
-	tt_local_entry = batadv_tt_local_hash_find(bat_priv, tt_addr);
+	tt_global_entry = batadv_tt_global_hash_find(bat_priv, tt_addr, vid);
+	tt_local_entry = batadv_tt_local_hash_find(bat_priv, tt_addr, vid);
 
 	/* if the node already has a local client for this entry, it has to wait
 	 * for a roaming advertisement instead of manually messing up the global
@@ -841,6 +919,7 @@ static bool batadv_tt_global_add(struct batadv_priv *bat_priv,
 
 		common = &tt_global_entry->common;
 		memcpy(common->addr, tt_addr, ETH_ALEN);
+		common->vid = vid;
 
 		common->flags = flags;
 		tt_global_entry->roam_at = 0;
@@ -858,7 +937,7 @@ static bool batadv_tt_global_add(struct batadv_priv *bat_priv,
 
 		hash_added = batadv_hash_add(bat_priv->tt.global_hash,
 					     batadv_compare_tt,
-					     batadv_choose_orig, common,
+					     batadv_choose_tt, common,
 					     &common->hash_entry);
 
 		if (unlikely(hash_added != 0)) {
@@ -924,7 +1003,7 @@ add_orig_entry:
 out_remove:
 
 	/* remove address from local hash if present */
-	local_flags = batadv_tt_local_remove(bat_priv, tt_addr,
+	local_flags = batadv_tt_local_remove(bat_priv, tt_addr, vid,
 					     "global tt received",
 					     flags & BATADV_TT_CLIENT_ROAM);
 	tt_global_entry->common.flags |= local_flags & BATADV_TT_CLIENT_WIFI;
@@ -1147,17 +1226,25 @@ batadv_tt_global_del_roaming(struct batadv_priv *bat_priv,
 						orig_node, message);
 }
 
-
-
+/**
+ * batadv_tt_global_del - remove a client from the global table
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: an originator serving this client
+ * @addr: the mac address of the client
+ * @vid: VLAN identifier
+ * @message: a message explaining the reason for deleting the client to print
+ *  for debugging purpose
+ * @roaming: true if the deletion has been triggered by a roaming event
+ */
 static void batadv_tt_global_del(struct batadv_priv *bat_priv,
 				 struct batadv_orig_node *orig_node,
-				 const unsigned char *addr,
+				 const unsigned char *addr, unsigned short vid,
 				 const char *message, bool roaming)
 {
 	struct batadv_tt_global_entry *tt_global_entry;
 	struct batadv_tt_local_entry *local_entry = NULL;
 
-	tt_global_entry = batadv_tt_global_hash_find(bat_priv, addr);
+	tt_global_entry = batadv_tt_global_hash_find(bat_priv, addr, vid);
 	if (!tt_global_entry)
 		goto out;
 
@@ -1186,7 +1273,8 @@ static void batadv_tt_global_del(struct batadv_priv *bat_priv,
 	 *    the global entry, since it is useless now.
 	 */
 	local_entry = batadv_tt_local_hash_find(bat_priv,
-						tt_global_entry->common.addr);
+						tt_global_entry->common.addr,
+						vid);
 	if (local_entry) {
 		/* local entry exists, case 2: client roamed to us. */
 		batadv_tt_global_del_orig_list(tt_global_entry);
@@ -1354,9 +1442,24 @@ _batadv_is_ap_isolated(struct batadv_tt_local_entry *tt_local_entry,
 	return ret;
 }
 
+/**
+ * batadv_transtable_search - get the mesh destination for a given client
+ * @bat_priv: the bat priv with all the soft interface information
+ * @src: mac address of the source client
+ * @addr: mac address of the destination client
+ * @vid: VLAN identifier
+ *
+ * Returns a pointer to the originator that was selected as destination in the
+ * mesh for contacting the client 'addr', NULL otherwise.
+ * In case of multiple originators serving the same client, the function returns
+ * the best one (best in terms of metric towards the destination node).
+ *
+ * If the two clients are AP isolated the function returns NULL.
+ */
 struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
 						  const uint8_t *src,
-						  const uint8_t *addr)
+						  const uint8_t *addr,
+						  unsigned short vid)
 {
 	struct batadv_tt_local_entry *tt_local_entry = NULL;
 	struct batadv_tt_global_entry *tt_global_entry = NULL;
@@ -1364,13 +1467,13 @@ struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
 	struct batadv_tt_orig_list_entry *best_entry;
 
 	if (src && atomic_read(&bat_priv->ap_isolation)) {
-		tt_local_entry = batadv_tt_local_hash_find(bat_priv, src);
+		tt_local_entry = batadv_tt_local_hash_find(bat_priv, src, vid);
 		if (!tt_local_entry ||
 		    (tt_local_entry->common.flags & BATADV_TT_CLIENT_PENDING))
 			goto out;
 	}
 
-	tt_global_entry = batadv_tt_global_hash_find(bat_priv, addr);
+	tt_global_entry = batadv_tt_global_hash_find(bat_priv, addr, vid);
 	if (!tt_global_entry)
 		goto out;
 
@@ -1649,6 +1752,7 @@ batadv_tt_tvlv_generate(struct batadv_priv *bat_priv,
 			memcpy(tt_change->addr, tt_common_entry->addr,
 			       ETH_ALEN);
 			tt_change->flags = tt_common_entry->flags;
+			tt_change->vid = htons(tt_common_entry->vid);
 			tt_change->reserved = 0;
 
 			tt_num_entries++;
@@ -1979,11 +2083,13 @@ static void _batadv_tt_update_changes(struct batadv_priv *bat_priv,
 			roams = (tt_change + i)->flags & BATADV_TT_CLIENT_ROAM;
 			batadv_tt_global_del(bat_priv, orig_node,
 					     (tt_change + i)->addr,
+					     ntohs((tt_change + i)->vid),
 					     "tt removed by changes",
 					     roams);
 		} else {
 			if (!batadv_tt_global_add(bat_priv, orig_node,
 						  (tt_change + i)->addr,
+						  ntohs((tt_change + i)->vid),
 						  (tt_change + i)->flags, ttvn))
 				/* In case of problem while storing a
 				 * global_entry, we stop the updating
@@ -2040,12 +2146,21 @@ static void batadv_tt_update_changes(struct batadv_priv *bat_priv,
 	atomic_set(&orig_node->last_ttvn, ttvn);
 }
 
-bool batadv_is_my_client(struct batadv_priv *bat_priv, const uint8_t *addr)
+/**
+ * batadv_is_my_client - check if a client is served by the local node
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: the mac adress of the client to check
+ * @vid: VLAN identifier
+ *
+ * Returns true if the client is served by this node, false otherwise.
+ */
+bool batadv_is_my_client(struct batadv_priv *bat_priv, const uint8_t *addr,
+			 unsigned short vid)
 {
 	struct batadv_tt_local_entry *tt_local_entry;
 	bool ret = false;
 
-	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr);
+	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr, vid);
 	if (!tt_local_entry)
 		goto out;
 	/* Check if the client has been logically deleted (but is kept for
@@ -2194,7 +2309,20 @@ unlock:
 	return ret;
 }
 
+/**
+ * batadv_send_roam_adv - send a roaming advertisement message
+ * @bat_priv: the bat priv with all the soft interface information
+ * @client: mac address of the roaming client
+ * @vid: VLAN identifier
+ * @orig_node: message destination
+ *
+ * Send a ROAMING_ADV message to the node which was previously serving this
+ * client. This is done to inform the node that from now on all traffic destined
+ * for this particular roamed client has to be forwarded to the sender of the
+ * roaming message.
+ */
 static void batadv_send_roam_adv(struct batadv_priv *bat_priv, uint8_t *client,
+				 unsigned short vid,
 				 struct batadv_orig_node *orig_node)
 {
 	struct batadv_hard_iface *primary_if;
@@ -2217,7 +2345,7 @@ static void batadv_send_roam_adv(struct batadv_priv *bat_priv, uint8_t *client,
 	batadv_inc_counter(bat_priv, BATADV_CNT_TT_ROAM_ADV_TX);
 
 	memcpy(tvlv_roam.client, client, sizeof(tvlv_roam.client));
-	tvlv_roam.reserved = 0;
+	tvlv_roam.vid = htons(vid);
 
 	batadv_tvlv_unicast_send(bat_priv, primary_if->net_dev->dev_addr,
 				 orig_node->orig, BATADV_TVLV_ROAM, 1,
@@ -2383,11 +2511,13 @@ bool batadv_is_ap_isolated(struct batadv_priv *bat_priv, uint8_t *src,
 	if (!atomic_read(&bat_priv->ap_isolation))
 		goto out;
 
-	tt_local_entry = batadv_tt_local_hash_find(bat_priv, dst);
+	tt_local_entry = batadv_tt_local_hash_find(bat_priv, dst,
+						   BATADV_NO_FLAGS);
 	if (!tt_local_entry)
 		goto out;
 
-	tt_global_entry = batadv_tt_global_hash_find(bat_priv, src);
+	tt_global_entry = batadv_tt_global_hash_find(bat_priv, src,
+						     BATADV_NO_FLAGS);
 	if (!tt_global_entry)
 		goto out;
 
@@ -2482,17 +2612,23 @@ request_table:
 	}
 }
 
-/* returns true whether we know that the client has moved from its old
- * originator to another one. This entry is kept is still kept for consistency
- * purposes
+/**
+ * batadv_tt_global_client_is_roaming - check if a client is marked as roaming
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: the mac address of the client to check
+ * @vid: VLAN identifier
+ *
+ * Returns true if we know that the client has moved from its old originator
+ * to another one. This entry is still kept for consistency purposes and will be
+ * deleted later by a DEL or because of timeout
  */
 bool batadv_tt_global_client_is_roaming(struct batadv_priv *bat_priv,
-					uint8_t *addr)
+					uint8_t *addr, unsigned short vid)
 {
 	struct batadv_tt_global_entry *tt_global_entry;
 	bool ret = false;
 
-	tt_global_entry = batadv_tt_global_hash_find(bat_priv, addr);
+	tt_global_entry = batadv_tt_global_hash_find(bat_priv, addr, vid);
 	if (!tt_global_entry)
 		goto out;
 
@@ -2505,19 +2641,20 @@ out:
 /**
  * batadv_tt_local_client_is_roaming - tells whether the client is roaming
  * @bat_priv: the bat priv with all the soft interface information
- * @addr: the MAC address of the local client to query
+ * @addr: the mac address of the local client to query
+ * @vid: VLAN identifier
  *
  * Returns true if the local client is known to be roaming (it is not served by
  * this node anymore) or not. If yes, the client is still present in the table
  * to keep the latter consistent with the node TTVN
  */
 bool batadv_tt_local_client_is_roaming(struct batadv_priv *bat_priv,
-				       uint8_t *addr)
+				       uint8_t *addr, unsigned short vid)
 {
 	struct batadv_tt_local_entry *tt_local_entry;
 	bool ret = false;
 
-	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr);
+	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr, vid);
 	if (!tt_local_entry)
 		goto out;
 
@@ -2529,7 +2666,8 @@ out:
 
 bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 					  struct batadv_orig_node *orig_node,
-					  const unsigned char *addr)
+					  const unsigned char *addr,
+					  unsigned short vlan)
 {
 	bool ret = false;
 
@@ -2540,7 +2678,7 @@ bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 	if (batadv_bla_is_backbone_gw_orig(bat_priv, orig_node->orig))
 		goto out;
 
-	if (!batadv_tt_global_add(bat_priv, orig_node, addr,
+	if (!batadv_tt_global_add(bat_priv, orig_node, addr, vlan,
 				  BATADV_TT_CLIENT_TEMP,
 				  atomic_read(&orig_node->last_ttvn)))
 		goto out;
@@ -2706,7 +2844,7 @@ static int batadv_roam_tvlv_unicast_handler_v1(struct batadv_priv *bat_priv,
 		   src, roaming_adv->client);
 
 	batadv_tt_global_add(bat_priv, orig_node, roaming_adv->client,
-			     BATADV_TT_CLIENT_ROAM,
+			     ntohs(roaming_adv->vid), BATADV_TT_CLIENT_ROAM,
 			     atomic_read(&orig_node->last_ttvn) + 1);
 
 out:

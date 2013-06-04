@@ -858,27 +858,25 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
 				    struct batadv_hard_iface *primary_if,
 				    struct sk_buff *skb)
 {
-	struct ethhdr *ethhdr;
-	struct vlan_ethhdr *vhdr;
-	struct arphdr *arphdr;
-	uint8_t *hw_src, *hw_dst;
 	struct batadv_bla_claim_dst *bla_dst;
+	uint8_t *hw_src, *hw_dst;
+	struct vlan_ethhdr *vhdr;
+	struct ethhdr *ethhdr;
+	struct arphdr *arphdr;
+	unsigned short vid;
 	__be16 proto;
 	int headlen;
-	unsigned short vid = BATADV_NO_FLAGS;
 	int ret;
 
+	vid = batadv_get_vid(skb, 0);
 	ethhdr = eth_hdr(skb);
 
-	if (ethhdr->h_proto == htons(ETH_P_8021Q)) {
+	proto = ethhdr->h_proto;
+	headlen = ETH_HLEN;
+	if (vid & BATADV_VLAN_HAS_TAG) {
 		vhdr = (struct vlan_ethhdr *)ethhdr;
-		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
-		vid |= BATADV_VLAN_HAS_TAG;
 		proto = vhdr->h_vlan_encapsulated_proto;
-		headlen = sizeof(*vhdr);
-	} else {
-		proto = ethhdr->h_proto;
-		headlen = ETH_HLEN;
+		headlen += VLAN_HLEN;
 	}
 
 	if (proto != htons(ETH_P_ARP))
@@ -1365,10 +1363,8 @@ int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig)
 int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 			      struct batadv_orig_node *orig_node, int hdr_size)
 {
-	struct ethhdr *ethhdr;
-	struct vlan_ethhdr *vhdr;
 	struct batadv_bla_backbone_gw *backbone_gw;
-	unsigned short vid = BATADV_NO_FLAGS;
+	unsigned short vid;
 
 	if (!atomic_read(&orig_node->bat_priv->bridge_loop_avoidance))
 		return 0;
@@ -1377,16 +1373,7 @@ int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 	if (!pskb_may_pull(skb, hdr_size + ETH_HLEN))
 		return 0;
 
-	ethhdr = (struct ethhdr *)(((uint8_t *)skb->data) + hdr_size);
-
-	if (ethhdr->h_proto == htons(ETH_P_8021Q)) {
-		if (!pskb_may_pull(skb, hdr_size + VLAN_ETH_HLEN))
-			return 0;
-
-		vhdr = (struct vlan_ethhdr *)(skb->data + hdr_size);
-		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
-		vid |= BATADV_VLAN_HAS_TAG;
-	}
+	vid = batadv_get_vid(skb, hdr_size);
 
 	/* see if this originator is a backbone gw for this VLAN */
 	backbone_gw = batadv_backbone_hash_find(orig_node->bat_priv,

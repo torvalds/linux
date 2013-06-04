@@ -30,6 +30,8 @@
 #include "network-coding.h"
 #include "fragmentation.h"
 
+#include <linux/if_vlan.h>
+
 static int batadv_route_unicast_packet(struct sk_buff *skb,
 				       struct batadv_hard_iface *recv_if);
 
@@ -724,6 +726,7 @@ out:
  * @bat_priv: the bat priv with all the soft interface information
  * @unicast_packet: the unicast header to be updated
  * @dst_addr: the payload destination
+ * @vid: VLAN identifier
  *
  * Search the translation table for dst_addr and update the unicast header with
  * the new corresponding information (originator address where the destination
@@ -734,21 +737,22 @@ out:
 static bool
 batadv_reroute_unicast_packet(struct batadv_priv *bat_priv,
 			      struct batadv_unicast_packet *unicast_packet,
-			      uint8_t *dst_addr)
+			      uint8_t *dst_addr, unsigned short vid)
 {
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_hard_iface *primary_if = NULL;
 	bool ret = false;
 	uint8_t *orig_addr, orig_ttvn;
 
-	if (batadv_is_my_client(bat_priv, dst_addr)) {
+	if (batadv_is_my_client(bat_priv, dst_addr, vid)) {
 		primary_if = batadv_primary_if_get_selected(bat_priv);
 		if (!primary_if)
 			goto out;
 		orig_addr = primary_if->net_dev->dev_addr;
 		orig_ttvn = (uint8_t)atomic_read(&bat_priv->tt.vn);
 	} else {
-		orig_node = batadv_transtable_search(bat_priv, NULL, dst_addr);
+		orig_node = batadv_transtable_search(bat_priv, NULL, dst_addr,
+						     vid);
 		if (!orig_node)
 			goto out;
 
@@ -775,11 +779,12 @@ out:
 
 static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 				     struct sk_buff *skb, int hdr_len) {
-	uint8_t curr_ttvn, old_ttvn;
-	struct batadv_orig_node *orig_node;
-	struct ethhdr *ethhdr;
-	struct batadv_hard_iface *primary_if;
 	struct batadv_unicast_packet *unicast_packet;
+	struct batadv_hard_iface *primary_if;
+	struct batadv_orig_node *orig_node;
+	uint8_t curr_ttvn, old_ttvn;
+	struct ethhdr *ethhdr;
+	unsigned short vid;
 	int is_old_ttvn;
 
 	/* check if there is enough data before accessing it */
@@ -791,6 +796,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 		return 0;
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
+	vid = batadv_get_vid(skb, hdr_len);
 	ethhdr = (struct ethhdr *)(skb->data + hdr_len);
 
 	/* check if the destination client was served by this node and it is now
@@ -798,9 +804,9 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	 * message and that it knows the new destination in the mesh to re-route
 	 * the packet to
 	 */
-	if (batadv_tt_local_client_is_roaming(bat_priv, ethhdr->h_dest)) {
+	if (batadv_tt_local_client_is_roaming(bat_priv, ethhdr->h_dest, vid)) {
 		if (batadv_reroute_unicast_packet(bat_priv, unicast_packet,
-						  ethhdr->h_dest))
+						  ethhdr->h_dest, vid))
 			net_ratelimited_function(batadv_dbg, BATADV_DBG_TT,
 						 bat_priv,
 						 "Rerouting unicast packet to %pM (dst=%pM): Local Roaming\n",
@@ -846,7 +852,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	 * target host
 	 */
 	if (batadv_reroute_unicast_packet(bat_priv, unicast_packet,
-					  ethhdr->h_dest)) {
+					  ethhdr->h_dest, vid)) {
 		net_ratelimited_function(batadv_dbg, BATADV_DBG_TT, bat_priv,
 					 "Rerouting unicast packet to %pM (dst=%pM): TTVN mismatch old_ttvn=%u new_ttvn=%u\n",
 					 unicast_packet->dest, ethhdr->h_dest,
@@ -858,7 +864,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	 * currently served by this node or there is no destination at all and
 	 * it is possible to drop the packet
 	 */
-	if (!batadv_is_my_client(bat_priv, ethhdr->h_dest))
+	if (!batadv_is_my_client(bat_priv, ethhdr->h_dest, vid))
 		return 0;
 
 	/* update the header in order to let the packet be delivered to this

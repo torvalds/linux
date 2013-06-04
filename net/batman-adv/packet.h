@@ -122,6 +122,14 @@ enum batadv_tt_client_flags {
 	BATADV_TT_CLIENT_TEMP	 = BIT(11),
 };
 
+/**
+ * batadv_vlan_flags - flags for the four MSB of any vlan ID field
+ * @BATADV_VLAN_HAS_TAG: whether the field contains a valid vlan tag or not
+ */
+enum batadv_vlan_flags {
+	BATADV_VLAN_HAS_TAG	= BIT(15),
+};
+
 /* claim frame types for the bridge loop avoidance */
 enum batadv_bla_claimframe {
 	BATADV_CLAIM_TYPE_CLAIM		= 0x00,
@@ -399,21 +407,23 @@ struct batadv_tvlv_tt_data {
  *  batadv_tt_client_flags)
  * @reserved: reserved field
  * @addr: mac address of non-mesh client that triggered this tt change
+ * @vid: VLAN identifier
  */
 struct batadv_tvlv_tt_change {
 	uint8_t flags;
 	uint8_t reserved;
 	uint8_t addr[ETH_ALEN];
+	__be16 vid;
 };
 
 /**
  * struct batadv_tvlv_roam_adv - roaming advertisement
  * @client: mac address of roaming client
- * @reserved: field reserved for future use
+ * @vid: VLAN identifier
  */
 struct batadv_tvlv_roam_adv {
 	uint8_t  client[ETH_ALEN];
-	uint16_t reserved;
+	__be16 vid;
 };
 
 #endif /* _NET_BATMAN_ADV_PACKET_H_ */

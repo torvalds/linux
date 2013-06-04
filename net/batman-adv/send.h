@@ -40,21 +40,23 @@ bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 					   int packet_subtype);
 int batadv_send_skb_generic_unicast(struct batadv_priv *bat_priv,
 				    struct sk_buff *skb, int packet_type,
-				    int packet_subtype);
-
+				    int packet_subtype,
+				    unsigned short vid);
 
 /**
  * batadv_send_unicast_skb - send the skb encapsulated in a unicast packet
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the payload to send
+ * @vid: the vid to be used to search the translation table
  *
  * Returns 1 in case of error or 0 otherwise.
  */
 static inline int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
-					  struct sk_buff *skb)
+					  struct sk_buff *skb,
+					  unsigned short vid)
 {
 	return batadv_send_skb_generic_unicast(bat_priv, skb, BATADV_UNICAST,
-					       0);
+					       0, vid);
 }
 
 /**
@@ -63,16 +65,18 @@ static inline int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the payload to send
  * @packet_subtype: the unicast 4addr packet subtype to use
+ * @vid: the vid to be used to search the translation table
  *
  * Returns 1 in case of error or 0 otherwise.
  */
 static inline int batadv_send_skb_unicast_4addr(struct batadv_priv *bat_priv,
 						struct sk_buff *skb,
-						int packet_subtype)
+						int packet_subtype,
+						unsigned short vid)
 {
 	return batadv_send_skb_generic_unicast(bat_priv, skb,
 					       BATADV_UNICAST_4ADDR,
-					       packet_subtype);
+					       packet_subtype, vid);
 }
 
 #endif /* _NET_BATMAN_ADV_SEND_H_ */

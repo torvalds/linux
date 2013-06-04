@@ -744,7 +744,8 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 
 	ethhdr = (struct ethhdr *)skb->data;
 	orig_dst_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
-						 ethhdr->h_dest);
+						 ethhdr->h_dest,
+						 BATADV_NO_FLAGS);
 	if (!orig_dst_node)
 		goto out;
 
