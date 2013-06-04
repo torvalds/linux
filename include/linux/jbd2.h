@@ -1220,7 +1220,6 @@ extern void	jbd2_clear_buffer_revoked_flags(journal_t *journal);
  * transitions on demand.
  */
 
-int __jbd2_log_space_left(journal_t *); /* Called with journal locked */
 int jbd2_log_start_commit(journal_t *journal, tid_t tid);
 int __jbd2_log_start_commit(journal_t *journal, tid_t tid);
 int jbd2_journal_start_commit(journal_t *journal, tid_t *tid);
@@ -1291,16 +1290,37 @@ extern int jbd2_journal_blocks_per_page(struct inode *inode);
 extern size_t journal_tag_bytes(journal_t *journal);
 
 /*
+ * We reserve t_outstanding_credits >> JBD2_CONTROL_BLOCKS_SHIFT for
+ * transaction control blocks.
+ */
+#define JBD2_CONTROL_BLOCKS_SHIFT 5
+
+/*
  * Return the minimum number of blocks which must be free in the journal
  * before a new transaction may be started.  Must be called under j_state_lock.
  */
-static inline int jbd_space_needed(journal_t *journal)
+static inline int jbd2_space_needed(journal_t *journal)
 {
 	int nblocks = journal->j_max_transaction_buffers;
-	if (journal->j_committing_transaction)
-		nblocks += atomic_read(&journal->j_committing_transaction->
-				       t_outstanding_credits);
-	return nblocks;
+	return nblocks + (nblocks >> JBD2_CONTROL_BLOCKS_SHIFT);
+}
+
+/*
+ * Return number of free blocks in the log. Must be called under j_state_lock.
+ */
+static inline unsigned long jbd2_log_space_left(journal_t *journal)
+{
+	/* Allow for rounding errors */
+	unsigned long free = journal->j_free - 32;
+
+	if (journal->j_committing_transaction) {
+		unsigned long committing = atomic_read(&journal->
+			j_committing_transaction->t_outstanding_credits);
+
+		/* Transaction + control blocks */
+		free -= committing + (committing >> JBD2_CONTROL_BLOCKS_SHIFT);
+	}
+	return free;
 }
 
 /*

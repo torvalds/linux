@@ -283,12 +283,12 @@ repeat:
 	 * reduce the free space arbitrarily.  Be careful to account for
 	 * those buffers when checkpointing.
 	 */
-	if (__jbd2_log_space_left(journal) < jbd_space_needed(journal)) {
+	if (jbd2_log_space_left(journal) < jbd2_space_needed(journal)) {
 		jbd_debug(2, "Handle %p waiting for checkpoint...\n", handle);
 		atomic_sub(nblocks, &transaction->t_outstanding_credits);
 		read_unlock(&journal->j_state_lock);
 		write_lock(&journal->j_state_lock);
-		if (__jbd2_log_space_left(journal) < jbd_space_needed(journal))
+		if (jbd2_log_space_left(journal) < jbd2_space_needed(journal))
 			__jbd2_log_wait_for_space(journal);
 		write_unlock(&journal->j_state_lock);
 		goto repeat;
@@ -306,7 +306,7 @@ repeat:
 	jbd_debug(4, "Handle %p given %d credits (total %d, free %d)\n",
 		  handle, nblocks,
 		  atomic_read(&transaction->t_outstanding_credits),
-		  __jbd2_log_space_left(journal));
+		  jbd2_log_space_left(journal));
 	read_unlock(&journal->j_state_lock);
 
 	lock_map_acquire(&handle->h_lockdep_map);
@@ -441,7 +441,8 @@ int jbd2_journal_extend(handle_t *handle, int nblocks)
 		goto unlock;
 	}
 
-	if (wanted > __jbd2_log_space_left(journal)) {
+	if (wanted + (wanted >> JBD2_CONTROL_BLOCKS_SHIFT) >
+	    jbd2_log_space_left(journal)) {
 		jbd_debug(3, "denied handle %p %d blocks: "
 			  "insufficient log space\n", handle, nblocks);
 		goto unlock;
