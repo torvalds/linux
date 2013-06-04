@@ -106,6 +106,16 @@
 			>;
 		};
 	};
+
+	tve {
+		pinctrl_vga_sync_1: vgasync-grp1 {
+			fsl,pins = <
+				/* VGA_VSYNC, HSYNC with max drive strength */
+				MX53_PAD_EIM_CS1__IPU_DI1_PIN6	   0xe6
+				MX53_PAD_EIM_DA15__IPU_DI1_PIN4	   0xe6
+			>;
+		};
+	};
 };
 
 &cspi {
@@ -172,5 +182,15 @@
 };
 
 &i2c3 {
+	status = "okay";
+};
+
+&tve {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_vga_sync_1>;
+	ddc = <&i2c3>;
+	fsl,tve-mode = "vga";
+	fsl,hsync-pin = <4>;
+	fsl,vsync-pin = <6>;
 	status = "okay";
 };
