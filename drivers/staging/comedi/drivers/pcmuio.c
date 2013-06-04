@@ -170,15 +170,25 @@ struct pcmuio_subdev_private {
 
 	/* The below is only used for intr subdevices */
 	struct {
-		int asic;	/* if non-negative, this subdev has an interrupt asic */
-		int first_chan;	/* if nonnegative, the first channel id for
-				   interrupts. */
-		int num_asic_chans;	/* the number of asic channels in this subdev
-					   that have interrutps */
-		int asic_chan;	/* if nonnegative, the first channel id with
-				   respect to the asic that has interrupts */
-		int enabled_mask;	/* subdev-relative channel mask for channels
-					   we are interested in */
+		/* if non-negative, this subdev has an interrupt asic */
+		int asic;
+		/* if nonnegative, the first channel id for interrupts */
+		int first_chan;
+		/*
+		 * the number of asic channels in this
+		 * subdev that have interrutps
+		 */
+		int num_asic_chans;
+		/*
+		 * if nonnegative, the first channel id with
+		 * respect to the asic that has interrupts
+		 */
+		int asic_chan;
+		/*
+		 * subdev-relative channel mask for channels
+		 * we are interested in
+		 */
+		int enabled_mask;
 		int active;
 		int stop_count;
 		int continuous;
@@ -188,9 +198,12 @@ struct pcmuio_subdev_private {
 
 struct pcmuio_private {
 	struct {
-		unsigned char pagelock;	/* current page and lock */
-		unsigned char pol[NUM_PAGED_REGS];	/* shadow of POLx registers */
-		unsigned char enab[NUM_PAGED_REGS];	/* shadow of ENABx registers */
+		/* current page and lock */
+		unsigned char pagelock;
+		/* shadow of POLx registers */
+		unsigned char pol[NUM_PAGED_REGS];
+		/* shadow of ENABx registers */
+		unsigned char enab[NUM_PAGED_REGS];
 		int num;
 		unsigned long iobase;
 		unsigned int irq;
@@ -248,10 +261,8 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 #endif
 
 		if (write_mask_byte) {
-			/* this byte has some write_bits -- so set the output lines */
-			byte &= ~write_mask_byte;	/* clear bits for write mask */
-			byte |= ~data_byte & write_mask_byte;	/* set to inverted data_byte */
-			/* Write out the new digital output state */
+			byte &= ~write_mask_byte;
+			byte |= ~data_byte & write_mask_byte;
 			outb(byte, ioaddr);
 		}
 #ifdef DAMMIT_ITS_BROKEN
@@ -312,9 +323,12 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 		byte &= ~(1 << bit_no);
 				/**< set input channel to '0' */
 
-		/* write out byte -- this is the only time we actually affect the
-		   hardware as all channels are implicitly output -- but input
-		   channels are set to float-high */
+		/*
+		 * write out byte
+		 * This is the only time we actually affect the hardware
+		 * as all channels are implicitly output -- but input
+		 * channels are set to float-high.
+		 */
 		outb(byte, ioaddr);
 
 		/* save to io_bits */
@@ -387,8 +401,8 @@ static void init_asics(struct comedi_device *dev)
 		   outb(0xff, baseaddr + REG_ENAB0); */
 		/* END DEBUG */
 
-		switch_page(dev, asic, 0);	/* switch back to default page 0 */
-
+		/* switch back to default page 0 */
+		switch_page(dev, asic, 0);
 	}
 }
 
@@ -801,9 +815,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
 		devpriv->asics[asic].num = asic;
 		devpriv->asics[asic].iobase = dev->iobase + asic * ASIC_IOSIZE;
-		devpriv->asics[asic].irq = 0;	/* this gets actually set at the end of
-						   this function when we
-						   request_irqs */
 		spin_lock_init(&devpriv->asics[asic].spinlock);
 	}
 
@@ -856,7 +867,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			if (thisasic_chanct <
 			    CHANS_PER_PORT * INTR_PORTS_PER_ASIC
 			    && subpriv->intr.asic < 0) {
-				/* this is an interrupt subdevice, so setup the struct */
+				/* setup the interrupt subdevice */
 				subpriv->intr.asic = asic;
 				subpriv->intr.active = 0;
 				subpriv->intr.stop_count = 0;
@@ -878,7 +889,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		chans_left -= s->n_chan;
 
 		if (!chans_left) {
-			asic = 0;	/* reset the asic to our first asic, to do intr subdevs */
+			/* reset to our first asic, to do intr subdevs */
+			asic = 0;
 			port = 0;
 		}
 
