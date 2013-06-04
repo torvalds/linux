@@ -85,8 +85,7 @@ nope:
 	__brelse(bh);
 }
 
-static void jbd2_commit_block_csum_set(journal_t *j,
-				       struct journal_head *descriptor)
+static void jbd2_commit_block_csum_set(journal_t *j, struct buffer_head *bh)
 {
 	struct commit_header *h;
 	__u32 csum;
@@ -94,12 +93,11 @@ static void jbd2_commit_block_csum_set(journal_t *j,
 	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
 		return;
 
-	h = (struct commit_header *)(jh2bh(descriptor)->b_data);
+	h = (struct commit_header *)(bh->b_data);
 	h->h_chksum_type = 0;
 	h->h_chksum_size = 0;
 	h->h_chksum[0] = 0;
-	csum = jbd2_chksum(j, j->j_csum_seed, jh2bh(descriptor)->b_data,
-			   j->j_blocksize);
+	csum = jbd2_chksum(j, j->j_csum_seed, bh->b_data, j->j_blocksize);
 	h->h_chksum[0] = cpu_to_be32(csum);
 }
 
@@ -116,7 +114,6 @@ static int journal_submit_commit_record(journal_t *journal,
 					struct buffer_head **cbh,
 					__u32 crc32_sum)
 {
-	struct journal_head *descriptor;
 	struct commit_header *tmp;
 	struct buffer_head *bh;
 	int ret;
@@ -127,11 +124,9 @@ static int journal_submit_commit_record(journal_t *journal,
 	if (is_journal_aborted(journal))
 		return 0;
 
-	descriptor = jbd2_journal_get_descriptor_buffer(journal);
-	if (!descriptor)
+	bh = jbd2_journal_get_descriptor_buffer(journal);
+	if (!bh)
 		return 1;
-
-	bh = jh2bh(descriptor);
 
 	tmp = (struct commit_header *)bh->b_data;
 	tmp->h_magic = cpu_to_be32(JBD2_MAGIC_NUMBER);
@@ -146,9 +141,9 @@ static int journal_submit_commit_record(journal_t *journal,
 		tmp->h_chksum_size 	= JBD2_CRC32_CHKSUM_SIZE;
 		tmp->h_chksum[0] 	= cpu_to_be32(crc32_sum);
 	}
-	jbd2_commit_block_csum_set(journal, descriptor);
+	jbd2_commit_block_csum_set(journal, bh);
 
-	JBUFFER_TRACE(descriptor, "submit commit block");
+	BUFFER_TRACE(bh, "submit commit block");
 	lock_buffer(bh);
 	clear_buffer_dirty(bh);
 	set_buffer_uptodate(bh);
@@ -180,7 +175,6 @@ static int journal_wait_on_commit_record(journal_t *journal,
 	if (unlikely(!buffer_uptodate(bh)))
 		ret = -EIO;
 	put_bh(bh);            /* One for getblk() */
-	jbd2_journal_put_journal_head(bh2jh(bh));
 
 	return ret;
 }
@@ -321,7 +315,7 @@ static void write_tag_block(int tag_bytes, journal_block_tag_t *tag,
 }
 
 static void jbd2_descr_block_csum_set(journal_t *j,
-				      struct journal_head *descriptor)
+				      struct buffer_head *bh)
 {
 	struct jbd2_journal_block_tail *tail;
 	__u32 csum;
@@ -329,12 +323,10 @@ static void jbd2_descr_block_csum_set(journal_t *j,
 	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
 		return;
 
-	tail = (struct jbd2_journal_block_tail *)
-			(jh2bh(descriptor)->b_data + j->j_blocksize -
+	tail = (struct jbd2_journal_block_tail *)(bh->b_data + j->j_blocksize -
 			sizeof(struct jbd2_journal_block_tail));
 	tail->t_checksum = 0;
-	csum = jbd2_chksum(j, j->j_csum_seed, jh2bh(descriptor)->b_data,
-			   j->j_blocksize);
+	csum = jbd2_chksum(j, j->j_csum_seed, bh->b_data, j->j_blocksize);
 	tail->t_checksum = cpu_to_be32(csum);
 }
 
@@ -369,7 +361,8 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 {
 	struct transaction_stats_s stats;
 	transaction_t *commit_transaction;
-	struct journal_head *jh, *descriptor;
+	struct journal_head *jh;
+	struct buffer_head *descriptor;
 	struct buffer_head **wbuf = journal->j_wbuf;
 	int bufs;
 	int flags;
@@ -394,6 +387,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	int update_tail;
 	int csum_size = 0;
 	LIST_HEAD(io_bufs);
+	LIST_HEAD(log_bufs);
 
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
 		csum_size = sizeof(struct jbd2_journal_block_tail);
@@ -547,7 +541,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 	blk_start_plug(&plug);
 	jbd2_journal_write_revoke_records(journal, commit_transaction,
-					  WRITE_SYNC);
+					  &log_bufs, WRITE_SYNC);
 	blk_finish_plug(&plug);
 
 	jbd_debug(3, "JBD2: commit phase 2\n");
@@ -573,8 +567,8 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		 atomic_read(&commit_transaction->t_outstanding_credits));
 
 	err = 0;
-	descriptor = NULL;
 	bufs = 0;
+	descriptor = NULL;
 	blk_start_plug(&plug);
 	while (commit_transaction->t_buffers) {
 
@@ -606,8 +600,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		   record the metadata buffer. */
 
 		if (!descriptor) {
-			struct buffer_head *bh;
-
 			J_ASSERT (bufs == 0);
 
 			jbd_debug(4, "JBD2: get descriptor\n");
@@ -618,26 +610,26 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 				continue;
 			}
 
-			bh = jh2bh(descriptor);
 			jbd_debug(4, "JBD2: got buffer %llu (%p)\n",
-				(unsigned long long)bh->b_blocknr, bh->b_data);
-			header = (journal_header_t *)&bh->b_data[0];
+				(unsigned long long)descriptor->b_blocknr,
+				descriptor->b_data);
+			header = (journal_header_t *)descriptor->b_data;
 			header->h_magic     = cpu_to_be32(JBD2_MAGIC_NUMBER);
 			header->h_blocktype = cpu_to_be32(JBD2_DESCRIPTOR_BLOCK);
 			header->h_sequence  = cpu_to_be32(commit_transaction->t_tid);
 
-			tagp = &bh->b_data[sizeof(journal_header_t)];
-			space_left = bh->b_size - sizeof(journal_header_t);
+			tagp = &descriptor->b_data[sizeof(journal_header_t)];
+			space_left = descriptor->b_size -
+						sizeof(journal_header_t);
 			first_tag = 1;
-			set_buffer_jwrite(bh);
-			set_buffer_dirty(bh);
-			wbuf[bufs++] = bh;
+			set_buffer_jwrite(descriptor);
+			set_buffer_dirty(descriptor);
+			wbuf[bufs++] = descriptor;
 
 			/* Record it so that we can wait for IO
                            completion later */
-			BUFFER_TRACE(bh, "ph3: file as descriptor");
-			jbd2_journal_file_buffer(descriptor, commit_transaction,
-					BJ_LogCtl);
+			BUFFER_TRACE(descriptor, "ph3: file as descriptor");
+			jbd2_file_log_bh(&log_bufs, descriptor);
 		}
 
 		/* Where is the buffer to be written? */
@@ -864,26 +856,19 @@ start_journal_io:
 	jbd_debug(3, "JBD2: commit phase 4\n");
 
 	/* Here we wait for the revoke record and descriptor record buffers */
- wait_for_ctlbuf:
-	while (commit_transaction->t_log_list != NULL) {
+	while (!list_empty(&log_bufs)) {
 		struct buffer_head *bh;
 
-		jh = commit_transaction->t_log_list->b_tprev;
-		bh = jh2bh(jh);
-		if (buffer_locked(bh)) {
-			wait_on_buffer(bh);
-			goto wait_for_ctlbuf;
-		}
-		if (cond_resched())
-			goto wait_for_ctlbuf;
+		bh = list_entry(log_bufs.prev, struct buffer_head, b_assoc_buffers);
+		wait_on_buffer(bh);
+		cond_resched();
 
 		if (unlikely(!buffer_uptodate(bh)))
 			err = -EIO;
 
 		BUFFER_TRACE(bh, "ph5: control buffer writeout done: unfile");
 		clear_buffer_jwrite(bh);
-		jbd2_journal_unfile_buffer(journal, jh);
-		jbd2_journal_put_journal_head(jh);
+		jbd2_unfile_log_bh(bh);
 		__brelse(bh);		/* One for getblk */
 		/* AKPM: bforget here */
 	}
@@ -934,7 +919,6 @@ start_journal_io:
 	J_ASSERT(commit_transaction->t_buffers == NULL);
 	J_ASSERT(commit_transaction->t_checkpoint_list == NULL);
 	J_ASSERT(commit_transaction->t_shadow_list == NULL);
-	J_ASSERT(commit_transaction->t_log_list == NULL);
 
 restart_loop:
 	/*

@@ -531,12 +531,6 @@ struct transaction_s
 	struct journal_head	*t_shadow_list;
 
 	/*
-	 * Doubly-linked circular list of control buffers being written to the
-	 * log. [j_list_lock]
-	 */
-	struct journal_head	*t_log_list;
-
-	/*
 	 * List of inodes whose data we've modified in data=ordered mode.
 	 * [j_list_lock]
 	 */
@@ -995,7 +989,7 @@ static inline void jbd2_unfile_log_bh(struct buffer_head *bh)
 }
 
 /* Log buffer allocation */
-extern struct journal_head * jbd2_journal_get_descriptor_buffer(journal_t *);
+struct buffer_head *jbd2_journal_get_descriptor_buffer(journal_t *journal);
 int jbd2_journal_next_log_block(journal_t *, unsigned long long *);
 int jbd2_journal_get_log_tail(journal_t *journal, tid_t *tid,
 			      unsigned long *block);
@@ -1179,8 +1173,10 @@ extern int	   jbd2_journal_init_revoke_caches(void);
 extern void	   jbd2_journal_destroy_revoke(journal_t *);
 extern int	   jbd2_journal_revoke (handle_t *, unsigned long long, struct buffer_head *);
 extern int	   jbd2_journal_cancel_revoke(handle_t *, struct journal_head *);
-extern void	   jbd2_journal_write_revoke_records(journal_t *,
-						     transaction_t *, int);
+extern void	   jbd2_journal_write_revoke_records(journal_t *journal,
+						     transaction_t *transaction,
+						     struct list_head *log_bufs,
+						     int write_op);
 
 /* Recovery revoke support */
 extern int	jbd2_journal_set_revoke(journal_t *, unsigned long long, tid_t);
@@ -1288,9 +1284,8 @@ static inline int jbd_space_needed(journal_t *journal)
 #define BJ_Metadata	1	/* Normal journaled metadata */
 #define BJ_Forget	2	/* Buffer superseded by this transaction */
 #define BJ_Shadow	3	/* Buffer contents being shadowed to the log */
-#define BJ_LogCtl	4	/* Buffer contains log descriptors */
-#define BJ_Reserved	5	/* Buffer is reserved for access by journal */
-#define BJ_Types	6
+#define BJ_Reserved	4	/* Buffer is reserved for access by journal */
+#define BJ_Types	5
 
 extern int jbd_blocks_per_page(struct inode *inode);
 

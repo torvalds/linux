@@ -1637,9 +1637,6 @@ static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh)
 	case BJ_Shadow:
 		list = &transaction->t_shadow_list;
 		break;
-	case BJ_LogCtl:
-		list = &transaction->t_log_list;
-		break;
 	case BJ_Reserved:
 		list = &transaction->t_reserved_list;
 		break;
@@ -2147,9 +2144,6 @@ void __jbd2_journal_file_buffer(struct journal_head *jh,
 		break;
 	case BJ_Shadow:
 		list = &transaction->t_shadow_list;
-		break;
-	case BJ_LogCtl:
-		list = &transaction->t_log_list;
 		break;
 	case BJ_Reserved:
 		list = &transaction->t_reserved_list;

@@ -790,7 +790,7 @@ int jbd2_journal_bmap(journal_t *journal, unsigned long blocknr,
  * But we don't bother doing that, so there will be coherency problems with
  * mmaps of blockdevs which hold live JBD-controlled filesystems.
  */
-struct journal_head *jbd2_journal_get_descriptor_buffer(journal_t *journal)
+struct buffer_head *jbd2_journal_get_descriptor_buffer(journal_t *journal)
 {
 	struct buffer_head *bh;
 	unsigned long long blocknr;
@@ -809,7 +809,7 @@ struct journal_head *jbd2_journal_get_descriptor_buffer(journal_t *journal)
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 	BUFFER_TRACE(bh, "return this buffer");
-	return jbd2_journal_add_journal_head(bh);
+	return bh;
 }
 
 /*
