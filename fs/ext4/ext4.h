@@ -2653,19 +2653,16 @@ extern void ext4_mmp_csum_set(struct super_block *sb, struct mmp_struct *mmp);
 extern int ext4_mmp_csum_verify(struct super_block *sb,
 				struct mmp_struct *mmp);
 
-/* BH_Uninit flag: blocks are allocated but uninitialized on disk */
+/*
+ * Note that these flags will never ever appear in a buffer_head's state flag.
+ * See EXT4_MAP_... to see where this is used.
+ */
 enum ext4_state_bits {
 	BH_Uninit	/* blocks are allocated but uninitialized on disk */
-	  = BH_JBDPrivateStart,
+	 = BH_JBDPrivateStart,
 	BH_AllocFromCluster,	/* allocated blocks were part of already
-				 * allocated cluster. Note that this flag will
-				 * never, ever appear in a buffer_head's state
-				 * flag. See EXT4_MAP_FROM_CLUSTER to see where
-				 * this is used. */
+				 * allocated cluster. */
 };
-
-BUFFER_FNS(Uninit, uninit)
-TAS_BUFFER_FNS(Uninit, uninit)
 
 /*
  * Add new method to test whether block and inode bitmaps are properly

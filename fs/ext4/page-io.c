@@ -369,7 +369,6 @@ static int io_submit_add_bh(struct ext4_io_submit *io,
 			    struct inode *inode,
 			    struct buffer_head *bh)
 {
-	ext4_io_end_t *io_end;
 	int ret;
 
 	if (io->io_bio && bh->b_blocknr != io->io_next_block) {
@@ -384,9 +383,6 @@ submit_and_retry:
 	ret = bio_add_page(io->io_bio, bh->b_page, bh->b_size, bh_offset(bh));
 	if (ret != bh->b_size)
 		goto submit_and_retry;
-	io_end = io->io_end;
-	if (test_clear_buffer_uninit(bh))
-		ext4_set_io_unwritten_flag(inode, io_end);
 	io->io_next_block++;
 	return 0;
 }

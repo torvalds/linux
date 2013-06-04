@@ -2047,8 +2047,6 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 					clear_buffer_delay(bh);
 					bh->b_blocknr = pblock++;
 				}
-				if (mpd->map.m_flags & EXT4_MAP_UNINIT)
-					set_buffer_uninit(bh);
 				clear_buffer_unwritten(bh);
 			} while (++lblk < blocks &&
 				 (bh = bh->b_this_page) != head);
@@ -2110,6 +2108,8 @@ static int mpage_map_one_extent(handle_t *handle, struct mpage_da_data *mpd)
 	err = ext4_map_blocks(handle, inode, map, get_blocks_flags);
 	if (err < 0)
 		return err;
+	if (map->m_flags & EXT4_MAP_UNINIT)
+		ext4_set_io_unwritten_flag(inode, mpd->io_submit.io_end);
 
 	BUG_ON(map->m_len == 0);
 	if (map->m_flags & EXT4_MAP_NEW) {
