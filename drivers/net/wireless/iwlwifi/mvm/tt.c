@@ -371,6 +371,9 @@ static void iwl_mvm_tt_smps_iterator(void *_data, u8 *mac,
 	else
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
 	iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_TT, smps_mode);
 }
 
