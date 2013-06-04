@@ -849,29 +849,54 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.sta_remove		= rt2800_sta_remove,
 };
 
-static const struct data_queue_desc rt2800usb_queue_rx = {
-	.entry_num		= 128,
-	.data_size		= AGGREGATION_SIZE,
-	.desc_size		= RXINFO_DESC_SIZE,
-	.winfo_size		= RXWI_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
+static void rt2800usb_queue_init(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	unsigned short txwi_size, rxwi_size;
 
-static const struct data_queue_desc rt2800usb_queue_tx = {
-	.entry_num		= 16,
-	.data_size		= AGGREGATION_SIZE,
-	.desc_size		= TXINFO_DESC_SIZE,
-	.winfo_size		= TXWI_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
+	if (rt2x00_rt(rt2x00dev, RT5592)) {
+		txwi_size = TXWI_DESC_SIZE_5592;
+		rxwi_size = RXWI_DESC_SIZE_5592;
+	} else {
+		txwi_size = TXWI_DESC_SIZE;
+		rxwi_size = RXWI_DESC_SIZE;
+	}
 
-static const struct data_queue_desc rt2800usb_queue_bcn = {
-	.entry_num		= 8,
-	.data_size		= MGMT_FRAME_SIZE,
-	.desc_size		= TXINFO_DESC_SIZE,
-	.winfo_size		= TXWI_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
+	switch (queue->qid) {
+	case QID_RX:
+		queue->limit = 128;
+		queue->data_size = AGGREGATION_SIZE;
+		queue->desc_size = RXINFO_DESC_SIZE;
+		queue->winfo_size = rxwi_size;
+		queue->priv_size = sizeof(struct queue_entry_priv_usb);
+		break;
+
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		queue->limit = 16;
+		queue->data_size = AGGREGATION_SIZE;
+		queue->desc_size = TXINFO_DESC_SIZE;
+		queue->winfo_size = txwi_size;
+		queue->priv_size = sizeof(struct queue_entry_priv_usb);
+		break;
+
+	case QID_BEACON:
+		queue->limit = 8;
+		queue->data_size = MGMT_FRAME_SIZE;
+		queue->desc_size = TXINFO_DESC_SIZE;
+		queue->winfo_size = txwi_size;
+		queue->priv_size = sizeof(struct queue_entry_priv_usb);
+		break;
+
+	case QID_ATIM:
+		/* fallthrough */
+	default:
+		BUG();
+		break;
+	}
+}
 
 static const struct rt2x00_ops rt2800usb_ops = {
 	.name			= KBUILD_MODNAME,
@@ -881,9 +906,7 @@ static const struct rt2x00_ops rt2800usb_ops = {
 	.rf_size		= RF_SIZE,
 	.tx_queues		= NUM_TX_QUEUES,
 	.extra_tx_headroom	= TXINFO_DESC_SIZE + TXWI_DESC_SIZE,
-	.rx			= &rt2800usb_queue_rx,
-	.tx			= &rt2800usb_queue_tx,
-	.bcn			= &rt2800usb_queue_bcn,
+	.queue_init		= rt2800usb_queue_init,
 	.lib			= &rt2800usb_rt2x00_ops,
 	.drv			= &rt2800usb_rt2800_ops,
 	.hw			= &rt2800usb_mac80211_ops,
@@ -891,31 +914,6 @@ static const struct rt2x00_ops rt2800usb_ops = {
 	.debugfs		= &rt2800_rt2x00debug,
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 };
-
-static const struct data_queue_desc rt2800usb_queue_rx_5592 = {
-	.entry_num		= 128,
-	.data_size		= AGGREGATION_SIZE,
-	.desc_size		= RXINFO_DESC_SIZE,
-	.winfo_size		= RXWI_DESC_SIZE_5592,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
-
-static const struct data_queue_desc rt2800usb_queue_tx_5592 = {
-	.entry_num		= 16,
-	.data_size		= AGGREGATION_SIZE,
-	.desc_size		= TXINFO_DESC_SIZE,
-	.winfo_size		= TXWI_DESC_SIZE_5592,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
-
-static const struct data_queue_desc rt2800usb_queue_bcn_5592 = {
-	.entry_num		= 8,
-	.data_size		= MGMT_FRAME_SIZE,
-	.desc_size		= TXINFO_DESC_SIZE,
-	.winfo_size		= TXWI_DESC_SIZE_5592,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
-
 
 static const struct rt2x00_ops rt2800usb_ops_5592 = {
 	.name			= KBUILD_MODNAME,
@@ -925,9 +923,7 @@ static const struct rt2x00_ops rt2800usb_ops_5592 = {
 	.rf_size		= RF_SIZE,
 	.tx_queues		= NUM_TX_QUEUES,
 	.extra_tx_headroom	= TXINFO_DESC_SIZE + TXWI_DESC_SIZE_5592,
-	.rx			= &rt2800usb_queue_rx_5592,
-	.tx			= &rt2800usb_queue_tx_5592,
-	.bcn			= &rt2800usb_queue_bcn_5592,
+	.queue_init		= rt2800usb_queue_init,
 	.lib			= &rt2800usb_rt2x00_ops,
 	.drv			= &rt2800usb_rt2800_ops,
 	.hw			= &rt2800usb_mac80211_ops,
