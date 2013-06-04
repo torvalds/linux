@@ -669,7 +669,7 @@
 			};
 
 			digctl@8001c000 {
-				compatible = "fsl,imx28-digctl";
+				compatible = "fsl,imx28-digctl", "fsl,imx23-digctl";
 				reg = <0x8001c000 0x2000>;
 				interrupts = <89>;
 				status = "disabled";
