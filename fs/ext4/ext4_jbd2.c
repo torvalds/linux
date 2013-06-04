@@ -38,31 +38,43 @@ static void ext4_put_nojournal(handle_t *handle)
 /*
  * Wrappers for jbd2_journal_start/end.
  */
-handle_t *__ext4_journal_start_sb(struct super_block *sb, unsigned int line,
-				  int type, int nblocks)
+static int ext4_journal_check_start(struct super_block *sb)
 {
 	journal_t *journal;
 
 	might_sleep();
-
-	trace_ext4_journal_start(sb, nblocks, _RET_IP_);
 	if (sb->s_flags & MS_RDONLY)
-		return ERR_PTR(-EROFS);
-
+		return -EROFS;
 	WARN_ON(sb->s_writers.frozen == SB_FREEZE_COMPLETE);
 	journal = EXT4_SB(sb)->s_journal;
-	if (!journal)
-		return ext4_get_nojournal();
 	/*
 	 * Special case here: if the journal has aborted behind our
 	 * backs (eg. EIO in the commit thread), then we still need to
 	 * take the FS itself readonly cleanly.
 	 */
-	if (is_journal_aborted(journal)) {
+	if (journal && is_journal_aborted(journal)) {
 		ext4_abort(sb, "Detected aborted journal");
-		return ERR_PTR(-EROFS);
+		return -EROFS;
 	}
-	return jbd2__journal_start(journal, nblocks, 0, GFP_NOFS, type, line);
+	return 0;
+}
+
+handle_t *__ext4_journal_start_sb(struct super_block *sb, unsigned int line,
+				  int type, int blocks, int rsv_blocks)
+{
+	journal_t *journal;
+	int err;
+
+	trace_ext4_journal_start(sb, blocks, rsv_blocks, _RET_IP_);
+	err = ext4_journal_check_start(sb);
+	if (err < 0)
+		return ERR_PTR(err);
+
+	journal = EXT4_SB(sb)->s_journal;
+	if (!journal)
+		return ext4_get_nojournal();
+	return jbd2__journal_start(journal, blocks, rsv_blocks, GFP_NOFS,
+				   type, line);
 }
 
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
@@ -84,6 +96,30 @@ int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
 	if (err)
 		__ext4_std_error(sb, where, line, err);
 	return err;
+}
+
+handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,
+					int type)
+{
+	struct super_block *sb;
+	int err;
+
+	if (!ext4_handle_valid(handle))
+		return ext4_get_nojournal();
+
+	sb = handle->h_journal->j_private;
+	trace_ext4_journal_start_reserved(sb, handle->h_buffer_credits,
+					  _RET_IP_);
+	err = ext4_journal_check_start(sb);
+	if (err < 0) {
+		jbd2_journal_free_reserved(handle);
+		return ERR_PTR(err);
+	}
+
+	err = jbd2_journal_start_reserved(handle, type, line);
+	if (err < 0)
+		return ERR_PTR(err);
+	return handle;
 }
 
 void ext4_journal_abort_handle(const char *caller, unsigned int line,

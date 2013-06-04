@@ -1640,25 +1640,50 @@ TRACE_EVENT(ext4_load_inode,
 );
 
 TRACE_EVENT(ext4_journal_start,
-	TP_PROTO(struct super_block *sb, int nblocks, unsigned long IP),
+	TP_PROTO(struct super_block *sb, int blocks, int rsv_blocks,
+		 unsigned long IP),
 
-	TP_ARGS(sb, nblocks, IP),
+	TP_ARGS(sb, blocks, rsv_blocks, IP),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
 		__field(unsigned long,	ip			)
-		__field(	int,	nblocks			)
+		__field(	  int,	blocks			)
+		__field(	  int,	rsv_blocks		)
 	),
 
 	TP_fast_assign(
-		__entry->dev	 = sb->s_dev;
-		__entry->ip	 = IP;
-		__entry->nblocks = nblocks;
+		__entry->dev		 = sb->s_dev;
+		__entry->ip		 = IP;
+		__entry->blocks		 = blocks;
+		__entry->rsv_blocks	 = rsv_blocks;
 	),
 
-	TP_printk("dev %d,%d nblocks %d caller %pF",
+	TP_printk("dev %d,%d blocks, %d rsv_blocks, %d caller %pF",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->nblocks, (void *)__entry->ip)
+		  __entry->blocks, __entry->rsv_blocks, (void *)__entry->ip)
+);
+
+TRACE_EVENT(ext4_journal_start_reserved,
+	TP_PROTO(struct super_block *sb, int blocks, unsigned long IP),
+
+	TP_ARGS(sb, blocks, IP),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(unsigned long,	ip			)
+		__field(	  int,	blocks			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		 = sb->s_dev;
+		__entry->ip		 = IP;
+		__entry->blocks		 = blocks;
+	),
+
+	TP_printk("dev %d,%d blocks, %d caller %pF",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->blocks, (void *)__entry->ip)
 );
 
 DECLARE_EVENT_CLASS(ext4__trim,
