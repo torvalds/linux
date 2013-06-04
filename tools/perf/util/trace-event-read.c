@@ -39,9 +39,6 @@
 
 static int input_fd;
 
-int file_bigendian;
-int host_bigendian;
-
 static ssize_t trace_data_size;
 static bool repipe;
 
@@ -342,6 +339,8 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 	int show_funcs = 0;
 	int show_printk = 0;
 	ssize_t size = -1;
+	int file_bigendian;
+	int host_bigendian;
 	int file_long_size;
 	int file_page_size;
 	struct pevent *pevent;
