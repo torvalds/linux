@@ -916,6 +916,21 @@ static int fw_load_from_user_helper(struct firmware *firmware,
 	fw_priv->buf = firmware->priv;
 	return _request_firmware_load(fw_priv, uevent, timeout);
 }
+
+/* kill pending requests without uevent to avoid blocking suspend */
+static void kill_requests_without_uevent(void)
+{
+	struct firmware_buf *buf;
+	struct firmware_buf *next;
+
+	mutex_lock(&fw_lock);
+	list_for_each_entry_safe(buf, next, &pending_fw_head, pending_list) {
+		if (!buf->need_uevent)
+			 fw_load_abort(buf);
+	}
+	mutex_unlock(&fw_lock);
+}
+
 #else /* CONFIG_FW_LOADER_USER_HELPER */
 static inline int
 fw_load_from_user_helper(struct firmware *firmware, const char *name,
@@ -927,6 +942,8 @@ fw_load_from_user_helper(struct firmware *firmware, const char *name,
 
 /* No abort during direct loading */
 #define is_fw_load_aborted(buf) false
+
+static inline void kill_requests_without_uevent(void) { }
 
 #endif /* CONFIG_FW_LOADER_USER_HELPER */
 
@@ -1412,20 +1429,6 @@ static void __device_uncache_fw_images(void)
 		spin_lock(&fwc->name_lock);
 	}
 	spin_unlock(&fwc->name_lock);
-}
-
-/* kill pending requests without uevent to avoid blocking suspend */
-static void kill_requests_without_uevent(void)
-{
-	struct firmware_buf *buf;
-	struct firmware_buf *next;
-
-	mutex_lock(&fw_lock);
-	list_for_each_entry_safe(buf, next, &pending_fw_head, pending_list) {
-		if (!buf->need_uevent)
-			 fw_load_abort(buf);
-	}
-	mutex_unlock(&fw_lock);
 }
 
 /**
