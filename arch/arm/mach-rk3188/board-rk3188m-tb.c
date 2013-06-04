@@ -698,25 +698,11 @@ static struct rk610_ctl_platform_data rk610_ctl_pdata = {
 #if defined(CONFIG_MFD_RK616)
 #define RK616_RST_PIN 			RK30_PIN3_PB2
 #define RK616_PWREN_PIN			RK30_PIN0_PC5
-#define RK616_SPK_CTL2			RK30_PIN0_PD5
 #define RK616_SCL_RATE			(80*1000)   //i2c scl rate
 static int rk616_power_on_init(void)
 {
 	int ret;
-#if 1
-	if(RK616_SPK_CTL2 != INVALID_GPIO)
-	{
-		ret = gpio_request(RK616_SPK_CTL2, "rk616 spk ctl2");
-		if (ret)
-		{
-			printk(KERN_ERR "rk616 spk_ctl2 gpio request fail\n");
-		}
-		else 
-		{
-			gpio_direction_output(RK616_SPK_CTL2,GPIO_HIGH);
-		}
-	}
-#endif
+
 	if(RK616_PWREN_PIN != INVALID_GPIO)
 	{
 		ret = gpio_request(RK616_PWREN_PIN, "rk616 pwren");

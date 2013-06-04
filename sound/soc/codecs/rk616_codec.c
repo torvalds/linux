@@ -1533,7 +1533,7 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	switch (params_channels(params)) {
+	/*switch (params_channels(params)) {
 	case RK616_MONO:
 		adc_aif1 |= RK616_ADC_TYPE_MONO;
 		break;
@@ -1542,7 +1542,10 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		return -EINVAL;
-	}
+	}*/
+
+	//MIC1N/P and MIC2N/P can only line to ADCL, so set mono type.
+	adc_aif1 |= RK616_ADC_TYPE_MONO;
 
 	adc_aif1 |= RK616_ADC_SWAP_DIS;
 	adc_aif2 |= RK616_ADC_RST_DIS;
@@ -2075,6 +2078,19 @@ static int rk616_remove(struct snd_soc_codec *codec)
 {
 	DBG("%s\n", __func__);
 
+	if (!rk616_priv) {
+		printk("%s : rk616_priv is NULL\n", __func__);
+		return 0;
+	}
+
+	if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
+		gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+
+	if (rk616_priv->hp_ctl_gpio != INVALID_GPIO)
+		gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+
+	mdelay(10);
+
 	if (rk616_for_mid)
 	{
 		cancel_delayed_work_sync(&capture_delayed_work);
@@ -2082,15 +2098,12 @@ static int rk616_remove(struct snd_soc_codec *codec)
 		if (rk616_codec_work_capture_type != RK616_CODEC_WORK_NULL) {
 			rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
 		}
-		rk616_codec_power_down(RK616_CODEC_ALL);
 	}
-	else
-	{
-		snd_soc_write(codec, RK616_RESET, 0xfc);
-		mdelay(10);
-		snd_soc_write(codec, RK616_RESET, 0x3);
-		mdelay(10);
-	}
+
+	snd_soc_write(codec, RK616_RESET, 0xfc);
+	mdelay(10);
+	snd_soc_write(codec, RK616_RESET, 0x3);
+	mdelay(10);
 
 	if (rk616_priv)
 		kfree(rk616_priv);
@@ -2163,12 +2176,14 @@ void rk616_platform_shutdown(struct platform_device *pdev)
 		if (rk616_codec_work_capture_type != RK616_CODEC_WORK_NULL) {
 			rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
 		}
-		rk616_codec_power_down(RK616_CODEC_ALL);
-	} else {
-		snd_soc_write(rk616_priv->codec, RK616_RESET, 0xfc);
-		mdelay(10);
-		snd_soc_write(rk616_priv->codec, RK616_RESET, 0x3);
 	}
+
+	snd_soc_write(rk616_priv->codec, RK616_RESET, 0xfc);
+	mdelay(10);
+	snd_soc_write(rk616_priv->codec, RK616_RESET, 0x3);
+
+	if (rk616_priv)
+		kfree(rk616_priv);
 }
 
 static struct platform_driver rk616_codec_driver = {
