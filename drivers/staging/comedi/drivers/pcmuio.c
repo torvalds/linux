@@ -80,64 +80,70 @@
 
 #include "comedi_fc.h"
 
-#define CHANS_PER_PORT   8
-#define PORTS_PER_ASIC   6
-#define INTR_PORTS_PER_ASIC   3
-#define MAX_CHANS_PER_SUBDEV 24	/* number of channels per comedi subdevice */
-#define PORTS_PER_SUBDEV (MAX_CHANS_PER_SUBDEV/CHANS_PER_PORT)
-#define CHANS_PER_ASIC (CHANS_PER_PORT*PORTS_PER_ASIC)
-#define INTR_CHANS_PER_ASIC 24
-#define INTR_PORTS_PER_SUBDEV (INTR_CHANS_PER_ASIC/CHANS_PER_PORT)
-#define MAX_DIO_CHANS   (PORTS_PER_ASIC*2*CHANS_PER_PORT)
-#define MAX_ASICS       (MAX_DIO_CHANS/CHANS_PER_ASIC)
+#define CHANS_PER_PORT		8
+#define PORTS_PER_ASIC		6
+#define INTR_PORTS_PER_ASIC	3
+/* number of channels per comedi subdevice */
+#define MAX_CHANS_PER_SUBDEV	24
+#define PORTS_PER_SUBDEV	(MAX_CHANS_PER_SUBDEV / CHANS_PER_PORT)
+#define CHANS_PER_ASIC		(CHANS_PER_PORT * PORTS_PER_ASIC)
+#define INTR_CHANS_PER_ASIC	24
+#define INTR_PORTS_PER_SUBDEV	(INTR_CHANS_PER_ASIC / CHANS_PER_PORT)
+#define MAX_DIO_CHANS		(PORTS_PER_ASIC * 2 * CHANS_PER_PORT)
+#define MAX_ASICS		(MAX_DIO_CHANS / CHANS_PER_ASIC)
+
 /* IO Memory sizes */
-#define ASIC_IOSIZE (0x10)
-#define PCMUIO48_IOSIZE ASIC_IOSIZE
-#define PCMUIO96_IOSIZE (ASIC_IOSIZE*2)
+#define ASIC_IOSIZE		0x10
+#define PCMUIO48_IOSIZE		ASIC_IOSIZE
+#define PCMUIO96_IOSIZE		(ASIC_IOSIZE * 2)
 
-/* Some offsets - these are all in the 16byte IO memory offset from
-   the base address.  Note that there is a paging scheme to swap out
-   offsets 0x8-0xA using the PAGELOCK register.  See the table below.
-
-  Register(s)       Pages        R/W?        Description
-  --------------------------------------------------------------
-  REG_PORTx         All          R/W         Read/Write/Configure IO
-  REG_INT_PENDING   All          ReadOnly    Quickly see which INT_IDx has int.
-  REG_PAGELOCK      All          WriteOnly   Select a page
-  REG_POLx          Pg. 1 only   WriteOnly   Select edge-detection polarity
-  REG_ENABx         Pg. 2 only   WriteOnly   Enable/Disable edge-detect. int.
-  REG_INT_IDx       Pg. 3 only   R/W         See which ports/bits have ints.
+/*
+ * Some offsets - these are all in the 16byte IO memory offset from
+ * the base address.  Note that there is a paging scheme to swap out
+ * offsets 0x8-0xA using the PAGELOCK register.  See the table below.
+ *
+ * Register(s)       Pages        R/W?        Description
+ * --------------------------------------------------------------------------
+ * REG_PORTx         All          R/W         Read/Write/Configure IO
+ * REG_INT_PENDING   All          ReadOnly    Which INT_IDx has int.
+ * REG_PAGELOCK      All          WriteOnly   Select a page
+ * REG_POLx          Pg. 1 only   WriteOnly   Select edge-detection polarity
+ * REG_ENABx         Pg. 2 only   WriteOnly   Enable/Disable edge-detect int.
+ * REG_INT_IDx       Pg. 3 only   R/W         See which ports/bits have ints.
  */
-#define REG_PORT0 0x0
-#define REG_PORT1 0x1
-#define REG_PORT2 0x2
-#define REG_PORT3 0x3
-#define REG_PORT4 0x4
-#define REG_PORT5 0x5
-#define REG_INT_PENDING 0x6
-#define REG_PAGELOCK 0x7	/* page selector register, upper 2 bits select a page
-				   and bits 0-5 are used to 'lock down' a particular
-				   port above to make it readonly.  */
-#define REG_POL0 0x8
-#define REG_POL1 0x9
-#define REG_POL2 0xA
-#define REG_ENAB0 0x8
-#define REG_ENAB1 0x9
-#define REG_ENAB2 0xA
-#define REG_INT_ID0 0x8
-#define REG_INT_ID1 0x9
-#define REG_INT_ID2 0xA
+#define REG_PORT0		0x0
+#define REG_PORT1		0x1
+#define REG_PORT2		0x2
+#define REG_PORT3		0x3
+#define REG_PORT4		0x4
+#define REG_PORT5		0x5
+#define REG_INT_PENDING		0x6
+/*
+ * page selector register
+ * Upper 2 bits select a page and bits 0-5 are used to
+ * 'lock down' a particular port above to make it readonly.
+ */
+#define REG_PAGELOCK		0x7
+#define REG_POL0		0x8
+#define REG_POL1		0x9
+#define REG_POL2		0xa
+#define REG_ENAB0		0x8
+#define REG_ENAB1		0x9
+#define REG_ENAB2		0xa
+#define REG_INT_ID0		0x8
+#define REG_INT_ID1		0x9
+#define REG_INT_ID2		0xa
 
-#define NUM_PAGED_REGS 3
-#define NUM_PAGES 4
-#define FIRST_PAGED_REG 0x8
-#define REG_PAGE_BITOFFSET 6
-#define REG_LOCK_BITOFFSET 0
-#define REG_PAGE_MASK (~((0x1<<REG_PAGE_BITOFFSET)-1))
-#define REG_LOCK_MASK ~(REG_PAGE_MASK)
-#define PAGE_POL 1
-#define PAGE_ENAB 2
-#define PAGE_INT_ID 3
+#define NUM_PAGED_REGS		3
+#define NUM_PAGES		4
+#define FIRST_PAGED_REG		0x8
+#define REG_PAGE_BITOFFSET	6
+#define REG_LOCK_BITOFFSET	0
+#define REG_PAGE_MASK		(~((0x1 << REG_PAGE_BITOFFSET) - 1))
+#define REG_LOCK_MASK		~(REG_PAGE_MASK)
+#define PAGE_POL		1
+#define PAGE_ENAB		2
+#define PAGE_INT_ID		3
 
 /*
  * Board descriptions for two imaginary boards.  Describing the
