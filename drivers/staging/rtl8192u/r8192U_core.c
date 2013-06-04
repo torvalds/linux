@@ -1083,7 +1083,7 @@ void rtl8192_try_wake_queue(struct net_device *dev, int pri);
 u16 DrvAggr_PaddingAdd(struct net_device *dev, struct sk_buff *skb)
 {
 	u16     PaddingNum =  256 - ((skb->len + TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES) % 256);
-	return  (PaddingNum&0xff);
+	return  PaddingNum & 0xff;
 }
 
 u8 MRateToHwRate8190Pci(u8 rate);
@@ -4174,7 +4174,7 @@ static u8 rtl819x_query_rxpwrpercentage(char antpower)
 	else if (antpower >= 0)
 		return	100;
 	else
-		return	(100+antpower);
+		return	100 + antpower;
 
 }	/* QueryRxPwrPercentage */
 
@@ -4192,7 +4192,7 @@ static u8 rtl819x_evm_dbtopercentage(char value)
 	ret_val *= 3;
 	if (ret_val == 99)
 		ret_val = 100;
-	return(ret_val);
+	return ret_val;
 }
 //
 //	Description:
