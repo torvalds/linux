@@ -633,6 +633,7 @@ extern void intel_connector_dpms(struct drm_connector *, int mode);
 extern bool intel_connector_get_hw_state(struct intel_connector *connector);
 extern void intel_modeset_check_state(struct drm_device *dev);
 extern void intel_plane_restore(struct drm_plane *plane);
+extern void intel_plane_disable(struct drm_plane *plane);
 
 
 static inline struct intel_encoder *intel_attached_encoder(struct drm_connector *connector)
