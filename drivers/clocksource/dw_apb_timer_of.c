@@ -57,6 +57,9 @@ static void add_clockevent(struct device_node *event_timer)
 	dw_apb_clockevent_register(ced);
 }
 
+static void __iomem *sched_io_base;
+static u32 sched_rate;
+
 static void add_clocksource(struct device_node *source_timer)
 {
 	void __iomem *iobase;
@@ -71,9 +74,15 @@ static void add_clocksource(struct device_node *source_timer)
 
 	dw_apb_clocksource_start(cs);
 	dw_apb_clocksource_register(cs);
-}
 
-static void __iomem *sched_io_base;
+	/*
+	 * Fallback to use the clocksource as sched_clock if no separate
+	 * timer is found. sched_io_base then points to the current_value
+	 * register of the clocksource timer.
+	 */
+	sched_io_base = iobase + 0x04;
+	sched_rate = rate;
+}
 
 static u32 read_sched_clock(void)
 {
@@ -89,16 +98,15 @@ static const struct of_device_id sptimer_ids[] __initconst = {
 static void init_sched_clock(void)
 {
 	struct device_node *sched_timer;
-	u32 rate;
 
 	sched_timer = of_find_matching_node(NULL, sptimer_ids);
-	if (!sched_timer)
-		panic("No RTC for sched clock to use");
+	if (sched_timer) {
+		timer_get_base_and_rate(sched_timer, &sched_io_base,
+					&sched_rate);
+		of_node_put(sched_timer);
+	}
 
-	timer_get_base_and_rate(sched_timer, &sched_io_base, &rate);
-	of_node_put(sched_timer);
-
-	setup_sched_clock(read_sched_clock, 32, rate);
+	setup_sched_clock(read_sched_clock, 32, sched_rate);
 }
 
 static const struct of_device_id osctimer_ids[] __initconst = {
