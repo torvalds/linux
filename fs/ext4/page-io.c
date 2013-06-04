@@ -46,25 +46,6 @@ void ext4_exit_pageio(void)
 }
 
 /*
- * This function is called by ext4_evict_inode() to make sure there is
- * no more pending I/O completion work left to do.
- */
-void ext4_ioend_shutdown(struct inode *inode)
-{
-	wait_queue_head_t *wq = ext4_ioend_wq(inode);
-
-	wait_event(*wq, (atomic_read(&EXT4_I(inode)->i_ioend_count) == 0));
-	/*
-	 * We need to make sure the work structure is finished being
-	 * used before we let the inode get destroyed.
-	 */
-	if (work_pending(&EXT4_I(inode)->i_rsv_conversion_work))
-		cancel_work_sync(&EXT4_I(inode)->i_rsv_conversion_work);
-	if (work_pending(&EXT4_I(inode)->i_unrsv_conversion_work))
-		cancel_work_sync(&EXT4_I(inode)->i_unrsv_conversion_work);
-}
-
-/*
  * Print an buffer I/O error compatible with the fs/buffer.c.  This
  * provides compatibility with dmesg scrapers that look for a specific
  * buffer I/O error message.  We really need a unified error reporting
