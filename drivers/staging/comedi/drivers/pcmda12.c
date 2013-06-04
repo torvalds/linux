@@ -159,7 +159,7 @@ static int pcmda12_attach(struct comedi_device *dev,
 
 	pcmda12_ao_reset(dev, s);
 
-	return 1;
+	return 0;
 }
 
 static struct comedi_driver pcmda12_driver = {
