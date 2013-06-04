@@ -1097,6 +1097,19 @@ static void vgic_v2_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 	vcpu->arch.vgic_cpu.vgic_v2.vgic_vmcr = vmcr;
 }
 
+static void vgic_v2_enable(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * By forcing VMCR to zero, the GIC will restore the binary
+	 * points to their reset values. Anything else resets to zero
+	 * anyway.
+	 */
+	vcpu->arch.vgic_cpu.vgic_v2.vgic_vmcr = 0;
+
+	/* Get the show on the road... */
+	vcpu->arch.vgic_cpu.vgic_v2.vgic_hcr = GICH_HCR_EN;
+}
+
 static const struct vgic_ops vgic_ops = {
 	.get_lr			= vgic_v2_get_lr,
 	.set_lr			= vgic_v2_set_lr,
@@ -1108,6 +1121,7 @@ static const struct vgic_ops vgic_ops = {
 	.disable_underflow	= vgic_v2_disable_underflow,
 	.get_vmcr		= vgic_v2_get_vmcr,
 	.set_vmcr		= vgic_v2_set_vmcr,
+	.enable			= vgic_v2_enable,
 };
 
 static struct vgic_lr vgic_get_lr(const struct kvm_vcpu *vcpu, int lr)
@@ -1160,6 +1174,11 @@ static inline void vgic_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr)
 static void vgic_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr)
 {
 	vgic_ops.set_vmcr(vcpu, vmcr);
+}
+
+static inline void vgic_enable(struct kvm_vcpu *vcpu)
+{
+	vgic_ops.enable(vcpu);
 }
 
 static void vgic_retire_lr(int lr_nr, int irq, struct kvm_vcpu *vcpu)
@@ -1624,15 +1643,9 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 		vgic_cpu->vgic_irq_lr_map[i] = LR_EMPTY;
 	}
 
-	/*
-	 * By forcing VMCR to zero, the GIC will restore the binary
-	 * points to their reset values. Anything else resets to zero
-	 * anyway.
-	 */
-	vgic_cpu->vgic_v2.vgic_vmcr = 0;
-
 	vgic_cpu->nr_lr = vgic_nr_lr;
-	vgic_cpu->vgic_v2.vgic_hcr = GICH_HCR_EN; /* Get the show on the road... */
+
+	vgic_enable(vcpu);
 
 	return 0;
 }
