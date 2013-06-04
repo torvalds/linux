@@ -44,10 +44,14 @@
 			};
 		};
 		serial@12000 {
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
 			status = "okay";
 		};
 
 		nand@3000000 {
+			pinctrl-0 = <&pmx_nand>;
+			pinctrl-names = "default";
 			status = "okay";
 
 			partition@0 {
@@ -71,6 +75,8 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_usb_power_enable>;
+		pinctrl-names = "default";
 
 		usb_power: regulator@1 {
 			compatible = "regulator-fixed";
@@ -82,16 +88,6 @@
 			regulator-always-on;
 			regulator-boot-on;
 			gpio = <&gpio0 29 0>;
-		};
-	};
-
-	gpio-leds {
-		compatible = "gpio-leds";
-
-		health {
-			label = "sheevaplug:blue:health";
-			gpios = <&gpio1 17 1>;
-			linux,default-trigger = "default-on";
 		};
 	};
 };
