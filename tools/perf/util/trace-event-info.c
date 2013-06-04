@@ -101,7 +101,7 @@ out:
 	return err;
 }
 
-static int read_header_files(void)
+static int record_header_files(void)
 {
 	char *path;
 	struct stat st;
@@ -240,7 +240,7 @@ out:
 	return err;
 }
 
-static int read_ftrace_files(struct tracepoint_path *tps)
+static int record_ftrace_files(struct tracepoint_path *tps)
 {
 	char *path;
 	int ret;
@@ -269,7 +269,7 @@ static bool system_in_tp_list(char *sys, struct tracepoint_path *tps)
 	return false;
 }
 
-static int read_event_files(struct tracepoint_path *tps)
+static int record_event_files(struct tracepoint_path *tps)
 {
 	struct dirent *dent;
 	struct stat st;
@@ -344,7 +344,7 @@ out:
 	return err;
 }
 
-static int read_proc_kallsyms(void)
+static int record_proc_kallsyms(void)
 {
 	unsigned int size;
 	const char *path = "/proc/kallsyms";
@@ -362,7 +362,7 @@ static int read_proc_kallsyms(void)
 	return record_file(path, 4);
 }
 
-static int read_ftrace_printk(void)
+static int record_ftrace_printk(void)
 {
 	unsigned int size;
 	char *path;
@@ -539,19 +539,19 @@ struct tracing_data *tracing_data_get(struct list_head *pattrs,
 	err = tracing_data_header();
 	if (err)
 		goto out;
-	err = read_header_files();
+	err = record_header_files();
 	if (err)
 		goto out;
-	err = read_ftrace_files(tps);
+	err = record_ftrace_files(tps);
 	if (err)
 		goto out;
-	err = read_event_files(tps);
+	err = record_event_files(tps);
 	if (err)
 		goto out;
-	err = read_proc_kallsyms();
+	err = record_proc_kallsyms();
 	if (err)
 		goto out;
-	err = read_ftrace_printk();
+	err = record_ftrace_printk();
 
 out:
 	/*
