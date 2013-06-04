@@ -4941,8 +4941,10 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 		if (!(inode->i_sb->s_flags & MS_RDONLY))
 			ret = btrfs_orphan_cleanup(sub_root);
 		up_read(&root->fs_info->cleanup_work_sem);
-		if (ret)
+		if (ret) {
+			iput(inode);
 			inode = ERR_PTR(ret);
+		}
 	}
 
 	return inode;
