@@ -258,7 +258,7 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_link	= ethtool_op_get_link,
 };
 
-unsigned int emac_setup(struct net_device *ndev)
+static unsigned int emac_setup(struct net_device *ndev)
 {
 	struct emac_board_info *db = netdev_priv(ndev);
 	unsigned int reg_val;
@@ -310,7 +310,7 @@ unsigned int emac_setup(struct net_device *ndev)
 	return 0;
 }
 
-unsigned int emac_powerup(struct net_device *ndev)
+static unsigned int emac_powerup(struct net_device *ndev)
 {
 	struct emac_board_info *db = netdev_priv(ndev);
 	unsigned int reg_val;
