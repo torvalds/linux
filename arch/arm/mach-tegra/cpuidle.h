@@ -35,4 +35,10 @@ int tegra114_cpuidle_init(void);
 static inline int tegra114_cpuidle_init(void) { return -ENODEV; }
 #endif
 
+#ifdef CONFIG_CPU_IDLE
+void tegra_cpuidle_init(void);
+#else
+static inline void tegra_cpuidle_init(void) {}
+#endif
+
 #endif
