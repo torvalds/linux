@@ -1262,26 +1262,6 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_tilegx_driver
 #endif
 
-#if	!IS_ENABLED(CONFIG_USB_OHCI_HCD_PCI) &&	\
-	!IS_ENABLED(CONFIG_USB_OHCI_HCD_PLATFORM) && \
-	!defined(PLATFORM_DRIVER) &&	\
-	!defined(OMAP1_PLATFORM_DRIVER) &&	\
-	!defined(OMAP3_PLATFORM_DRIVER) &&	\
-	!defined(OF_PLATFORM_DRIVER) &&	\
-	!defined(SA1111_DRIVER) &&	\
-	!defined(PS3_SYSTEM_BUS_DRIVER) && \
-	!defined(SM501_OHCI_DRIVER) && \
-	!defined(TMIO_OHCI_DRIVER) && \
-	!defined(S3C2410_PLATFORM_DRIVER) && \
-	!defined(EXYNOS_PLATFORM_DRIVER) && \
-	!defined(EP93XX_PLATFORM_DRIVER) && \
-	!defined(AT91_PLATFORM_DRIVER) && \
-	!defined(NXP_PLATFORM_DRIVER) && \
-	!defined(DAVINCI_PLATFORM_DRIVER) && \
-	!defined(SPEAR_PLATFORM_DRIVER)
-#error "missing bus glue for ohci-hcd"
-#endif
-
 static int __init ohci_hcd_mod_init(void)
 {
 	int retval = 0;
