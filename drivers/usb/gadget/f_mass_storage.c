@@ -2747,8 +2747,8 @@ buffhds_first_it:
 		 "%-8s%-16s%04x", cfg->vendor_name ?: "Linux",
 		 /* Assume product name dependent on the first LUN */
 		 cfg->product_name ?: (common->luns->cdrom
-				     ? "File-Stor Gadget"
-				     : "File-CD Gadget"),
+				     ? "File-CD Gadget"
+				     : "File-Stor Gadget"),
 		 i);
 
 	/*
