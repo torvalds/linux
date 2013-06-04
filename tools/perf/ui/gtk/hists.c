@@ -134,7 +134,7 @@ static void callchain_list__sym_name(struct callchain_list *cl,
 }
 
 static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
-				    GtkTreeIter *parent, int col)
+				    GtkTreeIter *parent, int col, u64 total)
 {
 	struct rb_node *nd;
 	bool has_single_node = (rb_first(root) == rb_last(root));
@@ -144,8 +144,13 @@ static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
 		struct callchain_list *chain;
 		GtkTreeIter iter, new_parent;
 		bool need_new_parent;
+		double percent;
+		u64 hits, child_total;
 
 		node = rb_entry(nd, struct callchain_node, rb_node);
+
+		hits = callchain_cumul_hits(node);
+		percent = 100.0 * hits / total;
 
 		new_parent = *parent;
 		need_new_parent = !has_single_node && (node->val_nr > 1);
@@ -154,6 +159,9 @@ static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
 			char buf[128];
 
 			gtk_tree_store_append(store, &iter, &new_parent);
+
+			scnprintf(buf, sizeof(buf), "%5.2f%%", percent);
+			gtk_tree_store_set(store, &iter, 0, buf, -1);
 
 			callchain_list__sym_name(chain, buf, sizeof(buf));
 			gtk_tree_store_set(store, &iter, col, buf, -1);
@@ -168,8 +176,14 @@ static void perf_gtk__add_callchain(struct rb_root *root, GtkTreeStore *store,
 			}
 		}
 
+		if (callchain_param.mode == CHAIN_GRAPH_REL)
+			child_total = node->children_hit;
+		else
+			child_total = total;
+
 		/* Now 'iter' contains info of the last callchain_list */
-		perf_gtk__add_callchain(&node->rb_root, store, &iter, col);
+		perf_gtk__add_callchain(&node->rb_root, store, &iter, col,
+					child_total);
 	}
 }
 
@@ -283,8 +297,15 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 		}
 
 		if (symbol_conf.use_callchain && sort__has_sym) {
+			u64 total;
+
+			if (callchain_param.mode == CHAIN_GRAPH_REL)
+				total = h->stat.period;
+			else
+				total = hists->stats.total_period;
+
 			perf_gtk__add_callchain(&h->sorted_chain, store, &iter,
-						sym_col);
+						sym_col, total);
 		}
 	}
 
