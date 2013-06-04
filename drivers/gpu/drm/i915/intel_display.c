@@ -6311,6 +6311,9 @@ void intel_crtc_load_lut(struct drm_crtc *crtc)
 	if (!crtc->enabled || !intel_crtc->active)
 		return;
 
+	if (!HAS_PCH_SPLIT(dev_priv->dev))
+		assert_pll_enabled(dev_priv, pipe);
+
 	/* use legacy palette for Ironlake */
 	if (HAS_PCH_SPLIT(dev))
 		palreg = LGC_PALETTE(pipe);
