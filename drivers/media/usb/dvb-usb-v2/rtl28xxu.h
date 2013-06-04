@@ -97,14 +97,9 @@ struct rtl28xxu_reg_val {
 	u8 val;
 };
 
-enum OP{
-	OP_AND	=0,
-	OP_OR
-};
-
-struct rtl28xxu_xreg_val {
+struct rtl28xxu_reg_val_mask {
 	u16 reg;
-	u8 op;
+	u8 val;
 	u8 mask;
 };
 
