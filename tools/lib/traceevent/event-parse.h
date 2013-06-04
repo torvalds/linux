@@ -400,6 +400,7 @@ struct pevent {
 
 	int cpus;
 	int long_size;
+	int page_size;
 
 	struct cmdline *cmdlines;
 	struct cmdline_list *cmdlist;
@@ -619,6 +620,16 @@ static inline int pevent_get_long_size(struct pevent *pevent)
 static inline void pevent_set_long_size(struct pevent *pevent, int long_size)
 {
 	pevent->long_size = long_size;
+}
+
+static inline int pevent_get_page_size(struct pevent *pevent)
+{
+	return pevent->page_size;
+}
+
+static inline void pevent_set_page_size(struct pevent *pevent, int _page_size)
+{
+	pevent->page_size = _page_size;
 }
 
 static inline int pevent_is_file_bigendian(struct pevent *pevent)
