@@ -71,10 +71,7 @@ $(if $(BUILD_OUTPUT),, \
 
 all: sub-make
 
-gui: force
-	$(call build_output, all_cmd)
-
-$(filter-out gui,$(MAKECMDGOALS)): sub-make
+$(MAKECMDGOALS): sub-make
 
 sub-make: force
 	$(call build_output, $(MAKECMDGOALS))
@@ -252,9 +249,6 @@ define check_deps
 		sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
 		$(RM) $@.$$$$
 endef
-
-$(gui_deps): ks_version.h
-$(non_gui_deps): tc_version.h
 
 $(all_deps): .%.d: $(src)/%.c
 	$(Q)$(call check_deps)
