@@ -43,10 +43,10 @@ struct xen_common_irq {
 	int irq;
 	char *name;
 };
-static DEFINE_PER_CPU(struct xen_common_irq, xen_resched_irq);
-static DEFINE_PER_CPU(struct xen_common_irq, xen_callfunc_irq);
-static DEFINE_PER_CPU(struct xen_common_irq, xen_callfuncsingle_irq);
-static DEFINE_PER_CPU(struct xen_common_irq, xen_irq_work);
+static DEFINE_PER_CPU(struct xen_common_irq, xen_resched_irq) = { .irq = -1 };
+static DEFINE_PER_CPU(struct xen_common_irq, xen_callfunc_irq) = { .irq = -1 };
+static DEFINE_PER_CPU(struct xen_common_irq, xen_callfuncsingle_irq) = { .irq = -1 };
+static DEFINE_PER_CPU(struct xen_common_irq, xen_irq_work) = { .irq = -1 };
 static DEFINE_PER_CPU(struct xen_common_irq, xen_debug_irq) = { .irq = -1 };
 
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id);
@@ -104,20 +104,30 @@ static void __cpuinit cpu_bringup_and_idle(void)
 
 static void xen_smp_intr_free(unsigned int cpu)
 {
-	if (per_cpu(xen_resched_irq, cpu).irq >= 0)
+	if (per_cpu(xen_resched_irq, cpu).irq >= 0) {
 		unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu).irq, NULL);
-	if (per_cpu(xen_callfunc_irq, cpu).irq >= 0)
+		per_cpu(xen_resched_irq, cpu).irq = -1;
+	}
+	if (per_cpu(xen_callfunc_irq, cpu).irq >= 0) {
 		unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu).irq, NULL);
-	if (per_cpu(xen_debug_irq, cpu).irq >= 0)
+		per_cpu(xen_callfunc_irq, cpu).irq = -1;
+	}
+	if (per_cpu(xen_debug_irq, cpu).irq >= 0) {
 		unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu).irq, NULL);
-	if (per_cpu(xen_callfuncsingle_irq, cpu).irq >= 0)
+		per_cpu(xen_debug_irq, cpu).irq = -1;
+	}
+	if (per_cpu(xen_callfuncsingle_irq, cpu).irq >= 0) {
 		unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu).irq,
 				       NULL);
+		per_cpu(xen_callfuncsingle_irq, cpu).irq = -1;
+	}
 	if (xen_hvm_domain())
 		return;
 
-	if (per_cpu(xen_irq_work, cpu).irq >= 0)
+	if (per_cpu(xen_irq_work, cpu).irq >= 0) {
 		unbind_from_irqhandler(per_cpu(xen_irq_work, cpu).irq, NULL);
+		per_cpu(xen_irq_work, cpu).irq = -1;
+	}
 };
 static int xen_smp_intr_init(unsigned int cpu)
 {
