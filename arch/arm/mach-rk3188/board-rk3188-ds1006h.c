@@ -1986,7 +1986,7 @@ static void rk30_pm_power_off(void)
                if(gpio_get_value (RK30_PIN0_PB2) == GPIO_LOW)
                {
                        printk("enter restart===========\n");
-                       arm_pm_restart(0, NULL);
+                       arm_pm_restart(0, "charge");
                }
 		/** code here may cause tablet cannot boot when shutdown without charger pluged in
 		  * and then plug in charger. -- Cody Xie
