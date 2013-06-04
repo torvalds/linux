@@ -328,7 +328,7 @@
 //#define CONFIG_DEBUG_RTL871X
 
 #define DBG	1
-#define CONFIG_DEBUG_RTL819X
+//#define CONFIG_DEBUG_RTL819X
 
 #define CONFIG_PROC_DEBUG	1
 
