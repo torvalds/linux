@@ -1075,13 +1075,14 @@ static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
  * This function un maps the IO region of the Emaclite device and frees the net
  * device.
  */
-static void xemaclite_remove_ndev(struct net_device *ndev)
+static void xemaclite_remove_ndev(struct net_device *ndev,
+				  struct platform_device *pdev)
 {
 	if (ndev) {
 		struct net_local *lp = netdev_priv(ndev);
 
 		if (lp->base_addr)
-			iounmap((void __iomem __force *) (lp->base_addr));
+			devm_iounmap(&pdev->dev, lp->base_addr);
 		free_netdev(ndev);
 	}
 }
@@ -1127,8 +1128,7 @@ static struct net_device_ops xemaclite_netdev_ops;
  */
 static int xemaclite_of_probe(struct platform_device *ofdev)
 {
-	struct resource r_irq; /* Interrupt resources */
-	struct resource r_mem; /* IO mem resources */
+	struct resource *res;
 	struct net_device *ndev = NULL;
 	struct net_local *lp = NULL;
 	struct device *dev = &ofdev->dev;
@@ -1138,20 +1138,6 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 
 	dev_info(dev, "Device Tree Probing\n");
 
-	/* Get iospace for the device */
-	rc = of_address_to_resource(ofdev->dev.of_node, 0, &r_mem);
-	if (rc) {
-		dev_err(dev, "invalid address\n");
-		return rc;
-	}
-
-	/* Get IRQ for the device */
-	rc = of_irq_to_resource(ofdev->dev.of_node, 0, &r_irq);
-	if (!rc) {
-		dev_err(dev, "no IRQ found\n");
-		return rc;
-	}
-
 	/* Create an ethernet device instance */
 	ndev = alloc_etherdev(sizeof(struct net_local));
 	if (!ndev)
@@ -1160,29 +1146,25 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	dev_set_drvdata(dev, ndev);
 	SET_NETDEV_DEV(ndev, &ofdev->dev);
 
-	ndev->irq = r_irq.start;
-	ndev->mem_start = r_mem.start;
-	ndev->mem_end = r_mem.end;
-
 	lp = netdev_priv(ndev);
 	lp->ndev = ndev;
 
-	if (!request_mem_region(ndev->mem_start,
-				ndev->mem_end - ndev->mem_start + 1,
-				DRIVER_NAME)) {
-		dev_err(dev, "Couldn't lock memory region at %p\n",
-			(void *)ndev->mem_start);
-		rc = -EBUSY;
-		goto error2;
+	/* Get IRQ for the device */
+	res = platform_get_resource(ofdev, IORESOURCE_IRQ, 0);
+	if (!res) {
+		dev_err(dev, "no IRQ found\n");
+		goto error;
 	}
 
-	/* Get the virtual base address for the device */
-	lp->base_addr = ioremap(r_mem.start, resource_size(&r_mem));
-	if (NULL == lp->base_addr) {
-		dev_err(dev, "EmacLite: Could not allocate iomem\n");
-		rc = -EIO;
-		goto error1;
-	}
+	ndev->irq = res->start;
+
+	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
+	lp->base_addr = devm_request_and_ioremap(&ofdev->dev, res);
+	if (!lp->base_addr)
+		goto error;
+
+	ndev->mem_start = res->start;
+	ndev->mem_end = res->end;
 
 	spin_lock_init(&lp->reset_lock);
 	lp->next_tx_buf_to_use = 0x0;
@@ -1220,7 +1202,7 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	if (rc) {
 		dev_err(dev,
 			"Cannot register network device, aborting\n");
-		goto error1;
+		goto error;
 	}
 
 	dev_info(dev,
@@ -1229,11 +1211,8 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 		 (unsigned int __force)lp->base_addr, ndev->irq);
 	return 0;
 
-error1:
-	release_mem_region(ndev->mem_start, resource_size(&r_mem));
-
-error2:
-	xemaclite_remove_ndev(ndev);
+error:
+	xemaclite_remove_ndev(ndev, ofdev);
 	return rc;
 }
 
@@ -1268,9 +1247,7 @@ static int xemaclite_of_remove(struct platform_device *of_dev)
 		of_node_put(lp->phy_node);
 	lp->phy_node = NULL;
 
-	release_mem_region(ndev->mem_start, ndev->mem_end-ndev->mem_start + 1);
-
-	xemaclite_remove_ndev(ndev);
+	xemaclite_remove_ndev(ndev, of_dev);
 	dev_set_drvdata(dev, NULL);
 
 	return 0;
