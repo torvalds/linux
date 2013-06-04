@@ -434,10 +434,10 @@ static u32 wemac_get_link(struct net_device *dev)
 	wemac_board_info_t *dm = to_wemac_board(dev);
 	u32 ret;
 
-	if (dm->flags & WEMAC_PLATF_EXT_PHY)
+/*	if (dm->flags & WEMAC_PLATF_EXT_PHY) */
 		ret = mii_link_ok(&dm->mii);
-	else
-		ret = wemac_phy_read(dev, 0, 1)  & 0x04 ? 1 : 0;
+/*	else
+		ret = wemac_phy_read(dev, 0, 1)  & 0x04 ? 1 : 0; */
 
 	return ret;
 }
