@@ -189,8 +189,6 @@ struct pcmuio_private {
 	struct pcmuio_subdev_private *sprivs;
 };
 
-#define subpriv ((struct pcmuio_subdev_private *)s->private)
-
 /* DIO devices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
  * useful to applications if you implement the insn_bits interface.
@@ -200,6 +198,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcmuio_subdev_private *subpriv = s->private;
 	int byte_no;
 
 	/* NOTE:
@@ -278,6 +277,7 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcmuio_subdev_private *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec), byte_no = chan / 8, bit_no =
 	    chan % 8;
 	unsigned long ioaddr;
@@ -427,8 +427,9 @@ static void unlock_port(struct comedi_device *dev, int asic, int port)
 static void pcmuio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	int nports, firstport, asic, port;
 	struct pcmuio_private *devpriv = dev->private;
+	struct pcmuio_subdev_private *subpriv = s->private;
+	int nports, firstport, asic, port;
 
 	asic = subpriv->intr.asic;
 	if (asic < 0)
@@ -448,9 +449,10 @@ static void pcmuio_stop_intr(struct comedi_device *dev,
 
 static irqreturn_t interrupt_pcmuio(int irq, void *d)
 {
-	int asic, got1 = 0;
 	struct comedi_device *dev = (struct comedi_device *)d;
 	struct pcmuio_private *devpriv = dev->private;
+	struct pcmuio_subdev_private *subpriv;
+	int asic, got1 = 0;
 	int i;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
@@ -505,6 +507,7 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d)
 				     irq, asic, triggered);
 				for (i = 0; i < dev->n_subdevices; i++) {
 					s = &dev->subdevices[i];
+					subpriv = s->private;
 					if (subpriv->intr.asic == asic) {	/* this is an interrupt subdev, and it matches this asic! */
 						unsigned long flags;
 						unsigned oldevents;
@@ -603,6 +606,7 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pcmuio_private *devpriv = dev->private;
+	struct pcmuio_subdev_private *subpriv = s->private;
 
 	if (!subpriv->intr.continuous && subpriv->intr.stop_count == 0) {
 		/* An empty acquisition! */
@@ -656,6 +660,7 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 
 static int pcmuio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pcmuio_subdev_private *subpriv = s->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpriv->intr.spinlock, flags);
@@ -673,6 +678,7 @@ static int
 pcmuio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 			  unsigned int trignum)
 {
+	struct pcmuio_subdev_private *subpriv = s->private;
 	unsigned long flags;
 	int event = 0;
 
@@ -697,6 +703,7 @@ pcmuio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
  */
 static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pcmuio_subdev_private *subpriv = s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 	int event = 0;
@@ -793,8 +800,9 @@ static int pcmuio_cmdtest(struct comedi_device *dev,
 static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
-	struct pcmuio_private *devpriv;
 	struct comedi_subdevice *s;
+	struct pcmuio_private *devpriv;
+	struct pcmuio_subdev_private *subpriv;
 	int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;
 	unsigned int irq[MAX_ASICS];
 	int ret;
@@ -839,7 +847,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		int byte_no;
 
 		s = &dev->subdevices[sdev_no];
-		s->private = &devpriv->sprivs[sdev_no];
+		subpriv = &devpriv->sprivs[sdev_no];
+		s->private = subpriv;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
