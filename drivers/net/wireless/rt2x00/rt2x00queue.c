@@ -1323,11 +1323,12 @@ static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 	BUG_ON(!qdesc);
 
 	queue->limit = qdesc->entry_num;
-	queue->threshold = DIV_ROUND_UP(qdesc->entry_num, 10);
 	queue->data_size = qdesc->data_size;
 	queue->desc_size = qdesc->desc_size;
 	queue->winfo_size = qdesc->winfo_size;
 	queue->priv_size = qdesc->priv_size;
+
+	queue->threshold = DIV_ROUND_UP(queue->limit, 10);
 }
 
 int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
