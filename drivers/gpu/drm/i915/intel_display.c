@@ -3386,12 +3386,12 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	intel_crtc_wait_for_pending_flips(crtc);
 	drm_vblank_off(dev, pipe);
-	intel_crtc_update_cursor(crtc, false);
-
-	intel_disable_plane(dev_priv, plane, pipe);
 
 	if (dev_priv->cfb_plane == plane)
 		intel_disable_fbc(dev);
+
+	intel_crtc_update_cursor(crtc, false);
+	intel_disable_plane(dev_priv, plane, pipe);
 
 	intel_set_pch_fifo_underrun_reporting(dev, pipe, false);
 	intel_disable_pipe(dev_priv, pipe);
@@ -3465,7 +3465,6 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	intel_crtc_wait_for_pending_flips(crtc);
 	drm_vblank_off(dev, pipe);
-	intel_crtc_update_cursor(crtc, false);
 
 	/* FBC must be disabled before disabling the plane on HSW. */
 	if (dev_priv->cfb_plane == plane)
@@ -3473,6 +3472,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	hsw_disable_ips(intel_crtc);
 
+	intel_crtc_update_cursor(crtc, false);
 	intel_disable_plane(dev_priv, plane, pipe);
 
 	if (intel_crtc->config.has_pch_encoder)
@@ -3706,13 +3706,14 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	/* Give the overlay scaler a chance to disable if it's on this pipe */
 	intel_crtc_wait_for_pending_flips(crtc);
 	drm_vblank_off(dev, pipe);
-	intel_crtc_dpms_overlay(intel_crtc, false);
-	intel_crtc_update_cursor(crtc, false);
 
 	if (dev_priv->cfb_plane == plane)
 		intel_disable_fbc(dev);
 
+	intel_crtc_dpms_overlay(intel_crtc, false);
+	intel_crtc_update_cursor(crtc, false);
 	intel_disable_plane(dev_priv, plane, pipe);
+
 	intel_disable_pipe(dev_priv, pipe);
 
 	i9xx_pfit_disable(intel_crtc);
