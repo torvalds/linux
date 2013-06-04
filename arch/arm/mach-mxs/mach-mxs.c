@@ -25,6 +25,7 @@
 #include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/sys_soc.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -38,11 +39,27 @@
 #define MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0		0x2
 #define MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR1		0x3
 
+#define HW_DIGCTL_CHIPID	0x310
+#define HW_DIGCTL_CHIPID_MASK	(0xffff << 16)
+#define HW_DIGCTL_REV_MASK	0xff
+#define HW_DIGCTL_CHIPID_MX23	(0x3780 << 16)
+#define HW_DIGCTL_CHIPID_MX28	(0x2800 << 16)
+
+#define MXS_CHIP_REVISION_1_0	0x10
+#define MXS_CHIP_REVISION_1_1	0x11
+#define MXS_CHIP_REVISION_1_2	0x12
+#define MXS_CHIP_REVISION_1_3	0x13
+#define MXS_CHIP_REVISION_1_4	0x14
+#define MXS_CHIP_REV_UNKNOWN	0xff
+
 #define MXS_GPIO_NR(bank, nr)	((bank) * 32 + (nr))
 
 #define MXS_SET_ADDR		0x4
 #define MXS_CLR_ADDR		0x8
 #define MXS_TOG_ADDR		0xc
+
+static u32 chipid;
+static u32 socid;
 
 static inline void __mxs_setl(u32 mask, void __iomem *reg)
 {
@@ -361,8 +378,106 @@ static void __init cfa10037_init(void)
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
 }
 
+static const char __init *mxs_get_soc_id(void)
+{
+	struct device_node *np;
+	void __iomem *digctl_base;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-digctl");
+	digctl_base = of_iomap(np, 0);
+	WARN_ON(!digctl_base);
+
+	chipid = readl(digctl_base + HW_DIGCTL_CHIPID);
+	socid = chipid & HW_DIGCTL_CHIPID_MASK;
+
+	iounmap(digctl_base);
+	of_node_put(np);
+
+	switch (socid) {
+	case HW_DIGCTL_CHIPID_MX23:
+		return "i.MX23";
+	case HW_DIGCTL_CHIPID_MX28:
+		return "i.MX28";
+	default:
+		return "Unknown";
+	}
+}
+
+static u32 __init mxs_get_cpu_rev(void)
+{
+	u32 rev = chipid & HW_DIGCTL_REV_MASK;
+
+	switch (socid) {
+	case HW_DIGCTL_CHIPID_MX23:
+		switch (rev) {
+		case 0x0:
+			return MXS_CHIP_REVISION_1_0;
+		case 0x1:
+			return MXS_CHIP_REVISION_1_1;
+		case 0x2:
+			return MXS_CHIP_REVISION_1_2;
+		case 0x3:
+			return MXS_CHIP_REVISION_1_3;
+		case 0x4:
+			return MXS_CHIP_REVISION_1_4;
+		default:
+			return MXS_CHIP_REV_UNKNOWN;
+		}
+	case HW_DIGCTL_CHIPID_MX28:
+		switch (rev) {
+		case 0x0:
+			return MXS_CHIP_REVISION_1_1;
+		case 0x1:
+			return MXS_CHIP_REVISION_1_2;
+		default:
+			return MXS_CHIP_REV_UNKNOWN;
+		}
+	default:
+		return MXS_CHIP_REV_UNKNOWN;
+	}
+}
+
+static const char __init *mxs_get_revision(void)
+{
+	u32 rev = mxs_get_cpu_rev();
+
+	if (rev != MXS_CHIP_REV_UNKNOWN)
+		return kasprintf(GFP_KERNEL, "TO%d.%d", (rev >> 4) & 0xf,
+				rev & 0xf);
+	else
+		return kasprintf(GFP_KERNEL, "%s", "Unknown");
+}
+
 static void __init mxs_machine_init(void)
 {
+	struct device_node *root;
+	struct device *parent;
+	struct soc_device *soc_dev;
+	struct soc_device_attribute *soc_dev_attr;
+	int ret;
+
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return;
+
+	root = of_find_node_by_path("/");
+	ret = of_property_read_string(root, "model", &soc_dev_attr->machine);
+	if (ret)
+		return;
+
+	soc_dev_attr->family = "Freescale MXS Family";
+	soc_dev_attr->soc_id = mxs_get_soc_id();
+	soc_dev_attr->revision = mxs_get_revision();
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev)) {
+		kfree(soc_dev_attr->revision);
+		kfree(soc_dev_attr);
+		return;
+	}
+
+	parent = soc_device_to_device(soc_dev);
+
 	if (of_machine_is_compatible("fsl,imx28-evk"))
 		imx28_evk_init();
 	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
@@ -373,7 +488,7 @@ static void __init mxs_machine_init(void)
 		cfa10049_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
-			     mxs_auxdata_lookup, NULL);
+			     mxs_auxdata_lookup, parent);
 
 	if (of_machine_is_compatible("karo,tx28"))
 		tx28_post_init();
