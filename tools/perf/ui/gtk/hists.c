@@ -250,11 +250,16 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 							    col_idx++, NULL);
 	}
 
-	if (symbol_conf.use_callchain && sort__has_sym) {
+	for (col_idx = 0; col_idx < nr_cols; col_idx++) {
 		GtkTreeViewColumn *column;
 
-		column = gtk_tree_view_get_column(GTK_TREE_VIEW(view), sym_col);
-		gtk_tree_view_set_expander_column(GTK_TREE_VIEW(view), column);
+		column = gtk_tree_view_get_column(GTK_TREE_VIEW(view), col_idx);
+		gtk_tree_view_column_set_resizable(column, TRUE);
+
+		if (col_idx == sym_col) {
+			gtk_tree_view_set_expander_column(GTK_TREE_VIEW(view),
+							  column);
+		}
 	}
 
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), GTK_TREE_MODEL(store));
