@@ -73,21 +73,3 @@ KernelVersion:	3.0
 Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 Description:
                 Number of sectors written by the frontend.
-
-What:           /sys/module/xen_blkback/parameters/max_buffer_pages
-Date:           March 2013
-KernelVersion:  3.10
-Contact:        Roger Pau Monné <roger.pau@citrix.com>
-Description:
-                Maximum number of free pages to keep in each block
-                backend buffer.
-
-What:           /sys/module/xen_blkback/parameters/max_persistent_grants
-Date:           March 2013
-KernelVersion:  3.10
-Contact:        Roger Pau Monné <roger.pau@citrix.com>
-Description:
-                Maximum number of grants to map persistently in
-                blkback. If the frontend tries to use more than
-                max_persistent_grants, the LRU kicks in and starts
-                removing 5% of max_persistent_grants every 100ms.
