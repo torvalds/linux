@@ -55,7 +55,6 @@ Configuration Options:
 #define MSB(x) ((unsigned char)((((unsigned short)(x))>>8) & 0xff))
 #define LSB_PORT(chan) (dev->iobase + (chan)*2)
 #define MSB_PORT(chan) (LSB_PORT(chan)+1)
-#define BITS 12
 
 /* note these have no effect and are merely here for reference..
    these are configured by jumpering the board! */
@@ -169,7 +168,7 @@ static int pcmda12_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[0];
 	s->private = NULL;
-	s->maxdata = (0x1 << BITS) - 1;
+	s->maxdata = 0x0fff;
 	s->range_table = &pcmda12_ranges;
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
