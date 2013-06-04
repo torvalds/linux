@@ -131,7 +131,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 	GType col_types[MAX_COLUMNS];
 	GtkCellRenderer *renderer;
 	struct sort_entry *se;
-	GtkListStore *store;
+	GtkTreeStore *store;
 	struct rb_node *nd;
 	GtkWidget *view;
 	int col_idx;
@@ -156,7 +156,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 		col_types[nr_cols++] = G_TYPE_STRING;
 	}
 
-	store = gtk_list_store_newv(nr_cols, col_types);
+	store = gtk_tree_store_newv(nr_cols, col_types);
 
 	view = gtk_tree_view_new();
 
@@ -199,7 +199,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 		if (percent < min_pcnt)
 			continue;
 
-		gtk_list_store_append(store, &iter);
+		gtk_tree_store_append(store, &iter, NULL);
 
 		col_idx = 0;
 
@@ -209,7 +209,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 			else
 				fmt->entry(&hpp, h);
 
-			gtk_list_store_set(store, &iter, col_idx++, s, -1);
+			gtk_tree_store_set(store, &iter, col_idx++, s, -1);
 		}
 
 		list_for_each_entry(se, &hist_entry__sort_list, list) {
@@ -219,7 +219,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 			se->se_snprintf(h, s, ARRAY_SIZE(s),
 					hists__col_len(hists, se->se_width_idx));
 
-			gtk_list_store_set(store, &iter, col_idx++, s, -1);
+			gtk_tree_store_set(store, &iter, col_idx++, s, -1);
 		}
 	}
 
