@@ -189,7 +189,8 @@ enum CMD_MODE {
 	CMD_SYNC		= 0,
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
-	CMD_ON_DEMAND		= BIT(2),
+	CMD_SEND_IN_RFKILL	= BIT(2),
+	CMD_ON_DEMAND		= BIT(3),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -455,7 +456,7 @@ struct iwl_trans_ops {
 	int (*read_mem)(struct iwl_trans *trans, u32 addr,
 			void *buf, int dwords);
 	int (*write_mem)(struct iwl_trans *trans, u32 addr,
-			 void *buf, int dwords);
+			 const void *buf, int dwords);
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
@@ -761,7 +762,7 @@ static inline u32 iwl_trans_read_mem32(struct iwl_trans *trans, u32 addr)
 }
 
 static inline int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
-				      void *buf, int dwords)
+				      const void *buf, int dwords)
 {
 	return trans->ops->write_mem(trans, addr, buf, dwords);
 }

@@ -254,23 +254,23 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	BUILD_BUG_ON(sizeof(iwlagn_def_3w_lookup) !=
 			sizeof(basic.bt3_lookup_table));
 
-	if (priv->cfg->bt_params) {
+	if (priv->lib->bt_params) {
 		/*
 		 * newer generation of devices (2000 series and newer)
 		 * use the version 2 of the bt command
 		 * we need to make sure sending the host command
 		 * with correct data structure to avoid uCode assert
 		 */
-		if (priv->cfg->bt_params->bt_session_2) {
+		if (priv->lib->bt_params->bt_session_2) {
 			bt_cmd_v2.prio_boost = cpu_to_le32(
-				priv->cfg->bt_params->bt_prio_boost);
+				priv->lib->bt_params->bt_prio_boost);
 			bt_cmd_v2.tx_prio_boost = 0;
 			bt_cmd_v2.rx_prio_boost = 0;
 		} else {
 			/* older version only has 8 bits */
-			WARN_ON(priv->cfg->bt_params->bt_prio_boost & ~0xFF);
+			WARN_ON(priv->lib->bt_params->bt_prio_boost & ~0xFF);
 			bt_cmd_v1.prio_boost =
-				priv->cfg->bt_params->bt_prio_boost;
+				priv->lib->bt_params->bt_prio_boost;
 			bt_cmd_v1.tx_prio_boost = 0;
 			bt_cmd_v1.rx_prio_boost = 0;
 		}
@@ -330,7 +330,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		       priv->bt_full_concurrent ?
 		       "full concurrency" : "3-wire");
 
-	if (priv->cfg->bt_params->bt_session_2) {
+	if (priv->lib->bt_params->bt_session_2) {
 		memcpy(&bt_cmd_v2.basic, &basic,
 			sizeof(basic));
 		ret = iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
@@ -758,8 +758,8 @@ static bool is_single_rx_stream(struct iwl_priv *priv)
  */
 static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 {
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist &&
+	if (priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist &&
 	    (priv->bt_full_concurrent ||
 	     priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
 		/*
@@ -830,8 +830,8 @@ void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	else
 		active_chains = priv->nvm_data->valid_rx_ant;
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist &&
+	if (priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist &&
 	    (priv->bt_full_concurrent ||
 	     priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
 		/*

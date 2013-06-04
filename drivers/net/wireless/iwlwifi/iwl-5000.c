@@ -59,11 +59,8 @@ static const struct iwl_base_params iwl5000_base_params = {
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
 	.led_compensation = 51,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_WATCHDOG_DISABLED,
 	.max_event_log_size = 512,
-	.no_idle_support = true,
 };
 
 static const struct iwl_ht_params iwl5000_ht_params = {
@@ -159,7 +156,6 @@ const struct iwl_cfg iwl5350_agn_cfg = {
 	.nvm_calib_ver = EEPROM_5050_TX_POWER_VERSION,	\
 	.base_params = &iwl5000_base_params,			\
 	.eeprom_params = &iwl5000_eeprom_params,		\
-	.no_xtal_calib = true,					\
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true
 

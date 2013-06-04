@@ -732,17 +732,16 @@ int iwl_init_sband_channels(struct iwl_nvm_data *data,
 void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 			  struct iwl_nvm_data *data,
 			  struct ieee80211_sta_ht_cap *ht_info,
-			  enum ieee80211_band band)
+			  enum ieee80211_band band,
+			  u8 tx_chains, u8 rx_chains)
 {
 	int max_bit_rate = 0;
-	u8 rx_chains;
-	u8 tx_chains;
 
-	tx_chains = hweight8(data->valid_tx_ant);
+	tx_chains = hweight8(tx_chains);
 	if (cfg->rx_with_siso_diversity)
 		rx_chains = 1;
 	else
-		rx_chains = hweight8(data->valid_rx_ant);
+		rx_chains = hweight8(rx_chains);
 
 	if (!(data->sku_cap_11n_enable) || !cfg->ht_params) {
 		ht_info->ht_supported = false;
@@ -806,7 +805,8 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 	sband->n_bitrates = N_RATES_24;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  IEEE80211_BAND_2GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_2GHZ);
+	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_2GHZ,
+			     data->valid_tx_ant, data->valid_rx_ant);
 
 	sband = &data->bands[IEEE80211_BAND_5GHZ];
 	sband->band = IEEE80211_BAND_5GHZ;
@@ -814,7 +814,8 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 	sband->n_bitrates = N_RATES_52;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  IEEE80211_BAND_5GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_5GHZ);
+	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_5GHZ,
+			     data->valid_tx_ant, data->valid_rx_ant);
 
 	if (n_channels != n_used)
 		IWL_ERR_DEV(dev, "EEPROM: used only %d of %d channels\n",

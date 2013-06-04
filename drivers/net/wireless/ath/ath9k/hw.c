@@ -452,7 +452,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.pcie_clock_req = 0;
 	ah->config.pcie_waen = 0;
 	ah->config.analog_shiftreg = 1;
-	ah->config.enable_ani = true;
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		ah->config.spurchans[i][0] = AR_NO_SPUR;
@@ -549,8 +548,7 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 		ah->eep_ops->get_eeprom_ver(ah),
 		ah->eep_ops->get_eeprom_rev(ah));
 
-	if (ah->config.enable_ani)
-		ath9k_hw_ani_init(ah);
+	ath9k_hw_ani_init(ah);
 
 	return 0;
 }
@@ -1245,10 +1243,10 @@ static void ath9k_hw_set_operating_mode(struct ath_hw *ah, int opmode)
 
 	switch (opmode) {
 	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_MESH_POINT:
 		set |= AR_STA_ID1_ADHOC;
 		REG_SET_BIT(ah, AR_CFG, AR_CFG_AP_ADHOC_INDICATION);
 		break;
+	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
 		set |= AR_STA_ID1_STA_AP;
 		/* fall through */
@@ -2246,12 +2244,12 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 
 	switch (ah->opmode) {
 	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_MESH_POINT:
 		REG_SET_BIT(ah, AR_TXCFG,
 			    AR_TXCFG_ADHOC_BEACON_ATIM_TX_POLICY);
 		REG_WRITE(ah, AR_NEXT_NDP_TIMER, next_beacon +
 			  TU_TO_USEC(ah->atim_window ? ah->atim_window : 1));
 		flags |= AR_NDP_TIMER_EN;
+	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
 		REG_WRITE(ah, AR_NEXT_TBTT_TIMER, next_beacon);
 		REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT, next_beacon -
@@ -2595,13 +2593,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			pCap->hw_caps |= ATH9K_HW_CAP_RTT;
 	}
 
-	if (AR_SREV_9280_20_OR_LATER(ah)) {
-		pCap->hw_caps |= ATH9K_HW_WOW_DEVICE_CAPABLE |
-				 ATH9K_HW_WOW_PATTERN_MATCH_EXACT;
-
-		if (AR_SREV_9280(ah))
-			pCap->hw_caps |= ATH9K_HW_WOW_PATTERN_MATCH_DWORD;
-	}
+	if (AR_SREV_9462(ah))
+		pCap->hw_caps |= ATH9K_HW_WOW_DEVICE_CAPABLE;
 
 	if (AR_SREV_9300_20_OR_LATER(ah) &&
 	    ah->eep_ops->get_eeprom(ah, EEP_PAPRD))

@@ -227,7 +227,7 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		.found_vif = false,
 	};
 	u32 ac;
-	int ret;
+	int ret, i;
 
 	/*
 	 * Allocate a MAC ID and a TSF for this MAC, along with the queues
@@ -334,6 +334,9 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 
 	mvmvif->bcast_sta.sta_id = IWL_MVM_STATION_COUNT;
 	mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
+
+	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++)
+		mvmvif->smps_requests[i] = IEEE80211_SMPS_AUTOMATIC;
 
 	return 0;
 
@@ -586,10 +589,12 @@ static int iwl_mvm_mac_ctxt_send_cmd(struct iwl_mvm *mvm,
  */
 static void iwl_mvm_mac_ctxt_cmd_fill_sta(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
-					  struct iwl_mac_data_sta *ctxt_sta)
+					  struct iwl_mac_data_sta *ctxt_sta,
+					  bool force_assoc_off)
 {
 	/* We need the dtim_period to set the MAC as associated */
-	if (vif->bss_conf.assoc && vif->bss_conf.dtim_period) {
+	if (vif->bss_conf.assoc && vif->bss_conf.dtim_period &&
+	    !force_assoc_off) {
 		u32 dtim_offs;
 
 		/*
@@ -659,7 +664,8 @@ static int iwl_mvm_mac_ctxt_cmd_station(struct iwl_mvm *mvm,
 		cmd.filter_flags &= ~cpu_to_le32(MAC_FILTER_IN_BEACON);
 
 	/* Fill the data specific for station mode */
-	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.sta);
+	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.sta,
+				      action == FW_CTXT_ACTION_ADD);
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -677,7 +683,8 @@ static int iwl_mvm_mac_ctxt_cmd_p2p_client(struct iwl_mvm *mvm,
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
 	/* Fill the data specific for station mode */
-	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.p2p_sta.sta);
+	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.p2p_sta.sta,
+				      action == FW_CTXT_ACTION_ADD);
 
 	cmd.p2p_sta.ctwin = cpu_to_le32(noa->oppps_ctwindow &
 					IEEE80211_P2P_OPPPS_CTWINDOW_MASK);
@@ -1041,5 +1048,30 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 		     beacon->beacon_notify_hdr.failure_frame,
 		     le64_to_cpu(beacon->tsf),
 		     rate);
+	return 0;
+}
+
+static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
+					 struct ieee80211_vif *vif)
+{
+	u16 *id = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (mvmvif->id == *id)
+		ieee80211_beacon_loss(vif);
+}
+
+int iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
+				    struct iwl_rx_cmd_buffer *rxb,
+				    struct iwl_device_cmd *cmd)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_missed_beacons_notif *missed_beacons = (void *)pkt->data;
+	u16 id = (u16)le32_to_cpu(missed_beacons->mac_id);
+
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_beacon_loss_iterator,
+						   &id);
 	return 0;
 }

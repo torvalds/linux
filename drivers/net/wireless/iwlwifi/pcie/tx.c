@@ -1045,6 +1045,10 @@ static inline void iwl_pcie_txq_set_inactive(struct iwl_trans *trans,
 		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
 
+/* Receiver address (actually, Rx station's index into station table),
+ * combined with Traffic ID (QOS priority), in format used by Tx Scheduler */
+#define BUILD_RAxTID(sta_id, tid)	(((sta_id) << 4) + (tid))
+
 void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 			       int sta_id, int tid, int frame_limit, u16 ssn)
 {
@@ -1518,6 +1522,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	if (test_bit(STATUS_FW_ERROR, &trans_pcie->status)) {
 		IWL_ERR(trans, "FW error in SYNC CMD %s\n",
 			get_cmd_string(trans_pcie, cmd->id));
+		dump_stack();
 		ret = -EIO;
 		goto cancel;
 	}
@@ -1564,7 +1569,8 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (test_bit(STATUS_FW_ERROR, &trans_pcie->status))
 		return -EIO;
 
-	if (test_bit(STATUS_RFKILL, &trans_pcie->status)) {
+	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
+	    test_bit(STATUS_RFKILL, &trans_pcie->status)) {
 		IWL_DEBUG_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
 				  cmd->id);
 		return -ERFKILL;
