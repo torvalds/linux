@@ -3618,10 +3618,11 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	/* Enable panel fitting for eDP */
 	i9xx_pfit_enable(intel_crtc);
 
+	intel_crtc_load_lut(crtc);
+
 	intel_enable_pipe(dev_priv, pipe, false);
 	intel_enable_plane(dev_priv, plane, pipe);
 
-	intel_crtc_load_lut(crtc);
 	intel_update_fbc(dev);
 
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
@@ -3657,12 +3658,13 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	/* Enable panel fitting for LVDS */
 	i9xx_pfit_enable(intel_crtc);
 
+	intel_crtc_load_lut(crtc);
+
 	intel_enable_pipe(dev_priv, pipe, false);
 	intel_enable_plane(dev_priv, plane, pipe);
 	if (IS_G4X(dev))
 		g4x_fixup_plane(dev_priv, pipe);
 
-	intel_crtc_load_lut(crtc);
 	intel_update_fbc(dev);
 
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
