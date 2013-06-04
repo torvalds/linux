@@ -202,7 +202,7 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv *priv)
 	case COUNTRY_CODE_MKK1:
 	case COUNTRY_CODE_ISRAEL:
 	case COUNTRY_CODE_TELEC:
-	case COUNTRY_CODE_MIC:	
+	case COUNTRY_CODE_MIC:
 		Dot11d_Init(ieee);
 		ieee->bGlobalDomain = false;
 		//actually 8225 & 8256 rf chips only support B,G,24N mode
@@ -229,7 +229,7 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv *priv)
 		Dot11d_Reset(ieee);
 		ieee->bGlobalDomain = true;
 		break;
-	
+
 	default:
 		break;
 	}
