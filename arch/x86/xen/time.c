@@ -14,6 +14,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/math64.h>
 #include <linux/gfp.h>
+#include <linux/slab.h>
 
 #include <asm/pvclock.h>
 #include <asm/xen/hypervisor.h>
@@ -402,7 +403,7 @@ static irqreturn_t xen_timer_interrupt(int irq, void *dev_id)
 
 void xen_setup_timer(int cpu)
 {
-	const char *name;
+	char *name;
 	struct clock_event_device *evt;
 	int irq;
 
@@ -425,6 +426,7 @@ void xen_setup_timer(int cpu)
 
 	evt->cpumask = cpumask_of(cpu);
 	evt->irq = irq;
+	per_cpu(xen_clock_events, cpu).name = name;
 }
 
 void xen_teardown_timer(int cpu)
@@ -434,6 +436,8 @@ void xen_teardown_timer(int cpu)
 	evt = &per_cpu(xen_clock_events, cpu).evt;
 	unbind_from_irqhandler(evt->irq, NULL);
 	evt->irq = -1;
+	kfree(per_cpu(xen_clock_events, cpu).name);
+	per_cpu(xen_clock_events, cpu).name = NULL;
 }
 
 void xen_setup_cpu_clockevents(void)
