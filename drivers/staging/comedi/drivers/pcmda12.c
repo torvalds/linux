@@ -51,8 +51,6 @@ Configuration Options:
 
 #define CHANS 8
 #define IOSIZE 16
-#define LSB_PORT(chan) (dev->iobase + (chan)*2)
-#define MSB_PORT(chan) (LSB_PORT(chan)+1)
 
 /* AI range is not configurable, it's set by jumpers on the board */
 static const struct comedi_lrange pcmda12_ranges = {
@@ -70,16 +68,16 @@ struct pcmda12_private {
 };
 
 static void zero_chans(struct comedi_device *dev)
-{				/* sets up an
-				   ASIC chip to defaults */
+{
 	int i;
+
 	for (i = 0; i < CHANS; ++i) {
-/*      /\* do this as one instruction?? *\/ */
-/*      outw(0, LSB_PORT(chan)); */
-		outb(0, LSB_PORT(i));
-		outb(0, MSB_PORT(i));
+
+		outb(0, dev->iobase + (i * 2));
+		outb(0, dev->iobase + (i * 2) + 1);
 	}
-	inb(LSB_PORT(0));	/* update chans. */
+	/* Initiate transfer by reading one of the AO registers. */
+	inb(dev->iobase);
 }
 
 static int pcmda12_ao_insn_write(struct comedi_device *dev,
@@ -90,19 +88,20 @@ static int pcmda12_ao_insn_write(struct comedi_device *dev,
 	struct pcmda12_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int val = devpriv->ao_readback[chan];
+	unsigned long ioreg = dev->iobase + (chan * 2);
 	int i;
 
 	for (i = 0; i < insn->n; ++i) {
 		val = data[i];
-		outb(val & 0xff, LSB_PORT(chan));
-		outb((val >> 8) & 0xff, MSB_PORT(chan));
+		outb(val & 0xff, ioreg);
+		outb((val >> 8) & 0xff, ioreg + 1);
 
 		/*
 		 * Initiate transfer if not in simultaneaous xfer
 		 * mode by reading one of the AO registers.
 		 */
 		if (!devpriv->simultaneous_xfer_mode)
-			inb(LSB_PORT(chan));
+			inb(ioreg);
 	}
 	devpriv->ao_readback[chan] = val;
 
@@ -123,7 +122,7 @@ static int pcmda12_ao_insn_read(struct comedi_device *dev,
 	 * AO registers. All analog outputs will then be updated.
 	 */
 	if (devpriv->simultaneous_xfer_mode)
-		inb(LSB_PORT(chan));
+		inb(dev->iobase);
 
 	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
