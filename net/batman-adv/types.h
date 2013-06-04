@@ -933,6 +933,7 @@ struct batadv_algo_ops {
  * is used to stored ARP entries needed for the global DAT cache
  * @ip: the IPv4 corresponding to this DAT/ARP entry
  * @mac_addr: the MAC address associated to the stored IPv4
+ * @vid: the vlan ID associated to this entry
  * @last_update: time in jiffies when this entry was refreshed last time
  * @hash_entry: hlist node for batadv_priv_dat::hash
  * @refcount: number of contexts the object is used
@@ -941,6 +942,7 @@ struct batadv_algo_ops {
 struct batadv_dat_entry {
 	__be32 ip;
 	uint8_t mac_addr[ETH_ALEN];
+	unsigned short vid;
 	unsigned long last_update;
 	struct hlist_node hash_entry;
 	atomic_t refcount;
