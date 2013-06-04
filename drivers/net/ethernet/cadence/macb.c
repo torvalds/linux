@@ -32,7 +32,9 @@
 
 #include "macb.h"
 
-#define RX_BUFFER_SIZE		128
+#define MACB_RX_BUFFER_SIZE	128
+#define GEM_RX_BUFFER_SIZE	2048
+#define RX_BUFFER_MULTIPLE	64  /* bytes */
 #define RX_RING_SIZE		512 /* must be power of 2 */
 #define RX_RING_BYTES		(sizeof(struct macb_dma_desc) * RX_RING_SIZE)
 
@@ -92,7 +94,7 @@ static struct macb_dma_desc *macb_rx_desc(struct macb *bp, unsigned int index)
 
 static void *macb_rx_buffer(struct macb *bp, unsigned int index)
 {
-	return bp->rx_buffers + RX_BUFFER_SIZE * macb_rx_ring_wrap(index);
+	return bp->rx_buffers + bp->rx_buffer_size * macb_rx_ring_wrap(index);
 }
 
 void macb_set_hwaddr(struct macb *bp)
@@ -575,7 +577,7 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 	skb_put(skb, len);
 
 	for (frag = first_frag; ; frag++) {
-		unsigned int frag_len = RX_BUFFER_SIZE;
+		unsigned int frag_len = bp->rx_buffer_size;
 
 		if (offset + frag_len > len) {
 			BUG_ON(frag != last_frag);
@@ -583,7 +585,7 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 		}
 		skb_copy_to_linear_data_offset(skb, offset,
 				macb_rx_buffer(bp, frag), frag_len);
-		offset += RX_BUFFER_SIZE;
+		offset += bp->rx_buffer_size;
 		desc = macb_rx_desc(bp, frag);
 		desc->addr &= ~MACB_BIT(RX_USED);
 
@@ -870,6 +872,30 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
+static void macb_init_rx_buffer_size(struct macb *bp)
+{
+	if (!macb_is_gem(bp)) {
+		bp->rx_buffer_size = MACB_RX_BUFFER_SIZE;
+	} else {
+		bp->rx_buffer_size = GEM_RX_BUFFER_SIZE;
+
+		if (bp->rx_buffer_size > PAGE_SIZE) {
+			netdev_warn(bp->dev,
+				    "RX buffer cannot be bigger than PAGE_SIZE, shrinking\n");
+			bp->rx_buffer_size = PAGE_SIZE;
+		}
+		if (bp->rx_buffer_size % RX_BUFFER_MULTIPLE) {
+			netdev_warn(bp->dev,
+				    "RX buffer must be multiple of %d bytes, shrinking\n",
+				    RX_BUFFER_MULTIPLE);
+			bp->rx_buffer_size =
+				rounddown(bp->rx_buffer_size, RX_BUFFER_MULTIPLE);
+		}
+		bp->rx_buffer_size = max(RX_BUFFER_MULTIPLE, GEM_RX_BUFFER_SIZE);
+	}
+}
+
+
 static void macb_free_consistent(struct macb *bp)
 {
 	if (bp->tx_skb) {
@@ -888,7 +914,7 @@ static void macb_free_consistent(struct macb *bp)
 	}
 	if (bp->rx_buffers) {
 		dma_free_coherent(&bp->pdev->dev,
-				  RX_RING_SIZE * RX_BUFFER_SIZE,
+				  RX_RING_SIZE * bp->rx_buffer_size,
 				  bp->rx_buffers, bp->rx_buffers_dma);
 		bp->rx_buffers = NULL;
 	}
@@ -921,7 +947,7 @@ static int macb_alloc_consistent(struct macb *bp)
 		   "Allocated TX ring of %d bytes at %08lx (mapped %p)\n",
 		   size, (unsigned long)bp->tx_ring_dma, bp->tx_ring);
 
-	size = RX_RING_SIZE * RX_BUFFER_SIZE;
+	size = RX_RING_SIZE * bp->rx_buffer_size;
 	bp->rx_buffers = dma_alloc_coherent(&bp->pdev->dev, size,
 					    &bp->rx_buffers_dma, GFP_KERNEL);
 	if (!bp->rx_buffers)
@@ -946,7 +972,7 @@ static void macb_init_rings(struct macb *bp)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		bp->rx_ring[i].addr = addr;
 		bp->rx_ring[i].ctrl = 0;
-		addr += RX_BUFFER_SIZE;
+		addr += bp->rx_buffer_size;
 	}
 	bp->rx_ring[RX_RING_SIZE - 1].addr |= MACB_BIT(RX_WRAP);
 
@@ -1056,7 +1082,7 @@ static void macb_configure_dma(struct macb *bp)
 
 	if (macb_is_gem(bp)) {
 		dmacfg = gem_readl(bp, DMACFG) & ~GEM_BF(RXBS, -1L);
-		dmacfg |= GEM_BF(RXBS, RX_BUFFER_SIZE / 64);
+		dmacfg |= GEM_BF(RXBS, bp->rx_buffer_size / RX_BUFFER_MULTIPLE);
 		dmacfg |= GEM_BF(FBLDO, 16);
 		dmacfg |= GEM_BIT(TXPBMS) | GEM_BF(RXBMS, -1L);
 		dmacfg &= ~GEM_BIT(ENDIA);
@@ -1243,6 +1269,9 @@ static int macb_open(struct net_device *dev)
 	/* if the phy is not yet register, retry later*/
 	if (!bp->phy_dev)
 		return -EAGAIN;
+
+	/* RX buffers initialization */
+	macb_init_rx_buffer_size(bp);
 
 	err = macb_alloc_consistent(bp);
 	if (err) {
