@@ -1506,6 +1506,24 @@ out:
  * batadv_tt_global_crc - calculates the checksum of the local table belonging
  *  to the given orig_node
  * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: originator for which the CRC should be computed
+ *
+ * This function computes the checksum for the global table corresponding to a
+ * specific originator. In particular, the checksum is computed as follows: For
+ * each client connected to the originator the CRC32C of the MAC address and the
+ * VID is computed and then all the CRC32Cs of the various clients are xor'ed
+ * together.
+ *
+ * The idea behind is that CRC32C should be used as much as possible in order to
+ * produce a unique hash of the table, but since the order which is used to feed
+ * the CRC32C function affects the result and since every node in the network
+ * probably sorts the clients differently, the hash function cannot be directly
+ * computed over the entire table. Hence the CRC32C is used only on
+ * the single client entry, while all the results are then xor'ed together
+ * because the XOR operation can combine them all while trying to reduce the
+ * noise as much as possible.
+ *
+ * Returns the checksum of the global table of a given originator.
  */
 static uint32_t batadv_tt_global_crc(struct batadv_priv *bat_priv,
 				     struct batadv_orig_node *orig_node)
@@ -1514,7 +1532,7 @@ static uint32_t batadv_tt_global_crc(struct batadv_priv *bat_priv,
 	struct batadv_tt_common_entry *tt_common;
 	struct batadv_tt_global_entry *tt_global;
 	struct hlist_head *head;
-	uint32_t i, crc = 0;
+	uint32_t i, crc_tmp, crc = 0;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
@@ -1545,7 +1563,9 @@ static uint32_t batadv_tt_global_crc(struct batadv_priv *bat_priv,
 							     orig_node))
 				continue;
 
-			crc ^= crc32c(0, tt_common->addr, ETH_ALEN);
+			crc_tmp = crc32c(0, &tt_common->vid,
+					 sizeof(tt_common->vid));
+			crc ^= crc32c(crc_tmp, tt_common->addr, ETH_ALEN);
 		}
 		rcu_read_unlock();
 	}
@@ -1556,13 +1576,18 @@ static uint32_t batadv_tt_global_crc(struct batadv_priv *bat_priv,
 /**
  * batadv_tt_local_crc - calculates the checksum of the local table
  * @bat_priv: the bat priv with all the soft interface information
+ *
+ * For details about the computation, please refer to the documentation for
+ * batadv_tt_global_crc().
+ *
+ * Returns the checksum of the local table
  */
 static uint32_t batadv_tt_local_crc(struct batadv_priv *bat_priv)
 {
 	struct batadv_hashtable *hash = bat_priv->tt.local_hash;
 	struct batadv_tt_common_entry *tt_common;
 	struct hlist_head *head;
-	uint32_t i, crc = 0;
+	uint32_t i, crc_tmp, crc = 0;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
@@ -1575,7 +1600,9 @@ static uint32_t batadv_tt_local_crc(struct batadv_priv *bat_priv)
 			if (tt_common->flags & BATADV_TT_CLIENT_NEW)
 				continue;
 
-			crc ^= crc32c(0, tt_common->addr, ETH_ALEN);
+			crc_tmp = crc32c(0, &tt_common->vid,
+					 sizeof(tt_common->vid));
+			crc ^= crc32c(crc_tmp, tt_common->addr, ETH_ALEN);
 		}
 		rcu_read_unlock();
 	}
