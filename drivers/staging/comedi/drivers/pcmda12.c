@@ -84,8 +84,10 @@ static void zero_chans(struct comedi_device *dev)
 	inb(LSB_PORT(0));	/* update chans. */
 }
 
-static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
+static int pcmda12_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct pcmda12_private *devpriv = dev->private;
 	int i;
@@ -127,8 +129,10 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
    DAC outputs, which makes all AO channels update simultaneously.
    This is useful for some control applications, I would imagine.
 */
-static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
+static int pcmda12_ao_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pcmda12_private *devpriv = dev->private;
 	int i;
@@ -172,8 +176,8 @@ static int pcmda12_attach(struct comedi_device *dev,
 	s->n_chan	= CHANS;
 	s->maxdata	= 0x0fff;
 	s->range_table	= &pcmda12_ranges;
-	s->insn_write	= &ao_winsn;
-	s->insn_read	= &ao_rinsn;
+	s->insn_write	= pcmda12_ao_insn_write;
+	s->insn_read	= pcmda12_ao_insn_read;
 
 	zero_chans(dev);	/* clear out all the registers, basically */
 
