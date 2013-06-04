@@ -524,12 +524,6 @@ struct transaction_s
 	struct journal_head	*t_checkpoint_io_list;
 
 	/*
-	 * Doubly-linked circular list of temporary buffers currently undergoing
-	 * IO in the log [j_list_lock]
-	 */
-	struct journal_head	*t_iobuf_list;
-
-	/*
 	 * Doubly-linked circular list of metadata buffers being shadowed by log
 	 * IO.  The IO buffers on the iobuf list and the shadow buffers on this
 	 * list match each other one for one at all times. [j_list_lock]
@@ -991,6 +985,14 @@ extern void __jbd2_journal_file_buffer(struct journal_head *, transaction_t *, i
 extern void __journal_free_buffer(struct journal_head *bh);
 extern void jbd2_journal_file_buffer(struct journal_head *, transaction_t *, int);
 extern void __journal_clean_data_list(transaction_t *transaction);
+static inline void jbd2_file_log_bh(struct list_head *head, struct buffer_head *bh)
+{
+	list_add_tail(&bh->b_assoc_buffers, head);
+}
+static inline void jbd2_unfile_log_bh(struct buffer_head *bh)
+{
+	list_del_init(&bh->b_assoc_buffers);
+}
 
 /* Log buffer allocation */
 extern struct journal_head * jbd2_journal_get_descriptor_buffer(journal_t *);
@@ -1039,11 +1041,10 @@ extern void jbd2_buffer_abort_trigger(struct journal_head *jh,
 				      struct jbd2_buffer_trigger_type *triggers);
 
 /* Buffer IO */
-extern int
-jbd2_journal_write_metadata_buffer(transaction_t	  *transaction,
-			      struct journal_head  *jh_in,
-			      struct journal_head **jh_out,
-			      unsigned long long   blocknr);
+extern int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
+					      struct journal_head *jh_in,
+					      struct buffer_head **bh_out,
+					      sector_t blocknr);
 
 /* Transaction locking */
 extern void		__wait_on_journal (journal_t *);
@@ -1286,11 +1287,10 @@ static inline int jbd_space_needed(journal_t *journal)
 #define BJ_None		0	/* Not journaled */
 #define BJ_Metadata	1	/* Normal journaled metadata */
 #define BJ_Forget	2	/* Buffer superseded by this transaction */
-#define BJ_IO		3	/* Buffer is for temporary IO use */
-#define BJ_Shadow	4	/* Buffer contents being shadowed to the log */
-#define BJ_LogCtl	5	/* Buffer contains log descriptors */
-#define BJ_Reserved	6	/* Buffer is reserved for access by journal */
-#define BJ_Types	7
+#define BJ_Shadow	3	/* Buffer contents being shadowed to the log */
+#define BJ_LogCtl	4	/* Buffer contains log descriptors */
+#define BJ_Reserved	5	/* Buffer is reserved for access by journal */
+#define BJ_Types	6
 
 extern int jbd_blocks_per_page(struct inode *inode);
 

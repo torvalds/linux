@@ -1601,10 +1601,10 @@ __blist_del_buffer(struct journal_head **list, struct journal_head *jh)
  * Remove a buffer from the appropriate transaction list.
  *
  * Note that this function can *change* the value of
- * bh->b_transaction->t_buffers, t_forget, t_iobuf_list, t_shadow_list,
- * t_log_list or t_reserved_list.  If the caller is holding onto a copy of one
- * of these pointers, it could go bad.  Generally the caller needs to re-read
- * the pointer from the transaction_t.
+ * bh->b_transaction->t_buffers, t_forget, t_shadow_list, t_log_list or
+ * t_reserved_list.  If the caller is holding onto a copy of one of these
+ * pointers, it could go bad.  Generally the caller needs to re-read the
+ * pointer from the transaction_t.
  *
  * Called under j_list_lock.
  */
@@ -1633,9 +1633,6 @@ static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh)
 		break;
 	case BJ_Forget:
 		list = &transaction->t_forget;
-		break;
-	case BJ_IO:
-		list = &transaction->t_iobuf_list;
 		break;
 	case BJ_Shadow:
 		list = &transaction->t_shadow_list;
@@ -2147,9 +2144,6 @@ void __jbd2_journal_file_buffer(struct journal_head *jh,
 		break;
 	case BJ_Forget:
 		list = &transaction->t_forget;
-		break;
-	case BJ_IO:
-		list = &transaction->t_iobuf_list;
 		break;
 	case BJ_Shadow:
 		list = &transaction->t_shadow_list;

@@ -369,7 +369,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 {
 	struct transaction_stats_s stats;
 	transaction_t *commit_transaction;
-	struct journal_head *jh, *new_jh, *descriptor;
+	struct journal_head *jh, *descriptor;
 	struct buffer_head **wbuf = journal->j_wbuf;
 	int bufs;
 	int flags;
@@ -393,6 +393,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	tid_t first_tid;
 	int update_tail;
 	int csum_size = 0;
+	LIST_HEAD(io_bufs);
 
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
 		csum_size = sizeof(struct jbd2_journal_block_tail);
@@ -659,29 +660,22 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 		/* Bump b_count to prevent truncate from stumbling over
                    the shadowed buffer!  @@@ This can go if we ever get
-                   rid of the BJ_IO/BJ_Shadow pairing of buffers. */
+                   rid of the shadow pairing of buffers. */
 		atomic_inc(&jh2bh(jh)->b_count);
 
-		/* Make a temporary IO buffer with which to write it out
-                   (this will requeue both the metadata buffer and the
-                   temporary IO buffer). new_bh goes on BJ_IO*/
-
-		set_bit(BH_JWrite, &jh2bh(jh)->b_state);
 		/*
-		 * akpm: jbd2_journal_write_metadata_buffer() sets
-		 * new_bh->b_transaction to commit_transaction.
-		 * We need to clean this up before we release new_bh
-		 * (which is of type BJ_IO)
+		 * Make a temporary IO buffer with which to write it out
+		 * (this will requeue the metadata buffer to BJ_Shadow).
 		 */
+		set_bit(BH_JWrite, &jh2bh(jh)->b_state);
 		JBUFFER_TRACE(jh, "ph3: write metadata");
 		flags = jbd2_journal_write_metadata_buffer(commit_transaction,
-						      jh, &new_jh, blocknr);
+						jh, &wbuf[bufs], blocknr);
 		if (flags < 0) {
 			jbd2_journal_abort(journal, flags);
 			continue;
 		}
-		set_bit(BH_JWrite, &jh2bh(new_jh)->b_state);
-		wbuf[bufs++] = jh2bh(new_jh);
+		jbd2_file_log_bh(&io_bufs, wbuf[bufs]);
 
 		/* Record the new block's tag in the current descriptor
                    buffer */
@@ -695,10 +689,11 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		tag = (journal_block_tag_t *) tagp;
 		write_tag_block(tag_bytes, tag, jh2bh(jh)->b_blocknr);
 		tag->t_flags = cpu_to_be16(tag_flag);
-		jbd2_block_tag_csum_set(journal, tag, jh2bh(new_jh),
+		jbd2_block_tag_csum_set(journal, tag, wbuf[bufs],
 					commit_transaction->t_tid);
 		tagp += tag_bytes;
 		space_left -= tag_bytes;
+		bufs++;
 
 		if (first_tag) {
 			memcpy (tagp, journal->j_uuid, 16);
@@ -810,7 +805,7 @@ start_journal_io:
            the log.  Before we can commit it, wait for the IO so far to
            complete.  Control buffers being written are on the
            transaction's t_log_list queue, and metadata buffers are on
-           the t_iobuf_list queue.
+           the io_bufs list.
 
 	   Wait for the buffers in reverse order.  That way we are
 	   less likely to be woken up until all IOs have completed, and
@@ -819,46 +814,31 @@ start_journal_io:
 
 	jbd_debug(3, "JBD2: commit phase 3\n");
 
-	/*
-	 * akpm: these are BJ_IO, and j_list_lock is not needed.
-	 * See __journal_try_to_free_buffer.
-	 */
-wait_for_iobuf:
-	while (commit_transaction->t_iobuf_list != NULL) {
-		struct buffer_head *bh;
+	while (!list_empty(&io_bufs)) {
+		struct buffer_head *bh = list_entry(io_bufs.prev,
+						    struct buffer_head,
+						    b_assoc_buffers);
 
-		jh = commit_transaction->t_iobuf_list->b_tprev;
-		bh = jh2bh(jh);
-		if (buffer_locked(bh)) {
-			wait_on_buffer(bh);
-			goto wait_for_iobuf;
-		}
-		if (cond_resched())
-			goto wait_for_iobuf;
+		wait_on_buffer(bh);
+		cond_resched();
 
 		if (unlikely(!buffer_uptodate(bh)))
 			err = -EIO;
-
-		clear_buffer_jwrite(bh);
-
-		JBUFFER_TRACE(jh, "ph4: unfile after journal write");
-		jbd2_journal_unfile_buffer(journal, jh);
+		jbd2_unfile_log_bh(bh);
 
 		/*
-		 * ->t_iobuf_list should contain only dummy buffer_heads
-		 * which were created by jbd2_journal_write_metadata_buffer().
+		 * The list contains temporary buffer heads created by
+		 * jbd2_journal_write_metadata_buffer().
 		 */
 		BUFFER_TRACE(bh, "dumping temporary bh");
-		jbd2_journal_put_journal_head(jh);
 		__brelse(bh);
 		J_ASSERT_BH(bh, atomic_read(&bh->b_count) == 0);
 		free_buffer_head(bh);
 
-		/* We also have to unlock and free the corresponding
-                   shadowed buffer */
+		/* We also have to refile the corresponding shadowed buffer */
 		jh = commit_transaction->t_shadow_list->b_tprev;
 		bh = jh2bh(jh);
-		clear_bit(BH_JWrite, &bh->b_state);
+		clear_buffer_jwrite(bh);
 		J_ASSERT_BH(bh, buffer_jbddirty(bh));
 
 		/* The metadata is now released for reuse, but we need
@@ -953,7 +933,6 @@ wait_for_iobuf:
 	J_ASSERT(list_empty(&commit_transaction->t_inode_list));
 	J_ASSERT(commit_transaction->t_buffers == NULL);
 	J_ASSERT(commit_transaction->t_checkpoint_list == NULL);
-	J_ASSERT(commit_transaction->t_iobuf_list == NULL);
 	J_ASSERT(commit_transaction->t_shadow_list == NULL);
 	J_ASSERT(commit_transaction->t_log_list == NULL);
 
