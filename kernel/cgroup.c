@@ -4037,6 +4037,7 @@ static int cgroup_clone_children_write(struct cgroup *cgrp,
 static struct cftype files[] = {
 	{
 		.name = "tasks",
+		.flags = CFTYPE_INSANE,		/* use "procs" instead */
 		.open = cgroup_tasks_open,
 		.write_u64 = cgroup_tasks_write,
 		.release = cgroup_pidlist_release,
