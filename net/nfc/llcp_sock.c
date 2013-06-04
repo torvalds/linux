@@ -626,6 +626,13 @@ static int llcp_sock_release(struct socket *sock)
 
 	release_sock(sk);
 
+	/* Keep this sock alive and therefore do not remove it from the sockets
+	 * list until the DISC PDU has been actually sent. Otherwise we would
+	 * reply with DM PDUs before sending the DISC one.
+	 */
+	if (sk->sk_state == LLCP_DISCONNECTING)
+		return err;
+
 	if (sock->type == SOCK_RAW)
 		nfc_llcp_sock_unlink(&local->raw_sockets, sk);
 	else

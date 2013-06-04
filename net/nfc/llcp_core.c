@@ -730,6 +730,13 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 				       DUMP_PREFIX_OFFSET, 16, 1,
 				       skb->data, skb->len, true);
 
+			if (ptype == LLCP_PDU_DISC && sk != NULL &&
+			    sk->sk_state == LLCP_DISCONNECTING) {
+				nfc_llcp_sock_unlink(&local->sockets, sk);
+				sock_orphan(sk);
+				sock_put(sk);
+			}
+
 			if (ptype == LLCP_PDU_I)
 				copy_skb = skb_copy(skb, GFP_ATOMIC);
 
