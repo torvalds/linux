@@ -297,6 +297,29 @@ void __init r8a7778_add_i2c_device(int id)
 		i2c_resources + (2 * id), 2);
 }
 
+/* HSPI */
+static struct resource hspi_resources[] __initdata = {
+	/* HSPI0 */
+	DEFINE_RES_MEM(0xfffc7000, 0x18),
+	DEFINE_RES_IRQ(gic_iid(0x5f)),
+	/* HSPI1 */
+	DEFINE_RES_MEM(0xfffc8000, 0x18),
+	DEFINE_RES_IRQ(gic_iid(0x74)),
+	/* HSPI2 */
+	DEFINE_RES_MEM(0xfffc6000, 0x18),
+	DEFINE_RES_IRQ(gic_iid(0x75)),
+};
+
+void __init r8a7778_add_hspi_device(int id)
+{
+	BUG_ON(id < 0 || id > 2);
+
+	platform_device_register_simple(
+		"sh-hspi", id,
+		hspi_resources + (2 * id), 2);
+}
+
+
 void __init r8a7778_add_standard_devices(void)
 {
 	int i;
