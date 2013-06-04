@@ -145,16 +145,23 @@
 #define PAGE_ENAB		2
 #define PAGE_INT_ID		3
 
-/*
- * Board descriptions for two imaginary boards.  Describing the
- * boards in this way is optional, and completely driver-dependent.
- * Some drivers use arrays such as this, other do not.
- */
 struct pcmuio_board {
 	const char *name;
 	const int num_asics;
 	const int num_channels_per_port;
 	const int num_ports;
+};
+
+static const struct pcmuio_board pcmuio_boards[] = {
+	{
+		.name		= "pcmuio48",
+		.num_asics	= 1,
+		.num_ports	= 6,
+	}, {
+		.name		= "pcmuio96",
+		.num_asics	= 2,
+		.num_ports	= 12,
+	},
 };
 
 /* this structure is for data unique to this subdevice.  */
@@ -933,18 +940,6 @@ static void pcmuio_detach(struct comedi_device *dev)
 		kfree(devpriv->sprivs);
 	comedi_legacy_detach(dev);
 }
-
-static const struct pcmuio_board pcmuio_boards[] = {
-	{
-		.name		= "pcmuio48",
-		.num_asics	= 1,
-		.num_ports	= 6,
-	}, {
-		.name		= "pcmuio96",
-		.num_asics	= 2,
-		.num_ports	= 12,
-	},
-};
 
 static struct comedi_driver pcmuio_driver = {
 	.driver_name	= "pcmuio",
