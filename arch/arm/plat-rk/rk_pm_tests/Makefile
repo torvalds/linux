@@ -9,3 +9,4 @@ obj-$(CONFIG_PM_TEST_CPU_USAGE) += cpu_usage.o
 obj-$(CONFIG_PM_TEST_SUSPEND_DBG) += rk_suspend_test.o
 obj-$(CONFIG_PM_TEST_CLK_AUTO_VOLT) += clk_auto_volt.o
 obj-$(CONFIG_PM_TEST_DELAYLINE) += delayline.o
+obj-$(CONFIG_PM_TEST_FT) += ft/

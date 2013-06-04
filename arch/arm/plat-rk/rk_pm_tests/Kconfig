@@ -47,5 +47,10 @@ config PM_TEST_DELAYLINE
 	bool "Get delayline value"
 	help
 	  Use to get delayline value
+	  
+config PM_TEST_FT
+	bool "Test kernel for FT"
+	help
+	  Use to test kernel for FT
 
 endif
