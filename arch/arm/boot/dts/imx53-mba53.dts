@@ -42,6 +42,28 @@
 		interface-pix-fmt = "rgb24";
 		status = "disabled";
 	};
+
+	reg_3p2v: 3p2v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P2V";
+		regulator-min-microvolt = <3200000>;
+		regulator-max-microvolt = <3200000>;
+		regulator-always-on;
+	};
+
+	sound {
+		compatible = "tq,imx53-mba53-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx53-mba53-sgtl5000";
+		ssi-controller = <&ssi2>;
+		audio-codec = <&codec>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <2>;
+		mux-ext-port = <5>;
+	};
 };
 
 &ldb {
@@ -122,10 +144,19 @@
 	status = "okay";
 };
 
+&audmux {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux_1>;
+};
+
 &i2c2 {
 	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
+		clocks = <&clks 150>;
+		VDDA-supply = <&reg_3p2v>;
+		VDDIO-supply = <&reg_3p2v>;
 	};
 
 	expander: pca9554@20 {
@@ -166,6 +197,11 @@
 };
 
 &uart1 {
+	status = "okay";
+};
+
+&ssi2 {
+	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 
