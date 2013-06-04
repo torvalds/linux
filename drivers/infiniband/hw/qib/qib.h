@@ -1,7 +1,7 @@
 #ifndef _QIB_KERNEL_H
 #define _QIB_KERNEL_H
 /*
- * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012, 2013 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -51,6 +51,7 @@
 #include <linux/completion.h>
 #include <linux/kref.h>
 #include <linux/sched.h>
+#include <linux/kthread.h>
 
 #include "qib_common.h"
 #include "qib_verbs.h"
@@ -1090,6 +1091,8 @@ struct qib_devdata {
 	u16 psxmitwait_check_rate;
 	/* high volume overflow errors defered to tasklet */
 	struct tasklet_struct error_tasklet;
+	/* per device cq worker */
+	struct kthread_worker *worker;
 
 	int assigned_node_id; /* NUMA node closest to HCA */
 };

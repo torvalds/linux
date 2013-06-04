@@ -41,6 +41,7 @@
 #include <linux/interrupt.h>
 #include <linux/kref.h>
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <linux/completion.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
@@ -267,7 +268,8 @@ struct qib_cq_wc {
  */
 struct qib_cq {
 	struct ib_cq ibcq;
-	struct work_struct comptask;
+	struct kthread_work comptask;
+	struct qib_devdata *dd;
 	spinlock_t lock; /* protect changes in this struct */
 	u8 notify;
 	u8 triggered;
@@ -832,8 +834,6 @@ static inline int qib_send_ok(struct qib_qp *qp)
 		 !(qp->s_flags & QIB_S_ANY_WAIT_SEND));
 }
 
-extern struct workqueue_struct *qib_cq_wq;
-
 /*
  * This must be called with s_lock held.
  */
@@ -971,6 +971,10 @@ int qib_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 int qib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
 
 int qib_destroy_srq(struct ib_srq *ibsrq);
+
+int qib_cq_init(struct qib_devdata *dd);
+
+void qib_cq_exit(struct qib_devdata *dd);
 
 void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int sig);
 
