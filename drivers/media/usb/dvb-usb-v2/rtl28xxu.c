@@ -1419,13 +1419,13 @@ static const struct usb_device_id rtl28xxu_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, 0xd393,
 		&rtl2832u_props, "GIGABYTE U7300", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_DEXATEK, 0x1104,
-		&rtl2832u_props, "Digivox Micro Hd", NULL) },
+		&rtl2832u_props, "MSI DIGIVOX Micro HD", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_COMPRO, 0x0620,
 		&rtl2832u_props, "Compro VideoMate U620F", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, 0xd394,
 		&rtl2832u_props, "MaxMedia HU394-T", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_LEADTEK, 0x6a03,
-		&rtl2832u_props, "WinFast DTV Dongle mini", NULL) },
+		&rtl2832u_props, "Leadtek WinFast DTV Dongle mini", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, rtl28xxu_id_table);
