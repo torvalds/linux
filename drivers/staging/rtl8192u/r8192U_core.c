@@ -1501,7 +1501,7 @@ u16 ComputeTxTime(u16 FrameLength, u16 DataRate, u8 bManagementFrame,
 		else // Short preamble
 			FrameTime = (u16)(72+24+(FrameLength*8/(DataRate/10)));
 		if ((FrameLength*8 % (DataRate/10)) != 0) //Get the Ceilling
-			FrameTime ++;
+			FrameTime++;
 	} else {	//802.11g DSSS-OFDM PLCP length field calculation.
 		N_DBPS = N_DBPSOfRate(DataRate);
 		Ceiling = (16 + 8*FrameLength + 6) / N_DBPS
@@ -3187,7 +3187,7 @@ RESET_TYPE TxCheckStuck(struct net_device *dev)
 	// Decide such threshold according to current power save mode
 	//
 
-	for (QueueID = 0; QueueID <= BEACON_QUEUE; QueueID ++) {
+	for (QueueID = 0; QueueID <= BEACON_QUEUE; QueueID++) {
 		if (QueueID == TXCMD_QUEUE)
 			continue;
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
