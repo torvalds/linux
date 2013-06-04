@@ -212,7 +212,6 @@ static int read_ftrace_printk(struct pevent *pevent)
 static int read_header_files(struct pevent *pevent)
 {
 	unsigned long long size;
-	char *header_event;
 	char buf[BUFSIZ];
 	int ret = 0;
 
@@ -236,14 +235,8 @@ static int read_header_files(struct pevent *pevent)
 	}
 
 	size = read8(pevent);
-	header_event = malloc(size);
-	if (header_event == NULL)
-		return -1;
+	skip(size);
 
-	if (do_read(header_event, size) < 0)
-		ret = -1;
-
-	free(header_event);
 	return ret;
 }
 
