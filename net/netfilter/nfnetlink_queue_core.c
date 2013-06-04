@@ -472,7 +472,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (ct && nfqnl_ct_put(skb, ct, ctinfo) < 0)
 		goto nla_put_failure;
 
-	if (cap_len > 0 && nla_put_be32(skb, NFQA_CAP_LEN, htonl(cap_len)))
+	if (cap_len > data_len &&
+	    nla_put_be32(skb, NFQA_CAP_LEN, htonl(cap_len)))
 		goto nla_put_failure;
 
 	if (nfqnl_put_packet_info(skb, entskb))
