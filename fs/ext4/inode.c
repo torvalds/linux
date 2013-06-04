@@ -3036,11 +3036,18 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 
 	BUG_ON(iocb->private == NULL);
 
+	/*
+	 * Make all waiters for direct IO properly wait also for extent
+	 * conversion. This also disallows race between truncate() and
+	 * overwrite DIO as i_dio_count needs to be incremented under i_mutex.
+	 */
+	if (rw == WRITE)
+		atomic_inc(&inode->i_dio_count);
+
 	/* If we do a overwrite dio, i_mutex locking can be released */
 	overwrite = *((int *)iocb->private);
 
 	if (overwrite) {
-		atomic_inc(&inode->i_dio_count);
 		down_read(&EXT4_I(inode)->i_data_sem);
 		mutex_unlock(&inode->i_mutex);
 	}
@@ -3143,9 +3150,10 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 	}
 
 retake_lock:
+	if (rw == WRITE)
+		inode_dio_done(inode);
 	/* take i_mutex locking again if we do a ovewrite dio */
 	if (overwrite) {
-		inode_dio_done(inode);
 		up_read(&EXT4_I(inode)->i_data_sem);
 		mutex_lock(&inode->i_mutex);
 	}
