@@ -434,10 +434,13 @@ void xen_teardown_timer(int cpu)
 	struct clock_event_device *evt;
 	BUG_ON(cpu == 0);
 	evt = &per_cpu(xen_clock_events, cpu).evt;
-	unbind_from_irqhandler(evt->irq, NULL);
-	evt->irq = -1;
-	kfree(per_cpu(xen_clock_events, cpu).name);
-	per_cpu(xen_clock_events, cpu).name = NULL;
+
+	if (evt->irq >= 0) {
+		unbind_from_irqhandler(evt->irq, NULL);
+		evt->irq = -1;
+		kfree(per_cpu(xen_clock_events, cpu).name);
+		per_cpu(xen_clock_events, cpu).name = NULL;
+	}
 }
 
 void xen_setup_cpu_clockevents(void)
