@@ -283,16 +283,6 @@ repeat:
 	 * reduce the free space arbitrarily.  Be careful to account for
 	 * those buffers when checkpointing.
 	 */
-
-	/*
-	 * @@@ AKPM: This seems rather over-defensive.  We're giving commit
-	 * a _lot_ of headroom: 1/4 of the journal plus the size of
-	 * the committing transaction.  Really, we only need to give it
-	 * committing_transaction->t_outstanding_credits plus "enough" for
-	 * the log control blocks.
-	 * Also, this test is inconsistent with the matching one in
-	 * jbd2_journal_extend().
-	 */
 	if (__jbd2_log_space_left(journal) < jbd_space_needed(journal)) {
 		jbd_debug(2, "Handle %p waiting for checkpoint...\n", handle);
 		atomic_sub(nblocks, &transaction->t_outstanding_credits);
