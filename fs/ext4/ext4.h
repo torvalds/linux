@@ -2109,7 +2109,7 @@ extern ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
 				const struct iovec *iov, loff_t offset,
 				unsigned long nr_segs);
 extern int ext4_ind_calc_metadata_amount(struct inode *inode, sector_t lblock);
-extern int ext4_ind_trans_blocks(struct inode *inode, int nrblocks, int chunk);
+extern int ext4_ind_trans_blocks(struct inode *inode, int nrblocks);
 extern void ext4_ind_truncate(handle_t *, struct inode *inode);
 extern int ext4_free_hole_blocks(handle_t *handle, struct inode *inode,
 				 ext4_lblk_t first, ext4_lblk_t stop);

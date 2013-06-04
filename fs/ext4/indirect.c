@@ -779,27 +779,18 @@ int ext4_ind_calc_metadata_amount(struct inode *inode, sector_t lblock)
 	return (blk_bits / EXT4_ADDR_PER_BLOCK_BITS(inode->i_sb)) + 1;
 }
 
-int ext4_ind_trans_blocks(struct inode *inode, int nrblocks, int chunk)
+/*
+ * Calculate number of indirect blocks touched by mapping @nrblocks logically
+ * contiguous blocks
+ */
+int ext4_ind_trans_blocks(struct inode *inode, int nrblocks)
 {
-	int indirects;
-
-	/* if nrblocks are contiguous */
-	if (chunk) {
-		/*
-		 * With N contiguous data blocks, we need at most
-		 * N/EXT4_ADDR_PER_BLOCK(inode->i_sb) + 1 indirect blocks,
-		 * 2 dindirect blocks, and 1 tindirect block
-		 */
-		return DIV_ROUND_UP(nrblocks,
-				    EXT4_ADDR_PER_BLOCK(inode->i_sb)) + 4;
-	}
 	/*
-	 * if nrblocks are not contiguous, worse case, each block touch
-	 * a indirect block, and each indirect block touch a double indirect
-	 * block, plus a triple indirect block
+	 * With N contiguous data blocks, we need at most
+	 * N/EXT4_ADDR_PER_BLOCK(inode->i_sb) + 1 indirect blocks,
+	 * 2 dindirect blocks, and 1 tindirect block
 	 */
-	indirects = nrblocks * 2 + 1;
-	return indirects;
+	return DIV_ROUND_UP(nrblocks, EXT4_ADDR_PER_BLOCK(inode->i_sb)) + 4;
 }
 
 /*

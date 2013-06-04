@@ -4653,7 +4653,7 @@ int ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 static int ext4_index_trans_blocks(struct inode *inode, int nrblocks, int chunk)
 {
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
-		return ext4_ind_trans_blocks(inode, nrblocks, chunk);
+		return ext4_ind_trans_blocks(inode, nrblocks);
 	return ext4_ext_index_trans_blocks(inode, nrblocks, chunk);
 }
 
