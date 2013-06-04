@@ -90,7 +90,6 @@
 #define INTR_PORTS_PER_SUBDEV (INTR_CHANS_PER_ASIC/CHANS_PER_PORT)
 #define MAX_DIO_CHANS   (PORTS_PER_ASIC*2*CHANS_PER_PORT)
 #define MAX_ASICS       (MAX_DIO_CHANS/CHANS_PER_ASIC)
-#define CALC_N_SUBDEVS(nchans) ((nchans)/MAX_CHANS_PER_SUBDEV + (!!((nchans)%MAX_CHANS_PER_SUBDEV)) /*+ (nchans > INTR_CHANS_PER_ASIC ? 2 : 1)*/)
 /* IO Memory sizes */
 #define ASIC_IOSIZE (0x10)
 #define PCMUIO48_IOSIZE ASIC_IOSIZE
@@ -809,7 +808,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	chans_left = CHANS_PER_ASIC * board->num_asics;
-	n_subdevs = CALC_N_SUBDEVS(chans_left);
+	n_subdevs = (chans_left / MAX_CHANS_PER_SUBDEV) +
+		    (!!(chans_left % MAX_CHANS_PER_SUBDEV));
 	devpriv->sprivs = kcalloc(n_subdevs,
 				  sizeof(struct pcmuio_subdev_private),
 				  GFP_KERNEL);
