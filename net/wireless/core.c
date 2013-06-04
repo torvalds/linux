@@ -555,14 +555,18 @@ int wiphy_register(struct wiphy *wiphy)
 	/* check and set up bitrates */
 	ieee80211_set_bitrate_flags(wiphy);
 
-	rtnl_lock();
 
 	res = device_add(&rdev->wiphy.dev);
+	if (res)
+		return res;
+
+	res = rfkill_register(rdev->rfkill);
 	if (res) {
-		rtnl_unlock();
+		device_del(&rdev->wiphy.dev);
 		return res;
 	}
 
+	rtnl_lock();
 	/* set up regulatory info */
 	wiphy_regulatory_register(wiphy);
 
@@ -588,17 +592,6 @@ int wiphy_register(struct wiphy *wiphy)
 	}
 
 	cfg80211_debugfs_rdev_add(rdev);
-
-	res = rfkill_register(rdev->rfkill);
-	if (res) {
-		device_del(&rdev->wiphy.dev);
-
-		debugfs_remove_recursive(rdev->wiphy.debugfsdir);
-		list_del_rcu(&rdev->list);
-		wiphy_regulatory_deregister(wiphy);
-		rtnl_unlock();
-		return res;
-	}
 
 	rdev->wiphy.registered = true;
 	rtnl_unlock();
@@ -636,10 +629,10 @@ void wiphy_unregister(struct wiphy *wiphy)
 		rtnl_unlock();
 		__count == 0; }));
 
+	rfkill_unregister(rdev->rfkill);
+
 	rtnl_lock();
 	rdev->wiphy.registered = false;
-
-	rfkill_unregister(rdev->rfkill);
 
 	BUG_ON(!list_empty(&rdev->wdev_list));
 
