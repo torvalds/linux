@@ -87,6 +87,7 @@ config ARM_INTEGRATOR
 
 config ARM_KIRKWOOD_CPUFREQ
 	def_bool ARCH_KIRKWOOD && OF
+	select CPU_FREQ_TABLE
 	help
 	  This adds the CPUFreq driver for Marvell Kirkwood
 	  SoCs.
