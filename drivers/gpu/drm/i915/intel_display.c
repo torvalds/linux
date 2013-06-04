@@ -3622,10 +3622,10 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	intel_enable_plane(dev_priv, plane, pipe);
 	intel_crtc_update_cursor(crtc, true);
 
-	intel_update_fbc(dev);
-
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
 	intel_crtc_dpms_overlay(intel_crtc, true);
+
+	intel_update_fbc(dev);
 
 	mutex_unlock(&dev_priv->dpio_lock);
 }
@@ -3664,10 +3664,10 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	if (IS_G4X(dev))
 		g4x_fixup_plane(dev_priv, pipe);
 
-	intel_update_fbc(dev);
-
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
 	intel_crtc_dpms_overlay(intel_crtc, true);
+
+	intel_update_fbc(dev);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
