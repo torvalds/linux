@@ -39,7 +39,35 @@ struct bcm63xx_enet_platform_data {
 					    int phy_id, int reg, int val));
 };
 
+/*
+ * on board ethernet switch platform data
+ */
+#define ENETSW_MAX_PORT	8
+#define ENETSW_PORTS_6328 5 /* 4 FE PHY + 1 RGMII */
+#define ENETSW_PORTS_6368 6 /* 4 FE PHY + 2 RGMII */
+
+#define ENETSW_RGMII_PORT0	4
+
+struct bcm63xx_enetsw_port {
+	int		used;
+	int		phy_id;
+
+	int		bypass_link;
+	int		force_speed;
+	int		force_duplex_full;
+
+	const char	*name;
+};
+
+struct bcm63xx_enetsw_platform_data {
+	char mac_addr[ETH_ALEN];
+	int num_ports;
+	struct bcm63xx_enetsw_port used_ports[ENETSW_MAX_PORT];
+};
+
 int __init bcm63xx_enet_register(int unit,
 				 const struct bcm63xx_enet_platform_data *pd);
+
+int bcm63xx_enetsw_register(const struct bcm63xx_enetsw_platform_data *pd);
 
 #endif /* ! BCM63XX_DEV_ENET_H_ */

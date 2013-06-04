@@ -830,9 +830,59 @@
  * _REG relative to RSET_ENETSW
  *************************************************************************/
 
+/* Port traffic control */
+#define ENETSW_PTCTRL_REG(x)		(0x0 + (x))
+#define ENETSW_PTCTRL_RXDIS_MASK	(1 << 0)
+#define ENETSW_PTCTRL_TXDIS_MASK	(1 << 1)
+
+/* Switch mode register */
+#define ENETSW_SWMODE_REG		(0xb)
+#define ENETSW_SWMODE_FWD_EN_MASK	(1 << 1)
+
+/* IMP override Register */
+#define ENETSW_IMPOV_REG		(0xe)
+#define ENETSW_IMPOV_FORCE_MASK		(1 << 7)
+#define ENETSW_IMPOV_TXFLOW_MASK	(1 << 5)
+#define ENETSW_IMPOV_RXFLOW_MASK	(1 << 4)
+#define ENETSW_IMPOV_1000_MASK		(1 << 3)
+#define ENETSW_IMPOV_100_MASK		(1 << 2)
+#define ENETSW_IMPOV_FDX_MASK		(1 << 1)
+#define ENETSW_IMPOV_LINKUP_MASK	(1 << 0)
+
+/* Port override Register */
+#define ENETSW_PORTOV_REG(x)		(0x58 + (x))
+#define ENETSW_PORTOV_ENABLE_MASK	(1 << 6)
+#define ENETSW_PORTOV_TXFLOW_MASK	(1 << 5)
+#define ENETSW_PORTOV_RXFLOW_MASK	(1 << 4)
+#define ENETSW_PORTOV_1000_MASK		(1 << 3)
+#define ENETSW_PORTOV_100_MASK		(1 << 2)
+#define ENETSW_PORTOV_FDX_MASK		(1 << 1)
+#define ENETSW_PORTOV_LINKUP_MASK	(1 << 0)
+
+/* MDIO control register */
+#define ENETSW_MDIOC_REG		(0xb0)
+#define ENETSW_MDIOC_EXT_MASK		(1 << 16)
+#define ENETSW_MDIOC_REG_SHIFT		20
+#define ENETSW_MDIOC_PHYID_SHIFT	25
+#define ENETSW_MDIOC_RD_MASK		(1 << 30)
+#define ENETSW_MDIOC_WR_MASK		(1 << 31)
+
+/* MDIO data register */
+#define ENETSW_MDIOD_REG		(0xb4)
+
+/* Global Management Configuration Register */
+#define ENETSW_GMCR_REG			(0x200)
+#define ENETSW_GMCR_RST_MIB_MASK	(1 << 0)
+
 /* MIB register */
 #define ENETSW_MIB_REG(x)		(0x2800 + (x) * 4)
 #define ENETSW_MIB_REG_COUNT		47
+
+/* Jumbo control register port mask register */
+#define ENETSW_JMBCTL_PORT_REG		(0x4004)
+
+/* Jumbo control mib good frame register */
+#define ENETSW_JMBCTL_MAXSIZE_REG	(0x4008)
 
 
 /*************************************************************************
