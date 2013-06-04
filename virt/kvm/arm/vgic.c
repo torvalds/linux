@@ -1063,6 +1063,16 @@ static u32 vgic_v2_get_interrupt_status(const struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+static void vgic_v2_enable_underflow(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.vgic_cpu.vgic_v2.vgic_hcr |= GICH_HCR_UIE;
+}
+
+static void vgic_v2_disable_underflow(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.vgic_cpu.vgic_v2.vgic_hcr &= ~GICH_HCR_UIE;
+}
+
 static const struct vgic_ops vgic_ops = {
 	.get_lr			= vgic_v2_get_lr,
 	.set_lr			= vgic_v2_set_lr,
@@ -1070,6 +1080,8 @@ static const struct vgic_ops vgic_ops = {
 	.get_elrsr		= vgic_v2_get_elrsr,
 	.get_eisr		= vgic_v2_get_eisr,
 	.get_interrupt_status	= vgic_v2_get_interrupt_status,
+	.enable_underflow	= vgic_v2_enable_underflow,
+	.disable_underflow	= vgic_v2_disable_underflow,
 };
 
 static struct vgic_lr vgic_get_lr(const struct kvm_vcpu *vcpu, int lr)
@@ -1102,6 +1114,16 @@ static inline u64 vgic_get_eisr(struct kvm_vcpu *vcpu)
 static inline u32 vgic_get_interrupt_status(struct kvm_vcpu *vcpu)
 {
 	return vgic_ops.get_interrupt_status(vcpu);
+}
+
+static inline void vgic_enable_underflow(struct kvm_vcpu *vcpu)
+{
+	vgic_ops.enable_underflow(vcpu);
+}
+
+static inline void vgic_disable_underflow(struct kvm_vcpu *vcpu)
+{
+	vgic_ops.disable_underflow(vcpu);
 }
 
 static void vgic_retire_lr(int lr_nr, int irq, struct kvm_vcpu *vcpu)
@@ -1285,9 +1307,9 @@ static void __kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 
 epilog:
 	if (overflow) {
-		vgic_cpu->vgic_v2.vgic_hcr |= GICH_HCR_UIE;
+		vgic_enable_underflow(vcpu);
 	} else {
-		vgic_cpu->vgic_v2.vgic_hcr &= ~GICH_HCR_UIE;
+		vgic_disable_underflow(vcpu);
 		/*
 		 * We're about to run this VCPU, and we've consumed
 		 * everything the distributor had in store for
@@ -1340,7 +1362,7 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 	}
 
 	if (status & INT_STATUS_UNDERFLOW)
-		vgic_cpu->vgic_v2.vgic_hcr &= ~GICH_HCR_UIE;
+		vgic_disable_underflow(vcpu);
 
 	return level_pending;
 }
