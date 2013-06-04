@@ -1135,19 +1135,30 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe)
 {
+	struct drm_device *dev = dev_priv->dev;
 	int reg, i;
 	u32 val;
 
-	if (!IS_VALLEYVIEW(dev_priv->dev))
-		return;
-
-	/* Need to check both planes against the pipe */
-	for (i = 0; i < dev_priv->num_plane; i++) {
-		reg = SPCNTR(pipe, i);
+	if (IS_VALLEYVIEW(dev)) {
+		for (i = 0; i < dev_priv->num_plane; i++) {
+			reg = SPCNTR(pipe, i);
+			val = I915_READ(reg);
+			WARN((val & SP_ENABLE),
+			     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
+			     sprite_name(pipe, i), pipe_name(pipe));
+		}
+	} else if (INTEL_INFO(dev)->gen >= 7) {
+		reg = SPRCTL(pipe);
 		val = I915_READ(reg);
-		WARN((val & SP_ENABLE),
+		WARN((val & SPRITE_ENABLE),
 		     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
-		     sprite_name(pipe, i), pipe_name(pipe));
+		     plane_name(pipe), pipe_name(pipe));
+	} else if (INTEL_INFO(dev)->gen >= 5) {
+		reg = DVSCNTR(pipe);
+		val = I915_READ(reg);
+		WARN((val & DVS_ENABLE),
+		     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
+		     plane_name(pipe), pipe_name(pipe));
 	}
 }
 
