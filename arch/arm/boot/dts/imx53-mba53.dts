@@ -163,6 +163,8 @@
 		compatible = "pca9554";
 		reg = <0x20>;
 		interrupts = <109>;
+		#gpio-cells = <2>;
+		gpio-controller;
 	};
 
 	sensor2: lm75@49 {
