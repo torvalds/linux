@@ -62,7 +62,7 @@ handle_t *__ext4_journal_start_sb(struct super_block *sb, unsigned int line,
 		ext4_abort(sb, "Detected aborted journal");
 		return ERR_PTR(-EROFS);
 	}
-	return jbd2__journal_start(journal, nblocks, GFP_NOFS, type, line);
+	return jbd2__journal_start(journal, nblocks, 0, GFP_NOFS, type, line);
 }
 
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)

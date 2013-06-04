@@ -523,6 +523,12 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 */
 	jbd2_journal_switch_revoke_table(journal);
 
+	/*
+	 * Reserved credits cannot be claimed anymore, free them
+	 */
+	atomic_sub(atomic_read(&journal->j_reserved_credits),
+		   &commit_transaction->t_outstanding_credits);
+
 	trace_jbd2_commit_flushing(journal, commit_transaction);
 	stats.run.rs_flushing = jiffies;
 	stats.run.rs_locked = jbd2_time_diff(stats.run.rs_locked,
