@@ -21,17 +21,10 @@
 
 /* units are errors per second */
 #define ATH9K_ANI_OFDM_TRIG_HIGH          3500
-
-/* units are errors per second */
 #define ATH9K_ANI_OFDM_TRIG_LOW           400
-
-/* units are errors per second */
 #define ATH9K_ANI_CCK_TRIG_HIGH           600
-
-/* units are errors per second */
 #define ATH9K_ANI_CCK_TRIG_LOW            300
 
-#define ATH9K_ANI_NOISE_IMMUNE_LVL        4
 #define ATH9K_ANI_SPUR_IMMUNE_LVL         3
 #define ATH9K_ANI_FIRSTEP_LVL             2
 
@@ -42,10 +35,6 @@
 
 /* in ms */
 #define ATH9K_ANI_POLLINTERVAL            1000
-
-#define HAL_NOISE_IMMUNE_MAX              4
-#define HAL_SPUR_IMMUNE_MAX               7
-#define HAL_FIRST_STEP_MAX                2
 
 #define ATH9K_SIG_FIRSTEP_SETTING_MIN     0
 #define ATH9K_SIG_FIRSTEP_SETTING_MAX     20
