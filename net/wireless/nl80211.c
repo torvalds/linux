@@ -9848,7 +9848,6 @@ static bool __nl80211_unexpected_frame(struct net_device *dev, u8 cmd,
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct sk_buff *msg;
 	void *hdr;
-	int err;
 	u32 nlportid = ACCESS_ONCE(wdev->ap_unexpected_nlportid);
 
 	if (!nlportid)
@@ -9869,12 +9868,7 @@ static bool __nl80211_unexpected_frame(struct net_device *dev, u8 cmd,
 	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, addr))
 		goto nla_put_failure;
 
-	err = genlmsg_end(msg, hdr);
-	if (err < 0) {
-		nlmsg_free(msg);
-		return true;
-	}
-
+	genlmsg_end(msg, hdr);
 	genlmsg_unicast(wiphy_net(&rdev->wiphy), msg, nlportid);
 	return true;
 
@@ -10317,10 +10311,7 @@ nl80211_radar_notify(struct cfg80211_registered_device *rdev,
 	if (nl80211_send_chandef(msg, chandef))
 		goto nla_put_failure;
 
-	if (genlmsg_end(msg, hdr) < 0) {
-		nlmsg_free(msg);
-		return;
-	}
+	genlmsg_end(msg, hdr);
 
 	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
 				nl80211_mlme_mcgrp.id, gfp);
@@ -10386,7 +10377,6 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct sk_buff *msg;
 	void *hdr;
-	int err;
 
 	trace_cfg80211_probe_status(dev, addr, cookie, acked);
 
@@ -10408,11 +10398,7 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
 	    (acked && nla_put_flag(msg, NL80211_ATTR_ACK)))
 		goto nla_put_failure;
 
-	err = genlmsg_end(msg, hdr);
-	if (err < 0) {
-		nlmsg_free(msg);
-		return;
-	}
+	genlmsg_end(msg, hdr);
 
 	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
 				nl80211_mlme_mcgrp.id, gfp);
@@ -10478,7 +10464,7 @@ void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct sk_buff *msg;
 	void *hdr;
-	int err, size = 200;
+	int size = 200;
 
 	trace_cfg80211_report_wowlan_wakeup(wdev->wiphy, wdev, wakeup);
 
@@ -10564,9 +10550,7 @@ void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
 		nla_nest_end(msg, reasons);
 	}
 
-	err = genlmsg_end(msg, hdr);
-	if (err < 0)
-		goto free_msg;
+	genlmsg_end(msg, hdr);
 
 	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
 				nl80211_mlme_mcgrp.id, gfp);
@@ -10586,7 +10570,6 @@ void cfg80211_tdls_oper_request(struct net_device *dev, const u8 *peer,
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct sk_buff *msg;
 	void *hdr;
-	int err;
 
 	trace_cfg80211_tdls_oper_request(wdev->wiphy, dev, peer, oper,
 					 reason_code);
@@ -10609,11 +10592,7 @@ void cfg80211_tdls_oper_request(struct net_device *dev, const u8 *peer,
 	     nla_put_u16(msg, NL80211_ATTR_REASON_CODE, reason_code)))
 		goto nla_put_failure;
 
-	err = genlmsg_end(msg, hdr);
-	if (err < 0) {
-		nlmsg_free(msg);
-		return;
-	}
+	genlmsg_end(msg, hdr);
 
 	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
 				nl80211_mlme_mcgrp.id, gfp);
@@ -10671,7 +10650,6 @@ void cfg80211_ft_event(struct net_device *netdev,
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 	struct sk_buff *msg;
 	void *hdr;
-	int err;
 
 	trace_cfg80211_ft_event(wiphy, netdev, ft_event);
 
@@ -10697,11 +10675,7 @@ void cfg80211_ft_event(struct net_device *netdev,
 		nla_put(msg, NL80211_ATTR_IE_RIC, ft_event->ric_ies_len,
 			ft_event->ric_ies);
 
-	err = genlmsg_end(msg, hdr);
-	if (err < 0) {
-		nlmsg_free(msg);
-		return;
-	}
+	genlmsg_end(msg, hdr);
 
 	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
 				nl80211_mlme_mcgrp.id, GFP_KERNEL);
