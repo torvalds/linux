@@ -167,14 +167,13 @@ static int pcmda12_attach(struct comedi_device *dev,
 		return ret;
 
 	s = &dev->subdevices[0];
-	s->private = NULL;
-	s->maxdata = 0x0fff;
-	s->range_table = &pcmda12_ranges;
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = CHANS;
-	s->insn_write = &ao_winsn;
-	s->insn_read = &ao_rinsn;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= CHANS;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &pcmda12_ranges;
+	s->insn_write	= &ao_winsn;
+	s->insn_read	= &ao_rinsn;
 
 	zero_chans(dev);	/* clear out all the registers, basically */
 
