@@ -74,6 +74,8 @@ __show_trace(unsigned long sp, unsigned long low, unsigned long high)
 
 static void show_trace(struct task_struct *task, unsigned long *stack)
 {
+	const unsigned long frame_size =
+		STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
 	register unsigned long __r15 asm ("15");
 	unsigned long sp;
 
@@ -82,11 +84,13 @@ static void show_trace(struct task_struct *task, unsigned long *stack)
 		sp = task ? task->thread.ksp : __r15;
 	printk("Call Trace:\n");
 #ifdef CONFIG_CHECK_STACK
-	sp = __show_trace(sp, S390_lowcore.panic_stack - 4096,
-			  S390_lowcore.panic_stack);
+	sp = __show_trace(sp,
+			  S390_lowcore.panic_stack + frame_size - 4096,
+			  S390_lowcore.panic_stack + frame_size);
 #endif
-	sp = __show_trace(sp, S390_lowcore.async_stack - ASYNC_SIZE,
-			  S390_lowcore.async_stack);
+	sp = __show_trace(sp,
+			  S390_lowcore.async_stack + frame_size - ASYNC_SIZE,
+			  S390_lowcore.async_stack + frame_size);
 	if (task)
 		__show_trace(sp, (unsigned long) task_stack_page(task),
 			     (unsigned long) task_stack_page(task) + THREAD_SIZE);
