@@ -19,6 +19,16 @@ static struct resource shared_res[] = {
 		.end		= -1, /* filled at runtime */
 		.flags		= IORESOURCE_MEM,
 	},
+	{
+		.start		= -1, /* filled at runtime */
+		.end		= -1, /* filled at runtime */
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= -1, /* filled at runtime */
+		.end		= -1, /* filled at runtime */
+		.flags		= IORESOURCE_MEM,
+	},
 };
 
 static struct platform_device bcm63xx_enet_shared_device = {
@@ -110,10 +120,15 @@ int __init bcm63xx_enet_register(int unit,
 	if (!shared_device_registered) {
 		shared_res[0].start = bcm63xx_regset_address(RSET_ENETDMA);
 		shared_res[0].end = shared_res[0].start;
-		if (BCMCPU_IS_6338())
-			shared_res[0].end += (RSET_ENETDMA_SIZE / 2)  - 1;
-		else
-			shared_res[0].end += (RSET_ENETDMA_SIZE)  - 1;
+		shared_res[0].end += (RSET_ENETDMA_SIZE)  - 1;
+
+		shared_res[1].start = bcm63xx_regset_address(RSET_ENETDMAC);
+		shared_res[1].end = shared_res[1].start;
+		shared_res[1].end += RSET_ENETDMAC_SIZE(16)  - 1;
+
+		shared_res[2].start = bcm63xx_regset_address(RSET_ENETDMAS);
+		shared_res[2].end = shared_res[2].start;
+		shared_res[2].end += RSET_ENETDMAS_SIZE(16)  - 1;
 
 		ret = platform_device_register(&bcm63xx_enet_shared_device);
 		if (ret)

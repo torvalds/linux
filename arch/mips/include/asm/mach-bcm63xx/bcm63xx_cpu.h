@@ -173,7 +173,9 @@ enum bcm63xx_regs_set {
 #define BCM_6358_RSET_SPI_SIZE		1804
 #define BCM_6368_RSET_SPI_SIZE		1804
 #define RSET_ENET_SIZE			2048
-#define RSET_ENETDMA_SIZE		2048
+#define RSET_ENETDMA_SIZE		256
+#define RSET_ENETDMAC_SIZE(chans)	(16 * (chans))
+#define RSET_ENETDMAS_SIZE(chans)	(16 * (chans))
 #define RSET_ENETSW_SIZE		65536
 #define RSET_UART_SIZE			24
 #define RSET_UDC_SIZE			256
