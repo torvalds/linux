@@ -51,8 +51,6 @@ Configuration Options:
 
 #define CHANS 8
 #define IOSIZE 16
-#define LSB(x) ((unsigned char)((x) & 0xff))
-#define MSB(x) ((unsigned char)((((unsigned short)(x))>>8) & 0xff))
 #define LSB_PORT(chan) (dev->iobase + (chan)*2)
 #define MSB_PORT(chan) (LSB_PORT(chan)+1)
 
@@ -90,31 +88,25 @@ static int pcmda12_ao_insn_write(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	struct pcmda12_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = devpriv->ao_readback[chan];
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
 
-	/* Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; ++i) {
+		val = data[i];
+		outb(val & 0xff, LSB_PORT(chan));
+		outb((val >> 8) & 0xff, MSB_PORT(chan));
 
-/*      /\* do this as one instruction?? *\/ */
-/*      outw(data[i], LSB_PORT(chan)); */
-
-		/* Need to do this as two instructions due to 8-bit bus?? */
-		/*  first, load the low byte */
-		outb(LSB(data[i]), LSB_PORT(chan));
-		/*  next, write the high byte */
-		outb(MSB(data[i]), MSB_PORT(chan));
-
-		/* save shadow register */
-		devpriv->ao_readback[chan] = data[i];
-
+		/*
+		 * Initiate transfer if not in simultaneaous xfer
+		 * mode by reading one of the AO registers.
+		 */
 		if (!devpriv->simultaneous_xfer_mode)
 			inb(LSB_PORT(chan));
 	}
+	devpriv->ao_readback[chan] = val;
 
-	/* return the number of samples written */
-	return i;
+	return insn->n;
 }
 
 static int pcmda12_ao_insn_read(struct comedi_device *dev,
