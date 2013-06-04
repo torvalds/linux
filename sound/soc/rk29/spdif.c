@@ -335,7 +335,11 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 #endif
 
 #if defined (CONFIG_ARCH_RK30)    
+    #if defined (CONFIG_ARCH_RK3066B)
+    iomux_set(SPDIF_TX);
+    #else
     rk30_mux_api_set(GPIO1B2_SPDIFTX_NAME, GPIO1B_SPDIF_TX);
+    #endif
 #elif defined (CONFIG_ARCH_RK3188)
     iomux_set(SPDIF_TX);
 #endif
