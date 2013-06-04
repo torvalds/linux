@@ -4,7 +4,7 @@
 
 menuconfig WIMAX_GDM72XX
 	tristate "GCT GDM72xx WiMAX support"
-	depends on NET
+	depends on NET && (USB || MMC)
 	help
 	  Support for the GCT GDM72xx WiMAX chip
 
@@ -27,11 +27,11 @@ choice
 
 config WIMAX_GDM72XX_USB
 	bool "USB interface"
-	depends on USB
+	depends on (USB = y || USB = WIMAX_GDM72XX)
 
 config WIMAX_GDM72XX_SDIO
 	bool "SDIO interface"
-	depends on MMC
+	depends on (MMC = y || MMC = WIMAX_GDM72XX)
 
 endchoice
 
