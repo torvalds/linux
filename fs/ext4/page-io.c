@@ -64,14 +64,83 @@ void ext4_ioend_shutdown(struct inode *inode)
 		cancel_work_sync(&EXT4_I(inode)->i_unrsv_conversion_work);
 }
 
+/*
+ * Print an buffer I/O error compatible with the fs/buffer.c.  This
+ * provides compatibility with dmesg scrapers that look for a specific
+ * buffer I/O error message.  We really need a unified error reporting
+ * structure to userspace ala Digital Unix's uerf system, but it's
+ * probably not going to happen in my lifetime, due to LKML politics...
+ */
+static void buffer_io_error(struct buffer_head *bh)
+{
+	char b[BDEVNAME_SIZE];
+	printk(KERN_ERR "Buffer I/O error on device %s, logical block %llu\n",
+			bdevname(bh->b_bdev, b),
+			(unsigned long long)bh->b_blocknr);
+}
+
+static void ext4_finish_bio(struct bio *bio)
+{
+	int i;
+	int error = !test_bit(BIO_UPTODATE, &bio->bi_flags);
+
+	for (i = 0; i < bio->bi_vcnt; i++) {
+		struct bio_vec *bvec = &bio->bi_io_vec[i];
+		struct page *page = bvec->bv_page;
+		struct buffer_head *bh, *head;
+		unsigned bio_start = bvec->bv_offset;
+		unsigned bio_end = bio_start + bvec->bv_len;
+		unsigned under_io = 0;
+		unsigned long flags;
+
+		if (!page)
+			continue;
+
+		if (error) {
+			SetPageError(page);
+			set_bit(AS_EIO, &page->mapping->flags);
+		}
+		bh = head = page_buffers(page);
+		/*
+		 * We check all buffers in the page under BH_Uptodate_Lock
+		 * to avoid races with other end io clearing async_write flags
+		 */
+		local_irq_save(flags);
+		bit_spin_lock(BH_Uptodate_Lock, &head->b_state);
+		do {
+			if (bh_offset(bh) < bio_start ||
+			    bh_offset(bh) + bh->b_size > bio_end) {
+				if (buffer_async_write(bh))
+					under_io++;
+				continue;
+			}
+			clear_buffer_async_write(bh);
+			if (error)
+				buffer_io_error(bh);
+		} while ((bh = bh->b_this_page) != head);
+		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
+		local_irq_restore(flags);
+		if (!under_io)
+			end_page_writeback(page);
+	}
+}
+
 static void ext4_release_io_end(ext4_io_end_t *io_end)
 {
+	struct bio *bio, *next_bio;
+
 	BUG_ON(!list_empty(&io_end->list));
 	BUG_ON(io_end->flag & EXT4_IO_END_UNWRITTEN);
 	WARN_ON(io_end->handle);
 
 	if (atomic_dec_and_test(&EXT4_I(io_end->inode)->i_ioend_count))
 		wake_up_all(ext4_ioend_wq(io_end->inode));
+
+	for (bio = io_end->bio; bio; bio = next_bio) {
+		next_bio = bio->bi_private;
+		ext4_finish_bio(bio);
+		bio_put(bio);
+	}
 	if (io_end->flag & EXT4_IO_END_DIRECT)
 		inode_dio_done(io_end->inode);
 	if (io_end->iocb)
@@ -267,79 +336,31 @@ ext4_io_end_t *ext4_get_io_end(ext4_io_end_t *io_end)
 	return io_end;
 }
 
-/*
- * Print an buffer I/O error compatible with the fs/buffer.c.  This
- * provides compatibility with dmesg scrapers that look for a specific
- * buffer I/O error message.  We really need a unified error reporting
- * structure to userspace ala Digital Unix's uerf system, but it's
- * probably not going to happen in my lifetime, due to LKML politics...
- */
-static void buffer_io_error(struct buffer_head *bh)
-{
-	char b[BDEVNAME_SIZE];
-	printk(KERN_ERR "Buffer I/O error on device %s, logical block %llu\n",
-			bdevname(bh->b_bdev, b),
-			(unsigned long long)bh->b_blocknr);
-}
-
 static void ext4_end_bio(struct bio *bio, int error)
 {
 	ext4_io_end_t *io_end = bio->bi_private;
-	struct inode *inode;
-	int i;
-	int blocksize;
 	sector_t bi_sector = bio->bi_sector;
 
 	BUG_ON(!io_end);
-	inode = io_end->inode;
-	blocksize = 1 << inode->i_blkbits;
-	bio->bi_private = NULL;
 	bio->bi_end_io = NULL;
 	if (test_bit(BIO_UPTODATE, &bio->bi_flags))
 		error = 0;
-	for (i = 0; i < bio->bi_vcnt; i++) {
-		struct bio_vec *bvec = &bio->bi_io_vec[i];
-		struct page *page = bvec->bv_page;
-		struct buffer_head *bh, *head;
-		unsigned bio_start = bvec->bv_offset;
-		unsigned bio_end = bio_start + bvec->bv_len;
-		unsigned under_io = 0;
-		unsigned long flags;
 
-		if (!page)
-			continue;
-
-		if (error) {
-			SetPageError(page);
-			set_bit(AS_EIO, &page->mapping->flags);
-		}
-		bh = head = page_buffers(page);
+	if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
 		/*
-		 * We check all buffers in the page under BH_Uptodate_Lock
-		 * to avoid races with other end io clearing async_write flags
+		 * Link bio into list hanging from io_end. We have to do it
+		 * atomically as bio completions can be racing against each
+		 * other.
 		 */
-		local_irq_save(flags);
-		bit_spin_lock(BH_Uptodate_Lock, &head->b_state);
-		do {
-			if (bh_offset(bh) < bio_start ||
-			    bh_offset(bh) + blocksize > bio_end) {
-				if (buffer_async_write(bh))
-					under_io++;
-				continue;
-			}
-			clear_buffer_async_write(bh);
-			if (error)
-				buffer_io_error(bh);
-		} while ((bh = bh->b_this_page) != head);
-		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
-		local_irq_restore(flags);
-		if (!under_io)
-			end_page_writeback(page);
+		bio->bi_private = xchg(&io_end->bio, bio);
+	} else {
+		ext4_finish_bio(bio);
+		bio_put(bio);
 	}
-	bio_put(bio);
 
 	if (error) {
-		io_end->flag |= EXT4_IO_END_ERROR;
+		struct inode *inode = io_end->inode;
+
 		ext4_warning(inode->i_sb, "I/O error writing to inode %lu "
 			     "(offset %llu size %ld starting block %llu)",
 			     inode->i_ino,
@@ -348,7 +369,6 @@ static void ext4_end_bio(struct bio *bio, int error)
 			     (unsigned long long)
 			     bi_sector >> (inode->i_blkbits - 9));
 	}
-
 	ext4_put_io_end_defer(io_end);
 }
 
