@@ -1773,7 +1773,7 @@ again:
 			if (!eb || !extent_buffer_uptodate(eb)) {
 				ret = (!eb) ? -ENOMEM : -EIO;
 				free_extent_buffer(eb);
-				return ret;
+				break;
 			}
 			btrfs_tree_lock(eb);
 			if (cow) {
@@ -3350,6 +3350,11 @@ static int delete_block_group_cache(struct btrfs_fs_info *fs_info,
 	}
 
 truncate:
+	ret = btrfs_check_trunc_cache_free_space(root,
+						 &fs_info->global_block_rsv);
+	if (ret)
+		goto out;
+
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;

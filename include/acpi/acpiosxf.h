@@ -77,7 +77,7 @@ struct acpi_signal_fatal_info {
 /*
  * OSL Initialization and shutdown primitives
  */
-acpi_status __initdata acpi_os_initialize(void);
+acpi_status __init acpi_os_initialize(void);
 
 acpi_status acpi_os_terminate(void);
 

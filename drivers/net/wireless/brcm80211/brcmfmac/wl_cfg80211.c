@@ -459,6 +459,38 @@ send_key_to_dongle(struct net_device *ndev, struct brcmf_wsec_key *key)
 	return err;
 }
 
+static s32
+brcmf_configure_arp_offload(struct brcmf_if *ifp, bool enable)
+{
+	s32 err;
+	u32 mode;
+
+	if (enable)
+		mode = BRCMF_ARP_OL_AGENT | BRCMF_ARP_OL_PEER_AUTO_REPLY;
+	else
+		mode = 0;
+
+	/* Try to set and enable ARP offload feature, this may fail, then it  */
+	/* is simply not supported and err 0 will be returned                 */
+	err = brcmf_fil_iovar_int_set(ifp, "arp_ol", mode);
+	if (err) {
+		brcmf_dbg(TRACE, "failed to set ARP offload mode to 0x%x, err = %d\n",
+			  mode, err);
+		err = 0;
+	} else {
+		err = brcmf_fil_iovar_int_set(ifp, "arpoe", enable);
+		if (err) {
+			brcmf_dbg(TRACE, "failed to configure (%d) ARP offload err = %d\n",
+				  enable, err);
+			err = 0;
+		} else
+			brcmf_dbg(TRACE, "successfully configured (%d) ARP offload to 0x%x\n",
+				  enable, mode);
+	}
+
+	return err;
+}
+
 static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 						     const char *name,
 						     enum nl80211_iftype type,
@@ -2216,6 +2248,11 @@ brcmf_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	pm = enabled ? PM_FAST : PM_OFF;
+	/* Do not enable the power save after assoc if it is a p2p interface */
+	if (ifp->vif->wdev.iftype == NL80211_IFTYPE_P2P_CLIENT) {
+		brcmf_dbg(INFO, "Do not enable power save for P2P clients\n");
+		pm = PM_OFF;
+	}
 	brcmf_dbg(INFO, "power save %s\n", (pm ? "enabled" : "disabled"));
 
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM, pm);
@@ -3640,10 +3677,28 @@ brcmf_config_ap_mgmt_ie(struct brcmf_cfg80211_vif *vif,
 }
 
 static s32
+brcmf_cfg80211_set_channel(struct brcmf_cfg80211_info *cfg,
+			   struct brcmf_if *ifp,
+			   struct ieee80211_channel *channel)
+{
+	u16 chanspec;
+	s32 err;
+
+	brcmf_dbg(TRACE, "band=%d, center_freq=%d\n", channel->band,
+		  channel->center_freq);
+
+	chanspec = channel_to_chanspec(&cfg->d11inf, channel);
+	err = brcmf_fil_iovar_int_set(ifp, "chanspec", chanspec);
+
+	return err;
+}
+
+static s32
 brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			struct cfg80211_ap_settings *settings)
 {
 	s32 ie_offset;
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_tlv *ssid_ie;
 	struct brcmf_ssid_le ssid_le;
@@ -3683,6 +3738,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	brcmf_set_mpc(ifp, 0);
+	brcmf_configure_arp_offload(ifp, false);
 
 	/* find the RSN_IE */
 	rsn_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
@@ -3712,6 +3768,12 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	brcmf_config_ap_mgmt_ie(ifp->vif, &settings->beacon);
+
+	err = brcmf_cfg80211_set_channel(cfg, ifp, settings->chandef.chan);
+	if (err < 0) {
+		brcmf_err("Set Channel failed, %d\n", err);
+		goto exit;
+	}
 
 	if (settings->beacon_interval) {
 		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_BCNPRD,
@@ -3789,8 +3851,10 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	set_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
 
 exit:
-	if (err)
+	if (err) {
 		brcmf_set_mpc(ifp, 1);
+		brcmf_configure_arp_offload(ifp, true);
+	}
 	return err;
 }
 
@@ -3831,6 +3895,7 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 			brcmf_err("bss_enable config failed %d\n", err);
 	}
 	brcmf_set_mpc(ifp, 1);
+	brcmf_configure_arp_offload(ifp, true);
 	set_bit(BRCMF_VIF_STATUS_AP_CREATING, &ifp->vif->sme_state);
 	clear_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
 
@@ -4140,11 +4205,15 @@ static const struct ieee80211_iface_limit brcmf_iface_limits[] = {
 		.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
 			 BIT(NL80211_IFTYPE_P2P_GO)
 	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE)
+	}
 };
 static const struct ieee80211_iface_combination brcmf_iface_combos[] = {
 	{
 		 .max_interfaces = BRCMF_IFACE_MAX_CNT,
-		 .num_different_channels = 1, /* no multi-channel for now */
+		 .num_different_channels = 2,
 		 .n_limits = ARRAY_SIZE(brcmf_iface_limits),
 		 .limits = brcmf_iface_limits
 	}
@@ -4197,7 +4266,8 @@ static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 				 BIT(NL80211_IFTYPE_ADHOC) |
 				 BIT(NL80211_IFTYPE_AP) |
 				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
-				 BIT(NL80211_IFTYPE_P2P_GO);
+				 BIT(NL80211_IFTYPE_P2P_GO) |
+				 BIT(NL80211_IFTYPE_P2P_DEVICE);
 	wiphy->iface_combinations = brcmf_iface_combos;
 	wiphy->n_iface_combinations = ARRAY_SIZE(brcmf_iface_combos);
 	wiphy->bands[IEEE80211_BAND_2GHZ] = &__wl_band_2ghz;
@@ -4251,20 +4321,16 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 	return vif;
 }
 
-void brcmf_free_vif(struct brcmf_cfg80211_vif *vif)
+void brcmf_free_vif(struct brcmf_cfg80211_info *cfg,
+		    struct brcmf_cfg80211_vif *vif)
 {
-	struct brcmf_cfg80211_info *cfg;
-	struct wiphy *wiphy;
-
-	wiphy = vif->wdev.wiphy;
-	cfg = wiphy_priv(wiphy);
 	list_del(&vif->list);
 	cfg->vif_cnt--;
 
 	kfree(vif);
 	if (!cfg->vif_cnt) {
-		wiphy_unregister(wiphy);
-		wiphy_free(wiphy);
+		wiphy_unregister(cfg->wiphy);
+		wiphy_free(cfg->wiphy);
 	}
 }
 
@@ -4641,7 +4707,6 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 		return 0;
 
 	case BRCMF_E_IF_DEL:
-		ifp->vif = NULL;
 		mutex_unlock(&event->vif_event_lock);
 		/* event may not be upon user request */
 		if (brcmf_cfg80211_vif_event_armed(cfg))
@@ -4847,8 +4912,7 @@ cfg80211_p2p_attach_out:
 	wl_deinit_priv(cfg);
 
 cfg80211_attach_out:
-	brcmf_free_vif(vif);
-	wiphy_free(wiphy);
+	brcmf_free_vif(cfg, vif);
 	return NULL;
 }
 
@@ -4860,7 +4924,7 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 	wl_deinit_priv(cfg);
 	brcmf_btcoex_detach(cfg);
 	list_for_each_entry_safe(vif, tmp, &cfg->vif_list, list) {
-		brcmf_free_vif(vif);
+		brcmf_free_vif(cfg, vif);
 	}
 }
 
@@ -5223,6 +5287,8 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 	err = brcmf_dongle_probecap(cfg);
 	if (err)
 		goto default_conf_out;
+
+	brcmf_configure_arp_offload(ifp, true);
 
 	cfg->dongle_up = true;
 default_conf_out:

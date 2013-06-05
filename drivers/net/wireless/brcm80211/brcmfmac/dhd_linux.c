@@ -653,10 +653,13 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 
 	brcmf_dbg(INFO, "%s: Broadcom Dongle Host Driver\n", ndev->name);
 
+	ndev->destructor = free_netdev;
 	return 0;
 
 fail:
+	drvr->iflist[ifp->bssidx] = NULL;
 	ndev->netdev_ops = NULL;
+	free_netdev(ndev);
 	return -EBADE;
 }
 
@@ -720,6 +723,9 @@ static int brcmf_net_p2p_attach(struct brcmf_if *ifp)
 	return 0;
 
 fail:
+	ifp->drvr->iflist[ifp->bssidx] = NULL;
+	ndev->netdev_ops = NULL;
+	free_netdev(ndev);
 	return -EBADE;
 }
 
@@ -788,6 +794,7 @@ void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 	struct brcmf_if *ifp;
 
 	ifp = drvr->iflist[bssidx];
+	drvr->iflist[bssidx] = NULL;
 	if (!ifp) {
 		brcmf_err("Null interface, idx=%d\n", bssidx);
 		return;
@@ -808,15 +815,13 @@ void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 			cancel_work_sync(&ifp->setmacaddr_work);
 			cancel_work_sync(&ifp->multicast_work);
 		}
-
+		/* unregister will take care of freeing it */
 		unregister_netdev(ifp->ndev);
 		if (bssidx == 0)
 			brcmf_cfg80211_detach(drvr->config);
-		free_netdev(ifp->ndev);
 	} else {
 		kfree(ifp);
 	}
-	drvr->iflist[bssidx] = NULL;
 }
 
 int brcmf_attach(uint bus_hdrlen, struct device *dev)
@@ -925,8 +930,6 @@ fail:
 			brcmf_fws_del_interface(ifp);
 			brcmf_fws_deinit(drvr);
 		}
-		free_netdev(ifp->ndev);
-		drvr->iflist[0] = NULL;
 		if (p2p_ifp) {
 			free_netdev(p2p_ifp->ndev);
 			drvr->iflist[1] = NULL;
@@ -934,7 +937,8 @@ fail:
 		return ret;
 	}
 	if ((brcmf_p2p_enable) && (p2p_ifp))
-		brcmf_net_p2p_attach(p2p_ifp);
+		if (brcmf_net_p2p_attach(p2p_ifp) < 0)
+			brcmf_p2p_enable = 0;
 
 	return 0;
 }

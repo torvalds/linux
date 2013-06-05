@@ -15,8 +15,10 @@ A suspend/hibernation notifier may be used for this purpose.
 The subsystems or drivers having such needs can register suspend notifiers that
 will be called upon the following events by the PM core:
 
-PM_HIBERNATION_PREPARE	The system is going to hibernate or suspend, tasks will
-			be frozen immediately.
+PM_HIBERNATION_PREPARE	The system is going to hibernate, tasks will be frozen
+			immediately. This is different from PM_SUSPEND_PREPARE
+			below because here we do additional work between notifiers
+			and drivers freezing.
 
 PM_POST_HIBERNATION	The system memory state has been restored from a
 			hibernation image or an error occurred during

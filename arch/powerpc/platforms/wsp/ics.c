@@ -361,7 +361,7 @@ static int wsp_chip_set_affinity(struct irq_data *d,
 	xive = xive_set_server(xive, get_irq_server(ics, hw_irq));
 	wsp_ics_set_xive(ics, hw_irq, xive);
 
-	return 0;
+	return IRQ_SET_MASK_OK;
 }
 
 static struct irq_chip wsp_irq_chip = {

@@ -2236,7 +2236,6 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 		dev->transceiver = NULL;
 	}
 
-	platform_set_drvdata(pdev, NULL);
 	the_controller = NULL;
 	return 0;
 }

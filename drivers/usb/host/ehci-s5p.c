@@ -71,8 +71,6 @@ static void s5p_setup_vbus_gpio(struct platform_device *pdev)
 		dev_err(dev, "can't request ehci vbus gpio %d", gpio);
 }
 
-static u64 ehci_s5p_dma_mask = DMA_BIT_MASK(32);
-
 static int s5p_ehci_probe(struct platform_device *pdev)
 {
 	struct s5p_ehci_platdata *pdata = pdev->dev.platform_data;
@@ -90,7 +88,7 @@ static int s5p_ehci_probe(struct platform_device *pdev)
 	 * Once we move to full device tree support this will vanish off.
 	 */
 	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &ehci_s5p_dma_mask;
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 	if (!pdev->dev.coherent_dma_mask)
 		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
@@ -107,6 +105,7 @@ static int s5p_ehci_probe(struct platform_device *pdev)
 	if (IS_ERR(phy)) {
 		/* Fallback to pdata */
 		if (!pdata) {
+			usb_put_hcd(hcd);
 			dev_warn(&pdev->dev, "no platform data or transceiver defined\n");
 			return -EPROBE_DEFER;
 		} else {

@@ -2097,6 +2097,17 @@ xlog_recover_do_reg_buffer(
 		       ((uint)bit << XFS_BLF_SHIFT) + (nbits << XFS_BLF_SHIFT));
 
 		/*
+		 * The dirty regions logged in the buffer, even though
+		 * contiguous, may span multiple chunks. This is because the
+		 * dirty region may span a physical page boundary in a buffer
+		 * and hence be split into two separate vectors for writing into
+		 * the log. Hence we need to trim nbits back to the length of
+		 * the current region being copied out of the log.
+		 */
+		if (item->ri_buf[i].i_len < (nbits << XFS_BLF_SHIFT))
+			nbits = item->ri_buf[i].i_len >> XFS_BLF_SHIFT;
+
+		/*
 		 * Do a sanity check if this is a dquot buffer. Just checking
 		 * the first dquot in the buffer should do. XXXThis is
 		 * probably a good thing to do for other buf types also.

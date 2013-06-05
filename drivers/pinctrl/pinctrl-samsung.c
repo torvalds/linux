@@ -28,6 +28,7 @@
 #include <linux/gpio.h>
 #include <linux/irqdomain.h>
 #include <linux/spinlock.h>
+#include <linux/syscore_ops.h>
 
 #include "core.h"
 #include "pinctrl-samsung.h"
@@ -47,6 +48,9 @@ static struct pin_config {
 	{ "samsung,pin-con-pdn", PINCFG_TYPE_CON_PDN },
 	{ "samsung,pin-pud-pdn", PINCFG_TYPE_PUD_PDN },
 };
+
+/* Global list of devices (struct samsung_pinctrl_drv_data) */
+LIST_HEAD(drvdata_list);
 
 static unsigned int pin_base;
 
@@ -932,11 +936,6 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 	drvdata->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "cannot find IO resource\n");
-		return -ENOENT;
-	}
-
 	drvdata->virt_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(drvdata->virt_base))
 		return PTR_ERR(drvdata->virt_base);
@@ -961,8 +960,150 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 		ctrl->eint_wkup_init(drvdata);
 
 	platform_set_drvdata(pdev, drvdata);
+
+	/* Add to the global list */
+	list_add_tail(&drvdata->node, &drvdata_list);
+
 	return 0;
 }
+
+#ifdef CONFIG_PM
+
+/**
+ * samsung_pinctrl_suspend_dev - save pinctrl state for suspend for a device
+ *
+ * Save data for all banks handled by this device.
+ */
+static void samsung_pinctrl_suspend_dev(
+	struct samsung_pinctrl_drv_data *drvdata)
+{
+	struct samsung_pin_ctrl *ctrl = drvdata->ctrl;
+	void __iomem *virt_base = drvdata->virt_base;
+	int i;
+
+	for (i = 0; i < ctrl->nr_banks; i++) {
+		struct samsung_pin_bank *bank = &ctrl->pin_banks[i];
+		void __iomem *reg = virt_base + bank->pctl_offset;
+
+		u8 *offs = bank->type->reg_offset;
+		u8 *widths = bank->type->fld_width;
+		enum pincfg_type type;
+
+		/* Registers without a powerdown config aren't lost */
+		if (!widths[PINCFG_TYPE_CON_PDN])
+			continue;
+
+		for (type = 0; type < PINCFG_TYPE_NUM; type++)
+			if (widths[type])
+				bank->pm_save[type] = readl(reg + offs[type]);
+
+		if (widths[PINCFG_TYPE_FUNC] * bank->nr_pins > 32) {
+			/* Some banks have two config registers */
+			bank->pm_save[PINCFG_TYPE_NUM] =
+				readl(reg + offs[PINCFG_TYPE_FUNC] + 4);
+			pr_debug("Save %s @ %p (con %#010x %08x)\n",
+				 bank->name, reg,
+				 bank->pm_save[PINCFG_TYPE_FUNC],
+				 bank->pm_save[PINCFG_TYPE_NUM]);
+		} else {
+			pr_debug("Save %s @ %p (con %#010x)\n", bank->name,
+				 reg, bank->pm_save[PINCFG_TYPE_FUNC]);
+		}
+	}
+
+	if (ctrl->suspend)
+		ctrl->suspend(drvdata);
+}
+
+/**
+ * samsung_pinctrl_resume_dev - restore pinctrl state from suspend for a device
+ *
+ * Restore one of the banks that was saved during suspend.
+ *
+ * We don't bother doing anything complicated to avoid glitching lines since
+ * we're called before pad retention is turned off.
+ */
+static void samsung_pinctrl_resume_dev(struct samsung_pinctrl_drv_data *drvdata)
+{
+	struct samsung_pin_ctrl *ctrl = drvdata->ctrl;
+	void __iomem *virt_base = drvdata->virt_base;
+	int i;
+
+	if (ctrl->resume)
+		ctrl->resume(drvdata);
+
+	for (i = 0; i < ctrl->nr_banks; i++) {
+		struct samsung_pin_bank *bank = &ctrl->pin_banks[i];
+		void __iomem *reg = virt_base + bank->pctl_offset;
+
+		u8 *offs = bank->type->reg_offset;
+		u8 *widths = bank->type->fld_width;
+		enum pincfg_type type;
+
+		/* Registers without a powerdown config aren't lost */
+		if (!widths[PINCFG_TYPE_CON_PDN])
+			continue;
+
+		if (widths[PINCFG_TYPE_FUNC] * bank->nr_pins > 32) {
+			/* Some banks have two config registers */
+			pr_debug("%s @ %p (con %#010x %08x => %#010x %08x)\n",
+				 bank->name, reg,
+				 readl(reg + offs[PINCFG_TYPE_FUNC]),
+				 readl(reg + offs[PINCFG_TYPE_FUNC] + 4),
+				 bank->pm_save[PINCFG_TYPE_FUNC],
+				 bank->pm_save[PINCFG_TYPE_NUM]);
+			writel(bank->pm_save[PINCFG_TYPE_NUM],
+			       reg + offs[PINCFG_TYPE_FUNC] + 4);
+		} else {
+			pr_debug("%s @ %p (con %#010x => %#010x)\n", bank->name,
+				 reg, readl(reg + offs[PINCFG_TYPE_FUNC]),
+				 bank->pm_save[PINCFG_TYPE_FUNC]);
+		}
+		for (type = 0; type < PINCFG_TYPE_NUM; type++)
+			if (widths[type])
+				writel(bank->pm_save[type], reg + offs[type]);
+	}
+}
+
+/**
+ * samsung_pinctrl_suspend - save pinctrl state for suspend
+ *
+ * Save data for all banks across all devices.
+ */
+static int samsung_pinctrl_suspend(void)
+{
+	struct samsung_pinctrl_drv_data *drvdata;
+
+	list_for_each_entry(drvdata, &drvdata_list, node) {
+		samsung_pinctrl_suspend_dev(drvdata);
+	}
+
+	return 0;
+}
+
+/**
+ * samsung_pinctrl_resume - restore pinctrl state for suspend
+ *
+ * Restore data for all banks across all devices.
+ */
+static void samsung_pinctrl_resume(void)
+{
+	struct samsung_pinctrl_drv_data *drvdata;
+
+	list_for_each_entry_reverse(drvdata, &drvdata_list, node) {
+		samsung_pinctrl_resume_dev(drvdata);
+	}
+}
+
+#else
+#define samsung_pinctrl_suspend		NULL
+#define samsung_pinctrl_resume		NULL
+#endif
+
+static struct syscore_ops samsung_pinctrl_syscore_ops = {
+	.suspend	= samsung_pinctrl_suspend,
+	.resume		= samsung_pinctrl_resume,
+};
 
 static const struct of_device_id samsung_pinctrl_dt_match[] = {
 #ifdef CONFIG_PINCTRL_EXYNOS
@@ -992,6 +1133,14 @@ static struct platform_driver samsung_pinctrl_driver = {
 
 static int __init samsung_pinctrl_drv_register(void)
 {
+	/*
+	 * Register syscore ops for save/restore of registers across suspend.
+	 * It's important to ensure that this driver is running at an earlier
+	 * initcall level than any arch-specific init calls that install syscore
+	 * ops that turn off pad retention (like exynos_pm_resume).
+	 */
+	register_syscore_ops(&samsung_pinctrl_syscore_ops);
+
 	return platform_driver_register(&samsung_pinctrl_driver);
 }
 postcore_initcall(samsung_pinctrl_drv_register);

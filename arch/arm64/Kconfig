@@ -122,8 +122,6 @@ endmenu
 
 menu "Kernel Features"
 
-source "kernel/time/Kconfig"
-
 config ARM64_64K_PAGES
 	bool "Enable 64KB pages support"
 	help
