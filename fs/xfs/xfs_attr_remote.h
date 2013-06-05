@@ -20,6 +20,14 @@
 
 #define XFS_ATTR3_RMT_MAGIC	0x5841524d	/* XARM */
 
+/*
+ * There is one of these headers per filesystem block in a remote attribute.
+ * This is done to ensure there is a 1:1 mapping between the attribute value
+ * length and the number of blocks needed to store the attribute. This makes the
+ * verification of a buffer a little more complex, but greatly simplifies the
+ * allocation, reading and writing of these attributes as we don't have to guess
+ * the number of blocks needed to store the attribute data.
+ */
 struct xfs_attr3_rmt_hdr {
 	__be32	rm_magic;
 	__be32	rm_offset;
@@ -38,6 +46,8 @@ struct xfs_attr3_rmt_hdr {
 			sizeof(struct xfs_attr3_rmt_hdr) : 0))
 
 extern const struct xfs_buf_ops xfs_attr3_rmt_buf_ops;
+
+int xfs_attr3_rmt_blocks(struct xfs_mount *mp, int attrlen);
 
 int xfs_attr_rmtval_get(struct xfs_da_args *args);
 int xfs_attr_rmtval_set(struct xfs_da_args *args);

@@ -451,27 +451,16 @@ void shmob_drm_crtc_finish_page_flip(struct shmob_drm_crtc *scrtc)
 {
 	struct drm_pending_vblank_event *event;
 	struct drm_device *dev = scrtc->crtc.dev;
-	struct timeval vblanktime;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	event = scrtc->event;
 	scrtc->event = NULL;
+	if (event) {
+		drm_send_vblank_event(dev, 0, event);
+		drm_vblank_put(dev, 0);
+	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	if (event == NULL)
-		return;
-
-	event->event.sequence = drm_vblank_count_and_time(dev, 0, &vblanktime);
-	event->event.tv_sec = vblanktime.tv_sec;
-	event->event.tv_usec = vblanktime.tv_usec;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-	list_add_tail(&event->base.link, &event->base.file_priv->event_list);
-	wake_up_interruptible(&event->base.file_priv->event_wait);
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	drm_vblank_put(dev, 0);
 }
 
 static int shmob_drm_crtc_page_flip(struct drm_crtc *crtc,

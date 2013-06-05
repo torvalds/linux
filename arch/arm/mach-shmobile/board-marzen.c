@@ -212,8 +212,8 @@ static struct platform_device *marzen_devices[] __initdata = {
 static struct usb_phy *phy;
 static int usb_power_on(struct platform_device *pdev)
 {
-	if (!phy)
-		return -EIO;
+	if (IS_ERR(phy))
+		return PTR_ERR(phy);
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
@@ -225,7 +225,7 @@ static int usb_power_on(struct platform_device *pdev)
 
 static void usb_power_off(struct platform_device *pdev)
 {
-	if (!phy)
+	if (IS_ERR(phy))
 		return;
 
 	usb_phy_shutdown(phy);

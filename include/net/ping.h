@@ -38,7 +38,7 @@ struct pingv6_ops {
 	void (*ipv6_icmp_error)(struct sock *sk, struct sk_buff *skb, int err,
 				__be16 port, u32 info, u8 *payload);
 	int (*ipv6_chk_addr)(struct net *net, const struct in6_addr *addr,
-			     struct net_device *dev, int strict);
+			     const struct net_device *dev, int strict);
 };
 
 struct ping_table {
