@@ -58,6 +58,7 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 			goto out;
 		}
 		set_inode_flag(F2FS_I(dir), FI_DELAY_IPUT);
+		add_dirty_dir_inode(dir);
 	}
 
 	name.len = le32_to_cpu(raw_inode->i_namelen);
