@@ -944,9 +944,9 @@ int lprocfs_dt_rd_blksize(char *page, char **start, off_t off,
 	struct obd_statfs osfs;
 
 	int rc = dt_statfs(NULL, dt, &osfs);
-	if (rc != 0) {
+	if (rc == 0) {
 		*eof = 1;
-		rc = snprintf(page, count, "%d\n",
+		rc = snprintf(page, count, "%u\n",
 				(unsigned) osfs.os_bsize);
 	}
 
@@ -961,7 +961,7 @@ int lprocfs_dt_rd_kbytestotal(char *page, char **start, off_t off,
 	struct obd_statfs osfs;
 
 	int rc = dt_statfs(NULL, dt, &osfs);
-	if (rc != 0) {
+	if (rc == 0) {
 		__u32 blk_size = osfs.os_bsize >> 10;
 		__u64 result = osfs.os_blocks;
 
@@ -983,7 +983,7 @@ int lprocfs_dt_rd_kbytesfree(char *page, char **start, off_t off,
 	struct obd_statfs osfs;
 
 	int rc = dt_statfs(NULL, dt, &osfs);
-	if (rc != 0) {
+	if (rc == 0) {
 		__u32 blk_size = osfs.os_bsize >> 10;
 		__u64 result = osfs.os_bfree;
 
@@ -1005,7 +1005,7 @@ int lprocfs_dt_rd_kbytesavail(char *page, char **start, off_t off,
 	struct obd_statfs osfs;
 
 	int rc = dt_statfs(NULL, dt, &osfs);
-	if (rc != 0) {
+	if (rc == 0) {
 		__u32 blk_size = osfs.os_bsize >> 10;
 		__u64 result = osfs.os_bavail;
 
@@ -1027,7 +1027,7 @@ int lprocfs_dt_rd_filestotal(char *page, char **start, off_t off,
 	struct obd_statfs osfs;
 
 	int rc = dt_statfs(NULL, dt, &osfs);
-	if (rc != 0) {
+	if (rc == 0) {
 		*eof = 1;
 		rc = snprintf(page, count, LPU64"\n", osfs.os_files);
 	}
@@ -1043,7 +1043,7 @@ int lprocfs_dt_rd_filesfree(char *page, char **start, off_t off,
 	struct obd_statfs osfs;
 
 	int rc = dt_statfs(NULL, dt, &osfs);
-	if (rc != 0) {
+	if (rc == 0) {
 		*eof = 1;
 		rc = snprintf(page, count, LPU64"\n", osfs.os_ffree);
 	}
