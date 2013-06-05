@@ -349,7 +349,7 @@ static int audit_set_failure(int state)
  * it is not a huge concern since we already passed the audit_log_lost()
  * notification and stuff.  This is just nice to get audit messages during
  * boot before auditd is running or messages generated while auditd is stopped.
- * This only holds messages is audit_default is set, aka booting with audit=1
+ * This only holds messages if audit_default is set, aka booting with audit=1
  * or building your kernel that way.
  */
 static void audit_hold_skb(struct sk_buff *skb)
