@@ -265,6 +265,15 @@ static DEFINE_SPINLOCK(clk_doubler_lock);
 static DEFINE_SPINLOCK(clk_out_lock);
 static DEFINE_SPINLOCK(sysrate_lock);
 
+static struct div_nmp pllxc_nmp = {
+	.divm_shift = 0,
+	.divm_width = 8,
+	.divn_shift = 8,
+	.divn_width = 8,
+	.divp_shift = 20,
+	.divp_width = 4,
+};
+
 static struct pdiv_map pllxc_p[] = {
 	{ .pdiv = 1, .hw_val = 0 },
 	{ .pdiv = 2, .hw_val = 1 },
@@ -313,6 +322,16 @@ static struct tegra_clk_pll_params pll_c_params = {
 	.stepa_shift = 17,
 	.stepb_shift = 9,
 	.pdiv_tohw = pllxc_p,
+	.div_nmp = &pllxc_nmp,
+};
+
+static struct div_nmp pllcx_nmp = {
+	.divm_shift = 0,
+	.divm_width = 2,
+	.divn_shift = 8,
+	.divn_width = 8,
+	.divp_shift = 20,
+	.divp_width = 3,
 };
 
 static struct pdiv_map pllc_p[] = {
@@ -346,6 +365,8 @@ static struct tegra_clk_pll_params pll_c2_params = {
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
 	.pdiv_tohw = pllc_p,
+	.div_nmp = &pllcx_nmp,
+	.max_p = 7,
 	.ext_misc_reg[0] = 0x4f0,
 	.ext_misc_reg[1] = 0x4f4,
 	.ext_misc_reg[2] = 0x4f8,
@@ -364,9 +385,20 @@ static struct tegra_clk_pll_params pll_c3_params = {
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
 	.pdiv_tohw = pllc_p,
+	.div_nmp = &pllcx_nmp,
+	.max_p = 7,
 	.ext_misc_reg[0] = 0x504,
 	.ext_misc_reg[1] = 0x508,
 	.ext_misc_reg[2] = 0x50c,
+};
+
+static struct div_nmp pllm_nmp = {
+	.divm_shift = 0,
+	.divm_width = 8,
+	.divn_shift = 8,
+	.divn_width = 8,
+	.divp_shift = 20,
+	.divp_width = 1,
 };
 
 static struct pdiv_map pllm_p[] = {
@@ -398,6 +430,16 @@ static struct tegra_clk_pll_params pll_m_params = {
 	.lock_delay = 300,
 	.max_p = 2,
 	.pdiv_tohw = pllm_p,
+	.div_nmp = &pllm_nmp,
+};
+
+static struct div_nmp pllp_nmp = {
+	.divm_shift = 0,
+	.divm_width = 5,
+	.divn_shift = 8,
+	.divn_width = 10,
+	.divp_shift = 20,
+	.divp_width = 3,
 };
 
 static struct tegra_clk_pll_freq_table pll_p_freq_table[] = {
@@ -421,6 +463,7 @@ static struct tegra_clk_pll_params pll_p_params = {
 	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
+	.div_nmp = &pllp_nmp,
 };
 
 static struct tegra_clk_pll_freq_table pll_a_freq_table[] = {
@@ -447,6 +490,7 @@ static struct tegra_clk_pll_params pll_a_params = {
 	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
+	.div_nmp = &pllp_nmp,
 };
 
 static struct tegra_clk_pll_freq_table pll_d_freq_table[] = {
@@ -482,6 +526,7 @@ static struct tegra_clk_pll_params pll_d_params = {
 	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLLDU_MISC_LOCK_ENABLE,
 	.lock_delay = 1000,
+	.div_nmp = &pllp_nmp,
 };
 
 static struct tegra_clk_pll_params pll_d2_params = {
@@ -496,12 +541,22 @@ static struct tegra_clk_pll_params pll_d2_params = {
 	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLLDU_MISC_LOCK_ENABLE,
 	.lock_delay = 1000,
+	.div_nmp = &pllp_nmp,
 };
 
 static struct pdiv_map pllu_p[] = {
 	{ .pdiv = 1, .hw_val = 1 },
 	{ .pdiv = 2, .hw_val = 0 },
 	{ .pdiv = 0, .hw_val = 0 },
+};
+
+static struct div_nmp pllu_nmp = {
+	.divm_shift = 0,
+	.divm_width = 5,
+	.divn_shift = 8,
+	.divn_width = 10,
+	.divp_shift = 20,
+	.divp_width = 1,
 };
 
 static struct tegra_clk_pll_freq_table pll_u_freq_table[] = {
@@ -526,6 +581,7 @@ static struct tegra_clk_pll_params pll_u_params = {
 	.lock_enable_bit_idx = PLLDU_MISC_LOCK_ENABLE,
 	.lock_delay = 1000,
 	.pdiv_tohw = pllu_p,
+	.div_nmp = &pllu_nmp,
 };
 
 static struct tegra_clk_pll_freq_table pll_x_freq_table[] = {
@@ -558,6 +614,7 @@ static struct tegra_clk_pll_params pll_x_params = {
 	.stepa_shift = 16,
 	.stepb_shift = 24,
 	.pdiv_tohw = pllxc_p,
+	.div_nmp = &pllxc_nmp,
 };
 
 static struct tegra_clk_pll_freq_table pll_e_freq_table[] = {
@@ -565,6 +622,15 @@ static struct tegra_clk_pll_freq_table pll_e_freq_table[] = {
 	{336000000, 100000000, 100, 21, 16, 11},
 	{312000000, 100000000, 200, 26, 24, 13},
 	{0, 0, 0, 0, 0, 0},
+};
+
+static struct div_nmp plle_nmp = {
+	.divm_shift = 0,
+	.divm_width = 8,
+	.divn_shift = 8,
+	.divn_width = 8,
+	.divp_shift = 24,
+	.divp_width = 4,
 };
 
 static struct tegra_clk_pll_params pll_e_params = {
@@ -580,6 +646,16 @@ static struct tegra_clk_pll_params pll_e_params = {
 	.lock_mask = PLLE_MISC_LOCK,
 	.lock_enable_bit_idx = PLLE_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
+	.div_nmp = &plle_nmp,
+};
+
+static struct div_nmp pllre_nmp = {
+	.divm_shift = 0,
+	.divm_width = 8,
+	.divn_shift = 8,
+	.divn_width = 8,
+	.divp_shift = 16,
+	.divp_width = 4,
 };
 
 static struct tegra_clk_pll_params pll_re_vco_params = {
@@ -596,6 +672,7 @@ static struct tegra_clk_pll_params pll_re_vco_params = {
 	.lock_delay = 300,
 	.iddq_reg = PLLRE_MISC,
 	.iddq_bit_idx = PLLRE_IDDQ_BIT,
+	.div_nmp = &pllre_nmp,
 };
 
 /* Peripheral clock registers */
