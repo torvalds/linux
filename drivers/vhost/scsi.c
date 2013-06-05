@@ -216,7 +216,7 @@ static int iov_num_pages(struct iovec *iov)
 	       ((unsigned long)iov->iov_base & PAGE_MASK)) >> PAGE_SHIFT;
 }
 
-void tcm_vhost_done_inflight(struct kref *kref)
+static void tcm_vhost_done_inflight(struct kref *kref)
 {
 	struct vhost_scsi_inflight *inflight;
 
