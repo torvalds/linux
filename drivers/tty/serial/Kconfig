@@ -551,7 +551,7 @@ config BFIN_UART3_CTSRTS
 	  Enable hardware flow control in the driver.
 
 config SERIAL_IMX
-	bool "IMX serial port support"
+	tristate "IMX serial port support"
 	depends on ARCH_MXC
 	select SERIAL_CORE
 	select RATIONAL
@@ -561,7 +561,7 @@ config SERIAL_IMX
 
 config SERIAL_IMX_CONSOLE
 	bool "Console on IMX serial port"
-	depends on SERIAL_IMX
+	depends on SERIAL_IMX=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you have enabled the serial port on the Motorola IMX
