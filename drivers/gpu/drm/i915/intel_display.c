@@ -8138,16 +8138,10 @@ intel_pipe_config_compare(struct drm_device *dev,
 	return true;
 }
 
-void
-intel_modeset_check_state(struct drm_device *dev)
+static void
+check_connector_state(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct intel_crtc *crtc;
-	struct intel_encoder *encoder;
 	struct intel_connector *connector;
-	struct intel_crtc_config pipe_config;
-	struct intel_dpll_hw_state dpll_hw_state;
-	int i;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    base.head) {
@@ -8158,6 +8152,13 @@ intel_modeset_check_state(struct drm_device *dev)
 		WARN(&connector->new_encoder->base != connector->base.encoder,
 		     "connector's staged encoder doesn't match current encoder\n");
 	}
+}
+
+static void
+check_encoder_state(struct drm_device *dev)
+{
+	struct intel_encoder *encoder;
+	struct intel_connector *connector;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
 			    base.head) {
@@ -8209,6 +8210,15 @@ intel_modeset_check_state(struct drm_device *dev)
 		     tracked_pipe, pipe);
 
 	}
+}
+
+static void
+check_crtc_state(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc;
+	struct intel_encoder *encoder;
+	struct intel_crtc_config pipe_config;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
 			    base.head) {
@@ -8262,6 +8272,15 @@ intel_modeset_check_state(struct drm_device *dev)
 					       "[sw state]");
 		}
 	}
+}
+
+static void
+check_shared_dpll_state(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc;
+	struct intel_dpll_hw_state dpll_hw_state;
+	int i;
 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
@@ -8297,6 +8316,15 @@ intel_modeset_check_state(struct drm_device *dev)
 		     "pll enabled crtcs mismatch (expected %i, found %i)\n",
 		     pll->refcount, enabled_crtcs);
 	}
+}
+
+void
+intel_modeset_check_state(struct drm_device *dev)
+{
+	check_connector_state(dev);
+	check_encoder_state(dev);
+	check_crtc_state(dev);
+	check_shared_dpll_state(dev);
 }
 
 static int __intel_set_mode(struct drm_crtc *crtc,
