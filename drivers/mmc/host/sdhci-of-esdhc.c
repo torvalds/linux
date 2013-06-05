@@ -200,7 +200,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 
 	/* Set the clock */
-	esdhc_set_clock(host, clock);
+	esdhc_set_clock(host, clock, host->max_clk);
 }
 
 #ifdef CONFIG_PM
