@@ -34,8 +34,10 @@
 #define PMLCA_FCM1	0x10000000	/* Freeze when PMM==1 */
 #define PMLCA_FCM0	0x08000000	/* Freeze when PMM==0 */
 #define PMLCA_CE	0x04000000	/* Condition Enable */
+#define PMLCA_FGCS1	0x00000002	/* Freeze in guest state */
+#define PMLCA_FGCS0	0x00000001	/* Freeze in hypervisor state */
 
-#define PMLCA_EVENT_MASK 0x00ff0000	/* Event field */
+#define PMLCA_EVENT_MASK 0x01ff0000	/* Event field */
 #define PMLCA_EVENT_SHIFT	16
 
 #define PMRN_PMLCB0	0x110	/* PM Local Control B0 */
