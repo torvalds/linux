@@ -536,7 +536,7 @@ __snbep_cbox_get_constraint(struct intel_uncore_box *box, struct perf_event *eve
 	if (!uncore_box_is_fake(box))
 		reg1->alloc |= alloc;
 
-	return 0;
+	return NULL;
 fail:
 	for (; i >= 0; i--) {
 		if (alloc & (0x1 << i))
