@@ -1186,8 +1186,7 @@ static int mixer_probe(struct platform_device *pdev)
 
 	if (dev->of_node) {
 		const struct of_device_id *match;
-		match = of_match_node(of_match_ptr(mixer_match_types),
-							  dev->of_node);
+		match = of_match_node(mixer_match_types, dev->of_node);
 		drv = (struct mixer_drv_data *)match->data;
 	} else {
 		drv = (struct mixer_drv_data *)
