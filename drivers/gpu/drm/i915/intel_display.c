@@ -1301,20 +1301,7 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 	assert_pch_hdmi_disabled(dev_priv, pipe, PCH_HDMID);
 }
 
-/**
- * intel_enable_pll - enable a PLL
- * @dev_priv: i915 private structure
- * @pipe: pipe PLL to enable
- *
- * Enable @pipe's PLL so we can start pumping pixels from a plane.  Check to
- * make sure the PLL reg is writable first though, since the panel write
- * protect mechanism may be enabled.
- *
- * Note!  This is for pre-ILK only.
- *
- * Unfortunately needed by dvo_ns2501 since the dvo depends on it running.
- */
-static void intel_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+static void vlv_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	int reg;
 	u32 val;
@@ -1322,7 +1309,37 @@ static void intel_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	assert_pipe_disabled(dev_priv, pipe);
 
 	/* No really, not for ILK+ */
-	BUG_ON(!IS_VALLEYVIEW(dev_priv->dev) && dev_priv->info->gen >= 5);
+	BUG_ON(!IS_VALLEYVIEW(dev_priv->dev));
+
+	/* PLL is protected by panel, make sure we can write it */
+	if (IS_MOBILE(dev_priv->dev) && !IS_I830(dev_priv->dev))
+		assert_panel_unlocked(dev_priv, pipe);
+
+	reg = DPLL(pipe);
+	val = I915_READ(reg);
+	val |= DPLL_VCO_ENABLE;
+
+	/* We do this three times for luck */
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	udelay(150); /* wait for warmup */
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	udelay(150); /* wait for warmup */
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	udelay(150); /* wait for warmup */
+}
+
+static void i9xx_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	assert_pipe_disabled(dev_priv, pipe);
+
+	/* No really, not for ILK+ */
+	BUG_ON(dev_priv->info->gen >= 5);
 
 	/* PLL is protected by panel, make sure we can write it */
 	if (IS_MOBILE(dev_priv->dev) && !IS_I830(dev_priv->dev))
@@ -3589,7 +3606,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
 
-	intel_enable_pll(dev_priv, pipe);
+	vlv_enable_pll(dev_priv, pipe);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
@@ -3630,7 +3647,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
 
-	intel_enable_pll(dev_priv, pipe);
+	i9xx_enable_pll(dev_priv, pipe);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
