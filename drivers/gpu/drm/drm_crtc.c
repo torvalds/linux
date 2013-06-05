@@ -616,7 +616,7 @@ EXPORT_SYMBOL(drm_framebuffer_remove);
  * @crtc: CRTC object to init
  * @funcs: callbacks for the new CRTC
  *
- * Inits a new object created as base part of an driver crtc object.
+ * Inits a new object created as base part of a driver crtc object.
  *
  * RETURNS:
  * Zero on success, error code on failure.
@@ -651,11 +651,12 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 EXPORT_SYMBOL(drm_crtc_init);
 
 /**
- * drm_crtc_cleanup - Cleans up the core crtc usage.
+ * drm_crtc_cleanup - Clean up the core crtc usage
  * @crtc: CRTC to cleanup
  *
- * Cleanup @crtc. Removes from drm modesetting space
- * does NOT free object, caller does that.
+ * This function cleans up @crtc and removes it from the DRM mode setting
+ * core. Note that the function does *not* free the crtc structure itself,
+ * this is the responsibility of the caller.
  */
 void drm_crtc_cleanup(struct drm_crtc *crtc)
 {
