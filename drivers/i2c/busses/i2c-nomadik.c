@@ -148,10 +148,6 @@ struct i2c_nmk_client {
  * @stop: stop condition.
  * @xfer_complete: acknowledge completion for a I2C message.
  * @result: controller propogated result.
- * @pinctrl: pinctrl handle.
- * @pins_default: default state for the pins.
- * @pins_idle: idle state for the pins.
- * @pins_sleep: sleep state for the pins.
  * @busy: Busy doing transfer.
  */
 struct nmk_i2c_dev {
@@ -165,11 +161,6 @@ struct nmk_i2c_dev {
 	int				stop;
 	struct completion		xfer_complete;
 	int				result;
-	/* Three pin states - default, idle & sleep */
-	struct pinctrl			*pinctrl;
-	struct pinctrl_state		*pins_default;
-	struct pinctrl_state		*pins_idle;
-	struct pinctrl_state		*pins_sleep;
 	bool				busy;
 };
 
@@ -645,13 +636,7 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 
 	/* Optionaly enable pins to be muxed in and configured */
-	if (!IS_ERR(dev->pins_default)) {
-		status = pinctrl_select_state(dev->pinctrl,
-				dev->pins_default);
-		if (status)
-			dev_err(&dev->adev->dev,
-				"could not set default pins\n");
-	}
+	pinctrl_pm_select_default_state(&dev->adev->dev);
 
 	status = init_hw(dev);
 	if (status)
@@ -681,13 +666,7 @@ out:
 	clk_disable_unprepare(dev->clk);
 out_clk:
 	/* Optionally let pins go into idle state */
-	if (!IS_ERR(dev->pins_idle)) {
-		status = pinctrl_select_state(dev->pinctrl,
-				dev->pins_idle);
-		if (status)
-			dev_err(&dev->adev->dev,
-				"could not set pins to idle state\n");
-	}
+	pinctrl_pm_select_idle_state(&dev->adev->dev);
 
 	pm_runtime_put_sync(&dev->adev->dev);
 
@@ -882,41 +861,22 @@ static int nmk_i2c_suspend(struct device *dev)
 {
 	struct amba_device *adev = to_amba_device(dev);
 	struct nmk_i2c_dev *nmk_i2c = amba_get_drvdata(adev);
-	int ret;
 
 	if (nmk_i2c->busy)
 		return -EBUSY;
 
-	if (!IS_ERR(nmk_i2c->pins_sleep)) {
-		ret = pinctrl_select_state(nmk_i2c->pinctrl,
-				nmk_i2c->pins_sleep);
-		if (ret)
-			dev_err(dev, "could not set pins to sleep state\n");
-	}
+	pinctrl_pm_select_sleep_state(dev);
 
 	return 0;
 }
 
 static int nmk_i2c_resume(struct device *dev)
 {
-	struct amba_device *adev = to_amba_device(dev);
-	struct nmk_i2c_dev *nmk_i2c = amba_get_drvdata(adev);
-	int ret;
-
 	/* First go to the default state */
-	if (!IS_ERR(nmk_i2c->pins_default)) {
-		ret = pinctrl_select_state(nmk_i2c->pinctrl,
-				nmk_i2c->pins_default);
-		if (ret)
-			dev_err(dev, "could not set pins to default state\n");
-	}
+	pinctrl_pm_select_default_state(dev);
 	/* Then let's idle the pins until the next transfer happens */
-	if (!IS_ERR(nmk_i2c->pins_idle)) {
-		ret = pinctrl_select_state(nmk_i2c->pinctrl,
-				nmk_i2c->pins_idle);
-		if (ret)
-			dev_err(dev, "could not set pins to idle state\n");
-	}
+	pinctrl_pm_select_idle_state(dev);
+
 	return 0;
 }
 #else
@@ -1004,39 +964,10 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	dev->adev = adev;
 	amba_set_drvdata(adev, dev);
 
-	dev->pinctrl = devm_pinctrl_get(&adev->dev);
-	if (IS_ERR(dev->pinctrl)) {
-		ret = PTR_ERR(dev->pinctrl);
-		goto err_pinctrl;
-	}
-
-	dev->pins_default = pinctrl_lookup_state(dev->pinctrl,
-						 PINCTRL_STATE_DEFAULT);
-	if (IS_ERR(dev->pins_default)) {
-		dev_err(&adev->dev, "could not get default pinstate\n");
-	} else {
-		ret = pinctrl_select_state(dev->pinctrl,
-					   dev->pins_default);
-		if (ret)
-			dev_dbg(&adev->dev, "could not set default pinstate\n");
-	}
-
-	dev->pins_idle = pinctrl_lookup_state(dev->pinctrl,
-					      PINCTRL_STATE_IDLE);
-	if (IS_ERR(dev->pins_idle)) {
-		dev_dbg(&adev->dev, "could not get idle pinstate\n");
-	} else {
-		/* If possible, let's go to idle until the first transfer */
-		ret = pinctrl_select_state(dev->pinctrl,
-					   dev->pins_idle);
-		if (ret)
-			dev_dbg(&adev->dev, "could not set idle pinstate\n");
-	}
-
-	dev->pins_sleep = pinctrl_lookup_state(dev->pinctrl,
-					       PINCTRL_STATE_SLEEP);
-	if (IS_ERR(dev->pins_sleep))
-		dev_dbg(&adev->dev, "could not get sleep pinstate\n");
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(&adev->dev);
+	/* If possible, let's go to idle until the first transfer */
+	pinctrl_pm_select_idle_state(&adev->dev);
 
 	dev->virtbase = ioremap(adev->res.start, resource_size(&adev->res));
 	if (!dev->virtbase) {
@@ -1106,7 +1037,6 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	iounmap(dev->virtbase);
  err_no_ioremap:
 	kfree(dev);
- err_pinctrl:
  err_no_mem:
 
 	return ret;
