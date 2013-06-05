@@ -131,9 +131,11 @@ static struct z_stream_s stream;
 #ifdef CONFIG_PSTORE
 static enum pstore_type_id nvram_type_ids[] = {
 	PSTORE_TYPE_DMESG,
+	PSTORE_TYPE_PPC_RTAS,
 	-1
 };
 static int read_type;
+static unsigned long last_rtas_event;
 #endif
 
 static ssize_t pSeries_nvram_read(char *buf, size_t count, loff_t *index)
@@ -297,8 +299,13 @@ int nvram_write_error_log(char * buff, int length,
 {
 	int rc = nvram_write_os_partition(&rtas_log_partition, buff, length,
 						err_type, error_log_cnt);
-	if (!rc)
+	if (!rc) {
 		last_unread_rtas_event = get_seconds();
+#ifdef CONFIG_PSTORE
+		last_rtas_event = get_seconds();
+#endif
+	}
+
 	return rc;
 }
 
@@ -506,7 +513,7 @@ static int nvram_pstore_write(enum pstore_type_id type,
 }
 
 /*
- * Reads the oops/panic report.
+ * Reads the oops/panic report and ibm,rtas-log partition.
  * Returns the length of the data we read from each partition.
  * Returns 0 if we've been called before.
  */
@@ -526,6 +533,12 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 		part = &oops_log_partition;
 		*type = PSTORE_TYPE_DMESG;
 		break;
+	case PSTORE_TYPE_PPC_RTAS:
+		part = &rtas_log_partition;
+		*type = PSTORE_TYPE_PPC_RTAS;
+		time->tv_sec = last_rtas_event;
+		time->tv_nsec = 0;
+		break;
 	default:
 		return 0;
 	}
@@ -542,11 +555,17 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 
 	*count = 0;
 	*id = id_no;
-	oops_hdr = (struct oops_log_info *)buff;
-	*buf = buff + sizeof(*oops_hdr);
-	time->tv_sec = oops_hdr->timestamp;
-	time->tv_nsec = 0;
-	return oops_hdr->report_length;
+
+	if (nvram_type_ids[read_type] == PSTORE_TYPE_DMESG) {
+		oops_hdr = (struct oops_log_info *)buff;
+		*buf = buff + sizeof(*oops_hdr);
+		time->tv_sec = oops_hdr->timestamp;
+		time->tv_nsec = 0;
+		return oops_hdr->report_length;
+	}
+
+	*buf = buff;
+	return part->size;
 }
 
 static struct pstore_info nvram_pstore_info = {
