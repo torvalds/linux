@@ -132,15 +132,6 @@ enum hpd_pin {
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
 		if ((intel_encoder)->base.crtc == (__crtc))
 
-struct intel_shared_dpll {
-	int refcount; /* count of number of CRTCs sharing this PLL */
-	int active; /* count of number of active CRTCs (i.e. DPMS on) */
-	bool on; /* is the PLL actually active? Disabled during modeset */
-	int pll_reg;
-	int fp0_reg;
-	int fp1_reg;
-};
-
 enum intel_dpll_id {
 	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
 	/* real shared dpll ids must be >= 0 */
@@ -148,6 +139,18 @@ enum intel_dpll_id {
 	DPLL_ID_PCH_PLL_B,
 };
 #define I915_NUM_PLLS 2
+
+struct intel_shared_dpll {
+	int refcount; /* count of number of CRTCs sharing this PLL */
+	int active; /* count of number of active CRTCs (i.e. DPMS on) */
+	bool on; /* is the PLL actually active? Disabled during modeset */
+	const char *name;
+	/* should match the index in the dev_priv->shared_dplls array */
+	enum intel_dpll_id id;
+	int pll_reg;
+	int fp0_reg;
+	int fp1_reg;
+};
 
 /* Used by dp and fdi links */
 struct intel_link_m_n {

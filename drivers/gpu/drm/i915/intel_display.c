@@ -935,14 +935,14 @@ static void assert_shared_dpll(struct drm_i915_private *dev_priv,
 	}
 
 	if (WARN (!pll,
-		  "asserting PCH PLL %s with no PLL\n", state_string(state)))
+		  "asserting DPLL %s with no DPLL\n", state_string(state)))
 		return;
 
 	val = I915_READ(pll->pll_reg);
 	cur_state = !!(val & DPLL_VCO_ENABLE);
 	WARN(cur_state != state,
-	     "PCH PLL state for reg %x assertion failure (expected %s, current %s), val=%08x\n",
-	     pll->pll_reg, state_string(state), state_string(cur_state), val);
+	     "%s assertion failure (expected %s, current %s), val=%08x\n",
+	     pll->name, state_string(state), state_string(cur_state), val);
 
 	/* Make sure the selected PLL is correctly attached to the transcoder */
 	if (crtc && HAS_PCH_CPT(dev_priv->dev)) {
@@ -1430,8 +1430,8 @@ static void ironlake_enable_shared_dpll(struct intel_crtc *crtc)
 	if (WARN_ON(pll->refcount == 0))
 		return;
 
-	DRM_DEBUG_KMS("enable PCH PLL %x (active %d, on? %d)for crtc %d\n",
-		      pll->pll_reg, pll->active, pll->on,
+	DRM_DEBUG_KMS("enable %s (active %d, on? %d)for crtc %d\n",
+		      pll->name, pll->active, pll->on,
 		      crtc->base.base.id);
 
 	/* PCH refclock must be enabled first */
@@ -1444,7 +1444,7 @@ static void ironlake_enable_shared_dpll(struct intel_crtc *crtc)
 	}
 	WARN_ON(pll->on);
 
-	DRM_DEBUG_KMS("enabling PCH PLL %x\n", pll->pll_reg);
+	DRM_DEBUG_KMS("enabling %s\n", pll->name);
 
 	reg = pll->pll_reg;
 	val = I915_READ(reg);
@@ -1471,8 +1471,8 @@ static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	if (WARN_ON(pll->refcount == 0))
 		return;
 
-	DRM_DEBUG_KMS("disable PCH PLL %x (active %d, on? %d) for crtc %d\n",
-		      pll->pll_reg, pll->active, pll->on,
+	DRM_DEBUG_KMS("disable %s (active %d, on? %d) for crtc %d\n",
+		      pll->name, pll->active, pll->on,
 		      crtc->base.base.id);
 
 	if (WARN_ON(pll->active == 0)) {
@@ -1485,7 +1485,7 @@ static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	if (--pll->active)
 		return;
 
-	DRM_DEBUG_KMS("disabling PCH PLL %x\n", pll->pll_reg);
+	DRM_DEBUG_KMS("disabling %s\n", pll->name);
 
 	/* Make sure transcoder isn't still depending on us */
 	assert_pch_transcoder_disabled(dev_priv, crtc->pipe);
@@ -3065,7 +3065,7 @@ static void intel_put_shared_dpll(struct intel_crtc *crtc)
 		return;
 
 	if (pll->refcount == 0) {
-		WARN(1, "bad PCH PLL refcount\n");
+		WARN(1, "bad %s refcount\n", pll->name);
 		return;
 	}
 
@@ -3084,8 +3084,8 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc, 
 	enum intel_dpll_id i;
 
 	if (pll) {
-		DRM_DEBUG_KMS("CRTC:%d dropping existing PCH PLL %x\n",
-			      crtc->base.base.id, pll->pll_reg);
+		DRM_DEBUG_KMS("CRTC:%d dropping existing %s\n",
+			      crtc->base.base.id, pll->name);
 		intel_put_shared_dpll(crtc);
 	}
 
@@ -3094,8 +3094,8 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc, 
 		i = crtc->pipe;
 		pll = &dev_priv->shared_dplls[i];
 
-		DRM_DEBUG_KMS("CRTC:%d using pre-allocated PCH PLL %x\n",
-			      crtc->base.base.id, pll->pll_reg);
+		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
+			      crtc->base.base.id, pll->name);
 
 		goto found;
 	}
@@ -3109,9 +3109,9 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc, 
 
 		if (dpll == (I915_READ(pll->pll_reg) & 0x7fffffff) &&
 		    fp == I915_READ(pll->fp0_reg)) {
-			DRM_DEBUG_KMS("CRTC:%d sharing existing PCH PLL %x (refcount %d, ative %d)\n",
+			DRM_DEBUG_KMS("CRTC:%d sharing existing %s (refcount %d, ative %d)\n",
 				      crtc->base.base.id,
-				      pll->pll_reg, pll->refcount, pll->active);
+				      pll->name, pll->refcount, pll->active);
 
 			goto found;
 		}
@@ -3121,8 +3121,8 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc, 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		pll = &dev_priv->shared_dplls[i];
 		if (pll->refcount == 0) {
-			DRM_DEBUG_KMS("CRTC:%d allocated PCH PLL %x\n",
-				      crtc->base.base.id, pll->pll_reg);
+			DRM_DEBUG_KMS("CRTC:%d allocated %s\n",
+				      crtc->base.base.id, pll->name);
 			goto found;
 		}
 	}
@@ -3131,9 +3131,10 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc, 
 
 found:
 	crtc->config.shared_dpll = i;
-	DRM_DEBUG_DRIVER("using pll %d for pipe %c\n", i, pipe_name(crtc->pipe));
+	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->name,
+			 pipe_name(crtc->pipe));
 	if (pll->active == 0) {
-		DRM_DEBUG_DRIVER("setting up pll %d\n", i);
+		DRM_DEBUG_DRIVER("setting up %s\n", pll->name);
 		WARN_ON(pll->on);
 		assert_shared_dpll_disabled(dev_priv, pll, NULL);
 
@@ -8755,6 +8756,11 @@ static void intel_cpu_pll_init(struct drm_device *dev)
 		intel_ddi_pll_init(dev);
 }
 
+static char *ibx_pch_dpll_names[] = {
+	"PCH DPLL A",
+	"PCH DPLL B",
+};
+
 static void ibx_pch_dpll_init(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -8763,6 +8769,8 @@ static void ibx_pch_dpll_init(struct drm_device *dev)
 	dev_priv->num_shared_dpll = 2;
 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		dev_priv->shared_dplls[i].id = i;
+		dev_priv->shared_dplls[i].name = ibx_pch_dpll_names[i];
 		dev_priv->shared_dplls[i].pll_reg = _PCH_DPLL(i);
 		dev_priv->shared_dplls[i].fp0_reg = _PCH_FP0(i);
 		dev_priv->shared_dplls[i].fp1_reg = _PCH_FP1(i);
