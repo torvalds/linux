@@ -1200,8 +1200,8 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 	/* PLLP_OUT2 */
 	clk = tegra_clk_register_divider("pll_p_out2_div", "pll_p",
 				clk_base + PLLP_OUTA, 0, TEGRA_DIVIDER_FIXED |
-				TEGRA_DIVIDER_ROUND_UP, 24, 8, 1,
-				&pll_div_lock);
+				TEGRA_DIVIDER_ROUND_UP | TEGRA_DIVIDER_INT, 24,
+				8, 1, &pll_div_lock);
 	clk = tegra_clk_register_pll_out("pll_p_out2", "pll_p_out2_div",
 				clk_base + PLLP_OUTA, 17, 16,
 				CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT, 0,
