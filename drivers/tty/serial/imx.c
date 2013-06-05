@@ -272,6 +272,7 @@ static inline int is_imx21_uart(struct imx_port *sport)
 /*
  * Save and restore functions for UCR1, UCR2 and UCR3 registers
  */
+#if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_IMX_CONSOLE)
 static void imx_port_ucrs_save(struct uart_port *port,
 			       struct imx_port_ucrs *ucr)
 {
@@ -289,6 +290,7 @@ static void imx_port_ucrs_restore(struct uart_port *port,
 	writel(ucr->ucr2, port->membase + UCR2);
 	writel(ucr->ucr3, port->membase + UCR3);
 }
+#endif
 
 /*
  * Handle any change of modem status signal since we were last called.
