@@ -50,16 +50,16 @@
 
 struct pcmad_board_struct {
 	const char *name;
-	int n_ai_bits;
+	unsigned int ai_maxdata;
 };
 
 static const struct pcmad_board_struct pcmad_boards[] = {
 	{
 		.name		= "pcmad12",
-		.n_ai_bits	= 12,
+		.ai_maxdata	= 0x0fff,
 	}, {
 		.name		= "pcmad16",
-		.n_ai_bits	= 16,
+		.ai_maxdata	= 0xffff,
 	},
 };
 
@@ -137,7 +137,7 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags	= SDF_READABLE | AREF_GROUND;
 	s->n_chan	= 16;
 	s->len_chanlist	= 1;
-	s->maxdata	= (1 << board->n_ai_bits) - 1;
+	s->maxdata	= board->ai_maxdata;
 	s->range_table	= &range_unknown;
 	s->insn_read	= pcmad_ai_insn_read;
 
