@@ -132,7 +132,7 @@ enum hpd_pin {
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
 		if ((intel_encoder)->base.crtc == (__crtc))
 
-struct intel_pch_pll {
+struct intel_shared_dpll {
 	int refcount; /* count of number of CRTCs sharing this PLL */
 	int active; /* count of number of active CRTCs (i.e. DPMS on) */
 	bool on; /* is the PLL actually active? Disabled during modeset */
@@ -1027,7 +1027,6 @@ typedef struct drm_i915_private {
 	u32 hpd_event_bits;
 	struct timer_list hotplug_reenable_timer;
 
-	int num_pch_pll;
 	int num_plane;
 
 	unsigned long cfb_size;
@@ -1088,7 +1087,8 @@ typedef struct drm_i915_private {
 	struct drm_crtc *pipe_to_crtc_mapping[3];
 	wait_queue_head_t pending_flip_queue;
 
-	struct intel_pch_pll pch_plls[I915_NUM_PLLS];
+	int num_shared_dpll;
+	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
 	struct intel_ddi_plls ddi_plls;
 
 	/* Reclocking support */
