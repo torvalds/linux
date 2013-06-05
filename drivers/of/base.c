@@ -1208,11 +1208,11 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 				out_args->args_count = count;
 				for (i = 0; i < count; i++)
 					out_args->args[i] = be32_to_cpup(list++);
+			} else {
+				of_node_put(node);
 			}
 
 			/* Found it! return success */
-			if (node)
-				of_node_put(node);
 			return 0;
 		}
 

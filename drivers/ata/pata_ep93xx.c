@@ -933,11 +933,6 @@ static int ep93xx_pata_probe(struct platform_device *pdev)
 	}
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		err = -ENXIO;
-		goto err_rel_gpio;
-	}
-
 	ide_base = devm_ioremap_resource(&pdev->dev, mem_res);
 	if (IS_ERR(ide_base)) {
 		err = PTR_ERR(ide_base);

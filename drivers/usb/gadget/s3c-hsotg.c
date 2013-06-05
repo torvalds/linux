@@ -437,7 +437,7 @@ static void s3c_hsotg_unmap_dma(struct s3c_hsotg *hsotg,
 	if (hs_req->req.length == 0)
 		return;
 
-	usb_gadget_unmap_request(&hsotg->gadget, hs_req, hs_ep->dir_in);
+	usb_gadget_unmap_request(&hsotg->gadget, req, hs_ep->dir_in);
 }
 
 /**

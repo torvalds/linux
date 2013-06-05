@@ -57,9 +57,9 @@
 
 #define _PAGE_ACCESSED      (1<<1)	/* Page is accessed (S) */
 #define _PAGE_CACHEABLE     (1<<2)	/* Page is cached (H) */
-#define _PAGE_EXECUTE       (1<<3)	/* Page has user execute perm (H) */
-#define _PAGE_WRITE         (1<<4)	/* Page has user write perm (H) */
-#define _PAGE_READ          (1<<5)	/* Page has user read perm (H) */
+#define _PAGE_U_EXECUTE     (1<<3)	/* Page has user execute perm (H) */
+#define _PAGE_U_WRITE       (1<<4)	/* Page has user write perm (H) */
+#define _PAGE_U_READ        (1<<5)	/* Page has user read perm (H) */
 #define _PAGE_K_EXECUTE     (1<<6)	/* Page has kernel execute perm (H) */
 #define _PAGE_K_WRITE       (1<<7)	/* Page has kernel write perm (H) */
 #define _PAGE_K_READ        (1<<8)	/* Page has kernel perm (H) */
@@ -72,9 +72,9 @@
 
 /* PD1 */
 #define _PAGE_CACHEABLE     (1<<0)	/* Page is cached (H) */
-#define _PAGE_EXECUTE       (1<<1)	/* Page has user execute perm (H) */
-#define _PAGE_WRITE         (1<<2)	/* Page has user write perm (H) */
-#define _PAGE_READ          (1<<3)	/* Page has user read perm (H) */
+#define _PAGE_U_EXECUTE     (1<<1)	/* Page has user execute perm (H) */
+#define _PAGE_U_WRITE       (1<<2)	/* Page has user write perm (H) */
+#define _PAGE_U_READ        (1<<3)	/* Page has user read perm (H) */
 #define _PAGE_K_EXECUTE     (1<<4)	/* Page has kernel execute perm (H) */
 #define _PAGE_K_WRITE       (1<<5)	/* Page has kernel write perm (H) */
 #define _PAGE_K_READ        (1<<6)	/* Page has kernel perm (H) */
@@ -93,7 +93,8 @@
 #endif
 
 /* Kernel allowed all permissions for all pages */
-#define _K_PAGE_PERMS  (_PAGE_K_EXECUTE | _PAGE_K_WRITE | _PAGE_K_READ)
+#define _K_PAGE_PERMS  (_PAGE_K_EXECUTE | _PAGE_K_WRITE | _PAGE_K_READ | \
+			_PAGE_GLOBAL | _PAGE_PRESENT)
 
 #ifdef CONFIG_ARC_CACHE_PAGES
 #define _PAGE_DEF_CACHEABLE _PAGE_CACHEABLE
@@ -106,7 +107,11 @@
  * -by default cached, unless config otherwise
  * -present in memory
  */
-#define ___DEF (_PAGE_PRESENT | _K_PAGE_PERMS | _PAGE_DEF_CACHEABLE)
+#define ___DEF (_PAGE_PRESENT | _PAGE_DEF_CACHEABLE)
+
+#define _PAGE_READ	(_PAGE_U_READ    | _PAGE_K_READ)
+#define _PAGE_WRITE	(_PAGE_U_WRITE   | _PAGE_K_WRITE)
+#define _PAGE_EXECUTE	(_PAGE_U_EXECUTE | _PAGE_K_EXECUTE)
 
 /* Set of bits not changed in pte_modify */
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_MODIFIED)
@@ -125,11 +130,10 @@
  * kernel vaddr space - visible in all addr spaces, but kernel mode only
  * Thus Global, all-kernel-access, no-user-access, cached
  */
-#define PAGE_KERNEL          __pgprot(___DEF | _PAGE_GLOBAL)
+#define PAGE_KERNEL          __pgprot(_K_PAGE_PERMS | _PAGE_DEF_CACHEABLE)
 
 /* ioremap */
-#define PAGE_KERNEL_NO_CACHE __pgprot(_PAGE_PRESENT | _K_PAGE_PERMS | \
-						     _PAGE_GLOBAL)
+#define PAGE_KERNEL_NO_CACHE __pgprot(_K_PAGE_PERMS)
 
 /**************************************************************************
  * Mapping of vm_flags (Generic VM) to PTE flags (arch specific)
