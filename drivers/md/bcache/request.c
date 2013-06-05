@@ -22,8 +22,6 @@
 
 #define CUTOFF_CACHE_ADD	95
 #define CUTOFF_CACHE_READA	90
-#define CUTOFF_WRITEBACK	50
-#define CUTOFF_WRITEBACK_SYNC	75
 
 struct kmem_cache *bch_search_cache;
 
@@ -998,17 +996,6 @@ static void cached_dev_write_complete(struct closure *cl)
 	cached_dev_bio_complete(cl);
 }
 
-static bool should_writeback(struct cached_dev *dc, struct bio *bio)
-{
-	unsigned threshold = (bio->bi_rw & REQ_SYNC)
-		? CUTOFF_WRITEBACK_SYNC
-		: CUTOFF_WRITEBACK;
-
-	return !atomic_read(&dc->disk.detaching) &&
-		cache_mode(dc, bio) == CACHE_MODE_WRITEBACK &&
-		dc->disk.c->gc_stats.in_use < threshold;
-}
-
 static void request_write(struct cached_dev *dc, struct search *s)
 {
 	struct closure *cl = &s->cl;
@@ -1030,11 +1017,15 @@ static void request_write(struct cached_dev *dc, struct search *s)
 	if (bio->bi_rw & REQ_DISCARD)
 		goto skip;
 
+	if (should_writeback(dc, s->orig_bio,
+			     cache_mode(dc, bio),
+			     s->op.skip)) {
+		s->op.skip = false;
+		s->writeback = true;
+	}
+
 	if (s->op.skip)
 		goto skip;
-
-	if (should_writeback(dc, s->orig_bio))
-		s->writeback = true;
 
 	trace_bcache_write(s->orig_bio, s->writeback, s->op.skip);
 

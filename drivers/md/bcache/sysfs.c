@@ -81,6 +81,9 @@ rw_attribute(writeback_rate_p_term_inverse);
 rw_attribute(writeback_rate_d_smooth);
 read_attribute(writeback_rate_debug);
 
+read_attribute(stripe_size);
+read_attribute(partial_stripes_expensive);
+
 rw_attribute(synchronous);
 rw_attribute(journal_delay_ms);
 rw_attribute(discard);
@@ -146,6 +149,9 @@ SHOW(__bch_cached_dev)
 
 	sysfs_hprint(dirty_data,
 		     bcache_dev_sectors_dirty(&dc->disk) << 9);
+
+	sysfs_hprint(stripe_size,	(1 << dc->disk.stripe_size_bits) << 9);
+	var_printf(partial_stripes_expensive,	"%u");
 
 	var_printf(sequential_merge,	"%i");
 	var_hprint(sequential_cutoff);
@@ -286,6 +292,8 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_writeback_rate_d_smooth,
 	&sysfs_writeback_rate_debug,
 	&sysfs_dirty_data,
+	&sysfs_stripe_size,
+	&sysfs_partial_stripes_expensive,
 	&sysfs_sequential_cutoff,
 	&sysfs_sequential_merge,
 	&sysfs_clear_stats,

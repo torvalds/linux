@@ -357,7 +357,7 @@ static ssize_t bch_dump_read(struct file *file, char __user *buf,
 		if (i->bytes)
 			break;
 
-		w = bch_keybuf_next_rescan(i->c, &i->keys, &MAX_KEY);
+		w = bch_keybuf_next_rescan(i->c, &i->keys, &MAX_KEY, dump_pred);
 		if (!w)
 			break;
 
@@ -380,7 +380,7 @@ static int bch_dump_open(struct inode *inode, struct file *file)
 
 	file->private_data = i;
 	i->c = c;
-	bch_keybuf_init(&i->keys, dump_pred);
+	bch_keybuf_init(&i->keys);
 	i->keys.last_scanned = KEY(0, 0, 0);
 
 	return 0;

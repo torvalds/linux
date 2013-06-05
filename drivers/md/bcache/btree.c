@@ -2252,7 +2252,8 @@ static inline int keybuf_nonoverlapping_cmp(struct keybuf_key *l,
 }
 
 static int bch_btree_refill_keybuf(struct btree *b, struct btree_op *op,
-				   struct keybuf *buf, struct bkey *end)
+				   struct keybuf *buf, struct bkey *end,
+				   keybuf_pred_fn *pred)
 {
 	struct btree_iter iter;
 	bch_btree_iter_init(b, &iter, &buf->last_scanned);
@@ -2271,7 +2272,7 @@ static int bch_btree_refill_keybuf(struct btree *b, struct btree_op *op,
 			if (bkey_cmp(&buf->last_scanned, end) >= 0)
 				break;
 
-			if (buf->key_predicate(buf, k)) {
+			if (pred(buf, k)) {
 				struct keybuf_key *w;
 
 				spin_lock(&buf->lock);
@@ -2290,7 +2291,7 @@ static int bch_btree_refill_keybuf(struct btree *b, struct btree_op *op,
 			if (!k)
 				break;
 
-			btree(refill_keybuf, k, b, op, buf, end);
+			btree(refill_keybuf, k, b, op, buf, end, pred);
 			/*
 			 * Might get an error here, but can't really do anything
 			 * and it'll get logged elsewhere. Just read what we
@@ -2308,7 +2309,7 @@ static int bch_btree_refill_keybuf(struct btree *b, struct btree_op *op,
 }
 
 void bch_refill_keybuf(struct cache_set *c, struct keybuf *buf,
-			  struct bkey *end)
+		       struct bkey *end, keybuf_pred_fn *pred)
 {
 	struct bkey start = buf->last_scanned;
 	struct btree_op op;
@@ -2316,7 +2317,7 @@ void bch_refill_keybuf(struct cache_set *c, struct keybuf *buf,
 
 	cond_resched();
 
-	btree_root(refill_keybuf, c, &op, buf, end);
+	btree_root(refill_keybuf, c, &op, buf, end, pred);
 	closure_sync(&op.cl);
 
 	pr_debug("found %s keys from %llu:%llu to %llu:%llu",
@@ -2402,7 +2403,8 @@ struct keybuf_key *bch_keybuf_next(struct keybuf *buf)
 
 struct keybuf_key *bch_keybuf_next_rescan(struct cache_set *c,
 					     struct keybuf *buf,
-					     struct bkey *end)
+					     struct bkey *end,
+					     keybuf_pred_fn *pred)
 {
 	struct keybuf_key *ret;
 
@@ -2416,15 +2418,14 @@ struct keybuf_key *bch_keybuf_next_rescan(struct cache_set *c,
 			break;
 		}
 
-		bch_refill_keybuf(c, buf, end);
+		bch_refill_keybuf(c, buf, end, pred);
 	}
 
 	return ret;
 }
 
-void bch_keybuf_init(struct keybuf *buf, keybuf_pred_fn *fn)
+void bch_keybuf_init(struct keybuf *buf)
 {
-	buf->key_predicate	= fn;
 	buf->last_scanned	= MAX_KEY;
 	buf->keys		= RB_ROOT;
 

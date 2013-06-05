@@ -136,7 +136,8 @@ static void read_moving(struct closure *cl)
 	/* XXX: if we error, background writeback could stall indefinitely */
 
 	while (!test_bit(CACHE_SET_STOPPING, &c->flags)) {
-		w = bch_keybuf_next_rescan(c, &c->moving_gc_keys, &MAX_KEY);
+		w = bch_keybuf_next_rescan(c, &c->moving_gc_keys,
+					   &MAX_KEY, moving_pred);
 		if (!w)
 			break;
 
@@ -248,5 +249,5 @@ void bch_moving_gc(struct closure *cl)
 
 void bch_moving_init_cache_set(struct cache_set *c)
 {
-	bch_keybuf_init(&c->moving_gc_keys, moving_pred);
+	bch_keybuf_init(&c->moving_gc_keys);
 }

@@ -387,8 +387,6 @@ struct keybuf_key {
 typedef bool (keybuf_pred_fn)(struct keybuf *, struct bkey *);
 
 struct keybuf {
-	keybuf_pred_fn		*key_predicate;
-
 	struct bkey		last_scanned;
 	spinlock_t		lock;
 
@@ -532,6 +530,7 @@ struct cached_dev {
 	unsigned		sequential_merge:1;
 	unsigned		verify:1;
 
+	unsigned		partial_stripes_expensive:1;
 	unsigned		writeback_metadata:1;
 	unsigned		writeback_running:1;
 	unsigned char		writeback_percent;
