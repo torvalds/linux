@@ -142,6 +142,9 @@ enum intel_dpll_id {
 };
 #define I915_NUM_PLLS 2
 
+struct intel_dpll_hw_state {
+};
+
 struct intel_shared_dpll {
 	int refcount; /* count of number of CRTCs sharing this PLL */
 	int active; /* count of number of active CRTCs (i.e. DPMS on) */
@@ -149,10 +152,14 @@ struct intel_shared_dpll {
 	const char *name;
 	/* should match the index in the dev_priv->shared_dplls array */
 	enum intel_dpll_id id;
+	struct intel_dpll_hw_state hw_state;
 	void (*enable)(struct drm_i915_private *dev_priv,
 		       struct intel_shared_dpll *pll);
 	void (*disable)(struct drm_i915_private *dev_priv,
 			struct intel_shared_dpll *pll);
+	bool (*get_hw_state)(struct drm_i915_private *dev_priv,
+			     struct intel_shared_dpll *pll,
+			     struct intel_dpll_hw_state *hw_state);
 };
 
 /* Used by dp and fdi links */

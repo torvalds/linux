@@ -925,8 +925,8 @@ static void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll,
 			       bool state)
 {
-	u32 val;
 	bool cur_state;
+	struct intel_dpll_hw_state hw_state;
 
 	if (HAS_PCH_LPT(dev_priv->dev)) {
 		DRM_DEBUG_DRIVER("LPT detected: skipping PCH PLL test\n");
@@ -937,11 +937,10 @@ static void assert_shared_dpll(struct drm_i915_private *dev_priv,
 		  "asserting DPLL %s with no DPLL\n", state_string(state)))
 		return;
 
-	val = I915_READ(PCH_DPLL(pll->id));
-	cur_state = !!(val & DPLL_VCO_ENABLE);
+	cur_state = pll->get_hw_state(dev_priv, pll, &hw_state);
 	WARN(cur_state != state,
-	     "%s assertion failure (expected %s, current %s), val=%08x\n",
-	     pll->name, state_string(state), state_string(cur_state), val);
+	     "%s assertion failure (expected %s, current %s)\n",
+	     pll->name, state_string(state), state_string(cur_state));
 }
 #define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
 #define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
@@ -8147,6 +8146,8 @@ intel_modeset_check_state(struct drm_device *dev)
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 	struct intel_crtc_config pipe_config;
+	struct intel_dpll_hw_state dpll_hw_state;
+	int i;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    base.head) {
@@ -8260,6 +8261,41 @@ intel_modeset_check_state(struct drm_device *dev)
 			intel_dump_pipe_config(crtc, &crtc->config,
 					       "[sw state]");
 		}
+	}
+
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
+		int enabled_crtcs = 0, active_crtcs = 0;
+		bool active;
+
+		memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
+
+		DRM_DEBUG_KMS("%s\n", pll->name);
+
+		active = pll->get_hw_state(dev_priv, pll, &dpll_hw_state);
+
+		WARN(pll->active > pll->refcount,
+		     "more active pll users than references: %i vs %i\n",
+		     pll->active, pll->refcount);
+		WARN(pll->active && !pll->on,
+		     "pll in active use but not on in sw tracking\n");
+		WARN(pll->on != active,
+		     "pll on state mismatch (expected %i, found %i)\n",
+		     pll->on, active);
+
+		list_for_each_entry(crtc, &dev->mode_config.crtc_list,
+				    base.head) {
+			if (crtc->base.enabled && intel_crtc_to_shared_dpll(crtc) == pll)
+				enabled_crtcs++;
+			if (crtc->active && intel_crtc_to_shared_dpll(crtc) == pll)
+				active_crtcs++;
+		}
+		WARN(pll->active != active_crtcs,
+		     "pll active crtcs mismatch (expected %i, found %i)\n",
+		     pll->active, active_crtcs);
+		WARN(pll->refcount != enabled_crtcs,
+		     "pll enabled crtcs mismatch (expected %i, found %i)\n",
+		     pll->refcount, enabled_crtcs);
 	}
 }
 
@@ -8684,6 +8720,17 @@ static void intel_cpu_pll_init(struct drm_device *dev)
 		intel_ddi_pll_init(dev);
 }
 
+static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
+				      struct intel_shared_dpll *pll,
+				      struct intel_dpll_hw_state *hw_state)
+{
+	uint32_t val;
+
+	val = I915_READ(PCH_DPLL(pll->id));
+
+	return val & DPLL_VCO_ENABLE;
+}
+
 static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 				struct intel_shared_dpll *pll)
 {
@@ -8738,6 +8785,8 @@ static void ibx_pch_dpll_init(struct drm_device *dev)
 		dev_priv->shared_dplls[i].name = ibx_pch_dpll_names[i];
 		dev_priv->shared_dplls[i].enable = ibx_pch_dpll_enable;
 		dev_priv->shared_dplls[i].disable = ibx_pch_dpll_disable;
+		dev_priv->shared_dplls[i].get_hw_state =
+			ibx_pch_dpll_get_hw_state;
 	}
 }
 
@@ -9655,6 +9704,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
+	int i;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
 			    base.head) {
@@ -9670,8 +9720,25 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 			      crtc->active ? "enabled" : "disabled");
 	}
 
+	/* FIXME: Smash this into the new shared dpll infrastructure. */
 	if (HAS_DDI(dev))
 		intel_ddi_setup_hw_pll_state(dev);
+
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
+
+		pll->on = pll->get_hw_state(dev_priv, pll, &pll->hw_state);
+		pll->active = 0;
+		list_for_each_entry(crtc, &dev->mode_config.crtc_list,
+				    base.head) {
+			if (crtc->active && intel_crtc_to_shared_dpll(crtc) == pll)
+				pll->active++;
+		}
+		pll->refcount = pll->active;
+
+		DRM_DEBUG_KMS("%s hw state readout: refcount %i\n",
+			      pll->name, pll->refcount);
+	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
 			    base.head) {
