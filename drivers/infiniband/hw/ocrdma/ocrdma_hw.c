@@ -128,7 +128,6 @@ static inline struct ocrdma_mqe *ocrdma_get_mqe(struct ocrdma_dev *dev)
 static inline void ocrdma_mq_inc_head(struct ocrdma_dev *dev)
 {
 	dev->mq.sq.head = (dev->mq.sq.head + 1) & (OCRDMA_MQ_LEN - 1);
-	atomic_inc(&dev->mq.sq.used);
 }
 
 static inline void *ocrdma_get_mqe_rsp(struct ocrdma_dev *dev)

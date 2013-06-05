@@ -97,7 +97,6 @@ struct ocrdma_queue_info {
 	u16 id;			/* qid, where to ring the doorbell. */
 	u16 head, tail;
 	bool created;
-	atomic_t used;		/* Number of valid elements in the queue */
 };
 
 struct ocrdma_eq {
@@ -198,7 +197,6 @@ struct ocrdma_cq {
 	struct ocrdma_ucontext *ucontext;
 	dma_addr_t pa;
 	u32 len;
-	atomic_t use_cnt;
 
 	/* head of all qp's sq and rq for which cqes need to be flushed
 	 * by the software.
@@ -210,7 +208,6 @@ struct ocrdma_pd {
 	struct ib_pd ibpd;
 	struct ocrdma_dev *dev;
 	struct ocrdma_ucontext *uctx;
-	atomic_t use_cnt;
 	u32 id;
 	int num_dpp_qp;
 	u32 dpp_page;
@@ -246,7 +243,6 @@ struct ocrdma_srq {
 
 	struct ocrdma_qp_hwq_info rq;
 	struct ocrdma_pd *pd;
-	atomic_t use_cnt;
 	u32 id;
 	u64 *rqe_wr_id_tbl;
 	u32 *idx_bit_fields;

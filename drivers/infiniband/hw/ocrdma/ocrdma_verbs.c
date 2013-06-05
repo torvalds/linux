@@ -398,7 +398,6 @@ struct ib_pd *ocrdma_alloc_pd(struct ib_device *ibdev,
 		kfree(pd);
 		return ERR_PTR(status);
 	}
-	atomic_set(&pd->use_cnt, 0);
 
 	if (udata && context) {
 		status = ocrdma_copy_pd_uresp(pd, context, udata);
@@ -419,12 +418,6 @@ int ocrdma_dealloc_pd(struct ib_pd *ibpd)
 	int status;
 	u64 usr_db;
 
-	if (atomic_read(&pd->use_cnt)) {
-		ocrdma_err("%s(%d) pd=0x%x is in use.\n",
-			   __func__, dev->id, pd->id);
-		status = -EFAULT;
-		goto dealloc_err;
-	}
 	status = ocrdma_mbx_dealloc_pd(dev, pd);
 	if (pd->uctx) {
 		u64 dpp_db = dev->nic_info.dpp_unmapped_addr +
@@ -436,7 +429,6 @@ int ocrdma_dealloc_pd(struct ib_pd *ibpd)
 		ocrdma_del_mmap(pd->uctx, usr_db, dev->nic_info.db_page_size);
 	}
 	kfree(pd);
-dealloc_err:
 	return status;
 }
 
@@ -474,7 +466,6 @@ static struct ocrdma_mr *ocrdma_alloc_lkey(struct ib_pd *ibpd,
 		return ERR_PTR(-ENOMEM);
 	}
 	mr->pd = pd;
-	atomic_inc(&pd->use_cnt);
 	mr->ibmr.lkey = mr->hwmr.lkey;
 	if (mr->hwmr.remote_wr || mr->hwmr.remote_rd)
 		mr->ibmr.rkey = mr->hwmr.lkey;
@@ -664,7 +655,6 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	if (status)
 		goto mbx_err;
 	mr->pd = pd;
-	atomic_inc(&pd->use_cnt);
 	mr->ibmr.lkey = mr->hwmr.lkey;
 	if (mr->hwmr.remote_wr || mr->hwmr.remote_rd)
 		mr->ibmr.rkey = mr->hwmr.lkey;
@@ -689,7 +679,6 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr)
 	if (mr->hwmr.fr_mr == 0)
 		ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
 
-	atomic_dec(&mr->pd->use_cnt);
 	/* it could be user registered memory. */
 	if (mr->umem)
 		ib_umem_release(mr->umem);
@@ -752,7 +741,6 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev, int entries, int vector,
 
 	spin_lock_init(&cq->cq_lock);
 	spin_lock_init(&cq->comp_handler_lock);
-	atomic_set(&cq->use_cnt, 0);
 	INIT_LIST_HEAD(&cq->sq_head);
 	INIT_LIST_HEAD(&cq->rq_head);
 	cq->dev = dev;
@@ -798,9 +786,6 @@ int ocrdma_destroy_cq(struct ib_cq *ibcq)
 	int status;
 	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
 	struct ocrdma_dev *dev = cq->dev;
-
-	if (atomic_read(&cq->use_cnt))
-		return -EINVAL;
 
 	status = ocrdma_mbx_destroy_cq(dev, cq);
 
@@ -1023,15 +1008,6 @@ static void ocrdma_set_qp_init_params(struct ocrdma_qp *qp,
 	qp->state = OCRDMA_QPS_RST;
 }
 
-static void ocrdma_set_qp_use_cnt(struct ocrdma_qp *qp, struct ocrdma_pd *pd)
-{
-	atomic_inc(&pd->use_cnt);
-	atomic_inc(&qp->sq_cq->use_cnt);
-	atomic_inc(&qp->rq_cq->use_cnt);
-	if (qp->srq)
-		atomic_inc(&qp->srq->use_cnt);
-	qp->ibqp.qp_num = qp->id;
-}
 
 static void ocrdma_store_gsi_qp_cq(struct ocrdma_dev *dev,
 				   struct ib_qp_init_attr *attrs)
@@ -1099,7 +1075,7 @@ struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 			goto cpy_err;
 	}
 	ocrdma_store_gsi_qp_cq(dev, attrs);
-	ocrdma_set_qp_use_cnt(qp, pd);
+	qp->ibqp.qp_num = qp->id;
 	mutex_unlock(&dev->dev_lock);
 	return &qp->ibqp;
 
@@ -1475,11 +1451,6 @@ int ocrdma_destroy_qp(struct ib_qp *ibqp)
 
 	ocrdma_del_flush_qp(qp);
 
-	atomic_dec(&qp->pd->use_cnt);
-	atomic_dec(&qp->sq_cq->use_cnt);
-	atomic_dec(&qp->rq_cq->use_cnt);
-	if (qp->srq)
-		atomic_dec(&qp->srq->use_cnt);
 	kfree(qp->wqe_wr_id_tbl);
 	kfree(qp->rqe_wr_id_tbl);
 	kfree(qp);
@@ -1565,14 +1536,12 @@ struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
 			goto arm_err;
 	}
 
-	atomic_set(&srq->use_cnt, 0);
 	if (udata) {
 		status = ocrdma_copy_srq_uresp(srq, udata);
 		if (status)
 			goto arm_err;
 	}
 
-	atomic_inc(&pd->use_cnt);
 	return &srq->ibsrq;
 
 arm_err:
@@ -1618,18 +1587,12 @@ int ocrdma_destroy_srq(struct ib_srq *ibsrq)
 
 	srq = get_ocrdma_srq(ibsrq);
 	dev = srq->dev;
-	if (atomic_read(&srq->use_cnt)) {
-		ocrdma_err("%s(%d) err, srq=0x%x in use\n",
-			   __func__, dev->id, srq->id);
-		return -EAGAIN;
-	}
 
 	status = ocrdma_mbx_destroy_srq(dev, srq);
 
 	if (srq->pd->uctx)
 		ocrdma_del_mmap(srq->pd->uctx, (u64) srq->rq.pa, srq->rq.len);
 
-	atomic_dec(&srq->pd->use_cnt);
 	kfree(srq->idx_bit_fields);
 	kfree(srq->rqe_wr_id_tbl);
 	kfree(srq);
