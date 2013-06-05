@@ -99,12 +99,13 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	if (!zpci_fn_configured(slot->zdev->state))
 		return -EIO;
 
+	if (slot->zdev->pdev)
+		pci_stop_and_remove_bus_device(slot->zdev->pdev);
+
 	rc = zpci_disable_device(slot->zdev);
 	if (rc)
 		return rc;
-	/* TODO: we rely on the user to unbind/remove the device, is that plausible
-	 *	 or do we need to trigger that here?
-	 */
+
 	return slot_deconfigure(slot);
 }
 
