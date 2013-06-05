@@ -3436,7 +3436,9 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	intel_disable_planes(crtc);
 	intel_disable_plane(dev_priv, plane, pipe);
 
-	intel_set_pch_fifo_underrun_reporting(dev, pipe, false);
+	if (intel_crtc->config.has_pch_encoder)
+		intel_set_pch_fifo_underrun_reporting(dev, pipe, false);
+
 	intel_disable_pipe(dev_priv, pipe);
 
 	ironlake_pfit_disable(intel_crtc);
@@ -3445,42 +3447,45 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 		if (encoder->post_disable)
 			encoder->post_disable(encoder);
 
-	ironlake_fdi_disable(crtc);
+	if (intel_crtc->config.has_pch_encoder) {
+		ironlake_fdi_disable(crtc);
 
-	ironlake_disable_pch_transcoder(dev_priv, pipe);
-	intel_set_pch_fifo_underrun_reporting(dev, pipe, true);
+		ironlake_disable_pch_transcoder(dev_priv, pipe);
+		intel_set_pch_fifo_underrun_reporting(dev, pipe, true);
 
-	if (HAS_PCH_CPT(dev)) {
-		/* disable TRANS_DP_CTL */
-		reg = TRANS_DP_CTL(pipe);
-		temp = I915_READ(reg);
-		temp &= ~(TRANS_DP_OUTPUT_ENABLE | TRANS_DP_PORT_SEL_MASK);
-		temp |= TRANS_DP_PORT_SEL_NONE;
-		I915_WRITE(reg, temp);
+		if (HAS_PCH_CPT(dev)) {
+			/* disable TRANS_DP_CTL */
+			reg = TRANS_DP_CTL(pipe);
+			temp = I915_READ(reg);
+			temp &= ~(TRANS_DP_OUTPUT_ENABLE |
+				  TRANS_DP_PORT_SEL_MASK);
+			temp |= TRANS_DP_PORT_SEL_NONE;
+			I915_WRITE(reg, temp);
 
-		/* disable DPLL_SEL */
-		temp = I915_READ(PCH_DPLL_SEL);
-		switch (pipe) {
-		case 0:
-			temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLB_SEL);
-			break;
-		case 1:
-			temp &= ~(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
-			break;
-		case 2:
-			/* C shares PLL A or B */
-			temp &= ~(TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL);
-			break;
-		default:
-			BUG(); /* wtf */
+			/* disable DPLL_SEL */
+			temp = I915_READ(PCH_DPLL_SEL);
+			switch (pipe) {
+			case 0:
+				temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLB_SEL);
+				break;
+			case 1:
+				temp &= ~(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
+				break;
+			case 2:
+				/* C shares PLL A or B */
+				temp &= ~(TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL);
+				break;
+			default:
+				BUG(); /* wtf */
+			}
+			I915_WRITE(PCH_DPLL_SEL, temp);
 		}
-		I915_WRITE(PCH_DPLL_SEL, temp);
+
+		/* disable PCH DPLL */
+		intel_disable_pch_pll(intel_crtc);
+
+		ironlake_fdi_pll_disable(intel_crtc);
 	}
-
-	/* disable PCH DPLL */
-	intel_disable_pch_pll(intel_crtc);
-
-	ironlake_fdi_pll_disable(intel_crtc);
 
 	intel_crtc->active = false;
 	intel_update_watermarks(dev);
