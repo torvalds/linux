@@ -70,10 +70,6 @@ OPTIONS
 --no-delay::
 	Collect data without buffering.
 
--f::
---force::
-	Overwrite existing data file. (deprecated)
-
 -c::
 --count=::
 	Event period to sample.

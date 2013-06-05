@@ -74,7 +74,6 @@ struct perf_record {
 	int			realtime_prio;
 	bool			no_buildid;
 	bool			no_buildid_cache;
-	bool			force;
 	long			samples;
 	off_t			post_processing_offset;
 };
@@ -856,8 +855,6 @@ const struct option record_options[] = {
 			    "system-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &record.opts.target.cpu_list, "cpu",
 		    "list of cpus to monitor"),
-	OPT_BOOLEAN('f', "force", &record.force,
-			"overwrite existing data file (deprecated)"),
 	OPT_U64('c', "count", &record.opts.user_interval, "event period to sample"),
 	OPT_STRING('o', "output", &record.output_name, "file",
 		    "output file name"),
