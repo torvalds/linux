@@ -406,7 +406,8 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	int i;
 	__be32 status = htonl(NFS4ERR_BADSESSION);
 
-	clp = nfs4_find_client_sessionid(cps->net, args->csa_addr, &args->csa_sessionid);
+	clp = nfs4_find_client_sessionid(cps->net, args->csa_addr,
+					 &args->csa_sessionid, cps->minorversion);
 	if (clp == NULL)
 		goto out;
 

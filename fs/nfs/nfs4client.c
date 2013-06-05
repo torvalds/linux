@@ -567,14 +567,14 @@ static bool nfs4_cb_match_client(const struct sockaddr *addr,
  */
 struct nfs_client *
 nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
-			   struct nfs4_sessionid *sid)
+			   struct nfs4_sessionid *sid, u32 minorversion)
 {
 	struct nfs_client *clp;
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
 	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
-		if (nfs4_cb_match_client(addr, clp, 1) == false)
+		if (nfs4_cb_match_client(addr, clp, minorversion) == false)
 			continue;
 
 		if (!nfs4_has_session(clp))
@@ -597,7 +597,7 @@ nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
 
 struct nfs_client *
 nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
-			   struct nfs4_sessionid *sid)
+			   struct nfs4_sessionid *sid, u32 minorversion)
 {
 	return NULL;
 }

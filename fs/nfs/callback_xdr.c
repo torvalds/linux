@@ -166,8 +166,8 @@ static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound
 	if (unlikely(p == NULL))
 		return htonl(NFS4ERR_RESOURCE);
 	hdr->minorversion = ntohl(*p++);
-	/* Check minor version is zero or one or two. */
-	if (hdr->minorversion <= 2) {
+	/* Check for minor version support */
+	if (hdr->minorversion <= NFS4_MAX_MINOR_VERSION) {
 		hdr->cb_ident = ntohl(*p++); /* ignored by v4.1 and v4.2 */
 	} else {
 		pr_warn_ratelimited("NFS: %s: NFSv4 server callback with "
@@ -801,8 +801,7 @@ preprocess_nfs4_op(unsigned int op_nr, struct callback_op **op)
 	return htonl(NFS_OK);
 }
 
-static __be32 process_op(uint32_t minorversion, int nop,
-		struct svc_rqst *rqstp,
+static __be32 process_op(int nop, struct svc_rqst *rqstp,
 		struct xdr_stream *xdr_in, void *argp,
 		struct xdr_stream *xdr_out, void *resp,
 		struct cb_process_state *cps)
@@ -819,9 +818,9 @@ static __be32 process_op(uint32_t minorversion, int nop,
 		return status;
 
 	dprintk("%s: minorversion=%d nop=%d op_nr=%u\n",
-		__func__, minorversion, nop, op_nr);
+		__func__, cps->minorversion, nop, op_nr);
 
-	status = minorversion ? preprocess_nfs41_op(nop, op_nr, &op) :
+	status = cps->minorversion ? preprocess_nfs41_op(nop, op_nr, &op) :
 				preprocess_nfs4_op(op_nr, &op);
 	if (status == htonl(NFS4ERR_OP_ILLEGAL))
 		op_nr = OP_CB_ILLEGAL;
@@ -885,14 +884,15 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 			return rpc_drop_reply;
 	}
 
+	cps.minorversion = hdr_arg.minorversion;
 	hdr_res.taglen = hdr_arg.taglen;
 	hdr_res.tag = hdr_arg.tag;
 	if (encode_compound_hdr_res(&xdr_out, &hdr_res) != 0)
 		return rpc_system_err;
 
 	while (status == 0 && nops != hdr_arg.nops) {
-		status = process_op(hdr_arg.minorversion, nops, rqstp,
-				    &xdr_in, argp, &xdr_out, resp, &cps);
+		status = process_op(nops, rqstp, &xdr_in,
+				    argp, &xdr_out, resp, &cps);
 		nops++;
 	}
 
