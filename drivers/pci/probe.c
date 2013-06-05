@@ -451,20 +451,21 @@ void pci_read_bridge_bases(struct pci_bus *child)
 	}
 }
 
-static struct pci_bus * pci_alloc_bus(void)
+static struct pci_bus *pci_alloc_bus(void)
 {
 	struct pci_bus *b;
 
 	b = kzalloc(sizeof(*b), GFP_KERNEL);
-	if (b) {
-		INIT_LIST_HEAD(&b->node);
-		INIT_LIST_HEAD(&b->children);
-		INIT_LIST_HEAD(&b->devices);
-		INIT_LIST_HEAD(&b->slots);
-		INIT_LIST_HEAD(&b->resources);
-		b->max_bus_speed = PCI_SPEED_UNKNOWN;
-		b->cur_bus_speed = PCI_SPEED_UNKNOWN;
-	}
+	if (!b)
+		return NULL;
+
+	INIT_LIST_HEAD(&b->node);
+	INIT_LIST_HEAD(&b->children);
+	INIT_LIST_HEAD(&b->devices);
+	INIT_LIST_HEAD(&b->slots);
+	INIT_LIST_HEAD(&b->resources);
+	b->max_bus_speed = PCI_SPEED_UNKNOWN;
+	b->cur_bus_speed = PCI_SPEED_UNKNOWN;
 	return b;
 }
 
@@ -485,11 +486,11 @@ static struct pci_host_bridge *pci_alloc_host_bridge(struct pci_bus *b)
 	struct pci_host_bridge *bridge;
 
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
-	if (bridge) {
-		INIT_LIST_HEAD(&bridge->windows);
-		bridge->bus = b;
-	}
+	if (!bridge)
+		return NULL;
 
+	INIT_LIST_HEAD(&bridge->windows);
+	bridge->bus = b;
 	return bridge;
 }
 
