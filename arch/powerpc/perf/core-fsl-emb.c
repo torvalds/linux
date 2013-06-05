@@ -70,6 +70,12 @@ static unsigned long read_pmc(int idx)
 	case 3:
 		val = mfpmr(PMRN_PMC3);
 		break;
+	case 4:
+		val = mfpmr(PMRN_PMC4);
+		break;
+	case 5:
+		val = mfpmr(PMRN_PMC5);
+		break;
 	default:
 		printk(KERN_ERR "oops trying to read PMC%d\n", idx);
 		val = 0;
@@ -94,6 +100,12 @@ static void write_pmc(int idx, unsigned long val)
 		break;
 	case 3:
 		mtpmr(PMRN_PMC3, val);
+		break;
+	case 4:
+		mtpmr(PMRN_PMC4, val);
+		break;
+	case 5:
+		mtpmr(PMRN_PMC5, val);
 		break;
 	default:
 		printk(KERN_ERR "oops trying to write PMC%d\n", idx);
@@ -120,6 +132,12 @@ static void write_pmlca(int idx, unsigned long val)
 	case 3:
 		mtpmr(PMRN_PMLCA3, val);
 		break;
+	case 4:
+		mtpmr(PMRN_PMLCA4, val);
+		break;
+	case 5:
+		mtpmr(PMRN_PMLCA5, val);
+		break;
 	default:
 		printk(KERN_ERR "oops trying to write PMLCA%d\n", idx);
 	}
@@ -144,6 +162,12 @@ static void write_pmlcb(int idx, unsigned long val)
 		break;
 	case 3:
 		mtpmr(PMRN_PMLCB3, val);
+		break;
+	case 4:
+		mtpmr(PMRN_PMLCB4, val);
+		break;
+	case 5:
+		mtpmr(PMRN_PMLCB5, val);
 		break;
 	default:
 		printk(KERN_ERR "oops trying to write PMLCB%d\n", idx);
