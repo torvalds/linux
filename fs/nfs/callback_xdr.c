@@ -786,6 +786,26 @@ static void nfs4_cb_free_slot(struct cb_process_state *cps)
 }
 #endif /* CONFIG_NFS_V4_1 */
 
+#ifdef CONFIG_NFS_V4_2
+static __be32
+preprocess_nfs42_op(int nop, unsigned int op_nr, struct callback_op **op)
+{
+	__be32 status = preprocess_nfs41_op(nop, op_nr, op);
+	if (status != htonl(NFS4ERR_OP_ILLEGAL))
+		return status;
+
+	if (op_nr == OP_CB_OFFLOAD)
+		return htonl(NFS4ERR_NOTSUPP);
+	return htonl(NFS4ERR_OP_ILLEGAL);
+}
+#else /* CONFIG_NFS_V4_2 */
+static __be32
+preprocess_nfs42_op(int nop, unsigned int op_nr, struct callback_op **op)
+{
+	return htonl(NFS4ERR_MINOR_VERS_MISMATCH);
+}
+#endif /* CONFIG_NFS_V4_2 */
+
 static __be32
 preprocess_nfs4_op(unsigned int op_nr, struct callback_op **op)
 {
@@ -820,8 +840,20 @@ static __be32 process_op(int nop, struct svc_rqst *rqstp,
 	dprintk("%s: minorversion=%d nop=%d op_nr=%u\n",
 		__func__, cps->minorversion, nop, op_nr);
 
-	status = cps->minorversion ? preprocess_nfs41_op(nop, op_nr, &op) :
-				preprocess_nfs4_op(op_nr, &op);
+	switch (cps->minorversion) {
+	case 0:
+		status = preprocess_nfs4_op(op_nr, &op);
+		break;
+	case 1:
+		status = preprocess_nfs41_op(nop, op_nr, &op);
+		break;
+	case 2:
+		status = preprocess_nfs42_op(nop, op_nr, &op);
+		break;
+	default:
+		status = htonl(NFS4ERR_MINOR_VERS_MISMATCH);
+	}
+
 	if (status == htonl(NFS4ERR_OP_ILLEGAL))
 		op_nr = OP_CB_ILLEGAL;
 	if (status)
