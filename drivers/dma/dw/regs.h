@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 #include <linux/dw_dmac.h>
 
