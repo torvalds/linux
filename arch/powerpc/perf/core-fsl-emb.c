@@ -462,6 +462,12 @@ static int fsl_emb_pmu_event_init(struct perf_event *event)
 	int num_restricted;
 	int i;
 
+	if (ppmu->n_counter > MAX_HWEVENTS) {
+		WARN(1, "No. of perf counters (%d) is higher than max array size(%d)\n",
+			ppmu->n_counter, MAX_HWEVENTS);
+		ppmu->n_counter = MAX_HWEVENTS;
+	}
+
 	switch (event->attr.type) {
 	case PERF_TYPE_HARDWARE:
 		ev = event->attr.config;
