@@ -308,6 +308,12 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 		irqclr |= IRQENB_PENUP;
 	}
 
+	if (status & IRQENB_HW_PEN) {
+
+		titsc_writel(ts_dev, REG_IRQWAKEUP, 0x00);
+		titsc_writel(ts_dev, REG_IRQCLR, IRQENB_HW_PEN);
+	}
+
 	titsc_writel(ts_dev, REG_IRQSTATUS, irqclr);
 
 	am335x_tsc_se_update(ts_dev->mfd_tscadc);
