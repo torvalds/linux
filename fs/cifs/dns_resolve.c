@@ -34,7 +34,7 @@
 
 /**
  * dns_resolve_server_name_to_ip - Resolve UNC server name to ip address.
- * @unc: UNC path specifying the server
+ * @unc: UNC path specifying the server (with '/' as delimiter)
  * @ip_addr: Where to return the IP address.
  *
  * The IP address will be returned in string form, and the caller is
@@ -64,7 +64,7 @@ dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 	hostname = unc + 2;
 
 	/* Search for server name delimiter */
-	sep = memchr(hostname, '\\', len);
+	sep = memchr(hostname, '/', len);
 	if (sep)
 		len = sep - hostname;
 	else

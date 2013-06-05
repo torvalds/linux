@@ -2233,7 +2233,7 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "irq = %d\n", max98090->irq);
 
 	ret = request_threaded_irq(max98090->irq, NULL,
-		max98090_interrupt, IRQF_TRIGGER_FALLING,
+		max98090_interrupt, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 		"max98090_interrupt", codec);
 	if (ret < 0) {
 		dev_err(codec->dev, "request_irq failed: %d\n",

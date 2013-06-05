@@ -411,7 +411,6 @@ static struct vm_area_struct gate_vma = {
 	.vm_start	= 0xffff0000,
 	.vm_end		= 0xffff0000 + PAGE_SIZE,
 	.vm_flags	= VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYEXEC,
-	.vm_mm		= &init_mm,
 };
 
 static int __init gate_vma_init(void)

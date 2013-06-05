@@ -56,16 +56,9 @@ xfs_symlink_blocks(
 	struct xfs_mount *mp,
 	int		pathlen)
 {
-	int		fsblocks = 0;
-	int		len = pathlen;
+	int buflen = XFS_SYMLINK_BUF_SPACE(mp, mp->m_sb.sb_blocksize);
 
-	do {
-		fsblocks++;
-		len -= XFS_SYMLINK_BUF_SPACE(mp, mp->m_sb.sb_blocksize);
-	} while (len > 0);
-
-	ASSERT(fsblocks <= XFS_SYMLINK_MAPS);
-	return fsblocks;
+	return (pathlen + buflen - 1) / buflen;
 }
 
 static int
@@ -405,7 +398,7 @@ xfs_symlink(
 	if (pathlen <= XFS_LITINO(mp, dp->i_d.di_version))
 		fs_blocks = 0;
 	else
-		fs_blocks = XFS_B_TO_FSB(mp, pathlen);
+		fs_blocks = xfs_symlink_blocks(mp, pathlen);
 	resblks = XFS_SYMLINK_SPACE_RES(mp, link_name->len, fs_blocks);
 	error = xfs_trans_reserve(tp, resblks, XFS_SYMLINK_LOG_RES(mp), 0,
 			XFS_TRANS_PERM_LOG_RES, XFS_SYMLINK_LOG_COUNT);
@@ -512,7 +505,7 @@ xfs_symlink(
 		cur_chunk = target_path;
 		offset = 0;
 		for (n = 0; n < nmaps; n++) {
-			char *buf;
+			char	*buf;
 
 			d = XFS_FSB_TO_DADDR(mp, mval[n].br_startblock);
 			byte_cnt = XFS_FSB_TO_B(mp, mval[n].br_blockcount);
@@ -525,9 +518,7 @@ xfs_symlink(
 			bp->b_ops = &xfs_symlink_buf_ops;
 
 			byte_cnt = XFS_SYMLINK_BUF_SPACE(mp, byte_cnt);
-			if (pathlen < byte_cnt) {
-				byte_cnt = pathlen;
-			}
+			byte_cnt = min(byte_cnt, pathlen);
 
 			buf = bp->b_addr;
 			buf += xfs_symlink_hdr_set(mp, ip->i_ino, offset,
@@ -542,6 +533,7 @@ xfs_symlink(
 			xfs_trans_log_buf(tp, bp, 0, (buf + byte_cnt - 1) -
 							(char *)bp->b_addr);
 		}
+		ASSERT(pathlen == 0);
 	}
 
 	/*

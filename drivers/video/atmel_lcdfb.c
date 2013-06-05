@@ -223,8 +223,14 @@ static void init_backlight(struct atmel_lcdfb_info *sinfo)
 
 static void exit_backlight(struct atmel_lcdfb_info *sinfo)
 {
-	if (sinfo->backlight)
-		backlight_device_unregister(sinfo->backlight);
+	if (!sinfo->backlight)
+		return;
+
+	if (sinfo->backlight->ops) {
+		sinfo->backlight->props.power = FB_BLANK_POWERDOWN;
+		sinfo->backlight->ops->update_status(sinfo->backlight);
+	}
+	backlight_device_unregister(sinfo->backlight);
 }
 
 #else
@@ -461,8 +467,11 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 	if (info->fix.smem_len) {
 		unsigned int smem_len = (var->xres_virtual * var->yres_virtual
 					 * ((var->bits_per_pixel + 7) / 8));
-		if (smem_len > info->fix.smem_len)
+		if (smem_len > info->fix.smem_len) {
+			dev_err(dev, "Frame buffer is too small (%u) for screen size (need at least %u)\n",
+				info->fix.smem_len, smem_len);
 			return -EINVAL;
+		}
 	}
 
 	/* Saturate vertical and horizontal timings at maximum values */

@@ -121,7 +121,7 @@ static u64 qd2index(struct gfs2_quota_data *qd)
 {
 	struct kqid qid = qd->qd_id;
 	return (2 * (u64)from_kqid(&init_user_ns, qid)) +
-		(qid.type == USRQUOTA) ? 0 : 1;
+		((qid.type == USRQUOTA) ? 0 : 1);
 }
 
 static u64 qd2offset(struct gfs2_quota_data *qd)
@@ -721,7 +721,7 @@ get_a_page:
 			goto unlock_out;
 	}
 
-	gfs2_trans_add_meta(ip->i_gl, bh);
+	gfs2_trans_add_data(ip->i_gl, bh);
 
 	kaddr = kmap_atomic(page);
 	if (offset + sizeof(struct gfs2_quota) > PAGE_CACHE_SIZE)

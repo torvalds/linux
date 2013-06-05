@@ -871,10 +871,10 @@ void mrp_uninit_applicant(struct net_device *dev, struct mrp_application *appl)
 	 */
 	del_timer_sync(&app->join_timer);
 
-	spin_lock(&app->lock);
+	spin_lock_bh(&app->lock);
 	mrp_mad_event(app, MRP_EVENT_TX);
 	mrp_pdu_queue(app);
-	spin_unlock(&app->lock);
+	spin_unlock_bh(&app->lock);
 
 	mrp_queue_xmit(app);
 

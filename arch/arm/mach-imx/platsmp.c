@@ -12,6 +12,7 @@
 
 #include <linux/init.h>
 #include <linux/smp.h>
+#include <asm/cacheflush.h>
 #include <asm/page.h>
 #include <asm/smp_scu.h>
 #include <asm/mach/map.h>
@@ -21,6 +22,7 @@
 
 #define SCU_STANDBY_ENABLE	(1 << 5)
 
+u32 g_diag_reg;
 static void __iomem *scu_base;
 
 static struct map_desc scu_io_desc __initdata = {
@@ -80,6 +82,18 @@ void imx_smp_prepare(void)
 static void __init imx_smp_prepare_cpus(unsigned int max_cpus)
 {
 	imx_smp_prepare();
+
+	/*
+	 * The diagnostic register holds the errata bits.  Mostly bootloader
+	 * does not bring up secondary cores, so that when errata bits are set
+	 * in bootloader, they are set only for boot cpu.  But on a SMP
+	 * configuration, it should be equally done on every single core.
+	 * Read the register from boot cpu here, and will replicate it into
+	 * secondary cores when booting them.
+	 */
+	asm("mrc p15, 0, %0, c15, c0, 1" : "=r" (g_diag_reg) : : "cc");
+	__cpuc_flush_dcache_area(&g_diag_reg, sizeof(g_diag_reg));
+	outer_clean_range(__pa(&g_diag_reg), __pa(&g_diag_reg + 1));
 }
 
 struct smp_operations  imx_smp_ops __initdata = {

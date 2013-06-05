@@ -485,7 +485,8 @@ static void macb_tx_interrupt(struct macb *bp)
 	status = macb_readl(bp, TSR);
 	macb_writel(bp, TSR, status);
 
-	macb_writel(bp, ISR, MACB_BIT(TCOMP));
+	if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
+		macb_writel(bp, ISR, MACB_BIT(TCOMP));
 
 	netdev_vdbg(bp->dev, "macb_tx_interrupt status = 0x%03lx\n",
 		(unsigned long)status);
@@ -738,7 +739,8 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			 * now.
 			 */
 			macb_writel(bp, IDR, MACB_RX_INT_FLAGS);
-			macb_writel(bp, ISR, MACB_BIT(RCOMP));
+			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
+				macb_writel(bp, ISR, MACB_BIT(RCOMP));
 
 			if (napi_schedule_prep(&bp->napi)) {
 				netdev_vdbg(bp->dev, "scheduling RX softirq\n");
@@ -1062,6 +1064,17 @@ static void macb_configure_dma(struct macb *bp)
 	}
 }
 
+/*
+ * Configure peripheral capacities according to integration options used
+ */
+static void macb_configure_caps(struct macb *bp)
+{
+	if (macb_is_gem(bp)) {
+		if (GEM_BF(IRQCOR, gem_readl(bp, DCFG1)) == 0)
+			bp->caps |= MACB_CAPS_ISR_CLEAR_ON_WRITE;
+	}
+}
+
 static void macb_init_hw(struct macb *bp)
 {
 	u32 config;
@@ -1084,6 +1097,7 @@ static void macb_init_hw(struct macb *bp)
 	bp->duplex = DUPLEX_HALF;
 
 	macb_configure_dma(bp);
+	macb_configure_caps(bp);
 
 	/* Initialize TX and RX buffers */
 	macb_writel(bp, RBQP, bp->rx_ring_dma);

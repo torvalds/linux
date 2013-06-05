@@ -145,7 +145,13 @@ static struct clk *clk_reg_sysctrl(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	for (i = 0; i < num_parents; i++) {
+	/* set main clock registers */
+	clk->reg_sel[0] = reg_sel[0];
+	clk->reg_bits[0] = reg_bits[0];
+	clk->reg_mask[0] = reg_mask[0];
+
+	/* handle clocks with more than one parent */
+	for (i = 1; i < num_parents; i++) {
 		clk->reg_sel[i] = reg_sel[i];
 		clk->reg_bits[i] = reg_bits[i];
 		clk->reg_mask[i] = reg_mask[i];
