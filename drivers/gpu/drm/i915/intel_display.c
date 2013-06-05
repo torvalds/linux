@@ -938,7 +938,7 @@ static void assert_shared_dpll(struct drm_i915_private *dev_priv,
 		  "asserting DPLL %s with no DPLL\n", state_string(state)))
 		return;
 
-	val = I915_READ(pll->pll_reg);
+	val = I915_READ(PCH_DPLL(pll->id));
 	cur_state = !!(val & DPLL_VCO_ENABLE);
 	WARN(cur_state != state,
 	     "%s assertion failure (expected %s, current %s), val=%08x\n",
@@ -949,14 +949,14 @@ static void assert_shared_dpll(struct drm_i915_private *dev_priv,
 		u32 pch_dpll;
 
 		pch_dpll = I915_READ(PCH_DPLL_SEL);
-		cur_state = pll->pll_reg == _PCH_DPLL_B;
+		cur_state = pll->id == DPLL_ID_PCH_PLL_B;
 		if (!WARN(((pch_dpll >> (4 * crtc->pipe)) & 1) != cur_state,
 			  "PLL[%d] not attached to this transcoder %c: %08x\n",
 			  cur_state, pipe_name(crtc->pipe), pch_dpll)) {
 			cur_state = !!(val >> (4*crtc->pipe + 3));
 			WARN(cur_state != state,
 			     "PLL[%d] not %s on this transcoder %c: %08x\n",
-			     pll->pll_reg == _PCH_DPLL_B,
+			     pll->id == DPLL_ID_PCH_PLL_B,
 			     state_string(state),
 			     pipe_name(crtc->pipe),
 			     val);
@@ -1446,7 +1446,7 @@ static void ironlake_enable_shared_dpll(struct intel_crtc *crtc)
 
 	DRM_DEBUG_KMS("enabling %s\n", pll->name);
 
-	reg = pll->pll_reg;
+	reg = PCH_DPLL(pll->id);
 	val = I915_READ(reg);
 	val |= DPLL_VCO_ENABLE;
 	I915_WRITE(reg, val);
@@ -1490,7 +1490,7 @@ static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	/* Make sure transcoder isn't still depending on us */
 	assert_pch_transcoder_disabled(dev_priv, crtc->pipe);
 
-	reg = pll->pll_reg;
+	reg = PCH_DPLL(pll->id);
 	val = I915_READ(reg);
 	val &= ~DPLL_VCO_ENABLE;
 	I915_WRITE(reg, val);
@@ -3107,8 +3107,8 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc, 
 		if (pll->refcount == 0)
 			continue;
 
-		if (dpll == (I915_READ(pll->pll_reg) & 0x7fffffff) &&
-		    fp == I915_READ(pll->fp0_reg)) {
+		if (dpll == (I915_READ(PCH_DPLL(pll->id)) & 0x7fffffff) &&
+		    fp == I915_READ(PCH_FP0(pll->id))) {
 			DRM_DEBUG_KMS("CRTC:%d sharing existing %s (refcount %d, ative %d)\n",
 				      crtc->base.base.id,
 				      pll->name, pll->refcount, pll->active);
@@ -3139,12 +3139,12 @@ found:
 		assert_shared_dpll_disabled(dev_priv, pll, NULL);
 
 		/* Wait for the clocks to stabilize before rewriting the regs */
-		I915_WRITE(pll->pll_reg, dpll & ~DPLL_VCO_ENABLE);
-		POSTING_READ(pll->pll_reg);
+		I915_WRITE(PCH_DPLL(pll->id), dpll & ~DPLL_VCO_ENABLE);
+		POSTING_READ(PCH_DPLL(pll->id));
 		udelay(150);
 
-		I915_WRITE(pll->fp0_reg, fp);
-		I915_WRITE(pll->pll_reg, dpll & ~DPLL_VCO_ENABLE);
+		I915_WRITE(PCH_FP0(pll->id), fp);
+		I915_WRITE(PCH_DPLL(pll->id), dpll & ~DPLL_VCO_ENABLE);
 	}
 	pll->refcount++;
 
@@ -5785,10 +5785,10 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	if (intel_crtc->config.has_pch_encoder) {
 		pll = intel_crtc_to_shared_dpll(intel_crtc);
 
-		I915_WRITE(pll->pll_reg, dpll);
+		I915_WRITE(PCH_DPLL(pll->id), dpll);
 
 		/* Wait for the clocks to stabilize. */
-		POSTING_READ(pll->pll_reg);
+		POSTING_READ(PCH_DPLL(pll->id));
 		udelay(150);
 
 		/* The pixel multiplier can only be updated once the
@@ -5796,13 +5796,13 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		 *
 		 * So write it again.
 		 */
-		I915_WRITE(pll->pll_reg, dpll);
+		I915_WRITE(PCH_DPLL(pll->id), dpll);
 
 		if (is_lvds && has_reduced_clock && i915_powersave) {
-			I915_WRITE(pll->fp1_reg, fp2);
+			I915_WRITE(PCH_FP1(pll->id), fp2);
 			intel_crtc->lowfreq_avail = true;
 		} else {
-			I915_WRITE(pll->fp1_reg, fp);
+			I915_WRITE(PCH_FP1(pll->id), fp);
 		}
 	}
 
@@ -8771,9 +8771,6 @@ static void ibx_pch_dpll_init(struct drm_device *dev)
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		dev_priv->shared_dplls[i].id = i;
 		dev_priv->shared_dplls[i].name = ibx_pch_dpll_names[i];
-		dev_priv->shared_dplls[i].pll_reg = _PCH_DPLL(i);
-		dev_priv->shared_dplls[i].fp0_reg = _PCH_FP0(i);
-		dev_priv->shared_dplls[i].fp1_reg = _PCH_FP1(i);
 	}
 }
 
