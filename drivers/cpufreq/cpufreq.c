@@ -1593,18 +1593,6 @@ fail:
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_target);
 
-int __cpufreq_driver_getavg(struct cpufreq_policy *policy, unsigned int cpu)
-{
-	if (cpufreq_disabled())
-		return 0;
-
-	if (!cpufreq_driver->getavg)
-		return 0;
-
-	return cpufreq_driver->getavg(policy, cpu);
-}
-EXPORT_SYMBOL_GPL(__cpufreq_driver_getavg);
-
 /*
  * when "event" is CPUFREQ_GOV_LIMITS
  */
