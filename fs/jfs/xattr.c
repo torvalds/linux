@@ -1089,8 +1089,8 @@ int jfs_removexattr(struct dentry *dentry, const char *name)
 }
 
 #ifdef CONFIG_JFS_SECURITY
-int jfs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
-		   void *fs_info)
+static int jfs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+			  void *fs_info)
 {
 	const struct xattr *xattr;
 	tid_t *tid = fs_info;
