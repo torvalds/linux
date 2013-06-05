@@ -312,7 +312,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	list_for_each_entry(acpi_cdev, &acpi_video_bus->children, node) {
 		if (i >= 8) {
 			dev_printk(KERN_ERR, &dev->pdev->dev,
-				    "More than 8 outputs detected\n");
+				   "More than 8 outputs detected via ACPI\n");
 			return;
 		}
 		status =
@@ -339,7 +339,7 @@ blind_set:
 		int output_type = ACPI_OTHER_OUTPUT;
 		if (i >= 8) {
 			dev_printk(KERN_ERR, &dev->pdev->dev,
-				    "More than 8 outputs detected\n");
+				   "More than 8 outputs in connector list\n");
 			return;
 		}
 		switch (connector->connector_type) {
