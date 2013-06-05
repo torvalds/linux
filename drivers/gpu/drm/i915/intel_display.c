@@ -2986,21 +2986,8 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 		u32 sel;
 
 		temp = I915_READ(PCH_DPLL_SEL);
-		switch (pipe) {
-		default:
-		case 0:
-			temp |= TRANSA_DPLL_ENABLE;
-			sel = TRANSA_DPLLB_SEL;
-			break;
-		case 1:
-			temp |= TRANSB_DPLL_ENABLE;
-			sel = TRANSB_DPLLB_SEL;
-			break;
-		case 2:
-			temp |= TRANSC_DPLL_ENABLE;
-			sel = TRANSC_DPLLB_SEL;
-			break;
-		}
+		temp |= TRANS_DPLL_ENABLE(pipe);
+		sel = TRANS_DPLLB_SEL(pipe);
 		if (intel_crtc->config.shared_dpll == DPLL_ID_PCH_PLL_B)
 			temp |= sel;
 		else
@@ -3480,20 +3467,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 			/* disable DPLL_SEL */
 			temp = I915_READ(PCH_DPLL_SEL);
-			switch (pipe) {
-			case 0:
-				temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLB_SEL);
-				break;
-			case 1:
-				temp &= ~(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
-				break;
-			case 2:
-				/* C shares PLL A or B */
-				temp &= ~(TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL);
-				break;
-			default:
-				BUG(); /* wtf */
-			}
+			temp &= ~(TRANS_DPLL_ENABLE(pipe) | TRANS_DPLLB_SEL(pipe));
 			I915_WRITE(PCH_DPLL_SEL, temp);
 		}
 

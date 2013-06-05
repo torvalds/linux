@@ -3988,15 +3988,9 @@
 #define PCH_SSC4_AUX_PARMS      0xc6214
 
 #define PCH_DPLL_SEL		0xc7000
-#define  TRANSA_DPLL_ENABLE	(1<<3)
-#define	 TRANSA_DPLLB_SEL	(1<<0)
-#define	 TRANSA_DPLLA_SEL	0
-#define  TRANSB_DPLL_ENABLE	(1<<7)
-#define	 TRANSB_DPLLB_SEL	(1<<4)
-#define	 TRANSB_DPLLA_SEL	(0)
-#define  TRANSC_DPLL_ENABLE	(1<<11)
-#define	 TRANSC_DPLLB_SEL	(1<<8)
-#define	 TRANSC_DPLLA_SEL	(0)
+#define	 TRANS_DPLLB_SEL(pipe)		(1 << (pipe * 4))
+#define	 TRANS_DPLLA_SEL(pipe)		0
+#define  TRANS_DPLL_ENABLE(pipe)	(1 << (pipe * 4 + 3))
 
 /* transcoder */
 
