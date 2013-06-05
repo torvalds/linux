@@ -3096,13 +3096,7 @@ found:
 		WARN_ON(pll->on);
 		assert_shared_dpll_disabled(dev_priv, pll);
 
-		/* Wait for the clocks to stabilize before rewriting the regs */
-		I915_WRITE(PCH_DPLL(pll->id), dpll & ~DPLL_VCO_ENABLE);
-		POSTING_READ(PCH_DPLL(pll->id));
-		udelay(150);
-
-		I915_WRITE(PCH_FP0(pll->id), fp);
-		I915_WRITE(PCH_DPLL(pll->id), dpll & ~DPLL_VCO_ENABLE);
+		pll->mode_set(dev_priv, pll);
 	}
 	pll->refcount++;
 
@@ -3174,7 +3168,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	u32 temp;
 
 	WARN_ON(!crtc->enabled);
 
@@ -3188,12 +3181,9 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	intel_update_watermarks(dev);
 
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		temp = I915_READ(PCH_LVDS);
-		if ((temp & LVDS_PORT_EN) == 0)
-			I915_WRITE(PCH_LVDS, temp | LVDS_PORT_EN);
-	}
-
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		if (encoder->pre_pll_enable)
+			encoder->pre_pll_enable(encoder);
 
 	if (intel_crtc->config.has_pch_encoder) {
 		/* Note: FDI PLL enabling _must_ be done before we enable the
@@ -5720,10 +5710,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	if (intel_crtc->config.has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc);
 
-	for_each_encoder_on_crtc(dev, crtc, encoder)
-		if (encoder->pre_pll_enable)
-			encoder->pre_pll_enable(encoder);
-
 	if (is_lvds && has_reduced_clock && i915_powersave)
 		intel_crtc->lowfreq_avail = true;
 	else
@@ -5732,23 +5718,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	if (intel_crtc->config.has_pch_encoder) {
 		pll = intel_crtc_to_shared_dpll(intel_crtc);
 
-		I915_WRITE(PCH_DPLL(pll->id), dpll);
-
-		/* Wait for the clocks to stabilize. */
-		POSTING_READ(PCH_DPLL(pll->id));
-		udelay(150);
-
-		/* The pixel multiplier can only be updated once the
-		 * DPLL is enabled and the clocks are stable.
-		 *
-		 * So write it again.
-		 */
-		I915_WRITE(PCH_DPLL(pll->id), dpll);
-
-		if (has_reduced_clock)
-			I915_WRITE(PCH_FP1(pll->id), fp2);
-		else
-			I915_WRITE(PCH_FP1(pll->id), fp);
 	}
 
 	intel_set_pipe_timings(intel_crtc);
@@ -8808,19 +8777,32 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 	return val & DPLL_VCO_ENABLE;
 }
 
+static void ibx_pch_dpll_mode_set(struct drm_i915_private *dev_priv,
+				  struct intel_shared_dpll *pll)
+{
+	I915_WRITE(PCH_FP0(pll->id), pll->hw_state.fp0);
+	I915_WRITE(PCH_FP1(pll->id), pll->hw_state.fp1);
+}
+
 static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 				struct intel_shared_dpll *pll)
 {
-	uint32_t reg, val;
-
 	/* PCH refclock must be enabled first */
 	assert_pch_refclk_enabled(dev_priv);
 
-	reg = PCH_DPLL(pll->id);
-	val = I915_READ(reg);
-	val |= DPLL_VCO_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	I915_WRITE(PCH_DPLL(pll->id), pll->hw_state.dpll);
+
+	/* Wait for the clocks to stabilize. */
+	POSTING_READ(PCH_DPLL(pll->id));
+	udelay(150);
+
+	/* The pixel multiplier can only be updated once the
+	 * DPLL is enabled and the clocks are stable.
+	 *
+	 * So write it again.
+	 */
+	I915_WRITE(PCH_DPLL(pll->id), pll->hw_state.dpll);
+	POSTING_READ(PCH_DPLL(pll->id));
 	udelay(200);
 }
 
@@ -8829,7 +8811,6 @@ static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_crtc *crtc;
-	uint32_t reg, val;
 
 	/* Make sure no transcoder isn't still depending on us. */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
@@ -8837,11 +8818,8 @@ static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 			assert_pch_transcoder_disabled(dev_priv, crtc->pipe);
 	}
 
-	reg = PCH_DPLL(pll->id);
-	val = I915_READ(reg);
-	val &= ~DPLL_VCO_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	I915_WRITE(PCH_DPLL(pll->id), 0);
+	POSTING_READ(PCH_DPLL(pll->id));
 	udelay(200);
 }
 
@@ -8860,6 +8838,7 @@ static void ibx_pch_dpll_init(struct drm_device *dev)
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		dev_priv->shared_dplls[i].id = i;
 		dev_priv->shared_dplls[i].name = ibx_pch_dpll_names[i];
+		dev_priv->shared_dplls[i].mode_set = ibx_pch_dpll_mode_set;
 		dev_priv->shared_dplls[i].enable = ibx_pch_dpll_enable;
 		dev_priv->shared_dplls[i].disable = ibx_pch_dpll_disable;
 		dev_priv->shared_dplls[i].get_hw_state =

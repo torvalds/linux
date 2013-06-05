@@ -156,6 +156,8 @@ struct intel_shared_dpll {
 	/* should match the index in the dev_priv->shared_dplls array */
 	enum intel_dpll_id id;
 	struct intel_dpll_hw_state hw_state;
+	void (*mode_set)(struct drm_i915_private *dev_priv,
+			 struct intel_shared_dpll *pll);
 	void (*enable)(struct drm_i915_private *dev_priv,
 		       struct intel_shared_dpll *pll);
 	void (*disable)(struct drm_i915_private *dev_priv,
