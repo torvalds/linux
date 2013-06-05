@@ -88,7 +88,6 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	const struct pcmad_board_struct *board = comedi_board(dev);
 	struct pcmad_priv_struct *devpriv = dev->private;
 	int chan;
 	int n;
@@ -107,7 +106,7 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 		data[n] |= (inb(dev->iobase + PCMAD_MSB) << 8);
 
 		if (devpriv->twos_comp)
-			data[n] ^= (1 << (board->n_ai_bits - 1));
+			data[n] ^= ((s->maxdata + 1) >> 1);
 	}
 
 	return n;
