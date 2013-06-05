@@ -387,10 +387,8 @@ static int append_values(struct asus_oled_dev *odev, uint8_t val, size_t count)
 		}
 
 		if (i >= odev->buf_size) {
-			dev_err(odev->dev, "Buffer overflow! Report a bug:"
-			       "offs: %d >= %d i: %d (x: %d y: %d)\n",
-			       (int) odev->buf_offs, (int) odev->buf_size,
-			       (int) i, (int) x, (int) y);
+			dev_err(odev->dev, "Buffer overflow! Report a bug: offs: %zu >= %zu i: %zu (x: %zu y: %zu)\n",
+			       odev->buf_offs, odev->buf_size, i, x, y);
 			return -EIO;
 		}
 
