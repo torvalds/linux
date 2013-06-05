@@ -144,6 +144,7 @@ enum intel_dpll_id {
 
 struct intel_dpll_hw_state {
 	uint32_t dpll;
+	uint32_t dpll_md;
 	uint32_t fp0;
 	uint32_t fp1;
 };
