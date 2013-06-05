@@ -397,13 +397,13 @@ struct etf_req_msg;
 static int etf_request(struct cw1200_common *priv,
 		       struct etf_req_msg *msg, u32 len);
 
-#define MAX_RX_SZE 2600
+#define MAX_RX_SIZE 2600
 
 struct etf_in_state {
 	struct cw1200_common *priv;
-	u32 total_len;
-	u8 buf[MAX_RX_SZE];
-	u32 written;
+	u16 total_len;
+	u16 written;
+	u8 buf[MAX_RX_SIZE];
 };
 
 static int cw1200_etf_in_open(struct inode *inode, struct file *file)
@@ -448,12 +448,22 @@ static ssize_t cw1200_etf_in_write(struct file *file,
 			return -EFAULT;
 		}
 
+		if (etf->total_len > MAX_RX_SIZE) {
+			pr_err("requested length > MAX_RX_SIZE\n");
+			return -EINVAL;
+		}
+
 		written += sizeof(etf->total_len);
 		count -= sizeof(etf->total_len);
 	}
 
 	if (!count)
 		goto done;
+
+	if (count > (etf->total_len - written)) {
+		pr_err("Tried to write > MAX_RX_SIZE\n");
+		return -EINVAL;
+	}
 
 	if (copy_from_user(etf->buf + etf->written, user_buf + written,
 			   count)) {
