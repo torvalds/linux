@@ -1419,8 +1419,6 @@ static void ironlake_enable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
-	int reg;
-	u32 val;
 
 	/* PCH PLLs only available on ILK, SNB and IVB */
 	BUG_ON(dev_priv->info->gen < 5);
@@ -1434,9 +1432,6 @@ static void ironlake_enable_shared_dpll(struct intel_crtc *crtc)
 		      pll->name, pll->active, pll->on,
 		      crtc->base.base.id);
 
-	/* PCH refclock must be enabled first */
-	assert_pch_refclk_enabled(dev_priv);
-
 	if (pll->active++) {
 		WARN_ON(!pll->on);
 		assert_shared_dpll_enabled(dev_priv, pll, NULL);
@@ -1445,14 +1440,7 @@ static void ironlake_enable_shared_dpll(struct intel_crtc *crtc)
 	WARN_ON(pll->on);
 
 	DRM_DEBUG_KMS("enabling %s\n", pll->name);
-
-	reg = PCH_DPLL(pll->id);
-	val = I915_READ(reg);
-	val |= DPLL_VCO_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
-	udelay(200);
-
+	pll->enable(dev_priv, pll);
 	pll->on = true;
 }
 
@@ -1460,8 +1448,6 @@ static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
-	int reg;
-	u32 val;
 
 	/* PCH only available on ILK+ */
 	BUG_ON(dev_priv->info->gen < 5);
@@ -1486,17 +1472,7 @@ static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 		return;
 
 	DRM_DEBUG_KMS("disabling %s\n", pll->name);
-
-	/* Make sure transcoder isn't still depending on us */
-	assert_pch_transcoder_disabled(dev_priv, crtc->pipe);
-
-	reg = PCH_DPLL(pll->id);
-	val = I915_READ(reg);
-	val &= ~DPLL_VCO_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
-	udelay(200);
-
+	pll->disable(dev_priv, pll);
 	pll->on = false;
 }
 
@@ -8756,6 +8732,43 @@ static void intel_cpu_pll_init(struct drm_device *dev)
 		intel_ddi_pll_init(dev);
 }
 
+static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
+				struct intel_shared_dpll *pll)
+{
+	uint32_t reg, val;
+
+	/* PCH refclock must be enabled first */
+	assert_pch_refclk_enabled(dev_priv);
+
+	reg = PCH_DPLL(pll->id);
+	val = I915_READ(reg);
+	val |= DPLL_VCO_ENABLE;
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	udelay(200);
+}
+
+static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
+				 struct intel_shared_dpll *pll)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct intel_crtc *crtc;
+	uint32_t reg, val;
+
+	/* Make sure no transcoder isn't still depending on us. */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		if (intel_crtc_to_shared_dpll(crtc) == pll)
+			assert_pch_transcoder_disabled(dev_priv, crtc->pipe);
+	}
+
+	reg = PCH_DPLL(pll->id);
+	val = I915_READ(reg);
+	val &= ~DPLL_VCO_ENABLE;
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	udelay(200);
+}
+
 static char *ibx_pch_dpll_names[] = {
 	"PCH DPLL A",
 	"PCH DPLL B",
@@ -8763,7 +8776,7 @@ static char *ibx_pch_dpll_names[] = {
 
 static void ibx_pch_dpll_init(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
 	dev_priv->num_shared_dpll = 2;
@@ -8771,12 +8784,14 @@ static void ibx_pch_dpll_init(struct drm_device *dev)
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		dev_priv->shared_dplls[i].id = i;
 		dev_priv->shared_dplls[i].name = ibx_pch_dpll_names[i];
+		dev_priv->shared_dplls[i].enable = ibx_pch_dpll_enable;
+		dev_priv->shared_dplls[i].disable = ibx_pch_dpll_disable;
 	}
 }
 
 static void intel_shared_dpll_init(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 		ibx_pch_dpll_init(dev);
