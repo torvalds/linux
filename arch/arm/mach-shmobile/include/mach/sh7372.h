@@ -75,6 +75,8 @@ extern void sh7372_intcs_resume(void);
 extern void sh7372_intca_suspend(void);
 extern void sh7372_intca_resume(void);
 
+extern unsigned long sh7372_cpu_resume;
+
 #ifdef CONFIG_PM
 extern void __init sh7372_init_pm_domains(void);
 #else
