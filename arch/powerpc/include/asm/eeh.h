@@ -95,12 +95,12 @@ struct eeh_dev {
 
 static inline struct device_node *eeh_dev_to_of_node(struct eeh_dev *edev)
 {
-	return edev->dn;
+	return edev ? edev->dn : NULL;
 }
 
 static inline struct pci_dev *eeh_dev_to_pci_dev(struct eeh_dev *edev)
 {
-	return edev->pdev;
+	return edev ? edev->pdev : NULL;
 }
 
 /*
