@@ -122,7 +122,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
  * This is an exception to the general rule that mode_set doesn't turn
  * things on.
  */
-static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
+static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 {
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
@@ -982,7 +982,7 @@ void intel_lvds_init(struct drm_device *dev)
 			 DRM_MODE_ENCODER_LVDS);
 
 	intel_encoder->enable = intel_enable_lvds;
-	intel_encoder->pre_pll_enable = intel_pre_pll_enable_lvds;
+	intel_encoder->pre_enable = intel_pre_enable_lvds;
 	intel_encoder->compute_config = intel_lvds_compute_config;
 	intel_encoder->disable = intel_disable_lvds;
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
