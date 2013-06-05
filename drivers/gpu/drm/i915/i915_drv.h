@@ -147,9 +147,6 @@ struct intel_shared_dpll {
 	const char *name;
 	/* should match the index in the dev_priv->shared_dplls array */
 	enum intel_dpll_id id;
-	int pll_reg;
-	int fp0_reg;
-	int fp1_reg;
 };
 
 /* Used by dp and fdi links */
