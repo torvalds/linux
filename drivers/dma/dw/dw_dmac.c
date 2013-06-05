@@ -28,8 +28,8 @@
 #include <linux/acpi.h>
 #include <linux/acpi_dma.h>
 
+#include "../dmaengine.h"
 #include "dw_dmac_regs.h"
-#include "dmaengine.h"
 
 /*
  * This supports the Synopsys "DesignWare AHB Central DMA Controller",
