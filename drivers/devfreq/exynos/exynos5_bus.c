@@ -479,7 +479,7 @@ static int __init exynos5_busfreq_int_init(void)
 
 	exynos5_devfreq_pdev =
 		platform_device_register_simple("exynos5-bus-int", -1, NULL, 0);
-	if (IS_ERR_OR_NULL(exynos5_devfreq_pdev)) {
+	if (IS_ERR(exynos5_devfreq_pdev)) {
 		ret = PTR_ERR(exynos5_devfreq_pdev);
 		goto out1;
 	}
