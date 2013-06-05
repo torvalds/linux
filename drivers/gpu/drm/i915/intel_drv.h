@@ -256,6 +256,9 @@ struct intel_crtc_config {
 	/* Selected dpll when shared or DPLL_ID_PRIVATE. */
 	enum intel_dpll_id shared_dpll;
 
+	/* Actual register state of the dpll, for shared dpll cross-checking. */
+	struct intel_dpll_hw_state dpll_hw_state;
+
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
 

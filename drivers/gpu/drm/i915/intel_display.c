@@ -3087,7 +3087,11 @@ found:
 	crtc->config.shared_dpll = i;
 	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->name,
 			 pipe_name(crtc->pipe));
+
 	if (pll->active == 0) {
+		memcpy(&pll->hw_state, &crtc->config.dpll_hw_state,
+		       sizeof(pll->hw_state));
+
 		DRM_DEBUG_DRIVER("setting up %s\n", pll->name);
 		WARN_ON(pll->on);
 		assert_shared_dpll_disabled(dev_priv, pll);
@@ -5718,6 +5722,13 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 					     &fp, &reduced_clock,
 					     has_reduced_clock ? &fp2 : NULL);
 
+		intel_crtc->config.dpll_hw_state.dpll = dpll | DPLL_VCO_ENABLE;
+		intel_crtc->config.dpll_hw_state.fp0 = fp;
+		if (has_reduced_clock)
+			intel_crtc->config.dpll_hw_state.fp1 = fp2;
+		else
+			intel_crtc->config.dpll_hw_state.fp1 = fp;
+
 		pll = intel_get_shared_dpll(intel_crtc, dpll, fp);
 		if (pll == NULL) {
 			DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
@@ -5837,6 +5848,8 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 		return false;
 
 	if (I915_READ(PCH_TRANSCONF(crtc->pipe)) & TRANS_ENABLE) {
+		struct intel_shared_dpll *pll;
+
 		pipe_config->has_pch_encoder = true;
 
 		tmp = I915_READ(FDI_RX_CTL(crtc->pipe));
@@ -5858,6 +5871,11 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 			else
 				pipe_config->shared_dpll = DPLL_ID_PCH_PLL_A;
 		}
+
+		pll = &dev_priv->shared_dplls[pipe_config->shared_dpll];
+
+		WARN_ON(!pll->get_hw_state(dev_priv, pll,
+					   &pipe_config->dpll_hw_state));
 	} else {
 		pipe_config->pixel_multiplier = 1;
 	}
@@ -8058,6 +8076,15 @@ intel_pipe_config_compare(struct drm_device *dev,
 			  struct intel_crtc_config *current_config,
 			  struct intel_crtc_config *pipe_config)
 {
+#define PIPE_CONF_CHECK_X(name)	\
+	if (current_config->name != pipe_config->name) { \
+		DRM_ERROR("mismatch in " #name " " \
+			  "(expected 0x%08x, found 0x%08x)\n", \
+			  current_config->name, \
+			  pipe_config->name); \
+		return false; \
+	}
+
 #define PIPE_CONF_CHECK_I(name)	\
 	if (current_config->name != pipe_config->name) { \
 		DRM_ERROR("mismatch in " #name " " \
@@ -8134,7 +8161,11 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_I(ips_enabled);
 
 	PIPE_CONF_CHECK_I(shared_dpll);
+	PIPE_CONF_CHECK_X(dpll_hw_state.dpll);
+	PIPE_CONF_CHECK_X(dpll_hw_state.fp0);
+	PIPE_CONF_CHECK_X(dpll_hw_state.fp1);
 
+#undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
 #undef PIPE_CONF_CHECK_FLAGS
 #undef PIPE_CONF_QUIRK
@@ -8324,6 +8355,10 @@ check_shared_dpll_state(struct drm_device *dev)
 		WARN(pll->refcount != enabled_crtcs,
 		     "pll enabled crtcs mismatch (expected %i, found %i)\n",
 		     pll->refcount, enabled_crtcs);
+
+		WARN(pll->on && memcmp(&pll->hw_state, &dpll_hw_state,
+				       sizeof(dpll_hw_state)),
+		     "pll hw state mismatch\n");
 	}
 }
 
@@ -8782,6 +8817,9 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 	uint32_t val;
 
 	val = I915_READ(PCH_DPLL(pll->id));
+	hw_state->dpll = val;
+	hw_state->fp0 = I915_READ(PCH_FP0(pll->id));
+	hw_state->fp1 = I915_READ(PCH_FP1(pll->id));
 
 	return val & DPLL_VCO_ENABLE;
 }
