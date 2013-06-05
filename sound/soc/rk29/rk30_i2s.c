@@ -557,9 +557,18 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	struct rk29_i2s_info *i2s;
 	struct snd_soc_dai_driver *dai;
 	int    ret;
+	int v;
+
+#if defined(CONFIG_SND_I2S_USE_18V)	
+	v = 0x2000200;//bit9: 1,1.8v;0,3.3v
+	writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
+#elif defined(CONFIG_SND_I2S_USE_33V)
+	v = 0x2000000;
+	writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
+#endif
 
 	I2S_DBG("Enter %s, %d pdev->id = %d >>>>>>>>>>>\n", __func__, __LINE__, pdev->id);
-
+	
 	if(pdev->id >= MAX_I2S) {
 		dev_err(&pdev->dev, "id %d out of range\n", pdev->id);
 		return -EINVAL;        

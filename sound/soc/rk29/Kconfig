@@ -14,7 +14,7 @@ config SND_RK29_SOC_I2S_8CH
 	default y
 	depends on SND_RK29_SOC_I2S && !ARCH_RK3066B && !ARCH_RK3188
 	help
-                This supports the use of the 8 Channel I2S interface on rk29 processors.
+       This supports the use of the 8 Channel I2S interface on rk29 processors.
 				
 if SND_RK29_SOC_I2S_8CH
 choice
@@ -33,7 +33,19 @@ config SND_RK29_SOC_I2S_2CH
 	depends on SND_RK29_SOC_I2S && !ARCH_RK2928	
 	default y if (ARCH_RK3066B || ARCH_RK3188)
 	help
-                This supports the use of the 2 Channel I2S interface on rk29 processors.
+         This supports the use of the 2 Channel I2S interface on rk29 processors.
+		 
+if (ARCH_RK3066B || ARCH_RK3188) && SND_RK29_SOC_I2S_2CH
+choice
+  bool "Set I2S GRF Output Voltage"
+  default SND_I2S_USE_33V
+	config SND_I2S_USE_33V
+		tristate  "I2S use 3.3V"
+
+	config SND_I2S_USE_18V
+		tristate  "I2S use 1.8V"
+endchoice
+endif
 
 config SND_RK_SOC_I2S2_2CH
 	bool "Soc RK29 I2S 2 Channel support(I2S2)"
