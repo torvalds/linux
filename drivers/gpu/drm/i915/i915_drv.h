@@ -132,6 +132,8 @@ enum hpd_pin {
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
 		if ((intel_encoder)->base.crtc == (__crtc))
 
+struct drm_i915_private;
+
 enum intel_dpll_id {
 	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
 	/* real shared dpll ids must be >= 0 */
@@ -147,6 +149,10 @@ struct intel_shared_dpll {
 	const char *name;
 	/* should match the index in the dev_priv->shared_dplls array */
 	enum intel_dpll_id id;
+	void (*enable)(struct drm_i915_private *dev_priv,
+		       struct intel_shared_dpll *pll);
+	void (*disable)(struct drm_i915_private *dev_priv,
+			struct intel_shared_dpll *pll);
 };
 
 /* Used by dp and fdi links */
@@ -202,7 +208,6 @@ struct opregion_header;
 struct opregion_acpi;
 struct opregion_swsci;
 struct opregion_asle;
-struct drm_i915_private;
 
 struct intel_opregion {
 	struct opregion_header __iomem *header;
