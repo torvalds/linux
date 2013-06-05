@@ -39,9 +39,7 @@ EXPORT_SYMBOL(crc_t10dif);
 static int __init crc_t10dif_mod_init(void)
 {
 	crct10dif_tfm = crypto_alloc_shash("crct10dif", 0, 0);
-	if (IS_ERR(crct10dif_tfm))
-		return PTR_ERR(crct10dif_tfm);
-	return 0;
+	return PTR_RET(crct10dif_tfm);
 }
 
 static void __exit crc_t10dif_mod_fini(void)
