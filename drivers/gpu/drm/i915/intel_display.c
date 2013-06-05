@@ -9693,14 +9693,10 @@ void i915_redisable_vga(struct drm_device *dev)
 	}
 }
 
-/* Scan out the current hw modeset state, sanitizes it and maps it into the drm
- * and i915 state tracking structures. */
-void intel_modeset_setup_hw_state(struct drm_device *dev,
-				  bool force_restore)
+static void intel_modeset_readout_hw_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
-	struct drm_plane *plane;
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
@@ -9776,6 +9772,20 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 			      drm_get_connector_name(&connector->base),
 			      connector->base.encoder ? "enabled" : "disabled");
 	}
+}
+
+/* Scan out the current hw modeset state, sanitizes it and maps it into the drm
+ * and i915 state tracking structures. */
+void intel_modeset_setup_hw_state(struct drm_device *dev,
+				  bool force_restore)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe pipe;
+	struct drm_plane *plane;
+	struct intel_crtc *crtc;
+	struct intel_encoder *encoder;
+
+	intel_modeset_readout_hw_state(dev);
 
 	/* HW state is read out, now we need to sanitize this mess. */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
