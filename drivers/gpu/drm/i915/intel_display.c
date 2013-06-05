@@ -8755,21 +8755,32 @@ static void intel_cpu_pll_init(struct drm_device *dev)
 		intel_ddi_pll_init(dev);
 }
 
-static void intel_shared_dpll_init(struct drm_device *dev)
+static void ibx_pch_dpll_init(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i;
 
-	if (dev_priv->num_shared_dpll == 0) {
-		DRM_DEBUG_KMS("No PCH PLLs on this hardware, skipping initialisation\n");
-		return;
-	}
+	dev_priv->num_shared_dpll = 2;
 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		dev_priv->shared_dplls[i].pll_reg = _PCH_DPLL(i);
 		dev_priv->shared_dplls[i].fp0_reg = _PCH_FP0(i);
 		dev_priv->shared_dplls[i].fp1_reg = _PCH_FP1(i);
 	}
+}
+
+static void intel_shared_dpll_init(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+		ibx_pch_dpll_init(dev);
+	else
+		dev_priv->num_shared_dpll = 0;
+
+	BUG_ON(dev_priv->num_shared_dpll > I915_NUM_PLLS);
+	DRM_DEBUG_KMS("%i shared PLLs initialized\n",
+		      dev_priv->num_shared_dpll);
 }
 
 static void intel_crtc_init(struct drm_device *dev, int pipe)
