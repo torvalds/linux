@@ -1409,7 +1409,7 @@ struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
 	struct tegra_clk_pll *pll;
 	struct clk *clk;
 
-	pll_flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
+	pll_flags |= TEGRA_PLL_HAS_LOCK_ENABLE | TEGRA_PLL_LOCK_MISC;
 	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
 			      freq_table, lock);
 	if (IS_ERR(pll))
@@ -1436,7 +1436,6 @@ struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
 	val &= ~BIT(29);
 	pll_writel_misc(val, pll);
 
-	pll_flags |= TEGRA_PLL_LOCK_MISC;
 	clk = _tegra_clk_register_pll(pll, name, parent_name, flags,
 				      &tegra_clk_pllre_ops);
 	if (IS_ERR(clk))
