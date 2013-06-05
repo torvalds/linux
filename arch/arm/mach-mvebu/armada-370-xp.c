@@ -14,6 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/time-armada-370-xp.h>
@@ -33,29 +34,44 @@ static void __init armada_370_xp_map_io(void)
 	debug_ll_io_init();
 }
 
-static void __init armada_370_xp_timer_and_clk_init(void)
+/*
+ * This initialization will be replaced by a DT-based
+ * initialization once the mvebu-mbus driver gains DT support.
+ */
+
+#define ARMADA_370_XP_MBUS_WINS_OFFS   0x20000
+#define ARMADA_370_XP_MBUS_WINS_SIZE   0x100
+#define ARMADA_370_XP_SDRAM_WINS_OFFS  0x20180
+#define ARMADA_370_XP_SDRAM_WINS_SIZE  0x20
+
+static void __init armada_370_xp_mbus_init(void)
 {
 	char *mbus_soc_name;
+	struct device_node *dn;
+	const __be32 mbus_wins_offs = cpu_to_be32(ARMADA_370_XP_MBUS_WINS_OFFS);
+	const __be32 sdram_wins_offs = cpu_to_be32(ARMADA_370_XP_SDRAM_WINS_OFFS);
 
-	mvebu_clocks_init();
-	armada_370_xp_timer_init();
-	coherency_init();
-
-	/*
-	 * This initialization will be replaced by a DT-based
-	 * initialization once the mvebu-mbus driver gains DT support.
-	 */
 	if (of_machine_is_compatible("marvell,armada370"))
 		mbus_soc_name = "marvell,armada370-mbus";
 	else
 		mbus_soc_name = "marvell,armadaxp-mbus";
 
-	mvebu_mbus_init(mbus_soc_name,
-			ARMADA_370_XP_MBUS_WINS_BASE,
-			ARMADA_370_XP_MBUS_WINS_SIZE,
-			ARMADA_370_XP_SDRAM_WINS_BASE,
-			ARMADA_370_XP_SDRAM_WINS_SIZE);
+	dn = of_find_node_by_name(NULL, "internal-regs");
+	BUG_ON(!dn);
 
+	mvebu_mbus_init(mbus_soc_name,
+			of_translate_address(dn, &mbus_wins_offs),
+			ARMADA_370_XP_MBUS_WINS_SIZE,
+			of_translate_address(dn, &sdram_wins_offs),
+			ARMADA_370_XP_SDRAM_WINS_SIZE);
+}
+
+static void __init armada_370_xp_timer_and_clk_init(void)
+{
+	mvebu_clocks_init();
+	armada_370_xp_timer_init();
+	coherency_init();
+	armada_370_xp_mbus_init();
 #ifdef CONFIG_CACHE_L2X0
 	l2x0_of_init(0, ~0UL);
 #endif
