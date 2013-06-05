@@ -5660,7 +5660,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
 
-	return dpll;
+	return dpll | DPLL_VCO_ENABLE;
 }
 
 static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
@@ -5722,7 +5722,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 					     &fp, &reduced_clock,
 					     has_reduced_clock ? &fp2 : NULL);
 
-		intel_crtc->config.dpll_hw_state.dpll = dpll | DPLL_VCO_ENABLE;
+		intel_crtc->config.dpll_hw_state.dpll = dpll;
 		intel_crtc->config.dpll_hw_state.fp0 = fp;
 		if (has_reduced_clock)
 			intel_crtc->config.dpll_hw_state.fp1 = fp2;
