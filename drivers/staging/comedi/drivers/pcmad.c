@@ -86,30 +86,32 @@ static int pcmad_ai_wait_for_eoc(struct comedi_device *dev,
 
 static int pcmad_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	struct pcmad_priv_struct *devpriv = dev->private;
-	int chan;
-	int n;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
 	int ret;
+	int i;
 
-	chan = CR_CHAN(insn->chanspec);
-
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
 		outb(chan, dev->iobase + PCMAD_CONVERT);
 
 		ret = pcmad_ai_wait_for_eoc(dev, TIMEOUT);
 		if (ret)
 			return ret;
 
-		data[n] = inb(dev->iobase + PCMAD_LSB);
-		data[n] |= (inb(dev->iobase + PCMAD_MSB) << 8);
+		val = inb(dev->iobase + PCMAD_LSB) |
+		      (inb(dev->iobase + PCMAD_MSB) << 8);
 
 		if (devpriv->twos_comp)
-			data[n] ^= ((s->maxdata + 1) >> 1);
+			val ^= ((s->maxdata + 1) >> 1);
+
+		data[i] = val;
 	}
 
-	return n;
+	return insn->n;
 }
 
 /*
