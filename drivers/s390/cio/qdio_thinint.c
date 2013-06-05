@@ -208,51 +208,31 @@ static void tiqdio_thinint_handler(void *alsi, void *data)
 
 static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 {
-	struct scssc_area *scssc_area;
+	struct chsc_scssc_area *scssc = (void *)irq_ptr->chsc_page;
+	u64 summary_indicator_addr, subchannel_indicator_addr;
 	int rc;
 
-	scssc_area = (struct scssc_area *)irq_ptr->chsc_page;
-	memset(scssc_area, 0, PAGE_SIZE);
-
 	if (reset) {
-		scssc_area->summary_indicator_addr = 0;
-		scssc_area->subchannel_indicator_addr = 0;
+		summary_indicator_addr = 0;
+		subchannel_indicator_addr = 0;
 	} else {
-		scssc_area->summary_indicator_addr = virt_to_phys(tiqdio_alsi);
-		scssc_area->subchannel_indicator_addr =
-			virt_to_phys(irq_ptr->dsci);
+		summary_indicator_addr = virt_to_phys(tiqdio_alsi);
+		subchannel_indicator_addr = virt_to_phys(irq_ptr->dsci);
 	}
 
-	scssc_area->request = (struct chsc_header) {
-		.length = 0x0fe0,
-		.code	= 0x0021,
-	};
-	scssc_area->operation_code = 0;
-	scssc_area->ks = PAGE_DEFAULT_KEY >> 4;
-	scssc_area->kc = PAGE_DEFAULT_KEY >> 4;
-	scssc_area->isc = QDIO_AIRQ_ISC;
-	scssc_area->schid = irq_ptr->schid;
-
-	/* enable the time delay disablement facility */
-	if (css_general_characteristics.aif_tdd)
-		scssc_area->word_with_d_bit = 0x10000000;
-
-	rc = chsc(scssc_area);
-	if (rc)
-		return -EIO;
-
-	rc = chsc_error_from_response(scssc_area->response.code);
+	rc = chsc_sadc(irq_ptr->schid, scssc, summary_indicator_addr,
+		       subchannel_indicator_addr);
 	if (rc) {
 		DBF_ERROR("%4x SSI r:%4x", irq_ptr->schid.sch_no,
-			  scssc_area->response.code);
-		DBF_ERROR_HEX(&scssc_area->response, sizeof(void *));
-		return rc;
+			  scssc->response.code);
+		goto out;
 	}
 
 	DBF_EVENT("setscind");
-	DBF_HEX(&scssc_area->summary_indicator_addr, sizeof(unsigned long));
-	DBF_HEX(&scssc_area->subchannel_indicator_addr,	sizeof(unsigned long));
-	return 0;
+	DBF_HEX(&summary_indicator_addr, sizeof(summary_indicator_addr));
+	DBF_HEX(&subchannel_indicator_addr, sizeof(subchannel_indicator_addr));
+out:
+	return rc;
 }
 
 /* allocate non-shared indicators and shared indicator */

@@ -87,6 +87,26 @@ struct chsc_ssqd_area {
 	struct qdio_ssqd_desc qdio_ssqd;
 } __packed;
 
+struct chsc_scssc_area {
+	struct chsc_header request;
+	u16 operation_code;
+	u16:16;
+	u32:32;
+	u32:32;
+	u64 summary_indicator_addr;
+	u64 subchannel_indicator_addr;
+	u32 ks:4;
+	u32 kc:4;
+	u32:21;
+	u32 isc:3;
+	u32 word_with_d_bit;
+	u32:32;
+	struct subchannel_id schid;
+	u32 reserved[1004];
+	struct chsc_header response;
+	u32:32;
+} __packed;
+
 struct chsc_scpd {
 	struct chsc_header request;
 	u32:2;
@@ -127,6 +147,8 @@ void chsc_chp_online(struct chp_id chpid);
 void chsc_chp_offline(struct chp_id chpid);
 int chsc_get_channel_measurement_chars(struct channel_path *chp);
 int chsc_ssqd(struct subchannel_id schid, struct chsc_ssqd_area *ssqd);
+int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
+	      u64 summary_indicator_addr, u64 subchannel_indicator_addr);
 int chsc_error_from_response(int response);
 
 int chsc_siosl(struct subchannel_id schid);
