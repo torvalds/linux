@@ -3214,12 +3214,9 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	intel_update_watermarks(dev);
 
-	for_each_encoder_on_crtc(dev, crtc, encoder) {
-		if (encoder->pre_pll_enable)
-			encoder->pre_pll_enable(encoder);
+	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
-	}
 
 	if (intel_crtc->config.has_pch_encoder) {
 		/* Note: FDI PLL enabling _must_ be done before we enable the
@@ -3663,14 +3660,10 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	intel_update_watermarks(dev);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
-		if (encoder->pre_pll_enable)
-			encoder->pre_pll_enable(encoder);
-
-	i9xx_enable_pll(intel_crtc);
-
-	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
+
+	i9xx_enable_pll(intel_crtc);
 
 	i9xx_pfit_enable(intel_crtc);
 
