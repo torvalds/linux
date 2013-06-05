@@ -1613,6 +1613,9 @@ static int serial_omap_runtime_suspend(struct device *dev)
 	struct uart_omap_port *up = dev_get_drvdata(dev);
 	struct omap_uart_port_info *pdata = dev->platform_data;
 
+	if (!up)
+		return -EINVAL;
+
 	/*
 	* When using 'no_console_suspend', the console UART must not be
 	* suspended. Since driver suspend is managed by runtime suspend,
@@ -1622,9 +1625,6 @@ static int serial_omap_runtime_suspend(struct device *dev)
 	if (up->is_suspending && !console_suspend_enabled &&
 	    uart_console(&up->port))
 		return -EBUSY;
-
-	if (!up)
-		return -EINVAL;
 
 	if (!pdata)
 		return 0;
