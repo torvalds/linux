@@ -75,7 +75,8 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br = p->br;
-	br_fdb_update(br, p, eth_hdr(skb)->h_source, vid);
+	if (p->flags & BR_LEARNING)
+		br_fdb_update(br, p, eth_hdr(skb)->h_source, vid);
 
 	if (!is_broadcast_ether_addr(dest) && is_multicast_ether_addr(dest) &&
 	    br_multicast_rcv(br, p, skb))
@@ -142,7 +143,8 @@ static int br_handle_local_finish(struct sk_buff *skb)
 	u16 vid = 0;
 
 	br_vlan_get_tag(skb, &vid);
-	br_fdb_update(p->br, p, eth_hdr(skb)->h_source, vid);
+	if (p->flags & BR_LEARNING)
+		br_fdb_update(p->br, p, eth_hdr(skb)->h_source, vid);
 	return 0;	 /* process further */
 }
 
