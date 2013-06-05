@@ -436,7 +436,8 @@ static void handle_tx(struct vhost_net *net)
 				kref_get(&ubufs->kref);
 			}
 			nvq->upend_idx = (nvq->upend_idx + 1) % UIO_MAXIOV;
-		}
+		} else
+			msg.msg_control = NULL;
 		/* TODO: Check specific error and bomb out unless ENOBUFS? */
 		err = sock->ops->sendmsg(NULL, sock, &msg, len);
 		if (unlikely(err < 0)) {
