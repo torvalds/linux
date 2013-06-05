@@ -1360,7 +1360,7 @@ static const struct file_operations vfio_device_fops = {
  */
 static char *vfio_devnode(struct device *dev, umode_t *mode)
 {
-	if (MINOR(dev->devt) == 0)
+	if (mode && (MINOR(dev->devt) == 0))
 		*mode = S_IRUGO | S_IWUGO;
 
 	return kasprintf(GFP_KERNEL, "vfio/%s", dev_name(dev));
