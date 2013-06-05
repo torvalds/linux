@@ -200,7 +200,7 @@ struct thread_struct {
 #endif
 #endif
 	/* FP and VSX 0-31 register set */
-	double		fpr[32][TS_FPRWIDTH];
+	double		fpr[32][TS_FPRWIDTH] __attribute__((aligned(16)));
 	struct {
 
 		unsigned int pad;
