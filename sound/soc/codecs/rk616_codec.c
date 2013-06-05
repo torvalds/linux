@@ -1669,11 +1669,23 @@ static struct rk616_reg_val_typ capture_power_up_list[] = {
 	{0x83c, 0x00}, //power up
 	{0x840, 0x69}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
 	{0x848, 0x06}, //MIXINL power up and unmute, MININL from MICMUX, MICMUX from BST_L
-	{0x84c, 0x3c}, //MIXINL from MIXMUX volume (bit 3-5)
-	{0x860, 0x16}, //PGAL power up unmute,volume (bit 0-4)
+	{0x84c, 0x24}, //MIXINL from MIXMUX volume (bit 3-5)
+	{0x860, 0x0c}, //PGAL power up unmute,volume (bit 0-4)
 	{0x89c, 0x7f}, //MICBIAS1 power up (bit 7, Vout = 1.7 * Vref(1.65V) = 2.8V (bit 3-5)
 	{0x8a8, 0x09}, //ADCL/R power, and clear ADCL/R buf
 	{0x8a8, 0x00}, //ADCL/R power, and clear ADCL/R buf
+    {0x8c4, 0x57}, //L mod time 
+  //{0x904, 0x57}, //R mod time 
+    {0x828, 0x39}, //Set for Capture pop noise && enable agc control pga
+    {0x8a4, 0x03}, //enable cross zero detect
+    {0x8c0, 0x00}, //L agc choice mod 2
+  //{0x900, 0x00}, //R agc choice mod 2
+    {0x8d4, 0x13}, //max low
+    {0x8d8, 0x08}, //max high 
+    {0x8dc, 0xc2}, //min low
+    {0x8e0, 0x16}, //min high 
+    {0x8e4, 0x70}, //L enable agc
+  //{0x924, 0x70}, //R enbale agc
 };
 #define RK616_CODEC_CAPTURE_POWER_UP_LIST_LEN ARRAY_SIZE(capture_power_up_list)
 
@@ -1685,6 +1697,18 @@ static struct rk616_reg_val_typ capture_power_down_list[] = {
 	{0x848, 0x1f}, //MIXINL power down and mute, MININL No selecting, MICMUX from BST_L
 	{0x840, 0x99}, //BST_L power down, mute, and Single-Ended(bit 6), volume 0(bit 5)
 	{0x83c, 0x7c}, //power down
+    {0x8e4, 0x38}, //L disable agc
+  //{0x924, 0x38}, //R disbale agc
+    {0x8c4, 0x25}, 
+  //{0x904, 0x25}, 
+    {0x828, 0x09}, 
+    {0x8a4, 0x0F},
+    {0x8c0, 0x10}, 
+  //{0x900, 0x10}, 
+    {0x8d4, 0x26}, 
+    {0x8d8, 0x40}, 
+    {0x8dc, 0x36}, 
+    {0x8e0, 0x20},
 };
 #define RK616_CODEC_CAPTURE_POWER_DOWN_LIST_LEN ARRAY_SIZE(capture_power_down_list)
 
