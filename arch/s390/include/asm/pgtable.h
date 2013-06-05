@@ -623,7 +623,7 @@ static inline pgste_t pgste_get_lock(pte_t *ptep)
 		"	csg	%0,%1,%2\n"
 		"	jl	0b\n"
 		: "=&d" (old), "=&d" (new), "=Q" (ptep[PTRS_PER_PTE])
-		: "Q" (ptep[PTRS_PER_PTE]) : "cc");
+		: "Q" (ptep[PTRS_PER_PTE]) : "cc", "memory");
 #endif
 	return __pgste(new);
 }
@@ -635,7 +635,8 @@ static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 		"	nihh	%1,0xff7f\n"	/* clear RCP_PCL_BIT */
 		"	stg	%1,%0\n"
 		: "=Q" (ptep[PTRS_PER_PTE])
-		: "d" (pgste_val(pgste)), "Q" (ptep[PTRS_PER_PTE]) : "cc");
+		: "d" (pgste_val(pgste)), "Q" (ptep[PTRS_PER_PTE])
+		: "cc", "memory");
 	preempt_enable();
 #endif
 }
