@@ -307,6 +307,18 @@ struct comedi_lrange {
 	struct comedi_krange range[GCC_ZERO_LENGTH_ARRAY];
 };
 
+static inline bool comedi_range_is_bipolar(struct comedi_subdevice *s,
+					   unsigned int range)
+{
+	return s->range_table->range[range].min < 0;
+}
+
+static inline bool comedi_range_is_unipolar(struct comedi_subdevice *s,
+					    unsigned int range)
+{
+	return s->range_table->range[range].min >= 0;
+}
+
 /* some silly little inline functions */
 
 static inline unsigned int bytes_per_sample(const struct comedi_subdevice *subd)
