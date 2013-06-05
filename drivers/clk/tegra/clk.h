@@ -128,6 +128,25 @@ struct pdiv_map {
 };
 
 /**
+ * struct div_nmp - offset and width of m,n and p fields
+ *
+ * @divn_shift:	shift to the feedback divider bit field
+ * @divn_width:	width of the feedback divider bit field
+ * @divm_shift:	shift to the input divider bit field
+ * @divm_width:	width of the input divider bit field
+ * @divp_shift:	shift to the post divider bit field
+ * @divp_width:	width of the post divider bit field
+ */
+struct div_nmp {
+	u8		divn_shift;
+	u8		divn_width;
+	u8		divm_shift;
+	u8		divm_width;
+	u8		divp_shift;
+	u8		divp_width;
+};
+
+/**
  * struct clk_pll_params - PLL parameters
  *
  * @input_min:			Minimum input frequency
@@ -166,6 +185,7 @@ struct tegra_clk_pll_params {
 	int		lock_delay;
 	int		max_p;
 	struct pdiv_map *pdiv_tohw;
+	struct div_nmp	*div_nmp;
 };
 
 /**
@@ -179,12 +199,6 @@ struct tegra_clk_pll_params {
  * @flags:	PLL flags
  * @fixed_rate:	PLL rate if it is fixed
  * @lock:	register lock
- * @divn_shift:	shift to the feedback divider bit field
- * @divn_width:	width of the feedback divider bit field
- * @divm_shift:	shift to the input divider bit field
- * @divm_width:	width of the input divider bit field
- * @divp_shift:	shift to the post divider bit field
- * @divp_width:	width of the post divider bit field
  *
  * Flags:
  * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
@@ -214,12 +228,6 @@ struct tegra_clk_pll {
 	u32		flags;
 	unsigned long	fixed_rate;
 	spinlock_t	*lock;
-	u8		divn_shift;
-	u8		divn_width;
-	u8		divm_shift;
-	u8		divm_width;
-	u8		divp_shift;
-	u8		divp_width;
 	struct tegra_clk_pll_freq_table	*freq_table;
 	struct tegra_clk_pll_params	*params;
 };

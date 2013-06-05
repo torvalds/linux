@@ -134,14 +134,23 @@
 #define pll_writel_misc(val, p) pll_writel(val, p->params->misc_reg, p)
 
 #define mask(w) ((1 << (w)) - 1)
-#define divm_mask(p) mask(p->divm_width)
-#define divn_mask(p) mask(p->divn_width)
+#define divm_mask(p) mask(p->params->div_nmp->divm_width)
+#define divn_mask(p) mask(p->params->div_nmp->divn_width)
 #define divp_mask(p) (p->flags & TEGRA_PLLU ? PLLU_POST_DIVP_MASK :	\
-		      mask(p->divp_width))
+		      mask(p->params->div_nmp->divp_width))
 
 #define divm_max(p) (divm_mask(p))
 #define divn_max(p) (divn_mask(p))
 #define divp_max(p) (1 << (divp_mask(p)))
+
+static struct div_nmp default_nmp = {
+	.divn_shift = PLL_BASE_DIVN_SHIFT,
+	.divn_width = PLL_BASE_DIVN_WIDTH,
+	.divm_shift = PLL_BASE_DIVM_SHIFT,
+	.divm_width = PLL_BASE_DIVM_WIDTH,
+	.divp_shift = PLL_BASE_DIVP_SHIFT,
+	.divp_width = PLL_BASE_DIVP_WIDTH,
+};
 
 static void clk_pll_enable_lock(struct tegra_clk_pll *pll)
 {
@@ -407,12 +416,12 @@ static void _update_pll_mnp(struct tegra_clk_pll *pll,
 
 	val = pll_readl_base(pll);
 
-	val &= ~((divm_mask(pll) << pll->divm_shift) |
-		 (divn_mask(pll) << pll->divn_shift) |
-		 (divp_mask(pll) << pll->divp_shift));
-	val |= ((cfg->m << pll->divm_shift) |
-		(cfg->n << pll->divn_shift) |
-		(cfg->p << pll->divp_shift));
+	val &= ~((divm_mask(pll) << pll->params->div_nmp->divm_shift) |
+		 (divn_mask(pll) << pll->params->div_nmp->divn_shift) |
+		 (divp_mask(pll) << pll->params->div_nmp->divp_shift));
+	val |= ((cfg->m << pll->params->div_nmp->divm_shift) |
+		(cfg->n << pll->params->div_nmp->divn_shift) |
+		(cfg->p << pll->params->div_nmp->divp_shift));
 
 	pll_writel_base(val, pll);
 }
@@ -424,9 +433,9 @@ static void _get_pll_mnp(struct tegra_clk_pll *pll,
 
 	val = pll_readl_base(pll);
 
-	cfg->m = (val >> pll->divm_shift) & (divm_mask(pll));
-	cfg->n = (val >> pll->divn_shift) & (divn_mask(pll));
-	cfg->p = (val >> pll->divp_shift) & (divp_mask(pll));
+	cfg->m = (val >> pll->params->div_nmp->divm_shift) & (divm_mask(pll));
+	cfg->n = (val >> pll->params->div_nmp->divn_shift) & (divn_mask(pll));
+	cfg->p = (val >> pll->params->div_nmp->divp_shift) & (divp_mask(pll));
 }
 
 static void _update_pll_cpcon(struct tegra_clk_pll *pll,
@@ -646,9 +655,9 @@ static int clk_plle_enable(struct clk_hw *hw)
 		val = pll_readl_base(pll);
 		val &= ~(divm_mask(pll) | divn_mask(pll) | divp_mask(pll));
 		val &= ~(PLLE_BASE_DIVCML_WIDTH << PLLE_BASE_DIVCML_SHIFT);
-		val |= sel.m << pll->divm_shift;
-		val |= sel.n << pll->divn_shift;
-		val |= sel.p << pll->divp_shift;
+		val |= sel.m << pll->params->div_nmp->divm_shift;
+		val |= sel.n << pll->params->div_nmp->divn_shift;
+		val |= sel.p << pll->params->div_nmp->divp_shift;
 		val |= sel.cpcon << PLLE_BASE_DIVCML_SHIFT;
 		pll_writel_base(val, pll);
 	}
@@ -679,9 +688,9 @@ static unsigned long clk_plle_recalc_rate(struct clk_hw *hw,
 	u32 divn = 0, divm = 0, divp = 0;
 	u64 rate = parent_rate;
 
-	divp = (val >> pll->divp_shift) & (divp_mask(pll));
-	divn = (val >> pll->divn_shift) & (divn_mask(pll));
-	divm = (val >> pll->divm_shift) & (divm_mask(pll));
+	divp = (val >> pll->params->div_nmp->divp_shift) & (divp_mask(pll));
+	divn = (val >> pll->params->div_nmp->divn_shift) & (divn_mask(pll));
+	divm = (val >> pll->params->div_nmp->divm_shift) & (divm_mask(pll));
 	divm *= divp;
 
 	rate *= divn;
@@ -902,7 +911,8 @@ static int clk_pllm_set_rate(struct clk_hw *hw, unsigned long rate,
 
 		val = readl_relaxed(pll->pmc + PMC_PLLM_WB0_OVERRIDE);
 		val &= ~(divn_mask(pll) | divm_mask(pll));
-		val |= (cfg.m << pll->divm_shift) | (cfg.n << pll->divn_shift);
+		val |= (cfg.m << pll->params->div_nmp->divm_shift) |
+			(cfg.n << pll->params->div_nmp->divn_shift);
 		writel_relaxed(val, pll->pmc + PMC_PLLM_WB0_OVERRIDE);
 	} else
 		_update_pll_mnp(pll, &cfg);
@@ -1180,8 +1190,8 @@ static int clk_plle_tegra114_enable(struct clk_hw *hw)
 	val = pll_readl_base(pll);
 	val &= ~(divm_mask(pll) | divn_mask(pll) | divp_mask(pll));
 	val &= ~(PLLE_BASE_DIVCML_WIDTH << PLLE_BASE_DIVCML_SHIFT);
-	val |= sel.m << pll->divm_shift;
-	val |= sel.n << pll->divn_shift;
+	val |= sel.m << pll->params->div_nmp->divm_shift;
+	val |= sel.n << pll->params->div_nmp->divn_shift;
 	val |= sel.cpcon << PLLE_BASE_DIVCML_SHIFT;
 	pll_writel_base(val, pll);
 	udelay(1);
@@ -1242,12 +1252,8 @@ static struct tegra_clk_pll *_tegra_init_pll(void __iomem *clk_base,
 	pll->flags = pll_flags;
 	pll->lock = lock;
 
-	pll->divp_shift = PLL_BASE_DIVP_SHIFT;
-	pll->divp_width = PLL_BASE_DIVP_WIDTH;
-	pll->divn_shift = PLL_BASE_DIVN_SHIFT;
-	pll->divn_width = PLL_BASE_DIVN_WIDTH;
-	pll->divm_shift = PLL_BASE_DIVM_SHIFT;
-	pll->divm_width = PLL_BASE_DIVM_WIDTH;
+	if (!pll_params->div_nmp)
+		pll_params->div_nmp = &default_nmp;
 
 	return pll;
 }
