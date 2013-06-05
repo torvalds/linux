@@ -27,14 +27,7 @@
 #include <asm/smp_plat.h>
 #include "armada-370-xp.h"
 
-/*
- * Some functions in this file are called very early during SMP
- * initialization. At that time the device tree framework is not yet
- * ready, and it is not possible to get the register address to
- * ioremap it. That's why the pointer below is given with an initial
- * value matching its virtual mapping
- */
-static void __iomem *coherency_base = ARMADA_370_XP_REGS_VIRT_BASE + 0x20200;
+static void __iomem *coherency_base;
 static void __iomem *coherency_cpu_base;
 
 /* Coherency fabric registers */
@@ -135,9 +128,16 @@ int __init coherency_init(void)
 		coherency_base = of_iomap(np, 0);
 		coherency_cpu_base = of_iomap(np, 1);
 		set_cpu_coherent(cpu_logical_map(smp_processor_id()), 0);
-		bus_register_notifier(&platform_bus_type,
-					&mvebu_hwcc_platform_nb);
 	}
 
 	return 0;
 }
+
+static int __init coherency_late_init(void)
+{
+	bus_register_notifier(&platform_bus_type,
+			      &mvebu_hwcc_platform_nb);
+	return 0;
+}
+
+postcore_initcall(coherency_late_init);
