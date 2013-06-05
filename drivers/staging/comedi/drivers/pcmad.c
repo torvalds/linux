@@ -34,8 +34,8 @@
  *	   0 = single-ended (16 channels)
  *	   1 = differential (8 channels)
  *   [3] - Analog input encoding (must match jumpers)
- *	   0 = straight binary
- *	   1 = two's complement
+ *	   0 = straight binary (0-5V input range)
+ *	   1 = two's complement (+-10V input range)
  */
 
 #include <linux/interrupt.h>
@@ -63,10 +63,6 @@ static const struct pcmad_board_struct pcmad_boards[] = {
 	},
 };
 
-struct pcmad_priv_struct {
-	int twos_comp;
-};
-
 #define TIMEOUT	100
 
 static int pcmad_ai_wait_for_eoc(struct comedi_device *dev,
@@ -81,13 +77,19 @@ static int pcmad_ai_wait_for_eoc(struct comedi_device *dev,
 	return -ETIME;
 }
 
+static bool pcmad_range_is_bipolar(struct comedi_subdevice *s,
+				   unsigned int range)
+{
+	return s->range_table->range[range].min < 0;
+}
+
 static int pcmad_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	struct pcmad_priv_struct *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int val;
 	int ret;
 	int i;
@@ -102,8 +104,10 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 		val = inb(dev->iobase + PCMAD_LSB) |
 		      (inb(dev->iobase + PCMAD_MSB) << 8);
 
-		if (devpriv->twos_comp)
+		if (pcmad_range_is_bipolar(s, range)) {
+			/* munge the two's complement value */
 			val ^= ((s->maxdata + 1) >> 1);
+		}
 
 		data[i] = val;
 	}
@@ -114,7 +118,6 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcmad_board_struct *board = comedi_board(dev);
-	struct pcmad_priv_struct *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -125,11 +128,6 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
 		return ret;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
 
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
@@ -144,7 +142,7 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	s->len_chanlist	= 1;
 	s->maxdata	= board->ai_maxdata;
-	s->range_table	= &range_unknown;
+	s->range_table	= it->options[2] ? &range_bipolar10 : &range_unipolar5;
 	s->insn_read	= pcmad_ai_insn_read;
 
 	return 0;
