@@ -480,14 +480,9 @@ static int via_suspend(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	vt1708_stop_hp_work(codec);
 
-	if (spec->codec_type == VT1802) {
-		/* Fix pop noise on headphones */
-		int i;
-		for (i = 0; i < spec->gen.autocfg.hp_outs; i++)
-			snd_hda_codec_write(codec, spec->gen.autocfg.hp_pins[i],
-					    0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    0x00);
-	}
+	/* Fix pop noise on headphones */
+	if (spec->codec_type == VT1802)
+		snd_hda_shutup_pins(codec);
 
 	return 0;
 }
