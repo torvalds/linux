@@ -1972,7 +1972,7 @@ Returns: 0 on success, -1 on error
 
 This populates and returns a structure describing the features of
 the "Server" class MMU emulation supported by KVM.
-This can in turn be used by userspace to generate the appropariate
+This can in turn be used by userspace to generate the appropriate
 device-tree properties for the guest operating system.
 
 The structure contains some global informations, followed by an
