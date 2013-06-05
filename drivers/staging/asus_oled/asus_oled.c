@@ -50,9 +50,9 @@
 #define ASUS_OLED_DISP_HEIGHT		32
 #define ASUS_OLED_PACKET_BUF_SIZE	256
 
-#define USB_VENDOR_ID_ASUS      0x0b05
-#define USB_DEVICE_ID_ASUS_LCM      0x1726
-#define USB_DEVICE_ID_ASUS_LCM2     0x175b
+#define USB_VENDOR_ID_ASUS		0x0b05
+#define USB_DEVICE_ID_ASUS_LCM		0x1726
+#define USB_DEVICE_ID_ASUS_LCM2		0x175b
 
 MODULE_AUTHOR("Jakub Schmidtke, sjakub@gmail.com");
 MODULE_DESCRIPTION("Asus OLED Driver");
