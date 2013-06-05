@@ -1219,15 +1219,16 @@ static int dwc_gadget_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 	return usb_phy_set_power(pcd->otg_dev->core_if->xceiv, mA);
 
 }
-static int dwc_gadget_start(struct usb_gadget_driver *driver,
-			    int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
-static int dwc_gadget_stop(struct usb_gadget_driver *driver);
+static int dwc_gadget_start(struct usb_gadget *gadget,
+				struct usb_gadget_driver *driver);
+static int dwc_gadget_stop(struct usb_gadget *gadget,
+				struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops dwc_otg_pcd_ops = {
 	.get_frame = dwc_otg_pcd_get_frame,
 	.wakeup = dwc_otg_pcd_wakeup,
-	.start	= dwc_gadget_start,
-	.stop	= dwc_gadget_stop,
+	.udc_start	= dwc_gadget_start,
+	.udc_stop	= dwc_gadget_stop,
 	.vbus_draw = dwc_gadget_vbus_draw,
 };
 
@@ -1717,12 +1718,10 @@ void dwc_otg_pcd_remove(struct device *dev)
  * requests.  then usb traffic follows until a disconnect is reported.
  * then a host may connect again, or the driver might get unbound.
  */
-static int dwc_gadget_start(struct usb_gadget_driver *driver,
-			    int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
+static int dwc_gadget_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	int retval;
-
-	if (!driver || driver->max_speed == USB_SPEED_UNKNOWN || !bind ||
+	if (!driver || driver->max_speed == USB_SPEED_UNKNOWN ||
 	    !driver->unbind || !driver->disconnect || !driver->setup)
 		return -EINVAL;
 
@@ -1736,25 +1735,14 @@ static int dwc_gadget_start(struct usb_gadget_driver *driver,
 	s_pcd->driver = driver;
 	s_pcd->gadget.dev.driver = &driver->driver;
 
-	retval = bind(&s_pcd->gadget, driver);
-	if (retval) {
-		struct core_if *core_if;
-
-		pr_err("bind to driver %s --> error %d\n",
-		       driver->driver.name, retval);
-		core_if = s_pcd->otg_dev->core_if;
-		otg_set_peripheral(core_if->xceiv->otg, &s_pcd->gadget);
-		s_pcd->driver = NULL;
-		s_pcd->gadget.dev.driver = NULL;
-		return retval;
-	}
 	return 0;
 }
 
 /**
  * This function unregisters a gadget driver
  */
-static int dwc_gadget_stop(struct usb_gadget_driver *driver)
+static int dwc_gadget_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
 	struct core_if *core_if;
 
