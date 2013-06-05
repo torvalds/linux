@@ -694,6 +694,7 @@ static int __init einj_init(void)
 	if (rc)
 		goto err_release;
 
+	rc = -ENOMEM;
 	einj_param = einj_get_parameter_address();
 	if ((param_extension || acpi5) && einj_param) {
 		fentry = debugfs_create_x64("param1", S_IRUSR | S_IWUSR,
