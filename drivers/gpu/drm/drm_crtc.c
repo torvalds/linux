@@ -819,6 +819,21 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 }
 EXPORT_SYMBOL(drm_encoder_cleanup);
 
+/**
+ * drm_plane_init - Initialise a new plane object
+ * @dev: DRM device
+ * @plane: plane object to init
+ * @possible_crtcs: bitmask of possible CRTCs
+ * @funcs: callbacks for the new plane
+ * @formats: array of supported formats (%DRM_FORMAT_*)
+ * @format_count: number of elements in @formats
+ * @priv: plane is private (hidden from userspace)?
+ *
+ * Inits a new object created as base part of a driver plane object.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure.
+ */
 int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		   unsigned long possible_crtcs,
 		   const struct drm_plane_funcs *funcs,
@@ -867,6 +882,14 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 }
 EXPORT_SYMBOL(drm_plane_init);
 
+/**
+ * drm_plane_cleanup - Clean up the core plane usage
+ * @plane: plane to cleanup
+ *
+ * This function cleans up @plane and removes it from the DRM mode setting
+ * core. Note that the function does *not* free the plane structure itself,
+ * this is the responsibility of the caller.
+ */
 void drm_plane_cleanup(struct drm_plane *plane)
 {
 	struct drm_device *dev = plane->dev;
@@ -883,6 +906,15 @@ void drm_plane_cleanup(struct drm_plane *plane)
 }
 EXPORT_SYMBOL(drm_plane_cleanup);
 
+/**
+ * drm_plane_force_disable - Forcibly disable a plane
+ * @plane: plane to disable
+ *
+ * Forces the plane to be disabled.
+ *
+ * Used when the plane's current framebuffer is destroyed,
+ * and when restoring fbdev mode.
+ */
 void drm_plane_force_disable(struct drm_plane *plane)
 {
 	int ret;
