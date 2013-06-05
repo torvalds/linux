@@ -3004,15 +3004,8 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	/* For PCH output, training FDI link */
 	dev_priv->display.fdi_link_train(crtc);
 
-	/* XXX: pch pll's can be enabled any time before we enable the PCH
-	 * transcoder, and we actually should do this to not upset any PCH
-	 * transcoder that already use the clock when we share it.
-	 *
-	 * Note that enable_shared_dpll tries to do the right thing, but
-	 * get_shared_dpll unconditionally resets the pll - we need that to have
-	 * the right LVDS enable sequence. */
-	ironlake_enable_shared_dpll(intel_crtc);
-
+	/* We need to program the right clock selection before writing the pixel
+	 * mutliplier into the DPLL. */
 	if (HAS_PCH_CPT(dev)) {
 		u32 sel;
 
@@ -3025,6 +3018,15 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 			temp &= ~sel;
 		I915_WRITE(PCH_DPLL_SEL, temp);
 	}
+
+	/* XXX: pch pll's can be enabled any time before we enable the PCH
+	 * transcoder, and we actually should do this to not upset any PCH
+	 * transcoder that already use the clock when we share it.
+	 *
+	 * Note that enable_shared_dpll tries to do the right thing, but
+	 * get_shared_dpll unconditionally resets the pll - we need that to have
+	 * the right LVDS enable sequence. */
+	ironlake_enable_shared_dpll(intel_crtc);
 
 	/* set transcoder timing, panel must allow it */
 	assert_panel_unlocked(dev_priv, pipe);
