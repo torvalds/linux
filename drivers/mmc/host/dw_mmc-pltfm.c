@@ -56,8 +56,7 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	}
 
 	platform_set_drvdata(pdev, host);
-	ret = dw_mci_probe(host);
-	return ret;
+	return dw_mci_probe(host);
 }
 EXPORT_SYMBOL_GPL(dw_mci_pltfm_register);
 
@@ -81,26 +80,16 @@ EXPORT_SYMBOL_GPL(dw_mci_pltfm_remove);
  */
 static int dw_mci_pltfm_suspend(struct device *dev)
 {
-	int ret;
 	struct dw_mci *host = dev_get_drvdata(dev);
 
-	ret = dw_mci_suspend(host);
-	if (ret)
-		return ret;
-
-	return 0;
+	return dw_mci_suspend(host);
 }
 
 static int dw_mci_pltfm_resume(struct device *dev)
 {
-	int ret;
 	struct dw_mci *host = dev_get_drvdata(dev);
 
-	ret = dw_mci_resume(host);
-	if (ret)
-		return ret;
-
-	return 0;
+	return dw_mci_resume(host);
 }
 #else
 #define dw_mci_pltfm_suspend	NULL
