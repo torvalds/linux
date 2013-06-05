@@ -55,6 +55,16 @@ struct pcmad_board_struct {
 	int n_ai_bits;
 };
 
+static const struct pcmad_board_struct pcmad_boards[] = {
+	{
+		.name		= "pcmad12",
+		.n_ai_bits	= 12,
+	}, {
+		.name		= "pcmad16",
+		.n_ai_bits	= 16,
+	},
+};
+
 struct pcmad_priv_struct {
 	int differential;
 	int twos_comp;
@@ -130,15 +140,6 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static const struct pcmad_board_struct pcmad_boards[] = {
-	{
-		.name		= "pcmad12",
-		.n_ai_bits	= 12,
-	}, {
-		.name		= "pcmad16",
-		.n_ai_bits	= 16,
-	},
-};
 static struct comedi_driver pcmad_driver = {
 	.driver_name	= "pcmad",
 	.module		= THIS_MODULE,
