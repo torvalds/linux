@@ -15,6 +15,15 @@ config DW_DMAC
 	  Support the Synopsys DesignWare AHB DMA controller. This
 	  can be integrated in chips such as the Atmel AT32ap7000.
 
+config DW_DMAC_PCI
+	tristate "Synopsys DesignWare AHB DMA PCI driver"
+	depends on PCI
+	select DW_DMAC_CORE
+	help
+	  Support the Synopsys DesignWare AHB DMA controller on the
+	  platfroms that enumerate it as a PCI device. For example,
+	  Intel Medfield has integrated this GPDMA controller.
+
 config DW_DMAC_BIG_ENDIAN_IO
 	bool "Use big endian I/O register access"
 	default y if AVR32
