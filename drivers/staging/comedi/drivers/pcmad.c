@@ -1,40 +1,42 @@
 /*
-    comedi/drivers/pcmad.c
-    Hardware driver for Winsystems PCM-A/D12 and PCM-A/D16
+ * pcmad.c
+ * Hardware driver for Winsystems PCM-A/D12 and PCM-A/D16
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000,2001 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000,2001 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: pcmad
-Description: Winsystems PCM-A/D12, PCM-A/D16
-Author: ds
-Devices: [Winsystems] PCM-A/D12 (pcmad12), PCM-A/D16 (pcmad16)
-Status: untested
-
-This driver was written on a bet that I couldn't write a driver
-in less than 2 hours.  I won the bet, but never got paid.  =(
-
-Configuration options:
-  [0] - I/O port base
-  [1] - unused
-  [2] - Analog input reference
-	0 = single ended
-	1 = differential
-  [3] - Analog input encoding (must match jumpers)
-	0 = straight binary
-	1 = two's complement
-*/
+ * Driver: pcmad
+ * Description: Winsystems PCM-A/D12, PCM-A/D16
+ * Devices: (Winsystems) PCM-A/D12 [pcmad12]
+ *	    (Winsystems) PCM-A/D16 [pcmad16]
+ * Author: ds
+ * Status: untested
+ *
+ * This driver was written on a bet that I couldn't write a driver
+ * in less than 2 hours.  I won the bet, but never got paid.  =(
+ *
+ * Configuration options:
+ *   [0] - I/O port base
+ *   [1] - IRQ (unused)
+ *   [2] - Analog input reference
+ *	   0 = single ended
+ *	   1 = differential
+ *   [3] - Analog input encoding (must match jumpers)
+ *	   0 = straight binary
+ *	   1 = two's complement
+ */
 
 #include <linux/interrupt.h>
 #include "../comedidev.h"
