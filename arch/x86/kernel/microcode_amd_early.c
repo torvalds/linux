@@ -87,15 +87,21 @@ static void __cpuinit apply_ucode_in_initrd(void *ucode, size_t size)
 	struct equiv_cpu_entry *eq;
 	u32 *header;
 	u8  *data;
-	u16 eq_id;
+	u16 eq_id = 0;
 	int offset, left;
-	u32 rev, dummy;
+	u32 rev, eax;
 	u32 *new_rev;
+	unsigned long *uoffset;
+	size_t *usize;
 
 #ifdef CONFIG_X86_32
 	new_rev = (u32 *)__pa_nodebug(&ucode_new_rev);
+	uoffset = (unsigned long *)__pa_nodebug(&ucode_offset);
+	usize   = (size_t *)__pa_nodebug(&ucode_size);
 #else
 	new_rev = &ucode_new_rev;
+	uoffset = &ucode_offset;
+	usize   = &ucode_size;
 #endif
 
 	data   = ucode;
@@ -108,18 +114,46 @@ static void __cpuinit apply_ucode_in_initrd(void *ucode, size_t size)
 	    header[2] == 0)                            /* size */
 		return;
 
-	eq     = (struct equiv_cpu_entry *)(data + CONTAINER_HDR_SZ);
-	offset = header[2] + CONTAINER_HDR_SZ;
-	data  += offset;
-	left  -= offset;
+	eax = cpuid_eax(0x00000001);
 
-	eq_id  = find_equiv_id(eq, cpuid_eax(0x00000001));
+	while (left > 0) {
+		eq = (struct equiv_cpu_entry *)(data + CONTAINER_HDR_SZ);
+
+		offset = header[2] + CONTAINER_HDR_SZ;
+		data  += offset;
+		left  -= offset;
+
+		eq_id = find_equiv_id(eq, eax);
+		if (eq_id)
+			break;
+
+		/*
+		 * support multiple container files appended together. if this
+		 * one does not have a matching equivalent cpu entry, we fast
+		 * forward to the next container file.
+		 */
+		while (left > 0) {
+			header = (u32 *)data;
+			if (header[0] == UCODE_MAGIC &&
+			    header[1] == UCODE_EQUIV_CPU_TABLE_TYPE)
+				break;
+
+			offset = header[1] + SECTION_HDR_SIZE;
+			data  += offset;
+			left  -= offset;
+		}
+
+		offset = data - (u8 *)ucode;
+		*uoffset += offset;
+		*usize   -= offset;
+	}
+
 	if (!eq_id)
 		return;
 
 	/* find ucode and update if needed */
 
-	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, eax);
 
 	while (left > 0) {
 		struct microcode_amd *mc;
