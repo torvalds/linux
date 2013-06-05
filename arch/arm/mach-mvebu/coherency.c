@@ -47,18 +47,6 @@ static struct of_device_id of_coherency_table[] = {
 	{ /* end of list */ },
 };
 
-#ifdef CONFIG_SMP
-int coherency_get_cpu_count(void)
-{
-	int reg, cnt;
-
-	reg = readl(coherency_base + COHERENCY_FABRIC_CFG_OFFSET);
-	cnt = (reg & 0xF) + 1;
-
-	return cnt;
-}
-#endif
-
 /* Function defined in coherency_ll.S */
 int ll_set_cpu_coherent(void __iomem *base_addr, unsigned int hw_cpu_id);
 
