@@ -2853,7 +2853,7 @@ struct cfg80211_cached_keys;
  * @current_bss: (private) Used by the internal configuration code
  * @channel: (private) Used by the internal configuration code to track
  *	the user-set AP, monitor and WDS channel
- * @preset_chan: (private) Used by the internal configuration code to
+ * @preset_chandef: (private) Used by the internal configuration code to
  *	track the channel to be used for AP later
  * @bssid: (private) Used by the internal configuration code
  * @ssid: (private) Used by the internal configuration code
@@ -2875,6 +2875,15 @@ struct cfg80211_cached_keys;
  * @p2p_started: true if this is a P2P Device that has been started
  * @cac_started: true if DFS channel availability check has been started
  * @cac_start_time: timestamp (jiffies) when the dfs state was entered.
+ * @ps: powersave mode is enabled
+ * @ps_timeout: dynamic powersave timeout
+ * @ap_unexpected_nlportid: (private) netlink port ID of application
+ *	registered for unexpected class 3 frames (AP mode)
+ * @conn: (private) cfg80211 software SME connection state machine data
+ * @connect_keys: (private) keys to set after connection is established
+ * @ibss_fixed: (private) IBSS is using fixed BSSID
+ * @event_list: (private) list for internal event processing
+ * @event_lock: (private) lock for event list
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
