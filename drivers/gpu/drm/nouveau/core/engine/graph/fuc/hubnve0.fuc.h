@@ -388,7 +388,7 @@ uint32_t nve0_grhub_code[] = {
 	0x0089d000,
 	0x081887f1,
 	0xd00684b6,
-/* 0x00e2: wait_done_wait_donez */
+/* 0x00e2: wait_donez_ne */
 	0x87f1008a,
 	0x84b60400,
 	0x0088cf06,
@@ -405,7 +405,7 @@ uint32_t nve0_grhub_code[] = {
 	0x87f10089,
 	0x84b60818,
 	0x008ad006,
-/* 0x011c: wait_done_wait_doneo */
+/* 0x011c: wait_doneo_e */
 	0x040087f1,
 	0xcf0684b6,
 	0x8aff0088,
