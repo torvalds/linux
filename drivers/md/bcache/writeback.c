@@ -9,6 +9,7 @@
 #include "bcache.h"
 #include "btree.h"
 #include "debug.h"
+#include "writeback.h"
 
 #include <trace/events/bcache.h>
 
@@ -38,7 +39,7 @@ static void __update_writeback_rate(struct cached_dev *dc)
 
 	int change = 0;
 	int64_t error;
-	int64_t dirty = atomic_long_read(&dc->disk.sectors_dirty);
+	int64_t dirty = bcache_dev_sectors_dirty(&dc->disk);
 	int64_t derivative = dirty - dc->disk.sectors_dirty_last;
 
 	dc->disk.sectors_dirty_last = dirty;
@@ -183,10 +184,8 @@ void bch_writeback_queue(struct cached_dev *dc)
 	}
 }
 
-void bch_writeback_add(struct cached_dev *dc, unsigned sectors)
+void bch_writeback_add(struct cached_dev *dc)
 {
-	atomic_long_add(sectors, &dc->disk.sectors_dirty);
-
 	if (!atomic_read(&dc->has_dirty) &&
 	    !atomic_xchg(&dc->has_dirty, 1)) {
 		atomic_inc(&dc->count);
@@ -202,6 +201,34 @@ void bch_writeback_add(struct cached_dev *dc, unsigned sectors)
 		if (dc->writeback_percent)
 			schedule_delayed_work(&dc->writeback_rate_update,
 				      dc->writeback_rate_update_seconds * HZ);
+	}
+}
+
+void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
+				  uint64_t offset, int nr_sectors)
+{
+	struct bcache_device *d = c->devices[inode];
+	unsigned stripe_size, stripe_offset;
+	uint64_t stripe;
+
+	if (!d)
+		return;
+
+	stripe_size = 1 << d->stripe_size_bits;
+	stripe = offset >> d->stripe_size_bits;
+	stripe_offset = offset & (stripe_size - 1);
+
+	while (nr_sectors) {
+		int s = min_t(unsigned, abs(nr_sectors),
+			      stripe_size - stripe_offset);
+
+		if (nr_sectors < 0)
+			s = -s;
+
+		atomic_add(s, d->stripe_sectors_dirty + stripe);
+		nr_sectors -= s;
+		stripe_offset = 0;
+		stripe++;
 	}
 }
 
@@ -392,8 +419,9 @@ static int bch_btree_sectors_dirty_init(struct btree *b, struct btree_op *op,
 				break;
 
 			if (KEY_DIRTY(k))
-				atomic_long_add(KEY_SIZE(k),
-						&dc->disk.sectors_dirty);
+				bcache_dev_sectors_dirty_add(b->c, dc->disk.id,
+							     KEY_START(k),
+							     KEY_SIZE(k));
 		} else {
 			btree(sectors_dirty_init, k, b, op, dc);
 			if (KEY_INODE(k) > dc->disk.id)

@@ -24,6 +24,7 @@
 #include "btree.h"
 #include "debug.h"
 #include "request.h"
+#include "writeback.h"
 
 #include <linux/slab.h>
 #include <linux/bitops.h>
@@ -1599,14 +1600,14 @@ static bool fix_overlapping_extents(struct btree *b,
 				    struct btree_iter *iter,
 				    struct btree_op *op)
 {
-	void subtract_dirty(struct bkey *k, int sectors)
+	void subtract_dirty(struct bkey *k, uint64_t offset, int sectors)
 	{
-		struct bcache_device *d = b->c->devices[KEY_INODE(k)];
-
-		if (KEY_DIRTY(k) && d)
-			atomic_long_sub(sectors, &d->sectors_dirty);
+		if (KEY_DIRTY(k))
+			bcache_dev_sectors_dirty_add(b->c, KEY_INODE(k),
+						     offset, -sectors);
 	}
 
+	uint64_t old_offset;
 	unsigned old_size, sectors_found = 0;
 
 	while (1) {
@@ -1618,6 +1619,7 @@ static bool fix_overlapping_extents(struct btree *b,
 		if (bkey_cmp(k, &START_KEY(insert)) <= 0)
 			continue;
 
+		old_offset = KEY_START(k);
 		old_size = KEY_SIZE(k);
 
 		/*
@@ -1673,7 +1675,7 @@ static bool fix_overlapping_extents(struct btree *b,
 
 			struct bkey *top;
 
-			subtract_dirty(k, KEY_SIZE(insert));
+			subtract_dirty(k, KEY_START(insert), KEY_SIZE(insert));
 
 			if (bkey_written(b, k)) {
 				/*
@@ -1720,7 +1722,7 @@ static bool fix_overlapping_extents(struct btree *b,
 			}
 		}
 
-		subtract_dirty(k, old_size - KEY_SIZE(k));
+		subtract_dirty(k, old_offset, old_size - KEY_SIZE(k));
 	}
 
 check_failed:
@@ -1796,6 +1798,10 @@ static bool btree_insert_key(struct btree *b, struct btree_op *op,
 insert:	shift_keys(b, m, k);
 copy:	bkey_copy(m, k);
 merged:
+	if (KEY_DIRTY(k))
+		bcache_dev_sectors_dirty_add(b->c, KEY_INODE(k),
+					     KEY_START(k), KEY_SIZE(k));
+
 	bch_check_keys(b, "%u for %s", status, op_type(op));
 
 	if (b->level && !KEY_OFFSET(k))

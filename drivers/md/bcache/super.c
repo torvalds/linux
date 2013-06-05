@@ -10,6 +10,7 @@
 #include "btree.h"
 #include "debug.h"
 #include "request.h"
+#include "writeback.h"
 
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
@@ -744,13 +745,35 @@ static void bcache_device_free(struct bcache_device *d)
 		mempool_destroy(d->unaligned_bvec);
 	if (d->bio_split)
 		bioset_free(d->bio_split);
+	if (is_vmalloc_addr(d->stripe_sectors_dirty))
+		vfree(d->stripe_sectors_dirty);
+	else
+		kfree(d->stripe_sectors_dirty);
 
 	closure_debug_destroy(&d->cl);
 }
 
-static int bcache_device_init(struct bcache_device *d, unsigned block_size)
+static int bcache_device_init(struct bcache_device *d, unsigned block_size,
+			      sector_t sectors)
 {
 	struct request_queue *q;
+	size_t n;
+
+	if (!d->stripe_size_bits)
+		d->stripe_size_bits = 31;
+
+	d->nr_stripes = round_up(sectors, 1 << d->stripe_size_bits) >>
+		d->stripe_size_bits;
+
+	if (!d->nr_stripes || d->nr_stripes > SIZE_MAX / sizeof(atomic_t))
+		return -ENOMEM;
+
+	n = d->nr_stripes * sizeof(atomic_t);
+	d->stripe_sectors_dirty = n < PAGE_SIZE << 6
+		? kzalloc(n, GFP_KERNEL)
+		: vzalloc(n);
+	if (!d->stripe_sectors_dirty)
+		return -ENOMEM;
 
 	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
 	    !(d->unaligned_bvec = mempool_create_kmalloc_pool(1,
@@ -760,6 +783,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size)
 	    !(q = blk_alloc_queue(GFP_KERNEL)))
 		return -ENOMEM;
 
+	set_capacity(d->disk, sectors);
 	snprintf(d->disk->disk_name, DISK_NAME_LEN, "bcache%i", bcache_minor);
 
 	d->disk->major		= bcache_major;
@@ -1047,7 +1071,8 @@ static int cached_dev_init(struct cached_dev *dc, unsigned block_size)
 		hlist_add_head(&io->hash, dc->io_hash + RECENT_IO);
 	}
 
-	ret = bcache_device_init(&dc->disk, block_size);
+	ret = bcache_device_init(&dc->disk, block_size,
+			 dc->bdev->bd_part->nr_sects - dc->sb.data_offset);
 	if (ret)
 		return ret;
 
@@ -1146,11 +1171,10 @@ static int flash_dev_run(struct cache_set *c, struct uuid_entry *u)
 
 	kobject_init(&d->kobj, &bch_flash_dev_ktype);
 
-	if (bcache_device_init(d, block_bytes(c)))
+	if (bcache_device_init(d, block_bytes(c), u->sectors))
 		goto err;
 
 	bcache_device_attach(d, c, u - c->uuids);
-	set_capacity(d->disk, u->sectors);
 	bch_flash_dev_request_init(d);
 	add_disk(d->disk);
 

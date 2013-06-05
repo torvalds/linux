@@ -9,6 +9,7 @@
 #include "sysfs.h"
 #include "btree.h"
 #include "request.h"
+#include "writeback.h"
 
 #include <linux/blkdev.h>
 #include <linux/sort.h>
@@ -128,7 +129,7 @@ SHOW(__bch_cached_dev)
 		char derivative[20];
 		char target[20];
 		bch_hprint(dirty,
-		       atomic_long_read(&dc->disk.sectors_dirty) << 9);
+			   bcache_dev_sectors_dirty(&dc->disk) << 9);
 		bch_hprint(derivative,	dc->writeback_rate_derivative << 9);
 		bch_hprint(target,	dc->writeback_rate_target << 9);
 
@@ -144,7 +145,7 @@ SHOW(__bch_cached_dev)
 	}
 
 	sysfs_hprint(dirty_data,
-		     atomic_long_read(&dc->disk.sectors_dirty) << 9);
+		     bcache_dev_sectors_dirty(&dc->disk) << 9);
 
 	var_printf(sequential_merge,	"%i");
 	var_hprint(sequential_cutoff);
