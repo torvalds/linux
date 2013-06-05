@@ -1396,10 +1396,6 @@ static inline void skb_set_tail_pointer(struct sk_buff *skb, const int offset)
 	skb->tail += offset;
 }
 
-static inline unsigned long skb_tail_offset(const struct sk_buff *skb)
-{
-	return skb->tail;
-}
 #else /* NET_SKBUFF_DATA_USES_OFFSET */
 static inline unsigned char *skb_tail_pointer(const struct sk_buff *skb)
 {
@@ -1416,10 +1412,6 @@ static inline void skb_set_tail_pointer(struct sk_buff *skb, const int offset)
 	skb->tail = skb->data + offset;
 }
 
-static inline unsigned long skb_tail_offset(const struct sk_buff *skb)
-{
-	return skb->tail - skb->head;
-}
 #endif /* NET_SKBUFF_DATA_USES_OFFSET */
 
 /*

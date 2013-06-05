@@ -945,7 +945,6 @@ static int ipmr_cache_report(struct mr_table *mrt,
 	struct igmpmsg *msg;
 	struct sock *mroute_sk;
 	int ret;
-	unsigned long tail_offset;
 
 #ifdef CONFIG_IP_PIMSM
 	if (assert == IGMPMSG_WHOLEPKT)
@@ -981,12 +980,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 
 	/* Copy the IP header */
 
-	tail_offset = skb_tail_offset(skb);
-	if (tail_offset > 0xffff) {
-		kfree_skb(skb);
-		return -EINVAL;
-	}
-	skb_set_network_header(skb, tail_offset);
+	skb_set_network_header(skb, skb->len);
 	skb_put(skb, ihl);
 	skb_copy_to_linear_data(skb, pkt->data, ihl);
 	ip_hdr(skb)->protocol = 0;	/* Flag to the kernel this is a route add */
