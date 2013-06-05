@@ -928,8 +928,13 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 	/* Create any new FE <--> BE connections */
 	for (i = 0; i < list->num_widgets; i++) {
 
-		if (list->widgets[i]->id != snd_soc_dapm_dai)
+		switch (list->widgets[i]->id) {
+		case snd_soc_dapm_dai_in:
+		case snd_soc_dapm_dai_out:
+			break;
+		default:
 			continue;
+		}
 
 		/* is there a valid BE rtd for this widget */
 		be = dpcm_get_be(card, list->widgets[i], stream);
