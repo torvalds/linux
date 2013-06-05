@@ -314,10 +314,12 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 		titsc_writel(ts_dev, REG_IRQCLR, IRQENB_HW_PEN);
 	}
 
-	titsc_writel(ts_dev, REG_IRQSTATUS, irqclr);
-
-	am335x_tsc_se_update(ts_dev->mfd_tscadc);
-	return IRQ_HANDLED;
+	if (irqclr) {
+		titsc_writel(ts_dev, REG_IRQSTATUS, irqclr);
+		am335x_tsc_se_update(ts_dev->mfd_tscadc);
+		return IRQ_HANDLED;
+	}
+	return IRQ_NONE;
 }
 
 static int titsc_parse_dt(struct platform_device *pdev,
