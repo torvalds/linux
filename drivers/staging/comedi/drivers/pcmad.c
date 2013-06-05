@@ -38,10 +38,7 @@
  *	   1 = two's complement (+-10V input range)
  */
 
-#include <linux/interrupt.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
 
 #define PCMAD_STATUS		0
 #define PCMAD_LSB		1
