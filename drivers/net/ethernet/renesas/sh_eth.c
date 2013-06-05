@@ -897,8 +897,8 @@ static int sh_eth_check_reset(struct net_device *ndev)
 		mdelay(1);
 		cnt--;
 	}
-	if (cnt < 0) {
-		pr_err("Device reset fail\n");
+	if (cnt <= 0) {
+		pr_err("Device reset failed\n");
 		ret = -ETIMEDOUT;
 	}
 	return ret;
