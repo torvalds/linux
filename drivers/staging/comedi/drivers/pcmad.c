@@ -43,8 +43,6 @@
 
 #include <linux/ioport.h>
 
-#define PCMAD_SIZE		4
-
 #define PCMAD_STATUS		0
 #define PCMAD_LSB		1
 #define PCMAD_MSB		2
@@ -114,13 +112,6 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * options:
- * 0	i/o base
- * 1	unused
- * 2	0=single ended 1=differential
- * 3	0=straight binary 1=two's comp
- */
 static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcmad_board_struct *board = comedi_board(dev);
@@ -128,7 +119,7 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], PCMAD_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x04);
 	if (ret)
 		return ret;
 
@@ -142,13 +133,13 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->private = devpriv;
 
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | AREF_GROUND;
-	s->n_chan = 16;		/* XXX */
-	s->len_chanlist = 1;
-	s->insn_read = pcmad_ai_insn_read;
-	s->maxdata = (1 << board->n_ai_bits) - 1;
-	s->range_table = &range_unknown;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | AREF_GROUND;
+	s->n_chan	= 16;
+	s->len_chanlist	= 1;
+	s->maxdata	= (1 << board->n_ai_bits) - 1;
+	s->range_table	= &range_unknown;
+	s->insn_read	= pcmad_ai_insn_read;
 
 	return 0;
 }
