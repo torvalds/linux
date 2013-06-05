@@ -73,6 +73,9 @@
 			compatible = "arm,rtc-pl031", "arm,primecell";
 			reg = <0x80154000 0x1000>;
 			interrupts = <0 18 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&rtc_clk>;
+			clock-names = "apb_pclk";
 		};
 
 		gpio0: gpio@8012e000 {
