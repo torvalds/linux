@@ -469,8 +469,6 @@ static void picodlp_panel_remove(struct omap_dss_device *dssdev)
 	i2c_unregister_device(picod->picodlp_i2c_client);
 	dev_set_drvdata(dssdev->dev, NULL);
 	dev_dbg(dssdev->dev, "removing picodlp panel\n");
-
-	kfree(picod);
 }
 
 static int picodlp_panel_enable(struct omap_dss_device *dssdev)
