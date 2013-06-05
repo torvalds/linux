@@ -5,7 +5,7 @@
 Introduction
 ============
 The IEEE 802.15.4 working group focuses on standartization of bottom
-two layers: Medium Accsess Control (MAC) and Physical (PHY). And there
+two layers: Medium Access Control (MAC) and Physical (PHY). And there
 are mainly two options available for upper layers:
  - ZigBee - proprietary protocol from ZigBee Alliance
  - 6LowPAN - IPv6 networking over low rate personal area networks
