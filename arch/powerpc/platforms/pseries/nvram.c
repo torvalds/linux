@@ -138,10 +138,17 @@ static struct nvram_os_partition of_config_partition = {
 	.os_partition = false
 };
 
+static struct nvram_os_partition common_partition = {
+	.name = "common",
+	.index = -1,
+	.os_partition = false
+};
+
 static enum pstore_type_id nvram_type_ids[] = {
 	PSTORE_TYPE_DMESG,
 	PSTORE_TYPE_PPC_RTAS,
 	PSTORE_TYPE_PPC_OF,
+	PSTORE_TYPE_PPC_COMMON,
 	-1
 };
 static int read_type;
@@ -530,7 +537,7 @@ static int nvram_pstore_write(enum pstore_type_id type,
 }
 
 /*
- * Reads the oops/panic report, rtas and of-config partition.
+ * Reads the oops/panic report, rtas, of-config and common partition.
  * Returns the length of the data we read from each partition.
  * Returns 0 if we've been called before.
  */
@@ -563,6 +570,14 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 		part = &of_config_partition;
 		*type = PSTORE_TYPE_PPC_OF;
 		*id = PSTORE_TYPE_PPC_OF;
+		time->tv_sec = 0;
+		time->tv_nsec = 0;
+		break;
+	case PSTORE_TYPE_PPC_COMMON:
+		sig = NVRAM_SIG_SYS;
+		part = &common_partition;
+		*type = PSTORE_TYPE_PPC_COMMON;
+		*id = PSTORE_TYPE_PPC_COMMON;
 		time->tv_sec = 0;
 		time->tv_nsec = 0;
 		break;
