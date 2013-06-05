@@ -1667,14 +1667,11 @@ static int dw_probe(struct platform_device *pdev)
 	int			err;
 	int			i;
 
-	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!io)
-		return -EINVAL;
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
 
+	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(&pdev->dev, io);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
