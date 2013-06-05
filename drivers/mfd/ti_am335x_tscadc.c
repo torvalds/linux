@@ -176,14 +176,14 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	/* TSC Cell */
 	cell = &tscadc->cells[TSC_CELL];
 	cell->name = "tsc";
-	cell->platform_data = tscadc;
-	cell->pdata_size = sizeof(*tscadc);
+	cell->platform_data = &tscadc;
+	cell->pdata_size = sizeof(tscadc);
 
 	/* ADC Cell */
 	cell = &tscadc->cells[ADC_CELL];
 	cell->name = "tiadc";
-	cell->platform_data = tscadc;
-	cell->pdata_size = sizeof(*tscadc);
+	cell->platform_data = &tscadc;
+	cell->pdata_size = sizeof(tscadc);
 
 	err = mfd_add_devices(&pdev->dev, pdev->id, tscadc->cells,
 			TSCADC_CELLS, NULL, 0, NULL);

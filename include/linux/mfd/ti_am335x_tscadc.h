@@ -149,4 +149,11 @@ struct ti_tscadc_dev {
 	struct adc_device *adc;
 };
 
+static inline struct ti_tscadc_dev *ti_tscadc_dev_get(struct platform_device *p)
+{
+	struct ti_tscadc_dev **tscadc_dev = p->dev.platform_data;
+
+	return *tscadc_dev;
+}
+
 #endif

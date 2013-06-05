@@ -262,7 +262,7 @@ static int titsc_probe(struct platform_device *pdev)
 {
 	struct titsc *ts_dev;
 	struct input_dev *input_dev;
-	struct ti_tscadc_dev *tscadc_dev = pdev->dev.platform_data;
+	struct ti_tscadc_dev *tscadc_dev = ti_tscadc_dev_get(pdev);
 	struct mfd_tscadc_board	*pdata;
 	int err;
 
@@ -329,8 +329,8 @@ err_free_mem:
 
 static int titsc_remove(struct platform_device *pdev)
 {
-	struct ti_tscadc_dev *tscadc_dev = pdev->dev.platform_data;
-	struct titsc *ts_dev = tscadc_dev->tsc;
+	struct titsc *ts_dev = platform_get_drvdata(pdev);
+	u32 steps;
 
 	free_irq(ts_dev->irq, ts_dev);
 
@@ -344,10 +344,11 @@ static int titsc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int titsc_suspend(struct device *dev)
 {
-	struct ti_tscadc_dev *tscadc_dev = dev->platform_data;
-	struct titsc *ts_dev = tscadc_dev->tsc;
+	struct titsc *ts_dev = dev_get_drvdata(dev);
+	struct ti_tscadc_dev *tscadc_dev;
 	unsigned int idle;
 
+	tscadc_dev = ti_tscadc_dev_get(to_platform_device(dev));
 	if (device_may_wakeup(tscadc_dev->dev)) {
 		idle = titsc_readl(ts_dev, REG_IRQENABLE);
 		titsc_writel(ts_dev, REG_IRQENABLE,
@@ -359,9 +360,10 @@ static int titsc_suspend(struct device *dev)
 
 static int titsc_resume(struct device *dev)
 {
-	struct ti_tscadc_dev *tscadc_dev = dev->platform_data;
-	struct titsc *ts_dev = tscadc_dev->tsc;
+	struct titsc *ts_dev = dev_get_drvdata(dev);
+	struct ti_tscadc_dev *tscadc_dev;
 
+	tscadc_dev = ti_tscadc_dev_get(to_platform_device(dev));
 	if (device_may_wakeup(tscadc_dev->dev)) {
 		titsc_writel(ts_dev, REG_IRQWAKEUP,
 				0x00);
