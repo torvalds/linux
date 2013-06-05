@@ -974,25 +974,6 @@ void zpci_stop_device(struct zpci_dev *zdev)
 }
 EXPORT_SYMBOL_GPL(zpci_stop_device);
 
-int zpci_scan_device(struct zpci_dev *zdev)
-{
-	zdev->pdev = pci_scan_single_device(zdev->bus, ZPCI_DEVFN);
-	if (!zdev->pdev) {
-		pr_err("pci_scan_single_device failed for fid: 0x%x\n",
-			zdev->fid);
-		goto out;
-	}
-
-	pci_bus_add_devices(zdev->bus);
-
-	return 0;
-out:
-	zpci_dma_exit_device(zdev);
-	clp_disable_fh(zdev);
-	return -EIO;
-}
-EXPORT_SYMBOL_GPL(zpci_scan_device);
-
 static inline int barsize(u8 size)
 {
 	return (size) ? (1 << size) >> 10 : 0;
