@@ -30,9 +30,9 @@
  * Configuration options:
  *   [0] - I/O port base
  *   [1] - IRQ (unused)
- *   [2] - Analog input reference
- *	   0 = single ended
- *	   1 = differential
+ *   [2] - Analog input reference (must match jumpers)
+ *	   0 = single-ended (16 channels)
+ *	   1 = differential (8 channels)
  *   [3] - Analog input encoding (must match jumpers)
  *	   0 = straight binary
  *	   1 = two's complement
@@ -64,7 +64,6 @@ static const struct pcmad_board_struct pcmad_boards[] = {
 };
 
 struct pcmad_priv_struct {
-	int differential;
 	int twos_comp;
 };
 
@@ -134,8 +133,15 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | AREF_GROUND;
-	s->n_chan	= 16;
+	if (it->options[1]) {
+		/* 8 differential channels */
+		s->subdev_flags	= SDF_READABLE | AREF_DIFF;
+		s->n_chan	= 8;
+	} else {
+		/* 16 single-ended channels */
+		s->subdev_flags	= SDF_READABLE | AREF_GROUND;
+		s->n_chan	= 16;
+	}
 	s->len_chanlist	= 1;
 	s->maxdata	= board->ai_maxdata;
 	s->range_table	= &range_unknown;
