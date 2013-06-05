@@ -209,7 +209,7 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 	r = mgag200_device_init(dev, flags);
 	if (r) {
 		dev_err(&dev->pdev->dev, "Fatal error during GPU init: %d\n", r);
-		goto out;
+		return r;
 	}
 	r = mgag200_mm_init(mdev);
 	if (r)
