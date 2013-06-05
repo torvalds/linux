@@ -163,6 +163,7 @@ config MACH_SAMA5_DT
 	bool "Atmel SAMA5 Evaluation Kits with device-tree support"
 	depends on SOC_SAMA5
 	select USE_OF
+	select PHYLIB if NETDEVICES
 	help
 	  Select this if you want to experiment device-tree with
 	  an Atmel Evaluation Kit.
