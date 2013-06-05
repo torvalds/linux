@@ -44,14 +44,11 @@ static void __init armada_370_xp_map_io(void)
 
 static void __init armada_370_xp_timer_and_clk_init(void)
 {
+	char *mbus_soc_name;
+
 	mvebu_clocks_init();
 	armada_370_xp_timer_init();
 	coherency_init();
-}
-
-static void __init armada_370_xp_init_early(void)
-{
-	char *mbus_soc_name;
 
 	/*
 	 * This initialization will be replaced by a DT-based
@@ -87,7 +84,6 @@ DT_MACHINE_START(ARMADA_XP_DT, "Marvell Armada 370/XP (Device Tree)")
 	.smp		= smp_ops(armada_xp_smp_ops),
 	.init_machine	= armada_370_xp_dt_init,
 	.map_io		= armada_370_xp_map_io,
-	.init_early	= armada_370_xp_init_early,
 	.init_time	= armada_370_xp_timer_and_clk_init,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_370_xp_dt_compat,
