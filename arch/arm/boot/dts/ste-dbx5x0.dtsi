@@ -71,6 +71,8 @@
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xa0410600 0x20>;
 			interrupts = <1 13 0x304>; /* IRQ level high per-CPU */
+
+			clocks = <&smp_twd_clk>;
 		};
 
 		rtc@80154000 {
