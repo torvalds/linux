@@ -923,7 +923,6 @@ intel_crtc_to_shared_dpll(struct intel_crtc *crtc)
 /* For ILK+ */
 static void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll,
-			       struct intel_crtc *crtc,
 			       bool state)
 {
 	u32 val;
@@ -943,28 +942,9 @@ static void assert_shared_dpll(struct drm_i915_private *dev_priv,
 	WARN(cur_state != state,
 	     "%s assertion failure (expected %s, current %s), val=%08x\n",
 	     pll->name, state_string(state), state_string(cur_state), val);
-
-	/* Make sure the selected PLL is correctly attached to the transcoder */
-	if (crtc && HAS_PCH_CPT(dev_priv->dev)) {
-		u32 pch_dpll;
-
-		pch_dpll = I915_READ(PCH_DPLL_SEL);
-		cur_state = pll->id == DPLL_ID_PCH_PLL_B;
-		if (!WARN(((pch_dpll >> (4 * crtc->pipe)) & 1) != cur_state,
-			  "PLL[%d] not attached to this transcoder %c: %08x\n",
-			  cur_state, pipe_name(crtc->pipe), pch_dpll)) {
-			cur_state = !!(val >> (4*crtc->pipe + 3));
-			WARN(cur_state != state,
-			     "PLL[%d] not %s on this transcoder %c: %08x\n",
-			     pll->id == DPLL_ID_PCH_PLL_B,
-			     state_string(state),
-			     pipe_name(crtc->pipe),
-			     val);
-		}
-	}
 }
-#define assert_shared_dpll_enabled(d, p, c) assert_shared_dpll(d, p, c, true)
-#define assert_shared_dpll_disabled(d, p, c) assert_shared_dpll(d, p, c, false)
+#define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
+#define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
 
 static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, bool state)
@@ -1434,7 +1414,7 @@ static void ironlake_enable_shared_dpll(struct intel_crtc *crtc)
 
 	if (pll->active++) {
 		WARN_ON(!pll->on);
-		assert_shared_dpll_enabled(dev_priv, pll, NULL);
+		assert_shared_dpll_enabled(dev_priv, pll);
 		return;
 	}
 	WARN_ON(pll->on);
@@ -1462,11 +1442,11 @@ static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 		      crtc->base.base.id);
 
 	if (WARN_ON(pll->active == 0)) {
-		assert_shared_dpll_disabled(dev_priv, pll, NULL);
+		assert_shared_dpll_disabled(dev_priv, pll);
 		return;
 	}
 
-	assert_shared_dpll_enabled(dev_priv, pll, NULL);
+	assert_shared_dpll_enabled(dev_priv, pll);
 	WARN_ON(!pll->on);
 	if (--pll->active)
 		return;
@@ -1489,8 +1469,7 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 
 	/* Make sure PCH DPLL is enabled */
 	assert_shared_dpll_enabled(dev_priv,
-				   intel_crtc_to_shared_dpll(intel_crtc),
-				   intel_crtc);
+				   intel_crtc_to_shared_dpll(intel_crtc));
 
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(dev_priv, pipe);
@@ -3112,7 +3091,7 @@ found:
 	if (pll->active == 0) {
 		DRM_DEBUG_DRIVER("setting up %s\n", pll->name);
 		WARN_ON(pll->on);
-		assert_shared_dpll_disabled(dev_priv, pll, NULL);
+		assert_shared_dpll_disabled(dev_priv, pll);
 
 		/* Wait for the clocks to stabilize before rewriting the regs */
 		I915_WRITE(PCH_DPLL(pll->id), dpll & ~DPLL_VCO_ENABLE);
