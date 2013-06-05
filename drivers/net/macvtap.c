@@ -172,7 +172,7 @@ static struct macvtap_queue *macvtap_get_queue(struct net_device *dev,
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct macvtap_queue *tap = NULL;
-	int numvtaps = vlan->numvtaps;
+	int numvtaps = ACCESS_ONCE(vlan->numvtaps);
 	__u32 rxq;
 
 	if (!numvtaps)
