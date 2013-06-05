@@ -1861,11 +1861,14 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 	unsigned int sipi_vector;
+	unsigned long pe;
 
-	if (!kvm_vcpu_has_lapic(vcpu))
+	if (!kvm_vcpu_has_lapic(vcpu) || !apic->pending_events)
 		return;
 
-	if (test_and_clear_bit(KVM_APIC_INIT, &apic->pending_events)) {
+	pe = xchg(&apic->pending_events, 0);
+
+	if (test_bit(KVM_APIC_INIT, &pe)) {
 		kvm_lapic_reset(vcpu);
 		kvm_vcpu_reset(vcpu);
 		if (kvm_vcpu_is_bsp(apic->vcpu))
@@ -1873,7 +1876,7 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 		else
 			vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
 	}
-	if (test_and_clear_bit(KVM_APIC_SIPI, &apic->pending_events) &&
+	if (test_bit(KVM_APIC_SIPI, &pe) &&
 	    vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {
 		/* evaluate pending_events before reading the vector */
 		smp_rmb();
