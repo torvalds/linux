@@ -72,25 +72,37 @@ struct pcmad_priv_struct {
 
 #define TIMEOUT	100
 
+static int pcmad_ai_wait_for_eoc(struct comedi_device *dev,
+				 int timeout)
+{
+	int i;
+
+	for (i = 0; i < timeout; i++) {
+		if ((inb(dev->iobase + PCMAD_STATUS) & 0x3) == 0x3)
+			return 0;
+	}
+	return -ETIME;
+}
+
 static int pcmad_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
 	const struct pcmad_board_struct *board = comedi_board(dev);
 	struct pcmad_priv_struct *devpriv = dev->private;
-	int i;
 	int chan;
 	int n;
+	int ret;
 
 	chan = CR_CHAN(insn->chanspec);
 
 	for (n = 0; n < insn->n; n++) {
 		outb(chan, dev->iobase + PCMAD_CONVERT);
 
-		for (i = 0; i < TIMEOUT; i++) {
-			if ((inb(dev->iobase + PCMAD_STATUS) & 0x3) == 0x3)
-				break;
-		}
+		ret = pcmad_ai_wait_for_eoc(dev, TIMEOUT);
+		if (ret)
+			return ret;
+
 		data[n] = inb(dev->iobase + PCMAD_LSB);
 		data[n] |= (inb(dev->iobase + PCMAD_MSB) << 8);
 
