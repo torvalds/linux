@@ -1401,7 +1401,7 @@ static void ironlake_enable_shared_dpll(struct intel_crtc *crtc)
 
 	/* PCH PLLs only available on ILK, SNB and IVB */
 	BUG_ON(dev_priv->info->gen < 5);
-	if (pll == NULL)
+	if (WARN_ON(pll == NULL))
 		return;
 
 	if (WARN_ON(pll->refcount == 0))
@@ -1430,7 +1430,7 @@ static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 
 	/* PCH only available on ILK+ */
 	BUG_ON(dev_priv->info->gen < 5);
-	if (pll == NULL)
+	if (WARN_ON(pll == NULL))
 	       return;
 
 	if (WARN_ON(pll->refcount == 0))
