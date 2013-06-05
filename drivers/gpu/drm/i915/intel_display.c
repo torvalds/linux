@@ -1406,7 +1406,7 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 }
 
 /**
- * intel_disable_pll - disable a PLL
+ * i9xx_disable_pll - disable a PLL
  * @dev_priv: i915 private structure
  * @pipe: pipe PLL to disable
  *
@@ -1414,11 +1414,8 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
  *
  * Note!  This is for pre-ILK only.
  */
-static void intel_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+static void i9xx_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	int reg;
-	u32 val;
-
 	/* Don't disable pipe A or pipe A PLLs if needed */
 	if (pipe == PIPE_A && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
 		return;
@@ -1426,11 +1423,8 @@ static void intel_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	/* Make sure the pipe isn't still relying on us */
 	assert_pipe_disabled(dev_priv, pipe);
 
-	reg = DPLL(pipe);
-	val = I915_READ(reg);
-	val &= ~DPLL_VCO_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	I915_WRITE(DPLL(pipe), 0);
+	POSTING_READ(DPLL(pipe));
 }
 
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv, int port)
@@ -3782,7 +3776,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		if (encoder->post_disable)
 			encoder->post_disable(encoder);
 
-	intel_disable_pll(dev_priv, pipe);
+	i9xx_disable_pll(dev_priv, pipe);
 
 	intel_crtc->active = false;
 	intel_update_fbc(dev);
