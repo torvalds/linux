@@ -104,6 +104,10 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 		val = inb(dev->iobase + PCMAD_LSB) |
 		      (inb(dev->iobase + PCMAD_MSB) << 8);
 
+		/* data is shifted on the pcmad12, fix it */
+		if (s->maxdata == 0x0fff)
+			val >>= 4;
+
 		if (pcmad_range_is_bipolar(s, range)) {
 			/* munge the two's complement value */
 			val ^= ((s->maxdata + 1) >> 1);
