@@ -7,6 +7,7 @@
 #include <asm/chpid.h>
 #include <asm/chsc.h>
 #include <asm/schid.h>
+#include <asm/qdio.h>
 
 #define CHSC_SDA_OC_MSS   0x2
 
@@ -72,6 +73,20 @@ struct chsc_ssd_info {
 	u16 fla[8];
 };
 
+struct chsc_ssqd_area {
+	struct chsc_header request;
+	u16:10;
+	u8 ssid:2;
+	u8 fmt:4;
+	u16 first_sch;
+	u16:16;
+	u16 last_sch;
+	u32:32;
+	struct chsc_header response;
+	u32:32;
+	struct qdio_ssqd_desc qdio_ssqd;
+} __packed;
+
 struct chsc_scpd {
 	struct chsc_header request;
 	u32:2;
@@ -111,7 +126,7 @@ int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 void chsc_chp_online(struct chp_id chpid);
 void chsc_chp_offline(struct chp_id chpid);
 int chsc_get_channel_measurement_chars(struct channel_path *chp);
-
+int chsc_ssqd(struct subchannel_id schid, struct chsc_ssqd_area *ssqd);
 int chsc_error_from_response(int response);
 
 int chsc_siosl(struct subchannel_id schid);

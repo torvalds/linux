@@ -140,20 +140,6 @@ struct siga_flag {
 	u8:3;
 } __attribute__ ((packed));
 
-struct chsc_ssqd_area {
-	struct chsc_header request;
-	u16:10;
-	u8 ssid:2;
-	u8 fmt:4;
-	u16 first_sch;
-	u16:16;
-	u16 last_sch;
-	u32:32;
-	struct chsc_header response;
-	u32:32;
-	struct qdio_ssqd_desc qdio_ssqd;
-} __attribute__ ((packed));
-
 struct scssc_area {
 	struct chsc_header request;
 	u16 operation_code;

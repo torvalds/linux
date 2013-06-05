@@ -144,6 +144,29 @@ out:
 	return ret;
 }
 
+/**
+ * chsc_ssqd() - store subchannel QDIO data (SSQD)
+ * @schid: id of the subchannel on which SSQD is performed
+ * @ssqd: request and response block for SSQD
+ *
+ * Returns 0 on success.
+ */
+int chsc_ssqd(struct subchannel_id schid, struct chsc_ssqd_area *ssqd)
+{
+	memset(ssqd, 0, sizeof(*ssqd));
+	ssqd->request.length = 0x0010;
+	ssqd->request.code = 0x0024;
+	ssqd->first_sch = schid.sch_no;
+	ssqd->last_sch = schid.sch_no;
+	ssqd->ssid = schid.ssid;
+
+	if (chsc(ssqd))
+		return -EIO;
+
+	return chsc_error_from_response(ssqd->response.code);
+}
+EXPORT_SYMBOL_GPL(chsc_ssqd);
+
 static int s390_subchannel_remove_chpid(struct subchannel *sch, void *data)
 {
 	spin_lock_irq(sch->lock);
