@@ -151,10 +151,6 @@ struct pl011_dmatx_data {
 struct uart_amba_port {
 	struct uart_port	port;
 	struct clk		*clk;
-	/* Two optional pin states - default & sleep */
-	struct pinctrl		*pinctrl;
-	struct pinctrl_state	*pins_default;
-	struct pinctrl_state	*pins_sleep;
 	const struct vendor_data *vendor;
 	unsigned int		dmacr;		/* dma control reg */
 	unsigned int		im;		/* interrupt mask */
@@ -1480,12 +1476,7 @@ static int pl011_hwinit(struct uart_port *port)
 	int retval;
 
 	/* Optionaly enable pins to be muxed in and configured */
-	if (!IS_ERR(uap->pins_default)) {
-		retval = pinctrl_select_state(uap->pinctrl, uap->pins_default);
-		if (retval)
-			dev_err(port->dev,
-				"could not set default pins\n");
-	}
+	pinctrl_pm_select_default_state(port->dev);
 
 	/*
 	 * Try to enable the clock producer.
@@ -1611,7 +1602,6 @@ static void pl011_shutdown(struct uart_port *port)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
 	unsigned int cr;
-	int retval;
 
 	/*
 	 * disable all interrupts
@@ -1654,13 +1644,7 @@ static void pl011_shutdown(struct uart_port *port)
 	 */
 	clk_disable_unprepare(uap->clk);
 	/* Optionally let pins go into sleep states */
-	if (!IS_ERR(uap->pins_sleep)) {
-		retval = pinctrl_select_state(uap->pinctrl, uap->pins_sleep);
-		if (retval)
-			dev_err(port->dev,
-				"could not set pins to sleep state\n");
-	}
-
+	pinctrl_pm_select_sleep_state(port->dev);
 
 	if (uap->port.dev->platform_data) {
 		struct amba_pl011_data *plat;
@@ -2013,12 +1997,7 @@ static int __init pl011_console_setup(struct console *co, char *options)
 		return -ENODEV;
 
 	/* Allow pins to be muxed in and configured */
-	if (!IS_ERR(uap->pins_default)) {
-		ret = pinctrl_select_state(uap->pinctrl, uap->pins_default);
-		if (ret)
-			dev_err(uap->port.dev,
-				"could not set default pins\n");
-	}
+	pinctrl_pm_select_default_state(uap->port.dev);
 
 	ret = clk_prepare(uap->clk);
 	if (ret)
@@ -2131,21 +2110,6 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	uap->pinctrl = devm_pinctrl_get(&dev->dev);
-	if (IS_ERR(uap->pinctrl)) {
-		ret = PTR_ERR(uap->pinctrl);
-		goto out;
-	}
-	uap->pins_default = pinctrl_lookup_state(uap->pinctrl,
-						 PINCTRL_STATE_DEFAULT);
-	if (IS_ERR(uap->pins_default))
-		dev_err(&dev->dev, "could not get default pinstate\n");
-
-	uap->pins_sleep = pinctrl_lookup_state(uap->pinctrl,
-					       PINCTRL_STATE_SLEEP);
-	if (IS_ERR(uap->pins_sleep))
-		dev_dbg(&dev->dev, "could not get sleep pinstate\n");
 
 	uap->clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(uap->clk)) {
