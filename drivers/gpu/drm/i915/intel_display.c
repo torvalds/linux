@@ -5730,7 +5730,10 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
 
-	intel_crtc->lowfreq_avail = false;
+	if (is_lvds && has_reduced_clock && i915_powersave)
+		intel_crtc->lowfreq_avail = true;
+	else
+		intel_crtc->lowfreq_avail = false;
 
 	if (intel_crtc->config.has_pch_encoder) {
 		pll = intel_crtc_to_shared_dpll(intel_crtc);
@@ -5748,12 +5751,10 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		 */
 		I915_WRITE(PCH_DPLL(pll->id), dpll);
 
-		if (is_lvds && has_reduced_clock && i915_powersave) {
+		if (has_reduced_clock)
 			I915_WRITE(PCH_FP1(pll->id), fp2);
-			intel_crtc->lowfreq_avail = true;
-		} else {
+		else
 			I915_WRITE(PCH_FP1(pll->id), fp);
-		}
 	}
 
 	intel_set_pipe_timings(intel_crtc);
