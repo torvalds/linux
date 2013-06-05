@@ -159,6 +159,7 @@ BRPORT_ATTR_FLAG(hairpin_mode, BR_HAIRPIN_MODE);
 BRPORT_ATTR_FLAG(bpdu_guard, BR_BPDU_GUARD);
 BRPORT_ATTR_FLAG(root_block, BR_ROOT_BLOCK);
 BRPORT_ATTR_FLAG(learning, BR_LEARNING);
+BRPORT_ATTR_FLAG(unicast_flood, BR_FLOOD);
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 static ssize_t show_multicast_router(struct net_bridge_port *p, char *buf)
@@ -197,6 +198,7 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_bpdu_guard,
 	&brport_attr_root_block,
 	&brport_attr_learning,
+	&brport_attr_unicast_flood,
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	&brport_attr_multicast_router,
 	&brport_attr_multicast_fast_leave,
