@@ -640,6 +640,13 @@ static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 #endif
 }
 
+static inline void pgste_set(pte_t *ptep, pgste_t pgste)
+{
+#ifdef CONFIG_PGSTE
+	*(pgste_t *)(ptep + PTRS_PER_PTE) = pgste;
+#endif
+}
+
 static inline pgste_t pgste_update_all(pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
@@ -1101,8 +1108,10 @@ static inline pte_t ptep_modify_prot_start(struct mm_struct *mm,
 	if (!mm_exclusive(mm))
 		__ptep_ipte(address, ptep);
 
-	if (mm_has_pgste(mm))
+	if (mm_has_pgste(mm)) {
 		pgste = pgste_update_all(&pte, pgste);
+		pgste_set(ptep, pgste);
+	}
 	return pte;
 }
 
