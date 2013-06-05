@@ -39,6 +39,7 @@ static int __hw_addr_create_ex(struct netdev_hw_addr_list *list,
 	ha->refcount = 1;
 	ha->global_use = global;
 	ha->synced = sync;
+	ha->sync_cnt = 0;
 	list_add_tail_rcu(&ha->list, &list->list);
 	list->count++;
 
@@ -66,7 +67,7 @@ static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 			}
 			if (sync) {
 				if (ha->synced)
-					return 0;
+					return -EEXIST;
 				else
 					ha->synced = true;
 			}
@@ -139,10 +140,13 @@ static int __hw_addr_sync_one(struct netdev_hw_addr_list *to_list,
 
 	err = __hw_addr_add_ex(to_list, ha->addr, addr_len, ha->type,
 			       false, true);
-	if (err)
+	if (err && err != -EEXIST)
 		return err;
-	ha->sync_cnt++;
-	ha->refcount++;
+
+	if (!err) {
+		ha->sync_cnt++;
+		ha->refcount++;
+	}
 
 	return 0;
 }
@@ -159,7 +163,8 @@ static void __hw_addr_unsync_one(struct netdev_hw_addr_list *to_list,
 	if (err)
 		return;
 	ha->sync_cnt--;
-	__hw_addr_del_entry(from_list, ha, false, true);
+	/* address on from list is not marked synced */
+	__hw_addr_del_entry(from_list, ha, false, false);
 }
 
 static int __hw_addr_sync_multiple(struct netdev_hw_addr_list *to_list,
@@ -796,7 +801,7 @@ int dev_mc_sync_multiple(struct net_device *to, struct net_device *from)
 		return -EINVAL;
 
 	netif_addr_lock_nested(to);
-	err = __hw_addr_sync(&to->mc, &from->mc, to->addr_len);
+	err = __hw_addr_sync_multiple(&to->mc, &from->mc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
 	netif_addr_unlock(to);
