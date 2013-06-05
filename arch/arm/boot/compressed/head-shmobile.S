@@ -46,7 +46,7 @@ __image_start:
 __image_end:
 	.long	_got_end
 __load_base:
-	.long	CONFIG_MEMORY_START + 0x02000000 @ Load at 32Mb into SDRAM
+	.long	MEMORY_START + 0x02000000 @ Load at 32Mb into SDRAM
 __loaded:
 	.long	__continue
 	.align
