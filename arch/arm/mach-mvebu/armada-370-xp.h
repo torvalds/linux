@@ -16,8 +16,6 @@
 #define __MACH_ARMADA_370_XP_H
 
 #define ARMADA_370_XP_REGS_PHYS_BASE	0xd0000000
-#define ARMADA_370_XP_REGS_VIRT_BASE	IOMEM(0xfec00000)
-#define ARMADA_370_XP_REGS_SIZE		SZ_1M
 
 /* These defines can go away once mvebu-mbus has a DT binding */
 #define ARMADA_370_XP_MBUS_WINS_BASE    (ARMADA_370_XP_REGS_PHYS_BASE + 0x20000)

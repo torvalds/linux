@@ -28,18 +28,9 @@
 #include "common.h"
 #include "coherency.h"
 
-static struct map_desc armada_370_xp_io_desc[] __initdata = {
-	{
-		.virtual	= (unsigned long) ARMADA_370_XP_REGS_VIRT_BASE,
-		.pfn		= __phys_to_pfn(ARMADA_370_XP_REGS_PHYS_BASE),
-		.length		= ARMADA_370_XP_REGS_SIZE,
-		.type		= MT_DEVICE,
-	},
-};
-
 static void __init armada_370_xp_map_io(void)
 {
-	iotable_init(armada_370_xp_io_desc, ARRAY_SIZE(armada_370_xp_io_desc));
+	debug_ll_io_init();
 }
 
 static void __init armada_370_xp_timer_and_clk_init(void)
