@@ -2509,6 +2509,25 @@ void i915_hangcheck_elapsed(unsigned long data)
 					   DRM_I915_HANGCHECK_JIFFIES));
 }
 
+static void ibx_irq_preinstall(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (HAS_PCH_NOP(dev))
+		return;
+
+	/* south display irq */
+	I915_WRITE(SDEIMR, 0xffffffff);
+	/*
+	 * SDEIER is also touched by the interrupt handler to work around missed
+	 * PCH interrupts. Hence we can't update it after the interrupt handler
+	 * is enabled - instead we unconditionally enable all PCH interrupt
+	 * sources here, but then only unmask them as needed with SDEIMR.
+	 */
+	I915_WRITE(SDEIER, 0xffffffff);
+	POSTING_READ(SDEIER);
+}
+
 /* drm_dma.h hooks
 */
 static void ironlake_irq_preinstall(struct drm_device *dev)
@@ -2530,16 +2549,7 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(GTIER, 0x0);
 	POSTING_READ(GTIER);
 
-	/* south display irq */
-	I915_WRITE(SDEIMR, 0xffffffff);
-	/*
-	 * SDEIER is also touched by the interrupt handler to work around missed
-	 * PCH interrupts. Hence we can't update it after the interrupt handler
-	 * is enabled - instead we unconditionally enable all PCH interrupt
-	 * sources here, but then only unmask them as needed with SDEIMR.
-	 */
-	I915_WRITE(SDEIER, 0xffffffff);
-	POSTING_READ(SDEIER);
+	ibx_irq_preinstall(dev);
 }
 
 static void ivybridge_irq_preinstall(struct drm_device *dev)
@@ -2566,19 +2576,7 @@ static void ivybridge_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(GEN6_PMIER, 0x0);
 	POSTING_READ(GEN6_PMIER);
 
-	if (HAS_PCH_NOP(dev))
-		return;
-
-	/* south display irq */
-	I915_WRITE(SDEIMR, 0xffffffff);
-	/*
-	 * SDEIER is also touched by the interrupt handler to work around missed
-	 * PCH interrupts. Hence we can't update it after the interrupt handler
-	 * is enabled - instead we unconditionally enable all PCH interrupt
-	 * sources here, but then only unmask them as needed with SDEIMR.
-	 */
-	I915_WRITE(SDEIER, 0xffffffff);
-	POSTING_READ(SDEIER);
+	ibx_irq_preinstall(dev);
 }
 
 static void valleyview_irq_preinstall(struct drm_device *dev)
