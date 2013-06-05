@@ -1427,7 +1427,8 @@ static void ironlake_enable_pch_pll(struct intel_crtc *intel_crtc)
 	/* PCH refclock must be enabled first */
 	assert_pch_refclk_enabled(dev_priv);
 
-	if (pll->active++ && pll->on) {
+	if (pll->active++) {
+		WARN_ON(!pll->on);
 		assert_pch_pll_enabled(dev_priv, pll, NULL);
 		return;
 	}
@@ -1468,10 +1469,9 @@ static void intel_disable_pch_pll(struct intel_crtc *intel_crtc)
 		return;
 	}
 
-	if (--pll->active) {
-		assert_pch_pll_enabled(dev_priv, pll, NULL);
+	assert_pch_pll_enabled(dev_priv, pll, NULL);
+	if (--pll->active)
 		return;
-	}
 
 	DRM_DEBUG_KMS("disabling PCH PLL %x\n", pll->pll_reg);
 
@@ -3081,9 +3081,9 @@ static struct intel_pch_pll *intel_get_pch_pll(struct intel_crtc *intel_crtc, u3
 
 	pll = intel_crtc->pch_pll;
 	if (pll) {
-		DRM_DEBUG_KMS("CRTC:%d reusing existing PCH PLL %x\n",
+		DRM_DEBUG_KMS("CRTC:%d dropping existing PCH PLL %x\n",
 			      intel_crtc->base.base.id, pll->pll_reg);
-		goto prepare;
+		intel_put_pch_pll(intel_crtc);
 	}
 
 	if (HAS_PCH_IBX(dev_priv->dev)) {
@@ -3128,19 +3128,22 @@ static struct intel_pch_pll *intel_get_pch_pll(struct intel_crtc *intel_crtc, u3
 
 found:
 	intel_crtc->pch_pll = pll;
-	pll->refcount++;
 	DRM_DEBUG_DRIVER("using pll %d for pipe %c\n", i, pipe_name(intel_crtc->pipe));
-prepare: /* separate function? */
-	DRM_DEBUG_DRIVER("switching PLL %x off\n", pll->pll_reg);
+	if (pll->active == 0) {
+		DRM_DEBUG_DRIVER("setting up pll %d\n", i);
+		WARN_ON(pll->on);
+		assert_pch_pll_disabled(dev_priv, pll, NULL);
 
-	/* Wait for the clocks to stabilize before rewriting the regs */
-	I915_WRITE(pll->pll_reg, dpll & ~DPLL_VCO_ENABLE);
-	POSTING_READ(pll->pll_reg);
-	udelay(150);
+		/* Wait for the clocks to stabilize before rewriting the regs */
+		I915_WRITE(pll->pll_reg, dpll & ~DPLL_VCO_ENABLE);
+		POSTING_READ(pll->pll_reg);
+		udelay(150);
 
-	I915_WRITE(pll->fp0_reg, fp);
-	I915_WRITE(pll->pll_reg, dpll & ~DPLL_VCO_ENABLE);
-	pll->on = false;
+		I915_WRITE(pll->fp0_reg, fp);
+		I915_WRITE(pll->pll_reg, dpll & ~DPLL_VCO_ENABLE);
+	}
+	pll->refcount++;
+
 	return pll;
 }
 
