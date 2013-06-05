@@ -107,7 +107,7 @@ static void clk_summary_show_one(struct seq_file *s, struct clk *c, int level)
 	seq_printf(s, "%*s%-*s %-11d %-12d %-10lu",
 		   level * 3 + 1, "",
 		   30 - level * 3, c->name,
-		   c->enable_count, c->prepare_count, c->rate);
+		   c->enable_count, c->prepare_count, clk_get_rate(c));
 	seq_printf(s, "\n");
 }
 
@@ -166,7 +166,7 @@ static void clk_dump_one(struct seq_file *s, struct clk *c, int level)
 	seq_printf(s, "\"%s\": { ", c->name);
 	seq_printf(s, "\"enable_count\": %d,", c->enable_count);
 	seq_printf(s, "\"prepare_count\": %d,", c->prepare_count);
-	seq_printf(s, "\"rate\": %lu", c->rate);
+	seq_printf(s, "\"rate\": %lu", clk_get_rate(c));
 }
 
 static void clk_dump_subtree(struct seq_file *s, struct clk *c, int level)
