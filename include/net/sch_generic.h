@@ -58,14 +58,12 @@ struct Qdisc {
 				      * multiqueue device.
 				      */
 #define TCQ_F_WARN_NONWC	(1 << 16)
-	int			padded;
+	u32			limit;
 	const struct Qdisc_ops	*ops;
 	struct qdisc_size_table	__rcu *stab;
 	struct list_head	list;
 	u32			handle;
 	u32			parent;
-	atomic_t		refcnt;
-	struct gnet_stats_rate_est	rate_est;
 	int			(*reshape_fail)(struct sk_buff *skb,
 					struct Qdisc *q);
 
@@ -76,8 +74,9 @@ struct Qdisc {
 	 */
 	struct Qdisc		*__parent;
 	struct netdev_queue	*dev_queue;
-	struct Qdisc		*next_sched;
 
+	struct gnet_stats_rate_est64	rate_est;
+	struct Qdisc		*next_sched;
 	struct sk_buff		*gso_skb;
 	/*
 	 * For performance sake on SMP, we put highly modified fields at the end
@@ -88,8 +87,10 @@ struct Qdisc {
 	unsigned int		__state;
 	struct gnet_stats_queue	qstats;
 	struct rcu_head		rcu_head;
-	spinlock_t		busylock;
-	u32			limit;
+	int			padded;
+	atomic_t		refcnt;
+
+	spinlock_t		busylock ____cacheline_aligned_in_smp;
 };
 
 static inline bool qdisc_is_running(const struct Qdisc *qdisc)
