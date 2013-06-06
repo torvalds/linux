@@ -72,7 +72,16 @@ do {									\
 
 #define LASSERT(cond) LASSERTF(cond, "\n")
 
+#ifdef CONFIG_LUSTRE_DEBUG_EXPENSIVE_CHECK
+/**
+ * This is for more expensive checks that one doesn't want to be enabled all
+ * the time. LINVRNT() has to be explicitly enabled by
+ * CONFIG_LUSTRE_DEBUG_EXPENSIVE_CHECK option.
+ */
+# define LINVRNT(exp) LASSERT(exp)
+#else
 # define LINVRNT(exp) ((void)sizeof!!(exp))
+#endif
 
 #define KLASSERT(e) LASSERT(e)
 
