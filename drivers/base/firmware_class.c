@@ -523,8 +523,6 @@ static void fw_dev_release(struct device *dev)
 	struct firmware_priv *fw_priv = to_firmware_priv(dev);
 
 	kfree(fw_priv);
-
-	module_put(THIS_MODULE);
 }
 
 static int firmware_uevent(struct device *dev, struct kobj_uevent_env *env)
@@ -852,9 +850,6 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 
 	dev_set_uevent_suppress(f_dev, true);
 
-	/* Need to pin this module until class device is destroyed */
-	__module_get(THIS_MODULE);
-
 	retval = device_add(f_dev);
 	if (retval) {
 		dev_err(f_dev, "%s: device_register failed\n", __func__);
@@ -1131,7 +1126,13 @@ int
 request_firmware(const struct firmware **firmware_p, const char *name,
                  struct device *device)
 {
-	return _request_firmware(firmware_p, name, device, true, false);
+	int ret;
+
+	/* Need to pin this module until return */
+	__module_get(THIS_MODULE);
+	ret = _request_firmware(firmware_p, name, device, true, false);
+	module_put(THIS_MODULE);
+	return ret;
 }
 EXPORT_SYMBOL(request_firmware);
 
