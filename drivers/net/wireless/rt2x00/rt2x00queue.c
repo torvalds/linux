@@ -542,8 +542,8 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	/*
 	 * Add the requested extra tx headroom in front of the skb.
 	 */
-	skb_push(entry->skb, rt2x00dev->ops->extra_tx_headroom);
-	memset(entry->skb->data, 0, rt2x00dev->ops->extra_tx_headroom);
+	skb_push(entry->skb, rt2x00dev->extra_tx_headroom);
+	memset(entry->skb->data, 0, rt2x00dev->extra_tx_headroom);
 
 	/*
 	 * Call the driver's write_tx_data function, if it exists.
@@ -596,7 +596,7 @@ static void rt2x00queue_bar_check(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_bar *bar = (void *) (entry->skb->data +
-				    rt2x00dev->ops->extra_tx_headroom);
+				    rt2x00dev->extra_tx_headroom);
 	struct rt2x00_bar_list_entry *bar_entry;
 
 	if (likely(!ieee80211_is_back_req(bar->frame_control)))

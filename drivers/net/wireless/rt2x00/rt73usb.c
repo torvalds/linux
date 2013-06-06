@@ -2400,7 +2400,6 @@ static const struct rt2x00_ops rt73usb_ops = {
 	.eeprom_size		= EEPROM_SIZE,
 	.rf_size		= RF_SIZE,
 	.tx_queues		= NUM_TX_QUEUES,
-	.extra_tx_headroom	= TXD_DESC_SIZE,
 	.queue_init		= rt73usb_queue_init,
 	.lib			= &rt73usb_rt2x00_ops,
 	.hw			= &rt73usb_mac80211_ops,

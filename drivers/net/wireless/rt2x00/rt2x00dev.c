@@ -334,7 +334,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	/*
 	 * Remove the extra tx headroom from the skb.
 	 */
-	skb_pull(entry->skb, rt2x00dev->ops->extra_tx_headroom);
+	skb_pull(entry->skb, rt2x00dev->extra_tx_headroom);
 
 	/*
 	 * Signal that the TX descriptor is no longer in the skb.
@@ -1049,7 +1049,7 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00dev->hw->extra_tx_headroom =
 		max_t(unsigned int, IEEE80211_TX_STATUS_HEADROOM,
-		      rt2x00dev->ops->extra_tx_headroom);
+		      rt2x00dev->extra_tx_headroom);
 
 	/*
 	 * Take TX headroom required for alignment into account.
@@ -1256,6 +1256,17 @@ static inline void rt2x00lib_set_if_combinations(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->hw->wiphy->n_iface_combinations = 1;
 }
 
+static unsigned int rt2x00dev_extra_tx_headroom(struct rt2x00_dev *rt2x00dev)
+{
+	if (WARN_ON(!rt2x00dev->tx))
+		return 0;
+
+	if (rt2x00_is_usb(rt2x00dev))
+		return rt2x00dev->tx[0].winfo_size + rt2x00dev->tx[0].desc_size;
+
+	return rt2x00dev->tx[0].winfo_size;
+}
+
 /*
  * driver allocation handlers.
  */
@@ -1329,6 +1340,9 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	retval = rt2x00queue_allocate(rt2x00dev);
 	if (retval)
 		goto exit;
+
+	/* Cache TX headroom value */
+	rt2x00dev->extra_tx_headroom = rt2x00dev_extra_tx_headroom(rt2x00dev);
 
 	/*
 	 * Determine which operating modes are supported, all modes
