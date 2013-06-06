@@ -75,12 +75,11 @@ static ssize_t wusb_trust_timeout_store(struct device *dev,
 		result = -EINVAL;
 		goto out;
 	}
-	/* FIXME: maybe we should check for range validity? */
-	wusbhc->trust_timeout = trust_timeout;
+	wusbhc->trust_timeout = min_t(unsigned, trust_timeout, 500);
 	cancel_delayed_work(&wusbhc->keep_alive_timer);
 	flush_workqueue(wusbd);
 	queue_delayed_work(wusbd, &wusbhc->keep_alive_timer,
-			   (trust_timeout * CONFIG_HZ)/1000/2);
+			   msecs_to_jiffies(wusbhc->trust_timeout / 2));
 out:
 	return result < 0 ? result : size;
 }
