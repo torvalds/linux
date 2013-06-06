@@ -155,14 +155,11 @@ static void vhost_net_ubuf_put_and_wait(struct vhost_net_ubuf_ref *ubufs)
 
 static void vhost_net_clear_ubuf_info(struct vhost_net *n)
 {
-
-	bool zcopy;
 	int i;
 
-	for (i = 0; i < n->dev.nvqs; ++i) {
-		zcopy = vhost_net_zcopy_mask & (0x1 << i);
-		if (zcopy)
-			kfree(n->vqs[i].ubuf_info);
+	for (i = 0; i < VHOST_NET_VQ_MAX; ++i) {
+		kfree(n->vqs[i].ubuf_info);
+		n->vqs[i].ubuf_info = NULL;
 	}
 }
 
@@ -171,7 +168,7 @@ int vhost_net_set_ubuf_info(struct vhost_net *n)
 	bool zcopy;
 	int i;
 
-	for (i = 0; i < n->dev.nvqs; ++i) {
+	for (i = 0; i < VHOST_NET_VQ_MAX; ++i) {
 		zcopy = vhost_net_zcopy_mask & (0x1 << i);
 		if (!zcopy)
 			continue;
@@ -183,12 +180,7 @@ int vhost_net_set_ubuf_info(struct vhost_net *n)
 	return 0;
 
 err:
-	while (i--) {
-		zcopy = vhost_net_zcopy_mask & (0x1 << i);
-		if (!zcopy)
-			continue;
-		kfree(n->vqs[i].ubuf_info);
-	}
+	vhost_net_clear_ubuf_info(n);
 	return -ENOMEM;
 }
 
@@ -196,12 +188,12 @@ void vhost_net_vq_reset(struct vhost_net *n)
 {
 	int i;
 
+	vhost_net_clear_ubuf_info(n);
+
 	for (i = 0; i < VHOST_NET_VQ_MAX; i++) {
 		n->vqs[i].done_idx = 0;
 		n->vqs[i].upend_idx = 0;
 		n->vqs[i].ubufs = NULL;
-		kfree(n->vqs[i].ubuf_info);
-		n->vqs[i].ubuf_info = NULL;
 		n->vqs[i].vhost_hlen = 0;
 		n->vqs[i].sock_hlen = 0;
 	}
