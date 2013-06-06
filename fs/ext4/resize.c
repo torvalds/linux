@@ -79,12 +79,20 @@ static int verify_group_input(struct super_block *sb,
 	ext4_fsblk_t end = start + input->blocks_count;
 	ext4_group_t group = input->group;
 	ext4_fsblk_t itend = input->inode_table + sbi->s_itb_per_group;
-	unsigned overhead = ext4_group_overhead_blocks(sb, group);
-	ext4_fsblk_t metaend = start + overhead;
+	unsigned overhead;
+	ext4_fsblk_t metaend;
 	struct buffer_head *bh = NULL;
 	ext4_grpblk_t free_blocks_count, offset;
 	int err = -EINVAL;
 
+	if (group != sbi->s_groups_count) {
+		ext4_warning(sb, "Cannot add at group %u (only %u groups)",
+			     input->group, sbi->s_groups_count);
+		return -EINVAL;
+	}
+
+	overhead = ext4_group_overhead_blocks(sb, group);
+	metaend = start + overhead;
 	input->free_blocks_count = free_blocks_count =
 		input->blocks_count - 2 - overhead - sbi->s_itb_per_group;
 
@@ -96,10 +104,7 @@ static int verify_group_input(struct super_block *sb,
 		       free_blocks_count, input->reserved_blocks);
 
 	ext4_get_group_no_and_offset(sb, start, NULL, &offset);
-	if (group != sbi->s_groups_count)
-		ext4_warning(sb, "Cannot add at group %u (only %u groups)",
-			     input->group, sbi->s_groups_count);
-	else if (offset != 0)
+	if (offset != 0)
 			ext4_warning(sb, "Last group not full");
 	else if (input->reserved_blocks > input->blocks_count / 5)
 		ext4_warning(sb, "Reserved blocks too high (%u)",
