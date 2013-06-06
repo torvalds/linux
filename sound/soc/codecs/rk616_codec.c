@@ -1727,6 +1727,7 @@ static int rk616_codec_power_up(int type)
 		type == RK616_CODEC_CAPTURE ? "capture" : "");
 
 	if (type == RK616_CODEC_PALYBACK) {
+		if(! get_hdmi_state())
 		for (i = 0; i < RK616_CODEC_PALYBACK_POWER_UP_LIST_LEN; i++) {
 			snd_soc_write(codec, palyback_power_up_list[i].reg,
 				palyback_power_up_list[i].value);
