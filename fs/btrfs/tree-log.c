@@ -280,11 +280,23 @@ static int process_one_buffer(struct btrfs_root *log,
 {
 	int ret = 0;
 
+	/*
+	 * If this fs is mixed then we need to be able to process the leaves to
+	 * pin down any logged extents, so we have to read the block.
+	 */
+	if (btrfs_fs_incompat(log->fs_info, MIXED_GROUPS)) {
+		ret = btrfs_read_buffer(eb, gen);
+		if (ret)
+			return ret;
+	}
+
 	if (wc->pin)
 		ret = btrfs_pin_extent_for_log_replay(log->fs_info->extent_root,
 						      eb->start, eb->len);
 
 	if (!ret && btrfs_buffer_uptodate(eb, gen, 0)) {
+		if (wc->pin && btrfs_header_level(eb) == 0)
+			ret = btrfs_exclude_logged_extents(log, eb);
 		if (wc->write)
 			btrfs_write_tree_block(eb);
 		if (wc->wait)

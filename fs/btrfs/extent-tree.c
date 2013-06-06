@@ -5214,6 +5214,80 @@ int btrfs_pin_extent_for_log_replay(struct btrfs_root *root,
 	return ret;
 }
 
+static int __exclude_logged_extent(struct btrfs_root *root, u64 start, u64 num_bytes)
+{
+	int ret;
+	struct btrfs_block_group_cache *block_group;
+	struct btrfs_caching_control *caching_ctl;
+
+	block_group = btrfs_lookup_block_group(root->fs_info, start);
+	if (!block_group)
+		return -EINVAL;
+
+	cache_block_group(block_group, 0);
+	caching_ctl = get_caching_control(block_group);
+
+	if (!caching_ctl) {
+		/* Logic error */
+		BUG_ON(!block_group_cache_done(block_group));
+		ret = btrfs_remove_free_space(block_group, start, num_bytes);
+	} else {
+		mutex_lock(&caching_ctl->mutex);
+
+		if (start >= caching_ctl->progress) {
+			ret = add_excluded_extent(root, start, num_bytes);
+		} else if (start + num_bytes <= caching_ctl->progress) {
+			ret = btrfs_remove_free_space(block_group,
+						      start, num_bytes);
+		} else {
+			num_bytes = caching_ctl->progress - start;
+			ret = btrfs_remove_free_space(block_group,
+						      start, num_bytes);
+			if (ret)
+				goto out_lock;
+
+			num_bytes = (start + num_bytes) -
+				caching_ctl->progress;
+			start = caching_ctl->progress;
+			ret = add_excluded_extent(root, start, num_bytes);
+		}
+out_lock:
+		mutex_unlock(&caching_ctl->mutex);
+		put_caching_control(caching_ctl);
+	}
+	btrfs_put_block_group(block_group);
+	return ret;
+}
+
+int btrfs_exclude_logged_extents(struct btrfs_root *log,
+				 struct extent_buffer *eb)
+{
+	struct btrfs_file_extent_item *item;
+	struct btrfs_key key;
+	int found_type;
+	int i;
+
+	if (!btrfs_fs_incompat(log->fs_info, MIXED_GROUPS))
+		return 0;
+
+	for (i = 0; i < btrfs_header_nritems(eb); i++) {
+		btrfs_item_key_to_cpu(eb, &key, i);
+		if (key.type != BTRFS_EXTENT_DATA_KEY)
+			continue;
+		item = btrfs_item_ptr(eb, i, struct btrfs_file_extent_item);
+		found_type = btrfs_file_extent_type(eb, item);
+		if (found_type == BTRFS_FILE_EXTENT_INLINE)
+			continue;
+		if (btrfs_file_extent_disk_bytenr(eb, item) == 0)
+			continue;
+		key.objectid = btrfs_file_extent_disk_bytenr(eb, item);
+		key.offset = btrfs_file_extent_disk_num_bytes(eb, item);
+		__exclude_logged_extent(log, key.objectid, key.offset);
+	}
+
+	return 0;
+}
+
 /**
  * btrfs_update_reserved_bytes - update the block_group and space info counters
  * @cache:	The cache we are manipulating
@@ -6585,52 +6659,26 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 {
 	int ret;
 	struct btrfs_block_group_cache *block_group;
-	struct btrfs_caching_control *caching_ctl;
-	u64 start = ins->objectid;
-	u64 num_bytes = ins->offset;
+
+	/*
+	 * Mixed block groups will exclude before processing the log so we only
+	 * need to do the exlude dance if this fs isn't mixed.
+	 */
+	if (!btrfs_fs_incompat(root->fs_info, MIXED_GROUPS)) {
+		ret = __exclude_logged_extent(root, ins->objectid, ins->offset);
+		if (ret)
+			return ret;
+	}
 
 	block_group = btrfs_lookup_block_group(root->fs_info, ins->objectid);
-	cache_block_group(block_group, 0);
-	caching_ctl = get_caching_control(block_group);
-
-	if (!caching_ctl) {
-		BUG_ON(!block_group_cache_done(block_group));
-		ret = btrfs_remove_free_space(block_group, start, num_bytes);
-		if (ret)
-			goto out;
-	} else {
-		mutex_lock(&caching_ctl->mutex);
-
-		if (start >= caching_ctl->progress) {
-			ret = add_excluded_extent(root, start, num_bytes);
-		} else if (start + num_bytes <= caching_ctl->progress) {
-			ret = btrfs_remove_free_space(block_group,
-						      start, num_bytes);
-		} else {
-			num_bytes = caching_ctl->progress - start;
-			ret = btrfs_remove_free_space(block_group,
-						      start, num_bytes);
-			if (ret)
-				goto out_lock;
-
-			start = caching_ctl->progress;
-			num_bytes = ins->objectid + ins->offset -
-				    caching_ctl->progress;
-			ret = add_excluded_extent(root, start, num_bytes);
-		}
-out_lock:
-		mutex_unlock(&caching_ctl->mutex);
-		put_caching_control(caching_ctl);
-		if (ret)
-			goto out;
-	}
+	if (!block_group)
+		return -EINVAL;
 
 	ret = btrfs_update_reserved_bytes(block_group, ins->offset,
 					  RESERVE_ALLOC_NO_ACCOUNT);
 	BUG_ON(ret); /* logic error */
 	ret = alloc_reserved_file_extent(trans, root, 0, root_objectid,
 					 0, owner, offset, ins, 1);
-out:
 	btrfs_put_block_group(block_group);
 	return ret;
 }
