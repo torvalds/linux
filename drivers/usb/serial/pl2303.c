@@ -640,7 +640,7 @@ static int pl2303_ioctl(struct tty_struct *tty,
 		memset(&ser, 0, sizeof ser);
 		ser.type = PORT_16654;
 		ser.line = port->serial->minor;
-		ser.port = port->number;
+		ser.port = port->port_number;
 		ser.baud_base = 460800;
 
 		if (copy_to_user((void __user *)arg, &ser, sizeof ser))

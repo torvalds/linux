@@ -37,7 +37,8 @@
  * @serial: pointer back to the struct usb_serial owner of this port.
  * @port: pointer to the corresponding tty_port for this port.
  * @lock: spinlock to grab when updating portions of this structure.
- * @number: the number of the port (the minor number).
+ * @minor: the minor number of the port
+ * @port_number: the struct usb_serial port number of this port (starts at 0)
  * @interrupt_in_buffer: pointer to the interrupt in buffer for this port.
  * @interrupt_in_urb: pointer to the interrupt in struct urb for this port.
  * @interrupt_in_endpointAddress: endpoint address for the interrupt in pipe
@@ -80,7 +81,8 @@ struct usb_serial_port {
 	struct usb_serial	*serial;
 	struct tty_port		port;
 	spinlock_t		lock;
-	unsigned char		number;
+	u32			minor;
+	u8			port_number;
 
 	unsigned char		*interrupt_in_buffer;
 	struct urb		*interrupt_in_urb;

@@ -948,9 +948,9 @@ static void garmin_close(struct usb_serial_port *port)
 {
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 
-	dev_dbg(&port->dev, "%s - port %d - mode=%d state=%d flags=0x%X\n",
-		__func__, port->number, garmin_data_p->mode,
-		garmin_data_p->state, garmin_data_p->flags);
+	dev_dbg(&port->dev, "%s - mode=%d state=%d flags=0x%X\n",
+		__func__, garmin_data_p->mode, garmin_data_p->state,
+		garmin_data_p->flags);
 
 	garmin_clear(garmin_data_p);
 

@@ -105,9 +105,10 @@ static struct usb_serial *get_free_serial(struct usb_serial *serial,
 		*minor = i;
 		j = 0;
 		dev_dbg(&serial->interface->dev, "%s - minor base = %d\n", __func__, *minor);
-		for (i = *minor; (i < (*minor + num_ports)) && (i < SERIAL_TTY_MINORS); ++i) {
+		for (i = *minor; (i < (*minor + num_ports)) && (i < SERIAL_TTY_MINORS); ++i, ++j) {
 			serial_table[i] = serial;
-			serial->port[j++]->number = i;
+			serial->port[j]->minor = i;
+			serial->port[j]->port_number = i - *minor;
 		}
 		mutex_unlock(&table_lock);
 		return serial;
@@ -1048,7 +1049,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 	/* register all of the individual ports with the driver core */
 	for (i = 0; i < num_ports; ++i) {
 		port = serial->port[i];
-		dev_set_name(&port->dev, "ttyUSB%d", port->number);
+		dev_set_name(&port->dev, "ttyUSB%d", port->minor);
 		dev_dbg(ddev, "registering %s", dev_name(&port->dev));
 		device_enable_async_suspend(&port->dev);
 

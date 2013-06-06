@@ -873,7 +873,7 @@ static int qt_open(struct tty_struct *tty,
 	result = qt_get_device(serial, &port0->DeviceData);
 
 	/* Port specific setups */
-	result = qt_open_channel(serial, port->number, &ChannelData);
+	result = qt_open_channel(serial, port->port_number, &ChannelData);
 	if (result < 0) {
 		dev_dbg(&port->dev, "qt_open_channel failed\n");
 		return result;
@@ -888,7 +888,7 @@ static int qt_open(struct tty_struct *tty,
 	    (SERIAL_MSR_CTS | SERIAL_MSR_DSR | SERIAL_MSR_RI | SERIAL_MSR_CD);
 
 	/* Set Baud rate to default and turn off (default)flow control here */
-	result = qt_setuart(serial, port->number, DEFAULT_DIVISOR, DEFAULT_LCR);
+	result = qt_setuart(serial, port->port_number, DEFAULT_DIVISOR, DEFAULT_LCR);
 	if (result < 0) {
 		dev_dbg(&port->dev, "qt_setuart failed\n");
 		return result;
@@ -906,7 +906,6 @@ static int qt_open(struct tty_struct *tty,
 			qt_submit_urb_from_open(serial, port);
 	}
 
-	dev_dbg(&port->dev, "port number is %d\n", port->number);
 	dev_dbg(&port->dev, "serial number is %d\n", port->serial->minor);
 	dev_dbg(&port->dev,
 		"Bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
@@ -1022,14 +1021,11 @@ static void qt_close(struct usb_serial_port *port)
 	/* Close uart channel */
 	status = qt_close_channel(serial, index);
 	if (status < 0)
-		dev_dbg(&port->dev,
-			"%s - port %d qt_close_channel failed.\n",
-			__func__, port->number);
+		dev_dbg(&port->dev, "%s - qt_close_channel failed.\n", __func__);
 
 	port0->open_ports--;
 
-	dev_dbg(&port->dev, "qt_num_open_ports in close%d:in port%d\n",
-		port0->open_ports, port->number);
+	dev_dbg(&port->dev, "qt_num_open_ports in close%d\n", port0->open_ports);
 
 	if (port0->open_ports == 0) {
 		if (serial->port[0]->interrupt_in_urb) {
@@ -1169,8 +1165,7 @@ static int qt_ioctl(struct tty_struct *tty,
 		return 0;
 	}
 
-	dev_dbg(&port->dev, "%s -No ioctl for that one.  port = %d\n",
-		__func__, port->number);
+	dev_dbg(&port->dev, "%s -No ioctl for that one.\n", __func__);
 	return -ENOIOCTLCMD;
 }
 
@@ -1245,8 +1240,7 @@ static void qt_set_termios(struct tty_struct *tty,
 
 	/* Now determine flow control */
 	if (cflag & CRTSCTS) {
-		dev_dbg(&port->dev, "%s - Enabling HW flow control port %d\n",
-			__func__, port->number);
+		dev_dbg(&port->dev, "%s - Enabling HW flow control\n", __func__);
 
 		/* Enable RTS/CTS flow control */
 		status = BoxSetHW_FlowCtrl(port->serial, index, 1);
@@ -1258,8 +1252,7 @@ static void qt_set_termios(struct tty_struct *tty,
 	} else {
 		/* Disable RTS/CTS flow control */
 		dev_dbg(&port->dev,
-			"%s - disabling HW flow control port %d\n",
-			__func__, port->number);
+			"%s - disabling HW flow control\n", __func__);
 
 		status = BoxSetHW_FlowCtrl(port->serial, index, 0);
 		if (status < 0) {

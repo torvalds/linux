@@ -125,7 +125,7 @@ static int get_serial_info(struct usb_serial_port *port,
 
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.line            = port->serial->minor;
-	tmp.port            = port->number;
+	tmp.port            = port->port_number;
 	tmp.baud_base       = tty_get_baud_rate(port->port.tty);
 	tmp.close_delay	    = port->port.close_delay / 10;
 	tmp.closing_wait    = port->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?

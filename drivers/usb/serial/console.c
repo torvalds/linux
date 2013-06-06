@@ -210,7 +210,7 @@ static void usb_console_write(struct console *co,
 	if (count == 0)
 		return;
 
-	pr_debug("%s - port %d, %d byte(s)\n", __func__, port->number, count);
+	pr_debug("%s - minor %d, %d byte(s)\n", __func__, port->minor, count);
 
 	if (!port->port.console) {
 		pr_debug("%s - port not opened\n", __func__);

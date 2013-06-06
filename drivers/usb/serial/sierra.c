@@ -914,7 +914,7 @@ static int sierra_port_probe(struct usb_serial_port *port)
 		/* This is really the usb-serial port number of the interface
 		 * rather than the interface number.
 		 */
-		ifnum = port->number - serial->minor;
+		ifnum = port->port_number;
 		himemoryp = &typeA_interface_list;
 	}
 
