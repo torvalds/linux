@@ -509,9 +509,9 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 						(long)(info->DSPInfoBlklen + 1) / 2;
 					put_request_value(dev, word_length);
 					pMailBoxData =
-						(struct drv_msg *) & info->DSPInfoBlk[0];
+						(struct drv_msg *) &info->DSPInfoBlk[0];
 					pUsData =
-						(u16 *) & pMailBoxData->data[0];
+						(u16 *) &pMailBoxData->data[0];
 					/* Provide mutual exclusive access while reading ASIC registers. */
 					spin_lock_irqsave(&info->dpram_lock,
 							  flags);
@@ -691,7 +691,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 
 			if (pHdr->portdest == 0x80	/* DspOAM */
 				&& (pHdr->portsrc == 0x00	/* Driver */
-				|| pHdr->portsrc == 0x10 /* FMM */ )) {
+				|| pHdr->portsrc == 0x10 /* FMM */)) {
 				uiState = STATE_SECTION_PROV;
 			} else {
 				DEBUG(1,
@@ -710,7 +710,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 			pHdr = (struct pseudo_hdr *) pUcFile;
 
 			if (pHdr->checksum == hdr_checksum(pHdr)) {
-				if (pHdr->portdest != 0x80 /* Dsp OAM */ ) {
+				if (pHdr->portdest != 0x80 /* Dsp OAM */) {
 					uiState = STATE_DONE_PROV;
 					break;
 				}
