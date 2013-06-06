@@ -193,6 +193,17 @@ typedef struct dpll {
 } intel_clock_t;
 
 struct intel_crtc_config {
+	/**
+	 * quirks - bitfield with hw state readout quirks
+	 *
+	 * For various reasons the hw state readout code might not be able to
+	 * completely faithfully read out the current state. These cases are
+	 * tracked with quirk flags so that fastboot and state checker can act
+	 * accordingly.
+	 */
+#define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS (1<<0) /* unreliable sync mode.flags */
+	unsigned long quirks;
+
 	struct drm_display_mode requested_mode;
 	struct drm_display_mode adjusted_mode;
 	/* This flag must be set by the encoder's compute_config callback if it
