@@ -83,11 +83,9 @@
  *
  * This register is used to control the frequency of the hclk and the hreset and phy_rst signals.
  */
-union cvmx_usbnx_clk_ctl
-{
+union cvmx_usbnx_clk_ctl {
 	uint64_t u64;
-	struct cvmx_usbnx_clk_ctl_s
-	{
+	struct cvmx_usbnx_clk_ctl_s {
 	uint64_t reserved_20_63               : 44;
 	uint64_t divide2                      : 2;  /**< The 'hclk' used by the USB subsystem is derived
                                                          from the eclk.
@@ -159,8 +157,7 @@ union cvmx_usbnx_clk_ctl
                                                          The ENABLE field of this register should not be set
                                                          until AFTER this field is set and then read. */
 	} s;
-	struct cvmx_usbnx_clk_ctl_cn30xx
-	{
+	struct cvmx_usbnx_clk_ctl_cn30xx {
 	uint64_t reserved_18_63               : 46;
 	uint64_t hclk_rst                     : 1;  /**< When this field is '0' the HCLK-DIVIDER used to
                                                          generate the hclk in the USB Subsystem is held
@@ -227,8 +224,7 @@ union cvmx_usbnx_clk_ctl
                                                          The hclk frequency must be less than 125 MHz. */
 	} cn30xx;
 	struct cvmx_usbnx_clk_ctl_cn30xx      cn31xx;
-	struct cvmx_usbnx_clk_ctl_cn50xx
-	{
+	struct cvmx_usbnx_clk_ctl_cn50xx {
 	uint64_t reserved_20_63               : 44;
 	uint64_t divide2                      : 2;  /**< The 'hclk' used by the USB subsystem is derived
                                                          from the eclk.
@@ -315,11 +311,9 @@ typedef union cvmx_usbnx_clk_ctl cvmx_usbnx_clk_ctl_t;
  *
  * Contains general control and status information for the USBN block.
  */
-union cvmx_usbnx_usbp_ctl_status
-{
+union cvmx_usbnx_usbp_ctl_status {
 	uint64_t u64;
-	struct cvmx_usbnx_usbp_ctl_status_s
-	{
+	struct cvmx_usbnx_usbp_ctl_status_s {
 	uint64_t txrisetune                   : 1;  /**< HS Transmitter Rise/Fall Time Adjustment */
 	uint64_t txvreftune                   : 4;  /**< HS DC Voltage Level Adjustment */
 	uint64_t txfslstune                   : 4;  /**< FS/LS Source Impedence Adjustment */
@@ -432,8 +426,7 @@ union cvmx_usbnx_usbp_ctl_status
                                                          are available within a specific period after the
                                                          de-assertion. */
 	} s;
-	struct cvmx_usbnx_usbp_ctl_status_cn30xx
-	{
+	struct cvmx_usbnx_usbp_ctl_status_cn30xx {
 	uint64_t reserved_38_63               : 26;
 	uint64_t bist_done                    : 1;  /**< PHY Bist Done.
                                                          Asserted at the end of the PHY BIST sequence. */
@@ -527,8 +520,7 @@ union cvmx_usbnx_usbp_ctl_status
                                                          are available within a specific period after the
                                                          de-assertion. */
 	} cn30xx;
-	struct cvmx_usbnx_usbp_ctl_status_cn50xx
-	{
+	struct cvmx_usbnx_usbp_ctl_status_cn50xx {
 	uint64_t txrisetune                   : 1;  /**< HS Transmitter Rise/Fall Time Adjustment */
 	uint64_t txvreftune                   : 4;  /**< HS DC Voltage Level Adjustment */
 	uint64_t txfslstune                   : 4;  /**< FS/LS Source Impedence Adjustment */
@@ -621,8 +613,7 @@ union cvmx_usbnx_usbp_ctl_status
                                                          are available within a specific period after the
                                                          de-assertion. */
 	} cn50xx;
-	struct cvmx_usbnx_usbp_ctl_status_cn52xx
-	{
+	struct cvmx_usbnx_usbp_ctl_status_cn52xx {
 	uint64_t txrisetune                   : 1;  /**< HS Transmitter Rise/Fall Time Adjustment */
 	uint64_t txvreftune                   : 4;  /**< HS DC Voltage Level Adjustment */
 	uint64_t txfslstune                   : 4;  /**< FS/LS Source Impedence Adjustment */
