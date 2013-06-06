@@ -1728,10 +1728,9 @@ static int brcmf_fws_commit_skb(struct brcmf_fws_info *fws, int fifo,
 		entry->suppr_transit_count++;
 	entry->seq[fifo]++;
 	fws->stats.pkt2bus++;
-	if (brcmf_skbcb(skb)->if_flags & BRCMF_SKB_IF_FLAGS_CREDITCHECK_MASK) {
-		fws->stats.send_pkts[fifo]++;
+	fws->stats.send_pkts[fifo]++;
+	if (brcmf_skbcb(skb)->if_flags & BRCMF_SKB_IF_FLAGS_CREDITCHECK_MASK)
 		fws->stats.fifo_credits_sent[fifo]++;
-	}
 
 	return rc;
 
