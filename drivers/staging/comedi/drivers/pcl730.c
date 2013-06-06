@@ -66,11 +66,14 @@ static int pcl730_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pcl730_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int pcl730_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	data[1] = inb(dev->iobase + ((unsigned long)s->private)) |
-	    (inb(dev->iobase + ((unsigned long)s->private) + 1) << 8);
+	unsigned long reg = (unsigned long)s->private;
+
+	data[1] = inb(dev->iobase + reg) | (inb(dev->iobase + reg + 1) << 8);
 
 	return insn->n;
 }
@@ -105,7 +108,7 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags = SDF_READABLE;
 	s->maxdata = 1;
 	s->n_chan = 16;
-	s->insn_bits = pcl730_di_insn;
+	s->insn_bits = pcl730_di_insn_bits;
 	s->range_table = &range_digital;
 	s->private = (void *)PCL730_IDIO_LO;
 
@@ -125,7 +128,7 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags = SDF_READABLE;
 	s->maxdata = 1;
 	s->n_chan = 16;
-	s->insn_bits = pcl730_di_insn;
+	s->insn_bits = pcl730_di_insn_bits;
 	s->range_table = &range_digital;
 	s->private = (void *)PCL730_DIO_LO;
 
