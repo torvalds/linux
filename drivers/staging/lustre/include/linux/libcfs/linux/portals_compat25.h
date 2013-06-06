@@ -109,8 +109,6 @@ int proc_call_handler(void *data, int write,
 #define NR_CPUS     1
 #endif
 
-#define cfs_set_cpus_allowed(t, mask)  set_cpus_allowed(t, mask)
-
 #define cfs_register_sysctl_table(t, a) register_sysctl_table(t)
 
 #endif /* _PORTALS_COMPAT_H */

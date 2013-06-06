@@ -395,8 +395,8 @@ static int ptlrpcd(void *arg)
 				if (++index >= num_possible_cpus())
 					index = 0;
 			}
-			cfs_set_cpus_allowed(current,
-				     *cpumask_of_node(cpu_to_node(index)));
+			set_cpus_allowed_ptr(current,
+					cpumask_of_node(cpu_to_node(index)));
 		}
 	}
 #endif

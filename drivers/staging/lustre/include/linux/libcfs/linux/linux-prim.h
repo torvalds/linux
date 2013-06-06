@@ -79,8 +79,6 @@
 #define NR_CPUS     1
 #endif
 
-#define cfs_set_cpus_allowed(t, mask)  set_cpus_allowed(t, mask)
-
 /*
  * cache
  */

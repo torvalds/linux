@@ -627,7 +627,7 @@ cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt)
 		if (cpu_isset(i, *cpumask))
 			continue;
 
-		rc = set_cpus_allowed(current, *cpumask);
+		rc = set_cpus_allowed_ptr(current, cpumask);
 		set_mems_allowed(*nodemask);
 		if (rc == 0)
 			schedule(); /* switch to allowed CPU */
