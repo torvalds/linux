@@ -20,6 +20,9 @@
 #include <linux/platform_data/atmel.h>
 #include <linux/io.h>
 #include <linux/sizes.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 
 #include <pcmcia/ss.h>
 
@@ -211,6 +214,37 @@ static struct pccard_operations at91_cf_ops = {
 
 /*--------------------------------------------------------------------------*/
 
+#if defined(CONFIG_OF)
+static const struct of_device_id at91_cf_dt_ids[] = {
+	{ .compatible = "atmel,at91rm9200-cf" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, at91_cf_dt_ids);
+
+static int at91_cf_dt_init(struct platform_device *pdev)
+{
+	struct at91_cf_data *board;
+
+	board = devm_kzalloc(&pdev->dev, sizeof(*board), GFP_KERNEL);
+	if (!board)
+		return -ENOMEM;
+
+	board->irq_pin = of_get_gpio(pdev->dev.of_node, 0);
+	board->det_pin = of_get_gpio(pdev->dev.of_node, 1);
+	board->vcc_pin = of_get_gpio(pdev->dev.of_node, 2);
+	board->rst_pin = of_get_gpio(pdev->dev.of_node, 3);
+
+	pdev->dev.platform_data = board;
+
+	return 0;
+}
+#else
+static int at91_cf_dt_init(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+#endif
+
 static int __init at91_cf_probe(struct platform_device *pdev)
 {
 	struct at91_cf_socket	*cf;
@@ -218,7 +252,15 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	struct resource		*io;
 	int			status;
 
-	if (!board || !gpio_is_valid(board->det_pin) || !gpio_is_valid(board->rst_pin))
+	if (!board) {
+		status = at91_cf_dt_init(pdev);
+		if (status)
+			return status;
+
+		board = pdev->dev.platform_data;
+	}
+
+	if (!gpio_is_valid(board->det_pin) || !gpio_is_valid(board->rst_pin))
 		return -ENODEV;
 
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -360,6 +402,7 @@ static struct platform_driver at91_cf_driver = {
 	.driver = {
 		.name		= "at91_cf",
 		.owner		= THIS_MODULE,
+		.of_match_table = of_match_ptr(at91_cf_dt_ids),
 	},
 	.remove		= __exit_p(at91_cf_remove),
 	.suspend	= at91_cf_suspend,
