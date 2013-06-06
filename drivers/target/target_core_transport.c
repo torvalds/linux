@@ -1580,10 +1580,6 @@ static void __target_execute_cmd(struct se_cmd *cmd)
 {
 	sense_reason_t ret;
 
-	spin_lock_irq(&cmd->t_state_lock);
-	cmd->transport_state |= (CMD_T_BUSY|CMD_T_SENT);
-	spin_unlock_irq(&cmd->t_state_lock);
-
 	if (cmd->execute_cmd) {
 		ret = cmd->execute_cmd(cmd);
 		if (ret) {
@@ -1690,11 +1686,17 @@ void target_execute_cmd(struct se_cmd *cmd)
 	}
 
 	cmd->t_state = TRANSPORT_PROCESSING;
-	cmd->transport_state |= CMD_T_ACTIVE;
+	cmd->transport_state |= CMD_T_ACTIVE|CMD_T_BUSY|CMD_T_SENT;
 	spin_unlock_irq(&cmd->t_state_lock);
 
-	if (!target_handle_task_attr(cmd))
-		__target_execute_cmd(cmd);
+	if (target_handle_task_attr(cmd)) {
+		spin_lock_irq(&cmd->t_state_lock);
+		cmd->transport_state &= ~CMD_T_BUSY|CMD_T_SENT;
+		spin_unlock_irq(&cmd->t_state_lock);
+		return;
+	}
+
+	__target_execute_cmd(cmd);
 }
 EXPORT_SYMBOL(target_execute_cmd);
 
