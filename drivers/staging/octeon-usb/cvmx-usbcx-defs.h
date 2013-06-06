@@ -90,13 +90,14 @@
  *
  * Core AHB Configuration Register (GAHBCFG)
  *
- * This register can be used to configure the core after power-on or a change in mode of operation.
- * This register mainly contains AHB system-related configuration parameters. The AHB is the processor
- * interface to the O2P USB core. In general, software need not know about this interface except to
+ * This register can be used to configure the core after power-on or a change in
+ * mode of operation. This register mainly contains AHB system-related
+ * configuration parameters. The AHB is the processor interface to the O2P USB
+ * core. In general, software need not know about this interface except to
  * program the values as specified.
  *
- * The application must program this register as part of the O2P USB core initialization.
- * Do not change this register after the initial programming.
+ * The application must program this register as part of the O2P USB core
+ * initialization. Do not change this register after the initial programming.
  */
 union cvmx_usbcx_gahbcfg {
 	uint32_t u32;
@@ -127,9 +128,9 @@ union cvmx_usbcx_gahbcfg {
 	 *	This field has not effect and should be left as 0x0.
 	 * @glblintrmsk: Global Interrupt Mask (GlblIntrMsk)
 	 *	Software should set this field to 0x1.
-	 *	The application uses this bit to mask  or unmask the interrupt
-	 *	line assertion to itself. Irrespective of this bit's setting, the
-	 *	interrupt status registers are updated by the core.
+	 *	The application uses this bit to mask or unmask the interrupt
+	 *	line assertion to itself. Irrespective of this bit's setting,
+	 *	the interrupt status registers are updated by the core.
 	 *	* 1'b0: Mask the interrupt assertion to the application.
 	 *	* 1'b1: Unmask the interrupt assertion to the application.
 	 */
@@ -220,9 +221,10 @@ typedef union cvmx_usbcx_ghwcfg3 cvmx_usbcx_ghwcfg3_t;
  *
  * Core Interrupt Mask Register (GINTMSK)
  *
- * This register works with the Core Interrupt register to interrupt the application.
- * When an interrupt bit is masked, the interrupt associated with that bit will not be generated.
- * However, the Core Interrupt (GINTSTS) register bit corresponding to that interrupt will still be set.
+ * This register works with the Core Interrupt register to interrupt the
+ * application. When an interrupt bit is masked, the interrupt associated with
+ * that bit will not be generated. However, the Core Interrupt (GINTSTS)
+ * register bit corresponding to that interrupt will still be set.
  * Mask interrupt: 1'b0, Unmask interrupt: 1'b1
  */
 union cvmx_usbcx_gintmsk {
@@ -242,7 +244,8 @@ union cvmx_usbcx_gintmsk {
 	 * @incomplpmsk: Incomplete Periodic Transfer Mask (incomplPMsk)
 	 *	Incomplete Isochronous OUT Transfer Mask
 	 *	(incompISOOUTMsk)
-	 * @incompisoinmsk: Incomplete Isochronous IN Transfer Mask (incompISOINMsk)
+	 * @incompisoinmsk: Incomplete Isochronous IN Transfer Mask
+	 *		    (incompISOINMsk)
 	 * @oepintmsk: OUT Endpoints Interrupt Mask (OEPIntMsk)
 	 * @inepintmsk: IN Endpoints Interrupt Mask (INEPIntMsk)
 	 * @epmismsk: Endpoint Mismatch Interrupt Mask (EPMisMsk)
@@ -257,7 +260,8 @@ union cvmx_usbcx_gintmsk {
 	 * @ulpickintmsk: ULPI Carkit Interrupt Mask (ULPICKINTMsk)
 	 *	I2C Carkit Interrupt Mask (I2CCKINTMsk)
 	 * @goutnakeffmsk: Global OUT NAK Effective Mask (GOUTNakEffMsk)
-	 * @ginnakeffmsk: Global Non-Periodic IN NAK Effective Mask (GINNakEffMsk)
+	 * @ginnakeffmsk: Global Non-Periodic IN NAK Effective Mask
+	 *		  (GINNakEffMsk)
 	 * @nptxfempmsk: Non-Periodic TxFIFO Empty Mask (NPTxFEmpMsk)
 	 * @rxflvlmsk: Receive FIFO Non-Empty Mask (RxFLvlMsk)
 	 * @sofmsk: Start of (micro)Frame Mask (SofMsk)
@@ -306,12 +310,15 @@ typedef union cvmx_usbcx_gintmsk cvmx_usbcx_gintmsk_t;
  *
  * Core Interrupt Register (GINTSTS)
  *
- * This register interrupts the application for system-level events in the current mode of operation
- * (Device mode or Host mode). It is shown in Interrupt. Some of the bits in this register are valid only in Host mode,
- * while others are valid in Device mode only. This register also indicates the current mode of operation.
- * In order to clear the interrupt status bits of type R_SS_WC, the application must write 1'b1 into the bit.
- * The FIFO status interrupts are read only; once software reads from or writes to the FIFO while servicing these
- * interrupts, FIFO interrupt conditions are cleared automatically.
+ * This register interrupts the application for system-level events in the
+ * current mode of operation (Device mode or Host mode). It is shown in
+ * Interrupt. Some of the bits in this register are valid only in Host mode,
+ * while others are valid in Device mode only. This register also indicates the
+ * current mode of operation. In order to clear the interrupt status bits of
+ * type R_SS_WC, the application must write 1'b1 into the bit. The FIFO status
+ * interrupts are read only; once software reads from or writes to the FIFO
+ * while servicing these interrupts, FIFO interrupt conditions are cleared
+ * automatically.
  */
 union cvmx_usbcx_gintsts {
 	uint32_t u32;
@@ -324,7 +331,8 @@ union cvmx_usbcx_gintsts {
 	 *	For more information on how to use this interrupt, see "Partial
 	 *	Power-Down and Clock Gating Programming Model" on
 	 *	page 353.
-	 * @sessreqint: Session Request/New Session Detected Interrupt (SessReqInt)
+	 * @sessreqint: Session Request/New Session Detected Interrupt
+	 *		(SessReqInt)
 	 *	In Host mode, this interrupt is asserted when a session request
 	 *	is detected from the device. In Device mode, this interrupt is
 	 *	asserted when the utmiotg_bvalid signal goes high.
@@ -344,27 +352,27 @@ union cvmx_usbcx_gintsts {
 	 *	bit in the Core AHB Configuration register
 	 *	(GAHBCFG.PTxFEmpLvl).
 	 * @hchint: Host Channels Interrupt (HChInt)
-	 *	The core sets this bit to indicate that an interrupt is pending on
-	 *	one of the channels of the core (in Host mode). The application
-	 *	must read the Host All Channels Interrupt (HAINT) register to
-	 *	determine the exact number of the channel on which the
-	 *	interrupt occurred, and then read the corresponding Host
+	 *	The core sets this bit to indicate that an interrupt is pending
+	 *	on one of the channels of the core (in Host mode). The
+	 *	application must read the Host All Channels Interrupt (HAINT)
+	 *	register to determine the exact number of the channel on which
+	 *	the interrupt occurred, and then read the corresponding Host
 	 *	Channel-n Interrupt (HCINTn) register to determine the exact
 	 *	cause of the interrupt. The application must clear the
 	 *	appropriate status bit in the HCINTn register to clear this bit.
 	 * @prtint: Host Port Interrupt (PrtInt)
-	 *	The core sets this bit to indicate a change in port status of one
-	 *	of the O2P USB core ports in Host mode. The application must
+	 *	The core sets this bit to indicate a change in port status of
+	 *	one of the O2P USB core ports in Host mode. The application must
 	 *	read the Host Port Control and Status (HPRT) register to
 	 *	determine the exact event that caused this interrupt. The
-	 *	application must clear the appropriate status bit in the Host Port
-	 *	Control and Status register to clear this bit.
+	 *	application must clear the appropriate status bit in the Host
+	 *	Port Control and Status register to clear this bit.
 	 * @fetsusp: Data Fetch Suspended (FetSusp)
-	 *	This interrupt is valid only in DMA mode. This interrupt indicates
-	 *	that the core has stopped fetching data for IN endpoints due to
-	 *	the unavailability of TxFIFO space or Request Queue space.
-	 *	This interrupt is used by the application for an endpoint
-	 *	mismatch algorithm.
+	 *	This interrupt is valid only in DMA mode. This interrupt
+	 *	indicates that the core has stopped fetching data for IN
+	 *	endpoints due to the unavailability of TxFIFO space or Request
+	 *	Queue space. This interrupt is used by the application for an
+	 *	endpoint mismatch algorithm.
 	 * @incomplp: Incomplete Periodic Transfer (incomplP)
 	 *	In Host mode, the core sets this interrupt bit when there are
 	 *	incomplete periodic transactions still pending which are
@@ -376,13 +384,14 @@ union cvmx_usbcx_gintsts {
 	 *	interrupt is asserted along with the End of Periodic Frame
 	 *	Interrupt (EOPF) bit in this register.
 	 * @incompisoin: Incomplete Isochronous IN Transfer (incompISOIN)
-	 *	The core sets this interrupt to indicate that there is at least one
-	 *	isochronous IN endpoint on which the transfer is not completed
-	 *	in the current microframe. This interrupt is asserted along with
-	 *	the End of Periodic Frame Interrupt (EOPF) bit in this register.
+	 *	The core sets this interrupt to indicate that there is at least
+	 *	one isochronous IN endpoint on which the transfer is not
+	 *	completed in the current microframe. This interrupt is asserted
+	 *	along with the End of Periodic Frame Interrupt (EOPF) bit in
+	 *	this register.
 	 * @oepint: OUT Endpoints Interrupt (OEPInt)
-	 *	The core sets this bit to indicate that an interrupt is pending on
-	 *	one of the OUT endpoints of the core (in Device mode). The
+	 *	The core sets this bit to indicate that an interrupt is pending
+	 *	on one of the OUT endpoints of the core (in Device mode). The
 	 *	application must read the Device All Endpoints Interrupt
 	 *	(DAINT) register to determine the exact number of the OUT
 	 *	endpoint on which the interrupt occurred, and then read the
@@ -391,8 +400,8 @@ union cvmx_usbcx_gintsts {
 	 *	application must clear the appropriate status bit in the
 	 *	corresponding DOEPINTn register to clear this bit.
 	 * @iepint: IN Endpoints Interrupt (IEPInt)
-	 *	The core sets this bit to indicate that an interrupt is pending on
-	 *	one of the IN endpoints of the core (in Device mode). The
+	 *	The core sets this bit to indicate that an interrupt is pending
+	 *	on one of the IN endpoints of the core (in Device mode). The
 	 *	application must read the Device All Endpoints Interrupt
 	 *	(DAINT) register to determine the exact number of the IN
 	 *	endpoint on which the interrupt occurred, and then read the
@@ -402,13 +411,13 @@ union cvmx_usbcx_gintsts {
 	 *	corresponding DIEPINTn register to clear this bit.
 	 * @epmis: Endpoint Mismatch Interrupt (EPMis)
 	 *	Indicates that an IN token has been received for a non-periodic
-	 *	endpoint, but the data for another endpoint is present in the top
-	 *	of the Non-Periodic Transmit FIFO and the IN endpoint
+	 *	endpoint, but the data for another endpoint is present in the
+	 *	top of the Non-Periodic Transmit FIFO and the IN endpoint
 	 *	mismatch count programmed by the application has expired.
 	 * @eopf: End of Periodic Frame Interrupt (EOPF)
-	 *	Indicates that the period specified in the Periodic Frame Interval
-	 *	field of the Device Configuration register (DCFG.PerFrInt) has
-	 *	been reached in the current microframe.
+	 *	Indicates that the period specified in the Periodic Frame
+	 *	Interval field of the Device Configuration register
+	 *	(DCFG.PerFrInt) has been reached in the current microframe.
 	 * @isooutdrop: Isochronous OUT Packet Dropped Interrupt (ISOOutDrop)
 	 *	The core sets this bit when it fails to write an isochronous OUT
 	 *	packet into the RxFIFO because the RxFIFO doesn't have
@@ -419,8 +428,8 @@ union cvmx_usbcx_gintsts {
 	 *	complete. The application must read the Device Status (DSTS)
 	 *	register to obtain the enumerated speed.
 	 * @usbrst: USB Reset (USBRst)
-	 *	The core sets this bit to indicate that a reset is detected on the
-	 *	USB.
+	 *	The core sets this bit to indicate that a reset is detected on
+	 *	the USB.
 	 * @usbsusp: USB Suspend (USBSusp)
 	 *	The core sets this bit to indicate that a suspend was detected
 	 *	on the USB. The core enters the Suspended state when there
@@ -464,17 +473,17 @@ union cvmx_usbcx_gintsts {
 	 *	(FS), micro-SOF (HS), or Keep-Alive (LS) is transmitted on the
 	 *	USB. The application must write a 1 to this bit to clear the
 	 *	interrupt.
-	 *	In Device mode, in the core sets this bit to indicate that an SOF
-	 *	token has been received on the USB. The application can read
+	 *	In Device mode, in the core sets this bit to indicate that an
+	 *	SOF token has been received on the USB. The application can read
 	 *	the Device Status register to get the current (micro)frame
 	 *	number. This interrupt is seen only when the core is operating
 	 *	at either HS or FS.
 	 * @otgint: OTG Interrupt (OTGInt)
 	 *	The core sets this bit to indicate an OTG protocol event. The
 	 *	application must read the OTG Interrupt Status (GOTGINT)
-	 *	register to determine the exact event that caused this interrupt.
-	 *	The application must clear the appropriate status bit in the
-	 *	GOTGINT register to clear this bit.
+	 *	register to determine the exact event that caused this
+	 *	interrupt. The application must clear the appropriate status bit
+	 *	in the GOTGINT register to clear this bit.
 	 * @modemis: Mode Mismatch Interrupt (ModeMis)
 	 *	The core sets this bit when the application is trying to access:
 	 *	* A Host mode register, when the core is operating in Device
@@ -531,7 +540,8 @@ typedef union cvmx_usbcx_gintsts cvmx_usbcx_gintsts_t;
  *
  * Non-Periodic Transmit FIFO Size Register (GNPTXFSIZ)
  *
- * The application can program the RAM size and the memory start address for the Non-Periodic TxFIFO.
+ * The application can program the RAM size and the memory start address for the
+ * Non-Periodic TxFIFO.
  */
 union cvmx_usbcx_gnptxfsiz {
 	uint32_t u32;
@@ -557,8 +567,8 @@ typedef union cvmx_usbcx_gnptxfsiz cvmx_usbcx_gnptxfsiz_t;
  *
  * Non-Periodic Transmit FIFO/Queue Status Register (GNPTXSTS)
  *
- * This read-only register contains the free space information for the Non-Periodic TxFIFO and
- * the Non-Periodic Transmit Request Queue
+ * This read-only register contains the free space information for the
+ * Non-Periodic TxFIFO and the Non-Periodic Transmit Request Queue.
  */
 union cvmx_usbcx_gnptxsts {
 	uint32_t u32;
@@ -610,7 +620,8 @@ typedef union cvmx_usbcx_gnptxsts cvmx_usbcx_gnptxsts_t;
  *
  * Core Reset Register (GRSTCTL)
  *
- * The application uses this register to reset various hardware features inside the core.
+ * The application uses this register to reset various hardware features inside
+ * the core.
  */
 union cvmx_usbcx_grstctl {
 	uint32_t u32;
@@ -640,14 +651,14 @@ union cvmx_usbcx_grstctl {
 	 *	core is neither writing to the TxFIFO nor reading from the
 	 *	TxFIFO.
 	 *	The application must wait until the core clears this bit before
-	 *	performing any operations. This bit takes 8 clocks (of phy_clk or
-	 *	hclk, whichever is slower) to clear.
+	 *	performing any operations. This bit takes 8 clocks (of phy_clk
+	 *	or hclk, whichever is slower) to clear.
 	 * @rxfflsh: RxFIFO Flush (RxFFlsh)
 	 *	The application can flush the entire RxFIFO using this bit, but
 	 *	must first ensure that the core is not in the middle of a
 	 *	transaction.
-	 *	The application must only write to this bit after checking that the
-	 *	core is neither reading from the RxFIFO nor writing to the
+	 *	The application must only write to this bit after checking that
+	 *	the core is neither reading from the RxFIFO nor writing to the
 	 *	RxFIFO.
 	 *	The application must wait until the bit is cleared before
 	 *	performing any other operations. This bit will take 8 clocks
@@ -661,8 +672,8 @@ union cvmx_usbcx_grstctl {
 	 *	the subsequent SOF sent out by the core will have a
 	 *	(micro)frame number of 0.
 	 * @hsftrst: HClk Soft Reset (HSftRst)
-	 *	The application uses this bit to flush the control logic in the AHB
-	 *	Clock domain. Only AHB Clock Domain pipelines are reset.
+	 *	The application uses this bit to flush the control logic in the
+	 *	AHB Clock domain. Only AHB Clock Domain pipelines are reset.
 	 *	* FIFOs are not flushed with this bit.
 	 *	* All state machines in the AHB clock domain are reset to the
 	 *	Idle state after terminating the transactions on the AHB,
@@ -675,9 +686,9 @@ union cvmx_usbcx_grstctl {
 	 *	* Because interrupt status bits are not cleared, the application
 	 *	can get the status of any core events that occurred after it set
 	 *	this bit.
-	 *	This is a self-clearing bit that the core clears after all necessary
-	 *	logic is reset in the core. This may take several clocks,
-	 *	depending on the core's current state.
+	 *	This is a self-clearing bit that the core clears after all
+	 *	necessary logic is reset in the core. This may take several
+	 *	clocks, depending on the core's current state.
 	 * @csftrst: Core Soft Reset (CSftRst)
 	 *	Resets the hclk and phy_clock domains as follows:
 	 *	* Clears the interrupts and all the CSR registers except the
@@ -702,14 +713,14 @@ union cvmx_usbcx_grstctl {
 	 *	an AHB transfer. Any transactions on the USB are terminated
 	 *	immediately.
 	 *	The application can write to this bit any time it wants to reset
-	 *	the core. This is a self-clearing bit and the core clears this bit
-	 *	after all the necessary logic is reset in the core, which may take
-	 *	several clocks, depending on the current state of the core.
-	 *	Once this bit is cleared software should wait at least 3 PHY
-	 *	clocks before doing any access to the PHY domain
+	 *	the core. This is a self-clearing bit and the core clears this
+	 *	bit after all the necessary logic is reset in the core, which
+	 *	may take several clocks, depending on the current state of the
+	 *	core. Once this bit is cleared software should wait at least 3
+	 *	PHY clocks before doing any access to the PHY domain
 	 *	(synchronization delay). Software should also should check that
-	 *	bit 31 of this register is 1 (AHB Master is IDLE) before starting
-	 *	any operation.
+	 *	bit 31 of this register is 1 (AHB Master is IDLE) before
+	 *	starting any operation.
 	 *	Typically software reset is used during software development
 	 *	and also when you dynamically change the PHY selection bits
 	 *	in the USB configuration registers listed above. When you
@@ -737,7 +748,8 @@ typedef union cvmx_usbcx_grstctl cvmx_usbcx_grstctl_t;
  *
  * Receive FIFO Size Register (GRXFSIZ)
  *
- * The application can program the RAM size that must be allocated to the RxFIFO.
+ * The application can program the RAM size that must be allocated to the
+ * RxFIFO.
  */
 union cvmx_usbcx_grxfsiz {
 	uint32_t u32;
@@ -760,10 +772,13 @@ typedef union cvmx_usbcx_grxfsiz cvmx_usbcx_grxfsiz_t;
  *
  * Receive Status Read and Pop Register, Host Mode (GRXSTSPH)
  *
- * A read to the Receive Status Read and Pop register returns and additionally pops the top data entry out of the RxFIFO.
- * This Description is only valid when the core is in Host Mode.  For Device Mode use USBC_GRXSTSPD instead.
- * NOTE: GRXSTSPH and GRXSTSPD are physically the same register and share the same offset in the O2P USB core.
- *       The offset difference shown in this document is for software clarity and is actually ignored by the
+ * A read to the Receive Status Read and Pop register returns and additionally
+ * pops the top data entry out of the RxFIFO.
+ * This Description is only valid when the core is in Host Mode. For Device Mode
+ * use USBC_GRXSTSPD instead.
+ * NOTE: GRXSTSPH and GRXSTSPD are physically the same register and share the
+ *	 same offset in the O2P USB core. The offset difference shown in this
+ *	 document is for software clarity and is actually ignored by the
  *       hardware.
  */
 union cvmx_usbcx_grxstsph {
@@ -803,10 +818,11 @@ typedef union cvmx_usbcx_grxstsph cvmx_usbcx_grxstsph_t;
  *
  * Core USB Configuration Register (GUSBCFG)
  *
- * This register can be used to configure the core after power-on or a changing to Host mode or Device mode.
- * It contains USB and USB-PHY related configuration parameters. The application must program this register
- * before starting any transactions on either the AHB or the USB.
- * Do not make changes to this register after the initial programming.
+ * This register can be used to configure the core after power-on or a changing
+ * to Host mode or Device mode. It contains USB and USB-PHY related
+ * configuration parameters. The application must program this register before
+ * starting any transactions on either the AHB or the USB. Do not make changes
+ * to this register after the initial programming.
  */
 union cvmx_usbcx_gusbcfg {
 	uint32_t u32;
@@ -856,9 +872,10 @@ union cvmx_usbcx_gusbcfg {
 	 *	vary from one PHY to another.
 	 *	The USB standard timeout value for high-speed operation is
 	 *	736 to 816 (inclusive) bit times. The USB standard timeout
-	 *	value for full-speed operation is 16 to 18 (inclusive) bit times.
-	 *	The application must program this field based on the speed of
-	 *	enumeration. The number of bit times added per PHY clock are:
+	 *	value for full-speed operation is 16 to 18 (inclusive) bit
+	 *	times. The application must program this field based on the
+	 *	speed of enumeration. The number of bit times added per PHY
+	 *	clock are:
 	 *	High-speed operation:
 	 *	* One 30-MHz PHY clock = 16 bit times
 	 *	* One 60-MHz PHY clock = 8 bit times
@@ -890,11 +907,12 @@ typedef union cvmx_usbcx_gusbcfg cvmx_usbcx_gusbcfg_t;
  *
  * Host All Channels Interrupt Register (HAINT)
  *
- * When a significant event occurs on a channel, the Host All Channels Interrupt register
- * interrupts the application using the Host Channels Interrupt bit of the Core Interrupt
- * register (GINTSTS.HChInt). This is shown in Interrupt . There is one interrupt bit per
- * channel, up to a maximum of 16 bits. Bits in this register are set and cleared when the
- * application sets and clears bits in the corresponding Host Channel-n Interrupt register.
+ * When a significant event occurs on a channel, the Host All Channels Interrupt
+ * register interrupts the application using the Host Channels Interrupt bit of
+ * the Core Interrupt register (GINTSTS.HChInt). This is shown in Interrupt.
+ * There is one interrupt bit per channel, up to a maximum of 16 bits. Bits in
+ * this register are set and cleared when the application sets and clears bits
+ * in the corresponding Host Channel-n Interrupt register.
  */
 union cvmx_usbcx_haint {
 	uint32_t u32;
@@ -915,9 +933,10 @@ typedef union cvmx_usbcx_haint cvmx_usbcx_haint_t;
  *
  * Host All Channels Interrupt Mask Register (HAINTMSK)
  *
- * The Host All Channel Interrupt Mask register works with the Host All Channel Interrupt
- * register to interrupt the application when an event occurs on a channel. There is one
- * interrupt mask bit per channel, up to a maximum of 16 bits.
+ * The Host All Channel Interrupt Mask register works with the Host All Channel
+ * Interrupt register to interrupt the application when an event occurs on a
+ * channel. There is one interrupt mask bit per channel, up to a maximum of 16
+ * bits.
  * Mask interrupt: 1'b0 Unmask interrupt: 1'b1
  */
 union cvmx_usbcx_haintmsk {
@@ -945,24 +964,25 @@ union cvmx_usbcx_hccharx {
 	/**
 	 * struct cvmx_usbcx_hccharx_s
 	 * @chena: Channel Enable (ChEna)
-	 *	This field is set by the application and cleared by the OTG host.
+	 *	This field is set by the application and cleared by the OTG
+	 *	host.
 	 *	* 1'b0: Channel disabled
 	 *	* 1'b1: Channel enabled
 	 * @chdis: Channel Disable (ChDis)
-	 *	The application sets this bit to stop transmitting/receiving data
-	 *	on a channel, even before the transfer for that channel is
+	 *	The application sets this bit to stop transmitting/receiving
+	 *	data on a channel, even before the transfer for that channel is
 	 *	complete. The application must wait for the Channel Disabled
 	 *	interrupt before treating the channel as disabled.
 	 * @oddfrm: Odd Frame (OddFrm)
-	 *	This field is set (reset) by the application to indicate that the
-	 *	OTG host must perform a transfer in an odd (micro)frame. This
-	 *	field is applicable for only periodic (isochronous and interrupt)
-	 *	transactions.
+	 *	This field is set (reset) by the application to indicate that
+	 *	the OTG host must perform a transfer in an odd (micro)frame.
+	 *	This field is applicable for only periodic (isochronous and
+	 *	interrupt) transactions.
 	 *	* 1'b0: Even (micro)frame
 	 *	* 1'b1: Odd (micro)frame
 	 * @devaddr: Device Address (DevAddr)
-	 *	This field selects the specific device serving as the data source
-	 *	or sink.
+	 *	This field selects the specific device serving as the data
+	 *	source or sink.
 	 * @ec: Multi Count (MC) / Error Count (EC)
 	 *	When the Split Enable bit of the Host Channel-n Split Control
 	 *	register (HCSPLTn.SpltEna) is reset (1'b0), this field indicates
@@ -985,8 +1005,8 @@ union cvmx_usbcx_hccharx {
 	 *	* 2'b10: Bulk
 	 *	* 2'b11: Interrupt
 	 * @lspddev: Low-Speed Device (LSpdDev)
-	 *	This field is set by the application to indicate that this channel is
-	 *	communicating to a low-speed device.
+	 *	This field is set by the application to indicate that this
+	 *	channel is communicating to a low-speed device.
 	 * @epdir: Endpoint Direction (EPDir)
 	 *	Indicates whether the transaction is IN or OUT.
 	 *	* 1'b0: OUT
@@ -1018,7 +1038,8 @@ typedef union cvmx_usbcx_hccharx cvmx_usbcx_hccharx_t;
  *
  * Host Configuration Register (HCFG)
  *
- * This register configures the core after power-on. Do not make changes to this register after initializing the host.
+ * This register configures the core after power-on. Do not make changes to this
+ * register after initializing the host.
  */
 union cvmx_usbcx_hcfg {
 	uint32_t u32;
@@ -1065,12 +1086,14 @@ typedef union cvmx_usbcx_hcfg cvmx_usbcx_hcfg_t;
  *
  * Host Channel-n Interrupt Register (HCINT)
  *
- * This register indicates the status of a channel with respect to USB- and AHB-related events.
- * The application must read this register when the Host Channels Interrupt bit of the Core Interrupt
- * register (GINTSTS.HChInt) is set. Before the application can read this register, it must first read
- * the Host All Channels Interrupt (HAINT) register to get the exact channel number for the Host Channel-n
- * Interrupt register. The application must clear the appropriate bit in this register to clear the
- * corresponding bits in the HAINT and GINTSTS registers.
+ * This register indicates the status of a channel with respect to USB- and
+ * AHB-related events. The application must read this register when the Host
+ * Channels Interrupt bit of the Core Interrupt register (GINTSTS.HChInt) is
+ * set. Before the application can read this register, it must first read
+ * the Host All Channels Interrupt (HAINT) register to get the exact channel
+ * number for the Host Channel-n Interrupt register. The application must clear
+ * the appropriate bit in this register to clear the corresponding bits in the
+ * HAINT and GINTSTS registers.
  */
 union cvmx_usbcx_hcintx {
 	uint32_t u32;
@@ -1114,7 +1137,8 @@ typedef union cvmx_usbcx_hcintx cvmx_usbcx_hcintx_t;
  *
  * Host Channel-n Interrupt Mask Register (HCINTMSKn)
  *
- * This register reflects the mask for each channel status described in the previous section.
+ * This register reflects the mask for each channel status described in the
+ * previous section.
  * Mask interrupt: 1'b0 Unmask interrupt: 1'b1
  */
 union cvmx_usbcx_hcintmskx {
@@ -1167,16 +1191,16 @@ union cvmx_usbcx_hcspltx {
 	 *	The application sets this field to request the OTG host to
 	 *	perform a complete split transaction.
 	 * @xactpos: Transaction Position (XactPos)
-	 *	This field is used to determine whether to send all, first, middle,
-	 *	or last payloads with each OUT transaction.
-	 *	* 2'b11: All. This is the entire data payload is of this transaction
-	 *	(which is less than or equal to 188 bytes).
-	 *	* 2'b10: Begin. This is the first data payload of this transaction
-	 *	(which is larger than 188 bytes).
+	 *	This field is used to determine whether to send all, first,
+	 *	middle, or last payloads with each OUT transaction.
+	 *	* 2'b11: All. This is the entire data payload is of this
+	 *	transaction (which is less than or equal to 188 bytes).
+	 *	* 2'b10: Begin. This is the first data payload of this
+	 *	transaction (which is larger than 188 bytes).
 	 *	* 2'b00: Mid. This is the middle payload of this transaction
 	 *	(which is larger than 188 bytes).
-	 *	* 2'b01: End. This is the last payload of this transaction (which
-	 *	is larger than 188 bytes).
+	 *	* 2'b01: End. This is the last payload of this transaction
+	 *	(which is larger than 188 bytes).
 	 * @hubaddr: Hub Address (HubAddr)
 	 *	This field holds the device address of the transaction
 	 *	translator's hub.
@@ -1209,8 +1233,8 @@ union cvmx_usbcx_hctsizx {
 	 *	Setting this field to 1 directs the host to do PING protocol.
 	 * @pid: PID (Pid)
 	 *	The application programs this field with the type of PID to use
-	 *	for the initial transaction. The host will maintain this field for the
-	 *	rest of the transfer.
+	 *	for the initial transaction. The host will maintain this field
+	 *	for the rest of the transfer.
 	 *	* 2'b00: DATA0
 	 *	* 2'b01: DATA2
 	 *	* 2'b10: DATA1
@@ -1225,8 +1249,8 @@ union cvmx_usbcx_hctsizx {
 	 * @xfersize: Transfer Size (XferSize)
 	 *	For an OUT, this field is the number of data bytes the host will
 	 *	send during the transfer.
-	 *	For an IN, this field is the buffer size that the application has
-	 *	reserved for the transfer. The application is expected to
+	 *	For an IN, this field is the buffer size that the application
+	 *	has reserved for the transfer. The application is expected to
 	 *	program this field as an integer multiple of the maximum packet
 	 *	size for IN transactions (periodic and non-periodic).
 	 */
@@ -1244,7 +1268,8 @@ typedef union cvmx_usbcx_hctsizx cvmx_usbcx_hctsizx_t;
  *
  * Host Frame Interval Register (HFIR)
  *
- * This register stores the frame interval information for the current speed to which the O2P USB core has enumerated.
+ * This register stores the frame interval information for the current speed to
+ * which the O2P USB core has enumerated.
  */
 union cvmx_usbcx_hfir {
 	uint32_t u32;
@@ -1291,8 +1316,8 @@ union cvmx_usbcx_hfnum {
 	 *	Indicates the amount of time remaining in the current
 	 *	microframe (HS) or frame (FS/LS), in terms of PHY clocks.
 	 *	This field decrements on each PHY clock. When it reaches
-	 *	zero, this field is reloaded with the value in the Frame Interval
-	 *	register and a new SOF is transmitted on the USB.
+	 *	zero, this field is reloaded with the value in the Frame
+	 *	Interval register and a new SOF is transmitted on the USB.
 	 * @frnum: Frame Number (FrNum)
 	 *	This field increments when a new SOF is transmitted on the
 	 *	USB, and is reset to 0 when it reaches 16'h3FFF.
@@ -1311,12 +1336,13 @@ typedef union cvmx_usbcx_hfnum cvmx_usbcx_hfnum_t;
  *
  * This register is available in both Host and Device modes.
  * Currently, the OTG Host supports only one port.
- * A single register holds USB port-related information such as USB reset, enable, suspend, resume,
- * connect status, and test mode for each port. The R_SS_WC bits in this register can trigger an
- * interrupt to the application through the Host Port Interrupt bit of the Core Interrupt
- * register (GINTSTS.PrtInt). On a Port Interrupt, the application must read this register and clear
- * the bit that caused the interrupt. For the R_SS_WC bits, the application must write a 1 to the bit
- * to clear the interrupt.
+ * A single register holds USB port-related information such as USB reset,
+ * enable, suspend, resume, connect status, and test mode for each port. The
+ * R_SS_WC bits in this register can trigger an interrupt to the application
+ * through the Host Port Interrupt bit of the Core Interrupt register
+ * (GINTSTS.PrtInt). On a Port Interrupt, the application must read this
+ * register and clear the bit that caused the interrupt. For the R_SS_WC bits,
+ * the application must write a 1 to the bit to clear the interrupt.
  */
 union cvmx_usbcx_hprt {
 	uint32_t u32;
@@ -1449,7 +1475,8 @@ typedef union cvmx_usbcx_hprt cvmx_usbcx_hprt_t;
  *
  * Host Periodic Transmit FIFO Size Register (HPTXFSIZ)
  *
- * This register holds the size and the memory start address of the Periodic TxFIFO, as shown in Figures 310 and 311.
+ * This register holds the size and the memory start address of the Periodic
+ * TxFIFO, as shown in Figures 310 and 311.
  */
 union cvmx_usbcx_hptxfsiz {
 	uint32_t u32;
@@ -1473,8 +1500,8 @@ typedef union cvmx_usbcx_hptxfsiz cvmx_usbcx_hptxfsiz_t;
  *
  * Host Periodic Transmit FIFO/Queue Status Register (HPTXSTS)
  *
- * This read-only register contains the free space information for the Periodic TxFIFO and
- * the Periodic Transmit Request Queue
+ * This read-only register contains the free space information for the Periodic
+ * TxFIFO and the Periodic Transmit Request Queue
  */
 union cvmx_usbcx_hptxsts {
 	uint32_t u32;
@@ -1497,17 +1524,18 @@ union cvmx_usbcx_hptxsts {
 	 *	channel/endpoint)
 	 * @ptxqspcavail: Periodic Transmit Request Queue Space Available
 	 *	(PTxQSpcAvail)
-	 *	Indicates the number of free locations available to be written in
-	 *	the Periodic Transmit Request Queue. This queue holds both
+	 *	Indicates the number of free locations available to be written
+	 *	in the Periodic Transmit Request Queue. This queue holds both
 	 *	IN and OUT requests.
 	 *	* 8'h0: Periodic Transmit Request Queue is full
 	 *	* 8'h1: 1 location available
 	 *	* 8'h2: 2 locations available
 	 *	* n: n locations available (0..8)
 	 *	* Others: Reserved
-	 * @ptxfspcavail: Periodic Transmit Data FIFO Space Available (PTxFSpcAvail)
-	 *	Indicates the number of free locations available to be written to
-	 *	in the Periodic TxFIFO.
+	 * @ptxfspcavail: Periodic Transmit Data FIFO Space Available
+	 *		  (PTxFSpcAvail)
+	 *	Indicates the number of free locations available to be written
+	 *	to in the Periodic TxFIFO.
 	 *	Values are in terms of 32-bit words
 	 *	* 16'h0: Periodic TxFIFO is full
 	 *	* 16'h1: 1 word available
