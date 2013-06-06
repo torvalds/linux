@@ -1313,9 +1313,13 @@ static bool intel_sdvo_get_hw_state(struct intel_encoder *encoder,
 static void intel_sdvo_get_config(struct intel_encoder *encoder,
 				  struct intel_crtc_config *pipe_config)
 {
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
 	struct intel_sdvo_dtd dtd;
-	u32 flags = 0;
+	int encoder_pixel_multiplier = 0;
+	u32 flags = 0, sdvox;
+	u8 val;
 	bool ret;
 
 	ret = intel_sdvo_get_input_timing(intel_sdvo, &dtd);
@@ -1335,6 +1339,30 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
 	pipe_config->adjusted_mode.flags |= flags;
+
+	if (IS_I915G(dev) || IS_I915GM(dev)) {
+		sdvox = I915_READ(intel_sdvo->sdvo_reg);
+		pipe_config->pixel_multiplier =
+			((sdvox & SDVO_PORT_MULTIPLY_MASK)
+			 >> SDVO_PORT_MULTIPLY_SHIFT) + 1;
+	}
+
+	/* Cross check the port pixel multiplier with the sdvo encoder state. */
+	intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_CLOCK_RATE_MULT, &val, 1);
+	switch (val) {
+	case SDVO_CLOCK_RATE_MULT_1X:
+		encoder_pixel_multiplier = 1;
+		break;
+	case SDVO_CLOCK_RATE_MULT_2X:
+		encoder_pixel_multiplier = 2;
+		break;
+	case SDVO_CLOCK_RATE_MULT_4X:
+		encoder_pixel_multiplier = 4;
+		break;
+	}
+	WARN(encoder_pixel_multiplier != pipe_config->pixel_multiplier,
+	     "SDVO pixel multiplier mismatch, port: %i, encoder: %i\n",
+	     pipe_config->pixel_multiplier, encoder_pixel_multiplier);
 }
 
 static void intel_disable_sdvo(struct intel_encoder *encoder)
