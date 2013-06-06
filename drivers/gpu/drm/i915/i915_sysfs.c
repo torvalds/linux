@@ -409,6 +409,71 @@ static const struct attribute *gen6_attrs[] = {
 	NULL,
 };
 
+static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
+				struct bin_attribute *attr, char *buf,
+				loff_t off, size_t count)
+{
+
+	struct device *kdev = container_of(kobj, struct device, kobj);
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct i915_error_state_file_priv error_priv;
+	struct drm_i915_error_state_buf error_str;
+	ssize_t ret_count = 0;
+	int ret;
+
+	memset(&error_priv, 0, sizeof(error_priv));
+
+	ret = i915_error_state_buf_init(&error_str, count, off);
+	if (ret)
+		return ret;
+
+	error_priv.dev = dev;
+	i915_error_state_get(dev, &error_priv);
+
+	ret = i915_error_state_to_str(&error_str, &error_priv);
+	if (ret)
+		goto out;
+
+	ret_count = count < error_str.bytes ? count : error_str.bytes;
+
+	memcpy(buf, error_str.buf, ret_count);
+out:
+	i915_error_state_put(&error_priv);
+	i915_error_state_buf_release(&error_str);
+
+	return ret ?: ret_count;
+}
+
+static ssize_t error_state_write(struct file *file, struct kobject *kobj,
+				 struct bin_attribute *attr, char *buf,
+				 loff_t off, size_t count)
+{
+	struct device *kdev = container_of(kobj, struct device, kobj);
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	int ret;
+
+	DRM_DEBUG_DRIVER("Resetting error state\n");
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	i915_destroy_error_state(dev);
+	mutex_unlock(&dev->struct_mutex);
+
+	return count;
+}
+
+static struct bin_attribute error_state_attr = {
+	.attr.name = "error",
+	.attr.mode = S_IRUSR | S_IWUSR,
+	.size = 0,
+	.read = error_state_read,
+	.write = error_state_write,
+};
+
 void i915_setup_sysfs(struct drm_device *dev)
 {
 	int ret;
@@ -432,10 +497,16 @@ void i915_setup_sysfs(struct drm_device *dev)
 		if (ret)
 			DRM_ERROR("gen6 sysfs setup failed\n");
 	}
+
+	ret = sysfs_create_bin_file(&dev->primary->kdev.kobj,
+				    &error_state_attr);
+	if (ret)
+		DRM_ERROR("error_state sysfs setup failed\n");
 }
 
 void i915_teardown_sysfs(struct drm_device *dev)
 {
+	sysfs_remove_bin_file(&dev->primary->kdev.kobj, &error_state_attr);
 	sysfs_remove_files(&dev->primary->kdev.kobj, gen6_attrs);
 	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs);
 #ifdef CONFIG_PM

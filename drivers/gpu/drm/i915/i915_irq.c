@@ -1955,8 +1955,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	}
 
 	DRM_INFO("capturing error event; look for more information in "
-		 "/sys/kernel/debug/dri/%d/i915_error_state\n",
-		 dev->primary->index);
+		 "/sys/class/drm/card%d/error\n", dev->primary->index);
 
 	kref_init(&error->ref);
 	error->eir = I915_READ(EIR);
