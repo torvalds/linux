@@ -33,9 +33,9 @@ void   _Set_D_ECCdata(BYTE, BYTE *);
 void   _Calc_D_ECCdata(BYTE *);
 
 
-struct SSFDCTYPE                Ssfdc;
-struct ADDRESS                  Media;
-struct CIS_AREA                 CisArea;
+struct keucr_media_info         Ssfdc;
+struct keucr_media_address      Media;
+struct keucr_media_area         CisArea;
 
 static BYTE                            EccBuf[6];
 extern PBYTE                    SMHostAddr;

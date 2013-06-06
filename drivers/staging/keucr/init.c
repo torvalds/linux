@@ -89,7 +89,7 @@ int ENE_SMInit(struct us_data *us)
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
-	us->SM_Status = *(PSM_STATUS)&buf[0];
+	us->SM_Status = *(struct keucr_sm_status *)&buf[0];
 
 	us->SM_DeviceID = buf[1];
 	us->SM_CardID   = buf[2];

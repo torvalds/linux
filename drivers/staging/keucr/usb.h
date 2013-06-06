@@ -51,7 +51,7 @@ struct us_unusual_dev {
 #define FDIR_WRITE        0
 #define FDIR_READ         1
 
-typedef struct _SD_STATUS {
+struct keucr_sd_status {
 	BYTE    Insert:1;
 	BYTE    Ready:1;
 	BYTE    MediaChange:1;
@@ -60,9 +60,9 @@ typedef struct _SD_STATUS {
 	BYTE    HiSpeed:1;
 	BYTE    WtP:1;
 	BYTE    Reserved:1;
-} SD_STATUS, *PSD_STATUS;
+};
 
-typedef struct _MS_STATUS {
+struct keucr_ms_status {
 	BYTE    Insert:1;
 	BYTE    Ready:1;
 	BYTE    MediaChange:1;
@@ -71,16 +71,16 @@ typedef struct _MS_STATUS {
 	BYTE    Reserved1:1;
 	BYTE    WtP:1;
 	BYTE    Reserved2:1;
-} MS_STATUS, *PMS_STATUS;
+};
 
-typedef struct _SM_STATUS {
+struct keucr_sm_status {
 	BYTE    Insert:1;
 	BYTE    Ready:1;
 	BYTE    MediaChange:1;
 	BYTE    Reserved:3;
 	BYTE    WtP:1;
 	BYTE    IsMS:1;
-} SM_STATUS, *PSM_STATUS;
+};
 
 /* SD Block Length */
 #define SD_BLOCK_LEN		9	/* 2^9 = 512 Bytes,
@@ -178,9 +178,9 @@ struct us_data {
 	pm_hook			suspend_resume_hook;
 #endif
 	/* for 6250 code */
-	SD_STATUS   SD_Status;
-	MS_STATUS   MS_Status;
-	SM_STATUS   SM_Status;
+	struct keucr_sd_status   SD_Status;
+	struct keucr_ms_status   MS_Status;
+	struct keucr_sm_status   SM_Status;
 
 	/* ----- SD Control Data ---------------- */
 	/* SD_REGISTER SD_Regs; */
