@@ -179,7 +179,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	struct brcmf_pub *drvr = ifp->drvr;
 	struct ethhdr *eh;
 
-	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
+	brcmf_dbg(DATA, "Enter, idx=%d\n", ifp->bssidx);
 
 	/* Can the device send data? */
 	if (drvr->bus_if->state != BRCMF_BUS_DATA) {
@@ -287,7 +287,7 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 	u8 ifidx;
 	int ret;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(DATA, "Enter\n");
 
 	skb_queue_walk_safe(skb_list, skb, pnext) {
 		skb_unlink(skb, skb_list);
