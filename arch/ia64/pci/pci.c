@@ -134,6 +134,9 @@ struct pci_root_info {
 	struct acpi_device *bridge;
 	struct pci_controller *controller;
 	struct list_head resources;
+	struct resource *res;
+	resource_size_t *res_offset;
+	unsigned int res_num;
 	char *name;
 };
 
@@ -265,7 +268,7 @@ static acpi_status count_window(struct acpi_resource *resource, void *data)
 static acpi_status add_window(struct acpi_resource *res, void *data)
 {
 	struct pci_root_info *info = data;
-	struct pci_window *window;
+	struct resource *resource;
 	struct acpi_resource_address64 addr;
 	acpi_status status;
 	unsigned long flags, offset = 0;
@@ -289,37 +292,36 @@ static acpi_status add_window(struct acpi_resource *res, void *data)
 	} else
 		return AE_OK;
 
-	window = &info->controller->window[info->controller->windows++];
-	window->resource.name = info->name;
-	window->resource.flags = flags;
-	window->resource.start = addr.minimum + offset;
-	window->resource.end = window->resource.start + addr.address_length - 1;
-	window->offset = offset;
+	resource = &info->res[info->res_num];
+	resource->name = info->name;
+	resource->flags = flags;
+	resource->start = addr.minimum + offset;
+	resource->end = resource->start + addr.address_length - 1;
+	info->res_offset[info->res_num] = offset;
 
-	if (insert_resource(root, &window->resource)) {
+	if (insert_resource(root, resource)) {
 		dev_err(&info->bridge->dev,
 			"can't allocate host bridge window %pR\n",
-			&window->resource);
+			resource);
 	} else {
 		if (offset)
 			dev_info(&info->bridge->dev, "host bridge window %pR "
 				 "(PCI address [%#llx-%#llx])\n",
-				 &window->resource,
-				 window->resource.start - offset,
-				 window->resource.end - offset);
+				 resource,
+				 resource->start - offset,
+				 resource->end - offset);
 		else
 			dev_info(&info->bridge->dev,
-				 "host bridge window %pR\n",
-				 &window->resource);
+				 "host bridge window %pR\n", resource);
 	}
-
 	/* HP's firmware has a hack to work around a Windows bug.
 	 * Ignore these tiny memory ranges */
-	if (!((window->resource.flags & IORESOURCE_MEM) &&
-	      (window->resource.end - window->resource.start < 16)))
-		pci_add_resource_offset(&info->resources, &window->resource,
-					window->offset);
+	if (!((resource->flags & IORESOURCE_MEM) &&
+	      (resource->end - resource->start < 16)))
+		pci_add_resource_offset(&info->resources, resource,
+					info->res_offset[info->res_num]);
 
+	info->res_num++;
 	return AE_OK;
 }
 
@@ -329,7 +331,6 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	int domain = root->segment;
 	int bus = root->secondary.start;
 	struct pci_controller *controller;
-	unsigned int windows = 0;
 	struct pci_root_info info;
 	struct pci_bus *pbus;
 	char *name;
@@ -351,22 +352,29 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	/* insert busn resource at first */
 	pci_add_resource(&info.resources, &root->secondary);
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_window,
-			&windows);
-	if (windows) {
-		controller->window =
-			kzalloc_node(sizeof(*controller->window) * windows,
+			&info.res_num);
+	if (info.res_num) {
+		info.res =
+			kzalloc_node(sizeof(*info.res) * info.res_num,
 				     GFP_KERNEL, controller->node);
-		if (!controller->window)
+		if (!info.res)
 			goto out2;
+
+		info.res_offset =
+			kzalloc_node(sizeof(*info.res_offset) * info.res_num,
+				GFP_KERNEL, controller->node);
+		if (!info.res_offset)
+			goto out3;
 
 		name = kmalloc(16, GFP_KERNEL);
 		if (!name)
-			goto out3;
+			goto out4;
 
 		sprintf(name, "PCI Bus %04x:%02x", domain, bus);
 		info.bridge = device;
 		info.controller = controller;
 		info.name = name;
+		info.res_num = 0;
 		acpi_walk_resources(device->handle, METHOD_NAME__CRS,
 			add_window, &info);
 	}
@@ -385,9 +393,10 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 
 	pci_scan_child_bus(pbus);
 	return pbus;
-
+out4:
+	kfree(info.res_offset);
 out3:
-	kfree(controller->window);
+	kfree(info.res);
 out2:
 	kfree(controller);
 out1:
