@@ -18,12 +18,10 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/platform_data/atmel.h>
+#include <linux/io.h>
+#include <linux/sizes.h>
 
 #include <pcmcia/ss.h>
-
-#include <mach/hardware.h>
-#include <asm/io.h>
-#include <asm/sizes.h>
 
 #include <mach/at91rm9200_mc.h>
 #include <mach/at91_ramc.h>
