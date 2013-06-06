@@ -2804,9 +2804,8 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 
 	/* Set device flags indicating whether the HCD supports DMA */
 	if (hsotg->core_params->dma_enable > 0) {
-		if (dma_set_mask(hsotg->dev, DMA_BIT_MASK(31)) < 0)
-			dev_warn(hsotg->dev,
-				 "can't enable workaround for >2GB RAM\n");
+		if (dma_set_mask(hsotg->dev, DMA_BIT_MASK(32)) < 0)
+			dev_warn(hsotg->dev, "can't set DMA mask\n");
 		if (dma_set_coherent_mask(hsotg->dev, DMA_BIT_MASK(31)) < 0)
 			dev_warn(hsotg->dev,
 				 "can't enable workaround for >2GB RAM\n");
