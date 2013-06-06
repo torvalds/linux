@@ -16,7 +16,6 @@ obj-$(CONFIG_COMEDI_AMPLC_DIO200_ISA)	+= amplc_dio200.o
 obj-$(CONFIG_COMEDI_AMPLC_PC263_ISA)	+= amplc_pc263.o
 obj-$(CONFIG_COMEDI_PCL711)		+= pcl711.o
 obj-$(CONFIG_COMEDI_PCL724)		+= pcl724.o
-obj-$(CONFIG_COMEDI_PCL725)		+= pcl725.o
 obj-$(CONFIG_COMEDI_PCL726)		+= pcl726.o
 obj-$(CONFIG_COMEDI_PCL730)		+= pcl730.o
 obj-$(CONFIG_COMEDI_PCL812)		+= pcl812.o

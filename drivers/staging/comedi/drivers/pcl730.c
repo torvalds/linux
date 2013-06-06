@@ -11,6 +11,7 @@
  *	    (ICP) ISO-730 [iso730]
  *	    (Adlink) ACL-7130 [acl7130]
  *	    (Advantech) PCM-3730 [pcm3730]
+ *	    (Advantech) PCL-725 [pcl725]
  * Author: José Luis Sánchez (jsanchezv@teleline.es)
  * Status: untested
  *
@@ -29,6 +30,7 @@
  * Register I/O map
  *
  * The pcm3730 PC/104 board does not have the PCL730_IDIO_HI register.
+ * The pcl725 ISA board uses separate registers for isolated digital I/O.
  */
 #define PCL730_IDIO_LO	0	/* Isolated Digital I/O low byte (ID0-ID7) */
 #define PCL730_IDIO_HI	1	/* Isolated Digital I/O high byte (ID8-ID15) */
@@ -38,25 +40,40 @@
 struct pcl730_board {
 	const char *name;
 	unsigned int io_range;
+	unsigned is_pcl725:1;
+	unsigned has_ttl_io:1;
 	int n_iso_chan;
+	int n_ttl_chan;
 };
 
 static const struct pcl730_board pcl730_boards[] = {
 	{
 		.name		= "pcl730",
 		.io_range	= 0x04,
+		.has_ttl_io	= 1,
 		.n_iso_chan	= 16,
+		.n_ttl_chan	= 16,
 	}, {
 		.name		= "iso730",
 		.io_range	= 0x04,
 		.n_iso_chan	= 16,
+		.n_ttl_chan	= 16,
 	}, {
 		.name		= "acl7130",
 		.io_range	= 0x08,
+		.has_ttl_io	= 1,
 		.n_iso_chan	= 16,
+		.n_ttl_chan	= 16,
 	}, {
 		.name		= "pcm3730",
 		.io_range	= 0x04,
+		.has_ttl_io	= 1,
+		.n_iso_chan	= 8,
+		.n_ttl_chan	= 16,
+	}, {
+		.name		= "pcl725",
+		.io_range	= 0x02,
+		.is_pcl725	= 1,
 		.n_iso_chan	= 8,
 	},
 };
@@ -113,7 +130,7 @@ static int pcl730_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	ret = comedi_alloc_subdevices(dev, 4);
+	ret = comedi_alloc_subdevices(dev, board->has_ttl_io ? 4 : 2);
 	if (ret)
 		return ret;
 
@@ -135,27 +152,30 @@ static int pcl730_attach(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
 	s->insn_bits	= pcl730_di_insn_bits;
-	s->private	= (void *)PCL730_IDIO_LO;
+	s->private	= board->is_pcl725 ? (void *)PCL730_IDIO_HI
+					   : (void *)PCL730_IDIO_LO;
 
-	/* TTL Digital Outputs */
-	s = &dev->subdevices[2];
-	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITABLE;
-	s->n_chan	= 16;
-	s->maxdata	= 1;
-	s->range_table	= &range_digital;
-	s->insn_bits	= pcl730_do_insn_bits;
-	s->private	= (void *)PCL730_DIO_LO;
+	if (board->has_ttl_io) {
+		/* TTL Digital Outputs */
+		s = &dev->subdevices[2];
+		s->type		= COMEDI_SUBD_DO;
+		s->subdev_flags	= SDF_WRITABLE;
+		s->n_chan	= board->n_ttl_chan;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= pcl730_do_insn_bits;
+		s->private	= (void *)PCL730_DIO_LO;
 
-	/* TTL Digital Inputs */
-	s = &dev->subdevices[3];
-	s->type		= COMEDI_SUBD_DI;
-	s->subdev_flags	= SDF_READABLE;
-	s->n_chan	= 16;
-	s->maxdata	= 1;
-	s->range_table	= &range_digital;
-	s->insn_bits	= pcl730_di_insn_bits;
-	s->private	= (void *)PCL730_DIO_LO;
+		/* TTL Digital Inputs */
+		s = &dev->subdevices[3];
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE;
+		s->n_chan	= board->n_ttl_chan;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= pcl730_di_insn_bits;
+		s->private	= (void *)PCL730_DIO_LO;
+	}
 
 	return 0;
 }
