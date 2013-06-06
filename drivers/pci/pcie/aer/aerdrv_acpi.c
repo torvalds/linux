@@ -54,16 +54,16 @@ static int aer_hest_parse(struct acpi_hest_header *hest_hdr, void *data)
 {
 	struct aer_hest_parse_info *info = data;
 	struct acpi_hest_aer_common *p;
-	int ff = 0;
+	int ff;
 
 	p = (struct acpi_hest_aer_common *)(hest_hdr + 1);
+	ff = !!(p->flags & ACPI_HEST_FIRMWARE_FIRST);
 	if (p->flags & ACPI_HEST_GLOBAL) {
 		if (hest_match_type(hest_hdr, info->pci_dev))
-			ff = !!(p->flags & ACPI_HEST_FIRMWARE_FIRST);
+			info->firmware_first = ff;
 	} else
 		if (hest_match_pci(p, info->pci_dev))
-			ff = !!(p->flags & ACPI_HEST_FIRMWARE_FIRST);
-	info->firmware_first = ff;
+			info->firmware_first = ff;
 
 	return 0;
 }
