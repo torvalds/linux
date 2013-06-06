@@ -410,12 +410,15 @@ int irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
 				 */
 				if (ret != -EPERM) {
 					pr_info("%s didn't like hwirq-0x%lx to VIRQ%i mapping (rc=%d)\n",
-					       of_node_full_name(domain->of_node), hwirq, virq, ret);
+					       domain->name, hwirq, virq, ret);
 				}
 				irq_data->domain = NULL;
 				irq_data->hwirq = 0;
 				continue;
 			}
+			/* If not already assigned, give the domain the chip's name */
+			if (!domain->name && irq_data->chip)
+				domain->name = irq_data->chip->name;
 		}
 
 		switch (domain->revmap_type) {
@@ -708,8 +711,6 @@ static int virq_debug_show(struct seq_file *m, void *private)
 {
 	unsigned long flags;
 	struct irq_desc *desc;
-	const char *p;
-	static const char none[] = "none";
 	void *data;
 	int i;
 
@@ -731,20 +732,12 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			seq_printf(m, "0x%05lx  ", desc->irq_data.hwirq);
 
 			chip = irq_desc_get_chip(desc);
-			if (chip && chip->name)
-				p = chip->name;
-			else
-				p = none;
-			seq_printf(m, "%-15s  ", p);
+			seq_printf(m, "%-15s  ", (chip && chip->name) ? chip->name : "none");
 
 			data = irq_desc_get_chip_data(desc);
 			seq_printf(m, data ? "0x%p  " : "  %p  ", data);
 
-			if (desc->irq_data.domain)
-				p = of_node_full_name(desc->irq_data.domain->of_node);
-			else
-				p = none;
-			seq_printf(m, "%s\n", p);
+			seq_printf(m, "%s\n", desc->irq_data.domain->name);
 		}
 
 		raw_spin_unlock_irqrestore(&desc->lock, flags);

@@ -89,6 +89,7 @@ struct irq_domain_chip_generic;
  */
 struct irq_domain {
 	struct list_head link;
+	const char *name;
 
 	/* type of reverse mapping_technique */
 	unsigned int revmap_type;
