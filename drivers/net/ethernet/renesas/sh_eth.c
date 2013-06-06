@@ -341,10 +341,7 @@ static void sh_eth_select_mii(struct net_device *ndev)
 }
 #endif
 
-/* There is CPU dependent code */
-#if defined(CONFIG_ARCH_R8A7778) || defined(CONFIG_ARCH_R8A7779)
-#define SH_ETH_RESET_DEFAULT	1
-static void sh_eth_set_duplex(struct net_device *ndev)
+static void __maybe_unused sh_eth_set_duplex(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -354,6 +351,9 @@ static void sh_eth_set_duplex(struct net_device *ndev)
 		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
 }
 
+/* There is CPU dependent code */
+#if defined(CONFIG_ARCH_R8A7778) || defined(CONFIG_ARCH_R8A7779)
+#define SH_ETH_RESET_DEFAULT	1
 static void sh_eth_set_rate(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -392,15 +392,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 };
 #elif defined(CONFIG_CPU_SUBTYPE_SH7724)
 #define SH_ETH_RESET_DEFAULT	1
-static void sh_eth_set_duplex(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	if (mdp->duplex) /* Full */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) | ECMR_DM, ECMR);
-	else		/* Half */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
-}
 
 static void sh_eth_set_rate(struct net_device *ndev)
 {
@@ -444,16 +435,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 #define SH_ETH_HAS_BOTH_MODULES	1
 #define SH_ETH_HAS_TSU	1
 static int sh_eth_check_reset(struct net_device *ndev);
-
-static void sh_eth_set_duplex(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	if (mdp->duplex) /* Full */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) | ECMR_DM, ECMR);
-	else		/* Half */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
-}
 
 static void sh_eth_set_rate(struct net_device *ndev)
 {
@@ -555,16 +536,6 @@ out:
 	return ret;
 }
 
-static void sh_eth_set_duplex_giga(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	if (mdp->duplex) /* Full */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) | ECMR_DM, ECMR);
-	else		/* Half */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
-}
-
 static void sh_eth_set_rate_giga(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -587,7 +558,7 @@ static void sh_eth_set_rate_giga(struct net_device *ndev)
 /* SH7757(GETHERC) */
 static struct sh_eth_cpu_data sh_eth_my_cpu_data_giga = {
 	.chip_reset	= sh_eth_chip_reset_giga,
-	.set_duplex	= sh_eth_set_duplex_giga,
+	.set_duplex	= sh_eth_set_duplex,
 	.set_rate	= sh_eth_set_rate_giga,
 
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
@@ -635,16 +606,6 @@ static void sh_eth_chip_reset(struct net_device *ndev)
 	/* reset device */
 	sh_eth_tsu_write(mdp, ARSTR_ARSTR, ARSTR);
 	mdelay(1);
-}
-
-static void sh_eth_set_duplex(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	if (mdp->duplex) /* Full */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) | ECMR_DM, ECMR);
-	else		/* Half */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
 }
 
 static void sh_eth_set_rate(struct net_device *ndev)
@@ -772,16 +733,6 @@ static int sh_eth_reset(struct net_device *ndev)
 
 out:
 	return ret;
-}
-
-static void sh_eth_set_duplex(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	if (mdp->duplex) /* Full */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) | ECMR_DM, ECMR);
-	else		/* Half */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
 }
 
 static void sh_eth_set_rate(struct net_device *ndev)
