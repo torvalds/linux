@@ -727,7 +727,7 @@ cmpk_message_handle_rx(
 	      element type. Because FW may aggregate RX command packet to minimize
 	      transmit time between DRV and FW.*/
 	// Add a counter to prevent the lock in the loop from being held too long
-	while (total_length > 0 || exe_cnt++ >100)
+	while (total_length > 0 && exe_cnt++ < 100)
 	{
 		/* 2007/01/17 MH We support aggregation of different cmd in the same packet. */
 		element_id = pcmd_buff[0];
