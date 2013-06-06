@@ -730,6 +730,9 @@
 			       <&dma 29 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 
+			clocks = <&prcc_kclk 1 5>, <&prcc_pclk 1 5>;
+			clock-names = "sdi", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -741,6 +744,9 @@
 			dmas = <&dma 32 0 0x2>, /* Logical - DevToMem */
 			       <&dma 32 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 2 4>, <&prcc_pclk 2 6>;
+			clock-names = "sdi", "apb_pclk";
 
 			status = "disabled";
 		};
@@ -754,6 +760,9 @@
 			       <&dma 28 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 
+			clocks = <&prcc_kclk 3 4>, <&prcc_pclk 3 4>;
+			clock-names = "sdi", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -761,6 +770,10 @@
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80119000 0x1000>;
 			interrupts = <0 59 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&prcc_kclk 2 5>, <&prcc_pclk 2 7>;
+			clock-names = "sdi", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -773,6 +786,9 @@
 			       <&dma 42 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 
+			clocks = <&prcc_kclk 2 2>, <&prcc_pclk 2 4>;
+			clock-names = "sdi", "apb_pclk";
+
 			status = "disabled";
 		};
 
@@ -780,6 +796,10 @@
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80008000 0x1000>;
 			interrupts = <0 100 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&prcc_kclk 3 7>, <&prcc_pclk 3 7>;
+			clock-names = "sdi", "apb_pclk";
+
 			status = "disabled";
 		};
 
