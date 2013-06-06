@@ -40,6 +40,10 @@
  * @PIN_CONFIG_BIAS_PULL_DOWN: the pin will be pulled down (usually with high
  *	impedance to GROUND). If the argument is != 0 pull-down is enabled,
  *	if it is 0, pull-down is disabled.
+ * @PIN_CONFIG_BIAS_PULL_PIN_DEFAULT: the pin will be pulled up or down based
+ *	on embedded knowledge of the controller, like current mux function.
+ *	If the argument is != 0 pull up/down is enabled, if it is 0,
+ *	the pull is disabled.
  * @PIN_CONFIG_DRIVE_PUSH_PULL: the pin will be driven actively high and
  *	low, this is the most typical case and is typically achieved with two
  *	active transistors on the output. Setting this config will enable
@@ -86,6 +90,7 @@ enum pin_config_param {
 	PIN_CONFIG_BIAS_BUS_HOLD,
 	PIN_CONFIG_BIAS_PULL_UP,
 	PIN_CONFIG_BIAS_PULL_DOWN,
+	PIN_CONFIG_BIAS_PULL_PIN_DEFAULT,
 	PIN_CONFIG_DRIVE_PUSH_PULL,
 	PIN_CONFIG_DRIVE_OPEN_DRAIN,
 	PIN_CONFIG_DRIVE_OPEN_SOURCE,
