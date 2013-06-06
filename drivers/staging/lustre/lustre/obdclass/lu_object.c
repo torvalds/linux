@@ -1915,32 +1915,6 @@ int lu_printk_printer(const struct lu_env *env,
 	return 0;
 }
 
-int lu_debugging_setup(void)
-{
-	return lu_env_init(&lu_debugging_env, ~0);
-}
-
-void lu_context_keys_dump(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(lu_keys); ++i) {
-		struct lu_context_key *key;
-
-		key = lu_keys[i];
-		if (key != NULL) {
-			CERROR("[%d]: %p %x (%p,%p,%p) %d %d \"%s\"@%p\n",
-			       i, key, key->lct_tags,
-			       key->lct_init, key->lct_fini, key->lct_exit,
-			       key->lct_index, atomic_read(&key->lct_used),
-			       key->lct_owner ? key->lct_owner->name : "",
-			       key->lct_owner);
-			lu_ref_print(&key->lct_reference);
-		}
-	}
-}
-EXPORT_SYMBOL(lu_context_keys_dump);
-
 /**
  * Initialization of global lu_* data.
  */

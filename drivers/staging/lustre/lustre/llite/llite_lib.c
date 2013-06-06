@@ -1061,9 +1061,6 @@ out_free:
 	RETURN(err);
 } /* ll_fill_super */
 
-
-void lu_context_keys_dump(void);
-
 void ll_put_super(struct super_block *sb)
 {
 	struct config_llog_instance cfg;
