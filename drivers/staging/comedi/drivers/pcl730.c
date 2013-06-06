@@ -3,17 +3,22 @@
  * Driver for Advantech PCL-730 and clones
  * José Luis Sánchez
  */
-/*
-Driver: pcl730
-Description: Advantech PCL-730 (& compatibles)
-Author: José Luis Sánchez (jsanchezv@teleline.es)
-Status: untested
-Devices: [Advantech] PCL-730 (pcl730), [ICP] ISO-730 (iso730),
-		 [Adlink] ACL-7130 (acl7130)
 
-Interrupts are not supported.
-The ACL-7130 card have an 8254 timer/counter not supported by this driver.
-*/
+/*
+ * Driver: pcl730
+ * Description: Advantech PCL-730 (& compatibles)
+ * Devices: (Advantech) PCL-730 [pcl730]
+ *	    (ICP) ISO-730 [iso730]
+ *	    (Adlink) ACL-7130 [acl7130]
+ * Author: José Luis Sánchez (jsanchezv@teleline.es)
+ * Status: untested
+ *
+ * Configuration options:
+ *   [0] - I/O port base
+ *
+ * Interrupts are not supported.
+ * The ACL-7130 card has an 8254 timer/counter not supported by this driver.
+ */
 
 #include "../comedidev.h"
 
