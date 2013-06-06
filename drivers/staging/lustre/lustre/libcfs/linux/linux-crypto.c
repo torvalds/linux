@@ -270,20 +270,11 @@ static int cfs_crypto_test_hashes(void)
 	return 0;
 }
 
-static int crc32, adler32;
-
-#ifdef CONFIG_X86
-static int crc32pclmul;
-#endif
+static int adler32;
 
 int cfs_crypto_register(void)
 {
-	crc32 = cfs_crypto_crc32_register();
 	adler32 = cfs_crypto_adler32_register();
-
-#ifdef CONFIG_X86
-	crc32pclmul = cfs_crypto_crc32_pclmul_register();
-#endif
 
 	/* check all algorithms and do performance test */
 	cfs_crypto_test_hashes();
@@ -291,15 +282,8 @@ int cfs_crypto_register(void)
 }
 void cfs_crypto_unregister(void)
 {
-	if (crc32 == 0)
-		cfs_crypto_crc32_unregister();
 	if (adler32 == 0)
 		cfs_crypto_adler32_unregister();
-
-#ifdef CONFIG_X86
-	if (crc32pclmul == 0)
-		cfs_crypto_crc32_pclmul_unregister();
-#endif
 
 	return;
 }

@@ -2,6 +2,14 @@ config LUSTRE_FS
 	tristate "Lustre file system client support"
 	depends on STAGING && INET && BROKEN
 	select LNET
+	select CRYPTO
+	select CRYPTO_CRC32
+	select CRYPTO_CRC32_PCLMUL if X86
+	select CRYPTO_CRC32C
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
 	help
 	  This option enables Lustre file system client support. Choose Y
 	  here if you want to access a Lustre file system cluster. To compile
