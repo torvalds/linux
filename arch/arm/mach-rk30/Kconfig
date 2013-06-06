@@ -30,22 +30,21 @@ config SOC_RK3068
 config SOC_RK3066B
 	bool "RK3066B"
 	select ARCH_RK3066B
-	select USB_ARCH_HAS_EHCI
 
 config SOC_RK3108
 	bool "RK3108"
 	select ARCH_RK3066B
-	select USB_ARCH_HAS_EHCI
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 
 config SOC_RK3168
 	bool "RK3168"
 	select ARCH_RK3066B
-	select USB_ARCH_HAS_EHCI
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 
 config SOC_RK3168M
 	bool "RK3168M"
 	select ARCH_RK3066B
-	select USB_ARCH_HAS_EHCI
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 
 endchoice
 
