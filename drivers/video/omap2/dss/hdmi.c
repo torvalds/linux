@@ -710,7 +710,7 @@ bool omapdss_hdmi_detect(void)
 	r = hdmi_runtime_get();
 	BUG_ON(r);
 
-	r = hdmi.ip_data.ops->detect(&hdmi.ip_data);
+	r = gpio_get_value(hdmi.hpd_gpio);
 
 	hdmi_runtime_put();
 	mutex_unlock(&hdmi.lock);
@@ -732,8 +732,6 @@ int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
 		r = -ENODEV;
 		goto err0;
 	}
-
-	hdmi.ip_data.hpd_gpio = hdmi.hpd_gpio;
 
 	r = hdmi_power_on_full(dssdev);
 	if (r) {
@@ -767,8 +765,6 @@ int omapdss_hdmi_core_enable(struct omap_dss_device *dssdev)
 	DSSDBG("ENTER omapdss_hdmi_core_enable\n");
 
 	mutex_lock(&hdmi.lock);
-
-	hdmi.ip_data.hpd_gpio = hdmi.hpd_gpio;
 
 	r = hdmi_power_on_core(dssdev);
 	if (r) {

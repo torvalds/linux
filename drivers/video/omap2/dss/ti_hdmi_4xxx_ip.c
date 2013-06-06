@@ -28,7 +28,6 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
-#include <linux/gpio.h>
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
 #include <sound/asound.h>
 #include <sound/asoundef.h>
@@ -479,11 +478,6 @@ int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data,
 	}
 
 	return l;
-}
-
-bool ti_hdmi_4xxx_detect(struct hdmi_ip_data *ip_data)
-{
-	return gpio_get_value(ip_data->hpd_gpio);
 }
 
 static void hdmi_core_init(struct hdmi_core_video_config *video_cfg,
