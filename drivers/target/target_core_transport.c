@@ -530,13 +530,6 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 	if (!lun)
 		return;
 
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (cmd->transport_state & CMD_T_DEV_ACTIVE) {
-		cmd->transport_state &= ~CMD_T_DEV_ACTIVE;
-		target_remove_from_state_list(cmd);
-	}
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
 	spin_lock_irqsave(&lun->lun_cmd_lock, flags);
 	if (!list_empty(&cmd->se_lun_node))
 		list_del_init(&cmd->se_lun_node);
