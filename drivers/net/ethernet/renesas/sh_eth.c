@@ -465,6 +465,7 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 			  EESR_ECI,
 	.tx_error_check	= EESR_TWB | EESR_TABT | EESR_TDE | EESR_TFE,
 
+	.irq_flags	= IRQF_SHARED,
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
@@ -573,6 +574,7 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data_giga = {
 	.fdr_value	= 0x0000072f,
 	.rmcr_value	= 0x00000001,
 
+	.irq_flags	= IRQF_SHARED,
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
@@ -653,6 +655,8 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 #if defined(CONFIG_CPU_SUBTYPE_SH7734)
 	.hw_crc     = 1,
 	.select_mii = 1,
+#else
+	.irq_flags	= IRQF_SHARED,
 #endif
 };
 
@@ -1919,14 +1923,7 @@ static int sh_eth_open(struct net_device *ndev)
 	pm_runtime_get_sync(&mdp->pdev->dev);
 
 	ret = request_irq(ndev->irq, sh_eth_interrupt,
-#if defined(CONFIG_CPU_SUBTYPE_SH7763) || \
-	defined(CONFIG_CPU_SUBTYPE_SH7764) || \
-	defined(CONFIG_CPU_SUBTYPE_SH7757)
-				IRQF_SHARED,
-#else
-				0,
-#endif
-				ndev->name, ndev);
+			  mdp->cd->irq_flags, ndev->name, ndev);
 	if (ret) {
 		dev_err(&ndev->dev, "Can not assign IRQ number\n");
 		return ret;
