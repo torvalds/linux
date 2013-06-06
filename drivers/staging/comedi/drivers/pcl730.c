@@ -42,19 +42,24 @@ static const struct pcl730_board boardtypes[] = {
 	},
 };
 
-static int pcl730_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int pcl730_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	unsigned long reg = (unsigned long)s->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
+		if (mask & 0x00ff)
+			outb(s->state & 0xff, dev->iobase + reg);
+		if (mask & 0xff00)
+			outb((s->state >> 8) & 0xff, dev->iobase + reg + 1);
 	}
-	if (data[0] & 0x00ff)
-		outb(s->state & 0xff,
-		     dev->iobase + ((unsigned long)s->private));
-	if (data[0] & 0xff00)
-		outb((s->state >> 8),
-		     dev->iobase + ((unsigned long)s->private) + 1);
 
 	data[1] = s->state;
 
@@ -90,7 +95,7 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags = SDF_WRITABLE;
 	s->maxdata = 1;
 	s->n_chan = 16;
-	s->insn_bits = pcl730_do_insn;
+	s->insn_bits = pcl730_do_insn_bits;
 	s->range_table = &range_digital;
 	s->private = (void *)PCL730_IDIO_LO;
 
@@ -110,7 +115,7 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags = SDF_WRITABLE;
 	s->maxdata = 1;
 	s->n_chan = 16;
-	s->insn_bits = pcl730_do_insn;
+	s->insn_bits = pcl730_do_insn_bits;
 	s->range_table = &range_digital;
 	s->private = (void *)PCL730_DIO_LO;
 
