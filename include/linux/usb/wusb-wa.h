@@ -92,11 +92,20 @@ struct usb_rpipe_descriptor {
 	__le16  wRPipeIndex;
 	__le16	wRequests;
 	__le16	wBlocks;		/* rw if 0 */
-	__le16	wMaxPacketSize;		/* rw? */
-	u8	bHSHubAddress;		/* reserved: 0 */
-	u8	bHSHubPort;		/* ??? FIXME ??? */
+	__le16	wMaxPacketSize;		/* rw */
+	union {
+		u8	dwa_bHSHubAddress;		/* rw: DWA. */
+		u8	hwa_bMaxBurst;			/* rw: HWA. */
+	};
+	union {
+		u8	dwa_bHSHubPort;		/*  rw: DWA. */
+		u8	hwa_bDeviceInfoIndex;	/*  rw: HWA. */
+	};
 	u8	bSpeed;			/* rw: xfer rate 'enum uwb_phy_rate' */
-	u8	bDeviceAddress;		/* rw: Target device address */
+	union {
+		u8 dwa_bDeviceAddress;	/* rw: DWA Target device address. */
+		u8 hwa_reserved;		/* rw: HWA. */
+	};
 	u8	bEndpointAddress;	/* rw: Target EP address */
 	u8	bDataSequence;		/* ro: Current Data sequence */
 	__le32	dwCurrentWindow;	/* ro */
