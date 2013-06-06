@@ -407,7 +407,6 @@ static int spear_adc_remove(struct platform_device *pdev)
 	struct spear_adc_info *info = iio_priv(iodev);
 
 	iio_device_unregister(iodev);
-	platform_set_drvdata(pdev, NULL);
 	clk_disable_unprepare(info->clk);
 	clk_put(info->clk);
 	iounmap(info->adc_base_spear6xx);
