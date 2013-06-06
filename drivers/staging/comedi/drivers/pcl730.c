@@ -29,7 +29,7 @@ struct pcl730_board {
 	unsigned int io_range;	/*  len of I/O space */
 };
 
-static const struct pcl730_board boardtypes[] = {
+static const struct pcl730_board pcl730_boards[] = {
 	{
 		.name		= "pcl730",
 		.io_range	= 0x04,
@@ -141,8 +141,8 @@ static struct comedi_driver pcl730_driver = {
 	.module		= THIS_MODULE,
 	.attach		= pcl730_attach,
 	.detach		= comedi_legacy_detach,
-	.board_name	= &boardtypes[0].name,
-	.num_names	= ARRAY_SIZE(boardtypes),
+	.board_name	= &pcl730_boards[0].name,
+	.num_names	= ARRAY_SIZE(pcl730_boards),
 	.offset		= sizeof(struct pcl730_board),
 };
 module_comedi_driver(pcl730_driver);
