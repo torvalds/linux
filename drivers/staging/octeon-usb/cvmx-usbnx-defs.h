@@ -66,7 +66,8 @@
  *
  * USBN_CLK_CTL = USBN's Clock Control
  *
- * This register is used to control the frequency of the hclk and the hreset and phy_rst signals.
+ * This register is used to control the frequency of the hclk and the
+ * hreset and phy_rst signals.
  */
 union cvmx_usbnx_clk_ctl {
 	uint64_t u64;
