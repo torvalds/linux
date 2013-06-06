@@ -19,17 +19,27 @@ The ACL-7130 card have an 8254 timer/counter not supported by this driver.
 
 #include <linux/ioport.h>
 
-#define PCL730_SIZE		4
-#define ACL7130_SIZE	8
 #define PCL730_IDIO_LO	0	/* Isolated Digital I/O low byte (ID0-ID7) */
 #define PCL730_IDIO_HI	1	/* Isolated Digital I/O high byte (ID8-ID15) */
 #define PCL730_DIO_LO	2	/* TTL Digital I/O low byte (D0-D7) */
 #define PCL730_DIO_HI	3	/* TTL Digital I/O high byte (D8-D15) */
 
 struct pcl730_board {
-
 	const char *name;	/*  board name */
 	unsigned int io_range;	/*  len of I/O space */
+};
+
+static const struct pcl730_board boardtypes[] = {
+	{
+		.name		= "pcl730",
+		.io_range	= 0x04,
+	}, {
+		.name		= "iso730",
+		.io_range	= 0x04,
+	}, {
+		.name		= "acl7130",
+		.io_range	= 0x08,
+	},
 };
 
 static int pcl730_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -118,12 +128,6 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	return 0;
 }
-
-static const struct pcl730_board boardtypes[] = {
-	{ "pcl730", PCL730_SIZE, },
-	{ "iso730", PCL730_SIZE, },
-	{ "acl7130", ACL7130_SIZE, },
-};
 
 static struct comedi_driver pcl730_driver = {
 	.driver_name	= "pcl730",
