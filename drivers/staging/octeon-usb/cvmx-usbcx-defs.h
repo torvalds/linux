@@ -118,11 +118,9 @@
  * The application must program this register as part of the O2P USB core initialization.
  * Do not change this register after the initial programming.
  */
-union cvmx_usbcx_gahbcfg
-{
+union cvmx_usbcx_gahbcfg {
 	uint32_t u32;
-	struct cvmx_usbcx_gahbcfg_s
-	{
+	struct cvmx_usbcx_gahbcfg_s {
 	uint32_t reserved_9_31                : 23;
 	uint32_t ptxfemplvl                   : 1;  /**< Periodic TxFIFO Empty Level (PTxFEmpLvl)
                                                          Software should set this bit to 0x1.
@@ -166,11 +164,9 @@ typedef union cvmx_usbcx_gahbcfg cvmx_usbcx_gahbcfg_t;
  *
  * This register contains the configuration options of the O2P USB core.
  */
-union cvmx_usbcx_ghwcfg3
-{
+union cvmx_usbcx_ghwcfg3 {
 	uint32_t u32;
-	struct cvmx_usbcx_ghwcfg3_s
-	{
+	struct cvmx_usbcx_ghwcfg3_s {
 	uint32_t dfifodepth                   : 16; /**< DFIFO Depth (DfifoDepth)
                                                          This value is in terms of 32-bit words.
                                                          * Minimum value is 32
@@ -229,11 +225,9 @@ typedef union cvmx_usbcx_ghwcfg3 cvmx_usbcx_ghwcfg3_t;
  * However, the Core Interrupt (GINTSTS) register bit corresponding to that interrupt will still be set.
  * Mask interrupt: 1'b0, Unmask interrupt: 1'b1
  */
-union cvmx_usbcx_gintmsk
-{
+union cvmx_usbcx_gintmsk {
 	uint32_t u32;
-	struct cvmx_usbcx_gintmsk_s
-	{
+	struct cvmx_usbcx_gintmsk_s {
 	uint32_t wkupintmsk                   : 1;  /**< Resume/Remote Wakeup Detected Interrupt Mask
                                                          (WkUpIntMsk) */
 	uint32_t sessreqintmsk                : 1;  /**< Session Request/New Session Detected Interrupt Mask
@@ -288,11 +282,9 @@ typedef union cvmx_usbcx_gintmsk cvmx_usbcx_gintmsk_t;
  * The FIFO status interrupts are read only; once software reads from or writes to the FIFO while servicing these
  * interrupts, FIFO interrupt conditions are cleared automatically.
  */
-union cvmx_usbcx_gintsts
-{
+union cvmx_usbcx_gintsts {
 	uint32_t u32;
-	struct cvmx_usbcx_gintsts_s
-	{
+	struct cvmx_usbcx_gintsts_s {
 	uint32_t wkupint                      : 1;  /**< Resume/Remote Wakeup Detected Interrupt (WkUpInt)
                                                          In Device mode, this interrupt is asserted when a resume is
                                                          detected on the USB. In Host mode, this interrupt is asserted
@@ -478,11 +470,9 @@ typedef union cvmx_usbcx_gintsts cvmx_usbcx_gintsts_t;
  *
  * The application can program the RAM size and the memory start address for the Non-Periodic TxFIFO.
  */
-union cvmx_usbcx_gnptxfsiz
-{
+union cvmx_usbcx_gnptxfsiz {
 	uint32_t u32;
-	struct cvmx_usbcx_gnptxfsiz_s
-	{
+	struct cvmx_usbcx_gnptxfsiz_s {
 	uint32_t nptxfdep                     : 16; /**< Non-Periodic TxFIFO Depth (NPTxFDep)
                                                          This value is in terms of 32-bit words.
                                                          Minimum value is 16
@@ -502,11 +492,9 @@ typedef union cvmx_usbcx_gnptxfsiz cvmx_usbcx_gnptxfsiz_t;
  * This read-only register contains the free space information for the Non-Periodic TxFIFO and
  * the Non-Periodic Transmit Request Queue
  */
-union cvmx_usbcx_gnptxsts
-{
+union cvmx_usbcx_gnptxsts {
 	uint32_t u32;
-	struct cvmx_usbcx_gnptxsts_s
-	{
+	struct cvmx_usbcx_gnptxsts_s {
 	uint32_t reserved_31_31               : 1;
 	uint32_t nptxqtop                     : 7;  /**< Top of the Non-Periodic Transmit Request Queue (NPTxQTop)
                                                          Entry in the Non-Periodic Tx Request Queue that is currently
@@ -550,11 +538,9 @@ typedef union cvmx_usbcx_gnptxsts cvmx_usbcx_gnptxsts_t;
  *
  * The application uses this register to reset various hardware features inside the core.
  */
-union cvmx_usbcx_grstctl
-{
+union cvmx_usbcx_grstctl {
 	uint32_t u32;
-	struct cvmx_usbcx_grstctl_s
-	{
+	struct cvmx_usbcx_grstctl_s {
 	uint32_t ahbidle                      : 1;  /**< AHB Master Idle (AHBIdle)
                                                          Indicates that the AHB Master State Machine is in the IDLE
                                                          condition. */
@@ -667,11 +653,9 @@ typedef union cvmx_usbcx_grstctl cvmx_usbcx_grstctl_t;
  *
  * The application can program the RAM size that must be allocated to the RxFIFO.
  */
-union cvmx_usbcx_grxfsiz
-{
+union cvmx_usbcx_grxfsiz {
 	uint32_t u32;
-	struct cvmx_usbcx_grxfsiz_s
-	{
+	struct cvmx_usbcx_grxfsiz_s {
 	uint32_t reserved_16_31               : 16;
 	uint32_t rxfdep                       : 16; /**< RxFIFO Depth (RxFDep)
                                                          This value is in terms of 32-bit words.
@@ -692,11 +676,9 @@ typedef union cvmx_usbcx_grxfsiz cvmx_usbcx_grxfsiz_t;
  *       The offset difference shown in this document is for software clarity and is actually ignored by the
  *       hardware.
  */
-union cvmx_usbcx_grxstsph
-{
+union cvmx_usbcx_grxstsph {
 	uint32_t u32;
-	struct cvmx_usbcx_grxstsph_s
-	{
+	struct cvmx_usbcx_grxstsph_s {
 	uint32_t reserved_21_31               : 11;
 	uint32_t pktsts                       : 4;  /**< Packet Status (PktSts)
                                                          Indicates the status of the received packet
@@ -729,11 +711,9 @@ typedef union cvmx_usbcx_grxstsph cvmx_usbcx_grxstsph_t;
  * before starting any transactions on either the AHB or the USB.
  * Do not make changes to this register after the initial programming.
  */
-union cvmx_usbcx_gusbcfg
-{
+union cvmx_usbcx_gusbcfg {
 	uint32_t u32;
-	struct cvmx_usbcx_gusbcfg_s
-	{
+	struct cvmx_usbcx_gusbcfg_s {
 	uint32_t reserved_17_31               : 15;
 	uint32_t otgi2csel                    : 1;  /**< UTMIFS or I2C Interface Select (OtgI2CSel)
                                                          This bit is always 0x0. */
@@ -805,11 +785,9 @@ typedef union cvmx_usbcx_gusbcfg cvmx_usbcx_gusbcfg_t;
  * channel, up to a maximum of 16 bits. Bits in this register are set and cleared when the
  * application sets and clears bits in the corresponding Host Channel-n Interrupt register.
  */
-union cvmx_usbcx_haint
-{
+union cvmx_usbcx_haint {
 	uint32_t u32;
-	struct cvmx_usbcx_haint_s
-	{
+	struct cvmx_usbcx_haint_s {
 	uint32_t reserved_16_31               : 16;
 	uint32_t haint                        : 16; /**< Channel Interrupts (HAINT)
                                                          One bit per channel: Bit 0 for Channel 0, bit 15 for Channel 15 */
@@ -827,11 +805,9 @@ typedef union cvmx_usbcx_haint cvmx_usbcx_haint_t;
  * interrupt mask bit per channel, up to a maximum of 16 bits.
  * Mask interrupt: 1'b0 Unmask interrupt: 1'b1
  */
-union cvmx_usbcx_haintmsk
-{
+union cvmx_usbcx_haintmsk {
 	uint32_t u32;
-	struct cvmx_usbcx_haintmsk_s
-	{
+	struct cvmx_usbcx_haintmsk_s {
 	uint32_t reserved_16_31               : 16;
 	uint32_t haintmsk                     : 16; /**< Channel Interrupt Mask (HAINTMsk)
                                                          One bit per channel: Bit 0 for channel 0, bit 15 for channel 15 */
@@ -845,11 +821,9 @@ typedef union cvmx_usbcx_haintmsk cvmx_usbcx_haintmsk_t;
  * Host Channel-n Characteristics Register (HCCHAR)
  *
  */
-union cvmx_usbcx_hccharx
-{
+union cvmx_usbcx_hccharx {
 	uint32_t u32;
-	struct cvmx_usbcx_hccharx_s
-	{
+	struct cvmx_usbcx_hccharx_s {
 	uint32_t chena                        : 1;  /**< Channel Enable (ChEna)
                                                          This field is set by the application and cleared by the OTG host.
                                                          * 1'b0: Channel disabled
@@ -914,11 +888,9 @@ typedef union cvmx_usbcx_hccharx cvmx_usbcx_hccharx_t;
  *
  * This register configures the core after power-on. Do not make changes to this register after initializing the host.
  */
-union cvmx_usbcx_hcfg
-{
+union cvmx_usbcx_hcfg {
 	uint32_t u32;
-	struct cvmx_usbcx_hcfg_s
-	{
+	struct cvmx_usbcx_hcfg_s {
 	uint32_t reserved_3_31                : 29;
 	uint32_t fslssupp                     : 1;  /**< FS- and LS-Only Support (FSLSSupp)
                                                          The application uses this bit to control the core's enumeration
@@ -963,11 +935,9 @@ typedef union cvmx_usbcx_hcfg cvmx_usbcx_hcfg_t;
  * Interrupt register. The application must clear the appropriate bit in this register to clear the
  * corresponding bits in the HAINT and GINTSTS registers.
  */
-union cvmx_usbcx_hcintx
-{
+union cvmx_usbcx_hcintx {
 	uint32_t u32;
-	struct cvmx_usbcx_hcintx_s
-	{
+	struct cvmx_usbcx_hcintx_s {
 	uint32_t reserved_11_31               : 21;
 	uint32_t datatglerr                   : 1;  /**< Data Toggle Error (DataTglErr) */
 	uint32_t frmovrun                     : 1;  /**< Frame Overrun (FrmOvrun) */
@@ -996,11 +966,9 @@ typedef union cvmx_usbcx_hcintx cvmx_usbcx_hcintx_t;
  * This register reflects the mask for each channel status described in the previous section.
  * Mask interrupt: 1'b0 Unmask interrupt: 1'b1
  */
-union cvmx_usbcx_hcintmskx
-{
+union cvmx_usbcx_hcintmskx {
 	uint32_t u32;
-	struct cvmx_usbcx_hcintmskx_s
-	{
+	struct cvmx_usbcx_hcintmskx_s {
 	uint32_t reserved_11_31               : 21;
 	uint32_t datatglerrmsk                : 1;  /**< Data Toggle Error Mask (DataTglErrMsk) */
 	uint32_t frmovrunmsk                  : 1;  /**< Frame Overrun Mask (FrmOvrunMsk) */
@@ -1023,11 +991,9 @@ typedef union cvmx_usbcx_hcintmskx cvmx_usbcx_hcintmskx_t;
  * Host Channel-n Split Control Register (HCSPLT)
  *
  */
-union cvmx_usbcx_hcspltx
-{
+union cvmx_usbcx_hcspltx {
 	uint32_t u32;
-	struct cvmx_usbcx_hcspltx_s
-	{
+	struct cvmx_usbcx_hcspltx_s {
 	uint32_t spltena                      : 1;  /**< Split Enable (SpltEna)
                                                          The application sets this field to indicate that this channel is
                                                          enabled to perform split transactions. */
@@ -1062,11 +1028,9 @@ typedef union cvmx_usbcx_hcspltx cvmx_usbcx_hcspltx_t;
  * Host Channel-n Transfer Size Register (HCTSIZ)
  *
  */
-union cvmx_usbcx_hctsizx
-{
+union cvmx_usbcx_hctsizx {
 	uint32_t u32;
-	struct cvmx_usbcx_hctsizx_s
-	{
+	struct cvmx_usbcx_hctsizx_s {
 	uint32_t dopng                        : 1;  /**< Do Ping (DoPng)
                                                          Setting this field to 1 directs the host to do PING protocol. */
 	uint32_t pid                          : 2;  /**< PID (Pid)
@@ -1102,11 +1066,9 @@ typedef union cvmx_usbcx_hctsizx cvmx_usbcx_hctsizx_t;
  *
  * This register stores the frame interval information for the current speed to which the O2P USB core has enumerated.
  */
-union cvmx_usbcx_hfir
-{
+union cvmx_usbcx_hfir {
 	uint32_t u32;
-	struct cvmx_usbcx_hfir_s
-	{
+	struct cvmx_usbcx_hfir_s {
 	uint32_t reserved_16_31               : 16;
 	uint32_t frint                        : 16; /**< Frame Interval (FrInt)
                                                          The value that the application programs to this field specifies
@@ -1137,11 +1099,9 @@ typedef union cvmx_usbcx_hfir cvmx_usbcx_hfir_t;
  * It also indicates the time remaining (in terms of the number of PHY clocks)
  * in the current (micro)frame.
  */
-union cvmx_usbcx_hfnum
-{
+union cvmx_usbcx_hfnum {
 	uint32_t u32;
-	struct cvmx_usbcx_hfnum_s
-	{
+	struct cvmx_usbcx_hfnum_s {
 	uint32_t frrem                        : 16; /**< Frame Time Remaining (FrRem)
                                                          Indicates the amount of time remaining in the current
                                                          microframe (HS) or frame (FS/LS), in terms of PHY clocks.
@@ -1169,11 +1129,9 @@ typedef union cvmx_usbcx_hfnum cvmx_usbcx_hfnum_t;
  * the bit that caused the interrupt. For the R_SS_WC bits, the application must write a 1 to the bit
  * to clear the interrupt.
  */
-union cvmx_usbcx_hprt
-{
+union cvmx_usbcx_hprt {
 	uint32_t u32;
-	struct cvmx_usbcx_hprt_s
-	{
+	struct cvmx_usbcx_hprt_s {
 	uint32_t reserved_19_31               : 13;
 	uint32_t prtspd                       : 2;  /**< Port Speed (PrtSpd)
                                                          Indicates the speed of the device attached to this port.
@@ -1288,11 +1246,9 @@ typedef union cvmx_usbcx_hprt cvmx_usbcx_hprt_t;
  *
  * This register holds the size and the memory start address of the Periodic TxFIFO, as shown in Figures 310 and 311.
  */
-union cvmx_usbcx_hptxfsiz
-{
+union cvmx_usbcx_hptxfsiz {
 	uint32_t u32;
-	struct cvmx_usbcx_hptxfsiz_s
-	{
+	struct cvmx_usbcx_hptxfsiz_s {
 	uint32_t ptxfsize                     : 16; /**< Host Periodic TxFIFO Depth (PTxFSize)
                                                          This value is in terms of 32-bit words.
                                                          * Minimum value is 16
@@ -1310,11 +1266,9 @@ typedef union cvmx_usbcx_hptxfsiz cvmx_usbcx_hptxfsiz_t;
  * This read-only register contains the free space information for the Periodic TxFIFO and
  * the Periodic Transmit Request Queue
  */
-union cvmx_usbcx_hptxsts
-{
+union cvmx_usbcx_hptxsts {
 	uint32_t u32;
-	struct cvmx_usbcx_hptxsts_s
-	{
+	struct cvmx_usbcx_hptxsts_s {
 	uint32_t ptxqtop                      : 8;  /**< Top of the Periodic Transmit Request Queue (PTxQTop)
                                                          This indicates the entry in the Periodic Tx Request Queue that
                                                          is currently being processes by the MAC.
