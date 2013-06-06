@@ -29,6 +29,10 @@
 static debug_info_t *chsc_debug_msg_id;
 static debug_info_t *chsc_debug_log_id;
 
+static struct chsc_request *on_close_request;
+static struct chsc_async_area *on_close_chsc_area;
+static DEFINE_MUTEX(on_close_mutex);
+
 #define CHSC_MSG(imp, args...) do {					\
 		debug_sprintf_event(chsc_debug_msg_id, imp , ##args);	\
 	} while (0)
@@ -359,6 +363,68 @@ out_free:
 	CHSC_LOG(0, dbf);
 	kfree(request);
 	free_page((unsigned long)chsc_area);
+	return ret;
+}
+
+static int chsc_ioctl_on_close_set(void __user *user_area)
+{
+	char dbf[13];
+	int ret;
+
+	mutex_lock(&on_close_mutex);
+	if (on_close_chsc_area) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+	on_close_request = kzalloc(sizeof(*on_close_request), GFP_KERNEL);
+	if (!on_close_request) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
+	on_close_chsc_area = (void *)get_zeroed_page(GFP_DMA | GFP_KERNEL);
+	if (!on_close_chsc_area) {
+		ret = -ENOMEM;
+		goto out_free_request;
+	}
+	if (copy_from_user(on_close_chsc_area, user_area, PAGE_SIZE)) {
+		ret = -EFAULT;
+		goto out_free_chsc;
+	}
+	ret = 0;
+	goto out_unlock;
+
+out_free_chsc:
+	free_page((unsigned long)on_close_chsc_area);
+	on_close_chsc_area = NULL;
+out_free_request:
+	kfree(on_close_request);
+	on_close_request = NULL;
+out_unlock:
+	mutex_unlock(&on_close_mutex);
+	sprintf(dbf, "ocsret:%d", ret);
+	CHSC_LOG(0, dbf);
+	return ret;
+}
+
+static int chsc_ioctl_on_close_remove(void)
+{
+	char dbf[13];
+	int ret;
+
+	mutex_lock(&on_close_mutex);
+	if (!on_close_chsc_area) {
+		ret = -ENOENT;
+		goto out_unlock;
+	}
+	free_page((unsigned long)on_close_chsc_area);
+	on_close_chsc_area = NULL;
+	kfree(on_close_request);
+	on_close_request = NULL;
+	ret = 0;
+out_unlock:
+	mutex_unlock(&on_close_mutex);
+	sprintf(dbf, "ocrret:%d", ret);
+	CHSC_LOG(0, dbf);
 	return ret;
 }
 
@@ -842,6 +908,10 @@ static long chsc_ioctl(struct file *filp, unsigned int cmd,
 		return chsc_ioctl_chpd(argp);
 	case CHSC_INFO_DCAL:
 		return chsc_ioctl_dcal(argp);
+	case CHSC_ON_CLOSE_SET:
+		return chsc_ioctl_on_close_set(argp);
+	case CHSC_ON_CLOSE_REMOVE:
+		return chsc_ioctl_on_close_remove();
 	default: /* unknown ioctl number */
 		return -ENOIOCTLCMD;
 	}
@@ -860,6 +930,30 @@ static int chsc_open(struct inode *inode, struct file *file)
 
 static int chsc_release(struct inode *inode, struct file *filp)
 {
+	char dbf[13];
+	int ret;
+
+	mutex_lock(&on_close_mutex);
+	if (!on_close_chsc_area)
+		goto out_unlock;
+	init_completion(&on_close_request->completion);
+	CHSC_LOG(0, "on_close");
+	chsc_log_command(on_close_chsc_area);
+	spin_lock_irq(&chsc_lock);
+	ret = chsc_async(on_close_chsc_area, on_close_request);
+	spin_unlock_irq(&chsc_lock);
+	if (ret == -EINPROGRESS) {
+		wait_for_completion(&on_close_request->completion);
+		ret = chsc_examine_irb(on_close_request);
+	}
+	sprintf(dbf, "relret:%d", ret);
+	CHSC_LOG(0, dbf);
+	free_page((unsigned long)on_close_chsc_area);
+	on_close_chsc_area = NULL;
+	kfree(on_close_request);
+	on_close_request = NULL;
+out_unlock:
+	mutex_unlock(&on_close_mutex);
 	atomic_inc(&chsc_ready_for_use);
 	return 0;
 }

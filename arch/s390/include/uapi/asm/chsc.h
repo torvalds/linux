@@ -137,5 +137,7 @@ struct chsc_cpd_info {
 #define CHSC_INFO_CPD _IOWR(CHSC_IOCTL_MAGIC, 0x87, struct chsc_cpd_info)
 #define CHSC_INFO_DCAL _IOWR(CHSC_IOCTL_MAGIC, 0x88, struct chsc_dcal)
 #define CHSC_START_SYNC _IOWR(CHSC_IOCTL_MAGIC, 0x89, struct chsc_sync_area)
+#define CHSC_ON_CLOSE_SET _IOWR(CHSC_IOCTL_MAGIC, 0x8a, struct chsc_async_area)
+#define CHSC_ON_CLOSE_REMOVE _IO(CHSC_IOCTL_MAGIC, 0x8b)
 
 #endif
