@@ -393,26 +393,6 @@ int wusbhc_rh_control(struct usb_hcd *usb_hcd, u16 reqntype, u16 wValue,
 }
 EXPORT_SYMBOL_GPL(wusbhc_rh_control);
 
-int wusbhc_rh_suspend(struct usb_hcd *usb_hcd)
-{
-	struct wusbhc *wusbhc = usb_hcd_to_wusbhc(usb_hcd);
-	dev_err(wusbhc->dev, "%s (%p [%p]) UNIMPLEMENTED\n", __func__,
-		usb_hcd, wusbhc);
-	/* dump_stack(); */
-	return -ENOSYS;
-}
-EXPORT_SYMBOL_GPL(wusbhc_rh_suspend);
-
-int wusbhc_rh_resume(struct usb_hcd *usb_hcd)
-{
-	struct wusbhc *wusbhc = usb_hcd_to_wusbhc(usb_hcd);
-	dev_err(wusbhc->dev, "%s (%p [%p]) UNIMPLEMENTED\n", __func__,
-		usb_hcd, wusbhc);
-	/* dump_stack(); */
-	return -ENOSYS;
-}
-EXPORT_SYMBOL_GPL(wusbhc_rh_resume);
-
 int wusbhc_rh_start_port_reset(struct usb_hcd *usb_hcd, unsigned port_idx)
 {
 	struct wusbhc *wusbhc = usb_hcd_to_wusbhc(usb_hcd);

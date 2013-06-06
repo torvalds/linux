@@ -399,8 +399,6 @@ extern void wusbhc_rh_destroy(struct wusbhc *);
 
 extern int wusbhc_rh_status_data(struct usb_hcd *, char *);
 extern int wusbhc_rh_control(struct usb_hcd *, u16, u16, u16, char *, u16);
-extern int wusbhc_rh_suspend(struct usb_hcd *);
-extern int wusbhc_rh_resume(struct usb_hcd *);
 extern int wusbhc_rh_start_port_reset(struct usb_hcd *, unsigned);
 
 /* MMC handling */
