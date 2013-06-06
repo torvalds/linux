@@ -36,7 +36,7 @@
 #define ALTERA_TIMER_CONTROL_STOP_MSK	(0x8)
 
 static u32 nios2_timer_count;
-static u32 timer_membase;
+static void __iomem *timer_membase;
 static u32 timer_freq;
 
 static inline unsigned long read_timersnapshot(void)
@@ -114,9 +114,9 @@ void __init nios2_late_time_init(void)
 
 	BUG_ON(!timer);
 
-	timer_membase = of_translate_address(timer, of_get_address(timer, 0,
-		NULL, NULL));
-	timer_membase = (u32) ioremap(timer_membase, PAGE_SIZE);
+	timer_membase = of_iomap(timer, 0);
+	if (WARN_ON(!timer_membase))
+		return;
 
 	if (of_property_read_u32(timer, "clock-frequency", &timer_freq)) {
 		pr_err("Can't get timer clock-frequency from device tree\n");
