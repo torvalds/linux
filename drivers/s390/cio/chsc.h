@@ -10,11 +10,6 @@
 
 #define CHSC_SDA_OC_MSS   0x2
 
-struct chsc_header {
-	u16 length;
-	u16 code;
-} __attribute__ ((packed));
-
 #define NR_MEASUREMENT_CHARS 5
 struct cmg_chars {
 	u32 values[NR_MEASUREMENT_CHARS];

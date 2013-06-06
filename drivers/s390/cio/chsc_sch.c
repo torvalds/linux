@@ -287,11 +287,11 @@ static int chsc_async(struct chsc_async_area *chsc_area,
 	return ret;
 }
 
-static void chsc_log_command(struct chsc_async_area *chsc_area)
+static void chsc_log_command(void *chsc_area)
 {
 	char dbf[10];
 
-	sprintf(dbf, "CHSC:%x", chsc_area->header.code);
+	sprintf(dbf, "CHSC:%x", ((uint16_t *)chsc_area)[1]);
 	CHSC_LOG(0, dbf);
 	CHSC_LOG_HEX(0, chsc_area, 32);
 }
@@ -358,6 +358,37 @@ out_free:
 	sprintf(dbf, "ret:%d", ret);
 	CHSC_LOG(0, dbf);
 	kfree(request);
+	free_page((unsigned long)chsc_area);
+	return ret;
+}
+
+static int chsc_ioctl_start_sync(void __user *user_area)
+{
+	struct chsc_sync_area *chsc_area;
+	int ret, ccode;
+
+	chsc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!chsc_area)
+		return -ENOMEM;
+	if (copy_from_user(chsc_area, user_area, PAGE_SIZE)) {
+		ret = -EFAULT;
+		goto out_free;
+	}
+	if (chsc_area->header.code & 0x4000) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+	chsc_log_command(chsc_area);
+	ccode = chsc(chsc_area);
+	if (ccode != 0) {
+		ret = -EIO;
+		goto out_free;
+	}
+	if (copy_to_user(user_area, chsc_area, PAGE_SIZE))
+		ret = -EFAULT;
+	else
+		ret = 0;
+out_free:
 	free_page((unsigned long)chsc_area);
 	return ret;
 }
@@ -795,6 +826,8 @@ static long chsc_ioctl(struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case CHSC_START:
 		return chsc_ioctl_start(argp);
+	case CHSC_START_SYNC:
+		return chsc_ioctl_start_sync(argp);
 	case CHSC_INFO_CHANNEL_PATH:
 		return chsc_ioctl_info_channel_path(argp);
 	case CHSC_INFO_CU:

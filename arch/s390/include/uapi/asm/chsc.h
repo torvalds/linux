@@ -29,6 +29,16 @@ struct chsc_async_area {
 	__u8 data[CHSC_SIZE - sizeof(struct chsc_async_header)];
 } __attribute__ ((packed));
 
+struct chsc_header {
+	__u16 length;
+	__u16 code;
+} __attribute__ ((packed));
+
+struct chsc_sync_area {
+	struct chsc_header header;
+	__u8 data[CHSC_SIZE - sizeof(struct chsc_header)];
+} __attribute__ ((packed));
+
 struct chsc_response_struct {
 	__u16 length;
 	__u16 code;
@@ -126,5 +136,6 @@ struct chsc_cpd_info {
 #define CHSC_INFO_CCL _IOWR(CHSC_IOCTL_MAGIC, 0x86, struct chsc_comp_list)
 #define CHSC_INFO_CPD _IOWR(CHSC_IOCTL_MAGIC, 0x87, struct chsc_cpd_info)
 #define CHSC_INFO_DCAL _IOWR(CHSC_IOCTL_MAGIC, 0x88, struct chsc_dcal)
+#define CHSC_START_SYNC _IOWR(CHSC_IOCTL_MAGIC, 0x89, struct chsc_sync_area)
 
 #endif
