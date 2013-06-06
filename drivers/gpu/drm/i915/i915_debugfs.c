@@ -830,15 +830,8 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  ring->tail: 0x%08x\n", error->cpu_ring_tail[ring]);
 }
 
-struct i915_error_state_file_priv {
-	struct drm_device *dev;
-	struct drm_i915_error_state *error;
-};
-
-
-static int i915_error_state(struct i915_error_state_file_priv *error_priv,
-			    struct drm_i915_error_state_buf *m)
-
+int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
+			    const struct i915_error_state_file_priv *error_priv)
 {
 	struct drm_device *dev = error_priv->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -848,7 +841,7 @@ static int i915_error_state(struct i915_error_state_file_priv *error_priv,
 
 	if (!error) {
 		err_printf(m, "no error state collected\n");
-		return 0;
+		goto out;
 	}
 
 	err_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
@@ -958,6 +951,10 @@ static int i915_error_state(struct i915_error_state_file_priv *error_priv,
 	if (error->display)
 		intel_display_print_error_state(m, dev, error->display);
 
+out:
+	if (m->bytes == 0 && m->err)
+		return m->err;
+
 	return 0;
 }
 
@@ -1051,14 +1048,9 @@ static ssize_t i915_error_state_read(struct file *file, char __user *userbuf,
 
 	error_str.start = *pos;
 
-	ret = i915_error_state(error_priv, &error_str);
+	ret = i915_error_state_to_str(&error_str, error_priv);
 	if (ret)
 		goto out;
-
-	if (error_str.bytes == 0 && error_str.err) {
-		ret = error_str.err;
-		goto out;
-	}
 
 	ret_count = simple_read_from_buffer(userbuf, count, &tmp_pos,
 					    error_str.buf,

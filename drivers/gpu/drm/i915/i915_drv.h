@@ -917,6 +917,11 @@ struct drm_i915_error_state_buf {
 	loff_t pos;
 };
 
+struct i915_error_state_file_priv {
+	struct drm_device *dev;
+	struct drm_i915_error_state *error;
+};
+
 struct i915_gpu_error {
 	/* For hangcheck timer */
 #define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
@@ -1925,6 +1930,8 @@ int i915_debugfs_init(struct drm_minor *minor);
 void i915_debugfs_cleanup(struct drm_minor *minor);
 __printf(2, 3)
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
+int i915_error_state_to_str(struct drm_i915_error_state_buf *estr,
+			    const struct i915_error_state_file_priv *error);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
