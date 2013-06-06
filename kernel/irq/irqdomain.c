@@ -396,9 +396,7 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 	if (domain == NULL)
 		domain = irq_default_domain;
 	if (domain == NULL) {
-		pr_warning("irq_create_mapping called for"
-			   " NULL domain, hwirq=%lx\n", hwirq);
-		WARN_ON(1);
+		WARN(1, "%s(, %lx) called with NULL domain\n", __func__, hwirq);
 		return 0;
 	}
 	pr_debug("-> using domain @%p\n", domain);
@@ -489,8 +487,8 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 		if (intsize > 0)
 			return intspec[0];
 #endif
-		pr_warning("no irq domain found for %s !\n",
-			   of_node_full_name(controller));
+		pr_warn("no irq domain found for %s !\n",
+			of_node_full_name(controller));
 		return 0;
 	}
 
