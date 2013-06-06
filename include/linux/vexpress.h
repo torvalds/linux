@@ -68,7 +68,8 @@
  */
 struct vexpress_config_bridge_info {
 	const char *name;
-	void *(*func_get)(struct device *dev, struct device_node *node);
+	void *(*func_get)(struct device *dev, struct device_node *node,
+			  const char *id);
 	void (*func_put)(void *func);
 	int (*func_exec)(void *func, int offset, bool write, u32 *data);
 };
@@ -87,12 +88,17 @@ void vexpress_config_complete(struct vexpress_config_bridge *bridge,
 
 struct vexpress_config_func;
 
-struct vexpress_config_func *__vexpress_config_func_get(struct device *dev,
-		struct device_node *node);
+struct vexpress_config_func *__vexpress_config_func_get(
+		struct vexpress_config_bridge *bridge,
+		struct device *dev,
+		struct device_node *node,
+		const char *id);
+#define vexpress_config_func_get(bridge, id) \
+		__vexpress_config_func_get(bridge, NULL, NULL, id)
 #define vexpress_config_func_get_by_dev(dev) \
-		__vexpress_config_func_get(dev, NULL)
+		__vexpress_config_func_get(NULL, dev, NULL, NULL)
 #define vexpress_config_func_get_by_node(node) \
-		__vexpress_config_func_get(NULL, node)
+		__vexpress_config_func_get(NULL, NULL, node, NULL)
 void vexpress_config_func_put(struct vexpress_config_func *func);
 
 /* Both may sleep! */
