@@ -1324,19 +1324,21 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 
 	ret = intel_sdvo_get_input_timing(intel_sdvo, &dtd);
 	if (!ret) {
+		/* Some sdvo encoders are not spec compliant and don't
+		 * implement the mandatory get_timings function. */
 		DRM_DEBUG_DRIVER("failed to retrieve SDVO DTD\n");
-		return;
+		pipe_config->quirks |= PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS;
+	} else {
+		if (dtd.part2.dtd_flags & DTD_FLAG_HSYNC_POSITIVE)
+			flags |= DRM_MODE_FLAG_PHSYNC;
+		else
+			flags |= DRM_MODE_FLAG_NHSYNC;
+
+		if (dtd.part2.dtd_flags & DTD_FLAG_VSYNC_POSITIVE)
+			flags |= DRM_MODE_FLAG_PVSYNC;
+		else
+			flags |= DRM_MODE_FLAG_NVSYNC;
 	}
-
-	if (dtd.part2.dtd_flags & DTD_FLAG_HSYNC_POSITIVE)
-		flags |= DRM_MODE_FLAG_PHSYNC;
-	else
-		flags |= DRM_MODE_FLAG_NHSYNC;
-
-	if (dtd.part2.dtd_flags & DTD_FLAG_VSYNC_POSITIVE)
-		flags |= DRM_MODE_FLAG_PVSYNC;
-	else
-		flags |= DRM_MODE_FLAG_NVSYNC;
 
 	pipe_config->adjusted_mode.flags |= flags;
 
