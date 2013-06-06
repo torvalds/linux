@@ -190,13 +190,12 @@ static void tx_policy_build(const struct cw1200_common *priv,
 		policy->retry_count += retries;
 	}
 
-	pr_debug("[TX policy] Policy (%zu): %d:%d, %d:%d, %d:%d, %d:%d, %d:%d\n",
+	pr_debug("[TX policy] Policy (%zu): %d:%d, %d:%d, %d:%d, %d:%d\n",
 		 count,
 		 rates[0].idx, rates[0].count,
 		 rates[1].idx, rates[1].count,
 		 rates[2].idx, rates[2].count,
-		 rates[3].idx, rates[3].count,
-		 rates[4].idx, rates[4].count);
+		 rates[3].idx, rates[3].count);
 }
 
 static inline bool tx_policy_is_equal(const struct tx_policy *wanted,
