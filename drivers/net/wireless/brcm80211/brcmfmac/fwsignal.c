@@ -357,7 +357,6 @@ struct brcmf_fws_mac_descriptor {
 	u8 seq[BRCMF_FWS_FIFO_COUNT];
 	struct pktq psq;
 	int transit_count;
-	int suppress_count;
 	int suppr_transit_count;
 	bool send_tim_signal;
 	u8 traffic_pending_bmp;
@@ -1100,8 +1099,6 @@ static int brcmf_fws_enq(struct brcmf_fws_info *fws,
 
 	/* update the sk_buff state */
 	brcmf_skbcb(p)->state = state;
-	if (state == BRCMF_FWS_SKBSTATE_SUPPRESSED)
-		entry->suppress_count++;
 
 	/*
 	 * A packet has been pushed so update traffic
@@ -1141,9 +1138,8 @@ static struct sk_buff *brcmf_fws_deq(struct brcmf_fws_info *fws, int fifo)
 		p = brcmu_pktq_mdeq(&entry->psq, pmsk << (fifo * 2), &prec_out);
 		if (p == NULL) {
 			if (entry->suppressed) {
-				if (entry->suppr_transit_count >
-				    entry->suppress_count)
-					return NULL;
+				if (entry->suppr_transit_count)
+					continue;
 				entry->suppressed = false;
 				p = brcmu_pktq_mdeq(&entry->psq,
 						    1 << (fifo * 2), &prec_out);
@@ -1194,12 +1190,9 @@ static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
 	/* this packet was suppressed */
 	if (!entry->suppressed) {
 		entry->suppressed = true;
-		entry->suppress_count = brcmu_pktq_mlen(&entry->psq,
-							1 << (fifo * 2 + 1));
 		entry->suppr_transit_count = entry->transit_count;
-		brcmf_dbg(DATA, "suppress %s: supp_cnt %d transit %d\n",
-			  entry->name, entry->suppress_count,
-			  entry->transit_count);
+		brcmf_dbg(DATA, "suppress %s: transit %d\n",
+			  entry->name, entry->transit_count);
 	}
 
 	entry->generation = genbit;
@@ -1218,7 +1211,6 @@ static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
 		 * wlfc cleanup
 		 */
 		brcmf_fws_hanger_mark_suppressed(&fws->hanger, hslot);
-		entry->suppress_count++;
 	}
 
 	return ret;
@@ -1263,6 +1255,9 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 		brcmu_pkt_buf_free_skb(skb);
 		return -EINVAL;
 	}
+	entry->transit_count--;
+	if (entry->suppressed && entry->suppr_transit_count)
+		entry->suppr_transit_count--;
 
 	brcmf_dbg(DATA, "%s flags %X htod %X\n", entry->name, skcb->if_flags,
 		  skcb->htod);
@@ -1276,13 +1271,9 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 	if (!remove_from_hanger)
 		ret = brcmf_fws_txstatus_suppressed(fws, fifo, skb, genbit);
 
-	if (remove_from_hanger || ret) {
-		entry->transit_count--;
-		if (entry->suppressed)
-			entry->suppr_transit_count--;
-
+	if (remove_from_hanger || ret)
 		brcmf_txfinalize(fws->drvr, skb, true);
-	}
+
 	return 0;
 }
 
@@ -1579,7 +1570,6 @@ static int brcmf_fws_precommit_skb(struct brcmf_fws_info *fws, int fifo,
 		free_ctr = entry->seq[fifo];
 		brcmf_skb_htod_tag_set_field(p, HSLOT, hslot);
 		brcmf_skb_htod_tag_set_field(p, FREERUN, free_ctr);
-		entry->transit_count++;
 		rc = brcmf_fws_hanger_pushpkt(&fws->hanger, p, hslot);
 		if (rc)
 			brcmf_err("hanger push failed: rc=%d\n", rc);
@@ -1733,6 +1723,9 @@ static int brcmf_fws_commit_skb(struct brcmf_fws_info *fws, int fifo,
 		goto rollback;
 	}
 
+	entry->transit_count++;
+	if (entry->suppressed)
+		entry->suppr_transit_count++;
 	entry->seq[fifo]++;
 	fws->stats.pkt2bus++;
 	if (brcmf_skbcb(skb)->if_flags & BRCMF_SKB_IF_FLAGS_CREDITCHECK_MASK) {
