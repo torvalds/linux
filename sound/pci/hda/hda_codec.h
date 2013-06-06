@@ -679,6 +679,7 @@ struct hda_bus {
 	unsigned int response_reset:1;	/* controller was reset */
 	unsigned int in_reset:1;	/* during reset operation */
 	unsigned int power_keep_link_on:1; /* don't power off HDA link */
+	unsigned int no_response_fallback:1; /* don't fallback at RIRB error */
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
 };
@@ -930,6 +931,8 @@ enum {
 	HDA_INPUT, HDA_OUTPUT
 };
 
+/* snd_hda_codec_read/write optional flags */
+#define HDA_RW_NO_RESPONSE_FALLBACK	(1 << 0)
 
 /*
  * constructors
