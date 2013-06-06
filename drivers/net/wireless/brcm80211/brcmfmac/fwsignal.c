@@ -1020,6 +1020,8 @@ static void brcmf_fws_return_credits(struct brcmf_fws_info *fws,
 	if (!credits)
 		return;
 
+	fws->fifo_credit_map |= 1 << fifo;
+
 	if ((fifo == BRCMF_FWS_FIFO_AC_BE) &&
 	    (fws->credits_borrowed[0])) {
 		for (lender_ac = BRCMF_FWS_FIFO_AC_VO; lender_ac >= 0;
@@ -1041,7 +1043,6 @@ static void brcmf_fws_return_credits(struct brcmf_fws_info *fws,
 		}
 	}
 
-	fws->fifo_credit_map |= 1 << fifo;
 	fws->fifo_credit[fifo] += credits;
 }
 
@@ -1675,8 +1676,10 @@ static int brcmf_fws_borrow_credit(struct brcmf_fws_info *fws)
 {
 	int lender_ac;
 
-	if (time_after(fws->borrow_defer_timestamp, jiffies))
+	if (time_after(fws->borrow_defer_timestamp, jiffies)) {
+		fws->fifo_credit_map &= ~(1 << BRCMF_FWS_FIFO_AC_BE);
 		return -ENAVAIL;
+	}
 
 	for (lender_ac = 0; lender_ac <= BRCMF_FWS_FIFO_AC_VO; lender_ac++) {
 		if (fws->fifo_credit[lender_ac]) {
@@ -1684,10 +1687,12 @@ static int brcmf_fws_borrow_credit(struct brcmf_fws_info *fws)
 			fws->fifo_credit[lender_ac]--;
 			if (fws->fifo_credit[lender_ac] == 0)
 				fws->fifo_credit_map &= ~(1 << lender_ac);
+			fws->fifo_credit_map |= (1 << BRCMF_FWS_FIFO_AC_BE);
 			brcmf_dbg(DATA, "borrow credit from: %d\n", lender_ac);
 			return 0;
 		}
 	}
+	fws->fifo_credit_map &= ~(1 << BRCMF_FWS_FIFO_AC_BE);
 	return -ENAVAIL;
 }
 
