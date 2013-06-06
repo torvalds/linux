@@ -78,9 +78,14 @@ static ssize_t mdc_max_rpcs_in_flight_seq_write(struct file *file,
 }
 LPROC_SEQ_FOPS(mdc_max_rpcs_in_flight);
 
+static int mdc_kuc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, NULL, PDE_DATA(inode));
+}
+
 /* temporary for testing */
-static ssize_t mdc_wr_kuc(struct file *file, const char *buffer,
-			  size_t count, loff_t *off)
+static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
+			     size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	struct kuc_hdr		*lh;
@@ -139,8 +144,11 @@ static ssize_t mdc_wr_kuc(struct file *file, const char *buffer,
 		RETURN(rc);
 	RETURN(count);
 }
+
 struct file_operations mdc_kuc_fops = {
-	.write = mdc_wr_kuc,
+	.open		= mdc_kuc_open,
+	.write		= mdc_kuc_write,
+	.release	= single_release,
 };
 
 LPROC_SEQ_FOPS_WR_ONLY(mdc, ping);
