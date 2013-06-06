@@ -12,6 +12,7 @@
  *	    (Adlink) ACL-7130 [acl7130]
  *	    (Advantech) PCM-3730 [pcm3730]
  *	    (Advantech) PCL-725 [pcl725]
+ *	    (ICP) P8R8-DIO [p16r16dio]
  *	    (Adlink) ACL-7225b [acl7225b]
  *	    (ICP) P16R16-DIO [p16r16dio]
  *	    (Advantech) PCL-733 [pcl733]
@@ -35,8 +36,8 @@
  *
  * The pcm3730 PC/104 board does not have the PCL730_IDIO_HI register.
  * The pcl725 ISA board uses separate registers for isolated digital I/O.
- * The acl7225b and p16r16dio boards have isolated digital output readback
- * and separate registers for isolated digital I/O.
+ * The p8r8dio, acl7225b, and p16r16dio boards have isolated digital output
+ * readback and separate registers for isolated digital I/O.
  * The pcl733 ISA board uses all four registers for isolated digital inputs.
  * The pcl734 ISA board uses all four registers for isolated digital outputs.
  */
@@ -94,6 +95,14 @@ static const struct pcl730_board pcl730_boards[] = {
 		.name		= "pcl725",
 		.io_range	= 0x02,
 		.is_pcl725	= 1,
+		.n_subdevs	= 2,
+		.n_iso_out_chan	= 8,
+		.n_iso_in_chan	= 8,
+	}, {
+		.name		= "p8r8dio",
+		.io_range	= 0x02,
+		.is_pcl725	= 1,
+		.has_readback	= 1,
 		.n_subdevs	= 2,
 		.n_iso_out_chan	= 8,
 		.n_iso_in_chan	= 8,

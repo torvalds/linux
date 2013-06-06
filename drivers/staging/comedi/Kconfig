@@ -147,6 +147,7 @@ config COMEDI_PCL730
 	  ADlink ACL-7130     isolated - 16 in/16 out  ttl - 16 in/16 out
 	  Advantech PCM-3730  isolated - 8 in/8 out    ttl - 16 in/16 out
 	  Advantech PCL-725   isolated - 8 in/8 out
+	  ICP P8R8-DIO        isolated - 8 in/8 out
 	  ADlink ACL-7225b    isolated - 16 in/16 out
 	  ICP P16R16-DIO      isolated - 16 in/16 out
 	  Advantech PCL-733   isolated - 32 in
