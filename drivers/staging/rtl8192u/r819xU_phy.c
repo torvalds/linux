@@ -90,7 +90,7 @@ void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask, u32 
 
 	if(dwBitMask!= bMaskDWord)
 	{//if not "double word" write
-		OriginalValue = read_nic_dword(dev, dwRegAddr);
+		read_nic_dword(dev, dwRegAddr, &OriginalValue);
 		BitShift = rtl8192_CalculateBitShift(dwBitMask);
 		NewValue = (((OriginalValue) & (~dwBitMask)) | (dwData << BitShift));
 		write_nic_dword(dev, dwRegAddr, NewValue);
@@ -111,7 +111,7 @@ u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
 {
 	u32 Ret = 0, OriginalValue, BitShift;
 
-	OriginalValue = read_nic_dword(dev, dwRegAddr);
+	read_nic_dword(dev, dwRegAddr, &OriginalValue);
 	BitShift = rtl8192_CalculateBitShift(dwBitMask);
 	Ret =(OriginalValue & dwBitMask) >> BitShift;
 
@@ -379,6 +379,7 @@ phy_FwRFSerialRead(
 	u32		retValue = 0;
 	u32		Data = 0;
 	u8		time = 0;
+	u32		tmp;
 	//DbgPrint("FW RF CTRL\n\r");
 	/* 2007/11/02 MH Firmware RF Write control. By Francis' suggestion, we can
 	   not execute the scheme in the initial step. Otherwise, RF-R/W will waste
@@ -394,13 +395,15 @@ phy_FwRFSerialRead(
 	// 5. Trigger Fw to operate the command. bit 31
 	Data |= 0x80000000;
 	// 6. We can not execute read operation if bit 31 is 1.
-	while (read_nic_dword(dev, QPNR)&0x80000000)
+	read_nic_dword(dev, QPNR, &tmp);
+	while (tmp & 0x80000000)
 	{
 		// If FW can not finish RF-R/W for more than ?? times. We must reset FW.
 		if (time++ < 100)
 		{
 			//DbgPrint("FW not finish RF-R Time=%d\n\r", time);
 			udelay(10);
+			read_nic_dword(dev, QPNR, &tmp);
 		}
 		else
 			break;
@@ -408,18 +411,20 @@ phy_FwRFSerialRead(
 	// 7. Execute read operation.
 	write_nic_dword(dev, QPNR, Data);
 	// 8. Check if firmawre send back RF content.
-	while (read_nic_dword(dev, QPNR)&0x80000000)
+	read_nic_dword(dev, QPNR, &tmp);
+	while (tmp & 0x80000000)
 	{
 		// If FW can not finish RF-R/W for more than ?? times. We must reset FW.
 		if (time++ < 100)
 		{
 			//DbgPrint("FW not finish RF-W Time=%d\n\r", time);
 			udelay(10);
+			read_nic_dword(dev, QPNR, &tmp);
 		}
 		else
 			return	(0);
 	}
-	retValue = read_nic_dword(dev, RF_DATA);
+	read_nic_dword(dev, RF_DATA, &retValue);
 
 	return	(retValue);
 
@@ -440,6 +445,7 @@ phy_FwRFSerialWrite(
 		u32				Data	)
 {
 	u8	time = 0;
+	u32	tmp;
 
 	//DbgPrint("N FW RF CTRL RF-%d OF%02x DATA=%03x\n\r", eRFPath, Offset, Data);
 	/* 2007/11/02 MH Firmware RF Write control. By Francis' suggestion, we can
@@ -458,13 +464,15 @@ phy_FwRFSerialWrite(
 	Data |= 0x80000000;
 
 	// 6. Write operation. We can not write if bit 31 is 1.
-	while (read_nic_dword(dev, QPNR)&0x80000000)
+	read_nic_dword(dev, QPNR, &tmp);
+	while (tmp & 0x80000000)
 	{
 		// If FW can not finish RF-R/W for more than ?? times. We must reset FW.
 		if (time++ < 100)
 		{
 			//DbgPrint("FW not finish RF-W Time=%d\n\r", time);
 			udelay(10);
+			read_nic_dword(dev, QPNR, &tmp);
 		}
 		else
 			break;
@@ -719,7 +727,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock, RF9
 		case HW90_BLOCK_PHY0:
 		case HW90_BLOCK_PHY1:
 			write_nic_dword(dev, WriteAddr[CheckBlock], WriteData[i]);
-			dwRegRead = read_nic_dword(dev, WriteAddr[CheckBlock]);
+			read_nic_dword(dev, WriteAddr[CheckBlock], &dwRegRead);
 			break;
 
 		case HW90_BLOCK_RF:
@@ -770,11 +778,11 @@ void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	**************************************/
 
 	/*--set BB Global Reset--*/
-	bRegValue = read_nic_byte(dev, BB_GLOBAL_RESET);
+	read_nic_byte(dev, BB_GLOBAL_RESET, &bRegValue);
 	write_nic_byte(dev, BB_GLOBAL_RESET,(bRegValue|BB_GLOBAL_RESET_BIT));
 	mdelay(50);
 	/*---set BB reset Active---*/
-	dwRegValue = read_nic_dword(dev, CPU_GEN);
+	read_nic_dword(dev, CPU_GEN, &dwRegValue);
 	write_nic_dword(dev, CPU_GEN, (dwRegValue&(~CPU_GEN_BB_RST)));
 
 	/*----Ckeck FPGAPHY0 and PHY1 board is OK----*/
@@ -795,7 +803,7 @@ void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	rtl8192_phyConfigBB(dev, BaseBand_Config_PHY_REG);
 
 	/*----Set BB reset de-Active----*/
-	dwRegValue = read_nic_dword(dev, CPU_GEN);
+	read_nic_dword(dev, CPU_GEN, &dwRegValue);
 	write_nic_dword(dev, CPU_GEN, (dwRegValue|CPU_GEN_BB_RST));
 
 	/*----BB AGC table Initialization----*/
@@ -846,36 +854,32 @@ void rtl8192_BBConfig(struct net_device *dev)
 void rtl8192_phy_getTxPower(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	priv->MCSTxPowerLevelOriginalOffset[0] =
-		read_nic_dword(dev, rTxAGC_Rate18_06);
-	priv->MCSTxPowerLevelOriginalOffset[1] =
-		read_nic_dword(dev, rTxAGC_Rate54_24);
-	priv->MCSTxPowerLevelOriginalOffset[2] =
-		read_nic_dword(dev, rTxAGC_Mcs03_Mcs00);
-	priv->MCSTxPowerLevelOriginalOffset[3] =
-		read_nic_dword(dev, rTxAGC_Mcs07_Mcs04);
-	priv->MCSTxPowerLevelOriginalOffset[4] =
-		read_nic_dword(dev, rTxAGC_Mcs11_Mcs08);
-	priv->MCSTxPowerLevelOriginalOffset[5] =
-		read_nic_dword(dev, rTxAGC_Mcs15_Mcs12);
+	u8 tmp;
+	read_nic_dword(dev, rTxAGC_Rate18_06, &priv->MCSTxPowerLevelOriginalOffset[0]);
+	read_nic_dword(dev, rTxAGC_Rate54_24, &priv->MCSTxPowerLevelOriginalOffset[1]);
+	read_nic_dword(dev, rTxAGC_Mcs03_Mcs00, &priv->MCSTxPowerLevelOriginalOffset[2]);
+	read_nic_dword(dev, rTxAGC_Mcs07_Mcs04, &priv->MCSTxPowerLevelOriginalOffset[3]);
+	read_nic_dword(dev, rTxAGC_Mcs11_Mcs08, &priv->MCSTxPowerLevelOriginalOffset[4]);
+	read_nic_dword(dev, rTxAGC_Mcs15_Mcs12, &priv->MCSTxPowerLevelOriginalOffset[5]);
 
 	// read rx initial gain
-	priv->DefaultInitialGain[0] = read_nic_byte(dev, rOFDM0_XAAGCCore1);
-	priv->DefaultInitialGain[1] = read_nic_byte(dev, rOFDM0_XBAGCCore1);
-	priv->DefaultInitialGain[2] = read_nic_byte(dev, rOFDM0_XCAGCCore1);
-	priv->DefaultInitialGain[3] = read_nic_byte(dev, rOFDM0_XDAGCCore1);
+	read_nic_byte(dev, rOFDM0_XAAGCCore1, &priv->DefaultInitialGain[0]);
+	read_nic_byte(dev, rOFDM0_XBAGCCore1, &priv->DefaultInitialGain[1]);
+	read_nic_byte(dev, rOFDM0_XCAGCCore1, &priv->DefaultInitialGain[2]);
+	read_nic_byte(dev, rOFDM0_XDAGCCore1, &priv->DefaultInitialGain[3]);
 	RT_TRACE(COMP_INIT, "Default initial gain (c50=0x%x, c58=0x%x, c60=0x%x, c68=0x%x) \n",
 		priv->DefaultInitialGain[0], priv->DefaultInitialGain[1],
 		priv->DefaultInitialGain[2], priv->DefaultInitialGain[3]);
 
 	// read framesync
-	priv->framesync = read_nic_byte(dev, rOFDM0_RxDetector3);
-	priv->framesyncC34 = read_nic_byte(dev, rOFDM0_RxDetector2);
+	read_nic_byte(dev, rOFDM0_RxDetector3, &priv->framesync);
+	read_nic_byte(dev, rOFDM0_RxDetector2, &tmp);
+	priv->framesyncC34 = tmp;
 	RT_TRACE(COMP_INIT, "Default framesync (0x%x) = 0x%x \n",
 		rOFDM0_RxDetector3, priv->framesync);
 
 	// read SIFS (save the value read fome MACPHY_REG.txt)
-	priv->SifsTime = read_nic_word(dev, SIFS);
+	read_nic_word(dev, SIFS, &priv->SifsTime);
 
 	return;
 }
@@ -1525,7 +1529,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	}
 
 	//<1>Set MAC register
-	regBwOpMode = read_nic_byte(dev, BW_OPMODE);
+	read_nic_byte(dev, BW_OPMODE, &regBwOpMode);
 
 	switch (priv->CurrentChannelBW)
 	{

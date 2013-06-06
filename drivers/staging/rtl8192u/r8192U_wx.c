@@ -235,7 +235,7 @@ static int r8192_wx_read_nicb(struct net_device *dev,
 	down(&priv->wx_sem);
 
 	get_user(addr,(u32 *)wrqu->data.pointer);
-	data1 = read_nic_byte(dev, addr);
+	read_nic_byte(dev, addr, &data1);
 	wrqu->data.length = data1;
 
 	up(&priv->wx_sem);

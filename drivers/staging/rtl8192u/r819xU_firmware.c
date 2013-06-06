@@ -168,7 +168,7 @@ bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 
 	/* Check whether put code OK */
 	do {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		read_nic_dword(dev, CPU_GEN, &CPU_status);
 
 		if (CPU_status&CPU_GEN_PUT_CODE_OK)
 			break;
@@ -183,13 +183,13 @@ bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 	}
 
 	/* Turn On CPU */
-	CPU_status = read_nic_dword(dev, CPU_GEN);
+	read_nic_dword(dev, CPU_GEN, &CPU_status);
 	write_nic_byte(dev, CPU_GEN, (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
 	mdelay(1000);
 
 	/* Check whether CPU boot OK */
 	do {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		read_nic_dword(dev, CPU_GEN, &CPU_status);
 
 		if (CPU_status&CPU_GEN_BOOT_RDY)
 			break;
@@ -218,7 +218,7 @@ bool CPUcheck_firmware_ready(struct net_device *dev)
 
 	/* Check Firmware Ready */
 	do {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		read_nic_dword(dev, CPU_GEN, &CPU_status);
 
 		if (CPU_status&CPU_GEN_FIRM_RDY)
 			break;

@@ -258,8 +258,11 @@ void write_cam(struct net_device *dev, u8 addr, u32 data)
 
 u32 read_cam(struct net_device *dev, u8 addr)
 {
+	u32 data;
+
 	write_nic_dword(dev, RWCAM, 0x80000000|(addr&0xff));
-	return read_nic_dword(dev, 0xa8);
+	read_nic_dword(dev, 0xa8, &data);
+	return data;
 }
 
 void write_nic_byte_E(struct net_device *dev, int indx, u8 data)
@@ -276,21 +279,22 @@ void write_nic_byte_E(struct net_device *dev, int indx, u8 data)
 		netdev_err(dev, "write_nic_byte_E TimeOut! status: %d\n", status);
 }
 
-u8 read_nic_byte_E(struct net_device *dev, int indx)
+int read_nic_byte_E(struct net_device *dev, int indx, u8 *data)
 {
 	int status;
-	u8 data;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct usb_device *udev = priv->udev;
 
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
-				 indx|0xfe00, 0, &data, 1, HZ / 2);
+				 indx|0xfe00, 0, data, 1, HZ / 2);
 
-	if (status < 0)
-		netdev_err(dev, "read_nic_byte_E TimeOut! status: %d\n", status);
+	if (status < 0) {
+		netdev_err(dev, "%s failure status: %d\n", __func__, status);
+		return status;
+	}
 
-	return data;
+	return 0;
 }
 //as 92U has extend page from 4 to 16, so modify functions below.
 void write_nic_byte(struct net_device *dev, int indx, u8 data)
@@ -349,28 +353,28 @@ void write_nic_dword(struct net_device *dev, int indx, u32 data)
 
 
 
-u8 read_nic_byte(struct net_device *dev, int indx)
+int read_nic_byte(struct net_device *dev, int indx, u8 *data)
 {
-	u8 data;
 	int status;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct usb_device *udev = priv->udev;
 
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
-				 (indx&0xff)|0xff00, (indx>>8)&0x0f, &data, 1, HZ / 2);
+				 (indx&0xff)|0xff00, (indx>>8)&0x0f, data, 1, HZ / 2);
 
-	if (status < 0)
-		netdev_err(dev, "read_nic_byte TimeOut! status: %d\n", status);
+	if (status < 0) {
+		netdev_err(dev, "%s failure status: %d\n", __func__, status);
+		return status;
+	}
 
-	return data;
+	return 0;
 }
 
 
 
-u16 read_nic_word(struct net_device *dev, int indx)
+int read_nic_word(struct net_device *dev, int indx, u16 *data)
 {
-	u16 data;
 	int status;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct usb_device *udev = priv->udev;
@@ -378,34 +382,36 @@ u16 read_nic_word(struct net_device *dev, int indx)
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
 				 (indx&0xff)|0xff00, (indx>>8)&0x0f,
-				 &data, 2, HZ / 2);
+				 data, 2, HZ / 2);
 
-	if (status < 0)
-		netdev_err(dev, "read_nic_word TimeOut! status: %d\n", status);
+	if (status < 0) {
+		netdev_err(dev, "%s failure status: %d\n", __func__, status);
+		return status;
+	}
 
-	return data;
+	return 0;
 }
 
-u16 read_nic_word_E(struct net_device *dev, int indx)
+int read_nic_word_E(struct net_device *dev, int indx, u16 *data)
 {
-	u16 data;
 	int status;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct usb_device *udev = priv->udev;
 
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
-				 indx|0xfe00, 0, &data, 2, HZ / 2);
+				 indx|0xfe00, 0, data, 2, HZ / 2);
 
-	if (status < 0)
-		netdev_err(dev, "read_nic_word TimeOut! status: %d\n", status);
+	if (status < 0) {
+		netdev_err(dev, "%s failure status: %d\n", __func__, status);
+		return status;
+	}
 
-	return data;
+	return 0;
 }
 
-u32 read_nic_dword(struct net_device *dev, int indx)
+int read_nic_dword(struct net_device *dev, int indx, u32 *data)
 {
-	u32 data;
 	int status;
 
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -414,12 +420,14 @@ u32 read_nic_dword(struct net_device *dev, int indx)
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
 				 (indx&0xff)|0xff00, (indx>>8)&0x0f,
-				 &data, 4, HZ / 2);
+				 data, 4, HZ / 2);
 
-	if (status < 0)
-		netdev_err(dev, "read_nic_dword TimeOut! status:%d\n", status);
+	if (status < 0) {
+		netdev_err(dev, "%s failure status: %d\n", __func__, status);
+		return status;
+	}
 
-	return data;
+	return 0;
 }
 
 /* u8 read_phy_cck(struct net_device *dev, u8 adr); */
@@ -465,30 +473,37 @@ static int proc_get_registers(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	int i, n, max = 0xff;
+	u8 byte_rd;
 
 	seq_puts(m, "\n####################page 0##################\n ");
 
 	for (n = 0; n <= max;) {
 		seq_printf(m, "\nD:  %2x > ", n);
 
-		for (i = 0; i < 16 && n <= max; i++, n++)
-			seq_printf(m, "%2x ", read_nic_byte(dev, 0x000|n));
+		for (i = 0; i < 16 && n <= max; i++, n++) {
+			read_nic_byte(dev, 0x000|n, &byte_rd);
+			seq_printf(m, "%2x ", byte_rd);
+		}
 	}
 
 	seq_puts(m, "\n####################page 1##################\n ");
 	for (n = 0; n <= max;) {
 		seq_printf(m, "\nD:  %2x > ", n);
 
-		for (i = 0; i < 16 && n <= max; i++, n++)
-			seq_printf(m, "%2x ", read_nic_byte(dev, 0x100|n));
+		for (i = 0; i < 16 && n <= max; i++, n++) {
+			read_nic_byte(dev, 0x100|n, &byte_rd);
+			seq_printf(m, "%2x ", byte_rd);
+		}
 	}
 
 	seq_puts(m, "\n####################page 3##################\n ");
 	for (n = 0; n <= max;) {
 		seq_printf(m, "\nD:  %2x > ", n);
 
-		for (i = 0; i < 16 && n <= max; i++, n++)
-			seq_printf(m, "%2x ", read_nic_byte(dev, 0x300|n));
+		for (i = 0; i < 16 && n <= max; i++, n++) {
+			read_nic_byte(dev, 0x300|n, &byte_rd);
+			seq_printf(m, "%2x ", byte_rd);
+		}
 	}
 
 	seq_putc(m, '\n');
@@ -683,11 +698,11 @@ void dump_eprom(struct net_device *dev)
 void rtl8192_set_mode(struct net_device *dev, int mode)
 {
 	u8 ecmd;
-	ecmd = read_nic_byte(dev, EPROM_CMD);
+	read_nic_byte(dev, EPROM_CMD, &ecmd);
 	ecmd = ecmd & ~EPROM_CMD_OPERATING_MODE_MASK;
 	ecmd = ecmd | (mode<<EPROM_CMD_OPERATING_MODE_SHIFT);
-	ecmd = ecmd & ~(1<<EPROM_CS_SHIFT);
-	ecmd = ecmd & ~(1<<EPROM_CK_SHIFT);
+	ecmd = ecmd & ~EPROM_CS_BIT;
+	ecmd = ecmd & ~EPROM_CK_BIT;
 	write_nic_byte(dev, EPROM_CMD, ecmd);
 }
 
@@ -697,7 +712,7 @@ void rtl8192_update_msr(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 msr;
 
-	msr  = read_nic_byte(dev, MSR);
+	read_nic_byte(dev, MSR, &msr);
 	msr &= ~MSR_LINK_MASK;
 
 	/* do not change in link_state != WLAN_LINK_ASSOCIATED.
@@ -810,7 +825,7 @@ void rtl8192_set_rxconf(struct net_device *dev)
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	u32 rxconf;
 
-	rxconf = read_nic_dword(dev, RCR);
+	read_nic_dword(dev, RCR, &rxconf);
 	rxconf = rxconf & ~MAC_FILTER_MASK;
 	rxconf = rxconf | RCR_AMF;
 	rxconf = rxconf | RCR_ADF;
@@ -846,10 +861,6 @@ void rtl8192_set_rxconf(struct net_device *dev)
 	rxconf = rxconf | RCR_ONLYERLPKT;
 
 	write_nic_dword(dev, RCR, rxconf);
-
-#ifdef DEBUG_RX
-	DMESG("rxconf: %x %x", rxconf, read_nic_dword(dev, RCR));
-#endif
 }
 //wait to be removed
 void rtl8192_rx_enable(struct net_device *dev)
@@ -871,7 +882,7 @@ void rtl8192_rtx_disable(struct net_device *dev)
 	struct sk_buff *skb;
 	struct rtl8192_rx_info *info;
 
-	cmd = read_nic_byte(dev, CMDR);
+	read_nic_byte(dev, CMDR, &cmd);
 	write_nic_byte(dev, CMDR, cmd & ~(CR_TE|CR_RE));
 	force_pci_posting(dev);
 	mdelay(10);
@@ -1352,7 +1363,7 @@ void rtl8192_beacon_stop(struct net_device *dev)
 	u8 msr, msrm, msr2;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	msr  = read_nic_byte(dev, MSR);
+	read_nic_byte(dev, MSR, &msr);
 	msrm = msr & MSR_LINK_MASK;
 	msr2 = msr & ~MSR_LINK_MASK;
 
@@ -2049,7 +2060,7 @@ void rtl8192_link_change(struct net_device *dev)
 	/*update timing params*/
 	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC) {
 		u32 reg = 0;
-		reg = read_nic_dword(dev, RCR);
+		read_nic_dword(dev, RCR, &reg);
 		if (priv->ieee80211->state == IEEE80211_LINKED)
 			priv->ReceiveConfig = reg |= RCR_CBSSID;
 		else
@@ -2544,7 +2555,7 @@ static void rtl8192_get_eeprom_size(struct net_device *dev)
 	u16 curCR = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	RT_TRACE(COMP_EPROM, "===========>%s()\n", __func__);
-	curCR = read_nic_word_E(dev, EPROM_CMD);
+	read_nic_word_E(dev, EPROM_CMD, &curCR);
 	RT_TRACE(COMP_EPROM, "read from Reg EPROM_CMD(%x):%x\n", EPROM_CMD, curCR);
 	//whether need I consider BIT5?
 	priv->epromtype = (curCR & Cmd9346CR_9356SEL) ? EPROM_93c56 : EPROM_93c46;
@@ -2896,7 +2907,7 @@ void rtl8192_hwconfig(struct net_device *dev)
 		ratr_value &= ~(RATE_ALL_OFDM_2SS);
 	write_nic_dword(dev, RATR0, ratr_value);
 	write_nic_byte(dev, UFWP, 1);
-	regTmp = read_nic_byte(dev, 0x313);
+	read_nic_byte(dev, 0x313, &regTmp);
 	regRRSR = ((regTmp) << 24) | (regRRSR & 0x00ffffff);
 	write_nic_dword(dev, RRSR, regRRSR);
 
@@ -2925,6 +2936,7 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	u32 dwRegRead = 0;
 	bool init_status = true;
 	u8 SECR_value = 0x0;
+	u8 tmp;
 	RT_TRACE(COMP_INIT, "====>%s()\n", __func__);
 	priv->Rf_Mode = RF_OP_By_SW_3wire;
 	//for ASIC power on sequence
@@ -2938,7 +2950,7 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	priv->pFirmware->firmware_status = FW_STATUS_0_INIT;
 	//config CPUReset Register
 	//Firmware Reset or not?
-	dwRegRead = read_nic_dword(dev, CPU_GEN);
+	read_nic_dword(dev, CPU_GEN, &dwRegRead);
 	if (priv->pFirmware->firmware_status == FW_STATUS_0_INIT)
 		dwRegRead |= CPU_GEN_SYSTEM_RESET; //do nothing here?
 	else if (priv->pFirmware->firmware_status == FW_STATUS_5_READY)
@@ -2953,7 +2965,7 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	//Loopback mode or not
 	priv->LoopbackMode = RTL819xU_NO_LOOPBACK;
 
-	dwRegRead = read_nic_dword(dev, CPU_GEN);
+	read_nic_dword(dev, CPU_GEN, &dwRegRead);
 	if (priv->LoopbackMode == RTL819xU_NO_LOOPBACK)
 		dwRegRead = ((dwRegRead & CPU_GEN_NO_LOOPBACK_MSK) | CPU_GEN_NO_LOOPBACK_SET);
 	else if (priv->LoopbackMode == RTL819xU_MAC_LOOPBACK)
@@ -2967,7 +2979,8 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	udelay(500);
 
 	//xiong add for new bitfile:usb suspend reset pin set to 1. //do we need?
-	write_nic_byte_E(dev, 0x5f, (read_nic_byte_E(dev, 0x5f)|0x20));
+	read_nic_byte_E(dev, 0x5f, &tmp);
+	write_nic_byte_E(dev, 0x5f, tmp|0x20);
 
 	//Set Hardware
 	rtl8192_hwconfig(dev);
@@ -3095,7 +3108,8 @@ bool rtl8192_adapter_start(struct net_device *dev)
 
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
 		//if D or C cut
-		u8 tmpvalue = read_nic_byte(dev, 0x301);
+		u8 tmpvalue;
+		read_nic_byte(dev, 0x301, &tmpvalue);
 		if (tmpvalue == 0x03) {
 			priv->bDcut = TRUE;
 			RT_TRACE(COMP_POWER_TRACKING, "D-cut\n");
@@ -3156,8 +3170,9 @@ static struct net_device_stats *rtl8192_stats(struct net_device *dev)
 bool HalTxCheckStuck819xUsb(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u16		RegTxCounter = read_nic_word(dev, 0x128);
+	u16		RegTxCounter;
 	bool		bStuck = FALSE;
+	read_nic_word(dev, 0x128, &RegTxCounter);
 	RT_TRACE(COMP_RESET, "%s():RegTxCounter is %d,TxCounter is %d\n", __func__, RegTxCounter, priv->TxCounter);
 	if (priv->TxCounter == RegTxCounter)
 		bStuck = TRUE;
@@ -3204,10 +3219,11 @@ RESET_TYPE TxCheckStuck(struct net_device *dev)
 
 bool HalRxCheckStuck819xUsb(struct net_device *dev)
 {
-	u16	RegRxCounter = read_nic_word(dev, 0x130);
+	u16	RegRxCounter;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool bStuck = FALSE;
 	static u8	rx_chk_cnt;
+	read_nic_word(dev, 0x130, &RegRxCounter);
 	RT_TRACE(COMP_RESET, "%s(): RegRxCounter is %d,RxCounter is %d\n", __func__, RegRxCounter, priv->RxCounter);
 	// If rssi is small, we should check rx for long time because of bad rx.
 	// or maybe it will continuous silent reset every 2 seconds.
@@ -3494,7 +3510,7 @@ void CAM_read_entry(struct net_device *dev, u32 iIndex)
 
 		//Check polling bit is clear
 		while ((i--) >= 0) {
-			ulStatus = read_nic_dword(dev, RWCAM);
+			read_nic_dword(dev, RWCAM, &ulStatus);
 			if (ulStatus & BIT31)
 				continue;
 			else
@@ -3502,7 +3518,7 @@ void CAM_read_entry(struct net_device *dev, u32 iIndex)
 		}
 		write_nic_dword(dev, RWCAM, target_command);
 		RT_TRACE(COMP_SEC, "CAM_read_entry(): WRITE A0: %x \n", target_command);
-		target_content = read_nic_dword(dev, RCAMO);
+		read_nic_dword(dev, RCAMO, &target_content);
 		RT_TRACE(COMP_SEC, "CAM_read_entry(): WRITE A8: %x \n", target_content);
 	}
 	printk("\n");

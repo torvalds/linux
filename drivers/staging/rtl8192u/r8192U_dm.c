@@ -480,7 +480,7 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 		//
 		// Check whether updating of RATR0 is required
 		//
-		currentRATR = read_nic_dword(dev, RATR0);
+		read_nic_dword(dev, RATR0, &currentRATR);
 		if(targetRATR !=  currentRATR)
 		{
 			u32 ratr_value;
@@ -634,7 +634,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 	//DbgPrint("hi, vivi, strange\n");
 	for(i = 0;i <= 30; i++)
 	{
-		Pwr_Flag = read_nic_byte(dev, 0x1ba);
+		read_nic_byte(dev, 0x1ba, &Pwr_Flag);
 
 		if (Pwr_Flag == 0)
 		{
@@ -642,9 +642,9 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			continue;
 		}
 #ifdef RTL8190P
-		Avg_TSSI_Meas = read_nic_word(dev, 0x1bc);
+		read_nic_word(dev, 0x1bc, &Avg_TSSI_Meas);
 #else
-		Avg_TSSI_Meas = read_nic_word(dev, 0x13c);
+		read_nic_word(dev, 0x13c, &Avg_TSSI_Meas);
 #endif
 		if(Avg_TSSI_Meas == 0)
 		{
@@ -655,12 +655,12 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 		for(k = 0;k < 5; k++)
 		{
 #ifdef RTL8190P
-			tmp_report[k] = read_nic_byte(dev, 0x1d8+k);
+			read_nic_byte(dev, 0x1d8+k, &tmp_report[k]);
 #else
 			if(k !=4)
-				tmp_report[k] = read_nic_byte(dev, 0x134+k);
+				read_nic_byte(dev, 0x134+k, &tmp_report[k]);
 			else
-				tmp_report[k] = read_nic_byte(dev, 0x13e);
+				read_nic_byte(dev, 0x13e, &tmp_report[k]);
 #endif
 			RT_TRACE(COMP_POWER_TRACKING, "TSSI_report_value = %d\n", tmp_report[k]);
 		}
@@ -2397,6 +2397,7 @@ static void dm_initial_gain(
 	u8					initial_gain=0;
 	static u8				initialized, force_write;
 	static u32			reset_cnt;
+	u8				tmp;
 
 	if(dm_digtable.dig_algorithm_switch)
 	{
@@ -2437,7 +2438,8 @@ static void dm_initial_gain(
 		reset_cnt = priv->reset_count;
 	}
 
-	if(dm_digtable.pre_ig_value != read_nic_byte(dev, rOFDM0_XAAGCCore1))
+	read_nic_byte(dev, rOFDM0_XAAGCCore1, &tmp);
+	if (dm_digtable.pre_ig_value != tmp)
 		force_write = 1;
 
 	{
@@ -2727,7 +2729,8 @@ static void dm_check_edca_turbo(
 			// TODO:  Modified this part and try to set acm control in only 1 IO processing!!
 
 					PACI_AIFSN	pAciAifsn = (PACI_AIFSN)&(qos_parameters->aifs[0]);
-					u8		AcmCtrl = read_nic_byte(dev, AcmHwCtrl);
+					u8		AcmCtrl;
+					read_nic_byte(dev, AcmHwCtrl, &AcmCtrl);
 					if(pAciAifsn->f.ACM)
 					{ // ACM bit is 1.
 						AcmCtrl |= AcmHw_BeqEn;
@@ -2881,7 +2884,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 	u8 tmp1byte;
 
 
-	tmp1byte = read_nic_byte(dev,GPI);
+	read_nic_byte(dev, GPI, &tmp1byte);
 	if(tmp1byte == 0xff)
 		return;
 
@@ -2933,7 +2936,7 @@ extern	void	dm_gpio_change_rf_callback(struct work_struct *work)
 		{
 			// 0x108 GPIO input register is read only
 			//set 0x108 B1= 1: RF-ON; 0: RF-OFF.
-			tmp1byte = read_nic_byte(dev,GPI);
+			read_nic_byte(dev, GPI, &tmp1byte);
 
 			eRfPowerStateToSet = (tmp1byte&BIT1) ?  eRfOn : eRfOff;
 
@@ -2996,7 +2999,7 @@ extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 
 	/* 2008/01/30 MH After discussing with SD3 Jerry, 0xc04/0xd04 register will
 	   always be the same. We only read 0xc04 now. */
-	rfpath = read_nic_byte(dev, 0xc04);
+	read_nic_byte(dev, 0xc04, &rfpath);
 
 	// Check Bit 0-3, it means if RF A-D is enabled.
 	for (i = 0; i < RF90_PATH_MAX; i++)
@@ -3052,12 +3055,13 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 
 	if(!cck_Rx_Path_initialized)
 	{
-		DM_RxPathSelTable.cck_Rx_path = (read_nic_byte(dev, 0xa07)&0xf);
+		read_nic_byte(dev, 0xa07, &DM_RxPathSelTable.cck_Rx_path);
+		DM_RxPathSelTable.cck_Rx_path &= 0xf;
 		cck_Rx_Path_initialized = 1;
 	}
 
-	DM_RxPathSelTable.disabledRF = 0xf;
-	DM_RxPathSelTable.disabledRF &= ~(read_nic_byte(dev, 0xc04));
+	read_nic_byte(dev, 0xc04, &DM_RxPathSelTable.disabledRF);
+	DM_RxPathSelTable.disabledRF = ~DM_RxPathSelTable.disabledRF & 0xf;
 
 	if(priv->ieee80211->mode == WIRELESS_MODE_B)
 	{
@@ -3731,17 +3735,17 @@ extern void dm_shadow_init(struct net_device *dev)
 	for (page = 0; page < 5; page++)
 		for (offset = 0; offset < 256; offset++)
 		{
-			dm_shadow[page][offset] = read_nic_byte(dev, offset+page*256);
+			read_nic_byte(dev, offset+page*256, &dm_shadow[page][offset]);
 			//DbgPrint("P-%d/O-%02x=%02x\r\n", page, offset, DM_Shadow[page][offset]);
 		}
 
 	for (page = 8; page < 11; page++)
 		for (offset = 0; offset < 256; offset++)
-			dm_shadow[page][offset] = read_nic_byte(dev, offset+page*256);
+			read_nic_byte(dev, offset+page*256, &dm_shadow[page][offset]);
 
 	for (page = 12; page < 15; page++)
 		for (offset = 0; offset < 256; offset++)
-			dm_shadow[page][offset] = read_nic_byte(dev, offset+page*256);
+			read_nic_byte(dev, offset+page*256, &dm_shadow[page][offset]);
 
 }   /* dm_shadow_init */
 
@@ -3858,14 +3862,14 @@ static void dm_check_txrateandretrycount(struct net_device *dev)
 	struct ieee80211_device *ieee = priv->ieee80211;
 	//for 11n tx rate
 //	priv->stats.CurrentShowTxate = read_nic_byte(dev, Current_Tx_Rate_Reg);
-	ieee->softmac_stats.CurrentShowTxate = read_nic_byte(dev, Current_Tx_Rate_Reg);
+	read_nic_byte(dev, Current_Tx_Rate_Reg, &ieee->softmac_stats.CurrentShowTxate);
 	//printk("=============>tx_rate_reg:%x\n", ieee->softmac_stats.CurrentShowTxate);
 	//for initial tx rate
 //	priv->stats.last_packet_rate = read_nic_byte(dev, Initial_Tx_Rate_Reg);
-	ieee->softmac_stats.last_packet_rate = read_nic_byte(dev ,Initial_Tx_Rate_Reg);
+	read_nic_byte(dev, Initial_Tx_Rate_Reg, &ieee->softmac_stats.last_packet_rate);
 	//for tx tx retry count
 //	priv->stats.txretrycount = read_nic_dword(dev, Tx_Retry_Count_Reg);
-	ieee->softmac_stats.txretrycount = read_nic_dword(dev, Tx_Retry_Count_Reg);
+	read_nic_dword(dev, Tx_Retry_Count_Reg, &ieee->softmac_stats.txretrycount);
 }
 
 static void dm_send_rssi_tofw(struct net_device *dev)
