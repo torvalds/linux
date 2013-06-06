@@ -1329,7 +1329,12 @@ static irqreturn_t vepu_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_PROC_FS
 static int __init vpu_service_proc_init(void);
+#else
+static inline int vpu_service_proc_init(void) { return 0; }
+#endif
+
 static int __init vpu_service_init(void)
 {
 	int ret;
@@ -1418,7 +1423,12 @@ err_hw_id_check:
 	return ret;
 }
 
+#ifdef CONFIG_PROC_FS
 static void __exit vpu_service_proc_release(void);
+#else
+#define vpu_service_proc_release() do {} while (0)
+#endif
+
 static void __exit vpu_service_exit(void)
 {
 	vpu_service_proc_release();
