@@ -78,7 +78,8 @@ static int pcl730_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int pcl730_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it)
 {
 	const struct pcl730_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
@@ -92,47 +93,45 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
+	/* Isolated Digital Outputs */
 	s = &dev->subdevices[0];
-	/* Isolated do */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->maxdata = 1;
-	s->n_chan = 16;
-	s->insn_bits = pcl730_do_insn_bits;
-	s->range_table = &range_digital;
-	s->private = (void *)PCL730_IDIO_LO;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl730_do_insn_bits;
+	s->private	= (void *)PCL730_IDIO_LO;
 
+	/* Isolated Digital Inputs */
 	s = &dev->subdevices[1];
-	/* Isolated di */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->maxdata = 1;
-	s->n_chan = 16;
-	s->insn_bits = pcl730_di_insn_bits;
-	s->range_table = &range_digital;
-	s->private = (void *)PCL730_IDIO_LO;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl730_di_insn_bits;
+	s->private	= (void *)PCL730_IDIO_LO;
 
+	/* TTL Digital Outputs */
 	s = &dev->subdevices[2];
-	/* TTL do */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->maxdata = 1;
-	s->n_chan = 16;
-	s->insn_bits = pcl730_do_insn_bits;
-	s->range_table = &range_digital;
-	s->private = (void *)PCL730_DIO_LO;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl730_do_insn_bits;
+	s->private	= (void *)PCL730_DIO_LO;
 
+	/* TTL Digital Inputs */
 	s = &dev->subdevices[3];
-	/* TTL di */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->maxdata = 1;
-	s->n_chan = 16;
-	s->insn_bits = pcl730_di_insn_bits;
-	s->range_table = &range_digital;
-	s->private = (void *)PCL730_DIO_LO;
-
-	printk(KERN_INFO "\n");
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pcl730_di_insn_bits;
+	s->private	= (void *)PCL730_DIO_LO;
 
 	return 0;
 }
