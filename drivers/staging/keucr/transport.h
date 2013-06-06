@@ -29,7 +29,7 @@
 extern int usb_stor_Bulk_transport(struct scsi_cmnd *, struct us_data*);
 extern int usb_stor_Bulk_max_lun(struct us_data *);
 extern int usb_stor_Bulk_reset(struct us_data *);
-extern void usb_stor_print_cmd(struct scsi_cmnd *);
+extern void usb_stor_print_cmd(struct us_data *, struct scsi_cmnd *);
 extern void usb_stor_invoke_transport(struct scsi_cmnd *, struct us_data*);
 extern void usb_stor_stop_transport(struct us_data *);
 extern int usb_stor_control_msg(struct us_data *us, unsigned int pipe,

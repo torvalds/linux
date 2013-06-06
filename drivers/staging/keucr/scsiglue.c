@@ -145,7 +145,7 @@ static int command_abort(struct scsi_cmnd *srb)
 	scsi_lock(us_to_host(us));
 	if (us->srb != srb) {
 		scsi_unlock(us_to_host(us));
-		printk("-- nothing to abort\n");
+		dev_info(&us->pusb_dev->dev, "-- nothing to abort\n");
 		return FAILED;
 	}
 

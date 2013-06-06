@@ -303,7 +303,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	int result;
 
 	/* pr_info("transport --- usb_stor_invoke_transport\n"); */
-	usb_stor_print_cmd(srb);
+	usb_stor_print_cmd(us, srb);
 	/* send the command to the transport layer */
 	scsi_set_resid(srb, 0);
 	result = us->transport(srb, us); /* usb_stor_Bulk_transport; */
@@ -429,7 +429,7 @@ void ENE_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	int result = 0;
 
 	/* pr_info("transport --- ENE_stor_invoke_transport\n"); */
-	usb_stor_print_cmd(srb);
+	usb_stor_print_cmd(us, srb);
 	/* send the command to the transport layer */
 	scsi_set_resid(srb, 0);
 	if (!(us->SM_Status.Ready))
