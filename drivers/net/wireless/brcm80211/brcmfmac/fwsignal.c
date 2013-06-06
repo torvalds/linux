@@ -434,6 +434,7 @@ struct brcmf_fws_info {
 	u32 fifo_delay_map;
 	unsigned long borrow_defer_timestamp;
 	bool bus_flow_blocked;
+	bool creditmap_received;
 };
 
 /*
@@ -1356,6 +1357,10 @@ static int brcmf_fws_notify_credit_map(struct brcmf_if *ifp,
 		brcmf_err("event payload too small (%d)\n", e->datalen);
 		return -EINVAL;
 	}
+	if (fws->creditmap_received)
+		return 0;
+
+	fws->creditmap_received = true;
 
 	brcmf_dbg(TRACE, "enter: credits %pM\n", credits);
 	brcmf_fws_lock(ifp->drvr, flags);
