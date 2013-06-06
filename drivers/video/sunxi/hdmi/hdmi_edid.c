@@ -40,11 +40,7 @@ EDID_CheckSum(__u8 block, __u8 *buf)
 		CheckSum &= 0xFF;
 	}
 
-	if (CheckSum != 0) {
-		pr_info("EDID block %d checksum error\n", block);
-		return -1;
-	}
-	return 0;
+	return CheckSum;
 }
 
 static __s32
