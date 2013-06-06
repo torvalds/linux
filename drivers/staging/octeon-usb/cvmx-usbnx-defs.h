@@ -52,10 +52,18 @@
 #ifndef __CVMX_USBNX_TYPEDEFS_H__
 #define __CVMX_USBNX_TYPEDEFS_H__
 
-#define CVMX_USBNX_CLK_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180068000010ull) + ((block_id) & 1) * 0x10000000ull)
-#define CVMX_USBNX_DMA0_INB_CHN0(block_id) (CVMX_ADD_IO_SEG(0x00016F0000000818ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBNX_DMA0_OUTB_CHN0(block_id) (CVMX_ADD_IO_SEG(0x00016F0000000858ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBNX_USBP_CTL_STATUS(block_id) (CVMX_ADD_IO_SEG(0x0001180068000018ull) + ((block_id) & 1) * 0x10000000ull)
+#define CVMX_USBNXBID1(bid) (((bid) & 1) * 0x10000000ull)
+#define CVMX_USBNXBID2(bid) (((bid) & 1) * 0x100000000000ull)
+
+#define CVMX_USBNXREG1(reg, bid) \
+	(CVMX_ADD_IO_SEG(0x0001180068000000ull | reg) + CVMX_USBNXBID1(bid))
+#define CVMX_USBNXREG2(reg, bid) \
+	(CVMX_ADD_IO_SEG(0x00016F0000000000ull | reg) + CVMX_USBNXBID2(bid))
+
+#define CVMX_USBNX_CLK_CTL(bid)		CVMX_USBNXREG1(0x10, bid)
+#define CVMX_USBNX_DMA0_INB_CHN0(bid)	CVMX_USBNXREG2(0x818, bid)
+#define CVMX_USBNX_DMA0_OUTB_CHN0(bid)	CVMX_USBNXREG2(0x858, bid)
+#define CVMX_USBNX_USBP_CTL_STATUS(bid)	CVMX_USBNXREG1(0x18, bid)
 
 /**
  * cvmx_usbn#_clk_ctl
