@@ -1277,7 +1277,6 @@ iscsit_check_dataout_hdr(struct iscsi_conn *conn, unsigned char *buf,
 	struct iscsi_data *hdr = (struct iscsi_data *)buf;
 	struct iscsi_cmd *cmd = NULL;
 	struct se_cmd *se_cmd;
-	unsigned long flags;
 	u32 payload_length = ntoh24(hdr->dlength);
 	int rc;
 
@@ -1356,14 +1355,9 @@ iscsit_check_dataout_hdr(struct iscsi_conn *conn, unsigned char *buf,
 		 */
 
 		/* Something's amiss if we're not in WRITE_PENDING state... */
-		spin_lock_irqsave(&se_cmd->t_state_lock, flags);
 		WARN_ON(se_cmd->t_state != TRANSPORT_WRITE_PENDING);
-		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
-
-		spin_lock_irqsave(&se_cmd->t_state_lock, flags);
 		if (!(se_cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE))
 			dump_unsolicited_data = 1;
-		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 
 		if (dump_unsolicited_data) {
 			/*
