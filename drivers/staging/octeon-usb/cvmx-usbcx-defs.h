@@ -44,10 +44,6 @@
  * Configuration and status register (CSR) type definitions for
  * Octeon usbcx.
  *
- * This file is auto generated. Do not edit.
- *
- * <hr>$Revision$<hr>
- *
  */
 #ifndef __CVMX_USBCX_TYPEDEFS_H__
 #define __CVMX_USBCX_TYPEDEFS_H__
