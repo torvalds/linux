@@ -269,11 +269,14 @@ void brcmf_txflowblock(struct device *dev, bool state)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	brcmf_fws_bus_blocked(drvr, state);
-
-	for (i = 0; i < BRCMF_MAX_IFS; i++)
-		brcmf_txflowblock_if(drvr->iflist[i],
-				     BRCMF_NETIF_STOP_REASON_BLOCK_BUS, state);
+	if (brcmf_fws_fc_active(drvr->fws)) {
+		brcmf_fws_bus_blocked(drvr, state);
+	} else {
+		for (i = 0; i < BRCMF_MAX_IFS; i++)
+			brcmf_txflowblock_if(drvr->iflist[i],
+					     BRCMF_NETIF_STOP_REASON_BLOCK_BUS,
+					     state);
+	}
 }
 
 void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
