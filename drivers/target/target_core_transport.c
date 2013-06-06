@@ -1952,11 +1952,7 @@ static int transport_release_cmd(struct se_cmd *cmd)
 	 * If this cmd has been setup with target_get_sess_cmd(), drop
 	 * the kref and call ->release_cmd() in kref callback.
 	 */
-	 if (cmd->check_release != 0)
-		return target_put_sess_cmd(cmd->se_sess, cmd);
-
-	cmd->se_tfo->release_cmd(cmd);
-	return 1;
+	return target_put_sess_cmd(cmd->se_sess, cmd);
 }
 
 /**
@@ -2175,8 +2171,6 @@ int target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd,
 		goto out;
 	}
 	list_add_tail(&se_cmd->se_cmd_list, &se_sess->sess_cmd_list);
-	se_cmd->check_release = 1;
-
 out:
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 	return ret;
