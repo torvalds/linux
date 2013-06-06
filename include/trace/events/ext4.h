@@ -281,7 +281,7 @@ DEFINE_EVENT(ext4__write_end, ext4_da_write_end,
 	TP_ARGS(inode, pos, len, copied)
 );
 
-TRACE_EVENT(ext4_da_writepages,
+TRACE_EVENT(ext4_writepages,
 	TP_PROTO(struct inode *inode, struct writeback_control *wbc),
 
 	TP_ARGS(inode, wbc),
@@ -379,7 +379,7 @@ TRACE_EVENT(ext4_da_write_pages_extent,
 		  __entry->flags)
 );
 
-TRACE_EVENT(ext4_da_writepages_result,
+TRACE_EVENT(ext4_writepages_result,
 	TP_PROTO(struct inode *inode, struct writeback_control *wbc,
 			int ret, int pages_written),
 
