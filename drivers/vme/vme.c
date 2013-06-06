@@ -959,6 +959,8 @@ int vme_dma_free(struct vme_resource *resource)
 
 	mutex_unlock(&ctrlr->mtx);
 
+	kfree(resource);
+
 	return 0;
 }
 EXPORT_SYMBOL(vme_dma_free);
