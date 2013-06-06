@@ -52,30 +52,38 @@
 #ifndef __CVMX_USBCX_TYPEDEFS_H__
 #define __CVMX_USBCX_TYPEDEFS_H__
 
-#define CVMX_USBCX_GAHBCFG(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000008ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_GHWCFG3(block_id) (CVMX_ADD_IO_SEG(0x00016F001000004Cull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_GINTMSK(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000018ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_GINTSTS(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000014ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_GNPTXFSIZ(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000028ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_GNPTXSTS(block_id) (CVMX_ADD_IO_SEG(0x00016F001000002Cull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_GOTGCTL(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000000ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_GRSTCTL(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000010ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_GRXFSIZ(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000024ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_GRXSTSPH(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000020ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_GUSBCFG(block_id) (CVMX_ADD_IO_SEG(0x00016F001000000Cull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_HAINT(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000414ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_HAINTMSK(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000418ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_HCCHARX(offset, block_id) (CVMX_ADD_IO_SEG(0x00016F0010000500ull) + (((offset) & 7) + ((block_id) & 1) * 0x8000000000ull) * 32)
-#define CVMX_USBCX_HCFG(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000400ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_HCINTMSKX(offset, block_id) (CVMX_ADD_IO_SEG(0x00016F001000050Cull) + (((offset) & 7) + ((block_id) & 1) * 0x8000000000ull) * 32)
-#define CVMX_USBCX_HCINTX(offset, block_id) (CVMX_ADD_IO_SEG(0x00016F0010000508ull) + (((offset) & 7) + ((block_id) & 1) * 0x8000000000ull) * 32)
-#define CVMX_USBCX_HCSPLTX(offset, block_id) (CVMX_ADD_IO_SEG(0x00016F0010000504ull) + (((offset) & 7) + ((block_id) & 1) * 0x8000000000ull) * 32)
-#define CVMX_USBCX_HCTSIZX(offset, block_id) (CVMX_ADD_IO_SEG(0x00016F0010000510ull) + (((offset) & 7) + ((block_id) & 1) * 0x8000000000ull) * 32)
-#define CVMX_USBCX_HFIR(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000404ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_HFNUM(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000408ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_HPRT(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000440ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_HPTXFSIZ(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000100ull) + ((block_id) & 1) * 0x100000000000ull)
-#define CVMX_USBCX_HPTXSTS(block_id) (CVMX_ADD_IO_SEG(0x00016F0010000410ull) + ((block_id) & 1) * 0x100000000000ull)
+#define CVMX_USBCXBASE 0x00016F0010000000ull
+#define CVMX_USBCXREG1(reg, bid) \
+	(CVMX_ADD_IO_SEG(CVMX_USBCXBASE | reg) + \
+	 ((bid) & 1) * 0x100000000000ull)
+#define CVMX_USBCXREG2(reg, bid, off) \
+	(CVMX_ADD_IO_SEG(CVMX_USBCXBASE | reg) + \
+	 (((off) & 7) + ((bid) & 1) * 0x8000000000ull) * 32)
+
+#define CVMX_USBCX_GAHBCFG(bid)		CVMX_USBCXREG1(0x008, bid)
+#define CVMX_USBCX_GHWCFG3(bid)		CVMX_USBCXREG1(0x04c, bid)
+#define CVMX_USBCX_GINTMSK(bid)		CVMX_USBCXREG1(0x018, bid)
+#define CVMX_USBCX_GINTSTS(bid)		CVMX_USBCXREG1(0x014, bid)
+#define CVMX_USBCX_GNPTXFSIZ(bid)	CVMX_USBCXREG1(0x028, bid)
+#define CVMX_USBCX_GNPTXSTS(bid)	CVMX_USBCXREG1(0x02c, bid)
+#define CVMX_USBCX_GOTGCTL(bid)		CVMX_USBCXREG1(0x000, bid)
+#define CVMX_USBCX_GRSTCTL(bid)		CVMX_USBCXREG1(0x010, bid)
+#define CVMX_USBCX_GRXFSIZ(bid)		CVMX_USBCXREG1(0x024, bid)
+#define CVMX_USBCX_GRXSTSPH(bid)	CVMX_USBCXREG1(0x020, bid)
+#define CVMX_USBCX_GUSBCFG(bid)		CVMX_USBCXREG1(0x00c, bid)
+#define CVMX_USBCX_HAINT(bid)		CVMX_USBCXREG1(0x414, bid)
+#define CVMX_USBCX_HAINTMSK(bid)	CVMX_USBCXREG1(0x418, bid)
+#define CVMX_USBCX_HCCHARX(off, bid)	CVMX_USBCXREG2(0x500, bid, off)
+#define CVMX_USBCX_HCFG(bid)		CVMX_USBCXREG1(0x400, bid)
+#define CVMX_USBCX_HCINTMSKX(off, bid)	CVMX_USBCXREG2(0x50c, bid, off)
+#define CVMX_USBCX_HCINTX(off, bid)	CVMX_USBCXREG2(0x508, bid, off)
+#define CVMX_USBCX_HCSPLTX(off, bid)	CVMX_USBCXREG2(0x504, bid, off)
+#define CVMX_USBCX_HCTSIZX(off, bid)	CVMX_USBCXREG2(0x510, bid, off)
+#define CVMX_USBCX_HFIR(bid)		CVMX_USBCXREG1(0x404, bid)
+#define CVMX_USBCX_HFNUM(bid)		CVMX_USBCXREG1(0x408, bid)
+#define CVMX_USBCX_HPRT(bid)		CVMX_USBCXREG1(0x440, bid)
+#define CVMX_USBCX_HPTXFSIZ(bid)	CVMX_USBCXREG1(0x100, bid)
+#define CVMX_USBCX_HPTXSTS(bid)		CVMX_USBCXREG1(0x410, bid)
 
 /**
  * cvmx_usbc#_gahbcfg
