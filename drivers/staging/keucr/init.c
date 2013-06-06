@@ -22,7 +22,7 @@ int ENE_InitMedia(struct us_data *us)
 	dev_info(&us->pusb_dev->dev, "--- Init Media ---\n");
 	result = ene_read_byte(us, REG_CARD_STATUS, &MiscReg03);
 	if (result != USB_STOR_XFER_GOOD) {
-		dev_err(&us->pusb_dev->dev, "Read register fail !!\n");
+		dev_err(&us->pusb_dev->dev, "Failed to read register\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 	dev_info(&us->pusb_dev->dev, "MiscReg03 = %x\n", MiscReg03);
@@ -71,7 +71,9 @@ int ENE_SMInit(struct us_data *us)
 
 	result = ENE_LoadBinCode(us, SM_INIT_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		dev_info(&us->pusb_dev->dev, "Load SM Init Code Fail !!\n");
+		dev_info(&us->pusb_dev->dev,
+			 "Failed to load SmartMedia init code\n: result= %x\n",
+			 result);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -84,7 +86,9 @@ int ENE_SMInit(struct us_data *us)
 
 	result = ENE_SendScsiCmd(us, FDIR_READ, &buf, 0);
 	if (result != USB_STOR_XFER_GOOD) {
-		dev_err(&us->pusb_dev->dev, "Execution SM Init Code Fail !! result = %x\n", result);
+		dev_err(&us->pusb_dev->dev,
+			"Failed to load SmartMedia init code: result = %x\n",
+			result);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -102,7 +106,8 @@ int ENE_SMInit(struct us_data *us)
 		MediaChange = 1;
 		Check_D_MediaFmt(us);
 	} else {
-		dev_err(&us->pusb_dev->dev, "SM Card Not Ready --- %x\n", buf[0]);
+		dev_err(&us->pusb_dev->dev,
+			"SmartMedia Card Not Ready --- %x\n", buf[0]);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
