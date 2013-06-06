@@ -11,7 +11,7 @@
  * GNU General Public License for more details.
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	model = "BCM11351 SoC";

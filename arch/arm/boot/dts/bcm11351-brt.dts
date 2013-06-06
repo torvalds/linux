@@ -13,7 +13,7 @@
 
 /dts-v1/;
 
-/include/ "bcm11351.dtsi"
+#include "bcm11351.dtsi"
 
 / {
 	model = "BCM11351 BRT board";
