@@ -1244,7 +1244,7 @@ EXPORT_SYMBOL(request_firmware_nowait);
  * Return !0 otherwise
  *
  */
-int cache_firmware(const char *fw_name)
+static int cache_firmware(const char *fw_name)
 {
 	int ret;
 	const struct firmware *fw;
@@ -1259,7 +1259,6 @@ int cache_firmware(const char *fw_name)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(cache_firmware);
 
 /**
  * uncache_firmware - remove one cached firmware image
@@ -1272,7 +1271,7 @@ EXPORT_SYMBOL_GPL(cache_firmware);
  * Return !0 otherwise
  *
  */
-int uncache_firmware(const char *fw_name)
+static int uncache_firmware(const char *fw_name)
 {
 	struct firmware_buf *buf;
 	struct firmware fw;
@@ -1290,7 +1289,6 @@ int uncache_firmware(const char *fw_name)
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(uncache_firmware);
 
 #ifdef CONFIG_PM_SLEEP
 static ASYNC_DOMAIN_EXCLUSIVE(fw_cache_domain);
