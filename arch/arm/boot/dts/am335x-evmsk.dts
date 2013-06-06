@@ -71,6 +71,12 @@
 				0x1b4 (PIN_OUTPUT_PULLDOWN | MUX_MODE3)		/* xdma_event_intr1.clkout2 */
 			>;
 		};
+
+		ecap2_pins: backlight_pins {
+			pinctrl-single,pins = <
+				0x19c 0x4	/* mcasp0_ahclkr.ecap2_in_pwm2_out MODE4 */
+			>;
+		};
 	};
 
 	ocp {
@@ -118,6 +124,16 @@
 				st,max-limit-x = <550>;
 				st,max-limit-y = <550>;
 				st,max-limit-z = <750>;
+			};
+		};
+
+		epwmss2: epwmss@48304000 {
+			status = "okay";
+
+			ecap2: ecap@48304100 {
+				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&ecap2_pins>;
 			};
 		};
 	};
@@ -198,6 +214,13 @@
 			linux,code = <0x103>;
 			gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
 		};
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&ecap2 0 50000 1>;
+		brightness-levels = <0 58 61 66 75 90 125 170 255>;
+		default-brightness-level = <8>;
 	};
 };
 
