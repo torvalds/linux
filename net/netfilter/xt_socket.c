@@ -107,7 +107,7 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct udphdr _hdr, *hp = NULL;
-	struct sock *sk;
+	struct sock *sk = skb->sk;
 	__be32 uninitialized_var(daddr), uninitialized_var(saddr);
 	__be16 uninitialized_var(dport), uninitialized_var(sport);
 	u8 uninitialized_var(protocol);
@@ -155,9 +155,11 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 	}
 #endif
 
-	sk = nf_tproxy_get_sock_v4(dev_net(skb->dev), protocol,
-				   saddr, daddr, sport, dport, par->in, NFT_LOOKUP_ANY);
-	if (sk != NULL) {
+	if (!sk)
+		sk = nf_tproxy_get_sock_v4(dev_net(skb->dev), protocol,
+					   saddr, daddr, sport, dport,
+					   par->in, NFT_LOOKUP_ANY);
+	if (sk) {
 		bool wildcard;
 		bool transparent = true;
 
@@ -173,7 +175,8 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 				       (sk->sk_state == TCP_TIME_WAIT &&
 					inet_twsk(sk)->tw_transparent));
 
-		xt_socket_put_sk(sk);
+		if (sk != skb->sk)
+			xt_socket_put_sk(sk);
 
 		if (wildcard || !transparent)
 			sk = NULL;
@@ -260,7 +263,7 @@ socket_mt6_v1(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct udphdr _hdr, *hp = NULL;
-	struct sock *sk;
+	struct sock *sk = skb->sk;
 	struct in6_addr *daddr = NULL, *saddr = NULL;
 	__be16 uninitialized_var(dport), uninitialized_var(sport);
 	int thoff = 0, uninitialized_var(tproto);
@@ -291,9 +294,11 @@ socket_mt6_v1(const struct sk_buff *skb, struct xt_action_param *par)
 		return false;
 	}
 
-	sk = nf_tproxy_get_sock_v6(dev_net(skb->dev), tproto,
-				   saddr, daddr, sport, dport, par->in, NFT_LOOKUP_ANY);
-	if (sk != NULL) {
+	if (!sk)
+		sk = nf_tproxy_get_sock_v6(dev_net(skb->dev), tproto,
+					   saddr, daddr, sport, dport,
+					   par->in, NFT_LOOKUP_ANY);
+	if (sk) {
 		bool wildcard;
 		bool transparent = true;
 
@@ -309,7 +314,8 @@ socket_mt6_v1(const struct sk_buff *skb, struct xt_action_param *par)
 				       (sk->sk_state == TCP_TIME_WAIT &&
 					inet_twsk(sk)->tw_transparent));
 
-		xt_socket_put_sk(sk);
+		if (sk != skb->sk)
+			xt_socket_put_sk(sk);
 
 		if (wildcard || !transparent)
 			sk = NULL;
