@@ -227,7 +227,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	if (!io)
 		return -ENODEV;
 
-	cf = kzalloc(sizeof *cf, GFP_KERNEL);
+	cf = devm_kzalloc(&pdev->dev, sizeof(*cf), GFP_KERNEL);
 	if (!cf)
 		return -ENOMEM;
 
@@ -237,22 +237,25 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, cf);
 
 	/* must be a GPIO; ergo must trigger on both edges */
-	status = gpio_request(board->det_pin, "cf_det");
+	status = devm_gpio_request(&pdev->dev, board->det_pin, "cf_det");
 	if (status < 0)
-		goto fail0;
-	status = request_irq(gpio_to_irq(board->det_pin), at91_cf_irq, 0, "at91_cf detect", cf);
+		return status;
+
+	status = devm_request_irq(&pdev->dev, gpio_to_irq(board->det_pin),
+					at91_cf_irq, 0, "at91_cf detect", cf);
 	if (status < 0)
-		goto fail00;
+		return status;
+
 	device_init_wakeup(&pdev->dev, 1);
 
-	status = gpio_request(board->rst_pin, "cf_rst");
+	status = devm_gpio_request(&pdev->dev, board->rst_pin, "cf_rst");
 	if (status < 0)
 		goto fail0a;
 
 	if (gpio_is_valid(board->vcc_pin)) {
-		status = gpio_request(board->vcc_pin, "cf_vcc");
+		status = devm_gpio_request(&pdev->dev, board->vcc_pin, "cf_vcc");
 		if (status < 0)
-			goto fail0b;
+			goto fail0a;
 	}
 
 	/*
@@ -262,29 +265,30 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	 * (Note:  DK board doesn't wire the IRQ pin...)
 	 */
 	if (gpio_is_valid(board->irq_pin)) {
-		status = gpio_request(board->irq_pin, "cf_irq");
+		status = devm_gpio_request(&pdev->dev, board->irq_pin, "cf_irq");
 		if (status < 0)
-			goto fail0c;
-		status = request_irq(gpio_to_irq(board->irq_pin), at91_cf_irq,
-				IRQF_SHARED, "at91_cf", cf);
+			goto fail0a;
+
+		status = devm_request_irq(&pdev->dev, gpio_to_irq(board->irq_pin),
+					at91_cf_irq, IRQF_SHARED, "at91_cf", cf);
 		if (status < 0)
-			goto fail0d;
+			goto fail0a;
 		cf->socket.pci_irq = gpio_to_irq(board->irq_pin);
 	} else
 		cf->socket.pci_irq = nr_irqs + 1;
 
 	/* pcmcia layer only remaps "real" memory not iospace */
-	cf->socket.io_offset = (unsigned long)
-			ioremap(cf->phys_baseaddr + CF_IO_PHYS, SZ_2K);
+	cf->socket.io_offset = (unsigned long) devm_ioremap(&pdev->dev,
+					cf->phys_baseaddr + CF_IO_PHYS, SZ_2K);
 	if (!cf->socket.io_offset) {
 		status = -ENXIO;
-		goto fail1;
+		goto fail0a;
 	}
 
 	/* reserve chip-select regions */
-	if (!request_mem_region(io->start, resource_size(io), "at91_cf")) {
+	if (!devm_request_mem_region(&pdev->dev, io->start, resource_size(io), "at91_cf")) {
 		status = -ENXIO;
-		goto fail1;
+		goto fail0a;
 	}
 
 	dev_info(&pdev->dev, "irqs det #%d, io #%d\n",
@@ -301,55 +305,22 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 
 	status = pcmcia_register_socket(&cf->socket);
 	if (status < 0)
-		goto fail2;
+		goto fail0a;
 
 	return 0;
 
-fail2:
-	release_mem_region(io->start, resource_size(io));
-fail1:
-	if (cf->socket.io_offset)
-		iounmap((void __iomem *) cf->socket.io_offset);
-	if (gpio_is_valid(board->irq_pin)) {
-		free_irq(gpio_to_irq(board->irq_pin), cf);
-fail0d:
-		gpio_free(board->irq_pin);
-	}
-fail0c:
-	if (gpio_is_valid(board->vcc_pin))
-		gpio_free(board->vcc_pin);
-fail0b:
-	gpio_free(board->rst_pin);
 fail0a:
 	device_init_wakeup(&pdev->dev, 0);
-	free_irq(gpio_to_irq(board->det_pin), cf);
-fail00:
-	gpio_free(board->det_pin);
-fail0:
-	kfree(cf);
 	return status;
 }
 
 static int __exit at91_cf_remove(struct platform_device *pdev)
 {
 	struct at91_cf_socket	*cf = platform_get_drvdata(pdev);
-	struct at91_cf_data	*board = cf->board;
-	struct resource		*io = cf->socket.io[0].res;
 
 	pcmcia_unregister_socket(&cf->socket);
-	release_mem_region(io->start, resource_size(io));
-	iounmap((void __iomem *) cf->socket.io_offset);
-	if (gpio_is_valid(board->irq_pin)) {
-		free_irq(gpio_to_irq(board->irq_pin), cf);
-		gpio_free(board->irq_pin);
-	}
-	if (gpio_is_valid(board->vcc_pin))
-		gpio_free(board->vcc_pin);
-	gpio_free(board->rst_pin);
 	device_init_wakeup(&pdev->dev, 0);
-	free_irq(gpio_to_irq(board->det_pin), cf);
-	gpio_free(board->det_pin);
-	kfree(cf);
+
 	return 0;
 }
 
