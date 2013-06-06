@@ -143,7 +143,10 @@ static unsigned int irq_domain_legacy_revmap(struct irq_domain *domain,
  * irq_domain_add_simple() - Allocate and register a simple irq_domain.
  * @of_node: pointer to interrupt controller's device tree node.
  * @size: total number of irqs in mapping
- * @first_irq: first number of irq block assigned to the domain
+ * @first_irq: first number of irq block assigned to the domain,
+ *	pass zero to assign irqs on-the-fly. This will result in a
+ *	linear IRQ domain so it is important to use irq_create_mapping()
+ *	for each used IRQ, especially when SPARSE_IRQ is enabled.
  * @ops: map/unmap domain callbacks
  * @host_data: Controller private data pointer
  *
