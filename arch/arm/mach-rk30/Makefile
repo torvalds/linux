@@ -55,6 +55,7 @@ board-$(CONFIG_MACH_RK3108_TB) += board-rk3108-tb.o
 
 obj-$(CONFIG_SOC_RK3168) += board.o
 board-$(CONFIG_MACH_RK3168_TB) += board-rk3168-tb.o
+board-$(CONFIG_MACH_RK3168_FT) += ../mach-rk3188/board-rk3188-ft.o
 board-$(CONFIG_MACH_RK3168_LR097) += board-rk3168-LR097.o
 board-$(CONFIG_MACH_RK3168_DS1006H) += board-rk3168-ds1006h.o
 board-$(CONFIG_MACH_RK3168_86V) += board-rk3168-86v.o
