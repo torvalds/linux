@@ -134,9 +134,10 @@ static void wa_notif_dispatch(struct work_struct *ws)
 		case WA_NOTIF_TRANSFER:
 			wa_handle_notif_xfer(wa, notif_hdr);
 			break;
+		case HWA_NOTIF_BPST_ADJ:
+			break; /* no action needed for BPST ADJ. */
 		case DWA_NOTIF_RWAKE:
 		case DWA_NOTIF_PORTSTATUS:
-		case HWA_NOTIF_BPST_ADJ:
 			/* FIXME: unimplemented WA NOTIFs */
 			/* fallthru */
 		default:
