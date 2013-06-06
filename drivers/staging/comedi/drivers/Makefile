@@ -11,7 +11,6 @@ obj-$(CONFIG_COMEDI_SERIAL2002)		+= serial2002.o
 obj-$(CONFIG_COMEDI_SKEL)		+= skel.o
 
 # Comedi ISA drivers
-obj-$(CONFIG_COMEDI_ACL7225B)		+= acl7225b.o
 obj-$(CONFIG_COMEDI_AMPLC_DIO200_ISA)	+= amplc_dio200.o
 obj-$(CONFIG_COMEDI_AMPLC_PC263_ISA)	+= amplc_pc263.o
 obj-$(CONFIG_COMEDI_PCL711)		+= pcl711.o

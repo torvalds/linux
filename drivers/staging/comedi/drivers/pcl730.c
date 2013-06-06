@@ -12,6 +12,8 @@
  *	    (Adlink) ACL-7130 [acl7130]
  *	    (Advantech) PCM-3730 [pcm3730]
  *	    (Advantech) PCL-725 [pcl725]
+ *	    (Adlink) ACL-7225b [acl7225b]
+ *	    (ICP) P16R16-DIO [p16r16dio]
  *	    (Advantech) PCL-733 [pcl733]
  *	    (Advantech) PCL-734 [pcl734]
  * Author: José Luis Sánchez (jsanchezv@teleline.es)
@@ -33,6 +35,8 @@
  *
  * The pcm3730 PC/104 board does not have the PCL730_IDIO_HI register.
  * The pcl725 ISA board uses separate registers for isolated digital I/O.
+ * The acl7225b and p16r16dio boards have isolated digital output readback
+ * and separate registers for isolated digital I/O.
  * The pcl733 ISA board uses all four registers for isolated digital inputs.
  * The pcl734 ISA board uses all four registers for isolated digital outputs.
  */
@@ -45,6 +49,8 @@ struct pcl730_board {
 	const char *name;
 	unsigned int io_range;
 	unsigned is_pcl725:1;
+	unsigned is_acl7225b:1;
+	unsigned has_readback:1;
 	unsigned has_ttl_io:1;
 	int n_subdevs;
 	int n_iso_out_chan;
@@ -91,6 +97,22 @@ static const struct pcl730_board pcl730_boards[] = {
 		.n_subdevs	= 2,
 		.n_iso_out_chan	= 8,
 		.n_iso_in_chan	= 8,
+	}, {
+		.name		= "acl7225b",
+		.io_range	= 0x08,		/* only 4 are used */
+		.is_acl7225b	= 1,
+		.has_readback	= 1,
+		.n_subdevs	= 2,
+		.n_iso_out_chan	= 16,
+		.n_iso_in_chan	= 16,
+	}, {
+		.name		= "p16r16dio",
+		.io_range	= 0x04,
+		.is_acl7225b	= 1,
+		.has_readback	= 1,
+		.n_subdevs	= 2,
+		.n_iso_out_chan	= 16,
+		.n_iso_in_chan	= 16,
 	}, {
 		.name		= "pcl733",
 		.io_range	= 0x04,
@@ -187,6 +209,10 @@ static int pcl730_attach(struct comedi_device *dev,
 		s->range_table	= &range_digital;
 		s->insn_bits	= pcl730_do_insn_bits;
 		s->private	= (void *)PCL730_IDIO_LO;
+
+		/* get the initial state if supported */
+		if (board->has_readback)
+			s->state = pcl730_get_bits(dev, s);
 	}
 
 	if (board->n_iso_in_chan) {
@@ -198,7 +224,8 @@ static int pcl730_attach(struct comedi_device *dev,
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= pcl730_di_insn_bits;
-		s->private	= board->is_pcl725 ? (void *)PCL730_IDIO_HI
+		s->private	= board->is_acl7225b ? (void *)PCL730_DIO_LO :
+				  board->is_pcl725 ? (void *)PCL730_IDIO_HI
 						   : (void *)PCL730_IDIO_LO;
 	}
 

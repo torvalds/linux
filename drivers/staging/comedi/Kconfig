@@ -110,15 +110,6 @@ menuconfig COMEDI_ISA_DRIVERS
 
 if COMEDI_ISA_DRIVERS
 
-config COMEDI_ACL7225B
-	tristate "ADlink NuDAQ ACL-7225b and compatibles support"
-	---help---
-	  Enable support for ADlink NuDAQ ACL-7225b and compatibles,
-	  ADlink ACL-7225b (acl7225b), ICP P16R16DIO (p16r16dio)
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called acl7225b.
-
 config COMEDI_PCL711
 	tristate "Advantech PCL-711/711b and ADlink ACL-8112 ISA card support"
 	---help---
@@ -156,6 +147,8 @@ config COMEDI_PCL730
 	  ADlink ACL-7130     isolated - 16 in/16 out  ttl - 16 in/16 out
 	  Advantech PCM-3730  isolated - 8 in/8 out    ttl - 16 in/16 out
 	  Advantech PCL-725   isolated - 8 in/8 out
+	  ADlink ACL-7225b    isolated - 16 in/16 out
+	  ICP P16R16-DIO      isolated - 16 in/16 out
 	  Advantech PCL-733   isolated - 32 in
 	  Advantech PCL-734   isolated - 32 out
 
