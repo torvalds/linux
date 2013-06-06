@@ -61,6 +61,10 @@
 			rtc_clk: rtc32k-clock {
 				#clock-cells = <0>;
 			};
+
+			smp_twd_clk: smp-twd-clock {
+				#clock-cells = <0>;
+			};
 		};
 
 		timer@a0410600 {
