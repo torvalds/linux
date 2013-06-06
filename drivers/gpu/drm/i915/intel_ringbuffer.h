@@ -140,6 +140,7 @@ struct  intel_ring_buffer {
 	 */
 	u32 outstanding_lazy_request;
 	bool gpu_caches_dirty;
+	bool fbc_dirty;
 
 	wait_queue_head_t irq_queue;
 

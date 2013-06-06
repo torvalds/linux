@@ -574,7 +574,8 @@ extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
 extern void intel_mark_busy(struct drm_device *dev);
-extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj);
+extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
+			       struct intel_ring_buffer *ring);
 extern void intel_mark_idle(struct drm_device *dev);
 extern bool intel_lvds_init(struct drm_device *dev);
 extern bool intel_is_dual_link_lvds(struct drm_device *dev);

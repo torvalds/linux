@@ -786,7 +786,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 			obj->dirty = 1;
 			obj->last_write_seqno = intel_ring_get_seqno(ring);
 			if (obj->pin_count) /* check for potential scanout */
-				intel_mark_fb_busy(obj);
+				intel_mark_fb_busy(obj, ring);
 		}
 
 		trace_i915_gem_object_change_domain(obj, old_read, old_write);
