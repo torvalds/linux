@@ -19,9 +19,6 @@
 #include <linux/sysrq.h>
 #include <linux/kfifo.h>
 
-#define SERIAL_TTY_MAJOR	188	/* Nice legal number now */
-#define SERIAL_TTY_MINORS	254	/* loads of devices :) */
-
 /* The maximum number of ports one device can grab at once */
 #define MAX_NUM_PORTS		8
 
