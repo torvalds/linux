@@ -7116,7 +7116,8 @@ void intel_mark_idle(struct drm_device *dev)
 	}
 }
 
-void intel_mark_fb_busy(struct drm_i915_gem_object *obj)
+void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
+			struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_crtc *crtc;
@@ -7128,8 +7129,12 @@ void intel_mark_fb_busy(struct drm_i915_gem_object *obj)
 		if (!crtc->fb)
 			continue;
 
-		if (to_intel_framebuffer(crtc->fb)->obj == obj)
-			intel_increase_pllclock(crtc);
+		if (to_intel_framebuffer(crtc->fb)->obj != obj)
+			continue;
+
+		intel_increase_pllclock(crtc);
+		if (ring && intel_fbc_enabled(dev))
+			ring->fbc_dirty = true;
 	}
 }
 
@@ -7579,7 +7584,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup_pending;
 
 	intel_disable_fbc(dev);
-	intel_mark_fb_busy(obj);
+	intel_mark_fb_busy(obj, NULL);
 	mutex_unlock(&dev->struct_mutex);
 
 	trace_i915_flip_request(intel_crtc->plane, obj);
