@@ -313,6 +313,14 @@ static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[TSU_ADRL31]	= 0x01fc,
 };
 
+static int sh_eth_is_gether(struct sh_eth_private *mdp)
+{
+	if (mdp->reg_offset == sh_eth_offset_gigabit)
+		return 1;
+	else
+		return 0;
+}
+
 static void __maybe_unused sh_eth_select_mii(struct net_device *ndev)
 {
 	u32 value = 0x0;
@@ -349,7 +357,6 @@ static void __maybe_unused sh_eth_set_duplex(struct net_device *ndev)
 
 /* There is CPU dependent code */
 #if defined(CONFIG_ARCH_R8A7778) || defined(CONFIG_ARCH_R8A7779)
-#define SH_ETH_RESET_DEFAULT	1
 static void sh_eth_set_rate(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -387,7 +394,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.hw_swap	= 1,
 };
 #elif defined(CONFIG_CPU_SUBTYPE_SH7724)
-#define SH_ETH_RESET_DEFAULT	1
 
 static void sh_eth_set_rate(struct net_device *ndev)
 {
@@ -429,7 +435,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 };
 #elif defined(CONFIG_CPU_SUBTYPE_SH7757)
 #define SH_ETH_HAS_BOTH_MODULES	1
-static int sh_eth_check_reset(struct net_device *ndev);
 
 static void sh_eth_set_rate(struct net_device *ndev)
 {
@@ -496,42 +501,6 @@ static void sh_eth_chip_reset_giga(struct net_device *ndev)
 	}
 }
 
-static int sh_eth_is_gether(struct sh_eth_private *mdp);
-static int sh_eth_reset(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int ret = 0;
-
-	if (sh_eth_is_gether(mdp)) {
-		sh_eth_write(ndev, EDSR_ENALL, EDSR);
-		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_GETHER,
-				EDMR);
-
-		ret = sh_eth_check_reset(ndev);
-		if (ret)
-			goto out;
-
-		/* Table Init */
-		sh_eth_write(ndev, 0x0, TDLAR);
-		sh_eth_write(ndev, 0x0, TDFAR);
-		sh_eth_write(ndev, 0x0, TDFXR);
-		sh_eth_write(ndev, 0x0, TDFFR);
-		sh_eth_write(ndev, 0x0, RDLAR);
-		sh_eth_write(ndev, 0x0, RDFAR);
-		sh_eth_write(ndev, 0x0, RDFXR);
-		sh_eth_write(ndev, 0x0, RDFFR);
-	} else {
-		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_ETHER,
-				EDMR);
-		mdelay(3);
-		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) & ~EDMR_SRST_ETHER,
-				EDMR);
-	}
-
-out:
-	return ret;
-}
-
 static void sh_eth_set_rate_giga(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -592,8 +561,6 @@ static struct sh_eth_cpu_data *sh_eth_get_cpu_data(struct sh_eth_private *mdp)
 }
 
 #elif defined(CONFIG_CPU_SUBTYPE_SH7734) || defined(CONFIG_CPU_SUBTYPE_SH7763)
-static int sh_eth_check_reset(struct net_device *ndev);
-static void sh_eth_reset_hw_crc(struct net_device *ndev);
 
 static void sh_eth_chip_reset(struct net_device *ndev)
 {
@@ -656,45 +623,8 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 #endif
 };
 
-static int sh_eth_reset(struct net_device *ndev)
-{
-	int ret = 0;
-
-	sh_eth_write(ndev, EDSR_ENALL, EDSR);
-	sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_GETHER, EDMR);
-
-	ret = sh_eth_check_reset(ndev);
-	if (ret)
-		goto out;
-
-	/* Table Init */
-	sh_eth_write(ndev, 0x0, TDLAR);
-	sh_eth_write(ndev, 0x0, TDFAR);
-	sh_eth_write(ndev, 0x0, TDFXR);
-	sh_eth_write(ndev, 0x0, TDFFR);
-	sh_eth_write(ndev, 0x0, RDLAR);
-	sh_eth_write(ndev, 0x0, RDFAR);
-	sh_eth_write(ndev, 0x0, RDFXR);
-	sh_eth_write(ndev, 0x0, RDFFR);
-
-	/* Reset HW CRC register */
-	sh_eth_reset_hw_crc(ndev);
-
-	/* Select MII mode */
-	if (sh_eth_my_cpu_data.select_mii)
-		sh_eth_select_mii(ndev);
-out:
-	return ret;
-}
-
-static void sh_eth_reset_hw_crc(struct net_device *ndev)
-{
-	if (sh_eth_my_cpu_data.hw_crc)
-		sh_eth_write(ndev, 0x0, CSMR);
-}
 
 #elif defined(CONFIG_ARCH_R8A7740)
-static int sh_eth_check_reset(struct net_device *ndev);
 
 static void sh_eth_chip_reset(struct net_device *ndev)
 {
@@ -705,31 +635,6 @@ static void sh_eth_chip_reset(struct net_device *ndev)
 	mdelay(1);
 
 	sh_eth_select_mii(ndev);
-}
-
-static int sh_eth_reset(struct net_device *ndev)
-{
-	int ret = 0;
-
-	sh_eth_write(ndev, EDSR_ENALL, EDSR);
-	sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_GETHER, EDMR);
-
-	ret = sh_eth_check_reset(ndev);
-	if (ret)
-		goto out;
-
-	/* Table Init */
-	sh_eth_write(ndev, 0x0, TDLAR);
-	sh_eth_write(ndev, 0x0, TDFAR);
-	sh_eth_write(ndev, 0x0, TDFXR);
-	sh_eth_write(ndev, 0x0, TDFFR);
-	sh_eth_write(ndev, 0x0, RDLAR);
-	sh_eth_write(ndev, 0x0, RDFAR);
-	sh_eth_write(ndev, 0x0, RDFXR);
-	sh_eth_write(ndev, 0x0, RDFFR);
-
-out:
-	return ret;
 }
 
 static void sh_eth_set_rate(struct net_device *ndev)
@@ -780,7 +685,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 };
 
 #elif defined(CONFIG_CPU_SUBTYPE_SH7619)
-#define SH_ETH_RESET_DEFAULT	1
 static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 
@@ -790,7 +694,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.hw_swap	= 1,
 };
 #elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
-#define SH_ETH_RESET_DEFAULT	1
 static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 	.tsu		= 1,
@@ -825,17 +728,6 @@ static void sh_eth_set_default_cpu_data(struct sh_eth_cpu_data *cd)
 		cd->tx_error_check = DEFAULT_TX_ERROR_CHECK;
 }
 
-#if defined(SH_ETH_RESET_DEFAULT)
-/* Chip Reset */
-static int  sh_eth_reset(struct net_device *ndev)
-{
-	sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_ETHER, EDMR);
-	mdelay(3);
-	sh_eth_write(ndev, sh_eth_read(ndev, EDMR) & ~EDMR_SRST_ETHER, EDMR);
-
-	return 0;
-}
-#else
 static int sh_eth_check_reset(struct net_device *ndev)
 {
 	int ret = 0;
@@ -853,7 +745,49 @@ static int sh_eth_check_reset(struct net_device *ndev)
 	}
 	return ret;
 }
-#endif
+
+static int sh_eth_reset(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	int ret = 0;
+
+	if (sh_eth_is_gether(mdp)) {
+		sh_eth_write(ndev, EDSR_ENALL, EDSR);
+		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_GETHER,
+			     EDMR);
+
+		ret = sh_eth_check_reset(ndev);
+		if (ret)
+			goto out;
+
+		/* Table Init */
+		sh_eth_write(ndev, 0x0, TDLAR);
+		sh_eth_write(ndev, 0x0, TDFAR);
+		sh_eth_write(ndev, 0x0, TDFXR);
+		sh_eth_write(ndev, 0x0, TDFFR);
+		sh_eth_write(ndev, 0x0, RDLAR);
+		sh_eth_write(ndev, 0x0, RDFAR);
+		sh_eth_write(ndev, 0x0, RDFXR);
+		sh_eth_write(ndev, 0x0, RDFFR);
+
+		/* Reset HW CRC register */
+		if (mdp->cd->hw_crc)
+			sh_eth_write(ndev, 0x0, CSMR);
+
+		/* Select MII mode */
+		if (mdp->cd->select_mii)
+			sh_eth_select_mii(ndev);
+	} else {
+		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_ETHER,
+			     EDMR);
+		mdelay(3);
+		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) & ~EDMR_SRST_ETHER,
+			     EDMR);
+	}
+
+out:
+	return ret;
+}
 
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 static void sh_eth_set_receive_align(struct sk_buff *skb)
@@ -927,14 +861,6 @@ static void read_mac_address(struct net_device *ndev, unsigned char *mac)
 		ndev->dev_addr[4] = (sh_eth_read(ndev, MALR) >> 8) & 0xFF;
 		ndev->dev_addr[5] = (sh_eth_read(ndev, MALR) & 0xFF);
 	}
-}
-
-static int sh_eth_is_gether(struct sh_eth_private *mdp)
-{
-	if (mdp->reg_offset == sh_eth_offset_gigabit)
-		return 1;
-	else
-		return 0;
 }
 
 static unsigned long sh_eth_get_edtrr_trns(struct sh_eth_private *mdp)
