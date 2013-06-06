@@ -280,6 +280,27 @@ gen7_render_ring_cs_stall_wa(struct intel_ring_buffer *ring)
 	return 0;
 }
 
+static int gen7_ring_fbc_flush(struct intel_ring_buffer *ring, u32 value)
+{
+	int ret;
+
+	if (!ring->fbc_dirty)
+		return 0;
+
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		return ret;
+	intel_ring_emit(ring, MI_NOOP);
+	/* WaFbcNukeOn3DBlt:ivb/hsw */
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+	intel_ring_emit(ring, MSG_FBC_REND_STATE);
+	intel_ring_emit(ring, value);
+	intel_ring_advance(ring);
+
+	ring->fbc_dirty = false;
+	return 0;
+}
+
 static int
 gen7_render_ring_flush(struct intel_ring_buffer *ring,
 		       u32 invalidate_domains, u32 flush_domains)
@@ -335,6 +356,9 @@ gen7_render_ring_flush(struct intel_ring_buffer *ring,
 	intel_ring_emit(ring, scratch_addr);
 	intel_ring_emit(ring, 0);
 	intel_ring_advance(ring);
+
+	if (flush_domains)
+		return gen7_ring_fbc_flush(ring, FBC_REND_NUKE);
 
 	return 0;
 }
@@ -1700,6 +1724,7 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 static int gen6_ring_flush(struct intel_ring_buffer *ring,
 			   u32 invalidate, u32 flush)
 {
+	struct drm_device *dev = ring->dev;
 	uint32_t cmd;
 	int ret;
 
@@ -1722,6 +1747,10 @@ static int gen6_ring_flush(struct intel_ring_buffer *ring,
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
+
+	if (IS_GEN7(dev) && flush)
+		return gen7_ring_fbc_flush(ring, FBC_REND_CACHE_CLEAN);
+
 	return 0;
 }
 

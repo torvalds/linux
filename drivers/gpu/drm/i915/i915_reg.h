@@ -1022,6 +1022,10 @@
 #define IPS_CTL		0x43408
 #define   IPS_ENABLE	(1 << 31)
 
+#define MSG_FBC_REND_STATE	0x50380
+#define   FBC_REND_NUKE		(1<<2)
+#define   FBC_REND_CACHE_CLEAN	(1<<1)
+
 #define _HSW_PIPE_SLICE_CHICKEN_1_A	0x420B0
 #define _HSW_PIPE_SLICE_CHICKEN_1_B	0x420B4
 #define   HSW_BYPASS_FBC_QUEUE		(1<<22)
