@@ -869,7 +869,7 @@ unsigned int wemac_powerup(struct net_device *ndev)
 {
 	wemac_board_info_t *db = netdev_priv(ndev);
 	char emac_mac[13] = {'\0'};
-	int i;
+	int i, got_mac = 0;
 	unsigned int reg_val;
 
 	/* initial EMAC */
@@ -910,7 +910,31 @@ unsigned int wemac_powerup(struct net_device *ndev)
 
 		for (i = 0; i < 6; i++, p++)
 			mac_addr[i] = simple_strtoul(p, &p, 16);
-	} else if (SCRIPT_PARSER_OK != script_parser_fetch("dynamic", "MAC", (int *)emac_mac, 3)) {
+
+		pr_info("%s Using MAC from kernel cmdline: "
+			"%02x:%02x:%02x:%02x:%02x:%02x", CARDNAME,
+			mac_addr[0], mac_addr[1], mac_addr[2],
+			mac_addr[3], mac_addr[4], mac_addr[5]);
+		got_mac = 1;
+	}
+
+	i = script_parser_fetch("dynamic", "MAC", (int *)emac_mac, 3);
+	emac_mac[12] = '\0';
+	if (!got_mac &&	i == SCRIPT_PARSER_OK &&
+			strcmp(emac_mac, "000000000000") != 0) {
+		for (i = 0; i < 6; i++) {
+			char emac_tmp[3] = ":::";
+			memcpy(emac_tmp, (char *)(emac_mac+i*2), 2);
+			emac_tmp[2] = ':';
+			mac_addr[i] = simple_strtoul(emac_tmp, NULL, 16);
+		}
+		pr_info("%s Using MAC from FEX: %02x:%02x:%02x:%02x:%02x:%02x",
+			CARDNAME, mac_addr[0], mac_addr[1], mac_addr[2],
+			mac_addr[3], mac_addr[4], mac_addr[5]);
+		got_mac = 1;
+	}
+
+	if (!got_mac) {
 		mac_addr[0] = 0x02; /* Non OUI / registered MAC address */
 		reg_val = readl(SW_VA_SID_IO_BASE);
 		mac_addr[1] = (reg_val >>  0) & 0xff;
@@ -919,18 +943,12 @@ unsigned int wemac_powerup(struct net_device *ndev)
 		mac_addr[3] = (reg_val >> 16) & 0xff;
 		mac_addr[4] = (reg_val >>  8) & 0xff;
 		mac_addr[5] = (reg_val >>  0) & 0xff;
-		pr_info("%s Using MAC from SID: 00:%02x:%02x:%02x:%02x:%02x",
+		pr_info("%s Using MAC from SID: 02:%02x:%02x:%02x:%02x:%02x",
 			CARDNAME, mac_addr[1], mac_addr[2], mac_addr[3],
 			mac_addr[4], mac_addr[5]);
-	} else {
-		emac_mac[12] = '\0';
-		for (i = 0; i < 6; i++) {
-			char emac_tmp[3] = ":::";
-			memcpy(emac_tmp, (char *)(emac_mac+i*2), 2);
-			emac_tmp[2] = ':';
-			mac_addr[i] = simple_strtoul(emac_tmp, NULL, 16);
-		}
+		got_mac = 1;
 	}
+
 	wemac_set_mac_addr(db, mac_addr);
 
 	mdelay(1);
