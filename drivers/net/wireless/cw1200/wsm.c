@@ -929,6 +929,8 @@ static int wsm_event_indication(struct cw1200_common *priv, struct wsm_buf *buf)
 	}
 
 	event = kzalloc(sizeof(struct cw1200_wsm_event), GFP_KERNEL);
+	if (!event)
+		return -ENOMEM;
 
 	event->evt.id = __le32_to_cpu(WSM_GET32(buf));
 	event->evt.data = __le32_to_cpu(WSM_GET32(buf));
