@@ -805,7 +805,7 @@ static void
 brcmf_fws_flow_control_check(struct brcmf_fws_info *fws, struct pktq *pq,
 			     u8 if_id)
 {
-	struct brcmf_if *ifp = fws->drvr->iflist[if_id];
+	struct brcmf_if *ifp = fws->drvr->iflist[!if_id ? 0 : if_id + 1];
 
 	if (WARN_ON(!ifp))
 		return;
