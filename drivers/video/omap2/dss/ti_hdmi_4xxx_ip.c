@@ -38,6 +38,9 @@
 #include "dss.h"
 #include "dss_features.h"
 
+#define HDMI_IRQ_LINK_CONNECT		(1 << 25)
+#define HDMI_IRQ_LINK_DISCONNECT	(1 << 26)
+
 static inline void hdmi_write_reg(void __iomem *base_addr,
 				const u16 idx, u32 val)
 {
@@ -233,36 +236,38 @@ void ti_hdmi_4xxx_pll_disable(struct hdmi_ip_data *ip_data)
 	hdmi_set_pll_pwr(ip_data, HDMI_PLLPWRCMD_ALLOFF);
 }
 
-static int hdmi_check_hpd_state(struct hdmi_ip_data *ip_data)
-{
-	bool hpd;
-	int r;
-
-	mutex_lock(&ip_data->lock);
-
-	hpd = gpio_get_value(ip_data->hpd_gpio);
-
-	if (hpd)
-		r = hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_TXON);
-	else
-		r = hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_LDOON);
-
-	if (r) {
-		DSSERR("Failed to %s PHY TX power\n",
-				hpd ? "enable" : "disable");
-		goto err;
-	}
-
-err:
-	mutex_unlock(&ip_data->lock);
-	return r;
-}
-
-static irqreturn_t hpd_irq_handler(int irq, void *data)
+static irqreturn_t hdmi_irq_handler(int irq, void *data)
 {
 	struct hdmi_ip_data *ip_data = data;
+	void __iomem *wp_base = hdmi_wp_base(ip_data);
+	u32 irqstatus;
 
-	hdmi_check_hpd_state(ip_data);
+	irqstatus = hdmi_read_reg(wp_base, HDMI_WP_IRQSTATUS);
+	hdmi_write_reg(wp_base, HDMI_WP_IRQSTATUS, irqstatus);
+	/* flush posted write */
+	hdmi_read_reg(wp_base, HDMI_WP_IRQSTATUS);
+
+	if ((irqstatus & HDMI_IRQ_LINK_CONNECT) &&
+			irqstatus & HDMI_IRQ_LINK_DISCONNECT) {
+		/*
+		 * If we get both connect and disconnect interrupts at the same
+		 * time, turn off the PHY, clear interrupts, and restart, which
+		 * raises connect interrupt if a cable is connected, or nothing
+		 * if cable is not connected.
+		 */
+		hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_OFF);
+
+		hdmi_write_reg(wp_base, HDMI_WP_IRQSTATUS,
+			HDMI_IRQ_LINK_CONNECT | HDMI_IRQ_LINK_DISCONNECT);
+		/* flush posted write */
+		hdmi_read_reg(wp_base, HDMI_WP_IRQSTATUS);
+
+		hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_LDOON);
+	} else if (irqstatus & HDMI_IRQ_LINK_CONNECT) {
+		hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_TXON);
+	} else if (irqstatus & HDMI_IRQ_LINK_DISCONNECT) {
+		hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_LDOON);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -271,6 +276,12 @@ int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data)
 {
 	u16 r = 0;
 	void __iomem *phy_base = hdmi_phy_base(ip_data);
+
+	hdmi_write_reg(hdmi_wp_base(ip_data), HDMI_WP_IRQENABLE_CLR,
+			0xffffffff);
+
+	hdmi_write_reg(hdmi_wp_base(ip_data), HDMI_WP_IRQSTATUS,
+			HDMI_IRQ_LINK_CONNECT | HDMI_IRQ_LINK_DISCONNECT);
 
 	r = hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_LDOON);
 	if (r)
@@ -297,29 +308,23 @@ int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data)
 	/* Write to phy address 3 to change the polarity control */
 	REG_FLD_MOD(phy_base, HDMI_TXPHY_PAD_CFG_CTRL, 0x1, 27, 27);
 
-	r = request_threaded_irq(gpio_to_irq(ip_data->hpd_gpio),
-				 NULL, hpd_irq_handler,
-				 IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
-				 IRQF_ONESHOT, "hpd", ip_data);
+	r = request_threaded_irq(ip_data->irq, NULL, hdmi_irq_handler,
+				 IRQF_ONESHOT, "OMAP HDMI", ip_data);
 	if (r) {
-		DSSERR("HPD IRQ request failed\n");
+		DSSERR("HDMI IRQ request failed\n");
 		hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_OFF);
 		return r;
 	}
 
-	r = hdmi_check_hpd_state(ip_data);
-	if (r) {
-		free_irq(gpio_to_irq(ip_data->hpd_gpio), ip_data);
-		hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_OFF);
-		return r;
-	}
+	hdmi_write_reg(hdmi_wp_base(ip_data), HDMI_WP_IRQENABLE_SET,
+			HDMI_IRQ_LINK_CONNECT | HDMI_IRQ_LINK_DISCONNECT);
 
 	return 0;
 }
 
 void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data)
 {
-	free_irq(gpio_to_irq(ip_data->hpd_gpio), ip_data);
+	free_irq(ip_data->irq, ip_data);
 
 	hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_OFF);
 }

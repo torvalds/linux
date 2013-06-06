@@ -1072,6 +1072,12 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	if (IS_ERR(hdmi.ip_data.base_wp))
 		return PTR_ERR(hdmi.ip_data.base_wp);
 
+	hdmi.ip_data.irq = platform_get_irq(pdev, 0);
+	if (hdmi.ip_data.irq < 0) {
+		DSSERR("platform_get_irq failed\n");
+		return -ENODEV;
+	}
+
 	r = hdmi_get_clocks(pdev);
 	if (r) {
 		DSSERR("can't get clocks\n");
