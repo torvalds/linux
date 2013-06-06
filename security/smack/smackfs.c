@@ -447,7 +447,7 @@ static ssize_t smk_write_rules_list(struct file *file, const char __user *buf,
 					struct list_head *rule_list,
 					struct mutex *rule_lock, int format)
 {
-	struct smack_parsed_rule *rule;
+	struct smack_parsed_rule rule;
 	char *data;
 	int datalen;
 	int rc = -EINVAL;
@@ -479,47 +479,36 @@ static ssize_t smk_write_rules_list(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
-	if (rule == NULL) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
 	if (format == SMK_LONG_FMT) {
 		/*
 		 * Be sure the data string is terminated.
 		 */
 		data[count] = '\0';
-		if (smk_parse_long_rule(data, rule, 1, 0))
-			goto out_free_rule;
+		if (smk_parse_long_rule(data, &rule, 1, 0))
+			goto out;
 	} else if (format == SMK_CHANGE_FMT) {
 		data[count] = '\0';
-		if (smk_parse_long_rule(data, rule, 1, 1))
-			goto out_free_rule;
+		if (smk_parse_long_rule(data, &rule, 1, 1))
+			goto out;
 	} else {
 		/*
 		 * More on the minor hack for backward compatibility
 		 */
 		if (count == (SMK_OLOADLEN))
 			data[SMK_OLOADLEN] = '-';
-		if (smk_parse_rule(data, rule, 1))
-			goto out_free_rule;
+		if (smk_parse_rule(data, &rule, 1))
+			goto out;
 	}
 
 	if (rule_list == NULL) {
 		load = 1;
-		rule_list = &rule->smk_subject->smk_rules;
-		rule_lock = &rule->smk_subject->smk_rules_lock;
+		rule_list = &rule.smk_subject->smk_rules;
+		rule_lock = &rule.smk_subject->smk_rules_lock;
 	}
 
-	rc = smk_set_access(rule, rule_list, rule_lock, load);
-	if (rc == 0) {
+	rc = smk_set_access(&rule, rule_list, rule_lock, load);
+	if (rc == 0)
 		rc = count;
-		goto out;
-	}
-
-out_free_rule:
-	kfree(rule);
 out:
 	kfree(data);
 	return rc;
