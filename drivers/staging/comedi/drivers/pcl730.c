@@ -32,19 +32,46 @@
 #include <linux/ioport.h>
 
 /*
- * Register I/O map
+ * Register map
  *
- * The pcm3730 PC/104 board does not have the PCL730_IDIO_HI register.
- * The pcl725 ISA board uses separate registers for isolated digital I/O.
- * The p8r8dio, acl7225b, and p16r16dio boards have isolated digital output
- * readback and separate registers for isolated digital I/O.
- * The pcl733 ISA board uses all four registers for isolated digital inputs.
- * The pcl734 ISA board uses all four registers for isolated digital outputs.
+ * The register map varies slightly depending on the board type but
+ * all registers are 8-bit.
+ *
+ * The boardinfo 'io_range' is used to allow comedi to request the
+ * proper range required by the board.
+ *
+ * The comedi_subdevice 'private' data is used to pass the register
+ * offset to the (*insn_bits) functions to read/write the correct
+ * registers.
+ *
+ * The basic register mapping looks like this:
+ *
+ *     BASE+0  Isolated outputs 0-7 (write) / inputs 0-7 (read)
+ *     BASE+1  Isolated outputs 8-15 (write) / inputs 8-15 (read)
+ *     BASE+2  TTL outputs 0-7 (write) / inputs 0-7 (read)
+ *     BASE+3  TTL outputs 8-15 (write) / inputs 8-15 (read)
+ *
+ * The pcm3730 board does not have register BASE+1.
+ *
+ * The pcl725 and p8r8dio only have registers BASE+0 and BASE+1:
+ *
+ *     BASE+0  Isolated outputs 0-7 (write) (read back on p8r8dio)
+ *     BASE+1  Isolated inputs 0-7 (read)
+ *
+ * The acl7225b and p16r16dio boards have this register mapping:
+ *
+ *     BASE+0  Isolated outputs 0-7 (write) (read back)
+ *     BASE+1  Isolated outputs 8-15 (write) (read back)
+ *     BASE+2  Isolated inputs 0-7 (read)
+ *     BASE+3  Isolated inputs 8-15 (read)
+ *
+ * The pcl733 and pcl733 boards have this register mapping:
+ *
+ *     BASE+0  Isolated outputs 0-7 (write) or inputs 0-7 (read)
+ *     BASE+1  Isolated outputs 8-15 (write) or inputs 8-15 (read)
+ *     BASE+2  Isolated outputs 16-23 (write) or inputs 16-23 (read)
+ *     BASE+3  Isolated outputs 24-31 (write) or inputs 24-31 (read)
  */
-#define PCL730_IDIO_LO	0	/* Isolated Digital I/O low byte (ID0-ID7) */
-#define PCL730_IDIO_HI	1	/* Isolated Digital I/O high byte (ID8-ID15) */
-#define PCL730_DIO_LO	2	/* TTL Digital I/O low byte (D0-D7) */
-#define PCL730_DIO_HI	3	/* TTL Digital I/O high byte (D8-D15) */
 
 struct pcl730_board {
 	const char *name;
@@ -217,7 +244,7 @@ static int pcl730_attach(struct comedi_device *dev,
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= pcl730_do_insn_bits;
-		s->private	= (void *)PCL730_IDIO_LO;
+		s->private	= (void *)0;
 
 		/* get the initial state if supported */
 		if (board->has_readback)
@@ -233,9 +260,8 @@ static int pcl730_attach(struct comedi_device *dev,
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= pcl730_di_insn_bits;
-		s->private	= board->is_acl7225b ? (void *)PCL730_DIO_LO :
-				  board->is_pcl725 ? (void *)PCL730_IDIO_HI
-						   : (void *)PCL730_IDIO_LO;
+		s->private	= board->is_acl7225b ? (void *)2 :
+				  board->is_pcl725 ? (void *)1 : (void *)0;
 	}
 
 	if (board->has_ttl_io) {
@@ -247,7 +273,7 @@ static int pcl730_attach(struct comedi_device *dev,
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= pcl730_do_insn_bits;
-		s->private	= (void *)PCL730_DIO_LO;
+		s->private	= (void *)2;
 
 		/* TTL Digital Inputs */
 		s = &dev->subdevices[subdev++];
@@ -257,7 +283,7 @@ static int pcl730_attach(struct comedi_device *dev,
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= pcl730_di_insn_bits;
-		s->private	= (void *)PCL730_DIO_LO;
+		s->private	= (void *)2;
 	}
 
 	return 0;
