@@ -156,13 +156,6 @@ union cvmx_usbcx_gahbcfg
                                                          * 1'b0: Mask the interrupt assertion to the application.
                                                          * 1'b1: Unmask the interrupt assertion to the application. */
 	} s;
-	struct cvmx_usbcx_gahbcfg_s           cn30xx;
-	struct cvmx_usbcx_gahbcfg_s           cn31xx;
-	struct cvmx_usbcx_gahbcfg_s           cn50xx;
-	struct cvmx_usbcx_gahbcfg_s           cn52xx;
-	struct cvmx_usbcx_gahbcfg_s           cn52xxp1;
-	struct cvmx_usbcx_gahbcfg_s           cn56xx;
-	struct cvmx_usbcx_gahbcfg_s           cn56xxp1;
 };
 typedef union cvmx_usbcx_gahbcfg cvmx_usbcx_gahbcfg_t;
 
@@ -223,13 +216,6 @@ union cvmx_usbcx_ghwcfg3
                                                          * 4'b1000: 19 bits
                                                          * Others: Reserved */
 	} s;
-	struct cvmx_usbcx_ghwcfg3_s           cn30xx;
-	struct cvmx_usbcx_ghwcfg3_s           cn31xx;
-	struct cvmx_usbcx_ghwcfg3_s           cn50xx;
-	struct cvmx_usbcx_ghwcfg3_s           cn52xx;
-	struct cvmx_usbcx_ghwcfg3_s           cn52xxp1;
-	struct cvmx_usbcx_ghwcfg3_s           cn56xx;
-	struct cvmx_usbcx_ghwcfg3_s           cn56xxp1;
 };
 typedef union cvmx_usbcx_ghwcfg3 cvmx_usbcx_ghwcfg3_t;
 
@@ -287,13 +273,6 @@ union cvmx_usbcx_gintmsk
 	uint32_t modemismsk                   : 1;  /**< Mode Mismatch Interrupt Mask (ModeMisMsk) */
 	uint32_t reserved_0_0                 : 1;
 	} s;
-	struct cvmx_usbcx_gintmsk_s           cn30xx;
-	struct cvmx_usbcx_gintmsk_s           cn31xx;
-	struct cvmx_usbcx_gintmsk_s           cn50xx;
-	struct cvmx_usbcx_gintmsk_s           cn52xx;
-	struct cvmx_usbcx_gintmsk_s           cn52xxp1;
-	struct cvmx_usbcx_gintmsk_s           cn56xx;
-	struct cvmx_usbcx_gintmsk_s           cn56xxp1;
 };
 typedef union cvmx_usbcx_gintmsk cvmx_usbcx_gintmsk_t;
 
@@ -489,13 +468,6 @@ union cvmx_usbcx_gintsts
                                                          * 1'b0: Device mode
                                                          * 1'b1: Host mode */
 	} s;
-	struct cvmx_usbcx_gintsts_s           cn30xx;
-	struct cvmx_usbcx_gintsts_s           cn31xx;
-	struct cvmx_usbcx_gintsts_s           cn50xx;
-	struct cvmx_usbcx_gintsts_s           cn52xx;
-	struct cvmx_usbcx_gintsts_s           cn52xxp1;
-	struct cvmx_usbcx_gintsts_s           cn56xx;
-	struct cvmx_usbcx_gintsts_s           cn56xxp1;
 };
 typedef union cvmx_usbcx_gintsts cvmx_usbcx_gintsts_t;
 
@@ -519,13 +491,6 @@ union cvmx_usbcx_gnptxfsiz
                                                          This field contains the memory start address for Non-Periodic
                                                          Transmit FIFO RAM. */
 	} s;
-	struct cvmx_usbcx_gnptxfsiz_s         cn30xx;
-	struct cvmx_usbcx_gnptxfsiz_s         cn31xx;
-	struct cvmx_usbcx_gnptxfsiz_s         cn50xx;
-	struct cvmx_usbcx_gnptxfsiz_s         cn52xx;
-	struct cvmx_usbcx_gnptxfsiz_s         cn52xxp1;
-	struct cvmx_usbcx_gnptxfsiz_s         cn56xx;
-	struct cvmx_usbcx_gnptxfsiz_s         cn56xxp1;
 };
 typedef union cvmx_usbcx_gnptxfsiz cvmx_usbcx_gnptxfsiz_t;
 
@@ -575,13 +540,6 @@ union cvmx_usbcx_gnptxsts
                                                          * 16'h8000: 32768 words available
                                                          * Others: Reserved */
 	} s;
-	struct cvmx_usbcx_gnptxsts_s          cn30xx;
-	struct cvmx_usbcx_gnptxsts_s          cn31xx;
-	struct cvmx_usbcx_gnptxsts_s          cn50xx;
-	struct cvmx_usbcx_gnptxsts_s          cn52xx;
-	struct cvmx_usbcx_gnptxsts_s          cn52xxp1;
-	struct cvmx_usbcx_gnptxsts_s          cn56xx;
-	struct cvmx_usbcx_gnptxsts_s          cn56xxp1;
 };
 typedef union cvmx_usbcx_gnptxsts cvmx_usbcx_gnptxsts_t;
 
@@ -699,13 +657,6 @@ union cvmx_usbcx_grstctl
                                                            selected and used in the PHY domain. Once a new clock is
                                                            selected, the PHY domain has to be reset for proper operation. */
 	} s;
-	struct cvmx_usbcx_grstctl_s           cn30xx;
-	struct cvmx_usbcx_grstctl_s           cn31xx;
-	struct cvmx_usbcx_grstctl_s           cn50xx;
-	struct cvmx_usbcx_grstctl_s           cn52xx;
-	struct cvmx_usbcx_grstctl_s           cn52xxp1;
-	struct cvmx_usbcx_grstctl_s           cn56xx;
-	struct cvmx_usbcx_grstctl_s           cn56xxp1;
 };
 typedef union cvmx_usbcx_grstctl cvmx_usbcx_grstctl_t;
 
@@ -727,13 +678,6 @@ union cvmx_usbcx_grxfsiz
                                                          * Minimum value is 16
                                                          * Maximum value is 32768 */
 	} s;
-	struct cvmx_usbcx_grxfsiz_s           cn30xx;
-	struct cvmx_usbcx_grxfsiz_s           cn31xx;
-	struct cvmx_usbcx_grxfsiz_s           cn50xx;
-	struct cvmx_usbcx_grxfsiz_s           cn52xx;
-	struct cvmx_usbcx_grxfsiz_s           cn52xxp1;
-	struct cvmx_usbcx_grxfsiz_s           cn56xx;
-	struct cvmx_usbcx_grxfsiz_s           cn56xxp1;
 };
 typedef union cvmx_usbcx_grxfsiz cvmx_usbcx_grxfsiz_t;
 
@@ -772,13 +716,6 @@ union cvmx_usbcx_grxstsph
                                                          Indicates the channel number to which the current received
                                                          packet belongs. */
 	} s;
-	struct cvmx_usbcx_grxstsph_s          cn30xx;
-	struct cvmx_usbcx_grxstsph_s          cn31xx;
-	struct cvmx_usbcx_grxstsph_s          cn50xx;
-	struct cvmx_usbcx_grxstsph_s          cn52xx;
-	struct cvmx_usbcx_grxstsph_s          cn52xxp1;
-	struct cvmx_usbcx_grxstsph_s          cn56xx;
-	struct cvmx_usbcx_grxstsph_s          cn56xxp1;
 };
 typedef union cvmx_usbcx_grxstsph cvmx_usbcx_grxstsph_t;
 
@@ -854,13 +791,6 @@ union cvmx_usbcx_gusbcfg
                                                          * One 60-MHz PHY clock = 0.2 bit times
                                                          * One 48-MHz PHY clock = 0.25 bit times */
 	} s;
-	struct cvmx_usbcx_gusbcfg_s           cn30xx;
-	struct cvmx_usbcx_gusbcfg_s           cn31xx;
-	struct cvmx_usbcx_gusbcfg_s           cn50xx;
-	struct cvmx_usbcx_gusbcfg_s           cn52xx;
-	struct cvmx_usbcx_gusbcfg_s           cn52xxp1;
-	struct cvmx_usbcx_gusbcfg_s           cn56xx;
-	struct cvmx_usbcx_gusbcfg_s           cn56xxp1;
 };
 typedef union cvmx_usbcx_gusbcfg cvmx_usbcx_gusbcfg_t;
 
@@ -884,13 +814,6 @@ union cvmx_usbcx_haint
 	uint32_t haint                        : 16; /**< Channel Interrupts (HAINT)
                                                          One bit per channel: Bit 0 for Channel 0, bit 15 for Channel 15 */
 	} s;
-	struct cvmx_usbcx_haint_s             cn30xx;
-	struct cvmx_usbcx_haint_s             cn31xx;
-	struct cvmx_usbcx_haint_s             cn50xx;
-	struct cvmx_usbcx_haint_s             cn52xx;
-	struct cvmx_usbcx_haint_s             cn52xxp1;
-	struct cvmx_usbcx_haint_s             cn56xx;
-	struct cvmx_usbcx_haint_s             cn56xxp1;
 };
 typedef union cvmx_usbcx_haint cvmx_usbcx_haint_t;
 
@@ -913,13 +836,6 @@ union cvmx_usbcx_haintmsk
 	uint32_t haintmsk                     : 16; /**< Channel Interrupt Mask (HAINTMsk)
                                                          One bit per channel: Bit 0 for channel 0, bit 15 for channel 15 */
 	} s;
-	struct cvmx_usbcx_haintmsk_s          cn30xx;
-	struct cvmx_usbcx_haintmsk_s          cn31xx;
-	struct cvmx_usbcx_haintmsk_s          cn50xx;
-	struct cvmx_usbcx_haintmsk_s          cn52xx;
-	struct cvmx_usbcx_haintmsk_s          cn52xxp1;
-	struct cvmx_usbcx_haintmsk_s          cn56xx;
-	struct cvmx_usbcx_haintmsk_s          cn56xxp1;
 };
 typedef union cvmx_usbcx_haintmsk cvmx_usbcx_haintmsk_t;
 
@@ -988,13 +904,6 @@ union cvmx_usbcx_hccharx
 	uint32_t mps                          : 11; /**< Maximum Packet Size (MPS)
                                                          Indicates the maximum packet size of the associated endpoint. */
 	} s;
-	struct cvmx_usbcx_hccharx_s           cn30xx;
-	struct cvmx_usbcx_hccharx_s           cn31xx;
-	struct cvmx_usbcx_hccharx_s           cn50xx;
-	struct cvmx_usbcx_hccharx_s           cn52xx;
-	struct cvmx_usbcx_hccharx_s           cn52xxp1;
-	struct cvmx_usbcx_hccharx_s           cn56xx;
-	struct cvmx_usbcx_hccharx_s           cn56xxp1;
 };
 typedef union cvmx_usbcx_hccharx cvmx_usbcx_hccharx_t;
 
@@ -1039,13 +948,6 @@ union cvmx_usbcx_hcfg
                                                                   do a soft reset.
                                                          * 2'b11: Reserved */
 	} s;
-	struct cvmx_usbcx_hcfg_s              cn30xx;
-	struct cvmx_usbcx_hcfg_s              cn31xx;
-	struct cvmx_usbcx_hcfg_s              cn50xx;
-	struct cvmx_usbcx_hcfg_s              cn52xx;
-	struct cvmx_usbcx_hcfg_s              cn52xxp1;
-	struct cvmx_usbcx_hcfg_s              cn56xx;
-	struct cvmx_usbcx_hcfg_s              cn56xxp1;
 };
 typedef union cvmx_usbcx_hcfg cvmx_usbcx_hcfg_t;
 
@@ -1083,13 +985,6 @@ union cvmx_usbcx_hcintx
 	uint32_t xfercompl                    : 1;  /**< Transfer Completed (XferCompl)
                                                          Transfer completed normally without any errors. */
 	} s;
-	struct cvmx_usbcx_hcintx_s            cn30xx;
-	struct cvmx_usbcx_hcintx_s            cn31xx;
-	struct cvmx_usbcx_hcintx_s            cn50xx;
-	struct cvmx_usbcx_hcintx_s            cn52xx;
-	struct cvmx_usbcx_hcintx_s            cn52xxp1;
-	struct cvmx_usbcx_hcintx_s            cn56xx;
-	struct cvmx_usbcx_hcintx_s            cn56xxp1;
 };
 typedef union cvmx_usbcx_hcintx cvmx_usbcx_hcintx_t;
 
@@ -1119,13 +1014,6 @@ union cvmx_usbcx_hcintmskx
 	uint32_t chhltdmsk                    : 1;  /**< Channel Halted Mask (ChHltdMsk) */
 	uint32_t xfercomplmsk                 : 1;  /**< Transfer Completed Mask (XferComplMsk) */
 	} s;
-	struct cvmx_usbcx_hcintmskx_s         cn30xx;
-	struct cvmx_usbcx_hcintmskx_s         cn31xx;
-	struct cvmx_usbcx_hcintmskx_s         cn50xx;
-	struct cvmx_usbcx_hcintmskx_s         cn52xx;
-	struct cvmx_usbcx_hcintmskx_s         cn52xxp1;
-	struct cvmx_usbcx_hcintmskx_s         cn56xx;
-	struct cvmx_usbcx_hcintmskx_s         cn56xxp1;
 };
 typedef union cvmx_usbcx_hcintmskx cvmx_usbcx_hcintmskx_t;
 
@@ -1165,13 +1053,6 @@ union cvmx_usbcx_hcspltx
                                                          This field is the port number of the recipient transaction
                                                          translator. */
 	} s;
-	struct cvmx_usbcx_hcspltx_s           cn30xx;
-	struct cvmx_usbcx_hcspltx_s           cn31xx;
-	struct cvmx_usbcx_hcspltx_s           cn50xx;
-	struct cvmx_usbcx_hcspltx_s           cn52xx;
-	struct cvmx_usbcx_hcspltx_s           cn52xxp1;
-	struct cvmx_usbcx_hcspltx_s           cn56xx;
-	struct cvmx_usbcx_hcspltx_s           cn56xxp1;
 };
 typedef union cvmx_usbcx_hcspltx cvmx_usbcx_hcspltx_t;
 
@@ -1211,13 +1092,6 @@ union cvmx_usbcx_hctsizx
                                                          program this field as an integer multiple of the maximum packet
                                                          size for IN transactions (periodic and non-periodic). */
 	} s;
-	struct cvmx_usbcx_hctsizx_s           cn30xx;
-	struct cvmx_usbcx_hctsizx_s           cn31xx;
-	struct cvmx_usbcx_hctsizx_s           cn50xx;
-	struct cvmx_usbcx_hctsizx_s           cn52xx;
-	struct cvmx_usbcx_hctsizx_s           cn52xxp1;
-	struct cvmx_usbcx_hctsizx_s           cn56xx;
-	struct cvmx_usbcx_hctsizx_s           cn56xxp1;
 };
 typedef union cvmx_usbcx_hctsizx cvmx_usbcx_hctsizx_t;
 
@@ -1251,13 +1125,6 @@ union cvmx_usbcx_hfir
                                                          * 125 us (PHY clock frequency for HS)
                                                          * 1 ms (PHY clock frequency for FS/LS) */
 	} s;
-	struct cvmx_usbcx_hfir_s              cn30xx;
-	struct cvmx_usbcx_hfir_s              cn31xx;
-	struct cvmx_usbcx_hfir_s              cn50xx;
-	struct cvmx_usbcx_hfir_s              cn52xx;
-	struct cvmx_usbcx_hfir_s              cn52xxp1;
-	struct cvmx_usbcx_hfir_s              cn56xx;
-	struct cvmx_usbcx_hfir_s              cn56xxp1;
 };
 typedef union cvmx_usbcx_hfir cvmx_usbcx_hfir_t;
 
@@ -1285,13 +1152,6 @@ union cvmx_usbcx_hfnum
                                                          This field increments when a new SOF is transmitted on the
                                                          USB, and is reset to 0 when it reaches 16'h3FFF. */
 	} s;
-	struct cvmx_usbcx_hfnum_s             cn30xx;
-	struct cvmx_usbcx_hfnum_s             cn31xx;
-	struct cvmx_usbcx_hfnum_s             cn50xx;
-	struct cvmx_usbcx_hfnum_s             cn52xx;
-	struct cvmx_usbcx_hfnum_s             cn52xxp1;
-	struct cvmx_usbcx_hfnum_s             cn56xx;
-	struct cvmx_usbcx_hfnum_s             cn56xxp1;
 };
 typedef union cvmx_usbcx_hfnum cvmx_usbcx_hfnum_t;
 
@@ -1418,13 +1278,6 @@ union cvmx_usbcx_hprt
                                                          * 0: No device is attached to the port.
                                                          * 1: A device is attached to the port. */
 	} s;
-	struct cvmx_usbcx_hprt_s              cn30xx;
-	struct cvmx_usbcx_hprt_s              cn31xx;
-	struct cvmx_usbcx_hprt_s              cn50xx;
-	struct cvmx_usbcx_hprt_s              cn52xx;
-	struct cvmx_usbcx_hprt_s              cn52xxp1;
-	struct cvmx_usbcx_hprt_s              cn56xx;
-	struct cvmx_usbcx_hprt_s              cn56xxp1;
 };
 typedef union cvmx_usbcx_hprt cvmx_usbcx_hprt_t;
 
@@ -1446,13 +1299,6 @@ union cvmx_usbcx_hptxfsiz
                                                          * Maximum value is 32768 */
 	uint32_t ptxfstaddr                   : 16; /**< Host Periodic TxFIFO Start Address (PTxFStAddr) */
 	} s;
-	struct cvmx_usbcx_hptxfsiz_s          cn30xx;
-	struct cvmx_usbcx_hptxfsiz_s          cn31xx;
-	struct cvmx_usbcx_hptxfsiz_s          cn50xx;
-	struct cvmx_usbcx_hptxfsiz_s          cn52xx;
-	struct cvmx_usbcx_hptxfsiz_s          cn52xxp1;
-	struct cvmx_usbcx_hptxfsiz_s          cn56xx;
-	struct cvmx_usbcx_hptxfsiz_s          cn56xxp1;
 };
 typedef union cvmx_usbcx_hptxfsiz cvmx_usbcx_hptxfsiz_t;
 
@@ -1505,13 +1351,6 @@ union cvmx_usbcx_hptxsts
                                                          * 16'h8000: 32768 words available
                                                          * Others: Reserved */
 	} s;
-	struct cvmx_usbcx_hptxsts_s           cn30xx;
-	struct cvmx_usbcx_hptxsts_s           cn31xx;
-	struct cvmx_usbcx_hptxsts_s           cn50xx;
-	struct cvmx_usbcx_hptxsts_s           cn52xx;
-	struct cvmx_usbcx_hptxsts_s           cn52xxp1;
-	struct cvmx_usbcx_hptxsts_s           cn56xx;
-	struct cvmx_usbcx_hptxsts_s           cn56xxp1;
 };
 typedef union cvmx_usbcx_hptxsts cvmx_usbcx_hptxsts_t;
 
