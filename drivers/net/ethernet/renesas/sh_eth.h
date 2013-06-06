@@ -463,6 +463,7 @@ struct sh_eth_cpu_data {
 	unsigned long tx_error_check;
 
 	/* hardware features */
+	unsigned long irq_flags;	/* IRQ configuration flags */
 	unsigned no_psr:1;		/* EtherC DO NOT have PSR */
 	unsigned apr:1;			/* EtherC have APR */
 	unsigned mpr:1;			/* EtherC have MPR */
