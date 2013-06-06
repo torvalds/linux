@@ -3844,7 +3844,6 @@ bool igb_has_link(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	bool link_active = false;
-	s32 ret_val = 0;
 
 	/* get_link_status is set on LSC (link status) interrupt or
 	 * rx sequence error interrupt.  get_link_status will stay
@@ -3853,16 +3852,11 @@ bool igb_has_link(struct igb_adapter *adapter)
 	 */
 	switch (hw->phy.media_type) {
 	case e1000_media_type_copper:
-		if (hw->mac.get_link_status) {
-			ret_val = hw->mac.ops.check_for_link(hw);
-			link_active = !hw->mac.get_link_status;
-		} else {
-			link_active = true;
-		}
-		break;
+		if (!hw->mac.get_link_status)
+			return true;
 	case e1000_media_type_internal_serdes:
-		ret_val = hw->mac.ops.check_for_link(hw);
-		link_active = hw->mac.serdes_has_link;
+		hw->mac.ops.check_for_link(hw);
+		link_active = !hw->mac.get_link_status;
 		break;
 	default:
 	case e1000_media_type_unknown:

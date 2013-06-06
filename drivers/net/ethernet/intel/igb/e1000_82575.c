@@ -1320,7 +1320,7 @@ void igb_shutdown_serdes_link_82575(struct e1000_hw *hw)
  **/
 static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 {
-	u32 ctrl, icr;
+	u32 ctrl;
 	s32 ret_val;
 
 	/* Prevent the PCI-E bus from sticking if there is no TLP connection
@@ -1365,7 +1365,7 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 
 	/* Clear any pending interrupt events. */
 	wr32(E1000_IMC, 0xffffffff);
-	icr = rd32(E1000_ICR);
+	rd32(E1000_ICR);
 
 	/* Install any alternate MAC address into RAR0 */
 	ret_val = igb_check_alt_mac_addr(hw);
@@ -2103,9 +2103,8 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 	s32 ret_val = 0;
 	/* BH SW mailbox bit in SW_FW_SYNC */
 	u16 swmbsw_mask = E1000_SW_SYNCH_MB;
-	u32 ctrl, icr;
+	u32 ctrl;
 	bool global_device_reset = hw->dev_spec._82575.global_device_reset;
-
 
 	hw->dev_spec._82575.global_device_reset = false;
 
@@ -2165,7 +2164,7 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 
 	/* Clear any pending interrupt events. */
 	wr32(E1000_IMC, 0xffffffff);
-	icr = rd32(E1000_ICR);
+	rd32(E1000_ICR);
 
 	ret_val = igb_reset_mdicnfg_82580(hw);
 	if (ret_val)
