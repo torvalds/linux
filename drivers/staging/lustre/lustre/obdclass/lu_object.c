@@ -1351,7 +1351,9 @@ static void key_fini(struct lu_context *ctx, int index)
 
 		LASSERT(key->lct_owner != NULL);
 		if ((ctx->lc_tags & LCT_NOREF) == 0) {
+#ifdef CONFIG_MODULE_UNLOAD
 			LINVRNT(module_refcount(key->lct_owner) > 0);
+#endif
 			module_put(key->lct_owner);
 		}
 		ctx->lc_value[index] = NULL;
