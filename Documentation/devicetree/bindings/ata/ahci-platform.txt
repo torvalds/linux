@@ -12,6 +12,11 @@ Optional properties:
 - calxeda,port-phys: phandle-combophy and lane assignment, which maps each
 			SATA port to a combophy and a lane within that
 			combophy
+- calxeda,sgpio-gpio: phandle-gpio bank, bit offset, and default on or off,
+			which indicates that the driver supports SGPIO
+			indicator lights using the indicated GPIOs
+- calxeda,led-order : a u32 array that map port numbers to offsets within the
+			SGPIO bitstream.
 - dma-coherent      : Present if dma operations are coherent
 
 Example:

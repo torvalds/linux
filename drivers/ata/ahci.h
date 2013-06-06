@@ -322,6 +322,7 @@ struct ahci_host_priv {
 	u32			em_buf_sz;	/* EM buffer size in byte */
 	u32			em_msg_type;	/* EM message type */
 	struct clk		*clk;		/* Only for platforms supporting clk */
+	void			*plat_data;	/* Other platform data */
 };
 
 extern int ahci_ignore_sss;
