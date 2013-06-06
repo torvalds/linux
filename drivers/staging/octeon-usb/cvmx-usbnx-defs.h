@@ -304,9 +304,7 @@ union cvmx_usbnx_clk_ctl
                                                          until AFTER this field is set and then read. */
 	} cn50xx;
 	struct cvmx_usbnx_clk_ctl_cn50xx      cn52xx;
-	struct cvmx_usbnx_clk_ctl_cn50xx      cn52xxp1;
 	struct cvmx_usbnx_clk_ctl_cn50xx      cn56xx;
-	struct cvmx_usbnx_clk_ctl_cn50xx      cn56xxp1;
 };
 typedef union cvmx_usbnx_clk_ctl cvmx_usbnx_clk_ctl_t;
 
@@ -529,7 +527,6 @@ union cvmx_usbnx_usbp_ctl_status
                                                          are available within a specific period after the
                                                          de-assertion. */
 	} cn30xx;
-	struct cvmx_usbnx_usbp_ctl_status_cn30xx cn31xx;
 	struct cvmx_usbnx_usbp_ctl_status_cn50xx
 	{
 	uint64_t txrisetune                   : 1;  /**< HS Transmitter Rise/Fall Time Adjustment */
@@ -724,9 +721,6 @@ union cvmx_usbnx_usbp_ctl_status
                                                          are available within a specific period after the
                                                          de-assertion. */
 	} cn52xx;
-	struct cvmx_usbnx_usbp_ctl_status_cn50xx cn52xxp1;
-	struct cvmx_usbnx_usbp_ctl_status_cn52xx cn56xx;
-	struct cvmx_usbnx_usbp_ctl_status_cn50xx cn56xxp1;
 };
 typedef union cvmx_usbnx_usbp_ctl_status cvmx_usbnx_usbp_ctl_status_t;
 
