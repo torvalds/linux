@@ -41,8 +41,6 @@
 
 /*--------------------------------------------------------------------------*/
 
-static const char driver_name[] = "at91_cf";
-
 struct at91_cf_socket {
 	struct pcmcia_socket	socket;
 
@@ -76,7 +74,7 @@ static irqreturn_t at91_cf_irq(int irq, void *_cf)
 		/* kick pccard as needed */
 		if (present != cf->present) {
 			cf->present = present;
-			pr_debug("%s: card %s\n", driver_name,
+			dev_dbg(&cf->pdev->dev, "card %s\n",
 					present ? "present" : "gone");
 			pcmcia_parse_events(&cf->socket, SS_DETECT);
 		}
@@ -134,8 +132,8 @@ at91_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 	/* toggle reset if needed */
 	gpio_set_value(cf->board->rst_pin, s->flags & SS_RESET);
 
-	pr_debug("%s: Vcc %d, io_irq %d, flags %04x csc %04x\n",
-		driver_name, s->Vcc, s->io_irq, s->flags, s->csc_mask);
+	dev_dbg(&cf->pdev->dev, "Vcc %d, io_irq %d, flags %04x csc %04x\n",
+				s->Vcc, s->io_irq, s->flags, s->csc_mask);
 
 	return 0;
 }
@@ -171,10 +169,10 @@ static int at91_cf_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io)
 	 */
 	if (!(io->flags & (MAP_16BIT | MAP_AUTOSZ))) {
 		csr |= AT91_SMC_DBW_8;
-		pr_debug("%s: 8bit i/o bus\n", driver_name);
+		dev_dbg(&cf->pdev->dev, "8bit i/o bus\n");
 	} else {
 		csr |= AT91_SMC_DBW_16;
-		pr_debug("%s: 16bit i/o bus\n", driver_name);
+		dev_dbg(&cf->pdev->dev, "16bit i/o bus\n");
 	}
 	at91_ramc_write(0, AT91_SMC_CSR(cf->board->chipselect), csr);
 
@@ -242,7 +240,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	status = gpio_request(board->det_pin, "cf_det");
 	if (status < 0)
 		goto fail0;
-	status = request_irq(gpio_to_irq(board->det_pin), at91_cf_irq, 0, driver_name, cf);
+	status = request_irq(gpio_to_irq(board->det_pin), at91_cf_irq, 0, "at91_cf detect", cf);
 	if (status < 0)
 		goto fail00;
 	device_init_wakeup(&pdev->dev, 1);
@@ -268,7 +266,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 		if (status < 0)
 			goto fail0c;
 		status = request_irq(gpio_to_irq(board->irq_pin), at91_cf_irq,
-				IRQF_SHARED, driver_name, cf);
+				IRQF_SHARED, "at91_cf", cf);
 		if (status < 0)
 			goto fail0d;
 		cf->socket.pci_irq = gpio_to_irq(board->irq_pin);
@@ -284,12 +282,12 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	}
 
 	/* reserve chip-select regions */
-	if (!request_mem_region(io->start, resource_size(io), driver_name)) {
+	if (!request_mem_region(io->start, resource_size(io), "at91_cf")) {
 		status = -ENXIO;
 		goto fail1;
 	}
 
-	pr_info("%s: irqs det #%d, io #%d\n", driver_name,
+	dev_info(&pdev->dev, "irqs det #%d, io #%d\n",
 		gpio_to_irq(board->det_pin), gpio_to_irq(board->irq_pin));
 
 	cf->socket.owner = THIS_MODULE;
@@ -391,7 +389,7 @@ static int at91_cf_resume(struct platform_device *pdev)
 
 static struct platform_driver at91_cf_driver = {
 	.driver = {
-		.name		= (char *) driver_name,
+		.name		= "at91_cf",
 		.owner		= THIS_MODULE,
 	},
 	.remove		= __exit_p(at91_cf_remove),
