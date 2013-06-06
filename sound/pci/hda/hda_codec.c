@@ -4461,12 +4461,13 @@ const char *snd_hda_pcm_type_name[HDA_PCM_NTYPES] = {
 
 /*
  * get the empty PCM device number to assign
- *
- * note the max device number is limited by HDA_MAX_PCMS, currently 10
  */
-static int get_empty_pcm_device(struct hda_bus *bus, int type)
+static int get_empty_pcm_device(struct hda_bus *bus, unsigned int type)
 {
 	/* audio device indices; not linear to keep compatibility */
+	/* assigned to static slots up to dev#10; if more needed, assign
+	 * the later slot dynamically (when CONFIG_SND_DYNAMIC_MINORS=y)
+	 */
 	static int audio_idx[HDA_PCM_NTYPES][5] = {
 		[HDA_PCM_TYPE_AUDIO] = { 0, 2, 4, 5, -1 },
 		[HDA_PCM_TYPE_SPDIF] = { 1, -1 },
@@ -4480,18 +4481,28 @@ static int get_empty_pcm_device(struct hda_bus *bus, int type)
 		return -EINVAL;
 	}
 
-	for (i = 0; audio_idx[type][i] >= 0 ; i++)
+	for (i = 0; audio_idx[type][i] >= 0; i++) {
+#ifndef CONFIG_SND_DYNAMIC_MINORS
+		if (audio_idx[type][i] >= 8)
+			break;
+#endif
 		if (!test_and_set_bit(audio_idx[type][i], bus->pcm_dev_bits))
 			return audio_idx[type][i];
+	}
 
+#ifdef CONFIG_SND_DYNAMIC_MINORS
 	/* non-fixed slots starting from 10 */
 	for (i = 10; i < 32; i++) {
 		if (!test_and_set_bit(i, bus->pcm_dev_bits))
 			return i;
 	}
+#endif
 
 	snd_printk(KERN_WARNING "Too many %s devices\n",
 		snd_hda_pcm_type_name[type]);
+#ifndef CONFIG_SND_DYNAMIC_MINORS
+	snd_printk(KERN_WARNING "Consider building the kernel with CONFIG_SND_DYNAMIC_MINORS=y\n");
+#endif
 	return -EAGAIN;
 }
 
