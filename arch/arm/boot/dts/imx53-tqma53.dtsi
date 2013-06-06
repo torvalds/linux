@@ -35,7 +35,9 @@
 
 &esdhc2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_esdhc2_1>;
+	pinctrl-0 = <&pinctrl_esdhc2_1>,
+		    <&pinctrl_tqma53_esdhc2_2>;
+	vmmc-supply = <&reg_3p3v>;
 	wp-gpios = <&gpio1 2 0>;
 	cd-gpios = <&gpio1 4 0>;
 	status = "disabled";
@@ -68,6 +70,15 @@
 &iomuxc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
+
+	esdhc2_2 {
+		pinctrl_tqma53_esdhc2_2: esdhc2-tqma53-grp2 {
+			fsl,pins = <
+				MX53_PAD_GPIO_4__GPIO1_4	0x80000000 /* SD2_CD */
+				MX53_PAD_GPIO_2__GPIO1_2	0x80000000 /* SD2_WP */
+			>;
+		};
+	};
 
 	i2s {
 		pinctrl_i2s_1: i2s-grp1 {
