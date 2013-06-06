@@ -65,6 +65,10 @@ static int htb_hysteresis __read_mostly = 0; /* whether to use mode hysteresis f
 module_param    (htb_hysteresis, int, 0640);
 MODULE_PARM_DESC(htb_hysteresis, "Hysteresis mode, less CPU load, less accurate");
 
+static int htb_rate_est = 0; /* htb classes have a default rate estimator */
+module_param(htb_rate_est, int, 0640);
+MODULE_PARM_DESC(htb_rate_est, "setup a default rate estimator (4sec 16sec) for htb classes");
+
 /* used internaly to keep status of single class */
 enum htb_cmode {
 	HTB_CANT_SEND,		/* class can't send and can't borrow */
@@ -1366,12 +1370,14 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		if (!cl)
 			goto failure;
 
-		err = gen_new_estimator(&cl->bstats, &cl->rate_est,
-					qdisc_root_sleeping_lock(sch),
-					tca[TCA_RATE] ? : &est.nla);
-		if (err) {
-			kfree(cl);
-			goto failure;
+		if (htb_rate_est || tca[TCA_RATE]) {
+			err = gen_new_estimator(&cl->bstats, &cl->rate_est,
+						qdisc_root_sleeping_lock(sch),
+						tca[TCA_RATE] ? : &est.nla);
+			if (err) {
+				kfree(cl);
+				goto failure;
+			}
 		}
 
 		cl->refcnt = 1;
