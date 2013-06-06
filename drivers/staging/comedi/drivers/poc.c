@@ -18,7 +18,7 @@
 Driver: poc
 Description: Generic driver for very simple devices
 Author: ds
-Devices: [Keithley Metrabyte] DAC-02 (dac02), [Advantech] PCL-733 (pcl733),
+Devices: [Keithley Metrabyte] DAC-02 (dac02)
   PCL-734 (pcl734)
 Updated: Sat, 16 Mar 2002 17:34:48 -0800
 Status: unknown
@@ -26,7 +26,6 @@ Status: unknown
 This driver is indended to support very simple ISA-based devices,
 including:
   dac02 - Keithley DAC-02 analog output board
-  pcl733 - Advantech PCL-733
   pcl734 - Advantech PCL-734
 
 Configuration options:
@@ -97,18 +96,6 @@ static int dac02_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 1;
 }
 
-static int pcl733_insn_bits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	data[1] = inb(dev->iobase + 0);
-	data[1] |= (inb(dev->iobase + 1) << 8);
-	data[1] |= (inb(dev->iobase + 2) << 16);
-	data[1] |= (inb(dev->iobase + 3) << 24);
-
-	return insn->n;
-}
-
 static int pcl734_insn_bits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -176,14 +163,6 @@ static const struct boarddef_struct boards[] = {
 		.winsn		= dac02_ao_winsn,
 		.rinsn		= readback_insn,
 		.range		= &range_unknown,
-	}, {
-		.name		= "pcl733",
-		.iosize		= 4,
-		.type		= COMEDI_SUBD_DI,
-		.n_chan		= 32,
-		.n_bits		= 1,
-		.insnbits	= pcl733_insn_bits,
-		.range		= &range_digital,
 	}, {
 		.name		= "pcl734",
 		.iosize		= 4,

@@ -156,6 +156,7 @@ config COMEDI_PCL730
 	  ADlink ACL-7130     isolated - 16 in/16 out  ttl - 16 in/16 out
 	  Advantech PCM-3730  isolated - 8 in/8 out    ttl - 16 in/16 out
 	  Advantech PCL-725   isolated - 8 in/8 out
+	  Advantech PCL-733   isolated - 32 in
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcl730.
@@ -533,8 +534,7 @@ config COMEDI_POC
 	tristate "Generic driver for very simple devices"
 	---help---
 	  Enable generic support for very simple / POC (Piece of Crap) boards,
-	  Keithley Metrabyte DAC-02 (dac02), Advantech PCL-733 (pcl733) and
-	  PCL-734 (pcl734)
+	  Keithley Metrabyte DAC-02 (dac02) and Advantech PCL-734 (pcl734).
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called poc.
