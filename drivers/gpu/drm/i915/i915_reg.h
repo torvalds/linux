@@ -147,15 +147,9 @@
 #define   VGA_MSR_MEM_EN (1<<1)
 #define   VGA_MSR_CGA_MODE (1<<0)
 
-/*
- * SR01 is the only VGA register touched on non-UMS setups.
- * VLV doesn't do UMS, so the sequencer index/data registers
- * are the only VGA registers which need to include
- * display_mmio_offset.
- */
-#define VGA_SR_INDEX (dev_priv->info->display_mmio_offset + 0x3c4)
+#define VGA_SR_INDEX 0x3c4
 #define SR01			1
-#define VGA_SR_DATA (dev_priv->info->display_mmio_offset + 0x3c5)
+#define VGA_SR_DATA 0x3c5
 
 #define VGA_AR_INDEX 0x3c0
 #define   VGA_AR_VID_EN (1<<5)
