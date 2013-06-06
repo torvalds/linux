@@ -411,17 +411,7 @@ static struct platform_driver at91_cf_driver = {
 
 /*--------------------------------------------------------------------------*/
 
-static int __init at91_cf_init(void)
-{
-	return platform_driver_probe(&at91_cf_driver, at91_cf_probe);
-}
-module_init(at91_cf_init);
-
-static void __exit at91_cf_exit(void)
-{
-	platform_driver_unregister(&at91_cf_driver);
-}
-module_exit(at91_cf_exit);
+module_platform_driver_probe(at91_cf_driver, at91_cf_probe);
 
 MODULE_DESCRIPTION("AT91 Compact Flash Driver");
 MODULE_AUTHOR("David Brownell");
