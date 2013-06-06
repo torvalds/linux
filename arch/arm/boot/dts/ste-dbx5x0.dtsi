@@ -53,6 +53,10 @@
 			prcc_pclk: prcc-periph-clock {
 				#clock-cells = <2>;
 			};
+
+			prcc_kclk: prcc-kernel-clock {
+				#clock-cells = <2>;
+			};
 		};
 
 		timer@a0410600 {
