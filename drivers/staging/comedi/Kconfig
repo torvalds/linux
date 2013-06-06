@@ -154,10 +154,11 @@ config COMEDI_PCL726
 	  called pcl726.
 
 config COMEDI_PCL730
-	tristate "Advantech PCL-730 and ADlink ACL-7130 ISA card support"
+	tristate "Advantech PCL-730/PCM-3730 and compatible board support"
 	---help---
 	  Enable support for Advantech PCL-730, ICP ISO-730 and ADlink
-	  ACL-7130 ISA cards
+	  ACL-7130 ISA cards as well as the Advantech PCM-3730 and clone
+	  PC/104 boards.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcl730.
@@ -200,14 +201,6 @@ config COMEDI_PCM3724
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcm3724.
-
-config COMEDI_PCM3730
-	tristate "Advantech PCM-3730 and clone PC/104 board support"
-	---help---
-	  Enable support for Advantech PCM-3730 and clone PC/104 boards
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called pcm3730.
 
 config COMEDI_AMPLC_DIO200_ISA
 	tristate "Amplicon PC212E/PC214E/PC215E/PC218E/PC272E"

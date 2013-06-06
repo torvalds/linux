@@ -23,7 +23,6 @@ obj-$(CONFIG_COMEDI_PCL812)		+= pcl812.o
 obj-$(CONFIG_COMEDI_PCL816)		+= pcl816.o
 obj-$(CONFIG_COMEDI_PCL818)		+= pcl818.o
 obj-$(CONFIG_COMEDI_PCM3724)		+= pcm3724.o
-obj-$(CONFIG_COMEDI_PCM3730)		+= pcm3730.o
 obj-$(CONFIG_COMEDI_RTI800)		+= rti800.o
 obj-$(CONFIG_COMEDI_RTI802)		+= rti802.o
 obj-$(CONFIG_COMEDI_DAS16M1)		+= das16m1.o
