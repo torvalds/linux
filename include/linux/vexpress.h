@@ -129,4 +129,47 @@ void vexpress_osc_of_setup(struct device_node *node);
 void vexpress_clk_init(void __iomem *sp810_base);
 void vexpress_clk_of_init(void);
 
+/* SPC */
+
+#define	VEXPRESS_SPC_WAKE_INTR_IRQ(cluster, cpu) \
+			(1 << (4 * (cluster) + (cpu)))
+#define	VEXPRESS_SPC_WAKE_INTR_FIQ(cluster, cpu) \
+			(1 << (7 * (cluster) + (cpu)))
+#define	VEXPRESS_SPC_WAKE_INTR_SWDOG		(1 << 10)
+#define	VEXPRESS_SPC_WAKE_INTR_GTIMER		(1 << 11)
+#define	VEXPRESS_SPC_WAKE_INTR_MASK		0xFFF
+
+#ifdef CONFIG_VEXPRESS_SPC
+extern bool vexpress_spc_check_loaded(void);
+extern void vexpress_spc_set_cpu_wakeup_irq(u32 cpu, u32 cluster, bool set);
+extern void vexpress_spc_set_global_wakeup_intr(bool set);
+extern int vexpress_spc_get_freq_table(u32 cluster, u32 **fptr);
+extern int vexpress_spc_get_performance(u32 cluster, u32 *freq);
+extern int vexpress_spc_set_performance(u32 cluster, u32 freq);
+extern void vexpress_spc_write_resume_reg(u32 cluster, u32 cpu, u32 addr);
+extern int vexpress_spc_get_nb_cpus(u32 cluster);
+extern void vexpress_spc_powerdown_enable(u32 cluster, bool enable);
+#else
+static inline bool vexpress_spc_check_loaded(void) { return false; }
+static inline void vexpress_spc_set_cpu_wakeup_irq(u32 cpu, u32 cluster,
+						   bool set) { }
+static inline void vexpress_spc_set_global_wakeup_intr(bool set) { }
+static inline int vexpress_spc_get_freq_table(u32 cluster, u32 **fptr)
+{
+	return -ENODEV;
+}
+static inline int vexpress_spc_get_performance(u32 cluster, u32 *freq)
+{
+	return -ENODEV;
+}
+static inline int vexpress_spc_set_performance(u32 cluster, u32 freq)
+{
+	return -ENODEV;
+}
+static inline void vexpress_spc_write_resume_reg(u32 cluster,
+						 u32 cpu, u32 addr) { }
+static inline int vexpress_spc_get_nb_cpus(u32 cluster) { return -ENODEV; }
+static inline void vexpress_spc_powerdown_enable(u32 cluster, bool enable) { }
+#endif
+
 #endif

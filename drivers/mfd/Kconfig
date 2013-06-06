@@ -1148,3 +1148,10 @@ config VEXPRESS_CONFIG
 	help
 	  Platform configuration infrastructure for the ARM Ltd.
 	  Versatile Express.
+
+config VEXPRESS_SPC
+	bool "Versatile Express SPC driver support"
+	depends on ARM
+	depends on VEXPRESS_CONFIG
+	help
+	  Serial Power Controller driver for ARM Ltd. test chips.
