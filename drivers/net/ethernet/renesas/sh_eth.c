@@ -313,10 +313,7 @@ static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[TSU_ADRL31]	= 0x01fc,
 };
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7734) || \
-	defined(CONFIG_CPU_SUBTYPE_SH7763) || \
-	defined(CONFIG_ARCH_R8A7740)
-static void sh_eth_select_mii(struct net_device *ndev)
+static void __maybe_unused sh_eth_select_mii(struct net_device *ndev)
 {
 	u32 value = 0x0;
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -339,7 +336,6 @@ static void sh_eth_select_mii(struct net_device *ndev)
 
 	sh_eth_write(ndev, value, RMII_MII);
 }
-#endif
 
 static void __maybe_unused sh_eth_set_duplex(struct net_device *ndev)
 {
