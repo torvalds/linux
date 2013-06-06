@@ -431,6 +431,7 @@ struct brcmf_fws_info {
 	u32 fifo_credit_map;
 	u32 fifo_delay_map;
 	unsigned long borrow_defer_timestamp;
+	bool bus_flow_blocked;
 };
 
 /*
@@ -1833,6 +1834,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 
 	brcmf_fws_lock(drvr, flags);
 	if (skcb->mac->suppressed ||
+	    fws->bus_flow_blocked ||
 	    brcmf_fws_mac_desc_closed(fws, skcb->mac, fifo) ||
 	    brcmu_pktq_mlen(&skcb->mac->psq, 3 << (fifo * 2)) ||
 	    (!multicast &&
@@ -1905,7 +1907,8 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 
 	brcmf_dbg(TRACE, "enter: fws=%p\n", fws);
 	brcmf_fws_lock(fws->drvr, flags);
-	for (fifo = NL80211_NUM_ACS; fifo >= 0; fifo--) {
+	for (fifo = NL80211_NUM_ACS; fifo >= 0 && !fws->bus_flow_blocked;
+	     fifo--) {
 		brcmf_dbg(TRACE, "fifo %d credit %d\n", fifo,
 			  fws->fifo_credit[fifo]);
 		for (credit = 0; credit < fws->fifo_credit[fifo]; /* nop */) {
@@ -1915,9 +1918,12 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 			if (brcmf_skbcb(skb)->if_flags &
 			    BRCMF_SKB_IF_FLAGS_CREDITCHECK_MASK)
 				credit++;
+			if (fws->bus_flow_blocked)
+				break;
 		}
 		if ((fifo == BRCMF_FWS_FIFO_AC_BE) &&
-		    (credit == fws->fifo_credit[fifo])) {
+		    (credit == fws->fifo_credit[fifo]) &&
+		    (!fws->bus_flow_blocked)) {
 			fws->fifo_credit[fifo] -= credit;
 			while (brcmf_fws_borrow_credit(fws) == 0) {
 				skb = brcmf_fws_deq(fws, fifo);
@@ -1929,6 +1935,8 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 					brcmf_fws_return_credits(fws, fifo, 1);
 					break;
 				}
+				if (fws->bus_flow_blocked)
+					break;
 			}
 		} else {
 			fws->fifo_credit[fifo] -= credit;
@@ -2059,4 +2067,13 @@ void brcmf_fws_bustxfail(struct brcmf_fws_info *fws, struct sk_buff *skb)
 		brcmf_fws_schedule_deq(fws);
 	}
 	brcmf_fws_unlock(fws->drvr, flags);
+}
+
+void brcmf_fws_bus_blocked(struct brcmf_pub *drvr, bool flow_blocked)
+{
+	struct brcmf_fws_info *fws = drvr->fws;
+
+	fws->bus_flow_blocked = flow_blocked;
+	if (!flow_blocked)
+		brcmf_fws_schedule_deq(fws);
 }

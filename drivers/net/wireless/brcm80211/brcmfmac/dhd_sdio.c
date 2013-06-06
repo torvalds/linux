@@ -2369,12 +2369,12 @@ static int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	} else {
 		ret = 0;
 	}
-	spin_unlock_bh(&bus->txqlock);
 
 	if (pktq_len(&bus->txq) >= TXHI) {
 		bus->txoff = true;
 		brcmf_txflowblock(bus->sdiodev->dev, true);
 	}
+	spin_unlock_bh(&bus->txqlock);
 
 #ifdef DEBUG
 	if (pktq_plen(&bus->txq, prec) > qcount[prec])

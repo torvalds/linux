@@ -240,11 +240,15 @@ done:
 void brcmf_txflowblock_if(struct brcmf_if *ifp,
 			  enum brcmf_netif_stop_reason reason, bool state)
 {
+	unsigned long flags;
+
 	if (!ifp)
 		return;
 
 	brcmf_dbg(TRACE, "enter: idx=%d stop=0x%X reason=%d state=%d\n",
 		  ifp->bssidx, ifp->netif_stop, reason, state);
+
+	spin_lock_irqsave(&ifp->netif_stop_lock, flags);
 	if (state) {
 		if (!ifp->netif_stop)
 			netif_stop_queue(ifp->ndev);
@@ -254,6 +258,7 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 		if (!ifp->netif_stop)
 			netif_wake_queue(ifp->ndev);
 	}
+	spin_unlock_irqrestore(&ifp->netif_stop_lock, flags);
 }
 
 void brcmf_txflowblock(struct device *dev, bool state)
@@ -263,6 +268,8 @@ void brcmf_txflowblock(struct device *dev, bool state)
 	int i;
 
 	brcmf_dbg(TRACE, "Enter\n");
+
+	brcmf_fws_bus_blocked(drvr, state);
 
 	for (i = 0; i < BRCMF_MAX_IFS; i++)
 		brcmf_txflowblock_if(drvr->iflist[i],
@@ -779,6 +786,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 	ifp->bssidx = bssidx;
 
 	init_waitqueue_head(&ifp->pend_8021x_wait);
+	spin_lock_init(&ifp->netif_stop_lock);
 
 	if (mac_addr != NULL)
 		memcpy(ifp->mac_addr, mac_addr, ETH_ALEN);
