@@ -246,7 +246,7 @@ struct brcmf_skbuff_cb {
 #define BRCMF_SKB_HTOD_TAG_HSLOT_MASK			0x00ffff00
 #define BRCMF_SKB_HTOD_TAG_HSLOT_SHIFT			8
 #define BRCMF_SKB_HTOD_TAG_FREERUN_MASK			0x000000ff
-#define BRCMF_SKB_HTOD_TAG_FREERUN_SHIFT			0
+#define BRCMF_SKB_HTOD_TAG_FREERUN_SHIFT		0
 
 #define brcmf_skb_htod_tag_set_field(skb, field, value) \
 	brcmu_maskset32(&(brcmf_skbcb(skb)->htod), \
@@ -384,12 +384,10 @@ enum brcmf_fws_hanger_item_state {
  * struct brcmf_fws_hanger_item - single entry for tx pending packet.
  *
  * @state: entry is either free or occupied.
- * @gen: generation.
  * @pkt: packet itself.
  */
 struct brcmf_fws_hanger_item {
 	enum brcmf_fws_hanger_item_state state;
-	u8 gen;
 	struct sk_buff *pkt;
 };
 
@@ -537,7 +535,7 @@ done:
 }
 
 static int brcmf_fws_hanger_pushpkt(struct brcmf_fws_hanger *h,
-					   struct sk_buff *pkt, u32 slot_id)
+				    struct sk_buff *pkt, u32 slot_id)
 {
 	if (slot_id >= BRCMF_FWS_HANGER_MAXITEMS)
 		return -ENOENT;
@@ -571,19 +569,16 @@ static int brcmf_fws_hanger_poppkt(struct brcmf_fws_hanger *h,
 	if (remove_item) {
 		h->items[slot_id].state = BRCMF_FWS_HANGER_ITEM_STATE_FREE;
 		h->items[slot_id].pkt = NULL;
-		h->items[slot_id].gen = 0xff;
 		h->popped++;
 	}
 	return 0;
 }
 
 static int brcmf_fws_hanger_mark_suppressed(struct brcmf_fws_hanger *h,
-						   u32 slot_id, u8 gen)
+					    u32 slot_id)
 {
 	if (slot_id >= BRCMF_FWS_HANGER_MAXITEMS)
 		return -ENOENT;
-
-	h->items[slot_id].gen = gen;
 
 	if (h->items[slot_id].state != BRCMF_FWS_HANGER_ITEM_STATE_INUSE) {
 		brcmf_err("entry not in use\n");
@@ -591,24 +586,6 @@ static int brcmf_fws_hanger_mark_suppressed(struct brcmf_fws_hanger *h,
 	}
 
 	h->items[slot_id].state = BRCMF_FWS_HANGER_ITEM_STATE_INUSE_SUPPRESSED;
-	return 0;
-}
-
-static int brcmf_fws_hanger_get_genbit(struct brcmf_fws_hanger *hanger,
-					      struct sk_buff *pkt, u32 slot_id,
-					      int *gen)
-{
-	*gen = 0xff;
-
-	if (slot_id >= BRCMF_FWS_HANGER_MAXITEMS)
-		return -ENOENT;
-
-	if (hanger->items[slot_id].state == BRCMF_FWS_HANGER_ITEM_STATE_FREE) {
-		brcmf_err("slot not in use\n");
-		return -EINVAL;
-	}
-
-	*gen = hanger->items[slot_id].gen;
 	return 0;
 }
 
@@ -837,9 +814,6 @@ brcmf_fws_flow_control_check(struct brcmf_fws_info *fws, struct pktq *pq,
 
 	if (WARN_ON(!ifp))
 		return;
-
-	brcmf_dbg(TRACE,
-		  "enter: bssidx=%d, ifidx=%d\n", ifp->bssidx, ifp->ifidx);
 
 	if ((ifp->netif_stop & BRCMF_NETIF_STOP_REASON_FWS_FC) &&
 	    pq->len <= BRCMF_FWS_FLOWCONTROL_LOWATER)
@@ -1220,7 +1194,7 @@ static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
 	hslot = brcmf_skb_htod_tag_get_field(skb, HSLOT);
 
 	/* this packet was suppressed */
-	if (!entry->suppressed || entry->generation != genbit) {
+	if (!entry->suppressed) {
 		entry->suppressed = true;
 		entry->suppress_count = brcmu_pktq_mlen(&entry->psq,
 							1 << (fifo * 2 + 1));
@@ -1242,8 +1216,7 @@ static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
 		 * Mark suppressed to avoid a double free during
 		 * wlfc cleanup
 		 */
-		brcmf_fws_hanger_mark_suppressed(&fws->hanger, hslot,
-						 genbit);
+		brcmf_fws_hanger_mark_suppressed(&fws->hanger, hslot);
 		entry->suppress_count++;
 	}
 
@@ -1573,15 +1546,34 @@ static int brcmf_fws_precommit_skb(struct brcmf_fws_info *fws, int fifo,
 	struct brcmf_skbuff_cb *skcb = brcmf_skbcb(p);
 	struct brcmf_fws_mac_descriptor *entry = skcb->mac;
 	int rc = 0;
-	bool header_needed;
+	bool first_time;
 	int hslot = BRCMF_FWS_HANGER_MAXITEMS;
 	u8 free_ctr;
 	u8 ifidx;
 	u8 flags;
 
-	header_needed = skcb->state != BRCMF_FWS_SKBSTATE_SUPPRESSED;
+	first_time = skcb->state != BRCMF_FWS_SKBSTATE_SUPPRESSED;
 
-	if (header_needed) {
+	if (!first_time) {
+		rc = brcmf_proto_hdrpull(fws->drvr, false, &ifidx, p);
+		if (rc) {
+			brcmf_err("hdrpull failed\n");
+			return rc;
+		}
+	}
+	brcmf_skb_if_flags_set_field(p, TRANSMIT, 1);
+	brcmf_skb_htod_tag_set_field(p, FIFO, fifo);
+	brcmf_skb_htod_tag_set_field(p, GENERATION, entry->generation);
+	flags = BRCMF_FWS_HTOD_FLAG_PKTFROMHOST;
+	if (!(skcb->if_flags & BRCMF_SKB_IF_FLAGS_CREDITCHECK_MASK)) {
+		/*
+		 * Indicate that this packet is being sent in response to an
+		 * explicit request from the firmware side.
+		 */
+		flags |= BRCMF_FWS_HTOD_FLAG_PKT_REQUESTED;
+	}
+	brcmf_skb_htod_tag_set_field(p, FLAGS, flags);
+	if (first_time) {
 		/* obtaining free slot may fail, but that will be caught
 		 * by the hanger push. This assures the packet has a BDC
 		 * header upon return.
@@ -1590,40 +1582,14 @@ static int brcmf_fws_precommit_skb(struct brcmf_fws_info *fws, int fifo,
 		free_ctr = entry->seq[fifo];
 		brcmf_skb_htod_tag_set_field(p, HSLOT, hslot);
 		brcmf_skb_htod_tag_set_field(p, FREERUN, free_ctr);
-		brcmf_skb_htod_tag_set_field(p, GENERATION, 1);
 		entry->transit_count++;
 	}
-	brcmf_skb_if_flags_set_field(p, TRANSMIT, 1);
-	brcmf_skb_htod_tag_set_field(p, FIFO, fifo);
 
-	flags = BRCMF_FWS_HTOD_FLAG_PKTFROMHOST;
-	if (!(skcb->if_flags & BRCMF_SKB_IF_FLAGS_CREDITCHECK_MASK)) {
-		/*
-		Indicate that this packet is being sent in response to an
-		explicit request from the firmware side.
-		*/
-		flags |= BRCMF_FWS_HTOD_FLAG_PKT_REQUESTED;
-	}
-	brcmf_skb_htod_tag_set_field(p, FLAGS, flags);
-	if (header_needed) {
-		brcmf_fws_hdrpush(fws, p);
+	brcmf_fws_hdrpush(fws, p);
+	if (first_time) {
 		rc = brcmf_fws_hanger_pushpkt(&fws->hanger, p, hslot);
 		if (rc)
 			brcmf_err("hanger push failed: rc=%d\n", rc);
-	} else {
-		int gen;
-
-		/* remove old header */
-		rc = brcmf_proto_hdrpull(fws->drvr, false, &ifidx, p);
-		if (rc == 0) {
-			hslot = brcmf_skb_htod_tag_get_field(p, HSLOT);
-			brcmf_fws_hanger_get_genbit(&fws->hanger, p,
-						    hslot, &gen);
-			brcmf_skb_htod_tag_set_field(p, GENERATION, gen);
-
-			/* push new header */
-			brcmf_fws_hdrpush(fws, p);
-		}
 	}
 
 	return rc;
