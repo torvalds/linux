@@ -1932,6 +1932,9 @@ __printf(2, 3)
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
 int i915_error_state_to_str(struct drm_i915_error_state_buf *estr,
 			    const struct i915_error_state_file_priv *error);
+void i915_error_state_get(struct drm_device *dev,
+			  struct i915_error_state_file_priv *error_priv);
+void i915_error_state_put(struct i915_error_state_file_priv *error_priv);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);

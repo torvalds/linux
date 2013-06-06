@@ -980,12 +980,30 @@ i915_error_state_write(struct file *filp,
 	return cnt;
 }
 
+void i915_error_state_get(struct drm_device *dev,
+			  struct i915_error_state_file_priv *error_priv)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
+	error_priv->error = dev_priv->gpu_error.first_error;
+	if (error_priv->error)
+		kref_get(&error_priv->error->ref);
+	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
+
+}
+
+void i915_error_state_put(struct i915_error_state_file_priv *error_priv)
+{
+	if (error_priv->error)
+		kref_put(&error_priv->error->ref, i915_error_state_free);
+}
+
 static int i915_error_state_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct i915_error_state_file_priv *error_priv;
-	unsigned long flags;
 
 	error_priv = kzalloc(sizeof(*error_priv), GFP_KERNEL);
 	if (!error_priv)
@@ -993,11 +1011,7 @@ static int i915_error_state_open(struct inode *inode, struct file *file)
 
 	error_priv->dev = dev;
 
-	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
-	error_priv->error = dev_priv->gpu_error.first_error;
-	if (error_priv->error)
-		kref_get(&error_priv->error->ref);
-	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
+	i915_error_state_get(dev, error_priv);
 
 	file->private_data = error_priv;
 
@@ -1008,8 +1022,7 @@ static int i915_error_state_release(struct inode *inode, struct file *file)
 {
 	struct i915_error_state_file_priv *error_priv = file->private_data;
 
-	if (error_priv->error)
-		kref_put(&error_priv->error->ref, i915_error_state_free);
+	i915_error_state_put(error_priv);
 	kfree(error_priv);
 
 	return 0;
