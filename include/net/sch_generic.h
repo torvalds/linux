@@ -680,7 +680,7 @@ static inline struct sk_buff *skb_act_clone(struct sk_buff *skb, gfp_t gfp_mask,
 #endif
 
 struct psched_ratecfg {
-	u64	rate_bps;
+	u64	rate_bytes_ps; /* bytes per second */
 	u32	mult;
 	u16	overhead;
 	u8	shift;
@@ -698,7 +698,7 @@ static inline void psched_ratecfg_getrate(struct tc_ratespec *res,
 					  const struct psched_ratecfg *r)
 {
 	memset(res, 0, sizeof(*res));
-	res->rate = r->rate_bps >> 3;
+	res->rate = r->rate_bytes_ps;
 	res->overhead = r->overhead;
 }
 
