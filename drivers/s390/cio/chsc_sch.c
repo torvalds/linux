@@ -847,9 +847,27 @@ static long chsc_ioctl(struct file *filp, unsigned int cmd,
 	}
 }
 
+static atomic_t chsc_ready_for_use = ATOMIC_INIT(1);
+
+static int chsc_open(struct inode *inode, struct file *file)
+{
+	if (!atomic_dec_and_test(&chsc_ready_for_use)) {
+		atomic_inc(&chsc_ready_for_use);
+		return -EBUSY;
+	}
+	return nonseekable_open(inode, file);
+}
+
+static int chsc_release(struct inode *inode, struct file *filp)
+{
+	atomic_inc(&chsc_ready_for_use);
+	return 0;
+}
+
 static const struct file_operations chsc_fops = {
 	.owner = THIS_MODULE,
-	.open = nonseekable_open,
+	.open = chsc_open,
+	.release = chsc_release,
 	.unlocked_ioctl = chsc_ioctl,
 	.compat_ioctl = chsc_ioctl,
 	.llseek = no_llseek,
