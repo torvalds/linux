@@ -157,6 +157,9 @@ struct brcmf_fws_stats {
 	u32 txs_supp_core;
 	u32 txs_supp_ps;
 	u32 txs_tossed;
+	u32 txs_host_tossed;
+	u32 bus_flow_block;
+	u32 fws_flow_block;
 };
 
 struct brcmf_pub;

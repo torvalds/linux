@@ -584,7 +584,7 @@ static int brcmf_fws_hanger_mark_suppressed(struct brcmf_fws_hanger *h,
 	if (slot_id >= BRCMF_FWS_HANGER_MAXITEMS)
 		return -ENOENT;
 
-	if (h->items[slot_id].state != BRCMF_FWS_HANGER_ITEM_STATE_INUSE) {
+	if (h->items[slot_id].state == BRCMF_FWS_HANGER_ITEM_STATE_FREE) {
 		brcmf_err("entry not in use\n");
 		return -EINVAL;
 	}
@@ -894,8 +894,10 @@ brcmf_fws_flow_control_check(struct brcmf_fws_info *fws, struct pktq *pq,
 		brcmf_txflowblock_if(ifp,
 				     BRCMF_NETIF_STOP_REASON_FWS_FC, false);
 	if (!(ifp->netif_stop & BRCMF_NETIF_STOP_REASON_FWS_FC) &&
-	    pq->len >= BRCMF_FWS_FLOWCONTROL_HIWATER)
+	    pq->len >= BRCMF_FWS_FLOWCONTROL_HIWATER) {
+		fws->stats.fws_flow_block++;
 		brcmf_txflowblock_if(ifp, BRCMF_NETIF_STOP_REASON_FWS_FC, true);
+	}
 	return;
 }
 
@@ -1296,9 +1298,10 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 	} else if (flags == BRCMF_FWS_TXSTATUS_FW_PS_SUPPRESS) {
 		fws->stats.txs_supp_ps++;
 		remove_from_hanger = false;
-	} else if ((flags == BRCMF_FWS_TXSTATUS_FW_TOSSED) ||
-		   (flags == BRCMF_FWS_TXSTATUS_HOST_TOSSED))
+	} else if (flags == BRCMF_FWS_TXSTATUS_FW_TOSSED)
 		fws->stats.txs_tossed++;
+	else if (flags == BRCMF_FWS_TXSTATUS_HOST_TOSSED)
+		fws->stats.txs_host_tossed++;
 	else
 		brcmf_err("unexpected txstatus\n");
 
@@ -2030,4 +2033,6 @@ void brcmf_fws_bus_blocked(struct brcmf_pub *drvr, bool flow_blocked)
 	fws->bus_flow_blocked = flow_blocked;
 	if (!flow_blocked)
 		brcmf_fws_schedule_deq(fws);
+	else
+		fws->stats.bus_flow_block++;
 }
