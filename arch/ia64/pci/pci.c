@@ -137,6 +137,7 @@ struct pci_root_info {
 	struct resource *res;
 	resource_size_t *res_offset;
 	unsigned int res_num;
+	struct list_head io_resources;
 	char *name;
 };
 
@@ -171,25 +172,21 @@ new_space (u64 phys_base, int sparse)
 static u64 add_io_space(struct pci_root_info *info,
 			struct acpi_resource_address64 *addr)
 {
+	struct iospace_resource *iospace;
 	struct resource *resource;
 	char *name;
 	unsigned long base, min, max, base_port;
 	unsigned int sparse = 0, space_nr, len;
 
-	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
-	if (!resource) {
+	len = strlen(info->name) + 32;
+	iospace = kzalloc(sizeof(*iospace) + len, GFP_KERNEL);
+	if (!iospace) {
 		printk(KERN_ERR "PCI: No memory for %s I/O port space\n",
 			info->name);
 		goto out;
 	}
 
-	len = strlen(info->name) + 32;
-	name = kzalloc(len, GFP_KERNEL);
-	if (!name) {
-		printk(KERN_ERR "PCI: No memory for %s I/O port space name\n",
-			info->name);
-		goto free_resource;
-	}
+	name = (char *)(iospace + 1);
 
 	min = addr->minimum;
 	max = min + addr->address_length - 1;
@@ -198,7 +195,7 @@ static u64 add_io_space(struct pci_root_info *info,
 
 	space_nr = new_space(addr->translation_offset, sparse);
 	if (space_nr == ~0)
-		goto free_name;
+		goto free_resource;
 
 	base = __pa(io_space[space_nr].mmio_base);
 	base_port = IO_SPACE_BASE(space_nr);
@@ -213,18 +210,23 @@ static u64 add_io_space(struct pci_root_info *info,
 	if (space_nr == 0)
 		sparse = 1;
 
+	resource = &iospace->res;
 	resource->name  = name;
 	resource->flags = IORESOURCE_MEM;
 	resource->start = base + (sparse ? IO_SPACE_SPARSE_ENCODING(min) : min);
 	resource->end   = base + (sparse ? IO_SPACE_SPARSE_ENCODING(max) : max);
-	insert_resource(&iomem_resource, resource);
+	if (insert_resource(&iomem_resource, resource)) {
+		dev_err(&info->bridge->dev,
+				"can't allocate host bridge io space resource  %pR\n",
+				resource);
+		goto free_resource;
+	}
 
+	list_add_tail(&iospace->list, &info->io_resources);
 	return base_port;
 
-free_name:
-	kfree(name);
 free_resource:
-	kfree(resource);
+	kfree(iospace);
 out:
 	return ~0;
 }
@@ -325,6 +327,48 @@ static acpi_status add_window(struct acpi_resource *res, void *data)
 	return AE_OK;
 }
 
+static void free_pci_root_info_res(struct pci_root_info *info)
+{
+	struct iospace_resource *iospace, *tmp;
+
+	list_for_each_entry_safe(iospace, tmp, &info->io_resources, list)
+		kfree(iospace);
+
+	kfree(info->name);
+	kfree(info->res);
+	info->res = NULL;
+	kfree(info->res_offset);
+	info->res_offset = NULL;
+	info->res_num = 0;
+	kfree(info->controller);
+	info->controller = NULL;
+}
+
+static void __release_pci_root_info(struct pci_root_info *info)
+{
+	int i;
+	struct resource *res;
+	struct iospace_resource *iospace;
+
+	list_for_each_entry(iospace, &info->io_resources, list)
+		release_resource(&iospace->res);
+
+	for (i = 0; i < info->res_num; i++) {
+		res = &info->res[i];
+
+		if (!res->parent)
+			continue;
+
+		if (!(res->flags & (IORESOURCE_MEM | IORESOURCE_IO)))
+			continue;
+
+		release_resource(res);
+	}
+
+	free_pci_root_info_res(info);
+	kfree(info);
+}
+
 struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 {
 	struct acpi_device *device = root->device;
@@ -357,6 +401,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		goto out2;
 	}
 
+	INIT_LIST_HEAD(&info->io_resources);
 	INIT_LIST_HEAD(&info->resources);
 	/* insert busn resource at first */
 	pci_add_resource(&info->resources, &root->secondary);
@@ -397,6 +442,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 				   &info->resources);
 	if (!pbus) {
 		pci_free_resource_list(&info->resources);
+		__release_pci_root_info(info);
 		return NULL;
 	}
 
