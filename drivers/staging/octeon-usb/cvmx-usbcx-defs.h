@@ -121,8 +121,8 @@
 union cvmx_usbcx_gahbcfg {
 	uint32_t u32;
 	struct cvmx_usbcx_gahbcfg_s {
-	uint32_t reserved_9_31                : 23;
-	uint32_t ptxfemplvl                   : 1;  /**< Periodic TxFIFO Empty Level (PTxFEmpLvl)
+		uint32_t reserved_9_31	: 23;
+		uint32_t ptxfemplvl	: 1;	    /**< Periodic TxFIFO Empty Level (PTxFEmpLvl)
                                                          Software should set this bit to 0x1.
                                                          Indicates when the Periodic TxFIFO Empty Interrupt bit in the
                                                          Core Interrupt register (GINTSTS.PTxFEmp) is triggered. This
@@ -131,7 +131,7 @@ union cvmx_usbcx_gahbcfg {
                                                            TxFIFO is half empty
                                                          * 1'b1: GINTSTS.PTxFEmp interrupt indicates that the Periodic
                                                            TxFIFO is completely empty */
-	uint32_t nptxfemplvl                  : 1;  /**< Non-Periodic TxFIFO Empty Level (NPTxFEmpLvl)
+		uint32_t nptxfemplvl	: 1;	    /**< Non-Periodic TxFIFO Empty Level (NPTxFEmpLvl)
                                                          Software should set this bit to 0x1.
                                                          Indicates when the Non-Periodic TxFIFO Empty Interrupt bit in
                                                          the Core Interrupt register (GINTSTS.NPTxFEmp) is triggered.
@@ -140,13 +140,13 @@ union cvmx_usbcx_gahbcfg {
                                                             Periodic TxFIFO is half empty
                                                          * 1'b1: GINTSTS.NPTxFEmp interrupt indicates that the Non-
                                                             Periodic TxFIFO is completely empty */
-	uint32_t reserved_6_6                 : 1;
-	uint32_t dmaen                        : 1;  /**< DMA Enable (DMAEn)
+		uint32_t reserved_6_6	: 1;
+		uint32_t dmaen		: 1;	    /**< DMA Enable (DMAEn)
                                                          * 1'b0: Core operates in Slave mode
                                                          * 1'b1: Core operates in a DMA mode */
-	uint32_t hbstlen                      : 4;  /**< Burst Length/Type (HBstLen)
+		uint32_t hbstlen	: 4;	    /**< Burst Length/Type (HBstLen)
                                                          This field has not effect and should be left as 0x0. */
-	uint32_t glblintrmsk                  : 1;  /**< Global Interrupt Mask (GlblIntrMsk)
+		uint32_t glblintrmsk	: 1;	    /**< Global Interrupt Mask (GlblIntrMsk)
                                                          Software should set this field to 0x1.
                                                          The application uses this bit to mask  or unmask the interrupt
                                                          line assertion to itself. Irrespective of this bit's setting, the
@@ -167,36 +167,36 @@ typedef union cvmx_usbcx_gahbcfg cvmx_usbcx_gahbcfg_t;
 union cvmx_usbcx_ghwcfg3 {
 	uint32_t u32;
 	struct cvmx_usbcx_ghwcfg3_s {
-	uint32_t dfifodepth                   : 16; /**< DFIFO Depth (DfifoDepth)
+		uint32_t dfifodepth				: 16; /**< DFIFO Depth (DfifoDepth)
                                                          This value is in terms of 32-bit words.
                                                          * Minimum value is 32
                                                          * Maximum value is 32768 */
-	uint32_t reserved_13_15               : 3;
-	uint32_t ahbphysync                   : 1;  /**< AHB and PHY Synchronous (AhbPhySync)
+		uint32_t reserved_13_15				: 3;
+		uint32_t ahbphysync				: 1; /**< AHB and PHY Synchronous (AhbPhySync)
                                                          Indicates whether AHB and PHY clocks are synchronous to
                                                          each other.
                                                          * 1'b0: No
                                                          * 1'b1: Yes
                                                          This bit is tied to 1. */
-	uint32_t rsttype                      : 1;  /**< Reset Style for Clocked always Blocks in RTL (RstType)
+		uint32_t rsttype				: 1; /**< Reset Style for Clocked always Blocks in RTL (RstType)
                                                          * 1'b0: Asynchronous reset is used in the core
                                                          * 1'b1: Synchronous reset is used in the core */
-	uint32_t optfeature                   : 1;  /**< Optional Features Removed (OptFeature)
+		uint32_t optfeature				: 1; /**< Optional Features Removed (OptFeature)
                                                          Indicates whether the User ID register, GPIO interface ports,
                                                          and SOF toggle and counter ports were removed for gate count
                                                          optimization. */
-	uint32_t vendor_control_interface_support : 1;/**< Vendor Control Interface Support
+		uint32_t vendor_control_interface_support	: 1; /**< Vendor Control Interface Support
                                                          * 1'b0: Vendor Control Interface is not available on the core.
                                                          * 1'b1: Vendor Control Interface is available. */
-	uint32_t i2c_selection                : 1;  /**< I2C Selection
+		uint32_t i2c_selection				: 1; /**< I2C Selection
                                                          * 1'b0: I2C Interface is not available on the core.
                                                          * 1'b1: I2C Interface is available on the core. */
-	uint32_t otgen                        : 1;  /**< OTG Function Enabled (OtgEn)
+		uint32_t otgen					: 1; /**< OTG Function Enabled (OtgEn)
                                                          The application uses this bit to indicate the O2P USB core's
                                                          OTG capabilities.
                                                          * 1'b0: Not OTG capable
                                                          * 1'b1: OTG Capable */
-	uint32_t pktsizewidth                 : 3;  /**< Width of Packet Size Counters (PktSizeWidth)
+		uint32_t pktsizewidth				: 3; /**< Width of Packet Size Counters (PktSizeWidth)
                                                          * 3'b000: 4 bits
                                                          * 3'b001: 5 bits
                                                          * 3'b010: 6 bits
@@ -205,7 +205,7 @@ union cvmx_usbcx_ghwcfg3 {
                                                          * 3'b101: 9 bits
                                                          * 3'b110: 10 bits
                                                          * Others: Reserved */
-	uint32_t xfersizewidth                : 4;  /**< Width of Transfer Size Counters (XferSizeWidth)
+		uint32_t xfersizewidth				: 4; /**< Width of Transfer Size Counters (XferSizeWidth)
                                                          * 4'b0000: 11 bits
                                                          * 4'b0001: 12 bits
                                                          - ...
@@ -228,44 +228,44 @@ typedef union cvmx_usbcx_ghwcfg3 cvmx_usbcx_ghwcfg3_t;
 union cvmx_usbcx_gintmsk {
 	uint32_t u32;
 	struct cvmx_usbcx_gintmsk_s {
-	uint32_t wkupintmsk                   : 1;  /**< Resume/Remote Wakeup Detected Interrupt Mask
+		uint32_t wkupintmsk		: 1;	/**< Resume/Remote Wakeup Detected Interrupt Mask
                                                          (WkUpIntMsk) */
-	uint32_t sessreqintmsk                : 1;  /**< Session Request/New Session Detected Interrupt Mask
+		uint32_t sessreqintmsk		: 1;    /**< Session Request/New Session Detected Interrupt Mask
                                                          (SessReqIntMsk) */
-	uint32_t disconnintmsk                : 1;  /**< Disconnect Detected Interrupt Mask (DisconnIntMsk) */
-	uint32_t conidstschngmsk              : 1;  /**< Connector ID Status Change Mask (ConIDStsChngMsk) */
-	uint32_t reserved_27_27               : 1;
-	uint32_t ptxfempmsk                   : 1;  /**< Periodic TxFIFO Empty Mask (PTxFEmpMsk) */
-	uint32_t hchintmsk                    : 1;  /**< Host Channels Interrupt Mask (HChIntMsk) */
-	uint32_t prtintmsk                    : 1;  /**< Host Port Interrupt Mask (PrtIntMsk) */
-	uint32_t reserved_23_23               : 1;
-	uint32_t fetsuspmsk                   : 1;  /**< Data Fetch Suspended Mask (FetSuspMsk) */
-	uint32_t incomplpmsk                  : 1;  /**< Incomplete Periodic Transfer Mask (incomplPMsk)
+		uint32_t disconnintmsk		: 1;    /**< Disconnect Detected Interrupt Mask (DisconnIntMsk) */
+		uint32_t conidstschngmsk	: 1;    /**< Connector ID Status Change Mask (ConIDStsChngMsk) */
+		uint32_t reserved_27_27		: 1;
+		uint32_t ptxfempmsk		: 1;	/**< Periodic TxFIFO Empty Mask (PTxFEmpMsk) */
+		uint32_t hchintmsk		: 1;	/**< Host Channels Interrupt Mask (HChIntMsk) */
+		uint32_t prtintmsk		: 1;	/**< Host Port Interrupt Mask (PrtIntMsk) */
+		uint32_t reserved_23_23		: 1;
+		uint32_t fetsuspmsk		: 1;    /**< Data Fetch Suspended Mask (FetSuspMsk) */
+		uint32_t incomplpmsk		: 1;    /**< Incomplete Periodic Transfer Mask (incomplPMsk)
                                                          Incomplete Isochronous OUT Transfer Mask
                                                          (incompISOOUTMsk) */
-	uint32_t incompisoinmsk               : 1;  /**< Incomplete Isochronous IN Transfer Mask (incompISOINMsk) */
-	uint32_t oepintmsk                    : 1;  /**< OUT Endpoints Interrupt Mask (OEPIntMsk) */
-	uint32_t inepintmsk                   : 1;  /**< IN Endpoints Interrupt Mask (INEPIntMsk) */
-	uint32_t epmismsk                     : 1;  /**< Endpoint Mismatch Interrupt Mask (EPMisMsk) */
-	uint32_t reserved_16_16               : 1;
-	uint32_t eopfmsk                      : 1;  /**< End of Periodic Frame Interrupt Mask (EOPFMsk) */
-	uint32_t isooutdropmsk                : 1;  /**< Isochronous OUT Packet Dropped Interrupt Mask
+		uint32_t incompisoinmsk		: 1;    /**< Incomplete Isochronous IN Transfer Mask (incompISOINMsk) */
+		uint32_t oepintmsk		: 1;    /**< OUT Endpoints Interrupt Mask (OEPIntMsk) */
+		uint32_t inepintmsk		: 1;    /**< IN Endpoints Interrupt Mask (INEPIntMsk) */
+		uint32_t epmismsk		: 1;    /**< Endpoint Mismatch Interrupt Mask (EPMisMsk) */
+		uint32_t reserved_16_16		: 1;
+		uint32_t eopfmsk		: 1;	/**< End of Periodic Frame Interrupt Mask (EOPFMsk) */
+		uint32_t isooutdropmsk		: 1;    /**< Isochronous OUT Packet Dropped Interrupt Mask
                                                          (ISOOutDropMsk) */
-	uint32_t enumdonemsk                  : 1;  /**< Enumeration Done Mask (EnumDoneMsk) */
-	uint32_t usbrstmsk                    : 1;  /**< USB Reset Mask (USBRstMsk) */
-	uint32_t usbsuspmsk                   : 1;  /**< USB Suspend Mask (USBSuspMsk) */
-	uint32_t erlysuspmsk                  : 1;  /**< Early Suspend Mask (ErlySuspMsk) */
-	uint32_t i2cint                       : 1;  /**< I2C Interrupt Mask (I2CINT) */
-	uint32_t ulpickintmsk                 : 1;  /**< ULPI Carkit Interrupt Mask (ULPICKINTMsk)
+		uint32_t enumdonemsk		: 1;    /**< Enumeration Done Mask (EnumDoneMsk) */
+		uint32_t usbrstmsk		: 1;    /**< USB Reset Mask (USBRstMsk) */
+		uint32_t usbsuspmsk		: 1;    /**< USB Suspend Mask (USBSuspMsk) */
+		uint32_t erlysuspmsk		: 1;    /**< Early Suspend Mask (ErlySuspMsk) */
+		uint32_t i2cint			: 1;    /**< I2C Interrupt Mask (I2CINT) */
+		uint32_t ulpickintmsk		: 1;    /**< ULPI Carkit Interrupt Mask (ULPICKINTMsk)
                                                          I2C Carkit Interrupt Mask (I2CCKINTMsk) */
-	uint32_t goutnakeffmsk                : 1;  /**< Global OUT NAK Effective Mask (GOUTNakEffMsk) */
-	uint32_t ginnakeffmsk                 : 1;  /**< Global Non-Periodic IN NAK Effective Mask (GINNakEffMsk) */
-	uint32_t nptxfempmsk                  : 1;  /**< Non-Periodic TxFIFO Empty Mask (NPTxFEmpMsk) */
-	uint32_t rxflvlmsk                    : 1;  /**< Receive FIFO Non-Empty Mask (RxFLvlMsk) */
-	uint32_t sofmsk                       : 1;  /**< Start of (micro)Frame Mask (SofMsk) */
-	uint32_t otgintmsk                    : 1;  /**< OTG Interrupt Mask (OTGIntMsk) */
-	uint32_t modemismsk                   : 1;  /**< Mode Mismatch Interrupt Mask (ModeMisMsk) */
-	uint32_t reserved_0_0                 : 1;
+		uint32_t goutnakeffmsk		: 1;    /**< Global OUT NAK Effective Mask (GOUTNakEffMsk) */
+		uint32_t ginnakeffmsk		: 1;    /**< Global Non-Periodic IN NAK Effective Mask (GINNakEffMsk) */
+		uint32_t nptxfempmsk		: 1;    /**< Non-Periodic TxFIFO Empty Mask (NPTxFEmpMsk) */
+		uint32_t rxflvlmsk		: 1;    /**< Receive FIFO Non-Empty Mask (RxFLvlMsk) */
+		uint32_t sofmsk			: 1;    /**< Start of (micro)Frame Mask (SofMsk) */
+		uint32_t otgintmsk		: 1;    /**< OTG Interrupt Mask (OTGIntMsk) */
+		uint32_t modemismsk		: 1;    /**< Mode Mismatch Interrupt Mask (ModeMisMsk) */
+		uint32_t reserved_0_0		: 1;
 	} s;
 };
 typedef union cvmx_usbcx_gintmsk cvmx_usbcx_gintmsk_t;
@@ -285,34 +285,34 @@ typedef union cvmx_usbcx_gintmsk cvmx_usbcx_gintmsk_t;
 union cvmx_usbcx_gintsts {
 	uint32_t u32;
 	struct cvmx_usbcx_gintsts_s {
-	uint32_t wkupint                      : 1;  /**< Resume/Remote Wakeup Detected Interrupt (WkUpInt)
+		uint32_t wkupint	: 1;	    /**< Resume/Remote Wakeup Detected Interrupt (WkUpInt)
                                                          In Device mode, this interrupt is asserted when a resume is
                                                          detected on the USB. In Host mode, this interrupt is asserted
                                                          when a remote wakeup is detected on the USB.
                                                          For more information on how to use this interrupt, see "Partial
                                                          Power-Down and Clock Gating Programming Model" on
                                                          page 353. */
-	uint32_t sessreqint                   : 1;  /**< Session Request/New Session Detected Interrupt (SessReqInt)
+		uint32_t sessreqint	: 1;	    /**< Session Request/New Session Detected Interrupt (SessReqInt)
                                                          In Host mode, this interrupt is asserted when a session request
                                                          is detected from the device. In Device mode, this interrupt is
                                                          asserted when the utmiotg_bvalid signal goes high.
                                                          For more information on how to use this interrupt, see "Partial
                                                          Power-Down and Clock Gating Programming Model" on
                                                          page 353. */
-	uint32_t disconnint                   : 1;  /**< Disconnect Detected Interrupt (DisconnInt)
+		uint32_t disconnint	: 1;	    /**< Disconnect Detected Interrupt (DisconnInt)
                                                          Asserted when a device disconnect is detected. */
-	uint32_t conidstschng                 : 1;  /**< Connector ID Status Change (ConIDStsChng)
+		uint32_t conidstschng	: 1;    /**< Connector ID Status Change (ConIDStsChng)
                                                          The core sets this bit when there is a change in connector ID
                                                          status. */
-	uint32_t reserved_27_27               : 1;
-	uint32_t ptxfemp                      : 1;  /**< Periodic TxFIFO Empty (PTxFEmp)
+		uint32_t reserved_27_27	: 1;
+		uint32_t ptxfemp	: 1;	    /**< Periodic TxFIFO Empty (PTxFEmp)
                                                          Asserted when the Periodic Transmit FIFO is either half or
                                                          completely empty and there is space for at least one entry to be
                                                          written in the Periodic Request Queue. The half or completely
                                                          empty status is determined by the Periodic TxFIFO Empty Level
                                                          bit in the Core AHB Configuration register
                                                          (GAHBCFG.PTxFEmpLvl). */
-	uint32_t hchint                       : 1;  /**< Host Channels Interrupt (HChInt)
+		uint32_t hchint		: 1;	    /**< Host Channels Interrupt (HChInt)
                                                          The core sets this bit to indicate that an interrupt is pending on
                                                          one of the channels of the core (in Host mode). The application
                                                          must read the Host All Channels Interrupt (HAINT) register to
@@ -321,21 +321,21 @@ union cvmx_usbcx_gintsts {
                                                          Channel-n Interrupt (HCINTn) register to determine the exact
                                                          cause of the interrupt. The application must clear the
                                                          appropriate status bit in the HCINTn register to clear this bit. */
-	uint32_t prtint                       : 1;  /**< Host Port Interrupt (PrtInt)
+		uint32_t prtint		: 1;	    /**< Host Port Interrupt (PrtInt)
                                                          The core sets this bit to indicate a change in port status of one
                                                          of the O2P USB core ports in Host mode. The application must
                                                          read the Host Port Control and Status (HPRT) register to
                                                          determine the exact event that caused this interrupt. The
                                                          application must clear the appropriate status bit in the Host Port
                                                          Control and Status register to clear this bit. */
-	uint32_t reserved_23_23               : 1;
-	uint32_t fetsusp                      : 1;  /**< Data Fetch Suspended (FetSusp)
+		uint32_t reserved_23_23	: 1;
+		uint32_t fetsusp	: 1;	    /**< Data Fetch Suspended (FetSusp)
                                                          This interrupt is valid only in DMA mode. This interrupt indicates
                                                          that the core has stopped fetching data for IN endpoints due to
                                                          the unavailability of TxFIFO space or Request Queue space.
                                                          This interrupt is used by the application for an endpoint
                                                          mismatch algorithm. */
-	uint32_t incomplp                     : 1;  /**< Incomplete Periodic Transfer (incomplP)
+		uint32_t incomplp	: 1;	    /**< Incomplete Periodic Transfer (incomplP)
                                                          In Host mode, the core sets this interrupt bit when there are
                                                          incomplete periodic transactions still pending which are
                                                          scheduled for the current microframe.
@@ -345,12 +345,12 @@ union cvmx_usbcx_gintsts {
                                                          transfer is not completed in the current microframe. This
                                                          interrupt is asserted along with the End of Periodic Frame
                                                          Interrupt (EOPF) bit in this register. */
-	uint32_t incompisoin                  : 1;  /**< Incomplete Isochronous IN Transfer (incompISOIN)
+		uint32_t incompisoin	: 1;	    /**< Incomplete Isochronous IN Transfer (incompISOIN)
                                                          The core sets this interrupt to indicate that there is at least one
                                                          isochronous IN endpoint on which the transfer is not completed
                                                          in the current microframe. This interrupt is asserted along with
                                                          the End of Periodic Frame Interrupt (EOPF) bit in this register. */
-	uint32_t oepint                       : 1;  /**< OUT Endpoints Interrupt (OEPInt)
+		uint32_t oepint		: 1;	    /**< OUT Endpoints Interrupt (OEPInt)
                                                          The core sets this bit to indicate that an interrupt is pending on
                                                          one of the OUT endpoints of the core (in Device mode). The
                                                          application must read the Device All Endpoints Interrupt
@@ -360,7 +360,7 @@ union cvmx_usbcx_gintsts {
                                                          register to determine the exact cause of the interrupt. The
                                                          application must clear the appropriate status bit in the
                                                          corresponding DOEPINTn register to clear this bit. */
-	uint32_t iepint                       : 1;  /**< IN Endpoints Interrupt (IEPInt)
+		uint32_t iepint		: 1;	    /**< IN Endpoints Interrupt (IEPInt)
                                                          The core sets this bit to indicate that an interrupt is pending on
                                                          one of the IN endpoints of the core (in Device mode). The
                                                          application must read the Device All Endpoints Interrupt
@@ -370,47 +370,47 @@ union cvmx_usbcx_gintsts {
                                                          register to determine the exact cause of the interrupt. The
                                                          application must clear the appropriate status bit in the
                                                          corresponding DIEPINTn register to clear this bit. */
-	uint32_t epmis                        : 1;  /**< Endpoint Mismatch Interrupt (EPMis)
+		uint32_t epmis		: 1;	    /**< Endpoint Mismatch Interrupt (EPMis)
                                                          Indicates that an IN token has been received for a non-periodic
                                                          endpoint, but the data for another endpoint is present in the top
                                                          of the Non-Periodic Transmit FIFO and the IN endpoint
                                                          mismatch count programmed by the application has expired. */
-	uint32_t reserved_16_16               : 1;
-	uint32_t eopf                         : 1;  /**< End of Periodic Frame Interrupt (EOPF)
+		uint32_t reserved_16_16	: 1;
+		uint32_t eopf		: 1;	    /**< End of Periodic Frame Interrupt (EOPF)
                                                          Indicates that the period specified in the Periodic Frame Interval
                                                          field of the Device Configuration register (DCFG.PerFrInt) has
                                                          been reached in the current microframe. */
-	uint32_t isooutdrop                   : 1;  /**< Isochronous OUT Packet Dropped Interrupt (ISOOutDrop)
+		uint32_t isooutdrop	: 1;	    /**< Isochronous OUT Packet Dropped Interrupt (ISOOutDrop)
                                                          The core sets this bit when it fails to write an isochronous OUT
                                                          packet into the RxFIFO because the RxFIFO doesn't have
                                                          enough space to accommodate a maximum packet size packet
                                                          for the isochronous OUT endpoint. */
-	uint32_t enumdone                     : 1;  /**< Enumeration Done (EnumDone)
+		uint32_t enumdone	: 1;	    /**< Enumeration Done (EnumDone)
                                                          The core sets this bit to indicate that speed enumeration is
                                                          complete. The application must read the Device Status (DSTS)
                                                          register to obtain the enumerated speed. */
-	uint32_t usbrst                       : 1;  /**< USB Reset (USBRst)
+		uint32_t usbrst		: 1;	    /**< USB Reset (USBRst)
                                                          The core sets this bit to indicate that a reset is detected on the
                                                          USB. */
-	uint32_t usbsusp                      : 1;  /**< USB Suspend (USBSusp)
+		uint32_t usbsusp	: 1;	    /**< USB Suspend (USBSusp)
                                                          The core sets this bit to indicate that a suspend was detected
                                                          on the USB. The core enters the Suspended state when there
                                                          is no activity on the phy_line_state_i signal for an extended
                                                          period of time. */
-	uint32_t erlysusp                     : 1;  /**< Early Suspend (ErlySusp)
+		uint32_t erlysusp	: 1;	    /**< Early Suspend (ErlySusp)
                                                          The core sets this bit to indicate that an Idle state has been
                                                          detected on the USB for 3 ms. */
-	uint32_t i2cint                       : 1;  /**< I2C Interrupt (I2CINT)
+		uint32_t i2cint		: 1;	    /**< I2C Interrupt (I2CINT)
                                                          This bit is always 0x0. */
-	uint32_t ulpickint                    : 1;  /**< ULPI Carkit Interrupt (ULPICKINT)
+		uint32_t ulpickint	: 1;	    /**< ULPI Carkit Interrupt (ULPICKINT)
                                                          This bit is always 0x0. */
-	uint32_t goutnakeff                   : 1;  /**< Global OUT NAK Effective (GOUTNakEff)
+		uint32_t goutnakeff	: 1;	    /**< Global OUT NAK Effective (GOUTNakEff)
                                                          Indicates that the Set Global OUT NAK bit in the Device Control
                                                          register (DCTL.SGOUTNak), set by the application, has taken
                                                          effect in the core. This bit can be cleared by writing the Clear
                                                          Global OUT NAK bit in the Device Control register
                                                          (DCTL.CGOUTNak). */
-	uint32_t ginnakeff                    : 1;  /**< Global IN Non-Periodic NAK Effective (GINNakEff)
+		uint32_t ginnakeff	: 1;	    /**< Global IN Non-Periodic NAK Effective (GINNakEff)
                                                          Indicates that the Set Global Non-Periodic IN NAK bit in the
                                                          Device Control register (DCTL.SGNPInNak), set by the
                                                          application, has taken effect in the core. That is, the core has
@@ -420,17 +420,17 @@ union cvmx_usbcx_gintsts {
                                                          This interrupt does not necessarily mean that a NAK handshake
                                                          is sent out on the USB. The STALL bit takes precedence over
                                                          the NAK bit. */
-	uint32_t nptxfemp                     : 1;  /**< Non-Periodic TxFIFO Empty (NPTxFEmp)
+		uint32_t nptxfemp	: 1;	    /**< Non-Periodic TxFIFO Empty (NPTxFEmp)
                                                          This interrupt is asserted when the Non-Periodic TxFIFO is
                                                          either half or completely empty, and there is space for at least
                                                          one entry to be written to the Non-Periodic Transmit Request
                                                          Queue. The half or completely empty status is determined by
                                                          the Non-Periodic TxFIFO Empty Level bit in the Core AHB
                                                          Configuration register (GAHBCFG.NPTxFEmpLvl). */
-	uint32_t rxflvl                       : 1;  /**< RxFIFO Non-Empty (RxFLvl)
+		uint32_t rxflvl		: 1;	    /**< RxFIFO Non-Empty (RxFLvl)
                                                          Indicates that there is at least one packet pending to be read
                                                          from the RxFIFO. */
-	uint32_t sof                          : 1;  /**< Start of (micro)Frame (Sof)
+		uint32_t sof		: 1;	    /**< Start of (micro)Frame (Sof)
                                                          In Host mode, the core sets this bit to indicate that an SOF
                                                          (FS), micro-SOF (HS), or Keep-Alive (LS) is transmitted on the
                                                          USB. The application must write a 1 to this bit to clear the
@@ -440,13 +440,13 @@ union cvmx_usbcx_gintsts {
                                                          the Device Status register to get the current (micro)frame
                                                          number. This interrupt is seen only when the core is operating
                                                          at either HS or FS. */
-	uint32_t otgint                       : 1;  /**< OTG Interrupt (OTGInt)
+		uint32_t otgint		: 1;	    /**< OTG Interrupt (OTGInt)
                                                          The core sets this bit to indicate an OTG protocol event. The
                                                          application must read the OTG Interrupt Status (GOTGINT)
                                                          register to determine the exact event that caused this interrupt.
                                                          The application must clear the appropriate status bit in the
                                                          GOTGINT register to clear this bit. */
-	uint32_t modemis                      : 1;  /**< Mode Mismatch Interrupt (ModeMis)
+		uint32_t modemis	: 1;	    /**< Mode Mismatch Interrupt (ModeMis)
                                                          The core sets this bit when the application is trying to access:
                                                          * A Host mode register, when the core is operating in Device
                                                          mode
@@ -455,7 +455,7 @@ union cvmx_usbcx_gintsts {
                                                            The register access is completed on the AHB with an OKAY
                                                            response, but is ignored by the core internally and doesn't
                                                          affect the operation of the core. */
-	uint32_t curmod                       : 1;  /**< Current Mode of Operation (CurMod)
+		uint32_t curmod		: 1;	    /**< Current Mode of Operation (CurMod)
                                                          Indicates the current mode of operation.
                                                          * 1'b0: Device mode
                                                          * 1'b1: Host mode */
@@ -473,11 +473,11 @@ typedef union cvmx_usbcx_gintsts cvmx_usbcx_gintsts_t;
 union cvmx_usbcx_gnptxfsiz {
 	uint32_t u32;
 	struct cvmx_usbcx_gnptxfsiz_s {
-	uint32_t nptxfdep                     : 16; /**< Non-Periodic TxFIFO Depth (NPTxFDep)
+		uint32_t nptxfdep	: 16;    /**< Non-Periodic TxFIFO Depth (NPTxFDep)
                                                          This value is in terms of 32-bit words.
                                                          Minimum value is 16
                                                          Maximum value is 32768 */
-	uint32_t nptxfstaddr                  : 16; /**< Non-Periodic Transmit RAM Start Address (NPTxFStAddr)
+		uint32_t nptxfstaddr	: 16;    /**< Non-Periodic Transmit RAM Start Address (NPTxFStAddr)
                                                          This field contains the memory start address for Non-Periodic
                                                          Transmit FIFO RAM. */
 	} s;
@@ -495,8 +495,8 @@ typedef union cvmx_usbcx_gnptxfsiz cvmx_usbcx_gnptxfsiz_t;
 union cvmx_usbcx_gnptxsts {
 	uint32_t u32;
 	struct cvmx_usbcx_gnptxsts_s {
-	uint32_t reserved_31_31               : 1;
-	uint32_t nptxqtop                     : 7;  /**< Top of the Non-Periodic Transmit Request Queue (NPTxQTop)
+		uint32_t reserved_31_31	: 1;
+		uint32_t nptxqtop	: 7;	    /**< Top of the Non-Periodic Transmit Request Queue (NPTxQTop)
                                                          Entry in the Non-Periodic Tx Request Queue that is currently
                                                          being processed by the MAC.
                                                          * Bits [30:27]: Channel/endpoint number
@@ -506,7 +506,7 @@ union cvmx_usbcx_gnptxsts {
                                                            - 2'b10: PING/CSPLIT token
                                                            - 2'b11: Channel halt command
                                                          * Bit [24]: Terminate (last entry for selected channel/endpoint) */
-	uint32_t nptxqspcavail                : 8;  /**< Non-Periodic Transmit Request Queue Space Available
+		uint32_t nptxqspcavail	: 8;    /**< Non-Periodic Transmit Request Queue Space Available
                                                          (NPTxQSpcAvail)
                                                          Indicates the amount of free space available in the Non-
                                                          Periodic Transmit Request Queue. This queue holds both IN
@@ -517,7 +517,7 @@ union cvmx_usbcx_gnptxsts {
                                                          * 8'h2: 2 locations available
                                                          * n: n locations available (0..8)
                                                          * Others: Reserved */
-	uint32_t nptxfspcavail                : 16; /**< Non-Periodic TxFIFO Space Avail (NPTxFSpcAvail)
+		uint32_t nptxfspcavail	: 16;    /**< Non-Periodic TxFIFO Space Avail (NPTxFSpcAvail)
                                                          Indicates the amount of free space available in the Non-
                                                          Periodic TxFIFO.
                                                          Values are in terms of 32-bit words.
@@ -541,13 +541,13 @@ typedef union cvmx_usbcx_gnptxsts cvmx_usbcx_gnptxsts_t;
 union cvmx_usbcx_grstctl {
 	uint32_t u32;
 	struct cvmx_usbcx_grstctl_s {
-	uint32_t ahbidle                      : 1;  /**< AHB Master Idle (AHBIdle)
+		uint32_t ahbidle	: 1;	    /**< AHB Master Idle (AHBIdle)
                                                          Indicates that the AHB Master State Machine is in the IDLE
                                                          condition. */
-	uint32_t dmareq                       : 1;  /**< DMA Request Signal (DMAReq)
+		uint32_t dmareq		: 1;	    /**< DMA Request Signal (DMAReq)
                                                          Indicates that the DMA request is in progress. Used for debug. */
-	uint32_t reserved_11_29               : 19;
-	uint32_t txfnum                       : 5;  /**< TxFIFO Number (TxFNum)
+		uint32_t reserved_11_29	: 19;
+		uint32_t txfnum		: 5;	    /**< TxFIFO Number (TxFNum)
                                                          This is the FIFO number that must be flushed using the TxFIFO
                                                          Flush bit. This field must not be changed until the core clears
                                                          the TxFIFO Flush bit.
@@ -559,7 +559,7 @@ union cvmx_usbcx_grstctl {
                                                          * 5'hF: Periodic TxFIFO 15 flush in Device mode
                                                          * 5'h10: Flush all the Periodic and Non-Periodic TxFIFOs in the
                                                          core */
-	uint32_t txfflsh                      : 1;  /**< TxFIFO Flush (TxFFlsh)
+		uint32_t txfflsh	: 1;	    /**< TxFIFO Flush (TxFFlsh)
                                                          This bit selectively flushes a single or all transmit FIFOs, but
                                                          cannot do so if the core is in the midst of a transaction.
                                                          The application must only write this bit after checking that the
@@ -568,7 +568,7 @@ union cvmx_usbcx_grstctl {
                                                          The application must wait until the core clears this bit before
                                                          performing any operations. This bit takes 8 clocks (of phy_clk or
                                                          hclk, whichever is slower) to clear. */
-	uint32_t rxfflsh                      : 1;  /**< RxFIFO Flush (RxFFlsh)
+		uint32_t rxfflsh	: 1;	    /**< RxFIFO Flush (RxFFlsh)
                                                          The application can flush the entire RxFIFO using this bit, but
                                                          must first ensure that the core is not in the middle of a
                                                          transaction.
@@ -578,15 +578,15 @@ union cvmx_usbcx_grstctl {
                                                          The application must wait until the bit is cleared before
                                                          performing any other operations. This bit will take 8 clocks
                                                          (slowest of PHY or AHB clock) to clear. */
-	uint32_t intknqflsh                   : 1;  /**< IN Token Sequence Learning Queue Flush (INTknQFlsh)
+		uint32_t intknqflsh	: 1;	    /**< IN Token Sequence Learning Queue Flush (INTknQFlsh)
                                                          The application writes this bit to flush the IN Token Sequence
                                                          Learning Queue. */
-	uint32_t frmcntrrst                   : 1;  /**< Host Frame Counter Reset (FrmCntrRst)
+		uint32_t frmcntrrst	: 1;	    /**< Host Frame Counter Reset (FrmCntrRst)
                                                          The application writes this bit to reset the (micro)frame number
                                                          counter inside the core. When the (micro)frame counter is reset,
                                                          the subsequent SOF sent out by the core will have a
                                                          (micro)frame number of 0. */
-	uint32_t hsftrst                      : 1;  /**< HClk Soft Reset (HSftRst)
+		uint32_t hsftrst	: 1;	    /**< HClk Soft Reset (HSftRst)
                                                          The application uses this bit to flush the control logic in the AHB
                                                          Clock domain. Only AHB Clock Domain pipelines are reset.
                                                          * FIFOs are not flushed with this bit.
@@ -604,7 +604,7 @@ union cvmx_usbcx_grstctl {
                                                            This is a self-clearing bit that the core clears after all necessary
                                                            logic is reset in the core. This may take several clocks,
                                                            depending on the core's current state. */
-	uint32_t csftrst                      : 1;  /**< Core Soft Reset (CSftRst)
+		uint32_t csftrst	: 1;	    /**< Core Soft Reset (CSftRst)
                                                          Resets the hclk and phy_clock domains as follows:
                                                          * Clears the interrupts and all the CSR registers except the
                                                            following register bits:
@@ -656,8 +656,8 @@ typedef union cvmx_usbcx_grstctl cvmx_usbcx_grstctl_t;
 union cvmx_usbcx_grxfsiz {
 	uint32_t u32;
 	struct cvmx_usbcx_grxfsiz_s {
-	uint32_t reserved_16_31               : 16;
-	uint32_t rxfdep                       : 16; /**< RxFIFO Depth (RxFDep)
+		uint32_t reserved_16_31	: 16;
+		uint32_t rxfdep		: 16;	    /**< RxFIFO Depth (RxFDep)
                                                          This value is in terms of 32-bit words.
                                                          * Minimum value is 16
                                                          * Maximum value is 32768 */
@@ -679,22 +679,22 @@ typedef union cvmx_usbcx_grxfsiz cvmx_usbcx_grxfsiz_t;
 union cvmx_usbcx_grxstsph {
 	uint32_t u32;
 	struct cvmx_usbcx_grxstsph_s {
-	uint32_t reserved_21_31               : 11;
-	uint32_t pktsts                       : 4;  /**< Packet Status (PktSts)
+		uint32_t reserved_21_31	: 11;
+		uint32_t pktsts		: 4;	    /**< Packet Status (PktSts)
                                                          Indicates the status of the received packet
                                                          * 4'b0010: IN data packet received
                                                          * 4'b0011: IN transfer completed (triggers an interrupt)
                                                          * 4'b0101: Data toggle error (triggers an interrupt)
                                                          * 4'b0111: Channel halted (triggers an interrupt)
                                                          * Others: Reserved */
-	uint32_t dpid                         : 2;  /**< Data PID (DPID)
+		uint32_t dpid		: 2;	    /**< Data PID (DPID)
                                                          * 2'b00: DATA0
                                                          * 2'b10: DATA1
                                                          * 2'b01: DATA2
                                                          * 2'b11: MDATA */
-	uint32_t bcnt                         : 11; /**< Byte Count (BCnt)
+		uint32_t bcnt		: 11;	    /**< Byte Count (BCnt)
                                                          Indicates the byte count of the received IN data packet */
-	uint32_t chnum                        : 4;  /**< Channel Number (ChNum)
+		uint32_t chnum		: 4;	    /**< Channel Number (ChNum)
                                                          Indicates the channel number to which the current received
                                                          packet belongs. */
 	} s;
@@ -714,10 +714,10 @@ typedef union cvmx_usbcx_grxstsph cvmx_usbcx_grxstsph_t;
 union cvmx_usbcx_gusbcfg {
 	uint32_t u32;
 	struct cvmx_usbcx_gusbcfg_s {
-	uint32_t reserved_17_31               : 15;
-	uint32_t otgi2csel                    : 1;  /**< UTMIFS or I2C Interface Select (OtgI2CSel)
+		uint32_t reserved_17_31	: 15;
+		uint32_t otgi2csel	: 1;    /**< UTMIFS or I2C Interface Select (OtgI2CSel)
                                                          This bit is always 0x0. */
-	uint32_t phylpwrclksel                : 1;  /**< PHY Low-Power Clock Select (PhyLPwrClkSel)
+		uint32_t phylpwrclksel	: 1;    /**< PHY Low-Power Clock Select (PhyLPwrClkSel)
                                                          Software should set this bit to 0x0.
                                                          Selects either 480-MHz or 48-MHz (low-power) PHY mode. In
                                                          FS and LS modes, the PHY can usually operate on a 48-MHz
@@ -731,27 +731,27 @@ union cvmx_usbcx_gusbcfg {
                                                          (depending on the PHY vendor).
                                                          This bit drives the utmi_fsls_low_power core output signal, and
                                                          is valid only for UTMI+ PHYs. */
-	uint32_t reserved_14_14               : 1;
-	uint32_t usbtrdtim                    : 4;  /**< USB Turnaround Time (USBTrdTim)
+		uint32_t reserved_14_14	: 1;
+		uint32_t usbtrdtim	: 4;	    /**< USB Turnaround Time (USBTrdTim)
                                                          Sets the turnaround time in PHY clocks.
                                                          Specifies the response time for a MAC request to the Packet
                                                          FIFO Controller (PFC) to fetch data from the DFIFO (SPRAM).
                                                          This must be programmed to 0x5. */
-	uint32_t hnpcap                       : 1;  /**< HNP-Capable (HNPCap)
+		uint32_t hnpcap		: 1;	    /**< HNP-Capable (HNPCap)
                                                          This bit is always 0x0. */
-	uint32_t srpcap                       : 1;  /**< SRP-Capable (SRPCap)
+		uint32_t srpcap		: 1;	    /**< SRP-Capable (SRPCap)
                                                          This bit is always 0x0. */
-	uint32_t ddrsel                       : 1;  /**< ULPI DDR Select (DDRSel)
+		uint32_t ddrsel		: 1;	    /**< ULPI DDR Select (DDRSel)
                                                          Software should set this bit to 0x0. */
-	uint32_t physel                       : 1;  /**< USB 2.0 High-Speed PHY or USB 1.1 Full-Speed Serial
+		uint32_t physel		: 1;	    /**< USB 2.0 High-Speed PHY or USB 1.1 Full-Speed Serial
                                                          Software should set this bit to 0x0. */
-	uint32_t fsintf                       : 1;  /**< Full-Speed Serial Interface Select (FSIntf)
+		uint32_t fsintf		: 1;	    /**< Full-Speed Serial Interface Select (FSIntf)
                                                          Software should set this bit to 0x0. */
-	uint32_t ulpi_utmi_sel                : 1;  /**< ULPI or UTMI+ Select (ULPI_UTMI_Sel)
+		uint32_t ulpi_utmi_sel	: 1;    /**< ULPI or UTMI+ Select (ULPI_UTMI_Sel)
                                                          This bit is always 0x0. */
-	uint32_t phyif                        : 1;  /**< PHY Interface (PHYIf)
+		uint32_t phyif		: 1;	    /**< PHY Interface (PHYIf)
                                                          This bit is always 0x1. */
-	uint32_t toutcal                      : 3;  /**< HS/FS Timeout Calibration (TOutCal)
+		uint32_t toutcal	: 3;	    /**< HS/FS Timeout Calibration (TOutCal)
                                                          The number of PHY clocks that the application programs in this
                                                          field is added to the high-speed/full-speed interpacket timeout
                                                          duration in the core to account for any additional delays
@@ -788,8 +788,8 @@ typedef union cvmx_usbcx_gusbcfg cvmx_usbcx_gusbcfg_t;
 union cvmx_usbcx_haint {
 	uint32_t u32;
 	struct cvmx_usbcx_haint_s {
-	uint32_t reserved_16_31               : 16;
-	uint32_t haint                        : 16; /**< Channel Interrupts (HAINT)
+		uint32_t reserved_16_31	: 16;
+		uint32_t haint		: 16;	    /**< Channel Interrupts (HAINT)
                                                          One bit per channel: Bit 0 for Channel 0, bit 15 for Channel 15 */
 	} s;
 };
@@ -808,8 +808,8 @@ typedef union cvmx_usbcx_haint cvmx_usbcx_haint_t;
 union cvmx_usbcx_haintmsk {
 	uint32_t u32;
 	struct cvmx_usbcx_haintmsk_s {
-	uint32_t reserved_16_31               : 16;
-	uint32_t haintmsk                     : 16; /**< Channel Interrupt Mask (HAINTMsk)
+		uint32_t reserved_16_31	: 16;
+		uint32_t haintmsk	: 16;	    /**< Channel Interrupt Mask (HAINTMsk)
                                                          One bit per channel: Bit 0 for channel 0, bit 15 for channel 15 */
 	} s;
 };
@@ -824,26 +824,26 @@ typedef union cvmx_usbcx_haintmsk cvmx_usbcx_haintmsk_t;
 union cvmx_usbcx_hccharx {
 	uint32_t u32;
 	struct cvmx_usbcx_hccharx_s {
-	uint32_t chena                        : 1;  /**< Channel Enable (ChEna)
+		uint32_t chena		: 1;	    /**< Channel Enable (ChEna)
                                                          This field is set by the application and cleared by the OTG host.
                                                          * 1'b0: Channel disabled
                                                          * 1'b1: Channel enabled */
-	uint32_t chdis                        : 1;  /**< Channel Disable (ChDis)
+		uint32_t chdis		: 1;	    /**< Channel Disable (ChDis)
                                                          The application sets this bit to stop transmitting/receiving data
                                                          on a channel, even before the transfer for that channel is
                                                          complete. The application must wait for the Channel Disabled
                                                          interrupt before treating the channel as disabled. */
-	uint32_t oddfrm                       : 1;  /**< Odd Frame (OddFrm)
+		uint32_t oddfrm		: 1;	    /**< Odd Frame (OddFrm)
                                                          This field is set (reset) by the application to indicate that the
                                                          OTG host must perform a transfer in an odd (micro)frame. This
                                                          field is applicable for only periodic (isochronous and interrupt)
                                                          transactions.
                                                          * 1'b0: Even (micro)frame
                                                          * 1'b1: Odd (micro)frame */
-	uint32_t devaddr                      : 7;  /**< Device Address (DevAddr)
+		uint32_t devaddr	: 7;	    /**< Device Address (DevAddr)
                                                          This field selects the specific device serving as the data source
                                                          or sink. */
-	uint32_t ec                           : 2;  /**< Multi Count (MC) / Error Count (EC)
+		uint32_t ec		: 2;	    /**< Multi Count (MC) / Error Count (EC)
                                                          When the Split Enable bit of the Host Channel-n Split Control
                                                          register (HCSPLTn.SpltEna) is reset (1'b0), this field indicates
                                                          to the host the number of transactions that should be executed
@@ -858,24 +858,24 @@ union cvmx_usbcx_hccharx {
                                                          number of immediate retries to be performed for a periodic split
                                                          transactions on transaction errors. This field must be set to at
                                                          least 2'b01. */
-	uint32_t eptype                       : 2;  /**< Endpoint Type (EPType)
+		uint32_t eptype		: 2;	    /**< Endpoint Type (EPType)
                                                          Indicates the transfer type selected.
                                                          * 2'b00: Control
                                                          * 2'b01: Isochronous
                                                          * 2'b10: Bulk
                                                          * 2'b11: Interrupt */
-	uint32_t lspddev                      : 1;  /**< Low-Speed Device (LSpdDev)
+		uint32_t lspddev	: 1;	    /**< Low-Speed Device (LSpdDev)
                                                          This field is set by the application to indicate that this channel is
                                                          communicating to a low-speed device. */
-	uint32_t reserved_16_16               : 1;
-	uint32_t epdir                        : 1;  /**< Endpoint Direction (EPDir)
+		uint32_t reserved_16_16	: 1;
+		uint32_t epdir		: 1;	    /**< Endpoint Direction (EPDir)
                                                          Indicates whether the transaction is IN or OUT.
                                                          * 1'b0: OUT
                                                          * 1'b1: IN */
-	uint32_t epnum                        : 4;  /**< Endpoint Number (EPNum)
+		uint32_t epnum		: 4;	    /**< Endpoint Number (EPNum)
                                                          Indicates the endpoint number on the device serving as the
                                                          data source or sink. */
-	uint32_t mps                          : 11; /**< Maximum Packet Size (MPS)
+		uint32_t mps		: 11;	    /**< Maximum Packet Size (MPS)
                                                          Indicates the maximum packet size of the associated endpoint. */
 	} s;
 };
@@ -891,8 +891,8 @@ typedef union cvmx_usbcx_hccharx cvmx_usbcx_hccharx_t;
 union cvmx_usbcx_hcfg {
 	uint32_t u32;
 	struct cvmx_usbcx_hcfg_s {
-	uint32_t reserved_3_31                : 29;
-	uint32_t fslssupp                     : 1;  /**< FS- and LS-Only Support (FSLSSupp)
+		uint32_t reserved_3_31	: 29;
+		uint32_t fslssupp	: 1;	    /**< FS- and LS-Only Support (FSLSSupp)
                                                          The application uses this bit to control the core's enumeration
                                                          speed. Using this bit, the application can make the core
                                                          enumerate as a FS host, even if the connected device supports
@@ -901,7 +901,7 @@ union cvmx_usbcx_hcfg {
                                                          * 1'b0: HS/FS/LS, based on the maximum speed supported by
                                                            the connected device
                                                          * 1'b1: FS/LS-only, even if the connected device can support HS */
-	uint32_t fslspclksel                  : 2;  /**< FS/LS PHY Clock Select (FSLSPclkSel)
+		uint32_t fslspclksel	: 2;	    /**< FS/LS PHY Clock Select (FSLSPclkSel)
                                                          When the core is in FS Host mode
                                                          * 2'b00: PHY clock is running at 30/60 MHz
                                                          * 2'b01: PHY clock is running at 48 MHz
@@ -938,21 +938,21 @@ typedef union cvmx_usbcx_hcfg cvmx_usbcx_hcfg_t;
 union cvmx_usbcx_hcintx {
 	uint32_t u32;
 	struct cvmx_usbcx_hcintx_s {
-	uint32_t reserved_11_31               : 21;
-	uint32_t datatglerr                   : 1;  /**< Data Toggle Error (DataTglErr) */
-	uint32_t frmovrun                     : 1;  /**< Frame Overrun (FrmOvrun) */
-	uint32_t bblerr                       : 1;  /**< Babble Error (BblErr) */
-	uint32_t xacterr                      : 1;  /**< Transaction Error (XactErr) */
-	uint32_t nyet                         : 1;  /**< NYET Response Received Interrupt (NYET) */
-	uint32_t ack                          : 1;  /**< ACK Response Received Interrupt (ACK) */
-	uint32_t nak                          : 1;  /**< NAK Response Received Interrupt (NAK) */
-	uint32_t stall                        : 1;  /**< STALL Response Received Interrupt (STALL) */
-	uint32_t ahberr                       : 1;  /**< This bit is always 0x0. */
-	uint32_t chhltd                       : 1;  /**< Channel Halted (ChHltd)
+		uint32_t reserved_11_31	: 21;
+		uint32_t datatglerr	: 1;	    /**< Data Toggle Error (DataTglErr) */
+		uint32_t frmovrun	: 1;	    /**< Frame Overrun (FrmOvrun) */
+		uint32_t bblerr		: 1;	    /**< Babble Error (BblErr) */
+		uint32_t xacterr	: 1;	    /**< Transaction Error (XactErr) */
+		uint32_t nyet		: 1;	    /**< NYET Response Received Interrupt (NYET) */
+		uint32_t ack		: 1;	    /**< ACK Response Received Interrupt (ACK) */
+		uint32_t nak		: 1;	    /**< NAK Response Received Interrupt (NAK) */
+		uint32_t stall		: 1;	    /**< STALL Response Received Interrupt (STALL) */
+		uint32_t ahberr		: 1;	    /**< This bit is always 0x0. */
+		uint32_t chhltd		: 1;	    /**< Channel Halted (ChHltd)
                                                          Indicates the transfer completed abnormally either because of
                                                          any USB transaction error or in response to disable request by
                                                          the application. */
-	uint32_t xfercompl                    : 1;  /**< Transfer Completed (XferCompl)
+		uint32_t xfercompl	: 1;	    /**< Transfer Completed (XferCompl)
                                                          Transfer completed normally without any errors. */
 	} s;
 };
@@ -969,18 +969,18 @@ typedef union cvmx_usbcx_hcintx cvmx_usbcx_hcintx_t;
 union cvmx_usbcx_hcintmskx {
 	uint32_t u32;
 	struct cvmx_usbcx_hcintmskx_s {
-	uint32_t reserved_11_31               : 21;
-	uint32_t datatglerrmsk                : 1;  /**< Data Toggle Error Mask (DataTglErrMsk) */
-	uint32_t frmovrunmsk                  : 1;  /**< Frame Overrun Mask (FrmOvrunMsk) */
-	uint32_t bblerrmsk                    : 1;  /**< Babble Error Mask (BblErrMsk) */
-	uint32_t xacterrmsk                   : 1;  /**< Transaction Error Mask (XactErrMsk) */
-	uint32_t nyetmsk                      : 1;  /**< NYET Response Received Interrupt Mask (NyetMsk) */
-	uint32_t ackmsk                       : 1;  /**< ACK Response Received Interrupt Mask (AckMsk) */
-	uint32_t nakmsk                       : 1;  /**< NAK Response Received Interrupt Mask (NakMsk) */
-	uint32_t stallmsk                     : 1;  /**< STALL Response Received Interrupt Mask (StallMsk) */
-	uint32_t ahberrmsk                    : 1;  /**< AHB Error Mask (AHBErrMsk) */
-	uint32_t chhltdmsk                    : 1;  /**< Channel Halted Mask (ChHltdMsk) */
-	uint32_t xfercomplmsk                 : 1;  /**< Transfer Completed Mask (XferComplMsk) */
+		uint32_t reserved_11_31	: 21;
+		uint32_t datatglerrmsk	: 1;    /**< Data Toggle Error Mask (DataTglErrMsk) */
+		uint32_t frmovrunmsk	: 1;    /**< Frame Overrun Mask (FrmOvrunMsk) */
+		uint32_t bblerrmsk	: 1;    /**< Babble Error Mask (BblErrMsk) */
+		uint32_t xacterrmsk	: 1;    /**< Transaction Error Mask (XactErrMsk) */
+		uint32_t nyetmsk	: 1;    /**< NYET Response Received Interrupt Mask (NyetMsk) */
+		uint32_t ackmsk		: 1;    /**< ACK Response Received Interrupt Mask (AckMsk) */
+		uint32_t nakmsk		: 1;    /**< NAK Response Received Interrupt Mask (NakMsk) */
+		uint32_t stallmsk	: 1;    /**< STALL Response Received Interrupt Mask (StallMsk) */
+		uint32_t ahberrmsk	: 1;    /**< AHB Error Mask (AHBErrMsk) */
+		uint32_t chhltdmsk	: 1;    /**< Channel Halted Mask (ChHltdMsk) */
+		uint32_t xfercomplmsk	: 1;    /**< Transfer Completed Mask (XferComplMsk) */
 	} s;
 };
 typedef union cvmx_usbcx_hcintmskx cvmx_usbcx_hcintmskx_t;
@@ -994,14 +994,14 @@ typedef union cvmx_usbcx_hcintmskx cvmx_usbcx_hcintmskx_t;
 union cvmx_usbcx_hcspltx {
 	uint32_t u32;
 	struct cvmx_usbcx_hcspltx_s {
-	uint32_t spltena                      : 1;  /**< Split Enable (SpltEna)
+		uint32_t spltena	: 1;	    /**< Split Enable (SpltEna)
                                                          The application sets this field to indicate that this channel is
                                                          enabled to perform split transactions. */
-	uint32_t reserved_17_30               : 14;
-	uint32_t compsplt                     : 1;  /**< Do Complete Split (CompSplt)
+		uint32_t reserved_17_30	: 14;
+		uint32_t compsplt	: 1;	    /**< Do Complete Split (CompSplt)
                                                          The application sets this field to request the OTG host to
                                                          perform a complete split transaction. */
-	uint32_t xactpos                      : 2;  /**< Transaction Position (XactPos)
+		uint32_t xactpos	: 2;	    /**< Transaction Position (XactPos)
                                                          This field is used to determine whether to send all, first, middle,
                                                          or last payloads with each OUT transaction.
                                                          * 2'b11: All. This is the entire data payload is of this transaction
@@ -1012,10 +1012,10 @@ union cvmx_usbcx_hcspltx {
                                                                   (which is larger than 188 bytes).
                                                          * 2'b01: End. This is the last payload of this transaction (which
                                                                   is larger than 188 bytes). */
-	uint32_t hubaddr                      : 7;  /**< Hub Address (HubAddr)
+		uint32_t hubaddr	: 7;	    /**< Hub Address (HubAddr)
                                                          This field holds the device address of the transaction
                                                          translator's hub. */
-	uint32_t prtaddr                      : 7;  /**< Port Address (PrtAddr)
+		uint32_t prtaddr	: 7;	    /**< Port Address (PrtAddr)
                                                          This field is the port number of the recipient transaction
                                                          translator. */
 	} s;
@@ -1031,9 +1031,9 @@ typedef union cvmx_usbcx_hcspltx cvmx_usbcx_hcspltx_t;
 union cvmx_usbcx_hctsizx {
 	uint32_t u32;
 	struct cvmx_usbcx_hctsizx_s {
-	uint32_t dopng                        : 1;  /**< Do Ping (DoPng)
+		uint32_t dopng		: 1;	    /**< Do Ping (DoPng)
                                                          Setting this field to 1 directs the host to do PING protocol. */
-	uint32_t pid                          : 2;  /**< PID (Pid)
+		uint32_t pid		: 2;	    /**< PID (Pid)
                                                          The application programs this field with the type of PID to use
                                                          for the initial transaction. The host will maintain this field for the
                                                          rest of the transfer.
@@ -1041,14 +1041,14 @@ union cvmx_usbcx_hctsizx {
                                                          * 2'b01: DATA2
                                                          * 2'b10: DATA1
                                                          * 2'b11: MDATA (non-control)/SETUP (control) */
-	uint32_t pktcnt                       : 10; /**< Packet Count (PktCnt)
+		uint32_t pktcnt		: 10;	    /**< Packet Count (PktCnt)
                                                          This field is programmed by the application with the expected
                                                          number of packets to be transmitted (OUT) or received (IN).
                                                          The host decrements this count on every successful
                                                          transmission or reception of an OUT/IN packet. Once this count
                                                          reaches zero, the application is interrupted to indicate normal
                                                          completion. */
-	uint32_t xfersize                     : 19; /**< Transfer Size (XferSize)
+		uint32_t xfersize	: 19;	    /**< Transfer Size (XferSize)
                                                          For an OUT, this field is the number of data bytes the host will
                                                          send during the transfer.
                                                          For an IN, this field is the buffer size that the application has
@@ -1069,8 +1069,8 @@ typedef union cvmx_usbcx_hctsizx cvmx_usbcx_hctsizx_t;
 union cvmx_usbcx_hfir {
 	uint32_t u32;
 	struct cvmx_usbcx_hfir_s {
-	uint32_t reserved_16_31               : 16;
-	uint32_t frint                        : 16; /**< Frame Interval (FrInt)
+		uint32_t reserved_16_31	: 16;
+		uint32_t frint		: 16;	    /**< Frame Interval (FrInt)
                                                          The value that the application programs to this field specifies
                                                          the interval between two consecutive SOFs (FS) or micro-
                                                          SOFs (HS) or Keep-Alive tokens (HS). This field contains the
@@ -1102,13 +1102,13 @@ typedef union cvmx_usbcx_hfir cvmx_usbcx_hfir_t;
 union cvmx_usbcx_hfnum {
 	uint32_t u32;
 	struct cvmx_usbcx_hfnum_s {
-	uint32_t frrem                        : 16; /**< Frame Time Remaining (FrRem)
+		uint32_t frrem	: 16;	    /**< Frame Time Remaining (FrRem)
                                                          Indicates the amount of time remaining in the current
                                                          microframe (HS) or frame (FS/LS), in terms of PHY clocks.
                                                          This field decrements on each PHY clock. When it reaches
                                                          zero, this field is reloaded with the value in the Frame Interval
                                                          register and a new SOF is transmitted on the USB. */
-	uint32_t frnum                        : 16; /**< Frame Number (FrNum)
+		uint32_t frnum	: 16;	    /**< Frame Number (FrNum)
                                                          This field increments when a new SOF is transmitted on the
                                                          USB, and is reset to 0 when it reaches 16'h3FFF. */
 	} s;
@@ -1132,14 +1132,14 @@ typedef union cvmx_usbcx_hfnum cvmx_usbcx_hfnum_t;
 union cvmx_usbcx_hprt {
 	uint32_t u32;
 	struct cvmx_usbcx_hprt_s {
-	uint32_t reserved_19_31               : 13;
-	uint32_t prtspd                       : 2;  /**< Port Speed (PrtSpd)
+		uint32_t reserved_19_31	: 13;
+		uint32_t prtspd		: 2;	    /**< Port Speed (PrtSpd)
                                                          Indicates the speed of the device attached to this port.
                                                          * 2'b00: High speed
                                                          * 2'b01: Full speed
                                                          * 2'b10: Low speed
                                                          * 2'b11: Reserved */
-	uint32_t prttstctl                    : 4;  /**< Port Test Control (PrtTstCtl)
+		uint32_t prttstctl	: 4;	    /**< Port Test Control (PrtTstCtl)
                                                          The application writes a nonzero value to this field to put
                                                          the port into a Test mode, and the corresponding pattern is
                                                          signaled on the port.
@@ -1152,17 +1152,17 @@ union cvmx_usbcx_hprt {
                                                          * Others: Reserved
                                                          PrtSpd must be zero (i.e. the interface must be in high-speed
                                                          mode) to use the PrtTstCtl test modes. */
-	uint32_t prtpwr                       : 1;  /**< Port Power (PrtPwr)
+		uint32_t prtpwr		: 1;	    /**< Port Power (PrtPwr)
                                                          The application uses this field to control power to this port,
                                                          and the core clears this bit on an overcurrent condition.
                                                          * 1'b0: Power off
                                                          * 1'b1: Power on */
-	uint32_t prtlnsts                     : 2;  /**< Port Line Status (PrtLnSts)
+		uint32_t prtlnsts	: 2;	    /**< Port Line Status (PrtLnSts)
                                                          Indicates the current logic level USB data lines
                                                          * Bit [10]: Logic level of D-
                                                          * Bit [11]: Logic level of D+ */
-	uint32_t reserved_9_9                 : 1;
-	uint32_t prtrst                       : 1;  /**< Port Reset (PrtRst)
+		uint32_t reserved_9_9	: 1;
+		uint32_t prtrst		: 1;	    /**< Port Reset (PrtRst)
                                                          When the application sets this bit, a reset sequence is
                                                          started on this port. The application must time the reset
                                                          period and clear this bit after the reset sequence is
@@ -1177,7 +1177,7 @@ union cvmx_usbcx_hprt {
                                                          USB standard.
                                                          * High speed: 50 ms
                                                          * Full speed/Low speed: 10 ms */
-	uint32_t prtsusp                      : 1;  /**< Port Suspend (PrtSusp)
+		uint32_t prtsusp	: 1;	    /**< Port Suspend (PrtSusp)
                                                          The application sets this bit to put this port in Suspend
                                                          mode. The core only stops sending SOFs when this is set.
                                                          To stop the PHY clock, the application must set the Port
@@ -1193,7 +1193,7 @@ union cvmx_usbcx_hprt {
                                                          respectively).
                                                          * 1'b0: Port not in Suspend mode
                                                          * 1'b1: Port in Suspend mode */
-	uint32_t prtres                       : 1;  /**< Port Resume (PrtRes)
+		uint32_t prtres		: 1;	    /**< Port Resume (PrtRes)
                                                          The application sets this bit to drive resume signaling on
                                                          the port. The core continues to drive the resume signal
                                                          until the application clears this bit.
@@ -1207,17 +1207,17 @@ union cvmx_usbcx_hprt {
                                                          resume signaling.
                                                          * 1'b0: No resume driven
                                                          * 1'b1: Resume driven */
-	uint32_t prtovrcurrchng               : 1;  /**< Port Overcurrent Change (PrtOvrCurrChng)
+		uint32_t prtovrcurrchng	: 1;    /**< Port Overcurrent Change (PrtOvrCurrChng)
                                                          The core sets this bit when the status of the Port
                                                          Overcurrent Active bit (bit 4) in this register changes. */
-	uint32_t prtovrcurract                : 1;  /**< Port Overcurrent Active (PrtOvrCurrAct)
+		uint32_t prtovrcurract	: 1;    /**< Port Overcurrent Active (PrtOvrCurrAct)
                                                          Indicates the overcurrent condition of the port.
                                                          * 1'b0: No overcurrent condition
                                                          * 1'b1: Overcurrent condition */
-	uint32_t prtenchng                    : 1;  /**< Port Enable/Disable Change (PrtEnChng)
+		uint32_t prtenchng	: 1;	    /**< Port Enable/Disable Change (PrtEnChng)
                                                          The core sets this bit when the status of the Port Enable bit
                                                          [2] of this register changes. */
-	uint32_t prtena                       : 1;  /**< Port Enable (PrtEna)
+		uint32_t prtena		: 1;	    /**< Port Enable (PrtEna)
                                                          A port is enabled only by the core after a reset sequence,
                                                          and is disabled by an overcurrent condition, a disconnect
                                                          condition, or by the application clearing this bit. The
@@ -1226,13 +1226,13 @@ union cvmx_usbcx_hprt {
                                                          interrupt to the application.
                                                          * 1'b0: Port disabled
                                                          * 1'b1: Port enabled */
-	uint32_t prtconndet                   : 1;  /**< Port Connect Detected (PrtConnDet)
+		uint32_t prtconndet	: 1;	    /**< Port Connect Detected (PrtConnDet)
                                                          The core sets this bit when a device connection is detected
                                                          to trigger an interrupt to the application using the Host Port
                                                          Interrupt bit of the Core Interrupt register (GINTSTS.PrtInt).
                                                          The application must write a 1 to this bit to clear the
                                                          interrupt. */
-	uint32_t prtconnsts                   : 1;  /**< Port Connect Status (PrtConnSts)
+		uint32_t prtconnsts	: 1;	    /**< Port Connect Status (PrtConnSts)
                                                          * 0: No device is attached to the port.
                                                          * 1: A device is attached to the port. */
 	} s;
@@ -1249,11 +1249,11 @@ typedef union cvmx_usbcx_hprt cvmx_usbcx_hprt_t;
 union cvmx_usbcx_hptxfsiz {
 	uint32_t u32;
 	struct cvmx_usbcx_hptxfsiz_s {
-	uint32_t ptxfsize                     : 16; /**< Host Periodic TxFIFO Depth (PTxFSize)
+		uint32_t ptxfsize	: 16;	    /**< Host Periodic TxFIFO Depth (PTxFSize)
                                                          This value is in terms of 32-bit words.
                                                          * Minimum value is 16
                                                          * Maximum value is 32768 */
-	uint32_t ptxfstaddr                   : 16; /**< Host Periodic TxFIFO Start Address (PTxFStAddr) */
+		uint32_t ptxfstaddr	: 16;	    /**< Host Periodic TxFIFO Start Address (PTxFStAddr) */
 	} s;
 };
 typedef union cvmx_usbcx_hptxfsiz cvmx_usbcx_hptxfsiz_t;
@@ -1269,7 +1269,7 @@ typedef union cvmx_usbcx_hptxfsiz cvmx_usbcx_hptxfsiz_t;
 union cvmx_usbcx_hptxsts {
 	uint32_t u32;
 	struct cvmx_usbcx_hptxsts_s {
-	uint32_t ptxqtop                      : 8;  /**< Top of the Periodic Transmit Request Queue (PTxQTop)
+		uint32_t ptxqtop	: 8;	    /**< Top of the Periodic Transmit Request Queue (PTxQTop)
                                                          This indicates the entry in the Periodic Tx Request Queue that
                                                          is currently being processes by the MAC.
                                                          This register is used for debugging.
@@ -1284,7 +1284,7 @@ union cvmx_usbcx_hptxsts {
                                                            - 2'b11: Disable channel command
                                                          * Bit [24]: Terminate (last entry for the selected
                                                            channel/endpoint) */
-	uint32_t ptxqspcavail                 : 8;  /**< Periodic Transmit Request Queue Space Available
+		uint32_t ptxqspcavail	: 8;    /**< Periodic Transmit Request Queue Space Available
                                                          (PTxQSpcAvail)
                                                          Indicates the number of free locations available to be written in
                                                          the Periodic Transmit Request Queue. This queue holds both
@@ -1294,7 +1294,7 @@ union cvmx_usbcx_hptxsts {
                                                          * 8'h2: 2 locations available
                                                          * n: n locations available (0..8)
                                                          * Others: Reserved */
-	uint32_t ptxfspcavail                 : 16; /**< Periodic Transmit Data FIFO Space Available (PTxFSpcAvail)
+		uint32_t ptxfspcavail	: 16;    /**< Periodic Transmit Data FIFO Space Available (PTxFSpcAvail)
                                                          Indicates the number of free locations available to be written to
                                                          in the Periodic TxFIFO.
                                                          Values are in terms of 32-bit words
