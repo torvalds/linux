@@ -195,7 +195,6 @@ struct brcmf_skbuff_cb {
  *	b[9]   - packet is a tx packet.
  *	b[8]   - packet uses FIFO credit (non-pspoll).
  *	b[7]   - interface in AP mode.
- *	b[6:4] - AC FIFO number.
  *	b[3:0] - interface index.
  */
 #define BRCMF_SKB_IF_FLAGS_REQUESTED_MASK	0x0800
@@ -208,8 +207,6 @@ struct brcmf_skbuff_cb {
 #define BRCMF_SKB_IF_FLAGS_CREDITCHECK_SHIFT	8
 #define BRCMF_SKB_IF_FLAGS_IF_AP_MASK		0x0080
 #define BRCMF_SKB_IF_FLAGS_IF_AP_SHIFT		7
-#define BRCMF_SKB_IF_FLAGS_FIFO_MASK		0x0070
-#define BRCMF_SKB_IF_FLAGS_FIFO_SHIFT		4
 #define BRCMF_SKB_IF_FLAGS_INDEX_MASK		0x000f
 #define BRCMF_SKB_IF_FLAGS_INDEX_SHIFT		0
 
@@ -1608,7 +1605,8 @@ static int brcmf_fws_precommit_skb(struct brcmf_fws_info *fws, int fifo,
 }
 
 static void
-brcmf_fws_rollback_toq(struct brcmf_fws_info *fws, struct sk_buff *skb)
+brcmf_fws_rollback_toq(struct brcmf_fws_info *fws,
+		       struct sk_buff *skb, int fifo)
 {
 	/*
 	put the packet back to the head of queue
@@ -1622,11 +1620,9 @@ brcmf_fws_rollback_toq(struct brcmf_fws_info *fws, struct sk_buff *skb)
 	enum brcmf_fws_skb_state state;
 	struct sk_buff *pktout;
 	int rc = 0;
-	int fifo;
 	int hslot;
 	u8 ifidx;
 
-	fifo = brcmf_skb_if_flags_get_field(skb, FIFO);
 	state = brcmf_skbcb(skb)->state;
 	entry = brcmf_skbcb(skb)->mac;
 
@@ -1794,7 +1790,7 @@ static int brcmf_fws_commit_skb(struct brcmf_fws_info *fws, int fifo,
 	return rc;
 
 rollback:
-	brcmf_fws_rollback_toq(fws, skb);
+	brcmf_fws_rollback_toq(fws, skb, fifo);
 	return rc;
 }
 
@@ -1831,7 +1827,6 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 	brcmf_skb_if_flags_set_field(skb, INDEX, ifp->ifidx);
 	if (!multicast)
 		fifo = brcmf_fws_prio2fifo[skb->priority];
-	brcmf_skb_if_flags_set_field(skb, FIFO, fifo);
 
 	brcmf_dbg(TRACE, "ea=%pM, multi=%d, fifo=%d\n", eh->h_dest,
 		  multicast, fifo);
