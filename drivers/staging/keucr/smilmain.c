@@ -302,7 +302,7 @@ int Media_D_ReadOneSect(struct us_data *us, WORD count, BYTE *buf)
 		return ERROR;
 
 #ifdef RDERR_REASSIGN
-	if (Ssfdc.Attribute &MWP) {
+	if (Ssfdc.Attribute & MWP) {
 		if (ErrCode == ERR_CorReadErr)
 			return SMSUCCESS;
 		return ERROR;
@@ -675,90 +675,84 @@ int Make_D_LogTable(struct us_data *us)
 
 	Media.Sector = 0;
 
-	{
-		/* pr_info("Make_D_LogTable --- MediaZone = 0x%x\n",
-							Media.Zone); */
-		for (Media.LogBlock = 0; Media.LogBlock < Ssfdc.MaxLogBlocks;
-							Media.LogBlock++)
-			Log2Phy[Media.Zone][Media.LogBlock] = NO_ASSIGN;
+	/* pr_info("Make_D_LogTable --- MediaZone = 0x%x\n",
+						Media.Zone); */
+	for (Media.LogBlock = 0; Media.LogBlock < Ssfdc.MaxLogBlocks;
+						Media.LogBlock++)
+		Log2Phy[Media.Zone][Media.LogBlock] = NO_ASSIGN;
 
-		for (Media.PhyBlock = 0; Media.PhyBlock < (MAX_BLOCKNUM / 8);
-							Media.PhyBlock++)
-			Assign[Media.Zone][Media.PhyBlock] = 0x00;
+	for (Media.PhyBlock = 0; Media.PhyBlock < (MAX_BLOCKNUM / 8);
+						Media.PhyBlock++)
+		Assign[Media.Zone][Media.PhyBlock] = 0x00;
 
-		for (Media.PhyBlock = 0; Media.PhyBlock < Ssfdc.MaxBlocks;
-							Media.PhyBlock++) {
-			if ((!Media.Zone) &&
-					(Media.PhyBlock <= CisArea.PhyBlock)) {
-				Set_D_Bit(Assign[Media.Zone], Media.PhyBlock);
-				continue;
-			}
-
-			if (Ssfdc_D_ReadRedtData(us, Redundant)) {
-				Ssfdc_D_Reset(us);
-				return ERROR;
-			}
-
-			if (!Check_D_DataBlank(Redundant))
-				continue;
-
+	for (Media.PhyBlock = 0; Media.PhyBlock < Ssfdc.MaxBlocks;
+						Media.PhyBlock++) {
+		if ((!Media.Zone) && (Media.PhyBlock <= CisArea.PhyBlock)) {
 			Set_D_Bit(Assign[Media.Zone], Media.PhyBlock);
+			continue;
+		}
 
-			if (Check_D_FailBlock(Redundant))
-				continue;
+		if (Ssfdc_D_ReadRedtData(us, Redundant)) {
+			Ssfdc_D_Reset(us);
+			return ERROR;
+		}
 
-			if (Load_D_LogBlockAddr(Redundant))
-				continue;
+		if (!Check_D_DataBlank(Redundant))
+			continue;
 
-			if (Media.LogBlock >= Ssfdc.MaxLogBlocks)
-				continue;
+		Set_D_Bit(Assign[Media.Zone], Media.PhyBlock);
 
-			if (Log2Phy[Media.Zone][Media.LogBlock] == NO_ASSIGN) {
-				Log2Phy[Media.Zone][Media.LogBlock] =
-								Media.PhyBlock;
-				continue;
-			}
+		if (Check_D_FailBlock(Redundant))
+			continue;
 
-			phyblock     = Media.PhyBlock;
-			logblock     = Media.LogBlock;
-			Media.Sector = (BYTE)(Ssfdc.MaxSectors - 1);
+		if (Load_D_LogBlockAddr(Redundant))
+			continue;
+
+		if (Media.LogBlock >= Ssfdc.MaxLogBlocks)
+			continue;
+
+		if (Log2Phy[Media.Zone][Media.LogBlock] == NO_ASSIGN) {
+			Log2Phy[Media.Zone][Media.LogBlock] = Media.PhyBlock;
+			continue;
+		}
+
+		phyblock     = Media.PhyBlock;
+		logblock     = Media.LogBlock;
+		Media.Sector = (BYTE)(Ssfdc.MaxSectors - 1);
+
+		if (Ssfdc_D_ReadRedtData(us, Redundant)) {
+			Ssfdc_D_Reset(us);
+			return ERROR;
+		}
+
+		if (!Load_D_LogBlockAddr(Redundant) &&
+				(Media.LogBlock == logblock)) {
+			Media.PhyBlock = Log2Phy[Media.Zone][logblock];
 
 			if (Ssfdc_D_ReadRedtData(us, Redundant)) {
 				Ssfdc_D_Reset(us);
 				return ERROR;
 			}
 
-			if (!Load_D_LogBlockAddr(Redundant)) {
-				if (Media.LogBlock == logblock) {
-					Media.PhyBlock =
-						Log2Phy[Media.Zone][logblock];
-
-					if (Ssfdc_D_ReadRedtData(us,
-								Redundant)) {
-						Ssfdc_D_Reset(us);
-						return ERROR;
-					}
-
-					Media.PhyBlock = phyblock;
-
-					if (!Load_D_LogBlockAddr(Redundant)) {
-						if (Media.LogBlock != logblock) {
-							Media.PhyBlock = Log2Phy[Media.Zone][logblock];
-							Log2Phy[Media.Zone][logblock] = phyblock;
-						}
-					} else {
-						Media.PhyBlock = Log2Phy[Media.Zone][logblock];
-						Log2Phy[Media.Zone][logblock] = phyblock;
-					}
-				}
-			}
-
-			Media.Sector = 0;
 			Media.PhyBlock = phyblock;
 
-		} /* End for (Media.PhyBlock<Ssfdc.MaxBlocks) */
+			if (!Load_D_LogBlockAddr(Redundant)) {
+				if (Media.LogBlock != logblock) {
+					Media.PhyBlock =
+						Log2Phy[Media.Zone][logblock];
+					Log2Phy[Media.Zone][logblock] =
+								phyblock;
+				}
+			} else {
+				Media.PhyBlock = Log2Phy[Media.Zone][logblock];
+				Log2Phy[Media.Zone][logblock] = phyblock;
+			}
+		}
 
-		AssignStart[Media.Zone] = 0;
+		Media.Sector = 0;
+		Media.PhyBlock = phyblock;
+
+	AssignStart[Media.Zone] = 0;
 
 	} /* End for (Media.Zone<MAX_ZONENUM) */
 

@@ -98,11 +98,16 @@ int ENE_SMInit(struct us_data *us)
 	us->SM_CardID   = buf[2];
 
 	if (us->SM_Status.Insert && us->SM_Status.Ready) {
-		dev_info(&us->pusb_dev->dev, "Insert     = %x\n", us->SM_Status.Insert);
-		dev_info(&us->pusb_dev->dev, "Ready      = %x\n", us->SM_Status.Ready);
-		dev_info(&us->pusb_dev->dev, "WtP        = %x\n", us->SM_Status.WtP);
-		dev_info(&us->pusb_dev->dev, "DeviceID   = %x\n", us->SM_DeviceID);
-		dev_info(&us->pusb_dev->dev, "CardID     = %x\n", us->SM_CardID);
+		dev_info(&us->pusb_dev->dev, "Insert     = %x\n",
+					     us->SM_Status.Insert);
+		dev_info(&us->pusb_dev->dev, "Ready      = %x\n",
+					     us->SM_Status.Ready);
+		dev_info(&us->pusb_dev->dev, "WtP        = %x\n",
+					     us->SM_Status.WtP);
+		dev_info(&us->pusb_dev->dev, "DeviceID   = %x\n",
+					     us->SM_DeviceID);
+		dev_info(&us->pusb_dev->dev, "CardID     = %x\n",
+					     us->SM_CardID);
 		MediaChange = 1;
 		Check_D_MediaFmt(us);
 	} else {
@@ -174,7 +179,8 @@ int ENE_SendScsiCmd(struct us_data *us, BYTE fDir, void *buf, int use_sg)
 	result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
 					    bcb, US_BULK_CB_WRAP_LEN, NULL);
 	if (result != USB_STOR_XFER_GOOD) {
-		dev_err(&us->pusb_dev->dev, "send cmd to out endpoint fail ---\n");
+		dev_err(&us->pusb_dev->dev,
+				"send cmd to out endpoint fail ---\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -203,14 +209,16 @@ int ENE_SendScsiCmd(struct us_data *us, BYTE fDir, void *buf, int use_sg)
 						US_BULK_CS_WRAP_LEN, &cswlen);
 
 	if (result == USB_STOR_XFER_SHORT && cswlen == 0) {
-		dev_warn(&us->pusb_dev->dev, "Received 0-length CSW; retrying...\n");
+		dev_warn(&us->pusb_dev->dev,
+				"Received 0-length CSW; retrying...\n");
 		result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
 					bcs, US_BULK_CS_WRAP_LEN, &cswlen);
 	}
 
 	if (result == USB_STOR_XFER_STALLED) {
 		/* get the status again */
-		dev_warn(&us->pusb_dev->dev, "Attempting to get CSW (2nd try)...\n");
+		dev_warn(&us->pusb_dev->dev,
+				"Attempting to get CSW (2nd try)...\n");
 		result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
 						bcs, US_BULK_CS_WRAP_LEN, NULL);
 	}

@@ -150,7 +150,7 @@ void fill_inquiry_response(struct us_data *us, unsigned char *data,
 	usb_stor_set_xfer_buf(us, data, data_len, us->srb, TO_XFER_BUF);
 }
 
-static int usb_stor_control_thread(void * __us)
+static int usb_stor_control_thread(void *__us)
 {
 	struct us_data *us = (struct us_data *)__us;
 	struct Scsi_Host *host = us_to_host(us);
@@ -493,7 +493,7 @@ static void release_everything(struct us_data *us)
 	scsi_host_put(us_to_host(us));
 }
 
-static int usb_stor_scan_thread(void * __us)
+static int usb_stor_scan_thread(void *__us)
 {
 	struct us_data *us = (struct us_data *)__us;
 
@@ -604,9 +604,9 @@ static int eucr_probe(struct usb_interface *intf,
 	if (!(MiscReg03 & 0x02)) {
 		result = -ENODEV;
 		quiesce_and_remove_host(us);
-		pr_info("keucr: The driver only supports SM/MS card.\
-			To use SD card, \
-			please build driver/usb/storage/ums-eneub6250.ko\n");
+		pr_info("keucr: The driver only supports SM/MS card. "
+			"To use SD card, "
+			"please build driver/usb/storage/ums-eneub6250.ko\n");
 		goto BadDevice;
 	}
 

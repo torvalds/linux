@@ -93,33 +93,38 @@ static void usb_stor_print_cmd(struct us_data *us, struct scsi_cmnd *srb)
 
 	switch (cmd) {
 	case TEST_UNIT_READY:
-		/* dev_dbg(
-			   &us->pusb_dev->dev, "scsi cmd %X --- SCSIOP_TEST_UNIT_READY\n", cmd); */
+		/* dev_dbg(&us->pusb_dev->dev,
+			"scsi cmd %X --- SCSIOP_TEST_UNIT_READY\n", cmd); */
 		break;
 	case INQUIRY:
-		dev_dbg(&us->pusb_dev->dev, "scsi cmd %X --- SCSIOP_INQUIRY\n", cmd);
+		dev_dbg(&us->pusb_dev->dev,
+				"scsi cmd %X --- SCSIOP_INQUIRY\n", cmd);
 		break;
 	case MODE_SENSE:
-		dev_dbg(&us->pusb_dev->dev, "scsi cmd %X --- SCSIOP_MODE_SENSE\n", cmd);
+		dev_dbg(&us->pusb_dev->dev,
+				"scsi cmd %X --- SCSIOP_MODE_SENSE\n", cmd);
 		break;
 	case START_STOP:
-		dev_dbg(&us->pusb_dev->dev, "scsi cmd %X --- SCSIOP_START_STOP\n", cmd);
+		dev_dbg(&us->pusb_dev->dev,
+				"scsi cmd %X --- SCSIOP_START_STOP\n", cmd);
 		break;
 	case READ_CAPACITY:
-		dev_dbg(&us->pusb_dev->dev, "scsi cmd %X --- SCSIOP_READ_CAPACITY\n", cmd);
+		dev_dbg(&us->pusb_dev->dev,
+				"scsi cmd %X --- SCSIOP_READ_CAPACITY\n", cmd);
 		break;
 	case READ_10:
-		/*  dev_dbg(
-			    &us->pusb_dev->dev, "scsi cmd %X --- SCSIOP_READ,bn = %X, blen = %X\n"
-			    cmd, bn, blen); */
+		/*  dev_dbg(&us->pusb_dev->dev,
+			"scsi cmd %X --- SCSIOP_READ,bn = %X, blen = %X\n"
+			cmd, bn, blen); */
 		break;
 	case WRITE_10:
-		/* dev_dbg(
-			   &us->pusb_dev->dev, "scsi cmd %X --- SCSIOP_WRITE,
-			   bn = %X, blen = %X\n" , cmd, bn, blen); */
+		/* dev_dbg(&us->pusb_dev->dev,
+			"scsi cmd %X --- SCSIOP_WRITE, bn = %X, blen = %X\n",
+			cmd, bn, blen); */
 		break;
 	case ALLOW_MEDIUM_REMOVAL:
-		dev_dbg(&us->pusb_dev->dev, "scsi cmd %X --- SCSIOP_ALLOW_MEDIUM_REMOVAL\n", cmd);
+		dev_dbg(&us->pusb_dev->dev,
+			"scsi cmd %X --- SCSIOP_ALLOW_MEDIUM_REMOVAL\n", cmd);
 		break;
 	default:
 		dev_dbg(&us->pusb_dev->dev, "scsi cmd %X --- Other cmd\n", cmd);

@@ -19,8 +19,8 @@ struct scsi_cmnd;
  */
 
 struct us_unusual_dev {
-	const char* vendorName;
-	const char* productName;
+	const char *vendorName;
+	const char *productName;
 	__u8  useProtocol;
 	__u8  useTransport;
 	int (*initFunction)(struct us_data *);
@@ -108,9 +108,9 @@ struct keucr_sm_status {
 #define US_IOBUF_SIZE		64	/* Size of the DMA-mapped I/O buffer */
 #define US_SENSE_SIZE		18	/* Size of the autosense data buffer */
 
-typedef int (*trans_cmnd)(struct scsi_cmnd *, struct us_data*);
-typedef int (*trans_reset)(struct us_data*);
-typedef void (*proto_cmnd)(struct scsi_cmnd*, struct us_data*);
+typedef int (*trans_cmnd)(struct scsi_cmnd *, struct us_data *);
+typedef int (*trans_reset)(struct us_data *);
+typedef void (*proto_cmnd)(struct scsi_cmnd *, struct us_data *);
 typedef void (*extra_data_destructor)(void *);	/* extra data destructor */
 typedef void (*pm_hook)(struct us_data *, int);	/* power management hook */
 
@@ -215,7 +215,7 @@ struct us_data {
 	int		SrbStatus;
 
 	/* ------Power Managerment --------------- */
-	BOOLEAN         Power_IsResum;	
+	BOOLEAN         Power_IsResum;
 };
 
 /* Convert between us_data and the corresponding Scsi_Host */

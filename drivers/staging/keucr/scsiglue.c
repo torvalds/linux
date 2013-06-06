@@ -322,8 +322,9 @@ static ssize_t store_max_sectors(struct device *dev,
 
 static DEVICE_ATTR(max_sectors, S_IRUGO | S_IWUSR, show_max_sectors,
 							store_max_sectors);
-static struct device_attribute *sysfs_device_attr_list[] =
-					{&dev_attr_max_sectors, NULL, };
+static struct device_attribute *sysfs_device_attr_list[] = {
+	&dev_attr_max_sectors, NULL,
+};
 
 /* this defines our host template, with which we'll allocate hosts */
 
