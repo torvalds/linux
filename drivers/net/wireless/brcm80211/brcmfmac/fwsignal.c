@@ -1879,7 +1879,8 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 					brcmf_fws_return_credits(fws, fifo, 1);
 					break;
 				}
-				brcmf_fws_commit_skb(fws, fifo, skb);
+				if (brcmf_fws_commit_skb(fws, fifo, skb))
+					break;
 				if (fws->bus_flow_blocked)
 					break;
 			}
