@@ -2313,6 +2313,7 @@ struct ext4_group_info *ext4_get_group_info(struct super_block *sb,
 {
 	 struct ext4_group_info ***grp_info;
 	 long indexv, indexh;
+	 BUG_ON(group >= EXT4_SB(sb)->s_groups_count);
 	 grp_info = EXT4_SB(sb)->s_group_info;
 	 indexv = group >> (EXT4_DESC_PER_BLOCK_BITS(sb));
 	 indexh = group & ((EXT4_DESC_PER_BLOCK(sb)) - 1);
