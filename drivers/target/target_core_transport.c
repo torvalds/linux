@@ -1089,7 +1089,6 @@ sense_reason_t
 target_setup_cmd_from_cdb(struct se_cmd *cmd, unsigned char *cdb)
 {
 	struct se_device *dev = cmd->se_dev;
-	unsigned long flags;
 	sense_reason_t ret;
 
 	/*
@@ -1149,9 +1148,7 @@ target_setup_cmd_from_cdb(struct se_cmd *cmd, unsigned char *cdb)
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	cmd->se_cmd_flags |= SCF_SUPPORTED_SAM_OPCODE;
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	spin_lock(&cmd->se_lun->lun_sep_lock);
 	if (cmd->se_lun->lun_sep)
