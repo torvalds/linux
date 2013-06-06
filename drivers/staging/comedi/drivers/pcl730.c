@@ -13,6 +13,7 @@
  *	    (Advantech) PCM-3730 [pcm3730]
  *	    (Advantech) PCL-725 [pcl725]
  *	    (Advantech) PCL-733 [pcl733]
+ *	    (Advantech) PCL-734 [pcl734]
  * Author: José Luis Sánchez (jsanchezv@teleline.es)
  * Status: untested
  *
@@ -33,6 +34,7 @@
  * The pcm3730 PC/104 board does not have the PCL730_IDIO_HI register.
  * The pcl725 ISA board uses separate registers for isolated digital I/O.
  * The pcl733 ISA board uses all four registers for isolated digital inputs.
+ * The pcl734 ISA board uses all four registers for isolated digital outputs.
  */
 #define PCL730_IDIO_LO	0	/* Isolated Digital I/O low byte (ID0-ID7) */
 #define PCL730_IDIO_HI	1	/* Isolated Digital I/O high byte (ID8-ID15) */
@@ -94,6 +96,11 @@ static const struct pcl730_board pcl730_boards[] = {
 		.io_range	= 0x04,
 		.n_subdevs	= 1,
 		.n_iso_in_chan	= 32,
+	}, {
+		.name		= "pcl734",
+		.io_range	= 0x04,
+		.n_subdevs	= 1,
+		.n_iso_out_chan	= 32,
 	},
 };
 
@@ -114,6 +121,10 @@ static int pcl730_do_insn_bits(struct comedi_device *dev,
 			outb(s->state & 0xff, dev->iobase + reg);
 		if ((mask & 0xff00) && (s->n_chan > 8))
 			outb((s->state >> 8) & 0xff, dev->iobase + reg + 1);
+		if ((mask & 0xff0000) && (s->n_chan > 16))
+			outb((s->state >> 16) & 0xff, dev->iobase + reg + 2);
+		if ((mask & 0xff000000) && (s->n_chan > 24))
+			outb((s->state >> 24) & 0xff, dev->iobase + reg + 3);
 	}
 
 	data[1] = s->state;
