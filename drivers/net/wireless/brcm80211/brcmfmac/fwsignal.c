@@ -1433,7 +1433,7 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 		if (data_len < len + 2)
 			break;
 
-		if (len != brcmf_fws_get_tlv_len(fws, type))
+		if (len < brcmf_fws_get_tlv_len(fws, type))
 			break;
 
 		err = BRCMF_FWS_RET_OK_NOSCHEDULE;
