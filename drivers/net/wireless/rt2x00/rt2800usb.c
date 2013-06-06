@@ -914,22 +914,6 @@ static const struct rt2x00_ops rt2800usb_ops = {
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 };
 
-static const struct rt2x00_ops rt2800usb_ops_5592 = {
-	.name			= KBUILD_MODNAME,
-	.drv_data_size		= sizeof(struct rt2800_drv_data),
-	.max_ap_intf		= 8,
-	.eeprom_size		= EEPROM_SIZE,
-	.rf_size		= RF_SIZE,
-	.tx_queues		= NUM_TX_QUEUES,
-	.queue_init		= rt2800usb_queue_init,
-	.lib			= &rt2800usb_rt2x00_ops,
-	.drv			= &rt2800usb_rt2800_ops,
-	.hw			= &rt2800usb_mac80211_ops,
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
-	.debugfs		= &rt2800_rt2x00debug,
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
-};
-
 /*
  * rt2800usb module information.
  */
@@ -1242,15 +1226,15 @@ static struct usb_device_id rt2800usb_device_table[] = {
 #endif
 #ifdef CONFIG_RT2800USB_RT55XX
 	/* Arcadyan */
-	{ USB_DEVICE(0x043e, 0x7a32), .driver_info = 5592 },
+	{ USB_DEVICE(0x043e, 0x7a32) },
 	/* AVM GmbH */
-	{ USB_DEVICE(0x057c, 0x8501), .driver_info = 5592 },
+	{ USB_DEVICE(0x057c, 0x8501) },
 	/* D-Link DWA-160-B2 */
-	{ USB_DEVICE(0x2001, 0x3c1a), .driver_info = 5592 },
+	{ USB_DEVICE(0x2001, 0x3c1a) },
 	/* Proware */
-	{ USB_DEVICE(0x043e, 0x7a13), .driver_info = 5592 },
+	{ USB_DEVICE(0x043e, 0x7a13) },
 	/* Ralink */
-	{ USB_DEVICE(0x148f, 0x5572), .driver_info = 5592 },
+	{ USB_DEVICE(0x148f, 0x5572) },
 #endif
 #ifdef CONFIG_RT2800USB_UNKNOWN
 	/*
@@ -1355,9 +1339,6 @@ MODULE_LICENSE("GPL");
 static int rt2800usb_probe(struct usb_interface *usb_intf,
 			   const struct usb_device_id *id)
 {
-	if (id->driver_info == 5592)
-		return rt2x00usb_probe(usb_intf, &rt2800usb_ops_5592);
-
 	return rt2x00usb_probe(usb_intf, &rt2800usb_ops);
 }
 
