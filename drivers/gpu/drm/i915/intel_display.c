@@ -8959,13 +8959,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
-	bool has_lvds;
 
-	has_lvds = intel_lvds_init(dev);
-	if (!has_lvds && !HAS_PCH_SPLIT(dev)) {
-		/* disable the panel fitter on everything but LVDS */
-		I915_WRITE(PFIT_CONTROL, 0);
-	}
+	intel_lvds_init(dev);
 
 	if (!IS_ULT(dev))
 		intel_crt_init(dev);

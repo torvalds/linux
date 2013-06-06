@@ -877,7 +877,7 @@ static bool intel_lvds_supported(struct drm_device *dev)
  * Create the connector, register the LVDS DDC bus, and try to figure out what
  * modes we can display on the LVDS panel (if present).
  */
-bool intel_lvds_init(struct drm_device *dev)
+void intel_lvds_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds_encoder *lvds_encoder;
@@ -895,35 +895,35 @@ bool intel_lvds_init(struct drm_device *dev)
 	u8 pin;
 
 	if (!intel_lvds_supported(dev))
-		return false;
+		return;
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds))
-		return false;
+		return;
 
 	pin = GMBUS_PORT_PANEL;
 	if (!lvds_is_present_in_vbt(dev, &pin)) {
 		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
-		return false;
+		return;
 	}
 
 	if (HAS_PCH_SPLIT(dev)) {
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
-			return false;
+			return;
 		if (dev_priv->vbt.edp_support) {
 			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
-			return false;
+			return;
 		}
 	}
 
 	lvds_encoder = kzalloc(sizeof(struct intel_lvds_encoder), GFP_KERNEL);
 	if (!lvds_encoder)
-		return false;
+		return;
 
 	lvds_connector = kzalloc(sizeof(struct intel_lvds_connector), GFP_KERNEL);
 	if (!lvds_connector) {
 		kfree(lvds_encoder);
-		return false;
+		return;
 	}
 
 	lvds_encoder->attached_connector = lvds_connector;
@@ -1094,7 +1094,7 @@ out:
 	intel_panel_init(&intel_connector->panel, fixed_mode);
 	intel_panel_setup_backlight(connector);
 
-	return true;
+	return;
 
 failed:
 	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
@@ -1104,5 +1104,5 @@ failed:
 		drm_mode_destroy(dev, fixed_mode);
 	kfree(lvds_encoder);
 	kfree(lvds_connector);
-	return false;
+	return;
 }

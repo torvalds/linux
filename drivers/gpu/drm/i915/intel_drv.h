@@ -582,7 +582,7 @@ extern void intel_mark_busy(struct drm_device *dev);
 extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
 			       struct intel_ring_buffer *ring);
 extern void intel_mark_idle(struct drm_device *dev);
-extern bool intel_lvds_init(struct drm_device *dev);
+extern void intel_lvds_init(struct drm_device *dev);
 extern bool intel_is_dual_link_lvds(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int output_reg,
 			  enum port port);
