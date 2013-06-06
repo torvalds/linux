@@ -179,11 +179,11 @@ ssize_t brcmf_debugfs_fws_stats_read(struct file *f, char __user *data,
 			fwstats->send_pkts[0], fwstats->send_pkts[1],
 			fwstats->send_pkts[2], fwstats->send_pkts[3],
 			fwstats->send_pkts[4],
-			fwstats->fifo_credits_sent[0],
-			fwstats->fifo_credits_sent[1],
-			fwstats->fifo_credits_sent[2],
-			fwstats->fifo_credits_sent[3],
-			fwstats->fifo_credits_sent[4]);
+			fwstats->requested_sent[0],
+			fwstats->requested_sent[1],
+			fwstats->requested_sent[2],
+			fwstats->requested_sent[3],
+			fwstats->requested_sent[4]);
 
 	return simple_read_from_buffer(data, count, ppos, buf, res);
 }
