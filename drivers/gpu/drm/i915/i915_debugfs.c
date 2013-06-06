@@ -1028,6 +1028,36 @@ static int i915_error_state_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+int i915_error_state_buf_init(struct drm_i915_error_state_buf *ebuf,
+			      size_t count, loff_t pos)
+{
+	memset(ebuf, 0, sizeof(*ebuf));
+
+	/* We need to have enough room to store any i915_error_state printf
+	 * so that we can move it to start position.
+	 */
+	ebuf->size = count + 1 > PAGE_SIZE ? count + 1 : PAGE_SIZE;
+	ebuf->buf = kmalloc(ebuf->size,
+				GFP_TEMPORARY | __GFP_NORETRY | __GFP_NOWARN);
+
+	if (ebuf->buf == NULL) {
+		ebuf->size = PAGE_SIZE;
+		ebuf->buf = kmalloc(ebuf->size, GFP_TEMPORARY);
+	}
+
+	if (ebuf->buf == NULL) {
+		ebuf->size = 128;
+		ebuf->buf = kmalloc(ebuf->size, GFP_TEMPORARY);
+	}
+
+	if (ebuf->buf == NULL)
+		return -ENOMEM;
+
+	ebuf->start = pos;
+
+	return 0;
+}
+
 static ssize_t i915_error_state_read(struct file *file, char __user *userbuf,
 				     size_t count, loff_t *pos)
 {
@@ -1035,31 +1065,11 @@ static ssize_t i915_error_state_read(struct file *file, char __user *userbuf,
 	struct drm_i915_error_state_buf error_str;
 	loff_t tmp_pos = 0;
 	ssize_t ret_count = 0;
-	int ret = 0;
+	int ret;
 
-	memset(&error_str, 0, sizeof(error_str));
-
-	/* We need to have enough room to store any i915_error_state printf
-	 * so that we can move it to start position.
-	 */
-	error_str.size = count + 1 > PAGE_SIZE ? count + 1 : PAGE_SIZE;
-	error_str.buf = kmalloc(error_str.size,
-				GFP_TEMPORARY | __GFP_NORETRY | __GFP_NOWARN);
-
-	if (error_str.buf == NULL) {
-		error_str.size = PAGE_SIZE;
-		error_str.buf = kmalloc(error_str.size, GFP_TEMPORARY);
-	}
-
-	if (error_str.buf == NULL) {
-		error_str.size = 128;
-		error_str.buf = kmalloc(error_str.size, GFP_TEMPORARY);
-	}
-
-	if (error_str.buf == NULL)
-		return -ENOMEM;
-
-	error_str.start = *pos;
+	ret = i915_error_state_buf_init(&error_str, count, *pos);
+	if (ret)
+		return ret;
 
 	ret = i915_error_state_to_str(&error_str, error_priv);
 	if (ret)
@@ -1074,7 +1084,7 @@ static ssize_t i915_error_state_read(struct file *file, char __user *userbuf,
 	else
 		*pos = error_str.start + ret_count;
 out:
-	kfree(error_str.buf);
+	i915_error_state_buf_release(&error_str);
 	return ret ?: ret_count;
 }
 

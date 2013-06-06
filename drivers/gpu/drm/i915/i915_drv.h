@@ -1935,6 +1935,13 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *estr,
 void i915_error_state_get(struct drm_device *dev,
 			  struct i915_error_state_file_priv *error_priv);
 void i915_error_state_put(struct i915_error_state_file_priv *error_priv);
+int i915_error_state_buf_init(struct drm_i915_error_state_buf *eb,
+			      size_t count, loff_t pos);
+static inline void i915_error_state_buf_release(
+	struct drm_i915_error_state_buf *eb)
+{
+	kfree(eb->buf);
+}
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
