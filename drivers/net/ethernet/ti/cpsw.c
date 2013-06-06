@@ -35,6 +35,7 @@
 #include <linux/if_vlan.h>
 
 #include <linux/platform_data/cpsw.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "cpsw_ale.h"
 #include "cpts.h"
@@ -1689,6 +1690,9 @@ static int cpsw_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_enable(&pdev->dev);
 
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(&pdev->dev);
+
 	if (cpsw_probe_dt(&priv->data, pdev)) {
 		pr_err("cpsw: platform data missing\n");
 		ret = -ENODEV;
@@ -1978,6 +1982,9 @@ static int cpsw_suspend(struct device *dev)
 		cpsw_ndo_stop(ndev);
 	pm_runtime_put_sync(&pdev->dev);
 
+	/* Select sleep pin state */
+	pinctrl_pm_select_sleep_state(&pdev->dev);
+
 	return 0;
 }
 
@@ -1987,6 +1994,10 @@ static int cpsw_resume(struct device *dev)
 	struct net_device	*ndev = platform_get_drvdata(pdev);
 
 	pm_runtime_get_sync(&pdev->dev);
+
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(&pdev->dev);
+
 	if (netif_running(ndev))
 		cpsw_ndo_open(ndev);
 	return 0;
