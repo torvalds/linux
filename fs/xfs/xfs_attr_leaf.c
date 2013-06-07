@@ -3258,7 +3258,7 @@ xfs_attr3_leaf_inactive(
 			name_rmt = xfs_attr3_leaf_name_remote(leaf, i);
 			if (name_rmt->valueblk) {
 				lp->valueblk = be32_to_cpu(name_rmt->valueblk);
-				lp->valuelen = XFS_B_TO_FSB(dp->i_mount,
+				lp->valuelen = xfs_attr3_rmt_blocks(dp->i_mount,
 						    be32_to_cpu(name_rmt->valuelen));
 				lp++;
 			}
