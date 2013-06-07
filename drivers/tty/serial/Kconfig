@@ -1483,6 +1483,20 @@ config SERIAL_RP2_NR_UARTS
 	  If multiple cards are present, the default limit of 32 ports may
 	  need to be increased.
 
+config SERIAL_FSL_LPUART
+	tristate "Freescale lpuart serial port support"
+	select SERIAL_CORE
+	help
+	  Support for the on-chip lpuart on some Freescale SOCs.
+
+config SERIAL_FSL_LPUART_CONSOLE
+	bool "Console on Freescale lpuart serial port"
+	depends on SERIAL_FSL_LPUART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have enabled the lpuart serial port on the Freescale SoCs,
+	  you can make it the console by answering Y to this option.
+
 endmenu
 
 endif # TTY
