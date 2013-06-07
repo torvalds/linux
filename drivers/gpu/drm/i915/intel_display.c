@@ -914,10 +914,10 @@ intel_crtc_to_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 
-	if (crtc->shared_dpll < 0)
+	if (crtc->config.shared_dpll < 0)
 		return NULL;
 
-	return &dev_priv->shared_dplls[crtc->shared_dpll];
+	return &dev_priv->shared_dplls[crtc->config.shared_dpll];
 }
 
 /* For ILK+ */
@@ -3001,7 +3001,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 			sel = TRANSC_DPLLB_SEL;
 			break;
 		}
-		if (intel_crtc->shared_dpll == DPLL_ID_PCH_PLL_B)
+		if (intel_crtc->config.shared_dpll == DPLL_ID_PCH_PLL_B)
 			temp |= sel;
 		else
 			temp &= ~sel;
@@ -3087,7 +3087,7 @@ static void intel_put_shared_dpll(struct intel_crtc *crtc)
 		WARN_ON(pll->active);
 	}
 
-	crtc->shared_dpll = DPLL_ID_PRIVATE;
+	crtc->config.shared_dpll = DPLL_ID_PRIVATE;
 }
 
 static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc, u32 dpll, u32 fp)
@@ -3143,7 +3143,7 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc, 
 	return NULL;
 
 found:
-	crtc->shared_dpll = i;
+	crtc->config.shared_dpll = i;
 	DRM_DEBUG_DRIVER("using pll %d for pipe %c\n", i, pipe_name(crtc->pipe));
 	if (pll->active == 0) {
 		DRM_DEBUG_DRIVER("setting up pll %d\n", i);
@@ -4102,12 +4102,11 @@ static void hsw_compute_ips_config(struct intel_crtc *crtc,
 				   pipe_config->pipe_bpp == 24;
 }
 
-static int intel_crtc_compute_config(struct drm_crtc *crtc,
+static int intel_crtc_compute_config(struct intel_crtc *crtc,
 				     struct intel_crtc_config *pipe_config)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	if (HAS_PCH_SPLIT(dev)) {
 		/* FDI link clock is fixed at 2.7G */
@@ -4138,10 +4137,15 @@ static int intel_crtc_compute_config(struct drm_crtc *crtc,
 	}
 
 	if (IS_HASWELL(dev))
-		hsw_compute_ips_config(intel_crtc, pipe_config);
+		hsw_compute_ips_config(crtc, pipe_config);
+
+	/* XXX: PCH clock sharing is done in ->mode_set, so make sure the old
+	 * clock survives for now. */
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+		pipe_config->shared_dpll = crtc->config.shared_dpll;
 
 	if (pipe_config->has_pch_encoder)
-		return ironlake_fdi_compute_config(intel_crtc, pipe_config);
+		return ironlake_fdi_compute_config(crtc, pipe_config);
 
 	return 0;
 }
@@ -7914,7 +7918,7 @@ encoder_retry:
 	if (!pipe_config->port_clock)
 		pipe_config->port_clock = pipe_config->adjusted_mode.clock;
 
-	ret = intel_crtc_compute_config(crtc, pipe_config);
+	ret = intel_crtc_compute_config(to_intel_crtc(crtc), pipe_config);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("CRTC fixup failed\n");
 		goto fail;
