@@ -139,21 +139,37 @@ int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
 /*
  * Calculate the hash of a given buffer
  */
-int ima_calc_buffer_hash(const void *buf, int len, struct ima_digest_data *hash)
+static int ima_calc_buffer_hash_tfm(const void *buf, int len,
+				    struct ima_digest_data *hash,
+				    struct crypto_shash *tfm)
 {
 	struct {
 		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(ima_shash_tfm)];
+		char ctx[crypto_shash_descsize(tfm)];
 	} desc;
 
-	desc.shash.tfm = ima_shash_tfm;
+	desc.shash.tfm = tfm;
 	desc.shash.flags = 0;
 
-	/* this function uses default algo */
-	hash->algo = ima_hash_algo;
-	hash->length = crypto_shash_digestsize(ima_shash_tfm);
+	hash->length = crypto_shash_digestsize(tfm);
 
 	return crypto_shash_digest(&desc.shash, buf, len, hash->digest);
+}
+
+int ima_calc_buffer_hash(const void *buf, int len, struct ima_digest_data *hash)
+{
+	struct crypto_shash *tfm;
+	int rc;
+
+	tfm = ima_alloc_tfm(hash->algo);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
+
+	rc = ima_calc_buffer_hash_tfm(buf, len, hash, tfm);
+
+	ima_free_tfm(tfm);
+
+	return rc;
 }
 
 static void __init ima_pcrread(int idx, u8 *pcr)

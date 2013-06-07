@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
+#include <crypto/hash_info.h>
 #include "ima.h"
 
 static const char *IMA_TEMPLATE_NAME = "ima";
@@ -54,6 +55,8 @@ int ima_store_template(struct ima_template_entry *entry,
 	entry->template_len = sizeof(entry->template);
 
 	if (!violation) {
+		/* this function uses default algo */
+		hash.hdr.algo = HASH_ALGO_SHA1;
 		result = ima_calc_buffer_hash(&entry->template,
 					      entry->template_len, &hash.hdr);
 		if (result < 0) {
