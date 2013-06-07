@@ -23,8 +23,12 @@
 	compatible = "marvell,armada-370-xp";
 
 	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		cpu@0 {
 			compatible = "marvell,sheeva-v7";
+			device_type = "cpu";
+			reg = <0>;
 		};
 	};
 
