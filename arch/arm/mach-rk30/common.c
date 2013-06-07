@@ -36,6 +36,7 @@ static void __init rk30_cpu_axi_init(void)
 #endif
 	CPU_AXI_SET_QOS_PRIORITY(3, 3, LCDC0);
 	CPU_AXI_SET_QOS_PRIORITY(3, 3, LCDC1);
+	CPU_AXI_SET_QOS_PRIORITY(2, 1, GPU);
 
 	writel_relaxed(0x3f, RK30_CPU_AXI_BUS_BASE + 0x0014);	// memory scheduler read latency
 	dsb();
