@@ -433,10 +433,9 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.rpadir		= 1,
 	.rpadir_value	= 0x00020000, /* NET_IP_ALIGN assumed to be 2 */
 };
-#elif defined(CONFIG_CPU_SUBTYPE_SH7757)
-#define SH_ETH_HAS_BOTH_MODULES	1
+#endif
 
-static void sh_eth_set_rate(struct net_device *ndev)
+static void sh_eth_set_rate_sh7757(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -453,9 +452,9 @@ static void sh_eth_set_rate(struct net_device *ndev)
 }
 
 /* SH7757 */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
-	.set_duplex		= sh_eth_set_duplex,
-	.set_rate		= sh_eth_set_rate,
+static struct sh_eth_cpu_data sh7757_data = {
+	.set_duplex	= sh_eth_set_duplex,
+	.set_rate	= sh_eth_set_rate_sh7757,
 
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 	.rmcr_value	= 0x00000001,
@@ -521,7 +520,7 @@ static void sh_eth_set_rate_giga(struct net_device *ndev)
 }
 
 /* SH7757(GETHERC) */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data_giga = {
+static struct sh_eth_cpu_data sh7757_data_giga = {
 	.chip_reset	= sh_eth_chip_reset_giga,
 	.set_duplex	= sh_eth_set_duplex,
 	.set_rate	= sh_eth_set_rate_giga,
@@ -551,15 +550,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data_giga = {
 	.no_ade		= 1,
 	.tsu		= 1,
 };
-
-static struct sh_eth_cpu_data *sh_eth_get_cpu_data(struct sh_eth_private *mdp)
-{
-	if (sh_eth_is_gether(mdp))
-		return &sh_eth_my_cpu_data_giga;
-	else
-		return &sh_eth_my_cpu_data;
-}
-#endif
 
 static void sh_eth_chip_reset(struct net_device *ndev)
 {
@@ -2588,11 +2578,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp->reg_offset = sh_eth_get_register_offset(pd->register_type);
 
 	/* set cpu data */
-#if defined(SH_ETH_HAS_BOTH_MODULES)
-	mdp->cd = sh_eth_get_cpu_data(mdp);
-#else
 	mdp->cd = &sh_eth_my_cpu_data;
-#endif
 	if (id->driver_data)
 		mdp->cd = (struct sh_eth_cpu_data *)id->driver_data;
 	sh_eth_set_default_cpu_data(mdp->cd);
@@ -2714,6 +2700,8 @@ static struct platform_device_id sh_eth_id_table[] = {
 	{ "sh7619-ether", (kernel_ulong_t)&sh7619_data },
 	{ "sh771x-ether", (kernel_ulong_t)&sh771x_data },
 	{ "sh7734-gether", (kernel_ulong_t)&sh7734_data },
+	{ "sh7757-ether", (kernel_ulong_t)&sh7757_data },
+	{ "sh7757-gether", (kernel_ulong_t)&sh7757_data_giga },
 	{ "sh7763-gether", (kernel_ulong_t)&sh7763_data },
 	{ "r8a7740-gether", (kernel_ulong_t)&r8a7740_data },
 	{ CARDNAME },
