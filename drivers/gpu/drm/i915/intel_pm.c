@@ -3167,6 +3167,10 @@ static void valleyview_disable_rps(struct drm_device *dev)
 
 int intel_enable_rc6(const struct drm_device *dev)
 {
+	/* No RC6 before Ironlake */
+	if (INTEL_INFO(dev)->gen < 5)
+		return 0;
+
 	/* Respect the kernel parameter if it is set */
 	if (i915_enable_rc6 >= 0)
 		return i915_enable_rc6;
