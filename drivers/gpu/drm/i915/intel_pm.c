@@ -4944,6 +4944,8 @@ static void crestline_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(DSPCLK_GATE_D, 0);
 	I915_WRITE(RAMCLK_GATE_D, 0);
 	I915_WRITE16(DEUC, 0);
+	I915_WRITE(MI_ARB_STATE,
+		   _MASKED_BIT_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
 }
 
 static void broadwater_init_clock_gating(struct drm_device *dev)
@@ -4956,6 +4958,8 @@ static void broadwater_init_clock_gating(struct drm_device *dev)
 		   I965_ISC_CLOCK_GATE_DISABLE |
 		   I965_FBC_CLOCK_GATE_DISABLE);
 	I915_WRITE(RENCLK_GATE_D2, 0);
+	I915_WRITE(MI_ARB_STATE,
+		   _MASKED_BIT_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
 }
 
 static void gen3_init_clock_gating(struct drm_device *dev)
