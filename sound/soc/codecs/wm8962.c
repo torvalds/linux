@@ -3584,6 +3584,34 @@ static const struct regmap_config wm8962_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static int wm8962_set_pdata_from_of(struct i2c_client *i2c,
+				    struct wm8962_pdata *pdata)
+{
+	const struct device_node *np = i2c->dev.of_node;
+	u32 val32;
+	int i;
+
+	if (of_property_read_bool(np, "spk-mono"))
+		pdata->spk_mono = true;
+
+	if (of_property_read_u32(np, "mic-cfg", &val32) >= 0)
+		pdata->mic_cfg = val32;
+
+	if (of_property_read_u32_array(np, "gpio-cfg", pdata->gpio_init,
+				       ARRAY_SIZE(pdata->gpio_init)) >= 0)
+		for (i = 0; i < ARRAY_SIZE(pdata->gpio_init); i++) {
+			/*
+			 * The range of GPIO register value is [0x0, 0xffff]
+			 * While the default value of each register is 0x0
+			 * Any other value will be regarded as default value
+			 */
+			if (pdata->gpio_init[i] > 0xffff)
+				pdata->gpio_init[i] = 0x0;
+		}
+
+	return 0;
+}
+
 static int wm8962_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -3604,8 +3632,13 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 	wm8962->irq = i2c->irq;
 
 	/* If platform data was supplied, update the default data in priv */
-	if (pdata)
+	if (pdata) {
 		memcpy(&wm8962->pdata, pdata, sizeof(struct wm8962_pdata));
+	} else if (i2c->dev.of_node) {
+		ret = wm8962_set_pdata_from_of(i2c, &wm8962->pdata);
+		if (ret != 0)
+			return ret;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8962->supplies); i++)
 		wm8962->supplies[i].supply = wm8962_supply_names[i];
