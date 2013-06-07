@@ -111,6 +111,9 @@ struct cpuidle_driver {
 	struct cpuidle_state	states[CPUIDLE_STATE_MAX];
 	int			state_count;
 	int			safe_state_index;
+
+	/* the driver handles the cpus in cpumask */
+	struct cpumask       *cpumask;
 };
 
 #ifdef CONFIG_CPU_IDLE
@@ -135,9 +138,6 @@ extern void cpuidle_disable_device(struct cpuidle_device *dev);
 extern int cpuidle_play_dead(void);
 
 extern struct cpuidle_driver *cpuidle_get_cpu_driver(struct cpuidle_device *dev);
-extern int cpuidle_register_cpu_driver(struct cpuidle_driver *drv, int cpu);
-extern void cpuidle_unregister_cpu_driver(struct cpuidle_driver *drv, int cpu);
-
 #else
 static inline void disable_cpuidle(void) { }
 static inline int cpuidle_idle_call(void) { return -ENODEV; }
