@@ -41,9 +41,9 @@ config KVM_ARM_HOST
 	  Provides host support for ARM processors.
 
 config KVM_ARM_MAX_VCPUS
-	int "Number maximum supported virtual CPUs per VM" if KVM_ARM_HOST
-	default 4 if KVM_ARM_HOST
-	default 0
+	int "Number maximum supported virtual CPUs per VM"
+	depends on KVM_ARM_HOST
+	default 4
 	help
 	  Static number of max supported virtual CPUs per VM.
 
