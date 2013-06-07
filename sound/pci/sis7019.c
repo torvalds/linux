@@ -1341,7 +1341,8 @@ static int sis_chip_create(struct snd_card *card,
 	if (rc)
 		goto error_out;
 
-	if (pci_set_dma_mask(pci, DMA_BIT_MASK(30)) < 0) {
+	rc = pci_set_dma_mask(pci, DMA_BIT_MASK(30));
+	if (rc < 0) {
 		dev_err(&pci->dev, "architecture does not support 30-bit PCI busmaster DMA");
 		goto error_out_enabled;
 	}
