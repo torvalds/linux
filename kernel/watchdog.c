@@ -553,6 +553,14 @@ void __init lockup_detector_init(void)
 {
 	set_sample_period();
 
+#ifdef CONFIG_NO_HZ_FULL
+	if (watchdog_user_enabled) {
+		watchdog_user_enabled = 0;
+		pr_warning("Disabled lockup detectors by default for full dynticks\n");
+		pr_warning("You can reactivate it with 'sysctl -w kernel.watchdog=1'\n");
+	}
+#endif
+
 	if (watchdog_user_enabled)
 		watchdog_enable_all_cpus();
 }
