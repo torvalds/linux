@@ -834,6 +834,17 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int s;
 	int idx;
 
+#ifdef CONFIG_PPC64
+	WARN_ON(local_paca->irq_happened != 0);
+#endif
+
+	/*
+	 * We enter with interrupts disabled in hardware, but
+	 * we need to call hard_irq_disable anyway to ensure that
+	 * the software state is kept in sync.
+	 */
+	hard_irq_disable();
+
 	/* update before a new last_exit_type is rewritten */
 	kvmppc_update_timing_stats(vcpu);
 
