@@ -310,6 +310,20 @@
 					compatible = "stericsson,ab8500-gpio";
 				};
 
+				ext_regulators: ab8500-ext-regulators {
+					ab8500_ext1_reg: ab8500_ext1 {
+						regulator-name = "ab8500-ext-supply1";
+					};
+
+					ab8500_ext2_reg_reg: ab8500_ext2 {
+						regulator-name = "ab8500-ext-supply2";
+					};
+
+					ab8500_ext3_reg_reg: ab8500_ext3 {
+						regulator-name = "ab8500-ext-supply3";
+					};
+				};
+
 				ab8500-regulators {
 					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
 						regulator-name = "V-DISPLAY";
