@@ -356,8 +356,7 @@ static void __maybe_unused sh_eth_set_duplex(struct net_device *ndev)
 }
 
 /* There is CPU dependent code */
-#if defined(CONFIG_ARCH_R8A7778) || defined(CONFIG_ARCH_R8A7779)
-static void sh_eth_set_rate(struct net_device *ndev)
+static void sh_eth_set_rate_r8a777x(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -374,9 +373,9 @@ static void sh_eth_set_rate(struct net_device *ndev)
 }
 
 /* R8A7778/9 */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+static struct sh_eth_cpu_data r8a777x_data = {
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate,
+	.set_rate	= sh_eth_set_rate_r8a777x,
 
 	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD,
 	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP,
@@ -393,7 +392,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 };
-#endif
 
 static void sh_eth_set_rate_sh7724(struct net_device *ndev)
 {
@@ -2577,9 +2575,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp->reg_offset = sh_eth_get_register_offset(pd->register_type);
 
 	/* set cpu data */
-	mdp->cd = &sh_eth_my_cpu_data;
-	if (id->driver_data)
-		mdp->cd = (struct sh_eth_cpu_data *)id->driver_data;
+	mdp->cd = (struct sh_eth_cpu_data *)id->driver_data;
 	sh_eth_set_default_cpu_data(mdp->cd);
 
 	/* set function */
@@ -2704,7 +2700,7 @@ static struct platform_device_id sh_eth_id_table[] = {
 	{ "sh7757-gether", (kernel_ulong_t)&sh7757_data_giga },
 	{ "sh7763-gether", (kernel_ulong_t)&sh7763_data },
 	{ "r8a7740-gether", (kernel_ulong_t)&r8a7740_data },
-	{ CARDNAME },
+	{ "r8a777x-ether", (kernel_ulong_t)&r8a777x_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, sh_eth_id_table);
