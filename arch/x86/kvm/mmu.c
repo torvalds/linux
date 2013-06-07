@@ -235,7 +235,12 @@ static unsigned int get_mmio_spte_generation(u64 spte)
 
 static unsigned int kvm_current_mmio_generation(struct kvm *kvm)
 {
-	return kvm_memslots(kvm)->generation & MMIO_GEN_MASK;
+	/*
+	 * Init kvm generation close to MMIO_MAX_GEN to easily test the
+	 * code of handling generation number wrap-around.
+	 */
+	return (kvm_memslots(kvm)->generation +
+		      MMIO_MAX_GEN - 150) & MMIO_GEN_MASK;
 }
 
 static void mark_mmio_spte(struct kvm *kvm, u64 *sptep, u64 gfn,
