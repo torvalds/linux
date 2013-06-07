@@ -84,6 +84,7 @@ struct simplefb_format {
 
 static struct simplefb_format simplefb_formats[] = {
 	{ "r5g6b5", 16, {11, 5}, {5, 6}, {0, 5}, {0, 0} },
+	{ "a8b8g8r8", 32, {0, 8}, {8, 8}, {16, 8}, {24, 8} },
 };
 
 struct simplefb_params {
