@@ -5369,6 +5369,10 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 	if (likely(ret == RET_MMIO_PF_EMULATE))
 		return x86_emulate_instruction(vcpu, gpa, 0, NULL, 0) ==
 					      EMULATE_DONE;
+
+	if (unlikely(ret == RET_MMIO_PF_INVALID))
+		return kvm_mmu_page_fault(vcpu, gpa, 0, NULL, 0);
+
 	if (unlikely(ret == RET_MMIO_PF_RETRY))
 		return 1;
 

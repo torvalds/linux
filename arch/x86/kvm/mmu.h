@@ -56,12 +56,15 @@ void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask);
 /*
  * Return values of handle_mmio_page_fault_common:
  * RET_MMIO_PF_EMULATE: it is a real mmio page fault, emulate the instruction
- *			 directly.
+ *			directly.
+ * RET_MMIO_PF_INVALID: invalid spte is detected then let the real page
+ *			fault path update the mmio spte.
  * RET_MMIO_PF_RETRY: let CPU fault again on the address.
  * RET_MMIO_PF_BUG: bug is detected.
  */
 enum {
 	RET_MMIO_PF_EMULATE = 1,
+	RET_MMIO_PF_INVALID = 2,
 	RET_MMIO_PF_RETRY = 0,
 	RET_MMIO_PF_BUG = -1
 };

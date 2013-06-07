@@ -205,9 +205,11 @@ EXPORT_SYMBOL_GPL(kvm_mmu_set_mmio_spte_mask);
 #define MMIO_SPTE_GEN_LOW_SHIFT		3
 #define MMIO_SPTE_GEN_HIGH_SHIFT	52
 
+#define MMIO_GEN_SHIFT			19
 #define MMIO_GEN_LOW_SHIFT		9
 #define MMIO_GEN_LOW_MASK		((1 << MMIO_GEN_LOW_SHIFT) - 1)
-#define MMIO_MAX_GEN			((1 << 19) - 1)
+#define MMIO_GEN_MASK			((1 << MMIO_GEN_SHIFT) - 1)
+#define MMIO_MAX_GEN			((1 << MMIO_GEN_SHIFT) - 1)
 
 static u64 generation_mmio_spte_mask(unsigned int gen)
 {
@@ -231,17 +233,23 @@ static unsigned int get_mmio_spte_generation(u64 spte)
 	return gen;
 }
 
+static unsigned int kvm_current_mmio_generation(struct kvm *kvm)
+{
+	return kvm_memslots(kvm)->generation & MMIO_GEN_MASK;
+}
+
 static void mark_mmio_spte(struct kvm *kvm, u64 *sptep, u64 gfn,
 			   unsigned access)
 {
 	struct kvm_mmu_page *sp =  page_header(__pa(sptep));
-	u64 mask = generation_mmio_spte_mask(0);
+	unsigned int gen = kvm_current_mmio_generation(kvm);
+	u64 mask = generation_mmio_spte_mask(gen);
 
 	access &= ACC_WRITE_MASK | ACC_USER_MASK;
 	mask |= shadow_mmio_mask | access | gfn << PAGE_SHIFT;
 	sp->mmio_cached = true;
 
-	trace_mark_mmio_spte(sptep, gfn, access, 0);
+	trace_mark_mmio_spte(sptep, gfn, access, gen);
 	mmu_spte_set(sptep, mask);
 }
 
@@ -271,6 +279,12 @@ static bool set_mmio_spte(struct kvm *kvm, u64 *sptep, gfn_t gfn,
 	}
 
 	return false;
+}
+
+static bool check_mmio_spte(struct kvm *kvm, u64 spte)
+{
+	return likely(get_mmio_spte_generation(spte) ==
+			kvm_current_mmio_generation(kvm));
 }
 
 static inline u64 rsvd_bits(int s, int e)
@@ -3237,6 +3251,9 @@ int handle_mmio_page_fault_common(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 		gfn_t gfn = get_mmio_spte_gfn(spte);
 		unsigned access = get_mmio_spte_access(spte);
 
+		if (!check_mmio_spte(vcpu->kvm, spte))
+			return RET_MMIO_PF_INVALID;
+
 		if (direct)
 			addr = 0;
 
@@ -3278,8 +3295,12 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 
 	pgprintk("%s: gva %lx error %x\n", __func__, gva, error_code);
 
-	if (unlikely(error_code & PFERR_RSVD_MASK))
-		return handle_mmio_page_fault(vcpu, gva, error_code, true);
+	if (unlikely(error_code & PFERR_RSVD_MASK)) {
+		r = handle_mmio_page_fault(vcpu, gva, error_code, true);
+
+		if (likely(r != RET_MMIO_PF_INVALID))
+			return r;
+	}
 
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
@@ -3355,8 +3376,12 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 	ASSERT(vcpu);
 	ASSERT(VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
-	if (unlikely(error_code & PFERR_RSVD_MASK))
-		return handle_mmio_page_fault(vcpu, gpa, error_code, true);
+	if (unlikely(error_code & PFERR_RSVD_MASK)) {
+		r = handle_mmio_page_fault(vcpu, gpa, error_code, true);
+
+		if (likely(r != RET_MMIO_PF_INVALID))
+			return r;
+	}
 
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
@@ -4329,7 +4354,7 @@ void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm)
 	spin_unlock(&kvm->mmu_lock);
 }
 
-void kvm_mmu_zap_mmio_sptes(struct kvm *kvm)
+static void kvm_mmu_zap_mmio_sptes(struct kvm *kvm)
 {
 	struct kvm_mmu_page *sp, *node;
 	LIST_HEAD(invalid_list);
@@ -4350,6 +4375,19 @@ restart:
 static bool kvm_has_zapped_obsolete_pages(struct kvm *kvm)
 {
 	return unlikely(!list_empty_careful(&kvm->arch.zapped_obsolete_pages));
+}
+
+void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm)
+{
+	/*
+	 * The very rare case: if the generation-number is round,
+	 * zap all shadow pages.
+	 *
+	 * The max value is MMIO_MAX_GEN - 1 since it is not called
+	 * when mark memslot invalid.
+	 */
+	if (unlikely(kvm_current_mmio_generation(kvm) >= (MMIO_MAX_GEN - 1)))
+		kvm_mmu_zap_mmio_sptes(kvm);
 }
 
 static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
