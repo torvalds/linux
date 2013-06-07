@@ -252,6 +252,9 @@ struct intel_crtc_config {
 	 * haswell. */
 	struct dpll dpll;
 
+	/* Selected dpll when shared or DPLL_ID_PRIVATE. */
+	enum intel_dpll_id shared_dpll;
+
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
 
@@ -316,8 +319,6 @@ struct intel_crtc {
 
 	struct intel_crtc_config config;
 
-	/* We can share PLLs across outputs if the timings match */
-	enum intel_dpll_id shared_dpll;
 	uint32_t ddi_pll_sel;
 
 	/* reset counter value when the last flip was submitted */
