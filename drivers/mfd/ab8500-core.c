@@ -1066,6 +1066,10 @@ static struct mfd_cell ab8500_devs[] = {
 		.of_compatible = "stericsson,ab8500-sysctrl",
 	},
 	{
+		.name = "ab8500-ext-regulator",
+		.of_compatible = "stericsson,ab8500-ext-regulator",
+	},
+	{
 		.name = "ab8500-regulator",
 		.of_compatible = "stericsson,ab8500-regulator",
 	},
@@ -1149,6 +1153,9 @@ static struct mfd_cell ab9540_devs[] = {
 #endif
 	{
 		.name = "ab8500-sysctrl",
+	},
+	{
+		.name = "ab8500-ext-regulator",
 	},
 	{
 		.name = "ab8500-regulator",
@@ -1278,6 +1285,9 @@ static struct mfd_cell ab8540_devs[] = {
 #endif
 	{
 		.name = "ab8500-sysctrl",
+	},
+	{
+		.name = "ab8500-ext-regulator",
 	},
 	{
 		.name = "ab8500-regulator",
