@@ -94,10 +94,9 @@ out:
 		pathname = dentry->d_name.name;
 
 	if (send_tomtou)
-		ima_add_violation(inode, pathname,
-				  "invalid_pcr", "ToMToU");
+		ima_add_violation(file, pathname, "invalid_pcr", "ToMToU");
 	if (send_writers)
-		ima_add_violation(inode, pathname,
+		ima_add_violation(file, pathname,
 				  "invalid_pcr", "open_writers");
 	kfree(pathbuf);
 }

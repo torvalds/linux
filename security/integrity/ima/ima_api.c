@@ -78,10 +78,11 @@ int ima_store_template(struct ima_template_entry *entry,
  * By extending the PCR with 0xFF's instead of with zeroes, the PCR
  * value is invalidated.
  */
-void ima_add_violation(struct inode *inode, const unsigned char *filename,
+void ima_add_violation(struct file *file, const unsigned char *filename,
 		       const char *op, const char *cause)
 {
 	struct ima_template_entry *entry;
+	struct inode *inode = file->f_dentry->d_inode;
 	int violation = 1;
 	int result;
 
