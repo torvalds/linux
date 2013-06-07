@@ -171,7 +171,7 @@ static int bp_suspend(struct bp_private_data *bp)
 	printk("<-----u5501 bp_suspend-------->\n");
 	#if defined(CONFIG_ARCH_RK29)
 		rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_GPIO1C1);
-	#elif defined(CONFIG_ARCH_RK30)
+	#elif defined(CONFIG_SOC_RK3066)
 		rk30_mux_api_set(GPIO1A7_UART1RTSN_SPI0TXD_NAME, GPIO1A_GPIO1A7);
 	#endif
 	
@@ -183,7 +183,7 @@ static int bp_suspend(struct bp_private_data *bp)
 	#if defined(CONFIG_ARCH_RK2928)
 	rk29_mux_api_set(GPIO1B1_SPI_TXD_UART1_SOUT_NAME, GPIO1B_GPIO1B1);
 	gpio_set_value(RK2928_PIN1_PB1, GPIO_LOW);
-	#elif defined(CONFIG_ARCH_RK30)
+	#elif defined(CONFIG_SOC_RK3066)
 	rk30_mux_api_set(GPIO1A5_UART1SOUT_SPI0CLK_NAME, GPIO1A_GPIO1A5);
 	gpio_set_value(RK30_PIN1_PA5, GPIO_LOW);
 	#endif
@@ -197,13 +197,13 @@ static int bp_resume(struct bp_private_data *bp)
 {	
 	#if defined(CONFIG_ARCH_RK29)
 		rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
-	#elif defined(CONFIG_ARCH_RK30)
+	#elif defined(CONFIG_SOC_RK3066)
 		rk30_mux_api_set(GPIO1A7_UART1RTSN_SPI0TXD_NAME, GPIO1A_UART1_RTS_N);
 	#endif
 	
 	#if defined(CONFIG_ARCH_RK2928)
 	rk29_mux_api_set(GPIO1B1_SPI_TXD_UART1_SOUT_NAME, GPIO1B_UART1_SOUT);
-	#elif defined(CONFIG_ARCH_RK30)
+	#elif defined(CONFIG_SOC_RK3066)
 	rk30_mux_api_set(GPIO1A5_UART1SOUT_SPI0CLK_NAME, GPIO1A_UART1_SOUT);
 	#endif
 	//bp->suspend_status = 0;	
