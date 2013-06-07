@@ -275,7 +275,7 @@ struct fec_enet_private {
 	struct regulator *reg_phy;
 };
 
-void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev);
+void fec_ptp_init(struct platform_device *pdev);
 void fec_ptp_start_cyclecounter(struct net_device *ndev);
 int fec_ptp_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd);
 

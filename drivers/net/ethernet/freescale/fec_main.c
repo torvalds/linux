@@ -1945,7 +1945,7 @@ fec_probe(struct platform_device *pdev)
 	fec_reset_phy(pdev);
 
 	if (fep->bufdesc_ex)
-		fec_ptp_init(ndev, pdev);
+		fec_ptp_init(pdev);
 
 	ret = fec_enet_init(ndev);
 	if (ret)
