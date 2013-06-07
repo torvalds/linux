@@ -5163,7 +5163,10 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 	BUG_ON(val != final);
 }
 
-/* Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O. */
+/*
+ * Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O.
+ * WaMPhyProgramming:hsw
+ */
 static void lpt_init_pch_refclk(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
