@@ -4416,7 +4416,10 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t dspclk_gate = ILK_VRHUNIT_CLOCK_GATE_DISABLE;
 
-	/* Required for FBC */
+	/*
+	 * Required for FBC
+	 * WaFbcDisableDpfcClockGating:ilk
+	 */
 	dspclk_gate |= ILK_DPFCRUNIT_CLOCK_GATE_DISABLE |
 		   ILK_DPFCUNIT_CLOCK_GATE_DISABLE |
 		   ILK_DPFDUNIT_CLOCK_GATE_ENABLE;
