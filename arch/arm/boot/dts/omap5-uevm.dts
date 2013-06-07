@@ -25,6 +25,40 @@
 		regulator-max-microvolt = <3000000>;
 	};
 
+	/* HS USB Port 2 RESET */
+	hsusb2_reset: hsusb2_reset_reg {
+		compatible = "regulator-fixed";
+		regulator-name = "hsusb2_reset";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>; /* gpio3_80 HUB_NRESET */
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	/* HS USB Host PHY on PORT 2 */
+	hsusb2_phy: hsusb2_phy {
+		compatible = "usb-nop-xceiv";
+		reset-supply = <&hsusb2_reset>;
+	};
+
+	/* HS USB Port 3 RESET */
+	hsusb3_reset: hsusb3_reset_reg {
+		compatible = "regulator-fixed";
+		regulator-name = "hsusb3_reset";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 15 GPIO_ACTIVE_HIGH>; /* gpio3_79 ETH_NRESET */
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	/* HS USB Host PHY on PORT 3 */
+	hsusb3_phy: hsusb3_phy {
+		compatible = "usb-nop-xceiv";
+		reset-supply = <&hsusb3_reset>;
+	};
+
 };
 
 &omap5_pmx_core {
@@ -35,6 +69,7 @@
 			&dmic_pins
 			&mcbsp1_pins
 			&mcbsp2_pins
+			&usbhost_pins
 	>;
 
 	twl6040_pins: pinmux_twl6040_pins {
@@ -120,6 +155,32 @@
 			0x16c (PIN_INPUT | MUX_MODE1)		/*  mcspi2_cs */
 		>;
 	};
+
+	usbhost_pins: pinmux_usbhost_pins {
+		pinctrl-single,pins = <
+			0x84 (PIN_INPUT | MUX_MODE0) /* usbb2_hsic_strobe */
+			0x86 (PIN_INPUT | MUX_MODE0) /* usbb2_hsic_data */
+
+			0x19e (PIN_INPUT | MUX_MODE0) /* usbb3_hsic_strobe */
+			0x1a0 (PIN_INPUT | MUX_MODE0) /* usbb3_hsic_data */
+
+			0x70 (PIN_OUTPUT | MUX_MODE6) /* gpio3_80 HUB_NRESET */
+			0x6e (PIN_OUTPUT | MUX_MODE6) /* gpio3_79 ETH_NRESET */
+		>;
+	};
+};
+
+&omap5_pmx_wkup {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+			&usbhost_wkup_pins
+	>;
+
+	usbhost_wkup_pins: pinmux_usbhost_wkup_pins {
+		pinctrl-single,pins = <
+			0x1A (PIN_OUTPUT | MUX_MODE0) /* fref_clk1_out, USB hub clk */
+		>;
+	};
 };
 
 &mmc1 {
@@ -162,6 +223,15 @@
 
 &mcbsp3 {
 	status = "disabled";
+};
+
+&usbhshost {
+	port2-mode = "ehci-hsic";
+	port3-mode = "ehci-hsic";
+};
+
+&usbhsehci {
+	phys = <0 &hsusb2_phy &hsusb3_phy>;
 };
 
 &mcspi1 {
