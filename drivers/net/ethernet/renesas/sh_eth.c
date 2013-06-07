@@ -393,9 +393,9 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 };
-#elif defined(CONFIG_CPU_SUBTYPE_SH7724)
+#endif
 
-static void sh_eth_set_rate(struct net_device *ndev)
+static void sh_eth_set_rate_sh7724(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -412,9 +412,9 @@ static void sh_eth_set_rate(struct net_device *ndev)
 }
 
 /* SH7724 */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+static struct sh_eth_cpu_data sh7724_data = {
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate,
+	.set_rate	= sh_eth_set_rate_sh7724,
 
 	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD,
 	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP,
@@ -433,7 +433,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.rpadir		= 1,
 	.rpadir_value	= 0x00020000, /* NET_IP_ALIGN assumed to be 2 */
 };
-#endif
 
 static void sh_eth_set_rate_sh7757(struct net_device *ndev)
 {
@@ -2699,6 +2698,7 @@ static const struct dev_pm_ops sh_eth_dev_pm_ops = {
 static struct platform_device_id sh_eth_id_table[] = {
 	{ "sh7619-ether", (kernel_ulong_t)&sh7619_data },
 	{ "sh771x-ether", (kernel_ulong_t)&sh771x_data },
+	{ "sh7724-ether", (kernel_ulong_t)&sh7724_data },
 	{ "sh7734-gether", (kernel_ulong_t)&sh7734_data },
 	{ "sh7757-ether", (kernel_ulong_t)&sh7757_data },
 	{ "sh7757-gether", (kernel_ulong_t)&sh7757_data_giga },
