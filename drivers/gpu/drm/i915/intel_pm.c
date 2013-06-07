@@ -4391,6 +4391,7 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t dspclk_gate = ILK_VRHUNIT_CLOCK_GATE_DISABLE;
+	int pipe;
 
 	/* Required for FBC */
 	dspclk_gate |= ILK_DPFCRUNIT_CLOCK_GATE_DISABLE |
@@ -4449,6 +4450,13 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 	/* WaDisableRenderCachePipelinedFlush:ilk */
 	I915_WRITE(CACHE_MODE_0,
 		   _MASKED_BIT_ENABLE(CM0_PIPELINED_RENDER_FLUSH_DISABLE));
+
+	for_each_pipe(pipe) {
+		I915_WRITE(DSPCNTR(pipe),
+			   I915_READ(DSPCNTR(pipe)) |
+			   DISPPLANE_TRICKLE_FEED_DISABLE);
+		intel_flush_display_plane(dev_priv, pipe);
+	}
 
 	ibx_init_clock_gating(dev);
 }
