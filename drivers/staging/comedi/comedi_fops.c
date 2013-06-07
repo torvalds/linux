@@ -913,7 +913,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	if (copy_from_user(&bi, arg, sizeof(bi)))
 		return -EFAULT;
 
-	if (bi.subdevice >= dev->n_subdevices || bi.subdevice < 0)
+	if (bi.subdevice >= dev->n_subdevices)
 		return -EINVAL;
 
 	s = &dev->subdevices[bi.subdevice];
