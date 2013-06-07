@@ -693,12 +693,12 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 };
-#elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+#endif
+
+static struct sh_eth_cpu_data sh771x_data = {
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 	.tsu		= 1,
 };
-#endif
 
 static void sh_eth_set_default_cpu_data(struct sh_eth_cpu_data *cd)
 {
@@ -2712,6 +2712,7 @@ static const struct dev_pm_ops sh_eth_dev_pm_ops = {
 #endif
 
 static struct platform_device_id sh_eth_id_table[] = {
+	{ "sh771x-ether", (kernel_ulong_t)&sh771x_data },
 	{ CARDNAME },
 	{ }
 };
