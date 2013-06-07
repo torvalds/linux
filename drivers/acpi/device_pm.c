@@ -278,11 +278,13 @@ int acpi_bus_init_power(struct acpi_device *device)
 		if (result)
 			return result;
 	} else if (state == ACPI_STATE_UNKNOWN) {
-		/* No power resources and missing _PSC? Try to force D0. */
+		/*
+		 * No power resources and missing _PSC?  Cross fingers and make
+		 * it D0 in hope that this is what the BIOS put the device into.
+		 * [We tried to force D0 here by executing _PS0, but that broke
+		 * Toshiba P870-303 in a nasty way.]
+		 */
 		state = ACPI_STATE_D0;
-		result = acpi_dev_pm_explicit_set(device, state);
-		if (result)
-			return result;
 	}
 	device->power.state = state;
 	return 0;
