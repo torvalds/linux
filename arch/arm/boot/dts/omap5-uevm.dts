@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -8,11 +8,10 @@
 /dts-v1/;
 
 #include "omap5.dtsi"
-#include "samsung_k3pe0e000b.dtsi"
 
 / {
-	model = "TI OMAP5 EVM board";
-	compatible = "ti,omap5-evm", "ti,omap5";
+	model = "TI OMAP5 uEVM board";
+	compatible = "ti,omap5-uevm", "ti,omap5";
 
 	memory {
 		device_type = "memory";
@@ -88,27 +87,6 @@
 		>;
 	};
 
-	i2c2_pins: pinmux_i2c2_pins {
-		pinctrl-single,pins = <
-			0x178 (PIN_INPUT | MUX_MODE0)		/* i2c2_scl */
-			0x17a (PIN_INPUT | MUX_MODE0)		/* i2c2_sda */
-		>;
-	};
-
-	i2c3_pins: pinmux_i2c3_pins {
-		pinctrl-single,pins = <
-			0x13a (PIN_INPUT | MUX_MODE0)		/* i2c3_scl */
-			0x13c (PIN_INPUT | MUX_MODE0)		/* i2c3_sda */
-		>;
-	};
-
-	i2c4_pins: pinmux_i2c4_pins {
-		pinctrl-single,pins = <
-			0xb8 (PIN_INPUT | MUX_MODE0)		/* i2c4_scl */
-			0xba (PIN_INPUT | MUX_MODE0)		/* i2c4_sda */
-		>;
-	};
-
 	i2c5_pins: pinmux_i2c5_pins {
 		pinctrl-single,pins = <
 			0x184 (PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
@@ -175,39 +153,6 @@
 	clock-frequency = <400000>;
 };
 
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins>;
-
-	clock-frequency = <400000>;
-
-	/* Pressure Sensor */
-	bmp085@77 {
-		compatible = "bosch,bmp085";
-		reg = <0x77>;
-	};
-};
-
-&i2c3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c3_pins>;
-
-	clock-frequency = <400000>;
-};
-
-&i2c4 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c4_pins>;
-
-	clock-frequency = <400000>;
-
-	/* Temperature Sensor */
-	tmp102@48{
-		compatible = "ti,tmp102";
-		reg = <0x48>;
-	};
-};
-
 &i2c5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pins>;
@@ -215,30 +160,8 @@
 	clock-frequency = <400000>;
 };
 
-&keypad {
-	keypad,num-rows = <8>;
-	keypad,num-columns = <8>;
-	linux,keymap = <0x02020073	/* VOLUP */
-			0x02030072	/* VOLDOWM */
-			0x020400e7	/* SEND */
-			0x02050066	/* HOME */
-			0x0206006b	/* END */
-			0x020700d9>;	/* SEARCH */
-	linux,input-no-autorepeat;
-};
-
 &mcbsp3 {
 	status = "disabled";
-};
-
-&emif1 {
-	cs1-used;
-	device-handle = <&samsung_K3PE0E000B>;
-};
-
-&emif2 {
-	cs1-used;
-	device-handle = <&samsung_K3PE0E000B>;
 };
 
 &mcspi1 {
