@@ -587,6 +587,10 @@ void tegra_init_from_table(struct tegra_clk_init_table *tbl,
 void tegra_init_dup_clks(struct tegra_clk_duplicate *dup_list,
 		struct clk *clks[], int clk_max);
 
+void tegra114_clock_tune_cpu_trimmers_high(void);
+void tegra114_clock_tune_cpu_trimmers_low(void);
+void tegra114_clock_tune_cpu_trimmers_init(void);
+
 typedef void (*tegra_clk_apply_init_table_func)(void);
 extern tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
 

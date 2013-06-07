@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/clk/tegra.h>
 
 #include "clk.h"
@@ -41,7 +42,32 @@
 #define RST_DEVICES_CLR_V		0x434
 #define RST_DEVICES_SET_W		0x438
 #define RST_DEVICES_CLR_W		0x43c
+#define CPU_FINETRIM_SELECT		0x4d4	/* override default prop dlys */
+#define CPU_FINETRIM_DR			0x4d8	/* rise->rise prop dly A */
+#define CPU_FINETRIM_R			0x4e4	/* rise->rise prop dly inc A */
 #define RST_DEVICES_NUM			5
+
+/* CPU_FINETRIM_SELECT and CPU_FINETRIM_DR bitfields */
+#define CPU_FINETRIM_1_FCPU_1		BIT(0)	/* fcpu0 */
+#define CPU_FINETRIM_1_FCPU_2		BIT(1)	/* fcpu1 */
+#define CPU_FINETRIM_1_FCPU_3		BIT(2)	/* fcpu2 */
+#define CPU_FINETRIM_1_FCPU_4		BIT(3)	/* fcpu3 */
+#define CPU_FINETRIM_1_FCPU_5		BIT(4)	/* fl2 */
+#define CPU_FINETRIM_1_FCPU_6		BIT(5)	/* ftop */
+
+/* CPU_FINETRIM_R bitfields */
+#define CPU_FINETRIM_R_FCPU_1_SHIFT	0		/* fcpu0 */
+#define CPU_FINETRIM_R_FCPU_1_MASK	(0x3 << CPU_FINETRIM_R_FCPU_1_SHIFT)
+#define CPU_FINETRIM_R_FCPU_2_SHIFT	2		/* fcpu1 */
+#define CPU_FINETRIM_R_FCPU_2_MASK	(0x3 << CPU_FINETRIM_R_FCPU_2_SHIFT)
+#define CPU_FINETRIM_R_FCPU_3_SHIFT	4		/* fcpu2 */
+#define CPU_FINETRIM_R_FCPU_3_MASK	(0x3 << CPU_FINETRIM_R_FCPU_3_SHIFT)
+#define CPU_FINETRIM_R_FCPU_4_SHIFT	6		/* fcpu3 */
+#define CPU_FINETRIM_R_FCPU_4_MASK	(0x3 << CPU_FINETRIM_R_FCPU_4_SHIFT)
+#define CPU_FINETRIM_R_FCPU_5_SHIFT	8		/* fl2 */
+#define CPU_FINETRIM_R_FCPU_5_MASK	(0x3 << CPU_FINETRIM_R_FCPU_5_SHIFT)
+#define CPU_FINETRIM_R_FCPU_6_SHIFT	10		/* ftop */
+#define CPU_FINETRIM_R_FCPU_6_MASK	(0x3 << CPU_FINETRIM_R_FCPU_6_SHIFT)
 
 #define CLK_OUT_ENB_L			0x010
 #define CLK_OUT_ENB_H			0x014
@@ -2118,6 +2144,98 @@ static void __init tegra114_clock_apply_init_table(void)
 {
 	tegra_init_from_table(init_table, clks, clk_max);
 }
+
+
+/**
+ * tegra114_car_barrier - wait for pending writes to the CAR to complete
+ *
+ * Wait for any outstanding writes to the CAR MMIO space from this CPU
+ * to complete before continuing execution.  No return value.
+ */
+static void tegra114_car_barrier(void)
+{
+	wmb();		/* probably unnecessary */
+	readl_relaxed(clk_base + CPU_FINETRIM_SELECT);
+}
+
+/**
+ * tegra114_clock_tune_cpu_trimmers_high - use high-voltage propagation delays
+ *
+ * When the CPU rail voltage is in the high-voltage range, use the
+ * built-in hardwired clock propagation delays in the CPU clock
+ * shaper.  No return value.
+ */
+void tegra114_clock_tune_cpu_trimmers_high(void)
+{
+	u32 select = 0;
+
+	/* Use hardwired rise->rise & fall->fall clock propagation delays */
+	select |= ~(CPU_FINETRIM_1_FCPU_1 | CPU_FINETRIM_1_FCPU_2 |
+		    CPU_FINETRIM_1_FCPU_3 | CPU_FINETRIM_1_FCPU_4 |
+		    CPU_FINETRIM_1_FCPU_5 | CPU_FINETRIM_1_FCPU_6);
+	writel_relaxed(select, clk_base + CPU_FINETRIM_SELECT);
+
+	tegra114_car_barrier();
+}
+EXPORT_SYMBOL(tegra114_clock_tune_cpu_trimmers_high);
+
+/**
+ * tegra114_clock_tune_cpu_trimmers_low - use low-voltage propagation delays
+ *
+ * When the CPU rail voltage is in the low-voltage range, use the
+ * extended clock propagation delays set by
+ * tegra114_clock_tune_cpu_trimmers_init().  The intention is to
+ * maintain the input clock duty cycle that the FCPU subsystem
+ * expects.  No return value.
+ */
+void tegra114_clock_tune_cpu_trimmers_low(void)
+{
+	u32 select = 0;
+
+	/*
+	 * Use software-specified rise->rise & fall->fall clock
+	 * propagation delays (from
+	 * tegra114_clock_tune_cpu_trimmers_init()
+	 */
+	select |= (CPU_FINETRIM_1_FCPU_1 | CPU_FINETRIM_1_FCPU_2 |
+		   CPU_FINETRIM_1_FCPU_3 | CPU_FINETRIM_1_FCPU_4 |
+		   CPU_FINETRIM_1_FCPU_5 | CPU_FINETRIM_1_FCPU_6);
+	writel_relaxed(select, clk_base + CPU_FINETRIM_SELECT);
+
+	tegra114_car_barrier();
+}
+EXPORT_SYMBOL(tegra114_clock_tune_cpu_trimmers_low);
+
+/**
+ * tegra114_clock_tune_cpu_trimmers_init - set up and enable clk prop delays
+ *
+ * Program extended clock propagation delays into the FCPU clock
+ * shaper and enable them.  XXX Define the purpose - peak current
+ * reduction?  No return value.
+ */
+/* XXX Initial voltage rail state assumption issues? */
+void tegra114_clock_tune_cpu_trimmers_init(void)
+{
+	u32 dr = 0, r = 0;
+
+	/* Increment the rise->rise clock delay by four steps */
+	r |= (CPU_FINETRIM_R_FCPU_1_MASK | CPU_FINETRIM_R_FCPU_2_MASK |
+	      CPU_FINETRIM_R_FCPU_3_MASK | CPU_FINETRIM_R_FCPU_4_MASK |
+	      CPU_FINETRIM_R_FCPU_5_MASK | CPU_FINETRIM_R_FCPU_6_MASK);
+	writel_relaxed(r, clk_base + CPU_FINETRIM_R);
+
+	/*
+	 * Use the rise->rise clock propagation delay specified in the
+	 * r field
+	 */
+	dr |= (CPU_FINETRIM_1_FCPU_1 | CPU_FINETRIM_1_FCPU_2 |
+	       CPU_FINETRIM_1_FCPU_3 | CPU_FINETRIM_1_FCPU_4 |
+	       CPU_FINETRIM_1_FCPU_5 | CPU_FINETRIM_1_FCPU_6);
+	writel_relaxed(dr, clk_base + CPU_FINETRIM_DR);
+
+	tegra114_clock_tune_cpu_trimmers_low();
+}
+EXPORT_SYMBOL(tegra114_clock_tune_cpu_trimmers_init);
 
 static void __init tegra114_clock_init(struct device_node *np)
 {
