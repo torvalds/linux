@@ -51,20 +51,22 @@
 /****************operate according to bp chip:start************/
 static int bp_active(struct bp_private_data *bp, int enable)
 {		
-	printk("<-----U7501 bp_active-------->\n");
 	if(enable)
 	{
-	printk("<-----U7501 bp_active---enable---HIGH-->\n");
-	        gpio_set_value(bp->ops->bp_power, GPIO_LOW);
+	printk("<-----U7501 bp_on-->\n");
+		gpio_set_value(bp->ops->bp_reset, GPIO_HIGH);
+		msleep(100);
+		gpio_set_value(bp->ops->bp_reset, GPIO_LOW);
+	        gpio_set_value(bp->ops->bp_en, GPIO_LOW);
                 msleep(1000);
-                gpio_set_value(bp->ops->bp_power, GPIO_HIGH);
-                msleep(2500);
-                gpio_set_value(bp->ops->bp_power, GPIO_LOW);
-                gpio_set_value(bp->ops->ap_wakeup_bp, GPIO_HIGH);
+                gpio_set_value(bp->ops->bp_en, GPIO_HIGH);
+                msleep(5000);
+                gpio_set_value(bp->ops->bp_en, GPIO_LOW);
+                gpio_set_value(bp->ops->ap_wakeup_bp, GPIO_LOW);
 	}
 	else
 	{
-	printk("<-----U7501 bp_active---disenable----->\n");
+	printk("<-----U7501 bp_off----->\n");
                 gpio_set_value(bp->ops->bp_en, GPIO_HIGH);
                 msleep(4000);
                 gpio_set_value(bp->ops->bp_en, GPIO_LOW);
@@ -113,9 +115,10 @@ static int bp_init(struct bp_private_data *bp)
 	//if(bp->ops->active)
 	//	bp->ops->active(bp, 1);
 	gpio_direction_input(bp->ops->bp_wakeup_ap);
+	gpio_pull_updown(bp->ops->bp_wakeup_ap, 1);	
 	gpio_direction_output(bp->ops->bp_reset, GPIO_LOW);
 	gpio_direction_output(bp->ops->bp_en, GPIO_LOW);
-	gpio_direction_output(bp->ops->ap_wakeup_bp, GPIO_HIGH);
+	gpio_direction_output(bp->ops->ap_wakeup_bp, GPIO_LOW);
 	INIT_DELAYED_WORK(&bp->wakeup_work, ap_wake_bp_work);
 	return 0;
 }
@@ -165,10 +168,10 @@ static int bp_shutdown(struct bp_private_data *bp)
 static int bp_suspend(struct bp_private_data *bp)
 {	
 
-	printk("<-----U7501 bp_suspend---000000----->\n");
+	printk("<-----U7501 bp_suspend------->\n");
 	
 	bp->suspend_status = 1;
-	gpio_set_value(bp->ops->ap_wakeup_bp, GPIO_LOW);		
+		gpio_set_value(bp->ops->ap_wakeup_bp, GPIO_HIGH);	
 	
 	return 0;
 }
@@ -178,9 +181,9 @@ static int bp_suspend(struct bp_private_data *bp)
 
 static int bp_resume(struct bp_private_data *bp)
 {	
-	printk("<-----U7501 bp_resume-----hhhh--->\n");
+	printk("<-----U7501 bp_resume------>\n");
 	bp->suspend_status = 0;	
-	gpio_set_value(bp->ops->ap_wakeup_bp, GPIO_HIGH);	
+	gpio_set_value(bp->ops->ap_wakeup_bp, GPIO_LOW);	
 	
 	
 	return 0;
@@ -203,7 +206,7 @@ struct bp_operate bp_U7501_ops = {
 	.bp_wakeup_ap		= RK2928_PIN3_PC3,	//
 	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
 	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
-	.trig			= IRQF_TRIGGER_FALLING,
+	.trig			= IRQF_TRIGGER_RISING,
 
 	.active			= bp_active,
 	.init			= bp_init,
@@ -223,13 +226,13 @@ struct bp_operate bp_U7501_ops = {
 	.bp_bus			= BP_BUS_TYPE_USB_UART,		
 	.bp_pid			= 0,	
 	.bp_vid			= 0,	
-	.bp_power		= BP_UNKNOW_DATA, 	// 3g_power
-	.bp_en			= BP_UNKNOW_DATA,	// 3g_en
-	.bp_reset			= BP_UNKNOW_DATA,
+	.bp_power		= RK30_PIN0_PC6,// 3g_power
+	.bp_en			= RK30_PIN2_PD5,// 3g_en
+	.bp_reset			= RK30_PIN2_PD4,//BP_UNKNOW_DATA,
 	.ap_ready		= BP_UNKNOW_DATA,	//
 	.bp_ready		= BP_UNKNOW_DATA,
-	.ap_wakeup_bp		= RK30_PIN2_PC4,
-	.bp_wakeup_ap		= RK30_PIN2_PC5,	//
+	.ap_wakeup_bp		= RK30_PIN0_PC4,
+	.bp_wakeup_ap		= RK30_PIN0_PC5,	//
 	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
 	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
 	.trig			= IRQF_TRIGGER_RISING,
@@ -261,7 +264,7 @@ struct bp_operate bp_U7501_ops = {
 	.bp_wakeup_ap		= BP_UNKNOW_DATA,//RK2928_PIN3_PC3,	//
 	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
 	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
-	.trig			= IRQF_TRIGGER_FALLING,
+	.trig			= IRQF_TRIGGER_RISING,
 
 	.active			= bp_active,
 	.init			= bp_init,
