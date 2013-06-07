@@ -627,19 +627,19 @@ int radeon_uvd_get_create_msg(struct radeon_device *rdev, int ring,
 	}
 
 	/* stitch together an UVD create msg */
-	msg[0] = 0x00000de4;
-	msg[1] = 0x00000000;
-	msg[2] = handle;
-	msg[3] = 0x00000000;
-	msg[4] = 0x00000000;
-	msg[5] = 0x00000000;
-	msg[6] = 0x00000000;
-	msg[7] = 0x00000780;
-	msg[8] = 0x00000440;
-	msg[9] = 0x00000000;
-	msg[10] = 0x01b37000;
+	msg[0] = cpu_to_le32(0x00000de4);
+	msg[1] = cpu_to_le32(0x00000000);
+	msg[2] = cpu_to_le32(handle);
+	msg[3] = cpu_to_le32(0x00000000);
+	msg[4] = cpu_to_le32(0x00000000);
+	msg[5] = cpu_to_le32(0x00000000);
+	msg[6] = cpu_to_le32(0x00000000);
+	msg[7] = cpu_to_le32(0x00000780);
+	msg[8] = cpu_to_le32(0x00000440);
+	msg[9] = cpu_to_le32(0x00000000);
+	msg[10] = cpu_to_le32(0x01b37000);
 	for (i = 11; i < 1024; ++i)
-		msg[i] = 0x0;
+		msg[i] = cpu_to_le32(0x0);
 
 	radeon_bo_kunmap(bo);
 	radeon_bo_unreserve(bo);
@@ -673,12 +673,12 @@ int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
 	}
 
 	/* stitch together an UVD destroy msg */
-	msg[0] = 0x00000de4;
-	msg[1] = 0x00000002;
-	msg[2] = handle;
-	msg[3] = 0x00000000;
+	msg[0] = cpu_to_le32(0x00000de4);
+	msg[1] = cpu_to_le32(0x00000002);
+	msg[2] = cpu_to_le32(handle);
+	msg[3] = cpu_to_le32(0x00000000);
 	for (i = 4; i < 1024; ++i)
-		msg[i] = 0x0;
+		msg[i] = cpu_to_le32(0x0);
 
 	radeon_bo_kunmap(bo);
 	radeon_bo_unreserve(bo);
