@@ -1079,6 +1079,7 @@ int usb_serial_probe(struct usb_interface *interface,
 			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x19f5) && (le16_to_cpu(dev->descriptor.idProduct) == 0x9013) && (bp_id == 4))			
 			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x0E8D) && (le16_to_cpu(dev->descriptor.idProduct) == 0x00A2) && (bp_id == 1))
 			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x21f5) && (le16_to_cpu(dev->descriptor.idProduct) == 0x2012) && (bp_id == 10))
+			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x1c9e) && (le16_to_cpu(dev->descriptor.idProduct) == 0x9603) && (bp_id == 11))
 		){
 			BP_USB =1;
 
