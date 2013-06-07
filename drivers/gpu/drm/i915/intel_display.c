@@ -1958,6 +1958,9 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			dspcntr &= ~DISPPLANE_TILED;
 	}
 
+	if (IS_G4X(dev))
+		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
+
 	I915_WRITE(reg, dspcntr);
 
 	linear_offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);

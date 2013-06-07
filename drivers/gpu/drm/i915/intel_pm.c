@@ -4908,6 +4908,7 @@ static void g4x_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t dspclk_gate;
+	int pipe;
 
 	I915_WRITE(RENCLK_GATE_D1, 0);
 	I915_WRITE(RENCLK_GATE_D2, VF_UNIT_CLOCK_GATE_DISABLE |
@@ -4924,6 +4925,14 @@ static void g4x_init_clock_gating(struct drm_device *dev)
 	/* WaDisableRenderCachePipelinedFlush */
 	I915_WRITE(CACHE_MODE_0,
 		   _MASKED_BIT_ENABLE(CM0_PIPELINED_RENDER_FLUSH_DISABLE));
+
+	for_each_pipe(pipe) {
+		I915_WRITE(DSPCNTR(pipe),
+			   I915_READ(DSPCNTR(pipe)) |
+			   DISPPLANE_TRICKLE_FEED_DISABLE);
+		intel_flush_display_plane(dev_priv, pipe);
+	}
+
 }
 
 static void crestline_init_clock_gating(struct drm_device *dev)
