@@ -89,6 +89,9 @@
 #endif
 #include "../mach-rk30/board-rk3168-tb-camera.c"
 
+//#define RK31XX_MAINBOARD_V1
+
+
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
 #define TOUCH_RESET_PIN  RK30_PIN0_PB6
 #define TOUCH_PWR_PIN    RK30_PIN0_PC5   // need to fly line by hardware engineer
@@ -2184,6 +2187,50 @@ static void __init rk30_i2c_register_board_info(void)
 #include <plat/key.h>
 
 static struct rk29_keys_button key_button[] = {
+#ifdef RK31XX_MAINBOARD_V1
+        {
+                .desc   = "vol-",
+                .code   = KEY_VOLUMEDOWN,
+		.adc_value      = 744,
+                .gpio   = INVALID_GPIO,
+                .active_low = PRESS_LEV_LOW,
+        },
+        {
+                .desc   = "play",
+                .code   = KEY_POWER,
+                .gpio   = RK30_PIN0_PA4,
+                .active_low = PRESS_LEV_LOW,
+                .wakeup = 1,
+        },
+        {
+                .desc   = "vol+",
+                .code   = KEY_VOLUMEUP,
+                .adc_value      = 558,
+                .gpio = INVALID_GPIO,
+                .active_low = PRESS_LEV_LOW,
+        },
+	{
+                .desc   = "menu",
+                .code   = EV_MENU,
+                .adc_value      = 1,
+                .gpio = INVALID_GPIO,
+                .active_low = PRESS_LEV_LOW,
+        },
+        {
+                .desc   = "home",
+                .code   = KEY_HOME,
+                .adc_value      = 354,
+                .gpio = INVALID_GPIO,
+                .active_low = PRESS_LEV_LOW,
+        },
+        {
+                .desc   = "esc",
+                .code   = KEY_BACK,
+                .adc_value      = 169,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+#else
         {
                 .desc   = "vol-",
                 .code   = KEY_VOLUMEDOWN,
@@ -2233,6 +2280,7 @@ static struct rk29_keys_button key_button[] = {
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
+#endif
 };
 struct rk29_keys_platform_data rk29_keys_pdata = {
 	.buttons	= key_button,
