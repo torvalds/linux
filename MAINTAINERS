@@ -2890,8 +2890,8 @@ F:	drivers/media/dvb-frontends/ec100*
 
 ECRYPT FILE SYSTEM
 M:	Tyler Hicks <tyhicks@canonical.com>
-M:	Dustin Kirkland <dustin.kirkland@gazzang.com>
 L:	ecryptfs@vger.kernel.org
+W:	http://ecryptfs.org
 W:	https://launchpad.net/ecryptfs
 S:	Supported
 F:	Documentation/filesystems/ecryptfs.txt
