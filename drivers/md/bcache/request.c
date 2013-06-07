@@ -509,10 +509,6 @@ static void bch_insert_data_loop(struct closure *cl)
 			goto err;
 
 		n = bch_bio_split(bio, KEY_SIZE(k), GFP_NOIO, split);
-		if (!n) {
-			__bkey_put(op->c, k);
-			continue_at(cl, bch_insert_data_loop, bcache_wq);
-		}
 
 		n->bi_end_io	= bch_insert_data_endio;
 		n->bi_private	= cl;
@@ -821,53 +817,13 @@ static void request_read_done(struct closure *cl)
 	 */
 
 	if (s->op.cache_bio) {
-		struct bio_vec *src, *dst;
-		unsigned src_offset, dst_offset, bytes;
-		void *dst_ptr;
-
 		bio_reset(s->op.cache_bio);
 		s->op.cache_bio->bi_sector	= s->cache_miss->bi_sector;
 		s->op.cache_bio->bi_bdev	= s->cache_miss->bi_bdev;
 		s->op.cache_bio->bi_size	= s->cache_bio_sectors << 9;
 		bch_bio_map(s->op.cache_bio, NULL);
 
-		src = bio_iovec(s->op.cache_bio);
-		dst = bio_iovec(s->cache_miss);
-		src_offset = src->bv_offset;
-		dst_offset = dst->bv_offset;
-		dst_ptr = kmap(dst->bv_page);
-
-		while (1) {
-			if (dst_offset == dst->bv_offset + dst->bv_len) {
-				kunmap(dst->bv_page);
-				dst++;
-				if (dst == bio_iovec_idx(s->cache_miss,
-						s->cache_miss->bi_vcnt))
-					break;
-
-				dst_offset = dst->bv_offset;
-				dst_ptr = kmap(dst->bv_page);
-			}
-
-			if (src_offset == src->bv_offset + src->bv_len) {
-				src++;
-				if (src == bio_iovec_idx(s->op.cache_bio,
-						 s->op.cache_bio->bi_vcnt))
-					BUG();
-
-				src_offset = src->bv_offset;
-			}
-
-			bytes = min(dst->bv_offset + dst->bv_len - dst_offset,
-				    src->bv_offset + src->bv_len - src_offset);
-
-			memcpy(dst_ptr + dst_offset,
-			       page_address(src->bv_page) + src_offset,
-			       bytes);
-
-			src_offset	+= bytes;
-			dst_offset	+= bytes;
-		}
+		bio_copy_data(s->cache_miss, s->op.cache_bio);
 
 		bio_put(s->cache_miss);
 		s->cache_miss = NULL;
@@ -912,9 +868,6 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	struct bio *miss;
 
 	miss = bch_bio_split(bio, sectors, GFP_NOIO, s->d->bio_split);
-	if (!miss)
-		return -EAGAIN;
-
 	if (miss == bio)
 		s->op.lookup_done = true;
 
@@ -933,8 +886,9 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 		reada = min(dc->readahead >> 9,
 			    sectors - bio_sectors(miss));
 
-		if (bio_end(miss) + reada > bdev_sectors(miss->bi_bdev))
-			reada = bdev_sectors(miss->bi_bdev) - bio_end(miss);
+		if (bio_end_sector(miss) + reada > bdev_sectors(miss->bi_bdev))
+			reada = bdev_sectors(miss->bi_bdev) -
+				bio_end_sector(miss);
 	}
 
 	s->cache_bio_sectors = bio_sectors(miss) + reada;
@@ -958,7 +912,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 		goto out_put;
 
 	bch_bio_map(s->op.cache_bio, NULL);
-	if (bch_bio_alloc_pages(s->op.cache_bio, __GFP_NOWARN|GFP_NOIO))
+	if (bio_alloc_pages(s->op.cache_bio, __GFP_NOWARN|GFP_NOIO))
 		goto out_put;
 
 	s->cache_miss = miss;
@@ -1002,7 +956,7 @@ static void request_write(struct cached_dev *dc, struct search *s)
 	struct bio *bio = &s->bio.bio;
 	struct bkey start, end;
 	start = KEY(dc->disk.id, bio->bi_sector, 0);
-	end = KEY(dc->disk.id, bio_end(bio), 0);
+	end = KEY(dc->disk.id, bio_end_sector(bio), 0);
 
 	bch_keybuf_check_overlapping(&s->op.c->moving_gc_keys, &start, &end);
 
@@ -1176,7 +1130,7 @@ found:
 		if (i->sequential + bio->bi_size > i->sequential)
 			i->sequential	+= bio->bi_size;
 
-		i->last			 = bio_end(bio);
+		i->last			 = bio_end_sector(bio);
 		i->jiffies		 = jiffies + msecs_to_jiffies(5000);
 		s->task->sequential_io	 = i->sequential;
 
@@ -1294,30 +1248,25 @@ void bch_cached_dev_request_init(struct cached_dev *dc)
 static int flash_dev_cache_miss(struct btree *b, struct search *s,
 				struct bio *bio, unsigned sectors)
 {
+	struct bio_vec *bv;
+	int i;
+
 	/* Zero fill bio */
 
-	while (bio->bi_idx != bio->bi_vcnt) {
-		struct bio_vec *bv = bio_iovec(bio);
+	bio_for_each_segment(bv, bio, i) {
 		unsigned j = min(bv->bv_len >> 9, sectors);
 
 		void *p = kmap(bv->bv_page);
 		memset(p + bv->bv_offset, 0, j << 9);
 		kunmap(bv->bv_page);
 
-		bv->bv_len	-= j << 9;
-		bv->bv_offset	+= j << 9;
-
-		if (bv->bv_len)
-			return 0;
-
-		bio->bi_sector	+= j;
-		bio->bi_size	-= j << 9;
-
-		bio->bi_idx++;
-		sectors		-= j;
+		sectors	-= j;
 	}
 
-	s->op.lookup_done = true;
+	bio_advance(bio, min(sectors << 9, bio->bi_size));
+
+	if (!bio->bi_size)
+		s->op.lookup_done = true;
 
 	return 0;
 }
@@ -1344,8 +1293,8 @@ static void flash_dev_make_request(struct request_queue *q, struct bio *bio)
 		closure_call(&s->op.cl, btree_read_async, NULL, cl);
 	} else if (bio_has_data(bio) || s->op.skip) {
 		bch_keybuf_check_overlapping(&s->op.c->moving_gc_keys,
-					     &KEY(d->id, bio->bi_sector, 0),
-					     &KEY(d->id, bio_end(bio), 0));
+					&KEY(d->id, bio->bi_sector, 0),
+					&KEY(d->id, bio_end_sector(bio), 0));
 
 		s->writeback	= true;
 		s->op.cache_bio	= bio;

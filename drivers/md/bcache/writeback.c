@@ -285,9 +285,10 @@ static void write_dirty_finish(struct closure *cl)
 	struct dirty_io *io = container_of(cl, struct dirty_io, cl);
 	struct keybuf_key *w = io->bio.bi_private;
 	struct cached_dev *dc = io->dc;
-	struct bio_vec *bv = bio_iovec_idx(&io->bio, io->bio.bi_vcnt);
+	struct bio_vec *bv;
+	int i;
 
-	while (bv-- != io->bio.bi_io_vec)
+	bio_for_each_segment_all(bv, &io->bio, i)
 		__free_page(bv->bv_page);
 
 	/* This is kind of a dumb way of signalling errors. */
@@ -418,7 +419,7 @@ static void read_dirty(struct closure *cl)
 		io->bio.bi_rw		= READ;
 		io->bio.bi_end_io	= read_dirty_endio;
 
-		if (bch_bio_alloc_pages(&io->bio, GFP_KERNEL))
+		if (bio_alloc_pages(&io->bio, GFP_KERNEL))
 			goto err_free;
 
 		trace_bcache_writeback(&w->key);

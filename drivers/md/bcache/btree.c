@@ -350,7 +350,7 @@ static void do_btree_node_write(struct btree *b)
 	bkey_copy(&k.key, &b->key);
 	SET_PTR_OFFSET(&k.key, 0, PTR_OFFSET(&k.key, 0) + bset_offset(b, i));
 
-	if (!bch_bio_alloc_pages(b->bio, GFP_NOIO)) {
+	if (!bio_alloc_pages(b->bio, GFP_NOIO)) {
 		int j;
 		struct bio_vec *bv;
 		void *base = (void *) ((unsigned long) i & ~(PAGE_SIZE - 1));
@@ -1865,7 +1865,7 @@ bool bch_btree_insert_check_key(struct btree *b, struct btree_op *op,
 	    should_split(b))
 		goto out;
 
-	op->replace = KEY(op->inode, bio_end(bio), bio_sectors(bio));
+	op->replace = KEY(op->inode, bio_end_sector(bio), bio_sectors(bio));
 
 	SET_KEY_PTRS(&op->replace, 1);
 	get_random_bytes(&op->replace.ptr[0], sizeof(uint64_t));
@@ -2194,9 +2194,6 @@ static int submit_partial_cache_hit(struct btree *b, struct btree_op *op,
 					 KEY_OFFSET(k) - bio->bi_sector);
 
 		n = bch_bio_split(bio, sectors, GFP_NOIO, s->d->bio_split);
-		if (!n)
-			return -EAGAIN;
-
 		if (n == bio)
 			op->lookup_done = true;
 

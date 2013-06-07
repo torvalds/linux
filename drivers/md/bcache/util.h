@@ -564,11 +564,7 @@ static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
 	return x;
 }
 
-#define bio_end(bio)	((bio)->bi_sector + bio_sectors(bio))
-
 void bch_bio_map(struct bio *bio, void *base);
-
-int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp);
 
 static inline sector_t bdev_sectors(struct block_device *bdev)
 {

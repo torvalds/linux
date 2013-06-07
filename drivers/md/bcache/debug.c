@@ -199,7 +199,7 @@ void bch_data_verify(struct search *s)
 	if (!check)
 		return;
 
-	if (bch_bio_alloc_pages(check, GFP_NOIO))
+	if (bio_alloc_pages(check, GFP_NOIO))
 		goto out_put;
 
 	check->bi_rw		= READ_SYNC;
