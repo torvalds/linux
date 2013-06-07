@@ -184,16 +184,17 @@ static void __init ima_pcrread(int idx, u8 *pcr)
 /*
  * Calculate the boot aggregate hash
  */
-int __init ima_calc_boot_aggregate(char *digest)
+static int __init ima_calc_boot_aggregate_tfm(char *digest,
+					      struct crypto_shash *tfm)
 {
 	u8 pcr_i[TPM_DIGEST_SIZE];
 	int rc, i;
 	struct {
 		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(ima_shash_tfm)];
+		char ctx[crypto_shash_descsize(tfm)];
 	} desc;
 
-	desc.shash.tfm = ima_shash_tfm;
+	desc.shash.tfm = tfm;
 	desc.shash.flags = 0;
 
 	rc = crypto_shash_init(&desc.shash);
@@ -208,5 +209,22 @@ int __init ima_calc_boot_aggregate(char *digest)
 	}
 	if (!rc)
 		crypto_shash_final(&desc.shash, digest);
+	return rc;
+}
+
+int __init ima_calc_boot_aggregate(struct ima_digest_data *hash)
+{
+	struct crypto_shash *tfm;
+	int rc;
+
+	tfm = ima_alloc_tfm(hash->algo);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
+
+	hash->length = crypto_shash_digestsize(tfm);
+	rc = ima_calc_boot_aggregate_tfm(hash->digest, tfm);
+
+	ima_free_tfm(tfm);
+
 	return rc;
 }

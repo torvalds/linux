@@ -18,6 +18,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <crypto/hash_info.h>
 #include "ima.h"
 
 /* name for boot aggregate entry */
@@ -46,6 +47,10 @@ static void __init ima_add_boot_aggregate(void)
 	const char *audit_cause = "ENOMEM";
 	int result = -ENOMEM;
 	int violation = 1;
+	struct {
+		struct ima_digest_data hdr;
+		char digest[TPM_DIGEST_SIZE];
+	} hash;
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
@@ -56,12 +61,15 @@ static void __init ima_add_boot_aggregate(void)
 		IMA_EVENT_NAME_LEN_MAX);
 	if (ima_used_chip) {
 		violation = 0;
-		result = ima_calc_boot_aggregate(entry->template.digest);
+		hash.hdr.algo = HASH_ALGO_SHA1;
+		result = ima_calc_boot_aggregate(&hash.hdr);
 		if (result < 0) {
 			audit_cause = "hashing_error";
 			kfree(entry);
 			goto err_out;
 		}
+		memcpy(entry->template.digest, hash.hdr.digest,
+		       hash.hdr.length);
 	}
 	result = ima_store_template(entry, violation, NULL);
 	if (result < 0)

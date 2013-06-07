@@ -73,7 +73,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash);
 int ima_calc_buffer_hash(const void *data, int len,
 			 struct ima_digest_data *hash);
-int ima_calc_boot_aggregate(char *digest);
+int __init ima_calc_boot_aggregate(struct ima_digest_data *hash);
 void ima_add_violation(struct inode *inode, const unsigned char *filename,
 		       const char *op, const char *cause);
 int ima_init_crypto(void);
