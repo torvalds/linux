@@ -2530,6 +2530,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	struct net_device *ndev = NULL;
 	struct sh_eth_private *mdp = NULL;
 	struct sh_eth_plat_data *pd = pdev->dev.platform_data;
+	const struct platform_device_id *id = platform_get_device_id(pdev);
 
 	/* get base addr */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2593,6 +2594,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 #else
 	mdp->cd = &sh_eth_my_cpu_data;
 #endif
+	if (id->driver_data)
+		mdp->cd = (struct sh_eth_cpu_data *)id->driver_data;
 	sh_eth_set_default_cpu_data(mdp->cd);
 
 	/* set function */
@@ -2708,9 +2711,16 @@ static const struct dev_pm_ops sh_eth_dev_pm_ops = {
 #define SH_ETH_PM_OPS NULL
 #endif
 
+static struct platform_device_id sh_eth_id_table[] = {
+	{ CARDNAME },
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, sh_eth_id_table);
+
 static struct platform_driver sh_eth_driver = {
 	.probe = sh_eth_drv_probe,
 	.remove = sh_eth_drv_remove,
+	.id_table = sh_eth_id_table,
 	.driver = {
 		   .name = CARDNAME,
 		   .pm = SH_ETH_PM_OPS,
