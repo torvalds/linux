@@ -298,6 +298,30 @@ TRACE_EVENT(
 		  __entry->mmu_valid_gen, __entry->mmu_used_pages
 	)
 );
+
+
+TRACE_EVENT(
+	check_mmio_spte,
+	TP_PROTO(u64 spte, unsigned int kvm_gen, unsigned int spte_gen),
+	TP_ARGS(spte, kvm_gen, spte_gen),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, kvm_gen)
+		__field(unsigned int, spte_gen)
+		__field(u64, spte)
+	),
+
+	TP_fast_assign(
+		__entry->kvm_gen = kvm_gen;
+		__entry->spte_gen = spte_gen;
+		__entry->spte = spte;
+	),
+
+	TP_printk("spte %llx kvm_gen %x spte-gen %x valid %d", __entry->spte,
+		  __entry->kvm_gen, __entry->spte_gen,
+		  __entry->kvm_gen == __entry->spte_gen
+	)
+);
 #endif /* _TRACE_KVMMMU_H */
 
 #undef TRACE_INCLUDE_PATH
