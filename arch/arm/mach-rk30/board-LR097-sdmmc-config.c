@@ -125,15 +125,15 @@ double rk31sdk_get_sdio_wifi_voltage(void)
     **  Please tell me how much wifi-module uses voltage in your project.  
     ******************************************************************************/
 #if defined(CONFIG_BCM4329) || defined(CONFIG_BCM4319) || defined(CONFIG_RK903) || defined(CONFIG_RK901)
-    voltage = 1.8 ; //power 1.8V
+    voltage = 1800 ; //power 1.8V
     
 #elif defined(CONFIG_MT5931_MT6622)||defined(CONFIG_MT5931)||defined(CONFIG_MT6620)
-    voltage = 1.8 ; //power 2.8V
+    voltage = 1800 ; //power 2.8V
 #elif defined(CONFIG_RDA5990)||defined(CONFIG_RTL8723AS)  
-    voltage = 3.3 ; //power 3.3V
+    voltage = 3300 ; //power 3.3V
 #else
     //default, sdio use 3.0V
-    voltage = 3.0 ; //power 3.0V
+    voltage = 3000 ; //power 3.0V
 #endif
 
     return voltage;
