@@ -619,11 +619,9 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.irq_flags	= IRQF_SHARED,
 #endif
 };
+#endif
 
-
-#elif defined(CONFIG_ARCH_R8A7740)
-
-static void sh_eth_chip_reset(struct net_device *ndev)
+static void sh_eth_chip_reset_r8a7740(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -634,7 +632,7 @@ static void sh_eth_chip_reset(struct net_device *ndev)
 	sh_eth_select_mii(ndev);
 }
 
-static void sh_eth_set_rate(struct net_device *ndev)
+static void sh_eth_set_rate_gether(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -654,10 +652,10 @@ static void sh_eth_set_rate(struct net_device *ndev)
 }
 
 /* R8A7740 */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
-	.chip_reset	= sh_eth_chip_reset,
+static struct sh_eth_cpu_data r8a7740_data = {
+	.chip_reset	= sh_eth_chip_reset_r8a7740,
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate,
+	.set_rate	= sh_eth_set_rate_gether,
 
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
@@ -680,7 +678,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tsu		= 1,
 	.select_mii	= 1,
 };
-#endif
 
 static struct sh_eth_cpu_data sh7619_data = {
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
@@ -2701,6 +2698,7 @@ static const struct dev_pm_ops sh_eth_dev_pm_ops = {
 static struct platform_device_id sh_eth_id_table[] = {
 	{ "sh7619-ether", (kernel_ulong_t)&sh7619_data },
 	{ "sh771x-ether", (kernel_ulong_t)&sh771x_data },
+	{ "r8a7740-gether", (kernel_ulong_t)&r8a7740_data },
 	{ CARDNAME },
 	{ }
 };
