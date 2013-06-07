@@ -486,6 +486,7 @@
 
 				ab8500-regulators {
 					compatible = "stericsson,ab8500-regulator";
+					vin-supply = <&ab8500_ext3_reg>;
 
 					// supplies to the display/camera
 					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
