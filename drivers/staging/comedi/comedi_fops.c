@@ -660,7 +660,7 @@ static int do_bufconfig_ioctl(struct comedi_device *dev,
 	if (copy_from_user(&bc, arg, sizeof(bc)))
 		return -EFAULT;
 
-	if (bc.subdevice >= dev->n_subdevices || bc.subdevice < 0)
+	if (bc.subdevice >= dev->n_subdevices)
 		return -EINVAL;
 
 	s = &dev->subdevices[bc.subdevice];
