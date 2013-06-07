@@ -2905,7 +2905,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
 	oldlen = (u16)~skb->len;
 	__skb_pull(skb, thlen);
 
-	mss = skb_shinfo(skb)->gso_size;
+	mss = tcp_skb_mss(skb);
 	if (unlikely(skb->len <= mss))
 		goto out;
 
@@ -3071,7 +3071,7 @@ found:
 		flush |= *(u32 *)((u8 *)th + i) ^
 			 *(u32 *)((u8 *)th2 + i);
 
-	mss = skb_shinfo(p)->gso_size;
+	mss = tcp_skb_mss(p);
 
 	flush |= (len - 1) >= mss;
 	flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
