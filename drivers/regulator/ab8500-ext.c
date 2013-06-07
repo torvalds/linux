@@ -16,9 +16,11 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/ab8500.h>
@@ -333,18 +335,37 @@ static struct ab8500_ext_regulator_info
 	},
 };
 
+static struct of_regulator_match ab8500_ext_regulator_match[] = {
+	{ .name = "ab8500_ext1", .driver_data = (void *) AB8500_EXT_SUPPLY1, },
+	{ .name = "ab8500_ext2", .driver_data = (void *) AB8500_EXT_SUPPLY2, },
+	{ .name = "ab8500_ext3", .driver_data = (void *) AB8500_EXT_SUPPLY3, },
+};
+
 int ab8500_ext_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_platform_data *ppdata;
 	struct ab8500_regulator_platform_data *pdata;
+	struct device_node *np = pdev->dev.of_node;
 	struct regulator_config config = { };
 	int i, err;
+
+	if (np) {
+		err = of_regulator_match(&pdev->dev, np,
+					 ab8500_ext_regulator_match,
+					 ARRAY_SIZE(ab8500_ext_regulator_match));
+		if (err < 0) {
+			dev_err(&pdev->dev,
+				"Error parsing regulator init data: %d\n", err);
+			return err;
+		}
+	}
 
 	if (!ab8500) {
 		dev_err(&pdev->dev, "null mfd parent\n");
 		return -EINVAL;
 	}
+
 	ppdata = dev_get_platdata(ab8500->dev);
 	if (!ppdata) {
 		dev_err(&pdev->dev, "null parent pdata\n");
@@ -385,8 +406,11 @@ int ab8500_ext_regulator_probe(struct platform_device *pdev)
 			pdata->ext_regulator[i].driver_data;
 
 		config.dev = &pdev->dev;
-		config.init_data = &pdata->ext_regulator[i];
 		config.driver_data = info;
+		config.of_node = ab8500_ext_regulator_match[i].of_node;
+		config.init_data = (np) ?
+			ab8500_ext_regulator_match[i].init_data :
+			&pdata->ext_regulator[i];
 
 		/* register regulator with framework */
 		info->rdev = regulator_register(&info->desc, &config);
