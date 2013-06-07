@@ -99,6 +99,10 @@ int __init ima_init(void)
 	rc = ima_init_crypto();
 	if (rc)
 		return rc;
+	rc = ima_init_template();
+	if (rc != 0)
+		return rc;
+
 	ima_add_boot_aggregate();	/* boot aggregate must be first entry */
 	ima_init_policy();
 

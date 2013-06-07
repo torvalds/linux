@@ -36,11 +36,38 @@ enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 #define IMA_HASH_BITS 9
 #define IMA_MEASURE_HTABLE_SIZE (1 << IMA_HASH_BITS)
 
+#define IMA_TEMPLATE_FIELD_ID_MAX_LEN	16
+#define IMA_TEMPLATE_NUM_FIELDS_MAX	15
+
 /* set during initialization */
 extern int ima_initialized;
 extern int ima_used_chip;
 extern int ima_hash_algo;
 extern int ima_appraise;
+
+/* IMA template field data definition */
+struct ima_field_data {
+	u8 *data;
+	u32 len;
+};
+
+/* IMA template field definition */
+struct ima_template_field {
+	const char field_id[IMA_TEMPLATE_FIELD_ID_MAX_LEN];
+	int (*field_init) (struct integrity_iint_cache *iint, struct file *file,
+			   const unsigned char *filename,
+			   struct ima_field_data *field_data);
+	void (*field_show) (struct seq_file *m, enum ima_show_type show,
+			    struct ima_field_data *field_data);
+};
+
+/* IMA template descriptor definition */
+struct ima_template_desc {
+	char *name;
+	char *fmt;
+	int num_fields;
+	struct ima_template_field **fields;
+};
 
 /* IMA inode template definition */
 struct ima_template_data {
@@ -78,6 +105,8 @@ int __init ima_calc_boot_aggregate(struct ima_digest_data *hash);
 void ima_add_violation(struct file *file, const unsigned char *filename,
 		       const char *op, const char *cause);
 int ima_init_crypto(void);
+
+int ima_init_template(void);
 
 /*
  * used to protect h_table and sha_table
