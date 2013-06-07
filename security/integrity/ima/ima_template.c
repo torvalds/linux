@@ -127,8 +127,8 @@ static int init_defined_templates(void)
 struct ima_template_desc *ima_template_desc_current(void)
 {
 	if (!ima_template)
-		ima_template = lookup_template_desc(IMA_TEMPLATE_IMA_NAME);
-
+		ima_template =
+		    lookup_template_desc(CONFIG_IMA_DEFAULT_TEMPLATE);
 	return ima_template;
 }
 

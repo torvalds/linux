@@ -46,6 +46,31 @@ config IMA_LSM_RULES
 	help
 	  Disabling this option will disregard LSM based policy rules.
 
+choice
+	prompt "Default template"
+	default IMA_NG_TEMPLATE
+	depends on IMA
+	help
+	  Select the default IMA measurement template.
+
+	  The original 'ima' measurement list template contains a
+	  hash, defined as 20 bytes, and a null terminated pathname,
+	  limited to 255 characters.  The 'ima-ng' measurement list
+	  template permits both larger hash digests and longer
+	  pathnames.
+
+	config IMA_TEMPLATE
+		bool "ima"
+	config IMA_NG_TEMPLATE
+		bool "ima-ng (default)"
+endchoice
+
+config IMA_DEFAULT_TEMPLATE
+	string
+	depends on IMA
+	default "ima" if IMA_TEMPLATE
+	default "ima-ng" if IMA_NG_TEMPLATE
+
 config IMA_APPRAISE
 	bool "Appraise integrity measurements"
 	depends on IMA
