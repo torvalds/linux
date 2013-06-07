@@ -4,12 +4,6 @@
 
 config SH_ETH
 	tristate "Renesas SuperH Ethernet support"
-	depends on (SUPERH || ARCH_SHMOBILE) && \
-		(CPU_SUBTYPE_SH7710 || CPU_SUBTYPE_SH7712 || \
-		 CPU_SUBTYPE_SH7763 || CPU_SUBTYPE_SH7619 || \
-		 CPU_SUBTYPE_SH7724 || CPU_SUBTYPE_SH7734 || \
-		 CPU_SUBTYPE_SH7757 || ARCH_R8A7740 || \
-		 ARCH_R8A7778 || ARCH_R8A7779)
 	select CRC32
 	select NET_CORE
 	select MII
