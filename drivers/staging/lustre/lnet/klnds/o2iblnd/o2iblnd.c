@@ -39,6 +39,7 @@
  */
 
 #include "o2iblnd.h"
+#include <asm/div64.h>
 
 lnd_t the_o2iblnd = {
 	.lnd_type       = O2IBLND,
@@ -694,6 +695,7 @@ kiblnd_get_completion_vector(kib_conn_t *conn, int cpt)
 	int		vectors;
 	int		off;
 	int		i;
+	lnet_nid_t	nid = conn->ibc_peer->ibp_nid;
 
 	vectors = conn->ibc_cmid->device->num_comp_vectors;
 	if (vectors <= 1)
@@ -702,7 +704,7 @@ kiblnd_get_completion_vector(kib_conn_t *conn, int cpt)
 	mask = cfs_cpt_cpumask(lnet_cpt_table(), cpt);
 
 	/* hash NID to CPU id in this partition... */
-	off = conn->ibc_peer->ibp_nid % cpus_weight(*mask);
+	off = do_div(nid, cpus_weight(*mask));
 	for_each_cpu_mask(i, *mask) {
 		if (off-- == 0)
 			return i % vectors;
