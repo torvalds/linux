@@ -176,6 +176,9 @@ static char *cmdline_find_option(char *str)
 
 static int __init omap_serial_early_init(void)
 {
+	if (of_have_populated_dt())
+		return -ENODEV;
+
 	do {
 		char oh_name[MAX_UART_HWMOD_NAME_LEN];
 		struct omap_hwmod *oh;
