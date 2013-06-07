@@ -992,9 +992,12 @@ int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
 		goto exit;
 	}
 
+	spin_lock(&bgp->lock);
+
 	tsr = bgp->conf->sensors[id].registers;
 
 	/* Freeze and read the last 2 valid readings */
+	RMW_BITS(bgp, id, bgap_mask_ctrl, mask_freeze_mask, 1);
 	reg1 = tsr->ctrl_dtemp_1;
 	reg2 = tsr->ctrl_dtemp_2;
 
@@ -1008,22 +1011,25 @@ int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
 	/* Convert from adc values to mCelsius temperature */
 	ret = ti_bandgap_adc_to_mcelsius(bgp, temp1, &t1);
 	if (ret)
-		goto exit;
+		goto unfreeze;
 
 	ret = ti_bandgap_adc_to_mcelsius(bgp, temp2, &t2);
 	if (ret)
-		goto exit;
+		goto unfreeze;
 
 	/* Fetch the update interval */
 	ret = ti_bandgap_read_update_interval(bgp, id, &interval);
 	if (ret || !interval)
-		goto exit;
+		goto unfreeze;
 
 	*trend = (t1 - t2) / interval;
 
 	dev_dbg(bgp->dev, "The temperatures are t1 = %d and t2 = %d and trend =%d\n",
 		t1, t2, *trend);
 
+unfreeze:
+	RMW_BITS(bgp, id, bgap_mask_ctrl, mask_freeze_mask, 0);
+	spin_unlock(&bgp->lock);
 exit:
 	return ret;
 }
