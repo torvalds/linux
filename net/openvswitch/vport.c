@@ -376,7 +376,7 @@ int ovs_vport_send(struct vport *vport, struct sk_buff *skb)
  * @err_type: one of enum vport_err_type types to indicate the error type
  *
  * If using the vport generic stats layer indicate that an error of the given
- * type has occured.
+ * type has occurred.
  */
 void ovs_vport_record_error(struct vport *vport, enum vport_err_type err_type)
 {
