@@ -317,7 +317,7 @@ struct intel_crtc {
 	struct intel_crtc_config config;
 
 	/* We can share PLLs across outputs if the timings match */
-	struct intel_shared_dpll *shared_dpll;
+	enum intel_dpll_id shared_dpll;
 	uint32_t ddi_pll_sel;
 
 	/* reset counter value when the last flip was submitted */
