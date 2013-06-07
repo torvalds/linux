@@ -29,6 +29,7 @@
 #define RST_DEVICES_L			0x004
 #define RST_DEVICES_H			0x008
 #define RST_DEVICES_U			0x00C
+#define RST_DFLL_DVCO			0x2F4
 #define RST_DEVICES_V			0x358
 #define RST_DEVICES_W			0x35C
 #define RST_DEVICES_X			0x28C
@@ -46,6 +47,9 @@
 #define CPU_FINETRIM_DR			0x4d8	/* rise->rise prop dly A */
 #define CPU_FINETRIM_R			0x4e4	/* rise->rise prop dly inc A */
 #define RST_DEVICES_NUM			5
+
+/* RST_DFLL_DVCO bitfields */
+#define DVFS_DFLL_RESET_SHIFT		0
 
 /* CPU_FINETRIM_SELECT and CPU_FINETRIM_DR bitfields */
 #define CPU_FINETRIM_1_FCPU_1		BIT(0)	/* fcpu0 */
@@ -2247,6 +2251,39 @@ void tegra114_clock_tune_cpu_trimmers_init(void)
 	tegra114_clock_tune_cpu_trimmers_low();
 }
 EXPORT_SYMBOL(tegra114_clock_tune_cpu_trimmers_init);
+
+/**
+ * tegra114_clock_assert_dfll_dvco_reset - assert the DFLL's DVCO reset
+ *
+ * Assert the reset line of the DFLL's DVCO.  No return value.
+ */
+void tegra114_clock_assert_dfll_dvco_reset(void)
+{
+	u32 v;
+
+	v = readl_relaxed(clk_base + RST_DFLL_DVCO);
+	v |= (1 << DVFS_DFLL_RESET_SHIFT);
+	writel_relaxed(v, clk_base + RST_DFLL_DVCO);
+	tegra114_car_barrier();
+}
+EXPORT_SYMBOL(tegra114_clock_assert_dfll_dvco_reset);
+
+/**
+ * tegra114_clock_deassert_dfll_dvco_reset - deassert the DFLL's DVCO reset
+ *
+ * Deassert the reset line of the DFLL's DVCO, allowing the DVCO to
+ * operate.  No return value.
+ */
+void tegra114_clock_deassert_dfll_dvco_reset(void)
+{
+	u32 v;
+
+	v = readl_relaxed(clk_base + RST_DFLL_DVCO);
+	v &= ~(1 << DVFS_DFLL_RESET_SHIFT);
+	writel_relaxed(v, clk_base + RST_DFLL_DVCO);
+	tegra114_car_barrier();
+}
+EXPORT_SYMBOL(tegra114_clock_deassert_dfll_dvco_reset);
 
 static void __init tegra114_clock_init(struct device_node *np)
 {
