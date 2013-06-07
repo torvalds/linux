@@ -106,7 +106,7 @@ static void pcistub_device_release(struct kref *kref)
 	else
 		pci_restore_state(dev);
 
-	if (pci_find_capability(dev, PCI_CAP_ID_MSIX)) {
+	if (dev->msix_cap) {
 		struct physdev_pci_device ppdev = {
 			.seg = pci_domain_nr(dev->bus),
 			.bus = dev->bus->number,
@@ -371,7 +371,7 @@ static int pcistub_init_device(struct pci_dev *dev)
 	if (err)
 		goto config_release;
 
-	if (pci_find_capability(dev, PCI_CAP_ID_MSIX)) {
+	if (dev->msix_cap) {
 		struct physdev_pci_device ppdev = {
 			.seg = pci_domain_nr(dev->bus),
 			.bus = dev->bus->number,

@@ -32,6 +32,8 @@ void exynos4_clk_register_fixed_ext(unsigned long, unsigned long);
 
 void exynos_firmware_init(void);
 
+void exynos_set_timer_source(u8 channels);
+
 #ifdef CONFIG_PM_GENERIC_DOMAINS
 int exynos_pm_late_initcall(void);
 #else
