@@ -12,6 +12,8 @@
  * File: ima_template.c
  *      Helpers to manage template descriptors.
  */
+#include <crypto/hash_info.h>
+
 #include "ima.h"
 #include "ima_template_lib.h"
 
@@ -32,6 +34,35 @@ static struct ima_template_field supported_fields[] = {
 };
 
 static struct ima_template_desc *ima_template;
+static struct ima_template_desc *lookup_template_desc(const char *name);
+
+static int __init ima_template_setup(char *str)
+{
+	struct ima_template_desc *template_desc;
+	int template_len = strlen(str);
+
+	/*
+	 * Verify that a template with the supplied name exists.
+	 * If not, use CONFIG_IMA_DEFAULT_TEMPLATE.
+	 */
+	template_desc = lookup_template_desc(str);
+	if (!template_desc)
+		return 1;
+
+	/*
+	 * Verify whether the current hash algorithm is supported
+	 * by the 'ima' template.
+	 */
+	if (template_len == 3 && strcmp(str, IMA_TEMPLATE_IMA_NAME) == 0 &&
+	    ima_hash_algo != HASH_ALGO_SHA1 && ima_hash_algo != HASH_ALGO_MD5) {
+		pr_err("IMA: template does not support hash alg\n");
+		return 1;
+	}
+
+	ima_template = template_desc;
+	return 1;
+}
+__setup("ima_template=", ima_template_setup);
 
 static struct ima_template_desc *lookup_template_desc(const char *name)
 {
