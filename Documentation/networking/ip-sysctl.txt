@@ -729,7 +729,7 @@ icmp_ignore_bogus_error_responses - BOOLEAN
 	frames.  Such violations are normally logged via a kernel warning.
 	If this is set to TRUE, the kernel will not give such warnings, which
 	will avoid log file clutter.
-	Default: FALSE
+	Default: 1
 
 icmp_errors_use_inbound_ifaddr - BOOLEAN
 
