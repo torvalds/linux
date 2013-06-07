@@ -417,37 +417,6 @@ static void atc_complete_all(struct at_dma_chan *atchan)
 }
 
 /**
- * atc_cleanup_descriptors - cleanup up finished descriptors in active_list
- * @atchan: channel to be cleaned up
- *
- * Called with atchan->lock held and bh disabled
- */
-static void atc_cleanup_descriptors(struct at_dma_chan *atchan)
-{
-	struct at_desc	*desc, *_desc;
-	struct at_desc	*child;
-
-	dev_vdbg(chan2dev(&atchan->chan_common), "cleanup descriptors\n");
-
-	list_for_each_entry_safe(desc, _desc, &atchan->active_list, desc_node) {
-		if (!(desc->lli.ctrla & ATC_DONE))
-			/* This one is currently in progress */
-			return;
-
-		list_for_each_entry(child, &desc->tx_list, desc_node)
-			if (!(child->lli.ctrla & ATC_DONE))
-				/* Currently in progress */
-				return;
-
-		/*
-		 * No descriptors so far seem to be in progress, i.e.
-		 * this chain must be done.
-		 */
-		atc_chain_complete(atchan, desc);
-	}
-}
-
-/**
  * atc_advance_work - at the end of a transaction, move forward
  * @atchan: channel where the transaction ended
  *
