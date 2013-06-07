@@ -99,7 +99,7 @@ static void ima_measurements_stop(struct seq_file *m, void *v)
 {
 }
 
-static void ima_putc(struct seq_file *m, void *data, int datalen)
+void ima_putc(struct seq_file *m, void *data, int datalen)
 {
 	while (datalen--)
 		seq_putc(m, *(char *)data++);
@@ -167,7 +167,7 @@ static const struct file_operations ima_measurements_ops = {
 	.release = seq_release,
 };
 
-static void ima_print_digest(struct seq_file *m, u8 *digest, int size)
+void ima_print_digest(struct seq_file *m, u8 *digest, int size)
 {
 	int i;
 

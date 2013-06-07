@@ -13,15 +13,20 @@
  *      Helpers to manage template descriptors.
  */
 #include "ima.h"
+#include "ima_template_lib.h"
 
 static struct ima_template_desc defined_templates[] = {
+	{.name = IMA_TEMPLATE_IMA_NAME,.fmt = IMA_TEMPLATE_IMA_FMT},
 };
 
 static struct ima_template_field supported_fields[] = {
+	{.field_id = "d",.field_init = ima_eventdigest_init,
+	 .field_show = ima_show_template_digest},
+	{.field_id = "n",.field_init = ima_eventname_init,
+	 .field_show = ima_show_template_string},
 };
 
-static struct ima_template_field *ima_lookup_template_field(
-							const char *field_id)
+static struct ima_template_field *lookup_template_field(const char *field_id)
 {
 	int i;
 
@@ -32,7 +37,7 @@ static struct ima_template_field *ima_lookup_template_field(
 	return NULL;
 }
 
-static int ima_template_fmt_size(char *template_fmt)
+static int template_fmt_size(char *template_fmt)
 {
 	char c;
 	int template_fmt_len = strlen(template_fmt);
@@ -53,7 +58,7 @@ static int template_desc_init_fields(char *template_fmt,
 				     int *num_fields)
 {
 	char *c, *template_fmt_ptr = template_fmt;
-	int template_num_fields = ima_template_fmt_size(template_fmt);
+	int template_num_fields = template_fmt_size(template_fmt);
 	int i, result = 0;
 
 	if (template_num_fields > IMA_TEMPLATE_NUM_FIELDS_MAX)
@@ -66,7 +71,7 @@ static int template_desc_init_fields(char *template_fmt,
 	}
 	for (i = 0; (c = strsep(&template_fmt_ptr, "|")) != NULL &&
 	     i < template_num_fields; i++) {
-		struct ima_template_field *f = ima_lookup_template_field(c);
+		struct ima_template_field *f = lookup_template_field(c);
 
 		if (!f) {
 			result = -ENOENT;

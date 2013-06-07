@@ -39,6 +39,9 @@ enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 #define IMA_TEMPLATE_FIELD_ID_MAX_LEN	16
 #define IMA_TEMPLATE_NUM_FIELDS_MAX	15
 
+#define IMA_TEMPLATE_IMA_NAME "ima"
+#define IMA_TEMPLATE_IMA_FMT "d|n"
+
 /* set during initialization */
 extern int ima_initialized;
 extern int ima_used_chip;
@@ -105,6 +108,8 @@ int __init ima_calc_boot_aggregate(struct ima_digest_data *hash);
 void ima_add_violation(struct file *file, const unsigned char *filename,
 		       const char *op, const char *cause);
 int ima_init_crypto(void);
+void ima_putc(struct seq_file *m, void *data, int datalen);
+void ima_print_digest(struct seq_file *m, u8 *digest, int size);
 
 int ima_init_template(void);
 
