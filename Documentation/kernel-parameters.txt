@@ -1181,8 +1181,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			owned by uid=0.
 
 	ima_hash=	[IMA]
-			Format: { "sha1" | "md5" }
+			Format: { md5 | sha1 | rmd160 | sha256 | sha384
+				   | sha512 | ... }
 			default: "sha1"
+
+			The list of supported hash algorithms is defined
+			in crypto/hash_info.h.
 
 	ima_tcb		[IMA]
 			Load a policy which meets the needs of the Trusted
