@@ -43,34 +43,36 @@ int ima_used_chip;
 static void __init ima_add_boot_aggregate(void)
 {
 	struct ima_template_entry *entry;
+	struct integrity_iint_cache tmp_iint, *iint = &tmp_iint;
 	const char *op = "add_boot_aggregate";
 	const char *audit_cause = "ENOMEM";
 	int result = -ENOMEM;
-	int violation = 1;
+	int violation = 0;
 	struct {
 		struct ima_digest_data hdr;
 		char digest[TPM_DIGEST_SIZE];
 	} hash;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		goto err_out;
+	memset(iint, 0, sizeof(*iint));
+	memset(&hash, 0, sizeof(hash));
+	iint->ima_hash = &hash.hdr;
+	iint->ima_hash->algo = HASH_ALGO_SHA1;
+	iint->ima_hash->length = SHA1_DIGEST_SIZE;
 
-	memset(&entry->template, 0, sizeof(entry->template));
-	strncpy(entry->template.file_name, boot_aggregate_name,
-		IMA_EVENT_NAME_LEN_MAX);
 	if (ima_used_chip) {
-		violation = 0;
-		hash.hdr.algo = HASH_ALGO_SHA1;
 		result = ima_calc_boot_aggregate(&hash.hdr);
 		if (result < 0) {
 			audit_cause = "hashing_error";
 			kfree(entry);
 			goto err_out;
 		}
-		memcpy(entry->template.digest, hash.hdr.digest,
-		       hash.hdr.length);
 	}
+
+	result = ima_alloc_init_template(iint, NULL, boot_aggregate_name,
+					 &entry);
+	if (result < 0)
+		return;
+
 	result = ima_store_template(entry, violation, NULL,
 				    boot_aggregate_name);
 	if (result < 0)

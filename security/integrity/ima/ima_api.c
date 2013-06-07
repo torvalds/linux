@@ -24,6 +24,62 @@
 static const char *IMA_TEMPLATE_NAME = "ima";
 
 /*
+ * ima_alloc_init_template - create and initialize a new template entry
+ */
+int ima_alloc_init_template(struct integrity_iint_cache *iint,
+			    struct file *file, const unsigned char *filename,
+			    struct ima_template_entry **entry)
+{
+	struct ima_template_entry *e;
+	int result = 0;
+
+	e = kzalloc(sizeof(**entry), GFP_NOFS);
+	if (!e)
+		return -ENOMEM;
+
+	memset(&(e)->template, 0, sizeof(e->template));
+	if (!iint)		/* IMA measurement violation entry */
+		goto out;
+
+	if (iint->ima_hash->algo != ima_hash_algo) {
+		struct inode *inode;
+		struct {
+			struct ima_digest_data hdr;
+			char digest[IMA_MAX_DIGEST_SIZE];
+		} hash;
+
+		if (!file) {
+			result = -EINVAL;
+			goto out_free;
+		}
+
+		inode = file_inode(file);
+		hash.hdr.algo = ima_hash_algo;
+		hash.hdr.length = SHA1_DIGEST_SIZE;
+		result = ima_calc_file_hash(file, &hash.hdr);
+		if (result) {
+			integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
+					    filename, "collect_data",
+					    "failed", result, 0);
+			goto out_free;
+		} else
+			memcpy(e->template.digest, hash.hdr.digest,
+			       hash.hdr.length);
+	} else
+		memcpy(e->template.digest, iint->ima_hash->digest,
+		       iint->ima_hash->length);
+out:
+	strcpy(e->template.file_name,
+	       (strlen(filename) > IMA_EVENT_NAME_LEN_MAX && file != NULL) ?
+	       file->f_dentry->d_name.name : filename);
+	*entry = e;
+	return 0;
+out_free:
+	kfree(e);
+	return result;
+}
+
+/*
  * ima_store_template - store ima template measurements
  *
  * Calculate the hash of a template entry, add the template entry
@@ -90,13 +146,11 @@ void ima_add_violation(struct file *file, const unsigned char *filename,
 	/* can overflow, only indicator */
 	atomic_long_inc(&ima_htable.violations);
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry) {
+	result = ima_alloc_init_template(NULL, file, filename, &entry);
+	if (result < 0) {
 		result = -ENOMEM;
 		goto err_out;
 	}
-	memset(&entry->template, 0, sizeof(entry->template));
-	strncpy(entry->template.file_name, filename, IMA_EVENT_NAME_LEN_MAX);
 	result = ima_store_template(entry, violation, inode, filename);
 	if (result < 0)
 		kfree(entry);
@@ -220,34 +274,12 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 	if (iint->flags & IMA_MEASURED)
 		return;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry) {
+	result = ima_alloc_init_template(iint, file, filename, &entry);
+	if (result < 0) {
 		integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
 				    op, audit_cause, result, 0);
 		return;
 	}
-	memset(&entry->template, 0, sizeof(entry->template));
-	if (iint->ima_hash->algo != ima_hash_algo) {
-		struct {
-			struct ima_digest_data hdr;
-			char digest[IMA_MAX_DIGEST_SIZE];
-		} hash;
-
-		hash.hdr.algo = ima_hash_algo;
-		result = ima_calc_file_hash(file, &hash.hdr);
-		if (result)
-			integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
-					    filename, "collect_data", "failed",
-					    result, 0);
-		else
-			memcpy(entry->template.digest, hash.hdr.digest,
-			       hash.hdr.length);
-	} else
-		memcpy(entry->template.digest, iint->ima_hash->digest,
-		       iint->ima_hash->length);
-	strcpy(entry->template.file_name,
-	       (strlen(filename) > IMA_EVENT_NAME_LEN_MAX) ?
-	       file->f_dentry->d_name.name : filename);
 
 	result = ima_store_template(entry, violation, inode, filename);
 	if (!result || result == -EEXIST)
