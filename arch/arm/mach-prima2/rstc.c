@@ -28,8 +28,10 @@ static int __init sirfsoc_of_rstc_init(void)
 	struct device_node *np;
 
 	np = of_find_matching_node(NULL, rstc_ids);
-	if (!np)
-		panic("unable to find compatible rstc node in dtb\n");
+	if (!np) {
+		pr_err("unable to find compatible sirf rstc node in dtb\n");
+		return -ENOENT;
+	}
 
 	sirfsoc_rstc_base = of_iomap(np, 0);
 	if (!sirfsoc_rstc_base)
