@@ -339,6 +339,8 @@ repeat:
 	if (new_i_size &&
 		i_size_read(inode) < ((index + 1) << PAGE_CACHE_SHIFT)) {
 		i_size_write(inode, ((index + 1) << PAGE_CACHE_SHIFT));
+		/* Only the directory inode sets new_i_size */
+		set_inode_flag(F2FS_I(inode), FI_UPDATE_DIR);
 		mark_inode_dirty_sync(inode);
 	}
 	return page;
