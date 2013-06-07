@@ -1854,7 +1854,7 @@ static int get_serial_info(struct moschip_port *mos7720_port,
 	memset(&tmp, 0, sizeof(tmp));
 
 	tmp.type		= PORT_16550A;
-	tmp.line		= mos7720_port->port->serial->minor;
+	tmp.line		= mos7720_port->port->minor;
 	tmp.port		= mos7720_port->port->port_number;
 	tmp.irq			= 0;
 	tmp.flags		= ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;

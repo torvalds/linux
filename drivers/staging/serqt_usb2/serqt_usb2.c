@@ -906,7 +906,7 @@ static int qt_open(struct tty_struct *tty,
 			qt_submit_urb_from_open(serial, port);
 	}
 
-	dev_dbg(&port->dev, "serial number is %d\n", port->serial->minor);
+	dev_dbg(&port->dev, "minor number is %d\n", port->minor);
 	dev_dbg(&port->dev,
 		"Bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
 	dev_dbg(&port->dev,
@@ -1002,7 +1002,7 @@ static void qt_close(struct usb_serial_port *port)
 	status = 0;
 
 	tty = tty_port_tty_get(&port->port);
-	index = tty->index - serial->minor;
+	index = port->port_number;
 
 	qt_port = qt_get_port_private(port);
 	port0 = qt_get_port_private(serial->port[0]);
@@ -1129,12 +1129,11 @@ static int qt_ioctl(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct quatech_port *qt_port = qt_get_port_private(port);
-	struct usb_serial *serial = get_usb_serial(port, __func__);
 	unsigned int index;
 
 	dev_dbg(&port->dev, "%s cmd 0x%04x\n", __func__, cmd);
 
-	index = tty->index - serial->minor;
+	index = port->port_number;
 
 	if (cmd == TIOCMIWAIT) {
 		while (qt_port != NULL) {
@@ -1180,7 +1179,7 @@ static void qt_set_termios(struct tty_struct *tty,
 	int baud, divisor, remainder;
 	int status;
 
-	index = tty->index - port->serial->minor;
+	index = port->port_number;
 
 	switch (cflag & CSIZE) {
 	case CS5:
@@ -1296,7 +1295,7 @@ static void qt_break(struct tty_struct *tty, int break_state)
 	u16 index, onoff;
 	unsigned int result;
 
-	index = tty->index - serial->minor;
+	index = port->port_number;
 
 	qt_port = qt_get_port_private(port);
 
@@ -1325,7 +1324,7 @@ static inline int qt_real_tiocmget(struct tty_struct *tty,
 	int status;
 	unsigned int index;
 
-	index = tty->index - serial->minor;
+	index = port->port_number;
 	status =
 	    BoxGetRegister(port->serial, index, MODEM_CONTROL_REGISTER, &mcr);
 	if (status >= 0) {
@@ -1364,7 +1363,7 @@ static inline int qt_real_tiocmset(struct tty_struct *tty,
 	int status;
 	unsigned int index;
 
-	index = tty->index - serial->minor;
+	index = port->port_number;
 	status =
 	    BoxGetRegister(port->serial, index, MODEM_CONTROL_REGISTER, &mcr);
 	if (status < 0)

@@ -1057,7 +1057,7 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 	 * structures were not set up at that time.)   */
 
 	dev_dbg(&port->dev, "port number is %d\n", port->port_number);
-	dev_dbg(&port->dev, "minor number is %d\n", port->serial->minor);
+	dev_dbg(&port->dev, "minor number is %d\n", port->minor);
 	dev_dbg(&port->dev, "Bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
 	dev_dbg(&port->dev, "BulkOut endpoint is %d\n", port->bulk_out_endpointAddress);
 	dev_dbg(&port->dev, "Interrupt endpoint is %d\n", port->interrupt_in_endpointAddress);
@@ -2068,7 +2068,7 @@ static int mos7840_get_serial_info(struct moschip_port *mos7840_port,
 	memset(&tmp, 0, sizeof(tmp));
 
 	tmp.type = PORT_16550A;
-	tmp.line = mos7840_port->port->serial->minor;
+	tmp.line = mos7840_port->port->minor;
 	tmp.port = mos7840_port->port->port_number;
 	tmp.irq = 0;
 	tmp.flags = ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
@@ -2246,9 +2246,8 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 	 * usb-serial.c:get_free_serial() and cannot therefore be used
 	 * to index device instances */
 	mos7840_port->port_num = pnum + 1;
-	dev_dbg(&port->dev, "port->serial->minor = %d\n", port->serial->minor);
+	dev_dbg(&port->dev, "port->minor = %d\n", port->minor);
 	dev_dbg(&port->dev, "mos7840_port->port_num = %d\n", mos7840_port->port_num);
-	dev_dbg(&port->dev, "serial->minor = %d\n", serial->minor);
 
 	if (mos7840_port->port_num == 1) {
 		mos7840_port->SpRegOffset = 0x0;

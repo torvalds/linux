@@ -413,7 +413,7 @@ static int ark3116_ioctl(struct tty_struct *tty,
 		/* XXX: Some of these values are probably wrong. */
 		memset(&serstruct, 0, sizeof(serstruct));
 		serstruct.type = PORT_16654;
-		serstruct.line = port->serial->minor;
+		serstruct.line = port->minor;
 		serstruct.port = port->port_number;
 		serstruct.custom_divisor = 0;
 		serstruct.baud_base = 460800;

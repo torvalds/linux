@@ -294,7 +294,7 @@ static int f81232_ioctl(struct tty_struct *tty,
 	case TIOCGSERIAL:
 		memset(&ser, 0, sizeof ser);
 		ser.type = PORT_16654;
-		ser.line = port->serial->minor;
+		ser.line = port->minor;
 		ser.port = port->port_number;
 		ser.baud_base = 460800;
 
