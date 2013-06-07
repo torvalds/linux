@@ -404,6 +404,8 @@ static void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	 * following the termination of the page-flipping sequence
 	 * and indeed performing the enable as a co-routine and not
 	 * waiting synchronously upon the vblank.
+	 *
+	 * WaFbcWaitForVBlankBeforeEnable:ilk,snb
 	 */
 	schedule_delayed_work(&work->work, msecs_to_jiffies(50));
 }
