@@ -559,8 +559,7 @@ static struct sh_eth_cpu_data *sh_eth_get_cpu_data(struct sh_eth_private *mdp)
 	else
 		return &sh_eth_my_cpu_data;
 }
-
-#elif defined(CONFIG_CPU_SUBTYPE_SH7734) || defined(CONFIG_CPU_SUBTYPE_SH7763)
+#endif
 
 static void sh_eth_chip_reset(struct net_device *ndev)
 {
@@ -571,7 +570,7 @@ static void sh_eth_chip_reset(struct net_device *ndev)
 	mdelay(1);
 }
 
-static void sh_eth_set_rate(struct net_device *ndev)
+static void sh_eth_set_rate_gether(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -590,11 +589,40 @@ static void sh_eth_set_rate(struct net_device *ndev)
 	}
 }
 
-/* sh7763 */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+/* SH7734 */
+static struct sh_eth_cpu_data sh7734_data = {
 	.chip_reset	= sh_eth_chip_reset,
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate,
+	.set_rate	= sh_eth_set_rate_gether,
+
+	.ecsr_value	= ECSR_ICD | ECSR_MPD,
+	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
+	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
+
+	.tx_check	= EESR_TC1 | EESR_FTC,
+	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT | \
+			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE | \
+			  EESR_ECI,
+	.tx_error_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_TDE | \
+			  EESR_TFE,
+
+	.apr		= 1,
+	.mpr		= 1,
+	.tpauser	= 1,
+	.bculr		= 1,
+	.hw_swap	= 1,
+	.no_trimd	= 1,
+	.no_ade		= 1,
+	.tsu		= 1,
+	.hw_crc		= 1,
+	.select_mii	= 1,
+};
+
+/* SH7763 */
+static struct sh_eth_cpu_data sh7763_data = {
+	.chip_reset	= sh_eth_chip_reset,
+	.set_duplex	= sh_eth_set_duplex,
+	.set_rate	= sh_eth_set_rate_gether,
 
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
@@ -615,14 +643,8 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.no_trimd	= 1,
 	.no_ade		= 1,
 	.tsu		= 1,
-#if defined(CONFIG_CPU_SUBTYPE_SH7734)
-	.hw_crc     = 1,
-	.select_mii = 1,
-#else
 	.irq_flags	= IRQF_SHARED,
-#endif
 };
-#endif
 
 static void sh_eth_chip_reset_r8a7740(struct net_device *ndev)
 {
@@ -633,25 +655,6 @@ static void sh_eth_chip_reset_r8a7740(struct net_device *ndev)
 	mdelay(1);
 
 	sh_eth_select_mii(ndev);
-}
-
-static void sh_eth_set_rate_gether(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	switch (mdp->speed) {
-	case 10: /* 10BASE */
-		sh_eth_write(ndev, GECMR_10, GECMR);
-		break;
-	case 100:/* 100BASE */
-		sh_eth_write(ndev, GECMR_100, GECMR);
-		break;
-	case 1000: /* 1000BASE */
-		sh_eth_write(ndev, GECMR_1000, GECMR);
-		break;
-	default:
-		break;
-	}
 }
 
 /* R8A7740 */
@@ -2710,6 +2713,8 @@ static const struct dev_pm_ops sh_eth_dev_pm_ops = {
 static struct platform_device_id sh_eth_id_table[] = {
 	{ "sh7619-ether", (kernel_ulong_t)&sh7619_data },
 	{ "sh771x-ether", (kernel_ulong_t)&sh771x_data },
+	{ "sh7734-gether", (kernel_ulong_t)&sh7734_data },
+	{ "sh7763-gether", (kernel_ulong_t)&sh7763_data },
 	{ "r8a7740-gether", (kernel_ulong_t)&r8a7740_data },
 	{ CARDNAME },
 	{ }

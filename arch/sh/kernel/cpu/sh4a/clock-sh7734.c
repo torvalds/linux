@@ -238,7 +238,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("adc0", &mstp_clks[MSTP313]),
 	CLKDEV_CON_ID("mtu0", &mstp_clks[MSTP312]),
 	CLKDEV_CON_ID("iebus0", &mstp_clks[MSTP304]),
-	CLKDEV_DEV_ID("sh-eth.0", &mstp_clks[MSTP114]),
+	CLKDEV_DEV_ID("sh7734-gether.0", &mstp_clks[MSTP114]),
 	CLKDEV_CON_ID("rtc0", &mstp_clks[MSTP303]),
 	CLKDEV_CON_ID("hif0", &mstp_clks[MSTP302]),
 	CLKDEV_CON_ID("stif0", &mstp_clks[MSTP301]),
