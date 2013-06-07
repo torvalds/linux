@@ -291,7 +291,7 @@ void f2fs_truncate(struct inode *inode)
 	}
 }
 
-static int f2fs_getattr(struct vfsmount *mnt,
+int f2fs_getattr(struct vfsmount *mnt,
 			 struct dentry *dentry, struct kstat *stat)
 {
 	struct inode *inode = dentry->d_inode;
