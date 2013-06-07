@@ -1945,6 +1945,7 @@ union pplib_clock_info {
 	struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO evergreen;
 	struct _ATOM_PPLIB_SUMO_CLOCK_INFO sumo;
 	struct _ATOM_PPLIB_SI_CLOCK_INFO si;
+	struct _ATOM_PPLIB_CI_CLOCK_INFO ci;
 };
 
 union pplib_power_state {
@@ -2353,6 +2354,15 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 			sclk |= clock_info->rs780.ucLowEngineClockHigh << 16;
 			rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
 		}
+	} else if (rdev->family >= CHIP_BONAIRE) {
+		sclk = le16_to_cpu(clock_info->ci.usEngineClockLow);
+		sclk |= clock_info->ci.ucEngineClockHigh << 16;
+		mclk = le16_to_cpu(clock_info->ci.usMemoryClockLow);
+		mclk |= clock_info->ci.ucMemoryClockHigh << 16;
+		rdev->pm.power_state[state_index].clock_info[mode_index].mclk = mclk;
+		rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
+		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.type =
+			VOLTAGE_NONE;
 	} else if (rdev->family >= CHIP_TAHITI) {
 		sclk = le16_to_cpu(clock_info->si.usEngineClockLow);
 		sclk |= clock_info->si.ucEngineClockHigh << 16;
