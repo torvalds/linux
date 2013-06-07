@@ -299,8 +299,9 @@ static int atc_get_bytes_left(struct dma_chan *chan)
 		if (atchan->remain_desc < 0) {
 			ret = -EINVAL;
 			goto out;
-		} else
+		} else {
 			ret = atchan->remain_desc;
+		}
 	} else {
 		/*
 		 * Get residual bytes when current
@@ -1120,8 +1121,9 @@ atc_tx_status(struct dma_chan *chan,
 	if (unlikely(bytes < 0)) {
 		dev_vdbg(chan2dev(chan), "get residual bytes error\n");
 		return DMA_ERROR;
-	} else
+	} else {
 		dma_set_residue(txstate, bytes);
+	}
 
 	dev_vdbg(chan2dev(chan), "tx_status %d: cookie = %d residue = %d\n",
 		 ret, cookie, bytes);
