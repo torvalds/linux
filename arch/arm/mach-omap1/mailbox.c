@@ -86,21 +86,21 @@ static int omap1_mbox_fifo_full(struct omap_mbox *mbox)
 
 /* irq */
 static void
-omap1_mbox_enable_irq(struct omap_mbox *mbox, omap_mbox_type_t irq)
+omap1_mbox_enable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	if (irq == IRQ_RX)
 		enable_irq(mbox->irq);
 }
 
 static void
-omap1_mbox_disable_irq(struct omap_mbox *mbox, omap_mbox_type_t irq)
+omap1_mbox_disable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	if (irq == IRQ_RX)
 		disable_irq(mbox->irq);
 }
 
 static int
-omap1_mbox_is_irq(struct omap_mbox *mbox, omap_mbox_type_t irq)
+omap1_mbox_is_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	if (irq == IRQ_TX)
 		return 0;
