@@ -792,7 +792,8 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		pte_access &= gpte_access(vcpu, gpte);
 		protect_clean_gpte(&pte_access, gpte);
 
-		if (sync_mmio_spte(&sp->spt[i], gfn, pte_access, &nr_present))
+		if (sync_mmio_spte(vcpu->kvm, &sp->spt[i], gfn, pte_access,
+		      &nr_present))
 			continue;
 
 		if (gfn != sp->gfns[i]) {

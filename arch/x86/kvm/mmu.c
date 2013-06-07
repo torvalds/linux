@@ -197,15 +197,52 @@ void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask)
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_mmio_spte_mask);
 
-static void mark_mmio_spte(u64 *sptep, u64 gfn, unsigned access)
+/*
+ * spte bits of bit 3 ~ bit 11 are used as low 9 bits of generation number,
+ * the bits of bits 52 ~ bit 61 are used as high 10 bits of generation
+ * number.
+ */
+#define MMIO_SPTE_GEN_LOW_SHIFT		3
+#define MMIO_SPTE_GEN_HIGH_SHIFT	52
+
+#define MMIO_GEN_LOW_SHIFT		9
+#define MMIO_GEN_LOW_MASK		((1 << MMIO_GEN_LOW_SHIFT) - 1)
+#define MMIO_MAX_GEN			((1 << 19) - 1)
+
+static u64 generation_mmio_spte_mask(unsigned int gen)
+{
+	u64 mask;
+
+	WARN_ON(gen > MMIO_MAX_GEN);
+
+	mask = (gen & MMIO_GEN_LOW_MASK) << MMIO_SPTE_GEN_LOW_SHIFT;
+	mask |= ((u64)gen >> MMIO_GEN_LOW_SHIFT) << MMIO_SPTE_GEN_HIGH_SHIFT;
+	return mask;
+}
+
+static unsigned int get_mmio_spte_generation(u64 spte)
+{
+	unsigned int gen;
+
+	spte &= ~shadow_mmio_mask;
+
+	gen = (spte >> MMIO_SPTE_GEN_LOW_SHIFT) & MMIO_GEN_LOW_MASK;
+	gen |= (spte >> MMIO_SPTE_GEN_HIGH_SHIFT) << MMIO_GEN_LOW_SHIFT;
+	return gen;
+}
+
+static void mark_mmio_spte(struct kvm *kvm, u64 *sptep, u64 gfn,
+			   unsigned access)
 {
 	struct kvm_mmu_page *sp =  page_header(__pa(sptep));
+	u64 mask = generation_mmio_spte_mask(0);
 
 	access &= ACC_WRITE_MASK | ACC_USER_MASK;
-
+	mask |= shadow_mmio_mask | access | gfn << PAGE_SHIFT;
 	sp->mmio_cached = true;
-	trace_mark_mmio_spte(sptep, gfn, access);
-	mmu_spte_set(sptep, shadow_mmio_mask | access | gfn << PAGE_SHIFT);
+
+	trace_mark_mmio_spte(sptep, gfn, access, 0);
+	mmu_spte_set(sptep, mask);
 }
 
 static bool is_mmio_spte(u64 spte)
@@ -215,18 +252,21 @@ static bool is_mmio_spte(u64 spte)
 
 static gfn_t get_mmio_spte_gfn(u64 spte)
 {
-	return (spte & ~shadow_mmio_mask) >> PAGE_SHIFT;
+	u64 mask = generation_mmio_spte_mask(MMIO_MAX_GEN) | shadow_mmio_mask;
+	return (spte & ~mask) >> PAGE_SHIFT;
 }
 
 static unsigned get_mmio_spte_access(u64 spte)
 {
-	return (spte & ~shadow_mmio_mask) & ~PAGE_MASK;
+	u64 mask = generation_mmio_spte_mask(MMIO_MAX_GEN) | shadow_mmio_mask;
+	return (spte & ~mask) & ~PAGE_MASK;
 }
 
-static bool set_mmio_spte(u64 *sptep, gfn_t gfn, pfn_t pfn, unsigned access)
+static bool set_mmio_spte(struct kvm *kvm, u64 *sptep, gfn_t gfn,
+			  pfn_t pfn, unsigned access)
 {
 	if (unlikely(is_noslot_pfn(pfn))) {
-		mark_mmio_spte(sptep, gfn, access);
+		mark_mmio_spte(kvm, sptep, gfn, access);
 		return true;
 	}
 
@@ -2364,7 +2404,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	u64 spte;
 	int ret = 0;
 
-	if (set_mmio_spte(sptep, gfn, pfn, pte_access))
+	if (set_mmio_spte(vcpu->kvm, sptep, gfn, pfn, pte_access))
 		return 0;
 
 	spte = PT_PRESENT_MASK;
@@ -3427,8 +3467,8 @@ static inline void protect_clean_gpte(unsigned *access, unsigned gpte)
 	*access &= mask;
 }
 
-static bool sync_mmio_spte(u64 *sptep, gfn_t gfn, unsigned access,
-			   int *nr_present)
+static bool sync_mmio_spte(struct kvm *kvm, u64 *sptep, gfn_t gfn,
+			   unsigned access, int *nr_present)
 {
 	if (unlikely(is_mmio_spte(*sptep))) {
 		if (gfn != get_mmio_spte_gfn(*sptep)) {
@@ -3437,7 +3477,7 @@ static bool sync_mmio_spte(u64 *sptep, gfn_t gfn, unsigned access,
 		}
 
 		(*nr_present)++;
-		mark_mmio_spte(sptep, gfn, access);
+		mark_mmio_spte(kvm, sptep, gfn, access);
 		return true;
 	}
 

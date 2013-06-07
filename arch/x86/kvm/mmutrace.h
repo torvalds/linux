@@ -199,23 +199,25 @@ DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_prepare_zap_page,
 
 TRACE_EVENT(
 	mark_mmio_spte,
-	TP_PROTO(u64 *sptep, gfn_t gfn, unsigned access),
-	TP_ARGS(sptep, gfn, access),
+	TP_PROTO(u64 *sptep, gfn_t gfn, unsigned access, unsigned int gen),
+	TP_ARGS(sptep, gfn, access, gen),
 
 	TP_STRUCT__entry(
 		__field(void *, sptep)
 		__field(gfn_t, gfn)
 		__field(unsigned, access)
+		__field(unsigned int, gen)
 	),
 
 	TP_fast_assign(
 		__entry->sptep = sptep;
 		__entry->gfn = gfn;
 		__entry->access = access;
+		__entry->gen = gen;
 	),
 
-	TP_printk("sptep:%p gfn %llx access %x", __entry->sptep, __entry->gfn,
-		  __entry->access)
+	TP_printk("sptep:%p gfn %llx access %x gen %x", __entry->sptep,
+		  __entry->gfn, __entry->access, __entry->gen)
 );
 
 TRACE_EVENT(
