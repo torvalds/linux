@@ -17,8 +17,9 @@ Required properties:
 - interrupts : this entry should indicate which interrupt line
 the talert signal is routed to;
 Specific:
-- ti,tshut-gpio : this entry should be used to inform which GPIO
-line the tshut signal is routed to;
+- gpios : this entry should be used to inform which GPIO
+line the tshut signal is routed to. The informed GPIO will
+be treated as an IRQ;
 - regs : this entry must also be specified and it is specific
 to each bandgap version, because the mapping may change from
 soc to soc, apart of depending on available features.
@@ -37,7 +38,7 @@ bandgap {
 		0x4a002378 0x18>;
 	compatible = "ti,omap4460-bandgap";
 	interrupts = <0 126 4>; /* talert */
-	ti,tshut-gpio = <86>;
+	gpios = <&gpio3 22 0>; /* tshut */
 };
 
 OMAP4470:
@@ -47,7 +48,7 @@ bandgap {
 		0x4a002378 0x18>;
 	compatible = "ti,omap4470-bandgap";
 	interrupts = <0 126 4>; /* talert */
-	ti,tshut-gpio = <86>;
+	gpios = <&gpio3 22 0>; /* tshut */
 };
 
 OMAP5430:

@@ -38,6 +38,7 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
+#include <linux/of_gpio.h>
 #include <linux/io.h>
 
 #include "ti-bandgap.h"
@@ -1129,7 +1130,6 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	struct ti_bandgap *bgp;
 	struct resource *res;
-	u32 prop;
 	int i;
 
 	/* just for the sake */
@@ -1173,11 +1173,7 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	} while (res);
 
 	if (TI_BANDGAP_HAS(bgp, TSHUT)) {
-		if (of_property_read_u32(node, "ti,tshut-gpio", &prop) < 0) {
-			dev_err(&pdev->dev, "missing tshut gpio in device tree\n");
-			return ERR_PTR(-EINVAL);
-		}
-		bgp->tshut_gpio = prop;
+		bgp->tshut_gpio = of_get_gpio(node, 0);
 		if (!gpio_is_valid(bgp->tshut_gpio)) {
 			dev_err(&pdev->dev, "invalid gpio for tshut (%d)\n",
 				bgp->tshut_gpio);
