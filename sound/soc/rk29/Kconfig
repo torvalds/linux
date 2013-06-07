@@ -35,17 +35,17 @@ config SND_RK29_SOC_I2S_2CH
 	help
          This supports the use of the 2 Channel I2S interface on rk29 processors.
 		 
-if (ARCH_RK3066B || ARCH_RK3188) && SND_RK29_SOC_I2S_2CH
 choice
-  bool "Set I2S GRF Output Voltage"
-  default SND_I2S_USE_33V
+	bool "Set I2S GRF Output Voltage"
+	depends on (ARCH_RK3066B || ARCH_RK3188) && SND_RK29_SOC_I2S_2CH
+	default SND_I2S_USE_33V
+
 	config SND_I2S_USE_33V
-		tristate  "I2S use 3.3V"
+		bool "I2S use 3.3V"
 
 	config SND_I2S_USE_18V
-		tristate  "I2S use 1.8V"
+		bool "I2S use 1.8V"
 endchoice
-endif
 
 config SND_RK_SOC_I2S2_2CH
 	bool "Soc RK29 I2S 2 Channel support(I2S2)"
