@@ -140,6 +140,13 @@ struct intel_shared_dpll {
 	int fp0_reg;
 	int fp1_reg;
 };
+
+enum intel_dpll_id {
+	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
+	/* real shared dpll ids must be >= 0 */
+	DPLL_ID_PCH_PLL_A,
+	DPLL_ID_PCH_PLL_B,
+};
 #define I915_NUM_PLLS 2
 
 /* Used by dp and fdi links */

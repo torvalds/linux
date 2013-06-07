@@ -909,6 +909,17 @@ static void assert_pll(struct drm_i915_private *dev_priv,
 #define assert_pll_enabled(d, p) assert_pll(d, p, true)
 #define assert_pll_disabled(d, p) assert_pll(d, p, false)
 
+static struct intel_shared_dpll *
+intel_crtc_to_shared_dpll(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+
+	if (crtc->shared_dpll < 0)
+		return NULL;
+
+	return &dev_priv->shared_dplls[crtc->shared_dpll];
+}
+
 /* For ILK+ */
 static void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll,
@@ -1404,16 +1415,15 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv, int port)
  * The PCH PLL needs to be enabled before the PCH transcoder, since it
  * drives the transcoder clock.
  */
-static void ironlake_enable_shared_dpll(struct intel_crtc *intel_crtc)
+static void ironlake_enable_shared_dpll(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = intel_crtc->base.dev->dev_private;
-	struct intel_shared_dpll *pll;
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
 	int reg;
 	u32 val;
 
 	/* PCH PLLs only available on ILK, SNB and IVB */
 	BUG_ON(dev_priv->info->gen < 5);
-	pll = intel_crtc->shared_dpll;
 	if (pll == NULL)
 		return;
 
@@ -1422,7 +1432,7 @@ static void ironlake_enable_shared_dpll(struct intel_crtc *intel_crtc)
 
 	DRM_DEBUG_KMS("enable PCH PLL %x (active %d, on? %d)for crtc %d\n",
 		      pll->pll_reg, pll->active, pll->on,
-		      intel_crtc->base.base.id);
+		      crtc->base.base.id);
 
 	/* PCH refclock must be enabled first */
 	assert_pch_refclk_enabled(dev_priv);
@@ -1446,10 +1456,10 @@ static void ironlake_enable_shared_dpll(struct intel_crtc *intel_crtc)
 	pll->on = true;
 }
 
-static void intel_disable_shared_dpll(struct intel_crtc *intel_crtc)
+static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = intel_crtc->base.dev->dev_private;
-	struct intel_shared_dpll *pll = intel_crtc->shared_dpll;
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
 	int reg;
 	u32 val;
 
@@ -1463,7 +1473,7 @@ static void intel_disable_shared_dpll(struct intel_crtc *intel_crtc)
 
 	DRM_DEBUG_KMS("disable PCH PLL %x (active %d, on? %d) for crtc %d\n",
 		      pll->pll_reg, pll->active, pll->on,
-		      intel_crtc->base.base.id);
+		      crtc->base.base.id);
 
 	if (WARN_ON(pll->active == 0)) {
 		assert_shared_dpll_disabled(dev_priv, pll, NULL);
@@ -1478,7 +1488,7 @@ static void intel_disable_shared_dpll(struct intel_crtc *intel_crtc)
 	DRM_DEBUG_KMS("disabling PCH PLL %x\n", pll->pll_reg);
 
 	/* Make sure transcoder isn't still depending on us */
-	assert_pch_transcoder_disabled(dev_priv, intel_crtc->pipe);
+	assert_pch_transcoder_disabled(dev_priv, crtc->pipe);
 
 	reg = pll->pll_reg;
 	val = I915_READ(reg);
@@ -1495,6 +1505,7 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t reg, val, pipeconf_val;
 
 	/* PCH only available on ILK+ */
@@ -1502,8 +1513,8 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 
 	/* Make sure PCH DPLL is enabled */
 	assert_shared_dpll_enabled(dev_priv,
-				   to_intel_crtc(crtc)->shared_dpll,
-				   to_intel_crtc(crtc));
+				   intel_crtc_to_shared_dpll(intel_crtc),
+				   intel_crtc);
 
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(dev_priv, pipe);
@@ -2990,7 +3001,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 			sel = TRANSC_DPLLB_SEL;
 			break;
 		}
-		if (intel_crtc->shared_dpll->pll_reg == _PCH_DPLL_B)
+		if (intel_crtc->shared_dpll == DPLL_ID_PCH_PLL_B)
 			temp |= sel;
 		else
 			temp &= ~sel;
@@ -3059,9 +3070,9 @@ static void lpt_pch_enable(struct drm_crtc *crtc)
 	lpt_enable_pch_transcoder(dev_priv, cpu_transcoder);
 }
 
-static void intel_put_shared_dpll(struct intel_crtc *intel_crtc)
+static void intel_put_shared_dpll(struct intel_crtc *crtc)
 {
-	struct intel_shared_dpll *pll = intel_crtc->shared_dpll;
+	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
 
 	if (pll == NULL)
 		return;
@@ -3076,29 +3087,28 @@ static void intel_put_shared_dpll(struct intel_crtc *intel_crtc)
 		WARN_ON(pll->active);
 	}
 
-	intel_crtc->shared_dpll = NULL;
+	crtc->shared_dpll = DPLL_ID_PRIVATE;
 }
 
-static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *intel_crtc, u32 dpll, u32 fp)
+static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc, u32 dpll, u32 fp)
 {
-	struct drm_i915_private *dev_priv = intel_crtc->base.dev->dev_private;
-	struct intel_shared_dpll *pll;
-	int i;
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
+	enum intel_dpll_id i;
 
-	pll = intel_crtc->shared_dpll;
 	if (pll) {
 		DRM_DEBUG_KMS("CRTC:%d dropping existing PCH PLL %x\n",
-			      intel_crtc->base.base.id, pll->pll_reg);
-		intel_put_shared_dpll(intel_crtc);
+			      crtc->base.base.id, pll->pll_reg);
+		intel_put_shared_dpll(crtc);
 	}
 
 	if (HAS_PCH_IBX(dev_priv->dev)) {
 		/* Ironlake PCH has a fixed PLL->PCH pipe mapping. */
-		i = intel_crtc->pipe;
+		i = crtc->pipe;
 		pll = &dev_priv->shared_dplls[i];
 
 		DRM_DEBUG_KMS("CRTC:%d using pre-allocated PCH PLL %x\n",
-			      intel_crtc->base.base.id, pll->pll_reg);
+			      crtc->base.base.id, pll->pll_reg);
 
 		goto found;
 	}
@@ -3113,7 +3123,7 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *intel_
 		if (dpll == (I915_READ(pll->pll_reg) & 0x7fffffff) &&
 		    fp == I915_READ(pll->fp0_reg)) {
 			DRM_DEBUG_KMS("CRTC:%d sharing existing PCH PLL %x (refcount %d, ative %d)\n",
-				      intel_crtc->base.base.id,
+				      crtc->base.base.id,
 				      pll->pll_reg, pll->refcount, pll->active);
 
 			goto found;
@@ -3125,7 +3135,7 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *intel_
 		pll = &dev_priv->shared_dplls[i];
 		if (pll->refcount == 0) {
 			DRM_DEBUG_KMS("CRTC:%d allocated PCH PLL %x\n",
-				      intel_crtc->base.base.id, pll->pll_reg);
+				      crtc->base.base.id, pll->pll_reg);
 			goto found;
 		}
 	}
@@ -3133,8 +3143,8 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *intel_
 	return NULL;
 
 found:
-	intel_crtc->shared_dpll = pll;
-	DRM_DEBUG_DRIVER("using pll %d for pipe %c\n", i, pipe_name(intel_crtc->pipe));
+	crtc->shared_dpll = i;
+	DRM_DEBUG_DRIVER("using pll %d for pipe %c\n", i, pipe_name(crtc->pipe));
 	if (pll->active == 0) {
 		DRM_DEBUG_DRIVER("setting up pll %d\n", i);
 		WARN_ON(pll->on);
@@ -5730,6 +5740,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	bool ok, has_reduced_clock = false;
 	bool is_lvds = false;
 	struct intel_encoder *encoder;
+	struct intel_shared_dpll *pll;
 	int ret;
 
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
@@ -5765,8 +5776,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* CPU eDP is the only output that doesn't need a PCH PLL of its own. */
 	if (intel_crtc->config.has_pch_encoder) {
-		struct intel_shared_dpll *pll;
-
 		fp = i9xx_dpll_compute_fp(&intel_crtc->config.dpll);
 		if (has_reduced_clock)
 			fp2 = i9xx_dpll_compute_fp(&reduced_clock);
@@ -5791,11 +5800,15 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
 
-	if (intel_crtc->shared_dpll) {
-		I915_WRITE(intel_crtc->shared_dpll->pll_reg, dpll);
+	intel_crtc->lowfreq_avail = false;
+
+	if (intel_crtc->config.has_pch_encoder) {
+		pll = intel_crtc_to_shared_dpll(intel_crtc);
+
+		I915_WRITE(pll->pll_reg, dpll);
 
 		/* Wait for the clocks to stabilize. */
-		POSTING_READ(intel_crtc->shared_dpll->pll_reg);
+		POSTING_READ(pll->pll_reg);
 		udelay(150);
 
 		/* The pixel multiplier can only be updated once the
@@ -5803,16 +5816,13 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		 *
 		 * So write it again.
 		 */
-		I915_WRITE(intel_crtc->shared_dpll->pll_reg, dpll);
-	}
+		I915_WRITE(pll->pll_reg, dpll);
 
-	intel_crtc->lowfreq_avail = false;
-	if (intel_crtc->shared_dpll) {
 		if (is_lvds && has_reduced_clock && i915_powersave) {
-			I915_WRITE(intel_crtc->shared_dpll->fp1_reg, fp2);
+			I915_WRITE(pll->fp1_reg, fp2);
 			intel_crtc->lowfreq_avail = true;
 		} else {
-			I915_WRITE(intel_crtc->shared_dpll->fp1_reg, fp);
+			I915_WRITE(pll->fp1_reg, fp);
 		}
 	}
 
