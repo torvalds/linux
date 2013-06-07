@@ -4998,6 +4998,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	uint32_t tmp;
 
 	pipe_config->cpu_transcoder = crtc->pipe;
+	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
 	tmp = I915_READ(PIPECONF(crtc->pipe));
 	if (!(tmp & PIPECONF_ENABLE))
@@ -5874,6 +5875,7 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	uint32_t tmp;
 
 	pipe_config->cpu_transcoder = crtc->pipe;
+	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
 	tmp = I915_READ(PIPECONF(crtc->pipe));
 	if (!(tmp & PIPECONF_ENABLE))
@@ -5891,6 +5893,16 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 		/* XXX: Can't properly read out the pch dpll pixel multiplier
 		 * since we don't have state tracking for pch clocks yet. */
 		pipe_config->pixel_multiplier = 1;
+
+		if (HAS_PCH_IBX(dev_priv->dev)) {
+			pipe_config->shared_dpll = crtc->pipe;
+		} else {
+			tmp = I915_READ(PCH_DPLL_SEL);
+			if (tmp & TRANS_DPLLB_SEL(crtc->pipe))
+				pipe_config->shared_dpll = DPLL_ID_PCH_PLL_B;
+			else
+				pipe_config->shared_dpll = DPLL_ID_PCH_PLL_A;
+		}
 	} else {
 		pipe_config->pixel_multiplier = 1;
 	}
@@ -5971,6 +5983,8 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	uint32_t tmp;
 
 	pipe_config->cpu_transcoder = crtc->pipe;
+	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
+
 	tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
 	if (tmp & TRANS_DDI_FUNC_ENABLE) {
 		enum pipe trans_edp_pipe;
@@ -7844,6 +7858,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	drm_mode_copy(&pipe_config->adjusted_mode, mode);
 	drm_mode_copy(&pipe_config->requested_mode, mode);
 	pipe_config->cpu_transcoder = to_intel_crtc(crtc)->pipe;
+	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
 	/* Compute a starting value for pipe_config->pipe_bpp taking the source
 	 * plane pixel format and any sink constraints into account. Returns the
@@ -8162,6 +8177,8 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_I(pch_pfit.size);
 
 	PIPE_CONF_CHECK_I(ips_enabled);
+
+	PIPE_CONF_CHECK_I(shared_dpll);
 
 #undef PIPE_CONF_CHECK_I
 #undef PIPE_CONF_CHECK_FLAGS
