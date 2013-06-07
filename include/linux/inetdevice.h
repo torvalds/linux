@@ -50,12 +50,17 @@ struct ipv4_devconf {
 	DECLARE_BITMAP(state, IPV4_DEVCONF_MAX);
 };
 
+#define MC_HASH_SZ_LOG 9
+
 struct in_device {
 	struct net_device	*dev;
 	atomic_t		refcnt;
 	int			dead;
 	struct in_ifaddr	*ifa_list;	/* IP ifaddr chain		*/
+
 	struct ip_mc_list __rcu	*mc_list;	/* IP multicast filter chain    */
+	struct ip_mc_list __rcu	* __rcu *mc_hash;
+
 	int			mc_count;	/* Number of installed mcasts	*/
 	spinlock_t		mc_tomb_lock;
 	struct ip_mc_list	*mc_tomb;
