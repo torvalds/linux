@@ -184,6 +184,32 @@
 			0x196 (PIN_OUTPUT | MUX_MODE6) /* uart3_cts_rctx.gpio5_153 */
 		>;
 	};
+
+	uart1_pins: pinmux_uart1_pins {
+		pinctrl-single,pins = <
+			0x60 (PIN_OUTPUT | MUX_MODE0) /* uart1_tx.uart1_cts */
+			0x62 (PIN_INPUT_PULLUP | MUX_MODE0) /* uart1_tx.uart1_cts */
+			0x64 (PIN_INPUT_PULLUP | MUX_MODE0) /* uart1_rx.uart1_rts */
+			0x66 (PIN_OUTPUT | MUX_MODE0) /* uart1_rx.uart1_rts */
+		>;
+	};
+
+	uart3_pins: pinmux_uart3_pins {
+		pinctrl-single,pins = <
+			0x19a (PIN_OUTPUT | MUX_MODE0) /* uart3_rts_irsd.uart3_tx_irtx */
+			0x19c (PIN_INPUT_PULLUP | MUX_MODE0) /* uart3_rx_irrx.uart3_usbb3_hsic */
+		>;
+	};
+
+	uart5_pins: pinmux_uart5_pins {
+		pinctrl-single,pins = <
+			0x170 (PIN_INPUT_PULLUP | MUX_MODE0) /* uart5_rx.uart5_rx */
+			0x172 (PIN_OUTPUT | MUX_MODE0) /* uart5_tx.uart5_tx */
+			0x174 (PIN_INPUT_PULLUP | MUX_MODE0) /* uart5_cts.uart5_rts */
+			0x176 (PIN_OUTPUT | MUX_MODE0) /* uart5_cts.uart5_rts */
+		>;
+	};
+
 };
 
 &omap5_pmx_wkup {
@@ -267,4 +293,19 @@
 &mcspi4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcspi4_pins>;
+};
+
+&uart1 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&uart1_pins>;
+};
+
+&uart3 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&uart3_pins>;
+};
+
+&uart5 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&uart5_pins>;
 };
