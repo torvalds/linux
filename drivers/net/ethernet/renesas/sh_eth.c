@@ -680,9 +680,9 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tsu		= 1,
 	.select_mii	= 1,
 };
+#endif
 
-#elif defined(CONFIG_CPU_SUBTYPE_SH7619)
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+static struct sh_eth_cpu_data sh7619_data = {
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 
 	.apr		= 1,
@@ -690,7 +690,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 };
-#endif
 
 static struct sh_eth_cpu_data sh771x_data = {
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
@@ -2700,6 +2699,7 @@ static const struct dev_pm_ops sh_eth_dev_pm_ops = {
 #endif
 
 static struct platform_device_id sh_eth_id_table[] = {
+	{ "sh7619-ether", (kernel_ulong_t)&sh7619_data },
 	{ "sh771x-ether", (kernel_ulong_t)&sh771x_data },
 	{ CARDNAME },
 	{ }

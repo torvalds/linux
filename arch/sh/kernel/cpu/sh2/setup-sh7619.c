@@ -124,8 +124,8 @@ static struct resource eth_resources[] = {
 };
 
 static struct platform_device eth_device = {
-	.name = "sh-eth",
-	.id	= -1,
+	.name = "sh7619-ether",
+	.id = -1,
 	.dev = {
 		.platform_data = (void *)1,
 	},
