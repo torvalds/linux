@@ -333,7 +333,7 @@ static struct ab8500_ext_regulator_info
 	},
 };
 
-int ab8500_ext_regulator_init(struct platform_device *pdev)
+int ab8500_ext_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_platform_data *ppdata;
@@ -409,7 +409,7 @@ int ab8500_ext_regulator_init(struct platform_device *pdev)
 	return 0;
 }
 
-void ab8500_ext_regulator_exit(struct platform_device *pdev)
+int ab8500_ext_regulator_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -422,7 +422,36 @@ void ab8500_ext_regulator_exit(struct platform_device *pdev)
 
 		regulator_unregister(info->rdev);
 	}
+
+	return 0;
 }
+
+static struct platform_driver ab8500_ext_regulator_driver = {
+	.probe = ab8500_ext_regulator_probe,
+	.remove = ab8500_ext_regulator_remove,
+	.driver         = {
+		.name   = "ab8500-ext-regulator",
+		.owner  = THIS_MODULE,
+	},
+};
+
+static int __init ab8500_ext_regulator_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&ab8500_ext_regulator_driver);
+	if (ret)
+		pr_err("Failed to register ab8500 ext regulator: %d\n", ret);
+
+	return ret;
+}
+subsys_initcall(ab8500_ext_regulator_init);
+
+static void __exit ab8500_ext_regulator_exit(void)
+{
+	platform_driver_unregister(&ab8500_ext_regulator_driver);
+}
+module_exit(ab8500_ext_regulator_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Bengt Jonsson <bengt.g.jonsson@stericsson.com>");

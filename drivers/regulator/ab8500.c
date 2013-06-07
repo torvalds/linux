@@ -3156,22 +3156,12 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	if (!is_ab8505(ab8500)) {
-		/* register external regulators (before Vaux1, 2 and 3) */
-		err = ab8500_ext_regulator_init(pdev);
-		if (err)
-			return err;
-	}
-
 	/* register all regulators */
 	for (i = 0; i < abx500_regulator.info_size; i++) {
 		err = ab8500_regulator_register(pdev, &pdata->regulator[i],
 						i, NULL);
-		if (err < 0) {
-			if (!is_ab8505(ab8500))
-				ab8500_ext_regulator_exit(pdev);
+		if (err < 0)
 			return err;
-		}
 	}
 
 	return 0;
@@ -3180,7 +3170,6 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 static int ab8500_regulator_remove(struct platform_device *pdev)
 {
 	int i, err;
-	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 
 	for (i = 0; i < abx500_regulator.info_size; i++) {
 		struct ab8500_regulator_info *info = NULL;
@@ -3191,10 +3180,6 @@ static int ab8500_regulator_remove(struct platform_device *pdev)
 
 		regulator_unregister(info->regulator);
 	}
-
-	/* remove external regulators (after Vaux1, 2 and 3) */
-	if (!is_ab8505(ab8500))
-		ab8500_ext_regulator_exit(pdev);
 
 	/* remove regulator debug */
 	err = ab8500_regulator_debug_exit(pdev);
