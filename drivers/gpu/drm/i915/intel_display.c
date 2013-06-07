@@ -8140,6 +8140,21 @@ static void intel_set_config_restore_state(struct drm_device *dev,
 	}
 }
 
+static bool
+is_crtc_connector_off(struct drm_crtc *crtc, struct drm_connector *connectors,
+		      int num_connectors)
+{
+	int i;
+
+	for (i = 0; i < num_connectors; i++)
+		if (connectors[i].encoder &&
+		    connectors[i].encoder->crtc == crtc &&
+		    connectors[i].dpms != DRM_MODE_DPMS_ON)
+			return true;
+
+	return false;
+}
+
 static void
 intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 				      struct intel_set_config *config)
@@ -8147,7 +8162,11 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
-	if (set->crtc->fb != set->fb) {
+	if (set->connectors != NULL &&
+	    is_crtc_connector_off(set->crtc, *set->connectors,
+				  set->num_connectors)) {
+			config->mode_changed = true;
+	} else if (set->crtc->fb != set->fb) {
 		/* If we have no fb then treat it as a full mode set */
 		if (set->crtc->fb == NULL) {
 			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
@@ -8157,8 +8176,9 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 		} else if (set->fb->pixel_format !=
 			   set->crtc->fb->pixel_format) {
 			config->mode_changed = true;
-		} else
+		} else {
 			config->fb_changed = true;
+		}
 	}
 
 	if (set->fb && (set->x != set->crtc->x || set->y != set->crtc->y))
@@ -8332,11 +8352,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 		ret = intel_set_mode(set->crtc, set->mode,
 				     set->x, set->y, set->fb);
-		if (ret) {
-			DRM_ERROR("failed to set mode on [CRTC:%d], err = %d\n",
-				  set->crtc->base.id, ret);
-			goto fail;
-		}
 	} else if (config->fb_changed) {
 		intel_crtc_wait_for_pending_flips(set->crtc);
 
@@ -8344,18 +8359,18 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 					  set->x, set->y, set->fb);
 	}
 
-	intel_set_config_free(config);
-
-	return 0;
-
+	if (ret) {
+		DRM_ERROR("failed to set mode on [CRTC:%d], err = %d\n",
+			  set->crtc->base.id, ret);
 fail:
-	intel_set_config_restore_state(dev, config);
+		intel_set_config_restore_state(dev, config);
 
-	/* Try to restore the config */
-	if (config->mode_changed &&
-	    intel_set_mode(save_set.crtc, save_set.mode,
-			   save_set.x, save_set.y, save_set.fb))
-		DRM_ERROR("failed to restore config after modeset failure\n");
+		/* Try to restore the config */
+		if (config->mode_changed &&
+		    intel_set_mode(save_set.crtc, save_set.mode,
+				   save_set.x, save_set.y, save_set.fb))
+			DRM_ERROR("failed to restore config after modeset failure\n");
+	}
 
 out_config:
 	intel_set_config_free(config);
