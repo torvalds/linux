@@ -211,6 +211,9 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	/* FAR_EL1 */
 	{ Op0(0b11), Op1(0b000), CRn(0b0110), CRm(0b0000), Op2(0b000),
 	  NULL, reset_unknown, FAR_EL1 },
+	/* PAR_EL1 */
+	{ Op0(0b11), Op1(0b000), CRn(0b0111), CRm(0b0100), Op2(0b000),
+	  NULL, reset_unknown, PAR_EL1 },
 
 	/* PMINTENSET_EL1 */
 	{ Op0(0b11), Op1(0b000), CRn(0b1001), CRm(0b1110), Op2(0b001),
