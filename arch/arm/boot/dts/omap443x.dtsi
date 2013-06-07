@@ -24,4 +24,10 @@
 			clock-latency = <300000>; /* From legacy driver */
 		};
 	};
+
+	bandgap {
+		reg = <0x4a002260 0x4
+		       0x4a00232C 0x4>;
+		compatible = "ti,omap4430-bandgap";
+	};
 };
