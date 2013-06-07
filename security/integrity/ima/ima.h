@@ -69,7 +69,8 @@ int ima_fs_init(void);
 void ima_fs_cleanup(void);
 int ima_inode_alloc(struct inode *inode);
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
-			   const char *op, struct inode *inode);
+			   const char *op, struct inode *inode,
+			   const unsigned char *filename);
 int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash);
 int ima_calc_buffer_hash(const void *data, int len,
 			 struct ima_digest_data *hash);
@@ -107,7 +108,7 @@ void ima_store_measurement(struct integrity_iint_cache *iint, struct file *file,
 void ima_audit_measurement(struct integrity_iint_cache *iint,
 			   const unsigned char *filename);
 int ima_store_template(struct ima_template_entry *entry, int violation,
-		       struct inode *inode);
+		       struct inode *inode, const unsigned char *filename);
 void ima_template_show(struct seq_file *m, void *e, enum ima_show_type show);
 const char *ima_d_path(struct path *path, char **pathbuf);
 

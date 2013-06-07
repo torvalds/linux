@@ -40,7 +40,8 @@ static const char *IMA_TEMPLATE_NAME = "ima";
  * Returns 0 on success, error code otherwise
  */
 int ima_store_template(struct ima_template_entry *entry,
-		       int violation, struct inode *inode)
+		       int violation, struct inode *inode,
+		       const unsigned char *filename)
 {
 	const char *op = "add_template_measure";
 	const char *audit_cause = "hashing_error";
@@ -67,7 +68,7 @@ int ima_store_template(struct ima_template_entry *entry,
 		}
 		memcpy(entry->digest, hash.hdr.digest, hash.hdr.length);
 	}
-	result = ima_add_template_entry(entry, violation, op, inode);
+	result = ima_add_template_entry(entry, violation, op, inode, filename);
 	return result;
 }
 
@@ -96,7 +97,7 @@ void ima_add_violation(struct file *file, const unsigned char *filename,
 	}
 	memset(&entry->template, 0, sizeof(entry->template));
 	strncpy(entry->template.file_name, filename, IMA_EVENT_NAME_LEN_MAX);
-	result = ima_store_template(entry, violation, inode);
+	result = ima_store_template(entry, violation, inode, filename);
 	if (result < 0)
 		kfree(entry);
 err_out:
@@ -248,7 +249,7 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 	       (strlen(filename) > IMA_EVENT_NAME_LEN_MAX) ?
 	       file->f_dentry->d_name.name : filename);
 
-	result = ima_store_template(entry, violation, inode);
+	result = ima_store_template(entry, violation, inode, filename);
 	if (!result || result == -EEXIST)
 		iint->flags |= IMA_MEASURED;
 	if (result < 0)

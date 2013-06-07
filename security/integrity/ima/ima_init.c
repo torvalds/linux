@@ -71,7 +71,8 @@ static void __init ima_add_boot_aggregate(void)
 		memcpy(entry->template.digest, hash.hdr.digest,
 		       hash.hdr.length);
 	}
-	result = ima_store_template(entry, violation, NULL);
+	result = ima_store_template(entry, violation, NULL,
+				    boot_aggregate_name);
 	if (result < 0)
 		kfree(entry);
 	return;

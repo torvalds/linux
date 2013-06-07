@@ -104,7 +104,8 @@ static int ima_pcr_extend(const u8 *hash)
  * and extend the pcr.
  */
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
-			   const char *op, struct inode *inode)
+			   const char *op, struct inode *inode,
+			   const unsigned char *filename)
 {
 	u8 digest[TPM_DIGEST_SIZE];
 	const char *audit_cause = "hash_added";
@@ -141,8 +142,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 	}
 out:
 	mutex_unlock(&ima_extend_list_mutex);
-	integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
-			    entry->template.file_name,
+	integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
 			    op, audit_cause, result, audit_info);
 	return result;
 }
