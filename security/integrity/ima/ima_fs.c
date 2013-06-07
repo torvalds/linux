@@ -110,6 +110,7 @@ void ima_putc(struct seq_file *m, void *data, int datalen)
  *       char[20]=template digest
  *       32bit-le=template name size
  *       char[n]=template name
+ *       [eventdata length]
  *       eventdata[n]=template specific data
  */
 static int ima_measurements_show(struct seq_file *m, void *v)
@@ -119,6 +120,7 @@ static int ima_measurements_show(struct seq_file *m, void *v)
 	struct ima_template_entry *e;
 	int namelen;
 	u32 pcr = CONFIG_IMA_MEASURE_PCR_IDX;
+	int i;
 
 	/* get entry */
 	e = qe->entry;
@@ -136,15 +138,22 @@ static int ima_measurements_show(struct seq_file *m, void *v)
 	ima_putc(m, e->digest, TPM_DIGEST_SIZE);
 
 	/* 3rd: template name size */
-	namelen = strlen(e->template_name);
+	namelen = strlen(e->template_desc->name);
 	ima_putc(m, &namelen, sizeof namelen);
 
 	/* 4th:  template name */
-	ima_putc(m, (void *)e->template_name, namelen);
+	ima_putc(m, e->template_desc->name, namelen);
 
-	/* 5th:  template specific data */
-	ima_template_show(m, (struct ima_template_data *)&e->template,
-			  IMA_SHOW_BINARY);
+	/* 5th:  template length (except for 'ima' template) */
+	if (strcmp(e->template_desc->name, IMA_TEMPLATE_IMA_NAME) != 0)
+		ima_putc(m, &e->template_data_len,
+			 sizeof(e->template_data_len));
+
+	/* 6th:  template specific data */
+	for (i = 0; i < e->template_desc->num_fields; i++) {
+		e->template_desc->fields[i]->field_show(m, IMA_SHOW_BINARY,
+							&e->template_data[i]);
+	}
 	return 0;
 }
 
@@ -175,33 +184,13 @@ void ima_print_digest(struct seq_file *m, u8 *digest, int size)
 		seq_printf(m, "%02x", *(digest + i));
 }
 
-void ima_template_show(struct seq_file *m, void *e, enum ima_show_type show)
-{
-	struct ima_template_data *entry = e;
-	int namelen;
-
-	switch (show) {
-	case IMA_SHOW_ASCII:
-		ima_print_digest(m, entry->digest, IMA_DIGEST_SIZE);
-		seq_printf(m, " %s\n", entry->file_name);
-		break;
-	case IMA_SHOW_BINARY:
-		ima_putc(m, entry->digest, IMA_DIGEST_SIZE);
-
-		namelen = strlen(entry->file_name);
-		ima_putc(m, &namelen, sizeof namelen);
-		ima_putc(m, entry->file_name, namelen);
-	default:
-		break;
-	}
-}
-
 /* print in ascii */
 static int ima_ascii_measurements_show(struct seq_file *m, void *v)
 {
 	/* the list never shrinks, so we don't need a lock here */
 	struct ima_queue_entry *qe = v;
 	struct ima_template_entry *e;
+	int i;
 
 	/* get entry */
 	e = qe->entry;
@@ -215,11 +204,18 @@ static int ima_ascii_measurements_show(struct seq_file *m, void *v)
 	ima_print_digest(m, e->digest, TPM_DIGEST_SIZE);
 
 	/* 3th:  template name */
-	seq_printf(m, " %s ", e->template_name);
+	seq_printf(m, " %s", e->template_desc->name);
 
 	/* 4th:  template specific data */
-	ima_template_show(m, (struct ima_template_data *)&e->template,
-			  IMA_SHOW_ASCII);
+	for (i = 0; i < e->template_desc->num_fields; i++) {
+		seq_puts(m, " ");
+		if (e->template_data[i].len == 0)
+			continue;
+
+		e->template_desc->fields[i]->field_show(m, IMA_SHOW_ASCII,
+							&e->template_data[i]);
+	}
+	seq_puts(m, "\n");
 	return 0;
 }
 

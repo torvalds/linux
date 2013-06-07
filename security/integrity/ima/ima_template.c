@@ -31,6 +31,20 @@ static struct ima_template_field supported_fields[] = {
 	 .field_show = ima_show_template_string},
 };
 
+static struct ima_template_desc *ima_template;
+
+static struct ima_template_desc *lookup_template_desc(const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(defined_templates); i++) {
+		if (strcmp(defined_templates[i].name, name) == 0)
+			return defined_templates + i;
+	}
+
+	return NULL;
+}
+
 static struct ima_template_field *lookup_template_field(const char *field_id)
 {
 	int i;
@@ -108,6 +122,14 @@ static int init_defined_templates(void)
 			return result;
 	}
 	return result;
+}
+
+struct ima_template_desc *ima_template_desc_current(void)
+{
+	if (!ima_template)
+		ima_template = lookup_template_desc(IMA_TEMPLATE_IMA_NAME);
+
+	return ima_template;
 }
 
 int ima_init_template(void)

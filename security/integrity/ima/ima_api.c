@@ -21,8 +21,6 @@
 #include <crypto/hash_info.h>
 #include "ima.h"
 
-static const char *IMA_TEMPLATE_NAME = "ima";
-
 /*
  * ima_alloc_init_template - create and initialize a new template entry
  */
@@ -30,52 +28,32 @@ int ima_alloc_init_template(struct integrity_iint_cache *iint,
 			    struct file *file, const unsigned char *filename,
 			    struct ima_template_entry **entry)
 {
-	struct ima_template_entry *e;
-	int result = 0;
+	struct ima_template_desc *template_desc = ima_template_desc_current();
+	int i, result = 0;
 
-	e = kzalloc(sizeof(**entry), GFP_NOFS);
-	if (!e)
+	*entry = kzalloc(sizeof(**entry) + template_desc->num_fields *
+			 sizeof(struct ima_field_data), GFP_NOFS);
+	if (!*entry)
 		return -ENOMEM;
 
-	memset(&(e)->template, 0, sizeof(e->template));
-	if (!iint)		/* IMA measurement violation entry */
-		goto out;
+	for (i = 0; i < template_desc->num_fields; i++) {
+		struct ima_template_field *field = template_desc->fields[i];
+		u32 len;
 
-	if (iint->ima_hash->algo != ima_hash_algo) {
-		struct inode *inode;
-		struct {
-			struct ima_digest_data hdr;
-			char digest[IMA_MAX_DIGEST_SIZE];
-		} hash;
+		result = field->field_init(iint, file, filename,
+					   &((*entry)->template_data[i]));
+		if (result != 0)
+			goto out;
 
-		if (!file) {
-			result = -EINVAL;
-			goto out_free;
-		}
-
-		inode = file_inode(file);
-		hash.hdr.algo = ima_hash_algo;
-		hash.hdr.length = SHA1_DIGEST_SIZE;
-		result = ima_calc_file_hash(file, &hash.hdr);
-		if (result) {
-			integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
-					    filename, "collect_data",
-					    "failed", result, 0);
-			goto out_free;
-		} else
-			memcpy(e->template.digest, hash.hdr.digest,
-			       hash.hdr.length);
-	} else
-		memcpy(e->template.digest, iint->ima_hash->digest,
-		       iint->ima_hash->length);
-out:
-	strcpy(e->template.file_name,
-	       (strlen(filename) > IMA_EVENT_NAME_LEN_MAX && file != NULL) ?
-	       file->f_dentry->d_name.name : filename);
-	*entry = e;
+		len = (*entry)->template_data[i].len;
+		(*entry)->template_data_len += sizeof(len);
+		(*entry)->template_data_len += len;
+	}
+	(*entry)->template_desc = template_desc;
 	return 0;
-out_free:
-	kfree(e);
+out:
+	kfree(*entry);
+	*entry = NULL;
 	return result;
 }
 
@@ -101,24 +79,23 @@ int ima_store_template(struct ima_template_entry *entry,
 {
 	const char *op = "add_template_measure";
 	const char *audit_cause = "hashing_error";
+	char *template_name = entry->template_desc->name;
 	int result;
 	struct {
 		struct ima_digest_data hdr;
 		char digest[TPM_DIGEST_SIZE];
 	} hash;
 
-	memset(entry->digest, 0, sizeof(entry->digest));
-	entry->template_name = IMA_TEMPLATE_NAME;
-	entry->template_len = sizeof(entry->template);
-
 	if (!violation) {
+		int num_fields = entry->template_desc->num_fields;
+
 		/* this function uses default algo */
 		hash.hdr.algo = HASH_ALGO_SHA1;
-		result = ima_calc_buffer_hash(&entry->template,
-					      entry->template_len, &hash.hdr);
+		result = ima_calc_field_array_hash(&entry->template_data[0],
+						   num_fields, &hash.hdr);
 		if (result < 0) {
 			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
-					    entry->template_name, op,
+					    template_name, op,
 					    audit_cause, result, 0);
 			return result;
 		}
