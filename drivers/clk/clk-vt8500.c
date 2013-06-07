@@ -183,7 +183,7 @@ static int vt8500_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
 	writel(divisor, cdev->div_reg);
 	vt8500_pmc_wait_busy();
 
-	spin_lock_irqsave(cdev->lock, flags);
+	spin_unlock_irqrestore(cdev->lock, flags);
 
 	return 0;
 }

@@ -70,6 +70,7 @@ struct xenbus_device {
 	struct device dev;
 	enum xenbus_state state;
 	struct completion down;
+	struct work_struct work;
 };
 
 static inline struct xenbus_device *to_xenbus_device(struct device *dev)
