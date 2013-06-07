@@ -29,4 +29,13 @@
 			     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		ti,hwmods = "debugss";
 	};
+
+	bandgap {
+		reg = <0x4a002260 0x4
+		       0x4a00232C 0x4
+		       0x4a002378 0x18>;
+		compatible = "ti,omap4460-bandgap";
+		interrupts = <0 126 IRQ_TYPE_LEVEL_HIGH>; /* talert */
+		gpios = <&gpio3 22 0>; /* tshut */
+	};
 };
