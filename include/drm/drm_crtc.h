@@ -903,12 +903,13 @@ extern void drm_plane_cleanup(struct drm_plane *plane);
 
 extern void drm_encoder_cleanup(struct drm_encoder *encoder);
 
-extern char *drm_get_connector_name(struct drm_connector *connector);
-extern char *drm_get_dpms_name(int val);
-extern char *drm_get_dvi_i_subconnector_name(int val);
-extern char *drm_get_dvi_i_select_name(int val);
-extern char *drm_get_tv_subconnector_name(int val);
-extern char *drm_get_tv_select_name(int val);
+extern const char *drm_get_connector_name(const struct drm_connector *connector);
+extern const char *drm_get_connector_status_name(enum drm_connector_status status);
+extern const char *drm_get_dpms_name(int val);
+extern const char *drm_get_dvi_i_subconnector_name(int val);
+extern const char *drm_get_dvi_i_select_name(int val);
+extern const char *drm_get_tv_subconnector_name(int val);
+extern const char *drm_get_tv_select_name(int val);
 extern void drm_fb_release(struct drm_file *file_priv);
 extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
 extern bool drm_probe_ddc(struct i2c_adapter *adapter);
@@ -1000,7 +1001,7 @@ extern int drm_mode_create_tv_properties(struct drm_device *dev, int num_formats
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_dithering_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
-extern char *drm_get_encoder_name(struct drm_encoder *encoder);
+extern const char *drm_get_encoder_name(const struct drm_encoder *encoder);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);
@@ -1100,6 +1101,6 @@ extern int drm_format_num_planes(uint32_t format);
 extern int drm_format_plane_cpp(uint32_t format, int plane);
 extern int drm_format_horz_chroma_subsampling(uint32_t format);
 extern int drm_format_vert_chroma_subsampling(uint32_t format);
-extern char *drm_get_format_name(uint32_t format);
+extern const char *drm_get_format_name(uint32_t format);
 
 #endif /* __DRM_CRTC_H__ */
