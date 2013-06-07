@@ -508,6 +508,7 @@ static int omap34_xx_bridge_probe(struct platform_device *pdev)
 	bridge_class = class_create(THIS_MODULE, "ti_bridge");
 	if (IS_ERR(bridge_class)) {
 		pr_err("%s: Error creating bridge class\n", __func__);
+		err = PTR_ERR(bridge_class);
 		goto err3;
 	}
 
