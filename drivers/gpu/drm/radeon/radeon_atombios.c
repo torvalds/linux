@@ -2732,7 +2732,8 @@ int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
 		break;
 	case 2:
 	case 3:
-		/* r6xx, r7xx, evergreen, ni */
+	case 5:
+		/* r6xx, r7xx, evergreen, ni, si */
 		if (rdev->family <= CHIP_RV770) {
 			args.v2.ucAction = clock_type;
 			args.v2.ulClock = cpu_to_le32(clock);	/* 10 khz */
@@ -2765,6 +2766,9 @@ int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
 				dividers->vco_mode = (args.v3.ucCntlFlag &
 						      ATOM_PLL_CNTL_FLAG_MPLL_VCO_MODE) ? 1 : 0;
 			} else {
+				/* for SI we use ComputeMemoryClockParam for memory plls */
+				if (rdev->family >= CHIP_TAHITI)
+					return -EINVAL;
 				args.v5.ulClockParams = cpu_to_le32((clock_type << 24) | clock);
 				if (strobe_mode)
 					args.v5.ucInputFlag = ATOM_PLL_INPUT_FLAG_PLL_STROBE_MODE_EN;
