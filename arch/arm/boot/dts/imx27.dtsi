@@ -61,6 +61,16 @@
 			reg = <0x10000000 0x20000>;
 			ranges;
 
+			dma: dma@10001000 {
+				compatible = "fsl,imx27-dma";
+				reg = <0x10001000 0x1000>;
+				interrupts = <32>;
+				clocks = <&clks 50>, <&clks 70>;
+				clock-names = "ipg", "ahb";
+				#dma-cells = <1>;
+				#dma-channels = <16>;
+			};
+
 			wdog: wdog@10002000 {
 				compatible = "fsl,imx27-wdt", "fsl,imx21-wdt";
 				reg = <0x10002000 0x1000>;
