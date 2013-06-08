@@ -19,6 +19,14 @@
 	cs-gpios = <&gpio4 28 0>, <&gpio4 27 0>;
 };
 
+&sdhci2 {
+	bus-width = <4>;
+	cd-gpios = <&gpio3 29 0>;
+	wp-gpios = <&gpio3 28 0>;
+	vmmc-supply = <&vmmc1_reg>;
+	status = "okay";
+};
+
 &uart1 {
 	fsl,uart-has-rtscts;
 };
