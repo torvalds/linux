@@ -125,9 +125,7 @@ struct mt9p031 {
 	int power_count;
 
 	struct clk *clk;
-	struct regulator *vaa;
-	struct regulator *vdd;
-	struct regulator *vdd_io;
+	struct regulator_bulk_data regulators[3];
 
 	enum mt9p031_model model;
 	struct aptina_pll pll;
@@ -272,6 +270,8 @@ static inline int mt9p031_pll_disable(struct mt9p031 *mt9p031)
 
 static int mt9p031_power_on(struct mt9p031 *mt9p031)
 {
+	int ret;
+
 	/* Ensure RESET_BAR is low */
 	if (gpio_is_valid(mt9p031->reset)) {
 		gpio_set_value(mt9p031->reset, 0);
@@ -279,9 +279,10 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 	}
 
 	/* Bring up the supplies */
-	regulator_enable(mt9p031->vdd);
-	regulator_enable(mt9p031->vdd_io);
-	regulator_enable(mt9p031->vaa);
+	ret = regulator_bulk_enable(ARRAY_SIZE(mt9p031->regulators),
+				   mt9p031->regulators);
+	if (ret < 0)
+		return ret;
 
 	/* Emable clock */
 	if (mt9p031->clk)
@@ -303,9 +304,8 @@ static void mt9p031_power_off(struct mt9p031 *mt9p031)
 		usleep_range(1000, 2000);
 	}
 
-	regulator_disable(mt9p031->vaa);
-	regulator_disable(mt9p031->vdd_io);
-	regulator_disable(mt9p031->vdd);
+	regulator_bulk_disable(ARRAY_SIZE(mt9p031->regulators),
+			       mt9p031->regulators);
 
 	if (mt9p031->clk)
 		clk_disable_unprepare(mt9p031->clk);
@@ -985,14 +985,14 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->model = did->driver_data;
 	mt9p031->reset = -1;
 
-	mt9p031->vaa = devm_regulator_get(&client->dev, "vaa");
-	mt9p031->vdd = devm_regulator_get(&client->dev, "vdd");
-	mt9p031->vdd_io = devm_regulator_get(&client->dev, "vdd_io");
+	mt9p031->regulators[0].supply = "vdd";
+	mt9p031->regulators[1].supply = "vdd_io";
+	mt9p031->regulators[2].supply = "vaa";
 
-	if (IS_ERR(mt9p031->vaa) || IS_ERR(mt9p031->vdd) ||
-	    IS_ERR(mt9p031->vdd_io)) {
+	ret = devm_regulator_bulk_get(&client->dev, 3, mt9p031->regulators);
+	if (ret < 0) {
 		dev_err(&client->dev, "Unable to get regulators\n");
-		return -ENODEV;
+		return ret;
 	}
 
 	v4l2_ctrl_handler_init(&mt9p031->ctrls, ARRAY_SIZE(mt9p031_ctrls) + 6);
