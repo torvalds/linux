@@ -1607,7 +1607,7 @@ static int dgrp_send(struct nd_struct *nd, long tmax)
 					if ((ch->ch_pun.un_flag & UN_LOW) != 0 ?
 					    (n <= TBUF_LOW) :
 					    (ch->ch_pun.un_flag & UN_TIME) != 0 ?
-					    ((jiffies - ch->ch_waketime) >= 0) :
+					    time_is_before_jiffies(ch->ch_waketime) :
 					    (n == 0 && ch->ch_s_tpos == ch->ch_s_tin) &&
 					    ((ch->ch_pun.un_flag & UN_EMPTY) != 0 ||
 					    ((ch->ch_tun.un_open_count &&
