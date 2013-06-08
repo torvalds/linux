@@ -462,7 +462,8 @@ u8 acpi_ut_valid_acpi_char(char character, u32 position)
  *
  * FUNCTION:    acpi_ut_valid_acpi_name
  *
- * PARAMETERS:  name            - The name to be examined
+ * PARAMETERS:  name            - The name to be examined. Does not have to
+ *                                be NULL terminated string.
  *
  * RETURN:      TRUE if the name is valid, FALSE otherwise
  *
@@ -473,15 +474,14 @@ u8 acpi_ut_valid_acpi_char(char character, u32 position)
  *
  ******************************************************************************/
 
-u8 acpi_ut_valid_acpi_name(u32 name)
+u8 acpi_ut_valid_acpi_name(char *name)
 {
 	u32 i;
 
 	ACPI_FUNCTION_ENTRY();
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		if (!acpi_ut_valid_acpi_char
-		    ((ACPI_CAST_PTR(char, &name))[i], i)) {
+		if (!acpi_ut_valid_acpi_char(name[i], i)) {
 			return (FALSE);
 		}
 	}

@@ -620,7 +620,7 @@ void acpi_ut_print_string(char *string, u8 max_length);
 
 void ut_convert_backslashes(char *pathname);
 
-u8 acpi_ut_valid_acpi_name(u32 name);
+u8 acpi_ut_valid_acpi_name(char *name);
 
 u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
