@@ -187,6 +187,8 @@ extern int udp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 extern int udp_disconnect(struct sock *sk, int flags);
 extern unsigned int udp_poll(struct file *file, struct socket *sock,
 			     poll_table *wait);
+extern struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
+					      netdev_features_t features);
 extern int udp_lib_getsockopt(struct sock *sk, int level, int optname,
 			      char __user *optval, int __user *optlen);
 extern int udp_lib_setsockopt(struct sock *sk, int level, int optname,
@@ -262,11 +264,10 @@ extern int udp4_proc_init(void);
 extern void udp4_proc_exit(void);
 #endif
 
+extern int udpv4_offload_init(void);
+
 extern void udp_init(void);
 
-extern int udp4_ufo_send_check(struct sk_buff *skb);
-extern struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
-	netdev_features_t features);
 extern void udp_encap_enable(void);
 #if IS_ENABLED(CONFIG_IPV6)
 extern void udpv6_encap_enable(void);
