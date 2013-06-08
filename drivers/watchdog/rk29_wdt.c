@@ -487,7 +487,7 @@ static void __exit watchdog_exit(void)
 	platform_driver_unregister(&rk29_wdt_driver);
 }
 
-module_init(watchdog_init);
+subsys_initcall(watchdog_init);
 module_exit(watchdog_exit);
 
 MODULE_AUTHOR("hhb@rock-chips.com");
