@@ -13,6 +13,8 @@
 #include <linux/types.h>
 
 struct rcar_phy_platform_data {
+	bool ferrite_bead:1;	/* (R8A7778 only)			*/
+
 	bool port1_func:1;	/* true: port 1 used by function, false: host */
 	unsigned penc1:1;	/* Output of the PENC1 pin in function mode */
 	struct {		/* Overcurrent pin control for ports 0..2 */
@@ -20,7 +22,7 @@ struct rcar_phy_platform_data {
 				/* Set to false on port 1 in function mode */
 		bool active_high:1; /* true: active  high, false: active low */
 				/* Set to true  on port 1 in function mode */
-	} ovc_pin[3];
+	} ovc_pin[3];		/* (R8A7778 only has 2 ports)		*/
 };
 
 #endif /* __USB_RCAR_PHY_H */
