@@ -152,6 +152,7 @@ acpi-y +=		\
 	utdebug.o	\
 	utdecode.o	\
 	utdelete.o	\
+	uterror.o	\
 	uteval.o	\
 	utglobal.o	\
 	utids.o		\
