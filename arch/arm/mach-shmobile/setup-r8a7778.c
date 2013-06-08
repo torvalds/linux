@@ -30,6 +30,12 @@
 #include <linux/irqchip.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_timer.h>
+#include <linux/pm_runtime.h>
+#include <linux/usb/phy.h>
+#include <linux/usb/hcd.h>
+#include <linux/usb/ehci_pdriver.h>
+#include <linux/usb/ohci_pdriver.h>
+#include <linux/dma-mapping.h>
 #include <mach/irqs.h>
 #include <mach/r8a7778.h>
 #include <mach/common.h>
@@ -88,6 +94,99 @@ static struct sh_timer_config sh_tmu1_platform_data = {
 		ARRAY_SIZE(sh_tmu##idx##_resources),	\
 		&sh_tmu##idx##_platform_data,		\
 		sizeof(sh_tmu##idx##_platform_data))
+
+/* USB PHY */
+static struct resource usb_phy_resources[] __initdata = {
+	DEFINE_RES_MEM(0xffe70800, 0x100),
+	DEFINE_RES_MEM(0xffe76000, 0x100),
+};
+
+void __init r8a7778_add_usb_phy_device(struct rcar_phy_platform_data *pdata)
+{
+	platform_device_register_resndata(&platform_bus, "rcar_usb_phy", -1,
+					  usb_phy_resources,
+					  ARRAY_SIZE(usb_phy_resources),
+					  pdata, sizeof(*pdata));
+}
+
+/* USB */
+static struct usb_phy *phy;
+
+static int usb_power_on(struct platform_device *pdev)
+{
+	if (IS_ERR(phy))
+		return PTR_ERR(phy);
+
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
+	usb_phy_init(phy);
+
+	return 0;
+}
+
+static void usb_power_off(struct platform_device *pdev)
+{
+	if (IS_ERR(phy))
+		return;
+
+	usb_phy_shutdown(phy);
+
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+}
+
+static int ehci_init_internal_buffer(struct usb_hcd *hcd)
+{
+	/*
+	 * Below are recommended values from the datasheet;
+	 * see [USB :: Setting of EHCI Internal Buffer].
+	 */
+	/* EHCI IP internal buffer setting */
+	iowrite32(0x00ff0040, hcd->regs + 0x0094);
+	/* EHCI IP internal buffer enable */
+	iowrite32(0x00000001, hcd->regs + 0x009C);
+
+	return 0;
+}
+
+static struct usb_ehci_pdata ehci_pdata __initdata = {
+	.power_on	= usb_power_on,
+	.power_off	= usb_power_off,
+	.power_suspend	= usb_power_off,
+	.pre_setup	= ehci_init_internal_buffer,
+};
+
+static struct resource ehci_resources[] __initdata = {
+	DEFINE_RES_MEM(0xffe70000, 0x400),
+	DEFINE_RES_IRQ(gic_iid(0x4c)),
+};
+
+static struct usb_ohci_pdata ohci_pdata __initdata = {
+	.power_on	= usb_power_on,
+	.power_off	= usb_power_off,
+	.power_suspend	= usb_power_off,
+};
+
+static struct resource ohci_resources[] __initdata = {
+	DEFINE_RES_MEM(0xffe70400, 0x400),
+	DEFINE_RES_IRQ(gic_iid(0x4c)),
+};
+
+#define USB_PLATFORM_INFO(hci)					\
+static struct platform_device_info hci##_info __initdata = {	\
+	.parent		= &platform_bus,			\
+	.name		= #hci "-platform",			\
+	.id		= -1,					\
+	.res		= hci##_resources,			\
+	.num_res	= ARRAY_SIZE(hci##_resources),		\
+	.data		= &hci##_pdata,				\
+	.size_data	= sizeof(hci##_pdata),			\
+	.dma_mask	= DMA_BIT_MASK(32),			\
+}
+
+USB_PLATFORM_INFO(ehci);
+USB_PLATFORM_INFO(ohci);
 
 /* Ether */
 static struct resource ether_resources[] = {
@@ -195,6 +294,14 @@ void __init r8a7778_add_standard_devices(void)
 
 	r8a7778_register_tmu(0);
 	r8a7778_register_tmu(1);
+}
+
+void __init r8a7778_init_late(void)
+{
+	phy = usb_get_phy(USB_PHY_TYPE_USB2);
+
+	platform_device_register_full(&ehci_info);
+	platform_device_register_full(&ohci_info);
 }
 
 static struct renesas_intc_irqpin_config irqpin_platform_data = {
@@ -310,6 +417,7 @@ DT_MACHINE_START(R8A7778_DT, "Generic R8A7778 (Flattened Device Tree)")
 	.init_machine	= r8a7778_add_standard_devices_dt,
 	.init_time	= shmobile_timer_init,
 	.dt_compat	= r8a7778_compat_dt,
+	.init_late      = r8a7778_init_late,
 MACHINE_END
 
 #endif /* CONFIG_USE_OF */
