@@ -57,6 +57,7 @@
 		compatible = "cfi-flash";
 		bank-width = <2>;
 		reg = <0xc0000000 0x02000000>;
+		linux,mtd-name = "physmap-flash.0";
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
