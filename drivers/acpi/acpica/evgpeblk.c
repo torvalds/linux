@@ -382,6 +382,8 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	status = acpi_ev_install_gpe_block(gpe_block, interrupt_number);
 	if (ACPI_FAILURE(status)) {
+		ACPI_FREE(gpe_block->register_info);
+		ACPI_FREE(gpe_block->event_info);
 		ACPI_FREE(gpe_block);
 		return_ACPI_STATUS(status);
 	}
