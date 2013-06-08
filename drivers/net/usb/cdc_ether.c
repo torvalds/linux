@@ -460,6 +460,23 @@ static int cdc_manage_power(struct usbnet *dev, int on)
 	return 0;
 }
 
+static struct sk_buff *android_tx_fixup(struct usbnet *dev,
+					struct sk_buff *skb,
+					gfp_t flags)
+{
+	struct sk_buff *tx_skb;
+
+	if ((unsigned long)skb->data % 4) {
+		tx_skb = alloc_skb(skb->len + NET_IP_ALIGN, flags);
+		if (tx_skb)
+			memcpy(skb_put(tx_skb, skb->len), skb->data, skb->len);
+		dev_kfree_skb_any(skb);
+	} else
+		tx_skb = skb;
+
+	return tx_skb;
+}
+
 static const struct driver_info	cdc_info = {
 	.description =	"CDC Ethernet Device",
 	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT,
@@ -468,6 +485,7 @@ static const struct driver_info	cdc_info = {
 	.unbind =	usbnet_cdc_unbind,
 	.status =	usbnet_cdc_status,
 	.manage_power =	cdc_manage_power,
+        .tx_fixup =	android_tx_fixup,
 };
 
 static const struct driver_info wwan_info = {
