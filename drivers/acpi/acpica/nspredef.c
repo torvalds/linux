@@ -159,9 +159,10 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 		status = acpi_ns_check_package(info, return_object_ptr);
 		if (ACPI_FAILURE(status)) {
 
-			/* We might be able to fix an operand type error (_PRT) */
+			/* We might be able to fix some errors */
 
-			if (status != AE_AML_OPERAND_TYPE) {
+			if ((status != AE_AML_OPERAND_TYPE) &&
+			    (status != AE_AML_OPERAND_VALUE)) {
 				goto exit;
 			}
 		}
