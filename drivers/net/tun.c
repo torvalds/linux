@@ -2159,6 +2159,8 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	set_bit(SOCK_EXTERNALLY_ALLOCATED, &tfile->socket.flags);
 	INIT_LIST_HEAD(&tfile->next);
 
+	sock_set_flag(&tfile->sk, SOCK_ZEROCOPY);
+
 	return 0;
 }
 
