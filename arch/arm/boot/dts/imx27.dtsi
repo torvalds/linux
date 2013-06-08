@@ -178,6 +178,28 @@
 				status = "disabled";
 			};
 
+			sdhci1: sdhci@10013000 {
+				compatible = "fsl,imx27-mmc", "fsl,imx21-mmc";
+				reg = <0x10013000 0x1000>;
+				interrupts = <11>;
+				clocks = <&clks 30>, <&clks 60>;
+				clock-names = "ipg", "per";
+				dmas = <&dma 7>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
+			sdhci2: sdhci@10014000 {
+				compatible = "fsl,imx27-mmc", "fsl,imx21-mmc";
+				reg = <0x10014000 0x1000>;
+				interrupts = <10>;
+				clocks = <&clks 29>, <&clks 60>;
+				clock-names = "ipg", "per";
+				dmas = <&dma 6>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
 			gpio1: gpio@10015000 {
 				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
 				reg = <0x10015000 0x100>;
@@ -290,6 +312,17 @@
 				reg = <0x1001d000 0x1000>;
 				interrupts = <1>;
 				clocks = <&clks 39>;
+				status = "disabled";
+			};
+
+			sdhci3: sdhci@1001e000 {
+				compatible = "fsl,imx27-mmc", "fsl,imx21-mmc";
+				reg = <0x1001e000 0x1000>;
+				interrupts = <9>;
+				clocks = <&clks 28>, <&clks 60>;
+				clock-names = "ipg", "per";
+				dmas = <&dma 36>;
+				dma-names = "rx-tx";
 				status = "disabled";
 			};
 
