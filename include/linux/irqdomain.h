@@ -110,6 +110,10 @@ struct irq_domain {
 };
 
 #ifdef CONFIG_IRQ_DOMAIN
+struct irq_domain *__irq_domain_add(struct device_node *of_node,
+				    int size, int direct_max,
+				    const struct irq_domain_ops *ops,
+				    void *host_data);
 struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
 					 unsigned int size,
 					 unsigned int first_irq,
@@ -121,17 +125,30 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 					 irq_hw_number_t first_hwirq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data);
-struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
-					 unsigned int size,
-					 const struct irq_domain_ops *ops,
-					 void *host_data);
-struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
-					 unsigned int max_irq,
-					 const struct irq_domain_ops *ops,
-					 void *host_data);
 extern struct irq_domain *irq_find_host(struct device_node *node);
 extern void irq_set_default_host(struct irq_domain *host);
 
+/**
+ * irq_domain_add_linear() - Allocate and register a linear revmap irq_domain.
+ * @of_node: pointer to interrupt controller's device tree node.
+ * @size: Number of interrupts in the domain.
+ * @ops: map/unmap domain callbacks
+ * @host_data: Controller private data pointer
+ */
+static inline struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
+					 unsigned int size,
+					 const struct irq_domain_ops *ops,
+					 void *host_data)
+{
+	return __irq_domain_add(of_node, size, 0, ops, host_data);
+}
+static inline struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
+					 unsigned int max_irq,
+					 const struct irq_domain_ops *ops,
+					 void *host_data)
+{
+	return __irq_domain_add(of_node, 0, max_irq, ops, host_data);
+}
 static inline struct irq_domain *irq_domain_add_legacy_isa(
 				struct device_node *of_node,
 				const struct irq_domain_ops *ops,
