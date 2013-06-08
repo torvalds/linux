@@ -227,8 +227,12 @@ static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (divider->lock)
 		spin_lock_irqsave(divider->lock, flags);
 
-	val = readl(divider->reg);
-	val &= ~(div_mask(divider) << divider->shift);
+	if (divider->flags & CLK_DIVIDER_HIWORD_MASK) {
+		val = div_mask(divider) << (divider->shift + 16);
+	} else {
+		val = readl(divider->reg);
+		val &= ~(div_mask(divider) << divider->shift);
+	}
 	val |= value << divider->shift;
 	writel(val, divider->reg);
 
@@ -254,6 +258,13 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 	struct clk_divider *div;
 	struct clk *clk;
 	struct clk_init_data init;
+
+	if (clk_divider_flags & CLK_DIVIDER_HIWORD_MASK) {
+		if (width + shift > 16) {
+			pr_warn("divider value exceeds LOWORD field\n");
+			return ERR_PTR(-EINVAL);
+		}
+	}
 
 	/* allocate the divider */
 	div = kzalloc(sizeof(struct clk_divider), GFP_KERNEL);
