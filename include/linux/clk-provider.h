@@ -299,6 +299,10 @@ struct clk *clk_register_divider_table(struct device *dev, const char *name,
  * Flags:
  * CLK_MUX_INDEX_ONE - register index starts at 1, not 0
  * CLK_MUX_INDEX_BIT - register index is a single bit (power of two)
+ * CLK_MUX_HIWORD_MASK - The mux settings are only in lower 16-bit of this
+ *   register, and mask of mux bits are in higher 16-bit of this register.
+ *   While setting the mux bits, higher 16-bit should also be updated to
+ *   indicate changing mux bits.
  */
 struct clk_mux {
 	struct clk_hw	hw;
@@ -312,6 +316,7 @@ struct clk_mux {
 
 #define CLK_MUX_INDEX_ONE		BIT(0)
 #define CLK_MUX_INDEX_BIT		BIT(1)
+#define CLK_MUX_HIWORD_MASK		BIT(2)
 
 extern const struct clk_ops clk_mux_ops;
 
