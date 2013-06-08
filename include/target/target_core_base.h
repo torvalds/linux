@@ -5,6 +5,7 @@
 #include <linux/configfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
+#include <linux/percpu_ida.h>
 #include <scsi/scsi_cmnd.h>
 #include <net/sock.h>
 #include <net/tcp.h>
@@ -415,6 +416,8 @@ struct se_cmd {
 	enum dma_data_direction	data_direction;
 	/* For SAM Task Attribute */
 	int			sam_task_attr;
+	/* Used for se_sess->sess_tag_pool */
+	unsigned int		map_tag;
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
 	unsigned		cmd_wait_set:1;
@@ -536,6 +539,8 @@ struct se_session {
 	struct list_head	sess_wait_list;
 	spinlock_t		sess_cmd_lock;
 	struct kref		sess_kref;
+	void			*sess_cmd_map;
+	struct percpu_ida	sess_tag_pool;
 };
 
 struct se_device;
