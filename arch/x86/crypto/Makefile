@@ -43,7 +43,6 @@ endif
 ifeq ($(avx2_supported),yes)
 	obj-$(CONFIG_CRYPTO_CAMELLIA_AESNI_AVX2_X86_64) += camellia-aesni-avx2.o
 	obj-$(CONFIG_CRYPTO_SERPENT_AVX2_X86_64) += serpent-avx2.o
-	obj-$(CONFIG_CRYPTO_TWOFISH_AVX2_X86_64) += twofish-avx2.o
 endif
 
 aes-i586-y := aes-i586-asm_32.o aes_glue.o
@@ -73,7 +72,6 @@ endif
 ifeq ($(avx2_supported),yes)
 	camellia-aesni-avx2-y := camellia-aesni-avx2-asm_64.o camellia_aesni_avx2_glue.o
 	serpent-avx2-y := serpent-avx2-asm_64.o serpent_avx2_glue.o
-	twofish-avx2-y := twofish-avx2-asm_64.o twofish_avx2_glue.o
 endif
 
 aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o fpu.o

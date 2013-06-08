@@ -1654,9 +1654,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "__cbc-twofish-avx",
 		.test = alg_test_null,
 	}, {
-		.alg = "__cbc-twofish-avx2",
-		.test = alg_test_null,
-	}, {
 		.alg = "__driver-cbc-aes-aesni",
 		.test = alg_test_null,
 		.fips_allowed = 1,
@@ -1685,9 +1682,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "__driver-cbc-twofish-avx",
 		.test = alg_test_null,
 	}, {
-		.alg = "__driver-cbc-twofish-avx2",
-		.test = alg_test_null,
-	}, {
 		.alg = "__driver-ecb-aes-aesni",
 		.test = alg_test_null,
 		.fips_allowed = 1,
@@ -1714,9 +1708,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 	}, {
 		.alg = "__driver-ecb-twofish-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-ecb-twofish-avx2",
 		.test = alg_test_null,
 	}, {
 		.alg = "__ghash-pclmulqdqni",
@@ -2017,9 +2008,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 	}, {
 		.alg = "cryptd(__driver-ecb-twofish-avx)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-ecb-twofish-avx2)",
 		.test = alg_test_null,
 	}, {
 		.alg = "cryptd(__driver-gcm-aes-aesni)",
