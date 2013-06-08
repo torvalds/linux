@@ -12,12 +12,6 @@ config IIO_PERIODIC_RTC_TRIGGER
 	  Provides support for using periodic capable real time
 	  clocks as IIO triggers.
 
-config IIO_GPIO_TRIGGER
-	tristate "GPIO trigger"
-	depends on GPIOLIB
-	help
-	  Provides support for using GPIO pins as IIO triggers.
-
 config IIO_BFIN_TMR_TRIGGER
 	tristate "Blackfin TIMER trigger"
 	depends on BLACKFIN

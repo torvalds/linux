@@ -34,7 +34,7 @@ static ssize_t iio_sysfs_trig_add(struct device *dev,
 	int ret;
 	unsigned long input;
 
-	ret = strict_strtoul(buf, 10, &input);
+	ret = kstrtoul(buf, 10, &input);
 	if (ret)
 		return ret;
 	ret = iio_sysfs_trigger_probe(input);
@@ -53,7 +53,7 @@ static ssize_t iio_sysfs_trig_remove(struct device *dev,
 	int ret;
 	unsigned long input;
 
-	ret = strict_strtoul(buf, 10, &input);
+	ret = kstrtoul(buf, 10, &input);
 	if (ret)
 		return ret;
 	ret = iio_sysfs_trigger_remove(input);
