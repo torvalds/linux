@@ -303,11 +303,11 @@ static int ricoh619_dcdc_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	switch(mode)
 	{
 	case REGULATOR_MODE_FAST:
-		return ricoh619_write(parent, ri->reg_en_reg, ((control & 0xef) | 0x10));
+		return ricoh619_write(parent, ri->reg_en_reg, ((control & 0xcf) | 0x10));
 	case REGULATOR_MODE_NORMAL:
 		return ricoh619_write(parent, ri->reg_en_reg, (control & 0xcf));
 	case REGULATOR_MODE_STANDBY:
-		return ricoh619_write(parent, ri->reg_en_reg, ((control & 0xdf) | 0x20));	
+		return ricoh619_write(parent, ri->reg_en_reg, ((control & 0xcf) | 0x20));	
 	default:
 		printk("error:pmu_619 only powersave pwm psm mode\n");
 		return -EINVAL;

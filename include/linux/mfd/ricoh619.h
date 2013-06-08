@@ -127,6 +127,25 @@
 #define	RICOH619_FG_CTRL		0xE0
 #define	RICOH619_PSWR			0x07
 
+#define RICOH_DC1_SLOT 0x16
+#define RICOH_DC2_SLOT 0x17
+#define RICOH_DC3_SLOT 0x18
+#define RICOH_DC4_SLOT 0x19
+#define RICOH_DC5_SLOT 0x1a
+
+#define RICOH_LDO1_SLOT 0x1b
+#define RICOH_LDO2_SLOT 0x1c
+#define RICOH_LDO3_SLOT 0x1d
+#define RICOH_LDO4_SLOT 0x1e
+#define RICOH_LDO5_SLOT 0x1f
+#define RICOH_LDO6_SLOT 0x20
+#define RICOH_LDO7_SLOT 0x21
+#define RICOH_LDO8_SLOT 0x22
+#define RICOH_LDO9_SLOT 0x23
+#define RICOH_LDO10_SLOT 0x24
+
+
+
 /* RICOH619 IRQ definitions */
 enum {
 	RICOH619_IRQ_POWER_ON,

@@ -700,7 +700,7 @@ static int ricoh619_i2c_probe(struct i2c_client *client,
 	mutex_init(&ricoh619->io_lock);
 
 	ret = ricoh619_read(ricoh619->dev, 0x36, &control);
-	if ((control < 0) || (control == 0xff)) {
+	if ((control < 0) || (control == 0x00)) {
 		printk(KERN_INFO "The device is not ricoh619\n");
 		return 0;
 	}
