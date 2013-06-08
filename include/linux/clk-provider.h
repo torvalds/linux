@@ -210,6 +210,10 @@ void of_fixed_clk_setup(struct device_node *np);
  * CLK_GATE_SET_TO_DISABLE - by default this clock sets the bit at bit_idx to
  * 	enable the clock.  Setting this flag does the opposite: setting the bit
  * 	disable the clock and clearing it enables the clock
+ * CLK_GATE_HIWORD_MASK - The gate settings are only in lower 16-bit
+ *   of this register, and mask of gate bits are in higher 16-bit of this
+ *   register.  While setting the gate bits, higher 16-bit should also be
+ *   updated to indicate changing gate bits.
  */
 struct clk_gate {
 	struct clk_hw hw;
@@ -220,6 +224,7 @@ struct clk_gate {
 };
 
 #define CLK_GATE_SET_TO_DISABLE		BIT(0)
+#define CLK_GATE_HIWORD_MASK		BIT(1)
 
 extern const struct clk_ops clk_gate_ops;
 struct clk *clk_register_gate(struct device *dev, const char *name,
