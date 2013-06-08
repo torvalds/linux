@@ -138,6 +138,7 @@ acpi-y +=		\
 	tbfadt.o	\
 	tbfind.o	\
 	tbinstal.o	\
+	tbprint.o	\
 	tbutils.o	\
 	tbxface.o	\
 	tbxfload.o	\
