@@ -43,6 +43,15 @@
 #define	DBG(x...)
 #endif
 
+/* volume setting
+ *  0: -39dB
+ *  26: 0dB
+ *  31: 6dB
+ *  Step: 1.5dB
+*/
+#define  SPKOUT_VOLUME    22 //0~31
+#define  HPOUT_VOLUME     21 //0~31
+
 struct rk616_codec_priv {
 	struct snd_soc_codec *codec;
 
@@ -1641,14 +1650,14 @@ static struct rk616_reg_val_typ palyback_power_up_list[] = {
 	{0x86c, 0x30}, //DACL/R INIT
 	{0x874, 0x14}, //Mux HPMIXR from HPMIXR(bit 0), Mux HPMIXL from HPMIXL(bit 1),HPMIXL/R power up
 	{0x878, 0xee}, //HPMIXL/HPMIXR from DACL/DACR(bit 4, bit 0)
-	{0x88c, 0x76}, //power up SPKOUTL (bit 7), volume (bit 0-4)
-	{0x890, 0x76}, //power up SPKOUTR (bit 7), volume (bit 0-4)
-	{0x88c, 0x16}, //unmute SPKOUTL (bit 5), volume (bit 0-4)
-	{0x890, 0x16}, //unmute SPKOUTR (bit 5), volume (bit 0-4)
-	{0x894, 0x75}, //power up HPOUTL (bit 7), volume (bit 0-4)
-	{0x898, 0x75}, //power up HPOUTR (bit 7), volume (bit 0-4)
-	{0x894, 0x15}, //unmute HPOUTL (bit 5), volume (bit 0-4)
-	{0x898, 0x15}, //unmute HPOUTR (bit 5), volume (bit 0-4)
+	{0x88c, 3<<5|SPKOUT_VOLUME},//power up SPKOUTL (bit 7), volume (bit 0-4)
+	{0x890, 3<<5|SPKOUT_VOLUME}, //power up SPKOUTR (bit 7), volume (bit 0-4)
+	{0x88c, SPKOUT_VOLUME}, //unmute SPKOUTL (bit 5), volume (bit 0-4)
+	{0x890, SPKOUT_VOLUME}, //unmute SPKOUTR (bit 5), volume (bit 0-4)
+	{0x894, 3<<5|HPOUT_VOLUME}, //power up HPOUTL (bit 7), volume (bit 0-4)
+	{0x898, 3<<5|HPOUT_VOLUME}, //power up HPOUTR (bit 7), volume (bit 0-4)
+	{0x894, HPOUT_VOLUME}, //unmute HPOUTL (bit 5), volume (bit 0-4)
+	{0x898, HPOUT_VOLUME}, //unmute HPOUTR (bit 5), volume (bit 0-4)
 };
 #define RK616_CODEC_PALYBACK_POWER_UP_LIST_LEN ARRAY_SIZE(palyback_power_up_list)
 
