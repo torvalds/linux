@@ -13,10 +13,12 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -1796,6 +1798,26 @@ static int sunxi_pinctrl_gpio_of_xlate(struct gpio_chip *gc,
 	return pin;
 }
 
+static int sunxi_pinctrl_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct sunxi_pinctrl *pctl = dev_get_drvdata(chip->dev);
+	struct sunxi_desc_function *desc;
+
+	if (offset > chip->ngpio)
+		return -ENXIO;
+
+	desc = sunxi_pinctrl_desc_find_function_by_pin(pctl, offset, "irq");
+	if (!desc)
+		return -EINVAL;
+
+	pctl->irq_array[desc->irqnum] = offset;
+
+	dev_dbg(chip->dev, "%s: request IRQ for GPIO %d, return %d\n",
+		chip->label, offset + chip->base, desc->irqnum);
+
+	return irq_find_mapping(pctl->domain, desc->irqnum);
+}
+
 static struct gpio_chip sunxi_pinctrl_gpio_chip = {
 	.owner			= THIS_MODULE,
 	.request		= sunxi_pinctrl_gpio_request,
@@ -1805,9 +1827,117 @@ static struct gpio_chip sunxi_pinctrl_gpio_chip = {
 	.get			= sunxi_pinctrl_gpio_get,
 	.set			= sunxi_pinctrl_gpio_set,
 	.of_xlate		= sunxi_pinctrl_gpio_of_xlate,
+	.to_irq			= sunxi_pinctrl_gpio_to_irq,
 	.of_gpio_n_cells	= 3,
 	.can_sleep		= 0,
 };
+
+static int sunxi_pinctrl_irq_set_type(struct irq_data *d,
+				      unsigned int type)
+{
+	struct sunxi_pinctrl *pctl = irq_data_get_irq_chip_data(d);
+	u32 reg = sunxi_irq_cfg_reg(d->hwirq);
+	u8 index = sunxi_irq_cfg_offset(d->hwirq);
+	u8 mode;
+
+	switch (type) {
+	case IRQ_TYPE_EDGE_RISING:
+		mode = IRQ_EDGE_RISING;
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		mode = IRQ_EDGE_FALLING;
+		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		mode = IRQ_EDGE_BOTH;
+		break;
+	case IRQ_TYPE_LEVEL_HIGH:
+		mode = IRQ_LEVEL_HIGH;
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		mode = IRQ_LEVEL_LOW;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	writel((mode & IRQ_CFG_IRQ_MASK) << index, pctl->membase + reg);
+
+	return 0;
+}
+
+static void sunxi_pinctrl_irq_mask_ack(struct irq_data *d)
+{
+	struct sunxi_pinctrl *pctl = irq_data_get_irq_chip_data(d);
+	u32 ctrl_reg = sunxi_irq_ctrl_reg(d->hwirq);
+	u8 ctrl_idx = sunxi_irq_ctrl_offset(d->hwirq);
+	u32 status_reg = sunxi_irq_status_reg(d->hwirq);
+	u8 status_idx = sunxi_irq_status_offset(d->hwirq);
+	u32 val;
+
+	/* Mask the IRQ */
+	val = readl(pctl->membase + ctrl_reg);
+	writel(val & ~(1 << ctrl_idx), pctl->membase + ctrl_reg);
+
+	/* Clear the IRQ */
+	writel(1 << status_idx, pctl->membase + status_reg);
+}
+
+static void sunxi_pinctrl_irq_mask(struct irq_data *d)
+{
+	struct sunxi_pinctrl *pctl = irq_data_get_irq_chip_data(d);
+	u32 reg = sunxi_irq_ctrl_reg(d->hwirq);
+	u8 idx = sunxi_irq_ctrl_offset(d->hwirq);
+	u32 val;
+
+	/* Mask the IRQ */
+	val = readl(pctl->membase + reg);
+	writel(val & ~(1 << idx), pctl->membase + reg);
+}
+
+static void sunxi_pinctrl_irq_unmask(struct irq_data *d)
+{
+	struct sunxi_pinctrl *pctl = irq_data_get_irq_chip_data(d);
+	struct sunxi_desc_function *func;
+	u32 reg = sunxi_irq_ctrl_reg(d->hwirq);
+	u8 idx = sunxi_irq_ctrl_offset(d->hwirq);
+	u32 val;
+
+	func = sunxi_pinctrl_desc_find_function_by_pin(pctl,
+						       pctl->irq_array[d->hwirq],
+						       "irq");
+
+	/* Change muxing to INT mode */
+	sunxi_pmx_set(pctl->pctl_dev, pctl->irq_array[d->hwirq], func->muxval);
+
+	/* Unmask the IRQ */
+	val = readl(pctl->membase + reg);
+	writel(val | (1 << idx), pctl->membase + reg);
+}
+
+static struct irq_chip sunxi_pinctrl_irq_chip = {
+	.irq_mask	= sunxi_pinctrl_irq_mask,
+	.irq_mask_ack	= sunxi_pinctrl_irq_mask_ack,
+	.irq_unmask	= sunxi_pinctrl_irq_unmask,
+	.irq_set_type	= sunxi_pinctrl_irq_set_type,
+};
+
+static void sunxi_pinctrl_irq_handler(unsigned irq, struct irq_desc *desc)
+{
+	struct sunxi_pinctrl *pctl = irq_get_handler_data(irq);
+	const unsigned long reg = readl(pctl->membase + IRQ_STATUS_REG);
+
+	/* Clear all interrupts */
+	writel(reg, pctl->membase + IRQ_STATUS_REG);
+
+	if (reg) {
+		int irqoffset;
+
+		for_each_set_bit(irqoffset, &reg, SUNXI_IRQ_NUMBER) {
+			int pin_irq = irq_find_mapping(pctl->domain, irqoffset);
+			generic_handle_irq(pin_irq);
+		}
+	}
+}
 
 static struct of_device_id sunxi_pinctrl_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-pinctrl", .data = (void *)&sun4i_a10_pinctrl_data },
@@ -2004,6 +2134,31 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	clk_prepare_enable(clk);
+
+	pctl->irq = irq_of_parse_and_map(node, 0);
+	if (!pctl->irq) {
+		ret = -EINVAL;
+		goto gpiochip_error;
+	}
+
+	pctl->domain = irq_domain_add_linear(node, SUNXI_IRQ_NUMBER,
+					     &irq_domain_simple_ops, NULL);
+	if (!pctl->domain) {
+		dev_err(&pdev->dev, "Couldn't register IRQ domain\n");
+		ret = -ENOMEM;
+		goto gpiochip_error;
+	}
+
+	for (i = 0; i < SUNXI_IRQ_NUMBER; i++) {
+		int irqno = irq_create_mapping(pctl->domain, i);
+
+		irq_set_chip_and_handler(irqno, &sunxi_pinctrl_irq_chip,
+					 handle_simple_irq);
+		irq_set_chip_data(irqno, pctl);
+	};
+
+	irq_set_chained_handler(pctl->irq, sunxi_pinctrl_irq_handler);
+	irq_set_handler_data(pctl->irq, pctl);
 
 	dev_info(&pdev->dev, "initialized sunXi PIO driver\n");
 
