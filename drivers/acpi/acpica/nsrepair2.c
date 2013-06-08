@@ -452,18 +452,7 @@ acpi_ns_repair_CST(struct acpi_evaluate_info *info,
 	ACPI_FUNCTION_NAME(ns_repair_CST);
 
 	/*
-	 * Entries (subpackages) in the _CST Package must be sorted by the
-	 * C-state type, in ascending order.
-	 */
-	status = acpi_ns_check_sorted_list(info, return_object, 1, 4, 1,
-					   ACPI_SORT_ASCENDING, "C-State Type");
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
-	/*
-	 * We now know the list is correctly sorted by C-state type. Check if
-	 * the C-state type values are proportional.
+	 * Check if the C-state type values are proportional.
 	 */
 	outer_element_count = return_object->package.count - 1;
 	i = 0;
@@ -502,6 +491,17 @@ acpi_ns_repair_CST(struct acpi_evaluate_info *info,
 
 	obj_desc = return_object->package.elements[0];
 	obj_desc->integer.value = outer_element_count;
+
+	/*
+	 * Entries (subpackages) in the _CST Package must be sorted by the
+	 * C-state type, in ascending order.
+	 */
+	status = acpi_ns_check_sorted_list(info, return_object, 1, 4, 1,
+					   ACPI_SORT_ASCENDING, "C-State Type");
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
 	return (AE_OK);
 }
 
