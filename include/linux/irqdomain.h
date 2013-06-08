@@ -73,49 +73,41 @@ struct irq_domain_chip_generic;
 /**
  * struct irq_domain - Hardware interrupt number translation object
  * @link: Element in global irq_domain list.
- * @revmap_type: Method used for reverse mapping hwirq numbers to linux irq. This
- *               will be one of the IRQ_DOMAIN_MAP_* values.
+ * @name: Name of interrupt domain
  * @ops: pointer to irq_domain methods
  * @host_data: private data pointer for use by owner.  Not touched by irq_domain
  *             core code.
- * @irq_base: Start of irq_desc range assigned to the irq_domain.  The creator
- *            of the irq_domain is responsible for allocating the array of
- *            irq_desc structures.
- * @nr_irq: Number of irqs managed by the irq domain
- * @hwirq_base: Starting number for hwirqs managed by the irq domain
- * @of_node: (optional) Pointer to device tree nodes associated with the
- *           irq_domain.  Used when decoding device tree interrupt specifiers.
+ *
+ * Optional elements
+ * @of_node: Pointer to device tree nodes associated with the irq_domain. Used
+ *           when decoding device tree interrupt specifiers.
+ * @gc: Pointer to a list of generic chips. There is a helper function for
+ *      setting up one or more generic chips for interrupt controllers
+ *      drivers using the generic chip library which uses this pointer.
+ *
+ * Revmap data, used internally by irq_domain
+ * @revmap_direct_max_irq: The largest hwirq that can be set for controllers that
+ *                         support direct mapping
+ * @revmap_size: Size of the linear map table @linear_revmap[]
+ * @revmap_tree: Radix map tree for hwirqs that don't fit in the linear map
+ * @linear_revmap: Linear table of hwirq->virq reverse mappings
  */
 struct irq_domain {
 	struct list_head link;
 	const char *name;
-
-	/* type of reverse mapping_technique */
-	unsigned int revmap_type;
-	struct {
-		struct {
-			unsigned int size;
-		} linear;
-		struct {
-			unsigned int max_irq;
-		} nomap;
-		struct radix_tree_root tree;
-	} revmap_data;
 	const struct irq_domain_ops *ops;
 	void *host_data;
-	irq_hw_number_t inval_irq;
 
-	/* Optional device node pointer */
+	/* Optional data */
 	struct device_node *of_node;
-	/* Optional pointer to generic interrupt chips */
 	struct irq_domain_chip_generic *gc;
 
-	/* Linear reverse map */
+	/* reverse map data. The linear map gets appended to the irq_domain */
+	unsigned int revmap_direct_max_irq;
+	unsigned int revmap_size;
+	struct radix_tree_root revmap_tree;
 	unsigned int linear_revmap[];
 };
-
-#define IRQ_DOMAIN_MAP_NOMAP 1 /* no fast reverse mapping */
-#define IRQ_DOMAIN_MAP_LINEAR 2 /* linear map of interrupts */
 
 #ifdef CONFIG_IRQ_DOMAIN
 struct irq_domain *irq_domain_add_simple(struct device_node *of_node,

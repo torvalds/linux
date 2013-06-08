@@ -25,7 +25,6 @@ static struct irq_domain *irq_default_domain;
 /**
  * irq_domain_alloc() - Allocate a new irq_domain data structure
  * @of_node: optional device-tree node of the interrupt controller
- * @revmap_type: type of reverse mapping to use
  * @ops: map/unmap domain callbacks
  * @host_data: Controller private data pointer
  *
@@ -34,7 +33,7 @@ static struct irq_domain *irq_default_domain;
  * to IRQ domain, or NULL on failure.
  */
 static struct irq_domain *irq_domain_alloc(struct device_node *of_node,
-					   unsigned int revmap_type, int size,
+					   int size,
 					   const struct irq_domain_ops *ops,
 					   void *host_data)
 {
@@ -46,12 +45,11 @@ static struct irq_domain *irq_domain_alloc(struct device_node *of_node,
 		return NULL;
 
 	/* Fill structure */
-	INIT_RADIX_TREE(&domain->revmap_data.tree, GFP_KERNEL);
-	domain->revmap_type = revmap_type;
+	INIT_RADIX_TREE(&domain->revmap_tree, GFP_KERNEL);
 	domain->ops = ops;
 	domain->host_data = host_data;
 	domain->of_node = of_node_get(of_node);
-	domain->revmap_data.linear.size = size;
+	domain->revmap_size = size;
 
 	return domain;
 }
@@ -67,8 +65,7 @@ static void irq_domain_add(struct irq_domain *domain)
 	mutex_lock(&irq_domain_mutex);
 	list_add(&domain->link, &irq_domain_list);
 	mutex_unlock(&irq_domain_mutex);
-	pr_debug("Allocated domain of type %d @0x%p\n",
-		 domain->revmap_type, domain);
+	pr_debug("Added domain %s\n", domain->name);
 }
 
 /**
@@ -88,7 +85,7 @@ void irq_domain_remove(struct irq_domain *domain)
 	 * node when all entries are removed. Shout if there are
 	 * any mappings left.
 	 */
-	WARN_ON(domain->revmap_data.tree.height);
+	WARN_ON(domain->revmap_tree.height);
 
 	list_del(&domain->link);
 
@@ -100,8 +97,7 @@ void irq_domain_remove(struct irq_domain *domain)
 
 	mutex_unlock(&irq_domain_mutex);
 
-	pr_debug("Removed domain of type %d @0x%p\n",
-		 domain->revmap_type, domain);
+	pr_debug("Removed domain %s\n", domain->name);
 
 	irq_domain_free(domain);
 }
@@ -216,7 +212,7 @@ struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
 {
 	struct irq_domain *domain;
 
-	domain = irq_domain_alloc(of_node, IRQ_DOMAIN_MAP_LINEAR, size, ops, host_data);
+	domain = irq_domain_alloc(of_node, size, ops, host_data);
 	if (!domain)
 		return NULL;
 
@@ -230,10 +226,9 @@ struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	struct irq_domain *domain = irq_domain_alloc(of_node,
-					IRQ_DOMAIN_MAP_NOMAP, 0, ops, host_data);
+	struct irq_domain *domain = irq_domain_alloc(of_node, 0, ops, host_data);
 	if (domain) {
-		domain->revmap_data.nomap.max_irq = max_irq ? max_irq : ~0;
+		domain->revmap_direct_max_irq = max_irq ? max_irq : ~0;
 		irq_domain_add(domain);
 	}
 	return domain;
@@ -321,11 +316,11 @@ static void irq_domain_disassociate_many(struct irq_domain *domain,
 		irq_data->hwirq = 0;
 
 		/* Clear reverse map for this hwirq */
-		if (hwirq < domain->revmap_data.linear.size) {
+		if (hwirq < domain->revmap_size) {
 			domain->linear_revmap[hwirq] = 0;
 		} else {
 			mutex_lock(&revmap_trees_mutex);
-			radix_tree_delete(&domain->revmap_data.tree, hwirq);
+			radix_tree_delete(&domain->revmap_tree, hwirq);
 			mutex_unlock(&revmap_trees_mutex);
 		}
 	}
@@ -378,11 +373,11 @@ int irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
 				domain->name = irq_data->chip->name;
 		}
 
-		if (hwirq < domain->revmap_data.linear.size) {
+		if (hwirq < domain->revmap_size) {
 			domain->linear_revmap[hwirq] = virq;
 		} else {
 			mutex_lock(&revmap_trees_mutex);
-			radix_tree_insert(&domain->revmap_data.tree, hwirq, irq_data);
+			radix_tree_insert(&domain->revmap_tree, hwirq, irq_data);
 			mutex_unlock(&revmap_trees_mutex);
 		}
 
@@ -399,7 +394,9 @@ EXPORT_SYMBOL_GPL(irq_domain_associate_many);
  *
  * This routine is used for irq controllers which can choose the hardware
  * interrupt numbers they generate. In such a case it's simplest to use
- * the linux irq as the hardware interrupt number.
+ * the linux irq as the hardware interrupt number. It still uses the linear
+ * or radix tree to store the mapping, but the irq controller can optimize
+ * the revmap path by using the hwirq directly.
  */
 unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 {
@@ -408,17 +405,14 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 	if (domain == NULL)
 		domain = irq_default_domain;
 
-	if (WARN_ON(!domain || domain->revmap_type != IRQ_DOMAIN_MAP_NOMAP))
-		return 0;
-
 	virq = irq_alloc_desc_from(1, of_node_to_nid(domain->of_node));
 	if (!virq) {
 		pr_debug("create_direct virq allocation failed\n");
 		return 0;
 	}
-	if (virq >= domain->revmap_data.nomap.max_irq) {
+	if (virq >= domain->revmap_direct_max_irq) {
 		pr_err("ERROR: no free irqs available below %i maximum\n",
-			domain->revmap_data.nomap.max_irq);
+			domain->revmap_direct_max_irq);
 		irq_free_desc(virq);
 		return 0;
 	}
@@ -617,17 +611,13 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 	if (domain == NULL)
 		return 0;
 
-	switch (domain->revmap_type) {
-	case IRQ_DOMAIN_MAP_LINEAR:
-		return irq_linear_revmap(domain, hwirq);
-	case IRQ_DOMAIN_MAP_NOMAP:
+	if (hwirq < domain->revmap_direct_max_irq) {
 		data = irq_get_irq_data(hwirq);
 		if (data && (data->domain == domain) && (data->hwirq == hwirq))
 			return hwirq;
-		break;
 	}
 
-	return 0;
+	return irq_linear_revmap(domain, hwirq);
 }
 EXPORT_SYMBOL_GPL(irq_find_mapping);
 
@@ -643,12 +633,11 @@ unsigned int irq_linear_revmap(struct irq_domain *domain,
 			       irq_hw_number_t hwirq)
 {
 	struct irq_data *data;
-	BUG_ON(domain->revmap_type != IRQ_DOMAIN_MAP_LINEAR);
 
 	/* Check revmap bounds; complain if exceeded */
-	if (hwirq >= domain->revmap_data.linear.size) {
+	if (hwirq >= domain->revmap_size) {
 		rcu_read_lock();
-		data = radix_tree_lookup(&domain->revmap_data.tree, hwirq);
+		data = radix_tree_lookup(&domain->revmap_tree, hwirq);
 		rcu_read_unlock();
 		return data ? data->irq : 0;
 	}
