@@ -47,8 +47,6 @@
 			atmel,has-pmecc;
 			atmel,pmecc-cap = <4>;
 			atmel,pmecc-sector-size = <512>;
-			atmel,has-nfc;
-			atmel,use-nfc-sram;
 			nand-on-flash-bbt;
 			status = "okay";
 
