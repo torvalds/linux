@@ -1,7 +1,7 @@
 /*
  * Glue Code for assembler optimized version of Blowfish
  *
- * Copyright © 2011-2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
+ * Copyright (c) 2011 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
  *
  * CBC & ECB parts based on code (crypto/cbc.c,ecb.c) by:
  *   Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
@@ -32,24 +32,40 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <crypto/algapi.h>
-#include <asm/crypto/blowfish.h>
 
 /* regular block cipher functions */
 asmlinkage void __blowfish_enc_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src,
 				   bool xor);
-EXPORT_SYMBOL_GPL(__blowfish_enc_blk);
-
 asmlinkage void blowfish_dec_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src);
-EXPORT_SYMBOL_GPL(blowfish_dec_blk);
 
 /* 4-way parallel cipher functions */
 asmlinkage void __blowfish_enc_blk_4way(struct bf_ctx *ctx, u8 *dst,
 					const u8 *src, bool xor);
-EXPORT_SYMBOL_GPL(__blowfish_enc_blk_4way);
-
 asmlinkage void blowfish_dec_blk_4way(struct bf_ctx *ctx, u8 *dst,
 				      const u8 *src);
-EXPORT_SYMBOL_GPL(blowfish_dec_blk_4way);
+
+static inline void blowfish_enc_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src)
+{
+	__blowfish_enc_blk(ctx, dst, src, false);
+}
+
+static inline void blowfish_enc_blk_xor(struct bf_ctx *ctx, u8 *dst,
+					const u8 *src)
+{
+	__blowfish_enc_blk(ctx, dst, src, true);
+}
+
+static inline void blowfish_enc_blk_4way(struct bf_ctx *ctx, u8 *dst,
+					 const u8 *src)
+{
+	__blowfish_enc_blk_4way(ctx, dst, src, false);
+}
+
+static inline void blowfish_enc_blk_xor_4way(struct bf_ctx *ctx, u8 *dst,
+				      const u8 *src)
+{
+	__blowfish_enc_blk_4way(ctx, dst, src, true);
+}
 
 static void blowfish_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
