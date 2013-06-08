@@ -352,6 +352,7 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 			break;
 
 		default:
+
 			break;
 		}
 
@@ -539,6 +540,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			break;
 
 		default:
+
 			break;
 		}
 

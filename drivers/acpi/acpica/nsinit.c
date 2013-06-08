@@ -266,28 +266,34 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 
 	switch (type) {
 	case ACPI_TYPE_REGION:
+
 		info->op_region_count++;
 		break;
 
 	case ACPI_TYPE_BUFFER_FIELD:
+
 		info->field_count++;
 		break;
 
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
+
 		info->field_count++;
 		break;
 
 	case ACPI_TYPE_BUFFER:
+
 		info->buffer_count++;
 		break;
 
 	case ACPI_TYPE_PACKAGE:
+
 		info->package_count++;
 		break;
 
 	default:
 
 		/* No init required, just exit now */
+
 		return (AE_OK);
 	}
 
@@ -337,7 +343,9 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 		break;
 
 	default:
+
 		/* No other types can get here */
+
 		break;
 	}
 
@@ -416,6 +424,7 @@ acpi_ns_find_ini_methods(acpi_handle obj_handle,
 		break;
 
 	default:
+
 		break;
 	}
 

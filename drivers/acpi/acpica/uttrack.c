@@ -603,6 +603,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 					switch (ACPI_GET_DESCRIPTOR_TYPE
 						(descriptor)) {
 					case ACPI_DESC_TYPE_OPERAND:
+
 						if (element->size ==
 						    sizeof(union
 							   acpi_operand_object))
@@ -613,6 +614,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 						break;
 
 					case ACPI_DESC_TYPE_PARSER:
+
 						if (element->size ==
 						    sizeof(union
 							   acpi_parse_object)) {
@@ -622,6 +624,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 						break;
 
 					case ACPI_DESC_TYPE_NAMED:
+
 						if (element->size ==
 						    sizeof(struct
 							   acpi_namespace_node))
@@ -632,6 +635,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 						break;
 
 					default:
+
 						break;
 					}
 
@@ -639,6 +643,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 
 					switch (descriptor_type) {
 					case ACPI_DESC_TYPE_OPERAND:
+
 						acpi_os_printf
 						    ("%12.12s RefCount 0x%04X\n",
 						     acpi_ut_get_type_name
@@ -649,6 +654,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 						break;
 
 					case ACPI_DESC_TYPE_PARSER:
+
 						acpi_os_printf
 						    ("AmlOpcode 0x%04hX\n",
 						     descriptor->op.asl.
@@ -656,6 +662,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 						break;
 
 					case ACPI_DESC_TYPE_NAMED:
+
 						acpi_os_printf("%4.4s\n",
 							       acpi_ut_get_node_name
 							       (&descriptor->
@@ -663,6 +670,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 						break;
 
 					default:
+
 						acpi_os_printf("\n");
 						break;
 					}

@@ -471,15 +471,19 @@ void acpi_tb_delete_table(struct acpi_table_desc *table_desc)
 	}
 	switch (table_desc->flags & ACPI_TABLE_ORIGIN_MASK) {
 	case ACPI_TABLE_ORIGIN_MAPPED:
+
 		acpi_os_unmap_memory(table_desc->pointer, table_desc->length);
 		break;
+
 	case ACPI_TABLE_ORIGIN_ALLOCATED:
+
 		ACPI_FREE(table_desc->pointer);
 		break;
 
 		/* Not mapped or allocated, there is nothing we can do */
 
 	default:
+
 		return;
 	}
 

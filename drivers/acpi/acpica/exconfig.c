@@ -480,6 +480,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 

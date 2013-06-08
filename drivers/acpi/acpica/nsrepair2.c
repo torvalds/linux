@@ -320,6 +320,7 @@ acpi_ns_repair_FDE(struct acpi_evaluate_info *info,
 		break;
 
 	default:
+
 		return (AE_AML_OPERAND_TYPE);
 	}
 

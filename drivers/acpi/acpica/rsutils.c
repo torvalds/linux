@@ -147,6 +147,7 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 		case ACPI_RSC_MOVE_GPIO_RES:
 		case ACPI_RSC_MOVE_SERIAL_VEN:
 		case ACPI_RSC_MOVE_SERIAL_RES:
+
 			ACPI_MEMCPY(destination, source, item_count);
 			return;
 
@@ -157,21 +158,25 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 			 */
 		case ACPI_RSC_MOVE16:
 		case ACPI_RSC_MOVE_GPIO_PIN:
+
 			ACPI_MOVE_16_TO_16(&ACPI_CAST_PTR(u16, destination)[i],
 					   &ACPI_CAST_PTR(u16, source)[i]);
 			break;
 
 		case ACPI_RSC_MOVE32:
+
 			ACPI_MOVE_32_TO_32(&ACPI_CAST_PTR(u32, destination)[i],
 					   &ACPI_CAST_PTR(u32, source)[i]);
 			break;
 
 		case ACPI_RSC_MOVE64:
+
 			ACPI_MOVE_64_TO_64(&ACPI_CAST_PTR(u64, destination)[i],
 					   &ACPI_CAST_PTR(u64, source)[i]);
 			break;
 
 		default:
+
 			return;
 		}
 	}

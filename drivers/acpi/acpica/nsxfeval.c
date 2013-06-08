@@ -511,6 +511,7 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 		break;
 
 	default:
+
 		return;
 	}
 

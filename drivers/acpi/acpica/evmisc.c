@@ -78,6 +78,7 @@ u8 acpi_ev_is_notify_object(struct acpi_namespace_node *node)
 		return (TRUE);
 
 	default:
+
 		return (FALSE);
 	}
 }

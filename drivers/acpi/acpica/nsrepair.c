@@ -480,6 +480,7 @@ acpi_ns_remove_null_elements(struct acpi_evaluate_info *info,
 	case ACPI_PTYPE2_MIN:
 	case ACPI_PTYPE2_REV_FIXED:
 	case ACPI_PTYPE2_FIX_VAR:
+
 		break;
 
 	default:

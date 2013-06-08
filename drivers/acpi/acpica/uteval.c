@@ -123,22 +123,27 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 
 	switch ((info->return_object)->common.type) {
 	case ACPI_TYPE_INTEGER:
+
 		return_btype = ACPI_BTYPE_INTEGER;
 		break;
 
 	case ACPI_TYPE_BUFFER:
+
 		return_btype = ACPI_BTYPE_BUFFER;
 		break;
 
 	case ACPI_TYPE_STRING:
+
 		return_btype = ACPI_BTYPE_STRING;
 		break;
 
 	case ACPI_TYPE_PACKAGE:
+
 		return_btype = ACPI_BTYPE_PACKAGE;
 		break;
 
 	default:
+
 		return_btype = 0;
 		break;
 	}

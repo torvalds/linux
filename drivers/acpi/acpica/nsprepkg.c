@@ -136,7 +136,6 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 	 */
 	switch (package->ret_info.type) {
 	case ACPI_PTYPE1_FIXED:
-
 		/*
 		 * The package count is fixed and there are no sub-packages
 		 *
@@ -169,7 +168,6 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 		break;
 
 	case ACPI_PTYPE1_VAR:
-
 		/*
 		 * The package count is variable, there are no sub-packages, and all
 		 * elements must be of the same type
@@ -186,7 +184,6 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 		break;
 
 	case ACPI_PTYPE1_OPTION:
-
 		/*
 		 * The package count is variable, there are no sub-packages. There are
 		 * a fixed number of required elements, and a variable number of
@@ -284,7 +281,6 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 	case ACPI_PTYPE2_MIN:
 	case ACPI_PTYPE2_COUNT:
 	case ACPI_PTYPE2_FIX_VAR:
-
 		/*
 		 * These types all return a single Package that consists of a
 		 * variable number of sub-Packages.
@@ -500,7 +496,6 @@ acpi_ns_check_package_list(struct acpi_evaluate_info *info,
 			break;
 
 		case ACPI_PTYPE2_COUNT:
-
 			/*
 			 * First element is the (Integer) count of elements, including
 			 * the count field (the ACPI name is num_elements)
