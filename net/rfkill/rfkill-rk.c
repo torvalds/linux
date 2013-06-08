@@ -42,6 +42,8 @@
 #include <linux/interrupt.h>
 #include <asm/irq.h>
 #include <linux/suspend.h>
+#include <linux/proc_fs.h>
+#include <linux/uaccess.h>
 
 #if 0
 #define DBG(x...)   printk(KERN_INFO "[BT_RFKILL]: "x)
@@ -51,7 +53,7 @@
 
 #define LOG(x...)   printk(KERN_INFO "[BT_RFKILL]: "x)
 
-#define BT_WAKEUP_TIMEOUT           3000
+#define BT_WAKEUP_TIMEOUT           10000
 #define BT_IRQ_WAKELOCK_TIMEOUT     10*1000
 
 #define BT_BLOCKED     true
@@ -450,11 +452,56 @@ static const struct rfkill_ops rfkill_rk_ops = {
     .set_block = rfkill_rk_set_power,
 };
 
+#define PROC_DIR	"bluetooth/sleep"
+
+static struct proc_dir_entry *bluetooth_dir, *sleep_dir;
+
+static int bluesleep_read_proc_lpm(char *page, char **start, off_t offset,
+					int count, int *eof, void *data)
+{
+    *eof = 1;
+    return sprintf(page, "unsupported to read\n");
+}
+
+static int bluesleep_write_proc_lpm(struct file *file, const char *buffer,
+					unsigned long count, void *data)
+{
+    return count;
+}
+
+static int bluesleep_read_proc_btwrite(char *page, char **start, off_t offset,
+					int count, int *eof, void *data)
+{
+    *eof = 1;
+    return sprintf(page, "unsupported to read\n");
+}
+
+static int bluesleep_write_proc_btwrite(struct file *file, const char *buffer,
+					unsigned long count, void *data)
+{
+    char b;
+
+    if (count < 1)
+        return -EINVAL;
+
+    if (copy_from_user(&b, buffer, 1))
+        return -EFAULT;
+
+    DBG("btwrite %c\n", b);
+    /* HCI_DEV_WRITE */
+    if (b != '0') {
+        rfkill_rk_sleep_bt(BT_WAKEUP);
+    }
+
+    return count;
+}
+
 static int rfkill_rk_probe(struct platform_device *pdev)
 {
 	struct rfkill_rk_data *rfkill;
 	struct rfkill_rk_platform_data *pdata = pdev->dev.platform_data;
 	int ret = 0;
+    struct proc_dir_entry *ent;
 
     DBG("Enter %s\n", __func__);
 
@@ -471,6 +518,38 @@ static int rfkill_rk_probe(struct platform_device *pdev)
 
 	rfkill->pdata = pdata;
     g_rfkill = rfkill;
+
+    bluetooth_dir = proc_mkdir("bluetooth", NULL);
+    if (bluetooth_dir == NULL) {
+        LOG("Unable to create /proc/bluetooth directory");
+        return -ENOMEM;
+    }
+
+    sleep_dir = proc_mkdir("sleep", bluetooth_dir);
+    if (sleep_dir == NULL) {
+        LOG("Unable to create /proc/%s directory", PROC_DIR);
+        return -ENOMEM;
+    }
+
+	/* read/write proc entries */
+    ent = create_proc_entry("lpm", 0, sleep_dir);
+    if (ent == NULL) {
+        LOG("Unable to create /proc/%s/lpm entry", PROC_DIR);
+        ret = -ENOMEM;
+        goto fail_alloc;
+    }
+    ent->read_proc = bluesleep_read_proc_lpm;
+    ent->write_proc = bluesleep_write_proc_lpm;
+
+    /* read/write proc entries */
+    ent = create_proc_entry("btwrite", 0, sleep_dir);
+    if (ent == NULL) {
+        LOG("Unable to create /proc/%s/btwrite entry", PROC_DIR);
+        ret = -ENOMEM;
+        goto fail_alloc;
+    }
+    ent->read_proc = bluesleep_read_proc_btwrite;
+    ent->write_proc = bluesleep_write_proc_btwrite;
 
     // …Í«ÎGPIO“‘º∞IRQ
     DBG("init gpio\n");
@@ -542,6 +621,9 @@ fail_poweron:
 fail_alloc:
 	kfree(rfkill);
     g_rfkill = NULL;
+
+	remove_proc_entry("btwrite", sleep_dir);
+	remove_proc_entry("lpm", sleep_dir);
 
 	return ret;
 }
