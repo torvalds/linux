@@ -146,6 +146,7 @@ acpi-y +=		\
 acpi-y +=		\
 	utaddress.o	\
 	utalloc.o	\
+	utbuffer.o	\
 	utcopy.o	\
 	utexcep.o	\
 	utdebug.o	\
