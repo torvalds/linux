@@ -472,7 +472,7 @@ static struct sh_eth_cpu_data sh7757_data = {
 	.rpadir_value   = 2 << 16,
 };
 
-#define SH_GIGA_ETH_BASE	0xfee00000
+#define SH_GIGA_ETH_BASE	0xfee00000UL
 #define GIGA_MALR(port)		(SH_GIGA_ETH_BASE + 0x800 * (port) + 0x05c8)
 #define GIGA_MAHR(port)		(SH_GIGA_ETH_BASE + 0x800 * (port) + 0x05c0)
 static void sh_eth_chip_reset_giga(struct net_device *ndev)
