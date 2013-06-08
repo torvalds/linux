@@ -263,7 +263,8 @@ static const struct file_operations shmob_drm_fops = {
 };
 
 static struct drm_driver shmob_drm_driver = {
-	.driver_features	= DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET,
+	.driver_features	= DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET
+				| DRIVER_PRIME,
 	.load			= shmob_drm_load,
 	.unload			= shmob_drm_unload,
 	.preclose		= shmob_drm_preclose,
@@ -273,6 +274,10 @@ static struct drm_driver shmob_drm_driver = {
 	.disable_vblank		= shmob_drm_disable_vblank,
 	.gem_free_object	= drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
+	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
+	.gem_prime_import	= drm_gem_cma_dmabuf_import,
+	.gem_prime_export	= drm_gem_cma_dmabuf_export,
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
 	.dumb_destroy		= drm_gem_cma_dumb_destroy,
