@@ -80,15 +80,15 @@
 #define BIT31           0x80000000
 
 #define	Rx_Smooth_Factor		20
-#define DMESG(x,a...)
-#define DMESGW(x,a...)
-#define DMESGE(x,a...)
+#define DMESG(x, a...)
+#define DMESGW(x, a...)
+#define DMESGE(x, a...)
 extern u32 rt_global_debug_component;
 #define RT_TRACE(component, x, args...) \
 do { if (rt_global_debug_component & component) \
 	printk(KERN_DEBUG RTL819xU_MODULE_NAME ":" x "\n" , \
 	       ##args);\
-} while(0);
+} while (0);
 
 #define COMP_TRACE              BIT0  /* Function call tracing. */
 #define COMP_DBG                BIT1
@@ -134,7 +134,7 @@ do { if (rt_global_debug_component & component) \
 #define assert(expr) \
 	if (!(expr)) {                                  \
 		printk("Assertion failed! %s,%s,%s,line=%d\n", \
-		#expr,__FILE__,__FUNCTION__,__LINE__);          \
+		#expr, __FILE__, __FUNCTION__, __LINE__);          \
 	}
 /*
  * Debug out data buf.
@@ -146,7 +146,7 @@ do { if (rt_global_debug_component & component) \
 			int i;                                  \
 			u8 *pdata = (u8 *) data;                 \
 			printk(KERN_DEBUG RTL819xU_MODULE_NAME ": %s()\n", __FUNCTION__);   \
-			for(i=0; i<(int)(datalen); i++) {               \
+			for (i = 0; i < (int)(datalen); i++) {               \
 				printk("%2x ", pdata[i]);               \
 				if ((i+1)%16 == 0) printk("\n");        \
 			}                               \
@@ -155,7 +155,7 @@ do { if (rt_global_debug_component & component) \
 	} while (0)
 #else
 #define assert(expr) do {} while (0)
-#define RT_DEBUG_DATA(level, data, datalen) do {} while(0)
+#define RT_DEBUG_DATA(level, data, datalen) do {} while (0)
 #endif /* RTL8169_DEBUG */
 
 
@@ -690,7 +690,7 @@ typedef struct	ChnlAccessSetting {
 	u16 EIFS_Timer;
 	u16 CWminIndex;
 	u16 CWmaxIndex;
-} *PCHANNEL_ACCESS_SETTING,CHANNEL_ACCESS_SETTING;
+} *PCHANNEL_ACCESS_SETTING, CHANNEL_ACCESS_SETTING;
 
 typedef struct _BB_REGISTER_DEFINITION {
 	/* set software control:        0x870~0x877 [8 bytes]  */
@@ -781,7 +781,7 @@ typedef struct _txbbgain_struct {
 typedef struct _ccktxbbgain_struct {
 	/* The value is from a22 to a29, one byte one time is much safer */
 	u8	ccktxbb_valuearray[8];
-} ccktxbbgain_struct,*pccktxbbgain_struct;
+} ccktxbbgain_struct, *pccktxbbgain_struct;
 
 
 typedef struct _init_gain {
@@ -921,8 +921,8 @@ typedef struct r8192_priv {
 	u8 rf_type;			/* 0: 1T2R, 1: 2T4R */
 	RT_RF_TYPE_819xU rf_chip;
 
-	short (*rf_set_sens)(struct net_device *dev,short sens);
-	u8 (*rf_set_chan)(struct net_device *dev,u8 ch);
+	short (*rf_set_sens)(struct net_device *dev, short sens);
+	u8 (*rf_set_chan)(struct net_device *dev, u8 ch);
 	void (*rf_close)(struct net_device *dev);
 	void (*rf_init)(struct net_device *dev);
 	short promisc;
@@ -1173,10 +1173,10 @@ int read_nic_byte(struct net_device *dev, int x, u8 *data);
 int read_nic_byte_E(struct net_device *dev, int x, u8 *data);
 int read_nic_dword(struct net_device *dev, int x, u32 *data);
 int read_nic_word(struct net_device *dev, int x, u16 *data);
-void write_nic_byte(struct net_device *dev, int x,u8 y);
-void write_nic_byte_E(struct net_device *dev, int x,u8 y);
-void write_nic_word(struct net_device *dev, int x,u16 y);
-void write_nic_dword(struct net_device *dev, int x,u32 y);
+void write_nic_byte(struct net_device *dev, int x, u8 y);
+void write_nic_byte_E(struct net_device *dev, int x, u8 y);
+void write_nic_word(struct net_device *dev, int x, u16 y);
+void write_nic_dword(struct net_device *dev, int x, u32 y);
 void force_pci_posting(struct net_device *dev);
 
 void rtl8192_rtx_disable(struct net_device *);
@@ -1184,21 +1184,21 @@ void rtl8192_rx_enable(struct net_device *);
 void rtl8192_tx_enable(struct net_device *);
 
 void rtl8192_disassociate(struct net_device *dev);
-void rtl8185_set_rf_pins_enable(struct net_device *dev,u32 a);
+void rtl8185_set_rf_pins_enable(struct net_device *dev, u32 a);
 
-void rtl8192_set_anaparam(struct net_device *dev,u32 a);
-void rtl8185_set_anaparam2(struct net_device *dev,u32 a);
+void rtl8192_set_anaparam(struct net_device *dev, u32 a);
+void rtl8185_set_anaparam2(struct net_device *dev, u32 a);
 void rtl8192_update_msr(struct net_device *dev);
 int rtl8192_down(struct net_device *dev);
 int rtl8192_up(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
-void rtl8192_set_chan(struct net_device *dev,short ch);
+void rtl8192_set_chan(struct net_device *dev, short ch);
 void write_phy(struct net_device *dev, u8 adr, u8 data);
 void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
 void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
 void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
 void rtl8192_set_rxconf(struct net_device *dev);
-extern void rtl819xusb_beacon_tx(struct net_device *dev,u16  tx_rate);
+extern void rtl819xusb_beacon_tx(struct net_device *dev, u16 tx_rate);
 
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
