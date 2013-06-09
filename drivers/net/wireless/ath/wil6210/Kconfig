@@ -28,7 +28,7 @@ config WIL6210_ISR_COR
 	  such monitoring impossible.
 	  Say y unless you debug interrupts
 
-config ATH6KL_TRACING
+config WIL6210_TRACING
 	bool "wil6210 tracing support"
 	depends on WIL6210
 	depends on EVENT_TRACING
