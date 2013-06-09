@@ -52,7 +52,7 @@ unsigned long __generic_copy_from_user(void *to, const void __user *from,
 		"	.long	3b,30b\n"
 		"	.long	5b,50b\n"
 		"	.previous"
-		: "=d" (res), "+a" (from), "+a" (to), "=&r" (tmp)
+		: "=d" (res), "+a" (from), "+a" (to), "=&d" (tmp)
 		: "0" (n / 4), "d" (n & 3));
 
 	return res;
@@ -96,7 +96,7 @@ unsigned long __generic_copy_to_user(void __user *to, const void *from,
 		"	.long	7b,50b\n"
 		"	.long	8b,50b\n"
 		"	.previous"
-		: "=d" (res), "+a" (from), "+a" (to), "=&r" (tmp)
+		: "=d" (res), "+a" (from), "+a" (to), "=&d" (tmp)
 		: "0" (n / 4), "d" (n & 3));
 
 	return res;
@@ -141,7 +141,7 @@ unsigned long __clear_user(void __user *to, unsigned long n)
 		"	.long	7b,40b\n"
 		"	.previous"
 		: "=d" (res), "+a" (to)
-		: "r" (0), "0" (n / 4), "d" (n & 3));
+		: "d" (0), "0" (n / 4), "d" (n & 3));
 
     return res;
 }
