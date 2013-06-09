@@ -402,6 +402,30 @@ static int wil_cfg80211_set_default_key(struct wiphy *wiphy,
 	return 0;
 }
 
+static int wil_fix_bcon(struct wil6210_priv *wil,
+			struct cfg80211_beacon_data *bcon)
+{
+	struct ieee80211_mgmt *f = (struct ieee80211_mgmt *)bcon->probe_resp;
+	size_t hlen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
+	int rc = 0;
+
+	if (bcon->probe_resp_len <= hlen)
+		return 0;
+
+	if (!bcon->proberesp_ies) {
+		bcon->proberesp_ies = f->u.probe_resp.variable;
+		bcon->proberesp_ies_len = bcon->probe_resp_len - hlen;
+		rc = 1;
+	}
+	if (!bcon->assocresp_ies) {
+		bcon->assocresp_ies = f->u.probe_resp.variable;
+		bcon->assocresp_ies_len = bcon->probe_resp_len - hlen;
+		rc = 1;
+	}
+
+	return rc;
+}
+
 static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 				 struct net_device *ndev,
 				 struct cfg80211_ap_settings *info)
@@ -422,6 +446,9 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 		     channel->center_freq, info->privacy ? "secure" : "open");
 	print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
 			     info->ssid, info->ssid_len);
+
+	if (wil_fix_bcon(wil, bcon))
+		wil_dbg_misc(wil, "Fixed bcon\n");
 
 	rc = wil_reset(wil);
 	if (rc)
