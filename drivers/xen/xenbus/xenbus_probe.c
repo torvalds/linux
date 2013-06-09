@@ -69,6 +69,9 @@ EXPORT_SYMBOL_GPL(xen_store_evtchn);
 struct xenstore_domain_interface *xen_store_interface;
 EXPORT_SYMBOL_GPL(xen_store_interface);
 
+enum xenstore_init xen_store_domain_type;
+EXPORT_SYMBOL_GPL(xen_store_domain_type);
+
 static unsigned long xen_store_mfn;
 
 static BLOCKING_NOTIFIER_HEAD(xenstore_chain);
@@ -719,17 +722,11 @@ static int __init xenstored_local_init(void)
 	return err;
 }
 
-enum xenstore_init {
-	UNKNOWN,
-	PV,
-	HVM,
-	LOCAL,
-};
 static int __init xenbus_init(void)
 {
 	int err = 0;
-	enum xenstore_init usage = UNKNOWN;
 	uint64_t v = 0;
+	xen_store_domain_type = XS_UNKNOWN;
 
 	if (!xen_domain())
 		return -ENODEV;
@@ -737,29 +734,29 @@ static int __init xenbus_init(void)
 	xenbus_ring_ops_init();
 
 	if (xen_pv_domain())
-		usage = PV;
+		xen_store_domain_type = XS_PV;
 	if (xen_hvm_domain())
-		usage = HVM;
+		xen_store_domain_type = XS_HVM;
 	if (xen_hvm_domain() && xen_initial_domain())
-		usage = LOCAL;
+		xen_store_domain_type = XS_LOCAL;
 	if (xen_pv_domain() && !xen_start_info->store_evtchn)
-		usage = LOCAL;
+		xen_store_domain_type = XS_LOCAL;
 	if (xen_pv_domain() && xen_start_info->store_evtchn)
 		xenstored_ready = 1;
 
-	switch (usage) {
-	case LOCAL:
+	switch (xen_store_domain_type) {
+	case XS_LOCAL:
 		err = xenstored_local_init();
 		if (err)
 			goto out_error;
 		xen_store_interface = mfn_to_virt(xen_store_mfn);
 		break;
-	case PV:
+	case XS_PV:
 		xen_store_evtchn = xen_start_info->store_evtchn;
 		xen_store_mfn = xen_start_info->store_mfn;
 		xen_store_interface = mfn_to_virt(xen_store_mfn);
 		break;
-	case HVM:
+	case XS_HVM:
 		err = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN, &v);
 		if (err)
 			goto out_error;

@@ -32,15 +32,21 @@ ENTRY(ll_set_cpu_coherent)
 
 	/* Add CPU to SMP group - Atomic */
 	add	r3, r0, #ARMADA_XP_CFB_CTL_REG_OFFSET
-	ldr	r2, [r3]
+1:
+	ldrex	r2, [r3]
 	orr	r2, r2, r1
-	str	r2, [r3]
+	strex 	r0, r2, [r3]
+	cmp	r0, #0
+	bne 1b
 
 	/* Enable coherency on CPU - Atomic */
-	add	r3, r0, #ARMADA_XP_CFB_CFG_REG_OFFSET
-	ldr	r2, [r3]
+	add	r3, r3, #ARMADA_XP_CFB_CFG_REG_OFFSET
+1:
+	ldrex	r2, [r3]
 	orr	r2, r2, r1
-	str	r2, [r3]
+	strex	r0, r2, [r3]
+	cmp	r0, #0
+	bne 1b
 
 	dsb
 

@@ -264,7 +264,7 @@ $(obj)/%.dtb.S: $(obj)/%.dtb
 quiet_cmd_dtc = DTC     $@
 cmd_dtc = $(CPP) $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) $< ; \
 	$(objtree)/scripts/dtc/dtc -O dtb -o $@ -b 0 \
-		-i $(srctree)/arch/$(SRCARCH)/boot/dts $(DTC_FLAGS) \
+		-i $(dir $<) $(DTC_FLAGS) \
 		-d $(depfile).dtc $(dtc-tmp) ; \
 	cat $(depfile).pre $(depfile).dtc > $(depfile)
 

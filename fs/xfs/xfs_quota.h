@@ -87,6 +87,8 @@ typedef struct xfs_dqblk {
 	uuid_t		  dd_uuid;	/* location information */
 } xfs_dqblk_t;
 
+#define XFS_DQUOT_CRC_OFF	offsetof(struct xfs_dqblk, dd_crc)
+
 /*
  * flags for q_flags field in the dquot.
  */

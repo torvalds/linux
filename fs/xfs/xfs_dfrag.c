@@ -219,6 +219,14 @@ xfs_swap_extents(
 	int		taforkblks = 0;
 	__uint64_t	tmp;
 
+	/*
+	 * We have no way of updating owner information in the BMBT blocks for
+	 * each inode on CRC enabled filesystems, so to avoid corrupting the
+	 * this metadata we simply don't allow extent swaps to occur.
+	 */
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		return XFS_ERROR(EINVAL);
+
 	tempifp = kmem_alloc(sizeof(xfs_ifork_t), KM_MAYFAIL);
 	if (!tempifp) {
 		error = XFS_ERROR(ENOMEM);

@@ -492,6 +492,11 @@ static void vcpu_pause(struct kvm_vcpu *vcpu)
 	wait_event_interruptible(*wq, !vcpu->arch.pause);
 }
 
+static int kvm_vcpu_initialized(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.target >= 0;
+}
+
 /**
  * kvm_arch_vcpu_ioctl_run - the main VCPU run function to execute guest code
  * @vcpu:	The VCPU pointer
@@ -508,8 +513,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	int ret;
 	sigset_t sigsaved;
 
-	/* Make sure they initialize the vcpu with KVM_ARM_VCPU_INIT */
-	if (unlikely(vcpu->arch.target < 0))
+	if (unlikely(!kvm_vcpu_initialized(vcpu)))
 		return -ENOEXEC;
 
 	ret = kvm_vcpu_first_run_init(vcpu);
@@ -710,6 +714,10 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	case KVM_SET_ONE_REG:
 	case KVM_GET_ONE_REG: {
 		struct kvm_one_reg reg;
+
+		if (unlikely(!kvm_vcpu_initialized(vcpu)))
+			return -ENOEXEC;
+
 		if (copy_from_user(&reg, argp, sizeof(reg)))
 			return -EFAULT;
 		if (ioctl == KVM_SET_ONE_REG)
@@ -721,6 +729,9 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		struct kvm_reg_list __user *user_list = argp;
 		struct kvm_reg_list reg_list;
 		unsigned n;
+
+		if (unlikely(!kvm_vcpu_initialized(vcpu)))
+			return -ENOEXEC;
 
 		if (copy_from_user(&reg_list, user_list, sizeof(reg_list)))
 			return -EFAULT;

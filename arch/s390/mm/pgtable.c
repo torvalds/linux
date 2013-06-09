@@ -492,7 +492,7 @@ static int gmap_connect_pgtable(unsigned long address, unsigned long segment,
 	mp = (struct gmap_pgtable *) page->index;
 	rmap->gmap = gmap;
 	rmap->entry = segment_ptr;
-	rmap->vmaddr = address;
+	rmap->vmaddr = address & PMD_MASK;
 	spin_lock(&mm->page_table_lock);
 	if (*segment_ptr == segment) {
 		list_add(&rmap->list, &mp->mapper);
