@@ -20,14 +20,12 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-//#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
-//#include <linux/pci.h>
 #include <linux/usb.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
@@ -128,7 +126,6 @@ do { if (rt_global_debug_component & component) \
 #define COMP_AMSDU				BIT26	// For A-MSDU Debugging
 
 #define COMP_SCAN				BIT27
-//#define COMP_RESET				BIT28
 #define COMP_DOWN				BIT29  //for rm driver module
 #define COMP_RESET				BIT30  //for silent reset
 #define COMP_ERR				BIT31 //for error out, always on
@@ -241,7 +238,6 @@ typedef struct _tx_desc_819x_usb {
 
 	//DWORD 2
 	u16	TxBufferSize;
-	//u16 Reserved2;
 	u8	ResvForPaddingLen:7;
 	u8	Reserved3:1;
 	u8	Reserved4;
@@ -291,7 +287,6 @@ typedef struct _tx_desc_cmd_819x_usb {
 	u8	OWN:1;
 
 	//DOWRD 1
-	//u32	Reserved3;
 	u8	TxFWInfoSize;
 	u8	Reserved3;
 	u8	QueueSelect;
@@ -302,8 +297,6 @@ typedef struct _tx_desc_cmd_819x_usb {
 	u16	Reserved5;
 
        //DWORD 3,4,5
-	//u32	TxBufferAddr;
-	//u32	NextDescAddress;
 	u32	Reserved6;
 	u32	Reserved7;
 	u32	Reserved8;
@@ -338,7 +331,6 @@ typedef struct _tx_fwinfo_819x_usb {
 	u32		TxAGCSign:1;
 	u32		Tx_INFO_RSVD:6;
 	u32		PacketID:13;
-	//u32                Reserved;
 }tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
 
 typedef struct rtl8192_rx_info {
@@ -356,20 +348,14 @@ typedef struct rx_desc_819x_usb{
 	u8                  Shift:2;
 	u8                  PHYStatus:1;
 	u8                  SWDec:1;
-	//u8                LastSeg:1;
-	//u8                FirstSeg:1;
-	//u8                EOR:1;
-	//u8                OWN:1;
 	u8                  Reserved1:4;
 
 	//DWORD 1
 	u32                 Reserved2;
 
 	//DWORD 2
-	//u32               Reserved3;
 
 	//DWORD 3
-	//u32                BufferAddress;
 
 }rx_desc_819x_usb, *prx_desc_819x_usb;
 
@@ -389,9 +375,7 @@ typedef struct _rx_desc_819x_usb_aggr_subframe{
 	u8			Reserved2;
 	u16			Reserved3;
 	//DWORD 2
-	//u4Byte		Reserved3;
 	//DWORD 3
-	//u4Byte		BufferAddress;
 }rx_desc_819x_usb_aggr_subframe, *prx_desc_819x_usb_aggr_subframe;
 #endif
 
@@ -584,10 +568,6 @@ typedef struct rtl_reg_debug{
 typedef struct _rt_9x_tx_rate_history {
 	u32             cck[4];
 	u32             ofdm[8];
-	// HT_MCS[0][]: BW=0 SG=0
-	// HT_MCS[1][]: BW=1 SG=0
-	// HT_MCS[2][]: BW=0 SG=1
-	// HT_MCS[3][]: BW=1 SG=1
 	u32             ht_mcs[4][16];
 }rt_tx_rahis_t, *prt_tx_rahis_t;
 typedef struct _RT_SMOOTH_DATA_4RF {
@@ -601,11 +581,6 @@ typedef struct _RT_SMOOTH_DATA_4RF {
 //stats seems messed up, clean it ASAP
 typedef struct Stats {
 	unsigned long txrdu;
-//	unsigned long rxrdu;
-	//unsigned long rxnolast;
-	//unsigned long rxnodata;
-//	unsigned long rxreset;
-//	unsigned long rxnopointer;
 	unsigned long rxok;
 	unsigned long rxframgment;
 	unsigned long rxurberr;
@@ -624,18 +599,8 @@ typedef struct Stats {
 	unsigned long txnperr;
 	unsigned long txnpdrop;
 	unsigned long txresumed;
-//	unsigned long rxerr;
-//	unsigned long rxoverflow;
-//	unsigned long rxint;
 	unsigned long txnpokint;
-//	unsigned long txhpokint;
-//	unsigned long txhperr;
-//	unsigned long ints;
-//	unsigned long shints;
 	unsigned long txoverflow;
-//	unsigned long rxdmafail;
-//	unsigned long txbeacon;
-//	unsigned long txbeaconerr;
 	unsigned long txlpokint;
 	unsigned long txlpdrop;
 	unsigned long txlperr;
@@ -889,68 +854,40 @@ typedef struct r8192_priv {
 
 	short card_8192; /* O: rtl8192, 1:rtl8185 V B/C, 2:rtl8185 V D */
 	u8 card_8192_version; /* if TCR reports card V B/C this discriminates */
-//	short phy_ver; /* meaningful for rtl8225 1:A 2:B 3:C */
 	short enable_gpio0;
 	enum card_type {PCI,MINIPCI,CARDBUS,USB}card_type;
 	short hw_plcp_len;
 	short plcp_preamble_mode;
 
 	spinlock_t irq_lock;
-//	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
 	struct mutex mutex;
-	//spinlock_t rf_lock; //used to lock rf write operation added by wb
 
 	u16 irq_mask;
-//	short irq_enabled;
-//	struct net_device *dev; //comment this out.
 	short chan;
 	short sens;
 	short max_sens;
 
 
-	//	u8 chtxpwr[15]; //channels from 1 to 14, 0 not used
-//	u8 chtxpwr_ofdm[15]; //channels from 1 to 14, 0 not used
-//	u8 cck_txpwr_base;
-//	u8 ofdm_txpwr_base;
-//	u8 challow[15]; //channels from 1 to 14, 0 not used
 	short up;
 	short crcmon; //if 1 allow bad crc frame reception in monitor mode
-//	short prism_hdr;
 
-//	struct timer_list scan_timer;
-	/*short scanpending;
-	short stopscan;*/
-//	spinlock_t scan_lock;
-//	u8 active_probe;
-	//u8 active_scan_num;
 	struct semaphore wx_sem;
 	struct semaphore rf_sem; //used to lock rf write operation added by wb, modified by david
-//	short hw_wep;
 
-//	short digphy;
-//	short antb;
-//	short diversity;
-//	u8 cs_treshold;
-//	short rcr_csense;
 	u8 rf_type; //0 means 1T2R, 1 means 2T4R
 	RT_RF_TYPE_819xU rf_chip;
 
-//	u32 key0[4];
 	short (*rf_set_sens)(struct net_device *dev,short sens);
 	u8 (*rf_set_chan)(struct net_device *dev,u8 ch);
 	void (*rf_close)(struct net_device *dev);
 	void (*rf_init)(struct net_device *dev);
-	//short rate;
 	short promisc;
 	/*stats*/
 	struct Stats stats;
 	struct iw_statistics wstats;
 
 	/*RX stuff*/
-//	u32 *rxring;
-//	u32 *rxringtail;
-//	dma_addr_t rxringdma;
 	struct urb **rx_urb;
 	struct urb **rx_cmd_urb;
 #ifdef THOMAS_BEACON
@@ -1155,19 +1092,9 @@ typedef struct r8192_priv {
 	struct workqueue_struct *priv_wq;
 }r8192_priv;
 
-// for rtl8187
-// now mirging to rtl8187B
-/*
-typedef enum{
-	LOW_PRIORITY = 0x02,
-	NORM_PRIORITY
-	} priority_t;
-*/
 //for rtl8187B
 typedef enum{
 	BULK_PRIORITY = 0x01,
-	//RSVD0,
-	//RSVD1,
 	LOW_PRIORITY,
 	NORM_PRIORITY,
 	VO_PRIORITY,
@@ -1220,7 +1147,6 @@ void rtl8192_rx_enable(struct net_device *);
 void rtl8192_tx_enable(struct net_device *);
 
 void rtl8192_disassociate(struct net_device *dev);
-//void fix_rx_fifo(struct net_device *dev);
 void rtl8185_set_rf_pins_enable(struct net_device *dev,u32 a);
 
 void rtl8192_set_anaparam(struct net_device *dev,u32 a);
@@ -1235,7 +1161,6 @@ void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
 void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
 void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
 void rtl8192_set_rxconf(struct net_device *dev);
-//short check_nic_enough_desc(struct net_device *dev, priority_t priority);
 extern void rtl819xusb_beacon_tx(struct net_device *dev,u16  tx_rate);
 
 void EnableHWSecurityConfig8192(struct net_device *dev);
