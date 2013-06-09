@@ -4,7 +4,8 @@ obj-$(CONFIG_MATH_EMULATION)	+= fabs.o fadd.o fadds.o fcmpo.o fcmpu.o \
 					fmadd.o fmadds.o fmsub.o fmsubs.o \
 					fmul.o fmuls.o fnabs.o fneg.o \
 					fnmadd.o fnmadds.o fnmsub.o fnmsubs.o \
-					fres.o frsp.o frsqrte.o fsel.o lfs.o \
+					fres.o fre.o frsp.o fsel.o lfs.o \
+					frsqrte.o frsqrtes.o \
 					fsqrt.o	fsqrts.o fsub.o fsubs.o \
 					mcrfs.o mffs.o mtfsb0.o mtfsb1.o \
 					mtfsf.o mtfsfi.o stfiwx.o stfs.o \
