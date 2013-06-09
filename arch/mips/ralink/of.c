@@ -88,7 +88,7 @@ void __init plat_mem_setup(void)
 	__dt_setup_arch(&__dtb_start);
 
 	if (soc_info.mem_size)
-		add_memory_region(soc_info.mem_base, soc_info.mem_size,
+		add_memory_region(soc_info.mem_base, soc_info.mem_size * SZ_1M,
 				  BOOT_MEM_RAM);
 	else
 		detect_memory_region(soc_info.mem_base,

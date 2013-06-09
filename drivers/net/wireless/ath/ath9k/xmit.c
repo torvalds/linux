@@ -125,24 +125,6 @@ static void ath_tx_queue_tid(struct ath_txq *txq, struct ath_atx_tid *tid)
 	list_add_tail(&ac->list, &txq->axq_acq);
 }
 
-static void ath_tx_resume_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
-{
-	struct ath_txq *txq = tid->ac->txq;
-
-	WARN_ON(!tid->paused);
-
-	ath_txq_lock(sc, txq);
-	tid->paused = false;
-
-	if (skb_queue_empty(&tid->buf_q))
-		goto unlock;
-
-	ath_tx_queue_tid(txq, tid);
-	ath_txq_schedule(sc, txq);
-unlock:
-	ath_txq_unlock_complete(sc, txq);
-}
-
 static struct ath_frame_info *get_frame_info(struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -164,20 +146,7 @@ static void ath_set_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 			       ARRAY_SIZE(bf->rates));
 }
 
-static void ath_tx_clear_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
-{
-	tid->state &= ~AGGR_ADDBA_COMPLETE;
-	tid->state &= ~AGGR_CLEANUP;
-	if (!tid->stop_cb)
-		return;
-
-	ieee80211_start_tx_ba_cb_irqsafe(tid->an->vif, tid->an->sta->addr,
-					 tid->tidno);
-	tid->stop_cb = false;
-}
-
-static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid,
-			     bool flush_packets)
+static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 {
 	struct ath_txq *txq = tid->ac->txq;
 	struct sk_buff *skb;
@@ -194,15 +163,16 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid,
 	while ((skb = __skb_dequeue(&tid->buf_q))) {
 		fi = get_frame_info(skb);
 		bf = fi->bf;
-		if (!bf && !flush_packets)
-			bf = ath_tx_setup_buffer(sc, txq, tid, skb);
 
 		if (!bf) {
-			ieee80211_free_txskb(sc->hw, skb);
-			continue;
+			bf = ath_tx_setup_buffer(sc, txq, tid, skb);
+			if (!bf) {
+				ieee80211_free_txskb(sc->hw, skb);
+				continue;
+			}
 		}
 
-		if (fi->retries || flush_packets) {
+		if (fi->retries) {
 			list_add_tail(&bf->list, &bf_head);
 			ath_tx_update_baw(sc, tid, bf->bf_state.seqno);
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0);
@@ -213,10 +183,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid,
 		}
 	}
 
-	if (tid->baw_head == tid->baw_tail)
-		ath_tx_clear_tid(sc, tid);
-
-	if (sendbar && !flush_packets) {
+	if (sendbar) {
 		ath_txq_unlock(sc, txq);
 		ath_send_bar(tid, tid->seq_start);
 		ath_txq_lock(sc, txq);
@@ -499,19 +466,19 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		tx_info = IEEE80211_SKB_CB(skb);
 		fi = get_frame_info(skb);
 
-		if (ATH_BA_ISSET(ba, ATH_BA_INDEX(seq_st, seqno))) {
+		if (!BAW_WITHIN(tid->seq_start, tid->baw_size, seqno)) {
+			/*
+			 * Outside of the current BlockAck window,
+			 * maybe part of a previous session
+			 */
+			txfail = 1;
+		} else if (ATH_BA_ISSET(ba, ATH_BA_INDEX(seq_st, seqno))) {
 			/* transmit completion, subframe is
 			 * acked by block ack */
 			acked_cnt++;
 		} else if (!isaggr && txok) {
 			/* transmit completion */
 			acked_cnt++;
-		} else if (tid->state & AGGR_CLEANUP) {
-			/*
-			 * cleanup in progress, just fail
-			 * the un-acked sub-frames
-			 */
-			txfail = 1;
 		} else if (flush) {
 			txpending = 1;
 		} else if (fi->retries < ATH_MAX_SW_RETRIES) {
@@ -535,7 +502,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		if (bf_next != NULL || !bf_last->bf_stale)
 			list_move_tail(&bf->list, &bf_head);
 
-		if (!txpending || (tid->state & AGGR_CLEANUP)) {
+		if (!txpending) {
 			/*
 			 * complete the acked-ones/xretried ones; update
 			 * block-ack window
@@ -608,9 +575,6 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		ath_send_bar(tid, ATH_BA_INDEX2SEQ(seq_first, bar_index + 1));
 		ath_txq_lock(sc, txq);
 	}
-
-	if (tid->state & AGGR_CLEANUP)
-		ath_tx_flush_tid(sc, tid, false);
 
 	rcu_read_unlock();
 
@@ -1244,9 +1208,6 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 	an = (struct ath_node *)sta->drv_priv;
 	txtid = ATH_AN_2_TID(an, tid);
 
-	if (txtid->state & (AGGR_CLEANUP | AGGR_ADDBA_COMPLETE))
-		return -EAGAIN;
-
 	/* update ampdu factor/density, they may have changed. This may happen
 	 * in HT IBSS when a beacon with HT-info is received after the station
 	 * has already been added.
@@ -1258,7 +1219,7 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 		an->mpdudensity = density;
 	}
 
-	txtid->state |= AGGR_ADDBA_PROGRESS;
+	txtid->active = true;
 	txtid->paused = true;
 	*ssn = txtid->seq_start = txtid->seq_next;
 	txtid->bar_index = -1;
@@ -1269,45 +1230,17 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 	return 0;
 }
 
-bool ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid,
-		      bool flush)
+void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 {
 	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 	struct ath_atx_tid *txtid = ATH_AN_2_TID(an, tid);
 	struct ath_txq *txq = txtid->ac->txq;
-	bool ret = !flush;
-
-	if (flush)
-		txtid->stop_cb = false;
-
-	if (txtid->state & AGGR_CLEANUP)
-		return false;
-
-	if (!(txtid->state & AGGR_ADDBA_COMPLETE)) {
-		txtid->state &= ~AGGR_ADDBA_PROGRESS;
-		return ret;
-	}
 
 	ath_txq_lock(sc, txq);
+	txtid->active = false;
 	txtid->paused = true;
-
-	/*
-	 * If frames are still being transmitted for this TID, they will be
-	 * cleaned up during tx completion. To prevent race conditions, this
-	 * TID can only be reused after all in-progress subframes have been
-	 * completed.
-	 */
-	if (txtid->baw_head != txtid->baw_tail) {
-		txtid->state |= AGGR_CLEANUP;
-		ret = false;
-		txtid->stop_cb = !flush;
-	} else {
-		txtid->state &= ~AGGR_ADDBA_COMPLETE;
-	}
-
-	ath_tx_flush_tid(sc, txtid, flush);
+	ath_tx_flush_tid(sc, txtid);
 	ath_txq_unlock_complete(sc, txq);
-	return ret;
 }
 
 void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
@@ -1371,18 +1304,28 @@ void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an)
 	}
 }
 
-void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
+void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta,
+			u16 tidno)
 {
-	struct ath_atx_tid *txtid;
+	struct ath_atx_tid *tid;
 	struct ath_node *an;
+	struct ath_txq *txq;
 
 	an = (struct ath_node *)sta->drv_priv;
+	tid = ATH_AN_2_TID(an, tidno);
+	txq = tid->ac->txq;
 
-	txtid = ATH_AN_2_TID(an, tid);
-	txtid->baw_size = IEEE80211_MIN_AMPDU_BUF << sta->ht_cap.ampdu_factor;
-	txtid->state |= AGGR_ADDBA_COMPLETE;
-	txtid->state &= ~AGGR_ADDBA_PROGRESS;
-	ath_tx_resume_tid(sc, txtid);
+	ath_txq_lock(sc, txq);
+
+	tid->baw_size = IEEE80211_MIN_AMPDU_BUF << sta->ht_cap.ampdu_factor;
+	tid->paused = false;
+
+	if (!skb_queue_empty(&tid->buf_q)) {
+		ath_tx_queue_tid(txq, tid);
+		ath_txq_schedule(sc, txq);
+	}
+
+	ath_txq_unlock_complete(sc, txq);
 }
 
 /********************/
@@ -2431,13 +2374,10 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 		tid->baw_head  = tid->baw_tail = 0;
 		tid->sched     = false;
 		tid->paused    = false;
-		tid->state &= ~AGGR_CLEANUP;
+		tid->active	   = false;
 		__skb_queue_head_init(&tid->buf_q);
 		acno = TID_TO_WME_AC(tidno);
 		tid->ac = &an->ac[acno];
-		tid->state &= ~AGGR_ADDBA_COMPLETE;
-		tid->state &= ~AGGR_ADDBA_PROGRESS;
-		tid->stop_cb = false;
 	}
 
 	for (acno = 0, ac = &an->ac[acno];
@@ -2474,7 +2414,7 @@ void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 		}
 
 		ath_tid_drain(sc, txq, tid);
-		ath_tx_clear_tid(sc, tid);
+		tid->active = false;
 
 		ath_txq_unlock(sc, txq);
 	}

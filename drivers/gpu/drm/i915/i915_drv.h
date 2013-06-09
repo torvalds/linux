@@ -1943,4 +1943,19 @@ static inline void __user *to_user_ptr(u64 address)
 	return (void __user *)(uintptr_t)address;
 }
 
+static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
+{
+	unsigned long j = msecs_to_jiffies(m);
+
+	return min_t(unsigned long, MAX_JIFFY_OFFSET, j + 1);
+}
+
+static inline unsigned long
+timespec_to_jiffies_timeout(const struct timespec *value)
+{
+	unsigned long j = timespec_to_jiffies(value);
+
+	return min_t(unsigned long, MAX_JIFFY_OFFSET, j + 1);
+}
+
 #endif

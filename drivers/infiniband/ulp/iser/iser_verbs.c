@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004, 2005, 2006 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2013 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -292,10 +293,10 @@ out_err:
 }
 
 /**
- * releases the FMR pool, QP and CMA ID objects, returns 0 on success,
+ * releases the FMR pool and QP objects, returns 0 on success,
  * -1 on failure
  */
-static int iser_free_ib_conn_res(struct iser_conn *ib_conn, int can_destroy_id)
+static int iser_free_ib_conn_res(struct iser_conn *ib_conn)
 {
 	int cq_index;
 	BUG_ON(ib_conn == NULL);
@@ -314,13 +315,9 @@ static int iser_free_ib_conn_res(struct iser_conn *ib_conn, int can_destroy_id)
 
 		rdma_destroy_qp(ib_conn->cma_id);
 	}
-	/* if cma handler context, the caller acts s.t the cma destroy the id */
-	if (ib_conn->cma_id != NULL && can_destroy_id)
-		rdma_destroy_id(ib_conn->cma_id);
 
 	ib_conn->fmr_pool = NULL;
 	ib_conn->qp	  = NULL;
-	ib_conn->cma_id   = NULL;
 	kfree(ib_conn->page_vec);
 
 	if (ib_conn->login_buf) {
@@ -415,11 +412,16 @@ static void iser_conn_release(struct iser_conn *ib_conn, int can_destroy_id)
 	list_del(&ib_conn->conn_list);
 	mutex_unlock(&ig.connlist_mutex);
 	iser_free_rx_descriptors(ib_conn);
-	iser_free_ib_conn_res(ib_conn, can_destroy_id);
+	iser_free_ib_conn_res(ib_conn);
 	ib_conn->device = NULL;
 	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
 	if (device != NULL)
 		iser_device_try_release(device);
+	/* if cma handler context, the caller actually destroy the id */
+	if (ib_conn->cma_id != NULL && can_destroy_id) {
+		rdma_destroy_id(ib_conn->cma_id);
+		ib_conn->cma_id = NULL;
+	}
 	iscsi_destroy_endpoint(ib_conn->ep);
 }
 

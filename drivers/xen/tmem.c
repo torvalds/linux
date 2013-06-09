@@ -41,6 +41,8 @@ module_param(selfballooning, bool, S_IRUGO);
 #ifdef CONFIG_FRONTSWAP
 static bool frontswap __read_mostly = true;
 module_param(frontswap, bool, S_IRUGO);
+#else /* CONFIG_FRONTSWAP */
+#define frontswap (0)
 #endif /* CONFIG_FRONTSWAP */
 
 #ifdef CONFIG_XEN_SELFBALLOONING

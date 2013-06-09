@@ -234,7 +234,7 @@ static int parport_PS2_supported(struct parport *pb)
 
 struct parport *parport_gsc_probe_port(unsigned long base,
 				       unsigned long base_hi, int irq,
-				       int dma, struct pci_dev *dev)
+				       int dma, struct parisc_device *padev)
 {
 	struct parport_gsc_private *priv;
 	struct parport_operations *ops;
@@ -258,7 +258,6 @@ struct parport *parport_gsc_probe_port(unsigned long base,
 	priv->ctr_writable = 0xff;
 	priv->dma_buf = 0;
 	priv->dma_handle = 0;
-	priv->dev = dev;
 	p->base = base;
 	p->base_hi = base_hi;
 	p->irq = irq;
@@ -282,6 +281,7 @@ struct parport *parport_gsc_probe_port(unsigned long base,
 		return NULL;
 	}
 
+	p->dev = &padev->dev;
 	p->base_hi = base_hi;
 	p->modes = tmp.modes;
 	p->size = (p->modes & PARPORT_MODE_EPP)?8:3;
@@ -373,7 +373,7 @@ static int parport_init_chip(struct parisc_device *dev)
 	}
 	
 	p = parport_gsc_probe_port(port, 0, dev->irq,
-			/* PARPORT_IRQ_NONE */ PARPORT_DMA_NONE, NULL);
+			/* PARPORT_IRQ_NONE */ PARPORT_DMA_NONE, dev);
 	if (p)
 		parport_count++;
 	dev_set_drvdata(&dev->dev, p);

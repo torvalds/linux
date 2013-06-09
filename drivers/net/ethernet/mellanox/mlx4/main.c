@@ -1290,7 +1290,6 @@ static int mlx4_init_slave(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	u64 dma = (u64) priv->mfunc.vhcr_dma;
-	int num_of_reset_retries = NUM_OF_RESET_RETRIES;
 	int ret_from_reset = 0;
 	u32 slave_read;
 	u32 cmd_channel_ver;
@@ -1304,18 +1303,10 @@ static int mlx4_init_slave(struct mlx4_dev *dev)
 	 * NUM_OF_RESET_RETRIES times before leaving.*/
 	if (ret_from_reset) {
 		if (MLX4_DELAY_RESET_SLAVE == ret_from_reset) {
-			msleep(SLEEP_TIME_IN_RESET);
-			while (ret_from_reset && num_of_reset_retries) {
-				mlx4_warn(dev, "slave is currently in the"
-					  "middle of FLR. retrying..."
-					  "(try num:%d)\n",
-					  (NUM_OF_RESET_RETRIES -
-					   num_of_reset_retries  + 1));
-				ret_from_reset =
-					mlx4_comm_cmd(dev, MLX4_COMM_CMD_RESET,
-						      0, MLX4_COMM_TIME);
-				num_of_reset_retries = num_of_reset_retries - 1;
-			}
+			mlx4_warn(dev, "slave is currently in the "
+				  "middle of FLR. Deferring probe.\n");
+			mutex_unlock(&priv->cmd.slave_cmd_mutex);
+			return -EPROBE_DEFER;
 		} else
 			goto err;
 	}
@@ -1526,7 +1517,8 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 	} else {
 		err = mlx4_init_slave(dev);
 		if (err) {
-			mlx4_err(dev, "Failed to initialize slave\n");
+			if (err != -EPROBE_DEFER)
+				mlx4_err(dev, "Failed to initialize slave\n");
 			return err;
 		}
 

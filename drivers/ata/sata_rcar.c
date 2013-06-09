@@ -549,6 +549,7 @@ static void sata_rcar_bmdma_start(struct ata_queued_cmd *qc)
 
 	/* start host DMA transaction */
 	dmactl = ioread32(priv->base + ATAPI_CONTROL1_REG);
+	dmactl &= ~ATAPI_CONTROL1_STOP;
 	dmactl |= ATAPI_CONTROL1_START;
 	iowrite32(dmactl, priv->base + ATAPI_CONTROL1_REG);
 }
@@ -618,17 +619,16 @@ static struct ata_port_operations sata_rcar_port_ops = {
 	.bmdma_status		= sata_rcar_bmdma_status,
 };
 
-static int sata_rcar_serr_interrupt(struct ata_port *ap)
+static void sata_rcar_serr_interrupt(struct ata_port *ap)
 {
 	struct sata_rcar_priv *priv = ap->host->private_data;
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	int freeze = 0;
-	int handled = 0;
 	u32 serror;
 
 	serror = ioread32(priv->base + SCRSERR_REG);
 	if (!serror)
-		return 0;
+		return;
 
 	DPRINTK("SError @host_intr: 0x%x\n", serror);
 
@@ -641,7 +641,6 @@ static int sata_rcar_serr_interrupt(struct ata_port *ap)
 		ata_ehi_push_desc(ehi, "%s", "hotplug");
 
 		freeze = serror & SERR_COMM_WAKE ? 0 : 1;
-		handled = 1;
 	}
 
 	/* freeze or abort */
@@ -649,11 +648,9 @@ static int sata_rcar_serr_interrupt(struct ata_port *ap)
 		ata_port_freeze(ap);
 	else
 		ata_port_abort(ap);
-
-	return handled;
 }
 
-static int sata_rcar_ata_interrupt(struct ata_port *ap)
+static void sata_rcar_ata_interrupt(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 	int handled = 0;
@@ -662,7 +659,9 @@ static int sata_rcar_ata_interrupt(struct ata_port *ap)
 	if (qc)
 		handled |= ata_bmdma_port_intr(ap, qc);
 
-	return handled;
+	/* be sure to clear ATA interrupt */
+	if (!handled)
+		sata_rcar_check_status(ap);
 }
 
 static irqreturn_t sata_rcar_interrupt(int irq, void *dev_instance)
@@ -677,20 +676,21 @@ static irqreturn_t sata_rcar_interrupt(int irq, void *dev_instance)
 	spin_lock_irqsave(&host->lock, flags);
 
 	sataintstat = ioread32(priv->base + SATAINTSTAT_REG);
+	sataintstat &= SATA_RCAR_INT_MASK;
 	if (!sataintstat)
 		goto done;
 	/* ack */
-	iowrite32(sataintstat & ~SATA_RCAR_INT_MASK,
-		 priv->base + SATAINTSTAT_REG);
+	iowrite32(~sataintstat & 0x7ff, priv->base + SATAINTSTAT_REG);
 
 	ap = host->ports[0];
 
 	if (sataintstat & SATAINTSTAT_ATA)
-		handled |= sata_rcar_ata_interrupt(ap);
+		sata_rcar_ata_interrupt(ap);
 
 	if (sataintstat & SATAINTSTAT_SERR)
-		handled |= sata_rcar_serr_interrupt(ap);
+		sata_rcar_serr_interrupt(ap);
 
+	handled = 1;
 done:
 	spin_unlock_irqrestore(&host->lock, flags);
 

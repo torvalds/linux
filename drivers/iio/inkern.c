@@ -124,7 +124,7 @@ static int __of_iio_channel_get(struct iio_channel *channel,
 	channel->indio_dev = indio_dev;
 	index = iiospec.args_count ? iiospec.args[0] : 0;
 	if (index >= indio_dev->num_channels) {
-		return -EINVAL;
+		err = -EINVAL;
 		goto err_put;
 	}
 	channel->channel = &indio_dev->channels[index];
@@ -450,7 +450,7 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 	s64 raw64 = raw;
 	int ret;
 
-	ret = iio_channel_read(chan, &offset, NULL, IIO_CHAN_INFO_SCALE);
+	ret = iio_channel_read(chan, &offset, NULL, IIO_CHAN_INFO_OFFSET);
 	if (ret == 0)
 		raw64 += offset;
 
