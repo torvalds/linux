@@ -18,8 +18,15 @@
 #define SIZE_BATINFO    64 
 
 struct cw_bat_platform_data {
+
+        int is_dc_charge;
         int dc_det_pin;
         int dc_det_level;
+
+        int is_usb_charge;
+        int chg_mode_sel_pin;
+        int chg_mode_sel_level;
+
         int bat_low_pin;
         int bat_low_level;
         int chg_ok_pin;

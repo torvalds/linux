@@ -1172,11 +1172,16 @@ static u8 config_info[SIZE_BATINFO] = {
 
 static struct cw_bat_platform_data cw_bat_platdata = {
 	.dc_det_pin      = RK30_PIN0_PB2,
-        .bat_low_pin    = RK30_PIN0_PB1,
-        .chg_ok_pin   = RK30_PIN0_PA6,
         .dc_det_level    = GPIO_LOW,
+
+        .bat_low_pin    = RK30_PIN0_PB1,
         .bat_low_level  = GPIO_LOW,   
+        .chg_ok_pin   = INVALID_GPIO,
         .chg_ok_level = GPIO_HIGH,
+
+        .is_usb_charge = 0,
+        .chg_mode_sel_pin = INVALID_GPIO,
+        .chg_mode_sel_level = GPIO_HIGH,
 
         .cw_bat_config_info     = config_info,
 
