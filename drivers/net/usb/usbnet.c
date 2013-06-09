@@ -1103,6 +1103,30 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 			}
 		}
 	}
+	
+//$_rbox_$_modify_$_chenzhi
+//$_rbox_$_modify_$_begin
+/* data must be 4-byte aligned */
+        length = ((unsigned long)skb->data) & 0x3;
+        if (length) {
+                if (skb_cloned(skb) ||
+                    ((skb_headroom(skb) < length) &&
+                     (skb_tailroom(skb) < (4-length)))) {
+                        struct sk_buff *skb2;
+                        /* copy skb with proper alignment */
+                        skb2 = skb_copy_expand(skb, 0, 4, GFP_ATOMIC);
+                        dev_kfree_skb_any(skb);
+                        skb = skb2;
+                        if (!skb)
+                                goto drop;
+                } else {
+                        /* move data inside buffer */
+                        length = ((skb_headroom(skb) >= length) ? 0 : 4)-length;
+                        memmove(skb->data+length, skb->data, skb->len);
+                        skb_reserve(skb, length);
+                }
+        }
+//$_rbox_$_modify_$_end	
 	length = skb->len;
 
 	if (!(urb = usb_alloc_urb (0, GFP_ATOMIC))) {
