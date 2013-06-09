@@ -1296,17 +1296,11 @@ void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm,
 	struct iwl_mvm_add_sta_cmd cmd = {
 		.add_modify = STA_MODE_MODIFY,
 		.sta_id = mvmsta->sta_id,
-		.modify_mask = STA_MODIFY_SLEEPING_STA_TX_COUNT,
-		.sleep_state_flags = cpu_to_le16(STA_SLEEP_STATE_AWAKE),
+		.station_flags_msk = cpu_to_le32(STA_FLG_PS),
 		.mac_id_n_color = cpu_to_le32(mvmsta->mac_id_n_color),
 	};
 	int ret;
 
-	/*
-	 * Same modify mask for sleep_tx_count and sleep_state_flags but this
-	 * should be fine since if we set the STA as "awake", then
-	 * sleep_tx_count is not relevant.
-	 */
 	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC, sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
