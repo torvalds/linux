@@ -231,6 +231,14 @@ static void jz4740_mmc_transfer_check_state(struct jz4740_mmc_host *host,
 			host->req->cmd->error = -EIO;
 			data->error = -EIO;
 		}
+	} else if (status & JZ_MMC_STATUS_READ_ERROR_MASK) {
+		if (status & (JZ_MMC_STATUS_TIMEOUT_READ)) {
+			host->req->cmd->error = -ETIMEDOUT;
+			data->error = -ETIMEDOUT;
+		} else {
+			host->req->cmd->error = -EIO;
+			data->error = -EIO;
+		}
 	}
 }
 
