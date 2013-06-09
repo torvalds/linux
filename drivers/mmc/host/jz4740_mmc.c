@@ -967,7 +967,7 @@ static int jz4740_mmc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 static int jz4740_mmc_suspend(struct device *dev)
 {
@@ -991,13 +991,8 @@ static int jz4740_mmc_resume(struct device *dev)
 	return 0;
 }
 
-const struct dev_pm_ops jz4740_mmc_pm_ops = {
-	.suspend	= jz4740_mmc_suspend,
-	.resume		= jz4740_mmc_resume,
-	.poweroff	= jz4740_mmc_suspend,
-	.restore	= jz4740_mmc_resume,
-};
-
+static SIMPLE_DEV_PM_OPS(jz4740_mmc_pm_ops, jz4740_mmc_suspend,
+	jz4740_mmc_resume);
 #define JZ4740_MMC_PM_OPS (&jz4740_mmc_pm_ops)
 #else
 #define JZ4740_MMC_PM_OPS NULL
