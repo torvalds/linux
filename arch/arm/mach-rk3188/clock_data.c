@@ -3588,6 +3588,7 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 	if (0 != pll_flag) {
 		CLKDATA_DBG("CPLL=%lu, GPLL=%lu;CPLL CAN NOT LOCK, SET CPLL BY PASS, USE GPLL REPLACE CPLL\n",
 				cpll, gpll);
+		codec_pll_clk.mode = NULL;
 		cpll = 24 * MHZ;
 		gpll = 891 * MHZ;
 	}
