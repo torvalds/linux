@@ -194,10 +194,7 @@ static int fw_unit_probe(struct device *dev)
 	struct fw_driver *driver =
 			container_of(dev->driver, struct fw_driver, driver);
 
-	if (driver->probe)
-		return driver->probe(fw_unit(dev), unit_match(dev, dev->driver));
-	else
-		return driver->driver.probe(dev);
+	return driver->probe(fw_unit(dev), unit_match(dev, dev->driver));
 }
 
 static int fw_unit_remove(struct device *dev)
@@ -205,10 +202,7 @@ static int fw_unit_remove(struct device *dev)
 	struct fw_driver *driver =
 			container_of(dev->driver, struct fw_driver, driver);
 
-	if (driver->remove)
-		return driver->remove(fw_unit(dev)), 0;
-	else
-		return driver->driver.remove(dev);
+	return driver->remove(fw_unit(dev)), 0;
 }
 
 static int get_modalias(struct fw_unit *unit, char *buffer, size_t buffer_size)
