@@ -1364,3 +1364,11 @@ void __cpuinit cpu_init(void)
 	fpu_init();
 }
 #endif
+
+#ifdef CONFIG_X86_DEBUG_STATIC_CPU_HAS
+void warn_pre_alternatives(void)
+{
+	WARN(1, "You're using static_cpu_has before alternatives have run!\n");
+}
+EXPORT_SYMBOL_GPL(warn_pre_alternatives);
+#endif

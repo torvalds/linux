@@ -356,15 +356,35 @@ extern const char * const x86_power_flags[32];
 #endif /* CONFIG_X86_64 */
 
 #if __GNUC__ >= 4
+extern void warn_pre_alternatives(void);
+
 /*
  * Static testing of CPU features.  Used the same as boot_cpu_has().
  * These are only valid after alternatives have run, but will statically
  * patch the target code for additional performance.
- *
  */
 static __always_inline __pure bool __static_cpu_has(u16 bit)
 {
 #if __GNUC__ > 4 || __GNUC_MINOR__ >= 5
+
+#ifdef CONFIG_X86_DEBUG_STATIC_CPU_HAS
+		/*
+		 * Catch too early usage of this before alternatives
+		 * have run.
+		 */
+		asm goto("1: jmp %l[t_warn]\n"
+			 "2:\n"
+			 ".section .altinstructions,\"a\"\n"
+			 " .long 1b - .\n"
+			 " .long 0\n"		/* no replacement */
+			 " .word %P0\n"		/* 1: do replace */
+			 " .byte 2b - 1b\n"	/* source len */
+			 " .byte 0\n"		/* replacement len */
+			 ".previous\n"
+			 /* skipping size check since replacement size = 0 */
+			 : : "i" (X86_FEATURE_ALWAYS) : : t_warn);
+#endif
+
 		asm goto("1: jmp %l[t_no]\n"
 			 "2:\n"
 			 ".section .altinstructions,\"a\"\n"
@@ -379,7 +399,13 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 		return true;
 	t_no:
 		return false;
-#else
+
+#ifdef CONFIG_X86_DEBUG_STATIC_CPU_HAS
+	t_warn:
+		warn_pre_alternatives();
+		return false;
+#endif
+#else /* GCC_VERSION >= 40500 */
 		u8 flag;
 		/* Open-coded due to __stringify() in ALTERNATIVE() */
 		asm volatile("1: movb $0,%0\n"
