@@ -298,7 +298,7 @@ config HUGETLB_PAGE_SIZE_VARIABLE
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || E200 || PPC_MPC832x || E500
+	depends on 4xx || 8xx || PPC_MPC832x || BOOKE
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -306,6 +306,10 @@ config MATH_EMULATION
 	  say Y here, the kernel will include code to emulate a floating-point
 	  unit, which will allow programs that use floating-point
 	  instructions to run.
+
+	  This is also useful to emulate missing (optional) instructions
+	  such as fsqrt on cores that do have an FPU but do not implement
+	  them (such as Freescale BookE).
 
 config PPC_TRANSACTIONAL_MEM
        bool "Transactional Memory support for POWERPC"

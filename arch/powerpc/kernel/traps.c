@@ -1125,7 +1125,17 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	 * ESR_DST (!?) or 0.  In the process of chasing this with the
 	 * hardware people - not sure if it can happen on any illegal
 	 * instruction or only on FP instructions, whether there is a
-	 * pattern to occurrences etc. -dgibson 31/Mar/2003 */
+	 * pattern to occurrences etc. -dgibson 31/Mar/2003
+	 */
+
+	/*
+	 * If we support a HW FPU, we need to ensure the FP state
+	 * if flushed into the thread_struct before attempting
+	 * emulation
+	 */
+#ifdef CONFIG_PPC_FPU
+	flush_fp_to_thread(current);
+#endif
 	switch (do_mathemu(regs)) {
 	case 0:
 		emulate_single_step(regs);
