@@ -2416,6 +2416,9 @@ static int omapfb_probe(struct platform_device *pdev)
 
 	DBG("omapfb_probe\n");
 
+	if (omapdss_is_initialized() == false)
+		return -EPROBE_DEFER;
+
 	if (pdev->num_resources != 0) {
 		dev_err(&pdev->dev, "probed for an unknown device\n");
 		r = -ENODEV;

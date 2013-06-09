@@ -18,6 +18,7 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/debug.h>
+#include <asm/tm.h>
 
 #include "signal.h"
 
@@ -30,13 +31,13 @@ int show_unhandled_signals = 1;
 /*
  * Allocate space for the signal frame
  */
-void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+void __user * get_sigframe(struct k_sigaction *ka, unsigned long sp,
 			   size_t frame_size, int is_32)
 {
         unsigned long oldsp, newsp;
 
         /* Default to using normal stack */
-        oldsp = get_clean_sp(regs, is_32);
+        oldsp = get_clean_sp(sp, is_32);
 
 	/* Check for alt stack */
 	if ((ka->sa.sa_flags & SA_ONSTACK) &&
@@ -174,4 +175,39 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 	}
 
 	user_enter();
+}
+
+unsigned long get_tm_stackpointer(struct pt_regs *regs)
+{
+	/* When in an active transaction that takes a signal, we need to be
+	 * careful with the stack.  It's possible that the stack has moved back
+	 * up after the tbegin.  The obvious case here is when the tbegin is
+	 * called inside a function that returns before a tend.  In this case,
+	 * the stack is part of the checkpointed transactional memory state.
+	 * If we write over this non transactionally or in suspend, we are in
+	 * trouble because if we get a tm abort, the program counter and stack
+	 * pointer will be back at the tbegin but our in memory stack won't be
+	 * valid anymore.
+	 *
+	 * To avoid this, when taking a signal in an active transaction, we
+	 * need to use the stack pointer from the checkpointed state, rather
+	 * than the speculated state.  This ensures that the signal context
+	 * (written tm suspended) will be written below the stack required for
+	 * the rollback.  The transaction is aborted becuase of the treclaim,
+	 * so any memory written between the tbegin and the signal will be
+	 * rolled back anyway.
+	 *
+	 * For signals taken in non-TM or suspended mode, we use the
+	 * normal/non-checkpointed stack pointer.
+	 */
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (MSR_TM_ACTIVE(regs->msr)) {
+		tm_enable();
+		tm_reclaim(&current->thread, regs->msr, TM_CAUSE_SIGNAL);
+		if (MSR_TM_TRANSACTIONAL(regs->msr))
+			return current->thread.ckpt_regs.gpr[1];
+	}
+#endif
+	return regs->gpr[1];
 }

@@ -1061,6 +1061,7 @@ static int cifs_parse_security_flavors(char *value,
 #endif
 	case Opt_sec_none:
 		vol->nullauth = 1;
+		vol->secFlg |= CIFSSEC_MAY_NTLM;
 		break;
 	default:
 		cifs_dbg(VFS, "bad security option: %s\n", value);
@@ -1257,14 +1258,18 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	vol->backupuid_specified = false; /* no backup intent for a user */
 	vol->backupgid_specified = false; /* no backup intent for a group */
 
-	/*
-	 * For now, we ignore -EINVAL errors under the assumption that the
-	 * unc= and prefixpath= options will be usable.
-	 */
-	if (cifs_parse_devname(devname, vol) == -ENOMEM) {
-		printk(KERN_ERR "CIFS: Unable to allocate memory to parse "
-				"device string.\n");
-		goto out_nomem;
+	switch (cifs_parse_devname(devname, vol)) {
+	case 0:
+		break;
+	case -ENOMEM:
+		cifs_dbg(VFS, "Unable to allocate memory for devname.\n");
+		goto cifs_parse_mount_err;
+	case -EINVAL:
+		cifs_dbg(VFS, "Malformed UNC in devname.\n");
+		goto cifs_parse_mount_err;
+	default:
+		cifs_dbg(VFS, "Unknown error parsing devname.\n");
+		goto cifs_parse_mount_err;
 	}
 
 	while ((data = strsep(&options, separator)) != NULL) {
@@ -1826,7 +1831,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	}
 #endif
 	if (!vol->UNC) {
-		cifs_dbg(VFS, "CIFS mount error: No usable UNC path provided in device string or in unc= option!\n");
+		cifs_dbg(VFS, "CIFS mount error: No usable UNC path provided in device string!\n");
 		goto cifs_parse_mount_err;
 	}
 

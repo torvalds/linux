@@ -41,7 +41,6 @@
 #include <plat/mfc.h>
 #include <plat/sdhci.h>
 #include <plat/fimc-core.h>
-#include <plat/samsung-time.h>
 #include <plat/camport.h>
 
 #include <mach/map.h>
@@ -1094,7 +1093,7 @@ static void __init universal_map_io(void)
 {
 	exynos_init_io(NULL, 0);
 	s3c24xx_init_uarts(universal_uartcfgs, ARRAY_SIZE(universal_uartcfgs));
-	samsung_set_timer_source(SAMSUNG_PWM2, SAMSUNG_PWM4);
+	exynos_set_timer_source(BIT(2) | BIT(4));
 	xxti_f = 0;
 	xusbxti_f = 24000000;
 }
@@ -1154,7 +1153,7 @@ MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
 	.map_io		= universal_map_io,
 	.init_machine	= universal_machine_init,
 	.init_late	= exynos_init_late,
-	.init_time	= samsung_timer_init,
+	.init_time	= exynos_init_time,
 	.reserve        = &universal_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END

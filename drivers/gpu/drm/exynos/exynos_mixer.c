@@ -1061,7 +1061,7 @@ static int mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
 		return -ENXIO;
 	}
 
-	mixer_res->mixer_regs = devm_ioremap(&pdev->dev, res->start,
+	mixer_res->mixer_regs = devm_ioremap(dev, res->start,
 							resource_size(res));
 	if (mixer_res->mixer_regs == NULL) {
 		dev_err(dev, "register mapping failed.\n");
@@ -1074,7 +1074,7 @@ static int mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
 		return -ENXIO;
 	}
 
-	ret = devm_request_irq(&pdev->dev, res->start, mixer_irq_handler,
+	ret = devm_request_irq(dev, res->start, mixer_irq_handler,
 							0, "drm_mixer", ctx);
 	if (ret) {
 		dev_err(dev, "request interrupt failed.\n");
@@ -1118,7 +1118,7 @@ static int vp_resources_init(struct exynos_drm_hdmi_context *ctx,
 		return -ENXIO;
 	}
 
-	mixer_res->vp_regs = devm_ioremap(&pdev->dev, res->start,
+	mixer_res->vp_regs = devm_ioremap(dev, res->start,
 							resource_size(res));
 	if (mixer_res->vp_regs == NULL) {
 		dev_err(dev, "register mapping failed.\n");
@@ -1169,14 +1169,14 @@ static int mixer_probe(struct platform_device *pdev)
 
 	dev_info(dev, "probe start\n");
 
-	drm_hdmi_ctx = devm_kzalloc(&pdev->dev, sizeof(*drm_hdmi_ctx),
+	drm_hdmi_ctx = devm_kzalloc(dev, sizeof(*drm_hdmi_ctx),
 								GFP_KERNEL);
 	if (!drm_hdmi_ctx) {
 		DRM_ERROR("failed to allocate common hdmi context.\n");
 		return -ENOMEM;
 	}
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		DRM_ERROR("failed to alloc mixer context.\n");
 		return -ENOMEM;
@@ -1187,14 +1187,14 @@ static int mixer_probe(struct platform_device *pdev)
 	if (dev->of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(of_match_ptr(mixer_match_types),
-							  pdev->dev.of_node);
+							  dev->of_node);
 		drv = (struct mixer_drv_data *)match->data;
 	} else {
 		drv = (struct mixer_drv_data *)
 			platform_get_device_id(pdev)->driver_data;
 	}
 
-	ctx->dev = &pdev->dev;
+	ctx->dev = dev;
 	ctx->parent_ctx = (void *)drm_hdmi_ctx;
 	drm_hdmi_ctx->ctx = (void *)ctx;
 	ctx->vp_enabled = drv->is_vp_enabled;

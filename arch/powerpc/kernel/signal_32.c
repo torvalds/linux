@@ -503,12 +503,6 @@ static int save_tm_user_regs(struct pt_regs *regs,
 {
 	unsigned long msr = regs->msr;
 
-	/* tm_reclaim rolls back all reg states, updating thread.ckpt_regs,
-	 * thread.transact_fpr[], thread.transact_vr[], etc.
-	 */
-	tm_enable();
-	tm_reclaim(&current->thread, msr, TM_CAUSE_SIGNAL);
-
 	/* Make sure floating point registers are stored in regs */
 	flush_fp_to_thread(current);
 
@@ -965,7 +959,7 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 
 	/* Set up Signal Frame */
 	/* Put a Real Time Context onto stack */
-	rt_sf = get_sigframe(ka, regs, sizeof(*rt_sf), 1);
+	rt_sf = get_sigframe(ka, get_tm_stackpointer(regs), sizeof(*rt_sf), 1);
 	addr = rt_sf;
 	if (unlikely(rt_sf == NULL))
 		goto badframe;
@@ -1403,7 +1397,7 @@ int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 	unsigned long tramp;
 
 	/* Set up Signal Frame */
-	frame = get_sigframe(ka, regs, sizeof(*frame), 1);
+	frame = get_sigframe(ka, get_tm_stackpointer(regs), sizeof(*frame), 1);
 	if (unlikely(frame == NULL))
 		goto badframe;
 	sc = (struct sigcontext __user *) &frame->sctx;

@@ -12,9 +12,9 @@
  *
  */
 #include <linux/kernel.h>
-#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
@@ -1845,7 +1845,7 @@ static int fimc_probe(struct platform_device *pdev)
 	}
 
 	ctx->irq = res->start;
-	ret = request_threaded_irq(ctx->irq, NULL, fimc_irq_handler,
+	ret = devm_request_threaded_irq(dev, ctx->irq, NULL, fimc_irq_handler,
 		IRQF_ONESHOT, "drm_fimc", ctx);
 	if (ret < 0) {
 		dev_err(dev, "failed to request irq.\n");
@@ -1854,7 +1854,7 @@ static int fimc_probe(struct platform_device *pdev)
 
 	ret = fimc_setup_clocks(ctx);
 	if (ret < 0)
-		goto err_free_irq;
+		return ret;
 
 	ippdrv = &ctx->ippdrv;
 	ippdrv->ops[EXYNOS_DRM_OPS_SRC] = &fimc_src_ops;
@@ -1884,7 +1884,7 @@ static int fimc_probe(struct platform_device *pdev)
 		goto err_pm_dis;
 	}
 
-	dev_info(&pdev->dev, "drm fimc registered successfully.\n");
+	dev_info(dev, "drm fimc registered successfully.\n");
 
 	return 0;
 
@@ -1892,8 +1892,6 @@ err_pm_dis:
 	pm_runtime_disable(dev);
 err_put_clk:
 	fimc_put_clocks(ctx);
-err_free_irq:
-	free_irq(ctx->irq, ctx);
 
 	return ret;
 }
@@ -1910,8 +1908,6 @@ static int fimc_remove(struct platform_device *pdev)
 	fimc_put_clocks(ctx);
 	pm_runtime_set_suspended(dev);
 	pm_runtime_disable(dev);
-
-	free_irq(ctx->irq, ctx);
 
 	return 0;
 }
