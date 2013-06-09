@@ -1318,6 +1318,7 @@ static const struct pll_clk_set gpll_clks[] = {
 	_PLL_SET_CLKS(300000,	1,	50,	4),
 	_PLL_SET_CLKS(384000,	2,	128,	4),
 	_PLL_SET_CLKS(594000,	2,	198,	4),
+	_PLL_SET_CLKS(768000, 	1,	64,	2),
 	_PLL_SET_CLKS(891000,	8,	594,	2),
 	_PLL_SET_CLKS(1188000,	2,	99,	1),
 	_PLL_SET_CLKS(1200000,	1,	50,	1),
@@ -3290,6 +3291,11 @@ static void periph_clk_set_init(void)
 			hclk_p = aclk_p >> 0;
 			pclk_p = aclk_p >> 1;
 			break;
+		case 768 * MHZ: 
+			aclk_p = ppll_rate >> 2; 
+			hclk_p = aclk_p >> 1; 
+			pclk_p = aclk_p >> 2; 
+			break; 
 		case 891 * MHZ:
 			aclk_p = ppll_rate / 6;
 			hclk_p = aclk_p >> 0;
@@ -3326,14 +3332,23 @@ static void cpu_axi_init(void)
 			hclk_cpu_rate = aclk_cpu_rate >> 1;
 			pclk_cpu_rate = aclk_cpu_rate >> 2;
 			break;
+
 		case 384 * MHZ:
 			cpu_div_rate = gpll_rate >> 1;
 			aclk_cpu_rate = cpu_div_rate >> 0;
 			hclk_cpu_rate = aclk_cpu_rate >> 1;
 			pclk_cpu_rate = aclk_cpu_rate >> 2;
 			break;
+
 		case 594 * MHZ:
 			cpu_div_rate = gpll_rate >> 1;
+			aclk_cpu_rate = cpu_div_rate >> 0;
+			hclk_cpu_rate = aclk_cpu_rate >> 1;
+			pclk_cpu_rate = aclk_cpu_rate >> 2;
+			break;
+
+		case 768 * MHZ:
+			cpu_div_rate = gpll_rate >> 2;
 			aclk_cpu_rate = cpu_div_rate >> 0;
 			hclk_cpu_rate = aclk_cpu_rate >> 1;
 			pclk_cpu_rate = aclk_cpu_rate >> 2;
