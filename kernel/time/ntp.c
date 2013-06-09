@@ -874,7 +874,6 @@ static void hardpps_update_phase(long error)
 void __hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
 {
 	struct pps_normtime pts_norm, freq_norm;
-	unsigned long flags;
 
 	pts_norm = pps_normalize_ts(*phase_ts);
 

@@ -99,7 +99,9 @@ xfs_fs_geometry(
 			(xfs_sb_version_hasattr2(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_ATTR2 : 0) |
 			(xfs_sb_version_hasprojid32bit(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_PROJID32 : 0);
+				XFS_FSOP_GEOM_FLAGS_PROJID32 : 0) |
+			(xfs_sb_version_hascrc(&mp->m_sb) ?
+				XFS_FSOP_GEOM_FLAGS_V5SB : 0);
 		geo->logsectsize = xfs_sb_version_hassector(&mp->m_sb) ?
 				mp->m_sb.sb_logsectsize : BBSIZE;
 		geo->rtsectsize = mp->m_sb.sb_blocksize;

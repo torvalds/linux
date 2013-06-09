@@ -122,6 +122,10 @@ static void radeon_register_accessor_init(struct radeon_device *rdev)
 		rdev->mc_rreg = &rs600_mc_rreg;
 		rdev->mc_wreg = &rs600_mc_wreg;
 	}
+	if (rdev->family == CHIP_RS780 || rdev->family == CHIP_RS880) {
+		rdev->mc_rreg = &rs780_mc_rreg;
+		rdev->mc_wreg = &rs780_mc_wreg;
+	}
 	if (rdev->family >= CHIP_R600) {
 		rdev->pciep_rreg = &r600_pciep_rreg;
 		rdev->pciep_wreg = &r600_pciep_wreg;

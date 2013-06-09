@@ -408,7 +408,7 @@ static int serial_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	int retval = -ENODEV;
+	int retval = -ENOIOCTLCMD;
 
 	dev_dbg(tty->dev, "%s - cmd 0x%.4x\n", __func__, cmd);
 
@@ -420,8 +420,6 @@ static int serial_ioctl(struct tty_struct *tty,
 	default:
 		if (port->serial->type->ioctl)
 			retval = port->serial->type->ioctl(tty, cmd, arg);
-		else
-			retval = -ENOIOCTLCMD;
 	}
 
 	return retval;

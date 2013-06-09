@@ -71,8 +71,8 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 {
 	struct dma_map_ops *dma_ops = get_dma_ops(dev);
 
-	dma_ops->free(dev, size, cpu_addr, dma_handle, NULL);
 	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
+	dma_ops->free(dev, size, cpu_addr, dma_handle, NULL);
 }
 
 #endif /* _ASM_S390_DMA_MAPPING_H */

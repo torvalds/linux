@@ -1548,7 +1548,6 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 	struct keyspan_serial_private 		*s_priv;
 	struct keyspan_port_private 		*p_priv;
 	const struct keyspan_device_details	*d_details;
-	int 					outcont_urb;
 	struct urb				*this_urb;
 	int 					device_port, err;
 
@@ -1559,7 +1558,6 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 	d_details = s_priv->device_details;
 	device_port = port->number - port->serial->minor;
 
-	outcont_urb = d_details->outcont_endpoints[port->number];
 	this_urb = p_priv->outcont_urb;
 
 	dev_dbg(&port->dev, "%s - endpoint %d\n", __func__, usb_pipeendpoint(this_urb->pipe));
@@ -1685,14 +1683,6 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 	err = usb_submit_urb(this_urb, GFP_ATOMIC);
 	if (err != 0)
 		dev_dbg(&port->dev, "%s - usb_submit_urb(setup) failed (%d)\n", __func__, err);
-#if 0
-	else {
-		dev_dbg(&port->dev, "%s - usb_submit_urb(%d) OK %d bytes (end %d)\n", __func__
-			outcont_urb, this_urb->transfer_buffer_length,
-			usb_pipeendpoint(this_urb->pipe));
-	}
-#endif
-
 	return 0;
 }
 

@@ -91,13 +91,10 @@ i915_gem_wait_for_error(struct i915_gpu_error *error)
 {
 	int ret;
 
-#define EXIT_COND (!i915_reset_in_progress(error))
+#define EXIT_COND (!i915_reset_in_progress(error) || \
+		   i915_terminally_wedged(error))
 	if (EXIT_COND)
 		return 0;
-
-	/* GPU is already declared terminally dead, give up. */
-	if (i915_terminally_wedged(error))
-		return -EIO;
 
 	/*
 	 * Only wait 10 seconds for the gpu reset to complete to avoid hanging
@@ -1003,7 +1000,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 		wait_forever = false;
 	}
 
-	timeout_jiffies = timespec_to_jiffies(&wait_time);
+	timeout_jiffies = timespec_to_jiffies_timeout(&wait_time);
 
 	if (WARN_ON(!ring->irq_get(ring)))
 		return -ENODEV;

@@ -43,24 +43,16 @@ static int microread_mei_probe(struct mei_cl_device *device,
 		return -ENOMEM;
 	}
 
-	r = mei_cl_register_event_cb(device, nfc_mei_event_cb, phy);
-	if (r) {
-		pr_err(MICROREAD_DRIVER_NAME ": event cb registration failed\n");
-		goto err_out;
-	}
-
 	r = microread_probe(phy, &mei_phy_ops, LLC_NOP_NAME,
 			    MEI_NFC_HEADER_SIZE, 0, MEI_NFC_MAX_HCI_PAYLOAD,
 			    &phy->hdev);
-	if (r < 0)
-		goto err_out;
+	if (r < 0) {
+		nfc_mei_phy_free(phy);
+
+		return r;
+	}
 
 	return 0;
-
-err_out:
-	nfc_mei_phy_free(phy);
-
-	return r;
 }
 
 static int microread_mei_remove(struct mei_cl_device *device)
@@ -70,8 +62,6 @@ static int microread_mei_remove(struct mei_cl_device *device)
 	pr_info("Removing microread\n");
 
 	microread_remove(phy->hdev);
-
-	nfc_mei_phy_disable(phy);
 
 	nfc_mei_phy_free(phy);
 

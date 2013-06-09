@@ -318,12 +318,14 @@ err1;	stb	r0,0(r3)
 
 .machine push
 .machine "power4"
-	dcbt	r0,r6,0b01000
-	dcbt	r0,r7,0b01010
-	dcbtst	r0,r9,0b01000
-	dcbtst	r0,r10,0b01010
+	/* setup read stream 0 */
+	dcbt	r0,r6,0b01000   /* addr from */
+	dcbt	r0,r7,0b01010   /* length and depth from */
+	/* setup write stream 1 */
+	dcbtst	r0,r9,0b01000   /* addr to */
+	dcbtst	r0,r10,0b01010  /* length and depth to */
 	eieio
-	dcbt	r0,r8,0b01010	/* GO */
+	dcbt	r0,r8,0b01010	/* all streams GO */
 .machine pop
 
 	beq	cr1,.Lunwind_stack_nonvmx_copy
