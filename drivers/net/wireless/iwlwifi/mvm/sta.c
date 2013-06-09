@@ -226,9 +226,6 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
 			mvm_sta->tfd_queue_msk |= BIT(vif->hw_queue[i]);
 
-	if (vif->cab_queue != IEEE80211_INVAL_HW_QUEUE)
-		mvm_sta->tfd_queue_msk |= BIT(vif->cab_queue);
-
 	/* for HW restart - need to reset the seq_number etc... */
 	memset(mvm_sta->tid_data, 0, sizeof(mvm_sta->tid_data));
 
