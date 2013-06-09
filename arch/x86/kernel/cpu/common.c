@@ -1372,3 +1372,9 @@ void warn_pre_alternatives(void)
 }
 EXPORT_SYMBOL_GPL(warn_pre_alternatives);
 #endif
+
+inline bool __static_cpu_has_safe(u16 bit)
+{
+	return boot_cpu_has(bit);
+}
+EXPORT_SYMBOL_GPL(__static_cpu_has_safe);
