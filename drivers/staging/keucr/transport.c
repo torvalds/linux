@@ -85,16 +85,9 @@ static void usb_stor_print_cmd(struct us_data *us, struct scsi_cmnd *srb)
 {
 	PBYTE   Cdb = srb->cmnd;
 	DWORD   cmd = Cdb[0];
-	DWORD   bn  =   ((Cdb[2] << 24) & 0xff000000) |
-			((Cdb[3] << 16) & 0x00ff0000) |
-			((Cdb[4] << 8) & 0x0000ff00) |
-			((Cdb[5] << 0) & 0x000000ff);
-	WORD    blen = ((Cdb[7] << 8) & 0xff00) | ((Cdb[8] << 0) & 0x00ff);
 
 	switch (cmd) {
 	case TEST_UNIT_READY:
-		/* dev_dbg(&us->pusb_dev->dev,
-			"scsi cmd %X --- SCSIOP_TEST_UNIT_READY\n", cmd); */
 		break;
 	case INQUIRY:
 		dev_dbg(&us->pusb_dev->dev,
@@ -113,14 +106,8 @@ static void usb_stor_print_cmd(struct us_data *us, struct scsi_cmnd *srb)
 				"scsi cmd %X --- SCSIOP_READ_CAPACITY\n", cmd);
 		break;
 	case READ_10:
-		/*  dev_dbg(&us->pusb_dev->dev,
-			"scsi cmd %X --- SCSIOP_READ,bn = %X, blen = %X\n"
-			cmd, bn, blen); */
 		break;
 	case WRITE_10:
-		/* dev_dbg(&us->pusb_dev->dev,
-			"scsi cmd %X --- SCSIOP_WRITE, bn = %X, blen = %X\n",
-			cmd, bn, blen); */
 		break;
 	case ALLOW_MEDIUM_REMOVAL:
 		dev_dbg(&us->pusb_dev->dev,
@@ -130,7 +117,6 @@ static void usb_stor_print_cmd(struct us_data *us, struct scsi_cmnd *srb)
 		dev_dbg(&us->pusb_dev->dev, "scsi cmd %X --- Other cmd\n", cmd);
 		break;
 	}
-	bn = 0;
 }
 
 /*
