@@ -1012,10 +1012,8 @@ static int vortex_init_one(struct pci_dev *pdev,
 		goto out;
 
 	rc = pci_request_regions(pdev, DRV_NAME);
-	if (rc < 0) {
-		pci_disable_device(pdev);
-		goto out;
-	}
+	if (rc < 0)
+		goto out_disable;
 
 	unit = vortex_cards_found;
 
@@ -1032,23 +1030,24 @@ static int vortex_init_one(struct pci_dev *pdev,
 	if (!ioaddr) /* If mapping fails, fall-back to BAR 0... */
 		ioaddr = pci_iomap(pdev, 0, 0);
 	if (!ioaddr) {
-		pci_release_regions(pdev);
-		pci_disable_device(pdev);
 		rc = -ENOMEM;
-		goto out;
+		goto out_release;
 	}
 
 	rc = vortex_probe1(&pdev->dev, ioaddr, pdev->irq,
 			   ent->driver_data, unit);
-	if (rc < 0) {
-		pci_iounmap(pdev, ioaddr);
-		pci_release_regions(pdev);
-		pci_disable_device(pdev);
-		goto out;
-	}
+	if (rc < 0)
+		goto out_iounmap;
 
 	vortex_cards_found++;
+	goto out;
 
+out_iounmap:
+	pci_iounmap(pdev, ioaddr);
+out_release:
+	pci_release_regions(pdev);
+out_disable:
+	pci_disable_device(pdev);
 out:
 	return rc;
 }
