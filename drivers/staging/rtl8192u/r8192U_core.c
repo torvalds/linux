@@ -1034,7 +1034,7 @@ void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, int rat
 	u8 queue_index = tcb_desc->queue_index;
 
 	/* shall not be referred by command packet */
-	assert(queue_index != TXCMD_QUEUE);
+	RTL8192U_ASSERT(queue_index != TXCMD_QUEUE);
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 

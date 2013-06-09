@@ -85,10 +85,10 @@
 #define DMESGE(x, a...)
 extern u32 rt_global_debug_component;
 #define RT_TRACE(component, x, args...) \
-do { if (rt_global_debug_component & component) \
-	printk(KERN_DEBUG RTL819xU_MODULE_NAME ":" x "\n" , \
-	       ##args);\
-} while (0);
+	do {							\
+		if (rt_global_debug_component & component)	\
+			pr_debug("RTL8192U: " x "\n", ##args);	\
+	} while (0)
 
 #define COMP_TRACE              BIT0  /* Function call tracing. */
 #define COMP_DBG                BIT1
@@ -131,30 +131,34 @@ do { if (rt_global_debug_component & component) \
 
 #define RTL819x_DEBUG
 #ifdef RTL819x_DEBUG
-#define assert(expr) \
-	if (!(expr)) {                                  \
-		printk("Assertion failed! %s,%s,%s,line=%d\n", \
-		#expr, __FILE__, __FUNCTION__, __LINE__);          \
-	}
+#define RTL8192U_ASSERT(expr) \
+	do {								\
+		if (!(expr)) {						\
+			pr_debug("Assertion failed! %s, %s, %s, line = %d\n", \
+				 #expr, __FILE__, __func__, __LINE__);	\
+		}							\
+	} while (0)
 /*
  * Debug out data buf.
  * If you want to print DATA buffer related BA,
  * please set ieee80211_debug_level to DATA|BA
  */
-#define RT_DEBUG_DATA(level, data, datalen)      \
-	do { if ((rt_global_debug_component & (level)) == (level)) {       \
-			int i;                                  \
-			u8 *pdata = (u8 *) data;                 \
-			printk(KERN_DEBUG RTL819xU_MODULE_NAME ": %s()\n", __FUNCTION__);   \
-			for (i = 0; i < (int)(datalen); i++) {               \
+#define RT_DEBUG_DATA(level, data, datalen) \
+	do {								\
+		if ((rt_global_debug_component & (level)) == (level)) {	\
+			int i;						\
+			u8 *pdata = (u8 *) data;			\
+			pr_debug("RTL8192U: %s()\n", __func__);		\
+			for (i = 0; i < (int)(datalen); i++) {		\
 				printk("%2x ", pdata[i]);               \
-				if ((i+1)%16 == 0) printk("\n");        \
-			}                               \
-			printk("\n");                   \
-		}                                       \
+				if ((i+1)%16 == 0)			\
+					printk("\n");			\
+			}						\
+			printk("\n");					\
+		}							\
 	} while (0)
 #else
-#define assert(expr) do {} while (0)
+#define RTL8192U_ASSERT(expr) do {} while (0)
 #define RT_DEBUG_DATA(level, data, datalen) do {} while (0)
 #endif /* RTL8169_DEBUG */
 
@@ -539,7 +543,7 @@ typedef enum _WIRELESS_MODE {
 } WIRELESS_MODE;
 
 
-#define RTL_IOCTL_WPA_SUPPLICANT		SIOCIWFIRSTPRIV+30
+#define RTL_IOCTL_WPA_SUPPLICANT		(SIOCIWFIRSTPRIV + 30)
 
 typedef struct buffer {
 	struct buffer *next;

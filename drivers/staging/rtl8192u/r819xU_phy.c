@@ -1519,7 +1519,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	u8 regBwOpMode;
 
 	RT_TRACE(COMP_SWBW, "==>rtl8192_SetBWModeWorkItem()  Switch to %s bandwidth\n", \
-					priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20?"20MHz":"40MHz")
+		 priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20?"20MHz":"40MHz");
 
 
 	if(priv->rf_chip == RF_PSEUDO_11N)
