@@ -739,8 +739,12 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 	if (!wil->secure_pcp)
 		cmd.disable_sec = 1;
 
+	/*
+	 * Processing time may be huge, in case of secure AP it takes about
+	 * 3500ms for FW to start AP
+	 */
 	rc = wmi_call(wil, WMI_PCP_START_CMDID, &cmd, sizeof(cmd),
-		      WMI_PCP_STARTED_EVENTID, &reply, sizeof(reply), 100);
+		      WMI_PCP_STARTED_EVENTID, &reply, sizeof(reply), 5000);
 	if (rc)
 		return rc;
 
