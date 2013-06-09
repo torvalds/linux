@@ -88,7 +88,7 @@ extern u32 rt_global_debug_component;
 do { if (rt_global_debug_component & component) \
 	printk(KERN_DEBUG RTL819xU_MODULE_NAME ":" x "\n" , \
 	       ##args);\
-}while(0);
+} while(0);
 
 #define COMP_TRACE              BIT0  /* Function call tracing. */
 #define COMP_DBG                BIT1
@@ -142,13 +142,11 @@ do { if (rt_global_debug_component & component) \
  * please set ieee80211_debug_level to DATA|BA
  */
 #define RT_DEBUG_DATA(level, data, datalen)      \
-	do{ if ((rt_global_debug_component & (level)) == (level))   \
-		{       \
+	do { if ((rt_global_debug_component & (level)) == (level)) {       \
 			int i;                                  \
 			u8 *pdata = (u8 *) data;                 \
 			printk(KERN_DEBUG RTL819xU_MODULE_NAME ": %s()\n", __FUNCTION__);   \
-			for(i=0; i<(int)(datalen); i++)                 \
-			{                                               \
+			for(i=0; i<(int)(datalen); i++) {               \
 				printk("%2x ", pdata[i]);               \
 				if ((i+1)%16 == 0) printk("\n");        \
 			}                               \
@@ -246,7 +244,7 @@ typedef struct _tx_desc_819x_usb {
 	u32	Reserved5;
 	u32	Reserved6;
 	u32	Reserved7;
-}tx_desc_819x_usb, *ptx_desc_819x_usb;
+} tx_desc_819x_usb, *ptx_desc_819x_usb;
 
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 typedef struct _tx_desc_819x_usb_aggr_subframe {
@@ -270,7 +268,7 @@ typedef struct _tx_desc_819x_usb_aggr_subframe {
 	u8	SecType:2;
 	u8	PacketID:7;
 	u8	OWN:1;
-}tx_desc_819x_usb_aggr_subframe, *ptx_desc_819x_usb_aggr_subframe;
+} tx_desc_819x_usb_aggr_subframe, *ptx_desc_819x_usb_aggr_subframe;
 #endif
 
 
@@ -300,7 +298,7 @@ typedef struct _tx_desc_cmd_819x_usb {
 	u32	Reserved6;
 	u32	Reserved7;
 	u32	Reserved8;
-}tx_desc_cmd_819x_usb, *ptx_desc_cmd_819x_usb;
+} tx_desc_cmd_819x_usb, *ptx_desc_cmd_819x_usb;
 
 
 typedef struct _tx_fwinfo_819x_usb {
@@ -334,15 +332,15 @@ typedef struct _tx_fwinfo_819x_usb {
 	u32	TxAGCSign:1;
 	u32	Tx_INFO_RSVD:6;
 	u32	PacketID:13;
-}tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
+} tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
 
 typedef struct rtl8192_rx_info {
 	struct urb *urb;
 	struct net_device *dev;
 	u8 out_pipe;
-}rtl8192_rx_info ;
+} rtl8192_rx_info ;
 
-typedef struct rx_desc_819x_usb{
+typedef struct rx_desc_819x_usb {
 	/* DOWRD 0 */
 	u16                 Length:14;
 	u16                 CRC32:1;
@@ -355,10 +353,10 @@ typedef struct rx_desc_819x_usb{
 
 	/* DWORD 1 */
 	u32                 Reserved2;
-}rx_desc_819x_usb, *prx_desc_819x_usb;
+} rx_desc_819x_usb, *prx_desc_819x_usb;
 
 #ifdef USB_RX_AGGREGATION_SUPPORT
-typedef struct _rx_desc_819x_usb_aggr_subframe{
+typedef struct _rx_desc_819x_usb_aggr_subframe {
 	/* DOWRD 0 */
 	u16			Length:14;
 	u16			CRC32:1;
@@ -372,10 +370,10 @@ typedef struct _rx_desc_819x_usb_aggr_subframe{
 	u8			Reserved1:4;
 	u8			Reserved2;
 	u16			Reserved3;
-}rx_desc_819x_usb_aggr_subframe, *prx_desc_819x_usb_aggr_subframe;
+} rx_desc_819x_usb_aggr_subframe, *prx_desc_819x_usb_aggr_subframe;
 #endif
 
-typedef struct rx_drvinfo_819x_usb{
+typedef struct rx_drvinfo_819x_usb {
 	/* DWORD 0 */
 	u16                 Reserved1:12;
 	u16                 PartAggr:1;
@@ -396,7 +394,7 @@ typedef struct rx_drvinfo_819x_usb{
 	/* DWORD 1 */
 	u32                  TSFL;
 
-}rx_drvinfo_819x_usb, *prx_drvinfo_819x_usb;
+} rx_drvinfo_819x_usb, *prx_drvinfo_819x_usb;
 
 /* Support till 64 bit bus width OS */
 #define MAX_DEV_ADDR_SIZE		8
@@ -422,53 +420,52 @@ typedef struct rx_drvinfo_819x_usb{
 /* Octets for crc32 (FCS, ICV) */
 #define scrclng					4
 
-typedef enum rf_optype
-{
+typedef enum rf_optype {
 	RF_OP_By_SW_3wire = 0,
 	RF_OP_By_FW,
 	RF_OP_MAX
-}rf_op_type;
+} rf_op_type;
 /* 8190 Loopback Mode definition */
-typedef enum _rtl819xUsb_loopback{
+typedef enum _rtl819xUsb_loopback {
 	RTL819xU_NO_LOOPBACK = 0,
 	RTL819xU_MAC_LOOPBACK = 1,
 	RTL819xU_DMA_LOOPBACK = 2,
 	RTL819xU_CCK_LOOPBACK = 3,
-}rtl819xUsb_loopback_e;
+} rtl819xUsb_loopback_e;
 
 /* due to rtl8192 firmware */
-typedef enum _desc_packet_type_e{
+typedef enum _desc_packet_type_e {
 	DESC_PACKET_TYPE_INIT = 0,
 	DESC_PACKET_TYPE_NORMAL = 1,
-}desc_packet_type_e;
+} desc_packet_type_e;
 
-typedef enum _firmware_status{
+typedef enum _firmware_status {
 	FW_STATUS_0_INIT = 0,
 	FW_STATUS_1_MOVE_BOOT_CODE = 1,
 	FW_STATUS_2_MOVE_MAIN_CODE = 2,
 	FW_STATUS_3_TURNON_CPU = 3,
 	FW_STATUS_4_MOVE_DATA_CODE = 4,
 	FW_STATUS_5_READY = 5,
-}firmware_status_e;
+} firmware_status_e;
 
 typedef struct _rt_firmare_seg_container {
 	u16	seg_size;
 	u8	*seg_ptr;
-}fw_seg_container, *pfw_seg_container;
-typedef struct _rt_firmware{
+} fw_seg_container, *pfw_seg_container;
+typedef struct _rt_firmware {
 	firmware_status_e firmware_status;
 	u16               cmdpacket_frag_thresold;
 #define RTL8190_MAX_FIRMWARE_CODE_SIZE  64000
 	u8                firmware_buf[RTL8190_MAX_FIRMWARE_CODE_SIZE];
 	u16               firmware_buf_size;
-}rt_firmware, *prt_firmware;
+} rt_firmware, *prt_firmware;
 
 /* Add this to 9100 bytes to receive A-MSDU from RT-AP */
 #define MAX_RECEIVE_BUFFER_SIZE	9100
 
-typedef struct _rt_firmware_info_819xUsb{
+typedef struct _rt_firmware_info_819xUsb {
 	u8		sz_info[16];
-}rt_firmware_info_819xUsb, *prt_firmware_info_819xUsb;
+} rt_firmware_info_819xUsb, *prt_firmware_info_819xUsb;
 
 /* Firmware Queue Layout */
 #define NUM_OF_FIRMWARE_QUEUE		10
@@ -550,7 +547,7 @@ typedef struct buffer {
 
 } buffer;
 
-typedef struct rtl_reg_debug{
+typedef struct rtl_reg_debug {
 	unsigned int  cmd;
 	struct {
 		unsigned char type;
@@ -559,7 +556,7 @@ typedef struct rtl_reg_debug{
 		unsigned char length;
 	} head;
 	unsigned char buf[0xff];
-}rtl_reg_debug;
+} rtl_reg_debug;
 
 
 
@@ -570,13 +567,13 @@ typedef struct _rt_9x_tx_rate_history {
 	u32             cck[4];
 	u32             ofdm[8];
 	u32             ht_mcs[4][16];
-}rt_tx_rahis_t, *prt_tx_rahis_t;
+} rt_tx_rahis_t, *prt_tx_rahis_t;
 typedef struct _RT_SMOOTH_DATA_4RF {
 	char    elements[4][100]; /* array to store values */
 	u32     index;            /* index to current array to store */
 	u32     TotalNum;         /* num of valid elements */
 	u32     TotalVal[4];      /* sum of valid elements */
-}RT_SMOOTH_DATA_4RF, *PRT_SMOOTH_DATA_4RF;
+} RT_SMOOTH_DATA_4RF, *PRT_SMOOTH_DATA_4RF;
 
 /* This maybe changed for D-cut larger aggregation size */
 #define MAX_8192U_RX_SIZE			8192
@@ -693,9 +690,9 @@ typedef struct	ChnlAccessSetting {
 	u16 EIFS_Timer;
 	u16 CWminIndex;
 	u16 CWmaxIndex;
-}*PCHANNEL_ACCESS_SETTING,CHANNEL_ACCESS_SETTING;
+} *PCHANNEL_ACCESS_SETTING,CHANNEL_ACCESS_SETTING;
 
-typedef struct _BB_REGISTER_DEFINITION{
+typedef struct _BB_REGISTER_DEFINITION {
 	/* set software control:        0x870~0x877 [8 bytes]  */
 	u32 rfintfs;
 	/* readback data:               0x8e0~0x8e7 [8 bytes]  */
@@ -740,15 +737,15 @@ typedef struct _BB_REGISTER_DEFINITION{
 	u32 rfTxAFE;
 	/* LSSI RF readback data:       0x8a0~0x8af [16 bytes] */
 	u32 rfLSSIReadBack;
-}BB_REGISTER_DEFINITION_T, *PBB_REGISTER_DEFINITION_T;
+} BB_REGISTER_DEFINITION_T, *PBB_REGISTER_DEFINITION_T;
 
-typedef enum _RT_RF_TYPE_819xU{
+typedef enum _RT_RF_TYPE_819xU {
 	RF_TYPE_MIN = 0,
 	RF_8225,
 	RF_8256,
 	RF_8258,
 	RF_PSEUDO_11N = 4,
-}RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
+} RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
 
 typedef struct _rate_adaptive {
 	u8				rate_adaptive_disabled;
@@ -810,7 +807,7 @@ typedef struct _phy_ofdm_rx_status_report_819xusb {
 	u8	max_ex_pwr;
 	u8	sgi_en;
 	u8  rxsc_sgien_exflg;
-}phy_sts_ofdm_819xusb_t;
+} phy_sts_ofdm_819xusb_t;
 
 typedef struct _phy_cck_rx_status_report_819xusb {
 	/* For CCK rate descriptor. This is an unsigned 8:1 variable.
@@ -819,18 +816,17 @@ typedef struct _phy_cck_rx_status_report_819xusb {
 	u8	adc_pwdb_X[4];
 	u8	sq_rpt;
 	u8	cck_agc_rpt;
-}phy_sts_cck_819xusb_t;
+} phy_sts_cck_819xusb_t;
 
 
-typedef struct _phy_ofdm_rx_status_rxsc_sgien_exintfflag{
+typedef struct _phy_ofdm_rx_status_rxsc_sgien_exintfflag {
 	u8			reserved:4;
 	u8			rxsc:2;
 	u8			sgi_en:1;
 	u8			ex_intf_flag:1;
-}phy_ofdm_rx_status_rxsc_sgien_exintfflag;
+} phy_ofdm_rx_status_rxsc_sgien_exintfflag;
 
-typedef enum _RT_CUSTOMER_ID
-{
+typedef enum _RT_CUSTOMER_ID {
 	RT_CID_DEFAULT = 0,
 	RT_CID_8187_ALPHA0 = 1,
 	RT_CID_8187_SERCOMM_PS = 2,
@@ -845,7 +841,7 @@ typedef enum _RT_CUSTOMER_ID
 	RT_CID_Nettronix = 11,
 	RT_CID_DLINK = 12,
 	RT_CID_PRONET = 13,
-}RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
+} RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
 
 /*
  * ==========================================================================
@@ -853,7 +849,7 @@ typedef enum _RT_CUSTOMER_ID
  * ==========================================================================
  */
 
-typedef	enum _LED_STRATEGY_8190{
+typedef	enum _LED_STRATEGY_8190 {
 	SW_LED_MODE0, /* SW control 1 LED via GPIO0. It is default option. */
 	SW_LED_MODE1, /* SW control for PCI Express */
 	SW_LED_MODE2, /* SW control for Cameo. */
@@ -861,7 +857,7 @@ typedef	enum _LED_STRATEGY_8190{
 	SW_LED_MODE4, /* SW control for Netcore. */
 	/* HW control 2 LEDs, LED0 and LED1 (4 different control modes) */
 	HW_LED,
-}LED_STRATEGY_8190, *PLED_STRATEGY_8190;
+} LED_STRATEGY_8190, *PLED_STRATEGY_8190;
 
 typedef enum _RESET_TYPE {
 	RESET_TYPE_NORESET = 0x00,
@@ -870,7 +866,7 @@ typedef enum _RESET_TYPE {
 } RESET_TYPE;
 
 /* The simple tx command OP code. */
-typedef enum _tag_TxCmd_Config_Index{
+typedef enum _tag_TxCmd_Config_Index {
 	TXCMD_TXRA_HISTORY_CTRL				= 0xFF900000,
 	TXCMD_RESET_TX_PKT_BUFF				= 0xFF900001,
 	TXCMD_RESET_RX_PKT_BUFF				= 0xFF900002,
@@ -878,7 +874,7 @@ typedef enum _tag_TxCmd_Config_Index{
 	TXCMD_SET_RX_RSSI						= 0xFF900004,
 	TXCMD_SET_TX_PWR_TRACKING			= 0xFF900005,
 	TXCMD_XXXX_CTRL,
-}DCMD_TXCMD_OP;
+} DCMD_TXCMD_OP;
 
 typedef struct r8192_priv {
 	struct usb_device *udev;
@@ -899,7 +895,9 @@ typedef struct r8192_priv {
 	/* If TCR reports card V B/C, this discriminates */
 	u8 card_8192_version;
 	short enable_gpio0;
-	enum card_type {PCI,MINIPCI,CARDBUS,USB}card_type;
+	enum card_type {
+		PCI, MINIPCI, CARDBUS, USB
+	} card_type;
 	short hw_plcp_len;
 	short plcp_preamble_mode;
 
@@ -1129,7 +1127,7 @@ typedef struct r8192_priv {
 	struct delayed_work gpio_change_rf_wq;
 	struct delayed_work initialgain_operate_wq;
 	struct workqueue_struct *priv_wq;
-}r8192_priv;
+} r8192_priv;
 
 /* For rtl8187B */
 typedef enum{
@@ -1150,11 +1148,11 @@ typedef enum{
 	UART_PRIORITY
 } priority_t;
 
-typedef enum{
+typedef enum {
 	NIC_8192U = 1,
 	NIC_8190P = 2,
 	NIC_8192E = 3,
-	} nic_t;
+} nic_t;
 
 
 #ifdef JOHN_HWSEC
