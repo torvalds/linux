@@ -252,7 +252,9 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 	match = of_match_device(of_match_ptr(sdhci_pxav3_of_match), &pdev->dev);
 	if (match) {
-		mmc_of_parse(host->mmc);
+		ret = mmc_of_parse(host->mmc);
+		if (ret)
+			goto err_of_parse;
 		sdhci_get_of_property(pdev);
 		pdata = pxav3_get_mmc_pdata(dev);
 	} else if (pdata) {
@@ -313,10 +315,11 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_of_parse:
+err_cd_req:
 err_add_host:
 	clk_disable_unprepare(clk);
 	clk_put(clk);
-err_cd_req:
 err_clk_get:
 	sdhci_pltfm_free(pdev);
 	kfree(pxa);
