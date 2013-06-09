@@ -319,17 +319,6 @@ config PPC_TRANSACTIONAL_MEM
        ---help---
          Support user-mode Transactional Memory on POWERPC.
 
-config 8XX_MINIMAL_FPEMU
-	bool "Minimal math emulation for 8xx"
-	depends on 8xx && !MATH_EMULATION
-	help
-	  Older arch/ppc kernels still emulated a few floating point
-	  instructions such as load and store, even when full math
-	  emulation is disabled.  Say "Y" here if you want to preserve
-	  this behavior.
-
-	  It is recommended that you build a soft-float userspace instead.
-
 config IOMMU_HELPER
 	def_bool PPC64
 
