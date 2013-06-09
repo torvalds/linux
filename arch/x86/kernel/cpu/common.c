@@ -723,6 +723,8 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	if (this_cpu->c_bsp_init)
 		this_cpu->c_bsp_init(c);
+
+	setup_force_cpu_cap(X86_FEATURE_ALWAYS);
 }
 
 void __init early_cpu_init(void)
