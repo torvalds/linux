@@ -2793,8 +2793,10 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	/* Only enable the hotplug irq if we need it, to work around noisy
 	 * hotplug lines.
 	 */
-	if (intel_sdvo->hotplug_active)
-		intel_encoder->hpd_pin = HPD_SDVO_B ? HPD_SDVO_B : HPD_SDVO_C;
+	if (intel_sdvo->hotplug_active) {
+		intel_encoder->hpd_pin =
+			intel_sdvo->is_sdvob ?  HPD_SDVO_B : HPD_SDVO_C;
+	}
 
 	intel_encoder->compute_config = intel_sdvo_compute_config;
 	intel_encoder->disable = intel_disable_sdvo;
