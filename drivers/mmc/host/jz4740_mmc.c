@@ -121,7 +121,6 @@ struct jz4740_mmc_host {
 	int irq;
 	int card_detect_irq;
 
-	struct resource *mem;
 	void __iomem *base;
 	struct mmc_request *req;
 	struct mmc_command *cmd;
@@ -755,6 +754,7 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 	struct mmc_host *mmc;
 	struct jz4740_mmc_host *host;
 	struct jz4740_mmc_platform_data *pdata;
+	struct resource *res;
 
 	pdata = pdev->dev.platform_data;
 
@@ -774,39 +774,25 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 		goto err_free_host;
 	}
 
-	host->clk = clk_get(&pdev->dev, "mmc");
+	host->clk = devm_clk_get(&pdev->dev, "mmc");
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
 		dev_err(&pdev->dev, "Failed to get mmc clock\n");
 		goto err_free_host;
 	}
 
-	host->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!host->mem) {
-		ret = -ENOENT;
-		dev_err(&pdev->dev, "Failed to get base platform memory\n");
-		goto err_clk_put;
-	}
-
-	host->mem = request_mem_region(host->mem->start,
-					resource_size(host->mem), pdev->name);
-	if (!host->mem) {
-		ret = -EBUSY;
-		dev_err(&pdev->dev, "Failed to request base memory region\n");
-		goto err_clk_put;
-	}
-
-	host->base = ioremap_nocache(host->mem->start, resource_size(host->mem));
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	host->base = devm_ioremap_resource(&pdev->dev, res);
 	if (!host->base) {
 		ret = -EBUSY;
 		dev_err(&pdev->dev, "Failed to ioremap base memory\n");
-		goto err_release_mem_region;
+		goto err_free_host;
 	}
 
 	ret = jz_gpio_bulk_request(jz4740_mmc_pins, jz4740_mmc_num_pins(host));
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request mmc pins: %d\n", ret);
-		goto err_iounmap;
+		goto err_free_host;
 	}
 
 	ret = jz4740_mmc_request_gpios(mmc, pdev);
@@ -863,12 +849,6 @@ err_free_gpios:
 	jz4740_mmc_free_gpios(pdev);
 err_gpio_bulk_free:
 	jz_gpio_bulk_free(jz4740_mmc_pins, jz4740_mmc_num_pins(host));
-err_iounmap:
-	iounmap(host->base);
-err_release_mem_region:
-	release_mem_region(host->mem->start, resource_size(host->mem));
-err_clk_put:
-	clk_put(host->clk);
 err_free_host:
 	mmc_free_host(mmc);
 
@@ -889,11 +869,6 @@ static int jz4740_mmc_remove(struct platform_device *pdev)
 
 	jz4740_mmc_free_gpios(pdev);
 	jz_gpio_bulk_free(jz4740_mmc_pins, jz4740_mmc_num_pins(host));
-
-	iounmap(host->base);
-	release_mem_region(host->mem->start, resource_size(host->mem));
-
-	clk_put(host->clk);
 
 	mmc_free_host(host->mmc);
 
