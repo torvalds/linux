@@ -560,11 +560,6 @@ static irqreturn_t jz_mmc_irq(int irq, void *devid)
 					if (cmd->data)
 							cmd->data->error = -EIO;
 					cmd->error = -EIO;
-			} else if (status & (JZ_MMC_STATUS_CRC_READ_ERROR |
-					JZ_MMC_STATUS_CRC_WRITE_ERROR)) {
-					if (cmd->data)
-							cmd->data->error = -EIO;
-					cmd->error = -EIO;
 			}
 
 			jz4740_mmc_set_irq_enabled(host, irq_reg, false);
