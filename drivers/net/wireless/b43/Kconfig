@@ -111,6 +111,7 @@ config B43_PIO
 config B43_PHY_N
 	bool "Support for 802.11n (N-PHY) devices"
 	depends on B43
+	default y
 	---help---
 	  Support for the N-PHY.
 
@@ -132,6 +133,7 @@ config B43_PHY_LP
 config B43_PHY_HT
 	bool "Support for HT-PHY (high throughput) devices"
 	depends on B43 && B43_BCMA
+	default y
 	---help---
 	  Support for the HT-PHY.
 
