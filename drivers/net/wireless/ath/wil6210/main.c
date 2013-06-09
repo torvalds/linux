@@ -295,6 +295,11 @@ static int __wil_up(struct wil6210_priv *wil)
 	if (rc)
 		return rc;
 
+	/* Rx VRING. After MAC and beacon */
+	rc = wil_rx_init(wil);
+	if (rc)
+		return rc;
+
 	/* FIXME Firmware works now in PBSS mode(ToDS=0, FromDS=0) */
 	wmi_nettype = wil_iftype_nl2wmi(NL80211_IFTYPE_ADHOC);
 	switch (wdev->iftype) {
@@ -355,9 +360,6 @@ static int __wil_up(struct wil6210_priv *wil)
 		if (rc)
 			return rc;
 	}
-
-	/* Rx VRING. After MAC and beacon */
-	wil_rx_init(wil);
 
 	napi_enable(&wil->napi_rx);
 	napi_enable(&wil->napi_tx);

@@ -454,6 +454,11 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (rc)
 		return rc;
 
+	/* Rx VRING. */
+	rc = wil_rx_init(wil);
+	if (rc)
+		return rc;
+
 	rc = wmi_set_ssid(wil, info->ssid_len, info->ssid);
 	if (rc)
 		return rc;
@@ -482,8 +487,6 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (rc)
 		return rc;
 
-	/* Rx VRING. After MAC and beacon */
-	rc = wil_rx_init(wil);
 
 	netif_carrier_on(ndev);
 
