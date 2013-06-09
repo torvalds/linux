@@ -1245,7 +1245,7 @@ long sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 		if (__get_user(msr_hi, &mcp->mc_gregs[PT_MSR]))
 			goto bad;
 
-		if (MSR_TM_SUSPENDED(msr_hi<<32)) {
+		if (MSR_TM_ACTIVE(msr_hi<<32)) {
 			/* We only recheckpoint on return if we're
 			 * transaction.
 			 */
