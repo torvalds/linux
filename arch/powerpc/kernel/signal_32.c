@@ -754,7 +754,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 				 struct mcontext __user *tm_sr)
 {
 	long err;
-	unsigned long msr;
+	unsigned long msr, msr_hi;
 #ifdef CONFIG_VSX
 	int i;
 #endif
@@ -859,8 +859,11 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	tm_enable();
 	/* This loads the checkpointed FP/VEC state, if used */
 	tm_recheckpoint(&current->thread, msr);
-	/* The task has moved into TM state S, so ensure MSR reflects this */
-	regs->msr = (regs->msr & ~MSR_TS_MASK) | MSR_TS_S;
+	/* Get the top half of the MSR */
+	if (__get_user(msr_hi, &tm_sr->mc_gregs[PT_MSR]))
+		return 1;
+	/* Pull in MSR TM from user context */
+	regs->msr = (regs->msr & ~MSR_TS_MASK) | ((msr_hi<<32) & MSR_TS_MASK);
 
 	/* This loads the speculative FP/VEC state, if used */
 	if (msr & MSR_FP) {
