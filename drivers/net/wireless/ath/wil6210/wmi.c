@@ -75,10 +75,11 @@ static const struct {
 	{0x800000, 0x808000, 0x900000}, /* FW data RAM 32k */
 	{0x840000, 0x860000, 0x908000}, /* peripheral data RAM 128k/96k used */
 	{0x880000, 0x88a000, 0x880000}, /* various RGF */
-	{0x8c0000, 0x932000, 0x8c0000}, /* trivial mapping for upper area */
+	{0x8c0000, 0x949000, 0x8c0000}, /* trivial mapping for upper area */
 	/*
 	 * 920000..930000 ucode code RAM
 	 * 930000..932000 ucode data RAM
+	 * 932000..949000 back-door debug data
 	 */
 };
 
