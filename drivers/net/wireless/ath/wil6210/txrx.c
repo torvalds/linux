@@ -768,18 +768,16 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		wil_err(wil, "Xmit in monitor mode not supported\n");
 		goto drop;
 	}
-	if (skb->protocol == cpu_to_be16(ETH_P_PAE)) {
-		rc = wmi_tx_eapol(wil, skb);
-	} else {
-		/* find vring */
-		vring = wil_find_tx_vring(wil, skb);
-		if (!vring) {
-			wil_err(wil, "No Tx VRING available\n");
-			goto drop;
-		}
-		/* set up vring entry */
-		rc = wil_tx_vring(wil, vring, skb);
+
+	/* find vring */
+	vring = wil_find_tx_vring(wil, skb);
+	if (!vring) {
+		wil_err(wil, "No Tx VRING available\n");
+		goto drop;
 	}
+	/* set up vring entry */
+	rc = wil_tx_vring(wil, vring, skb);
+
 	switch (rc) {
 	case 0:
 		/* statistics will be updated on the tx_complete */

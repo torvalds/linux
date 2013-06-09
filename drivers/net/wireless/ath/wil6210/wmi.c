@@ -839,40 +839,6 @@ int wmi_p2p_cfg(struct wil6210_priv *wil, int channel)
 	return wmi_send(wil, WMI_P2P_CFG_CMDID, &cmd, sizeof(cmd));
 }
 
-int wmi_tx_eapol(struct wil6210_priv *wil, struct sk_buff *skb)
-{
-	struct wmi_eapol_tx_cmd *cmd;
-	struct ethhdr *eth;
-	u16 eapol_len = skb->len - ETH_HLEN;
-	void *eapol = skb->data + ETH_HLEN;
-	uint i;
-	int rc;
-
-	skb_set_mac_header(skb, 0);
-	eth = eth_hdr(skb);
-	wil_dbg_wmi(wil, "EAPOL %d bytes to %pM\n", eapol_len, eth->h_dest);
-	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
-		if (memcmp(wil->dst_addr[i], eth->h_dest, ETH_ALEN) == 0)
-			goto found_dest;
-	}
-
-	return -EINVAL;
-
- found_dest:
-	/* find out eapol data & len */
-	cmd = kzalloc(sizeof(*cmd) + eapol_len, GFP_KERNEL);
-	if (!cmd)
-		return -EINVAL;
-
-	memcpy(cmd->dst_mac, eth->h_dest, ETH_ALEN);
-	cmd->eapol_len = cpu_to_le16(eapol_len);
-	memcpy(cmd->eapol, eapol, eapol_len);
-	rc = wmi_send(wil, WMI_EAPOL_TX_CMDID, cmd, sizeof(*cmd) + eapol_len);
-	kfree(cmd);
-
-	return rc;
-}
-
 int wmi_del_cipher_key(struct wil6210_priv *wil, u8 key_index,
 		       const void *mac_addr)
 {
