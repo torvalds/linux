@@ -84,6 +84,7 @@ static int proc_scsi_host_open(struct inode *inode, struct file *file)
 
 static const struct file_operations proc_scsi_fops = {
 	.open = proc_scsi_host_open,
+	.release = single_release,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.write = proc_scsi_host_write

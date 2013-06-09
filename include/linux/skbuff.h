@@ -2852,6 +2852,21 @@ static inline int skb_tnl_header_len(const struct sk_buff *inner_skb)
 		SKB_GSO_CB(inner_skb)->mac_offset;
 }
 
+static inline int gso_pskb_expand_head(struct sk_buff *skb, int extra)
+{
+	int new_headroom, headroom;
+	int ret;
+
+	headroom = skb_headroom(skb);
+	ret = pskb_expand_head(skb, extra, 0, GFP_ATOMIC);
+	if (ret)
+		return ret;
+
+	new_headroom = skb_headroom(skb);
+	SKB_GSO_CB(skb)->mac_offset += (new_headroom - headroom);
+	return 0;
+}
+
 static inline bool skb_is_gso(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->gso_size;

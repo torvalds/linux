@@ -140,7 +140,7 @@ do {									\
 /* It is used only first parameter for OP - for wic, wdc */
 #define CACHE_RANGE_LOOP_1(start, end, line_length, op)			\
 do {									\
-	int volatile temp;						\
+	int volatile temp = 0;						\
 	int align = ~(line_length - 1);					\
 	end = ((end & align) == end) ? end - line_length : end & align;	\
 	WARN_ON(end - start < 0);					\

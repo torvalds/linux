@@ -10,12 +10,14 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
+#include <clocksource/samsung_pwm.h>
 #include <linux/sched.h>
 #include <linux/serial_core.h>
 #include <linux/of.h>
@@ -302,6 +304,13 @@ static struct map_desc exynos5440_iodesc0[] __initdata = {
 	},
 };
 
+static struct samsung_pwm_variant exynos4_pwm_variant = {
+	.bits		= 32,
+	.div_base	= 0,
+	.has_tint_cstat	= true,
+	.tclk_mask	= 0,
+};
+
 void exynos4_restart(char mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
@@ -317,9 +326,16 @@ void exynos5_restart(char mode, const char *cmd)
 		val = 0x1;
 		addr = EXYNOS_SWRESET;
 	} else if (of_machine_is_compatible("samsung,exynos5440")) {
+		u32 status;
 		np = of_find_compatible_node(NULL, NULL, "samsung,exynos5440-clock");
+
+		addr = of_iomap(np, 0) + 0xbc;
+		status = __raw_readl(addr);
+
 		addr = of_iomap(np, 0) + 0xcc;
-		val = (0xfff << 20) | (0x1 << 16);
+		val = __raw_readl(addr);
+
+		val = (val & 0xffff0000) | (status & 0xffff);
 	} else {
 		pr_err("%s: cannot support non-DT\n", __func__);
 		return;
@@ -370,6 +386,8 @@ int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
 
 void __init exynos_init_io(struct map_desc *mach_desc, int size)
 {
+	debug_ll_io_init();
+
 #ifdef CONFIG_OF
 	if (initial_boot_params)
 		of_scan_flat_dt(exynos_fdt_map_chipid, NULL);
@@ -442,8 +460,20 @@ static void __init exynos5440_map_io(void)
 	iotable_init(exynos5440_iodesc0, ARRAY_SIZE(exynos5440_iodesc0));
 }
 
+void __init exynos_set_timer_source(u8 channels)
+{
+	exynos4_pwm_variant.output_mask = BIT(SAMSUNG_PWM_NUM) - 1;
+	exynos4_pwm_variant.output_mask &= ~channels;
+}
+
 void __init exynos_init_time(void)
 {
+	unsigned int timer_irqs[SAMSUNG_PWM_NUM] = {
+		EXYNOS4_IRQ_TIMER0_VIC, EXYNOS4_IRQ_TIMER1_VIC,
+		EXYNOS4_IRQ_TIMER2_VIC, EXYNOS4_IRQ_TIMER3_VIC,
+		EXYNOS4_IRQ_TIMER4_VIC,
+	};
+
 	if (of_have_populated_dt()) {
 #ifdef CONFIG_OF
 		of_clk_init(NULL);
@@ -455,7 +485,14 @@ void __init exynos_init_time(void)
 		exynos4_clk_init(NULL, !soc_is_exynos4210(), S5P_VA_CMU, readl(S5P_VA_CHIPID + 8) & 1);
 		exynos4_clk_register_fixed_ext(xxti_f, xusbxti_f);
 #endif
-		mct_init(S5P_VA_SYSTIMER, EXYNOS4_IRQ_MCT_G0, EXYNOS4_IRQ_MCT_L0, EXYNOS4_IRQ_MCT_L1);
+#ifdef CONFIG_CLKSRC_SAMSUNG_PWM
+		if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_0)
+			samsung_pwm_clocksource_init(S3C_VA_TIMER,
+					timer_irqs, &exynos4_pwm_variant);
+		else
+#endif
+			mct_init(S5P_VA_SYSTIMER, EXYNOS4_IRQ_MCT_G0,
+					EXYNOS4_IRQ_MCT_L0, EXYNOS4_IRQ_MCT_L1);
 	}
 }
 

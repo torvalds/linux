@@ -263,18 +263,19 @@ xfs_dir3_free_get_buf(
 	 * Initialize the new block to be empty, and remember
 	 * its first slot as our empty slot.
 	 */
-	hdr.magic = XFS_DIR2_FREE_MAGIC;
-	hdr.firstdb = 0;
-	hdr.nused = 0;
-	hdr.nvalid = 0;
+	memset(bp->b_addr, 0, sizeof(struct xfs_dir3_free_hdr));
+	memset(&hdr, 0, sizeof(hdr));
+
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_dir3_free_hdr *hdr3 = bp->b_addr;
 
 		hdr.magic = XFS_DIR3_FREE_MAGIC;
+
 		hdr3->hdr.blkno = cpu_to_be64(bp->b_bn);
 		hdr3->hdr.owner = cpu_to_be64(dp->i_ino);
 		uuid_copy(&hdr3->hdr.uuid, &mp->m_sb.sb_uuid);
-	}
+	} else
+		hdr.magic = XFS_DIR2_FREE_MAGIC;
 	xfs_dir3_free_hdr_to_disk(bp->b_addr, &hdr);
 	*bpp = bp;
 	return 0;
@@ -1921,8 +1922,6 @@ xfs_dir2_node_addname_int(
 			 */
 			freehdr.firstdb = (fbno - XFS_DIR2_FREE_FIRSTDB(mp)) *
 					xfs_dir3_free_max_bests(mp);
-			free->hdr.nvalid = 0;
-			free->hdr.nused = 0;
 		} else {
 			free = fbp->b_addr;
 			bests = xfs_dir3_free_bests_p(mp, free);

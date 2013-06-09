@@ -5,6 +5,7 @@
  * Copyright (C) 2004 Alex Aizman
  * Copyright (C) 2005 Mike Christie
  * Copyright (c) 2005, 2006 Voltaire, Inc. All rights reserved.
+ * Copyright (c) 2013 Mellanox Technologies. All rights reserved.
  * maintained by openib-general@openib.org
  *
  * This software is available to you under a choice of one of two
