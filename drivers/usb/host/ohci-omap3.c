@@ -132,7 +132,7 @@ static int ohci_hcd_omap3_probe(struct platform_device *pdev)
 	struct usb_hcd		*hcd = NULL;
 	void __iomem		*regs = NULL;
 	struct resource		*res;
-	int			ret = -ENODEV;
+	int			ret;
 	int			irq;
 
 	if (usb_disabled())
@@ -168,9 +168,11 @@ static int ohci_hcd_omap3_probe(struct platform_device *pdev)
 	 */
 	if (!dev->dma_mask)
 		dev->dma_mask = &dev->coherent_dma_mask;
-	if (!dev->coherent_dma_mask)
-		dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	if (ret)
+		goto err_io;
 
+	ret = -ENODEV;
 	hcd = usb_create_hcd(&ohci_omap3_hc_driver, dev,
 			dev_name(dev));
 	if (!hcd) {

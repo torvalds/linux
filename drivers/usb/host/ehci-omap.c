@@ -104,7 +104,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	struct resource	*res;
 	struct usb_hcd	*hcd;
 	void __iomem *regs;
-	int ret = -ENODEV;
+	int ret;
 	int irq;
 	int i;
 	struct omap_hcd	*omap;
@@ -146,9 +146,11 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	 */
 	if (!dev->dma_mask)
 		dev->dma_mask = &dev->coherent_dma_mask;
-	if (!dev->coherent_dma_mask)
-		dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
+	ret = -ENODEV;
 	hcd = usb_create_hcd(&ehci_omap_hc_driver, dev,
 			dev_name(dev));
 	if (!hcd) {

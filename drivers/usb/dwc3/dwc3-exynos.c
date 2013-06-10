@@ -121,8 +121,9 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	 */
 	if (!dev->dma_mask)
 		dev->dma_mask = &dev->coherent_dma_mask;
-	if (!dev->coherent_dma_mask)
-		dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	if (ret)
+		goto err1;
 
 	platform_set_drvdata(pdev, exynos);
 
