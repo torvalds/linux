@@ -25,6 +25,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 
 #define DRIVER_NAME "saa7706h"
 
@@ -126,6 +127,7 @@
 
 struct saa7706h_state {
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
 	unsigned muted;
 };
 
@@ -316,42 +318,32 @@ static int saa7706h_mute(struct v4l2_subdev *sd)
 	return err;
 }
 
-static int saa7706h_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
+static int saa7706h_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	switch (qc->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
-	}
-	return -EINVAL;
-}
-
-static int saa7706h_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct saa7706h_state *state = to_state(sd);
+	struct saa7706h_state *state =
+		container_of(ctrl->handler, struct saa7706h_state, hdl);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		ctrl->value = state->muted;
-		return 0;
+		if (ctrl->val)
+			return saa7706h_mute(&state->sd);
+		return saa7706h_unmute(&state->sd);
 	}
 	return -EINVAL;
 }
 
-static int saa7706h_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		if (ctrl->value)
-			return saa7706h_mute(sd);
-		return saa7706h_unmute(sd);
-	}
-	return -EINVAL;
-}
+static const struct v4l2_ctrl_ops saa7706h_ctrl_ops = {
+	.s_ctrl = saa7706h_s_ctrl,
+};
 
 static const struct v4l2_subdev_core_ops saa7706h_core_ops = {
-	.queryctrl = saa7706h_queryctrl,
-	.g_ctrl = saa7706h_g_ctrl,
-	.s_ctrl = saa7706h_s_ctrl,
+	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
+	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
+	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
+	.g_ctrl = v4l2_subdev_g_ctrl,
+	.s_ctrl = v4l2_subdev_s_ctrl,
+	.queryctrl = v4l2_subdev_queryctrl,
+	.querymenu = v4l2_subdev_querymenu,
 };
 
 static const struct v4l2_subdev_ops saa7706h_ops = {
@@ -383,13 +375,20 @@ static int saa7706h_probe(struct i2c_client *client,
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &saa7706h_ops);
 
+	v4l2_ctrl_handler_init(&state->hdl, 4);
+	v4l2_ctrl_new_std(&state->hdl, &saa7706h_ctrl_ops,
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
+	sd->ctrl_handler = &state->hdl;
+	err = state->hdl.error;
+	if (err)
+		goto err;
+
 	/* check the rom versions */
 	err = saa7706h_get_reg16(sd, SAA7706H_DSP1_ROM_VER);
 	if (err < 0)
 		goto err;
 	if (err != SUPPORTED_DSP1_ROM_VER)
 		v4l2_warn(sd, "Unknown DSP1 ROM code version: 0x%x\n", err);
-
 	state->muted = 1;
 
 	/* startup in a muted state */
@@ -401,6 +400,7 @@ static int saa7706h_probe(struct i2c_client *client,
 
 err:
 	v4l2_device_unregister_subdev(sd);
+	v4l2_ctrl_handler_free(&state->hdl);
 	kfree(to_state(sd));
 
 	printk(KERN_ERR DRIVER_NAME ": Failed to probe: %d\n", err);
@@ -411,9 +411,11 @@ err:
 static int saa7706h_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct saa7706h_state *state = to_state(sd);
 
 	saa7706h_mute(sd);
 	v4l2_device_unregister_subdev(sd);
+	v4l2_ctrl_handler_free(&state->hdl);
 	kfree(to_state(sd));
 	return 0;
 }
