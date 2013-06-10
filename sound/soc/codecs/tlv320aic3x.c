@@ -187,14 +187,14 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 
 			break;
 		}
-
-		if (found)
-			snd_soc_dapm_sync(widget->dapm);
 	}
 
-	ret = snd_soc_update_bits(widget->codec, reg, val_mask, val);
-
 	mutex_unlock(&widget->codec->mutex);
+
+	if (found)
+		snd_soc_dapm_sync(widget->dapm);
+
+	ret = snd_soc_update_bits_locked(widget->codec, reg, val_mask, val);
 	return ret;
 }
 
