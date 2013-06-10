@@ -186,6 +186,13 @@ void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
 	u8 backlight_level;
 	char bl_name[16];
 
+	/* Mac laptops with multiple GPUs use the gmux driver for backlight
+	 * so don't register a backlight device
+	 */
+	if ((rdev->pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE) &&
+	    (rdev->pdev->device == 0x6741))
+		return;
+
 	if (!radeon_encoder->enc_priv)
 		return;
 
