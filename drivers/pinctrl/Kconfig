@@ -219,12 +219,13 @@ config PINCTRL_SAMSUNG
 	select PINCONF
 
 config PINCTRL_EXYNOS
-	bool "Pinctrl driver data for Samsung EXYNOS SoCs"
-	depends on OF && GPIOLIB
+	bool "Pinctrl driver data for Samsung EXYNOS SoCs other than 5440"
+	depends on OF && GPIOLIB && ARCH_EXYNOS
 	select PINCTRL_SAMSUNG
 
 config PINCTRL_EXYNOS5440
 	bool "Samsung EXYNOS5440 SoC pinctrl driver"
+	depends on SOC_EXYNOS5440
 	select PINMUX
 	select PINCONF
 
