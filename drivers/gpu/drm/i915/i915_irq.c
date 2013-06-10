@@ -2351,21 +2351,11 @@ ring_last_seqno(struct intel_ring_buffer *ring)
 			  struct drm_i915_gem_request, list)->seqno;
 }
 
-static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring,
-				     u32 ring_seqno, bool *err)
+static bool
+ring_idle(struct intel_ring_buffer *ring, u32 seqno)
 {
-	if (list_empty(&ring->request_list) ||
-	    i915_seqno_passed(ring_seqno, ring_last_seqno(ring))) {
-		/* Issue a wake-up to catch stuck h/w. */
-		if (waitqueue_active(&ring->irq_queue)) {
-			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
-				  ring->name);
-			wake_up_all(&ring->irq_queue);
-			*err = true;
-		}
-		return true;
-	}
-	return false;
+	return (list_empty(&ring->request_list) ||
+		i915_seqno_passed(seqno, ring_last_seqno(ring)));
 }
 
 static bool semaphore_passed(struct intel_ring_buffer *ring)
@@ -2399,16 +2389,26 @@ static bool semaphore_passed(struct intel_ring_buffer *ring)
 				 ioread32(ring->virtual_start+acthd+4)+1);
 }
 
-static bool kick_ring(struct intel_ring_buffer *ring)
+static bool ring_hung(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 tmp = I915_READ_CTL(ring);
+	u32 tmp;
+
+	if (IS_GEN2(dev))
+		return true;
+
+	/* Is the chip hanging on a WAIT_FOR_EVENT?
+	 * If so we can simply poke the RB_WAIT bit
+	 * and break the hang. This should work on
+	 * all but the second generation chipsets.
+	 */
+	tmp = I915_READ_CTL(ring);
 	if (tmp & RING_WAIT) {
 		DRM_ERROR("Kicking stuck wait on %s\n",
 			  ring->name);
 		I915_WRITE_CTL(ring, tmp);
-		return true;
+		return false;
 	}
 
 	if (INTEL_INFO(dev)->gen >= 6 &&
@@ -2417,22 +2417,10 @@ static bool kick_ring(struct intel_ring_buffer *ring)
 		DRM_ERROR("Kicking stuck semaphore on %s\n",
 			  ring->name);
 		I915_WRITE_CTL(ring, tmp);
-		return true;
-	}
-	return false;
-}
-
-static bool i915_hangcheck_ring_hung(struct intel_ring_buffer *ring)
-{
-	if (IS_GEN2(ring->dev))
 		return false;
+	}
 
-	/* Is the chip hanging on a WAIT_FOR_EVENT?
-	 * If so we can simply poke the RB_WAIT bit
-	 * and break the hang. This should work on
-	 * all but the second generation chipsets.
-	 */
-	return !kick_ring(ring);
+	return true;
 }
 
 /**
@@ -2450,45 +2438,63 @@ void i915_hangcheck_elapsed(unsigned long data)
 	struct intel_ring_buffer *ring;
 	int i;
 	int busy_count = 0, rings_hung = 0;
-	bool stuck[I915_NUM_RINGS];
+	bool stuck[I915_NUM_RINGS] = { 0 };
+#define BUSY 1
+#define KICK 5
+#define HUNG 20
+#define FIRE 30
 
 	if (!i915_enable_hangcheck)
 		return;
 
 	for_each_ring(ring, dev_priv, i) {
 		u32 seqno, acthd;
-		bool idle, err = false;
+		bool busy = true;
 
 		seqno = ring->get_seqno(ring, false);
 		acthd = intel_ring_get_active_head(ring);
-		idle = i915_hangcheck_ring_idle(ring, seqno, &err);
-		stuck[i] = ring->hangcheck.acthd == acthd;
 
-		if (idle) {
-			if (err)
-				ring->hangcheck.score += 2;
-			else
-				ring->hangcheck.score = 0;
-		} else {
-			busy_count++;
-
-			if (ring->hangcheck.seqno == seqno) {
-				ring->hangcheck.score++;
-
-				/* Kick ring if stuck*/
-				if (stuck[i])
-					i915_hangcheck_ring_hung(ring);
+		if (ring->hangcheck.seqno == seqno) {
+			if (ring_idle(ring, seqno)) {
+				if (waitqueue_active(&ring->irq_queue)) {
+					/* Issue a wake-up to catch stuck h/w. */
+					DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
+						  ring->name);
+					wake_up_all(&ring->irq_queue);
+					ring->hangcheck.score += HUNG;
+				} else
+					busy = false;
 			} else {
-				ring->hangcheck.score = 0;
+				int score;
+
+				stuck[i] = ring->hangcheck.acthd == acthd;
+				if (stuck[i]) {
+					/* Every time we kick the ring, add a
+					 * small increment to the hangcheck
+					 * score so that we can catch a
+					 * batch that is repeatedly kicked.
+					 */
+					score = ring_hung(ring) ? HUNG : KICK;
+				} else
+					score = BUSY;
+
+				ring->hangcheck.score += score;
 			}
+		} else {
+			/* Gradually reduce the count so that we catch DoS
+			 * attempts across multiple batches.
+			 */
+			if (ring->hangcheck.score > 0)
+				ring->hangcheck.score--;
 		}
 
 		ring->hangcheck.seqno = seqno;
 		ring->hangcheck.acthd = acthd;
+		busy_count += busy;
 	}
 
 	for_each_ring(ring, dev_priv, i) {
-		if (ring->hangcheck.score > 2) {
+		if (ring->hangcheck.score > FIRE) {
 			rings_hung++;
 			DRM_ERROR("%s: %s on %s 0x%x\n", ring->name,
 				  stuck[i] ? "stuck" : "no progress",
