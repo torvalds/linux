@@ -805,6 +805,12 @@ static struct drm_driver imx_drm_driver = {
 
 static int imx_drm_platform_probe(struct platform_device *pdev)
 {
+	int ret;
+
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
 	imx_drm_device->dev = &pdev->dev;
 
 	return drm_platform_init(&imx_drm_driver, pdev);
@@ -846,8 +852,6 @@ static int __init imx_drm_init(void)
 		ret = -EINVAL;
 		goto err_pdev;
 	}
-
-	imx_drm_pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32),
 
 	ret = platform_driver_register(&imx_drm_pdrv);
 	if (ret)
