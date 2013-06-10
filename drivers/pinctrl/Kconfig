@@ -158,6 +158,12 @@ config PINCTRL_DB8540
 	bool "DB8540 pin controller driver"
 	depends on PINCTRL_NOMADIK && ARCH_U8500
 
+config PINCTRL_ROCKCHIP
+	bool
+	select PINMUX
+	select GENERIC_PINCONF
+	select GENERIC_IRQ_CHIP
+
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
 	depends on OF
