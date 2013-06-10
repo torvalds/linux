@@ -559,34 +559,16 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 			return hwirq;
 	}
 
-	return irq_linear_revmap(domain, hwirq);
+	/* Check if the hwirq is in the linear revmap. */
+	if (hwirq < domain->revmap_size)
+		return domain->linear_revmap[hwirq];
+
+	rcu_read_lock();
+	data = radix_tree_lookup(&domain->revmap_tree, hwirq);
+	rcu_read_unlock();
+	return data ? data->irq : 0;
 }
 EXPORT_SYMBOL_GPL(irq_find_mapping);
-
-/**
- * irq_linear_revmap() - Find a linux irq from a hw irq number.
- * @domain: domain owning this hardware interrupt
- * @hwirq: hardware irq number in that domain space
- *
- * This is a fast path that can be called directly by irq controller code to
- * save a handful of instructions.
- */
-unsigned int irq_linear_revmap(struct irq_domain *domain,
-			       irq_hw_number_t hwirq)
-{
-	struct irq_data *data;
-
-	/* Check revmap bounds; complain if exceeded */
-	if (hwirq >= domain->revmap_size) {
-		rcu_read_lock();
-		data = radix_tree_lookup(&domain->revmap_tree, hwirq);
-		rcu_read_unlock();
-		return data ? data->irq : 0;
-	}
-
-	return domain->linear_revmap[hwirq];
-}
-EXPORT_SYMBOL_GPL(irq_linear_revmap);
 
 #ifdef CONFIG_IRQ_DOMAIN_DEBUG
 static int virq_debug_show(struct seq_file *m, void *private)

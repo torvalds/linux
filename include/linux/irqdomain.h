@@ -176,6 +176,22 @@ extern void irq_domain_associate_many(struct irq_domain *domain,
 extern unsigned int irq_create_mapping(struct irq_domain *host,
 				       irq_hw_number_t hwirq);
 extern void irq_dispose_mapping(unsigned int virq);
+
+/**
+ * irq_linear_revmap() - Find a linux irq from a hw irq number.
+ * @domain: domain owning this hardware interrupt
+ * @hwirq: hardware irq number in that domain space
+ *
+ * This is a fast path alternative to irq_find_mapping() that can be
+ * called directly by irq controller code to save a handful of
+ * instructions. It is always safe to call, but won't find irqs mapped
+ * using the radix tree.
+ */
+static inline unsigned int irq_linear_revmap(struct irq_domain *domain,
+					     irq_hw_number_t hwirq)
+{
+	return hwirq < domain->revmap_size ? domain->linear_revmap[hwirq] : 0;
+}
 extern unsigned int irq_find_mapping(struct irq_domain *host,
 				     irq_hw_number_t hwirq);
 extern unsigned int irq_create_direct_mapping(struct irq_domain *host);
@@ -188,9 +204,6 @@ static inline int irq_create_identity_mapping(struct irq_domain *host,
 {
 	return irq_create_strict_mappings(host, hwirq, hwirq, 1);
 }
-
-extern unsigned int irq_linear_revmap(struct irq_domain *host,
-				      irq_hw_number_t hwirq);
 
 extern const struct irq_domain_ops irq_domain_simple_ops;
 
