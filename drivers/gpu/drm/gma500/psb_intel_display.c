@@ -843,7 +843,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	struct gtt_range *cursor_gt = psb_intel_crtc->cursor_gt;
 	struct drm_gem_object *obj;
 	void *tmp_dst, *tmp_src;
-	int ret, i, cursor_pages;
+	int ret = 0, i, cursor_pages;
 
 	/* if we want to turn of the cursor ignore width and height */
 	if (!handle) {
@@ -880,7 +880,8 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	if (obj->size < width * height * 4) {
 		dev_dbg(dev->dev, "buffer is to small\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto unref_cursor;
 	}
 
 	gt = container_of(obj, struct gtt_range, gem);
@@ -889,13 +890,14 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	ret = psb_gtt_pin(gt);
 	if (ret) {
 		dev_err(dev->dev, "Can not pin down handle 0x%x\n", handle);
-		return ret;
+		goto unref_cursor;
 	}
 
 	if (dev_priv->ops->cursor_needs_phys) {
 		if (cursor_gt == NULL) {
 			dev_err(dev->dev, "No hardware cursor mem available");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto unref_cursor;
 		}
 
 		/* Prevent overflow */
@@ -936,9 +938,14 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 							struct gtt_range, gem);
 		psb_gtt_unpin(gt);
 		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
-		psb_intel_crtc->cursor_obj = obj;
 	}
-	return 0;
+
+	psb_intel_crtc->cursor_obj = obj;
+	return ret;
+
+unref_cursor:
+	drm_gem_object_unreference(obj);
+	return ret;
 }
 
 static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
@@ -1150,6 +1157,19 @@ static void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 	kfree(psb_intel_crtc);
 }
 
+static void psb_intel_crtc_disable(struct drm_crtc *crtc)
+{
+	struct gtt_range *gt;
+	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+
+	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+
+	if (crtc->fb) {
+		gt = to_psb_fb(crtc->fb)->gtt;
+		psb_gtt_unpin(gt);
+	}
+}
+
 const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.dpms = psb_intel_crtc_dpms,
 	.mode_fixup = psb_intel_crtc_mode_fixup,
@@ -1157,6 +1177,7 @@ const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.mode_set_base = psb_intel_pipe_set_base,
 	.prepare = psb_intel_crtc_prepare,
 	.commit = psb_intel_crtc_commit,
+	.disable = psb_intel_crtc_disable,
 };
 
 const struct drm_crtc_funcs psb_intel_crtc_funcs = {
