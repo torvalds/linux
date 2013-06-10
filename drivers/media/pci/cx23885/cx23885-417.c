@@ -1732,7 +1732,7 @@ static struct video_device *cx23885_video_dev_alloc(
 	*vfd = *template;
 	snprintf(vfd->name, sizeof(vfd->name), "%s (%s)",
 		cx23885_boards[tsport->dev->board].name, type);
-	vfd->parent  = &pci->dev;
+	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->release = video_device_release;
 	return vfd;
 }
