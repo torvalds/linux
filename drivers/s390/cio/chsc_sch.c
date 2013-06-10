@@ -262,7 +262,7 @@ static int chsc_async(struct chsc_async_area *chsc_area,
 		CHSC_LOG(2, "schid");
 		CHSC_LOG_HEX(2, &sch->schid, sizeof(sch->schid));
 		cc = chsc(chsc_area);
-		sprintf(dbf, "cc:%d", cc);
+		snprintf(dbf, sizeof(dbf), "cc:%d", cc);
 		CHSC_LOG(2, dbf);
 		switch (cc) {
 		case 0:
@@ -295,7 +295,7 @@ static void chsc_log_command(void *chsc_area)
 {
 	char dbf[10];
 
-	sprintf(dbf, "CHSC:%x", ((uint16_t *)chsc_area)[1]);
+	snprintf(dbf, sizeof(dbf), "CHSC:%x", ((uint16_t *)chsc_area)[1]);
 	CHSC_LOG(0, dbf);
 	CHSC_LOG_HEX(0, chsc_area, 32);
 }
@@ -359,7 +359,7 @@ static int chsc_ioctl_start(void __user *user_area)
 		if (copy_to_user(user_area, chsc_area, PAGE_SIZE))
 			ret = -EFAULT;
 out_free:
-	sprintf(dbf, "ret:%d", ret);
+	snprintf(dbf, sizeof(dbf), "ret:%d", ret);
 	CHSC_LOG(0, dbf);
 	kfree(request);
 	free_page((unsigned long)chsc_area);
@@ -401,7 +401,7 @@ out_free_request:
 	on_close_request = NULL;
 out_unlock:
 	mutex_unlock(&on_close_mutex);
-	sprintf(dbf, "ocsret:%d", ret);
+	snprintf(dbf, sizeof(dbf), "ocsret:%d", ret);
 	CHSC_LOG(0, dbf);
 	return ret;
 }
@@ -423,7 +423,7 @@ static int chsc_ioctl_on_close_remove(void)
 	ret = 0;
 out_unlock:
 	mutex_unlock(&on_close_mutex);
-	sprintf(dbf, "ocrret:%d", ret);
+	snprintf(dbf, sizeof(dbf), "ocrret:%d", ret);
 	CHSC_LOG(0, dbf);
 	return ret;
 }
@@ -946,7 +946,7 @@ static int chsc_release(struct inode *inode, struct file *filp)
 		wait_for_completion(&on_close_request->completion);
 		ret = chsc_examine_irb(on_close_request);
 	}
-	sprintf(dbf, "relret:%d", ret);
+	snprintf(dbf, sizeof(dbf), "relret:%d", ret);
 	CHSC_LOG(0, dbf);
 	free_page((unsigned long)on_close_chsc_area);
 	on_close_chsc_area = NULL;
