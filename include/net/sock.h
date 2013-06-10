@@ -229,6 +229,7 @@ struct cg_proto;
   *	@sk_omem_alloc: "o" is "option" or "other"
   *	@sk_wmem_queued: persistent queue size
   *	@sk_forward_alloc: space allocated forward
+  *	@sk_napi_id: id of the last napi context to receive data for sk
   *	@sk_allocation: allocation mode
   *	@sk_sndbuf: size of send buffer in bytes
   *	@sk_flags: %SO_LINGER (l_onoff), %SO_BROADCAST, %SO_KEEPALIVE,
@@ -324,6 +325,9 @@ struct sock {
 	int			sk_forward_alloc;
 #ifdef CONFIG_RPS
 	__u32			sk_rxhash;
+#endif
+#ifdef CONFIG_NET_LL_RX_POLL
+	unsigned int		sk_napi_id;
 #endif
 	atomic_t		sk_drops;
 	int			sk_rcvbuf;

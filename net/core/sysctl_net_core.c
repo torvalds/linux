@@ -19,6 +19,7 @@
 #include <net/ip.h>
 #include <net/sock.h>
 #include <net/net_ratelimit.h>
+#include <net/ll_poll.h>
 
 static int one = 1;
 
@@ -284,6 +285,15 @@ static struct ctl_table net_core_table[] = {
 		.proc_handler	= flow_limit_table_len_sysctl
 	},
 #endif /* CONFIG_NET_FLOW_LIMIT */
+#ifdef CONFIG_NET_LL_RX_POLL
+	{
+		.procname	= "low_latency_poll",
+		.data		= &sysctl_net_ll_poll,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax
+	},
+#endif
 #endif /* CONFIG_NET */
 	{
 		.procname	= "netdev_budget",
