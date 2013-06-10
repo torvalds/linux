@@ -1056,15 +1056,9 @@ static int default_cu2_call(struct notifier_block *nfb, unsigned long action,
 {
 	struct pt_regs *regs = data;
 
-	switch (action) {
-	default:
-		die_if_kernel("Unhandled kernel unaligned access or invalid "
+	die_if_kernel("COP2: Unhandled kernel unaligned access or invalid "
 			      "instruction", regs);
-		/* Fall through	 */
-
-	case CU2_EXCEPTION:
-		force_sig(SIGILL, current);
-	}
+	force_sig(SIGILL, current);
 
 	return NOTIFY_OK;
 }
@@ -1080,9 +1074,10 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 	unsigned long __maybe_unused flags;
 
 	prev_state = exception_enter();
-	die_if_kernel("do_cpu invoked from kernel context!", regs);
-
 	cpid = (regs->cp0_cause >> CAUSEB_CE) & 3;
+
+	if (cpid != 2)
+		die_if_kernel("do_cpu invoked from kernel context!", regs);
 
 	switch (cpid) {
 	case 0:
