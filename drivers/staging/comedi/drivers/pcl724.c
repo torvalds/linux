@@ -157,5 +157,5 @@ static struct comedi_driver pcl724_driver = {
 module_comedi_driver(pcl724_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for 8255 based ISA DIO boards");
 MODULE_LICENSE("GPL");
