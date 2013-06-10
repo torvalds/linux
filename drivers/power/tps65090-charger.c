@@ -255,6 +255,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 	cdata->ac.num_properties	= ARRAY_SIZE(tps65090_ac_props);
 	cdata->ac.supplied_to		= pdata->supplied_to;
 	cdata->ac.num_supplicants	= pdata->num_supplicants;
+	cdata->ac.of_node		= pdev->dev.of_node;
 
 	ret = power_supply_register(&pdev->dev, &cdata->ac);
 	if (ret) {
