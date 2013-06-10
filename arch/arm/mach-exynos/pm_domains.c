@@ -84,7 +84,6 @@ static struct exynos_pm_domain PD = {			\
 	},						\
 }
 
-#ifdef CONFIG_OF
 static void exynos_add_device_to_domain(struct exynos_pm_domain *pd,
 					 struct device *dev)
 {
@@ -193,12 +192,6 @@ static __init int exynos_pm_dt_parse_domains(void)
 
 	return 0;
 }
-#else
-static __init int exynos_pm_dt_parse_domains(void)
-{
-	return 0;
-}
-#endif /* CONFIG_OF */
 
 static __init __maybe_unused void exynos_pm_add_dev_to_genpd(struct platform_device *pdev,
 						struct exynos_pm_domain *pd)

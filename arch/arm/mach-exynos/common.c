@@ -353,7 +353,6 @@ void __init exynos_init_late(void)
 	exynos_pm_late_initcall();
 }
 
-#ifdef CONFIG_OF
 int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
 					int depth, void *data)
 {
@@ -376,7 +375,6 @@ int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
 	iotable_init(&iodesc, 1);
 	return 1;
 }
-#endif
 
 /*
  * exynos_map_io
@@ -388,11 +386,9 @@ void __init exynos_init_io(struct map_desc *mach_desc, int size)
 {
 	debug_ll_io_init();
 
-#ifdef CONFIG_OF
 	if (initial_boot_params)
 		of_scan_flat_dt(exynos_fdt_map_chipid, NULL);
 	else
-#endif
 		iotable_init(exynos_iodesc, ARRAY_SIZE(exynos_iodesc));
 
 	if (mach_desc)
@@ -475,10 +471,8 @@ void __init exynos_init_time(void)
 	};
 
 	if (of_have_populated_dt()) {
-#ifdef CONFIG_OF
 		of_clk_init(NULL);
 		clocksource_of_init();
-#endif
 	} else {
 		/* todo: remove after migrating legacy E4 platforms to dt */
 #ifdef CONFIG_ARCH_EXYNOS4
@@ -517,10 +511,8 @@ void __init exynos4_init_irq(void)
 
 	if (!of_have_populated_dt())
 		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset, NULL);
-#ifdef CONFIG_OF
 	else
 		irqchip_init();
-#endif
 
 	if (!of_have_populated_dt())
 		combiner_init(S5P_VA_COMBINER_BASE, NULL,
@@ -531,9 +523,7 @@ void __init exynos4_init_irq(void)
 
 void __init exynos5_init_irq(void)
 {
-#ifdef CONFIG_OF
 	irqchip_init();
-#endif
 	gic_arch_extn.irq_set_wake = s3c_irq_wake;
 }
 
