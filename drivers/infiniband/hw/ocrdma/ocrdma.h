@@ -236,15 +236,16 @@ struct ocrdma_srq {
 	struct ib_srq ibsrq;
 	struct ocrdma_dev *dev;
 	u8 __iomem *db;
-	/* provide synchronization to multiple context(s) posting rqe */
-	spinlock_t q_lock ____cacheline_aligned;
-
 	struct ocrdma_qp_hwq_info rq;
-	struct ocrdma_pd *pd;
-	u32 id;
 	u64 *rqe_wr_id_tbl;
 	u32 *idx_bit_fields;
 	u32 bit_fields_len;
+
+	/* provide synchronization to multiple context(s) posting rqe */
+	spinlock_t q_lock ____cacheline_aligned;
+
+	struct ocrdma_pd *pd;
+	u32 id;
 };
 
 struct ocrdma_qp {
@@ -252,8 +253,6 @@ struct ocrdma_qp {
 	struct ocrdma_dev *dev;
 
 	u8 __iomem *sq_db;
-	/* provide synchronization to multiple context(s) posting wqe, rqe */
-	spinlock_t q_lock ____cacheline_aligned;
 	struct ocrdma_qp_hwq_info sq;
 	struct {
 		uint64_t wrid;
@@ -263,6 +262,9 @@ struct ocrdma_qp {
 		uint8_t  rsvd[3];
 	} *wqe_wr_id_tbl;
 	u32 max_inline_data;
+
+	/* provide synchronization to multiple context(s) posting wqe, rqe */
+	spinlock_t q_lock ____cacheline_aligned;
 	struct ocrdma_cq *sq_cq;
 	/* list maintained per CQ to flush SQ errors */
 	struct list_head sq_entry;
