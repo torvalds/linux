@@ -453,6 +453,8 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 		ring->last_retired_head = -1;
 	}
 
+	memset(&ring->hangcheck, 0, sizeof(ring->hangcheck));
+
 out:
 	if (HAS_FORCE_WAKE(dev))
 		gen6_gt_force_wake_put(dev_priv);
