@@ -250,7 +250,6 @@ enum iwl_mvm_agg_state {
  *	the first packet to be sent in legacy HW queue in Tx AGG stop flow.
  *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
  *	we are ready to finish the Tx AGG stop / start flow.
- * @wait_for_ba: Expect block-ack before next Tx reply
  */
 struct iwl_mvm_tid_data {
 	u16 seq_number;
@@ -260,7 +259,6 @@ struct iwl_mvm_tid_data {
 	enum iwl_mvm_agg_state state;
 	u16 txq_id;
 	u16 ssn;
-	bool wait_for_ba;
 };
 
 /**
