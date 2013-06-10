@@ -76,6 +76,9 @@ void nlm_node_init(int node);
 extern struct plat_smp_ops nlm_smp_ops;
 extern char nlm_reset_entry[], nlm_reset_entry_end[];
 
+/* SWIOTLB */
+extern struct dma_map_ops nlm_swiotlb_dma_ops;
+
 extern unsigned int nlm_threads_per_core;
 extern cpumask_t nlm_cpumask;
 
