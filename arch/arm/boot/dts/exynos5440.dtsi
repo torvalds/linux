@@ -215,4 +215,13 @@
 		clocks = <&clock 21>;
 		clock-names = "rtc";
 	};
+
+	sata@210000 {
+		compatible = "snps,exynos5440-ahci";
+		reg = <0x210000 0x10000>;
+		interrupts = <0 30 0>;
+		clocks = <&clock 23>;
+		clock-names = "sata";
+	};
+
 };
