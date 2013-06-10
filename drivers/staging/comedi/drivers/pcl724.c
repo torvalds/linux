@@ -111,26 +111,30 @@ static int pcl724_8255mapped_io(int dir, int port, int data,
 	}
 }
 
-static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int pcl724_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it)
 {
 	const struct pcl724_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	unsigned int iorange;
-	int ret, i, n_subdevices;
+	int n_subdevices;
+	int ret;
+	int i;
 
 	iorange = board->io_range;
-	if ((board->can_have96) &&
-	    ((it->options[1] == 1) || (it->options[1] == 96)))
-		iorange = 0x10; /* PCL-724 in 96 DIO configuration */
+	n_subdevices = board->numofports;
+
+	/* Handle PCL-724 in 96 DIO configuration */
+	if (board->can_have96 &&
+	    (it->options[1] == 1 || it->options[1] == 96)) {
+		iorange = 0x10;
+		n_subdevices = 4;
+	}
+
 	ret = comedi_request_region(dev, it->options[0], iorange);
 	if (ret)
 		return ret;
-
-	n_subdevices = board->numofports;
-	if ((board->can_have96) && ((it->options[1] == 1)
-					 || (it->options[1] == 96)))
-		n_subdevices = 4;	/*  PCL-724 in 96 DIO configuration */
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret)
