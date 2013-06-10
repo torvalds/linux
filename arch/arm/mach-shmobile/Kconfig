@@ -213,37 +213,6 @@ config CPU_HAS_INTEVT
         bool
 	default y
 
-menu "Memory configuration"
-
-config MEMORY_START
-	hex "Physical memory start address"
-	default "0x40000000" if MACH_AP4EVB || MACH_AG5EVM || \
-				MACH_MACKEREL || MACH_BONITO || \
-				MACH_ARMADILLO800EVA || MACH_APE6EVM || \
-				MACH_LAGER
-	default "0x41000000" if MACH_KOTA2
-	default "0x00000000"
-	---help---
-	  Tweak this only when porting to a new machine which does not
-	  already have a defconfig. Changing it from the known correct
-	  value on any of the known systems will only lead to disaster.
-
-config MEMORY_SIZE
-	hex "Physical memory size"
-	default "0x80000000" if MACH_LAGER
-	default "0x40000000" if MACH_APE6EVM
-	default "0x20000000" if MACH_AG5EVM || MACH_BONITO || \
-				MACH_ARMADILLO800EVA
-	default "0x1e000000" if MACH_KOTA2
-	default "0x10000000" if MACH_AP4EVB || MACH_MACKEREL
-	default "0x04000000"
-	help
-	  This sets the default memory size assumed by your kernel. It can
-	  be overridden as normal by the 'mem=' argument on the kernel command
-	  line.
-
-endmenu
-
 menu "Timer and clock configuration"
 
 config SHMOBILE_TIMER_HZ
