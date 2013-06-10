@@ -51,6 +51,19 @@ ENTRY(shmobile_secondary_vector_scu)
 2:	.long shmobile_scu_base - PAGE_OFFSET + PLAT_PHYS_OFFSET
 ENDPROC(shmobile_secondary_vector_scu)
 
+ENTRY(shmobile_boot_scu)
+					@ r0 = SCU base address
+	mrc     p15, 0, r1, c0, c0, 5	@ read MIPDR
+	and	r1, r1, #3		@ mask out cpu ID
+	lsl	r1, r1, #3		@ we will shift by cpu_id * 8 bits
+	ldr	r2, [r0, #8]		@ SCU Power Status Register
+	mov	r3, #3
+	bic	r2, r2, r3, lsl r1	@ Clear bits of our CPU (Run Mode)
+	str	r2, [r0, #8]		@ write back
+
+	b	shmobile_invalidate_start
+ENDPROC(shmobile_boot_scu)
+
 	.text
 	.globl	shmobile_scu_base
 shmobile_scu_base:
