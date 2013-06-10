@@ -98,10 +98,18 @@ void nlm_percpu_init(int hwcpuid)
 
 void __init prom_init(void)
 {
+	void *reset_vec;
+
 	nlm_io_base = CKSEG1ADDR(XLP_DEFAULT_IO_BASE);
+	nlm_init_boot_cpu();
 	xlp_mmu_init();
 	nlm_node_init(0);
 	xlp_dt_init((void *)(long)fw_arg0);
+
+	/* Update reset entry point with CPU init code */
+	reset_vec = (void *)CKSEG1ADDR(RESET_VEC_PHYS);
+	memcpy(reset_vec, (void *)nlm_reset_entry,
+			(nlm_reset_entry_end - nlm_reset_entry));
 
 #ifdef CONFIG_SMP
 	cpumask_setall(&nlm_cpumask);

@@ -254,14 +254,8 @@ unsupp:
 
 int __cpuinit nlm_wakeup_secondary_cpus(void)
 {
-	unsigned long reset_vec;
 	char *reset_data;
 	int threadmode;
-
-	/* Update reset entry point with CPU init code */
-	reset_vec = CKSEG1ADDR(RESET_VEC_PHYS);
-	memcpy((void *)reset_vec, (void *)nlm_reset_entry,
-			(nlm_reset_entry_end - nlm_reset_entry));
 
 	/* verify the mask and setup core config variables */
 	threadmode = nlm_parse_cpumask(&nlm_cpumask);
