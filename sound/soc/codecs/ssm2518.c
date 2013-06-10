@@ -539,7 +539,7 @@ static int ssm2518_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			SSM2518_REG_SAI_CTRL1, SSM2518_SAI_CTRL1_SAI_MASK,
 			SSM2518_SAI_CTRL1_SAI_I2S);
 
-	if (tx_mask == 0 || tx_mask != 0)
+	if (tx_mask == 0 || rx_mask != 0)
 		return -EINVAL;
 
 	if (slots == 1) {
