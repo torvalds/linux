@@ -40,8 +40,10 @@ static void __init emev2_smp_prepare_cpus(unsigned int max_cpus)
 {
 	scu_enable(shmobile_scu_base);
 
-	/* Tell ROM loader about our vector (in headsmp-scu.S) */
-	emev2_set_boot_vector(__pa(shmobile_secondary_vector_scu));
+	/* Tell ROM loader about our vector (in headsmp-scu.S, headsmp.S) */
+	emev2_set_boot_vector(__pa(shmobile_boot_vector));
+	shmobile_boot_fn = virt_to_phys(shmobile_boot_scu);
+	shmobile_boot_arg = (unsigned long)shmobile_scu_base;
 
 	/* enable cache coherency on booting CPU */
 	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
