@@ -35,8 +35,8 @@ static struct irq_domain *irq_default_domain;
  * register allocated irq_domain with irq_domain_register().  Returns pointer
  * to IRQ domain, or NULL on failure.
  */
-struct irq_domain *__irq_domain_add(struct device_node *of_node,
-				    int size, int direct_max,
+struct irq_domain *__irq_domain_add(struct device_node *of_node, int size,
+				    irq_hw_number_t hwirq_max, int direct_max,
 				    const struct irq_domain_ops *ops,
 				    void *host_data)
 {
@@ -52,6 +52,7 @@ struct irq_domain *__irq_domain_add(struct device_node *of_node,
 	domain->ops = ops;
 	domain->host_data = host_data;
 	domain->of_node = of_node_get(of_node);
+	domain->hwirq_max = hwirq_max;
 	domain->revmap_size = size;
 	domain->revmap_direct_max_irq = direct_max;
 
@@ -126,7 +127,7 @@ struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
 {
 	struct irq_domain *domain;
 
-	domain = __irq_domain_add(of_node, size, 0, ops, host_data);
+	domain = __irq_domain_add(of_node, size, size, 0, ops, host_data);
 	if (!domain)
 		return NULL;
 
@@ -139,7 +140,7 @@ struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
 				pr_info("Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
 					first_irq);
 		}
-		WARN_ON(irq_domain_associate_many(domain, first_irq, 0, size));
+		irq_domain_associate_many(domain, first_irq, 0, size);
 	}
 
 	return domain;
@@ -170,11 +171,12 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 {
 	struct irq_domain *domain;
 
-	domain = __irq_domain_add(of_node, first_hwirq + size, 0, ops, host_data);
+	domain = __irq_domain_add(of_node, first_hwirq + size,
+				  first_hwirq + size, 0, ops, host_data);
 	if (!domain)
 		return NULL;
 
-	WARN_ON(irq_domain_associate_many(domain, first_irq, first_hwirq, size));
+	irq_domain_associate_many(domain, first_irq, first_hwirq, size);
 
 	return domain;
 }
@@ -228,108 +230,108 @@ void irq_set_default_host(struct irq_domain *domain)
 }
 EXPORT_SYMBOL_GPL(irq_set_default_host);
 
-static void irq_domain_disassociate_many(struct irq_domain *domain,
-					 unsigned int irq_base, int count)
+static void irq_domain_disassociate(struct irq_domain *domain, unsigned int irq)
 {
-	/*
-	 * disassociate in reverse order;
-	 * not strictly necessary, but nice for unwinding
-	 */
-	while (count--) {
-		int irq = irq_base + count;
-		struct irq_data *irq_data = irq_get_irq_data(irq);
-		irq_hw_number_t hwirq;
+	struct irq_data *irq_data = irq_get_irq_data(irq);
+	irq_hw_number_t hwirq;
 
-		if (WARN_ON(!irq_data || irq_data->domain != domain))
-			continue;
+	if (WARN(!irq_data || irq_data->domain != domain,
+		 "virq%i doesn't exist; cannot disassociate\n", irq))
+		return;
 
-		hwirq = irq_data->hwirq;
-		irq_set_status_flags(irq, IRQ_NOREQUEST);
+	hwirq = irq_data->hwirq;
+	irq_set_status_flags(irq, IRQ_NOREQUEST);
 
-		/* remove chip and handler */
-		irq_set_chip_and_handler(irq, NULL, NULL);
+	/* remove chip and handler */
+	irq_set_chip_and_handler(irq, NULL, NULL);
 
-		/* Make sure it's completed */
-		synchronize_irq(irq);
+	/* Make sure it's completed */
+	synchronize_irq(irq);
 
-		/* Tell the PIC about it */
-		if (domain->ops->unmap)
-			domain->ops->unmap(domain, irq);
-		smp_mb();
+	/* Tell the PIC about it */
+	if (domain->ops->unmap)
+		domain->ops->unmap(domain, irq);
+	smp_mb();
 
-		irq_data->domain = NULL;
-		irq_data->hwirq = 0;
+	irq_data->domain = NULL;
+	irq_data->hwirq = 0;
 
-		/* Clear reverse map for this hwirq */
-		if (hwirq < domain->revmap_size) {
-			domain->linear_revmap[hwirq] = 0;
-		} else {
-			mutex_lock(&revmap_trees_mutex);
-			radix_tree_delete(&domain->revmap_tree, hwirq);
-			mutex_unlock(&revmap_trees_mutex);
-		}
+	/* Clear reverse map for this hwirq */
+	if (hwirq < domain->revmap_size) {
+		domain->linear_revmap[hwirq] = 0;
+	} else {
+		mutex_lock(&revmap_trees_mutex);
+		radix_tree_delete(&domain->revmap_tree, hwirq);
+		mutex_unlock(&revmap_trees_mutex);
 	}
 }
 
-int irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
-			      irq_hw_number_t hwirq_base, int count)
+int irq_domain_associate(struct irq_domain *domain, unsigned int virq,
+			 irq_hw_number_t hwirq)
 {
-	unsigned int virq = irq_base;
-	irq_hw_number_t hwirq = hwirq_base;
-	int i, ret;
+	struct irq_data *irq_data = irq_get_irq_data(virq);
+	int ret;
+
+	if (WARN(hwirq >= domain->hwirq_max,
+		 "error: hwirq 0x%x is too large for %s\n", (int)hwirq, domain->name))
+		return -EINVAL;
+	if (WARN(!irq_data, "error: virq%i is not allocated", virq))
+		return -EINVAL;
+	if (WARN(irq_data->domain, "error: virq%i is already associated", virq))
+		return -EINVAL;
+
+	mutex_lock(&irq_domain_mutex);
+	irq_data->hwirq = hwirq;
+	irq_data->domain = domain;
+	if (domain->ops->map) {
+		ret = domain->ops->map(domain, virq, hwirq);
+		if (ret != 0) {
+			/*
+			 * If map() returns -EPERM, this interrupt is protected
+			 * by the firmware or some other service and shall not
+			 * be mapped. Don't bother telling the user about it.
+			 */
+			if (ret != -EPERM) {
+				pr_info("%s didn't like hwirq-0x%lx to VIRQ%i mapping (rc=%d)\n",
+				       domain->name, hwirq, virq, ret);
+			}
+			irq_data->domain = NULL;
+			irq_data->hwirq = 0;
+			mutex_unlock(&irq_domain_mutex);
+			return ret;
+		}
+
+		/* If not already assigned, give the domain the chip's name */
+		if (!domain->name && irq_data->chip)
+			domain->name = irq_data->chip->name;
+	}
+
+	if (hwirq < domain->revmap_size) {
+		domain->linear_revmap[hwirq] = virq;
+	} else {
+		mutex_lock(&revmap_trees_mutex);
+		radix_tree_insert(&domain->revmap_tree, hwirq, irq_data);
+		mutex_unlock(&revmap_trees_mutex);
+	}
+	mutex_unlock(&irq_domain_mutex);
+
+	irq_clear_status_flags(virq, IRQ_NOREQUEST);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(irq_domain_associate);
+
+void irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
+			       irq_hw_number_t hwirq_base, int count)
+{
+	int i;
 
 	pr_debug("%s(%s, irqbase=%i, hwbase=%i, count=%i)\n", __func__,
 		of_node_full_name(domain->of_node), irq_base, (int)hwirq_base, count);
 
 	for (i = 0; i < count; i++) {
-		struct irq_data *irq_data = irq_get_irq_data(virq + i);
-
-		if (WARN(!irq_data, "error: irq_desc not allocated; "
-			 "irq=%i hwirq=0x%x\n", virq + i, (int)hwirq + i))
-			return -EINVAL;
-		if (WARN(irq_data->domain, "error: irq_desc already associated; "
-			 "irq=%i hwirq=0x%x\n", virq + i, (int)hwirq + i))
-			return -EINVAL;
-	};
-
-	for (i = 0; i < count; i++, virq++, hwirq++) {
-		struct irq_data *irq_data = irq_get_irq_data(virq);
-
-		irq_data->hwirq = hwirq;
-		irq_data->domain = domain;
-		if (domain->ops->map) {
-			ret = domain->ops->map(domain, virq, hwirq);
-			if (ret != 0) {
-				/*
-				 * If map() returns -EPERM, this interrupt is protected
-				 * by the firmware or some other service and shall not
-				 * be mapped. Don't bother telling the user about it.
-				 */
-				if (ret != -EPERM) {
-					pr_info("%s didn't like hwirq-0x%lx to VIRQ%i mapping (rc=%d)\n",
-					       domain->name, hwirq, virq, ret);
-				}
-				irq_data->domain = NULL;
-				irq_data->hwirq = 0;
-				continue;
-			}
-			/* If not already assigned, give the domain the chip's name */
-			if (!domain->name && irq_data->chip)
-				domain->name = irq_data->chip->name;
-		}
-
-		if (hwirq < domain->revmap_size) {
-			domain->linear_revmap[hwirq] = virq;
-		} else {
-			mutex_lock(&revmap_trees_mutex);
-			radix_tree_insert(&domain->revmap_tree, hwirq, irq_data);
-			mutex_unlock(&revmap_trees_mutex);
-		}
-
-		irq_clear_status_flags(virq, IRQ_NOREQUEST);
+		irq_domain_associate(domain, irq_base + i, hwirq_base + i);
 	}
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(irq_domain_associate_many);
 
@@ -460,12 +462,7 @@ int irq_create_strict_mappings(struct irq_domain *domain, unsigned int irq_base,
 	if (unlikely(ret < 0))
 		return ret;
 
-	ret = irq_domain_associate_many(domain, irq_base, hwirq_base, count);
-	if (unlikely(ret < 0)) {
-		irq_free_descs(irq_base, count);
-		return ret;
-	}
-
+	irq_domain_associate_many(domain, irq_base, hwirq_base, count);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(irq_create_strict_mappings);
@@ -535,7 +532,7 @@ void irq_dispose_mapping(unsigned int virq)
 	if (WARN_ON(domain == NULL))
 		return;
 
-	irq_domain_disassociate_many(domain, virq, 1);
+	irq_domain_disassociate(domain, virq);
 	irq_free_desc(virq);
 }
 EXPORT_SYMBOL_GPL(irq_dispose_mapping);

@@ -103,6 +103,7 @@ struct irq_domain {
 	struct irq_domain_chip_generic *gc;
 
 	/* reverse map data. The linear map gets appended to the irq_domain */
+	irq_hw_number_t hwirq_max;
 	unsigned int revmap_direct_max_irq;
 	unsigned int revmap_size;
 	struct radix_tree_root revmap_tree;
@@ -110,8 +111,8 @@ struct irq_domain {
 };
 
 #ifdef CONFIG_IRQ_DOMAIN
-struct irq_domain *__irq_domain_add(struct device_node *of_node,
-				    int size, int direct_max,
+struct irq_domain *__irq_domain_add(struct device_node *of_node, int size,
+				    irq_hw_number_t hwirq_max, int direct_max,
 				    const struct irq_domain_ops *ops,
 				    void *host_data);
 struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
@@ -140,14 +141,14 @@ static inline struct irq_domain *irq_domain_add_linear(struct device_node *of_no
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(of_node, size, 0, ops, host_data);
+	return __irq_domain_add(of_node, size, size, 0, ops, host_data);
 }
 static inline struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
 					 unsigned int max_irq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(of_node, 0, max_irq, ops, host_data);
+	return __irq_domain_add(of_node, 0, max_irq, max_irq, ops, host_data);
 }
 static inline struct irq_domain *irq_domain_add_legacy_isa(
 				struct device_node *of_node,
@@ -161,19 +162,16 @@ static inline struct irq_domain *irq_domain_add_tree(struct device_node *of_node
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return irq_domain_add_linear(of_node, 0, ops, host_data);
+	return __irq_domain_add(of_node, 0, ~0, 0, ops, host_data);
 }
 
 extern void irq_domain_remove(struct irq_domain *host);
 
-extern int irq_domain_associate_many(struct irq_domain *domain,
-				     unsigned int irq_base,
-				     irq_hw_number_t hwirq_base, int count);
-static inline int irq_domain_associate(struct irq_domain *domain, unsigned int irq,
-					irq_hw_number_t hwirq)
-{
-	return irq_domain_associate_many(domain, irq, hwirq, 1);
-}
+extern int irq_domain_associate(struct irq_domain *domain, unsigned int irq,
+					irq_hw_number_t hwirq);
+extern void irq_domain_associate_many(struct irq_domain *domain,
+				      unsigned int irq_base,
+				      irq_hw_number_t hwirq_base, int count);
 
 extern unsigned int irq_create_mapping(struct irq_domain *host,
 				       irq_hw_number_t hwirq);
