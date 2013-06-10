@@ -631,11 +631,14 @@ static void efx_start_datapath(struct efx_nic *efx)
 
 	/* Initialise the channels */
 	efx_for_each_channel(channel, efx) {
-		efx_for_each_channel_tx_queue(tx_queue, channel)
+		efx_for_each_channel_tx_queue(tx_queue, channel) {
 			efx_init_tx_queue(tx_queue);
+			atomic_inc(&efx->active_queues);
+		}
 
 		efx_for_each_channel_rx_queue(rx_queue, channel) {
 			efx_init_rx_queue(rx_queue);
+			atomic_inc(&efx->active_queues);
 			efx_nic_generate_fill_event(rx_queue);
 		}
 

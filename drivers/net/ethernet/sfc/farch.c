@@ -594,7 +594,7 @@ static bool efx_farch_flush_wake(struct efx_nic *efx)
 	/* Ensure that all updates are visible to efx_farch_flush_queues() */
 	smp_mb();
 
-	return (atomic_read(&efx->drain_pending) == 0 ||
+	return (atomic_read(&efx->active_queues) == 0 ||
 		(atomic_read(&efx->rxq_flush_outstanding) < EFX_RX_FLUSH_COUNT
 		 && atomic_read(&efx->rxq_flush_pending) > 0));
 }
@@ -626,7 +626,7 @@ static bool efx_check_tx_flush_complete(struct efx_nic *efx)
 				netif_dbg(efx, hw, efx->net_dev,
 					  "flush complete on TXQ %d, so drain "
 					  "the queue\n", tx_queue->queue);
-				/* Don't need to increment drain_pending as it
+				/* Don't need to increment active_queues as it
 				 * has already been incremented for the queues
 				 * which did not drain
 				 */
@@ -653,17 +653,15 @@ static int efx_farch_do_flush(struct efx_nic *efx)
 
 	efx_for_each_channel(channel, efx) {
 		efx_for_each_channel_tx_queue(tx_queue, channel) {
-			atomic_inc(&efx->drain_pending);
 			efx_farch_flush_tx_queue(tx_queue);
 		}
 		efx_for_each_channel_rx_queue(rx_queue, channel) {
-			atomic_inc(&efx->drain_pending);
 			rx_queue->flush_pending = true;
 			atomic_inc(&efx->rxq_flush_pending);
 		}
 	}
 
-	while (timeout && atomic_read(&efx->drain_pending) > 0) {
+	while (timeout && atomic_read(&efx->active_queues) > 0) {
 		/* If SRIOV is enabled, then offload receive queue flushing to
 		 * the firmware (though we will still have to poll for
 		 * completion). If that fails, fall back to the old scheme.
@@ -699,15 +697,15 @@ static int efx_farch_do_flush(struct efx_nic *efx)
 					     timeout);
 	}
 
-	if (atomic_read(&efx->drain_pending) &&
+	if (atomic_read(&efx->active_queues) &&
 	    !efx_check_tx_flush_complete(efx)) {
 		netif_err(efx, hw, efx->net_dev, "failed to flush %d queues "
-			  "(rx %d+%d)\n", atomic_read(&efx->drain_pending),
+			  "(rx %d+%d)\n", atomic_read(&efx->active_queues),
 			  atomic_read(&efx->rxq_flush_outstanding),
 			  atomic_read(&efx->rxq_flush_pending));
 		rc = -ETIMEDOUT;
 
-		atomic_set(&efx->drain_pending, 0);
+		atomic_set(&efx->active_queues, 0);
 		atomic_set(&efx->rxq_flush_pending, 0);
 		atomic_set(&efx->rxq_flush_outstanding, 0);
 	}
@@ -1123,8 +1121,8 @@ efx_farch_handle_drain_event(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
 
-	WARN_ON(atomic_read(&efx->drain_pending) == 0);
-	atomic_dec(&efx->drain_pending);
+	WARN_ON(atomic_read(&efx->active_queues) == 0);
+	atomic_dec(&efx->active_queues);
 	if (efx_farch_flush_wake(efx))
 		wake_up(&efx->flush_wq);
 }

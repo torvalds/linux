@@ -723,7 +723,7 @@ struct vfdi_status;
  * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
  *	indexed by filter ID
  * @rps_expire_index: Next index to check for expiry in @rps_flow_id
- * @drain_pending: Count of RX and TX queues that haven't been flushed and drained.
+ * @active_queues: Count of RX and TX queues that haven't been flushed and drained.
  * @rxq_flush_pending: Count of number of receive queues that need to be flushed.
  *	Decremented when the efx_flush_rx_queue() is called.
  * @rxq_flush_outstanding: Count of number of RX flushes started but not yet
@@ -864,7 +864,7 @@ struct efx_nic {
 	unsigned int rps_expire_index;
 #endif
 
-	atomic_t drain_pending;
+	atomic_t active_queues;
 	atomic_t rxq_flush_pending;
 	atomic_t rxq_flush_outstanding;
 	wait_queue_head_t flush_wq;
