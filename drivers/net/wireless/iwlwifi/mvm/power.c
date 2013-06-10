@@ -168,6 +168,8 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
+	if (!vif->bss_conf.assoc)
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_DISABLE_POWER_OFF &&
@@ -244,6 +246,17 @@ int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	struct iwl_powertable_cmd cmd = {};
 
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
+		return 0;
+
+	/*
+	 * TODO: The following vif_count verification is temporary condition.
+	 * Avoid power mode update if more than one interface is currently
+	 * active. Remove this condition when FW will support power management
+	 * on multiple MACs.
+	 */
+	IWL_DEBUG_POWER(mvm, "Currently %d interfaces active\n",
+			mvm->vif_count);
+	if (mvm->vif_count > 1)
 		return 0;
 
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);

@@ -174,7 +174,7 @@ static const __le32 iwl_tight_lookup[BT_COEX_LUT_SIZE] = {
 static const __le32 iwl_loose_lookup[BT_COEX_LUT_SIZE] = {
 	cpu_to_le32(0xaaaaaaaa),
 	cpu_to_le32(0xaaaaaaaa),
-	cpu_to_le32(0xaeaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
 	cpu_to_le32(0xaaaaaaaa),
 	cpu_to_le32(0xcc00ff28),
 	cpu_to_le32(0x0000aaaa),

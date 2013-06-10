@@ -358,6 +358,18 @@ struct iwl_lq_sta {
 	u8 last_bt_traffic;
 };
 
+enum iwl_bt_coex_profile_traffic_load {
+	IWL_BT_COEX_TRAFFIC_LOAD_NONE		= 0,
+	IWL_BT_COEX_TRAFFIC_LOAD_LOW		= 1,
+	IWL_BT_COEX_TRAFFIC_LOAD_HIGH		= 2,
+	IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS	= 3,
+/*
+ * There are no more even though below is a u8, the
+ * indication from the BT device only has two bits.
+ */
+};
+
+
 static inline u8 num_of_ant(u8 mask)
 {
 	return  !!((mask) & ANT_A) +

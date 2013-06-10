@@ -1527,7 +1527,8 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 		goto cancel;
 	}
 
-	if (test_bit(STATUS_RFKILL, &trans_pcie->status)) {
+	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
+	    test_bit(STATUS_RFKILL, &trans_pcie->status)) {
 		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
 		ret = -ERFKILL;
 		goto cancel;
