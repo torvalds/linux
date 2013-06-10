@@ -29,7 +29,6 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 
-#include <mach/msm_gpiomux.h>
 #include <mach/msm_iomap.h>
 
 /* Bits of interest in the GPIO_IN_OUT register.
@@ -159,12 +158,12 @@ static int msm_gpio_direction_output(struct gpio_chip *chip,
 
 static int msm_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
-	return msm_gpiomux_get(chip->base + offset);
+	return 0;
 }
 
 static void msm_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	msm_gpiomux_put(chip->base + offset);
+	return;
 }
 
 static int msm_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
