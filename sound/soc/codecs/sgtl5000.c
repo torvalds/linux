@@ -1571,11 +1571,7 @@ disable_clk:
 
 static int sgtl5000_i2c_remove(struct i2c_client *client)
 {
-	struct sgtl5000_priv *sgtl5000;
-	sgtl5000 = devm_kzalloc(&client->dev, sizeof(struct sgtl5000_priv),
-								GFP_KERNEL);
-	if (!sgtl5000)
-		return -ENOMEM;
+	struct sgtl5000_priv *sgtl5000 = i2c_get_clientdata(client);
 
 	snd_soc_unregister_codec(&client->dev);
 	clk_disable_unprepare(sgtl5000->mclk);
