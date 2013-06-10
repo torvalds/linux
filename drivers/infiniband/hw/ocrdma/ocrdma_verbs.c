@@ -1734,12 +1734,14 @@ int ocrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	spin_lock_irqsave(&qp->q_lock, flags);
 	if (qp->state != OCRDMA_QPS_RTS && qp->state != OCRDMA_QPS_SQD) {
 		spin_unlock_irqrestore(&qp->q_lock, flags);
+		*bad_wr = wr;
 		return -EINVAL;
 	}
 
 	while (wr) {
 		if (ocrdma_hwq_free_cnt(&qp->sq) == 0 ||
 		    wr->num_sge > qp->sq.max_sges) {
+			*bad_wr = wr;
 			status = -ENOMEM;
 			break;
 		}
