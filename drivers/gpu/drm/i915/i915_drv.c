@@ -570,7 +570,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 	intel_opregion_fini(dev);
 
 	console_lock();
-	intel_fbdev_set_suspend(dev, 1);
+	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED);
 	console_unlock();
 
 	return 0;
@@ -614,7 +614,7 @@ void intel_console_resume(struct work_struct *work)
 	struct drm_device *dev = dev_priv->dev;
 
 	console_lock();
-	intel_fbdev_set_suspend(dev, 0);
+	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING);
 	console_unlock();
 }
 
@@ -683,7 +683,7 @@ static int __i915_drm_thaw(struct drm_device *dev)
 	 * path of resume if possible.
 	 */
 	if (console_trylock()) {
-		intel_fbdev_set_suspend(dev, 0);
+		intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING);
 		console_unlock();
 	} else {
 		schedule_work(&dev_priv->console_resume_work);

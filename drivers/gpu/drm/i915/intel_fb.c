@@ -275,7 +275,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state)
 	 * been restored from swap. If the object is stolen however, it will be
 	 * full of whatever garbage was left in there.
 	 */
-	if (!state && ifbdev->ifb.obj->stolen)
+	if (state == FBINFO_STATE_RUNNING && ifbdev->ifb.obj->stolen)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	fb_set_suspend(info, state);
