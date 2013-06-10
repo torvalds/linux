@@ -226,7 +226,7 @@ EXPORT(nlm_boot_siblings)
 	sw	t2, 0(t1)
 	/* Wait until NMI hits */
 3:	wait
-	j	3b
+	b	3b
 	nop
 
 	/*

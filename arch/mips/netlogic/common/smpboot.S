@@ -137,7 +137,7 @@ NESTED(nlm_rmiboot_preboot, 16, sp)
 	mtcr	t1, t0		/* update core control */
 
 1:	wait
-	j	1b
+	b	1b
 	nop
 END(nlm_rmiboot_preboot)
 	__FINIT
