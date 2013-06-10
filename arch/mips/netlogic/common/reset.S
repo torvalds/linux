@@ -54,8 +54,6 @@
 			XLP_IO_SYS_OFFSET(node) + XLP_IO_PCI_HDRSZ + \
 			SYS_CPU_NONCOHERENT_MODE * 4
 
-#define XLP_AX_WORKAROUND	/* enable Ax silicon workarounds */
-
 /* Enable XLP features and workarounds in the LSU */
 .macro xlp_config_lsu
 	li	t0, LSU_DEFEATURE
@@ -63,10 +61,6 @@
 
 	lui	t2, 0xc080	/* SUE, Enable Unaligned Access, L2HPE */
 	or	t1, t1, t2
-#ifdef XLP_AX_WORKAROUND
-	li	t2, ~0xe	/* S1RCM */
-	and	t1, t1, t2
-#endif
 	mtcr	t1, t0
 
 	li	t0, ICU_DEFEATURE
@@ -74,12 +68,9 @@
 	ori	t1, 0x1000	/* Enable Icache partitioning */
 	mtcr	t1, t0
 
-
-#ifdef XLP_AX_WORKAROUND
 	li	t0, SCHED_DEFEATURE
 	lui	t1, 0x0100	/* Disable BRU accepting ALU ops */
 	mtcr	t1, t0
-#endif
 .endm
 
 /*
@@ -195,19 +186,7 @@ EXPORT(nlm_boot_siblings)
 	mfc0	v0, CP0_EBASE, 1
 	andi	v0, 0x3ff		/* v0 <- node/core */
 
-	/* Init MMU in the first thread after changing THREAD_MODE
-	 * register (Ax Errata?)
-	 */
-	andi	v1, v0, 0x3		/* v1 <- thread id */
-	bnez	v1, 2f
-	nop
-
-	li	t0, MMU_SETUP
-	li	t1, 0
-	mtcr	t1, t0
-	_ehb
-
-2:	beqz	v0, 4f		/* boot cpu (cpuid == 0)? */
+	beqz	v0, 4f		/* boot cpu (cpuid == 0)? */
 	nop
 
 	/* setup status reg */
