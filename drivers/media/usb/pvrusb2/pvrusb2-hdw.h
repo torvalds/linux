@@ -22,6 +22,7 @@
 
 #include <linux/usb.h>
 #include <linux/videodev2.h>
+#include <media/v4l2-dev.h>
 #include "pvrusb2-io.h"
 #include "pvrusb2-ctrl.h"
 
@@ -137,6 +138,9 @@ const char *pvr2_hdw_get_device_identifier(struct pvr2_hdw *);
 
 /* Called when hardware has been unplugged */
 void pvr2_hdw_disconnect(struct pvr2_hdw *);
+
+/* Sets v4l2_dev of a video_device struct */
+void pvr2_hdw_set_v4l2_dev(struct pvr2_hdw *, struct video_device *);
 
 /* Get the number of defined controls */
 unsigned int pvr2_hdw_get_ctrl_count(struct pvr2_hdw *);

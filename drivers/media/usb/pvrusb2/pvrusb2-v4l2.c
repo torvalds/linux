@@ -31,6 +31,7 @@
 #include <linux/videodev2.h>
 #include <linux/module.h>
 #include <media/v4l2-dev.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 
@@ -870,8 +871,8 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 static void pvr2_v4l2_dev_disassociate_parent(struct pvr2_v4l2_dev *dip)
 {
 	if (!dip) return;
-	if (!dip->devbase.parent) return;
-	dip->devbase.parent = NULL;
+	if (!dip->devbase.v4l2_dev->dev) return;
+	dip->devbase.v4l2_dev->dev = NULL;
 	device_move(&dip->devbase.dev, NULL, DPM_ORDER_NONE);
 }
 
@@ -1321,7 +1322,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	if (nr_ptr && (unit_number >= 0) && (unit_number < PVR_NUM)) {
 		mindevnum = nr_ptr[unit_number];
 	}
-	dip->devbase.parent = &usbdev->dev;
+	pvr2_hdw_set_v4l2_dev(hdw, &dip->devbase);
 	if ((video_register_device(&dip->devbase,
 				   dip->v4l_type, mindevnum) < 0) &&
 	    (video_register_device(&dip->devbase,

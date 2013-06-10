@@ -2704,6 +2704,10 @@ static void pvr2_hdw_remove_usb_stuff(struct pvr2_hdw *hdw)
 	pvr2_hdw_render_useless(hdw);
 }
 
+void pvr2_hdw_set_v4l2_dev(struct pvr2_hdw *hdw, struct video_device *vdev)
+{
+	vdev->v4l2_dev = &hdw->v4l2_dev;
+}
 
 /* Destroy hardware interaction structure */
 void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
