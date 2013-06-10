@@ -59,13 +59,18 @@ int nlm_wakeup_secondary_cpus(void);
 void nlm_rmiboot_preboot(void);
 void nlm_percpu_init(int hwcpuid);
 
+static inline void *
+nlm_get_boot_data(int offset)
+{
+	return (void *)(CKSEG1ADDR(RESET_DATA_PHYS) + offset);
+}
+
 static inline void
 nlm_set_nmi_handler(void *handler)
 {
-	char *reset_data;
+	void *nmih = nlm_get_boot_data(BOOT_NMI_HANDLER);
 
-	reset_data = (char *)CKSEG1ADDR(RESET_DATA_PHYS);
-	*(int64_t *)(reset_data + BOOT_NMI_HANDLER) = (long)handler;
+	*(int64_t *)nmih = (long)handler;
 }
 
 /*

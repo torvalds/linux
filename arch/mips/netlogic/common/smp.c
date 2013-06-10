@@ -254,15 +254,15 @@ unsupp:
 
 int __cpuinit nlm_wakeup_secondary_cpus(void)
 {
-	char *reset_data;
+	u32 *reset_data;
 	int threadmode;
 
 	/* verify the mask and setup core config variables */
 	threadmode = nlm_parse_cpumask(&nlm_cpumask);
 
 	/* Setup CPU init parameters */
-	reset_data = (char *)CKSEG1ADDR(RESET_DATA_PHYS);
-	*(int *)(reset_data + BOOT_THREAD_MODE) = threadmode;
+	reset_data = nlm_get_boot_data(BOOT_THREAD_MODE);
+	*reset_data = threadmode;
 
 #ifdef CONFIG_CPU_XLP
 	xlp_wakeup_secondary_cpus();
