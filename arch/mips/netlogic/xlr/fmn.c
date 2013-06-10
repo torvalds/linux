@@ -80,7 +80,7 @@ static irqreturn_t fmn_message_handler(int irq, void *data)
 	while (1) {
 		/* 8 bkts per core, [24:31] each bit represents one bucket
 		 * Bit is Zero if bucket is not empty */
-		bkt_status = (nlm_read_c2_status() >> 24) & 0xff;
+		bkt_status = (nlm_read_c2_status0() >> 24) & 0xff;
 		if (bkt_status == 0xff)
 			break;
 		for (bucket = 0; bucket < 8; bucket++) {
