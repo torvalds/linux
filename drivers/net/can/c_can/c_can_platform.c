@@ -201,8 +201,8 @@ static int c_can_plat_probe(struct platform_device *pdev)
 			priv->instance = pdev->id;
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		priv->raminit_ctrlreg =	devm_request_and_ioremap(&pdev->dev, res);
-		if (!priv->raminit_ctrlreg || priv->instance < 0)
+		priv->raminit_ctrlreg = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(priv->raminit_ctrlreg) || priv->instance < 0)
 			dev_info(&pdev->dev, "control memory is not used for raminit\n");
 		else
 			priv->raminit = c_can_hw_raminit;
