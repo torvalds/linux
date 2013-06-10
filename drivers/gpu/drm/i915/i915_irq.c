@@ -2552,12 +2552,10 @@ void i915_hangcheck_elapsed(unsigned long data)
 
 	for_each_ring(ring, dev_priv, i) {
 		if (ring->hangcheck.score > FIRE) {
-			rings_hung++;
-			DRM_ERROR("%s: %s on %s 0x%x\n", ring->name,
+			DRM_ERROR("%s on %s ring\n",
 				  stuck[i] ? "stuck" : "no progress",
-				  stuck[i] ? "addr" : "seqno",
-				  stuck[i] ? ring->hangcheck.acthd & HEAD_ADDR :
-				  ring->hangcheck.seqno);
+				  ring->name);
+			rings_hung++;
 		}
 	}
 
