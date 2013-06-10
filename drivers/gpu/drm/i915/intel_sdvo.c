@@ -80,7 +80,7 @@ struct intel_sdvo {
 
 	/*
 	 * Capabilities of the SDVO device returned by
-	 * i830_sdvo_get_capabilities()
+	 * intel_sdvo_get_capabilities()
 	 */
 	struct intel_sdvo_caps caps;
 
