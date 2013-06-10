@@ -114,8 +114,8 @@ int ocrdma_query_port(struct ib_device *ibdev,
 
 	dev = get_ocrdma_dev(ibdev);
 	if (port > 1) {
-		ocrdma_err("%s(%d) invalid_port=0x%x\n", __func__,
-			   dev->id, port);
+		pr_err("%s(%d) invalid_port=0x%x\n", __func__,
+		       dev->id, port);
 		return -EINVAL;
 	}
 	netdev = dev->nic_info.netdev;
@@ -155,8 +155,7 @@ int ocrdma_modify_port(struct ib_device *ibdev, u8 port, int mask,
 
 	dev = get_ocrdma_dev(ibdev);
 	if (port > 1) {
-		ocrdma_err("%s(%d) invalid_port=0x%x\n", __func__,
-			   dev->id, port);
+		pr_err("%s(%d) invalid_port=0x%x\n", __func__, dev->id, port);
 		return -EINVAL;
 	}
 	return 0;
@@ -442,8 +441,8 @@ static struct ocrdma_mr *ocrdma_alloc_lkey(struct ib_pd *ibpd,
 	struct ocrdma_dev *dev = pd->dev;
 
 	if (acc & IB_ACCESS_REMOTE_WRITE && !(acc & IB_ACCESS_LOCAL_WRITE)) {
-		ocrdma_err("%s(%d) leaving err, invalid access rights\n",
-			   __func__, dev->id);
+		pr_err("%s(%d) leaving err, invalid access rights\n",
+		       __func__, dev->id);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -703,8 +702,8 @@ static int ocrdma_copy_cq_uresp(struct ocrdma_cq *cq, struct ib_udata *udata,
 	uresp.phase_change = cq->phase_change ? 1 : 0;
 	status = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 	if (status) {
-		ocrdma_err("%s(%d) copy error cqid=0x%x.\n",
-			   __func__, cq->dev->id, cq->id);
+		pr_err("%s(%d) copy error cqid=0x%x.\n",
+		       __func__, cq->dev->id, cq->id);
 		goto err;
 	}
 	uctx = get_ocrdma_ucontext(ib_ctx);
@@ -822,57 +821,56 @@ static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
 	if (attrs->qp_type != IB_QPT_GSI &&
 	    attrs->qp_type != IB_QPT_RC &&
 	    attrs->qp_type != IB_QPT_UD) {
-		ocrdma_err("%s(%d) unsupported qp type=0x%x requested\n",
-			   __func__, dev->id, attrs->qp_type);
+		pr_err("%s(%d) unsupported qp type=0x%x requested\n",
+		       __func__, dev->id, attrs->qp_type);
 		return -EINVAL;
 	}
 	if (attrs->cap.max_send_wr > dev->attr.max_wqe) {
-		ocrdma_err("%s(%d) unsupported send_wr=0x%x requested\n",
-			   __func__, dev->id, attrs->cap.max_send_wr);
-		ocrdma_err("%s(%d) supported send_wr=0x%x\n",
-			   __func__, dev->id, dev->attr.max_wqe);
+		pr_err("%s(%d) unsupported send_wr=0x%x requested\n",
+		       __func__, dev->id, attrs->cap.max_send_wr);
+		pr_err("%s(%d) supported send_wr=0x%x\n",
+		       __func__, dev->id, dev->attr.max_wqe);
 		return -EINVAL;
 	}
 	if (!attrs->srq && (attrs->cap.max_recv_wr > dev->attr.max_rqe)) {
-		ocrdma_err("%s(%d) unsupported recv_wr=0x%x requested\n",
-			   __func__, dev->id, attrs->cap.max_recv_wr);
-		ocrdma_err("%s(%d) supported recv_wr=0x%x\n",
-			   __func__, dev->id, dev->attr.max_rqe);
+		pr_err("%s(%d) unsupported recv_wr=0x%x requested\n",
+		       __func__, dev->id, attrs->cap.max_recv_wr);
+		pr_err("%s(%d) supported recv_wr=0x%x\n",
+		       __func__, dev->id, dev->attr.max_rqe);
 		return -EINVAL;
 	}
 	if (attrs->cap.max_inline_data > dev->attr.max_inline_data) {
-		ocrdma_err("%s(%d) unsupported inline data size=0x%x"
-			   " requested\n", __func__, dev->id,
-			   attrs->cap.max_inline_data);
-		ocrdma_err("%s(%d) supported inline data size=0x%x\n",
-			   __func__, dev->id, dev->attr.max_inline_data);
+		pr_err("%s(%d) unsupported inline data size=0x%x requested\n",
+		       __func__, dev->id, attrs->cap.max_inline_data);
+		pr_err("%s(%d) supported inline data size=0x%x\n",
+		       __func__, dev->id, dev->attr.max_inline_data);
 		return -EINVAL;
 	}
 	if (attrs->cap.max_send_sge > dev->attr.max_send_sge) {
-		ocrdma_err("%s(%d) unsupported send_sge=0x%x requested\n",
-			   __func__, dev->id, attrs->cap.max_send_sge);
-		ocrdma_err("%s(%d) supported send_sge=0x%x\n",
-			   __func__, dev->id, dev->attr.max_send_sge);
+		pr_err("%s(%d) unsupported send_sge=0x%x requested\n",
+		       __func__, dev->id, attrs->cap.max_send_sge);
+		pr_err("%s(%d) supported send_sge=0x%x\n",
+		       __func__, dev->id, dev->attr.max_send_sge);
 		return -EINVAL;
 	}
 	if (attrs->cap.max_recv_sge > dev->attr.max_recv_sge) {
-		ocrdma_err("%s(%d) unsupported recv_sge=0x%x requested\n",
-			   __func__, dev->id, attrs->cap.max_recv_sge);
-		ocrdma_err("%s(%d) supported recv_sge=0x%x\n",
-			   __func__, dev->id, dev->attr.max_recv_sge);
+		pr_err("%s(%d) unsupported recv_sge=0x%x requested\n",
+		       __func__, dev->id, attrs->cap.max_recv_sge);
+		pr_err("%s(%d) supported recv_sge=0x%x\n",
+		       __func__, dev->id, dev->attr.max_recv_sge);
 		return -EINVAL;
 	}
 	/* unprivileged user space cannot create special QP */
 	if (ibpd->uobject && attrs->qp_type == IB_QPT_GSI) {
-		ocrdma_err
+		pr_err
 		    ("%s(%d) Userspace can't create special QPs of type=0x%x\n",
 		     __func__, dev->id, attrs->qp_type);
 		return -EINVAL;
 	}
 	/* allow creating only one GSI type of QP */
 	if (attrs->qp_type == IB_QPT_GSI && dev->gsi_qp_created) {
-		ocrdma_err("%s(%d) GSI special QPs already created.\n",
-			   __func__, dev->id);
+		pr_err("%s(%d) GSI special QPs already created.\n",
+		       __func__, dev->id);
 		return -EINVAL;
 	}
 	/* verify consumer QPs are not trying to use GSI QP's CQ */
@@ -881,8 +879,8 @@ static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
 		    (dev->gsi_sqcq == get_ocrdma_cq(attrs->recv_cq)) ||
 		    (dev->gsi_rqcq == get_ocrdma_cq(attrs->send_cq)) ||
 		    (dev->gsi_rqcq == get_ocrdma_cq(attrs->recv_cq))) {
-			ocrdma_err("%s(%d) Consumer QP cannot use GSI CQs.\n",
-				   __func__, dev->id);
+			pr_err("%s(%d) Consumer QP cannot use GSI CQs.\n",
+			       __func__, dev->id);
 			return -EINVAL;
 		}
 	}
@@ -934,7 +932,7 @@ static int ocrdma_copy_qp_uresp(struct ocrdma_qp *qp,
 	}
 	status = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 	if (status) {
-		ocrdma_err("%s(%d) user copy error.\n", __func__, dev->id);
+		pr_err("%s(%d) user copy error.\n", __func__, dev->id);
 		goto err;
 	}
 	status = ocrdma_add_mmap(pd->uctx, uresp.sq_page_addr[0],
@@ -1088,7 +1086,7 @@ mbx_err:
 	kfree(qp->wqe_wr_id_tbl);
 	kfree(qp->rqe_wr_id_tbl);
 	kfree(qp);
-	ocrdma_err("%s(%d) error=%d\n", __func__, dev->id, status);
+	pr_err("%s(%d) error=%d\n", __func__, dev->id, status);
 gen_err:
 	return ERR_PTR(status);
 }
@@ -1138,10 +1136,10 @@ int ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 
 	if (!ib_modify_qp_is_ok(old_qps, new_qps, ibqp->qp_type, attr_mask)) {
-		ocrdma_err("%s(%d) invalid attribute mask=0x%x specified for "
-			   "qpn=0x%x of type=0x%x old_qps=0x%x, new_qps=0x%x\n",
-			   __func__, dev->id, attr_mask, qp->id, ibqp->qp_type,
-			   old_qps, new_qps);
+		pr_err("%s(%d) invalid attribute mask=0x%x specified for\n"
+		       "qpn=0x%x of type=0x%x old_qps=0x%x, new_qps=0x%x\n",
+		       __func__, dev->id, attr_mask, qp->id, ibqp->qp_type,
+		       old_qps, new_qps);
 		goto param_err;
 	}
 
@@ -1640,9 +1638,9 @@ static int ocrdma_build_inline_sges(struct ocrdma_qp *qp,
 {
 	if (wr->send_flags & IB_SEND_INLINE) {
 		if (wr->sg_list[0].length > qp->max_inline_data) {
-			ocrdma_err("%s() supported_len=0x%x,"
-				" unspported len req=0x%x\n", __func__,
-				qp->max_inline_data, wr->sg_list[0].length);
+			pr_err("%s() supported_len=0x%x,\n"
+			       " unspported len req=0x%x\n", __func__,
+			       qp->max_inline_data, wr->sg_list[0].length);
 			return -EINVAL;
 		}
 		memcpy(sge,
@@ -2057,8 +2055,8 @@ static void ocrdma_update_wc(struct ocrdma_qp *qp, struct ib_wc *ibwc,
 		break;
 	default:
 		ibwc->status = IB_WC_GENERAL_ERR;
-		ocrdma_err("%s() invalid opcode received = 0x%x\n",
-			   __func__, hdr->cw & OCRDMA_WQE_OPCODE_MASK);
+		pr_err("%s() invalid opcode received = 0x%x\n",
+		       __func__, hdr->cw & OCRDMA_WQE_OPCODE_MASK);
 		break;
 	};
 }

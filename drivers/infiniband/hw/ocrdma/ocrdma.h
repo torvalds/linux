@@ -42,8 +42,6 @@
 #define OCRDMA_ROCE_DEV_VERSION "1.0.0"
 #define OCRDMA_NODE_DESC "Emulex OneConnect RoCE HCA"
 
-#define ocrdma_err(format, arg...) printk(KERN_ERR format, ##arg)
-
 #define OCRDMA_MAX_AH 512
 
 #define OCRDMA_UVERBS(CMD_NAME) (1ull << IB_USER_VERBS_CMD_##CMD_NAME)
