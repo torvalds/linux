@@ -218,23 +218,10 @@ static dma_addr_t crypt_phys;
 
 static int support_aes = 1;
 
-static void dev_release(struct device *dev)
-{
-	return;
-}
-
 #define DRIVER_NAME "ixp4xx_crypto"
-static struct platform_device pseudo_dev = {
-	.name = DRIVER_NAME,
-	.id   = 0,
-	.num_resources = 0,
-	.dev  = {
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-		.release = dev_release,
-	}
-};
 
-static struct device *dev = &pseudo_dev.dev;
+static struct platform_device *pdev;
+static struct device *dev;
 
 static inline dma_addr_t crypt_virt2phys(struct crypt_ctl *virt)
 {
@@ -1418,20 +1405,30 @@ static struct ixp_alg ixp4xx_algos[] = {
 } };
 
 #define IXP_POSTFIX "-ixp4xx"
+
+static const struct platform_device_info ixp_dev_info __initdata = {
+	.name		= DRIVER_NAME,
+	.id		= 0,
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
 static int __init ixp_module_init(void)
 {
 	int num = ARRAY_SIZE(ixp4xx_algos);
-	int i,err ;
+	int i, err ;
 
-	if (platform_device_register(&pseudo_dev))
-		return -ENODEV;
+	pdev = platform_device_register_full(&ixp_dev_info);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	dev = &pdev->dev;
 
 	spin_lock_init(&desc_lock);
 	spin_lock_init(&emerg_lock);
 
 	err = init_ixp_crypto();
 	if (err) {
-		platform_device_unregister(&pseudo_dev);
+		platform_device_unregister(pdev);
 		return err;
 	}
 	for (i=0; i< num; i++) {
@@ -1496,7 +1493,7 @@ static void __exit ixp_module_exit(void)
 			crypto_unregister_alg(&ixp4xx_algos[i].crypto);
 	}
 	release_ixp_crypto();
-	platform_device_unregister(&pseudo_dev);
+	platform_device_unregister(pdev);
 }
 
 module_init(ixp_module_init);
