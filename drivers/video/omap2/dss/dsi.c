@@ -1160,18 +1160,11 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 	if (dsi->vdds_dsi_reg != NULL)
 		return 0;
 
-	if (dsi->pdev->dev.of_node)
-		vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "vdd");
-	else
-		vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "vdds_dsi");
-
-	/* DT HACK: try VCXIO to make omapdss work for o4 sdp/panda */
-	if (IS_ERR(vdds_dsi))
-		vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "VCXIO");
+	vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "vdd");
 
 	if (IS_ERR(vdds_dsi)) {
 		if (PTR_ERR(vdds_dsi) != -EPROBE_DEFER)
-			DSSERR("can't get VDDS_DSI regulator\n");
+			DSSERR("can't get DSI VDD regulator\n");
 		return PTR_ERR(vdds_dsi);
 	}
 
