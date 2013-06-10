@@ -246,13 +246,11 @@ static unsigned int kvm_current_mmio_generation(struct kvm *kvm)
 static void mark_mmio_spte(struct kvm *kvm, u64 *sptep, u64 gfn,
 			   unsigned access)
 {
-	struct kvm_mmu_page *sp =  page_header(__pa(sptep));
 	unsigned int gen = kvm_current_mmio_generation(kvm);
 	u64 mask = generation_mmio_spte_mask(gen);
 
 	access &= ACC_WRITE_MASK | ACC_USER_MASK;
 	mask |= shadow_mmio_mask | access | gfn << PAGE_SHIFT;
-	sp->mmio_cached = true;
 
 	trace_mark_mmio_spte(sptep, gfn, access, gen);
 	mmu_spte_set(sptep, mask);
@@ -4364,24 +4362,6 @@ void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm)
 	spin_unlock(&kvm->mmu_lock);
 }
 
-static void kvm_mmu_zap_mmio_sptes(struct kvm *kvm)
-{
-	struct kvm_mmu_page *sp, *node;
-	LIST_HEAD(invalid_list);
-
-	spin_lock(&kvm->mmu_lock);
-restart:
-	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link) {
-		if (!sp->mmio_cached)
-			continue;
-		if (kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list))
-			goto restart;
-	}
-
-	kvm_mmu_commit_zap_page(kvm, &invalid_list);
-	spin_unlock(&kvm->mmu_lock);
-}
-
 static bool kvm_has_zapped_obsolete_pages(struct kvm *kvm)
 {
 	return unlikely(!list_empty_careful(&kvm->arch.zapped_obsolete_pages));
@@ -4397,7 +4377,7 @@ void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm)
 	 * when mark memslot invalid.
 	 */
 	if (unlikely(kvm_current_mmio_generation(kvm) >= (MMIO_MAX_GEN - 1)))
-		kvm_mmu_zap_mmio_sptes(kvm);
+		kvm_mmu_invalidate_zap_all_pages(kvm);
 }
 
 static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)

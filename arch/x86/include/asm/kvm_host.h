@@ -230,7 +230,6 @@ struct kvm_mmu_page {
 #endif
 
 	int write_flooding_count;
-	bool mmio_cached;
 };
 
 struct kvm_pio_request {
