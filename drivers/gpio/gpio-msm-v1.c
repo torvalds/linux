@@ -652,14 +652,14 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 		return irq2;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base1 = devm_request_and_ioremap(&pdev->dev, res);
-	if (!base1)
-		return -EADDRNOTAVAIL;
+	base1 = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base1))
+		return PTR_ERR(base1);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	base2 = devm_request_and_ioremap(&pdev->dev, res);
-	if (!base2)
-		return -EADDRNOTAVAIL;
+	base2 = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base2))
+		return PTR_ERR(base2);
 
 	for (i = FIRST_GPIO_IRQ; i < FIRST_GPIO_IRQ + NR_GPIO_IRQS; i++) {
 		if (i - FIRST_GPIO_IRQ >=
