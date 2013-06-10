@@ -229,6 +229,16 @@ static inline struct team_port *team_get_port_by_index(struct team *team,
 			return port;
 	return NULL;
 }
+
+static inline int team_num_to_port_index(struct team *team, int num)
+{
+	int en_port_count = ACCESS_ONCE(team->en_port_count);
+
+	if (unlikely(!en_port_count))
+		return 0;
+	return num % en_port_count;
+}
+
 static inline struct team_port *team_get_port_by_index_rcu(struct team *team,
 							   int port_index)
 {
