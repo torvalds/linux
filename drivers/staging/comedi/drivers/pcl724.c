@@ -54,14 +54,11 @@ See the source for configuration details.
 
 #define SIZE_8255	4
 
-/* #define PCL724_IRQ   1  no IRQ support now */
-
 struct pcl724_board {
 
 	const char *name;	/*  board name */
 	int dio;		/*  num of DIO */
 	int numofports;		/*  num of 8255 subdevices */
-	unsigned int IRQbits;	/*  allowed interrupts */
 	unsigned int io_range;	/*  len of IO space */
 	char can_have96;
 	char is_pet48;
@@ -102,9 +99,6 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	unsigned int iorange;
 	int ret, i, n_subdevices;
-#ifdef PCL724_IRQ
-	unsigned int irq;
-#endif
 
 	iorange = board->io_range;
 	if ((board->can_have96) &&
@@ -113,35 +107,6 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	ret = comedi_request_region(dev, it->options[0], iorange);
 	if (ret)
 		return ret;
-
-#ifdef PCL724_IRQ
-	irq = 0;
-	if (board->IRQbits != 0) {	/* board support IRQ */
-		irq = it->options[1];
-		if (irq) {	/* we want to use IRQ */
-			if (((1 << irq) & board->IRQbits) == 0) {
-				printk(KERN_WARNING
-				       ", IRQ %u is out of allowed range, "
-				       "DISABLING IT", irq);
-				irq = 0;	/* Bad IRQ */
-			} else {
-				if (request_irq(irq, interrupt_pcl724, 0,
-					        dev->board_name, dev)) {
-					printk(KERN_WARNING
-					       ", unable to allocate IRQ %u, "
-					       "DISABLING IT", irq);
-					irq = 0;	/* Can't use IRQ */
-				} else {
-					printk(", irq=%u", irq);
-				}
-			}
-		}
-	}
-
-	dev->irq = irq;
-#endif
-
-	printk("\n");
 
 	n_subdevices = board->numofports;
 	if ((board->can_have96) && ((it->options[1] == 1)
@@ -177,12 +142,12 @@ static void pcl724_detach(struct comedi_device *dev)
 }
 
 static const struct pcl724_board boardtypes[] = {
-	{ "pcl724", 24, 1, 0x00fc, PCL724_SIZE, 0, 0, },
-	{ "pcl722", 144, 6, 0x00fc, PCL722_SIZE, 1, 0, },
-	{ "pcl731", 48, 2, 0x9cfc, PCL731_SIZE, 0, 0, },
-	{ "acl7122", 144, 6, 0x9ee8, PCL722_SIZE, 1, 0, },
-	{ "acl7124", 24, 1, 0x00fc, PCL724_SIZE, 0, 0, },
-	{ "pet48dio", 48, 2, 0x9eb8, PET48_SIZE, 0, 1, },
+	{ "pcl724", 24, 1, PCL724_SIZE, 0, 0, },
+	{ "pcl722", 144, 6, PCL722_SIZE, 1, 0, },
+	{ "pcl731", 48, 2, PCL731_SIZE, 0, 0, },
+	{ "acl7122", 144, 6, PCL722_SIZE, 1, 0, },
+	{ "acl7124", 24, 1, PCL724_SIZE, 0, 0, },
+	{ "pet48dio", 48, 2, PET48_SIZE, 0, 1, },
 };
 
 static struct comedi_driver pcl724_driver = {
