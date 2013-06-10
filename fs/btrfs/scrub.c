@@ -2505,6 +2505,7 @@ again:
 			if (ret)
 				goto out;
 
+			scrub_free_csums(sctx);
 			if (extent_logical + extent_len <
 			    key.objectid + bytes) {
 				logical += increment;
