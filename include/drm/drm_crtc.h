@@ -1094,5 +1094,6 @@ extern int drm_format_num_planes(uint32_t format);
 extern int drm_format_plane_cpp(uint32_t format, int plane);
 extern int drm_format_horz_chroma_subsampling(uint32_t format);
 extern int drm_format_vert_chroma_subsampling(uint32_t format);
+extern char *drm_get_format_name(uint32_t format);
 
 #endif /* __DRM_CRTC_H__ */
