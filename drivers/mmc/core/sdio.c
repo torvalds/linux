@@ -963,6 +963,9 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 		mmc_release_host(host);
 	}
 
+	if (!err && !mmc_card_keep_power(host))
+		mmc_power_off(host);
+
 	return err;
 }
 
@@ -975,6 +978,23 @@ static int mmc_sdio_resume(struct mmc_host *host)
 
 	/* Basic card reinitialization. */
 	mmc_claim_host(host);
+
+	/* Restore power if needed */
+	if (!mmc_card_keep_power(host)) {
+		mmc_power_up(host);
+		mmc_select_voltage(host, host->ocr);
+		/*
+		 * Tell runtime PM core we just powered up the card,
+		 * since it still believes the card is powered off.
+		 * Note that currently runtime PM is only enabled
+		 * for SDIO cards that are MMC_CAP_POWER_OFF_CARD
+		 */
+		if (host->caps & MMC_CAP_POWER_OFF_CARD) {
+			pm_runtime_disable(&host->card->dev);
+			pm_runtime_set_active(&host->card->dev);
+			pm_runtime_enable(&host->card->dev);
+		}
+	}
 
 	/* No need to reinitialize powered-resumed nonremovable cards */
 	if (mmc_card_is_removable(host) || !mmc_card_keep_power(host)) {
@@ -1013,6 +1033,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 		}
 	}
 
+	host->pm_flags &= ~MMC_PM_KEEP_POWER;
 	return err;
 }
 
