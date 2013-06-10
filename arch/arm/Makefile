@@ -194,6 +194,7 @@ machine-$(CONFIG_PLAT_SPEAR)		+= spear
 machine-$(CONFIG_ARCH_VIRT)		+= virt
 machine-$(CONFIG_ARCH_ZYNQ)		+= zynq
 machine-$(CONFIG_ARCH_SUNXI)		+= sunxi
+machine-$(CONFIG_ARCH_KEYSTONE)		+= keystone
 
 # Platform directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.
