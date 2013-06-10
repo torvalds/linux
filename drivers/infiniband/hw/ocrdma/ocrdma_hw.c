@@ -563,32 +563,19 @@ static int ocrdma_mbx_create_mq(struct ocrdma_dev *dev,
 	memset(cmd, 0, sizeof(*cmd));
 	num_pages = PAGES_4K_SPANNED(mq->va, mq->size);
 
-	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
-		ocrdma_init_mch(&cmd->req, OCRDMA_CMD_CREATE_MQ,
-				OCRDMA_SUBSYS_COMMON, sizeof(*cmd));
-		cmd->v0.pages = num_pages;
-		cmd->v0.async_cqid_valid = OCRDMA_CREATE_MQ_ASYNC_CQ_VALID;
-		cmd->v0.async_cqid_valid = (cq->id << 1);
-		cmd->v0.cqid_ringsize |= (ocrdma_encoded_q_len(mq->len) <<
-					     OCRDMA_CREATE_MQ_RING_SIZE_SHIFT);
-		cmd->v0.cqid_ringsize |=
-			(cq->id << OCRDMA_CREATE_MQ_V0_CQ_ID_SHIFT);
-		cmd->v0.valid = OCRDMA_CREATE_MQ_VALID;
-		pa = &cmd->v0.pa[0];
-	} else {
-		ocrdma_init_mch(&cmd->req, OCRDMA_CMD_CREATE_MQ_EXT,
-				OCRDMA_SUBSYS_COMMON, sizeof(*cmd));
-		cmd->req.rsvd_version = 1;
-		cmd->v1.cqid_pages = num_pages;
-		cmd->v1.cqid_pages |= (cq->id << OCRDMA_CREATE_MQ_CQ_ID_SHIFT);
-		cmd->v1.async_cqid_valid = OCRDMA_CREATE_MQ_ASYNC_CQ_VALID;
-		cmd->v1.async_event_bitmap = Bit(20);
-		cmd->v1.async_cqid_ringsize = cq->id;
-		cmd->v1.async_cqid_ringsize |= (ocrdma_encoded_q_len(mq->len) <<
-					     OCRDMA_CREATE_MQ_RING_SIZE_SHIFT);
-		cmd->v1.valid = OCRDMA_CREATE_MQ_VALID;
-		pa = &cmd->v1.pa[0];
-	}
+	ocrdma_init_mch(&cmd->req, OCRDMA_CMD_CREATE_MQ_EXT,
+			OCRDMA_SUBSYS_COMMON, sizeof(*cmd));
+	cmd->req.rsvd_version = 1;
+	cmd->cqid_pages = num_pages;
+	cmd->cqid_pages |= (cq->id << OCRDMA_CREATE_MQ_CQ_ID_SHIFT);
+	cmd->async_cqid_valid = OCRDMA_CREATE_MQ_ASYNC_CQ_VALID;
+	cmd->async_event_bitmap = Bit(20);
+	cmd->async_cqid_ringsize = cq->id;
+	cmd->async_cqid_ringsize |= (ocrdma_encoded_q_len(mq->len) <<
+				OCRDMA_CREATE_MQ_RING_SIZE_SHIFT);
+	cmd->valid = OCRDMA_CREATE_MQ_VALID;
+	pa = &cmd->pa[0];
+
 	ocrdma_build_q_pages(pa, num_pages, mq->dma, PAGE_SIZE_4K);
 	status = be_roce_mcc_cmd(dev->nic_info.netdev,
 				 cmd, sizeof(*cmd), NULL, NULL);
