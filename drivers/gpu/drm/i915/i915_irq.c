@@ -2358,21 +2358,21 @@ ring_idle(struct intel_ring_buffer *ring, u32 seqno)
 		i915_seqno_passed(seqno, ring_last_seqno(ring)));
 }
 
-static bool semaphore_passed(struct intel_ring_buffer *ring)
+static struct intel_ring_buffer *
+semaphore_waits_for(struct intel_ring_buffer *ring, u32 *seqno)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	u32 acthd = intel_ring_get_active_head(ring) & HEAD_ADDR;
-	struct intel_ring_buffer *signaller;
-	u32 cmd, ipehr, acthd_min;
+	u32 cmd, ipehr, acthd, acthd_min;
 
 	ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
 	if ((ipehr & ~(0x3 << 16)) !=
 	    (MI_SEMAPHORE_MBOX | MI_SEMAPHORE_COMPARE | MI_SEMAPHORE_REGISTER))
-		return false;
+		return NULL;
 
 	/* ACTHD is likely pointing to the dword after the actual command,
 	 * so scan backwards until we find the MBOX.
 	 */
+	acthd = intel_ring_get_active_head(ring) & HEAD_ADDR;
 	acthd_min = max((int)acthd - 3 * 4, 0);
 	do {
 		cmd = ioread32(ring->virtual_start + acthd);
@@ -2381,22 +2381,53 @@ static bool semaphore_passed(struct intel_ring_buffer *ring)
 
 		acthd -= 4;
 		if (acthd < acthd_min)
-			return false;
+			return NULL;
 	} while (1);
 
-	signaller = &dev_priv->ring[(ring->id + (((ipehr >> 17) & 1) + 1)) % 3];
-	return i915_seqno_passed(signaller->get_seqno(signaller, false),
-				 ioread32(ring->virtual_start+acthd+4)+1);
+	*seqno = ioread32(ring->virtual_start+acthd+4)+1;
+	return &dev_priv->ring[(ring->id + (((ipehr >> 17) & 1) + 1)) % 3];
 }
 
-static bool ring_hung(struct intel_ring_buffer *ring)
+static int semaphore_passed(struct intel_ring_buffer *ring)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct intel_ring_buffer *signaller;
+	u32 seqno, ctl;
+
+	ring->hangcheck.deadlock = true;
+
+	signaller = semaphore_waits_for(ring, &seqno);
+	if (signaller == NULL || signaller->hangcheck.deadlock)
+		return -1;
+
+	/* cursory check for an unkickable deadlock */
+	ctl = I915_READ_CTL(signaller);
+	if (ctl & RING_WAIT_SEMAPHORE && semaphore_passed(signaller) < 0)
+		return -1;
+
+	return i915_seqno_passed(signaller->get_seqno(signaller, false), seqno);
+}
+
+static void semaphore_clear_deadlocks(struct drm_i915_private *dev_priv)
+{
+	struct intel_ring_buffer *ring;
+	int i;
+
+	for_each_ring(ring, dev_priv, i)
+		ring->hangcheck.deadlock = false;
+}
+
+static enum { wait, active, kick, hung } ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 tmp;
 
+	if (ring->hangcheck.acthd != acthd)
+		return active;
+
 	if (IS_GEN2(dev))
-		return true;
+		return hung;
 
 	/* Is the chip hanging on a WAIT_FOR_EVENT?
 	 * If so we can simply poke the RB_WAIT bit
@@ -2408,19 +2439,24 @@ static bool ring_hung(struct intel_ring_buffer *ring)
 		DRM_ERROR("Kicking stuck wait on %s\n",
 			  ring->name);
 		I915_WRITE_CTL(ring, tmp);
-		return false;
+		return kick;
 	}
 
-	if (INTEL_INFO(dev)->gen >= 6 &&
-	    tmp & RING_WAIT_SEMAPHORE &&
-	    semaphore_passed(ring)) {
-		DRM_ERROR("Kicking stuck semaphore on %s\n",
-			  ring->name);
-		I915_WRITE_CTL(ring, tmp);
-		return false;
+	if (INTEL_INFO(dev)->gen >= 6 && tmp & RING_WAIT_SEMAPHORE) {
+		switch (semaphore_passed(ring)) {
+		default:
+			return hung;
+		case 1:
+			DRM_ERROR("Kicking stuck semaphore on %s\n",
+				  ring->name);
+			I915_WRITE_CTL(ring, tmp);
+			return kick;
+		case 0:
+			return wait;
+		}
 	}
 
-	return true;
+	return hung;
 }
 
 /**
@@ -2451,6 +2487,8 @@ void i915_hangcheck_elapsed(unsigned long data)
 		u32 seqno, acthd;
 		bool busy = true;
 
+		semaphore_clear_deadlocks(dev_priv);
+
 		seqno = ring->get_seqno(ring, false);
 		acthd = intel_ring_get_active_head(ring);
 
@@ -2467,17 +2505,36 @@ void i915_hangcheck_elapsed(unsigned long data)
 			} else {
 				int score;
 
-				stuck[i] = ring->hangcheck.acthd == acthd;
-				if (stuck[i]) {
-					/* Every time we kick the ring, add a
-					 * small increment to the hangcheck
-					 * score so that we can catch a
-					 * batch that is repeatedly kicked.
-					 */
-					score = ring_hung(ring) ? HUNG : KICK;
-				} else
+				/* We always increment the hangcheck score
+				 * if the ring is busy and still processing
+				 * the same request, so that no single request
+				 * can run indefinitely (such as a chain of
+				 * batches). The only time we do not increment
+				 * the hangcheck score on this ring, if this
+				 * ring is in a legitimate wait for another
+				 * ring. In that case the waiting ring is a
+				 * victim and we want to be sure we catch the
+				 * right culprit. Then every time we do kick
+				 * the ring, add a small increment to the
+				 * score so that we can catch a batch that is
+				 * being repeatedly kicked and so responsible
+				 * for stalling the machine.
+				 */
+				switch (ring_stuck(ring, acthd)) {
+				case wait:
+					score = 0;
+					break;
+				case active:
 					score = BUSY;
-
+					break;
+				case kick:
+					score = KICK;
+					break;
+				case hung:
+					score = HUNG;
+					stuck[i] = true;
+					break;
+				}
 				ring->hangcheck.score += score;
 			}
 		} else {

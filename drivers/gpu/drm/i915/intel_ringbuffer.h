@@ -38,6 +38,7 @@ struct  intel_hw_status_page {
 #define I915_READ_SYNC_1(ring) I915_READ(RING_SYNC_1((ring)->mmio_base))
 
 struct intel_ring_hangcheck {
+	bool deadlock;
 	u32 seqno;
 	u32 acthd;
 	int score;
