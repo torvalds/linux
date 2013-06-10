@@ -149,7 +149,7 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	data->dai.codec_dai_name = "sgtl5000";
 	data->dai.codec_of_node = codec_np;
 	data->dai.cpu_of_node = ssi_np;
-	data->dai.platform_name = "imx-pcm-audio";
+	data->dai.platform_of_node = ssi_np;
 	data->dai.init = &imx_sgtl5000_dai_init;
 	data->dai.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			    SND_SOC_DAIFMT_CBM_CFM;
@@ -174,6 +174,11 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, data);
+	of_node_put(ssi_np);
+	of_node_put(codec_np);
+
+	return 0;
+
 clk_fail:
 	clk_put(data->codec_clk);
 fail:
