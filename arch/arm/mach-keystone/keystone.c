@@ -19,6 +19,9 @@
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include <asm/smp_plat.h>
+
+#include "keystone.h"
 
 #define PLL_RESET_WRITE_KEY_MASK		0xffff0000
 #define PLL_RESET_WRITE_KEY			0x5a69
@@ -65,6 +68,7 @@ void keystone_restart(char mode, const char *cmd)
 }
 
 DT_MACHINE_START(KEYSTONE, "Keystone")
+	.smp		= smp_ops(keystone_smp_ops),
 	.init_machine	= keystone_init,
 	.dt_compat	= keystone_match,
 	.restart	= keystone_restart,

@@ -4,6 +4,7 @@ config ARCH_KEYSTONE
 	select CPU_V7
 	select ARM_GIC
 	select HAVE_ARM_ARCH_TIMER
+	select HAVE_SMP
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select HAVE_SCHED_CLOCK
