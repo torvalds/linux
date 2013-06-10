@@ -579,9 +579,7 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata)
 	mesh_path_expire(sdata);
 
 	changed = mesh_accept_plinks_update(sdata);
-	sdata_lock(sdata);
 	ieee80211_mbss_info_change_notify(sdata, changed);
-	sdata_unlock(sdata);
 
 	mod_timer(&ifmsh->housekeeping_timer,
 		  round_jiffies(jiffies +
@@ -788,12 +786,10 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.enable_beacon = false;
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
-	sdata_lock(sdata);
 	bcn = rcu_dereference_protected(ifmsh->beacon,
 					lockdep_is_held(&sdata->wdev.mtx));
 	rcu_assign_pointer(ifmsh->beacon, NULL);
 	kfree_rcu(bcn, rcu_head);
-	sdata_unlock(sdata);
 
 	/* flush STAs and mpaths on this iface */
 	sta_info_flush(sdata);
@@ -806,14 +802,6 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_root_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_timer);
-	/*
-	 * If the timer fired while we waited for it, it will have
-	 * requeued the work. Now the work will be running again
-	 * but will not rearm the timer again because it checks
-	 * whether the interface is running, which, at this point,
-	 * it no longer is.
-	 */
-	cancel_work_sync(&sdata->work);
 
 	local->fif_other_bss--;
 	atomic_dec(&local->iff_allmultis);
@@ -954,6 +942,12 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	u16 stype;
 
+	sdata_lock(sdata);
+
+	/* mesh already went down */
+	if (!sdata->wdev.mesh_id_len)
+		goto out;
+
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	mgmt = (struct ieee80211_mgmt *) skb->data;
 	stype = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_STYPE;
@@ -971,11 +965,19 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		ieee80211_mesh_rx_mgmt_action(sdata, mgmt, skb->len, rx_status);
 		break;
 	}
+out:
+	sdata_unlock(sdata);
 }
 
 void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+
+	sdata_lock(sdata);
+
+	/* mesh already went down */
+	if (!sdata->wdev.mesh_id_len)
+		goto out;
 
 	if (ifmsh->preq_queue_len &&
 	    time_after(jiffies,
@@ -996,6 +998,9 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 
 	if (test_and_clear_bit(MESH_WORK_DRIFT_ADJUST, &ifmsh->wrkq_flags))
 		mesh_sync_adjust_tbtt(sdata);
+
+out:
+	sdata_unlock(sdata);
 }
 
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local)
