@@ -108,6 +108,7 @@ void __init prom_init(void)
 
 	/* Update reset entry point with CPU init code */
 	reset_vec = (void *)CKSEG1ADDR(RESET_VEC_PHYS);
+	memset(reset_vec, 0, RESET_VEC_SIZE);
 	memcpy(reset_vec, (void *)nlm_reset_entry,
 			(nlm_reset_entry_end - nlm_reset_entry));
 

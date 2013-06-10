@@ -216,8 +216,10 @@ EXPORT(nlm_boot_siblings)
 	ori	t1, ST0_KX
 #endif
 	mtc0	t1, CP0_STATUS
-	/* mark CPU ready */
-	PTR_LA	t1, nlm_cpu_ready
+
+	/* mark CPU ready, careful here, previous mtcr trashed registers */
+	li	t3, CKSEG1ADDR(RESET_DATA_PHYS)
+	ADDIU	t1, t3, BOOT_CPU_READY
 	sll	v1, v0, 2
 	PTR_ADDU t1, v1
 	li	t2, 1

@@ -39,10 +39,16 @@
  * Common SMP definitions
  */
 #define RESET_VEC_PHYS		0x1fc00000
+#define RESET_VEC_SIZE		8192		/* 8KB reset code and data */
 #define RESET_DATA_PHYS		(RESET_VEC_PHYS + (1<<10))
+
+/* Offsets of parameters in the RESET_DATA_PHYS area */
 #define BOOT_THREAD_MODE	0
 #define BOOT_NMI_LOCK		4
 #define BOOT_NMI_HANDLER	8
+
+/* CPU ready flags for each CPU */
+#define BOOT_CPU_READY		2048
 
 #ifndef __ASSEMBLY__
 #include <linux/cpumask.h>

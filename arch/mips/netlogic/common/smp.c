@@ -145,7 +145,6 @@ void nlm_cpus_done(void)
  * Boot all other cpus in the system, initialize them, and bring them into
  * the boot function
  */
-int nlm_cpu_ready[NR_CPUS];
 unsigned long nlm_next_gp;
 unsigned long nlm_next_sp;
 static cpumask_t phys_cpu_present_mask;
@@ -168,6 +167,7 @@ void __init nlm_smp_setup(void)
 {
 	unsigned int boot_cpu;
 	int num_cpus, i, ncore;
+	volatile u32 *cpu_ready = nlm_get_boot_data(BOOT_CPU_READY);
 	char buf[64];
 
 	boot_cpu = hard_smp_processor_id();
@@ -181,10 +181,10 @@ void __init nlm_smp_setup(void)
 	num_cpus = 1;
 	for (i = 0; i < NR_CPUS; i++) {
 		/*
-		 * nlm_cpu_ready array is not set for the boot_cpu,
+		 * cpu_ready array is not set for the boot_cpu,
 		 * it is only set for ASPs (see smpboot.S)
 		 */
-		if (nlm_cpu_ready[i]) {
+		if (cpu_ready[i]) {
 			cpumask_set_cpu(i, &phys_cpu_present_mask);
 			__cpu_number_map[i] = num_cpus;
 			__cpu_logical_map[num_cpus] = i;

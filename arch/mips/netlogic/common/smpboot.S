@@ -109,8 +109,9 @@ NESTED(nlm_rmiboot_preboot, 16, sp)
 	andi	t2, t0, 0x3	/* thread num */
 	sll	t0, 2		/* offset in cpu array */
 
-	PTR_LA	t1, nlm_cpu_ready /* mark CPU ready */
-	PTR_ADDU t1, t0
+	li	t3, CKSEG1ADDR(RESET_DATA_PHYS)
+	ADDIU	t1, t3, BOOT_CPU_READY
+	ADDU	t1, t0
 	li	t3, 1
 	sw	t3, 0(t1)
 

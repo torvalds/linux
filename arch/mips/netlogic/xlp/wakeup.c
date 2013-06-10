@@ -82,6 +82,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 	struct nlm_soc_info *nodep;
 	uint64_t syspcibase;
 	uint32_t syscoremask;
+	volatile uint32_t *cpu_ready = nlm_get_boot_data(BOOT_CPU_READY);
 	int core, n, cpu, count, val;
 
 	for (n = 0; n < NLM_NR_NODES; n++) {
@@ -125,7 +126,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 			/* spin until the first hw thread sets its ready */
 			count = 0x20000000;
 			do {
-				val = *(volatile int *)&nlm_cpu_ready[cpu];
+				val = cpu_ready[cpu];
 			} while (val == 0 && --count > 0);
 		}
 	}
