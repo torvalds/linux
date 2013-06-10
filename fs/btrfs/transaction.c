@@ -302,7 +302,8 @@ int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
 static inline int is_transaction_blocked(struct btrfs_transaction *trans)
 {
 	return (trans->state >= TRANS_STATE_BLOCKED &&
-		trans->state < TRANS_STATE_UNBLOCKED);
+		trans->state < TRANS_STATE_UNBLOCKED &&
+		!trans->aborted);
 }
 
 /* wait for commit against the current transaction to become unblocked
@@ -320,7 +321,8 @@ static void wait_current_trans(struct btrfs_root *root)
 		spin_unlock(&root->fs_info->trans_lock);
 
 		wait_event(root->fs_info->transaction_wait,
-			   cur_trans->state >= TRANS_STATE_UNBLOCKED);
+			   cur_trans->state >= TRANS_STATE_UNBLOCKED ||
+			   cur_trans->aborted);
 		put_transaction(cur_trans);
 	} else {
 		spin_unlock(&root->fs_info->trans_lock);
@@ -1392,7 +1394,8 @@ static void wait_current_trans_commit_start(struct btrfs_root *root,
 					    struct btrfs_transaction *trans)
 {
 	wait_event(root->fs_info->transaction_blocked_wait,
-		   trans->state >= TRANS_STATE_COMMIT_START);
+		   trans->state >= TRANS_STATE_COMMIT_START ||
+		   trans->aborted);
 }
 
 /*
@@ -1403,7 +1406,8 @@ static void wait_current_trans_commit_start_and_unblock(struct btrfs_root *root,
 					 struct btrfs_transaction *trans)
 {
 	wait_event(root->fs_info->transaction_wait,
-		   trans->state >= TRANS_STATE_UNBLOCKED);
+		   trans->state >= TRANS_STATE_UNBLOCKED ||
+		   trans->aborted);
 }
 
 /*
