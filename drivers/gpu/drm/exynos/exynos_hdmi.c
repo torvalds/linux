@@ -796,18 +796,17 @@ static int hdmi_find_phy_conf(struct hdmi_context *hdata, u32 pixel_clock)
 	return -EINVAL;
 }
 
-static int hdmi_check_timing(void *ctx, struct fb_videomode *timing)
+static int hdmi_check_mode(void *ctx, struct drm_display_mode *mode)
 {
 	struct hdmi_context *hdata = ctx;
 	int ret;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+	DRM_DEBUG_KMS("xres=%d, yres=%d, refresh=%d, intl=%d clock=%d\n",
+		mode->hdisplay, mode->vdisplay, mode->vrefresh,
+		(mode->flags & DRM_MODE_FLAG_INTERLACE) ? true :
+		false, mode->clock * 1000);
 
-	DRM_DEBUG_KMS("[%d]x[%d] [%d]Hz [%x]\n", timing->xres,
-			timing->yres, timing->refresh,
-			timing->vmode);
-
-	ret = hdmi_find_phy_conf(hdata, timing->pixclock);
+	ret = hdmi_find_phy_conf(hdata, mode->clock * 1000);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -1042,7 +1041,7 @@ static void hdmi_conf_init(struct hdmi_context *hdata)
 	}
 }
 
-static void hdmi_v13_timing_apply(struct hdmi_context *hdata)
+static void hdmi_v13_mode_apply(struct hdmi_context *hdata)
 {
 	const struct hdmi_tg_regs *tg = &hdata->mode_conf.conf.v13_conf.tg;
 	const struct hdmi_v13_core_regs *core =
@@ -1131,7 +1130,7 @@ static void hdmi_v13_timing_apply(struct hdmi_context *hdata)
 		hdmi_reg_writemask(hdata, HDMI_TG_CMD, ~0, HDMI_TG_EN);
 }
 
-static void hdmi_v14_timing_apply(struct hdmi_context *hdata)
+static void hdmi_v14_mode_apply(struct hdmi_context *hdata)
 {
 	const struct hdmi_tg_regs *tg = &hdata->mode_conf.conf.v14_conf.tg;
 	const struct hdmi_v14_core_regs *core =
@@ -1298,12 +1297,12 @@ static void hdmi_v14_timing_apply(struct hdmi_context *hdata)
 		hdmi_reg_writemask(hdata, HDMI_TG_CMD, ~0, HDMI_TG_EN);
 }
 
-static void hdmi_timing_apply(struct hdmi_context *hdata)
+static void hdmi_mode_apply(struct hdmi_context *hdata)
 {
 	if (hdata->type == HDMI_TYPE13)
-		hdmi_v13_timing_apply(hdata);
+		hdmi_v13_mode_apply(hdata);
 	else
-		hdmi_v14_timing_apply(hdata);
+		hdmi_v14_mode_apply(hdata);
 }
 
 static void hdmiphy_conf_reset(struct hdmi_context *hdata)
@@ -1423,7 +1422,7 @@ static void hdmi_conf_apply(struct hdmi_context *hdata)
 	hdmi_audio_init(hdata);
 
 	/* setting core registers */
-	hdmi_timing_apply(hdata);
+	hdmi_mode_apply(hdata);
 	hdmi_audio_control(hdata, true);
 
 	hdmi_regs_dump(hdata, "start");
@@ -1642,7 +1641,7 @@ static void hdmi_v14_mode_set(struct hdmi_context *hdata,
 	hdmi_set_reg(tg->tg_3d, 1, 0x0);
 }
 
-static void hdmi_mode_set(void *ctx, void *mode)
+static void hdmi_mode_set(void *ctx, struct drm_display_mode *mode)
 {
 	struct hdmi_context *hdata = ctx;
 	struct drm_display_mode *m = mode;
@@ -1767,7 +1766,7 @@ static struct exynos_hdmi_ops hdmi_ops = {
 	/* display */
 	.is_connected	= hdmi_is_connected,
 	.get_edid	= hdmi_get_edid,
-	.check_timing	= hdmi_check_timing,
+	.check_mode	= hdmi_check_mode,
 
 	/* manager */
 	.mode_set	= hdmi_mode_set,

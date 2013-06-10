@@ -58,37 +58,6 @@ convert_to_display_mode(struct drm_display_mode *mode,
 		mode->flags |= DRM_MODE_FLAG_DBLSCAN;
 }
 
-/* convert drm_display_mode to exynos_video_timings */
-static inline void
-convert_to_video_timing(struct fb_videomode *timing,
-			struct drm_display_mode *mode)
-{
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	memset(timing, 0, sizeof(*timing));
-
-	timing->pixclock = mode->clock * 1000;
-	timing->refresh = drm_mode_vrefresh(mode);
-
-	timing->xres = mode->hdisplay;
-	timing->right_margin = mode->hsync_start - mode->hdisplay;
-	timing->hsync_len = mode->hsync_end - mode->hsync_start;
-	timing->left_margin = mode->htotal - mode->hsync_end;
-
-	timing->yres = mode->vdisplay;
-	timing->lower_margin = mode->vsync_start - mode->vdisplay;
-	timing->vsync_len = mode->vsync_end - mode->vsync_start;
-	timing->upper_margin = mode->vtotal - mode->vsync_end;
-
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		timing->vmode = FB_VMODE_INTERLACED;
-	else
-		timing->vmode = FB_VMODE_NONINTERLACED;
-
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		timing->vmode |= FB_VMODE_DOUBLE;
-}
-
 static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 {
 	struct exynos_drm_connector *exynos_connector =
@@ -168,15 +137,12 @@ static int exynos_drm_connector_mode_valid(struct drm_connector *connector,
 					to_exynos_connector(connector);
 	struct exynos_drm_manager *manager = exynos_connector->manager;
 	struct exynos_drm_display_ops *display_ops = manager->display_ops;
-	struct fb_videomode timing;
 	int ret = MODE_BAD;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	convert_to_video_timing(&timing, mode);
-
-	if (display_ops && display_ops->check_timing)
-		if (!display_ops->check_timing(manager->dev, (void *)&timing))
+	if (display_ops && display_ops->check_mode)
+		if (!display_ops->check_mode(manager->dev, mode))
 			ret = MODE_OK;
 
 	return ret;

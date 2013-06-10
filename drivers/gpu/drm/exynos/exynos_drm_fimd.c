@@ -166,7 +166,7 @@ static void *fimd_get_panel(struct device *dev)
 	return ctx->panel;
 }
 
-static int fimd_check_timing(struct device *dev, void *timing)
+static int fimd_check_mode(struct device *dev, struct drm_display_mode *mode)
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -188,7 +188,7 @@ static struct exynos_drm_display_ops fimd_display_ops = {
 	.type = EXYNOS_DISPLAY_TYPE_LCD,
 	.is_connected = fimd_display_is_connected,
 	.get_panel = fimd_get_panel,
-	.check_timing = fimd_check_timing,
+	.check_mode = fimd_check_mode,
 	.power_on = fimd_display_power_on,
 };
 

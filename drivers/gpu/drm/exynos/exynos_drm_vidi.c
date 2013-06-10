@@ -135,7 +135,7 @@ static void *vidi_get_panel(struct device *dev)
 	return NULL;
 }
 
-static int vidi_check_timing(struct device *dev, void *timing)
+static int vidi_check_mode(struct device *dev, struct drm_display_mode *mode)
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -158,7 +158,7 @@ static struct exynos_drm_display_ops vidi_display_ops = {
 	.is_connected = vidi_display_is_connected,
 	.get_edid = vidi_get_edid,
 	.get_panel = vidi_get_panel,
-	.check_timing = vidi_check_timing,
+	.check_mode = vidi_check_mode,
 	.power_on = vidi_display_power_on,
 };
 

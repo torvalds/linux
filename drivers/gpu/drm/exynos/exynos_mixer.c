@@ -820,17 +820,16 @@ static void mixer_win_disable(void *ctx, int win)
 	mixer_ctx->win_data[win].enabled = false;
 }
 
-static int mixer_check_timing(void *ctx, struct fb_videomode *timing)
+static int mixer_check_mode(void *ctx, struct drm_display_mode *mode)
 {
 	u32 w, h;
 
-	w = timing->xres;
-	h = timing->yres;
+	w = mode->hdisplay;
+	h = mode->vdisplay;
 
-	DRM_DEBUG_KMS("%s : xres=%d, yres=%d, refresh=%d, intl=%d\n",
-		__func__, timing->xres, timing->yres,
-		timing->refresh, (timing->vmode &
-		FB_VMODE_INTERLACED) ? true : false);
+	DRM_DEBUG_KMS("xres=%d, yres=%d, refresh=%d, intl=%d\n",
+		mode->hdisplay, mode->vdisplay, mode->vrefresh,
+		(mode->flags & DRM_MODE_FLAG_INTERLACE) ? 1 : 0);
 
 	if ((w >= 464 && w <= 720 && h >= 261 && h <= 576) ||
 		(w >= 1024 && w <= 1280 && h >= 576 && h <= 720) ||
@@ -978,7 +977,7 @@ static struct exynos_mixer_ops mixer_ops = {
 	.win_disable		= mixer_win_disable,
 
 	/* display */
-	.check_timing		= mixer_check_timing,
+	.check_mode		= mixer_check_mode,
 };
 
 static irqreturn_t mixer_irq_handler(int irq, void *arg)

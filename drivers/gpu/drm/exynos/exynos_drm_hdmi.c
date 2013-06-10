@@ -127,7 +127,8 @@ static struct edid *drm_hdmi_get_edid(struct device *dev,
 	return NULL;
 }
 
-static int drm_hdmi_check_timing(struct device *dev, void *timing)
+static int drm_hdmi_check_mode(struct device *dev,
+		struct drm_display_mode *mode)
 {
 	struct drm_hdmi_context *ctx = to_context(dev);
 	int ret = 0;
@@ -139,14 +140,14 @@ static int drm_hdmi_check_timing(struct device *dev, void *timing)
 	* If any of the two fails, return mode as BAD.
 	*/
 
-	if (mixer_ops && mixer_ops->check_timing)
-		ret = mixer_ops->check_timing(ctx->mixer_ctx->ctx, timing);
+	if (mixer_ops && mixer_ops->check_mode)
+		ret = mixer_ops->check_mode(ctx->mixer_ctx->ctx, mode);
 
 	if (ret)
 		return ret;
 
-	if (hdmi_ops && hdmi_ops->check_timing)
-		return hdmi_ops->check_timing(ctx->hdmi_ctx->ctx, timing);
+	if (hdmi_ops && hdmi_ops->check_mode)
+		return hdmi_ops->check_mode(ctx->hdmi_ctx->ctx, mode);
 
 	return 0;
 }
@@ -167,7 +168,7 @@ static struct exynos_drm_display_ops drm_hdmi_display_ops = {
 	.type = EXYNOS_DISPLAY_TYPE_HDMI,
 	.is_connected = drm_hdmi_is_connected,
 	.get_edid = drm_hdmi_get_edid,
-	.check_timing = drm_hdmi_check_timing,
+	.check_mode = drm_hdmi_check_mode,
 	.power_on = drm_hdmi_power_on,
 };
 
@@ -218,7 +219,7 @@ static void drm_hdmi_mode_fixup(struct device *subdrv_dev,
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	mode_ok = drm_hdmi_check_timing(subdrv_dev, adjusted_mode);
+	mode_ok = drm_hdmi_check_mode(subdrv_dev, adjusted_mode);
 
 	/* just return if user desired mode exists. */
 	if (mode_ok == 0)
@@ -229,7 +230,7 @@ static void drm_hdmi_mode_fixup(struct device *subdrv_dev,
 	 * to adjusted_mode.
 	 */
 	list_for_each_entry(m, &connector->modes, head) {
-		mode_ok = drm_hdmi_check_timing(subdrv_dev, m);
+		mode_ok = drm_hdmi_check_mode(subdrv_dev, m);
 
 		if (mode_ok == 0) {
 			struct drm_mode_object base;
