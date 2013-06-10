@@ -52,6 +52,8 @@
 #include <linux/dca.h>
 #endif
 
+#include <net/ll_poll.h>
+
 /* common prefix used by pr_<> macros */
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -356,9 +358,127 @@ struct ixgbe_q_vector {
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[IFNAMSIZ + 9];
 
+#ifdef CONFIG_NET_LL_RX_POLL
+	unsigned int state;
+#define IXGBE_QV_STATE_IDLE        0
+#define IXGBE_QV_STATE_NAPI	   1    /* NAPI owns this QV */
+#define IXGBE_QV_STATE_POLL	   2    /* poll owns this QV */
+#define IXGBE_QV_LOCKED (IXGBE_QV_STATE_NAPI | IXGBE_QV_STATE_POLL)
+#define IXGBE_QV_STATE_NAPI_YIELD  4    /* NAPI yielded this QV */
+#define IXGBE_QV_STATE_POLL_YIELD  8    /* poll yielded this QV */
+#define IXGBE_QV_YIELD (IXGBE_QV_STATE_NAPI_YIELD | IXGBE_QV_STATE_POLL_YIELD)
+#define IXGBE_QV_USER_PEND (IXGBE_QV_STATE_POLL | IXGBE_QV_STATE_POLL_YIELD)
+	spinlock_t lock;
+#endif  /* CONFIG_NET_LL_RX_POLL */
+
 	/* for dynamic allocation of rings associated with this q_vector */
 	struct ixgbe_ring ring[0] ____cacheline_internodealigned_in_smp;
 };
+#ifdef CONFIG_NET_LL_RX_POLL
+static inline void ixgbe_qv_init_lock(struct ixgbe_q_vector *q_vector)
+{
+
+	spin_lock_init(&q_vector->lock);
+	q_vector->state = IXGBE_QV_STATE_IDLE;
+}
+
+/* called from the device poll routine to get ownership of a q_vector */
+static inline bool ixgbe_qv_lock_napi(struct ixgbe_q_vector *q_vector)
+{
+	int rc = true;
+	spin_lock(&q_vector->lock);
+	if (q_vector->state & IXGBE_QV_LOCKED) {
+		WARN_ON(q_vector->state & IXGBE_QV_STATE_NAPI);
+		q_vector->state |= IXGBE_QV_STATE_NAPI_YIELD;
+		rc = false;
+	} else
+		/* we don't care if someone yielded */
+		q_vector->state = IXGBE_QV_STATE_NAPI;
+	spin_unlock(&q_vector->lock);
+	return rc;
+}
+
+/* returns true is someone tried to get the qv while napi had it */
+static inline bool ixgbe_qv_unlock_napi(struct ixgbe_q_vector *q_vector)
+{
+	int rc = false;
+	spin_lock(&q_vector->lock);
+	WARN_ON(q_vector->state & (IXGBE_QV_STATE_POLL |
+			       IXGBE_QV_STATE_NAPI_YIELD));
+
+	if (q_vector->state & IXGBE_QV_STATE_POLL_YIELD)
+		rc = true;
+	q_vector->state = IXGBE_QV_STATE_IDLE;
+	spin_unlock(&q_vector->lock);
+	return rc;
+}
+
+/* called from ixgbe_low_latency_poll() */
+static inline bool ixgbe_qv_lock_poll(struct ixgbe_q_vector *q_vector)
+{
+	int rc = true;
+	spin_lock_bh(&q_vector->lock);
+	if ((q_vector->state & IXGBE_QV_LOCKED)) {
+		q_vector->state |= IXGBE_QV_STATE_POLL_YIELD;
+		rc = false;
+	} else
+		/* preserve yield marks */
+		q_vector->state |= IXGBE_QV_STATE_POLL;
+	spin_unlock_bh(&q_vector->lock);
+	return rc;
+}
+
+/* returns true if someone tried to get the qv while it was locked */
+static inline bool ixgbe_qv_unlock_poll(struct ixgbe_q_vector *q_vector)
+{
+	int rc = false;
+	spin_lock_bh(&q_vector->lock);
+	WARN_ON(q_vector->state & (IXGBE_QV_STATE_NAPI));
+
+	if (q_vector->state & IXGBE_QV_STATE_POLL_YIELD)
+		rc = true;
+	q_vector->state = IXGBE_QV_STATE_IDLE;
+	spin_unlock_bh(&q_vector->lock);
+	return rc;
+}
+
+/* true if a socket is polling, even if it did not get the lock */
+static inline bool ixgbe_qv_ll_polling(struct ixgbe_q_vector *q_vector)
+{
+	WARN_ON(!(q_vector->state & IXGBE_QV_LOCKED));
+	return q_vector->state & IXGBE_QV_USER_PEND;
+}
+#else /* CONFIG_NET_LL_RX_POLL */
+static inline void ixgbe_qv_init_lock(struct ixgbe_q_vector *q_vector)
+{
+}
+
+static inline bool ixgbe_qv_lock_napi(struct ixgbe_q_vector *q_vector)
+{
+	return true;
+}
+
+static inline bool ixgbe_qv_unlock_napi(struct ixgbe_q_vector *q_vector)
+{
+	return false;
+}
+
+static inline bool ixgbe_qv_lock_poll(struct ixgbe_q_vector *q_vector)
+{
+	return false;
+}
+
+static inline bool ixgbe_qv_unlock_poll(struct ixgbe_q_vector *q_vector)
+{
+	return false;
+}
+
+static inline bool ixgbe_qv_ll_polling(struct ixgbe_q_vector *q_vector)
+{
+	return false;
+}
+#endif /* CONFIG_NET_LL_RX_POLL */
+
 #ifdef CONFIG_IXGBE_HWMON
 
 #define IXGBE_HWMON_TYPE_LOC		0
