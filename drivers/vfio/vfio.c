@@ -510,13 +510,11 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
 	struct device *dev = data;
 
 	/*
-	 * Need to go through a group_lock lookup to get a reference or
-	 * we risk racing a group being removed.  Leave a WARN_ON for
-	 * debuging, but if the group no longer exists, a spurious notify
-	 * is harmless.
+	 * Need to go through a group_lock lookup to get a reference or we
+	 * risk racing a group being removed.  Ignore spurious notifies.
 	 */
 	group = vfio_group_try_get(group);
-	if (WARN_ON(!group))
+	if (!group)
 		return NOTIFY_OK;
 
 	switch (action) {
