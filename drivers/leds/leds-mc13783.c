@@ -1,5 +1,5 @@
 /*
- * LEDs driver for Freescale MC13783
+ * LEDs driver for Freescale MC13783/MC13892
  *
  * Copyright (C) 2010 Philippe Rétornaz
  *
@@ -85,6 +85,34 @@ static void mc13xxx_led_work(struct work_struct *work)
 		value = led->new_brightness >> 3;
 		mask = 0x1f;
 		break;
+	case MC13892_LED_MD:
+		reg = MC13XXX_REG_LED_CONTROL(0);
+		shift = 3;
+		mask = 0x3f;
+		value = led->new_brightness >> 2;
+		break;
+	case MC13892_LED_AD:
+		reg = MC13XXX_REG_LED_CONTROL(0);
+		shift = 15;
+		mask = 0x3f;
+		value = led->new_brightness >> 2;
+		break;
+	case MC13892_LED_KP:
+		reg = MC13XXX_REG_LED_CONTROL(1);
+		shift = 3;
+		mask = 0x3f;
+		value = led->new_brightness >> 2;
+		break;
+	case MC13892_LED_R:
+	case MC13892_LED_G:
+	case MC13892_LED_B:
+		off = led->id - MC13892_LED_R;
+		bank = off / 2;
+		reg = MC13XXX_REG_LED_CONTROL(2) + bank;
+		shift = (off - bank * 2) * 12 + 3;
+		value = led->new_brightness >> 2;
+		mask = 0x3f;
+		break;
 	default:
 		BUG();
 	}
@@ -137,6 +165,29 @@ static int __init mc13xxx_led_setup(struct mc13xxx_led *led, int max_current)
 		reg = MC13XXX_REG_LED_CONTROL(3) + bank;
 		shift = ((led->id - MC13783_LED_R1) - bank * 3) * 2;
 		mask = 0x03;
+		break;
+	case MC13892_LED_MD:
+		reg = MC13XXX_REG_LED_CONTROL(0);
+		shift = 9;
+		mask = 0x07;
+		break;
+	case MC13892_LED_AD:
+		reg = MC13XXX_REG_LED_CONTROL(0);
+		shift = 21;
+		mask = 0x07;
+		break;
+	case MC13892_LED_KP:
+		reg = MC13XXX_REG_LED_CONTROL(1);
+		shift = 9;
+		mask = 0x07;
+		break;
+	case MC13892_LED_R:
+	case MC13892_LED_G:
+	case MC13892_LED_B:
+		bank = (led->id - MC13892_LED_R) / 2;
+		reg = MC13XXX_REG_LED_CONTROL(2) + bank;
+		shift = ((led->id - MC13892_LED_R) - bank * 2) * 12 + 9;
+		mask = 0x07;
 		break;
 	default:
 		BUG();
@@ -276,8 +327,15 @@ static const struct mc13xxx_led_devtype mc13783_led_devtype = {
 	.num_regs	= 6,
 };
 
+static const struct mc13xxx_led_devtype mc13892_led_devtype = {
+	.led_min	= MC13892_LED_MD,
+	.led_max	= MC13892_LED_B,
+	.num_regs	= 4,
+};
+
 static const struct platform_device_id mc13xxx_led_id_table[] = {
 	{ "mc13783-led", (kernel_ulong_t)&mc13783_led_devtype, },
+	{ "mc13892-led", (kernel_ulong_t)&mc13892_led_devtype, },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, mc13xxx_led_id_table);
