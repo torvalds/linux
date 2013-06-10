@@ -2708,7 +2708,46 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_KAVERI:
-		/* TODO */
+		rdev->config.cik.max_shader_engines = 1;
+		rdev->config.cik.max_tile_pipes = 4;
+		if ((rdev->pdev->device == 0x1304) ||
+		    (rdev->pdev->device == 0x1305) ||
+		    (rdev->pdev->device == 0x130C) ||
+		    (rdev->pdev->device == 0x130F) ||
+		    (rdev->pdev->device == 0x1310) ||
+		    (rdev->pdev->device == 0x1311) ||
+		    (rdev->pdev->device == 0x131C)) {
+			rdev->config.cik.max_cu_per_sh = 8;
+			rdev->config.cik.max_backends_per_se = 2;
+		} else if ((rdev->pdev->device == 0x1309) ||
+			   (rdev->pdev->device == 0x130A) ||
+			   (rdev->pdev->device == 0x130D) ||
+			   (rdev->pdev->device == 0x1313)) {
+			rdev->config.cik.max_cu_per_sh = 6;
+			rdev->config.cik.max_backends_per_se = 2;
+		} else if ((rdev->pdev->device == 0x1306) ||
+			   (rdev->pdev->device == 0x1307) ||
+			   (rdev->pdev->device == 0x130B) ||
+			   (rdev->pdev->device == 0x130E) ||
+			   (rdev->pdev->device == 0x1315) ||
+			   (rdev->pdev->device == 0x131B)) {
+			rdev->config.cik.max_cu_per_sh = 4;
+			rdev->config.cik.max_backends_per_se = 1;
+		} else {
+			rdev->config.cik.max_cu_per_sh = 3;
+			rdev->config.cik.max_backends_per_se = 1;
+		}
+		rdev->config.cik.max_sh_per_se = 1;
+		rdev->config.cik.max_texture_channel_caches = 4;
+		rdev->config.cik.max_gprs = 256;
+		rdev->config.cik.max_gs_threads = 16;
+		rdev->config.cik.max_hw_contexts = 8;
+
+		rdev->config.cik.sc_prim_fifo_size_frontend = 0x20;
+		rdev->config.cik.sc_prim_fifo_size_backend = 0x100;
+		rdev->config.cik.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.cik.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_KABINI:
 	default:
