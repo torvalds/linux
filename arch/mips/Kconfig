@@ -788,6 +788,8 @@ config NLM_XLR_BOARD
 	select SYS_HAS_EARLY_PRINTK
 	select USB_ARCH_HAS_OHCI if USB_SUPPORT
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+	select SYS_SUPPORTS_ZBOOT
+	select SYS_SUPPORTS_ZBOOT_UART16550
 	help
 	  Support for systems based on Netlogic XLR and XLS processors.
 	  Say Y here if you have a XLR or XLS based board.
@@ -814,6 +816,8 @@ config NLM_XLP_BOARD
 	select SYNC_R4K
 	select SYS_HAS_EARLY_PRINTK
 	select USE_OF
+	select SYS_SUPPORTS_ZBOOT
+	select SYS_SUPPORTS_ZBOOT_UART16550
 	help
 	  This board is based on Netlogic XLP Processor.
 	  Say Y here if you have a XLP based board.
