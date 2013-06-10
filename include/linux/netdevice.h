@@ -324,12 +324,15 @@ struct napi_struct {
 	struct sk_buff		*gro_list;
 	struct sk_buff		*skb;
 	struct list_head	dev_list;
+	struct hlist_node	napi_hash_node;
+	unsigned int		napi_id;
 };
 
 enum {
 	NAPI_STATE_SCHED,	/* Poll is scheduled */
 	NAPI_STATE_DISABLE,	/* Disable pending */
 	NAPI_STATE_NPSVC,	/* Netpoll - don't dequeue from poll_list */
+	NAPI_STATE_HASHED,	/* In NAPI hash */
 };
 
 enum gro_result {
@@ -444,6 +447,32 @@ static inline bool napi_reschedule(struct napi_struct *napi)
  */
 extern void __napi_complete(struct napi_struct *n);
 extern void napi_complete(struct napi_struct *n);
+
+/**
+ *	napi_by_id - lookup a NAPI by napi_id
+ *	@napi_id: hashed napi_id
+ *
+ * lookup @napi_id in napi_hash table
+ * must be called under rcu_read_lock()
+ */
+extern struct napi_struct *napi_by_id(unsigned int napi_id);
+
+/**
+ *	napi_hash_add - add a NAPI to global hashtable
+ *	@napi: napi context
+ *
+ * generate a new napi_id and store a @napi under it in napi_hash
+ */
+extern void napi_hash_add(struct napi_struct *napi);
+
+/**
+ *	napi_hash_del - remove a NAPI from global table
+ *	@napi: napi context
+ *
+ * Warning: caller must observe rcu grace period
+ * before freeing memory containing @napi
+ */
+extern void napi_hash_del(struct napi_struct *napi);
 
 /**
  *	napi_disable - prevent NAPI from scheduling
