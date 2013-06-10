@@ -241,7 +241,7 @@ static inline void nlm_msgwait(unsigned int mask)
 /*
  * Disable interrupts and enable COP2 access
  */
-static inline uint32_t nlm_cop2_enable(void)
+static inline uint32_t nlm_cop2_enable_irqsave(void)
 {
 	uint32_t sr = read_c0_status();
 
@@ -249,7 +249,7 @@ static inline uint32_t nlm_cop2_enable(void)
 	return sr;
 }
 
-static inline void nlm_cop2_restore(uint32_t sr)
+static inline void nlm_cop2_disable_irqrestore(uint32_t sr)
 {
 	write_c0_status(sr);
 }

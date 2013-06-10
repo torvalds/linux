@@ -74,7 +74,7 @@ static irqreturn_t fmn_message_handler(int irq, void *data)
 	struct nlm_fmn_msg msg;
 	uint32_t mflags, bkt_status;
 
-	mflags = nlm_cop2_enable();
+	mflags = nlm_cop2_enable_irqsave();
 	/* Disable message ring interrupt */
 	nlm_fmn_setup_intr(irq, 0);
 	while (1) {
@@ -97,16 +97,16 @@ static irqreturn_t fmn_message_handler(int irq, void *data)
 				pr_warn("No msgring handler for stnid %d\n",
 						src_stnid);
 			else {
-				nlm_cop2_restore(mflags);
+				nlm_cop2_disable_irqrestore(mflags);
 				hndlr->action(bucket, src_stnid, size, code,
 					&msg, hndlr->arg);
-				mflags = nlm_cop2_enable();
+				mflags = nlm_cop2_enable_irqsave();
 			}
 		}
 	};
 	/* Enable message ring intr, to any thread in core */
 	nlm_fmn_setup_intr(irq, (1 << nlm_threads_per_core) - 1);
-	nlm_cop2_restore(mflags);
+	nlm_cop2_disable_irqrestore(mflags);
 	return IRQ_HANDLED;
 }
 
@@ -128,7 +128,7 @@ void xlr_percpu_fmn_init(void)
 
 	bucket_sizes = xlr_board_fmn_config.bucket_size;
 	cpu_fmn_info = &xlr_board_fmn_config.cpu[id];
-	flags = nlm_cop2_enable();
+	flags = nlm_cop2_enable_irqsave();
 
 	/* Setup bucket sizes for the core. */
 	nlm_write_c2_bucksize(0, bucket_sizes[id * 8 + 0]);
@@ -166,7 +166,7 @@ void xlr_percpu_fmn_init(void)
 
 	/* enable FMN interrupts on this CPU */
 	nlm_fmn_setup_intr(IRQ_FMN, (1 << nlm_threads_per_core) - 1);
-	nlm_cop2_restore(flags);
+	nlm_cop2_disable_irqrestore(flags);
 }
 
 
@@ -198,7 +198,7 @@ void nlm_setup_fmn_irq(void)
 	/* setup irq only once */
 	setup_irq(IRQ_FMN, &fmn_irqaction);
 
-	flags = nlm_cop2_enable();
+	flags = nlm_cop2_enable_irqsave();
 	nlm_fmn_setup_intr(IRQ_FMN, (1 << nlm_threads_per_core) - 1);
-	nlm_cop2_restore(flags);
+	nlm_cop2_disable_irqrestore(flags);
 }
