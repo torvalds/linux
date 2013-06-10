@@ -727,6 +727,7 @@
 			battery-name = "battery";
 			sbs,i2c-retry-count = <2>;
 			sbs,poll-retry-count = <100>;
+			power-supplies = <&charger>;
 		};
 	};
 
@@ -763,7 +764,7 @@
 			vsys-l1-supply = <&vdd_ac_bat_reg>;
 			vsys-l2-supply = <&vdd_ac_bat_reg>;
 
-			charger {
+			charger: charger {
 				compatible = "ti,tps65090-charger";
 				ti,enable-low-current-chrg;
 			};
