@@ -576,16 +576,22 @@ static int hdmi_s_stream(struct v4l2_subdev *sd, int enable)
 	return hdmi_streamoff(hdev);
 }
 
-static void hdmi_resource_poweron(struct hdmi_resources *res)
+static int hdmi_resource_poweron(struct hdmi_resources *res)
 {
+	int ret;
+
 	/* turn HDMI power on */
-	regulator_bulk_enable(res->regul_count, res->regul_bulk);
+	ret = regulator_bulk_enable(res->regul_count, res->regul_bulk);
+	if (ret < 0)
+		return ret;
 	/* power-on hdmi physical interface */
 	clk_enable(res->hdmiphy);
 	/* use VPP as parent clock; HDMIPHY is not working yet */
 	clk_set_parent(res->sclk_hdmi, res->sclk_pixel);
 	/* turn clocks on */
 	clk_enable(res->sclk_hdmi);
+
+	return 0;
 }
 
 static void hdmi_resource_poweroff(struct hdmi_resources *res)
@@ -728,11 +734,13 @@ static int hdmi_runtime_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct hdmi_device *hdev = sd_to_hdmi_dev(sd);
-	int ret = 0;
+	int ret;
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	hdmi_resource_poweron(&hdev->res);
+	ret = hdmi_resource_poweron(&hdev->res);
+	if (ret < 0)
+		return ret;
 
 	/* starting MHL */
 	ret = v4l2_subdev_call(hdev->mhl_sd, core, s_power, 1);
