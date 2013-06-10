@@ -165,9 +165,9 @@ static void overlay_set_win(struct mmp_overlay *overlay, struct mmp_win *win)
 
 static void dmafetch_onoff(struct mmp_overlay *overlay, int on)
 {
-	u32 mask = overlay_is_vid(overlay) ? CFG_GRA_ENA_MASK :
-		   CFG_DMA_ENA_MASK;
-	u32 enable = overlay_is_vid(overlay) ? CFG_GRA_ENA(1) : CFG_DMA_ENA(1);
+	u32 mask = overlay_is_vid(overlay) ? CFG_DMA_ENA_MASK :
+		   CFG_GRA_ENA_MASK;
+	u32 enable = overlay_is_vid(overlay) ? CFG_DMA_ENA(1) : CFG_GRA_ENA(1);
 	u32 tmp;
 	struct mmp_path *path = overlay->path;
 
