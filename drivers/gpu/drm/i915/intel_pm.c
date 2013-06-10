@@ -2072,31 +2072,561 @@ static void ivybridge_update_wm(struct drm_device *dev)
 		   cursor_wm);
 }
 
-static void
-haswell_update_linetime_wm(struct drm_device *dev, int pipe,
-				 struct drm_display_mode *mode)
+static uint32_t hsw_wm_get_pixel_rate(struct drm_device *dev,
+				      struct drm_crtc *crtc)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	uint32_t pixel_rate, pfit_size;
+
+	if (intel_crtc->config.pixel_target_clock)
+		pixel_rate = intel_crtc->config.pixel_target_clock;
+	else
+		pixel_rate = intel_crtc->config.adjusted_mode.clock;
+
+	/* We only use IF-ID interlacing. If we ever use PF-ID we'll need to
+	 * adjust the pixel_rate here. */
+
+	pfit_size = intel_crtc->config.pch_pfit.size;
+	if (pfit_size) {
+		uint64_t pipe_w, pipe_h, pfit_w, pfit_h;
+
+		pipe_w = intel_crtc->config.requested_mode.hdisplay;
+		pipe_h = intel_crtc->config.requested_mode.vdisplay;
+		pfit_w = (pfit_size >> 16) & 0xFFFF;
+		pfit_h = pfit_size & 0xFFFF;
+		if (pipe_w < pfit_w)
+			pipe_w = pfit_w;
+		if (pipe_h < pfit_h)
+			pipe_h = pfit_h;
+
+		pixel_rate = div_u64((uint64_t) pixel_rate * pipe_w * pipe_h,
+				     pfit_w * pfit_h);
+	}
+
+	return pixel_rate;
+}
+
+static uint32_t hsw_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
+			       uint32_t latency)
+{
+	uint64_t ret;
+
+	ret = (uint64_t) pixel_rate * bytes_per_pixel * latency;
+	ret = DIV_ROUND_UP_ULL(ret, 64 * 10000) + 2;
+
+	return ret;
+}
+
+static uint32_t hsw_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
+			       uint32_t horiz_pixels, uint8_t bytes_per_pixel,
+			       uint32_t latency)
+{
+	uint32_t ret;
+
+	ret = (latency * pixel_rate) / (pipe_htotal * 10000);
+	ret = (ret + 1) * horiz_pixels * bytes_per_pixel;
+	ret = DIV_ROUND_UP(ret, 64) + 2;
+	return ret;
+}
+
+static uint32_t hsw_wm_fbc(uint32_t pri_val, uint32_t horiz_pixels,
+			   uint8_t bytes_per_pixel)
+{
+	return DIV_ROUND_UP(pri_val * 64, horiz_pixels * bytes_per_pixel) + 2;
+}
+
+struct hsw_pipe_wm_parameters {
+	bool active;
+	bool sprite_enabled;
+	uint8_t pri_bytes_per_pixel;
+	uint8_t spr_bytes_per_pixel;
+	uint8_t cur_bytes_per_pixel;
+	uint32_t pri_horiz_pixels;
+	uint32_t spr_horiz_pixels;
+	uint32_t cur_horiz_pixels;
+	uint32_t pipe_htotal;
+	uint32_t pixel_rate;
+};
+
+struct hsw_wm_maximums {
+	uint16_t pri;
+	uint16_t spr;
+	uint16_t cur;
+	uint16_t fbc;
+};
+
+struct hsw_lp_wm_result {
+	bool enable;
+	bool fbc_enable;
+	uint32_t pri_val;
+	uint32_t spr_val;
+	uint32_t cur_val;
+	uint32_t fbc_val;
+};
+
+struct hsw_wm_values {
+	uint32_t wm_pipe[3];
+	uint32_t wm_lp[3];
+	uint32_t wm_lp_spr[3];
+	uint32_t wm_linetime[3];
+	bool enable_fbc_wm;
+};
+
+enum hsw_data_buf_partitioning {
+	HSW_DATA_BUF_PART_1_2,
+	HSW_DATA_BUF_PART_5_6,
+};
+
+/* For both WM_PIPE and WM_LP. */
+static uint32_t hsw_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
+				   uint32_t mem_value,
+				   bool is_lp)
+{
+	uint32_t method1, method2;
+
+	/* TODO: for now, assume the primary plane is always enabled. */
+	if (!params->active)
+		return 0;
+
+	method1 = hsw_wm_method1(params->pixel_rate,
+				 params->pri_bytes_per_pixel,
+				 mem_value);
+
+	if (!is_lp)
+		return method1;
+
+	method2 = hsw_wm_method2(params->pixel_rate,
+				 params->pipe_htotal,
+				 params->pri_horiz_pixels,
+				 params->pri_bytes_per_pixel,
+				 mem_value);
+
+	return min(method1, method2);
+}
+
+/* For both WM_PIPE and WM_LP. */
+static uint32_t hsw_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
+				   uint32_t mem_value)
+{
+	uint32_t method1, method2;
+
+	if (!params->active || !params->sprite_enabled)
+		return 0;
+
+	method1 = hsw_wm_method1(params->pixel_rate,
+				 params->spr_bytes_per_pixel,
+				 mem_value);
+	method2 = hsw_wm_method2(params->pixel_rate,
+				 params->pipe_htotal,
+				 params->spr_horiz_pixels,
+				 params->spr_bytes_per_pixel,
+				 mem_value);
+	return min(method1, method2);
+}
+
+/* For both WM_PIPE and WM_LP. */
+static uint32_t hsw_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
+				   uint32_t mem_value)
+{
+	if (!params->active)
+		return 0;
+
+	return hsw_wm_method2(params->pixel_rate,
+			      params->pipe_htotal,
+			      params->cur_horiz_pixels,
+			      params->cur_bytes_per_pixel,
+			      mem_value);
+}
+
+/* Only for WM_LP. */
+static uint32_t hsw_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
+				   uint32_t pri_val,
+				   uint32_t mem_value)
+{
+	if (!params->active)
+		return 0;
+
+	return hsw_wm_fbc(pri_val,
+			  params->pri_horiz_pixels,
+			  params->pri_bytes_per_pixel);
+}
+
+static bool hsw_compute_lp_wm(uint32_t mem_value, struct hsw_wm_maximums *max,
+			      struct hsw_pipe_wm_parameters *params,
+			      struct hsw_lp_wm_result *result)
+{
+	enum pipe pipe;
+	uint32_t pri_val[3], spr_val[3], cur_val[3], fbc_val[3];
+
+	for (pipe = PIPE_A; pipe <= PIPE_C; pipe++) {
+		struct hsw_pipe_wm_parameters *p = &params[pipe];
+
+		pri_val[pipe] = hsw_compute_pri_wm(p, mem_value, true);
+		spr_val[pipe] = hsw_compute_spr_wm(p, mem_value);
+		cur_val[pipe] = hsw_compute_cur_wm(p, mem_value);
+		fbc_val[pipe] = hsw_compute_fbc_wm(p, pri_val[pipe], mem_value);
+	}
+
+	result->pri_val = max3(pri_val[0], pri_val[1], pri_val[2]);
+	result->spr_val = max3(spr_val[0], spr_val[1], spr_val[2]);
+	result->cur_val = max3(cur_val[0], cur_val[1], cur_val[2]);
+	result->fbc_val = max3(fbc_val[0], fbc_val[1], fbc_val[2]);
+
+	if (result->fbc_val > max->fbc) {
+		result->fbc_enable = false;
+		result->fbc_val = 0;
+	} else {
+		result->fbc_enable = true;
+	}
+
+	result->enable = result->pri_val <= max->pri &&
+			 result->spr_val <= max->spr &&
+			 result->cur_val <= max->cur;
+	return result->enable;
+}
+
+static uint32_t hsw_compute_wm_pipe(struct drm_i915_private *dev_priv,
+				    uint32_t mem_value, enum pipe pipe,
+				    struct hsw_pipe_wm_parameters *params)
+{
+	uint32_t pri_val, cur_val, spr_val;
+
+	pri_val = hsw_compute_pri_wm(params, mem_value, false);
+	spr_val = hsw_compute_spr_wm(params, mem_value);
+	cur_val = hsw_compute_cur_wm(params, mem_value);
+
+	WARN(pri_val > 127,
+	     "Primary WM error, mode not supported for pipe %c\n",
+	     pipe_name(pipe));
+	WARN(spr_val > 127,
+	     "Sprite WM error, mode not supported for pipe %c\n",
+	     pipe_name(pipe));
+	WARN(cur_val > 63,
+	     "Cursor WM error, mode not supported for pipe %c\n",
+	     pipe_name(pipe));
+
+	return (pri_val << WM0_PIPE_PLANE_SHIFT) |
+	       (spr_val << WM0_PIPE_SPRITE_SHIFT) |
+	       cur_val;
+}
+
+static uint32_t
+hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 temp;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_display_mode *mode = &intel_crtc->config.adjusted_mode;
+	u32 linetime, ips_linetime;
 
-	temp = I915_READ(PIPE_WM_LINETIME(pipe));
-	temp &= ~PIPE_WM_LINETIME_MASK;
+	if (!intel_crtc_active(crtc))
+		return 0;
 
 	/* The WM are computed with base on how long it takes to fill a single
 	 * row at the given clock rate, multiplied by 8.
 	 * */
-	temp |= PIPE_WM_LINETIME_TIME(
-		((mode->crtc_hdisplay * 1000) / mode->clock) * 8);
+	linetime = DIV_ROUND_CLOSEST(mode->htotal * 1000 * 8, mode->clock);
+	ips_linetime = DIV_ROUND_CLOSEST(mode->htotal * 1000 * 8,
+					 intel_ddi_get_cdclk_freq(dev_priv));
 
-	/* IPS watermarks are only used by pipe A, and are ignored by
-	 * pipes B and C.  They are calculated similarly to the common
-	 * linetime values, except that we are using CD clock frequency
-	 * in MHz instead of pixel rate for the division.
-	 *
-	 * This is a placeholder for the IPS watermark calculation code.
-	 */
+	return PIPE_WM_LINETIME_IPS_LINETIME(ips_linetime) |
+	       PIPE_WM_LINETIME_TIME(linetime);
+}
 
-	I915_WRITE(PIPE_WM_LINETIME(pipe), temp);
+static void hsw_compute_wm_parameters(struct drm_device *dev,
+				      struct hsw_pipe_wm_parameters *params,
+				      uint32_t *wm,
+				      struct hsw_wm_maximums *lp_max_1_2,
+				      struct hsw_wm_maximums *lp_max_5_6)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc;
+	struct drm_plane *plane;
+	uint64_t sskpd = I915_READ64(MCH_SSKPD);
+	enum pipe pipe;
+	int pipes_active = 0, sprites_enabled = 0;
+
+	if ((sskpd >> 56) & 0xFF)
+		wm[0] = (sskpd >> 56) & 0xFF;
+	else
+		wm[0] = sskpd & 0xF;
+	wm[1] = ((sskpd >> 4) & 0xFF) * 5;
+	wm[2] = ((sskpd >> 12) & 0xFF) * 5;
+	wm[3] = ((sskpd >> 20) & 0x1FF) * 5;
+	wm[4] = ((sskpd >> 32) & 0x1FF) * 5;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		struct hsw_pipe_wm_parameters *p;
+
+		pipe = intel_crtc->pipe;
+		p = &params[pipe];
+
+		p->active = intel_crtc_active(crtc);
+		if (!p->active)
+			continue;
+
+		pipes_active++;
+
+		p->pipe_htotal = intel_crtc->config.adjusted_mode.htotal;
+		p->pixel_rate = hsw_wm_get_pixel_rate(dev, crtc);
+		p->pri_bytes_per_pixel = crtc->fb->bits_per_pixel / 8;
+		p->cur_bytes_per_pixel = 4;
+		p->pri_horiz_pixels =
+			intel_crtc->config.requested_mode.hdisplay;
+		p->cur_horiz_pixels = 64;
+	}
+
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		struct intel_plane *intel_plane = to_intel_plane(plane);
+		struct hsw_pipe_wm_parameters *p;
+
+		pipe = intel_plane->pipe;
+		p = &params[pipe];
+
+		p->sprite_enabled = intel_plane->wm.enable;
+		p->spr_bytes_per_pixel = intel_plane->wm.bytes_per_pixel;
+		p->spr_horiz_pixels = intel_plane->wm.horiz_pixels;
+
+		if (p->sprite_enabled)
+			sprites_enabled++;
+	}
+
+	if (pipes_active > 1) {
+		lp_max_1_2->pri = lp_max_5_6->pri = sprites_enabled ? 128 : 256;
+		lp_max_1_2->spr = lp_max_5_6->spr = 128;
+		lp_max_1_2->cur = lp_max_5_6->cur = 64;
+	} else {
+		lp_max_1_2->pri = sprites_enabled ? 384 : 768;
+		lp_max_5_6->pri = sprites_enabled ? 128 : 768;
+		lp_max_1_2->spr = 384;
+		lp_max_5_6->spr = 640;
+		lp_max_1_2->cur = lp_max_5_6->cur = 255;
+	}
+	lp_max_1_2->fbc = lp_max_5_6->fbc = 15;
+}
+
+static void hsw_compute_wm_results(struct drm_device *dev,
+				   struct hsw_pipe_wm_parameters *params,
+				   uint32_t *wm,
+				   struct hsw_wm_maximums *lp_maximums,
+				   struct hsw_wm_values *results)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc;
+	struct hsw_lp_wm_result lp_results[4] = {};
+	enum pipe pipe;
+	int level, max_level, wm_lp;
+
+	for (level = 1; level <= 4; level++)
+		if (!hsw_compute_lp_wm(wm[level], lp_maximums, params,
+				       &lp_results[level - 1]))
+			break;
+	max_level = level - 1;
+
+	/* The spec says it is preferred to disable FBC WMs instead of disabling
+	 * a WM level. */
+	results->enable_fbc_wm = true;
+	for (level = 1; level <= max_level; level++) {
+		if (!lp_results[level - 1].fbc_enable) {
+			results->enable_fbc_wm = false;
+			break;
+		}
+	}
+
+	memset(results, 0, sizeof(*results));
+	for (wm_lp = 1; wm_lp <= 3; wm_lp++) {
+		const struct hsw_lp_wm_result *r;
+
+		level = (max_level == 4 && wm_lp > 1) ? wm_lp + 1 : wm_lp;
+		if (level > max_level)
+			break;
+
+		r = &lp_results[level - 1];
+		results->wm_lp[wm_lp - 1] = HSW_WM_LP_VAL(level * 2,
+							  r->fbc_val,
+							  r->pri_val,
+							  r->cur_val);
+		results->wm_lp_spr[wm_lp - 1] = r->spr_val;
+	}
+
+	for_each_pipe(pipe)
+		results->wm_pipe[pipe] = hsw_compute_wm_pipe(dev_priv, wm[0],
+							     pipe,
+							     &params[pipe]);
+
+	for_each_pipe(pipe) {
+		crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+		results->wm_linetime[pipe] = hsw_compute_linetime_wm(dev, crtc);
+	}
+}
+
+/* Find the result with the highest level enabled. Check for enable_fbc_wm in
+ * case both are at the same level. Prefer r1 in case they're the same. */
+struct hsw_wm_values *hsw_find_best_result(struct hsw_wm_values *r1,
+					   struct hsw_wm_values *r2)
+{
+	int i, val_r1 = 0, val_r2 = 0;
+
+	for (i = 0; i < 3; i++) {
+		if (r1->wm_lp[i] & WM3_LP_EN)
+			val_r1 = r1->wm_lp[i] & WM1_LP_LATENCY_MASK;
+		if (r2->wm_lp[i] & WM3_LP_EN)
+			val_r2 = r2->wm_lp[i] & WM1_LP_LATENCY_MASK;
+	}
+
+	if (val_r1 == val_r2) {
+		if (r2->enable_fbc_wm && !r1->enable_fbc_wm)
+			return r2;
+		else
+			return r1;
+	} else if (val_r1 > val_r2) {
+		return r1;
+	} else {
+		return r2;
+	}
+}
+
+/*
+ * The spec says we shouldn't write when we don't need, because every write
+ * causes WMs to be re-evaluated, expending some power.
+ */
+static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
+				struct hsw_wm_values *results,
+				enum hsw_data_buf_partitioning partitioning)
+{
+	struct hsw_wm_values previous;
+	uint32_t val;
+	enum hsw_data_buf_partitioning prev_partitioning;
+	bool prev_enable_fbc_wm;
+
+	previous.wm_pipe[0] = I915_READ(WM0_PIPEA_ILK);
+	previous.wm_pipe[1] = I915_READ(WM0_PIPEB_ILK);
+	previous.wm_pipe[2] = I915_READ(WM0_PIPEC_IVB);
+	previous.wm_lp[0] = I915_READ(WM1_LP_ILK);
+	previous.wm_lp[1] = I915_READ(WM2_LP_ILK);
+	previous.wm_lp[2] = I915_READ(WM3_LP_ILK);
+	previous.wm_lp_spr[0] = I915_READ(WM1S_LP_ILK);
+	previous.wm_lp_spr[1] = I915_READ(WM2S_LP_IVB);
+	previous.wm_lp_spr[2] = I915_READ(WM3S_LP_IVB);
+	previous.wm_linetime[0] = I915_READ(PIPE_WM_LINETIME(PIPE_A));
+	previous.wm_linetime[1] = I915_READ(PIPE_WM_LINETIME(PIPE_B));
+	previous.wm_linetime[2] = I915_READ(PIPE_WM_LINETIME(PIPE_C));
+
+	prev_partitioning = (I915_READ(WM_MISC) & WM_MISC_DATA_PARTITION_5_6) ?
+			    HSW_DATA_BUF_PART_5_6 : HSW_DATA_BUF_PART_1_2;
+
+	prev_enable_fbc_wm = !(I915_READ(DISP_ARB_CTL) & DISP_FBC_WM_DIS);
+
+	if (memcmp(results->wm_pipe, previous.wm_pipe,
+		   sizeof(results->wm_pipe)) == 0 &&
+	    memcmp(results->wm_lp, previous.wm_lp,
+		   sizeof(results->wm_lp)) == 0 &&
+	    memcmp(results->wm_lp_spr, previous.wm_lp_spr,
+		   sizeof(results->wm_lp_spr)) == 0 &&
+	    memcmp(results->wm_linetime, previous.wm_linetime,
+		   sizeof(results->wm_linetime)) == 0 &&
+	    partitioning == prev_partitioning &&
+	    results->enable_fbc_wm == prev_enable_fbc_wm)
+		return;
+
+	if (previous.wm_lp[2] != 0)
+		I915_WRITE(WM3_LP_ILK, 0);
+	if (previous.wm_lp[1] != 0)
+		I915_WRITE(WM2_LP_ILK, 0);
+	if (previous.wm_lp[0] != 0)
+		I915_WRITE(WM1_LP_ILK, 0);
+
+	if (previous.wm_pipe[0] != results->wm_pipe[0])
+		I915_WRITE(WM0_PIPEA_ILK, results->wm_pipe[0]);
+	if (previous.wm_pipe[1] != results->wm_pipe[1])
+		I915_WRITE(WM0_PIPEB_ILK, results->wm_pipe[1]);
+	if (previous.wm_pipe[2] != results->wm_pipe[2])
+		I915_WRITE(WM0_PIPEC_IVB, results->wm_pipe[2]);
+
+	if (previous.wm_linetime[0] != results->wm_linetime[0])
+		I915_WRITE(PIPE_WM_LINETIME(PIPE_A), results->wm_linetime[0]);
+	if (previous.wm_linetime[1] != results->wm_linetime[1])
+		I915_WRITE(PIPE_WM_LINETIME(PIPE_B), results->wm_linetime[1]);
+	if (previous.wm_linetime[2] != results->wm_linetime[2])
+		I915_WRITE(PIPE_WM_LINETIME(PIPE_C), results->wm_linetime[2]);
+
+	if (prev_partitioning != partitioning) {
+		val = I915_READ(WM_MISC);
+		if (partitioning == HSW_DATA_BUF_PART_1_2)
+			val &= ~WM_MISC_DATA_PARTITION_5_6;
+		else
+			val |= WM_MISC_DATA_PARTITION_5_6;
+		I915_WRITE(WM_MISC, val);
+	}
+
+	if (prev_enable_fbc_wm != results->enable_fbc_wm) {
+		val = I915_READ(DISP_ARB_CTL);
+		if (results->enable_fbc_wm)
+			val &= ~DISP_FBC_WM_DIS;
+		else
+			val |= DISP_FBC_WM_DIS;
+		I915_WRITE(DISP_ARB_CTL, val);
+	}
+
+	if (previous.wm_lp_spr[0] != results->wm_lp_spr[0])
+		I915_WRITE(WM1S_LP_ILK, results->wm_lp_spr[0]);
+	if (previous.wm_lp_spr[1] != results->wm_lp_spr[1])
+		I915_WRITE(WM2S_LP_IVB, results->wm_lp_spr[1]);
+	if (previous.wm_lp_spr[2] != results->wm_lp_spr[2])
+		I915_WRITE(WM3S_LP_IVB, results->wm_lp_spr[2]);
+
+	if (results->wm_lp[0] != 0)
+		I915_WRITE(WM1_LP_ILK, results->wm_lp[0]);
+	if (results->wm_lp[1] != 0)
+		I915_WRITE(WM2_LP_ILK, results->wm_lp[1]);
+	if (results->wm_lp[2] != 0)
+		I915_WRITE(WM3_LP_ILK, results->wm_lp[2]);
+}
+
+static void haswell_update_wm(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct hsw_wm_maximums lp_max_1_2, lp_max_5_6;
+	struct hsw_pipe_wm_parameters params[3];
+	struct hsw_wm_values results_1_2, results_5_6, *best_results;
+	uint32_t wm[5];
+	enum hsw_data_buf_partitioning partitioning;
+
+	hsw_compute_wm_parameters(dev, params, wm, &lp_max_1_2, &lp_max_5_6);
+
+	hsw_compute_wm_results(dev, params, wm, &lp_max_1_2, &results_1_2);
+	if (lp_max_1_2.pri != lp_max_5_6.pri) {
+		hsw_compute_wm_results(dev, params, wm, &lp_max_5_6,
+				       &results_5_6);
+		best_results = hsw_find_best_result(&results_1_2, &results_5_6);
+	} else {
+		best_results = &results_1_2;
+	}
+
+	partitioning = (best_results == &results_1_2) ?
+		       HSW_DATA_BUF_PART_1_2 : HSW_DATA_BUF_PART_5_6;
+
+	hsw_write_wm_values(dev_priv, best_results, partitioning);
+}
+
+static void haswell_update_sprite_wm(struct drm_device *dev, int pipe,
+				     uint32_t sprite_width, int pixel_size,
+				     bool enable)
+{
+	struct drm_plane *plane;
+
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		struct intel_plane *intel_plane = to_intel_plane(plane);
+
+		if (intel_plane->pipe == pipe) {
+			intel_plane->wm.enable = enable;
+			intel_plane->wm.horiz_pixels = sprite_width + 1;
+			intel_plane->wm.bytes_per_pixel = pixel_size;
+			break;
+		}
+	}
+
+	haswell_update_wm(dev);
 }
 
 static bool
@@ -2176,13 +2706,17 @@ sandybridge_compute_sprite_srwm(struct drm_device *dev, int plane,
 }
 
 static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
-					 uint32_t sprite_width, int pixel_size)
+					 uint32_t sprite_width, int pixel_size,
+					 bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
 	u32 val;
 	int sprite_wm, reg;
 	int ret;
+
+	if (!enable)
+		return;
 
 	switch (pipe) {
 	case 0:
@@ -2294,23 +2828,15 @@ void intel_update_watermarks(struct drm_device *dev)
 		dev_priv->display.update_wm(dev);
 }
 
-void intel_update_linetime_watermarks(struct drm_device *dev,
-		int pipe, struct drm_display_mode *mode)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->display.update_linetime_wm)
-		dev_priv->display.update_linetime_wm(dev, pipe, mode);
-}
-
 void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
-				    uint32_t sprite_width, int pixel_size)
+				    uint32_t sprite_width, int pixel_size,
+				    bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (dev_priv->display.update_sprite_wm)
 		dev_priv->display.update_sprite_wm(dev, pipe, sprite_width,
-						   pixel_size);
+						   pixel_size, enable);
 }
 
 static struct drm_i915_gem_object *
@@ -2556,10 +3082,10 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 	if (val == dev_priv->rps.cur_delay)
 		return;
 
-	valleyview_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
+	vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
 
 	do {
-		valleyview_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS, &pval);
+		pval = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		if (time_after(jiffies, timeout)) {
 			DRM_DEBUG_DRIVER("timed out waiting for Punit\n");
 			break;
@@ -2567,7 +3093,7 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 		udelay(10);
 	} while (pval & 1);
 
-	valleyview_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS, &pval);
+	pval = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 	if ((pval >> 8) != val)
 		DRM_DEBUG_DRIVER("punit overrode freq: %d requested, but got %d\n",
 			  val, pval >> 8);
@@ -2590,7 +3116,7 @@ static void gen6_disable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 	I915_WRITE(GEN6_RPNSWREQ, 1 << 31);
 	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
-	I915_WRITE(GEN6_PMIER, 0);
+	I915_WRITE(GEN6_PMIER, I915_READ(GEN6_PMIER) & ~GEN6_PM_RPS_EVENTS);
 	/* Complete PM interrupt masking here doesn't race with the rps work
 	 * item again unmasking PM interrupts because that is using a different
 	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
@@ -2600,7 +3126,7 @@ static void gen6_disable_rps(struct drm_device *dev)
 	dev_priv->rps.pm_iir = 0;
 	spin_unlock_irq(&dev_priv->rps.lock);
 
-	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
+	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
 }
 
 static void valleyview_disable_rps(struct drm_device *dev)
@@ -2781,12 +3307,15 @@ static void gen6_enable_rps(struct drm_device *dev)
 	gen6_set_rps(dev_priv->dev, (gt_perf_status & 0xff00) >> 8);
 
 	/* requires MSI enabled */
-	I915_WRITE(GEN6_PMIER, GEN6_PM_DEFERRED_EVENTS);
+	I915_WRITE(GEN6_PMIER, I915_READ(GEN6_PMIER) | GEN6_PM_RPS_EVENTS);
 	spin_lock_irq(&dev_priv->rps.lock);
-	WARN_ON(dev_priv->rps.pm_iir != 0);
-	I915_WRITE(GEN6_PMIMR, 0);
+	/* FIXME: Our interrupt enabling sequence is bonghits.
+	 * dev_priv->rps.pm_iir really should be 0 here. */
+	dev_priv->rps.pm_iir = 0;
+	I915_WRITE(GEN6_PMIMR, I915_READ(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
+	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
 	spin_unlock_irq(&dev_priv->rps.lock);
-	/* enable all PM interrupts */
+	/* unmask all PM interrupts */
 	I915_WRITE(GEN6_PMINTRMSK, 0);
 
 	rc6vids = 0;
@@ -2872,7 +3401,7 @@ int valleyview_rps_max_freq(struct drm_i915_private *dev_priv)
 {
 	u32 val, rp0;
 
-	valleyview_nc_read(dev_priv, IOSF_NC_FB_GFX_FREQ_FUSE, &val);
+	val = vlv_nc_read(dev_priv, IOSF_NC_FB_GFX_FREQ_FUSE);
 
 	rp0 = (val & FB_GFX_MAX_FREQ_FUSE_MASK) >> FB_GFX_MAX_FREQ_FUSE_SHIFT;
 	/* Clamp to max */
@@ -2885,9 +3414,9 @@ static int valleyview_rps_rpe_freq(struct drm_i915_private *dev_priv)
 {
 	u32 val, rpe;
 
-	valleyview_nc_read(dev_priv, IOSF_NC_FB_GFX_FMAX_FUSE_LO, &val);
+	val = vlv_nc_read(dev_priv, IOSF_NC_FB_GFX_FMAX_FUSE_LO);
 	rpe = (val & FB_FMAX_VMIN_FREQ_LO_MASK) >> FB_FMAX_VMIN_FREQ_LO_SHIFT;
-	valleyview_nc_read(dev_priv, IOSF_NC_FB_GFX_FMAX_FUSE_HI, &val);
+	val = vlv_nc_read(dev_priv, IOSF_NC_FB_GFX_FMAX_FUSE_HI);
 	rpe |= (val & FB_FMAX_VMIN_FREQ_HI_MASK) << 5;
 
 	return rpe;
@@ -2895,11 +3424,7 @@ static int valleyview_rps_rpe_freq(struct drm_i915_private *dev_priv)
 
 int valleyview_rps_min_freq(struct drm_i915_private *dev_priv)
 {
-	u32 val;
-
-	valleyview_punit_read(dev_priv, PUNIT_REG_GPU_LFM, &val);
-
-	return val & 0xff;
+	return vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM) & 0xff;
 }
 
 static void vlv_rps_timer_work(struct work_struct *work)
@@ -3008,7 +3533,7 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_CONTROL,
 		   GEN7_RC_CTL_TO_MODE);
 
-	valleyview_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS, &val);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 	switch ((val >> 6) & 3) {
 	case 0:
 	case 1:
@@ -3053,7 +3578,7 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	valleyview_set_rps(dev_priv->dev, rpe);
 
 	/* requires MSI enabled */
-	I915_WRITE(GEN6_PMIER, GEN6_PM_DEFERRED_EVENTS);
+	I915_WRITE(GEN6_PMIER, GEN6_PM_RPS_EVENTS);
 	spin_lock_irq(&dev_priv->rps.lock);
 	WARN_ON(dev_priv->rps.pm_iir != 0);
 	I915_WRITE(GEN6_PMIMR, 0);
@@ -4162,14 +4687,9 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	/* WaSwitchSolVfFArbitrationPriority:hsw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 
-	/* XXX: This is a workaround for early silicon revisions and should be
-	 * removed later.
-	 */
-	I915_WRITE(WM_DBG,
-			I915_READ(WM_DBG) |
-			WM_DBG_DISALLOW_MULTIPLE_LP |
-			WM_DBG_DISALLOW_SPRITE |
-			WM_DBG_DISALLOW_MAXFIFO);
+	/* WaRsPkgCStateDisplayPMReq:hsw */
+	I915_WRITE(CHICKEN_PAR1_1,
+		   I915_READ(CHICKEN_PAR1_1) | FORCE_ARB_IDLE_PLANES);
 
 	lpt_init_clock_gating(dev);
 }
@@ -4623,10 +5143,10 @@ void intel_init_pm(struct drm_device *dev)
 			}
 			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
 		} else if (IS_HASWELL(dev)) {
-			if (SNB_READ_WM0_LATENCY()) {
-				dev_priv->display.update_wm = sandybridge_update_wm;
-				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
-				dev_priv->display.update_linetime_wm = haswell_update_linetime_wm;
+			if (I915_READ64(MCH_SSKPD)) {
+				dev_priv->display.update_wm = haswell_update_wm;
+				dev_priv->display.update_sprite_wm =
+					haswell_update_sprite_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to read display plane latency. "
 					      "Disable CxSR\n");
@@ -4950,66 +5470,6 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
 	I915_WRITE(GEN6_PCODE_DATA, 0);
 
 	return 0;
-}
-
-static int vlv_punit_rw(struct drm_i915_private *dev_priv, u32 port, u8 opcode,
-			u8 addr, u32 *val)
-{
-	u32 cmd, devfn, be, bar;
-
-	bar = 0;
-	be = 0xf;
-	devfn = PCI_DEVFN(2, 0);
-
-	cmd = (devfn << IOSF_DEVFN_SHIFT) | (opcode << IOSF_OPCODE_SHIFT) |
-		(port << IOSF_PORT_SHIFT) | (be << IOSF_BYTE_ENABLES_SHIFT) |
-		(bar << IOSF_BAR_SHIFT);
-
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
-
-	if (I915_READ(VLV_IOSF_DOORBELL_REQ) & IOSF_SB_BUSY) {
-		DRM_DEBUG_DRIVER("warning: pcode (%s) mailbox access failed\n",
-				 opcode == PUNIT_OPCODE_REG_READ ?
-				 "read" : "write");
-		return -EAGAIN;
-	}
-
-	I915_WRITE(VLV_IOSF_ADDR, addr);
-	if (opcode == PUNIT_OPCODE_REG_WRITE)
-		I915_WRITE(VLV_IOSF_DATA, *val);
-	I915_WRITE(VLV_IOSF_DOORBELL_REQ, cmd);
-
-	if (wait_for((I915_READ(VLV_IOSF_DOORBELL_REQ) & IOSF_SB_BUSY) == 0,
-		     5)) {
-		DRM_ERROR("timeout waiting for pcode %s (%d) to finish\n",
-			  opcode == PUNIT_OPCODE_REG_READ ? "read" : "write",
-			  addr);
-		return -ETIMEDOUT;
-	}
-
-	if (opcode == PUNIT_OPCODE_REG_READ)
-		*val = I915_READ(VLV_IOSF_DATA);
-	I915_WRITE(VLV_IOSF_DATA, 0);
-
-	return 0;
-}
-
-int valleyview_punit_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
-{
-	return vlv_punit_rw(dev_priv, IOSF_PORT_PUNIT, PUNIT_OPCODE_REG_READ,
-			    addr, val);
-}
-
-int valleyview_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val)
-{
-	return vlv_punit_rw(dev_priv, IOSF_PORT_PUNIT, PUNIT_OPCODE_REG_WRITE,
-			    addr, &val);
-}
-
-int valleyview_nc_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
-{
-	return vlv_punit_rw(dev_priv, IOSF_PORT_NC, PUNIT_OPCODE_REG_READ,
-			    addr, val);
 }
 
 int vlv_gpu_freq(int ddr_freq, int val)

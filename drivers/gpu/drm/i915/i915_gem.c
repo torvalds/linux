@@ -2693,18 +2693,33 @@ static inline int fence_number(struct drm_i915_private *dev_priv,
 	return fence - dev_priv->fence_regs;
 }
 
+struct write_fence {
+	struct drm_device *dev;
+	struct drm_i915_gem_object *obj;
+	int fence;
+};
+
 static void i915_gem_write_fence__ipi(void *data)
 {
+	struct write_fence *args = data;
+
+	/* Required for SNB+ with LLC */
 	wbinvd();
+
+	/* Required for VLV */
+	i915_gem_write_fence(args->dev, args->fence, args->obj);
 }
 
 static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
 					 struct drm_i915_fence_reg *fence,
 					 bool enable)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int fence_reg = fence_number(dev_priv, fence);
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct write_fence args = {
+		.dev = obj->base.dev,
+		.fence = fence_number(dev_priv, fence),
+		.obj = enable ? obj : NULL,
+	};
 
 	/* In order to fully serialize access to the fenced region and
 	 * the update to the fence register we need to take extreme
@@ -2715,13 +2730,19 @@ static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
 	 * SNB+ we need to take a step further and emit an explicit wbinvd()
 	 * on each processor in order to manually flush all memory
 	 * transactions before updating the fence register.
+	 *
+	 * However, Valleyview complicates matter. There the wbinvd is
+	 * insufficient and unlike SNB/IVB requires the serialising
+	 * register write. (Note that that register write by itself is
+	 * conversely not sufficient for SNB+.) To compromise, we do both.
 	 */
-	if (HAS_LLC(obj->base.dev))
-		on_each_cpu(i915_gem_write_fence__ipi, NULL, 1);
-	i915_gem_write_fence(dev, fence_reg, enable ? obj : NULL);
+	if (INTEL_INFO(args.dev)->gen >= 6)
+		on_each_cpu(i915_gem_write_fence__ipi, &args, 1);
+	else
+		i915_gem_write_fence(args.dev, args.fence, args.obj);
 
 	if (enable) {
-		obj->fence_reg = fence_reg;
+		obj->fence_reg = args.fence;
 		fence->obj = obj;
 		list_move_tail(&fence->lru_list, &dev_priv->mm.fence_list);
 	} else {
@@ -2947,6 +2968,8 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	struct drm_mm_node *node;
 	u32 size, fence_size, fence_alignment, unfenced_alignment;
 	bool mappable, fenceable;
+	size_t gtt_max = map_and_fenceable ?
+		dev_priv->gtt.mappable_end : dev_priv->gtt.total;
 	int ret;
 
 	fence_size = i915_gem_get_gtt_size(dev,
@@ -2973,9 +2996,11 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	/* If the object is bigger than the entire aperture, reject it early
 	 * before evicting everything in a vain attempt to find space.
 	 */
-	if (obj->base.size >
-	    (map_and_fenceable ? dev_priv->gtt.mappable_end : dev_priv->gtt.total)) {
-		DRM_ERROR("Attempting to bind an object larger than the aperture\n");
+	if (obj->base.size > gtt_max) {
+		DRM_ERROR("Attempting to bind an object larger than the aperture: object=%zd > %s aperture=%ld\n",
+			  obj->base.size,
+			  map_and_fenceable ? "mappable" : "total",
+			  gtt_max);
 		return -E2BIG;
 	}
 
@@ -2991,14 +3016,10 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 		return -ENOMEM;
 	}
 
- search_free:
-	if (map_and_fenceable)
-		ret = drm_mm_insert_node_in_range_generic(&dev_priv->mm.gtt_space, node,
-							  size, alignment, obj->cache_level,
-							  0, dev_priv->gtt.mappable_end);
-	else
-		ret = drm_mm_insert_node_generic(&dev_priv->mm.gtt_space, node,
-						 size, alignment, obj->cache_level);
+search_free:
+	ret = drm_mm_insert_node_in_range_generic(&dev_priv->mm.gtt_space, node,
+						  size, alignment,
+						  obj->cache_level, 0, gtt_max);
 	if (ret) {
 		ret = i915_gem_evict_something(dev, size, alignment,
 					       obj->cache_level,
@@ -3992,12 +4013,21 @@ static int i915_gem_init_rings(struct drm_device *dev)
 			goto cleanup_bsd_ring;
 	}
 
+	if (HAS_VEBOX(dev)) {
+		ret = intel_init_vebox_ring_buffer(dev);
+		if (ret)
+			goto cleanup_blt_ring;
+	}
+
+
 	ret = i915_gem_set_seqno(dev, ((u32)~0 - 0x1000));
 	if (ret)
-		goto cleanup_blt_ring;
+		goto cleanup_vebox_ring;
 
 	return 0;
 
+cleanup_vebox_ring:
+	intel_cleanup_ring_buffer(&dev_priv->ring[VECS]);
 cleanup_blt_ring:
 	intel_cleanup_ring_buffer(&dev_priv->ring[BCS]);
 cleanup_bsd_ring:

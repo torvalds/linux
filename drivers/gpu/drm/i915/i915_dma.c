@@ -955,6 +955,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_BLT:
 		value = intel_ring_initialized(&dev_priv->ring[BCS]);
 		break;
+	case I915_PARAM_HAS_VEBOX:
+		value = intel_ring_initialized(&dev_priv->ring[VECS]);
+		break;
 	case I915_PARAM_HAS_RELAXED_FENCING:
 		value = 1;
 		break;
@@ -1358,8 +1361,10 @@ static int i915_load_modeset_init(struct drm_device *dev)
 cleanup_gem:
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
+	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
 	i915_gem_cleanup_aliasing_ppgtt(dev);
+	drm_mm_takedown(&dev_priv->mm.gtt_space);
 cleanup_irq:
 	drm_irq_uninstall(dev);
 cleanup_gem_stolen:
@@ -1407,7 +1412,7 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 		return;
 
 	ap->ranges[0].base = dev_priv->gtt.mappable_base;
-	ap->ranges[0].size = dev_priv->gtt.mappable_end - dev_priv->gtt.start;
+	ap->ranges[0].size = dev_priv->gtt.mappable_end;
 
 	primary =
 		pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
@@ -1744,6 +1749,7 @@ int i915_driver_unload(struct drm_device *dev)
 			i915_free_hws(dev);
 	}
 
+	drm_mm_takedown(&dev_priv->mm.gtt_space);
 	if (dev_priv->regs != NULL)
 		pci_iounmap(dev->pdev, dev_priv->regs);
 
@@ -1752,6 +1758,8 @@ int i915_driver_unload(struct drm_device *dev)
 
 	destroy_workqueue(dev_priv->wq);
 	pm_qos_remove_request(&dev_priv->pm_qos);
+
+	dev_priv->gtt.gtt_remove(dev);
 
 	if (dev_priv->slab)
 		kmem_cache_destroy(dev_priv->slab);

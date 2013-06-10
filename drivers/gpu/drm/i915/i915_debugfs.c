@@ -570,6 +570,7 @@ static const char *ring_str(int ring)
 	case RCS: return "render";
 	case VCS: return "bsd";
 	case BCS: return "blt";
+	case VECS: return "vebox";
 	default: return "";
 	}
 }
@@ -604,15 +605,80 @@ static const char *purgeable_flag(int purgeable)
 	return purgeable ? " purgeable" : "";
 }
 
-static void print_error_buffers(struct seq_file *m,
+static void i915_error_vprintf(struct drm_i915_error_state_buf *e,
+			       const char *f, va_list args)
+{
+	unsigned len;
+
+	if (!e->err && WARN(e->bytes > (e->size - 1), "overflow")) {
+		e->err = -ENOSPC;
+		return;
+	}
+
+	if (e->bytes == e->size - 1 || e->err)
+		return;
+
+	/* Seek the first printf which is hits start position */
+	if (e->pos < e->start) {
+		len = vsnprintf(NULL, 0, f, args);
+		if (e->pos + len <= e->start) {
+			e->pos += len;
+			return;
+		}
+
+		/* First vsnprintf needs to fit in full for memmove*/
+		if (len >= e->size) {
+			e->err = -EIO;
+			return;
+		}
+	}
+
+	len = vsnprintf(e->buf + e->bytes, e->size - e->bytes, f, args);
+	if (len >= e->size - e->bytes)
+		len = e->size - e->bytes - 1;
+
+	/* If this is first printf in this window, adjust it so that
+	 * start position matches start of the buffer
+	 */
+	if (e->pos < e->start) {
+		const size_t off = e->start - e->pos;
+
+		/* Should not happen but be paranoid */
+		if (off > len || e->bytes) {
+			e->err = -EIO;
+			return;
+		}
+
+		memmove(e->buf, e->buf + off, len - off);
+		e->bytes = len - off;
+		e->pos = e->start;
+		return;
+	}
+
+	e->bytes += len;
+	e->pos += len;
+}
+
+void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
+{
+	va_list args;
+
+	va_start(args, f);
+	i915_error_vprintf(e, f, args);
+	va_end(args);
+}
+
+#define err_printf(e, ...) i915_error_printf(e, __VA_ARGS__)
+
+static void print_error_buffers(struct drm_i915_error_state_buf *m,
 				const char *name,
 				struct drm_i915_error_buffer *err,
 				int count)
 {
-	seq_printf(m, "%s [%d]:\n", name, count);
+	err_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
-		seq_printf(m, "  %08x %8u %02x %02x %x %x%s%s%s%s%s%s%s",
+		err_printf(m, "  %08x %8u %02x %02x %x %x%s%s%s%s%s%s%s",
 			   err->gtt_offset,
 			   err->size,
 			   err->read_domains,
@@ -627,50 +693,50 @@ static void print_error_buffers(struct seq_file *m,
 			   cache_level_str(err->cache_level));
 
 		if (err->name)
-			seq_printf(m, " (name: %d)", err->name);
+			err_printf(m, " (name: %d)", err->name);
 		if (err->fence_reg != I915_FENCE_REG_NONE)
-			seq_printf(m, " (fence: %d)", err->fence_reg);
+			err_printf(m, " (fence: %d)", err->fence_reg);
 
-		seq_printf(m, "\n");
+		err_printf(m, "\n");
 		err++;
 	}
 }
 
-static void i915_ring_error_state(struct seq_file *m,
+static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 				  struct drm_device *dev,
 				  struct drm_i915_error_state *error,
 				  unsigned ring)
 {
 	BUG_ON(ring >= I915_NUM_RINGS); /* shut up confused gcc */
-	seq_printf(m, "%s command stream:\n", ring_str(ring));
-	seq_printf(m, "  HEAD: 0x%08x\n", error->head[ring]);
-	seq_printf(m, "  TAIL: 0x%08x\n", error->tail[ring]);
-	seq_printf(m, "  CTL: 0x%08x\n", error->ctl[ring]);
-	seq_printf(m, "  ACTHD: 0x%08x\n", error->acthd[ring]);
-	seq_printf(m, "  IPEIR: 0x%08x\n", error->ipeir[ring]);
-	seq_printf(m, "  IPEHR: 0x%08x\n", error->ipehr[ring]);
-	seq_printf(m, "  INSTDONE: 0x%08x\n", error->instdone[ring]);
+	err_printf(m, "%s command stream:\n", ring_str(ring));
+	err_printf(m, "  HEAD: 0x%08x\n", error->head[ring]);
+	err_printf(m, "  TAIL: 0x%08x\n", error->tail[ring]);
+	err_printf(m, "  CTL: 0x%08x\n", error->ctl[ring]);
+	err_printf(m, "  ACTHD: 0x%08x\n", error->acthd[ring]);
+	err_printf(m, "  IPEIR: 0x%08x\n", error->ipeir[ring]);
+	err_printf(m, "  IPEHR: 0x%08x\n", error->ipehr[ring]);
+	err_printf(m, "  INSTDONE: 0x%08x\n", error->instdone[ring]);
 	if (ring == RCS && INTEL_INFO(dev)->gen >= 4)
-		seq_printf(m, "  BBADDR: 0x%08llx\n", error->bbaddr);
+		err_printf(m, "  BBADDR: 0x%08llx\n", error->bbaddr);
 
 	if (INTEL_INFO(dev)->gen >= 4)
-		seq_printf(m, "  INSTPS: 0x%08x\n", error->instps[ring]);
-	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
-	seq_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
+		err_printf(m, "  INSTPS: 0x%08x\n", error->instps[ring]);
+	err_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
+	err_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
 	if (INTEL_INFO(dev)->gen >= 6) {
-		seq_printf(m, "  RC PSMI: 0x%08x\n", error->rc_psmi[ring]);
-		seq_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
-		seq_printf(m, "  SYNC_0: 0x%08x [last synced 0x%08x]\n",
+		err_printf(m, "  RC PSMI: 0x%08x\n", error->rc_psmi[ring]);
+		err_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
+		err_printf(m, "  SYNC_0: 0x%08x [last synced 0x%08x]\n",
 			   error->semaphore_mboxes[ring][0],
 			   error->semaphore_seqno[ring][0]);
-		seq_printf(m, "  SYNC_1: 0x%08x [last synced 0x%08x]\n",
+		err_printf(m, "  SYNC_1: 0x%08x [last synced 0x%08x]\n",
 			   error->semaphore_mboxes[ring][1],
 			   error->semaphore_seqno[ring][1]);
 	}
-	seq_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
-	seq_printf(m, "  waiting: %s\n", yesno(error->waiting[ring]));
-	seq_printf(m, "  ring->head: 0x%08x\n", error->cpu_ring_head[ring]);
-	seq_printf(m, "  ring->tail: 0x%08x\n", error->cpu_ring_tail[ring]);
+	err_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
+	err_printf(m, "  waiting: %s\n", yesno(error->waiting[ring]));
+	err_printf(m, "  ring->head: 0x%08x\n", error->cpu_ring_head[ring]);
+	err_printf(m, "  ring->tail: 0x%08x\n", error->cpu_ring_tail[ring]);
 }
 
 struct i915_error_state_file_priv {
@@ -678,9 +744,11 @@ struct i915_error_state_file_priv {
 	struct drm_i915_error_state *error;
 };
 
-static int i915_error_state(struct seq_file *m, void *unused)
+
+static int i915_error_state(struct i915_error_state_file_priv *error_priv,
+			    struct drm_i915_error_state_buf *m)
+
 {
-	struct i915_error_state_file_priv *error_priv = m->private;
 	struct drm_device *dev = error_priv->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error = error_priv->error;
@@ -688,34 +756,35 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	int i, j, page, offset, elt;
 
 	if (!error) {
-		seq_printf(m, "no error state collected\n");
+		err_printf(m, "no error state collected\n");
 		return 0;
 	}
 
-	seq_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
+	err_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
 		   error->time.tv_usec);
-	seq_printf(m, "Kernel: " UTS_RELEASE "\n");
-	seq_printf(m, "PCI ID: 0x%04x\n", dev->pci_device);
-	seq_printf(m, "EIR: 0x%08x\n", error->eir);
-	seq_printf(m, "IER: 0x%08x\n", error->ier);
-	seq_printf(m, "PGTBL_ER: 0x%08x\n", error->pgtbl_er);
-	seq_printf(m, "FORCEWAKE: 0x%08x\n", error->forcewake);
-	seq_printf(m, "DERRMR: 0x%08x\n", error->derrmr);
-	seq_printf(m, "CCID: 0x%08x\n", error->ccid);
+	err_printf(m, "Kernel: " UTS_RELEASE "\n");
+	err_printf(m, "PCI ID: 0x%04x\n", dev->pci_device);
+	err_printf(m, "EIR: 0x%08x\n", error->eir);
+	err_printf(m, "IER: 0x%08x\n", error->ier);
+	err_printf(m, "PGTBL_ER: 0x%08x\n", error->pgtbl_er);
+	err_printf(m, "FORCEWAKE: 0x%08x\n", error->forcewake);
+	err_printf(m, "DERRMR: 0x%08x\n", error->derrmr);
+	err_printf(m, "CCID: 0x%08x\n", error->ccid);
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++)
-		seq_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);
+		err_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);
 
 	for (i = 0; i < ARRAY_SIZE(error->extra_instdone); i++)
-		seq_printf(m, "  INSTDONE_%d: 0x%08x\n", i, error->extra_instdone[i]);
+		err_printf(m, "  INSTDONE_%d: 0x%08x\n", i,
+			   error->extra_instdone[i]);
 
 	if (INTEL_INFO(dev)->gen >= 6) {
-		seq_printf(m, "ERROR: 0x%08x\n", error->error);
-		seq_printf(m, "DONE_REG: 0x%08x\n", error->done_reg);
+		err_printf(m, "ERROR: 0x%08x\n", error->error);
+		err_printf(m, "DONE_REG: 0x%08x\n", error->done_reg);
 	}
 
 	if (INTEL_INFO(dev)->gen == 7)
-		seq_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
+		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
 
 	for_each_ring(ring, dev_priv, i)
 		i915_ring_error_state(m, dev, error, i);
@@ -734,24 +803,25 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		struct drm_i915_error_object *obj;
 
 		if ((obj = error->ring[i].batchbuffer)) {
-			seq_printf(m, "%s --- gtt_offset = 0x%08x\n",
+			err_printf(m, "%s --- gtt_offset = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
 			offset = 0;
 			for (page = 0; page < obj->page_count; page++) {
 				for (elt = 0; elt < PAGE_SIZE/4; elt++) {
-					seq_printf(m, "%08x :  %08x\n", offset, obj->pages[page][elt]);
+					err_printf(m, "%08x :  %08x\n", offset,
+						   obj->pages[page][elt]);
 					offset += 4;
 				}
 			}
 		}
 
 		if (error->ring[i].num_requests) {
-			seq_printf(m, "%s --- %d requests\n",
+			err_printf(m, "%s --- %d requests\n",
 				   dev_priv->ring[i].name,
 				   error->ring[i].num_requests);
 			for (j = 0; j < error->ring[i].num_requests; j++) {
-				seq_printf(m, "  seqno 0x%08x, emitted %ld, tail 0x%08x\n",
+				err_printf(m, "  seqno 0x%08x, emitted %ld, tail 0x%08x\n",
 					   error->ring[i].requests[j].seqno,
 					   error->ring[i].requests[j].jiffies,
 					   error->ring[i].requests[j].tail);
@@ -759,13 +829,13 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		}
 
 		if ((obj = error->ring[i].ringbuffer)) {
-			seq_printf(m, "%s --- ringbuffer = 0x%08x\n",
+			err_printf(m, "%s --- ringbuffer = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
 			offset = 0;
 			for (page = 0; page < obj->page_count; page++) {
 				for (elt = 0; elt < PAGE_SIZE/4; elt++) {
-					seq_printf(m, "%08x :  %08x\n",
+					err_printf(m, "%08x :  %08x\n",
 						   offset,
 						   obj->pages[page][elt]);
 					offset += 4;
@@ -775,12 +845,12 @@ static int i915_error_state(struct seq_file *m, void *unused)
 
 		obj = error->ring[i].ctx;
 		if (obj) {
-			seq_printf(m, "%s --- HW Context = 0x%08x\n",
+			err_printf(m, "%s --- HW Context = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
 			offset = 0;
 			for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
-				seq_printf(m, "[%04x] %08x %08x %08x %08x\n",
+				err_printf(m, "[%04x] %08x %08x %08x %08x\n",
 					   offset,
 					   obj->pages[0][elt],
 					   obj->pages[0][elt+1],
@@ -806,8 +876,7 @@ i915_error_state_write(struct file *filp,
 		       size_t cnt,
 		       loff_t *ppos)
 {
-	struct seq_file *m = filp->private_data;
-	struct i915_error_state_file_priv *error_priv = m->private;
+	struct i915_error_state_file_priv *error_priv = filp->private_data;
 	struct drm_device *dev = error_priv->dev;
 	int ret;
 
@@ -842,25 +911,81 @@ static int i915_error_state_open(struct inode *inode, struct file *file)
 		kref_get(&error_priv->error->ref);
 	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
 
-	return single_open(file, i915_error_state, error_priv);
+	file->private_data = error_priv;
+
+	return 0;
 }
 
 static int i915_error_state_release(struct inode *inode, struct file *file)
 {
-	struct seq_file *m = file->private_data;
-	struct i915_error_state_file_priv *error_priv = m->private;
+	struct i915_error_state_file_priv *error_priv = file->private_data;
 
 	if (error_priv->error)
 		kref_put(&error_priv->error->ref, i915_error_state_free);
 	kfree(error_priv);
 
-	return single_release(inode, file);
+	return 0;
+}
+
+static ssize_t i915_error_state_read(struct file *file, char __user *userbuf,
+				     size_t count, loff_t *pos)
+{
+	struct i915_error_state_file_priv *error_priv = file->private_data;
+	struct drm_i915_error_state_buf error_str;
+	loff_t tmp_pos = 0;
+	ssize_t ret_count = 0;
+	int ret = 0;
+
+	memset(&error_str, 0, sizeof(error_str));
+
+	/* We need to have enough room to store any i915_error_state printf
+	 * so that we can move it to start position.
+	 */
+	error_str.size = count + 1 > PAGE_SIZE ? count + 1 : PAGE_SIZE;
+	error_str.buf = kmalloc(error_str.size,
+				GFP_TEMPORARY | __GFP_NORETRY | __GFP_NOWARN);
+
+	if (error_str.buf == NULL) {
+		error_str.size = PAGE_SIZE;
+		error_str.buf = kmalloc(error_str.size, GFP_TEMPORARY);
+	}
+
+	if (error_str.buf == NULL) {
+		error_str.size = 128;
+		error_str.buf = kmalloc(error_str.size, GFP_TEMPORARY);
+	}
+
+	if (error_str.buf == NULL)
+		return -ENOMEM;
+
+	error_str.start = *pos;
+
+	ret = i915_error_state(error_priv, &error_str);
+	if (ret)
+		goto out;
+
+	if (error_str.bytes == 0 && error_str.err) {
+		ret = error_str.err;
+		goto out;
+	}
+
+	ret_count = simple_read_from_buffer(userbuf, count, &tmp_pos,
+					    error_str.buf,
+					    error_str.bytes);
+
+	if (ret_count < 0)
+		ret = ret_count;
+	else
+		*pos = error_str.start + ret_count;
+out:
+	kfree(error_str.buf);
+	return ret ?: ret_count;
 }
 
 static const struct file_operations i915_error_state_fops = {
 	.owner = THIS_MODULE,
 	.open = i915_error_state_open,
-	.read = seq_read,
+	.read = i915_error_state_read,
 	.write = i915_error_state_write,
 	.llseek = default_llseek,
 	.release = i915_error_state_release,
@@ -1013,16 +1138,15 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		u32 freq_sts, val;
 
 		mutex_lock(&dev_priv->rps.hw_lock);
-		valleyview_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS,
-				      &freq_sts);
+		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
 		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
 
-		valleyview_punit_read(dev_priv, PUNIT_FUSE_BUS1, &val);
+		val = vlv_punit_read(dev_priv, PUNIT_FUSE_BUS1);
 		seq_printf(m, "max GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv->mem_freq, val));
 
-		valleyview_punit_read(dev_priv, PUNIT_REG_GPU_LFM, &val);
+		val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM);
 		seq_printf(m, "min GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv->mem_freq, val));
 
@@ -1308,6 +1432,25 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		}
 		seq_printf(m, "\n");
 	}
+	return 0;
+}
+
+static int i915_ips_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_ULT(dev)) {
+		seq_puts(m, "not supported\n");
+		return 0;
+	}
+
+	if (I915_READ(IPS_CTL) & IPS_ENABLE)
+		seq_puts(m, "enabled\n");
+	else
+		seq_puts(m, "disabled\n");
+
 	return 0;
 }
 
@@ -1663,27 +1806,27 @@ static int i915_dpio_info(struct seq_file *m, void *data)
 	seq_printf(m, "DPIO_CTL: 0x%08x\n", I915_READ(DPIO_CTL));
 
 	seq_printf(m, "DPIO_DIV_A: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_DIV_A));
+		   vlv_dpio_read(dev_priv, _DPIO_DIV_A));
 	seq_printf(m, "DPIO_DIV_B: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_DIV_B));
+		   vlv_dpio_read(dev_priv, _DPIO_DIV_B));
 
 	seq_printf(m, "DPIO_REFSFR_A: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_REFSFR_A));
+		   vlv_dpio_read(dev_priv, _DPIO_REFSFR_A));
 	seq_printf(m, "DPIO_REFSFR_B: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_REFSFR_B));
+		   vlv_dpio_read(dev_priv, _DPIO_REFSFR_B));
 
 	seq_printf(m, "DPIO_CORE_CLK_A: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_CORE_CLK_A));
+		   vlv_dpio_read(dev_priv, _DPIO_CORE_CLK_A));
 	seq_printf(m, "DPIO_CORE_CLK_B: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_CORE_CLK_B));
+		   vlv_dpio_read(dev_priv, _DPIO_CORE_CLK_B));
 
 	seq_printf(m, "DPIO_LFP_COEFF_A: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_LFP_COEFF_A));
+		   vlv_dpio_read(dev_priv, _DPIO_LFP_COEFF_A));
 	seq_printf(m, "DPIO_LFP_COEFF_B: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_LFP_COEFF_B));
+		   vlv_dpio_read(dev_priv, _DPIO_LFP_COEFF_B));
 
 	seq_printf(m, "DPIO_FASTCLK_DISABLE: 0x%08x\n",
-		   intel_dpio_read(dev_priv, DPIO_FASTCLK_DISABLE));
+		   vlv_dpio_read(dev_priv, DPIO_FASTCLK_DISABLE));
 
 	mutex_unlock(&dev_priv->dpio_lock);
 
@@ -2099,6 +2242,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_hws", i915_hws_info, 0, (void *)RCS},
 	{"i915_gem_hws_blt", i915_hws_info, 0, (void *)BCS},
 	{"i915_gem_hws_bsd", i915_hws_info, 0, (void *)VCS},
+	{"i915_gem_hws_vebox", i915_hws_info, 0, (void *)VECS},
 	{"i915_rstdby_delays", i915_rstdby_delays, 0},
 	{"i915_cur_delayinfo", i915_cur_delayinfo, 0},
 	{"i915_delayfreq_table", i915_delayfreq_table, 0},
@@ -2108,6 +2252,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_ring_freq_table", i915_ring_freq_table, 0},
 	{"i915_gfxec", i915_gfxec, 0},
 	{"i915_fbc_status", i915_fbc_status, 0},
+	{"i915_ips_status", i915_ips_status, 0},
 	{"i915_sr_status", i915_sr_status, 0},
 	{"i915_opregion", i915_opregion, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},

@@ -265,13 +265,19 @@
 #define  MI_SEMAPHORE_UPDATE	    (1<<21)
 #define  MI_SEMAPHORE_COMPARE	    (1<<20)
 #define  MI_SEMAPHORE_REGISTER	    (1<<18)
-#define  MI_SEMAPHORE_SYNC_RV	    (2<<16)
-#define  MI_SEMAPHORE_SYNC_RB	    (0<<16)
-#define  MI_SEMAPHORE_SYNC_VR	    (0<<16)
-#define  MI_SEMAPHORE_SYNC_VB	    (2<<16)
-#define  MI_SEMAPHORE_SYNC_BR	    (2<<16)
-#define  MI_SEMAPHORE_SYNC_BV	    (0<<16)
-#define  MI_SEMAPHORE_SYNC_INVALID  (1<<0)
+#define  MI_SEMAPHORE_SYNC_VR	    (0<<16) /* RCS  wait for VCS  (RVSYNC) */
+#define  MI_SEMAPHORE_SYNC_VER	    (1<<16) /* RCS  wait for VECS (RVESYNC) */
+#define  MI_SEMAPHORE_SYNC_BR	    (2<<16) /* RCS  wait for BCS  (RBSYNC) */
+#define  MI_SEMAPHORE_SYNC_BV	    (0<<16) /* VCS  wait for BCS  (VBSYNC) */
+#define  MI_SEMAPHORE_SYNC_VEV	    (1<<16) /* VCS  wait for VECS (VVESYNC) */
+#define  MI_SEMAPHORE_SYNC_RV	    (2<<16) /* VCS  wait for RCS  (VRSYNC) */
+#define  MI_SEMAPHORE_SYNC_RB	    (0<<16) /* BCS  wait for RCS  (BRSYNC) */
+#define  MI_SEMAPHORE_SYNC_VEB	    (1<<16) /* BCS  wait for VECS (BVESYNC) */
+#define  MI_SEMAPHORE_SYNC_VB	    (2<<16) /* BCS  wait for VCS  (BVSYNC) */
+#define  MI_SEMAPHORE_SYNC_BVE	    (0<<16) /* VECS wait for BCS  (VEBSYNC) */
+#define  MI_SEMAPHORE_SYNC_VVE	    (1<<16) /* VECS wait for VCS  (VEVSYNC) */
+#define  MI_SEMAPHORE_SYNC_RVE	    (2<<16) /* VECS wait for RCS  (VERSYNC) */
+#define  MI_SEMAPHORE_SYNC_INVALID  (3<<16)
 /*
  * 3D instructions used by the kernel
  */
@@ -342,27 +348,54 @@
 #define  DEBUG_RESET_DISPLAY		(1<<9)
 
 /*
- * DPIO - a special bus for various display related registers to hide behind:
- *  0x800c: m1, m2, n, p1, p2, k dividers
- *  0x8014: REF and SFR select
- *  0x8014: N divider, VCO select
- *  0x801c/3c: core clock bits
- *  0x8048/68: low pass filter coefficients
- *  0x8100: fast clock controls
+ * IOSF sideband
+ */
+#define VLV_IOSF_DOORBELL_REQ			(VLV_DISPLAY_BASE + 0x2100)
+#define   IOSF_DEVFN_SHIFT			24
+#define   IOSF_OPCODE_SHIFT			16
+#define   IOSF_PORT_SHIFT			8
+#define   IOSF_BYTE_ENABLES_SHIFT		4
+#define   IOSF_BAR_SHIFT			1
+#define   IOSF_SB_BUSY				(1<<0)
+#define   IOSF_PORT_PUNIT			0x4
+#define   IOSF_PORT_NC				0x11
+#define   IOSF_PORT_DPIO			0x12
+#define VLV_IOSF_DATA				(VLV_DISPLAY_BASE + 0x2104)
+#define VLV_IOSF_ADDR				(VLV_DISPLAY_BASE + 0x2108)
+
+#define PUNIT_OPCODE_REG_READ			6
+#define PUNIT_OPCODE_REG_WRITE			7
+
+#define PUNIT_REG_GPU_LFM			0xd3
+#define PUNIT_REG_GPU_FREQ_REQ			0xd4
+#define PUNIT_REG_GPU_FREQ_STS			0xd8
+#define PUNIT_REG_MEDIA_TURBO_FREQ_REQ		0xdc
+
+#define PUNIT_FUSE_BUS2				0xf6 /* bits 47:40 */
+#define PUNIT_FUSE_BUS1				0xf5 /* bits 55:48 */
+
+#define IOSF_NC_FB_GFX_FREQ_FUSE		0x1c
+#define   FB_GFX_MAX_FREQ_FUSE_SHIFT		3
+#define   FB_GFX_MAX_FREQ_FUSE_MASK		0x000007f8
+#define   FB_GFX_FGUARANTEED_FREQ_FUSE_SHIFT	11
+#define   FB_GFX_FGUARANTEED_FREQ_FUSE_MASK	0x0007f800
+#define IOSF_NC_FB_GFX_FMAX_FUSE_HI		0x34
+#define   FB_FMAX_VMIN_FREQ_HI_MASK		0x00000007
+#define IOSF_NC_FB_GFX_FMAX_FUSE_LO		0x30
+#define   FB_FMAX_VMIN_FREQ_LO_SHIFT		27
+#define   FB_FMAX_VMIN_FREQ_LO_MASK		0xf8000000
+
+/*
+ * DPIO - a special bus for various display related registers to hide behind
  *
  * DPIO is VLV only.
  *
  * Note: digital port B is DDI0, digital pot C is DDI1
  */
-#define DPIO_PKT			(VLV_DISPLAY_BASE + 0x2100)
-#define  DPIO_RID			(0<<24)
-#define  DPIO_OP_WRITE			(1<<16)
-#define  DPIO_OP_READ			(0<<16)
-#define  DPIO_PORTID			(0x12<<8)
-#define  DPIO_BYTE			(0xf<<4)
-#define  DPIO_BUSY			(1<<0) /* status only */
-#define DPIO_DATA			(VLV_DISPLAY_BASE + 0x2104)
-#define DPIO_REG			(VLV_DISPLAY_BASE + 0x2108)
+#define DPIO_DEVFN			0
+#define DPIO_OPCODE_REG_WRITE		1
+#define DPIO_OPCODE_REG_READ		0
+
 #define DPIO_CTL			(VLV_DISPLAY_BASE + 0x2110)
 #define  DPIO_MODSEL1			(1<<3) /* if ref clk b == 27 */
 #define  DPIO_MODSEL0			(1<<2) /* if ref clk a == 27 */
@@ -554,6 +587,7 @@
 #define RENDER_RING_BASE	0x02000
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000
+#define VEBOX_RING_BASE		0x1a000
 #define BLT_RING_BASE		0x22000
 #define RING_TAIL(base)		((base)+0x30)
 #define RING_HEAD(base)		((base)+0x34)
@@ -561,12 +595,20 @@
 #define RING_CTL(base)		((base)+0x3c)
 #define RING_SYNC_0(base)	((base)+0x40)
 #define RING_SYNC_1(base)	((base)+0x44)
-#define GEN6_RVSYNC (RING_SYNC_0(RENDER_RING_BASE))
-#define GEN6_RBSYNC (RING_SYNC_1(RENDER_RING_BASE))
-#define GEN6_VRSYNC (RING_SYNC_1(GEN6_BSD_RING_BASE))
-#define GEN6_VBSYNC (RING_SYNC_0(GEN6_BSD_RING_BASE))
-#define GEN6_BRSYNC (RING_SYNC_0(BLT_RING_BASE))
-#define GEN6_BVSYNC (RING_SYNC_1(BLT_RING_BASE))
+#define RING_SYNC_2(base)	((base)+0x48)
+#define GEN6_RVSYNC	(RING_SYNC_0(RENDER_RING_BASE))
+#define GEN6_RBSYNC	(RING_SYNC_1(RENDER_RING_BASE))
+#define GEN6_RVESYNC	(RING_SYNC_2(RENDER_RING_BASE))
+#define GEN6_VBSYNC	(RING_SYNC_0(GEN6_BSD_RING_BASE))
+#define GEN6_VRSYNC	(RING_SYNC_1(GEN6_BSD_RING_BASE))
+#define GEN6_VVESYNC	(RING_SYNC_2(GEN6_BSD_RING_BASE))
+#define GEN6_BRSYNC	(RING_SYNC_0(BLT_RING_BASE))
+#define GEN6_BVSYNC	(RING_SYNC_1(BLT_RING_BASE))
+#define GEN6_BVESYNC	(RING_SYNC_2(BLT_RING_BASE))
+#define GEN6_VEBSYNC	(RING_SYNC_0(VEBOX_RING_BASE))
+#define GEN6_VERSYNC	(RING_SYNC_1(VEBOX_RING_BASE))
+#define GEN6_VEVSYNC	(RING_SYNC_2(VEBOX_RING_BASE))
+#define GEN6_NOSYNC 0
 #define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
@@ -578,6 +620,7 @@
 #define DONE_REG		0x40b0
 #define BSD_HWS_PGA_GEN7	(0x04180)
 #define BLT_HWS_PGA_GEN7	(0x04280)
+#define VEBOX_HWS_PGA_GEN7	(0x04380)
 #define RING_ACTHD(base)	((base)+0x74)
 #define RING_NOPID(base)	((base)+0x94)
 #define RING_IMR(base)		((base)+0xa8)
@@ -699,24 +742,6 @@
 #define VLV_IMR		(VLV_DISPLAY_BASE + 0x20a8)
 #define VLV_ISR		(VLV_DISPLAY_BASE + 0x20ac)
 #define VLV_PCBR	(VLV_DISPLAY_BASE + 0x2120)
-#define   I915_PIPE_CONTROL_NOTIFY_INTERRUPT		(1<<18)
-#define   I915_DISPLAY_PORT_INTERRUPT			(1<<17)
-#define   I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT	(1<<15)
-#define   I915_GMCH_THERMAL_SENSOR_EVENT_INTERRUPT	(1<<14) /* p-state */
-#define   I915_HWB_OOM_INTERRUPT			(1<<13)
-#define   I915_SYNC_STATUS_INTERRUPT			(1<<12)
-#define   I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT	(1<<11)
-#define   I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT	(1<<10)
-#define   I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT	(1<<9)
-#define   I915_DISPLAY_PLANE_C_FLIP_PENDING_INTERRUPT	(1<<8)
-#define   I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT		(1<<7)
-#define   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT		(1<<6)
-#define   I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT		(1<<5)
-#define   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT		(1<<4)
-#define   I915_DEBUG_INTERRUPT				(1<<2)
-#define   I915_USER_INTERRUPT				(1<<1)
-#define   I915_ASLE_INTERRUPT				(1<<0)
-#define   I915_BSD_USER_INTERRUPT                      (1<<25)
 #define   DISPLAY_PLANE_FLIP_PENDING(plane) (1<<(11-(plane))) /* A and B only */
 #define EIR		0x020b0
 #define EMR		0x020b4
@@ -828,28 +853,6 @@
 #define CACHE_MODE_1		0x7004 /* IVB+ */
 #define   PIXEL_SUBSPAN_COLLECT_OPT_DISABLE (1<<6)
 
-/* GEN6 interrupt control
- * Note that the per-ring interrupt bits do alias with the global interrupt bits
- * in GTIMR. */
-#define GEN6_RENDER_HWSTAM	0x2098
-#define GEN6_RENDER_IMR		0x20a8
-#define   GEN6_RENDER_CONTEXT_SWITCH_INTERRUPT		(1 << 8)
-#define   GEN6_RENDER_PPGTT_PAGE_FAULT			(1 << 7)
-#define   GEN6_RENDER_TIMEOUT_COUNTER_EXPIRED		(1 << 6)
-#define   GEN6_RENDER_L3_PARITY_ERROR			(1 << 5)
-#define   GEN6_RENDER_PIPE_CONTROL_NOTIFY_INTERRUPT	(1 << 4)
-#define   GEN6_RENDER_COMMAND_PARSER_MASTER_ERROR	(1 << 3)
-#define   GEN6_RENDER_SYNC_STATUS			(1 << 2)
-#define   GEN6_RENDER_DEBUG_INTERRUPT			(1 << 1)
-#define   GEN6_RENDER_USER_INTERRUPT			(1 << 0)
-
-#define GEN6_BLITTER_HWSTAM	0x22098
-#define GEN6_BLITTER_IMR	0x220a8
-#define   GEN6_BLITTER_MI_FLUSH_DW_NOTIFY_INTERRUPT	(1 << 26)
-#define   GEN6_BLITTER_COMMAND_PARSER_MASTER_ERROR	(1 << 25)
-#define   GEN6_BLITTER_SYNC_STATUS			(1 << 24)
-#define   GEN6_BLITTER_USER_INTERRUPT			(1 << 22)
-
 #define GEN6_BLITTER_ECOSKPD	0x221d0
 #define   GEN6_BLITTER_LOCK_SHIFT			16
 #define   GEN6_BLITTER_FBC_NOTIFY			(1<<3)
@@ -860,9 +863,52 @@
 #define   GEN6_BSD_SLEEP_INDICATOR	(1 << 3)
 #define   GEN6_BSD_GO_INDICATOR		(1 << 4)
 
-#define GEN6_BSD_HWSTAM			0x12098
-#define GEN6_BSD_IMR			0x120a8
-#define   GEN6_BSD_USER_INTERRUPT	(1 << 12)
+/* On modern GEN architectures interrupt control consists of two sets
+ * of registers. The first set pertains to the ring generating the
+ * interrupt. The second control is for the functional block generating the
+ * interrupt. These are PM, GT, DE, etc.
+ *
+ * Luckily *knocks on wood* all the ring interrupt bits match up with the
+ * GT interrupt bits, so we don't need to duplicate the defines.
+ *
+ * These defines should cover us well from SNB->HSW with minor exceptions
+ * it can also work on ILK.
+ */
+#define GT_BLT_FLUSHDW_NOTIFY_INTERRUPT		(1 << 26)
+#define GT_BLT_CS_ERROR_INTERRUPT		(1 << 25)
+#define GT_BLT_USER_INTERRUPT			(1 << 22)
+#define GT_BSD_CS_ERROR_INTERRUPT		(1 << 15)
+#define GT_BSD_USER_INTERRUPT			(1 << 12)
+#define GT_RENDER_L3_PARITY_ERROR_INTERRUPT	(1 <<  5) /* !snb */
+#define GT_RENDER_PIPECTL_NOTIFY_INTERRUPT	(1 <<  4)
+#define GT_RENDER_CS_MASTER_ERROR_INTERRUPT	(1 <<  3)
+#define GT_RENDER_SYNC_STATUS_INTERRUPT		(1 <<  2)
+#define GT_RENDER_DEBUG_INTERRUPT		(1 <<  1)
+#define GT_RENDER_USER_INTERRUPT		(1 <<  0)
+
+#define PM_VEBOX_CS_ERROR_INTERRUPT		(1 << 12) /* hsw+ */
+#define PM_VEBOX_USER_INTERRUPT			(1 << 10) /* hsw+ */
+
+/* These are all the "old" interrupts */
+#define ILK_BSD_USER_INTERRUPT				(1<<5)
+#define I915_PIPE_CONTROL_NOTIFY_INTERRUPT		(1<<18)
+#define I915_DISPLAY_PORT_INTERRUPT			(1<<17)
+#define I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT	(1<<15)
+#define I915_GMCH_THERMAL_SENSOR_EVENT_INTERRUPT	(1<<14) /* p-state */
+#define I915_HWB_OOM_INTERRUPT				(1<<13)
+#define I915_SYNC_STATUS_INTERRUPT			(1<<12)
+#define I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT	(1<<11)
+#define I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT	(1<<10)
+#define I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT	(1<<9)
+#define I915_DISPLAY_PLANE_C_FLIP_PENDING_INTERRUPT	(1<<8)
+#define I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT		(1<<7)
+#define I915_DISPLAY_PIPE_A_EVENT_INTERRUPT		(1<<6)
+#define I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT		(1<<5)
+#define I915_DISPLAY_PIPE_B_EVENT_INTERRUPT		(1<<4)
+#define I915_DEBUG_INTERRUPT				(1<<2)
+#define I915_USER_INTERRUPT				(1<<1)
+#define I915_ASLE_INTERRUPT				(1<<0)
+#define I915_BSD_USER_INTERRUPT				(1 << 25)
 
 #define GEN6_BSD_RNCID			0x12198
 
@@ -977,6 +1023,8 @@
 /* Framebuffer compression for Ivybridge */
 #define IVB_FBC_RT_BASE			0x7020
 
+#define IPS_CTL		0x43408
+#define   IPS_ENABLE	(1 << 31)
 
 #define _HSW_PIPE_SLICE_CHICKEN_1_A	0x420B0
 #define _HSW_PIPE_SLICE_CHICKEN_1_B	0x420B4
@@ -3057,6 +3105,10 @@
 #define WM3S_LP_IVB		0x45128
 #define  WM1S_LP_EN		(1<<31)
 
+#define HSW_WM_LP_VAL(lat, fbc, pri, cur) \
+	(WM3_LP_EN | ((lat) << WM1_LP_LATENCY_SHIFT) | \
+	 ((fbc) << WM1_LP_FBC_SHIFT) | ((pri) << WM1_LP_SR_SHIFT) | (cur))
+
 /* Memory latency timer register */
 #define MLTR_ILK		0x11222
 #define  MLTR_WM1_SHIFT		0
@@ -3616,6 +3668,15 @@
 #define _LGC_PALETTE_B           0x4a800
 #define LGC_PALETTE(pipe) _PIPE(pipe, _LGC_PALETTE_A, _LGC_PALETTE_B)
 
+#define _GAMMA_MODE_A		0x4a480
+#define _GAMMA_MODE_B		0x4ac80
+#define GAMMA_MODE(pipe) _PIPE(pipe, _GAMMA_MODE_A, _GAMMA_MODE_B)
+#define GAMMA_MODE_MODE_MASK	(3 << 0)
+#define GAMMA_MODE_MODE_8bit	(0 << 0)
+#define GAMMA_MODE_MODE_10bit	(1 << 0)
+#define GAMMA_MODE_MODE_12bit	(2 << 0)
+#define GAMMA_MODE_MODE_SPLIT	(3 << 0)
+
 /* interrupts */
 #define DE_MASTER_IRQ_CONTROL   (1 << 31)
 #define DE_SPRITEB_FLIP_DONE    (1 << 29)
@@ -3667,21 +3728,6 @@
 #define DEIIR   0x44008
 #define DEIER   0x4400c
 
-/* GT interrupt.
- * Note that for gen6+ the ring-specific interrupt bits do alias with the
- * corresponding bits in the per-ring interrupt control registers. */
-#define GT_GEN6_BLT_FLUSHDW_NOTIFY_INTERRUPT	(1 << 26)
-#define GT_GEN6_BLT_CS_ERROR_INTERRUPT		(1 << 25)
-#define GT_GEN6_BLT_USER_INTERRUPT		(1 << 22)
-#define GT_GEN6_BSD_CS_ERROR_INTERRUPT		(1 << 15)
-#define GT_GEN6_BSD_USER_INTERRUPT		(1 << 12)
-#define GT_BSD_USER_INTERRUPT			(1 << 5) /* ilk only */
-#define GT_GEN7_L3_PARITY_ERROR_INTERRUPT	(1 << 5)
-#define GT_PIPE_NOTIFY				(1 << 4)
-#define GT_RENDER_CS_ERROR_INTERRUPT		(1 << 3)
-#define GT_SYNC_STATUS				(1 << 2)
-#define GT_USER_INTERRUPT			(1 << 0)
-
 #define GTISR   0x44010
 #define GTIMR   0x44014
 #define GTIIR   0x44018
@@ -3710,6 +3756,9 @@
 #define IVB_CHICKEN3	0x4200c
 # define CHICKEN3_DGMG_REQ_OUT_FIX_DISABLE	(1 << 5)
 # define CHICKEN3_DGMG_DONE_FIX_DISABLE		(1 << 2)
+
+#define CHICKEN_PAR1_1		0x42080
+#define  FORCE_ARB_IDLE_PLANES	(1 << 14)
 
 #define DISP_ARB_CTL	0x45000
 #define  DISP_TILE_SURFACE_SWIZZLING	(1<<13)
@@ -4516,7 +4565,7 @@
 #define  GEN6_PM_RP_DOWN_THRESHOLD		(1<<4)
 #define  GEN6_PM_RP_UP_EI_EXPIRED		(1<<2)
 #define  GEN6_PM_RP_DOWN_EI_EXPIRED		(1<<1)
-#define  GEN6_PM_DEFERRED_EVENTS		(GEN6_PM_RP_UP_THRESHOLD | \
+#define  GEN6_PM_RPS_EVENTS			(GEN6_PM_RP_UP_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_TIMEOUT)
 
@@ -4537,40 +4586,6 @@
 #define GEN6_PCODE_DATA				0x138128
 #define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
 #define   GEN6_PCODE_FREQ_RING_RATIO_SHIFT	16
-
-#define VLV_IOSF_DOORBELL_REQ			0x182100
-#define   IOSF_DEVFN_SHIFT			24
-#define   IOSF_OPCODE_SHIFT			16
-#define   IOSF_PORT_SHIFT			8
-#define   IOSF_BYTE_ENABLES_SHIFT		4
-#define   IOSF_BAR_SHIFT			1
-#define   IOSF_SB_BUSY				(1<<0)
-#define   IOSF_PORT_PUNIT			0x4
-#define   IOSF_PORT_NC				0x11
-#define VLV_IOSF_DATA				0x182104
-#define VLV_IOSF_ADDR				0x182108
-
-#define PUNIT_OPCODE_REG_READ			6
-#define PUNIT_OPCODE_REG_WRITE			7
-
-#define PUNIT_REG_GPU_LFM			0xd3
-#define PUNIT_REG_GPU_FREQ_REQ			0xd4
-#define PUNIT_REG_GPU_FREQ_STS			0xd8
-#define PUNIT_REG_MEDIA_TURBO_FREQ_REQ		0xdc
-
-#define PUNIT_FUSE_BUS2				0xf6 /* bits 47:40 */
-#define PUNIT_FUSE_BUS1				0xf5 /* bits 55:48 */
-
-#define IOSF_NC_FB_GFX_FREQ_FUSE		0x1c
-#define   FB_GFX_MAX_FREQ_FUSE_SHIFT		3
-#define   FB_GFX_MAX_FREQ_FUSE_MASK		0x000007f8
-#define   FB_GFX_FGUARANTEED_FREQ_FUSE_SHIFT	11
-#define   FB_GFX_FGUARANTEED_FREQ_FUSE_MASK	0x0007f800
-#define IOSF_NC_FB_GFX_FMAX_FUSE_HI		0x34
-#define   FB_FMAX_VMIN_FREQ_HI_MASK		0x00000007
-#define IOSF_NC_FB_GFX_FMAX_FUSE_LO		0x30
-#define   FB_FMAX_VMIN_FREQ_LO_SHIFT		27
-#define   FB_FMAX_VMIN_FREQ_LO_MASK		0xf8000000
 
 #define GEN6_GT_CORE_STATUS		0x138060
 #define   GEN6_CORE_CPD_STATE_MASK	(7<<4)
@@ -4934,6 +4949,9 @@
 #define  SFUSE_STRAP_DDIB_DETECTED	(1<<2)
 #define  SFUSE_STRAP_DDIC_DETECTED	(1<<1)
 #define  SFUSE_STRAP_DDID_DETECTED	(1<<0)
+
+#define WM_MISC				0x45260
+#define  WM_MISC_DATA_PARTITION_5_6	(1 << 0)
 
 #define WM_DBG				0x45280
 #define  WM_DBG_DISALLOW_MULTIPLE_LP	(1<<0)

@@ -464,9 +464,11 @@ init_pipe_control(struct intel_ring_buffer *ring)
 		goto err_unref;
 
 	pc->gtt_offset = obj->gtt_offset;
-	pc->cpu_page =  kmap(sg_page(obj->pages->sgl));
-	if (pc->cpu_page == NULL)
+	pc->cpu_page = kmap(sg_page(obj->pages->sgl));
+	if (pc->cpu_page == NULL) {
+		ret = -ENOMEM;
 		goto err_unpin;
+	}
 
 	DRM_DEBUG_DRIVER("%s pipe control offset: 0x%08x\n",
 			 ring->name, pc->gtt_offset);
@@ -558,7 +560,7 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
 	if (HAS_L3_GPU_CACHE(dev))
-		I915_WRITE_IMR(ring, ~GEN6_RENDER_L3_PARITY_ERROR);
+		I915_WRITE_IMR(ring, ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
 
 	return ret;
 }
@@ -580,9 +582,16 @@ static void
 update_mboxes(struct intel_ring_buffer *ring,
 	      u32 mmio_offset)
 {
+/* NB: In order to be able to do semaphore MBOX updates for varying number
+ * of rings, it's easiest if we round up each individual update to a
+ * multiple of 2 (since ring updates must always be a multiple of 2)
+ * even though the actual update only requires 3 dwords.
+ */
+#define MBOX_UPDATE_DWORDS 4
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 	intel_ring_emit(ring, mmio_offset);
 	intel_ring_emit(ring, ring->outstanding_lazy_request);
+	intel_ring_emit(ring, MI_NOOP);
 }
 
 /**
@@ -597,19 +606,24 @@ update_mboxes(struct intel_ring_buffer *ring,
 static int
 gen6_add_request(struct intel_ring_buffer *ring)
 {
-	u32 mbox1_reg;
-	u32 mbox2_reg;
-	int ret;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *useless;
+	int i, ret;
 
-	ret = intel_ring_begin(ring, 10);
+	ret = intel_ring_begin(ring, ((I915_NUM_RINGS-1) *
+				      MBOX_UPDATE_DWORDS) +
+				      4);
 	if (ret)
 		return ret;
+#undef MBOX_UPDATE_DWORDS
 
-	mbox1_reg = ring->signal_mbox[0];
-	mbox2_reg = ring->signal_mbox[1];
+	for_each_ring(useless, dev_priv, i) {
+		u32 mbox_reg = ring->signal_mbox[i];
+		if (mbox_reg != GEN6_NOSYNC)
+			update_mboxes(ring, mbox_reg);
+	}
 
-	update_mboxes(ring, mbox1_reg);
-	update_mboxes(ring, mbox2_reg);
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
 	intel_ring_emit(ring, ring->outstanding_lazy_request);
@@ -781,7 +795,7 @@ gen5_ring_get_irq(struct intel_ring_buffer *ring)
 		return false;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (ring->irq_refcount++ == 0) {
+	if (ring->irq_refcount.gt++ == 0) {
 		dev_priv->gt_irq_mask &= ~ring->irq_enable_mask;
 		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 		POSTING_READ(GTIMR);
@@ -799,7 +813,7 @@ gen5_ring_put_irq(struct intel_ring_buffer *ring)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (--ring->irq_refcount == 0) {
+	if (--ring->irq_refcount.gt == 0) {
 		dev_priv->gt_irq_mask |= ring->irq_enable_mask;
 		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 		POSTING_READ(GTIMR);
@@ -818,7 +832,7 @@ i9xx_ring_get_irq(struct intel_ring_buffer *ring)
 		return false;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (ring->irq_refcount++ == 0) {
+	if (ring->irq_refcount.gt++ == 0) {
 		dev_priv->irq_mask &= ~ring->irq_enable_mask;
 		I915_WRITE(IMR, dev_priv->irq_mask);
 		POSTING_READ(IMR);
@@ -836,7 +850,7 @@ i9xx_ring_put_irq(struct intel_ring_buffer *ring)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (--ring->irq_refcount == 0) {
+	if (--ring->irq_refcount.gt == 0) {
 		dev_priv->irq_mask |= ring->irq_enable_mask;
 		I915_WRITE(IMR, dev_priv->irq_mask);
 		POSTING_READ(IMR);
@@ -855,7 +869,7 @@ i8xx_ring_get_irq(struct intel_ring_buffer *ring)
 		return false;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (ring->irq_refcount++ == 0) {
+	if (ring->irq_refcount.gt++ == 0) {
 		dev_priv->irq_mask &= ~ring->irq_enable_mask;
 		I915_WRITE16(IMR, dev_priv->irq_mask);
 		POSTING_READ16(IMR);
@@ -873,7 +887,7 @@ i8xx_ring_put_irq(struct intel_ring_buffer *ring)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (--ring->irq_refcount == 0) {
+	if (--ring->irq_refcount.gt == 0) {
 		dev_priv->irq_mask |= ring->irq_enable_mask;
 		I915_WRITE16(IMR, dev_priv->irq_mask);
 		POSTING_READ16(IMR);
@@ -900,6 +914,9 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 			break;
 		case VCS:
 			mmio = BSD_HWS_PGA_GEN7;
+			break;
+		case VECS:
+			mmio = VEBOX_HWS_PGA_GEN7;
 			break;
 		}
 	} else if (IS_GEN6(ring->dev)) {
@@ -963,10 +980,11 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring)
 	gen6_gt_force_wake_get(dev_priv);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (ring->irq_refcount++ == 0) {
+	if (ring->irq_refcount.gt++ == 0) {
 		if (HAS_L3_GPU_CACHE(dev) && ring->id == RCS)
-			I915_WRITE_IMR(ring, ~(ring->irq_enable_mask |
-						GEN6_RENDER_L3_PARITY_ERROR));
+			I915_WRITE_IMR(ring,
+				       ~(ring->irq_enable_mask |
+					 GT_RENDER_L3_PARITY_ERROR_INTERRUPT));
 		else
 			I915_WRITE_IMR(ring, ~ring->irq_enable_mask);
 		dev_priv->gt_irq_mask &= ~ring->irq_enable_mask;
@@ -986,9 +1004,10 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	if (--ring->irq_refcount == 0) {
+	if (--ring->irq_refcount.gt == 0) {
 		if (HAS_L3_GPU_CACHE(dev) && ring->id == RCS)
-			I915_WRITE_IMR(ring, ~GEN6_RENDER_L3_PARITY_ERROR);
+			I915_WRITE_IMR(ring,
+				       ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
 		else
 			I915_WRITE_IMR(ring, ~0);
 		dev_priv->gt_irq_mask |= ring->irq_enable_mask;
@@ -998,6 +1017,48 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
 	gen6_gt_force_wake_put(dev_priv);
+}
+
+static bool
+hsw_vebox_get_irq(struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	if (!dev->irq_enabled)
+		return false;
+
+	spin_lock_irqsave(&dev_priv->rps.lock, flags);
+	if (ring->irq_refcount.pm++ == 0) {
+		u32 pm_imr = I915_READ(GEN6_PMIMR);
+		I915_WRITE_IMR(ring, ~ring->irq_enable_mask);
+		I915_WRITE(GEN6_PMIMR, pm_imr & ~ring->irq_enable_mask);
+		POSTING_READ(GEN6_PMIMR);
+	}
+	spin_unlock_irqrestore(&dev_priv->rps.lock, flags);
+
+	return true;
+}
+
+static void
+hsw_vebox_put_irq(struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	if (!dev->irq_enabled)
+		return;
+
+	spin_lock_irqsave(&dev_priv->rps.lock, flags);
+	if (--ring->irq_refcount.pm == 0) {
+		u32 pm_imr = I915_READ(GEN6_PMIMR);
+		I915_WRITE_IMR(ring, ~0);
+		I915_WRITE(GEN6_PMIMR, pm_imr | ring->irq_enable_mask);
+		POSTING_READ(GEN6_PMIMR);
+	}
+	spin_unlock_irqrestore(&dev_priv->rps.lock, flags);
 }
 
 static int
@@ -1502,6 +1563,7 @@ void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno)
 	}
 
 	ring->set_seqno(ring, seqno);
+	ring->hangcheck.seqno = seqno;
 }
 
 void intel_ring_advance(struct intel_ring_buffer *ring)
@@ -1548,8 +1610,8 @@ static void gen6_bsd_ring_write_tail(struct intel_ring_buffer *ring,
 		   _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
 }
 
-static int gen6_ring_flush(struct intel_ring_buffer *ring,
-			   u32 invalidate, u32 flush)
+static int gen6_bsd_ring_flush(struct intel_ring_buffer *ring,
+			       u32 invalidate, u32 flush)
 {
 	uint32_t cmd;
 	int ret;
@@ -1620,8 +1682,8 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 
 /* Blitter support (SandyBridge+) */
 
-static int blt_ring_flush(struct intel_ring_buffer *ring,
-			  u32 invalidate, u32 flush)
+static int gen6_ring_flush(struct intel_ring_buffer *ring,
+			   u32 invalidate, u32 flush)
 {
 	uint32_t cmd;
 	int ret;
@@ -1664,15 +1726,18 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 			ring->flush = gen6_render_ring_flush;
 		ring->irq_get = gen6_ring_get_irq;
 		ring->irq_put = gen6_ring_put_irq;
-		ring->irq_enable_mask = GT_USER_INTERRUPT;
+		ring->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 		ring->get_seqno = gen6_ring_get_seqno;
 		ring->set_seqno = ring_set_seqno;
 		ring->sync_to = gen6_ring_sync;
-		ring->semaphore_register[0] = MI_SEMAPHORE_SYNC_INVALID;
-		ring->semaphore_register[1] = MI_SEMAPHORE_SYNC_RV;
-		ring->semaphore_register[2] = MI_SEMAPHORE_SYNC_RB;
-		ring->signal_mbox[0] = GEN6_VRSYNC;
-		ring->signal_mbox[1] = GEN6_BRSYNC;
+		ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_INVALID;
+		ring->semaphore_register[VCS] = MI_SEMAPHORE_SYNC_RV;
+		ring->semaphore_register[BCS] = MI_SEMAPHORE_SYNC_RB;
+		ring->semaphore_register[VECS] = MI_SEMAPHORE_SYNC_RVE;
+		ring->signal_mbox[RCS] = GEN6_NOSYNC;
+		ring->signal_mbox[VCS] = GEN6_VRSYNC;
+		ring->signal_mbox[BCS] = GEN6_BRSYNC;
+		ring->signal_mbox[VECS] = GEN6_VERSYNC;
 	} else if (IS_GEN5(dev)) {
 		ring->add_request = pc_render_add_request;
 		ring->flush = gen4_render_ring_flush;
@@ -1680,7 +1745,8 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->set_seqno = pc_render_set_seqno;
 		ring->irq_get = gen5_ring_get_irq;
 		ring->irq_put = gen5_ring_put_irq;
-		ring->irq_enable_mask = GT_USER_INTERRUPT | GT_PIPE_NOTIFY;
+		ring->irq_enable_mask = GT_RENDER_USER_INTERRUPT |
+					GT_RENDER_PIPECTL_NOTIFY_INTERRUPT;
 	} else {
 		ring->add_request = i9xx_add_request;
 		if (INTEL_INFO(dev)->gen < 4)
@@ -1818,20 +1884,23 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		/* gen6 bsd needs a special wa for tail updates */
 		if (IS_GEN6(dev))
 			ring->write_tail = gen6_bsd_ring_write_tail;
-		ring->flush = gen6_ring_flush;
+		ring->flush = gen6_bsd_ring_flush;
 		ring->add_request = gen6_add_request;
 		ring->get_seqno = gen6_ring_get_seqno;
 		ring->set_seqno = ring_set_seqno;
-		ring->irq_enable_mask = GEN6_BSD_USER_INTERRUPT;
+		ring->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 		ring->irq_get = gen6_ring_get_irq;
 		ring->irq_put = gen6_ring_put_irq;
 		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 		ring->sync_to = gen6_ring_sync;
-		ring->semaphore_register[0] = MI_SEMAPHORE_SYNC_VR;
-		ring->semaphore_register[1] = MI_SEMAPHORE_SYNC_INVALID;
-		ring->semaphore_register[2] = MI_SEMAPHORE_SYNC_VB;
-		ring->signal_mbox[0] = GEN6_RVSYNC;
-		ring->signal_mbox[1] = GEN6_BVSYNC;
+		ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_VR;
+		ring->semaphore_register[VCS] = MI_SEMAPHORE_SYNC_INVALID;
+		ring->semaphore_register[BCS] = MI_SEMAPHORE_SYNC_VB;
+		ring->semaphore_register[VECS] = MI_SEMAPHORE_SYNC_VVE;
+		ring->signal_mbox[RCS] = GEN6_RVSYNC;
+		ring->signal_mbox[VCS] = GEN6_NOSYNC;
+		ring->signal_mbox[BCS] = GEN6_BVSYNC;
+		ring->signal_mbox[VECS] = GEN6_VEVSYNC;
 	} else {
 		ring->mmio_base = BSD_RING_BASE;
 		ring->flush = bsd_ring_flush;
@@ -1839,7 +1908,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		ring->get_seqno = ring_get_seqno;
 		ring->set_seqno = ring_set_seqno;
 		if (IS_GEN5(dev)) {
-			ring->irq_enable_mask = GT_BSD_USER_INTERRUPT;
+			ring->irq_enable_mask = ILK_BSD_USER_INTERRUPT;
 			ring->irq_get = gen5_ring_get_irq;
 			ring->irq_put = gen5_ring_put_irq;
 		} else {
@@ -1864,20 +1933,56 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 
 	ring->mmio_base = BLT_RING_BASE;
 	ring->write_tail = ring_write_tail;
-	ring->flush = blt_ring_flush;
+	ring->flush = gen6_ring_flush;
 	ring->add_request = gen6_add_request;
 	ring->get_seqno = gen6_ring_get_seqno;
 	ring->set_seqno = ring_set_seqno;
-	ring->irq_enable_mask = GEN6_BLITTER_USER_INTERRUPT;
+	ring->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 	ring->irq_get = gen6_ring_get_irq;
 	ring->irq_put = gen6_ring_put_irq;
 	ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 	ring->sync_to = gen6_ring_sync;
-	ring->semaphore_register[0] = MI_SEMAPHORE_SYNC_BR;
-	ring->semaphore_register[1] = MI_SEMAPHORE_SYNC_BV;
-	ring->semaphore_register[2] = MI_SEMAPHORE_SYNC_INVALID;
-	ring->signal_mbox[0] = GEN6_RBSYNC;
-	ring->signal_mbox[1] = GEN6_VBSYNC;
+	ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_BR;
+	ring->semaphore_register[VCS] = MI_SEMAPHORE_SYNC_BV;
+	ring->semaphore_register[BCS] = MI_SEMAPHORE_SYNC_INVALID;
+	ring->semaphore_register[VECS] = MI_SEMAPHORE_SYNC_BVE;
+	ring->signal_mbox[RCS] = GEN6_RBSYNC;
+	ring->signal_mbox[VCS] = GEN6_VBSYNC;
+	ring->signal_mbox[BCS] = GEN6_NOSYNC;
+	ring->signal_mbox[VECS] = GEN6_VEBSYNC;
+	ring->init = init_ring_common;
+
+	return intel_init_ring_buffer(dev, ring);
+}
+
+int intel_init_vebox_ring_buffer(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = &dev_priv->ring[VECS];
+
+	ring->name = "video enhancement ring";
+	ring->id = VECS;
+
+	ring->mmio_base = VEBOX_RING_BASE;
+	ring->write_tail = ring_write_tail;
+	ring->flush = gen6_ring_flush;
+	ring->add_request = gen6_add_request;
+	ring->get_seqno = gen6_ring_get_seqno;
+	ring->set_seqno = ring_set_seqno;
+	ring->irq_enable_mask = PM_VEBOX_USER_INTERRUPT |
+		PM_VEBOX_CS_ERROR_INTERRUPT;
+	ring->irq_get = hsw_vebox_get_irq;
+	ring->irq_put = hsw_vebox_put_irq;
+	ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
+	ring->sync_to = gen6_ring_sync;
+	ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_VER;
+	ring->semaphore_register[VCS] = MI_SEMAPHORE_SYNC_VEV;
+	ring->semaphore_register[BCS] = MI_SEMAPHORE_SYNC_VEB;
+	ring->semaphore_register[VECS] = MI_SEMAPHORE_SYNC_INVALID;
+	ring->signal_mbox[RCS] = GEN6_RVESYNC;
+	ring->signal_mbox[VCS] = GEN6_VVESYNC;
+	ring->signal_mbox[BCS] = GEN6_BVESYNC;
+	ring->signal_mbox[VECS] = GEN6_NOSYNC;
 	ring->init = init_ring_common;
 
 	return intel_init_ring_buffer(dev, ring);

@@ -332,7 +332,7 @@ static u32 i915_read_blc_pwm_ctl(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val;
 
-	WARN_ON(!spin_is_locked(&dev_priv->backlight.lock));
+	WARN_ON_SMP(!spin_is_locked(&dev_priv->backlight.lock));
 
 	/* Restore the CTL value if it lost, e.g. GPU reset */
 

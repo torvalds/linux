@@ -128,6 +128,10 @@ module_param_named(disable_power_well, i915_disable_power_well, int, 0600);
 MODULE_PARM_DESC(disable_power_well,
 		 "Disable the power well when possible (default: false)");
 
+int i915_enable_ips __read_mostly = 1;
+module_param_named(enable_ips, i915_enable_ips, int, 0600);
+MODULE_PARM_DESC(enable_ips, "Enable IPS (default: true)");
+
 static struct drm_driver driver;
 extern int intel_agp_enabled;
 
@@ -311,6 +315,7 @@ static const struct intel_device_info intel_haswell_d_info = {
 	.is_haswell = 1,
 	.has_ddi = 1,
 	.has_fpga_dbg = 1,
+	.has_vebox_ring = 1,
 };
 
 static const struct intel_device_info intel_haswell_m_info = {
@@ -320,6 +325,7 @@ static const struct intel_device_info intel_haswell_m_info = {
 	.has_ddi = 1,
 	.has_fpga_dbg = 1,
 	.has_fbc = 1,
+	.has_vebox_ring = 1,
 };
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
@@ -863,37 +869,14 @@ static int gen6_do_reset(struct drm_device *dev)
 
 int intel_gpu_reset(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret = -ENODEV;
-
 	switch (INTEL_INFO(dev)->gen) {
 	case 7:
-	case 6:
-		ret = gen6_do_reset(dev);
-		break;
-	case 5:
-		ret = ironlake_do_reset(dev);
-		break;
-	case 4:
-		ret = i965_do_reset(dev);
-		break;
-	case 2:
-		ret = i8xx_do_reset(dev);
-		break;
+	case 6: return gen6_do_reset(dev);
+	case 5: return ironlake_do_reset(dev);
+	case 4: return i965_do_reset(dev);
+	case 2: return i8xx_do_reset(dev);
+	default: return -ENODEV;
 	}
-
-	/* Also reset the gpu hangman. */
-	if (dev_priv->gpu_error.stop_rings) {
-		DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
-		dev_priv->gpu_error.stop_rings = 0;
-		if (ret == -ENODEV) {
-			DRM_ERROR("Reset not implemented, but ignoring "
-				  "error for simulated gpu hangs\n");
-			ret = 0;
-		}
-	}
-
-	return ret;
 }
 
 /**
@@ -914,6 +897,7 @@ int intel_gpu_reset(struct drm_device *dev)
 int i915_reset(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	bool simulated;
 	int ret;
 
 	if (!i915_try_reset)
@@ -923,13 +907,26 @@ int i915_reset(struct drm_device *dev)
 
 	i915_gem_reset(dev);
 
-	ret = -ENODEV;
-	if (get_seconds() - dev_priv->gpu_error.last_reset < 5)
+	simulated = dev_priv->gpu_error.stop_rings != 0;
+
+	if (!simulated && get_seconds() - dev_priv->gpu_error.last_reset < 5) {
 		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
-	else
+		ret = -ENODEV;
+	} else {
 		ret = intel_gpu_reset(dev);
 
-	dev_priv->gpu_error.last_reset = get_seconds();
+		/* Also reset the gpu hangman. */
+		if (simulated) {
+			DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
+			dev_priv->gpu_error.stop_rings = 0;
+			if (ret == -ENODEV) {
+				DRM_ERROR("Reset not implemented, but ignoring "
+					  "error for simulated gpu hangs\n");
+				ret = 0;
+			}
+		} else
+			dev_priv->gpu_error.last_reset = get_seconds();
+	}
 	if (ret) {
 		DRM_ERROR("Failed to reset chip.\n");
 		mutex_unlock(&dev->struct_mutex);
