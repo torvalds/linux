@@ -290,10 +290,6 @@ struct ocrdma_qp {
 	u8 *ird_q_va;
 };
 
-#define OCRDMA_GET_NUM_POSTED_SHIFT_VAL(qp) \
-	(((qp->dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) && \
-		(qp->id < 64)) ? 24 : 16)
-
 struct ocrdma_hw_mr {
 	struct ocrdma_dev *dev;
 	u32 lkey;
@@ -383,5 +379,44 @@ static inline struct ocrdma_srq *get_ocrdma_srq(struct ib_srq *ibsrq)
 {
 	return container_of(ibsrq, struct ocrdma_srq, ibsrq);
 }
+
+
+static inline int ocrdma_get_num_posted_shift(struct ocrdma_qp *qp)
+{
+	return ((qp->dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY &&
+		 qp->id < 64) ? 24 : 16);
+}
+
+static inline int is_cqe_valid(struct ocrdma_cq *cq, struct ocrdma_cqe *cqe)
+{
+	int cqe_valid;
+	cqe_valid = le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_VALID;
+	return ((cqe_valid == cq->phase) ? 1 : 0);
+}
+
+static inline int is_cqe_for_sq(struct ocrdma_cqe *cqe)
+{
+	return (le32_to_cpu(cqe->flags_status_srcqpn) &
+		OCRDMA_CQE_QTYPE) ? 0 : 1;
+}
+
+static inline int is_cqe_invalidated(struct ocrdma_cqe *cqe)
+{
+	return (le32_to_cpu(cqe->flags_status_srcqpn) &
+		OCRDMA_CQE_INVALIDATE) ? 1 : 0;
+}
+
+static inline int is_cqe_imm(struct ocrdma_cqe *cqe)
+{
+	return (le32_to_cpu(cqe->flags_status_srcqpn) &
+		OCRDMA_CQE_IMM) ? 1 : 0;
+}
+
+static inline int is_cqe_wr_imm(struct ocrdma_cqe *cqe)
+{
+	return (le32_to_cpu(cqe->flags_status_srcqpn) &
+		OCRDMA_CQE_WRITE_IMM) ? 1 : 0;
+}
+
 
 #endif

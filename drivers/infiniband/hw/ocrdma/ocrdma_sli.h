@@ -1534,21 +1534,6 @@ struct ocrdma_cqe {
 	u32 flags_status_srcqpn;	/* w3 */
 } __packed;
 
-#define is_cqe_valid(cq, cqe) \
-	(((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_VALID)\
-	== cq->phase) ? 1 : 0)
-#define is_cqe_for_sq(cqe) \
-	((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_QTYPE) ? 0 : 1)
-#define is_cqe_for_rq(cqe) \
-	((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_QTYPE) ? 1 : 0)
-#define is_cqe_invalidated(cqe) \
-	((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_INVALIDATE) ? \
-	1 : 0)
-#define is_cqe_imm(cqe) \
-	((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_IMM) ? 1 : 0)
-#define is_cqe_wr_imm(cqe) \
-	((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_WRITE_IMM) ? 1 : 0)
-
 struct ocrdma_sge {
 	u32 addr_hi;
 	u32 addr_lo;

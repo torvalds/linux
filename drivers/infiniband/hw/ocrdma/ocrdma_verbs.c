@@ -1819,7 +1819,7 @@ int ocrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 static void ocrdma_ring_rq_db(struct ocrdma_qp *qp)
 {
-	u32 val = qp->rq.dbid | (1 << OCRDMA_GET_NUM_POSTED_SHIFT_VAL(qp));
+	u32 val = qp->rq.dbid | (1 << ocrdma_get_num_posted_shift(qp));
 
 	iowrite32(val, qp->rq_db);
 }
