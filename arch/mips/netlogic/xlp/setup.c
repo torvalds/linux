@@ -61,6 +61,18 @@ static void nlm_linux_exit(void)
 		cpu_wait();
 }
 
+static void nlm_fixup_mem(void)
+{
+	const int pref_backup = 512;
+	int i;
+
+	for (i = 0; i < boot_mem_map.nr_map; i++) {
+		if (boot_mem_map.map[i].type != BOOT_MEM_RAM)
+			continue;
+		boot_mem_map.map[i].size -= pref_backup;
+	}
+}
+
 void __init plat_mem_setup(void)
 {
 	panic_timeout	= 5;
@@ -70,6 +82,7 @@ void __init plat_mem_setup(void)
 
 	/* memory and bootargs from DT */
 	early_init_devtree(initial_boot_params);
+	nlm_fixup_mem();
 }
 
 const char *get_system_type(void)
