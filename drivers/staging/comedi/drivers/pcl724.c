@@ -46,58 +46,51 @@ See the source for configuration details.
 
 #include "8255.h"
 
-#define PCL722_SIZE    32
-#define PCL722_96_SIZE 16
-#define PCL724_SIZE     4
-#define PCL731_SIZE     8
-#define PET48_SIZE      2
-
 #define SIZE_8255	4
 
 struct pcl724_board {
-
-	const char *name;	/*  board name */
-	int dio;		/*  num of DIO */
-	int numofports;		/*  num of 8255 subdevices */
-	unsigned int io_range;	/*  len of IO space */
-	char can_have96;
-	char is_pet48;
+	const char *name;
+	unsigned int io_range;
+	unsigned int can_have96:1;
+	unsigned int is_pet48:1;
+	int dio;
+	int numofports;
 };
 
 static const struct pcl724_board boardtypes[] = {
 	{
 		.name		= "pcl724",
+		.io_range	= 0x04,
 		.dio		= 24,
 		.numofports	= 1,
-		.io_range	= PCL724_SIZE,
 	}, {
 		.name		= "pcl722",
+		.io_range	= 0x20,
+		.can_have96	= 1,
 		.dio		= 144,
 		.numofports	= 6,
-		.io_range	= PCL722_SIZE,
-		.can_have96	= 1,
 	}, {
 		.name		= "pcl731",
+		.io_range	= 0x08,
 		.dio		= 48,
 		.numofports	= 2,
-		.io_range	= PCL731_SIZE,
 	}, {
 		.name		= "acl7122",
+		.io_range	= 0x20,
+		.can_have96	= 1,
 		.dio		= 144,
 		.numofports	= 6,
-		.io_range	= PCL722_SIZE,
-		.can_have96	= 1,
 	}, {
 		.name		= "acl7124",
+		.io_range	= 0x04,
 		.dio		= 24,
 		.numofports	= 1,
-		.io_range	= PCL724_SIZE,
 	}, {
 		.name		= "pet48dio",
+		.io_range	= 0x02,
+		.is_pet48	= 1,
 		.dio		= 48,
 		.numofports	= 2,
-		.io_range	= PET48_SIZE,
-		.is_pet48	= 1,
 	},
 };
 
@@ -140,7 +133,7 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	iorange = board->io_range;
 	if ((board->can_have96) &&
 	    ((it->options[1] == 1) || (it->options[1] == 96)))
-		iorange = PCL722_96_SIZE; /* PCL-724 in 96 DIO configuration */
+		iorange = 0x10; /* PCL-724 in 96 DIO configuration */
 	ret = comedi_request_region(dev, it->options[0], iorange);
 	if (ret)
 		return ret;
