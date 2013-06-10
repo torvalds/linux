@@ -1020,12 +1020,12 @@ static int xlr_net_probe(struct platform_device *pdev)
 		goto err_gmac;
 	}
 
-	ndev->base_addr = (unsigned long) devm_request_and_ioremap
+	ndev->base_addr = (unsigned long) devm_ioremap_resource
 		(&pdev->dev, res);
-	if (!ndev->base_addr) {
+	if (IS_ERR_VALUE(ndev->base_addr)) {
 		dev_err(&pdev->dev,
-				"devm_request_and_ioremap failed\n");
-		return -EBUSY;
+				"devm_ioremap_resource failed\n");
+		return ndev->base_addr;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
