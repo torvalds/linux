@@ -120,7 +120,7 @@ static int gssp_rpc_create(struct net *net, struct rpc_clnt **_clnt)
 	if (IS_ERR(clnt)) {
 		dprintk("RPC:       failed to create AF_LOCAL gssproxy "
 				"client (errno %ld).\n", PTR_ERR(clnt));
-		result = -PTR_ERR(clnt);
+		result = PTR_ERR(clnt);
 		*_clnt = NULL;
 		goto out;
 	}
