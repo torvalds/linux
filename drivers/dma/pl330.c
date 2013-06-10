@@ -501,7 +501,7 @@ struct pl330_dmac {
 	/* Maximum possible events/irqs */
 	int			events[32];
 	/* BUS address of MicroCode buffer */
-	u32			mcode_bus;
+	dma_addr_t		mcode_bus;
 	/* CPU address of MicroCode buffer */
 	void			*mcode_cpu;
 	/* List of all Channel threads */
