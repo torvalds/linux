@@ -114,6 +114,7 @@ struct sgtl5000_priv {
 	struct regulator_bulk_data supplies[SGTL5000_SUPPLY_NUM];
 	struct ldo_regulator *ldo;
 	struct regmap *regmap;
+	struct clk *mclk;
 };
 
 /*
@@ -1522,16 +1523,28 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	sgtl5000->mclk = devm_clk_get(&client->dev, NULL);
+	if (IS_ERR(sgtl5000->mclk)) {
+		ret = PTR_ERR(sgtl5000->mclk);
+		dev_err(&client->dev, "Failed to get mclock: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(sgtl5000->mclk);
+	if (ret)
+		return ret;
+
 	/* read chip information */
 	ret = regmap_read(sgtl5000->regmap, SGTL5000_CHIP_ID, &reg);
 	if (ret)
-		return ret;
+		goto disable_clk;
 
 	if (((reg & SGTL5000_PARTID_MASK) >> SGTL5000_PARTID_SHIFT) !=
 	    SGTL5000_PARTID_PART_ID) {
 		dev_err(&client->dev,
 			"Device with ID register %x is not a sgtl5000\n", reg);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto disable_clk;
 	}
 
 	rev = (reg & SGTL5000_REVID_MASK) >> SGTL5000_REVID_SHIFT;
@@ -1542,17 +1555,30 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 	/* Ensure sgtl5000 will start with sane register values */
 	ret = sgtl5000_fill_defaults(sgtl5000);
 	if (ret)
-		return ret;
+		goto disable_clk;
 
 	ret = snd_soc_register_codec(&client->dev,
 			&sgtl5000_driver, &sgtl5000_dai, 1);
+	if (ret)
+		goto disable_clk;
+
+	return 0;
+
+disable_clk:
+	clk_disable_unprepare(sgtl5000->mclk);
 	return ret;
 }
 
 static int sgtl5000_i2c_remove(struct i2c_client *client)
 {
-	snd_soc_unregister_codec(&client->dev);
+	struct sgtl5000_priv *sgtl5000;
+	sgtl5000 = devm_kzalloc(&client->dev, sizeof(struct sgtl5000_priv),
+								GFP_KERNEL);
+	if (!sgtl5000)
+		return -ENOMEM;
 
+	snd_soc_unregister_codec(&client->dev);
+	clk_disable_unprepare(sgtl5000->mclk);
 	return 0;
 }
 
