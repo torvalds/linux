@@ -64,6 +64,52 @@ struct pcl724_board {
 	char is_pet48;
 };
 
+static const struct pcl724_board boardtypes[] = {
+	{
+		.name		= "pcl724",
+		.dio		= 24,
+		.numofports	= 1,
+		.io_range	= PCL724_SIZE,
+		.can_have96	= 0,
+		.is_pet48	= 0,
+	}, {
+		.name		= "pcl722",
+		.dio		= 144,
+		.numofports	= 6,
+		.io_range	= PCL722_SIZE,
+		.can_have96	= 1,
+		.is_pet48	= 0,
+	}, {
+		.name		= "pcl731",
+		.dio		= 48,
+		.numofports	= 2,
+		.io_range	= PCL731_SIZE,
+		.can_have96	= 0,
+		.is_pet48	= 0,
+	}, {
+		.name		= "acl7122",
+		.dio		= 144,
+		.numofports	= 6,
+		.io_range	= PCL722_SIZE,
+		.can_have96	= 1,
+		.is_pet48	= 0,
+	}, {
+		.name		= "acl7124",
+		.dio		= 24,
+		.numofports	= 1,
+		.io_range	= PCL724_SIZE,
+		.can_have96	= 0,
+		.is_pet48	= 0,
+	}, {
+		.name		= "pet48dio",
+		.dio		= 48,
+		.numofports	= 2,
+		.io_range	= PET48_SIZE,
+		.can_have96	= 0,
+		.is_pet48	= 1,
+	},
+};
+
 static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
 {
 	unsigned long iobase = arg;
@@ -140,15 +186,6 @@ static void pcl724_detach(struct comedi_device *dev)
 		comedi_spriv_free(dev, i);
 	comedi_legacy_detach(dev);
 }
-
-static const struct pcl724_board boardtypes[] = {
-	{ "pcl724", 24, 1, PCL724_SIZE, 0, 0, },
-	{ "pcl722", 144, 6, PCL722_SIZE, 1, 0, },
-	{ "pcl731", 48, 2, PCL731_SIZE, 0, 0, },
-	{ "acl7122", 144, 6, PCL722_SIZE, 1, 0, },
-	{ "acl7124", 24, 1, PCL724_SIZE, 0, 0, },
-	{ "pet48dio", 48, 2, PET48_SIZE, 0, 1, },
-};
 
 static struct comedi_driver pcl724_driver = {
 	.driver_name	= "pcl724",
