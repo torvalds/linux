@@ -137,6 +137,7 @@ void xlp_wakeup_secondary_cpus()
 	 * In case of u-boot, the secondaries are in reset
 	 * first wakeup core 0 threads
 	 */
+	nlm_init_boot_cpu();
 	xlp_boot_core0_siblings();
 
 	/* now get other cores out of reset */

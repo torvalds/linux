@@ -71,6 +71,7 @@ nlm_set_nmi_handler(void *handler)
 /*
  * Misc.
  */
+void nlm_init_boot_cpu(void);
 unsigned int nlm_get_cpu_frequency(void);
 void nlm_node_init(int node);
 extern struct plat_smp_ops nlm_smp_ops;
