@@ -7,21 +7,59 @@ efficiency and reducing OS jitter.  Reducing OS jitter is important for
 some types of computationally intensive high-performance computing (HPC)
 applications and for real-time applications.
 
-There are two main contexts in which the number of scheduling-clock
-interrupts can be reduced compared to the old-school approach of sending
-a scheduling-clock interrupt to all CPUs every jiffy whether they need
-it or not (CONFIG_HZ_PERIODIC=y or CONFIG_NO_HZ=n for older kernels):
+There are three main ways of managing scheduling-clock interrupts
+(also known as "scheduling-clock ticks" or simply "ticks"):
 
-1.	Idle CPUs (CONFIG_NO_HZ_IDLE=y or CONFIG_NO_HZ=y for older kernels).
+1.	Never omit scheduling-clock ticks (CONFIG_HZ_PERIODIC=y or
+	CONFIG_NO_HZ=n for older kernels).  You normally will -not-
+	want to choose this option.
 
-2.	CPUs having only one runnable task (CONFIG_NO_HZ_FULL=y).
+2.	Omit scheduling-clock ticks on idle CPUs (CONFIG_NO_HZ_IDLE=y or
+	CONFIG_NO_HZ=y for older kernels).  This is the most common
+	approach, and should be the default.
 
-These two cases are described in the following two sections, followed
+3.	Omit scheduling-clock ticks on CPUs that are either idle or that
+	have only one runnable task (CONFIG_NO_HZ_FULL=y).  Unless you
+	are running realtime applications or certain types of HPC
+	workloads, you will normally -not- want this option.
+
+These three cases are described in the following three sections, followed
 by a third section on RCU-specific considerations and a fourth and final
 section listing known issues.
 
 
-IDLE CPUs
+NEVER OMIT SCHEDULING-CLOCK TICKS
+
+Very old versions of Linux from the 1990s and the very early 2000s
+are incapable of omitting scheduling-clock ticks.  It turns out that
+there are some situations where this old-school approach is still the
+right approach, for example, in heavy workloads with lots of tasks
+that use short bursts of CPU, where there are very frequent idle
+periods, but where these idle periods are also quite short (tens or
+hundreds of microseconds).  For these types of workloads, scheduling
+clock interrupts will normally be delivered any way because there
+will frequently be multiple runnable tasks per CPU.  In these cases,
+attempting to turn off the scheduling clock interrupt will have no effect
+other than increasing the overhead of switching to and from idle and
+transitioning between user and kernel execution.
+
+This mode of operation can be selected using CONFIG_HZ_PERIODIC=y (or
+CONFIG_NO_HZ=n for older kernels).
+
+However, if you are instead running a light workload with long idle
+periods, failing to omit scheduling-clock interrupts will result in
+excessive power consumption.  This is especially bad on battery-powered
+devices, where it results in extremely short battery lifetimes.  If you
+are running light workloads, you should therefore read the following
+section.
+
+In addition, if you are running either a real-time workload or an HPC
+workload with short iterations, the scheduling-clock interrupts can
+degrade your applications performance.  If this describes your workload,
+you should read the following two sections.
+
+
+OMIT SCHEDULING-CLOCK TICKS FOR IDLE CPUs
 
 If a CPU is idle, there is little point in sending it a scheduling-clock
 interrupt.  After all, the primary purpose of a scheduling-clock interrupt
@@ -59,10 +97,12 @@ By default, CONFIG_NO_HZ_IDLE=y kernels boot with "nohz=on", enabling
 dyntick-idle mode.
 
 
-CPUs WITH ONLY ONE RUNNABLE TASK
+OMIT SCHEDULING-CLOCK TICKS FOR CPUs WITH ONLY ONE RUNNABLE TASK
 
 If a CPU has only one runnable task, there is little point in sending it
 a scheduling-clock interrupt because there is no other task to switch to.
+Note that omitting scheduling-clock ticks for CPUs with only one runnable
+task implies also omitting them for idle CPUs.
 
 The CONFIG_NO_HZ_FULL=y Kconfig option causes the kernel to avoid
 sending scheduling-clock interrupts to CPUs with a single runnable task,
@@ -238,6 +278,11 @@ o	Adaptive-ticks does not do anything unless there is only one
 	single runnable SCHED_FIFO task and multiple runnable SCHED_OTHER
 	tasks, even though these interrupts are unnecessary.
 
+	And even when there are multiple runnable tasks on a given CPU,
+	there is little point in interrupting that CPU until the current
+	running task's timeslice expires, which is almost always way
+	longer than the time of the next scheduling-clock interrupt.
+
 	Better handling of these sorts of situations is future work.
 
 o	A reboot is required to reconfigure both adaptive idle and RCU
@@ -268,6 +313,16 @@ o	Unless all CPUs are idle, at least one CPU must keep the
 	scheduling-clock interrupt going in order to support accurate
 	timekeeping.
 
-o	If there are adaptive-ticks CPUs, there will be at least one
-	CPU keeping the scheduling-clock interrupt going, even if all
-	CPUs are otherwise idle.
+o	If there might potentially be some adaptive-ticks CPUs, there
+	will be at least one CPU keeping the scheduling-clock interrupt
+	going, even if all CPUs are otherwise idle.
+
+	Better handling of this situation is ongoing work.
+
+o	Some process-handling operations still require the occasional
+	scheduling-clock tick.	These operations include calculating CPU
+	load, maintaining sched average, computing CFS entity vruntime,
+	computing avenrun, and carrying out load balancing.  They are
+	currently accommodated by scheduling-clock tick every second
+	or so.	On-going work will eliminate the need even for these
+	infrequent scheduling-clock ticks.
