@@ -53,7 +53,6 @@ struct pcl724_board {
 	unsigned int io_range;
 	unsigned int can_have96:1;
 	unsigned int is_pet48:1;
-	int dio;
 	int numofports;
 };
 
@@ -61,36 +60,30 @@ static const struct pcl724_board boardtypes[] = {
 	{
 		.name		= "pcl724",
 		.io_range	= 0x04,
-		.dio		= 24,
-		.numofports	= 1,
+		.numofports	= 1,	/* 24 DIO channels */
 	}, {
 		.name		= "pcl722",
 		.io_range	= 0x20,
 		.can_have96	= 1,
-		.dio		= 144,
-		.numofports	= 6,
+		.numofports	= 6,	/* 144 (or 96) DIO channels */
 	}, {
 		.name		= "pcl731",
 		.io_range	= 0x08,
-		.dio		= 48,
-		.numofports	= 2,
+		.numofports	= 2,	/* 48 DIO channels */
 	}, {
 		.name		= "acl7122",
 		.io_range	= 0x20,
 		.can_have96	= 1,
-		.dio		= 144,
-		.numofports	= 6,
+		.numofports	= 6,	/* 144 (or 96) DIO channels */
 	}, {
 		.name		= "acl7124",
 		.io_range	= 0x04,
-		.dio		= 24,
-		.numofports	= 1,
+		.numofports	= 1,	/* 24 DIO channels */
 	}, {
 		.name		= "pet48dio",
 		.io_range	= 0x02,
 		.is_pet48	= 1,
-		.dio		= 48,
-		.numofports	= 2,
+		.numofports	= 2,	/* 48 DIO channels */
 	},
 };
 
