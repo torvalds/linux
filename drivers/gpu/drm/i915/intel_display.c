@@ -1432,6 +1432,7 @@ static void ironlake_enable_pch_pll(struct intel_crtc *intel_crtc)
 		assert_pch_pll_enabled(dev_priv, pll, NULL);
 		return;
 	}
+	WARN_ON(pll->on);
 
 	DRM_DEBUG_KMS("enabling PCH PLL %x\n", pll->pll_reg);
 
@@ -1470,6 +1471,7 @@ static void intel_disable_pch_pll(struct intel_crtc *intel_crtc)
 	}
 
 	assert_pch_pll_enabled(dev_priv, pll, NULL);
+	WARN_ON(!pll->on);
 	if (--pll->active)
 		return;
 
@@ -3069,7 +3071,11 @@ static void intel_put_pch_pll(struct intel_crtc *intel_crtc)
 		return;
 	}
 
-	--pll->refcount;
+	if (--pll->refcount == 0) {
+		WARN_ON(pll->on);
+		WARN_ON(pll->active);
+	}
+
 	intel_crtc->pch_pll = NULL;
 }
 
