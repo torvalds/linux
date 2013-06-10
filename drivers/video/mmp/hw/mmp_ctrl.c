@@ -238,7 +238,7 @@ static int overlay_set_addr(struct mmp_overlay *overlay, struct mmp_addr *addr)
 	struct lcd_regs *regs = path_regs(overlay->path);
 
 	/* FIXME: assert addr supported */
-	memcpy(&overlay->addr, addr, sizeof(struct mmp_win));
+	memcpy(&overlay->addr, addr, sizeof(struct mmp_addr));
 	writel(addr->phys[0], &regs->g_0);
 
 	return overlay->addr.phys[0];
