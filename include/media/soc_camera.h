@@ -346,9 +346,9 @@ static inline struct soc_camera_subdev_desc *soc_camera_i2c_to_desc(const struct
 	return client->dev.platform_data;
 }
 
-static inline struct v4l2_subdev *soc_camera_vdev_to_subdev(const struct video_device *vdev)
+static inline struct v4l2_subdev *soc_camera_vdev_to_subdev(struct video_device *vdev)
 {
-	struct soc_camera_device *icd = dev_get_drvdata(vdev->parent);
+	struct soc_camera_device *icd = video_get_drvdata(vdev);
 	return soc_camera_to_subdev(icd);
 }
 

@@ -524,7 +524,7 @@ static int soc_camera_open(struct file *file)
 		return -ENODEV;
 	}
 
-	icd = dev_get_drvdata(vdev->parent);
+	icd = video_get_drvdata(vdev);
 	ici = to_soc_camera_host(icd->parent);
 
 	ret = try_module_get(ici->ops->owner) ? 0 : -ENODEV;
@@ -1477,7 +1477,7 @@ static int video_dev_create(struct soc_camera_device *icd)
 
 	strlcpy(vdev->name, ici->drv_name, sizeof(vdev->name));
 
-	vdev->parent		= icd->pdev;
+	vdev->v4l2_dev		= &ici->v4l2_dev;
 	vdev->fops		= &soc_camera_fops;
 	vdev->ioctl_ops		= &soc_camera_ioctl_ops;
 	vdev->release		= video_device_release;
@@ -1500,6 +1500,7 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 	if (!icd->parent)
 		return -ENODEV;
 
+	video_set_drvdata(icd->vdev, icd);
 	ret = video_register_device(icd->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		dev_err(icd->pdev, "video_register_device failed: %d\n", ret);
