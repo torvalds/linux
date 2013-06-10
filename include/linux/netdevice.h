@@ -1174,8 +1174,10 @@ struct net_device {
 	unsigned char		addr_assign_type; /* hw address assignment type */
 	unsigned char		addr_len;	/* hardware address length	*/
 	unsigned char		neigh_priv_len;
-	unsigned short          dev_id;		/* for shared network cards */
-
+	unsigned short          dev_id;		/* Used to differentiate devices
+						 * that share the same link
+						 * layer address
+						 */
 	spinlock_t		addr_list_lock;
 	struct netdev_hw_addr_list	uc;	/* Unicast mac addresses */
 	struct netdev_hw_addr_list	mc;	/* Multicast mac addresses */
