@@ -1159,9 +1159,11 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	ndev->irq = res->start;
 
 	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	lp->base_addr = devm_request_and_ioremap(&ofdev->dev, res);
-	if (!lp->base_addr)
+	lp->base_addr = devm_ioremap_resource(&ofdev->dev, res);
+	if (IS_ERR(lp->base_addr)) {
+		rc = PTR_ERR(lp->base_addr);
 		goto error;
+	}
 
 	ndev->mem_start = res->start;
 	ndev->mem_end = res->end;
