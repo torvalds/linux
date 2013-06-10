@@ -251,7 +251,7 @@ config SERIAL_SAMSUNG_CONSOLE
 
 config SERIAL_SIRFSOC
         tristate "SiRF SoC Platform Serial port support"
-        depends on ARCH_PRIMA2
+        depends on ARCH_SIRF
         select SERIAL_CORE
         help
           Support for the on-chip UART on the CSR SiRFprimaII series,
