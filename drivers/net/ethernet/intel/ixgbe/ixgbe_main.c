@@ -2016,6 +2016,12 @@ static int ixgbe_low_latency_recv(struct napi_struct *napi)
 
 	ixgbe_for_each_ring(ring, q_vector->rx) {
 		found = ixgbe_clean_rx_irq(q_vector, ring, 4);
+#ifdef LL_EXTENDED_STATS
+		if (found)
+			ring->stats.cleaned += found;
+		else
+			ring->stats.misses++;
+#endif
 		if (found)
 			break;
 	}
