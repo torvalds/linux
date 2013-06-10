@@ -639,8 +639,7 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 * By now, all the AC queues are empty. The AGG queues are
 		 * empty too. We already got all the Tx responses for all the
 		 * packets in the queues. The drain work can have been
-		 * triggered. Flush it. This work item takes the mutex, so kill
-		 * it before we take it.
+		 * triggered. Flush it.
 		 */
 		flush_work(&mvm->sta_drained_wk);
 	}
