@@ -78,20 +78,23 @@ struct mc13xxx_regulator_platform_data {
 	struct mc13xxx_regulator_init_data *regulators;
 };
 
+enum {
+	/* MC13783 LED IDs */
+	MC13783_LED_MD,
+	MC13783_LED_AD,
+	MC13783_LED_KP,
+	MC13783_LED_R1,
+	MC13783_LED_G1,
+	MC13783_LED_B1,
+	MC13783_LED_R2,
+	MC13783_LED_G2,
+	MC13783_LED_B2,
+	MC13783_LED_R3,
+	MC13783_LED_G3,
+	MC13783_LED_B3,
+};
+
 struct mc13xxx_led_platform_data {
-#define MC13783_LED_MD		0
-#define MC13783_LED_AD		1
-#define MC13783_LED_KP		2
-#define MC13783_LED_R1		3
-#define MC13783_LED_G1		4
-#define MC13783_LED_B1		5
-#define MC13783_LED_R2		6
-#define MC13783_LED_G2		7
-#define MC13783_LED_B2		8
-#define MC13783_LED_R3		9
-#define MC13783_LED_G3		10
-#define MC13783_LED_B3		11
-#define MC13783_LED_MAX MC13783_LED_B3
 	int id;
 	const char *name;
 	const char *default_trigger;
@@ -100,46 +103,36 @@ struct mc13xxx_led_platform_data {
 	char max_current;
 };
 
+#define MAX_LED_CONTROL_REGS	6
+
 struct mc13xxx_leds_platform_data {
-	int num_leds;
 	struct mc13xxx_led_platform_data *led;
+	int num_leds;
 
-#define MC13783_LED_TRIODE_MD	(1 << 0)
-#define MC13783_LED_TRIODE_AD	(1 << 1)
-#define MC13783_LED_TRIODE_KP	(1 << 2)
-#define MC13783_LED_BOOST_EN	(1 << 3)
-#define MC13783_LED_TC1HALF	(1 << 4)
-#define MC13783_LED_SLEWLIMTC	(1 << 5)
-#define MC13783_LED_SLEWLIMBL	(1 << 6)
-#define MC13783_LED_TRIODE_TC1	(1 << 7)
-#define MC13783_LED_TRIODE_TC2	(1 << 8)
-#define MC13783_LED_TRIODE_TC3	(1 << 9)
-	int flags;
-
-#define MC13783_LED_AB_DISABLED		0
-#define MC13783_LED_AB_MD1		1
-#define MC13783_LED_AB_MD12		2
-#define MC13783_LED_AB_MD123		3
-#define MC13783_LED_AB_MD1234		4
-#define MC13783_LED_AB_MD1234_AD1	5
-#define MC13783_LED_AB_MD1234_AD12	6
-#define MC13783_LED_AB_MD1_AD		7
-	char abmode;
-
-#define MC13783_LED_ABREF_200MV	0
-#define MC13783_LED_ABREF_400MV	1
-#define MC13783_LED_ABREF_600MV	2
-#define MC13783_LED_ABREF_800MV	3
-	char abref;
-
-#define MC13783_LED_PERIOD_10MS		0
-#define MC13783_LED_PERIOD_100MS	1
-#define MC13783_LED_PERIOD_500MS	2
-#define MC13783_LED_PERIOD_2S		3
-	char bl_period;
-	char tc1_period;
-	char tc2_period;
-	char tc3_period;
+/* LED Control 0 */
+#define MC13783_LED_C0_ENABLE		(1 << 0)
+#define MC13783_LED_C0_TRIODE_MD	(1 << 7)
+#define MC13783_LED_C0_TRIODE_AD	(1 << 8)
+#define MC13783_LED_C0_TRIODE_KP	(1 << 9)
+#define MC13783_LED_C0_BOOST		(1 << 10)
+#define MC13783_LED_C0_ABMODE(x)	(((x) & 0x7) << 11)
+#define MC13783_LED_C0_ABREF(x)		(((x) & 0x3) << 14)
+/* LED Control 1 */
+#define MC13783_LED_C1_TC1HALF		(1 << 18)
+#define MC13783_LED_C1_SLEWLIM		(1 << 23)
+/* LED Control 2 */
+#define MC13783_LED_C2_PERIOD(x)	(((x) & 0x3) << 21)
+#define MC13783_LED_C2_SLEWLIM		(1 << 23)
+/* LED Control 3 */
+#define MC13783_LED_C3_PERIOD(x)	(((x) & 0x3) << 21)
+#define MC13783_LED_C3_TRIODE_TC1	(1 << 23)
+/* LED Control 4 */
+#define MC13783_LED_C4_PERIOD(x)	(((x) & 0x3) << 21)
+#define MC13783_LED_C4_TRIODE_TC2	(1 << 23)
+/* LED Control 5 */
+#define MC13783_LED_C5_PERIOD(x)	(((x) & 0x3) << 21)
+#define MC13783_LED_C5_TRIODE_TC3	(1 << 23)
+	u32 led_control[MAX_LED_CONTROL_REGS];
 };
 
 struct mc13xxx_buttons_platform_data {
