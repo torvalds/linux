@@ -106,7 +106,7 @@ static int pcl724_attach(struct comedi_device *dev,
 
 	/* Handle PCL-724 in 96 DIO configuration */
 	if (board->can_have96 &&
-	    (it->options[1] == 1 || it->options[1] == 96)) {
+	    (it->options[2] == 1 || it->options[2] == 96)) {
 		iorange = 0x10;
 		n_subdevices = 4;
 	}
