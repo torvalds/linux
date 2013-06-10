@@ -94,19 +94,7 @@ static const struct pcl724_board boardtypes[] = {
 	},
 };
 
-static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
-{
-	unsigned long iobase = arg;
-
-	if (dir) {
-		outb(data, iobase + port);
-		return 0;
-	} else {
-		return inb(iobase + port);
-	}
-}
-
-static int subdev_8255mapped_cb(int dir, int port, int data,
+static int pcl724_8255mapped_io(int dir, int port, int data,
 				unsigned long iobase)
 {
 	int movport = SIZE_8255 * (iobase >> 12);
@@ -127,6 +115,7 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl724_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
+	unsigned long iobase;
 	unsigned int iorange;
 	int ret, i, n_subdevices;
 
@@ -150,13 +139,15 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		if (board->is_pet48) {
-			subdev_8255_init(dev, s, subdev_8255mapped_cb,
-					 (unsigned long)(dev->iobase +
-							 i * 0x1000));
-		} else
-			subdev_8255_init(dev, s, subdev_8255_cb,
-					 (unsigned long)(dev->iobase +
-							 SIZE_8255 * i));
+			iobase = dev->iobase + (i * 0x1000);
+			ret = subdev_8255_init(dev, s, pcl724_8255mapped_io,
+					       iobase);
+		} else {
+			iobase = dev->iobase + (i * SIZE_8255);
+			ret = subdev_8255_init(dev, s, NULL, iobase);
+		}
+		if (ret)
+			return ret;
 	}
 
 	return 0;
