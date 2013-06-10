@@ -237,6 +237,7 @@ void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 	sd->flags |= V4L2_SUBDEV_FL_IS_I2C;
 	/* the owner is the same as the i2c_client's driver owner */
 	sd->owner = client->driver->driver.owner;
+	sd->dev = &client->dev;
 	/* i2c_client and v4l2_subdev point to one another */
 	v4l2_set_subdevdata(sd, client);
 	i2c_set_clientdata(client, sd);
@@ -370,6 +371,7 @@ void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
 	sd->flags |= V4L2_SUBDEV_FL_IS_SPI;
 	/* the owner is the same as the spi_device's driver owner */
 	sd->owner = spi->dev.driver->owner;
+	sd->dev = &spi->dev;
 	/* spi_device and v4l2_subdev point to one another */
 	v4l2_set_subdevdata(sd, spi);
 	spi_set_drvdata(spi, sd);

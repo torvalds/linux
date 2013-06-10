@@ -583,6 +583,8 @@ struct v4l2_subdev {
 	void *host_priv;
 	/* subdev device node */
 	struct video_device *devnode;
+	/* pointer to the physical device, if any */
+	struct device *dev;
 };
 
 #define media_entity_to_v4l2_subdev(ent) \
