@@ -689,16 +689,11 @@ void iwl_mvm_bt_coex_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void
 iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
 					 struct iwl_beacon_filter_cmd *cmd);
-int iwl_mvm_dbgfs_set_fw_dbg_log(struct iwl_mvm *mvm);
 #else
 static inline void
 iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
 					 struct iwl_beacon_filter_cmd *cmd)
 {}
-static inline int iwl_mvm_dbgfs_set_fw_dbg_log(struct iwl_mvm *mvm)
-{
-	return 0;
-}
 #endif
 int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);
