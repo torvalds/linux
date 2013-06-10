@@ -402,6 +402,8 @@ struct smb_vol {
 	umode_t file_mode;
 	umode_t dir_mode;
 	unsigned secFlg;
+	enum securityEnum sectype; /* sectype requested via mnt opts */
+	bool sign; /* was signing requested via mnt opts? */
 	bool retry:1;
 	bool intr:1;
 	bool setuids:1;

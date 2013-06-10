@@ -1025,11 +1025,21 @@ static int cifs_parse_security_flavors(char *value,
 
 	substring_t args[MAX_OPT_ARGS];
 
+	/*
+	 * With mount options, the last one should win. Reset any existing
+	 * settings back to default.
+	 */
+	vol->sectype = Unspecified;
+	vol->sign = false;
+
 	switch (match_token(value, cifs_secflavor_tokens, args)) {
 	case Opt_sec_krb5:
+		vol->sectype = Kerberos;
 		vol->secFlg |= CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_SIGN;
 		break;
 	case Opt_sec_krb5i:
+		vol->sectype = Kerberos;
+		vol->sign = true;
 		vol->secFlg |= CIFSSEC_MAY_KRB5 | CIFSSEC_MUST_SIGN;
 		break;
 	case Opt_sec_krb5p:
@@ -1037,26 +1047,36 @@ static int cifs_parse_security_flavors(char *value,
 		cifs_dbg(VFS, "Krb5 cifs privacy not supported\n");
 		break;
 	case Opt_sec_ntlmssp:
+		vol->sectype = RawNTLMSSP;
 		vol->secFlg |= CIFSSEC_MAY_NTLMSSP;
 		break;
 	case Opt_sec_ntlmsspi:
+		vol->sectype = RawNTLMSSP;
+		vol->sign = true;
 		vol->secFlg |= CIFSSEC_MAY_NTLMSSP | CIFSSEC_MUST_SIGN;
 		break;
 	case Opt_ntlm:
 		/* ntlm is default so can be turned off too */
+		vol->sectype = NTLM;
 		vol->secFlg |= CIFSSEC_MAY_NTLM;
 		break;
 	case Opt_sec_ntlmi:
+		vol->sectype = NTLM;
+		vol->sign = true;
 		vol->secFlg |= CIFSSEC_MAY_NTLM | CIFSSEC_MUST_SIGN;
 		break;
 	case Opt_sec_ntlmv2:
+		vol->sectype = NTLMv2;
 		vol->secFlg |= CIFSSEC_MAY_NTLMV2;
 		break;
 	case Opt_sec_ntlmv2i:
+		vol->sectype = NTLMv2;
+		vol->sign = true;
 		vol->secFlg |= CIFSSEC_MAY_NTLMV2 | CIFSSEC_MUST_SIGN;
 		break;
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 	case Opt_sec_lanman:
+		vol->sectype = LANMAN;
 		vol->secFlg |= CIFSSEC_MAY_LANMAN;
 		break;
 #endif
@@ -1426,6 +1446,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			break;
 		case Opt_sign:
 			vol->secFlg |= CIFSSEC_MUST_SIGN;
+			vol->sign = true;
 			break;
 		case Opt_seal:
 			/* we do not do the following in secFlags because seal
@@ -3893,6 +3914,10 @@ cifs_set_vol_auth(struct smb_vol *vol, struct cifs_ses *ses)
 		break;
 	case LANMAN:
 		vol->secFlg = CIFSSEC_MUST_LANMAN;
+		break;
+	default:
+		/* should never happen */
+		vol->secFlg = 0;
 		break;
 	}
 
