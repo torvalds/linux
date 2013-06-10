@@ -1242,8 +1242,6 @@ int machine__resolve_callchain(struct machine *machine,
 {
 	int ret;
 
-	callchain_cursor_reset(&callchain_cursor);
-
 	ret = machine__resolve_callchain_sample(machine, thread,
 						sample->callchain, parent);
 	if (ret)
