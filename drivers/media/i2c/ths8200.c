@@ -118,8 +118,6 @@ ths8200_write_and_or(struct v4l2_subdev *sd, u8 reg,
 static int ths8200_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
 	reg->val = ths8200_read(sd, reg->reg & 0xff);
 	reg->size = 1;
 
@@ -129,8 +127,6 @@ static int ths8200_g_register(struct v4l2_subdev *sd,
 static int ths8200_s_register(struct v4l2_subdev *sd,
 			      const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
 	ths8200_write(sd, reg->reg & 0xff, reg->val & 0xff);
 
 	return 0;
