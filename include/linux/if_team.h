@@ -69,6 +69,7 @@ struct team_port {
 	s32 priority; /* lower number ~ higher priority */
 	u16 queue_id;
 	struct list_head qom_list; /* node in queue override mapping list */
+	struct rcu_head	rcu;
 	long mode_priv[0];
 };
 

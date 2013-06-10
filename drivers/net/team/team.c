@@ -1192,8 +1192,7 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 
 	team_port_set_orig_dev_addr(port);
 	dev_set_mtu(port_dev, port->orig.mtu);
-	synchronize_rcu();
-	kfree(port);
+	kfree_rcu(port, rcu);
 	netdev_info(dev, "Port device %s removed\n", portname);
 	__team_compute_features(team);
 
