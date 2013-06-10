@@ -192,6 +192,7 @@ void update_inode(struct inode *inode, struct page *node_page)
 
 	set_cold_node(inode, node_page);
 	set_page_dirty(node_page);
+	clear_inode_flag(F2FS_I(inode), FI_DIRTY_INODE);
 }
 
 int update_inode_page(struct inode *inode)
@@ -215,6 +216,9 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 	if (inode->i_ino == F2FS_NODE_INO(sbi) ||
 			inode->i_ino == F2FS_META_INO(sbi))
+		return 0;
+
+	if (!is_inode_flag_set(F2FS_I(inode), FI_DIRTY_INODE))
 		return 0;
 
 	if (wbc)
