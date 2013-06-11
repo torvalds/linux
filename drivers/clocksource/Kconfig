@@ -25,6 +25,11 @@ config DW_APB_TIMER_OF
 config ARMADA_370_XP_TIMER
 	bool
 
+config ORION_TIMER
+	select CLKSRC_OF
+	select CLKSRC_MMIO
+	bool
+
 config SUN4I_TIMER
 	bool
 
