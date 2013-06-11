@@ -1,0 +1,88 @@
+/**
+ * Copyright (C) ARM Limited 2012-2013. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ */
+
+#if !defined(GATOR_EVENTS_MALI_COMMON_H)
+#define GATOR_EVENTS_MALI_COMMON_H
+
+#include "gator.h"
+
+#include <linux/module.h>
+#include <linux/time.h>
+#include <linux/math64.h>
+#include <linux/slab.h>
+#include <asm/io.h>
+
+/* Device codes for each known GPU */
+#define MALI_400     (0x0b07)
+#define MALI_T6xx    (0x0056)
+
+/* Ensure that MALI_SUPPORT has been defined to something. */
+#ifndef MALI_SUPPORT
+#error MALI_SUPPORT not defined!
+#endif
+
+/* Values for the supported activity event types */
+#define ACTIVITY_START  (1)
+#define ACTIVITY_STOP   (2)
+
+/*
+ * Runtime state information for a counter.
+ */
+typedef struct {
+	unsigned long key;	/* 'key' (a unique id set by gatord and returned by gator.ko) */
+	unsigned long enabled;	/* counter enable state */
+} mali_counter;
+
+/*
+ * Mali-400
+ */
+typedef void mali_profiling_set_event_type(unsigned int, unsigned int);
+typedef void mali_osk_fb_control_set_type(unsigned int, unsigned int);
+typedef void mali_profiling_control_type(unsigned int, unsigned int);
+typedef void mali_profiling_get_counters_type(unsigned int *, unsigned int *, unsigned int *, unsigned int *);
+
+/*
+ * Driver entry points for functions called directly by gator.
+ */
+extern void _mali_profiling_set_event(unsigned int, unsigned int);
+extern void _mali_osk_fb_control_set(unsigned int, unsigned int);
+extern void _mali_profiling_control(unsigned int, unsigned int);
+extern void _mali_profiling_get_counters(unsigned int *, unsigned int *, unsigned int *, unsigned int *);
+
+/**
+ * Returns a name which identifies the GPU type (eg Mali-400, Mali-T6xx).
+ *
+ * @return The name as a constant string.
+ */
+extern const char *gator_mali_get_mali_name(void);
+
+/**
+ * Creates a filesystem entry under /dev/gator relating to the specified event name and key, and
+ * associate the key/enable values with this entry point.
+ *
+ * @param mali_name A name related to the type of GPU, obtained from a call to gator_mali_get_mali_name()
+ * @param event_name The name of the event.
+ * @param sb Linux super block
+ * @param root Directory under which the entry will be created.
+ * @param counter_key Ptr to location which will be associated with the counter key.
+ * @param counter_enabled Ptr to location which will be associated with the counter enable state.
+ *
+ * @return 0 if entry point was created, non-zero if not.
+ */
+extern int gator_mali_create_file_system(const char *mali_name, const char *event_name, struct super_block *sb, struct dentry *root, mali_counter *counter);
+
+/**
+ * Initializes the counter array.
+ *
+ * @param keys The array of counters
+ * @param n_counters The number of entries in each of the arrays.
+ */
+extern void gator_mali_initialise_counters(mali_counter counters[], unsigned int n_counters);
+
+#endif /* GATOR_EVENTS_MALI_COMMON_H  */

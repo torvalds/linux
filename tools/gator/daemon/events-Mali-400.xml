@@ -1,0 +1,180 @@
+  <counter_set name="ARM_Mali-400_VP_cnt" count="2"/>
+  <counter_set name="ARM_Mali-400_L2_cnt" count="2"/>
+  <counter_set name="ARM_Mali-400_SW_cnt" count="0"/>
+  <counter_set name="ARM_Mali-400_Filmstrip_cnt" count="1"/>
+  <category name="Mali-400-VP" counter_set="ARM_Mali-400_VP_cnt" per_cpu="no">
+    <event event="0x01" title="Mali GPU Vertex Processor" name="Active cycles" description="Number of cycles per frame the MaliGP2 was active."/>
+    <event event="0x02" title="Mali GPU Vertex Processor" name="Active cycles, vertex shader" description="Number of cycles per frame the vertex shader unit was active."/>
+    <event event="0x03" title="Mali GPU Vertex Processor" name="Active cycles, vertex storer" description="Number of cycles per frame the vertex storer unit was active."/>
+    <event event="0x04" title="Mali GPU Vertex Processor" name="Active cycles, vertex loader" description="Number of cycles per frame the vertex loader unit was active."/>
+    <event event="0x05" title="Mali GPU Vertex Processor" name="Cycles vertex loader waiting for vertex shader" description="Number of cycles per frame the vertex loader was idle while waiting on the vertex shader."/>
+    <event event="0x06" title="Mali GPU Vertex Processor" name="Words read, system bus" description="Total number of 64 bit words read by the GP2 from the system bus per frame."/>
+    <event event="0x07" title="Mali GPU Vertex Processor" name="Words written, system bus" description="Total number of 64 bit words written by the GP2 to the system bus per frame."/>
+    <event event="0x08" title="Mali GPU Vertex Processor" name="Read bursts, system bus" description="Number of read bursts by the GP2 from the system bus per frame."/>
+    <event event="0x09" title="Mali GPU Vertex Processor" name="Write bursts, system bus" description="Number of write bursts from the MaliGP2 to the system bus per frame."/>
+    <event event="0x0a" title="Mali GPU Vertex Processor" name="Vertices processed" description="Number of vertices processed by the MaliGP2 per frame."/>
+    <event event="0x0b" title="Mali GPU Vertex Processor" name="Vertices fetched" description="Number of vertices fetched by the MaliGP2 per frame."/>
+    <event event="0x0c" title="Mali GPU Vertex Processor" name="Primitives fetched" description="Number of graphics primitives fetched by the MaliGP2 per frame."/>
+    <event event="0x0e" title="Mali GPU Vertex Processor" name="Primitives culled" description="Number of graphics primitives discarded per frame, because they were seen from the back or were offscreen."/>
+    <event event="0x0f" title="Mali GPU Vertex Processor" name="Commands written to tiles" description="Number of commands (8 Bytes, mainly primitives) written by GP2 to the PP input data structure per frame."/>
+    <event event="0x10" title="Mali GPU Vertex Processor" name="Memory blocks allocated" description="Number of overflow data blocks needed for outputting the PP input data structure per frame ."/>
+    <event event="0x13" title="Mali GPU Vertex Processor" name="Vertex loader cache misses" description="Number of cache misses for the vertex shader's vertex input unit per frame."/>
+    <event event="0x16" title="Mali GPU Vertex Processor" name="Active cycles, vertex shader command processor" description="Number of cycles per frame the GP2 vertex shader command processor was active. This includes time waiting for semaphores."/>
+    <event event="0x17" title="Mali GPU Vertex Processor" name="Active cycles, PLBU command processor" description="Number of cycles per frame the MaliGP2 PLBU command processor was active. This includes time waiting for semaphores."/>
+    <event event="0x18" title="Mali GPU Vertex Processor" name="MaliGP2 PLBU cycles per frame" description="Number of cycles per frame the MaliGP2 PLBU output unit was active. This includes time spent waiting on the bus."/>
+    <event event="0x19" title="Mali GPU Vertex Processor" name="Active cycles, PLBU geometry processing" description="Number of cycles per frame the MaliGP2 PLBU was active, excepting final data output. In other words: active cycles through the prepare list commands. This includes time spent waiting on the bus."/>
+    <event event="0x1b" title="Mali GPU Vertex Processor" name="Active cycles, PLBU primitive assembly" description="Number of active cycles per frame spent by the MaliGP2 PLBU doing primitive assembly. This does not include scissoring or final output. This includes time spent waiting on the bus."/>
+    <event event="0x1c" title="Mali GPU Vertex Processor" name="Active cycles, PLBU vertex fetcher" description="Number of active cycles per frame spent by the MaliGP2 PLBU fetching vertex data. This includes time spent waiting on the bus."/>
+    <event event="0x1e" title="Mali GPU Vertex Processor" name="Active cycles, Bounding-box and command generator" description="Number of active cycles per frame spent by the MaliGP2 PLBU setting up bounding boxes and commands (mainly graphics primitives). This includes time spent waiting on the bus."/>
+    <event event="0x20" title="Mali GPU Vertex Processor" name="Active cycles, Scissor tile iterator" description="Number of active cycles per frame spent by the MaliGP2 PLBU iterating over tiles to perform scissoring. This includes time spent waiting on the bus."/>
+    <event event="0x21" title="Mali GPU Vertex Processor" name="Active cycles, PLBU tile iterator" description="Number of active cycles per frame spent by the MaliGP2 PLBU iterating over the tiles in the bounding box generating commands (mainly graphics primitives). This includes time spent waiting on the bus."/>
+  </category>
+  <category name="Mali GPU Fragment Processor" per_cpu="no">
+    <counter_set name="ARM_Mali-400_FP0_cnt" title="Mali-400 FP0" description="Mali GPU Fragment Processor 0" count="2"/>
+    <counter_set name="ARM_Mali-400_FP1_cnt" title="Mali-400 FP1" description="Mali GPU Fragment Processor 1" count="2"/>
+    <counter_set name="ARM_Mali-400_FP2_cnt" title="Mali-400 FP2" description="Mali GPU Fragment Processor 2" count="2"/>
+    <counter_set name="ARM_Mali-400_FP3_cnt" title="Mali-400 FP3" description="Mali GPU Fragment Processor 3" count="2"/>
+
+    <event event="0x00" title="Mali-400 FP" name="Active clock cycles" description="Active clock cycles, between polygon start and IRQ."/>
+    <event event="0x02" title="Mali-400 FP" name="Total bus reads" description="Total number of 64-bit words read from the bus."/>
+    <event event="0x03" title="Mali-400 FP" name="Total bus writes" description="Total number of 64-bit words written to the bus."/>
+    <event event="0x04" title="Mali-400 FP" name="Bus read request cycles" description="Number of cycles during which the bus read request signal was HIGH."/>
+    <event event="0x05" title="Mali-400 FP" name="Bus write request cycles" description="Number of cycles during which the bus write request signal was HIGH."/>
+    <event event="0x06" title="Mali-400 FP" name="Bus read transactions count" description="Number of read requests accepted by the bus."/>
+    <event event="0x07" title="Mali-400 FP" name="Bus write transactions" description="Number of write requests accepted by the bus."/>
+    <event event="0x09" title="Mali-400 FP" name="Tile writeback writes" description="64-bit words written to the bus by the writeback unit."/>
+    <event event="0x0a" title="Mali-400 FP" name="Store unit writes" description="64-bit words written to the bus by the store unit."/>
+    <event event="0x0d" title="Mali-400 FP" name="Texture cache uncompressed reads" description="Number of 64-bit words read from the bus into the uncompressed textures cache."/>
+    <event event="0x0e" title="Mali-400 FP" name="Polygon list reads" description="Number of 64-bit words read from the bus by the polygon list reader."/>
+    <event event="0x0f" title="Mali-400 FP" name="RSW reads" description="Number of 64-bit words read from the bus into the Render State Word register."/>
+    <event event="0x10" title="Mali-400 FP" name="Vertex cache reads" description="Number of 64-bit words read from the bus into the vertex cache."/>
+    <event event="0x11" title="Mali-400 FP" name="Uniform remapping reads" description="Number of 64-bit words read from the bus when reading from the uniform remapping table."/>
+    <event event="0x12" title="Mali-400 FP" name="Program cache reads" description="Number of 64-bit words read from the bus into the fragment shader program cache."/>
+    <event event="0x13" title="Mali-400 FP" name="Varying reads" description="Number of 64-bit words containing varyings generated by the vertex processing read from the bus."/>
+    <event event="0x14" title="Mali-400 FP" name="Texture descriptors reads" description="Number of 64-bit words containing texture descriptors read from the bus."/>
+    <event event="0x15" title="Mali-400 FP" name="Texture descriptor remapping reads" description="Number of 64-bit words read from the bus when reading from the texture descriptor remapping table."/>
+    <event event="0x17" title="Mali-400 FP" name="Load unit reads" description="Number of 64-bit words read from the bus by the LOAD sub-instruction."/>
+    <event event="0x18" title="Mali-400 FP" name="Polygon count" description="Number of triangles read from the polygon list."/>
+    <event event="0x19" title="Mali-400 FP" name="Pixel rectangle count" description="Number of pixel rectangles read from the polygon list."/>
+    <event event="0x1a" title="Mali-400 FP" name="Lines count" description="Number of lines read from the polygon list."/>
+    <event event="0x1b" title="Mali-400 FP" name="Points count" description="Number of points read from the polygon list."/>
+    <event event="0x1c" title="Mali-400 FP" name="Stall cycles PolygonListReader" description="Number of clock cycles the Polygon List Reader waited for output being collected."/>
+    <event event="0x1d" title="Mali-400 FP" name="Stall cycles triangle setup" description="Number of clock cycles the TSC waited for input."/>
+    <event event="0x1e" title="Mali-400 FP" name="Quad rasterized count" description="Number of 2x?2 quads output from rasterizer."/>
+    <event event="0x1f" title="Mali-400 FP" name="Fragment rasterized count" description="Number of fragment rasterized. Fragments/(Quads*4) gives average actual fragments per quad."/>
+    <event event="0x20" title="Mali-400 FP" name="Fragment rejected fragment-kill count" description="Number of fragments exiting the fragment shader as killed."/>
+    <event event="0x21" title="Mali-400 FP" name="Fragment rejected fwd-fragment-kill count" description="Number of fragments killed by forward fragment kill."/>
+    <event event="0x22" title="Mali-400 FP" name="Fragment passed z/stencil count" description="Number of fragments passing Z and stencil test."/>
+    <event event="0x23" title="Mali-400 FP" name="Patches rejected early z/stencil count" description="Number of patches rejected by EarlyZ. A patch can be 8x8, 4x4 or 2x2 pixels."/>
+    <event event="0x24" title="Mali-400 FP" name="Patches evaluated" description="Number of patches evaluated for EarlyZ rejection."/>
+    <event event="0x25" title="Mali-400 FP" name="Instruction completed count" description="Number of fragment shader instruction words completed. It is a function of pixels processed and the length of the shader programs."/>
+    <event event="0x26" title="Mali-400 FP" name="Instruction failed rendezvous count" description="Number of fragment shader instructions not completed because of failed Rendezvous."/>
+    <event event="0x27" title="Mali-400 FP" name="Instruction failed varying-miss count" description="Number of fragment shader instructions not completed because of failed varying operation."/>
+    <event event="0x28" title="Mali-400 FP" name="Instruction failed texture-miss count" description="Number of fragment shader instructions not completed because of failed texture operation."/>
+    <event event="0x29" title="Mali-400 FP" name="Instruction failed load-miss count" description="Number of fragment shader instructions not completed because of failed load operation."/>
+    <event event="0x2a" title="Mali-400 FP" name="Instruction failed tile read-miss count" description="Number of fragment shader instructions not completed because of failed read from the tilebuffer."/>
+    <event event="0x2b" title="Mali-400 FP" name="Instruction failed store-miss count" description="Number of fragment shader instructions not completed because of failed store operation."/>
+    <event event="0x2c" title="Mali-400 FP" name="Rendezvous breakage count" description="Number of Rendezvous breakages reported."/>
+    <event event="0x2d" title="Mali-400 FP" name="Pipeline bubbles cycle count" description="Number of unused cycles in the fragment shader while rendering is active."/>
+    <event event="0x2e" title="Mali-400 FP" name="Texture mapper multipass count" description="Number of texture operations looped because of more texture passes needed."/>
+    <event event="0x2f" title="Mali-400 FP" name="Texture mapper cycle count" description="Number of texture operation cycles."/>
+    <event event="0x30" title="Mali-400 FP" name="Vertex cache hit count" description="Number of times a requested vertex was found in the cache (Number of vertex cache hits)."/>
+    <event event="0x31" title="Mali-400 FP" name="Vertex cache miss count" description="Number of times a requested vertex was not found in the cache (Number of vertex cache misses)."/>
+    <event event="0x32" title="Mali-400 FP" name="Varying cache hit count" description="Number of times a requested varying was found in the cache (Number of varying cache hits)."/>
+    <event event="0x33" title="Mali-400 FP" name="Varying cache miss count" description="Number of times a requested varying was not found in the cache (Number of varying cache misses)."/>
+    <event event="0x34" title="Mali-400 FP" name="Varying cache conflict miss count" description="Number of times a requested varying was not in the cache and its value, retrieved from memory, must overwrite an older cache entry. This happens when an access pattern cannot be serviced by the cache."/>
+    <event event="0x35" title="Mali-400 FP" name="Texture cache hit count" description="Number of times a requested texel was found in the texture cache (Number of texture cache hits)."/>
+    <event event="0x36" title="Mali-400 FP" name="Texture cache miss count" description="Number of times a requested texel was not found in the texture cache (Number of texture cache misses)."/>
+    <event event="0x37" title="Mali-400 FP" name="Texture cache conflict miss count" description="Number of times a requested texel was not in the cache and its value, retrieved from memory, must overwrite an older cache entry. This happens when an access pattern cannot be serviced by the cache."/>
+    <event event="0x38" title="Mali-400 FP" name="Compressed texture cache hit count" description="Number of times a requested item was found in the cache."/>
+    <event event="0x39" title="Mali-400 FP" name="Compressed texture cache miss count" description="Number of times a requested item was not found in the cache."/>
+    <event event="0x3a" title="Mali-400 FP" name="Load/Store cache hit count" description="Number of hits in the load/store cache."/>
+    <event event="0x3b" title="Mali-400 FP" name="Load/Store cache miss count" description="Number of misses in the load/store cache."/>
+    <event event="0x3c" title="Mali-400 FP" name="Program cache hit count" description="Number of hits in the program cache."/>
+    <event event="0x3d" title="Mali-400 FP" name="Program cache miss count" description="Number of misses in the program cache."/>
+  </category>
+  <category name="Mali-400-L2" counter_set="ARM_Mali-400_L2_cnt" per_cpu="no">
+    <event event="0x01" title="Mali L2 Cache" name="Total clock cycles" description="Total clock cycles"/>
+    <event event="0x02" title="Mali L2 Cache" name="Active clock cycles" description="Active clock cycles"/>
+
+    <option_set name="All">
+      <option event_delta="0x08" name="Master" description="Master"/>
+      <option event_delta="0x10" name="All slaves" description="All slaves"/>
+      <option event_delta="0x20" name="Slave 0" description="Slave 0"/>
+      <option event_delta="0x30" name="Slave 1" description="Slave 1"/>
+      <option event_delta="0x40" name="Slave 2" description="Slave 2"/>
+      <option event_delta="0x50" name="Slave 3" description="Slave 3"/>
+      <option event_delta="0x60" name="Slave 4" description="Slave 4"/>
+    </option_set>
+
+    <option_set name="Slaves">
+      <option event_delta="0x10" name="All slaves" description="All slaves"/>
+      <option event_delta="0x20" name="Slave 0" description="Slave 0"/>
+      <option event_delta="0x30" name="Slave 1" description="Slave 1"/>
+      <option event_delta="0x40" name="Slave 2" description="Slave 2"/>
+      <option event_delta="0x50" name="Slave 3" description="Slave 3"/>
+      <option event_delta="0x60" name="Slave 4" description="Slave 4"/>
+    </option_set>
+
+    <event event="0x00" option_set="All" title="Mali L2 Cache" name="Read transactions" description="Read transactions"/>
+    <event event="0x01" option_set="All" title="Mali L2 Cache" name="Write transactions" description="Write transactions"/>
+    <event event="0x02" option_set="All" title="Mali L2 Cache" name="Words read" description="Words read"/>
+    <event event="0x03" option_set="All" title="Mali L2 Cache" name="Words written" description="Words written"/>
+    <event event="0x04" option_set="Slaves" title="Mali L2 Cache" name="Read hits" description="Read hits"/>
+    <event event="0x05" option_set="Slaves" title="Mali L2 Cache" name="Read misses" description="Read misses"/>
+    <event event="0x06" option_set="Slaves" title="Mali L2 Cache" name="Write invalidates" description="Write invalidates"/>
+    <event event="0x07" option_set="Slaves" title="Mali L2 Cache" name="Read invalidates" description="Read invalidates"/>
+    <event event="0x08" option_set="Slaves" title="Mali L2 Cache" name="Cacheable read transactions" description="Cacheable read transactions"/>
+  </category>
+  <category name="ARM Mali-400 Filmstrip" counter_set="ARM_Mali-400_Filmstrip_cnt" per_cpu="no">
+    <option_set name="fs">
+      <option event_delta="0x3c" name="1:60" description="captures every 60th frame"/>
+      <option event_delta="0x1e" name="1:30" description="captures every 30th frame"/>
+      <option event_delta="0xa" name="1:10" description="captures every 10th frame"/>
+    </option_set>
+    <event event="0x0400" option_set="fs" title="ARM Mali-400" name="Filmstrip" description="Scaled framebuffer"/>
+  </category>
+  <category name="ARM_Mali-400_Voltage" per_cpu="no">
+    <event counter="ARM_Mali-400_Voltage" title="Mali GPU Voltage" name="Voltage" display="average" average_selection="yes" units="mV" description="GPU core voltage."/>
+  </category>
+  <category name="ARM_Mali-400_Frequency" per_cpu="no">
+    <event counter="ARM_Mali-400_Frequency" title="Mali GPU Frequency" name="Frequency" display="average" average_selection="yes" units="MHz" description="GPU core frequency."/>
+  </category>
+  <category name="Mali-400-SW" counter_set="ARM_Mali-400_SW_cnt" per_cpu="no">
+    <!-- EGL Counters -->
+    <event counter="ARM_Mali-400_SW_17" title="Mali EGL Software Counters" name="Blit Time" description="Time spent blitting the framebuffer from video memory to framebuffer."/>
+    <!-- glDrawElements Counters -->
+    <event counter="ARM_Mali-400_SW_18" title="glDrawElements Statistics" name="Calls to glDrawElements" description="Number of calls to glDrawElements."/>
+    <event counter="ARM_Mali-400_SW_19" title="glDrawElements Statistics" name="Indices to glDrawElements" description="Number of indices to glDrawElements."/>
+    <event counter="ARM_Mali-400_SW_20" title="glDrawElements Statistics" name="Transformed by glDrawElements" description="Number of vertices transformed by glDrawElements."/>
+    <!-- glDrawArrays Counters -->
+    <event counter="ARM_Mali-400_SW_21" title="glDrawArrays Statistics" name="Calls to glDrawArrays" description="Number of calls to glDrawArrays."/>
+    <event counter="ARM_Mali-400_SW_22" title="glDrawArrays Statistics" name="Transformed by glDrawArrays" description="Number of vertices transformed by glDrawArrays."/>
+    <!-- Draw Call Counters -->
+    <event counter="ARM_Mali-400_SW_23" title="Drawcall Statistics" name="Points" description="Number of calls to glDraw* with parameter GL_POINTS."/>
+    <event counter="ARM_Mali-400_SW_24" title="Drawcall Statistics" name="Lines" description="Number of calls to glDraw* with parameter GL_LINES."/>
+    <event counter="ARM_Mali-400_SW_25" title="Drawcall Statistics" name="Lineloop" description="Number of calls to glDraw* with parameter GL_LINE_LOOP."/>
+    <event counter="ARM_Mali-400_SW_26" title="Drawcall Statistics" name="Linestrip" description="Number of calls to glDraw* with parameter GL_LINE_STRIP."/>
+    <event counter="ARM_Mali-400_SW_27" title="Drawcall Statistics" name="Triangles" description="Number of calls to glDraw* with parameter GL_TRIANGLES."/>
+    <event counter="ARM_Mali-400_SW_28" title="Drawcall Statistics" name="Trianglestrip" description="Number of calls to glDraw* with parameter GL_TRIANGLE_STRIP."/>
+    <event counter="ARM_Mali-400_SW_29" title="Drawcall Statistics" name="Trianglefan" description="Number of calls to glDraw* with parameter GL_TRIANGLE_FAN."/>
+    <event counter="ARM_Mali-400_SW_30" title="Drawcall Statistics" name="Vertex Upload Time (us)" description="Time spent uploading vertex attributes and faceindex data not present in a VBO."/>
+    <event counter="ARM_Mali-400_SW_31" title="Drawcall Statistics" name="Uniform Bytes Copied (bytes)" description="Number of bytes copied to Mali memory as a result of uniforms update."/>
+    <!-- Buffer Profiling Counters -->
+    <event counter="ARM_Mali-400_SW_32" title="Buffer Profiling" name="Texture Upload Time (ms)" description="Time spent uploading textures."/>
+    <event counter="ARM_Mali-400_SW_33" title="Buffer Profiling" name="VBO Upload Time (ms)" description="Time spent uploading vertex buffer objects."/>
+    <event counter="ARM_Mali-400_SW_34" title="Buffer Profiling" name="FBO Flushes" description="Number of flushed on framebuffer attachment."/>
+    <!-- OpenGL ES 1.1 Emulation -->
+    <event counter="ARM_Mali-400_SW_35" title="Fixed-function Emulation" name="# Vertex Shaders Generated" description="Number of vertex shaders generated."/>
+    <event counter="ARM_Mali-400_SW_36" title="Fixed-function Emulation" name="# Fragment Shaders Generated" description="Number of fragment shaders generated."/>
+    <!-- Geometry Statistics -->
+    <event counter="ARM_Mali-400_SW_50" title="Geometry Statistics" name="Triangles" description="The total number of triangles passed to GLES per-frame."/>
+    <event counter="ARM_Mali-400_SW_51" title="Geometry Statistics" name="Independent Triangles" description="Number of triangles passed to GLES using the mode GL_TRIANGLES."/>
+    <event counter="ARM_Mali-400_SW_52" title="Geometry Statistics" name="Strip Triangles" description="Number of triangles passed to GLES using the mode GL_TRIANGLE_STRIP."/>
+    <event counter="ARM_Mali-400_SW_53" title="Geometry Statistics" name="Fan Triangles" description="Number of triangles passed to GLES using the mode GL_TRIANGLE_FAN."/>
+    <event counter="ARM_Mali-400_SW_54" title="Geometry Statistics" name="Lines" description="Number of lines passed to GLES per-frame."/>
+    <event counter="ARM_Mali-400_SW_55" title="Geometry Statistics" name="Independent Lines" description="Number of lines passed to GLES using the mode GL_LINES."/>
+    <event counter="ARM_Mali-400_SW_56" title="Geometry Statistics" name="Strip Lines" description="Number of lines passed to GLES using the mode GL_LINE_STRIP."/>
+    <event counter="ARM_Mali-400_SW_57" title="Geometry Statistics" name="Loop Lines" description="Number of lines passed to GLES using the mode GL_LINE_LOOP."/>
+  </category>
+

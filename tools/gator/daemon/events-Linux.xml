@@ -1,0 +1,17 @@
+  <category name="Linux">
+    <event counter="Linux_irq_softirq" title="Interrupts" name="SoftIRQ" per_cpu="yes" description="Linux SoftIRQ taken"/>
+    <event counter="Linux_irq_irq" title="Interrupts" name="IRQ" per_cpu="yes" description="Linux IRQ taken"/>
+    <event counter="Linux_block_rq_wr" title="Disk IO" name="Write" units="B" description="Disk IO Bytes Written"/>
+    <event counter="Linux_block_rq_rd" title="Disk IO" name="Read" units="B" description="Disk IO Bytes Read"/>
+    <event counter="Linux_net_rx" title="Network" name="Receive" units="B" description="Receive network traffic, including effect from Streamline"/>
+    <event counter="Linux_net_tx" title="Network" name="Transmit" units="B" description="Transmit network traffic, including effect from Streamline"/>
+    <event counter="Linux_sched_switch" title="Scheduler" name="Switch" per_cpu="yes" description="Context switch events"/>
+    <event counter="Linux_meminfo_memused" title="Memory" name="Used" display="maximum" units="B" average_selection="yes" description="Total used memory size"/>
+    <event counter="Linux_meminfo_memfree" title="Memory" name="Free" display="minimum" units="B" average_selection="yes" description="Available memory size"/>
+    <event counter="Linux_meminfo_bufferram" title="Memory" name="Buffer" display="maximum" units="B" average_selection="yes" description="Memory used by OS disk buffers"/>
+    <event counter="Linux_power_cpu_freq" title="Clock" name="Frequency" per_cpu="yes" display="maximum" units="Hz" series_composition="overlay" average_selection="yes" average_cores="yes" description="Frequency setting of the CPU"/>
+    <event counter="Linux_power_cpu_idle" title="Idle" name="State" per_cpu="yes" display="maximum" average_selection="yes" description="CPU Idle State + 1, set the Sample Rate to None to prevent the hrtimer from interrupting the system"/>
+    <event counter="Linux_cpu_wait_contention" title="CPU Contention" name="Wait" per_cpu="no" display="maximum" derived="yes" rendering_type="bar" average_selection="yes" percentage="yes" modifier="10000" description="Thread waiting on contended resource"/>
+    <event counter="Linux_cpu_wait_io" title="CPU I/O" name="Wait" per_cpu="no" display="maximum" derived="yes" rendering_type="bar" average_selection="yes" percentage="yes" modifier="10000" description="Thread waiting on I/O resource"/>
+  </category>
+
