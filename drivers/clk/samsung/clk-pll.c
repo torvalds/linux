@@ -13,6 +13,14 @@
 #include "clk.h"
 #include "clk-pll.h"
 
+struct samsung_clk_pll {
+	struct clk_hw		hw;
+	void __iomem		*lock_reg;
+	void __iomem		*con_reg;
+};
+
+#define to_clk_pll(_hw) container_of(_hw, struct samsung_clk_pll, hw)
+
 /*
  * PLL35xx Clock Type
  */
@@ -24,17 +32,10 @@
 #define PLL35XX_PDIV_SHIFT      (8)
 #define PLL35XX_SDIV_SHIFT      (0)
 
-struct samsung_clk_pll35xx {
-	struct clk_hw		hw;
-	const void __iomem	*con_reg;
-};
-
-#define to_clk_pll35xx(_hw) container_of(_hw, struct samsung_clk_pll35xx, hw)
-
 static unsigned long samsung_pll35xx_recalc_rate(struct clk_hw *hw,
 				unsigned long parent_rate)
 {
-	struct samsung_clk_pll35xx *pll = to_clk_pll35xx(hw);
+	struct samsung_clk_pll *pll = to_clk_pll(hw);
 	u32 mdiv, pdiv, sdiv, pll_con;
 	u64 fvco = parent_rate;
 
@@ -56,7 +57,7 @@ static const struct clk_ops samsung_pll35xx_clk_ops = {
 struct clk * __init samsung_clk_register_pll35xx(const char *name,
 			const char *pname, const void __iomem *con_reg)
 {
-	struct samsung_clk_pll35xx *pll;
+	struct samsung_clk_pll *pll;
 	struct clk *clk;
 	struct clk_init_data init;
 
@@ -100,17 +101,10 @@ struct clk * __init samsung_clk_register_pll35xx(const char *name,
 #define PLL36XX_PDIV_SHIFT	(8)
 #define PLL36XX_SDIV_SHIFT	(0)
 
-struct samsung_clk_pll36xx {
-	struct clk_hw		hw;
-	const void __iomem	*con_reg;
-};
-
-#define to_clk_pll36xx(_hw) container_of(_hw, struct samsung_clk_pll36xx, hw)
-
 static unsigned long samsung_pll36xx_recalc_rate(struct clk_hw *hw,
 				unsigned long parent_rate)
 {
-	struct samsung_clk_pll36xx *pll = to_clk_pll36xx(hw);
+	struct samsung_clk_pll *pll = to_clk_pll(hw);
 	u32 mdiv, pdiv, sdiv, pll_con0, pll_con1;
 	s16 kdiv;
 	u64 fvco = parent_rate;
@@ -136,7 +130,7 @@ static const struct clk_ops samsung_pll36xx_clk_ops = {
 struct clk * __init samsung_clk_register_pll36xx(const char *name,
 			const char *pname, const void __iomem *con_reg)
 {
-	struct samsung_clk_pll36xx *pll;
+	struct samsung_clk_pll *pll;
 	struct clk *clk;
 	struct clk_init_data init;
 
