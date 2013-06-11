@@ -53,6 +53,7 @@
  */
 struct smack_known {
 	struct list_head		list;
+	struct hlist_node		smk_hashed;
 	char				*smk_known;
 	u32				smk_secid;
 	struct netlbl_lsm_secattr	smk_netlabel;	/* on wire labels */
@@ -222,6 +223,7 @@ char *smk_parse_smack(const char *string, int len);
 int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
 char *smk_import(const char *, int);
 struct smack_known *smk_import_entry(const char *, int);
+void smk_insert_entry(struct smack_known *skp);
 struct smack_known *smk_find_entry(const char *);
 u32 smack_to_secid(const char *);
 
@@ -246,6 +248,9 @@ extern struct list_head smack_known_list;
 extern struct list_head smk_netlbladdr_list;
 
 extern struct security_operations smack_ops;
+
+#define SMACK_HASH_SLOTS 16
+extern struct hlist_head smack_known_hash[SMACK_HASH_SLOTS];
 
 /*
  * Is the directory transmuting?
