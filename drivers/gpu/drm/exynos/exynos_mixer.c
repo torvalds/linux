@@ -892,10 +892,10 @@ static void mixer_poweron(struct mixer_context *ctx)
 	ctx->powered = true;
 	mutex_unlock(&ctx->mixer_mutex);
 
-	clk_enable(res->mixer);
+	clk_prepare_enable(res->mixer);
 	if (ctx->vp_enabled) {
-		clk_enable(res->vp);
-		clk_enable(res->sclk_mixer);
+		clk_prepare_enable(res->vp);
+		clk_prepare_enable(res->sclk_mixer);
 	}
 
 	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
@@ -917,10 +917,10 @@ static void mixer_poweroff(struct mixer_context *ctx)
 
 	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
 
-	clk_disable(res->mixer);
+	clk_disable_unprepare(res->mixer);
 	if (ctx->vp_enabled) {
-		clk_disable(res->vp);
-		clk_disable(res->sclk_mixer);
+		clk_disable_unprepare(res->vp);
+		clk_disable_unprepare(res->sclk_mixer);
 	}
 
 	mutex_lock(&ctx->mixer_mutex);
