@@ -396,7 +396,7 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	}
 
 	if (cap & DWC_I2S_PLAY) {
-		dev_dbg(&pdev->dev, " SPEAr: play supported\n");
+		dev_dbg(&pdev->dev, " designware: play supported\n");
 		dw_i2s_dai->playback.channels_min = MIN_CHANNEL_NUM;
 		dw_i2s_dai->playback.channels_max = pdata->channel;
 		dw_i2s_dai->playback.formats = pdata->snd_fmts;
@@ -404,7 +404,7 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	}
 
 	if (cap & DWC_I2S_RECORD) {
-		dev_dbg(&pdev->dev, "SPEAr: record supported\n");
+		dev_dbg(&pdev->dev, "designware: record supported\n");
 		dw_i2s_dai->capture.channels_min = MIN_CHANNEL_NUM;
 		dw_i2s_dai->capture.channels_max = pdata->channel;
 		dw_i2s_dai->capture.formats = pdata->snd_fmts;
