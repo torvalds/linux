@@ -476,8 +476,8 @@ static int davinci_mdio_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops davinci_mdio_pm_ops = {
-	.suspend	= davinci_mdio_suspend,
-	.resume		= davinci_mdio_resume,
+	.suspend_late	= davinci_mdio_suspend,
+	.resume_early	= davinci_mdio_resume,
 };
 
 static const struct of_device_id davinci_mdio_of_mtable[] = {
