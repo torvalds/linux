@@ -64,6 +64,9 @@ struct adf_interface_data32 {
 struct adf_overlay_engine_data32 {
 	char name[ADF_NAME_LEN];
 
+	compat_size_t n_supported_formats;
+	compat_uptr_t supported_formats;
+
 	compat_size_t custom_data_size;
 	compat_uptr_t custom_data;
 };

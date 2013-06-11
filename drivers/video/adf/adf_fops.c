@@ -105,6 +105,8 @@ static int adf_eng_get_data(struct adf_overlay_engine *eng,
 {
 	struct adf_device *dev = adf_overlay_engine_parent(eng);
 	struct adf_overlay_engine_data data;
+	size_t n_supported_formats;
+	u32 *supported_formats = NULL;
 	int ret = 0;
 
 	if (copy_from_user(&data, arg, sizeof(data)))
@@ -112,18 +114,44 @@ static int adf_eng_get_data(struct adf_overlay_engine *eng,
 
 	strlcpy(data.name, eng->base.name, sizeof(data.name));
 
+	if (data.n_supported_formats > ADF_MAX_SUPPORTED_FORMATS)
+		return -EINVAL;
+
+	n_supported_formats = data.n_supported_formats;
+	data.n_supported_formats = eng->ops->n_supported_formats;
+
+	if (n_supported_formats) {
+		supported_formats = kzalloc(n_supported_formats *
+				sizeof(supported_formats[0]), GFP_KERNEL);
+		if (!supported_formats)
+			return -ENOMEM;
+	}
+
+	memcpy(supported_formats, eng->ops->supported_formats,
+			sizeof(u32) * min(n_supported_formats,
+					eng->ops->n_supported_formats));
+
 	mutex_lock(&dev->client_lock);
 	ret = adf_obj_copy_custom_data_to_user(&eng->base, arg->custom_data,
 			&data.custom_data_size);
 	mutex_unlock(&dev->client_lock);
 
 	if (ret < 0)
-		return ret;
+		goto done;
 
-	if (copy_to_user(arg, &data, sizeof(data)))
-		return -EFAULT;
+	if (copy_to_user(arg, &data, sizeof(data))) {
+		ret = -EFAULT;
+		goto done;
+	}
 
-	return 0;
+	if (supported_formats && copy_to_user(arg->supported_formats,
+			supported_formats,
+			n_supported_formats * sizeof(supported_formats[0])))
+		ret = -EFAULT;
+
+done:
+	kfree(supported_formats);
+	return ret;
 }
 
 static int adf_buffer_import(struct adf_device *dev,

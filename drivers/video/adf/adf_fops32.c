@@ -166,7 +166,11 @@ long adf_compat_get_overlay_engine_data(struct file *file,
 	if (!access_ok(VERIFY_WRITE, data, sizeof(*data)))
 		return -EFAULT;
 
-	if (put_user(data32.custom_data_size, &data->custom_data_size) ||
+	if (put_user(data32.n_supported_formats, &data->n_supported_formats) ||
+			put_user(compat_ptr(data32.supported_formats),
+					&data->supported_formats) ||
+			put_user(data32.custom_data_size,
+					&data->custom_data_size) ||
 			put_user(compat_ptr(data32.custom_data),
 					&data->custom_data))
 		return -EFAULT;
@@ -177,6 +181,9 @@ long adf_compat_get_overlay_engine_data(struct file *file,
 		return ret;
 
 	if (copy_in_user(arg->name, data->name, sizeof(arg->name)) ||
+			copy_in_user(&arg->n_supported_formats,
+					&data->n_supported_formats,
+					sizeof(arg->n_supported_formats)) ||
 			copy_in_user(&arg->custom_data_size,
 					&data->custom_data_size,
 					sizeof(arg->custom_data_size)))
