@@ -21,6 +21,7 @@
 			label = "overo:blue:COM";
 			pwms = <&twl_pwmled 1 7812500>;
 			max-brightness = <127>;
+			linux,default-trigger = "mmc0";
 		};
 	};
 
