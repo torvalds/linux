@@ -22,7 +22,7 @@
 #include "cw1200.h"
 #include "fwio.h"
 #include "hwio.h"
-#include "sbus.h"
+#include "hwbus.h"
 #include "bh.h"
 
 static int cw1200_get_hw_type(u32 config_reg_val, int *major_revision)
@@ -138,11 +138,6 @@ static int cw1200_load_firmware_cw1200(struct cw1200_common *priv)
 	/* Enable Clock */
 	val32 &= ~ST90TDS_CONFIG_CPU_CLK_DIS_BIT;
 	REG_WRITE(ST90TDS_CONFIG_REG_ID, val32);
-
-#ifdef CONFIG_CW1200_ETF
-	if (etf_mode)
-		fw_path = etf_firmware;
-#endif
 
 	/* Load a firmware file */
 	ret = request_firmware(&firmware, fw_path, priv->pdev);
@@ -489,9 +484,9 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 	}
 
 	/* Enable interrupt signalling */
-	priv->sbus_ops->lock(priv->sbus_priv);
+	priv->hwbus_ops->lock(priv->hwbus_priv);
 	ret = __cw1200_irq_enable(priv, 1);
-	priv->sbus_ops->unlock(priv->sbus_priv);
+	priv->hwbus_ops->unlock(priv->hwbus_priv);
 	if (ret < 0)
 		goto unsubscribe;
 
@@ -518,8 +513,8 @@ out:
 
 unsubscribe:
 	/* Disable interrupt signalling */
-	priv->sbus_ops->lock(priv->sbus_priv);
+	priv->hwbus_ops->lock(priv->hwbus_priv);
 	ret = __cw1200_irq_enable(priv, 0);
-	priv->sbus_ops->unlock(priv->sbus_priv);
+	priv->hwbus_ops->unlock(priv->hwbus_priv);
 	return ret;
 }

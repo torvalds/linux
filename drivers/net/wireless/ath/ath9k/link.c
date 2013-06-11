@@ -390,9 +390,7 @@ void ath_ani_calibrate(unsigned long data)
 	}
 
 	/* Verify whether we must check ANI */
-	if (sc->sc_ah->config.enable_ani
-	    && (timestamp - common->ani.checkani_timer) >=
-	    ah->config.ani_poll_interval) {
+	if ((timestamp - common->ani.checkani_timer) >= ah->config.ani_poll_interval) {
 		aniflag = true;
 		common->ani.checkani_timer = timestamp;
 	}
@@ -427,9 +425,7 @@ set_timer:
 	* short calibration and long calibration.
 	*/
 	cal_interval = ATH_LONG_CALINTERVAL;
-	if (sc->sc_ah->config.enable_ani)
-		cal_interval = min(cal_interval,
-				   (u32)ah->config.ani_poll_interval);
+	cal_interval = min(cal_interval, (u32)ah->config.ani_poll_interval);
 	if (!common->ani.caldone)
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 

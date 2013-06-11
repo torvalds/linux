@@ -961,6 +961,7 @@ struct station_info {
  * @MONITOR_FLAG_CONTROL: pass control frames
  * @MONITOR_FLAG_OTHER_BSS: disable BSSID filtering
  * @MONITOR_FLAG_COOK_FRAMES: report frames after processing
+ * @MONITOR_FLAG_ACTIVE: active monitor, ACKs frames on its MAC address
  */
 enum monitor_flags {
 	MONITOR_FLAG_FCSFAIL		= 1<<NL80211_MNTR_FLAG_FCSFAIL,
@@ -968,6 +969,7 @@ enum monitor_flags {
 	MONITOR_FLAG_CONTROL		= 1<<NL80211_MNTR_FLAG_CONTROL,
 	MONITOR_FLAG_OTHER_BSS		= 1<<NL80211_MNTR_FLAG_OTHER_BSS,
 	MONITOR_FLAG_COOK_FRAMES	= 1<<NL80211_MNTR_FLAG_COOK_FRAMES,
+	MONITOR_FLAG_ACTIVE		= 1<<NL80211_MNTR_FLAG_ACTIVE,
 };
 
 /**
@@ -2867,7 +2869,6 @@ struct cfg80211_cached_keys;
  * @mgmt_registrations_lock: lock for the list
  * @mtx: mutex used to lock data in this struct, may be used by drivers
  *	and some API functions require it held
- * @cleanup_work: work struct used for cleanup that can't be done directly
  * @beacon_interval: beacon interval used on this device for transmitting
  *	beacons, 0 when not valid
  * @address: The address for this device, valid only if @netdev is %NULL

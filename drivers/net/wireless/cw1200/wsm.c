@@ -12,7 +12,6 @@
 
 #include <linux/skbuff.h>
 #include <linux/wait.h>
-#include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/random.h>
@@ -22,7 +21,6 @@
 #include "bh.h"
 #include "sta.h"
 #include "debug.h"
-#include "itp.h"
 
 #define WSM_CMD_TIMEOUT		(2 * HZ) /* With respect to interrupt loss */
 #define WSM_CMD_START_TIMEOUT	(7 * HZ)
@@ -930,6 +928,8 @@ static int wsm_event_indication(struct cw1200_common *priv, struct wsm_buf *buf)
 	}
 
 	event = kzalloc(sizeof(struct cw1200_wsm_event), GFP_KERNEL);
+	if (!event)
+		return -ENOMEM;
 
 	event->evt.id = __le32_to_cpu(WSM_GET32(buf));
 	event->evt.data = __le32_to_cpu(WSM_GET32(buf));
@@ -1106,15 +1106,11 @@ static int wsm_cmd_send(struct cw1200_common *priv,
 	else
 		pr_debug("[WSM] >>> 0x%.4X (%zu)\n", cmd, buf_len);
 
-	/*
-	 * Due to buggy SPI on CW1200, we need to
+	/* Due to buggy SPI on CW1200, we need to
 	 * pad the message by a few bytes to ensure
 	 * that it's completely received.
 	 */
-#ifdef CONFIG_CW1200_ETF
-	if (!etf_mode)
-#endif
-		buf_len += 4;
+	buf_len += 4;
 
 	/* Fill HI message header */
 	/* BH will add sequence number */
@@ -1164,29 +1160,6 @@ done:
 	wsm_buf_reset(buf);
 	return ret;
 }
-
-#ifdef CONFIG_CW1200_ETF
-int wsm_raw_cmd(struct cw1200_common *priv, u8 *data, size_t len)
-{
-	struct wsm_buf *buf = &priv->wsm_cmd_buf;
-	int ret;
-
-	u16 *cmd = (u16 *)(data + 2);
-
-	wsm_cmd_lock(priv);
-
-	WSM_PUT(buf, data + 4, len - 4);  /* Skip over header (u16+u16) */
-
-	ret = wsm_cmd_send(priv, buf, NULL, __le16_to_cpu(*cmd), WSM_CMD_TIMEOUT);
-
-	wsm_cmd_unlock(priv);
-	return ret;
-
-nomem:
-	wsm_cmd_unlock(priv);
-	return -ENOMEM;
-}
-#endif /* CONFIG_CW1200_ETF */
 
 /* ******************************************************************** */
 /* WSM TX port control							*/
@@ -1342,34 +1315,6 @@ int wsm_handle_rx(struct cw1200_common *priv, u16 id,
 
 	pr_debug("[WSM] <<< 0x%.4X (%td)\n", id,
 		 wsm_buf.end - wsm_buf.begin);
-
-#ifdef CONFIG_CW1200_ETF
-	if (etf_mode) {
-		struct sk_buff *skb = alloc_skb(wsm_buf.end - wsm_buf.begin, GFP_KERNEL);
-
-		/* Strip out Sequence num before passing up */
-		wsm->id = __le16_to_cpu(wsm->id);
-		wsm->id &= 0x0FFF;
-		wsm->id = __cpu_to_le16(wsm->id);
-
-		memcpy(skb_put(skb, wsm_buf.end - wsm_buf.begin),
-		       wsm_buf.begin,
-		       wsm_buf.end - wsm_buf.begin);
-		skb_queue_tail(&priv->etf_q, skb);
-
-		/* Special case for startup */
-		if (id == WSM_STARTUP_IND_ID) {
-			wsm_startup_indication(priv, &wsm_buf);
-		} else if (id & 0x0400) {
-			spin_lock(&priv->wsm_cmd.lock);
-			priv->wsm_cmd.done = 1;
-			spin_unlock(&priv->wsm_cmd.lock);
-			wake_up(&priv->wsm_cmd_wq);
-		}
-
-		goto out;
-	}
-#endif
 
 	if (id == WSM_TX_CONFIRM_IND_ID) {
 		ret = wsm_tx_confirm(priv, &wsm_buf, link_id);
@@ -1731,12 +1676,6 @@ int wsm_get_tx(struct cw1200_common *priv, u8 **data,
 
 	/* More is used only for broadcasts. */
 	bool more = false;
-
-#ifdef CONFIG_CW1200_ITP
-	count = cw1200_itp_get_tx(priv, data, tx_len, burst);
-	if (count)
-		return count;
-#endif
 
 	if (priv->wsm_cmd.ptr) { /* CMD request */
 		++count;

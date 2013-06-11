@@ -12,8 +12,6 @@
 #ifndef CW1200_DEBUG_H_INCLUDED
 #define CW1200_DEBUG_H_INCLUDED
 
-#include "itp.h"
-
 struct cw1200_debug_priv {
 	struct dentry *debugfs_phy;
 	int tx;
@@ -30,9 +28,6 @@ struct cw1200_debug_priv {
 	int ba_acc;
 	int ba_cnt_rx;
 	int ba_acc_rx;
-#ifdef CONFIG_CW1200_ITP
-	struct cw1200_itp itp;
-#endif /* CONFIG_CW1200_ITP */
 };
 
 int cw1200_debug_init(struct cw1200_common *priv);
