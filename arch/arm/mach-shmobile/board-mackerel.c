@@ -1309,6 +1309,49 @@ static struct i2c_board_info i2c1_devices[] = {
 };
 
 static const struct pinctrl_map mackerel_pinctrl_map[] = {
+	/* ADXL34X */
+	PIN_MAP_MUX_GROUP_DEFAULT("1-0053", "pfc-sh7372",
+				  "intc_irq21", "intc"),
+	/* CEU */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_data_0_7", "ceu"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_clk_0", "ceu"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_sync", "ceu"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_field", "ceu"),
+	/* FLCTL */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_flctl.0", "pfc-sh7372",
+				  "flctl_data", "flctl"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_flctl.0", "pfc-sh7372",
+				  "flctl_ce0", "flctl"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_flctl.0", "pfc-sh7372",
+				  "flctl_ctrl", "flctl"),
+	/* FSIA (AK4643) */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_sclk_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_data_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_data_out", "fsia"),
+	/* FSIB (HDMI) */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.1", "pfc-sh7372",
+				  "fsib_mclk_in", "fsib"),
+	/* HDMI */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-mobile-hdmi", "pfc-sh7372",
+				  "hdmi", "hdmi"),
+	/* LCDC */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_lcdc_fb.0", "pfc-sh7372",
+				  "lcd_data24", "lcd"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_lcdc_fb.0", "pfc-sh7372",
+				  "lcd_sync", "lcd"),
+	/* SCIFA0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.0", "pfc-sh7372",
+				  "scifa0_data", "scifa0"),
+	/* SCIFA2 (GT-720F GPS module) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.2", "pfc-sh7372",
+				  "scifa2_data", "scifa2"),
 	/* SDHI0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
 				  "sdhi0_data4", "sdhi0"),
@@ -1316,6 +1359,8 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 				  "sdhi0_ctrl", "sdhi0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
 				  "sdhi0_wp", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
+				  "intc_irq26_1", "intc"),
 	/* SDHI1 */
 #if !IS_ENABLED(CONFIG_MMC_SH_MMCIF)
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh7372",
@@ -1334,6 +1379,25 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 				  "sdhi2_data4", "sdhi2"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.2", "pfc-sh7372",
 				  "sdhi2_ctrl", "sdhi2"),
+	/* SMSC911X */
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-sh7372",
+				  "bsc_cs5a", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-sh7372",
+				  "intc_irq6_0", "intc"),
+	/* ST1232 */
+	PIN_MAP_MUX_GROUP_DEFAULT("0-0055", "pfc-sh7372",
+				  "intc_irq7_0", "intc"),
+	/* TCA6416 */
+	PIN_MAP_MUX_GROUP_DEFAULT("0-0020", "pfc-sh7372",
+				  "intc_irq9_0", "intc"),
+	/* USBHS0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.0", "pfc-sh7372",
+				  "usb0_vbus", "usb0"),
+	/* USBHS1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
+				  "usb1_vbus", "usb1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
+				  "usb1_otg_id_0", "usb1"),
 };
 
 #define GPIO_PORT9CR	IOMEM(0xE6051009)
@@ -1377,61 +1441,18 @@ static void __init mackerel_init(void)
 				  ARRAY_SIZE(mackerel_pinctrl_map));
 	sh7372_pinmux_init();
 
-	/* enable SCIFA0 */
-	gpio_request(GPIO_FN_SCIFA0_TXD, NULL);
-	gpio_request(GPIO_FN_SCIFA0_RXD, NULL);
-
-	/* enable SMSC911X */
-	gpio_request(GPIO_FN_CS5A,	NULL);
-	gpio_request(GPIO_FN_IRQ6_39,	NULL);
-
-	/* LCDC */
-	gpio_request(GPIO_FN_LCDD23,   NULL);
-	gpio_request(GPIO_FN_LCDD22,   NULL);
-	gpio_request(GPIO_FN_LCDD21,   NULL);
-	gpio_request(GPIO_FN_LCDD20,   NULL);
-	gpio_request(GPIO_FN_LCDD19,   NULL);
-	gpio_request(GPIO_FN_LCDD18,   NULL);
-	gpio_request(GPIO_FN_LCDD17,   NULL);
-	gpio_request(GPIO_FN_LCDD16,   NULL);
-	gpio_request(GPIO_FN_LCDD15,   NULL);
-	gpio_request(GPIO_FN_LCDD14,   NULL);
-	gpio_request(GPIO_FN_LCDD13,   NULL);
-	gpio_request(GPIO_FN_LCDD12,   NULL);
-	gpio_request(GPIO_FN_LCDD11,   NULL);
-	gpio_request(GPIO_FN_LCDD10,   NULL);
-	gpio_request(GPIO_FN_LCDD9,    NULL);
-	gpio_request(GPIO_FN_LCDD8,    NULL);
-	gpio_request(GPIO_FN_LCDD7,    NULL);
-	gpio_request(GPIO_FN_LCDD6,    NULL);
-	gpio_request(GPIO_FN_LCDD5,    NULL);
-	gpio_request(GPIO_FN_LCDD4,    NULL);
-	gpio_request(GPIO_FN_LCDD3,    NULL);
-	gpio_request(GPIO_FN_LCDD2,    NULL);
-	gpio_request(GPIO_FN_LCDD1,    NULL);
-	gpio_request(GPIO_FN_LCDD0,    NULL);
-	gpio_request(GPIO_FN_LCDDISP,  NULL);
-	gpio_request(GPIO_FN_LCDDCK,   NULL);
-
 	/* backlight, off by default */
 	gpio_request_one(31, GPIOF_OUT_INIT_LOW, NULL);
 
 	gpio_request_one(151, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
 
 	/* USBHS0 */
-	gpio_request(GPIO_FN_VBUS0_0, NULL);
 	gpio_request_pulldown(GPIO_PORT168CR); /* VBUS0_0 pull down */
 
 	/* USBHS1 */
-	gpio_request(GPIO_FN_VBUS0_1, NULL);
 	gpio_request_pulldown(GPIO_PORT167CR); /* VBUS0_1 pull down */
-	gpio_request(GPIO_FN_IDIN_1_113, NULL);
 
-	/* enable FSI2 port A (ak4643) */
-	gpio_request(GPIO_FN_FSIAIBT,	NULL);
-	gpio_request(GPIO_FN_FSIAILR,	NULL);
-	gpio_request(GPIO_FN_FSIAISLD,	NULL);
-	gpio_request(GPIO_FN_FSIAOSLD,	NULL);
+	/* FSI2 port A (ak4643) */
 	gpio_request_one(161, GPIOF_OUT_INIT_LOW, NULL); /* slave */
 
 	gpio_request(9,  NULL);
@@ -1441,8 +1462,7 @@ static void __init mackerel_init(void)
 
 	intc_set_priority(IRQ_FSI, 3); /* irq priority FSI(3) > SMSC911X(2) */
 
-	/* setup FSI2 port B (HDMI) */
-	gpio_request(GPIO_FN_FSIBCK, NULL);
+	/* FSI2 port B (HDMI) */
 	__raw_writew(__raw_readw(USCCR1) & ~(1 << 6), USCCR1); /* use SPDIF */
 
 	/* set SPU2 clock to 119.6 MHz */
@@ -1452,67 +1472,14 @@ static void __init mackerel_init(void)
 		clk_put(clk);
 	}
 
-	/* enable Keypad */
-	gpio_request(GPIO_FN_IRQ9_42,	NULL);
+	/* Keypad */
 	irq_set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
 
-	/* enable Touchscreen */
-	gpio_request(GPIO_FN_IRQ7_40,	NULL);
+	/* Touchscreen */
 	irq_set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
-	/* enable Accelerometer */
-	gpio_request(GPIO_FN_IRQ21,	NULL);
+	/* Accelerometer */
 	irq_set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
-
-	/* SDHI0 PORT172 card-detect IRQ26 */
-	gpio_request(GPIO_FN_IRQ26_172, NULL);
-
-	/* FLCTL */
-	gpio_request(GPIO_FN_D0_NAF0, NULL);
-	gpio_request(GPIO_FN_D1_NAF1, NULL);
-	gpio_request(GPIO_FN_D2_NAF2, NULL);
-	gpio_request(GPIO_FN_D3_NAF3, NULL);
-	gpio_request(GPIO_FN_D4_NAF4, NULL);
-	gpio_request(GPIO_FN_D5_NAF5, NULL);
-	gpio_request(GPIO_FN_D6_NAF6, NULL);
-	gpio_request(GPIO_FN_D7_NAF7, NULL);
-	gpio_request(GPIO_FN_D8_NAF8, NULL);
-	gpio_request(GPIO_FN_D9_NAF9, NULL);
-	gpio_request(GPIO_FN_D10_NAF10, NULL);
-	gpio_request(GPIO_FN_D11_NAF11, NULL);
-	gpio_request(GPIO_FN_D12_NAF12, NULL);
-	gpio_request(GPIO_FN_D13_NAF13, NULL);
-	gpio_request(GPIO_FN_D14_NAF14, NULL);
-	gpio_request(GPIO_FN_D15_NAF15, NULL);
-	gpio_request(GPIO_FN_FCE0, NULL);
-	gpio_request(GPIO_FN_WE0_FWE, NULL);
-	gpio_request(GPIO_FN_FRB, NULL);
-	gpio_request(GPIO_FN_A4_FOE, NULL);
-	gpio_request(GPIO_FN_A5_FCDE, NULL);
-	gpio_request(GPIO_FN_RD_FSC, NULL);
-
-	/* enable GPS module (GT-720F) */
-	gpio_request(GPIO_FN_SCIFA2_TXD1, NULL);
-	gpio_request(GPIO_FN_SCIFA2_RXD1, NULL);
-
-	/* CEU */
-	gpio_request(GPIO_FN_VIO_CLK, NULL);
-	gpio_request(GPIO_FN_VIO_VD, NULL);
-	gpio_request(GPIO_FN_VIO_HD, NULL);
-	gpio_request(GPIO_FN_VIO_FIELD, NULL);
-	gpio_request(GPIO_FN_VIO_CKO, NULL);
-	gpio_request(GPIO_FN_VIO_D7, NULL);
-	gpio_request(GPIO_FN_VIO_D6, NULL);
-	gpio_request(GPIO_FN_VIO_D5, NULL);
-	gpio_request(GPIO_FN_VIO_D4, NULL);
-	gpio_request(GPIO_FN_VIO_D3, NULL);
-	gpio_request(GPIO_FN_VIO_D2, NULL);
-	gpio_request(GPIO_FN_VIO_D1, NULL);
-	gpio_request(GPIO_FN_VIO_D0, NULL);
-
-	/* HDMI */
-	gpio_request(GPIO_FN_HDMI_HPD, NULL);
-	gpio_request(GPIO_FN_HDMI_CEC, NULL);
 
 	/* Reset HDMI, must be held at least one EXTALR (32768Hz) period */
 	srcr4 = __raw_readl(SRCR4);
