@@ -959,6 +959,7 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 		set_isa(c, MIPS_CPU_ISA_M64R1);
 		c->tlbsize = ((read_c0_config1() >> 25) & 0x3f) + 1;
 	}
+	c->kscratch_mask = 0xf;
 }
 
 #ifdef CONFIG_64BIT
