@@ -1449,9 +1449,6 @@ static int fimc_lite_probe(struct platform_device *pdev)
 		if (of_id)
 			drv_data = (struct flite_drvdata *)of_id->data;
 		fimc->index = of_alias_get_id(dev->of_node, "fimc-lite");
-	} else {
-		drv_data = fimc_lite_get_drvdata(pdev);
-		fimc->index = pdev->id;
 	}
 
 	if (!drv_data || fimc->index < 0 || fimc->index >= FIMC_LITE_MAX_DEVS)

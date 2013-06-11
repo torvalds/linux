@@ -56,9 +56,6 @@ struct flite_drvdata {
 	unsigned short out_hor_offs_align;
 };
 
-#define fimc_lite_get_drvdata(_pdev) \
-	((struct flite_drvdata *) platform_get_device_id(_pdev)->driver_data)
-
 struct fimc_lite_events {
 	unsigned int data_overflow;
 };
