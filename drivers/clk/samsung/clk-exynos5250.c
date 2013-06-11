@@ -493,19 +493,19 @@ static struct samsung_gate_clock exynos5250_gate_clks[] __initdata = {
 
 struct __initdata samsung_pll_clock exynos5250_plls[nr_plls] = {
 	[apll] = PLL_A(pll_35xx, fout_apll, "fout_apll", "fin_pll", APLL_LOCK,
-		APLL_CON0, "fout_apll"),
+		APLL_CON0, "fout_apll", NULL),
 	[mpll] = PLL_A(pll_35xx, fout_mpll, "fout_mpll", "fin_pll", MPLL_LOCK,
-		MPLL_CON0, "fout_mpll"),
+		MPLL_CON0, "fout_mpll", NULL),
 	[bpll] = PLL(pll_35xx, fout_bpll, "fout_bpll", "fin_pll", BPLL_LOCK,
-		BPLL_CON0),
+		BPLL_CON0, NULL),
 	[gpll] = PLL(pll_35xx, fout_gpll, "fout_gpll", "fin_pll", GPLL_LOCK,
-		GPLL_CON0),
+		GPLL_CON0, NULL),
 	[cpll] = PLL(pll_35xx, fout_cpll, "fout_cpll", "fin_pll", CPLL_LOCK,
-		CPLL_CON0),
+		CPLL_CON0, NULL),
 	[epll] = PLL(pll_36xx, fout_epll, "fout_epll", "fin_pll", EPLL_LOCK,
-		EPLL_CON0),
+		EPLL_CON0, NULL),
 	[vpll] = PLL(pll_36xx, fout_vpll, "fout_vpll", "mout_vpllsrc",
-		VPLL_LOCK, VPLL_CON0),
+		VPLL_LOCK, VPLL_CON0, NULL),
 };
 
 static __initdata struct of_device_id ext_clk_match[] = {

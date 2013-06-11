@@ -986,13 +986,13 @@ static __initdata struct of_device_id ext_clk_match[] = {
 
 struct __initdata samsung_pll_clock exynos4_plls[nr_plls] = {
 	[apll] = PLL_A(pll_35xx, fout_apll, "fout_apll", "fin_pll", APLL_LOCK,
-		APLL_CON0, "fout_apll"),
+		APLL_CON0, "fout_apll", NULL),
 	[mpll] = PLL_A(pll_35xx, fout_mpll, "fout_mpll", "fin_pll",
-		E4X12_MPLL_LOCK, E4X12_MPLL_CON0, "fout_mpll"),
+		E4X12_MPLL_LOCK, E4X12_MPLL_CON0, "fout_mpll", NULL),
 	[epll] = PLL_A(pll_36xx, fout_epll, "fout_epll", "fin_pll", EPLL_LOCK,
-		EPLL_CON0, "fout_epll"),
+		EPLL_CON0, "fout_epll", NULL),
 	[vpll] = PLL_A(pll_36xx, fout_vpll, "fout_vpll", "fin_pll", VPLL_LOCK,
-		VPLL_CON0, "fout_vpll"),
+		VPLL_CON0, "fout_vpll", NULL),
 };
 
 /* register exynos4 clocks */

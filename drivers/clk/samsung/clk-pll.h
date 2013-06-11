@@ -19,6 +19,33 @@ enum samsung_pll_type {
 	pll_2650,
 };
 
+#define PLL_35XX_RATE(_rate, _m, _p, _s)			\
+	{							\
+		.rate	=	(_rate),				\
+		.mdiv	=	(_m),				\
+		.pdiv	=	(_p),				\
+		.sdiv	=	(_s),				\
+	}
+
+#define PLL_36XX_RATE(_rate, _m, _p, _s, _k)			\
+	{							\
+		.rate	=	(_rate),				\
+		.mdiv	=	(_m),				\
+		.pdiv	=	(_p),				\
+		.sdiv	=	(_s),				\
+		.kdiv	=	(_k),				\
+	}
+
+/* NOTE: Rate table should be kept sorted in descending order. */
+
+struct samsung_pll_rate_table {
+	unsigned int rate;
+	unsigned int pdiv;
+	unsigned int mdiv;
+	unsigned int sdiv;
+	unsigned int kdiv;
+};
+
 enum pll45xx_type {
 	pll_4500,
 	pll_4502,

@@ -283,10 +283,12 @@ struct samsung_pll_clock {
 	int			con_offset;
 	int			lock_offset;
 	enum samsung_pll_type	type;
+	const struct samsung_pll_rate_table *rate_table;
 	const char              *alias;
 };
 
-#define __PLL(_typ, _id, _dname, _name, _pname, _flags, _lock, _con, _alias) \
+#define __PLL(_typ, _id, _dname, _name, _pname, _flags, _lock, _con,	\
+		_rtable, _alias)					\
 	{								\
 		.id		= _id,					\
 		.type		= _typ,					\
@@ -296,16 +298,17 @@ struct samsung_pll_clock {
 		.flags		= CLK_GET_RATE_NOCACHE,			\
 		.con_offset	= _con,					\
 		.lock_offset	= _lock,				\
+		.rate_table	= _rtable,				\
 		.alias		= _alias,				\
 	}
 
-#define PLL(_typ, _id, _name, _pname, _lock, _con)			\
+#define PLL(_typ, _id, _name, _pname, _lock, _con, _rtable)	\
 	__PLL(_typ, _id, NULL, _name, _pname, CLK_GET_RATE_NOCACHE,	\
-		_lock, _con, NULL)
+		_lock, _con, _rtable, _name)
 
-#define PLL_A(_typ, _id, _name, _pname, _lock, _con, _alias)		\
+#define PLL_A(_typ, _id, _name, _pname, _lock, _con, _alias, _rtable) \
 	__PLL(_typ, _id, NULL, _name, _pname, CLK_GET_RATE_NOCACHE,	\
-		_lock, _con, _alias)
+		_lock, _con, _rtable, _alias)
 
 extern void __init samsung_clk_init(struct device_node *np, void __iomem *base,
 		unsigned long nr_clks, unsigned long *rdump,

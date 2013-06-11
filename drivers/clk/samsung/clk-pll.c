@@ -18,6 +18,8 @@ struct samsung_clk_pll {
 	void __iomem		*lock_reg;
 	void __iomem		*con_reg;
 	enum samsung_pll_type	type;
+	unsigned int		rate_count;
+	const struct samsung_pll_rate_table *rate_table;
 };
 
 #define to_clk_pll(_hw) container_of(_hw, struct samsung_clk_pll, hw)
@@ -350,7 +352,7 @@ static void __init _samsung_clk_register_pll(struct samsung_pll_clock *pll_clk,
 	struct samsung_clk_pll *pll;
 	struct clk *clk;
 	struct clk_init_data init;
-	int ret;
+	int ret, len;
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll) {
@@ -363,6 +365,21 @@ static void __init _samsung_clk_register_pll(struct samsung_pll_clock *pll_clk,
 	init.flags = pll_clk->flags;
 	init.parent_names = &pll_clk->parent_name;
 	init.num_parents = 1;
+
+	if (pll_clk->rate_table) {
+		/* find count of rates in rate_table */
+		for (len = 0; pll_clk->rate_table[len].rate != 0; )
+			len++;
+
+		pll->rate_count = len;
+		pll->rate_table = kmemdup(pll_clk->rate_table,
+					pll->rate_count *
+					sizeof(struct samsung_pll_rate_table),
+					GFP_KERNEL);
+		WARN(!pll->rate_table,
+			"%s: could not allocate rate table for %s\n",
+			__func__, pll_clk->name);
+	}
 
 	switch (pll_clk->type) {
 	/* clk_ops for 35xx and 2550 are similar */
