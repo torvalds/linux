@@ -1030,7 +1030,6 @@ config CPU_BIG_ENDIAN
 config CPU_LITTLE_ENDIAN
 	bool "Little endian"
 	depends on SYS_SUPPORTS_LITTLE_ENDIAN
-	help
 
 endchoice
 
