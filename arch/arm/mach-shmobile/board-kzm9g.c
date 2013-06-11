@@ -663,13 +663,13 @@ static unsigned long pin_pullup_conf[] = {
 
 static const struct pinctrl_map kzm_pinctrl_map[] = {
 	/* FSIA (AK4648) */
-	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2.0", "pfc-sh73a0",
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2", "pfc-sh73a0",
 				  "fsia_mclk_in", "fsia"),
-	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2.0", "pfc-sh73a0",
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2", "pfc-sh73a0",
 				  "fsia_sclk_in", "fsia"),
-	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2.0", "pfc-sh73a0",
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2", "pfc-sh73a0",
 				  "fsia_data_in", "fsia"),
-	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2.0", "pfc-sh73a0",
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2", "pfc-sh73a0",
 				  "fsia_data_out", "fsia"),
 	/* I2C3 */
 	PIN_MAP_MUX_GROUP_DEFAULT("i2c-sh_mobile.3", "pfc-sh73a0",
@@ -787,9 +787,6 @@ static void __init kzm_init(void)
 
 	/* Touchscreen */
 	gpio_request_one(223, GPIOF_IN, NULL); /* IRQ8 */
-
-	/* enable SD */
-	gpio_request(GPIO_FN_SDHI0_VCCQ_MC0_ON,	NULL);
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 64K*8way */

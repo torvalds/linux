@@ -331,12 +331,6 @@ static struct platform_device smsc_device = {
 };
 
 /*
- * core board devices
- */
-static struct platform_device *bonito_core_devices[] __initdata = {
-};
-
-/*
  * base board devices
  */
 static struct platform_device *bonito_base_devices[] __initdata = {
@@ -375,12 +369,37 @@ static void __init bonito_map_io(void)
 #define VCCQ1CR		IOMEM(0xE6058140)
 #define VCCQ1LCDCR	IOMEM(0xE6058186)
 
+/*
+ * HACK: The FPGA mappings should be associated with the FPGA device, but we
+ * don't have one at the moment. Associate them with the PFC device to make
+ * sure they will be applied.
+ */
+static const struct pinctrl_map fpga_pinctrl_map[] = {
+	/* FPGA */
+	PIN_MAP_MUX_GROUP_DEFAULT("pfc-r8a7740", "pfc-r8a7740",
+				  "bsc_cs5a_0", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("pfc-r8a7740", "pfc-r8a7740",
+				  "bsc_cs5b", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("pfc-r8a7740", "pfc-r8a7740",
+				  "bsc_cs6a", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("pfc-r8a7740", "pfc-r8a7740",
+				  "intc_irq10", "intc"),
+};
+
+static const struct pinctrl_map scifa5_pinctrl_map[] = {
+	/* SCIFA5 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.5", "pfc-r8a7740",
+				  "scifa5_data_2", "scifa5"),
+};
+
 static void __init bonito_init(void)
 {
 	u16 val;
 
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
+	pinctrl_register_mappings(fpga_pinctrl_map,
+				  ARRAY_SIZE(fpga_pinctrl_map));
 	r8a7740_pinmux_init();
 	bonito_fpga_init();
 
@@ -397,9 +416,6 @@ static void __init bonito_init(void)
 
 	r8a7740_add_standard_devices();
 
-	platform_add_devices(bonito_core_devices,
-			     ARRAY_SIZE(bonito_core_devices));
-
 	/*
 	 * base board settings
 	 */
@@ -408,14 +424,6 @@ static void __init bonito_init(void)
 		u16 bsw2;
 		u16 bsw3;
 		u16 bsw4;
-
-		/*
-		 * FPGA
-		 */
-		gpio_request(GPIO_FN_CS5B,		NULL);
-		gpio_request(GPIO_FN_CS6A,		NULL);
-		gpio_request(GPIO_FN_CS5A_PORT105,	NULL);
-		gpio_request(GPIO_FN_IRQ10,		NULL);
 
 		val = bonito_fpga_read(BVERR);
 		pr_info("bonito version: cpu %02x, base %02x\n",
@@ -432,8 +440,8 @@ static void __init bonito_init(void)
 		if (BIT_OFF(bsw2, 1) &&	/* S38.3 = ON */
 		    BIT_OFF(bsw3, 9) &&	/* S39.6 = ON */
 		    BIT_OFF(bsw4, 4)) {	/* S43.1 = ON */
-			gpio_request(GPIO_FN_SCIFA5_TXD_PORT91,	NULL);
-			gpio_request(GPIO_FN_SCIFA5_RXD_PORT92,	NULL);
+			pinctrl_register_mappings(scifa5_pinctrl_map,
+						  ARRAY_SIZE(scifa5_pinctrl_map));
 		}
 
 		/*
@@ -443,7 +451,6 @@ static void __init bonito_init(void)
 		    BIT_ON(bsw2, 2)) {	/* S38.2 = OFF */
 			pinctrl_register_mappings(lcdc0_pinctrl_map,
 						  ARRAY_SIZE(lcdc0_pinctrl_map));
-			gpio_request(GPIO_FN_LCDC0_SELECT, NULL);
 
 			gpio_request_one(61, GPIOF_OUT_INIT_HIGH,
 					 NULL); /* LCDDON */

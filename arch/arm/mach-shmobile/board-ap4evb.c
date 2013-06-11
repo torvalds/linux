@@ -1026,10 +1026,8 @@ out:
 
 /* TouchScreen */
 #ifdef CONFIG_AP4EVB_QHD
-# define GPIO_TSC_IRQ	GPIO_FN_IRQ28_123
 # define GPIO_TSC_PORT	123
 #else /* WVGA */
-# define GPIO_TSC_IRQ	GPIO_FN_IRQ7_40
 # define GPIO_TSC_PORT	40
 #endif
 
@@ -1037,22 +1035,12 @@ out:
 #define IRQ7	evt2irq(0x02e0) /* IRQ7A */
 static int ts_get_pendown_state(void)
 {
-	int val;
-
-	gpio_free(GPIO_TSC_IRQ);
-
-	gpio_request_one(GPIO_TSC_PORT, GPIOF_IN, NULL);
-
-	val = gpio_get_value(GPIO_TSC_PORT);
-
-	gpio_request(GPIO_TSC_IRQ, NULL);
-
-	return !val;
+	return !gpio_get_value(GPIO_TSC_PORT);
 }
 
 static int ts_init(void)
 {
-	gpio_request(GPIO_TSC_IRQ, NULL);
+	gpio_request_one(GPIO_TSC_PORT, GPIOF_IN, NULL);
 
 	return 0;
 }
@@ -1086,11 +1074,42 @@ static struct i2c_board_info i2c1_devices[] = {
 
 
 static const struct pinctrl_map ap4evb_pinctrl_map[] = {
+	/* CEU */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_clk_0", "ceu"),
+	/* FSIA (AK4643) */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_sclk_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_data_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_data_out", "fsia"),
+	/* FSIB (HDMI) */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.1", "pfc-sh7372",
+				  "fsib_mclk_in", "fsib"),
+	/* HDMI */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-mobile-hdmi", "pfc-sh7372",
+				  "hdmi", "hdmi"),
+	/* KEYSC */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc", "pfc-sh7372",
+				  "keysc_in04_0", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc", "pfc-sh7372",
+				  "keysc_out5", "keysc"),
+#ifndef CONFIG_AP4EVB_QHD
+	/* LCDC */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_lcdc_fb.0", "pfc-sh7372",
+				  "lcd_data18", "lcd"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_lcdc_fb.0", "pfc-sh7372",
+				  "lcd_sync", "lcd"),
+#endif
 	/* MMCIF */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh7372",
 				  "mmc0_data8_0", "mmc0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh7372",
 				  "mmc0_ctrl_0", "mmc0"),
+	/* SCIFA0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.0", "pfc-sh7372",
+				  "scifa0_data", "scifa0"),
 	/* SDHI0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
 				  "sdhi0_data4", "sdhi0"),
@@ -1105,6 +1124,26 @@ static const struct pinctrl_map ap4evb_pinctrl_map[] = {
 				  "sdhi1_data4", "sdhi1"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh7372",
 				  "sdhi1_ctrl", "sdhi1"),
+	/* SMSC911X */
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-sh7372",
+				  "bsc_cs5a", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-sh7372",
+				  "intc_irq6_0", "intc"),
+	/* TSC2007 */
+#ifdef CONFIG_AP4EVB_QHD
+	PIN_MAP_MUX_GROUP_DEFAULT("1-0048", "pfc-sh7372",
+				  "intc_irq28_0", "intc"),
+#else /* WVGA */
+	PIN_MAP_MUX_GROUP_DEFAULT("1-0048", "pfc-sh7372",
+				  "intc_irq7_0", "intc"),
+#endif
+	/* USBHS1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a66597_hcd.1", "pfc-sh7372",
+				  "usb1_vbus", "usb1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a66597_hcd.1", "pfc-sh7372",
+				  "usb1_otg_id_0", "usb1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a66597_hcd.1", "pfc-sh7372",
+				  "usb1_otg_ctrl_0", "usb1"),
 };
 
 #define GPIO_PORT9CR	IOMEM(0xE6051009)
@@ -1137,36 +1176,16 @@ static void __init ap4evb_init(void)
 				  ARRAY_SIZE(ap4evb_pinctrl_map));
 	sh7372_pinmux_init();
 
-	/* enable SCIFA0 */
-	gpio_request(GPIO_FN_SCIFA0_TXD, NULL);
-	gpio_request(GPIO_FN_SCIFA0_RXD, NULL);
-
-	/* enable SMSC911X */
-	gpio_request(GPIO_FN_CS5A,	NULL);
-	gpio_request(GPIO_FN_IRQ6_39,	NULL);
-
 	/* enable Debug switch (S6) */
 	gpio_request_one(32, GPIOF_IN | GPIOF_EXPORT, NULL);
 	gpio_request_one(33, GPIOF_IN | GPIOF_EXPORT, NULL);
 	gpio_request_one(34, GPIOF_IN | GPIOF_EXPORT, NULL);
 	gpio_request_one(35, GPIOF_IN | GPIOF_EXPORT, NULL);
 
-	/* USB enable */
-	gpio_request(GPIO_FN_VBUS0_1,    NULL);
-	gpio_request(GPIO_FN_IDIN_1_18,  NULL);
-	gpio_request(GPIO_FN_PWEN_1_115, NULL);
-	gpio_request(GPIO_FN_OVCN_1_114, NULL);
-	gpio_request(GPIO_FN_EXTLP_1,    NULL);
-	gpio_request(GPIO_FN_OVCN2_1,    NULL);
-
 	/* setup USB phy */
 	__raw_writew(0x8a0a, IOMEM(0xE6058130));	/* USBCR4 */
 
-	/* enable FSI2 port A (ak4643) */
-	gpio_request(GPIO_FN_FSIAIBT,	NULL);
-	gpio_request(GPIO_FN_FSIAILR,	NULL);
-	gpio_request(GPIO_FN_FSIAISLD,	NULL);
-	gpio_request(GPIO_FN_FSIAOSLD,	NULL);
+	/* FSI2 port A (ak4643) */
 	gpio_request_one(161, GPIOF_OUT_INIT_LOW, NULL); /* slave */
 
 	gpio_request(9, NULL);
@@ -1177,8 +1196,7 @@ static void __init ap4evb_init(void)
 	/* card detect pin for MMC slot (CN7) */
 	gpio_request_one(41, GPIOF_IN, NULL);
 
-	/* setup FSI2 port B (HDMI) */
-	gpio_request(GPIO_FN_FSIBCK, NULL);
+	/* FSI2 port B (HDMI) */
 	__raw_writew(__raw_readw(USCCR1) & ~(1 << 6), USCCR1); /* use SPDIF */
 
 	/* set SPU2 clock to 119.6 MHz */
@@ -1208,18 +1226,6 @@ static void __init ap4evb_init(void)
 	 * IRQ28 for Touch Panel, set dip switches S3, S43 as OFF, ON.
 	 */
 
-	/* enable KEYSC */
-	gpio_request(GPIO_FN_KEYOUT0, NULL);
-	gpio_request(GPIO_FN_KEYOUT1, NULL);
-	gpio_request(GPIO_FN_KEYOUT2, NULL);
-	gpio_request(GPIO_FN_KEYOUT3, NULL);
-	gpio_request(GPIO_FN_KEYOUT4, NULL);
-	gpio_request(GPIO_FN_KEYIN0_136, NULL);
-	gpio_request(GPIO_FN_KEYIN1_135, NULL);
-	gpio_request(GPIO_FN_KEYIN2_134, NULL);
-	gpio_request(GPIO_FN_KEYIN3_133, NULL);
-	gpio_request(GPIO_FN_KEYIN4,     NULL);
-
 	/* enable TouchScreen */
 	irq_set_irq_type(IRQ28, IRQ_TYPE_LEVEL_LOW);
 
@@ -1241,28 +1247,6 @@ static void __init ap4evb_init(void)
 	 * For WVGA Panel (18-bit RGB, CONFIG_AP4EVB_WVGA=y) and
 	 * IRQ7 for Touch Panel, set dip switches S3, S43 to ON, OFF.
 	 */
-
-	gpio_request(GPIO_FN_LCDD17,   NULL);
-	gpio_request(GPIO_FN_LCDD16,   NULL);
-	gpio_request(GPIO_FN_LCDD15,   NULL);
-	gpio_request(GPIO_FN_LCDD14,   NULL);
-	gpio_request(GPIO_FN_LCDD13,   NULL);
-	gpio_request(GPIO_FN_LCDD12,   NULL);
-	gpio_request(GPIO_FN_LCDD11,   NULL);
-	gpio_request(GPIO_FN_LCDD10,   NULL);
-	gpio_request(GPIO_FN_LCDD9,    NULL);
-	gpio_request(GPIO_FN_LCDD8,    NULL);
-	gpio_request(GPIO_FN_LCDD7,    NULL);
-	gpio_request(GPIO_FN_LCDD6,    NULL);
-	gpio_request(GPIO_FN_LCDD5,    NULL);
-	gpio_request(GPIO_FN_LCDD4,    NULL);
-	gpio_request(GPIO_FN_LCDD3,    NULL);
-	gpio_request(GPIO_FN_LCDD2,    NULL);
-	gpio_request(GPIO_FN_LCDD1,    NULL);
-	gpio_request(GPIO_FN_LCDD0,    NULL);
-	gpio_request(GPIO_FN_LCDDISP,  NULL);
-	gpio_request(GPIO_FN_LCDDCK,   NULL);
-
 	gpio_request_one(189, GPIOF_OUT_INIT_HIGH, NULL); /* backlight */
 	gpio_request_one(151, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
 
@@ -1288,8 +1272,6 @@ static void __init ap4evb_init(void)
 	 */
 
 	/* MIPI-CSI stuff */
-	gpio_request(GPIO_FN_VIO_CKO, NULL);
-
 	clk = clk_get(NULL, "vck1_clk");
 	if (!IS_ERR(clk)) {
 		clk_set_rate(clk, clk_round_rate(clk, 13000000));
@@ -1298,10 +1280,6 @@ static void __init ap4evb_init(void)
 	}
 
 	sh7372_add_standard_devices();
-
-	/* HDMI */
-	gpio_request(GPIO_FN_HDMI_HPD, NULL);
-	gpio_request(GPIO_FN_HDMI_CEC, NULL);
 
 	/* Reset HDMI, must be held at least one EXTALR (32768Hz) period */
 #define SRCR4 IOMEM(0xe61580bc)

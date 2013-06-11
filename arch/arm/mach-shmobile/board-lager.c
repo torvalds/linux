@@ -21,15 +21,30 @@
 #include <linux/interrupt.h>
 #include <linux/irqchip.h>
 #include <linux/kernel.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
 #include <mach/common.h>
 #include <mach/r8a7790.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+static const struct pinctrl_map lager_pinctrl_map[] = {
+	/* SCIF0 (CN19: DEBUG SERIAL0) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.6", "pfc-r8a7790",
+				  "scif0_data", "scif0"),
+	/* SCIF1 (CN20: DEBUG SERIAL1) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.7", "pfc-r8a7790",
+				  "scif1_data", "scif1"),
+};
+
 static void __init lager_add_standard_devices(void)
 {
 	r8a7790_clock_init();
+
+	pinctrl_register_mappings(lager_pinctrl_map,
+				  ARRAY_SIZE(lager_pinctrl_map));
+	r8a7790_pinmux_init();
+
 	r8a7790_add_standard_devices();
 }
 
