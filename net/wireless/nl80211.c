@@ -1541,8 +1541,10 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 			int ifidx = nla_get_u32(tb[NL80211_ATTR_IFINDEX]);
 
 			netdev = dev_get_by_index(sock_net(skb->sk), ifidx);
-			if (!netdev)
+			if (!netdev) {
+				rtnl_unlock();
 				return -ENODEV;
+			}
 			if (netdev->ieee80211_ptr) {
 				dev = wiphy_to_dev(
 					netdev->ieee80211_ptr->wiphy);
@@ -1586,6 +1588,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 				    !skb->len &&
 				    cb->min_dump_alloc < 4096) {
 					cb->min_dump_alloc = 4096;
+					rtnl_unlock();
 					return 1;
 				}
 				idx--;
