@@ -615,7 +615,7 @@ static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
 		if (rates[i].idx < 0)
 			break;
 
-		rate_idx_match_mask(&rates[i], sband, mask, chan_width,
+		rate_idx_match_mask(&rates[i], sband, chan_width, mask,
 				    mcs_mask);
 	}
 }
