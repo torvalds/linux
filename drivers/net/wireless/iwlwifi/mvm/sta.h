@@ -275,6 +275,8 @@ struct iwl_mvm_tid_data {
  * @lock: lock to protect the whole struct. Since %tid_data is access from Tx
  * and from Tx response flow, it needs a spinlock.
  * @tid_data: per tid data. Look at %iwl_mvm_tid_data.
+ * @tx_protection: reference counter for controlling the Tx protection.
+ * @tt_tx_protection: is thermal throttling enable Tx protection?
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -296,6 +298,10 @@ struct iwl_mvm_sta {
 #ifdef CONFIG_PM_SLEEP
 	u16 last_seq_ctl;
 #endif
+
+	/* Temporary, until the new TLC will control the Tx protection */
+	s8 tx_protection;
+	bool tt_tx_protection;
 };
 
 /**

@@ -19,17 +19,6 @@
 #define NUM_DEFAULT_KEYS 4
 #define NUM_DEFAULT_MGMT_KEYS 2
 
-#define WEP_IV_LEN		4
-#define WEP_ICV_LEN		4
-#define ALG_CCMP_KEY_LEN	16
-#define CCMP_HDR_LEN		8
-#define CCMP_MIC_LEN		8
-#define CCMP_TK_LEN		16
-#define CCMP_PN_LEN		6
-#define TKIP_IV_LEN		8
-#define TKIP_ICV_LEN		4
-#define CMAC_PN_LEN		6
-
 struct ieee80211_local;
 struct ieee80211_sub_if_data;
 struct sta_info;
@@ -93,13 +82,13 @@ struct ieee80211_key {
 			 * frames and the last counter is used with Robust
 			 * Management frames.
 			 */
-			u8 rx_pn[IEEE80211_NUM_TIDS + 1][CCMP_PN_LEN];
+			u8 rx_pn[IEEE80211_NUM_TIDS + 1][IEEE80211_CCMP_PN_LEN];
 			struct crypto_cipher *tfm;
 			u32 replays; /* dot11RSNAStatsCCMPReplays */
 		} ccmp;
 		struct {
 			atomic64_t tx_pn;
-			u8 rx_pn[CMAC_PN_LEN];
+			u8 rx_pn[IEEE80211_CMAC_PN_LEN];
 			struct crypto_cipher *tfm;
 			u32 replays; /* dot11RSNAStatsCMACReplays */
 			u32 icverrors; /* dot11RSNAStatsCMACICVErrors */

@@ -73,16 +73,19 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 		struct ieee80211_local *local = sdata->local;
 
 		if (ieee80211_sdata_running(sdata)) {
+			u32 mask = MONITOR_FLAG_COOK_FRAMES |
+				   MONITOR_FLAG_ACTIVE;
+
 			/*
-			 * Prohibit MONITOR_FLAG_COOK_FRAMES to be
-			 * changed while the interface is up.
+			 * Prohibit MONITOR_FLAG_COOK_FRAMES and
+			 * MONITOR_FLAG_ACTIVE to be changed while the
+			 * interface is up.
 			 * Else we would need to add a lot of cruft
 			 * to update everything:
 			 *	cooked_mntrs, monitor and all fif_* counters
 			 *	reconfigure hardware
 			 */
-			if ((*flags & MONITOR_FLAG_COOK_FRAMES) !=
-			    (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES))
+			if ((*flags & mask) != (sdata->u.mntr_flags & mask))
 				return -EBUSY;
 
 			ieee80211_adjust_monitor_flags(sdata, -1);
@@ -444,7 +447,7 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	struct ieee80211_local *local = sdata->local;
 	struct timespec uptime;
 	u64 packets = 0;
-	int ac;
+	int i, ac;
 
 	sinfo->generation = sdata->local->sta_generation;
 
@@ -487,6 +490,17 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		    drv_get_rssi(local, sdata, &sta->sta, &sinfo->signal))
 			sinfo->signal = (s8)sta->last_signal;
 		sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
+	}
+	if (sta->chains) {
+		sinfo->filled |= STATION_INFO_CHAIN_SIGNAL |
+				 STATION_INFO_CHAIN_SIGNAL_AVG;
+
+		sinfo->chains = sta->chains;
+		for (i = 0; i < ARRAY_SIZE(sinfo->chain_signal); i++) {
+			sinfo->chain_signal[i] = sta->chain_signal_last[i];
+			sinfo->chain_signal_avg[i] =
+				(s8) -ewma_read(&sta->chain_signal_avg[i]);
+		}
 	}
 
 	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
@@ -728,7 +742,7 @@ static void ieee80211_get_et_strings(struct wiphy *wiphy,
 
 	if (sset == ETH_SS_STATS) {
 		sz_sta_stats = sizeof(ieee80211_gstrings_sta_stats);
-		memcpy(data, *ieee80211_gstrings_sta_stats, sz_sta_stats);
+		memcpy(data, ieee80211_gstrings_sta_stats, sz_sta_stats);
 	}
 	drv_get_et_strings(sdata, sset, &(data[sz_sta_stats]));
 }
@@ -1735,6 +1749,7 @@ static int copy_mesh_setup(struct ieee80211_if_mesh *ifmsh,
 	ifmsh->mesh_pp_id = setup->path_sel_proto;
 	ifmsh->mesh_pm_id = setup->path_metric;
 	ifmsh->user_mpm = setup->user_mpm;
+	ifmsh->mesh_auth_id = setup->auth_id;
 	ifmsh->security = IEEE80211_MESH_SEC_NONE;
 	if (setup->is_authenticated)
 		ifmsh->security |= IEEE80211_MESH_SEC_AUTHED;
@@ -2306,7 +2321,7 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 	enum ieee80211_smps_mode old_req;
 	int err;
 
-	lockdep_assert_held(&sdata->u.mgd.mtx);
+	lockdep_assert_held(&sdata->wdev.mtx);
 
 	old_req = sdata->u.mgd.req_smps;
 	sdata->u.mgd.req_smps = smps_mode;
@@ -2363,9 +2378,9 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	local->dynamic_ps_forced_timeout = timeout;
 
 	/* no change, but if automatic follow powersave */
-	mutex_lock(&sdata->u.mgd.mtx);
+	sdata_lock(sdata);
 	__ieee80211_request_smps(sdata, sdata->u.mgd.req_smps);
-	mutex_unlock(&sdata->u.mgd.mtx);
+	sdata_unlock(sdata);
 
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);

@@ -246,9 +246,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_MCI			= BIT(15),
 	ATH9K_HW_CAP_DFS			= BIT(16),
 	ATH9K_HW_WOW_DEVICE_CAPABLE		= BIT(17),
-	ATH9K_HW_WOW_PATTERN_MATCH_EXACT	= BIT(18),
-	ATH9K_HW_WOW_PATTERN_MATCH_DWORD	= BIT(19),
-	ATH9K_HW_CAP_PAPRD			= BIT(20),
+	ATH9K_HW_CAP_PAPRD			= BIT(18),
 };
 
 /*
@@ -291,7 +289,6 @@ struct ath9k_ops_config {
 	u32 ofdm_trig_high;
 	u32 cck_trig_high;
 	u32 cck_trig_low;
-	u32 enable_ani;
 	u32 enable_paprd;
 	int serialize_regmode;
 	bool rx_intr_mitigation;
@@ -423,7 +420,6 @@ struct ath9k_hw_cal_data {
 
 struct ath9k_channel {
 	struct ieee80211_channel *chan;
-	struct ar5416AniState ani;
 	u16 channel;
 	u32 channelFlags;
 	u32 chanmode;
@@ -854,10 +850,10 @@ struct ath_hw {
 	u32 globaltxtimeout;
 
 	/* ANI */
-	u32 proc_phyerr;
 	u32 aniperiod;
 	enum ath9k_ani_cmd ani_function;
 	u32 ani_skip_count;
+	struct ar5416AniState ani;
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex_hw btcoex_hw;
@@ -882,9 +878,6 @@ struct ath_hw {
 	struct ar5416IniArray iniBank6;
 	struct ar5416IniArray iniAddac;
 	struct ar5416IniArray iniPcieSerdes;
-#ifdef CONFIG_PM_SLEEP
-	struct ar5416IniArray iniPcieSerdesWow;
-#endif
 	struct ar5416IniArray iniPcieSerdesLowPower;
 	struct ar5416IniArray iniModesFastClock;
 	struct ar5416IniArray iniAdditional;
@@ -1164,8 +1157,6 @@ static inline void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable)
 {
 }
 #endif
-
-
 
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40

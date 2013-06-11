@@ -405,20 +405,27 @@ static int iwl_pcie_load_section(struct iwl_trans *trans, u8 section_num,
 {
 	u8 *v_addr;
 	dma_addr_t p_addr;
-	u32 offset;
+	u32 offset, chunk_sz = section->len;
 	int ret = 0;
 
 	IWL_DEBUG_FW(trans, "[%d] uCode section being loaded...\n",
 		     section_num);
 
-	v_addr = dma_alloc_coherent(trans->dev, PAGE_SIZE, &p_addr, GFP_KERNEL);
-	if (!v_addr)
-		return -ENOMEM;
+	v_addr = dma_alloc_coherent(trans->dev, chunk_sz, &p_addr,
+				    GFP_KERNEL | __GFP_NOWARN);
+	if (!v_addr) {
+		IWL_DEBUG_INFO(trans, "Falling back to small chunks of DMA\n");
+		chunk_sz = PAGE_SIZE;
+		v_addr = dma_alloc_coherent(trans->dev, chunk_sz,
+					    &p_addr, GFP_KERNEL);
+		if (!v_addr)
+			return -ENOMEM;
+	}
 
-	for (offset = 0; offset < section->len; offset += PAGE_SIZE) {
+	for (offset = 0; offset < section->len; offset += chunk_sz) {
 		u32 copy_size;
 
-		copy_size = min_t(u32, PAGE_SIZE, section->len - offset);
+		copy_size = min_t(u32, chunk_sz, section->len - offset);
 
 		memcpy(v_addr, (u8 *)section->data + offset, copy_size);
 		ret = iwl_pcie_load_firmware_chunk(trans,
@@ -432,7 +439,7 @@ static int iwl_pcie_load_section(struct iwl_trans *trans, u8 section_num,
 		}
 	}
 
-	dma_free_coherent(trans->dev, PAGE_SIZE, v_addr, p_addr);
+	dma_free_coherent(trans->dev, chunk_sz, v_addr, p_addr);
 	return ret;
 }
 
@@ -571,13 +578,17 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	clear_bit(STATUS_RFKILL, &trans_pcie->status);
 }
 
-static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans)
+static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
 {
-	/* let the ucode operate on its own */
-	iwl_write32(trans, CSR_UCODE_DRV_GP1_SET,
-		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
-
 	iwl_disable_interrupts(trans);
+
+	/*
+	 * in testing mode, the host stays awake and the
+	 * hardware won't be reset (not even partially)
+	 */
+	if (test)
+		return;
+
 	iwl_pcie_disable_ict(trans);
 
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
@@ -596,10 +607,17 @@ static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans)
 }
 
 static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
-				    enum iwl_d3_status *status)
+				    enum iwl_d3_status *status,
+				    bool test)
 {
 	u32 val;
 	int ret;
+
+	if (test) {
+		iwl_enable_interrupts(trans);
+		*status = IWL_D3_STATUS_ALIVE;
+		return 0;
+	}
 
 	iwl_pcie_set_pwr(trans, false);
 
@@ -635,9 +653,6 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 		IWL_ERR(trans, "Failed to resume the device (RX reset)\n");
 		return ret;
 	}
-
-	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR,
-		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
 	*status = IWL_D3_STATUS_ALIVE;
 	return 0;
@@ -917,11 +932,11 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 }
 
 static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
-				    void *buf, int dwords)
+				    const void *buf, int dwords)
 {
 	unsigned long flags;
 	int offs, ret = 0;
-	u32 *vals = buf;
+	const u32 *vals = buf;
 
 	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);

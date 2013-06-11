@@ -106,11 +106,14 @@ enum iwl_ucode_type {
 
 /*
  * enumeration of ucode section.
- * This enumeration is used for legacy tlv style (before 16.0 uCode).
+ * This enumeration is used directly for older firmware (before 16.0).
+ * For new firmware, there can be up to 4 sections (see below) but the
+ * first one packaged into the firmware file is the DATA section and
+ * some debugging code accesses that.
  */
 enum iwl_ucode_sec {
-	IWL_UCODE_SECTION_INST,
 	IWL_UCODE_SECTION_DATA,
+	IWL_UCODE_SECTION_INST,
 };
 /*
  * For 16.0 uCode and above, there is no differentiation between sections,

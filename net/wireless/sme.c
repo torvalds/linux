@@ -43,35 +43,29 @@ static bool cfg80211_is_all_idle(void)
 	struct wireless_dev *wdev;
 	bool is_all_idle = true;
 
-	mutex_lock(&cfg80211_mutex);
-
 	/*
 	 * All devices must be idle as otherwise if you are actively
 	 * scanning some new beacon hints could be learned and would
 	 * count as new regulatory hints.
 	 */
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
-		cfg80211_lock_rdev(rdev);
 		list_for_each_entry(wdev, &rdev->wdev_list, list) {
 			wdev_lock(wdev);
 			if (wdev->sme_state != CFG80211_SME_IDLE)
 				is_all_idle = false;
 			wdev_unlock(wdev);
 		}
-		cfg80211_unlock_rdev(rdev);
 	}
-
-	mutex_unlock(&cfg80211_mutex);
 
 	return is_all_idle;
 }
 
 static void disconnect_work(struct work_struct *work)
 {
-	if (!cfg80211_is_all_idle())
-		return;
-
-	regulatory_hint_disconnect();
+	rtnl_lock();
+	if (cfg80211_is_all_idle())
+		regulatory_hint_disconnect();
+	rtnl_unlock();
 }
 
 static DECLARE_WORK(cfg80211_disconnect_work, disconnect_work);
@@ -85,7 +79,6 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	ASSERT_RTNL();
 	ASSERT_RDEV_LOCK(rdev);
 	ASSERT_WDEV_LOCK(wdev);
-	lockdep_assert_held(&rdev->sched_scan_mtx);
 
 	if (rdev->scan_req)
 		return -EBUSY;
@@ -176,13 +169,13 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 	case CFG80211_CONN_AUTHENTICATE_NEXT:
 		BUG_ON(!rdev->ops->auth);
 		wdev->conn->state = CFG80211_CONN_AUTHENTICATING;
-		return __cfg80211_mlme_auth(rdev, wdev->netdev,
-					    params->channel, params->auth_type,
-					    params->bssid,
-					    params->ssid, params->ssid_len,
-					    NULL, 0,
-					    params->key, params->key_len,
-					    params->key_idx, NULL, 0);
+		return cfg80211_mlme_auth(rdev, wdev->netdev,
+					  params->channel, params->auth_type,
+					  params->bssid,
+					  params->ssid, params->ssid_len,
+					  NULL, 0,
+					  params->key, params->key_len,
+					  params->key_idx, NULL, 0);
 	case CFG80211_CONN_ASSOCIATE_NEXT:
 		BUG_ON(!rdev->ops->assoc);
 		wdev->conn->state = CFG80211_CONN_ASSOCIATING;
@@ -198,19 +191,19 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 		req.vht_capa = params->vht_capa;
 		req.vht_capa_mask = params->vht_capa_mask;
 
-		err = __cfg80211_mlme_assoc(rdev, wdev->netdev, params->channel,
-					    params->bssid, params->ssid,
-					    params->ssid_len, &req);
+		err = cfg80211_mlme_assoc(rdev, wdev->netdev, params->channel,
+					  params->bssid, params->ssid,
+					  params->ssid_len, &req);
 		if (err)
-			__cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
-					       NULL, 0,
-					       WLAN_REASON_DEAUTH_LEAVING,
-					       false);
+			cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
+					     NULL, 0,
+					     WLAN_REASON_DEAUTH_LEAVING,
+					     false);
 		return err;
 	case CFG80211_CONN_DEAUTH_ASSOC_FAIL:
-		__cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
-				       NULL, 0,
-				       WLAN_REASON_DEAUTH_LEAVING, false);
+		cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
+				     NULL, 0,
+				     WLAN_REASON_DEAUTH_LEAVING, false);
 		/* return an error so that we call __cfg80211_connect_result() */
 		return -EINVAL;
 	default:
@@ -226,9 +219,6 @@ void cfg80211_conn_work(struct work_struct *work)
 	u8 bssid_buf[ETH_ALEN], *bssid = NULL;
 
 	rtnl_lock();
-	cfg80211_lock_rdev(rdev);
-	mutex_lock(&rdev->devlist_mtx);
-	mutex_lock(&rdev->sched_scan_mtx);
 
 	list_for_each_entry(wdev, &rdev->wdev_list, list) {
 		if (!wdev->netdev)
@@ -256,9 +246,6 @@ void cfg80211_conn_work(struct work_struct *work)
 		wdev_unlock(wdev);
 	}
 
-	mutex_unlock(&rdev->sched_scan_mtx);
-	mutex_unlock(&rdev->devlist_mtx);
-	cfg80211_unlock_rdev(rdev);
 	rtnl_unlock();
 }
 
@@ -773,11 +760,11 @@ void cfg80211_disconnected(struct net_device *dev, u16 reason,
 }
 EXPORT_SYMBOL(cfg80211_disconnected);
 
-int __cfg80211_connect(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev,
-		       struct cfg80211_connect_params *connect,
-		       struct cfg80211_cached_keys *connkeys,
-		       const u8 *prev_bssid)
+int cfg80211_connect(struct cfg80211_registered_device *rdev,
+		     struct net_device *dev,
+		     struct cfg80211_connect_params *connect,
+		     struct cfg80211_cached_keys *connkeys,
+		     const u8 *prev_bssid)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_bss *bss = NULL;
@@ -924,27 +911,8 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 	}
 }
 
-int cfg80211_connect(struct cfg80211_registered_device *rdev,
-		     struct net_device *dev,
-		     struct cfg80211_connect_params *connect,
-		     struct cfg80211_cached_keys *connkeys)
-{
-	int err;
-
-	mutex_lock(&rdev->devlist_mtx);
-	/* might request scan - scan_mtx -> wdev_mtx dependency */
-	mutex_lock(&rdev->sched_scan_mtx);
-	wdev_lock(dev->ieee80211_ptr);
-	err = __cfg80211_connect(rdev, dev, connect, connkeys, NULL);
-	wdev_unlock(dev->ieee80211_ptr);
-	mutex_unlock(&rdev->sched_scan_mtx);
-	mutex_unlock(&rdev->devlist_mtx);
-
-	return err;
-}
-
-int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev, u16 reason, bool wextev)
+int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
+			struct net_device *dev, u16 reason, bool wextev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
@@ -979,7 +947,7 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 		}
 
 		/* wdev->conn->params.bssid must be set if > SCANNING */
-		err = __cfg80211_mlme_deauth(rdev, dev,
+		err = cfg80211_mlme_deauth(rdev, dev,
 					     wdev->conn->params.bssid,
 					     NULL, 0, reason, false);
 		if (err)
@@ -999,19 +967,6 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 					  wextev, NULL);
 
 	return 0;
-}
-
-int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
-			struct net_device *dev,
-			u16 reason, bool wextev)
-{
-	int err;
-
-	wdev_lock(dev->ieee80211_ptr);
-	err = __cfg80211_disconnect(rdev, dev, reason, wextev);
-	wdev_unlock(dev->ieee80211_ptr);
-
-	return err;
 }
 
 void cfg80211_sme_disassoc(struct net_device *dev,
@@ -1036,6 +991,6 @@ void cfg80211_sme_disassoc(struct net_device *dev,
 
 	memcpy(bssid, bss->pub.bssid, ETH_ALEN);
 
-	__cfg80211_mlme_deauth(rdev, dev, bssid, NULL, 0,
-			       WLAN_REASON_DEAUTH_LEAVING, false);
+	cfg80211_mlme_deauth(rdev, dev, bssid, NULL, 0,
+			     WLAN_REASON_DEAUTH_LEAVING, false);
 }

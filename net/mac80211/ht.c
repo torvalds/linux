@@ -429,9 +429,9 @@ void ieee80211_request_smps_work(struct work_struct *work)
 		container_of(work, struct ieee80211_sub_if_data,
 			     u.mgd.request_smps_work);
 
-	mutex_lock(&sdata->u.mgd.mtx);
+	sdata_lock(sdata);
 	__ieee80211_request_smps(sdata, sdata->u.mgd.driver_smps_mode);
-	mutex_unlock(&sdata->u.mgd.mtx);
+	sdata_unlock(sdata);
 }
 
 void ieee80211_request_smps(struct ieee80211_vif *vif,

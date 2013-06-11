@@ -805,6 +805,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	on this subframe
  * @RX_FLAG_AMPDU_DELIM_CRC_KNOWN: The delimiter CRC field is known (the CRC
  *	is stored in the @ampdu_delimiter_crc field)
+ * @RX_FLAG_STBC_MASK: STBC 2 bit bitmask. 1 - Nss=1, 2 - Nss=2, 3 - Nss=3
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR		= BIT(0),
@@ -832,7 +833,10 @@ enum mac80211_rx_flags {
 	RX_FLAG_80MHZ			= BIT(23),
 	RX_FLAG_80P80MHZ		= BIT(24),
 	RX_FLAG_160MHZ			= BIT(25),
+	RX_FLAG_STBC_MASK		= BIT(26) | BIT(27),
 };
+
+#define RX_FLAG_STBC_SHIFT		26
 
 /**
  * struct ieee80211_rx_status - receive status
@@ -850,6 +854,10 @@ enum mac80211_rx_flags {
  * @signal: signal strength when receiving this frame, either in dBm, in dB or
  *	unspecified depending on the hardware capabilities flags
  *	@IEEE80211_HW_SIGNAL_*
+ * @chains: bitmask of receive chains for which separate signal strength
+ *	values were filled.
+ * @chain_signal: per-chain signal strength, in dBm (unlike @signal, doesn't
+ *	support dB or unspecified units)
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
@@ -881,6 +889,8 @@ struct ieee80211_rx_status {
 	u8 band;
 	u8 antenna;
 	s8 signal;
+	u8 chains;
+	s8 chain_signal[IEEE80211_MAX_CHAINS];
 	u8 ampdu_delimiter_crc;
 	u8 vendor_radiotap_align;
 	u8 vendor_radiotap_oui[3];
@@ -1235,7 +1245,7 @@ enum ieee80211_sta_rx_bandwidth {
  * struct ieee80211_sta_rates - station rate selection table
  *
  * @rcu_head: RCU head used for freeing the table on update
- * @rates: transmit rates/flags to be used by default.
+ * @rate: transmit rates/flags to be used by default.
  *	Overriding entries per-packet is possible by using cb tx control.
  */
 struct ieee80211_sta_rates {
@@ -1276,7 +1286,7 @@ struct ieee80211_sta_rates {
  *	notifications and capabilities. The value is only valid after
  *	the station moves to associated state.
  * @smps_mode: current SMPS mode (off, static or dynamic)
- * @tx_rates: rate control selection table
+ * @rates: rate control selection table
  */
 struct ieee80211_sta {
 	u32 supp_rates[IEEE80211_NUM_BANDS];

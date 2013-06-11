@@ -83,8 +83,8 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 	else if (ieee80211_is_back_req(fc))
 		tx_flags |= TX_CMD_FLG_ACK_MSK | TX_CMD_FLG_IMM_BA_RSP_MASK;
 	else if (info->band == IEEE80211_BAND_2GHZ &&
-		 priv->cfg->bt_params &&
-		 priv->cfg->bt_params->advanced_bt_coexist &&
+		 priv->lib->bt_params &&
+		 priv->lib->bt_params->advanced_bt_coexist &&
 		 (ieee80211_is_auth(fc) || ieee80211_is_assoc_req(fc) ||
 		 ieee80211_is_reassoc_req(fc) ||
 		 skb->protocol == cpu_to_be16(ETH_P_PAE)))
@@ -202,8 +202,8 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 		rate_flags |= RATE_MCS_CCK_MSK;
 
 	/* Set up antennas */
-	 if (priv->cfg->bt_params &&
-	     priv->cfg->bt_params->advanced_bt_coexist &&
+	 if (priv->lib->bt_params &&
+	     priv->lib->bt_params->advanced_bt_coexist &&
 	     priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
 		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
@@ -986,8 +986,8 @@ static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
 	 * notification again.
 	 */
 	if (tx_resp->bt_kill_count && tx_resp->frame_count == 1 &&
-	    priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	    priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist) {
 		IWL_DEBUG_COEX(priv, "receive reply tx w/ bt_kill\n");
 	}
 

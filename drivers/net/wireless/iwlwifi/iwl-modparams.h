@@ -119,6 +119,7 @@ struct iwl_mod_params {
 	int ant_coupling;
 	bool bt_ch_announce;
 	bool auto_agg;
+	char *nvm_file;
 };
 
 #endif /* #__iwl_modparams_h__ */
