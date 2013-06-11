@@ -61,9 +61,6 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
  */
 #define MAX_TCP_WINDOW		32767U
 
-/* Offer an initial receive window of 10 mss. */
-#define TCP_DEFAULT_INIT_RCVWND	10
-
 /* Minimal accepted MSS. It is (60+60+8) - (20+20). */
 #define TCP_MIN_MSS		88U
 
@@ -1046,6 +1043,8 @@ static inline void tcp_sack_reset(struct tcp_options_received *rx_opt)
 	rx_opt->dsack = 0;
 	rx_opt->num_sacks = 0;
 }
+
+extern u32 tcp_default_init_rwnd(u32 mss);
 
 /* Determine a window scaling and initial window to offer. */
 extern void tcp_select_initial_window(int __space, __u32 mss,
