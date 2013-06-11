@@ -274,15 +274,21 @@ struct adf_interface_data {
  * struct adf_overlay_engine_data - describes an overlay engine
  *
  * @name: overlay engine's name
+ * @n_supported_formats: number of supported formats
+ * @supported_formats: list of supported formats
  * @custom_data_size: size of driver-private data
  * @custom_data: driver-private data
  */
 struct adf_overlay_engine_data {
 	char name[ADF_NAME_LEN];
 
+	size_t n_supported_formats;
+	__u32 __user *supported_formats;
+
 	size_t custom_data_size;
 	void __user *custom_data;
 };
+#define ADF_MAX_SUPPORTED_FORMATS (PAGE_SIZE / sizeof(__u32))
 
 #define ADF_SET_EVENT		_IOW('D', 0, struct adf_set_event)
 #define ADF_BLANK		_IOW('D', 1, __u8)
