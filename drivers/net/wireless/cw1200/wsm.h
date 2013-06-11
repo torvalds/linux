@@ -1871,9 +1871,4 @@ static inline u8 wsm_queue_id_to_wsm(u8 queue_id)
 	return queue_mapping[queue_id];
 }
 
-
-#ifdef CONFIG_CW1200_ETF
-int wsm_raw_cmd(struct cw1200_common *priv, u8 *data, size_t len);
-#endif
-
 #endif /* CW1200_HWIO_H_INCLUDED */

@@ -139,11 +139,6 @@ static int cw1200_load_firmware_cw1200(struct cw1200_common *priv)
 	val32 &= ~ST90TDS_CONFIG_CPU_CLK_DIS_BIT;
 	REG_WRITE(ST90TDS_CONFIG_REG_ID, val32);
 
-#ifdef CONFIG_CW1200_ETF
-	if (etf_mode)
-		fw_path = etf_firmware;
-#endif
-
 	/* Load a firmware file */
 	ret = request_firmware(&firmware, fw_path, priv->pdev);
 	if (ret) {

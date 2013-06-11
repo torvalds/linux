@@ -35,11 +35,6 @@ struct task_struct;
 struct cw1200_debug_priv;
 struct firmware;
 
-#ifdef CONFIG_CW1200_ETF
-extern int etf_mode;
-extern char *etf_firmware;
-#endif
-
 #define CW1200_MAX_CTRL_FRAME_LEN	(0x1000)
 
 #define CW1200_MAX_STA_IN_AP_MODE	(5)
@@ -287,10 +282,6 @@ struct cw1200_common {
 	struct work_struct	linkid_reset_work;
 	u8			action_frame_sa[ETH_ALEN];
 	u8			action_linkid;
-
-#ifdef CONFIG_CW1200_ETF
-	struct sk_buff_head etf_q;
-#endif
 };
 
 struct cw1200_sta_priv {

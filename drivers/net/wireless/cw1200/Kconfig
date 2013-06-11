@@ -27,14 +27,4 @@ config CW1200_WLAN_SPI
 	  need to add appropriate platform data glue in your board setup
 	  file.
 
-menu "Driver debug features"
-	depends on CW1200 && DEBUG_FS
-
-config CW1200_ETF
-	bool "Enable CW1200 Engineering Test Framework hooks"
-	help
-	  If you don't know what this is, just say N.
-
-endmenu
-
 endif

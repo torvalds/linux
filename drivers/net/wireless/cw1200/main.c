@@ -61,12 +61,6 @@ int cw1200_power_mode = wsm_power_mode_quiescent;
 module_param(cw1200_power_mode, int, 0644);
 MODULE_PARM_DESC(cw1200_power_mode, "WSM power mode.  0 == active, 1 == doze, 2 == quiescent (default)");
 
-#ifdef CONFIG_CW1200_ETF
-int etf_mode;
-module_param(etf_mode, int, 0644);
-MODULE_PARM_DESC(etf_mode, "Enable EngineeringTestingFramework operation");
-#endif
-
 #define RATETAB_ENT(_rate, _rateid, _flags)		\
 	{						\
 		.bitrate	= (_rate),		\
@@ -418,11 +412,6 @@ static int cw1200_register_common(struct ieee80211_hw *dev)
 	struct cw1200_common *priv = dev->priv;
 	int err;
 
-#ifdef CONFIG_CW1200_ETF
-	if (etf_mode)
-		goto done;
-#endif
-
 #ifdef CONFIG_PM
 	err = cw1200_pm_init(&priv->pm_state, priv);
 	if (err) {
@@ -442,9 +431,6 @@ static int cw1200_register_common(struct ieee80211_hw *dev)
 		return err;
 	}
 
-#ifdef CONFIG_CW1200_ETF
-done:
-#endif
 	cw1200_debug_init(priv);
 
 	pr_info("Registered as '%s'\n", wiphy_name(dev->wiphy));
@@ -461,13 +447,7 @@ static void cw1200_unregister_common(struct ieee80211_hw *dev)
 	struct cw1200_common *priv = dev->priv;
 	int i;
 
-#ifdef CONFIG_CW1200_ETF
-	if (!etf_mode) {
-#endif
-		ieee80211_unregister_hw(dev);
-#ifdef CONFIG_CW1200_ETF
-	}
-#endif
+	ieee80211_unregister_hw(dev);
 
 	del_timer_sync(&priv->mcast_timeout);
 	cw1200_unregister_bh(priv);
@@ -568,11 +548,6 @@ int cw1200_core_probe(const struct hwbus_ops *hwbus_ops,
 	if (err)
 		goto err1;
 
-#ifdef CONFIG_CW1200_ETF
-	if (etf_mode)
-		goto skip_fw;
-#endif
-
 	err = cw1200_load_firmware(priv);
 	if (err)
 		goto err2;
@@ -594,9 +569,6 @@ int cw1200_core_probe(const struct hwbus_ops *hwbus_ops,
 	/* Enable multi-TX confirmation */
 	wsm_use_multi_tx_conf(priv, true);
 
-#ifdef CONFIG_CW1200_ETF
-skip_fw:
-#endif
 	err = cw1200_register_common(dev);
 	if (err)
 		goto err2;
