@@ -29,9 +29,6 @@ config CPU_IDLE_GOV_MENU
 	bool "Menu governor (for tickless system)"
 	default y
 
-config ARCH_NEEDS_CPU_IDLE_COUPLED
-	def_bool n
-
 config CPU_IDLE_CALXEDA
 	bool "CPU Idle Driver for Calxeda processors"
 	depends on ARCH_HIGHBANK
@@ -45,3 +42,6 @@ config CPU_IDLE_ZYNQ
 	  Select this to enable cpuidle on Xilinx Zynq processors.
 
 endif
+
+config ARCH_NEEDS_CPU_IDLE_COUPLED
+	def_bool n
