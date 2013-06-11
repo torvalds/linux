@@ -1151,7 +1151,8 @@ config MCP_UCB1200_TS
 endmenu
 
 config VEXPRESS_CONFIG
-	bool
+	bool "ARM Versatile Express platform infrastructure"
+	depends on ARM || ARM64
 	help
 	  Platform configuration infrastructure for the ARM Ltd.
 	  Versatile Express.
