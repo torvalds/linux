@@ -1614,7 +1614,7 @@ int vpfe_video_register(struct vpfe_video_device *video,
 void vpfe_video_unregister(struct vpfe_video_device *video)
 {
 	if (video_is_registered(&video->video_dev)) {
-		media_entity_cleanup(&video->video_dev.entity);
 		video_unregister_device(&video->video_dev);
+		media_entity_cleanup(&video->video_dev.entity);
 	}
 }

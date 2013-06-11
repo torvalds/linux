@@ -1750,10 +1750,10 @@ static const struct media_entity_operations isif_media_ops = {
 void vpfe_isif_unregister_entities(struct vpfe_isif_device *isif)
 {
 	vpfe_video_unregister(&isif->video_out);
-	/* cleanup entity */
-	media_entity_cleanup(&isif->subdev.entity);
 	/* unregister subdev */
 	v4l2_device_unregister_subdev(&isif->subdev);
+	/* cleanup entity */
+	media_entity_cleanup(&isif->subdev.entity);
 }
 
 static void isif_restore_defaults(struct vpfe_isif_device *isif)
