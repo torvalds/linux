@@ -42,4 +42,11 @@
 			chip-delay = <25>;
 		};
 	};
+
+	i2c@0 {
+		compatible = "i2c-gpio";
+		gpios = < &gpio0 8 0		/* sda */
+			&gpio0 9 0 >;		/* scl */
+		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
+	};
 };

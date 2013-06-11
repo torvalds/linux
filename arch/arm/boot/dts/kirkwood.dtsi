@@ -4,6 +4,18 @@
 	compatible = "marvell,kirkwood";
 	interrupt-parent = <&intc>;
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "marvell,feroceon";
+			clocks = <&core_clk 1>, <&core_clk 3>, <&gate_clk 11>;
+			clock-names = "cpu_clk", "ddrclk", "powersave";
+		};
+	};
+
 	aliases {
 	       gpio0 = &gpio0;
 	       gpio1 = &gpio1;
@@ -69,13 +81,6 @@
 			interrupts = <34>;
 			clocks = <&gate_clk 7>;
 			status = "disabled";
-		};
-
-		rtc@10300 {
-			compatible = "marvell,kirkwood-rtc", "marvell,orion-rtc";
-			reg = <0x10300 0x20>;
-			interrupts = <53>;
-			clocks = <&gate_clk 7>;
 		};
 
 		spi@10600 {
@@ -151,15 +156,6 @@
 			status = "okay";
 		};
 
-		sata@80000 {
-			compatible = "marvell,orion-sata";
-			reg = <0x80000 0x5000>;
-			interrupts = <21>;
-			clocks = <&gate_clk 14>, <&gate_clk 15>;
-			clock-names = "0", "1";
-			status = "disabled";
-		};
-
 		nand@3000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -193,18 +189,6 @@
 			interrupts = <22>;
 			clocks = <&gate_clk 17>;
 			status = "okay";
-		};
-
-		mvsdio@90000 {
-			compatible = "marvell,orion-sdio";
-			reg = <0x90000 0x200>;
-			interrupts = <28>;
-			clocks = <&gate_clk 4>;
-			bus-width = <4>;
-			cap-sdio-irq;
-			cap-sd-highspeed;
-			cap-mmc-highspeed;
-			status = "disabled";
 		};
 	};
 };
