@@ -485,29 +485,35 @@ kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	return -ENOIOCTLCMD;
 }
 
-#define KVM_REG_MIPS_CP0_INDEX (0x10000 + 8 * 0 + 0)
-#define KVM_REG_MIPS_CP0_ENTRYLO0 (0x10000 + 8 * 2 + 0)
-#define KVM_REG_MIPS_CP0_ENTRYLO1 (0x10000 + 8 * 3 + 0)
-#define KVM_REG_MIPS_CP0_CONTEXT (0x10000 + 8 * 4 + 0)
-#define KVM_REG_MIPS_CP0_USERLOCAL (0x10000 + 8 * 4 + 2)
-#define KVM_REG_MIPS_CP0_PAGEMASK (0x10000 + 8 * 5 + 0)
-#define KVM_REG_MIPS_CP0_PAGEGRAIN (0x10000 + 8 * 5 + 1)
-#define KVM_REG_MIPS_CP0_WIRED (0x10000 + 8 * 6 + 0)
-#define KVM_REG_MIPS_CP0_HWRENA (0x10000 + 8 * 7 + 0)
-#define KVM_REG_MIPS_CP0_BADVADDR (0x10000 + 8 * 8 + 0)
-#define KVM_REG_MIPS_CP0_COUNT (0x10000 + 8 * 9 + 0)
-#define KVM_REG_MIPS_CP0_ENTRYHI (0x10000 + 8 * 10 + 0)
-#define KVM_REG_MIPS_CP0_COMPARE (0x10000 + 8 * 11 + 0)
-#define KVM_REG_MIPS_CP0_STATUS (0x10000 + 8 * 12 + 0)
-#define KVM_REG_MIPS_CP0_CAUSE (0x10000 + 8 * 13 + 0)
-#define KVM_REG_MIPS_CP0_EBASE (0x10000 + 8 * 15 + 1)
-#define KVM_REG_MIPS_CP0_CONFIG (0x10000 + 8 * 16 + 0)
-#define KVM_REG_MIPS_CP0_CONFIG1 (0x10000 + 8 * 16 + 1)
-#define KVM_REG_MIPS_CP0_CONFIG2 (0x10000 + 8 * 16 + 2)
-#define KVM_REG_MIPS_CP0_CONFIG3 (0x10000 + 8 * 16 + 3)
-#define KVM_REG_MIPS_CP0_CONFIG7 (0x10000 + 8 * 16 + 7)
-#define KVM_REG_MIPS_CP0_XCONTEXT (0x10000 + 8 * 20 + 0)
-#define KVM_REG_MIPS_CP0_ERROREPC (0x10000 + 8 * 30 + 0)
+#define MIPS_CP0_32(_R, _S)					\
+	(KVM_REG_MIPS | KVM_REG_SIZE_U32 | 0x10000 | (8 * (_R) + (_S)))
+
+#define MIPS_CP0_64(_R, _S)					\
+	(KVM_REG_MIPS | KVM_REG_SIZE_U64 | 0x10000 | (8 * (_R) + (_S)))
+
+#define KVM_REG_MIPS_CP0_INDEX		MIPS_CP0_32(0, 0)
+#define KVM_REG_MIPS_CP0_ENTRYLO0	MIPS_CP0_64(2, 0)
+#define KVM_REG_MIPS_CP0_ENTRYLO1	MIPS_CP0_64(3, 0)
+#define KVM_REG_MIPS_CP0_CONTEXT	MIPS_CP0_64(4, 0)
+#define KVM_REG_MIPS_CP0_USERLOCAL	MIPS_CP0_64(4, 2)
+#define KVM_REG_MIPS_CP0_PAGEMASK	MIPS_CP0_32(5, 0)
+#define KVM_REG_MIPS_CP0_PAGEGRAIN	MIPS_CP0_32(5, 1)
+#define KVM_REG_MIPS_CP0_WIRED		MIPS_CP0_32(6, 0)
+#define KVM_REG_MIPS_CP0_HWRENA		MIPS_CP0_32(7, 0)
+#define KVM_REG_MIPS_CP0_BADVADDR	MIPS_CP0_64(8, 0)
+#define KVM_REG_MIPS_CP0_COUNT		MIPS_CP0_32(9, 0)
+#define KVM_REG_MIPS_CP0_ENTRYHI	MIPS_CP0_64(10, 0)
+#define KVM_REG_MIPS_CP0_COMPARE	MIPS_CP0_32(11, 0)
+#define KVM_REG_MIPS_CP0_STATUS		MIPS_CP0_32(12, 0)
+#define KVM_REG_MIPS_CP0_CAUSE		MIPS_CP0_32(13, 0)
+#define KVM_REG_MIPS_CP0_EBASE		MIPS_CP0_64(15, 1)
+#define KVM_REG_MIPS_CP0_CONFIG		MIPS_CP0_32(16, 0)
+#define KVM_REG_MIPS_CP0_CONFIG1	MIPS_CP0_32(16, 1)
+#define KVM_REG_MIPS_CP0_CONFIG2	MIPS_CP0_32(16, 2)
+#define KVM_REG_MIPS_CP0_CONFIG3	MIPS_CP0_32(16, 3)
+#define KVM_REG_MIPS_CP0_CONFIG7	MIPS_CP0_32(16, 7)
+#define KVM_REG_MIPS_CP0_XCONTEXT	MIPS_CP0_64(20, 0)
+#define KVM_REG_MIPS_CP0_ERROREPC	MIPS_CP0_64(30, 0)
 
 static u64 kvm_mips_get_one_regs[] = {
 	KVM_REG_MIPS_R0,
@@ -567,8 +573,6 @@ static u64 kvm_mips_get_one_regs[] = {
 static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 			    const struct kvm_one_reg *reg)
 {
-	u64 __user *uaddr = (u64 __user *)(long)reg->addr;
-
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	s64 v;
 
@@ -631,18 +635,39 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 	default:
 		return -EINVAL;
 	}
-	return put_user(v, uaddr);
+	if ((reg->id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U64) {
+		u64 __user *uaddr64 = (u64 __user *)(long)reg->addr;
+		return put_user(v, uaddr64);
+	} else if ((reg->id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U32) {
+		u32 __user *uaddr32 = (u32 __user *)(long)reg->addr;
+		u32 v32 = (u32)v;
+		return put_user(v32, uaddr32);
+	} else {
+		return -EINVAL;
+	}
 }
 
 static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 			    const struct kvm_one_reg *reg)
 {
-	u64 __user *uaddr = (u64 __user *)(long)reg->addr;
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	u64 v;
 
-	if (get_user(v, uaddr) != 0)
-		return -EFAULT;
+	if ((reg->id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U64) {
+		u64 __user *uaddr64 = (u64 __user *)(long)reg->addr;
+
+		if (get_user(v, uaddr64) != 0)
+			return -EFAULT;
+	} else if ((reg->id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U32) {
+		u32 __user *uaddr32 = (u32 __user *)(long)reg->addr;
+		s32 v32;
+
+		if (get_user(v32, uaddr32) != 0)
+			return -EFAULT;
+		v = (s64)v32;
+	} else {
+		return -EINVAL;
+	}
 
 	switch (reg->id) {
 	case KVM_REG_MIPS_R0:
