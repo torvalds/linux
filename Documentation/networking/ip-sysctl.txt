@@ -685,6 +685,15 @@ ip_dynaddr - BOOLEAN
 	occurs.
 	Default: 0
 
+ip_early_demux - BOOLEAN
+	Optimize input packet processing down to one demux for
+	certain kinds of local sockets.  Currently we only do this
+	for established TCP sockets.
+
+	It may add an additional cost for pure routing workloads that
+	reduces overall throughput, in such case you should disable it.
+	Default: 1
+
 icmp_echo_ignore_all - BOOLEAN
 	If set non-zero, then the kernel will ignore all ICMP ECHO
 	requests sent to it.
