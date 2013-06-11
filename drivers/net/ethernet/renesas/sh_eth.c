@@ -321,7 +321,7 @@ static int sh_eth_is_gether(struct sh_eth_private *mdp)
 		return 0;
 }
 
-static void __maybe_unused sh_eth_select_mii(struct net_device *ndev)
+static void sh_eth_select_mii(struct net_device *ndev)
 {
 	u32 value = 0x0;
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -345,7 +345,7 @@ static void __maybe_unused sh_eth_select_mii(struct net_device *ndev)
 	sh_eth_write(ndev, value, RMII_MII);
 }
 
-static void __maybe_unused sh_eth_set_duplex(struct net_device *ndev)
+static void sh_eth_set_duplex(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
