@@ -1864,7 +1864,6 @@ static struct s5p_hdmi_platform_data *drm_hdmi_dt_parse_pdata
 {
 	struct device_node *np = dev->of_node;
 	struct s5p_hdmi_platform_data *pd;
-	enum of_gpio_flags flags;
 	u32 value;
 
 	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
@@ -1878,7 +1877,7 @@ static struct s5p_hdmi_platform_data *drm_hdmi_dt_parse_pdata
 		goto err_data;
 	}
 
-	pd->hpd_gpio = of_get_named_gpio_flags(np, "hpd-gpio", 0, &flags);
+	pd->hpd_gpio = of_get_named_gpio(np, "hpd-gpio", 0);
 
 	return pd;
 
