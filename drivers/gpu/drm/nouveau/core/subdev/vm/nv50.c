@@ -27,6 +27,7 @@
 
 #include <subdev/timer.h>
 #include <subdev/fb.h>
+#include <subdev/bar.h>
 #include <subdev/vm.h>
 
 struct nv50_vmmgr_priv {
@@ -151,8 +152,11 @@ static void
 nv50_vm_flush(struct nouveau_vm *vm)
 {
 	struct nv50_vmmgr_priv *priv = (void *)vm->vmm;
+	struct nouveau_bar *bar = nouveau_bar(priv);
 	struct nouveau_engine *engine;
 	int i, vme;
+
+	bar->flush(bar);
 
 	mutex_lock(&nv_subdev(priv)->mutex);
 	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {

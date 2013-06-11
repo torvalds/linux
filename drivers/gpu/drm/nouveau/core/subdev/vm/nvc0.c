@@ -29,6 +29,7 @@
 #include <subdev/fb.h>
 #include <subdev/vm.h>
 #include <subdev/ltcg.h>
+#include <subdev/bar.h>
 
 struct nvc0_vmmgr_priv {
 	struct nouveau_vmmgr base;
@@ -163,8 +164,11 @@ static void
 nvc0_vm_flush(struct nouveau_vm *vm)
 {
 	struct nvc0_vmmgr_priv *priv = (void *)vm->vmm;
+	struct nouveau_bar *bar = nouveau_bar(priv);
 	struct nouveau_vm_pgd *vpgd;
 	u32 type;
+
+	bar->flush(bar);
 
 	type = 0x00000001; /* PAGE_ALL */
 	if (atomic_read(&vm->engref[NVDEV_SUBDEV_BAR]))
