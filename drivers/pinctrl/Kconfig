@@ -216,6 +216,11 @@ config PINCTRL_EXYNOS5440
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_S3C24XX
+	bool "Samsung S3C24XX SoC pinctrl driver"
+	depends on ARCH_S3C24XX
+	select PINCTRL_SAMSUNG
+
 config PINCTRL_S3C64XX
 	bool "Samsung S3C64XX SoC pinctrl driver"
 	depends on ARCH_S3C64XX
