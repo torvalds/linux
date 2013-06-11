@@ -756,6 +756,12 @@ int adf_overlay_engine_init(struct adf_overlay_engine *eng,
 		return -EINVAL;
 	}
 
+	if (ops->n_supported_formats > ADF_MAX_SUPPORTED_FORMATS) {
+		pr_err("%s: overlay engine supports too many formats\n",
+				__func__);
+		return -EINVAL;
+	}
+
 	if (adf_overlay_engine_has_custom_formats(ops) &&
 			!dev->ops->validate_custom_format) {
 		pr_err("%s: overlay engine has custom formats but parent device %s does not implement validate_custom_format\n",

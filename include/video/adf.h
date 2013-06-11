@@ -374,7 +374,8 @@ struct adf_interface {
  * @base: common operations (see &struct adf_obj_ops)
  *
  * @supported_formats: list of fourccs the overlay engine can scan out
- * @n_supported_formats: length of supported_formats
+ * @n_supported_formats: length of supported_formats, up to
+ *	ADF_MAX_SUPPORTED_FORMATS
  */
 struct adf_overlay_engine_ops {
 	const struct adf_obj_ops base;
