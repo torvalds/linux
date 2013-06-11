@@ -371,7 +371,7 @@ static int netlink_mmap(struct file *file, struct socket *sock,
 	err = 0;
 out:
 	mutex_unlock(&nlk->pg_vec_lock);
-	return 0;
+	return err;
 }
 
 static void netlink_frame_flush_dcache(const struct nl_mmap_hdr *hdr)
