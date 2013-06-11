@@ -60,6 +60,7 @@
 #define ECR_V_ITLB_MISS			0x21
 #define ECR_V_DTLB_MISS			0x22
 #define ECR_V_PROTV			0x23
+#define ECR_V_TRAP			0x25
 
 /* Protection Violation Exception Cause Code Values */
 #define ECR_C_PROTV_INST_FETCH		0x00
@@ -77,6 +78,9 @@
 #define ECR_C_BIT_DTLB_LD_MISS		8
 #define ECR_C_BIT_DTLB_ST_MISS		9
 
+/* Dummy ECR values for Interrupts */
+#define event_IRQ1		0x0031abcd
+#define event_IRQ2		0x0032abcd
 
 /* Auxiliary registers */
 #define AUX_IDENTITY		4

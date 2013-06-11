@@ -117,17 +117,16 @@ static void show_faulting_vma(unsigned long address, char *buf)
 
 static void show_ecr_verbose(struct pt_regs *regs)
 {
-	unsigned int vec, cause_code, cause_reg;
+	unsigned int vec, cause_code;
 	unsigned long address;
 
-	cause_reg = current->thread.cause_code;
-	pr_info("\n[ECR   ]: 0x%08x => ", cause_reg);
+	pr_info("\n[ECR   ]: 0x%08lx => ", regs->event);
 
 	/* For Data fault, this is data address not instruction addr */
 	address = current->thread.fault_address;
 
-	vec = cause_reg >> 16;
-	cause_code = (cause_reg >> 8) & 0xFF;
+	vec = regs->ecr_vec;
+	cause_code = regs->ecr_cause;
 
 	/* For DTLB Miss or ProtV, display the memory involved too */
 	if (vec == ECR_V_DTLB_MISS) {
@@ -174,8 +173,7 @@ void show_regs(struct pt_regs *regs)
 	print_task_path_n_nm(tsk, buf);
 	show_regs_print_info(KERN_INFO);
 
-	if (current->thread.cause_code)
-		show_ecr_verbose(regs);
+	show_ecr_verbose(regs);
 
 	pr_info("[EFA   ]: 0x%08lx\n[BLINK ]: %pS\n[ERET  ]: %pS\n",
 		current->thread.fault_address,

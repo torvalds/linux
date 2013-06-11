@@ -309,7 +309,7 @@
 #endif
 
 	/* Save Pre Intr/Exception User SP on kernel stack */
-	st.a    sp, [r9, -16]	; Make room for orig_r0, orig_r8, user_r25
+	st.a    sp, [r9, -16]	; Make room for orig_r0, ECR, user_r25
 
 	/* CAUTION:
 	 * SP should be set at the very end when we are done with everything
@@ -391,9 +391,10 @@
  * Note that syscalls are implemented via TRAP which is also a exception
  * from CPU's point of view
  *-------------------------------------------------------------*/
-.macro SAVE_ALL_EXCEPTION   marker
+.macro SAVE_ALL_SYS
 
-	st      \marker, [sp, 8]	/* orig_r8 */
+	lr	r9, [ecr]
+	st      r9, [sp, 8]    /* ECR */
 	st      r0, [sp, 4]    /* orig_r0, needed only for sys calls */
 
 	/* Restore r9 used to code the early prologue */
@@ -409,20 +410,6 @@
 	PUSHAX	lp_end
 	PUSHAX	lp_start
 	PUSHAX	erbta
-.endm
-
-/*--------------------------------------------------------------
- * Save scratch regs for exceptions
- *-------------------------------------------------------------*/
-.macro SAVE_ALL_SYS
-	SAVE_ALL_EXCEPTION  orig_r8_IS_EXCPN
-.endm
-
-/*--------------------------------------------------------------
- * Save scratch regs for sys calls
- *-------------------------------------------------------------*/
-.macro SAVE_ALL_TRAP
-	SAVE_ALL_EXCEPTION  orig_r8_IS_SCALL
 .endm
 
 /*--------------------------------------------------------------
@@ -452,7 +439,7 @@
 	RESTORE_R12_TO_R0
 
 	ld  sp, [sp] /* restore original sp */
-	/* orig_r0, orig_r8, user_r25 skipped automatically */
+	/* orig_r0, ECR, user_r25 skipped automatically */
 .endm
 
 
@@ -469,7 +456,7 @@
 #endif
 
 	/* now we are ready to save the remaining context :) */
-	st      orig_r8_IS_IRQ1, [sp, 8]    /* Event Type */
+	st      event_IRQ1, [sp, 8]    /* Dummy ECR */
 	st      0, [sp, 4]    /* orig_r0 , N/A for IRQ */
 
 	SAVE_R0_TO_R12
@@ -494,7 +481,7 @@
 	ld  r9, [@int2_saved_reg]
 
 	/* now we are ready to save the remaining context :) */
-	st      orig_r8_IS_IRQ2, [sp, 8]    /* Event Type */
+	st      event_IRQ2, [sp, 8]    /* Dummy ECR */
 	st      0, [sp, 4]    /* orig_r0 , N/A for IRQ */
 
 	SAVE_R0_TO_R12
@@ -535,7 +522,7 @@
 	RESTORE_R12_TO_R0
 
 	ld  sp, [sp] /* restore original sp */
-	/* orig_r0, orig_r8, user_r25 skipped automatically */
+	/* orig_r0, ECR, user_r25 skipped automatically */
 .endm
 
 .macro RESTORE_ALL_INT2
@@ -554,7 +541,7 @@
 	RESTORE_R12_TO_R0
 
 	ld  sp, [sp] /* restore original sp */
-	/* orig_r0, orig_r8, user_r25 skipped automatically */
+	/* orig_r0, ECR, user_r25 skipped automatically */
 .endm
 
 

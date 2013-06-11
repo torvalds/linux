@@ -76,7 +76,7 @@ asmlinkage void ret_from_fork(void);
  * ------------------
  * |      SP        |
  * |    orig_r0     |
- * |    orig_r8     |
+ * |    event/ECR   |
  * |    user_r25    |
  * ------------------  <===== END of PAGE
  */

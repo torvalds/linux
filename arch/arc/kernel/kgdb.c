@@ -181,7 +181,7 @@ void kgdb_trap(struct pt_regs *regs, int param)
 	 * with trap_s 4 (compiled) breakpoints, continuation needs to
 	 * start after the breakpoint.
 	 */
-	if (param == 3)
+	if (regs->ecr_param == 3)
 		instruction_pointer(regs) -= BREAK_INSTR_SIZE;
 
 	kgdb_handle_exception(1, SIGTRAP, 0, regs);

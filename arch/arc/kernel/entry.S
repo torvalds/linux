@@ -142,7 +142,7 @@ VECTOR   reserved                ; Reserved Exceptions
 .endr
 
 #include <linux/linkage.h>   /* ARC_{EXTRY,EXIT} */
-#include <asm/entry.h>       /* SAVE_ALL_{INT1,INT2,TRAP...} */
+#include <asm/entry.h>       /* SAVE_ALL_{INT1,INT2,SYS...} */
 #include <asm/errno.h>
 #include <asm/arcregs.h>
 #include <asm/irqflags.h>
@@ -495,8 +495,6 @@ tracesys_exit:
 trap_with_param:
 
 	; stop_pc info by gdb needs this info
-	stw orig_r8_IS_BRKPT, [sp, PT_orig_r8]
-
 	mov r0, r12
 	lr  r1, [efa]
 	mov r2, sp
@@ -541,7 +539,7 @@ ARC_ENTRY EV_Trap
 	lr  r9, [erstatus]
 
 	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_TRAP
+	SAVE_ALL_SYS
 
 	;------- (4) What caused the Trap --------------
 	lr     r12, [ecr]
@@ -696,7 +694,16 @@ not_exception:
 
 #ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 
+	; Level 2 interrupt return Path - from hardware standpoint
 	bbit0  r10, STATUS_A2_BIT, not_level2_interrupt
+
+	;------------------------------------------------------------------
+	; However the context returning might not have taken L2 intr itself
+	; e.g. Task'A' user-code -> L2 intr -> schedule -> 'B' user-code ret
+	; Special considerations needed for the context which took L2 intr
+
+	ld   r9, [sp, PT_event]        ; Ensure this is L2 intr context
+	brne r9, event_IRQ2, 149f
 
 	;------------------------------------------------------------------
 	; if L2 IRQ interrupted a L1 ISR,  we'd disbaled preemption earlier
@@ -705,19 +712,15 @@ not_exception:
 	; things to what they were, before returning from L2 context
 	;----------------------------------------------------------------
 
-	ldw  r9, [sp, PT_orig_r8]      ; get orig_r8 to make sure it is
-	brne r9, orig_r8_IS_IRQ2, 149f ; infact a L2 ISR ret path
-
 	ld r9, [sp, PT_status32]       ; get statu32_l2 (saved in pt_regs)
 	bbit0 r9, STATUS_A1_BIT, 149f  ; L1 not active when L2 IRQ, so normal
 
-	; A1 is set in status32_l2
 	; decrement thread_info->preempt_count (re-enable preemption)
 	GET_CURR_THR_INFO_FROM_SP   r10
 	ld      r9, [r10, THREAD_INFO_PREEMPT_COUNT]
 
 	; paranoid check, given A1 was active when A2 happened, preempt count
-	; must not be 0 beccause we would have incremented it.
+	; must not be 0 because we would have incremented it.
 	; If this does happen we simply HALT as it means a BUG !!!
 	cmp     r9, 0
 	bnz     2f
