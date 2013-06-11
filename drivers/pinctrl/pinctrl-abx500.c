@@ -504,7 +504,7 @@ static void abx500_gpio_dbg_show_one(struct seq_file *s,
 	int mode = -1;
 	bool is_out;
 	bool pd;
-	enum abx500_gpio_pull_updown pud;
+	enum abx500_gpio_pull_updown pud = 0;
 
 	const char *modes[] = {
 		[ABX500_DEFAULT]	= "default",
