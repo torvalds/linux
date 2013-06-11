@@ -2300,12 +2300,13 @@ static int tsi148_crcsr_init(struct vme_bridge *tsi148_bridge,
 	dev_info(tsi148_bridge->parent, "CR/CSR Offset: %d\n", cbar);
 
 	crat = ioread32be(bridge->base + TSI148_LCSR_CRAT);
-	if (crat & TSI148_LCSR_CRAT_EN) {
+	if (crat & TSI148_LCSR_CRAT_EN)
+		dev_info(tsi148_bridge->parent, "CR/CSR already enabled\n");
+	else {
 		dev_info(tsi148_bridge->parent, "Enabling CR/CSR space\n");
 		iowrite32be(crat | TSI148_LCSR_CRAT_EN,
 			bridge->base + TSI148_LCSR_CRAT);
-	} else
-		dev_info(tsi148_bridge->parent, "CR/CSR already enabled\n");
+	}
 
 	/* If we want flushed, error-checked writes, set up a window
 	 * over the CR/CSR registers. We read from here to safely flush
