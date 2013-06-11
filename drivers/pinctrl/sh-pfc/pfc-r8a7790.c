@@ -2506,8 +2506,7 @@ static const unsigned int tpu0_to3_pins[] = {
 static const unsigned int tpu0_to3_mux[] = {
 	TPU0TO3_MARK,
 };
-
-/* - MMCIF ------------------------------------------------------------------ */
+/* - MMCIF0 ----------------------------------------------------------------- */
 static const unsigned int mmc0_data1_pins[] = {
 	/* D[0] */
 	RCAR_GP_PIN(3, 18),
@@ -2541,7 +2540,7 @@ static const unsigned int mmc0_ctrl_pins[] = {
 static const unsigned int mmc0_ctrl_mux[] = {
 	MMC0_CLK_MARK, MMC0_CMD_MARK,
 };
-
+/* - MMCIF1 ----------------------------------------------------------------- */
 static const unsigned int mmc1_data1_pins[] = {
 	/* D[0] */
 	RCAR_GP_PIN(3, 26),
@@ -2562,7 +2561,7 @@ static const unsigned int mmc1_data8_pins[] = {
 	RCAR_GP_PIN(3, 26), RCAR_GP_PIN(3, 27),
 	RCAR_GP_PIN(3, 28), RCAR_GP_PIN(3, 29),
 	RCAR_GP_PIN(3, 30), RCAR_GP_PIN(3, 31),
-	RCAR_GP_PIN(3, 13), RCAR_GP_PIN(3, 14),
+	RCAR_GP_PIN(3, 14), RCAR_GP_PIN(3, 15),
 };
 static const unsigned int mmc1_data8_mux[] = {
 	MMC1_D0_MARK, MMC1_D1_MARK, MMC1_D2_MARK, MMC1_D3_MARK,
@@ -2575,8 +2574,7 @@ static const unsigned int mmc1_ctrl_pins[] = {
 static const unsigned int mmc1_ctrl_mux[] = {
 	MMC1_CLK_MARK, MMC1_CMD_MARK,
 };
-
-/* - SDHI ------------------------------------------------------------------- */
+/* - SDHI0 ------------------------------------------------------------------ */
 static const unsigned int sdhi0_data1_pins[] = {
 	/* D0 */
 	RCAR_GP_PIN(3, 2),
@@ -2612,7 +2610,7 @@ static const unsigned int sdhi0_wp_pins[] = {
 static const unsigned int sdhi0_wp_mux[] = {
 	SD0_WP_MARK,
 };
-
+/* - SDHI1 ------------------------------------------------------------------ */
 static const unsigned int sdhi1_data1_pins[] = {
 	/* D0 */
 	RCAR_GP_PIN(3, 10),
@@ -2648,7 +2646,7 @@ static const unsigned int sdhi1_wp_pins[] = {
 static const unsigned int sdhi1_wp_mux[] = {
 	SD1_WP_MARK,
 };
-
+/* - SDHI2 ------------------------------------------------------------------ */
 static const unsigned int sdhi2_data1_pins[] = {
 	/* D0 */
 	RCAR_GP_PIN(3, 18),
@@ -2684,7 +2682,7 @@ static const unsigned int sdhi2_wp_pins[] = {
 static const unsigned int sdhi2_wp_mux[] = {
 	SD2_WP_MARK,
 };
-
+/* - SDHI3 ------------------------------------------------------------------ */
 static const unsigned int sdhi3_data1_pins[] = {
 	/* D0 */
 	RCAR_GP_PIN(3, 26),
