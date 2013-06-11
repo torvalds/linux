@@ -393,10 +393,8 @@ static void __init omap_init_dmic(void)
 	struct platform_device *pdev;
 
 	oh = omap_hwmod_lookup("dmic");
-	if (!oh) {
-		pr_err("Could not look up dmic hw_mod\n");
+	if (!oh)
 		return;
-	}
 
 	pdev = omap_device_build("omap-dmic", -1, oh, NULL, 0);
 	WARN(IS_ERR(pdev), "Can't build omap_device for omap-dmic.\n");
