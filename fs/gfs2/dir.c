@@ -1555,9 +1555,9 @@ out:
 
 /**
  * gfs2_dir_search - Search a directory
- * @dip: The GFS2 inode
- * @filename:
- * @inode:
+ * @dip: The GFS2 dir inode
+ * @name: The name we are looking up
+ * @fail_on_exist: Fail if the name exists rather than looking it up
  *
  * This routine searches a directory for a file or another directory.
  * Assumes a glock is held on dip.
@@ -1565,22 +1565,25 @@ out:
  * Returns: errno
  */
 
-struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *name)
+struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *name,
+			      bool fail_on_exist)
 {
 	struct buffer_head *bh;
 	struct gfs2_dirent *dent;
-	struct inode *inode;
+	u64 addr, formal_ino;
+	u16 dtype;
 
 	dent = gfs2_dirent_search(dir, name, gfs2_dirent_find, &bh);
 	if (dent) {
 		if (IS_ERR(dent))
 			return ERR_CAST(dent);
-		inode = gfs2_inode_lookup(dir->i_sb, 
-				be16_to_cpu(dent->de_type),
-				be64_to_cpu(dent->de_inum.no_addr),
-				be64_to_cpu(dent->de_inum.no_formal_ino), 0);
+		dtype = be16_to_cpu(dent->de_type);
+		addr = be64_to_cpu(dent->de_inum.no_addr);
+		formal_ino = be64_to_cpu(dent->de_inum.no_formal_ino);
 		brelse(bh);
-		return inode;
+		if (fail_on_exist)
+			return ERR_PTR(-EEXIST);
+		return gfs2_inode_lookup(dir->i_sb, dtype, addr, formal_ino, 0);
 	}
 	return ERR_PTR(-ENOENT);
 }

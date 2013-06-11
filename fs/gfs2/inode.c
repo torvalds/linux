@@ -313,7 +313,7 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 			goto out;
 	}
 
-	inode = gfs2_dir_search(dir, name);
+	inode = gfs2_dir_search(dir, name, false);
 	if (IS_ERR(inode))
 		error = PTR_ERR(inode);
 out:
@@ -345,17 +345,6 @@ static int create_ok(struct gfs2_inode *dip, const struct qstr *name,
 	/*  Don't create entries in an unlinked directory  */
 	if (!dip->i_inode.i_nlink)
 		return -ENOENT;
-
-	error = gfs2_dir_check(&dip->i_inode, name, NULL);
-	switch (error) {
-	case -ENOENT:
-		error = 0;
-		break;
-	case 0:
-		return -EEXIST;
-	default:
-		return error;
-	}
 
 	if (dip->i_entries == (u32)-1)
 		return -EFBIG;
@@ -584,14 +573,18 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		goto fail;
 
 	error = create_ok(dip, name, mode);
-	if ((error == -EEXIST) && S_ISREG(mode) && !excl) {
-		inode = gfs2_lookupi(dir, &dentry->d_name, 0);
-		gfs2_glock_dq_uninit(ghs);
-		d_instantiate(dentry, inode);
-		return PTR_RET(inode);
-	}
 	if (error)
 		goto fail_gunlock;
+
+	inode = gfs2_dir_search(dir, &dentry->d_name, !S_ISREG(mode) || excl);
+	error = PTR_ERR(inode);
+	if (!IS_ERR(inode)) {
+		gfs2_glock_dq_uninit(ghs);
+		d_instantiate(dentry, inode);
+		return 0;
+	} else if (error != -ENOENT) {
+		goto fail_gunlock;
+	}
 
 	arq = error = gfs2_diradd_alloc_required(dir, name);
 	if (error < 0)
