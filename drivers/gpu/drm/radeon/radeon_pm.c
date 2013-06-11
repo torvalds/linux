@@ -695,7 +695,10 @@ restart_search:
 			break;
 		/* internal states */
 		case POWER_STATE_TYPE_INTERNAL_UVD:
-			return rdev->pm.dpm.uvd_ps;
+			if (rdev->pm.dpm.uvd_ps)
+				return rdev->pm.dpm.uvd_ps;
+			else
+				break;
 		case POWER_STATE_TYPE_INTERNAL_UVD_SD:
 			if (ps->class & ATOM_PPLIB_CLASSIFICATION_SDSTATE)
 				return ps;
@@ -742,7 +745,12 @@ restart_search:
 	case POWER_STATE_TYPE_INTERNAL_UVD_HD:
 	case POWER_STATE_TYPE_INTERNAL_UVD_HD2:
 	case POWER_STATE_TYPE_INTERNAL_UVD_MVC:
-		return rdev->pm.dpm.uvd_ps;
+		if (rdev->pm.dpm.uvd_ps) {
+			return rdev->pm.dpm.uvd_ps;
+		} else {
+			dpm_state = POWER_STATE_TYPE_PERFORMANCE;
+			goto restart_search;
+		}
 	case POWER_STATE_TYPE_INTERNAL_THERMAL:
 		dpm_state = POWER_STATE_TYPE_INTERNAL_ACPI;
 		goto restart_search;
