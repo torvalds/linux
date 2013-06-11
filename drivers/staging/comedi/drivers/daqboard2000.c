@@ -747,7 +747,6 @@ static void daqboard2000_detach(struct comedi_device *dev)
 {
 	struct daqboard2000_private *devpriv = dev->private;
 
-	comedi_spriv_free(dev, 2);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {

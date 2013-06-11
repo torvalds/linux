@@ -666,7 +666,6 @@ static void das16m1_detach(struct comedi_device *dev)
 {
 	struct das16m1_private_struct *devpriv = dev->private;
 
-	comedi_spriv_free(dev, 3);
 	if (devpriv && devpriv->extra_iobase)
 		release_region(devpriv->extra_iobase, DAS16M1_SIZE2);
 	comedi_legacy_detach(dev);

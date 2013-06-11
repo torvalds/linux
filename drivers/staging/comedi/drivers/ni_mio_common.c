@@ -4072,7 +4072,6 @@ static void mio_common_detach(struct comedi_device *dev)
 			ni_gpct_device_destroy(devpriv->counter_dev);
 		}
 	}
-	comedi_spriv_free(dev, NI_8255_DIO_SUBDEV);
 }
 
 static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)

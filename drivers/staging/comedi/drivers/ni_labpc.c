@@ -1689,12 +1689,6 @@ int labpc_common_attach(struct comedi_device *dev,
 }
 EXPORT_SYMBOL_GPL(labpc_common_attach);
 
-void labpc_common_detach(struct comedi_device *dev)
-{
-	comedi_spriv_free(dev, 2);
-}
-EXPORT_SYMBOL_GPL(labpc_common_detach);
-
 #if IS_ENABLED(CONFIG_COMEDI_NI_LABPC_ISA)
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -1746,8 +1740,6 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void labpc_detach(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
-
-	labpc_common_detach(dev);
 
 	if (devpriv) {
 		kfree(devpriv->dma_buffer);

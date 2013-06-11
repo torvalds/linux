@@ -75,17 +75,11 @@ static int das08_pci_auto_attach(struct comedi_device *dev,
 	return das08_common_attach(dev, dev->iobase);
 }
 
-static void das08_pci_detach(struct comedi_device *dev)
-{
-	das08_common_detach(dev);
-	comedi_pci_disable(dev);
-}
-
 static struct comedi_driver das08_pci_comedi_driver = {
 	.driver_name	= "pci-das08",
 	.module		= THIS_MODULE,
 	.auto_attach	= das08_pci_auto_attach,
-	.detach		= das08_pci_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int das08_pci_probe(struct pci_dev *dev,

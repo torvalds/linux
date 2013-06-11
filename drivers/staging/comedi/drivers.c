@@ -83,18 +83,6 @@ int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 }
 EXPORT_SYMBOL_GPL(comedi_alloc_subdevices);
 
-void comedi_spriv_free(struct comedi_device *dev, int subdev_num)
-{
-	struct comedi_subdevice *s;
-
-	if (dev->subdevices && subdev_num < dev->n_subdevices) {
-		s = &dev->subdevices[subdev_num];
-		kfree(s->private);
-		s->private = NULL;
-	}
-}
-EXPORT_SYMBOL_GPL(comedi_spriv_free);
-
 static void cleanup_device(struct comedi_device *dev)
 {
 	int i;
@@ -103,6 +91,8 @@ static void cleanup_device(struct comedi_device *dev)
 	if (dev->subdevices) {
 		for (i = 0; i < dev->n_subdevices; i++) {
 			s = &dev->subdevices[i];
+			if (s->runflags & SRF_FREE_SPRIV)
+				kfree(s->private);
 			comedi_free_subdevice_minor(s);
 			if (s->async) {
 				comedi_buf_alloc(dev, s, 0);

@@ -86,6 +86,5 @@ struct labpc_private {
 
 int labpc_common_attach(struct comedi_device *dev,
 			unsigned int irq, unsigned long isr_flags);
-void labpc_common_detach(struct comedi_device *dev);
 
 #endif /* _NI_LABPC_H */

@@ -196,7 +196,6 @@ static void apci1516_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		apci1516_reset(dev);
-	comedi_spriv_free(dev, 2);
 	comedi_pci_disable(dev);
 }
 

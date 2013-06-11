@@ -192,17 +192,11 @@ static int cb_pcimdda_auto_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static void cb_pcimdda_detach(struct comedi_device *dev)
-{
-	comedi_spriv_free(dev, 1);
-	comedi_pci_disable(dev);
-}
-
 static struct comedi_driver cb_pcimdda_driver = {
 	.driver_name	= "cb_pcimdda",
 	.module		= THIS_MODULE,
 	.auto_attach	= cb_pcimdda_auto_attach,
-	.detach		= cb_pcimdda_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int cb_pcimdda_pci_probe(struct pci_dev *dev,

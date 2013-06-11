@@ -189,17 +189,11 @@ static int das08_isa_attach(struct comedi_device *dev,
 	return das08_common_attach(dev, dev->iobase);
 }
 
-static void das08_isa_detach(struct comedi_device *dev)
-{
-	das08_common_detach(dev);
-	comedi_legacy_detach(dev);
-}
-
 static struct comedi_driver das08_isa_driver = {
 	.driver_name	= "isa-das08",
 	.module		= THIS_MODULE,
 	.attach		= das08_isa_attach,
-	.detach		= das08_isa_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &das08_isa_boards[0].name,
 	.num_names	= ARRAY_SIZE(das08_isa_boards),
 	.offset		= sizeof(das08_isa_boards[0]),

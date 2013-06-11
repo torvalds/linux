@@ -86,17 +86,11 @@ static int das08_cs_auto_attach(struct comedi_device *dev,
 	return das08_common_attach(dev, iobase);
 }
 
-static void das08_cs_detach(struct comedi_device *dev)
-{
-	das08_common_detach(dev);
-	comedi_pcmcia_disable(dev);
-}
-
 static struct comedi_driver driver_das08_cs = {
 	.driver_name	= "das08_cs",
 	.module		= THIS_MODULE,
 	.auto_attach	= das08_cs_auto_attach,
-	.detach		= das08_cs_detach,
+	.detach		= comedi_pcmcia_disable,
 };
 
 static int das08_pcmcia_attach(struct pcmcia_device *link)

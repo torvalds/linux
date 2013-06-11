@@ -281,13 +281,16 @@ static inline struct ni_65xx_subdevice_private *sprivate(struct comedi_subdevice
 	return subdev->private;
 }
 
-static struct ni_65xx_subdevice_private *ni_65xx_alloc_subdevice_private(void)
+static int ni_65xx_alloc_subdevice_private(struct comedi_subdevice *s)
 {
-	struct ni_65xx_subdevice_private *subdev_private =
-	    kzalloc(sizeof(struct ni_65xx_subdevice_private), GFP_KERNEL);
-	if (subdev_private == NULL)
-		return NULL;
-	return subdev_private;
+	struct ni_65xx_subdevice_private *spriv;
+
+	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
+	if (!spriv)
+		return -ENOMEM;
+	comedi_set_spriv(s, spriv);
+
+	return 0;
 }
 
 static int ni_65xx_config_filter(struct comedi_device *dev,
@@ -632,9 +635,9 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		s->maxdata = 1;
 		s->insn_config = ni_65xx_dio_insn_config;
 		s->insn_bits = ni_65xx_dio_insn_bits;
-		s->private = ni_65xx_alloc_subdevice_private();
-		if (s->private == NULL)
-			return -ENOMEM;
+		ret = ni_65xx_alloc_subdevice_private(s);
+		if (ret)
+			return ret;
 		sprivate(s)->base_port = 0;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -649,9 +652,9 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		s->range_table = &range_digital;
 		s->maxdata = 1;
 		s->insn_bits = ni_65xx_dio_insn_bits;
-		s->private = ni_65xx_alloc_subdevice_private();
-		if (s->private == NULL)
-			return -ENOMEM;
+		ret = ni_65xx_alloc_subdevice_private(s);
+		if (ret)
+			return ret;
 		sprivate(s)->base_port = board->num_di_ports;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -667,9 +670,9 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		s->maxdata = 1;
 		s->insn_config = ni_65xx_dio_insn_config;
 		s->insn_bits = ni_65xx_dio_insn_bits;
-		s->private = ni_65xx_alloc_subdevice_private();
-		if (s->private == NULL)
-			return -ENOMEM;
+		ret = ni_65xx_alloc_subdevice_private(s);
+		if (ret)
+			return ret;
 		sprivate(s)->base_port = 0;
 		for (i = 0; i < board->num_dio_ports; ++i) {
 			/*  configure all ports for input */
@@ -725,7 +728,6 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 static void ni_65xx_detach(struct comedi_device *dev)
 {
 	struct ni_65xx_private *devpriv = dev->private;
-	int i;
 
 	if (devpriv && devpriv->mite && devpriv->mite->daq_io_addr) {
 		writeb(0x00,
@@ -734,8 +736,6 @@ static void ni_65xx_detach(struct comedi_device *dev)
 	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	for (i = 0; i < dev->n_subdevices; ++i)
-		comedi_spriv_free(dev, i);
 	if (devpriv) {
 		if (devpriv->mite) {
 			mite_unsetup(devpriv->mite);

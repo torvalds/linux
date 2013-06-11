@@ -762,7 +762,6 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 static void atmio16d_detach(struct comedi_device *dev)
 {
-	comedi_spriv_free(dev, 3);
 	reset_atmio16d(dev);
 	comedi_legacy_detach(dev);
 }

@@ -1602,7 +1602,6 @@ static void cb_pcidas_detach(struct comedi_device *dev)
 	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	comedi_spriv_free(dev, 2);
 	comedi_pci_disable(dev);
 }
 

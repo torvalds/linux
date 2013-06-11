@@ -136,20 +136,11 @@ static int pcl724_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void pcl724_detach(struct comedi_device *dev)
-{
-	int i;
-
-	for (i = 0; i < dev->n_subdevices; i++)
-		comedi_spriv_free(dev, i);
-	comedi_legacy_detach(dev);
-}
-
 static struct comedi_driver pcl724_driver = {
 	.driver_name	= "pcl724",
 	.module		= THIS_MODULE,
 	.attach		= pcl724_attach,
-	.detach		= pcl724_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &boardtypes[0].name,
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct pcl724_board),

@@ -531,6 +531,21 @@ static bool comedi_is_subdevice_idle(struct comedi_subdevice *s)
 	return (runflags & (SRF_ERROR | SRF_RUNNING)) ? false : true;
 }
 
+/**
+ * comedi_set_spriv() - Set the subdevice private data pointer.
+ * @s: comedi_subdevice struct
+ * @data: pointer to the private data
+ *
+ * This also sets the subdevice runflags to allow the core to automatically
+ * free the private data during the detach.
+ */
+void comedi_set_spriv(struct comedi_subdevice *s, void *data)
+{
+	s->private = data;
+	comedi_set_subdevice_runflags(s, ~0, SRF_FREE_SPRIV);
+}
+EXPORT_SYMBOL_GPL(comedi_set_spriv);
+
 /*
    This function restores a subdevice to an idle state.
  */

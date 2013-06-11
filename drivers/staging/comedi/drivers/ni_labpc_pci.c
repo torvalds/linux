@@ -92,8 +92,6 @@ static void labpc_pci_detach(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
 
-	labpc_common_detach(dev);
-
 	if (devpriv && devpriv->mite) {
 		mite_unsetup(devpriv->mite);
 		mite_free(devpriv->mite);

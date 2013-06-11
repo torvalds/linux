@@ -1333,7 +1333,6 @@ static void das16_detach(struct comedi_device *dev)
 	struct das16_private_struct *devpriv = dev->private;
 
 	das16_reset(dev);
-	comedi_spriv_free(dev, 4);
 	if (devpriv) {
 		int i;
 		for (i = 0; i < 2; i++) {

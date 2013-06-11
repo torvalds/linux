@@ -560,12 +560,6 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 }
 EXPORT_SYMBOL_GPL(das08_common_attach);
 
-void das08_common_detach(struct comedi_device *dev)
-{
-	comedi_spriv_free(dev, 4);
-}
-EXPORT_SYMBOL_GPL(das08_common_detach);
-
 static int __init das08_init(void)
 {
 	return 0;

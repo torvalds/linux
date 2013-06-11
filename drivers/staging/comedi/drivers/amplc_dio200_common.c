@@ -559,6 +559,7 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
 	if (!subpriv)
 		return -ENOMEM;
+	comedi_set_spriv(s, subpriv);
 
 	subpriv->ofs = offset;
 	subpriv->valid_isns = valid_isns;
@@ -568,7 +569,6 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 		/* Disable interrupt sources. */
 		dio200_write8(dev, subpriv->ofs, 0);
 
-	s->private = subpriv;
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
 	if (layout->has_int_sce) {
@@ -886,8 +886,8 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
 	if (!subpriv)
 		return -ENOMEM;
+	comedi_set_spriv(s, subpriv);
 
-	s->private = subpriv;
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 	s->n_chan = 3;
@@ -1022,8 +1022,10 @@ static int dio200_subdev_8255_init(struct comedi_device *dev,
 	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
 	if (!subpriv)
 		return -ENOMEM;
+	comedi_set_spriv(s, subpriv);
+
 	subpriv->ofs = offset;
-	s->private = subpriv;
+
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 24;
@@ -1225,28 +1227,11 @@ void amplc_dio200_common_detach(struct comedi_device *dev)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
 	struct dio200_private *devpriv = dev->private;
-	const struct dio200_layout *layout;
-	unsigned n;
 
 	if (!thisboard || !devpriv)
 		return;
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->subdevices) {
-		layout = dio200_board_layout(thisboard);
-		for (n = 0; n < dev->n_subdevices; n++) {
-			switch (layout->sdtype[n]) {
-			case sd_8254:
-			case sd_8255:
-			case sd_intr:
-				comedi_spriv_free(dev, n);
-				break;
-			case sd_timer:
-			default:
-				break;
-			}
-		}
-	}
 }
 EXPORT_SYMBOL_GPL(amplc_dio200_common_detach);
 

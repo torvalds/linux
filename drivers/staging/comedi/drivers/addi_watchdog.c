@@ -129,10 +129,9 @@ int addi_watchdog_init(struct comedi_subdevice *s, unsigned long iobase)
 	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
 	if (!spriv)
 		return -ENOMEM;
+	comedi_set_spriv(s, spriv);
 
 	spriv->iobase = iobase;
-
-	s->private	= spriv;
 
 	s->type		= COMEDI_SUBD_TIMER;
 	s->subdev_flags	= SDF_WRITEABLE;

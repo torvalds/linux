@@ -288,11 +288,10 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
 	if (!spriv)
 		return -ENOMEM;
+	comedi_set_spriv(s, spriv);
 
 	spriv->iobase	= iobase;
 	spriv->io	= io ? io : subdev_8255_io;
-
-	s->private	= spriv;
 
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
@@ -386,7 +385,6 @@ static void dev_8255_detach(struct comedi_device *dev)
 			spriv = s->private;
 			release_region(spriv->iobase, _8255_SIZE);
 		}
-		comedi_spriv_free(dev, i);
 	}
 }
 

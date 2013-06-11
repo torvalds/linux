@@ -47,6 +47,5 @@ struct das08_private_struct {
 };
 
 int das08_common_attach(struct comedi_device *dev, unsigned long iobase);
-void das08_common_detach(struct comedi_device *dev);
 
 #endif /* _DAS08_H */

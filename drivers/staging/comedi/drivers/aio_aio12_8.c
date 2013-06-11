@@ -255,17 +255,11 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void aio_aio12_8_detach(struct comedi_device *dev)
-{
-	comedi_spriv_free(dev, 2);
-	comedi_legacy_detach(dev);
-}
-
 static struct comedi_driver aio_aio12_8_driver = {
 	.driver_name	= "aio_aio12_8",
 	.module		= THIS_MODULE,
 	.attach		= aio_aio12_8_attach,
-	.detach		= aio_aio12_8_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &board_types[0].name,
 	.num_names	= ARRAY_SIZE(board_types),
 	.offset		= sizeof(struct aio12_8_boardtype),

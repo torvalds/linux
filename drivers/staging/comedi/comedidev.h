@@ -265,10 +265,12 @@ enum subdevice_runflags {
 	/* indicates an COMEDI_CB_ERROR event has occurred since the last
 	 * command was started */
 	SRF_ERROR = 0x00000004,
-	SRF_RUNNING = 0x08000000
+	SRF_RUNNING = 0x08000000,
+	SRF_FREE_SPRIV = 0x80000000,	/* free s->private on detach */
 };
 
 bool comedi_is_subdevice_running(struct comedi_subdevice *s);
+void comedi_set_spriv(struct comedi_subdevice *s, void *data);
 
 int comedi_check_chanlist(struct comedi_subdevice *s,
 			  int n,
@@ -355,8 +357,6 @@ void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 /* drivers.c - general comedi driver functions */
 
 int comedi_alloc_subdevices(struct comedi_device *, int);
-
-void comedi_spriv_free(struct comedi_device *, int subdev_num);
 
 int comedi_load_firmware(struct comedi_device *, struct device *,
 			 const char *name,
