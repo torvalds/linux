@@ -1064,7 +1064,6 @@ static bool exynos_drm_ipp_check_valid(struct device *dev,
 	default:
 		DRM_ERROR("invalid state.\n");
 		goto err_status;
-		break;
 	}
 
 	return true;
