@@ -28,6 +28,10 @@ menuconfig PWM
 
 if PWM
 
+config PWM_SYSFS
+	bool
+	default y if SYSFS
+
 config PWM_AB8500
 	tristate "AB8500 PWM support"
 	depends on AB8500_CORE && ARCH_U8500
