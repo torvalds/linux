@@ -861,9 +861,6 @@ void cw1200_tx_confirm_cb(struct cw1200_common *priv,
 	pr_debug("[TX] TX confirm: %d, %d.\n",
 		 arg->status, arg->ack_failures);
 
-	if (cw1200_itp_tx_running(priv))
-		return;
-
 	if (priv->mode == NL80211_IFTYPE_UNSPECIFIED) {
 		/* STA is stopped. */
 		return;
@@ -1001,8 +998,7 @@ void cw1200_skb_dtor(struct cw1200_common *priv,
 					  txpriv->raw_link_id, txpriv->tid);
 		tx_policy_put(priv, txpriv->rate_id);
 	}
-	if (!cw1200_is_itp(priv))
-		ieee80211_tx_status(priv->hw, skb);
+	ieee80211_tx_status(priv->hw, skb);
 }
 
 void cw1200_rx_cb(struct cw1200_common *priv,
@@ -1205,9 +1201,7 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 		grace_period = 1 * HZ;
 	cw1200_pm_stay_awake(&priv->pm_state, grace_period);
 
-	if (cw1200_itp_rxed(priv, skb)) {
-		consume_skb(skb);
-	} else if (early_data) {
+	if (early_data) {
 		spin_lock_bh(&priv->ps_state_lock);
 		/* Double-check status with lock held */
 		if (entry->status == CW1200_LINK_SOFT)

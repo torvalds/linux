@@ -21,7 +21,6 @@
 #include "bh.h"
 #include "sta.h"
 #include "debug.h"
-#include "itp.h"
 
 #define WSM_CMD_TIMEOUT		(2 * HZ) /* With respect to interrupt loss */
 #define WSM_CMD_START_TIMEOUT	(7 * HZ)
@@ -1732,12 +1731,6 @@ int wsm_get_tx(struct cw1200_common *priv, u8 **data,
 
 	/* More is used only for broadcasts. */
 	bool more = false;
-
-#ifdef CONFIG_CW1200_ITP
-	count = cw1200_itp_get_tx(priv, data, tx_len, burst);
-	if (count)
-		return count;
-#endif
 
 	if (priv->wsm_cmd.ptr) { /* CMD request */
 		++count;

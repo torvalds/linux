@@ -559,10 +559,6 @@ int cw1200_debug_init(struct cw1200_common *priv)
 				 priv, &fops_wsm_dumps))
 		goto err;
 
-	ret = cw1200_itp_init(priv);
-	if (ret)
-		goto err;
-
 	return 0;
 
 err:
@@ -576,7 +572,7 @@ void cw1200_debug_release(struct cw1200_common *priv)
 {
 	struct cw1200_debug_priv *d = priv->debug;
 	if (d) {
-		cw1200_itp_release(priv);
+		debugfs_remove_recursive(d->debugfs_phy);
 		priv->debug = NULL;
 		kfree(d);
 	}

@@ -35,11 +35,6 @@ config CW1200_ETF
 	help
 	  If you don't know what this is, just say N.
 
-config CW1200_ITP
-	bool "Enable ITP access"
-	help
-	  If you don't know what this is, just say N.
-
 endmenu
 
 endif
