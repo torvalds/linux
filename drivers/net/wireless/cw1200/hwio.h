@@ -97,9 +97,8 @@ struct download_cntl_t {
 
 #define CW1200_APB(addr)		(PAC_SHARED_MEMORY_SILICON + (addr))
 
-/* ***************************************************************
-*Device register definitions
-*************************************************************** */
+/* Device register definitions */
+
 /* WBF - SPI Register Addresses */
 #define ST90TDS_ADDR_ID_BASE		(0x0000)
 /* 16/32 bits */

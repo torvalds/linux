@@ -323,7 +323,8 @@ static int cw1200_sdio_probe(struct sdio_func *func,
 }
 
 /* Disconnect Function to be called by SDIO stack when
- * device is disconnected */
+ * device is disconnected
+ */
 static void cw1200_sdio_disconnect(struct sdio_func *func)
 {
 	struct hwbus_priv *self = sdio_get_drvdata(func);

@@ -75,9 +75,6 @@ static void tx_policy_build(const struct cw1200_common *priv,
 	BUG_ON(rates[0].idx < 0);
 	memset(policy, 0, sizeof(*policy));
 
-	/* minstrel is buggy a little bit, so distille
-	 * incoming rates first. */
-
 	/* Sort rates in descending order. */
 	for (i = 1; i < count; ++i) {
 		if (rates[i].idx < 0) {
@@ -108,7 +105,8 @@ static void tx_policy_build(const struct cw1200_common *priv,
 	count = i + 1;
 
 	/* Re-fill policy trying to keep every requested rate and with
-	 * respect to the global max tx retransmission count. */
+	 * respect to the global max tx retransmission count.
+	 */
 	if (limit < count)
 		limit = count;
 	if (total > limit) {
@@ -129,7 +127,6 @@ static void tx_policy_build(const struct cw1200_common *priv,
 	if (count == 2 && !(rates[0].flags & IEEE80211_TX_RC_MCS) &&
 	    rates[0].idx > 4 && rates[0].count > 2 &&
 	    rates[1].idx < 2) {
-		/* ">> 1" is an equivalent of "/ 2", but faster */
 		int mid_rate = (rates[0].idx + 4) >> 1;
 
 		/* Decrease number of retries for the initial rate */
@@ -151,7 +148,8 @@ static void tx_policy_build(const struct cw1200_common *priv,
 			/* Fallback to 1 Mbps is a really bad thing,
 			 * so let's try to increase probability of
 			 * successful transmission on the lowest g rate
-			 * even more */
+			 * even more
+			 */
 			if (rates[0].count >= 3) {
 				--rates[0].count;
 				++rates[2].count;
@@ -220,7 +218,8 @@ static int tx_policy_find(struct tx_policy_cache *cache,
 {
 	/* O(n) complexity. Not so good, but there's only 8 entries in
 	 * the cache.
-	 * Also lru helps to reduce search time. */
+	 * Also lru helps to reduce search time.
+	 */
 	struct tx_policy_cache_entry *it;
 	/* First search for policy in "used" list */
 	list_for_each_entry(it, &cache->used, link) {
@@ -264,7 +263,8 @@ void tx_policy_clean(struct cw1200_common *priv)
 	for (idx = 0; idx < TX_POLICY_CACHE_SIZE; idx++) {
 		entry = &cache->cache[idx];
 		/* Policy usage count should be 0 at this time as all queues
-		   should be empty */
+		   should be empty
+		 */
 		if (WARN_ON(entry->policy.usage_count)) {
 			entry->policy.usage_count = 0;
 			list_move(&entry->link, &cache->free);
@@ -319,7 +319,8 @@ static int tx_policy_get(struct cw1200_common *priv,
 		struct tx_policy_cache_entry *entry;
 		*renew = true;
 		/* If policy is not found create a new one
-		 * using the oldest entry in "free" list */
+		 * using the oldest entry in "free" list
+		 */
 		entry = list_entry(cache->free.prev,
 			struct tx_policy_cache_entry, link);
 		entry->policy = wanted;
@@ -612,7 +613,8 @@ cw1200_tx_h_bt(struct cw1200_common *priv,
 				 priv->listen_interval,
 				 mgt_frame->u.assoc_req.listen_interval);
 			/* Replace listen interval derieved from
-			 * the one read from SDD */
+			 * the one read from SDD
+			 */
 			mgt_frame->u.assoc_req.listen_interval =
 				priv->listen_interval;
 		}
@@ -667,7 +669,8 @@ cw1200_tx_h_rate_policy(struct cw1200_common *priv,
 		pr_debug("[TX] TX policy renew.\n");
 		/* It's not so optimal to stop TX queues every now and then.
 		 * Better to reimplement task scheduling with
-		 * a counter. TODO. */
+		 * a counter. TODO.
+		 */
 		wsm_lock_tx_async(priv);
 		cw1200_tx_queues_lock(priv);
 		if (queue_work(priv->workqueue,
@@ -832,8 +835,7 @@ static int cw1200_handle_pspoll(struct cw1200_common *priv,
 	priv->pspoll_mask |= pspoll_mask;
 	drop = 0;
 
-	/* Do not report pspols if data for given link id is
-	 * queued already. */
+	/* Do not report pspols if data for given link id is queued already. */
 	for (i = 0; i < 4; ++i) {
 		if (cw1200_queue_get_num_queued(&priv->tx_queue[i],
 						pspoll_mask)) {
@@ -924,7 +926,8 @@ void cw1200_tx_confirm_cb(struct cw1200_common *priv,
 			cw1200_debug_txed(priv);
 			if (arg->flags & WSM_TX_STATUS_AGGREGATION) {
 				/* Do not report aggregation to mac80211:
-				 * it confuses minstrel a lot. */
+				 * it confuses minstrel a lot.
+				 */
 				/* tx->flags |= IEEE80211_TX_STAT_AMPDU; */
 				cw1200_debug_txed_agg(priv);
 			}
@@ -1044,7 +1047,8 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 	    ieee80211_is_action(frame->frame_control) &&
 	    (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC)) {
 		/* Link ID already exists for the ACTION frame.
-		 * Reset and Remap */
+		 * Reset and Remap
+		 */
 		WARN_ON(work_pending(&priv->linkid_reset_work));
 		memcpy(&priv->action_frame_sa[0],
 		       ieee80211_get_SA(frame), ETH_ALEN);
@@ -1074,7 +1078,6 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 		if (cw1200_handle_pspoll(priv, skb))
 			goto drop;
 
-	hdr->mactime = 0; /* Not supported by WSM */
 	hdr->band = ((arg->channel_number & 0xff00) ||
 		     (arg->channel_number > 14)) ?
 			IEEE80211_BAND_5GHZ : IEEE80211_BAND_2GHZ;
@@ -1102,7 +1105,8 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 		hdr->flag |= RX_FLAG_DECRYPTED | RX_FLAG_IV_STRIPPED;
 
 		/* Oops... There is no fast way to ask mac80211 about
-		 * IV/ICV lengths. Even defineas are not exposed.*/
+		 * IV/ICV lengths. Even defineas are not exposed.
+		 */
 		switch (WSM_RX_STATUS_ENCRYPTION(arg->flags)) {
 		case WSM_RX_STATUS_WEP:
 			iv_len = 4 /* WEP_IV_LEN */;
@@ -1149,6 +1153,8 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 		hdr->mactime = le64_to_cpu(hdr->mactime);
 		if (skb->len >= 8)
 			skb_trim(skb, skb->len - 8);
+	} else {
+		hdr->mactime = 0;
 	}
 
 	cw1200_debug_rxed(priv);
@@ -1192,7 +1198,8 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 
 	/* Stay awake after frame is received to give
 	 * userspace chance to react and acquire appropriate
-	 * wakelock. */
+	 * wakelock.
+	 */
 	if (ieee80211_is_auth(frame->frame_control))
 		grace_period = 5 * HZ;
 	else if (ieee80211_is_deauth(frame->frame_control))

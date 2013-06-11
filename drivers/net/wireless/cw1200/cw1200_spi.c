@@ -47,15 +47,13 @@ struct hwbus_priv {
 #define SET_WRITE 0x7FFF /* usage: and operation */
 #define SET_READ 0x8000  /* usage: or operation */
 
-/*
-   Notes on byte ordering:
+/* Notes on byte ordering:
    LE:  B0 B1 B2 B3
    BE:  B3 B2 B1 B0
 
    Hardware expects 32-bit data to be written as 16-bit BE words:
 
    B1 B0 B3 B2
-
 */
 
 static int cw1200_spi_memcpy_fromio(struct hwbus_priv *self,

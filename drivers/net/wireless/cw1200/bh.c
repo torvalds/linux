@@ -31,7 +31,8 @@ static int cw1200_bh(void *arg);
 
 #define DOWNLOAD_BLOCK_SIZE_WR	(0x1000 - 4)
 /* an SPI message cannot be bigger than (2"12-1)*2 bytes
- * "*2" to cvt to bytes */
+ * "*2" to cvt to bytes
+ */
 #define MAX_SZ_RD_WR_BUFFERS	(DOWNLOAD_BLOCK_SIZE_WR*2)
 #define PIGGYBACK_CTRL_REG	(2)
 #define EFFECTIVE_BUF_SIZE	(MAX_SZ_RD_WR_BUFFERS - PIGGYBACK_CTRL_REG)
@@ -217,7 +218,8 @@ static int cw1200_device_wakeup(struct cw1200_common *priv)
 		return ret;
 
 	/* If the device returns WLAN_RDY as 1, the device is active and will
-	 * remain active. */
+	 * remain active.
+	 */
 	if (ctrl_reg & ST90TDS_CONT_RDY_BIT) {
 		pr_debug("[BH] Device awake.\n");
 		return 1;
@@ -262,7 +264,8 @@ static int cw1200_bh_rx_helper(struct cw1200_common *priv,
 	}
 
 	/* Add SIZE of PIGGYBACK reg (CONTROL Reg)
-	 * to the NEXT Message length + 2 Bytes for SKB */
+	 * to the NEXT Message length + 2 Bytes for SKB
+	 */
 	read_len = read_len + 2;
 
 	alloc_len = priv->hwbus_ops->align_size(

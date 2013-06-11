@@ -207,7 +207,8 @@ struct cw1200_common {
 	/* Scan status */
 	struct cw1200_scan scan;
 	/* Keep cw1200 awake (WUP = 1) 1 second after each scan to avoid
-	 * FW issue with sleeping/waking up. */
+	 * FW issue with sleeping/waking up.
+	 */
 	atomic_t			recent_scan;
 	struct delayed_work		clear_recent_scan_work;
 

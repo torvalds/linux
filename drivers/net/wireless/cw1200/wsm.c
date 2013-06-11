@@ -1106,8 +1106,7 @@ static int wsm_cmd_send(struct cw1200_common *priv,
 	else
 		pr_debug("[WSM] >>> 0x%.4X (%zu)\n", cmd, buf_len);
 
-	/*
-	 * Due to buggy SPI on CW1200, we need to
+	/* Due to buggy SPI on CW1200, we need to
 	 * pad the message by a few bytes to ensure
 	 * that it's completely received.
 	 */

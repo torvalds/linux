@@ -314,13 +314,16 @@ struct cw1200_common;
 #define WSM_JOIN_FLAGS_P2P_GO		BIT(1)
 /* Force to join BSS with the BSSID and the
  * SSID specified without waiting for beacons. The
- * ProbeForJoin parameter is ignored. */
+ * ProbeForJoin parameter is ignored.
+ */
 #define WSM_JOIN_FLAGS_FORCE		BIT(2)
 /* Give probe request/response higher
- * priority over the BT traffic */
+ * priority over the BT traffic
+ */
 #define WSM_JOIN_FLAGS_PRIO		BIT(3)
 /* Issue immediate join confirmation and use
- * join complete to notify about completion */
+ * join complete to notify about completion
+ */
 #define WSM_JOIN_FLAGS_FORCE_WITH_COMPLETE_IND BIT(5)
 
 /* Key types */
@@ -1015,22 +1018,19 @@ struct wsm_add_key {
 	u16 reserved;
 	union {
 		struct {
-			u8 peer[6];	/* MAC address of the
-						 * peer station */
+			u8 peer[6];	/* MAC address of the peer station */
 			u8 reserved;
 			u8 keylen;		/* Key length in bytes */
 			u8 keydata[16];		/* Key data */
 		} __packed wep_pairwise;
 		struct {
-			u8 keyid;		/* Unique per key identifier
-						 * (0..3) */
+			u8 keyid;	/* Unique per key identifier (0..3) */
 			u8 keylen;		/* Key length in bytes */
 			u16 reserved;
 			u8 keydata[16];		/* Key data */
 		} __packed wep_group;
 		struct {
-			u8 peer[6];	/* MAC address of the
-						 * peer station */
+			u8 peer[6];	/* MAC address of the peer station */
 			u16 reserved;
 			u8 keydata[16];	/* TKIP key data */
 			u8 rx_mic_key[8];		/* Rx MIC key */
@@ -1044,8 +1044,7 @@ struct wsm_add_key {
 			u8 rx_seqnum[8];	/* Receive Sequence Counter */
 		} __packed tkip_group;
 		struct {
-			u8 peer[6];	/* MAC address of the
-						 * peer station */
+			u8 peer[6];	/* MAC address of the peer station */
 			u16 reserved;
 			u8 keydata[16];	/* AES key data */
 		} __packed aes_pairwise;
@@ -1056,8 +1055,7 @@ struct wsm_add_key {
 			u8 rx_seqnum[8];	/* Receive Sequence Counter */
 		} __packed aes_group;
 		struct {
-			u8 peer[6];	/* MAC address of the
-						 * peer station */
+			u8 peer[6];	/* MAC address of the peer station */
 			u8 keyid;		/* Key ID */
 			u8 reserved;
 			u8 keydata[16];	/* WAPI key data */
@@ -1550,7 +1548,8 @@ struct wsm_tx_rate_retry_policy {
 	 *          finishes.
 	 * BIT(3) - Count initial frame transmission as part of
 	 *          rate retry counting but not as a retry
-	 *          attempt */
+	 *          attempt
+	 */
 	u8 flags;
 	u8 rate_recoveries;
 	u8 reserved[3];
@@ -1618,24 +1617,24 @@ static inline int wsm_set_udp_port_filter(struct cw1200_common *priv,
 #define D11_MAX_SSID_LEN		(32)
 
 struct wsm_p2p_device_type {
-	__le16 categoryId;
+	__le16 category_id;
 	u8 oui[4];
-	__le16 subCategoryId;
+	__le16 subcategory_id;
 } __packed;
 
 struct wsm_p2p_device_info {
 	struct wsm_p2p_device_type primaryDevice;
 	u8 reserved1[3];
-	u8 devNameSize;
-	u8 localDevName[D11_MAX_SSID_LEN];
+	u8 devname_size;
+	u8 local_devname[D11_MAX_SSID_LEN];
 	u8 reserved2[3];
-	u8 numSecDevSupported;
-	struct wsm_p2p_device_type secondaryDevices[0];
+	u8 num_secdev_supported;
+	struct wsm_p2p_device_type secdevs[0];
 } __packed;
 
 /* 4.36 SetWCDMABand - WO */
 struct wsm_cdma_band {
-	u8 WCDMA_Band;
+	u8 wcdma_band;
 	u8 reserved[3];
 } __packed;
 
@@ -1668,19 +1667,19 @@ struct wsm_ht_protection {
 #define WSM_GPIO_ALL_PINS	0xFF
 
 struct wsm_gpio_command {
-	u8 GPIO_Command;
+	u8 command;
 	u8 pin;
 	__le16 config;
 } __packed;
 
 /* 4.41 TSFCounter - RO */
 struct wsm_tsf_counter {
-	__le64 TSF_Counter;
+	__le64 tsf_counter;
 } __packed;
 
 /* 4.43 Keep alive period */
 struct wsm_keep_alive_period {
-	__le16 keepAlivePeriod;
+	__le16 period;
 	u8 reserved[2];
 } __packed;
 
@@ -1688,7 +1687,7 @@ static inline int wsm_keep_alive_period(struct cw1200_common *priv,
 					int period)
 {
 	struct wsm_keep_alive_period arg = {
-		.keepAlivePeriod = __cpu_to_le16(period),
+		.period = __cpu_to_le16(period),
 	};
 	return wsm_write_mib(priv, WSM_MIB_ID_KEEP_ALIVE_PERIOD,
 			&arg, sizeof(arg));
@@ -1739,13 +1738,13 @@ static inline int wsm_set_arp_ipv4_filter(struct cw1200_common *priv,
 
 /* P2P Power Save Mode Info - 4.31 */
 struct wsm_p2p_ps_modeinfo {
-	u8	oppPsCTWindow;
+	u8	opp_ps_ct_window;
 	u8	count;
 	u8	reserved;
-	u8	dtimCount;
+	u8	dtim_count;
 	__le32	duration;
 	__le32	interval;
-	__le32	startTime;
+	__le32	start_time;
 } __packed;
 
 static inline int wsm_set_p2p_ps_modeinfo(struct cw1200_common *priv,

@@ -483,15 +483,14 @@ void cw1200_update_filtering(struct cw1200_common *priv)
 		bf_tbl.num = __cpu_to_le32(3);
 	}
 
-	/*
-	* When acting as p2p client being connected to p2p GO, in order to
-	* receive frames from a different p2p device, turn off bssid filter.
-	*
-	* WARNING: FW dependency!
-	* This can only be used with FW WSM371 and its successors.
-	* In that FW version even with bssid filter turned off,
-	* device will block most of the unwanted frames.
-	*/
+	/* When acting as p2p client being connected to p2p GO, in order to
+	 * receive frames from a different p2p device, turn off bssid filter.
+	 *
+	 * WARNING: FW dependency!
+	 * This can only be used with FW WSM371 and its successors.
+	 * In that FW version even with bssid filter turned off,
+	 * device will block most of the unwanted frames.
+	 */
 	if (is_p2p)
 		bssid_filtering = false;
 
@@ -1015,17 +1014,17 @@ void cw1200_event_handler(struct work_struct *work)
 			/* RSSI: signed Q8.0, RCPI: unsigned Q7.1
 			 * RSSI = RCPI / 2 - 110
 			 */
-			int rcpiRssi = (int)(event->evt.data & 0xFF);
+			int rcpi_rssi = (int)(event->evt.data & 0xFF);
 			int cqm_evt;
 			if (priv->cqm_use_rssi)
-				rcpiRssi = (s8)rcpiRssi;
+				rcpi_rssi = (s8)rcpi_rssi;
 			else
-				rcpiRssi =  rcpiRssi / 2 - 110;
+				rcpi_rssi =  rcpi_rssi / 2 - 110;
 
-			cqm_evt = (rcpiRssi <= priv->cqm_rssi_thold) ?
+			cqm_evt = (rcpi_rssi <= priv->cqm_rssi_thold) ?
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW :
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
-			pr_debug("[CQM] RSSI event: %d.\n", rcpiRssi);
+			pr_debug("[CQM] RSSI event: %d.\n", rcpi_rssi);
 			ieee80211_cqm_rssi_notify(priv->vif, cqm_evt,
 						  GFP_KERNEL);
 			break;
@@ -1068,8 +1067,7 @@ void cw1200_bss_params_work(struct work_struct *work)
 /* ******************************************************************** */
 /* Internal API								*/
 
-/*
- * This function is called to Parse the SDD file
+/* This function is called to Parse the SDD file
  * to extract listen_interval and PTA related information
  * sdd is a TLV: u8 id, u8 len, u8 data[]
  */
