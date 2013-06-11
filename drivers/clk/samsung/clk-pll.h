@@ -12,6 +12,13 @@
 #ifndef __SAMSUNG_CLK_PLL_H
 #define __SAMSUNG_CLK_PLL_H
 
+enum samsung_pll_type {
+	pll_35xx,
+	pll_36xx,
+	pll_2550,
+	pll_2650,
+};
+
 enum pll45xx_type {
 	pll_4500,
 	pll_4502,

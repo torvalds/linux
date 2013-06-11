@@ -17,6 +17,7 @@ struct samsung_clk_pll {
 	struct clk_hw		hw;
 	void __iomem		*lock_reg;
 	void __iomem		*con_reg;
+	enum samsung_pll_type	type;
 };
 
 #define to_clk_pll(_hw) container_of(_hw, struct samsung_clk_pll, hw)
@@ -411,4 +412,73 @@ struct clk * __init samsung_clk_register_pll2550x(const char *name,
 		pr_err("%s: failed to register lookup for %s", __func__, name);
 
 	return clk;
+}
+
+static void __init _samsung_clk_register_pll(struct samsung_pll_clock *pll_clk,
+						void __iomem *base)
+{
+	struct samsung_clk_pll *pll;
+	struct clk *clk;
+	struct clk_init_data init;
+	int ret;
+
+	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	if (!pll) {
+		pr_err("%s: could not allocate pll clk %s\n",
+			__func__, pll_clk->name);
+		return;
+	}
+
+	init.name = pll_clk->name;
+	init.flags = pll_clk->flags;
+	init.parent_names = &pll_clk->parent_name;
+	init.num_parents = 1;
+
+	switch (pll_clk->type) {
+	/* clk_ops for 35xx and 2550 are similar */
+	case pll_35xx:
+	case pll_2550:
+		init.ops = &samsung_pll35xx_clk_ops;
+		break;
+	/* clk_ops for 36xx and 2650 are similar */
+	case pll_36xx:
+	case pll_2650:
+		init.ops = &samsung_pll36xx_clk_ops;
+		break;
+	default:
+		pr_warn("%s: Unknown pll type for pll clk %s\n",
+			__func__, pll_clk->name);
+	}
+
+	pll->hw.init = &init;
+	pll->type = pll_clk->type;
+	pll->lock_reg = base + pll_clk->lock_offset;
+	pll->con_reg = base + pll_clk->con_offset;
+
+	clk = clk_register(NULL, &pll->hw);
+	if (IS_ERR(clk)) {
+		pr_err("%s: failed to register pll clock %s : %ld\n",
+			__func__, pll_clk->name, PTR_ERR(clk));
+		kfree(pll);
+		return;
+	}
+
+	samsung_clk_add_lookup(clk, pll_clk->id);
+
+	if (!pll_clk->alias)
+		return;
+
+	ret = clk_register_clkdev(clk, pll_clk->alias, pll_clk->dev_name);
+	if (ret)
+		pr_err("%s: failed to register lookup for %s : %d",
+			__func__, pll_clk->name, ret);
+}
+
+void __init samsung_clk_register_pll(struct samsung_pll_clock *pll_list,
+				unsigned int nr_pll, void __iomem *base)
+{
+	int cnt;
+
+	for (cnt = 0; cnt < nr_pll; cnt++)
+		_samsung_clk_register_pll(&pll_list[cnt], base);
 }
