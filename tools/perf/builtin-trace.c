@@ -1,3 +1,4 @@
+#include <traceevent/event-parse.h>
 #include "builtin.h"
 #include "util/color.h"
 #include "util/evlist.h"
@@ -5,7 +6,6 @@
 #include "util/thread.h"
 #include "util/parse-options.h"
 #include "util/thread_map.h"
-#include "event-parse.h"
 
 #include <libaudit.h>
 #include <stdlib.h>

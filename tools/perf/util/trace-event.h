@@ -1,8 +1,8 @@
 #ifndef _PERF_UTIL_TRACE_EVENT_H
 #define _PERF_UTIL_TRACE_EVENT_H
 
+#include <traceevent/event-parse.h>
 #include "parse-events.h"
-#include "event-parse.h"
 #include "session.h"
 
 struct machine;

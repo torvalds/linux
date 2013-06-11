@@ -1,6 +1,6 @@
+#include <traceevent/event-parse.h>
 #include "evsel.h"
 #include "tests.h"
-#include "event-parse.h"
 
 static int perf_evsel__test_field(struct perf_evsel *evsel, const char *name,
 				  int size, bool should_be_signed)
