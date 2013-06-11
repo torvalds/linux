@@ -14,6 +14,10 @@ if EXTCON
 
 comment "Extcon Device Drivers"
 
+config OF_EXTCON
+	def_tristate y
+	depends on OF
+
 config EXTCON_GPIO
 	tristate "GPIO extcon support"
 	depends on GPIOLIB
