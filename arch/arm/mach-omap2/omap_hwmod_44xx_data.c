@@ -619,6 +619,16 @@ static struct omap_hwmod_class omap44xx_dispc_hwmod_class = {
 };
 
 /* dss_dispc */
+static struct omap_hwmod_irq_info omap44xx_dss_dispc_irqs[] = {
+	{ .irq = 25 + OMAP44XX_IRQ_GIC_START },
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod_dma_info omap44xx_dss_dispc_sdma_reqs[] = {
+	{ .dma_req = 5 + OMAP44XX_DMA_REQ_START },
+	{ .dma_req = -1 }
+};
+
 static struct omap_dss_dispc_dev_attr omap44xx_dss_dispc_dev_attr = {
 	.manager_count		= 3,
 	.has_framedonetv_irq	= 1
@@ -628,6 +638,8 @@ static struct omap_hwmod omap44xx_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
 	.class		= &omap44xx_dispc_hwmod_class,
 	.clkdm_name	= "l3_dss_clkdm",
+	.mpu_irqs	= omap44xx_dss_dispc_irqs,
+	.sdma_reqs	= omap44xx_dss_dispc_sdma_reqs,
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
@@ -660,6 +672,16 @@ static struct omap_hwmod_class omap44xx_dsi_hwmod_class = {
 };
 
 /* dss_dsi1 */
+static struct omap_hwmod_irq_info omap44xx_dss_dsi1_irqs[] = {
+	{ .irq = 53 + OMAP44XX_IRQ_GIC_START },
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod_dma_info omap44xx_dss_dsi1_sdma_reqs[] = {
+	{ .dma_req = 74 + OMAP44XX_DMA_REQ_START },
+	{ .dma_req = -1 }
+};
+
 static struct omap_hwmod_opt_clk dss_dsi1_opt_clks[] = {
 	{ .role = "sys_clk", .clk = "dss_sys_clk" },
 };
@@ -668,6 +690,8 @@ static struct omap_hwmod omap44xx_dss_dsi1_hwmod = {
 	.name		= "dss_dsi1",
 	.class		= &omap44xx_dsi_hwmod_class,
 	.clkdm_name	= "l3_dss_clkdm",
+	.mpu_irqs	= omap44xx_dss_dsi1_irqs,
+	.sdma_reqs	= omap44xx_dss_dsi1_sdma_reqs,
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
@@ -680,6 +704,16 @@ static struct omap_hwmod omap44xx_dss_dsi1_hwmod = {
 };
 
 /* dss_dsi2 */
+static struct omap_hwmod_irq_info omap44xx_dss_dsi2_irqs[] = {
+	{ .irq = 84 + OMAP44XX_IRQ_GIC_START },
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod_dma_info omap44xx_dss_dsi2_sdma_reqs[] = {
+	{ .dma_req = 83 + OMAP44XX_DMA_REQ_START },
+	{ .dma_req = -1 }
+};
+
 static struct omap_hwmod_opt_clk dss_dsi2_opt_clks[] = {
 	{ .role = "sys_clk", .clk = "dss_sys_clk" },
 };
@@ -688,6 +722,8 @@ static struct omap_hwmod omap44xx_dss_dsi2_hwmod = {
 	.name		= "dss_dsi2",
 	.class		= &omap44xx_dsi_hwmod_class,
 	.clkdm_name	= "l3_dss_clkdm",
+	.mpu_irqs	= omap44xx_dss_dsi2_irqs,
+	.sdma_reqs	= omap44xx_dss_dsi2_sdma_reqs,
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
@@ -720,6 +756,16 @@ static struct omap_hwmod_class omap44xx_hdmi_hwmod_class = {
 };
 
 /* dss_hdmi */
+static struct omap_hwmod_irq_info omap44xx_dss_hdmi_irqs[] = {
+	{ .irq = 101 + OMAP44XX_IRQ_GIC_START },
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod_dma_info omap44xx_dss_hdmi_sdma_reqs[] = {
+	{ .dma_req = 75 + OMAP44XX_DMA_REQ_START },
+	{ .dma_req = -1 }
+};
+
 static struct omap_hwmod_opt_clk dss_hdmi_opt_clks[] = {
 	{ .role = "sys_clk", .clk = "dss_sys_clk" },
 };
@@ -733,6 +779,8 @@ static struct omap_hwmod omap44xx_dss_hdmi_hwmod = {
 	 * set idle mode by software.
 	 */
 	.flags		= HWMOD_SWSUP_SIDLE,
+	.mpu_irqs	= omap44xx_dss_hdmi_irqs,
+	.sdma_reqs	= omap44xx_dss_hdmi_sdma_reqs,
 	.main_clk	= "dss_48mhz_clk",
 	.prcm = {
 		.omap4 = {
@@ -765,6 +813,11 @@ static struct omap_hwmod_class omap44xx_rfbi_hwmod_class = {
 };
 
 /* dss_rfbi */
+static struct omap_hwmod_dma_info omap44xx_dss_rfbi_sdma_reqs[] = {
+	{ .dma_req = 13 + OMAP44XX_DMA_REQ_START },
+	{ .dma_req = -1 }
+};
+
 static struct omap_hwmod_opt_clk dss_rfbi_opt_clks[] = {
 	{ .role = "ick", .clk = "dss_fck" },
 };
@@ -773,6 +826,7 @@ static struct omap_hwmod omap44xx_dss_rfbi_hwmod = {
 	.name		= "dss_rfbi",
 	.class		= &omap44xx_rfbi_hwmod_class,
 	.clkdm_name	= "l3_dss_clkdm",
+	.sdma_reqs	= omap44xx_dss_rfbi_sdma_reqs,
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
