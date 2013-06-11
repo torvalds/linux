@@ -661,7 +661,7 @@ static void pxa27x_keypad_close(struct input_dev *dev)
 	clk_disable_unprepare(keypad->clk);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int pxa27x_keypad_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -705,12 +705,11 @@ static int pxa27x_keypad_resume(struct device *dev)
 
 	return 0;
 }
-
-static const struct dev_pm_ops pxa27x_keypad_pm_ops = {
-	.suspend	= pxa27x_keypad_suspend,
-	.resume		= pxa27x_keypad_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(pxa27x_keypad_pm_ops,
+			 pxa27x_keypad_suspend, pxa27x_keypad_resume);
+
 
 static int pxa27x_keypad_probe(struct platform_device *pdev)
 {
@@ -872,9 +871,7 @@ static struct platform_driver pxa27x_keypad_driver = {
 		.name	= "pxa27x-keypad",
 		.of_match_table = of_match_ptr(pxa27x_keypad_dt_match),
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	= &pxa27x_keypad_pm_ops,
-#endif
 	},
 };
 module_platform_driver(pxa27x_keypad_driver);
