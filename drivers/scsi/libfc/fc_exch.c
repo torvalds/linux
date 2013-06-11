@@ -337,7 +337,7 @@ static void fc_exch_release(struct fc_exch *ep)
  * fc_exch_timer_cancel() - cancel exch timer
  * @ep:		The exchange whose timer to be canceled
  */
-static inline  void fc_exch_timer_cancel(struct fc_exch *ep)
+static inline void fc_exch_timer_cancel(struct fc_exch *ep)
 {
 	if (cancel_delayed_work(&ep->timeout_work)) {
 		FC_EXCH_DBG(ep, "Exchange timer canceled\n");
