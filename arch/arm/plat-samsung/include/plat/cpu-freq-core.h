@@ -202,7 +202,7 @@ extern int s3c_plltab_register(struct cpufreq_frequency_table *plls,
 extern struct s3c_cpufreq_config *s3c_cpufreq_getconfig(void);
 extern struct s3c_iotimings *s3c_cpufreq_getiotimings(void);
 
-#ifdef CONFIG_CPU_FREQ_S3C24XX_DEBUGFS
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ_DEBUGFS
 #define s3c_cpufreq_debugfs_call(x) x
 #else
 #define s3c_cpufreq_debugfs_call(x) NULL
@@ -259,17 +259,17 @@ extern void s3c2412_iotiming_set(struct s3c_cpufreq_config *cfg,
 #define s3c2412_iotiming_set NULL
 #endif /* CONFIG_S3C2412_IOTIMING */
 
-#ifdef CONFIG_CPU_FREQ_S3C24XX_DEBUG
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ_DEBUG
 #define s3c_freq_dbg(x...) printk(KERN_INFO x)
 #else
 #define s3c_freq_dbg(x...) do { if (0) printk(x); } while (0)
-#endif /* CONFIG_CPU_FREQ_S3C24XX_DEBUG */
+#endif /* CONFIG_ARM_S3C24XX_CPUFREQ_DEBUG */
 
-#ifdef CONFIG_CPU_FREQ_S3C24XX_IODEBUG
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ_IODEBUG
 #define s3c_freq_iodbg(x...) printk(KERN_INFO x)
 #else
 #define s3c_freq_iodbg(x...) do { if (0) printk(x); } while (0)
-#endif /* CONFIG_CPU_FREQ_S3C24XX_IODEBUG */
+#endif /* CONFIG_ARM_S3C24XX_CPUFREQ_IODEBUG */
 
 static inline int s3c_cpufreq_addfreq(struct cpufreq_frequency_table *table,
 				      int index, size_t table_size,
