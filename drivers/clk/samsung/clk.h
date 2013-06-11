@@ -40,6 +40,8 @@ struct samsung_clock_alias {
 		.alias		= a,				\
 	}
 
+#define MHZ (1000 * 1000)
+
 /**
  * struct samsung_fixed_rate_clock: information about fixed-rate clock
  * @id: platform specific id of the clock.

@@ -494,6 +494,29 @@ static struct samsung_gate_clock exynos5250_gate_clks[] __initdata = {
 	GATE(g2d, "g2d", "aclk200", GATE_IP_ACP, 3, 0, 0),
 };
 
+static __initdata struct samsung_pll_rate_table vpll_24mhz_tbl[] = {
+	/* sorted in descending order */
+	/* PLL_36XX_RATE(rate, m, p, s, k) */
+	PLL_36XX_RATE(266000000, 266, 3, 3, 0),
+	/* Not in UM, but need for eDP on snow */
+	PLL_36XX_RATE(70500000, 94, 2, 4, 0),
+	{ },
+};
+
+static __initdata struct samsung_pll_rate_table epll_24mhz_tbl[] = {
+	/* sorted in descending order */
+	/* PLL_36XX_RATE(rate, m, p, s, k) */
+	PLL_36XX_RATE(192000000, 64, 2, 2, 0),
+	PLL_36XX_RATE(180633600, 90, 3, 2, 20762),
+	PLL_36XX_RATE(180000000, 90, 3, 2, 0),
+	PLL_36XX_RATE(73728000, 98, 2, 4, 19923),
+	PLL_36XX_RATE(67737600, 90, 2, 4, 20762),
+	PLL_36XX_RATE(49152000, 98, 3, 4, 19923),
+	PLL_36XX_RATE(45158400, 90, 3, 4, 20762),
+	PLL_36XX_RATE(32768000, 131, 3, 5, 4719),
+	{ },
+};
+
 struct __initdata samsung_pll_clock exynos5250_plls[nr_plls] = {
 	[apll] = PLL_A(pll_35xx, fout_apll, "fout_apll", "fin_pll", APLL_LOCK,
 		APLL_CON0, "fout_apll", NULL),
@@ -520,6 +543,8 @@ static __initdata struct of_device_id ext_clk_match[] = {
 static void __init exynos5250_clk_init(struct device_node *np)
 {
 	void __iomem *reg_base;
+	struct clk *vpllsrc;
+	unsigned long fin_pll_rate, mout_vpllsrc_rate = 0;
 
 	if (np) {
 		reg_base = of_iomap(np, 0);
@@ -537,6 +562,19 @@ static void __init exynos5250_clk_init(struct device_node *np)
 			ext_clk_match);
 	samsung_clk_register_mux(exynos5250_pll_pmux_clks,
 				ARRAY_SIZE(exynos5250_pll_pmux_clks));
+
+	fin_pll_rate = _get_rate("fin_pll");
+
+	if (fin_pll_rate == 24 * MHZ)
+		exynos5250_plls[epll].rate_table = epll_24mhz_tbl;
+
+	vpllsrc = __clk_lookup("mout_vpllsrc");
+	if (vpllsrc)
+		mout_vpllsrc_rate = clk_get_rate(vpllsrc);
+
+	if (mout_vpllsrc_rate == 24 * MHZ)
+		exynos5250_plls[vpll].rate_table =  vpll_24mhz_tbl;
+
 	samsung_clk_register_pll(exynos5250_plls, ARRAY_SIZE(exynos5250_plls),
 					reg_base);
 	samsung_clk_register_fixed_rate(exynos5250_fixed_rate_clks,
