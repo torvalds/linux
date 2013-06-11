@@ -85,6 +85,7 @@
 #include <linux/hash.h>
 #include <linux/ratelimit.h>
 #include <linux/export.h>
+#include <linux/scatterlist.h>
 
 #include "wa-hc.h"
 #include "wusbhc.h"
@@ -442,8 +443,7 @@ static ssize_t __wa_xfer_setup_sizes(struct wa_xfer *xfer,
 		goto error;
 	}
 	xfer->seg_size = (xfer->seg_size / maxpktsize) * maxpktsize;
-	xfer->segs = (urb->transfer_buffer_length + xfer->seg_size - 1)
-		/ xfer->seg_size;
+	xfer->segs = DIV_ROUND_UP(urb->transfer_buffer_length, xfer->seg_size);
 	if (xfer->segs >= WA_SEGS_MAX) {
 		dev_err(dev, "BUG? ops, number of segments %d bigger than %d\n",
 			(int)(urb->transfer_buffer_length / xfer->seg_size),
@@ -627,6 +627,86 @@ static void wa_seg_cb(struct urb *urb)
 	}
 }
 
+/* allocate an SG list to store bytes_to_transfer bytes and copy the
+ * subset of the in_sg that matches the buffer subset
+ * we are about to transfer. */
+static struct scatterlist *wa_xfer_create_subset_sg(struct scatterlist *in_sg,
+	const unsigned int bytes_transferred,
+	const unsigned int bytes_to_transfer, unsigned int *out_num_sgs)
+{
+	struct scatterlist *out_sg;
+	unsigned int bytes_processed = 0, offset_into_current_page_data = 0,
+		nents;
+	struct scatterlist *current_xfer_sg = in_sg;
+	struct scatterlist *current_seg_sg, *last_seg_sg;
+
+	/* skip previously transferred pages. */
+	while ((current_xfer_sg) &&
+			(bytes_processed < bytes_transferred)) {
+		bytes_processed += current_xfer_sg->length;
+
+		/* advance the sg if current segment starts on or past the
+			next page. */
+		if (bytes_processed <= bytes_transferred)
+			current_xfer_sg = sg_next(current_xfer_sg);
+	}
+
+	/* the data for the current segment starts in current_xfer_sg.
+		calculate the offset. */
+	if (bytes_processed > bytes_transferred) {
+		offset_into_current_page_data = current_xfer_sg->length -
+			(bytes_processed - bytes_transferred);
+	}
+
+	/* calculate the number of pages needed by this segment. */
+	nents = DIV_ROUND_UP((bytes_to_transfer +
+		offset_into_current_page_data +
+		current_xfer_sg->offset),
+		PAGE_SIZE);
+
+	out_sg = kmalloc((sizeof(struct scatterlist) * nents), GFP_ATOMIC);
+	if (out_sg) {
+		sg_init_table(out_sg, nents);
+
+		/* copy the portion of the incoming SG that correlates to the
+		 * data to be transferred by this segment to the segment SG. */
+		last_seg_sg = current_seg_sg = out_sg;
+		bytes_processed = 0;
+
+		/* reset nents and calculate the actual number of sg entries
+			needed. */
+		nents = 0;
+		while ((bytes_processed < bytes_to_transfer) &&
+				current_seg_sg && current_xfer_sg) {
+			unsigned int page_len = min((current_xfer_sg->length -
+				offset_into_current_page_data),
+				(bytes_to_transfer - bytes_processed));
+
+			sg_set_page(current_seg_sg, sg_page(current_xfer_sg),
+				page_len,
+				current_xfer_sg->offset +
+				offset_into_current_page_data);
+
+			bytes_processed += page_len;
+
+			last_seg_sg = current_seg_sg;
+			current_seg_sg = sg_next(current_seg_sg);
+			current_xfer_sg = sg_next(current_xfer_sg);
+
+			/* only the first page may require additional offset. */
+			offset_into_current_page_data = 0;
+			nents++;
+		}
+
+		/* update num_sgs and terminate the list since we may have
+		 *  concatenated pages. */
+		sg_mark_end(last_seg_sg);
+		*out_num_sgs = nents;
+	}
+
+	return out_sg;
+}
+
 /*
  * Allocate the segs array and initialize each of them
  *
@@ -663,9 +743,9 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 						  dto_epd->bEndpointAddress),
 				  &seg->xfer_hdr, xfer_hdr_size,
 				  wa_seg_cb, seg);
-		buf_itr_size = buf_size > xfer->seg_size ?
-			xfer->seg_size : buf_size;
+		buf_itr_size = min(buf_size, xfer->seg_size);
 		if (xfer->is_inbound == 0 && buf_size > 0) {
+			/* outbound data. */
 			seg->dto_urb = usb_alloc_urb(0, GFP_ATOMIC);
 			if (seg->dto_urb == NULL)
 				goto error_dto_alloc;
@@ -679,9 +759,42 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 					xfer->urb->transfer_dma + buf_itr;
 				seg->dto_urb->transfer_flags |=
 					URB_NO_TRANSFER_DMA_MAP;
-			} else
-				seg->dto_urb->transfer_buffer =
-					xfer->urb->transfer_buffer + buf_itr;
+				seg->dto_urb->transfer_buffer = NULL;
+				seg->dto_urb->sg = NULL;
+				seg->dto_urb->num_sgs = 0;
+			} else {
+				/* do buffer or SG processing. */
+				seg->dto_urb->transfer_flags &=
+					~URB_NO_TRANSFER_DMA_MAP;
+				/* this should always be 0 before a resubmit. */
+				seg->dto_urb->num_mapped_sgs = 0;
+
+				if (xfer->urb->transfer_buffer) {
+					seg->dto_urb->transfer_buffer =
+						xfer->urb->transfer_buffer +
+						buf_itr;
+					seg->dto_urb->sg = NULL;
+					seg->dto_urb->num_sgs = 0;
+				} else {
+					/* allocate an SG list to store seg_size
+					    bytes and copy the subset of the
+					    xfer->urb->sg that matches the
+					    buffer subset we are about to read.
+					*/
+					seg->dto_urb->sg =
+						wa_xfer_create_subset_sg(
+						xfer->urb->sg,
+						buf_itr, buf_itr_size,
+						&(seg->dto_urb->num_sgs));
+
+					if (!(seg->dto_urb->sg)) {
+						seg->dto_urb->num_sgs	= 0;
+						goto error_sg_alloc;
+					}
+
+					seg->dto_urb->transfer_buffer = NULL;
+				}
+			}
 			seg->dto_urb->transfer_buffer_length = buf_itr_size;
 		}
 		seg->status = WA_SEG_READY;
@@ -690,6 +803,8 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 	}
 	return 0;
 
+error_sg_alloc:
+	kfree(seg->dto_urb);
 error_dto_alloc:
 	kfree(xfer->seg[cnt]);
 	cnt--;
@@ -1026,7 +1141,8 @@ int wa_urb_enqueue(struct wahc *wa, struct usb_host_endpoint *ep,
 	unsigned long my_flags;
 	unsigned cant_sleep = irqs_disabled() | in_atomic();
 
-	if (urb->transfer_buffer == NULL
+	if ((urb->transfer_buffer == NULL)
+	    && (urb->sg == NULL)
 	    && !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
 	    && urb->transfer_buffer_length != 0) {
 		dev_err(dev, "BUG? urb %p: NULL xfer buffer & NODMA\n", urb);
@@ -1261,7 +1377,7 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer)
 	seg = xfer->seg[seg_idx];
 	rpipe = xfer->ep->hcpriv;
 	usb_status = xfer_result->bTransferStatus;
-	dev_dbg(dev, "xfer %p#%u: bTransferStatus 0x%02x (seg %u)\n",
+	dev_dbg(dev, "xfer %p#%u: bTransferStatus 0x%02x (seg status %u)\n",
 		xfer, seg_idx, usb_status, seg->status);
 	if (seg->status == WA_SEG_ABORTED
 	    || seg->status == WA_SEG_ERROR)	/* already handled */
@@ -1276,8 +1392,8 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer)
 	}
 	if (usb_status & 0x80) {
 		seg->result = wa_xfer_status_to_errno(usb_status);
-		dev_err(dev, "DTI: xfer %p#%u failed (0x%02x)\n",
-			xfer, seg->index, usb_status);
+		dev_err(dev, "DTI: xfer %p#:%08X:%u failed (0x%02x)\n",
+			xfer, xfer->id, seg->index, usb_status);
 		goto error_complete;
 	}
 	/* FIXME: we ignore warnings, tally them for stats */
@@ -1286,18 +1402,47 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer)
 	if (xfer->is_inbound) {	/* IN data phase: read to buffer */
 		seg->status = WA_SEG_DTI_PENDING;
 		BUG_ON(wa->buf_in_urb->status == -EINPROGRESS);
+		/* this should always be 0 before a resubmit. */
+		wa->buf_in_urb->num_mapped_sgs	= 0;
+
 		if (xfer->is_dma) {
 			wa->buf_in_urb->transfer_dma =
 				xfer->urb->transfer_dma
-				+ seg_idx * xfer->seg_size;
+				+ (seg_idx * xfer->seg_size);
 			wa->buf_in_urb->transfer_flags
 				|= URB_NO_TRANSFER_DMA_MAP;
+			wa->buf_in_urb->transfer_buffer = NULL;
+			wa->buf_in_urb->sg = NULL;
+			wa->buf_in_urb->num_sgs = 0;
 		} else {
-			wa->buf_in_urb->transfer_buffer =
-				xfer->urb->transfer_buffer
-				+ seg_idx * xfer->seg_size;
+			/* do buffer or SG processing. */
 			wa->buf_in_urb->transfer_flags
 				&= ~URB_NO_TRANSFER_DMA_MAP;
+
+			if (xfer->urb->transfer_buffer) {
+				wa->buf_in_urb->transfer_buffer =
+					xfer->urb->transfer_buffer
+					+ (seg_idx * xfer->seg_size);
+				wa->buf_in_urb->sg = NULL;
+				wa->buf_in_urb->num_sgs = 0;
+			} else {
+				/* allocate an SG list to store seg_size bytes
+					and copy the subset of the xfer->urb->sg
+					that matches the buffer subset we are
+					about to read. */
+				wa->buf_in_urb->sg = wa_xfer_create_subset_sg(
+					xfer->urb->sg,
+					seg_idx * xfer->seg_size,
+					le32_to_cpu(
+						xfer_result->dwTransferLength),
+					&(wa->buf_in_urb->num_sgs));
+
+				if (!(wa->buf_in_urb->sg)) {
+					wa->buf_in_urb->num_sgs	= 0;
+					goto error_sg_alloc;
+				}
+				wa->buf_in_urb->transfer_buffer = NULL;
+			}
 		}
 		wa->buf_in_urb->transfer_buffer_length =
 			le32_to_cpu(xfer_result->dwTransferLength);
@@ -1330,6 +1475,8 @@ error_submit_buf_in:
 		dev_err(dev, "xfer %p#%u: can't submit DTI data phase: %d\n",
 			xfer, seg_idx, result);
 	seg->result = result;
+	kfree(wa->buf_in_urb->sg);
+error_sg_alloc:
 error_complete:
 	seg->status = WA_SEG_ERROR;
 	xfer->segs_done++;
@@ -1380,6 +1527,10 @@ static void wa_buf_in_cb(struct urb *urb)
 	unsigned rpipe_ready;
 	unsigned long flags;
 	u8 done = 0;
+
+	/* free the sg if it was used. */
+	kfree(urb->sg);
+	urb->sg = NULL;
 
 	switch (urb->status) {
 	case 0:
