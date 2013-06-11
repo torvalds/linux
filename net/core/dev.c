@@ -129,6 +129,7 @@
 #include <linux/inetdevice.h>
 #include <linux/cpu_rmap.h>
 #include <linux/static_key.h>
+#include <linux/hashtable.h>
 
 #include "net-sysfs.h"
 
@@ -165,6 +166,12 @@ static struct list_head offload_base __read_mostly;
  */
 DEFINE_RWLOCK(dev_base_lock);
 EXPORT_SYMBOL(dev_base_lock);
+
+/* protects napi_hash addition/deletion and napi_gen_id */
+static DEFINE_SPINLOCK(napi_hash_lock);
+
+static unsigned int napi_gen_id;
+static DEFINE_HASHTABLE(napi_hash, 8);
 
 seqcount_t devnet_rename_seq;
 
@@ -4135,6 +4142,58 @@ void napi_complete(struct napi_struct *n)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(napi_complete);
+
+/* must be called under rcu_read_lock(), as we dont take a reference */
+struct napi_struct *napi_by_id(unsigned int napi_id)
+{
+	unsigned int hash = napi_id % HASH_SIZE(napi_hash);
+	struct napi_struct *napi;
+
+	hlist_for_each_entry_rcu(napi, &napi_hash[hash], napi_hash_node)
+		if (napi->napi_id == napi_id)
+			return napi;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(napi_by_id);
+
+void napi_hash_add(struct napi_struct *napi)
+{
+	if (!test_and_set_bit(NAPI_STATE_HASHED, &napi->state)) {
+
+		spin_lock(&napi_hash_lock);
+
+		/* 0 is not a valid id, we also skip an id that is taken
+		 * we expect both events to be extremely rare
+		 */
+		napi->napi_id = 0;
+		while (!napi->napi_id) {
+			napi->napi_id = ++napi_gen_id;
+			if (napi_by_id(napi->napi_id))
+				napi->napi_id = 0;
+		}
+
+		hlist_add_head_rcu(&napi->napi_hash_node,
+			&napi_hash[napi->napi_id % HASH_SIZE(napi_hash)]);
+
+		spin_unlock(&napi_hash_lock);
+	}
+}
+EXPORT_SYMBOL_GPL(napi_hash_add);
+
+/* Warning : caller is responsible to make sure rcu grace period
+ * is respected before freeing memory containing @napi
+ */
+void napi_hash_del(struct napi_struct *napi)
+{
+	spin_lock(&napi_hash_lock);
+
+	if (test_and_clear_bit(NAPI_STATE_HASHED, &napi->state))
+		hlist_del_rcu(&napi->napi_hash_node);
+
+	spin_unlock(&napi_hash_lock);
+}
+EXPORT_SYMBOL_GPL(napi_hash_del);
 
 void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 		    int (*poll)(struct napi_struct *, int), int weight)
