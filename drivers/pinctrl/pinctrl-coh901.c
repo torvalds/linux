@@ -830,7 +830,8 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 err_no_range:
-	err = gpiochip_remove(&gpio->chip);
+	if (gpiochip_remove(&gpio->chip))
+		dev_err(&pdev->dev, "failed to remove gpio chip\n");
 err_no_chip:
 err_no_domain:
 err_no_port:
