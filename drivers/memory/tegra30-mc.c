@@ -218,7 +218,7 @@ static void tegra30_mc_decode(struct tegra30_mc *mc, int n)
 		return;
 	}
 
-	err = readl(mc + MC_ERR_STATUS);
+	err = mc_readl(mc, MC_ERR_STATUS);
 
 	type = (err & MC_ERR_TYPE_MASK) >> MC_ERR_TYPE_SHIFT;
 	perm = (err & MC_ERR_INVALID_SMMU_PAGE_MASK) >>
@@ -235,7 +235,7 @@ static void tegra30_mc_decode(struct tegra30_mc *mc, int n)
 	if (cid < ARRAY_SIZE(tegra30_mc_client))
 		client = tegra30_mc_client[cid];
 
-	addr = readl(mc + MC_ERR_ADR);
+	addr = mc_readl(mc, MC_ERR_ADR);
 
 	dev_err_ratelimited(mc->dev, "%s (0x%08x): 0x%08x %s (%s %s %s %s)\n",
 			   mc_int_err[idx], err, addr, client,
@@ -313,8 +313,11 @@ static irqreturn_t tegra30_mc_isr(int irq, void *data)
 	mask &= stat;
 	if (!mask)
 		return IRQ_NONE;
-	while ((bit = ffs(mask)) != 0)
+	while ((bit = ffs(mask)) != 0) {
 		tegra30_mc_decode(mc, bit - 1);
+		mask &= ~BIT(bit - 1);
+	}
+
 	mc_writel(mc, stat, MC_INTSTATUS);
 	return IRQ_HANDLED;
 }
