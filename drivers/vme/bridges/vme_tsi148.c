@@ -169,7 +169,7 @@ static u32 tsi148_VERR_irqhandler(struct vme_bridge *tsi148_bridge)
 	unsigned int error_addr_high, error_addr_low;
 	unsigned long long error_addr;
 	u32 error_attrib;
-	struct vme_bus_error *error;
+	struct vme_bus_error *error = NULL;
 	struct tsi148_driver *bridge;
 
 	bridge = tsi148_bridge->driver_priv;
@@ -186,16 +186,22 @@ static u32 tsi148_VERR_irqhandler(struct vme_bridge *tsi148_bridge)
 			"Occurred\n");
 	}
 
-	error = kmalloc(sizeof(struct vme_bus_error), GFP_ATOMIC);
-	if (error) {
-		error->address = error_addr;
-		error->attributes = error_attrib;
-		list_add_tail(&error->list, &tsi148_bridge->vme_errors);
-	} else {
-		dev_err(tsi148_bridge->parent, "Unable to alloc memory for "
-			"VMEbus Error reporting\n");
-		dev_err(tsi148_bridge->parent, "VME Bus Error at address: "
-			"0x%llx, attributes: %08x\n", error_addr, error_attrib);
+	if (err_chk) {
+		error = kmalloc(sizeof(struct vme_bus_error), GFP_ATOMIC);
+		if (error) {
+			error->address = error_addr;
+			error->attributes = error_attrib;
+			list_add_tail(&error->list, &tsi148_bridge->vme_errors);
+		} else {
+			dev_err(tsi148_bridge->parent,
+				"Unable to alloc memory for VMEbus Error reporting\n");
+		}
+	}
+
+	if (!error) {
+		dev_err(tsi148_bridge->parent,
+			"VME Bus Error at address: 0x%llx, attributes: %08x\n",
+			error_addr, error_attrib);
 	}
 
 	/* Clear Status */
