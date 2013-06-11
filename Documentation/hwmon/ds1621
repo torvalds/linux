@@ -22,6 +22,11 @@ Supported chips:
     Addresses scanned: none
     Datasheet: Publicly available from www.maximintegrated.com
 
+  * Maxim Integrated DS1731
+    Prefix: 'ds1731'
+    Addresses scanned: none
+    Datasheet: Publicly available from www.maximintegrated.com
+
 Authors:
         Christian W. Zuckschwerdt <zany@triq.net>
         valuable contributions by Jan M. Sendler <sendler@sendler.de>
@@ -72,8 +77,8 @@ Temperature conversion of the DS1621 takes up to 1000ms; internal access to
 non-volatile registers may last for 10ms or below.
 
 The DS1625 is pin compatible and functionally equivalent with the DS1621,
-but the DS1621 is meant to replace it. The DS1631 and DS1721 are also
-pin compatible with the DS1621, but provide multi-resolution support.
+but the DS1621 is meant to replace it. The DS1631, DS1721, and DS1731 are
+also pin compatible with the DS1621, but provide multi-resolution support.
 
 Since there is no version or vendor identification register, there is
 no unique identification for these devices. Therefore, explicit device
@@ -84,26 +89,26 @@ explicitly instantiated, one device per address, in this address
 range: 0x48..0x4f.
 
 The DS1721 is pin compatible with the DS1621, has an accuracy of +/- 1.0
-degree Celsius over a -10 to +85 degree range, a minimum/maximum alarm
-default setting of 75 and 80 degrees respectively, and a maximum conversion
-time of 750ms.
+degree Celsius (from -10 to +85 degrees), a minimum/maximum alarm default
+setting of 75 and 80 degrees, and a maximum conversion time of 750ms.
 
 In addition, the DS1721 supports four resolution settings from 9 to 12 bits
-(defined in degrees C per LSB: 0.5, 0.25, 0.125, and 0.0625, respectifully),
+(defined in degrees C per LSB: 0.5, 0.25, 0.125, and 0.0625, respectively),
 that are set at device power on to the highest resolution: 12-bits.
 
 One additional note about the ds1721 is that although the data sheet says
 the temperature flags (THF and TLF) are used internally, these flags do
 get set and cleared as the actual temperature crosses the min or max settings.
 
-The DS1631 is also pin compatible with the DS1621 and feature compatible with
-the DS1721, however the DS1631 accuracy is +/- 0.5 degree Celsius over the
-same range.
+The DS1631 and DS1731 are pin compatible with the DS1621 and feature compatible
+with the DS1721. However, the DS1631 accuracy is +/- 0.5 degree Celsius (from 0
+to +70 degrees), while the DS1731 accuracy is +/-1 degree Celsius (from -10 to
++85 degrees).
 
-Changing the DS1631/1721 resolution mode affects the conversion time and can be
-done from userspace, via the device 'update_interval' sysfs attribute. This
-attribute will normalize range of input values to the device maximum resolution
-values defined in the datasheet as such:
+The resolution mode for the DS1631, DS1721, or DS1731 can be changed from
+userspace, via the device 'update_interval' sysfs attribute. This attribute
+will normalize the range of input values to the device maximum resolution
+values defined in the datasheet as follows:
 
 Resolution    Conversion Time    Input Range
  (C/LSB)       (msec)             (msec)

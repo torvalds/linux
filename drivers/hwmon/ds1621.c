@@ -10,8 +10,8 @@
  * resolution, a thermal alarm output (Tout), and user-defined minimum
  * and maximum temperature thresholds (TH and TL).
  *
- * The DS1625, DS1631, and DS1721 are pin compatible with the DS1621 and
- * similar in operation, with slight variations as noted in the device
+ * The DS1625, DS1631, DS1721, and DS1731 are pin compatible with the DS1621
+ * and similar in operation, with slight variations as noted in the device
  * datasheets (please refer to www.maximintegrated.com for specific
  * device information).
  *
@@ -47,7 +47,7 @@
 #include <linux/kernel.h>
 
 /* Supported devices */
-enum chips { ds1621, ds1625, ds1631, ds1721 };
+enum chips { ds1621, ds1625, ds1631, ds1721, ds1731 };
 
 /* Insmod parameters */
 static int polarity = -1;
@@ -65,7 +65,7 @@ MODULE_PARM_DESC(polarity, "Output's polarity: 0 = active high, 1 = active low")
  *   7    6    5    4    3    2    1    0
  * |Done|THF |TLF |NVB | 1  | 0  |POL |1SHOT|
  *
- * - DS1631:
+ * - DS1631, DS1731:
  *   7    6    5    4    3    2    1    0
  * |Done|THF |TLF |NVB | R1 | R0 |POL |1SHOT|
  *
@@ -140,7 +140,7 @@ static inline int DS1621_TEMP_FROM_REG(u16 reg)
  * TEMP: 0.001C/bit (-55C to +125C)
  * REG:
  *  - 1621, 1625: 0.5C/bit
- *  - 1631, 1721: 0.0625C/bit
+ *  - 1631, 1721, 1731: 0.0625C/bit
  * Assume highest resolution and let the bits fall where they may..
  */
 static inline u16 DS1621_TEMP_TO_REG(long temp)
@@ -176,6 +176,7 @@ static void ds1621_init_client(struct i2c_client *client)
 		break;
 	case ds1631:
 	case ds1721:
+	case ds1731:
 		resol = (new_conf & DS1621_REG_CONFIG_RESOL) >>
 			 DS1621_REG_CONFIG_RESOL_SHIFT;
 		data->update_interval = ds1721_convrates[resol];
@@ -406,6 +407,7 @@ static const struct i2c_device_id ds1621_id[] = {
 	{ "ds1625", ds1625 },
 	{ "ds1631", ds1631 },
 	{ "ds1721", ds1721 },
+	{ "ds1731", ds1731 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1621_id);
