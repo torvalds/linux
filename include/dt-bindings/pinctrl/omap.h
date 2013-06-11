@@ -5,6 +5,9 @@
  * Copyright (C) 2009-2010 Texas Instruments
  */
 
+#ifndef _DT_BINDINGS_PINCTRL_OMAP_H
+#define _DT_BINDINGS_PINCTRL_OMAP_H
+
 /* 34xx mux mode options for each pin. See TRM for options */
 #define MUX_MODE0	0
 #define MUX_MODE1	1
@@ -47,4 +50,6 @@
 #define PIN_OFF_INPUT_PULLUP	(OFF_EN | OFF_PULL_EN | OFF_PULL_UP)
 #define PIN_OFF_INPUT_PULLDOWN	(OFF_EN | OFF_PULL_EN)
 #define PIN_OFF_WAKEUPENABLE	WAKEUP_EN
+
+#endif
 

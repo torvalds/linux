@@ -2,6 +2,9 @@
  * This header provides constants specific to AM33XX pinctrl bindings.
  */
 
+#ifndef _DT_BINDINGS_PINCTRL_AM33XX_H
+#define _DT_BINDINGS_PINCTRL_AM33XX_H
+
 #include <include/dt-bindings/pinctrl/omap.h>
 
 /* am33xx specific mux bit defines */
@@ -34,4 +37,6 @@
 #undef PIN_OFF_INPUT_PULLUP
 #undef PIN_OFF_INPUT_PULLDOWN
 #undef PIN_OFF_WAKEUPENABLE
+
+#endif
 
