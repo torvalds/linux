@@ -707,7 +707,6 @@ ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
 {
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
-	struct fcoe_ctlr_device *ctlr_dev = NULL;
 	int rc = 0;
 	int err;
 
@@ -754,9 +753,8 @@ ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
 		goto out_putdev;
 	}
 
-	LIBFCOE_TRANSPORT_DBG("transport %s %s to create fcoe on %s.\n",
-			      ft->name, (ctlr_dev) ? "succeeded" : "failed",
-			      netdev->name);
+	LIBFCOE_TRANSPORT_DBG("transport %s succeeded to create fcoe on %s.\n",
+			      ft->name, netdev->name);
 
 out_putdev:
 	dev_put(netdev);
