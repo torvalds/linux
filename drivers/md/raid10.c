@@ -1633,6 +1633,7 @@ static void status(struct seq_file *seq, struct mddev *mddev)
 static int _enough(struct r10conf *conf, int previous, int ignore)
 {
 	int first = 0;
+	int has_enough = 0;
 	int disks, ncopies;
 	if (previous) {
 		disks = conf->prev.raid_disks;
@@ -1642,21 +1643,27 @@ static int _enough(struct r10conf *conf, int previous, int ignore)
 		ncopies = conf->geo.near_copies;
 	}
 
+	rcu_read_lock();
 	do {
 		int n = conf->copies;
 		int cnt = 0;
 		int this = first;
 		while (n--) {
-			if (conf->mirrors[this].rdev &&
-			    this != ignore)
+			struct md_rdev *rdev;
+			if (this != ignore &&
+			    (rdev = rcu_dereference(conf->mirrors[this].rdev)) &&
+			    test_bit(In_sync, &rdev->flags))
 				cnt++;
 			this = (this+1) % disks;
 		}
 		if (cnt == 0)
-			return 0;
+			goto out;
 		first = (first + ncopies) % disks;
 	} while (first != 0);
-	return 1;
+	has_enough = 1;
+out:
+	rcu_read_unlock();
+	return has_enough;
 }
 
 static int enough(struct r10conf *conf, int ignore)
