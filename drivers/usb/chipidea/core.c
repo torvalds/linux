@@ -276,8 +276,9 @@ static void ci_role_work(struct work_struct *work)
 
 		ci_role_stop(ci);
 		ci_role_start(ci, role);
-		enable_irq(ci->irq);
 	}
+
+	enable_irq(ci->irq);
 }
 
 static irqreturn_t ci_irq(int irq, void *data)
