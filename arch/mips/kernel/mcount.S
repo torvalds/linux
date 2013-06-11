@@ -168,14 +168,10 @@ NESTED(ftrace_graph_caller, PT_SIZE, ra)
 #endif
 
 	/* arg3: Get frame pointer of current stack */
-#ifdef CONFIG_FRAME_POINTER
-	move	a2, fp
-#else /* ! CONFIG_FRAME_POINTER */
 #ifdef CONFIG_64BIT
 	PTR_LA	a2, PT_SIZE(sp)
 #else
 	PTR_LA	a2, (PT_SIZE+8)(sp)
-#endif
 #endif
 
 	jal	prepare_ftrace_return
