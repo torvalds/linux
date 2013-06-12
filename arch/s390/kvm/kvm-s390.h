@@ -86,6 +86,12 @@ static inline void kvm_s390_get_base_disp_sse(struct kvm_vcpu *vcpu,
 	*address2 = (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
 }
 
+static inline void kvm_s390_get_regs_rre(struct kvm_vcpu *vcpu, int *r1, int *r2)
+{
+	*r1 = (vcpu->arch.sie_block->ipb & 0x00f00000) >> 20;
+	*r2 = (vcpu->arch.sie_block->ipb & 0x000f0000) >> 16;
+}
+
 static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu)
 {
 	u32 base2 = vcpu->arch.sie_block->ipb >> 28;

@@ -59,6 +59,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "deliver_restart_signal", VCPU_STAT(deliver_restart_signal) },
 	{ "deliver_program_interruption", VCPU_STAT(deliver_program_int) },
 	{ "exit_wait_state", VCPU_STAT(exit_wait_state) },
+	{ "instruction_pfmf", VCPU_STAT(instruction_pfmf) },
 	{ "instruction_stidp", VCPU_STAT(instruction_stidp) },
 	{ "instruction_spx", VCPU_STAT(instruction_spx) },
 	{ "instruction_stpx", VCPU_STAT(instruction_stpx) },
@@ -381,8 +382,10 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	atomic_set(&vcpu->arch.sie_block->cpuflags, CPUSTAT_ZARCH |
 						    CPUSTAT_SM |
-						    CPUSTAT_STOPPED);
+						    CPUSTAT_STOPPED |
+						    CPUSTAT_GED);
 	vcpu->arch.sie_block->ecb   = 6;
+	vcpu->arch.sie_block->ecb2  = 8;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
 	vcpu->arch.sie_block->fac   = (int) (long) facilities;
 	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
@@ -1125,7 +1128,7 @@ static int __init kvm_s390_init(void)
 		return -ENOMEM;
 	}
 	memcpy(facilities, S390_lowcore.stfle_fac_list, 16);
-	facilities[0] &= 0xff00fff3f47c0000ULL;
+	facilities[0] &= 0xff82fff3f47c0000ULL;
 	facilities[1] &= 0x001c000000000000ULL;
 	return 0;
 }
