@@ -79,8 +79,8 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(&li->wq))
-		wake_up_interruptible(&li->wq);
+	if (waitqueue_active(li->wq))
+		wake_up_interruptible(li->wq);
 	spin_unlock_bh(&li->lock);
 	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	VCPU_EVENT(vcpu, 4, "sent sigp emerg to cpu %x", cpu_addr);
@@ -117,8 +117,8 @@ static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(&li->wq))
-		wake_up_interruptible(&li->wq);
+	if (waitqueue_active(li->wq))
+		wake_up_interruptible(li->wq);
 	spin_unlock_bh(&li->lock);
 	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	VCPU_EVENT(vcpu, 4, "sent sigp ext call to cpu %x", cpu_addr);
@@ -145,8 +145,8 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 	atomic_set(&li->active, 1);
 	atomic_set_mask(CPUSTAT_STOP_INT, li->cpuflags);
 	li->action_bits |= action;
-	if (waitqueue_active(&li->wq))
-		wake_up_interruptible(&li->wq);
+	if (waitqueue_active(li->wq))
+		wake_up_interruptible(li->wq);
 out:
 	spin_unlock_bh(&li->lock);
 
@@ -250,8 +250,8 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
-	if (waitqueue_active(&li->wq))
-		wake_up_interruptible(&li->wq);
+	if (waitqueue_active(li->wq))
+		wake_up_interruptible(li->wq);
 	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 
 	VCPU_EVENT(vcpu, 4, "set prefix of cpu %02x to %x", cpu_addr, address);
