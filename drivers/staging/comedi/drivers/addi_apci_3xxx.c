@@ -597,18 +597,18 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/*  Allocate and Initialise AI Subdevice Structures */
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
 	if (board->ai_n_chan) {
 		dev->read_subdev = s;
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags = SDF_READABLE | board->ai_subdev_flags;
-		s->n_chan = board->ai_n_chan;
-		s->maxdata = board->ai_maxdata;
-		s->len_chanlist = s->n_chan;
-		s->range_table = &apci3xxx_ai_range;
-		s->insn_config = apci3xxx_ai_insn_config;
-		s->insn_read = apci3xxx_ai_insn_read;
+		s->type		= COMEDI_SUBD_AI;
+		s->subdev_flags	= SDF_READABLE | board->ai_subdev_flags;
+		s->n_chan	= board->ai_n_chan;
+		s->maxdata	= board->ai_maxdata;
+		s->len_chanlist	= s->n_chan;
+		s->range_table	= &apci3xxx_ai_range;
+		s->insn_config	= apci3xxx_ai_insn_config;
+		s->insn_read	= apci3xxx_ai_insn_read;
 
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
