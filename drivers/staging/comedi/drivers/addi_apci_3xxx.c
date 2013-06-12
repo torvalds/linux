@@ -646,7 +646,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->range_table = &apci3xxx_ai_range;
 
 		s->insn_config = i_APCI3XXX_InsnConfigAnalogInput;
-		s->insn_read = i_APCI3XXX_InsnReadAnalogInput;
+		s->insn_read = apci3xxx_ai_insn_read;
 
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;

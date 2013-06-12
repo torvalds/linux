@@ -284,179 +284,75 @@ static int i_APCI3XXX_InsnConfigAnalogInput(struct comedi_device *dev,
 	return i_ReturnValue;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function Name     : int   i_APCI3XXX_InsnReadAnalogInput                   |
-|                          (struct comedi_device    *dev,                           |
-|                           struct comedi_subdevice *s,                             |
-|                           struct comedi_insn      *insn,                          |
-|                           unsigned int         *data)                          |
-+----------------------------------------------------------------------------+
-| Task                Read 1 analog input                                    |
-+----------------------------------------------------------------------------+
-| Input Parameters  : b_Range             = CR_RANGE(insn->chanspec);        |
-|                     b_Channel           = CR_CHAN(insn->chanspec);         |
-|                     dw_NbrOfAcquisition = insn->n;                         |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      :>0: No error                                            |
-|                    -3 : Channel selection error                            |
-|                    -4 : Configuration selelection error                    |
-|                    -10: Any conversion started                             |
-|                    ....                                                    |
-|                    -100 : Config command error                             |
-|                    -101 : Data size error                                  |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  struct comedi_insn *insn,
-					  unsigned int *data)
+static int apci3xxx_ai_insn_read(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct apci3xxx_private *devpriv = dev->private;
-	int i_ReturnValue = insn->n;
-	unsigned char b_Configuration = (unsigned char) CR_RANGE(insn->chanspec);
-	unsigned char b_Channel = (unsigned char) CR_CHAN(insn->chanspec);
-	unsigned int dw_Temp = 0;
-	unsigned int dw_Configuration = 0;
-	unsigned int dw_AcquisitionCpt = 0;
-	unsigned char b_Interrupt = 0;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned char use_interrupt = 0;	/* FIXME: use interrupts */
+	unsigned int delay_mode;
+	unsigned int val;
+	int i;
 
-	      /************************/
-			/* Test the buffer size */
-	      /************************/
+	if (!use_interrupt && insn->n == 0)
+		return insn->n;
 
-			if ((b_Interrupt != 0) || ((b_Interrupt == 0)
-					&& (insn->n >= 1))) {
-		 /**********************************/
-				/* Test if conversion not started */
-		 /**********************************/
+	if (i_APCI3XXX_TestConversionStarted(dev))
+		return -EBUSY;
 
-				if (i_APCI3XXX_TestConversionStarted(dev) == 0) {
-		    /******************/
-					/* Clear the FIFO */
-		    /******************/
+	/* Clear the FIFO */
+	writel(0x10000, devpriv->dw_AiBase + 12);
 
-					writel(0x10000UL, devpriv->dw_AiBase + 12);
+	/* Get and save the delay mode */
+	delay_mode = readl(devpriv->dw_AiBase + 4);
+	delay_mode &= 0xfffffef0;
 
-		    /*******************************/
-					/* Get and save the delay mode */
-		    /*******************************/
+	/* Channel configuration selection */
+	writel(delay_mode, devpriv->dw_AiBase + 4);
 
-					dw_Temp = readl(devpriv->dw_AiBase + 4);
-					dw_Temp = dw_Temp & 0xFFFFFEF0UL;
+	/* Make the configuration */
+	val = (range & 3) | ((range >> 2) << 6) |
+	      (devpriv->b_SingelDiff << 7);
+	writel(val, devpriv->dw_AiBase + 0);
 
-		    /***********************************/
-					/* Channel configuration selection */
-		    /***********************************/
+	/* Channel selection */
+	writel(delay_mode | 0x100, devpriv->dw_AiBase + 4);
+	writel(chan, devpriv->dw_AiBase + 0);
 
-					writel(dw_Temp, devpriv->dw_AiBase + 4);
+	/* Restore delay mode */
+	writel(delay_mode, devpriv->dw_AiBase + 4);
 
-		    /**************************/
-					/* Make the configuration */
-		    /**************************/
+	/* Set the number of sequence to 1 */
+	writel(1, devpriv->dw_AiBase + 48);
 
-					dw_Configuration =
-						(b_Configuration & 3) |
-						((unsigned int) (b_Configuration >> 2)
-						<< 6) | ((unsigned int) devpriv->
-						b_SingelDiff << 7);
+	/* Save the interrupt flag */
+	devpriv->b_EocEosInterrupt = use_interrupt;
 
-		    /***************************/
-					/* Write the configuration */
-		    /***************************/
+	/* Save the number of channels */
+	devpriv->ui_AiNbrofChannels = 1;
 
-					writel(dw_Configuration,
-					       devpriv->dw_AiBase + 0);
+	/* Test if interrupt not used */
+	if (!use_interrupt) {
+		for (i = 0; i < insn->n; i++) {
+			/* Start the conversion */
+			writel(0x80000, devpriv->dw_AiBase + 8);
 
-		    /*********************/
-					/* Channel selection */
-		    /*********************/
+			/* Wait the EOS */
+			do {
+				val = readl(devpriv->dw_AiBase + 20);
+				val &= 0x1;
+			} while (!val);
 
-					writel(dw_Temp | 0x100UL,
-					       devpriv->dw_AiBase + 4);
-					writel((unsigned int) b_Channel,
-					       devpriv->dw_AiBase + 0);
+			/* Read the analog value */
+			data[i] = readl(devpriv->dw_AiBase + 28);
+		}
+	} else {
+		/* Start the conversion */
+		writel(0x180000, devpriv->dw_AiBase + 8);
+	}
 
-		    /***********************/
-					/* Restaure delay mode */
-		    /***********************/
-
-					writel(dw_Temp, devpriv->dw_AiBase + 4);
-
-		    /***********************************/
-					/* Set the number of sequence to 1 */
-		    /***********************************/
-
-					writel(1, devpriv->dw_AiBase + 48);
-
-		    /***************************/
-					/* Save the interrupt flag */
-		    /***************************/
-
-					devpriv->b_EocEosInterrupt =
-						b_Interrupt;
-
-		    /*******************************/
-					/* Save the number of channels */
-		    /*******************************/
-
-					devpriv->ui_AiNbrofChannels = 1;
-
-		    /******************************/
-					/* Test if interrupt not used */
-		    /******************************/
-
-					if (b_Interrupt == 0) {
-						for (dw_AcquisitionCpt = 0;
-							dw_AcquisitionCpt <
-							insn->n;
-							dw_AcquisitionCpt++) {
-			  /************************/
-							/* Start the conversion */
-			  /************************/
-
-							writel(0x80000UL, devpriv->dw_AiBase + 8);
-
-			  /****************/
-							/* Wait the EOS */
-			  /****************/
-
-							do {
-								dw_Temp = readl(devpriv->dw_AiBase + 20);
-								dw_Temp = dw_Temp & 1;
-							} while (dw_Temp != 1);
-
-			  /*************************/
-							/* Read the analog value */
-			  /*************************/
-
-							data[dw_AcquisitionCpt] = (unsigned int)readl(devpriv->dw_AiBase + 28);
-						}
-					} else {
-		       /************************/
-						/* Start the conversion */
-		       /************************/
-
-						writel(0x180000UL, devpriv->dw_AiBase + 8);
-					}
-				} else {
-		    /**************************/
-					/* Any conversion started */
-		    /**************************/
-
-					printk("Any conversion started\n");
-					i_ReturnValue = -10;
-				}
-			} else {
-		 /*******************/
-				/* Data size error */
-		 /*******************/
-
-				printk("Buffer size error\n");
-				i_ReturnValue = -101;
-			}
-
-	return i_ReturnValue;
+	return insn->n;
 }
