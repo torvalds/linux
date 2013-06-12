@@ -154,3 +154,11 @@ config ARM_SPEAR_CPUFREQ
 	default y
 	help
 	  This adds the CPUFreq driver support for SPEAr SOCs.
+
+config ARM_TEGRA_CPUFREQ
+	bool "TEGRA CPUFreq support"
+	depends on ARCH_TEGRA
+	select CPU_FREQ_TABLE
+	default y
+	help
+	  This adds the CPUFreq driver support for TEGRA SOCs.
