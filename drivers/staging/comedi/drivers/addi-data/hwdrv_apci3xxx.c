@@ -582,38 +582,6 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 	return i_ReturnValue;
 }
 
-static void v_APCI3XXX_Interrupt(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	struct addi_private *devpriv = dev->private;
-	unsigned int status;
-	int i;
-
-	/* Test if interrupt occur */
-	status = readl(devpriv->dw_AiBase + 16);
-	if ((status & 0x2) == 0x2) {
-		/* Reset the interrupt */
-		writel(status, devpriv->dw_AiBase + 16);
-
-		/* Test if interrupt enabled */
-		if (devpriv->b_EocEosInterrupt == 1) {
-			/* Read all analog inputs value */
-			for (i = 0; i < devpriv->ui_AiNbrofChannels; i++) {
-				unsigned int val;
-
-				val = readl(devpriv->dw_AiBase + 28);
-				devpriv->ui_AiReadData[i] = val;
-			}
-
-			/* Set the interrupt flag */
-			devpriv->b_EocEosInterrupt = 2;
-
-			/* Send a signal to from kernel to user space */
-			send_sig(SIGIO, devpriv->tsk_Current, 0);
-		}
-	}
-}
-
 /*
 +----------------------------------------------------------------------------+
 |                            ANALOG OUTPUT SUBDEVICE                         |
