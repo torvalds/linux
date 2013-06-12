@@ -1231,6 +1231,51 @@ static int mwifiex_cfg80211_change_beacon(struct wiphy *wiphy,
 	return 0;
 }
 
+/* cfg80211 operation handler for del_station.
+ * Function deauthenticates station which value is provided in mac parameter.
+ * If mac is NULL/broadcast, all stations in associated station list are
+ * deauthenticated. If bss is not started or there are no stations in
+ * associated stations list, no action is taken.
+ */
+static int
+mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
+			     u8 *mac)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_sta_node *sta_node;
+	unsigned long flags;
+
+	if (list_empty(&priv->sta_list) || !priv->bss_started)
+		return 0;
+
+	if (!mac || is_broadcast_ether_addr(mac)) {
+		wiphy_dbg(wiphy, "%s: NULL/broadcast mac address\n", __func__);
+		list_for_each_entry(sta_node, &priv->sta_list, list) {
+			if (mwifiex_send_cmd_sync(priv,
+						  HostCmd_CMD_UAP_STA_DEAUTH,
+						  HostCmd_ACT_GEN_SET, 0,
+						  sta_node->mac_addr))
+				return -1;
+			mwifiex_uap_del_sta_data(priv, sta_node);
+		}
+	} else {
+		wiphy_dbg(wiphy, "%s: mac address %pM\n", __func__, mac);
+		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+		sta_node = mwifiex_get_sta_entry(priv, mac);
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+		if (sta_node) {
+			if (mwifiex_send_cmd_sync(priv,
+						  HostCmd_CMD_UAP_STA_DEAUTH,
+						  HostCmd_ACT_GEN_SET, 0,
+						  sta_node->mac_addr))
+				return -1;
+			mwifiex_uap_del_sta_data(priv, sta_node);
+		}
+	}
+
+	return 0;
+}
+
 static int
 mwifiex_cfg80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
 {
@@ -1859,6 +1904,7 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 	int i, offset, ret;
 	struct ieee80211_channel *chan;
 	struct ieee_types_header *ie;
+	struct mwifiex_user_scan_cfg *user_scan_cfg;
 
 	wiphy_dbg(wiphy, "info: received scan request on %s\n", dev->name);
 
@@ -1869,20 +1915,22 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		return -EBUSY;
 	}
 
-	if (priv->user_scan_cfg) {
+	/* Block scan request if scan operation or scan cleanup when interface
+	 * is disabled is in process
+	 */
+	if (priv->scan_request || priv->scan_aborting) {
 		dev_err(priv->adapter->dev, "cmd: Scan already in process..\n");
 		return -EBUSY;
 	}
 
-	priv->user_scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg),
-				      GFP_KERNEL);
-	if (!priv->user_scan_cfg)
+	user_scan_cfg = kzalloc(sizeof(*user_scan_cfg), GFP_KERNEL);
+	if (!user_scan_cfg)
 		return -ENOMEM;
 
 	priv->scan_request = request;
 
-	priv->user_scan_cfg->num_ssids = request->n_ssids;
-	priv->user_scan_cfg->ssid_list = request->ssids;
+	user_scan_cfg->num_ssids = request->n_ssids;
+	user_scan_cfg->ssid_list = request->ssids;
 
 	if (request->ie && request->ie_len) {
 		offset = 0;
@@ -1902,25 +1950,25 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 	for (i = 0; i < min_t(u32, request->n_channels,
 			      MWIFIEX_USER_SCAN_CHAN_MAX); i++) {
 		chan = request->channels[i];
-		priv->user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
-		priv->user_scan_cfg->chan_list[i].radio_type = chan->band;
+		user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
+		user_scan_cfg->chan_list[i].radio_type = chan->band;
 
 		if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)
-			priv->user_scan_cfg->chan_list[i].scan_type =
+			user_scan_cfg->chan_list[i].scan_type =
 						MWIFIEX_SCAN_TYPE_PASSIVE;
 		else
-			priv->user_scan_cfg->chan_list[i].scan_type =
+			user_scan_cfg->chan_list[i].scan_type =
 						MWIFIEX_SCAN_TYPE_ACTIVE;
 
-		priv->user_scan_cfg->chan_list[i].scan_time = 0;
+		user_scan_cfg->chan_list[i].scan_time = 0;
 	}
 
-	ret = mwifiex_scan_networks(priv, priv->user_scan_cfg);
+	ret = mwifiex_scan_networks(priv, user_scan_cfg);
+	kfree(user_scan_cfg);
 	if (ret) {
 		dev_err(priv->adapter->dev, "scan failed: %d\n", ret);
+		priv->scan_aborting = false;
 		priv->scan_request = NULL;
-		kfree(priv->user_scan_cfg);
-		priv->user_scan_cfg = NULL;
 		return ret;
 	}
 
@@ -2419,6 +2467,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.change_beacon = mwifiex_cfg80211_change_beacon,
 	.set_cqm_rssi_config = mwifiex_cfg80211_set_cqm_rssi_config,
 	.set_antenna = mwifiex_cfg80211_set_antenna,
+	.del_station = mwifiex_cfg80211_del_station,
 #ifdef CONFIG_PM
 	.suspend = mwifiex_cfg80211_suspend,
 	.resume = mwifiex_cfg80211_resume,

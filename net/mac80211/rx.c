@@ -258,6 +258,8 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	pos += 2;
 
 	if (status->flag & RX_FLAG_HT) {
+		unsigned int stbc;
+
 		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_MCS);
 		*pos++ = local->hw.radiotap_mcs_details;
 		*pos = 0;
@@ -267,6 +269,8 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 			*pos |= IEEE80211_RADIOTAP_MCS_BW_40;
 		if (status->flag & RX_FLAG_HT_GF)
 			*pos |= IEEE80211_RADIOTAP_MCS_FMT_GF;
+		stbc = (status->flag & RX_FLAG_STBC_MASK) >> RX_FLAG_STBC_SHIFT;
+		*pos |= stbc << IEEE80211_RADIOTAP_MCS_STBC_SHIFT;
 		pos++;
 		*pos++ = status->rate_idx;
 	}
@@ -1372,6 +1376,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	int i;
 
 	if (!sta)
 		return RX_CONTINUE;
@@ -1420,6 +1425,19 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		sta->last_signal = status->signal;
 		ewma_add(&sta->avg_signal, -status->signal);
+	}
+
+	if (status->chains) {
+		sta->chains = status->chains;
+		for (i = 0; i < ARRAY_SIZE(status->chain_signal); i++) {
+			int signal = status->chain_signal[i];
+
+			if (!(status->chains & BIT(i)))
+				continue;
+
+			sta->chain_signal_last[i] = signal;
+			ewma_add(&sta->chain_signal_avg[i], -signal);
+		}
 	}
 
 	/*
@@ -1608,7 +1626,7 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 			entry->ccmp = 1;
 			memcpy(entry->last_pn,
 			       rx->key->u.ccmp.rx_pn[queue],
-			       CCMP_PN_LEN);
+			       IEEE80211_CCMP_PN_LEN);
 		}
 		return RX_QUEUED;
 	}
@@ -1627,21 +1645,21 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 	 * (IEEE 802.11i, 8.3.3.4.5) */
 	if (entry->ccmp) {
 		int i;
-		u8 pn[CCMP_PN_LEN], *rpn;
+		u8 pn[IEEE80211_CCMP_PN_LEN], *rpn;
 		int queue;
 		if (!rx->key || rx->key->conf.cipher != WLAN_CIPHER_SUITE_CCMP)
 			return RX_DROP_UNUSABLE;
-		memcpy(pn, entry->last_pn, CCMP_PN_LEN);
-		for (i = CCMP_PN_LEN - 1; i >= 0; i--) {
+		memcpy(pn, entry->last_pn, IEEE80211_CCMP_PN_LEN);
+		for (i = IEEE80211_CCMP_PN_LEN - 1; i >= 0; i--) {
 			pn[i]++;
 			if (pn[i])
 				break;
 		}
 		queue = rx->security_idx;
 		rpn = rx->key->u.ccmp.rx_pn[queue];
-		if (memcmp(pn, rpn, CCMP_PN_LEN))
+		if (memcmp(pn, rpn, IEEE80211_CCMP_PN_LEN))
 			return RX_DROP_UNUSABLE;
-		memcpy(entry->last_pn, pn, CCMP_PN_LEN);
+		memcpy(entry->last_pn, pn, IEEE80211_CCMP_PN_LEN);
 	}
 
 	skb_pull(rx->skb, ieee80211_hdrlen(fc));

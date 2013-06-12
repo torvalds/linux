@@ -189,7 +189,8 @@ enum CMD_MODE {
 	CMD_SYNC		= 0,
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
-	CMD_ON_DEMAND		= BIT(2),
+	CMD_SEND_IN_RFKILL	= BIT(2),
+	CMD_ON_DEMAND		= BIT(3),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -427,8 +428,9 @@ struct iwl_trans_ops {
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
 	void (*stop_device)(struct iwl_trans *trans);
 
-	void (*d3_suspend)(struct iwl_trans *trans);
-	int (*d3_resume)(struct iwl_trans *trans, enum iwl_d3_status *status);
+	void (*d3_suspend)(struct iwl_trans *trans, bool test);
+	int (*d3_resume)(struct iwl_trans *trans, enum iwl_d3_status *status,
+			 bool test);
 
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
@@ -455,7 +457,7 @@ struct iwl_trans_ops {
 	int (*read_mem)(struct iwl_trans *trans, u32 addr,
 			void *buf, int dwords);
 	int (*write_mem)(struct iwl_trans *trans, u32 addr,
-			 void *buf, int dwords);
+			 const void *buf, int dwords);
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
@@ -587,17 +589,18 @@ static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 	trans->state = IWL_TRANS_NO_FW;
 }
 
-static inline void iwl_trans_d3_suspend(struct iwl_trans *trans)
+static inline void iwl_trans_d3_suspend(struct iwl_trans *trans, bool test)
 {
 	might_sleep();
-	trans->ops->d3_suspend(trans);
+	trans->ops->d3_suspend(trans, test);
 }
 
 static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
-				      enum iwl_d3_status *status)
+				      enum iwl_d3_status *status,
+				      bool test)
 {
 	might_sleep();
-	return trans->ops->d3_resume(trans, status);
+	return trans->ops->d3_resume(trans, status, test);
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
@@ -761,7 +764,7 @@ static inline u32 iwl_trans_read_mem32(struct iwl_trans *trans, u32 addr)
 }
 
 static inline int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
-				      void *buf, int dwords)
+				      const void *buf, int dwords)
 {
 	return trans->ops->write_mem(trans, addr, buf, dwords);
 }

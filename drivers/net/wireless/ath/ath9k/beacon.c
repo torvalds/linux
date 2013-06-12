@@ -39,7 +39,8 @@ static void ath9k_beaconq_config(struct ath_softc *sc)
 
 	ath9k_hw_get_txq_props(ah, sc->beacon.beaconq, &qi);
 
-	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP) {
+	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP ||
+	    sc->sc_ah->opmode == NL80211_IFTYPE_MESH_POINT) {
 		/* Always burst out beacon and CAB traffic. */
 		qi.tqi_aifs = 1;
 		qi.tqi_cwmin = 0;
@@ -273,7 +274,8 @@ static int ath9k_beacon_choose_slot(struct ath_softc *sc)
 	u64 tsf;
 	int slot;
 
-	if (sc->sc_ah->opmode != NL80211_IFTYPE_AP) {
+	if (sc->sc_ah->opmode != NL80211_IFTYPE_AP &&
+	    sc->sc_ah->opmode != NL80211_IFTYPE_MESH_POINT) {
 		ath_dbg(common, BEACON, "slot 0, tsf: %llu\n",
 			ath9k_hw_gettsf64(sc->sc_ah));
 		return 0;
@@ -765,10 +767,10 @@ void ath9k_set_beacon(struct ath_softc *sc)
 
 	switch (sc->sc_ah->opmode) {
 	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
 		ath9k_beacon_config_ap(sc, cur_conf);
 		break;
 	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_MESH_POINT:
 		ath9k_beacon_config_adhoc(sc, cur_conf);
 		break;
 	case NL80211_IFTYPE_STATION:

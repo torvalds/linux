@@ -5,7 +5,6 @@
  */
 #ifndef __NET_WIRELESS_CORE_H
 #define __NET_WIRELESS_CORE_H
-#include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/rbtree.h>
@@ -23,11 +22,6 @@
 struct cfg80211_registered_device {
 	const struct cfg80211_ops *ops;
 	struct list_head list;
-	/* we hold this mutex during any call so that
-	 * we cannot do multiple calls at once, and also
-	 * to avoid the deregister call to proceed while
-	 * any call is in progress */
-	struct mutex mtx;
 
 	/* rfkill support */
 	struct rfkill_ops rfkill_ops;
@@ -49,9 +43,7 @@ struct cfg80211_registered_device {
 	/* wiphy index, internal only */
 	int wiphy_idx;
 
-	/* associated wireless interfaces */
-	struct mutex devlist_mtx;
-	/* protected by devlist_mtx or RCU */
+	/* associated wireless interfaces, protected by rtnl or RCU */
 	struct list_head wdev_list;
 	int devlist_generation, wdev_id;
 	int opencount; /* also protected by devlist_mtx */
@@ -75,16 +67,12 @@ struct cfg80211_registered_device {
 	struct work_struct scan_done_wk;
 	struct work_struct sched_scan_results_wk;
 
-	struct mutex sched_scan_mtx;
-
 #ifdef CONFIG_NL80211_TESTMODE
 	struct genl_info *testmode_info;
 #endif
 
 	struct work_struct conn_work;
 	struct work_struct event_work;
-
-	struct cfg80211_wowlan *wowlan;
 
 	struct delayed_work dfs_update_channels_wk;
 
@@ -106,28 +94,25 @@ struct cfg80211_registered_device *wiphy_to_dev(struct wiphy *wiphy)
 static inline void
 cfg80211_rdev_free_wowlan(struct cfg80211_registered_device *rdev)
 {
+#ifdef CONFIG_PM
 	int i;
 
-	if (!rdev->wowlan)
+	if (!rdev->wiphy.wowlan_config)
 		return;
-	for (i = 0; i < rdev->wowlan->n_patterns; i++)
-		kfree(rdev->wowlan->patterns[i].mask);
-	kfree(rdev->wowlan->patterns);
-	if (rdev->wowlan->tcp && rdev->wowlan->tcp->sock)
-		sock_release(rdev->wowlan->tcp->sock);
-	kfree(rdev->wowlan->tcp);
-	kfree(rdev->wowlan);
+	for (i = 0; i < rdev->wiphy.wowlan_config->n_patterns; i++)
+		kfree(rdev->wiphy.wowlan_config->patterns[i].mask);
+	kfree(rdev->wiphy.wowlan_config->patterns);
+	if (rdev->wiphy.wowlan_config->tcp &&
+	    rdev->wiphy.wowlan_config->tcp->sock)
+		sock_release(rdev->wiphy.wowlan_config->tcp->sock);
+	kfree(rdev->wiphy.wowlan_config->tcp);
+	kfree(rdev->wiphy.wowlan_config);
+#endif
 }
 
 extern struct workqueue_struct *cfg80211_wq;
-extern struct mutex cfg80211_mutex;
 extern struct list_head cfg80211_rdev_list;
 extern int cfg80211_rdev_list_generation;
-
-static inline void assert_cfg80211_lock(void)
-{
-	lockdep_assert_held(&cfg80211_mutex);
-}
 
 struct cfg80211_internal_bss {
 	struct list_head list;
@@ -161,26 +146,10 @@ static inline void cfg80211_unhold_bss(struct cfg80211_internal_bss *bss)
 struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx);
 int get_wiphy_idx(struct wiphy *wiphy);
 
-/* requires cfg80211_rdev_mutex to be held! */
 struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx);
-
-/* identical to cfg80211_get_dev_from_info but only operate on ifindex */
-extern struct cfg80211_registered_device *
-cfg80211_get_dev_from_ifindex(struct net *net, int ifindex);
 
 int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 			  struct net *net);
-
-static inline void cfg80211_lock_rdev(struct cfg80211_registered_device *rdev)
-{
-	mutex_lock(&rdev->mtx);
-}
-
-static inline void cfg80211_unlock_rdev(struct cfg80211_registered_device *rdev)
-{
-	BUG_ON(IS_ERR(rdev) || !rdev);
-	mutex_unlock(&rdev->mtx);
-}
 
 static inline void wdev_lock(struct wireless_dev *wdev)
 	__acquires(wdev)
@@ -196,7 +165,7 @@ static inline void wdev_unlock(struct wireless_dev *wdev)
 	mutex_unlock(&wdev->mtx);
 }
 
-#define ASSERT_RDEV_LOCK(rdev) lockdep_assert_held(&(rdev)->mtx)
+#define ASSERT_RDEV_LOCK(rdev) ASSERT_RTNL()
 #define ASSERT_WDEV_LOCK(wdev) lockdep_assert_held(&(wdev)->mtx)
 
 static inline bool cfg80211_has_monitors_only(struct cfg80211_registered_device *rdev)
@@ -314,38 +283,21 @@ int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev);
 
 /* MLME */
-int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
-			 struct net_device *dev,
-			 struct ieee80211_channel *chan,
-			 enum nl80211_auth_type auth_type,
-			 const u8 *bssid,
-			 const u8 *ssid, int ssid_len,
-			 const u8 *ie, int ie_len,
-			 const u8 *key, int key_len, int key_idx,
-			 const u8 *sae_data, int sae_data_len);
 int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev, struct ieee80211_channel *chan,
-		       enum nl80211_auth_type auth_type, const u8 *bssid,
+		       struct net_device *dev,
+		       struct ieee80211_channel *chan,
+		       enum nl80211_auth_type auth_type,
+		       const u8 *bssid,
 		       const u8 *ssid, int ssid_len,
 		       const u8 *ie, int ie_len,
 		       const u8 *key, int key_len, int key_idx,
 		       const u8 *sae_data, int sae_data_len);
-int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev,
-			  struct ieee80211_channel *chan,
-			  const u8 *bssid,
-			  const u8 *ssid, int ssid_len,
-			  struct cfg80211_assoc_request *req);
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev,
 			struct ieee80211_channel *chan,
 			const u8 *bssid,
 			const u8 *ssid, int ssid_len,
 			struct cfg80211_assoc_request *req);
-int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
-			   struct net_device *dev, const u8 *bssid,
-			   const u8 *ie, int ie_len, u16 reason,
-			   bool local_state_change);
 int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev, const u8 *bssid,
 			 const u8 *ie, int ie_len, u16 reason,
@@ -377,18 +329,11 @@ void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
 				const struct ieee80211_vht_cap *vht_capa_mask);
 
 /* SME */
-int __cfg80211_connect(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev,
-		       struct cfg80211_connect_params *connect,
-		       struct cfg80211_cached_keys *connkeys,
-		       const u8 *prev_bssid);
 int cfg80211_connect(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev,
 		     struct cfg80211_connect_params *connect,
-		     struct cfg80211_cached_keys *connkeys);
-int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev, u16 reason,
-			  bool wextev);
+		     struct cfg80211_cached_keys *connkeys,
+		     const u8 *prev_bssid);
 int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, u16 reason,
 			bool wextev);

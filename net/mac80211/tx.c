@@ -398,13 +398,14 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	if (ieee80211_has_order(hdr->frame_control))
 		return TX_CONTINUE;
 
+	if (tx->local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)
+		info->hw_queue = tx->sdata->vif.cab_queue;
+
 	/* no stations in PS mode */
 	if (!atomic_read(&ps->num_sta_ps))
 		return TX_CONTINUE;
 
 	info->flags |= IEEE80211_TX_CTL_SEND_AFTER_DTIM;
-	if (tx->local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)
-		info->hw_queue = tx->sdata->vif.cab_queue;
 
 	/* device releases frame after DTIM beacon */
 	if (!(tx->local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING))

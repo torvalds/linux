@@ -40,6 +40,55 @@ static const struct net_device_ops wil_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
+static int wil6210_netdev_poll_rx(struct napi_struct *napi, int budget)
+{
+	struct wil6210_priv *wil = container_of(napi, struct wil6210_priv,
+						napi_rx);
+	int quota = budget;
+	int done;
+
+	wil_rx_handle(wil, &quota);
+	done = budget - quota;
+
+	if (done <= 1) { /* burst ends - only one packet processed */
+		napi_complete(napi);
+		wil6210_unmask_irq_rx(wil);
+		wil_dbg_txrx(wil, "NAPI RX complete\n");
+	}
+
+	wil_dbg_txrx(wil, "NAPI RX poll(%d) done %d\n", budget, done);
+
+	return done;
+}
+
+static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
+{
+	struct wil6210_priv *wil = container_of(napi, struct wil6210_priv,
+						napi_tx);
+	int tx_done = 0;
+	uint i;
+
+	/* always process ALL Tx complete, regardless budget - it is fast */
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+		struct vring *vring = &wil->vring_tx[i];
+
+		if (!vring->va)
+			continue;
+
+		tx_done += wil_tx_complete(wil, i);
+	}
+
+	if (tx_done <= 1) { /* burst ends - only one packet processed */
+		napi_complete(napi);
+		wil6210_unmask_irq_tx(wil);
+		wil_dbg_txrx(wil, "NAPI TX complete\n");
+	}
+
+	wil_dbg_txrx(wil, "NAPI TX poll(%d) done %d\n", budget, tx_done);
+
+	return min(tx_done, budget);
+}
+
 void *wil_if_alloc(struct device *dev, void __iomem *csr)
 {
 	struct net_device *ndev;
@@ -80,6 +129,11 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	ndev->ieee80211_ptr = wdev;
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
+
+	netif_napi_add(ndev, &wil->napi_rx, wil6210_netdev_poll_rx,
+		       WIL6210_NAPI_BUDGET);
+	netif_napi_add(ndev, &wil->napi_tx, wil6210_netdev_poll_tx,
+		       WIL6210_NAPI_BUDGET);
 
 	wil_link_off(wil);
 

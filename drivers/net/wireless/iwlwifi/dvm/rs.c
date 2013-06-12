@@ -1088,7 +1088,7 @@ done:
 	    (priv->tm_fixed_rate != lq_sta->dbg_fixed_rate))
 		rs_program_fix_rate(priv, lq_sta);
 #endif
-	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist)
+	if (priv->lib->bt_params && priv->lib->bt_params->advanced_bt_coexist)
 		rs_bt_update_lq(priv, ctx, lq_sta);
 }
 
@@ -3064,11 +3064,11 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 	 * overwrite if needed, pass aggregation time limit
 	 * to uCode in uSec
 	 */
-	if (priv && priv->cfg->bt_params &&
-	    priv->cfg->bt_params->agg_time_limit &&
+	if (priv && priv->lib->bt_params &&
+	    priv->lib->bt_params->agg_time_limit &&
 	    priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)
 		lq_cmd->agg_params.agg_time_limit =
-			cpu_to_le16(priv->cfg->bt_params->agg_time_limit);
+			cpu_to_le16(priv->lib->bt_params->agg_time_limit);
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)

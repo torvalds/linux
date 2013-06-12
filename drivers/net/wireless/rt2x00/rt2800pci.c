@@ -1014,7 +1014,7 @@ static void rt2800pci_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
 	 * Since we have only one producer and one consumer we don't
 	 * need to lock the kfifo.
 	 */
-	for (i = 0; i < rt2x00dev->ops->tx->entry_num; i++) {
+	for (i = 0; i < rt2x00dev->tx->limit; i++) {
 		rt2x00mmio_register_read(rt2x00dev, TX_STA_FIFO, &status);
 
 		if (!rt2x00_get_field32(status, TX_STA_FIFO_VALID))

@@ -208,6 +208,9 @@ struct ath9k_htc_target_rx_stats {
 		case NL80211_IFTYPE_AP:		\
 			_priv->num_ap_vif++;	\
 			break;			\
+		case NL80211_IFTYPE_MESH_POINT:	\
+			_priv->num_mbss_vif++;	\
+			break;			\
 		default:			\
 			break;			\
 		}				\
@@ -223,6 +226,9 @@ struct ath9k_htc_target_rx_stats {
 			break;			\
 		case NL80211_IFTYPE_AP:		\
 			_priv->num_ap_vif--;	\
+			break;			\
+		case NL80211_IFTYPE_MESH_POINT:	\
+			_priv->num_mbss_vif--;	\
 			break;			\
 		default:			\
 			break;			\
@@ -450,6 +456,7 @@ struct ath9k_htc_priv {
 	u8 sta_slot;
 	u8 vif_sta_pos[ATH9K_HTC_MAX_VIF];
 	u8 num_ibss_vif;
+	u8 num_mbss_vif;
 	u8 num_sta_vif;
 	u8 num_sta_assoc_vif;
 	u8 num_ap_vif;

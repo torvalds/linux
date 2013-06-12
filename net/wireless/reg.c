@@ -81,7 +81,10 @@ static struct regulatory_request core_request_world = {
 	.country_ie_env = ENVIRON_ANY,
 };
 
-/* Receipt of information from last regulatory request */
+/*
+ * Receipt of information from last regulatory request,
+ * protected by RTNL (and can be accessed with RCU protection)
+ */
 static struct regulatory_request __rcu *last_request =
 	(void __rcu *)&core_request_world;
 
@@ -96,39 +99,25 @@ static struct device_type reg_device_type = {
  * Central wireless core regulatory domains, we only need two,
  * the current one and a world regulatory domain in case we have no
  * information to give us an alpha2.
+ * (protected by RTNL, can be read under RCU)
  */
 const struct ieee80211_regdomain __rcu *cfg80211_regdomain;
 
 /*
- * Protects static reg.c components:
- *	- cfg80211_regdomain (if not used with RCU)
- *	- cfg80211_world_regdom
- *	- last_request (if not used with RCU)
- *	- reg_num_devs_support_basehint
- */
-static DEFINE_MUTEX(reg_mutex);
-
-/*
  * Number of devices that registered to the core
  * that support cellular base station regulatory hints
+ * (protected by RTNL)
  */
 static int reg_num_devs_support_basehint;
 
-static inline void assert_reg_lock(void)
-{
-	lockdep_assert_held(&reg_mutex);
-}
-
 static const struct ieee80211_regdomain *get_cfg80211_regdom(void)
 {
-	return rcu_dereference_protected(cfg80211_regdomain,
-					 lockdep_is_held(&reg_mutex));
+	return rtnl_dereference(cfg80211_regdomain);
 }
 
 static const struct ieee80211_regdomain *get_wiphy_regdom(struct wiphy *wiphy)
 {
-	return rcu_dereference_protected(wiphy->regd,
-					 lockdep_is_held(&reg_mutex));
+	return rtnl_dereference(wiphy->regd);
 }
 
 static void rcu_free_regdom(const struct ieee80211_regdomain *r)
@@ -140,8 +129,7 @@ static void rcu_free_regdom(const struct ieee80211_regdomain *r)
 
 static struct regulatory_request *get_last_request(void)
 {
-	return rcu_dereference_check(last_request,
-				     lockdep_is_held(&reg_mutex));
+	return rcu_dereference_rtnl(last_request);
 }
 
 /* Used to queue up regulatory hints */
@@ -200,6 +188,7 @@ static const struct ieee80211_regdomain world_regdom = {
 	}
 };
 
+/* protected by RTNL */
 static const struct ieee80211_regdomain *cfg80211_world_regdom =
 	&world_regdom;
 
@@ -215,7 +204,7 @@ static void reset_regdomains(bool full_reset,
 	const struct ieee80211_regdomain *r;
 	struct regulatory_request *lr;
 
-	assert_reg_lock();
+	ASSERT_RTNL();
 
 	r = get_cfg80211_regdom();
 
@@ -377,7 +366,7 @@ static void reg_regdb_search(struct work_struct *work)
 	const struct ieee80211_regdomain *curdom, *regdom = NULL;
 	int i;
 
-	mutex_lock(&cfg80211_mutex);
+	rtnl_lock();
 
 	mutex_lock(&reg_regdb_search_mutex);
 	while (!list_empty(&reg_regdb_search_list)) {
@@ -402,7 +391,7 @@ static void reg_regdb_search(struct work_struct *work)
 	if (!IS_ERR_OR_NULL(regdom))
 		set_regdom(regdom);
 
-	mutex_unlock(&cfg80211_mutex);
+	rtnl_unlock();
 }
 
 static DECLARE_WORK(reg_regdb_work, reg_regdb_search);
@@ -936,13 +925,7 @@ static bool reg_request_cell_base(struct regulatory_request *request)
 
 bool reg_last_request_cell_base(void)
 {
-	bool val;
-
-	mutex_lock(&reg_mutex);
-	val = reg_request_cell_base(get_last_request());
-	mutex_unlock(&reg_mutex);
-
-	return val;
+	return reg_request_cell_base(get_last_request());
 }
 
 #ifdef CONFIG_CFG80211_CERTIFICATION_ONUS
@@ -1225,7 +1208,7 @@ static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
 	struct cfg80211_registered_device *rdev;
 	struct wiphy *wiphy;
 
-	assert_cfg80211_lock();
+	ASSERT_RTNL();
 
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
 		wiphy = &rdev->wiphy;
@@ -1444,8 +1427,6 @@ static void reg_set_request_processed(void)
  * what it believes should be the current regulatory domain.
  *
  * Returns one of the different reg request treatment values.
- *
- * Caller must hold &reg_mutex
  */
 static enum reg_request_treatment
 __regulatory_hint(struct wiphy *wiphy,
@@ -1570,21 +1551,19 @@ static void reg_process_pending_hints(void)
 {
 	struct regulatory_request *reg_request, *lr;
 
-	mutex_lock(&cfg80211_mutex);
-	mutex_lock(&reg_mutex);
 	lr = get_last_request();
 
 	/* When last_request->processed becomes true this will be rescheduled */
 	if (lr && !lr->processed) {
 		REG_DBG_PRINT("Pending regulatory request, waiting for it to be processed...\n");
-		goto out;
+		return;
 	}
 
 	spin_lock(&reg_requests_lock);
 
 	if (list_empty(&reg_requests_list)) {
 		spin_unlock(&reg_requests_lock);
-		goto out;
+		return;
 	}
 
 	reg_request = list_first_entry(&reg_requests_list,
@@ -1595,10 +1574,6 @@ static void reg_process_pending_hints(void)
 	spin_unlock(&reg_requests_lock);
 
 	reg_process_hint(reg_request, reg_request->initiator);
-
-out:
-	mutex_unlock(&reg_mutex);
-	mutex_unlock(&cfg80211_mutex);
 }
 
 /* Processes beacon hints -- this has nothing to do with country IEs */
@@ -1606,9 +1581,6 @@ static void reg_process_pending_beacon_hints(void)
 {
 	struct cfg80211_registered_device *rdev;
 	struct reg_beacon *pending_beacon, *tmp;
-
-	mutex_lock(&cfg80211_mutex);
-	mutex_lock(&reg_mutex);
 
 	/* This goes through the _pending_ beacon list */
 	spin_lock_bh(&reg_pending_beacons_lock);
@@ -1626,14 +1598,14 @@ static void reg_process_pending_beacon_hints(void)
 	}
 
 	spin_unlock_bh(&reg_pending_beacons_lock);
-	mutex_unlock(&reg_mutex);
-	mutex_unlock(&cfg80211_mutex);
 }
 
 static void reg_todo(struct work_struct *work)
 {
+	rtnl_lock();
 	reg_process_pending_hints();
 	reg_process_pending_beacon_hints();
+	rtnl_unlock();
 }
 
 static void queue_regulatory_request(struct regulatory_request *request)
@@ -1717,29 +1689,23 @@ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 }
 EXPORT_SYMBOL(regulatory_hint);
 
-/*
- * We hold wdev_lock() here so we cannot hold cfg80211_mutex() and
- * therefore cannot iterate over the rdev list here.
- */
 void regulatory_hint_11d(struct wiphy *wiphy, enum ieee80211_band band,
 			 const u8 *country_ie, u8 country_ie_len)
 {
 	char alpha2[2];
 	enum environment_cap env = ENVIRON_ANY;
-	struct regulatory_request *request, *lr;
-
-	mutex_lock(&reg_mutex);
-	lr = get_last_request();
-
-	if (unlikely(!lr))
-		goto out;
+	struct regulatory_request *request = NULL, *lr;
 
 	/* IE len must be evenly divisible by 2 */
 	if (country_ie_len & 0x01)
-		goto out;
+		return;
 
 	if (country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN)
-		goto out;
+		return;
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	if (!request)
+		return;
 
 	alpha2[0] = country_ie[0];
 	alpha2[1] = country_ie[1];
@@ -1749,17 +1715,19 @@ void regulatory_hint_11d(struct wiphy *wiphy, enum ieee80211_band band,
 	else if (country_ie[2] == 'O')
 		env = ENVIRON_OUTDOOR;
 
+	rcu_read_lock();
+	lr = get_last_request();
+
+	if (unlikely(!lr))
+		goto out;
+
 	/*
 	 * We will run this only upon a successful connection on cfg80211.
 	 * We leave conflict resolution to the workqueue, where can hold
-	 * cfg80211_mutex.
+	 * the RTNL.
 	 */
 	if (lr->initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 	    lr->wiphy_idx != WIPHY_IDX_INVALID)
-		goto out;
-
-	request = kzalloc(sizeof(struct regulatory_request), GFP_KERNEL);
-	if (!request)
 		goto out;
 
 	request->wiphy_idx = get_wiphy_idx(wiphy);
@@ -1769,8 +1737,10 @@ void regulatory_hint_11d(struct wiphy *wiphy, enum ieee80211_band band,
 	request->country_ie_env = env;
 
 	queue_regulatory_request(request);
+	request = NULL;
 out:
-	mutex_unlock(&reg_mutex);
+	kfree(request);
+	rcu_read_unlock();
 }
 
 static void restore_alpha2(char *alpha2, bool reset_user)
@@ -1858,8 +1828,7 @@ static void restore_regulatory_settings(bool reset_user)
 	LIST_HEAD(tmp_reg_req_list);
 	struct cfg80211_registered_device *rdev;
 
-	mutex_lock(&cfg80211_mutex);
-	mutex_lock(&reg_mutex);
+	ASSERT_RTNL();
 
 	reset_regdomains(true, &world_regdom);
 	restore_alpha2(alpha2, reset_user);
@@ -1913,9 +1882,6 @@ static void restore_regulatory_settings(bool reset_user)
 	spin_lock(&reg_requests_lock);
 	list_splice_tail_init(&tmp_reg_req_list, &reg_requests_list);
 	spin_unlock(&reg_requests_lock);
-
-	mutex_unlock(&reg_mutex);
-	mutex_unlock(&cfg80211_mutex);
 
 	REG_DBG_PRINT("Kicking the queue\n");
 
@@ -2231,7 +2197,6 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 	struct regulatory_request *lr;
 	int r;
 
-	mutex_lock(&reg_mutex);
 	lr = get_last_request();
 
 	/* Note that this doesn't update the wiphys, this is done below */
@@ -2241,14 +2206,12 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 			reg_set_request_processed();
 
 		kfree(rd);
-		goto out;
+		return r;
 	}
 
 	/* This would make this whole thing pointless */
-	if (WARN_ON(!lr->intersect && rd != get_cfg80211_regdom())) {
-		r = -EINVAL;
-		goto out;
-	}
+	if (WARN_ON(!lr->intersect && rd != get_cfg80211_regdom()))
+		return -EINVAL;
 
 	/* update all wiphys now with the new established regulatory domain */
 	update_all_wiphy_regulatory(lr->initiator);
@@ -2259,10 +2222,7 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 
 	reg_set_request_processed();
 
- out:
-	mutex_unlock(&reg_mutex);
-
-	return r;
+	return 0;
 }
 
 int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env)
@@ -2287,23 +2247,17 @@ int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 void wiphy_regulatory_register(struct wiphy *wiphy)
 {
-	mutex_lock(&reg_mutex);
-
 	if (!reg_dev_ignore_cell_hint(wiphy))
 		reg_num_devs_support_basehint++;
 
 	wiphy_update_regulatory(wiphy, NL80211_REGDOM_SET_BY_CORE);
-
-	mutex_unlock(&reg_mutex);
 }
 
-/* Caller must hold cfg80211_mutex */
 void wiphy_regulatory_deregister(struct wiphy *wiphy)
 {
 	struct wiphy *request_wiphy = NULL;
 	struct regulatory_request *lr;
 
-	mutex_lock(&reg_mutex);
 	lr = get_last_request();
 
 	if (!reg_dev_ignore_cell_hint(wiphy))
@@ -2316,12 +2270,10 @@ void wiphy_regulatory_deregister(struct wiphy *wiphy)
 		request_wiphy = wiphy_idx_to_wiphy(lr->wiphy_idx);
 
 	if (!request_wiphy || request_wiphy != wiphy)
-		goto out;
+		return;
 
 	lr->wiphy_idx = WIPHY_IDX_INVALID;
 	lr->country_ie_env = ENVIRON_ANY;
-out:
-	mutex_unlock(&reg_mutex);
 }
 
 static void reg_timeout_work(struct work_struct *work)
@@ -2385,9 +2337,9 @@ void regulatory_exit(void)
 	cancel_delayed_work_sync(&reg_timeout);
 
 	/* Lock to suppress warnings */
-	mutex_lock(&reg_mutex);
+	rtnl_lock();
 	reset_regdomains(true, NULL);
-	mutex_unlock(&reg_mutex);
+	rtnl_unlock();
 
 	dev_set_uevent_suppress(&reg_pdev->dev, true);
 

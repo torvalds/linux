@@ -159,7 +159,8 @@ static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-static int ieee80211_verify_mac(struct ieee80211_sub_if_data *sdata, u8 *addr)
+static int ieee80211_verify_mac(struct ieee80211_sub_if_data *sdata, u8 *addr,
+				bool check_dup)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sub_if_data *iter;
@@ -180,13 +181,16 @@ static int ieee80211_verify_mac(struct ieee80211_sub_if_data *sdata, u8 *addr)
 		((u64)m[2] << 3*8) | ((u64)m[3] << 2*8) |
 		((u64)m[4] << 1*8) | ((u64)m[5] << 0*8);
 
+	if (!check_dup)
+		return ret;
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(iter, &local->interfaces, list) {
 		if (iter == sdata)
 			continue;
 
-		if (iter->vif.type == NL80211_IFTYPE_MONITOR)
+		if (iter->vif.type == NL80211_IFTYPE_MONITOR &&
+		    !(iter->u.mntr_flags & MONITOR_FLAG_ACTIVE))
 			continue;
 
 		m = iter->vif.addr;
@@ -208,12 +212,17 @@ static int ieee80211_change_mac(struct net_device *dev, void *addr)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sockaddr *sa = addr;
+	bool check_dup = true;
 	int ret;
 
 	if (ieee80211_sdata_running(sdata))
 		return -EBUSY;
 
-	ret = ieee80211_verify_mac(sdata, sa->sa_data);
+	if (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
+	    !(sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE))
+		check_dup = false;
+
+	ret = ieee80211_verify_mac(sdata, sa->sa_data, check_dup);
 	if (ret)
 		return ret;
 
@@ -545,7 +554,11 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 			break;
 		}
 
-		if (local->monitors == 0 && local->open_count == 0) {
+		if (sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE) {
+			res = drv_add_interface(local, sdata);
+			if (res)
+				goto err_stop;
+		} else if (local->monitors == 0 && local->open_count == 0) {
 			res = ieee80211_add_virtual_monitor(local);
 			if (res)
 				goto err_stop;
@@ -923,7 +936,11 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		mutex_lock(&local->mtx);
 		ieee80211_recalc_idle(local);
 		mutex_unlock(&local->mtx);
-		break;
+
+		if (!(sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE))
+			break;
+
+		/* fall through */
 	default:
 		if (going_down)
 			drv_remove_interface(local, sdata);
@@ -1072,7 +1089,7 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 	.ndo_start_xmit		= ieee80211_monitor_start_xmit,
 	.ndo_set_rx_mode	= ieee80211_set_multicast_list,
 	.ndo_change_mtu 	= ieee80211_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_set_mac_address 	= ieee80211_change_mac,
 	.ndo_select_queue	= ieee80211_monitor_select_queue,
 };
 

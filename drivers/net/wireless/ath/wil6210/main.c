@@ -56,27 +56,21 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 {
 	uint i;
 	struct net_device *ndev = wil_to_ndev(wil);
-	struct wireless_dev *wdev = wil->wdev;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	wil_link_off(wil);
-	clear_bit(wil_status_fwconnected, &wil->status);
-
-	switch (wdev->sme_state) {
-	case CFG80211_SME_CONNECTED:
-		cfg80211_disconnected(ndev, WLAN_STATUS_UNSPECIFIED_FAILURE,
+	if (test_bit(wil_status_fwconnected, &wil->status)) {
+		clear_bit(wil_status_fwconnected, &wil->status);
+		cfg80211_disconnected(ndev,
+				      WLAN_STATUS_UNSPECIFIED_FAILURE,
 				      NULL, 0, GFP_KERNEL);
-		break;
-	case CFG80211_SME_CONNECTING:
+	} else if (test_bit(wil_status_fwconnecting, &wil->status)) {
 		cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
 					WLAN_STATUS_UNSPECIFIED_FAILURE,
 					GFP_KERNEL);
-		break;
-	default:
-		break;
 	}
-
+	clear_bit(wil_status_fwconnecting, &wil->status);
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++)
 		wil_vring_fini_tx(wil, i);
 
@@ -365,6 +359,9 @@ static int __wil_up(struct wil6210_priv *wil)
 	/* Rx VRING. After MAC and beacon */
 	wil_rx_init(wil);
 
+	napi_enable(&wil->napi_rx);
+	napi_enable(&wil->napi_tx);
+
 	return 0;
 }
 
@@ -381,6 +378,9 @@ int wil_up(struct wil6210_priv *wil)
 
 static int __wil_down(struct wil6210_priv *wil)
 {
+	napi_disable(&wil->napi_rx);
+	napi_disable(&wil->napi_tx);
+
 	if (wil->scan_request) {
 		cfg80211_scan_done(wil->scan_request, true);
 		wil->scan_request = NULL;

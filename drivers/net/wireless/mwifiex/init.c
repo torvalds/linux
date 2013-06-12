@@ -59,6 +59,9 @@ static void scan_delay_timer_fn(unsigned long data)
 	struct cmd_ctrl_node *cmd_node, *tmp_node;
 	unsigned long flags;
 
+	if (adapter->surprise_removed)
+		return;
+
 	if (adapter->scan_delay_cnt == MWIFIEX_MAX_SCAN_DELAY_CNT) {
 		/*
 		 * Abort scan operation by cancelling all pending scan
@@ -78,19 +81,13 @@ static void scan_delay_timer_fn(unsigned long data)
 		adapter->empty_tx_q_cnt = 0;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
 
-		if (priv->user_scan_cfg) {
-			if (priv->scan_request) {
-				dev_dbg(priv->adapter->dev,
-					"info: aborting scan\n");
-				cfg80211_scan_done(priv->scan_request, 1);
-				priv->scan_request = NULL;
-			} else {
-				dev_dbg(priv->adapter->dev,
-					"info: scan already aborted\n");
-			}
-
-			kfree(priv->user_scan_cfg);
-			priv->user_scan_cfg = NULL;
+		if (priv->scan_request) {
+			dev_dbg(adapter->dev, "info: aborting scan\n");
+			cfg80211_scan_done(priv->scan_request, 1);
+			priv->scan_request = NULL;
+		} else {
+			priv->scan_aborting = false;
+			dev_dbg(adapter->dev, "info: scan already aborted\n");
 		}
 		goto done;
 	}
@@ -447,21 +444,27 @@ static void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
 }
 
 /*
- * This function frees the adapter structure.
+ * This function performs cleanup for adapter structure.
  *
- * The freeing operation is done recursively, by canceling all
- * pending commands, freeing the member buffers previously
- * allocated (command buffers, scan table buffer, sleep confirm
- * command buffer), stopping the timers and calling the cleanup
- * routines for every interface, before the actual adapter
- * structure is freed.
+ * The cleanup is done recursively, by canceling all pending
+ * commands, freeing the member buffers previously allocated
+ * (command buffers, scan table buffer, sleep confirm command
+ * buffer), stopping the timers and calling the cleanup routines
+ * for every interface.
  */
 static void
-mwifiex_free_adapter(struct mwifiex_adapter *adapter)
+mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 {
+	int i;
+
 	if (!adapter) {
 		pr_err("%s: adapter is NULL\n", __func__);
 		return;
+	}
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		if (adapter->priv[i])
+			del_timer_sync(&adapter->priv[i]->scan_delay_timer);
 	}
 
 	mwifiex_cancel_all_pending_cmd(adapter);
@@ -684,7 +687,6 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 	int ret = -EINPROGRESS;
 	struct mwifiex_private *priv;
 	s32 i;
-	unsigned long flags;
 	struct sk_buff *skb;
 
 	/* mwifiex already shutdown */
@@ -719,7 +721,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 		}
 	}
 
-	spin_lock_irqsave(&adapter->mwifiex_lock, flags);
+	spin_lock(&adapter->mwifiex_lock);
 
 	if (adapter->if_ops.data_complete) {
 		while ((skb = skb_dequeue(&adapter->usb_rx_data_q))) {
@@ -733,10 +735,9 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 		}
 	}
 
-	/* Free adapter structure */
-	mwifiex_free_adapter(adapter);
+	mwifiex_adapter_cleanup(adapter);
 
-	spin_unlock_irqrestore(&adapter->mwifiex_lock, flags);
+	spin_unlock(&adapter->mwifiex_lock);
 
 	/* Notify completion */
 	ret = mwifiex_shutdown_fw_complete(adapter);

@@ -33,6 +33,29 @@ ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
 }
 EXPORT_SYMBOL(ieee80211_get_response_rate);
 
+u32 ieee80211_mandatory_rates(struct ieee80211_supported_band *sband)
+{
+	struct ieee80211_rate *bitrates;
+	u32 mandatory_rates = 0;
+	enum ieee80211_rate_flags mandatory_flag;
+	int i;
+
+	if (WARN_ON(!sband))
+		return 1;
+
+	if (sband->band == IEEE80211_BAND_2GHZ)
+		mandatory_flag = IEEE80211_RATE_MANDATORY_B;
+	else
+		mandatory_flag = IEEE80211_RATE_MANDATORY_A;
+
+	bitrates = sband->bitrates;
+	for (i = 0; i < sband->n_bitrates; i++)
+		if (bitrates[i].flags & mandatory_flag)
+			mandatory_rates |= BIT(i);
+	return mandatory_rates;
+}
+EXPORT_SYMBOL(ieee80211_mandatory_rates);
+
 int ieee80211_channel_to_frequency(int chan, enum ieee80211_band band)
 {
 	/* see 802.11 17.3.8.3.2 and Annex J
@@ -785,12 +808,8 @@ void cfg80211_process_rdev_events(struct cfg80211_registered_device *rdev)
 	ASSERT_RTNL();
 	ASSERT_RDEV_LOCK(rdev);
 
-	mutex_lock(&rdev->devlist_mtx);
-
 	list_for_each_entry(wdev, &rdev->wdev_list, list)
 		cfg80211_process_wdev_events(wdev);
-
-	mutex_unlock(&rdev->devlist_mtx);
 }
 
 int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
@@ -822,10 +841,8 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		return -EBUSY;
 
 	if (ntype != otype && netif_running(dev)) {
-		mutex_lock(&rdev->devlist_mtx);
 		err = cfg80211_can_change_interface(rdev, dev->ieee80211_ptr,
 						    ntype);
-		mutex_unlock(&rdev->devlist_mtx);
 		if (err)
 			return err;
 
@@ -841,8 +858,10 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 			break;
 		case NL80211_IFTYPE_STATION:
 		case NL80211_IFTYPE_P2P_CLIENT:
+			wdev_lock(dev->ieee80211_ptr);
 			cfg80211_disconnect(rdev, dev,
 					    WLAN_REASON_DEAUTH_LEAVING, true);
+			wdev_unlock(dev->ieee80211_ptr);
 			break;
 		case NL80211_IFTYPE_MESH_POINT:
 			/* mesh should be handled? */
@@ -1169,6 +1188,9 @@ bool ieee80211_operating_class_to_band(u8 operating_class,
 	case 84:
 		*band = IEEE80211_BAND_2GHZ;
 		return true;
+	case 180:
+		*band = IEEE80211_BAND_60GHZ;
+		return true;
 	}
 
 	return false;
@@ -1184,8 +1206,6 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 	if (!beacon_int)
 		return -EINVAL;
 
-	mutex_lock(&rdev->devlist_mtx);
-
 	list_for_each_entry(wdev, &rdev->wdev_list, list) {
 		if (!wdev->beacon_interval)
 			continue;
@@ -1194,8 +1214,6 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 			break;
 		}
 	}
-
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return res;
 }
@@ -1220,7 +1238,6 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 	int i, j;
 
 	ASSERT_RTNL();
-	lockdep_assert_held(&rdev->devlist_mtx);
 
 	if (WARN_ON(hweight32(radar_detect) > 1))
 		return -EINVAL;

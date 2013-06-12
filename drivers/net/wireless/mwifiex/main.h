@@ -492,7 +492,6 @@ struct mwifiex_private {
 	struct semaphore async_sem;
 	u8 report_scan_result;
 	struct cfg80211_scan_request *scan_request;
-	struct mwifiex_user_scan_cfg *user_scan_cfg;
 	u8 cfg_bssid[6];
 	struct wps wps;
 	u8 scan_block;
@@ -510,6 +509,7 @@ struct mwifiex_private {
 	u8 ap_11ac_enabled;
 	u32 mgmt_frame_mask;
 	struct mwifiex_roc_cfg roc_cfg;
+	bool scan_aborting;
 };
 
 enum mwifiex_ba_status {
@@ -730,6 +730,7 @@ struct mwifiex_adapter {
 	u16 max_mgmt_ie_index;
 	u8 scan_delay_cnt;
 	u8 empty_tx_q_cnt;
+	const struct firmware *cal_data;
 
 	/* 11AC */
 	u32 is_hw_11ac_capable;
@@ -1115,6 +1116,8 @@ int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
 			 struct cfg80211_beacon_data *data);
 int mwifiex_del_mgmt_ies(struct mwifiex_private *priv);
 u8 *mwifiex_11d_code_2_region(u8 code);
+void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
+			      struct mwifiex_sta_node *node);
 
 extern const struct ethtool_ops mwifiex_ethtool_ops;
 

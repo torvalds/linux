@@ -174,7 +174,7 @@ static const __le32 iwl_tight_lookup[BT_COEX_LUT_SIZE] = {
 static const __le32 iwl_loose_lookup[BT_COEX_LUT_SIZE] = {
 	cpu_to_le32(0xaaaaaaaa),
 	cpu_to_le32(0xaaaaaaaa),
-	cpu_to_le32(0xaeaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
 	cpu_to_le32(0xaaaaaaaa),
 	cpu_to_le32(0xcc00ff28),
 	cpu_to_le32(0x0000aaaa),
@@ -351,6 +351,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	enum ieee80211_band band;
 	int ave_rssi;
 
+	lockdep_assert_held(&mvm->mutex);
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return;
 
@@ -365,7 +366,8 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	if (band != IEEE80211_BAND_2GHZ) {
-		ieee80211_request_smps(vif, smps_mode);
+		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
+				    smps_mode);
 		return;
 	}
 
@@ -380,7 +382,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		       mvmvif->id,  data->notif->bt_status,
 		       data->notif->bt_traffic_load, smps_mode);
 
-	ieee80211_request_smps(vif, smps_mode);
+	iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX, smps_mode);
 
 	/* don't reduce the Tx power if in loose scheme */
 	if (is_loose_coex())

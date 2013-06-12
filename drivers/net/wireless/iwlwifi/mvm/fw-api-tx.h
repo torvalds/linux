@@ -134,6 +134,7 @@ enum iwl_tx_flags {
 #define TX_CMD_SEC_WEP			0x01
 #define TX_CMD_SEC_CCM			0x02
 #define TX_CMD_SEC_TKIP			0x03
+#define TX_CMD_SEC_MSK			0x07
 #define TX_CMD_SEC_WEP_KEY_IDX_POS	6
 #define TX_CMD_SEC_WEP_KEY_IDX_MSK	0xc0
 #define TX_CMD_SEC_KEY128		0x08

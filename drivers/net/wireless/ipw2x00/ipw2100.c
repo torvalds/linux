@@ -6242,8 +6242,6 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	if ((val & 0x0000ff00) != 0)
 		pci_write_config_dword(pci_dev, 0x40, val & 0xffff00ff);
 
-	pci_set_power_state(pci_dev, PCI_D0);
-
 	if (!ipw2100_hw_is_adapter_in_system(dev)) {
 		printk(KERN_WARNING DRV_NAME
 		       "Device not found via register read.\n");

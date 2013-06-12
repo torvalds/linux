@@ -1911,12 +1911,12 @@ TRACE_EVENT(cfg80211_send_rx_assoc,
 		  NETDEV_PR_ARG, MAC_PR_ARG(bssid), CHAN_PR_ARG)
 );
 
-DEFINE_EVENT(netdev_evt_only, __cfg80211_send_deauth,
+DEFINE_EVENT(netdev_evt_only, cfg80211_send_deauth,
 	TP_PROTO(struct net_device *netdev),
 	TP_ARGS(netdev)
 );
 
-DEFINE_EVENT(netdev_evt_only, __cfg80211_send_disassoc,
+DEFINE_EVENT(netdev_evt_only, cfg80211_send_disassoc,
 	TP_PROTO(struct net_device *netdev),
 	TP_ARGS(netdev)
 );

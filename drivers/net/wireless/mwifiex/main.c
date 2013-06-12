@@ -25,6 +25,8 @@
 #define VERSION	"1.0"
 
 const char driver_version[] = "mwifiex " VERSION " (%s) ";
+static char *cal_data_cfg;
+module_param(cal_data_cfg, charp, 0);
 
 /*
  * This function registers the device and performs all the necessary
@@ -336,6 +338,13 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 
 	dev_notice(adapter->dev, "WLAN FW is active\n");
 
+	if (cal_data_cfg) {
+		if ((request_firmware(&adapter->cal_data, cal_data_cfg,
+				      adapter->dev)) < 0)
+			dev_err(adapter->dev,
+				"Cal data request_firmware() failed\n");
+	}
+
 	adapter->init_wait_q_woken = false;
 	ret = mwifiex_init_fw(adapter);
 	if (ret == -1) {
@@ -390,6 +399,10 @@ err_init_fw:
 	pr_debug("info: %s: unregister device\n", __func__);
 	adapter->if_ops.unregister_dev(adapter);
 done:
+	if (adapter->cal_data) {
+		release_firmware(adapter->cal_data);
+		adapter->cal_data = NULL;
+	}
 	release_firmware(adapter->firmware);
 	complete(&adapter->fw_load);
 	return;
@@ -436,6 +449,7 @@ mwifiex_close(struct net_device *dev)
 		dev_dbg(priv->adapter->dev, "aborting scan on ndo_stop\n");
 		cfg80211_scan_done(priv->scan_request, 1);
 		priv->scan_request = NULL;
+		priv->scan_aborting = true;
 	}
 
 	return 0;

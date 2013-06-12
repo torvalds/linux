@@ -426,7 +426,11 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto error;
 
-	iwl_trans_d3_suspend(priv->trans);
+	/* let the ucode operate on its own */
+	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
+		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
+
+	iwl_trans_d3_suspend(priv->trans, false);
 
 	goto out;
 
@@ -500,7 +504,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	/* we'll clear ctx->vif during iwlagn_prepare_restart() */
 	vif = ctx->vif;
 
-	ret = iwl_trans_d3_resume(priv->trans, &d3_status);
+	ret = iwl_trans_d3_resume(priv->trans, &d3_status, false);
 	if (ret)
 		goto out_unlock;
 
@@ -508,6 +512,10 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 		IWL_INFO(priv, "Device was reset during suspend\n");
 		goto out_unlock;
 	}
+
+	/* uCode is no longer operating by itself */
+	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
+		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
 	base = priv->device_pointers.error_event_table;
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
@@ -1276,8 +1284,8 @@ static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->mutex);
 
-	if (priv->cfg->bt_params &&
-			priv->cfg->bt_params->advanced_bt_coexist) {
+	if (priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist) {
 		if (rssi_event == RSSI_EVENT_LOW)
 			priv->bt_enable_pspoll = true;
 		else if (rssi_event == RSSI_EVENT_HIGH)
@@ -1387,7 +1395,7 @@ static int iwl_setup_interface(struct iwl_priv *priv,
 		return err;
 	}
 
-	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist &&
+	if (priv->lib->bt_params && priv->lib->bt_params->advanced_bt_coexist &&
 	    vif->type == NL80211_IFTYPE_ADHOC) {
 		/*
 		 * pretend to have high BT traffic as long as we
