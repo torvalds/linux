@@ -1219,7 +1219,7 @@ static void igmp_group_added(struct ip_mc_list *im)
 
 static u32 ip_mc_hash(const struct ip_mc_list *im)
 {
-	return hash_32((u32)im->multiaddr, MC_HASH_SZ_LOG);
+	return hash_32((__force u32)im->multiaddr, MC_HASH_SZ_LOG);
 }
 
 static void ip_mc_hash_add(struct in_device *in_dev,
@@ -1231,7 +1231,7 @@ static void ip_mc_hash_add(struct in_device *in_dev,
 	mc_hash = rtnl_dereference(in_dev->mc_hash);
 	if (mc_hash) {
 		hash = ip_mc_hash(im);
-		im->next_hash = rtnl_dereference(mc_hash[hash]);
+		im->next_hash = mc_hash[hash];
 		rcu_assign_pointer(mc_hash[hash], im);
 		return;
 	}
@@ -1247,7 +1247,7 @@ static void ip_mc_hash_add(struct in_device *in_dev,
 
 	for_each_pmc_rtnl(in_dev, im) {
 		hash = ip_mc_hash(im);
-		im->next_hash = rtnl_dereference(mc_hash[hash]);
+		im->next_hash = mc_hash[hash];
 		RCU_INIT_POINTER(mc_hash[hash], im);
 	}
 
@@ -2377,7 +2377,7 @@ int ip_check_mc_rcu(struct in_device *in_dev, __be32 mc_addr, __be32 src_addr, u
 
 	mc_hash = rcu_dereference(in_dev->mc_hash);
 	if (mc_hash) {
-		u32 hash = hash_32((u32)mc_addr, MC_HASH_SZ_LOG);
+		u32 hash = hash_32((__force u32)mc_addr, MC_HASH_SZ_LOG);
 
 		for (im = rcu_dereference(mc_hash[hash]);
 		     im != NULL;
