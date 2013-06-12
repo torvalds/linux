@@ -565,32 +565,31 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-	/*  Allocate and Initialise DI Subdevice Structures */
+
+	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
 	if (board->has_dig_in) {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 4;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->io_bits = 0;	/* all bits input */
-		s->insn_bits = apci3xxx_di_insn_bits;
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE;
+		s->n_chan	= 4;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= apci3xxx_di_insn_bits;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
-	/*  Allocate and Initialise DO Subdevice Structures */
+
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
 	if (board->has_dig_out) {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags =
-			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 4;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->io_bits = 0xf;	/* all bits output */
-		s->insn_bits = apci3xxx_do_insn_bits;
+		s->type		= COMEDI_SUBD_DO;
+		s->subdev_flags	= SDF_WRITEABLE;
+		s->n_chan	= 4;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= apci3xxx_do_insn_bits;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
