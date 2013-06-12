@@ -57,23 +57,23 @@ static struct inet_protosw pingv6_protosw = {
 
 
 /* Compatibility glue so we can support IPv6 when it's compiled as a module */
-int dummy_ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
+static int dummy_ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 {
 	return -EAFNOSUPPORT;
 }
-int dummy_ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
-				 struct sk_buff *skb)
+static int dummy_ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
+				       struct sk_buff *skb)
 {
 	return -EAFNOSUPPORT;
 }
-int dummy_icmpv6_err_convert(u8 type, u8 code, int *err)
+static int dummy_icmpv6_err_convert(u8 type, u8 code, int *err)
 {
 	return -EAFNOSUPPORT;
 }
-void dummy_ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
-			    __be16 port, u32 info, u8 *payload) {}
-int dummy_ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
-			const struct net_device *dev, int strict)
+static void dummy_ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
+				  __be16 port, u32 info, u8 *payload) {}
+static int dummy_ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
+			       const struct net_device *dev, int strict)
 {
 	return 0;
 }
@@ -198,7 +198,7 @@ static void *ping_v6_seq_start(struct seq_file *seq, loff_t *pos)
 	return ping_seq_start(seq, pos, AF_INET6);
 }
 
-int ping_v6_seq_show(struct seq_file *seq, void *v)
+static int ping_v6_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq, IPV6_SEQ_DGRAM_HEADER);
