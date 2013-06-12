@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <sound/core.h>
@@ -1998,6 +1999,28 @@ static const struct i2c_device_id rt5640_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5640_i2c_id);
 
+static int rt5640_parse_dt(struct rt5640_priv *rt5640, struct device_node *np)
+{
+	rt5640->pdata.in1_diff = of_property_read_bool(np,
+					"realtek,in1-differential");
+	rt5640->pdata.in2_diff = of_property_read_bool(np,
+					"realtek,in2-differential");
+
+	rt5640->pdata.ldo1_en = of_get_named_gpio(np,
+					"realtek,ldo1-en-gpios", 0);
+	/*
+	 * LDO1_EN is optional (it may be statically tied on the board).
+	 * -ENOENT means that the property doesn't exist, i.e. there is no
+	 * GPIO, so is not an error. Any other error code means the property
+	 * exists, but could not be parsed.
+	 */
+	if (!gpio_is_valid(rt5640->pdata.ldo1_en) &&
+			(rt5640->pdata.ldo1_en != -ENOENT))
+		return rt5640->pdata.ldo1_en;
+
+	return 0;
+}
+
 static int rt5640_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
@@ -2011,6 +2034,24 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 				GFP_KERNEL);
 	if (NULL == rt5640)
 		return -ENOMEM;
+	i2c_set_clientdata(i2c, rt5640);
+
+	if (pdata) {
+		rt5640->pdata = *pdata;
+		/*
+		 * Translate zero'd out (default) pdata value to an invalid
+		 * GPIO ID. This makes the pdata and DT paths consistent in
+		 * terms of the value left in this field when no GPIO is
+		 * specified, but means we can't actually use GPIO 0.
+		 */
+		if (!rt5640->pdata.ldo1_en)
+			rt5640->pdata.ldo1_en = -EINVAL;
+	} else if (i2c->dev.of_node) {
+		ret = rt5640_parse_dt(rt5640, i2c->dev.of_node);
+		if (ret)
+			return ret;
+	} else
+		rt5640->pdata.ldo1_en = -EINVAL;
 
 	rt5640->regmap = devm_regmap_init_i2c(i2c, &rt5640_regmap);
 	if (IS_ERR(rt5640->regmap)) {
@@ -2020,12 +2061,7 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	if (pdata)
-		rt5640->pdata = *pdata;
-
-	i2c_set_clientdata(i2c, rt5640);
-
-	if (rt5640->pdata.ldo1_en) {
+	if (gpio_is_valid(rt5640->pdata.ldo1_en)) {
 		ret = devm_gpio_request_one(&i2c->dev, rt5640->pdata.ldo1_en,
 					    GPIOF_OUT_INIT_HIGH,
 					    "RT5640 LDO1_EN");
