@@ -284,9 +284,9 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 			return -ENOMEM;
 		}
 		ep->hcpriv = (void *)(0x10000L + pipe_handle);
-	}
-	else
+	} else {
 		pipe_handle = 0xffff & (long)ep->hcpriv;
+	}
 
 	switch (usb_pipetype(urb->pipe)) {
 	case PIPE_ISOCHRONOUS:
