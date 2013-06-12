@@ -2105,6 +2105,7 @@ repeat:
 		group = ac->ac_g_ex.fe_group;
 
 		for (i = 0; i < ngroups; group++, i++) {
+			cond_resched();
 			/*
 			 * Artificially restricted ngroups for non-extent
 			 * files makes group > ngroups possible on first loop.
@@ -4612,10 +4613,11 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 		BUG_ON(bh && (count > 1));
 
 		for (i = 0; i < count; i++) {
+			cond_resched();
 			if (!bh)
 				tbh = sb_find_get_block(inode->i_sb,
 							block + i);
-			if (unlikely(!tbh))
+			if (!tbh)
 				continue;
 			ext4_forget(handle, flags & EXT4_FREE_BLOCKS_METADATA,
 				    inode, tbh, block + i);
