@@ -2955,6 +2955,86 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		      I915_READ(pp_div_reg));
 }
 
+static bool intel_edp_init_connector(struct intel_dp *intel_dp,
+				     struct intel_connector *intel_connector)
+{
+	struct drm_connector *connector = &intel_connector->base;
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_display_mode *fixed_mode = NULL;
+	struct edp_power_seq power_seq = { 0 };
+	bool has_dpcd;
+	struct drm_display_mode *scan;
+	struct edid *edid;
+
+	if (!is_edp(intel_dp))
+		return true;
+
+	intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
+
+	/* Cache DPCD and EDID for edp. */
+	ironlake_edp_panel_vdd_on(intel_dp);
+	has_dpcd = intel_dp_get_dpcd(intel_dp);
+	ironlake_edp_panel_vdd_off(intel_dp, false);
+
+	if (has_dpcd) {
+		if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11)
+			dev_priv->no_aux_handshake =
+				intel_dp->dpcd[DP_MAX_DOWNSPREAD] &
+				DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
+	} else {
+		/* if this fails, presume the device is a ghost */
+		DRM_INFO("failed to retrieve link info, disabling eDP\n");
+		intel_dp_encoder_destroy(&intel_dig_port->base.base);
+		intel_dp_destroy(connector);
+		return false;
+	}
+
+	/* We now know it's not a ghost, init power sequence regs. */
+	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
+						      &power_seq);
+
+	ironlake_edp_panel_vdd_on(intel_dp);
+	edid = drm_get_edid(connector, &intel_dp->adapter);
+	if (edid) {
+		if (drm_add_edid_modes(connector, edid)) {
+			drm_mode_connector_update_edid_property(connector,
+								edid);
+			drm_edid_to_eld(connector, edid);
+		} else {
+			kfree(edid);
+			edid = ERR_PTR(-EINVAL);
+		}
+	} else {
+		edid = ERR_PTR(-ENOENT);
+	}
+	intel_connector->edid = edid;
+
+	/* prefer fixed mode from EDID if available */
+	list_for_each_entry(scan, &connector->probed_modes, head) {
+		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
+			fixed_mode = drm_mode_duplicate(dev, scan);
+			break;
+		}
+	}
+
+	/* fallback to VBT if available for eDP */
+	if (!fixed_mode && dev_priv->vbt.lfp_lvds_vbt_mode) {
+		fixed_mode = drm_mode_duplicate(dev,
+					dev_priv->vbt.lfp_lvds_vbt_mode);
+		if (fixed_mode)
+			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+	}
+
+	ironlake_edp_panel_vdd_off(intel_dp, false);
+
+	intel_panel_init(&intel_connector->panel, fixed_mode);
+	intel_panel_setup_backlight(connector);
+
+	return true;
+}
+
 void
 intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			struct intel_connector *intel_connector)
@@ -2964,8 +3044,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_display_mode *fixed_mode = NULL;
-	struct edp_power_seq power_seq = { 0 };
 	enum port port = intel_dig_port->port;
 	const char *name = NULL;
 	int type;
@@ -3066,75 +3144,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		BUG();
 	}
 
-	if (is_edp(intel_dp))
-		intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
-
 	intel_dp_i2c_init(intel_dp, intel_connector, name);
 
-	/* Cache DPCD and EDID for edp. */
-	if (is_edp(intel_dp)) {
-		bool ret;
-		struct drm_display_mode *scan;
-		struct edid *edid;
-
-		ironlake_edp_panel_vdd_on(intel_dp);
-		ret = intel_dp_get_dpcd(intel_dp);
-		ironlake_edp_panel_vdd_off(intel_dp, false);
-
-		if (ret) {
-			if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11)
-				dev_priv->no_aux_handshake =
-					intel_dp->dpcd[DP_MAX_DOWNSPREAD] &
-					DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
-		} else {
-			/* if this fails, presume the device is a ghost */
-			DRM_INFO("failed to retrieve link info, disabling eDP\n");
-			intel_dp_encoder_destroy(&intel_encoder->base);
-			intel_dp_destroy(connector);
-			return;
-		}
-
-		/* We now know it's not a ghost, init power sequence regs. */
-		intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
-							      &power_seq);
-
-		ironlake_edp_panel_vdd_on(intel_dp);
-		edid = drm_get_edid(connector, &intel_dp->adapter);
-		if (edid) {
-			if (drm_add_edid_modes(connector, edid)) {
-				drm_mode_connector_update_edid_property(connector, edid);
-				drm_edid_to_eld(connector, edid);
-			} else {
-				kfree(edid);
-				edid = ERR_PTR(-EINVAL);
-			}
-		} else {
-			edid = ERR_PTR(-ENOENT);
-		}
-		intel_connector->edid = edid;
-
-		/* prefer fixed mode from EDID if available */
-		list_for_each_entry(scan, &connector->probed_modes, head) {
-			if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
-				fixed_mode = drm_mode_duplicate(dev, scan);
-				break;
-			}
-		}
-
-		/* fallback to VBT if available for eDP */
-		if (!fixed_mode && dev_priv->vbt.lfp_lvds_vbt_mode) {
-			fixed_mode = drm_mode_duplicate(dev, dev_priv->vbt.lfp_lvds_vbt_mode);
-			if (fixed_mode)
-				fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-		}
-
-		ironlake_edp_panel_vdd_off(intel_dp, false);
-	}
-
-	if (is_edp(intel_dp)) {
-		intel_panel_init(&intel_connector->panel, fixed_mode);
-		intel_panel_setup_backlight(connector);
-	}
+	if (!intel_edp_init_connector(intel_dp, intel_connector))
+		return;
 
 	intel_dp_add_properties(intel_dp, connector);
 
