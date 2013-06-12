@@ -2380,7 +2380,8 @@ static void semaphore_clear_deadlocks(struct drm_i915_private *dev_priv)
 		ring->hangcheck.deadlock = false;
 }
 
-static enum { wait, active, kick, hung } ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
+static enum intel_ring_hangcheck_action
+ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2483,7 +2484,10 @@ void i915_hangcheck_elapsed(unsigned long data)
 				 * being repeatedly kicked and so responsible
 				 * for stalling the machine.
 				 */
-				switch (ring_stuck(ring, acthd)) {
+				ring->hangcheck.action = ring_stuck(ring,
+								    acthd);
+
+				switch (ring->hangcheck.action) {
 				case wait:
 					score = 0;
 					break;
