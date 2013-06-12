@@ -13,8 +13,8 @@
 #include <linux/platform_device.h>
 #include <linux/usb.h>
 
-#include <asm/time.h>
-#include <asm/delay.h>
+#include <linux/time.h>
+#include <linux/delay.h>
 
 #include <asm/octeon/cvmx.h>
 #include "cvmx-usb.h"
