@@ -732,7 +732,6 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	devpriv->s_EeParameters.i_NbrDiChannel = board->i_NbrDiChannel;
 	devpriv->s_EeParameters.i_NbrDoChannel = board->i_NbrDoChannel;
 	devpriv->s_EeParameters.i_DoMaxdata = board->i_DoMaxdata;
-	devpriv->s_EeParameters.i_Dma = board->i_Dma;
 	devpriv->s_EeParameters.i_Timer = board->i_Timer;
 	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
 						board->ui_MinAcquisitiontimeNs;
