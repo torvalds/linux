@@ -1512,7 +1512,7 @@ int intel_ring_idle(struct intel_ring_buffer *ring)
 
 	/* We need to add any requests required to flush the objects and ring */
 	if (ring->outstanding_lazy_request) {
-		ret = i915_add_request(ring, NULL, NULL);
+		ret = i915_add_request(ring, NULL);
 		if (ret)
 			return ret;
 	}

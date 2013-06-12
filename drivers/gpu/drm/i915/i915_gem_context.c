@@ -455,7 +455,7 @@ static int do_switch(struct i915_hw_context *to)
 		from->obj->dirty = 1;
 		BUG_ON(from->obj->ring != ring);
 
-		ret = i915_add_request(ring, NULL, NULL);
+		ret = i915_add_request(ring, NULL);
 		if (ret) {
 			/* Too late, we've already scheduled a context switch.
 			 * Try to undo the change so that the hw state is
