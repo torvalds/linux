@@ -76,7 +76,7 @@ enum apci3xxx_boardid {
 };
 
 struct apci3xxx_boardinfo {
-	const char *pc_DriverName;
+	const char *name;
 	int i_NbrAiChannel;
 	int i_NbrAiChannelDiff;
 	int i_AiMaxdata;
@@ -90,7 +90,7 @@ struct apci3xxx_boardinfo {
 
 static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	[BOARD_APCI3000_16] = {
-		.pc_DriverName		= "apci3000-16",
+		.name			= "apci3000-16",
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiMaxdata		= 4095,
@@ -99,7 +99,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3000_8] = {
-		.pc_DriverName		= "apci3000-8",
+		.name			= "apci3000-8",
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiMaxdata		= 4095,
@@ -108,7 +108,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3000_4] = {
-		.pc_DriverName		= "apci3000-4",
+		.name			= "apci3000-4",
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiMaxdata		= 4095,
@@ -117,7 +117,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3006_16] = {
-		.pc_DriverName		= "apci3006-16",
+		.name			= "apci3006-16",
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiMaxdata		= 65535,
@@ -126,7 +126,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3006_8] = {
-		.pc_DriverName		= "apci3006-8",
+		.name			= "apci3006-8",
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiMaxdata		= 65535,
@@ -135,7 +135,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3006_4] = {
-		.pc_DriverName		= "apci3006-4",
+		.name			= "apci3006-4",
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiMaxdata		= 65535,
@@ -144,7 +144,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3010_16] = {
-		.pc_DriverName		= "apci3010-16",
+		.name			= "apci3010-16",
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiMaxdata		= 4095,
@@ -155,7 +155,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3010_8] = {
-		.pc_DriverName		= "apci3010-8",
+		.name			= "apci3010-8",
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiMaxdata		= 4095,
@@ -166,7 +166,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3010_4] = {
-		.pc_DriverName		= "apci3010-4",
+		.name			= "apci3010-4",
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiMaxdata		= 4095,
@@ -177,7 +177,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3016_16] = {
-		.pc_DriverName		= "apci3016-16",
+		.name			= "apci3016-16",
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiMaxdata		= 65535,
@@ -188,7 +188,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3016_8] = {
-		.pc_DriverName		= "apci3016-8",
+		.name			= "apci3016-8",
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiMaxdata		= 65535,
@@ -199,7 +199,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3016_4] = {
-		.pc_DriverName		= "apci3016-4",
+		.name			= "apci3016-4",
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiMaxdata		= 65535,
@@ -210,7 +210,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3100_16_4] = {
-		.pc_DriverName		= "apci3100-16-4",
+		.name			= "apci3100-16-4",
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiMaxdata		= 4095,
@@ -220,7 +220,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3100_8_4] = {
-		.pc_DriverName		= "apci3100-8-4",
+		.name			= "apci3100-8-4",
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiMaxdata		= 4095,
@@ -230,7 +230,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3106_16_4] = {
-		.pc_DriverName		= "apci3106-16-4",
+		.name			= "apci3106-16-4",
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiMaxdata		= 65535,
@@ -240,7 +240,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3106_8_4] = {
-		.pc_DriverName		= "apci3106-8-4",
+		.name			= "apci3106-8-4",
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiMaxdata		= 65535,
@@ -250,7 +250,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3110_16_4] = {
-		.pc_DriverName		= "apci3110-16-4",
+		.name			= "apci3110-16-4",
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiMaxdata		= 4095,
@@ -262,7 +262,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3110_8_4] = {
-		.pc_DriverName		= "apci3110-8-4",
+		.name			= "apci3110-8-4",
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiMaxdata		= 4095,
@@ -274,7 +274,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3116_16_4] = {
-		.pc_DriverName		= "apci3116-16-4",
+		.name			= "apci3116-16-4",
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiMaxdata		= 65535,
@@ -286,7 +286,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3116_8_4] = {
-		.pc_DriverName		= "apci3116-8-4",
+		.name			= "apci3116-8-4",
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiMaxdata		= 65535,
@@ -298,7 +298,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3003] = {
-		.pc_DriverName		= "apci3003",
+		.name			= "apci3003",
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiMaxdata		= 65535,
 		.b_AvailableConvertUnit	= 7,
@@ -307,7 +307,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_dig_out		= 1,
 	},
 	[BOARD_APCI3002_16] = {
-		.pc_DriverName		= "apci3002-16",
+		.name			= "apci3002-16",
 		.i_NbrAiChannelDiff	= 16,
 		.i_AiMaxdata		= 65535,
 		.b_AvailableConvertUnit	= 6,
@@ -316,7 +316,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_dig_out		= 1,
 	},
 	[BOARD_APCI3002_8] = {
-		.pc_DriverName		= "apci3002-8",
+		.name			= "apci3002-8",
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiMaxdata		= 65535,
 		.b_AvailableConvertUnit	= 6,
@@ -325,7 +325,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_dig_out		= 1,
 	},
 	[BOARD_APCI3002_4] = {
-		.pc_DriverName		= "apci3002-4",
+		.name			= "apci3002-4",
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiMaxdata		= 65535,
 		.b_AvailableConvertUnit	= 6,
@@ -334,7 +334,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.has_dig_out		= 1,
 	},
 	[BOARD_APCI3500] = {
-		.pc_DriverName		= "apci3500",
+		.name			= "apci3500",
 		.has_ao			= 1,
 		.has_ttl_io		= 1,
 	},
@@ -563,7 +563,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (!board)
 		return -ENODEV;
 	dev->board_ptr = board;
-	dev->board_name = board->pc_DriverName;
+	dev->board_name = board->name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
