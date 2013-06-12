@@ -732,7 +732,6 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	devpriv->s_EeParameters.i_NbrDiChannel = board->i_NbrDiChannel;
 	devpriv->s_EeParameters.i_NbrDoChannel = board->i_NbrDoChannel;
 	devpriv->s_EeParameters.i_DoMaxdata = board->i_DoMaxdata;
-	devpriv->s_EeParameters.i_Timer = board->i_Timer;
 	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
 						board->ui_MinAcquisitiontimeNs;
 	devpriv->s_EeParameters.ui_MinDelaytimeNs = board->ui_MinDelaytimeNs;
@@ -848,21 +847,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[4];
-	if (devpriv->s_EeParameters.i_Timer) {
-		s->type = COMEDI_SUBD_TIMER;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 1;
-		s->maxdata = 0;
-		s->len_chanlist = 1;
-		s->range_table = &range_digital;
-
-		s->insn_write = board->timer_write;
-		s->insn_read = board->timer_read;
-		s->insn_config = board->timer_config;
-		s->insn_bits = board->timer_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
 
 	/*  Allocate and Initialise TTL */
 	s = &dev->subdevices[5];
