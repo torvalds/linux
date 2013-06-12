@@ -215,6 +215,9 @@
 #define ARIZONA_DAC_DIGITAL_VOLUME_6R            0x43D
 #define ARIZONA_DAC_VOLUME_LIMIT_6R              0x43E
 #define ARIZONA_NOISE_GATE_SELECT_6R             0x43F
+#define ARIZONA_DRE_ENABLE                       0x440
+#define ARIZONA_DRE_CONTROL_2                    0x442
+#define ARIZONA_DRE_CONTROL_3                    0x443
 #define ARIZONA_DAC_AEC_CONTROL_1                0x450
 #define ARIZONA_NOISE_GATE_CONTROL               0x458
 #define ARIZONA_PDM_SPK1_CTRL_1                  0x490
@@ -3131,6 +3134,47 @@
 #define ARIZONA_OUT6R_NGATE_SRC_MASK             0x0FFF  /* OUT6R_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT6R_NGATE_SRC_SHIFT                 0  /* OUT6R_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT6R_NGATE_SRC_WIDTH                12  /* OUT6R_NGATE_SRC - [11:0] */
+
+/*
+ * R1088 (0x440) - DRE Enable
+ */
+#define ARIZONA_DRE3L_ENA                        0x0010  /* DRE3L_ENA */
+#define ARIZONA_DRE3L_ENA_MASK                   0x0010  /* DRE3L_ENA */
+#define ARIZONA_DRE3L_ENA_SHIFT                       4  /* DRE3L_ENA */
+#define ARIZONA_DRE3L_ENA_WIDTH                       1  /* DRE3L_ENA */
+#define ARIZONA_DRE2R_ENA                        0x0008  /* DRE2R_ENA */
+#define ARIZONA_DRE2R_ENA_MASK                   0x0008  /* DRE2R_ENA */
+#define ARIZONA_DRE2R_ENA_SHIFT                       3  /* DRE2R_ENA */
+#define ARIZONA_DRE2R_ENA_WIDTH                       1  /* DRE2R_ENA */
+#define ARIZONA_DRE2L_ENA                        0x0004  /* DRE2L_ENA */
+#define ARIZONA_DRE2L_ENA_MASK                   0x0004  /* DRE2L_ENA */
+#define ARIZONA_DRE2L_ENA_SHIFT                       2  /* DRE2L_ENA */
+#define ARIZONA_DRE2L_ENA_WIDTH                       1  /* DRE2L_ENA */
+#define ARIZONA_DRE1R_ENA                        0x0002  /* DRE1R_ENA */
+#define ARIZONA_DRE1R_ENA_MASK                   0x0002  /* DRE1R_ENA */
+#define ARIZONA_DRE1R_ENA_SHIFT                       1  /* DRE1R_ENA */
+#define ARIZONA_DRE1R_ENA_WIDTH                       1  /* DRE1R_ENA */
+#define ARIZONA_DRE1L_ENA                        0x0001  /* DRE1L_ENA */
+#define ARIZONA_DRE1L_ENA_MASK                   0x0001  /* DRE1L_ENA */
+#define ARIZONA_DRE1L_ENA_SHIFT                       0  /* DRE1L_ENA */
+#define ARIZONA_DRE1L_ENA_WIDTH                       1  /* DRE1L_ENA */
+
+/*
+ * R1090 (0x442) - DRE Control 2
+ */
+#define ARIZONA_DRE_T_LOW_MASK                   0x3F00  /* DRE_T_LOW - [13:8] */
+#define ARIZONA_DRE_T_LOW_SHIFT                       8  /* DRE_T_LOW - [13:8] */
+#define ARIZONA_DRE_T_LOW_WIDTH                       6  /* DRE_T_LOW - [13:8] */
+
+/*
+ * R1091 (0x443) - DRE Control 3
+ */
+#define ARIZONA_DRE_GAIN_SHIFT_MASK              0xC000  /* DRE_GAIN_SHIFT - [15:14] */
+#define ARIZONA_DRE_GAIN_SHIFT_SHIFT                 14  /* DRE_GAIN_SHIFT - [15:14] */
+#define ARIZONA_DRE_GAIN_SHIFT_WIDTH                  2  /* DRE_GAIN_SHIFT - [15:14] */
+#define ARIZONA_DRE_LOW_LEVEL_ABS_MASK           0x000F  /* LOW_LEVEL_ABS - [3:0] */
+#define ARIZONA_DRE_LOW_LEVEL_ABS_SHIFT               0  /* LOW_LEVEL_ABS - [3:0] */
+#define ARIZONA_DRE_LOW_LEVEL_ABS_WIDTH               4  /* LOW_LEVEL_ABS - [3:0] */
 
 /*
  * R1104 (0x450) - DAC AEC Control 1
