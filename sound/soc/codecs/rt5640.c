@@ -974,7 +974,7 @@ static const struct snd_soc_dapm_widget rt5640_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("LDO2", RT5640_PWR_ANLG1,
 			RT5640_PWR_LDO2_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("MICBIAS1", RT5640_PWR_ANLG2,
-			RT5640_PWR_MB1_BIT, 0, 0, 0),
+			RT5640_PWR_MB1_BIT, 0, NULL, 0),
 	/* Input Lines */
 	SND_SOC_DAPM_INPUT("DMIC1"),
 	SND_SOC_DAPM_INPUT("DMIC2"),
@@ -1915,14 +1915,14 @@ static int rt5640_resume(struct snd_soc_codec *codec)
 #define RT5640_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
-struct snd_soc_dai_ops rt5640_aif_dai_ops = {
+static const struct snd_soc_dai_ops rt5640_aif_dai_ops = {
 	.hw_params = rt5640_hw_params,
 	.set_fmt = rt5640_set_dai_fmt,
 	.set_sysclk = rt5640_set_dai_sysclk,
 	.set_pll = rt5640_set_dai_pll,
 };
 
-struct snd_soc_dai_driver rt5640_dai[] = {
+static struct snd_soc_dai_driver rt5640_dai[] = {
 	{
 		.name = "rt5640-aif1",
 		.id = RT5640_AIF1,
@@ -2112,7 +2112,7 @@ static int rt5640_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-struct i2c_driver rt5640_i2c_driver = {
+static struct i2c_driver rt5640_i2c_driver = {
 	.driver = {
 		.name = "rt5640",
 		.owner = THIS_MODULE,
