@@ -151,7 +151,7 @@ enum exynos4_clks {
 	sclk_audio1, sclk_audio2, sclk_spdif, sclk_spi0, sclk_spi1, sclk_spi2,
 	sclk_slimbus, sclk_fimd1, sclk_mipi1, sclk_pcm1, sclk_pcm2, sclk_i2s1,
 	sclk_i2s2, sclk_mipihsi, sclk_mfc, sclk_pcm0, sclk_g3d, sclk_pwm_isp,
-	sclk_spi0_isp, sclk_spi1_isp, sclk_uart_isp,
+	sclk_spi0_isp, sclk_spi1_isp, sclk_uart_isp, sclk_fimg2d,
 
 	/* gate clocks */
 	fimc0 = 256, fimc1, fimc2, fimc3, csis0, csis1, jpeg, smmu_fimc0,
@@ -484,6 +484,9 @@ struct samsung_mux_clock exynos4x12_mux_clks[] __initdata = {
 	MUX(none, "mout_spi0_isp", group1_p4x12, E4X12_SRC_ISP, 4, 4),
 	MUX(none, "mout_spi1_isp", group1_p4x12, E4X12_SRC_ISP, 8, 4),
 	MUX(none, "mout_uart_isp", group1_p4x12, E4X12_SRC_ISP, 12, 4),
+	MUX(none, "mout_g2d0", sclk_ampll_p4210, SRC_DMC, 20, 1),
+	MUX(none, "mout_g2d1", sclk_evpll_p, SRC_DMC, 24, 1),
+	MUX(none, "mout_g2d", mout_g2d_p, SRC_DMC, 28, 1),
 };
 
 /* list of divider clocks supported in all exynos4 soc's */
@@ -552,7 +555,7 @@ struct samsung_div_clock exynos4_div_clks[] __initdata = {
 /* list of divider clocks supported in exynos4210 soc */
 struct samsung_div_clock exynos4210_div_clks[] __initdata = {
 	DIV(aclk200, "aclk200", "mout_aclk200", DIV_TOP, 0, 3),
-	DIV(none, "div_g2d", "mout_g2d", DIV_IMAGE, 0, 4),
+	DIV(sclk_fimg2d, "sclk_fimg2d", "mout_g2d", DIV_IMAGE, 0, 4),
 	DIV(none, "div_fimd1", "mout_fimd1", E4210_DIV_LCD1, 0, 4),
 	DIV(none, "div_mipi1", "mout_mipi1", E4210_DIV_LCD1, 16, 4),
 	DIV(none, "div_sata", "mout_sata", DIV_FSYS0, 20, 4),
@@ -582,6 +585,7 @@ struct samsung_div_clock exynos4x12_div_clks[] __initdata = {
 	DIV(none, "div_mpwm", "div_isp1", E4X12_DIV_ISP1, 0, 3),
 	DIV(div_mcuisp0, "div_mcuisp0", "aclk400_mcuisp", E4X12_DIV_ISP1, 4, 3),
 	DIV(div_mcuisp1, "div_mcuisp1", "div_mcuisp0", E4X12_DIV_ISP1, 8, 3),
+	DIV(sclk_fimg2d, "sclk_fimg2d", "mout_g2d", DIV_DMC1, 0, 4),
 };
 
 /* list of gate clocks supported in all exynos4 soc's */
@@ -791,7 +795,8 @@ struct samsung_gate_clock exynos4210_gate_clks[] __initdata = {
 	GATE(smmu_pcie, "smmu_pcie", "aclk133", GATE_IP_FSYS, 18, 0, 0),
 	GATE(modemif, "modemif", "aclk100", GATE_IP_PERIL, 28, 0, 0),
 	GATE(chipid, "chipid", "aclk100", E4210_GATE_IP_PERIR, 0, 0, 0),
-	GATE(sysreg, "sysreg", "aclk100", E4210_GATE_IP_PERIR, 0, 0, 0),
+	GATE(sysreg, "sysreg", "aclk100", E4210_GATE_IP_PERIR, 0,
+			CLK_IGNORE_UNUSED, 0),
 	GATE(hdmi_cec, "hdmi_cec", "aclk100", E4210_GATE_IP_PERIR, 11, 0, 0),
 	GATE(smmu_rotator, "smmu_rotator", "aclk200",
 			E4210_GATE_IP_IMAGE, 4, 0, 0),
@@ -819,7 +824,8 @@ struct samsung_gate_clock exynos4x12_gate_clks[] __initdata = {
 	GATE(smmu_mdma, "smmu_mdma", "aclk200", E4X12_GATE_IP_IMAGE, 5, 0, 0),
 	GATE(mipi_hsi, "mipi_hsi", "aclk133", GATE_IP_FSYS, 10, 0, 0),
 	GATE(chipid, "chipid", "aclk100", E4X12_GATE_IP_PERIR, 0, 0, 0),
-	GATE(sysreg, "sysreg", "aclk100", E4X12_GATE_IP_PERIR, 1, 0, 0),
+	GATE(sysreg, "sysreg", "aclk100", E4X12_GATE_IP_PERIR, 1,
+			CLK_IGNORE_UNUSED, 0),
 	GATE(hdmi_cec, "hdmi_cec", "aclk100", E4X12_GATE_IP_PERIR, 11, 0, 0),
 	GATE(sclk_mdnie0, "sclk_mdnie0", "div_mdnie0",
 			SRC_MASK_LCD0, 4, CLK_SET_RATE_PARENT, 0),
@@ -907,6 +913,7 @@ struct samsung_gate_clock exynos4x12_gate_clks[] __initdata = {
 			CLK_IGNORE_UNUSED, 0),
 	GATE(spi1_isp, "spi1_isp", "aclk200", E4X12_GATE_ISP1, 13,
 			CLK_IGNORE_UNUSED, 0),
+	GATE(g2d, "g2d", "aclk200", GATE_IP_DMC, 23, 0, 0),
 };
 
 /*

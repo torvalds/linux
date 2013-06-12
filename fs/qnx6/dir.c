@@ -120,7 +120,7 @@ static int qnx6_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct inode *inode = file_inode(filp);
 	struct super_block *s = inode->i_sb;
 	struct qnx6_sb_info *sbi = QNX6_SB(s);
-	loff_t pos = filp->f_pos & (QNX6_DIR_ENTRY_SIZE - 1);
+	loff_t pos = filp->f_pos & ~(QNX6_DIR_ENTRY_SIZE - 1);
 	unsigned long npages = dir_pages(inode);
 	unsigned long n = pos >> PAGE_CACHE_SHIFT;
 	unsigned start = (pos & ~PAGE_CACHE_MASK) / QNX6_DIR_ENTRY_SIZE;

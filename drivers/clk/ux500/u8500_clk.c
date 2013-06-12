@@ -325,7 +325,7 @@ void u8500_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 	clk = clk_reg_prcc_pclk("p3_pclk0", "per3clk", clkrst3_base,
 				BIT(0), 0);
 	clk_register_clkdev(clk, "fsmc", NULL);
-	clk_register_clkdev(clk, NULL, "smsc911x");
+	clk_register_clkdev(clk, NULL, "smsc911x.0");
 
 	clk = clk_reg_prcc_pclk("p3_pclk1", "per3clk", clkrst3_base,
 				BIT(1), 0);

@@ -218,6 +218,29 @@
 		interrupts = <0 17 0>, <0 16 0>;
 		clocks = <&clock 21>;
 		clock-names = "rtc";
-		status = "disabled";
+	};
+
+	sata@210000 {
+		compatible = "snps,exynos5440-ahci";
+		reg = <0x210000 0x10000>;
+		interrupts = <0 30 0>;
+		clocks = <&clock 23>;
+		clock-names = "sata";
+	};
+
+	ohci@220000 {
+		compatible = "samsung,exynos5440-ohci";
+		reg = <0x220000 0x1000>;
+		interrupts = <0 29 0>;
+		clocks = <&clock 24>;
+		clock-names = "usbhost";
+	};
+
+	ehci@221000 {
+		compatible = "samsung,exynos5440-ehci";
+		reg = <0x221000 0x1000>;
+		interrupts = <0 29 0>;
+		clocks = <&clock 24>;
+		clock-names = "usbhost";
 	};
 };
