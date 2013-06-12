@@ -457,8 +457,7 @@ static int handle_epsw(struct kvm_vcpu *vcpu)
 {
 	int reg1, reg2;
 
-	reg1 = (vcpu->arch.sie_block->ipb & 0x00f00000) >> 24;
-	reg2 = (vcpu->arch.sie_block->ipb & 0x000f0000) >> 16;
+	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 
 	/* This basically extracts the mask half of the psw. */
 	vcpu->run->s.regs.gprs[reg1] &= 0xffffffff00000000;
