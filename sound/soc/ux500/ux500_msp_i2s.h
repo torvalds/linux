@@ -470,6 +470,7 @@ struct ux500_msp_config {
 
 struct ux500_msp_dma_params {
 	unsigned int data_size;
+	dma_addr_t tx_rx_addr;
 	struct stedma40_chan_cfg *dma_cfg;
 };
 

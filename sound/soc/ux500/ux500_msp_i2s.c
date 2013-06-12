@@ -685,6 +685,9 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
+	msp->playback_dma_data.tx_rx_addr = res->start + MSP_DR;
+	msp->capture_dma_data.tx_rx_addr = res->start + MSP_DR;
+
 	msp->registers = devm_ioremap(&pdev->dev, res->start,
 				      resource_size(res));
 	if (msp->registers == NULL) {
