@@ -114,7 +114,7 @@ static int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 						     struct comedi_insn *insn,
 						     unsigned int *data)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct apci3xxx_boardinfo *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = insn->n;
 	unsigned char b_TimeBase = 0;
@@ -365,7 +365,7 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 					  struct comedi_insn *insn,
 					  unsigned int *data)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct apci3xxx_boardinfo *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = insn->n;
 	unsigned char b_Configuration = (unsigned char) CR_RANGE(insn->chanspec);
@@ -595,7 +595,7 @@ static int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device *dev,
 					    struct comedi_insn *insn,
 					    unsigned int *data)
 {
-	const struct addi_board *board = comedi_board(dev);
+	const struct apci3xxx_boardinfo *board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	unsigned char b_Range = (unsigned char) CR_RANGE(insn->chanspec);
 	unsigned char b_Channel = (unsigned char) CR_CHAN(insn->chanspec);

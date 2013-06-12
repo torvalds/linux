@@ -6,8 +6,6 @@
 
 #include "addi-data/addi_common.h"
 
-#include "addi-data/hwdrv_apci3xxx.c"
-
 #ifndef COMEDI_SUBD_TTLIO
 #define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
 #endif
@@ -60,7 +58,23 @@ enum apci3xxx_boardid {
 	BOARD_APCI3500,
 };
 
-static const struct addi_board apci3xxx_boardtypes[] = {
+struct apci3xxx_boardinfo {
+	const char *pc_DriverName;
+	int i_IorangeBase1;
+	int i_NbrAiChannel;
+	int i_NbrAiChannelDiff;
+	int i_AiChannelList;
+	int i_NbrAoChannel;
+	int i_AiMaxdata;
+	int i_AoMaxdata;
+	int i_NbrDiChannel;
+	int i_NbrDoChannel;
+	int i_NbrTTLChannel;
+	unsigned char b_AvailableConvertUnit;
+	unsigned int ui_MinAcquisitiontimeNs;
+};
+
+static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	[BOARD_APCI3000_16] = {
 		.pc_DriverName		= "apci3000-16",
 		.i_IorangeBase1		= 256,
@@ -370,6 +384,8 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 };
 
+#include "addi-data/hwdrv_apci3xxx.c"
+
 static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -473,7 +489,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *board = NULL;
+	const struct apci3xxx_boardinfo *board = NULL;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, n_subdevices;
