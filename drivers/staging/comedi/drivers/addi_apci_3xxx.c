@@ -6,10 +6,6 @@
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
 
-#ifndef COMEDI_SUBD_TTLIO
-#define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
-#endif
-
 static const struct comedi_lrange apci3xxx_ai_range = {
 	8, {
 		BIP_RANGE(10),
@@ -618,7 +614,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	/*  Allocate and Initialise TTL */
 	s = &dev->subdevices[5];
 	if (board->i_NbrTTLChannel) {
-		s->type = COMEDI_SUBD_TTLIO;
+		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags =
 			SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = board->i_NbrTTLChannel;

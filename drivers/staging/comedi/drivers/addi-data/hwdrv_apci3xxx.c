@@ -40,10 +40,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
   +----------+-----------+------------------------------------------------+
 */
 
-#ifndef COMEDI_SUBD_TTLIO
-#define COMEDI_SUBD_TTLIO	11	/* Digital Input Output But TTL */
-#endif
-
 #define APCI3XXX_SINGLE				0
 #define APCI3XXX_DIFF				1
 #define APCI3XXX_CONFIGURATION			0
