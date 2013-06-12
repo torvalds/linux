@@ -50,23 +50,6 @@ static const struct of_device_id exynos_wkup_irq_ids[] = {
 	{ }
 };
 
-static void exynos_gpio_irq_unmask(struct irq_data *irqd)
-{
-	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
-	struct samsung_pinctrl_drv_data *d = bank->drvdata;
-	unsigned long reg_mask = d->ctrl->geint_mask + bank->eint_offset;
-	unsigned long mask;
-	unsigned long flags;
-
-	spin_lock_irqsave(&bank->slock, flags);
-
-	mask = readl(d->virt_base + reg_mask);
-	mask &= ~(1 << irqd->hwirq);
-	writel(mask, d->virt_base + reg_mask);
-
-	spin_unlock_irqrestore(&bank->slock, flags);
-}
-
 static void exynos_gpio_irq_mask(struct irq_data *irqd)
 {
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
@@ -91,6 +74,23 @@ static void exynos_gpio_irq_ack(struct irq_data *irqd)
 	unsigned long reg_pend = d->ctrl->geint_pend + bank->eint_offset;
 
 	writel(1 << irqd->hwirq, d->virt_base + reg_pend);
+}
+
+static void exynos_gpio_irq_unmask(struct irq_data *irqd)
+{
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
+	unsigned long reg_mask = d->ctrl->geint_mask + bank->eint_offset;
+	unsigned long mask;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bank->slock, flags);
+
+	mask = readl(d->virt_base + reg_mask);
+	mask &= ~(1 << irqd->hwirq);
+	writel(mask, d->virt_base + reg_mask);
+
+	spin_unlock_irqrestore(&bank->slock, flags);
 }
 
 static int exynos_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
@@ -268,23 +268,6 @@ err_domains:
 	return ret;
 }
 
-static void exynos_wkup_irq_unmask(struct irq_data *irqd)
-{
-	struct samsung_pin_bank *b = irq_data_get_irq_chip_data(irqd);
-	struct samsung_pinctrl_drv_data *d = b->drvdata;
-	unsigned long reg_mask = d->ctrl->weint_mask + b->eint_offset;
-	unsigned long mask;
-	unsigned long flags;
-
-	spin_lock_irqsave(&b->slock, flags);
-
-	mask = readl(d->virt_base + reg_mask);
-	mask &= ~(1 << irqd->hwirq);
-	writel(mask, d->virt_base + reg_mask);
-
-	spin_unlock_irqrestore(&b->slock, flags);
-}
-
 static void exynos_wkup_irq_mask(struct irq_data *irqd)
 {
 	struct samsung_pin_bank *b = irq_data_get_irq_chip_data(irqd);
@@ -309,6 +292,23 @@ static void exynos_wkup_irq_ack(struct irq_data *irqd)
 	unsigned long pend = d->ctrl->weint_pend + b->eint_offset;
 
 	writel(1 << irqd->hwirq, d->virt_base + pend);
+}
+
+static void exynos_wkup_irq_unmask(struct irq_data *irqd)
+{
+	struct samsung_pin_bank *b = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = b->drvdata;
+	unsigned long reg_mask = d->ctrl->weint_mask + b->eint_offset;
+	unsigned long mask;
+	unsigned long flags;
+
+	spin_lock_irqsave(&b->slock, flags);
+
+	mask = readl(d->virt_base + reg_mask);
+	mask &= ~(1 << irqd->hwirq);
+	writel(mask, d->virt_base + reg_mask);
+
+	spin_unlock_irqrestore(&b->slock, flags);
 }
 
 static int exynos_wkup_irq_set_type(struct irq_data *irqd, unsigned int type)
