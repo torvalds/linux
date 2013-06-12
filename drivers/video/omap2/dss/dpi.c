@@ -129,7 +129,7 @@ static bool dpi_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 	 * shifted. So skip all odd dividers when the pixel clock is on the
 	 * higher side.
 	 */
-	if (ctx->pck_min >= 1000000) {
+	if (ctx->pck_min >= 100000000) {
 		if (lckd > 1 && lckd % 2 != 0)
 			return false;
 
@@ -156,7 +156,7 @@ static bool dpi_calc_hsdiv_cb(int regm_dispc, unsigned long dispc,
 	 * shifted. So skip all odd dividers when the pixel clock is on the
 	 * higher side.
 	 */
-	if (regm_dispc > 1 && regm_dispc % 2 != 0 && ctx->pck_min >= 1000000)
+	if (regm_dispc > 1 && regm_dispc % 2 != 0 && ctx->pck_min >= 100000000)
 		return false;
 
 	ctx->dsi_cinfo.regm_dispc = regm_dispc;
