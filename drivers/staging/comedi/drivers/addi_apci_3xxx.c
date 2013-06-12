@@ -24,7 +24,6 @@
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
 
 #include "../comedidev.h"
 
@@ -374,7 +373,6 @@ struct apci3xxx_private {
 	unsigned int ui_EocEosConversionTime;
 	unsigned char b_EocEosConversionTimeBase;
 	unsigned char b_SingelDiff;
-	struct task_struct *tsk_Current;
 };
 
 #include "addi-data/hwdrv_apci3xxx.c"
@@ -405,8 +403,7 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 			/* Set the interrupt flag */
 			devpriv->b_EocEosInterrupt = 2;
 
-			/* Send a signal to from kernel to user space */
-			send_sig(SIGIO, devpriv->tsk_Current, 0);
+			/* FIXME: comedi_event() */
 		}
 	}
 	return IRQ_RETVAL(1);
