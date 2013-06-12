@@ -2442,57 +2442,64 @@ static void dwc3_process_event_entry(struct dwc3 *dwc,
 	}
 }
 
+static irqreturn_t dwc3_process_event_buf(struct dwc3 *dwc, u32 buf)
+{
+	struct dwc3_event_buffer *evt;
+	irqreturn_t ret = IRQ_NONE;
+	int left;
+	u32 reg;
+
+	evt = dwc->ev_buffs[buf];
+	left = evt->count;
+
+	if (!(evt->flags & DWC3_EVENT_PENDING))
+		return IRQ_NONE;
+
+	while (left > 0) {
+		union dwc3_event event;
+
+		event.raw = *(u32 *) (evt->buf + evt->lpos);
+
+		dwc3_process_event_entry(dwc, &event);
+
+		/*
+		 * FIXME we wrap around correctly to the next entry as
+		 * almost all entries are 4 bytes in size. There is one
+		 * entry which has 12 bytes which is a regular entry
+		 * followed by 8 bytes data. ATM I don't know how
+		 * things are organized if we get next to the a
+		 * boundary so I worry about that once we try to handle
+		 * that.
+		 */
+		evt->lpos = (evt->lpos + 4) % DWC3_EVENT_BUFFERS_SIZE;
+		left -= 4;
+
+		dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(buf), 4);
+	}
+
+	evt->count = 0;
+	evt->flags &= ~DWC3_EVENT_PENDING;
+	ret = IRQ_HANDLED;
+
+	/* Unmask interrupt */
+	reg = dwc3_readl(dwc->regs, DWC3_GEVNTSIZ(buf));
+	reg &= ~DWC3_GEVNTSIZ_INTMASK;
+	dwc3_writel(dwc->regs, DWC3_GEVNTSIZ(buf), reg);
+
+	return ret;
+}
+
 static irqreturn_t dwc3_thread_interrupt(int irq, void *_dwc)
 {
 	struct dwc3 *dwc = _dwc;
 	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
-	u32 reg;
 	int i;
 
 	spin_lock_irqsave(&dwc->lock, flags);
 
-	for (i = 0; i < dwc->num_event_buffers; i++) {
-		struct dwc3_event_buffer *evt;
-		int			left;
-
-		evt = dwc->ev_buffs[i];
-		left = evt->count;
-
-		if (!(evt->flags & DWC3_EVENT_PENDING))
-			continue;
-
-		while (left > 0) {
-			union dwc3_event event;
-
-			event.raw = *(u32 *) (evt->buf + evt->lpos);
-
-			dwc3_process_event_entry(dwc, &event);
-
-			/*
-			 * FIXME we wrap around correctly to the next entry as
-			 * almost all entries are 4 bytes in size. There is one
-			 * entry which has 12 bytes which is a regular entry
-			 * followed by 8 bytes data. ATM I don't know how
-			 * things are organized if we get next to the a
-			 * boundary so I worry about that once we try to handle
-			 * that.
-			 */
-			evt->lpos = (evt->lpos + 4) % DWC3_EVENT_BUFFERS_SIZE;
-			left -= 4;
-
-			dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(i), 4);
-		}
-
-		evt->count = 0;
-		evt->flags &= ~DWC3_EVENT_PENDING;
-		ret = IRQ_HANDLED;
-
-		/* Unmask interrupt */
-		reg = dwc3_readl(dwc->regs, DWC3_GEVNTSIZ(i));
-		reg &= ~DWC3_GEVNTSIZ_INTMASK;
-		dwc3_writel(dwc->regs, DWC3_GEVNTSIZ(i), reg);
-	}
+	for (i = 0; i < dwc->num_event_buffers; i++)
+		ret |= dwc3_process_event_buf(dwc, i);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
