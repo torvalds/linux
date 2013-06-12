@@ -34,7 +34,11 @@
 
 static inline bool iwl_have_debug_level(u32 level)
 {
+#ifdef CONFIG_IWLWIFI_DEBUG
 	return iwlwifi_mod_params.debug_level & level;
+#else
+	return false;
+#endif
 }
 
 void __iwl_err(struct device *dev, bool rfkill_prefix, bool only_trace,

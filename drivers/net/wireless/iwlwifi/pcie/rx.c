@@ -802,9 +802,6 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	u32 handled = 0;
 	unsigned long flags;
 	u32 i;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	u32 inta_mask;
-#endif
 
 	lock_map_acquire(&trans->sync_cmd_lockdep_map);
 
@@ -826,14 +823,9 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 
 	inta = trans_pcie->inta;
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_have_debug_level(IWL_DL_ISR)) {
-		/* just for debug */
-		inta_mask = iwl_read32(trans, CSR_INT_MASK);
+	if (iwl_have_debug_level(IWL_DL_ISR))
 		IWL_DEBUG_ISR(trans, "inta 0x%08x, enabled 0x%08x\n",
-			      inta, inta_mask);
-	}
-#endif
+			      inta, iwl_read32(trans, CSR_INT_MASK));
 
 	/* saved interrupt in inta variable now we can reset trans_pcie->inta */
 	trans_pcie->inta = 0;
@@ -855,12 +847,11 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		goto out;
 	}
 
-#ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_have_debug_level(IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
-			IWL_DEBUG_ISR(trans, "Scheduler finished to transmit "
-				      "the frame/frames.\n");
+			IWL_DEBUG_ISR(trans,
+				      "Scheduler finished to transmit the frame/frames.\n");
 			isr_stats->sch++;
 		}
 
@@ -870,7 +861,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 			isr_stats->alive++;
 		}
 	}
-#endif
+
 	/* Safely ignore these bits for debug checks below */
 	inta &= ~(CSR_INT_BIT_SCD | CSR_INT_BIT_ALIVE);
 
@@ -1118,9 +1109,6 @@ static irqreturn_t iwl_pcie_isr(int irq, void *data)
 	struct iwl_trans *trans = data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 inta, inta_mask;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	u32 inta_fh;
-#endif
 
 	lockdep_assert_held(&trans_pcie->irq_lock);
 
@@ -1159,13 +1147,11 @@ static irqreturn_t iwl_pcie_isr(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_have_debug_level(IWL_DL_ISR)) {
-		inta_fh = iwl_read32(trans, CSR_FH_INT_STATUS);
-		IWL_DEBUG_ISR(trans, "ISR inta 0x%08x, enabled 0x%08x, "
-			      "fh 0x%08x\n", inta, inta_mask, inta_fh);
-	}
-#endif
+	if (iwl_have_debug_level(IWL_DL_ISR))
+		IWL_DEBUG_ISR(trans,
+			      "ISR inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
+			      inta, inta_mask,
+			      iwl_read32(trans, CSR_FH_INT_STATUS));
 
 	trans_pcie->inta |= inta;
 	/* the thread will service interrupts and re-enable them */
@@ -1272,11 +1258,9 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 	inta = (0xff & val) | ((0xff00 & val) << 16);
 	IWL_DEBUG_ISR(trans, "ISR inta 0x%08x, enabled(sw) 0x%08x ict 0x%08x\n",
 		      inta, trans_pcie->inta_mask, val);
-#ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_have_debug_level(IWL_DL_ISR))
 		IWL_DEBUG_ISR(trans, "enabled(hw) 0x%08x\n",
 			      iwl_read32(trans, CSR_INT_MASK));
-#endif
 
 	inta &= trans_pcie->inta_mask;
 	trans_pcie->inta |= inta;
