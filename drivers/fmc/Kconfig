@@ -1,0 +1,17 @@
+#
+# FMC (ANSI-VITA 57.1) bus support
+#
+
+menuconfig FMC
+	tristate "FMC support"
+	help
+
+	  FMC (FPGA Mezzanine Carrier) is a mechanical and electrical
+	  standard for mezzanine cards that plug into a carrier board.
+	  This kernel subsystem supports the matching between carrier
+	  and mezzanine based on identifiers stored in the internal I2C
+	  EEPROM, as well as having carrier-independent drivers.
+
+	  The framework was born outside of the kernel and at this time
+	  the off-tree code base is more complete.  Code and documentation
+	  is at git://ohwr.org/fmc-projects/fmc-bus.git .

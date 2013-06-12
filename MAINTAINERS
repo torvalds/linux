@@ -3309,6 +3309,15 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/floppy.git
 S:	Odd fixes
 F:	drivers/block/floppy.c
 
+FMC SUBSYSTEM
+M:	Alessandro Rubini <rubini@gnudd.com>
+W:	http://www.ohwr.org/projects/fmc-bus
+S:	Supported
+F:	drivers/fmc/
+F:	include/linux/fmc*.h
+F:	include/linux/ipmi-fru.h
+K:	fmc_d.*register
+
 FPU EMULATOR
 M:	Bill Metzenthen <billm@melbpc.org.au>
 W:	http://floatingpoint.sourceforge.net/emulator/index.html
