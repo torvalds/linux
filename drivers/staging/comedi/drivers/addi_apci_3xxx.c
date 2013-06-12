@@ -77,6 +77,7 @@ enum apci3xxx_boardid {
 
 struct apci3xxx_boardinfo {
 	const char *name;
+	int ai_subdev_flags;
 	int i_NbrAiChannel;
 	int i_NbrAiChannelDiff;
 	unsigned int ai_maxdata;
@@ -91,6 +92,7 @@ struct apci3xxx_boardinfo {
 static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	[BOARD_APCI3000_16] = {
 		.name			= "apci3000-16",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.ai_maxdata		= 0x0fff,
@@ -100,6 +102,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3000_8] = {
 		.name			= "apci3000-8",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.ai_maxdata		= 0x0fff,
@@ -109,6 +112,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3000_4] = {
 		.name			= "apci3000-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.ai_maxdata		= 0x0fff,
@@ -118,6 +122,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3006_16] = {
 		.name			= "apci3006-16",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.ai_maxdata		= 0xffff,
@@ -127,6 +132,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3006_8] = {
 		.name			= "apci3006-8",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.ai_maxdata		= 0xffff,
@@ -136,6 +142,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3006_4] = {
 		.name			= "apci3006-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.ai_maxdata		= 0xffff,
@@ -145,6 +152,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3010_16] = {
 		.name			= "apci3010-16",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.ai_maxdata		= 0x0fff,
@@ -156,6 +164,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3010_8] = {
 		.name			= "apci3010-8",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.ai_maxdata		= 0x0fff,
@@ -167,6 +176,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3010_4] = {
 		.name			= "apci3010-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.ai_maxdata		= 0x0fff,
@@ -178,6 +188,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3016_16] = {
 		.name			= "apci3016-16",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.ai_maxdata		= 0xffff,
@@ -189,6 +200,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3016_8] = {
 		.name			= "apci3016-8",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.ai_maxdata		= 0xffff,
@@ -200,6 +212,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3016_4] = {
 		.name			= "apci3016-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.ai_maxdata		= 0xffff,
@@ -211,6 +224,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3100_16_4] = {
 		.name			= "apci3100-16-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.ai_maxdata		= 0x0fff,
@@ -221,6 +235,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3100_8_4] = {
 		.name			= "apci3100-8-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.ai_maxdata		= 0x0fff,
@@ -231,6 +246,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3106_16_4] = {
 		.name			= "apci3106-16-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.ai_maxdata		= 0xffff,
@@ -241,6 +257,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3106_8_4] = {
 		.name			= "apci3106-8-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.ai_maxdata		= 0xffff,
@@ -251,6 +268,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3110_16_4] = {
 		.name			= "apci3110-16-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.ai_maxdata		= 0x0fff,
@@ -263,6 +281,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3110_8_4] = {
 		.name			= "apci3110-8-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.ai_maxdata		= 0x0fff,
@@ -275,6 +294,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3116_16_4] = {
 		.name			= "apci3116-16-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.ai_maxdata		= 0xffff,
@@ -287,6 +307,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3116_8_4] = {
 		.name			= "apci3116-8-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.ai_maxdata		= 0xffff,
@@ -299,6 +320,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3003] = {
 		.name			= "apci3003",
+		.ai_subdev_flags	= SDF_DIFF,
 		.i_NbrAiChannelDiff	= 4,
 		.ai_maxdata		= 0xffff,
 		.b_AvailableConvertUnit	= 7,
@@ -308,6 +330,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3002_16] = {
 		.name			= "apci3002-16",
+		.ai_subdev_flags	= SDF_DIFF,
 		.i_NbrAiChannelDiff	= 16,
 		.ai_maxdata		= 0xffff,
 		.b_AvailableConvertUnit	= 6,
@@ -317,6 +340,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3002_8] = {
 		.name			= "apci3002-8",
+		.ai_subdev_flags	= SDF_DIFF,
 		.i_NbrAiChannelDiff	= 8,
 		.ai_maxdata		= 0xffff,
 		.b_AvailableConvertUnit	= 6,
@@ -326,6 +350,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3002_4] = {
 		.name			= "apci3002-4",
+		.ai_subdev_flags	= SDF_DIFF,
 		.i_NbrAiChannelDiff	= 4,
 		.ai_maxdata		= 0xffff,
 		.b_AvailableConvertUnit	= 6,
@@ -594,8 +619,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->i_NbrAiChannel || board->i_NbrAiChannelDiff) {
 		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND |
-				  SDF_DIFF;
+		s->subdev_flags = SDF_READABLE | board->ai_subdev_flags;
 		if (board->i_NbrAiChannel) {
 			s->n_chan = board->i_NbrAiChannel;
 			devpriv->b_SingelDiff = 0;
