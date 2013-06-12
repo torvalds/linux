@@ -378,7 +378,6 @@ struct apci3xxx_private {
 	unsigned char b_EocEosConversionTimeBase;
 	unsigned char b_SingelDiff;
 	struct task_struct *tsk_Current;
-	unsigned int ul_TTLPortConfiguration[10];
 };
 
 #include "addi-data/hwdrv_apci3xxx.c"
@@ -473,6 +472,83 @@ static int apci3xxx_do_insn_bits(struct comedi_device *dev,
 	}
 
 	data[1] = s->state;
+
+	return insn->n;
+}
+
+static int apci3xxx_dio_insn_config(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask = 1 << chan;
+	unsigned int bits;
+
+	/*
+	 * Port 0 (channels 0-7) are always inputs
+	 * Port 1 (channels 8-15) are always outputs
+	 * Port 2 (channels 16-23) are programmable i/o
+	 *
+	 * Changing any channel in port 2 changes the entire port.
+	 */
+	if (mask & 0xff0000)
+		bits = 0xff0000;
+	else
+		bits = 0;
+
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits &= ~bits;
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= bits;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+	default:
+		return -EINVAL;
+	}
+
+	/* update port 2 configuration */
+	if (bits)
+		outl((s->io_bits >> 24) & 0xff, devpriv->iobase + 224);
+
+	return insn->n;
+}
+
+static int apci3xxx_dio_insn_bits(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+	unsigned int val;
+
+	/* only update output channels */
+	mask &= s->io_bits;
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
+		if (mask & 0xff)
+			outl(s->state & 0xff, devpriv->iobase + 80);
+		if (mask & 0xff0000)
+			outl((s->state >> 16) & 0xff, devpriv->iobase + 112);
+	}
+
+	val = inl(devpriv->iobase + 80);
+	val |= (inl(devpriv->iobase + 64) << 8);
+	if (s->io_bits & 0xff0000)
+		val |= (inl(devpriv->iobase + 112) << 16);
+	else
+		val |= (inl(devpriv->iobase + 96) << 16);
+
+	data[1] = val;
 
 	return insn->n;
 }
@@ -632,10 +708,8 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->maxdata	= 1;
 		s->io_bits	= 0xff;	/* channels 0-7 are always outputs */
 		s->range_table	= &range_digital;
-		s->insn_config	= i_APCI3XXX_InsnConfigInitTTLIO;
-		s->insn_bits	= i_APCI3XXX_InsnBitsTTLIO;
-		s->insn_read	= i_APCI3XXX_InsnReadTTLIO;
-		s->insn_write	= i_APCI3XXX_InsnWriteTTLIO;
+		s->insn_config	= apci3xxx_dio_insn_config;
+		s->insn_bits	= apci3xxx_dio_insn_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
