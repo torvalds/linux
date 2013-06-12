@@ -956,7 +956,7 @@ i915_gem_check_olr(struct intel_ring_buffer *ring, u32 seqno)
 
 	ret = 0;
 	if (seqno == ring->outstanding_lazy_request)
-		ret = i915_add_request(ring, NULL, NULL);
+		ret = i915_add_request(ring, NULL);
 
 	return ret;
 }
@@ -2011,10 +2011,9 @@ i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
 	return 0;
 }
 
-int
-i915_add_request(struct intel_ring_buffer *ring,
-		 struct drm_file *file,
-		 u32 *out_seqno)
+int __i915_add_request(struct intel_ring_buffer *ring,
+		       struct drm_file *file,
+		       u32 *out_seqno)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_request *request;
@@ -2290,7 +2289,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	idle = true;
 	for_each_ring(ring, dev_priv, i) {
 		if (ring->gpu_caches_dirty)
-			i915_add_request(ring, NULL, NULL);
+			i915_add_request(ring, NULL);
 
 		idle &= list_empty(&ring->request_list);
 	}

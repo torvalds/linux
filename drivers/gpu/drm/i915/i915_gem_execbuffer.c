@@ -802,7 +802,7 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 	ring->gpu_caches_dirty = true;
 
 	/* Add a breadcrumb for the completion of the batch buffer */
-	(void)i915_add_request(ring, file, NULL);
+	(void)__i915_add_request(ring, file, NULL);
 }
 
 static int
