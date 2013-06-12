@@ -2486,11 +2486,26 @@ static const u16 *sh_eth_get_register_offset(int register_type)
 	return reg_offset;
 }
 
-static struct net_device_ops sh_eth_netdev_ops = {
+static const struct net_device_ops sh_eth_netdev_ops = {
 	.ndo_open		= sh_eth_open,
 	.ndo_stop		= sh_eth_close,
 	.ndo_start_xmit		= sh_eth_start_xmit,
 	.ndo_get_stats		= sh_eth_get_stats,
+	.ndo_tx_timeout		= sh_eth_tx_timeout,
+	.ndo_do_ioctl		= sh_eth_do_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+};
+
+static const struct net_device_ops sh_eth_netdev_ops_tsu = {
+	.ndo_open		= sh_eth_open,
+	.ndo_stop		= sh_eth_close,
+	.ndo_start_xmit		= sh_eth_start_xmit,
+	.ndo_get_stats		= sh_eth_get_stats,
+	.ndo_set_rx_mode	= sh_eth_set_multicast_list,
+	.ndo_vlan_rx_add_vid	= sh_eth_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= sh_eth_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= sh_eth_tx_timeout,
 	.ndo_do_ioctl		= sh_eth_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -2568,14 +2583,10 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	sh_eth_set_default_cpu_data(mdp->cd);
 
 	/* set function */
-	if (mdp->cd->tsu) {
-		sh_eth_netdev_ops.ndo_set_rx_mode = sh_eth_set_multicast_list;
-		sh_eth_netdev_ops.ndo_vlan_rx_add_vid = sh_eth_vlan_rx_add_vid;
-		sh_eth_netdev_ops.ndo_vlan_rx_kill_vid =
-			sh_eth_vlan_rx_kill_vid;
-	}
-
-	ndev->netdev_ops = &sh_eth_netdev_ops;
+	if (mdp->cd->tsu)
+		ndev->netdev_ops = &sh_eth_netdev_ops_tsu;
+	else
+		ndev->netdev_ops = &sh_eth_netdev_ops;
 	SET_ETHTOOL_OPS(ndev, &sh_eth_ethtool_ops);
 	ndev->watchdog_timeo = TX_TIMEOUT;
 
