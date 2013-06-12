@@ -1,10 +1,10 @@
 #include <linux/pci.h>
+#include <linux/interrupt.h>
+#include <linux/sched.h>
 
 #include "../comedidev.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
-
-#include "addi-data/addi_common.h"
 
 #ifndef COMEDI_SUBD_TTLIO
 #define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
@@ -384,12 +384,27 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 };
 
+struct apci3xxx_private {
+	int iobase;
+	int i_IobaseReserved;
+	void __iomem *dw_AiBase;
+	unsigned char b_AiInitialisation;
+	unsigned int ui_AiNbrofChannels;	/*  how many channels is measured */
+	unsigned int ui_AiReadData[32];
+	unsigned char b_EocEosInterrupt;
+	unsigned int ui_EocEosConversionTime;
+	unsigned char b_EocEosConversionTimeBase;
+	unsigned char b_SingelDiff;
+	struct task_struct *tsk_Current;
+	unsigned int ul_TTLPortConfiguration[10];
+};
+
 #include "addi-data/hwdrv_apci3xxx.c"
 
 static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct addi_private *devpriv = dev->private;
+	struct apci3xxx_private *devpriv = dev->private;
 	unsigned int status;
 	int i;
 
@@ -424,7 +439,7 @@ static int apci3xxx_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3xxx_private *devpriv = dev->private;
 
 	data[1] = inl(devpriv->iobase + 32) & 0xf;
 
@@ -436,7 +451,7 @@ static int apci3xxx_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3xxx_private *devpriv = dev->private;
 	unsigned int mask = data[0];
 	unsigned int bits = data[1];
 
@@ -455,7 +470,7 @@ static int apci3xxx_do_insn_bits(struct comedi_device *dev,
 
 static int apci3xxx_reset(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3xxx_private *devpriv = dev->private;
 	unsigned int val;
 	int i;
 
@@ -490,7 +505,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct apci3xxx_boardinfo *board = NULL;
-	struct addi_private *devpriv;
+	struct apci3xxx_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, n_subdevices;
 
@@ -629,7 +644,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 
 static void apci3xxx_detach(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3xxx_private *devpriv = dev->private;
 
 	if (devpriv) {
 		if (dev->iobase)
