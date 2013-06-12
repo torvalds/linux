@@ -81,10 +81,10 @@ struct apci3xxx_boardinfo {
 	int i_NbrAiChannel;
 	int i_NbrAiChannelDiff;
 	int i_AiChannelList;
-	int i_NbrAoChannel;
 	int i_AiMaxdata;
 	unsigned char b_AvailableConvertUnit;
 	unsigned int ui_MinAcquisitiontimeNs;
+	unsigned int has_ao:1;
 	unsigned int has_dig_in:1;
 	unsigned int has_dig_out:1;
 	unsigned int has_ttl_io:1;
@@ -228,10 +228,10 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
-		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 4095,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
+		.has_ao			= 1,
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3100_8_4] = {
@@ -239,10 +239,10 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
-		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 4095,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
+		.has_ao			= 1,
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3106_16_4] = {
@@ -250,10 +250,10 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
-		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 65535,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
+		.has_ao			= 1,
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3106_8_4] = {
@@ -261,10 +261,10 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
-		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 65535,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
+		.has_ao			= 1,
 		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3110_16_4] = {
@@ -272,10 +272,10 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
-		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 4095,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
+		.has_ao			= 1,
 		.has_dig_in		= 1,
 		.has_dig_out		= 1,
 		.has_ttl_io		= 1,
@@ -285,10 +285,10 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
-		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 4095,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
+		.has_ao			= 1,
 		.has_dig_in		= 1,
 		.has_dig_out		= 1,
 		.has_ttl_io		= 1,
@@ -298,10 +298,10 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
-		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 65535,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
+		.has_ao			= 1,
 		.has_dig_in		= 1,
 		.has_dig_out		= 1,
 		.has_ttl_io		= 1,
@@ -311,10 +311,10 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
-		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 65535,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
+		.has_ao			= 1,
 		.has_dig_in		= 1,
 		.has_dig_out		= 1,
 		.has_ttl_io		= 1,
@@ -361,7 +361,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3500] = {
 		.pc_DriverName		= "apci3500",
-		.i_NbrAoChannel		= 4,
+		.has_ao			= 1,
 		.has_ttl_io		= 1,
 	},
 };
@@ -555,10 +555,10 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise AO Subdevice Structures */
 	s = &dev->subdevices[1];
-	if (board->i_NbrAoChannel) {
+	if (board->has_ao) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = board->i_NbrAoChannel;
+		s->n_chan = 4;
 		s->maxdata = 0x0fff;
 		s->range_table = &apci3xxx_ao_range;
 		s->insn_write = i_APCI3XXX_InsnWriteAnalogOutput;
