@@ -508,6 +508,13 @@ struct i915_hw_ppgtt {
 	void (*cleanup)(struct i915_hw_ppgtt *ppgtt);
 };
 
+struct i915_ctx_hang_stats {
+	/* This context had batch pending when hang was declared */
+	unsigned batch_pending;
+
+	/* This context had batch active when hang was declared */
+	unsigned batch_active;
+};
 
 /* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_ID 0
@@ -518,6 +525,7 @@ struct i915_hw_context {
 	struct drm_i915_file_private *file_priv;
 	struct intel_ring_buffer *ring;
 	struct drm_i915_gem_object *obj;
+	struct i915_ctx_hang_stats hang_stats;
 };
 
 enum no_fbc_reason {
@@ -1378,6 +1386,8 @@ struct drm_i915_file_private {
 		struct list_head request_list;
 	} mm;
 	struct idr context_idr;
+
+	struct i915_ctx_hang_stats hang_stats;
 };
 
 #define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
