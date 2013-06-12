@@ -63,6 +63,7 @@
 #include <dmxdev.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-device.h>
 
 #include "saa7164-reg.h"
 #include "saa7164-types.h"
@@ -426,6 +427,8 @@ struct saa7164_port {
 struct saa7164_dev {
 	struct list_head	devlist;
 	atomic_t		refcount;
+
+	struct v4l2_device v4l2_dev;
 
 	/* pci stuff */
 	struct pci_dev	*pci;
