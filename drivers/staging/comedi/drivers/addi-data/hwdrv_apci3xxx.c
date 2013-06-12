@@ -2,8 +2,6 @@
 #define APCI3XXX_DIFF				1
 #define APCI3XXX_CONFIGURATION			0
 
-#define APCI3XXX_TTL_INIT_DIRECTION_PORT2	0
-
 /*
 +----------------------------------------------------------------------------+
 |                         ANALOG INPUT FUNCTIONS                             |
