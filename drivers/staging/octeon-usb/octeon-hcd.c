@@ -737,7 +737,7 @@ static struct device_driver octeon_usb_driver = {
 
 
 #define MAX_USB_PORTS   10
-struct platform_device *pdev_glob[MAX_USB_PORTS];
+static struct platform_device *pdev_glob[MAX_USB_PORTS];
 static int octeon_usb_registered;
 static int __init octeon_usb_module_init(void)
 {
