@@ -1283,25 +1283,3 @@ static int apci3xxx_di_insn_bits(struct comedi_device *dev,
 
 	return insn->n;
 }
-
-static int apci3xxx_do_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	s->state = inl(devpriv->iobase + 48) & 0xf;
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
-		outl(s->state, devpriv->iobase + 48);
-	}
-
-	data[1] = s->state;
-
-	return insn->n;
-}

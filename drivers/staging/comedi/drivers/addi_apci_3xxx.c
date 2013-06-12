@@ -188,7 +188,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
 		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
@@ -214,7 +213,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
 		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
@@ -240,7 +238,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
 		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
@@ -266,7 +263,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
 		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
@@ -292,7 +288,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
 		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
@@ -318,7 +313,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
 		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
@@ -448,7 +442,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
 		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
@@ -478,7 +471,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
 		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
@@ -508,7 +500,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
 		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
@@ -538,7 +529,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
 		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
@@ -562,7 +552,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 	},
 	[BOARD_APCI3002_16] = {
 		.pc_DriverName		= "apci3002-16",
@@ -582,7 +571,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 	},
 	[BOARD_APCI3002_8] = {
 		.pc_DriverName		= "apci3002-8",
@@ -602,7 +590,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 	},
 	[BOARD_APCI3002_4] = {
 		.pc_DriverName		= "apci3002-4",
@@ -622,7 +609,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
 	},
 	[BOARD_APCI3500] = {
 		.pc_DriverName		= "apci3500",
@@ -641,6 +627,28 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 };
+
+static int apci3xxx_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	struct addi_private *devpriv = dev->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+
+	s->state = inl(devpriv->iobase + 48) & 0xf;
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
+		outl(s->state, devpriv->iobase + 48);
+	}
+
+	data[1] = s->state;
+
+	return insn->n;
+}
 
 static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
@@ -866,12 +874,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->len_chanlist = devpriv->s_EeParameters.i_NbrDoChannel;
 		s->range_table = &range_digital;
 		s->io_bits = 0xf;	/* all bits output */
-
-		/* insn_config - for digital output memory */
-		s->insn_config = board->do_config;
-		s->insn_write = board->do_write;
-		s->insn_bits = board->do_bits;
-		s->insn_read = board->do_read;
+		s->insn_bits = apci3xxx_do_insn_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
