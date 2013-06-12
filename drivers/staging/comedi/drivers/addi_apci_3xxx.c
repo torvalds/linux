@@ -392,6 +392,25 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
+static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_cmd *cmd)
+{
+	return 0;
+}
+
+static int apci3xxx_ai_cmd(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
+{
+	return 0;
+}
+
+static int apci3xxx_ai_cancel(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
+{
+	return 0;
+}
+
 static int apci3xxx_ao_insn_write(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn,
@@ -600,7 +619,6 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
 	if (board->ai_n_chan) {
-		dev->read_subdev = s;
 		s->type		= COMEDI_SUBD_AI;
 		s->subdev_flags	= SDF_READABLE | board->ai_subdev_flags;
 		s->n_chan	= board->ai_n_chan;
@@ -609,7 +627,13 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->range_table	= &apci3xxx_ai_range;
 		s->insn_config	= apci3xxx_ai_insn_config;
 		s->insn_read	= apci3xxx_ai_insn_read;
-
+		if (dev->irq) {
+			dev->read_subdev = s;
+			s->subdev_flags	|= SDF_CMD_READ;
+			s->do_cmdtest	= apci3xxx_ai_cmdtest;
+			s->do_cmd	= apci3xxx_ai_cmd;
+			s->cancel	= apci3xxx_ai_cancel;
+		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
