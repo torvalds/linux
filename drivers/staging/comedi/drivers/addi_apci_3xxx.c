@@ -71,12 +71,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3000_8] = {
 		.pc_DriverName		= "apci3000-8",
@@ -88,12 +82,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3000_4] = {
 		.pc_DriverName		= "apci3000-4",
@@ -105,12 +93,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3006_16] = {
 		.pc_DriverName		= "apci3006-16",
@@ -122,12 +104,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3006_8] = {
 		.pc_DriverName		= "apci3006-8",
@@ -139,12 +115,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3006_4] = {
 		.pc_DriverName		= "apci3006-4",
@@ -156,12 +126,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3010_16] = {
 		.pc_DriverName		= "apci3010-16",
@@ -175,12 +139,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3010_8] = {
 		.pc_DriverName		= "apci3010-8",
@@ -194,12 +152,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3010_4] = {
 		.pc_DriverName		= "apci3010-4",
@@ -213,12 +165,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3016_16] = {
 		.pc_DriverName		= "apci3016-16",
@@ -232,12 +178,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3016_8] = {
 		.pc_DriverName		= "apci3016-8",
@@ -251,12 +191,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3016_4] = {
 		.pc_DriverName		= "apci3016-4",
@@ -270,12 +204,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3100_16_4] = {
 		.pc_DriverName		= "apci3100-16-4",
@@ -289,13 +217,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3100_8_4] = {
 		.pc_DriverName		= "apci3100-8-4",
@@ -309,13 +230,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3106_16_4] = {
 		.pc_DriverName		= "apci3106-16-4",
@@ -329,13 +243,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3106_8_4] = {
 		.pc_DriverName		= "apci3106-8-4",
@@ -349,13 +256,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3110_16_4] = {
 		.pc_DriverName		= "apci3110-16-4",
@@ -371,13 +271,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3110_8_4] = {
 		.pc_DriverName		= "apci3110-8-4",
@@ -393,13 +286,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3116_16_4] = {
 		.pc_DriverName		= "apci3116-16-4",
@@ -415,13 +301,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3116_8_4] = {
 		.pc_DriverName		= "apci3116-8-4",
@@ -437,13 +316,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 	[BOARD_APCI3003] = {
 		.pc_DriverName		= "apci3003",
@@ -455,8 +327,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.b_AvailableConvertUnit	= 7,
 		.ui_MinAcquisitiontimeNs = 2500,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 	},
 	[BOARD_APCI3002_16] = {
 		.pc_DriverName		= "apci3002-16",
@@ -468,8 +338,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 	},
 	[BOARD_APCI3002_8] = {
 		.pc_DriverName		= "apci3002-8",
@@ -481,8 +349,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 	},
 	[BOARD_APCI3002_4] = {
 		.pc_DriverName		= "apci3002-4",
@@ -494,8 +360,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrDoChannel		= 4,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 	},
 	[BOARD_APCI3500] = {
 		.pc_DriverName		= "apci3500",
@@ -503,11 +367,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAoChannel		= 4,
 		.i_AoMaxdata		= 4095,
 		.i_NbrTTLChannel	= 24,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
 	},
 };
 
@@ -674,13 +533,8 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		/* Set the initialisation flag */
 		devpriv->b_AiInitialisation = 1;
 
-		s->insn_config = board->ai_config;
-		s->insn_read = board->ai_read;
-		s->insn_write = board->ai_write;
-		s->insn_bits = board->ai_bits;
-		s->do_cmdtest = board->ai_cmdtest;
-		s->do_cmd = board->ai_cmd;
-		s->cancel = board->ai_cancel;
+		s->insn_config = i_APCI3XXX_InsnConfigAnalogInput;
+		s->insn_read = i_APCI3XXX_InsnReadAnalogInput;
 
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -694,8 +548,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->n_chan = board->i_NbrAoChannel;
 		s->maxdata = board->i_AoMaxdata;
 		s->range_table = &apci3xxx_ao_range;
-		s->insn_config = board->ao_config;
-		s->insn_write = board->ao_write;
+		s->insn_write = i_APCI3XXX_InsnWriteAnalogOutput;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -742,10 +595,10 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->io_bits = 0;	/* all bits input */
 		s->len_chanlist = board->i_NbrTTLChannel;
 		s->range_table = &range_digital;
-		s->insn_config = board->ttl_config;
-		s->insn_bits = board->ttl_bits;
-		s->insn_read = board->ttl_read;
-		s->insn_write = board->ttl_write;
+		s->insn_config = i_APCI3XXX_InsnConfigInitTTLIO;
+		s->insn_bits = i_APCI3XXX_InsnBitsTTLIO;
+		s->insn_read = i_APCI3XXX_InsnReadTTLIO;
+		s->insn_write = i_APCI3XXX_InsnWriteTTLIO;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
