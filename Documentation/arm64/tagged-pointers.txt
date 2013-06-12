@@ -1,0 +1,34 @@
+		Tagged virtual addresses in AArch64 Linux
+		=========================================
+
+Author: Will Deacon <will.deacon@arm.com>
+Date  : 12 June 2013
+
+This document briefly describes the provision of tagged virtual
+addresses in the AArch64 translation system and their potential uses
+in AArch64 Linux.
+
+The kernel configures the translation tables so that translations made
+via TTBR0 (i.e. userspace mappings) have the top byte (bits 63:56) of
+the virtual address ignored by the translation hardware. This frees up
+this byte for application use, with the following caveats:
+
+	(1) The kernel requires that all user addresses passed to EL1
+	    are tagged with tag 0x00. This means that any syscall
+	    parameters containing user virtual addresses *must* have
+	    their top byte cleared before trapping to the kernel.
+
+	(2) Tags are not guaranteed to be preserved when delivering
+	    signals. This means that signal handlers in applications
+	    making use of tags cannot rely on the tag information for
+	    user virtual addresses being maintained for fields inside
+	    siginfo_t. One exception to this rule is for signals raised
+	    in response to debug exceptions, where the tag information
+	    will be preserved.
+
+	(3) Special care should be taken when using tagged pointers,
+	    since it is likely that C compilers will not hazard two
+	    addresses differing only in the upper bits.
+
+The architecture prevents the use of a tagged PC, so the upper byte will
+be set to a sign-extension of bit 55 on exception return.
