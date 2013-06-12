@@ -2216,7 +2216,7 @@ out:
 
 	brelse(orphan_dir_bh);
 
-	return 0;
+	return ret;
 }
 
 int ocfs2_create_inode_in_orphan(struct inode *dir,
