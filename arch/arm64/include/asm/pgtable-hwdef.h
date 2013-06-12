@@ -35,6 +35,7 @@
 /*
  * Section
  */
+#define PMD_SECT_USER		(_AT(pteval_t, 1) << 6)		/* AP[1] */
 #define PMD_SECT_S		(_AT(pmdval_t, 3) << 8)
 #define PMD_SECT_AF		(_AT(pmdval_t, 1) << 10)
 #define PMD_SECT_NG		(_AT(pmdval_t, 1) << 11)
@@ -66,6 +67,24 @@
  */
 #define PTE_ATTRINDX(t)		(_AT(pteval_t, (t)) << 2)
 #define PTE_ATTRINDX_MASK	(_AT(pteval_t, 7) << 2)
+
+/*
+ * 2nd stage PTE definitions
+ */
+#define PTE_S2_RDONLY		(_AT(pteval_t, 1) << 6)   /* HAP[2:1] */
+#define PTE_S2_RDWR		(_AT(pteval_t, 3) << 6)   /* HAP[2:1] */
+
+/*
+ * Memory Attribute override for Stage-2 (MemAttr[3:0])
+ */
+#define PTE_S2_MEMATTR(t)	(_AT(pteval_t, (t)) << 2)
+#define PTE_S2_MEMATTR_MASK	(_AT(pteval_t, 0xf) << 2)
+
+/*
+ * EL2/HYP PTE/PMD definitions
+ */
+#define PMD_HYP			PMD_SECT_USER
+#define PTE_HYP			PTE_USER
 
 /*
  * 40-bit physical address supported.
