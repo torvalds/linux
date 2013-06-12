@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "dbx5x0.dtsi"
+#include "ccu8540-pinctrl.dtsi"
 
 / {
 	model = "ST-Ericsson U8540 platform with Device Tree";
@@ -21,12 +22,19 @@
 	};
 
 	soc {
+		pinctrl {
+			compatible = "stericsson,db8540-pinctrl";
+		};
+
 		prcmu@80157000 {
 			reg = <0x80157000 0x2000>, <0x801b0000 0x8000>, <0x801b8000 0x3000>;
 			reg-names = "prcmu", "prcmu-tcpm", "prcmu-tcdm";
 		};
 
 		uart@80120000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart0_default_mux>, <&uart0_default_mode>;
+			pinctrl-1 = <&uart0_sleep_mode>;
 			status = "okay";
 		};
 
@@ -35,6 +43,9 @@
 		};
 
 		uart@80007000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart2_default_mode>;
+			pinctrl-1 = <&uart2_sleep_mode>;
 			status = "okay";
 		};
 	};

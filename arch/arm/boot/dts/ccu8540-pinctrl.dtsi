@@ -1,0 +1,81 @@
+/*
+ * Copyright 2012 ST-Ericsson
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+#include "ste-nomadik-pinctrl.dtsi"
+
+/ {
+	soc {
+		pinctrl {
+			uart0 {
+				uart0_default_mux: uart0_mux {
+					default_mux {
+						ste,function = "u0";
+						ste,pins = "u0_a_1";
+					};
+				};
+
+				uart0_default_mode: uart0_default {
+					default_cfg1 {
+						ste,pins = "GPIO0", "GPIO2";
+						ste,config = <&in_pu>;
+					};
+
+					default_cfg2 {
+						ste,pins = "GPIO1", "GPIO3";
+						ste,config = <&out_hi>;
+					};
+				};
+
+				uart0_sleep_mode: uart0_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO0", "GPIO2";
+						ste,config = <&slpm_in_pu>;
+					};
+
+					sleep_cfg2 {
+						ste,pins = "GPIO1", "GPIO3";
+						ste,config = <&slpm_out_hi>;
+					};
+				};
+			};
+
+			uart2 {
+				uart2_default_mode: uart2_default {
+					default_mux {
+						ste,function = "u2";
+						ste,pins = "u2txrx_a_1";
+					};
+
+					default_cfg1 {
+						ste,pins = "GPIO120";
+						ste,config = <&in_pu>;
+					};
+
+					default_cfg2 {
+						ste,pins = "GPIO121";
+						ste,config = <&out_hi>;
+					};
+				};
+
+				uart2_sleep_mode: uart2_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO120";
+						ste,config = <&slpm_in_pu>;
+					};
+
+					sleep_cfg2 {
+						ste,pins = "GPIO121";
+						ste,config = <&slpm_out_hi>;
+					};
+				};
+			};
+		};
+	};
+};
