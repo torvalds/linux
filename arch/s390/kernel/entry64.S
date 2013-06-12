@@ -964,6 +964,7 @@ sie_done:
 # See also HANDLE_SIE_INTERCEPT
 rewind_pad:
 	nop	0
+	.globl sie_exit
 sie_exit:
 	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
