@@ -5342,9 +5342,8 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	uint32_t val;
 
-	val = I915_READ(PIPECONF(pipe));
+	val = 0;
 
-	val &= ~PIPECONF_BPC_MASK;
 	switch (intel_crtc->config.pipe_bpp) {
 	case 18:
 		val |= PIPECONF_6BPC;
@@ -5363,11 +5362,9 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc)
 		BUG();
 	}
 
-	val &= ~(PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_MASK);
 	if (intel_crtc->config.dither)
 		val |= (PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP);
 
-	val &= ~PIPECONF_INTERLACE_MASK;
 	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		val |= PIPECONF_INTERLACED_ILK;
 	else
@@ -5375,8 +5372,6 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc)
 
 	if (intel_crtc->config.limited_color_range)
 		val |= PIPECONF_COLOR_RANGE_SELECT;
-	else
-		val &= ~PIPECONF_COLOR_RANGE_SELECT;
 
 	I915_WRITE(PIPECONF(pipe), val);
 	POSTING_READ(PIPECONF(pipe));
