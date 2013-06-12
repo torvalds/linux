@@ -79,6 +79,13 @@ static struct sh_eth_plat_data ether_platform_data __initdata = {
 	.no_ether_link	= 1,
 };
 
+/* I2C */
+static struct i2c_board_info i2c0_devices[] = {
+	{
+		I2C_BOARD_INFO("rx8581", 0x51),
+	},
+};
+
 static const struct pinctrl_map bockw_pinctrl_map[] = {
 	/* Ether */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-eth", "pfc-r8a7778",
@@ -110,7 +117,10 @@ static void __init bockw_init(void)
 	r8a7778_add_standard_devices();
 	r8a7778_add_usb_phy_device(&usb_phy_platform_data);
 	r8a7778_add_ether_device(&ether_platform_data);
+	r8a7778_add_i2c_device(0);
 
+	i2c_register_board_info(0, i2c0_devices,
+				ARRAY_SIZE(i2c0_devices));
 	pinctrl_register_mappings(bockw_pinctrl_map,
 				  ARRAY_SIZE(bockw_pinctrl_map));
 	r8a7778_pinmux_init();
