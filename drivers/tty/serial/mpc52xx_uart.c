@@ -1058,6 +1058,9 @@ mpc52xx_uart_shutdown(struct uart_port *port)
 	if (psc_ops->clock)
 		psc_ops->clock(port, 0);
 
+	/* Disable interrupt */
+	psc_ops->cw_disable_ints(port);
+
 	/* Release interrupt */
 	free_irq(port->irq, port);
 }
