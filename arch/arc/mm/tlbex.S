@@ -382,7 +382,6 @@ do_slow_path_pf:
 	; ------- setup args for Linux Page fault Hanlder ---------
 	mov_s r0, sp
 	lr  r1, [efa]
-	lr  r2, [ecr]
 
 	; We don't want exceptions to be disabled while the fault is handled.
 	; Now that we have saved the context we return from exception hence

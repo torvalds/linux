@@ -52,15 +52,14 @@ bad_area:
 	return 1;
 }
 
-void do_page_fault(struct pt_regs *regs, unsigned long address,
-		   unsigned long cause_code)
+void do_page_fault(struct pt_regs *regs, unsigned long address)
 {
 	struct vm_area_struct *vma = NULL;
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
 	siginfo_t info;
 	int fault, ret;
-	int write = cause_code & (1 << ECR_C_BIT_DTLB_ST_MISS);  /* ST/EX */
+	int write = regs->ecr_cause & ECR_C_PROTV_STORE;  /* ST/EX */
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
 				(write ? FAULT_FLAG_WRITE : 0);
 
@@ -111,7 +110,8 @@ good_area:
 
 	/* Handle protection violation, execute on heap or stack */
 
-	if (cause_code == ((ECR_V_PROTV << 16) | ECR_C_PROTV_INST_FETCH))
+	if ((regs->ecr_vec == ECR_V_PROTV) &&
+	    (regs->ecr_cause == ECR_C_PROTV_INST_FETCH))
 		goto bad_area;
 
 	if (write) {
@@ -178,7 +178,6 @@ bad_area_nosemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (user_mode(regs)) {
 		tsk->thread.fault_address = address;
-		tsk->thread.cause_code = cause_code;
 		info.si_signo = SIGSEGV;
 		info.si_errno = 0;
 		/* info.si_code has been set above */
@@ -199,7 +198,7 @@ no_context:
 	if (fixup_exception(regs))
 		return;
 
-	die("Oops", regs, address, cause_code);
+	die("Oops", regs, address);
 
 out_of_memory:
 	if (is_global_init(tsk)) {
@@ -220,7 +219,6 @@ do_sigbus:
 		goto no_context;
 
 	tsk->thread.fault_address = address;
-	tsk->thread.cause_code = cause_code;
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRERR;

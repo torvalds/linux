@@ -169,7 +169,7 @@ int kgdb_arch_init(void)
 	return 0;
 }
 
-void kgdb_trap(struct pt_regs *regs, int param)
+void kgdb_trap(struct pt_regs *regs)
 {
 	/* trap_s 3 is used for breakpoints that overwrite existing
 	 * instructions, while trap_s 4 is used for compiled breakpoints.

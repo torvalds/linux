@@ -274,10 +274,8 @@ ARC_ENTRY instr_service
 	SWITCH_TO_KERNEL_STK
 	SAVE_ALL_SYS
 
-	lr  r0, [ecr]
-	lr  r1, [efa]
-
-	mov r2, sp
+	lr  r0, [efa]
+	mov r1, sp
 
 	FAKE_RET_FROM_EXCPN r9
 
@@ -298,9 +296,8 @@ ARC_ENTRY mem_service
 	SWITCH_TO_KERNEL_STK
 	SAVE_ALL_SYS
 
-	lr  r0, [ecr]
-	lr  r1, [efa]
-	mov r2, sp
+	lr  r0, [efa]
+	mov r1, sp
 	bl  do_memory_error
 	b   ret_from_exception
 ARC_EXIT mem_service
@@ -317,11 +314,11 @@ ARC_ENTRY EV_MachineCheck
 	SWITCH_TO_KERNEL_STK
 	SAVE_ALL_SYS
 
-	lr  r0, [ecr]
-	lr  r1, [efa]
-	mov r2, sp
+	lr  r2, [ecr]
+	lr  r0, [efa]
+	mov r1, sp
 
-	lsr  	r3, r0, 8
+	lsr  	r3, r2, 8
 	bmsk 	r3, r3, 7
 	brne    r3, ECR_C_MCHK_DUP_TLB, 1f
 
@@ -384,12 +381,12 @@ ARC_ENTRY EV_TLBProtV
 
 	;========== (6b) Non aligned access ============
 4:
-	mov r0, r2              ; cause code
-	mov r2, sp              ; pt_regs
+	mov r0, r1
+	mov r1, sp              ; pt_regs
 
 #ifdef  CONFIG_ARC_MISALIGN_ACCESS
 	SAVE_CALLEE_SAVED_USER
-	mov r3, sp              ; callee_regs
+	mov r2, sp              ; callee_regs
 
 	bl  do_misaligned_access
 
@@ -416,9 +413,8 @@ ARC_ENTRY EV_PrivilegeV
 	SWITCH_TO_KERNEL_STK
 	SAVE_ALL_SYS
 
-	lr  r0, [ecr]
-	lr  r1, [efa]
-	mov r2, sp
+	lr  r0, [efa]
+	mov r1, sp
 
 	FAKE_RET_FROM_EXCPN r9
 
@@ -437,9 +433,8 @@ ARC_ENTRY EV_Extension
 	SWITCH_TO_KERNEL_STK
 	SAVE_ALL_SYS
 
-	lr  r0, [ecr]
-	lr  r1, [efa]
-	mov r2, sp
+	lr  r0, [efa]
+	mov r1, sp
 	bl  do_extension_fault
 	b   ret_from_exception
 ARC_EXIT EV_Extension
@@ -495,9 +490,8 @@ tracesys_exit:
 trap_with_param:
 
 	; stop_pc info by gdb needs this info
-	mov r0, r12
-	lr  r1, [efa]
-	mov r2, sp
+	lr  r0, [efa]
+	mov r1, sp
 
 	; Now that we have read EFA, its safe to do "fake" rtie
 	;   and get out of CPU exception mode

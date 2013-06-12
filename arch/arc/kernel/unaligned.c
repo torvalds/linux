@@ -187,7 +187,7 @@ fault:	state->fault = 1;
  * Returns 0 if successfully handled, 1 if some error happened
  */
 int misaligned_fixup(unsigned long address, struct pt_regs *regs,
-		     unsigned long cause, struct callee_regs *cregs)
+		     struct callee_regs *cregs)
 {
 	struct disasm_state state;
 	char buf[TASK_COMM_LEN];

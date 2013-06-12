@@ -209,10 +209,9 @@ void show_regs(struct pt_regs *regs)
 }
 
 void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
-			    unsigned long address, unsigned long cause_reg)
+			    unsigned long address)
 {
 	current->thread.fault_address = address;
-	current->thread.cause_code = cause_reg;
 
 	/* Caller and Callee regs */
 	show_regs(regs);
