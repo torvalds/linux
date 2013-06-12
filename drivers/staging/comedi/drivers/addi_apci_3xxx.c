@@ -790,7 +790,9 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	const struct apci3xxx_boardinfo *board = NULL;
 	struct apci3xxx_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, n_subdevices;
+	int n_subdevices;
+	int subdev;
+	int ret;
 
 	if (context < ARRAY_SIZE(apci3xxx_boardtypes))
 		board = &apci3xxx_boardtypes[context];
@@ -818,14 +820,18 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	n_subdevices = 7;
+	n_subdevices = (board->ai_n_chan ? 0 : 1) + board->has_ao +
+		       board->has_dig_in + board->has_dig_out +
+		       board->has_ttl_io;
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret)
 		return ret;
 
+	subdev = 0;
+
 	/* Analog Input subdevice */
-	s = &dev->subdevices[0];
 	if (board->ai_n_chan) {
+		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_AI;
 		s->subdev_flags	= SDF_READABLE | board->ai_subdev_flags;
 		s->n_chan	= board->ai_n_chan;
@@ -840,56 +846,52 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 			s->do_cmd	= apci3xxx_ai_cmd;
 			s->cancel	= apci3xxx_ai_cancel;
 		}
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+
+		subdev++;
 	}
 
 	/* Analog Output subdevice */
-	s = &dev->subdevices[1];
 	if (board->has_ao) {
+		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan	= 4;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &apci3xxx_ao_range;
 		s->insn_write	= apci3xxx_ao_insn_write;
-	} else {
-		s->type		= COMEDI_SUBD_UNUSED;
+
+		subdev++;
 	}
 
 	/* Digital Input subdevice */
-	s = &dev->subdevices[2];
 	if (board->has_dig_in) {
+		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DI;
 		s->subdev_flags	= SDF_READABLE;
 		s->n_chan	= 4;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= apci3xxx_di_insn_bits;
-	} else {
-		s->type		= COMEDI_SUBD_UNUSED;
+
+		subdev++;
 	}
 
 	/* Digital Output subdevice */
-	s = &dev->subdevices[3];
 	if (board->has_dig_out) {
+		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DO;
 		s->subdev_flags	= SDF_WRITEABLE;
 		s->n_chan	= 4;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= apci3xxx_do_insn_bits;
-	} else {
-		s->type		= COMEDI_SUBD_UNUSED;
+
+		subdev++;
 	}
 
-	/*  Allocate and Initialise Timer Subdevice Structures */
-	s = &dev->subdevices[4];
-	s->type = COMEDI_SUBD_UNUSED;
-
 	/* TTL Digital I/O subdevice */
-	s = &dev->subdevices[5];
 	if (board->has_ttl_io) {
+		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DIO;
 		s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
 		s->n_chan	= 24;
@@ -898,13 +900,9 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->range_table	= &range_digital;
 		s->insn_config	= apci3xxx_dio_insn_config;
 		s->insn_bits	= apci3xxx_dio_insn_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
 
-	/* EEPROM */
-	s = &dev->subdevices[6];
-	s->type = COMEDI_SUBD_UNUSED;
+		subdev++;
+	}
 
 	apci3xxx_reset(dev);
 	return 0;
