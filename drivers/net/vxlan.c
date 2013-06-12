@@ -301,7 +301,7 @@ static inline struct hlist_head *vxlan_fdb_head(struct vxlan_dev *vxlan,
 }
 
 /* Look up Ethernet address in forwarding table */
-static struct vxlan_fdb *vxlan_find_mac(struct vxlan_dev *vxlan,
+static struct vxlan_fdb *__vxlan_find_mac(struct vxlan_dev *vxlan,
 					const u8 *mac)
 
 {
@@ -314,6 +314,18 @@ static struct vxlan_fdb *vxlan_find_mac(struct vxlan_dev *vxlan,
 	}
 
 	return NULL;
+}
+
+static struct vxlan_fdb *vxlan_find_mac(struct vxlan_dev *vxlan,
+					const u8 *mac)
+{
+	struct vxlan_fdb *f;
+
+	f = __vxlan_find_mac(vxlan, mac);
+	if (f)
+		f->used = jiffies;
+
+	return f;
 }
 
 /* Add/update destinations for multicast */
@@ -353,7 +365,7 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 	struct vxlan_fdb *f;
 	int notify = 0;
 
-	f = vxlan_find_mac(vxlan, mac);
+	f = __vxlan_find_mac(vxlan, mac);
 	if (f) {
 		if (flags & NLM_F_EXCL) {
 			netdev_dbg(vxlan->dev,
@@ -563,7 +575,6 @@ static void vxlan_snoop(struct net_device *dev,
 
 	f = vxlan_find_mac(vxlan, src_mac);
 	if (likely(f)) {
-		f->used = jiffies;
 		if (likely(f->remote.remote_ip == src_ip))
 			return;
 

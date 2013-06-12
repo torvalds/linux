@@ -174,6 +174,7 @@ clkevt32k_next_event(unsigned long delta, struct clock_event_device *dev)
 static struct clock_event_device clkevt = {
 	.name		= "at91_tick",
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+	.shift		= 32,
 	.rating		= 150,
 	.set_next_event	= clkevt32k_next_event,
 	.set_mode	= clkevt32k_mode,
@@ -264,9 +265,11 @@ void __init at91rm9200_timer_init(void)
 	at91_st_write(AT91_ST_RTMR, 1);
 
 	/* Setup timer clockevent, with minimum of two ticks (important!!) */
+	clkevt.mult = div_sc(AT91_SLOW_CLOCK, NSEC_PER_SEC, clkevt.shift);
+	clkevt.max_delta_ns = clockevent_delta2ns(AT91_ST_ALMV, &clkevt);
+	clkevt.min_delta_ns = clockevent_delta2ns(2, &clkevt) + 1;
 	clkevt.cpumask = cpumask_of(0);
-	clockevents_config_and_register(&clkevt, AT91_SLOW_CLOCK,
-					2, AT91_ST_ALMV);
+	clockevents_register_device(&clkevt);
 
 	/* register clocksource */
 	clocksource_register_hz(&clk32k, AT91_SLOW_CLOCK);

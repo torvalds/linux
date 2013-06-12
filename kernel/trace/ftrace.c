@@ -120,22 +120,22 @@ static void ftrace_ops_no_ops(unsigned long ip, unsigned long parent_ip);
 
 /*
  * Traverse the ftrace_global_list, invoking all entries.  The reason that we
- * can use rcu_dereference_raw() is that elements removed from this list
+ * can use rcu_dereference_raw_notrace() is that elements removed from this list
  * are simply leaked, so there is no need to interact with a grace-period
- * mechanism.  The rcu_dereference_raw() calls are needed to handle
+ * mechanism.  The rcu_dereference_raw_notrace() calls are needed to handle
  * concurrent insertions into the ftrace_global_list.
  *
  * Silly Alpha and silly pointer-speculation compiler optimizations!
  */
 #define do_for_each_ftrace_op(op, list)			\
-	op = rcu_dereference_raw(list);			\
+	op = rcu_dereference_raw_notrace(list);			\
 	do
 
 /*
  * Optimized for just a single item in the list (as that is the normal case).
  */
 #define while_for_each_ftrace_op(op)				\
-	while (likely(op = rcu_dereference_raw((op)->next)) &&	\
+	while (likely(op = rcu_dereference_raw_notrace((op)->next)) &&	\
 	       unlikely((op) != &ftrace_list_end))
 
 static inline void ftrace_ops_init(struct ftrace_ops *ops)
@@ -779,7 +779,7 @@ ftrace_find_profiled_func(struct ftrace_profile_stat *stat, unsigned long ip)
 	if (hlist_empty(hhd))
 		return NULL;
 
-	hlist_for_each_entry_rcu(rec, hhd, node) {
+	hlist_for_each_entry_rcu_notrace(rec, hhd, node) {
 		if (rec->ip == ip)
 			return rec;
 	}
@@ -1165,7 +1165,7 @@ ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip)
 
 	hhd = &hash->buckets[key];
 
-	hlist_for_each_entry_rcu(entry, hhd, hlist) {
+	hlist_for_each_entry_rcu_notrace(entry, hhd, hlist) {
 		if (entry->ip == ip)
 			return entry;
 	}
@@ -1422,8 +1422,8 @@ ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
 	struct ftrace_hash *notrace_hash;
 	int ret;
 
-	filter_hash = rcu_dereference_raw(ops->filter_hash);
-	notrace_hash = rcu_dereference_raw(ops->notrace_hash);
+	filter_hash = rcu_dereference_raw_notrace(ops->filter_hash);
+	notrace_hash = rcu_dereference_raw_notrace(ops->notrace_hash);
 
 	if ((ftrace_hash_empty(filter_hash) ||
 	     ftrace_lookup_ip(filter_hash, ip)) &&
@@ -2920,7 +2920,7 @@ static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 	 * on the hash. rcu_read_lock is too dangerous here.
 	 */
 	preempt_disable_notrace();
-	hlist_for_each_entry_rcu(entry, hhd, node) {
+	hlist_for_each_entry_rcu_notrace(entry, hhd, node) {
 		if (entry->ip == ip)
 			entry->ops->func(ip, parent_ip, &entry->data);
 	}

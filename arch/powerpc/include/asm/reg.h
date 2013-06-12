@@ -111,17 +111,6 @@
 #define MSR_TM_TRANSACTIONAL(x)	(((x) & MSR_TS_MASK) == MSR_TS_T)
 #define MSR_TM_SUSPENDED(x)	(((x) & MSR_TS_MASK) == MSR_TS_S)
 
-/* Reason codes describing kernel causes for transaction aborts.  By
-   convention, bit0 is copied to TEXASR[56] (IBM bit 7) which is set if
-   the failure is persistent.
-*/
-#define TM_CAUSE_RESCHED	0xfe
-#define TM_CAUSE_TLBI		0xfc
-#define TM_CAUSE_FAC_UNAV	0xfa
-#define TM_CAUSE_SYSCALL	0xf9 /* Persistent */
-#define TM_CAUSE_MISC		0xf6
-#define TM_CAUSE_SIGNAL		0xf4
-
 #if defined(CONFIG_PPC_BOOK3S_64)
 #define MSR_64BIT	MSR_SF
 

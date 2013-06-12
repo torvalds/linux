@@ -220,8 +220,12 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 			goto err;
 	}
 
-	snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_PLAYBACK,
-				SND_SOC_DAPM_STREAM_START);
+	if (cstream->direction == SND_COMPRESS_PLAYBACK)
+		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_PLAYBACK,
+					SND_SOC_DAPM_STREAM_START);
+	else
+		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_CAPTURE,
+					SND_SOC_DAPM_STREAM_START);
 
 	/* cancel any delayed stream shutdown that is pending */
 	rtd->pop_wait = 0;

@@ -152,6 +152,26 @@ struct btrfs_fs_devices {
 	int rotating;
 };
 
+/*
+ * we need the mirror number and stripe index to be passed around
+ * the call chain while we are processing end_io (especially errors).
+ * Really, what we need is a btrfs_bio structure that has this info
+ * and is properly sized with its stripe array, but we're not there
+ * quite yet.  We have our own btrfs bioset, and all of the bios
+ * we allocate are actually btrfs_io_bios.  We'll cram as much of
+ * struct btrfs_bio as we can into this over time.
+ */
+struct btrfs_io_bio {
+	unsigned long mirror_num;
+	unsigned long stripe_index;
+	struct bio bio;
+};
+
+static inline struct btrfs_io_bio *btrfs_io_bio(struct bio *bio)
+{
+	return container_of(bio, struct btrfs_io_bio, bio);
+}
+
 struct btrfs_bio_stripe {
 	struct btrfs_device *dev;
 	u64 physical;

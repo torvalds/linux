@@ -423,4 +423,5 @@ sys_call_table:
 	PTR	sys_process_vm_writev		/* 5305 */
 	PTR	sys_kcmp
 	PTR	sys_finit_module
+	PTR	sys_getdents64
 	.size	sys_call_table,.-sys_call_table

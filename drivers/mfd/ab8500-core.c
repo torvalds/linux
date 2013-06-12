@@ -868,6 +868,15 @@ static struct resource ab8500_chargalg_resources[] = {};
 #ifdef CONFIG_DEBUG_FS
 static struct resource ab8500_debug_resources[] = {
 	{
+		.name	= "IRQ_AB8500",
+		/*
+		 * Number will be filled in. NOTE: this is deliberately
+		 * not flagged as an IRQ in ordet to avoid remapping using
+		 * the irqdomain in the MFD core, so that this IRQ passes
+		 * unremapped to the debug code.
+		 */
+	},
+	{
 		.name	= "IRQ_FIRST",
 		.start	= AB8500_INT_MAIN_EXT_CH_NOT_OK,
 		.end	= AB8500_INT_MAIN_EXT_CH_NOT_OK,
@@ -1051,6 +1060,7 @@ static struct mfd_cell ab8500_devs[] = {
 	},
 	{
 		.name = "ab8500-gpadc",
+		.of_compatible = "stericsson,ab8500-gpadc",
 		.num_resources = ARRAY_SIZE(ab8500_gpadc_resources),
 		.resources = ab8500_gpadc_resources,
 	},
@@ -1097,7 +1107,7 @@ static struct mfd_cell ab8500_devs[] = {
 		.of_compatible = "stericsson,ab8500-denc",
 	},
 	{
-		.name = "ab8500-gpio",
+		.name = "pinctrl-ab8500",
 		.of_compatible = "stericsson,ab8500-gpio",
 	},
 	{
@@ -1208,6 +1218,7 @@ static struct mfd_cell ab8505_devs[] = {
 	},
 	{
 		.name = "ab8500-gpadc",
+		.of_compatible = "stericsson,ab8500-gpadc",
 		.num_resources = ARRAY_SIZE(ab8505_gpadc_resources),
 		.resources = ab8505_gpadc_resources,
 	},
@@ -1234,7 +1245,7 @@ static struct mfd_cell ab8505_devs[] = {
 		.name = "ab8500-leds",
 	},
 	{
-		.name = "ab8500-gpio",
+		.name = "pinctrl-ab8505",
 	},
 	{
 		.name = "ab8500-usb",
@@ -1271,6 +1282,7 @@ static struct mfd_cell ab8540_devs[] = {
 	},
 	{
 		.name = "ab8500-gpadc",
+		.of_compatible = "stericsson,ab8500-gpadc",
 		.num_resources = ARRAY_SIZE(ab8505_gpadc_resources),
 		.resources = ab8505_gpadc_resources,
 	},
@@ -1302,7 +1314,7 @@ static struct mfd_cell ab8540_devs[] = {
 		.resources = ab8500_temp_resources,
 	},
 	{
-		.name = "ab8500-gpio",
+		.name = "pinctrl-ab8540",
 	},
 	{
 		.name = "ab8540-usb",
@@ -1711,6 +1723,12 @@ static int ab8500_probe(struct platform_device *pdev)
 			"ab8500", ab8500);
 	if (ret)
 		return ret;
+
+#if CONFIG_DEBUG_FS
+	/* Pass to debugfs */
+	ab8500_debug_resources[0].start = ab8500->irq;
+	ab8500_debug_resources[0].end = ab8500->irq;
+#endif
 
 	if (is_ab9540(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,

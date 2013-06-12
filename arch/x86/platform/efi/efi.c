@@ -206,7 +206,7 @@ static efi_status_t virt_efi_get_next_variable(unsigned long *name_size,
 	}
 
 	if (boot_used_size && !finished) {
-		unsigned long size;
+		unsigned long size = 0;
 		u32 attr;
 		efi_status_t s;
 		void *tmp;

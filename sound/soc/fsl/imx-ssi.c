@@ -540,11 +540,6 @@ static int imx_ssi_probe(struct platform_device *pdev)
 	clk_prepare_enable(ssi->clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENODEV;
-		goto failed_get_resource;
-	}
-
 	ssi->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(ssi->base)) {
 		ret = PTR_ERR(ssi->base);
@@ -633,7 +628,6 @@ failed_pdev_fiq_alloc:
 	snd_soc_unregister_component(&pdev->dev);
 failed_register:
 	release_mem_region(res->start, resource_size(res));
-failed_get_resource:
 	clk_disable_unprepare(ssi->clk);
 failed_clk:
 

@@ -1379,7 +1379,7 @@ static int g2d_probe(struct platform_device *pdev)
 	struct exynos_drm_subdrv *subdrv;
 	int ret;
 
-	g2d = devm_kzalloc(&pdev->dev, sizeof(*g2d), GFP_KERNEL);
+	g2d = devm_kzalloc(dev, sizeof(*g2d), GFP_KERNEL);
 	if (!g2d) {
 		dev_err(dev, "failed to allocate driver data\n");
 		return -ENOMEM;
@@ -1417,7 +1417,7 @@ static int g2d_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	g2d->regs = devm_ioremap_resource(&pdev->dev, res);
+	g2d->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(g2d->regs)) {
 		ret = PTR_ERR(g2d->regs);
 		goto err_put_clk;
@@ -1430,7 +1430,7 @@ static int g2d_probe(struct platform_device *pdev)
 		goto err_put_clk;
 	}
 
-	ret = devm_request_irq(&pdev->dev, g2d->irq, g2d_irq_handler, 0,
+	ret = devm_request_irq(dev, g2d->irq, g2d_irq_handler, 0,
 								"drm_g2d", g2d);
 	if (ret < 0) {
 		dev_err(dev, "irq request failed\n");

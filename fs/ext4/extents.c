@@ -3642,7 +3642,7 @@ int ext4_find_delalloc_range(struct inode *inode,
 {
 	struct extent_status es;
 
-	ext4_es_find_delayed_extent(inode, lblk_start, &es);
+	ext4_es_find_delayed_extent_range(inode, lblk_start, lblk_end, &es);
 	if (es.es_len == 0)
 		return 0; /* there is no delay extent in this tree */
 	else if (es.es_lblk <= lblk_start &&
@@ -4608,9 +4608,10 @@ static int ext4_find_delayed_extent(struct inode *inode,
 	struct extent_status es;
 	ext4_lblk_t block, next_del;
 
-	ext4_es_find_delayed_extent(inode, newes->es_lblk, &es);
-
 	if (newes->es_pblk == 0) {
+		ext4_es_find_delayed_extent_range(inode, newes->es_lblk,
+				newes->es_lblk + newes->es_len - 1, &es);
+
 		/*
 		 * No extent in extent-tree contains block @newes->es_pblk,
 		 * then the block may stay in 1)a hole or 2)delayed-extent.
@@ -4630,7 +4631,7 @@ static int ext4_find_delayed_extent(struct inode *inode,
 	}
 
 	block = newes->es_lblk + newes->es_len;
-	ext4_es_find_delayed_extent(inode, block, &es);
+	ext4_es_find_delayed_extent_range(inode, block, EXT_MAX_BLOCKS, &es);
 	if (es.es_len == 0)
 		next_del = EXT_MAX_BLOCKS;
 	else

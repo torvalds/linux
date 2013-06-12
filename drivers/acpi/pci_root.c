@@ -641,7 +641,9 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 		/* bus enumerate */
 		printk(KERN_DEBUG "%s: Bus check notify on %s\n", __func__,
 				 (char *)buffer.pointer);
-		if (!root)
+		if (root)
+			acpiphp_check_host_bridge(handle);
+		else
 			handle_root_bridge_insertion(handle);
 
 		break;

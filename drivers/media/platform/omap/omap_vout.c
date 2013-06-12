@@ -2150,6 +2150,9 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 	struct omap_dss_device *def_display;
 	struct omap2video_device *vid_dev = NULL;
 
+	if (omapdss_is_initialized() == false)
+		return -EPROBE_DEFER;
+
 	ret = omapdss_compat_init();
 	if (ret) {
 		dev_err(&pdev->dev, "failed to init dss\n");

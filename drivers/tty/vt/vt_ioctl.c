@@ -283,6 +283,51 @@ do_unimap_ioctl(int cmd, struct unimapdesc __user *user_ud, int perm, struct vc_
 	return 0;
 }
 
+/* deallocate a single console, if possible (leave 0) */
+static int vt_disallocate(unsigned int vc_num)
+{
+	struct vc_data *vc = NULL;
+	int ret = 0;
+
+	if (!vc_num)
+		return 0;
+
+	console_lock();
+	if (VT_BUSY(vc_num))
+		ret = -EBUSY;
+	else
+		vc = vc_deallocate(vc_num);
+	console_unlock();
+
+	if (vc && vc_num >= MIN_NR_CONSOLES) {
+		tty_port_destroy(&vc->port);
+		kfree(vc);
+	}
+
+	return ret;
+}
+
+/* deallocate all unused consoles, but leave 0 */
+static void vt_disallocate_all(void)
+{
+	struct vc_data *vc[MAX_NR_CONSOLES];
+	int i;
+
+	console_lock();
+	for (i = 1; i < MAX_NR_CONSOLES; i++)
+		if (!VT_BUSY(i))
+			vc[i] = vc_deallocate(i);
+		else
+			vc[i] = NULL;
+	console_unlock();
+
+	for (i = 1; i < MAX_NR_CONSOLES; i++) {
+		if (vc[i] && i >= MIN_NR_CONSOLES) {
+			tty_port_destroy(&vc[i]->port);
+			kfree(vc[i]);
+		}
+	}
+}
 
 
 /*
@@ -769,24 +814,10 @@ int vt_ioctl(struct tty_struct *tty,
 			ret = -ENXIO;
 			break;
 		}
-		if (arg == 0) {
-		    /* deallocate all unused consoles, but leave 0 */
-			console_lock();
-			for (i=1; i<MAX_NR_CONSOLES; i++)
-				if (! VT_BUSY(i))
-					vc_deallocate(i);
-			console_unlock();
-		} else {
-			/* deallocate a single console, if possible */
-			arg--;
-			if (VT_BUSY(arg))
-				ret = -EBUSY;
-			else if (arg) {			      /* leave 0 */
-				console_lock();
-				vc_deallocate(arg);
-				console_unlock();
-			}
-		}
+		if (arg == 0)
+			vt_disallocate_all();
+		else
+			ret = vt_disallocate(--arg);
 		break;
 
 	case VT_RESIZE:

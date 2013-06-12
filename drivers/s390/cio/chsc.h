@@ -43,7 +43,9 @@ struct channel_path_desc_fmt1 {
 	u8 chpid;
 	u32:24;
 	u8 chpp;
-	u32 unused[3];
+	u32 unused[2];
+	u16 chid;
+	u32:16;
 	u16 mdc;
 	u16:13;
 	u8 r:1;

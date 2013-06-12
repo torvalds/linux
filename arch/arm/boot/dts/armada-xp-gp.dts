@@ -39,6 +39,9 @@
 	};
 
 	soc {
+		ranges = <0          0 0xd0000000 0x100000
+			  0xf0000000 0 0xf0000000 0x1000000>;
+
 		internal-regs {
 			serial@12000 {
 				clock-frequency = <250000000>;

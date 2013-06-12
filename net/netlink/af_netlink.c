@@ -747,7 +747,7 @@ static void netlink_skb_destructor(struct sk_buff *skb)
 		atomic_dec(&ring->pending);
 		sock_put(sk);
 
-		skb->data = NULL;
+		skb->head = NULL;
 	}
 #endif
 	if (skb->sk != NULL)

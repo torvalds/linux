@@ -282,12 +282,13 @@ void __init setup_arch(char **cmdline_p)
 #endif
 }
 
-static int __init arm64_of_clk_init(void)
+static int __init arm64_device_init(void)
 {
 	of_clk_init(NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	return 0;
 }
-arch_initcall(arm64_of_clk_init);
+arch_initcall(arm64_device_init);
 
 static DEFINE_PER_CPU(struct cpu, cpu_data);
 
@@ -304,13 +305,6 @@ static int __init topology_init(void)
 	return 0;
 }
 subsys_initcall(topology_init);
-
-static int __init arm64_device_probe(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-	return 0;
-}
-device_initcall(arm64_device_probe);
 
 static const char *hwcap_str[] = {
 	"fp",

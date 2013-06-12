@@ -555,11 +555,6 @@ static int omap_hdq_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hdq_data);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_dbg(&pdev->dev, "unable to get resource\n");
-		return -ENXIO;
-	}
-
 	hdq_data->hdq_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hdq_data->hdq_base))
 		return PTR_ERR(hdq_data->hdq_base);
