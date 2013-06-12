@@ -18,6 +18,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cachetype.h>
 #include <asm/proc-fns.h>
+#include <asm/smp_plat.h>
 #include <asm-generic/mm_hooks.h>
 
 void __check_vmalloc_seq(struct mm_struct *mm);
@@ -98,12 +99,16 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 #ifdef CONFIG_MMU
 	unsigned int cpu = smp_processor_id();
 
-#ifdef CONFIG_SMP
-	/* check for possible thread migration */
-	if (!cpumask_empty(mm_cpumask(next)) &&
+	/*
+	 * __sync_icache_dcache doesn't broadcast the I-cache invalidation,
+	 * so check for possible thread migration and invalidate the I-cache
+	 * if we're new to this CPU.
+	 */
+	if (cache_ops_need_broadcast() &&
+	    !cpumask_empty(mm_cpumask(next)) &&
 	    !cpumask_test_cpu(cpu, mm_cpumask(next)))
 		__flush_icache_all();
-#endif
+
 	if (!cpumask_test_and_set_cpu(cpu, mm_cpumask(next)) || prev != next) {
 		check_and_switch_context(next, tsk);
 		if (cache_is_vivt())
