@@ -69,27 +69,6 @@ config ARCH_EMEV2
 
 comment "SH-Mobile Board Type"
 
-config MACH_AP4EVB
-	bool "AP4EVB board"
-	depends on ARCH_SH7372
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SH_LCD_MIPI_DSI
-	select SND_SOC_AK4642 if SND_SIMPLE_CARD
-
-choice
-	prompt "AP4EVB LCD panel selection"
-	default AP4EVB_QHD
-	depends on MACH_AP4EVB
-
-config AP4EVB_QHD
-	bool "MIPI-DSI QHD (960x540)"
-
-config AP4EVB_WVGA
-	bool "Parallel WVGA (800x480)"
-
-endchoice
-
 config MACH_AG5EVM
 	bool "AG5EVM board"
 	depends on ARCH_SH73A0
