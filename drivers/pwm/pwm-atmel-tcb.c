@@ -434,6 +434,7 @@ MODULE_DEVICE_TABLE(of, atmel_tcb_pwm_dt_ids);
 static struct platform_driver atmel_tcb_pwm_driver = {
 	.driver = {
 		.name = "atmel-tcb-pwm",
+		.owner = THIS_MODULE,
 		.of_match_table = atmel_tcb_pwm_dt_ids,
 	},
 	.probe = atmel_tcb_pwm_probe,

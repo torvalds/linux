@@ -182,6 +182,7 @@ MODULE_DEVICE_TABLE(of, mxs_pwm_dt_ids);
 static struct platform_driver mxs_pwm_driver = {
 	.driver = {
 		.name = "mxs-pwm",
+		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(mxs_pwm_dt_ids),
 	},
 	.probe = mxs_pwm_probe,

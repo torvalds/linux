@@ -199,6 +199,7 @@ static const struct pwm_ops pca9685_pwm_ops = {
 	.config = pca9685_pwm_config,
 	.request = pca9685_pwm_request,
 	.free = pca9685_pwm_free,
+	.owner = THIS_MODULE,
 };
 
 static struct regmap_config pca9685_regmap_i2c_config = {
