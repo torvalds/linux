@@ -770,7 +770,7 @@ static void mixer_win_commit(void *ctx, int win)
 {
 	struct mixer_context *mixer_ctx = ctx;
 
-	DRM_DEBUG_KMS("[%d] %s, win: %d\n", __LINE__, __func__, win);
+	DRM_DEBUG_KMS("win: %d\n", win);
 
 	mutex_lock(&mixer_ctx->mixer_mutex);
 	if (!mixer_ctx->powered) {
@@ -793,7 +793,7 @@ static void mixer_win_disable(void *ctx, int win)
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 	unsigned long flags;
 
-	DRM_DEBUG_KMS("[%d] %s, win: %d\n", __LINE__, __func__, win);
+	DRM_DEBUG_KMS("win: %d\n", win);
 
 	mutex_lock(&mixer_ctx->mixer_mutex);
 	if (!mixer_ctx->powered) {
@@ -1238,7 +1238,7 @@ static int mixer_suspend(struct device *dev)
 	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
 
 	if (pm_runtime_suspended(dev)) {
-		DRM_DEBUG_KMS("%s : Already suspended\n", __func__);
+		DRM_DEBUG_KMS("Already suspended\n");
 		return 0;
 	}
 
@@ -1253,7 +1253,7 @@ static int mixer_resume(struct device *dev)
 	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
 
 	if (!pm_runtime_suspended(dev)) {
-		DRM_DEBUG_KMS("%s : Already resumed\n", __func__);
+		DRM_DEBUG_KMS("Already resumed\n");
 		return 0;
 	}
 

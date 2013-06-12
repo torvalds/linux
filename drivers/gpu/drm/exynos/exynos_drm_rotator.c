@@ -244,7 +244,7 @@ static int rotator_src_set_size(struct device *dev, int swap,
 	/* Get format */
 	fmt = rotator_reg_get_fmt(rot);
 	if (!rotator_check_reg_fmt(fmt)) {
-		DRM_ERROR("%s:invalid format.\n", __func__);
+		DRM_ERROR("invalid format.\n");
 		return -EINVAL;
 	}
 
@@ -287,7 +287,7 @@ static int rotator_src_set_addr(struct device *dev,
 		/* Get format */
 		fmt = rotator_reg_get_fmt(rot);
 		if (!rotator_check_reg_fmt(fmt)) {
-			DRM_ERROR("%s:invalid format.\n", __func__);
+			DRM_ERROR("invalid format.\n");
 			return -EINVAL;
 		}
 
@@ -381,7 +381,7 @@ static int rotator_dst_set_size(struct device *dev, int swap,
 	/* Get format */
 	fmt = rotator_reg_get_fmt(rot);
 	if (!rotator_check_reg_fmt(fmt)) {
-		DRM_ERROR("%s:invalid format.\n", __func__);
+		DRM_ERROR("invalid format.\n");
 		return -EINVAL;
 	}
 
@@ -422,7 +422,7 @@ static int rotator_dst_set_addr(struct device *dev,
 		/* Get format */
 		fmt = rotator_reg_get_fmt(rot);
 		if (!rotator_check_reg_fmt(fmt)) {
-			DRM_ERROR("%s:invalid format.\n", __func__);
+			DRM_ERROR("invalid format.\n");
 			return -EINVAL;
 		}
 
@@ -500,7 +500,7 @@ static inline bool rotator_check_drm_fmt(u32 fmt)
 	case DRM_FORMAT_NV12:
 		return true;
 	default:
-		DRM_DEBUG_KMS("%s:not support format\n", __func__);
+		DRM_DEBUG_KMS("not support format\n");
 		return false;
 	}
 }
@@ -514,7 +514,7 @@ static inline bool rotator_check_drm_flip(enum drm_exynos_flip flip)
 	case EXYNOS_DRM_FLIP_BOTH:
 		return true;
 	default:
-		DRM_DEBUG_KMS("%s:invalid flip\n", __func__);
+		DRM_DEBUG_KMS("invalid flip\n");
 		return false;
 	}
 }
@@ -534,19 +534,18 @@ static int rotator_ippdrv_check_property(struct device *dev,
 
 	/* Check format configuration */
 	if (src_config->fmt != dst_config->fmt) {
-		DRM_DEBUG_KMS("%s:not support csc feature\n", __func__);
+		DRM_DEBUG_KMS("not support csc feature\n");
 		return -EINVAL;
 	}
 
 	if (!rotator_check_drm_fmt(dst_config->fmt)) {
-		DRM_DEBUG_KMS("%s:invalid format\n", __func__);
+		DRM_DEBUG_KMS("invalid format\n");
 		return -EINVAL;
 	}
 
 	/* Check transform configuration */
 	if (src_config->degree != EXYNOS_DRM_DEGREE_0) {
-		DRM_DEBUG_KMS("%s:not support source-side rotation\n",
-			__func__);
+		DRM_DEBUG_KMS("not support source-side rotation\n");
 		return -EINVAL;
 	}
 
@@ -559,51 +558,47 @@ static int rotator_ippdrv_check_property(struct device *dev,
 		/* No problem */
 		break;
 	default:
-		DRM_DEBUG_KMS("%s:invalid degree\n", __func__);
+		DRM_DEBUG_KMS("invalid degree\n");
 		return -EINVAL;
 	}
 
 	if (src_config->flip != EXYNOS_DRM_FLIP_NONE) {
-		DRM_DEBUG_KMS("%s:not support source-side flip\n", __func__);
+		DRM_DEBUG_KMS("not support source-side flip\n");
 		return -EINVAL;
 	}
 
 	if (!rotator_check_drm_flip(dst_config->flip)) {
-		DRM_DEBUG_KMS("%s:invalid flip\n", __func__);
+		DRM_DEBUG_KMS("invalid flip\n");
 		return -EINVAL;
 	}
 
 	/* Check size configuration */
 	if ((src_pos->x + src_pos->w > src_sz->hsize) ||
 		(src_pos->y + src_pos->h > src_sz->vsize)) {
-		DRM_DEBUG_KMS("%s:out of source buffer bound\n", __func__);
+		DRM_DEBUG_KMS("out of source buffer bound\n");
 		return -EINVAL;
 	}
 
 	if (swap) {
 		if ((dst_pos->x + dst_pos->h > dst_sz->vsize) ||
 			(dst_pos->y + dst_pos->w > dst_sz->hsize)) {
-			DRM_DEBUG_KMS("%s:out of destination buffer bound\n",
-				__func__);
+			DRM_DEBUG_KMS("out of destination buffer bound\n");
 			return -EINVAL;
 		}
 
 		if ((src_pos->w != dst_pos->h) || (src_pos->h != dst_pos->w)) {
-			DRM_DEBUG_KMS("%s:not support scale feature\n",
-				__func__);
+			DRM_DEBUG_KMS("not support scale feature\n");
 			return -EINVAL;
 		}
 	} else {
 		if ((dst_pos->x + dst_pos->w > dst_sz->hsize) ||
 			(dst_pos->y + dst_pos->h > dst_sz->vsize)) {
-			DRM_DEBUG_KMS("%s:out of destination buffer bound\n",
-				__func__);
+			DRM_DEBUG_KMS("out of destination buffer bound\n");
 			return -EINVAL;
 		}
 
 		if ((src_pos->w != dst_pos->w) || (src_pos->h != dst_pos->h)) {
-			DRM_DEBUG_KMS("%s:not support scale feature\n",
-				__func__);
+			DRM_DEBUG_KMS("not support scale feature\n");
 			return -EINVAL;
 		}
 	}
@@ -691,7 +686,7 @@ static int rotator_probe(struct platform_device *pdev)
 		goto err_ippdrv_register;
 	}
 
-	DRM_DEBUG_KMS("%s:ippdrv[0x%x]\n", __func__, (int)ippdrv);
+	DRM_DEBUG_KMS("ippdrv[0x%x]\n", (int)ippdrv);
 
 	platform_set_drvdata(pdev, rot);
 

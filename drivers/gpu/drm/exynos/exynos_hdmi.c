@@ -1634,8 +1634,8 @@ static void hdmi_mode_set(void *ctx, struct drm_display_mode *mode)
 	struct hdmi_context *hdata = ctx;
 	struct drm_display_mode *m = mode;
 
-	DRM_DEBUG_KMS("[%s]: xres=%d, yres=%d, refresh=%d, intl=%s\n",
-		__func__, m->hdisplay, m->vdisplay,
+	DRM_DEBUG_KMS("xres=%d, yres=%d, refresh=%d, intl=%s\n",
+		m->hdisplay, m->vdisplay,
 		m->vrefresh, (m->flags & DRM_MODE_FLAG_INTERLACE) ?
 		"INTERLACED" : "PROGERESSIVE");
 
@@ -1723,7 +1723,7 @@ static void hdmi_dpms(void *ctx, int mode)
 {
 	struct hdmi_context *hdata = ctx;
 
-	DRM_DEBUG_KMS("[%d] %s mode %d\n", __LINE__, __func__, mode);
+	DRM_DEBUG_KMS("mode %d\n", mode);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -2073,7 +2073,7 @@ static int hdmi_suspend(struct device *dev)
 		drm_helper_hpd_irq_event(ctx->drm_dev);
 
 	if (pm_runtime_suspended(dev)) {
-		DRM_DEBUG_KMS("%s : Already suspended\n", __func__);
+		DRM_DEBUG_KMS("Already suspended\n");
 		return 0;
 	}
 
@@ -2092,7 +2092,7 @@ static int hdmi_resume(struct device *dev)
 	enable_irq(hdata->irq);
 
 	if (!pm_runtime_suspended(dev)) {
-		DRM_DEBUG_KMS("%s : Already resumed\n", __func__);
+		DRM_DEBUG_KMS("Already resumed\n");
 		return 0;
 	}
 
