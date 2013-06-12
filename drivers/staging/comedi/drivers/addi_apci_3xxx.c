@@ -27,6 +27,8 @@
 
 #include "../comedidev.h"
 
+#include "comedi_fc.h"
+
 #define CONV_UNIT_NS		(1 << 0)
 #define CONV_UNIT_US		(1 << 1)
 #define CONV_UNIT_MS		(1 << 2)
@@ -351,21 +353,17 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 
 struct apci3xxx_private {
 	void __iomem *mmio;
-	unsigned int ui_AiNbrofChannels;	/*  how many channels is measured */
-	unsigned int ui_AiReadData[32];
-	unsigned char b_EocEosInterrupt;
-	unsigned int ui_EocEosConversionTime;
-	unsigned char b_EocEosConversionTimeBase;
+	unsigned int ai_timer;
+	unsigned char ai_time_base;
 };
-
-#include "addi-data/hwdrv_apci3xxx.c"
 
 static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct apci3xxx_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int status;
-	int i;
+	unsigned int val;
 
 	/* Test if interrupt occur */
 	status = readl(devpriv->mmio + 16);
@@ -373,35 +371,247 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 		/* Reset the interrupt */
 		writel(status, devpriv->mmio + 16);
 
-		/* Test if interrupt enabled */
-		if (devpriv->b_EocEosInterrupt == 1) {
-			/* Read all analog inputs value */
-			for (i = 0; i < devpriv->ui_AiNbrofChannels; i++) {
-				unsigned int val;
+		val = readl(devpriv->mmio + 28);
+		comedi_buf_put(s->async, val);
 
-				val = readl(devpriv->mmio + 28);
-				devpriv->ui_AiReadData[i] = val;
-			}
+		s->async->events |= COMEDI_CB_EOA;
+		comedi_event(dev, s);
 
-			/* Set the interrupt flag */
-			devpriv->b_EocEosInterrupt = 2;
+		return IRQ_HANDLED;
+	}
+	return IRQ_NONE;
+}
 
-			/* FIXME: comedi_event() */
+static int apci3xxx_ai_started(struct comedi_device *dev)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+
+	if ((readl(devpriv->mmio + 8) & 0x80000) == 0x80000)
+		return 1;
+	else
+		return 0;
+
+}
+
+static int apci3xxx_ai_setup(struct comedi_device *dev, unsigned int chanspec)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
+	unsigned int delay_mode;
+	unsigned int val;
+
+	if (apci3xxx_ai_started(dev))
+		return -EBUSY;
+
+	/* Clear the FIFO */
+	writel(0x10000, devpriv->mmio + 12);
+
+	/* Get and save the delay mode */
+	delay_mode = readl(devpriv->mmio + 4);
+	delay_mode &= 0xfffffef0;
+
+	/* Channel configuration selection */
+	writel(delay_mode, devpriv->mmio + 4);
+
+	/* Make the configuration */
+	val = (range & 3) | ((range >> 2) << 6) |
+	      ((aref == AREF_DIFF) << 7);
+	writel(val, devpriv->mmio + 0);
+
+	/* Channel selection */
+	writel(delay_mode | 0x100, devpriv->mmio + 4);
+	writel(chan, devpriv->mmio + 0);
+
+	/* Restore delay mode */
+	writel(delay_mode, devpriv->mmio + 4);
+
+	/* Set the number of sequence to 1 */
+	writel(1, devpriv->mmio + 48);
+
+	return 0;
+}
+
+static int apci3xxx_ai_insn_read(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int val;
+	int ret;
+	int i;
+
+	ret = apci3xxx_ai_setup(dev, insn->chanspec);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < insn->n; i++) {
+		/* Start the conversion */
+		writel(0x80000, devpriv->mmio + 8);
+
+		/* Wait the EOS */
+		do {
+			val = readl(devpriv->mmio + 20);
+			val &= 0x1;
+		} while (!val);
+
+		/* Read the analog value */
+		data[i] = readl(devpriv->mmio + 28);
+	}
+
+	return insn->n;
+}
+
+static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
+				   unsigned int *ns, int round_mode)
+{
+	const struct apci3xxx_boardinfo *board = comedi_board(dev);
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int base;
+	unsigned int timer;
+	int time_base;
+
+	/* time_base: 0 = ns, 1 = us, 2 = ms */
+	for (time_base = 0; time_base < 3; time_base++) {
+		/* skip unsupported time bases */
+		if (!(board->ai_conv_units & (1 << time_base)))
+			continue;
+
+		switch (time_base) {
+		case 0:
+			base = 1;
+			break;
+		case 1:
+			base = 1000;
+			break;
+		case 2:
+			base = 1000000;
+			break;
+		}
+
+		switch (round_mode) {
+		case TRIG_ROUND_NEAREST:
+		default:
+			timer = (*ns + base / 2) / base;
+			break;
+		case TRIG_ROUND_DOWN:
+			timer = *ns / base;
+			break;
+		case TRIG_ROUND_UP:
+			timer = (*ns + base - 1) / base;
+			break;
+		}
+
+		if (timer < 0x10000) {
+			devpriv->ai_time_base = time_base;
+			devpriv->ai_timer = timer;
+			*ns = timer * time_base;
+			return 0;
 		}
 	}
-	return IRQ_RETVAL(1);
+	return -EINVAL;
 }
 
 static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_cmd *cmd)
 {
+	const struct apci3xxx_boardinfo *board = comedi_board(dev);
+	int err = 0;
+	unsigned int tmp;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+					 board->ai_min_acq_ns);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+
+	if (err)
+		return 3;
+
+	/* step 4: fix up any arguments */
+
+	/*
+	 * FIXME: The hardware supports multiple scan modes but the original
+	 * addi-data driver only supported reading a single channel with
+	 * interrupts. Need a proper datasheet to fix this.
+	 *
+	 * The following scan modes are supported by the hardware:
+	 * 1) Single software scan
+	 * 2) Single hardware triggered scan
+	 * 3) Continuous software scan
+	 * 4) Continuous software scan with timer delay
+	 * 5) Continuous hardware triggered scan
+	 * 6) Continuous hardware triggered scan with timer delay
+	 *
+	 * For now, limit the chanlist to a single channel.
+	 */
+	if (cmd->chanlist_len > 1) {
+		cmd->chanlist_len = 1;
+		err |= -EINVAL;
+	}
+
+	tmp = cmd->convert_arg;
+	err |= apci3xxx_ai_ns_to_timer(dev, &cmd->convert_arg,
+				       cmd->flags & TRIG_ROUND_MASK);
+	if (tmp != cmd->convert_arg)
+		err |= -EINVAL;
+
+	if (err)
+		return 4;
+
 	return 0;
 }
 
 static int apci3xxx_ai_cmd(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
+	struct apci3xxx_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	int ret;
+
+	ret = apci3xxx_ai_setup(dev, cmd->chanlist[0]);
+	if (ret)
+		return ret;
+
+	/* Set the convert timing unit */
+	writel(devpriv->ai_time_base, devpriv->mmio + 36);
+
+	/* Set the convert timing */
+	writel(devpriv->ai_timer, devpriv->mmio + 32);
+
+	/* Start the conversion */
+	writel(0x180000, devpriv->mmio + 8);
+
 	return 0;
 }
 
@@ -553,9 +763,6 @@ static int apci3xxx_reset(struct comedi_device *dev)
 	/* Disable the interrupt */
 	disable_irq(dev->irq);
 
-	/* Reset the interrupt flag */
-	devpriv->b_EocEosInterrupt = 0;
-
 	/* Clear the start command */
 	writel(0, devpriv->mmio + 8);
 
@@ -625,7 +832,6 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->maxdata	= board->ai_maxdata;
 		s->len_chanlist	= s->n_chan;
 		s->range_table	= &apci3xxx_ai_range;
-		s->insn_config	= apci3xxx_ai_insn_config;
 		s->insn_read	= apci3xxx_ai_insn_read;
 		if (dev->irq) {
 			dev->read_subdev = s;
