@@ -1342,6 +1342,13 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 
 	pipe_config->adjusted_mode.flags |= flags;
 
+	/*
+	 * pixel multiplier readout is tricky: Only on i915g/gm it is stored in
+	 * the sdvo port register, on all other platforms it is part of the dpll
+	 * state. Since the general pipe state readout happens before the
+	 * encoder->get_config we so already have a valid pixel multplier on all
+	 * other platfroms.
+	 */
 	if (IS_I915G(dev) || IS_I915GM(dev)) {
 		sdvox = I915_READ(intel_sdvo->sdvo_reg);
 		pipe_config->pixel_multiplier =
@@ -1362,6 +1369,10 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 		encoder_pixel_multiplier = 4;
 		break;
 	}
+
+	if(HAS_PCH_SPLIT(dev))
+		return; /* no pixel multiplier readout support yet */
+
 	WARN(encoder_pixel_multiplier != pipe_config->pixel_multiplier,
 	     "SDVO pixel multiplier mismatch, port: %i, encoder: %i\n",
 	     pipe_config->pixel_multiplier, encoder_pixel_multiplier);
