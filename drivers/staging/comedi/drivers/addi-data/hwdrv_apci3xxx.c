@@ -314,7 +314,6 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 					  struct comedi_insn *insn,
 					  unsigned int *data)
 {
-	const struct apci3xxx_boardinfo *this_board = comedi_board(dev);
 	struct apci3xxx_private *devpriv = dev->private;
 	int i_ReturnValue = insn->n;
 	unsigned char b_Configuration = (unsigned char) CR_RANGE(insn->chanspec);
@@ -324,41 +323,6 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 	unsigned int dw_AcquisitionCpt = 0;
 	unsigned char b_Interrupt = 0;
 
-	   /***************************/
-		/* Test the channel number */
-	   /***************************/
-
-		if (((b_Channel < this_board->i_NbrAiChannel)
-				&& (devpriv->b_SingelDiff == APCI3XXX_SINGLE))
-			|| ((b_Channel < this_board->i_NbrAiChannelDiff)
-				&& (devpriv->b_SingelDiff == APCI3XXX_DIFF))) {
-	      /**********************************/
-			/* Test the channel configuration */
-	      /**********************************/
-
-			if (b_Configuration > 7) {
-		 /***************************/
-				/* Channel not initialised */
-		 /***************************/
-
-				i_ReturnValue = -4;
-				printk("Channel %d range %d selection error\n",
-					b_Channel, b_Configuration);
-			}
-		} else {
-	      /***************************/
-			/* Channel selection error */
-	      /***************************/
-
-			i_ReturnValue = -3;
-			printk("Channel %d selection error\n", b_Channel);
-		}
-
-	   /**************************/
-		/* Test if no error occur */
-	   /**************************/
-
-		if (i_ReturnValue >= 0) {
 	      /************************/
 			/* Test the buffer size */
 	      /************************/
@@ -493,7 +457,6 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 				printk("Buffer size error\n");
 				i_ReturnValue = -101;
 			}
-		}
 
 	return i_ReturnValue;
 }
