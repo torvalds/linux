@@ -455,13 +455,24 @@
 		status = "disabled";
 	};
 
-	phy1: usb-phy@c5000400 {
+	phy1: usb-phy@c5000000 {
 		compatible = "nvidia,tegra20-usb-phy";
-		reg = <0xc5000400 0x3c00>;
+		reg = <0xc5000000 0x4000 0xc5000000 0x4000>;
 		phy_type = "utmi";
+		clocks = <&tegra_car 22>,
+			 <&tegra_car 127>,
+			 <&tegra_car 106>,
+			 <&tegra_car 22>;
+		clock-names = "reg", "pll_u", "timer", "utmi-pads";
 		nvidia,has-legacy-mode;
-		clocks = <&tegra_car 22>, <&tegra_car 127>;
-		clock-names = "phy", "pll_u";
+		hssync_start_delay = <9>;
+		idle_wait_delay = <17>;
+		elastic_limit = <16>;
+		term_range_adj = <6>;
+		xcvr_setup = <9>;
+		xcvr_lsfslew = <1>;
+		xcvr_lsrslew = <1>;
+		status = "disabled";
 	};
 
 	usb@c5004000 {
@@ -474,12 +485,15 @@
 		status = "disabled";
 	};
 
-	phy2: usb-phy@c5004400 {
+	phy2: usb-phy@c5004000 {
 		compatible = "nvidia,tegra20-usb-phy";
-		reg = <0xc5004400 0x3c00>;
+		reg = <0xc5004000 0x4000>;
 		phy_type = "ulpi";
-		clocks = <&tegra_car 93>, <&tegra_car 127>;
-		clock-names = "phy", "pll_u";
+		clocks = <&tegra_car 58>,
+			 <&tegra_car 127>,
+			 <&tegra_car 93>;
+		clock-names = "reg", "pll_u", "ulpi-link";
+		status = "disabled";
 	};
 
 	usb@c5008000 {
@@ -492,12 +506,23 @@
 		status = "disabled";
 	};
 
-	phy3: usb-phy@c5008400 {
+	phy3: usb-phy@c5008000 {
 		compatible = "nvidia,tegra20-usb-phy";
-		reg = <0xc5008400 0x3c00>;
+		reg = <0xc5008000 0x4000 0xc5000000 0x4000>;
 		phy_type = "utmi";
-		clocks = <&tegra_car 22>, <&tegra_car 127>;
-		clock-names = "phy", "pll_u";
+		clocks = <&tegra_car 59>,
+			 <&tegra_car 127>,
+			 <&tegra_car 106>,
+			 <&tegra_car 22>;
+		clock-names = "reg", "pll_u", "timer", "utmi-pads";
+		hssync_start_delay = <9>;
+		idle_wait_delay = <17>;
+		elastic_limit = <16>;
+		term_range_adj = <6>;
+		xcvr_setup = <9>;
+		xcvr_lsfslew = <2>;
+		xcvr_lsrslew = <2>;
+		status = "disabled";
 	};
 
 	sdhci@c8000000 {

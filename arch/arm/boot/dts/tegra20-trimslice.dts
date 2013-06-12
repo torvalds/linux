@@ -314,17 +314,27 @@
 		nvidia,vbus-gpio = <&gpio 170 0>; /* gpio PV2 */
 	};
 
+	usb-phy@c5000000 {
+		status = "okay";
+		vbus-supply = <&vbus_reg>;
+	};
+
 	usb@c5004000 {
 		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
+		nvidia,phy-reset-gpio = <&gpio 168 1>; /* gpio PV0, active low */
+	};
+
+	usb-phy@c5004000 {
+		status = "okay";
+		nvidia,phy-reset-gpio = <&gpio 168 1>; /* gpio PV0, active low */
 	};
 
 	usb@c5008000 {
 		status = "okay";
 	};
 
-	usb-phy@c5004400 {
-		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
+	usb-phy@c5008000 {
+		status = "okay";
 	};
 
 	sdhci@c8000000 {
@@ -389,6 +399,15 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-always-on;
+		};
+
+		vbus_reg: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "usb1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio 170 0>; /* PV2 */
 		};
 	};
 

@@ -46,7 +46,6 @@
 #include "musb_core.h"
 #include "musb_host.h"
 
-
 /* MUSB HOST status 22-mar-2006
  *
  * - There's still lots of partial code duplication for fault paths, so
@@ -95,6 +94,11 @@
  * "claimed" until its software queue is no longer refilled.  No multiplexing
  * of transfers between endpoints, or anything clever.
  */
+
+struct musb *hcd_to_musb(struct usb_hcd *hcd)
+{
+	return *(struct musb **) hcd->hcd_priv;
+}
 
 
 static void musb_ep_program(struct musb *musb, u8 epnum,
@@ -310,9 +314,9 @@ __acquires(musb->lock)
 			urb->actual_length, urb->transfer_buffer_length
 			);
 
-	usb_hcd_unlink_urb_from_ep(musb_to_hcd(musb), urb);
+	usb_hcd_unlink_urb_from_ep(musb->hcd, urb);
 	spin_unlock(&musb->lock);
-	usb_hcd_giveback_urb(musb_to_hcd(musb), urb, status);
+	usb_hcd_giveback_urb(musb->hcd, urb, status);
 	spin_lock(&musb->lock);
 }
 
@@ -624,7 +628,7 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 	u16			csr;
 	u8			mode;
 
-#ifdef	CONFIG_USB_INVENTRA_DMA
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
 	if (length > channel->max_len)
 		length = channel->max_len;
 
@@ -1454,7 +1458,7 @@ done:
 	if (length > qh->maxpacket)
 		length = qh->maxpacket;
 	/* Unmap the buffer so that CPU can use it */
-	usb_hcd_unmap_urb_for_dma(musb_to_hcd(musb), urb);
+	usb_hcd_unmap_urb_for_dma(musb->hcd, urb);
 
 	/*
 	 * We need to map sg if the transfer_buffer is
@@ -1656,7 +1660,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 
 	/* FIXME this is _way_ too much in-line logic for Mentor DMA */
 
-#ifndef CONFIG_USB_INVENTRA_DMA
+#if !defined(CONFIG_USB_INVENTRA_DMA) && !defined(CONFIG_USB_UX500_DMA)
 	if (rx_csr & MUSB_RXCSR_H_REQPKT)  {
 		/* REVISIT this happened for a while on some short reads...
 		 * the cleanup still needs investigation... looks bad...
@@ -1688,7 +1692,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			| MUSB_RXCSR_RXPKTRDY);
 		musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
-#ifdef CONFIG_USB_INVENTRA_DMA
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
 		if (usb_pipeisoc(pipe)) {
 			struct usb_iso_packet_descriptor *d;
 
@@ -1744,7 +1748,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		}
 
 		/* we are expecting IN packets */
-#ifdef CONFIG_USB_INVENTRA_DMA
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
 		if (dma) {
 			struct dma_controller	*c;
 			u16			rx_count;
@@ -1753,10 +1757,10 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 
 			rx_count = musb_readw(epio, MUSB_RXCOUNT);
 
-			dev_dbg(musb->controller, "RX%d count %d, buffer 0x%x len %d/%d\n",
+			dev_dbg(musb->controller, "RX%d count %d, buffer 0x%llx len %d/%d\n",
 					epnum, rx_count,
-					urb->transfer_dma
-						+ urb->actual_length,
+					(unsigned long long) urb->transfer_dma
+					+ urb->actual_length,
 					qh->offset,
 					urb->transfer_buffer_length);
 
@@ -1868,7 +1872,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			unsigned int received_len;
 
 			/* Unmap the buffer so that CPU can use it */
-			usb_hcd_unmap_urb_for_dma(musb_to_hcd(musb), urb);
+			usb_hcd_unmap_urb_for_dma(musb->hcd, urb);
 
 			/*
 			 * We need to map sg if the transfer_buffer is
@@ -2462,7 +2466,6 @@ static int musb_bus_resume(struct usb_hcd *hcd)
 	return 0;
 }
 
-
 #ifndef CONFIG_MUSB_PIO_ONLY
 
 #define MUSB_USB_DMA_ALIGN 4
@@ -2574,10 +2577,10 @@ static void musb_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 }
 #endif /* !CONFIG_MUSB_PIO_ONLY */
 
-const struct hc_driver musb_hc_driver = {
+static const struct hc_driver musb_hc_driver = {
 	.description		= "musb-hcd",
 	.product_desc		= "MUSB HDRC host driver",
-	.hcd_priv_size		= sizeof(struct musb),
+	.hcd_priv_size		= sizeof(struct musb *),
 	.flags			= HCD_USB2 | HCD_MEMORY,
 
 	/* not using irq handler or reset hooks from usbcore, since
@@ -2605,3 +2608,66 @@ const struct hc_driver musb_hc_driver = {
 	/* .start_port_reset	= NULL, */
 	/* .hub_irq_enable	= NULL, */
 };
+
+int musb_host_alloc(struct musb *musb)
+{
+	struct device	*dev = musb->controller;
+
+	/* usbcore sets dev->driver_data to hcd, and sometimes uses that... */
+	musb->hcd = usb_create_hcd(&musb_hc_driver, dev, dev_name(dev));
+	if (!musb->hcd)
+		return -EINVAL;
+
+	*musb->hcd->hcd_priv = (unsigned long) musb;
+	musb->hcd->self.uses_pio_for_control = 1;
+	musb->hcd->uses_new_polling = 1;
+	musb->hcd->has_tt = 1;
+
+	return 0;
+}
+
+void musb_host_cleanup(struct musb *musb)
+{
+	usb_remove_hcd(musb->hcd);
+	musb->hcd = NULL;
+}
+
+void musb_host_free(struct musb *musb)
+{
+	usb_put_hcd(musb->hcd);
+}
+
+int musb_host_setup(struct musb *musb, int power_budget)
+{
+	int ret;
+	struct usb_hcd *hcd = musb->hcd;
+
+	MUSB_HST_MODE(musb);
+	musb->xceiv->otg->default_a = 1;
+	musb->xceiv->state = OTG_STATE_A_IDLE;
+
+	otg_set_host(musb->xceiv->otg, &hcd->self);
+	hcd->self.otg_port = 1;
+	musb->xceiv->otg->host = &hcd->self;
+	hcd->power_budget = 2 * (power_budget ? : 250);
+
+	ret = usb_add_hcd(hcd, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+void musb_host_resume_root_hub(struct musb *musb)
+{
+	usb_hcd_resume_root_hub(musb->hcd);
+}
+
+void musb_host_poke_root_hub(struct musb *musb)
+{
+	MUSB_HST_MODE(musb);
+	if (musb->hcd->status_urb)
+		usb_hcd_poll_rh_status(musb->hcd);
+	else
+		usb_hcd_resume_root_hub(musb->hcd);
+}

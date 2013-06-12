@@ -28,6 +28,35 @@ config USB_MUSB_HDRC
 if USB_MUSB_HDRC
 
 choice
+	bool "MUSB Mode Selection"
+	default USB_MUSB_DUAL_ROLE if (USB && USB_GADGET)
+	default USB_MUSB_HOST if (USB && !USB_GADGET)
+	default USB_MUSB_GADGET if (!USB && USB_GADGET)
+
+config USB_MUSB_HOST
+	bool "Host only mode"
+	depends on USB
+	help
+	  Select this when you want to use MUSB in host mode only,
+	  thereby the gadget feature will be regressed.
+
+config USB_MUSB_GADGET
+	bool "Gadget only mode"
+	depends on USB_GADGET
+	help
+	  Select this when you want to use MUSB in gadget mode only,
+	  thereby the host feature will be regressed.
+
+config USB_MUSB_DUAL_ROLE
+	bool "Dual Role mode"
+	depends on (USB && USB_GADGET)
+	help
+	  This is the default mode of working of MUSB controller where
+	  both host and gadget features are enabled.
+
+endchoice
+
+choice
 	prompt "Platform Glue Layer"
 
 config USB_MUSB_DAVINCI

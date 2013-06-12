@@ -71,8 +71,7 @@ static void ux500_dma_callback(void *private_data)
 	spin_lock_irqsave(&musb->lock, flags);
 	ux500_channel->channel.actual_len = ux500_channel->cur_len;
 	ux500_channel->channel.status = MUSB_DMA_STATUS_FREE;
-	musb_dma_completion(musb, hw_ep->epnum,
-		ux500_channel->is_tx);
+	musb_dma_completion(musb, hw_ep->epnum, ux500_channel->is_tx);
 	spin_unlock_irqrestore(&musb->lock, flags);
 
 }
@@ -366,7 +365,8 @@ void dma_controller_destroy(struct dma_controller *c)
 	kfree(controller);
 }
 
-struct dma_controller *dma_controller_create(struct musb *musb, void __iomem *base)
+struct dma_controller *dma_controller_create(struct musb *musb,
+					void __iomem *base)
 {
 	struct ux500_dma_controller *controller;
 	struct platform_device *pdev = to_platform_device(musb->controller);
