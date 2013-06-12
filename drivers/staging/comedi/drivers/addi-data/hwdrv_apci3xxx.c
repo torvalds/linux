@@ -515,109 +515,31 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 	return i_ReturnValue;
 }
 
-/*
-+----------------------------------------------------------------------------+
-|                            ANALOG OUTPUT SUBDEVICE                         |
-+----------------------------------------------------------------------------+
-*/
-
-/*
-+----------------------------------------------------------------------------+
-| Function Name     : int   i_APCI3XXX_InsnWriteAnalogOutput                 |
-|                          (struct comedi_device    *dev,                           |
-|                           struct comedi_subdevice *s,                             |
-|                           struct comedi_insn      *insn,                          |
-|                           unsigned int         *data)                          |
-+----------------------------------------------------------------------------+
-| Task                Read 1 analog input                                    |
-+----------------------------------------------------------------------------+
-| Input Parameters  : b_Range    = CR_RANGE(insn->chanspec);                 |
-|                     b_Channel  = CR_CHAN(insn->chanspec);                  |
-|                     data[0]    = analog value;                             |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      :>0: No error                                            |
-|                    -3 : Channel selection error                            |
-|                    -4 : Configuration selelection error                    |
-|                    ....                                                    |
-|                    -101 : Data size error                                  |
-+----------------------------------------------------------------------------+
-*/
 static int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device *dev,
 					    struct comedi_subdevice *s,
 					    struct comedi_insn *insn,
 					    unsigned int *data)
 {
-	const struct apci3xxx_boardinfo *board = comedi_board(dev);
 	struct apci3xxx_private *devpriv = dev->private;
-	unsigned char b_Range = (unsigned char) CR_RANGE(insn->chanspec);
-	unsigned char b_Channel = (unsigned char) CR_CHAN(insn->chanspec);
-	unsigned int dw_Status = 0;
-	int i_ReturnValue = insn->n;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int status;
+	int i;
 
-	/************************/
-	/* Test the buffer size */
-	/************************/
+	for (i = 0; i < insn->n; i++) {
+		/* Set the range selection */
+		writel(range, devpriv->dw_AiBase + 96);
 
-	if (insn->n >= 1) {
-	   /***************************/
-		/* Test the channel number */
-	   /***************************/
+		/* Write the analog value to the selected channel */
+		writel((data[i] << 8) | chan, devpriv->dw_AiBase + 100);
 
-		if (b_Channel < board->i_NbrAoChannel) {
-	      /**********************************/
-			/* Test the channel configuration */
-	      /**********************************/
-
-			if (b_Range < 2) {
-		 /***************************/
-				/* Set the range selection */
-		 /***************************/
-
-				writel(b_Range, devpriv->dw_AiBase + 96);
-
-		 /**************************************************/
-				/* Write the analog value to the selected channel */
-		 /**************************************************/
-
-				writel((data[0] << 8) | b_Channel,
-					devpriv->dw_AiBase + 100);
-
-		 /****************************/
-				/* Wait the end of transfer */
-		 /****************************/
-
-				do {
-					dw_Status = readl(devpriv->dw_AiBase + 96);
-				} while ((dw_Status & 0x100) != 0x100);
-			} else {
-		 /***************************/
-				/* Channel not initialised */
-		 /***************************/
-
-				i_ReturnValue = -4;
-				printk("Channel %d range %d selection error\n",
-					b_Channel, b_Range);
-			}
-		} else {
-	      /***************************/
-			/* Channel selection error */
-	      /***************************/
-
-			i_ReturnValue = -3;
-			printk("Channel %d selection error\n", b_Channel);
-		}
-	} else {
-	   /*******************/
-		/* Data size error */
-	   /*******************/
-
-		printk("Buffer size error\n");
-		i_ReturnValue = -101;
+		/* Wait the end of transfer */
+		do {
+			status = readl(devpriv->dw_AiBase + 96);
+		} while ((status & 0x100) != 0x100);
 	}
 
-	return i_ReturnValue;
+	return insn->n;
 }
 
 /*
