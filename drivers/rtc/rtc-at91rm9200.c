@@ -25,6 +25,7 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/interrupt.h>
+#include <linux/spinlock.h>
 #include <linux/ioctl.h>
 #include <linux/completion.h>
 #include <linux/io.h>
@@ -43,6 +44,7 @@
 #define AT91_RTC_EPOCH		1900UL	/* just like arch/arm/common/rtctime.c */
 
 struct at91_rtc_config {
+	bool use_shadow_imr;
 };
 
 static const struct at91_rtc_config *at91_rtc_config;
@@ -50,20 +52,55 @@ static DECLARE_COMPLETION(at91_rtc_updated);
 static unsigned int at91_alarm_year = AT91_RTC_EPOCH;
 static void __iomem *at91_rtc_regs;
 static int irq;
+static DEFINE_SPINLOCK(at91_rtc_lock);
+static u32 at91_rtc_shadow_imr;
 
 static void at91_rtc_write_ier(u32 mask)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&at91_rtc_lock, flags);
+	at91_rtc_shadow_imr |= mask;
 	at91_rtc_write(AT91_RTC_IER, mask);
+	spin_unlock_irqrestore(&at91_rtc_lock, flags);
 }
 
 static void at91_rtc_write_idr(u32 mask)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&at91_rtc_lock, flags);
 	at91_rtc_write(AT91_RTC_IDR, mask);
+	/*
+	 * Register read back (of any RTC-register) needed to make sure
+	 * IDR-register write has reached the peripheral before updating
+	 * shadow mask.
+	 *
+	 * Note that there is still a possibility that the mask is updated
+	 * before interrupts have actually been disabled in hardware. The only
+	 * way to be certain would be to poll the IMR-register, which is is
+	 * the very register we are trying to emulate. The register read back
+	 * is a reasonable heuristic.
+	 */
+	at91_rtc_read(AT91_RTC_SR);
+	at91_rtc_shadow_imr &= ~mask;
+	spin_unlock_irqrestore(&at91_rtc_lock, flags);
 }
 
 static u32 at91_rtc_read_imr(void)
 {
-	return at91_rtc_read(AT91_RTC_IMR);
+	unsigned long flags;
+	u32 mask;
+
+	if (at91_rtc_config->use_shadow_imr) {
+		spin_lock_irqsave(&at91_rtc_lock, flags);
+		mask = at91_rtc_shadow_imr;
+		spin_unlock_irqrestore(&at91_rtc_lock, flags);
+	} else {
+		mask = at91_rtc_read(AT91_RTC_IMR);
+	}
+
+	return mask;
 }
 
 /*
