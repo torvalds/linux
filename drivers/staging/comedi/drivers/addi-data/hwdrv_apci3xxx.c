@@ -1305,35 +1305,3 @@ static int apci3xxx_do_insn_bits(struct comedi_device *dev,
 
 	return insn->n;
 }
-
-static int apci3xxx_reset(struct comedi_device *dev)
-{
-	struct addi_private *devpriv = dev->private;
-	unsigned int val;
-	int i;
-
-	/* Disable the interrupt */
-	disable_irq(dev->irq);
-
-	/* Reset the interrupt flag */
-	devpriv->b_EocEosInterrupt = 0;
-
-	/* Clear the start command */
-	writel(0, devpriv->dw_AiBase + 8);
-
-	/* Reset the interrupt flags */
-	val = readl(devpriv->dw_AiBase + 16);
-	writel(val, devpriv->dw_AiBase + 16);
-
-	/* clear the EOS */
-	readl(devpriv->dw_AiBase + 20);
-
-	/* Clear the FIFO */
-	for (i = 0; i < 16; i++)
-		val = readl(devpriv->dw_AiBase + 28);
-
-	/* Enable the interrupt */
-	enable_irq(dev->irq);
-
-	return 0;
-}

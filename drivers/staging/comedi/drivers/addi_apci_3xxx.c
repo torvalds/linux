@@ -56,7 +56,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
@@ -78,7 +77,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
@@ -100,7 +98,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
@@ -122,7 +119,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
@@ -144,7 +140,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
@@ -166,7 +161,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
@@ -191,7 +185,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
@@ -218,7 +211,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
@@ -245,7 +237,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
@@ -272,7 +263,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
@@ -299,7 +289,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
@@ -326,7 +315,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
@@ -353,7 +341,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
@@ -379,7 +366,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
@@ -405,7 +391,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
@@ -431,7 +416,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
@@ -460,7 +444,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
@@ -491,7 +474,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
@@ -522,7 +504,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
@@ -553,7 +534,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
@@ -579,7 +559,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 7,
 		.ui_MinAcquisitiontimeNs = 2500,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
@@ -600,7 +579,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
@@ -621,7 +599,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
@@ -642,7 +619,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 5000,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
 		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
 		.di_bits		= apci3xxx_di_insn_bits,
@@ -658,7 +634,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrTTLChannel	= 24,
 		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= apci3xxx_reset,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
@@ -693,11 +668,35 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
-static int i_ADDI_Reset(struct comedi_device *dev)
+static int apci3xxx_reset(struct comedi_device *dev)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	struct addi_private *devpriv = dev->private;
+	unsigned int val;
+	int i;
 
-	this_board->reset(dev);
+	/* Disable the interrupt */
+	disable_irq(dev->irq);
+
+	/* Reset the interrupt flag */
+	devpriv->b_EocEosInterrupt = 0;
+
+	/* Clear the start command */
+	writel(0, devpriv->dw_AiBase + 8);
+
+	/* Reset the interrupt flags */
+	val = readl(devpriv->dw_AiBase + 16);
+	writel(val, devpriv->dw_AiBase + 16);
+
+	/* clear the EOS */
+	readl(devpriv->dw_AiBase + 20);
+
+	/* Clear the FIFO */
+	for (i = 0; i < 16; i++)
+		val = readl(devpriv->dw_AiBase + 28);
+
+	/* Enable the interrupt */
+	enable_irq(dev->irq);
+
 	return 0;
 }
 
@@ -926,7 +925,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	i_ADDI_Reset(dev);
+	apci3xxx_reset(dev);
 	return 0;
 }
 
@@ -936,7 +935,7 @@ static void apci3xxx_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (dev->iobase)
-			i_ADDI_Reset(dev);
+			apci3xxx_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if (devpriv->dw_AiBase)
