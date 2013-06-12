@@ -582,67 +582,33 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 	return i_ReturnValue;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function name     : void v_APCI3XXX_Interrupt (int            irq,         |
-|                                                void           *d)       |
-+----------------------------------------------------------------------------+
-| Task              :Interrupt handler for APCI3XXX                          |
-|                    When interrupt occurs this gets called.                 |
-|                    First it finds which interrupt has been generated and   |
-|                    handles  corresponding interrupt                        |
-+----------------------------------------------------------------------------+
-| Input Parameters  : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      : -                                                      |
-+----------------------------------------------------------------------------+
-*/
-
 static void v_APCI3XXX_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;
-	unsigned char b_CopyCpt = 0;
-	unsigned int dw_Status = 0;
+	unsigned int status;
+	int i;
 
-	/***************************/
 	/* Test if interrupt occur */
-	/***************************/
-
-	dw_Status = readl(devpriv->dw_AiBase + 16);
-	if ( (dw_Status & 0x2UL) == 0x2UL) {
-	   /***********************/
+	status = readl(devpriv->dw_AiBase + 16);
+	if ((status & 0x2) == 0x2) {
 		/* Reset the interrupt */
-	   /***********************/
+		writel(status, devpriv->dw_AiBase + 16);
 
-		writel(dw_Status, devpriv->dw_AiBase + 16);
-
-	   /*****************************/
 		/* Test if interrupt enabled */
-	   /*****************************/
-
 		if (devpriv->b_EocEosInterrupt == 1) {
-	      /********************************/
 			/* Read all analog inputs value */
-	      /********************************/
+			for (i = 0; i < devpriv->ui_AiNbrofChannels; i++) {
+				unsigned int val;
 
-			for (b_CopyCpt = 0;
-				b_CopyCpt < devpriv->ui_AiNbrofChannels;
-				b_CopyCpt++) {
-				devpriv->ui_AiReadData[b_CopyCpt] =
-					(unsigned int)readl(devpriv->dw_AiBase + 28);
+				val = readl(devpriv->dw_AiBase + 28);
+				devpriv->ui_AiReadData[i] = val;
 			}
 
-	      /**************************/
 			/* Set the interrupt flag */
-	      /**************************/
-
 			devpriv->b_EocEosInterrupt = 2;
 
-	      /**********************************************/
 			/* Send a signal to from kernel to user space */
-	      /**********************************************/
-
 			send_sig(SIGIO, devpriv->tsk_Current, 0);
 		}
 	}
