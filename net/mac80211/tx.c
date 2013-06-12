@@ -1790,12 +1790,6 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		break;
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
-		if (!sdata->u.mesh.mshcfg.dot11MeshTTL) {
-			/* Do not send frames with mesh_ttl == 0 */
-			sdata->u.mesh.mshstats.dropped_frames_ttl++;
-			goto fail_rcu;
-		}
-
 		if (!is_multicast_ether_addr(skb->data)) {
 			struct sta_info *next_hop;
 			bool mpp_lookup = true;

@@ -208,20 +208,21 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	    priv->trans->ops->d3_suspend &&
 	    priv->trans->ops->d3_resume &&
 	    device_can_wakeup(priv->trans->dev)) {
-		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
-					  WIPHY_WOWLAN_DISCONNECT |
-					  WIPHY_WOWLAN_EAP_IDENTITY_REQ |
-					  WIPHY_WOWLAN_RFKILL_RELEASE;
+		priv->wowlan_support.flags = WIPHY_WOWLAN_MAGIC_PKT |
+					     WIPHY_WOWLAN_DISCONNECT |
+					     WIPHY_WOWLAN_EAP_IDENTITY_REQ |
+					     WIPHY_WOWLAN_RFKILL_RELEASE;
 		if (!iwlwifi_mod_params.sw_crypto)
-			hw->wiphy->wowlan.flags |=
+			priv->wowlan_support.flags |=
 				WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
 				WIPHY_WOWLAN_GTK_REKEY_FAILURE;
 
-		hw->wiphy->wowlan.n_patterns = IWLAGN_WOWLAN_MAX_PATTERNS;
-		hw->wiphy->wowlan.pattern_min_len =
+		priv->wowlan_support.n_patterns = IWLAGN_WOWLAN_MAX_PATTERNS;
+		priv->wowlan_support.pattern_min_len =
 					IWLAGN_WOWLAN_MIN_PATTERN_LEN;
-		hw->wiphy->wowlan.pattern_max_len =
+		priv->wowlan_support.pattern_max_len =
 					IWLAGN_WOWLAN_MAX_PATTERN_LEN;
+		hw->wiphy->wowlan = &priv->wowlan_support;
 	}
 #endif
 

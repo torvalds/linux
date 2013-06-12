@@ -366,7 +366,7 @@ struct ieee80211_mgd_assoc_data {
 	u8 ssid_len;
 	u8 supp_rates_len;
 	bool wmm, uapsd;
-	bool have_beacon, need_beacon;
+	bool need_beacon;
 	bool synced;
 	bool timeout_started;
 
@@ -404,6 +404,7 @@ struct ieee80211_if_managed {
 
 	bool powersave; /* powersave requested for this iface */
 	bool broken_ap; /* AP is broken -- turn off powersave */
+	bool have_beacon;
 	u8 dtim_period;
 	enum ieee80211_smps_mode req_smps, /* requested smps mode */
 				 driver_smps_mode; /* smps mode request */

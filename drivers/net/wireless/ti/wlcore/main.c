@@ -6018,6 +6018,15 @@ int wlcore_free_hw(struct wl1271 *wl)
 }
 EXPORT_SYMBOL_GPL(wlcore_free_hw);
 
+#ifdef CONFIG_PM
+static const struct wiphy_wowlan_support wlcore_wowlan_support = {
+	.flags = WIPHY_WOWLAN_ANY,
+	.n_patterns = WL1271_MAX_RX_FILTERS,
+	.pattern_min_len = 1,
+	.pattern_max_len = WL1271_RX_FILTER_MAX_PATTERN_SIZE,
+};
+#endif
+
 static void wlcore_nvs_cb(const struct firmware *fw, void *context)
 {
 	struct wl1271 *wl = context;
@@ -6071,14 +6080,8 @@ static void wlcore_nvs_cb(const struct firmware *fw, void *context)
 	if (!ret) {
 		wl->irq_wake_enabled = true;
 		device_init_wakeup(wl->dev, 1);
-		if (pdata->pwr_in_suspend) {
-			wl->hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY;
-			wl->hw->wiphy->wowlan.n_patterns =
-				WL1271_MAX_RX_FILTERS;
-			wl->hw->wiphy->wowlan.pattern_min_len = 1;
-			wl->hw->wiphy->wowlan.pattern_max_len =
-				WL1271_RX_FILTER_MAX_PATTERN_SIZE;
-		}
+		if (pdata->pwr_in_suspend)
+			wl->hw->wiphy->wowlan = &wlcore_wowlan_support;
 	}
 #endif
 	disable_irq(wl->irq);

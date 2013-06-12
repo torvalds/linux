@@ -308,11 +308,6 @@ int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 			   bool local_state_change);
 void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 			struct net_device *dev);
-void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
-			       const u8 *req_ie, size_t req_ie_len,
-			       const u8 *resp_ie, size_t resp_ie_len,
-			       u16 status, bool wextev,
-			       struct cfg80211_bss *bss);
 int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 				u16 frame_type, const u8 *match_data,
 				int match_len);
@@ -328,12 +323,19 @@ void cfg80211_oper_and_ht_capa(struct ieee80211_ht_cap *ht_capa,
 void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
 				const struct ieee80211_vht_cap *vht_capa_mask);
 
-/* SME */
+/* SME events */
 int cfg80211_connect(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev,
 		     struct cfg80211_connect_params *connect,
 		     struct cfg80211_cached_keys *connkeys,
 		     const u8 *prev_bssid);
+void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
+			       const u8 *req_ie, size_t req_ie_len,
+			       const u8 *resp_ie, size_t resp_ie_len,
+			       u16 status, bool wextev,
+			       struct cfg80211_bss *bss);
+void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
+			     size_t ie_len, u16 reason, bool from_ap);
 int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, u16 reason,
 			bool wextev);
@@ -344,21 +346,21 @@ void __cfg80211_roamed(struct wireless_dev *wdev,
 int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev);
 
+/* SME implementation */
 void cfg80211_conn_work(struct work_struct *work);
-void cfg80211_sme_failed_assoc(struct wireless_dev *wdev);
-bool cfg80211_sme_failed_reassoc(struct wireless_dev *wdev);
+void cfg80211_sme_scan_done(struct net_device *dev);
+bool cfg80211_sme_rx_assoc_resp(struct wireless_dev *wdev, u16 status);
+void cfg80211_sme_rx_auth(struct wireless_dev *wdev, const u8 *buf, size_t len);
+void cfg80211_sme_disassoc(struct wireless_dev *wdev);
+void cfg80211_sme_deauth(struct wireless_dev *wdev);
+void cfg80211_sme_auth_timeout(struct wireless_dev *wdev);
+void cfg80211_sme_assoc_timeout(struct wireless_dev *wdev);
 
 /* internal helpers */
 bool cfg80211_supported_cipher_suite(struct wiphy *wiphy, u32 cipher);
 int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 				   struct key_params *params, int key_idx,
 				   bool pairwise, const u8 *mac_addr);
-void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
-			     size_t ie_len, u16 reason, bool from_ap);
-void cfg80211_sme_scan_done(struct net_device *dev);
-void cfg80211_sme_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
-void cfg80211_sme_disassoc(struct net_device *dev,
-			   struct cfg80211_internal_bss *bss);
 void __cfg80211_scan_done(struct work_struct *wk);
 void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev, bool leak);
 void __cfg80211_sched_scan_results(struct work_struct *wk);

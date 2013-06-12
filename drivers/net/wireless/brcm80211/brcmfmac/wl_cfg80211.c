@@ -3982,6 +3982,7 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	struct brcmf_fil_af_params_le *af_params;
 	bool ack;
 	s32 chan_nr;
+	u32 freq;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3993,6 +3994,8 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		brcmf_err("Driver only allows MGMT packet type\n");
 		return -EPERM;
 	}
+
+	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
 		/* Right now the only reason to get a probe response */
@@ -4009,7 +4012,6 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		ie_offset =  DOT11_MGMT_HDR_LEN +
 			     DOT11_BCN_PRB_FIXED_LEN;
 		ie_len = len - ie_offset;
-		vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
 		if (vif == cfg->p2p.bss_idx[P2PAPI_BSSCFG_PRIMARY].vif)
 			vif = cfg->p2p.bss_idx[P2PAPI_BSSCFG_DEVICE].vif;
 		err = brcmf_vif_set_mgmt_ie(vif,
@@ -4033,8 +4035,15 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		memcpy(&af_params->bssid[0], &mgmt->bssid[0], ETH_ALEN);
 		/* Add the length exepted for 802.11 header  */
 		action_frame->len = cpu_to_le16(len - DOT11_MGMT_HDR_LEN);
-		/* Add the channel */
-		chan_nr = ieee80211_frequency_to_channel(chan->center_freq);
+		/* Add the channel. Use the one specified as parameter if any or
+		 * the current one (got from the firmware) otherwise
+		 */
+		if (chan)
+			freq = chan->center_freq;
+		else
+			brcmf_fil_cmd_int_get(vif->ifp, BRCMF_C_GET_CHANNEL,
+					      &freq);
+		chan_nr = ieee80211_frequency_to_channel(freq);
 		af_params->channel = cpu_to_le32(chan_nr);
 
 		memcpy(action_frame->data, &buf[DOT11_MGMT_HDR_LEN],

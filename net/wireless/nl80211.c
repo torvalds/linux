@@ -800,12 +800,9 @@ static int nl80211_key_allowed(struct wireless_dev *wdev)
 	case NL80211_IFTYPE_MESH_POINT:
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		if (!wdev->current_bss)
-			return -ENOLINK;
-		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
-		if (wdev->sme_state != CFG80211_SME_CONNECTED)
+		if (!wdev->current_bss)
 			return -ENOLINK;
 		break;
 	default:
@@ -908,7 +905,7 @@ nla_put_failure:
 static int nl80211_send_wowlan_tcp_caps(struct cfg80211_registered_device *rdev,
 					struct sk_buff *msg)
 {
-	const struct wiphy_wowlan_tcp_support *tcp = rdev->wiphy.wowlan.tcp;
+	const struct wiphy_wowlan_tcp_support *tcp = rdev->wiphy.wowlan->tcp;
 	struct nlattr *nl_tcp;
 
 	if (!tcp)
@@ -951,37 +948,37 @@ static int nl80211_send_wowlan(struct sk_buff *msg,
 {
 	struct nlattr *nl_wowlan;
 
-	if (!dev->wiphy.wowlan.flags && !dev->wiphy.wowlan.n_patterns)
+	if (!dev->wiphy.wowlan)
 		return 0;
 
 	nl_wowlan = nla_nest_start(msg, NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED);
 	if (!nl_wowlan)
 		return -ENOBUFS;
 
-	if (((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_ANY) &&
+	if (((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_ANY) &&
 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_ANY)) ||
-	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_DISCONNECT) &&
+	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_DISCONNECT) &&
 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_DISCONNECT)) ||
-	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_MAGIC_PKT) &&
+	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_MAGIC_PKT) &&
 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_MAGIC_PKT)) ||
-	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY) &&
+	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY) &&
 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_GTK_REKEY_SUPPORTED)) ||
-	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
+	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_GTK_REKEY_FAILURE)) ||
-	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_EAP_IDENTITY_REQ) &&
+	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_EAP_IDENTITY_REQ) &&
 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_EAP_IDENT_REQUEST)) ||
-	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_4WAY_HANDSHAKE) &&
+	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_4WAY_HANDSHAKE) &&
 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_4WAY_HANDSHAKE)) ||
-	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_RFKILL_RELEASE) &&
+	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_RFKILL_RELEASE) &&
 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_RFKILL_RELEASE)))
 		return -ENOBUFS;
 
-	if (dev->wiphy.wowlan.n_patterns) {
+	if (dev->wiphy.wowlan->n_patterns) {
 		struct nl80211_wowlan_pattern_support pat = {
-			.max_patterns = dev->wiphy.wowlan.n_patterns,
-			.min_pattern_len = dev->wiphy.wowlan.pattern_min_len,
-			.max_pattern_len = dev->wiphy.wowlan.pattern_max_len,
-			.max_pkt_offset = dev->wiphy.wowlan.max_pkt_offset,
+			.max_patterns = dev->wiphy.wowlan->n_patterns,
+			.min_pattern_len = dev->wiphy.wowlan->pattern_min_len,
+			.max_pattern_len = dev->wiphy.wowlan->pattern_max_len,
+			.max_pkt_offset = dev->wiphy.wowlan->max_pkt_offset,
 		};
 
 		if (nla_put(msg, NL80211_WOWLAN_TRIG_PKT_PATTERN,
@@ -1544,8 +1541,10 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 			int ifidx = nla_get_u32(tb[NL80211_ATTR_IFINDEX]);
 
 			netdev = dev_get_by_index(sock_net(skb->sk), ifidx);
-			if (!netdev)
+			if (!netdev) {
+				rtnl_unlock();
 				return -ENODEV;
+			}
 			if (netdev->ieee80211_ptr) {
 				dev = wiphy_to_dev(
 					netdev->ieee80211_ptr->wiphy);
@@ -1589,6 +1588,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 				    !skb->len &&
 				    cb->min_dump_alloc < 4096) {
 					cb->min_dump_alloc = 4096;
+					rtnl_unlock();
 					return 1;
 				}
 				idx--;
@@ -3975,10 +3975,10 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	params.listen_interval =
 		nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
 
-	if (info->attrs[NL80211_ATTR_STA_AID])
-		params.aid = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
-	else
+	if (info->attrs[NL80211_ATTR_PEER_AID])
 		params.aid = nla_get_u16(info->attrs[NL80211_ATTR_PEER_AID]);
+	else
+		params.aid = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
 	if (!params.aid || params.aid > IEEE80211_MAX_AID)
 		return -EINVAL;
 
@@ -4030,7 +4030,8 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 			params.sta_modify_mask &= ~STATION_PARAM_APPLY_UAPSD;
 
 		/* TDLS peers cannot be added */
-		if (params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))
+		if ((params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) ||
+		    info->attrs[NL80211_ATTR_PEER_AID])
 			return -EINVAL;
 		/* but don't bother the driver with it */
 		params.sta_flags_mask &= ~BIT(NL80211_STA_FLAG_TDLS_PEER);
@@ -4056,7 +4057,8 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		if (params.sta_flags_mask & BIT(NL80211_STA_FLAG_ASSOCIATED))
 			return -EINVAL;
 		/* TDLS peers cannot be added */
-		if (params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))
+		if ((params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) ||
+		    info->attrs[NL80211_ATTR_PEER_AID])
 			return -EINVAL;
 		break;
 	case NL80211_IFTYPE_STATION:
@@ -4578,7 +4580,9 @@ static int nl80211_get_mesh_config(struct sk_buff *skb,
 	    nla_put_u32(msg, NL80211_MESHCONF_POWER_MODE,
 			cur_params.power_mode) ||
 	    nla_put_u16(msg, NL80211_MESHCONF_AWAKE_WINDOW,
-			cur_params.dot11MeshAwakeWindowDuration))
+			cur_params.dot11MeshAwakeWindowDuration) ||
+	    nla_put_u32(msg, NL80211_MESHCONF_PLINK_TIMEOUT,
+			cur_params.plink_timeout))
 		goto nla_put_failure;
 	nla_nest_end(msg, pinfoattr);
 	genlmsg_end(msg, hdr);
@@ -4619,6 +4623,7 @@ static const struct nla_policy nl80211_meshconf_params_policy[NL80211_MESHCONF_A
 	[NL80211_MESHCONF_HWMP_CONFIRMATION_INTERVAL] = { .type = NLA_U16 },
 	[NL80211_MESHCONF_POWER_MODE] = { .type = NLA_U32 },
 	[NL80211_MESHCONF_AWAKE_WINDOW] = { .type = NLA_U16 },
+	[NL80211_MESHCONF_PLINK_TIMEOUT] = { .type = NLA_U32 },
 };
 
 static const struct nla_policy
@@ -4756,6 +4761,9 @@ do {									    \
 	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshAwakeWindowDuration,
 				  0, 65535, mask,
 				  NL80211_MESHCONF_AWAKE_WINDOW, nla_get_u16);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, plink_timeout, 1, 0xffffffff,
+				  mask, NL80211_MESHCONF_PLINK_TIMEOUT,
+				  nla_get_u32);
 	if (mask_out)
 		*mask_out = mask;
 
@@ -7142,6 +7150,9 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 		return -EOPNOTSUPP;
 
 	switch (wdev->iftype) {
+	case NL80211_IFTYPE_P2P_DEVICE:
+		if (!info->attrs[NL80211_ATTR_WIPHY_FREQ])
+			return -EINVAL;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_P2P_CLIENT:
@@ -7149,7 +7160,6 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_P2P_GO:
-	case NL80211_IFTYPE_P2P_DEVICE:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -7177,9 +7187,18 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 
 	no_cck = nla_get_flag(info->attrs[NL80211_ATTR_TX_NO_CCK_RATE]);
 
-	err = nl80211_parse_chandef(rdev, info, &chandef);
-	if (err)
-		return err;
+	/* get the channel if any has been specified, otherwise pass NULL to
+	 * the driver. The latter will use the current one
+	 */
+	chandef.chan = NULL;
+	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
+		err = nl80211_parse_chandef(rdev, info, &chandef);
+		if (err)
+			return err;
+	}
+
+	if (!chandef.chan && offchan)
+		return -EINVAL;
 
 	if (!dont_wait_for_ack) {
 		msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -7484,6 +7503,23 @@ static int nl80211_join_mesh(struct sk_buff *skb, struct genl_info *info)
 		setup.chandef.chan = NULL;
 	}
 
+	if (info->attrs[NL80211_ATTR_BSS_BASIC_RATES]) {
+		u8 *rates = nla_data(info->attrs[NL80211_ATTR_BSS_BASIC_RATES]);
+		int n_rates =
+			nla_len(info->attrs[NL80211_ATTR_BSS_BASIC_RATES]);
+		struct ieee80211_supported_band *sband;
+
+		if (!setup.chandef.chan)
+			return -EINVAL;
+
+		sband = rdev->wiphy.bands[setup.chandef.chan->band];
+
+		err = ieee80211_get_ratemask(sband, rates, n_rates,
+					     &setup.basic_rates);
+		if (err)
+			return err;
+	}
+
 	return cfg80211_join_mesh(rdev, dev, &setup, &cfg);
 }
 
@@ -7580,8 +7616,7 @@ static int nl80211_get_wowlan(struct sk_buff *skb, struct genl_info *info)
 	void *hdr;
 	u32 size = NLMSG_DEFAULT_SIZE;
 
-	if (!rdev->wiphy.wowlan.flags && !rdev->wiphy.wowlan.n_patterns &&
-	    !rdev->wiphy.wowlan.tcp)
+	if (!rdev->wiphy.wowlan)
 		return -EOPNOTSUPP;
 
 	if (rdev->wiphy.wowlan_config && rdev->wiphy.wowlan_config->tcp) {
@@ -7654,7 +7689,7 @@ static int nl80211_parse_wowlan_tcp(struct cfg80211_registered_device *rdev,
 	u32 data_size, wake_size, tokens_size = 0, wake_mask_size;
 	int err, port;
 
-	if (!rdev->wiphy.wowlan.tcp)
+	if (!rdev->wiphy.wowlan->tcp)
 		return -EINVAL;
 
 	err = nla_parse(tb, MAX_NL80211_WOWLAN_TCP,
@@ -7674,16 +7709,16 @@ static int nl80211_parse_wowlan_tcp(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 
 	data_size = nla_len(tb[NL80211_WOWLAN_TCP_DATA_PAYLOAD]);
-	if (data_size > rdev->wiphy.wowlan.tcp->data_payload_max)
+	if (data_size > rdev->wiphy.wowlan->tcp->data_payload_max)
 		return -EINVAL;
 
 	if (nla_get_u32(tb[NL80211_WOWLAN_TCP_DATA_INTERVAL]) >
-			rdev->wiphy.wowlan.tcp->data_interval_max ||
+			rdev->wiphy.wowlan->tcp->data_interval_max ||
 	    nla_get_u32(tb[NL80211_WOWLAN_TCP_DATA_INTERVAL]) == 0)
 		return -EINVAL;
 
 	wake_size = nla_len(tb[NL80211_WOWLAN_TCP_WAKE_PAYLOAD]);
-	if (wake_size > rdev->wiphy.wowlan.tcp->wake_payload_max)
+	if (wake_size > rdev->wiphy.wowlan->tcp->wake_payload_max)
 		return -EINVAL;
 
 	wake_mask_size = nla_len(tb[NL80211_WOWLAN_TCP_WAKE_MASK]);
@@ -7698,13 +7733,13 @@ static int nl80211_parse_wowlan_tcp(struct cfg80211_registered_device *rdev,
 
 		if (!tok->len || tokens_size % tok->len)
 			return -EINVAL;
-		if (!rdev->wiphy.wowlan.tcp->tok)
+		if (!rdev->wiphy.wowlan->tcp->tok)
 			return -EINVAL;
-		if (tok->len > rdev->wiphy.wowlan.tcp->tok->max_len)
+		if (tok->len > rdev->wiphy.wowlan->tcp->tok->max_len)
 			return -EINVAL;
-		if (tok->len < rdev->wiphy.wowlan.tcp->tok->min_len)
+		if (tok->len < rdev->wiphy.wowlan->tcp->tok->min_len)
 			return -EINVAL;
-		if (tokens_size > rdev->wiphy.wowlan.tcp->tok->bufsize)
+		if (tokens_size > rdev->wiphy.wowlan->tcp->tok->bufsize)
 			return -EINVAL;
 		if (tok->offset + tok->len > data_size)
 			return -EINVAL;
@@ -7712,7 +7747,7 @@ static int nl80211_parse_wowlan_tcp(struct cfg80211_registered_device *rdev,
 
 	if (tb[NL80211_WOWLAN_TCP_DATA_PAYLOAD_SEQ]) {
 		seq = nla_data(tb[NL80211_WOWLAN_TCP_DATA_PAYLOAD_SEQ]);
-		if (!rdev->wiphy.wowlan.tcp->seq)
+		if (!rdev->wiphy.wowlan->tcp->seq)
 			return -EINVAL;
 		if (seq->len == 0 || seq->len > 4)
 			return -EINVAL;
@@ -7793,12 +7828,11 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 	struct nlattr *tb[NUM_NL80211_WOWLAN_TRIG];
 	struct cfg80211_wowlan new_triggers = {};
 	struct cfg80211_wowlan *ntrig;
-	struct wiphy_wowlan_support *wowlan = &rdev->wiphy.wowlan;
+	const struct wiphy_wowlan_support *wowlan = rdev->wiphy.wowlan;
 	int err, i;
 	bool prev_enabled = rdev->wiphy.wowlan_config;
 
-	if (!rdev->wiphy.wowlan.flags && !rdev->wiphy.wowlan.n_patterns &&
-	    !rdev->wiphy.wowlan.tcp)
+	if (!wowlan)
 		return -EOPNOTSUPP;
 
 	if (!info->attrs[NL80211_ATTR_WOWLAN_TRIGGERS]) {
@@ -9315,31 +9349,27 @@ void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
 				NL80211_CMD_DISASSOCIATE, gfp);
 }
 
-void cfg80211_send_unprot_deauth(struct net_device *dev, const u8 *buf,
-				 size_t len)
+void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev, const u8 *buf,
+				  size_t len)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	const struct ieee80211_mgmt *mgmt = (void *)buf;
+	u32 cmd;
 
-	trace_cfg80211_send_unprot_deauth(dev);
-	nl80211_send_mlme_event(rdev, dev, buf, len,
-				NL80211_CMD_UNPROT_DEAUTHENTICATE, GFP_ATOMIC);
+	if (WARN_ON(len < 2))
+		return;
+
+	if (ieee80211_is_deauth(mgmt->frame_control))
+		cmd = NL80211_CMD_UNPROT_DEAUTHENTICATE;
+	else
+		cmd = NL80211_CMD_UNPROT_DISASSOCIATE;
+
+	trace_cfg80211_rx_unprot_mlme_mgmt(dev, buf, len);
+	nl80211_send_mlme_event(rdev, dev, buf, len, cmd, GFP_ATOMIC);
 }
-EXPORT_SYMBOL(cfg80211_send_unprot_deauth);
-
-void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
-				   size_t len)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-
-	trace_cfg80211_send_unprot_disassoc(dev);
-	nl80211_send_mlme_event(rdev, dev, buf, len,
-				NL80211_CMD_UNPROT_DISASSOCIATE, GFP_ATOMIC);
-}
-EXPORT_SYMBOL(cfg80211_send_unprot_disassoc);
+EXPORT_SYMBOL(cfg80211_rx_unprot_mlme_mgmt);
 
 static void nl80211_send_mlme_timeout(struct cfg80211_registered_device *rdev,
 				      struct net_device *netdev, int cmd,
@@ -9850,7 +9880,6 @@ static bool __nl80211_unexpected_frame(struct net_device *dev, u8 cmd,
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct sk_buff *msg;
 	void *hdr;
-	int err;
 	u32 nlportid = ACCESS_ONCE(wdev->ap_unexpected_nlportid);
 
 	if (!nlportid)
@@ -9871,12 +9900,7 @@ static bool __nl80211_unexpected_frame(struct net_device *dev, u8 cmd,
 	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, addr))
 		goto nla_put_failure;
 
-	err = genlmsg_end(msg, hdr);
-	if (err < 0) {
-		nlmsg_free(msg);
-		return true;
-	}
-
+	genlmsg_end(msg, hdr);
 	genlmsg_unicast(wiphy_net(&rdev->wiphy), msg, nlportid);
 	return true;
 
@@ -10319,10 +10343,7 @@ nl80211_radar_notify(struct cfg80211_registered_device *rdev,
 	if (nl80211_send_chandef(msg, chandef))
 		goto nla_put_failure;
 
-	if (genlmsg_end(msg, hdr) < 0) {
-		nlmsg_free(msg);
-		return;
-	}
+	genlmsg_end(msg, hdr);
 
 	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
 				nl80211_mlme_mcgrp.id, gfp);
@@ -10388,7 +10409,6 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct sk_buff *msg;
 	void *hdr;
-	int err;
 
 	trace_cfg80211_probe_status(dev, addr, cookie, acked);
 
@@ -10410,11 +10430,7 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
 	    (acked && nla_put_flag(msg, NL80211_ATTR_ACK)))
 		goto nla_put_failure;
 
-	err = genlmsg_end(msg, hdr);
-	if (err < 0) {
-		nlmsg_free(msg);
-		return;
-	}
+	genlmsg_end(msg, hdr);
 
 	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
 				nl80211_mlme_mcgrp.id, gfp);
@@ -10480,7 +10496,7 @@ void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct sk_buff *msg;
 	void *hdr;
-	int err, size = 200;
+	int size = 200;
 
 	trace_cfg80211_report_wowlan_wakeup(wdev->wiphy, wdev, wakeup);
 
@@ -10566,9 +10582,7 @@ void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
 		nla_nest_end(msg, reasons);
 	}
 
-	err = genlmsg_end(msg, hdr);
-	if (err < 0)
-		goto free_msg;
+	genlmsg_end(msg, hdr);
 
 	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
 				nl80211_mlme_mcgrp.id, gfp);
@@ -10588,7 +10602,6 @@ void cfg80211_tdls_oper_request(struct net_device *dev, const u8 *peer,
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct sk_buff *msg;
 	void *hdr;
-	int err;
 
 	trace_cfg80211_tdls_oper_request(wdev->wiphy, dev, peer, oper,
 					 reason_code);
@@ -10611,11 +10624,7 @@ void cfg80211_tdls_oper_request(struct net_device *dev, const u8 *peer,
 	     nla_put_u16(msg, NL80211_ATTR_REASON_CODE, reason_code)))
 		goto nla_put_failure;
 
-	err = genlmsg_end(msg, hdr);
-	if (err < 0) {
-		nlmsg_free(msg);
-		return;
-	}
+	genlmsg_end(msg, hdr);
 
 	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
 				nl80211_mlme_mcgrp.id, gfp);
@@ -10673,7 +10682,6 @@ void cfg80211_ft_event(struct net_device *netdev,
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 	struct sk_buff *msg;
 	void *hdr;
-	int err;
 
 	trace_cfg80211_ft_event(wiphy, netdev, ft_event);
 
@@ -10699,11 +10707,7 @@ void cfg80211_ft_event(struct net_device *netdev,
 		nla_put(msg, NL80211_ATTR_IE_RIC, ft_event->ric_ies_len,
 			ft_event->ric_ies);
 
-	err = genlmsg_end(msg, hdr);
-	if (err < 0) {
-		nlmsg_free(msg);
-		return;
-	}
+	genlmsg_end(msg, hdr);
 
 	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
 				nl80211_mlme_mcgrp.id, GFP_KERNEL);
