@@ -368,7 +368,6 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 
 struct apci3xxx_private {
 	int iobase;
-	int i_IobaseReserved;
 	void __iomem *dw_AiBase;
 	unsigned int ui_AiNbrofChannels;	/*  how many channels is measured */
 	unsigned int ui_AiReadData[32];
@@ -613,7 +612,6 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	dev->iobase = pci_resource_start(pcidev, 2);
 	devpriv->iobase = pci_resource_start(pcidev, 2);
 	devpriv->dw_AiBase = pci_ioremap_bar(pcidev, 3);
-	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci3xxx_irq_handler,
