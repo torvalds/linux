@@ -2507,6 +2507,8 @@ static void srp_remove_one(struct ib_device *device)
 	struct srp_target_port *target;
 
 	srp_dev = ib_get_client_data(device, &srp_client);
+	if (!srp_dev)
+		return;
 
 	list_for_each_entry_safe(host, tmp_host, &srp_dev->dev_list, list) {
 		device_unregister(&host->dev);
