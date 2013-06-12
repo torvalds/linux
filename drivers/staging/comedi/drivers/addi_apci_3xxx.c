@@ -370,7 +370,6 @@ struct apci3xxx_private {
 	int iobase;
 	int i_IobaseReserved;
 	void __iomem *dw_AiBase;
-	unsigned char b_AiInitialisation;
 	unsigned int ui_AiNbrofChannels;	/*  how many channels is measured */
 	unsigned int ui_AiReadData[32];
 	unsigned char b_EocEosInterrupt;
@@ -645,9 +644,6 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->maxdata = board->i_AiMaxdata;
 		s->len_chanlist = board->i_AiChannelList;
 		s->range_table = &apci3xxx_ai_range;
-
-		/* Set the initialisation flag */
-		devpriv->b_AiInitialisation = 1;
 
 		s->insn_config = i_APCI3XXX_InsnConfigAnalogInput;
 		s->insn_read = i_APCI3XXX_InsnReadAnalogInput;

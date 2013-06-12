@@ -158,9 +158,6 @@ static int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 									b_SingelDiff
 									=
 									b_SingleDiff;
-								devpriv->
-									b_AiInitialisation
-									= 1;
 
 			      /*******************************/
 								/* Set the convert timing unit */
@@ -327,11 +324,6 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 	unsigned int dw_AcquisitionCpt = 0;
 	unsigned char b_Interrupt = 0;
 
-	/*************************************/
-	/* Test if operating mode configured */
-	/*************************************/
-
-	if (devpriv->b_AiInitialisation) {
 	   /***************************/
 		/* Test the channel number */
 	   /***************************/
@@ -502,13 +494,6 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 				i_ReturnValue = -101;
 			}
 		}
-	} else {
-	   /***************************/
-		/* Channel selection error */
-	   /***************************/
 
-		printk("Operating mode not configured\n");
-		i_ReturnValue = -1;
-	}
 	return i_ReturnValue;
 }
