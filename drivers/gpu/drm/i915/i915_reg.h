@@ -3672,9 +3672,9 @@
 #define _GAMMA_MODE_B		0x4ac80
 #define GAMMA_MODE(pipe) _PIPE(pipe, _GAMMA_MODE_A, _GAMMA_MODE_B)
 #define GAMMA_MODE_MODE_MASK	(3 << 0)
-#define GAMMA_MODE_MODE_8bit	(0 << 0)
-#define GAMMA_MODE_MODE_10bit	(1 << 0)
-#define GAMMA_MODE_MODE_12bit	(2 << 0)
+#define GAMMA_MODE_MODE_8BIT	(0 << 0)
+#define GAMMA_MODE_MODE_10BIT	(1 << 0)
+#define GAMMA_MODE_MODE_12BIT	(2 << 0)
 #define GAMMA_MODE_MODE_SPLIT	(3 << 0)
 
 /* interrupts */

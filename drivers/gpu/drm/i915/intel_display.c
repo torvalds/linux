@@ -5437,13 +5437,11 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc)
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	uint32_t val;
 
-	val = I915_READ(PIPECONF(cpu_transcoder));
+	val = 0;
 
-	val &= ~(PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_MASK);
 	if (intel_crtc->config.dither)
 		val |= (PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP);
 
-	val &= ~PIPECONF_INTERLACE_MASK_HSW;
 	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		val |= PIPECONF_INTERLACED_ILK;
 	else
@@ -5451,6 +5449,9 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc)
 
 	I915_WRITE(PIPECONF(cpu_transcoder), val);
 	POSTING_READ(PIPECONF(cpu_transcoder));
+
+	I915_WRITE(GAMMA_MODE(intel_crtc->pipe), GAMMA_MODE_MODE_8BIT);
+	POSTING_READ(GAMMA_MODE(intel_crtc->pipe));
 }
 
 static bool ironlake_compute_clocks(struct drm_crtc *crtc,
