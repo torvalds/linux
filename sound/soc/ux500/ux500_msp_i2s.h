@@ -468,22 +468,22 @@ struct ux500_msp_config {
 	unsigned int iodelay;
 };
 
+struct ux500_msp_dma_params {
+	unsigned int data_size;
+	struct stedma40_chan_cfg *dma_cfg;
+};
+
 struct ux500_msp {
 	enum msp_i2s_id id;
 	void __iomem *registers;
 	struct device *dev;
-	struct stedma40_chan_cfg *dma_cfg_rx;
-	struct stedma40_chan_cfg *dma_cfg_tx;
+	struct ux500_msp_dma_params playback_dma_data;
+	struct ux500_msp_dma_params capture_dma_data;
 	enum msp_state msp_state;
 	int def_elem_len;
 	unsigned int dir_busy;
 	int loopback_enable;
 	unsigned int f_bitclk;
-};
-
-struct ux500_msp_dma_params {
-	unsigned int data_size;
-	struct stedma40_chan_cfg *dma_cfg;
 };
 
 struct msp_i2s_platform_data;

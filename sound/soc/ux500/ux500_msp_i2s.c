@@ -367,12 +367,14 @@ static int enable_msp(struct ux500_msp *msp, struct ux500_msp_config *config)
 	}
 
 	/* Make sure the correct DMA-directions are configured */
-	if ((config->direction & MSP_DIR_RX) && (!msp->dma_cfg_rx)) {
+	if ((config->direction & MSP_DIR_RX) &&
+			!msp->capture_dma_data.dma_cfg) {
 		dev_err(msp->dev, "%s: ERROR: MSP RX-mode is not configured!",
 			__func__);
 		return -EINVAL;
 	}
-	if ((config->direction == MSP_DIR_TX) && (!msp->dma_cfg_tx)) {
+	if ((config->direction == MSP_DIR_TX) &&
+			!msp->playback_dma_data.dma_cfg) {
 		dev_err(msp->dev, "%s: ERROR: MSP TX-mode is not configured!",
 			__func__);
 		return -EINVAL;
@@ -673,8 +675,8 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 
 	msp->id = platform_data->id;
 	msp->dev = &pdev->dev;
-	msp->dma_cfg_rx = platform_data->msp_i2s_dma_rx;
-	msp->dma_cfg_tx = platform_data->msp_i2s_dma_tx;
+	msp->playback_dma_data.dma_cfg = platform_data->msp_i2s_dma_tx;
+	msp->capture_dma_data.dma_cfg = platform_data->msp_i2s_dma_rx;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
