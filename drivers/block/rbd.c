@@ -4245,6 +4245,10 @@ static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev)
 
 	down_write(&rbd_dev->header_rwsem);
 
+	ret = rbd_dev_v2_image_size(rbd_dev);
+	if (ret)
+		goto out;
+
 	if (first_time) {
 		ret = rbd_dev_v2_header_onetime(rbd_dev);
 		if (ret)
@@ -4277,10 +4281,6 @@ static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev)
 			rbd_warn(rbd_dev, "WARNING: kernel layering "
 					"is EXPERIMENTAL!");
 	}
-
-	ret = rbd_dev_v2_image_size(rbd_dev);
-	if (ret)
-		goto out;
 
 	if (rbd_dev->spec->snap_id == CEPH_NOSNAP)
 		if (rbd_dev->mapping.size != rbd_dev->header.image_size)
