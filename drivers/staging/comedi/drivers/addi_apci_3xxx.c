@@ -6,7 +6,6 @@
 
 #include "addi-data/addi_common.h"
 
-#include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci3xxx.c"
 
 #ifndef COMEDI_SUBD_TTLIO
@@ -65,8 +64,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3000_16] = {
 		.pc_DriverName		= "apci3000-16",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -84,8 +81,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3000_8] = {
 		.pc_DriverName		= "apci3000-8",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
@@ -103,8 +98,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3000_4] = {
 		.pc_DriverName		= "apci3000-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiChannelList	= 4,
@@ -122,8 +115,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3006_16] = {
 		.pc_DriverName		= "apci3006-16",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -141,8 +132,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3006_8] = {
 		.pc_DriverName		= "apci3006-8",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
@@ -160,8 +149,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3006_4] = {
 		.pc_DriverName		= "apci3006-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiChannelList	= 4,
@@ -179,8 +166,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3010_16] = {
 		.pc_DriverName		= "apci3010-16",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -201,8 +186,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3010_8] = {
 		.pc_DriverName		= "apci3010-8",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
@@ -223,8 +206,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3010_4] = {
 		.pc_DriverName		= "apci3010-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiChannelList	= 4,
@@ -245,8 +226,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3016_16] = {
 		.pc_DriverName		= "apci3016-16",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -267,8 +246,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3016_8] = {
 		.pc_DriverName		= "apci3016-8",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
@@ -289,8 +266,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3016_4] = {
 		.pc_DriverName		= "apci3016-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 4,
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiChannelList	= 4,
@@ -311,8 +286,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3100_16_4] = {
 		.pc_DriverName		= "apci3100-16-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -333,8 +306,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3100_8_4] = {
 		.pc_DriverName		= "apci3100-8-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
@@ -355,8 +326,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3106_16_4] = {
 		.pc_DriverName		= "apci3106-16-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -377,8 +346,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3106_8_4] = {
 		.pc_DriverName		= "apci3106-8-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
@@ -399,8 +366,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3110_16_4] = {
 		.pc_DriverName		= "apci3110-16-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -424,8 +389,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3110_8_4] = {
 		.pc_DriverName		= "apci3110-8-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
@@ -449,8 +412,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3116_16_4] = {
 		.pc_DriverName		= "apci3116-16-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -474,8 +435,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3116_8_4] = {
 		.pc_DriverName		= "apci3116-8-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannel		= 8,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
@@ -499,8 +458,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3003] = {
 		.pc_DriverName		= "apci3003",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 4,
 		.i_AiMaxdata		= 65535,
@@ -515,8 +472,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3002_16] = {
 		.pc_DriverName		= "apci3002-16",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannelDiff	= 16,
 		.i_AiChannelList	= 16,
 		.i_AiMaxdata		= 65535,
@@ -531,8 +486,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3002_8] = {
 		.pc_DriverName		= "apci3002-8",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 8,
 		.i_AiMaxdata		= 65535,
@@ -547,8 +500,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3002_4] = {
 		.pc_DriverName		= "apci3002-4",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 4,
 		.i_AiMaxdata		= 65535,
@@ -563,8 +514,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3500] = {
 		.pc_DriverName		= "apci3500",
 		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAoChannel		= 4,
 		.i_AoMaxdata		= 4095,
 		.i_NbrTTLChannel	= 24,
@@ -643,23 +592,6 @@ static int apci3xxx_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
-{
-	const struct addi_board *this_board = comedi_board(dev);
-	struct addi_private *devpriv = dev->private;
-	unsigned short w_Address = CR_CHAN(insn->chanspec);
-	unsigned short w_Data;
-
-	w_Data = addi_eeprom_readw(devpriv->i_IobaseAmcc,
-		this_board->pc_EepromChip, 2 * w_Address);
-	data[0] = w_Data;
-
-	return insn->n;
-}
-
 static int apci3xxx_reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
@@ -700,7 +632,6 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, n_subdevices;
-	unsigned int dw_Dummy;
 
 	if (context < ARRAY_SIZE(apci3xxx_boardtypes))
 		board = &apci3xxx_boardtypes[context];
@@ -743,23 +674,6 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 				  IRQF_SHARED, dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = pcidev->irq;
-	}
-
-	/*  Read eepeom and fill addi_board Structure */
-
-	if (board->i_PCIEeprom) {
-		if (!(strcmp(board->pc_EepromChip, "S5920"))) {
-			/*  Set 3 wait stait */
-			if (!(strcmp(dev->board_name, "apci035")))
-				outl(0x80808082, devpriv->i_IobaseAmcc + 0x60);
-			else
-				outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
-
-			/*  Enable the interrupt for the controller */
-			dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
-			outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
-		}
-		addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
 	}
 
 	n_subdevices = 7;
@@ -870,15 +784,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 
 	/* EEPROM */
 	s = &dev->subdevices[6];
-	if (board->i_PCIEeprom) {
-		s->type = COMEDI_SUBD_MEMORY;
-		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-		s->n_chan = 256;
-		s->maxdata = 0xffff;
-		s->insn_read = i_ADDIDATA_InsnReadEeprom;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
 
 	apci3xxx_reset(dev);
 	return 0;
