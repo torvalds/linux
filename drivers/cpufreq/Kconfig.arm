@@ -18,6 +18,7 @@ config ARM_DT_BL_CPUFREQ
 config ARM_EXYNOS_CPUFREQ
 	bool "SAMSUNG EXYNOS SoCs"
 	depends on ARCH_EXYNOS
+	select CPU_FREQ_TABLE
 	default y
 	help
 	  This adds the CPUFreq driver common part for Samsung
@@ -46,6 +47,7 @@ config ARM_EXYNOS5250_CPUFREQ
 config ARM_EXYNOS5440_CPUFREQ
 	def_bool SOC_EXYNOS5440
 	depends on HAVE_CLK && PM_OPP && OF
+	select CPU_FREQ_TABLE
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS5440
 	  SoC. The nature of exynos5440 clock controller is
