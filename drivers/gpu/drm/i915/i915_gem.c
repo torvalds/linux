@@ -2002,14 +2002,16 @@ i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
 
 int __i915_add_request(struct intel_ring_buffer *ring,
 		       struct drm_file *file,
+		       struct drm_i915_gem_object *obj,
 		       u32 *out_seqno)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_request *request;
-	u32 request_ring_position;
+	u32 request_ring_position, request_start;
 	int was_empty;
 	int ret;
 
+	request_start = intel_ring_get_tail(ring);
 	/*
 	 * Emit any outstanding flushes - execbuf can fail to emit the flush
 	 * after having emitted the batchbuffer command. Hence we need to fix
@@ -2041,8 +2043,17 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 
 	request->seqno = intel_ring_get_seqno(ring);
 	request->ring = ring;
+	request->head = request_start;
 	request->tail = request_ring_position;
 	request->ctx = ring->last_context;
+	request->batch_obj = obj;
+
+	/* Whilst this request exists, batch_obj will be on the
+	 * active_list, and so will hold the active reference. Only when this
+	 * request is retired will the the batch_obj be moved onto the
+	 * inactive_list and lose its active reference. Hence we do not need
+	 * to explicitly hold another reference here.
+	 */
 
 	if (request->ctx)
 		i915_gem_context_reference(request->ctx);

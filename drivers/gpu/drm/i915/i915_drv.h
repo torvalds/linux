@@ -1362,11 +1362,17 @@ struct drm_i915_gem_request {
 	/** GEM sequence number associated with this request. */
 	uint32_t seqno;
 
-	/** Postion in the ringbuffer of the end of the request */
+	/** Position in the ringbuffer of the start of the request */
+	u32 head;
+
+	/** Position in the ringbuffer of the end of the request */
 	u32 tail;
 
 	/** Context related to this request */
 	struct i915_hw_context *ctx;
+
+	/** Batch buffer related to this request if any */
+	struct drm_i915_gem_object *batch_obj;
 
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
@@ -1758,9 +1764,10 @@ int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_idle(struct drm_device *dev);
 int __i915_add_request(struct intel_ring_buffer *ring,
 		       struct drm_file *file,
+		       struct drm_i915_gem_object *batch_obj,
 		       u32 *seqno);
 #define i915_add_request(ring, seqno) \
-	__i915_add_request(ring, NULL, seqno);
+	__i915_add_request(ring, NULL, NULL, seqno);
 int __must_check i915_wait_seqno(struct intel_ring_buffer *ring,
 				 uint32_t seqno);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
