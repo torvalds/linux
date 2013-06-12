@@ -696,8 +696,6 @@ static int mixer_enable_vblank(void *ctx, int pipe)
 	struct mixer_context *mixer_ctx = ctx;
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
 	mixer_ctx->pipe = pipe;
 
 	/* enable vsync interrupt */
@@ -712,8 +710,6 @@ static void mixer_disable_vblank(void *ctx)
 	struct mixer_context *mixer_ctx = ctx;
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
 	/* disable vsync interrupt */
 	mixer_reg_writemask(res, MXR_INT_EN, 0, MXR_INT_EN_VSYNC);
 }
@@ -724,8 +720,6 @@ static void mixer_win_mode_set(void *ctx,
 	struct mixer_context *mixer_ctx = ctx;
 	struct hdmi_win_data *win_data;
 	int win;
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	if (!overlay) {
 		DRM_ERROR("overlay is NULL\n");
@@ -890,8 +884,6 @@ static void mixer_poweron(struct mixer_context *ctx)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
 	mutex_lock(&ctx->mixer_mutex);
 	if (ctx->powered) {
 		mutex_unlock(&ctx->mixer_mutex);
@@ -915,8 +907,6 @@ static void mixer_poweron(struct mixer_context *ctx)
 static void mixer_poweroff(struct mixer_context *ctx)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	mutex_lock(&ctx->mixer_mutex);
 	if (!ctx->powered)
@@ -943,8 +933,6 @@ out:
 static void mixer_dpms(void *ctx, int mode)
 {
 	struct mixer_context *mixer_ctx = ctx;
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -1249,8 +1237,6 @@ static int mixer_suspend(struct device *dev)
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx = get_mixer_context(dev);
 	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
 	if (pm_runtime_suspended(dev)) {
 		DRM_DEBUG_KMS("%s : Already suspended\n", __func__);
 		return 0;
@@ -1265,8 +1251,6 @@ static int mixer_resume(struct device *dev)
 {
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx = get_mixer_context(dev);
 	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	if (!pm_runtime_suspended(dev)) {
 		DRM_DEBUG_KMS("%s : Already resumed\n", __func__);
@@ -1285,8 +1269,6 @@ static int mixer_runtime_suspend(struct device *dev)
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx = get_mixer_context(dev);
 	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
 	mixer_poweroff(ctx);
 
 	return 0;
@@ -1296,8 +1278,6 @@ static int mixer_runtime_resume(struct device *dev)
 {
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx = get_mixer_context(dev);
 	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	mixer_poweron(ctx);
 

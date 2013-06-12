@@ -471,8 +471,6 @@ static int rotator_init_prop_list(struct exynos_drm_ippdrv *ippdrv)
 {
 	struct drm_exynos_ipp_prop_list *prop_list;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	prop_list = devm_kzalloc(ippdrv->dev, sizeof(*prop_list), GFP_KERNEL);
 	if (!prop_list) {
 		DRM_ERROR("failed to alloc property list.\n");
@@ -752,8 +750,6 @@ static struct platform_device_id rotator_driver_ids[] = {
 
 static int rotator_clk_crtl(struct rot_context *rot, bool enable)
 {
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	if (enable) {
 		clk_enable(rot->clock);
 		rot->suspended = false;
@@ -771,8 +767,6 @@ static int rotator_suspend(struct device *dev)
 {
 	struct rot_context *rot = dev_get_drvdata(dev);
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	if (pm_runtime_suspended(dev))
 		return 0;
 
@@ -782,8 +776,6 @@ static int rotator_suspend(struct device *dev)
 static int rotator_resume(struct device *dev)
 {
 	struct rot_context *rot = dev_get_drvdata(dev);
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	if (!pm_runtime_suspended(dev))
 		return rotator_clk_crtl(rot, true);
@@ -797,16 +789,12 @@ static int rotator_runtime_suspend(struct device *dev)
 {
 	struct rot_context *rot = dev_get_drvdata(dev);
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	return  rotator_clk_crtl(rot, false);
 }
 
 static int rotator_runtime_resume(struct device *dev)
 {
 	struct rot_context *rot = dev_get_drvdata(dev);
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	return  rotator_clk_crtl(rot, true);
 }

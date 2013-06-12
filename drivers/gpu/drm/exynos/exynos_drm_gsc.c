@@ -400,8 +400,6 @@ static int gsc_sw_reset(struct gsc_context *ctx)
 	u32 cfg;
 	int count = GSC_RESET_TIMEOUT;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	/* s/w reset */
 	cfg = (GSC_SW_RESET_SRESET);
 	gsc_write(cfg, GSC_SW_RESET);
@@ -440,8 +438,6 @@ static int gsc_sw_reset(struct gsc_context *ctx)
 static void gsc_set_gscblk_fimd_wb(struct gsc_context *ctx, bool enable)
 {
 	u32 gscblk_cfg;
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	gscblk_cfg = readl(SYSREG_GSCBLK_CFG1);
 
@@ -1350,8 +1346,6 @@ static int gsc_init_prop_list(struct exynos_drm_ippdrv *ippdrv)
 {
 	struct drm_exynos_ipp_prop_list *prop_list;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	prop_list = devm_kzalloc(ippdrv->dev, sizeof(*prop_list), GFP_KERNEL);
 	if (!prop_list) {
 		DRM_ERROR("failed to alloc property list.\n");
@@ -1410,8 +1404,6 @@ static int gsc_ippdrv_check_property(struct device *dev,
 	struct drm_exynos_sz *sz;
 	bool swap;
 	int i;
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	for_each_ipp_ops(i) {
 		if ((i == EXYNOS_DRM_OPS_SRC) &&
@@ -1520,8 +1512,6 @@ static int gsc_ippdrv_reset(struct device *dev)
 	struct gsc_context *ctx = get_gsc_context(dev);
 	struct gsc_scaler *sc = &ctx->sc;
 	int ret;
-
-	DRM_DEBUG_KMS("%s\n", __func__);
 
 	/* reset h/w block */
 	ret = gsc_sw_reset(ctx);
@@ -1807,7 +1797,7 @@ static int gsc_runtime_resume(struct device *dev)
 {
 	struct gsc_context *ctx = get_gsc_context(dev);
 
-	DRM_DEBUG_KMS("%s:id[%d]\n", __FILE__, ctx->id);
+	DRM_DEBUG_KMS("id[%d]\n", ctx->id);
 
 	return  gsc_clk_ctrl(ctx, true);
 }
