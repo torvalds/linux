@@ -34,182 +34,57 @@ static int i_APCI3XXX_TestConversionStarted(struct comedi_device *dev)
 
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function Name     : int   i_APCI3XXX_AnalogInputConfigOperatingMode        |
-|                          (struct comedi_device    *dev,                           |
-|                           struct comedi_subdevice *s,                             |
-|                           struct comedi_insn      *insn,                          |
-|                           unsigned int         *data)                          |
-+----------------------------------------------------------------------------+
-| Task           Converting mode and convert time selection                  |
-+----------------------------------------------------------------------------+
-| Input Parameters  : b_SingleDiff  = (unsigned char)  data[1];                       |
-|                     b_TimeBase    = (unsigned char)  data[2]; (0: ns, 1:micros 2:ms)|
-|                    dw_ReloadValue = (unsigned int) data[3];                       |
-|                     ........                                               |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      :>0 : No error                                           |
-|                    -1 : Single/Diff selection error                        |
-|                    -2 : Convert time base unity selection error            |
-|                    -3 : Convert time value selection error                 |
-|                    -10: Any conversion started                             |
-|                    ....                                                    |
-|                    -100 : Config command error                             |
-|                    -101 : Data size error                                  |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
-						     struct comedi_subdevice *s,
-						     struct comedi_insn *insn,
-						     unsigned int *data)
+static int apci3xxx_ai_configure(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	const struct apci3xxx_boardinfo *this_board = comedi_board(dev);
+	const struct apci3xxx_boardinfo *board = comedi_board(dev);
 	struct apci3xxx_private *devpriv = dev->private;
-	int i_ReturnValue = insn->n;
-	unsigned char b_TimeBase = 0;
-	unsigned char b_SingleDiff = 0;
-	unsigned int dw_ReloadValue = 0;
-	unsigned int dw_TestReloadValue = 0;
+	unsigned int aref_mode = data[1];
+	unsigned int time_base = data[2];
+	unsigned int reload_time = data[3];
+	unsigned int acq_ns;
 
-	   /****************************/
-		/* Get the Singel/Diff flag */
-	   /****************************/
+	if (aref_mode != 0 && aref_mode != 1)
+		return -EINVAL;
 
-		b_SingleDiff = (unsigned char) data[1];
+	if (!(board->b_AvailableConvertUnit & (1 << time_base)))
+		return -EINVAL;
 
-	   /****************************/
-		/* Get the time base unitiy */
-	   /****************************/
+	if (reload_time > 0xffff)
+		return -EINVAL;
 
-		b_TimeBase = (unsigned char) data[2];
+	switch (time_base) {
+	case 0:
+		acq_ns = reload_time;		/* ns */
+	case 1:
+		acq_ns = reload_time * 1000;	/* us */
+	case 2:
+		acq_ns = reload_time * 1000000;	/* ms */
+	default:
+		return -EINVAL;
+	}
 
-	   /*************************************/
-		/* Get the convert time reload value */
-	   /*************************************/
+	/* Test the convert time value */
+	if (acq_ns < board->ui_MinAcquisitiontimeNs)
+		return -EINVAL;
 
-		dw_ReloadValue = (unsigned int) data[3];
+	/* Test if conversion not started */
+	if (i_APCI3XXX_TestConversionStarted(dev))
+		return -EBUSY;
 
-	   /**********************/
-		/* Test the time base */
-	   /**********************/
+	devpriv->ui_EocEosConversionTime = reload_time;
+	devpriv->b_EocEosConversionTimeBase = time_base;
+	devpriv->b_SingelDiff = aref_mode;
 
-		if ((this_board->b_AvailableConvertUnit & (1 << b_TimeBase)) !=
-			0) {
-	      /*******************************/
-			/* Test the convert time value */
-	      /*******************************/
+	/* Set the convert timing unit */
+	writel(time_base, devpriv->mmio + 36);
 
-			if (dw_ReloadValue <= 65535) {
-				dw_TestReloadValue = dw_ReloadValue;
+	/* Set the convert timing */
+	writel(reload_time, devpriv->mmio + 32);
 
-				if (b_TimeBase == 1) {
-					dw_TestReloadValue =
-						dw_TestReloadValue * 1000UL;
-				}
-				if (b_TimeBase == 2) {
-					dw_TestReloadValue =
-						dw_TestReloadValue * 1000000UL;
-				}
-
-		 /*******************************/
-				/* Test the convert time value */
-		 /*******************************/
-
-				if (dw_TestReloadValue >=
-				    this_board->ui_MinAcquisitiontimeNs) {
-					if ((b_SingleDiff == APCI3XXX_SINGLE)
-						|| (b_SingleDiff ==
-							APCI3XXX_DIFF)) {
-						if (((b_SingleDiff == APCI3XXX_SINGLE)
-						        && (this_board->i_NbrAiChannel == 0))
-						    || ((b_SingleDiff == APCI3XXX_DIFF)
-							&& (this_board->i_NbrAiChannelDiff == 0))
-						    ) {
-			   /*******************************/
-							/* Single/Diff selection error */
-			   /*******************************/
-
-							printk("Single/Diff selection error\n");
-							i_ReturnValue = -1;
-						} else {
-			   /**********************************/
-							/* Test if conversion not started */
-			   /**********************************/
-
-							if (i_APCI3XXX_TestConversionStarted(dev) == 0) {
-								devpriv->
-									ui_EocEosConversionTime
-									=
-									(unsigned int)
-									dw_ReloadValue;
-								devpriv->
-									b_EocEosConversionTimeBase
-									=
-									b_TimeBase;
-								devpriv->
-									b_SingelDiff
-									=
-									b_SingleDiff;
-
-			      /*******************************/
-								/* Set the convert timing unit */
-			      /*******************************/
-
-								writel((unsigned int)b_TimeBase,
-									devpriv->mmio + 36);
-
-			      /**************************/
-								/* Set the convert timing */
-			      /*************************/
-
-								writel(dw_ReloadValue, devpriv->mmio + 32);
-							} else {
-			      /**************************/
-								/* Any conversion started */
-			      /**************************/
-
-								printk("Any conversion started\n");
-								i_ReturnValue =
-									-10;
-							}
-						}
-					} else {
-		       /*******************************/
-						/* Single/Diff selection error */
-		       /*******************************/
-
-						printk("Single/Diff selection error\n");
-						i_ReturnValue = -1;
-					}
-				} else {
-		    /************************/
-					/* Time selection error */
-		    /************************/
-
-					printk("Convert time value selection error\n");
-					i_ReturnValue = -3;
-				}
-			} else {
-		 /************************/
-				/* Time selection error */
-		 /************************/
-
-				printk("Convert time value selection error\n");
-				i_ReturnValue = -3;
-			}
-		} else {
-	      /*****************************/
-			/* Time base selection error */
-	      /*****************************/
-
-			printk("Convert time base unity selection error\n");
-			i_ReturnValue = -2;
-		}
-
-	return i_ReturnValue;
+	return insn->n;
 }
 
 static int apci3xxx_ai_insn_config(struct comedi_device *dev,
@@ -220,8 +95,7 @@ static int apci3xxx_ai_insn_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case APCI3XXX_CONFIGURATION:
 		if (insn->n == 4)
-			return i_APCI3XXX_AnalogInputConfigOperatingMode(dev,
-					s, insn, data);
+			return apci3xxx_ai_configure(dev, s, insn, data);
 		else
 			return -EINVAL;
 		break;
