@@ -3071,7 +3071,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_dig_port->port;
 	const char *name = NULL;
-	int type;
+	int type, error;
 
 	/* Preserve the current hw state. */
 	intel_dp->DP = I915_READ(intel_dp->output_reg);
@@ -3169,7 +3169,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		BUG();
 	}
 
-	intel_dp_i2c_init(intel_dp, intel_connector, name);
+	error = intel_dp_i2c_init(intel_dp, intel_connector, name);
+	WARN(error, "intel_dp_i2c_init failed with error %d for port %c\n",
+	     error, port_name(port));
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector)) {
 		i2c_del_adapter(&intel_dp->adapter);
