@@ -3014,7 +3014,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		/* if this fails, presume the device is a ghost */
 		DRM_INFO("failed to retrieve link info, disabling eDP\n");
 		intel_dp_encoder_destroy(&intel_dig_port->base.base);
-		intel_dp_destroy(connector);
 		return false;
 	}
 
@@ -3173,8 +3172,11 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 
 	intel_dp_i2c_init(intel_dp, intel_connector, name);
 
-	if (!intel_edp_init_connector(intel_dp, intel_connector))
+	if (!intel_edp_init_connector(intel_dp, intel_connector)) {
+		drm_sysfs_connector_remove(connector);
+		drm_connector_cleanup(connector);
 		return false;
+	}
 
 	intel_dp_add_properties(intel_dp, connector);
 
@@ -3233,5 +3235,6 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_encoder->cloneable = false;
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 
-	intel_dp_init_connector(intel_dig_port, intel_connector);
+	if (!intel_dp_init_connector(intel_dig_port, intel_connector))
+		kfree(intel_connector);
 }
