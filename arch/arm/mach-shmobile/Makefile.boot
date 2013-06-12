@@ -1,7 +1,6 @@
 # per-board load address for uImage
 loadaddr-y	:=
 loadaddr-$(CONFIG_MACH_AG5EVM) += 0x40008000
-loadaddr-$(CONFIG_MACH_AP4EVB) += 0x40008000
 loadaddr-$(CONFIG_MACH_APE6EVM) += 0x40008000
 loadaddr-$(CONFIG_MACH_ARMADILLO800EVA) += 0x40008000
 loadaddr-$(CONFIG_MACH_ARMADILLO800EVA_REFERENCE) += 0x40008000
