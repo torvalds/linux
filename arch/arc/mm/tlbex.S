@@ -381,18 +381,8 @@ do_slow_path_pf:
 
 	; ------- setup args for Linux Page fault Hanlder ---------
 	mov_s r0, sp
-	lr  r2, [efa]
-	lr  r3, [ecr]
-
-	; Both st and ex imply WRITE access of some sort, hence do_page_fault( )
-	; invoked with write=1 for DTLB-st/ex Miss and write=0 for ITLB miss or
-	; DTLB-ld Miss
-	; DTLB Miss Cause code is ld = 0x01 , st = 0x02, ex = 0x03
-	; Following code uses that fact that st/ex have one bit in common
-
-	btst_s r3,  ECR_C_BIT_DTLB_ST_MISS
-	mov.z  r1, 0
-	mov.nz r1, 1
+	lr  r1, [efa]
+	lr  r2, [ecr]
 
 	; We don't want exceptions to be disabled while the fault is handled.
 	; Now that we have saved the context we return from exception hence

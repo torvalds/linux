@@ -355,8 +355,8 @@ ARC_ENTRY EV_TLBProtV
 	;  ecr and efa were not saved in case an Intr sneaks in
 	;  after fake rtie
 	;
-	lr  r3, [ecr]
-	lr  r4, [efa]
+	lr  r2, [ecr]
+	lr  r1, [efa]	; Faulting Data address
 
 	; --------(4) Return from CPU Exception Mode ---------
 	;  Fake a rtie, but rtie to next label
@@ -371,23 +371,17 @@ ARC_ENTRY EV_TLBProtV
 	;   -Access Violaton (WRITE to READ ONLY Page) - for linux COW
 	;   -Unaligned Access (READ/WRITE on odd boundary)
 	;
-	cmp r3, 0x230400    ; Misaligned data access ?
+	cmp r2, 0x230400    ; Misaligned data access ?
 	beq 4f
 
 	;========= (6a) Access Violation Processing ========
-	cmp r3, 0x230100
-	mov r1, 0x0              ; if LD exception ? write = 0
-	mov.ne r1, 0x1           ; else write = 1
-
-	mov r2, r4              ; faulting address
 	mov r0, sp              ; pt_regs
 	bl  do_page_fault
 	b   ret_from_exception
 
 	;========== (6b) Non aligned access ============
 4:
-	mov r0, r3              ; cause code
-	mov r1, r4              ; faulting address
+	mov r0, r2              ; cause code
 	mov r2, sp              ; pt_regs
 
 #ifdef  CONFIG_ARC_MISALIGN_ACCESS
