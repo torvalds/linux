@@ -101,6 +101,7 @@ config ARM_OMAP2PLUS_CPUFREQ
 config ARM_S3C2416_CPUFREQ
 	bool "S3C2416 CPU Frequency scaling support"
 	depends on CPU_S3C2416
+	select CPU_FREQ_TABLE
 	help
 	  This adds the CPUFreq driver for the Samsung S3C2416 and
 	  S3C2450 SoC. The S3C2416 supports changing the rate of the
@@ -123,6 +124,7 @@ config ARM_S3C2416_CPUFREQ_VCORESCALE
 config ARM_S3C64XX_CPUFREQ
 	bool "Samsung S3C64XX"
 	depends on CPU_S3C6410
+	select CPU_FREQ_TABLE
 	default y
 	help
 	  This adds the CPUFreq driver for Samsung S3C6410 SoC.
