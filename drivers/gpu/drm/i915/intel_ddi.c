@@ -1367,6 +1367,8 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->hot_plug = intel_ddi_hot_plug;
 
 	if (!intel_dp_init_connector(intel_dig_port, dp_connector)) {
+		drm_encoder_cleanup(encoder);
+		kfree(intel_dig_port);
 		kfree(dp_connector);
 		return;
 	}

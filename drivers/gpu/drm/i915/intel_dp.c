@@ -3013,7 +3013,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	} else {
 		/* if this fails, presume the device is a ghost */
 		DRM_INFO("failed to retrieve link info, disabling eDP\n");
-		intel_dp_encoder_destroy(&intel_dig_port->base.base);
 		return false;
 	}
 
@@ -3173,6 +3172,13 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp_i2c_init(intel_dp, intel_connector, name);
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector)) {
+		i2c_del_adapter(&intel_dp->adapter);
+		if (is_edp(intel_dp)) {
+			cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
+			mutex_lock(&dev->mode_config.mutex);
+			ironlake_panel_vdd_off_sync(intel_dp);
+			mutex_unlock(&dev->mode_config.mutex);
+		}
 		drm_sysfs_connector_remove(connector);
 		drm_connector_cleanup(connector);
 		return false;
@@ -3235,6 +3241,9 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_encoder->cloneable = false;
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 
-	if (!intel_dp_init_connector(intel_dig_port, intel_connector))
+	if (!intel_dp_init_connector(intel_dig_port, intel_connector)) {
+		drm_encoder_cleanup(encoder);
+		kfree(intel_dig_port);
 		kfree(intel_connector);
+	}
 }
