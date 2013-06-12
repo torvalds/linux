@@ -309,11 +309,18 @@ static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id)
 static const struct at91_rtc_config at91rm9200_config = {
 };
 
+static const struct at91_rtc_config at91sam9x5_config = {
+	.use_shadow_imr	= true,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id at91_rtc_dt_ids[] = {
 	{
 		.compatible = "atmel,at91rm9200-rtc",
 		.data = &at91rm9200_config,
+	}, {
+		.compatible = "atmel,at91sam9x5-rtc",
+		.data = &at91sam9x5_config,
 	}, {
 		/* sentinel */
 	}
