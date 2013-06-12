@@ -4732,7 +4732,7 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t pipeconf;
 
-	pipeconf = I915_READ(PIPECONF(intel_crtc->pipe));
+	pipeconf = 0;
 
 	if (dev_priv->quirks & QUIRK_PIPEA_FORCE &&
 	    I915_READ(PIPECONF(intel_crtc->pipe)) & PIPECONF_ENABLE)
@@ -4748,15 +4748,10 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 		if (intel_crtc->config.requested_mode.clock >
 		    dev_priv->display.get_display_clock_speed(dev) * 9 / 10)
 			pipeconf |= PIPECONF_DOUBLE_WIDE;
-		else
-			pipeconf &= ~PIPECONF_DOUBLE_WIDE;
 	}
 
 	/* only g4x and later have fancy bpc/dither controls */
 	if (IS_G4X(dev) || IS_VALLEYVIEW(dev)) {
-		pipeconf &= ~(PIPECONF_BPC_MASK |
-			      PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_MASK);
-
 		/* Bspec claims that we can't use dithering for 30bpp pipes. */
 		if (intel_crtc->config.dither && intel_crtc->config.pipe_bpp != 30)
 			pipeconf |= PIPECONF_DITHER_EN |
@@ -4784,23 +4779,17 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 			pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
 		} else {
 			DRM_DEBUG_KMS("disabling CxSR downclocking\n");
-			pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
 		}
 	}
 
-	pipeconf &= ~PIPECONF_INTERLACE_MASK;
 	if (!IS_GEN2(dev) &&
 	    intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
 	else
 		pipeconf |= PIPECONF_PROGRESSIVE;
 
-	if (IS_VALLEYVIEW(dev)) {
-		if (intel_crtc->config.limited_color_range)
-			pipeconf |= PIPECONF_COLOR_RANGE_SELECT;
-		else
-			pipeconf &= ~PIPECONF_COLOR_RANGE_SELECT;
-	}
+	if (IS_VALLEYVIEW(dev) && intel_crtc->config.limited_color_range)
+		pipeconf |= PIPECONF_COLOR_RANGE_SELECT;
 
 	I915_WRITE(PIPECONF(intel_crtc->pipe), pipeconf);
 	POSTING_READ(PIPECONF(intel_crtc->pipe));
