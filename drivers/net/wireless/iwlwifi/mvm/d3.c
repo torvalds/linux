@@ -420,8 +420,7 @@ static __le16 pseudo_hdr_check(int len, __be32 saddr, __be32 daddr)
 	return cpu_to_le16(be16_to_cpu((__force __be16)check));
 }
 
-static void iwl_mvm_build_tcp_packet(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
+static void iwl_mvm_build_tcp_packet(struct ieee80211_vif *vif,
 				     struct cfg80211_wowlan_tcp *tcp,
 				     void *_pkt, u8 *mask,
 				     __le16 *pseudo_hdr_csum,
@@ -567,21 +566,21 @@ static int iwl_mvm_send_remote_wake_cfg(struct iwl_mvm *mvm,
 
 	/* SYN (TX) */
 	iwl_mvm_build_tcp_packet(
-		mvm, vif, tcp, cfg->syn_tx.data, NULL,
+		vif, tcp, cfg->syn_tx.data, NULL,
 		&cfg->syn_tx.info.tcp_pseudo_header_checksum,
 		MVM_TCP_TX_SYN);
 	cfg->syn_tx.info.tcp_payload_length = 0;
 
 	/* SYN/ACK (RX) */
 	iwl_mvm_build_tcp_packet(
-		mvm, vif, tcp, cfg->synack_rx.data, cfg->synack_rx.rx_mask,
+		vif, tcp, cfg->synack_rx.data, cfg->synack_rx.rx_mask,
 		&cfg->synack_rx.info.tcp_pseudo_header_checksum,
 		MVM_TCP_RX_SYNACK);
 	cfg->synack_rx.info.tcp_payload_length = 0;
 
 	/* KEEPALIVE/ACK (TX) */
 	iwl_mvm_build_tcp_packet(
-		mvm, vif, tcp, cfg->keepalive_tx.data, NULL,
+		vif, tcp, cfg->keepalive_tx.data, NULL,
 		&cfg->keepalive_tx.info.tcp_pseudo_header_checksum,
 		MVM_TCP_TX_DATA);
 	cfg->keepalive_tx.info.tcp_payload_length =
@@ -605,7 +604,7 @@ static int iwl_mvm_send_remote_wake_cfg(struct iwl_mvm *mvm,
 
 	/* ACK (RX) */
 	iwl_mvm_build_tcp_packet(
-		mvm, vif, tcp, cfg->keepalive_ack_rx.data,
+		vif, tcp, cfg->keepalive_ack_rx.data,
 		cfg->keepalive_ack_rx.rx_mask,
 		&cfg->keepalive_ack_rx.info.tcp_pseudo_header_checksum,
 		MVM_TCP_RX_ACK);
@@ -613,7 +612,7 @@ static int iwl_mvm_send_remote_wake_cfg(struct iwl_mvm *mvm,
 
 	/* WAKEUP (RX) */
 	iwl_mvm_build_tcp_packet(
-		mvm, vif, tcp, cfg->wake_rx.data, cfg->wake_rx.rx_mask,
+		vif, tcp, cfg->wake_rx.data, cfg->wake_rx.rx_mask,
 		&cfg->wake_rx.info.tcp_pseudo_header_checksum,
 		MVM_TCP_RX_WAKE);
 	cfg->wake_rx.info.tcp_payload_length =
@@ -621,7 +620,7 @@ static int iwl_mvm_send_remote_wake_cfg(struct iwl_mvm *mvm,
 
 	/* FIN */
 	iwl_mvm_build_tcp_packet(
-		mvm, vif, tcp, cfg->fin_tx.data, NULL,
+		vif, tcp, cfg->fin_tx.data, NULL,
 		&cfg->fin_tx.info.tcp_pseudo_header_checksum,
 		MVM_TCP_TX_FIN);
 	cfg->fin_tx.info.tcp_payload_length = 0;
