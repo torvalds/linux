@@ -540,14 +540,4 @@ static int __init init_menu(void)
 	return cpuidle_register_governor(&menu_governor);
 }
 
-/**
- * exit_menu - exits the governor
- */
-static void __exit exit_menu(void)
-{
-	cpuidle_unregister_governor(&menu_governor);
-}
-
-MODULE_LICENSE("GPL");
-module_init(init_menu);
-module_exit(exit_menu);
+postcore_initcall(init_menu);
