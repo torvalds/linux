@@ -183,7 +183,7 @@ The relational-operators depend on the type of the field being tested:
 
 The operators available for numeric fields are:
 
-==, !=, <, <=, >, >=
+==, !=, <, <=, >, >=, &
 
 And for string fields they are:
 
