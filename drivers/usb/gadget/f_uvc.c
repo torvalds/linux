@@ -413,7 +413,7 @@ uvc_register_video(struct uvc_device *uvc)
 	if (video == NULL)
 		return -ENOMEM;
 
-	video->parent = &cdev->gadget->dev;
+	video->v4l2_dev = &uvc->v4l2_dev;
 	video->fops = &uvc_v4l2_fops;
 	video->release = video_device_release;
 	strlcpy(video->name, cdev->gadget->name, sizeof(video->name));
@@ -570,6 +570,7 @@ uvc_function_unbind(struct usb_configuration *c, struct usb_function *f)
 	INFO(cdev, "uvc_function_unbind\n");
 
 	video_unregister_device(uvc->vdev);
+	v4l2_device_unregister(&uvc->v4l2_dev);
 	uvc->control_ep->driver_data = NULL;
 	uvc->video.ep->driver_data = NULL;
 
@@ -697,6 +698,11 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	if ((ret = usb_function_deactivate(f)) < 0)
 		goto error;
 
+	if (v4l2_device_register(&cdev->gadget->dev, &uvc->v4l2_dev)) {
+		printk(KERN_INFO "v4l2_device_register failed\n");
+		goto error;
+	}
+
 	/* Initialise video. */
 	ret = uvc_video_init(&uvc->video);
 	if (ret < 0)
@@ -712,6 +718,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 error:
+	v4l2_device_unregister(&uvc->v4l2_dev);
 	if (uvc->vdev)
 		video_device_release(uvc->vdev);
 

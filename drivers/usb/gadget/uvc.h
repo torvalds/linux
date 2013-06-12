@@ -57,6 +57,7 @@ struct uvc_event
 #include <linux/videodev2.h>
 #include <linux/version.h>
 #include <media/v4l2-fh.h>
+#include <media/v4l2-device.h>
 
 #include "uvc_queue.h"
 
@@ -145,6 +146,7 @@ enum uvc_state
 struct uvc_device
 {
 	struct video_device *vdev;
+	struct v4l2_device v4l2_dev;
 	enum uvc_state state;
 	struct usb_function func;
 	struct uvc_video video;
