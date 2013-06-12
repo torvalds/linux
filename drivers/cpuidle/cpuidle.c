@@ -400,12 +400,15 @@ static int __cpuidle_register_device(struct cpuidle_device *dev)
  */
 int cpuidle_register_device(struct cpuidle_device *dev)
 {
-	int ret;
+	int ret = -EBUSY;
 
 	if (!dev)
 		return -EINVAL;
 
 	mutex_lock(&cpuidle_lock);
+
+	if (dev->registered)
+		goto out_unlock;
 
 	ret = __cpuidle_device_init(dev);
 	if (ret)
