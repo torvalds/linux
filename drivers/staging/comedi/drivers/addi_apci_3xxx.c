@@ -3,8 +3,6 @@
 #include <linux/sched.h>
 
 #include "../comedidev.h"
-#include "comedi_fc.h"
-#include "amcc_s5933.h"
 
 static const struct comedi_lrange apci3xxx_ai_range = {
 	8, {
