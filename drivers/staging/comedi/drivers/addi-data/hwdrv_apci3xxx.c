@@ -74,11 +74,6 @@ static int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 	unsigned int dw_ReloadValue = 0;
 	unsigned int dw_TestReloadValue = 0;
 
-	/************************/
-	/* Test the buffer size */
-	/************************/
-
-	if (insn->n == 4) {
 	   /****************************/
 		/* Get the Singel/Diff flag */
 	   /****************************/
@@ -213,75 +208,26 @@ static int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 			printk("Convert time base unity selection error\n");
 			i_ReturnValue = -2;
 		}
-	} else {
-	   /*******************/
-		/* Data size error */
-	   /*******************/
-
-		printk("Buffer size error\n");
-		i_ReturnValue = -101;
-	}
 
 	return i_ReturnValue;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function Name     : int   i_APCI3XXX_InsnConfigAnalogInput                 |
-|                          (struct comedi_device    *dev,                           |
-|                           struct comedi_subdevice *s,                             |
-|                           struct comedi_insn      *insn,                          |
-|                           unsigned int         *data)                          |
-+----------------------------------------------------------------------------+
-| Task           Converting mode and convert time selection                  |
-+----------------------------------------------------------------------------+
-| Input Parameters  : b_ConvertMode = (unsigned char)  data[0];                       |
-|                     b_TimeBase    = (unsigned char)  data[1]; (0: ns, 1:micros 2:ms)|
-|                    dw_ReloadValue = (unsigned int) data[2];                       |
-|                     ........                                               |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      :>0: No error                                            |
-|                    ....                                                    |
-|                    -100 : Config command error                             |
-|                    -101 : Data size error                                  |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI3XXX_InsnConfigAnalogInput(struct comedi_device *dev,
-					    struct comedi_subdevice *s,
-					    struct comedi_insn *insn,
-					    unsigned int *data)
+static int apci3xxx_ai_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
-	int i_ReturnValue = insn->n;
-
-	/************************/
-	/* Test the buffer size */
-	/************************/
-
-	if (insn->n >= 1) {
-		switch ((unsigned char) data[0]) {
-		case APCI3XXX_CONFIGURATION:
-			i_ReturnValue =
-				i_APCI3XXX_AnalogInputConfigOperatingMode(dev,
-				s, insn, data);
-			break;
-
-		default:
-			i_ReturnValue = -100;
-			printk("Config command error %d\n", data[0]);
-			break;
-		}
-	} else {
-	   /*******************/
-		/* Data size error */
-	   /*******************/
-
-		printk("Buffer size error\n");
-		i_ReturnValue = -101;
+	switch (data[0]) {
+	case APCI3XXX_CONFIGURATION:
+		if (insn->n == 4)
+			return i_APCI3XXX_AnalogInputConfigOperatingMode(dev,
+					s, insn, data);
+		else
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
 	}
-
-	return i_ReturnValue;
 }
 
 static int apci3xxx_ai_insn_read(struct comedi_device *dev,

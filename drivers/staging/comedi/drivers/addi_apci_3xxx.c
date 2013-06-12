@@ -631,7 +631,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->len_chanlist = s->n_chan;
 		s->range_table = &apci3xxx_ai_range;
 
-		s->insn_config = i_APCI3XXX_InsnConfigAnalogInput;
+		s->insn_config = apci3xxx_ai_insn_config;
 		s->insn_read = apci3xxx_ai_insn_read;
 
 	} else {
