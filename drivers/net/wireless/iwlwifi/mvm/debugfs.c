@@ -939,6 +939,9 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 #ifdef CONFIG_PM_SLEEP
 	MVM_DEBUGFS_ADD_FILE(d3_sram, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(d3_test, mvm->debugfs_dir, S_IRUSR);
+	if (!debugfs_create_bool("d3_wake_sysassert", S_IRUSR | S_IWUSR,
+				 mvm->debugfs_dir, &mvm->d3_wake_sysassert))
+		goto err;
 #endif
 
 	/*

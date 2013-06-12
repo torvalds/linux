@@ -460,6 +460,7 @@ struct iwl_mvm {
 #ifdef CONFIG_PM_SLEEP
 	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
+	u32 d3_wake_sysassert; /* must be u32 for debugfs_create_bool */
 	bool d3_test_active;
 	bool store_d3_resume_sram;
 	void *d3_resume_sram;
