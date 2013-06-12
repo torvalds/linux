@@ -1366,7 +1366,8 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->cloneable = false;
 	intel_encoder->hot_plug = intel_ddi_hot_plug;
 
-	intel_dp_init_connector(intel_dig_port, dp_connector);
+	if (!intel_dp_init_connector(intel_dig_port, dp_connector))
+		return;
 
 	if (intel_encoder->type != INTEL_OUTPUT_EDP) {
 		hdmi_connector = kzalloc(sizeof(struct intel_connector),
