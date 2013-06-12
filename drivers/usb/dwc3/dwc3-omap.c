@@ -122,6 +122,12 @@ struct dwc3_omap {
 	void __iomem		*base;
 
 	u32			utmi_otg_status;
+	u32			utmi_otg_offset;
+	u32			irqmisc_offset;
+	u32			irq_eoi_offset;
+	u32			debug_offset;
+	u32			irq0_offset;
+	u32			revision;
 
 	u32			dma_status:1;
 };
