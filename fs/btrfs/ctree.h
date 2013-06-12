@@ -3056,6 +3056,8 @@ static inline u64 btrfs_calc_trunc_metadata_size(struct btrfs_root *root,
 		num_items;
 }
 
+int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
+				       struct btrfs_root *root);
 void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, unsigned long count);

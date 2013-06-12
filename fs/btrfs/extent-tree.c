@@ -2526,6 +2526,51 @@ static int refs_newer(struct btrfs_delayed_ref_root *delayed_refs, int seq,
 	return 0;
 }
 
+static inline u64 heads_to_leaves(struct btrfs_root *root, u64 heads)
+{
+	u64 num_bytes;
+
+	num_bytes = heads * (sizeof(struct btrfs_extent_item) +
+			     sizeof(struct btrfs_extent_inline_ref));
+	if (!btrfs_fs_incompat(root->fs_info, SKINNY_METADATA))
+		num_bytes += heads * sizeof(struct btrfs_tree_block_info);
+
+	/*
+	 * We don't ever fill up leaves all the way so multiply by 2 just to be
+	 * closer to what we're really going to want to ouse.
+	 */
+	return div64_u64(num_bytes, BTRFS_LEAF_DATA_SIZE(root));
+}
+
+int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
+				       struct btrfs_root *root)
+{
+	struct btrfs_block_rsv *global_rsv;
+	u64 num_heads = trans->transaction->delayed_refs.num_heads_ready;
+	u64 num_bytes;
+	int ret = 0;
+
+	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
+	num_heads = heads_to_leaves(root, num_heads);
+	if (num_heads > 1)
+		num_bytes += (num_heads - 1) * root->leafsize;
+	num_bytes <<= 1;
+	global_rsv = &root->fs_info->global_block_rsv;
+
+	/*
+	 * If we can't allocate any more chunks lets make sure we have _lots_ of
+	 * wiggle room since running delayed refs can create more delayed refs.
+	 */
+	if (global_rsv->space_info->full)
+		num_bytes <<= 1;
+
+	spin_lock(&global_rsv->lock);
+	if (global_rsv->reserved <= num_bytes)
+		ret = 1;
+	spin_unlock(&global_rsv->lock);
+	return ret;
+}
+
 /*
  * this starts processing the delayed reference count updates and
  * extent insertions we have queued up so far.  count can be
@@ -2573,7 +2618,8 @@ progress:
 		old = atomic_cmpxchg(&delayed_refs->procs_running_refs, 0, 1);
 		if (old) {
 			DEFINE_WAIT(__wait);
-			if (delayed_refs->num_entries < 16348)
+			if (delayed_refs->flushing ||
+			    !btrfs_should_throttle_delayed_refs(trans, root))
 				return 0;
 
 			prepare_to_wait(&delayed_refs->wait, &__wait,
@@ -2608,7 +2654,7 @@ again:
 
 	while (1) {
 		if (!(run_all || run_most) &&
-		    delayed_refs->num_heads_ready < 64)
+		    !btrfs_should_throttle_delayed_refs(trans, root))
 			break;
 
 		/*
@@ -8665,8 +8711,15 @@ int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range)
 		if (end - start >= range->minlen) {
 			if (!block_group_cache_done(cache)) {
 				ret = cache_block_group(cache, 0);
-				if (!ret)
-					wait_block_group_cache_done(cache);
+				if (ret) {
+					btrfs_put_block_group(cache);
+					break;
+				}
+				ret = wait_block_group_cache_done(cache);
+				if (ret) {
+					btrfs_put_block_group(cache);
+					break;
+				}
 			}
 			ret = btrfs_trim_block_group(cache,
 						     &group_trimmed,

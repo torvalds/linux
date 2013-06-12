@@ -615,10 +615,11 @@ void btrfs_throttle(struct btrfs_root *root)
 static int should_end_transaction(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root)
 {
-	int ret;
+	if (root->fs_info->global_block_rsv.space_info->full &&
+	    btrfs_should_throttle_delayed_refs(trans, root))
+		return 1;
 
-	ret = btrfs_block_rsv_check(root, &root->fs_info->global_block_rsv, 5);
-	return ret ? 1 : 0;
+	return !!btrfs_block_rsv_check(root, &root->fs_info->global_block_rsv, 5);
 }
 
 int btrfs_should_end_transaction(struct btrfs_trans_handle *trans,
@@ -649,7 +650,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_fs_info *info = root->fs_info;
-	int count = 0;
+	unsigned long cur = trans->delayed_ref_updates;
 	int lock = (trans->type != TRANS_JOIN_NOLOCK);
 	int err = 0;
 
@@ -678,17 +679,11 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	if (!list_empty(&trans->new_bgs))
 		btrfs_create_pending_block_groups(trans, root);
 
-	while (count < 1) {
-		unsigned long cur = trans->delayed_ref_updates;
+	trans->delayed_ref_updates = 0;
+	if (btrfs_should_throttle_delayed_refs(trans, root)) {
+		cur = max_t(unsigned long, cur, 1);
 		trans->delayed_ref_updates = 0;
-		if (cur &&
-		    trans->transaction->delayed_refs.num_heads_ready > 64) {
-			trans->delayed_ref_updates = 0;
-			btrfs_run_delayed_refs(trans, root, cur);
-		} else {
-			break;
-		}
-		count++;
+		btrfs_run_delayed_refs(trans, root, cur);
 	}
 
 	btrfs_trans_release_metadata(trans, root);
@@ -1626,6 +1621,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 * start sending their work down.
 	 */
 	cur_trans->delayed_refs.flushing = 1;
+	smp_wmb();
 
 	if (!list_empty(&trans->new_bgs))
 		btrfs_create_pending_block_groups(trans, root);
