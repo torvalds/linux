@@ -71,7 +71,7 @@ static int apci3xxx_ai_configure(struct comedi_device *dev,
 	}
 
 	/* Test the convert time value */
-	if (acq_ns < board->ui_MinAcquisitiontimeNs)
+	if (acq_ns < board->ai_min_acq_ns)
 		return -EINVAL;
 
 	/* Test if conversion not started */
