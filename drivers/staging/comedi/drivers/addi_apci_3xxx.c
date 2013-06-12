@@ -356,7 +356,6 @@ struct apci3xxx_private {
 	unsigned char b_EocEosInterrupt;
 	unsigned int ui_EocEosConversionTime;
 	unsigned char b_EocEosConversionTimeBase;
-	unsigned char b_SingelDiff;
 };
 
 #include "addi-data/hwdrv_apci3xxx.c"
@@ -610,9 +609,6 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->range_table = &apci3xxx_ai_range;
 		s->insn_config = apci3xxx_ai_insn_config;
 		s->insn_read = apci3xxx_ai_insn_read;
-
-		if ((board->ai_subdev_flags & (SDF_COMMON | SDF_GROUND)) == 0)
-			devpriv->b_SingelDiff = 1;
 
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;

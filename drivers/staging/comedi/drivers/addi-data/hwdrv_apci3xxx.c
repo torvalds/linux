@@ -41,13 +41,9 @@ static int apci3xxx_ai_configure(struct comedi_device *dev,
 {
 	const struct apci3xxx_boardinfo *board = comedi_board(dev);
 	struct apci3xxx_private *devpriv = dev->private;
-	unsigned int aref_mode = data[1];
 	unsigned int time_base = data[2];
 	unsigned int reload_time = data[3];
 	unsigned int acq_ns;
-
-	if (aref_mode != 0 && aref_mode != 1)
-		return -EINVAL;
 
 	if (time_base > 2)
 		return -EINVAL;
@@ -80,7 +76,6 @@ static int apci3xxx_ai_configure(struct comedi_device *dev,
 
 	devpriv->ui_EocEosConversionTime = reload_time;
 	devpriv->b_EocEosConversionTimeBase = time_base;
-	devpriv->b_SingelDiff = aref_mode;
 
 	/* Set the convert timing unit */
 	writel(time_base, devpriv->mmio + 36);
@@ -116,6 +111,7 @@ static int apci3xxx_ai_insn_read(struct comedi_device *dev,
 	struct apci3xxx_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int aref = CR_AREF(insn->chanspec);
 	unsigned char use_interrupt = 0;	/* FIXME: use interrupts */
 	unsigned int delay_mode;
 	unsigned int val;
@@ -139,7 +135,7 @@ static int apci3xxx_ai_insn_read(struct comedi_device *dev,
 
 	/* Make the configuration */
 	val = (range & 3) | ((range >> 2) << 6) |
-	      (devpriv->b_SingelDiff << 7);
+	      ((aref == AREF_DIFF) << 7);
 	writel(val, devpriv->mmio + 0);
 
 	/* Channel selection */
