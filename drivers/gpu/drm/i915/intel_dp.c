@@ -2708,7 +2708,7 @@ done:
 }
 
 static void
-intel_dp_destroy(struct drm_connector *connector)
+intel_dp_connector_destroy(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
@@ -2751,7 +2751,7 @@ static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.detect = intel_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_dp_set_property,
-	.destroy = intel_dp_destroy,
+	.destroy = intel_dp_connector_destroy,
 };
 
 static const struct drm_connector_helper_funcs intel_dp_connector_helper_funcs = {
