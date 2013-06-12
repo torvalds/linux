@@ -35,7 +35,6 @@
 #include "ozusbif.h"
 #include "oztrace.h"
 #include "ozurbparanoia.h"
-#include "ozevent.h"
 #include "ozhcd.h"
 /*------------------------------------------------------------------------------
  * Number of units of buffering to capture for an isochronous IN endpoint before
@@ -381,7 +380,6 @@ static void oz_complete_urb(struct usb_hcd *hcd, struct urb *urb,
 			jiffies, urb, status, jiffies-submit_jiffies,
 			jiffies-last_time, atomic_read(&g_pending_urbs));
 		last_time = jiffies;
-		oz_event_log(OZ_EVT_URB_DONE, 0, 0, urb, status);
 		usb_hcd_giveback_urb(hcd, urb, status);
 	}
 	spin_lock(&g_tasklet_lock);
@@ -508,8 +506,6 @@ static int oz_enqueue_ep_urb(struct oz_port *port, u8 ep_addr, int in_dir,
 		if (!in_dir && ep_addr && (ep->credit < 0)) {
 			ep->last_jiffies = jiffies;
 			ep->credit = 0;
-			oz_event_log(OZ_EVT_EP_CREDIT, ep->ep_num,
-					0, NULL, ep->credit);
 		}
 	} else {
 		err = -EPIPE;
@@ -766,7 +762,6 @@ void oz_hcd_get_desc_cnf(void *hport, u8 req_id, int status, const u8 *desc,
 	struct urb *urb;
 	int err = 0;
 
-	oz_event_log(OZ_EVT_CTRL_CNF, 0, req_id, NULL, status);
 	oz_trace("oz_hcd_get_desc_cnf length = %d offs = %d tot_size = %d\n",
 			length, offset, total_size);
 	urb = oz_find_urb_by_id(port, 0, req_id);
@@ -905,7 +900,6 @@ void oz_hcd_control_cnf(void *hport, u8 req_id, u8 rcode, const u8 *data,
 	unsigned windex;
 	unsigned wvalue;
 
-	oz_event_log(OZ_EVT_CTRL_CNF, 0, req_id, NULL, rcode);
 	oz_trace("oz_hcd_control_cnf rcode=%u len=%d\n", rcode, data_len);
 	urb = oz_find_urb_by_id(port, 0, req_id);
 	if (!urb) {
@@ -1059,8 +1053,6 @@ int oz_hcd_heartbeat(void *hport)
 		ep->credit += jiffies_to_msecs(now - ep->last_jiffies);
 		if (ep->credit > ep->credit_ceiling)
 			ep->credit = ep->credit_ceiling;
-		oz_event_log(OZ_EVT_EP_CREDIT, ep->ep_num, 0, NULL,
-			     ep->credit);
 		ep->last_jiffies = now;
 		while (ep->credit && !list_empty(&ep->urb_list)) {
 			urbl = list_first_entry(&ep->urb_list,
@@ -1069,8 +1061,6 @@ int oz_hcd_heartbeat(void *hport)
 			if ((ep->credit + 1) < urb->number_of_packets)
 				break;
 			ep->credit -= urb->number_of_packets;
-			oz_event_log(OZ_EVT_EP_CREDIT, ep->ep_num, 0, NULL,
-				     ep->credit);
 			list_move_tail(&urbl->link, &xfr_list);
 		}
 	}
@@ -1098,19 +1088,12 @@ int oz_hcd_heartbeat(void *hport)
 			if (ep->buffered_units >= OZ_IN_BUFFERING_UNITS) {
 				ep->flags &= ~OZ_F_EP_BUFFERING;
 				ep->credit = 0;
-				oz_event_log(OZ_EVT_EP_CREDIT,
-					ep->ep_num | USB_DIR_IN,
-					0, NULL, ep->credit);
 				ep->last_jiffies = now;
 				ep->start_frame = 0;
-				oz_event_log(OZ_EVT_EP_BUFFERING,
-					ep->ep_num | USB_DIR_IN, 0, NULL, 0);
 			}
 			continue;
 		}
 		ep->credit += jiffies_to_msecs(now - ep->last_jiffies);
-		oz_event_log(OZ_EVT_EP_CREDIT, ep->ep_num | USB_DIR_IN,
-			0, NULL, ep->credit);
 		ep->last_jiffies = now;
 		while (!list_empty(&ep->urb_list)) {
 			struct oz_urb_link *urbl =
@@ -1154,8 +1137,6 @@ int oz_hcd_heartbeat(void *hport)
 			ep->start_frame += urb->number_of_packets;
 			list_move_tail(&urbl->link, &xfr_list);
 			ep->credit -= urb->number_of_packets;
-			oz_event_log(OZ_EVT_EP_CREDIT, ep->ep_num | USB_DIR_IN,
-				0, NULL, ep->credit);
 		}
 	}
 	if (!list_empty(&port->isoc_out_ep) || !list_empty(&port->isoc_in_ep))
@@ -1247,8 +1228,6 @@ static int oz_build_endpoints_for_interface(struct usb_hcd *hcd,
 			ep->credit_ceiling = 200;
 			if (ep_addr & USB_ENDPOINT_DIR_MASK) {
 				ep->flags |= OZ_F_EP_BUFFERING;
-				oz_event_log(OZ_EVT_EP_BUFFERING,
-					ep->ep_num | USB_DIR_IN, 1, NULL, 0);
 			} else {
 				ep->flags |= OZ_F_EP_HAVE_STREAM;
 				if (oz_usb_stream_create(port->hpd, ep_num))
@@ -1455,8 +1434,6 @@ static void oz_process_ep0_urb(struct oz_hcd *ozhcd, struct urb *urb,
 			oz_trace("USB_REQ_GET_DESCRIPTOR - req\n");
 			break;
 		case USB_REQ_SET_ADDRESS:
-			oz_event_log(OZ_EVT_CTRL_LOCAL, setup->bRequest,
-				0, NULL, setup->bRequestType);
 			oz_trace("USB_REQ_SET_ADDRESS - req\n");
 			oz_trace("Port %d address is 0x%x\n", ozhcd->conn_port,
 				(u8)le16_to_cpu(setup->wValue));
@@ -1477,8 +1454,6 @@ static void oz_process_ep0_urb(struct oz_hcd *ozhcd, struct urb *urb,
 			/* We short circuit this case and reply directly since
 			 * we have the selected configuration number cached.
 			 */
-			oz_event_log(OZ_EVT_CTRL_LOCAL, setup->bRequest, 0,
-				     NULL, setup->bRequestType);
 			oz_trace("USB_REQ_GET_CONFIGURATION - reply now\n");
 			if (urb->transfer_buffer_length >= 1) {
 				urb->actual_length = 1;
@@ -1493,8 +1468,6 @@ static void oz_process_ep0_urb(struct oz_hcd *ozhcd, struct urb *urb,
 			/* We short circuit this case and reply directly since
 			 * we have the selected interface alternative cached.
 			 */
-			oz_event_log(OZ_EVT_CTRL_LOCAL, setup->bRequest, 0,
-				     NULL, setup->bRequestType);
 			oz_trace("USB_REQ_GET_INTERFACE - reply now\n");
 			if (urb->transfer_buffer_length >= 1) {
 				urb->actual_length = 1;
@@ -1744,20 +1717,6 @@ static void oz_hcd_shutdown(struct usb_hcd *hcd)
 	oz_trace("oz_hcd_shutdown()\n");
 }
 /*------------------------------------------------------------------------------
- * Context: any
- */
-#ifdef WANT_EVENT_TRACE
-static u8 oz_get_irq_ctx(void)
-{
-	u8 irq_info = 0;
-	if (in_interrupt())
-		irq_info |= 1;
-	if (in_irq())
-		irq_info |= 2;
-	return irq_info;
-}
-#endif /* WANT_EVENT_TRACE */
-/*------------------------------------------------------------------------------
  * Called to queue an urb for the device.
  * This function should return a non-zero error code if it fails the urb but
  * should not call usb_hcd_giveback_urb().
@@ -1774,8 +1733,6 @@ static int oz_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	struct oz_urb_link *urbl;
 	oz_trace2(OZ_TRACE_URB, "%lu: oz_hcd_urb_enqueue(%p)\n",
 		jiffies, urb);
-	oz_event_log(OZ_EVT_URB_SUBMIT, oz_get_irq_ctx(),
-		(u16)urb->number_of_packets, urb, urb->pipe);
 	if (unlikely(ozhcd == NULL)) {
 		oz_trace2(OZ_TRACE_URB, "%lu: Refused urb(%p) not ozhcd.\n",
 			jiffies, urb);
@@ -1835,10 +1792,6 @@ static struct oz_urb_link *oz_remove_urb(struct oz_endpoint *ep,
 				ep->credit -= urb->number_of_packets;
 				if (ep->credit < 0)
 					ep->credit = 0;
-				oz_event_log(OZ_EVT_EP_CREDIT,
-					usb_pipein(urb->pipe) ?
-					(ep->ep_num | USB_DIR_IN) : ep->ep_num,
-					0, NULL, ep->credit);
 			}
 			return urbl;
 		}

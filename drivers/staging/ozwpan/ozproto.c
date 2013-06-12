@@ -18,7 +18,6 @@
 #include "ozusbsvc.h"
 #include "oztrace.h"
 #include "ozappif.h"
-#include "ozevent.h"
 #include <asm/unaligned.h>
 #include <linux/uaccess.h>
 #include <net/psnap.h>
@@ -116,7 +115,6 @@ static void oz_send_conn_rsp(struct oz_pd *pd, u8 status)
 	oz_hdr->control = (OZ_PROTOCOL_VERSION<<OZ_VERSION_SHIFT);
 	oz_hdr->last_pkt_num = 0;
 	put_unaligned(0, &oz_hdr->pkt_num);
-	oz_event_log(OZ_EVT_CONNECT_RSP, 0, 0, NULL, 0);
 	elt->type = OZ_ELT_CONNECT_RSP;
 	elt->length = sizeof(struct oz_elt_connect_rsp);
 	memset(body, 0, sizeof(struct oz_elt_connect_rsp));
@@ -345,9 +343,6 @@ static void oz_rx_frame(struct sk_buff *skb)
 	int dup = 0;
 	u32 pkt_num;
 
-	oz_event_log(OZ_EVT_RX_PROCESS, 0,
-		(((u16)oz_hdr->control)<<8)|oz_hdr->last_pkt_num,
-		NULL, oz_hdr->pkt_num);
 	oz_trace2(OZ_TRACE_RX_FRAMES,
 		"RX frame PN=0x%x LPN=0x%x control=0x%x\n",
 		oz_hdr->pkt_num, oz_hdr->last_pkt_num, oz_hdr->control);
@@ -402,7 +397,6 @@ static void oz_rx_frame(struct sk_buff *skb)
 			break;
 		switch (elt->type) {
 		case OZ_ELT_CONNECT_REQ:
-			oz_event_log(OZ_EVT_CONNECT_REQ, 0, 0, NULL, 0);
 			oz_trace("RX: OZ_ELT_CONNECT_REQ\n");
 			pd = oz_connect_req(pd, elt, src_addr, skb->dev);
 			break;
@@ -534,7 +528,6 @@ static void oz_protocol_timer(unsigned long arg)
 		/* This happens if we remove the current timer but can't stop
 		 * the timer from firing. In this case just get out.
 		 */
-		oz_event_log(OZ_EVT_TIMER, 0, 0, NULL, 0);
 		spin_unlock_bh(&g_polling_lock);
 		return;
 	}
@@ -545,7 +538,6 @@ static void oz_protocol_timer(unsigned long arg)
 	spin_unlock_bh(&g_polling_lock);
 	do {
 		pd = t->pd;
-		oz_event_log(OZ_EVT_TIMER, 0, t->type, NULL, 0);
 		oz_pd_handle_timer(pd, t->type);
 		spin_lock_bh(&g_polling_lock);
 		if (g_timer_pool_count < OZ_MAX_TIMER_POOL_SIZE) {
@@ -582,14 +574,8 @@ static void oz_protocol_timer_start(void)
 		g_cur_timer =
 			container_of(g_timer_list.next, struct oz_timer, link);
 		if (g_timer_state == OZ_TIMER_SET) {
-			oz_event_log(OZ_EVT_TIMER_CTRL, 3,
-				(u16)g_cur_timer->type, NULL,
-				(unsigned)g_cur_timer->due_time);
 			mod_timer(&g_timer, g_cur_timer->due_time);
 		} else {
-			oz_event_log(OZ_EVT_TIMER_CTRL, 4,
-				(u16)g_cur_timer->type, NULL,
-				(unsigned)g_cur_timer->due_time);
 			g_timer.expires = g_cur_timer->due_time;
 			g_timer.function = oz_protocol_timer;
 			g_timer.data = 0;
@@ -610,7 +596,6 @@ void oz_timer_add(struct oz_pd *pd, int type, unsigned long due_time,
 	struct list_head *e;
 	struct oz_timer *t = NULL;
 	int restart_needed = 0;
-	oz_event_log(OZ_EVT_TIMER_CTRL, 1, (u16)type, NULL, (unsigned)due_time);
 	spin_lock(&g_polling_lock);
 	if (remove) {
 		list_for_each(e, &g_timer_list) {
@@ -673,7 +658,6 @@ void oz_timer_delete(struct oz_pd *pd, int type)
 	struct oz_timer *n;
 	int restart_needed = 0;
 	int release = 0;
-	oz_event_log(OZ_EVT_TIMER_CTRL, 2, (u16)type, NULL, 0);
 	spin_lock(&g_polling_lock);
 	list_for_each_entry_safe(t, n, &g_timer_list, link) {
 		if ((t->pd == pd) && ((type == 0) || (t->type == type))) {
@@ -770,7 +754,6 @@ void oz_app_enable(int app_id, int enable)
 static int oz_pkt_recv(struct sk_buff *skb, struct net_device *dev,
 		struct packet_type *pt, struct net_device *orig_dev)
 {
-	oz_event_log(OZ_EVT_RX_FRAME, 0, 0, NULL, 0);
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (skb == NULL)
 		return 0;

@@ -27,14 +27,12 @@
 #include "ozhcd.h"
 #include "oztrace.h"
 #include "ozusbsvc.h"
-#include "ozevent.h"
 /*------------------------------------------------------------------------------
  * This is called once when the driver is loaded to initialise the USB service.
  * Context: process
  */
 int oz_usb_init(void)
 {
-	oz_event_log(OZ_EVT_SERVICE, 1, OZ_APPID_USB, NULL, 0);
 	return oz_hcd_init();
 }
 /*------------------------------------------------------------------------------
@@ -43,7 +41,6 @@ int oz_usb_init(void)
  */
 void oz_usb_term(void)
 {
-	oz_event_log(OZ_EVT_SERVICE, 2, OZ_APPID_USB, NULL, 0);
 	oz_hcd_term();
 }
 /*------------------------------------------------------------------------------
@@ -55,7 +52,6 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 	int rc = 0;
 	struct oz_usb_ctx *usb_ctx;
 	struct oz_usb_ctx *old_ctx;
-	oz_event_log(OZ_EVT_SERVICE, 3, OZ_APPID_USB, NULL, resume);
 	if (resume) {
 		oz_trace("USB service resumed.\n");
 		return 0;
@@ -117,7 +113,6 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 void oz_usb_stop(struct oz_pd *pd, int pause)
 {
 	struct oz_usb_ctx *usb_ctx;
-	oz_event_log(OZ_EVT_SERVICE, 4, OZ_APPID_USB, NULL, pause);
 	if (pause) {
 		oz_trace("USB service paused.\n");
 		return;
