@@ -172,13 +172,12 @@ static int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 		 /*******************************/
 
 				if (dw_TestReloadValue >=
-					devpriv->s_EeParameters.
-					ui_MinAcquisitiontimeNs) {
+				    this_board->ui_MinAcquisitiontimeNs) {
 					if ((b_SingleDiff == APCI3XXX_SINGLE)
 						|| (b_SingleDiff ==
 							APCI3XXX_DIFF)) {
 						if (((b_SingleDiff == APCI3XXX_SINGLE)
-						        && (devpriv->s_EeParameters.i_NbrAiChannel == 0))
+						        && (this_board->i_NbrAiChannel == 0))
 						    || ((b_SingleDiff == APCI3XXX_DIFF)
 							&& (this_board->i_NbrAiChannelDiff == 0))
 						    ) {
@@ -385,7 +384,7 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 		/* Test the channel number */
 	   /***************************/
 
-		if (((b_Channel < devpriv->s_EeParameters.i_NbrAiChannel)
+		if (((b_Channel < this_board->i_NbrAiChannel)
 				&& (devpriv->b_SingelDiff == APCI3XXX_SINGLE))
 			|| ((b_Channel < this_board->i_NbrAiChannelDiff)
 				&& (devpriv->b_SingelDiff == APCI3XXX_DIFF))) {
@@ -596,6 +595,7 @@ static int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device *dev,
 					    struct comedi_insn *insn,
 					    unsigned int *data)
 {
+	const struct addi_board *board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	unsigned char b_Range = (unsigned char) CR_RANGE(insn->chanspec);
 	unsigned char b_Channel = (unsigned char) CR_CHAN(insn->chanspec);
@@ -611,7 +611,7 @@ static int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device *dev,
 		/* Test the channel number */
 	   /***************************/
 
-		if (b_Channel < devpriv->s_EeParameters.i_NbrAoChannel) {
+		if (b_Channel < board->i_NbrAoChannel) {
 	      /**********************************/
 			/* Test the channel configuration */
 	      /**********************************/
