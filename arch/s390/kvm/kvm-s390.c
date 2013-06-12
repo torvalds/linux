@@ -278,7 +278,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 	free_page((unsigned long)(vcpu->arch.sie_block));
 	kvm_vcpu_uninit(vcpu);
-	kfree(vcpu);
+	kmem_cache_free(kvm_vcpu_cache, vcpu);
 }
 
 static void kvm_free_vcpus(struct kvm *kvm)
@@ -408,7 +408,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 
 	rc = -ENOMEM;
 
-	vcpu = kzalloc(sizeof(struct kvm_vcpu), GFP_KERNEL);
+	vcpu = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
 	if (!vcpu)
 		goto out;
 
@@ -453,7 +453,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 out_free_sie_block:
 	free_page((unsigned long)(vcpu->arch.sie_block));
 out_free_cpu:
-	kfree(vcpu);
+	kmem_cache_free(kvm_vcpu_cache, vcpu);
 out:
 	return ERR_PTR(rc);
 }
