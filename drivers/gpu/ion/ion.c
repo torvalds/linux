@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
+#include <linux/vmalloc.h>
 #include <linux/debugfs.h>
 #include <linux/dma-buf.h>
 
@@ -104,13 +105,33 @@ struct ion_handle {
 
 bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer)
 {
-        return ((buffer->flags & ION_FLAG_CACHED) &&
-                !(buffer->flags & ION_FLAG_CACHED_NEEDS_SYNC));
+	return ((buffer->flags & ION_FLAG_CACHED) &&
+		!(buffer->flags & ION_FLAG_CACHED_NEEDS_SYNC));
 }
 
 bool ion_buffer_cached(struct ion_buffer *buffer)
 {
-        return !!(buffer->flags & ION_FLAG_CACHED);
+	return !!(buffer->flags & ION_FLAG_CACHED);
+}
+
+static inline struct page *ion_buffer_page(struct page *page)
+{
+	return (struct page *)((unsigned long)page & ~(1UL));
+}
+
+static inline bool ion_buffer_page_is_dirty(struct page *page)
+{
+	return !!((unsigned long)page & 1UL);
+}
+
+static inline void ion_buffer_page_dirty(struct page **page)
+{
+	*page = (struct page *)((unsigned long)(*page) | 1UL);
+}
+
+static inline void ion_buffer_page_clean(struct page **page)
+{
+	*page = (struct page *)((unsigned long)(*page) & ~(1UL));
 }
 
 /* this function should only be called while dev->lock is held */
@@ -138,8 +159,6 @@ static void ion_buffer_add(struct ion_device *dev,
 	rb_link_node(&buffer->node, parent, p);
 	rb_insert_color(&buffer->node, &dev->buffers);
 }
-
-static int ion_buffer_alloc_dirty(struct ion_buffer *buffer);
 
 /* this function should only be called while dev->lock is held */
 static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
@@ -185,17 +204,23 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	}
 	buffer->sg_table = table;
 	if (ion_buffer_fault_user_mappings(buffer)) {
-		for_each_sg(buffer->sg_table->sgl, sg, buffer->sg_table->nents,
-			    i) {
-			if (sg_dma_len(sg) == PAGE_SIZE)
-				continue;
-			pr_err("%s: cached mappings that will be faulted in "
-			       "must have pagewise sg_lists\n", __func__);
-			ret = -EINVAL;
-			goto err;
+		int num_pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
+		struct scatterlist *sg;
+		int i, j, k = 0;
+
+		buffer->pages = vmalloc(sizeof(struct page *) * num_pages);
+		if (!buffer->pages) {
+			ret = -ENOMEM;
+			goto err1;
 		}
 
-		ret = ion_buffer_alloc_dirty(buffer);
+		for_each_sg(table->sgl, sg, table->nents, i) {
+			struct page *page = sg_page(sg);
+
+			for (j = 0; j < sg_dma_len(sg) / PAGE_SIZE; j++)
+				buffer->pages[k++] = page++;
+		}
+
 		if (ret)
 			goto err;
 	}
@@ -222,6 +247,9 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 err:
 	heap->ops->unmap_dma(heap, buffer);
 	heap->ops->free(buffer);
+err1:
+	if (buffer->pages)
+		vfree(buffer->pages);
 err2:
 	kfree(buffer);
 	return ERR_PTR(ret);
@@ -233,8 +261,8 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	buffer->heap->ops->unmap_dma(buffer->heap, buffer);
 	buffer->heap->ops->free(buffer);
-	if (buffer->flags & ION_FLAG_CACHED)
-		kfree(buffer->dirty);
+	if (buffer->pages)
+		vfree(buffer->pages);
 	kfree(buffer);
 }
 
@@ -764,17 +792,6 @@ static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
 {
 }
 
-static int ion_buffer_alloc_dirty(struct ion_buffer *buffer)
-{
-	unsigned long pages = buffer->sg_table->nents;
-	unsigned long length = (pages + BITS_PER_LONG - 1)/BITS_PER_LONG;
-
-	buffer->dirty = kzalloc(length * sizeof(unsigned long), GFP_KERNEL);
-	if (!buffer->dirty)
-		return -ENOMEM;
-	return 0;
-}
-
 struct ion_vma_list {
 	struct list_head list;
 	struct vm_area_struct *vma;
@@ -784,9 +801,9 @@ static void ion_buffer_sync_for_device(struct ion_buffer *buffer,
 				       struct device *dev,
 				       enum dma_data_direction dir)
 {
-	struct scatterlist *sg;
-	int i;
 	struct ion_vma_list *vma_list;
+	int pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
+	int i;
 
 	pr_debug("%s: syncing for device %s\n", __func__,
 		 dev ? dev_name(dev) : "null");
@@ -795,11 +812,12 @@ static void ion_buffer_sync_for_device(struct ion_buffer *buffer,
 		return;
 
 	mutex_lock(&buffer->lock);
-	for_each_sg(buffer->sg_table->sgl, sg, buffer->sg_table->nents, i) {
-		if (!test_bit(i, buffer->dirty))
-			continue;
-		dma_sync_sg_for_device(dev, sg, 1, dir);
-		clear_bit(i, buffer->dirty);
+	for (i = 0; i < pages; i++) {
+		struct page *page = buffer->pages[i];
+
+		if (ion_buffer_page_is_dirty(page))
+			__dma_page_cpu_to_dev(page, 0, PAGE_SIZE, dir);
+		ion_buffer_page_clean(buffer->pages + i);
 	}
 	list_for_each_entry(vma_list, &buffer->vmas, list) {
 		struct vm_area_struct *vma = vma_list->vma;
@@ -813,21 +831,18 @@ static void ion_buffer_sync_for_device(struct ion_buffer *buffer,
 int ion_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct ion_buffer *buffer = vma->vm_private_data;
-	struct scatterlist *sg;
-	int i;
+	int ret;
 
 	mutex_lock(&buffer->lock);
-	set_bit(vmf->pgoff, buffer->dirty);
+	ion_buffer_page_dirty(buffer->pages + vmf->pgoff);
 
-	for_each_sg(buffer->sg_table->sgl, sg, buffer->sg_table->nents, i) {
-		if (i != vmf->pgoff)
-			continue;
-		dma_sync_sg_for_cpu(NULL, sg, 1, DMA_BIDIRECTIONAL);
-		vm_insert_page(vma, (unsigned long)vmf->virtual_address,
-			       sg_page(sg));
-		break;
-	}
+	BUG_ON(!buffer->pages || !buffer->pages[vmf->pgoff]);
+	ret = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
+			     ion_buffer_page(buffer->pages[vmf->pgoff]));
 	mutex_unlock(&buffer->lock);
+	if (ret)
+		return VM_FAULT_ERROR;
+
 	return VM_FAULT_NOPAGE;
 }
 

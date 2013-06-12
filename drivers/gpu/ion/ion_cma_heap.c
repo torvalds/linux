@@ -59,29 +59,6 @@ int ion_cma_get_sgtable(struct device *dev, struct sg_table *sgt,
 	return 0;
 }
 
-/*
- * Create scatter-list for each page of the already allocated DMA buffer.
- */
-int ion_cma_get_sgtable_per_page(struct device *dev, struct sg_table *sgt,
-			void *cpu_addr, dma_addr_t handle, size_t size)
-{
-	struct page *page = virt_to_page(cpu_addr);
-	int ret, i;
-	struct scatterlist *sg;
-
-	ret = sg_alloc_table(sgt, PAGE_ALIGN(size) / PAGE_SIZE, GFP_KERNEL);
-	if (unlikely(ret))
-		return ret;
-
-	sg = sgt->sgl;
-	for (i = 0; i < (PAGE_ALIGN(size) / PAGE_SIZE); i++) {
-		page = virt_to_page(cpu_addr + (i * PAGE_SIZE));
-		sg_set_page(sg, page, PAGE_SIZE, 0);
-		sg = sg_next(sg);
-	}
-	return 0;
-}
-
 /* ION CMA heap operations functions */
 static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 			    unsigned long len, unsigned long align,
@@ -112,15 +89,9 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		goto free_mem;
 	}
 
-	if (ion_buffer_fault_user_mappings(buffer)) {
-		if (ion_cma_get_sgtable_per_page
-			(dev, info->table, info->cpu_addr, info->handle, len))
-			goto free_table;
-	} else {
-		if (ion_cma_get_sgtable
-			(dev, info->table, info->cpu_addr, info->handle, len))
-			goto free_table;
-	}
+	if (ion_cma_get_sgtable
+	    (dev, info->table, info->cpu_addr, info->handle, len))
+		goto free_table;
 	/* keep this for memory release */
 	buffer->priv_virt = info;
 	dev_dbg(dev, "Allocate buffer %p\n", buffer);
