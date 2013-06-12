@@ -42,6 +42,10 @@
 
 #define AT91_RTC_EPOCH		1900UL	/* just like arch/arm/common/rtctime.c */
 
+struct at91_rtc_config {
+};
+
+static const struct at91_rtc_config *at91_rtc_config;
 static DECLARE_COMPLETION(at91_rtc_updated);
 static unsigned int at91_alarm_year = AT91_RTC_EPOCH;
 static void __iomem *at91_rtc_regs;
@@ -250,6 +254,36 @@ static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id)
 	return IRQ_NONE;		/* not handled */
 }
 
+static const struct at91_rtc_config at91rm9200_config = {
+};
+
+#ifdef CONFIG_OF
+static const struct of_device_id at91_rtc_dt_ids[] = {
+	{
+		.compatible = "atmel,at91rm9200-rtc",
+		.data = &at91rm9200_config,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(of, at91_rtc_dt_ids);
+#endif
+
+static const struct at91_rtc_config *
+at91_rtc_get_config(struct platform_device *pdev)
+{
+	const struct of_device_id *match;
+
+	if (pdev->dev.of_node) {
+		match = of_match_node(at91_rtc_dt_ids, pdev->dev.of_node);
+		if (!match)
+			return NULL;
+		return (const struct at91_rtc_config *)match->data;
+	}
+
+	return &at91rm9200_config;
+}
+
 static const struct rtc_class_ops at91_rtc_ops = {
 	.read_time	= at91_rtc_readtime,
 	.set_time	= at91_rtc_settime,
@@ -267,6 +301,10 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	struct rtc_device *rtc;
 	struct resource *regs;
 	int ret = 0;
+
+	at91_rtc_config = at91_rtc_get_config(pdev);
+	if (!at91_rtc_config)
+		return -ENODEV;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
@@ -382,14 +420,6 @@ static int at91_rtc_resume(struct device *dev)
 #endif
 
 static SIMPLE_DEV_PM_OPS(at91_rtc_pm_ops, at91_rtc_suspend, at91_rtc_resume);
-
-#ifdef CONFIG_OF
-static const struct of_device_id at91_rtc_dt_ids[] = {
-	{ .compatible = "atmel,at91rm9200-rtc" },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, at91_rtc_dt_ids);
-#endif
 
 static struct platform_driver at91_rtc_driver = {
 	.remove		= __exit_p(at91_rtc_remove),
