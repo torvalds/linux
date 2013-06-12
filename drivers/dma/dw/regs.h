@@ -101,6 +101,12 @@ struct dw_dma_regs {
 	u32	DW_PARAMS;
 };
 
+/*
+ * Big endian I/O access when reading and writing to the DMA controller
+ * registers.  This is needed on some platforms, like the Atmel AVR32
+ * architecture.
+ */
+
 #ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
 #define dma_readl_native ioread32be
 #define dma_writel_native iowrite32be
