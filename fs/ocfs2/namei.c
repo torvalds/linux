@@ -947,7 +947,7 @@ leave:
 	ocfs2_free_dir_lookup_result(&orphan_insert);
 	ocfs2_free_dir_lookup_result(&lookup);
 
-	if (status)
+	if (status && (status != -ENOTEMPTY))
 		mlog_errno(status);
 
 	return status;
