@@ -381,6 +381,7 @@ void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL) {
+		DRM_ERROR("Failed to allocate FBC work structure\n");
 		dev_priv->display.enable_fbc(crtc, interval);
 		return;
 	}
@@ -391,8 +392,6 @@ void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	INIT_DELAYED_WORK(&work->work, intel_fbc_work_fn);
 
 	dev_priv->fbc_work = work;
-
-	DRM_DEBUG_KMS("scheduling delayed FBC enable\n");
 
 	/* Delay the actual enabling to let pageflipping cease and the
 	 * display to settle before starting the compression. Note that
