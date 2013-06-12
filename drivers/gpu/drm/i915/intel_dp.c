@@ -2710,13 +2710,14 @@ done:
 static void
 intel_dp_destroy(struct drm_connector *connector)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
 	if (!IS_ERR_OR_NULL(intel_connector->edid))
 		kfree(intel_connector->edid);
 
-	if (is_edp(intel_dp))
+	/* Can't call is_edp() since the encoder may have been destroyed
+	 * already. */
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
 		intel_panel_fini(&intel_connector->panel);
 
 	drm_sysfs_connector_remove(connector);
