@@ -27,7 +27,7 @@ static int i_APCI3XXX_TestConversionStarted(struct comedi_device *dev)
 {
 	struct apci3xxx_private *devpriv = dev->private;
 
-	if ((readl(devpriv->dw_AiBase + 8) & 0x80000UL) == 0x80000UL)
+	if ((readl(devpriv->mmio + 8) & 0x80000) == 0x80000)
 		return 1;
 	else
 		return 0;
@@ -164,13 +164,13 @@ static int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 			      /*******************************/
 
 								writel((unsigned int)b_TimeBase,
-									devpriv->dw_AiBase + 36);
+									devpriv->mmio + 36);
 
 			      /**************************/
 								/* Set the convert timing */
 			      /*************************/
 
-								writel(dw_ReloadValue, devpriv->dw_AiBase + 32);
+								writel(dw_ReloadValue, devpriv->mmio + 32);
 							} else {
 			      /**************************/
 								/* Any conversion started */
@@ -304,29 +304,29 @@ static int apci3xxx_ai_insn_read(struct comedi_device *dev,
 		return -EBUSY;
 
 	/* Clear the FIFO */
-	writel(0x10000, devpriv->dw_AiBase + 12);
+	writel(0x10000, devpriv->mmio + 12);
 
 	/* Get and save the delay mode */
-	delay_mode = readl(devpriv->dw_AiBase + 4);
+	delay_mode = readl(devpriv->mmio + 4);
 	delay_mode &= 0xfffffef0;
 
 	/* Channel configuration selection */
-	writel(delay_mode, devpriv->dw_AiBase + 4);
+	writel(delay_mode, devpriv->mmio + 4);
 
 	/* Make the configuration */
 	val = (range & 3) | ((range >> 2) << 6) |
 	      (devpriv->b_SingelDiff << 7);
-	writel(val, devpriv->dw_AiBase + 0);
+	writel(val, devpriv->mmio + 0);
 
 	/* Channel selection */
-	writel(delay_mode | 0x100, devpriv->dw_AiBase + 4);
-	writel(chan, devpriv->dw_AiBase + 0);
+	writel(delay_mode | 0x100, devpriv->mmio + 4);
+	writel(chan, devpriv->mmio + 0);
 
 	/* Restore delay mode */
-	writel(delay_mode, devpriv->dw_AiBase + 4);
+	writel(delay_mode, devpriv->mmio + 4);
 
 	/* Set the number of sequence to 1 */
-	writel(1, devpriv->dw_AiBase + 48);
+	writel(1, devpriv->mmio + 48);
 
 	/* Save the interrupt flag */
 	devpriv->b_EocEosInterrupt = use_interrupt;
@@ -338,20 +338,20 @@ static int apci3xxx_ai_insn_read(struct comedi_device *dev,
 	if (!use_interrupt) {
 		for (i = 0; i < insn->n; i++) {
 			/* Start the conversion */
-			writel(0x80000, devpriv->dw_AiBase + 8);
+			writel(0x80000, devpriv->mmio + 8);
 
 			/* Wait the EOS */
 			do {
-				val = readl(devpriv->dw_AiBase + 20);
+				val = readl(devpriv->mmio + 20);
 				val &= 0x1;
 			} while (!val);
 
 			/* Read the analog value */
-			data[i] = readl(devpriv->dw_AiBase + 28);
+			data[i] = readl(devpriv->mmio + 28);
 		}
 	} else {
 		/* Start the conversion */
-		writel(0x180000, devpriv->dw_AiBase + 8);
+		writel(0x180000, devpriv->mmio + 8);
 	}
 
 	return insn->n;

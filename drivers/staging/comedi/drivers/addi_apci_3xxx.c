@@ -367,7 +367,7 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 };
 
 struct apci3xxx_private {
-	void __iomem *dw_AiBase;
+	void __iomem *mmio;
 	unsigned int ui_AiNbrofChannels;	/*  how many channels is measured */
 	unsigned int ui_AiReadData[32];
 	unsigned char b_EocEosInterrupt;
@@ -387,10 +387,10 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 	int i;
 
 	/* Test if interrupt occur */
-	status = readl(devpriv->dw_AiBase + 16);
+	status = readl(devpriv->mmio + 16);
 	if ((status & 0x2) == 0x2) {
 		/* Reset the interrupt */
-		writel(status, devpriv->dw_AiBase + 16);
+		writel(status, devpriv->mmio + 16);
 
 		/* Test if interrupt enabled */
 		if (devpriv->b_EocEosInterrupt == 1) {
@@ -398,7 +398,7 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 			for (i = 0; i < devpriv->ui_AiNbrofChannels; i++) {
 				unsigned int val;
 
-				val = readl(devpriv->dw_AiBase + 28);
+				val = readl(devpriv->mmio + 28);
 				devpriv->ui_AiReadData[i] = val;
 			}
 
@@ -425,14 +425,14 @@ static int apci3xxx_ao_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		/* Set the range selection */
-		writel(range, devpriv->dw_AiBase + 96);
+		writel(range, devpriv->mmio + 96);
 
 		/* Write the analog value to the selected channel */
-		writel((data[i] << 8) | chan, devpriv->dw_AiBase + 100);
+		writel((data[i] << 8) | chan, devpriv->mmio + 100);
 
 		/* Wait the end of transfer */
 		do {
-			status = readl(devpriv->dw_AiBase + 96);
+			status = readl(devpriv->mmio + 96);
 		} while ((status & 0x100) != 0x100);
 	}
 
@@ -558,18 +558,18 @@ static int apci3xxx_reset(struct comedi_device *dev)
 	devpriv->b_EocEosInterrupt = 0;
 
 	/* Clear the start command */
-	writel(0, devpriv->dw_AiBase + 8);
+	writel(0, devpriv->mmio + 8);
 
 	/* Reset the interrupt flags */
-	val = readl(devpriv->dw_AiBase + 16);
-	writel(val, devpriv->dw_AiBase + 16);
+	val = readl(devpriv->mmio + 16);
+	writel(val, devpriv->mmio + 16);
 
 	/* clear the EOS */
-	readl(devpriv->dw_AiBase + 20);
+	readl(devpriv->mmio + 20);
 
 	/* Clear the FIFO */
 	for (i = 0; i < 16; i++)
-		val = readl(devpriv->dw_AiBase + 28);
+		val = readl(devpriv->mmio + 28);
 
 	/* Enable the interrupt */
 	enable_irq(dev->irq);
@@ -603,7 +603,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 2);
-	devpriv->dw_AiBase = pci_ioremap_bar(pcidev, 3);
+	devpriv->mmio = pci_ioremap_bar(pcidev, 3);
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci3xxx_irq_handler,
@@ -717,8 +717,8 @@ static void apci3xxx_detach(struct comedi_device *dev)
 			apci3xxx_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-		if (devpriv->dw_AiBase)
-			iounmap(devpriv->dw_AiBase);
+		if (devpriv->mmio)
+			iounmap(devpriv->mmio);
 	}
 	comedi_pci_disable(dev);
 }
