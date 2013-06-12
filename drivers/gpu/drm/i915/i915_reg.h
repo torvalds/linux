@@ -1369,6 +1369,8 @@
 #define FW_BLC_SELF_VLV		(VLV_DISPLAY_BASE + 0x6500)
 #define  FW_CSPWRDWNEN		(1<<15)
 
+#define MI_ARB_VLV		(VLV_DISPLAY_BASE + 0x6504)
+
 /*
  * Palette regs
  */
