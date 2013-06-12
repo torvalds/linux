@@ -271,8 +271,6 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 	struct radeon_unpin_work *work;
-	struct drm_pending_vblank_event *e;
-	struct timeval now;
 	unsigned long flags;
 	u32 update_pending;
 	int vpos, hpos;
@@ -328,14 +326,9 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 	radeon_crtc->unpin_work = NULL;
 
 	/* wakeup userspace */
-	if (work->event) {
-		e = work->event;
-		e->event.sequence = drm_vblank_count_and_time(rdev->ddev, crtc_id, &now);
-		e->event.tv_sec = now.tv_sec;
-		e->event.tv_usec = now.tv_usec;
-		list_add_tail(&e->base.link, &e->base.file_priv->event_list);
-		wake_up_interruptible(&e->base.file_priv->event_wait);
-	}
+	if (work->event)
+		drm_send_vblank_event(rdev->ddev, crtc_id, work->event);
+
 	spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
 
 	drm_vblank_put(rdev->ddev, radeon_crtc->crtc_id);

@@ -96,6 +96,56 @@ config ARM_OMAP2PLUS_CPUFREQ
 	default ARCH_OMAP2PLUS
 	select CPU_FREQ_TABLE
 
+config ARM_S3C_CPUFREQ
+	bool
+	help
+	  Internal configuration node for common cpufreq on Samsung SoC
+
+config ARM_S3C24XX_CPUFREQ
+	bool "CPUfreq driver for Samsung S3C24XX series CPUs (EXPERIMENTAL)"
+	depends on ARCH_S3C24XX
+	select ARM_S3C_CPUFREQ
+	help
+	  This enables the CPUfreq driver for the Samsung S3C24XX family
+	  of CPUs.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+
+config ARM_S3C24XX_CPUFREQ_DEBUG
+	bool "Debug CPUfreq Samsung driver core"
+	depends on ARM_S3C24XX_CPUFREQ
+	help
+	  Enable s3c_freq_dbg for the Samsung S3C CPUfreq core
+
+config ARM_S3C24XX_CPUFREQ_IODEBUG
+	bool "Debug CPUfreq Samsung driver IO timing"
+	depends on ARM_S3C24XX_CPUFREQ
+	help
+	  Enable s3c_freq_iodbg for the Samsung S3C CPUfreq core
+
+config ARM_S3C24XX_CPUFREQ_DEBUGFS
+	bool "Export debugfs for CPUFreq"
+	depends on ARM_S3C24XX_CPUFREQ && DEBUG_FS
+	help
+	  Export status information via debugfs.
+
+config ARM_S3C2410_CPUFREQ
+	bool
+	depends on ARM_S3C24XX_CPUFREQ && CPU_S3C2410
+	select S3C2410_CPUFREQ_UTILS
+	help
+	  CPU Frequency scaling support for S3C2410
+
+config ARM_S3C2412_CPUFREQ
+	bool
+	depends on ARM_S3C24XX_CPUFREQ && CPU_S3C2412
+	default y
+	select S3C2412_IOTIMING
+	help
+	  CPU Frequency scaling support for S3C2412 and S3C2413 SoC CPUs.
+
 config ARM_S3C2416_CPUFREQ
 	bool "S3C2416 CPU Frequency scaling support"
 	depends on CPU_S3C2416
@@ -117,6 +167,14 @@ config ARM_S3C2416_CPUFREQ_VCORESCALE
 	  tests but not documented in any datasheet.
 
 	  If in doubt, say N.
+
+config ARM_S3C2440_CPUFREQ
+	bool "S3C2440/S3C2442 CPU Frequency scaling support"
+	depends on ARM_S3C24XX_CPUFREQ && (CPU_S3C2440 || CPU_S3C2442)
+	select S3C2410_CPUFREQ_UTILS
+	default y
+	help
+	  CPU Frequency scaling support for S3C2440 and S3C2442 SoC CPUs.
 
 config ARM_S3C64XX_CPUFREQ
 	bool "Samsung S3C64XX"

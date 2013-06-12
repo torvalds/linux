@@ -24,18 +24,6 @@
 static int power_state_active_cnt; /* will initialize to zero */
 static DEFINE_SPINLOCK(power_state_active_lock);
 
-int power_state_active_get(void)
-{
-	unsigned long flags;
-	int cnt;
-
-	spin_lock_irqsave(&power_state_active_lock, flags);
-	cnt = power_state_active_cnt;
-	spin_unlock_irqrestore(&power_state_active_lock, flags);
-
-	return cnt;
-}
-
 void power_state_active_enable(void)
 {
 	unsigned long flags;
@@ -64,6 +52,18 @@ out:
 }
 
 #ifdef CONFIG_REGULATOR_DEBUG
+
+static int power_state_active_get(void)
+{
+	unsigned long flags;
+	int cnt;
+
+	spin_lock_irqsave(&power_state_active_lock, flags);
+	cnt = power_state_active_cnt;
+	spin_unlock_irqrestore(&power_state_active_lock, flags);
+
+	return cnt;
+}
 
 static struct ux500_regulator_debug {
 	struct dentry *dir;

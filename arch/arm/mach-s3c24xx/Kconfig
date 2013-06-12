@@ -28,7 +28,7 @@ config CPU_S3C2410
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2410
 	select S3C2410_CLOCK
-	select S3C2410_CPUFREQ if CPU_FREQ_S3C24XX
+	select ARM_S3C2410_CPUFREQ if ARM_S3C24XX_CPUFREQ
 	select S3C2410_PM if PM
 	select SAMSUNG_HRT
 	help
@@ -204,27 +204,38 @@ config S3C24XX_GPIO_EXTRA128
 	  Add an extra 128 gpio numbers to the available GPIO pool. This is
 	  available for boards that need extra gpios for external devices.
 
+config S3C24XX_PLL
+	bool "Support CPUfreq changing of PLL frequency (EXPERIMENTAL)"
+	depends on ARM_S3C24XX
+	help
+	  Compile in support for changing the PLL frequency from the
+	  S3C24XX series CPUfreq driver. The PLL takes time to settle
+	  after a frequency change, so by default it is not enabled.
+
+	  This also means that the PLL tables for the selected CPU(s) will
+	  be built which may increase the size of the kernel image.
+
 # cpu frequency items common between s3c2410 and s3c2440/s3c2442
 
 config S3C2410_IOTIMING
 	bool
-	depends on CPU_FREQ_S3C24XX
+	depends on ARM_S3C24XX_CPUFREQ
 	help
 	  Internal node to select io timing code that is common to the s3c2410
 	  and s3c2440/s3c2442 cpu frequency support.
 
 config S3C2410_CPUFREQ_UTILS
-	bool
-	depends on CPU_FREQ_S3C24XX
-	help
-	  Internal node to select timing code that is common to the s3c2410
-	  and s3c2440/s3c244 cpu frequency support.
+       bool
+       depends on ARM_S3C24XX_CPUFREQ
+       help
+         Internal node to select timing code that is common to the s3c2410
+         and s3c2440/s3c244 cpu frequency support.
 
 # cpu frequency support common to s3c2412, s3c2413 and s3c2442
 
 config S3C2412_IOTIMING
 	bool
-	depends on CPU_FREQ_S3C24XX && (CPU_S3C2412 || CPU_S3C2443)
+	depends on ARM_S3C24XX_CPUFREQ && (CPU_S3C2412 || CPU_S3C2443)
 	help
 	  Intel node to select io timing code that is common to the s3c2412
 	  and the s3c2443.
@@ -233,16 +244,9 @@ config S3C2412_IOTIMING
 
 if CPU_S3C2410
 
-config S3C2410_CPUFREQ
-	bool
-	depends on CPU_FREQ_S3C24XX
-	select S3C2410_CPUFREQ_UTILS
-	help
-	  CPU Frequency scaling support for S3C2410
-
 config S3C2410_PLL
 	bool
-	depends on S3C2410_CPUFREQ && CPU_FREQ_S3C24XX_PLL
+	depends on ARM_S3C2410_CPUFREQ && S3C24XX_PLL
 	default y
 	help
 	  Select the PLL table for the S3C2410
@@ -278,7 +282,7 @@ config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
 	select ISA
 	select MACH_BAST_IDE
-	select S3C2410_IOTIMING if S3C2410_CPUFREQ
+	select S3C2410_IOTIMING if ARM_S3C2410_CPUFREQ
 	select S3C24XX_DCLK
 	select S3C24XX_SIMTEC_NOR
 	select S3C24XX_SIMTEC_PM if PM
@@ -385,14 +389,6 @@ config CPU_S3C2412_ONLY
 		   !CPU_S3C2442 && !CPU_S3C2443
 	default y
 
-config S3C2412_CPUFREQ
-	bool
-	depends on CPU_FREQ_S3C24XX
-	default y
-	select S3C2412_IOTIMING
-	help
-	  CPU Frequency scaling support for S3C2412 and S3C2413 SoC CPUs.
-
 config S3C2412_DMA
 	bool
 	help
@@ -494,14 +490,6 @@ endif	# CPU_S3C2416
 
 if CPU_S3C2440
 
-config S3C2440_CPUFREQ
-	bool "S3C2440/S3C2442 CPU Frequency scaling support"
-	depends on CPU_FREQ_S3C24XX && (CPU_S3C2440 || CPU_S3C2442)
-	default y
-	select S3C2410_CPUFREQ_UTILS
-	help
-	  CPU Frequency scaling support for S3C2440 and S3C2442 SoC CPUs.
-
 config S3C2440_DMA
 	bool
 	help
@@ -521,15 +509,15 @@ config S3C2440_XTAL_16934400
 
 config S3C2440_PLL_12000000
 	bool
-	depends on S3C2440_CPUFREQ && S3C2440_XTAL_12000000
-	default y if CPU_FREQ_S3C24XX_PLL
+	depends on ARM_S3C2440_CPUFREQ && S3C2440_XTAL_12000000
+	default y if S3C24XX_PLL
 	help
 	  PLL tables for S3C2440 or S3C2442 CPUs with 12MHz crystals.
 
 config S3C2440_PLL_16934400
 	bool
-	depends on S3C2440_CPUFREQ && S3C2440_XTAL_16934400
-	default y if CPU_FREQ_S3C24XX_PLL
+	depends on ARM_S3C2440_CPUFREQ && S3C2440_XTAL_16934400
+	default y if S3C24XX_PLL
 	help
 	  PLL tables for S3C2440 or S3C2442 CPUs with 16.934MHz crystals.
 
@@ -583,7 +571,7 @@ config MACH_NEXCODER_2440
 
 config MACH_OSIRIS
 	bool "Simtec IM2440D20 (OSIRIS) module"
-	select S3C2410_IOTIMING if S3C2440_CPUFREQ
+	select S3C2410_IOTIMING if ARM_S3C2440_CPUFREQ
 	select S3C2440_XTAL_12000000
 	select S3C24XX_DCLK
 	select S3C24XX_GPIO_EXTRA128
@@ -655,7 +643,7 @@ config MACH_RX1950
 	bool "HP iPAQ rx1950"
 	select I2C
 	select PM_H1940 if PM
-	select S3C2410_IOTIMING if S3C2440_CPUFREQ
+	select S3C2410_IOTIMING if ARM_S3C2440_CPUFREQ
 	select S3C2440_XTAL_16934400
 	select S3C24XX_DCLK
 	select S3C24XX_PWM
