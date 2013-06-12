@@ -408,7 +408,7 @@ static int log_invalid_proto_max = 255;
 
 static struct ctl_table_header *nf_ct_netfilter_header;
 
-static ctl_table nf_ct_sysctl_table[] = {
+static struct ctl_table nf_ct_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_max",
 		.data		= &nf_conntrack_max,
@@ -458,7 +458,7 @@ static ctl_table nf_ct_sysctl_table[] = {
 
 #define NET_NF_CONNTRACK_MAX 2089
 
-static ctl_table nf_ct_netfilter_table[] = {
+static struct ctl_table nf_ct_netfilter_table[] = {
 	{
 		.procname	= "nf_conntrack_max",
 		.data		= &nf_conntrack_max,

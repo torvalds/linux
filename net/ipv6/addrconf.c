@@ -4620,13 +4620,13 @@ static void ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 #ifdef CONFIG_SYSCTL
 
 static
-int addrconf_sysctl_forward(ctl_table *ctl, int write,
+int addrconf_sysctl_forward(struct ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = ctl->data;
 	int val = *valp;
 	loff_t pos = *ppos;
-	ctl_table lctl;
+	struct ctl_table lctl;
 	int ret;
 
 	/*
@@ -4705,13 +4705,13 @@ static int addrconf_disable_ipv6(struct ctl_table *table, int *p, int newf)
 }
 
 static
-int addrconf_sysctl_disable(ctl_table *ctl, int write,
+int addrconf_sysctl_disable(struct ctl_table *ctl, int write,
 			    void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = ctl->data;
 	int val = *valp;
 	loff_t pos = *ppos;
-	ctl_table lctl;
+	struct ctl_table lctl;
 	int ret;
 
 	/*
@@ -4733,7 +4733,7 @@ int addrconf_sysctl_disable(ctl_table *ctl, int write,
 static struct addrconf_sysctl_table
 {
 	struct ctl_table_header *sysctl_header;
-	ctl_table addrconf_vars[DEVCONF_MAX+1];
+	struct ctl_table addrconf_vars[DEVCONF_MAX+1];
 } addrconf_sysctl __read_mostly = {
 	.sysctl_header = NULL,
 	.addrconf_vars = {
