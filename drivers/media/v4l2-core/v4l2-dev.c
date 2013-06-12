@@ -495,8 +495,8 @@ static const struct file_operations v4l2_fops = {
 };
 
 /**
- * get_index - assign stream index number based on parent device
- * @vdev: video_device to assign index number to, vdev->parent should be assigned
+ * get_index - assign stream index number based on v4l2_dev
+ * @vdev: video_device to assign index number to, vdev->v4l2_dev should be assigned
  *
  * Note that when this is called the new device has not yet been registered
  * in the video_device array, but it was able to obtain a minor number.
@@ -514,15 +514,11 @@ static int get_index(struct video_device *vdev)
 	static DECLARE_BITMAP(used, VIDEO_NUM_DEVICES);
 	int i;
 
-	/* Some drivers do not set the parent. In that case always return 0. */
-	if (vdev->parent == NULL)
-		return 0;
-
 	bitmap_zero(used, VIDEO_NUM_DEVICES);
 
 	for (i = 0; i < VIDEO_NUM_DEVICES; i++) {
 		if (video_device[i] != NULL &&
-		    video_device[i]->parent == vdev->parent) {
+		    video_device[i]->v4l2_dev == vdev->v4l2_dev) {
 			set_bit(video_device[i]->index, used);
 		}
 	}
@@ -775,6 +771,9 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 	/* the release callback MUST be present */
 	if (WARN_ON(!vdev->release))
 		return -EINVAL;
+	/* the v4l2_dev pointer MUST be present */
+	if (WARN_ON(!vdev->v4l2_dev))
+		return -EINVAL;
 
 	/* v4l2_fh support */
 	spin_lock_init(&vdev->fh_lock);
@@ -802,16 +801,14 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 
 	vdev->vfl_type = type;
 	vdev->cdev = NULL;
-	if (vdev->v4l2_dev) {
-		if (vdev->v4l2_dev->dev)
-			vdev->parent = vdev->v4l2_dev->dev;
-		if (vdev->ctrl_handler == NULL)
-			vdev->ctrl_handler = vdev->v4l2_dev->ctrl_handler;
-		/* If the prio state pointer is NULL, then use the v4l2_device
-		   prio state. */
-		if (vdev->prio == NULL)
-			vdev->prio = &vdev->v4l2_dev->prio;
-	}
+	if (vdev->dev_parent == NULL)
+		vdev->dev_parent = vdev->v4l2_dev->dev;
+	if (vdev->ctrl_handler == NULL)
+		vdev->ctrl_handler = vdev->v4l2_dev->ctrl_handler;
+	/* If the prio state pointer is NULL, then use the v4l2_device
+	   prio state. */
+	if (vdev->prio == NULL)
+		vdev->prio = &vdev->v4l2_dev->prio;
 
 	/* Part 2: find a free minor, device node number and device index. */
 #ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES
@@ -896,8 +893,7 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 	/* Part 4: register the device with sysfs */
 	vdev->dev.class = &video_class;
 	vdev->dev.devt = MKDEV(VIDEO_MAJOR, vdev->minor);
-	if (vdev->parent)
-		vdev->dev.parent = vdev->parent;
+	vdev->dev.parent = vdev->dev_parent;
 	dev_set_name(&vdev->dev, "%s%d", name_base, vdev->num);
 	ret = device_register(&vdev->dev);
 	if (ret < 0) {

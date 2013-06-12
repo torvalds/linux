@@ -96,9 +96,9 @@ struct video_device
 	struct device dev;		/* v4l device */
 	struct cdev *cdev;		/* character device */
 
-	/* Set either parent or v4l2_dev if your driver uses v4l2_device */
-	struct device *parent;		/* device parent */
 	struct v4l2_device *v4l2_dev;	/* v4l2_device parent */
+	/* Only set parent if that can't be deduced from v4l2_dev */
+	struct device *dev_parent;	/* device parent */
 
 	/* Control handler associated with this device node. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
