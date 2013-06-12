@@ -1703,6 +1703,7 @@ i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj)
 {
 	if (obj->fence_reg != I915_FENCE_REG_NONE) {
 		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+		WARN_ON(dev_priv->fence_regs[obj->fence_reg].pin_count <= 0);
 		dev_priv->fence_regs[obj->fence_reg].pin_count--;
 	}
 }
