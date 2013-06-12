@@ -61,21 +61,38 @@
 #define USBOTGSS_REVISION			0x0000
 #define USBOTGSS_SYSCONFIG			0x0010
 #define USBOTGSS_IRQ_EOI			0x0020
+#define USBOTGSS_EOI_OFFSET			0x0008
 #define USBOTGSS_IRQSTATUS_RAW_0		0x0024
 #define USBOTGSS_IRQSTATUS_0			0x0028
 #define USBOTGSS_IRQENABLE_SET_0		0x002c
 #define USBOTGSS_IRQENABLE_CLR_0		0x0030
+#define USBOTGSS_IRQ0_OFFSET			0x0004
 #define USBOTGSS_IRQSTATUS_RAW_1		0x0034
 #define USBOTGSS_IRQSTATUS_1			0x0038
 #define USBOTGSS_IRQENABLE_SET_1		0x003c
 #define USBOTGSS_IRQENABLE_CLR_1		0x0040
+#define USBOTGSS_IRQSTATUS_EOI_MISC		0x0030
+#define USBOTGSS_IRQSTATUS_RAW_MISC		0x0034
+#define USBOTGSS_IRQSTATUS_MISC			0x0038
+#define USBOTGSS_IRQENABLE_SET_MISC		0x003c
+#define USBOTGSS_IRQENABLE_CLR_MISC		0x0040
+#define USBOTGSS_IRQMISC_OFFSET			0x03fc
 #define USBOTGSS_UTMI_OTG_CTRL			0x0080
 #define USBOTGSS_UTMI_OTG_STATUS		0x0084
+#define USBOTGSS_UTMI_OTG_OFFSET		0x0480
+#define USBOTGSS_TXFIFO_DEPTH			0x0508
+#define USBOTGSS_RXFIFO_DEPTH			0x050c
 #define USBOTGSS_MMRAM_OFFSET			0x0100
 #define USBOTGSS_FLADJ				0x0104
 #define USBOTGSS_DEBUG_CFG			0x0108
 #define USBOTGSS_DEBUG_DATA			0x010c
+#define USBOTGSS_DEV_EBC_EN			0x0110
+#define USBOTGSS_DEBUG_OFFSET			0x0600
 
+/* REVISION REGISTER */
+#define USBOTGSS_REVISION_XMAJOR(reg)		((reg >> 8) & 0x7)
+#define USBOTGSS_REVISION_XMAJOR1		1
+#define USBOTGSS_REVISION_XMAJOR2		2
 /* SYSCONFIG REGISTER */
 #define USBOTGSS_SYSCONFIG_DMADISABLE		(1 << 16)
 
@@ -300,6 +317,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	int			irq;
 
 	int			utmi_mode = 0;
+	int			x_major;
 
 	u32			reg;
 
@@ -354,6 +372,42 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(dev, "get_sync failed with err %d\n", ret);
 		goto err0;
+	}
+
+	reg = dwc3_omap_readl(omap->base, USBOTGSS_REVISION);
+	omap->revision = reg;
+	x_major = USBOTGSS_REVISION_XMAJOR(reg);
+
+	/* Differentiate between OMAP5,AM437x and others*/
+	switch (x_major) {
+	case USBOTGSS_REVISION_XMAJOR1:
+	case USBOTGSS_REVISION_XMAJOR2:
+		omap->irq_eoi_offset = 0;
+		omap->irq0_offset = 0;
+		omap->irqmisc_offset = 0;
+		omap->utmi_otg_offset = 0;
+		omap->debug_offset = 0;
+		break;
+	default:
+		/* Default to the latest revision */
+		omap->irq_eoi_offset = USBOTGSS_EOI_OFFSET;
+		omap->irq0_offset = USBOTGSS_IRQ0_OFFSET;
+		omap->irqmisc_offset = USBOTGSS_IRQMISC_OFFSET;
+		omap->utmi_otg_offset = USBOTGSS_UTMI_OTG_OFFSET;
+		omap->debug_offset = USBOTGSS_DEBUG_OFFSET;
+		break;
+	}
+
+	/* For OMAP5(ES2.0) and AM437x x_major is 2 even though there are
+	 * changes in wrapper registers, Using dt compatible for aegis
+	 */
+
+	if (of_device_is_compatible(node, "ti,am437x-dwc3")) {
+		omap->irq_eoi_offset = USBOTGSS_EOI_OFFSET;
+		omap->irq0_offset = USBOTGSS_IRQ0_OFFSET;
+		omap->irqmisc_offset = USBOTGSS_IRQMISC_OFFSET;
+		omap->utmi_otg_offset = USBOTGSS_UTMI_OTG_OFFSET;
+		omap->debug_offset = USBOTGSS_DEBUG_OFFSET;
 	}
 
 	reg = dwc3_omap_readl(omap->base, USBOTGSS_UTMI_OTG_STATUS);
@@ -422,6 +476,9 @@ static int dwc3_omap_remove(struct platform_device *pdev)
 static const struct of_device_id of_dwc3_match[] = {
 	{
 		.compatible =	"ti,dwc3"
+	},
+	{
+		.compatible =	"ti,am437x-dwc3"
 	},
 	{ },
 };
