@@ -60,6 +60,8 @@ struct cpuidle_state {
 #define CPUIDLE_DRIVER_FLAGS_MASK (0xFFFF0000)
 
 struct cpuidle_device_kobj;
+struct cpuidle_state_kobj;
+struct cpuidle_driver_kobj;
 
 struct cpuidle_device {
 	unsigned int		registered:1;
