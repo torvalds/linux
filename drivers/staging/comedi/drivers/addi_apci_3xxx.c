@@ -416,6 +416,33 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
+static int apci3xxx_ao_insn_write(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int status;
+	int i;
+
+	for (i = 0; i < insn->n; i++) {
+		/* Set the range selection */
+		writel(range, devpriv->dw_AiBase + 96);
+
+		/* Write the analog value to the selected channel */
+		writel((data[i] << 8) | chan, devpriv->dw_AiBase + 100);
+
+		/* Wait the end of transfer */
+		do {
+			status = readl(devpriv->dw_AiBase + 96);
+		} while ((status & 0x100) != 0x100);
+	}
+
+	return insn->n;
+}
+
 static int apci3xxx_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
@@ -553,17 +580,17 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	/*  Allocate and Initialise AO Subdevice Structures */
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
 	if (board->has_ao) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 4;
-		s->maxdata = 0x0fff;
-		s->range_table = &apci3xxx_ao_range;
-		s->insn_write = i_APCI3XXX_InsnWriteAnalogOutput;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->n_chan	= 4;
+		s->maxdata	= 0x0fff;
+		s->range_table	= &apci3xxx_ao_range;
+		s->insn_write	= apci3xxx_ao_insn_write;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/* Digital Input subdevice */
