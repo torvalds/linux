@@ -49,19 +49,23 @@ static int apci3xxx_ai_configure(struct comedi_device *dev,
 	if (aref_mode != 0 && aref_mode != 1)
 		return -EINVAL;
 
-	if (!(board->b_AvailableConvertUnit & (1 << time_base)))
+	if (time_base > 2)
 		return -EINVAL;
 
 	if (reload_time > 0xffff)
 		return -EINVAL;
 
+	time_base = 1 << time_base;
+	if (!(board->ai_conv_units & time_base))
+		return -EINVAL;
+
 	switch (time_base) {
-	case 0:
-		acq_ns = reload_time;		/* ns */
-	case 1:
-		acq_ns = reload_time * 1000;	/* us */
-	case 2:
-		acq_ns = reload_time * 1000000;	/* ms */
+	case CONV_UNIT_NS:
+		acq_ns = reload_time;
+	case CONV_UNIT_US:
+		acq_ns = reload_time * 1000;
+	case CONV_UNIT_MS:
+		acq_ns = reload_time * 1000000;
 	default:
 		return -EINVAL;
 	}
