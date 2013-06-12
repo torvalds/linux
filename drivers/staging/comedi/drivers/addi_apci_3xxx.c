@@ -596,20 +596,19 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[4];
 	s->type = COMEDI_SUBD_UNUSED;
 
-	/*  Allocate and Initialise TTL */
+	/* TTL Digital I/O subdevice */
 	s = &dev->subdevices[5];
 	if (board->has_ttl_io) {
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags =
-			SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 24;
-		s->maxdata = 1;
-		s->io_bits = 0;	/* all bits input */
-		s->range_table = &range_digital;
-		s->insn_config = i_APCI3XXX_InsnConfigInitTTLIO;
-		s->insn_bits = i_APCI3XXX_InsnBitsTTLIO;
-		s->insn_read = i_APCI3XXX_InsnReadTTLIO;
-		s->insn_write = i_APCI3XXX_InsnWriteTTLIO;
+		s->type		= COMEDI_SUBD_DIO;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
+		s->n_chan	= 24;
+		s->maxdata	= 1;
+		s->io_bits	= 0xff;	/* channels 0-7 are always outputs */
+		s->range_table	= &range_digital;
+		s->insn_config	= i_APCI3XXX_InsnConfigInitTTLIO;
+		s->insn_bits	= i_APCI3XXX_InsnBitsTTLIO;
+		s->insn_read	= i_APCI3XXX_InsnReadTTLIO;
+		s->insn_write	= i_APCI3XXX_InsnWriteTTLIO;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
