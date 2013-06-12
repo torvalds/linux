@@ -57,7 +57,6 @@ config ARM_EXYNOS5440_CPUFREQ
 config ARM_HIGHBANK_CPUFREQ
 	tristate "Calxeda Highbank-based"
 	depends on ARCH_HIGHBANK
-	select CPU_FREQ_TABLE
 	select GENERIC_CPUFREQ_CPU0
 	select PM_OPP
 	select REGULATOR
