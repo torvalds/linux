@@ -131,9 +131,9 @@ static void show_ecr_verbose(struct pt_regs *regs)
 
 	/* For DTLB Miss or ProtV, display the memory involved too */
 	if (vec == ECR_V_DTLB_MISS) {
-		pr_cont("Invalid %s 0x%08lx by insn @ 0x%08lx\n",
-		       (cause_code == 0x01) ? "Read From" :
-		       ((cause_code == 0x02) ? "Write to" : "EX"),
+		pr_cont("Invalid %s @ 0x%08lx by insn @ 0x%08lx\n",
+		       (cause_code == 0x01) ? "Read" :
+		       ((cause_code == 0x02) ? "Write" : "EX"),
 		       address, regs->ret);
 	} else if (vec == ECR_V_ITLB_MISS) {
 		pr_cont("Insn could not be fetched\n");
@@ -144,14 +144,12 @@ static void show_ecr_verbose(struct pt_regs *regs)
 	} else if (vec == ECR_V_PROTV) {
 		if (cause_code == ECR_C_PROTV_INST_FETCH)
 			pr_cont("Execute from Non-exec Page\n");
-		else if (cause_code == ECR_C_PROTV_LOAD)
-			pr_cont("Read from Non-readable Page\n");
-		else if (cause_code == ECR_C_PROTV_STORE)
-			pr_cont("Write to Non-writable Page\n");
-		else if (cause_code == ECR_C_PROTV_XCHG)
-			pr_cont("Data exchange protection violation\n");
 		else if (cause_code == ECR_C_PROTV_MISALIG_DATA)
 			pr_cont("Misaligned r/w from 0x%08lx\n", address);
+		else
+			pr_cont("%s access not allowed on page\n",
+				(cause_code == 0x01) ? "Read" :
+				((cause_code == 0x02) ? "Write" : "EX"));
 	} else if (vec == ECR_V_INSN_ERR) {
 		pr_cont("Illegal Insn\n");
 	} else {
