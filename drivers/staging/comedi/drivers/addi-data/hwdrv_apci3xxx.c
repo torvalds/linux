@@ -1271,15 +1271,3 @@ static int i_APCI3XXX_InsnWriteTTLIO(struct comedi_device *dev,
 
 	return i_ReturnValue;
 }
-
-static int apci3xxx_di_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-
-	data[1] = inl(devpriv->iobase + 32) & 0xf;
-
-	return insn->n;
-}
