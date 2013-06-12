@@ -50,26 +50,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 #define APCI3XXX_TTL_INIT_DIRECTION_PORT2	0
 
-static const struct comedi_lrange range_apci3XXX_ai = {
-	8, {
-		BIP_RANGE(10),
-		BIP_RANGE(5),
-		BIP_RANGE(2),
-		BIP_RANGE(1),
-		UNI_RANGE(10),
-		UNI_RANGE(5),
-		UNI_RANGE(2),
-		UNI_RANGE(1)
-	}
-};
-
-static const struct comedi_lrange range_apci3XXX_ao = {
-	2, {
-		BIP_RANGE(10),
-		UNI_RANGE(10)
-	}
-};
-
 /*
 +----------------------------------------------------------------------------+
 |                         ANALOG INPUT FUNCTIONS                             |

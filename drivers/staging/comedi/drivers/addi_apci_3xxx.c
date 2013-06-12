@@ -13,6 +13,26 @@
 #define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
 #endif
 
+static const struct comedi_lrange apci3xxx_ai_range = {
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1)
+	}
+};
+
+static const struct comedi_lrange apci3xxx_ao_range = {
+	2, {
+		BIP_RANGE(10),
+		UNI_RANGE(10)
+	}
+};
+
 enum apci3xxx_boardid {
 	BOARD_APCI3000_16,
 	BOARD_APCI3000_8,
@@ -51,7 +71,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
 		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -71,7 +90,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
 		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -91,7 +109,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiChannelList	= 4,
 		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -111,7 +128,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
 		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -131,7 +147,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
 		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -151,7 +166,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiChannelList	= 4,
 		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -171,7 +185,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
 		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -194,7 +207,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
 		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -217,7 +229,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiChannelList	= 4,
 		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -240,7 +251,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
 		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -263,7 +273,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 8,
 		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -286,7 +295,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 2,
 		.i_AiChannelList	= 4,
 		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -311,8 +319,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 4095,
 		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -335,8 +341,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 4095,
 		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -359,8 +363,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 65535,
 		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -383,8 +385,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 65535,
 		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrTTLChannel	= 24,
 		.b_AvailableConvertUnit	= 6,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -407,8 +407,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 4095,
 		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -434,8 +432,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 4095,
 		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -461,8 +457,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 65535,
 		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -488,8 +482,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAoChannel		= 4,
 		.i_AiMaxdata		= 65535,
 		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -512,7 +504,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 4,
 		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -529,7 +520,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 16,
 		.i_AiChannelList	= 16,
 		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -546,7 +536,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 8,
 		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -563,7 +552,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 4,
 		.i_AiChannelList	= 4,
 		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 1,
@@ -579,7 +567,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 		.pc_EepromChip		= ADDIDATA_9054,
 		.i_NbrAoChannel		= 4,
 		.i_AoMaxdata		= 4095,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
 		.i_NbrTTLChannel	= 24,
 		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
 		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
@@ -812,7 +799,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		}
 		s->maxdata = devpriv->s_EeParameters.i_AiMaxdata;
 		s->len_chanlist = board->i_AiChannelList;
-		s->range_table = board->pr_AiRangelist;
+		s->range_table = &apci3xxx_ai_range;
 
 		/* Set the initialisation flag */
 		devpriv->b_AiInitialisation = 1;
@@ -837,7 +824,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->n_chan = devpriv->s_EeParameters.i_NbrAoChannel;
 		s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
 		s->len_chanlist = devpriv->s_EeParameters.i_NbrAoChannel;
-		s->range_table = board->pr_AoRangelist;
+		s->range_table = &apci3xxx_ao_range;
 		s->insn_config = board->ao_config;
 		s->insn_write = board->ao_write;
 	} else {
