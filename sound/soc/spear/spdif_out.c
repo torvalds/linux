@@ -298,8 +298,7 @@ static int spdif_out_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	host->io_base = devm_request_and_ioremap(&pdev->dev, res->start,
-				resource_size(res));
+	host->io_base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!host->io_base) {
 		dev_warn(&pdev->dev, "ioremap failed\n");
 		return -ENOMEM;
@@ -321,18 +320,11 @@ static int spdif_out_probe(struct platform_device *pdev)
 
 	ret = snd_soc_register_component(&pdev->dev, &spdif_out_component,
 					 &spdif_out_dai, 1);
-	if (ret != 0) {
-		clk_put(host->clk);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 static int spdif_out_remove(struct platform_device *pdev)
 {
-	struct spdif_out_dev *host = dev_get_drvdata(&pdev->dev);
-
 	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;

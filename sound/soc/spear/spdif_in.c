@@ -257,20 +257,12 @@ static int spdif_in_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = snd_soc_register_component(&pdev->dev, &spdif_in_component,
+	return snd_soc_register_component(&pdev->dev, &spdif_in_component,
 					 &spdif_in_dai, 1);
-	if (ret != 0) {
-		clk_put(host->clk);
-		return ret;
-	}
-
-	return 0;
 }
 
 static int spdif_in_remove(struct platform_device *pdev)
 {
-	struct spdif_in_dev *host = dev_get_drvdata(&pdev->dev);
-
 	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
