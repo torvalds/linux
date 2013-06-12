@@ -81,12 +81,12 @@
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
 		.max = 1,
-		.types = BIT(NL80211_IFTYPE_STATION) |
-			BIT(NL80211_IFTYPE_AP),
+		.types = BIT(NL80211_IFTYPE_STATION),
 	},
 	{
 		.max = 1,
-		.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
+		.types = BIT(NL80211_IFTYPE_AP) |
+			BIT(NL80211_IFTYPE_P2P_CLIENT) |
 			BIT(NL80211_IFTYPE_P2P_GO),
 	},
 	{
@@ -651,8 +651,7 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 * By now, all the AC queues are empty. The AGG queues are
 		 * empty too. We already got all the Tx responses for all the
 		 * packets in the queues. The drain work can have been
-		 * triggered. Flush it. This work item takes the mutex, so kill
-		 * it before we take it.
+		 * triggered. Flush it.
 		 */
 		flush_work(&mvm->sta_drained_wk);
 	}

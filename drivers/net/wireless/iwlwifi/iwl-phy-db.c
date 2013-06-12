@@ -413,6 +413,9 @@ static int iwl_phy_db_send_all_channel_groups(
 		if (!entry)
 			return -EINVAL;
 
+		if (WARN_ON_ONCE(!entry->size))
+			continue;
+
 		/* Send the requested PHY DB section */
 		err = iwl_send_phy_db_cmd(phy_db,
 					  type,
