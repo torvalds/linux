@@ -367,7 +367,6 @@ static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 };
 
 struct apci3xxx_private {
-	int iobase;
 	void __iomem *dw_AiBase;
 	unsigned int ui_AiNbrofChannels;	/*  how many channels is measured */
 	unsigned int ui_AiReadData[32];
@@ -445,9 +444,7 @@ static int apci3xxx_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct apci3xxx_private *devpriv = dev->private;
-
-	data[1] = inl(devpriv->iobase + 32) & 0xf;
+	data[1] = inl(dev->iobase + 32) & 0xf;
 
 	return insn->n;
 }
@@ -457,16 +454,15 @@ static int apci3xxx_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct apci3xxx_private *devpriv = dev->private;
 	unsigned int mask = data[0];
 	unsigned int bits = data[1];
 
-	s->state = inl(devpriv->iobase + 48) & 0xf;
+	s->state = inl(dev->iobase + 48) & 0xf;
 	if (mask) {
 		s->state &= ~mask;
 		s->state |= (bits & mask);
 
-		outl(s->state, devpriv->iobase + 48);
+		outl(s->state, dev->iobase + 48);
 	}
 
 	data[1] = s->state;
@@ -479,7 +475,6 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 				    struct comedi_insn *insn,
 				    unsigned int *data)
 {
-	struct apci3xxx_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int mask = 1 << chan;
 	unsigned int bits;
@@ -512,7 +507,7 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 
 	/* update port 2 configuration */
 	if (bits)
-		outl((s->io_bits >> 24) & 0xff, devpriv->iobase + 224);
+		outl((s->io_bits >> 24) & 0xff, dev->iobase + 224);
 
 	return insn->n;
 }
@@ -522,7 +517,6 @@ static int apci3xxx_dio_insn_bits(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	struct apci3xxx_private *devpriv = dev->private;
 	unsigned int mask = data[0];
 	unsigned int bits = data[1];
 	unsigned int val;
@@ -534,17 +528,17 @@ static int apci3xxx_dio_insn_bits(struct comedi_device *dev,
 		s->state |= (bits & mask);
 
 		if (mask & 0xff)
-			outl(s->state & 0xff, devpriv->iobase + 80);
+			outl(s->state & 0xff, dev->iobase + 80);
 		if (mask & 0xff0000)
-			outl((s->state >> 16) & 0xff, devpriv->iobase + 112);
+			outl((s->state >> 16) & 0xff, dev->iobase + 112);
 	}
 
-	val = inl(devpriv->iobase + 80);
-	val |= (inl(devpriv->iobase + 64) << 8);
+	val = inl(dev->iobase + 80);
+	val |= (inl(dev->iobase + 64) << 8);
 	if (s->io_bits & 0xff0000)
-		val |= (inl(devpriv->iobase + 112) << 16);
+		val |= (inl(dev->iobase + 112) << 16);
 	else
-		val |= (inl(devpriv->iobase + 96) << 16);
+		val |= (inl(dev->iobase + 96) << 16);
 
 	data[1] = val;
 
@@ -608,9 +602,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/* board has an ADDIDATA_9054 eeprom */
 	dev->iobase = pci_resource_start(pcidev, 2);
-	devpriv->iobase = pci_resource_start(pcidev, 2);
 	devpriv->dw_AiBase = pci_ioremap_bar(pcidev, 3);
 
 	if (pcidev->irq > 0) {
