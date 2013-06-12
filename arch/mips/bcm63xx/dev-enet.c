@@ -9,9 +9,43 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/export.h>
 #include <bcm63xx_dev_enet.h>
 #include <bcm63xx_io.h>
 #include <bcm63xx_regs.h>
+
+#ifdef BCMCPU_RUNTIME_DETECT
+static const unsigned long bcm6348_regs_enetdmac[] = {
+	[ENETDMAC_CHANCFG]	= ENETDMAC_CHANCFG_REG,
+	[ENETDMAC_IR]		= ENETDMAC_IR_REG,
+	[ENETDMAC_IRMASK]	= ENETDMAC_IRMASK_REG,
+	[ENETDMAC_MAXBURST]	= ENETDMAC_MAXBURST_REG,
+};
+
+static const unsigned long bcm6345_regs_enetdmac[] = {
+	[ENETDMAC_CHANCFG]	= ENETDMA_6345_CHANCFG_REG,
+	[ENETDMAC_IR]		= ENETDMA_6345_IR_REG,
+	[ENETDMAC_IRMASK]	= ENETDMA_6345_IRMASK_REG,
+	[ENETDMAC_MAXBURST]	= ENETDMA_6345_MAXBURST_REG,
+	[ENETDMAC_BUFALLOC]	= ENETDMA_6345_BUFALLOC_REG,
+	[ENETDMAC_RSTART]	= ENETDMA_6345_RSTART_REG,
+	[ENETDMAC_FC]		= ENETDMA_6345_FC_REG,
+	[ENETDMAC_LEN]		= ENETDMA_6345_LEN_REG,
+};
+
+const unsigned long *bcm63xx_regs_enetdmac;
+EXPORT_SYMBOL(bcm63xx_regs_enetdmac);
+
+static __init void bcm63xx_enetdmac_regs_init(void)
+{
+	if (BCMCPU_IS_6345())
+		bcm63xx_regs_enetdmac = bcm6345_regs_enetdmac;
+	else
+		bcm63xx_regs_enetdmac = bcm6348_regs_enetdmac;
+}
+#else
+static __init void bcm63xx_enetdmac_regs_init(void) { }
+#endif
 
 static struct resource shared_res[] = {
 	{
@@ -137,12 +171,19 @@ static int __init register_shared(void)
 	if (shared_device_registered)
 		return 0;
 
+	bcm63xx_enetdmac_regs_init();
+
 	shared_res[0].start = bcm63xx_regset_address(RSET_ENETDMA);
 	shared_res[0].end = shared_res[0].start;
-	shared_res[0].end += (RSET_ENETDMA_SIZE)  - 1;
+	if (BCMCPU_IS_6345())
+		shared_res[0].end += (RSET_6345_ENETDMA_SIZE) - 1;
+	else
+		shared_res[0].end += (RSET_ENETDMA_SIZE)  - 1;
 
 	if (BCMCPU_IS_6328() || BCMCPU_IS_6362() || BCMCPU_IS_6368())
 		chan_count = 32;
+	else if (BCMCPU_IS_6345())
+		chan_count = 8;
 	else
 		chan_count = 16;
 
@@ -172,7 +213,7 @@ int __init bcm63xx_enet_register(int unit,
 	if (unit > 1)
 		return -ENODEV;
 
-	if (unit == 1 && BCMCPU_IS_6338())
+	if (unit == 1 && (BCMCPU_IS_6338() || BCMCPU_IS_6345()))
 		return -ENODEV;
 
 	ret = register_shared();
@@ -213,6 +254,21 @@ int __init bcm63xx_enet_register(int unit,
 		dpd->phy_interrupt = bcm63xx_get_irq_number(IRQ_ENET_PHY);
 	}
 
+	dpd->dma_chan_en_mask = ENETDMAC_CHANCFG_EN_MASK;
+	dpd->dma_chan_int_mask = ENETDMAC_IR_PKTDONE_MASK;
+	if (BCMCPU_IS_6345()) {
+		dpd->dma_chan_en_mask |= ENETDMAC_CHANCFG_CHAINING_MASK;
+		dpd->dma_chan_en_mask |= ENETDMAC_CHANCFG_WRAP_EN_MASK;
+		dpd->dma_chan_en_mask |= ENETDMAC_CHANCFG_FLOWC_EN_MASK;
+		dpd->dma_chan_int_mask |= ENETDMA_IR_BUFDONE_MASK;
+		dpd->dma_chan_int_mask |= ENETDMA_IR_NOTOWNER_MASK;
+		dpd->dma_chan_width = ENETDMA_6345_CHAN_WIDTH;
+		dpd->dma_desc_shift = ENETDMA_6345_DESC_SHIFT;
+	} else {
+		dpd->dma_has_sram = true;
+		dpd->dma_chan_width = ENETDMA_CHAN_WIDTH;
+	}
+
 	ret = platform_device_register(pdev);
 	if (ret)
 		return ret;
@@ -245,6 +301,11 @@ bcm63xx_enetsw_register(const struct bcm63xx_enetsw_platform_data *pd)
 		enetsw_pd.num_ports = ENETSW_PORTS_6328;
 	else if (BCMCPU_IS_6362() || BCMCPU_IS_6368())
 		enetsw_pd.num_ports = ENETSW_PORTS_6368;
+
+	enetsw_pd.dma_has_sram = true;
+	enetsw_pd.dma_chan_width = ENETDMA_CHAN_WIDTH;
+	enetsw_pd.dma_chan_en_mask = ENETDMAC_CHANCFG_EN_MASK;
+	enetsw_pd.dma_chan_int_mask = ENETDMAC_IR_PKTDONE_MASK;
 
 	ret = platform_device_register(&bcm63xx_enetsw_device);
 	if (ret)

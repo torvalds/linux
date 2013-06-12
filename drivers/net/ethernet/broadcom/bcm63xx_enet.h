@@ -339,6 +339,21 @@ struct bcm_enet_priv {
 	/* used to poll switch port state */
 	struct timer_list swphy_poll;
 	spinlock_t enetsw_mdio_lock;
+
+	/* dma channel enable mask */
+	u32 dma_chan_en_mask;
+
+	/* dma channel interrupt mask */
+	u32 dma_chan_int_mask;
+
+	/* DMA engine has internal SRAM */
+	bool dma_has_sram;
+
+	/* dma channel width */
+	unsigned int dma_chan_width;
+
+	/* dma descriptor shift value */
+	unsigned int dma_desc_shift;
 };
 
 

@@ -174,6 +174,7 @@ enum bcm63xx_regs_set {
 #define BCM_6368_RSET_SPI_SIZE		1804
 #define RSET_ENET_SIZE			2048
 #define RSET_ENETDMA_SIZE		256
+#define RSET_6345_ENETDMA_SIZE		64
 #define RSET_ENETDMAC_SIZE(chans)	(16 * (chans))
 #define RSET_ENETDMAS_SIZE(chans)	(16 * (chans))
 #define RSET_ENETSW_SIZE		65536
@@ -300,7 +301,7 @@ enum bcm63xx_regs_set {
 #define BCM_6345_USBDMA_BASE		(0xfffe2800)
 #define BCM_6345_ENET0_BASE		(0xfffe1800)
 #define BCM_6345_ENETDMA_BASE		(0xfffe2800)
-#define BCM_6345_ENETDMAC_BASE		(0xfffe2900)
+#define BCM_6345_ENETDMAC_BASE		(0xfffe2840)
 #define BCM_6345_ENETDMAS_BASE		(0xfffe2a00)
 #define BCM_6345_ENETSW_BASE		(0xdeadbeef)
 #define BCM_6345_PCMCIA_BASE		(0xfffe2028)
