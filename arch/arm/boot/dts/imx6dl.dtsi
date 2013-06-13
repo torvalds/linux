@@ -35,6 +35,17 @@
 				compatible = "fsl,imx6dl-iomuxc";
 				reg = <0x020e0000 0x4000>;
 
+				audmux {
+					pinctrl_audmux_2: audmux-2 {
+						fsl,pins = <
+							MX6DL_PAD_CSI0_DAT7__AUD3_RXD  0x80000000
+							MX6DL_PAD_CSI0_DAT4__AUD3_TXC  0x80000000
+							MX6DL_PAD_CSI0_DAT5__AUD3_TXD  0x80000000
+							MX6DL_PAD_CSI0_DAT6__AUD3_TXFS 0x80000000
+						>;
+					};
+				};
+
 				ecspi1 {
 					pinctrl_ecspi1_1: ecspi1grp-1 {
 						fsl,pins = <
