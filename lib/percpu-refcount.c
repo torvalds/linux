@@ -33,8 +33,8 @@
 
 /**
  * percpu_ref_init - initialize a percpu refcount
- * @ref:	ref to initialize
- * @release:	function which will be called when refcount hits 0
+ * @ref: percpu_ref to initialize
+ * @release: function which will be called when refcount hits 0
  *
  * Initializes the refcount in single atomic counter mode with a refcount of 1;
  * analagous to atomic_set(ref, 1).
@@ -42,7 +42,7 @@
  * Note that @release must not sleep - it may potentially be called from RCU
  * callback context by percpu_ref_kill().
  */
-int percpu_ref_init(struct percpu_ref *ref, percpu_ref_release *release)
+int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release)
 {
 	atomic_set(&ref->count, 1 + PCPU_COUNT_BIAS);
 
@@ -98,6 +98,7 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 
 /**
  * percpu_ref_kill - safely drop initial ref
+ * @ref: percpu_ref to kill
  *
  * Must be used to drop the initial ref on a percpu refcount; must be called
  * precisely once before shutdown.

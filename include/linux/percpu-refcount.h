@@ -51,7 +51,7 @@
 #include <linux/rcupdate.h>
 
 struct percpu_ref;
-typedef void (percpu_ref_release)(struct percpu_ref *);
+typedef void (percpu_ref_func_t)(struct percpu_ref *);
 
 struct percpu_ref {
 	atomic_t		count;
@@ -62,11 +62,11 @@ struct percpu_ref {
 	 * percpu_ref_kill_rcu())
 	 */
 	unsigned __percpu	*pcpu_count;
-	percpu_ref_release	*release;
+	percpu_ref_func_t	*release;
 	struct rcu_head		rcu;
 };
 
-int percpu_ref_init(struct percpu_ref *, percpu_ref_release *);
+int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release);
 void percpu_ref_kill(struct percpu_ref *ref);
 
 #define PCPU_STATUS_BITS	2
@@ -78,6 +78,7 @@ void percpu_ref_kill(struct percpu_ref *ref);
 
 /**
  * percpu_ref_get - increment a percpu refcount
+ * @ref: percpu_ref to get
  *
  * Analagous to atomic_inc().
   */
@@ -99,6 +100,7 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
 
 /**
  * percpu_ref_put - decrement a percpu refcount
+ * @ref: percpu_ref to put
  *
  * Decrement the refcount, and if 0, call the release function (which was passed
  * to percpu_ref_init())
