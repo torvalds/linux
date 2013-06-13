@@ -3209,7 +3209,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
 
-	/* Enable panel fitting for LVDS */
 	ironlake_pfit_enable(intel_crtc);
 
 	/*
@@ -3315,7 +3314,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	intel_ddi_enable_pipe_clock(intel_crtc);
 
-	/* Enable panel fitting for eDP */
 	ironlake_pfit_enable(intel_crtc);
 
 	/*
@@ -3611,7 +3609,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
 
-	/* Enable panel fitting for eDP */
 	i9xx_pfit_enable(intel_crtc);
 
 	intel_crtc_load_lut(crtc);
@@ -3649,7 +3646,6 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
 
-	/* Enable panel fitting for LVDS */
 	i9xx_pfit_enable(intel_crtc);
 
 	intel_crtc_load_lut(crtc);
