@@ -255,11 +255,11 @@ void invalidate_blocks(struct f2fs_sb_info *sbi, block_t addr)
  * This function should be resided under the curseg_mutex lock
  */
 static void __add_sum_entry(struct f2fs_sb_info *sbi, int type,
-		struct f2fs_summary *sum, unsigned short offset)
+					struct f2fs_summary *sum)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 	void *addr = curseg->sum_blk;
-	addr += offset * sizeof(struct f2fs_summary);
+	addr += curseg->next_blkoff * sizeof(struct f2fs_summary);
 	memcpy(addr, sum, sizeof(struct f2fs_summary));
 	return;
 }
@@ -845,7 +845,7 @@ static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
 	 * because, this function updates a summary entry in the
 	 * current summary block.
 	 */
-	__add_sum_entry(sbi, type, sum, curseg->next_blkoff);
+	__add_sum_entry(sbi, type, sum);
 
 	mutex_lock(&sit_i->sentry_lock);
 	__refresh_next_blkoff(sbi, curseg);
@@ -946,7 +946,7 @@ void recover_data_page(struct f2fs_sb_info *sbi,
 
 	curseg->next_blkoff = GET_SEGOFF_FROM_SEG0(sbi, new_blkaddr) &
 					(sbi->blocks_per_seg - 1);
-	__add_sum_entry(sbi, type, sum, curseg->next_blkoff);
+	__add_sum_entry(sbi, type, sum);
 
 	refresh_sit_entry(sbi, old_blkaddr, new_blkaddr);
 
@@ -983,7 +983,7 @@ void rewrite_node_page(struct f2fs_sb_info *sbi,
 	}
 	curseg->next_blkoff = GET_SEGOFF_FROM_SEG0(sbi, new_blkaddr) &
 					(sbi->blocks_per_seg - 1);
-	__add_sum_entry(sbi, type, sum, curseg->next_blkoff);
+	__add_sum_entry(sbi, type, sum);
 
 	/* change the current log to the next block addr in advance */
 	if (next_segno != segno) {
