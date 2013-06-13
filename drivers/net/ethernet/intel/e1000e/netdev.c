@@ -5995,6 +5995,8 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 	 */
 	e1000e_release_hw_control(adapter);
 
+	pci_clear_master(pdev);
+
 	/* The pci-e switch on some quad port adapters will report a
 	 * correctable error when the MAC transitions from D0 to D3.  To
 	 * prevent this we need to mask off the correctable errors on the
