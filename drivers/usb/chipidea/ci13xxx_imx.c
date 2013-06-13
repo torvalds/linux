@@ -87,17 +87,16 @@ EXPORT_SYMBOL_GPL(usbmisc_get_init_data);
 
 /* End of common functions shared by usbmisc drivers*/
 
-static struct ci13xxx_platform_data ci13xxx_imx_platdata  = {
-	.name			= "ci13xxx_imx",
-	.flags			= CI13XXX_REQUIRE_TRANSCEIVER |
-				  CI13XXX_PULLUP_ON_VBUS |
-				  CI13XXX_DISABLE_STREAMING,
-	.capoffset		= DEF_CAPOFFSET,
-};
-
 static int ci13xxx_imx_probe(struct platform_device *pdev)
 {
 	struct ci13xxx_imx_data *data;
+	struct ci13xxx_platform_data pdata = {
+		.name		= "ci13xxx_imx",
+		.capoffset	= DEF_CAPOFFSET,
+		.flags		= CI13XXX_REQUIRE_TRANSCEIVER |
+				  CI13XXX_PULLUP_ON_VBUS |
+				  CI13XXX_DISABLE_STREAMING,
+	};
 	struct platform_device *phy_pdev;
 	struct resource *res;
 	int ret;
@@ -160,7 +159,7 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 		data->reg_vbus = NULL;
 	}
 
-	ci13xxx_imx_platdata.phy = data->phy;
+	pdata.phy = data->phy;
 
 	if (!pdev->dev.dma_mask)
 		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
@@ -178,7 +177,7 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 
 	data->ci_pdev = ci13xxx_add_device(&pdev->dev,
 				pdev->resource, pdev->num_resources,
-				&ci13xxx_imx_platdata);
+				&pdata);
 	if (IS_ERR(data->ci_pdev)) {
 		ret = PTR_ERR(data->ci_pdev);
 		dev_err(&pdev->dev,
