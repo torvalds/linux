@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
@@ -869,3 +870,6 @@ struct usb_phy *tegra_usb_get_phy(struct device_node *dn)
 	return &tegra_phy->u_phy;
 }
 EXPORT_SYMBOL_GPL(tegra_usb_get_phy);
+
+MODULE_DESCRIPTION("Tegra USB PHY driver");
+MODULE_LICENSE("GPL v2");
