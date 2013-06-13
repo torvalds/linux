@@ -84,10 +84,16 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 /* How much time we spend listening for initiators */
 #define PN533_LISTEN_TIME 2
 
-/* Standard pn533 frame definitions */
+/* Standard pn533 frame definitions (standard and extended)*/
 #define PN533_STD_FRAME_HEADER_LEN (sizeof(struct pn533_std_frame) \
 					+ 2) /* data[0] TFI, data[1] CC */
 #define PN533_STD_FRAME_TAIL_LEN 2 /* data[len] DCS, data[len + 1] postamble*/
+
+#define PN533_EXT_FRAME_HEADER_LEN (sizeof(struct pn533_ext_frame) \
+					+ 2) /* data[0] TFI, data[1] CC */
+
+#define PN533_CMD_DATAEXCH_DATA_MAXLEN	262
+#define PN533_CMD_DATAFRAME_MAXLEN	240	/* max data length (send) */
 
 /*
  * Max extended frame payload len, excluding TFI and CC
@@ -99,6 +105,10 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 				  Postamble (1) */
 #define PN533_STD_FRAME_CHECKSUM(f) (f->data[f->datalen])
 #define PN533_STD_FRAME_POSTAMBLE(f) (f->data[f->datalen + 1])
+/* Half start code (3), LEN (4) should be 0xffff for extended frame */
+#define PN533_STD_IS_EXTENDED(hdr) ((hdr)->datalen == 0xFF \
+					&& (hdr)->datalen_checksum == 0xFF)
+#define PN533_EXT_FRAME_CHECKSUM(f) (f->data[be16_to_cpu(f->datalen)])
 
 /* start of frame */
 #define PN533_STD_FRAME_SOF 0x00FF
@@ -124,7 +134,7 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_ACR122_RDR_TO_PC_ESCAPE 0x83
 
 /* PN533 Commands */
-#define PN533_STD_FRAME_CMD(f) (f->data[1])
+#define PN533_FRAME_CMD(f) (f->data[1])
 
 #define PN533_CMD_GET_FIRMWARE_VERSION 0x02
 #define PN533_CMD_RF_CONFIGURATION 0x32
@@ -406,6 +416,15 @@ struct pn533_std_frame {
 	u8 data[];
 } __packed;
 
+struct pn533_ext_frame {	/* Extended Information frame */
+	u8 preamble;
+	__be16 start_frame;
+	__be16 eif_flag;	/* fixed to 0xFFFF */
+	__be16 datalen;
+	u8 datalen_checksum;
+	u8 data[];
+} __packed;
+
 struct pn533_frame_ops {
 	void (*tx_frame_init)(void *frame, u8 cmd_code);
 	void (*tx_frame_finish)(void *frame);
@@ -513,7 +532,7 @@ static u8 pn533_acr122_get_cmd_code(void *frame)
 {
 	struct pn533_acr122_rx_frame *f = frame;
 
-	return PN533_STD_FRAME_CMD(f);
+	return PN533_FRAME_CMD(f);
 }
 
 static struct pn533_frame_ops pn533_acr122_frame_ops = {
@@ -531,6 +550,12 @@ static struct pn533_frame_ops pn533_acr122_frame_ops = {
 	.max_payload_len = PN533_ACR122_FRAME_MAX_PAYLOAD_LEN,
 	.get_cmd_code = pn533_acr122_get_cmd_code,
 };
+
+/* The rule: value(high byte) + value(low byte) + checksum = 0 */
+static inline u8 pn533_ext_checksum(u16 value)
+{
+	return ~(u8)(((value & 0xFF00) >> 8) + (u8)(value & 0xFF)) + 1;
+}
 
 /* The rule: value + checksum = 0 */
 static inline u8 pn533_std_checksum(u8 value)
@@ -557,7 +582,7 @@ static void pn533_std_tx_frame_init(void *_frame, u8 cmd_code)
 	frame->preamble = 0;
 	frame->start_frame = cpu_to_be16(PN533_STD_FRAME_SOF);
 	PN533_STD_FRAME_IDENTIFIER(frame) = PN533_STD_FRAME_DIR_OUT;
-	PN533_STD_FRAME_CMD(frame) = cmd_code;
+	PN533_FRAME_CMD(frame) = cmd_code;
 	frame->datalen = 2;
 }
 
@@ -583,18 +608,35 @@ static void pn533_std_tx_update_payload_len(void *_frame, int len)
 static bool pn533_std_rx_frame_is_valid(void *_frame)
 {
 	u8 checksum;
-	struct pn533_std_frame *frame = _frame;
+	struct pn533_std_frame *stdf = _frame;
 
-	if (frame->start_frame != cpu_to_be16(PN533_STD_FRAME_SOF))
+	if (stdf->start_frame != cpu_to_be16(PN533_STD_FRAME_SOF))
 		return false;
 
-	checksum = pn533_std_checksum(frame->datalen);
-	if (checksum != frame->datalen_checksum)
-		return false;
+	if (likely(!PN533_STD_IS_EXTENDED(stdf))) {
+		/* Standard frame code */
 
-	checksum = pn533_std_data_checksum(frame->data, frame->datalen);
-	if (checksum != PN533_STD_FRAME_CHECKSUM(frame))
-		return false;
+		checksum = pn533_std_checksum(stdf->datalen);
+		if (checksum != stdf->datalen_checksum)
+			return false;
+
+		checksum = pn533_std_data_checksum(stdf->data, stdf->datalen);
+		if (checksum != PN533_STD_FRAME_CHECKSUM(stdf))
+			return false;
+	} else {
+		/* Extended */
+		struct pn533_ext_frame *eif = _frame;
+
+		checksum = pn533_ext_checksum(be16_to_cpu(eif->datalen));
+		if (checksum != eif->datalen_checksum)
+			return false;
+
+		/* check data checksum */
+		checksum = pn533_std_data_checksum(eif->data,
+						   be16_to_cpu(eif->datalen));
+		if (checksum != PN533_EXT_FRAME_CHECKSUM(eif))
+			return false;
+	}
 
 	return true;
 }
@@ -614,6 +656,14 @@ static inline int pn533_std_rx_frame_size(void *frame)
 {
 	struct pn533_std_frame *f = frame;
 
+	/* check for Extended Information frame */
+	if (PN533_STD_IS_EXTENDED(f)) {
+		struct pn533_ext_frame *eif = frame;
+
+		return sizeof(struct pn533_ext_frame)
+			+ be16_to_cpu(eif->datalen) + PN533_STD_FRAME_TAIL_LEN;
+	}
+
 	return sizeof(struct pn533_std_frame) + f->datalen +
 	       PN533_STD_FRAME_TAIL_LEN;
 }
@@ -621,8 +671,12 @@ static inline int pn533_std_rx_frame_size(void *frame)
 static u8 pn533_std_get_cmd_code(void *frame)
 {
 	struct pn533_std_frame *f = frame;
+	struct pn533_ext_frame *eif = frame;
 
-	return PN533_STD_FRAME_CMD(f);
+	if (PN533_STD_IS_EXTENDED(f))
+		return PN533_FRAME_CMD(eif);
+	else
+		return PN533_FRAME_CMD(f);
 }
 
 static struct pn533_frame_ops pn533_std_frame_ops = {
@@ -689,6 +743,11 @@ static void pn533_recv_response(struct urb *urb)
 		cmd->status = -EIO;
 		goto sched_wq;
 	}
+
+	if (PN533_STD_IS_EXTENDED((struct pn533_std_frame *)in_frame))
+		dev->ops->rx_header_len = PN533_EXT_FRAME_HEADER_LEN;
+	else
+		dev->ops->rx_header_len = PN533_STD_FRAME_HEADER_LEN;
 
 sched_wq:
 	queue_work(dev->wq, &dev->cmd_complete_work);
