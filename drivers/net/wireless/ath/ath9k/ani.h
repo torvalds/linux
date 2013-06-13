@@ -20,7 +20,7 @@
 #define BEACON_RSSI(ahp) (ahp->stats.avgbrssi)
 
 /* units are errors per second */
-#define ATH9K_ANI_OFDM_TRIG_HIGH          3500
+#define ATH9K_ANI_OFDM_TRIG_HIGH          1000
 #define ATH9K_ANI_OFDM_TRIG_LOW           400
 #define ATH9K_ANI_CCK_TRIG_HIGH           600
 #define ATH9K_ANI_CCK_TRIG_LOW            300
