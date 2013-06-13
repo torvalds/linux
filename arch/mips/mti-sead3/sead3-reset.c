@@ -9,7 +9,9 @@
 #include <linux/pm.h>
 
 #include <asm/reboot.h>
-#include <asm/mips-boards/generic.h>
+
+#define SOFTRES_REG	0x1f000050
+#define GORESET		0x4d
 
 static void mips_machine_restart(char *command)
 {
@@ -35,5 +37,4 @@ static int __init mips_reboot_setup(void)
 
 	return 0;
 }
-
 arch_initcall(mips_reboot_setup);
