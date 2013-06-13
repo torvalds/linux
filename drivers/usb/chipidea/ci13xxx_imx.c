@@ -99,7 +99,6 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 {
 	struct ci13xxx_imx_data *data;
 	struct platform_device *phy_pdev;
-	struct device_node *phy_np;
 	struct resource *res;
 	int ret;
 
@@ -133,10 +132,9 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	phy_np = of_parse_phandle(pdev->dev.of_node, "fsl,usbphy", 0);
-	if (phy_np) {
-		data->phy_np = phy_np;
-		phy_pdev = of_find_device_by_node(phy_np);
+	data->phy_np = of_parse_phandle(pdev->dev.of_node, "fsl,usbphy", 0);
+	if (data->phy_np) {
+		phy_pdev = of_find_device_by_node(data->phy_np);
 		if (phy_pdev) {
 			struct usb_phy *phy;
 			phy = pdev_to_phy(phy_pdev);
@@ -211,8 +209,8 @@ err:
 	if (data->reg_vbus)
 		regulator_disable(data->reg_vbus);
 put_np:
-	if (phy_np)
-		of_node_put(phy_np);
+	if (data->phy_np)
+		of_node_put(data->phy_np);
 	clk_disable_unprepare(data->clk);
 	return ret;
 }
