@@ -226,9 +226,9 @@ static int css_refcnt(struct cgroup_subsys_state *css)
 }
 
 /* convenient tests for these bits */
-static inline bool cgroup_is_removed(const struct cgroup *cgrp)
+static inline bool cgroup_is_dead(const struct cgroup *cgrp)
 {
-	return test_bit(CGRP_REMOVED, &cgrp->flags);
+	return test_bit(CGRP_DEAD, &cgrp->flags);
 }
 
 /**
@@ -300,7 +300,7 @@ static inline struct cftype *__d_cft(struct dentry *dentry)
 static bool cgroup_lock_live_group(struct cgroup *cgrp)
 {
 	mutex_lock(&cgroup_mutex);
-	if (cgroup_is_removed(cgrp)) {
+	if (cgroup_is_dead(cgrp)) {
 		mutex_unlock(&cgroup_mutex);
 		return false;
 	}
@@ -892,7 +892,7 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 	if (S_ISDIR(inode->i_mode)) {
 		struct cgroup *cgrp = dentry->d_fsdata;
 
-		BUG_ON(!(cgroup_is_removed(cgrp)));
+		BUG_ON(!(cgroup_is_dead(cgrp)));
 		call_rcu(&cgrp->rcu_head, cgroup_free_rcu);
 	} else {
 		struct cfent *cfe = __d_cfe(dentry);
@@ -2363,7 +2363,7 @@ static ssize_t cgroup_file_write(struct file *file, const char __user *buf,
 	struct cftype *cft = __d_cft(file->f_dentry);
 	struct cgroup *cgrp = __d_cgrp(file->f_dentry->d_parent);
 
-	if (cgroup_is_removed(cgrp))
+	if (cgroup_is_dead(cgrp))
 		return -ENODEV;
 	if (cft->write)
 		return cft->write(cgrp, cft, file, buf, nbytes, ppos);
@@ -2408,7 +2408,7 @@ static ssize_t cgroup_file_read(struct file *file, char __user *buf,
 	struct cftype *cft = __d_cft(file->f_dentry);
 	struct cgroup *cgrp = __d_cgrp(file->f_dentry->d_parent);
 
-	if (cgroup_is_removed(cgrp))
+	if (cgroup_is_dead(cgrp))
 		return -ENODEV;
 
 	if (cft->read)
@@ -2831,7 +2831,7 @@ static void cgroup_cfts_commit(struct cgroup_subsys *ss,
 
 		mutex_lock(&inode->i_mutex);
 		mutex_lock(&cgroup_mutex);
-		if (!cgroup_is_removed(cgrp))
+		if (!cgroup_is_dead(cgrp))
 			cgroup_addrm_files(cgrp, ss, cfts, is_add);
 		mutex_unlock(&cgroup_mutex);
 		mutex_unlock(&inode->i_mutex);
@@ -2999,14 +2999,14 @@ struct cgroup *cgroup_next_sibling(struct cgroup *pos)
 	/*
 	 * @pos could already have been removed.  Once a cgroup is removed,
 	 * its ->sibling.next is no longer updated when its next sibling
-	 * changes.  As CGRP_REMOVED is set on removal which is fully
+	 * changes.  As CGRP_DEAD is set on removal which is fully
 	 * serialized, if we see it unasserted, it's guaranteed that the
 	 * next sibling hasn't finished its grace period even if it's
 	 * already removed, and thus safe to dereference from this RCU
 	 * critical section.  If ->sibling.next is inaccessible,
-	 * cgroup_is_removed() is guaranteed to be visible as %true here.
+	 * cgroup_is_dead() is guaranteed to be visible as %true here.
 	 */
-	if (likely(!cgroup_is_removed(pos))) {
+	if (likely(!cgroup_is_dead(pos))) {
 		next = list_entry_rcu(pos->sibling.next, struct cgroup, sibling);
 		if (&next->sibling != &pos->parent->children)
 			return next;
@@ -4383,7 +4383,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 * attempts fail thus maintaining the removal conditions verified
 	 * above.
 	 *
-	 * Note that CGRP_REMVOED clearing is depended upon by
+	 * Note that CGRP_DEAD assertion is depended upon by
 	 * cgroup_next_sibling() to resume iteration after dropping RCU
 	 * read lock.  See cgroup_next_sibling() for details.
 	 */
@@ -4393,7 +4393,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 		WARN_ON(atomic_read(&css->refcnt) < 0);
 		atomic_add(CSS_DEACT_BIAS, &css->refcnt);
 	}
-	set_bit(CGRP_REMOVED, &cgrp->flags);
+	set_bit(CGRP_DEAD, &cgrp->flags);
 
 	/* tell subsystems to initate destruction */
 	for_each_subsys(cgrp->root, ss)
@@ -5063,7 +5063,7 @@ static void check_for_release(struct cgroup *cgrp)
 		int need_schedule_work = 0;
 
 		raw_spin_lock(&release_list_lock);
-		if (!cgroup_is_removed(cgrp) &&
+		if (!cgroup_is_dead(cgrp) &&
 		    list_empty(&cgrp->release_list)) {
 			list_add(&cgrp->release_list, &release_list);
 			need_schedule_work = 1;
@@ -5209,9 +5209,7 @@ __setup("cgroup_disable=", cgroup_disable);
  * Functons for CSS ID.
  */
 
-/*
- *To get ID other than 0, this should be called when !cgroup_is_removed().
- */
+/* to get ID other than 0, this should be called when !cgroup_is_dead() */
 unsigned short css_id(struct cgroup_subsys_state *css)
 {
 	struct css_id *cssid;
