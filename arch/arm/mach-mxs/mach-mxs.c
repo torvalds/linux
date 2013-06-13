@@ -368,12 +368,7 @@ static void __init tx28_post_init(void)
 	pinctrl_put(pctl);
 }
 
-static void __init cfa10049_init(void)
-{
-	update_fec_mac_prop(OUI_CRYSTALFONTZ);
-}
-
-static void __init cfa10037_init(void)
+static void __init crystalfontz_init(void)
 {
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
 }
@@ -482,10 +477,10 @@ static void __init mxs_machine_init(void)
 		imx28_evk_init();
 	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
 		apx4devkit_init();
-	else if (of_machine_is_compatible("crystalfontz,cfa10037"))
-		cfa10037_init();
-	else if (of_machine_is_compatible("crystalfontz,cfa10049"))
-		cfa10049_init();
+	else if (of_machine_is_compatible("crystalfontz,cfa10037") ||
+		 of_machine_is_compatible("crystalfontz,cfa10049") ||
+		 of_machine_is_compatible("crystalfontz,cfa10055"))
+		crystalfontz_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     mxs_auxdata_lookup, parent);
