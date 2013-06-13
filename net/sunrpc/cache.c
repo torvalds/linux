@@ -306,7 +306,7 @@ EXPORT_SYMBOL_GPL(cache_check);
  * a current pointer into that list and into the table
  * for that entry.
  *
- * Each time clean_cache is called it finds the next non-empty entry
+ * Each time cache_clean is called it finds the next non-empty entry
  * in the current table and walks the list in that entry
  * looking for entries that can be removed.
  *
@@ -453,6 +453,7 @@ static int cache_clean(void)
 			current_index ++;
 		spin_unlock(&cache_list_lock);
 		if (ch) {
+			set_bit(CACHE_CLEANED, &ch->flags);
 			cache_fresh_unlocked(ch, d);
 			cache_put(ch, d);
 		}
@@ -1178,6 +1179,9 @@ int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 		warn_no_listener(detail);
 		return -EINVAL;
 	}
+	if (test_bit(CACHE_CLEANED, &h->flags))
+		/* Too late to make an upcall */
+		return -EAGAIN;
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
