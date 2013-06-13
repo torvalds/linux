@@ -1174,7 +1174,6 @@ static int netlink_release(struct socket *sock)
 			kfree_rcu(old, rcu);
 			nl_table[sk->sk_protocol].module = NULL;
 			nl_table[sk->sk_protocol].bind = NULL;
-			nl_table[sk->sk_protocol].compare = NULL;
 			nl_table[sk->sk_protocol].flags = 0;
 			nl_table[sk->sk_protocol].registered = 0;
 		}
@@ -2326,7 +2325,6 @@ __netlink_kernel_create(struct net *net, int unit, struct module *module,
 		rcu_assign_pointer(nl_table[unit].listeners, listeners);
 		nl_table[unit].cb_mutex = cb_mutex;
 		nl_table[unit].module = module;
-		nl_table[unit].compare = netlink_compare;
 		if (cfg) {
 			nl_table[unit].bind = cfg->bind;
 			nl_table[unit].flags = cfg->flags;
@@ -2973,6 +2971,8 @@ static int __init netlink_proto_init(void)
 		hash->shift = 0;
 		hash->mask = 0;
 		hash->rehash_time = jiffies;
+
+		nl_table[i].compare = netlink_compare;
 	}
 
 	netlink_add_usersock_entry();
