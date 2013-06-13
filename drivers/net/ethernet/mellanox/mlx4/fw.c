@@ -830,8 +830,10 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	u8 port_type;
 	u16 short_field;
 	int err;
+	int admin_link_state;
 
 #define MLX4_VF_PORT_NO_LINK_SENSE_MASK	0xE0
+#define MLX4_PORT_LINK_UP_MASK		0x80
 #define QUERY_PORT_CUR_MAX_PKEY_OFFSET	0x0c
 #define QUERY_PORT_CUR_MAX_GID_OFFSET	0x0e
 
@@ -860,6 +862,12 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 		port_type &= MLX4_VF_PORT_NO_LINK_SENSE_MASK;
 		/* set port type to currently operating port type */
 		port_type |= (dev->caps.port_type[vhcr->in_modifier] & 0x3);
+
+		admin_link_state = priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.link_state;
+		if (IFLA_VF_LINK_STATE_ENABLE == admin_link_state)
+			port_type |= MLX4_PORT_LINK_UP_MASK;
+		else if (IFLA_VF_LINK_STATE_DISABLE == admin_link_state)
+			port_type &= ~MLX4_PORT_LINK_UP_MASK;
 
 		MLX4_PUT(outbox->buf, port_type,
 			 QUERY_PORT_SUPPORTED_TYPE_OFFSET);

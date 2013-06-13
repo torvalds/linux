@@ -2061,6 +2061,13 @@ static int mlx4_en_get_vf_config(struct net_device *dev, int vf, struct ifla_vf_
 	return mlx4_get_vf_config(mdev->dev, en_priv->port, vf, ivf);
 }
 
+static int mlx4_en_set_vf_link_state(struct net_device *dev, int vf, int link_state)
+{
+	struct mlx4_en_priv *en_priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = en_priv->mdev;
+
+	return mlx4_set_vf_link_state(mdev->dev, en_priv->port, vf, link_state);
+}
 static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
@@ -2101,6 +2108,7 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 	.ndo_set_vf_mac		= mlx4_en_set_vf_mac,
 	.ndo_set_vf_vlan	= mlx4_en_set_vf_vlan,
 	.ndo_set_vf_spoofchk	= mlx4_en_set_vf_spoofchk,
+	.ndo_set_vf_link_state	= mlx4_en_set_vf_link_state,
 	.ndo_get_vf_config	= mlx4_en_get_vf_config,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= mlx4_en_netpoll,
