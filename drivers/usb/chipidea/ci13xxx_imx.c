@@ -101,7 +101,6 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 	struct platform_device *phy_pdev;
 	struct device_node *phy_np;
 	struct resource *res;
-	struct regulator *reg_vbus;
 	int ret;
 
 	if (of_find_property(pdev->dev.of_node, "fsl,usbmisc", NULL)
@@ -150,18 +149,17 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 	}
 
 	/* we only support host now, so enable vbus here */
-	reg_vbus = devm_regulator_get(&pdev->dev, "vbus");
-	if (!IS_ERR(reg_vbus)) {
-		ret = regulator_enable(reg_vbus);
+	data->reg_vbus = devm_regulator_get(&pdev->dev, "vbus");
+	if (!IS_ERR(data->reg_vbus)) {
+		ret = regulator_enable(data->reg_vbus);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"Failed to enable vbus regulator, err=%d\n",
 				ret);
 			goto put_np;
 		}
-		data->reg_vbus = reg_vbus;
 	} else {
-		reg_vbus = NULL;
+		data->reg_vbus = NULL;
 	}
 
 	ci13xxx_imx_platdata.phy = data->phy;
@@ -210,8 +208,8 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 disable_device:
 	ci13xxx_remove_device(data->ci_pdev);
 err:
-	if (reg_vbus)
-		regulator_disable(reg_vbus);
+	if (data->reg_vbus)
+		regulator_disable(data->reg_vbus);
 put_np:
 	if (phy_np)
 		of_node_put(phy_np);
