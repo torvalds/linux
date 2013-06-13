@@ -198,7 +198,7 @@ config USB_EHCI_MSM
 	  has an external PHY.
 
 config USB_EHCI_TEGRA
-       boolean "NVIDIA Tegra HCD support"
+       tristate "NVIDIA Tegra HCD support"
        depends on ARCH_TEGRA
        select USB_EHCI_ROOT_HUB_TT
        select USB_PHY
