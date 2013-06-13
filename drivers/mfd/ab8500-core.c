@@ -1099,10 +1099,6 @@ static struct mfd_cell ab8500_devs[] = {
 		.id = 3,
 	},
 	{
-		.name = "ab8500-leds",
-		.of_compatible = "stericsson,ab8500-leds",
-	},
-	{
 		.name = "ab8500-denc",
 		.of_compatible = "stericsson,ab8500-denc",
 	},
@@ -1169,9 +1165,6 @@ static struct mfd_cell ab9540_devs[] = {
 	{
 		.name = "ab8500-pwm",
 		.id = 1,
-	},
-	{
-		.name = "ab8500-leds",
 	},
 	{
 		.name = "abx500-temp",
@@ -1242,9 +1235,6 @@ static struct mfd_cell ab8505_devs[] = {
 		.id = 1,
 	},
 	{
-		.name = "ab8500-leds",
-	},
-	{
 		.name = "pinctrl-ab8505",
 	},
 	{
@@ -1304,9 +1294,6 @@ static struct mfd_cell ab8540_devs[] = {
 	{
 		.name = "ab8500-pwm",
 		.id = 1,
-	},
-	{
-		.name = "ab8500-leds",
 	},
 	{
 		.name = "abx500-temp",
