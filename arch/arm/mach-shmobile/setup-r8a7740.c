@@ -70,29 +70,15 @@ void __init r8a7740_map_io(void)
 }
 
 /* PFC */
-static struct resource r8a7740_pfc_resources[] = {
-	[0] = {
-		.start	= 0xe6050000,
-		.end	= 0xe6057fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 0xe605800c,
-		.end	= 0xe605802b,
-		.flags	= IORESOURCE_MEM,
-	}
-};
-
-static struct platform_device r8a7740_pfc_device = {
-	.name		= "pfc-r8a7740",
-	.id		= -1,
-	.resource	= r8a7740_pfc_resources,
-	.num_resources	= ARRAY_SIZE(r8a7740_pfc_resources),
+static const struct resource pfc_resources[] = {
+	DEFINE_RES_MEM(0xe6050000, 0x8000),
+	DEFINE_RES_MEM(0xe605800c, 0x0020),
 };
 
 void __init r8a7740_pinmux_init(void)
 {
-	platform_device_register(&r8a7740_pfc_device);
+	platform_device_register_simple("pfc-r8a7740", -1, pfc_resources,
+					ARRAY_SIZE(pfc_resources));
 }
 
 static struct renesas_intc_irqpin_config irqpin0_platform_data = {
