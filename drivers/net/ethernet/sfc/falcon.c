@@ -1893,8 +1893,7 @@ static enum reset_type falcon_map_reset_reason(enum reset_type reason)
 {
 	switch (reason) {
 	case RESET_TYPE_RX_RECOVERY:
-	case RESET_TYPE_RX_DESC_FETCH:
-	case RESET_TYPE_TX_DESC_FETCH:
+	case RESET_TYPE_DMA_ERROR:
 	case RESET_TYPE_TX_SKIP:
 		/* These can occasionally occur due to hardware bugs.
 		 * We try to reset without disrupting the link.

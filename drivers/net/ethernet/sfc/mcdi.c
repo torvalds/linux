@@ -587,6 +587,14 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		efx_ptp_event(efx, event);
 		break;
 
+	case MCDI_EVENT_CODE_TX_ERR:
+	case MCDI_EVENT_CODE_RX_ERR:
+		netif_err(efx, hw, efx->net_dev,
+			  "%s DMA error (event: "EFX_QWORD_FMT")\n",
+			  code == MCDI_EVENT_CODE_TX_ERR ? "TX" : "RX",
+			  EFX_QWORD_VAL(*event));
+		efx_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
+		break;
 	default:
 		netif_err(efx, hw, efx->net_dev, "Unknown MCDI event 0x%x\n",
 			  code);

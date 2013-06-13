@@ -80,8 +80,7 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_TX_WATCHDOG]        = "TX_WATCHDOG",
 	[RESET_TYPE_INT_ERROR]          = "INT_ERROR",
 	[RESET_TYPE_RX_RECOVERY]        = "RX_RECOVERY",
-	[RESET_TYPE_RX_DESC_FETCH]      = "RX_DESC_FETCH",
-	[RESET_TYPE_TX_DESC_FETCH]      = "TX_DESC_FETCH",
+	[RESET_TYPE_DMA_ERROR]          = "DMA_ERROR",
 	[RESET_TYPE_TX_SKIP]            = "TX_SKIP",
 	[RESET_TYPE_MC_FAILURE]         = "MC_FAILURE",
 };
