@@ -34,11 +34,6 @@
 #define TEGRA_USB2_BASE			0xC5004000
 #define TEGRA_USB3_BASE			0xC5008000
 
-/* PORTSC registers */
-#define TEGRA_USB_PORTSC1			0x184
-#define TEGRA_USB_PORTSC1_PTS(x)	(((x) & 0x3) << 30)
-#define TEGRA_USB_PORTSC1_PHCD	(1 << 23)
-
 #define TEGRA_USB_DMA_ALIGN 32
 
 struct tegra_ehci_hcd {
@@ -379,37 +374,6 @@ static int setup_vbus_gpio(struct platform_device *pdev,
 
 	return err;
 }
-
-/* Bits of PORTSC1, which will get cleared by writing 1 into them */
-#define TEGRA_PORTSC1_RWC_BITS (PORT_CSC | PORT_PEC | PORT_OCC)
-
-void tegra_ehci_set_pts(struct usb_phy *x, u8 pts_val)
-{
-	unsigned long val;
-	struct usb_hcd *hcd = bus_to_hcd(x->otg->host);
-	void __iomem *base = hcd->regs;
-
-	val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
-	val &= ~TEGRA_USB_PORTSC1_PTS(3);
-	val |= TEGRA_USB_PORTSC1_PTS(pts_val & 3);
-	writel(val, base + TEGRA_USB_PORTSC1);
-}
-EXPORT_SYMBOL_GPL(tegra_ehci_set_pts);
-
-void tegra_ehci_set_phcd(struct usb_phy *x, bool enable)
-{
-	unsigned long val;
-	struct usb_hcd *hcd = bus_to_hcd(x->otg->host);
-	void __iomem *base = hcd->regs;
-
-	val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
-	if (enable)
-		val |= TEGRA_USB_PORTSC1_PHCD;
-	else
-		val &= ~TEGRA_USB_PORTSC1_PHCD;
-	writel(val, base + TEGRA_USB_PORTSC1);
-}
-EXPORT_SYMBOL_GPL(tegra_ehci_set_phcd);
 
 static int tegra_ehci_probe(struct platform_device *pdev)
 {
