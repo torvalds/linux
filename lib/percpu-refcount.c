@@ -54,6 +54,37 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release)
 	return 0;
 }
 
+/**
+ * percpu_ref_cancel_init - cancel percpu_ref_init()
+ * @ref: percpu_ref to cancel init for
+ *
+ * Once a percpu_ref is initialized, its destruction is initiated by
+ * percpu_ref_kill() and completes asynchronously, which can be painful to
+ * do when destroying a half-constructed object in init failure path.
+ *
+ * This function destroys @ref without invoking @ref->release and the
+ * memory area containing it can be freed immediately on return.  To
+ * prevent accidental misuse, it's required that @ref has finished
+ * percpu_ref_init(), whether successful or not, but never used.
+ *
+ * The weird name and usage restriction are to prevent people from using
+ * this function by mistake for normal shutdown instead of
+ * percpu_ref_kill().
+ */
+void percpu_ref_cancel_init(struct percpu_ref *ref)
+{
+	unsigned __percpu *pcpu_count = ref->pcpu_count;
+	int cpu;
+
+	WARN_ON_ONCE(atomic_read(&ref->count) != 1 + PCPU_COUNT_BIAS);
+
+	if (pcpu_count) {
+		for_each_possible_cpu(cpu)
+			WARN_ON_ONCE(*per_cpu_ptr(pcpu_count, cpu));
+		free_percpu(ref->pcpu_count);
+	}
+}
+
 static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 {
 	struct percpu_ref *ref = container_of(rcu, struct percpu_ref, rcu);

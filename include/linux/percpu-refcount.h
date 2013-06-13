@@ -68,6 +68,7 @@ struct percpu_ref {
 
 int __must_check percpu_ref_init(struct percpu_ref *ref,
 				 percpu_ref_func_t *release);
+void percpu_ref_cancel_init(struct percpu_ref *ref);
 void percpu_ref_kill(struct percpu_ref *ref);
 
 #define PCPU_STATUS_BITS	2
