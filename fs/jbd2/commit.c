@@ -542,7 +542,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	wake_up(&journal->j_wait_transaction_locked);
 	write_unlock(&journal->j_state_lock);
 
-	jbd_debug(3, "JBD2: commit phase 2\n");
+	jbd_debug(3, "JBD2: commit phase 2a\n");
 
 	/*
 	 * Now start flushing things to disk, in the order they appear
@@ -557,7 +557,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 					  &log_bufs, WRITE_SYNC);
 	blk_finish_plug(&plug);
 
-	jbd_debug(3, "JBD2: commit phase 2\n");
+	jbd_debug(3, "JBD2: commit phase 2b\n");
 
 	/*
 	 * Way to go: we have now written out all of the data for a
