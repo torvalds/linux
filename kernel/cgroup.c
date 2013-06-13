@@ -5227,18 +5227,6 @@ unsigned short css_id(struct cgroup_subsys_state *css)
 }
 EXPORT_SYMBOL_GPL(css_id);
 
-unsigned short css_depth(struct cgroup_subsys_state *css)
-{
-	struct css_id *cssid;
-
-	cssid = rcu_dereference_check(css->id, css_refcnt(css));
-
-	if (cssid)
-		return cssid->depth;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(css_depth);
-
 /**
  *  css_is_ancestor - test "root" css is an ancestor of "child"
  * @child: the css to be tested.
