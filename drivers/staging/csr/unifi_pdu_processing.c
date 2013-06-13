@@ -2704,7 +2704,7 @@ static void uf_handle_uspframes_delivery(unifi_priv_t * priv, CsrWifiRouterCtrlS
      */
     is_all_ac_deliver_enabled_and_moredata(staInfo, &allDeliveryEnabled, &dataAvailable);
     if ((allDeliveryEnabled && !dataAvailable)) {
-        if ((staInfo->timSet != CSR_WIFI_TIM_RESET) || (staInfo->timSet != CSR_WIFI_TIM_RESETTING)) {
+        if ((staInfo->timSet != CSR_WIFI_TIM_RESET) && (staInfo->timSet != CSR_WIFI_TIM_RESETTING)) {
             staInfo->updateTimReqQueued = (u8) CSR_WIFI_TIM_RESET;
             unifi_trace(priv, UDBG4, " --uf_handle_uspframes_delivery, UAPSD timset\n");
             if (!staInfo->timRequestPendingFlag) {
