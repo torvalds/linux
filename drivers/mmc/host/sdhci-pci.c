@@ -77,6 +77,8 @@ struct sdhci_pci_slot {
 	int			rst_n_gpio;
 	int			cd_gpio;
 	int			cd_irq;
+
+	void (*hw_reset)(struct sdhci_host *host);
 };
 
 struct sdhci_pci_chip {
@@ -307,10 +309,27 @@ static const struct sdhci_pci_fixes sdhci_intel_pch_sdio = {
 	.probe_slot	= pch_hc_probe_slot,
 };
 
+static void sdhci_pci_int_hw_reset(struct sdhci_host *host)
+{
+	u8 reg;
+
+	reg = sdhci_readb(host, SDHCI_POWER_CONTROL);
+	reg |= 0x10;
+	sdhci_writeb(host, reg, SDHCI_POWER_CONTROL);
+	/* For eMMC, minimum is 1us but give it 9us for good measure */
+	udelay(9);
+	reg &= ~0x10;
+	sdhci_writeb(host, reg, SDHCI_POWER_CONTROL);
+	/* For eMMC, minimum is 200us but give it 300us for good measure */
+	usleep_range(300, 1000);
+}
+
 static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 {
-	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE;
+	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE |
+				 MMC_CAP_HW_RESET;
 	slot->host->mmc->caps2 |= MMC_CAP2_HC_ERASE_SZ;
+	slot->hw_reset = sdhci_pci_int_hw_reset;
 	return 0;
 }
 
@@ -1016,7 +1035,7 @@ static int sdhci_pci_bus_width(struct sdhci_host *host, int width)
 	return 0;
 }
 
-static void sdhci_pci_hw_reset(struct sdhci_host *host)
+static void sdhci_pci_gpio_hw_reset(struct sdhci_host *host)
 {
 	struct sdhci_pci_slot *slot = sdhci_priv(host);
 	int rst_n_gpio = slot->rst_n_gpio;
@@ -1029,6 +1048,14 @@ static void sdhci_pci_hw_reset(struct sdhci_host *host)
 	gpio_set_value_cansleep(rst_n_gpio, 1);
 	/* For eMMC, minimum is 200us but give it 300us for good measure */
 	usleep_range(300, 1000);
+}
+
+static void sdhci_pci_hw_reset(struct sdhci_host *host)
+{
+	struct sdhci_pci_slot *slot = sdhci_priv(host);
+
+	if (slot->hw_reset)
+		slot->hw_reset(host);
 }
 
 static const struct sdhci_ops sdhci_pci_ops = {
@@ -1328,6 +1355,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 		if (!gpio_request(slot->rst_n_gpio, "eMMC_reset")) {
 			gpio_direction_output(slot->rst_n_gpio, 1);
 			slot->host->mmc->caps |= MMC_CAP_HW_RESET;
+			slot->hw_reset = sdhci_pci_gpio_hw_reset;
 		} else {
 			dev_warn(&pdev->dev, "failed to request rst_n_gpio\n");
 			slot->rst_n_gpio = -EINVAL;
