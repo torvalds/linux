@@ -44,7 +44,6 @@
  * TODO List
  * - OTG
  * - Interrupt Traffic
- * - Handle requests which spawns into several TDs
  * - GET_STATUS(device) - always reports 0
  * - Gadget API (majority of optional features)
  * - Suspend & Remote Wakeup

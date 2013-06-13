@@ -58,6 +58,7 @@ struct ci13xxx_ep {
 	struct ci13xxx				*ci;
 	spinlock_t				*lock;
 	struct dma_pool				*td_pool;
+	struct td_node				*pending_td;
 };
 
 enum ci_role {
