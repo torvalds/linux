@@ -368,11 +368,12 @@ vt2_err:
 }
 
 static int
-decode_ext_sec_blob(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
+decode_ext_sec_blob(struct cifs_ses *ses, NEGOTIATE_RSP *pSMBr)
 {
 	int	rc = 0;
 	u16	count;
 	char	*guid = pSMBr->u.extended_response.GUID;
+	struct TCP_Server_Info *server = ses->server;
 
 	count = get_bcc(&pSMBr->hdr);
 	if (count < SMB1_CLIENT_GUID_SIZE)
@@ -391,27 +392,13 @@ decode_ext_sec_blob(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
 	}
 
 	if (count == SMB1_CLIENT_GUID_SIZE) {
-		server->secType = RawNTLMSSP;
+		server->sec_ntlmssp = true;
 	} else {
 		count -= SMB1_CLIENT_GUID_SIZE;
 		rc = decode_negTokenInit(
 			pSMBr->u.extended_response.SecurityBlob, count, server);
 		if (rc != 1)
 			return -EINVAL;
-
-		/* Make sure server supports what we want to use */
-		switch(server->secType) {
-		case Kerberos:
-			if (!server->sec_kerberos && !server->sec_mskerberos)
-				return -EOPNOTSUPP;
-			break;
-		case RawNTLMSSP:
-			if (!server->sec_ntlmssp)
-				return -EOPNOTSUPP;
-			break;
-		default:
-			return -EOPNOTSUPP;
-		}
 	}
 
 	return 0;
@@ -462,8 +449,7 @@ cifs_enable_signing(struct TCP_Server_Info *server, bool mnt_sign_required)
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 static int
-decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr,
-			  unsigned int secFlags)
+decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
 {
 	__s16 tmp;
 	struct lanman_neg_rsp *rsp = (struct lanman_neg_rsp *)pSMBr;
@@ -471,12 +457,6 @@ decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr,
 	if (server->dialect != LANMAN_PROT && server->dialect != LANMAN2_PROT)
 		return -EOPNOTSUPP;
 
-	if ((secFlags & CIFSSEC_MAY_LANMAN) || (secFlags & CIFSSEC_MAY_PLNTXT))
-		server->secType = LANMAN;
-	else {
-		cifs_dbg(VFS, "mount failed weak security disabled in /proc/fs/cifs/SecurityFlags\n");
-		return -EOPNOTSUPP;
-	}
 	server->sec_mode = le16_to_cpu(rsp->SecurityMode);
 	server->maxReq = min_t(unsigned int,
 			       le16_to_cpu(rsp->MaxMpxCount),
@@ -542,8 +522,7 @@ decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr,
 }
 #else
 static inline int
-decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr,
-			  unsigned int secFlags)
+decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
 {
 	cifs_dbg(VFS, "mount failed, cifs module not built with CIFS_WEAK_PW_HASH support\n");
 	return -EOPNOTSUPP;
@@ -551,17 +530,20 @@ decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr,
 #endif
 
 static bool
-should_set_ext_sec_flag(unsigned int secFlags)
+should_set_ext_sec_flag(enum securityEnum sectype)
 {
-	if ((secFlags & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
+	switch (sectype) {
+	case RawNTLMSSP:
+	case Kerberos:
 		return true;
-	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_KRB5)
-		return true;
-	else if ((secFlags & CIFSSEC_MUST_NTLMSSP) == CIFSSEC_MUST_NTLMSSP)
-		return true;
-	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_NTLMSSP)
-		return true;
-	return false;
+	case Unspecified:
+		if (global_secflags &
+		    (CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_NTLMSSP))
+			return true;
+		/* Fallthrough */
+	default:
+		return false;
+	}
 }
 
 int
@@ -574,7 +556,6 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	int i;
 	struct TCP_Server_Info *server = ses->server;
 	u16 count;
-	unsigned int secFlags;
 
 	if (!server) {
 		WARN(1, "%s: server is NULL!\n", __func__);
@@ -586,18 +567,10 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	if (rc)
 		return rc;
 
-	/* if any of auth flags (ie not sign or seal) are overriden use them */
-	if (ses->overrideSecFlg & (~(CIFSSEC_MUST_SIGN | CIFSSEC_MUST_SEAL)))
-		secFlags = ses->overrideSecFlg;  /* BB FIXME fix sign flags? */
-	else /* if override flags set only sign/seal OR them with global auth */
-		secFlags = global_secflags | ses->overrideSecFlg;
-
-	cifs_dbg(FYI, "secFlags 0x%x\n", secFlags);
-
 	pSMB->hdr.Mid = get_next_mid(server);
 	pSMB->hdr.Flags2 |= (SMBFLG2_UNICODE | SMBFLG2_ERR_STATUS);
 
-	if (should_set_ext_sec_flag(secFlags)) {
+	if (should_set_ext_sec_flag(ses->sectype)) {
 		cifs_dbg(FYI, "Requesting extended security.");
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	}
@@ -627,7 +600,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 		goto neg_err_exit;
 	} else if (pSMBr->hdr.WordCount == 13) {
 		server->negflavor = CIFS_NEGFLAVOR_LANMAN;
-		rc = decode_lanman_negprot_rsp(server, pSMBr, secFlags);
+		rc = decode_lanman_negprot_rsp(server, pSMBr);
 		goto signing_check;
 	} else if (pSMBr->hdr.WordCount != 17) {
 		/* unknown wct */
@@ -639,31 +612,6 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	server->sec_mode = pSMBr->SecurityMode;
 	if ((server->sec_mode & SECMODE_USER) == 0)
 		cifs_dbg(FYI, "share mode security\n");
-
-	if ((server->sec_mode & SECMODE_PW_ENCRYPT) == 0)
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-		if ((secFlags & CIFSSEC_MAY_PLNTXT) == 0)
-#endif /* CIFS_WEAK_PW_HASH */
-			cifs_dbg(VFS, "Server requests plain text password but client support disabled\n");
-
-	if ((secFlags & CIFSSEC_MUST_NTLMV2) == CIFSSEC_MUST_NTLMV2)
-		server->secType = NTLMv2;
-	else if (secFlags & CIFSSEC_MAY_NTLM)
-		server->secType = NTLM;
-	else if (secFlags & CIFSSEC_MAY_NTLMV2)
-		server->secType = NTLMv2;
-	else if (secFlags & CIFSSEC_MAY_KRB5)
-		server->secType = Kerberos;
-	else if (secFlags & CIFSSEC_MAY_NTLMSSP)
-		server->secType = RawNTLMSSP;
-	else if (secFlags & CIFSSEC_MAY_LANMAN)
-		server->secType = LANMAN;
-	else {
-		rc = -EOPNOTSUPP;
-		cifs_dbg(VFS, "Invalid security type\n");
-		goto neg_err_exit;
-	}
-	/* else ... any others ...? */
 
 	/* one byte, so no need to convert this or EncryptionKeyLen from
 	   little endian */
@@ -686,7 +634,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 			server->capabilities & CAP_EXTENDED_SECURITY) &&
 				(pSMBr->EncryptionKeyLength == 0)) {
 		server->negflavor = CIFS_NEGFLAVOR_EXTENDED;
-		rc = decode_ext_sec_blob(server, pSMBr);
+		rc = decode_ext_sec_blob(ses, pSMBr);
 	} else if (server->sec_mode & SECMODE_PW_ENCRYPT) {
 		rc = -EIO; /* no crypt key only if plain text pwd */
 	} else {

@@ -401,7 +401,6 @@ struct smb_vol {
 	kgid_t backupgid;
 	umode_t file_mode;
 	umode_t dir_mode;
-	unsigned secFlg;
 	enum securityEnum sectype; /* sectype requested via mnt opts */
 	bool sign; /* was signing requested via mnt opts? */
 	bool retry:1;
@@ -519,7 +518,6 @@ struct TCP_Server_Info {
 	bool echoes:1; /* enable echoes */
 #endif
 	u16 dialect; /* dialect index that server chose */
-	enum securityEnum secType;
 	bool oplocks:1; /* enable oplocks */
 	unsigned int maxReq;	/* Clients should submit no more */
 	/* than maxReq distinct unanswered SMBs to the server when using  */

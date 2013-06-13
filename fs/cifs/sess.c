@@ -550,6 +550,56 @@ setup_ntlmv2_ret:
 	return rc;
 }
 
+enum securityEnum
+select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
+{
+	switch (server->negflavor) {
+	case CIFS_NEGFLAVOR_EXTENDED:
+		switch (requested) {
+		case Kerberos:
+		case RawNTLMSSP:
+			return requested;
+		case Unspecified:
+			if (server->sec_ntlmssp &&
+			    (global_secflags & CIFSSEC_MAY_NTLMSSP))
+				return RawNTLMSSP;
+			if ((server->sec_kerberos || server->sec_mskerberos) &&
+			    (global_secflags & CIFSSEC_MAY_KRB5))
+				return Kerberos;
+			/* Fallthrough */
+		default:
+			return Unspecified;
+		}
+	case CIFS_NEGFLAVOR_UNENCAP:
+		switch (requested) {
+		case NTLM:
+		case NTLMv2:
+			return requested;
+		case Unspecified:
+			if (global_secflags & CIFSSEC_MAY_NTLMV2)
+				return NTLMv2;
+			if (global_secflags & CIFSSEC_MAY_NTLM)
+				return NTLM;
+			/* Fallthrough */
+		default:
+			return Unspecified;
+		}
+	case CIFS_NEGFLAVOR_LANMAN:
+		switch (requested) {
+		case LANMAN:
+			return requested;
+		case Unspecified:
+			if (global_secflags & CIFSSEC_MAY_LANMAN)
+				return LANMAN;
+			/* Fallthrough */
+		default:
+			return Unspecified;
+		}
+	default:
+		return Unspecified;
+	}
+}
+
 int
 CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	       const struct nls_table *nls_cp)
@@ -576,8 +626,13 @@ CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 		return -EINVAL;
 	}
 
-	type = ses->server->secType;
+	type = select_sectype(ses->server, ses->sectype);
 	cifs_dbg(FYI, "sess setup type %d\n", type);
+	if (type == Unspecified) {
+		cifs_dbg(VFS, "Unable to select appropriate authentication method!");
+		return -EINVAL;
+	}
+
 	if (type == RawNTLMSSP) {
 		/* if memory allocation is successful, caller of this function
 		 * frees it.

@@ -328,7 +328,6 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	int rc = 0;
 	int resp_buftype;
 	struct TCP_Server_Info *server = ses->server;
-	unsigned int sec_flags;
 	int blob_offset, blob_length;
 	char *security_blob;
 	int flags = CIFS_NEG_OP;
@@ -343,14 +342,6 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	rc = small_smb2_init(SMB2_NEGOTIATE, NULL, (void **) &req);
 	if (rc)
 		return rc;
-
-	/* if any of auth flags (ie not sign or seal) are overriden use them */
-	if (ses->overrideSecFlg & (~(CIFSSEC_MUST_SIGN | CIFSSEC_MUST_SEAL)))
-		sec_flags = ses->overrideSecFlg;  /* BB FIXME fix sign flags?*/
-	else /* if override flags set only sign/seal OR them with global auth */
-		sec_flags = global_secflags | ses->overrideSecFlg;
-
-	cifs_dbg(FYI, "sec_flags 0x%x\n", sec_flags);
 
 	req->hdr.SessionId = 0;
 
@@ -453,7 +444,6 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 	int resp_buftype;
 	__le32 phase = NtLmNegotiate; /* NTLMSSP, if needed, is multistage */
 	struct TCP_Server_Info *server = ses->server;
-	unsigned int sec_flags;
 	u16 blob_length = 0;
 	char *security_blob;
 	char *ntlmssp_blob = NULL;
@@ -474,7 +464,8 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 	if (!ses->ntlmssp)
 		return -ENOMEM;
 
-	ses->server->secType = RawNTLMSSP;
+	/* FIXME: allow for other auth types besides NTLMSSP (e.g. krb5) */
+	ses->sectype = RawNTLMSSP;
 
 ssetup_ntlmssp_authenticate:
 	if (phase == NtLmChallenge)
@@ -483,14 +474,6 @@ ssetup_ntlmssp_authenticate:
 	rc = small_smb2_init(SMB2_SESSION_SETUP, NULL, (void **) &req);
 	if (rc)
 		return rc;
-
-	/* if any of auth flags (ie not sign or seal) are overriden use them */
-	if (ses->overrideSecFlg & (~(CIFSSEC_MUST_SIGN | CIFSSEC_MUST_SEAL)))
-		sec_flags = ses->overrideSecFlg;  /* BB FIXME fix sign flags?*/
-	else /* if override flags set only sign/seal OR them with global auth */
-		sec_flags = global_secflags | ses->overrideSecFlg;
-
-	cifs_dbg(FYI, "sec_flags 0x%x\n", sec_flags);
 
 	req->hdr.SessionId = 0; /* First session, not a reauthenticate */
 	req->VcNumber = 0; /* MBZ */
