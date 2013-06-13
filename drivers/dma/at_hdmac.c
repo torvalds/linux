@@ -14,6 +14,7 @@
  * found on AT91SAM9263.
  */
 
+#include <dt-bindings/dma/at91.h>
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -1320,15 +1321,31 @@ static struct dma_chan *at_dma_xlate(struct of_phandle_args *dma_spec,
 	atslave = devm_kzalloc(&dmac_pdev->dev, sizeof(*atslave), GFP_KERNEL);
 	if (!atslave)
 		return NULL;
+
+	atslave->cfg = ATC_DST_H2SEL_HW | ATC_SRC_H2SEL_HW;
 	/*
 	 * We can fill both SRC_PER and DST_PER, one of these fields will be
 	 * ignored depending on DMA transfer direction.
 	 */
-	per_id = dma_spec->args[1];
-	atslave->cfg = ATC_FIFOCFG_HALFFIFO
-		     | ATC_DST_H2SEL_HW | ATC_SRC_H2SEL_HW
-		     | ATC_DST_PER_MSB(per_id) | ATC_DST_PER(per_id)
+	per_id = dma_spec->args[1] & AT91_DMA_CFG_PER_ID_MASK;
+	atslave->cfg |= ATC_DST_PER_MSB(per_id) | ATC_DST_PER(per_id)
 		     | ATC_SRC_PER_MSB(per_id) | ATC_SRC_PER(per_id);
+	/*
+	 * We have to translate the value we get from the device tree since
+	 * the half FIFO configuration value had to be 0 to keep backward
+	 * compatibility.
+	 */
+	switch (dma_spec->args[1] & AT91_DMA_CFG_FIFOCFG_MASK) {
+	case AT91_DMA_CFG_FIFOCFG_ALAP:
+		atslave->cfg |= ATC_FIFOCFG_LARGESTBURST;
+		break;
+	case AT91_DMA_CFG_FIFOCFG_ASAP:
+		atslave->cfg |= ATC_FIFOCFG_ENOUGHSPACE;
+		break;
+	case AT91_DMA_CFG_FIFOCFG_HALF:
+	default:
+		atslave->cfg |= ATC_FIFOCFG_HALFFIFO;
+	}
 	atslave->dma_dev = &dmac_pdev->dev;
 
 	chan = dma_request_channel(mask, at_dma_filter, atslave);
