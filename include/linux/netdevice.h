@@ -1840,7 +1840,7 @@ static inline int unregister_gifconf(unsigned int family)
 }
 
 #ifdef CONFIG_NET_FLOW_LIMIT
-#define FLOW_LIMIT_HISTORY	(1 << 8)	/* must be ^2 */
+#define FLOW_LIMIT_HISTORY	(1 << 7)  /* must be ^2 and !overflow buckets */
 struct sd_flow_limit {
 	u64			count;
 	unsigned int		num_buckets;
@@ -1883,7 +1883,7 @@ struct softnet_data {
 	struct napi_struct	backlog;
 
 #ifdef CONFIG_NET_FLOW_LIMIT
-	struct sd_flow_limit	*flow_limit;
+	struct sd_flow_limit __rcu *flow_limit;
 #endif
 };
 
