@@ -307,6 +307,10 @@ struct ath9k_ops_config {
 	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
 	u8 max_txtrig_level;
 	u16 ani_poll_interval; /* ANI poll interval in ms */
+
+	/* Platform specific config */
+	u32 xlna_gpio;
+	bool xatten_margin_cfg;
 };
 
 enum ath9k_int {
