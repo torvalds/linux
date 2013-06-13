@@ -892,7 +892,7 @@ static int ehci_hub_control (
 						PORT_SUSPEND | PORT_RESUME);
 				ehci_writel(ehci, temp, status_reg);
 				clear_bit(wIndex, &ehci->resuming_ports);
-				retval = handshake(ehci, status_reg,
+				retval = ehci_handshake(ehci, status_reg,
 					   PORT_RESUME, 0, 2000 /* 2msec */);
 				if (retval != 0) {
 					ehci_err(ehci,
@@ -918,7 +918,7 @@ static int ehci_hub_control (
 			/* REVISIT:  some hardware needs 550+ usec to clear
 			 * this bit; seems too long to spin routinely...
 			 */
-			retval = handshake(ehci, status_reg,
+			retval = ehci_handshake(ehci, status_reg,
 					PORT_RESET, 0, 1000);
 			if (retval != 0) {
 				ehci_err (ehci, "port %d reset error %d\n",

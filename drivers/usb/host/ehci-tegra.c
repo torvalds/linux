@@ -179,7 +179,7 @@ static int tegra_ehci_hub_control(
 		 * If a transaction is in progress, there may be a delay in
 		 * suspending the port. Poll until the port is suspended.
 		 */
-		if (handshake(ehci, status_reg, PORT_SUSPEND,
+		if (ehci_handshake(ehci, status_reg, PORT_SUSPEND,
 						PORT_SUSPEND, 5000))
 			pr_err("%s: timeout waiting for SUSPEND\n", __func__);
 
@@ -227,9 +227,9 @@ static int tegra_ehci_hub_control(
 		spin_lock_irqsave(&ehci->lock, flags);
 
 		/* Poll until the controller clears RESUME and SUSPEND */
-		if (handshake(ehci, status_reg, PORT_RESUME, 0, 2000))
+		if (ehci_handshake(ehci, status_reg, PORT_RESUME, 0, 2000))
 			pr_err("%s: timeout waiting for RESUME\n", __func__);
-		if (handshake(ehci, status_reg, PORT_SUSPEND, 0, 2000))
+		if (ehci_handshake(ehci, status_reg, PORT_SUSPEND, 0, 2000))
 			pr_err("%s: timeout waiting for SUSPEND\n", __func__);
 
 		ehci->reset_done[wIndex-1] = 0;
@@ -511,14 +511,14 @@ static int controller_resume(struct device *dev)
 	}
 
 	/* Poll until CCS is enabled */
-	if (handshake(ehci, &hw->port_status[0], PORT_CONNECT,
+	if (ehci_handshake(ehci, &hw->port_status[0], PORT_CONNECT,
 						 PORT_CONNECT, 2000)) {
 		pr_err("%s: timeout waiting for PORT_CONNECT\n", __func__);
 		goto restart;
 	}
 
 	/* Poll until PE is enabled */
-	if (handshake(ehci, &hw->port_status[0], PORT_PE,
+	if (ehci_handshake(ehci, &hw->port_status[0], PORT_PE,
 						 PORT_PE, 2000)) {
 		pr_err("%s: timeout waiting for USB_PORTSC1_PE\n", __func__);
 		goto restart;
@@ -536,7 +536,7 @@ static int controller_resume(struct device *dev)
 		writel(val, &hw->port_status[0]);
 
 		/* Wait until port suspend completes */
-		if (handshake(ehci, &hw->port_status[0], PORT_SUSPEND,
+		if (ehci_handshake(ehci, &hw->port_status[0], PORT_SUSPEND,
 							 PORT_SUSPEND, 1000)) {
 			pr_err("%s: timeout waiting for PORT_SUSPEND\n",
 								__func__);
