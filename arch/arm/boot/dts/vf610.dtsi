@@ -162,7 +162,7 @@
 			iomuxc: iomuxc@40048000 {
 				compatible = "fsl,vf610-iomuxc";
 				reg = <0x40048000 0x1000>;
-				#gpio-range-cells = <2>;
+				#gpio-range-cells = <3>;
 
 				/* functions and groups pins */
 
@@ -343,7 +343,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				gpio-ranges = <&iomuxc 0 32>;
+				gpio-ranges = <&iomuxc 0 0 32>;
 			};
 
 			gpio2: gpio@4004a000 {
@@ -354,7 +354,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				gpio-ranges = <&iomuxc 32 32>;
+				gpio-ranges = <&iomuxc 0 32 32>;
 			};
 
 			gpio3: gpio@4004b000 {
@@ -365,7 +365,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				gpio-ranges = <&iomuxc 64 32>;
+				gpio-ranges = <&iomuxc 0 64 32>;
 			};
 
 			gpio4: gpio@4004c000 {
@@ -376,7 +376,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				gpio-ranges = <&iomuxc 96 32>;
+				gpio-ranges = <&iomuxc 0 96 32>;
 			};
 
 			gpio5: gpio@4004d000 {
@@ -387,7 +387,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				gpio-ranges = <&iomuxc 128 7>;
+				gpio-ranges = <&iomuxc 0 128 7>;
 			};
 
 			anatop@40050000 {
