@@ -232,7 +232,8 @@ static int ci13xxx_imx_remove(struct platform_device *pdev)
 		module_put(data->phy->dev->driver->owner);
 	}
 
-	of_node_put(data->phy_np);
+	if (data->phy_np)
+		of_node_put(data->phy_np);
 
 	clk_disable_unprepare(data->clk);
 
