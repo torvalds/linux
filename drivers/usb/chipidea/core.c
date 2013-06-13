@@ -63,6 +63,8 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/chipidea.h>
+#include <linux/usb/of.h>
+#include <linux/phy.h>
 
 #include "ci.h"
 #include "udc.h"
@@ -207,6 +209,45 @@ static int hw_device_init(struct ci13xxx *ci, void __iomem *base)
 	return 0;
 }
 
+static void hw_phymode_configure(struct ci13xxx *ci)
+{
+	u32 portsc, lpm, sts;
+
+	switch (ci->platdata->phy_mode) {
+	case USBPHY_INTERFACE_MODE_UTMI:
+		portsc = PORTSC_PTS(PTS_UTMI);
+		lpm = DEVLC_PTS(PTS_UTMI);
+		break;
+	case USBPHY_INTERFACE_MODE_UTMIW:
+		portsc = PORTSC_PTS(PTS_UTMI) | PORTSC_PTW;
+		lpm = DEVLC_PTS(PTS_UTMI) | DEVLC_PTW;
+		break;
+	case USBPHY_INTERFACE_MODE_ULPI:
+		portsc = PORTSC_PTS(PTS_ULPI);
+		lpm = DEVLC_PTS(PTS_ULPI);
+		break;
+	case USBPHY_INTERFACE_MODE_SERIAL:
+		portsc = PORTSC_PTS(PTS_SERIAL);
+		lpm = DEVLC_PTS(PTS_SERIAL);
+		sts = 1;
+		break;
+	case USBPHY_INTERFACE_MODE_HSIC:
+		portsc = PORTSC_PTS(PTS_HSIC);
+		lpm = DEVLC_PTS(PTS_HSIC);
+		break;
+	default:
+		return;
+	}
+
+	if (ci->hw_bank.lpm) {
+		hw_write(ci, OP_DEVLC, DEVLC_PTS(7) | DEVLC_PTW, lpm);
+		hw_write(ci, OP_DEVLC, DEVLC_STS, sts);
+	} else {
+		hw_write(ci, OP_PORTSC, PORTSC_PTS(7) | PORTSC_PTW, portsc);
+		hw_write(ci, OP_PORTSC, PORTSC_STS, sts);
+	}
+}
+
 /**
  * hw_device_reset: resets chip (execute without interruption)
  * @ci: the controller
@@ -223,6 +264,7 @@ int hw_device_reset(struct ci13xxx *ci, u32 mode)
 	while (hw_read(ci, OP_USBCMD, USBCMD_RST))
 		udelay(10);		/* not RTOS friendly */
 
+	hw_phymode_configure(ci);
 
 	if (ci->platdata->notify_event)
 		ci->platdata->notify_event(ci,
@@ -369,6 +411,9 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (!dev->of_node && dev->parent)
+		dev->of_node = dev->parent->of_node;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base))
@@ -407,6 +452,9 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		dev_err(dev, "can't create workqueue\n");
 		return -ENODEV;
 	}
+
+	if (!ci->platdata->phy_mode)
+		ci->platdata->phy_mode = of_usb_get_phy_mode(dev->of_node);
 
 	/* initialize role(s) before the interrupt is requested */
 	ret = ci_hdrc_host_init(ci);

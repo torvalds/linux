@@ -14,6 +14,7 @@ struct ci13xxx_platform_data {
 	uintptr_t	 capoffset;
 	unsigned	 power_budget;
 	struct usb_phy	*phy;
+	enum usb_phy_interface phy_mode;
 	unsigned long	 flags;
 #define CI13XXX_REGS_SHARED		BIT(0)
 #define CI13XXX_REQUIRE_TRANSCEIVER	BIT(1)
