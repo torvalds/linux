@@ -408,8 +408,7 @@ static void __put_css_set(struct css_set *cset, int taskexit)
 		list_del(&link->cgrp_link);
 
 		/* @cgrp can't go away while we're holding css_set_lock */
-		if (atomic_dec_and_test(&cgrp->count) &&
-		    notify_on_release(cgrp)) {
+		if (list_empty(&cgrp->cset_links) && notify_on_release(cgrp)) {
 			if (taskexit)
 				set_bit(CGRP_RELEASABLE, &cgrp->flags);
 			check_for_release(cgrp);
@@ -616,7 +615,6 @@ static void link_css_set(struct list_head *tmp_links, struct css_set *cset,
 	link = list_first_entry(tmp_links, struct cgrp_cset_link, cset_link);
 	link->cset = cset;
 	link->cgrp = cgrp;
-	atomic_inc(&cgrp->count);
 	list_move(&link->cset_link, &cgrp->cset_links);
 	/*
 	 * Always add links to the tail of the list so that the list
@@ -4370,11 +4368,11 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	lockdep_assert_held(&cgroup_mutex);
 
 	/*
-	 * css_set_lock prevents @cgrp from being removed while
-	 * __put_css_set() is in progress.
+	 * css_set_lock synchronizes access to ->cset_links and prevents
+	 * @cgrp from being removed while __put_css_set() is in progress.
 	 */
 	read_lock(&css_set_lock);
-	empty = !atomic_read(&cgrp->count) && list_empty(&cgrp->children);
+	empty = list_empty(&cgrp->cset_links) && list_empty(&cgrp->children);
 	read_unlock(&css_set_lock);
 	if (!empty)
 		return -EBUSY;
@@ -5054,7 +5052,7 @@ void cgroup_exit(struct task_struct *tsk, int run_callbacks)
 static void check_for_release(struct cgroup *cgrp)
 {
 	if (cgroup_is_releasable(cgrp) &&
-	    !atomic_read(&cgrp->count) && list_empty(&cgrp->children)) {
+	    list_empty(&cgrp->cset_links) && list_empty(&cgrp->children)) {
 		/*
 		 * Control Group is currently removeable. If it's not
 		 * already queued for a userspace notification, queue
@@ -5422,11 +5420,6 @@ static void debug_css_free(struct cgroup *cont)
 	kfree(cont->subsys[debug_subsys_id]);
 }
 
-static u64 cgroup_refcount_read(struct cgroup *cont, struct cftype *cft)
-{
-	return atomic_read(&cont->count);
-}
-
 static u64 debug_taskcount_read(struct cgroup *cont, struct cftype *cft)
 {
 	return cgroup_task_count(cont);
@@ -5507,10 +5500,6 @@ static u64 releasable_read(struct cgroup *cgrp, struct cftype *cft)
 }
 
 static struct cftype debug_files[] =  {
-	{
-		.name = "cgroup_refcount",
-		.read_u64 = cgroup_refcount_read,
-	},
 	{
 		.name = "taskcount",
 		.read_u64 = debug_taskcount_read,
