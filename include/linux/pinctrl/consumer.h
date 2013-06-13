@@ -111,6 +111,21 @@ static inline void devm_pinctrl_put(struct pinctrl *p)
 {
 }
 
+static inline int pinctrl_pm_select_default_state(struct device *dev)
+{
+	return 0;
+}
+
+static inline int pinctrl_pm_select_sleep_state(struct device *dev)
+{
+	return 0;
+}
+
+static inline int pinctrl_pm_select_idle_state(struct device *dev)
+{
+	return 0;
+}
+
 #endif /* CONFIG_PINCTRL */
 
 static inline struct pinctrl * __must_check pinctrl_get_select(
@@ -214,21 +229,6 @@ static inline int pin_config_group_get(const char *dev_name,
 static inline int pin_config_group_set(const char *dev_name,
 				       const char *pin_group,
 				       unsigned long config)
-{
-	return 0;
-}
-
-static inline int pinctrl_pm_select_default_state(struct device *dev)
-{
-	return 0;
-}
-
-static inline int pinctrl_pm_select_sleep_state(struct device *dev)
-{
-	return 0;
-}
-
-static inline int pinctrl_pm_select_idle_state(struct device *dev)
 {
 	return 0;
 }
