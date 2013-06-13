@@ -583,6 +583,9 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 	}
 	txq->active = false;
 	spin_unlock_bh(&txq->lock);
+
+	/* just in case - this queue may have been stopped */
+	iwl_wake_queue(trans, txq);
 }
 
 /*
