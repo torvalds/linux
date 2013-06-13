@@ -560,6 +560,70 @@ choice
 
 # this first set of drivers all depend on bulk-capable hardware.
 
+config USB_CONFIGFS
+	tristate "USB functions configurable through configfs"
+	select USB_LIBCOMPOSITE
+	help
+	  A Linux USB "gadget" can be set up through configfs.
+	  If this is the case, the USB functions (which from the host's
+	  perspective are seen as interfaces) and configurations are
+	  specified simply by creating appropriate directories in configfs.
+	  Associating functions with configurations is done by creating
+	  appropriate symbolic links.
+	  For more information see Documentation/usb/gadget-configfs.txt.
+
+config USB_CONFIGFS_SERIAL
+	boolean "Generic serial bulk in/out"
+	depends on USB_CONFIGFS
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_SERIAL
+	help
+	  The function talks to the Linux-USB generic serial driver.
+
+config USB_CONFIGFS_ACM
+	boolean "Abstract Control Model (CDC ACM)"
+	depends on USB_CONFIGFS
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_ACM
+	help
+	  ACM serial link.  This function can be used to interoperate with
+	  MS-Windows hosts or with the Linux-USB "cdc-acm" driver.
+
+config USB_CONFIGFS_OBEX
+	boolean "Object Exchange Model (CDC OBEX)"
+	depends on USB_CONFIGFS
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_OBEX
+	help
+	  You will need a user space OBEX server talking to /dev/ttyGS*,
+	  since the kernel itself doesn't implement the OBEX protocol.
+
+config USB_CONFIGFS_NCM
+	boolean "Network Control Model (CDC NCM)"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_NCM
+	help
+	  NCM is an advanced protocol for Ethernet encapsulation, allows
+	  grouping of several ethernet frames into one USB transfer and
+	  different alignment possibilities.
+
+config USB_CONFIGFS_ECM
+	boolean "Ethernet Control Model (CDC ECM)"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_ECM
+	help
+	  The "Communication Device Class" (CDC) Ethernet Control Model.
+	  That protocol is often avoided with pure Ethernet adapters, in
+	  favor of simpler vendor-specific hardware, but is widely
+	  supported by firmware for smart network devices.
+
 config USB_CONFIGFS_ECM_SUBSET
 	boolean "Ethernet Control Model (CDC ECM) subset"
 	depends on USB_CONFIGFS
