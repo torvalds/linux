@@ -3054,6 +3054,35 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}
 };
 
+static bool alg_test_descs_checked;
+
+static void alg_test_descs_check_order(void)
+{
+	int i;
+
+	/* only check once */
+	if (alg_test_descs_checked)
+		return;
+
+	alg_test_descs_checked = true;
+
+	for (i = 1; i < ARRAY_SIZE(alg_test_descs); i++) {
+		int diff = strcmp(alg_test_descs[i - 1].alg,
+				  alg_test_descs[i].alg);
+
+		if (WARN_ON(diff > 0)) {
+			pr_warn("testmgr: alg_test_descs entries in wrong order: '%s' before '%s'\n",
+				alg_test_descs[i - 1].alg,
+				alg_test_descs[i].alg);
+		}
+
+		if (WARN_ON(diff == 0)) {
+			pr_warn("testmgr: duplicate alg_test_descs entry: '%s'\n",
+				alg_test_descs[i].alg);
+		}
+	}
+}
+
 static int alg_find_test(const char *alg)
 {
 	int start = 0;
@@ -3084,6 +3113,8 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	int i;
 	int j;
 	int rc;
+
+	alg_test_descs_check_order();
 
 	if ((type & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_CIPHER) {
 		char nalg[CRYPTO_MAX_ALG_NAME];
