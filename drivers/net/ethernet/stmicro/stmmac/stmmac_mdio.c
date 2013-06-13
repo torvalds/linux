@@ -237,10 +237,12 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 	if (!found) {
 		pr_warning("%s: No PHY found\n", ndev->name);
-	} else if (priv->plat->mdio_bus_data->phy_reset_mii) {
-		priv->plat->mdio_bus_data->phy_reset_mii(new_bus,
-			priv->plat->phy_addr);
+		mdiobus_unregister(new_bus);
+		mdiobus_free(new_bus);
+		return -ENODEV;
 	}
+
+	priv->mii = new_bus;
 
 	return 0;
 

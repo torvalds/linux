@@ -41,11 +41,9 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 
 	*mac = of_get_mac_address(np);
 	plat->interface = of_get_phy_mode(np);
-	if (NULL == plat->mdio_bus_data) {
-		plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
+	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
 					   sizeof(struct stmmac_mdio_bus_data),
 					   GFP_KERNEL);
-	}
 
 	/*
 	 * Currently only the properties needed on SPEAr600

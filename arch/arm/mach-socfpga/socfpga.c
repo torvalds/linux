@@ -43,20 +43,13 @@ void __iomem *rst_manager_base_addr;
 void __iomem *clk_mgr_base_addr;
 unsigned long	cpu1start_addr;
 
-static int socfpga_phy_reset_mii(struct mii_bus *bus, int phyaddr);
 static int stmmac_plat_init(struct platform_device *pdev);
 
-static struct stmmac_mdio_bus_data stmmacenet_mdio_bus_data = {
-	.phy_reset_mii = socfpga_phy_reset_mii,
-};
-
 static struct plat_stmmacenet_data stmmacenet0_data = {
-	.mdio_bus_data = &stmmacenet_mdio_bus_data,
 	.init = &stmmac_plat_init,
 };
 
 static struct plat_stmmacenet_data stmmacenet1_data = {
-	.mdio_bus_data = &stmmacenet_mdio_bus_data,
 	.init = &stmmac_plat_init,
 };
 
@@ -159,68 +152,26 @@ static void __init enable_periphs(void)
 	__raw_writel(0, rst_manager_base_addr + SOCFPGA_RSTMGR_BRGMODRST);
 }
 
-static int stmmac_mdio_write_null(struct mii_bus *bus, int phyaddr, int phyreg,
-			     u16 phydata)
-{
-	return 0;
-}
-
 #define MICREL_KSZ9021_EXTREG_CTRL 11
 #define MICREL_KSZ9021_EXTREG_DATA_WRITE 12
 #define MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW 260
 #define MICREL_KSZ9021_RGMII_RX_DATA_PAD_SCEW 261
 
-static int stmmac_emdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
-			     u16 phydata)
+static int ksz9021rlrn_phy_fixup(struct phy_device *phydev)
 {
-	int ret = (bus->write)(bus, phyaddr,
-		MICREL_KSZ9021_EXTREG_CTRL, 0x8000|phyreg);
-	if (ret) {
-		pr_warn("stmmac_emdio_write write1 failed %d\n", ret);
-		return ret;
+	if (IS_BUILTIN(CONFIG_PHYLIB)) {
+		/* min rx data delay */
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			MICREL_KSZ9021_RGMII_RX_DATA_PAD_SCEW | 0x8000);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_DATA_WRITE, 0x0000);
+
+		/* max rx/tx clock delay, min rx/tx control delay */
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW | 0x8000);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_DATA_WRITE, 0xa0d0);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL, 0x104);
 	}
 
-	ret = (bus->write)(bus, phyaddr,
-		MICREL_KSZ9021_EXTREG_DATA_WRITE, phydata);
-	if (ret) {
-		pr_warn("stmmac_emdio_write write2 failed %d\n", ret);
-		return ret;
-	}
-
-	return ret;
-}
-
-static int socfpga_phy_reset_mii(struct mii_bus *bus, int phyaddr)
-{
-	struct phy_device *phydev;
-
-	if (of_machine_is_compatible("altr,socfpga-vt"))
-		return 0;
-
-	phydev = bus->phy_map[phyaddr];
-
-	if (NULL == phydev) {
-		pr_err("%s no phydev found\n", __func__);
-		return -EINVAL;
-	}
-
-	if (PHY_ID_KSZ9021RLRN != phydev->phy_id) {
-		pr_err("%s unexpected PHY ID %08x\n", __func__, phydev->phy_id);
-		return -EINVAL;
-	}
-
-	pr_info("%s writing extended registers to phyaddr %d\n",
-		__func__, phyaddr);
-
-	/* add 2 ns of RXC PAD Skew and 2.6 ns of TXC PAD Skew */
-	stmmac_emdio_write(bus, phyaddr,
-		MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW, 0xa0d0);
-
-	/* set no PAD skew for data */
-	stmmac_emdio_write(bus, phyaddr,
-		MICREL_KSZ9021_RGMII_RX_DATA_PAD_SCEW, 0x0000);
-
-	bus->write = &stmmac_mdio_write_null;
 	return 0;
 }
 
@@ -349,6 +300,9 @@ static void __init socfpga_cyclone5_init(void)
 	enable_periphs();
 
 	socfpga_soc_device_init();
+	if (IS_BUILTIN(CONFIG_PHYLIB))
+		phy_register_fixup_for_uid(PHY_ID_KSZ9021RLRN, MICREL_PHY_ID_MASK,
+			ksz9021rlrn_phy_fixup);
 }
 
 static const char *altera_dt_match[] = {
