@@ -26,6 +26,13 @@
 			gpio = <&gpio3 22 0>;
 			enable-active-high;
 		};
+
+		reg_audio: wm8962_supply {
+			compatible = "regulator-fixed";
+			regulator-name = "wm8962-supply";
+			gpio = <&gpio4 10 0>;
+			enable-active-high;
+		};
 	};
 
 	gpio-keys {
