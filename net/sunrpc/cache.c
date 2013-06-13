@@ -1036,23 +1036,32 @@ static int cache_release(struct inode *inode, struct file *filp,
 
 static void cache_dequeue(struct cache_detail *detail, struct cache_head *ch)
 {
-	struct cache_queue *cq;
+	struct cache_queue *cq, *tmp;
+	struct cache_request *cr;
+	struct list_head dequeued;
+
+	INIT_LIST_HEAD(&dequeued);
 	spin_lock(&queue_lock);
-	list_for_each_entry(cq, &detail->queue, list)
+	list_for_each_entry_safe(cq, tmp, &detail->queue, list)
 		if (!cq->reader) {
-			struct cache_request *cr = container_of(cq, struct cache_request, q);
+			cr = container_of(cq, struct cache_request, q);
 			if (cr->item != ch)
 				continue;
+			if (test_bit(CACHE_PENDING, &ch->flags))
+				/* Lost a race and it is pending again */
+				break;
 			if (cr->readers != 0)
 				continue;
-			list_del(&cr->q.list);
-			spin_unlock(&queue_lock);
-			cache_put(cr->item, detail);
-			kfree(cr->buf);
-			kfree(cr);
-			return;
+			list_move(&cr->q.list, &dequeued);
 		}
 	spin_unlock(&queue_lock);
+	while (!list_empty(&dequeued)) {
+		cr = list_entry(dequeued.next, struct cache_request, q.list);
+		list_del(&cr->q.list);
+		cache_put(cr->item, detail);
+		kfree(cr->buf);
+		kfree(cr);
+	}
 }
 
 /*
@@ -1166,6 +1175,7 @@ int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 
 	char *buf;
 	struct cache_request *crq;
+	int ret = 0;
 
 	if (!detail->cache_request)
 		return -EINVAL;
@@ -1191,10 +1201,18 @@ int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 	crq->len = 0;
 	crq->readers = 0;
 	spin_lock(&queue_lock);
-	list_add_tail(&crq->q.list, &detail->queue);
+	if (test_bit(CACHE_PENDING, &h->flags))
+		list_add_tail(&crq->q.list, &detail->queue);
+	else
+		/* Lost a race, no longer PENDING, so don't enqueue */
+		ret = -EAGAIN;
 	spin_unlock(&queue_lock);
 	wake_up(&queue_wait);
-	return 0;
+	if (ret == -EAGAIN) {
+		kfree(buf);
+		kfree(crq);
+	}
+	return ret;
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_pipe_upcall);
 
