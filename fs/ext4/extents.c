@@ -2125,7 +2125,8 @@ static int ext4_fill_fiemap_extents(struct inode *inode,
 		next_del = ext4_find_delayed_extent(inode, &es);
 		if (!exists && next_del) {
 			exists = 1;
-			flags |= FIEMAP_EXTENT_DELALLOC;
+			flags |= (FIEMAP_EXTENT_DELALLOC |
+				  FIEMAP_EXTENT_UNKNOWN);
 		}
 		up_read(&EXT4_I(inode)->i_data_sem);
 
