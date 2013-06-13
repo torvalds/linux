@@ -215,10 +215,10 @@ struct cgroup {
 	struct cgroupfs_root *root;
 
 	/*
-	 * List of cg_cgroup_links pointing at css_sets with
-	 * tasks in this cgroup. Protected by css_set_lock
+	 * List of cgrp_cset_links pointing at css_sets with tasks in this
+	 * cgroup.  Protected by css_set_lock.
 	 */
-	struct list_head css_sets;
+	struct list_head cset_links;
 
 	struct list_head allcg_node;	/* cgroupfs_root->allcg_list */
 	struct list_head cft_q_node;	/* used during cftype add/rm */
@@ -365,11 +365,10 @@ struct css_set {
 	struct list_head tasks;
 
 	/*
-	 * List of cg_cgroup_link objects on link chains from
-	 * cgroups referenced from this css_set. Protected by
-	 * css_set_lock
+	 * List of cgrp_cset_links pointing at cgroups referenced from this
+	 * css_set.  Protected by css_set_lock.
 	 */
-	struct list_head cg_links;
+	struct list_head cgrp_links;
 
 	/*
 	 * Set of subsystem states, one for each subsystem. This array
@@ -792,7 +791,7 @@ struct cgroup *cgroup_next_descendant_post(struct cgroup *pos,
 
 /* A cgroup_iter should be treated as an opaque object */
 struct cgroup_iter {
-	struct list_head *cg_link;
+	struct list_head *cset_link;
 	struct list_head *task;
 };
 
