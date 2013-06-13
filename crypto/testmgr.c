@@ -184,8 +184,9 @@ static int do_one_async_hash_op(struct ahash_request *req,
 	return ret;
 }
 
-static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
-		     unsigned int tcount, bool use_digest)
+static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
+		       unsigned int tcount, bool use_digest,
+		       const int align_offset)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
 	unsigned int i, j, k, temp;
@@ -216,10 +217,15 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 		if (template[i].np)
 			continue;
 
+		ret = -EINVAL;
+		if (WARN_ON(align_offset + template[i].psize > PAGE_SIZE))
+			goto out;
+
 		j++;
 		memset(result, 0, 64);
 
 		hash_buff = xbuf[0];
+		hash_buff += align_offset;
 
 		memcpy(hash_buff, template[i].plaintext, template[i].psize);
 		sg_init_one(&sg[0], hash_buff, template[i].psize);
@@ -281,6 +287,10 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
+		/* alignment tests are only done with continuous buffers */
+		if (align_offset != 0)
+			break;
+
 		if (template[i].np) {
 			j++;
 			memset(result, 0, 64);
@@ -356,6 +366,33 @@ out_noreq:
 	testmgr_free_buf(xbuf);
 out_nobuf:
 	return ret;
+}
+
+static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
+		     unsigned int tcount, bool use_digest)
+{
+	unsigned int alignmask;
+	int ret;
+
+	ret = __test_hash(tfm, template, tcount, use_digest, 0);
+	if (ret)
+		return ret;
+
+	/* test unaligned buffers, check with one byte offset */
+	ret = __test_hash(tfm, template, tcount, use_digest, 1);
+	if (ret)
+		return ret;
+
+	alignmask = crypto_tfm_alg_alignmask(&tfm->base);
+	if (alignmask) {
+		/* Check if alignment mask for tfm is correctly set. */
+		ret = __test_hash(tfm, template, tcount, use_digest,
+				  alignmask + 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int __test_aead(struct crypto_aead *tfm, int enc,
