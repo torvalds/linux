@@ -111,7 +111,6 @@ static void ci13xxx_pci_remove(struct pci_dev *pdev)
 	struct platform_device *plat_ci = pci_get_drvdata(pdev);
 
 	ci13xxx_remove_device(plat_ci);
-	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 }
 
