@@ -2111,8 +2111,6 @@ exit_dma_irq_fail:
 	}
 
 exit_dma_lch_fail:
-	kfree(p);
-	kfree(d);
 	kfree(dma_chan);
 	return ret;
 }
@@ -2133,8 +2131,6 @@ static int omap_system_dma_remove(struct platform_device *pdev)
 			free_irq(dma_irq, (void *)(irq_rel + 1));
 		}
 	}
-	kfree(p);
-	kfree(d);
 	kfree(dma_chan);
 	return 0;
 }
