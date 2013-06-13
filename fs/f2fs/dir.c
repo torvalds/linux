@@ -356,7 +356,7 @@ static struct page *init_inode_metadata(struct inode *inode,
 	 * We lost i_pino from now on.
 	 */
 	if (is_inode_flag_set(F2FS_I(inode), FI_INC_LINK)) {
-		set_cp_file(inode);
+		file_lost_pino(inode);
 		inc_nlink(inode);
 	}
 	return page;

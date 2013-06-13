@@ -285,10 +285,17 @@ static inline void set_file(struct inode *inode, int type)
 	F2FS_I(inode)->i_advise |= type;
 }
 
-#define is_cold_file(inode)	is_file(inode, FADVISE_COLD_BIT)
-#define is_cp_file(inode)	is_file(inode, FADVISE_CP_BIT)
-#define set_cold_file(inode)	set_file(inode, FADVISE_COLD_BIT)
-#define set_cp_file(inode)	set_file(inode, FADVISE_CP_BIT)
+static inline void clear_file(struct inode *inode, int type)
+{
+	F2FS_I(inode)->i_advise &= ~type;
+}
+
+#define file_is_cold(inode)	is_file(inode, FADVISE_COLD_BIT)
+#define file_wrong_pino(inode)	is_file(inode, FADVISE_LOST_PINO_BIT)
+#define file_set_cold(inode)	set_file(inode, FADVISE_COLD_BIT)
+#define file_lost_pino(inode)	set_file(inode, FADVISE_LOST_PINO_BIT)
+#define file_clear_cold(inode)	clear_file(inode, FADVISE_COLD_BIT)
+#define file_got_pino(inode)	clear_file(inode, FADVISE_LOST_PINO_BIT)
 
 static inline int is_cold_data(struct page *page)
 {

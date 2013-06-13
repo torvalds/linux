@@ -112,7 +112,7 @@ static inline void set_cold_files(struct f2fs_sb_info *sbi, struct inode *inode,
 	int count = le32_to_cpu(sbi->raw_super->extension_count);
 	for (i = 0; i < count; i++) {
 		if (is_multimedia_file(name, extlist[i])) {
-			set_cold_file(inode);
+			file_set_cold(inode);
 			break;
 		}
 	}
