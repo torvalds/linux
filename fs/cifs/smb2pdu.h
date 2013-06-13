@@ -170,6 +170,7 @@ struct smb2_negotiate_req {
 #define SMB20_PROT_ID 0x0202
 #define SMB21_PROT_ID 0x0210
 #define SMB30_PROT_ID 0x0300
+#define SMB302_PROT_ID 0x0302
 #define BAD_PROT_ID   0xFFFF
 
 /* SecurityMode flags */

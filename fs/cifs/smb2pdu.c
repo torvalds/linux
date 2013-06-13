@@ -386,6 +386,8 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 		cifs_dbg(FYI, "negotiated smb2.1 dialect\n");
 	else if (rsp->DialectRevision == cpu_to_le16(SMB30_PROT_ID))
 		cifs_dbg(FYI, "negotiated smb3.0 dialect\n");
+	else if (rsp->DialectRevision == cpu_to_le16(SMB302_PROT_ID))
+		cifs_dbg(FYI, "negotiated smb3.02 dialect\n");
 	else {
 		cifs_dbg(VFS, "Illegal dialect returned by server %d\n",
 			 le16_to_cpu(rsp->DialectRevision));
