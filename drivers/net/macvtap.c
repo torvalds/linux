@@ -969,6 +969,8 @@ static int macvtap_ioctl_set_queue(struct file *file, unsigned int flags)
 		ret = macvtap_enable_queue(vlan->dev, file, q);
 	else if (flags & IFF_DETACH_QUEUE)
 		ret = macvtap_disable_queue(q);
+	else
+		ret = -EINVAL;
 
 	macvtap_put_vlan(vlan);
 	return ret;
