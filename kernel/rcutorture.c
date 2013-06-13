@@ -797,7 +797,6 @@ rcu_torture_writer(void *arg)
 {
 	bool exp;
 	int i;
-	long oldbatch = rcu_batches_completed();
 	struct rcu_torture *rp;
 	struct rcu_torture *rp1;
 	struct rcu_torture *old_rp;
@@ -851,7 +850,6 @@ rcu_torture_writer(void *arg)
 			}
 		}
 		rcutorture_record_progress(++rcu_torture_current_version);
-		oldbatch = cur_ops->completed();
 		rcu_stutter_wait("rcu_torture_writer");
 	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
 	VERBOSE_PRINTK_STRING("rcu_torture_writer task stopping");
