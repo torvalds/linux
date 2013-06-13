@@ -27,7 +27,9 @@
 
 #include <asm/io.h>
 #include <asm/reboot.h>
-#include <asm/mips-boards/generic.h>
+
+#define SOFTRES_REG	0x1f000500
+#define GORESET		0x42
 
 static void mips_machine_restart(char *command)
 {
