@@ -9,6 +9,7 @@ Recommended properies:
 - phy_type: the type of the phy connected to the core. Should be one
   of "utmi", "utmi_wide", "ulpi", "serial" or "hsic". Without this
   property the PORTSC register won't be touched
+- dr_mode: One of "host", "peripheral" or "otg". Defaults to "otg"
 
 Optional properties:
 - fsl,usbphy: phandler of usb phy that connects to the only one port
