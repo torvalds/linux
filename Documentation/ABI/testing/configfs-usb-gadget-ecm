@@ -1,4 +1,4 @@
-What:		/config/usb-gadget/gadget/functions/geth.name
+What:		/config/usb-gadget/gadget/functions/ecm.name
 Date:		Jun 2013
 KenelVersion:	3.11
 Description:
@@ -12,3 +12,5 @@ Description:
 				Ethernet over USB link
 		dev_addr	- MAC address of device's end of this
 				Ethernet over USB link
+
+
