@@ -49,6 +49,7 @@
 
 		uart0: uart@e0000000 {
 			compatible = "xlnx,xuartps";
+			status = "disabled";
 			clocks = <&clkc 23>, <&clkc 40>;
 			clock-names = "ref_clk", "aper_clk";
 			reg = <0xE0000000 0x1000>;
@@ -57,6 +58,7 @@
 
 		uart1: uart@e0001000 {
 			compatible = "xlnx,xuartps";
+			status = "disabled";
 			clocks = <&clkc 24>, <&clkc 41>;
 			clock-names = "ref_clk", "aper_clk";
 			reg = <0xE0001000 0x1000>;
