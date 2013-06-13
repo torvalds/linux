@@ -20,6 +20,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/smp_plat.h>
+#include <asm/memory.h>
+
+#include "memory.h"
 
 #include "keystone.h"
 
@@ -43,6 +46,50 @@ static void __init keystone_init(void)
 
 	keystone_pm_runtime_init();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+}
+
+static phys_addr_t keystone_virt_to_idmap(unsigned long x)
+{
+	return (phys_addr_t)(x) - CONFIG_PAGE_OFFSET + KEYSTONE_LOW_PHYS_START;
+}
+
+static void __init keystone_init_meminfo(void)
+{
+	bool lpae = IS_ENABLED(CONFIG_ARM_LPAE);
+	bool pvpatch = IS_ENABLED(CONFIG_ARM_PATCH_PHYS_VIRT);
+	phys_addr_t offset = PHYS_OFFSET - KEYSTONE_LOW_PHYS_START;
+	phys_addr_t mem_start, mem_end;
+
+	BUG_ON(meminfo.nr_banks < 1);
+	mem_start = meminfo.bank[0].start;
+	mem_end = mem_start + meminfo.bank[0].size - 1;
+
+	/* nothing to do if we are running out of the <32-bit space */
+	if (mem_start >= KEYSTONE_LOW_PHYS_START &&
+	    mem_end   <= KEYSTONE_LOW_PHYS_END)
+		return;
+
+	if (!lpae || !pvpatch) {
+		pr_crit("Enable %s%s%s to run outside 32-bit space\n",
+		      !lpae ? __stringify(CONFIG_ARM_LPAE) : "",
+		      (!lpae && !pvpatch) ? " and " : "",
+		      !pvpatch ? __stringify(CONFIG_ARM_PATCH_PHYS_VIRT) : "");
+	}
+
+	if (mem_start < KEYSTONE_HIGH_PHYS_START ||
+	    mem_end   > KEYSTONE_HIGH_PHYS_END) {
+		pr_crit("Invalid address space for memory (%08llx-%08llx)\n",
+		      (u64)mem_start, (u64)mem_end);
+	}
+
+	offset += KEYSTONE_HIGH_PHYS_START;
+	__pv_phys_pfn_offset = PFN_DOWN(offset);
+	__pv_offset = (offset - PAGE_OFFSET);
+
+	/* Populate the arch idmap hook */
+	arch_virt_to_idmap = keystone_virt_to_idmap;
+
+	pr_info("Switching to high address space at 0x%llx\n", (u64)offset);
 }
 
 static const char *keystone_match[] __initconst = {
@@ -76,4 +123,5 @@ DT_MACHINE_START(KEYSTONE, "Keystone")
 	.init_machine	= keystone_init,
 	.dt_compat	= keystone_match,
 	.restart	= keystone_restart,
+	.init_meminfo   = keystone_init_meminfo,
 MACHINE_END
