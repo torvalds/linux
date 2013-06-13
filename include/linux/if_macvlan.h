@@ -70,7 +70,7 @@ struct macvlan_dev {
 	int (*receive)(struct sk_buff *skb);
 	int (*forward)(struct net_device *dev, struct sk_buff *skb);
 	/* This array tracks active taps. */
-	struct macvtap_queue	*taps[MAX_MACVTAP_QUEUES];
+	struct macvtap_queue	__rcu *taps[MAX_MACVTAP_QUEUES];
 	/* This list tracks all taps (both enabled and disabled) */
 	struct list_head	queue_list;
 	int			numvtaps;
