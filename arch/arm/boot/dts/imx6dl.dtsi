@@ -112,6 +112,15 @@
 					};
 				};
 
+				i2c1 {
+					pinctrl_i2c1_2: i2c1grp-2 {
+						fsl,pins = <
+							MX6DL_PAD_CSI0_DAT8__I2C1_SDA 0x4001b8b1
+							MX6DL_PAD_CSI0_DAT9__I2C1_SCL 0x4001b8b1
+						>;
+					};
+				};
+
 				uart1 {
 					pinctrl_uart1_1: uart1grp-1 {
 						fsl,pins = <
