@@ -627,6 +627,12 @@ static const struct usb_device_id	products [] = {
 	.driver_info = 0,
 },
 
+/* Huawei E1820 - handled by qmi_wwan */
+{
+	USB_DEVICE_INTERFACE_NUMBER(HUAWEI_VENDOR_ID, 0x14ac, 1),
+	.driver_info = 0,
+},
+
 /* Realtek RTL8152 Based USB 2.0 Ethernet Adapters */
 #if defined(CONFIG_USB_RTL8152) || defined(CONFIG_USB_RTL8152_MODULE)
 {
