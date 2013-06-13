@@ -85,7 +85,7 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
 {
 	unsigned __percpu *pcpu_count;
 
-	preempt_disable();
+	rcu_read_lock();
 
 	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
 
@@ -94,7 +94,7 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
 	else
 		atomic_inc(&ref->count);
 
-	preempt_enable();
+	rcu_read_unlock();
 }
 
 /**
@@ -107,7 +107,7 @@ static inline void percpu_ref_put(struct percpu_ref *ref)
 {
 	unsigned __percpu *pcpu_count;
 
-	preempt_disable();
+	rcu_read_lock();
 
 	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
 
@@ -116,7 +116,7 @@ static inline void percpu_ref_put(struct percpu_ref *ref)
 	else if (unlikely(atomic_dec_and_test(&ref->count)))
 		ref->release(ref);
 
-	preempt_enable();
+	rcu_read_unlock();
 }
 
 #endif
