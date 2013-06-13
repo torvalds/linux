@@ -69,6 +69,7 @@ static void ext4_mark_recovery_complete(struct super_block *sb,
 static void ext4_clear_journal_err(struct super_block *sb,
 				   struct ext4_super_block *es);
 static int ext4_sync_fs(struct super_block *sb, int wait);
+static int ext4_sync_fs_nojournal(struct super_block *sb, int wait);
 static int ext4_remount(struct super_block *sb, int *flags, char *data);
 static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int ext4_unfreeze(struct super_block *sb);
@@ -1097,6 +1098,7 @@ static const struct super_operations ext4_nojournal_sops = {
 	.dirty_inode	= ext4_dirty_inode,
 	.drop_inode	= ext4_drop_inode,
 	.evict_inode	= ext4_evict_inode,
+	.sync_fs	= ext4_sync_fs_nojournal,
 	.put_super	= ext4_put_super,
 	.statfs		= ext4_statfs,
 	.remount_fs	= ext4_remount,
@@ -4553,6 +4555,7 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 {
 	int ret = 0;
 	tid_t target;
+	bool needs_barrier = false;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	trace_ext4_sync_fs(sb, wait);
@@ -4563,10 +4566,41 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 	 * no dirty dquots
 	 */
 	dquot_writeback_dquots(sb, -1);
+	/*
+	 * Data writeback is possible w/o journal transaction, so barrier must
+	 * being sent at the end of the function. But we can skip it if
+	 * transaction_commit will do it for us.
+	 */
+	target = jbd2_get_latest_transaction(sbi->s_journal);
+	if (wait && sbi->s_journal->j_flags & JBD2_BARRIER &&
+	    !jbd2_trans_will_send_data_barrier(sbi->s_journal, target))
+		needs_barrier = true;
+
 	if (jbd2_journal_start_commit(sbi->s_journal, &target)) {
 		if (wait)
-			jbd2_log_wait_commit(sbi->s_journal, target);
+			ret = jbd2_log_wait_commit(sbi->s_journal, target);
 	}
+	if (needs_barrier) {
+		int err;
+		err = blkdev_issue_flush(sb->s_bdev, GFP_KERNEL, NULL);
+		if (!ret)
+			ret = err;
+	}
+
+	return ret;
+}
+
+static int ext4_sync_fs_nojournal(struct super_block *sb, int wait)
+{
+	int ret = 0;
+
+	trace_ext4_sync_fs(sb, wait);
+	flush_workqueue(EXT4_SB(sb)->rsv_conversion_wq);
+	flush_workqueue(EXT4_SB(sb)->unrsv_conversion_wq);
+	dquot_writeback_dquots(sb, -1);
+	if (wait && test_opt(sb, BARRIER))
+		ret = blkdev_issue_flush(sb->s_bdev, GFP_KERNEL, NULL);
+
 	return ret;
 }
 

@@ -1374,6 +1374,19 @@ static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
 	return *(u32 *)desc.ctx;
 }
 
+/* Return most recent uncommitted transaction */
+static inline tid_t  jbd2_get_latest_transaction(journal_t *journal)
+{
+	tid_t tid;
+
+	read_lock(&journal->j_state_lock);
+	tid = journal->j_commit_request;
+	if (journal->j_running_transaction)
+		tid = journal->j_running_transaction->t_tid;
+	read_unlock(&journal->j_state_lock);
+	return tid;
+}
+
 #ifdef __KERNEL__
 
 #define buffer_trace_init(bh)	do {} while (0)
