@@ -2757,7 +2757,7 @@ static ssize_t show_irq(struct device *dev,
 	unsigned int irq_index;
 	int err;
 
-	err = strict_strtoul(attr->attr.name, 0, &name);
+	err = kstrtoul(attr->attr.name, 0, &name);
 	if (err)
 		return err;
 
