@@ -497,8 +497,9 @@ int do_write_data_page(struct page *page)
 	 * If current allocation needs SSR,
 	 * it had better in-place writes for updated data.
 	 */
-	if (old_blk_addr != NEW_ADDR && !is_cold_data(page) &&
-				need_inplace_update(inode)) {
+	if (unlikely(old_blk_addr != NEW_ADDR &&
+			!is_cold_data(page) &&
+			need_inplace_update(inode))) {
 		rewrite_data_page(F2FS_SB(inode->i_sb), page,
 						old_blk_addr);
 	} else {
