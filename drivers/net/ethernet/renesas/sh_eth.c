@@ -656,6 +656,7 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.no_ade		= 1,
 	.tsu		= 1,
 	.select_mii	= 1,
+	.shift_rd0	= 1,
 };
 
 static struct sh_eth_cpu_data sh7619_data = {
@@ -1259,7 +1260,6 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		if (!(desc_status & RDFEND))
 			ndev->stats.rx_length_errors++;
 
-#if defined(CONFIG_ARCH_R8A7740)
 		/*
 		 * In case of almost all GETHER/ETHERs, the Receive Frame State
 		 * (RFS) bits in the Receive Descriptor 0 are from bit 9 to
@@ -1267,8 +1267,8 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		 * bits are from bit 25 to bit 16. So, the driver needs right
 		 * shifting by 16.
 		 */
-		desc_status >>= 16;
-#endif
+		if (mdp->cd->shift_rd0)
+			desc_status >>= 16;
 
 		if (desc_status & (RD_RFS1 | RD_RFS2 | RD_RFS3 | RD_RFS4 |
 				   RD_RFS5 | RD_RFS6 | RD_RFS10)) {
