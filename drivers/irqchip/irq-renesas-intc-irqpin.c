@@ -18,6 +18,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -349,6 +350,9 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	/* deal with driver instance configuration */
 	if (pdata)
 		memcpy(&p->config, pdata, sizeof(*pdata));
+	else
+		of_property_read_u32(pdev->dev.of_node, "sense-bitfield-width",
+				     &p->config.sense_bitfield_width);
 	if (!p->config.sense_bitfield_width)
 		p->config.sense_bitfield_width = 4; /* default to 4 bits */
 
