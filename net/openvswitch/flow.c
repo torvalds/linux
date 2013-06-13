@@ -1125,10 +1125,8 @@ int ovs_flow_from_nlattrs(struct sw_flow_key *swkey, int *key_lenp,
 
 /**
  * ovs_flow_metadata_from_nlattrs - parses Netlink attributes into a flow key.
- * @priority: receives the skb priority
- * @mark: receives the skb mark
- * @in_port: receives the extracted input port.
- * @key: Netlink attribute holding nested %OVS_KEY_ATTR_* Netlink attribute
+ * @flow: Receives extracted in_port, priority, tun_key and skb_mark.
+ * @attr: Netlink attribute holding nested %OVS_KEY_ATTR_* Netlink attribute
  * sequence.
  *
  * This parses a series of Netlink attributes that form a flow key, which must
@@ -1136,15 +1134,15 @@ int ovs_flow_from_nlattrs(struct sw_flow_key *swkey, int *key_lenp,
  * get the metadata, that is, the parts of the flow key that cannot be
  * extracted from the packet itself.
  */
-int ovs_flow_metadata_from_nlattrs(u32 *priority, u32 *mark, u16 *in_port,
-			       const struct nlattr *attr)
+int ovs_flow_metadata_from_nlattrs(struct sw_flow *flow,
+				   const struct nlattr *attr)
 {
 	const struct nlattr *nla;
 	int rem;
 
-	*in_port = DP_MAX_PORTS;
-	*priority = 0;
-	*mark = 0;
+	flow->key.phy.in_port = DP_MAX_PORTS;
+	flow->key.phy.priority = 0;
+	flow->key.phy.skb_mark = 0;
 
 	nla_for_each_nested(nla, attr, rem) {
 		int type = nla_type(nla);
@@ -1155,17 +1153,17 @@ int ovs_flow_metadata_from_nlattrs(u32 *priority, u32 *mark, u16 *in_port,
 
 			switch (type) {
 			case OVS_KEY_ATTR_PRIORITY:
-				*priority = nla_get_u32(nla);
+				flow->key.phy.priority = nla_get_u32(nla);
 				break;
 
 			case OVS_KEY_ATTR_IN_PORT:
 				if (nla_get_u32(nla) >= DP_MAX_PORTS)
 					return -EINVAL;
-				*in_port = nla_get_u32(nla);
+				flow->key.phy.in_port = nla_get_u32(nla);
 				break;
 
 			case OVS_KEY_ATTR_SKB_MARK:
-				*mark = nla_get_u32(nla);
+				flow->key.phy.skb_mark = nla_get_u32(nla);
 				break;
 			}
 		}
