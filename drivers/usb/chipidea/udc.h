@@ -50,6 +50,7 @@ struct ci13xxx_qh {
 #define QH_MAX_PKT            (0x07FFUL << 16)
 #define QH_ZLT                BIT(29)
 #define QH_MULT               (0x0003UL << 30)
+#define QH_ISO_MULT(x)		((x >> 11) & 0x03)
 	/* 1 */
 	u32 curr;
 	/* 2 - 8 */

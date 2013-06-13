@@ -466,6 +466,14 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	mEp->qh.ptr->td.token &=
 		cpu_to_le32(~(TD_STATUS_HALTED|TD_STATUS_ACTIVE));
 
+	if (mEp->type == USB_ENDPOINT_XFER_ISOC) {
+		u32 mul = mReq->req.length / mEp->ep.maxpacket;
+
+		if (mReq->req.length % mEp->ep.maxpacket)
+			mul++;
+		mEp->qh.ptr->cap |= mul << __ffs(QH_MULT);
+	}
+
 	wmb();   /* synchronize before ep prime */
 
 	ret = hw_ep_prime(ci, mEp->num, mEp->dir,
@@ -676,6 +684,12 @@ static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
 			dev_warn(mEp->ci->dev, "endpoint ctrl %X nuked\n",
 				 _usb_addr(mEp));
 		}
+	}
+
+	if (usb_endpoint_xfer_isoc(mEp->ep.desc) &&
+	    mReq->req.length > (1 + mEp->ep.mult) * mEp->ep.maxpacket) {
+		dev_err(mEp->ci->dev, "request length too big for isochronous\n");
+		return -EMSGSIZE;
 	}
 
 	/* first nuke then test link, e.g. previous status has not sent */
@@ -1060,7 +1074,8 @@ static int ep_enable(struct usb_ep *ep,
 	mEp->num  = usb_endpoint_num(desc);
 	mEp->type = usb_endpoint_type(desc);
 
-	mEp->ep.maxpacket = usb_endpoint_maxp(desc);
+	mEp->ep.maxpacket = usb_endpoint_maxp(desc) & 0x07ff;
+	mEp->ep.mult = QH_ISO_MULT(usb_endpoint_maxp(desc));
 
 	if (mEp->type == USB_ENDPOINT_XFER_CONTROL)
 		cap |= QH_IOS;
@@ -1245,6 +1260,9 @@ static int ep_set_halt(struct usb_ep *ep, int value)
 
 	if (ep == NULL || mEp->ep.desc == NULL)
 		return -EINVAL;
+
+	if (usb_endpoint_xfer_isoc(mEp->ep.desc))
+		return -EOPNOTSUPP;
 
 	spin_lock_irqsave(mEp->lock, flags);
 

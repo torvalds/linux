@@ -43,7 +43,7 @@
  *
  * TODO List
  * - OTG
- * - Isochronous & Interrupt Traffic
+ * - Interrupt Traffic
  * - Handle requests which spawns into several TDs
  * - GET_STATUS(device) - always reports 0
  * - Gadget API (majority of optional features)
