@@ -188,7 +188,7 @@ netrx_radiotap(unifi_priv_t *priv,
 
 
     skb->dev = dev;
-    skb->mac_header = skb->data;
+    skb_reset_mac_header(skb);
     skb->pkt_type = PACKET_OTHERHOST;
     skb->protocol = __constant_htons(ETH_P_80211_RAW);
     memset(skb->cb, 0, sizeof(skb->cb));
