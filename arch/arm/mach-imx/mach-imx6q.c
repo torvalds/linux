@@ -146,6 +146,45 @@ static void __init imx6q_sabrelite_init(void)
 	imx6q_sabrelite_cko1_setup();
 }
 
+static void __init imx6q_sabresd_cko1_setup(void)
+{
+	struct clk *cko1_sel, *pll4, *pll4_post, *cko1;
+	unsigned long rate;
+
+	cko1_sel = clk_get_sys(NULL, "cko1_sel");
+	pll4 = clk_get_sys(NULL, "pll4_audio");
+	pll4_post = clk_get_sys(NULL, "pll4_post_div");
+	cko1 = clk_get_sys(NULL, "cko1");
+	if (IS_ERR(cko1_sel) || IS_ERR(pll4)
+			|| IS_ERR(pll4_post) || IS_ERR(cko1)) {
+		pr_err("cko1 setup failed!\n");
+		goto put_clk;
+	}
+	/*
+	 * Setting pll4 at 768MHz (24MHz * 32)
+	 * So its child clock can get 24MHz easily
+	 */
+	clk_set_rate(pll4, 768000000);
+
+	clk_set_parent(cko1_sel, pll4_post);
+	rate = clk_round_rate(cko1, 24000000);
+	clk_set_rate(cko1, rate);
+put_clk:
+	if (!IS_ERR(cko1_sel))
+		clk_put(cko1_sel);
+	if (!IS_ERR(pll4_post))
+		clk_put(pll4_post);
+	if (!IS_ERR(pll4))
+		clk_put(pll4);
+	if (!IS_ERR(cko1))
+		clk_put(cko1);
+}
+
+static void __init imx6q_sabresd_init(void)
+{
+	imx6q_sabresd_cko1_setup();
+}
+
 static void __init imx6q_1588_init(void)
 {
 	struct regmap *gpr;
@@ -166,6 +205,9 @@ static void __init imx6q_init_machine(void)
 {
 	if (of_machine_is_compatible("fsl,imx6q-sabrelite"))
 		imx6q_sabrelite_init();
+	else if (of_machine_is_compatible("fsl,imx6q-sabresd") ||
+			of_machine_is_compatible("fsl,imx6dl-sabresd"))
+		imx6q_sabresd_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
