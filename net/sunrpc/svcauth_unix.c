@@ -347,13 +347,13 @@ ip_map_cached_get(struct svc_xprt *xprt)
 		spin_lock(&xprt->xpt_lock);
 		ipm = xprt->xpt_auth_cache;
 		if (ipm != NULL) {
-			if (!cache_valid(&ipm->h)) {
+			sn = net_generic(xprt->xpt_net, sunrpc_net_id);
+			if (cache_is_expired(sn->ip_map_cache, &ipm->h)) {
 				/*
 				 * The entry has been invalidated since it was
 				 * remembered, e.g. by a second mount from the
 				 * same IP address.
 				 */
-				sn = net_generic(xprt->xpt_net, sunrpc_net_id);
 				xprt->xpt_auth_cache = NULL;
 				spin_unlock(&xprt->xpt_lock);
 				cache_put(&ipm->h, sn->ip_map_cache);

@@ -50,12 +50,6 @@ static void cache_init(struct cache_head *h)
 	h->last_refresh = now;
 }
 
-static inline int cache_is_expired(struct cache_detail *detail, struct cache_head *h)
-{
-	return  (h->expiry_time < seconds_since_boot()) ||
-		(detail->flush_time > h->last_refresh);
-}
-
 struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 				       struct cache_head *key, int hash)
 {
