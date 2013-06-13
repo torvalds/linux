@@ -23,6 +23,45 @@
 	dsrl	\res, NSRI_NODEID_SHFT
 	.endm
 
+	/*
+	 * inputs are the text nasid in t1, data nasid in t2.
+	 */
+	.macro MAPPED_KERNEL_SETUP_TLB
+#ifdef CONFIG_MAPPED_KERNEL
+	/*
+	 * This needs to read the nasid - assume 0 for now.
+	 * Drop in 0xffffffffc0000000 in tlbhi, 0+VG in tlblo_0,
+	 * 0+DVG in tlblo_1.
+	 */
+	dli	t0, 0xffffffffc0000000
+	dmtc0	t0, CP0_ENTRYHI
+	li	t0, 0x1c000		# Offset of text into node memory
+	dsll	t1, NASID_SHFT		# Shift text nasid into place
+	dsll	t2, NASID_SHFT		# Same for data nasid
+	or	t1, t1, t0		# Physical load address of kernel text
+	or	t2, t2, t0		# Physical load address of kernel data
+	dsrl	t1, 12			# 4K pfn
+	dsrl	t2, 12			# 4K pfn
+	dsll	t1, 6			# Get pfn into place
+	dsll	t2, 6			# Get pfn into place
+	li	t0, ((_PAGE_GLOBAL|_PAGE_VALID| _CACHE_CACHABLE_COW) >> 6)
+	or	t0, t0, t1
+	mtc0	t0, CP0_ENTRYLO0	# physaddr, VG, cach exlwr
+	li	t0, ((_PAGE_GLOBAL|_PAGE_VALID| _PAGE_DIRTY|_CACHE_CACHABLE_COW) >> 6)
+	or	t0, t0, t2
+	mtc0	t0, CP0_ENTRYLO1	# physaddr, DVG, cach exlwr
+	li	t0, 0x1ffe000		# MAPPED_KERN_TLBMASK, TLBPGMASK_16M
+	mtc0	t0, CP0_PAGEMASK
+	li	t0, 0			# KMAP_INX
+	mtc0	t0, CP0_INDEX
+	li	t0, 1
+	mtc0	t0, CP0_WIRED
+	tlbwi
+#else
+	mtc0	zero, CP0_WIRED
+#endif
+	.endm
+
 /*
  * Intentionally empty macro, used in head.S. Override in
  * arch/mips/mach-xxx/kernel-entry-init.h when necessary.
