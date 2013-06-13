@@ -28,7 +28,6 @@
 	((struct usb_phy *)platform_get_drvdata(pdev))
 
 struct ci13xxx_imx_data {
-	struct device_node *phy_np;
 	struct usb_phy *phy;
 	struct platform_device *ci_pdev;
 	struct clk *clk;
@@ -97,9 +96,9 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 				  CI13XXX_PULLUP_ON_VBUS |
 				  CI13XXX_DISABLE_STREAMING,
 	};
-	struct platform_device *phy_pdev;
 	struct resource *res;
 	int ret;
+	struct usb_phy *phy;
 
 	if (of_find_property(pdev->dev.of_node, "fsl,usbmisc", NULL)
 		&& !usbmisc_ops)
@@ -131,18 +130,16 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	data->phy_np = of_parse_phandle(pdev->dev.of_node, "fsl,usbphy", 0);
-	if (data->phy_np) {
-		phy_pdev = of_find_device_by_node(data->phy_np);
-		if (phy_pdev) {
-			struct usb_phy *phy;
-			phy = pdev_to_phy(phy_pdev);
-			if (phy &&
-			    try_module_get(phy_pdev->dev.driver->owner)) {
-				usb_phy_init(phy);
-				data->phy = phy;
-			}
+	phy = devm_usb_get_phy_by_phandle(&pdev->dev, "fsl,usbphy", 0);
+	if (!IS_ERR(phy)) {
+		ret = usb_phy_init(phy);
+		if (ret) {
+			dev_err(&pdev->dev, "unable to init phy: %d\n", ret);
+			goto err_clk;
 		}
+	} else if (PTR_ERR(phy) == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto err_clk;
 	}
 
 	/* we only support host now, so enable vbus here */
@@ -153,7 +150,7 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"Failed to enable vbus regulator, err=%d\n",
 				ret);
-			goto put_np;
+			goto err_clk;
 		}
 	} else {
 		data->reg_vbus = NULL;
@@ -207,9 +204,7 @@ disable_device:
 err:
 	if (data->reg_vbus)
 		regulator_disable(data->reg_vbus);
-put_np:
-	if (data->phy_np)
-		of_node_put(data->phy_np);
+err_clk:
 	clk_disable_unprepare(data->clk);
 	return ret;
 }
@@ -228,9 +223,6 @@ static int ci13xxx_imx_remove(struct platform_device *pdev)
 		usb_phy_shutdown(data->phy);
 		module_put(data->phy->dev->driver->owner);
 	}
-
-	if (data->phy_np)
-		of_node_put(data->phy_np);
 
 	clk_disable_unprepare(data->clk);
 
