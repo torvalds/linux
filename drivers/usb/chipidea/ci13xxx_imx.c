@@ -98,7 +98,7 @@ static struct ci13xxx_platform_data ci13xxx_imx_platdata  = {
 static int ci13xxx_imx_probe(struct platform_device *pdev)
 {
 	struct ci13xxx_imx_data *data;
-	struct platform_device *plat_ci, *phy_pdev;
+	struct platform_device *phy_pdev;
 	struct device_node *phy_np;
 	struct resource *res;
 	struct regulator *reg_vbus;
@@ -180,11 +180,11 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 		}
 	}
 
-	plat_ci = ci13xxx_add_device(&pdev->dev,
+	data->ci_pdev = ci13xxx_add_device(&pdev->dev,
 				pdev->resource, pdev->num_resources,
 				&ci13xxx_imx_platdata);
-	if (IS_ERR(plat_ci)) {
-		ret = PTR_ERR(plat_ci);
+	if (IS_ERR(data->ci_pdev)) {
+		ret = PTR_ERR(data->ci_pdev);
 		dev_err(&pdev->dev,
 			"Can't register ci_hdrc platform device, err=%d\n",
 			ret);
@@ -196,11 +196,10 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev,
 				"usbmisc post failed, ret=%d\n", ret);
-			goto put_np;
+			goto disable_device;
 		}
 	}
 
-	data->ci_pdev = plat_ci;
 	platform_set_drvdata(pdev, data);
 
 	pm_runtime_no_callbacks(&pdev->dev);
@@ -208,6 +207,8 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 
 	return 0;
 
+disable_device:
+	ci13xxx_remove_device(data->ci_pdev);
 err:
 	if (reg_vbus)
 		regulator_disable(reg_vbus);
