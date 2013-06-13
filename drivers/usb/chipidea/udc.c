@@ -368,6 +368,46 @@ static int hw_usb_reset(struct ci13xxx *ci)
 /******************************************************************************
  * UTIL block
  *****************************************************************************/
+
+static void setup_td_bits(struct td_node *tdnode, unsigned length)
+{
+	memset(tdnode->ptr, 0, sizeof(*tdnode->ptr));
+	tdnode->ptr->token = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
+	tdnode->ptr->token &= cpu_to_le32(TD_TOTAL_BYTES);
+	tdnode->ptr->token |= cpu_to_le32(TD_STATUS_ACTIVE);
+}
+
+static int add_td_to_list(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq,
+			  unsigned length)
+{
+	struct td_node *lastnode, *node = kzalloc(sizeof(struct td_node),
+						  GFP_ATOMIC);
+
+	if (node == NULL)
+		return -ENOMEM;
+
+	node->ptr = dma_pool_alloc(mEp->td_pool, GFP_ATOMIC,
+				   &node->dma);
+	if (node->ptr == NULL) {
+		kfree(node);
+		return -ENOMEM;
+	}
+
+	setup_td_bits(node, length);
+
+	if (!list_empty(&mReq->tds)) {
+		/* get the last entry */
+		lastnode = list_entry(mReq->tds.prev,
+				struct td_node, td);
+		lastnode->ptr->next = cpu_to_le32(node->dma);
+	}
+
+	INIT_LIST_HEAD(&node->td);
+	list_add_tail(&node->td, &mReq->tds);
+
+	return 0;
+}
+
 /**
  * _usb_addr: calculates endpoint address from direction & number
  * @ep:  endpoint
@@ -390,6 +430,7 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	unsigned i;
 	int ret = 0;
 	unsigned length = mReq->req.length;
+	struct td_node *firstnode, *lastnode;
 
 	/* don't queue twice */
 	if (mReq->req.status == -EALREADY)
@@ -397,58 +438,46 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 
 	mReq->req.status = -EALREADY;
 
-	if (mReq->req.zero && length && (length % mEp->ep.maxpacket == 0)) {
-		mReq->zptr = dma_pool_alloc(mEp->td_pool, GFP_ATOMIC,
-					   &mReq->zdma);
-		if (mReq->zptr == NULL)
-			return -ENOMEM;
-
-		memset(mReq->zptr, 0, sizeof(*mReq->zptr));
-		mReq->zptr->next    = cpu_to_le32(TD_TERMINATE);
-		mReq->zptr->token   = cpu_to_le32(TD_STATUS_ACTIVE);
-		if (!mReq->req.no_interrupt)
-			mReq->zptr->token   |= cpu_to_le32(TD_IOC);
-	}
 	ret = usb_gadget_map_request(&ci->gadget, &mReq->req, mEp->dir);
 	if (ret)
 		return ret;
 
-	/*
-	 * TD configuration
-	 * TODO - handle requests which spawns into several TDs
-	 */
-	memset(mReq->ptr, 0, sizeof(*mReq->ptr));
-	mReq->ptr->token    = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
-	mReq->ptr->token   &= cpu_to_le32(TD_TOTAL_BYTES);
-	mReq->ptr->token   |= cpu_to_le32(TD_STATUS_ACTIVE);
-	if (mReq->zptr) {
-		mReq->ptr->next    = cpu_to_le32(mReq->zdma);
-	} else {
-		mReq->ptr->next    = cpu_to_le32(TD_TERMINATE);
-		if (!mReq->req.no_interrupt)
-			mReq->ptr->token  |= cpu_to_le32(TD_IOC);
-	}
-	mReq->ptr->page[0]  = cpu_to_le32(mReq->req.dma);
+	firstnode = list_first_entry(&mReq->tds,
+			struct td_node, td);
+
+	setup_td_bits(firstnode, length);
+
+	firstnode->ptr->page[0] = cpu_to_le32(mReq->req.dma);
 	for (i = 1; i < TD_PAGE_COUNT; i++) {
 		u32 page = mReq->req.dma + i * CI13XXX_PAGE_SIZE;
 		page &= ~TD_RESERVED_MASK;
-		mReq->ptr->page[i] = cpu_to_le32(page);
+		firstnode->ptr->page[i] = cpu_to_le32(page);
 	}
 
+	if (mReq->req.zero && length && (length % mEp->ep.maxpacket == 0))
+		add_td_to_list(mEp, mReq, 0);
+
+	lastnode = list_entry(mReq->tds.prev,
+		struct td_node, td);
+
+	lastnode->ptr->next = cpu_to_le32(TD_TERMINATE);
+	if (!mReq->req.no_interrupt)
+		lastnode->ptr->token |= cpu_to_le32(TD_IOC);
 	wmb();
 
 	if (!list_empty(&mEp->qh.queue)) {
 		struct ci13xxx_req *mReqPrev;
 		int n = hw_ep_bit(mEp->num, mEp->dir);
 		int tmp_stat;
-		u32 next = mReq->dma & TD_ADDR_MASK;
+		struct td_node *prevlastnode;
+		u32 next = firstnode->dma & TD_ADDR_MASK;
 
 		mReqPrev = list_entry(mEp->qh.queue.prev,
 				struct ci13xxx_req, queue);
-		if (mReqPrev->zptr)
-			mReqPrev->zptr->next = cpu_to_le32(next);
-		else
-			mReqPrev->ptr->next = cpu_to_le32(next);
+		prevlastnode = list_entry(mReqPrev->tds.prev,
+				struct td_node, td);
+
+		prevlastnode->ptr->next = cpu_to_le32(next);
 		wmb();
 		if (hw_read(ci, OP_ENDPTPRIME, BIT(n)))
 			goto done;
@@ -462,7 +491,7 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	}
 
 	/*  QH configuration */
-	mEp->qh.ptr->td.next   = cpu_to_le32(mReq->dma);    /* TERMINATE = 0 */
+	mEp->qh.ptr->td.next = cpu_to_le32(firstnode->dma);
 	mEp->qh.ptr->td.token &=
 		cpu_to_le32(~(TD_STATUS_HALTED|TD_STATUS_ACTIVE));
 
@@ -491,19 +520,25 @@ done:
  */
 static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 {
-	u32 tmptoken = le32_to_cpu(mReq->ptr->token);
+	u32 tmptoken;
+	struct td_node *node, *tmpnode, *firstnode;
 
 	if (mReq->req.status != -EALREADY)
 		return -EINVAL;
 
-	if ((TD_STATUS_ACTIVE & tmptoken) != 0)
-		return -EBUSY;
+	firstnode = list_first_entry(&mReq->tds,
+		struct td_node, td);
 
-	if (mReq->zptr) {
-		if ((cpu_to_le32(TD_STATUS_ACTIVE) & mReq->zptr->token) != 0)
+	list_for_each_entry_safe(node, tmpnode, &mReq->tds, td) {
+		tmptoken = le32_to_cpu(node->ptr->token);
+		if ((TD_STATUS_ACTIVE & tmptoken) != 0)
 			return -EBUSY;
-		dma_pool_free(mEp->td_pool, mReq->zptr, mReq->zdma);
-		mReq->zptr = NULL;
+		if (node != firstnode) {
+			dma_pool_free(mEp->td_pool, node->ptr, node->dma);
+			list_del_init(&node->td);
+			node->ptr = NULL;
+			kfree(node);
+		}
 	}
 
 	mReq->req.status = 0;
@@ -537,6 +572,7 @@ static int _ep_nuke(struct ci13xxx_ep *mEp)
 __releases(mEp->lock)
 __acquires(mEp->lock)
 {
+	struct td_node *node, *tmpnode, *firstnode;
 	if (mEp == NULL)
 		return -EINVAL;
 
@@ -549,9 +585,17 @@ __acquires(mEp->lock)
 			list_entry(mEp->qh.queue.next,
 				   struct ci13xxx_req, queue);
 
-		if (mReq->zptr) {
-			dma_pool_free(mEp->td_pool, mReq->zptr, mReq->zdma);
-			mReq->zptr = NULL;
+		firstnode = list_first_entry(&mReq->tds,
+			struct td_node, td);
+
+		list_for_each_entry_safe(node, tmpnode, &mReq->tds, td) {
+			if (node != firstnode) {
+				dma_pool_free(mEp->td_pool, node->ptr,
+					      node->dma);
+				list_del_init(&node->td);
+				node->ptr = NULL;
+				kfree(node);
+			}
 		}
 
 		list_del_init(&mReq->queue);
@@ -838,9 +882,13 @@ __acquires(mEp->lock)
 	struct ci13xxx_req *mReq, *mReqTemp;
 	struct ci13xxx_ep *mEpTemp = mEp;
 	int retval = 0;
+	struct td_node *firstnode;
 
 	list_for_each_entry_safe(mReq, mReqTemp, &mEp->qh.queue,
 			queue) {
+		firstnode = list_first_entry(&mReq->tds,
+			struct td_node, td);
+
 		retval = _hardware_dequeue(mEp, mReq);
 		if (retval < 0)
 			break;
@@ -1143,19 +1191,26 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 {
 	struct ci13xxx_ep  *mEp  = container_of(ep, struct ci13xxx_ep, ep);
 	struct ci13xxx_req *mReq = NULL;
+	struct td_node *node;
 
 	if (ep == NULL)
 		return NULL;
 
 	mReq = kzalloc(sizeof(struct ci13xxx_req), gfp_flags);
-	if (mReq != NULL) {
+	node = kzalloc(sizeof(struct td_node), gfp_flags);
+	if (mReq != NULL && node != NULL) {
 		INIT_LIST_HEAD(&mReq->queue);
+		INIT_LIST_HEAD(&mReq->tds);
+		INIT_LIST_HEAD(&node->td);
 
-		mReq->ptr = dma_pool_alloc(mEp->td_pool, gfp_flags,
-					   &mReq->dma);
-		if (mReq->ptr == NULL) {
+		node->ptr = dma_pool_alloc(mEp->td_pool, gfp_flags,
+					   &node->dma);
+		if (node->ptr == NULL) {
+			kfree(node);
 			kfree(mReq);
 			mReq = NULL;
+		} else {
+			list_add_tail(&node->td, &mReq->tds);
 		}
 	}
 
@@ -1171,6 +1226,7 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 {
 	struct ci13xxx_ep  *mEp  = container_of(ep,  struct ci13xxx_ep, ep);
 	struct ci13xxx_req *mReq = container_of(req, struct ci13xxx_req, req);
+	struct td_node *firstnode;
 	unsigned long flags;
 
 	if (ep == NULL || req == NULL) {
@@ -1182,8 +1238,11 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 
 	spin_lock_irqsave(mEp->lock, flags);
 
-	if (mReq->ptr)
-		dma_pool_free(mEp->td_pool, mReq->ptr, mReq->dma);
+	firstnode = list_first_entry(&mReq->tds,
+		struct td_node, td);
+
+	if (firstnode->ptr)
+		dma_pool_free(mEp->td_pool, firstnode->ptr, firstnode->dma);
 	kfree(mReq);
 
 	spin_unlock_irqrestore(mEp->lock, flags);

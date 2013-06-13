@@ -162,6 +162,7 @@ static int ci_requests_show(struct seq_file *s, void *data)
 	unsigned long flags;
 	struct list_head   *ptr = NULL;
 	struct ci13xxx_req *req = NULL;
+	struct td_node *node, *tmpnode;
 	unsigned i, j, qsize = sizeof(struct ci13xxx_td)/sizeof(u32);
 
 	if (ci->role != CI_ROLE_GADGET) {
@@ -174,13 +175,17 @@ static int ci_requests_show(struct seq_file *s, void *data)
 		list_for_each(ptr, &ci->ci13xxx_ep[i].qh.queue) {
 			req = list_entry(ptr, struct ci13xxx_req, queue);
 
-			seq_printf(s, "EP=%02i: TD=%08X %s\n",
-				   i % (ci->hw_ep_max / 2), (u32)req->dma,
-				   ((i < ci->hw_ep_max/2) ? "RX" : "TX"));
+			list_for_each_entry_safe(node, tmpnode, &req->tds, td) {
+				seq_printf(s, "EP=%02i: TD=%08X %s\n",
+					   i % (ci->hw_ep_max / 2),
+					   (u32)node->dma,
+					   ((i < ci->hw_ep_max/2) ?
+					   "RX" : "TX"));
 
-			for (j = 0; j < qsize; j++)
-				seq_printf(s, " %04X:    %08X\n", j,
-					   *((u32 *)req->ptr + j));
+				for (j = 0; j < qsize; j++)
+					seq_printf(s, " %04X:    %08X\n", j,
+						   *((u32 *)node->ptr + j));
+			}
 		}
 	spin_unlock_irqrestore(&ci->lock, flags);
 

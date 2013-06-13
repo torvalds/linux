@@ -60,6 +60,12 @@ struct ci13xxx_qh {
 	struct usb_ctrlrequest   setup;
 } __attribute__ ((packed, aligned(4)));
 
+struct td_node {
+	struct list_head	td;
+	dma_addr_t		dma;
+	struct ci13xxx_td	*ptr;
+};
+
 /**
  * struct ci13xxx_req - usb request representation
  * @req: request structure for gadget drivers
@@ -72,10 +78,7 @@ struct ci13xxx_qh {
 struct ci13xxx_req {
 	struct usb_request	req;
 	struct list_head	queue;
-	struct ci13xxx_td	*ptr;
-	dma_addr_t		dma;
-	struct ci13xxx_td	*zptr;
-	dma_addr_t		zdma;
+	struct list_head	tds;
 };
 
 #ifdef CONFIG_USB_CHIPIDEA_UDC
