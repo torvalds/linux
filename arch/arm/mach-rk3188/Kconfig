@@ -33,6 +33,10 @@ config MACH_RK3188_U30GT2
 config MACH_RK3188_JETTAB
 	bool "RK3188 jettaB top board"
 
+config MACH_RK3188_RK618
+        bool "RK3188 RK618 sdk"
+
+
 config MACH_RK3188M_TB
 	bool "RK3188m Top Board"
 

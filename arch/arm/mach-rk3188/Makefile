@@ -28,4 +28,5 @@ board-$(CONFIG_MACH_RK3188_LR097) += ../mach-rk30/board-rk3168-LR097.o
 board-$(CONFIG_MACH_RK3188_DS1006H) += board-rk3188-ds1006h.o
 board-$(CONFIG_MACH_RK3188_U30GT2)  += board-rk3188-u30gt2.o
 board-$(CONFIG_MACH_RK3188_JETTAB)  += board-rk3188-jettaplus.o
+board-$(CONFIG_MACH_RK3188_RK618)  += board-rk3188-jettaplus.o
 board-$(CONFIG_MACH_RK3188M_TB)  += board-rk3188m-tb.o

@@ -479,7 +479,12 @@ static struct sensor_platform_data cm3217_info = {
 #define LCD_CS_VALUE       GPIO_HIGH
 
 #define LCD_EN_PIN         RK30_PIN0_PB0
+#if defined(CONFIG_MACH_RK3188_RK618)
+#define LCD_EN_VALUE       GPIO_LOW
+#else
 #define LCD_EN_VALUE       GPIO_HIGH
+
+#endif
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
@@ -713,7 +718,12 @@ static struct rk610_ctl_platform_data rk610_ctl_pdata = {
 
 #if defined(CONFIG_MFD_RK616)
 #define RK616_RST_PIN 			RK30_PIN3_PB2
+
+#if defined(CONFIG_MACH_RK3188_RK618)
+#define RK616_PWREN_PIN			INVALID_GPIO
+#else
 #define RK616_PWREN_PIN			RK30_PIN0_PA3
+#endif
 #define RK616_SCL_RATE			(100*1000)   //i2c scl rate
 static int rk616_power_on_init(void)
 {
@@ -2210,6 +2220,54 @@ static void __init rk30_i2c_register_board_info(void)
 
 #include <plat/key.h>
 
+
+#if defined(CONFIG_MACH_RK3188_RK618)
+static struct rk29_keys_button key_button[] = {
+        {
+                .desc   = "play",
+                .code   = KEY_POWER,
+                .gpio   = RK30_PIN0_PA4,
+                .active_low = PRESS_LEV_LOW,
+                .wakeup = 1,
+        },
+        {
+                .desc   = "vol+",
+                .code   = KEY_VOLUMEUP,
+                .adc_value      = 1,
+                .gpio = INVALID_GPIO,
+                .active_low = PRESS_LEV_LOW,
+        },
+	{
+                .desc   = "vol-",
+                .code   = KEY_VOLUMEDOWN,
+                .adc_value      = 133,
+                .gpio = INVALID_GPIO,
+                .active_low = PRESS_LEV_LOW,
+        },
+        {
+                .desc   = "esc",
+                .code   = KEY_BACK,
+                .adc_value      = 550,
+                .gpio = INVALID_GPIO,
+                .active_low = PRESS_LEV_LOW,
+        },
+        {
+                .desc   = "menu",
+                .code   = EV_MENU,
+                .adc_value      = 354,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "home",
+		.code	= KEY_HOME,
+		.adc_value	= 742,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+};
+
+#else
 static struct rk29_keys_button key_button[] = {
         {
                 .desc   = "vol-",
@@ -2261,6 +2319,7 @@ static struct rk29_keys_button key_button[] = {
 		.active_low = PRESS_LEV_LOW,
 	},
 };
+#endif
 struct rk29_keys_platform_data rk29_keys_pdata = {
 	.buttons	= key_button,
 	.nbuttons	= ARRAY_SIZE(key_button),
