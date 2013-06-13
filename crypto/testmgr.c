@@ -820,7 +820,7 @@ out_nobuf:
 
 static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 			   struct cipher_testvec *template, unsigned int tcount,
-			   const bool diff_dst)
+			   const bool diff_dst, const int align_offset)
 {
 	const char *algo =
 		crypto_tfm_alg_driver_name(crypto_ablkcipher_tfm(tfm));
@@ -876,10 +876,12 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 			j++;
 
 			ret = -EINVAL;
-			if (WARN_ON(template[i].ilen > PAGE_SIZE))
+			if (WARN_ON(align_offset + template[i].ilen >
+				    PAGE_SIZE))
 				goto out;
 
 			data = xbuf[0];
+			data += align_offset;
 			memcpy(data, template[i].input, template[i].ilen);
 
 			crypto_ablkcipher_clear_flags(tfm, ~0);
@@ -900,6 +902,7 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 			sg_init_one(&sg[0], data, template[i].ilen);
 			if (diff_dst) {
 				data = xoutbuf[0];
+				data += align_offset;
 				sg_init_one(&sgout[0], data, template[i].ilen);
 			}
 
@@ -941,6 +944,9 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
+		/* alignment tests are only done with continuous buffers */
+		if (align_offset != 0)
+			break;
 
 		if (template[i].iv)
 			memcpy(iv, template[i].iv, MAX_IVLEN);
@@ -1075,15 +1081,34 @@ out_nobuf:
 static int test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 			 struct cipher_testvec *template, unsigned int tcount)
 {
+	unsigned int alignmask;
 	int ret;
 
 	/* test 'dst == src' case */
-	ret = __test_skcipher(tfm, enc, template, tcount, false);
+	ret = __test_skcipher(tfm, enc, template, tcount, false, 0);
 	if (ret)
 		return ret;
 
 	/* test 'dst != src' case */
-	return __test_skcipher(tfm, enc, template, tcount, true);
+	ret = __test_skcipher(tfm, enc, template, tcount, true, 0);
+	if (ret)
+		return ret;
+
+	/* test unaligned buffers, check with one byte offset */
+	ret = __test_skcipher(tfm, enc, template, tcount, true, 1);
+	if (ret)
+		return ret;
+
+	alignmask = crypto_tfm_alg_alignmask(&tfm->base);
+	if (alignmask) {
+		/* Check if alignment mask for tfm is correctly set. */
+		ret = __test_skcipher(tfm, enc, template, tcount, true,
+				      alignmask + 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int test_comp(struct crypto_comp *tfm, struct comp_testvec *ctemplate,
