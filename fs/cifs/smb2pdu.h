@@ -287,7 +287,11 @@ struct smb2_tree_connect_rsp {
 #define SHI1005_FLAGS_ENABLE_HASH			0x00002000
 
 /* Possible share capabilities */
-#define SMB2_SHARE_CAP_DFS	cpu_to_le32(0x00000008)
+#define SMB2_SHARE_CAP_DFS	cpu_to_le32(0x00000008) /* all dialects */
+#define SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY cpu_to_le32(0x00000010) /* 3.0 */
+#define SMB2_SHARE_CAP_SCALEOUT	cpu_to_le32(0x00000020) /* 3.0 */
+#define SMB2_SHARE_CAP_CLUSTER	cpu_to_le32(0x00000040) /* 3.0 */
+#define SMB2_SHARE_CAP_ASYMMETRIC cpu_to_le32(0x00000080) /* 3.02 */
 
 struct smb2_tree_disconnect_req {
 	struct smb2_hdr hdr;
@@ -518,17 +522,25 @@ struct smb2_flush_rsp {
 	__le16 Reserved;
 } __packed;
 
+/* For read request Flags field below, following flag is defined for SMB3.02 */
+#define SMB2_READFLAG_READ_UNBUFFERED	0x01
+
+/* Channel field for read and write: exactly one of following flags can be set*/
+#define SMB2_CHANNEL_NONE		0x00000000
+#define SMB2_CHANNEL_RDMA_V1		0x00000001 /* SMB3 or later */
+#define SMB2_CHANNEL_RDMA_V1_INVALIDATE 0x00000001 /* SMB3.02 or later */
+
 struct smb2_read_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize; /* Must be 49 */
 	__u8   Padding; /* offset from start of SMB2 header to place read */
-	__u8   Reserved;
+	__u8   Flags; /* MBZ unless SMB3.02 or later */
 	__le32 Length;
 	__le64 Offset;
 	__u64  PersistentFileId; /* opaque endianness */
 	__u64  VolatileFileId; /* opaque endianness */
 	__le32 MinimumCount;
-	__le32 Channel; /* Reserved MBZ */
+	__le32 Channel; /* MBZ except for SMB3 or later */
 	__le32 RemainingBytes;
 	__le16 ReadChannelInfoOffset; /* Reserved MBZ */
 	__le16 ReadChannelInfoLength; /* Reserved MBZ */
@@ -546,8 +558,9 @@ struct smb2_read_rsp {
 	__u8   Buffer[1];
 } __packed;
 
-/* For write request Flags field below the following flag is defined: */
-#define SMB2_WRITEFLAG_WRITE_THROUGH 0x00000001
+/* For write request Flags field below the following flags are defined: */
+#define SMB2_WRITEFLAG_WRITE_THROUGH	0x00000001	/* SMB2.1 or later */
+#define SMB2_WRITEFLAG_WRITE_UNBUFFERED	0x00000002	/* SMB3.02 or later */
 
 struct smb2_write_req {
 	struct smb2_hdr hdr;
