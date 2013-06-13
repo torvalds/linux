@@ -45,6 +45,17 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
+
+				usb0_otg_cfa10036: otg-10036@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0142 /* MX28_PAD_GPMI_READY0__USB0_ID */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 			};
 
 			ssp0: ssp@80010000 {
@@ -79,6 +90,18 @@
 					solomon,page-offset = <0>;
 				};
 			};
+
+			usbphy0: usbphy@8007c000 {
+				status = "okay";
+			};
+		};
+	};
+
+	ahb@80080000 {
+		usb0: usb@80080000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&usb0_otg_cfa10036>;
+			status = "okay";
 		};
 	};
 
