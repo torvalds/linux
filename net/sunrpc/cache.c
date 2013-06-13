@@ -228,15 +228,14 @@ static int try_to_negate_entry(struct cache_detail *detail, struct cache_head *h
 
 	write_lock(&detail->hash_lock);
 	rv = cache_is_valid(h);
-	if (rv != -EAGAIN) {
-		write_unlock(&detail->hash_lock);
-		return rv;
+	if (rv == -EAGAIN) {
+		set_bit(CACHE_NEGATIVE, &h->flags);
+		cache_fresh_locked(h, seconds_since_boot()+CACHE_NEW_EXPIRY);
+		rv = -ENOENT;
 	}
-	set_bit(CACHE_NEGATIVE, &h->flags);
-	cache_fresh_locked(h, seconds_since_boot()+CACHE_NEW_EXPIRY);
 	write_unlock(&detail->hash_lock);
 	cache_fresh_unlocked(h, detail);
-	return -ENOENT;
+	return rv;
 }
 
 /*
@@ -275,13 +274,10 @@ int cache_check(struct cache_detail *detail,
 		if (!test_and_set_bit(CACHE_PENDING, &h->flags)) {
 			switch (cache_make_upcall(detail, h)) {
 			case -EINVAL:
-				clear_bit(CACHE_PENDING, &h->flags);
-				cache_revisit_request(h);
 				rv = try_to_negate_entry(detail, h);
 				break;
 			case -EAGAIN:
-				clear_bit(CACHE_PENDING, &h->flags);
-				cache_revisit_request(h);
+				cache_fresh_unlocked(h, detail);
 				break;
 			}
 		}
@@ -457,9 +453,7 @@ static int cache_clean(void)
 			current_index ++;
 		spin_unlock(&cache_list_lock);
 		if (ch) {
-			if (test_and_clear_bit(CACHE_PENDING, &ch->flags))
-				cache_dequeue(current_detail, ch);
-			cache_revisit_request(ch);
+			cache_fresh_unlocked(ch, d);
 			cache_put(ch, d);
 		}
 	} else
