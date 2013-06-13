@@ -23,6 +23,14 @@
 	dsrl	\res, NSRI_NODEID_SHFT
 	.endm
 
+/*
+ * TLB bits
+ */
+#define PAGE_GLOBAL		(1 << 6)
+#define PAGE_VALID		(1 << 7)
+#define PAGE_DIRTY		(1 << 8)
+#define CACHE_CACHABLE_COW	(5 << 9)
+
 	/*
 	 * inputs are the text nasid in t1, data nasid in t2.
 	 */
@@ -44,10 +52,10 @@
 	dsrl	t2, 12			# 4K pfn
 	dsll	t1, 6			# Get pfn into place
 	dsll	t2, 6			# Get pfn into place
-	li	t0, ((_PAGE_GLOBAL|_PAGE_VALID| _CACHE_CACHABLE_COW) >> 6)
+	li	t0, ((PAGE_GLOBAL | PAGE_VALID | CACHE_CACHABLE_COW) >> 6)
 	or	t0, t0, t1
 	mtc0	t0, CP0_ENTRYLO0	# physaddr, VG, cach exlwr
-	li	t0, ((_PAGE_GLOBAL|_PAGE_VALID| _PAGE_DIRTY|_CACHE_CACHABLE_COW) >> 6)
+	li	t0, ((PAGE_GLOBAL | PAGE_VALID |  PAGE_DIRTY | CACHE_CACHABLE_COW) >> 6)
 	or	t0, t0, t2
 	mtc0	t0, CP0_ENTRYLO1	# physaddr, DVG, cach exlwr
 	li	t0, 0x1ffe000		# MAPPED_KERN_TLBMASK, TLBPGMASK_16M
