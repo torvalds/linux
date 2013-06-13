@@ -57,4 +57,17 @@ bandgap {
 		0x4a002380 0x2c
 		0x4a0023C0 0x3c>;
 	compatible = "ti,omap5430-bandgap";
+	interrupts = <0 126 4>; /* talert */
+};
+
+DRA752:
+bandgap {
+	reg = <0x4a0021e0 0xc
+		0x4a00232c 0xc
+		0x4a002380 0x2c
+		0x4a0023C0 0x3c
+		0x4a002564 0x8
+		0x4a002574 0x50>;
+	compatible = "ti,dra752-bandgap";
+	interrupts = <0 126 4>; /* talert */
 };
