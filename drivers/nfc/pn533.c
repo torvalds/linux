@@ -435,7 +435,7 @@ struct pn533_frame_ops {
 	int tx_header_len;
 	int tx_tail_len;
 
-	bool (*rx_is_frame_valid)(void *frame);
+	bool (*rx_is_frame_valid)(void *frame, struct pn533 *dev);
 	int (*rx_frame_size)(void *frame);
 	int rx_header_len;
 	int rx_tail_len;
@@ -510,7 +510,7 @@ static void pn533_acr122_tx_update_payload_len(void *_frame, int len)
 	frame->datalen += len;
 }
 
-static bool pn533_acr122_is_rx_frame_valid(void *_frame)
+static bool pn533_acr122_is_rx_frame_valid(void *_frame, struct pn533 *dev)
 {
 	struct pn533_acr122_rx_frame *frame = _frame;
 
@@ -608,7 +608,7 @@ static void pn533_std_tx_update_payload_len(void *_frame, int len)
 	frame->datalen += len;
 }
 
-static bool pn533_std_rx_frame_is_valid(void *_frame)
+static bool pn533_std_rx_frame_is_valid(void *_frame, struct pn533 *dev)
 {
 	u8 checksum;
 	struct pn533_std_frame *stdf = _frame;
@@ -618,6 +618,7 @@ static bool pn533_std_rx_frame_is_valid(void *_frame)
 
 	if (likely(!PN533_STD_IS_EXTENDED(stdf))) {
 		/* Standard frame code */
+		dev->ops->rx_header_len = PN533_STD_FRAME_HEADER_LEN;
 
 		checksum = pn533_std_checksum(stdf->datalen);
 		if (checksum != stdf->datalen_checksum)
@@ -629,6 +630,8 @@ static bool pn533_std_rx_frame_is_valid(void *_frame)
 	} else {
 		/* Extended */
 		struct pn533_ext_frame *eif = _frame;
+
+		dev->ops->rx_header_len = PN533_EXT_FRAME_HEADER_LEN;
 
 		checksum = pn533_ext_checksum(be16_to_cpu(eif->datalen));
 		if (checksum != eif->datalen_checksum)
@@ -734,7 +737,7 @@ static void pn533_recv_response(struct urb *urb)
 	print_hex_dump_debug("PN533 RX: ", DUMP_PREFIX_NONE, 16, 1, in_frame,
 			     dev->ops->rx_frame_size(in_frame), false);
 
-	if (!dev->ops->rx_is_frame_valid(in_frame)) {
+	if (!dev->ops->rx_is_frame_valid(in_frame, dev)) {
 		nfc_dev_err(&dev->interface->dev, "Received an invalid frame");
 		cmd->status = -EIO;
 		goto sched_wq;
@@ -746,11 +749,6 @@ static void pn533_recv_response(struct urb *urb)
 		cmd->status = -EIO;
 		goto sched_wq;
 	}
-
-	if (PN533_STD_IS_EXTENDED((struct pn533_std_frame *)in_frame))
-		dev->ops->rx_header_len = PN533_EXT_FRAME_HEADER_LEN;
-	else
-		dev->ops->rx_header_len = PN533_STD_FRAME_HEADER_LEN;
 
 sched_wq:
 	queue_work(dev->wq, &dev->cmd_complete_work);
