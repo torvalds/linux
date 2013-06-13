@@ -3309,6 +3309,8 @@ static int __add_tree_block(struct reloc_control *rc,
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	int ret;
+	bool skinny = btrfs_fs_incompat(rc->extent_root->fs_info,
+					SKINNY_METADATA);
 
 	if (tree_block_processed(bytenr, blocksize, rc))
 		return 0;
@@ -3319,10 +3321,15 @@ static int __add_tree_block(struct reloc_control *rc,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-
+again:
 	key.objectid = bytenr;
-	key.type = BTRFS_EXTENT_ITEM_KEY;
-	key.offset = blocksize;
+	if (skinny) {
+		key.type = BTRFS_METADATA_ITEM_KEY;
+		key.offset = (u64)-1;
+	} else {
+		key.type = BTRFS_EXTENT_ITEM_KEY;
+		key.offset = blocksize;
+	}
 
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
@@ -3330,11 +3337,23 @@ static int __add_tree_block(struct reloc_control *rc,
 	if (ret < 0)
 		goto out;
 
-	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
-	if (ret > 0) {
-		if (key.objectid == bytenr &&
-		    key.type == BTRFS_METADATA_ITEM_KEY)
-			ret = 0;
+	if (ret > 0 && skinny) {
+		if (path->slots[0]) {
+			path->slots[0]--;
+			btrfs_item_key_to_cpu(path->nodes[0], &key,
+					      path->slots[0]);
+			if (key.objectid == bytenr &&
+			    (key.type == BTRFS_METADATA_ITEM_KEY ||
+			     (key.type == BTRFS_EXTENT_ITEM_KEY &&
+			      key.offset == blocksize)))
+				ret = 0;
+		}
+
+		if (ret) {
+			skinny = false;
+			btrfs_release_path(path);
+			goto again;
+		}
 	}
 	BUG_ON(ret);
 
