@@ -352,9 +352,9 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 
 	/* only one of SMB2 signing flags may be set in SMB2 request */
 	if (ses->sign)
-		req->SecurityMode = SMB2_NEGOTIATE_SIGNING_REQUIRED;
+		req->SecurityMode = cpu_to_le16(SMB2_NEGOTIATE_SIGNING_REQUIRED);
 	else if (global_secflags & CIFSSEC_MAY_SIGN)
-		req->SecurityMode = SMB2_NEGOTIATE_SIGNING_ENABLED;
+		req->SecurityMode = cpu_to_le16(SMB2_NEGOTIATE_SIGNING_ENABLED);
 	else
 		req->SecurityMode = 0;
 
