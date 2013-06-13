@@ -61,14 +61,13 @@ static int ci13xxx_pci_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	retval = pci_enable_device(pdev);
+	retval = pcim_enable_device(pdev);
 	if (retval)
-		goto done;
+		return retval;
 
 	if (!pdev->irq) {
 		dev_err(&pdev->dev, "No IRQ, check BIOS/PCI setup!");
-		retval = -ENODEV;
-		goto disable_device;
+		return -ENODEV;
 	}
 
 	pci_set_master(pdev);
@@ -84,18 +83,12 @@ static int ci13xxx_pci_probe(struct pci_dev *pdev,
 	plat_ci = ci13xxx_add_device(&pdev->dev, res, nres, platdata);
 	if (IS_ERR(plat_ci)) {
 		dev_err(&pdev->dev, "ci13xxx_add_device failed!\n");
-		retval = PTR_ERR(plat_ci);
-		goto disable_device;
+		return PTR_ERR(plat_ci);
 	}
 
 	pci_set_drvdata(pdev, plat_ci);
 
 	return 0;
-
- disable_device:
-	pci_disable_device(pdev);
- done:
-	return retval;
 }
 
 /**
@@ -111,7 +104,6 @@ static void ci13xxx_pci_remove(struct pci_dev *pdev)
 	struct platform_device *plat_ci = pci_get_drvdata(pdev);
 
 	ci13xxx_remove_device(plat_ci);
-	pci_disable_device(pdev);
 }
 
 /**
