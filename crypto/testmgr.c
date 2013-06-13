@@ -360,7 +360,7 @@ out_nobuf:
 
 static int __test_aead(struct crypto_aead *tfm, int enc,
 		       struct aead_testvec *template, unsigned int tcount,
-		       const bool diff_dst)
+		       const bool diff_dst, const int align_offset)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
 	unsigned int i, j, k, n, temp;
@@ -423,15 +423,16 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		if (!template[i].np) {
 			j++;
 
-			/* some tepmplates have no input data but they will
+			/* some templates have no input data but they will
 			 * touch input
 			 */
 			input = xbuf[0];
+			input += align_offset;
 			assoc = axbuf[0];
 
 			ret = -EINVAL;
-			if (WARN_ON(template[i].ilen > PAGE_SIZE ||
-				    template[i].alen > PAGE_SIZE))
+			if (WARN_ON(align_offset + template[i].ilen >
+				    PAGE_SIZE || template[i].alen > PAGE_SIZE))
 				goto out;
 
 			memcpy(input, template[i].input, template[i].ilen);
@@ -470,6 +471,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 			if (diff_dst) {
 				output = xoutbuf[0];
+				output += align_offset;
 				sg_init_one(&sgout[0], output,
 					    template[i].ilen +
 						(enc ? authsize : 0));
@@ -530,6 +532,10 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 	}
 
 	for (i = 0, j = 0; i < tcount; i++) {
+		/* alignment tests are only done with continuous buffers */
+		if (align_offset != 0)
+			break;
+
 		if (template[i].np) {
 			j++;
 
@@ -732,15 +738,34 @@ out_noxbuf:
 static int test_aead(struct crypto_aead *tfm, int enc,
 		     struct aead_testvec *template, unsigned int tcount)
 {
+	unsigned int alignmask;
 	int ret;
 
 	/* test 'dst == src' case */
-	ret = __test_aead(tfm, enc, template, tcount, false);
+	ret = __test_aead(tfm, enc, template, tcount, false, 0);
 	if (ret)
 		return ret;
 
 	/* test 'dst != src' case */
-	return __test_aead(tfm, enc, template, tcount, true);
+	ret = __test_aead(tfm, enc, template, tcount, true, 0);
+	if (ret)
+		return ret;
+
+	/* test unaligned buffers, check with one byte offset */
+	ret = __test_aead(tfm, enc, template, tcount, true, 1);
+	if (ret)
+		return ret;
+
+	alignmask = crypto_tfm_alg_alignmask(&tfm->base);
+	if (alignmask) {
+		/* Check if alignment mask for tfm is correctly set. */
+		ret = __test_aead(tfm, enc, template, tcount, true,
+				  alignmask + 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int test_cipher(struct crypto_cipher *tfm, int enc,
