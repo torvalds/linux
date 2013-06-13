@@ -561,15 +561,6 @@ config HID_PRIMAX
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
 
-config HID_PS3REMOTE
-	tristate "Sony PS3 BD Remote Control"
-	depends on HID
-	---help---
-	Support for the Sony PS3 Blue-ray Disk Remote Control and Logitech
-	Harmony Adapter for PS3, which connect over Bluetooth.
-
-	Support for the 6-axis controllers is provided by HID_SONY.
-
 config HID_ROCCAT
 	tristate "Roccat device support"
 	depends on USB_HID
@@ -600,11 +591,11 @@ config HID_SONY
 	depends on LEDS_CLASS
 	---help---
 	Support for
-	  
+
 	  * Sony PS3 6-axis controllers
 	  * Buzz controllers
-
-	Support for the Sony PS3 BD Remote is provided by HID_PS3REMOTE.
+	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
+	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
 
 config HID_SPEEDLINK
 	tristate "Speedlink VAD Cezanne mouse support"
