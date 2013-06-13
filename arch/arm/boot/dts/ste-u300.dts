@@ -31,7 +31,7 @@
 	};
 
 	syscon: syscon@c0011000 {
-		compatible = "stericsson,u300-syscon";
+		compatible = "stericsson,u300-syscon", "syscon";
 		reg = <0xc0011000 0x1000>;
 		clk32: app_32_clk@32k {
 			#clock-cells = <0>;

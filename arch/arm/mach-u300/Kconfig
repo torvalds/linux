@@ -20,6 +20,7 @@ config ARCH_U300
 	select PINCTRL_COH901
 	select PINCTRL_U300
 	select SPARSE_IRQ
+	select MFD_SYSCON
 	select USE_OF
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
