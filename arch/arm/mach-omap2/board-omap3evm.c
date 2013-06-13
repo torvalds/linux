@@ -174,6 +174,7 @@ static struct panel_sharp_ls037v7dw01_data omap3_evm_lcd_data = {
 	.ud_gpio = OMAP3EVM_LCD_PANEL_UD,
 };
 
+#ifdef CONFIG_BROKEN
 static void __init omap3_evm_display_init(void)
 {
 	int r;
@@ -193,6 +194,7 @@ static void __init omap3_evm_display_init(void)
 	else
 		gpio_set_value_cansleep(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 1);
 }
+#endif
 
 static struct omap_dss_device omap3_evm_lcd_device = {
 	.name			= "lcd",
@@ -715,7 +717,9 @@ static void __init omap3_evm_init(void)
 
 	omap_ads7846_init(1, OMAP3_EVM_TS_GPIO, 310, NULL);
 	omap3evm_init_smsc911x();
+#ifdef CONFIG_BROKEN
 	omap3_evm_display_init();
+#endif
 	omap3_evm_wl12xx_init();
 	omap_twl4030_audio_init("omap3evm", NULL);
 }
