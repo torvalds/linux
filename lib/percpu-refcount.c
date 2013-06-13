@@ -57,11 +57,9 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release)
 static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 {
 	struct percpu_ref *ref = container_of(rcu, struct percpu_ref, rcu);
-	unsigned __percpu *pcpu_count;
+	unsigned __percpu *pcpu_count = ref->pcpu_count;
 	unsigned count = 0;
 	int cpu;
-
-	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
 
 	/* Mask out PCPU_REF_DEAD */
 	pcpu_count = (unsigned __percpu *)
