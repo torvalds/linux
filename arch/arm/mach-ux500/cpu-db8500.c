@@ -26,7 +26,6 @@
 
 #include <asm/pmu.h>
 #include <asm/mach/map.h>
-#include <asm/mach/arch.h>
 
 #include "setup.h"
 #include "devices.h"
@@ -325,6 +324,7 @@ DT_MACHINE_START(U8500_DT, "ST-Ericsson Ux5x0 platform (Device Tree Support)")
 	.init_machine	= u8500_init_machine,
 	.init_late	= NULL,
 	.dt_compat      = stericsson_dt_platform_compat,
+	.restart        = ux500_restart,
 MACHINE_END
 
 #endif
