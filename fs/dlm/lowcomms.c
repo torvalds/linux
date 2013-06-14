@@ -1346,6 +1346,7 @@ static int sctp_listen_for_all(void)
 	int result = -EINVAL, num = 1, i, addr_len;
 	struct connection *con = nodeid2con(0, GFP_NOFS);
 	int bufsize = NEEDED_RMEM;
+	int one = 1;
 
 	if (!con)
 		return -ENOMEM;
@@ -1379,6 +1380,11 @@ static int sctp_listen_for_all(void)
 			  result);
 		goto create_delsock;
 	}
+
+	result = kernel_setsockopt(sock, SOL_SCTP, SCTP_NODELAY, (char *)&one,
+				   sizeof(one));
+	if (result < 0)
+		log_print("Could not set SCTP NODELAY error %d\n", result);
 
 	/* Init con struct */
 	sock->sk->sk_user_data = con;
