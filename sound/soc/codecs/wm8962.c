@@ -3723,6 +3723,17 @@ static int wm8962_runtime_resume(struct device *dev)
 
 	regcache_sync(wm8962->regmap);
 
+	regmap_update_bits(wm8962->regmap, WM8962_ANTI_POP,
+			   WM8962_STARTUP_BIAS_ENA | WM8962_VMID_BUF_ENA,
+			   WM8962_STARTUP_BIAS_ENA | WM8962_VMID_BUF_ENA);
+
+	/* Bias enable at 2*5k (fast start-up) */
+	regmap_update_bits(wm8962->regmap, WM8962_PWR_MGMT_1,
+			   WM8962_BIAS_ENA | WM8962_VMID_SEL_MASK,
+			   WM8962_BIAS_ENA | 0x180);
+
+	msleep(5);
+
 	return 0;
 }
 
