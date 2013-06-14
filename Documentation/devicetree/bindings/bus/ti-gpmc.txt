@@ -95,7 +95,6 @@ GPMC chip-select settings properties for child nodes. All are optional.
 - gpmc,burst-wrap	Enables wrap bursting
 - gpmc,burst-read	Enables read page/burst mode
 - gpmc,burst-write	Enables write page/burst mode
-- gpmc,device-nand	Device is NAND
 - gpmc,device-width	Total width of device(s) connected to a GPMC
 			chip-select in bytes. The GPMC supports 8-bit
 			and 16-bit devices and so this property must be

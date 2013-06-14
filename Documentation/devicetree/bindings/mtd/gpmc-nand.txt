@@ -29,6 +29,13 @@ Optional properties:
 		"bch4"		4-bit BCH ecc code
 		"bch8"		8-bit BCH ecc code
 
+ - ti,nand-xfer-type:		A string setting the data transfer type. One of:
+
+		"prefetch-polled"	Prefetch polled mode (default)
+		"polled"		Polled mode, without prefetch
+		"prefetch-dma"		Prefetch enabled sDMA mode
+		"prefetch-irq"		Prefetch enabled irq mode
+
  - elm_id:	Specifies elm device node. This is required to support BCH
  		error correction using ELM module.
 
@@ -55,6 +62,7 @@ Example for an AM33xx board:
 			reg = <0 0 0>; /* CS0, offset 0 */
 			nand-bus-width = <16>;
 			ti,nand-ecc-opt = "bch8";
+			ti,nand-xfer-type = "polled";
 
 			gpmc,sync-clk-ps = <0>;
 			gpmc,cs-on-ns = <0>;
