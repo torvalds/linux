@@ -1972,21 +1972,31 @@ out:
 int drm_mode_set_config_internal(struct drm_mode_set *set)
 {
 	struct drm_crtc *crtc = set->crtc;
-	struct drm_framebuffer *fb, *old_fb;
+	struct drm_framebuffer *fb;
+	struct drm_crtc *tmp;
 	int ret;
 
-	old_fb = crtc->fb;
+	/*
+	 * NOTE: ->set_config can also disable other crtcs (if we steal all
+	 * connectors from it), hence we need to refcount the fbs across all
+	 * crtcs. Atomic modeset will have saner semantics ...
+	 */
+	list_for_each_entry(tmp, &crtc->dev->mode_config.crtc_list, head)
+		tmp->old_fb = tmp->fb;
+
 	fb = set->fb;
 
 	ret = crtc->funcs->set_config(set);
 	if (ret == 0) {
 		/* crtc->fb must be updated by ->set_config, enforces this. */
 		WARN_ON(fb != crtc->fb);
+	}
 
-		if (old_fb)
-			drm_framebuffer_unreference(old_fb);
-		if (fb)
-			drm_framebuffer_reference(fb);
+	list_for_each_entry(tmp, &crtc->dev->mode_config.crtc_list, head) {
+		if (tmp->fb)
+			drm_framebuffer_reference(tmp->fb);
+		if (tmp->old_fb)
+			drm_framebuffer_unreference(tmp->old_fb);
 	}
 
 	return ret;
