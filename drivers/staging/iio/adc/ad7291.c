@@ -87,20 +87,20 @@ static int ad7291_i2c_read(struct ad7291_chip_info *chip, u8 reg, u16 *data)
 	struct i2c_client *client = chip->client;
 	int ret = 0;
 
-	ret = i2c_smbus_read_word_data(client, reg);
+	ret = i2c_smbus_read_word_swapped(client, reg);
 	if (ret < 0) {
 		dev_err(&client->dev, "I2C read error\n");
 		return ret;
 	}
 
-	*data = swab16((u16)ret);
+	*data = ret;
 
 	return 0;
 }
 
 static int ad7291_i2c_write(struct ad7291_chip_info *chip, u8 reg, u16 data)
 {
-	return i2c_smbus_write_word_data(chip->client, reg, swab16(data));
+	return i2c_smbus_write_word_swapped(chip->client, reg, data);
 }
 
 static irqreturn_t ad7291_event_handler(int irq, void *private)
@@ -418,35 +418,33 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 				return ret;
 			}
 			/* Read voltage */
-			ret = i2c_smbus_read_word_data(chip->client,
+			ret = i2c_smbus_read_word_swapped(chip->client,
 						       AD7291_VOLTAGE);
 			if (ret < 0) {
 				mutex_unlock(&chip->state_lock);
 				return ret;
 			}
-			*val = swab16((u16)ret) & AD7291_VALUE_MASK;
+			*val = ret & AD7291_VALUE_MASK;
 			mutex_unlock(&chip->state_lock);
 			return IIO_VAL_INT;
 		case IIO_TEMP:
 			/* Assumes tsense bit of command register always set */
-			ret = i2c_smbus_read_word_data(chip->client,
+			ret = i2c_smbus_read_word_swapped(chip->client,
 						       AD7291_T_SENSE);
 			if (ret < 0)
 				return ret;
-			signval = (s16)((swab16((u16)ret) &
-				AD7291_VALUE_MASK) << 4) >> 4;
+			signval = (s16)((ret & AD7291_VALUE_MASK) << 4) >> 4;
 			*val = signval;
 			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_AVERAGE_RAW:
-		ret = i2c_smbus_read_word_data(chip->client,
+		ret = i2c_smbus_read_word_swapped(chip->client,
 					       AD7291_T_AVERAGE);
 			if (ret < 0)
 				return ret;
-			signval = (s16)((swab16((u16)ret) &
-				AD7291_VALUE_MASK) << 4) >> 4;
+			signval = (s16)((ret & AD7291_VALUE_MASK) << 4) >> 4;
 			*val = signval;
 			return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
