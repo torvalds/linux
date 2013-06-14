@@ -200,7 +200,8 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 			 * We probably cannot handle all device-id machines,
 			 * so restrict to those we do handle for now.
 			 */
-			if (id && (*id == 22 || *id == 14 || *id == 35)) {
+			if (id && (*id == 22 || *id == 14 || *id == 35 ||
+				   *id == 44)) {
 				snprintf(dev->sound.modalias, 32,
 					 "aoa-device-id-%d", *id);
 				ok = 1;

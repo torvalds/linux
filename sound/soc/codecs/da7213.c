@@ -1488,17 +1488,17 @@ static int da7213_probe(struct snd_soc_codec *codec)
 				     DA7213_DMIC_DATA_SEL_SHIFT);
 			break;
 		}
-		switch (pdata->dmic_data_sel) {
+		switch (pdata->dmic_samplephase) {
 		case DA7213_DMIC_SAMPLE_ON_CLKEDGE:
 		case DA7213_DMIC_SAMPLE_BETWEEN_CLKEDGE:
-			dmic_cfg |= (pdata->dmic_data_sel <<
+			dmic_cfg |= (pdata->dmic_samplephase <<
 				     DA7213_DMIC_SAMPLEPHASE_SHIFT);
 			break;
 		}
-		switch (pdata->dmic_data_sel) {
+		switch (pdata->dmic_clk_rate) {
 		case DA7213_DMIC_CLK_3_0MHZ:
 		case DA7213_DMIC_CLK_1_5MHZ:
-			dmic_cfg |= (pdata->dmic_data_sel <<
+			dmic_cfg |= (pdata->dmic_clk_rate <<
 				     DA7213_DMIC_CLK_RATE_SHIFT);
 			break;
 		}

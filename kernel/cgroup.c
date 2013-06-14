@@ -1688,11 +1688,14 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		 */
 		cgroup_free_root(opts.new_root);
 
-		if (((root->flags | opts.flags) & CGRP_ROOT_SANE_BEHAVIOR) &&
-		    root->flags != opts.flags) {
-			pr_err("cgroup: sane_behavior: new mount options should match the existing superblock\n");
-			ret = -EINVAL;
-			goto drop_new_super;
+		if (root->flags != opts.flags) {
+			if ((root->flags | opts.flags) & CGRP_ROOT_SANE_BEHAVIOR) {
+				pr_err("cgroup: sane_behavior: new mount options should match the existing superblock\n");
+				ret = -EINVAL;
+				goto drop_new_super;
+			} else {
+				pr_warning("cgroup: new mount options do not match the existing superblock, will be ignored\n");
+			}
 		}
 
 		/* no subsys rebinding, so refcounts don't change */

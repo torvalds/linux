@@ -232,7 +232,7 @@ void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	u32 base_rate = 48000;
+	u32 base_rate = 24000;
 
 	if (!dig || !dig->afmt)
 		return;
@@ -240,7 +240,6 @@ void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	/* there are two DTOs selected by DCCG_AUDIO_DTO_SELECT.
 	 * doesn't matter which one you use.  Just use the first one.
 	 */
-	/* XXX: properly calculate this */
 	/* XXX two dtos; generally use dto0 for hdmi */
 	/* Express [24MHz / target pixel clock] as an exact rational
 	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
@@ -250,13 +249,13 @@ void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 		/* according to the reg specs, this should DCE3.2 only, but in
 		 * practice it seems to cover DCE3.0 as well.
 		 */
-		WREG32(DCCG_AUDIO_DTO0_PHASE, base_rate * 50);
+		WREG32(DCCG_AUDIO_DTO0_PHASE, base_rate * 100);
 		WREG32(DCCG_AUDIO_DTO0_MODULE, clock * 100);
 		WREG32(DCCG_AUDIO_DTO_SELECT, 0); /* select DTO0 */
 	} else {
 		/* according to the reg specs, this should be DCE2.0 and DCE3.0 */
-		WREG32(AUDIO_DTO, AUDIO_DTO_PHASE(base_rate * 50) |
-		       AUDIO_DTO_MODULE(clock * 100));
+		WREG32(AUDIO_DTO, AUDIO_DTO_PHASE(base_rate / 10) |
+		       AUDIO_DTO_MODULE(clock / 10));
 	}
 }
 

@@ -821,8 +821,10 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 		gi->gstrings[i] = NULL;
 		s = usb_gstrings_attach(&gi->cdev, gi->gstrings,
 				USB_GADGET_FIRST_AVAIL_IDX);
-		if (IS_ERR(s))
+		if (IS_ERR(s)) {
+			ret = PTR_ERR(s);
 			goto err_comp_cleanup;
+		}
 
 		gi->cdev.desc.iManufacturer = s[USB_GADGET_MANUFACTURER_IDX].id;
 		gi->cdev.desc.iProduct = s[USB_GADGET_PRODUCT_IDX].id;
@@ -847,8 +849,10 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 			}
 			cfg->gstrings[i] = NULL;
 			s = usb_gstrings_attach(&gi->cdev, cfg->gstrings, 1);
-			if (IS_ERR(s))
+			if (IS_ERR(s)) {
+				ret = PTR_ERR(s);
 				goto err_comp_cleanup;
+			}
 			c->iConfiguration = s[0].id;
 		}
 

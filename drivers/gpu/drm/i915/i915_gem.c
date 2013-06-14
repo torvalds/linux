@@ -1003,7 +1003,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 		wait_forever = false;
 	}
 
-	timeout_jiffies = timespec_to_jiffies(&wait_time);
+	timeout_jiffies = timespec_to_jiffies_timeout(&wait_time);
 
 	if (WARN_ON(!ring->irq_get(ring)))
 		return -ENODEV;
@@ -1045,6 +1045,8 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	if (timeout) {
 		struct timespec sleep_time = timespec_sub(now, before);
 		*timeout = timespec_sub(*timeout, sleep_time);
+		if (!timespec_valid(timeout)) /* i.e. negative time remains */
+			set_normalized_timespec(timeout, 0, 0);
 	}
 
 	switch (end) {
@@ -1053,8 +1055,6 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	case -ERESTARTSYS: /* Signal */
 		return (int)end;
 	case 0: /* Timeout */
-		if (timeout)
-			set_normalized_timespec(timeout, 0, 0);
 		return -ETIME;
 	default: /* Completed */
 		WARN_ON(end < 0); /* We're not aware of other errors */
@@ -2377,10 +2377,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	mutex_unlock(&dev->struct_mutex);
 
 	ret = __wait_seqno(ring, seqno, reset_counter, true, timeout);
-	if (timeout) {
-		WARN_ON(!timespec_valid(timeout));
+	if (timeout)
 		args->timeout_ns = timespec_to_ns(timeout);
-	}
 	return ret;
 
 out:

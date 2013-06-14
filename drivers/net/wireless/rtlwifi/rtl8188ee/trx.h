@@ -550,7 +550,7 @@ do {								\
 	 rxmcs == DESC92C_RATE11M)
 
 struct phy_rx_agc_info_t {
-	#if __LITTLE_ENDIAN
+	#ifdef __LITTLE_ENDIAN
 		u8	gain:7, trsw:1;
 	#else
 		u8	trsw:1, gain:7;
@@ -574,7 +574,7 @@ struct phy_status_rpt {
 	u8	stream_target_csi[2];
 	u8	sig_evm;
 	u8	rsvd_3;
-#if __LITTLE_ENDIAN
+#ifdef __LITTLE_ENDIAN
 	u8	antsel_rx_keep_2:1;	/*ex_intf_flg:1;*/
 	u8	sgi_en:1;
 	u8	rxsc:2;

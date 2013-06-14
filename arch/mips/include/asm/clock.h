@@ -6,8 +6,6 @@
 #include <linux/seq_file.h>
 #include <linux/clk.h>
 
-extern void (*cpu_wait) (void);
-
 struct clk;
 
 struct clk_ops {

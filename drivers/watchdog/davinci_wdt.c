@@ -217,11 +217,6 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 	dev_info(dev, "heartbeat %d sec\n", heartbeat);
 
 	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (wdt_mem == NULL) {
-		dev_err(dev, "failed to get memory region resource\n");
-		return -ENOENT;
-	}
-
 	wdt_base = devm_ioremap_resource(dev, wdt_mem);
 	if (IS_ERR(wdt_base))
 		return PTR_ERR(wdt_base);

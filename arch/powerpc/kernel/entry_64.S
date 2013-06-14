@@ -33,6 +33,7 @@
 #include <asm/irqflags.h>
 #include <asm/ftrace.h>
 #include <asm/hw_irq.h>
+#include <asm/context_tracking.h>
 
 /*
  * System calls.
@@ -376,8 +377,6 @@ _GLOBAL(ret_from_fork)
 _GLOBAL(ret_from_kernel_thread)
 	bl	.schedule_tail
 	REST_NVGPRS(r1)
-	li	r3,0
-	std	r3,0(r1)
 	ld	r14, 0(r14)
 	mtlr	r14
 	mr	r3,r15
@@ -466,6 +465,20 @@ BEGIN_FTR_SECTION
 	std	r0, THREAD_EBBHR(r3)
 	mfspr	r0, SPRN_EBBRR
 	std	r0, THREAD_EBBRR(r3)
+
+	/* PMU registers made user read/(write) by EBB */
+	mfspr	r0, SPRN_SIAR
+	std	r0, THREAD_SIAR(r3)
+	mfspr	r0, SPRN_SDAR
+	std	r0, THREAD_SDAR(r3)
+	mfspr	r0, SPRN_SIER
+	std	r0, THREAD_SIER(r3)
+	mfspr	r0, SPRN_MMCR0
+	std	r0, THREAD_MMCR0(r3)
+	mfspr	r0, SPRN_MMCR2
+	std	r0, THREAD_MMCR2(r3)
+	mfspr	r0, SPRN_MMCRA
+	std	r0, THREAD_MMCRA(r3)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 #endif
 
@@ -487,6 +500,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 BEGIN_FTR_SECTION
 	ldarx	r6,0,r1
 END_FTR_SECTION_IFSET(CPU_FTR_STCX_CHECKS_ADDRESS)
+
+#ifdef CONFIG_PPC_BOOK3S
+/* Cancel all explict user streams as they will have no use after context
+ * switch and will stop the HW from creating streams itself
+ */
+	DCBT_STOP_ALL_STREAM_IDS(r6)
+#endif
 
 	addi	r6,r4,-THREAD	/* Convert THREAD to 'current' */
 	std	r6,PACACURRENT(r13)	/* Set new 'current' */
@@ -561,6 +581,20 @@ BEGIN_FTR_SECTION
 	ld	r0, THREAD_EBBRR(r4)
 	mtspr	SPRN_EBBRR, r0
 
+	/* PMU registers made user read/(write) by EBB */
+	ld	r0, THREAD_SIAR(r4)
+	mtspr	SPRN_SIAR, r0
+	ld	r0, THREAD_SDAR(r4)
+	mtspr	SPRN_SDAR, r0
+	ld	r0, THREAD_SIER(r4)
+	mtspr	SPRN_SIER, r0
+	ld	r0, THREAD_MMCR0(r4)
+	mtspr	SPRN_MMCR0, r0
+	ld	r0, THREAD_MMCR2(r4)
+	mtspr	SPRN_MMCR2, r0
+	ld	r0, THREAD_MMCRA(r4)
+	mtspr	SPRN_MMCRA, r0
+
 	ld	r0,THREAD_TAR(r4)
 	mtspr	SPRN_TAR,r0
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
@@ -634,7 +668,7 @@ _GLOBAL(ret_from_except_lite)
 	andi.	r0,r4,_TIF_NEED_RESCHED
 	beq	1f
 	bl	.restore_interrupts
-	bl	.schedule
+	SCHEDULE_USER
 	b	.ret_from_except_lite
 
 1:	bl	.save_nvgprs

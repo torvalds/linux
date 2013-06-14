@@ -227,13 +227,13 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 		if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
 			goto work;
 
-		ath9k_set_beacon(sc);
-
 		if (ah->opmode == NL80211_IFTYPE_STATION &&
 		    test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
 			spin_lock_irqsave(&sc->sc_pm_lock, flags);
 			sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
 			spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+		} else {
+			ath9k_set_beacon(sc);
 		}
 	work:
 		ath_restart_work(sc);
@@ -1332,6 +1332,7 @@ static int ath9k_sta_add(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_node *an = (struct ath_node *) sta->drv_priv;
 	struct ieee80211_key_conf ps_key = { };
+	int key;
 
 	ath_node_attach(sc, sta, vif);
 
@@ -1339,7 +1340,9 @@ static int ath9k_sta_add(struct ieee80211_hw *hw,
 	    vif->type != NL80211_IFTYPE_AP_VLAN)
 		return 0;
 
-	an->ps_key = ath_key_config(common, vif, sta, &ps_key);
+	key = ath_key_config(common, vif, sta, &ps_key);
+	if (key > 0)
+		an->ps_key = key;
 
 	return 0;
 }
@@ -1356,6 +1359,7 @@ static void ath9k_del_ps_key(struct ath_softc *sc,
 	    return;
 
 	ath_key_delete(common, &ps_key);
+	an->ps_key = 0;
 }
 
 static int ath9k_sta_remove(struct ieee80211_hw *hw,
@@ -1683,6 +1687,7 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 			      u16 tid, u16 *ssn, u8 buf_size)
 {
 	struct ath_softc *sc = hw->priv;
+	bool flush = false;
 	int ret = 0;
 
 	local_bh_disable();
@@ -1699,12 +1704,13 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 			ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		ath9k_ps_restore(sc);
 		break;
-	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
+		flush = true;
+	case IEEE80211_AMPDU_TX_STOP_CONT:
 		ath9k_ps_wakeup(sc);
-		ath_tx_aggr_stop(sc, sta, tid);
-		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		if (ath_tx_aggr_stop(sc, sta, tid, flush))
+			ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		ath9k_ps_restore(sc);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:

@@ -414,11 +414,6 @@ static int intel_msic_probe(struct platform_device *pdev)
 	 * the clients via intel_msic_irq_read().
 	 */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get SRAM iomem resource\n");
-		return -ENODEV;
-	}
-
 	msic->irq_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(msic->irq_base))
 		return PTR_ERR(msic->irq_base);

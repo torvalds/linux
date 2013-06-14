@@ -124,6 +124,20 @@ int nvec_register_notifier(struct nvec_chip *nvec, struct notifier_block *nb,
 EXPORT_SYMBOL_GPL(nvec_register_notifier);
 
 /**
+ * nvec_unregister_notifier - Unregister a notifier with nvec
+ * @nvec: A &struct nvec_chip
+ * @nb: The notifier block to unregister
+ *
+ * Unregisters a notifier with @nvec. The notifier will be removed from the
+ * atomic notifier chain.
+ */
+int nvec_unregister_notifier(struct nvec_chip *nvec, struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&nvec->notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(nvec_unregister_notifier);
+
+/**
  * nvec_status_notifier - The final notifier
  *
  * Prints a message about control events not handled in the notifier
@@ -185,7 +199,7 @@ static struct nvec_msg *nvec_msg_alloc(struct nvec_chip *nvec,
  *
  * Free the given message
  */
-inline void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg)
+void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg)
 {
 	if (msg != &nvec->tx_scratch)
 		dev_vdbg(nvec->dev, "INFO: Free %ti\n", msg - nvec->msg_pool);
@@ -800,11 +814,6 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no mem resource?\n");
-		return -ENODEV;
-	}
-
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -815,7 +824,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	i2c_clk = clk_get(&pdev->dev, "div-clk");
+	i2c_clk = devm_clk_get(&pdev->dev, "div-clk");
 	if (IS_ERR(i2c_clk)) {
 		dev_err(nvec->dev, "failed to get controller clock\n");
 		return -ENODEV;
@@ -902,8 +911,11 @@ static int tegra_nvec_remove(struct platform_device *pdev)
 
 	nvec_toggle_global_events(nvec, false);
 	mfd_remove_devices(nvec->dev);
+	nvec_unregister_notifier(nvec, &nvec->nvec_status_notifier);
 	cancel_work_sync(&nvec->rx_work);
 	cancel_work_sync(&nvec->tx_work);
+	/* FIXME: needs check wether nvec is responsible for power off */
+	pm_power_off = NULL;
 
 	return 0;
 }

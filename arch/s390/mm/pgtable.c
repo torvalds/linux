@@ -492,7 +492,7 @@ static int gmap_connect_pgtable(unsigned long address, unsigned long segment,
 	mp = (struct gmap_pgtable *) page->index;
 	rmap->gmap = gmap;
 	rmap->entry = segment_ptr;
-	rmap->vmaddr = address;
+	rmap->vmaddr = address & PMD_MASK;
 	spin_lock(&mm->page_table_lock);
 	if (*segment_ptr == segment) {
 		list_add(&rmap->list, &mp->mapper);
@@ -677,8 +677,7 @@ int gmap_ipte_notify(struct gmap *gmap, unsigned long start, unsigned long len)
 			break;
 		}
 		/* Get the page mapped */
-		if (get_user_pages(current, gmap->mm, addr, 1, 1, 0,
-				   NULL, NULL) != 1) {
+		if (fixup_user_fault(current, gmap->mm, addr, FAULT_FLAG_WRITE)) {
 			rc = -EFAULT;
 			break;
 		}

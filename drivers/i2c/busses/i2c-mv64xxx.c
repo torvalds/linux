@@ -252,7 +252,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		writel(drv_data->cntl_bits,
 			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 		drv_data->block = 0;
-		wake_up_interruptible(&drv_data->waitq);
+		wake_up(&drv_data->waitq);
 		break;
 
 	case MV64XXX_I2C_ACTION_CONTINUE:
@@ -300,7 +300,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
 			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 		drv_data->block = 0;
-		wake_up_interruptible(&drv_data->waitq);
+		wake_up(&drv_data->waitq);
 		break;
 
 	case MV64XXX_I2C_ACTION_INVALID:
@@ -315,7 +315,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
 			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 		drv_data->block = 0;
-		wake_up_interruptible(&drv_data->waitq);
+		wake_up(&drv_data->waitq);
 		break;
 	}
 }
@@ -381,7 +381,7 @@ mv64xxx_i2c_wait_for_completion(struct mv64xxx_i2c_data *drv_data)
 	unsigned long	flags;
 	char		abort = 0;
 
-	time_left = wait_event_interruptible_timeout(drv_data->waitq,
+	time_left = wait_event_timeout(drv_data->waitq,
 		!drv_data->block, drv_data->adapter.timeout);
 
 	spin_lock_irqsave(&drv_data->lock, flags);

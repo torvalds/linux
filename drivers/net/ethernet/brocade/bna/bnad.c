@@ -3236,9 +3236,10 @@ bnad_init(struct bnad *bnad,
 
 	sprintf(bnad->wq_name, "%s_wq_%d", BNAD_NAME, bnad->id);
 	bnad->work_q = create_singlethread_workqueue(bnad->wq_name);
-
-	if (!bnad->work_q)
+	if (!bnad->work_q) {
+		iounmap(bnad->bar0);
 		return -ENOMEM;
+	}
 
 	return 0;
 }
