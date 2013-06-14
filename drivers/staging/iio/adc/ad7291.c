@@ -275,7 +275,6 @@ static int ad7291_read_event_value(struct iio_dev *indio_dev,
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);
 	int ret;
 	u16 uval;
-	s16 signval;
 
 	ret = ad7291_i2c_read(chip, ad7291_threshold_reg(event_code), &uval);
 	if (ret < 0)
@@ -286,8 +285,7 @@ static int ad7291_read_event_value(struct iio_dev *indio_dev,
 		*val = uval & AD7291_VALUE_MASK;
 		return 0;
 	case IIO_TEMP:
-		signval = (s16)((uval & AD7291_VALUE_MASK) << 4) >> 4;
-		*val = signval;
+		*val = sign_extend32(uval, 11);
 		return 0;
 	default:
 		return -EINVAL;
@@ -397,7 +395,6 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 	int ret;
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);
 	u16 regval;
-	s16 signval;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -433,8 +430,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 						       AD7291_T_SENSE);
 			if (ret < 0)
 				return ret;
-			signval = (s16)((ret & AD7291_VALUE_MASK) << 4) >> 4;
-			*val = signval;
+			*val = sign_extend32(ret, 11);
 			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
@@ -444,8 +440,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 					       AD7291_T_AVERAGE);
 			if (ret < 0)
 				return ret;
-			signval = (s16)((ret & AD7291_VALUE_MASK) << 4) >> 4;
-			*val = signval;
+			*val = sign_extend32(ret, 11);
 			return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
