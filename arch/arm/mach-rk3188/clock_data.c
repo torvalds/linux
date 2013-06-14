@@ -3022,6 +3022,7 @@ static void __init rk30_init_enable_clocks(void)
 	//clk_enable_nolock(&clk_core);
 	clk_enable_nolock(&clk_cpu_div);
 	clk_enable_nolock(&clk_core_gpll_path);
+	clk_enable_nolock(&clk_ddr_gpll_path);
 	clk_enable_nolock(&clk_l2c);
 	clk_enable_nolock(&clk_core_dbg);
 	clk_enable_nolock(&core_periph);
