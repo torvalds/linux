@@ -3069,6 +3069,19 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See also Documentation/trace/ftrace.txt "trace options"
 			section.
 
+	traceoff_on_warning
+			[FTRACE] enable this option to disable tracing when a
+			warning is hit. This turns off "tracing_on". Tracing can
+			be enabled again by echoing '1' into the "tracing_on"
+			file located in /sys/kernel/debug/tracing/
+
+			This option is useful, as it disables the trace before
+			the WARNING dump is called, which prevents the trace to
+			be filled with content caused by the warning output.
+
+			This option can also be set at run time via the sysctl
+			option:  kernel/traceoff_on_warning
+
 	transparent_hugepage=
 			[KNL]
 			Format: [always|madvise|never]
