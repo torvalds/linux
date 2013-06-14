@@ -141,8 +141,8 @@ u64 ovs_flow_used_time(unsigned long flow_jiffies);
 int ovs_flow_to_nlattrs(const struct sw_flow_key *, struct sk_buff *);
 int ovs_flow_from_nlattrs(struct sw_flow_key *swkey, int *key_lenp,
 		      const struct nlattr *);
-int ovs_flow_metadata_from_nlattrs(u32 *priority, u32 *mark, u16 *in_port,
-			       const struct nlattr *);
+int ovs_flow_metadata_from_nlattrs(struct sw_flow *flow,
+				  const struct nlattr *attr);
 
 #define MAX_ACTIONS_BUFSIZE    (16 * 1024)
 #define TBL_MIN_BUCKETS		1024

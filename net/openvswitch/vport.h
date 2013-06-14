@@ -123,9 +123,8 @@ struct vport_parms {
  * existing vport to a &struct sk_buff.  May be %NULL for a vport that does not
  * have any configuration.
  * @get_name: Get the device's name.
- * @get_config: Get the device's configuration.
- * May be null if the device does not have an ifindex.
- * @send: Send a packet on the device.  Returns the length of the packet sent.
+ * @send: Send a packet on the device.  Returns the length of the packet sent,
+ * zero for dropped packets or negative for error.
  */
 struct vport_ops {
 	enum ovs_vport_type type;
@@ -139,7 +138,6 @@ struct vport_ops {
 
 	/* Called with rcu_read_lock or ovs_mutex. */
 	const char *(*get_name)(const struct vport *);
-	void (*get_config)(const struct vport *, void *);
 
 	int (*send)(struct vport *, struct sk_buff *);
 };
@@ -193,5 +191,12 @@ void ovs_vport_record_error(struct vport *, enum vport_err_type err_type);
  * add yours to the list at the top of vport.c. */
 extern const struct vport_ops ovs_netdev_vport_ops;
 extern const struct vport_ops ovs_internal_vport_ops;
+
+static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
+				      const void *start, unsigned int len)
+{
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->csum = csum_add(skb->csum, csum_partial(start, len, 0));
+}
 
 #endif /* vport.h */

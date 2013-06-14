@@ -351,7 +351,7 @@ int ovs_vport_send(struct vport *vport, struct sk_buff *skb)
 {
 	int sent = vport->ops->send(vport, skb);
 
-	if (likely(sent)) {
+	if (likely(sent > 0)) {
 		struct pcpu_tstats *stats;
 
 		stats = this_cpu_ptr(vport->percpu_stats);
@@ -360,7 +360,12 @@ int ovs_vport_send(struct vport *vport, struct sk_buff *skb)
 		stats->tx_packets++;
 		stats->tx_bytes += sent;
 		u64_stats_update_end(&stats->syncp);
-	}
+	} else if (sent < 0) {
+		ovs_vport_record_error(vport, VPORT_E_TX_ERROR);
+		kfree_skb(skb);
+	} else
+		ovs_vport_record_error(vport, VPORT_E_TX_DROPPED);
+
 	return sent;
 }
 
@@ -371,7 +376,7 @@ int ovs_vport_send(struct vport *vport, struct sk_buff *skb)
  * @err_type: one of enum vport_err_type types to indicate the error type
  *
  * If using the vport generic stats layer indicate that an error of the given
- * type has occured.
+ * type has occurred.
  */
 void ovs_vport_record_error(struct vport *vport, enum vport_err_type err_type)
 {
