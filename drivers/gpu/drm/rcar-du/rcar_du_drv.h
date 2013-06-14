@@ -25,9 +25,18 @@ struct clk;
 struct device;
 struct drm_device;
 
+/*
+ * struct rcar_du_device_info - DU model-specific information
+ * @features: device features (RCAR_DU_FEATURE_*)
+ */
+struct rcar_du_device_info {
+	unsigned int features;
+};
+
 struct rcar_du_device {
 	struct device *dev;
 	const struct rcar_du_platform_data *pdata;
+	const struct rcar_du_device_info *info;
 
 	void __iomem *mmio;
 	struct clk *clock;
@@ -49,6 +58,12 @@ struct rcar_du_device {
 		struct drm_property *zpos;
 	} planes;
 };
+
+static inline bool rcar_du_has(struct rcar_du_device *rcdu,
+			       unsigned int feature)
+{
+	return rcdu->info->features & feature;
+}
 
 int rcar_du_get(struct rcar_du_device *rcdu);
 void rcar_du_put(struct rcar_du_device *rcdu);

@@ -123,6 +123,7 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 
 	rcdu->dev = &pdev->dev;
 	rcdu->pdata = pdata;
+	rcdu->info = (struct rcar_du_device_info *)pdev->id_entry->driver_data;
 	rcdu->ddev = dev;
 	dev->dev_private = rcdu;
 
@@ -292,6 +293,17 @@ static int rcar_du_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct rcar_du_device_info rcar_du_r8a7779_info = {
+	.features = 0,
+};
+
+static const struct platform_device_id rcar_du_id_table[] = {
+	{ "rcar-du-r8a7779", (kernel_ulong_t)&rcar_du_r8a7779_info },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(platform, rcar_du_id_table);
+
 static struct platform_driver rcar_du_platform_driver = {
 	.probe		= rcar_du_probe,
 	.remove		= rcar_du_remove,
@@ -300,6 +312,7 @@ static struct platform_driver rcar_du_platform_driver = {
 		.name	= "rcar-du",
 		.pm	= &rcar_du_pm_ops,
 	},
+	.id_table	= rcar_du_id_table,
 };
 
 module_platform_driver(rcar_du_platform_driver);
