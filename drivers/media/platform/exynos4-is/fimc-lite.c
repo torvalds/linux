@@ -153,6 +153,7 @@ static int fimc_lite_hw_init(struct fimc_lite *fimc, bool isp_output)
 	flite_hw_set_camera_bus(fimc, si);
 	flite_hw_set_source_format(fimc, &fimc->inp_frame);
 	flite_hw_set_window_offset(fimc, &fimc->inp_frame);
+	flite_hw_set_dma_buf_mask(fimc, 0);
 	flite_hw_set_output_dma(fimc, &fimc->out_frame, !isp_output);
 	flite_hw_set_interrupt_mask(fimc);
 	flite_hw_set_test_pattern(fimc, fimc->test_pattern->val);
@@ -276,19 +277,23 @@ static irqreturn_t flite_irq_handler(int irq, void *priv)
 
 	if ((intsrc & FLITE_REG_CISTATUS_IRQ_SRC_FRMSTART) &&
 	    test_bit(ST_FLITE_RUN, &fimc->state) &&
-	    !list_empty(&fimc->active_buf_q) &&
 	    !list_empty(&fimc->pending_buf_q)) {
+		vbuf = fimc_lite_pending_queue_pop(fimc);
+		flite_hw_set_dma_buffer(fimc, vbuf);
+		fimc_lite_active_queue_add(fimc, vbuf);
+	}
+
+	if ((intsrc & FLITE_REG_CISTATUS_IRQ_SRC_FRMEND) &&
+	    test_bit(ST_FLITE_RUN, &fimc->state) &&
+	    !list_empty(&fimc->active_buf_q)) {
 		vbuf = fimc_lite_active_queue_pop(fimc);
 		ktime_get_ts(&ts);
 		tv = &vbuf->vb.v4l2_buf.timestamp;
 		tv->tv_sec = ts.tv_sec;
 		tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
 		vbuf->vb.v4l2_buf.sequence = fimc->frame_count++;
+		flite_hw_mask_dma_buffer(fimc, vbuf->index);
 		vb2_buffer_done(&vbuf->vb, VB2_BUF_STATE_DONE);
-
-		vbuf = fimc_lite_pending_queue_pop(fimc);
-		flite_hw_set_output_addr(fimc, vbuf->paddr);
-		fimc_lite_active_queue_add(fimc, vbuf);
 	}
 
 	if (test_bit(ST_FLITE_CONFIG, &fimc->state))
@@ -307,9 +312,15 @@ done:
 static int start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct fimc_lite *fimc = q->drv_priv;
+	unsigned long flags;
 	int ret;
 
+	spin_lock_irqsave(&fimc->slock, flags);
+
+	fimc->buf_index = 0;
 	fimc->frame_count = 0;
+
+	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	ret = fimc_lite_hw_init(fimc, false);
 	if (ret) {
@@ -412,10 +423,14 @@ static void buffer_queue(struct vb2_buffer *vb)
 	spin_lock_irqsave(&fimc->slock, flags);
 	buf->paddr = vb2_dma_contig_plane_dma_addr(vb, 0);
 
+	buf->index = fimc->buf_index++;
+	if (fimc->buf_index >= fimc->reqbufs_count)
+		fimc->buf_index = 0;
+
 	if (!test_bit(ST_FLITE_SUSPENDED, &fimc->state) &&
 	    !test_bit(ST_FLITE_STREAM, &fimc->state) &&
 	    list_empty(&fimc->active_buf_q)) {
-		flite_hw_set_output_addr(fimc, buf->paddr);
+		flite_hw_set_dma_buffer(fimc, buf);
 		fimc_lite_active_queue_add(fimc, buf);
 	} else {
 		fimc_lite_pending_queue_add(fimc, buf);
@@ -1451,8 +1466,12 @@ static int fimc_lite_probe(struct platform_device *pdev)
 		fimc->index = of_alias_get_id(dev->of_node, "fimc-lite");
 	}
 
-	if (!drv_data || fimc->index < 0 || fimc->index >= FIMC_LITE_MAX_DEVS)
+	if (!drv_data || fimc->index >= drv_data->num_instances ||
+						fimc->index < 0) {
+		dev_err(dev, "Wrong %s node alias\n",
+					dev->of_node->full_name);
 		return -EINVAL;
+	}
 
 	fimc->dd = drv_data;
 	fimc->pdev = pdev;
@@ -1609,12 +1628,29 @@ static struct flite_drvdata fimc_lite_drvdata_exynos4 = {
 	.out_width_align	= 8,
 	.win_hor_offs_align	= 2,
 	.out_hor_offs_align	= 8,
+	.max_dma_bufs		= 1,
+	.num_instances		= 2,
+};
+
+/* EXYNOS5250 */
+static struct flite_drvdata fimc_lite_drvdata_exynos5 = {
+	.max_width		= 8192,
+	.max_height		= 8192,
+	.out_width_align	= 8,
+	.win_hor_offs_align	= 2,
+	.out_hor_offs_align	= 8,
+	.max_dma_bufs		= 32,
+	.num_instances		= 3,
 };
 
 static const struct of_device_id flite_of_match[] = {
 	{
 		.compatible = "samsung,exynos4212-fimc-lite",
 		.data = &fimc_lite_drvdata_exynos4,
+	},
+	{
+		.compatible = "samsung,exynos5250-fimc-lite",
+		.data = &fimc_lite_drvdata_exynos5,
 	},
 	{ /* sentinel */ },
 };
