@@ -3862,7 +3862,6 @@ out:
 SCTP_STATIC int sctp_init_sock(struct sock *sk)
 {
 	struct net *net = sock_net(sk);
-	struct sctp_endpoint *ep;
 	struct sctp_sock *sp;
 
 	SCTP_DEBUG_PRINTK("sctp_init_sock(sk: %p)\n", sk);
@@ -3971,11 +3970,10 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	 * change the data structure relationships, this may still
 	 * be useful for storing pre-connect address information.
 	 */
-	ep = sctp_endpoint_new(sk, GFP_KERNEL);
-	if (!ep)
+	sp->ep = sctp_endpoint_new(sk, GFP_KERNEL);
+	if (!sp->ep)
 		return -ENOMEM;
 
-	sp->ep = ep;
 	sp->hmac = NULL;
 
 	SCTP_DBG_OBJCNT_INC(sock);
