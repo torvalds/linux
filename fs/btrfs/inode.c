@@ -700,8 +700,12 @@ retry:
 			async_extent->nr_pages = 0;
 			async_extent->pages = NULL;
 
-			if (ret == -ENOSPC)
+			if (ret == -ENOSPC) {
+				unlock_extent(io_tree, async_extent->start,
+					      async_extent->start +
+					      async_extent->ram_size - 1);
 				goto retry;
+			}
 			goto out_free;
 		}
 
