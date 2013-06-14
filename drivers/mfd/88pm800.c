@@ -157,6 +157,13 @@ static struct mfd_cell onkey_devs[] = {
 	 },
 };
 
+static struct mfd_cell regulator_devs[] = {
+	{
+	 .name = "88pm80x-regulator",
+	 .id = -1,
+	},
+};
+
 static const struct regmap_irq pm800_irqs[] = {
 	/* INT0 */
 	[PM800_IRQ_ONKEY] = {
@@ -339,6 +346,21 @@ static int device_rtc_init(struct pm80x_chip *chip,
 	return 0;
 }
 
+static int device_regulator_init(struct pm80x_chip *chip,
+					   struct pm80x_platform_data *pdata)
+{
+	int ret;
+
+	ret = mfd_add_devices(chip->dev, 0, &regulator_devs[0],
+			      ARRAY_SIZE(regulator_devs), NULL, 0, NULL);
+	if (ret) {
+		dev_err(chip->dev, "Failed to add regulator subdev\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int device_irq_init_800(struct pm80x_chip *chip)
 {
 	struct regmap *map = chip->regmap;
@@ -497,6 +519,12 @@ static int device_800_init(struct pm80x_chip *chip,
 	ret = device_rtc_init(chip, pdata);
 	if (ret) {
 		dev_err(chip->dev, "Failed to add rtc subdev\n");
+		goto out;
+	}
+
+	ret = device_regulator_init(chip, pdata);
+	if (ret) {
+		dev_err(chip->dev, "Failed to add regulators subdev\n");
 		goto out;
 	}
 
