@@ -621,17 +621,15 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 		kcontrol = snd_soc_cnew(&w->kcontrol_news[kci], wlist, name,
 					prefix);
 		kcontrol->private_free = dapm_kcontrol_free;
+		kfree(long_name);
 		ret = snd_ctl_add(card, kcontrol);
 		if (ret < 0) {
 			dev_err(dapm->dev,
 				"ASoC: failed to add widget %s dapm kcontrol %s: %d\n",
 				w->name, name, ret);
 			kfree(wlist);
-			kfree(long_name);
 			return ret;
 		}
-
-		path->long_name = long_name;
 	}
 
 	kcontrol->private_data = wlist;
@@ -2110,7 +2108,6 @@ static void dapm_free_path(struct snd_soc_dapm_path *path)
 	list_del(&path->list_sink);
 	list_del(&path->list_source);
 	list_del(&path->list);
-	kfree(path->long_name);
 	kfree(path);
 }
 

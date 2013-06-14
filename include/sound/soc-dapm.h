@@ -478,7 +478,6 @@ struct snd_soc_dapm_route {
 /* dapm audio path between two widgets */
 struct snd_soc_dapm_path {
 	const char *name;
-	const char *long_name;
 
 	/* source (input) and sink (output) widgets */
 	struct snd_soc_dapm_widget *source;
