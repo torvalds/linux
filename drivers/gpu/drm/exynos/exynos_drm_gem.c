@@ -420,7 +420,7 @@ int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_exynos_gem_mmap *args = data;
 	struct drm_gem_object *obj;
-	unsigned int addr;
+	unsigned long addr;
 
 	if (!(dev->driver->driver_features & DRIVER_GEM)) {
 		DRM_ERROR("does not support GEM.\n");
@@ -462,14 +462,14 @@ int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 
 	drm_gem_object_unreference(obj);
 
-	if (IS_ERR((void *)addr)) {
+	if (IS_ERR_VALUE(addr)) {
 		/* check filp->f_op, filp->private_data are restored */
 		if (file_priv->filp->f_op == &exynos_drm_gem_fops) {
 			file_priv->filp->f_op = fops_get(dev->driver->fops);
 			file_priv->filp->private_data = file_priv;
 		}
 		mutex_unlock(&dev->struct_mutex);
-		return PTR_ERR((void *)addr);
+		return (int)addr;
 	}
 
 	mutex_unlock(&dev->struct_mutex);
