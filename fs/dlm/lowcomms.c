@@ -662,6 +662,7 @@ static void process_sctp_notification(struct connection *con,
 			log_print("connecting to %d sctp association %d",
 				 nodeid, (int)sn->sn_assoc_change.sac_assoc_id);
 
+			new_con->sctp_assoc = sn->sn_assoc_change.sac_assoc_id;
 			/* Send any pending writes */
 			clear_bit(CF_CONNECT_PENDING, &new_con->flags);
 			clear_bit(CF_INIT_PENDING, &new_con->flags);
