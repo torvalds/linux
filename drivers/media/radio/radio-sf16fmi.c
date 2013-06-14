@@ -50,7 +50,7 @@ struct fmi
 	struct video_device vdev;
 	int io;
 	bool mute;
-	unsigned long curfreq; /* freq in kHz */
+	u32 curfreq; /* freq in kHz */
 	struct mutex lock;
 };
 
@@ -118,6 +118,14 @@ static inline int fmi_getsigstr(struct fmi *fmi)
 	return (res & 2) ? 0 : 0xFFFF;
 }
 
+static void fmi_set_freq(struct fmi *fmi)
+{
+	fmi->curfreq = clamp(fmi->curfreq, RSF16_MINFREQ, RSF16_MAXFREQ);
+	/* rounding in steps of 800 to match the freq
+	   that will be used */
+	lm7000_set_freq((fmi->curfreq / 800) * 800, fmi, fmi_set_pins);
+}
+
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *v)
 {
@@ -158,14 +166,13 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 					const struct v4l2_frequency *f)
 {
 	struct fmi *fmi = video_drvdata(file);
-	unsigned freq = f->frequency;
 
 	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
-	clamp(freq, RSF16_MINFREQ, RSF16_MAXFREQ);
-	/* rounding in steps of 800 to match the freq
-	   that will be used */
-	lm7000_set_freq((freq / 800) * 800, fmi, fmi_set_pins);
+
+	fmi->curfreq = f->frequency;
+	fmi_set_freq(fmi);
+
 	return 0;
 }
 
@@ -342,8 +349,10 @@ static int __init fmi_init(void)
 
 	mutex_init(&fmi->lock);
 
-	/* mute card - prevents noisy bootups */
-	fmi_mute(fmi);
+	/* mute card and set default frequency */
+	fmi->mute = 1;
+	fmi->curfreq = RSF16_MINFREQ;
+	fmi_set_freq(fmi);
 
 	if (video_register_device(&fmi->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
 		v4l2_ctrl_handler_free(hdl);
