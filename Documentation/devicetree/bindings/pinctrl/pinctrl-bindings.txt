@@ -158,9 +158,29 @@ input-schmitt		- run in schmitt-trigger mode with hysteresis X
 input-debounce		- debounce mode with debound time X
 power-source		- select power source X
 slew-rate		- use slew-rate X
-low-power-mode		- low power mode
+low-power-enable	- enable low power mode
+low-power-disable	- disable low power mode
 output-low		- set the pin to output mode with low level
 output-high		- set the pin to output mode with high level
+
+Arguments for parameters:
+
+- bias-pull-up, -down and -pin-default take as optional argument 0 to disable
+  the pull, on hardware supporting it the pull strength in Ohm. bias-disable
+  will also disable any active pull.
+
+- drive-strength takes as argument the target strength in mA.
+
+- input-schmitt takes as argument the adjustable hysteresis in a
+  driver-specific format
+
+- input-debounce takes the debounce time as argument or 0 to disable debouncing
+
+- power-source argument is the custom value describing the source to select
+
+- slew-rate takes as argument the target rate in a driver-specific format
+
+All parameters not listed here, do not take an argument.
 
 More in-depth documentation on these parameters can be found in
 <include/linux/pinctrl/pinconfig-generic.h>
