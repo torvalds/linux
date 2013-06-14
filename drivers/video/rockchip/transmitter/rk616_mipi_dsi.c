@@ -85,8 +85,8 @@ static int dsi_set_bits(u32 data, u32 reg)
 
 static int rk_mipi_dsi_phy_preset_gotp(void *array, int n) {
 
-	u32 val = 0;
-	struct rk29fb_screen *screen = array;
+	//u32 val = 0;
+	//struct rk29fb_screen *screen = array;
 
 	return 0;
 }
@@ -307,7 +307,6 @@ static int rk_mipi_dsi_phy_set_gotp(u32 offset, int n) {
 static int rk_mipi_dsi_phy_init(void *array, int n) {
 
 	u32 val = 0;
-	struct rk29fb_screen *screen = array;
 	//DPHY init
 	dsi_set_bits((gDsi.phy.fbdiv >> 8) & 0x01, reg_fbdiv_8);
 	dsi_set_bits(gDsi.phy.prediv, reg_prediv);
@@ -534,7 +533,6 @@ static int rk_mipi_dsi_host_init(void *array, int n) {
 static int rk_mipi_dsi_init(void *array, u32 n) {
 	u32 decimals = 1000, i = 0, pre = 0;
 	struct rk29fb_screen *screen = array;
-	struct rk_lcdc_device_driver *dev_drv;
 	
 	if(!g_screen && screen)
 		g_screen = screen;
@@ -611,7 +609,6 @@ static int rk_mipi_dsi_init(void *array, u32 n) {
 	rk_mipi_dsi_phy_init(screen, n);
 	rk_mipi_dsi_host_init(screen, n);
 	
-	
 	if(!screen->init) { 
 		rk_mipi_dsi_send_dcs_packet(dcs_exit_sleep_mode, sizeof(dcs_exit_sleep_mode));
 		msleep(1);
@@ -620,12 +617,9 @@ static int rk_mipi_dsi_init(void *array, u32 n) {
 	}
 	
 	dsi_set_bits(1, en_video_mode);
-	
-	msleep(10);
-	rk_mipi_dsi_send_dcs_packet(dcs_enter_sleep_mode, sizeof(dcs_enter_sleep_mode));
-	rk_mipi_dsi_send_dcs_packet(dcs_set_diaplay_off, sizeof(dcs_set_diaplay_off));
-	
 	rk616_display_router_cfg(dsi_rk616, screen, 0);
+	
+	return 0;
 }
 
 
@@ -685,7 +679,6 @@ static int rk_mipi_dsi_send_packet(unsigned char type, unsigned char regs[], u32
 
 static int rk_mipi_dsi_read_dcs_packet(unsigned char *data, u32 n) {
 	//DCS READ 
-	unsigned int i = 0;
 	
 	return 0;
 }
@@ -700,7 +693,7 @@ static int rk_mipi_dsi_power_down(void) {
 	return 0;
 }
 
-static u32 rk_mipi_dsi_get_id(void) {
+static int rk_mipi_dsi_get_id(void) {
 	
 	u32 id = 0;
 	dsi_read_reg(VERSION, &id);
@@ -712,7 +705,6 @@ static struct mipi_dsi_ops rk_mipi_dsi_ops = {
 	.id = DWC_DSI_VERSION,
 	.name = "rk_mipi_dsi",
 	.get_id = rk_mipi_dsi_get_id,
-	//.dsi_set_regs = NULL,
 	.dsi_send_dcs_packet = rk_mipi_dsi_send_dcs_packet,
 	.dsi_read_dcs_packet = rk_mipi_dsi_read_dcs_packet,
 	.power_up = rk_mipi_dsi_power_up,
@@ -933,52 +925,28 @@ module_init(rk_mipi_dsi_reg);
 static void rk616_mipi_dsi_early_suspend(struct early_suspend *h)
 {
 	u32 val = 0X01;   
-	struct regulator *ldo;
-	
 	dsi_set_bits(0, en_video_mode);
-	
 	dsi_write_reg(DPHY_REGISTER0, &val);
 	
 	val = 0xe3;    
 	dsi_write_reg(DPHY_REGISTER1, &val);
-	
 	dsi_set_bits(0, shutdownz);
-
-	ldo = regulator_get(NULL, "ricoh_ldo3");
-	if(ldo) {
-		while(regulator_is_enabled(ldo)>0)
-			regulator_disable(ldo);	
-		regulator_put(ldo);	
-	}
-	
-
-	MIPI_DBG("%s\n", __func__);
 }
 
 static void rk616_mipi_dsi_late_resume(struct early_suspend *h)
 {
-	struct regulator *ldo;
 	rk_mipi_dsi_phy_init(g_screen, 0);
-	
 	//dsi_set_bits(1, shutdownz);
-	
 	rk_mipi_dsi_host_init(g_screen, 0);
 	
-	rk_mipi_dsi_send_dcs_packet(dcs_exit_sleep_mode, sizeof(dcs_exit_sleep_mode));
-	msleep(1);
-	rk_mipi_dsi_send_dcs_packet(dcs_set_diaplay_on, sizeof(dcs_set_diaplay_on));
-	msleep(10);
-	
+	if(!g_screen->init) {
+		rk_mipi_dsi_send_dcs_packet(dcs_exit_sleep_mode, sizeof(dcs_exit_sleep_mode));
+		msleep(1);
+		rk_mipi_dsi_send_dcs_packet(dcs_set_diaplay_on, sizeof(dcs_set_diaplay_on));
+		msleep(10);
+	}
 	dsi_set_bits(1, en_video_mode);
 	rk616_display_router_cfg(dsi_rk616, g_screen, 0);
-	
-	
-	ldo = regulator_get(NULL, "ricoh_ldo3");
-	if(ldo) {
-		regulator_enable(ldo);	
-		regulator_put(ldo);
-	}
-	MIPI_DBG("%s\n", __func__);
 }
 
 #endif
@@ -988,7 +956,6 @@ static void rk616_mipi_dsi_late_resume(struct early_suspend *h)
 static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	u32 val;
 	rk_screen *screen; 
 	struct mfd_rk616 *rk616 = dev_get_drvdata(pdev->dev.parent);
 	if(!rk616)
