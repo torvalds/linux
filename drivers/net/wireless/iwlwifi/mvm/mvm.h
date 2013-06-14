@@ -76,6 +76,7 @@
 #include "iwl-trans.h"
 #include "sta.h"
 #include "fw-api.h"
+#include "constants.h"
 
 #define IWL_INVALID_MAC80211_QUEUE	0xff
 #define IWL_MVM_MAX_ADDRESSES		5

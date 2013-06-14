@@ -217,11 +217,15 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	}
 
 	if (mvm->cur_ucode != IWL_UCODE_WOWLAN) {
-		cmd->rx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
-		cmd->tx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
+		cmd->rx_data_timeout =
+			cpu_to_le32(IWL_MVM_DEFAULT_PS_RX_DATA_TIMEOUT);
+		cmd->tx_data_timeout =
+			cpu_to_le32(IWL_MVM_DEFAULT_PS_TX_DATA_TIMEOUT);
 	} else {
-		cmd->rx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
-		cmd->tx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
+		cmd->rx_data_timeout =
+			cpu_to_le32(IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT);
+		cmd->tx_data_timeout =
+			cpu_to_le32(IWL_MVM_WOWLAN_PS_TX_DATA_TIMEOUT);
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
