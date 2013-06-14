@@ -47,46 +47,36 @@ static struct pci_bus *virtfn_add_bus(struct pci_bus *bus, int busnr)
 		return NULL;
 
 	pci_bus_insert_busn_res(child, busnr, busnr);
-	bus->is_added = 1;
 
 	return child;
 }
 
-static void virtfn_remove_bus(struct pci_bus *bus, int busnr)
+static void virtfn_remove_bus(struct pci_bus *physbus, struct pci_bus *virtbus)
 {
-	struct pci_bus *child;
-
-	if (bus->number == busnr)
-		return;
-
-	child = pci_find_bus(pci_domain_nr(bus), busnr);
-	BUG_ON(!child);
-
-	if (list_empty(&child->devices))
-		pci_remove_bus(child);
+	if (physbus != virtbus && list_empty(&virtbus->devices))
+		pci_remove_bus(virtbus);
 }
 
 static int virtfn_add(struct pci_dev *dev, int id, int reset)
 {
 	int i;
-	int rc;
+	int rc = -ENOMEM;
 	u64 size;
 	char buf[VIRTFN_ID_LEN];
 	struct pci_dev *virtfn;
 	struct resource *res;
 	struct pci_sriov *iov = dev->sriov;
-
-	virtfn = alloc_pci_dev();
-	if (!virtfn)
-		return -ENOMEM;
+	struct pci_bus *bus;
 
 	mutex_lock(&iov->dev->sriov->lock);
-	virtfn->bus = virtfn_add_bus(dev->bus, virtfn_bus(dev, id));
-	if (!virtfn->bus) {
-		kfree(virtfn);
-		mutex_unlock(&iov->dev->sriov->lock);
-		return -ENOMEM;
-	}
+	bus = virtfn_add_bus(dev->bus, virtfn_bus(dev, id));
+	if (!bus)
+		goto failed;
+
+	virtfn = pci_alloc_dev(bus);
+	if (!virtfn)
+		goto failed0;
+
 	virtfn->devfn = virtfn_devfn(dev, id);
 	virtfn->vendor = dev->vendor;
 	pci_read_config_word(dev, iov->pos + PCI_SRIOV_VF_DID, &virtfn->device);
@@ -134,7 +124,9 @@ failed1:
 	pci_dev_put(dev);
 	mutex_lock(&iov->dev->sriov->lock);
 	pci_stop_and_remove_bus_device(virtfn);
-	virtfn_remove_bus(dev->bus, virtfn_bus(dev, id));
+failed0:
+	virtfn_remove_bus(dev->bus, bus);
+failed:
 	mutex_unlock(&iov->dev->sriov->lock);
 
 	return rc;
@@ -143,19 +135,14 @@ failed1:
 static void virtfn_remove(struct pci_dev *dev, int id, int reset)
 {
 	char buf[VIRTFN_ID_LEN];
-	struct pci_bus *bus;
 	struct pci_dev *virtfn;
 	struct pci_sriov *iov = dev->sriov;
 
-	bus = pci_find_bus(pci_domain_nr(dev->bus), virtfn_bus(dev, id));
-	if (!bus)
-		return;
-
-	virtfn = pci_get_slot(bus, virtfn_devfn(dev, id));
+	virtfn = pci_get_domain_bus_and_slot(pci_domain_nr(dev->bus),
+					     virtfn_bus(dev, id),
+					     virtfn_devfn(dev, id));
 	if (!virtfn)
 		return;
-
-	pci_dev_put(virtfn);
 
 	if (reset) {
 		device_release_driver(&virtfn->dev);
@@ -174,9 +161,11 @@ static void virtfn_remove(struct pci_dev *dev, int id, int reset)
 
 	mutex_lock(&iov->dev->sriov->lock);
 	pci_stop_and_remove_bus_device(virtfn);
-	virtfn_remove_bus(dev->bus, virtfn_bus(dev, id));
+	virtfn_remove_bus(dev->bus, virtfn->bus);
 	mutex_unlock(&iov->dev->sriov->lock);
 
+	/* balance pci_get_domain_bus_and_slot() */
+	pci_dev_put(virtfn);
 	pci_dev_put(dev);
 }
 
@@ -333,13 +322,14 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 		if (!pdev)
 			return -ENODEV;
 
-		pci_dev_put(pdev);
-
-		if (!pdev->is_physfn)
+		if (!pdev->is_physfn) {
+			pci_dev_put(pdev);
 			return -ENODEV;
+		}
 
 		rc = sysfs_create_link(&dev->dev.kobj,
 					&pdev->dev.kobj, "dep_link");
+		pci_dev_put(pdev);
 		if (rc)
 			return rc;
 	}
