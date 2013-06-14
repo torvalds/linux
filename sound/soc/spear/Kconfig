@@ -20,21 +20,11 @@ config SND_SPEAR1340_EVM
 	 platform
 
 config SND_SPEAR_SOC
-	tristate "SoC Audio for the ST chip"
-	depends on SND_DESIGNWARE_I2S || SND_SPEAR_SPDIF_OUT || \
-		SND_SPEAR_SPDIF_IN
-	help
-	 Say Y or M if you want to add support for any of the audio
-	 controllers (I2S/SPDIF). You will also need to select
-	 the audio interface codecs to support below.
+	tristate
 	select SND_SOC_DMAENGINE_PCM
 
 config SND_SPEAR_SPDIF_OUT
-	tristate "SPEAr SPDIF Out Device Driver"
-	help
-	 Say Y or M if you want to add support for SPDIF OUT driver.
+	tristate
 
 config SND_SPEAR_SPDIF_IN
-	tristate "SPEAr SPDIF IN Device Driver"
-	help
-	 Say Y or M if you want to add support for SPDIF IN driver.
+	tristate
