@@ -4400,6 +4400,7 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 
 	/* Set HBR and RBR LPF coefficients */
 	if (crtc->config.port_clock == 162000 ||
+	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_ANALOG) ||
 	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_HDMI))
 		vlv_dpio_write(dev_priv, DPIO_LFP_COEFF(pipe),
 				 0x005f0021);
