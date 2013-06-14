@@ -528,24 +528,26 @@ static int pm800_probe(struct i2c_client *client,
 	subchip->gpadc_page_addr = pdata->gpadc_page_addr;
 	chip->subchip = subchip;
 
-	ret = device_800_init(chip, pdata);
-	if (ret) {
-		dev_err(chip->dev, "%s id 0x%x failed!\n", __func__, chip->id);
-		goto err_subchip_alloc;
-	}
-
 	ret = pm800_pages_init(chip);
 	if (ret) {
 		dev_err(&client->dev, "pm800_pages_init failed!\n");
 		goto err_page_init;
 	}
 
+	ret = device_800_init(chip, pdata);
+	if (ret) {
+		dev_err(chip->dev, "%s id 0x%x failed!\n", __func__, chip->id);
+		goto err_device_init;
+	}
+
 	if (pdata->plat_config)
 		pdata->plat_config(chip, pdata);
 
+	return 0;
+
+err_device_init:
+	pm800_pages_exit(chip);
 err_page_init:
-	mfd_remove_devices(chip->dev);
-	device_irq_exit_800(chip);
 err_subchip_alloc:
 	pm80x_deinit();
 out_init:
