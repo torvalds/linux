@@ -978,34 +978,6 @@ static struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 	return bfqq;
 }
 
-/*
- * Forced extraction of the given queue.
- */
-static void bfq_get_next_queue_forced(struct bfq_data *bfqd,
-				      struct bfq_queue *bfqq)
-{
-	struct bfq_entity *entity;
-	struct bfq_sched_data *sd;
-
-	BUG_ON(bfqd->active_queue != NULL);
-
-	entity = &bfqq->entity;
-	/*
-	 * Bubble up extraction/update from the leaf to the root.
-	*/
-	for_each_entity(entity) {
-		sd = entity->sched_data;
-		bfq_update_budget(entity);
-		bfq_update_vtime(bfq_entity_service_tree(entity));
-		bfq_active_extract(bfq_entity_service_tree(entity), entity);
-		sd->active_entity = entity;
-		sd->next_active = NULL;
-		entity->service = 0;
-	}
-
-	return;
-}
-
 static void __bfq_bfqd_reset_active(struct bfq_data *bfqd)
 {
 	if (bfqd->active_bic != NULL) {

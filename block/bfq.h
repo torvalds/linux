@@ -188,6 +188,8 @@ struct bfq_group;
  * @pid: pid of the process owning the queue, used for logging purposes.
  * @last_rais_start_time: last (idle -> weight-raised) transition attempt
  * @raising_cur_max_time: current max raising time for this queue
+ * @bic: pointer to the bfq_io_cq owning the bfq_queue, set to %NULL if the
+ *	 queue is shared
  *
  * A bfq_queue is a leaf request queue; it can be associated to an io_context
  * or more (if it is an async one).  @cgroup holds a reference to the
@@ -231,6 +233,7 @@ struct bfq_queue {
 	sector_t last_request_pos;
 
 	pid_t pid;
+	struct bfq_io_cq *bic;
 
 	/* weight-raising fields */
 	unsigned int raising_cur_max_time;
@@ -257,12 +260,23 @@ struct bfq_ttime {
  * @icq: associated io_cq structure
  * @bfqq: array of two process queues, the sync and the async
  * @ttime: associated @bfq_ttime struct
+ * @raising_time_left: snapshot of the time left before weight raising ends
+ *		       for the sync queue associated to this process; this
+ *		       snapshot is taken to remember this value while the weight
+ *		       raising is suspended because the queue is merged with a
+ *		       shared queue, and is used to set @raising_cur_max_time
+ *		       when the queue is split from the shared queue and its
+ *		       weight is raised again
+ * @saved_idle_window: same purpose as the previous field for the idle window
  */
 struct bfq_io_cq {
 	struct io_cq icq; /* must be the first member */
 	struct bfq_queue *bfqq[2];
 	struct bfq_ttime ttime;
 	int ioprio;
+
+	unsigned int raising_time_left;
+	unsigned int saved_idle_window;
 };
 
 /**
@@ -403,6 +417,7 @@ enum bfqq_state_flags {
 	BFQ_BFQQ_FLAG_coop,		/* bfqq is shared */
 	BFQ_BFQQ_FLAG_split_coop,	/* shared bfqq will be splitted */
 	BFQ_BFQQ_FLAG_some_coop_idle,   /* some cooperator is inactive */
+	BFQ_BFQQ_FLAG_just_split,	/* queue has just been split */
 };
 
 #define BFQ_BFQQ_FNS(name)						\
@@ -430,6 +445,7 @@ BFQ_BFQQ_FNS(budget_new);
 BFQ_BFQQ_FNS(coop);
 BFQ_BFQQ_FNS(split_coop);
 BFQ_BFQQ_FNS(some_coop_idle);
+BFQ_BFQQ_FNS(just_split);
 #undef BFQ_BFQQ_FNS
 
 /* Logging facilities. */
