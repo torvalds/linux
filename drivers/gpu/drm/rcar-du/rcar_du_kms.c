@@ -111,11 +111,18 @@ const struct rcar_du_format_info *rcar_du_format_info(u32 fourcc)
 int rcar_du_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args)
 {
+	struct rcar_du_device *rcdu = dev->dev_private;
 	unsigned int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
 	unsigned int align;
 
-	/* The pitch must be aligned to a 16 pixels boundary. */
-	align = 16 * args->bpp / 8;
+	/* The R8A7779 DU requires a 16 pixels pitch alignment as documented,
+	 * but the R8A7790 DU seems to require a 128 bytes pitch alignment.
+	 */
+	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_ALIGN_128B))
+		align = 128;
+	else
+		align = 16 * args->bpp / 8;
+
 	args->pitch = roundup(max(args->pitch, min_pitch), align);
 
 	return drm_gem_cma_dumb_create(file, dev, args);
@@ -125,6 +132,7 @@ static struct drm_framebuffer *
 rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		  struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	struct rcar_du_device *rcdu = dev->dev_private;
 	const struct rcar_du_format_info *format;
 	unsigned int align;
 
@@ -135,7 +143,10 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		return ERR_PTR(-EINVAL);
 	}
 
-	align = 16 * format->bpp / 8;
+	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_ALIGN_128B))
+		align = 128;
+	else
+		align = 16 * format->bpp / 8;
 
 	if (mode_cmd->pitches[0] & (align - 1) ||
 	    mode_cmd->pitches[0] >= 8192) {
