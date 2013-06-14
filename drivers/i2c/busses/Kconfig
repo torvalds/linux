@@ -714,6 +714,16 @@ config I2C_VERSATILE
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-versatile.
 
+config I2C_WMT
+	tristate "Wondermedia WM8xxx SoC I2C bus support"
+	depends on ARCH_VT8500
+	help
+	  Say yes if you want to support the I2C bus on Wondermedia 8xxx-series
+	  SoCs.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called i2c-wmt.
+
 config I2C_OCTEON
 	tristate "Cavium OCTEON I2C bus support"
 	depends on CPU_CAVIUM_OCTEON
