@@ -754,12 +754,6 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 				ret = -EINVAL;
 				goto fail;
 			}
-			DRM_DEBUG_KMS("Setting connector DPMS state to on\n");
-			for (i = 0; i < set->num_connectors; i++) {
-				DRM_DEBUG_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
-					      drm_get_connector_name(set->connectors[i]));
-				set->connectors[i]->funcs->dpms(set->connectors[i], DRM_MODE_DPMS_ON);
-			}
 		}
 		drm_helper_disable_unused_functions(dev);
 	} else if (fb_changed) {
@@ -774,6 +768,22 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		if (ret != 0) {
 			set->crtc->fb = old_fb;
 			goto fail;
+		}
+	}
+
+	/*
+	 * crtc set_config helpers implicit set the crtc and all connected
+	 * encoders to DPMS on for a full mode set. But for just an fb update it
+	 * doesn't do that. To not confuse userspace, do an explicit DPMS_ON
+	 * unconditionally. This will also ensure driver internal dpms state is
+	 * consistent again.
+	 */
+	if (set->crtc->enabled) {
+		DRM_DEBUG_KMS("Setting connector DPMS state to on\n");
+		for (i = 0; i < set->num_connectors; i++) {
+			DRM_DEBUG_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
+				      drm_get_connector_name(set->connectors[i]));
+			set->connectors[i]->funcs->dpms(set->connectors[i], DRM_MODE_DPMS_ON);
 		}
 	}
 
