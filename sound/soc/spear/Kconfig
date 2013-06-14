@@ -27,6 +27,7 @@ config SND_SPEAR_SOC
 	 Say Y or M if you want to add support for any of the audio
 	 controllers (I2S/SPDIF). You will also need to select
 	 the audio interface codecs to support below.
+	select SND_SOC_DMAENGINE_PCM
 
 config SND_SPEAR_SPDIF_OUT
 	tristate "SPEAr SPDIF Out Device Driver"
