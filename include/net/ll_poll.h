@@ -34,7 +34,7 @@
 #ifdef CONFIG_NET_LL_RX_POLL
 
 struct napi_struct;
-extern unsigned long sysctl_net_ll_poll __read_mostly;
+extern unsigned int sysctl_net_ll_poll __read_mostly;
 
 /* return values from ndo_ll_poll */
 #define LL_FLUSH_FAILED		-1
@@ -45,7 +45,8 @@ extern unsigned long sysctl_net_ll_poll __read_mostly;
 
 static inline cycles_t ll_end_time(void)
 {
-	return TSC_MHZ * ACCESS_ONCE(sysctl_net_ll_poll) + get_cycles();
+	return (cycles_t)TSC_MHZ * ACCESS_ONCE(sysctl_net_ll_poll)
+			+ get_cycles();
 }
 
 static inline bool sk_valid_ll(struct sock *sk)
