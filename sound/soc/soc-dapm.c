@@ -363,11 +363,10 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 		val = soc_widget_read(w, e->reg);
 		item = (val >> e->shift_l) & e->mask;
 
-		p->connect = 0;
-		for (i = 0; i < e->max; i++) {
-			if (!(strcmp(p->name, e->texts[i])) && item == i)
-				p->connect = 1;
-		}
+		if (item < e->max && !strcmp(p->name, e->texts[item]))
+			p->connect = 1;
+		else
+			p->connect = 0;
 	}
 	break;
 	case snd_soc_dapm_virt_mux: {
@@ -397,11 +396,10 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 				break;
 		}
 
-		p->connect = 0;
-		for (i = 0; i < e->max; i++) {
-			if (!(strcmp(p->name, e->texts[i])) && item == i)
-				p->connect = 1;
-		}
+		if (item < e->max && !strcmp(p->name, e->texts[item]))
+			p->connect = 1;
+		else
+			p->connect = 0;
 	}
 	break;
 	/* does not affect routing - always connected */
