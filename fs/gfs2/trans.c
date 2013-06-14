@@ -274,15 +274,9 @@ void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	struct gfs2_trans *tr = current->journal_info;
 
 	BUG_ON(!list_empty(&bd->bd_list));
-	BUG_ON(!list_empty(&bd->bd_ail_st_list));
-	BUG_ON(!list_empty(&bd->bd_ail_gl_list));
-	bd->bd_ops = &gfs2_revoke_lops;
+	gfs2_add_revoke(sdp, bd);
 	tr->tr_touched = 1;
 	tr->tr_num_revoke++;
-	sdp->sd_log_num_revoke++;
-	atomic_inc(&gl->gl_revokes);
-	set_bit(GLF_LFLUSH, &gl->gl_flags);
-	list_add(&bd->bd_list, &sdp->sd_log_le_revoke);
 }
 
 void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)

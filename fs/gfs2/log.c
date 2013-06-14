@@ -211,15 +211,16 @@ static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 {
 	struct gfs2_trans *tr, *s;
+	int oldest_tr = 1;
 	int ret;
 
 	spin_lock(&sdp->sd_ail_lock);
 	list_for_each_entry_safe_reverse(tr, s, &sdp->sd_ail1_list, tr_list) {
 		gfs2_ail1_empty_one(sdp, tr);
-		if (list_empty(&tr->tr_ail1_list))
+		if (list_empty(&tr->tr_ail1_list) && oldest_tr)
 			list_move(&tr->tr_list, &sdp->sd_ail2_list);
 		else
-			break;
+			oldest_tr = 0;
 	}
 	ret = list_empty(&sdp->sd_ail1_list);
 	spin_unlock(&sdp->sd_ail_lock);
@@ -317,7 +318,7 @@ static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
 
 int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 {
-	unsigned reserved_blks = 6 * (4096 / sdp->sd_vfs->s_blocksize);
+	unsigned reserved_blks = 7 * (4096 / sdp->sd_vfs->s_blocksize);
 	unsigned wanted = blks + reserved_blks;
 	DEFINE_WAIT(wait);
 	int did_wait = 0;
@@ -545,6 +546,76 @@ void gfs2_ordered_del_inode(struct gfs2_inode *ip)
 	spin_unlock(&sdp->sd_ordered_lock);
 }
 
+void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
+{
+	struct buffer_head *bh = bd->bd_bh;
+	struct gfs2_glock *gl = bd->bd_gl;
+
+	gfs2_remove_from_ail(bd);
+	bd->bd_bh = NULL;
+	bh->b_private = NULL;
+	bd->bd_blkno = bh->b_blocknr;
+	bd->bd_ops = &gfs2_revoke_lops;
+	sdp->sd_log_num_revoke++;
+	atomic_inc(&gl->gl_revokes);
+	set_bit(GLF_LFLUSH, &gl->gl_flags);
+	list_add(&bd->bd_list, &sdp->sd_log_le_revoke);
+}
+
+void gfs2_write_revokes(struct gfs2_sbd *sdp)
+{
+	struct gfs2_trans *tr;
+	struct gfs2_bufdata *bd, *tmp;
+	int have_revokes = 0;
+	int max_revokes = (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_log_descriptor)) / sizeof(u64);
+
+	gfs2_ail1_empty(sdp);
+	spin_lock(&sdp->sd_ail_lock);
+	list_for_each_entry(tr, &sdp->sd_ail1_list, tr_list) {
+		list_for_each_entry(bd, &tr->tr_ail2_list, bd_ail_st_list) {
+			if (list_empty(&bd->bd_list)) {
+				have_revokes = 1;
+				goto done;
+			}
+		}
+	}
+done:
+	spin_unlock(&sdp->sd_ail_lock);
+	if (have_revokes == 0)
+		return;
+	while (sdp->sd_log_num_revoke > max_revokes)
+		max_revokes += (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_meta_header)) / sizeof(u64);
+	max_revokes -= sdp->sd_log_num_revoke;
+	if (!sdp->sd_log_num_revoke) {
+		atomic_dec(&sdp->sd_log_blks_free);
+		/* If no blocks have been reserved, we need to also
+		 * reserve a block for the header */
+		if (!sdp->sd_log_blks_reserved)
+			atomic_dec(&sdp->sd_log_blks_free);
+	}
+	gfs2_log_lock(sdp);
+	spin_lock(&sdp->sd_ail_lock);
+	list_for_each_entry(tr, &sdp->sd_ail1_list, tr_list) {
+		list_for_each_entry_safe(bd, tmp, &tr->tr_ail2_list, bd_ail_st_list) {
+			if (max_revokes == 0)
+				goto out_of_blocks;
+			if (!list_empty(&bd->bd_list))
+				continue;
+			gfs2_add_revoke(sdp, bd);
+			max_revokes--;
+		}
+	}
+out_of_blocks:
+	spin_unlock(&sdp->sd_ail_lock);
+	gfs2_log_unlock(sdp);
+
+	if (!sdp->sd_log_num_revoke) {
+		atomic_inc(&sdp->sd_log_blks_free);
+		if (!sdp->sd_log_blks_reserved)
+			atomic_inc(&sdp->sd_log_blks_free);
+	}
+}
+
 /**
  * log_write_header - Get and initialize a journal header buffer
  * @sdp: The GFS2 superblock
@@ -562,7 +633,6 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
 	lh = page_address(page);
 	clear_page(lh);
 
-	gfs2_ail1_empty(sdp);
 	tail = current_tail(sdp);
 
 	lh->lh_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
