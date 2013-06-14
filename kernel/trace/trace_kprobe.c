@@ -240,8 +240,7 @@ enable_trace_probe(struct trace_probe *tp, struct ftrace_event_file *file)
 	} else
 		tp->flags |= TP_FLAG_PROFILE;
 
-	if (trace_probe_is_enabled(tp) && trace_probe_is_registered(tp) &&
-	    !trace_probe_has_gone(tp)) {
+	if (trace_probe_is_registered(tp) && !trace_probe_has_gone(tp)) {
 		if (trace_probe_is_return(tp))
 			ret = enable_kretprobe(&tp->rp);
 		else
