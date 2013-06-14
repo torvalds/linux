@@ -669,14 +669,12 @@ static int mxs_lradc_trigger_init(struct iio_dev *iio)
 	trig->ops = &mxs_lradc_trigger_ops;
 
 	ret = iio_trigger_register(trig);
-	if (ret) {
+	if (ret)
 		iio_trigger_free(trig);
-		return ret;
-	}
 
 	lradc->trig = trig;
 
-	return 0;
+	return ret;
 }
 
 static void mxs_lradc_trigger_remove(struct iio_dev *iio)
