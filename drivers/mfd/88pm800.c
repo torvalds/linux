@@ -28,8 +28,6 @@
 #include <linux/mfd/88pm80x.h>
 #include <linux/slab.h>
 
-#define PM800_CHIP_ID			(0x00)
-
 /* Interrupt Registers */
 #define PM800_INT_STATUS1		(0x05)
 #define PM800_ONKEY_INT_STS1		(1 << 0)
@@ -114,20 +112,11 @@ enum {
 	PM800_MAX_IRQ,
 };
 
-enum {
-	/* Procida */
-	PM800_CHIP_A0  = 0x60,
-	PM800_CHIP_A1  = 0x61,
-	PM800_CHIP_B0  = 0x62,
-	PM800_CHIP_C0  = 0x63,
-	PM800_CHIP_END = PM800_CHIP_C0,
-
-	/* Make sure to update this to the last stepping */
-	PM8XXX_CHIP_END = PM800_CHIP_END
-};
+/* PM800: generation identification number */
+#define PM800_CHIP_GEN_ID_NUM	0x3
 
 static const struct i2c_device_id pm80x_id_table[] = {
-	{"88PM800", CHIP_PM800},
+	{"88PM800", 0},
 	{} /* NULL terminated */
 };
 MODULE_DEVICE_TABLE(i2c, pm80x_id_table);
@@ -434,27 +423,8 @@ static void pm800_pages_exit(struct pm80x_chip *chip)
 static int device_800_init(struct pm80x_chip *chip,
 				     struct pm80x_platform_data *pdata)
 {
-	int ret, pmic_id;
+	int ret;
 	unsigned int val;
-
-	ret = regmap_read(chip->regmap, PM800_CHIP_ID, &val);
-	if (ret < 0) {
-		dev_err(chip->dev, "Failed to read CHIP ID: %d\n", ret);
-		goto out;
-	}
-
-	pmic_id = val & PM80X_VERSION_MASK;
-
-	if ((pmic_id >= PM800_CHIP_A0) && (pmic_id <= PM800_CHIP_END)) {
-		chip->version = val;
-		dev_info(chip->dev,
-			 "88PM80x:Marvell 88PM800 (ID:0x%x) detected\n", val);
-	} else {
-		dev_err(chip->dev,
-			"Failed to detect Marvell 88PM800:ChipID[0x%x]\n", val);
-		ret = -EINVAL;
-		goto out;
-	}
 
 	/*
 	 * alarm wake up bit will be clear in device_irq_init(),
@@ -523,7 +493,7 @@ static int pm800_probe(struct i2c_client *client,
 	struct pm80x_platform_data *pdata = client->dev.platform_data;
 	struct pm80x_subchip *subchip;
 
-	ret = pm80x_init(client, id);
+	ret = pm80x_init(client);
 	if (ret) {
 		dev_err(&client->dev, "pm800_init fail\n");
 		goto out_init;
@@ -553,7 +523,7 @@ static int pm800_probe(struct i2c_client *client,
 
 	ret = device_800_init(chip, pdata);
 	if (ret) {
-		dev_err(chip->dev, "%s id 0x%x failed!\n", __func__, chip->id);
+		dev_err(chip->dev, "Failed to initialize 88pm800 devices\n");
 		goto err_device_init;
 	}
 

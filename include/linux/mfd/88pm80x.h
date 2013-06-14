@@ -17,7 +17,6 @@
 #include <linux/regmap.h>
 #include <linux/atomic.h>
 
-#define PM80X_VERSION_MASK		(0xFF)	/* 80X chip ID mask */
 enum {
 	CHIP_INVALID = 0,
 	CHIP_PM800,
@@ -299,8 +298,7 @@ struct pm80x_chip {
 	struct regmap *regmap;
 	struct regmap_irq_chip *regmap_irq_chip;
 	struct regmap_irq_chip_data *irq_data;
-	unsigned char version;
-	int id;
+	int type;
 	int irq;
 	int irq_mode;
 	unsigned long wu_flag;
@@ -361,7 +359,6 @@ static inline int pm80x_dev_resume(struct device *dev)
 }
 #endif
 
-extern int pm80x_init(struct i2c_client *client,
-		      const struct i2c_device_id *id);
+extern int pm80x_init(struct i2c_client *client);
 extern int pm80x_deinit(void);
 #endif /* __LINUX_MFD_88PM80X_H */
