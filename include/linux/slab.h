@@ -169,11 +169,7 @@ struct kmem_cache {
 	struct list_head list;	/* List of all slab caches on the system */
 };
 
-#define KMALLOC_MAX_SIZE (1UL << 30)
-
-#include <linux/slob_def.h>
-
-#else /* CONFIG_SLOB */
+#endif /* CONFIG_SLOB */
 
 /*
  * Kmalloc array related definitions
@@ -195,13 +191,28 @@ struct kmem_cache {
 #ifndef KMALLOC_SHIFT_LOW
 #define KMALLOC_SHIFT_LOW	5
 #endif
-#else
+#endif
+
+#ifdef CONFIG_SLUB
 /*
  * SLUB allocates up to order 2 pages directly and otherwise
  * passes the request to the page allocator.
  */
 #define KMALLOC_SHIFT_HIGH	(PAGE_SHIFT + 1)
 #define KMALLOC_SHIFT_MAX	(MAX_ORDER + PAGE_SHIFT)
+#ifndef KMALLOC_SHIFT_LOW
+#define KMALLOC_SHIFT_LOW	3
+#endif
+#endif
+
+#ifdef CONFIG_SLOB
+/*
+ * SLOB passes all page size and larger requests to the page allocator.
+ * No kmalloc array is necessary since objects of different sizes can
+ * be allocated from the same page.
+ */
+#define KMALLOC_SHIFT_MAX	30
+#define KMALLOC_SHIFT_HIGH	PAGE_SHIFT
 #ifndef KMALLOC_SHIFT_LOW
 #define KMALLOC_SHIFT_LOW	3
 #endif
@@ -221,6 +232,7 @@ struct kmem_cache {
 #define KMALLOC_MIN_SIZE (1 << KMALLOC_SHIFT_LOW)
 #endif
 
+#ifndef CONFIG_SLOB
 extern struct kmem_cache *kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
 #ifdef CONFIG_ZONE_DMA
 extern struct kmem_cache *kmalloc_dma_caches[KMALLOC_SHIFT_HIGH + 1];
@@ -275,13 +287,18 @@ static __always_inline int kmalloc_index(size_t size)
 	/* Will never be reached. Needed because the compiler may complain */
 	return -1;
 }
+#endif /* !CONFIG_SLOB */
 
 #ifdef CONFIG_SLAB
 #include <linux/slab_def.h>
-#elif defined(CONFIG_SLUB)
+#endif
+
+#ifdef CONFIG_SLUB
 #include <linux/slub_def.h>
-#else
-#error "Unknown slab allocator"
+#endif
+
+#ifdef CONFIG_SLOB
+#include <linux/slob_def.h>
 #endif
 
 /*
@@ -291,6 +308,7 @@ static __always_inline int kmalloc_index(size_t size)
  */
 static __always_inline int kmalloc_size(int n)
 {
+#ifndef CONFIG_SLOB
 	if (n > 2)
 		return 1 << n;
 
@@ -299,10 +317,9 @@ static __always_inline int kmalloc_size(int n)
 
 	if (n == 2 && KMALLOC_MIN_SIZE <= 64)
 		return 192;
-
+#endif
 	return 0;
 }
-#endif /* !CONFIG_SLOB */
 
 /*
  * Setting ARCH_SLAB_MINALIGN in arch headers allows a different alignment.
