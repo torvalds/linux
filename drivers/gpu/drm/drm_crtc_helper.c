@@ -565,14 +565,13 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 
 	DRM_DEBUG_KMS("\n");
 
-	if (!set)
-		return -EINVAL;
+	BUG_ON(!set);
+	BUG_ON(!set->crtc);
+	BUG_ON(!set->crtc->helper_private);
 
-	if (!set->crtc)
-		return -EINVAL;
-
-	if (!set->crtc->helper_private)
-		return -EINVAL;
+	/* Enforce sane interface api - has been abused by the fb helper. */
+	BUG_ON(!set->mode && set->fb);
+	BUG_ON(set->fb && set->num_connectors == 0);
 
 	crtc_funcs = set->crtc->helper_private;
 
