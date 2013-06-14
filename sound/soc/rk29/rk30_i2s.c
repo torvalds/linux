@@ -563,9 +563,11 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 #elif defined(CONFIG_SND_I2S_USE_33V)
 	writel_relaxed(0x2000000,RK30_GRF_BASE + GRF_IO_CON4);
 #endif
+
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 	//default 8ma  0xF000F = 12ma 0xF0005=4ma 0xF0000=2ma
 	writel_relaxed(0xF000A,RK30_GRF_BASE + GRF_IO_CON1);
-	
+#endif	
 	I2S_DBG("Enter %s, %d pdev->id = %d >>>>>>>>>>>\n", __func__, __LINE__, pdev->id);
 	
 	if(pdev->id >= MAX_I2S) {
@@ -683,19 +685,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, dai);
 	if (ret != 0)
 		goto err_i2sv2;
-#if 0
-		writel(0x0000000F, &(pheadi2s->I2S_TXCR));
-		writel(0x0000000F, &(pheadi2s->I2S_RXCR));
-		writel(0x00071f1F, &(pheadi2s->I2S_CKR));
-		writel(0x001F0110, &(pheadi2s->I2S_DMACR));
-		writel(0x00000003, &(pheadi2s->I2S_XFER));
-		while(1)
-		{
-			writel(0x5555aaaa, &(pheadi2s->I2S_TXDR));
-		//	msleep(1);
-		//	printk("-----------------------\n");
-		}		
-#endif
+
 	return 0;
 
 err_i2sv2:
@@ -766,7 +756,48 @@ static int proc_i2s_show(struct seq_file *s, void *v)
 	printk("I2S_XFER = 0x%08X\n", readl(&(pheadi2s->I2S_XFER)));
 
 	printk("========Show I2S reg========\n");
+#if 0
+		writel(0x0000000F, &(pheadi2s->I2S_TXCR));
+		writel(0x0000000F, &(pheadi2s->I2S_RXCR));
+		writel(0x00071f1F, &(pheadi2s->I2S_CKR));
+		writel(0x001F0110, &(pheadi2s->I2S_DMACR));
+		writel(0x00000003, &(pheadi2s->I2S_XFER));
+		while(1)
+		{
+			writel(0x5555aaaa, &(pheadi2s->I2S_TXDR));
+		}		
+#endif	
 	return 0;
+}
+
+static ssize_t i2s_reg_write(struct file *file,
+		const char __user *user_buf, size_t count, loff_t *ppos)
+{
+#ifdef CONFIG_SND_RK29_SOC_I2S_8CH
+	struct rk29_i2s_info *i2s=&rk29_i2s[0];
+#else 
+#ifdef CONFIG_SND_RK29_SOC_I2S_2CH
+	struct rk29_i2s_info *i2s=&rk29_i2s[1];
+#else
+	struct rk29_i2s_info *i2s=&rk29_i2s[2];
+#endif
+#endif
+	char buf[32];
+	size_t buf_size;
+	char *start = buf;
+	unsigned long value;
+
+	buf_size = min(count, (sizeof(buf)-1));
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	buf[buf_size] = 0;
+
+	while (*start == ' ')
+		start++;
+	value = simple_strtoul(start, &start, 10);
+
+	printk("test --- freq = %ld ret=%d\n",value,clk_set_rate(i2s->iis_clk, value));
+	return buf_size;
 }
 
 static int proc_i2s_open(struct inode *inode, struct file *file)
@@ -777,6 +808,7 @@ static int proc_i2s_open(struct inode *inode, struct file *file)
 static const struct file_operations proc_i2s_fops = {
 	.open		= proc_i2s_open,
 	.read		= seq_read,
+	.write = i2s_reg_write,	
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
