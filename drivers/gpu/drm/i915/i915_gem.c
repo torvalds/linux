@@ -1003,7 +1003,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 		wait_forever = false;
 	}
 
-	timeout_jiffies = timespec_to_jiffies(&wait_time);
+	timeout_jiffies = timespec_to_jiffies_timeout(&wait_time);
 
 	if (WARN_ON(!ring->irq_get(ring)))
 		return -ENODEV;

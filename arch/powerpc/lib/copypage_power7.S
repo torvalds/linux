@@ -28,13 +28,14 @@ _GLOBAL(copypage_power7)
 	 * aligned we don't need to clear the bottom 7 bits of either
 	 * address.
 	 */
-	ori	r9,r3,1		/* stream=1 */
+	ori	r9,r3,1		/* stream=1 => to */
 
 #ifdef CONFIG_PPC_64K_PAGES
-	lis	r7,0x0E01	/* depth=7, units=512 */
+	lis	r7,0x0E01	/* depth=7
+				 * units/cachelines=512 */
 #else
 	lis	r7,0x0E00	/* depth=7 */
-	ori	r7,r7,0x1000	/* units=32 */
+	ori	r7,r7,0x1000	/* units/cachelines=32 */
 #endif
 	ori	r10,r7,1	/* stream=1 */
 
@@ -43,12 +44,14 @@ _GLOBAL(copypage_power7)
 
 .machine push
 .machine "power4"
-	dcbt	r0,r4,0b01000
-	dcbt	r0,r7,0b01010
-	dcbtst	r0,r9,0b01000
-	dcbtst	r0,r10,0b01010
+	/* setup read stream 0  */
+	dcbt	r0,r4,0b01000  	/* addr from */
+	dcbt	r0,r7,0b01010   /* length and depth from */
+	/* setup write stream 1 */
+	dcbtst	r0,r9,0b01000   /* addr to */
+	dcbtst	r0,r10,0b01010  /* length and depth to */
 	eieio
-	dcbt	r0,r8,0b01010	/* GO */
+	dcbt	r0,r8,0b01010	/* all streams GO */
 .machine pop
 
 #ifdef CONFIG_ALTIVEC
