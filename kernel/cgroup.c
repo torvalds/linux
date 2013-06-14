@@ -2508,6 +2508,13 @@ static int cgroup_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	cgrp = __d_cgrp(old_dentry);
 
+	/*
+	 * This isn't a proper migration and its usefulness is very
+	 * limited.  Disallow if sane_behavior.
+	 */
+	if (cgroup_sane_behavior(cgrp))
+		return -EPERM;
+
 	name = cgroup_alloc_name(new_dentry);
 	if (!name)
 		return -ENOMEM;
