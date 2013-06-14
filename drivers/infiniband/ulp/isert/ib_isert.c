@@ -1033,6 +1033,33 @@ isert_handle_nop_out(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 }
 
 static int
+isert_handle_text_cmd(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
+		      struct iser_rx_desc *rx_desc, struct iscsi_text *hdr)
+{
+	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
+	struct iscsi_conn *conn = isert_conn->conn;
+	u32 payload_length = ntoh24(hdr->dlength);
+	int rc;
+	unsigned char *text_in;
+
+	rc = iscsit_setup_text_cmd(conn, cmd, hdr);
+	if (rc < 0)
+		return rc;
+
+	text_in = kzalloc(payload_length, GFP_KERNEL);
+	if (!text_in) {
+		pr_err("Unable to allocate text_in of payload_length: %u\n",
+		       payload_length);
+		return -ENOMEM;
+	}
+	cmd->text_in_ptr = text_in;
+
+	memcpy(cmd->text_in_ptr, &rx_desc->data[0], payload_length);
+
+	return iscsit_process_text_cmd(conn, cmd, hdr);
+}
+
+static int
 isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 		uint32_t read_stag, uint64_t read_va,
 		uint32_t write_stag, uint64_t write_va)
@@ -1090,6 +1117,15 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 			wait_for_completion_timeout(&conn->conn_logout_comp,
 						    SECONDS_FOR_LOGOUT_COMP *
 						    HZ);
+		break;
+	case ISCSI_OP_TEXT:
+		cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);
+		if (!cmd)
+			break;
+
+		isert_cmd = container_of(cmd, struct isert_cmd, iscsi_cmd);
+		ret = isert_handle_text_cmd(isert_conn, isert_cmd,
+					    rx_desc, (struct iscsi_text *)hdr);
 		break;
 	default:
 		pr_err("Got unknown iSCSI OpCode: 0x%02x\n", opcode);
@@ -1245,6 +1281,7 @@ isert_put_cmd(struct isert_cmd *isert_cmd)
 		break;
 	case ISCSI_OP_REJECT:
 	case ISCSI_OP_NOOP_OUT:
+	case ISCSI_OP_TEXT:
 		spin_lock_bh(&conn->cmd_lock);
 		if (!list_empty(&cmd->i_conn_node))
 			list_del(&cmd->i_conn_node);
@@ -1366,6 +1403,11 @@ isert_do_control_comp(struct work_struct *work)
 		isert_conn->logout_posted = true;
 		iscsit_logout_post_handler(cmd, cmd->conn);
 		break;
+	case ISTATE_SEND_TEXTRSP:
+		atomic_dec(&isert_conn->post_send_buf_count);
+		cmd->i_state = ISTATE_SENT_STATUS;
+		isert_completion_put(&isert_cmd->tx_desc, isert_cmd, ib_dev);
+		break;
 	default:
 		pr_err("Unknown do_control_comp i_state %d\n", cmd->i_state);
 		dump_stack();
@@ -1383,7 +1425,8 @@ isert_response_completion(struct iser_tx_desc *tx_desc,
 
 	if (cmd->i_state == ISTATE_SEND_TASKMGTRSP ||
 	    cmd->i_state == ISTATE_SEND_LOGOUTRSP ||
-	    cmd->i_state == ISTATE_SEND_REJECT) {
+	    cmd->i_state == ISTATE_SEND_REJECT ||
+	    cmd->i_state == ISTATE_SEND_TEXTRSP) {
 		isert_unmap_tx_desc(tx_desc, ib_dev);
 
 		INIT_WORK(&isert_cmd->comp_work, isert_do_control_comp);
@@ -1709,6 +1752,47 @@ isert_put_reject(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 }
 
 static int
+isert_put_text_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
+{
+	struct isert_cmd *isert_cmd = container_of(cmd,
+				struct isert_cmd, iscsi_cmd);
+	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
+	struct ib_send_wr *send_wr = &isert_cmd->tx_desc.send_wr;
+	struct iscsi_text_rsp *hdr =
+		(struct iscsi_text_rsp *)&isert_cmd->tx_desc.iscsi_header;
+	u32 txt_rsp_len;
+	int rc;
+
+	isert_create_send_desc(isert_conn, isert_cmd, &isert_cmd->tx_desc);
+	rc = iscsit_build_text_rsp(cmd, conn, hdr);
+	if (rc < 0)
+		return rc;
+
+	txt_rsp_len = rc;
+	isert_init_tx_hdrs(isert_conn, &isert_cmd->tx_desc);
+
+	if (txt_rsp_len) {
+		struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
+		struct ib_sge *tx_dsg = &isert_cmd->tx_desc.tx_sg[1];
+		void *txt_rsp_buf = cmd->buf_ptr;
+
+		isert_cmd->pdu_buf_dma = ib_dma_map_single(ib_dev,
+				txt_rsp_buf, txt_rsp_len, DMA_TO_DEVICE);
+
+		isert_cmd->pdu_buf_len = txt_rsp_len;
+		tx_dsg->addr	= isert_cmd->pdu_buf_dma;
+		tx_dsg->length	= txt_rsp_len;
+		tx_dsg->lkey	= isert_conn->conn_mr->lkey;
+		isert_cmd->tx_desc.num_sge = 2;
+	}
+	isert_init_send_wr(isert_cmd, send_wr);
+
+	pr_debug("Posting Text Response IB_WR_SEND >>>>>>>>>>>>>>>>>>>>>>\n");
+
+	return isert_post_response(isert_conn, isert_cmd);
+}
+
+static int
 isert_build_rdma_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 		    struct ib_sge *ib_sge, struct ib_send_wr *send_wr,
 		    u32 data_left, u32 offset)
@@ -2005,6 +2089,9 @@ isert_response_queue(struct iscsi_conn *conn, struct iscsi_cmd *cmd, int state)
 		break;
 	case ISTATE_SEND_REJECT:
 		ret = isert_put_reject(cmd, conn);
+		break;
+	case ISTATE_SEND_TEXTRSP:
+		ret = isert_put_text_rsp(cmd, conn);
 		break;
 	case ISTATE_SEND_STATUS:
 		/*
