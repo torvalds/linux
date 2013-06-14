@@ -1961,6 +1961,11 @@ static int ux500_hash_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(ux500_hash_pm, ux500_hash_suspend, ux500_hash_resume);
 
+static const struct of_device_id ux500_hash_match[] = {
+        { .compatible = "stericsson,ux500-hash" },
+        { },
+};
+
 static struct platform_driver hash_driver = {
 	.probe  = ux500_hash_probe,
 	.remove = ux500_hash_remove,
@@ -1968,6 +1973,7 @@ static struct platform_driver hash_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name  = "hash1",
+		.of_match_table = ux500_hash_match,
 		.pm    = &ux500_hash_pm,
 	}
 };
