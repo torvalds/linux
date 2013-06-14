@@ -1001,6 +1001,25 @@ isert_handle_iscsi_dataout(struct isert_conn *isert_conn,
 }
 
 static int
+isert_handle_nop_out(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
+		     struct iser_rx_desc *rx_desc, unsigned char *buf)
+{
+	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
+	struct iscsi_conn *conn = isert_conn->conn;
+	struct iscsi_nopout *hdr = (struct iscsi_nopout *)buf;
+	int rc;
+
+	rc = iscsit_setup_nop_out(conn, cmd, hdr);
+	if (rc < 0)
+		return rc;
+	/*
+	 * FIXME: Add support for NOPOUT payload using unsolicited RDMA payload
+	 */
+
+	return iscsit_process_nop_out(conn, cmd, hdr);
+}
+
+static int
 isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 		uint32_t read_stag, uint64_t read_va,
 		uint32_t write_stag, uint64_t write_va)
@@ -1032,7 +1051,9 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 		if (!cmd)
 			break;
 
-		ret = iscsit_handle_nop_out(conn, cmd, (unsigned char *)hdr);
+		isert_cmd = container_of(cmd, struct isert_cmd, iscsi_cmd);
+		ret = isert_handle_nop_out(isert_conn, isert_cmd,
+					   rx_desc, (unsigned char *)hdr);
 		break;
 	case ISCSI_OP_SCSI_DATA_OUT:
 		ret = isert_handle_iscsi_dataout(isert_conn, rx_desc,

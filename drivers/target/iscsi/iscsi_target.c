@@ -1535,24 +1535,16 @@ static int iscsit_handle_data_out(struct iscsi_conn *conn, unsigned char *buf)
 	return iscsit_check_dataout_payload(cmd, hdr, data_crc_failed);
 }
 
-int iscsit_handle_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
-			unsigned char *buf)
+int iscsit_setup_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+			 struct iscsi_nopout *hdr)
 {
-	unsigned char *ping_data = NULL;
-	int cmdsn_ret, niov = 0, ret = 0, rx_got, rx_size;
-	u32 checksum, data_crc, padding = 0, payload_length;
-	struct iscsi_cmd *cmd_p = NULL;
-	struct kvec *iov = NULL;
-	struct iscsi_nopout *hdr;
-
-	hdr			= (struct iscsi_nopout *) buf;
-	payload_length		= ntoh24(hdr->dlength);
+	u32 payload_length = ntoh24(hdr->dlength);
 
 	if (hdr->itt == RESERVED_ITT && !(hdr->opcode & ISCSI_OP_IMMEDIATE)) {
 		pr_err("NOPOUT ITT is reserved, but Immediate Bit is"
 			" not set, protocol error.\n");
-		return iscsit_add_reject(ISCSI_REASON_PROTOCOL_ERROR, 1,
-					buf, conn);
+		return iscsit_add_reject_from_cmd(ISCSI_REASON_PROTOCOL_ERROR,
+					1, 0, (unsigned char *)hdr, cmd);
 	}
 
 	if (payload_length > conn->conn_ops->MaxXmitDataSegmentLength) {
@@ -1560,8 +1552,8 @@ int iscsit_handle_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 			" greater than MaxXmitDataSegmentLength: %u, protocol"
 			" error.\n", payload_length,
 			conn->conn_ops->MaxXmitDataSegmentLength);
-		return iscsit_add_reject(ISCSI_REASON_PROTOCOL_ERROR, 1,
-					buf, conn);
+		return iscsit_add_reject_from_cmd(ISCSI_REASON_PROTOCOL_ERROR,
+					1, 0, (unsigned char *)hdr, cmd);
 	}
 
 	pr_debug("Got NOPOUT Ping %s ITT: 0x%08x, TTT: 0x%08x,"
@@ -1577,11 +1569,6 @@ int iscsit_handle_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	 * can contain ping data.
 	 */
 	if (hdr->ttt == cpu_to_be32(0xFFFFFFFF)) {
-		if (!cmd)
-			return iscsit_add_reject(
-					ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-					1, buf, conn);
-
 		cmd->iscsi_opcode	= ISCSI_OP_NOOP_OUT;
 		cmd->i_state		= ISTATE_SEND_NOPIN;
 		cmd->immediate_cmd	= ((hdr->opcode & ISCSI_OP_IMMEDIATE) ?
@@ -1593,8 +1580,87 @@ int iscsit_handle_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 		cmd->data_direction	= DMA_NONE;
 	}
 
+	return 0;
+}
+EXPORT_SYMBOL(iscsit_setup_nop_out);
+
+int iscsit_process_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+			   struct iscsi_nopout *hdr)
+{
+	struct iscsi_cmd *cmd_p = NULL;
+	int cmdsn_ret = 0;
+	/*
+	 * Initiator is expecting a NopIN ping reply..
+	 */
+	if (hdr->itt != RESERVED_ITT) {
+		BUG_ON(!cmd);
+
+		spin_lock_bh(&conn->cmd_lock);
+		list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
+		spin_unlock_bh(&conn->cmd_lock);
+
+		iscsit_ack_from_expstatsn(conn, be32_to_cpu(hdr->exp_statsn));
+
+		if (hdr->opcode & ISCSI_OP_IMMEDIATE) {
+			iscsit_add_cmd_to_response_queue(cmd, conn,
+							 cmd->i_state);
+			return 0;
+		}
+
+		cmdsn_ret = iscsit_sequence_cmd(conn, cmd, hdr->cmdsn);
+                if (cmdsn_ret == CMDSN_LOWER_THAN_EXP)
+			return 0;
+
+		if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
+			return iscsit_add_reject_from_cmd(
+					ISCSI_REASON_PROTOCOL_ERROR,
+					1, 0, (unsigned char *)hdr, cmd);
+
+		return 0;
+	}
+	/*
+	 * This was a response to a unsolicited NOPIN ping.
+	 */
+	if (hdr->ttt != cpu_to_be32(0xFFFFFFFF)) {
+		cmd_p = iscsit_find_cmd_from_ttt(conn, be32_to_cpu(hdr->ttt));
+		if (!cmd_p)
+			return -EINVAL;
+
+		iscsit_stop_nopin_response_timer(conn);
+
+		cmd_p->i_state = ISTATE_REMOVE;
+		iscsit_add_cmd_to_immediate_queue(cmd_p, conn, cmd_p->i_state);
+
+		iscsit_start_nopin_timer(conn);
+		return 0;
+	}
+	/*
+	 * Otherwise, initiator is not expecting a NOPIN is response.
+	 * Just ignore for now.
+	 */
+        return 0;
+}
+EXPORT_SYMBOL(iscsit_process_nop_out);
+
+static int iscsit_handle_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+				 unsigned char *buf)
+{
+	unsigned char *ping_data = NULL;
+	struct iscsi_nopout *hdr = (struct iscsi_nopout *)buf;
+	struct kvec *iov = NULL;
+	u32 payload_length = ntoh24(hdr->dlength);
+	int ret;
+
+	ret = iscsit_setup_nop_out(conn, cmd, hdr);
+	if (ret < 0)
+		return ret;
+	/*
+	 * Handle NOP-OUT payload for traditional iSCSI sockets
+	 */
 	if (payload_length && hdr->ttt == cpu_to_be32(0xFFFFFFFF)) {
-		rx_size = payload_length;
+		u32 checksum, data_crc, padding = 0;
+		int niov = 0, rx_got, rx_size = payload_length;
+
 		ping_data = kzalloc(payload_length + 1, GFP_KERNEL);
 		if (!ping_data) {
 			pr_err("Unable to allocate memory for"
@@ -1673,76 +1739,14 @@ int iscsit_handle_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 		pr_debug("Ping Data: \"%s\"\n", ping_data);
 	}
 
-	if (hdr->itt != RESERVED_ITT) {
-		if (!cmd) {
-			pr_err("Checking CmdSN for NOPOUT,"
-				" but cmd is NULL!\n");
-			return -1;
-		}
-		/*
-		 * Initiator is expecting a NopIN ping reply,
-		 */
-		spin_lock_bh(&conn->cmd_lock);
-		list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
-		spin_unlock_bh(&conn->cmd_lock);
-
-		iscsit_ack_from_expstatsn(conn, be32_to_cpu(hdr->exp_statsn));
-
-		if (hdr->opcode & ISCSI_OP_IMMEDIATE) {
-			iscsit_add_cmd_to_response_queue(cmd, conn,
-					cmd->i_state);
-			return 0;
-		}
-
-		cmdsn_ret = iscsit_sequence_cmd(conn, cmd, hdr->cmdsn);
-		if (cmdsn_ret == CMDSN_LOWER_THAN_EXP) {
-			ret = 0;
-			goto ping_out;
-		}
-		if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
-			return iscsit_add_reject_from_cmd(
-					ISCSI_REASON_PROTOCOL_ERROR,
-					1, 0, buf, cmd);
-
-		return 0;
-	}
-
-	if (hdr->ttt != cpu_to_be32(0xFFFFFFFF)) {
-		/*
-		 * This was a response to a unsolicited NOPIN ping.
-		 */
-		cmd_p = iscsit_find_cmd_from_ttt(conn, be32_to_cpu(hdr->ttt));
-		if (!cmd_p)
-			return -1;
-
-		iscsit_stop_nopin_response_timer(conn);
-
-		cmd_p->i_state = ISTATE_REMOVE;
-		iscsit_add_cmd_to_immediate_queue(cmd_p, conn, cmd_p->i_state);
-		iscsit_start_nopin_timer(conn);
-	} else {
-		/*
-		 * Initiator is not expecting a NOPIN is response.
-		 * Just ignore for now.
-		 *
-		 * iSCSI v19-91 10.18
-		 * "A NOP-OUT may also be used to confirm a changed
-		 *  ExpStatSN if another PDU will not be available
-		 *  for a long time."
-		 */
-		ret = 0;
-		goto out;
-	}
-
-	return 0;
+	return iscsit_process_nop_out(conn, cmd, hdr);
 out:
 	if (cmd)
 		iscsit_free_cmd(cmd, false);
-ping_out:
+
 	kfree(ping_data);
 	return ret;
 }
-EXPORT_SYMBOL(iscsit_handle_nop_out);
 
 int
 iscsit_handle_task_mgt_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
