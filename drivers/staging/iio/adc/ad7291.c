@@ -456,7 +456,6 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);
-	unsigned int scale_uv;
 	u16 regval;
 	s16 signval;
 
@@ -513,10 +512,9 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			scale_uv = (chip->int_vref_mv * 1000) >> AD7291_BITS;
-			*val =  scale_uv / 1000;
-			*val2 = (scale_uv % 1000) * 1000;
-			return IIO_VAL_INT_PLUS_MICRO;
+			*val = chip->int_vref_mv;
+			*val2 = AD7291_BITS;
+			return IIO_VAL_FRACTIONAL_LOG2;
 		case IIO_TEMP:
 			/*
 			 * One LSB of the ADC corresponds to 0.25 deg C.
