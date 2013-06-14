@@ -628,9 +628,6 @@ static int ad7291_probe(struct i2c_client *client,
 	if (ret)
 		goto error_unreg_irq;
 
-	dev_info(&client->dev, "%s ADC registered.\n",
-			 id->name);
-
 	return 0;
 
 error_unreg_irq:
