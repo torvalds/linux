@@ -245,7 +245,6 @@ config NETPRIO_CGROUP
 
 config NET_LL_RX_POLL
 	bool "Low Latency Receive Poll"
-	depends on X86_TSC
 	default n
 	---help---
 	  Support Low Latency Receive Queue Poll.

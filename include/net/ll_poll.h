@@ -21,10 +21,6 @@
  * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
  */
 
-/*
- * For now this depends on CONFIG_X86_TSC
- */
-
 #ifndef _LINUX_NET_LL_POLL_H
 #define _LINUX_NET_LL_POLL_H
 
@@ -40,13 +36,19 @@ extern unsigned int sysctl_net_ll_poll __read_mostly;
 #define LL_FLUSH_FAILED		-1
 #define LL_FLUSH_BUSY		-2
 
-/* we don't mind a ~2.5% imprecision */
-#define TSC_MHZ (tsc_khz >> 10)
-
-static inline cycles_t ll_end_time(void)
+/* we can use sched_clock() because we don't care much about precision
+ * we only care that the average is bounded
+ */
+static inline u64 ll_end_time(void)
 {
-	return (cycles_t)TSC_MHZ * ACCESS_ONCE(sysctl_net_ll_poll)
-			+ get_cycles();
+	u64 end_time = ACCESS_ONCE(sysctl_net_ll_poll);
+
+	/* we don't mind a ~2.5% imprecision
+	 * sysctl_net_ll_poll is a u_int so this can't overflow
+	 */
+	end_time = (end_time << 10) + sched_clock();
+
+	return end_time;
 }
 
 static inline bool sk_valid_ll(struct sock *sk)
@@ -55,16 +57,15 @@ static inline bool sk_valid_ll(struct sock *sk)
 	       !need_resched() && !signal_pending(current);
 }
 
-static inline bool can_poll_ll(cycles_t end_time)
+static inline bool can_poll_ll(u64 end_time)
 {
-	return !time_after((unsigned long)get_cycles(),
-			    (unsigned long)end_time);
+	return !time_after64(sched_clock(), end_time);
 }
 
 static inline bool sk_poll_ll(struct sock *sk, int nonblock)
 {
-	cycles_t end_time = ll_end_time();
 	const struct net_device_ops *ops;
+	u64 end_time = ll_end_time();
 	struct napi_struct *napi;
 	int rc = false;
 
@@ -117,7 +118,7 @@ static inline void sk_mark_ll(struct sock *sk, struct sk_buff *skb)
 
 #else /* CONFIG_NET_LL_RX_POLL */
 
-static inline cycles_t ll_end_time(void)
+static inline u64 ll_end_time(void)
 {
 	return 0;
 }
@@ -140,7 +141,7 @@ static inline void sk_mark_ll(struct sock *sk, struct sk_buff *skb)
 {
 }
 
-static inline bool can_poll_ll(cycles_t end_time)
+static inline bool can_poll_ll(u64 end_time)
 {
 	return false;
 }
