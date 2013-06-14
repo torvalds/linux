@@ -357,7 +357,7 @@ static void rxq_refill(struct net_device *dev)
 		/* Get 'used' Rx descriptor */
 		used_rx_desc = pep->rx_used_desc_q;
 		p_used_rx_desc = &pep->p_rx_desc_area[used_rx_desc];
-		size = skb->end - skb->data;
+		size = skb_end_pointer(skb) - skb->data;
 		p_used_rx_desc->buf_ptr = dma_map_single(NULL,
 							 skb->data,
 							 size,
