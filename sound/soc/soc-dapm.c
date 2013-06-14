@@ -2105,6 +2105,15 @@ static void snd_soc_dapm_sys_remove(struct device *dev)
 	device_remove_file(dev, &dev_attr_dapm_widget);
 }
 
+static void dapm_free_path(struct snd_soc_dapm_path *path)
+{
+	list_del(&path->list_sink);
+	list_del(&path->list_source);
+	list_del(&path->list);
+	kfree(path->long_name);
+	kfree(path);
+}
+
 /* free all dapm widgets and resources */
 static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 {
@@ -2120,20 +2129,12 @@ static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 		 * While removing the path, remove reference to it from both
 		 * source and sink widgets so that path is removed only once.
 		 */
-		list_for_each_entry_safe(p, next_p, &w->sources, list_sink) {
-			list_del(&p->list_sink);
-			list_del(&p->list_source);
-			list_del(&p->list);
-			kfree(p->long_name);
-			kfree(p);
-		}
-		list_for_each_entry_safe(p, next_p, &w->sinks, list_source) {
-			list_del(&p->list_sink);
-			list_del(&p->list_source);
-			list_del(&p->list);
-			kfree(p->long_name);
-			kfree(p);
-		}
+		list_for_each_entry_safe(p, next_p, &w->sources, list_sink)
+			dapm_free_path(p);
+
+		list_for_each_entry_safe(p, next_p, &w->sinks, list_source)
+			dapm_free_path(p);
+
 		kfree(w->kcontrols);
 		kfree(w->name);
 		kfree(w);
@@ -2408,10 +2409,7 @@ static int snd_soc_dapm_del_route(struct snd_soc_dapm_context *dapm,
 		dapm_mark_dirty(path->source, "Route removed");
 		dapm_mark_dirty(path->sink, "Route removed");
 
-		list_del(&path->list);
-		list_del(&path->list_sink);
-		list_del(&path->list_source);
-		kfree(path);
+		dapm_free_path(path);
 	} else {
 		dev_warn(dapm->dev, "ASoC: Route %s->%s does not exist\n",
 			 source, sink);
