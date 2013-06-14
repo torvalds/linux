@@ -49,7 +49,7 @@ END(omap5_secondary_startup)
  * The primary core will update this flag using a hardware
  * register AuxCoreBoot0.
  */
-ENTRY(omap_secondary_startup)
+ENTRY(omap4_secondary_startup)
 hold:	ldr	r12,=0x103
 	dsb
 	smc	#0			@ read from AuxCoreBoot0
@@ -64,9 +64,9 @@ hold:	ldr	r12,=0x103
 	 * should now contain the SVC stack for this core
 	 */
 	b	secondary_startup
-ENDPROC(omap_secondary_startup)
+ENDPROC(omap4_secondary_startup)
 
-ENTRY(omap_secondary_startup_4460)
+ENTRY(omap4460_secondary_startup)
 hold_2:	ldr	r12,=0x103
 	dsb
 	smc	#0			@ read from AuxCoreBoot0
@@ -101,4 +101,4 @@ hold_2:	ldr	r12,=0x103
 	 * should now contain the SVC stack for this core
 	 */
 	b	secondary_startup
-ENDPROC(omap_secondary_startup_4460)
+ENDPROC(omap4460_secondary_startup)
