@@ -664,7 +664,7 @@ static void process_sctp_notification(struct connection *con,
 
 			/* Send any pending writes */
 			clear_bit(CF_CONNECT_PENDING, &new_con->flags);
-			clear_bit(CF_INIT_PENDING, &con->flags);
+			clear_bit(CF_INIT_PENDING, &new_con->flags);
 			if (!test_and_set_bit(CF_WRITE_PENDING, &new_con->flags)) {
 				queue_work(send_workqueue, &new_con->swork);
 			}
