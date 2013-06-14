@@ -482,6 +482,10 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	}
 
 	if (card->ext_csd.rev >= 5) {
+		/* Adjust production date as per JEDEC JESD84-B451 */
+		if (card->cid.year < 2010)
+			card->cid.year += 16;
+
 		/* check whether the eMMC card supports BKOPS */
 		if (ext_csd[EXT_CSD_BKOPS_SUPPORT] & 0x1) {
 			card->ext_csd.bkops = 1;
