@@ -1960,45 +1960,93 @@ attach:
 EXPORT_SYMBOL(iscsit_handle_task_mgt_cmd);
 
 /* #warning FIXME: Support Text Command parameters besides SendTargets */
-static int iscsit_handle_text_cmd(
-	struct iscsi_conn *conn,
-	unsigned char *buf)
+int
+iscsit_setup_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+		      struct iscsi_text *hdr)
 {
-	char *text_ptr, *text_in;
-	int cmdsn_ret, niov = 0, rx_got, rx_size;
-	u32 checksum = 0, data_crc = 0, payload_length;
-	u32 padding = 0, pad_bytes = 0, text_length = 0;
-	struct iscsi_cmd *cmd;
-	struct kvec iov[3];
-	struct iscsi_text *hdr;
-
-	hdr			= (struct iscsi_text *) buf;
-	payload_length		= ntoh24(hdr->dlength);
+	u32 payload_length = ntoh24(hdr->dlength);
 
 	if (payload_length > conn->conn_ops->MaxXmitDataSegmentLength) {
 		pr_err("Unable to accept text parameter length: %u"
 			"greater than MaxXmitDataSegmentLength %u.\n",
 		       payload_length, conn->conn_ops->MaxXmitDataSegmentLength);
-		return iscsit_add_reject(ISCSI_REASON_PROTOCOL_ERROR, 1,
-					buf, conn);
+		return iscsit_add_reject_from_cmd(ISCSI_REASON_PROTOCOL_ERROR,
+					1, 0, (unsigned char *)hdr, cmd);
 	}
 
 	pr_debug("Got Text Request: ITT: 0x%08x, CmdSN: 0x%08x,"
 		" ExpStatSN: 0x%08x, Length: %u\n", hdr->itt, hdr->cmdsn,
 		hdr->exp_statsn, payload_length);
 
-	rx_size = text_length = payload_length;
-	if (text_length) {
-		text_in = kzalloc(text_length, GFP_KERNEL);
+	cmd->iscsi_opcode	= ISCSI_OP_TEXT;
+	cmd->i_state		= ISTATE_SEND_TEXTRSP;
+	cmd->immediate_cmd	= ((hdr->opcode & ISCSI_OP_IMMEDIATE) ? 1 : 0);
+	conn->sess->init_task_tag = cmd->init_task_tag  = hdr->itt;
+	cmd->targ_xfer_tag	= 0xFFFFFFFF;
+	cmd->cmd_sn		= be32_to_cpu(hdr->cmdsn);
+	cmd->exp_stat_sn	= be32_to_cpu(hdr->exp_statsn);
+	cmd->data_direction	= DMA_NONE;
+
+	return 0;
+}
+EXPORT_SYMBOL(iscsit_setup_text_cmd);
+
+int
+iscsit_process_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+			struct iscsi_text *hdr)
+{
+	int cmdsn_ret;
+
+	spin_lock_bh(&conn->cmd_lock);
+	list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
+	spin_unlock_bh(&conn->cmd_lock);
+
+	iscsit_ack_from_expstatsn(conn, be32_to_cpu(hdr->exp_statsn));
+
+	if (!(hdr->opcode & ISCSI_OP_IMMEDIATE)) {
+		cmdsn_ret = iscsit_sequence_cmd(conn, cmd, hdr->cmdsn);
+		if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
+			return iscsit_add_reject_from_cmd(
+					ISCSI_REASON_PROTOCOL_ERROR,
+					1, 0, (unsigned char *)hdr, cmd);
+		return 0;
+	}
+
+	return iscsit_execute_cmd(cmd, 0);
+}
+EXPORT_SYMBOL(iscsit_process_text_cmd);
+
+static int
+iscsit_handle_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+		       unsigned char *buf)
+{
+	struct iscsi_text *hdr = (struct iscsi_text *)buf;
+	char *text_in = NULL;
+	u32 payload_length = ntoh24(hdr->dlength);
+	int rx_size, rc;
+
+	rc = iscsit_setup_text_cmd(conn, cmd, hdr);
+	if (rc < 0)
+		return rc;
+
+	rx_size = payload_length;
+	if (payload_length) {
+		char *text_ptr;
+		u32 checksum = 0, data_crc = 0;
+		u32 padding = 0, pad_bytes = 0;
+		int niov = 0, rx_got;
+		struct kvec iov[3];
+
+		text_in = kzalloc(payload_length, GFP_KERNEL);
 		if (!text_in) {
 			pr_err("Unable to allocate memory for"
 				" incoming text parameters\n");
-			return -1;
+			goto reject;
 		}
 
 		memset(iov, 0, 3 * sizeof(struct kvec));
 		iov[niov].iov_base	= text_in;
-		iov[niov++].iov_len	= text_length;
+		iov[niov++].iov_len	= payload_length;
 
 		padding = ((-payload_length) & 3);
 		if (padding != 0) {
@@ -2015,14 +2063,12 @@ static int iscsit_handle_text_cmd(
 		}
 
 		rx_got = rx_data(conn, &iov[0], niov, rx_size);
-		if (rx_got != rx_size) {
-			kfree(text_in);
-			return -1;
-		}
+		if (rx_got != rx_size)
+			goto reject;
 
 		if (conn->conn_ops->DataDigest) {
 			iscsit_do_crypto_hash_buf(&conn->conn_rx_hash,
-					text_in, text_length,
+					text_in, payload_length,
 					padding, (u8 *)&pad_bytes,
 					(u8 *)&data_crc);
 
@@ -2034,8 +2080,7 @@ static int iscsit_handle_text_cmd(
 					pr_err("Unable to recover from"
 					" Text Data digest failure while in"
 						" ERL=0.\n");
-					kfree(text_in);
-					return -1;
+					goto reject;
 				} else {
 					/*
 					 * Silently drop this PDU and let the
@@ -2050,68 +2095,40 @@ static int iscsit_handle_text_cmd(
 			} else {
 				pr_debug("Got CRC32C DataDigest"
 					" 0x%08x for %u bytes of text data.\n",
-						checksum, text_length);
+						checksum, payload_length);
 			}
 		}
-		text_in[text_length - 1] = '\0';
+		text_in[payload_length - 1] = '\0';
 		pr_debug("Successfully read %d bytes of text"
-				" data.\n", text_length);
+				" data.\n", payload_length);
 
 		if (strncmp("SendTargets", text_in, 11) != 0) {
 			pr_err("Received Text Data that is not"
 				" SendTargets, cannot continue.\n");
-			kfree(text_in);
-			return -1;
+			goto reject;
 		}
 		text_ptr = strchr(text_in, '=');
 		if (!text_ptr) {
 			pr_err("No \"=\" separator found in Text Data,"
 				"  cannot continue.\n");
-			kfree(text_in);
-			return -1;
+			goto reject;
 		}
 		if (strncmp("=All", text_ptr, 4) != 0) {
 			pr_err("Unable to locate All value for"
 				" SendTargets key,  cannot continue.\n");
-			kfree(text_in);
-			return -1;
+			goto reject;
 		}
-/*#warning Support SendTargets=(iSCSI Target Name/Nothing) values. */
 		kfree(text_in);
 	}
 
-	cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);
-	if (!cmd)
-		return iscsit_add_reject(ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-					1, buf, conn);
+	return iscsit_process_text_cmd(conn, cmd, hdr);
 
-	cmd->iscsi_opcode	= ISCSI_OP_TEXT;
-	cmd->i_state		= ISTATE_SEND_TEXTRSP;
-	cmd->immediate_cmd	= ((hdr->opcode & ISCSI_OP_IMMEDIATE) ? 1 : 0);
-	conn->sess->init_task_tag = cmd->init_task_tag	= hdr->itt;
-	cmd->targ_xfer_tag	= 0xFFFFFFFF;
-	cmd->cmd_sn		= be32_to_cpu(hdr->cmdsn);
-	cmd->exp_stat_sn	= be32_to_cpu(hdr->exp_statsn);
-	cmd->data_direction	= DMA_NONE;
-
-	spin_lock_bh(&conn->cmd_lock);
-	list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
-	spin_unlock_bh(&conn->cmd_lock);
-
-	iscsit_ack_from_expstatsn(conn, be32_to_cpu(hdr->exp_statsn));
-
-	if (!(hdr->opcode & ISCSI_OP_IMMEDIATE)) {
-		cmdsn_ret = iscsit_sequence_cmd(conn, cmd, hdr->cmdsn);
-		if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
-			return iscsit_add_reject_from_cmd(
-					ISCSI_REASON_PROTOCOL_ERROR,
-					1, 0, buf, cmd);
-
-		return 0;
-	}
-
-	return iscsit_execute_cmd(cmd, 0);
+reject:
+	kfree(text_in);
+	return iscsit_add_reject_from_cmd(ISCSI_REASON_PROTOCOL_ERROR,
+					  0, 0, buf, cmd);
 }
+EXPORT_SYMBOL(iscsit_handle_text_cmd);
 
 int iscsit_logout_closesession(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 {
@@ -3947,7 +3964,12 @@ static int iscsi_target_rx_opcode(struct iscsi_conn *conn, unsigned char *buf)
 		ret = iscsit_handle_task_mgt_cmd(conn, cmd, buf);
 		break;
 	case ISCSI_OP_TEXT:
-		ret = iscsit_handle_text_cmd(conn, buf);
+		cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);
+		if (!cmd)
+			return iscsit_add_reject(ISCSI_REASON_BOOKMARK_NO_RESOURCES,
+						1, buf, conn);
+
+		ret = iscsit_handle_text_cmd(conn, cmd, buf);
 		break;
 	case ISCSI_OP_LOGOUT:
 		cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);

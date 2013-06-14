@@ -53,6 +53,10 @@ extern int iscsit_handle_logout_cmd(struct iscsi_conn *, struct iscsi_cmd *,
 				unsigned char *);
 extern int iscsit_handle_task_mgt_cmd(struct iscsi_conn *, struct iscsi_cmd *,
 				unsigned char *);
+extern int iscsit_setup_text_cmd(struct iscsi_conn *, struct iscsi_cmd *,
+				 struct iscsi_text *);
+extern int iscsit_process_text_cmd(struct iscsi_conn *, struct iscsi_cmd *,
+				   struct iscsi_text *);
 extern void iscsit_build_rsp_pdu(struct iscsi_cmd *, struct iscsi_conn *,
 				bool, struct iscsi_scsi_rsp *);
 extern void iscsit_build_nopin_rsp(struct iscsi_cmd *, struct iscsi_conn *,
