@@ -25,6 +25,7 @@ struct rcar_du_plane;
 struct rcar_du_crtc {
 	struct drm_crtc crtc;
 
+	struct clk *clock;
 	unsigned int mmio_offset;
 	unsigned int index;
 	bool started;
@@ -38,7 +39,6 @@ struct rcar_du_crtc {
 
 int rcar_du_crtc_create(struct rcar_du_device *rcdu, unsigned int index);
 void rcar_du_crtc_enable_vblank(struct rcar_du_crtc *rcrtc, bool enable);
-void rcar_du_crtc_irq(struct rcar_du_crtc *rcrtc);
 void rcar_du_crtc_cancel_page_flip(struct rcar_du_crtc *rcrtc,
 				   struct drm_file *file);
 void rcar_du_crtc_suspend(struct rcar_du_crtc *rcrtc);

@@ -25,6 +25,8 @@ struct clk;
 struct device;
 struct drm_device;
 
+#define RCAR_DU_FEATURE_CRTC_IRQ_CLOCK	(1 << 0)	/* Per-CRTC IRQ and clock */
+
 /*
  * struct rcar_du_device_info - DU model-specific information
  * @features: device features (RCAR_DU_FEATURE_*)
@@ -39,7 +41,6 @@ struct rcar_du_device {
 	const struct rcar_du_device_info *info;
 
 	void __iomem *mmio;
-	struct clk *clock;
 	unsigned int use_count;
 
 	struct drm_device *ddev;
