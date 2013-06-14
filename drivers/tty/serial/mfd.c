@@ -21,6 +21,10 @@
  *    be triggered
  */
 
+#if defined(CONFIG_SERIAL_MFD_HSU_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#define SUPPORT_SYSRQ
+#endif
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/console.h>
