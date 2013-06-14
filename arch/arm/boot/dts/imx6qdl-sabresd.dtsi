@@ -52,6 +52,12 @@
 	};
 };
 
+&audmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux_2>;
+	status = "okay";
+};
+
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet_1>;
@@ -86,6 +92,11 @@
 			0x0000 /* 5:Default */
 		>;
        };
+};
+
+&ssi2 {
+	fsl,mode = "i2s-slave";
+	status = "okay";
 };
 
 &uart1 {
