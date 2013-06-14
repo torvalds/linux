@@ -215,8 +215,13 @@ static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 	.features = 0,
 };
 
+static const struct rcar_du_device_info rcar_du_r8a7790_info = {
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK,
+};
+
 static const struct platform_device_id rcar_du_id_table[] = {
 	{ "rcar-du-r8a7779", (kernel_ulong_t)&rcar_du_r8a7779_info },
+	{ "rcar-du-r8a7790", (kernel_ulong_t)&rcar_du_r8a7790_info },
 	{ }
 };
 
