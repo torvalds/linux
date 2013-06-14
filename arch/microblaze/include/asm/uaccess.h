@@ -99,13 +99,13 @@ static inline int access_ok(int type, const void __user *addr,
 	if ((get_fs().seg < ((unsigned long)addr)) ||
 			(get_fs().seg < ((unsigned long)addr + size - 1))) {
 		pr_debug("ACCESS fail: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
-			type ? "WRITE" : "READ ", (u32)addr, (u32)size,
+			type ? "WRITE" : "READ ", (__force u32)addr, (u32)size,
 			(u32)get_fs().seg);
 		return 0;
 	}
 ok:
 	pr_debug("ACCESS OK: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
-			type ? "WRITE" : "READ ", (u32)addr, (u32)size,
+			type ? "WRITE" : "READ ", (__force u32)addr, (u32)size,
 			(u32)get_fs().seg);
 	return 1;
 }

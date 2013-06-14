@@ -40,14 +40,13 @@
  * FIFO channel objects
  ******************************************************************************/
 
-void
-nv50_fifo_playlist_update(struct nv50_fifo_priv *priv)
+static void
+nv50_fifo_playlist_update_locked(struct nv50_fifo_priv *priv)
 {
 	struct nouveau_bar *bar = nouveau_bar(priv);
 	struct nouveau_gpuobj *cur;
 	int i, p;
 
-	mutex_lock(&nv_subdev(priv)->mutex);
 	cur = priv->playlist[priv->cur_playlist];
 	priv->cur_playlist = !priv->cur_playlist;
 
@@ -61,6 +60,13 @@ nv50_fifo_playlist_update(struct nv50_fifo_priv *priv)
 	nv_wr32(priv, 0x0032f4, cur->addr >> 12);
 	nv_wr32(priv, 0x0032ec, p);
 	nv_wr32(priv, 0x002500, 0x00000101);
+}
+
+void
+nv50_fifo_playlist_update(struct nv50_fifo_priv *priv)
+{
+	mutex_lock(&nv_subdev(priv)->mutex);
+	nv50_fifo_playlist_update_locked(priv);
 	mutex_unlock(&nv_subdev(priv)->mutex);
 }
 
@@ -489,7 +495,7 @@ nv50_fifo_init(struct nouveau_object *object)
 
 	for (i = 0; i < 128; i++)
 		nv_wr32(priv, 0x002600 + (i * 4), 0x00000000);
-	nv50_fifo_playlist_update(priv);
+	nv50_fifo_playlist_update_locked(priv);
 
 	nv_wr32(priv, 0x003200, 0x00000001);
 	nv_wr32(priv, 0x003250, 0x00000001);

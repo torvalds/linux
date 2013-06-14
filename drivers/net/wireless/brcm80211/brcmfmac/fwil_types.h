@@ -23,6 +23,12 @@
 
 #define BRCMF_FIL_ACTION_FRAME_SIZE	1800
 
+/* ARP Offload feature flags for arp_ol iovar */
+#define BRCMF_ARP_OL_AGENT		0x00000001
+#define BRCMF_ARP_OL_SNOOP		0x00000002
+#define BRCMF_ARP_OL_HOST_AUTO_REPLY	0x00000004
+#define BRCMF_ARP_OL_PEER_AUTO_REPLY	0x00000008
+
 
 enum brcmf_fil_p2p_if_types {
 	BRCMF_FIL_P2P_IF_CLIENT,
