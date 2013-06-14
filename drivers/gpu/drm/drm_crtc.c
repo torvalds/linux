@@ -1980,6 +1980,9 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 
 	ret = crtc->funcs->set_config(set);
 	if (ret == 0) {
+		/* crtc->fb must be updated by ->set_config, enforces this. */
+		WARN_ON(fb != crtc->fb);
+
 		if (old_fb)
 			drm_framebuffer_unreference(old_fb);
 		if (fb)
