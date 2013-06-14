@@ -108,7 +108,6 @@
 
 #ifdef CONFIG_NET_LL_RX_POLL
 unsigned int sysctl_net_ll_poll __read_mostly;
-EXPORT_SYMBOL_GPL(sysctl_net_ll_poll);
 #endif
 
 static int sock_no_open(struct inode *irrelevant, struct file *dontcare);

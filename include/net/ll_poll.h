@@ -39,12 +39,12 @@ extern unsigned int sysctl_net_ll_poll __read_mostly;
 /* we can use sched_clock() because we don't care much about precision
  * we only care that the average is bounded
  */
-static inline u64 ll_end_time(void)
+static inline u64 ll_end_time(struct sock *sk)
 {
-	u64 end_time = ACCESS_ONCE(sysctl_net_ll_poll);
+	u64 end_time = ACCESS_ONCE(sk->sk_ll_usec);
 
 	/* we don't mind a ~2.5% imprecision
-	 * sysctl_net_ll_poll is a u_int so this can't overflow
+	 * sk->sk_ll_usec is a u_int so this can't overflow
 	 */
 	end_time = (end_time << 10) + sched_clock();
 
@@ -53,7 +53,7 @@ static inline u64 ll_end_time(void)
 
 static inline bool sk_valid_ll(struct sock *sk)
 {
-	return sysctl_net_ll_poll && sk->sk_napi_id &&
+	return sk->sk_ll_usec && sk->sk_napi_id &&
 	       !need_resched() && !signal_pending(current);
 }
 
@@ -65,7 +65,7 @@ static inline bool can_poll_ll(u64 end_time)
 static inline bool sk_poll_ll(struct sock *sk, int nonblock)
 {
 	const struct net_device_ops *ops;
-	u64 end_time = ll_end_time();
+	u64 end_time = ll_end_time(sk);
 	struct napi_struct *napi;
 	int rc = false;
 
@@ -118,7 +118,7 @@ static inline void sk_mark_ll(struct sock *sk, struct sk_buff *skb)
 
 #else /* CONFIG_NET_LL_RX_POLL */
 
-static inline u64 ll_end_time(void)
+static inline u64 ll_end_time(struct sock *sk)
 {
 	return 0;
 }

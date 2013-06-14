@@ -913,6 +913,19 @@ set_rcvbuf:
 		sock_valbool_flag(sk, SOCK_SELECT_ERR_QUEUE, valbool);
 		break;
 
+#ifdef CONFIG_NET_LL_RX_POLL
+	case SO_LL:
+		/* allow unprivileged users to decrease the value */
+		if ((val > sk->sk_ll_usec) && !capable(CAP_NET_ADMIN))
+			ret = -EPERM;
+		else {
+			if (val < 0)
+				ret = -EINVAL;
+			else
+				sk->sk_ll_usec = val;
+		}
+		break;
+#endif
 	default:
 		ret = -ENOPROTOOPT;
 		break;
@@ -1169,6 +1182,12 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	case SO_SELECT_ERR_QUEUE:
 		v.val = sock_flag(sk, SOCK_SELECT_ERR_QUEUE);
 		break;
+
+#ifdef CONFIG_NET_LL_RX_POLL
+	case SO_LL:
+		v.val = sk->sk_ll_usec;
+		break;
+#endif
 
 	default:
 		return -ENOPROTOOPT;
@@ -2288,6 +2307,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 #ifdef CONFIG_NET_LL_RX_POLL
 	sk->sk_napi_id		=	0;
+	sk->sk_ll_usec		=	sysctl_net_ll_poll;
 #endif
 
 	/*
