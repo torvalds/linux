@@ -63,7 +63,6 @@ obj-$(CONFIG_ARCH_OMAP3)		+= omap3-restart.o
 obj-$(CONFIG_SOC_OMAP2420)		+= mux2420.o
 obj-$(CONFIG_SOC_OMAP2430)		+= mux2430.o
 obj-$(CONFIG_ARCH_OMAP3)		+= mux34xx.o
-obj-$(CONFIG_ARCH_OMAP4)		+= mux44xx.o
 
 # SMS/SDRC
 obj-$(CONFIG_ARCH_OMAP2)		+= sdrc2xxx.o
@@ -251,8 +250,6 @@ obj-$(CONFIG_MACH_CM_T35)		+= board-cm-t35.o
 obj-$(CONFIG_MACH_CM_T3517)		+= board-cm-t3517.o
 obj-$(CONFIG_MACH_IGEP0020)		+= board-igep0020.o
 obj-$(CONFIG_MACH_TOUCHBOOK)		+= board-omap3touchbook.o
-obj-$(CONFIG_MACH_OMAP_4430SDP)		+= board-4430sdp.o
-obj-$(CONFIG_MACH_OMAP4_PANDA)		+= board-omap4panda.o
 
 obj-$(CONFIG_MACH_OMAP3517EVM)		+= board-am3517evm.o
 

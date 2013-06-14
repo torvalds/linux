@@ -15,12 +15,12 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/omap4-keypad.h>
-#include <linux/platform_data/omap_ocp2scp.h>
-#include <linux/usb/omap_control_usb.h>
+#include <linux/wl12xx.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
@@ -252,49 +252,6 @@ static inline void omap_init_camera(void)
 		platform_device_register(&omap2cam_device);
 #endif
 }
-
-#if IS_ENABLED(CONFIG_OMAP_CONTROL_USB)
-static struct omap_control_usb_platform_data omap4_control_usb_pdata = {
-	.type = 1,
-};
-
-struct resource omap4_control_usb_res[] = {
-	{
-		.name	= "control_dev_conf",
-		.start	= 0x4a002300,
-		.end	= 0x4a002303,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.name	= "otghs_control",
-		.start	= 0x4a00233c,
-		.end	= 0x4a00233f,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device omap4_control_usb = {
-	.name = "omap-control-usb",
-	.id = -1,
-	.dev = {
-		.platform_data = &omap4_control_usb_pdata,
-	},
-	.num_resources = 2,
-	.resource = omap4_control_usb_res,
-};
-
-static inline void __init omap_init_control_usb(void)
-{
-	if (!cpu_is_omap44xx())
-		return;
-
-	if (platform_device_register(&omap4_control_usb))
-		pr_err("Error registering omap_control_usb device\n");
-}
-
-#else
-static inline void omap_init_control_usb(void) { }
-#endif /* CONFIG_OMAP_CONTROL_USB */
 
 int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 			*sdp4430_keypad_data, struct omap_board_data *bdata)
@@ -557,80 +514,38 @@ static void omap_init_vout(void)
 static inline void omap_init_vout(void) {}
 #endif
 
-#if defined(CONFIG_OMAP_OCP2SCP) || defined(CONFIG_OMAP_OCP2SCP_MODULE)
-static int count_ocp2scp_devices(struct omap_ocp2scp_dev *ocp2scp_dev)
+#if IS_ENABLED(CONFIG_WL12XX)
+
+static struct wl12xx_platform_data wl12xx __initdata;
+
+void __init omap_init_wl12xx_of(void)
 {
-	int cnt	= 0;
+	int ret;
 
-	while (ocp2scp_dev->drv_name != NULL) {
-		cnt++;
-		ocp2scp_dev++;
-	}
-
-	return cnt;
-}
-
-static void __init omap_init_ocp2scp(void)
-{
-	struct omap_hwmod	*oh;
-	struct platform_device	*pdev;
-	int			bus_id = -1, dev_cnt = 0, i;
-	struct omap_ocp2scp_dev	*ocp2scp_dev;
-	const char		*oh_name, *name;
-	struct omap_ocp2scp_platform_data *pdata;
-
-	if (!cpu_is_omap44xx())
+	if (!of_have_populated_dt())
 		return;
 
-	oh_name = "ocp2scp_usb_phy";
-	name	= "omap-ocp2scp";
-
-	oh = omap_hwmod_lookup(oh_name);
-	if (!oh) {
-		pr_err("%s: could not find omap_hwmod for %s\n", __func__,
-								oh_name);
+	if (of_machine_is_compatible("ti,omap4-sdp")) {
+		wl12xx.board_ref_clock = WL12XX_REFCLOCK_26;
+		wl12xx.board_tcxo_clock = WL12XX_TCXOCLOCK_26;
+		wl12xx.irq = gpio_to_irq(53);
+	} else if (of_machine_is_compatible("ti,omap4-panda")) {
+		wl12xx.board_ref_clock = WL12XX_REFCLOCK_38;
+		wl12xx.irq = gpio_to_irq(53);
+	} else {
 		return;
 	}
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		pr_err("%s: No memory for ocp2scp pdata\n", __func__);
-		return;
-	}
-
-	ocp2scp_dev = oh->dev_attr;
-	dev_cnt = count_ocp2scp_devices(ocp2scp_dev);
-
-	if (!dev_cnt) {
-		pr_err("%s: No devices connected to ocp2scp\n", __func__);
-		kfree(pdata);
-		return;
-	}
-
-	pdata->devices = kzalloc(sizeof(struct omap_ocp2scp_dev *)
-					* dev_cnt, GFP_KERNEL);
-	if (!pdata->devices) {
-		pr_err("%s: No memory for ocp2scp pdata devices\n", __func__);
-		kfree(pdata);
-		return;
-	}
-
-	for (i = 0; i < dev_cnt; i++, ocp2scp_dev++)
-		pdata->devices[i] = ocp2scp_dev;
-
-	pdata->dev_cnt	= dev_cnt;
-
-	pdev = omap_device_build(name, bus_id, oh, pdata, sizeof(*pdata));
-	if (IS_ERR(pdev)) {
-		pr_err("Could not build omap_device for %s %s\n",
-						name, oh_name);
-		kfree(pdata->devices);
-		kfree(pdata);
+	ret = wl12xx_set_platform_data(&wl12xx);
+	if (ret) {
+		pr_err("error setting wl12xx data: %d\n", ret);
 		return;
 	}
 }
 #else
-static inline void omap_init_ocp2scp(void) { }
+static inline void omap_init_wl12xx_of(void)
+{
+}
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -651,17 +566,18 @@ static int __init omap2_init_devices(void)
 	omap_init_mbox();
 	/* If dtb is there, the devices will be created dynamically */
 	if (!of_have_populated_dt()) {
-		omap_init_control_usb();
 		omap_init_dmic();
 		omap_init_mcpdm();
 		omap_init_mcspi();
 		omap_init_sham();
 		omap_init_aes();
+	} else {
+		/* These can be removed when bindings are done */
+		omap_init_wl12xx_of();
 	}
 	omap_init_sti();
 	omap_init_rng();
 	omap_init_vout();
-	omap_init_ocp2scp();
 
 	return 0;
 }
