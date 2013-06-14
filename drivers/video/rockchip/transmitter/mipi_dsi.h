@@ -113,11 +113,11 @@ struct mipi_dsi_ops {
 	u32 id;
 	char *name;
 	int (*get_id)(void);
-	int (*dsi_init)(void *, int n);
-	int (*dsi_set_regs)(void *, int n);
-	int (*dsi_send_dcs_packet)(unsigned char *, int n);
-	int (*dsi_read_dcs_packet)(unsigned char *, int n);
-	int (*dsi_send_packet)(void *, int n);
+	int (*dsi_init)(void *, u32 n);
+	int (*dsi_set_regs)(void *, u32 n);
+	int (*dsi_send_dcs_packet)(unsigned char *, u32 n);
+	int (*dsi_read_dcs_packet)(unsigned char *, u32 n);
+	int (*dsi_send_packet)(void *, u32 n);
 	int (*power_up)(void);
 	int (*power_down)(void);	
 };
@@ -128,9 +128,13 @@ int del_dsi_ops(struct mipi_dsi_ops *ops);
 int dsi_power_up(void);
 int dsi_power_off(void);
 int dsi_probe_current_chip(void);
-int dsi_init(void *array, int n);
-int dsi_set_regs(void *array, int n);
-int dsi_send_dcs_packet(unsigned char *packet, int n);
-int dsi_read_dcs_packet(unsigned char *packet, int n);
-int dsi_send_packet(void *packet, int n);
+int dsi_init(void *array, u32 n);
+
+int dsi_enable_video_mode(u32 enable);
+int dsi_set_virtual_channel(u32 channel);
+
+int dsi_set_regs(void *array, u32 n);
+int dsi_send_dcs_packet(unsigned char *packet, u32 n);
+int dsi_read_dcs_packet(unsigned char *packet, u32 n);
+int dsi_send_packet(void *packet, u32 n);
 #endif /* end of MIPI_DSI_H_ */

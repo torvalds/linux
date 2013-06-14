@@ -177,6 +177,13 @@ typedef struct rk29fb_screen {
 	u8 swap_rb;
 	u8 swap_delta;
 	u8 swap_dumy;
+	
+#if defined(CONFIG_MIPI_DSI)
+	/* MIPI DSI */
+	u8 dsi_lane;
+	u8 dsi_video_mode;
+	u32 hs_tx_clk;
+#endif
 
 	int xpos;  //horizontal display start position on the sceen ,then can be changed by application
 	int ypos;

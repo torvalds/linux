@@ -60,7 +60,7 @@ int del_dsi_ops(struct mipi_dsi_ops *ops) {
 EXPORT_SYMBOL(del_dsi_ops);
 
 int dsi_probe_current_chip(void) {
-
+	int ret = 0;
 	u32 i = 0, id;
 	struct mipi_dsi_ops *ops = NULL;
 	if(cur_dsi_ops)
@@ -77,13 +77,14 @@ int dsi_probe_current_chip(void) {
 				printk("mipi dsi chip is not found, read id:%08x, but %08x is correct\n", id, ops->id);
 				dsi_ops[i] = NULL;
 				cur_dsi_ops = NULL;
+				ret = -1;
 			}
 		}	
 	}
 	if(i == MAX_DSI_CHIPS)
 		printk("no mipi dsi chip\n");
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(dsi_probe_current_chip);
 
@@ -108,7 +109,7 @@ int dsi_power_off(void) {
 }
 EXPORT_SYMBOL(dsi_power_off);
 
-int dsi_set_regs(void *array, int n) {
+int dsi_set_regs(void *array, u32 n) {
 
 	if(!cur_dsi_ops)
 		return -1;
@@ -118,7 +119,7 @@ int dsi_set_regs(void *array, int n) {
 }
 EXPORT_SYMBOL(dsi_set_regs);
 
-int dsi_init(void *array, int n) {
+int dsi_init(void *array, u32 n) {
 
 	if(!cur_dsi_ops)
 		return -1;
@@ -129,7 +130,7 @@ int dsi_init(void *array, int n) {
 EXPORT_SYMBOL(dsi_init);
 
 
-int dsi_send_dcs_packet(unsigned char *packet, int n) {
+int dsi_send_dcs_packet(unsigned char *packet, u32 n) {
 
 	if(!cur_dsi_ops)
 		return -1;
@@ -140,7 +141,7 @@ int dsi_send_dcs_packet(unsigned char *packet, int n) {
 EXPORT_SYMBOL(dsi_send_dcs_packet);
 
 
-int dsi_read_dcs_packet(unsigned char *packet, int n) {
+int dsi_read_dcs_packet(unsigned char *packet, u32 n) {
 
 	if(!cur_dsi_ops)
 		return -1;
@@ -151,7 +152,7 @@ int dsi_read_dcs_packet(unsigned char *packet, int n) {
 EXPORT_SYMBOL(dsi_read_dcs_packet);
 
 
-int dsi_send_packet(void *packet, int n) {
+int dsi_send_packet(void *packet, u32 n) {
 
 	if(!cur_dsi_ops)
 		return -1;

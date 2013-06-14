@@ -445,7 +445,7 @@ int ssd_set_registers(unsigned int reg_array[], int n) {
 	return 0;
 }
 
-int ssd_mipi_dsi_send_dcs_packet(unsigned char regs[], int n) {
+int ssd_mipi_dsi_send_dcs_packet(unsigned char regs[], u32 n) {
 	//unsigned int data = 0, i = 0;
 	ssd_set_register(0x00B70343);   //
 	ssd_set_register(0x00B80000);
@@ -458,17 +458,17 @@ int ssd_mipi_dsi_send_dcs_packet(unsigned char regs[], int n) {
 }
 
 
-int _ssd2828_send_packet(unsigned char type, unsigned char regs[], int n) {
+int _ssd2828_send_packet(unsigned char type, unsigned char regs[], u32 n) {
 
 	
 	return 0;
 }
 
-int ssd2828_send_packet(unsigned char type, unsigned char regs[], int n) {
+int ssd2828_send_packet(unsigned char type, unsigned char regs[], u32 n) {
 	return _ssd2828_send_packet(type, regs, n);
 }
 
-int ssd_mipi_dsi_read_dcs_packet(unsigned char *data, int n) {
+int ssd_mipi_dsi_read_dcs_packet(unsigned char *data, u32 n) {
 	//DCS READ 
 	unsigned int i = 0;
 	

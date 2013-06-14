@@ -28,17 +28,26 @@ config DP501
 	bool"RGB to Display Port transmitter dp501 support"
 	depends on RK_TRSM
 
-config TC358768_RGB2MIPI
-        bool "toshiba TC358768 RGB to MIPI DSI"
+config MIPI_DSI
 	depends on RK_TRSM
+	bool "Rockchip MIPI DSI support"
+
+config TC358768_RGB2MIPI
+        tristate "toshiba TC358768 RGB to MIPI DSI"
+		depends on MIPI_DSI
         help
         "a chip that change RGB interface parallel signal into DSI serial signal"
 
 config SSD2828_RGB2MIPI
-        bool "solomon SSD2828 RGB to MIPI DSI"
-	depends on RK_TRSM
+        tristate "solomon SSD2828 RGB to MIPI DSI"
+		depends on MIPI_DSI
         help
         "a chip that change RGB interface parallel signal into DSI serial signal"
-	
+
+config RK616_MIPI_DSI
+        tristate "RK616(JettaB) mipi dsi support"
+        depends on MFD_RK616 && MIPI_DSI
+        help
+           RK616(Jetta B) mipi dstristatei support.		
 
 			
