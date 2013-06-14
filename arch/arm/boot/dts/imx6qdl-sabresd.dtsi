@@ -50,6 +50,25 @@
 			linux,code = <114>; /* KEY_VOLUMEDOWN */
 		};
 	};
+
+	sound {
+		compatible = "fsl,imx6q-sabresd-wm8962",
+			   "fsl,imx-audio-wm8962";
+		model = "wm8962-audio";
+		ssi-controller = <&ssi2>;
+		audio-codec = <&codec>;
+		audio-routing =
+			"Headphone Jack", "HPOUTL",
+			"Headphone Jack", "HPOUTR",
+			"Ext Spk", "SPKOUTL",
+			"Ext Spk", "SPKOUTR",
+			"MICBIAS", "AMIC",
+			"IN3R", "MICBIAS",
+			"DMIC", "MICBIAS",
+			"DMICDAT", "DMIC";
+		mux-int-port = <2>;
+		mux-ext-port = <3>;
+	};
 };
 
 &audmux {
