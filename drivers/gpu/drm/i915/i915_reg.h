@@ -448,9 +448,9 @@
 #define _DPIO_PLL_CML_B			0x806c
 #define DPIO_PLL_CML(pipe) _PIPE(pipe, _DPIO_PLL_CML_A, _DPIO_PLL_CML_B)
 
-#define _DPIO_LFP_COEFF_A		0x8048
-#define _DPIO_LFP_COEFF_B		0x8068
-#define DPIO_LFP_COEFF(pipe) _PIPE(pipe, _DPIO_LFP_COEFF_A, _DPIO_LFP_COEFF_B)
+#define _DPIO_LPF_COEFF_A		0x8048
+#define _DPIO_LPF_COEFF_B		0x8068
+#define DPIO_LPF_COEFF(pipe) _PIPE(pipe, _DPIO_LPF_COEFF_A, _DPIO_LPF_COEFF_B)
 
 #define DPIO_CALIBRATION		0x80ac
 

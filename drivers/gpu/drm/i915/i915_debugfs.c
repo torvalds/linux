@@ -1862,10 +1862,10 @@ static int i915_dpio_info(struct seq_file *m, void *data)
 	seq_printf(m, "DPIO_CORE_CLK_B: 0x%08x\n",
 		   vlv_dpio_read(dev_priv, _DPIO_CORE_CLK_B));
 
-	seq_printf(m, "DPIO_LFP_COEFF_A: 0x%08x\n",
-		   vlv_dpio_read(dev_priv, _DPIO_LFP_COEFF_A));
-	seq_printf(m, "DPIO_LFP_COEFF_B: 0x%08x\n",
-		   vlv_dpio_read(dev_priv, _DPIO_LFP_COEFF_B));
+	seq_printf(m, "DPIO_LPF_COEFF_A: 0x%08x\n",
+		   vlv_dpio_read(dev_priv, _DPIO_LPF_COEFF_A));
+	seq_printf(m, "DPIO_LPF_COEFF_B: 0x%08x\n",
+		   vlv_dpio_read(dev_priv, _DPIO_LPF_COEFF_B));
 
 	seq_printf(m, "DPIO_FASTCLK_DISABLE: 0x%08x\n",
 		   vlv_dpio_read(dev_priv, DPIO_FASTCLK_DISABLE));

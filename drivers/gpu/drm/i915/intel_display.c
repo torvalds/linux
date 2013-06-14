@@ -4402,10 +4402,10 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	if (crtc->config.port_clock == 162000 ||
 	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_ANALOG) ||
 	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_HDMI))
-		vlv_dpio_write(dev_priv, DPIO_LFP_COEFF(pipe),
+		vlv_dpio_write(dev_priv, DPIO_LPF_COEFF(pipe),
 				 0x005f0021);
 	else
-		vlv_dpio_write(dev_priv, DPIO_LFP_COEFF(pipe),
+		vlv_dpio_write(dev_priv, DPIO_LPF_COEFF(pipe),
 				 0x00d0000f);
 
 	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_EDP) ||
