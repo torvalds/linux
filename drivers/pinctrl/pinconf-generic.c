@@ -208,6 +208,13 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 		ncfg++;
 	}
 
+	/* no configs found at all */
+	if (ncfg == 0) {
+		*configs = NULL;
+		*nconfigs = 0;
+		return 0;
+	}
+
 	/*
 	 * Now limit the number of configs to the real number of
 	 * found properties.
