@@ -178,7 +178,7 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 				    unsigned long **configs,
 				    unsigned int *nconfigs)
 {
-	unsigned long cfg[ARRAY_SIZE(dt_params)];
+	unsigned long *cfg;
 	unsigned int ncfg = 0;
 	int ret;
 	int i;
@@ -186,6 +186,11 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 
 	if (!np)
 		return -EINVAL;
+
+	/* allocate a temporary array big enough to hold one of each option */
+	cfg = kzalloc(sizeof(*cfg) * ARRAY_SIZE(dt_params), GFP_KERNEL);
+	if (!cfg)
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(dt_params); i++) {
 		struct pinconf_generic_dt_params *par = &dt_params[i];
@@ -204,11 +209,13 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 		ncfg++;
 	}
 
+	ret = 0;
+
 	/* no configs found at all */
 	if (ncfg == 0) {
 		*configs = NULL;
 		*nconfigs = 0;
-		return 0;
+		goto out;
 	}
 
 	/*
@@ -216,11 +223,16 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 	 * found properties.
 	 */
 	*configs = kzalloc(ncfg * sizeof(unsigned long), GFP_KERNEL);
-	if (!*configs)
-		return -ENOMEM;
+	if (!*configs) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
-	memcpy(*configs, &cfg, ncfg * sizeof(unsigned long));
+	memcpy(*configs, cfg, ncfg * sizeof(unsigned long));
 	*nconfigs = ncfg;
-	return 0;
+
+out:
+	kfree(cfg);
+	return ret;
 }
 #endif
