@@ -305,6 +305,40 @@ out:
 	return ret;
 }
 
+static int device_onkey_init(struct pm80x_chip *chip,
+				struct pm80x_platform_data *pdata)
+{
+	int ret;
+
+	ret = mfd_add_devices(chip->dev, 0, &onkey_devs[0],
+			      ARRAY_SIZE(onkey_devs), &onkey_resources[0], 0,
+			      NULL);
+	if (ret) {
+		dev_err(chip->dev, "Failed to add onkey subdev\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int device_rtc_init(struct pm80x_chip *chip,
+				struct pm80x_platform_data *pdata)
+{
+	int ret;
+
+	rtc_devs[0].platform_data = pdata->rtc;
+	rtc_devs[0].pdata_size =
+			pdata->rtc ? sizeof(struct pm80x_rtc_pdata) : 0;
+	ret = mfd_add_devices(chip->dev, 0, &rtc_devs[0],
+			      ARRAY_SIZE(rtc_devs), NULL, 0, NULL);
+	if (ret) {
+		dev_err(chip->dev, "Failed to add rtc subdev\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int device_irq_init_800(struct pm80x_chip *chip)
 {
 	struct regmap *map = chip->regmap;
@@ -454,27 +488,16 @@ static int device_800_init(struct pm80x_chip *chip,
 		goto out;
 	}
 
-	ret =
-	    mfd_add_devices(chip->dev, 0, &onkey_devs[0],
-			    ARRAY_SIZE(onkey_devs), &onkey_resources[0], 0,
-			    NULL);
-	if (ret < 0) {
+	ret = device_onkey_init(chip, pdata);
+	if (ret) {
 		dev_err(chip->dev, "Failed to add onkey subdev\n");
 		goto out_dev;
-	} else
-		dev_info(chip->dev, "[%s]:Added mfd onkey_devs\n", __func__);
+	}
 
-	if (pdata && pdata->rtc) {
-		rtc_devs[0].platform_data = pdata->rtc;
-		rtc_devs[0].pdata_size = sizeof(struct pm80x_rtc_pdata);
-		ret = mfd_add_devices(chip->dev, 0, &rtc_devs[0],
-				      ARRAY_SIZE(rtc_devs), NULL, 0, NULL);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to add rtc subdev\n");
-			goto out_dev;
-		} else
-			dev_info(chip->dev,
-				 "[%s]:Added mfd rtc_devs\n", __func__);
+	ret = device_rtc_init(chip, pdata);
+	if (ret) {
+		dev_err(chip->dev, "Failed to add rtc subdev\n");
+		goto out;
 	}
 
 	return 0;
