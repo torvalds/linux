@@ -1151,6 +1151,7 @@ static void pci_release_dev(struct device *dev)
 	pci_dev = to_pci_dev(dev);
 	pci_release_capabilities(pci_dev);
 	pci_release_of_node(pci_dev);
+	pcibios_release_device(pci_dev);
 	kfree(pci_dev);
 }
 

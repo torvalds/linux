@@ -1335,6 +1335,16 @@ int __weak pcibios_add_device (struct pci_dev *dev)
 }
 
 /**
+ * pcibios_release_device - provide arch specific hooks when releasing device dev
+ * @dev: the PCI device being released
+ *
+ * Permits the platform to provide architecture specific functionality when
+ * devices are released. This is the default implementation. Architecture
+ * implementations can override this.
+ */
+void __weak pcibios_release_device(struct pci_dev *dev) {}
+
+/**
  * pcibios_disable_device - disable arch specific PCI resources for device dev
  * @dev: the PCI device to disable
  *
