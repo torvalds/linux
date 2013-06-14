@@ -25,16 +25,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <asm/smp_plat.h>
+#include <asm/cacheflush.h>
 #include "armada-370-xp.h"
 
-/*
- * Some functions in this file are called very early during SMP
- * initialization. At that time the device tree framework is not yet
- * ready, and it is not possible to get the register address to
- * ioremap it. That's why the pointer below is given with an initial
- * value matching its virtual mapping
- */
-static void __iomem *coherency_base = ARMADA_370_XP_REGS_VIRT_BASE + 0x20200;
+unsigned long __cpuinitdata coherency_phys_base;
+static void __iomem *coherency_base;
 static void __iomem *coherency_cpu_base;
 
 /* Coherency fabric registers */
@@ -46,18 +41,6 @@ static struct of_device_id of_coherency_table[] = {
 	{.compatible = "marvell,coherency-fabric"},
 	{ /* end of list */ },
 };
-
-#ifdef CONFIG_SMP
-int coherency_get_cpu_count(void)
-{
-	int reg, cnt;
-
-	reg = readl(coherency_base + COHERENCY_FABRIC_CFG_OFFSET);
-	cnt = (reg & 0xF) + 1;
-
-	return cnt;
-}
-#endif
 
 /* Function defined in coherency_ll.S */
 int ll_set_cpu_coherent(void __iomem *base_addr, unsigned int hw_cpu_id);
@@ -143,13 +126,30 @@ int __init coherency_init(void)
 
 	np = of_find_matching_node(NULL, of_coherency_table);
 	if (np) {
+		struct resource res;
 		pr_info("Initializing Coherency fabric\n");
+		of_address_to_resource(np, 0, &res);
+		coherency_phys_base = res.start;
+		/*
+		 * Ensure secondary CPUs will see the updated value,
+		 * which they read before they join the coherency
+		 * fabric, and therefore before they are coherent with
+		 * the boot CPU cache.
+		 */
+		sync_cache_w(&coherency_phys_base);
 		coherency_base = of_iomap(np, 0);
 		coherency_cpu_base = of_iomap(np, 1);
 		set_cpu_coherent(cpu_logical_map(smp_processor_id()), 0);
-		bus_register_notifier(&platform_bus_type,
-					&mvebu_hwcc_platform_nb);
 	}
 
 	return 0;
 }
+
+static int __init coherency_late_init(void)
+{
+	bus_register_notifier(&platform_bus_type,
+			      &mvebu_hwcc_platform_nb);
+	return 0;
+}
+
+postcore_initcall(coherency_late_init);

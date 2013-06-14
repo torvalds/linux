@@ -303,11 +303,36 @@ choice
 		  their output to the serial port on MSM 8960 devices.
 
 	config DEBUG_MVEBU_UART
-		bool "Kernel low-level debugging messages via MVEBU UART"
+		bool "Kernel low-level debugging messages via MVEBU UART (old bootloaders)"
 		depends on ARCH_MVEBU
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on MVEBU based platforms.
+
+		  This option should be used with the old bootloaders
+		  that left the internal registers mapped at
+		  0xd0000000. As of today, this is the case on
+		  platforms such as the Globalscale Mirabox or the
+		  Plathome OpenBlocks AX3, when using the original
+		  bootloader.
+
+		  If the wrong DEBUG_MVEBU_UART* option is selected,
+		  when u-boot hands over to the kernel, the system
+		  silently crashes, with no serial output at all.
+
+	config DEBUG_MVEBU_UART_ALTERNATE
+		bool "Kernel low-level debugging messages via MVEBU UART (new bootloaders)"
+		depends on ARCH_MVEBU
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on MVEBU based platforms.
+
+		  This option should be used with the new bootloaders
+		  that remap the internal registers at 0xf1000000.
+
+		  If the wrong DEBUG_MVEBU_UART* option is selected,
+		  when u-boot hands over to the kernel, the system
+		  silently crashes, with no serial output at all.
 
 	config DEBUG_NOMADIK_UART
 		bool "Kernel low-level debugging messages via NOMADIK UART"
@@ -632,7 +657,8 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX51_UART || \
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART
-	default "debug/mvebu.S" if DEBUG_MVEBU_UART
+	default "debug/mvebu.S" if DEBUG_MVEBU_UART || \
+				   DEBUG_MVEBU_UART_ALTERNATE
 	default "debug/mxs.S" if DEBUG_IMX23_UART || DEBUG_IMX28_UART
 	default "debug/nomadik.S" if DEBUG_NOMADIK_UART
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART

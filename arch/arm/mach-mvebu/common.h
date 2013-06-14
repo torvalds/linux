@@ -15,6 +15,8 @@
 #ifndef __ARCH_MVEBU_COMMON_H
 #define __ARCH_MVEBU_COMMON_H
 
+#define ARMADA_XP_MAX_CPUS 4
+
 void mvebu_restart(char mode, const char *cmd);
 
 void armada_370_xp_init_irq(void);
