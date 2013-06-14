@@ -34,13 +34,13 @@
 #ifdef CONFIG_STE_DMA40
 struct stedma40_chan_cfg mop500_sdi0_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
+	.dir = DMA_DEV_TO_MEM,
 	.dev_type = DB8500_DMA_DEV29_SD_MM0,
 };
 
 static struct stedma40_chan_cfg mop500_sdi0_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
+	.dir = DMA_MEM_TO_DEV,
 	.dev_type = DB8500_DMA_DEV29_SD_MM0,
 };
 #endif
@@ -81,13 +81,13 @@ void mop500_sdi_tc35892_init(struct device *parent)
 #ifdef CONFIG_STE_DMA40
 static struct stedma40_chan_cfg sdi1_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
+	.dir = DMA_DEV_TO_MEM,
 	.dev_type = DB8500_DMA_DEV32_SD_MM1,
 };
 
 static struct stedma40_chan_cfg sdi1_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
+	.dir = DMA_MEM_TO_DEV,
 	.dev_type = DB8500_DMA_DEV32_SD_MM1,
 };
 #endif
@@ -112,13 +112,13 @@ struct mmci_platform_data mop500_sdi1_data = {
 #ifdef CONFIG_STE_DMA40
 struct stedma40_chan_cfg mop500_sdi2_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
+	.dir = DMA_DEV_TO_MEM,
 	.dev_type =  DB8500_DMA_DEV28_SD_MM2,
 };
 
 static struct stedma40_chan_cfg mop500_sdi2_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
+	.dir = DMA_MEM_TO_DEV,
 	.dev_type = DB8500_DMA_DEV28_SD_MM2,
 };
 #endif
@@ -144,13 +144,13 @@ struct mmci_platform_data mop500_sdi2_data = {
 #ifdef CONFIG_STE_DMA40
 struct stedma40_chan_cfg mop500_sdi4_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
+	.dir = DMA_DEV_TO_MEM,
 	.dev_type =  DB8500_DMA_DEV42_SD_MM4,
 };
 
 static struct stedma40_chan_cfg mop500_sdi4_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
+	.dir = DMA_MEM_TO_DEV,
 	.dev_type = DB8500_DMA_DEV42_SD_MM4,
 };
 #endif

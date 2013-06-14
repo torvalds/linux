@@ -6,10 +6,12 @@ Required properties:
 - reg-names: Names of the above areas to use during resource look-up
 - interrupt: Should contain the DMAC interrupt number
 - #dma-cells: must be <3>
+- memcpy-channels: Channels to be used for memcpy
 
 Optional properties:
 - dma-channels: Number of channels supported by hardware - if not present
 		the driver will attempt to obtain the information from H/W
+- disabled-channels: Channels which can not be used
 
 Example:
 
@@ -21,6 +23,8 @@ Example:
 		interrupts = <0 25 0x4>;
 
 		#dma-cells = <2>;
+		memcpy-channels  = <56 57 58 59 60>;
+		disabled-channels  = <12>;
 		dma-channels = <8>;
 	};
 

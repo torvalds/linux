@@ -76,20 +76,20 @@ static struct dma_chan *ux500_pcm_request_chan(struct snd_soc_pcm_runtime *rtd,
 	dma_params = snd_soc_dai_get_dma_data(dai, substream);
 	dma_cfg = dma_params->dma_cfg;
 
-	mem_data_width = STEDMA40_HALFWORD_WIDTH;
+	mem_data_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 
 	switch (dma_params->data_size) {
 	case 32:
-		per_data_width = STEDMA40_WORD_WIDTH;
+		per_data_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
 	case 16:
-		per_data_width = STEDMA40_HALFWORD_WIDTH;
+		per_data_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 		break;
 	case 8:
-		per_data_width = STEDMA40_BYTE_WIDTH;
+		per_data_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 		break;
 	default:
-		per_data_width = STEDMA40_WORD_WIDTH;
+		per_data_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {

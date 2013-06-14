@@ -70,21 +70,6 @@ enum stedma40_flow_ctrl {
 	STEDMA40_FLOW_CTRL,
 };
 
-enum stedma40_periph_data_width {
-	STEDMA40_BYTE_WIDTH = STEDMA40_ESIZE_8_BIT,
-	STEDMA40_HALFWORD_WIDTH = STEDMA40_ESIZE_16_BIT,
-	STEDMA40_WORD_WIDTH = STEDMA40_ESIZE_32_BIT,
-	STEDMA40_DOUBLEWORD_WIDTH = STEDMA40_ESIZE_64_BIT
-};
-
-enum stedma40_xfer_dir {
-	STEDMA40_MEM_TO_MEM = 1,
-	STEDMA40_MEM_TO_PERIPH,
-	STEDMA40_PERIPH_TO_MEM,
-	STEDMA40_PERIPH_TO_PERIPH
-};
-
-
 /**
  * struct stedma40_half_channel_info - dst/src channel configuration
  *
@@ -95,7 +80,7 @@ enum stedma40_xfer_dir {
  */
 struct stedma40_half_channel_info {
 	bool big_endian;
-	enum stedma40_periph_data_width data_width;
+	enum dma_slave_buswidth data_width;
 	int psize;
 	enum stedma40_flow_ctrl flow_ctrl;
 };
@@ -120,7 +105,7 @@ struct stedma40_half_channel_info {
  *
  */
 struct stedma40_chan_cfg {
-	enum stedma40_xfer_dir			 dir;
+	enum dma_transfer_direction		 dir;
 	bool					 high_priority;
 	bool					 realtime;
 	enum stedma40_mode			 mode;
@@ -147,6 +132,7 @@ struct stedma40_chan_cfg {
  * @num_of_soft_lli_chans: The number of channels that needs to be configured
  * to use SoftLLI.
  * @use_esram_lcla: flag for mapping the lcla into esram region
+ * @num_of_memcpy_chans: The number of channels reserved for memcpy.
  * @num_of_phy_chans: The number of physical channels implemented in HW.
  * 0 means reading the number of channels from DMA HW but this is only valid
  * for 'multiple of 4' channels, like 8.
@@ -156,6 +142,7 @@ struct stedma40_platform_data {
 	int				*soft_lli_chans;
 	int				 num_of_soft_lli_chans;
 	bool				 use_esram_lcla;
+	int				 num_of_memcpy_chans;
 	int				 num_of_phy_chans;
 };
 

@@ -424,19 +424,19 @@ void mop500_snowball_ethernet_clock_enable(void)
 
 static struct cryp_platform_data u8500_cryp1_platform_data = {
 		.mem_to_engine = {
-				.dir = STEDMA40_MEM_TO_PERIPH,
+				.dir = DMA_MEM_TO_DEV,
 				.dev_type = DB8500_DMA_DEV48_CAC1,
 				.mode = STEDMA40_MODE_LOGICAL,
 		},
 		.engine_to_mem = {
-				.dir = STEDMA40_PERIPH_TO_MEM,
+				.dir = DMA_DEV_TO_MEM,
 				.dev_type = DB8500_DMA_DEV48_CAC1,
 				.mode = STEDMA40_MODE_LOGICAL,
 		}
 };
 
 static struct stedma40_chan_cfg u8500_hash_dma_cfg_tx = {
-		.dir = STEDMA40_MEM_TO_PERIPH,
+		.dir = DMA_MEM_TO_DEV,
 		.dev_type = DB8500_DMA_DEV50_HAC1_TX,
 		.mode = STEDMA40_MODE_LOGICAL,
 };
@@ -455,13 +455,13 @@ static struct platform_device *mop500_platform_devs[] __initdata = {
 #ifdef CONFIG_STE_DMA40
 static struct stedma40_chan_cfg ssp0_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
+	.dir = DMA_DEV_TO_MEM,
 	.dev_type = DB8500_DMA_DEV8_SSP0,
 };
 
 static struct stedma40_chan_cfg ssp0_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
+	.dir = DMA_MEM_TO_DEV,
 	.dev_type = DB8500_DMA_DEV8_SSP0,
 };
 #endif
@@ -490,37 +490,37 @@ static void __init mop500_spi_init(struct device *parent)
 #ifdef CONFIG_STE_DMA40
 static struct stedma40_chan_cfg uart0_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
+	.dir = DMA_DEV_TO_MEM,
 	.dev_type = DB8500_DMA_DEV13_UART0,
 };
 
 static struct stedma40_chan_cfg uart0_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
+	.dir = DMA_MEM_TO_DEV,
 	.dev_type = DB8500_DMA_DEV13_UART0,
 };
 
 static struct stedma40_chan_cfg uart1_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
+	.dir = DMA_DEV_TO_MEM,
 	.dev_type = DB8500_DMA_DEV12_UART1,
 };
 
 static struct stedma40_chan_cfg uart1_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
+	.dir = DMA_MEM_TO_DEV,
 	.dev_type = DB8500_DMA_DEV12_UART1,
 };
 
 static struct stedma40_chan_cfg uart2_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
+	.dir = DMA_DEV_TO_MEM,
 	.dev_type = DB8500_DMA_DEV11_UART2,
 };
 
 static struct stedma40_chan_cfg uart2_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
+	.dir = DMA_MEM_TO_DEV,
 	.dev_type = DB8500_DMA_DEV11_UART2,
 };
 #endif
