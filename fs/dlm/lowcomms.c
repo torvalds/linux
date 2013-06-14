@@ -562,7 +562,7 @@ static void sctp_send_shutdown(sctp_assoc_t associd)
 static void sctp_init_failed_foreach(struct connection *con)
 {
 	con->sctp_assoc = 0;
-	if (test_and_clear_bit(CF_CONNECT_PENDING, &con->flags)) {
+	if (test_and_clear_bit(CF_INIT_PENDING, &con->flags)) {
 		if (!test_and_set_bit(CF_WRITE_PENDING, &con->flags))
 			queue_work(send_workqueue, &con->swork);
 	}
