@@ -227,7 +227,7 @@ static struct resource db8500_prcmu_res[] = {
 	{
 		.name  = "prcmu-tcpm",
 		.start = U8500_PRCMU_TCPM_BASE,
-		.end   = U8500_PRCMU_TCPM_BASE + SZ_4K - 1,
+		.end   = U8500_PRCMU_TCPM_BASE + SZ_32K - 1,
 		.flags = IORESOURCE_MEM,
 	},
 };
