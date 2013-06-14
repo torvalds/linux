@@ -761,6 +761,8 @@ static int imx_startup(struct uart_port *port)
 
 	temp = readl(sport->port.membase + UCR2);
 	temp |= (UCR2_RXEN | UCR2_TXEN);
+	if (!sport->have_rtscts)
+		temp |= UCR2_IRTS;
 	writel(temp, sport->port.membase + UCR2);
 
 	if (USE_IRDA(sport)) {

@@ -55,7 +55,7 @@ int omap_type(void)
 
 	if (cpu_is_omap24xx()) {
 		val = omap_ctrl_readl(OMAP24XX_CONTROL_STATUS);
-	} else if (soc_is_am33xx()) {
+	} else if (soc_is_am33xx() || soc_is_am43xx()) {
 		val = omap_ctrl_readl(AM33XX_CONTROL_STATUS);
 	} else if (cpu_is_omap34xx()) {
 		val = omap_ctrl_readl(OMAP343X_CONTROL_STATUS);
@@ -209,6 +209,8 @@ static void __init omap3_cpuinfo(void)
 		cpu_name = "TI816X";
 	} else if (soc_is_am335x()) {
 		cpu_name =  "AM335X";
+	} else if (soc_is_am437x()) {
+		cpu_name =  "AM437x";
 	} else if (cpu_is_ti814x()) {
 		cpu_name = "TI814X";
 	} else if (omap3_has_iva() && omap3_has_sgx()) {
@@ -429,6 +431,10 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "2.1";
 			break;
 		}
+		break;
+	case 0xb98c:
+		omap_revision = AM437X_REV_ES1_0;
+		cpu_rev = "1.0";
 		break;
 	case 0xb8f2:
 		switch (rev) {

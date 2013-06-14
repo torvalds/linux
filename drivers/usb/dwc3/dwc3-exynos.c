@@ -164,9 +164,9 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 {
 	struct dwc3_exynos	*exynos = platform_get_drvdata(pdev);
 
+	device_for_each_child(&pdev->dev, NULL, dwc3_exynos_remove_child);
 	platform_device_unregister(exynos->usb2_phy);
 	platform_device_unregister(exynos->usb3_phy);
-	device_for_each_child(&pdev->dev, NULL, dwc3_exynos_remove_child);
 
 	clk_disable_unprepare(exynos->clk);
 
