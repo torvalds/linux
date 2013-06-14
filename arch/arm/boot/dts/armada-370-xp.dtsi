@@ -22,6 +22,11 @@
 	model = "Marvell Armada 370 and XP SoC";
 	compatible = "marvell,armada-370-xp";
 
+	aliases {
+		eth0 = &eth0;
+		eth1 = &eth1;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -98,7 +103,7 @@
 				reg = <0x72004 0x4>;
 			};
 
-			ethernet@70000 {
+			eth0: ethernet@70000 {
 				compatible = "marvell,armada-370-neta";
 				reg = <0x70000 0x2500>;
 				interrupts = <8>;
@@ -106,7 +111,7 @@
 				status = "disabled";
 			};
 
-			ethernet@74000 {
+			eth1: ethernet@74000 {
 				compatible = "marvell,armada-370-neta";
 				reg = <0x74000 0x2500>;
 				interrupts = <10>;

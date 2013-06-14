@@ -29,6 +29,14 @@
 				marvell,function = "gpio";
 			};
 		};
+		pcie-controller {
+			status = "okay";
+
+			pcie@2,0 {
+				status = "okay";
+			};
+		};
+
 	};
 
 	gpio_keys {

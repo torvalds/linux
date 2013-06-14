@@ -22,6 +22,10 @@
 	model = "Marvell Armada XP family SoC";
 	compatible = "marvell,armadaxp", "marvell,armada-370-xp";
 
+	aliases {
+		eth2 = &eth2;
+	};
+
 	soc {
 		internal-regs {
 			L2: l2-cache {
@@ -86,7 +90,7 @@
 				reg = <0x18200 0x500>;
 			};
 
-			ethernet@30000 {
+			eth2: ethernet@30000 {
 				compatible = "marvell,armada-370-neta";
 				reg = <0x30000 0x2500>;
 				interrupts = <12>;
