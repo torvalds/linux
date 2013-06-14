@@ -10,7 +10,7 @@
  * DBx500-PRCMU Timer
  * The PRCMU has 5 timers which are available in a always-on
  * power domain.  We use the Timer 4 for our always-on clock
- * source on DB8500 and Timer 3 on DB5500.
+ * source on DB8500.
  */
 #include <linux/clockchips.h>
 #include <linux/clksrc-dbx500-prcmu.h>
@@ -30,15 +30,14 @@
 
 static void __iomem *clksrc_dbx500_timer_base;
 
-static cycle_t clksrc_dbx500_prcmu_read(struct clocksource *cs)
+static cycle_t notrace clksrc_dbx500_prcmu_read(struct clocksource *cs)
 {
+	void __iomem *base = clksrc_dbx500_timer_base;
 	u32 count, count2;
 
 	do {
-		count = readl(clksrc_dbx500_timer_base +
-			      PRCMU_TIMER_DOWNCOUNT);
-		count2 = readl(clksrc_dbx500_timer_base +
-			       PRCMU_TIMER_DOWNCOUNT);
+		count = readl_relaxed(base + PRCMU_TIMER_DOWNCOUNT);
+		count2 = readl_relaxed(base + PRCMU_TIMER_DOWNCOUNT);
 	} while (count2 != count);
 
 	/* Negate because the timer is a decrementing counter */
