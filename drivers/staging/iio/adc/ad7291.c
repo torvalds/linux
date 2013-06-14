@@ -127,29 +127,6 @@ static int ad7291_i2c_write(struct ad7291_chip_info *chip, u8 reg, u16 data)
 	return i2c_smbus_write_word_data(chip->client, reg, swab16(data));
 }
 
-static ssize_t ad7291_store_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ad7291_chip_info *chip = iio_priv(indio_dev);
-
-	return ad7291_i2c_write(chip, AD7291_COMMAND,
-				chip->command | AD7291_RESET);
-}
-
-static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, ad7291_store_reset, 0);
-
-static struct attribute *ad7291_attributes[] = {
-	&iio_dev_attr_reset.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ad7291_attribute_group = {
-	.attrs = ad7291_attributes,
-};
-
 static irqreturn_t ad7291_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
@@ -569,7 +546,6 @@ static struct attribute_group ad7291_event_attribute_group = {
 };
 
 static const struct iio_info ad7291_info = {
-	.attrs = &ad7291_attribute_group,
 	.read_raw = &ad7291_read_raw,
 	.read_event_config = &ad7291_read_event_config,
 	.write_event_config = &ad7291_write_event_config,
