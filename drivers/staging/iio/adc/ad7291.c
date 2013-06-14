@@ -21,6 +21,8 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
 
+#include "ad7291.h"
+
 /*
  * Simplified handling
  *
@@ -76,7 +78,6 @@
 struct ad7291_chip_info {
 	struct i2c_client	*client;
 	struct regulator	*reg;
-	u16			int_vref_mv;
 	u16			command;
 	u16			c_mask;	/* Active voltage channels for events */
 	struct mutex		state_lock;
@@ -445,7 +446,15 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			*val = chip->int_vref_mv;
+			if (chip->reg) {
+				int vref;
+				vref = regulator_get_voltage(chip->reg);
+				if (vref < 0)
+					return vref;
+				*val = vref / 1000;
+			} else {
+				*val = 2500;
+			}
 			*val2 = AD7291_BITS;
 			return IIO_VAL_FRACTIONAL_LOG2;
 		case IIO_TEMP:
@@ -513,9 +522,10 @@ static const struct iio_info ad7291_info = {
 static int ad7291_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
+	struct ad7291_platform_data *pdata = client->dev.platform_data;
 	struct ad7291_chip_info *chip;
 	struct iio_dev *indio_dev;
-	int ret = 0, voltage_uv = 0;
+	int ret = 0;
 
 	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
@@ -524,12 +534,14 @@ static int ad7291_probe(struct i2c_client *client,
 	}
 	chip = iio_priv(indio_dev);
 
-	chip->reg = regulator_get(&client->dev, "vcc");
-	if (!IS_ERR(chip->reg)) {
+	if (pdata && pdata->use_external_ref) {
+		chip->reg = regulator_get(&client->dev, "vref");
+		if (IS_ERR(chip->reg))
+			goto error_free;
+
 		ret = regulator_enable(chip->reg);
 		if (ret)
 			goto error_put_reg;
-		voltage_uv = regulator_get_voltage(chip->reg);
 	}
 
 	mutex_init(&chip->state_lock);
@@ -542,12 +554,8 @@ static int ad7291_probe(struct i2c_client *client,
 			AD7291_T_SENSE_MASK | /* Tsense always enabled */
 			AD7291_ALERT_POLARITY; /* set irq polarity low level */
 
-	if (voltage_uv) {
-		chip->int_vref_mv = voltage_uv / 1000;
+	if (pdata && pdata->use_external_ref)
 		chip->command |= AD7291_EXT_REF;
-	} else {
-		chip->int_vref_mv = 2500; /* Build-in ref */
-	}
 
 	indio_dev->name = id->name;
 	indio_dev->channels = ad7291_channels;
@@ -590,12 +598,12 @@ error_unreg_irq:
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
 error_disable_reg:
-	if (!IS_ERR(chip->reg))
+	if (chip->reg)
 		regulator_disable(chip->reg);
 error_put_reg:
-	if (!IS_ERR(chip->reg))
+	if (chip->reg)
 		regulator_put(chip->reg);
-
+error_free:
 	iio_device_free(indio_dev);
 error_ret:
 	return ret;
@@ -611,7 +619,7 @@ static int ad7291_remove(struct i2c_client *client)
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
 
-	if (!IS_ERR(chip->reg)) {
+	if (chip->reg) {
 		regulator_disable(chip->reg);
 		regulator_put(chip->reg);
 	}
