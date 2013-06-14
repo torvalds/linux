@@ -309,8 +309,6 @@ struct pm80x_chip {
 
 struct pm80x_platform_data {
 	struct pm80x_rtc_pdata *rtc;
-	unsigned short power_page_addr;	/* power page I2C address */
-	unsigned short gpadc_page_addr;	/* gpadc page I2C address */
 	int irq_mode;		/* Clear interrupt by read/write(0/1) */
 	int batt_det;		/* enable/disable */
 	int (*plat_config)(struct pm80x_chip *chip,

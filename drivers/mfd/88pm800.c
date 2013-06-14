@@ -525,8 +525,9 @@ static int pm800_probe(struct i2c_client *client,
 		goto err_subchip_alloc;
 	}
 
-	subchip->power_page_addr = pdata->power_page_addr;
-	subchip->gpadc_page_addr = pdata->gpadc_page_addr;
+	/* pm800 has 2 addtional pages to support power and gpadc. */
+	subchip->power_page_addr = client->addr + 1;
+	subchip->gpadc_page_addr = client->addr + 2;
 	chip->subchip = subchip;
 
 	ret = pm800_pages_init(chip);
