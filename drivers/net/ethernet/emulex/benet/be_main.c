@@ -1262,30 +1262,6 @@ static int be_set_vf_tx_rate(struct net_device *netdev,
 	return status;
 }
 
-static int be_find_vfs(struct be_adapter *adapter, int vf_state)
-{
-	struct pci_dev *dev, *pdev = adapter->pdev;
-	int vfs = 0, assigned_vfs = 0, pos;
-	u16 offset, stride;
-
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
-	if (!pos)
-		return 0;
-	pci_read_config_word(pdev, pos + PCI_SRIOV_VF_OFFSET, &offset);
-	pci_read_config_word(pdev, pos + PCI_SRIOV_VF_STRIDE, &stride);
-
-	dev = pci_get_device(pdev->vendor, PCI_ANY_ID, NULL);
-	while (dev) {
-		if (dev->is_virtfn && pci_physfn(dev) == pdev) {
-			vfs++;
-			if (dev->dev_flags & PCI_DEV_FLAGS_ASSIGNED)
-				assigned_vfs++;
-		}
-		dev = pci_get_device(pdev->vendor, PCI_ANY_ID, dev);
-	}
-	return (vf_state == ASSIGNED) ? assigned_vfs : vfs;
-}
-
 static void be_eqd_update(struct be_adapter *adapter, struct be_eq_obj *eqo)
 {
 	struct be_rx_stats *stats = rx_stats(&adapter->rx_obj[eqo->idx]);
@@ -2797,7 +2773,7 @@ static void be_vf_clear(struct be_adapter *adapter)
 	struct be_vf_cfg *vf_cfg;
 	u32 vf;
 
-	if (be_find_vfs(adapter, ASSIGNED)) {
+	if (pci_vfs_assigned(adapter->pdev)) {
 		dev_warn(&adapter->pdev->dev,
 			 "VFs are assigned to VMs: not disabling VFs\n");
 		goto done;
@@ -2899,7 +2875,7 @@ static int be_vf_setup(struct be_adapter *adapter)
 	int status, old_vfs, vf;
 	struct device *dev = &adapter->pdev->dev;
 
-	old_vfs = be_find_vfs(adapter, ENABLED);
+	old_vfs = pci_num_vf(adapter->pdev);
 	if (old_vfs) {
 		dev_info(dev, "%d VFs are already enabled\n", old_vfs);
 		if (old_vfs != num_vfs)
@@ -4200,9 +4176,10 @@ reschedule:
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 }
 
+/* If any VFs are already enabled don't FLR the PF */
 static bool be_reset_required(struct be_adapter *adapter)
 {
-	return be_find_vfs(adapter, ENABLED) > 0 ? false : true;
+	return pci_num_vf(adapter->pdev) ? false : true;
 }
 
 static char *mc_name(struct be_adapter *adapter)
