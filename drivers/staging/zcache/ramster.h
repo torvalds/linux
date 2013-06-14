@@ -11,10 +11,6 @@
 #ifndef _ZCACHE_RAMSTER_H_
 #define _ZCACHE_RAMSTER_H_
 
-#ifdef CONFIG_RAMSTER_MODULE
-#define CONFIG_RAMSTER
-#endif
-
 #ifdef CONFIG_RAMSTER
 #include "ramster/ramster.h"
 #else

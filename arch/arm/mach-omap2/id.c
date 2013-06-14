@@ -601,7 +601,7 @@ void __init omap2_set_globals_tap(u32 class, void __iomem *tap)
 
 #ifdef CONFIG_SOC_BUS
 
-static const char const *omap_types[] = {
+static const char * const omap_types[] = {
 	[OMAP2_DEVICE_TYPE_TEST]	= "TST",
 	[OMAP2_DEVICE_TYPE_EMU]		= "EMU",
 	[OMAP2_DEVICE_TYPE_SEC]		= "HS",

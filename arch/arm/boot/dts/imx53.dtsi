@@ -714,7 +714,7 @@
 				compatible = "fsl,imx53-cspi", "fsl,imx35-cspi";
 				reg = <0x63fc0000 0x4000>;
 				interrupts = <38>;
-				clocks = <&clks 55>, <&clks 0>;
+				clocks = <&clks 55>, <&clks 55>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};

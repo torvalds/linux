@@ -31,6 +31,7 @@
 #include <linux/inetdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/if_vlan.h>
 #include <linux/in.h>
 #include <linux/slab.h>
 #include <net/arp.h>
@@ -284,7 +285,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 
 	skb->protocol = eth_type_trans(skb, net);
 	skb->ip_summed = CHECKSUM_NONE;
-	skb->vlan_tci = packet->vlan_tci;
+	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), packet->vlan_tci);
 
 	net->stats.rx_packets++;
 	net->stats.rx_bytes += packet->total_data_buflen;

@@ -374,10 +374,8 @@ static void __init omap_init_mcpdm(void)
 	struct platform_device *pdev;
 
 	oh = omap_hwmod_lookup("mcpdm");
-	if (!oh) {
-		printk(KERN_ERR "Could not look up mcpdm hw_mod\n");
+	if (!oh)
 		return;
-	}
 
 	pdev = omap_device_build("omap-mcpdm", -1, oh, NULL, 0);
 	WARN(IS_ERR(pdev), "Can't build omap_device for omap-mcpdm.\n");
@@ -395,10 +393,8 @@ static void __init omap_init_dmic(void)
 	struct platform_device *pdev;
 
 	oh = omap_hwmod_lookup("dmic");
-	if (!oh) {
-		pr_err("Could not look up dmic hw_mod\n");
+	if (!oh)
 		return;
-	}
 
 	pdev = omap_device_build("omap-dmic", -1, oh, NULL, 0);
 	WARN(IS_ERR(pdev), "Can't build omap_device for omap-dmic.\n");
@@ -421,10 +417,8 @@ static void __init omap_init_hdmi_audio(void)
 	struct platform_device *pdev;
 
 	oh = omap_hwmod_lookup("dss_hdmi");
-	if (!oh) {
-		printk(KERN_ERR "Could not look up dss_hdmi hw_mod\n");
+	if (!oh)
 		return;
-	}
 
 	pdev = omap_device_build("omap-hdmi-audio-dai", -1, oh, NULL, 0);
 	WARN(IS_ERR(pdev),
