@@ -289,7 +289,6 @@ static int hdlcd_set_par(struct fb_info *info)
 	WRITE_HDLCD_REG(HDLCD_REG_GREEN_SELECT, ((hdlcd->fb.var.green.length & 0xf) << 8) | hdlcd->fb.var.green.offset);
 	WRITE_HDLCD_REG(HDLCD_REG_BLUE_SELECT, ((hdlcd->fb.var.blue.length & 0xf) << 8) | hdlcd->fb.var.blue.offset);
 
-	clk_prepare(hdlcd->clk);
 	clk_set_rate(hdlcd->clk, (1000000000 / hdlcd->fb.var.pixclock) * 1000);
 	clk_enable(hdlcd->clk);
 
@@ -481,6 +480,10 @@ static int hdlcd_setup(struct hdlcd_device *hdlcd)
 		return PTR_ERR(hdlcd->clk);
 	}
 
+	err = clk_prepare(hdlcd->clk);
+	if (err)
+		goto clk_prepare_err;
+
 	hdlcd->base = ioremap_nocache(hdlcd->fb.fix.mmio_start, hdlcd->fb.fix.mmio_len);
 	if (!hdlcd->base) {
 		dev_err(hdlcd->dev, "HDLCD: unable to map registers\n");
@@ -572,9 +575,9 @@ static int hdlcd_setup(struct hdlcd_device *hdlcd)
 	/* Ensure interrupts are disabled */
 	WRITE_HDLCD_REG(HDLCD_REG_INT_MASK, 0);
 #endif	
+	fb_set_var(&hdlcd->fb, &hdlcd->fb.var);
+
 	if (!register_framebuffer(&hdlcd->fb)) {
-		fb_set_var(&hdlcd->fb, &hdlcd->fb.var);
-		clk_enable(hdlcd->clk);
 		return 0;
 	}
 
@@ -586,6 +589,8 @@ setup_err:
 kmalloc_err:
 	kfree(hdlcd->fb.pseudo_palette);
 remap_err:
+	clk_unprepare(hdlcd->clk);
+clk_prepare_err:
 	clk_put(hdlcd->clk);
 	return err;
 }
