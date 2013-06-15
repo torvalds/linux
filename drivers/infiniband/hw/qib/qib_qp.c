@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012, 2013 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation.  * All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -222,8 +222,8 @@ static void insert_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 	unsigned long flags;
 	unsigned n = qpn_hash(dev, qp->ibqp.qp_num);
 
-	spin_lock_irqsave(&dev->qpt_lock, flags);
 	atomic_inc(&qp->refcount);
+	spin_lock_irqsave(&dev->qpt_lock, flags);
 
 	if (qp->ibqp.qp_num == 0)
 		rcu_assign_pointer(ibp->qp0, qp);
@@ -235,7 +235,6 @@ static void insert_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 	}
 
 	spin_unlock_irqrestore(&dev->qpt_lock, flags);
-	synchronize_rcu();
 }
 
 /*
@@ -247,36 +246,39 @@ static void remove_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 	struct qib_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	unsigned n = qpn_hash(dev, qp->ibqp.qp_num);
 	unsigned long flags;
+	int removed = 1;
 
 	spin_lock_irqsave(&dev->qpt_lock, flags);
 
 	if (rcu_dereference_protected(ibp->qp0,
 			lockdep_is_held(&dev->qpt_lock)) == qp) {
-		atomic_dec(&qp->refcount);
 		rcu_assign_pointer(ibp->qp0, NULL);
 	} else if (rcu_dereference_protected(ibp->qp1,
 			lockdep_is_held(&dev->qpt_lock)) == qp) {
-		atomic_dec(&qp->refcount);
 		rcu_assign_pointer(ibp->qp1, NULL);
 	} else {
 		struct qib_qp *q;
 		struct qib_qp __rcu **qpp;
 
+		removed = 0;
 		qpp = &dev->qp_table[n];
 		for (; (q = rcu_dereference_protected(*qpp,
 				lockdep_is_held(&dev->qpt_lock))) != NULL;
 				qpp = &q->next)
 			if (q == qp) {
-				atomic_dec(&qp->refcount);
 				rcu_assign_pointer(*qpp,
 					rcu_dereference_protected(qp->next,
 					 lockdep_is_held(&dev->qpt_lock)));
+				removed = 1;
 				break;
 			}
 	}
 
 	spin_unlock_irqrestore(&dev->qpt_lock, flags);
-	synchronize_rcu();
+	if (removed) {
+		synchronize_rcu();
+		atomic_dec(&qp->refcount);
+	}
 }
 
 /**
@@ -334,26 +336,25 @@ struct qib_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn)
 {
 	struct qib_qp *qp = NULL;
 
+	rcu_read_lock();
 	if (unlikely(qpn <= 1)) {
-		rcu_read_lock();
 		if (qpn == 0)
 			qp = rcu_dereference(ibp->qp0);
 		else
 			qp = rcu_dereference(ibp->qp1);
+		if (qp)
+			atomic_inc(&qp->refcount);
 	} else {
 		struct qib_ibdev *dev = &ppd_from_ibp(ibp)->dd->verbs_dev;
 		unsigned n = qpn_hash(dev, qpn);
 
-		rcu_read_lock();
 		for (qp = rcu_dereference(dev->qp_table[n]); qp;
 			qp = rcu_dereference(qp->next))
-			if (qp->ibqp.qp_num == qpn)
+			if (qp->ibqp.qp_num == qpn) {
+				atomic_inc(&qp->refcount);
 				break;
+			}
 	}
-	if (qp)
-		if (unlikely(!atomic_inc_not_zero(&qp->refcount)))
-			qp = NULL;
-
 	rcu_read_unlock();
 	return qp;
 }
