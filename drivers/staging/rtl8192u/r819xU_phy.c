@@ -112,7 +112,7 @@ u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
 	BitShift = rtl8192_CalculateBitShift(dwBitMask);
 	Ret =(OriginalValue & dwBitMask) >> BitShift;
 
-	return (Ret);
+	return Ret;
 }
 static  u32 phy_FwRFSerialRead( struct net_device *dev, RF90_RADIO_PATH_E       eRFPath, u32 Offset  );
 
@@ -331,12 +331,12 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath, u3
 		BitShift =  rtl8192_CalculateBitShift(BitMask);
 		Readback_Value = (Original_Value & BitMask) >> BitShift;
 		udelay(200);
-		return (Readback_Value);
+		return Readback_Value;
 	} else {
 		Original_Value = rtl8192_phy_RFSerialRead(dev, eRFPath, RegAddr);
 		BitShift =  rtl8192_CalculateBitShift(BitMask);
 		Readback_Value = (Original_Value & BitMask) >> BitShift;
-		return (Readback_Value);
+		return Readback_Value;
 	}
 }
 /******************************************************************************
@@ -393,12 +393,12 @@ phy_FwRFSerialRead(
 			udelay(10);
 			read_nic_dword(dev, QPNR, &tmp);
 		} else {
-			return	(0);
+			return 0;
 		}
 	}
 	read_nic_dword(dev, RF_DATA, &retValue);
 
-	return	(retValue);
+	return retValue;
 
 }	/* phy_FwRFSerialRead */
 
