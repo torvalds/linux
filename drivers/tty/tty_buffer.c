@@ -189,19 +189,11 @@ void tty_buffer_flush(struct tty_struct *tty)
 	struct tty_port *port = tty->port;
 	struct tty_bufhead *buf = &port->buf;
 
-	mutex_lock(&buf->flush_mutex);
-	/* If the data is being pushed to the tty layer then we can't
-	   process it here. Instead set a flag and the flush_to_ldisc
-	   path will process the flush request before it exits */
-	if (test_bit(TTYP_FLUSHING, &port->iflags)) {
-		set_bit(TTYP_FLUSHPENDING, &port->iflags);
-		mutex_unlock(&buf->flush_mutex);
-		wait_event(tty->read_wait,
-				test_bit(TTYP_FLUSHPENDING, &port->iflags) == 0);
-		return;
-	}
+	set_bit(TTYP_FLUSHPENDING, &port->iflags);
 
+	mutex_lock(&buf->flush_mutex);
 	__tty_buffer_flush(port);
+	clear_bit(TTYP_FLUSHPENDING, &port->iflags);
 	mutex_unlock(&buf->flush_mutex);
 }
 
@@ -429,39 +421,26 @@ static void flush_to_ldisc(struct work_struct *work)
 
 	mutex_lock(&buf->flush_mutex);
 
-	if (!test_and_set_bit(TTYP_FLUSHING, &port->iflags)) {
-		while (1) {
-			struct tty_buffer *head = buf->head;
-			int count;
+	while (1) {
+		struct tty_buffer *head = buf->head;
+		int count;
 
-			count = head->commit - head->read;
-			if (!count) {
-				if (head->next == NULL)
-					break;
-				buf->head = head->next;
-				tty_buffer_free(port, head);
-				continue;
-			}
+		/* Ldisc or user is trying to flush the buffers. */
+		if (test_bit(TTYP_FLUSHPENDING, &port->iflags))
+			break;
 
-			mutex_unlock(&buf->flush_mutex);
-
-			count = receive_buf(tty, head, count);
-
-			mutex_lock(&buf->flush_mutex);
-
-			/* Ldisc or user is trying to flush the buffers.
-			   We may have a deferred request to flush the
-			   input buffer, if so pull the chain under the lock
-			   and empty the queue */
-			if (test_bit(TTYP_FLUSHPENDING, &port->iflags)) {
-				__tty_buffer_flush(port);
-				clear_bit(TTYP_FLUSHPENDING, &port->iflags);
-				wake_up(&tty->read_wait);
+		count = head->commit - head->read;
+		if (!count) {
+			if (head->next == NULL)
 				break;
-			} else if (!count)
-				break;
+			buf->head = head->next;
+			tty_buffer_free(port, head);
+			continue;
 		}
-		clear_bit(TTYP_FLUSHING, &port->iflags);
+
+		count = receive_buf(tty, head, count);
+		if (!count)
+			break;
 	}
 
 	mutex_unlock(&buf->flush_mutex);
