@@ -18,6 +18,10 @@
 #include <linux/module.h>
 #include <linux/ratelimit.h>
 
+
+#define MIN_TTYB_SIZE	256
+#define TTYB_ALIGN_MASK	255
+
 /**
  *	tty_buffer_free_all		-	free buffers used by a tty
  *	@tty: tty to free from
@@ -94,7 +98,7 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
 	buf->memory_used -= b->size;
 	WARN_ON(buf->memory_used < 0);
 
-	if (b->size >= 512)
+	if (b->size > MIN_TTYB_SIZE)
 		kfree(b);
 	else {
 		b->next = buf->free;
@@ -176,9 +180,10 @@ void tty_buffer_flush(struct tty_struct *tty)
 static struct tty_buffer *tty_buffer_find(struct tty_port *port, size_t size)
 {
 	struct tty_buffer **tbh = &port->buf.free;
-	while ((*tbh) != NULL) {
-		struct tty_buffer *t = *tbh;
-		if (t->size >= size) {
+	if (size <= MIN_TTYB_SIZE) {
+		if (*tbh) {
+			struct tty_buffer *t = *tbh;
+
 			*tbh = t->next;
 			t->next = NULL;
 			t->used = 0;
@@ -187,10 +192,9 @@ static struct tty_buffer *tty_buffer_find(struct tty_port *port, size_t size)
 			port->buf.memory_used += t->size;
 			return t;
 		}
-		tbh = &((*tbh)->next);
 	}
 	/* Round the buffer size out */
-	size = (size + 0xFF) & ~0xFF;
+	size = __ALIGN_MASK(size, TTYB_ALIGN_MASK);
 	return tty_buffer_alloc(port, size);
 	/* Should possibly check if this fails for the largest buffer we
 	   have queued and recycle that ? */
