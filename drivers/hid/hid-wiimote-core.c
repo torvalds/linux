@@ -452,6 +452,8 @@ static __u8 wiimote_cmd_read_ext(struct wiimote_data *wdata, __u8 *rmem)
 		return WIIMOTE_EXT_CLASSIC_CONTROLLER;
 	if (rmem[4] == 0x04 && rmem[5] == 0x02)
 		return WIIMOTE_EXT_BALANCE_BOARD;
+	if (rmem[4] == 0x01 && rmem[5] == 0x20)
+		return WIIMOTE_EXT_PRO_CONTROLLER;
 
 	return WIIMOTE_EXT_UNKNOWN;
 }
@@ -598,6 +600,15 @@ static const __u8 * const wiimote_devtype_mods[WIIMOTE_DEV_NUM] = {
 	[WIIMOTE_DEV_BALANCE_BOARD] = (const __u8[]) {
 		WIIMOD_BATTERY,
 		WIIMOD_LED1,
+		WIIMOD_NO_MP,
+		WIIMOD_NULL,
+	},
+	[WIIMOTE_DEV_PRO_CONTROLLER] = (const __u8[]) {
+		WIIMOD_BATTERY,
+		WIIMOD_LED1,
+		WIIMOD_LED2,
+		WIIMOD_LED3,
+		WIIMOD_LED4,
 		WIIMOD_NO_MP,
 		WIIMOD_NULL,
 	},
@@ -785,6 +796,7 @@ static const char *wiimote_devtype_names[WIIMOTE_DEV_NUM] = {
 	[WIIMOTE_DEV_GEN10] = "Nintendo Wii Remote (Gen 1)",
 	[WIIMOTE_DEV_GEN20] = "Nintendo Wii Remote Plus (Gen 2)",
 	[WIIMOTE_DEV_BALANCE_BOARD] = "Nintendo Wii Balance Board",
+	[WIIMOTE_DEV_PRO_CONTROLLER] = "Nintendo Wii U Pro Controller",
 };
 
 /* Try to guess the device type based on all collected information. We
@@ -805,6 +817,9 @@ static void wiimote_init_set_type(struct wiimote_data *wdata,
 	if (exttype == WIIMOTE_EXT_BALANCE_BOARD) {
 		devtype = WIIMOTE_DEV_BALANCE_BOARD;
 		goto done;
+	} else if (exttype == WIIMOTE_EXT_PRO_CONTROLLER) {
+		devtype = WIIMOTE_DEV_PRO_CONTROLLER;
+		goto done;
 	}
 
 	if (!strcmp(name, "Nintendo RVL-CNT-01")) {
@@ -815,6 +830,9 @@ static void wiimote_init_set_type(struct wiimote_data *wdata,
 		goto done;
 	} else if (!strcmp(name, "Nintendo RVL-WBC-01")) {
 		devtype = WIIMOTE_DEV_BALANCE_BOARD;
+		goto done;
+	} else if (!strcmp(name, "Nintendo RVL-CNT-01-UC")) {
+		devtype = WIIMOTE_DEV_PRO_CONTROLLER;
 		goto done;
 	}
 
@@ -1058,6 +1076,7 @@ static const char *wiimote_exttype_names[WIIMOTE_EXT_NUM] = {
 	[WIIMOTE_EXT_NUNCHUK] = "Nintendo Wii Nunchuk",
 	[WIIMOTE_EXT_CLASSIC_CONTROLLER] = "Nintendo Wii Classic Controller",
 	[WIIMOTE_EXT_BALANCE_BOARD] = "Nintendo Wii Balance Board",
+	[WIIMOTE_EXT_PRO_CONTROLLER] = "Nintendo Wii U Pro Controller",
 };
 
 /*
@@ -1642,6 +1661,8 @@ static ssize_t wiimote_ext_show(struct device *dev,
 		return sprintf(buf, "classic\n");
 	case WIIMOTE_EXT_BALANCE_BOARD:
 		return sprintf(buf, "balanceboard\n");
+	case WIIMOTE_EXT_PRO_CONTROLLER:
+		return sprintf(buf, "procontroller\n");
 	case WIIMOTE_EXT_UNKNOWN:
 		/* fallthrough */
 	default:
@@ -1688,6 +1709,8 @@ static ssize_t wiimote_dev_show(struct device *dev,
 		return sprintf(buf, "gen20\n");
 	case WIIMOTE_DEV_BALANCE_BOARD:
 		return sprintf(buf, "balanceboard\n");
+	case WIIMOTE_DEV_PRO_CONTROLLER:
+		return sprintf(buf, "procontroller\n");
 	case WIIMOTE_DEV_PENDING:
 		return sprintf(buf, "pending\n");
 	case WIIMOTE_DEV_UNKNOWN:

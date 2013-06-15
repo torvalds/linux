@@ -1540,6 +1540,300 @@ static const struct wiimod_ops wiimod_bboard = {
 };
 
 /*
+ * Pro Controller
+ * Released with the Wii U was the Nintendo Wii U Pro Controller. It does not
+ * work together with the classic Wii, but only with the new Wii U. However, it
+ * uses the same protocol and provides a builtin "classic controller pro"
+ * extension, few standard buttons, a rumble motor, 4 LEDs and a battery.
+ * We provide all these via a standard extension device as the device doesn't
+ * feature an extension port.
+ */
+
+enum wiimod_pro_keys {
+	WIIMOD_PRO_KEY_A,
+	WIIMOD_PRO_KEY_B,
+	WIIMOD_PRO_KEY_X,
+	WIIMOD_PRO_KEY_Y,
+	WIIMOD_PRO_KEY_PLUS,
+	WIIMOD_PRO_KEY_MINUS,
+	WIIMOD_PRO_KEY_HOME,
+	WIIMOD_PRO_KEY_LEFT,
+	WIIMOD_PRO_KEY_RIGHT,
+	WIIMOD_PRO_KEY_UP,
+	WIIMOD_PRO_KEY_DOWN,
+	WIIMOD_PRO_KEY_TL,
+	WIIMOD_PRO_KEY_TR,
+	WIIMOD_PRO_KEY_ZL,
+	WIIMOD_PRO_KEY_ZR,
+	WIIMOD_PRO_KEY_THUMBL,
+	WIIMOD_PRO_KEY_THUMBR,
+	WIIMOD_PRO_KEY_NUM,
+};
+
+static const __u16 wiimod_pro_map[] = {
+	BTN_EAST,	/* WIIMOD_PRO_KEY_A */
+	BTN_SOUTH,	/* WIIMOD_PRO_KEY_B */
+	BTN_NORTH,	/* WIIMOD_PRO_KEY_X */
+	BTN_WEST,	/* WIIMOD_PRO_KEY_Y */
+	BTN_START,	/* WIIMOD_PRO_KEY_PLUS */
+	BTN_SELECT,	/* WIIMOD_PRO_KEY_MINUS */
+	BTN_MODE,	/* WIIMOD_PRO_KEY_HOME */
+	BTN_DPAD_LEFT,	/* WIIMOD_PRO_KEY_LEFT */
+	BTN_DPAD_RIGHT,	/* WIIMOD_PRO_KEY_RIGHT */
+	BTN_DPAD_UP,	/* WIIMOD_PRO_KEY_UP */
+	BTN_DPAD_DOWN,	/* WIIMOD_PRO_KEY_DOWN */
+	BTN_TL,		/* WIIMOD_PRO_KEY_TL */
+	BTN_TR,		/* WIIMOD_PRO_KEY_TR */
+	BTN_TL2,	/* WIIMOD_PRO_KEY_ZL */
+	BTN_TR2,	/* WIIMOD_PRO_KEY_ZR */
+	BTN_THUMBL,	/* WIIMOD_PRO_KEY_THUMBL */
+	BTN_THUMBR,	/* WIIMOD_PRO_KEY_THUMBR */
+};
+
+static void wiimod_pro_in_ext(struct wiimote_data *wdata, const __u8 *ext)
+{
+	__s16 rx, ry, lx, ly;
+
+	/*   Byte |  8  |  7  |  6  |  5  |  4  |  3  |  2  |  1  |
+	 *   -----+-----+-----+-----+-----+-----+-----+-----+-----+
+	 *    1   |                   LX <7:0>                    |
+	 *   -----+-----------------------+-----------------------+
+	 *    2   |  0     0     0     0  |       LX <11:8>       |
+	 *   -----+-----------------------+-----------------------+
+	 *    3   |                   RX <7:0>                    |
+	 *   -----+-----------------------+-----------------------+
+	 *    4   |  0     0     0     0  |       RX <11:8>       |
+	 *   -----+-----------------------+-----------------------+
+	 *    5   |                   LY <7:0>                    |
+	 *   -----+-----------------------+-----------------------+
+	 *    6   |  0     0     0     0  |       LY <11:8>       |
+	 *   -----+-----------------------+-----------------------+
+	 *    7   |                   RY <7:0>                    |
+	 *   -----+-----------------------+-----------------------+
+	 *    8   |  0     0     0     0  |       RY <11:8>       |
+	 *   -----+-----+-----+-----+-----+-----+-----+-----+-----+
+	 *    9   | BDR | BDD | BLT | B-  | BH  | B+  | BRT |  1  |
+	 *   -----+-----+-----+-----+-----+-----+-----+-----+-----+
+	 *   10   | BZL | BB  | BY  | BA  | BX  | BZR | BDL | BDU |
+	 *   -----+-----+-----+-----+-----+-----+-----+-----+-----+
+	 *   11   |  1  |     BATTERY     | USB |CHARG|LTHUM|RTHUM|
+	 *   -----+-----+-----------------+-----------+-----+-----+
+	 * All buttons are low-active (0 if pressed)
+	 * RX and RY are right analog stick
+	 * LX and LY are left analog stick
+	 * BLT is left trigger, BRT is right trigger.
+	 * BDR, BDD, BDL, BDU form the D-Pad with right, down, left, up buttons
+	 * BZL is left Z button and BZR is right Z button
+	 * B-, BH, B+ are +, HOME and - buttons
+	 * BB, BY, BA, BX are A, B, X, Y buttons
+	 *
+	 * Bits marked as 0/1 are unknown and never changed during tests.
+	 *
+	 * Not entirely verified:
+	 *   CHARG: 1 if uncharging, 0 if charging
+	 *   USB: 1 if not connected, 0 if connected
+	 *   BATTERY: battery capacity from 000 (empty) to 100 (full)
+	 */
+
+	lx = (ext[0] & 0xff) | ((ext[1] & 0x0f) << 8);
+	rx = (ext[2] & 0xff) | ((ext[3] & 0x0f) << 8);
+	ly = (ext[4] & 0xff) | ((ext[5] & 0x0f) << 8);
+	ry = (ext[6] & 0xff) | ((ext[7] & 0x0f) << 8);
+
+	input_report_abs(wdata->extension.input, ABS_X, lx - 0x800);
+	input_report_abs(wdata->extension.input, ABS_Y, ly - 0x800);
+	input_report_abs(wdata->extension.input, ABS_RX, rx - 0x800);
+	input_report_abs(wdata->extension.input, ABS_RY, ry - 0x800);
+
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_RIGHT],
+			 !(ext[8] & 0x80));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_DOWN],
+			 !(ext[8] & 0x40));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_TL],
+			 !(ext[8] & 0x20));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_MINUS],
+			 !(ext[8] & 0x10));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_HOME],
+			 !(ext[8] & 0x08));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_PLUS],
+			 !(ext[8] & 0x04));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_TR],
+			 !(ext[8] & 0x02));
+
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_ZL],
+			 !(ext[9] & 0x80));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_B],
+			 !(ext[9] & 0x40));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_Y],
+			 !(ext[9] & 0x20));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_A],
+			 !(ext[9] & 0x10));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_X],
+			 !(ext[9] & 0x08));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_ZR],
+			 !(ext[9] & 0x04));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_LEFT],
+			 !(ext[9] & 0x02));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_UP],
+			 !(ext[9] & 0x01));
+
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_THUMBL],
+			 !(ext[10] & 0x02));
+	input_report_key(wdata->extension.input,
+			 wiimod_pro_map[WIIMOD_PRO_KEY_THUMBR],
+			 !(ext[10] & 0x01));
+
+	input_sync(wdata->extension.input);
+}
+
+static int wiimod_pro_open(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.flags |= WIIPROTO_FLAG_EXT_USED;
+	wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	return 0;
+}
+
+static void wiimod_pro_close(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.flags &= ~WIIPROTO_FLAG_EXT_USED;
+	wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+}
+
+static int wiimod_pro_play(struct input_dev *dev, void *data,
+			   struct ff_effect *eff)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+	__u8 value;
+	unsigned long flags;
+
+	/*
+	 * The wiimote supports only a single rumble motor so if any magnitude
+	 * is set to non-zero then we start the rumble motor. If both are set to
+	 * zero, we stop the rumble motor.
+	 */
+
+	if (eff->u.rumble.strong_magnitude || eff->u.rumble.weak_magnitude)
+		value = 1;
+	else
+		value = 0;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wiiproto_req_rumble(wdata, value);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	return 0;
+}
+
+static int wiimod_pro_probe(const struct wiimod_ops *ops,
+			    struct wiimote_data *wdata)
+{
+	int ret, i;
+
+	wdata->extension.input = input_allocate_device();
+	if (!wdata->extension.input)
+		return -ENOMEM;
+
+	set_bit(FF_RUMBLE, wdata->extension.input->ffbit);
+	input_set_drvdata(wdata->extension.input, wdata);
+
+	if (input_ff_create_memless(wdata->extension.input, NULL,
+				    wiimod_pro_play)) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	wdata->extension.input->open = wiimod_pro_open;
+	wdata->extension.input->close = wiimod_pro_close;
+	wdata->extension.input->dev.parent = &wdata->hdev->dev;
+	wdata->extension.input->id.bustype = wdata->hdev->bus;
+	wdata->extension.input->id.vendor = wdata->hdev->vendor;
+	wdata->extension.input->id.product = wdata->hdev->product;
+	wdata->extension.input->id.version = wdata->hdev->version;
+	wdata->extension.input->name = WIIMOTE_NAME " Pro Controller";
+
+	set_bit(EV_KEY, wdata->extension.input->evbit);
+	for (i = 0; i < WIIMOD_PRO_KEY_NUM; ++i)
+		set_bit(wiimod_pro_map[i],
+			wdata->extension.input->keybit);
+
+	set_bit(EV_ABS, wdata->extension.input->evbit);
+	set_bit(ABS_X, wdata->extension.input->absbit);
+	set_bit(ABS_Y, wdata->extension.input->absbit);
+	set_bit(ABS_RX, wdata->extension.input->absbit);
+	set_bit(ABS_RY, wdata->extension.input->absbit);
+	input_set_abs_params(wdata->extension.input,
+			     ABS_X, -0x800, 0x800, 2, 4);
+	input_set_abs_params(wdata->extension.input,
+			     ABS_Y, -0x800, 0x800, 2, 4);
+	input_set_abs_params(wdata->extension.input,
+			     ABS_RX, -0x800, 0x800, 2, 4);
+	input_set_abs_params(wdata->extension.input,
+			     ABS_RY, -0x800, 0x800, 2, 4);
+
+	ret = input_register_device(wdata->extension.input);
+	if (ret)
+		goto err_free;
+
+	return 0;
+
+err_free:
+	input_free_device(wdata->extension.input);
+	wdata->extension.input = NULL;
+	return ret;
+}
+
+static void wiimod_pro_remove(const struct wiimod_ops *ops,
+			      struct wiimote_data *wdata)
+{
+	unsigned long flags;
+
+	if (!wdata->extension.input)
+		return;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wiiproto_req_rumble(wdata, 0);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	input_unregister_device(wdata->extension.input);
+	wdata->extension.input = NULL;
+}
+
+static const struct wiimod_ops wiimod_pro = {
+	.flags = WIIMOD_FLAG_EXT16,
+	.arg = 0,
+	.probe = wiimod_pro_probe,
+	.remove = wiimod_pro_remove,
+	.in_ext = wiimod_pro_in_ext,
+};
+
+/*
  * Builtin Motion Plus
  * This module simply sets the WIIPROTO_FLAG_BUILTIN_MP protocol flag which
  * disables polling for Motion-Plus. This should be set only for devices which
@@ -1788,4 +2082,5 @@ const struct wiimod_ops *wiimod_ext_table[WIIMOTE_EXT_NUM] = {
 	[WIIMOTE_EXT_NUNCHUK] = &wiimod_nunchuk,
 	[WIIMOTE_EXT_CLASSIC_CONTROLLER] = &wiimod_classic,
 	[WIIMOTE_EXT_BALANCE_BOARD] = &wiimod_bboard,
+	[WIIMOTE_EXT_PRO_CONTROLLER] = &wiimod_pro,
 };
