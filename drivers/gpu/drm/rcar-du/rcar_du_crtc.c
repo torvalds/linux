@@ -23,10 +23,8 @@
 #include "rcar_du_crtc.h"
 #include "rcar_du_drv.h"
 #include "rcar_du_kms.h"
-#include "rcar_du_lvds.h"
 #include "rcar_du_plane.h"
 #include "rcar_du_regs.h"
-#include "rcar_du_vga.h"
 
 #define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)
 
