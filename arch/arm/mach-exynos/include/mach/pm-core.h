@@ -69,4 +69,8 @@ static inline void samsung_pm_saved_gpios(void)
 	/* nothing here yet */
 }
 
+/* Compatibility definitions to make plat-samsung/pm.c compile */
+#define s3c_irqwake_intallow	0
+#define s3c_irqwake_eintallow	0
+
 #endif /* __ASM_ARCH_PM_CORE_H */
