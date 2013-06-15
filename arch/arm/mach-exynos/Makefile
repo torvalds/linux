@@ -37,7 +37,4 @@ obj-$(CONFIG_MACH_EXYNOS5_DT)		+= mach-exynos5-dt.o
 
 # device support
 
-obj-y					+= dev-uart.o
-obj-$(CONFIG_ARCH_EXYNOS4)		+= dev-audio.o
-
 obj-$(CONFIG_ARCH_EXYNOS)		+= setup-i2c0.o
