@@ -25,6 +25,8 @@
 					+ IO_PPSB_VIRT)
 #define TEGRA_CLK_RESET_VIRT (TEGRA_CLK_RESET_BASE - IO_PPSB_PHYS \
 					+ IO_PPSB_VIRT)
+#define TEGRA_APB_MISC_VIRT (TEGRA_APB_MISC_BASE - IO_APB_PHYS \
+					+ IO_APB_VIRT)
 #define TEGRA_PMC_VIRT	(TEGRA_PMC_BASE - IO_APB_PHYS + IO_APB_VIRT)
 
 /* PMC_SCRATCH37-39 and 41 are used for tegra_pen_lock and idle */
@@ -70,19 +72,40 @@
 	movt	\reg, #:upper16:\val
 .endm
 
+/* Marco to check CPU part num */
+.macro check_cpu_part_num part_num, tmp1, tmp2
+	mrc	p15, 0, \tmp1, c0, c0, 0
+	ubfx	\tmp1, \tmp1, #4, #12
+	mov32	\tmp2, \part_num
+	cmp	\tmp1, \tmp2
+.endm
+
 /* Macro to exit SMP coherency. */
 .macro exit_smp, tmp1, tmp2
 	mrc	p15, 0, \tmp1, c1, c0, 1	@ ACTLR
 	bic	\tmp1, \tmp1, #(1<<6) | (1<<0)	@ clear ACTLR.SMP | ACTLR.FW
 	mcr	p15, 0, \tmp1, c1, c0, 1	@ ACTLR
 	isb
-	cpu_id	\tmp1
-	mov	\tmp1, \tmp1, lsl #2
-	mov	\tmp2, #0xf
-	mov	\tmp2, \tmp2, lsl \tmp1
-	mov32	\tmp1, TEGRA_ARM_PERIF_VIRT + 0xC
-	str	\tmp2, [\tmp1]			@ invalidate SCU tags for CPU
+#ifdef CONFIG_HAVE_ARM_SCU
+	check_cpu_part_num 0xc09, \tmp1, \tmp2
+	mrceq	p15, 0, \tmp1, c0, c0, 5
+	andeq	\tmp1, \tmp1, #0xF
+	moveq	\tmp1, \tmp1, lsl #2
+	moveq	\tmp2, #0xf
+	moveq	\tmp2, \tmp2, lsl \tmp1
+	ldreq	\tmp1, =(TEGRA_ARM_PERIF_VIRT + 0xC)
+	streq	\tmp2, [\tmp1]			@ invalidate SCU tags for CPU
 	dsb
+#endif
+.endm
+
+/* Macro to check Tegra revision */
+#define APB_MISC_GP_HIDREV	0x804
+.macro tegra_get_soc_id base, tmp1
+	mov32	\tmp1, \base
+	ldr	\tmp1, [\tmp1, #APB_MISC_GP_HIDREV]
+	and	\tmp1, \tmp1, #0xff00
+	mov	\tmp1, \tmp1, lsr #8
 .endm
 
 /* Macro to resume & re-enable L2 cache */

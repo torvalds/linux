@@ -28,8 +28,8 @@ extern unsigned long l2x0_saved_regs_addr;
 void save_cpu_arch_register(void);
 void restore_cpu_arch_register(void);
 
-void tegra_clear_cpu_in_lp2(int phy_cpu_id);
-bool tegra_set_cpu_in_lp2(int phy_cpu_id);
+void tegra_clear_cpu_in_lp2(void);
+bool tegra_set_cpu_in_lp2(void);
 
 void tegra_idle_lp2_last(void);
 extern void (*tegra_tear_down_cpu)(void);

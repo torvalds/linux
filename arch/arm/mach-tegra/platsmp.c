@@ -140,8 +140,31 @@ remove_clamps:
 
 static int tegra114_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
+	int ret = 0;
+
 	cpu = cpu_logical_map(cpu);
-	return tegra_pmc_cpu_power_on(cpu);
+
+	if (cpumask_test_cpu(cpu, &tegra_cpu_init_mask)) {
+		/*
+		 * Warm boot flow
+		 * The flow controller in charge of the power state and
+		 * control for each CPU.
+		 */
+		/* set SCLK as event trigger for flow controller */
+		flowctrl_write_cpu_csr(cpu, 1);
+		flowctrl_write_cpu_halt(cpu,
+				FLOW_CTRL_WAITEVENT | FLOW_CTRL_SCLK_RESUME);
+	} else {
+		/*
+		 * Cold boot flow
+		 * The CPU is powered up by toggling PMC directly. It will
+		 * also initial power state in flow controller. After that,
+		 * the CPU's power state is maintained by flow controller.
+		 */
+		ret = tegra_pmc_cpu_power_on(cpu);
+	}
+
+	return ret;
 }
 
 static int __cpuinit tegra_boot_secondary(unsigned int cpu,
@@ -173,5 +196,6 @@ struct smp_operations tegra_smp_ops __initdata = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_kill		= tegra_cpu_kill,
 	.cpu_die		= tegra_cpu_die,
+	.cpu_disable		= tegra_cpu_disable,
 #endif
 };
