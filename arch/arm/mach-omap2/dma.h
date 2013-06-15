@@ -21,27 +21,8 @@
 
 
 /* DMA channels for 24xx */
-#define OMAP34XX_DMA_I2C3_TX		25	/* S_DMA_24 */
-#define OMAP34XX_DMA_I2C3_RX		26	/* S_DMA_25 */
-#define OMAP24XX_DMA_I2C1_TX		27	/* S_DMA_26 */
-#define OMAP24XX_DMA_I2C1_RX		28	/* S_DMA_27 */
-#define OMAP24XX_DMA_I2C2_TX		29	/* S_DMA_28 */
-#define OMAP24XX_DMA_I2C2_RX		30	/* S_DMA_29 */
-#define OMAP24XX_DMA_UART1_TX		49	/* S_DMA_48 */
-#define OMAP24XX_DMA_UART1_RX		50	/* S_DMA_49 */
-#define OMAP24XX_DMA_UART2_TX		51	/* S_DMA_50 */
-#define OMAP24XX_DMA_UART2_RX		52	/* S_DMA_51 */
-#define OMAP24XX_DMA_UART3_TX		53	/* S_DMA_52 */
-#define OMAP24XX_DMA_UART3_RX		54	/* S_DMA_53 */
-#define OMAP34XX_DMA_AES2_TX		65	/* S_DMA_64 */
-#define OMAP34XX_DMA_AES2_RX		66	/* S_DMA_65 */
-#define OMAP34XX_DMA_SHA1MD5_RX		69	/* S_DMA_68 */
 
-#define OMAP36XX_DMA_UART4_TX		81	/* S_DMA_80 */
-#define OMAP36XX_DMA_UART4_RX		82	/* S_DMA_81 */
 
 /* Only for AM35xx */
-#define AM35XX_DMA_UART4_TX		54
-#define AM35XX_DMA_UART4_RX		55
 
 #endif /* __OMAP2PLUS_DMA_CHANNEL_H */
