@@ -20,12 +20,7 @@
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <mach/msm_gpiomux.h>
-
-#if defined(CONFIG_MSM_V2_TLMM)
-#include "gpiomux-v2.h"
-#else
 #include "gpiomux-v1.h"
-#endif
 
 /**
  * struct msm_gpiomux_config: gpiomux settings for one gpio line.
