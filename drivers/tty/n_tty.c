@@ -104,7 +104,6 @@ struct n_tty_data {
 	unsigned int echo_pos;
 	unsigned int echo_cnt;
 
-	int canon_data;
 	size_t canon_head;
 	unsigned int canon_column;
 
@@ -158,7 +157,7 @@ static int receive_room(struct tty_struct *tty)
 	 * characters will be beeped.
 	 */
 	if (left <= 0)
-		left = ldata->icanon && !ldata->canon_data;
+		left = ldata->icanon && ldata->canon_head == ldata->read_tail;
 
 	return left;
 }
@@ -237,14 +236,14 @@ static void reset_buffer_flags(struct n_tty_data *ldata)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&ldata->read_lock, flags);
-	ldata->read_head = ldata->read_tail = 0;
+	ldata->read_head = ldata->canon_head = ldata->read_tail = 0;
 	raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
 
 	mutex_lock(&ldata->echo_lock);
 	ldata->echo_pos = ldata->echo_cnt = ldata->echo_overrun = 0;
 	mutex_unlock(&ldata->echo_lock);
 
-	ldata->canon_head = ldata->canon_data = ldata->erasing = 0;
+	ldata->erasing = 0;
 	bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
 }
 
@@ -1360,7 +1359,6 @@ handle_newline:
 			set_bit(ldata->read_head & (N_TTY_BUF_SIZE - 1), ldata->read_flags);
 			put_tty_queue_nolock(c, ldata);
 			ldata->canon_head = ldata->read_head;
-			ldata->canon_data++;
 			raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
 			kill_fasync(&tty->fasync, SIGIO, POLL_IN);
 			if (waitqueue_active(&tty->read_wait))
@@ -1562,7 +1560,6 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	if (canon_change) {
 		bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
 		ldata->canon_head = ldata->read_tail;
-		ldata->canon_data = 0;
 		ldata->erasing = 0;
 	}
 
@@ -1713,7 +1710,7 @@ static inline int input_available_p(struct tty_struct *tty, int amt)
 
 	tty_flush_to_ldisc(tty);
 	if (ldata->icanon && !L_EXTPROC(tty)) {
-		if (ldata->canon_data)
+		if (ldata->canon_head != ldata->read_tail)
 			return 1;
 	} else if (read_cnt(ldata) >= (amt ? amt : 1))
 		return 1;
@@ -1850,15 +1847,8 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 
 	raw_spin_lock_irqsave(&ldata->read_lock, flags);
 	ldata->read_tail += c;
-	if (found) {
+	if (found)
 		__clear_bit(eol, ldata->read_flags);
-		/* this test should be redundant:
-		 * we shouldn't be reading data if
-		 * canon_data is 0
-		 */
-		if (--ldata->canon_data < 0)
-			ldata->canon_data = 0;
-	}
 	raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
 
 	if (found)
@@ -2264,7 +2254,7 @@ static unsigned long inq_canon(struct n_tty_data *ldata)
 {
 	size_t nr, head, tail;
 
-	if (!ldata->canon_data)
+	if (ldata->canon_head == ldata->read_tail)
 		return 0;
 	head = ldata->canon_head;
 	tail = ldata->read_tail;
