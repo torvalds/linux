@@ -822,6 +822,9 @@ static int acpi_device_probe(struct device *dev)
 	struct acpi_driver *acpi_drv = to_acpi_driver(dev->driver);
 	int ret;
 
+	if (acpi_dev->handler)
+		return -EINVAL;
+
 	if (!acpi_drv->ops.add)
 		return -ENOSYS;
 
