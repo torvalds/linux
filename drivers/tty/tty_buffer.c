@@ -49,13 +49,16 @@ void tty_buffer_free_all(struct tty_port *port)
 
 	while ((p = buf->head) != NULL) {
 		buf->head = p->next;
-		kfree(p);
+		if (p->size > 0)
+			kfree(p);
 	}
 	llist = llist_del_all(&buf->free);
 	llist_for_each_entry_safe(p, next, llist, free)
 		kfree(p);
 
-	buf->tail = NULL;
+	tty_buffer_reset(&buf->sentinel, 0);
+	buf->head = &buf->sentinel;
+	buf->tail = &buf->sentinel;
 	buf->memory_used = 0;
 }
 
@@ -120,7 +123,7 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
 
 	if (b->size > MIN_TTYB_SIZE)
 		kfree(b);
-	else
+	else if (b->size > 0)
 		llist_add(&b->free, &buf->free);
 }
 
@@ -140,8 +143,6 @@ static void __tty_buffer_flush(struct tty_port *port)
 	struct tty_bufhead *buf = &port->buf;
 	struct tty_buffer *next;
 
-	if (unlikely(buf->head == NULL))
-		return;
 	while ((next = buf->head->next) != NULL) {
 		tty_buffer_free(port, buf->head);
 		buf->head = next;
@@ -200,23 +201,14 @@ int tty_buffer_request_room(struct tty_port *port, size_t size)
 	int left;
 	unsigned long flags;
 	spin_lock_irqsave(&buf->lock, flags);
-	/* OPTIMISATION: We could keep a per tty "zero" sized buffer to
-	   remove this conditional if its worth it. This would be invisible
-	   to the callers */
 	b = buf->tail;
-	if (b != NULL)
-		left = b->size - b->used;
-	else
-		left = 0;
+	left = b->size - b->used;
 
 	if (left < size) {
 		/* This is the slow path - looking for new buffers to use */
 		if ((n = tty_buffer_alloc(port, size)) != NULL) {
-			if (b != NULL) {
-				b->next = n;
-				b->commit = b->used;
-			} else
-				buf->head = n;
+			b->next = n;
+			b->commit = b->used;
 			buf->tail = n;
 		} else
 			size = left;
@@ -247,10 +239,8 @@ int tty_insert_flip_string_fixed_flag(struct tty_port *port,
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
 		int space = tty_buffer_request_room(port, goal);
 		struct tty_buffer *tb = port->buf.tail;
-		/* If there is no space then tb may be NULL */
-		if (unlikely(space == 0)) {
+		if (unlikely(space == 0))
 			break;
-		}
 		memcpy(char_buf_ptr(tb, tb->used), chars, space);
 		memset(flag_buf_ptr(tb, tb->used), flag, space);
 		tb->used += space;
@@ -285,10 +275,8 @@ int tty_insert_flip_string_flags(struct tty_port *port,
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
 		int space = tty_buffer_request_room(port, goal);
 		struct tty_buffer *tb = port->buf.tail;
-		/* If there is no space then tb may be NULL */
-		if (unlikely(space == 0)) {
+		if (unlikely(space == 0))
 			break;
-		}
 		memcpy(char_buf_ptr(tb, tb->used), chars, space);
 		memcpy(flag_buf_ptr(tb, tb->used), flags, space);
 		tb->used += space;
@@ -322,8 +310,7 @@ void tty_schedule_flip(struct tty_port *port)
 	WARN_ON(port->low_latency);
 
 	spin_lock_irqsave(&buf->lock, flags);
-	if (buf->tail != NULL)
-		buf->tail->commit = buf->tail->used;
+	buf->tail->commit = buf->tail->used;
 	spin_unlock_irqrestore(&buf->lock, flags);
 	schedule_work(&buf->work);
 }
@@ -438,8 +425,8 @@ static void flush_to_ldisc(struct work_struct *work)
 	spin_lock_irqsave(&buf->lock, flags);
 
 	if (!test_and_set_bit(TTYP_FLUSHING, &port->iflags)) {
-		struct tty_buffer *head;
-		while ((head = buf->head) != NULL) {
+		while (1) {
+			struct tty_buffer *head = buf->head;
 			int count;
 
 			count = head->commit - head->read;
@@ -509,8 +496,7 @@ void tty_flip_buffer_push(struct tty_port *port)
 	unsigned long flags;
 
 	spin_lock_irqsave(&buf->lock, flags);
-	if (buf->tail != NULL)
-		buf->tail->commit = buf->tail->used;
+	buf->tail->commit = buf->tail->used;
 	spin_unlock_irqrestore(&buf->lock, flags);
 
 	if (port->low_latency)
@@ -535,8 +521,9 @@ void tty_buffer_init(struct tty_port *port)
 	struct tty_bufhead *buf = &port->buf;
 
 	spin_lock_init(&buf->lock);
-	buf->head = NULL;
-	buf->tail = NULL;
+	tty_buffer_reset(&buf->sentinel, 0);
+	buf->head = &buf->sentinel;
+	buf->tail = &buf->sentinel;
 	init_llist_head(&buf->free);
 	buf->memory_used = 0;
 	INIT_WORK(&buf->work, flush_to_ldisc);
