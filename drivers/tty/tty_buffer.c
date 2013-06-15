@@ -30,6 +30,42 @@
 
 
 /**
+ *	tty_buffer_lock_exclusive	-	gain exclusive access to buffer
+ *	tty_buffer_unlock_exclusive	-	release exclusive access
+ *
+ *	@port - tty_port owning the flip buffer
+ *
+ *	Guarantees safe use of the line discipline's receive_buf() method by
+ *	excluding the buffer work and any pending flush from using the flip
+ *	buffer. Data can continue to be added concurrently to the flip buffer
+ *	from the driver side.
+ *
+ *	On release, the buffer work is restarted if there is data in the
+ *	flip buffer
+ */
+
+void tty_buffer_lock_exclusive(struct tty_port *port)
+{
+	struct tty_bufhead *buf = &port->buf;
+
+	atomic_inc(&buf->priority);
+	mutex_lock(&buf->lock);
+}
+
+void tty_buffer_unlock_exclusive(struct tty_port *port)
+{
+	struct tty_bufhead *buf = &port->buf;
+	int restart;
+
+	restart = buf->head->commit != buf->head->read;
+
+	atomic_dec(&buf->priority);
+	mutex_unlock(&buf->lock);
+	if (restart)
+		queue_work(system_unbound_wq, &buf->work);
+}
+
+/**
  *	tty_buffer_space_avail	-	return unused buffer space
  *	@port - tty_port owning the flip buffer
  *
@@ -158,7 +194,7 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
  *	being processed by flush_to_ldisc then we defer the processing
  *	to that function
  *
- *	Locking: takes flush_mutex to ensure single-threaded flip buffer
+ *	Locking: takes buffer lock to ensure single-threaded flip buffer
  *		 'consumer'
  */
 
@@ -168,16 +204,16 @@ void tty_buffer_flush(struct tty_struct *tty)
 	struct tty_bufhead *buf = &port->buf;
 	struct tty_buffer *next;
 
-	buf->flushpending = 1;
+	atomic_inc(&buf->priority);
 
-	mutex_lock(&buf->flush_mutex);
+	mutex_lock(&buf->lock);
 	while ((next = buf->head->next) != NULL) {
 		tty_buffer_free(port, buf->head);
 		buf->head = next;
 	}
 	buf->head->read = buf->head->commit;
-	buf->flushpending = 0;
-	mutex_unlock(&buf->flush_mutex);
+	atomic_dec(&buf->priority);
+	mutex_unlock(&buf->lock);
 }
 
 /**
@@ -383,7 +419,7 @@ receive_buf(struct tty_struct *tty, struct tty_buffer *head, int count)
  *
  *	The receive_buf method is single threaded for each tty instance.
  *
- *	Locking: takes flush_mutex to ensure single-threaded flip buffer
+ *	Locking: takes buffer lock to ensure single-threaded flip buffer
  *		 'consumer'
  */
 
@@ -402,14 +438,14 @@ static void flush_to_ldisc(struct work_struct *work)
 	if (disc == NULL)
 		return;
 
-	mutex_lock(&buf->flush_mutex);
+	mutex_lock(&buf->lock);
 
 	while (1) {
 		struct tty_buffer *head = buf->head;
 		int count;
 
-		/* Ldisc or user is trying to flush the buffers. */
-		if (buf->flushpending)
+		/* Ldisc or user is trying to gain exclusive access */
+		if (atomic_read(&buf->priority))
 			break;
 
 		count = head->commit - head->read;
@@ -426,7 +462,7 @@ static void flush_to_ldisc(struct work_struct *work)
 			break;
 	}
 
-	mutex_unlock(&buf->flush_mutex);
+	mutex_unlock(&buf->lock);
 
 	tty_ldisc_deref(disc);
 }
@@ -482,13 +518,12 @@ void tty_buffer_init(struct tty_port *port)
 {
 	struct tty_bufhead *buf = &port->buf;
 
-	mutex_init(&buf->flush_mutex);
+	mutex_init(&buf->lock);
 	tty_buffer_reset(&buf->sentinel, 0);
 	buf->head = &buf->sentinel;
 	buf->tail = &buf->sentinel;
 	init_llist_head(&buf->free);
 	atomic_set(&buf->memory_used, 0);
-	buf->flushpending = 0;
+	atomic_set(&buf->priority, 0);
 	INIT_WORK(&buf->work, flush_to_ldisc);
 }
-

@@ -67,8 +67,8 @@ static inline char *flag_buf_ptr(struct tty_buffer *b, int ofs)
 struct tty_bufhead {
 	struct tty_buffer *head;	/* Queue head */
 	struct work_struct work;
-	struct mutex flush_mutex;
-	unsigned int flushpending:1;
+	struct mutex	   lock;
+	atomic_t	   priority;
 	struct tty_buffer sentinel;
 	struct llist_head free;		/* Free queue head */
 	atomic_t	   memory_used; /* In-use buffers excluding free list */
