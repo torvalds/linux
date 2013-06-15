@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/amba/bus.h>
-#include <linux/atomic.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -981,8 +980,6 @@ static void nmk_i2c_of_probe(struct device_node *np,
 		pdata->sm = I2C_FREQ_MODE_FAST;
 }
 
-static atomic_t adapter_id = ATOMIC_INIT(0);
-
 static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
@@ -1095,10 +1092,8 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	adap->class	= I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->algo	= &nmk_i2c_algo;
 	adap->timeout	= msecs_to_jiffies(pdata->timeout);
-	adap->nr = atomic_read(&adapter_id);
 	snprintf(adap->name, sizeof(adap->name),
-		 "Nomadik I2C%d at %pR", adap->nr, &adev->res);
-	atomic_inc(&adapter_id);
+		 "Nomadik I2C at %pR", &adev->res);
 
 	/* fetch the controller configuration from machine */
 	dev->cfg.clk_freq = pdata->clk_freq;
@@ -1113,7 +1108,7 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 		 "initialize %s on virtual base %p\n",
 		 adap->name, dev->virtbase);
 
-	ret = i2c_add_numbered_adapter(adap);
+	ret = i2c_add_adapter(adap);
 	if (ret) {
 		dev_err(&adev->dev, "failed to add adapter\n");
 		goto err_add_adap;
