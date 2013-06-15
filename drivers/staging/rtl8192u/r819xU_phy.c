@@ -7,6 +7,8 @@
 #include "r819xU_firmware_img.h"
 
 #include "dot11d.h"
+#include <linux/bitops.h>
+
 static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 	0,
 	0x085c, //2412 1
@@ -45,11 +47,7 @@ static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 u32 rtl8192_CalculateBitShift(u32 dwBitMask)
 {
 	u32 i;
-	for (i=0; i<=31; i++)
-	{
-		if (((dwBitMask>>i)&0x1) == 1)
-			break;
-	}
+	i = ffs(dwBitMask) - 1;
 	return i;
 }
 /******************************************************************************
