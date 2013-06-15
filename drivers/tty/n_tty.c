@@ -1747,6 +1747,62 @@ static int copy_from_read_buf(struct tty_struct *tty,
 	return retval;
 }
 
+/**
+ *	canon_copy_to_user	-	copy read data in canonical mode
+ *	@tty: terminal device
+ *	@b: user data
+ *	@nr: size of data
+ *
+ *	Helper function for n_tty_read.  It is only called when ICANON is on;
+ *	it copies characters one at a time from the read buffer to the user
+ *	space buffer.
+ *
+ *	Called under the atomic_read_lock mutex
+ */
+
+static int canon_copy_to_user(struct tty_struct *tty,
+			      unsigned char __user **b,
+			      size_t *nr)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+	unsigned long flags;
+	int eol, c;
+
+	/* N.B. avoid overrun if nr == 0 */
+	raw_spin_lock_irqsave(&ldata->read_lock, flags);
+	while (*nr && ldata->read_cnt) {
+
+		eol = test_and_clear_bit(ldata->read_tail, ldata->read_flags);
+		c = ldata->read_buf[ldata->read_tail];
+		ldata->read_tail = (ldata->read_tail+1) & (N_TTY_BUF_SIZE-1);
+		ldata->read_cnt--;
+		if (eol) {
+			/* this test should be redundant:
+			 * we shouldn't be reading data if
+			 * canon_data is 0
+			 */
+			if (--ldata->canon_data < 0)
+				ldata->canon_data = 0;
+		}
+		raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
+
+		if (!eol || (c != __DISABLED_CHAR)) {
+			if (tty_put_user(tty, c, *b))
+				return -EFAULT;
+			*b += 1;
+			*nr -= 1;
+		}
+		if (eol) {
+			tty_audit_push(tty);
+			return 0;
+		}
+		raw_spin_lock_irqsave(&ldata->read_lock, flags);
+	}
+	raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
+
+	return 0;
+}
+
 extern ssize_t redirected_tty_write(struct file *, const char __user *,
 							size_t, loff_t *);
 
@@ -1916,44 +1972,7 @@ do_it_again:
 		}
 
 		if (ldata->icanon && !L_EXTPROC(tty)) {
-			/* N.B. avoid overrun if nr == 0 */
-			raw_spin_lock_irqsave(&ldata->read_lock, flags);
-			while (nr && ldata->read_cnt) {
-				int eol;
-
-				eol = test_and_clear_bit(ldata->read_tail,
-						ldata->read_flags);
-				c = ldata->read_buf[ldata->read_tail];
-				ldata->read_tail = ((ldata->read_tail+1) &
-						  (N_TTY_BUF_SIZE-1));
-				ldata->read_cnt--;
-				if (eol) {
-					/* this test should be redundant:
-					 * we shouldn't be reading data if
-					 * canon_data is 0
-					 */
-					if (--ldata->canon_data < 0)
-						ldata->canon_data = 0;
-				}
-				raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
-
-				if (!eol || (c != __DISABLED_CHAR)) {
-					if (tty_put_user(tty, c, b++)) {
-						retval = -EFAULT;
-						b--;
-						raw_spin_lock_irqsave(&ldata->read_lock, flags);
-						break;
-					}
-					nr--;
-				}
-				if (eol) {
-					tty_audit_push(tty);
-					raw_spin_lock_irqsave(&ldata->read_lock, flags);
-					break;
-				}
-				raw_spin_lock_irqsave(&ldata->read_lock, flags);
-			}
-			raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
+			retval = canon_copy_to_user(tty, &b, &nr);
 			if (retval)
 				break;
 		} else {
