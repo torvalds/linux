@@ -180,15 +180,15 @@ config USB_MXS_PHY
 	  MXS Phy is used by some of the i.MX SoCs, for example imx23/28/6x.
 
 config USB_RCAR_PHY
-	tristate "Renesas R-Car USB phy support"
+	tristate "Renesas R-Car USB PHY support"
 	depends on USB || USB_GADGET
 	help
-	  Say Y here to add support for the Renesas R-Car USB phy driver.
-	  This chip is typically used as USB phy for USB host, gadget.
-	  This driver supports: R8A7779
+	  Say Y here to add support for the Renesas R-Car USB common PHY driver.
+	  This chip is typically used as USB PHY for USB host, gadget.
+	  This driver supports R8A7778 and R8A7779.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called rcar-phy.
+	  module will be called phy-rcar-usb.
 
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"
