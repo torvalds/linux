@@ -342,6 +342,21 @@
 			reg = <0x10020000 0x20000>;
 			ranges;
 
+			coda: coda@10023000 {
+				compatible = "fsl,imx27-vpu";
+				reg = <0x10023000 0x0200>;
+				interrupts = <53>;
+				clocks = <&clks 57>, <&clks 66>;
+				clock-names = "per", "ahb";
+				iram = <&iram>;
+			};
+
+			clks: ccm@10027000{
+				compatible = "fsl,imx27-ccm";
+				reg = <0x10027000 0x1000>;
+				#clock-cells = <1>;
+			};
+
 			fec: ethernet@1002b000 {
 				compatible = "fsl,imx27-fec";
 				reg = <0x1002b000 0x4000>;
@@ -350,19 +365,16 @@
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};
-
-			clks: ccm@10027000{
-				compatible = "fsl,imx27-ccm";
-				reg = <0x10027000 0x1000>;
-				#clock-cells = <1>;
-			};
 		};
 
+		iram: iram@ffff4c00 {
+			compatible = "mmio-sram";
+			reg = <0xffff4c00 0xb400>;
+		};
 
 		nfc: nand@d8000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-
 			compatible = "fsl,imx27-nand";
 			reg = <0xd8000000 0x1000>;
 			interrupts = <29>;
