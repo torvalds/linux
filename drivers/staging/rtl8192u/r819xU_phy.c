@@ -114,9 +114,9 @@ u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
 
 	return Ret;
 }
-static  u32 phy_FwRFSerialRead( struct net_device *dev, RF90_RADIO_PATH_E       eRFPath, u32 Offset  );
+static  u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E       eRFPath, u32 Offset);
 
-static void phy_FwRFSerialWrite( struct net_device *dev, RF90_RADIO_PATH_E       eRFPath, u32  Offset, u32  Data);
+static void phy_FwRFSerialWrite(struct net_device *dev, RF90_RADIO_PATH_E       eRFPath, u32  Offset, u32  Data);
 
 /******************************************************************************
  *function:  This function read register from RF chip
@@ -142,14 +142,14 @@ u32 rtl8192_phy_RFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath, 
 		if (Offset >= 31) {
 			priv->RfReg0Value[eRFPath] |= 0x140;
 			//Switch to Reg_Mode2 for Reg 31-45
-			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16) );
+			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16));
 			//modify offset
 			NewOffset = Offset -30;
 		} else if (Offset >= 16) {
 			priv->RfReg0Value[eRFPath] |= 0x100;
 			priv->RfReg0Value[eRFPath] &= (~0x40);
 			//Switch to Reg_Mode 1 for Reg16-30
-			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16) );
+			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16));
 
 			NewOffset = Offset - 15;
 		} else {
@@ -1004,7 +1004,7 @@ bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerS
 
 	switch (priv->rf_chip) {
 		case RF_8256:
-		switch ( eRFPowerState ) {
+		switch (eRFPowerState) {
 			case eRfOn:
 	//RF-A, RF-B
 					//enable RF-Chip A/B
@@ -1057,14 +1057,14 @@ bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerS
 	if (bResult) {
 		// Update current RF state variable.
 		pHalData->eRFPowerState = eRFPowerState;
-		switch (pHalData->RFChipID ) {
+		switch (pHalData->RFChipID) {
 			case RF_8256:
 		switch (pHalData->eRFPowerState) {
 				case eRfOff:
 					//
 					//If Rf off reason is from IPS, Led should blink with no link, by Maddest 071015
 					//
-					if (pMgntInfo->RfOffReason==RF_CHANGE_BY_IPS )
+					if (pMgntInfo->RfOffReason==RF_CHANGE_BY_IPS)
 						Adapter->HalFunc.LedControlHandler(Adapter,LED_CTL_NO_LINK);
 					else
 						// Turn off LED if RF is not ON.
@@ -1074,7 +1074,7 @@ bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerS
 				case eRfOn:
 					// Turn on RF we are still linked, which might happen when
 					// we quickly turn off and on HW RF. 2006.05.12, by rcnjko.
-					if ( pMgntInfo->bMediaConnect == TRUE )
+					if (pMgntInfo->bMediaConnect == TRUE)
 						Adapter->HalFunc.LedControlHandler(Adapter, LED_CTL_LINK);
 					else
 						// Turn off LED if RF is not ON.
@@ -1188,7 +1188,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8 *stage, u
 
 		// <3> Fill up RF dependent command.
 		RfDependCmdCnt = 0;
-		switch ( priv->rf_chip ) {
+		switch (priv->rf_chip) {
 		case RF_8225:
 			if (!(channel >= 1 && channel <= 14)) {
 				RT_TRACE(COMP_ERR, "illegal channel for Zebra 8225: %d\n", channel);
@@ -1484,7 +1484,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	//Skip over setting of J-mode in BB register here. Default value is "None J mode". Emily 20070315
 
 	//<3>Set RF related register
-	switch ( priv->rf_chip ) {
+	switch (priv->rf_chip) {
 		case RF_8225:
 #ifdef TO_DO_LIST
 			PHY_SetRF8225Bandwidth(Adapter, pHalData->CurrentChannelBW);
@@ -1509,7 +1509,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	}
 	priv->SetBWModeInProgress= false;
 
-	RT_TRACE(COMP_SWBW, "<==SetBWMode819xUsb(), %d", atomic_read(&(priv->ieee80211->atm_swbw)) );
+	RT_TRACE(COMP_SWBW, "<==SetBWMode819xUsb(), %d", atomic_read(&(priv->ieee80211->atm_swbw)));
 }
 
 /******************************************************************************
