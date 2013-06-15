@@ -20,8 +20,6 @@
 #define __OMAP1_DMA_CHANNEL_H
 
 /* DMA channels for omap1 */
-#define OMAP_DMA_UART3_TX		18
-#define OMAP_DMA_UART3_RX		19
 
 /* These are only for 1610 */
 
