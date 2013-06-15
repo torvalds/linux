@@ -22,6 +22,15 @@
 #define MIN_TTYB_SIZE	256
 #define TTYB_ALIGN_MASK	255
 
+static void tty_buffer_reset(struct tty_buffer *p, size_t size)
+{
+	p->used = 0;
+	p->size = size;
+	p->next = NULL;
+	p->commit = 0;
+	p->read = 0;
+}
+
 /**
  *	tty_buffer_free_all		-	free buffers used by a tty
  *	@tty: tty to free from
@@ -70,11 +79,8 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 	p = kmalloc(sizeof(struct tty_buffer) + 2 * size, GFP_ATOMIC);
 	if (p == NULL)
 		return NULL;
-	p->used = 0;
-	p->size = size;
-	p->next = NULL;
-	p->commit = 0;
-	p->read = 0;
+
+	tty_buffer_reset(p, size);
 	port->buf.memory_used += size;
 	return p;
 }
@@ -185,10 +191,7 @@ static struct tty_buffer *tty_buffer_find(struct tty_port *port, size_t size)
 			struct tty_buffer *t = *tbh;
 
 			*tbh = t->next;
-			t->next = NULL;
-			t->used = 0;
-			t->commit = 0;
-			t->read = 0;
+			tty_buffer_reset(t, t->size);
 			port->buf.memory_used += t->size;
 			return t;
 		}
