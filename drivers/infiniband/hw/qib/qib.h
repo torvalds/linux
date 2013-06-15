@@ -115,6 +115,11 @@ struct qib_eep_log_mask {
 /*
  * Below contains all data related to a single context (formerly called port).
  */
+
+#ifdef CONFIG_DEBUG_FS
+struct qib_opcode_stats_perctx;
+#endif
+
 struct qib_ctxtdata {
 	void **rcvegrbuf;
 	dma_addr_t *rcvegrbuf_phys;
@@ -225,12 +230,15 @@ struct qib_ctxtdata {
 	u8 redirect_seq_cnt;
 	/* ctxt rcvhdrq head offset */
 	u32 head;
-	u32 pkt_count;
 	/* lookaside fields */
 	struct qib_qp *lookaside_qp;
 	u32 lookaside_qpn;
 	/* QPs waiting for context processing */
 	struct list_head qp_wait_list;
+#ifdef CONFIG_DEBUG_FS
+	/* verbs stats per CTX */
+	struct qib_opcode_stats_perctx *opstats;
+#endif
 };
 
 struct qib_sge_state;
@@ -1495,27 +1503,23 @@ extern struct mutex qib_mutex;
  * first to avoid possible serial port delays from printk.
  */
 #define qib_early_err(dev, fmt, ...) \
-	do { \
-		dev_err(dev, fmt, ##__VA_ARGS__); \
-	} while (0)
+	dev_err(dev, fmt, ##__VA_ARGS__)
 
 #define qib_dev_err(dd, fmt, ...) \
-	do { \
-		dev_err(&(dd)->pcidev->dev, "%s: " fmt, \
-			qib_get_unit_name((dd)->unit), ##__VA_ARGS__); \
-	} while (0)
+	dev_err(&(dd)->pcidev->dev, "%s: " fmt, \
+		qib_get_unit_name((dd)->unit), ##__VA_ARGS__)
+
+#define qib_dev_warn(dd, fmt, ...) \
+	dev_warn(&(dd)->pcidev->dev, "%s: " fmt, \
+		qib_get_unit_name((dd)->unit), ##__VA_ARGS__)
 
 #define qib_dev_porterr(dd, port, fmt, ...) \
-	do { \
-		dev_err(&(dd)->pcidev->dev, "%s: IB%u:%u " fmt, \
-			qib_get_unit_name((dd)->unit), (dd)->unit, (port), \
-			##__VA_ARGS__); \
-	} while (0)
+	dev_err(&(dd)->pcidev->dev, "%s: IB%u:%u " fmt, \
+		qib_get_unit_name((dd)->unit), (dd)->unit, (port), \
+		##__VA_ARGS__)
 
 #define qib_devinfo(pcidev, fmt, ...) \
-	do { \
-		dev_info(&(pcidev)->dev, fmt, ##__VA_ARGS__); \
-	} while (0)
+	dev_info(&(pcidev)->dev, fmt, ##__VA_ARGS__)
 
 /*
  * this is used for formatting hw error messages...
