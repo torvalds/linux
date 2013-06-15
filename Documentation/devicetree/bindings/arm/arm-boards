@@ -9,9 +9,30 @@ Required properties (in root node):
 
 FPGA type interrupt controllers, see the versatile-fpga-irq binding doc.
 
+Required nodes:
+
 In the root node the Integrator/CP must have a /cpcon node pointing
 to the CP control registers, and the Integrator/AP must have a
 /syscon node pointing to the Integrator/AP system controller.
+The AP syscon node must include the logic module interrupts, stated
+in order of module instance <module 0, module 1, module 2 ...>
+example:
+
+/dts-v1/;
+/include/ "integrator.dtsi"
+
+/ {
+	model = "ARM Integrator/AP";
+	compatible = "arm,integrator-ap";
+
+	syscon {
+		/* AP system controller registers */
+		reg = <0x11000000 0x100>;
+		interrupt-parent = <&pic>;
+		/* These are the logic module IRQs */
+		interrupts = <9>, <10>, <11>, <12>;
+	};
+};
 
 
 ARM Versatile Application and Platform Baseboards
