@@ -105,9 +105,9 @@ struct n_tty_data {
 	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
 
 	/* shared by producer and consumer */
-	char *read_buf;
+	char read_buf[N_TTY_BUF_SIZE];
 	DECLARE_BITMAP(read_flags, N_TTY_BUF_SIZE);
-	unsigned char *echo_buf;
+	unsigned char echo_buf[N_TTY_BUF_SIZE];
 
 	int minimum_to_wake;
 
@@ -1695,9 +1695,7 @@ static void n_tty_close(struct tty_struct *tty)
 	if (tty->link)
 		n_tty_packet_mode_flush(tty);
 
-	kfree(ldata->read_buf);
-	kfree(ldata->echo_buf);
-	kfree(ldata);
+	vfree(ldata);
 	tty->disc_data = NULL;
 }
 
@@ -1715,7 +1713,8 @@ static int n_tty_open(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata;
 
-	ldata = kzalloc(sizeof(*ldata), GFP_KERNEL);
+	/* Currently a malloc failure here can panic */
+	ldata = vmalloc(sizeof(*ldata));
 	if (!ldata)
 		goto err;
 
@@ -1723,16 +1722,14 @@ static int n_tty_open(struct tty_struct *tty)
 	mutex_init(&ldata->atomic_read_lock);
 	mutex_init(&ldata->output_lock);
 
-	/* These are ugly. Currently a malloc failure here can panic */
-	ldata->read_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
-	ldata->echo_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
-	if (!ldata->read_buf || !ldata->echo_buf)
-		goto err_free_bufs;
-
 	tty->disc_data = ldata;
 	reset_buffer_flags(tty->disc_data);
 	ldata->column = 0;
+	ldata->canon_column = 0;
 	ldata->minimum_to_wake = 1;
+	ldata->num_overrun = 0;
+	ldata->no_room = 0;
+	ldata->lnext = 0;
 	tty->closing = 0;
 	/* indicate buffer work may resume */
 	clear_bit(TTY_LDISC_HALTED, &tty->flags);
@@ -1740,10 +1737,6 @@ static int n_tty_open(struct tty_struct *tty)
 	tty_unthrottle(tty);
 
 	return 0;
-err_free_bufs:
-	kfree(ldata->read_buf);
-	kfree(ldata->echo_buf);
-	kfree(ldata);
 err:
 	return -ENOMEM;
 }
