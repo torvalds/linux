@@ -65,13 +65,13 @@ static inline char *flag_buf_ptr(struct tty_buffer *b, int ofs)
 
 
 struct tty_bufhead {
+	struct tty_buffer *head;	/* Queue head */
 	struct work_struct work;
 	struct mutex flush_mutex;
 	struct tty_buffer sentinel;
-	struct tty_buffer *head;	/* Queue head */
-	struct tty_buffer *tail;	/* Active buffer */
 	struct llist_head free;		/* Free queue head */
 	atomic_t	   memory_used; /* In-use buffers excluding free list */
+	struct tty_buffer *tail;	/* Active buffer */
 };
 /*
  * When a break, frame error, or parity error happens, these codes are
