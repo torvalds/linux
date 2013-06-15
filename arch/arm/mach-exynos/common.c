@@ -40,7 +40,6 @@
 
 #include <mach/regs-irq.h>
 #include <mach/regs-pmu.h>
-#include <mach/regs-gpio.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
