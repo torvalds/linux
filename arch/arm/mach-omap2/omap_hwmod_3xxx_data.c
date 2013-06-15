@@ -35,7 +35,6 @@
 #include "prm-regbits-34xx.h"
 #include "cm-regbits-34xx.h"
 
-#include "dma.h"
 #include "i2c.h"
 #include "mmc.h"
 #include "wd_timer.h"
