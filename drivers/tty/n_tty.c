@@ -214,6 +214,21 @@ static ssize_t chars_in_buffer(struct tty_struct *tty)
 	return n;
 }
 
+/**
+ *	n_tty_write_wakeup	-	asynchronous I/O notifier
+ *	@tty: tty device
+ *
+ *	Required for the ptys, serial driver etc. since processes
+ *	that attach themselves to the master and rely on ASYNC
+ *	IO must be woken up
+ */
+
+static void n_tty_write_wakeup(struct tty_struct *tty)
+{
+	if (tty->fasync && test_and_clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags))
+		kill_fasync(&tty->fasync, SIGIO, POLL_OUT);
+}
+
 static inline void n_tty_check_throttle(struct tty_struct *tty)
 {
 	/*
@@ -1456,22 +1471,6 @@ handle_newline:
 		put_tty_queue(c, ldata);
 
 	put_tty_queue(c, ldata);
-}
-
-
-/**
- *	n_tty_write_wakeup	-	asynchronous I/O notifier
- *	@tty: tty device
- *
- *	Required for the ptys, serial driver etc. since processes
- *	that attach themselves to the master and rely on ASYNC
- *	IO must be woken up
- */
-
-static void n_tty_write_wakeup(struct tty_struct *tty)
-{
-	if (tty->fasync && test_and_clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags))
-		kill_fasync(&tty->fasync, SIGIO, POLL_OUT);
 }
 
 /**
