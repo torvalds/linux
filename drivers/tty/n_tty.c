@@ -96,7 +96,6 @@ struct n_tty_data {
 
 	/* must hold exclusive termios_rwsem to reset these */
 	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
-	unsigned char echo_overrun:1;
 
 	/* shared by producer and consumer */
 	char *read_buf;
@@ -326,7 +325,7 @@ static void reset_buffer_flags(struct n_tty_data *ldata)
 	ldata->read_head = ldata->canon_head = ldata->read_tail = 0;
 
 	mutex_lock(&ldata->echo_lock);
-	ldata->echo_pos = ldata->echo_cnt = ldata->echo_overrun = 0;
+	ldata->echo_pos = ldata->echo_cnt = 0;
 	mutex_unlock(&ldata->echo_lock);
 
 	ldata->erasing = 0;
@@ -782,14 +781,11 @@ static void process_echoes(struct tty_struct *tty)
 	if (nr == 0) {
 		ldata->echo_pos = 0;
 		ldata->echo_cnt = 0;
-		ldata->echo_overrun = 0;
 	} else {
 		int num_processed = ldata->echo_cnt - nr;
 		ldata->echo_pos += num_processed;
 		ldata->echo_pos &= N_TTY_BUF_SIZE - 1;
 		ldata->echo_cnt = nr;
-		if (num_processed > 0)
-			ldata->echo_overrun = 0;
 	}
 
 	mutex_unlock(&ldata->echo_lock);
@@ -835,8 +831,6 @@ static void add_echo_byte(unsigned char c, struct n_tty_data *ldata)
 			ldata->echo_pos++;
 		}
 		ldata->echo_pos &= N_TTY_BUF_SIZE - 1;
-
-		ldata->echo_overrun = 1;
 	} else {
 		new_byte_pos = ldata->echo_pos + ldata->echo_cnt;
 		new_byte_pos &= N_TTY_BUF_SIZE - 1;
