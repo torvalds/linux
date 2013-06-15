@@ -1845,7 +1845,13 @@ xlog_recover_do_inode_buffer(
 	xfs_agino_t		*buffer_nextp;
 
 	trace_xfs_log_recover_buf_inode_buf(mp->m_log, buf_f);
-	bp->b_ops = &xfs_inode_buf_ops;
+
+	/*
+	 * Post recovery validation only works properly on CRC enabled
+	 * filesystems.
+	 */
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		bp->b_ops = &xfs_inode_buf_ops;
 
 	inodes_per_buf = BBTOB(bp->b_io_length) >> mp->m_sb.sb_inodelog;
 	for (i = 0; i < inodes_per_buf; i++) {
@@ -2205,7 +2211,16 @@ xlog_recover_do_reg_buffer(
 	/* Shouldn't be any more regions */
 	ASSERT(i == item->ri_total);
 
-	xlog_recovery_validate_buf_type(mp, bp, buf_f);
+	/*
+	 * We can only do post recovery validation on items on CRC enabled
+	 * fielsystems as we need to know when the buffer was written to be able
+	 * to determine if we should have replayed the item. If we replay old
+	 * metadata over a newer buffer, then it will enter a temporarily
+	 * inconsistent state resulting in verification failures. Hence for now
+	 * just avoid the verification stage for non-crc filesystems
+	 */
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		xlog_recovery_validate_buf_type(mp, bp, buf_f);
 }
 
 /*
