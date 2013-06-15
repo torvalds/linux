@@ -1468,6 +1468,29 @@ handle_newline:
 	put_tty_queue(c, ldata);
 }
 
+static void
+n_tty_receive_char_flagged(struct tty_struct *tty, unsigned char c, char flag)
+{
+	char buf[64];
+
+	switch (flag) {
+	case TTY_BREAK:
+		n_tty_receive_break(tty);
+		break;
+	case TTY_PARITY:
+	case TTY_FRAME:
+		n_tty_receive_parity_error(tty, c);
+		break;
+	case TTY_OVERRUN:
+		n_tty_receive_overrun(tty);
+		break;
+	default:
+		printk(KERN_ERR "%s: unknown flag %d\n",
+		       tty_name(tty, buf), flag);
+		break;
+	}
+}
+
 /**
  *	n_tty_receive_buf	-	data receive
  *	@tty: terminal device
@@ -1511,34 +1534,19 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			  char *fp, int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	char	flags = TTY_NORMAL;
-	char	buf[64];
 
 	if (ldata->real_raw)
 		n_tty_receive_buf_real_raw(tty, cp, fp, count);
 	else {
+		char flag = TTY_NORMAL;
+
 		while (count--) {
 			if (fp)
-				flags = *fp++;
-			switch (flags) {
-			case TTY_NORMAL:
+				flag = *fp++;
+			if (likely(flag == TTY_NORMAL))
 				n_tty_receive_char(tty, *cp++);
-				break;
-			case TTY_BREAK:
-				n_tty_receive_break(tty);
-				break;
-			case TTY_PARITY:
-			case TTY_FRAME:
-				n_tty_receive_parity_error(tty, *cp++);
-				break;
-			case TTY_OVERRUN:
-				n_tty_receive_overrun(tty);
-				break;
-			default:
-				printk(KERN_ERR "%s: unknown flag %d\n",
-				       tty_name(tty, buf), flags);
-				break;
-			}
+			else
+				n_tty_receive_char_flagged(tty, *cp++, flag);
 		}
 
 		flush_echoes(tty);
