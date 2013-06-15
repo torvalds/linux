@@ -891,6 +891,10 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 	if (!server)	/* How this could happen? */
 		goto out;
 
+	result = -EPERM;
+	if (IS_DEADDIR(dentry->d_inode))
+		goto out;
+
 	/* ageing the dentry to force validation */
 	ncp_age_dentry(server, dentry);
 
