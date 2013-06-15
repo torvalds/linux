@@ -21,12 +21,6 @@
 
 /* DMA channels for omap1 */
 #define OMAP_DMA_NO_DEVICE		0
-#define OMAP_DMA_MCBSP1_TX		8
-#define OMAP_DMA_MCBSP1_RX		9
-#define OMAP_DMA_MCBSP3_TX		10
-#define OMAP_DMA_MCBSP3_RX		11
-#define OMAP_DMA_MCBSP2_TX		16
-#define OMAP_DMA_MCBSP2_RX		17
 #define OMAP_DMA_UART3_TX		18
 #define OMAP_DMA_UART3_RX		19
 #define OMAP_DMA_CAMERA_IF_RX		20
