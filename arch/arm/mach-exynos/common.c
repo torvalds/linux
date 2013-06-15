@@ -99,15 +99,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 
 /* Initial IO mappings */
 
-static struct map_desc exynos_iodesc[] __initdata = {
-	{
-		.virtual	= (unsigned long)S5P_VA_CHIPID,
-		.pfn		= __phys_to_pfn(EXYNOS_PA_CHIPID),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	},
-};
-
 static struct map_desc exynos4_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S3C_VA_SYS,
@@ -365,10 +356,7 @@ void __init exynos_init_io(struct map_desc *mach_desc, int size)
 {
 	debug_ll_io_init();
 
-	if (initial_boot_params)
-		of_scan_flat_dt(exynos_fdt_map_chipid, NULL);
-	else
-		iotable_init(exynos_iodesc, ARRAY_SIZE(exynos_iodesc));
+	of_scan_flat_dt(exynos_fdt_map_chipid, NULL);
 
 	if (mach_desc)
 		iotable_init(mach_desc, size);
