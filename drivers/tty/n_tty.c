@@ -82,29 +82,38 @@
 #endif
 
 struct n_tty_data {
-	unsigned int column;
+	/* producer-published */
+	size_t read_head;
+	size_t canon_head;
+	DECLARE_BITMAP(process_char_map, 256);
+
+	/* private to n_tty_receive_overrun (single-threaded) */
 	unsigned long overrun_time;
 	int num_overrun;
 
 	/* non-atomic */
 	bool no_room;
 
+	/* must hold exclusive termios_rwsem to reset these */
 	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
 	unsigned char echo_overrun:1;
 
-	DECLARE_BITMAP(process_char_map, 256);
+	/* shared by producer and consumer */
+	char *read_buf;
 	DECLARE_BITMAP(read_flags, N_TTY_BUF_SIZE);
 
-	char *read_buf;
-	size_t read_head;
-	size_t read_tail;
 	int minimum_to_wake;
 
+	/* consumer-published */
+	size_t read_tail;
+
+	/* protected by echo_lock */
 	unsigned char *echo_buf;
 	unsigned int echo_pos;
 	unsigned int echo_cnt;
 
-	size_t canon_head;
+	/* protected by output lock */
+	unsigned int column;
 	unsigned int canon_column;
 
 	struct mutex atomic_read_lock;
