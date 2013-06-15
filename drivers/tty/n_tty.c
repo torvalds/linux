@@ -113,6 +113,7 @@ struct n_tty_data {
 
 	/* consumer-published */
 	size_t read_tail;
+	size_t line_start;
 
 	/* protected by output lock */
 	unsigned int column;
@@ -337,6 +338,7 @@ static void reset_buffer_flags(struct n_tty_data *ldata)
 {
 	ldata->read_head = ldata->canon_head = ldata->read_tail = 0;
 	ldata->echo_head = ldata->echo_tail = ldata->echo_commit = 0;
+	ldata->line_start = 0;
 
 	ldata->erasing = 0;
 	bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
@@ -1396,8 +1398,6 @@ send_signal:
 		if (c == EOF_CHAR(tty)) {
 			if (read_cnt(ldata) >= N_TTY_BUF_SIZE)
 				return;
-			if (ldata->canon_head != ldata->read_head)
-				set_bit(TTY_PUSH, &tty->flags);
 			c = __DISABLED_CHAR;
 			goto handle_newline;
 		}
@@ -1604,6 +1604,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		canon_change = (old->c_lflag ^ tty->termios.c_lflag) & ICANON;
 	if (canon_change) {
 		bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
+		ldata->line_start = 0;
 		ldata->canon_head = ldata->read_tail;
 		ldata->erasing = 0;
 		ldata->lnext = 0;
@@ -1837,6 +1838,7 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 	size_t eol;
 	size_t tail;
 	int ret, found = 0;
+	bool eof_push = 0;
 
 	/* N.B. avoid overrun if nr == 0 */
 	n = min(*nr, read_cnt(ldata));
@@ -1863,8 +1865,10 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 	n = (found + eol + size) & (N_TTY_BUF_SIZE - 1);
 	c = n;
 
-	if (found && read_buf(ldata, eol) == __DISABLED_CHAR)
+	if (found && read_buf(ldata, eol) == __DISABLED_CHAR) {
 		n--;
+		eof_push = !n && ldata->read_tail != ldata->line_start;
+	}
 
 	n_tty_trace("%s: eol:%zu found:%d n:%zu c:%zu size:%zu more:%zu\n",
 		    __func__, eol, found, n, c, size, more);
@@ -1887,9 +1891,11 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 	smp_mb__after_clear_bit();
 	ldata->read_tail += c;
 
-	if (found)
+	if (found) {
+		ldata->line_start = ldata->read_tail;
 		tty_audit_push(tty);
-	return 0;
+	}
+	return eof_push ? -EAGAIN : 0;
 }
 
 extern ssize_t redirected_tty_write(struct file *, const char __user *,
@@ -1964,12 +1970,10 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	int c;
 	int minimum, time;
 	ssize_t retval = 0;
-	ssize_t size;
 	long timeout;
 	unsigned long flags;
 	int packet;
 
-do_it_again:
 	c = job_control(tty, file);
 	if (c < 0)
 		return c;
@@ -2076,7 +2080,10 @@ do_it_again:
 
 		if (ldata->icanon && !L_EXTPROC(tty)) {
 			retval = canon_copy_from_read_buf(tty, &b, &nr);
-			if (retval)
+			if (retval == -EAGAIN) {
+				retval = 0;
+				continue;
+			} else if (retval)
 				break;
 		} else {
 			int uncopied;
@@ -2104,15 +2111,8 @@ do_it_again:
 		ldata->minimum_to_wake = minimum;
 
 	__set_current_state(TASK_RUNNING);
-	size = b - buf;
-	if (size) {
-		retval = size;
-		if (nr)
-			clear_bit(TTY_PUSH, &tty->flags);
-	} else if (test_and_clear_bit(TTY_PUSH, &tty->flags)) {
-		up_read(&tty->termios_rwsem);
-		goto do_it_again;
-	}
+	if (b - buf)
+		retval = b - buf;
 
 	n_tty_set_room(tty);
 	up_read(&tty->termios_rwsem);
