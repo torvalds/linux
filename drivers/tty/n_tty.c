@@ -1219,6 +1219,26 @@ static inline void n_tty_receive_parity_error(struct tty_struct *tty,
 	wake_up_interruptible(&tty->read_wait);
 }
 
+static void
+n_tty_receive_signal_char(struct tty_struct *tty, int signal, unsigned char c)
+{
+	if (!L_NOFLSH(tty)) {
+		/* flushing needs exclusive termios_rwsem */
+		up_read(&tty->termios_rwsem);
+		n_tty_flush_buffer(tty);
+		tty_driver_flush_buffer(tty);
+		down_read(&tty->termios_rwsem);
+	}
+	if (I_IXON(tty))
+		start_tty(tty);
+	if (L_ECHO(tty)) {
+		echo_char(c, tty);
+		commit_echoes(tty);
+	}
+	isig(signal, tty);
+	return;
+}
+
 /**
  *	n_tty_receive_char	-	perform processing
  *	@tty: terminal device
@@ -1314,30 +1334,14 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 	}
 
 	if (L_ISIG(tty)) {
-		int signal;
-		signal = SIGINT;
-		if (c == INTR_CHAR(tty))
-			goto send_signal;
-		signal = SIGQUIT;
-		if (c == QUIT_CHAR(tty))
-			goto send_signal;
-		signal = SIGTSTP;
-		if (c == SUSP_CHAR(tty)) {
-send_signal:
-			if (!L_NOFLSH(tty)) {
-				/* flushing needs exclusive termios_rwsem */
-				up_read(&tty->termios_rwsem);
-				n_tty_flush_buffer(tty);
-				tty_driver_flush_buffer(tty);
-				down_read(&tty->termios_rwsem);
-			}
-			if (I_IXON(tty))
-				start_tty(tty);
-			if (L_ECHO(tty)) {
-				echo_char(c, tty);
-				commit_echoes(tty);
-			}
-			isig(signal, tty);
+		if (c == INTR_CHAR(tty)) {
+			n_tty_receive_signal_char(tty, SIGINT, c);
+			return;
+		} else if (c == QUIT_CHAR(tty)) {
+			n_tty_receive_signal_char(tty, SIGQUIT, c);
+			return;
+		} else if (c == SUSP_CHAR(tty)) {
+			n_tty_receive_signal_char(tty, SIGTSTP, c);
 			return;
 		}
 	}
