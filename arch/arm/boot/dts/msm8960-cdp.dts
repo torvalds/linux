@@ -26,7 +26,7 @@
 		cpu-offset = <0x80000>;
 	};
 
-	serial@19c400000 {
+	serial@16440000 {
 		compatible = "qcom,msm-hsuart", "qcom,msm-uart";
 		reg = <0x16440000 0x1000>,
 		      <0x16400000 0x1000>;
