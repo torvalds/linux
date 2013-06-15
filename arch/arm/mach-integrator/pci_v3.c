@@ -605,7 +605,7 @@ v3_pci_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	return 1;
 }
 
-static irqreturn_t v3_irq(int dummy, void *devid)
+static irqreturn_t v3_irq(int irq, void *devid)
 {
 #ifdef CONFIG_DEBUG_LL
 	struct pt_regs *regs = get_irq_regs();
@@ -615,7 +615,7 @@ static irqreturn_t v3_irq(int dummy, void *devid)
 	extern void printascii(const char *);
 
 	sprintf(buf, "V3 int %d: pc=0x%08lx [%08lx] LBFADDR=%08x LBFCODE=%02x "
-		"ISTAT=%02x\n", IRQ_AP_V3INT, pc, instr,
+		"ISTAT=%02x\n", irq, pc, instr,
 		__raw_readl(ap_syscon_base + INTEGRATOR_SC_LBFADDR_OFFSET),
 		__raw_readl(ap_syscon_base + INTEGRATOR_SC_LBFCODE_OFFSET) & 255,
 		v3_readb(V3_LB_ISTAT));
