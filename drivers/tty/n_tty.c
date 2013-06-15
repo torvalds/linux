@@ -1276,17 +1276,6 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 		process_echoes(tty);
 	}
 
-	if (tty->closing) {
-		if (I_IXON(tty)) {
-			if (c == START_CHAR(tty)) {
-				start_tty(tty);
-				process_echoes(tty);
-			} else if (c == STOP_CHAR(tty))
-				stop_tty(tty);
-		}
-		return;
-	}
-
 	/*
 	 * If the previous character was LNEXT, or we know that this
 	 * character is not one of the characters that we'll have to
@@ -1463,6 +1452,27 @@ handle_newline:
 	put_tty_queue(c, ldata);
 }
 
+static inline void
+n_tty_receive_char_closing(struct tty_struct *tty, unsigned char c)
+{
+	if (I_ISTRIP(tty))
+		c &= 0x7f;
+	if (I_IUCLC(tty) && L_IEXTEN(tty))
+		c = tolower(c);
+
+	if (I_IXON(tty)) {
+		if (c == STOP_CHAR(tty))
+			stop_tty(tty);
+		else if (c == START_CHAR(tty) ||
+			 (tty->stopped && !tty->flow_stopped && I_IXANY(tty) &&
+			  c != INTR_CHAR(tty) && c != QUIT_CHAR(tty) &&
+			  c != SUSP_CHAR(tty))) {
+			start_tty(tty);
+			process_echoes(tty);
+		}
+	}
+}
+
 static void
 n_tty_receive_char_flagged(struct tty_struct *tty, unsigned char c, char flag)
 {
@@ -1542,6 +1552,22 @@ n_tty_receive_buf_raw(struct tty_struct *tty, const unsigned char *cp,
 	}
 }
 
+static void
+n_tty_receive_buf_closing(struct tty_struct *tty, const unsigned char *cp,
+			  char *fp, int count)
+{
+	char flag = TTY_NORMAL;
+
+	while (count--) {
+		if (fp)
+			flag = *fp++;
+		if (likely(flag == TTY_NORMAL))
+			n_tty_receive_char_closing(tty, *cp++);
+		else
+			n_tty_receive_char_flagged(tty, *cp++, flag);
+	}
+}
+
 static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			  char *fp, int count)
 {
@@ -1552,6 +1578,8 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		n_tty_receive_buf_real_raw(tty, cp, fp, count);
 	else if (ldata->raw || (L_EXTPROC(tty) && !preops))
 		n_tty_receive_buf_raw(tty, cp, fp, count);
+	else if (tty->closing && !L_EXTPROC(tty))
+		n_tty_receive_buf_closing(tty, cp, fp, count);
 	else {
 		char flag = TTY_NORMAL;
 
