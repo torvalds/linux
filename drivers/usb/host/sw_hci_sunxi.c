@@ -513,7 +513,6 @@ struct temp_buffer {
 static void *alloc_temp_buffer(size_t size, gfp_t mem_flags)
 {
 	struct temp_buffer *temp, *kmalloc_ptr;
-	void *temp_data;
 	size_t kmalloc_size;
 
 	kmalloc_size = size + sizeof(struct temp_buffer) +
@@ -523,10 +522,12 @@ static void *alloc_temp_buffer(size_t size, gfp_t mem_flags)
 	if (!kmalloc_ptr)
 		return NULL;
 
-	/* Position our struct temp_buffer such that data is aligned */
-	temp_data = PTR_ALIGN(kmalloc_ptr->data + 1, SUNXI_USB_DMA_ALIGN) - 1;
-	temp = (void *)((uintptr_t)temp_data -
-		offsetof(struct temp_buffer, data));
+	/* Position our struct temp_buffer such that data is aligned.
+	 *
+	 * Note: kmalloc_ptr is type 'struct temp_buffer *' and PTR_ALIGN
+	 * returns pointer with the same type 'struct temp_buffer *'.
+	 */
+	temp = PTR_ALIGN(kmalloc_ptr + 1, SUNXI_USB_DMA_ALIGN) - 1;
 
 	temp->kmalloc_ptr = kmalloc_ptr;
 	return temp;
