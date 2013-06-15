@@ -22,6 +22,31 @@
 #define MIN_TTYB_SIZE	256
 #define TTYB_ALIGN_MASK	255
 
+/*
+ * Byte threshold to limit memory consumption for flip buffers.
+ * The actual memory limit is > 2x this amount.
+ */
+#define TTYB_MEM_LIMIT	65536
+
+
+/**
+ *	tty_buffer_space_avail	-	return unused buffer space
+ *	@port - tty_port owning the flip buffer
+ *
+ *	Returns the # of bytes which can be written by the driver without
+ *	reaching the buffer limit.
+ *
+ *	Note: this does not guarantee that memory is available to write
+ *	the returned # of bytes (use tty_prepare_flip_string_xxx() to
+ *	pre-allocate if memory guarantee is required).
+ */
+
+int tty_buffer_space_avail(struct tty_port *port)
+{
+	int space = TTYB_MEM_LIMIT - atomic_read(&port->buf.memory_used);
+	return max(space, 0);
+}
+
 static void tty_buffer_reset(struct tty_buffer *p, size_t size)
 {
 	p->used = 0;
@@ -59,7 +84,8 @@ void tty_buffer_free_all(struct tty_port *port)
 	tty_buffer_reset(&buf->sentinel, 0);
 	buf->head = &buf->sentinel;
 	buf->tail = &buf->sentinel;
-	buf->memory_used = 0;
+
+	atomic_set(&buf->memory_used, 0);
 }
 
 /**
@@ -92,7 +118,7 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 
 	/* Should possibly check if this fails for the largest buffer we
 	   have queued and recycle that ? */
-	if (port->buf.memory_used + size > 65536)
+	if (atomic_read(&port->buf.memory_used) > TTYB_MEM_LIMIT)
 		return NULL;
 	p = kmalloc(sizeof(struct tty_buffer) + 2 * size, GFP_ATOMIC);
 	if (p == NULL)
@@ -100,7 +126,7 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 
 found:
 	tty_buffer_reset(p, size);
-	port->buf.memory_used += size;
+	atomic_add(size, &port->buf.memory_used);
 	return p;
 }
 
@@ -118,8 +144,7 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
 	struct tty_bufhead *buf = &port->buf;
 
 	/* Dumb strategy for now - should keep some stats */
-	buf->memory_used -= b->size;
-	WARN_ON(buf->memory_used < 0);
+	WARN_ON(atomic_sub_return(b->size, &buf->memory_used) < 0);
 
 	if (b->size > MIN_TTYB_SIZE)
 		kfree(b);
@@ -525,7 +550,7 @@ void tty_buffer_init(struct tty_port *port)
 	buf->head = &buf->sentinel;
 	buf->tail = &buf->sentinel;
 	init_llist_head(&buf->free);
-	buf->memory_used = 0;
+	atomic_set(&buf->memory_used, 0);
 	INIT_WORK(&buf->work, flush_to_ldisc);
 }
 

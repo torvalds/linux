@@ -71,8 +71,7 @@ struct tty_bufhead {
 	struct tty_buffer *head;	/* Queue head */
 	struct tty_buffer *tail;	/* Active buffer */
 	struct llist_head free;		/* Free queue head */
-	int memory_used;		/* Buffer space used excluding
-								free queue */
+	atomic_t	   memory_used; /* In-use buffers excluding free list */
 };
 /*
  * When a break, frame error, or parity error happens, these codes are

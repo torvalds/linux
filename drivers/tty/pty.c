@@ -89,17 +89,13 @@ static void pty_unthrottle(struct tty_struct *tty)
  *	pty_space	-	report space left for writing
  *	@to: tty we are writing into
  *
- *	The tty buffers allow 64K but we sneak a peak and clip at 8K this
- *	allows a lot of overspill room for echo and other fun messes to
- *	be handled properly
+ *	Limit the buffer space used by ptys to 8k.
  */
 
 static int pty_space(struct tty_struct *to)
 {
-	int n = 8192 - to->port->buf.memory_used;
-	if (n < 0)
-		return 0;
-	return n;
+	int n = tty_buffer_space_avail(to->port);
+	return min(n, 8192);
 }
 
 /**
