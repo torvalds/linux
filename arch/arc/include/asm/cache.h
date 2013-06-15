@@ -18,21 +18,12 @@
 
 #define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
 
-#define ARC_ICACHE_WAYS	2
-#define ARC_DCACHE_WAYS	4
-
-/* Helpers */
+/* For a rare case where customers have differently config I/D */
 #define ARC_ICACHE_LINE_LEN	L1_CACHE_BYTES
 #define ARC_DCACHE_LINE_LEN	L1_CACHE_BYTES
 
 #define ICACHE_LINE_MASK	(~(ARC_ICACHE_LINE_LEN - 1))
 #define DCACHE_LINE_MASK	(~(ARC_DCACHE_LINE_LEN - 1))
-
-#if ARC_ICACHE_LINE_LEN != ARC_DCACHE_LINE_LEN
-#error "Need to fix some code as I/D cache lines not same"
-#else
-#define is_not_cache_aligned(p)	((unsigned long)p & (~DCACHE_LINE_MASK))
-#endif
 
 /*
  * ARC700 doesn't cache any access in top 256M.

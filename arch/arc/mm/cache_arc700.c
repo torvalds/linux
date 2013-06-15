@@ -144,8 +144,8 @@ void __cpuinit read_decode_cache_bcr(void)
 	p_ic = &cpuinfo_arc700[cpu].icache;
 	READ_BCR(ARC_REG_IC_BCR, ibcr);
 
-	if (ibcr.config == 0x3)
-		p_ic->assoc = 2;
+	BUG_ON(ibcr.config != 3);
+	p_ic->assoc = 2;		/* Fixed to 2w set assoc */
 	p_ic->line_len = 8 << ibcr.line_len;
 	p_ic->sz = 0x200 << ibcr.sz;
 	p_ic->ver = ibcr.ver;
@@ -153,8 +153,8 @@ void __cpuinit read_decode_cache_bcr(void)
 	p_dc = &cpuinfo_arc700[cpu].dcache;
 	READ_BCR(ARC_REG_DC_BCR, dbcr);
 
-	if (dbcr.config == 0x2)
-		p_dc->assoc = 4;
+	BUG_ON(dbcr.config != 2);
+	p_dc->assoc = 4;		/* Fixed to 4w set assoc */
 	p_dc->line_len = 16 << dbcr.line_len;
 	p_dc->sz = 0x200 << dbcr.sz;
 	p_dc->ver = dbcr.ver;
@@ -182,20 +182,11 @@ void __cpuinit arc_cache_init(void)
 
 #ifdef CONFIG_ARC_HAS_ICACHE
 	/* 1. Confirm some of I-cache params which Linux assumes */
-	if ((ic->assoc != ARC_ICACHE_WAYS) ||
-	    (ic->line_len != ARC_ICACHE_LINE_LEN)) {
+	if (ic->line_len != ARC_ICACHE_LINE_LEN)
 		panic("Cache H/W doesn't match kernel Config");
-	}
-#if (CONFIG_ARC_MMU_VER > 2)
-	if (ic->ver != 3) {
-		if (running_on_hw)
-			panic("Cache ver doesn't match MMU ver\n");
 
-		/* For ISS - suggest the toggles to use */
-		pr_err("Use -prop=icache_version=3,-prop=dcache_version=3\n");
-
-	}
-#endif
+	if (ic->ver != CONFIG_ARC_MMU_VER)
+		panic("Cache ver doesn't match MMU ver\n");
 #endif
 
 	/* Enable/disable I-Cache */
@@ -214,14 +205,12 @@ chk_dc:
 		return;
 
 #ifdef CONFIG_ARC_HAS_DCACHE
-	if ((dc->assoc != ARC_DCACHE_WAYS) ||
-	    (dc->line_len != ARC_DCACHE_LINE_LEN)) {
+	if (dc->line_len != ARC_DCACHE_LINE_LEN)
 		panic("Cache H/W doesn't match kernel Config");
-	}
-
-	dcache_does_alias = (dc->sz / ARC_DCACHE_WAYS) > PAGE_SIZE;
 
 	/* check for D-Cache aliasing */
+	dcache_does_alias = (dc->sz / dc->assoc) > PAGE_SIZE;
+
 	if (dcache_does_alias && !cache_is_vipt_aliasing())
 		panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
 	else if (!dcache_does_alias && cache_is_vipt_aliasing())

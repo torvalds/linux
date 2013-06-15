@@ -86,11 +86,7 @@ void flush_anon_page(struct vm_area_struct *vma,
  */
 static inline int cache_is_vipt_aliasing(void)
 {
-#ifdef CONFIG_ARC_CACHE_VIPT_ALIASING
-	return 1;
-#else
-	return 0;
-#endif
+	return IS_ENABLED(CONFIG_ARC_CACHE_VIPT_ALIASING);
 }
 
 #define CACHE_COLOR(addr)	(((unsigned long)(addr) >> (PAGE_SHIFT)) & 1)
