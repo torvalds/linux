@@ -85,7 +85,7 @@ void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask, u32 
 
 	u32 OriginalValue, BitShift, NewValue;
 
-	if(dwBitMask!= bMaskDWord) { //if not "double word" write
+	if (dwBitMask!= bMaskDWord) { //if not "double word" write
 		read_nic_dword(dev, dwRegAddr, &OriginalValue);
 		BitShift = rtl8192_CalculateBitShift(dwBitMask);
 		NewValue = (((OriginalValue) & (~dwBitMask)) | (dwData << BitShift));
@@ -174,7 +174,7 @@ u32 rtl8192_phy_RFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath, 
 
 
 	// Switch back to Reg_Mode0;
-	if(priv->rf_chip == RF_8256) {
+	if (priv->rf_chip == RF_8256) {
 		priv->RfReg0Value[eRFPath] &= 0xebf;
 
 		rtl8192_setBBreg(
@@ -243,12 +243,12 @@ void rtl8192_phy_RFSerialWrite(struct net_device *dev, RF90_RADIO_PATH_E eRFPath
 	rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, DataAndAddr);
 
 
-	if(Offset==0x0)
+	if (Offset==0x0)
 		priv->RfReg0Value[eRFPath] = Data;
 
 	// Switch back to Reg_Mode0;
-	if(priv->rf_chip == RF_8256) {
-		if(Offset != 0) {
+	if (priv->rf_chip == RF_8256) {
+		if (Offset != 0) {
 			priv->RfReg0Value[eRFPath] &= 0xebf;
 			rtl8192_setBBreg(
 				dev,
@@ -473,7 +473,7 @@ void rtl8192_phy_configmac(struct net_device *dev)
 	u32 *pdwArray = NULL;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->btxpowerdata_readfromEEPORM) {
+	if (priv->btxpowerdata_readfromEEPORM) {
 		RT_TRACE(COMP_PHY, "Rtl819XMACPHY_Array_PG\n");
 		dwArrayLen = MACPHY_Array_PGLength;
 		pdwArray = rtl819XMACPHY_Array_PG;
@@ -484,7 +484,7 @@ void rtl8192_phy_configmac(struct net_device *dev)
 		pdwArray = rtl819XMACPHY_Array;
 	}
 	for(i = 0; i<dwArrayLen; i=i+3) {
-		if(pdwArray[i] == 0x318) {
+		if (pdwArray[i] == 0x318) {
 			pdwArray[i+2] = 0x00000800;
 			//DbgPrint("ptrArray[i], ptrArray[i+1], ptrArray[i+2] = %x, %x, %x\n",
 			//	ptrArray[i], ptrArray[i+1], ptrArray[i+2]);
@@ -513,7 +513,7 @@ void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 
 #ifdef TO_DO_LIST
 	u32 *rtl8192PhyRegArrayTable = NULL, *rtl8192AgcTabArrayTable = NULL;
-	if(Adapter->bInHctTest) {
+	if (Adapter->bInHctTest) {
 		PHY_REGArrayLen = PHY_REGArrayLengthDTM;
 		AGCTAB_ArrayLen = AGCTAB_ArrayLengthDTM;
 		Rtl8190PHY_REGArray_Table = Rtl819XPHY_REGArrayDTM;
@@ -706,7 +706,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock, RF9
 		//
 		// Check whether readback data is correct
 		//
-		if(dwRegRead != WriteData[i]) {
+		if (dwRegRead != WriteData[i]) {
 			RT_TRACE((COMP_PHY|COMP_ERR), "====>error=====dwRegRead: %x, WriteData: %x \n", dwRegRead, WriteData[i]);
 			ret = 1;
 			break;
@@ -746,7 +746,7 @@ void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	// TODO: this function should be removed on ASIC , Emily 2007.2.2
 	for(eCheckItem=(HW90_BLOCK_E)HW90_BLOCK_PHY0; eCheckItem<=HW90_BLOCK_PHY1; eCheckItem++) {
 		rtStatus  = rtl8192_phy_checkBBAndRF(dev, (HW90_BLOCK_E)eCheckItem, (RF90_RADIO_PATH_E)0); //don't care RF path
-		if(rtStatus != 0) {
+		if (rtStatus != 0) {
 			RT_TRACE((COMP_ERR | COMP_PHY), "PHY_RF8256_Config():Check PHY%d Fail!!\n", eCheckItem-1);
 			return ;
 		}
@@ -916,7 +916,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev, RF90_RADIO_PATH_E	
 	case RF90_PATH_A:
 		for(i = 0;i<RadioA_ArrayLength; i=i+2) {
 
-			if(rtl819XRadioA_Array[i] == 0xfe) {
+			if (rtl819XRadioA_Array[i] == 0xfe) {
 					mdelay(100);
 					continue;
 			}
@@ -928,7 +928,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev, RF90_RADIO_PATH_E	
 	case RF90_PATH_B:
 		for(i = 0;i<RadioB_ArrayLength; i=i+2) {
 
-			if(rtl819XRadioB_Array[i] == 0xfe) {
+			if (rtl819XRadioB_Array[i] == 0xfe) {
 					mdelay(100);
 					continue;
 			}
@@ -940,7 +940,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev, RF90_RADIO_PATH_E	
 	case RF90_PATH_C:
 		for(i = 0;i<RadioC_ArrayLength; i=i+2) {
 
-			if(rtl819XRadioC_Array[i] == 0xfe) {
+			if (rtl819XRadioC_Array[i] == 0xfe) {
 					mdelay(100);
 					continue;
 			}
@@ -952,7 +952,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev, RF90_RADIO_PATH_E	
 	case RF90_PATH_D:
 		for(i = 0;i<RadioD_ArrayLength; i=i+2) {
 
-			if(rtl819XRadioD_Array[i] == 0xfe) {
+			if (rtl819XRadioD_Array[i] == 0xfe) {
 					mdelay(100);
 					continue;
 			}
@@ -1018,10 +1018,10 @@ bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerS
 //	u8					eRFPath;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(eRFPowerState == priv->ieee80211->eRFPowerState)
+	if (eRFPowerState == priv->ieee80211->eRFPowerState)
 		return false;
 
-	if(priv->SetRFPowerStateInProgress == true)
+	if (priv->SetRFPowerStateInProgress == true)
 		return false;
 
 	priv->SetRFPowerStateInProgress = true;
@@ -1078,7 +1078,7 @@ bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerS
 			break;
 	}
 #ifdef TO_DO_LIST
-	if(bResult) {
+	if (bResult) {
 		// Update current RF state variable.
 		pHalData->eRFPowerState = eRFPowerState;
 		switch (pHalData->RFChipID ) {
@@ -1088,7 +1088,7 @@ bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerS
 					//
 					//If Rf off reason is from IPS, Led should blink with no link, by Maddest 071015
 					//
-					if(pMgntInfo->RfOffReason==RF_CHANGE_BY_IPS )
+					if (pMgntInfo->RfOffReason==RF_CHANGE_BY_IPS )
 						Adapter->HalFunc.LedControlHandler(Adapter,LED_CTL_NO_LINK);
 					else
 						// Turn off LED if RF is not ON.
@@ -1098,7 +1098,7 @@ bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerS
 				case eRfOn:
 					// Turn on RF we are still linked, which might happen when
 					// we quickly turn off and on HW RF. 2006.05.12, by rcnjko.
-					if( pMgntInfo->bMediaConnect == TRUE )
+					if ( pMgntInfo->bMediaConnect == TRUE )
 						Adapter->HalFunc.LedControlHandler(Adapter, LED_CTL_LINK);
 					else
 						// Turn off LED if RF is not ON.
@@ -1148,11 +1148,11 @@ u8 rtl8192_phy_SetSwChnlCmdArray(
 {
 	SwChnlCmd *pCmd;
 
-	if(CmdTable == NULL) {
+	if (CmdTable == NULL) {
 		RT_TRACE(COMP_ERR, "phy_SetSwChnlCmdArray(): CmdTable cannot be NULL.\n");
 		return false;
 	}
-	if(CmdTableIdx >= CmdTableSz) {
+	if (CmdTableIdx >= CmdTableSz) {
 		RT_TRACE(COMP_ERR, "phy_SetSwChnlCmdArray(): Access invalid index, please check size of the table, CmdTableIdx:%d, CmdTableSz:%d\n",
 				CmdTableIdx, CmdTableSz);
 		return false;
@@ -1269,8 +1269,8 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8 *stage, u
 				break;
 			}
 
-			if(CurrentCmd->CmdID==CmdID_End) {
-				if((*stage)==2) {
+			if (CurrentCmd->CmdID==CmdID_End) {
+				if ((*stage)==2) {
 					(*delay)=CurrentCmd->msDelay;
 					return true;
 				} else {
@@ -1282,7 +1282,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8 *stage, u
 
 			switch (CurrentCmd->CmdID) {
 			case CmdID_SetTxPowerLevel:
-				if(priv->card_8192_version == (u8)VERSION_819xU_A) //xiong: consider it later!
+				if (priv->card_8192_version == (u8)VERSION_819xU_A) //xiong: consider it later!
 					rtl8192_SetTxPowerLevel(dev,channel);
 				break;
 			case CmdID_WritePortUlong:
@@ -1328,7 +1328,7 @@ void rtl8192_phy_FinishSwChnlNow(struct net_device *dev, u8 channel)
 	while(!rtl8192_phy_SwChnlStepByStep(dev,channel,&priv->SwChnlStage,&priv->SwChnlStep,&delay)) {
 	//	if(delay>0)
 	//		msleep(delay);//or mdelay? need further consideration
-		if(!priv->up)
+		if (!priv->up)
 			break;
 	}
 }
@@ -1364,9 +1364,9 @@ u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	RT_TRACE(COMP_CH, "=====>%s(), SwChnlInProgress:%d\n", __FUNCTION__, priv->SwChnlInProgress);
-	if(!priv->up)
+	if (!priv->up)
 		return false;
-	if(priv->SwChnlInProgress)
+	if (priv->SwChnlInProgress)
 		return false;
 
 //	if(pHalData->SetBWModeInProgress)
@@ -1397,7 +1397,7 @@ u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel)
 	//--------------------------------------------
 
 	priv->SwChnlInProgress = true;
-	if(channel == 0)
+	if (channel == 0)
 		channel = 1;
 
 	priv->chan=channel;
@@ -1406,7 +1406,7 @@ u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel)
 	priv->SwChnlStep=0;
 //	schedule_work(&(priv->SwChnlWorkItem));
 //	rtl8192_SwChnl_WorkItem(dev);
-	if(priv->up) {
+	if (priv->up) {
 //		queue_work(priv->priv_wq,&(priv->SwChnlWorkItem));
 	rtl8192_SwChnl_WorkItem(dev);
 	}
@@ -1437,7 +1437,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 		 priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20?"20MHz":"40MHz");
 
 
-	if(priv->rf_chip == RF_PSEUDO_11N) {
+	if (priv->rf_chip == RF_PSEUDO_11N) {
 		priv->SetBWModeInProgress= false;
 		return;
 	}
@@ -1475,16 +1475,16 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 			priv->cck_present_attentuation =
 				priv->cck_present_attentuation_20Mdefault + priv->cck_present_attentuation_difference;
 
-			if(priv->cck_present_attentuation > 22)
+			if (priv->cck_present_attentuation > 22)
 				priv->cck_present_attentuation= 22;
-			if(priv->cck_present_attentuation< 0)
+			if (priv->cck_present_attentuation< 0)
 				priv->cck_present_attentuation = 0;
 			RT_TRACE(COMP_INIT, "20M, pHalData->CCKPresentAttentuation = %d\n", priv->cck_present_attentuation);
 
-			if(priv->chan == 14 && !priv->bcck_in_ch14) {
+			if (priv->chan == 14 && !priv->bcck_in_ch14) {
 				priv->bcck_in_ch14 = TRUE;
 				dm_cck_txpower_adjust(dev,priv->bcck_in_ch14);
-			} else if(priv->chan != 14 && priv->bcck_in_ch14) {
+			} else if (priv->chan != 14 && priv->bcck_in_ch14) {
 				priv->bcck_in_ch14 = FALSE;
 				dm_cck_txpower_adjust(dev,priv->bcck_in_ch14);
 			} else {
@@ -1502,16 +1502,16 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 			priv->cck_present_attentuation =
 				priv->cck_present_attentuation_40Mdefault + priv->cck_present_attentuation_difference;
 
-			if(priv->cck_present_attentuation > 22)
+			if (priv->cck_present_attentuation > 22)
 				priv->cck_present_attentuation = 22;
-			if(priv->cck_present_attentuation < 0)
+			if (priv->cck_present_attentuation < 0)
 				priv->cck_present_attentuation = 0;
 
 			RT_TRACE(COMP_INIT, "40M, pHalData->CCKPresentAttentuation = %d\n", priv->cck_present_attentuation);
-			if(priv->chan == 14 && !priv->bcck_in_ch14) {
+			if (priv->chan == 14 && !priv->bcck_in_ch14) {
 				priv->bcck_in_ch14 = true;
 				dm_cck_txpower_adjust(dev,priv->bcck_in_ch14);
-			} else if(priv->chan!= 14 && priv->bcck_in_ch14) {
+			} else if (priv->chan!= 14 && priv->bcck_in_ch14) {
 				priv->bcck_in_ch14 = false;
 				dm_cck_txpower_adjust(dev,priv->bcck_in_ch14);
 			} else {
@@ -1569,15 +1569,15 @@ void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth, HT_EX
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->SetBWModeInProgress)
+	if (priv->SetBWModeInProgress)
 		return;
 	priv->SetBWModeInProgress= true;
 
 	priv->CurrentChannelBW = Bandwidth;
 
-	if(Offset==HT_EXTCHNL_OFFSET_LOWER)
+	if (Offset==HT_EXTCHNL_OFFSET_LOWER)
 		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_UPPER;
-	else if(Offset==HT_EXTCHNL_OFFSET_UPPER)
+	else if (Offset==HT_EXTCHNL_OFFSET_UPPER)
 		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_LOWER;
 	else
 		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
@@ -1594,7 +1594,7 @@ void InitialGain819xUsb(struct net_device *dev,	u8 Operation)
 
 	priv->InitialGainOperateType = Operation;
 
-	if(priv->up)
+	if (priv->up)
 		queue_delayed_work(priv->priv_wq,&priv->initialgain_operate_wq,0);
 }
 
@@ -1616,7 +1616,7 @@ extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 			RT_TRACE(COMP_SCAN, "IG_Backup, backup the initial gain.\n");
 			initial_gain = SCAN_RX_INITIAL_GAIN;//priv->DefaultInitialGain[0];//
 			BitMask = bMaskByte0;
-			if(dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)
+			if (dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)
 				rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x8);	// FW DIG OFF
 			priv->initgain_backup.xaagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XAAGCCore1, BitMask);
 			priv->initgain_backup.xbagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XBAGCCore1, BitMask);
@@ -1642,7 +1642,7 @@ extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 		case IG_Restore:
 			RT_TRACE(COMP_SCAN, "IG_Restore, restore the initial gain.\n");
 			BitMask = 0x7f; //Bit0~ Bit6
-			if(dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)
+			if (dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)
 				rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x8);	// FW DIG OFF
 
 			rtl8192_setBBreg(dev, rOFDM0_XAAGCCore1, BitMask, (u32)priv->initgain_backup.xaagccore1);
@@ -1668,7 +1668,7 @@ extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 			rtl8192_phy_setTxPower(dev,priv->ieee80211->current_network.channel);
 //#endif
 
-			if(dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)
+			if (dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)
 				rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x1);	// FW DIG ON
 			break;
 		default:
