@@ -16,6 +16,7 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "rcar_du_drv.h"
+#include "rcar_du_encoder.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_lvdscon.h"
 

@@ -1,5 +1,5 @@
 /*
- * rcar_du_lvds.c  --  R-Car Display Unit LVDS Encoder
+ * rcar_du_encoder.c  --  R-Car Display Unit Encoder
  *
  * Copyright (C) 2013 Renesas Corporation
  *
@@ -16,22 +16,43 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "rcar_du_drv.h"
+#include "rcar_du_encoder.h"
 #include "rcar_du_kms.h"
-#include "rcar_du_lvds.h"
 #include "rcar_du_lvdscon.h"
+#include "rcar_du_vgacon.h"
 
-static void rcar_du_lvds_encoder_dpms(struct drm_encoder *encoder, int mode)
+/* -----------------------------------------------------------------------------
+ * Common connector functions
+ */
+
+struct drm_encoder *
+rcar_du_connector_best_encoder(struct drm_connector *connector)
+{
+	struct rcar_du_connector *rcon = to_rcar_connector(connector);
+
+	return &rcon->encoder->encoder;
+}
+
+/* -----------------------------------------------------------------------------
+ * Encoder
+ */
+
+static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 }
 
-static bool rcar_du_lvds_encoder_mode_fixup(struct drm_encoder *encoder,
-					   const struct drm_display_mode *mode,
-					   struct drm_display_mode *adjusted_mode)
+static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
+				       const struct drm_display_mode *mode,
+				       struct drm_display_mode *adjusted_mode)
 {
 	const struct drm_display_mode *panel_mode;
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
 	bool found = false;
+
+	/* DAC encoders have currently no restriction on the mode. */
+	if (encoder->encoder_type == DRM_MODE_ENCODER_DAC)
+		return true;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder) {
@@ -64,9 +85,26 @@ static bool rcar_du_lvds_encoder_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
+static void rcar_du_encoder_mode_prepare(struct drm_encoder *encoder)
+{
+}
+
+static void rcar_du_encoder_mode_commit(struct drm_encoder *encoder)
+{
+}
+
+static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
+				     struct drm_display_mode *mode,
+				     struct drm_display_mode *adjusted_mode)
+{
+	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+
+	rcar_du_crtc_route_output(encoder->crtc, renc->output);
+}
+
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
-	.dpms = rcar_du_lvds_encoder_dpms,
-	.mode_fixup = rcar_du_lvds_encoder_mode_fixup,
+	.dpms = rcar_du_encoder_dpms,
+	.mode_fixup = rcar_du_encoder_mode_fixup,
 	.prepare = rcar_du_encoder_mode_prepare,
 	.commit = rcar_du_encoder_mode_commit,
 	.mode_set = rcar_du_encoder_mode_set,
@@ -76,9 +114,9 @@ static const struct drm_encoder_funcs encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-int rcar_du_lvds_init(struct rcar_du_device *rcdu,
-		      const struct rcar_du_encoder_lvds_data *data,
-		      unsigned int output)
+int rcar_du_encoder_init(struct rcar_du_device *rcdu,
+			 enum rcar_du_encoder_type type, unsigned int output,
+			 const struct rcar_du_encoder_data *data)
 {
 	struct rcar_du_encoder *renc;
 	int ret;
@@ -90,11 +128,21 @@ int rcar_du_lvds_init(struct rcar_du_device *rcdu,
 	renc->output = output;
 
 	ret = drm_encoder_init(rcdu->ddev, &renc->encoder, &encoder_funcs,
-			       DRM_MODE_ENCODER_LVDS);
+			       type);
 	if (ret < 0)
 		return ret;
 
 	drm_encoder_helper_add(&renc->encoder, &encoder_helper_funcs);
 
-	return rcar_du_lvds_connector_init(rcdu, renc, &data->panel);
+	switch (type) {
+	case RCAR_DU_ENCODER_LVDS:
+		return rcar_du_lvds_connector_init(rcdu, renc,
+						   &data->u.lvds.panel);
+
+	case RCAR_DU_ENCODER_VGA:
+		return rcar_du_vga_connector_init(rcdu, renc);
+
+	default:
+		return -EINVAL;
+	}
 }
