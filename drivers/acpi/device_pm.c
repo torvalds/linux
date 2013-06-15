@@ -424,7 +424,7 @@ static int acpi_dev_pm_get_state(struct device *dev, struct acpi_device *adev,
 	unsigned long long d_min, d_max;
 	bool wakeup = false;
 
-	if (d_max_in < ACPI_STATE_D0 || d_max_in > ACPI_STATE_D3)
+	if (d_max_in < ACPI_STATE_D0 || d_max_in > ACPI_STATE_D3_COLD)
 		return -EINVAL;
 
 	if (d_max_in > ACPI_STATE_D3_HOT) {
@@ -443,7 +443,7 @@ static int acpi_dev_pm_get_state(struct device *dev, struct acpi_device *adev,
 	 * the lowest limit with the specified one.
 	 */
 	d_min = ACPI_STATE_D0;
-	d_max = ACPI_STATE_D3;
+	d_max = ACPI_STATE_D3_COLD;
 
 	/*
 	 * If present, _SxD methods return the minimum D-state (highest power
@@ -680,8 +680,8 @@ static int acpi_dev_pm_low_power(struct device *dev, struct acpi_device *adev,
 		return 0;
 
 	power_state = acpi_dev_pm_get_state(dev, adev, system_state,
-					    ACPI_STATE_D3, NULL);
-	if (power_state < ACPI_STATE_D0 || power_state > ACPI_STATE_D3)
+					    ACPI_STATE_D3_COLD, NULL);
+	if (power_state < ACPI_STATE_D0 || power_state > ACPI_STATE_D3_COLD)
 		return -EIO;
 
 	return acpi_device_set_power(adev, power_state);
