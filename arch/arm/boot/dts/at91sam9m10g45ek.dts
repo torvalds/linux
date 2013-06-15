@@ -116,6 +116,11 @@
 					reg = <0>;
 				};
 			};
+
+			usb2: gadget@fff78000 {
+				atmel,vbus-gpio = <&pioB 19 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+			};
 		};
 
 		nand0: nand@40000000 {

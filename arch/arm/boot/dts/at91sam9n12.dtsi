@@ -8,6 +8,7 @@
  */
 
 #include "skeleton.dtsi"
+#include <dt-bindings/dma/at91.h>
 #include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -97,7 +98,7 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf0008000 0x600>;
 				interrupts = <12 IRQ_TYPE_LEVEL_HIGH 0>;
-				dmas = <&dma 1 0>;
+				dmas = <&dma 1 AT91_DMA_CFG_PER_ID(0)>;
 				dma-names = "rxtx";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -465,8 +466,8 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf8010000 0x100>;
 				interrupts = <9 IRQ_TYPE_LEVEL_HIGH 6>;
-				dmas = <&dma 1 13>,
-				       <&dma 1 14>;
+				dmas = <&dma 1 AT91_DMA_CFG_PER_ID(13)>,
+				       <&dma 1 AT91_DMA_CFG_PER_ID(14)>;
 				dma-names = "tx", "rx";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -477,8 +478,8 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf8014000 0x100>;
 				interrupts = <10 IRQ_TYPE_LEVEL_HIGH 6>;
-				dmas = <&dma 1 15>,
-				       <&dma 1 16>;
+				dmas = <&dma 1 AT91_DMA_CFG_PER_ID(15)>,
+				       <&dma 1 AT91_DMA_CFG_PER_ID(16)>;
 				dma-names = "tx", "rx";
 				#address-cells = <1>;
 				#size-cells = <0>;
