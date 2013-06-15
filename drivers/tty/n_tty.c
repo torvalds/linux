@@ -1539,7 +1539,7 @@ int is_ignored(int sig)
  *	guaranteed that this function will not be re-entered or in progress
  *	when the ldisc is closed.
  *
- *	Locking: Caller holds tty->termios_mutex
+ *	Locking: Caller holds tty->termios_rwsem
  */
 
 static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)

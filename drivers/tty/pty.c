@@ -287,7 +287,7 @@ static int pty_resize(struct tty_struct *tty,  struct winsize *ws)
 	struct tty_struct *pty = tty->link;
 
 	/* For a PTY we need to lock the tty side */
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	if (!memcmp(ws, &tty->winsize, sizeof(*ws)))
 		goto done;
 
@@ -314,7 +314,7 @@ static int pty_resize(struct tty_struct *tty,  struct winsize *ws)
 	tty->winsize = *ws;
 	pty->winsize = *ws;	/* Never used so will go away soon */
 done:
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 	return 0;
 }
 

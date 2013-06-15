@@ -415,14 +415,14 @@ EXPORT_SYMBOL_GPL(tty_ldisc_flush);
  *	they are not on hot paths so a little discipline won't do
  *	any harm.
  *
- *	Locking: takes termios_mutex
+ *	Locking: takes termios_rwsem
  */
 
 static void tty_set_termios_ldisc(struct tty_struct *tty, int num)
 {
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	tty->termios.c_line = num;
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 }
 
 /**
@@ -602,11 +602,11 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 
 static void tty_reset_termios(struct tty_struct *tty)
 {
-	mutex_lock(&tty->termios_mutex);
+	down_write(&tty->termios_rwsem);
 	tty->termios = tty->driver->init_termios;
 	tty->termios.c_ispeed = tty_termios_input_baud_rate(&tty->termios);
 	tty->termios.c_ospeed = tty_termios_baud_rate(&tty->termios);
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 }
 
 
