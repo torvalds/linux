@@ -1485,8 +1485,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			  char *fp, int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	const unsigned char *p;
-	char *f, flags = TTY_NORMAL;
+	char	flags = TTY_NORMAL;
 	char	buf[64];
 
 	if (ldata->real_raw) {
@@ -1508,19 +1507,19 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	} else {
 		int i;
 
-		for (i = count, p = cp, f = fp; i; i--, p++) {
-			if (f)
-				flags = *f++;
+		for (i = count; i; i--, cp++) {
+			if (fp)
+				flags = *fp++;
 			switch (flags) {
 			case TTY_NORMAL:
-				n_tty_receive_char(tty, *p);
+				n_tty_receive_char(tty, *cp);
 				break;
 			case TTY_BREAK:
 				n_tty_receive_break(tty);
 				break;
 			case TTY_PARITY:
 			case TTY_FRAME:
-				n_tty_receive_parity_error(tty, *p);
+				n_tty_receive_parity_error(tty, *cp);
 				break;
 			case TTY_OVERRUN:
 				n_tty_receive_overrun(tty);
