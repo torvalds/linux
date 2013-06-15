@@ -1,5 +1,5 @@
 /*
- * rcar_du_vga.h  --  R-Car Display Unit VGA DAC
+ * rcar_du_vgacon.h  --  R-Car Display Unit VGA Connector
  *
  * Copyright (C) 2013 Renesas Corporation
  *
@@ -11,14 +11,13 @@
  * (at your option) any later version.
  */
 
-#ifndef __RCAR_DU_VGA_H__
-#define __RCAR_DU_VGA_H__
+#ifndef __RCAR_DU_VGACON_H__
+#define __RCAR_DU_VGACON_H__
 
 struct rcar_du_device;
-struct rcar_du_encoder_vga_data;
+struct rcar_du_encoder;
 
-int rcar_du_vga_init(struct rcar_du_device *rcdu,
-		     const struct rcar_du_encoder_vga_data *data,
-		     unsigned int output);
+int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
+			       struct rcar_du_encoder *renc);
 
-#endif /* __RCAR_DU_VGA_H__ */
+#endif /* __RCAR_DU_VGACON_H__ */
