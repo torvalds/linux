@@ -90,6 +90,8 @@ struct n_tty_data {
 	/* producer-published */
 	size_t read_head;
 	size_t canon_head;
+	size_t echo_head;
+	size_t echo_commit;
 	DECLARE_BITMAP(process_char_map, 256);
 
 	/* private to n_tty_receive_overrun (single-threaded) */
@@ -105,20 +107,17 @@ struct n_tty_data {
 	/* shared by producer and consumer */
 	char *read_buf;
 	DECLARE_BITMAP(read_flags, N_TTY_BUF_SIZE);
+	unsigned char *echo_buf;
 
 	int minimum_to_wake;
 
 	/* consumer-published */
 	size_t read_tail;
 
-	unsigned char *echo_buf;
-	size_t echo_head;
-	size_t echo_tail;
-	size_t echo_commit;
-
 	/* protected by output lock */
 	unsigned int column;
 	unsigned int canon_column;
+	size_t echo_tail;
 
 	struct mutex atomic_read_lock;
 	struct mutex output_lock;
