@@ -517,7 +517,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 {
 	int retval;
-	struct tty_ldisc *o_ldisc, *new_ldisc;
+	struct tty_ldisc *old_ldisc, *new_ldisc;
 	struct tty_struct *o_tty = tty->link;
 
 	new_ldisc = tty_ldisc_get(tty, ldisc);
@@ -543,7 +543,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	/* FIXME: why 'shutoff' input if the ldisc is locked? */
 	tty->receive_room = 0;
 
-	o_ldisc = tty->ldisc;
+	old_ldisc = tty->ldisc;
 	tty_lock(tty);
 
 	/* FIXME: for testing only */
@@ -558,8 +558,8 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 		return -EIO;
 	}
 
-	/* Shutdown the current discipline. */
-	tty_ldisc_close(tty, o_ldisc);
+	/* Shutdown the old discipline. */
+	tty_ldisc_close(tty, old_ldisc);
 
 	/* Now set up the new line discipline. */
 	tty->ldisc = new_ldisc;
@@ -569,17 +569,17 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	if (retval < 0) {
 		/* Back to the old one or N_TTY if we can't */
 		tty_ldisc_put(new_ldisc);
-		tty_ldisc_restore(tty, o_ldisc);
+		tty_ldisc_restore(tty, old_ldisc);
 	}
 
 	/* At this point we hold a reference to the new ldisc and a
 	   a reference to the old ldisc. If we ended up flipping back
 	   to the existing ldisc we have two references to it */
 
-	if (tty->ldisc->ops->num != o_ldisc->ops->num && tty->ops->set_ldisc)
+	if (tty->ldisc->ops->num != old_ldisc->ops->num && tty->ops->set_ldisc)
 		tty->ops->set_ldisc(tty);
 
-	tty_ldisc_put(o_ldisc);
+	tty_ldisc_put(old_ldisc);
 
 	/*
 	 *	Allow ldisc referencing to occur again
