@@ -483,7 +483,7 @@ void rtl8192_phy_configmac(struct net_device *dev)
 		dwArrayLen = MACPHY_ArrayLength;
 		pdwArray = rtl819XMACPHY_Array;
 	}
-	for(i = 0; i<dwArrayLen; i=i+3) {
+	for (i = 0; i<dwArrayLen; i=i+3) {
 		if (pdwArray[i] == 0x318) {
 			pdwArray[i+2] = 0x00000800;
 			//DbgPrint("ptrArray[i], ptrArray[i+1], ptrArray[i+2] = %x, %x, %x\n",
@@ -672,7 +672,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock, RF9
 	WriteAddr[HW90_BLOCK_PHY1] = 0x800;
 	WriteAddr[HW90_BLOCK_RF] = 0x3;
 	RT_TRACE(COMP_PHY, "=======>%s(), CheckBlock:%d\n", __FUNCTION__, CheckBlock);
-	for(i=0 ; i < CheckTimes ; i++) {
+	for (i=0 ; i < CheckTimes ; i++) {
 
 		//
 		// Write Data to register and readback
@@ -744,7 +744,7 @@ void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 
 	/*----Ckeck FPGAPHY0 and PHY1 board is OK----*/
 	// TODO: this function should be removed on ASIC , Emily 2007.2.2
-	for(eCheckItem=(HW90_BLOCK_E)HW90_BLOCK_PHY0; eCheckItem<=HW90_BLOCK_PHY1; eCheckItem++) {
+	for (eCheckItem=(HW90_BLOCK_E)HW90_BLOCK_PHY0; eCheckItem<=HW90_BLOCK_PHY1; eCheckItem++) {
 		rtStatus  = rtl8192_phy_checkBBAndRF(dev, (HW90_BLOCK_E)eCheckItem, (RF90_RADIO_PATH_E)0); //don't care RF path
 		if (rtStatus != 0) {
 			RT_TRACE((COMP_ERR | COMP_PHY), "PHY_RF8256_Config():Check PHY%d Fail!!\n", eCheckItem-1);
@@ -914,7 +914,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev, RF90_RADIO_PATH_E	
 
 	switch (eRFPath) {
 	case RF90_PATH_A:
-		for(i = 0;i<RadioA_ArrayLength; i=i+2) {
+		for (i = 0;i<RadioA_ArrayLength; i=i+2) {
 
 			if (rtl819XRadioA_Array[i] == 0xfe) {
 					mdelay(100);
@@ -926,7 +926,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev, RF90_RADIO_PATH_E	
 		}
 		break;
 	case RF90_PATH_B:
-		for(i = 0;i<RadioB_ArrayLength; i=i+2) {
+		for (i = 0;i<RadioB_ArrayLength; i=i+2) {
 
 			if (rtl819XRadioB_Array[i] == 0xfe) {
 					mdelay(100);
@@ -938,7 +938,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev, RF90_RADIO_PATH_E	
 		}
 		break;
 	case RF90_PATH_C:
-		for(i = 0;i<RadioC_ArrayLength; i=i+2) {
+		for (i = 0;i<RadioC_ArrayLength; i=i+2) {
 
 			if (rtl819XRadioC_Array[i] == 0xfe) {
 					mdelay(100);
@@ -950,7 +950,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev, RF90_RADIO_PATH_E	
 		}
 		break;
 	case RF90_PATH_D:
-		for(i = 0;i<RadioD_ArrayLength; i=i+2) {
+		for (i = 0;i<RadioD_ArrayLength; i=i+2) {
 
 			if (rtl819XRadioD_Array[i] == 0xfe) {
 					mdelay(100);
@@ -1295,7 +1295,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8 *stage, u
 				write_nic_byte(dev, CurrentCmd->Para1, (u8)CurrentCmd->Para2);
 				break;
 			case CmdID_RF_WriteReg:
-				for(eRFPath = 0; eRFPath < RF90_PATH_MAX; eRFPath++) {
+				for (eRFPath = 0; eRFPath < RF90_PATH_MAX; eRFPath++) {
 				rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, CurrentCmd->Para1, bZebra1_ChannelNum, CurrentCmd->Para2);
 				}
 				break;
@@ -1304,7 +1304,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8 *stage, u
 			}
 
 			break;
-		} while(true);
+		} while (true);
 //	}/*for(Number of RF paths)*/
 
 	(*delay)=CurrentCmd->msDelay;
@@ -1325,7 +1325,7 @@ void rtl8192_phy_FinishSwChnlNow(struct net_device *dev, u8 channel)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32	delay = 0;
 
-	while(!rtl8192_phy_SwChnlStepByStep(dev,channel,&priv->SwChnlStage,&priv->SwChnlStep,&delay)) {
+	while (!rtl8192_phy_SwChnlStepByStep(dev,channel,&priv->SwChnlStage,&priv->SwChnlStep,&delay)) {
 	//	if(delay>0)
 	//		msleep(delay);//or mdelay? need further consideration
 		if (!priv->up)
