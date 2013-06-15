@@ -110,7 +110,6 @@ struct n_tty_data {
 	unsigned char *echo_buf;
 	size_t echo_head;
 	size_t echo_tail;
-	unsigned int echo_cnt;
 
 	/* protected by output lock */
 	unsigned int column;
@@ -336,7 +335,7 @@ static void reset_buffer_flags(struct n_tty_data *ldata)
 	ldata->read_head = ldata->canon_head = ldata->read_tail = 0;
 
 	mutex_lock(&ldata->echo_lock);
-	ldata->echo_head = ldata->echo_tail = ldata->echo_cnt = 0;
+	ldata->echo_head = ldata->echo_tail  = 0;
 	mutex_unlock(&ldata->echo_lock);
 
 	ldata->erasing = 0;
@@ -654,7 +653,7 @@ static void process_echoes(struct tty_struct *tty)
 	size_t tail;
 	unsigned char c;
 
-	if (!ldata->echo_cnt)
+	if (ldata->echo_head == ldata->echo_tail)
 		return;
 
 	mutex_lock(&ldata->output_lock);
@@ -663,7 +662,7 @@ static void process_echoes(struct tty_struct *tty)
 	space = tty_write_room(tty);
 
 	tail = ldata->echo_tail;
-	nr = ldata->echo_cnt;
+	nr = ldata->echo_head - ldata->echo_tail;
 	while (nr > 0) {
 		c = echo_buf(ldata, tail);
 		if (c == ECHO_OP_START) {
@@ -779,7 +778,6 @@ static void process_echoes(struct tty_struct *tty)
 	}
 
 	ldata->echo_tail = tail;
-	ldata->echo_cnt = nr;
 
 	mutex_unlock(&ldata->echo_lock);
 	mutex_unlock(&ldata->output_lock);
@@ -800,24 +798,20 @@ static void process_echoes(struct tty_struct *tty)
 
 static void add_echo_byte(unsigned char c, struct n_tty_data *ldata)
 {
-	if (ldata->echo_cnt == N_TTY_BUF_SIZE) {
+	if (ldata->echo_head - ldata->echo_tail == N_TTY_BUF_SIZE) {
 		size_t head = ldata->echo_head;
 		/*
 		 * Since the buffer start position needs to be advanced,
 		 * be sure to step by a whole operation byte group.
 		 */
 		if (echo_buf(ldata, head) == ECHO_OP_START) {
-			if (echo_buf(ldata, head + 1) == ECHO_OP_ERASE_TAB) {
+			if (echo_buf(ldata, head + 1) == ECHO_OP_ERASE_TAB)
 				ldata->echo_tail += 3;
-				ldata->echo_cnt -= 2;
-			} else {
+			else
 				ldata->echo_tail += 2;
-				ldata->echo_cnt -= 1;
-			}
 		} else
 			ldata->echo_tail++;
-	} else
-		ldata->echo_cnt++;
+	}
 
 	*echo_buf_addr(ldata, ldata->echo_head++) = c;
 }
