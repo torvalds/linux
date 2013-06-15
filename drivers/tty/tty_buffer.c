@@ -403,6 +403,18 @@ int tty_prepare_flip_string_flags(struct tty_port *port,
 EXPORT_SYMBOL_GPL(tty_prepare_flip_string_flags);
 
 
+static int
+receive_buf(struct tty_struct *tty, struct tty_buffer *head, int count)
+{
+	struct tty_ldisc *disc = tty->ldisc;
+
+	count = min_t(int, count, tty->receive_room);
+	if (count)
+		disc->ops->receive_buf(tty, head->char_buf_ptr + head->read,
+				       head->flag_buf_ptr + head->read, count);
+	head->read += count;
+	return count;
+}
 
 /**
  *	flush_to_ldisc
@@ -438,8 +450,6 @@ static void flush_to_ldisc(struct work_struct *work)
 		struct tty_buffer *head;
 		while ((head = buf->head) != NULL) {
 			int count;
-			char *char_buf;
-			unsigned char *flag_buf;
 
 			count = head->commit - head->read;
 			if (!count) {
@@ -449,16 +459,10 @@ static void flush_to_ldisc(struct work_struct *work)
 				tty_buffer_free(port, head);
 				continue;
 			}
-			if (!tty->receive_room)
-				break;
-			if (count > tty->receive_room)
-				count = tty->receive_room;
-			char_buf = head->char_buf_ptr + head->read;
-			flag_buf = head->flag_buf_ptr + head->read;
-			head->read += count;
 			spin_unlock_irqrestore(&buf->lock, flags);
-			disc->ops->receive_buf(tty, char_buf,
-							flag_buf, count);
+
+			count = receive_buf(tty, head, count);
+
 			spin_lock_irqsave(&buf->lock, flags);
 			/* Ldisc or user is trying to flush the buffers.
 			   We may have a deferred request to flush the
@@ -469,7 +473,8 @@ static void flush_to_ldisc(struct work_struct *work)
 				clear_bit(TTYP_FLUSHPENDING, &port->iflags);
 				wake_up(&tty->read_wait);
 				break;
-			}
+			} else if (!count)
+				break;
 		}
 		clear_bit(TTYP_FLUSHING, &port->iflags);
 	}
