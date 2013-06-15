@@ -118,14 +118,14 @@ static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
  *	n_tty_set_room	-	receive space
  *	@tty: terminal
  *
- *	Sets tty->receive_room to reflect the currently available space
+ *	Updates tty->receive_room to reflect the currently available space
  *	in the input buffer, and re-schedules the flip buffer work if space
  *	just became available.
  *
  *	Locks: Concurrent update is protected with read_lock
  */
 
-static void n_tty_set_room(struct tty_struct *tty)
+static int set_room(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	int left;
@@ -155,8 +155,13 @@ static void n_tty_set_room(struct tty_struct *tty)
 
 	raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
 
+	return left && !old_left;
+}
+
+static void n_tty_set_room(struct tty_struct *tty)
+{
 	/* Did this open up the receive buffer? We may need to flip */
-	if (left && !old_left) {
+	if (set_room(tty)) {
 		WARN_RATELIMIT(tty->port->itty == NULL,
 				"scheduling with invalid itty\n");
 		/* see if ldisc has been killed - if so, this means that
@@ -1459,7 +1464,7 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			tty->ops->flush_chars(tty);
 	}
 
-	n_tty_set_room(tty);
+	set_room(tty);
 
 	if ((!ldata->icanon && (ldata->read_cnt >= ldata->minimum_to_wake)) ||
 		L_EXTPROC(tty)) {
