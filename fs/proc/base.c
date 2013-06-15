@@ -1710,10 +1710,8 @@ bool proc_fill_cache(struct file *file, struct dir_context *ctx,
 	if (!child || IS_ERR(child) || !child->d_inode)
 		goto end_instantiate;
 	inode = child->d_inode;
-	if (inode) {
-		ino = inode->i_ino;
-		type = inode->i_mode >> 12;
-	}
+	ino = inode->i_ino;
+	type = inode->i_mode >> 12;
 	dput(child);
 end_instantiate:
 	if (!ino)
