@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012, 2013 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -916,6 +916,18 @@ unsigned qib_free_all_qps(struct qib_devdata *dd);
 void qib_init_qpn_table(struct qib_devdata *dd, struct qib_qpn_table *qpt);
 
 void qib_free_qpn_table(struct qib_qpn_table *qpt);
+
+#ifdef CONFIG_DEBUG_FS
+
+struct qib_qp_iter;
+
+struct qib_qp_iter *qib_qp_iter_init(struct qib_ibdev *dev);
+
+int qib_qp_iter_next(struct qib_qp_iter *iter);
+
+void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter);
+
+#endif
 
 void qib_get_credit(struct qib_qp *qp, u32 aeth);
 
