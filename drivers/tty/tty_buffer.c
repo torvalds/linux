@@ -151,28 +151,6 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
 }
 
 /**
- *	__tty_buffer_flush		-	flush full tty buffers
- *	@tty: tty to flush
- *
- *	flush all the buffers containing receive data. Caller must
- *	hold the buffer lock and must have ensured no parallel flush to
- *	ldisc is running.
- */
-
-static void __tty_buffer_flush(struct tty_port *port)
-{
-	struct tty_bufhead *buf = &port->buf;
-	struct tty_buffer *next;
-
-	while ((next = buf->head->next) != NULL) {
-		tty_buffer_free(port, buf->head);
-		buf->head = next;
-	}
-	WARN_ON(buf->head != buf->tail);
-	buf->head->read = buf->head->commit;
-}
-
-/**
  *	tty_buffer_flush		-	flush full tty buffers
  *	@tty: tty to flush
  *
@@ -188,11 +166,16 @@ void tty_buffer_flush(struct tty_struct *tty)
 {
 	struct tty_port *port = tty->port;
 	struct tty_bufhead *buf = &port->buf;
+	struct tty_buffer *next;
 
 	buf->flushpending = 1;
 
 	mutex_lock(&buf->flush_mutex);
-	__tty_buffer_flush(port);
+	while ((next = buf->head->next) != NULL) {
+		tty_buffer_free(port, buf->head);
+		buf->head = next;
+	}
+	buf->head->read = buf->head->commit;
 	buf->flushpending = 0;
 	mutex_unlock(&buf->flush_mutex);
 }
