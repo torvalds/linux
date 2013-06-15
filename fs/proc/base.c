@@ -2882,21 +2882,21 @@ retry:
 int proc_pid_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct tgid_iter iter;
-	struct pid_namespace *ns;
+	struct pid_namespace *ns = file->f_dentry->d_sb->s_fs_info;
 	loff_t pos = ctx->pos;
 
 	if (pos >= PID_MAX_LIMIT + TGID_OFFSET)
 		return 0;
 
 	if (pos == TGID_OFFSET - 1) {
-		if (!proc_fill_cache(file, ctx, "self", 4, NULL, NULL, NULL))
+		struct inode *inode = ns->proc_self->d_inode;
+		if (!dir_emit(ctx, "self", 4, inode->i_ino, DT_LNK))
 			return 0;
 		iter.tgid = 0;
 	} else {
 		iter.tgid = pos - TGID_OFFSET;
 	}
 	iter.task = NULL;
-	ns = file->f_dentry->d_sb->s_fs_info;
 	for (iter = next_tgid(ns, iter);
 	     iter.task;
 	     iter.tgid += 1, iter = next_tgid(ns, iter)) {
