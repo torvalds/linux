@@ -74,6 +74,13 @@
 #define ECHO_OP_SET_CANON_COL 0x81
 #define ECHO_OP_ERASE_TAB 0x82
 
+#undef N_TTY_TRACE
+#ifdef N_TTY_TRACE
+# define n_tty_trace(f, args...)	trace_printk(f, ##args)
+#else
+# define n_tty_trace(f, args...)
+#endif
+
 struct n_tty_data {
 	unsigned int column;
 	unsigned long overrun_time;
@@ -1748,58 +1755,95 @@ static int copy_from_read_buf(struct tty_struct *tty,
 }
 
 /**
- *	canon_copy_to_user	-	copy read data in canonical mode
+ *	canon_copy_from_read_buf	-	copy read data in canonical mode
  *	@tty: terminal device
  *	@b: user data
  *	@nr: size of data
  *
  *	Helper function for n_tty_read.  It is only called when ICANON is on;
- *	it copies characters one at a time from the read buffer to the user
- *	space buffer.
+ *	it copies one line of input up to and including the line-delimiting
+ *	character into the user-space buffer.
  *
  *	Called under the atomic_read_lock mutex
  */
 
-static int canon_copy_to_user(struct tty_struct *tty,
-			      unsigned char __user **b,
-			      size_t *nr)
+static int canon_copy_from_read_buf(struct tty_struct *tty,
+				    unsigned char __user **b,
+				    size_t *nr)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	unsigned long flags;
-	int eol, c;
+	size_t n, size, more, c;
+	unsigned long eol;
+	int ret, tail, found = 0;
 
 	/* N.B. avoid overrun if nr == 0 */
+
 	raw_spin_lock_irqsave(&ldata->read_lock, flags);
-	while (*nr && ldata->read_cnt) {
 
-		eol = test_and_clear_bit(ldata->read_tail, ldata->read_flags);
-		c = ldata->read_buf[ldata->read_tail];
-		ldata->read_tail = (ldata->read_tail+1) & (N_TTY_BUF_SIZE-1);
-		ldata->read_cnt--;
-		if (eol) {
-			/* this test should be redundant:
-			 * we shouldn't be reading data if
-			 * canon_data is 0
-			 */
-			if (--ldata->canon_data < 0)
-				ldata->canon_data = 0;
-		}
+	n = min_t(size_t, *nr, ldata->read_cnt);
+	if (!n) {
 		raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
+		return 0;
+	}
 
-		if (!eol || (c != __DISABLED_CHAR)) {
-			if (tty_put_user(tty, c, *b))
-				return -EFAULT;
-			*b += 1;
-			*nr -= 1;
-		}
-		if (eol) {
-			tty_audit_push(tty);
-			return 0;
-		}
-		raw_spin_lock_irqsave(&ldata->read_lock, flags);
+	tail = ldata->read_tail;
+	size = min_t(size_t, tail + n, N_TTY_BUF_SIZE);
+
+	n_tty_trace("%s: nr:%zu tail:%d n:%zu size:%zu\n",
+		    __func__, *nr, tail, n, size);
+
+	eol = find_next_bit(ldata->read_flags, size, tail);
+	more = n - (size - tail);
+	if (eol == N_TTY_BUF_SIZE && more) {
+		/* scan wrapped without finding set bit */
+		eol = find_next_bit(ldata->read_flags, more, 0);
+		if (eol != more)
+			found = 1;
+	} else if (eol != size)
+		found = 1;
+
+	size = N_TTY_BUF_SIZE - tail;
+	n = (found + eol + size) & (N_TTY_BUF_SIZE - 1);
+	c = n;
+
+	if (found && ldata->read_buf[eol] == __DISABLED_CHAR)
+		n--;
+
+	n_tty_trace("%s: eol:%lu found:%d n:%zu c:%zu size:%zu more:%zu\n",
+		    __func__, eol, found, n, c, size, more);
+
+	raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
+
+	if (n > size) {
+		ret = copy_to_user(*b, &ldata->read_buf[tail], size);
+		if (ret)
+			return -EFAULT;
+		ret = copy_to_user(*b + size, ldata->read_buf, n - size);
+	} else
+		ret = copy_to_user(*b, &ldata->read_buf[tail], n);
+
+	if (ret)
+		return -EFAULT;
+	*b += n;
+	*nr -= n;
+
+	raw_spin_lock_irqsave(&ldata->read_lock, flags);
+	ldata->read_tail = (ldata->read_tail + c) & (N_TTY_BUF_SIZE - 1);
+	ldata->read_cnt -= c;
+	if (found) {
+		__clear_bit(eol, ldata->read_flags);
+		/* this test should be redundant:
+		 * we shouldn't be reading data if
+		 * canon_data is 0
+		 */
+		if (--ldata->canon_data < 0)
+			ldata->canon_data = 0;
 	}
 	raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
 
+	if (found)
+		tty_audit_push(tty);
 	return 0;
 }
 
@@ -1972,7 +2016,7 @@ do_it_again:
 		}
 
 		if (ldata->icanon && !L_EXTPROC(tty)) {
-			retval = canon_copy_to_user(tty, &b, &nr);
+			retval = canon_copy_from_read_buf(tty, &b, &nr);
 			if (retval)
 				break;
 		} else {
