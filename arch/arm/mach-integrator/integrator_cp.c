@@ -38,7 +38,6 @@
 
 #include <mach/cm.h>
 #include <mach/lm.h>
-#include <mach/irqs.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>

@@ -36,7 +36,6 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <mach/irqs.h>
 
 #include <asm/mach/map.h>
 #include <asm/signal.h>
