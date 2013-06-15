@@ -656,8 +656,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 	old_space = space = tty_write_room(tty);
 
 	tail = ldata->echo_tail;
-	nr = ldata->echo_commit - ldata->echo_tail;
-	while (nr > 0) {
+	while (ldata->echo_commit != tail) {
 		c = echo_buf(ldata, tail);
 		if (c == ECHO_OP_START) {
 			unsigned char op;
@@ -701,20 +700,17 @@ static size_t __process_echoes(struct tty_struct *tty)
 						ldata->column--;
 				}
 				tail += 3;
-				nr -= 3;
 				break;
 
 			case ECHO_OP_SET_CANON_COL:
 				ldata->canon_column = ldata->column;
 				tail += 2;
-				nr -= 2;
 				break;
 
 			case ECHO_OP_MOVE_BACK_COL:
 				if (ldata->column > 0)
 					ldata->column--;
 				tail += 2;
-				nr -= 2;
 				break;
 
 			case ECHO_OP_START:
@@ -727,7 +723,6 @@ static size_t __process_echoes(struct tty_struct *tty)
 				ldata->column++;
 				space--;
 				tail += 2;
-				nr -= 2;
 				break;
 
 			default:
@@ -749,7 +744,6 @@ static size_t __process_echoes(struct tty_struct *tty)
 				ldata->column += 2;
 				space -= 2;
 				tail += 2;
-				nr -= 2;
 			}
 
 			if (no_space_left)
@@ -767,7 +761,6 @@ static size_t __process_echoes(struct tty_struct *tty)
 				space -= 1;
 			}
 			tail += 1;
-			nr -= 1;
 		}
 	}
 
