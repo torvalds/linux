@@ -30,7 +30,7 @@
 			};
 
 			usb1: gadget@fffa4000 {
-				atmel,vbus-gpio = <&pioC 5 0>;
+				atmel,vbus-gpio = <&pioC 5 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
 		};
@@ -93,7 +93,7 @@
 
 		user_led {
 			label = "user_led";
-			gpios = <&pioB 21 1>;
+			gpios = <&pioB 21 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
@@ -105,7 +105,7 @@
 
 		user_pb {
 			label = "user_pb";
-			gpios = <&pioB 10 1>;
+			gpios = <&pioB 10 GPIO_ACTIVE_LOW>;
 			linux,code = <28>;
 			gpio-key,wakeup;
 		};
