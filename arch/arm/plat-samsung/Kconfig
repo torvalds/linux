@@ -60,6 +60,20 @@ config S3C_LOWLEVEL_UART_PORT
 	  this configuration should be between zero and two. The port
 	  must have been initialised by the boot-loader before use.
 
+config SAMSUNG_ATAGS
+	def_bool n
+	depends on !ARCH_MULTIPLATFORM
+	depends on ATAGS
+	help
+	   This option enables ATAGS based boot support code for
+	   Samsung platforms, including static platform devices, legacy
+	   clock, timer and interrupt initialization, etc.
+
+	   Platforms that support only DT based boot need not to select
+	   this option.
+
+if SAMSUNG_ATAGS
+
 # timer options
 
 config SAMSUNG_HRT
@@ -367,11 +381,6 @@ config S5P_DEV_JPEG
 	help
 	  Compile in platform device definitions for JPEG codec
 
-config S5P_DEV_MFC
-	bool
-	help
-	  Compile in setup memory (init) code for MFC
-
 config S5P_DEV_ONENAND
 	bool
 	help
@@ -412,6 +421,8 @@ config S3C_DMA
 	help
 	  Internal configuration for S3C DMA core
 
+endif
+
 config SAMSUNG_DMADEV
 	bool
 	select ARM_AMBA
@@ -420,6 +431,11 @@ config SAMSUNG_DMADEV
 					CPU_S5P6450 || CPU_S5P6440)
 	help
 	  Use DMA device engine for PL330 DMAC.
+
+config S5P_DEV_MFC
+	bool
+	help
+	  Compile in setup memory (init) code for MFC
 
 comment "Power management"
 
