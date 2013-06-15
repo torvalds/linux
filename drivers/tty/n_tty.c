@@ -242,7 +242,7 @@ static void n_tty_write_wakeup(struct tty_struct *tty)
 		kill_fasync(&tty->fasync, SIGIO, POLL_OUT);
 }
 
-static inline void n_tty_check_throttle(struct tty_struct *tty)
+static void n_tty_check_throttle(struct tty_struct *tty)
 {
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY)
 		return;
@@ -1481,6 +1481,28 @@ handle_newline:
  *		publishes read_head and canon_head
  */
 
+static void
+n_tty_receive_buf_real_raw(struct tty_struct *tty, const unsigned char *cp,
+			   char *fp, int count)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+	size_t n, head;
+
+	head = ldata->read_head & (N_TTY_BUF_SIZE - 1);
+	n = N_TTY_BUF_SIZE - max(read_cnt(ldata), head);
+	n = min_t(size_t, count, n);
+	memcpy(read_buf_addr(ldata, head), cp, n);
+	ldata->read_head += n;
+	cp += n;
+	count -= n;
+
+	head = ldata->read_head & (N_TTY_BUF_SIZE - 1);
+	n = N_TTY_BUF_SIZE - max(read_cnt(ldata), head);
+	n = min_t(size_t, count, n);
+	memcpy(read_buf_addr(ldata, head), cp, n);
+	ldata->read_head += n;
+}
+
 static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			  char *fp, int count)
 {
@@ -1488,23 +1510,9 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	char	flags = TTY_NORMAL;
 	char	buf[64];
 
-	if (ldata->real_raw) {
-		size_t n, head;
-
-		head = ldata->read_head & (N_TTY_BUF_SIZE - 1);
-		n = N_TTY_BUF_SIZE - max(read_cnt(ldata), head);
-		n = min_t(size_t, count, n);
-		memcpy(read_buf_addr(ldata, head), cp, n);
-		ldata->read_head += n;
-		cp += n;
-		count -= n;
-
-		head = ldata->read_head & (N_TTY_BUF_SIZE - 1);
-		n = N_TTY_BUF_SIZE - max(read_cnt(ldata), head);
-		n = min_t(size_t, count, n);
-		memcpy(read_buf_addr(ldata, head), cp, n);
-		ldata->read_head += n;
-	} else {
+	if (ldata->real_raw)
+		n_tty_receive_buf_real_raw(tty, cp, fp, count);
+	else {
 		while (count--) {
 			if (fp)
 				flags = *fp++;
@@ -1540,8 +1548,6 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		if (waitqueue_active(&tty->read_wait))
 			wake_up_interruptible(&tty->read_wait);
 	}
-
-	n_tty_check_throttle(tty);
 }
 
 static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
@@ -1549,6 +1555,7 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 {
 	down_read(&tty->termios_rwsem);
 	__receive_buf(tty, cp, fp, count);
+	n_tty_check_throttle(tty);
 	up_read(&tty->termios_rwsem);
 }
 
@@ -1564,8 +1571,10 @@ static int n_tty_receive_buf2(struct tty_struct *tty, const unsigned char *cp,
 	if (!room)
 		ldata->no_room = 1;
 	count = min(count, room);
-	if (count)
+	if (count) {
 		__receive_buf(tty, cp, fp, count);
+		n_tty_check_throttle(tty);
+	}
 
 	up_read(&tty->termios_rwsem);
 
