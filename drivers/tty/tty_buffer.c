@@ -44,15 +44,15 @@ static void tty_buffer_reset(struct tty_buffer *p, size_t size)
 void tty_buffer_free_all(struct tty_port *port)
 {
 	struct tty_bufhead *buf = &port->buf;
-	struct tty_buffer *thead;
+	struct tty_buffer *p;
 
-	while ((thead = buf->head) != NULL) {
-		buf->head = thead->next;
-		kfree(thead);
+	while ((p = buf->head) != NULL) {
+		buf->head = p->next;
+		kfree(p);
 	}
-	while ((thead = buf->free) != NULL) {
-		buf->free = thead->next;
-		kfree(thead);
+	while ((p = buf->free) != NULL) {
+		buf->free = p->next;
+		kfree(p);
 	}
 	buf->tail = NULL;
 	buf->memory_used = 0;
@@ -143,13 +143,13 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
 static void __tty_buffer_flush(struct tty_port *port)
 {
 	struct tty_bufhead *buf = &port->buf;
-	struct tty_buffer *thead;
+	struct tty_buffer *next;
 
 	if (unlikely(buf->head == NULL))
 		return;
-	while ((thead = buf->head->next) != NULL) {
+	while ((next = buf->head->next) != NULL) {
 		tty_buffer_free(port, buf->head);
-		buf->head = thead;
+		buf->head = next;
 	}
 	WARN_ON(buf->head != buf->tail);
 	buf->head->read = buf->head->commit;
