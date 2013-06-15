@@ -638,20 +638,15 @@ break_out:
  *	are prioritized.  Also, when control characters are echoed with a
  *	prefixed "^", the pair is treated atomically and thus not separated.
  *
- *	Locking: output_lock to protect column state and space left
+ *	Locking: callers must hold output_lock
  */
 
-static void process_echoes(struct tty_struct *tty)
+static void __process_echoes(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	int	space, nr;
 	size_t tail;
 	unsigned char c;
-
-	if (ldata->echo_commit == ldata->echo_tail)
-		return;
-
-	mutex_lock(&ldata->output_lock);
 
 	space = tty_write_room(tty);
 
@@ -772,20 +767,34 @@ static void process_echoes(struct tty_struct *tty)
 	}
 
 	ldata->echo_tail = tail;
-
-	mutex_unlock(&ldata->output_lock);
-
-	if (tty->ops->flush_chars)
-		tty->ops->flush_chars(tty);
 }
 
 static void commit_echoes(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
-	smp_mb();
+	mutex_lock(&ldata->output_lock);
 	ldata->echo_commit = ldata->echo_head;
-	process_echoes(tty);
+	__process_echoes(tty);
+	mutex_unlock(&ldata->output_lock);
+
+	if (tty->ops->flush_chars)
+		tty->ops->flush_chars(tty);
+}
+
+static void process_echoes(struct tty_struct *tty)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+
+	if (!L_ECHO(tty) || ldata->echo_commit == ldata->echo_tail)
+		return;
+
+	mutex_lock(&ldata->output_lock);
+	__process_echoes(tty);
+	mutex_unlock(&ldata->output_lock);
+
+	if (tty->ops->flush_chars)
+		tty->ops->flush_chars(tty);
 }
 
 /**
