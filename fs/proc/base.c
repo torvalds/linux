@@ -1686,39 +1686,29 @@ bool proc_fill_cache(struct file *file, struct dir_context *ctx,
 	instantiate_t instantiate, struct task_struct *task, const void *ptr)
 {
 	struct dentry *child, *dir = file->f_path.dentry;
+	struct qstr qname = QSTR_INIT(name, len);
 	struct inode *inode;
-	struct qstr qname;
-	ino_t ino = 0;
-	unsigned type = DT_UNKNOWN;
+	unsigned type;
+	ino_t ino;
 
-	qname.name = name;
-	qname.len  = len;
-	qname.hash = full_name_hash(name, len);
-
-	child = d_lookup(dir, &qname);
+	child = d_hash_and_lookup(dir, &qname);
 	if (!child) {
-		struct dentry *new;
-		new = d_alloc(dir, &qname);
-		if (new) {
-			child = ERR_PTR(instantiate(dir->d_inode, new, task, ptr)); 
-			if (child)
-				dput(new);
-			else
-				child = new;
+		child = d_alloc(dir, &qname);
+		if (!child)
+			goto end_instantiate;
+		if (instantiate(dir->d_inode, child, task, ptr) < 0) {
+			dput(child);
+			goto end_instantiate;
 		}
 	}
-	if (!child || IS_ERR(child) || !child->d_inode)
-		goto end_instantiate;
 	inode = child->d_inode;
 	ino = inode->i_ino;
 	type = inode->i_mode >> 12;
 	dput(child);
-end_instantiate:
-	if (!ino)
-		ino = find_inode_number(dir, &qname);
-	if (!ino)
-		ino = 1;
 	return dir_emit(ctx, name, len, ino, type);
+
+end_instantiate:
+	return dir_emit(ctx, name, len, 1, DT_UNKNOWN);
 }
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
