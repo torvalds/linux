@@ -3717,6 +3717,7 @@ void tcp_reset(struct sock *sk)
 static void tcp_fin(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	const struct dst_entry *dst;
 
 	inet_csk_schedule_ack(sk);
 
@@ -3728,7 +3729,9 @@ static void tcp_fin(struct sock *sk)
 	case TCP_ESTABLISHED:
 		/* Move to CLOSE_WAIT */
 		tcp_set_state(sk, TCP_CLOSE_WAIT);
-		inet_csk(sk)->icsk_ack.pingpong = 1;
+		dst = __sk_dst_get(sk);
+		if (!dst || !dst_metric(dst, RTAX_QUICKACK))
+			inet_csk(sk)->icsk_ack.pingpong = 1;
 		break;
 
 	case TCP_CLOSE_WAIT:
