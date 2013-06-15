@@ -100,6 +100,11 @@
  *	seek to perform this action quickly but should wait until
  *	any pending driver I/O is completed.
  *
+ * void (*fasync)(struct tty_struct *, int on)
+ *
+ *	Notify line discipline when signal-driven I/O is enabled or
+ *	disabled.
+ *
  * void (*dcd_change)(struct tty_struct *tty, unsigned int status)
  *
  *	Tells the discipline that the DCD pin has changed its status.
@@ -189,6 +194,7 @@ struct tty_ldisc_ops {
 			       char *fp, int count);
 	void	(*write_wakeup)(struct tty_struct *);
 	void	(*dcd_change)(struct tty_struct *, unsigned int);
+	void	(*fasync)(struct tty_struct *tty, int on);
 
 	struct  module *owner;
 
