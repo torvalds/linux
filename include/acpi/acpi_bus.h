@@ -467,8 +467,6 @@ acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
 				 acpi_notify_handler handler, void *context);
 acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
 				    acpi_notify_handler handler);
-int acpi_device_power_state(struct device *dev, struct acpi_device *adev,
-			    u32 target_state, int d_max_in, int *d_min_p);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
 void acpi_dev_pm_add_dependent(acpi_handle handle, struct device *depdev);
 void acpi_dev_pm_remove_dependent(acpi_handle handle, struct device *depdev);
@@ -484,22 +482,12 @@ static inline acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
 {
 	return AE_SUPPORT;
 }
-static inline int __acpi_device_power_state(int m, int *p)
+static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 {
 	if (p)
 		*p = ACPI_STATE_D0;
+
 	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3) ? m : ACPI_STATE_D0;
-}
-static inline int acpi_device_power_state(struct device *dev,
-					  struct acpi_device *adev,
-					  u32 target_state, int d_max_in,
-					  int *d_min_p)
-{
-	return __acpi_device_power_state(d_max_in, d_min_p);
-}
-static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
-{
-	return __acpi_device_power_state(m, p);
 }
 static inline void acpi_dev_pm_add_dependent(acpi_handle handle,
 					     struct device *depdev) {}

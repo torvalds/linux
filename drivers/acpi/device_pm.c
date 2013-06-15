@@ -399,7 +399,7 @@ bool acpi_bus_can_wakeup(acpi_handle handle)
 EXPORT_SYMBOL(acpi_bus_can_wakeup);
 
 /**
- * acpi_device_power_state - Get preferred power state of ACPI device.
+ * acpi_dev_pm_get_state - Get preferred power state of ACPI device.
  * @dev: Device whose preferred target power state to return.
  * @adev: ACPI device node corresponding to @dev.
  * @target_state: System state to match the resultant device state.
@@ -417,8 +417,8 @@ EXPORT_SYMBOL(acpi_bus_can_wakeup);
  * Callers must ensure that @dev and @adev are valid pointers and that @adev
  * actually corresponds to @dev before using this function.
  */
-int acpi_device_power_state(struct device *dev, struct acpi_device *adev,
-			    u32 target_state, int d_max_in, int *d_min_p)
+static int acpi_dev_pm_get_state(struct device *dev, struct acpi_device *adev,
+				 u32 target_state, int d_max_in, int *d_min_p)
 {
 	char acpi_method[] = "_SxD";
 	unsigned long long d_min, d_max;
@@ -501,7 +501,6 @@ int acpi_device_power_state(struct device *dev, struct acpi_device *adev,
 	}
 	return d_max;
 }
-EXPORT_SYMBOL_GPL(acpi_device_power_state);
 
 /**
  * acpi_pm_device_sleep_state - Get preferred power state of ACPI device.
@@ -523,8 +522,8 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 		return -ENODEV;
 	}
 
-	return acpi_device_power_state(dev, adev, acpi_target_system_state(),
-				       d_max_in, d_min_p);
+	return acpi_dev_pm_get_state(dev, adev, acpi_target_system_state(),
+				     d_max_in, d_min_p);
 }
 EXPORT_SYMBOL(acpi_pm_device_sleep_state);
 
@@ -680,8 +679,8 @@ static int acpi_dev_pm_low_power(struct device *dev, struct acpi_device *adev,
 	if (!acpi_device_power_manageable(adev))
 		return 0;
 
-	power_state = acpi_device_power_state(dev, adev, system_state,
-					      ACPI_STATE_D3, NULL);
+	power_state = acpi_dev_pm_get_state(dev, adev, system_state,
+					    ACPI_STATE_D3, NULL);
 	if (power_state < ACPI_STATE_D0 || power_state > ACPI_STATE_D3)
 		return -EIO;
 
