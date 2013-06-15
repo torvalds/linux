@@ -115,13 +115,14 @@ static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 }
 
 /**
- *	n_tty_set__room	-	receive space
+ *	n_tty_set_room	-	receive space
  *	@tty: terminal
  *
- *	Called by the driver to find out how much data it is
- *	permitted to feed to the line discipline without any being lost
- *	and thus to manage flow control. Not serialized. Answers for the
- *	"instant".
+ *	Sets tty->receive_room to reflect the currently available space
+ *	in the input buffer, and re-schedules the flip buffer work if space
+ *	just became available.
+ *
+ *	Locks: Concurrent update is protected with read_lock
  */
 
 static void n_tty_set_room(struct tty_struct *tty)
@@ -129,8 +130,10 @@ static void n_tty_set_room(struct tty_struct *tty)
 	struct n_tty_data *ldata = tty->disc_data;
 	int left;
 	int old_left;
+	unsigned long flags;
 
-	/* ldata->read_cnt is not read locked ? */
+	raw_spin_lock_irqsave(&ldata->read_lock, flags);
+
 	if (I_PARMRK(tty)) {
 		/* Multiply read_cnt by 3, since each byte might take up to
 		 * three times as many spaces when PARMRK is set (depending on
@@ -149,6 +152,8 @@ static void n_tty_set_room(struct tty_struct *tty)
 		left = ldata->icanon && !ldata->canon_data;
 	old_left = tty->receive_room;
 	tty->receive_room = left;
+
+	raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
 
 	/* Did this open up the receive buffer? We may need to flip */
 	if (left && !old_left) {
@@ -1872,7 +1877,6 @@ do_it_again:
 				retval = -ERESTARTSYS;
 				break;
 			}
-			/* FIXME: does n_tty_set_room need locking ? */
 			n_tty_set_room(tty);
 			timeout = schedule_timeout(timeout);
 			continue;
