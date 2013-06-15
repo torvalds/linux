@@ -407,11 +407,16 @@ static int
 receive_buf(struct tty_struct *tty, struct tty_buffer *head, int count)
 {
 	struct tty_ldisc *disc = tty->ldisc;
+	char 	      *p = head->char_buf_ptr + head->read;
+	unsigned char *f = head->flag_buf_ptr + head->read;
 
-	count = min_t(int, count, tty->receive_room);
-	if (count)
-		disc->ops->receive_buf(tty, head->char_buf_ptr + head->read,
-				       head->flag_buf_ptr + head->read, count);
+	if (disc->ops->receive_buf2)
+		count = disc->ops->receive_buf2(tty, p, f, count);
+	else {
+		count = min_t(int, count, tty->receive_room);
+		if (count)
+			disc->ops->receive_buf(tty, p, f, count);
+	}
 	head->read += count;
 	return count;
 }

@@ -356,8 +356,8 @@ int paste_selection(struct tty_struct *tty)
 			continue;
 		}
 		count = sel_buffer_lth - pasted;
-		count = min(count, tty->receive_room);
-		ld->ops->receive_buf(tty, sel_buffer + pasted, NULL, count);
+		count = tty_ldisc_receive_buf(ld, sel_buffer + pasted, NULL,
+					      count);
 		pasted += count;
 	}
 	remove_wait_queue(&vc->paste_wait, &wait);

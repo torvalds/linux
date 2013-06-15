@@ -79,6 +79,9 @@ struct n_tty_data {
 	unsigned long overrun_time;
 	int num_overrun;
 
+	/* non-atomic */
+	bool no_room;
+
 	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
 	unsigned char echo_overrun:1;
 
@@ -114,25 +117,10 @@ static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 	return put_user(x, ptr);
 }
 
-/**
- *	n_tty_set_room	-	receive space
- *	@tty: terminal
- *
- *	Updates tty->receive_room to reflect the currently available space
- *	in the input buffer, and re-schedules the flip buffer work if space
- *	just became available.
- *
- *	Locks: Concurrent update is protected with read_lock
- */
-
-static int set_room(struct tty_struct *tty)
+static int receive_room(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	int left;
-	int old_left;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&ldata->read_lock, flags);
 
 	if (I_PARMRK(tty)) {
 		/* Multiply read_cnt by 3, since each byte might take up to
@@ -150,18 +138,27 @@ static int set_room(struct tty_struct *tty)
 	 */
 	if (left <= 0)
 		left = ldata->icanon && !ldata->canon_data;
-	old_left = tty->receive_room;
-	tty->receive_room = left;
 
-	raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
-
-	return left && !old_left;
+	return left;
 }
+
+/**
+ *	n_tty_set_room	-	receive space
+ *	@tty: terminal
+ *
+ *	Re-schedules the flip buffer work if space just became available.
+ *
+ *	Locks: Concurrent update is protected with read_lock
+ */
 
 static void n_tty_set_room(struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
+
 	/* Did this open up the receive buffer? We may need to flip */
-	if (set_room(tty)) {
+	if (unlikely(ldata->no_room) && receive_room(tty)) {
+		ldata->no_room = 0;
+
 		WARN_RATELIMIT(tty->port->itty == NULL,
 				"scheduling with invalid itty\n");
 		/* see if ldisc has been killed - if so, this means that
@@ -1408,8 +1405,8 @@ static void n_tty_write_wakeup(struct tty_struct *tty)
  *	calls one at a time and in order (or using flush_to_ldisc)
  */
 
-static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-			      char *fp, int count)
+static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
+			  char *fp, int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	const unsigned char *p;
@@ -1464,8 +1461,6 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			tty->ops->flush_chars(tty);
 	}
 
-	set_room(tty);
-
 	if ((!ldata->icanon && (ldata->read_cnt >= ldata->minimum_to_wake)) ||
 		L_EXTPROC(tty)) {
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
@@ -1480,12 +1475,34 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	 */
 	while (1) {
 		tty_set_flow_change(tty, TTY_THROTTLE_SAFE);
-		if (tty->receive_room >= TTY_THRESHOLD_THROTTLE)
+		if (receive_room(tty) >= TTY_THRESHOLD_THROTTLE)
 			break;
 		if (!tty_throttle_safe(tty))
 			break;
 	}
 	__tty_set_flow_change(tty, 0);
+}
+
+static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
+			      char *fp, int count)
+{
+	__receive_buf(tty, cp, fp, count);
+}
+
+static int n_tty_receive_buf2(struct tty_struct *tty, const unsigned char *cp,
+			      char *fp, int count)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+	int room;
+
+	tty->receive_room = room = receive_room(tty);
+	if (!room)
+		ldata->no_room = 1;
+	count = min(count, room);
+	if (count)
+		__receive_buf(tty, cp, fp, count);
+
+	return count;
 }
 
 int is_ignored(int sig)
@@ -2203,6 +2220,7 @@ struct tty_ldisc_ops tty_ldisc_N_TTY = {
 	.receive_buf     = n_tty_receive_buf,
 	.write_wakeup    = n_tty_write_wakeup,
 	.fasync		 = n_tty_fasync,
+	.receive_buf2	 = n_tty_receive_buf2,
 };
 
 /**
