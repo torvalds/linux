@@ -189,11 +189,11 @@ void tty_buffer_flush(struct tty_struct *tty)
 	struct tty_port *port = tty->port;
 	struct tty_bufhead *buf = &port->buf;
 
-	set_bit(TTYP_FLUSHPENDING, &port->iflags);
+	buf->flushpending = 1;
 
 	mutex_lock(&buf->flush_mutex);
 	__tty_buffer_flush(port);
-	clear_bit(TTYP_FLUSHPENDING, &port->iflags);
+	buf->flushpending = 0;
 	mutex_unlock(&buf->flush_mutex);
 }
 
@@ -426,7 +426,7 @@ static void flush_to_ldisc(struct work_struct *work)
 		int count;
 
 		/* Ldisc or user is trying to flush the buffers. */
-		if (test_bit(TTYP_FLUSHPENDING, &port->iflags))
+		if (buf->flushpending)
 			break;
 
 		count = head->commit - head->read;
@@ -505,6 +505,7 @@ void tty_buffer_init(struct tty_port *port)
 	buf->tail = &buf->sentinel;
 	init_llist_head(&buf->free);
 	atomic_set(&buf->memory_used, 0);
+	buf->flushpending = 0;
 	INIT_WORK(&buf->work, flush_to_ldisc);
 }
 
