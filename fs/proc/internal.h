@@ -170,7 +170,7 @@ extern struct dentry *proc_pid_lookup(struct inode *, struct dentry *, unsigned 
 extern loff_t mem_lseek(struct file *, loff_t, int);
 
 /* Lookups */
-typedef struct dentry *instantiate_t(struct inode *, struct dentry *,
+typedef int instantiate_t(struct inode *, struct dentry *,
 				     struct task_struct *, const void *);
 extern bool proc_fill_cache(struct file *, struct dir_context *, const char *, int,
 			   instantiate_t, struct task_struct *, const void *);

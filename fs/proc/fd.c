@@ -167,11 +167,10 @@ static int proc_fd_link(struct dentry *dentry, struct path *path)
 	return ret;
 }
 
-static struct dentry *
+static int
 proc_fd_instantiate(struct inode *dir, struct dentry *dentry,
 		    struct task_struct *task, const void *ptr)
 {
-	struct dentry *error = ERR_PTR(-ENOENT);
 	unsigned fd = (unsigned long)ptr;
 	struct proc_inode *ei;
 	struct inode *inode;
@@ -194,9 +193,9 @@ proc_fd_instantiate(struct inode *dir, struct dentry *dentry,
 
 	/* Close the race of the process dying before we return the dentry */
 	if (tid_fd_revalidate(dentry, 0))
-		error = NULL;
+		return 0;
  out:
-	return error;
+	return -ENOENT;
 }
 
 static struct dentry *proc_lookupfd_common(struct inode *dir,
@@ -204,7 +203,7 @@ static struct dentry *proc_lookupfd_common(struct inode *dir,
 					   instantiate_t instantiate)
 {
 	struct task_struct *task = get_proc_task(dir);
-	struct dentry *result = ERR_PTR(-ENOENT);
+	int result = -ENOENT;
 	unsigned fd = name_to_int(dentry);
 
 	if (!task)
@@ -216,7 +215,7 @@ static struct dentry *proc_lookupfd_common(struct inode *dir,
 out:
 	put_task_struct(task);
 out_no_task:
-	return result;
+	return ERR_PTR(result);
 }
 
 static int proc_readfd_common(struct file *file, struct dir_context *ctx,
@@ -300,11 +299,10 @@ const struct inode_operations proc_fd_inode_operations = {
 	.setattr	= proc_setattr,
 };
 
-static struct dentry *
+static int
 proc_fdinfo_instantiate(struct inode *dir, struct dentry *dentry,
 			struct task_struct *task, const void *ptr)
 {
-	struct dentry *error = ERR_PTR(-ENOENT);
 	unsigned fd = (unsigned long)ptr;
 	struct proc_inode *ei;
 	struct inode *inode;
@@ -324,9 +322,9 @@ proc_fdinfo_instantiate(struct inode *dir, struct dentry *dentry,
 
 	/* Close the race of the process dying before we return the dentry */
 	if (tid_fd_revalidate(dentry, 0))
-		error = NULL;
+		return 0;
  out:
-	return error;
+	return -ENOENT;
 }
 
 static struct dentry *
