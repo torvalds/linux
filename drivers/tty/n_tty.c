@@ -202,6 +202,18 @@ static void n_tty_set_room(struct tty_struct *tty)
 	}
 }
 
+static ssize_t chars_in_buffer(struct tty_struct *tty)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+	ssize_t n = 0;
+
+	if (!ldata->icanon)
+		n = read_cnt(ldata);
+	else
+		n = ldata->canon_head - ldata->read_tail;
+	return n;
+}
+
 /**
  *	put_tty_queue		-	add character to tty
  *	@c: character
@@ -283,18 +295,6 @@ static void n_tty_flush_buffer(struct tty_struct *tty)
 	if (tty->link)
 		n_tty_packet_mode_flush(tty);
 	up_write(&tty->termios_rwsem);
-}
-
-static ssize_t chars_in_buffer(struct tty_struct *tty)
-{
-	struct n_tty_data *ldata = tty->disc_data;
-	ssize_t n = 0;
-
-	if (!ldata->icanon)
-		n = read_cnt(ldata);
-	else
-		n = ldata->canon_head - ldata->read_tail;
-	return n;
 }
 
 /**
