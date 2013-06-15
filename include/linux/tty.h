@@ -31,8 +31,6 @@
 
 struct tty_buffer {
 	struct tty_buffer *next;
-	char *char_buf_ptr;
-	unsigned char *flag_buf_ptr;
 	int used;
 	int size;
 	int commit;
@@ -40,6 +38,16 @@ struct tty_buffer {
 	/* Data points here */
 	unsigned long data[0];
 };
+
+static inline unsigned char *char_buf_ptr(struct tty_buffer *b, int ofs)
+{
+	return ((unsigned char *)b->data) + ofs;
+}
+
+static inline char *flag_buf_ptr(struct tty_buffer *b, int ofs)
+{
+	return (char *)char_buf_ptr(b, ofs) + b->size;
+}
 
 /*
  * We default to dicing tty buffer allocations to this many characters
