@@ -317,6 +317,7 @@ config ARCH_INTEGRATOR
 	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
 	select SPARSE_IRQ
+	select USE_OF
 	select VERSATILE_FPGA_IRQ
 	help
 	  Support for ARM's Integrator platform.

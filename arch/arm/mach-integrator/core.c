@@ -34,63 +34,6 @@
 
 #include "common.h"
 
-#ifdef CONFIG_ATAGS
-
-#define INTEGRATOR_RTC_IRQ	{ IRQ_RTCINT }
-#define INTEGRATOR_UART0_IRQ	{ IRQ_UARTINT0 }
-#define INTEGRATOR_UART1_IRQ	{ IRQ_UARTINT1 }
-#define KMI0_IRQ		{ IRQ_KMIINT0 }
-#define KMI1_IRQ		{ IRQ_KMIINT1 }
-
-static AMBA_APB_DEVICE(rtc, "rtc", 0,
-	INTEGRATOR_RTC_BASE, INTEGRATOR_RTC_IRQ, NULL);
-
-static AMBA_APB_DEVICE(uart0, "uart0", 0,
-	INTEGRATOR_UART0_BASE, INTEGRATOR_UART0_IRQ, NULL);
-
-static AMBA_APB_DEVICE(uart1, "uart1", 0,
-	INTEGRATOR_UART1_BASE, INTEGRATOR_UART1_IRQ, NULL);
-
-static AMBA_APB_DEVICE(kmi0, "kmi0", 0, KMI0_BASE, KMI0_IRQ, NULL);
-static AMBA_APB_DEVICE(kmi1, "kmi1", 0, KMI1_BASE, KMI1_IRQ, NULL);
-
-static struct amba_device *amba_devs[] __initdata = {
-	&rtc_device,
-	&uart0_device,
-	&uart1_device,
-	&kmi0_device,
-	&kmi1_device,
-};
-
-int __init integrator_init(bool is_cp)
-{
-	int i;
-
-	/*
-	 * The Integrator/AP lacks necessary AMBA PrimeCell IDs, so we need to
-	 * hard-code them. The Integator/CP and forward have proper cell IDs.
-	 * Else we leave them undefined to the bus driver can autoprobe them.
-	 */
-	if (!is_cp && IS_ENABLED(CONFIG_ARCH_INTEGRATOR_AP)) {
-		rtc_device.periphid	= 0x00041030;
-		uart0_device.periphid	= 0x00041010;
-		uart1_device.periphid	= 0x00041010;
-		kmi0_device.periphid	= 0x00041050;
-		kmi1_device.periphid	= 0x00041050;
-		uart0_device.dev.platform_data = &ap_uart_data;
-		uart1_device.dev.platform_data = &ap_uart_data;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
-		struct amba_device *d = amba_devs[i];
-		amba_device_register(d, &iomem_resource);
-	}
-
-	return 0;
-}
-
-#endif
-
 static DEFINE_RAW_SPINLOCK(cm_lock);
 
 /**
