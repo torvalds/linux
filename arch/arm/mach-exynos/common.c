@@ -41,7 +41,6 @@
 #include <mach/regs-irq.h>
 #include <mach/regs-pmu.h>
 #include <mach/regs-gpio.h>
-#include <mach/irqs.h>
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
@@ -486,41 +485,14 @@ void __init exynos_init_time(void)
 	}
 }
 
-static unsigned int max_combiner_nr(void)
-{
-	if (soc_is_exynos5250())
-		return EXYNOS5_MAX_COMBINER_NR;
-	else if (soc_is_exynos4412())
-		return EXYNOS4412_MAX_COMBINER_NR;
-	else if (soc_is_exynos4212())
-		return EXYNOS4212_MAX_COMBINER_NR;
-	else
-		return EXYNOS4210_MAX_COMBINER_NR;
-}
-
-
 void __init exynos4_init_irq(void)
 {
-	unsigned int gic_bank_offset;
-
-	gic_bank_offset = soc_is_exynos4412() ? 0x4000 : 0x8000;
-
-	if (!of_have_populated_dt())
-		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset, NULL);
-	else
-		irqchip_init();
-
-	if (!of_have_populated_dt())
-		combiner_init(S5P_VA_COMBINER_BASE, NULL,
-			      max_combiner_nr(), COMBINER_IRQ(0, 0));
-
-	gic_arch_extn.irq_set_wake = s3c_irq_wake;
+	irqchip_init();
 }
 
 void __init exynos5_init_irq(void)
 {
 	irqchip_init();
-	gic_arch_extn.irq_set_wake = s3c_irq_wake;
 }
 
 struct bus_type exynos_subsys = {
