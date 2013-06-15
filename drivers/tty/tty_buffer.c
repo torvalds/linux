@@ -62,8 +62,6 @@ static void tty_buffer_reset(struct tty_buffer *p, size_t size)
  *
  *	Remove all the buffers pending on a tty whether queued with data
  *	or in the free ring. Must be called when the tty is no longer in use
- *
- *	Locking: none
  */
 
 void tty_buffer_free_all(struct tty_port *port)
@@ -216,29 +214,26 @@ void tty_buffer_flush(struct tty_struct *tty)
  *
  *	Make at least size bytes of linear space available for the tty
  *	buffer. If we fail return the size we managed to find.
- *
- *	Locking: Takes port->buf.lock
  */
 int tty_buffer_request_room(struct tty_port *port, size_t size)
 {
 	struct tty_bufhead *buf = &port->buf;
 	struct tty_buffer *b, *n;
 	int left;
-	unsigned long flags;
-	spin_lock_irqsave(&buf->lock, flags);
+
 	b = buf->tail;
 	left = b->size - b->used;
 
 	if (left < size) {
 		/* This is the slow path - looking for new buffers to use */
 		if ((n = tty_buffer_alloc(port, size)) != NULL) {
-			b->next = n;
-			b->commit = b->used;
 			buf->tail = n;
+			b->commit = b->used;
+			smp_mb();
+			b->next = n;
 		} else
 			size = left;
 	}
-	spin_unlock_irqrestore(&buf->lock, flags);
 	return size;
 }
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
@@ -252,8 +247,6 @@ EXPORT_SYMBOL_GPL(tty_buffer_request_room);
  *
  *	Queue a series of bytes to the tty buffering. All the characters
  *	passed are marked with the supplied flag. Returns the number added.
- *
- *	Locking: Called functions may take port->buf.lock
  */
 
 int tty_insert_flip_string_fixed_flag(struct tty_port *port,
@@ -288,8 +281,6 @@ EXPORT_SYMBOL(tty_insert_flip_string_fixed_flag);
  *	Queue a series of bytes to the tty buffering. For each character
  *	the flags array indicates the status of the character. Returns the
  *	number added.
- *
- *	Locking: Called functions may take port->buf.lock
  */
 
 int tty_insert_flip_string_flags(struct tty_port *port,
@@ -324,19 +315,14 @@ EXPORT_SYMBOL(tty_insert_flip_string_flags);
  *	processing by the line discipline.
  *	Note that this function can only be used when the low_latency flag
  *	is unset. Otherwise the workqueue won't be flushed.
- *
- *	Locking: Takes port->buf.lock
  */
 
 void tty_schedule_flip(struct tty_port *port)
 {
 	struct tty_bufhead *buf = &port->buf;
-	unsigned long flags;
 	WARN_ON(port->low_latency);
 
-	spin_lock_irqsave(&buf->lock, flags);
 	buf->tail->commit = buf->tail->used;
-	spin_unlock_irqrestore(&buf->lock, flags);
 	schedule_work(&buf->work);
 }
 EXPORT_SYMBOL(tty_schedule_flip);
@@ -352,8 +338,6 @@ EXPORT_SYMBOL(tty_schedule_flip);
  *	accounted for as ready for normal characters. This is used for drivers
  *	that need their own block copy routines into the buffer. There is no
  *	guarantee the buffer is a DMA target!
- *
- *	Locking: May call functions taking port->buf.lock
  */
 
 int tty_prepare_flip_string(struct tty_port *port, unsigned char **chars,
@@ -382,8 +366,6 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
  *	accounted for as ready for characters. This is used for drivers
  *	that need their own block copy routines into the buffer. There is no
  *	guarantee the buffer is a DMA target!
- *
- *	Locking: May call functions taking port->buf.lock
  */
 
 int tty_prepare_flip_string_flags(struct tty_port *port,
@@ -511,18 +493,13 @@ void tty_flush_to_ldisc(struct tty_struct *tty)
  *
  *	In the event of the queue being busy for flipping the work will be
  *	held off and retried later.
- *
- *	Locking: tty buffer lock. Driver locks in low latency mode.
  */
 
 void tty_flip_buffer_push(struct tty_port *port)
 {
 	struct tty_bufhead *buf = &port->buf;
-	unsigned long flags;
 
-	spin_lock_irqsave(&buf->lock, flags);
 	buf->tail->commit = buf->tail->used;
-	spin_unlock_irqrestore(&buf->lock, flags);
 
 	if (port->low_latency)
 		flush_to_ldisc(&buf->work);
