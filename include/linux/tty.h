@@ -244,6 +244,7 @@ struct tty_struct {
 
 	struct mutex atomic_write_lock;
 	struct mutex legacy_mutex;
+	struct mutex throttle_mutex;
 	struct rw_semaphore termios_rwsem;
 	spinlock_t ctrl_lock;
 	/* Termios values are protected by the termios rwsem */

@@ -1518,9 +1518,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		tty_set_flow_change(tty, TTY_THROTTLE_SAFE);
 		if (receive_room(tty) >= TTY_THRESHOLD_THROTTLE)
 			break;
-		up_read(&tty->termios_rwsem);
 		throttled = tty_throttle_safe(tty);
-		down_read(&tty->termios_rwsem);
 		if (!throttled)
 			break;
 	}
@@ -2086,9 +2084,7 @@ do_it_again:
 			if (!tty->count)
 				break;
 			n_tty_set_room(tty);
-			up_read(&tty->termios_rwsem);
 			unthrottled = tty_unthrottle_safe(tty);
-			down_read(&tty->termios_rwsem);
 			if (!unthrottled)
 				break;
 		}

@@ -151,7 +151,7 @@ int tty_throttle_safe(struct tty_struct *tty)
 {
 	int ret = 0;
 
-	down_write(&tty->termios_rwsem);
+	mutex_lock(&tty->throttle_mutex);
 	if (!test_bit(TTY_THROTTLED, &tty->flags)) {
 		if (tty->flow_change != TTY_THROTTLE_SAFE)
 			ret = 1;
@@ -161,7 +161,7 @@ int tty_throttle_safe(struct tty_struct *tty)
 				tty->ops->throttle(tty);
 		}
 	}
-	up_write(&tty->termios_rwsem);
+	mutex_unlock(&tty->throttle_mutex);
 
 	return ret;
 }
@@ -182,7 +182,7 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 {
 	int ret = 0;
 
-	down_write(&tty->termios_rwsem);
+	mutex_lock(&tty->throttle_mutex);
 	if (test_bit(TTY_THROTTLED, &tty->flags)) {
 		if (tty->flow_change != TTY_UNTHROTTLE_SAFE)
 			ret = 1;
@@ -192,7 +192,7 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 				tty->ops->unthrottle(tty);
 		}
 	}
-	up_write(&tty->termios_rwsem);
+	mutex_unlock(&tty->throttle_mutex);
 
 	return ret;
 }
