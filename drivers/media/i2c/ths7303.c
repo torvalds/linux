@@ -38,7 +38,6 @@ struct ths7303_state {
 	struct v4l2_bt_timings		bt;
 	int std_id;
 	int stream_on;
-	int driver_data;
 };
 
 enum ths7303_filter_mode {
@@ -354,9 +353,6 @@ static int ths7303_probe(struct i2c_client *client,
 	state->pdata = pdata;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &ths7303_ops);
-
-	/* store the driver data to differntiate the chip */
-	state->driver_data = (int)id->driver_data;
 
 	/* set to default 480I_576I filter mode */
 	if (ths7303_setval(sd, THS7303_FILTER_MODE_480I_576I) < 0) {
