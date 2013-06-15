@@ -115,6 +115,11 @@ struct n_tty_data {
 	raw_spinlock_t read_lock;
 };
 
+static inline size_t read_cnt(struct n_tty_data *ldata)
+{
+	return ldata->read_cnt;
+}
+
 static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 			       unsigned char __user *ptr)
 {
@@ -133,9 +138,9 @@ static int receive_room(struct tty_struct *tty)
 		/* Multiply read_cnt by 3, since each byte might take up to
 		 * three times as many spaces when PARMRK is set (depending on
 		 * its flags, e.g. parity error). */
-		left = N_TTY_BUF_SIZE - ldata->read_cnt * 3 - 1;
+		left = N_TTY_BUF_SIZE - read_cnt(ldata) * 3 - 1;
 	} else
-		left = N_TTY_BUF_SIZE - ldata->read_cnt - 1;
+		left = N_TTY_BUF_SIZE - read_cnt(ldata) - 1;
 
 	/*
 	 * If we are doing input canonicalization, and there are no
@@ -180,7 +185,7 @@ static void n_tty_set_room(struct tty_struct *tty)
 
 static void put_tty_queue_nolock(unsigned char c, struct n_tty_data *ldata)
 {
-	if (ldata->read_cnt < N_TTY_BUF_SIZE) {
+	if (read_cnt(ldata) < N_TTY_BUF_SIZE) {
 		ldata->read_buf[ldata->read_head] = c;
 		ldata->read_head = (ldata->read_head + 1) & (N_TTY_BUF_SIZE-1);
 		ldata->read_cnt++;
@@ -285,7 +290,7 @@ static ssize_t chars_in_buffer(struct tty_struct *tty)
 
 	raw_spin_lock_irqsave(&ldata->read_lock, flags);
 	if (!ldata->icanon) {
-		n = ldata->read_cnt;
+		n = read_cnt(ldata);
 	} else if (ldata->canon_data) {
 		n = (ldata->canon_head > ldata->read_tail) ?
 			ldata->canon_head - ldata->read_tail :
@@ -1204,7 +1209,7 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 	if (!test_bit(c, ldata->process_char_map) || ldata->lnext) {
 		ldata->lnext = 0;
 		parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty)) ? 1 : 0;
-		if (ldata->read_cnt >= (N_TTY_BUF_SIZE - parmrk - 1)) {
+		if (read_cnt(ldata) >= (N_TTY_BUF_SIZE - parmrk - 1)) {
 			/* beep if no space */
 			if (L_ECHO(tty))
 				process_output('\a', tty);
@@ -1304,7 +1309,7 @@ send_signal:
 			return;
 		}
 		if (c == '\n') {
-			if (ldata->read_cnt >= N_TTY_BUF_SIZE) {
+			if (read_cnt(ldata) >= N_TTY_BUF_SIZE) {
 				if (L_ECHO(tty))
 					process_output('\a', tty);
 				return;
@@ -1316,7 +1321,7 @@ send_signal:
 			goto handle_newline;
 		}
 		if (c == EOF_CHAR(tty)) {
-			if (ldata->read_cnt >= N_TTY_BUF_SIZE)
+			if (read_cnt(ldata) >= N_TTY_BUF_SIZE)
 				return;
 			if (ldata->canon_head != ldata->read_head)
 				set_bit(TTY_PUSH, &tty->flags);
@@ -1327,7 +1332,7 @@ send_signal:
 		    (c == EOL2_CHAR(tty) && L_IEXTEN(tty))) {
 			parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty))
 				 ? 1 : 0;
-			if (ldata->read_cnt >= (N_TTY_BUF_SIZE - parmrk)) {
+			if (read_cnt(ldata) >= (N_TTY_BUF_SIZE - parmrk)) {
 				if (L_ECHO(tty))
 					process_output('\a', tty);
 				return;
@@ -1364,7 +1369,7 @@ handle_newline:
 	}
 
 	parmrk = (c == (unsigned char) '\377' && I_PARMRK(tty)) ? 1 : 0;
-	if (ldata->read_cnt >= (N_TTY_BUF_SIZE - parmrk - 1)) {
+	if (read_cnt(ldata) >= (N_TTY_BUF_SIZE - parmrk - 1)) {
 		/* beep if no space */
 		if (L_ECHO(tty))
 			process_output('\a', tty);
@@ -1430,7 +1435,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 
 	if (ldata->real_raw) {
 		raw_spin_lock_irqsave(&ldata->read_lock, cpuflags);
-		i = min(N_TTY_BUF_SIZE - ldata->read_cnt,
+		i = min(N_TTY_BUF_SIZE - read_cnt(ldata),
 			N_TTY_BUF_SIZE - ldata->read_head);
 		i = min(count, i);
 		memcpy(ldata->read_buf + ldata->read_head, cp, i);
@@ -1439,7 +1444,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		cp += i;
 		count -= i;
 
-		i = min(N_TTY_BUF_SIZE - ldata->read_cnt,
+		i = min(N_TTY_BUF_SIZE - read_cnt(ldata),
 			N_TTY_BUF_SIZE - ldata->read_head);
 		i = min(count, i);
 		memcpy(ldata->read_buf + ldata->read_head, cp, i);
@@ -1474,7 +1479,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			tty->ops->flush_chars(tty);
 	}
 
-	if ((!ldata->icanon && (ldata->read_cnt >= ldata->minimum_to_wake)) ||
+	if ((!ldata->icanon && (read_cnt(ldata) >= ldata->minimum_to_wake)) ||
 		L_EXTPROC(tty)) {
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
 		if (waitqueue_active(&tty->read_wait))
@@ -1552,7 +1557,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		ldata->erasing = 0;
 	}
 
-	if (canon_change && !L_ICANON(tty) && ldata->read_cnt)
+	if (canon_change && !L_ICANON(tty) && read_cnt(ldata))
 		wake_up_interruptible(&tty->read_wait);
 
 	ldata->icanon = (L_ICANON(tty) != 0);
@@ -1701,7 +1706,7 @@ static inline int input_available_p(struct tty_struct *tty, int amt)
 	if (ldata->icanon && !L_EXTPROC(tty)) {
 		if (ldata->canon_data)
 			return 1;
-	} else if (ldata->read_cnt >= (amt ? amt : 1))
+	} else if (read_cnt(ldata) >= (amt ? amt : 1))
 		return 1;
 
 	return 0;
@@ -1737,7 +1742,7 @@ static int copy_from_read_buf(struct tty_struct *tty,
 
 	retval = 0;
 	raw_spin_lock_irqsave(&ldata->read_lock, flags);
-	n = min(ldata->read_cnt, N_TTY_BUF_SIZE - ldata->read_tail);
+	n = min(read_cnt(ldata), N_TTY_BUF_SIZE - ldata->read_tail);
 	n = min(*nr, n);
 	raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
 	if (n) {
@@ -1751,7 +1756,7 @@ static int copy_from_read_buf(struct tty_struct *tty,
 		ldata->read_tail = (ldata->read_tail + n) & (N_TTY_BUF_SIZE-1);
 		ldata->read_cnt -= n;
 		/* Turn single EOF into zero-length read */
-		if (L_EXTPROC(tty) && ldata->icanon && is_eof && !ldata->read_cnt)
+		if (L_EXTPROC(tty) && ldata->icanon && is_eof && !read_cnt(ldata))
 			n = 0;
 		raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
 		*b += n;
@@ -1787,7 +1792,7 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 
 	raw_spin_lock_irqsave(&ldata->read_lock, flags);
 
-	n = min_t(size_t, *nr, ldata->read_cnt);
+	n = min(*nr, read_cnt(ldata));
 	if (!n) {
 		raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
 		return 0;
@@ -2253,7 +2258,7 @@ static int n_tty_ioctl(struct tty_struct *tty, struct file *file,
 		return put_user(tty_chars_in_buffer(tty), (int __user *) arg);
 	case TIOCINQ:
 		/* FIXME: Locking */
-		retval = ldata->read_cnt;
+		retval = read_cnt(ldata);
 		if (L_ICANON(tty))
 			retval = inq_canon(ldata);
 		return put_user(retval, (unsigned int __user *) arg);
