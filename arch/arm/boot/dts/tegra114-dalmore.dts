@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "tegra114.dtsi"
+#include "tegra114.dtsi"
 
 / {
 	model = "NVIDIA Tegra114 Dalmore evaluation board";
@@ -727,6 +727,16 @@
 			battery-name = "battery";
 			sbs,i2c-retry-count = <2>;
 			sbs,poll-retry-count = <100>;
+			power-supplies = <&charger>;
+		};
+
+		rt5640: rt5640 {
+			compatible = "realtek,rt5640";
+			reg = <0x1c>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(W, 3) GPIO_ACTIVE_HIGH>;
+			realtek,ldo1-en-gpios =
+				<&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -748,7 +758,7 @@
 			compatible = "ti,tps65090";
 			reg = <0x48>;
 			interrupt-parent = <&gpio>;
-			interrupts = <72 0x04>; /* gpio PJ0 */
+			interrupts = <TEGRA_GPIO(J, 0) IRQ_TYPE_LEVEL_HIGH>;
 
 			vsys1-supply = <&vdd_ac_bat_reg>;
 			vsys2-supply = <&vdd_ac_bat_reg>;
@@ -762,6 +772,11 @@
 			infet7-supply = <&tps65090_dcdc2_reg>;
 			vsys-l1-supply = <&vdd_ac_bat_reg>;
 			vsys-l2-supply = <&vdd_ac_bat_reg>;
+
+			charger: charger {
+				compatible = "ti,tps65090-charger";
+				ti,enable-low-current-chrg;
+			};
 
 			regulators {
 				tps65090_dcdc1_reg: dcdc1 {
@@ -823,12 +838,28 @@
 		};
 	};
 
+	spi@7000da00 {
+		status = "okay";
+		spi-max-frequency = <25000000>;
+		spi-flash@0 {
+			compatible = "winbond,w25q32dw";
+			reg = <0>;
+			spi-max-frequency = <20000000>;
+		};
+	};
+
 	pmc {
 		nvidia,invert-interrupt;
 	};
 
+	ahub {
+		i2s@70080400 {
+			status = "okay";
+		};
+	};
+
 	sdhci@78000400 {
-		cd-gpios = <&gpio 170 1>; /* gpio PV2 */
+		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
 		bus-width = <4>;
 		status = "okay";
 	};
@@ -873,7 +904,7 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			enable-active-high;
-			gpio = <&gpio 61 0>; /* GPIO PH5 */
+			gpio = <&gpio TEGRA_GPIO(H, 5) GPIO_ACTIVE_HIGH>;
 		};
 
 		lcd_bl_en_reg: regulator@2 {
@@ -883,7 +914,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 58 0>; /* GPIO PH2 */
+			gpio = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
 		};
 
 		usb1_vbus_reg: regulator@3 {
@@ -893,7 +924,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 108 0>; /* GPIO PN4 */
+			gpio = <&gpio TEGRA_GPIO(N, 4) GPIO_ACTIVE_HIGH>;
 			gpio-open-drain;
 			vin-supply = <&tps65090_dcdc1_reg>;
 		};
@@ -905,7 +936,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 86 0>; /* GPIO PK6 */
+			gpio = <&gpio TEGRA_GPIO(K, 6) GPIO_ACTIVE_HIGH>;
 			gpio-open-drain;
 			vin-supply = <&tps65090_dcdc1_reg>;
 		};
@@ -917,8 +948,32 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 81 0>; /* GPIO PK1 */
+			gpio = <&gpio TEGRA_GPIO(K, 1) GPIO_ACTIVE_HIGH>;
 			vin-supply = <&tps65090_dcdc1_reg>;
 		};
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-rt5640-dalmore",
+			     "nvidia,tegra-audio-rt5640";
+		nvidia,model = "NVIDIA Tegra Dalmore";
+
+		nvidia,audio-routing =
+			"Headphones", "HPOR",
+			"Headphones", "HPOL",
+			"Speakers", "SPORP",
+			"Speakers", "SPORN",
+			"Speakers", "SPOLP",
+			"Speakers", "SPOLN";
+
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&rt5640>;
+
+		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(R, 7) GPIO_ACTIVE_HIGH>;
+
+		clocks = <&tegra_car TEGRA114_CLK_PLL_A>,
+			 <&tegra_car TEGRA114_CLK_PLL_A_OUT0>,
+			 <&tegra_car TEGRA114_CLK_EXTERN1>;
+		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };
