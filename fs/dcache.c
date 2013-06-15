@@ -2984,35 +2984,6 @@ void d_tmpfile(struct dentry *dentry, struct inode *inode)
 }
 EXPORT_SYMBOL(d_tmpfile);
 
-/**
- * find_inode_number - check for dentry with name
- * @dir: directory to check
- * @name: Name to find.
- *
- * Check whether a dentry already exists for the given name,
- * and return the inode number if it has an inode. Otherwise
- * 0 is returned.
- *
- * This routine is used to post-process directory listings for
- * filesystems using synthetic inode numbers, and is necessary
- * to keep getcwd() working.
- */
- 
-ino_t find_inode_number(struct dentry *dir, struct qstr *name)
-{
-	struct dentry * dentry;
-	ino_t ino = 0;
-
-	dentry = d_hash_and_lookup(dir, name);
-	if (!IS_ERR_OR_NULL(dentry)) {
-		if (dentry->d_inode)
-			ino = dentry->d_inode->i_ino;
-		dput(dentry);
-	}
-	return ino;
-}
-EXPORT_SYMBOL(find_inode_number);
-
 static __initdata unsigned long dhash_entries;
 static int __init set_dhash_entries(char *str)
 {

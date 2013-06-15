@@ -660,8 +660,6 @@ end_advance:
 		ctl.valid = 0;
 	if (!ctl.filled && (ctl.fpos == ctx->pos)) {
 		if (!ino)
-			ino = find_inode_number(dentry, &qname);
-		if (!ino)
 			ino = iunique(dir->i_sb, 2);
 		ctl.filled = !dir_emit(ctx, qname.name, qname.len,
 				     ino, DT_UNKNOWN);

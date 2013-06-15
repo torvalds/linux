@@ -2311,7 +2311,6 @@ extern struct file * open_exec(const char *);
 /* fs/dcache.c -- generic fs support functions */
 extern int is_subdir(struct dentry *, struct dentry *);
 extern int path_is_under(struct path *, struct path *);
-extern ino_t find_inode_number(struct dentry *, struct qstr *);
 
 #include <linux/err.h>
 
