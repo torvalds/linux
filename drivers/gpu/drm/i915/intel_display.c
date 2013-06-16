@@ -892,8 +892,8 @@ static const char *state_string(bool enabled)
 }
 
 /* Only for pre-ILK configs */
-static void assert_pll(struct drm_i915_private *dev_priv,
-		       enum pipe pipe, bool state)
+void assert_pll(struct drm_i915_private *dev_priv,
+		enum pipe pipe, bool state)
 {
 	int reg;
 	u32 val;
@@ -906,10 +906,8 @@ static void assert_pll(struct drm_i915_private *dev_priv,
 	     "PLL state assertion failure (expected %s, current %s)\n",
 	     state_string(state), state_string(cur_state));
 }
-#define assert_pll_enabled(d, p) assert_pll(d, p, true)
-#define assert_pll_disabled(d, p) assert_pll(d, p, false)
 
-static struct intel_shared_dpll *
+struct intel_shared_dpll *
 intel_crtc_to_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
@@ -921,9 +919,9 @@ intel_crtc_to_shared_dpll(struct intel_crtc *crtc)
 }
 
 /* For ILK+ */
-static void assert_shared_dpll(struct drm_i915_private *dev_priv,
-			       struct intel_shared_dpll *pll,
-			       bool state)
+void assert_shared_dpll(struct drm_i915_private *dev_priv,
+			struct intel_shared_dpll *pll,
+			bool state)
 {
 	bool cur_state;
 	struct intel_dpll_hw_state hw_state;
@@ -942,8 +940,6 @@ static void assert_shared_dpll(struct drm_i915_private *dev_priv,
 	     "%s assertion failure (expected %s, current %s)\n",
 	     pll->name, state_string(state), state_string(cur_state));
 }
-#define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
-#define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
 
 static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, bool state)
@@ -1007,15 +1003,19 @@ static void assert_fdi_tx_pll_enabled(struct drm_i915_private *dev_priv,
 	WARN(!(val & FDI_TX_PLL_ENABLE), "FDI TX PLL assertion failure, should be active but is disabled\n");
 }
 
-static void assert_fdi_rx_pll_enabled(struct drm_i915_private *dev_priv,
-				      enum pipe pipe)
+void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
+		       enum pipe pipe, bool state)
 {
 	int reg;
 	u32 val;
+	bool cur_state;
 
 	reg = FDI_RX_CTL(pipe);
 	val = I915_READ(reg);
-	WARN(!(val & FDI_RX_PLL_ENABLE), "FDI RX PLL assertion failure, should be active but is disabled\n");
+	cur_state = !!(val & FDI_RX_PLL_ENABLE);
+	WARN(cur_state != state,
+	     "FDI RX PLL assertion failure (expected %s, current %s)\n",
+	     state_string(state), state_string(cur_state));
 }
 
 static void assert_panel_unlocked(struct drm_i915_private *dev_priv,
