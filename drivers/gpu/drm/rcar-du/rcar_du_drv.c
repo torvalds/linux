@@ -105,7 +105,7 @@ static void rcar_du_preclose(struct drm_device *dev, struct drm_file *file)
 	struct rcar_du_device *rcdu = dev->dev_private;
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(rcdu->crtcs); ++i)
+	for (i = 0; i < rcdu->num_crtcs; ++i)
 		rcar_du_crtc_cancel_page_flip(&rcdu->crtcs[i], file);
 }
 
