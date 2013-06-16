@@ -174,17 +174,20 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	rcdu->ddev->mode_config.max_height = 2047;
 	rcdu->ddev->mode_config.funcs = &rcar_du_mode_config_funcs;
 
-	ret = rcar_du_planes_init(rcdu);
+	rcdu->group.dev = rcdu;
+	rcdu->group.index = 0;
+	rcdu->group.used_crtcs = 0;
+
+	ret = rcar_du_planes_init(&rcdu->group);
 	if (ret < 0)
 		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(rcdu->crtcs); ++i) {
-		ret = rcar_du_crtc_create(rcdu, i);
+		ret = rcar_du_crtc_create(&rcdu->group, i);
 		if (ret < 0)
 			return ret;
 	}
 
-	rcdu->used_crtcs = 0;
 	rcdu->num_crtcs = i;
 
 	for (i = 0; i < rcdu->pdata->num_encoders; ++i) {
@@ -215,7 +218,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		encoder->possible_clones = 1 << 0;
 	}
 
-	ret = rcar_du_planes_register(rcdu);
+	ret = rcar_du_planes_register(&rcdu->group);
 	if (ret < 0)
 		return ret;
 

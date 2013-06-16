@@ -29,52 +29,6 @@
 #include "rcar_du_regs.h"
 
 /* -----------------------------------------------------------------------------
- * Core device operations
- */
-
-/*
- * rcar_du_get - Acquire a reference to the DU
- *
- * Acquiring the first  reference setups core registers. A reference must be
- * held before accessing any hardware registers.
- *
- * This function must be called with the DRM mode_config lock held.
- *
- * Return 0 in case of success or a negative error code otherwise.
- */
-int rcar_du_get(struct rcar_du_device *rcdu)
-{
-	if (rcdu->use_count)
-		goto done;
-
-	/* Enable extended features */
-	rcar_du_write(rcdu, DEFR, DEFR_CODE | DEFR_DEFE);
-	rcar_du_write(rcdu, DEFR2, DEFR2_CODE | DEFR2_DEFE2G);
-	rcar_du_write(rcdu, DEFR3, DEFR3_CODE | DEFR3_DEFE3);
-	rcar_du_write(rcdu, DEFR4, DEFR4_CODE);
-	rcar_du_write(rcdu, DEFR5, DEFR5_CODE | DEFR5_DEFE5);
-
-	/* Use DS1PR and DS2PR to configure planes priorities and connects the
-	 * superposition 0 to DU0 pins. DU1 pins will be configured dynamically.
-	 */
-	rcar_du_write(rcdu, DORCR, DORCR_PG1D_DS1 | DORCR_DPRS);
-
-done:
-	rcdu->use_count++;
-	return 0;
-}
-
-/*
- * rcar_du_put - Release a reference to the DU
- *
- * This function must be called with the DRM mode_config lock held.
- */
-void rcar_du_put(struct rcar_du_device *rcdu)
-{
-	--rcdu->use_count;
-}
-
-/* -----------------------------------------------------------------------------
  * DRM operations
  */
 
