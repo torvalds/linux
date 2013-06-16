@@ -1331,32 +1331,48 @@ static void vlv_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	udelay(150); /* wait for warmup */
 }
 
-static void i9xx_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+static void i9xx_enable_pll(struct intel_crtc *crtc)
 {
-	int reg;
-	u32 val;
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int reg = DPLL(crtc->pipe);
+	u32 dpll = crtc->config.dpll_hw_state.dpll;
 
-	assert_pipe_disabled(dev_priv, pipe);
+	assert_pipe_disabled(dev_priv, crtc->pipe);
 
 	/* No really, not for ILK+ */
 	BUG_ON(dev_priv->info->gen >= 5);
 
 	/* PLL is protected by panel, make sure we can write it */
-	if (IS_MOBILE(dev_priv->dev) && !IS_I830(dev_priv->dev))
-		assert_panel_unlocked(dev_priv, pipe);
+	if (IS_MOBILE(dev) && !IS_I830(dev))
+		assert_panel_unlocked(dev_priv, crtc->pipe);
 
-	reg = DPLL(pipe);
-	val = I915_READ(reg);
-	val |= DPLL_VCO_ENABLE;
+	I915_WRITE(reg, dpll);
+
+	/* Wait for the clocks to stabilize. */
+	POSTING_READ(reg);
+	udelay(150);
+
+	if (INTEL_INFO(dev)->gen >= 4) {
+		I915_WRITE(DPLL_MD(crtc->pipe),
+			   crtc->config.dpll_hw_state.dpll_md);
+	} else {
+		/* The pixel multiplier can only be updated once the
+		 * DPLL is enabled and the clocks are stable.
+		 *
+		 * So write it again.
+		 */
+		I915_WRITE(reg, dpll);
+	}
 
 	/* We do this three times for luck */
-	I915_WRITE(reg, val);
+	I915_WRITE(reg, dpll);
 	POSTING_READ(reg);
 	udelay(150); /* wait for warmup */
-	I915_WRITE(reg, val);
+	I915_WRITE(reg, dpll);
 	POSTING_READ(reg);
 	udelay(150); /* wait for warmup */
-	I915_WRITE(reg, val);
+	I915_WRITE(reg, dpll);
 	POSTING_READ(reg);
 	udelay(150); /* wait for warmup */
 }
@@ -3646,7 +3662,11 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
 
-	i9xx_enable_pll(dev_priv, pipe);
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		if (encoder->pre_pll_enable)
+			encoder->pre_pll_enable(encoder);
+
+	i9xx_enable_pll(intel_crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
@@ -4484,8 +4504,6 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *encoder;
-	int pipe = crtc->pipe;
 	u32 dpll;
 	bool is_sdvo;
 	struct dpll *clock = &crtc->config.dpll;
@@ -4549,37 +4567,14 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 	dpll |= DPLL_VCO_ENABLE;
 	crtc->config.dpll_hw_state.dpll = dpll;
 
-	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
-	POSTING_READ(DPLL(pipe));
-	udelay(150);
-
-	for_each_encoder_on_crtc(dev, &crtc->base, encoder)
-		if (encoder->pre_pll_enable)
-			encoder->pre_pll_enable(encoder);
-
-	if (crtc->config.has_dp_encoder)
-		intel_dp_set_m_n(crtc);
-
-	I915_WRITE(DPLL(pipe), dpll);
-
-	/* Wait for the clocks to stabilize. */
-	POSTING_READ(DPLL(pipe));
-	udelay(150);
-
 	if (INTEL_INFO(dev)->gen >= 4) {
 		u32 dpll_md = (crtc->config.pixel_multiplier - 1)
 			<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
 		crtc->config.dpll_hw_state.dpll_md = dpll_md;
-
-		I915_WRITE(DPLL_MD(pipe), dpll_md);
-	} else {
-		/* The pixel multiplier can only be updated once the
-		 * DPLL is enabled and the clocks are stable.
-		 *
-		 * So write it again.
-		 */
-		I915_WRITE(DPLL(pipe), dpll);
 	}
+
+	if (crtc->config.has_dp_encoder)
+		intel_dp_set_m_n(crtc);
 }
 
 static void i8xx_update_pll(struct intel_crtc *crtc,
@@ -4588,8 +4583,6 @@ static void i8xx_update_pll(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *encoder;
-	int pipe = crtc->pipe;
 	u32 dpll;
 	struct dpll *clock = &crtc->config.dpll;
 
@@ -4616,27 +4609,6 @@ static void i8xx_update_pll(struct intel_crtc *crtc,
 
 	dpll |= DPLL_VCO_ENABLE;
 	crtc->config.dpll_hw_state.dpll = dpll;
-
-	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
-	POSTING_READ(DPLL(pipe));
-	udelay(150);
-
-	for_each_encoder_on_crtc(dev, &crtc->base, encoder)
-		if (encoder->pre_pll_enable)
-			encoder->pre_pll_enable(encoder);
-
-	I915_WRITE(DPLL(pipe), dpll);
-
-	/* Wait for the clocks to stabilize. */
-	POSTING_READ(DPLL(pipe));
-	udelay(150);
-
-	/* The pixel multiplier can only be updated once the
-	 * DPLL is enabled and the clocks are stable.
-	 *
-	 * So write it again.
-	 */
-	I915_WRITE(DPLL(pipe), dpll);
 }
 
 static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
