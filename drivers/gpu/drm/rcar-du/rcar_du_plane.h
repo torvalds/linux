@@ -14,8 +14,11 @@
 #ifndef __RCAR_DU_PLANE_H__
 #define __RCAR_DU_PLANE_H__
 
-struct drm_crtc;
-struct drm_framebuffer;
+#include <linux/mutex.h>
+
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+
 struct rcar_du_device;
 struct rcar_du_format_info;
 
@@ -52,6 +55,16 @@ struct rcar_du_plane {
 	unsigned int src_y;
 	unsigned int dst_x;
 	unsigned int dst_y;
+};
+
+struct rcar_du_planes {
+	struct rcar_du_plane planes[RCAR_DU_NUM_SW_PLANES];
+	unsigned int free;
+	struct mutex lock;
+
+	struct drm_property *alpha;
+	struct drm_property *colorkey;
+	struct drm_property *zpos;
 };
 
 int rcar_du_plane_init(struct rcar_du_device *rcdu);
