@@ -480,8 +480,11 @@ int rcar_du_planes_register(struct rcar_du_group *rgrp)
 {
 	struct rcar_du_planes *planes = &rgrp->planes;
 	struct rcar_du_device *rcdu = rgrp->dev;
+	unsigned int crtcs;
 	unsigned int i;
 	int ret;
+
+	crtcs = ((1 << rcdu->num_crtcs) - 1) & (3 << (2 * rgrp->index));
 
 	for (i = 0; i < RCAR_DU_NUM_KMS_PLANES; ++i) {
 		struct rcar_du_kms_plane *plane;
@@ -493,8 +496,7 @@ int rcar_du_planes_register(struct rcar_du_group *rgrp)
 		plane->hwplane = &planes->planes[i + 2];
 		plane->hwplane->zpos = 1;
 
-		ret = drm_plane_init(rcdu->ddev, &plane->plane,
-				     (1 << rcdu->num_crtcs) - 1,
+		ret = drm_plane_init(rcdu->ddev, &plane->plane, crtcs,
 				     &rcar_du_plane_funcs, formats,
 				     ARRAY_SIZE(formats), false);
 		if (ret < 0)

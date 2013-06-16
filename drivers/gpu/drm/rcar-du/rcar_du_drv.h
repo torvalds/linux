@@ -31,9 +31,11 @@ struct rcar_du_device;
 /*
  * struct rcar_du_device_info - DU model-specific information
  * @features: device features (RCAR_DU_FEATURE_*)
+ * @num_crtcs: total number of CRTCs
  */
 struct rcar_du_device_info {
 	unsigned int features;
+	unsigned int num_crtcs;
 };
 
 struct rcar_du_device {
@@ -45,10 +47,10 @@ struct rcar_du_device {
 
 	struct drm_device *ddev;
 
-	struct rcar_du_crtc crtcs[2];
+	struct rcar_du_crtc crtcs[3];
 	unsigned int num_crtcs;
 
-	struct rcar_du_group group;
+	struct rcar_du_group groups[2];
 };
 
 static inline bool rcar_du_has(struct rcar_du_device *rcdu,
