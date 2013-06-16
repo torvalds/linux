@@ -106,8 +106,7 @@ int mei_start(struct mei_device *dev)
 		goto err;
 	}
 
-	if (dev->version.major_version != HBM_MAJOR_VERSION ||
-	    dev->version.minor_version != HBM_MINOR_VERSION) {
+	if (!mei_hbm_version_is_supported(dev)) {
 		dev_dbg(&dev->pdev->dev, "MEI start failed.\n");
 		goto err;
 	}
