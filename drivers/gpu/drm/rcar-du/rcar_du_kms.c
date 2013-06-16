@@ -174,7 +174,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	rcdu->ddev->mode_config.max_height = 2047;
 	rcdu->ddev->mode_config.funcs = &rcar_du_mode_config_funcs;
 
-	ret = rcar_du_plane_init(rcdu);
+	ret = rcar_du_planes_init(rcdu);
 	if (ret < 0)
 		return ret;
 
@@ -215,7 +215,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		encoder->possible_clones = 1 << 0;
 	}
 
-	ret = rcar_du_plane_register(rcdu);
+	ret = rcar_du_planes_register(rcdu);
 	if (ret < 0)
 		return ret;
 

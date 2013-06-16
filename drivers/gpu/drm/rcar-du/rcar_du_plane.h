@@ -67,8 +67,9 @@ struct rcar_du_planes {
 	struct drm_property *zpos;
 };
 
-int rcar_du_plane_init(struct rcar_du_device *rcdu);
-int rcar_du_plane_register(struct rcar_du_device *rcdu);
+int rcar_du_planes_init(struct rcar_du_device *rcdu);
+int rcar_du_planes_register(struct rcar_du_device *rcdu);
+
 void rcar_du_plane_setup(struct rcar_du_plane *plane);
 void rcar_du_plane_update_base(struct rcar_du_plane *plane);
 void rcar_du_plane_compute_base(struct rcar_du_plane *plane,
