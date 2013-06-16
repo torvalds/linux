@@ -65,6 +65,7 @@ EXPORT_SYMBOL(samsung_pwm_lock);
 
 struct samsung_pwm_clocksource {
 	void __iomem *base;
+	void __iomem *source_reg;
 	unsigned int irq[SAMSUNG_PWM_NUM];
 	struct samsung_pwm_variant variant;
 
@@ -297,23 +298,6 @@ static void __init samsung_clockevent_init(void)
 	}
 }
 
-static void __iomem *samsung_timer_reg(void)
-{
-	switch (pwm.source_id) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-		return pwm.base + pwm.source_id * 0x0c + 0x14;
-
-	case 4:
-		return pwm.base + 0x40;
-
-	default:
-		BUG();
-	}
-}
-
 /*
  * Override the global weak sched_clock symbol with this
  * local implementation which uses the clocksource to get some
@@ -323,17 +307,11 @@ static void __iomem *samsung_timer_reg(void)
  */
 static u32 notrace samsung_read_sched_clock(void)
 {
-	void __iomem *reg = samsung_timer_reg();
-
-	if (!reg)
-		return 0;
-
-	return ~__raw_readl(reg);
+	return ~__raw_readl(pwm.source_reg);
 }
 
 static void __init samsung_clocksource_init(void)
 {
-	void __iomem *reg = samsung_timer_reg();
 	unsigned long pclk;
 	unsigned long clock_rate;
 	int ret;
@@ -348,10 +326,15 @@ static void __init samsung_clocksource_init(void)
 	samsung_time_setup(pwm.source_id, pwm.tcnt_max);
 	samsung_time_start(pwm.source_id, true);
 
+	if (pwm.source_id == 4)
+		pwm.source_reg = pwm.base + 0x40;
+	else
+		pwm.source_reg = pwm.base + pwm.source_id * 0x0c + 0x14;
+
 	setup_sched_clock(samsung_read_sched_clock,
 						pwm.variant.bits, clock_rate);
 
-	ret = clocksource_mmio_init(reg, "samsung_clocksource_timer",
+	ret = clocksource_mmio_init(pwm.source_reg, "samsung_clocksource_timer",
 					clock_rate, 250, pwm.variant.bits,
 					clocksource_mmio_readl_down);
 	if (ret)
