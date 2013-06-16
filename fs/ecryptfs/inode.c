@@ -679,7 +679,7 @@ static int ecryptfs_readlink_lower(struct dentry *dentry, char **buf,
 	set_fs(old_fs);
 	if (rc < 0)
 		goto out;
-	rc = ecryptfs_decode_and_decrypt_filename(buf, bufsiz, dentry,
+	rc = ecryptfs_decode_and_decrypt_filename(buf, bufsiz, dentry->d_sb,
 						  lower_buf, rc);
 out:
 	kfree(lower_buf);

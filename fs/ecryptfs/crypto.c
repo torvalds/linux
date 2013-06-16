@@ -2243,12 +2243,11 @@ out:
  */
 int ecryptfs_decode_and_decrypt_filename(char **plaintext_name,
 					 size_t *plaintext_name_size,
-					 struct dentry *ecryptfs_dir_dentry,
+					 struct super_block *sb,
 					 const char *name, size_t name_size)
 {
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
-		&ecryptfs_superblock_to_private(
-			ecryptfs_dir_dentry->d_sb)->mount_crypt_stat;
+		&ecryptfs_superblock_to_private(sb)->mount_crypt_stat;
 	char *decoded_name;
 	size_t decoded_name_size;
 	size_t packet_size;
