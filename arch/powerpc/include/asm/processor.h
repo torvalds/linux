@@ -409,21 +409,16 @@ static inline void prefetchw(const void *x)
 #endif
 
 #ifdef CONFIG_PPC64
-static inline unsigned long get_clean_sp(struct pt_regs *regs, int is_32)
+static inline unsigned long get_clean_sp(unsigned long sp, int is_32)
 {
-	unsigned long sp;
-
 	if (is_32)
-		sp = regs->gpr[1] & 0x0ffffffffUL;
-	else
-		sp = regs->gpr[1];
-
+		return sp & 0x0ffffffffUL;
 	return sp;
 }
 #else
-static inline unsigned long get_clean_sp(struct pt_regs *regs, int is_32)
+static inline unsigned long get_clean_sp(unsigned long sp, int is_32)
 {
-	return regs->gpr[1];
+	return sp;
 }
 #endif
 

@@ -885,7 +885,7 @@ static int fimd_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	if (pdev->dev.of_node) {
+	if (dev->of_node) {
 		pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
 			DRM_ERROR("memory allocation for pdata failed\n");
@@ -899,7 +899,7 @@ static int fimd_probe(struct platform_device *pdev)
 			return ret;
 		}
 	} else {
-		pdata = pdev->dev.platform_data;
+		pdata = dev->platform_data;
 		if (!pdata) {
 			DRM_ERROR("no platform data specified\n");
 			return -EINVAL;
@@ -912,7 +912,7 @@ static int fimd_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -930,7 +930,7 @@ static int fimd_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	ctx->regs = devm_ioremap_resource(&pdev->dev, res);
+	ctx->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ctx->regs))
 		return PTR_ERR(ctx->regs);
 
@@ -942,7 +942,7 @@ static int fimd_probe(struct platform_device *pdev)
 
 	ctx->irq = res->start;
 
-	ret = devm_request_irq(&pdev->dev, ctx->irq, fimd_irq_handler,
+	ret = devm_request_irq(dev, ctx->irq, fimd_irq_handler,
 							0, "drm_fimd", ctx);
 	if (ret) {
 		dev_err(dev, "irq request failed.\n");

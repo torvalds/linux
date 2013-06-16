@@ -375,7 +375,7 @@ err:
 	refill_dirty(cl);
 }
 
-void bch_writeback_init_cached_dev(struct cached_dev *dc)
+void bch_cached_dev_writeback_init(struct cached_dev *dc)
 {
 	closure_init_unlocked(&dc->writeback);
 	init_rwsem(&dc->writeback_lock);

@@ -118,7 +118,7 @@ y2 = %r15d
 
 _INP_END_SIZE = 8
 _INP_SIZE = 8
-_XFER_SIZE = 8
+_XFER_SIZE = 16
 _XMM_SAVE_SIZE = 0
 
 _INP_END = 0

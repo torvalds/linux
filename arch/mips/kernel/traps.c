@@ -897,22 +897,24 @@ out_sigsegv:
 
 asmlinkage void do_tr(struct pt_regs *regs)
 {
-	unsigned int opcode, tcode = 0;
+	u32 opcode, tcode = 0;
 	u16 instr[2];
-	unsigned long epc = exception_epc(regs);
+	unsigned long epc = msk_isa16_mode(exception_epc(regs));
 
-	if ((__get_user(instr[0], (u16 __user *)msk_isa16_mode(epc))) ||
-		(__get_user(instr[1], (u16 __user *)msk_isa16_mode(epc + 2))))
+	if (get_isa16_mode(regs->cp0_epc)) {
+		if (__get_user(instr[0], (u16 __user *)(epc + 0)) ||
+		    __get_user(instr[1], (u16 __user *)(epc + 2)))
 			goto out_sigsegv;
-	opcode = (instr[0] << 16) | instr[1];
-
-	/* Immediate versions don't provide a code.  */
-	if (!(opcode & OPCODE)) {
-		if (get_isa16_mode(regs->cp0_epc))
-			/* microMIPS */
-			tcode = (opcode >> 12) & 0x1f;
-		else
-			tcode = ((opcode >> 6) & ((1 << 10) - 1));
+		opcode = (instr[0] << 16) | instr[1];
+		/* Immediate versions don't provide a code.  */
+		if (!(opcode & OPCODE))
+			tcode = (opcode >> 12) & ((1 << 4) - 1);
+	} else {
+		if (__get_user(opcode, (u32 __user *)epc))
+			goto out_sigsegv;
+		/* Immediate versions don't provide a code.  */
+		if (!(opcode & OPCODE))
+			tcode = (opcode >> 6) & ((1 << 10) - 1);
 	}
 
 	do_trap_or_bp(regs, tcode, "Trap");

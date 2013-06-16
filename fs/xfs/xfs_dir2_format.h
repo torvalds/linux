@@ -266,6 +266,7 @@ struct xfs_dir3_blk_hdr {
 struct xfs_dir3_data_hdr {
 	struct xfs_dir3_blk_hdr	hdr;
 	xfs_dir2_data_free_t	best_free[XFS_DIR2_DATA_FD_COUNT];
+	__be32			pad;	/* 64 bit alignment */
 };
 
 #define XFS_DIR3_DATA_CRC_OFF  offsetof(struct xfs_dir3_data_hdr, hdr.crc)
@@ -477,7 +478,7 @@ struct xfs_dir3_leaf_hdr {
 	struct xfs_da3_blkinfo	info;		/* header for da routines */
 	__be16			count;		/* count of entries */
 	__be16			stale;		/* count of stale entries */
-	__be32			pad;
+	__be32			pad;		/* 64 bit alignment */
 };
 
 struct xfs_dir3_icleaf_hdr {
@@ -715,6 +716,7 @@ struct xfs_dir3_free_hdr {
 	__be32			firstdb;	/* db of first entry */
 	__be32			nvalid;		/* count of valid entries */
 	__be32			nused;		/* count of used entries */
+	__be32			pad;		/* 64 bit alignment */
 };
 
 struct xfs_dir3_free {
