@@ -28,22 +28,29 @@ struct rcar_du_panel_data {
 	struct drm_mode_modeinfo mode;
 };
 
-struct rcar_du_encoder_lvds_data {
+struct rcar_du_connector_lvds_data {
 	struct rcar_du_panel_data panel;
 };
 
-struct rcar_du_encoder_vga_data {
+struct rcar_du_connector_vga_data {
 	/* TODO: Add DDC information for EDID retrieval */
 };
 
+/*
+ * struct rcar_du_encoder_data - Encoder platform data
+ * @type: the encoder type (RCAR_DU_ENCODER_*)
+ * @output: the DU output the connector is connected to
+ * @connector.lvds: platform data for LVDS connectors
+ * @connector.vga: platform data for VGA connectors
+ */
 struct rcar_du_encoder_data {
-	enum rcar_du_encoder_type encoder;
+	enum rcar_du_encoder_type type;
 	unsigned int output;
 
 	union {
-		struct rcar_du_encoder_lvds_data lvds;
-		struct rcar_du_encoder_vga_data vga;
-	} u;
+		struct rcar_du_connector_lvds_data lvds;
+		struct rcar_du_connector_vga_data vga;
+	} connector;
 };
 
 struct rcar_du_platform_data {

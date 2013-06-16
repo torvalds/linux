@@ -137,7 +137,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	switch (type) {
 	case RCAR_DU_ENCODER_LVDS:
 		return rcar_du_lvds_connector_init(rcdu, renc,
-						   &data->u.lvds.panel);
+						   &data->connector.lvds.panel);
 
 	case RCAR_DU_ENCODER_VGA:
 		return rcar_du_vga_connector_init(rcdu, renc);
