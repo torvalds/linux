@@ -399,9 +399,6 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 	wake_up(&group->fanotify_data.access_waitq);
 #endif
 
-	if (file->f_flags & FASYNC)
-		fsnotify_fasync(-1, file, 0);
-
 	/* matches the fanotify_init->fsnotify_alloc_group */
 	fsnotify_destroy_group(group);
 
