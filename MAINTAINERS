@@ -6265,6 +6265,16 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/pinctrl/pinctrl-at91.c
 
+PIN CONTROLLER - SAMSUNG
+M:	Tomasz Figa <t.figa@samsung.com>
+M:	Thomas Abraham <thomas.abraham@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/pinctrl/pinctrl-exynos.*
+F:	drivers/pinctrl/pinctrl-s3c*
+F:	drivers/pinctrl/pinctrl-samsung.*
+
 PIN CONTROLLER - ST SPEAR
 M:	Viresh Kumar <viresh.linux@gmail.com>
 L:	spear-devel@list.st.com
