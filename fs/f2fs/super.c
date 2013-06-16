@@ -34,7 +34,7 @@
 static struct kmem_cache *f2fs_inode_cachep;
 
 enum {
-	Opt_gc_background_off,
+	Opt_gc_background,
 	Opt_disable_roll_forward,
 	Opt_discard,
 	Opt_noheap,
@@ -46,7 +46,7 @@ enum {
 };
 
 static match_table_t f2fs_tokens = {
-	{Opt_gc_background_off, "background_gc_off"},
+	{Opt_gc_background, "background_gc=%s"},
 	{Opt_disable_roll_forward, "disable_roll_forward"},
 	{Opt_discard, "discard"},
 	{Opt_noheap, "no_heap"},
@@ -74,6 +74,91 @@ static void init_once(void *foo)
 	struct f2fs_inode_info *fi = (struct f2fs_inode_info *) foo;
 
 	inode_init_once(&fi->vfs_inode);
+}
+
+static int parse_options(struct super_block *sb, char *options)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	substring_t args[MAX_OPT_ARGS];
+	char *p, *name;
+	int arg = 0;
+
+	if (!options)
+		return 0;
+
+	while ((p = strsep(&options, ",")) != NULL) {
+		int token;
+		if (!*p)
+			continue;
+		/*
+		 * Initialize args struct so we know whether arg was
+		 * found; some options take optional arguments.
+		 */
+		args[0].to = args[0].from = NULL;
+		token = match_token(p, f2fs_tokens, args);
+
+		switch (token) {
+		case Opt_gc_background:
+			name = match_strdup(&args[0]);
+
+			if (!name)
+				return -ENOMEM;
+			if (!strncmp(name, "on", 2))
+				set_opt(sbi, BG_GC);
+			else if (!strncmp(name, "off", 3))
+				clear_opt(sbi, BG_GC);
+			else {
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			break;
+		case Opt_disable_roll_forward:
+			set_opt(sbi, DISABLE_ROLL_FORWARD);
+			break;
+		case Opt_discard:
+			set_opt(sbi, DISCARD);
+			break;
+		case Opt_noheap:
+			set_opt(sbi, NOHEAP);
+			break;
+#ifdef CONFIG_F2FS_FS_XATTR
+		case Opt_nouser_xattr:
+			clear_opt(sbi, XATTR_USER);
+			break;
+#else
+		case Opt_nouser_xattr:
+			f2fs_msg(sb, KERN_INFO,
+				"nouser_xattr options not supported");
+			break;
+#endif
+#ifdef CONFIG_F2FS_FS_POSIX_ACL
+		case Opt_noacl:
+			clear_opt(sbi, POSIX_ACL);
+			break;
+#else
+		case Opt_noacl:
+			f2fs_msg(sb, KERN_INFO, "noacl options not supported");
+			break;
+#endif
+		case Opt_active_logs:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			if (arg != 2 && arg != 4 && arg != NR_CURSEG_TYPE)
+				return -EINVAL;
+			sbi->active_logs = arg;
+			break;
+		case Opt_disable_ext_identify:
+			set_opt(sbi, DISABLE_EXT_IDENTIFY);
+			break;
+		default:
+			f2fs_msg(sb, KERN_ERR,
+				"Unrecognized mount option \"%s\" or missing value",
+				p);
+			return -EINVAL;
+		}
+	}
+	return 0;
 }
 
 static struct inode *f2fs_alloc_inode(struct super_block *sb)
@@ -225,10 +310,10 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(root->d_sb);
 
-	if (test_opt(sbi, BG_GC))
-		seq_puts(seq, ",background_gc_on");
+	if (!(root->d_sb->s_flags & MS_RDONLY) && test_opt(sbi, BG_GC))
+		seq_printf(seq, ",background_gc=%s", "on");
 	else
-		seq_puts(seq, ",background_gc_off");
+		seq_printf(seq, ",background_gc=%s", "off");
 	if (test_opt(sbi, DISABLE_ROLL_FORWARD))
 		seq_puts(seq, ",disable_roll_forward");
 	if (test_opt(sbi, DISCARD))
@@ -255,6 +340,58 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 	return 0;
 }
 
+static int f2fs_remount(struct super_block *sb, int *flags, char *data)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	struct f2fs_mount_info org_mount_opt;
+	int err, active_logs;
+
+	/*
+	 * Save the old mount options in case we
+	 * need to restore them.
+	 */
+	org_mount_opt = sbi->mount_opt;
+	active_logs = sbi->active_logs;
+
+	/* parse mount options */
+	err = parse_options(sb, data);
+	if (err)
+		goto restore_opts;
+
+	/*
+	 * Previous and new state of filesystem is RO,
+	 * so no point in checking GC conditions.
+	 */
+	if ((sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY))
+		goto skip;
+
+	/*
+	 * We stop the GC thread if FS is mounted as RO
+	 * or if background_gc = off is passed in mount
+	 * option. Also sync the filesystem.
+	 */
+	if ((*flags & MS_RDONLY) || !test_opt(sbi, BG_GC)) {
+		if (sbi->gc_thread) {
+			stop_gc_thread(sbi);
+			f2fs_sync_fs(sb, 1);
+		}
+	} else if (test_opt(sbi, BG_GC) && !sbi->gc_thread) {
+		err = start_gc_thread(sbi);
+		if (err)
+			goto restore_opts;
+	}
+skip:
+	/* Update the POSIXACL Flag */
+	 sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
+		(test_opt(sbi, POSIX_ACL) ? MS_POSIXACL : 0);
+	return 0;
+
+restore_opts:
+	sbi->mount_opt = org_mount_opt;
+	sbi->active_logs = active_logs;
+	return err;
+}
+
 static struct super_operations f2fs_sops = {
 	.alloc_inode	= f2fs_alloc_inode,
 	.drop_inode	= f2fs_drop_inode,
@@ -268,6 +405,7 @@ static struct super_operations f2fs_sops = {
 	.freeze_fs	= f2fs_freeze,
 	.unfreeze_fs	= f2fs_unfreeze,
 	.statfs		= f2fs_statfs,
+	.remount_fs	= f2fs_remount,
 };
 
 static struct inode *f2fs_nfs_get_inode(struct super_block *sb,
@@ -314,79 +452,6 @@ static const struct export_operations f2fs_export_ops = {
 	.fh_to_parent = f2fs_fh_to_parent,
 	.get_parent = f2fs_get_parent,
 };
-
-static int parse_options(struct super_block *sb, char *options)
-{
-	struct f2fs_sb_info *sbi = F2FS_SB(sb);
-	substring_t args[MAX_OPT_ARGS];
-	char *p;
-	int arg = 0;
-
-	if (!options)
-		return 0;
-
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
-		if (!*p)
-			continue;
-		/*
-		 * Initialize args struct so we know whether arg was
-		 * found; some options take optional arguments.
-		 */
-		args[0].to = args[0].from = NULL;
-		token = match_token(p, f2fs_tokens, args);
-
-		switch (token) {
-		case Opt_gc_background_off:
-			clear_opt(sbi, BG_GC);
-			break;
-		case Opt_disable_roll_forward:
-			set_opt(sbi, DISABLE_ROLL_FORWARD);
-			break;
-		case Opt_discard:
-			set_opt(sbi, DISCARD);
-			break;
-		case Opt_noheap:
-			set_opt(sbi, NOHEAP);
-			break;
-#ifdef CONFIG_F2FS_FS_XATTR
-		case Opt_nouser_xattr:
-			clear_opt(sbi, XATTR_USER);
-			break;
-#else
-		case Opt_nouser_xattr:
-			f2fs_msg(sb, KERN_INFO,
-				"nouser_xattr options not supported");
-			break;
-#endif
-#ifdef CONFIG_F2FS_FS_POSIX_ACL
-		case Opt_noacl:
-			clear_opt(sbi, POSIX_ACL);
-			break;
-#else
-		case Opt_noacl:
-			f2fs_msg(sb, KERN_INFO, "noacl options not supported");
-			break;
-#endif
-		case Opt_active_logs:
-			if (args->from && match_int(args, &arg))
-				return -EINVAL;
-			if (arg != 2 && arg != 4 && arg != NR_CURSEG_TYPE)
-				return -EINVAL;
-			sbi->active_logs = arg;
-			break;
-		case Opt_disable_ext_identify:
-			set_opt(sbi, DISABLE_EXT_IDENTIFY);
-			break;
-		default:
-			f2fs_msg(sb, KERN_ERR,
-				"Unrecognized mount option \"%s\" or missing value",
-				p);
-			return -EINVAL;
-		}
-	}
-	return 0;
-}
 
 static loff_t max_file_size(unsigned bits)
 {
@@ -686,10 +751,16 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 				"Cannot recover all fsync data errno=%ld", err);
 	}
 
-	/* After POR, we can run background GC thread */
-	err = start_gc_thread(sbi);
-	if (err)
-		goto fail;
+	/*
+	 * If filesystem is not mounted as read-only then
+	 * do start the gc_thread.
+	 */
+	if (!(sb->s_flags & MS_RDONLY)) {
+		/* After POR, we can run background GC thread.*/
+		err = start_gc_thread(sbi);
+		if (err)
+			goto fail;
+	}
 
 	err = f2fs_build_stats(sbi);
 	if (err)
