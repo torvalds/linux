@@ -243,7 +243,7 @@ config PCMCIA_DEBUG
 
 config PCMCIA_PROBE
 	bool
-	default y if ISA && !ARCH_SA1100 && !ARCH_CLPS711X && !PARISC
+	default y if ISA && !ARCH_SA1100 && !PARISC
 
 config M32R_PCC
 	bool "M32R PCMCIA I/F"
