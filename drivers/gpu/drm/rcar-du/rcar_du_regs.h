@@ -13,7 +13,9 @@
 #ifndef __RCAR_DU_REGS_H__
 #define __RCAR_DU_REGS_H__
 
-#define DISP2_REG_OFFSET	 0x30000
+#define DU0_REG_OFFSET		0x00000
+#define DU1_REG_OFFSET		0x30000
+#define DU2_REG_OFFSET		0x40000
 
 /* -----------------------------------------------------------------------------
  * Display Control Registers

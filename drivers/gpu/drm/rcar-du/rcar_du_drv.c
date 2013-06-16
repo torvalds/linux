@@ -213,10 +213,12 @@ static int rcar_du_remove(struct platform_device *pdev)
 
 static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 	.features = 0,
+	.num_crtcs = 2,
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_ALIGN_128B,
+	.num_crtcs = 3,
 };
 
 static const struct platform_device_id rcar_du_id_table[] = {

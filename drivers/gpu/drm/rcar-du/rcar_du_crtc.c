@@ -91,7 +91,6 @@ static void rcar_du_crtc_put(struct rcar_du_crtc *rcrtc)
 static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 {
 	const struct drm_display_mode *mode = &rcrtc->crtc.mode;
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
 	unsigned long clk;
 	u32 value;
 	u32 div;
@@ -101,9 +100,9 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	div = DIV_ROUND_CLOSEST(clk, mode->clock * 1000);
 	div = clamp(div, 1U, 64U) - 1;
 
-	rcar_du_write(rcdu, rcrtc->index ? ESCR2 : ESCR,
-		      ESCR_DCLKSEL_CLKS | div);
-	rcar_du_write(rcdu, rcrtc->index ? OTAR2 : OTAR, 0);
+	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? ESCR2 : ESCR,
+			    ESCR_DCLKSEL_CLKS | div);
+	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? OTAR2 : OTAR, 0);
 
 	/* Signal polarities */
 	value = ((mode->flags & DRM_MODE_FLAG_PVSYNC) ? 0 : DSMR_VSL)
@@ -143,7 +142,6 @@ void rcar_du_crtc_route_output(struct drm_crtc *crtc, unsigned int output)
 void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
 	struct rcar_du_plane *planes[RCAR_DU_NUM_HW_PLANES];
 	unsigned int num_planes = 0;
 	unsigned int prio = 0;
@@ -189,8 +187,8 @@ void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 	/* Select display timing and dot clock generator 2 for planes associated
 	 * with superposition controller 2.
 	 */
-	if (rcrtc->index) {
-		u32 value = rcar_du_read(rcdu, DPTSR);
+	if (rcrtc->index % 2) {
+		u32 value = rcar_du_group_read(rcrtc->group, DPTSR);
 
 		/* The DPTSR register is updated when the display controller is
 		 * stopped. We thus need to restart the DU. Once again, sorry
@@ -200,13 +198,14 @@ void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 		 * occur only if we need to break the pre-association.
 		 */
 		if (value != dptsr) {
-			rcar_du_write(rcdu, DPTSR, dptsr);
+			rcar_du_group_write(rcrtc->group, DPTSR, dptsr);
 			if (rcrtc->group->used_crtcs)
 				rcar_du_group_restart(rcrtc->group);
 		}
 	}
 
-	rcar_du_write(rcdu, rcrtc->index ? DS2PR : DS1PR, dspr);
+	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR,
+			    dspr);
 }
 
 static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
@@ -528,6 +527,10 @@ static const struct drm_crtc_funcs crtc_funcs = {
 
 int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 {
+	static const unsigned int mmio_offsets[] = {
+		DU0_REG_OFFSET, DU1_REG_OFFSET, DU2_REG_OFFSET
+	};
+
 	struct rcar_du_device *rcdu = rgrp->dev;
 	struct platform_device *pdev = to_platform_device(rcdu->dev);
 	struct rcar_du_crtc *rcrtc = &rcdu->crtcs[index];
@@ -553,10 +556,10 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	}
 
 	rcrtc->group = rgrp;
-	rcrtc->mmio_offset = index ? DISP2_REG_OFFSET : 0;
+	rcrtc->mmio_offset = mmio_offsets[index];
 	rcrtc->index = index;
 	rcrtc->dpms = DRM_MODE_DPMS_OFF;
-	rcrtc->plane = &rgrp->planes.planes[index];
+	rcrtc->plane = &rgrp->planes.planes[index % 2];
 
 	rcrtc->plane->crtc = crtc;
 
