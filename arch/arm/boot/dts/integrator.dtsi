@@ -5,6 +5,11 @@
 /include/ "skeleton.dtsi"
 
 / {
+	core-module@10000000 {
+		compatible = "arm,core-module-integrator";
+		reg = <0x10000000 0x200>;
+	};
+
 	timer@13000000 {
 		reg = <0x13000000 0x100>;
 		interrupt-parent = <&pic>;

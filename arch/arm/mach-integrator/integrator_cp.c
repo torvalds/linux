@@ -36,7 +36,6 @@
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/icst.h>
 
-#include <mach/cm.h>
 #include <mach/lm.h>
 
 #include <asm/mach/arch.h>
@@ -49,6 +48,7 @@
 #include <plat/clcd.h>
 #include <plat/sched_clock.h>
 
+#include "cm.h"
 #include "common.h"
 
 /* Base address to the CP controller */
@@ -255,6 +255,7 @@ static const struct of_device_id fpga_irq_of_match[] __initconst = {
 
 static void __init intcp_init_irq_of(void)
 {
+	cm_init();
 	of_irq_init(fpga_irq_of_match);
 	integrator_clk_init(true);
 }

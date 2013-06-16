@@ -4,7 +4,9 @@
 u32 cm_get(void);
 void cm_control(u32, u32);
 
-#define CM_CTRL	__io_address(INTEGRATOR_HDR_CTRL)
+struct device_node;
+void cm_init(void);
+void cm_clear_irqs(void);
 
 #define CM_CTRL_LED			(1 << 0)
 #define CM_CTRL_nMBDET			(1 << 1)
