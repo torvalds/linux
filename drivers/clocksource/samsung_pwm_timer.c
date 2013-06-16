@@ -207,17 +207,6 @@ static int samsung_set_next_event(unsigned long cycles,
 	return 0;
 }
 
-static void samsung_timer_resume(void)
-{
-	/* event timer restart */
-	samsung_time_setup(pwm.event_id, pwm.clock_count_per_tick - 1);
-	samsung_time_start(pwm.event_id, true);
-
-	/* source timer restart */
-	samsung_time_setup(pwm.source_id, pwm.tcnt_max);
-	samsung_time_start(pwm.source_id, true);
-}
-
 static void samsung_set_mode(enum clock_event_mode mode,
 				struct clock_event_device *evt)
 {
@@ -234,11 +223,19 @@ static void samsung_set_mode(enum clock_event_mode mode,
 
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		break;
-
 	case CLOCK_EVT_MODE_RESUME:
-		samsung_timer_resume();
 		break;
+	}
+}
+
+static void samsung_clockevent_resume(struct clock_event_device *cev)
+{
+	samsung_timer_set_prescale(pwm.event_id, pwm.tscaler_div);
+	samsung_timer_set_divisor(pwm.event_id, pwm.tdiv);
+
+	if (pwm.variant.has_tint_cstat) {
+		u32 mask = (1 << pwm.event_id);
+		writel(mask | (mask << 5), pwm.base + REG_TINT_CSTAT);
 	}
 }
 
@@ -248,6 +245,7 @@ static struct clock_event_device time_event_device = {
 	.rating		= 200,
 	.set_next_event	= samsung_set_next_event,
 	.set_mode	= samsung_set_mode,
+	.resume		= samsung_clockevent_resume,
 };
 
 static irqreturn_t samsung_clock_event_isr(int irq, void *dev_id)
@@ -298,6 +296,20 @@ static void __init samsung_clockevent_init(void)
 	}
 }
 
+static void samsung_clocksource_suspend(struct clocksource *cs)
+{
+	samsung_time_stop(pwm.source_id);
+}
+
+static void samsung_clocksource_resume(struct clocksource *cs)
+{
+	samsung_timer_set_prescale(pwm.source_id, pwm.tscaler_div);
+	samsung_timer_set_divisor(pwm.source_id, pwm.tdiv);
+
+	samsung_time_setup(pwm.source_id, pwm.tcnt_max);
+	samsung_time_start(pwm.source_id, true);
+}
+
 static cycle_t samsung_clocksource_read(struct clocksource *c)
 {
 	return ~readl_relaxed(pwm.source_reg);
@@ -307,6 +319,8 @@ static struct clocksource samsung_clocksource = {
 	.name		= "samsung_clocksource_timer",
 	.rating		= 250,
 	.read		= samsung_clocksource_read,
+	.suspend	= samsung_clocksource_suspend,
+	.resume		= samsung_clocksource_resume,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
