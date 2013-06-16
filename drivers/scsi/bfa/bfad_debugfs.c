@@ -186,7 +186,7 @@ bfad_debugfs_lseek(struct file *file, loff_t offset, int orig)
 		file->f_pos += offset;
 		break;
 	case 2:
-		file->f_pos = debug->buffer_len - offset;
+		file->f_pos = debug->buffer_len + offset;
 		break;
 	default:
 		return -EINVAL;
