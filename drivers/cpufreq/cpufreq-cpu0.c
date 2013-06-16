@@ -45,7 +45,7 @@ static int cpu0_set_target(struct cpufreq_policy *policy,
 	struct cpufreq_freqs freqs;
 	struct opp *opp;
 	unsigned long volt = 0, volt_old = 0, tol = 0;
-	long freq_Hz;
+	long freq_Hz, freq_exact;
 	unsigned int index;
 	int ret;
 
@@ -60,6 +60,7 @@ static int cpu0_set_target(struct cpufreq_policy *policy,
 	freq_Hz = clk_round_rate(cpu_clk, freq_table[index].frequency * 1000);
 	if (freq_Hz < 0)
 		freq_Hz = freq_table[index].frequency * 1000;
+	freq_exact = freq_Hz;
 	freqs.new = freq_Hz / 1000;
 	freqs.old = clk_get_rate(cpu_clk) / 1000;
 
@@ -98,7 +99,7 @@ static int cpu0_set_target(struct cpufreq_policy *policy,
 		}
 	}
 
-	ret = clk_set_rate(cpu_clk, freqs.new * 1000);
+	ret = clk_set_rate(cpu_clk, freq_exact);
 	if (ret) {
 		pr_err("failed to set clock rate: %d\n", ret);
 		if (cpu_reg)

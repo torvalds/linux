@@ -319,7 +319,10 @@ cache<0..n>
   Symlink to each of the cache devices comprising this cache set. 
 
 cache_available_percent
-  Percentage of cache device free.
+  Percentage of cache device which doesn't contain dirty data, and could
+  potentially be used for writeback.  This doesn't mean this space isn't used
+  for clean cached data; the unused statistic (in priority_stats) is typically
+  much lower.
 
 clear_stats
   Clears the statistics associated with this cache
@@ -423,8 +426,11 @@ nbuckets
   Total buckets in this cache
 
 priority_stats
-  Statistics about how recently data in the cache has been accessed.  This can
-  reveal your working set size.
+  Statistics about how recently data in the cache has been accessed.
+  This can reveal your working set size.  Unused is the percentage of
+  the cache that doesn't contain any data.  Metadata is bcache's
+  metadata overhead.  Average is the average priority of cache buckets.
+  Next is a list of quantiles with the priority threshold of each.
 
 written
   Sum of all data that has been written to the cache; comparison with

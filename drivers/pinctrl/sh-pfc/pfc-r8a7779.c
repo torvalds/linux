@@ -2357,27 +2357,48 @@ static const unsigned int sdhi3_wp_mux[] = {
 };
 /* - USB0 ------------------------------------------------------------------- */
 static const unsigned int usb0_pins[] = {
-	/* OVC */
-	150, 154,
+	/* PENC */
+	154,
 };
 static const unsigned int usb0_mux[] = {
-	USB_OVC0_MARK, USB_PENC0_MARK,
+	USB_PENC0_MARK,
+};
+static const unsigned int usb0_ovc_pins[] = {
+	/* USB_OVC */
+	150
+};
+static const unsigned int usb0_ovc_mux[] = {
+	USB_OVC0_MARK,
 };
 /* - USB1 ------------------------------------------------------------------- */
 static const unsigned int usb1_pins[] = {
-	/* OVC */
-	152, 155,
+	/* PENC */
+	155,
 };
 static const unsigned int usb1_mux[] = {
-	USB_OVC1_MARK, USB_PENC1_MARK,
+	USB_PENC1_MARK,
+};
+static const unsigned int usb1_ovc_pins[] = {
+	/* USB_OVC */
+	152,
+};
+static const unsigned int usb1_ovc_mux[] = {
+	USB_OVC1_MARK,
 };
 /* - USB2 ------------------------------------------------------------------- */
 static const unsigned int usb2_pins[] = {
-	/* OVC, PENC */
-	125, 156,
+	/* PENC */
+	156,
 };
 static const unsigned int usb2_mux[] = {
-	USB_OVC2_MARK, USB_PENC2_MARK,
+	USB_PENC2_MARK,
+};
+static const unsigned int usb2_ovc_pins[] = {
+	/* USB_OVC */
+	125,
+};
+static const unsigned int usb2_ovc_mux[] = {
+	USB_OVC2_MARK,
 };
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
@@ -2501,8 +2522,11 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(sdhi3_cd),
 	SH_PFC_PIN_GROUP(sdhi3_wp),
 	SH_PFC_PIN_GROUP(usb0),
+	SH_PFC_PIN_GROUP(usb0_ovc),
 	SH_PFC_PIN_GROUP(usb1),
+	SH_PFC_PIN_GROUP(usb1_ovc),
 	SH_PFC_PIN_GROUP(usb2),
+	SH_PFC_PIN_GROUP(usb2_ovc),
 };
 
 static const char * const du0_groups[] = {
@@ -2683,14 +2707,17 @@ static const char * const sdhi3_groups[] = {
 
 static const char * const usb0_groups[] = {
 	"usb0",
+	"usb0_ovc",
 };
 
 static const char * const usb1_groups[] = {
 	"usb1",
+	"usb1_ovc",
 };
 
 static const char * const usb2_groups[] = {
 	"usb2",
+	"usb2_ovc",
 };
 
 static const struct sh_pfc_function pinmux_functions[] = {
