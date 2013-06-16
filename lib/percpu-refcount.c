@@ -154,5 +154,5 @@ void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 		(((unsigned long) ref->pcpu_count)|PCPU_REF_DEAD);
 	ref->confirm_kill = confirm_kill;
 
-	call_rcu(&ref->rcu, percpu_ref_kill_rcu);
+	call_rcu_sched(&ref->rcu, percpu_ref_kill_rcu);
 }
