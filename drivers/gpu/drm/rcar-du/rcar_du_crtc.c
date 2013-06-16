@@ -130,25 +130,6 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_write(rcrtc, DEWR,  mode->hdisplay);
 }
 
-static void rcar_du_crtc_set_routing(struct rcar_du_crtc *rcrtc)
-{
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
-	u32 dorcr = rcar_du_read(rcdu, DORCR);
-
-	dorcr &= ~(DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_MASK);
-
-	/* Set the DU1 pins sources. Select CRTC 0 if explicitly requested and
-	 * CRTC 1 in all other cases to avoid cloning CRTC 0 to DU0 and DU1 by
-	 * default.
-	 */
-	if (rcrtc->outputs & (1 << 1) && rcrtc->index == 0)
-		dorcr |= DORCR_PG2D_DS1;
-	else
-		dorcr |= DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_DS2;
-
-	rcar_du_write(rcdu, DORCR, dorcr);
-}
-
 void rcar_du_crtc_route_output(struct drm_crtc *crtc, unsigned int output)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
@@ -245,7 +226,7 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 
 	/* Configure display timings and output routing */
 	rcar_du_crtc_set_display_timing(rcrtc);
-	rcar_du_crtc_set_routing(rcrtc);
+	rcar_du_group_set_routing(rcrtc->group);
 
 	mutex_lock(&rcrtc->group->planes.lock);
 	rcrtc->plane->enabled = true;

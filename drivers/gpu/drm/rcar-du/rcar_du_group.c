@@ -125,3 +125,22 @@ void rcar_du_group_restart(struct rcar_du_group *rgrp)
 	__rcar_du_group_start_stop(rgrp, false);
 	__rcar_du_group_start_stop(rgrp, true);
 }
+
+void rcar_du_group_set_routing(struct rcar_du_group *rgrp)
+{
+	struct rcar_du_crtc *crtc0 = &rgrp->dev->crtcs[rgrp->index * 2];
+	u32 dorcr = rcar_du_group_read(rgrp, DORCR);
+
+	dorcr &= ~(DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_MASK);
+
+	/* Set the DU1 pins sources. Select CRTC 0 if explicitly requested and
+	 * CRTC 1 in all other cases to avoid cloning CRTC 0 to DU0 and DU1 by
+	 * default.
+	 */
+	if (crtc0->outputs & (1 << 1))
+		dorcr |= DORCR_PG2D_DS1;
+	else
+		dorcr |= DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_DS2;
+
+	rcar_du_group_write(rgrp, DORCR, dorcr);
+}
