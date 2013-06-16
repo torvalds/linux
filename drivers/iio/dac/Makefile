@@ -14,5 +14,6 @@ obj-$(CONFIG_AD5755) += ad5755.o
 obj-$(CONFIG_AD5764) += ad5764.o
 obj-$(CONFIG_AD5791) += ad5791.o
 obj-$(CONFIG_AD5686) += ad5686.o
+obj-$(CONFIG_AD7303) += ad7303.o
 obj-$(CONFIG_MAX517) += max517.o
 obj-$(CONFIG_MCP4725) += mcp4725.o

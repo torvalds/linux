@@ -6,18 +6,12 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/delay.h>
 #include <linux/mutex.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
-#include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/module.h>
 
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
 
 #define ADIS16130_CON         0x0
 #define ADIS16130_CON_RD      (1 << 6)
@@ -68,7 +62,6 @@ static int adis16130_spi_read(struct iio_dev *indio_dev, u8 reg_addr, u32 *val)
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
 	ret = spi_sync(st->us, &msg);
-	ret = spi_read(st->us, st->buf, 4);
 
 	if (ret == 0)
 		*val = (st->buf[1] << 16) | (st->buf[2] << 8) | st->buf[3];
@@ -85,14 +78,47 @@ static int adis16130_read_raw(struct iio_dev *indio_dev,
 	int ret;
 	u32 temp;
 
-	/* Take the iio_dev status lock */
-	mutex_lock(&indio_dev->mlock);
-	ret =  adis16130_spi_read(indio_dev, chan->address, &temp);
-	mutex_unlock(&indio_dev->mlock);
-	if (ret)
-		return ret;
-	*val = temp;
-	return IIO_VAL_INT;
+	switch (mask) {
+	case IIO_CHAN_INFO_RAW:
+		/* Take the iio_dev status lock */
+		mutex_lock(&indio_dev->mlock);
+		ret = adis16130_spi_read(indio_dev, chan->address, &temp);
+		mutex_unlock(&indio_dev->mlock);
+		if (ret)
+			return ret;
+		*val = temp;
+		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->type) {
+		case IIO_ANGL_VEL:
+			/* 0 degree = 838860, 250 degree = 14260608 */
+			*val = 250;
+			*val2 = 336440817; /* RAD_TO_DEGREE(14260608 - 8388608) */
+			return IIO_VAL_FRACTIONAL;
+		case IIO_TEMP:
+			/* 0C = 8036283, 105C = 9516048 */
+			*val = 105000;
+			*val2 = 9516048 - 8036283;
+			return IIO_VAL_FRACTIONAL;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case IIO_CHAN_INFO_OFFSET:
+		switch (chan->type) {
+		case IIO_ANGL_VEL:
+			*val = -8388608;
+			return IIO_VAL_INT;
+		case IIO_TEMP:
+			*val = -8036283;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
+		break;
+	}
+
+	return -EINVAL;
 }
 
 static const struct iio_chan_spec adis16130_channels[] = {
@@ -100,13 +126,17 @@ static const struct iio_chan_spec adis16130_channels[] = {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_OFFSET),
 		.address = ADIS16130_RATEDATA,
 	}, {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_OFFSET),
 		.address = ADIS16130_TEMPDATA,
 	}
 };
@@ -153,7 +183,6 @@ error_ret:
 	return ret;
 }
 
-/* fixme, confirm ordering in this function */
 static int adis16130_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
