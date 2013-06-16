@@ -25,11 +25,15 @@
 #define MCOUNT_OFFSET_INSNS 4
 #endif
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+
 /* Arch override because MIPS doesn't need to run this from stop_machine() */
 void arch_ftrace_update_code(int command)
 {
 	ftrace_modify_all_code(command);
 }
+
+#endif
 
 /*
  * Check if the address is in kernel space

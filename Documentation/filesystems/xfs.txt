@@ -33,6 +33,9 @@ When mounting an XFS filesystem, the following options are accepted.
 	removing extended attributes) the on-disk superblock feature
 	bit field will be updated to reflect this format being in use.
 
+	CRC enabled filesystems always use the attr2 format, and so
+	will reject the noattr2 mount option if it is set.
+
   barrier
 	Enables the use of block layer write barriers for writes into
 	the journal and unwritten extent conversion.  This allows for
