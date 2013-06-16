@@ -31,7 +31,8 @@
  *	Weighted Least Connection scheduling
  */
 static struct ip_vs_dest *
-ip_vs_wlc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
+ip_vs_wlc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
+		   struct ip_vs_iphdr *iph)
 {
 	struct ip_vs_dest *dest, *least;
 	unsigned int loh, doh;

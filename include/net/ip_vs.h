@@ -197,31 +197,6 @@ ip_vs_fill_iph_skb(int af, const struct sk_buff *skb, struct ip_vs_iphdr *iphdr)
 	}
 }
 
-/* This function is a faster version of ip_vs_fill_iph_skb().
- * Where we only populate {s,d}addr (and avoid calling ipv6_find_hdr()).
- * This is used by the some of the ip_vs_*_schedule() functions.
- * (Mostly done to avoid ABI breakage of external schedulers)
- */
-static inline void
-ip_vs_fill_iph_addr_only(int af, const struct sk_buff *skb,
-			 struct ip_vs_iphdr *iphdr)
-{
-#ifdef CONFIG_IP_VS_IPV6
-	if (af == AF_INET6) {
-		const struct ipv6hdr *iph =
-			(struct ipv6hdr *)skb_network_header(skb);
-		iphdr->saddr.in6 = iph->saddr;
-		iphdr->daddr.in6 = iph->daddr;
-	} else
-#endif
-	{
-		const struct iphdr *iph =
-			(struct iphdr *)skb_network_header(skb);
-		iphdr->saddr.ip = iph->saddr;
-		iphdr->daddr.ip = iph->daddr;
-	}
-}
-
 static inline void ip_vs_addr_copy(int af, union nf_inet_addr *dst,
 				   const union nf_inet_addr *src)
 {
@@ -814,7 +789,8 @@ struct ip_vs_scheduler {
 
 	/* selecting a server from the given service */
 	struct ip_vs_dest* (*schedule)(struct ip_vs_service *svc,
-				       const struct sk_buff *skb);
+				       const struct sk_buff *skb,
+				       struct ip_vs_iphdr *iph);
 };
 
 /* The persistence engine object */

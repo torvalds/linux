@@ -227,18 +227,16 @@ static inline int is_overloaded(struct ip_vs_dest *dest)
  *      Source Hashing scheduling
  */
 static struct ip_vs_dest *
-ip_vs_sh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
+ip_vs_sh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
+		  struct ip_vs_iphdr *iph)
 {
 	struct ip_vs_dest *dest;
 	struct ip_vs_sh_state *s;
-	struct ip_vs_iphdr iph;
-
-	ip_vs_fill_iph_addr_only(svc->af, skb, &iph);
 
 	IP_VS_DBG(6, "ip_vs_sh_schedule(): Scheduling...\n");
 
 	s = (struct ip_vs_sh_state *) svc->sched_data;
-	dest = ip_vs_sh_get(svc->af, s, &iph.saddr);
+	dest = ip_vs_sh_get(svc->af, s, &iph->saddr);
 	if (!dest
 	    || !(dest->flags & IP_VS_DEST_F_AVAILABLE)
 	    || atomic_read(&dest->weight) <= 0
@@ -248,7 +246,7 @@ ip_vs_sh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	}
 
 	IP_VS_DBG_BUF(6, "SH: source IP address %s --> server %s:%d\n",
-		      IP_VS_DBG_ADDR(svc->af, &iph.saddr),
+		      IP_VS_DBG_ADDR(svc->af, &iph->saddr),
 		      IP_VS_DBG_ADDR(svc->af, &dest->addr),
 		      ntohs(dest->port));
 
