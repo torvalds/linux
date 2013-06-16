@@ -298,6 +298,18 @@ static void __init samsung_clockevent_init(void)
 	}
 }
 
+static cycle_t samsung_clocksource_read(struct clocksource *c)
+{
+	return ~readl_relaxed(pwm.source_reg);
+}
+
+static struct clocksource samsung_clocksource = {
+	.name		= "samsung_clocksource_timer",
+	.rating		= 250,
+	.read		= samsung_clocksource_read,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
 /*
  * Override the global weak sched_clock symbol with this
  * local implementation which uses the clocksource to get some
@@ -307,7 +319,7 @@ static void __init samsung_clockevent_init(void)
  */
 static u32 notrace samsung_read_sched_clock(void)
 {
-	return ~__raw_readl(pwm.source_reg);
+	return samsung_clocksource_read(NULL);
 }
 
 static void __init samsung_clocksource_init(void)
@@ -334,9 +346,8 @@ static void __init samsung_clocksource_init(void)
 	setup_sched_clock(samsung_read_sched_clock,
 						pwm.variant.bits, clock_rate);
 
-	ret = clocksource_mmio_init(pwm.source_reg, "samsung_clocksource_timer",
-					clock_rate, 250, pwm.variant.bits,
-					clocksource_mmio_readl_down);
+	samsung_clocksource.mask = CLOCKSOURCE_MASK(pwm.variant.bits);
+	ret = clocksource_register_hz(&samsung_clocksource, clock_rate);
 	if (ret)
 		panic("samsung_clocksource_timer: can't register clocksource\n");
 }
