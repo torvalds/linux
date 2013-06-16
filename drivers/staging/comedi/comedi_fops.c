@@ -2317,9 +2317,6 @@ static int comedi_close(struct inode *inode, struct file *file)
 
 	mutex_unlock(&dev->mutex);
 
-	if (file->f_flags & FASYNC)
-		comedi_fasync(-1, file, 0);
-
 	return 0;
 }
 
