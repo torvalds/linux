@@ -14,10 +14,11 @@
 #ifndef __RCAR_DU_ENCODER_H__
 #define __RCAR_DU_ENCODER_H__
 
+#include <linux/platform_data/rcar-du.h>
+
 #include <drm/drm_crtc.h>
 
 struct rcar_du_device;
-struct rcar_du_encoder_data;
 
 struct rcar_du_encoder {
 	struct drm_encoder encoder;

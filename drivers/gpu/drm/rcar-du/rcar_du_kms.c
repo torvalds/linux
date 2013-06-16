@@ -191,7 +191,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		const struct rcar_du_encoder_data *pdata =
 			&rcdu->pdata->encoders[i];
 
-		if (pdata->encoder == RCAR_DU_ENCODER_UNUSED)
+		if (pdata->type == RCAR_DU_ENCODER_UNUSED)
 			continue;
 
 		if (pdata->output >= ARRAY_SIZE(rcdu->crtcs)) {
@@ -201,8 +201,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 			continue;
 		}
 
-		rcar_du_encoder_init(rcdu, pdata->encoder, pdata->output,
-				     pdata);
+		rcar_du_encoder_init(rcdu, pdata->type, pdata->output, pdata);
 	}
 
 	/* Set the possible CRTCs and possible clones. All encoders can be
