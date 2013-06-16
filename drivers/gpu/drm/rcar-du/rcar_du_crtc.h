@@ -19,7 +19,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 
-struct rcar_du_device;
+struct rcar_du_group;
 struct rcar_du_plane;
 
 struct rcar_du_crtc {
@@ -34,10 +34,11 @@ struct rcar_du_crtc {
 	unsigned int outputs;
 	int dpms;
 
+	struct rcar_du_group *group;
 	struct rcar_du_plane *plane;
 };
 
-int rcar_du_crtc_create(struct rcar_du_device *rcdu, unsigned int index);
+int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index);
 void rcar_du_crtc_enable_vblank(struct rcar_du_crtc *rcrtc, bool enable);
 void rcar_du_crtc_cancel_page_flip(struct rcar_du_crtc *rcrtc,
 				   struct drm_file *file);

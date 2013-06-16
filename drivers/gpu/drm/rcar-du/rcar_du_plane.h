@@ -19,8 +19,8 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 
-struct rcar_du_device;
 struct rcar_du_format_info;
+struct rcar_du_group;
 
 /* The RCAR DU has 8 hardware planes, shared between KMS planes and CRTCs. As
  * using KMS planes requires at least one of the CRTCs being enabled, no more
@@ -33,7 +33,7 @@ struct rcar_du_format_info;
 #define RCAR_DU_NUM_SW_PLANES		9
 
 struct rcar_du_plane {
-	struct rcar_du_device *dev;
+	struct rcar_du_group *group;
 	struct drm_crtc *crtc;
 
 	bool enabled;
@@ -67,8 +67,8 @@ struct rcar_du_planes {
 	struct drm_property *zpos;
 };
 
-int rcar_du_planes_init(struct rcar_du_device *rcdu);
-int rcar_du_planes_register(struct rcar_du_device *rcdu);
+int rcar_du_planes_init(struct rcar_du_group *rgrp);
+int rcar_du_planes_register(struct rcar_du_group *rgrp);
 
 void rcar_du_plane_setup(struct rcar_du_plane *plane);
 void rcar_du_plane_update_base(struct rcar_du_plane *plane);
