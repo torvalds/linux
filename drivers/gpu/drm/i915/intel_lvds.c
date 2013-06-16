@@ -127,11 +127,19 @@ static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	struct drm_display_mode *fixed_mode =
 		lvds_encoder->attached_connector->base.panel.fixed_mode;
-	int pipe = intel_crtc->pipe;
+	int pipe = crtc->pipe;
 	u32 temp;
+
+	if (HAS_PCH_SPLIT(dev)) {
+		assert_fdi_rx_pll_disabled(dev_priv, pipe);
+		assert_shared_dpll_disabled(dev_priv,
+					    intel_crtc_to_shared_dpll(crtc));
+	} else {
+		assert_pll_disabled(dev_priv, pipe);
+	}
 
 	temp = I915_READ(lvds_encoder->reg);
 	temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
@@ -149,7 +157,7 @@ static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
 
 	/* set the corresponsding LVDS_BORDER bit */
 	temp &= ~LVDS_BORDER_ENABLE;
-	temp |= intel_crtc->config.gmch_pfit.lvds_border_bits;
+	temp |= crtc->config.gmch_pfit.lvds_border_bits;
 	/* Set the B0-B3 data pairs corresponding to whether we're going to
 	 * set the DPLLs for dual-channel mode or not.
 	 */
@@ -169,8 +177,7 @@ static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
 	if (INTEL_INFO(dev)->gen == 4) {
 		/* Bspec wording suggests that LVDS port dithering only exists
 		 * for 18bpp panels. */
-		if (intel_crtc->config.dither &&
-		    intel_crtc->config.pipe_bpp == 18)
+		if (crtc->config.dither && crtc->config.pipe_bpp == 18)
 			temp |= LVDS_ENABLE_DITHER;
 		else
 			temp &= ~LVDS_ENABLE_DITHER;

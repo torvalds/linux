@@ -747,6 +747,22 @@ extern int intel_overlay_attrs(struct drm_device *dev, void *data,
 extern void intel_fb_output_poll_changed(struct drm_device *dev);
 extern void intel_fb_restore_mode(struct drm_device *dev);
 
+struct intel_shared_dpll *
+intel_crtc_to_shared_dpll(struct intel_crtc *crtc);
+
+void assert_shared_dpll(struct drm_i915_private *dev_priv,
+			struct intel_shared_dpll *pll,
+			bool state);
+#define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
+#define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
+void assert_pll(struct drm_i915_private *dev_priv,
+		enum pipe pipe, bool state);
+#define assert_pll_enabled(d, p) assert_pll(d, p, true)
+#define assert_pll_disabled(d, p) assert_pll(d, p, false)
+void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
+		       enum pipe pipe, bool state);
+#define assert_fdi_rx_pll_enabled(d, p) assert_fdi_rx_pll(d, p, true)
+#define assert_fdi_rx_pll_disabled(d, p) assert_fdi_rx_pll(d, p, false)
 extern void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 			bool state);
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
