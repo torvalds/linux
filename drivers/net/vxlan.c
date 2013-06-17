@@ -70,8 +70,8 @@ struct vxlanhdr {
  * The IANA assigned port is 4789, but the Linux default is 8472
  * for compatability with early adopters.
  */
-static unsigned int vxlan_port __read_mostly = 8472;
-module_param_named(udp_port, vxlan_port, uint, 0444);
+static unsigned short vxlan_port __read_mostly = 8472;
+module_param_named(udp_port, vxlan_port, ushort, 0444);
 MODULE_PARM_DESC(udp_port, "Destination UDP port");
 
 static bool log_ecn_error = true;
