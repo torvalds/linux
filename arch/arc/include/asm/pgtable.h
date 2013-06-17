@@ -60,30 +60,24 @@
 #define _PAGE_EXECUTE       (1<<3)	/* Page has user execute perm (H) */
 #define _PAGE_WRITE         (1<<4)	/* Page has user write perm (H) */
 #define _PAGE_READ          (1<<5)	/* Page has user read perm (H) */
-#define _PAGE_GLOBAL        (1<<9)	/* Page is global (H) */
-#define _PAGE_MODIFIED      (1<<10)	/* Page modified (dirty) (S) */
-#define _PAGE_FILE          (1<<10)	/* page cache/ swap (S) */
-#define _PAGE_PRESENT       (1<<11)	/* TLB entry is valid (H) */
+#define _PAGE_MODIFIED      (1<<6)	/* Page modified (dirty) (S) */
+#define _PAGE_FILE          (1<<7)	/* page cache/ swap (S) */
+#define _PAGE_GLOBAL        (1<<8)	/* Page is global (H) */
+#define _PAGE_PRESENT       (1<<10)	/* TLB entry is valid (H) */
 
 #else	/* MMU v3 onwards */
 
-/* PD1 */
 #define _PAGE_CACHEABLE     (1<<0)	/* Page is cached (H) */
 #define _PAGE_EXECUTE       (1<<1)	/* Page has user execute perm (H) */
 #define _PAGE_WRITE         (1<<2)	/* Page has user write perm (H) */
 #define _PAGE_READ          (1<<3)	/* Page has user read perm (H) */
-#define _PAGE_ACCESSED      (1<<7)	/* Page is accessed (S) */
-
-/* PD0 */
+#define _PAGE_ACCESSED      (1<<4)	/* Page is accessed (S) */
+#define _PAGE_MODIFIED      (1<<5)	/* Page modified (dirty) (S) */
+#define _PAGE_FILE          (1<<6)	/* page cache/ swap (S) */
 #define _PAGE_GLOBAL        (1<<8)	/* Page is global (H) */
 #define _PAGE_PRESENT       (1<<9)	/* TLB entry is valid (H) */
-#define _PAGE_SHARED_CODE   (1<<10)	/* Shared Code page with cmn vaddr
+#define _PAGE_SHARED_CODE   (1<<11)	/* Shared Code page with cmn vaddr
 					   usable for shared TLB entries (H) */
-
-#define _PAGE_MODIFIED      (1<<11)	/* Page modified (dirty) (S) */
-#define _PAGE_FILE          (1<<12)	/* page cache/ swap (S) */
-
-#define _PAGE_SHARED_CODE_H (1<<31)	/* Hardware counterpart of above */
 #endif
 
 /* vmalloc permissions */

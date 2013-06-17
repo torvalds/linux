@@ -342,7 +342,6 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	unsigned long flags;
 	unsigned int idx, asid_or_sasid, rwx;
-	unsigned long pd0_flags;
 
 	/*
 	 * create_tlb() assumes that current->mm == vma->mm, since
@@ -381,17 +380,13 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 	/* update this PTE credentials */
 	pte_val(*ptep) |= (_PAGE_PRESENT | _PAGE_ACCESSED);
 
-	/* Create HW TLB entry Flags (in PD0) from PTE Flags */
-#if (CONFIG_ARC_MMU_VER <= 2)
-	pd0_flags = ((pte_val(*ptep) & PTE_BITS_IN_PD0) >> 1);
-#else
-	pd0_flags = ((pte_val(*ptep) & PTE_BITS_IN_PD0));
-#endif
+	/* Create HW TLB(PD0,PD1) from PTE  */
 
 	/* ASID for this task */
 	asid_or_sasid = read_aux_reg(ARC_REG_PID) & 0xff;
 
-	write_aux_reg(ARC_REG_TLBPD0, address | pd0_flags | asid_or_sasid);
+	write_aux_reg(ARC_REG_TLBPD0, address | asid_or_sasid |
+				      (pte_val(*ptep) & PTE_BITS_IN_PD0));
 
 	/*
 	 * ARC MMU provides fully orthogonal access bits for K/U mode,

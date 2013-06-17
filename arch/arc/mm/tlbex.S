@@ -229,9 +229,6 @@ ex_saved_reg1:
 	sr  r3, [ARC_REG_TLBPD1]    	; these go in PD1
 
 	and r2, r0, PTE_BITS_IN_PD0 ; Extract other PTE flags: (V)alid, (G)lb
-#if (CONFIG_ARC_MMU_VER <= 2)   /* Neednot be done with v3 onwards */
-	lsr r2, r2                  ; shift PTE flags to match layout in PD0
-#endif
 
 	lr  r3,[ARC_REG_TLBPD0]     ; MMU prepares PD0 with vaddr and asid
 
