@@ -460,10 +460,18 @@ io_skip:
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
+	mvc	__PT_INT_CODE(12,%r11),__LC_SUBCHANNEL_ID
 	TRACE_IRQS_OFF
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
+io_loop:
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	brasl	%r14,do_IRQ
+	tm	__LC_MACHINE_FLAGS+6,0x10	# MACHINE_FLAG_LPAR
+	jz	io_return
+	tpi	0
+	jz	io_return
+	mvc	__PT_INT_CODE(12,%r11),__LC_SUBCHANNEL_ID
+	j	io_loop
 io_return:
 	LOCKDEP_SYS_EXIT
 	TRACE_IRQS_ON
@@ -605,13 +613,13 @@ ext_skip:
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
+	lghi	%r1,__LC_EXT_PARAMS2
+	mvc	__PT_INT_CODE(4,%r11),__LC_EXT_CPU_ADDR
+	mvc	__PT_INT_PARM(4,%r11),__LC_EXT_PARAMS
+	mvc	__PT_INT_PARM_LONG(8,%r11),0(%r1)
 	TRACE_IRQS_OFF
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
-	lghi	%r1,4096
 	lgr	%r2,%r11		# pass pointer to pt_regs
-	llgf	%r3,__LC_EXT_CPU_ADDR	# get cpu address + interruption code
-	llgf	%r4,__LC_EXT_PARAMS	# get external parameter
-	lg	%r5,__LC_EXT_PARAMS2-4096(%r1)	# get 64 bit external parameter
 	brasl	%r14,do_extint
 	j	io_return
 

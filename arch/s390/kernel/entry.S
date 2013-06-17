@@ -429,11 +429,19 @@ io_skip:
 	stm	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(32,%r11),__LC_SAVE_AREA_ASYNC
 	stm	%r8,%r9,__PT_PSW(%r11)
+	mvc	__PT_INT_CODE(12,%r11),__LC_SUBCHANNEL_ID
 	TRACE_IRQS_OFF
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
+io_loop:
 	l	%r1,BASED(.Ldo_IRQ)
 	lr	%r2,%r11		# pass pointer to pt_regs
 	basr	%r14,%r1		# call do_IRQ
+	tm	__LC_MACHINE_FLAGS+2,0x10	# MACHINE_FLAG_LPAR
+	jz	io_return
+	tpi	0
+	jz	io_return
+	mvc	__PT_INT_CODE(12,%r11),__LC_SUBCHANNEL_ID
+	j	io_loop
 io_return:
 	LOCKDEP_SYS_EXIT
 	TRACE_IRQS_ON
@@ -573,10 +581,10 @@ ext_skip:
 	stm	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(32,%r11),__LC_SAVE_AREA_ASYNC
 	stm	%r8,%r9,__PT_PSW(%r11)
+	mvc	__PT_INT_CODE(4,%r11),__LC_EXT_CPU_ADDR
+	mvc	__PT_INT_PARM(4,%r11),__LC_EXT_PARAMS
 	TRACE_IRQS_OFF
 	lr	%r2,%r11		# pass pointer to pt_regs
-	l	%r3,__LC_EXT_CPU_ADDR	# get cpu address + interruption code
-	l	%r4,__LC_EXT_PARAMS	# get external parameters
 	l	%r1,BASED(.Ldo_extint)
 	basr	%r14,%r1		# call do_extint
 	j	io_return
