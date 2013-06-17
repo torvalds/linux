@@ -610,7 +610,7 @@ static int pinconf_dbg_config_print(struct seq_file *s, void *d)
 	bool found = false;
 	unsigned long config;
 
-	mutex_lock(&pctldev->mutex);
+	mutex_lock(&pinctrl_maps_mutex);
 
 	/* Parse the pinctrl map and look for the elected pin/state */
 	for_each_maps(maps_node, i, map) {
@@ -659,7 +659,7 @@ static int pinconf_dbg_config_print(struct seq_file *s, void *d)
 		confops->pin_config_config_dbg_show(pctldev, s, config);
 
 exit:
-	mutex_unlock(&pctldev->mutex);
+	mutex_unlock(&pinctrl_maps_mutex);
 
 	return 0;
 }

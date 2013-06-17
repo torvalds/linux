@@ -298,9 +298,9 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 	q->tokens = q->buffer;
 	q->ptokens = q->mtu;
 
-	psched_ratecfg_precompute(&q->rate, rtab->rate.rate);
+	psched_ratecfg_precompute(&q->rate, &rtab->rate);
 	if (ptab) {
-		psched_ratecfg_precompute(&q->peak, ptab->rate.rate);
+		psched_ratecfg_precompute(&q->peak, &ptab->rate);
 		q->peak_present = true;
 	} else {
 		q->peak_present = false;
@@ -350,9 +350,9 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	opt.limit = q->limit;
-	opt.rate.rate = psched_ratecfg_getrate(&q->rate);
+	psched_ratecfg_getrate(&opt.rate, &q->rate);
 	if (q->peak_present)
-		opt.peakrate.rate = psched_ratecfg_getrate(&q->peak);
+		psched_ratecfg_getrate(&opt.peakrate, &q->peak);
 	else
 		memset(&opt.peakrate, 0, sizeof(opt.peakrate));
 	opt.mtu = PSCHED_NS2TICKS(q->mtu);

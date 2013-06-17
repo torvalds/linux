@@ -334,7 +334,8 @@ static void ar9003_hw_spur_ofdm(struct ath_hw *ah,
 	REG_RMW_FIELD(ah, AR_PHY_SPUR_REG,
 		      AR_PHY_SPUR_REG_EN_VIT_SPUR_RSSI, 1);
 
-	if (REG_READ_FIELD(ah, AR_PHY_MODE,
+	if (!AR_SREV_9340(ah) &&
+	    REG_READ_FIELD(ah, AR_PHY_MODE,
 			   AR_PHY_MODE_DYNAMIC) == 0x1)
 		REG_RMW_FIELD(ah, AR_PHY_SPUR_REG,
 			      AR_PHY_SPUR_REG_ENABLE_NF_RSSI_SPUR_MIT, 1);

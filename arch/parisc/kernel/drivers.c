@@ -394,7 +394,7 @@ EXPORT_SYMBOL(print_pci_hwpath);
 static void setup_bus_id(struct parisc_device *padev)
 {
 	struct hardware_path path;
-	char name[20];
+	char name[28];
 	char *output = name;
 	int i;
 
