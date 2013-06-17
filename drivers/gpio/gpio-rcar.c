@@ -440,6 +440,7 @@ static const struct of_device_id gpio_rcar_of_table[] = {
 	{
 		.compatible = "renesas,gpio-rcar",
 	},
+	{ },
 };
 
 MODULE_DEVICE_TABLE(of, gpio_rcar_of_table);
