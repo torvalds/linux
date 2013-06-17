@@ -575,9 +575,6 @@ for (pos = chunk->subh.fwdtsn_hdr->skip;\
 /* Round an int up to the next multiple of 4.  */
 #define WORD_ROUND(s) (((s)+3)&~3)
 
-/* Make a new instance of type.  */
-#define t_new(type, flags)	kzalloc(sizeof(type), flags)
-
 /* Compare two timevals.  */
 #define tv_lt(s, t) \
    (s.tv_sec < t.tv_sec || (s.tv_sec == t.tv_sec && s.tv_usec < t.tv_usec))
