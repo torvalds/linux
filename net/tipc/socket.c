@@ -43,8 +43,6 @@
 #define SS_LISTENING	-1	/* socket is listening */
 #define SS_READY	-2	/* socket is connectionless */
 
-#define CONN_OVERLOAD_LIMIT	((TIPC_FLOW_CONTROL_WIN * 2 + 1) * \
-				SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
 #define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
 
 struct tipc_sock {
@@ -203,6 +201,7 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol,
 
 	sock_init_data(sock, sk);
 	sk->sk_backlog_rcv = backlog_rcv;
+	sk->sk_rcvbuf = sysctl_tipc_rmem[1];
 	sk->sk_data_ready = tipc_data_ready;
 	sk->sk_write_space = tipc_write_space;
 	tipc_sk(sk)->p = tp_ptr;
@@ -1233,10 +1232,10 @@ static u32 filter_connect(struct tipc_sock *tsock, struct sk_buff **buf)
  * For all connectionless messages, by default new queue limits are
  * as belows:
  *
- * TIPC_LOW_IMPORTANCE       (5MB)
- * TIPC_MEDIUM_IMPORTANCE    (10MB)
- * TIPC_HIGH_IMPORTANCE      (20MB)
- * TIPC_CRITICAL_IMPORTANCE  (40MB)
+ * TIPC_LOW_IMPORTANCE       (4 MB)
+ * TIPC_MEDIUM_IMPORTANCE    (8 MB)
+ * TIPC_HIGH_IMPORTANCE      (16 MB)
+ * TIPC_CRITICAL_IMPORTANCE  (32 MB)
  *
  * Returns overload limit according to corresponding message importance
  */
@@ -1246,9 +1245,10 @@ static unsigned int rcvbuf_limit(struct sock *sk, struct sk_buff *buf)
 	unsigned int limit;
 
 	if (msg_connected(msg))
-		limit = CONN_OVERLOAD_LIMIT;
+		limit = sysctl_tipc_rmem[2];
 	else
-		limit = sk->sk_rcvbuf << (msg_importance(msg) + 5);
+		limit = sk->sk_rcvbuf >> TIPC_CRITICAL_IMPORTANCE <<
+			msg_importance(msg);
 	return limit;
 }
 
@@ -1847,7 +1847,8 @@ static const struct net_proto_family tipc_family_ops = {
 static struct proto tipc_proto = {
 	.name		= "TIPC",
 	.owner		= THIS_MODULE,
-	.obj_size	= sizeof(struct tipc_sock)
+	.obj_size	= sizeof(struct tipc_sock),
+	.sysctl_rmem	= sysctl_tipc_rmem
 };
 
 /**

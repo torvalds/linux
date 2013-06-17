@@ -80,6 +80,7 @@ extern u32 tipc_own_addr __read_mostly;
 extern int tipc_max_ports __read_mostly;
 extern int tipc_net_id __read_mostly;
 extern int tipc_remote_management __read_mostly;
+extern int sysctl_tipc_rmem[3] __read_mostly;
 
 /*
  * Other global variables
@@ -96,6 +97,14 @@ extern int  tipc_netlink_start(void);
 extern void tipc_netlink_stop(void);
 extern int  tipc_socket_init(void);
 extern void tipc_socket_stop(void);
+
+#ifdef CONFIG_SYSCTL
+extern int tipc_register_sysctl(void);
+extern void tipc_unregister_sysctl(void);
+#else
+#define tipc_register_sysctl() 0
+#define tipc_unregister_sysctl()
+#endif
 
 /*
  * TIPC timer and signal code

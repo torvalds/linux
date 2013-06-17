@@ -39,6 +39,7 @@
 #include "name_table.h"
 #include "subscr.h"
 #include "config.h"
+#include "port.h"
 
 #include <linux/module.h>
 
@@ -50,7 +51,7 @@ u32 tipc_own_addr __read_mostly;
 int tipc_max_ports __read_mostly;
 int tipc_net_id __read_mostly;
 int tipc_remote_management __read_mostly;
-
+int sysctl_tipc_rmem[3] __read_mostly;	/* min/default/max */
 
 /**
  * tipc_buf_acquire - creates a TIPC message buffer
@@ -118,6 +119,7 @@ static void tipc_core_stop(void)
 	tipc_nametbl_stop();
 	tipc_ref_table_stop();
 	tipc_socket_stop();
+	tipc_unregister_sysctl();
 }
 
 /**
@@ -142,12 +144,13 @@ static int tipc_core_start(void)
 		res = tipc_netlink_start();
 	if (!res)
 		res = tipc_socket_init();
+	if (!res)
+		res = tipc_register_sysctl();
 	if (res)
 		tipc_core_stop();
 
 	return res;
 }
-
 
 static int __init tipc_init(void)
 {
@@ -159,6 +162,11 @@ static int __init tipc_init(void)
 	tipc_remote_management = 1;
 	tipc_max_ports = CONFIG_TIPC_PORTS;
 	tipc_net_id = 4711;
+
+	sysctl_tipc_rmem[0] = CONN_OVERLOAD_LIMIT >> 4 << TIPC_LOW_IMPORTANCE;
+	sysctl_tipc_rmem[1] = CONN_OVERLOAD_LIMIT >> 4 <<
+			      TIPC_CRITICAL_IMPORTANCE;
+	sysctl_tipc_rmem[2] = CONN_OVERLOAD_LIMIT;
 
 	res = tipc_core_start();
 	if (res)

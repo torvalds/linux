@@ -43,6 +43,8 @@
 #include "node_subscr.h"
 
 #define TIPC_FLOW_CONTROL_WIN 512
+#define CONN_OVERLOAD_LIMIT	((TIPC_FLOW_CONTROL_WIN * 2 + 1) * \
+				SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
 
 typedef void (*tipc_msg_err_event) (void *usr_handle, u32 portref,
 		struct sk_buff **buf, unsigned char const *data,

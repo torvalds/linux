@@ -11,3 +11,4 @@ tipc-y	+= addr.o bcast.o bearer.o config.o \
 	   socket.o log.o eth_media.o
 
 tipc-$(CONFIG_TIPC_MEDIA_IB)	+= ib_media.o
+tipc-$(CONFIG_SYSCTL)		+= sysctl.o
