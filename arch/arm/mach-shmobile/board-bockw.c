@@ -144,7 +144,7 @@ static struct sh_mmcif_plat_data sh_mmcif_plat = {
 
 static const struct pinctrl_map bockw_pinctrl_map[] = {
 	/* Ether */
-	PIN_MAP_MUX_GROUP_DEFAULT("sh-eth", "pfc-r8a7778",
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a777x-ether", "pfc-r8a7778",
 				  "ether_rmii", "ether"),
 	/* HSPI0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-hspi.0", "pfc-r8a7778",
