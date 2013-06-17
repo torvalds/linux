@@ -526,7 +526,6 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 	int wlistentries;
 	size_t wlistsize;
 	bool wname_in_long_name, kcname_in_long_name;
-	size_t name_len;
 	char *long_name;
 	const char *name;
 	int ret;
@@ -591,25 +590,19 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 		}
 
 		if (wname_in_long_name && kcname_in_long_name) {
-			name_len = strlen(w->name) - prefix_len + 1 +
-				   strlen(w->kcontrol_news[kci].name) + 1;
-
-			long_name = kmalloc(name_len, GFP_KERNEL);
-			if (long_name == NULL) {
-				kfree(wlist);
-				return -ENOMEM;
-			}
-
 			/*
 			 * The control will get a prefix from the control
 			 * creation process but we're also using the same
 			 * prefix for widgets so cut the prefix off the
 			 * front of the widget name.
 			 */
-			snprintf(long_name, name_len, "%s %s",
+			long_name = kasprintf(GFP_KERNEL, "%s %s",
 				 w->name + prefix_len,
 				 w->kcontrol_news[kci].name);
-			long_name[name_len - 1] = '\0';
+			if (long_name == NULL) {
+				kfree(wlist);
+				return -ENOMEM;
+			}
 
 			name = long_name;
 		} else if (wname_in_long_name) {
@@ -1272,6 +1265,14 @@ static void dapm_seq_check_event(struct snd_soc_dapm_context *dapm,
 		ev_name = "POST_PMD";
 		power = 0;
 		break;
+	case SND_SOC_DAPM_WILL_PMU:
+		ev_name = "WILL_PMU";
+		power = 1;
+		break;
+	case SND_SOC_DAPM_WILL_PMD:
+		ev_name = "WILL_PMD";
+		power = 0;
+		break;
 	default:
 		BUG();
 		return;
@@ -1731,6 +1732,14 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 		async_schedule_domain(dapm_pre_sequence_async, d,
 					&async_domain);
 	async_synchronize_full_domain(&async_domain);
+
+	list_for_each_entry(w, &down_list, power_list) {
+		dapm_seq_check_event(dapm, w, SND_SOC_DAPM_WILL_PMD);
+	}
+
+	list_for_each_entry(w, &up_list, power_list) {
+		dapm_seq_check_event(dapm, w, SND_SOC_DAPM_WILL_PMU);
+	}
 
 	/* Power down widgets first; try to avoid amplifying pops. */
 	dapm_seq_run(dapm, &down_list, event, false);
@@ -3057,7 +3066,6 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 			 const struct snd_soc_dapm_widget *widget)
 {
 	struct snd_soc_dapm_widget *w;
-	size_t name_len;
 	int ret;
 
 	if ((w = dapm_cnew_widget(widget)) == NULL)
@@ -3098,19 +3106,16 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 		break;
 	}
 
-	name_len = strlen(widget->name) + 1;
 	if (dapm->codec && dapm->codec->name_prefix)
-		name_len += 1 + strlen(dapm->codec->name_prefix);
-	w->name = kmalloc(name_len, GFP_KERNEL);
+		w->name = kasprintf(GFP_KERNEL, "%s %s",
+			dapm->codec->name_prefix, widget->name);
+	else
+		w->name = kasprintf(GFP_KERNEL, "%s", widget->name);
+
 	if (w->name == NULL) {
 		kfree(w);
 		return NULL;
 	}
-	if (dapm->codec && dapm->codec->name_prefix)
-		snprintf((char *)w->name, name_len, "%s %s",
-			dapm->codec->name_prefix, widget->name);
-	else
-		snprintf((char *)w->name, name_len, "%s", widget->name);
 
 	switch (w->id) {
 	case snd_soc_dapm_switch:

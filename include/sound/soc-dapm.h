@@ -311,6 +311,8 @@ struct device;
 #define SND_SOC_DAPM_POST_PMD	0x8		/* after widget power down */
 #define SND_SOC_DAPM_PRE_REG	0x10	/* before audio path setup */
 #define SND_SOC_DAPM_POST_REG	0x20	/* after audio path setup */
+#define SND_SOC_DAPM_WILL_PMU   0x40    /* called at start of sequence */
+#define SND_SOC_DAPM_WILL_PMD   0x80    /* called at start of sequence */
 #define SND_SOC_DAPM_PRE_POST_PMD \
 				(SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD)
 
