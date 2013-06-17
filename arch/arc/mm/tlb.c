@@ -341,7 +341,7 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	unsigned long flags;
-	unsigned int idx, asid_or_sasid;
+	unsigned int idx, asid_or_sasid, rwx;
 	unsigned long pd0_flags;
 
 	/*
@@ -393,8 +393,23 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 
 	write_aux_reg(ARC_REG_TLBPD0, address | pd0_flags | asid_or_sasid);
 
+	/*
+	 * ARC MMU provides fully orthogonal access bits for K/U mode,
+	 * however Linux only saves 1 set to save PTE real-estate
+	 * Here we convert 3 PTE bits into 6 MMU bits:
+	 * -Kernel only entries have Kr Kw Kx 0 0 0
+	 * -User entries have mirrored K and U bits
+	 */
+	rwx = pte_val(*ptep) & PTE_BITS_RWX;
+
+	if (pte_val(*ptep) & _PAGE_GLOBAL)
+		rwx <<= 3;		/* r w x => Kr Kw Kx 0 0 0 */
+	else
+		rwx |= (rwx << 3);	/* r w x => Kr Kw Kx Ur Uw Ux */
+
 	/* Load remaining info in PD1 (Page Frame Addr and Kx/Kw/Kr Flags) */
-	write_aux_reg(ARC_REG_TLBPD1, (pte_val(*ptep) & PTE_BITS_IN_PD1));
+	write_aux_reg(ARC_REG_TLBPD1,
+		      rwx | (pte_val(*ptep) & PTE_BITS_NON_RWX_IN_PD1));
 
 	/* First verify if entry for this vaddr+ASID already exists */
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBProbe);
