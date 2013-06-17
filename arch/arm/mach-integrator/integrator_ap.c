@@ -64,6 +64,7 @@
 /* Base address to the AP system controller */
 void __iomem *ap_syscon_base;
 
+
 /*
  * All IO addresses are mapped onto VA 0xFFFx.xxxx, where x.xxxx
  * is the (PA >> 12).
@@ -73,12 +74,10 @@ void __iomem *ap_syscon_base;
  */
 #define VA_IC_BASE	__io_address(INTEGRATOR_IC_BASE)
 #define VA_EBI_BASE	__io_address(INTEGRATOR_EBI_BASE)
-#define VA_CMIC_BASE	__io_address(INTEGRATOR_HDR_IC)
 
 /*
  * Logical      Physical
  * ef000000			Cache flush
- * f1000000	10000000	Core module registers
  * f1100000	11000000	System controller registers
  * f1200000	12000000	EBI registers
  * f1300000	13000000	Counter/Timer
@@ -91,11 +90,6 @@ void __iomem *ap_syscon_base;
 
 static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 	{
-		.virtual	= IO_ADDRESS(INTEGRATOR_HDR_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_HDR_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_EBI_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_EBI_BASE),
 		.length		= SZ_4K,
