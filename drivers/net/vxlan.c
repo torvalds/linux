@@ -1771,8 +1771,8 @@ late_initcall(vxlan_init_module);
 
 static void __exit vxlan_cleanup_module(void)
 {
-	rtnl_link_unregister(&vxlan_link_ops);
 	unregister_pernet_device(&vxlan_net_ops);
+	rtnl_link_unregister(&vxlan_link_ops);
 	rcu_barrier();
 }
 module_exit(vxlan_cleanup_module);
