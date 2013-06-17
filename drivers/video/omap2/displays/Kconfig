@@ -1,4 +1,4 @@
-menu "OMAP2/3 Display Device Drivers"
+menu "OMAP2/3 Display Device Drivers (old device model)"
         depends on OMAP2_DSS
 
 config PANEL_GENERIC_DPI

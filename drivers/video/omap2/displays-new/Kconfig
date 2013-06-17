@@ -1,4 +1,4 @@
-menu "OMAP Display Device Drivers"
+menu "OMAP Display Device Drivers (new device model)"
         depends on OMAP2_DSS
 
 config DISPLAY_ENCODER_TFP410
