@@ -162,8 +162,7 @@ static void setup_bearer(struct work_struct *work)
  */
 static int enable_bearer(struct tipc_bearer *tb_ptr)
 {
-	struct net_device *dev = NULL;
-	struct net_device *pdev = NULL;
+	struct net_device *dev;
 	struct eth_bearer *eb_ptr = &eth_bearers[0];
 	struct eth_bearer *stop = &eth_bearers[MAX_ETH_BEARERS];
 	char *driver_name = strchr((const char *)tb_ptr->name, ':') + 1;
@@ -178,15 +177,7 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	}
 
 	/* Find device with specified name */
-	read_lock(&dev_base_lock);
-	for_each_netdev(&init_net, pdev) {
-		if (!strncmp(pdev->name, driver_name, IFNAMSIZ)) {
-			dev = pdev;
-			dev_hold(dev);
-			break;
-		}
-	}
-	read_unlock(&dev_base_lock);
+	dev = dev_get_by_name(&init_net, driver_name);
 	if (!dev)
 		return -ENODEV;
 
