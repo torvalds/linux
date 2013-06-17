@@ -17747,10 +17747,13 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 	tg3_full_unlock(tp);
 
 done:
-	if (state == pci_channel_io_perm_failure)
+	if (state == pci_channel_io_perm_failure) {
+		tg3_napi_enable(tp);
+		dev_close(netdev);
 		err = PCI_ERS_RESULT_DISCONNECT;
-	else
+	} else {
 		pci_disable_device(pdev);
+	}
 
 	rtnl_unlock();
 
@@ -17796,6 +17799,10 @@ static pci_ers_result_t tg3_io_slot_reset(struct pci_dev *pdev)
 	rc = PCI_ERS_RESULT_RECOVERED;
 
 done:
+	if (rc != PCI_ERS_RESULT_RECOVERED && netif_running(netdev)) {
+		tg3_napi_enable(tp);
+		dev_close(netdev);
+	}
 	rtnl_unlock();
 
 	return rc;
