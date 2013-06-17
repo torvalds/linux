@@ -367,11 +367,10 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 		val = soc_widget_read(w, e->reg);
 		item = (val >> e->shift_l) & e->mask;
 
-		p->connect = 0;
-		for (i = 0; i < e->max; i++) {
-			if (!(strcmp(p->name, e->texts[i])) && item == i)
-				p->connect = 1;
-		}
+		if (item < e->max && !strcmp(p->name, e->texts[item]))
+			p->connect = 1;
+		else
+			p->connect = 0;
 	}
 	break;
 	case snd_soc_dapm_virt_mux: {
@@ -401,11 +400,10 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 				break;
 		}
 
-		p->connect = 0;
-		for (i = 0; i < e->max; i++) {
-			if (!(strcmp(p->name, e->texts[i])) && item == i)
-				p->connect = 1;
-		}
+		if (item < e->max && !strcmp(p->name, e->texts[item]))
+			p->connect = 1;
+		else
+			p->connect = 0;
 	}
 	break;
 	/* does not affect routing - always connected */
@@ -507,6 +505,11 @@ static int dapm_is_shared_kcontrol(struct snd_soc_dapm_context *dapm,
 	}
 
 	return 0;
+}
+
+static void dapm_kcontrol_free(struct snd_kcontrol *kctl)
+{
+	kfree(kctl->private_data);
 }
 
 /*
@@ -615,17 +618,16 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 
 		kcontrol = snd_soc_cnew(&w->kcontrol_news[kci], wlist, name,
 					prefix);
+		kcontrol->private_free = dapm_kcontrol_free;
+		kfree(long_name);
 		ret = snd_ctl_add(card, kcontrol);
 		if (ret < 0) {
 			dev_err(dapm->dev,
 				"ASoC: failed to add widget %s dapm kcontrol %s: %d\n",
 				w->name, name, ret);
 			kfree(wlist);
-			kfree(long_name);
 			return ret;
 		}
-
-		path->long_name = long_name;
 	}
 
 	kcontrol->private_data = wlist;
@@ -2105,6 +2107,14 @@ static void snd_soc_dapm_sys_remove(struct device *dev)
 	device_remove_file(dev, &dev_attr_dapm_widget);
 }
 
+static void dapm_free_path(struct snd_soc_dapm_path *path)
+{
+	list_del(&path->list_sink);
+	list_del(&path->list_source);
+	list_del(&path->list);
+	kfree(path);
+}
+
 /* free all dapm widgets and resources */
 static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 {
@@ -2120,20 +2130,12 @@ static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 		 * While removing the path, remove reference to it from both
 		 * source and sink widgets so that path is removed only once.
 		 */
-		list_for_each_entry_safe(p, next_p, &w->sources, list_sink) {
-			list_del(&p->list_sink);
-			list_del(&p->list_source);
-			list_del(&p->list);
-			kfree(p->long_name);
-			kfree(p);
-		}
-		list_for_each_entry_safe(p, next_p, &w->sinks, list_source) {
-			list_del(&p->list_sink);
-			list_del(&p->list_source);
-			list_del(&p->list);
-			kfree(p->long_name);
-			kfree(p);
-		}
+		list_for_each_entry_safe(p, next_p, &w->sources, list_sink)
+			dapm_free_path(p);
+
+		list_for_each_entry_safe(p, next_p, &w->sinks, list_source)
+			dapm_free_path(p);
+
 		kfree(w->kcontrols);
 		kfree(w->name);
 		kfree(w);
@@ -2409,10 +2411,7 @@ static int snd_soc_dapm_del_route(struct snd_soc_dapm_context *dapm,
 		dapm_mark_dirty(path->source, "Route removed");
 		dapm_mark_dirty(path->sink, "Route removed");
 
-		list_del(&path->list);
-		list_del(&path->list_sink);
-		list_del(&path->list_source);
-		kfree(path);
+		dapm_free_path(path);
 	} else {
 		dev_warn(dapm->dev, "ASoC: Route %s->%s does not exist\n",
 			 source, sink);
