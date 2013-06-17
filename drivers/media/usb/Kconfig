@@ -18,6 +18,7 @@ source "drivers/media/usb/zr364xx/Kconfig"
 source "drivers/media/usb/stkwebcam/Kconfig"
 source "drivers/media/usb/s2255/Kconfig"
 source "drivers/media/usb/sn9c102/Kconfig"
+source "drivers/media/usb/usbtv/Kconfig"
 endif
 
 if MEDIA_ANALOG_TV_SUPPORT
