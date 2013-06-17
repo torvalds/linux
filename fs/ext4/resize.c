@@ -1556,11 +1556,10 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	int reserved_gdb = ext4_bg_has_super(sb, input->group) ?
 		le16_to_cpu(es->s_reserved_gdt_blocks) : 0;
 	struct inode *inode = NULL;
-	int gdb_off, gdb_num;
+	int gdb_off;
 	int err;
 	__u16 bg_flags = 0;
 
-	gdb_num = input->group / EXT4_DESC_PER_BLOCK(sb);
 	gdb_off = input->group % EXT4_DESC_PER_BLOCK(sb);
 
 	if (gdb_off == 0 && !EXT4_HAS_RO_COMPAT_FEATURE(sb,
