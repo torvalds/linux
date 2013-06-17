@@ -1414,8 +1414,8 @@ static int wdt_pulse(bpctl_dev_t *pbpctl_dev)
 				(ctrl_ext &
 				 ~(BP10G_MCLK_DATA_OUT | BP10G_MDIO_DATA_OUT)));
 	}
-	if ((pbpctl_dev->wdt_status == WDT_STATUS_EN)	/*&&
-							   (pbpctl_dev->bp_ext_ver<PXG4BPFI_VER) */)
+	if ((pbpctl_dev->wdt_status == WDT_STATUS_EN))
+		/*&& (pbpctl_dev->bp_ext_ver<PXG4BPFI_VER) */
 		pbpctl_dev->bypass_wdt_on_time = jiffies;
 #ifdef BP_SYNC_FLAG
 	spin_unlock_irqrestore(&pbpctl_dev->bypass_wr_lock, flags);
@@ -6629,7 +6629,7 @@ static void find_fw(bpctl_dev_t *dev)
 			    ioremap(mmio_start, mmio_len);
 
 			dev->bp_fw_ver = bypass_fw_ver(dev);
-			if (dev-> bp_fw_ver == 0xa8)
+			if (dev->bp_fw_ver == 0xa8)
 				break;
 		}
 	}
