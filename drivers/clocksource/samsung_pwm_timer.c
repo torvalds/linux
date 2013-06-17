@@ -44,10 +44,21 @@
 #define TCFG1_SHIFT(x)	  		((x) * 4)
 #define TCFG1_MUX_MASK	  		0xf
 
+/*
+ * Each channel occupies 4 bits in TCON register, but there is a gap of 4
+ * bits (one channel) after channel 0, so channels have different numbering
+ * when accessing TCON register.
+ *
+ * In addition, the location of autoreload bit for channel 4 (TCON channel 5)
+ * in its set of bits is 2 as opposed to 3 for other channels.
+ */
 #define TCON_START(chan)		(1 << (4 * (chan) + 0))
 #define TCON_MANUALUPDATE(chan)		(1 << (4 * (chan) + 1))
 #define TCON_INVERT(chan)		(1 << (4 * (chan) + 2))
-#define TCON_AUTORELOAD(chan)		(1 << (4 * (chan) + 3))
+#define _TCON_AUTORELOAD(chan)		(1 << (4 * (chan) + 3))
+#define _TCON_AUTORELOAD4(chan)		(1 << (4 * (chan) + 2))
+#define TCON_AUTORELOAD(chan)		\
+	((chan < 5) ? _TCON_AUTORELOAD(chan) : _TCON_AUTORELOAD4(chan))
 
 DEFINE_SPINLOCK(samsung_pwm_lock);
 EXPORT_SYMBOL(samsung_pwm_lock);
