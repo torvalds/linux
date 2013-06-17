@@ -3957,6 +3957,28 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 	if (p->nr_cpus_allowed == 1)
 		return prev_cpu;
 
+#ifdef CONFIG_SCHED_HMP
+	/* always put non-kernel forking tasks on a big domain */
+	if (p->mm && (sd_flag & SD_BALANCE_FORK)) {
+		if(hmp_cpu_is_fastest(prev_cpu)) {
+			struct hmp_domain *hmpdom = list_entry(&hmp_cpu_domain(prev_cpu)->hmp_domains, struct hmp_domain, hmp_domains);
+			__always_unused int lowest_ratio = hmp_domain_min_load(hmpdom, &new_cpu);
+			if(new_cpu != NR_CPUS && cpumask_test_cpu(new_cpu,tsk_cpus_allowed(p)))
+				return new_cpu;
+			else {
+				new_cpu = cpumask_any_and(&hmp_faster_domain(cpu)->cpus,
+						tsk_cpus_allowed(p));
+				if(new_cpu < nr_cpu_ids)
+					return new_cpu;
+			}
+		} else {
+			new_cpu = hmp_select_faster_cpu(p, prev_cpu);
+			if (new_cpu != NR_CPUS)
+				return new_cpu;
+		}
+	}
+#endif
+
 	if (sd_flag & SD_BALANCE_WAKE) {
 		if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
 			want_affine = 1;
