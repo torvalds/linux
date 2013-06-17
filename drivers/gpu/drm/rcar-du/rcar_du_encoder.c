@@ -11,6 +11,8 @@
  * (at your option) any later version.
  */
 
+#include <linux/export.h>
+
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
@@ -19,6 +21,7 @@
 #include "rcar_du_encoder.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_lvdscon.h"
+#include "rcar_du_lvdsenc.h"
 #include "rcar_du_vgacon.h"
 
 /* -----------------------------------------------------------------------------
@@ -39,12 +42,17 @@ rcar_du_connector_best_encoder(struct drm_connector *connector)
 
 static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
+	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+
+	if (renc->lvds)
+		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc, mode);
 }
 
 static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
 				       const struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted_mode)
 {
+	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
 	const struct drm_display_mode *panel_mode;
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
@@ -82,15 +90,32 @@ static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
 	/* The flat panel mode is fixed, just copy it to the adjusted mode. */
 	drm_mode_copy(adjusted_mode, panel_mode);
 
+	/* The internal LVDS encoder has a clock frequency operating range of
+	 * 30MHz to 150MHz. Clamp the clock accordingly.
+	 */
+	if (renc->lvds)
+		adjusted_mode->clock = clamp(adjusted_mode->clock,
+					     30000, 150000);
+
 	return true;
 }
 
 static void rcar_du_encoder_mode_prepare(struct drm_encoder *encoder)
 {
+	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+
+	if (renc->lvds)
+		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc,
+				     DRM_MODE_DPMS_OFF);
 }
 
 static void rcar_du_encoder_mode_commit(struct drm_encoder *encoder)
 {
+	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+
+	if (renc->lvds)
+		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc,
+				     DRM_MODE_DPMS_ON);
 }
 
 static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
@@ -128,6 +153,19 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		return -ENOMEM;
 
 	renc->output = output;
+
+	switch (output) {
+	case RCAR_DU_OUTPUT_LVDS0:
+		renc->lvds = rcdu->lvds[0];
+		break;
+
+	case RCAR_DU_OUTPUT_LVDS1:
+		renc->lvds = rcdu->lvds[1];
+		break;
+
+	default:
+		break;
+	}
 
 	switch (type) {
 	case RCAR_DU_ENCODER_VGA:

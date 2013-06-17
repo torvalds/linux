@@ -26,8 +26,6 @@
 #include "rcar_du_plane.h"
 #include "rcar_du_regs.h"
 
-#define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)
-
 static u32 rcar_du_crtc_read(struct rcar_du_crtc *rcrtc, u32 reg)
 {
 	struct rcar_du_device *rcdu = rcrtc->group->dev;

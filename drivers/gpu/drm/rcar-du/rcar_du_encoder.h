@@ -19,10 +19,12 @@
 #include <drm/drm_crtc.h>
 
 struct rcar_du_device;
+struct rcar_du_lvdsenc;
 
 struct rcar_du_encoder {
 	struct drm_encoder encoder;
 	enum rcar_du_output output;
+	struct rcar_du_lvdsenc *lvds;
 };
 
 #define to_rcar_encoder(e) \
