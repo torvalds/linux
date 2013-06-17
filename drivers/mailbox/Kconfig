@@ -16,4 +16,38 @@ config PL320_MBOX
 	  Management Engine, primarily for cpufreq. Say Y here if you want
 	  to use the PL320 IPCM support.
 
+config OMAP_MBOX
+	tristate
+	help
+	  This option is selected by any OMAP architecture specific mailbox
+	  driver such as CONFIG_OMAP1_MBOX or CONFIG_OMAP2PLUS_MBOX. This
+	  enables the common OMAP mailbox framework code.
+
+config OMAP1_MBOX
+	tristate "OMAP1 Mailbox framework support"
+	depends on ARCH_OMAP1
+	select OMAP_MBOX
+	help
+	  Mailbox implementation for OMAP chips with hardware for
+	  interprocessor communication involving DSP in OMAP1. Say Y here
+	  if you want to use OMAP1 Mailbox framework support.
+
+config OMAP2PLUS_MBOX
+	tristate "OMAP2+ Mailbox framework support"
+	depends on ARCH_OMAP2PLUS
+	select OMAP_MBOX
+	help
+	  Mailbox implementation for OMAP family chips with hardware for
+	  interprocessor communication involving DSP, IVA1.0 and IVA2 in
+	  OMAP2/3; or IPU, IVA HD and DSP in OMAP4/5. Say Y here if you
+	  want to use OMAP2+ Mailbox framework support.
+
+config OMAP_MBOX_KFIFO_SIZE
+	int "Mailbox kfifo default buffer size (bytes)"
+	depends on OMAP2PLUS_MBOX || OMAP1_MBOX
+	default 256
+	help
+	  Specify the default size of mailbox's kfifo buffers (bytes).
+	  This can also be changed at runtime (via the mbox_kfifo_size
+	  module parameter).
 endif

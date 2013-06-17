@@ -11,15 +11,15 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <linux/platform_data/mailbox-omap.h>
 
-#include <plat/mailbox.h>
-
-#include "soc.h"
+#include "omap-mbox.h"
 
 #define MAILBOX_REVISION		0x000
 #define MAILBOX_MESSAGE(m)		(0x040 + 4 * (m))
@@ -59,10 +59,8 @@ struct omap_mbox2_priv {
 	u32 notfull_bit;
 	u32 ctx[OMAP4_MBOX_NR_REGS];
 	unsigned long irqdisable;
+	u32 intr_type;
 };
-
-static void omap2_mbox_enable_irq(struct omap_mbox *mbox,
-				  omap_mbox_type_t irq);
 
 static inline unsigned int mbox_read_reg(size_t ofs)
 {
@@ -124,8 +122,7 @@ static int omap2_mbox_fifo_full(struct omap_mbox *mbox)
 }
 
 /* Mailbox IRQ handle functions */
-static void omap2_mbox_enable_irq(struct omap_mbox *mbox,
-		omap_mbox_type_t irq)
+static void omap2_mbox_enable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	struct omap_mbox2_priv *p = mbox->priv;
 	u32 l, bit = (irq == IRQ_TX) ? p->notfull_bit : p->newmsg_bit;
@@ -135,20 +132,22 @@ static void omap2_mbox_enable_irq(struct omap_mbox *mbox,
 	mbox_write_reg(l, p->irqenable);
 }
 
-static void omap2_mbox_disable_irq(struct omap_mbox *mbox,
-		omap_mbox_type_t irq)
+static void omap2_mbox_disable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	struct omap_mbox2_priv *p = mbox->priv;
 	u32 bit = (irq == IRQ_TX) ? p->notfull_bit : p->newmsg_bit;
 
-	if (!cpu_is_omap44xx())
+	/*
+	 * Read and update the interrupt configuration register for pre-OMAP4.
+	 * OMAP4 and later SoCs have a dedicated interrupt disabling register.
+	 */
+	if (!p->intr_type)
 		bit = mbox_read_reg(p->irqdisable) & ~bit;
 
 	mbox_write_reg(bit, p->irqdisable);
 }
 
-static void omap2_mbox_ack_irq(struct omap_mbox *mbox,
-		omap_mbox_type_t irq)
+static void omap2_mbox_ack_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	struct omap_mbox2_priv *p = mbox->priv;
 	u32 bit = (irq == IRQ_TX) ? p->notfull_bit : p->newmsg_bit;
@@ -159,8 +158,7 @@ static void omap2_mbox_ack_irq(struct omap_mbox *mbox,
 	mbox_read_reg(p->irqstatus);
 }
 
-static int omap2_mbox_is_irq(struct omap_mbox *mbox,
-		omap_mbox_type_t irq)
+static int omap2_mbox_is_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	struct omap_mbox2_priv *p = mbox->priv;
 	u32 bit = (irq == IRQ_TX) ? p->notfull_bit : p->newmsg_bit;
@@ -175,7 +173,8 @@ static void omap2_mbox_save_ctx(struct omap_mbox *mbox)
 	int i;
 	struct omap_mbox2_priv *p = mbox->priv;
 	int nr_regs;
-	if (cpu_is_omap44xx())
+
+	if (p->intr_type)
 		nr_regs = OMAP4_MBOX_NR_REGS;
 	else
 		nr_regs = MBOX_NR_REGS;
@@ -192,7 +191,8 @@ static void omap2_mbox_restore_ctx(struct omap_mbox *mbox)
 	int i;
 	struct omap_mbox2_priv *p = mbox->priv;
 	int nr_regs;
-	if (cpu_is_omap44xx())
+
+	if (p->intr_type)
 		nr_regs = OMAP4_MBOX_NR_REGS;
 	else
 		nr_regs = MBOX_NR_REGS;
@@ -220,192 +220,120 @@ static struct omap_mbox_ops omap2_mbox_ops = {
 	.restore_ctx	= omap2_mbox_restore_ctx,
 };
 
-/*
- * MAILBOX 0: ARM -> DSP,
- * MAILBOX 1: ARM <- DSP.
- * MAILBOX 2: ARM -> IVA,
- * MAILBOX 3: ARM <- IVA.
- */
-
-/* FIXME: the following structs should be filled automatically by the user id */
-
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP2)
-/* DSP */
-static struct omap_mbox2_priv omap2_mbox_dsp_priv = {
-	.tx_fifo = {
-		.msg		= MAILBOX_MESSAGE(0),
-		.fifo_stat	= MAILBOX_FIFOSTATUS(0),
-	},
-	.rx_fifo = {
-		.msg		= MAILBOX_MESSAGE(1),
-		.msg_stat	= MAILBOX_MSGSTATUS(1),
-	},
-	.irqenable	= MAILBOX_IRQENABLE(0),
-	.irqstatus	= MAILBOX_IRQSTATUS(0),
-	.notfull_bit	= MAILBOX_IRQ_NOTFULL(0),
-	.newmsg_bit	= MAILBOX_IRQ_NEWMSG(1),
-	.irqdisable	= MAILBOX_IRQENABLE(0),
-};
-
-struct omap_mbox mbox_dsp_info = {
-	.name	= "dsp",
-	.ops	= &omap2_mbox_ops,
-	.priv	= &omap2_mbox_dsp_priv,
-};
-#endif
-
-#if defined(CONFIG_ARCH_OMAP3)
-struct omap_mbox *omap3_mboxes[] = { &mbox_dsp_info, NULL };
-#endif
-
-#if defined(CONFIG_SOC_OMAP2420)
-/* IVA */
-static struct omap_mbox2_priv omap2_mbox_iva_priv = {
-	.tx_fifo = {
-		.msg		= MAILBOX_MESSAGE(2),
-		.fifo_stat	= MAILBOX_FIFOSTATUS(2),
-	},
-	.rx_fifo = {
-		.msg		= MAILBOX_MESSAGE(3),
-		.msg_stat	= MAILBOX_MSGSTATUS(3),
-	},
-	.irqenable	= MAILBOX_IRQENABLE(3),
-	.irqstatus	= MAILBOX_IRQSTATUS(3),
-	.notfull_bit	= MAILBOX_IRQ_NOTFULL(2),
-	.newmsg_bit	= MAILBOX_IRQ_NEWMSG(3),
-	.irqdisable	= MAILBOX_IRQENABLE(3),
-};
-
-static struct omap_mbox mbox_iva_info = {
-	.name	= "iva",
-	.ops	= &omap2_mbox_ops,
-	.priv	= &omap2_mbox_iva_priv,
-};
-#endif
-
-#ifdef CONFIG_ARCH_OMAP2
-struct omap_mbox *omap2_mboxes[] = {
-	&mbox_dsp_info,
-#ifdef CONFIG_SOC_OMAP2420
-	&mbox_iva_info,
-#endif
-	NULL
-};
-#endif
-
-#if defined(CONFIG_ARCH_OMAP4)
-/* OMAP4 */
-static struct omap_mbox2_priv omap2_mbox_1_priv = {
-	.tx_fifo = {
-		.msg		= MAILBOX_MESSAGE(0),
-		.fifo_stat	= MAILBOX_FIFOSTATUS(0),
-	},
-	.rx_fifo = {
-		.msg		= MAILBOX_MESSAGE(1),
-		.msg_stat	= MAILBOX_MSGSTATUS(1),
-	},
-	.irqenable	= OMAP4_MAILBOX_IRQENABLE(0),
-	.irqstatus	= OMAP4_MAILBOX_IRQSTATUS(0),
-	.notfull_bit	= MAILBOX_IRQ_NOTFULL(0),
-	.newmsg_bit	= MAILBOX_IRQ_NEWMSG(1),
-	.irqdisable	= OMAP4_MAILBOX_IRQENABLE_CLR(0),
-};
-
-struct omap_mbox mbox_1_info = {
-	.name	= "mailbox-1",
-	.ops	= &omap2_mbox_ops,
-	.priv	= &omap2_mbox_1_priv,
-};
-
-static struct omap_mbox2_priv omap2_mbox_2_priv = {
-	.tx_fifo = {
-		.msg		= MAILBOX_MESSAGE(3),
-		.fifo_stat	= MAILBOX_FIFOSTATUS(3),
-	},
-	.rx_fifo = {
-		.msg		= MAILBOX_MESSAGE(2),
-		.msg_stat	= MAILBOX_MSGSTATUS(2),
-	},
-	.irqenable	= OMAP4_MAILBOX_IRQENABLE(0),
-	.irqstatus	= OMAP4_MAILBOX_IRQSTATUS(0),
-	.notfull_bit	= MAILBOX_IRQ_NOTFULL(3),
-	.newmsg_bit	= MAILBOX_IRQ_NEWMSG(2),
-	.irqdisable     = OMAP4_MAILBOX_IRQENABLE_CLR(0),
-};
-
-struct omap_mbox mbox_2_info = {
-	.name	= "mailbox-2",
-	.ops	= &omap2_mbox_ops,
-	.priv	= &omap2_mbox_2_priv,
-};
-
-struct omap_mbox *omap4_mboxes[] = { &mbox_1_info, &mbox_2_info, NULL };
-#endif
-
 static int omap2_mbox_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
 	int ret;
-	struct omap_mbox **list;
+	struct omap_mbox **list, *mbox, *mboxblk;
+	struct omap_mbox2_priv *priv, *privblk;
+	struct omap_mbox_pdata *pdata = pdev->dev.platform_data;
+	struct omap_mbox_dev_info *info;
+	int i;
 
-	if (false)
-		;
-#if defined(CONFIG_ARCH_OMAP3)
-	else if (cpu_is_omap34xx()) {
-		list = omap3_mboxes;
-
-		list[0]->irq = platform_get_irq(pdev, 0);
-	}
-#endif
-#if defined(CONFIG_ARCH_OMAP2)
-	else if (cpu_is_omap2430()) {
-		list = omap2_mboxes;
-
-		list[0]->irq = platform_get_irq(pdev, 0);
-	} else if (cpu_is_omap2420()) {
-		list = omap2_mboxes;
-
-		list[0]->irq = platform_get_irq_byname(pdev, "dsp");
-		list[1]->irq = platform_get_irq_byname(pdev, "iva");
-	}
-#endif
-#if defined(CONFIG_ARCH_OMAP4)
-	else if (cpu_is_omap44xx()) {
-		list = omap4_mboxes;
-
-		list[0]->irq = list[1]->irq = platform_get_irq(pdev, 0);
-	}
-#endif
-	else {
+	if (!pdata || !pdata->info_cnt || !pdata->info) {
 		pr_err("%s: platform not supported\n", __func__);
 		return -ENODEV;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mbox_base = ioremap(mem->start, resource_size(mem));
-	if (!mbox_base)
+	/* allocate one extra for marking end of list */
+	list = kzalloc((pdata->info_cnt + 1) * sizeof(*list), GFP_KERNEL);
+	if (!list)
 		return -ENOMEM;
 
-	ret = omap_mbox_register(&pdev->dev, list);
-	if (ret) {
-		iounmap(mbox_base);
-		return ret;
+	mboxblk = mbox = kzalloc(pdata->info_cnt * sizeof(*mbox), GFP_KERNEL);
+	if (!mboxblk) {
+		ret = -ENOMEM;
+		goto free_list;
 	}
 
+	privblk = priv = kzalloc(pdata->info_cnt * sizeof(*priv), GFP_KERNEL);
+	if (!privblk) {
+		ret = -ENOMEM;
+		goto free_mboxblk;
+	}
+
+	info = pdata->info;
+	for (i = 0; i < pdata->info_cnt; i++, info++, priv++) {
+		priv->tx_fifo.msg = MAILBOX_MESSAGE(info->tx_id);
+		priv->tx_fifo.fifo_stat = MAILBOX_FIFOSTATUS(info->tx_id);
+		priv->rx_fifo.msg =  MAILBOX_MESSAGE(info->rx_id);
+		priv->rx_fifo.msg_stat =  MAILBOX_MSGSTATUS(info->rx_id);
+		priv->notfull_bit = MAILBOX_IRQ_NOTFULL(info->tx_id);
+		priv->newmsg_bit = MAILBOX_IRQ_NEWMSG(info->rx_id);
+		if (pdata->intr_type) {
+			priv->irqenable = OMAP4_MAILBOX_IRQENABLE(info->usr_id);
+			priv->irqstatus = OMAP4_MAILBOX_IRQSTATUS(info->usr_id);
+			priv->irqdisable =
+				OMAP4_MAILBOX_IRQENABLE_CLR(info->usr_id);
+		} else {
+			priv->irqenable = MAILBOX_IRQENABLE(info->usr_id);
+			priv->irqstatus = MAILBOX_IRQSTATUS(info->usr_id);
+			priv->irqdisable = MAILBOX_IRQENABLE(info->usr_id);
+		}
+		priv->intr_type = pdata->intr_type;
+
+		mbox->priv = priv;
+		mbox->name = info->name;
+		mbox->ops = &omap2_mbox_ops;
+		mbox->irq = platform_get_irq(pdev, info->irq_id);
+		if (mbox->irq < 0) {
+			ret = mbox->irq;
+			goto free_privblk;
+		}
+		list[i] = mbox++;
+	}
+
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!mem) {
+		ret = -ENOENT;
+		goto free_privblk;
+	}
+
+	mbox_base = ioremap(mem->start, resource_size(mem));
+	if (!mbox_base) {
+		ret = -ENOMEM;
+		goto free_privblk;
+	}
+
+	ret = omap_mbox_register(&pdev->dev, list);
+	if (ret)
+		goto unmap_mbox;
+	platform_set_drvdata(pdev, list);
+
 	return 0;
+
+unmap_mbox:
+	iounmap(mbox_base);
+free_privblk:
+	kfree(privblk);
+free_mboxblk:
+	kfree(mboxblk);
+free_list:
+	kfree(list);
+	return ret;
 }
 
 static int omap2_mbox_remove(struct platform_device *pdev)
 {
+	struct omap_mbox2_priv *privblk;
+	struct omap_mbox **list = platform_get_drvdata(pdev);
+	struct omap_mbox *mboxblk = list[0];
+
+	privblk = mboxblk->priv;
 	omap_mbox_unregister();
 	iounmap(mbox_base);
+	kfree(privblk);
+	kfree(mboxblk);
+	kfree(list);
+	platform_set_drvdata(pdev, NULL);
+
 	return 0;
 }
 
 static struct platform_driver omap2_mbox_driver = {
-	.probe = omap2_mbox_probe,
-	.remove = omap2_mbox_remove,
-	.driver = {
+	.probe	= omap2_mbox_probe,
+	.remove	= omap2_mbox_remove,
+	.driver	= {
 		.name = "omap-mailbox",
 	},
 };
