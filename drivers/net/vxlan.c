@@ -148,6 +148,7 @@ struct vxlan_dev {
 
 /* salt for hash table */
 static u32 vxlan_salt __read_mostly;
+static struct workqueue_struct *vxlan_wq;
 
 /* Virtual Network hash table head */
 static inline struct hlist_head *vni_head(struct vxlan_sock *vs, u32 id)
@@ -1631,7 +1632,7 @@ static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 
 	if (--vs->refcnt == 0) {
 		hlist_del_rcu(&vs->hlist);
-		schedule_work(&vs->del_work);
+		queue_work(vxlan_wq, &vs->del_work);
 	}
 }
 
@@ -1750,6 +1751,10 @@ static int __init vxlan_init_module(void)
 {
 	int rc;
 
+	vxlan_wq = alloc_workqueue("vxlan", 0, 0);
+	if (!vxlan_wq)
+		return -ENOMEM;
+
 	get_random_bytes(&vxlan_salt, sizeof(vxlan_salt));
 
 	rc = register_pernet_device(&vxlan_net_ops);
@@ -1765,6 +1770,7 @@ static int __init vxlan_init_module(void)
 out2:
 	unregister_pernet_device(&vxlan_net_ops);
 out1:
+	destroy_workqueue(vxlan_wq);
 	return rc;
 }
 late_initcall(vxlan_init_module);
@@ -1773,6 +1779,7 @@ static void __exit vxlan_cleanup_module(void)
 {
 	unregister_pernet_device(&vxlan_net_ops);
 	rtnl_link_unregister(&vxlan_link_ops);
+	destroy_workqueue(vxlan_wq);
 	rcu_barrier();
 }
 module_exit(vxlan_cleanup_module);
