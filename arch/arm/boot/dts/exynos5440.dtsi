@@ -16,6 +16,10 @@
 
 	interrupt-parent = <&gic>;
 
+	aliases {
+		spi0 = &spi_0;
+	};
+
 	clock: clock-controller@0x160000 {
 		compatible = "samsung,exynos5440-clock";
 		reg = <0x160000 0x1000>;
@@ -101,14 +105,14 @@
 		clock-names = "uart", "clk_uart_baud0";
 	};
 
-	spi {
-		compatible = "samsung,exynos4210-spi";
-		reg = <0xD0000 0x1000>;
+	spi_0: spi@D0000 {
+		compatible = "samsung,exynos5440-spi";
+		reg = <0xD0000 0x100>;
 		interrupts = <0 4 0>;
-		tx-dma-channel = <&pdma0 5>; /* preliminary */
-		rx-dma-channel = <&pdma0 4>; /* preliminary */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		samsung,spi-src-clk = <0>;
+		num-cs = <1>;
 		clocks = <&clock 21>, <&clock 16>;
 		clock-names = "spi", "spi_busclk0";
 	};
