@@ -1,24 +1,3 @@
-config SND_SPEAR_EVM
-	tristate "SoC Audio support for SPEAr EVM"
-	select SND_DESIGNWARE_I2S
-	select SND_SOC_STA529
-	select SND_SPEAR_SOC
-	help
-	 Say Y if you want to add support for SoC audio on SPEAr
-	 platform
-
-config SND_SPEAR1340_EVM
-	tristate "SoC Audio support for SPEAr1340 EVM"
-	select SND_DESIGNWARE_I2S
-	select SND_SOC_STA529
-	select SND_SPEAR_SPDIF_OUT
-	select SND_SPEAR_SPDIF_IN
-	select SND_SOC_SPDIF
-	select SND_SPEAR_SOC
-	help
-	 Say Y if you want to add support for SoC audio on SPEAr1340
-	 platform
-
 config SND_SPEAR_SOC
 	tristate
 	select SND_SOC_DMAENGINE_PCM
