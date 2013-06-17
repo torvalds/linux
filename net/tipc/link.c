@@ -41,6 +41,8 @@
 #include "discover.h"
 #include "config.h"
 
+#include <linux/pkt_sched.h>
+
 /*
  * Error message prefixes
  */
@@ -1947,6 +1949,7 @@ void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
 		return;
 
 	skb_copy_to_linear_data(buf, msg, sizeof(l_ptr->proto_msg));
+	buf->priority = TC_PRIO_CONTROL;
 
 	/* Defer message if bearer is already blocked */
 	if (tipc_bearer_blocked(l_ptr->b_ptr)) {
