@@ -1857,9 +1857,9 @@ static int r820t_imr(struct r820t_priv *priv, unsigned imr_mem, bool im_flag)
 	int reg18, reg19, reg1f;
 
 	if (priv->cfg->xtal > 24000000)
-		ring_ref = priv->cfg->xtal / 2;
+		ring_ref = priv->cfg->xtal / 2000;
 	else
-		ring_ref = priv->cfg->xtal;
+		ring_ref = priv->cfg->xtal / 1000;
 
 	n_ring = 15;
 	for (n = 0; n < 16; n++) {
