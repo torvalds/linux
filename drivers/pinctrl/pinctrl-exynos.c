@@ -84,6 +84,17 @@ static void exynos_gpio_irq_unmask(struct irq_data *irqd)
 	unsigned long mask;
 	unsigned long flags;
 
+	/*
+	 * Ack level interrupts right before unmask
+	 *
+	 * If we don't do this we'll get a double-interrupt.  Level triggered
+	 * interrupts must not fire an interrupt if the level is not
+	 * _currently_ active, even if it was active while the interrupt was
+	 * masked.
+	 */
+	if (irqd_get_trigger_type(irqd) & IRQ_TYPE_LEVEL_MASK)
+		exynos_gpio_irq_ack(irqd);
+
 	spin_lock_irqsave(&bank->slock, flags);
 
 	mask = readl(d->virt_base + reg_mask);
@@ -301,6 +312,17 @@ static void exynos_wkup_irq_unmask(struct irq_data *irqd)
 	unsigned long reg_mask = d->ctrl->weint_mask + b->eint_offset;
 	unsigned long mask;
 	unsigned long flags;
+
+	/*
+	 * Ack level interrupts right before unmask
+	 *
+	 * If we don't do this we'll get a double-interrupt.  Level triggered
+	 * interrupts must not fire an interrupt if the level is not
+	 * _currently_ active, even if it was active while the interrupt was
+	 * masked.
+	 */
+	if (irqd_get_trigger_type(irqd) & IRQ_TYPE_LEVEL_MASK)
+		exynos_wkup_irq_ack(irqd);
 
 	spin_lock_irqsave(&b->slock, flags);
 
