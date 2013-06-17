@@ -590,41 +590,19 @@ static int imx_ssi_probe(struct platform_device *pdev)
 		goto failed_register;
 	}
 
-	ssi->soc_platform_pdev_fiq = platform_device_alloc("imx-fiq-pcm-audio", pdev->id);
-	if (!ssi->soc_platform_pdev_fiq) {
-		ret = -ENOMEM;
-		goto failed_pdev_fiq_alloc;
-	}
+	ret = imx_pcm_fiq_init(pdev);
+	if (ret)
+		goto failed_pcm_fiq;
 
-	platform_set_drvdata(ssi->soc_platform_pdev_fiq, ssi);
-	ret = platform_device_add(ssi->soc_platform_pdev_fiq);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add platform device\n");
-		goto failed_pdev_fiq_add;
-	}
-
-	ssi->soc_platform_pdev = platform_device_alloc("imx-pcm-audio", pdev->id);
-	if (!ssi->soc_platform_pdev) {
-		ret = -ENOMEM;
-		goto failed_pdev_alloc;
-	}
-
-	platform_set_drvdata(ssi->soc_platform_pdev, ssi);
-	ret = platform_device_add(ssi->soc_platform_pdev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add platform device\n");
-		goto failed_pdev_add;
-	}
+	ret = imx_pcm_dma_init(pdev);
+	if (ret)
+		goto failed_pcm_dma;
 
 	return 0;
 
-failed_pdev_add:
-	platform_device_put(ssi->soc_platform_pdev);
-failed_pdev_alloc:
-	platform_device_del(ssi->soc_platform_pdev_fiq);
-failed_pdev_fiq_add:
-	platform_device_put(ssi->soc_platform_pdev_fiq);
-failed_pdev_fiq_alloc:
+failed_pcm_dma:
+	imx_pcm_fiq_exit(pdev);
+failed_pcm_fiq:
 	snd_soc_unregister_component(&pdev->dev);
 failed_register:
 	release_mem_region(res->start, resource_size(res));
@@ -639,8 +617,8 @@ static int imx_ssi_remove(struct platform_device *pdev)
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct imx_ssi *ssi = platform_get_drvdata(pdev);
 
-	platform_device_unregister(ssi->soc_platform_pdev);
-	platform_device_unregister(ssi->soc_platform_pdev_fiq);
+	imx_pcm_dma_exit(pdev);
+	imx_pcm_fiq_exit(pdev);
 
 	snd_soc_unregister_component(&pdev->dev);
 
