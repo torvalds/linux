@@ -173,31 +173,9 @@ bfad_debugfs_open_reg(struct inode *inode, struct file *file)
 static loff_t
 bfad_debugfs_lseek(struct file *file, loff_t offset, int orig)
 {
-	struct bfad_debug_info *debug;
-	loff_t pos = file->f_pos;
-
-	debug = file->private_data;
-
-	switch (orig) {
-	case 0:
-		file->f_pos = offset;
-		break;
-	case 1:
-		file->f_pos += offset;
-		break;
-	case 2:
-		file->f_pos = debug->buffer_len + offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (file->f_pos < 0 || file->f_pos > debug->buffer_len) {
-		file->f_pos = pos;
-		return -EINVAL;
-	}
-
-	return file->f_pos;
+	struct bfad_debug_info *debug = file->private_data;
+	return fixed_size_llseek(file, offset, orig,
+				debug->buffer_len);
 }
 
 static ssize_t
