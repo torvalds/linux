@@ -20,7 +20,6 @@
 /* Supports:
  * Moorestown platform Langwell chip.
  * Medfield platform Penwell chip.
- * Whitney point.
  */
 
 #include <linux/module.h>
@@ -394,75 +393,9 @@ static struct pci_driver lnw_gpio_driver = {
 	},
 };
 
-
-static int wp_gpio_probe(struct platform_device *pdev)
-{
-	struct lnw_gpio *lnw;
-	struct gpio_chip *gc;
-	struct resource *rc;
-	int retval;
-
-	lnw = devm_kzalloc(&pdev->dev, sizeof(struct lnw_gpio), GFP_KERNEL);
-	if (!lnw) {
-		dev_err(&pdev->dev, "can't allocate chip data\n");
-		return -ENOMEM;
-	}
-
-	rc = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	lnw->reg_base = devm_ioremap_resource(&pdev->dev, rc);
-	if (IS_ERR(lnw->reg_base))
-		return PTR_ERR(lnw->reg_base);
-
-	spin_lock_init(&lnw->lock);
-	gc = &lnw->chip;
-	gc->label = dev_name(&pdev->dev);
-	gc->owner = THIS_MODULE;
-	gc->direction_input = lnw_gpio_direction_input;
-	gc->direction_output = lnw_gpio_direction_output;
-	gc->get = lnw_gpio_get;
-	gc->set = lnw_gpio_set;
-	gc->to_irq = NULL;
-	gc->base = 0;
-	gc->ngpio = 64;
-	gc->can_sleep = 0;
-	retval = gpiochip_add(gc);
-	if (retval) {
-		dev_err(&pdev->dev, "gpiochip_add error %d\n", retval);
-		return retval;
-	}
-	platform_set_drvdata(pdev, lnw);
-	return 0;
-}
-
-static int wp_gpio_remove(struct platform_device *pdev)
-{
-	struct lnw_gpio *lnw = platform_get_drvdata(pdev);
-	int err;
-	err = gpiochip_remove(&lnw->chip);
-	if (err)
-		dev_err(&pdev->dev, "failed to remove gpio_chip.\n");
-	return 0;
-}
-
-static struct platform_driver wp_gpio_driver = {
-	.probe		= wp_gpio_probe,
-	.remove		= wp_gpio_remove,
-	.driver		= {
-		.name	= "wp_gpio",
-		.owner	= THIS_MODULE,
-	},
-};
-
 static int __init lnw_gpio_init(void)
 {
-	int ret;
-	ret =  pci_register_driver(&lnw_gpio_driver);
-	if (ret < 0)
-		return ret;
-	ret = platform_driver_register(&wp_gpio_driver);
-	if (ret < 0)
-		pci_unregister_driver(&lnw_gpio_driver);
-	return ret;
+	return pci_register_driver(&lnw_gpio_driver);
 }
 
 device_initcall(lnw_gpio_init);
