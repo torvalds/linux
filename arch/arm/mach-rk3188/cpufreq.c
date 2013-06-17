@@ -346,7 +346,6 @@ static int rk3188_cpufreq_verify(struct cpufreq_policy *policy)
 static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 {
 	unsigned int i;
-	struct cpufreq_frequency_table *table_adjust;
 
 	gpu_is_mali400 = cpu_is_rk3188();
 	gpu_clk = clk_get(NULL, "gpu");
@@ -363,14 +362,6 @@ static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 	cpu_clk = clk_get(NULL, "cpu");
 	if (IS_ERR(cpu_clk))
 		return PTR_ERR(cpu_clk);
-
-	if (soc_is_rk3188()) {
-		/* Adjust dvfs table avoid overheat */
-		table_adjust = dvfs_get_freq_volt_table(cpu_clk);
-		dvfs_adjust_table_lmtvolt(cpu_clk, table_adjust);
-		table_adjust = dvfs_get_freq_volt_table(gpu_clk);
-		dvfs_adjust_table_lmtvolt(gpu_clk, table_adjust);
-	}
 
 	dvfs_clk_register_set_rate_callback(cpu_clk, cpufreq_scale_rate_for_dvfs);
 	freq_table = dvfs_get_freq_volt_table(cpu_clk);
