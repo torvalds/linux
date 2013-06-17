@@ -1,0 +1,135 @@
+* Renesas Pin Function Controller (GPIO and Pin Mux/Config)
+
+The Pin Function Controller (PFC) is a Pin Mux/Config controller. On SH7372,
+SH73A0, R8A73A4 and R8A7740 it also acts as a GPIO controller.
+
+
+Pin Control
+-----------
+
+Required Properties:
+
+  - compatible: should be one of the following.
+    - "renesas,pfc-r8a73a4": for R8A73A4 (R-Mobile APE6) compatible pin-controller.
+    - "renesas,pfc-r8a7740": for R8A7740 (R-Mobile A1) compatible pin-controller.
+    - "renesas,pfc-r8a7778": for R8A7778 (R-Mobile M1) compatible pin-controller.
+    - "renesas,pfc-r8a7779": for R8A7779 (R-Car H1) compatible pin-controller.
+    - "renesas,pfc-r8a7790": for R8A7790 (R-Car H2) compatible pin-controller.
+    - "renesas,pfc-sh7372": for SH7372 (SH-Mobile AP4) compatible pin-controller.
+    - "renesas,pfc-sh73a0": for SH73A0 (SH-Mobile AG5) compatible pin-controller.
+
+  - reg: Base address and length of each memory resource used by the pin
+    controller hardware module.
+
+Optional properties:
+
+  - #gpio-range-cells: Mandatory when the PFC doesn't handle GPIO, forbidden
+    otherwise. Should be 3.
+
+The PFC node also acts as a container for pin configuration nodes. Please refer
+to pinctrl-bindings.txt in this directory for the definition of the term "pin
+configuration node" and for the common pinctrl bindings used by client devices.
+
+Each pin configuration node represents desired functions to select on a pin
+group or a list of pin groups. The functions and pin groups can be specified
+directly in the pin configuration node, or grouped in child subnodes. Several
+functions can thus be referenced as a single pin configuration node by client
+devices.
+
+A configuration node or subnode must contain a function and reference at least
+one pin group.
+
+All pin configuration nodes and subnodes names are ignored. All of those nodes
+are parsed through phandles and processed purely based on their content.
+
+Pin Configuration Node Properties:
+
+- renesas,groups : An array of strings, each string containing the name of a pin
+  group.
+
+- renesas,function: A string containing the name of the function to mux to the
+  pin group(s) specified by the renesas,groups property
+
+  Valid values for pin, group and function names can be found in the group and
+  function arrays of the PFC data file corresponding to the SoC
+  (drivers/pinctrl/sh-pfc/pfc-*.c)
+
+
+GPIO
+----
+
+On SH7372, SH73A0, R8A73A4 and R8A7740 the PFC node is also a GPIO controller
+node.
+
+Required Properties:
+
+  - gpio-controller: Marks the device node as a gpio controller.
+
+  - #gpio-cells: Should be 2. The first cell is the GPIO number and the second
+    cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>. Only the
+    GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
+
+The syntax of the gpio specifier used by client nodes should be the following
+with values derived from the SoC user manual.
+
+  <[phandle of the gpio controller node]
+   [pin number within the gpio controller]
+   [flags]>
+
+On other mach-shmobile platforms GPIO is handled by the gpio-rcar driver.
+Please refer to Documentation/devicetree/bindings/gpio/renesas,gpio-rcar.txt
+for documentation of the GPIO device tree bindings on those platforms.
+
+
+Examples
+--------
+
+Example 1: SH73A0 (SH-Mobile AG5) pin controller node
+
+	pfc: pfc@e6050000 {
+		compatible = "renesas,pfc-sh73a0";
+		reg = <0xe6050000 0x8000>,
+		      <0xe605801c 0x1c>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+Example 2: A GPIO LED node that references a GPIO
+
+	#include <dt-bindings/gpio/gpio.h>
+
+	leds {
+		compatible = "gpio-leds";
+		led1 {
+			gpios = <&pfc 20 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+Example 3: KZM-A9-GT (SH-Mobile AG5) default pin state hog and pin control maps
+           for the MMCIF and SCIFA4 devices
+
+	&pfc {
+		pinctrl-0 = <&scifa4_pins>;
+		pinctrl-names = "default";
+
+		mmcif_pins: mmcif {
+			renesas,groups = "mmc0_data8_0", "mmc0_ctrl_0";
+			renesas,function = "mmc0";
+		};
+
+		scifa4_pins: scifa4 {
+			renesas,groups = "scifa4_data", "scifa4_ctrl";
+			renesas,function = "scifa4";
+		};
+	};
+
+Example 4: KZM-A9-GT (SH-Mobile AG5) default pin state for the MMCIF device
+
+	&mmcif {
+		pinctrl-0 = <&mmcif_pins>;
+		pinctrl-names = "default";
+
+		bus-width = <8>;
+		vmmc-supply = <&reg_1p8v>;
+		status = "okay";
+	};

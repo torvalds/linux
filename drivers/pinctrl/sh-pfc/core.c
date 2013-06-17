@@ -18,6 +18,8 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -348,13 +350,72 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id sh_pfc_of_table[] = {
+#ifdef CONFIG_PINCTRL_PFC_R8A73A4
+	{
+		.compatible = "renesas,pfc-r8a73a4",
+		.data = &r8a73a4_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7740
+	{
+		.compatible = "renesas,pfc-r8a7740",
+		.data = &r8a7740_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7778
+	{
+		.compatible = "renesas,pfc-r8a7778",
+		.data = &r8a7778_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7779
+	{
+		.compatible = "renesas,pfc-r8a7779",
+		.data = &r8a7779_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7790
+	{
+		.compatible = "renesas,pfc-r8a7790",
+		.data = &r8a7790_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_SH7372
+	{
+		.compatible = "renesas,pfc-sh7372",
+		.data = &sh7372_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_SH73A0
+	{
+		.compatible = "renesas,pfc-sh73a0",
+		.data = &sh73a0_pinmux_info,
+	},
+#endif
+	{ },
+};
+MODULE_DEVICE_TABLE(of, sh_pfc_of_table);
+#endif
+
 static int sh_pfc_probe(struct platform_device *pdev)
 {
+	const struct platform_device_id *platid = platform_get_device_id(pdev);
+#ifdef CONFIG_OF
+	struct device_node *np = pdev->dev.of_node;
+#endif
 	const struct sh_pfc_soc_info *info;
 	struct sh_pfc *pfc;
 	int ret;
 
-	info = (void *)pdev->id_entry->driver_data;
+#ifdef CONFIG_OF
+	if (np)
+		info = of_match_device(sh_pfc_of_table, &pdev->dev)->data;
+	else
+#endif
+		info = platid ? (const void *)platid->driver_data : NULL;
+
 	if (info == NULL)
 		return -ENODEV;
 
@@ -480,6 +541,7 @@ static struct platform_driver sh_pfc_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(sh_pfc_of_table),
 	},
 };
 
