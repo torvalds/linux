@@ -13,7 +13,6 @@ iwlwifi-$(CONFIG_IWLMVM) += iwl-7000.o
 iwlwifi-objs += $(iwlwifi-m)
 
 iwlwifi-$(CONFIG_IWLWIFI_DEVICE_TRACING) += iwl-devtrace.o
-iwlwifi-$(CONFIG_IWLWIFI_DEVICE_TESTMODE) += iwl-test.o
 
 ccflags-y += -D__CHECK_ENDIAN__ -I$(src)
 

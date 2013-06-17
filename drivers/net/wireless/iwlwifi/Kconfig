@@ -128,16 +128,6 @@ config IWLWIFI_DEVICE_TRACING
 	  occur.
 endmenu
 
-config IWLWIFI_DEVICE_TESTMODE
-	def_bool y
-	depends on IWLWIFI
-	depends on NL80211_TESTMODE
-	help
-	  This option enables the testmode support for iwlwifi device through
-	  NL80211_TESTMODE. This provide the capabilities of enable user space
-	  validation applications to interacts with the device through the
-	  generic netlink message via NL80211_TESTMODE channel.
-
 config IWLWIFI_P2P
 	def_bool y
 	bool "iwlwifi experimental P2P support"

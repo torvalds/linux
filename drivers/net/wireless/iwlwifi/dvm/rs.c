@@ -351,12 +351,6 @@ static void rs_program_fix_rate(struct iwl_priv *priv,
 	lq_sta->active_mimo2_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 	lq_sta->active_mimo3_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	/* testmode has higher priority to overwirte the fixed rate */
-	if (priv->tm_fixed_rate)
-		lq_sta->dbg_fixed_rate = priv->tm_fixed_rate;
-#endif
-
 	IWL_DEBUG_RATE(priv, "sta_id %d rate 0x%X\n",
 		lq_sta->lq.sta_id, lq_sta->dbg_fixed_rate);
 
@@ -1078,11 +1072,6 @@ done:
 	if (sta && sta->supp_rates[sband->band])
 		rs_rate_scale_perform(priv, skb, sta, lq_sta);
 
-#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_IWLWIFI_DEVICE_TESTMODE)
-	if ((priv->tm_fixed_rate) &&
-	    (priv->tm_fixed_rate != lq_sta->dbg_fixed_rate))
-		rs_program_fix_rate(priv, lq_sta);
-#endif
 	if (priv->lib->bt_params && priv->lib->bt_params->advanced_bt_coexist)
 		rs_bt_update_lq(priv, ctx, lq_sta);
 }
@@ -2908,9 +2897,6 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	if (sband->band == IEEE80211_BAND_5GHZ)
 		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 	lq_sta->is_agg = 0;
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	priv->tm_fixed_rate = 0;
-#endif
 #ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->dbg_fixed_rate = 0;
 #endif
