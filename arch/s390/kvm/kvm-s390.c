@@ -255,6 +255,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		if (!kvm->arch.gmap)
 			goto out_nogmap;
 		kvm->arch.gmap->private = kvm;
+		kvm->arch.gmap->pfault_enabled = 0;
 	}
 
 	kvm->arch.css_support = 0;
@@ -701,6 +702,17 @@ static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static long kvm_arch_fault_in_sync(struct kvm_vcpu *vcpu)
+{
+	long rc;
+	hva_t fault = gmap_fault(current->thread.gmap_addr, vcpu->arch.gmap);
+	struct mm_struct *mm = current->mm;
+	down_read(&mm->mmap_sem);
+	rc = get_user_pages(current, mm, fault, 1, 1, 0, NULL, NULL);
+	up_read(&mm->mmap_sem);
+	return rc;
+}
+
 static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 {
 	int rc, cpuflags;
@@ -730,7 +742,7 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 
 static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 {
-	int rc;
+	int rc = -1;
 
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
@@ -744,7 +756,14 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 						current->thread.gmap_addr;
 		vcpu->run->s390_ucontrol.pgm_code = 0x10;
 		rc = -EREMOTE;
-	} else {
+
+	} else if (current->thread.gmap_pfault) {
+		current->thread.gmap_pfault = 0;
+		if (kvm_arch_fault_in_sync(vcpu) >= 0)
+			rc = 0;
+	}
+
+	if (rc == -1) {
 		VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
 		trace_kvm_s390_sie_fault(vcpu);
 		rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
