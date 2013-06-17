@@ -37,7 +37,7 @@
 		reg = <0xfd510000 0x4000>;
 	};
 
-	serial@19440000 {
+	serial@16440000 {
 		compatible = "qcom,msm-hsuart", "qcom,msm-uart";
 		reg = <0x16440000 0x1000>,
 		      <0x16400000 0x1000>;
