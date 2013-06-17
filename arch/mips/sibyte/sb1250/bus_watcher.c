@@ -175,9 +175,6 @@ static irqreturn_t sibyte_bw_int(int irq, void *data)
 #ifdef CONFIG_SIBYTE_BW_TRACE
 	int i;
 #endif
-#ifndef CONFIG_PROC_FS
-	char bw_buf[1024];
-#endif
 
 #ifdef CONFIG_SIBYTE_BW_TRACE
 	csr_out32(M_SCD_TRACE_CFG_FREEZE, IOADDR(A_SCD_TRACE_CFG));
