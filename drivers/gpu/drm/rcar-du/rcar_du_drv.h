@@ -24,6 +24,7 @@ struct clk;
 struct device;
 struct drm_device;
 struct rcar_du_device;
+struct rcar_du_lvdsenc;
 
 #define RCAR_DU_FEATURE_CRTC_IRQ_CLOCK	(1 << 0)	/* Per-CRTC IRQ and clock */
 #define RCAR_DU_FEATURE_ALIGN_128B	(1 << 1)	/* Align pitches to 128 bytes */
@@ -48,11 +49,13 @@ struct rcar_du_output_routing {
  * @features: device features (RCAR_DU_FEATURE_*)
  * @num_crtcs: total number of CRTCs
  * @routes: array of CRTC to output routes, indexed by output (RCAR_DU_OUTPUT_*)
+ * @num_lvds: number of internal LVDS encoders
  */
 struct rcar_du_device_info {
 	unsigned int features;
 	unsigned int num_crtcs;
 	struct rcar_du_output_routing routes[RCAR_DU_OUTPUT_MAX];
+	unsigned int num_lvds;
 };
 
 struct rcar_du_device {
@@ -70,6 +73,7 @@ struct rcar_du_device {
 	struct rcar_du_group groups[2];
 
 	unsigned int dpad0_source;
+	struct rcar_du_lvdsenc *lvds[2];
 };
 
 static inline bool rcar_du_has(struct rcar_du_device *rcdu,

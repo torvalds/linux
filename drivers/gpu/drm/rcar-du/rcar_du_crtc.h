@@ -39,6 +39,8 @@ struct rcar_du_crtc {
 	struct rcar_du_plane *plane;
 };
 
+#define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)
+
 int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index);
 void rcar_du_crtc_enable_vblank(struct rcar_du_crtc *rcrtc, bool enable);
 void rcar_du_crtc_cancel_page_flip(struct rcar_du_crtc *rcrtc,

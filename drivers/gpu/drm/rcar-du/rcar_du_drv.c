@@ -227,6 +227,7 @@ static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 			.encoder_type = DRM_MODE_ENCODER_NONE,
 		},
 	},
+	.num_lvds = 0,
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7790_info = {
@@ -250,6 +251,7 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 			.encoder_type = DRM_MODE_ENCODER_LVDS,
 		},
 	},
+	.num_lvds = 2,
 };
 
 static const struct platform_device_id rcar_du_id_table[] = {

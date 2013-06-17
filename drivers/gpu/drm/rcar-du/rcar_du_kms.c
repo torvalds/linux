@@ -21,6 +21,7 @@
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
 #include "rcar_du_kms.h"
+#include "rcar_du_lvdsenc.h"
 #include "rcar_du_regs.h"
 
 /* -----------------------------------------------------------------------------
@@ -217,6 +218,10 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	}
 
 	/* Initialize the encoders. */
+	ret = rcar_du_lvdsenc_init(rcdu);
+	if (ret < 0)
+		return ret;
+
 	for (i = 0; i < rcdu->pdata->num_encoders; ++i) {
 		const struct rcar_du_encoder_data *pdata =
 			&rcdu->pdata->encoders[i];
