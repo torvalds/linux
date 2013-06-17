@@ -627,9 +627,34 @@ static int tegra30_ahub_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int tegra30_ahub_suspend(struct device *dev)
+{
+	regcache_mark_dirty(ahub->regmap_ahub);
+	regcache_mark_dirty(ahub->regmap_apbif);
+
+	return 0;
+}
+
+static int tegra30_ahub_resume(struct device *dev)
+{
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
+		return ret;
+	ret = regcache_sync(ahub->regmap_ahub);
+	ret |= regcache_sync(ahub->regmap_apbif);
+	pm_runtime_put(dev);
+
+	return ret;
+}
+#endif
+
 static const struct dev_pm_ops tegra30_ahub_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra30_ahub_runtime_suspend,
 			   tegra30_ahub_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(tegra30_ahub_suspend, tegra30_ahub_resume)
 };
 
 static struct platform_driver tegra30_ahub_driver = {
