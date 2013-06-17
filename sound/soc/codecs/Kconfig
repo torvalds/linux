@@ -53,7 +53,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
-	select SND_SOC_OMAP_HDMI_CODEC if OMAP4_DSS_HDMI
+	select SND_SOC_HDMI_CODEC
 	select SND_SOC_PCM3008
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_SGTL5000 if I2C
@@ -287,7 +287,7 @@ config SND_SOC_MAX98095
 config SND_SOC_MAX9850
 	tristate
 
-config SND_SOC_OMAP_HDMI_CODEC
+config SND_SOC_HDMI_CODEC
        tristate
 
 config SND_SOC_PCM3008
