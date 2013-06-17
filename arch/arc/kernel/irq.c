@@ -32,8 +32,6 @@ void __cpuinit arc_init_IRQ(void)
 {
 	int level_mask = 0;
 
-	write_aux_reg(AUX_INTR_VEC_BASE, _int_vec_base_lds);
-
 	/* Disable all IRQs: enable them as devices request */
 	write_aux_reg(AUX_IENABLE, 0);
 
