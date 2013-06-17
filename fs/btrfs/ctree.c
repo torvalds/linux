@@ -2178,12 +2178,8 @@ static void reada_for_search(struct btrfs_root *root,
 	}
 }
 
-/*
- * returns -EAGAIN if it had to drop the path, or zero if everything was in
- * cache
- */
-static noinline int reada_for_balance(struct btrfs_root *root,
-				      struct btrfs_path *path, int level)
+static noinline void reada_for_balance(struct btrfs_root *root,
+				       struct btrfs_path *path, int level)
 {
 	int slot;
 	int nritems;
@@ -2192,12 +2188,11 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 	u64 gen;
 	u64 block1 = 0;
 	u64 block2 = 0;
-	int ret = 0;
 	int blocksize;
 
 	parent = path->nodes[level + 1];
 	if (!parent)
-		return 0;
+		return;
 
 	nritems = btrfs_header_nritems(parent);
 	slot = path->slots[level + 1];
@@ -2224,28 +2219,11 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 			block2 = 0;
 		free_extent_buffer(eb);
 	}
-	if (block1 || block2) {
-		ret = -EAGAIN;
 
-		/* release the whole path */
-		btrfs_release_path(path);
-
-		/* read the blocks */
-		if (block1)
-			readahead_tree_block(root, block1, blocksize, 0);
-		if (block2)
-			readahead_tree_block(root, block2, blocksize, 0);
-
-		if (block1) {
-			eb = read_tree_block(root, block1, blocksize, 0);
-			free_extent_buffer(eb);
-		}
-		if (block2) {
-			eb = read_tree_block(root, block2, blocksize, 0);
-			free_extent_buffer(eb);
-		}
-	}
-	return ret;
+	if (block1)
+		readahead_tree_block(root, block1, blocksize, 0);
+	if (block2)
+		readahead_tree_block(root, block2, blocksize, 0);
 }
 
 
@@ -2441,11 +2419,8 @@ setup_nodes_for_search(struct btrfs_trans_handle *trans,
 			goto again;
 		}
 
-		sret = reada_for_balance(root, p, level);
-		if (sret)
-			goto again;
-
 		btrfs_set_path_blocking(p);
+		reada_for_balance(root, p, level);
 		sret = split_node(trans, root, p, level);
 		btrfs_clear_path_blocking(p, NULL, 0);
 
@@ -2465,11 +2440,8 @@ setup_nodes_for_search(struct btrfs_trans_handle *trans,
 			goto again;
 		}
 
-		sret = reada_for_balance(root, p, level);
-		if (sret)
-			goto again;
-
 		btrfs_set_path_blocking(p);
+		reada_for_balance(root, p, level);
 		sret = balance_level(trans, root, p, level);
 		btrfs_clear_path_blocking(p, NULL, 0);
 
