@@ -1168,6 +1168,7 @@ static int link_send_sections_long(struct tipc_port *sender,
 	const unchar *sect_crs;
 	int curr_sect;
 	u32 fragm_no;
+	int res = 0;
 
 again:
 	fragm_no = 1;
@@ -1215,12 +1216,13 @@ again:
 			sz = fragm_rest;
 
 		if (copy_from_user(buf->data + fragm_crs, sect_crs, sz)) {
+			res = -EFAULT;
 error:
 			for (; buf_chain; buf_chain = buf) {
 				buf = buf_chain->next;
 				kfree_skb(buf_chain);
 			}
-			return -EFAULT;
+			return res;
 		}
 		sect_crs += sz;
 		sect_rest -= sz;
@@ -1241,8 +1243,10 @@ error:
 			msg_set_fragm_no(&fragm_hdr, ++fragm_no);
 			prev = buf;
 			buf = tipc_buf_acquire(fragm_sz + INT_H_SIZE);
-			if (!buf)
+			if (!buf) {
+				res = -ENOMEM;
 				goto error;
+			}
 
 			buf->next = NULL;
 			prev->next = buf;
