@@ -68,9 +68,8 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
-SCTP_STATIC
-struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
-				   __u8 type, __u8 flags, int paylen);
+static struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
+					  __u8 type, __u8 flags, int paylen);
 static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
 					const struct sctp_chunk *init_chunk,
@@ -1353,9 +1352,8 @@ const union sctp_addr *sctp_source(const struct sctp_chunk *chunk)
 /* Create a new chunk, setting the type and flags headers from the
  * arguments, reserving enough space for a 'paylen' byte payload.
  */
-SCTP_STATIC
-struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
-				   __u8 type, __u8 flags, int paylen)
+static struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
+					  __u8 type, __u8 flags, int paylen)
 {
 	struct sctp_chunk *retval;
 	sctp_chunkhdr_t *chunk_hdr;

@@ -1312,7 +1312,7 @@ static struct pernet_operations sctp_net_ops = {
 };
 
 /* Initialize the universe into something sensible.  */
-SCTP_STATIC __init int sctp_init(void)
+static __init int sctp_init(void)
 {
 	int i;
 	int status = -EINVAL;
@@ -1499,7 +1499,7 @@ err_chunk_cachep:
 }
 
 /* Exit handler for the SCTP protocol.  */
-SCTP_STATIC __exit void sctp_exit(void)
+static __exit void sctp_exit(void)
 {
 	/* BUG.  This should probably do something useful like clean
 	 * up all the remaining associations and all that memory.
