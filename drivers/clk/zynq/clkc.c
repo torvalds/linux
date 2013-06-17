@@ -71,6 +71,7 @@ static DEFINE_SPINLOCK(armpll_lock);
 static DEFINE_SPINLOCK(ddrpll_lock);
 static DEFINE_SPINLOCK(iopll_lock);
 static DEFINE_SPINLOCK(armclk_lock);
+static DEFINE_SPINLOCK(swdtclk_lock);
 static DEFINE_SPINLOCK(ddrclk_lock);
 static DEFINE_SPINLOCK(dciclk_lock);
 static DEFINE_SPINLOCK(gem0clk_lock);
@@ -293,7 +294,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 	}
 	clks[swdt] = clk_register_mux(NULL, clk_output_name[swdt],
 			swdt_ext_clk_mux_parents, 2, CLK_SET_RATE_PARENT,
-			SLCR_SWDT_CLK_SEL, 0, 1, 0, &gem0clk_lock);
+			SLCR_SWDT_CLK_SEL, 0, 1, 0, &swdtclk_lock);
 
 	/* DDR clocks */
 	clk = clk_register_divider(NULL, "ddr2x_div", "ddrpll", 0,
