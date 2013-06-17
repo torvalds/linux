@@ -42,12 +42,21 @@
 #include <linux/err.h>
 #include <linux/of.h>
 
-#include <mach/map.h>
+#define S3C2410_WTCON		0x00
+#define S3C2410_WTDAT		0x04
+#define S3C2410_WTCNT		0x08
 
-#undef S3C_VA_WATCHDOG
-#define S3C_VA_WATCHDOG (0)
+#define S3C2410_WTCON_RSTEN	(1 << 0)
+#define S3C2410_WTCON_INTEN	(1 << 2)
+#define S3C2410_WTCON_ENABLE	(1 << 5)
 
-#include <plat/regs-watchdog.h>
+#define S3C2410_WTCON_DIV16	(0 << 3)
+#define S3C2410_WTCON_DIV32	(1 << 3)
+#define S3C2410_WTCON_DIV64	(2 << 3)
+#define S3C2410_WTCON_DIV128	(3 << 3)
+
+#define S3C2410_WTCON_PRESCALE(x)	((x) << 8)
+#define S3C2410_WTCON_PRESCALE_MASK	(0xff << 8)
 
 #define CONFIG_S3C2410_WATCHDOG_ATBOOT		(0)
 #define CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME	(15)
