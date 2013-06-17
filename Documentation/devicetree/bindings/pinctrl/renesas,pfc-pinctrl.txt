@@ -30,20 +30,27 @@ The PFC node also acts as a container for pin configuration nodes. Please refer
 to pinctrl-bindings.txt in this directory for the definition of the term "pin
 configuration node" and for the common pinctrl bindings used by client devices.
 
-Each pin configuration node represents desired functions to select on a pin
-group or a list of pin groups. The functions and pin groups can be specified
-directly in the pin configuration node, or grouped in child subnodes. Several
-functions can thus be referenced as a single pin configuration node by client
-devices.
+Each pin configuration node represents a desired configuration for a pin, a
+pin group, or a list of pins or pin groups. The configuration can include the
+function to select on those pin(s) and pin configuration parameters (such as
+pull-up and pull-down).
 
-A configuration node or subnode must contain a function and reference at least
-one pin group.
+Pin configuration nodes contain pin configuration properties, either directly
+or grouped in child subnodes. Both pin muxing and configuration parameters can
+be grouped in that way and referenced as a single pin configuration node by
+client devices.
+
+A configuration node or subnode must reference at least one pin (through the
+pins or pin groups properties) and contain at least a function or one
+configuration parameter. When the function is present only pin groups can be
+used to reference pins.
 
 All pin configuration nodes and subnodes names are ignored. All of those nodes
 are parsed through phandles and processed purely based on their content.
 
 Pin Configuration Node Properties:
 
+- renesas,pins : An array of strings, each string containing the name of a pin.
 - renesas,groups : An array of strings, each string containing the name of a pin
   group.
 
@@ -53,6 +60,10 @@ Pin Configuration Node Properties:
   Valid values for pin, group and function names can be found in the group and
   function arrays of the PFC data file corresponding to the SoC
   (drivers/pinctrl/sh-pfc/pfc-*.c)
+
+The pin configuration parameters use the generic pinconf bindings defined in
+pinctrl-bindings.txt in this directory. The supported parameters are
+bias-disable, bias-pull-up and bias-pull-down.
 
 
 GPIO
@@ -113,8 +124,15 @@ Example 3: KZM-A9-GT (SH-Mobile AG5) default pin state hog and pin control maps
 		pinctrl-names = "default";
 
 		mmcif_pins: mmcif {
-			renesas,groups = "mmc0_data8_0", "mmc0_ctrl_0";
-			renesas,function = "mmc0";
+			mux {
+				renesas,groups = "mmc0_data8_0", "mmc0_ctrl_0";
+				renesas,function = "mmc0";
+			};
+			cfg {
+				renesas,groups = "mmc0_data8_0";
+				renesas,pins = "PORT279";
+				bias-pull-up;
+			};
 		};
 
 		scifa4_pins: scifa4 {
