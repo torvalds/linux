@@ -213,6 +213,18 @@ static struct resource bfin_uart0_resources[] = {
 		.end = UART0_RXDIV+4,
 		.flags = IORESOURCE_MEM,
 	},
+#ifdef CONFIG_EARLY_PRINTK
+	{
+		.start = PORTD_FER,
+		.end = PORTD_FER+2,
+		.flags = IORESOURCE_REG,
+	},
+	{
+		.start = PORTD_MUX,
+		.end = PORTD_MUX+3,
+		.flags = IORESOURCE_REG,
+	},
+#endif
 	{
 		.start = IRQ_UART0_TX,
 		.end = IRQ_UART0_TX,
@@ -277,6 +289,13 @@ static struct resource bfin_uart1_resources[] = {
 		.end = UART1_RXDIV+4,
 		.flags = IORESOURCE_MEM,
 	},
+#ifdef CONFIG_EARLY_PRINTK
+	{
+		.start = PORTG_FER_SET,
+		.end = PORTG_FER_SET+2,
+		.flags = IORESOURCE_REG,
+	},
+#endif
 	{
 		.start = IRQ_UART1_TX,
 		.end = IRQ_UART1_TX,
@@ -2098,18 +2117,6 @@ static struct platform_device *ezkit_early_devices[] __initdata = {
 #endif
 #ifdef CONFIG_SERIAL_BFIN_UART1
 	&bfin_uart1_device,
-#endif
-#endif
-
-#if defined(CONFIG_SERIAL_BFIN_SPORT_CONSOLE)
-#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
-	&bfin_sport0_uart_device,
-#endif
-#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
-	&bfin_sport1_uart_device,
-#endif
-#ifdef CONFIG_SERIAL_BFIN_SPORT2_UART
-	&bfin_sport2_uart_device,
 #endif
 #endif
 };

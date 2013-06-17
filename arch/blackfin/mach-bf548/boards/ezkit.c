@@ -244,6 +244,13 @@ static struct resource bfin_uart0_resources[] = {
 		.end = UART0_RBR+2,
 		.flags = IORESOURCE_MEM,
 	},
+#ifdef CONFIG_EARLY_PRINTK
+	{
+		.start = PORTE_FER,
+		.end = PORTE_FER+2,
+		.flags = IORESOURCE_REG,
+	},
+#endif
 	{
 		.start = IRQ_UART0_TX,
 		.end = IRQ_UART0_TX,
@@ -292,6 +299,13 @@ static struct resource bfin_uart1_resources[] = {
 		.end = UART1_RBR+2,
 		.flags = IORESOURCE_MEM,
 	},
+#ifdef CONFIG_EARLY_PRINTK
+	{
+		.start = PORTH_FER,
+		.end = PORTH_FER+2,
+		.flags = IORESOURCE_REG,
+	},
+#endif
 	{
 		.start = IRQ_UART1_TX,
 		.end = IRQ_UART1_TX,
@@ -356,6 +370,13 @@ static struct resource bfin_uart2_resources[] = {
 		.end = UART2_RBR+2,
 		.flags = IORESOURCE_MEM,
 	},
+#ifdef CONFIG_EARLY_PRINTK
+	{
+		.start = PORTB_FER,
+		.end = PORTB_FER+2,
+		.flags = IORESOURCE_REG,
+	},
+#endif
 	{
 		.start = IRQ_UART2_TX,
 		.end = IRQ_UART2_TX,
@@ -404,6 +425,13 @@ static struct resource bfin_uart3_resources[] = {
 		.end = UART3_RBR+2,
 		.flags = IORESOURCE_MEM,
 	},
+#ifdef CONFIG_EARLY_PRINTK
+	{
+		.start = PORTB_FER,
+		.end = PORTB_FER+2,
+		.flags = IORESOURCE_REG,
+	},
+#endif
 	{
 		.start = IRQ_UART3_TX,
 		.end = IRQ_UART3_TX,
@@ -2158,21 +2186,6 @@ static struct platform_device *ezkit_early_devices[] __initdata = {
 #endif
 #ifdef CONFIG_SERIAL_BFIN_UART3
 	&bfin_uart3_device,
-#endif
-#endif
-
-#if defined(CONFIG_SERIAL_BFIN_SPORT_CONSOLE)
-#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
-	&bfin_sport0_uart_device,
-#endif
-#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
-	&bfin_sport1_uart_device,
-#endif
-#ifdef CONFIG_SERIAL_BFIN_SPORT2_UART
-	&bfin_sport2_uart_device,
-#endif
-#ifdef CONFIG_SERIAL_BFIN_SPORT3_UART
-	&bfin_sport3_uart_device,
 #endif
 #endif
 };
