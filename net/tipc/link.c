@@ -1082,6 +1082,9 @@ again:
 	 */
 	res = tipc_msg_build(hdr, msg_sect, num_sect, total_len,
 			     sender->max_pkt, &buf);
+	/* Exit if build request was invalid */
+	if (unlikely(res < 0))
+		return res;
 
 	read_lock_bh(&tipc_net_lock);
 	node = tipc_node_find(destaddr);
@@ -1097,10 +1100,6 @@ exit:
 				read_unlock_bh(&tipc_net_lock);
 				return res;
 			}
-
-			/* Exit if build request was invalid */
-			if (unlikely(res < 0))
-				goto exit;
 
 			/* Exit if link (or bearer) is congested */
 			if (link_congested(l_ptr) ||
