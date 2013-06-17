@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/hrtimer.h>
+#include <plat/efuse.h>
 
 static int rk_dvfs_clk_notifier_event(struct notifier_block *this,
 		unsigned long event, void *ptr)
@@ -76,6 +77,59 @@ static int rk_dvfs_clk_notifier_event(struct notifier_block *this,
 static struct notifier_block rk_dvfs_clk_notifier = {
 	.notifier_call = rk_dvfs_clk_notifier_event,
 };
+
+struct lkg_maxvolt {
+	int leakage_level;
+	unsigned int maxvolt;
+};
+static struct lkg_maxvolt lkg_volt_table[] = {
+	{.leakage_level = 1,	.maxvolt = 1350 * 1000},
+	{.leakage_level = 3,	.maxvolt = 1275 * 1000},
+	{.leakage_level = 15,	.maxvolt = 1200 * 1000},
+};
+
+static int leakage_level = 0;
+#define HIGH_DELAYLINE	125
+#define LOW_DELAYLINE	110
+static u8 rk30_get_avs_val(void);
+void dvfs_adjust_table_lmtvolt(struct clk *clk, struct cpufreq_frequency_table *table)
+{
+	int i = 0;
+	unsigned int maxvolt = 0;
+
+	leakage_level = rk_leakage_val();
+	printk("DVFS MSG: %s: %s get leakage_level = %d\n", clk->name, __func__, leakage_level);
+	if (leakage_level == 0) {
+		int delayline_val = 0;
+		delayline_val = rk30_get_avs_val();
+		printk("This chip no leakage msg, use delayline instead, val = %d\n", delayline_val);
+
+		if (delayline_val >= HIGH_DELAYLINE) {
+			leakage_level = 4;	//same as leakage_level > 4
+
+		} else if (delayline_val <= LOW_DELAYLINE) {
+			leakage_level = 1;
+			printk("Delayline TOO LOW, maybe need high voltage\n");
+
+		} else
+			leakage_level = 2;	//same as leakage_level = 3
+	}
+
+	for (i = 0; i < ARRAY_SIZE(lkg_volt_table); i++) {
+		if (leakage_level <= lkg_volt_table[i].leakage_level) {
+			maxvolt = lkg_volt_table[i].maxvolt;
+			break;
+		}
+	}
+
+	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		if (table[i].index > maxvolt) {
+			printk("\t\tadjust table freq=%d KHz, index=%d mV", table[i].frequency, table[i].index);
+			table[i].index = maxvolt;
+			printk(" to index=%d mV\n", table[i].index);
+		}
+	}
+}
 
 #define NO_VOLT_DIFF
 #ifdef NO_VOLT_DIFF
