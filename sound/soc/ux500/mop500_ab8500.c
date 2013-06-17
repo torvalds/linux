@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/mutex.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -24,6 +25,7 @@
 
 #include "ux500_pcm.h"
 #include "ux500_msp_dai.h"
+#include "mop500_ab8500.h"
 #include "../codecs/ab8500-codec.h"
 
 #define TX_SLOT_MONO	0x0008
@@ -42,6 +44,12 @@
 /* Slot configuration */
 static unsigned int tx_slots = DEF_TX_SLOTS;
 static unsigned int rx_slots = DEF_RX_SLOTS;
+
+/* Configuration consistency parameters */
+static DEFINE_MUTEX(mop500_ab8500_params_lock);
+static unsigned long mop500_ab8500_usage;
+static int mop500_ab8500_rate;
+static int mop500_ab8500_channels;
 
 /* Clocks */
 static const char * const enum_mclk[] = {
@@ -230,6 +238,21 @@ static int mop500_ab8500_hw_params(struct snd_pcm_substream *substream,
 		substream->name,
 		substream->number);
 
+	/* Ensure configuration consistency between DAIs */
+	mutex_lock(&mop500_ab8500_params_lock);
+	if (mop500_ab8500_usage) {
+		if (mop500_ab8500_rate != params_rate(params) ||
+		    mop500_ab8500_channels != params_channels(params)) {
+			mutex_unlock(&mop500_ab8500_params_lock);
+			return -EBUSY;
+		}
+	} else {
+		mop500_ab8500_rate = params_rate(params);
+		mop500_ab8500_channels = params_channels(params);
+	}
+	__set_bit(cpu_dai->id, &mop500_ab8500_usage);
+	mutex_unlock(&mop500_ab8500_params_lock);
+
 	channels = params_channels(params);
 
 	switch (params_format(params)) {
@@ -328,9 +351,22 @@ static int mop500_ab8500_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int mop500_ab8500_hw_free(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+
+	mutex_lock(&mop500_ab8500_params_lock);
+	__clear_bit(cpu_dai->id, &mop500_ab8500_usage);
+	mutex_unlock(&mop500_ab8500_params_lock);
+
+	return 0;
+}
+
 struct snd_soc_ops mop500_ab8500_ops[] = {
 	{
 		.hw_params = mop500_ab8500_hw_params,
+		.hw_free = mop500_ab8500_hw_free,
 		.startup = mop500_ab8500_startup,
 		.shutdown = mop500_ab8500_shutdown,
 	}
