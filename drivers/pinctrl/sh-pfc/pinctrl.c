@@ -14,7 +14,9 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -72,11 +74,125 @@ static void sh_pfc_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, "%s", DRV_NAME);
 }
 
+static int sh_pfc_dt_subnode_to_map(struct device *dev, struct device_node *np,
+				    struct pinctrl_map **map,
+				    unsigned int *num_maps, unsigned int *index)
+{
+	struct pinctrl_map *maps = *map;
+	unsigned int nmaps = *num_maps;
+	unsigned int idx = *index;
+	const char *function = NULL;
+	struct property *prop;
+	const char *group;
+	int ret;
+
+	/* Parse the function and configuration properties. At least a function
+	 * or one configuration must be specified.
+	 */
+	ret = of_property_read_string(np, "renesas,function", &function);
+	if (ret < 0 && ret != -EINVAL) {
+		dev_err(dev, "Invalid function in DT\n");
+		return ret;
+	}
+
+	if (!function) {
+		dev_err(dev, "DT node must contain at least one function\n");
+		goto done;
+	}
+
+	/* Count the number of groups and reallocate mappings. */
+	ret = of_property_count_strings(np, "renesas,groups");
+	if (ret < 0 && ret != -EINVAL) {
+		dev_err(dev, "Invalid pin groups list in DT\n");
+		goto done;
+	}
+
+	if (!ret) {
+		dev_err(dev, "No group provided in DT node\n");
+		ret = -ENODEV;
+		goto done;
+	}
+
+	nmaps += ret;
+
+	maps = krealloc(maps, sizeof(*maps) * nmaps, GFP_KERNEL);
+	if (maps == NULL) {
+		ret = -ENOMEM;
+		goto done;
+	}
+
+	*map = maps;
+	*num_maps = nmaps;
+
+	/* Iterate over pins and groups and create the mappings. */
+	of_property_for_each_string(np, "renesas,groups", prop, group) {
+		maps[idx].type = PIN_MAP_TYPE_MUX_GROUP;
+		maps[idx].data.mux.group = group;
+		maps[idx].data.mux.function = function;
+		idx++;
+	}
+
+	ret = 0;
+
+done:
+	*index = idx;
+	return ret;
+}
+
+static void sh_pfc_dt_free_map(struct pinctrl_dev *pctldev,
+			       struct pinctrl_map *map, unsigned num_maps)
+{
+	kfree(map);
+}
+
+static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
+				 struct device_node *np,
+				 struct pinctrl_map **map, unsigned *num_maps)
+{
+	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+	struct device *dev = pmx->pfc->dev;
+	struct device_node *child;
+	unsigned int index;
+	int ret;
+
+	*map = NULL;
+	*num_maps = 0;
+	index = 0;
+
+	for_each_child_of_node(np, child) {
+		ret = sh_pfc_dt_subnode_to_map(dev, child, map, num_maps,
+					       &index);
+		if (ret < 0)
+			goto done;
+	}
+
+	/* If no mapping has been found in child nodes try the config node. */
+	if (*num_maps == 0) {
+		ret = sh_pfc_dt_subnode_to_map(dev, np, map, num_maps, &index);
+		if (ret < 0)
+			goto done;
+	}
+
+	if (*num_maps)
+		return 0;
+
+	dev_err(dev, "no mapping found in node %s\n", np->full_name);
+	ret = -EINVAL;
+
+done:
+	if (ret < 0)
+		sh_pfc_dt_free_map(pctldev, *map, *num_maps);
+
+	return ret;
+}
+
 static const struct pinctrl_ops sh_pfc_pinctrl_ops = {
 	.get_groups_count	= sh_pfc_get_groups_count,
 	.get_group_name		= sh_pfc_get_group_name,
 	.get_group_pins		= sh_pfc_get_group_pins,
 	.pin_dbg_show		= sh_pfc_pin_dbg_show,
+	.dt_node_to_map		= sh_pfc_dt_node_to_map,
+	.dt_free_map		= sh_pfc_dt_free_map,
 };
 
 static int sh_pfc_get_functions_count(struct pinctrl_dev *pctldev)
