@@ -571,7 +571,6 @@ static void vxlan_snoop(struct net_device *dev,
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_fdb *f;
-	int err;
 
 	f = vxlan_find_mac(vxlan, src_mac);
 	if (likely(f)) {
@@ -588,12 +587,15 @@ static void vxlan_snoop(struct net_device *dev,
 	} else {
 		/* learned new entry */
 		spin_lock(&vxlan->hash_lock);
-		err = vxlan_fdb_create(vxlan, src_mac, src_ip,
-				       NUD_REACHABLE,
-				       NLM_F_EXCL|NLM_F_CREATE,
-				       vxlan->dst_port,
-				       vxlan->default_dst.remote_vni,
-				       0, NTF_SELF);
+
+		/* close off race between vxlan_flush and incoming packets */
+		if (netif_running(dev))
+			vxlan_fdb_create(vxlan, src_mac, src_ip,
+					 NUD_REACHABLE,
+					 NLM_F_EXCL|NLM_F_CREATE,
+					 vxlan->dst_port,
+					 vxlan->default_dst.remote_vni,
+					 0, NTF_SELF);
 		spin_unlock(&vxlan->hash_lock);
 	}
 }
