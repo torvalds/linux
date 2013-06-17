@@ -45,6 +45,6 @@ int rcar_du_group_get(struct rcar_du_group *rgrp);
 void rcar_du_group_put(struct rcar_du_group *rgrp);
 void rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start);
 void rcar_du_group_restart(struct rcar_du_group *rgrp);
-void rcar_du_group_set_routing(struct rcar_du_group *rgrp);
+int rcar_du_group_set_routing(struct rcar_du_group *rgrp);
 
 #endif /* __RCAR_DU_GROUP_H__ */

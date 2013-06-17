@@ -27,6 +27,7 @@
  * counterpart in the DU documentation, that models those semi-global resources.
  */
 
+#include <linux/clk.h>
 #include <linux/io.h>
 
 #include "rcar_du_drv.h"
@@ -43,6 +44,22 @@ void rcar_du_group_write(struct rcar_du_group *rgrp, u32 reg, u32 data)
 	rcar_du_write(rgrp->dev, rgrp->mmio_offset + reg, data);
 }
 
+static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
+{
+	u32 defr8 = DEFR8_CODE | DEFR8_DEFE8;
+
+	if (!rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_DEFR8))
+		return;
+
+	/* The DEFR8 register for the first group also controls RGB output
+	 * routing to DPAD0
+	 */
+	if (rgrp->index == 0)
+		defr8 |= DEFR8_DRGBS_DU(rgrp->dev->dpad0_source);
+
+	rcar_du_group_write(rgrp, DEFR8, defr8);
+}
+
 static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 {
 	/* Enable extended features */
@@ -51,8 +68,8 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 	rcar_du_group_write(rgrp, DEFR3, DEFR3_CODE | DEFR3_DEFE3);
 	rcar_du_group_write(rgrp, DEFR4, DEFR4_CODE);
 	rcar_du_group_write(rgrp, DEFR5, DEFR5_CODE | DEFR5_DEFE5);
-	if (rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_DEFR8))
-		rcar_du_group_write(rgrp, DEFR8, DEFR8_CODE | DEFR8_DEFE8);
+
+	rcar_du_group_setup_defr8(rgrp);
 
 	/* Use DS1PR and DS2PR to configure planes priorities and connects the
 	 * superposition 0 to DU0 pins. DU1 pins will be configured dynamically.
@@ -128,7 +145,27 @@ void rcar_du_group_restart(struct rcar_du_group *rgrp)
 	__rcar_du_group_start_stop(rgrp, true);
 }
 
-void rcar_du_group_set_routing(struct rcar_du_group *rgrp)
+static int rcar_du_set_dpad0_routing(struct rcar_du_device *rcdu)
+{
+	int ret;
+
+	/* RGB output routing to DPAD0 is configured in the DEFR8 register of
+	 * the first group. As this function can be called with the DU0 and DU1
+	 * CRTCs disabled, we need to enable the first group clock before
+	 * accessing the register.
+	 */
+	ret = clk_prepare_enable(rcdu->crtcs[0].clock);
+	if (ret < 0)
+		return ret;
+
+	rcar_du_group_setup_defr8(&rcdu->groups[0]);
+
+	clk_disable_unprepare(rcdu->crtcs[0].clock);
+
+	return 0;
+}
+
+int rcar_du_group_set_routing(struct rcar_du_group *rgrp)
 {
 	struct rcar_du_crtc *crtc0 = &rgrp->dev->crtcs[rgrp->index * 2];
 	u32 dorcr = rcar_du_group_read(rgrp, DORCR);
@@ -145,4 +182,6 @@ void rcar_du_group_set_routing(struct rcar_du_group *rgrp)
 		dorcr |= DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_DS2;
 
 	rcar_du_group_write(rgrp, DORCR, dorcr);
+
+	return rcar_du_set_dpad0_routing(rgrp->dev);
 }

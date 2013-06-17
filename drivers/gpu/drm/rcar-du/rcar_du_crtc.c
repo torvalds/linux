@@ -139,6 +139,11 @@ void rcar_du_crtc_route_output(struct drm_crtc *crtc,
 	 * configured when starting the CRTC.
 	 */
 	rcrtc->outputs |= BIT(output);
+
+	/* Store RGB routing to DPAD0 for R8A7790. */
+	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_DEFR8) &&
+	    output == RCAR_DU_OUTPUT_DPAD0)
+		rcdu->dpad0_source = rcrtc->index;
 }
 
 void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
