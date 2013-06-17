@@ -15,6 +15,7 @@
 #define __RCAR_DU_CRTC_H__
 
 #include <linux/mutex.h>
+#include <linux/platform_data/rcar-du.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -45,7 +46,8 @@ void rcar_du_crtc_cancel_page_flip(struct rcar_du_crtc *rcrtc,
 void rcar_du_crtc_suspend(struct rcar_du_crtc *rcrtc);
 void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc);
 
-void rcar_du_crtc_route_output(struct drm_crtc *crtc, unsigned int output);
+void rcar_du_crtc_route_output(struct drm_crtc *crtc,
+			       enum rcar_du_output output);
 void rcar_du_crtc_update_planes(struct drm_crtc *crtc);
 
 #endif /* __RCAR_DU_CRTC_H__ */

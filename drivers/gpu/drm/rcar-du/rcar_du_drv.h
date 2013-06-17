@@ -30,13 +30,29 @@ struct rcar_du_device;
 #define RCAR_DU_FEATURE_DEFR8		(1 << 2)	/* Has DEFR8 register */
 
 /*
+ * struct rcar_du_output_routing - Output routing specification
+ * @possible_crtcs: bitmask of possible CRTCs for the output
+ * @encoder_type: DRM type of the internal encoder associated with the output
+ *
+ * The DU has 5 possible outputs (DPAD0/1, LVDS0/1, TCON). Output routing data
+ * specify the valid SoC outputs, which CRTCs can drive the output, and the type
+ * of in-SoC encoder for the output.
+ */
+struct rcar_du_output_routing {
+	unsigned int possible_crtcs;
+	unsigned int encoder_type;
+};
+
+/*
  * struct rcar_du_device_info - DU model-specific information
  * @features: device features (RCAR_DU_FEATURE_*)
  * @num_crtcs: total number of CRTCs
+ * @routes: array of CRTC to output routes, indexed by output (RCAR_DU_OUTPUT_*)
  */
 struct rcar_du_device_info {
 	unsigned int features;
 	unsigned int num_crtcs;
+	struct rcar_du_output_routing routes[RCAR_DU_OUTPUT_MAX];
 };
 
 struct rcar_du_device {

@@ -135,11 +135,11 @@ void rcar_du_group_set_routing(struct rcar_du_group *rgrp)
 
 	dorcr &= ~(DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_MASK);
 
-	/* Set the DU1 pins sources. Select CRTC 0 if explicitly requested and
-	 * CRTC 1 in all other cases to avoid cloning CRTC 0 to DU0 and DU1 by
-	 * default.
+	/* Set the DPAD1 pins sources. Select CRTC 0 if explicitly requested and
+	 * CRTC 1 in all other cases to avoid cloning CRTC 0 to DPAD0 and DPAD1
+	 * by default.
 	 */
-	if (crtc0->outputs & (1 << 1))
+	if (crtc0->outputs & BIT(RCAR_DU_OUTPUT_DPAD1))
 		dorcr |= DORCR_PG2D_DS1;
 	else
 		dorcr |= DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_DS2;

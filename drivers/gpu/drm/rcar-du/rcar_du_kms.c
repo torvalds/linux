@@ -220,11 +220,14 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	for (i = 0; i < rcdu->pdata->num_encoders; ++i) {
 		const struct rcar_du_encoder_data *pdata =
 			&rcdu->pdata->encoders[i];
+		const struct rcar_du_output_routing *route =
+			&rcdu->info->routes[pdata->output];
 
 		if (pdata->type == RCAR_DU_ENCODER_UNUSED)
 			continue;
 
-		if (pdata->output >= rcdu->num_crtcs) {
+		if (pdata->output >= RCAR_DU_OUTPUT_MAX ||
+		    route->possible_crtcs == 0) {
 			dev_warn(rcdu->dev,
 				 "encoder %u references unexisting output %u, skipping\n",
 				 i, pdata->output);
@@ -234,15 +237,17 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		rcar_du_encoder_init(rcdu, pdata->type, pdata->output, pdata);
 	}
 
-	/* Set the possible CRTCs and possible clones. All encoders can be
-	 * driven by the CRTC associated with the output they're connected to,
-	 * as well as by CRTC 0.
+	/* Set the possible CRTCs and possible clones. There's always at least
+	 * one way for all encoders to clone each other, set all bits in the
+	 * possible clones field.
 	 */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+		const struct rcar_du_output_routing *route =
+			&rcdu->info->routes[renc->output];
 
-		encoder->possible_crtcs = (1 << 0) | (1 << renc->output);
-		encoder->possible_clones = 1 << 0;
+		encoder->possible_crtcs = route->possible_crtcs;
+		encoder->possible_clones = (1 << rcdu->pdata->num_encoders) - 1;
 	}
 
 	/* Now that the CRTCs have been initialized register the planes. */
