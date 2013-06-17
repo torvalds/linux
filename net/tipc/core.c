@@ -2,7 +2,7 @@
  * net/tipc/core.c: TIPC module code
  *
  * Copyright (c) 2003-2006, Ericsson AB
- * Copyright (c) 2005-2006, 2010-2011, Wind River Systems
+ * Copyright (c) 2005-2006, 2010-2013, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -137,8 +137,6 @@ static int tipc_core_start(void)
 	if (!res)
 		res = tipc_nametbl_init();
 	if (!res)
-		res = tipc_subscr_start();
-	if (!res)
 		res = tipc_cfg_init();
 	if (!res)
 		res = tipc_netlink_start();
@@ -146,6 +144,8 @@ static int tipc_core_start(void)
 		res = tipc_socket_init();
 	if (!res)
 		res = tipc_register_sysctl();
+	if (!res)
+		res = tipc_subscr_start();
 	if (res)
 		tipc_core_stop();
 
