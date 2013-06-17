@@ -48,7 +48,7 @@
 
 /**
  * struct tipc_port - TIPC port structure
- * @usr_handle: pointer to additional user-defined information about port
+ * @sk: pointer to socket handle
  * @lock: pointer to spinlock for controlling access to port
  * @connected: non-zero if port is currently connected to a peer port
  * @conn_type: TIPC type used when connection was established
@@ -74,7 +74,7 @@
  * @subscription: "node down" subscription used to terminate failed connections
  */
 struct tipc_port {
-	void *usr_handle;
+	struct sock *sk;
 	spinlock_t *lock;
 	int connected;
 	u32 conn_type;
@@ -106,7 +106,7 @@ struct tipc_port_list;
 /*
  * TIPC port manipulation routines
  */
-struct tipc_port *tipc_createport(void *usr_handle,
+struct tipc_port *tipc_createport(struct sock *sk,
 		u32 (*dispatcher)(struct tipc_port *, struct sk_buff *),
 		void (*wakeup)(struct tipc_port *), const u32 importance);
 

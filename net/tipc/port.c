@@ -206,7 +206,7 @@ exit:
  *
  * Returns pointer to (locked) TIPC port, or NULL if unable to create it
  */
-struct tipc_port *tipc_createport(void *usr_handle,
+struct tipc_port *tipc_createport(struct sock *sk,
 			u32 (*dispatcher)(struct tipc_port *, struct sk_buff *),
 			void (*wakeup)(struct tipc_port *),
 			const u32 importance)
@@ -227,7 +227,7 @@ struct tipc_port *tipc_createport(void *usr_handle,
 		return NULL;
 	}
 
-	p_ptr->usr_handle = usr_handle;
+	p_ptr->sk = sk;
 	p_ptr->max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->ref = ref;
 	INIT_LIST_HEAD(&p_ptr->wait_list);
