@@ -73,8 +73,8 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
  * Returns message data size or errno
  */
 int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
-		   u32 num_sect, unsigned int total_len,
-			    int max_size, int usrmem, struct sk_buff **buf)
+		   u32 num_sect, unsigned int total_len, int max_size,
+		   struct sk_buff **buf)
 {
 	int dsz, sz, hsz, pos, res, cnt;
 
@@ -92,14 +92,9 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 		return -ENOMEM;
 	skb_copy_to_linear_data(*buf, hdr, hsz);
 	for (res = 1, cnt = 0; res && (cnt < num_sect); cnt++) {
-		if (likely(usrmem))
-			res = !copy_from_user((*buf)->data + pos,
-					      msg_sect[cnt].iov_base,
-					      msg_sect[cnt].iov_len);
-		else
-			skb_copy_to_linear_data_offset(*buf, pos,
-						       msg_sect[cnt].iov_base,
-						       msg_sect[cnt].iov_len);
+		skb_copy_to_linear_data_offset(*buf, pos,
+					       msg_sect[cnt].iov_base,
+					       msg_sect[cnt].iov_len);
 		pos += msg_sect[cnt].iov_len;
 	}
 	if (likely(res))

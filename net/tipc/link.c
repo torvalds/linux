@@ -1081,7 +1081,7 @@ again:
 	 * (Must not hold any locks while building message.)
 	 */
 	res = tipc_msg_build(hdr, msg_sect, num_sect, total_len,
-			     sender->max_pkt, !sender->user_port, &buf);
+			     sender->max_pkt, &buf);
 
 	read_lock_bh(&tipc_net_lock);
 	node = tipc_node_find(destaddr);
@@ -1216,18 +1216,14 @@ again:
 		else
 			sz = fragm_rest;
 
-		if (likely(!sender->user_port)) {
-			if (copy_from_user(buf->data + fragm_crs, sect_crs, sz)) {
+		if (copy_from_user(buf->data + fragm_crs, sect_crs, sz)) {
 error:
-				for (; buf_chain; buf_chain = buf) {
-					buf = buf_chain->next;
-					kfree_skb(buf_chain);
-				}
-				return -EFAULT;
+			for (; buf_chain; buf_chain = buf) {
+				buf = buf_chain->next;
+				kfree_skb(buf_chain);
 			}
-		} else
-			skb_copy_to_linear_data_offset(buf, fragm_crs,
-						       sect_crs, sz);
+			return -EFAULT;
+		}
 		sect_crs += sz;
 		sect_rest -= sz;
 		fragm_crs += sz;

@@ -115,7 +115,7 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
 	msg_set_nameupper(hdr, seq->upper);
 	msg_set_hdr_sz(hdr, MCAST_H_SIZE);
 	res = tipc_msg_build(hdr, msg_sect, num_sect, total_len, MAX_MSG_SIZE,
-			!oport->user_port, &buf);
+			     &buf);
 	if (unlikely(!buf))
 		return res;
 
@@ -234,7 +234,6 @@ struct tipc_port *tipc_createport_raw(void *usr_handle,
 	INIT_LIST_HEAD(&p_ptr->subscription.nodesub_list);
 	p_ptr->dispatcher = dispatcher;
 	p_ptr->wakeup = wakeup;
-	p_ptr->user_port = NULL;
 	k_init_timer(&p_ptr->timer, (Handler)port_timeout, ref);
 	INIT_LIST_HEAD(&p_ptr->publications);
 	INIT_LIST_HEAD(&p_ptr->port_list);
@@ -271,7 +270,6 @@ int tipc_deleteport(u32 ref)
 		buf = port_build_peer_abort_msg(p_ptr, TIPC_ERR_NO_PORT);
 		tipc_nodesub_unsubscribe(&p_ptr->subscription);
 	}
-	kfree(p_ptr->user_port);
 
 	spin_lock_bh(&tipc_port_list_lock);
 	list_del(&p_ptr->port_list);
@@ -444,7 +442,7 @@ int tipc_port_reject_sections(struct tipc_port *p_ptr, struct tipc_msg *hdr,
 	int res;
 
 	res = tipc_msg_build(hdr, msg_sect, num_sect, total_len, MAX_MSG_SIZE,
-			!p_ptr->user_port, &buf);
+			     &buf);
 	if (!buf)
 		return res;
 
@@ -927,7 +925,7 @@ static int tipc_port_recv_sections(struct tipc_port *sender, unsigned int num_se
 	int res;
 
 	res = tipc_msg_build(&sender->phdr, msg_sect, num_sect, total_len,
-			MAX_MSG_SIZE, !sender->user_port, &buf);
+			     MAX_MSG_SIZE, &buf);
 	if (likely(buf))
 		tipc_port_recv_msg(buf);
 	return res;

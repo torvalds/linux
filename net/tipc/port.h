@@ -47,18 +47,6 @@
 				SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
 
 /**
- * struct user_port - TIPC user port (used with native API)
- * @usr_handle: user-specified field
- * @ref: object reference to associated TIPC port
- *
- * <various callback routines>
- */
-struct user_port {
-	void *usr_handle;
-	u32 ref;
-};
-
-/**
  * struct tipc_port - TIPC port structure
  * @usr_handle: pointer to additional user-defined information about port
  * @lock: pointer to spinlock for controlling access to port
@@ -74,7 +62,6 @@ struct user_port {
  * @port_list: adjacent ports in TIPC's global list of ports
  * @dispatcher: ptr to routine which handles received messages
  * @wakeup: ptr to routine to call when port is no longer congested
- * @user_port: ptr to user port associated with port (if any)
  * @wait_list: adjacent ports in list of ports waiting on link congestion
  * @waiting_pkts:
  * @sent: # of non-empty messages sent by port
@@ -101,7 +88,6 @@ struct tipc_port {
 	struct list_head port_list;
 	u32 (*dispatcher)(struct tipc_port *, struct sk_buff *);
 	void (*wakeup)(struct tipc_port *);
-	struct user_port *user_port;
 	struct list_head wait_list;
 	u32 waiting_pkts;
 	u32 sent;
