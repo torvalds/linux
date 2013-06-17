@@ -73,6 +73,7 @@ static void ssb_sflash_cmd(struct ssb_chipcommon *cc, u32 opcode)
 /* Initialize serial flash access */
 int ssb_sflash_init(struct ssb_chipcommon *cc)
 {
+	struct ssb_sflash *sflash = &cc->dev->bus->mipscore.sflash;
 	const struct ssb_sflash_tbl_e *e;
 	u32 id, id2;
 
@@ -130,6 +131,12 @@ int ssb_sflash_init(struct ssb_chipcommon *cc)
 		pr_err("Unsupported flash type\n");
 		return -ENOTSUPP;
 	}
+
+	sflash->window = SSB_FLASH2;
+	sflash->blocksize = e->blocksize;
+	sflash->numblocks = e->numblocks;
+	sflash->size = sflash->blocksize * sflash->numblocks;
+	sflash->present = true;
 
 	pr_info("Found %s serial flash (blocksize: 0x%X, blocks: %d)\n",
 		e->name, e->blocksize, e->numblocks);
