@@ -10,6 +10,9 @@
  * published by the Free Software Foundation.
 */
 
+#ifndef __PLAT_SAMSUNG_WATCHDOG_RESET_H
+#define __PLAT_SAMSUNG_WATCHDOG_RESET_H
+
 #include <plat/clock.h>
 #include <plat/regs-watchdog.h>
 #include <mach/map.h>
@@ -44,3 +47,9 @@ static inline void arch_wdt_reset(void)
 	/* delay to allow the serial port to show the message */
 	mdelay(50);
 }
+
+extern void samsung_wdt_reset(void);
+extern void samsung_wdt_reset_of_init(void);
+extern void samsung_wdt_reset_init(void __iomem *base);
+
+#endif /* __PLAT_SAMSUNG_WATCHDOG_RESET_H */
