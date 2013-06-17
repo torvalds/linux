@@ -42,7 +42,7 @@
 
 #define REPLY_TRUNCATED "<truncated>\n"
 
-static DEFINE_SPINLOCK(config_lock);
+static DEFINE_MUTEX(config_mutex);
 static struct tipc_server cfgsrv;
 
 static const void *req_tlv_area;	/* request message TLV area */
@@ -181,18 +181,7 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
-
-	/*
-	 * Must temporarily release configuration spinlock while switching into
-	 * networking mode as it calls tipc_eth_media_start(), which may sleep.
-	 * Releasing the lock is harmless as other locally-issued configuration
-	 * commands won't occur until this one completes, and remotely-issued
-	 * configuration commands can't be received until a local configuration
-	 * command to enable the first bearer is received and processed.
-	 */
-	spin_unlock_bh(&config_lock);
 	tipc_core_start_net(addr);
-	spin_lock_bh(&config_lock);
 	return tipc_cfg_reply_none();
 }
 
@@ -248,7 +237,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 {
 	struct sk_buff *rep_tlv_buf;
 
-	spin_lock_bh(&config_lock);
+	mutex_lock(&config_mutex);
 
 	/* Save request and reply details in a well-known location */
 	req_tlv_area = request_area;
@@ -377,7 +366,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 
 	/* Return reply buffer */
 exit:
-	spin_unlock_bh(&config_lock);
+	mutex_unlock(&config_mutex);
 	return rep_tlv_buf;
 }
 
