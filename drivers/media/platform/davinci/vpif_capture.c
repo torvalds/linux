@@ -2015,16 +2015,13 @@ static __init int vpif_probe(struct platform_device *pdev)
 	}
 
 	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, res_idx))) {
-		for (i = res->start; i <= res->end; i++) {
-			err = devm_request_irq(&pdev->dev, i, vpif_channel_isr,
-					     IRQF_SHARED, "VPIF_Capture",
-					     (void *)(&vpif_obj.dev[res_idx]->
-					     channel_id));
-			if (err) {
-				err = -EINVAL;
-				goto vpif_unregister;
-
-			}
+		err = devm_request_irq(&pdev->dev, res->start, vpif_channel_isr,
+					IRQF_SHARED, "VPIF_Capture",
+					(void *)(&vpif_obj.dev[res_idx]->
+					channel_id));
+		if (err) {
+			err = -EINVAL;
+			goto vpif_unregister;
 		}
 		res_idx++;
 	}
