@@ -165,7 +165,8 @@ static int bp_device_event(struct notifier_block *unused,
 			memcpy(&cbuf, drvinfo.bus_info, 32);
 			buf = &cbuf[0];
 
-			while (*buf++ != ':');
+			while (*buf++ != ':')
+				;
 			for (i = 0; i < 10; i++, buf++) {
 				if (*buf == ':')
 					break;
@@ -2150,12 +2151,14 @@ static void bp75_release_phy(bpctl_dev_t *pbpctl_dev)
 {
 	u16 mask = BPCTLI_SWFW_PHY0_SM;
 	u32 swfw_sync;
+	s32 ret_val;
 
 	if ((pbpctl_dev->func == 1) || (pbpctl_dev->func == 3))
 		mask = BPCTLI_SWFW_PHY1_SM;
 
-	while (bp75_get_hw_semaphore_generic(pbpctl_dev) != 0);
-	/* Empty */
+	do
+		ret_val = bp75_get_hw_semaphore_generic(pbpctl_dev);
+	while (ret_val != 0);
 
 	swfw_sync = BPCTL_READ_REG(pbpctl_dev, SW_FW_SYNC);
 	swfw_sync &= ~mask;
@@ -5345,7 +5348,8 @@ static void if_scan_init(void)
 		memcpy(&cbuf, drvinfo.bus_info, 32);
 		buf = &cbuf[0];
 
-		while (*buf++ != ':');
+		while (*buf++ != ':')
+			;
 		for (i = 0; i < 10; i++, buf++) {
 			if (*buf == ':')
 				break;
