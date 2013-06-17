@@ -723,7 +723,7 @@ static int octeon_usb_driver_probe(struct device *dev)
 		return -1;
 	}
 
-	printk("OcteonUSB: Registered HCD for port %d on irq %d\n", usb_num, irq);
+	dev_dbg(dev, "Registered HCD for port %d on irq %d\n", usb_num, irq);
 
 	return 0;
 }
@@ -771,7 +771,6 @@ static int __init octeon_usb_module_init(void)
 		return -ENOMEM;
 
 	octeon_usb_registered = 1;
-	printk("OcteonUSB: Detected %d ports\n", num_devices);
 
 	/*
 	 * Only cn52XX and cn56XX have DWC_OTG USB hardware and the
