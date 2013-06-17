@@ -26,7 +26,7 @@ Table : Subdirectories in /proc/sys/net
  ipv4      IP version 4        x25        X.25 protocol
  ipx       IPX                 token-ring IBM token ring
  bridge    Bridging            decnet     DEC net
- ipv6      IP version 6
+ ipv6      IP version 6        tipc       TIPC
 ..............................................................................
 
 1. /proc/sys/net/core - Network core options
@@ -207,3 +207,18 @@ IPX.
 The /proc/net/ipx_route  table  holds  a list of IPX routes. For each route it
 gives the  destination  network, the router node (or Directly) and the network
 address of the router (or Connected) for internal networks.
+
+6. TIPC
+-------------------------------------------------------
+
+The TIPC protocol now has a tunable for the receive memory, similar to the
+tcp_rmem - i.e. a vector of 3 INTEGERs: (min, default, max)
+
+    # cat /proc/sys/net/tipc/tipc_rmem
+    4252725 34021800        68043600
+    #
+
+The max value is set to CONN_OVERLOAD_LIMIT, and the default and min values
+are scaled (shifted) versions of that same value.  Note that the min value
+is not at this point in time used in any meaningful way, but the triplet is
+preserved in order to be consistent with things like tcp_rmem.

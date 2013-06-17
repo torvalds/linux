@@ -75,7 +75,8 @@ void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node);
 /**
  * tipc_nmap_equal - test for equality of node maps
  */
-static inline int tipc_nmap_equal(struct tipc_node_map *nm_a, struct tipc_node_map *nm_b)
+static inline int tipc_nmap_equal(struct tipc_node_map *nm_a,
+				  struct tipc_node_map *nm_b)
 {
 	return !memcmp(nm_a, nm_b, sizeof(*nm_a));
 }
