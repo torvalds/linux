@@ -16,8 +16,18 @@
 
 #include <drm/drm_mode.h>
 
+enum rcar_du_output {
+	RCAR_DU_OUTPUT_DPAD0,
+	RCAR_DU_OUTPUT_DPAD1,
+	RCAR_DU_OUTPUT_LVDS0,
+	RCAR_DU_OUTPUT_LVDS1,
+	RCAR_DU_OUTPUT_TCON,
+	RCAR_DU_OUTPUT_MAX,
+};
+
 enum rcar_du_encoder_type {
 	RCAR_DU_ENCODER_UNUSED = 0,
+	RCAR_DU_ENCODER_NONE,
 	RCAR_DU_ENCODER_VGA,
 	RCAR_DU_ENCODER_LVDS,
 };
@@ -39,13 +49,16 @@ struct rcar_du_connector_vga_data {
 /*
  * struct rcar_du_encoder_data - Encoder platform data
  * @type: the encoder type (RCAR_DU_ENCODER_*)
- * @output: the DU output the connector is connected to
+ * @output: the DU output the connector is connected to (RCAR_DU_OUTPUT_*)
  * @connector.lvds: platform data for LVDS connectors
  * @connector.vga: platform data for VGA connectors
+ *
+ * Encoder platform data describes an on-board encoder, its associated DU SoC
+ * output, and the connector.
  */
 struct rcar_du_encoder_data {
 	enum rcar_du_encoder_type type;
-	unsigned int output;
+	enum rcar_du_output output;
 
 	union {
 		struct rcar_du_connector_lvds_data lvds;

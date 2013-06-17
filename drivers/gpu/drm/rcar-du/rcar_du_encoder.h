@@ -22,7 +22,7 @@ struct rcar_du_device;
 
 struct rcar_du_encoder {
 	struct drm_encoder encoder;
-	unsigned int output;
+	enum rcar_du_output output;
 };
 
 #define to_rcar_encoder(e) \
@@ -40,7 +40,8 @@ struct drm_encoder *
 rcar_du_connector_best_encoder(struct drm_connector *connector);
 
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
-			 enum rcar_du_encoder_type type, unsigned int output,
+			 enum rcar_du_encoder_type type,
+			 enum rcar_du_output output,
 			 const struct rcar_du_encoder_data *data);
 
 #endif /* __RCAR_DU_ENCODER_H__ */

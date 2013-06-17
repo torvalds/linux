@@ -115,10 +115,12 @@ static const struct drm_encoder_funcs encoder_funcs = {
 };
 
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
-			 enum rcar_du_encoder_type type, unsigned int output,
+			 enum rcar_du_encoder_type type,
+			 enum rcar_du_output output,
 			 const struct rcar_du_encoder_data *data)
 {
 	struct rcar_du_encoder *renc;
+	unsigned int encoder_type;
 	int ret;
 
 	renc = devm_kzalloc(rcdu->dev, sizeof(*renc), GFP_KERNEL);
@@ -127,19 +129,33 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 
 	renc->output = output;
 
+	switch (type) {
+	case RCAR_DU_ENCODER_VGA:
+		encoder_type = DRM_MODE_ENCODER_DAC;
+		break;
+	case RCAR_DU_ENCODER_LVDS:
+		encoder_type = DRM_MODE_ENCODER_LVDS;
+		break;
+	case RCAR_DU_ENCODER_NONE:
+	default:
+		/* No external encoder, use the internal encoder type. */
+		encoder_type = rcdu->info->routes[output].encoder_type;
+		break;
+	}
+
 	ret = drm_encoder_init(rcdu->ddev, &renc->encoder, &encoder_funcs,
-			       type);
+			       encoder_type);
 	if (ret < 0)
 		return ret;
 
 	drm_encoder_helper_add(&renc->encoder, &encoder_helper_funcs);
 
-	switch (type) {
-	case RCAR_DU_ENCODER_LVDS:
+	switch (encoder_type) {
+	case DRM_MODE_ENCODER_LVDS:
 		return rcar_du_lvds_connector_init(rcdu, renc,
 						   &data->connector.lvds.panel);
 
-	case RCAR_DU_ENCODER_VGA:
+	case DRM_MODE_ENCODER_DAC:
 		return rcar_du_vga_connector_init(rcdu, renc);
 
 	default:

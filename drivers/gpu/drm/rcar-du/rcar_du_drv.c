@@ -214,12 +214,42 @@ static int rcar_du_remove(struct platform_device *pdev)
 static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 	.features = 0,
 	.num_crtcs = 2,
+	.routes = {
+		/* R8A7779 has two RGB outputs and one (currently unsupported)
+		 * TCON output.
+		 */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+		},
+		[RCAR_DU_OUTPUT_DPAD1] = {
+			.possible_crtcs = BIT(1) | BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+		},
+	},
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_ALIGN_128B
 		  | RCAR_DU_FEATURE_DEFR8,
 	.num_crtcs = 3,
+	.routes = {
+		/* R8A7790 has one RGB output, two LVDS outputs and one
+		 * (currently unsupported) TCON output.
+		 */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(2) | BIT(1) | BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+		},
+		[RCAR_DU_OUTPUT_LVDS0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_LVDS,
+		},
+		[RCAR_DU_OUTPUT_LVDS1] = {
+			.possible_crtcs = BIT(2) | BIT(1),
+			.encoder_type = DRM_MODE_ENCODER_LVDS,
+		},
+	},
 };
 
 static const struct platform_device_id rcar_du_id_table[] = {
