@@ -122,13 +122,9 @@ void MACvSetBBType(struct vnt_private *pDevice, u8 byType)
  */
 void MACvDisableKeyEntry(struct vnt_private *pDevice, u32 uEntryIdx)
 {
-	u16 wOffset;
 	u8 byData;
 
     byData = (u8) uEntryIdx;
-
-    wOffset = MISCFIFO_KEYETRY0;
-    wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
 
     //issue write misc fifo command to device
     CONTROLnsRequestOut(pDevice,
