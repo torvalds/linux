@@ -408,9 +408,9 @@ static void msm_init_clock(struct uart_port *port)
 {
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
-	clk_enable(msm_port->clk);
+	clk_prepare_enable(msm_port->clk);
 	if (!IS_ERR(msm_port->pclk))
-		clk_enable(msm_port->pclk);
+		clk_prepare_enable(msm_port->pclk);
 	msm_serial_set_mnd_regs(port);
 }
 
@@ -486,7 +486,7 @@ static void msm_shutdown(struct uart_port *port)
 	msm_port->imr = 0;
 	msm_write(port, 0, UART_IMR); /* disable interrupts */
 
-	clk_disable(msm_port->clk);
+	clk_disable_unprepare(msm_port->clk);
 
 	free_irq(port->irq, port);
 }
@@ -688,14 +688,14 @@ static void msm_power(struct uart_port *port, unsigned int state,
 
 	switch (state) {
 	case 0:
-		clk_enable(msm_port->clk);
+		clk_prepare_enable(msm_port->clk);
 		if (!IS_ERR(msm_port->pclk))
-			clk_enable(msm_port->pclk);
+			clk_prepare_enable(msm_port->pclk);
 		break;
 	case 3:
-		clk_disable(msm_port->clk);
+		clk_disable_unprepare(msm_port->clk);
 		if (!IS_ERR(msm_port->pclk))
-			clk_disable(msm_port->pclk);
+			clk_disable_unprepare(msm_port->pclk);
 		break;
 	default:
 		printk(KERN_ERR "msm_serial: Unknown PM state %d\n", state);
