@@ -53,6 +53,16 @@
 				atmel,vbus-gpio = <&pioD 4 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
+
+			spi0: spi@fffe0000 {
+				status = "okay";
+				cs-gpios = <&pioA 3 0>, <0>, <0>, <0>;
+				mtd_dataflash@0 {
+					compatible = "atmel,at45", "atmel,dataflash";
+					spi-max-frequency = <15000000>;
+					reg = <0>;
+				};
+			};
 		};
 
 		usb0: ohci@00300000 {
