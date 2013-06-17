@@ -623,7 +623,7 @@ static inline pgste_t pgste_get_lock(pte_t *ptep)
 		"	csg	%0,%1,%2\n"
 		"	jl	0b\n"
 		: "=&d" (old), "=&d" (new), "=Q" (ptep[PTRS_PER_PTE])
-		: "Q" (ptep[PTRS_PER_PTE]) : "cc");
+		: "Q" (ptep[PTRS_PER_PTE]) : "cc", "memory");
 #endif
 	return __pgste(new);
 }
@@ -635,8 +635,16 @@ static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 		"	nihh	%1,0xff7f\n"	/* clear RCP_PCL_BIT */
 		"	stg	%1,%0\n"
 		: "=Q" (ptep[PTRS_PER_PTE])
-		: "d" (pgste_val(pgste)), "Q" (ptep[PTRS_PER_PTE]) : "cc");
+		: "d" (pgste_val(pgste)), "Q" (ptep[PTRS_PER_PTE])
+		: "cc", "memory");
 	preempt_enable();
+#endif
+}
+
+static inline void pgste_set(pte_t *ptep, pgste_t pgste)
+{
+#ifdef CONFIG_PGSTE
+	*(pgste_t *)(ptep + PTRS_PER_PTE) = pgste;
 #endif
 }
 
@@ -704,17 +712,19 @@ static inline void pgste_set_key(pte_t *ptep, pgste_t pgste, pte_t entry)
 {
 #ifdef CONFIG_PGSTE
 	unsigned long address;
-	unsigned long okey, nkey;
+	unsigned long nkey;
 
 	if (pte_val(entry) & _PAGE_INVALID)
 		return;
+	VM_BUG_ON(!(pte_val(*ptep) & _PAGE_INVALID));
 	address = pte_val(entry) & PAGE_MASK;
-	okey = nkey = page_get_storage_key(address);
-	nkey &= ~(_PAGE_ACC_BITS | _PAGE_FP_BIT);
-	/* Set page access key and fetch protection bit from pgste */
-	nkey |= (pgste_val(pgste) & (RCP_ACC_BITS | RCP_FP_BIT)) >> 56;
-	if (okey != nkey)
-		page_set_storage_key(address, nkey, 0);
+	/*
+	 * Set page access key and fetch protection bit from pgste.
+	 * The guest C/R information is still in the PGSTE, set real
+	 * key C/R to 0.
+	 */
+	nkey = (pgste_val(pgste) & (RCP_ACC_BITS | RCP_FP_BIT)) >> 56;
+	page_set_storage_key(address, nkey, 0);
 #endif
 }
 
@@ -1099,8 +1109,10 @@ static inline pte_t ptep_modify_prot_start(struct mm_struct *mm,
 	if (!mm_exclusive(mm))
 		__ptep_ipte(address, ptep);
 
-	if (mm_has_pgste(mm))
+	if (mm_has_pgste(mm)) {
 		pgste = pgste_update_all(&pte, pgste);
+		pgste_set(ptep, pgste);
+	}
 	return pte;
 }
 

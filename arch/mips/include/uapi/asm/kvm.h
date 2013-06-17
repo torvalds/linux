@@ -58,56 +58,53 @@ struct kvm_fpu {
  *  bits[2..0]   - Register 'sel' index.
  *  bits[7..3]   - Register 'rd'  index.
  *  bits[15..8]  - Must be zero.
- *  bits[63..16] - 1 -> CP0 registers.
+ *  bits[31..16] - 1 -> CP0 registers.
+ *  bits[51..32] - Must be zero.
+ *  bits[63..52] - As per linux/kvm.h
  *
  * Other sets registers may be added in the future.  Each set would
- * have its own identifier in bits[63..16].
- *
- * The addr field of struct kvm_one_reg must point to an aligned
- * 64-bit wide location.  For registers that are narrower than
- * 64-bits, the value is stored in the low order bits of the location,
- * and sign extended to 64-bits.
+ * have its own identifier in bits[31..16].
  *
  * The registers defined in struct kvm_regs are also accessible, the
  * id values for these are below.
  */
 
-#define KVM_REG_MIPS_R0 0
-#define KVM_REG_MIPS_R1 1
-#define KVM_REG_MIPS_R2 2
-#define KVM_REG_MIPS_R3 3
-#define KVM_REG_MIPS_R4 4
-#define KVM_REG_MIPS_R5 5
-#define KVM_REG_MIPS_R6 6
-#define KVM_REG_MIPS_R7 7
-#define KVM_REG_MIPS_R8 8
-#define KVM_REG_MIPS_R9 9
-#define KVM_REG_MIPS_R10 10
-#define KVM_REG_MIPS_R11 11
-#define KVM_REG_MIPS_R12 12
-#define KVM_REG_MIPS_R13 13
-#define KVM_REG_MIPS_R14 14
-#define KVM_REG_MIPS_R15 15
-#define KVM_REG_MIPS_R16 16
-#define KVM_REG_MIPS_R17 17
-#define KVM_REG_MIPS_R18 18
-#define KVM_REG_MIPS_R19 19
-#define KVM_REG_MIPS_R20 20
-#define KVM_REG_MIPS_R21 21
-#define KVM_REG_MIPS_R22 22
-#define KVM_REG_MIPS_R23 23
-#define KVM_REG_MIPS_R24 24
-#define KVM_REG_MIPS_R25 25
-#define KVM_REG_MIPS_R26 26
-#define KVM_REG_MIPS_R27 27
-#define KVM_REG_MIPS_R28 28
-#define KVM_REG_MIPS_R29 29
-#define KVM_REG_MIPS_R30 30
-#define KVM_REG_MIPS_R31 31
+#define KVM_REG_MIPS_R0 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 0)
+#define KVM_REG_MIPS_R1 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 1)
+#define KVM_REG_MIPS_R2 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 2)
+#define KVM_REG_MIPS_R3 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 3)
+#define KVM_REG_MIPS_R4 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 4)
+#define KVM_REG_MIPS_R5 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 5)
+#define KVM_REG_MIPS_R6 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 6)
+#define KVM_REG_MIPS_R7 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 7)
+#define KVM_REG_MIPS_R8 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 8)
+#define KVM_REG_MIPS_R9 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 9)
+#define KVM_REG_MIPS_R10 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 10)
+#define KVM_REG_MIPS_R11 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 11)
+#define KVM_REG_MIPS_R12 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 12)
+#define KVM_REG_MIPS_R13 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 13)
+#define KVM_REG_MIPS_R14 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 14)
+#define KVM_REG_MIPS_R15 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 15)
+#define KVM_REG_MIPS_R16 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 16)
+#define KVM_REG_MIPS_R17 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 17)
+#define KVM_REG_MIPS_R18 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 18)
+#define KVM_REG_MIPS_R19 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 19)
+#define KVM_REG_MIPS_R20 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 20)
+#define KVM_REG_MIPS_R21 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 21)
+#define KVM_REG_MIPS_R22 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 22)
+#define KVM_REG_MIPS_R23 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 23)
+#define KVM_REG_MIPS_R24 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 24)
+#define KVM_REG_MIPS_R25 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 25)
+#define KVM_REG_MIPS_R26 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 26)
+#define KVM_REG_MIPS_R27 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 27)
+#define KVM_REG_MIPS_R28 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 28)
+#define KVM_REG_MIPS_R29 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 29)
+#define KVM_REG_MIPS_R30 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 30)
+#define KVM_REG_MIPS_R31 (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 31)
 
-#define KVM_REG_MIPS_HI 32
-#define KVM_REG_MIPS_LO 33
-#define KVM_REG_MIPS_PC 34
+#define KVM_REG_MIPS_HI (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 32)
+#define KVM_REG_MIPS_LO (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 33)
+#define KVM_REG_MIPS_PC (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 34)
 
 /*
  * KVM MIPS specific structures and definitions
