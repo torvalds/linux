@@ -107,8 +107,10 @@ struct tipc_port_list;
  * TIPC port manipulation routines
  */
 struct tipc_port *tipc_createport(struct sock *sk,
-		u32 (*dispatcher)(struct tipc_port *, struct sk_buff *),
-		void (*wakeup)(struct tipc_port *), const u32 importance);
+				  u32 (*dispatcher)(struct tipc_port *,
+				  struct sk_buff *),
+				  void (*wakeup)(struct tipc_port *),
+				  const u32 importance);
 
 int tipc_reject_msg(struct sk_buff *buf, u32 err);
 
@@ -126,9 +128,9 @@ int tipc_portunreturnable(u32 portref, unsigned int *isunreturnable);
 int tipc_set_portunreturnable(u32 portref, unsigned int isunreturnable);
 
 int tipc_publish(u32 portref, unsigned int scope,
-		struct tipc_name_seq const *name_seq);
+		 struct tipc_name_seq const *name_seq);
 int tipc_withdraw(u32 portref, unsigned int scope,
-		struct tipc_name_seq const *name_seq);
+		  struct tipc_name_seq const *name_seq);
 
 int tipc_connect(u32 portref, struct tipc_portid const *port);
 

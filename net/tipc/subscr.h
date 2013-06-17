@@ -67,17 +67,12 @@ struct tipc_subscription {
 	struct tipc_event evt;
 };
 
-int tipc_subscr_overlap(struct tipc_subscription *sub,
-			u32 found_lower,
+int tipc_subscr_overlap(struct tipc_subscription *sub, u32 found_lower,
 			u32 found_upper);
 
-void tipc_subscr_report_overlap(struct tipc_subscription *sub,
-				u32 found_lower,
-				u32 found_upper,
-				u32 event,
-				u32 port_ref,
-				u32 node,
-				int must_report);
+void tipc_subscr_report_overlap(struct tipc_subscription *sub, u32 found_lower,
+				u32 found_upper, u32 event, u32 port_ref,
+				u32 node, int must);
 
 int tipc_subscr_start(void);
 

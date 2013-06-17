@@ -207,9 +207,10 @@ exit:
  * Returns pointer to (locked) TIPC port, or NULL if unable to create it
  */
 struct tipc_port *tipc_createport(struct sock *sk,
-			u32 (*dispatcher)(struct tipc_port *, struct sk_buff *),
-			void (*wakeup)(struct tipc_port *),
-			const u32 importance)
+				  u32 (*dispatcher)(struct tipc_port *,
+				  struct sk_buff *),
+				  void (*wakeup)(struct tipc_port *),
+				  const u32 importance)
 {
 	struct tipc_port *p_ptr;
 	struct tipc_msg *msg;

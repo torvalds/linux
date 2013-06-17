@@ -117,10 +117,8 @@ static void subscr_send_event(struct tipc_subscription *sub, u32 found_lower,
  *
  * Returns 1 if there is overlap, otherwise 0.
  */
-int tipc_subscr_overlap(struct tipc_subscription *sub,
-			u32 found_lower,
+int tipc_subscr_overlap(struct tipc_subscription *sub, u32 found_lower,
 			u32 found_upper)
-
 {
 	if (found_lower < sub->seq.lower)
 		found_lower = sub->seq.lower;
@@ -136,13 +134,9 @@ int tipc_subscr_overlap(struct tipc_subscription *sub,
  *
  * Protected by nameseq.lock in name_table.c
  */
-void tipc_subscr_report_overlap(struct tipc_subscription *sub,
-				u32 found_lower,
-				u32 found_upper,
-				u32 event,
-				u32 port_ref,
-				u32 node,
-				int must)
+void tipc_subscr_report_overlap(struct tipc_subscription *sub, u32 found_lower,
+				u32 found_upper, u32 event, u32 port_ref,
+				u32 node, int must)
 {
 	if (!tipc_subscr_overlap(sub, found_lower, found_upper))
 		return;

@@ -771,8 +771,7 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
  * link_bundle_buf(): Append contents of a buffer to
  * the tail of an existing one.
  */
-static int link_bundle_buf(struct tipc_link *l_ptr,
-			   struct sk_buff *bundler,
+static int link_bundle_buf(struct tipc_link *l_ptr, struct sk_buff *bundler,
 			   struct sk_buff *buf)
 {
 	struct tipc_msg *bundler_msg = buf_msg(bundler);
@@ -1064,8 +1063,7 @@ static int link_send_buf_fast(struct tipc_link *l_ptr, struct sk_buff *buf,
  */
 int tipc_link_send_sections_fast(struct tipc_port *sender,
 				 struct iovec const *msg_sect,
-				 const u32 num_sect,
-				 unsigned int total_len,
+				 const u32 num_sect, unsigned int total_len,
 				 u32 destaddr)
 {
 	struct tipc_msg *hdr = &sender->phdr;
@@ -1155,8 +1153,7 @@ exit:
  */
 static int link_send_sections_long(struct tipc_port *sender,
 				   struct iovec const *msg_sect,
-				   u32 num_sect,
-				   unsigned int total_len,
+				   u32 num_sect, unsigned int total_len,
 				   u32 destaddr)
 {
 	struct tipc_link *l_ptr;
@@ -1408,7 +1405,7 @@ static void link_reset_all(unsigned long addr)
 }
 
 static void link_retransmit_failure(struct tipc_link *l_ptr,
-					struct sk_buff *buf)
+				    struct sk_buff *buf)
 {
 	struct tipc_msg *msg = buf_msg(buf);
 
@@ -1863,8 +1860,8 @@ static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
  * Send protocol message to the other endpoint.
  */
 void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
-				int probe_msg, u32 gap, u32 tolerance,
-				u32 priority, u32 ack_mtu)
+			      int probe_msg, u32 gap, u32 tolerance,
+			      u32 priority, u32 ack_mtu)
 {
 	struct sk_buff *buf = NULL;
 	struct tipc_msg *msg = l_ptr->pmsg;
@@ -2107,8 +2104,7 @@ exit:
  * another bearer. Owner node is locked.
  */
 static void tipc_link_tunnel(struct tipc_link *l_ptr,
-			     struct tipc_msg *tunnel_hdr,
-			     struct tipc_msg  *msg,
+			     struct tipc_msg *tunnel_hdr, struct tipc_msg *msg,
 			     u32 selector)
 {
 	struct tipc_link *tunnel;

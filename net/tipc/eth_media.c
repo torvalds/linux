@@ -62,7 +62,7 @@ static struct eth_bearer eth_bearers[MAX_ETH_BEARERS];
 static int eth_started;
 
 static int recv_notification(struct notifier_block *nb, unsigned long evt,
-			      void *dv);
+			     void *dv);
 /*
  * Network device notifier info
  */

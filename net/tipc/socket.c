@@ -278,7 +278,7 @@ void tipc_sock_release_local(struct socket *sock)
  */
 
 int tipc_sock_accept_local(struct socket *sock, struct socket **newsock,
-			    int flags)
+			   int flags)
 {
 	struct sock *sk = sock->sk;
 	int ret;
@@ -889,7 +889,7 @@ static void set_orig_addr(struct msghdr *m, struct tipc_msg *msg)
  * Returns 0 if successful, otherwise errno
  */
 static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
-				struct tipc_port *tport)
+			 struct tipc_port *tport)
 {
 	u32 anc_data[3];
 	u32 err;
@@ -1736,8 +1736,8 @@ restart:
  *
  * Returns 0 on success, errno otherwise
  */
-static int setsockopt(struct socket *sock,
-		      int lvl, int opt, char __user *ov, unsigned int ol)
+static int setsockopt(struct socket *sock, int lvl, int opt, char __user *ov,
+		      unsigned int ol)
 {
 	struct sock *sk = sock->sk;
 	struct tipc_port *tport = tipc_sk_port(sk);
@@ -1795,8 +1795,8 @@ static int setsockopt(struct socket *sock,
  *
  * Returns 0 on success, errno otherwise
  */
-static int getsockopt(struct socket *sock,
-		      int lvl, int opt, char __user *ov, int __user *ol)
+static int getsockopt(struct socket *sock, int lvl, int opt, char __user *ov,
+		      int __user *ol)
 {
 	struct sock *sk = sock->sk;
 	struct tipc_port *tport = tipc_sk_port(sk);

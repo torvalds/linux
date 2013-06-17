@@ -440,7 +440,7 @@ found:
  * sequence overlapping with the requested sequence
  */
 static void tipc_nameseq_subscribe(struct name_seq *nseq,
-					struct tipc_subscription *s)
+				   struct tipc_subscription *s)
 {
 	struct sub_seq *sseq = nseq->sseqs;
 
@@ -662,7 +662,7 @@ exit:
  * tipc_nametbl_publish - add name publication to network name tables
  */
 struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
-				    u32 scope, u32 port_ref, u32 key)
+					 u32 scope, u32 port_ref, u32 key)
 {
 	struct publication *publ;
 
@@ -753,7 +753,7 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *s)
  * subseq_list - print specified sub-sequence contents into the given buffer
  */
 static int subseq_list(struct sub_seq *sseq, char *buf, int len, u32 depth,
-			u32 index)
+		       u32 index)
 {
 	char portIdStr[27];
 	const char *scope_str[] = {"", " zone", " cluster", " node"};
@@ -792,7 +792,7 @@ static int subseq_list(struct sub_seq *sseq, char *buf, int len, u32 depth,
  * nameseq_list - print specified name sequence contents into the given buffer
  */
 static int nameseq_list(struct name_seq *seq, char *buf, int len, u32 depth,
-			 u32 type, u32 lowbound, u32 upbound, u32 index)
+			u32 type, u32 lowbound, u32 upbound, u32 index)
 {
 	struct sub_seq *sseq;
 	char typearea[11];
@@ -849,7 +849,7 @@ static int nametbl_header(char *buf, int len, u32 depth)
  * nametbl_list - print specified name table contents into the given buffer
  */
 static int nametbl_list(char *buf, int len, u32 depth_info,
-			 u32 type, u32 lowbound, u32 upbound)
+			u32 type, u32 lowbound, u32 upbound)
 {
 	struct hlist_head *seq_head;
 	struct name_seq *seq;

@@ -51,8 +51,8 @@ u32 tipc_msg_tot_importance(struct tipc_msg *m)
 }
 
 
-void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
-			    u32 hsize, u32 destnode)
+void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
+		   u32 destnode)
 {
 	memset(m, 0, hsize);
 	msg_set_version(m);
