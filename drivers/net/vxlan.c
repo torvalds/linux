@@ -565,8 +565,9 @@ skip:
 
 /* Watch incoming packets to learn mapping between Ethernet address
  * and Tunnel endpoint.
+ * Return true if packet is bogus and should be droppped.
  */
-static void vxlan_snoop(struct net_device *dev,
+static bool vxlan_snoop(struct net_device *dev,
 			__be32 src_ip, const u8 *src_mac)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
@@ -575,7 +576,11 @@ static void vxlan_snoop(struct net_device *dev,
 	f = vxlan_find_mac(vxlan, src_mac);
 	if (likely(f)) {
 		if (likely(f->remote.remote_ip == src_ip))
-			return;
+			return false;
+
+		/* Don't migrate static entries, drop packets */
+		if (!(f->flags & NTF_SELF))
+			return true;
 
 		if (net_ratelimit())
 			netdev_info(dev,
@@ -598,6 +603,8 @@ static void vxlan_snoop(struct net_device *dev,
 					 0, NTF_SELF);
 		spin_unlock(&vxlan->hash_lock);
 	}
+
+	return false;
 }
 
 
@@ -729,8 +736,9 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 			       vxlan->dev->dev_addr) == 0)
 		goto drop;
 
-	if (vxlan->flags & VXLAN_F_LEARN)
-		vxlan_snoop(skb->dev, oip->saddr, eth_hdr(skb)->h_source);
+	if ((vxlan->flags & VXLAN_F_LEARN) &&
+	    vxlan_snoop(skb->dev, oip->saddr, eth_hdr(skb)->h_source))
+		goto drop;
 
 	__skb_tunnel_rx(skb, vxlan->dev);
 	skb_reset_network_header(skb);
