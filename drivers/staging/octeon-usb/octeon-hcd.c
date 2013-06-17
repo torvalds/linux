@@ -137,7 +137,10 @@ static void octeon_usb_urb_complete_callback(cvmx_usb_state_t *usb,
 	   list from data in our private copy */
 	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
 		int i;
-		/* The pointer to the private list is stored in the setup_packet field */
+		/*
+		 * The pointer to the private list is stored in the setup_packet
+		 * field.
+		 */
 		cvmx_usb_iso_packet_t *iso_packet = (cvmx_usb_iso_packet_t *) urb->setup_packet;
 		/* Recalculate the transfer size by adding up each packet */
 		urb->actual_length = 0;
@@ -242,22 +245,33 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 			speed = CVMX_USB_SPEED_HIGH;
 			break;
 		}
-		/* For slow devices on high speed ports we need to find the hub that
-		   does the speed translation so we know where to send the split
-		   transactions */
+		/*
+		 * For slow devices on high speed ports we need to find the hub
+		 * that does the speed translation so we know where to send the
+		 * split transactions.
+		 */
 		if (speed != CVMX_USB_SPEED_HIGH) {
-			/* Start at this device and work our way up the usb tree */
+			/*
+			 * Start at this device and work our way up the usb
+			 * tree.
+			 */
 			struct usb_device *dev = urb->dev;
 			while (dev->parent) {
-				/* If our parent is high speed then he'll receive the splits */
+				/*
+				 * If our parent is high speed then he'll
+				 * receive the splits.
+				 */
 				if (dev->parent->speed == USB_SPEED_HIGH) {
 					split_device = dev->parent->devnum;
 					split_port = dev->portnum;
 					break;
 				}
-				/* Move up the tree one level. If we make it all the way up the
-				   tree, then the port must not be in high speed mode and we
-				   don't need a split */
+				/*
+				 * Move up the tree one level. If we make it all
+				 * the way up the tree, then the port must not
+				 * be in high speed mode and we don't need a
+				 * split.
+				 */
 				dev = dev->parent;
 			}
 		}
@@ -287,8 +301,10 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	case PIPE_ISOCHRONOUS:
 		dev_dbg(dev, "Submit isochronous to %d.%d\n",
 			usb_pipedevice(urb->pipe), usb_pipeendpoint(urb->pipe));
-		/* Allocate a structure to use for our private list of isochronous
-		   packets */
+		/*
+		 * Allocate a structure to use for our private list of
+		 * isochronous packets.
+		 */
 		iso_packet = kmalloc(urb->number_of_packets * sizeof(cvmx_usb_iso_packet_t), GFP_ATOMIC);
 		if (iso_packet) {
 			int i;
@@ -298,9 +314,11 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 				iso_packet[i].length = urb->iso_frame_desc[i].length;
 				iso_packet[i].status = CVMX_USB_COMPLETE_ERROR;
 			}
-			/* Store a pointer to the list in uthe URB setup_pakcet field.
-			   We know this currently isn't being used and this saves us
-			   a bunch of logic */
+			/*
+			 * Store a pointer to the list in the URB setup_packet
+			 * field. We know this currently isn't being used and
+			 * this saves us a bunch of logic.
+			 */
 			urb->setup_packet = (char *)iso_packet;
 			submit_handle = cvmx_usb_submit_isochronous(&priv->usb, pipe_handle,
 							urb->start_frame,
@@ -311,7 +329,10 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 							urb->transfer_buffer_length,
 							octeon_usb_urb_complete_callback,
 							urb);
-			/* If submit failed we need to free our private packet list */
+			/*
+			 * If submit failed we need to free our private packet
+			 * list.
+			 */
 			if (submit_handle < 0) {
 				urb->setup_packet = NULL;
 				kfree(iso_packet);
@@ -487,23 +508,30 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
 			break;
 		case USB_PORT_FEAT_C_RESET:
 			dev_dbg(dev, " C_RESET\n");
-			/* Clears the driver's internal Port Reset Change flag */
+			/*
+			 * Clears the driver's internal Port Reset Change flag.
+			 */
 			spin_lock_irqsave(&priv->lock, flags);
 			cvmx_usb_set_status(&priv->usb, cvmx_usb_get_status(&priv->usb));
 			spin_unlock_irqrestore(&priv->lock, flags);
 			break;
 		case USB_PORT_FEAT_C_ENABLE:
 			dev_dbg(dev, " C_ENABLE\n");
-			/* Clears the driver's internal Port Enable/Disable Change flag */
+			/*
+			 * Clears the driver's internal Port Enable/Disable
+			 * Change flag.
+			 */
 			spin_lock_irqsave(&priv->lock, flags);
 			cvmx_usb_set_status(&priv->usb, cvmx_usb_get_status(&priv->usb));
 			spin_unlock_irqrestore(&priv->lock, flags);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			dev_dbg(dev, " C_SUSPEND\n");
-			/* Clears the driver's internal Port Suspend Change flag,
-			   which is set when resume signaling on the host port is
-			   complete */
+			/*
+			 * Clears the driver's internal Port Suspend Change
+			 * flag, which is set when resume signaling on the host
+			 * port is complete.
+			 */
 			break;
 		case USB_PORT_FEAT_C_OVER_CURRENT:
 			dev_dbg(dev, " C_OVER_CURRENT\n");
@@ -654,8 +682,10 @@ static int octeon_usb_driver_probe(struct device *dev)
 	struct usb_hcd *hcd;
 	unsigned long flags;
 
-	/* Set the DMA mask to 64bits so we get buffers already translated for
-	   DMA */
+	/*
+	 * Set the DMA mask to 64bits so we get buffers already translated for
+	 * DMA.
+	 */
 	dev->coherent_dma_mask = ~0;
 	dev->dma_mask = &dev->coherent_dma_mask;
 
