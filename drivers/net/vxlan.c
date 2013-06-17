@@ -629,6 +629,7 @@ static bool vxlan_snoop(struct net_device *dev,
 
 		f->remote.remote_ip = src_ip;
 		f->updated = jiffies;
+		vxlan_fdb_notify(vxlan, f, RTM_NEWNEIGH);
 	} else {
 		/* learned new entry */
 		spin_lock(&vxlan->hash_lock);
