@@ -28,6 +28,7 @@
 
 #include <asm/mach/flash.h>
 
+#include "clock.h"
 #include "clock-pcom.h"
 
 #include <linux/platform_data/mmc-msm_sdcc.h>
@@ -160,7 +161,7 @@ struct platform_device msm_device_hsusb_host = {
 	},
 };
 
-struct clk_lookup msm_clocks_7x30[] = {
+static struct clk_lookup msm_clocks_7x30[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),
 	CLK_PCOM("cam_m_clk",	CAM_M_CLK,	NULL, 0),
@@ -234,5 +235,12 @@ struct clk_lookup msm_clocks_7x30[] = {
 	CLK_PCOM("csi_vfe_clk",	CSI0_VFE_CLK,	NULL, 0),
 };
 
-unsigned msm_num_clocks_7x30 = ARRAY_SIZE(msm_clocks_7x30);
+static struct pcom_clk_pdata msm_clock_7x30_pdata = {
+	.lookup = msm_clocks_7x30,
+	.num_lookups = ARRAY_SIZE(msm_clocks_7x30),
+};
 
+struct platform_device msm_clock_7x30 = {
+	.name = "msm-clock-pcom",
+	.dev.platform_data = &msm_clock_7x30_pdata,
+};

@@ -14,8 +14,9 @@
  */
 
 #include <linux/err.h>
-#include <linux/ctype.h>
-#include <linux/stddef.h>
+#include <linux/platform_device.h>
+#include <linux/module.h>
+
 #include <mach/clk.h>
 
 #include "proc_comm.h"
@@ -126,3 +127,21 @@ struct clk_ops clk_ops_pcom = {
 	.round_rate = pc_clk_round_rate,
 	.is_local = pc_clk_is_local,
 };
+
+static int msm_clock_pcom_probe(struct platform_device *pdev)
+{
+	const struct pcom_clk_pdata *pdata = pdev->dev.platform_data;
+	msm_clock_init(pdata->lookup, pdata->num_lookups);
+	return 0;
+}
+
+static struct platform_driver msm_clock_pcom_driver = {
+	.probe		= msm_clock_pcom_probe,
+	.driver		= {
+		.name	= "msm-clock-pcom",
+		.owner	= THIS_MODULE,
+	},
+};
+module_platform_driver(msm_clock_pcom_driver);
+
+MODULE_LICENSE("GPL v2");

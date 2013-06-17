@@ -116,7 +116,7 @@ EXPORT_SYMBOL(clk_get_parent);
  */
 static struct clk *ebi1_clk;
 
-void __init msm_clock_init(struct clk_lookup *clock_tbl, unsigned num_clocks)
+void msm_clock_init(struct clk_lookup *clock_tbl, size_t num_clocks)
 {
 	unsigned n;
 

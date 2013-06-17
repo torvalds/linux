@@ -63,4 +63,7 @@ static inline int __init clock_debug_init(void) { return 0; }
 static inline int __init clock_debug_add(struct clk *clock) { return 0; }
 #endif
 
+struct clk_lookup;
+void msm_clock_init(struct clk_lookup *clock_tbl, size_t num_clocks);
+
 #endif
