@@ -26,6 +26,11 @@
 		compatible = "simple-bus";
 		ranges;
 
+		scu@1013c000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0x1013c000 0x100>;
+		};
+
 		gic: interrupt-controller@1013d000 {
 			compatible = "arm,cortex-a9-gic";
 			interrupt-controller;
