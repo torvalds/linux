@@ -425,7 +425,7 @@ struct platform_device msm_device_mdp = {
 	.resource = resources_mdp,
 };
 
-static struct clk_lookup msm_clocks_7x01a[] = {
+static struct clk_pcom_desc msm_clocks_7x01a[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),
 	CLK_PCOM("ebi1_clk",	EBI1_CLK,	NULL, 0),

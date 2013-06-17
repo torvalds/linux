@@ -1,7 +1,7 @@
 /* arch/arm/mach-msm/clock.h
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2007-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2007-2012, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -17,8 +17,7 @@
 #ifndef __ARCH_ARM_MACH_MSM_CLOCK_H
 #define __ARCH_ARM_MACH_MSM_CLOCK_H
 
-#include <linux/init.h>
-#include <linux/list.h>
+#include <linux/clk-provider.h>
 #include <mach/clk.h>
 
 #define CLK_FIRST_AVAILABLE_FLAG	0x00000100
@@ -26,44 +25,19 @@
 #define CLKFLAG_MIN			0x00000400
 #define CLKFLAG_MAX			0x00000800
 
-struct clk_ops {
-	int (*enable)(unsigned id);
-	void (*disable)(unsigned id);
-	void (*auto_off)(unsigned id);
-	int (*reset)(unsigned id, enum clk_reset_action action);
-	int (*set_rate)(unsigned id, unsigned rate);
-	int (*set_min_rate)(unsigned id, unsigned rate);
-	int (*set_max_rate)(unsigned id, unsigned rate);
-	unsigned (*get_rate)(unsigned id);
-	unsigned (*is_enabled)(unsigned id);
-	long (*round_rate)(unsigned id, unsigned rate);
-	bool (*is_local)(unsigned id);
-};
-
-struct clk {
-	uint32_t id;
-	uint32_t remote_id;
-	uint32_t count;
-	uint32_t flags;
-	struct clk_ops *ops;
-	const char *dbg_name;
-	struct list_head list;
-};
-
 #define OFF CLKFLAG_AUTO_OFF
 #define CLK_MIN CLKFLAG_MIN
 #define CLK_MAX CLKFLAG_MAX
 #define CLK_MINMAX (CLK_MIN | CLK_MAX)
 
-#ifdef CONFIG_DEBUG_FS
-int __init clock_debug_init(void);
-int __init clock_debug_add(struct clk *clock);
-#else
-static inline int __init clock_debug_init(void) { return 0; }
-static inline int __init clock_debug_add(struct clk *clock) { return 0; }
-#endif
+struct msm_clk {
+	int (*reset)(struct clk_hw *hw, enum clk_reset_action action);
+	struct clk_hw hw;
+};
 
-struct clk_lookup;
-void msm_clock_init(struct clk_lookup *clock_tbl, size_t num_clocks);
+static inline struct msm_clk *to_msm_clk(struct clk_hw *hw)
+{
+	return container_of(hw, struct msm_clk, hw);
+}
 
 #endif

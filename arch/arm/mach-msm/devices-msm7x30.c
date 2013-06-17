@@ -161,7 +161,7 @@ struct platform_device msm_device_hsusb_host = {
 	},
 };
 
-static struct clk_lookup msm_clocks_7x30[] = {
+static struct clk_pcom_desc msm_clocks_7x30[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),
 	CLK_PCOM("cam_m_clk",	CAM_M_CLK,	NULL, 0),
