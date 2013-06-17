@@ -1829,10 +1829,20 @@ vpif_int_err:
 static int vpif_remove(struct platform_device *device)
 {
 	struct channel_obj *ch;
-	int i;
+	struct resource *res;
+	int irq_num;
+	int i = 0;
+
+	while ((res = platform_get_resource(device, IORESOURCE_IRQ, i))) {
+		for (irq_num = res->start; irq_num <= res->end; irq_num++)
+			free_irq(irq_num,
+				 (void *)(&vpif_obj.dev[i]->channel_id));
+		i++;
+	}
 
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
 
+	kfree(vpif_obj.sd);
 	/* un-register device */
 	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
 		/* Get the pointer to the channel object */
@@ -1841,6 +1851,7 @@ static int vpif_remove(struct platform_device *device)
 		video_unregister_device(ch->video_dev);
 
 		ch->video_dev = NULL;
+		kfree(vpif_obj.dev[i]);
 	}
 
 	return 0;
@@ -1938,24 +1949,7 @@ static __init int vpif_init(void)
  */
 static void vpif_cleanup(void)
 {
-	struct platform_device *pdev;
-	struct resource *res;
-	int irq_num;
-	int i = 0;
-
-	pdev = container_of(vpif_dev, struct platform_device, dev);
-
-	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, i))) {
-		for (irq_num = res->start; irq_num <= res->end; irq_num++)
-			free_irq(irq_num,
-				 (void *)(&vpif_obj.dev[i]->channel_id));
-		i++;
-	}
-
 	platform_driver_unregister(&vpif_driver);
-	kfree(vpif_obj.sd);
-	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++)
-		kfree(vpif_obj.dev[i]);
 }
 
 module_init(vpif_init);
