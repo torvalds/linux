@@ -311,14 +311,13 @@ errout:
 static void vxlan_ip_miss(struct net_device *dev, __be32 ipa)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	struct vxlan_fdb f;
-	struct vxlan_rdst remote;
-
-	memset(&f, 0, sizeof f);
-	f.state = NUD_STALE;
-
-	remote.remote_ip = ipa; /* goes to NDA_DST */
-	remote.remote_vni = VXLAN_N_VID;
+	struct vxlan_fdb f = {
+		.state = NUD_STALE,
+	};
+	struct vxlan_rdst remote = {
+		.remote_ip = ipa, /* goes to NDA_DST */
+		.remote_vni = VXLAN_N_VID,
+	};
 
 	INIT_LIST_HEAD(&f.remotes);
 	list_add_rcu(&remote.list, &f.remotes);
@@ -328,11 +327,11 @@ static void vxlan_ip_miss(struct net_device *dev, __be32 ipa)
 
 static void vxlan_fdb_miss(struct vxlan_dev *vxlan, const u8 eth_addr[ETH_ALEN])
 {
-	struct vxlan_fdb	f;
+	struct vxlan_fdb f = {
+		.state = NUD_STALE,
+	};
 
-	memset(&f, 0, sizeof f);
 	INIT_LIST_HEAD(&f.remotes);
-	f.state = NUD_STALE;
 	memcpy(f.eth_addr, eth_addr, ETH_ALEN);
 
 	vxlan_fdb_notify(vxlan, &f, RTM_GETNEIGH);
@@ -1485,6 +1484,7 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, __be16 port)
 	struct sockaddr_in vxlan_addr = {
 		.sin_family = AF_INET,
 		.sin_addr.s_addr = htonl(INADDR_ANY),
+		.sin_port = port,
 	};
 	int rc;
 	unsigned int h;
@@ -1509,8 +1509,6 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, __be16 port)
 	/* Put in proper namespace */
 	sk = vs->sock->sk;
 	sk_change_net(sk, net);
-
-	vxlan_addr.sin_port = port;
 
 	rc = kernel_bind(vs->sock, (struct sockaddr *) &vxlan_addr,
 			 sizeof(vxlan_addr));
