@@ -585,7 +585,7 @@ xfs_symlink(
 /*
  * Free a symlink that has blocks associated with it.
  */
-int
+STATIC int
 xfs_inactive_symlink_rmt(
 	xfs_inode_t	*ip,
 	xfs_trans_t	**tpp)
@@ -606,7 +606,7 @@ xfs_inactive_symlink_rmt(
 
 	tp = *tpp;
 	mp = ip->i_mount;
-	ASSERT(ip->i_d.di_size > XFS_IFORK_DSIZE(ip));
+	ASSERT(ip->i_df.if_flags & XFS_IFEXTENTS);
 	/*
 	 * We're freeing a symlink that has some
 	 * blocks allocated to it.  Free the
@@ -719,4 +719,48 @@ xfs_inactive_symlink_rmt(
 	xfs_bmap_cancel(&free_list);
  error0:
 	return error;
+}
+
+/*
+ * xfs_inactive_symlink - free a symlink
+ */
+int
+xfs_inactive_symlink(
+	struct xfs_inode	*ip,
+	struct xfs_trans	**tp)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	int			pathlen;
+
+	trace_xfs_inactive_symlink(ip);
+
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return XFS_ERROR(EIO);
+
+	/*
+	 * Zero length symlinks _can_ exist.
+	 */
+	pathlen = (int)ip->i_d.di_size;
+	if (!pathlen)
+		return 0;
+
+	if (pathlen < 0 || pathlen > MAXPATHLEN) {
+		xfs_alert(mp, "%s: inode (0x%llx) bad symlink length (%d)",
+			 __func__, (unsigned long long)ip->i_ino, pathlen);
+		ASSERT(0);
+		return XFS_ERROR(EFSCORRUPTED);
+	}
+
+	if (ip->i_df.if_flags & XFS_IFINLINE) {
+		if (ip->i_df.if_bytes > 0)
+			xfs_idata_realloc(ip, -(ip->i_df.if_bytes),
+					  XFS_DATA_FORK);
+		ASSERT(ip->i_df.if_bytes == 0);
+		return 0;
+	}
+
+	/* remove the remote symlink */
+	return xfs_inactive_symlink_rmt(ip, tp);
 }

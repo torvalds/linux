@@ -322,18 +322,9 @@ xfs_inactive(
 	xfs_trans_ijoin(tp, ip, 0);
 
 	if (S_ISLNK(ip->i_d.di_mode)) {
-		/*
-		 * Zero length symlinks _can_ exist.
-		 */
-		if (ip->i_d.di_size > XFS_IFORK_DSIZE(ip)) {
-			error = xfs_inactive_symlink_rmt(ip, &tp);
-			if (error)
-				goto out_cancel;
-		} else if (ip->i_df.if_bytes > 0) {
-			xfs_idata_realloc(ip, -(ip->i_df.if_bytes),
-					  XFS_DATA_FORK);
-			ASSERT(ip->i_df.if_bytes == 0);
-		}
+		error = xfs_inactive_symlink(ip, &tp);
+		if (error)
+			goto out_cancel;
 	} else if (truncate) {
 		ip->i_d.di_size = 0;
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
