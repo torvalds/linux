@@ -2227,6 +2227,27 @@ static void srpt_close_ch(struct srpt_rdma_ch *ch)
 }
 
 /**
+ * srpt_shutdown_session() - Whether or not a session may be shut down.
+ */
+static int srpt_shutdown_session(struct se_session *se_sess)
+{
+	struct srpt_rdma_ch *ch = se_sess->fabric_sess_ptr;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ch->spinlock, flags);
+	if (ch->in_shutdown) {
+		spin_unlock_irqrestore(&ch->spinlock, flags);
+		return true;
+	}
+
+	ch->in_shutdown = true;
+	target_sess_cmd_list_set_waiting(se_sess);
+	spin_unlock_irqrestore(&ch->spinlock, flags);
+
+	return true;
+}
+
+/**
  * srpt_drain_channel() - Drain a channel by resetting the IB queue pair.
  * @cm_id: Pointer to the CM ID of the channel to be drained.
  *
@@ -2264,6 +2285,9 @@ static void srpt_drain_channel(struct ib_cm_id *cm_id)
 	spin_unlock_irq(&sdev->spinlock);
 
 	if (do_reset) {
+		if (ch->sess)
+			srpt_shutdown_session(ch->sess);
+
 		ret = srpt_ch_qp_err(ch);
 		if (ret < 0)
 			printk(KERN_ERR "Setting queue pair in error state"
@@ -2328,7 +2352,7 @@ static void srpt_release_channel_work(struct work_struct *w)
 	se_sess = ch->sess;
 	BUG_ON(!se_sess);
 
-	target_wait_for_sess_cmds(se_sess, 0);
+	target_wait_for_sess_cmds(se_sess);
 
 	transport_deregister_session_configfs(se_sess);
 	transport_deregister_session(se_sess);
@@ -3464,14 +3488,6 @@ static void srpt_release_cmd(struct se_cmd *se_cmd)
 	spin_lock_irqsave(&ch->spinlock, flags);
 	list_add(&ioctx->free_list, &ch->free_list);
 	spin_unlock_irqrestore(&ch->spinlock, flags);
-}
-
-/**
- * srpt_shutdown_session() - Whether or not a session may be shut down.
- */
-static int srpt_shutdown_session(struct se_session *se_sess)
-{
-	return true;
 }
 
 /**

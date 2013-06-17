@@ -657,15 +657,6 @@ void pci_resource_to_user(const struct pci_dev *dev, int bar,
  *     ranges. However, some machines (thanks Apple !) tend to split their
  *     space into lots of small contiguous ranges. So we have to coalesce.
  *
- *   - We can only cope with all memory ranges having the same offset
- *     between CPU addresses and PCI addresses. Unfortunately, some bridges
- *     are setup for a large 1:1 mapping along with a small "window" which
- *     maps PCI address 0 to some arbitrary high address of the CPU space in
- *     order to give access to the ISA memory hole.
- *     The way out of here that I've chosen for now is to always set the
- *     offset based on the first resource found, then override it if we
- *     have a different offset and the previous was set by an ISA hole.
- *
  *   - Some busses have IO space not starting at 0, which causes trouble with
  *     the way we do our IO resource renumbering. The code somewhat deals with
  *     it for 64 bits but I would expect problems on 32 bits.
@@ -680,10 +671,9 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	int rlen;
 	int pna = of_n_addr_cells(dev);
 	int np = pna + 5;
-	int memno = 0, isa_hole = -1;
+	int memno = 0;
 	u32 pci_space;
 	unsigned long long pci_addr, cpu_addr, pci_next, cpu_next, size;
-	unsigned long long isa_mb = 0;
 	struct resource *res;
 
 	printk(KERN_INFO "PCI host bridge %s %s ranges:\n",
@@ -777,8 +767,6 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			}
 			/* Handles ISA memory hole space here */
 			if (pci_addr == 0) {
-				isa_mb = cpu_addr;
-				isa_hole = memno;
 				if (primary || isa_mem_base == 0)
 					isa_mem_base = cpu_addr;
 				hose->isa_mem_phys = cpu_addr;
@@ -839,6 +827,7 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 	}
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 		struct resource *res = dev->resource + i;
+		struct pci_bus_region reg;
 		if (!res->flags)
 			continue;
 
@@ -847,8 +836,9 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 		 * at 0 as unset as well, except if PCI_PROBE_ONLY is also set
 		 * since in that case, we don't want to re-assign anything
 		 */
+		pcibios_resource_to_bus(dev, &reg, res);
 		if (pci_has_flag(PCI_REASSIGN_ALL_RSRC) ||
-		    (res->start == 0 && !pci_has_flag(PCI_PROBE_ONLY))) {
+		    (reg.start == 0 && !pci_has_flag(PCI_PROBE_ONLY))) {
 			/* Only print message if not re-assigning */
 			if (!pci_has_flag(PCI_REASSIGN_ALL_RSRC))
 				pr_debug("PCI:%s Resource %d %016llx-%016llx [%x] "

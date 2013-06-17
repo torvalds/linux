@@ -316,6 +316,7 @@ int selinux_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
 
 		memcpy(new_ctx, old_ctx, sizeof(*new_ctx));
 		memcpy(new_ctx->ctx_str, old_ctx->ctx_str, new_ctx->ctx_len);
+		atomic_inc(&selinux_xfrm_refcount);
 		*new_ctxp = new_ctx;
 	}
 	return 0;
@@ -326,6 +327,7 @@ int selinux_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
  */
 void selinux_xfrm_policy_free(struct xfrm_sec_ctx *ctx)
 {
+	atomic_dec(&selinux_xfrm_refcount);
 	kfree(ctx);
 }
 
@@ -335,17 +337,13 @@ void selinux_xfrm_policy_free(struct xfrm_sec_ctx *ctx)
 int selinux_xfrm_policy_delete(struct xfrm_sec_ctx *ctx)
 {
 	const struct task_security_struct *tsec = current_security();
-	int rc = 0;
 
-	if (ctx) {
-		rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
-				  SECCLASS_ASSOCIATION,
-				  ASSOCIATION__SETCONTEXT, NULL);
-		if (rc == 0)
-			atomic_dec(&selinux_xfrm_refcount);
-	}
+	if (!ctx)
+		return 0;
 
-	return rc;
+	return avc_has_perm(tsec->sid, ctx->ctx_sid,
+			    SECCLASS_ASSOCIATION, ASSOCIATION__SETCONTEXT,
+			    NULL);
 }
 
 /*
@@ -370,8 +368,8 @@ int selinux_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *uct
  */
 void selinux_xfrm_state_free(struct xfrm_state *x)
 {
-	struct xfrm_sec_ctx *ctx = x->security;
-	kfree(ctx);
+	atomic_dec(&selinux_xfrm_refcount);
+	kfree(x->security);
 }
 
  /*
@@ -381,17 +379,13 @@ int selinux_xfrm_state_delete(struct xfrm_state *x)
 {
 	const struct task_security_struct *tsec = current_security();
 	struct xfrm_sec_ctx *ctx = x->security;
-	int rc = 0;
 
-	if (ctx) {
-		rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
-				  SECCLASS_ASSOCIATION,
-				  ASSOCIATION__SETCONTEXT, NULL);
-		if (rc == 0)
-			atomic_dec(&selinux_xfrm_refcount);
-	}
+	if (!ctx)
+		return 0;
 
-	return rc;
+	return avc_has_perm(tsec->sid, ctx->ctx_sid,
+			    SECCLASS_ASSOCIATION, ASSOCIATION__SETCONTEXT,
+			    NULL);
 }
 
 /*

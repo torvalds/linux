@@ -1038,6 +1038,18 @@ static void fec_get_mac(struct net_device *ndev)
 		iap = &tmpaddr[0];
 	}
 
+	/*
+	 * 5) random mac address
+	 */
+	if (!is_valid_ether_addr(iap)) {
+		/* Report it and use a random ethernet address instead */
+		netdev_err(ndev, "Invalid MAC address: %pM\n", iap);
+		eth_hw_addr_random(ndev);
+		netdev_info(ndev, "Using random MAC address: %pM\n",
+			    ndev->dev_addr);
+		return;
+	}
+
 	memcpy(ndev->dev_addr, iap, ETH_ALEN);
 
 	/* Adjust MAC if using macaddr */

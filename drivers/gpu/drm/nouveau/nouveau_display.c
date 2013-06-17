@@ -638,17 +638,8 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 	}
 
 	s = list_first_entry(&fctx->flip, struct nouveau_page_flip_state, head);
-	if (s->event) {
-		struct drm_pending_vblank_event *e = s->event;
-		struct timeval now;
-
-		do_gettimeofday(&now);
-		e->event.sequence = 0;
-		e->event.tv_sec = now.tv_sec;
-		e->event.tv_usec = now.tv_usec;
-		list_add_tail(&e->base.link, &e->base.file_priv->event_list);
-		wake_up_interruptible(&e->base.file_priv->event_wait);
-	}
+	if (s->event)
+		drm_send_vblank_event(dev, -1, s->event);
 
 	list_del(&s->head);
 	if (ps)

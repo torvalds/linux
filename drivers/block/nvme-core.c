@@ -629,7 +629,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	struct nvme_command *cmnd;
 	struct nvme_iod *iod;
 	enum dma_data_direction dma_dir;
-	int cmdid, length, result = -ENOMEM;
+	int cmdid, length, result;
 	u16 control;
 	u32 dsmgmt;
 	int psegs = bio_phys_segments(ns->queue, bio);
@@ -640,6 +640,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 			return result;
 	}
 
+	result = -ENOMEM;
 	iod = nvme_alloc_iod(psegs, bio->bi_size, GFP_ATOMIC);
 	if (!iod)
 		goto nomem;
@@ -977,6 +978,8 @@ static void nvme_cancel_ios(struct nvme_queue *nvmeq, bool timeout)
 
 		if (timeout && !time_after(now, info[cmdid].timeout))
 			continue;
+		if (info[cmdid].ctx == CMD_CTX_CANCELLED)
+			continue;
 		dev_warn(nvmeq->q_dmadev, "Cancelling I/O %d\n", cmdid);
 		ctx = cancel_cmdid(nvmeq, cmdid, &fn);
 		fn(nvmeq->dev, ctx, &cqe);
@@ -1206,7 +1209,7 @@ struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
 
 	if (addr & 3)
 		return ERR_PTR(-EINVAL);
-	if (!length)
+	if (!length || length > INT_MAX - PAGE_SIZE)
 		return ERR_PTR(-EINVAL);
 
 	offset = offset_in_page(addr);
@@ -1227,7 +1230,8 @@ struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
 	sg_init_table(sg, count);
 	for (i = 0; i < count; i++) {
 		sg_set_page(&sg[i], pages[i],
-				min_t(int, length, PAGE_SIZE - offset), offset);
+			    min_t(unsigned, length, PAGE_SIZE - offset),
+			    offset);
 		length -= (PAGE_SIZE - offset);
 		offset = 0;
 	}
@@ -1435,7 +1439,7 @@ static int nvme_user_admin_cmd(struct nvme_dev *dev,
 		nvme_free_iod(dev, iod);
 	}
 
-	if (!status && copy_to_user(&ucmd->result, &cmd.result,
+	if ((status >= 0) && copy_to_user(&ucmd->result, &cmd.result,
 							sizeof(cmd.result)))
 		status = -EFAULT;
 
@@ -1633,7 +1637,8 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 
 static int nvme_setup_io_queues(struct nvme_dev *dev)
 {
-	int result, cpu, i, nr_io_queues, db_bar_size, q_depth;
+	struct pci_dev *pdev = dev->pci_dev;
+	int result, cpu, i, nr_io_queues, db_bar_size, q_depth, q_count;
 
 	nr_io_queues = num_online_cpus();
 	result = set_queue_count(dev, nr_io_queues);
@@ -1642,14 +1647,14 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	if (result < nr_io_queues)
 		nr_io_queues = result;
 
+	q_count = nr_io_queues;
 	/* Deregister the admin queue's interrupt */
 	free_irq(dev->entry[0].vector, dev->queues[0]);
 
 	db_bar_size = 4096 + ((nr_io_queues + 1) << (dev->db_stride + 3));
 	if (db_bar_size > 8192) {
 		iounmap(dev->bar);
-		dev->bar = ioremap(pci_resource_start(dev->pci_dev, 0),
-								db_bar_size);
+		dev->bar = ioremap(pci_resource_start(pdev, 0), db_bar_size);
 		dev->dbs = ((void __iomem *)dev->bar) + 4096;
 		dev->queues[0]->q_db = dev->dbs;
 	}
@@ -1657,16 +1662,33 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	for (i = 0; i < nr_io_queues; i++)
 		dev->entry[i].entry = i;
 	for (;;) {
-		result = pci_enable_msix(dev->pci_dev, dev->entry,
-								nr_io_queues);
+		result = pci_enable_msix(pdev, dev->entry, nr_io_queues);
 		if (result == 0) {
 			break;
 		} else if (result > 0) {
 			nr_io_queues = result;
 			continue;
 		} else {
-			nr_io_queues = 1;
+			nr_io_queues = 0;
 			break;
+		}
+	}
+
+	if (nr_io_queues == 0) {
+		nr_io_queues = q_count;
+		for (;;) {
+			result = pci_enable_msi_block(pdev, nr_io_queues);
+			if (result == 0) {
+				for (i = 0; i < nr_io_queues; i++)
+					dev->entry[i].vector = i + pdev->irq;
+				break;
+			} else if (result > 0) {
+				nr_io_queues = result;
+				continue;
+			} else {
+				nr_io_queues = 1;
+				break;
+			}
 		}
 	}
 
@@ -1850,7 +1872,10 @@ static void nvme_free_dev(struct kref *kref)
 {
 	struct nvme_dev *dev = container_of(kref, struct nvme_dev, kref);
 	nvme_dev_remove(dev);
-	pci_disable_msix(dev->pci_dev);
+	if (dev->pci_dev->msi_enabled)
+		pci_disable_msi(dev->pci_dev);
+	else if (dev->pci_dev->msix_enabled)
+		pci_disable_msix(dev->pci_dev);
 	iounmap(dev->bar);
 	nvme_release_instance(dev);
 	nvme_release_prp_pools(dev);
@@ -1923,8 +1948,14 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&dev->namespaces);
 	dev->pci_dev = pdev;
 	pci_set_drvdata(pdev, dev);
-	dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
-	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
+
+	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)))
+		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
+	else if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)))
+		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	else
+		goto disable;
+
 	result = nvme_set_instance(dev);
 	if (result)
 		goto disable;
@@ -1977,7 +2008,10 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
  unmap:
 	iounmap(dev->bar);
  disable_msix:
-	pci_disable_msix(pdev);
+	if (dev->pci_dev->msi_enabled)
+		pci_disable_msi(dev->pci_dev);
+	else if (dev->pci_dev->msix_enabled)
+		pci_disable_msix(dev->pci_dev);
 	nvme_release_instance(dev);
 	nvme_release_prp_pools(dev);
  disable:

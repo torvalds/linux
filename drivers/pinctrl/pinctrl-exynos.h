@@ -19,6 +19,7 @@
 
 /* External GPIO and wakeup interrupt related definitions */
 #define EXYNOS_GPIO_ECON_OFFSET		0x700
+#define EXYNOS_GPIO_EFLTCON_OFFSET	0x800
 #define EXYNOS_GPIO_EMASK_OFFSET	0x900
 #define EXYNOS_GPIO_EPEND_OFFSET	0xA00
 #define EXYNOS_WKUP_ECON_OFFSET		0xE00

@@ -56,15 +56,35 @@
 	};
 };
 
+&omap4_pmx_wkup {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+			&twl6030_wkup_pins
+	>;
+
+	twl6030_wkup_pins: pinmux_twl6030_wkup_pins {
+		pinctrl-single,pins = <
+			0x14 0x2        /* fref_clk0_out.sys_drm_msecure OUTPUT | MODE2 */
+		>;
+	};
+};
+
 &omap4_pmx_core {
 	pinctrl-names = "default";
 	pinctrl-0 = <
+			&twl6030_pins
 			&twl6040_pins
 			&mcpdm_pins
 			&mcbsp1_pins
 			&dss_hdmi_pins
 			&tpd12s015_pins
 	>;
+
+	twl6030_pins: pinmux_twl6030_pins {
+		pinctrl-single,pins = <
+			0x15e 0x4118	/* sys_nirq1.sys_nirq1 OMAP_WAKEUP_EN | INPUT_PULLUP | MODE0 */
+		>;
+	};
 
 	twl6040_pins: pinmux_twl6040_pins {
 		pinctrl-single,pins = <
