@@ -1669,6 +1669,24 @@ static int gpmc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int gpmc_suspend(struct device *dev)
+{
+	omap3_gpmc_save_context();
+	pm_runtime_put_sync(dev);
+	return 0;
+}
+
+static int gpmc_resume(struct device *dev)
+{
+	pm_runtime_get_sync(dev);
+	omap3_gpmc_restore_context();
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(gpmc_pm_ops, gpmc_suspend, gpmc_resume);
+
 static struct platform_driver gpmc_driver = {
 	.probe		= gpmc_probe,
 	.remove		= gpmc_remove,
@@ -1676,6 +1694,7 @@ static struct platform_driver gpmc_driver = {
 		.name	= DEVICE_NAME,
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(gpmc_dt_ids),
+		.pm	= &gpmc_pm_ops,
 	},
 };
 
@@ -1738,7 +1757,6 @@ static irqreturn_t gpmc_handle_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_ARCH_OMAP3
 static struct omap3_gpmc_regs gpmc_context;
 
 void omap3_gpmc_save_context(void)
@@ -1803,4 +1821,3 @@ void omap3_gpmc_restore_context(void)
 		}
 	}
 }
-#endif /* CONFIG_ARCH_OMAP3 */
