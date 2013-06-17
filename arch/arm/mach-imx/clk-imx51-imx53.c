@@ -73,6 +73,12 @@ static const char *mx53_cko2_sel[] = {
 	"tve_sel", "lp_apm",
 	"uart_root", "dummy"/* spdif0_clk_root */,
 	"dummy", "dummy", };
+static const char *mx51_spdif_xtal_sel[] = { "osc", "ckih", "ckih2", };
+static const char *mx53_spdif_xtal_sel[] = { "osc", "ckih", "ckih2", "pll4_sw", };
+static const char *spdif_sel[] = { "pll1_sw", "pll2_sw", "pll3_sw", "spdif_xtal_sel", };
+static const char *spdif0_com_sel[] = { "spdif0_podf", "ssi1_root_gate", };
+static const char *mx51_spdif1_com_sel[] = { "spdif1_podf", "ssi2_root_gate", };
+
 
 enum imx5_clks {
 	dummy, ckil, osc, ckih1, ckih2, ahb, ipg, axi_a, axi_b, uart_pred,
@@ -110,7 +116,9 @@ enum imx5_clks {
 	owire_gate, gpu3d_s, gpu2d_s, gpu3d_gate, gpu2d_gate, garb_gate,
 	cko1_sel, cko1_podf, cko1,
 	cko2_sel, cko2_podf, cko2,
-	srtc_gate, pata_gate,
+	srtc_gate, pata_gate, sata_gate, spdif_xtal_sel, spdif0_sel,
+	spdif1_sel, spdif0_pred, spdif0_podf, spdif1_pred, spdif1_podf,
+	spdif0_com_s, spdif1_com_sel, spdif0_gate, spdif1_gate, spdif_ipg_gate,
 	clk_max
 };
 
@@ -123,11 +131,13 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 {
 	int i;
 
+	of_clk_init(NULL);
+
 	clk[dummy] = imx_clk_fixed("dummy", 0);
-	clk[ckil] = imx_clk_fixed("ckil", rate_ckil);
-	clk[osc] = imx_clk_fixed("osc", rate_osc);
-	clk[ckih1] = imx_clk_fixed("ckih1", rate_ckih1);
-	clk[ckih2] = imx_clk_fixed("ckih2", rate_ckih2);
+	clk[ckil] = imx_obtain_fixed_clock("ckil", rate_ckil);
+	clk[osc] = imx_obtain_fixed_clock("osc", rate_osc);
+	clk[ckih1] = imx_obtain_fixed_clock("ckih1", rate_ckih1);
+	clk[ckih2] = imx_obtain_fixed_clock("ckih2", rate_ckih2);
 
 	clk[lp_apm] = imx_clk_mux("lp_apm", MXC_CCM_CCSR, 9, 1,
 				lp_apm_sel, ARRAY_SIZE(lp_apm_sel));
@@ -267,6 +277,13 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk[owire_gate] = imx_clk_gate2("owire_gate", "per_root", MXC_CCM_CCGR2, 22);
 	clk[srtc_gate] = imx_clk_gate2("srtc_gate", "per_root", MXC_CCM_CCGR4, 28);
 	clk[pata_gate] = imx_clk_gate2("pata_gate", "ipg", MXC_CCM_CCGR4, 0);
+	clk[spdif0_sel] = imx_clk_mux("spdif0_sel", MXC_CCM_CSCMR2, 0, 2, spdif_sel, ARRAY_SIZE(spdif_sel));
+	clk[spdif0_pred] = imx_clk_divider("spdif0_pred", "spdif0_sel", MXC_CCM_CDCDR, 25, 3);
+	clk[spdif0_podf] = imx_clk_divider("spdif0_podf", "spdif0_pred", MXC_CCM_CDCDR, 19, 6);
+	clk[spdif0_com_s] = imx_clk_mux_flags("spdif0_com_sel", MXC_CCM_CSCMR2, 4, 1,
+				spdif0_com_sel, ARRAY_SIZE(spdif0_com_sel), CLK_SET_RATE_PARENT);
+	clk[spdif0_gate] = imx_clk_gate2("spdif0_gate", "spdif0_com_sel", MXC_CCM_CCGR5, 26);
+	clk[spdif_ipg_gate] = imx_clk_gate2("spdif_ipg_gate", "ipg", MXC_CCM_CCGR5, 30);
 
 	for (i = 0; i < ARRAY_SIZE(clk); i++)
 		if (IS_ERR(clk[i]))
@@ -378,6 +395,15 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk[mipi_hsc2_gate] = imx_clk_gate2("mipi_hsc2_gate", "ipg", MXC_CCM_CCGR4, 8);
 	clk[mipi_esc_gate] = imx_clk_gate2("mipi_esc_gate", "ipg", MXC_CCM_CCGR4, 10);
 	clk[mipi_hsp_gate] = imx_clk_gate2("mipi_hsp_gate", "ipg", MXC_CCM_CCGR4, 12);
+	clk[spdif_xtal_sel] = imx_clk_mux("spdif_xtal_sel", MXC_CCM_CSCMR1, 2, 2,
+				mx51_spdif_xtal_sel, ARRAY_SIZE(mx51_spdif_xtal_sel));
+	clk[spdif1_sel] = imx_clk_mux("spdif1_sel", MXC_CCM_CSCMR2, 2, 2,
+				spdif_sel, ARRAY_SIZE(spdif_sel));
+	clk[spdif1_pred] = imx_clk_divider("spdif1_podf", "spdif1_sel", MXC_CCM_CDCDR, 16, 3);
+	clk[spdif1_podf] = imx_clk_divider("spdif1_podf", "spdif1_pred", MXC_CCM_CDCDR, 9, 6);
+	clk[spdif1_com_sel] = imx_clk_mux("spdif1_com_sel", MXC_CCM_CSCMR2, 5, 1,
+				mx51_spdif1_com_sel, ARRAY_SIZE(mx51_spdif1_com_sel));
+	clk[spdif1_gate] = imx_clk_gate2("spdif1_gate", "spdif1_com_sel", MXC_CCM_CCGR5, 28);
 
 	for (i = 0; i < ARRAY_SIZE(clk); i++)
 		if (IS_ERR(clk[i]))
@@ -485,6 +511,7 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk[can2_serial_gate] = imx_clk_gate2("can2_serial_gate", "can_sel", MXC_CCM_CCGR4, 8);
 	clk[can2_ipg_gate] = imx_clk_gate2("can2_ipg_gate", "ipg", MXC_CCM_CCGR4, 6);
 	clk[i2c3_gate] = imx_clk_gate2("i2c3_gate", "per_root", MXC_CCM_CCGR1, 22);
+	clk[sata_gate] = imx_clk_gate2("sata_gate", "ipg", MXC_CCM_CCGR4, 2);
 
 	clk[cko1_sel] = imx_clk_mux("cko1_sel", MXC_CCM_CCOSR, 0, 4,
 				mx53_cko1_sel, ARRAY_SIZE(mx53_cko1_sel));
@@ -495,6 +522,8 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 				mx53_cko2_sel, ARRAY_SIZE(mx53_cko2_sel));
 	clk[cko2_podf] = imx_clk_divider("cko2_podf", "cko2_sel", MXC_CCM_CCOSR, 21, 3);
 	clk[cko2] = imx_clk_gate2("cko2", "cko2_podf", MXC_CCM_CCOSR, 24);
+	clk[spdif_xtal_sel] = imx_clk_mux("spdif_xtal_sel", MXC_CCM_CSCMR1, 2, 2,
+				mx53_spdif_xtal_sel, ARRAY_SIZE(mx53_spdif_xtal_sel));
 
 	for (i = 0; i < ARRAY_SIZE(clk); i++)
 		if (IS_ERR(clk[i]))
@@ -542,42 +571,12 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	return 0;
 }
 
-#ifdef CONFIG_OF
-static void __init clk_get_freq_dt(unsigned long *ckil, unsigned long *osc,
-				   unsigned long *ckih1, unsigned long *ckih2)
-{
-	struct device_node *np;
-
-	/* retrieve the freqency of fixed clocks from device tree */
-	for_each_compatible_node(np, NULL, "fixed-clock") {
-		u32 rate;
-		if (of_property_read_u32(np, "clock-frequency", &rate))
-			continue;
-
-		if (of_device_is_compatible(np, "fsl,imx-ckil"))
-			*ckil = rate;
-		else if (of_device_is_compatible(np, "fsl,imx-osc"))
-			*osc = rate;
-		else if (of_device_is_compatible(np, "fsl,imx-ckih1"))
-			*ckih1 = rate;
-		else if (of_device_is_compatible(np, "fsl,imx-ckih2"))
-			*ckih2 = rate;
-	}
-}
-
 int __init mx51_clocks_init_dt(void)
 {
-	unsigned long ckil, osc, ckih1, ckih2;
-
-	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
-	return mx51_clocks_init(ckil, osc, ckih1, ckih2);
+	return mx51_clocks_init(0, 0, 0, 0);
 }
 
 int __init mx53_clocks_init_dt(void)
 {
-	unsigned long ckil, osc, ckih1, ckih2;
-
-	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
-	return mx53_clocks_init(ckil, osc, ckih1, ckih2);
+	return mx53_clocks_init(0, 0, 0, 0);
 }
-#endif

@@ -238,7 +238,7 @@ enum mx6q_clks {
 	pll4_audio, pll5_video, pll8_mlb, pll7_usb_host, pll6_enet, ssi1_ipg,
 	ssi2_ipg, ssi3_ipg, rom, usbphy1, usbphy2, ldb_di0_div_3_5, ldb_di1_div_3_5,
 	sata_ref, sata_ref_100m, pcie_ref, pcie_ref_125m, enet_ref, usbphy1_gate,
-	usbphy2_gate, pll4_post_div, pll5_post_div, pll5_video_div, clk_max
+	usbphy2_gate, pll4_post_div, pll5_post_div, pll5_video_div, eim_slow, clk_max
 };
 
 static struct clk *clk[clk_max];
@@ -270,27 +270,16 @@ static struct clk_div_table video_div_table[] = {
 	{ }
 };
 
-int __init mx6q_clocks_init(void)
+static void __init imx6q_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
 	void __iomem *base;
 	int i, irq;
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
-
-	/* retrieve the freqency of fixed clocks from device tree */
-	for_each_compatible_node(np, NULL, "fixed-clock") {
-		u32 rate;
-		if (of_property_read_u32(np, "clock-frequency", &rate))
-			continue;
-
-		if (of_device_is_compatible(np, "fsl,imx-ckil"))
-			clk[ckil] = imx_clk_fixed("ckil", rate);
-		else if (of_device_is_compatible(np, "fsl,imx-ckih1"))
-			clk[ckih] = imx_clk_fixed("ckih", rate);
-		else if (of_device_is_compatible(np, "fsl,imx-osc"))
-			clk[osc] = imx_clk_fixed("osc", rate);
-	}
+	clk[ckil] = imx_obtain_fixed_clock("ckil", 0);
+	clk[ckih] = imx_obtain_fixed_clock("ckih1", 0);
+	clk[osc] = imx_obtain_fixed_clock("osc", 0);
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
 	base = of_iomap(np, 0);
@@ -312,7 +301,6 @@ int __init mx6q_clocks_init(void)
 	clk[pll5_video]    = imx_clk_pllv3(IMX_PLLV3_AV,	"pll5_video",	"osc", base + 0xa0, 0x7f);
 	clk[pll6_enet]     = imx_clk_pllv3(IMX_PLLV3_ENET,	"pll6_enet",	"osc", base + 0xe0, 0x3);
 	clk[pll7_usb_host] = imx_clk_pllv3(IMX_PLLV3_USB,	"pll7_usb_host","osc", base + 0x20, 0x3);
-	clk[pll8_mlb]      = imx_clk_pllv3(IMX_PLLV3_MLB,	"pll8_mlb",	"osc", base + 0xd0, 0x0);
 
 	/*
 	 * Bit 20 is the reserved and read-only bit, we do this only for:
@@ -360,7 +348,7 @@ int __init mx6q_clocks_init(void)
 	clk[pll5_post_div] = clk_register_divider_table(NULL, "pll5_post_div", "pll5_video", CLK_SET_RATE_PARENT, base + 0xa0, 19, 2, 0, post_div_table, &imx_ccm_lock);
 	clk[pll5_video_div] = clk_register_divider_table(NULL, "pll5_video_div", "pll5_post_div", CLK_SET_RATE_PARENT, base + 0x170, 30, 2, 0, video_div_table, &imx_ccm_lock);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-ccm");
+	np = ccm_node;
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 	ccm_base = base;
@@ -481,7 +469,14 @@ int __init mx6q_clocks_init(void)
 	clk[esai]         = imx_clk_gate2("esai",          "esai_podf",         base + 0x6c, 16);
 	clk[gpt_ipg]      = imx_clk_gate2("gpt_ipg",       "ipg",               base + 0x6c, 20);
 	clk[gpt_ipg_per]  = imx_clk_gate2("gpt_ipg_per",   "ipg_per",           base + 0x6c, 22);
-	clk[gpu2d_core]   = imx_clk_gate2("gpu2d_core",    "gpu2d_core_podf",   base + 0x6c, 24);
+	if (cpu_is_imx6dl())
+		/*
+		 * The multiplexer and divider of imx6q clock gpu3d_shader get
+		 * redefined/reused as gpu2d_core_sel and gpu2d_core_podf on imx6dl.
+		 */
+		clk[gpu2d_core] = imx_clk_gate2("gpu2d_core", "gpu3d_shader", base + 0x6c, 24);
+	else
+		clk[gpu2d_core] = imx_clk_gate2("gpu2d_core", "gpu2d_core_podf", base + 0x6c, 24);
 	clk[gpu3d_core]   = imx_clk_gate2("gpu3d_core",    "gpu3d_core_podf",   base + 0x6c, 26);
 	clk[hdmi_iahb]    = imx_clk_gate2("hdmi_iahb",     "ahb",               base + 0x70, 0);
 	clk[hdmi_isfr]    = imx_clk_gate2("hdmi_isfr",     "pll3_pfd1_540m",    base + 0x70, 4);
@@ -499,7 +494,14 @@ int __init mx6q_clocks_init(void)
 	clk[ldb_di1]      = imx_clk_gate2("ldb_di1",       "ldb_di1_podf",      base + 0x74, 14);
 	clk[ipu2_di1]     = imx_clk_gate2("ipu2_di1",      "ipu2_di1_sel",      base + 0x74, 10);
 	clk[hsi_tx]       = imx_clk_gate2("hsi_tx",        "hsi_tx_podf",       base + 0x74, 16);
-	clk[mlb]          = imx_clk_gate2("mlb",           "axi",               base + 0x74, 18);
+	if (cpu_is_imx6dl())
+		/*
+		 * The multiplexer and divider of the imx6q clock gpu2d get
+		 * redefined/reused as mlb_sys_sel and mlb_sys_clk_podf on imx6dl.
+		 */
+		clk[mlb] = imx_clk_gate2("mlb",            "gpu2d_core_podf",   base + 0x74, 18);
+	else
+		clk[mlb] = imx_clk_gate2("mlb",            "axi",               base + 0x74, 18);
 	clk[mmdc_ch0_axi] = imx_clk_gate2("mmdc_ch0_axi",  "mmdc_ch0_axi_podf", base + 0x74, 20);
 	clk[mmdc_ch1_axi] = imx_clk_gate2("mmdc_ch1_axi",  "mmdc_ch1_axi_podf", base + 0x74, 22);
 	clk[ocram]        = imx_clk_gate2("ocram",         "ahb",               base + 0x74, 28);
@@ -528,6 +530,7 @@ int __init mx6q_clocks_init(void)
 	clk[usdhc2]       = imx_clk_gate2("usdhc2",        "usdhc2_podf",       base + 0x80, 4);
 	clk[usdhc3]       = imx_clk_gate2("usdhc3",        "usdhc3_podf",       base + 0x80, 6);
 	clk[usdhc4]       = imx_clk_gate2("usdhc4",        "usdhc4_podf",       base + 0x80, 8);
+	clk[eim_slow]     = imx_clk_gate2("eim_slow",      "emi_slow_podf",     base + 0x80, 10);
 	clk[vdo_axi]      = imx_clk_gate2("vdo_axi",       "vdo_axi_sel",       base + 0x80, 12);
 	clk[vpu_axi]      = imx_clk_gate2("vpu_axi",       "vpu_axi_podf",      base + 0x80, 14);
 	clk[cko1]         = imx_clk_gate("cko1",           "cko1_podf",         base + 0x60, 7);
@@ -547,6 +550,8 @@ int __init mx6q_clocks_init(void)
 	clk_register_clkdev(clk[ahb], "ahb", NULL);
 	clk_register_clkdev(clk[cko1], "cko1", NULL);
 	clk_register_clkdev(clk[arm], NULL, "cpu0");
+	clk_register_clkdev(clk[pll4_post_div], "pll4_post_div", NULL);
+	clk_register_clkdev(clk[pll4_audio], "pll4_audio", NULL);
 
 	if (imx6q_revision() != IMX_CHIP_REVISION_1_0) {
 		clk_set_parent(clk[ldb_di0_sel], clk[pll5_video_div]);
@@ -576,6 +581,5 @@ int __init mx6q_clocks_init(void)
 	WARN_ON(!base);
 	irq = irq_of_parse_and_map(np, 0);
 	mxc_timer_init(base, irq);
-
-	return 0;
 }
+CLK_OF_DECLARE(imx6q, "fsl,imx6q-ccm", imx6q_clocks_init);

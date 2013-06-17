@@ -251,6 +251,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX6Q/DL.
 
+	config DEBUG_IMX6SL_UART
+		bool "i.MX6SL Debug UART"
+		depends on SOC_IMX6SL
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX6SL.
+
 	config DEBUG_MMP_UART2
 		bool "Kernel low-level debugging message via MMP UART2"
 		depends on ARCH_MMP
@@ -532,7 +539,8 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX35_UART || \
 						DEBUG_IMX51_UART || \
 						DEBUG_IMX53_UART || \
-						DEBUG_IMX6Q_UART
+						DEBUG_IMX6Q_UART || \
+						DEBUG_IMX6SL_UART
 	default 1
 	depends on ARCH_MXC
 	help
@@ -631,7 +639,8 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX35_UART || \
 				 DEBUG_IMX51_UART || \
 				 DEBUG_IMX53_UART ||\
-				 DEBUG_IMX6Q_UART
+				 DEBUG_IMX6Q_UART || \
+				 DEBUG_IMX6SL_UART
 	default "debug/mvebu.S" if DEBUG_MVEBU_UART
 	default "debug/mxs.S" if DEBUG_IMX23_UART || DEBUG_IMX28_UART
 	default "debug/nomadik.S" if DEBUG_NOMADIK_UART
