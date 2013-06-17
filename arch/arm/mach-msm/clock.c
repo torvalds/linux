@@ -121,14 +121,6 @@ struct clk *clk_get_parent(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_parent);
 
-int clk_set_flags(struct clk *clk, unsigned long flags)
-{
-	if (clk == NULL || IS_ERR(clk))
-		return -EINVAL;
-	return clk->ops->set_flags(clk->id, flags);
-}
-EXPORT_SYMBOL(clk_set_flags);
-
 /* EBI1 is the only shared clock that several clients want to vote on as of
  * this commit. If this changes in the future, then it might be better to
  * make clk_min_rate handle the voting or make ebi1_clk_set_min_rate more

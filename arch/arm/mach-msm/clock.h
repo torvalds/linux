@@ -21,11 +21,6 @@
 #include <linux/list.h>
 #include <mach/clk.h>
 
-#define CLKFLAG_INVERT			0x00000001
-#define CLKFLAG_NOINVERT		0x00000002
-#define CLKFLAG_NONEST			0x00000004
-#define CLKFLAG_NORESET			0x00000008
-
 #define CLK_FIRST_AVAILABLE_FLAG	0x00000100
 #define CLKFLAG_AUTO_OFF		0x00000200
 #define CLKFLAG_MIN			0x00000400
@@ -39,7 +34,6 @@ struct clk_ops {
 	int (*set_rate)(unsigned id, unsigned rate);
 	int (*set_min_rate)(unsigned id, unsigned rate);
 	int (*set_max_rate)(unsigned id, unsigned rate);
-	int (*set_flags)(unsigned id, unsigned flags);
 	unsigned (*get_rate)(unsigned id);
 	unsigned (*is_enabled)(unsigned id);
 	long (*round_rate)(unsigned id, unsigned rate);
