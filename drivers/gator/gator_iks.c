@@ -14,6 +14,7 @@
 #include <asm/smp_plat.h>
 #include <trace/events/power_cpu_migrate.h>
 
+static bool map_cpuids;
 static int mpidr_cpuids[NR_CPUS];
 static int __lcpu_to_pcpu[NR_CPUS];
 
@@ -40,7 +41,7 @@ static void calc_first_cluster_size(void)
 		++mpidr_cpuids_count;
 	}
 
-	BUG_ON(mpidr_cpuids_count != nr_cpu_ids);
+	map_cpuids = (mpidr_cpuids_count == nr_cpu_ids);
 }
 
 static int linearize_mpidr(int mpidr)
@@ -58,6 +59,10 @@ static int linearize_mpidr(int mpidr)
 int lcpu_to_pcpu(const int lcpu)
 {
 	int pcpu;
+
+	if (!map_cpuids)
+		return lcpu;
+
 	BUG_ON(lcpu >= nr_cpu_ids || lcpu < 0);
 	pcpu = __lcpu_to_pcpu[lcpu];
 	BUG_ON(pcpu >= nr_cpu_ids || pcpu < 0);
@@ -67,6 +72,10 @@ int lcpu_to_pcpu(const int lcpu)
 int pcpu_to_lcpu(const int pcpu)
 {
 	int lcpu;
+
+	if (!map_cpuids)
+		return pcpu;
+
 	BUG_ON(pcpu >= nr_cpu_ids || pcpu < 0);
 	for (lcpu = 0; lcpu < nr_cpu_ids; ++lcpu) {
 		if (__lcpu_to_pcpu[lcpu] == pcpu) {
@@ -114,6 +123,10 @@ GATOR_DEFINE_PROBE(cpu_migrate_current, TP_PROTO(u64 timestamp, u32 cpu_hwid))
 static int gator_migrate_start(void)
 {
 	int retval = 0;
+
+	if (!map_cpuids)
+		return retval;
+
 	if (retval == 0)
 		retval = GATOR_REGISTER_TRACE(cpu_migrate_begin);
 	if (retval == 0)
@@ -130,6 +143,9 @@ static int gator_migrate_start(void)
 
 static void gator_migrate_stop(void)
 {
+	if (!map_cpuids)
+		return;
+
 	GATOR_UNREGISTER_TRACE(cpu_migrate_current);
 	GATOR_UNREGISTER_TRACE(cpu_migrate_finish);
 	GATOR_UNREGISTER_TRACE(cpu_migrate_begin);
