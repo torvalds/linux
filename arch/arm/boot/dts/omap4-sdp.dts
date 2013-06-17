@@ -142,9 +142,23 @@
 	};
 };
 
+&omap4_pmx_wkup {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+			&twl6030_wkup_pins
+	>;
+
+	twl6030_wkup_pins: pinmux_twl6030_wkup_pins {
+		pinctrl-single,pins = <
+			0x14 0x2        /* fref_clk0_out.sys_drm_msecure OUTPUT | MODE2 */
+		>;
+	};
+};
+
 &omap4_pmx_core {
 	pinctrl-names = "default";
 	pinctrl-0 = <
+			&twl6030_pins
 			&twl6040_pins
 			&mcpdm_pins
 			&dmic_pins
@@ -176,6 +190,12 @@
 		pinctrl-single,pins = <
 			0x11c 0x100	/* uart4_rx.uart4_rx INPUT | MODE0 */
 			0x11e 0		/* uart4_tx.uart4_tx OUTPUT | MODE0 */
+		>;
+	};
+
+	twl6030_pins: pinmux_twl6030_pins {
+		pinctrl-single,pins = <
+			0x15e 0x4118	/* sys_nirq1.sys_nirq1 OMAP_WAKEUP_EN | INPUT_PULLUP | MODE0 */
 		>;
 	};
 

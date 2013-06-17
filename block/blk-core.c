@@ -3164,7 +3164,7 @@ void blk_post_runtime_resume(struct request_queue *q, int err)
 		q->rpm_status = RPM_ACTIVE;
 		__blk_run_queue(q);
 		pm_runtime_mark_last_busy(q->dev);
-		pm_runtime_autosuspend(q->dev);
+		pm_request_autosuspend(q->dev);
 	} else {
 		q->rpm_status = RPM_SUSPENDED;
 	}
