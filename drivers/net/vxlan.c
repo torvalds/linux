@@ -68,7 +68,7 @@ struct vxlanhdr {
 
 /* UDP port for VXLAN traffic.
  * The IANA assigned port is 4789, but the Linux default is 8472
- * for compatability with early adopters.
+ * for compatibility with early adopters.
  */
 static unsigned short vxlan_port __read_mostly = 8472;
 module_param_named(udp_port, vxlan_port, ushort, 0444);
@@ -210,9 +210,9 @@ static struct vxlan_dev *vxlan_find_vni(struct net *net, u32 id, __be16 port)
 
 /* Fill in neighbour message in skbuff. */
 static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
-			   const struct vxlan_fdb *fdb,
-			   u32 portid, u32 seq, int type, unsigned int flags,
-			   const struct vxlan_rdst *rdst)
+			  const struct vxlan_fdb *fdb,
+			  u32 portid, u32 seq, int type, unsigned int flags,
+			  const struct vxlan_rdst *rdst)
 {
 	unsigned long now = jiffies;
 	struct nda_cacheinfo ci;
@@ -1031,7 +1031,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	struct flowi4 fl4;
 	__be32 dst;
 	__be16 src_port, dst_port;
-        u32 vni;
+	u32 vni;
 	__be16 df = 0;
 	__u8 tos, ttl;
 	int err;
