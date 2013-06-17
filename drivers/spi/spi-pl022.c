@@ -2317,9 +2317,6 @@ pl022_remove(struct amba_device *adev)
  */
 static void pl022_suspend_resources(struct pl022 *pl022, bool runtime)
 {
-	int ret;
-	struct pinctrl_state *pins_state;
-
 	clk_disable(pl022->clk);
 
 	if (runtime)
@@ -2330,8 +2327,6 @@ static void pl022_suspend_resources(struct pl022 *pl022, bool runtime)
 
 static void pl022_resume_resources(struct pl022 *pl022, bool runtime)
 {
-	int ret;
-
 	/* First go to the default state */
 	pinctrl_pm_select_default_state(&pl022->adev->dev);
 	if (!runtime)
