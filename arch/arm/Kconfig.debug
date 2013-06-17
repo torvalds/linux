@@ -476,6 +476,13 @@ choice
 		  of the tiles using the RS1 memory map, including all new A-class
 		  core tiles, FPGA-based SMMs and software models.
 
+	config DEBUG_VEXPRESS_UART0_CRX
+		bool "Use PL011 UART0 at 0xb0090000 (Cortex-R compliant tiles)"
+		depends on ARCH_VEXPRESS && !MMU
+		help
+		  This option selects UART0 at 0xb0090000. This is appropriate for
+		  Cortex-R series tiles and SMMs, such as Cortex-R5 and Cortex-R7
+
 	config DEBUG_VT8500_UART0
 		bool "Use UART0 on VIA/Wondermedia SoCs"
 		depends on ARCH_VT8500
@@ -645,7 +652,8 @@ config DEBUG_LL_INCLUDE
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
 	default "debug/ux500.S" if DEBUG_UX500_UART
 	default "debug/vexpress.S" if DEBUG_VEXPRESS_UART0_DETECT || \
-		DEBUG_VEXPRESS_UART0_CA9 || DEBUG_VEXPRESS_UART0_RS1
+		DEBUG_VEXPRESS_UART0_CA9 || DEBUG_VEXPRESS_UART0_RS1 || \
+		DEBUG_VEXPRESS_UART0_CRX
 	default "debug/vt8500.S" if DEBUG_VT8500_UART0
 	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
 	default "mach/debug-macro.S"
