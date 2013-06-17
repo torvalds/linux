@@ -225,7 +225,7 @@ _sclp_print:
 	ahi	%r2,1
 	ltr	%r0,%r0				# end of string?
 	jz	.LfinalizemtoS4
-	chi	%r0,0x15			# end of line (NL)?
+	chi	%r0,0x0a			# end of line (NL)?
 	jz	.LfinalizemtoS4
 	stc	%r0,0(%r6,%r7)			# copy to mto
 	la	%r11,0(%r6,%r7)

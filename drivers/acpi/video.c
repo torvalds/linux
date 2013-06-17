@@ -1722,6 +1722,9 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	int error;
 	acpi_status status;
 
+	if (device->handler)
+		return -EINVAL;
+
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE,
 				device->parent->handle, 1,
 				acpi_video_bus_match, NULL,

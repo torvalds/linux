@@ -2040,6 +2040,7 @@ static struct net_device *netiucv_init_netdevice(char *username, char *userdata)
 			   netiucv_setup_netdevice);
 	if (!dev)
 		return NULL;
+	rtnl_lock();
 	if (dev_alloc_name(dev, dev->name) < 0)
 		goto out_netdev;
 
@@ -2061,6 +2062,7 @@ static struct net_device *netiucv_init_netdevice(char *username, char *userdata)
 out_fsm:
 	kfree_fsm(privptr->fsm);
 out_netdev:
+	rtnl_unlock();
 	free_netdev(dev);
 	return NULL;
 }
@@ -2100,6 +2102,7 @@ static ssize_t conn_write(struct device_driver *drv,
 
 	rc = netiucv_register_device(dev);
 	if (rc) {
+		rtnl_unlock();
 		IUCV_DBF_TEXT_(setup, 2,
 			"ret %d from netiucv_register_device\n", rc);
 		goto out_free_ndev;
@@ -2109,7 +2112,8 @@ static ssize_t conn_write(struct device_driver *drv,
 	priv = netdev_priv(dev);
 	SET_NETDEV_DEV(dev, priv->dev);
 
-	rc = register_netdev(dev);
+	rc = register_netdevice(dev);
+	rtnl_unlock();
 	if (rc)
 		goto out_unreg;
 
