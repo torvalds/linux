@@ -17,17 +17,15 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/err.h>
 #include <linux/init.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/kernel.h>
-#include <linux/io.h>
-#include <linux/err.h>
 #include <linux/pm_runtime.h>
+#include <linux/spinlock.h>
 #include <linux/v4l2-dv-timings.h>
-
-#include <mach/hardware.h>
 
 #include "vpif.h"
 
