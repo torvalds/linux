@@ -1679,7 +1679,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	priv->rx_packet_max = max(rx_packet_max, 128);
 	priv->cpts = devm_kzalloc(&pdev->dev, sizeof(struct cpts), GFP_KERNEL);
 	priv->irq_enabled = true;
-	if (!ndev) {
+	if (!priv->cpts) {
 		pr_err("error allocating cpts\n");
 		goto clean_ndev_ret;
 	}
