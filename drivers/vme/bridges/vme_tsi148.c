@@ -2448,13 +2448,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		spin_lock_init(&tsi148_device->flush_image->lock);
 		tsi148_device->flush_image->locked = 1;
 		tsi148_device->flush_image->number = master_num;
-		tsi148_device->flush_image->address_attr = VME_A16 | VME_A24 |
-			VME_A32 | VME_A64;
-		tsi148_device->flush_image->cycle_attr = VME_SCT | VME_BLT |
-			VME_MBLT | VME_2eVME | VME_2eSST | VME_2eSSTB |
-			VME_2eSST160 | VME_2eSST267 | VME_2eSST320 | VME_SUPER |
-			VME_USER | VME_PROG | VME_DATA;
-		tsi148_device->flush_image->width_attr = VME_D16 | VME_D32;
 		memset(&tsi148_device->flush_image->bus_resource, 0,
 			sizeof(struct resource));
 		tsi148_device->flush_image->kern_base  = NULL;
