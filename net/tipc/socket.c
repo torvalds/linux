@@ -518,8 +518,7 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 			res = -EISCONN;
 			goto exit;
 		}
-		if ((tport->published) ||
-		    ((sock->type == SOCK_STREAM) && (total_len != 0))) {
+		if (tport->published) {
 			res = -EOPNOTSUPP;
 			goto exit;
 		}
@@ -1010,8 +1009,7 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 
 	lock_sock(sk);
 
-	if (unlikely((sock->state == SS_UNCONNECTED) ||
-		     (sock->state == SS_CONNECTING))) {
+	if (unlikely((sock->state == SS_UNCONNECTED))) {
 		res = -ENOTCONN;
 		goto exit;
 	}
