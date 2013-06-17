@@ -2,7 +2,7 @@
  * net/tipc/link.c: TIPC link code
  *
  * Copyright (c) 1996-2007, 2012, Ericsson AB
- * Copyright (c) 2004-2007, 2010-2011, Wind River Systems
+ * Copyright (c) 2004-2007, 2010-2013, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1055,40 +1055,6 @@ static int link_send_buf_fast(struct tipc_link *l_ptr, struct sk_buff *buf,
 	}
 	return tipc_link_send_buf(l_ptr, buf);  /* All other cases */
 }
-
-/*
- * tipc_send_buf_fast: Entry for data messages where the
- * destination node is known and the header is complete,
- * inclusive total message length.
- * Returns user data length.
- */
-int tipc_send_buf_fast(struct sk_buff *buf, u32 destnode)
-{
-	struct tipc_link *l_ptr;
-	struct tipc_node *n_ptr;
-	int res;
-	u32 selector = msg_origport(buf_msg(buf)) & 1;
-	u32 dummy;
-
-	read_lock_bh(&tipc_net_lock);
-	n_ptr = tipc_node_find(destnode);
-	if (likely(n_ptr)) {
-		tipc_node_lock(n_ptr);
-		l_ptr = n_ptr->active_links[selector];
-		if (likely(l_ptr)) {
-			res = link_send_buf_fast(l_ptr, buf, &dummy);
-			tipc_node_unlock(n_ptr);
-			read_unlock_bh(&tipc_net_lock);
-			return res;
-		}
-		tipc_node_unlock(n_ptr);
-	}
-	read_unlock_bh(&tipc_net_lock);
-	res = msg_data_sz(buf_msg(buf));
-	tipc_reject_msg(buf, TIPC_ERR_NO_NODE);
-	return res;
-}
-
 
 /*
  * tipc_link_send_sections_fast: Entry for messages where the
