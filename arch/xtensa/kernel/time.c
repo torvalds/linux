@@ -24,6 +24,7 @@
 #include <linux/profile.h>
 #include <linux/delay.h>
 #include <linux/irqdomain.h>
+#include <linux/sched_clock.h>
 
 #include <asm/timex.h>
 #include <asm/platform.h>
@@ -35,6 +36,11 @@ unsigned long ccount_freq;		/* ccount Hz */
 static cycle_t ccount_read(struct clocksource *cs)
 {
 	return (cycle_t)get_ccount();
+}
+
+static u32 notrace ccount_sched_clock_read(void)
+{
+	return get_ccount();
 }
 
 static struct clocksource ccount_clocksource = {
@@ -134,6 +140,8 @@ void __init time_init(void)
 			0xffffffff);
 	setup_irq(ccount_timer.evt.irq, &timer_irqaction);
 	ccount_timer.irq_enabled = 1;
+
+	setup_sched_clock(ccount_sched_clock_read, 32, ccount_freq);
 }
 
 /*
