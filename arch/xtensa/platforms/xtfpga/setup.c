@@ -179,8 +179,7 @@ void __init platform_calibrate_ccount(void)
 	if (!clk_freq)
 		clk_freq = *(long *)XTFPGA_CLKFRQ_VADDR;
 
-	ccount_per_jiffy = clk_freq / HZ;
-	nsec_per_ccount = 1000000000UL / clk_freq;
+	ccount_freq = clk_freq;
 }
 
 #endif

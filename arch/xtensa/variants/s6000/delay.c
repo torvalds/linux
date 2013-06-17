@@ -22,6 +22,5 @@ void platform_calibrate_ccount(void)
 			a = b;
 	} while (--i >= 0);
 	b -= a;
-	nsec_per_ccount = (LOOPS * 10000) / b;
-	ccount_per_jiffy = b * (100000UL / (LOOPS * HZ));
+	ccount_freq = b * (100000UL / LOOPS);
 }

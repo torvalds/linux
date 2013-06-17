@@ -41,6 +41,6 @@ _F(void, pcibios_init, (void), { });
 _F(void, calibrate_ccount, (void),
 {
 	pr_err("ERROR: Cannot calibrate cpu frequency! Assuming 10MHz.\n");
-	ccount_per_jiffy = 10 * (1000000UL/HZ);
+	ccount_freq = 10 * 1000000UL;
 });
 #endif

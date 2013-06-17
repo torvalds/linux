@@ -28,8 +28,7 @@
 #include <asm/platform.h>
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
-unsigned long ccount_per_jiffy;		/* per 1/HZ */
-unsigned long nsec_per_ccount;		/* nsec per ccount increment */
+unsigned long ccount_freq;		/* ccount Hz */
 #endif
 
 static cycle_t ccount_read(struct clocksource *cs)
@@ -57,8 +56,8 @@ void __init time_init(void)
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 	printk("Calibrating CPU frequency ");
 	platform_calibrate_ccount();
-	printk("%d.%02d MHz\n", (int)ccount_per_jiffy/(1000000/HZ),
-			(int)(ccount_per_jiffy/(10000/HZ))%100);
+	printk("%d.%02d MHz\n", (int)ccount_freq/1000000,
+			(int)(ccount_freq/10000)%100);
 #endif
 	clocksource_register_hz(&ccount_clocksource, CCOUNT_PER_JIFFY * HZ);
 
