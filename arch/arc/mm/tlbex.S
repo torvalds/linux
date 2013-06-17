@@ -147,9 +147,9 @@ ex_saved_reg1:
 #ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	and.f 0, r0, _PAGE_PRESENT
 	bz   1f
-	ld   r2, [num_pte_not_present]
-	add  r2, r2, 1
-	st   r2, [num_pte_not_present]
+	ld   r3, [num_pte_not_present]
+	add  r3, r3, 1
+	st   r3, [num_pte_not_present]
 1:
 #endif
 
@@ -271,7 +271,7 @@ ARC_ENTRY EV_TLBMissI
 #endif
 
 	;----------------------------------------------------------------
-	; Get the PTE corresponding to V-addr accessed
+	; Get the PTE corresponding to V-addr accessed, r2 is setup with EFA
 	LOAD_FAULT_PTE
 
 	;----------------------------------------------------------------
@@ -311,7 +311,7 @@ ARC_ENTRY EV_TLBMissD
 
 	;----------------------------------------------------------------
 	; Get the PTE corresponding to V-addr accessed
-	; If PTE exists, it will setup, r0 = PTE, r1 = Ptr to PTE
+	; If PTE exists, it will setup, r0 = PTE, r1 = Ptr to PTE, r2 = EFA
 	LOAD_FAULT_PTE
 
 	;----------------------------------------------------------------
