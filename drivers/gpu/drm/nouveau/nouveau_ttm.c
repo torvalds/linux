@@ -168,9 +168,6 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_mem *node;
 
-	if (unlikely((mem->num_pages << PAGE_SHIFT) >= 512 * 1024 * 1024))
-		return -ENOMEM;
-
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
@@ -403,8 +400,6 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	/* GART init */
 	if (drm->agp.stat != ENABLED) {
 		drm->gem.gart_available = nouveau_vmmgr(drm->device)->limit;
-		if (drm->gem.gart_available > 512 * 1024 * 1024)
-			drm->gem.gart_available = 512 * 1024 * 1024;
 	} else {
 		drm->gem.gart_available = drm->agp.size;
 	}
