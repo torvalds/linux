@@ -32,12 +32,16 @@ ACPI_MODULE_NAME("acpi_lpss");
 #define LPSS_GENERAL_LTR_MODE_SW	BIT(2)
 #define LPSS_SW_LTR			0x10
 #define LPSS_AUTO_LTR			0x14
+#define LPSS_TX_INT			0x20
+#define LPSS_TX_INT_MASK		BIT(1)
 
 struct lpss_shared_clock {
 	const char *name;
 	unsigned long rate;
 	struct clk *clk;
 };
+
+struct lpss_private_data;
 
 struct lpss_device_desc {
 	bool clk_required;
@@ -46,6 +50,7 @@ struct lpss_device_desc {
 	unsigned int prv_offset;
 	bool clk_gate;
 	struct lpss_shared_clock *shared_clock;
+	void (*setup)(struct lpss_private_data *pdata);
 };
 
 static struct lpss_device_desc lpss_dma_desc = {
@@ -60,11 +65,28 @@ struct lpss_private_data {
 	const struct lpss_device_desc *dev_desc;
 };
 
+static void lpss_uart_setup(struct lpss_private_data *pdata)
+{
+	unsigned int tx_int_offset = pdata->dev_desc->prv_offset + LPSS_TX_INT;
+	u32 reg;
+
+	reg = readl(pdata->mmio_base + tx_int_offset);
+	writel(reg | LPSS_TX_INT_MASK, pdata->mmio_base + tx_int_offset);
+}
+
 static struct lpss_device_desc lpt_dev_desc = {
 	.clk_required = true,
 	.prv_offset = 0x800,
 	.ltr_required = true,
 	.clk_gate = true,
+};
+
+static struct lpss_device_desc lpt_uart_dev_desc = {
+	.clk_required = true,
+	.prv_offset = 0x800,
+	.ltr_required = true,
+	.clk_gate = true,
+	.setup = lpss_uart_setup,
 };
 
 static struct lpss_device_desc lpt_sdio_dev_desc = {
@@ -82,6 +104,7 @@ static struct lpss_device_desc byt_uart_dev_desc = {
 	.prv_offset = 0x800,
 	.clk_gate = true,
 	.shared_clock = &uart_clock,
+	.setup = lpss_uart_setup,
 };
 
 static struct lpss_shared_clock spi_clock = {
@@ -120,8 +143,8 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT33C1", (unsigned long)&lpt_dev_desc },
 	{ "INT33C2", (unsigned long)&lpt_dev_desc },
 	{ "INT33C3", (unsigned long)&lpt_dev_desc },
-	{ "INT33C4", (unsigned long)&lpt_dev_desc },
-	{ "INT33C5", (unsigned long)&lpt_dev_desc },
+	{ "INT33C4", (unsigned long)&lpt_uart_dev_desc },
+	{ "INT33C5", (unsigned long)&lpt_uart_dev_desc },
 	{ "INT33C6", (unsigned long)&lpt_sdio_dev_desc },
 	{ "INT33C7", },
 
@@ -246,6 +269,9 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 			return 0;
 		}
 	}
+
+	if (dev_desc->setup)
+		dev_desc->setup(pdata);
 
 	adev->driver_data = pdata;
 	ret = acpi_create_platform_device(adev, id);
