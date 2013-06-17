@@ -14,6 +14,9 @@ Required nodes:
 - core-module: the root node to the Integrator platforms must have
   a core-module with regs and the compatible string
   "arm,core-module-integrator"
+- external-bus-interface: the root node to the Integrator platforms
+  must have an external bus interface with regs and the
+  compatible-string "arm,external-bus-interface"
 
   Required properties for the core module:
   - regs: the location and size of the core module registers, one
@@ -46,6 +49,11 @@ Required nodes:
 	core-module@10000000 {
 		compatible = "arm,core-module-integrator";
 		reg = <0x10000000 0x200>;
+	};
+
+	ebi@12000000 {
+		compatible = "arm,external-bus-interface";
+		reg = <0x12000000 0x100>;
 	};
 
 	syscon {
