@@ -821,7 +821,7 @@ static struct platform_device bfin_i2s = {
 #if defined(CONFIG_SND_BF5XX_SOC_AD1836) \
 	        || defined(CONFIG_SND_BF5XX_SOC_AD1836_MODULE)
 static const char * const ad1836_link[] = {
-	"bfin-tdm.0",
+	"bfin-i2s.0",
 	"spi0.76",
 };
 static struct platform_device bfin_ad1836_machine = {
