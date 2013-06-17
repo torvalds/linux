@@ -6028,7 +6028,11 @@ static struct {
 static inline int find_new_ilb(int call_cpu)
 {
 	int ilb = cpumask_first(nohz.idle_cpus_mask);
-
+#ifdef CONFIG_SCHED_HMP
+	/* restrict nohz balancing to occur in the same hmp domain */
+	ilb = cpumask_first_and(nohz.idle_cpus_mask,
+			&((struct hmp_domain *)hmp_cpu_domain(call_cpu))->cpus);
+#endif
 	if (ilb < nr_cpu_ids && idle_cpu(ilb))
 		return ilb;
 
@@ -6306,6 +6310,18 @@ static inline int nohz_kick_needed(struct rq *rq, int cpu)
 
 	if (time_before(now, nohz.next_balance))
 		return 0;
+
+#ifdef CONFIG_SCHED_HMP
+	/*
+	 * Bail out if there are no nohz CPUs in our
+	 * HMP domain, since we will move tasks between
+	 * domains through wakeup and force balancing
+	 * as necessary based upon task load.
+	 */
+	if (cpumask_first_and(nohz.idle_cpus_mask,
+			&((struct hmp_domain *)hmp_cpu_domain(cpu))->cpus) >= nr_cpu_ids)
+		return 0;
+#endif
 
 	if (rq->nr_running >= 2)
 		goto need_kick;
