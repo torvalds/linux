@@ -202,11 +202,11 @@ exit:
 }
 
 /**
- * tipc_createport_raw - create a generic TIPC port
+ * tipc_createport - create a generic TIPC port
  *
  * Returns pointer to (locked) TIPC port, or NULL if unable to create it
  */
-struct tipc_port *tipc_createport_raw(void *usr_handle,
+struct tipc_port *tipc_createport(void *usr_handle,
 			u32 (*dispatcher)(struct tipc_port *, struct sk_buff *),
 			void (*wakeup)(struct tipc_port *),
 			const u32 importance)

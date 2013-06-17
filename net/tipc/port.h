@@ -106,7 +106,7 @@ struct tipc_port_list;
 /*
  * TIPC port manipulation routines
  */
-struct tipc_port *tipc_createport_raw(void *usr_handle,
+struct tipc_port *tipc_createport(void *usr_handle,
 		u32 (*dispatcher)(struct tipc_port *, struct sk_buff *),
 		void (*wakeup)(struct tipc_port *), const u32 importance);
 
