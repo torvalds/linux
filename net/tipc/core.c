@@ -137,8 +137,6 @@ static int tipc_core_start(void)
 	if (!res)
 		res = tipc_nametbl_init();
 	if (!res)
-		res = tipc_cfg_init();
-	if (!res)
 		res = tipc_netlink_start();
 	if (!res)
 		res = tipc_socket_init();
@@ -146,6 +144,8 @@ static int tipc_core_start(void)
 		res = tipc_register_sysctl();
 	if (!res)
 		res = tipc_subscr_start();
+	if (!res)
+		res = tipc_cfg_init();
 	if (res)
 		tipc_core_stop();
 

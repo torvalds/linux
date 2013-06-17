@@ -403,7 +403,8 @@ static int bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
 		return -EAFNOSUPPORT;
 
 	if ((addr->addr.nameseq.type < TIPC_RESERVED_TYPES) &&
-	    (addr->addr.nameseq.type != TIPC_TOP_SRV))
+	    (addr->addr.nameseq.type != TIPC_TOP_SRV) &&
+	    (addr->addr.nameseq.type != TIPC_CFG_SRV))
 		return -EACCES;
 
 	return (addr->scope > 0) ?
