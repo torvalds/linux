@@ -1008,8 +1008,8 @@ static void vxlan_encap_bypass(struct sk_buff *skb, struct vxlan_dev *src_vxlan,
 	}
 }
 
-static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
-				  struct vxlan_rdst *rdst, bool did_rsc)
+static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
+			   struct vxlan_rdst *rdst, bool did_rsc)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct rtable *rt;
@@ -1032,7 +1032,7 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		if (did_rsc) {
 			/* short-circuited back to local bridge */
 			vxlan_encap_bypass(skb, vxlan, vxlan);
-			return NETDEV_TX_OK;
+			return;
 		}
 		goto drop;
 	}
@@ -1088,7 +1088,7 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		if (!dst_vxlan)
 			goto tx_error;
 		vxlan_encap_bypass(skb, vxlan, dst_vxlan);
-		return NETDEV_TX_OK;
+		return;
 	}
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
 	vxh->vx_flags = htonl(VXLAN_FLAGS);
@@ -1116,7 +1116,7 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			    IPPROTO_UDP, tos, ttl, df);
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 
-	return NETDEV_TX_OK;
+	return;
 
 drop:
 	dev->stats.tx_dropped++;
@@ -1126,7 +1126,6 @@ tx_error:
 	dev->stats.tx_errors++;
 tx_free:
 	dev_kfree_skb(skb);
-	return NETDEV_TX_OK;
 }
 
 /* Transmit local packets over Vxlan
@@ -1142,7 +1141,6 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	bool did_rsc = false;
 	struct vxlan_rdst *rdst0, *rdst;
 	struct vxlan_fdb *f;
-	int rc1, rc;
 
 	skb_reset_mac_header(skb);
 	eth = eth_hdr(skb);
@@ -1170,24 +1168,18 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else
 		rdst0 = &f->remote;
 
-	rc = NETDEV_TX_OK;
 
 	/* if there are multiple destinations, send copies */
 	for (rdst = rdst0->remote_next; rdst; rdst = rdst->remote_next) {
 		struct sk_buff *skb1;
 
 		skb1 = skb_clone(skb, GFP_ATOMIC);
-		if (skb1) {
-			rc1 = vxlan_xmit_one(skb1, dev, rdst, did_rsc);
-			if (rc == NETDEV_TX_OK)
-				rc = rc1;
-		}
+		if (skb1)
+			vxlan_xmit_one(skb1, dev, rdst, did_rsc);
 	}
 
-	rc1 = vxlan_xmit_one(skb, dev, rdst0, did_rsc);
-	if (rc == NETDEV_TX_OK)
-		rc = rc1;
-	return rc;
+	vxlan_xmit_one(skb, dev, rdst0, did_rsc);
+	return NETDEV_TX_OK;
 }
 
 /* Walk the forwarding table and purge stale entries */
