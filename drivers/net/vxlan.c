@@ -579,7 +579,7 @@ static bool vxlan_snoop(struct net_device *dev,
 			return false;
 
 		/* Don't migrate static entries, drop packets */
-		if (!(f->flags & NTF_SELF))
+		if (f->state & NUD_NOARP)
 			return true;
 
 		if (net_ratelimit())
