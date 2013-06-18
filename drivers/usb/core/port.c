@@ -86,7 +86,7 @@ static int usb_port_runtime_resume(struct device *dev)
 	usb_autopm_get_interface(intf);
 	set_bit(port1, hub->busy_bits);
 
-	retval = usb_hub_set_port_power(hdev, port1, true);
+	retval = usb_hub_set_port_power(hdev, hub, port1, true);
 	if (port_dev->child && !retval) {
 		/*
 		 * Wait for usb hub port to be reconnected in order to make
@@ -128,7 +128,7 @@ static int usb_port_runtime_suspend(struct device *dev)
 
 	usb_autopm_get_interface(intf);
 	set_bit(port1, hub->busy_bits);
-	retval = usb_hub_set_port_power(hdev, port1, false);
+	retval = usb_hub_set_port_power(hdev, hub, port1, false);
 	usb_clear_port_feature(hdev, port1, USB_PORT_FEAT_C_CONNECTION);
 	usb_clear_port_feature(hdev, port1,	USB_PORT_FEAT_C_ENABLE);
 	clear_bit(port1, hub->busy_bits);
