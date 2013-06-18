@@ -1557,8 +1557,7 @@ static void hdmi_v14_mode_set(struct hdmi_context *hdata,
 			(m->vsync_start - m->vdisplay) / 2);
 		hdmi_set_reg(core->v2_blank, 2, m->vtotal / 2);
 		hdmi_set_reg(core->v1_blank, 2, (m->vtotal - m->vdisplay) / 2);
-		hdmi_set_reg(core->v_blank_f0, 2, (m->vtotal +
-			((m->vsync_end - m->vsync_start) * 4) + 5) / 2);
+		hdmi_set_reg(core->v_blank_f0, 2, m->vtotal - m->vdisplay / 2);
 		hdmi_set_reg(core->v_blank_f1, 2, m->vtotal);
 		hdmi_set_reg(core->v_sync_line_aft_2, 2, (m->vtotal / 2) + 7);
 		hdmi_set_reg(core->v_sync_line_aft_1, 2, (m->vtotal / 2) + 2);
@@ -1568,7 +1567,10 @@ static void hdmi_v14_mode_set(struct hdmi_context *hdata,
 			(m->htotal / 2) + (m->hsync_start - m->hdisplay));
 		hdmi_set_reg(tg->vact_st, 2, (m->vtotal - m->vdisplay) / 2);
 		hdmi_set_reg(tg->vact_sz, 2, m->vdisplay / 2);
-		hdmi_set_reg(tg->vact_st2, 2, 0x249);/* Reset value + 1*/
+		hdmi_set_reg(tg->vact_st2, 2, m->vtotal - m->vdisplay / 2);
+		hdmi_set_reg(tg->vsync2, 2, (m->vtotal / 2) + 1);
+		hdmi_set_reg(tg->vsync_bot_hdmi, 2, (m->vtotal / 2) + 1);
+		hdmi_set_reg(tg->field_bot_hdmi, 2, (m->vtotal / 2) + 1);
 		hdmi_set_reg(tg->vact_st3, 2, 0x0);
 		hdmi_set_reg(tg->vact_st4, 2, 0x0);
 	} else {
@@ -1590,6 +1592,9 @@ static void hdmi_v14_mode_set(struct hdmi_context *hdata,
 		hdmi_set_reg(tg->vact_st2, 2, 0x248); /* Reset value */
 		hdmi_set_reg(tg->vact_st3, 2, 0x47b); /* Reset value */
 		hdmi_set_reg(tg->vact_st4, 2, 0x6ae); /* Reset value */
+		hdmi_set_reg(tg->vsync2, 2, 0x233); /* Reset value */
+		hdmi_set_reg(tg->vsync_bot_hdmi, 2, 0x233); /* Reset value */
+		hdmi_set_reg(tg->field_bot_hdmi, 2, 0x233); /* Reset value */
 	}
 
 	/* Following values & calculations are same irrespective of mode type */
@@ -1621,12 +1626,9 @@ static void hdmi_v14_mode_set(struct hdmi_context *hdata,
 	hdmi_set_reg(tg->hact_sz, 2, m->hdisplay);
 	hdmi_set_reg(tg->v_fsz, 2, m->vtotal);
 	hdmi_set_reg(tg->vsync, 2, 0x1);
-	hdmi_set_reg(tg->vsync2, 2, 0x233); /* Reset value */
 	hdmi_set_reg(tg->field_chg, 2, 0x233); /* Reset value */
 	hdmi_set_reg(tg->vsync_top_hdmi, 2, 0x1); /* Reset value */
-	hdmi_set_reg(tg->vsync_bot_hdmi, 2, 0x233); /* Reset value */
 	hdmi_set_reg(tg->field_top_hdmi, 2, 0x1); /* Reset value */
-	hdmi_set_reg(tg->field_bot_hdmi, 2, 0x233); /* Reset value */
 	hdmi_set_reg(tg->tg_3d, 1, 0x0);
 }
 
