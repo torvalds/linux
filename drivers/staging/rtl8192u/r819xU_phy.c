@@ -656,7 +656,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 	WriteAddr[HW90_BLOCK_PHY1] = 0x800;
 	WriteAddr[HW90_BLOCK_RF] = 0x3;
 	RT_TRACE(COMP_PHY, "=======>%s(), CheckBlock:%d\n", __FUNCTION__, CheckBlock);
-	for (i = 0 ; i < CheckTimes ; i++) {
+	for (i = 0; i < CheckTimes; i++) {
 
 		//
 		// Write Data to register and readback
@@ -732,7 +732,7 @@ void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 		rtStatus  = rtl8192_phy_checkBBAndRF(dev, (HW90_BLOCK_E)eCheckItem, (RF90_RADIO_PATH_E)0); //don't care RF path
 		if (rtStatus != 0) {
 			RT_TRACE((COMP_ERR | COMP_PHY), "PHY_RF8256_Config():Check PHY%d Fail!!\n", eCheckItem-1);
-			return ;
+			return;
 		}
 	}
 	/*---- Set CCK and OFDM Block "OFF"----*/
@@ -894,7 +894,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 
 	switch (eRFPath) {
 	case RF90_PATH_A:
-		for (i = 0;i<RadioA_ArrayLength; i = i+2) {
+		for (i = 0; i<RadioA_ArrayLength; i = i+2) {
 
 			if (rtl819XRadioA_Array[i] == 0xfe) {
 					mdelay(100);
@@ -906,7 +906,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 		}
 		break;
 	case RF90_PATH_B:
-		for (i = 0;i<RadioB_ArrayLength; i = i+2) {
+		for (i = 0; i<RadioB_ArrayLength; i = i+2) {
 
 			if (rtl819XRadioB_Array[i] == 0xfe) {
 					mdelay(100);
@@ -918,7 +918,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 		}
 		break;
 	case RF90_PATH_C:
-		for (i = 0;i<RadioC_ArrayLength; i = i+2) {
+		for (i = 0; i<RadioC_ArrayLength; i = i+2) {
 
 			if (rtl819XRadioC_Array[i] == 0xfe) {
 					mdelay(100);
@@ -930,7 +930,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 		}
 		break;
 	case RF90_PATH_D:
-		for (i = 0;i<RadioD_ArrayLength; i = i+2) {
+		for (i = 0; i<RadioD_ArrayLength; i = i+2) {
 
 			if (rtl819XRadioD_Array[i] == 0xfe) {
 					mdelay(100);
