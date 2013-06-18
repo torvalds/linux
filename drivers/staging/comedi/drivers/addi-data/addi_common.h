@@ -34,7 +34,6 @@
 #define ADDIDATA_93C76		"93C76"
 #define ADDIDATA_S5920		"S5920"
 #define ADDIDATA_S5933		"S5933"
-#define ADDIDATA_9054		"9054"
 
 /* ADDIDATA Enable Disable */
 #define ADDIDATA_ENABLE		1
