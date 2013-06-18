@@ -182,8 +182,6 @@ struct pcmuio_subdev_private {
 
 struct pcmuio_private {
 	struct {
-		/* current page and lock */
-		unsigned char pagelock;
 		/* shadow of POLx registers */
 		unsigned char pol[NUM_PAGED_REGS];
 		/* shadow of ENABx registers */
@@ -312,19 +310,7 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 
 static void switch_page(struct comedi_device *dev, int asic, int page)
 {
-	const struct pcmuio_board *board = comedi_board(dev);
-	struct pcmuio_private *devpriv = dev->private;
-
-	if (asic < 0 || asic >= board->num_asics)
-		return;		/* paranoia */
-	if (page < 0 || page >= NUM_PAGES)
-		return;		/* more paranoia */
-
-	devpriv->asics[asic].pagelock &= ~PCMUIO_PAGE_MASK;
-	devpriv->asics[asic].pagelock |= PCMUIO_PAGE(page);
-
-	/* now write out the shadow register */
-	outb(devpriv->asics[asic].pagelock,
+	outb(PCMUIO_PAGE(page),
 	     dev->iobase + ASIC_IOSIZE * asic + PCMUIO_PAGE_LOCK_REG);
 }
 
