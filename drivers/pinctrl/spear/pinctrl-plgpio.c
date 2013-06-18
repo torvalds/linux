@@ -441,7 +441,7 @@ static int spear310_p2o(int pin)
 	return offset;
 }
 
-int spear310_o2p(int offset)
+static int spear310_o2p(int offset)
 {
 	if (offset <= 3)
 		return 101 - offset;
