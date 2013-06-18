@@ -8104,7 +8104,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	pci_set_master(pdev);
 
-	bp->pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
+	bp->pm_cap = pdev->pm_cap;
 	if (bp->pm_cap == 0) {
 		dev_err(&pdev->dev,
 			"Cannot find power management capability, aborting\n");
