@@ -171,6 +171,9 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
 
 	might_sleep();
 
+	if (!card)
+		goto req_err;
+
 	if (unlikely(card->halt)) {
 		st = -EFAULT;
 		goto req_err;
@@ -331,6 +334,7 @@ void rsxx_destroy_dev(struct rsxx_cardinfo *card)
 	card->gendisk = NULL;
 
 	blk_cleanup_queue(card->queue);
+	card->queue->queuedata = NULL;
 	unregister_blkdev(card->major, DRIVER_NAME);
 }
 
