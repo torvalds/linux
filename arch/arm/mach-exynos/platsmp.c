@@ -180,10 +180,14 @@ static void __init exynos_smp_init_cpus(void)
 	void __iomem *scu_base = scu_base_addr();
 	unsigned int i, ncores;
 
-	if (soc_is_exynos5250())
-		ncores = 2;
-	else
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
 		ncores = scu_base ? scu_get_core_count(scu_base) : 1;
+	else
+		/*
+		 * CPU Nodes are passed thru DT and set_cpu_possible
+		 * is set by "arm_dt_init_cpu_maps".
+		 */
+		return;
 
 	/* sanity check */
 	if (ncores > nr_cpu_ids) {
