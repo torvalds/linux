@@ -720,9 +720,7 @@ static int i_APCI3120_StopCyclicAcquisition(struct comedi_device *dev,
 	inb(dev->iobase + APCI3120_RESET_FIFO);
 	inw(dev->iobase + APCI3120_RD_STATUS);
 	devpriv->ui_AiActualScan = 0;
-	devpriv->ui_AiActualScanPosition = 0;
 	s->async->cur_chan = 0;
-	devpriv->ui_AiBufferPtr = 0;
 	devpriv->b_AiContinuous = 0;
 	devpriv->ui_DmaActualBuffer = 0;
 
@@ -891,9 +889,7 @@ static int i_APCI3120_CyclicAnalogInput(int mode,
 	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
 	devpriv->ui_AiActualScan = 0;
-	devpriv->ui_AiActualScanPosition = 0;
 	s->async->cur_chan = 0;
-	devpriv->ui_AiBufferPtr = 0;
 	devpriv->ui_DmaActualBuffer = 0;
 
 	/*  value for timer2  minus -2 has to be done .....dunno y?? */
@@ -1347,8 +1343,6 @@ static int i_APCI3120_CommandAnalogInput(struct comedi_device *dev,
 	devpriv->ui_AiScanLength = cmd->scan_end_arg;
 	devpriv->pui_AiChannelList = cmd->chanlist;
 
-	/* UPDATE-0.7.57->0.7.68devpriv->AiData=s->async->data; */
-	devpriv->AiData = s->async->prealloc_buf;
 	/* UPDATE-0.7.57->0.7.68devpriv->ui_AiDataLength=s->async->data_len; */
 	devpriv->ui_AiDataLength = s->async->prealloc_bufsz;
 

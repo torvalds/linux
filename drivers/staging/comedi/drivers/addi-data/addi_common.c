@@ -113,7 +113,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 		/* board has an ADDIDATA_9054 eeprom */
 		dev->iobase = pci_resource_start(pcidev, 2);
 		devpriv->iobase = pci_resource_start(pcidev, 2);
-		devpriv->dw_AiBase = pci_ioremap_bar(pcidev, 3);
 	}
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
@@ -183,9 +182,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 		s->maxdata = devpriv->s_EeParameters.i_AiMaxdata;
 		s->len_chanlist = this_board->i_AiChannelList;
 		s->range_table = this_board->pr_AiRangelist;
-
-		/* Set the initialisation flag */
-		devpriv->b_AiInitialisation = 1;
 
 		s->insn_config = this_board->ai_config;
 		s->insn_read = this_board->ai_read;
@@ -316,8 +312,6 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 			i_ADDI_Reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-		if (devpriv->dw_AiBase)
-			iounmap(devpriv->dw_AiBase);
 	}
 	comedi_pci_disable(dev);
 }
