@@ -804,19 +804,15 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 {
 	struct bnx2x *bp = fp->bp;
 	u16 bd_cons, bd_prod, bd_prod_fw, comp_ring_cons;
-	u16 hw_comp_cons, sw_comp_cons, sw_comp_prod;
+	u16 sw_comp_cons, sw_comp_prod;
 	int rx_pkt = 0;
+	union eth_rx_cqe *cqe;
+	struct eth_fast_path_rx_cqe *cqe_fp;
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (unlikely(bp->panic))
 		return 0;
 #endif
-
-	/* CQ "next element" is of the size of the regular element,
-	   that's why it's ok here */
-	hw_comp_cons = le16_to_cpu(*fp->rx_cons_sb);
-	if ((hw_comp_cons & MAX_RCQ_DESC_CNT) == MAX_RCQ_DESC_CNT)
-		hw_comp_cons++;
 
 	bd_cons = fp->rx_bd_cons;
 	bd_prod = fp->rx_bd_prod;
@@ -824,20 +820,16 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 	sw_comp_cons = fp->rx_comp_cons;
 	sw_comp_prod = fp->rx_comp_prod;
 
-	/* Memory barrier necessary as speculative reads of the rx
-	 * buffer can be ahead of the index in the status block
-	 */
-	rmb();
+	comp_ring_cons = RCQ_BD(sw_comp_cons);
+	cqe = &fp->rx_comp_ring[comp_ring_cons];
+	cqe_fp = &cqe->fast_path_cqe;
 
 	DP(NETIF_MSG_RX_STATUS,
-	   "queue[%d]:  hw_comp_cons %u  sw_comp_cons %u\n",
-	   fp->index, hw_comp_cons, sw_comp_cons);
+	   "queue[%d]: sw_comp_cons %u\n", fp->index, sw_comp_cons);
 
-	while (sw_comp_cons != hw_comp_cons) {
+	while (BNX2X_IS_CQE_COMPLETED(cqe_fp)) {
 		struct sw_rx_bd *rx_buf = NULL;
 		struct sk_buff *skb;
-		union eth_rx_cqe *cqe;
-		struct eth_fast_path_rx_cqe *cqe_fp;
 		u8 cqe_fp_flags;
 		enum eth_rx_cqe_type cqe_fp_type;
 		u16 len, pad, queue;
@@ -849,12 +841,9 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			return 0;
 #endif
 
-		comp_ring_cons = RCQ_BD(sw_comp_cons);
 		bd_prod = RX_BD(bd_prod);
 		bd_cons = RX_BD(bd_cons);
 
-		cqe = &fp->rx_comp_ring[comp_ring_cons];
-		cqe_fp = &cqe->fast_path_cqe;
 		cqe_fp_flags = cqe_fp->type_error_flags;
 		cqe_fp_type = cqe_fp_flags & ETH_FAST_PATH_RX_CQE_TYPE;
 
@@ -1018,8 +1007,15 @@ next_cqe:
 		sw_comp_prod = NEXT_RCQ_IDX(sw_comp_prod);
 		sw_comp_cons = NEXT_RCQ_IDX(sw_comp_cons);
 
+		/* mark CQE as free */
+		BNX2X_SEED_CQE(cqe_fp);
+
 		if (rx_pkt == budget)
 			break;
+
+		comp_ring_cons = RCQ_BD(sw_comp_cons);
+		cqe = &fp->rx_comp_ring[comp_ring_cons];
+		cqe_fp = &cqe->fast_path_cqe;
 	} /* while */
 
 	fp->rx_bd_cons = bd_cons;
@@ -1055,8 +1051,6 @@ static irqreturn_t bnx2x_msix_fp_int(int irq, void *fp_cookie)
 #endif
 
 	/* Handle Rx and Tx according to MSI-X vector */
-	prefetch(fp->rx_cons_sb);
-
 	for_each_cos_in_tx_queue(fp, cos)
 		prefetch(fp->txdata_ptr[cos]->tx_cons_sb);
 
@@ -3137,10 +3131,8 @@ int bnx2x_low_latency_recv(struct napi_struct *napi)
 	if (!bnx2x_fp_lock_poll(fp))
 		return LL_FLUSH_BUSY;
 
-	if (bnx2x_has_rx_work(fp)) {
-		bnx2x_update_fpsb_idx(fp);
+	if (bnx2x_has_rx_work(fp))
 		found = bnx2x_rx_int(fp, 4);
-	}
 
 	bnx2x_fp_unlock_poll(fp);
 
@@ -4339,10 +4331,11 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 				&bnx2x_fp(bp, index, rx_desc_mapping),
 				sizeof(struct eth_rx_bd) * NUM_RX_BD);
 
-		BNX2X_PCI_ALLOC(bnx2x_fp(bp, index, rx_comp_ring),
-				&bnx2x_fp(bp, index, rx_comp_mapping),
-				sizeof(struct eth_fast_path_rx_cqe) *
-				NUM_RCQ_BD);
+		/* Seed all CQEs by 1s */
+		BNX2X_PCI_FALLOC(bnx2x_fp(bp, index, rx_comp_ring),
+				 &bnx2x_fp(bp, index, rx_comp_mapping),
+				 sizeof(struct eth_fast_path_rx_cqe) *
+				 NUM_RCQ_BD);
 
 		/* SGE ring */
 		BNX2X_ALLOC(bnx2x_fp(bp, index, rx_page_ring),

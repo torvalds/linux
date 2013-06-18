@@ -59,6 +59,16 @@ extern int int_mode;
 		   (unsigned long long)(*y), x); \
 	} while (0)
 
+#define BNX2X_PCI_FALLOC(x, y, size) \
+	do { \
+		x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
+		if (x == NULL) \
+			goto alloc_mem_err; \
+		memset((void *)x, 0xFFFFFFFF, size); \
+		DP(NETIF_MSG_HW, "BNX2X_PCI_FALLOC: Physical %Lx Virtual %p\n",\
+		   (unsigned long long)(*y), x); \
+	} while (0)
+
 #define BNX2X_ALLOC(x, size) \
 	do { \
 		x = kzalloc(size, GFP_KERNEL); \
@@ -805,16 +815,18 @@ static inline bool bnx2x_has_tx_work(struct bnx2x_fastpath *fp)
 	return false;
 }
 
+#define BNX2X_IS_CQE_COMPLETED(cqe_fp) (cqe_fp->marker == 0x0)
+#define BNX2X_SEED_CQE(cqe_fp) (cqe_fp->marker = 0xFFFFFFFF)
 static inline int bnx2x_has_rx_work(struct bnx2x_fastpath *fp)
 {
-	u16 rx_cons_sb;
+	u16 cons;
+	union eth_rx_cqe *cqe;
+	struct eth_fast_path_rx_cqe *cqe_fp;
 
-	/* Tell compiler that status block fields can change */
-	barrier();
-	rx_cons_sb = le16_to_cpu(*fp->rx_cons_sb);
-	if ((rx_cons_sb & MAX_RCQ_DESC_CNT) == MAX_RCQ_DESC_CNT)
-		rx_cons_sb++;
-	return (fp->rx_comp_cons != rx_cons_sb);
+	cons = RCQ_BD(fp->rx_comp_cons);
+	cqe = &fp->rx_comp_ring[cons];
+	cqe_fp = &cqe->fast_path_cqe;
+	return BNX2X_IS_CQE_COMPLETED(cqe_fp);
 }
 
 /**

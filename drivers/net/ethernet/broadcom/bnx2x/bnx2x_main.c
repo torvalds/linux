@@ -1866,7 +1866,6 @@ irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 		mask = 0x2 << (fp->index + CNIC_SUPPORT(bp));
 		if (status & mask) {
 			/* Handle Rx or Tx according to SB id */
-			prefetch(fp->rx_cons_sb);
 			for_each_cos_in_tx_queue(fp, cos)
 				prefetch(fp->txdata_ptr[cos]->tx_cons_sb);
 			prefetch(&fp->sb_running_index[SM_RX_ID]);

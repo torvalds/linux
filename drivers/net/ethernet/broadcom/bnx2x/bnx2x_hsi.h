@@ -3818,7 +3818,8 @@ struct eth_fast_path_rx_cqe {
 	__le16 len_on_bd;
 	struct parsing_flags pars_flags;
 	union eth_sgl_or_raw_data sgl_or_raw_data;
-	__le32 reserved1[8];
+	__le32 reserved1[7];
+	u32 marker;
 };
 
 
