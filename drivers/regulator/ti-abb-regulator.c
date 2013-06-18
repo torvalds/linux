@@ -722,10 +722,9 @@ static int ti_abb_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto err;
 	}
-	abb->base = devm_request_and_ioremap(dev, res);
-	if (!abb->base) {
-		dev_err(dev, "Unable to map '%s'\n", pname);
-		ret = -ENOMEM;
+	abb->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(abb->base)) {
+		ret = PTR_ERR(abb->base);
 		goto err;
 	}
 
@@ -776,10 +775,9 @@ static int ti_abb_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto skip_opt;
 	}
-	abb->ldo_base = devm_request_and_ioremap(dev, res);
-	if (!abb->ldo_base) {
-		dev_err(dev, "Unable to map '%s'\n", pname);
-		ret = -ENOMEM;
+	abb->ldo_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(abb->ldo_base)) {
+		ret = PTR_ERR(abb->ldo_base);
 		goto err;
 	}
 
