@@ -24,3 +24,6 @@ mezzanine.txt
 
 identifiers.txt
 	- how identification and matching works
+
+fmc-fakedev.txt
+	- about drivers/fmc/fmc-fakedev.ko
