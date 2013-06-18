@@ -368,15 +368,26 @@ static void rsxx_eeh_failure(struct pci_dev *dev)
 {
 	struct rsxx_cardinfo *card = pci_get_drvdata(dev);
 	int i;
+	int cnt = 0;
 
 	dev_err(&dev->dev, "IBM FlashSystem PCI: disabling failed card.\n");
 
 	card->eeh_state = 1;
+	card->halt = 1;
 
-	for (i = 0; i < card->n_targets; i++)
-		del_timer_sync(&card->ctrl[i].activity_timer);
+	for (i = 0; i < card->n_targets; i++) {
+		spin_lock_bh(&card->ctrl[i].queue_lock);
+		cnt = rsxx_cleanup_dma_queue(&card->ctrl[i],
+					     &card->ctrl[i].queue);
+		spin_unlock_bh(&card->ctrl[i].queue_lock);
 
-	rsxx_eeh_cancel_dmas(card);
+		cnt += rsxx_dma_cancel(&card->ctrl[i]);
+
+		if (cnt)
+			dev_info(CARD_TO_DEV(card),
+				"Freed %d queued DMAs on channel %d\n",
+				cnt, card->ctrl[i].id);
+	}
 }
 
 static int rsxx_eeh_fifo_flush_poll(struct rsxx_cardinfo *card)

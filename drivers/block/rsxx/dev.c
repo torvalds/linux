@@ -155,7 +155,8 @@ static void bio_dma_done_cb(struct rsxx_cardinfo *card,
 		atomic_set(&meta->error, 1);
 
 	if (atomic_dec_and_test(&meta->pending_dmas)) {
-		disk_stats_complete(card, meta->bio, meta->start_time);
+		if (!card->eeh_state && card->gendisk)
+			disk_stats_complete(card, meta->bio, meta->start_time);
 
 		bio_endio(meta->bio, atomic_read(&meta->error) ? -EIO : 0);
 		kmem_cache_free(bio_meta_pool, meta);
@@ -196,7 +197,8 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
 	atomic_set(&bio_meta->pending_dmas, 0);
 	bio_meta->start_time = jiffies;
 
-	disk_stats_start(card, bio);
+	if (!unlikely(card->halt))
+		disk_stats_start(card, bio);
 
 	dev_dbg(CARD_TO_DEV(card), "BIO[%c]: meta: %p addr8: x%llx size: %d\n",
 		 bio_data_dir(bio) ? 'W' : 'R', bio_meta,
