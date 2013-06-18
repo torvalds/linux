@@ -22,6 +22,7 @@ config RADIO_SI476X
 	tristate "Silicon Laboratories Si476x I2C FM Radio"
 	depends on I2C && VIDEO_V4L2
 	depends on MFD_SI476X_CORE
+	depends on SND_SOC
 	select SND_SOC_SI476X
 	---help---
 	  Choose Y here if you have this FM radio chip.

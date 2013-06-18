@@ -905,11 +905,11 @@ static int sh_veu_queue_setup(struct vb2_queue *vq,
 		if (ftmp.fmt.pix.width != pix->width ||
 		    ftmp.fmt.pix.height != pix->height)
 			return -EINVAL;
-		size = pix->bytesperline ? pix->bytesperline * pix->height :
-			pix->width * pix->height * fmt->depth >> 3;
+		size = pix->bytesperline ? pix->bytesperline * pix->height * fmt->depth / fmt->ydepth :
+			pix->width * pix->height * fmt->depth / fmt->ydepth;
 	} else {
 		vfmt = sh_veu_get_vfmt(veu, vq->type);
-		size = vfmt->bytesperline * vfmt->frame.height;
+		size = vfmt->bytesperline * vfmt->frame.height * vfmt->fmt->depth / vfmt->fmt->ydepth;
 	}
 
 	if (count < 2)
@@ -1033,8 +1033,6 @@ static int sh_veu_release(struct file *file)
 
 	dev_dbg(veu->dev, "Releasing instance %p\n", veu_file);
 
-	pm_runtime_put(veu->dev);
-
 	if (veu_file == veu->capture) {
 		veu->capture = NULL;
 		vb2_queue_release(v4l2_m2m_get_vq(veu->m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE));
@@ -1049,6 +1047,8 @@ static int sh_veu_release(struct file *file)
 		v4l2_m2m_ctx_release(veu->m2m_ctx);
 		veu->m2m_ctx = NULL;
 	}
+
+	pm_runtime_put(veu->dev);
 
 	kfree(veu_file);
 
@@ -1138,10 +1138,7 @@ static irqreturn_t sh_veu_isr(int irq, void *dev_id)
 
 	veu->xaction++;
 
-	if (!veu->aborting)
-		return IRQ_WAKE_THREAD;
-
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static int sh_veu_probe(struct platform_device *pdev)
