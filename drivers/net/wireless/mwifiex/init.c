@@ -133,6 +133,9 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 
 	priv->scan_block = false;
 
+	priv->csa_chan = 0;
+	priv->csa_expire_time = 0;
+
 	return mwifiex_add_bss_prio_tbl(priv);
 }
 

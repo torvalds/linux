@@ -575,6 +575,9 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 		return -1;
 	}
 
+	/* Check csa channel expiry before preparing scan list */
+	mwifiex_11h_get_csa_closed_channel(priv);
+
 	chan_tlv_out->header.type = cpu_to_le16(TLV_TYPE_CHANLIST);
 
 	/* Set the temp channel struct pointer to the start of the desired
@@ -603,6 +606,11 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 		 */
 		while (tlv_idx < max_chan_per_scan &&
 		       tmp_chan_list->chan_number && !done_early) {
+
+			if (tmp_chan_list->chan_number == priv->csa_chan) {
+				tmp_chan_list++;
+				continue;
+			}
 
 			dev_dbg(priv->adapter->dev,
 				"info: Scan: Chan(%3d), Radio(%d),"
@@ -1594,6 +1602,9 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		goto check_next_scan;
 	}
 
+	/* Check csa channel expiry before parsing scan response */
+	mwifiex_11h_get_csa_closed_channel(priv);
+
 	bytes_left = le16_to_cpu(scan_rsp->bss_descript_size);
 	dev_dbg(adapter->dev, "info: SCAN_RESP: bss_descript_size %d\n",
 		bytes_left);
@@ -1745,6 +1756,13 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		if (channel) {
 			struct ieee80211_channel *chan;
 			u8 band;
+
+			/* Skip entry if on csa closed channel */
+			if (channel == priv->csa_chan) {
+				dev_dbg(adapter->dev,
+					"Dropping entry on csa closed channel\n");
+				continue;
+			}
 
 			band = BAND_G;
 			if (chan_band_tlv) {

@@ -245,6 +245,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HT_BW_20    0
 #define HT_BW_40    1
 
+#define DFS_CHAN_MOVE_TIME      10000
+
 #define HostCmd_CMD_GET_HW_SPEC                       0x0003
 #define HostCmd_CMD_802_11_SCAN                       0x0006
 #define HostCmd_CMD_802_11_GET_LOG                    0x000b

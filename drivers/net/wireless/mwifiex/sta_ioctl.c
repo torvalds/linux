@@ -281,6 +281,14 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		if (ret)
 			goto done;
 
+		if (mwifiex_11h_get_csa_closed_channel(priv) ==
+							(u8)bss_desc->channel) {
+			dev_err(adapter->dev,
+				"Attempt to reconnect on csa closed chan(%d)\n",
+				bss_desc->channel);
+			goto done;
+		}
+
 		dev_dbg(adapter->dev, "info: SSID found in scan list ... "
 				      "associating...\n");
 
