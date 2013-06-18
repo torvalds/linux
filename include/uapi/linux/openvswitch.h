@@ -164,6 +164,7 @@ enum ovs_vport_type {
 	OVS_VPORT_TYPE_UNSPEC,
 	OVS_VPORT_TYPE_NETDEV,   /* network device */
 	OVS_VPORT_TYPE_INTERNAL, /* network device implemented by datapath */
+	OVS_VPORT_TYPE_GRE,      /* GRE tunnel. */
 	__OVS_VPORT_TYPE_MAX
 };
 

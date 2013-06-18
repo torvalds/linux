@@ -122,6 +122,7 @@ struct dp_upcall_info {
 struct ovs_net {
 	struct list_head dps;
 	struct work_struct dp_notify_work;
+	struct vport_net vport_net;
 };
 
 extern int ovs_net_id;

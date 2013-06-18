@@ -49,10 +49,26 @@ struct ovs_key_ipv4_tunnel {
 	__be64 tun_id;
 	__be32 ipv4_src;
 	__be32 ipv4_dst;
-	u16  tun_flags;
+	__be16 tun_flags;
 	u8   ipv4_tos;
 	u8   ipv4_ttl;
 };
+
+static inline void ovs_flow_tun_key_init(struct ovs_key_ipv4_tunnel *tun_key,
+					 const struct iphdr *iph, __be64 tun_id,
+					 __be16 tun_flags)
+{
+	tun_key->tun_id = tun_id;
+	tun_key->ipv4_src = iph->saddr;
+	tun_key->ipv4_dst = iph->daddr;
+	tun_key->ipv4_tos = iph->tos;
+	tun_key->ipv4_ttl = iph->ttl;
+	tun_key->tun_flags = tun_flags;
+
+	/* clear struct padding. */
+	memset((unsigned char *) tun_key + OVS_TUNNEL_KEY_SIZE, 0,
+	       sizeof(*tun_key) - OVS_TUNNEL_KEY_SIZE);
+}
 
 struct sw_flow_key {
 	struct ovs_key_ipv4_tunnel tun_key;  /* Encapsulating tunnel key. */

@@ -38,6 +38,10 @@
 static const struct vport_ops *vport_ops_list[] = {
 	&ovs_netdev_vport_ops,
 	&ovs_internal_vport_ops,
+
+#ifdef CONFIG_NET_IPGRE_DEMUX
+	&ovs_gre_vport_ops,
+#endif
 };
 
 /* Protected by RCU read lock for reading, ovs_mutex for writing. */
@@ -403,4 +407,19 @@ void ovs_vport_record_error(struct vport *vport, enum vport_err_type err_type)
 	}
 
 	spin_unlock(&vport->stats_lock);
+}
+
+static void free_vport_rcu(struct rcu_head *rcu)
+{
+	struct vport *vport = container_of(rcu, struct vport, rcu);
+
+	ovs_vport_free(vport);
+}
+
+void ovs_vport_deferred_free(struct vport *vport)
+{
+	if (!vport)
+		return;
+
+	call_rcu(&vport->rcu, free_vport_rcu);
 }
