@@ -386,6 +386,38 @@ int bL_switch_request_cb(unsigned int cpu, unsigned int new_cluster_id,
 EXPORT_SYMBOL_GPL(bL_switch_request_cb);
 
 /*
+ * Detach an outstanding switch request.
+ *
+ * The switcher will continue with the switch request in the background,
+ * but the completer function will not be called.
+ *
+ * This may be necessary if the completer is in a kernel module which is
+ * about to be unloaded.
+ */
+void bL_switch_request_detach(unsigned int cpu,
+			      bL_switch_completion_handler completer)
+{
+	struct bL_thread *t;
+
+	if (cpu >= ARRAY_SIZE(bL_threads)) {
+		pr_err("%s: cpu %d out of bounds\n", __func__, cpu);
+		return;
+	}
+
+	t = &bL_threads[cpu];
+
+	if (IS_ERR(t->task) || !t->task)
+		return;
+
+	spin_lock(&t->lock);
+	if (t->completer == completer)
+		t->completer = NULL;
+	spin_unlock(&t->lock);
+}
+
+EXPORT_SYMBOL_GPL(bL_switch_request_detach);
+
+/*
  * Activation and configuration code.
  */
 
