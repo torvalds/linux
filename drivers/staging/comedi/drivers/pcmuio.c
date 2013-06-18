@@ -672,7 +672,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->asics[asic].irq = irq[asic];
 	}
 
-	return 1;
+	return 0;
 }
 
 static void pcmuio_detach(struct comedi_device *dev)
