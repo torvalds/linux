@@ -185,6 +185,8 @@ struct rsxx_cardinfo {
 
 	int			n_targets;
 	struct rsxx_dma_ctrl	*ctrl;
+
+	struct dentry		*debugfs_dir;
 };
 
 enum rsxx_pci_regmap {
@@ -287,6 +289,7 @@ enum rsxx_creg_addr {
 	CREG_ADD_CAPABILITIES		= 0x80001050,
 	CREG_ADD_LOG			= 0x80002000,
 	CREG_ADD_NUM_TARGETS		= 0x80003000,
+	CREG_ADD_CRAM			= 0xA0000000,
 	CREG_ADD_CONFIG			= 0xB0000000,
 };
 
