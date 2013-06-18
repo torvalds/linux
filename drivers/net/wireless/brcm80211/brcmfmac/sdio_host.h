@@ -274,10 +274,6 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 
 /* read or write any buffer using cmd53 */
 extern int
-brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
-			   uint fix_inc, uint rw, uint fnc_num, u32 addr,
-			   struct sk_buff *pkt);
-extern int
 brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 			  uint write, uint func, uint addr,
 			  struct sk_buff_head *pktq);
@@ -291,4 +287,8 @@ extern void brcmf_sdbrcm_disconnect(void *ptr);
 extern void brcmf_sdbrcm_isr(void *arg);
 
 extern void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
+
+extern void brcmf_pm_resume_wait(struct brcmf_sdio_dev *sdiodev,
+				 wait_queue_head_t *wq);
+extern bool brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev);
 #endif				/* _BRCM_SDH_H_ */

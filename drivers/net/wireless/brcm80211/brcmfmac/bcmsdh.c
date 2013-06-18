@@ -303,6 +303,49 @@ void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		*ret = retval;
 }
 
+/**
+ * brcmf_sdio_buffrw - SDIO interface function for block data access
+ * @sdiodev: brcmfmac sdio device
+ * @fn: SDIO function number
+ * @write: direction flag
+ * @addr: dongle memory address as source/destination
+ * @pkt: skb pointer
+ *
+ * This function takes the respbonsibility as the interface function to MMC
+ * stack for block data access. It assumes that the skb passed down by the
+ * caller has already been padded and aligned.
+ */
+static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
+			     bool write, u32 addr, struct sk_buff *pkt)
+{
+	uint len;
+
+	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
+	if (brcmf_pm_resume_error(sdiodev))
+		return -EIO;
+
+	/* Single skb use the standard mmc interface */
+	if (!pkt->next) {
+		len = pkt->len + 3;
+		len &= (uint)~3;
+
+		if (write)
+			return sdio_memcpy_toio(sdiodev->func[fn], addr,
+						((u8 *)(pkt->data)), len);
+		else if (fn == 1)
+			return sdio_memcpy_fromio(sdiodev->func[fn],
+						  ((u8 *)(pkt->data)), addr,
+						  len);
+		else
+			/* function 2 read is FIFO operation */
+			return sdio_readsb(sdiodev->func[fn],
+					   ((u8 *)(pkt->data)), addr, len);
+	}
+
+	brcmf_err("skb chain is not supported yet.\n");
+	return -EOPNOTSUPP;
+}
+
 static int brcmf_sdcard_recv_prepare(struct brcmf_sdio_dev *sdiodev, uint fn,
 				     uint flags, uint width, u32 *addr)
 {
@@ -355,7 +398,6 @@ int
 brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, struct sk_buff *pkt)
 {
-	uint incr_fix;
 	uint width;
 	int err = 0;
 
@@ -367,9 +409,7 @@ brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	if (err)
 		goto done;
 
-	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
-	err = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_READ,
-					 fn, addr, pkt);
+	err = brcmf_sdio_buffrw(sdiodev, fn, false, addr, pkt);
 
 done:
 	return err;
@@ -424,7 +464,6 @@ int
 brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, struct sk_buff *pkt)
 {
-	uint incr_fix;
 	uint width;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
@@ -446,13 +485,11 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 
-	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
 	if (width == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	err = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_WRITE, fn,
-					 addr, pkt);
+	err = brcmf_sdio_buffrw(sdiodev, fn, true, addr, pkt);
 
 done:
 	return err;
@@ -501,9 +538,8 @@ brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 		skb_put(pkt, dsize);
 		if (write)
 			memcpy(pkt->data, data, dsize);
-		bcmerror = brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_INC,
-						      write, SDIO_FUNC_1,
-						      sdaddr, pkt);
+		bcmerror = brcmf_sdio_buffrw(sdiodev, SDIO_FUNC_1, write,
+					     sdaddr, pkt);
 		if (bcmerror) {
 			brcmf_err("membytes transfer failed\n");
 			break;

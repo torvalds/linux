@@ -66,7 +66,7 @@ MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
 static struct brcmfmac_sdio_platform_data *brcmfmac_sdio_pdata;
 
 
-static bool
+bool
 brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
 {
 	bool is_err = false;
@@ -76,7 +76,7 @@ brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
 	return is_err;
 }
 
-static void
+void
 brcmf_pm_resume_wait(struct brcmf_sdio_dev *sdiodev, wait_queue_head_t *wq)
 {
 #ifdef CONFIG_PM_SLEEP
@@ -281,43 +281,6 @@ brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 
 	brcmf_dbg(SDIO, "Exit\n");
 	return err_ret;
-}
-
-/*
- * This function takes a single DMA-able packet.
- */
-int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
-			       uint fix_inc, uint write, uint func, uint addr,
-			       struct sk_buff *pkt)
-{
-	int status;
-	uint pkt_len;
-	bool fifo = (fix_inc == SDIOH_DATA_FIX);
-
-	brcmf_dbg(SDIO, "Enter\n");
-
-	if (pkt == NULL)
-		return -EINVAL;
-	pkt_len = pkt->len;
-
-	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
-	if (brcmf_pm_resume_error(sdiodev))
-		return -EIO;
-
-	pkt_len += 3;
-	pkt_len &= (uint)~3;
-
-	status = brcmf_sdioh_request_data(sdiodev, write, fifo, func,
-					   addr, pkt, pkt_len);
-	if (status) {
-		brcmf_err("%s FAILED %p, addr=0x%05x, pkt_len=%d, ERR=0x%08x\n",
-			  write ? "TX" : "RX", pkt, addr, pkt_len, status);
-	} else {
-		brcmf_dbg(SDIO, "%s xfr'd %p, addr=0x%05x, len=%d\n",
-			  write ? "TX" : "RX", pkt, addr, pkt_len);
-	}
-
-	return status;
 }
 
 static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr)
