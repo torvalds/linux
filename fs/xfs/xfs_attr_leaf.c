@@ -931,20 +931,22 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
  */
 int
 xfs_attr_shortform_allfit(
-	struct xfs_buf	*bp,
-	struct xfs_inode *dp)
+	struct xfs_buf		*bp,
+	struct xfs_inode	*dp)
 {
-	xfs_attr_leafblock_t *leaf;
-	xfs_attr_leaf_entry_t *entry;
+	struct xfs_attr_leafblock *leaf;
+	struct xfs_attr_leaf_entry *entry;
 	xfs_attr_leaf_name_local_t *name_loc;
-	int bytes, i;
+	struct xfs_attr3_icleaf_hdr leafhdr;
+	int			bytes;
+	int			i;
 
 	leaf = bp->b_addr;
-	ASSERT(leaf->hdr.info.magic == cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
+	xfs_attr3_leaf_hdr_from_disk(&leafhdr, leaf);
+	entry = xfs_attr3_leaf_entryp(leaf);
 
-	entry = &leaf->entries[0];
 	bytes = sizeof(struct xfs_attr_sf_hdr);
-	for (i = 0; i < be16_to_cpu(leaf->hdr.count); entry++, i++) {
+	for (i = 0; i < leafhdr.count; entry++, i++) {
 		if (entry->flags & XFS_ATTR_INCOMPLETE)
 			continue;		/* don't copy partial entries */
 		if (!(entry->flags & XFS_ATTR_LOCAL))
@@ -954,15 +956,15 @@ xfs_attr_shortform_allfit(
 			return(0);
 		if (be16_to_cpu(name_loc->valuelen) >= XFS_ATTR_SF_ENTSIZE_MAX)
 			return(0);
-		bytes += sizeof(struct xfs_attr_sf_entry)-1
+		bytes += sizeof(struct xfs_attr_sf_entry) - 1
 				+ name_loc->namelen
 				+ be16_to_cpu(name_loc->valuelen);
 	}
 	if ((dp->i_mount->m_flags & XFS_MOUNT_ATTR2) &&
 	    (dp->i_d.di_format != XFS_DINODE_FMT_BTREE) &&
 	    (bytes == sizeof(struct xfs_attr_sf_hdr)))
-		return(-1);
-	return(xfs_attr_shortform_bytesfit(dp, bytes));
+		return -1;
+	return xfs_attr_shortform_bytesfit(dp, bytes);
 }
 
 /*
@@ -2330,9 +2332,10 @@ xfs_attr3_leaf_lookup_int(
 			if (!xfs_attr_namesp_match(args->flags, entry->flags))
 				continue;
 			args->index = probe;
+			args->valuelen = be32_to_cpu(name_rmt->valuelen);
 			args->rmtblkno = be32_to_cpu(name_rmt->valueblk);
 			args->rmtblkcnt = XFS_B_TO_FSB(args->dp->i_mount,
-						   be32_to_cpu(name_rmt->valuelen));
+						       args->valuelen);
 			return XFS_ERROR(EEXIST);
 		}
 	}

@@ -51,19 +51,6 @@ void arch_cpu_idle_dead(void)
 }
 #endif
 
-void arch_cpu_idle(void)
-{
-#ifdef CONFIG_MIPS_MT_SMTC
-	extern void smtc_idle_loop_hook(void);
-
-	smtc_idle_loop_hook();
-#endif
-	if (cpu_wait)
-		(*cpu_wait)();
-	else
-		local_irq_enable();
-}
-
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 

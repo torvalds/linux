@@ -41,6 +41,7 @@
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
+#include <asm/idle.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/module.h>
@@ -57,7 +58,6 @@
 #include <asm/uasm.h>
 
 extern void check_wait(void);
-extern asmlinkage void r4k_wait(void);
 extern asmlinkage void rollback_handle_int(void);
 extern asmlinkage void handle_int(void);
 extern u32 handle_tlbl[];
@@ -1542,7 +1542,7 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		extern char except_vec_vi, except_vec_vi_lui;
 		extern char except_vec_vi_ori, except_vec_vi_end;
 		extern char rollback_except_vec_vi;
-		char *vec_start = (cpu_wait == r4k_wait) ?
+		char *vec_start = using_rollback_handler() ?
 			&rollback_except_vec_vi : &except_vec_vi;
 #ifdef CONFIG_MIPS_MT_SMTC
 		/*
@@ -1812,10 +1812,8 @@ void __init trap_init(void)
 	extern char except_vec4;
 	extern char except_vec3_r4000;
 	unsigned long i;
-	int rollback;
 
 	check_wait();
-	rollback = (cpu_wait == r4k_wait);
 
 #if defined(CONFIG_KGDB)
 	if (kgdb_early_setup)
@@ -1892,7 +1890,8 @@ void __init trap_init(void)
 	if (board_be_init)
 		board_be_init();
 
-	set_except_vector(0, rollback ? rollback_handle_int : handle_int);
+	set_except_vector(0, using_rollback_handler() ? rollback_handle_int
+						      : handle_int);
 	set_except_vector(1, handle_tlbm);
 	set_except_vector(2, handle_tlbl);
 	set_except_vector(3, handle_tlbs);

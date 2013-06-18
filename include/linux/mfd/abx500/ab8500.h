@@ -373,13 +373,11 @@ struct ab8500_sysctrl_platform_data;
 /**
  * struct ab8500_platform_data - AB8500 platform data
  * @irq_base: start of AB8500 IRQs, AB8500_NR_IRQS will be used
- * @pm_power_off: Should machine pm power off hook be registered or not
  * @init: board-specific initialization after detection of ab8500
  * @regulator: machine-specific constraints for regulators
  */
 struct ab8500_platform_data {
 	int irq_base;
-	bool pm_power_off;
 	void (*init) (struct ab8500 *);
 	struct ab8500_regulator_platform_data *regulator;
 	struct abx500_gpio_platform_data *gpio;

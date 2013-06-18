@@ -1618,8 +1618,12 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 				if (ip->type == PORT_16550A)
 					me->fifo[p] = 1;
 
-				opmode = inb(ip->opmode_ioaddr)>>((p % 4) * 2);
-				opmode &= OP_MODE_MASK;
+				if (ip->board->chip_flag == MOXA_MUST_MU860_HWID) {
+					opmode = inb(ip->opmode_ioaddr)>>((p % 4) * 2);
+					opmode &= OP_MODE_MASK;
+				} else {
+					opmode = RS232_MODE;
+				}
 				me->iftype[p] = opmode;
 				mutex_unlock(&port->mutex);
 			}
@@ -1675,6 +1679,9 @@ static int mxser_ioctl(struct tty_struct *tty,
 		static unsigned char ModeMask[] = { 0xfc, 0xf3, 0xcf, 0x3f };
 		int shiftbit;
 		unsigned char val, mask;
+
+		if (info->board->chip_flag != MOXA_MUST_MU860_HWID)
+			return -EFAULT;
 
 		p = tty->index % 4;
 		if (cmd == MOXA_SET_OP_MODE) {

@@ -212,7 +212,7 @@ static void gfs2_end_log_write(struct bio *bio, int error)
 		fs_err(sdp, "Error %d writing to log\n", error);
 	}
 
-	bio_for_each_segment(bvec, bio, i) {
+	bio_for_each_segment_all(bvec, bio, i) {
 		page = bvec->bv_page;
 		if (page_has_buffers(page))
 			gfs2_end_log_write_bh(sdp, bvec, error);

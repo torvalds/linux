@@ -33,7 +33,8 @@
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		interrupt-parent = <&mpic>;
-		ranges = <0 0 0xd0000000 0x100000>;
+		ranges = <0          0 0xd0000000 0x0100000 /* internal registers */
+			  0xe0000000 0 0xe0000000 0x8100000 /* PCIe */>;
 
 		internal-regs {
 			compatible = "simple-bus";

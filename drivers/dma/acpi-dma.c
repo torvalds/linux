@@ -4,7 +4,8 @@
  * Based on of-dma.c
  *
  * Copyright (C) 2013, Intel Corporation
- * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+ * Authors: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+ *	    Mika Westerberg <mika.westerberg@linux.intel.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,11 +17,123 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/ioport.h>
 #include <linux/acpi.h>
 #include <linux/acpi_dma.h>
 
 static LIST_HEAD(acpi_dma_list);
 static DEFINE_MUTEX(acpi_dma_lock);
+
+/**
+ * acpi_dma_parse_resource_group - match device and parse resource group
+ * @grp:	CSRT resource group
+ * @adev:	ACPI device to match with
+ * @adma:	struct acpi_dma of the given DMA controller
+ *
+ * Returns 1 on success, 0 when no information is available, or appropriate
+ * errno value on error.
+ *
+ * In order to match a device from DSDT table to the corresponding CSRT device
+ * we use MMIO address and IRQ.
+ */
+static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
+		struct acpi_device *adev, struct acpi_dma *adma)
+{
+	const struct acpi_csrt_shared_info *si;
+	struct list_head resource_list;
+	struct resource_list_entry *rentry;
+	resource_size_t mem = 0, irq = 0;
+	u32 vendor_id;
+	int ret;
+
+	if (grp->shared_info_length != sizeof(struct acpi_csrt_shared_info))
+		return -ENODEV;
+
+	INIT_LIST_HEAD(&resource_list);
+	ret = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
+	if (ret <= 0)
+		return 0;
+
+	list_for_each_entry(rentry, &resource_list, node) {
+		if (resource_type(&rentry->res) == IORESOURCE_MEM)
+			mem = rentry->res.start;
+		else if (resource_type(&rentry->res) == IORESOURCE_IRQ)
+			irq = rentry->res.start;
+	}
+
+	acpi_dev_free_resource_list(&resource_list);
+
+	/* Consider initial zero values as resource not found */
+	if (mem == 0 && irq == 0)
+		return 0;
+
+	si = (const struct acpi_csrt_shared_info *)&grp[1];
+
+	/* Match device by MMIO and IRQ */
+	if (si->mmio_base_low != mem || si->gsi_interrupt != irq)
+		return 0;
+
+	vendor_id = le32_to_cpu(grp->vendor_id);
+	dev_dbg(&adev->dev, "matches with %.4s%04X (rev %u)\n",
+		(char *)&vendor_id, grp->device_id, grp->revision);
+
+	/* Check if the request line range is available */
+	if (si->base_request_line == 0 && si->num_handshake_signals == 0)
+		return 0;
+
+	adma->base_request_line = si->base_request_line;
+	adma->end_request_line = si->base_request_line +
+				 si->num_handshake_signals - 1;
+
+	dev_dbg(&adev->dev, "request line base: 0x%04x end: 0x%04x\n",
+		adma->base_request_line, adma->end_request_line);
+
+	return 1;
+}
+
+/**
+ * acpi_dma_parse_csrt - parse CSRT to exctract additional DMA resources
+ * @adev:	ACPI device to match with
+ * @adma:	struct acpi_dma of the given DMA controller
+ *
+ * CSRT or Core System Resources Table is a proprietary ACPI table
+ * introduced by Microsoft. This table can contain devices that are not in
+ * the system DSDT table. In particular DMA controllers might be described
+ * here.
+ *
+ * We are using this table to get the request line range of the specific DMA
+ * controller to be used later.
+ *
+ */
+static void acpi_dma_parse_csrt(struct acpi_device *adev, struct acpi_dma *adma)
+{
+	struct acpi_csrt_group *grp, *end;
+	struct acpi_table_csrt *csrt;
+	acpi_status status;
+	int ret;
+
+	status = acpi_get_table(ACPI_SIG_CSRT, 0,
+				(struct acpi_table_header **)&csrt);
+	if (ACPI_FAILURE(status)) {
+		if (status != AE_NOT_FOUND)
+			dev_warn(&adev->dev, "failed to get the CSRT table\n");
+		return;
+	}
+
+	grp = (struct acpi_csrt_group *)(csrt + 1);
+	end = (struct acpi_csrt_group *)((void *)csrt + csrt->header.length);
+
+	while (grp < end) {
+		ret = acpi_dma_parse_resource_group(grp, adev, adma);
+		if (ret < 0) {
+			dev_warn(&adev->dev,
+				 "error in parsing resource group\n");
+			return;
+		}
+
+		grp = (struct acpi_csrt_group *)((void *)grp + grp->length);
+	}
+}
 
 /**
  * acpi_dma_controller_register - Register a DMA controller to ACPI DMA helpers
@@ -60,6 +173,8 @@ int acpi_dma_controller_register(struct device *dev,
 	adma->dev = dev;
 	adma->acpi_dma_xlate = acpi_dma_xlate;
 	adma->data = data;
+
+	acpi_dma_parse_csrt(adev, adma);
 
 	/* Now queue acpi_dma controller structure in list */
 	mutex_lock(&acpi_dma_lock);
@@ -149,6 +264,45 @@ void devm_acpi_dma_controller_free(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_free);
 
+/**
+ * acpi_dma_update_dma_spec - prepare dma specifier to pass to translation function
+ * @adma:	struct acpi_dma of DMA controller
+ * @dma_spec:	dma specifier to update
+ *
+ * Returns 0, if no information is avaiable, -1 on mismatch, and 1 otherwise.
+ *
+ * Accordingly to ACPI 5.0 Specification Table 6-170 "Fixed DMA Resource
+ * Descriptor":
+ *	DMA Request Line bits is a platform-relative number uniquely
+ *	identifying the request line assigned. Request line-to-Controller
+ *	mapping is done in a controller-specific OS driver.
+ * That's why we can safely adjust slave_id when the appropriate controller is
+ * found.
+ */
+static int acpi_dma_update_dma_spec(struct acpi_dma *adma,
+		struct acpi_dma_spec *dma_spec)
+{
+	/* Set link to the DMA controller device */
+	dma_spec->dev = adma->dev;
+
+	/* Check if the request line range is available */
+	if (adma->base_request_line == 0 && adma->end_request_line == 0)
+		return 0;
+
+	/* Check if slave_id falls to the range */
+	if (dma_spec->slave_id < adma->base_request_line ||
+	    dma_spec->slave_id > adma->end_request_line)
+		return -1;
+
+	/*
+	 * Here we adjust slave_id. It should be a relative number to the base
+	 * request line.
+	 */
+	dma_spec->slave_id -= adma->base_request_line;
+
+	return 1;
+}
+
 struct acpi_dma_parser_data {
 	struct acpi_dma_spec dma_spec;
 	size_t index;
@@ -193,6 +347,7 @@ struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 	struct acpi_device *adev;
 	struct acpi_dma *adma;
 	struct dma_chan *chan = NULL;
+	int found;
 
 	/* Check if the device was enumerated by ACPI */
 	if (!dev || !ACPI_HANDLE(dev))
@@ -219,9 +374,20 @@ struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 	mutex_lock(&acpi_dma_lock);
 
 	list_for_each_entry(adma, &acpi_dma_list, dma_controllers) {
-		dma_spec->dev = adma->dev;
+		/*
+		 * We are not going to call translation function if slave_id
+		 * doesn't fall to the request range.
+		 */
+		found = acpi_dma_update_dma_spec(adma, dma_spec);
+		if (found < 0)
+			continue;
 		chan = adma->acpi_dma_xlate(dma_spec, adma);
-		if (chan)
+		/*
+		 * Try to get a channel only from the DMA controller that
+		 * matches the slave_id. See acpi_dma_update_dma_spec()
+		 * description for the details.
+		 */
+		if (found > 0 || chan)
 			break;
 	}
 

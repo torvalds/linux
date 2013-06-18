@@ -965,7 +965,7 @@ static void ar9003_hw_do_manual_peak_cal(struct ath_hw *ah,
 {
 	int i;
 
-	if (!AR_SREV_9462(ah) && !AR_SREV_9565(ah))
+	if (!AR_SREV_9462(ah) && !AR_SREV_9565(ah) && !AR_SREV_9485(ah))
 		return;
 
 	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
