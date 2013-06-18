@@ -141,9 +141,6 @@ static const struct pcmuio_board pcmuio_boards[] = {
 };
 
 struct pcmuio_subdev_private {
-	/* mapping of halfwords (bytes) in port/chanarray to iobase */
-	unsigned long iobases[PORTS_PER_SUBDEV];
-
 	/* The below is only used for intr subdevices */
 	struct {
 		/* if non-negative, this subdev has an interrupt asic */
@@ -190,7 +187,9 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	struct pcmuio_subdev_private *subpriv = s->private;
+	int asic = s->index / 2;
+	int port = (s->index % 2) ? 3 : 0;
+	unsigned long iobase = dev->iobase + (asic * ASIC_IOSIZE);
 	int byte_no;
 
 	/* NOTE:
@@ -207,10 +206,8 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 	s->state = 0;
 
 	for (byte_no = 0; byte_no < s->n_chan / CHANS_PER_PORT; ++byte_no) {
-		/* address of 8-bit port */
-		unsigned long ioaddr = subpriv->iobases[byte_no],
-		    /* bit offset of port in 32-bit doubleword */
-		    offset = byte_no * 8;
+		/* bit offset of port in 32-bit doubleword */
+		unsigned long offset = byte_no * 8;
 		/* this 8-bit port's data */
 		unsigned char byte = 0,
 		    /* The write mask for this port (if any) */
@@ -218,12 +215,12 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 		    /* The data byte for this port */
 		    data_byte = (data[1] >> offset) & 0xff;
 
-		byte = inb(ioaddr);	/* read all 8-bits for this port */
+		byte = inb(iobase + PCMUIO_PORT_REG(port + byte_no));
 
 		if (write_mask_byte) {
 			byte &= ~write_mask_byte;
 			byte |= ~data_byte & write_mask_byte;
-			outb(byte, ioaddr);
+			outb(byte, iobase + PCMUIO_PORT_REG(port + byte_no));
 		}
 		/* save the digital input lines for this byte.. */
 		s->state |= ((unsigned int)byte) << offset;
@@ -239,14 +236,13 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
-	struct pcmuio_subdev_private *subpriv = s->private;
-	int chan = CR_CHAN(insn->chanspec), byte_no = chan / 8, bit_no =
-	    chan % 8;
-	unsigned long ioaddr;
+	int asic = s->index / 2;
+	int port = (s->index % 2) ? 3 : 0;
+	unsigned long iobase = dev->iobase + (asic * ASIC_IOSIZE);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int byte_no = chan / 8;
+	int bit_no = chan % 8;
 	unsigned char byte;
-
-	/* Compute ioaddr for this channel */
-	ioaddr = subpriv->iobases[byte_no];
 
 	/* NOTE:
 	   writing a 0 an IO channel's bit sets the channel to INPUT
@@ -269,7 +265,7 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 	case INSN_CONFIG_DIO_INPUT:
 		/* write a 0 to the actual register representing the channel
 		   to set it to 'input'.  0 means "float high". */
-		byte = inb(ioaddr);
+		byte = inb(iobase + PCMUIO_PORT_REG(port + byte_no));
 		byte &= ~(1 << bit_no);
 				/**< set input channel to '0' */
 
@@ -279,7 +275,7 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 		 * as all channels are implicitly output -- but input
 		 * channels are set to float-high.
 		 */
-		outb(byte, ioaddr);
+		outb(byte, iobase + PCMUIO_PORT_REG(port + byte_no));
 
 		/* save to io_bits */
 		s->io_bits &= ~(1 << chan);
@@ -706,8 +702,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		subpriv->intr.asic = -1;
 		s->len_chanlist = 1;
 
-		/* save the ioport address for each 'port' of 8 channels in the
-		   subdevice */
 		for (byte_no = 0; byte_no < PORTS_PER_SUBDEV;
 		     ++byte_no, ++port) {
 			if (port >= PORTS_PER_ASIC) {
@@ -715,8 +709,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				++asic;
 				thisasic_chanct = 0;
 			}
-			subpriv->iobases[byte_no] = dev->iobase +
-						    (asic * ASIC_IOSIZE) + port;
 
 			if (thisasic_chanct <
 			    CHANS_PER_PORT * INTR_PORTS_PER_ASIC
