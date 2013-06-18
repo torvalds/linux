@@ -84,13 +84,14 @@ void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
 		      u32 dwData)
 {
 
-	u32 OriginalValue, BitShift, NewValue;
+	u32 reg, BitShift;
 
 	if (dwBitMask != bMaskDWord) { //if not "double word" write
-		read_nic_dword(dev, dwRegAddr, &OriginalValue);
+		read_nic_dword(dev, dwRegAddr, &reg);
 		BitShift = rtl8192_CalculateBitShift(dwBitMask);
-		NewValue = (((OriginalValue) & (~dwBitMask)) | (dwData << BitShift));
-		write_nic_dword(dev, dwRegAddr, NewValue);
+		reg &= ~dwBitMask;
+		reg |= dwData << BitShift;
+		write_nic_dword(dev, dwRegAddr, reg);
 	} else {
 		write_nic_dword(dev, dwRegAddr, dwData);
 	}
@@ -107,11 +108,11 @@ void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
  * ****************************************************************************/
 u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
 {
-	u32 Ret = 0, OriginalValue, BitShift;
+	u32 Ret = 0, reg, BitShift;
 
-	read_nic_dword(dev, dwRegAddr, &OriginalValue);
+	read_nic_dword(dev, dwRegAddr, &reg);
 	BitShift = rtl8192_CalculateBitShift(dwBitMask);
-	Ret = (OriginalValue & dwBitMask) >> BitShift;
+	Ret = (reg & dwBitMask) >> BitShift;
 
 	return Ret;
 }
@@ -279,18 +280,19 @@ void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 			  u32 RegAddr, u32 BitMask, u32 Data)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u32 Original_Value, BitShift, New_Value;
+	u32 reg, BitShift;
 
 	if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
 		return;
 
 	if (priv->Rf_Mode == RF_OP_By_FW) {
 		if (BitMask != bMask12Bits) { // RF data is 12 bits only
-			Original_Value = phy_FwRFSerialRead(dev, eRFPath, RegAddr);
+			reg = phy_FwRFSerialRead(dev, eRFPath, RegAddr);
 			BitShift =  rtl8192_CalculateBitShift(BitMask);
-			New_Value = ((Original_Value) & (~BitMask)) | (Data<< BitShift);
+			reg &= ~BitMask;
+			reg |= Data << BitShift;
 
-			phy_FwRFSerialWrite(dev, eRFPath, RegAddr, New_Value);
+			phy_FwRFSerialWrite(dev, eRFPath, RegAddr, reg);
 		} else {
 			phy_FwRFSerialWrite(dev, eRFPath, RegAddr, Data);
 		}
@@ -299,11 +301,12 @@ void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 
 	} else {
 		if (BitMask != bMask12Bits) { // RF data is 12 bits only
-			Original_Value = rtl8192_phy_RFSerialRead(dev, eRFPath, RegAddr);
+			reg = rtl8192_phy_RFSerialRead(dev, eRFPath, RegAddr);
 			BitShift =  rtl8192_CalculateBitShift(BitMask);
-			New_Value = (((Original_Value) & (~BitMask)) | (Data<< BitShift));
+			reg &= ~BitMask;
+			reg |= Data << BitShift;
 
-			rtl8192_phy_RFSerialWrite(dev, eRFPath, RegAddr, New_Value);
+			rtl8192_phy_RFSerialWrite(dev, eRFPath, RegAddr, reg);
 		} else {
 			rtl8192_phy_RFSerialWrite(dev, eRFPath, RegAddr, Data);
 		}
@@ -323,23 +326,23 @@ void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 			   u32 RegAddr, u32 BitMask)
 {
-	u32 Original_Value, Readback_Value, BitShift;
+	u32 reg, BitShift;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 
 	if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
 		return 0;
 	if (priv->Rf_Mode == RF_OP_By_FW) {
-		Original_Value = phy_FwRFSerialRead(dev, eRFPath, RegAddr);
+		reg = phy_FwRFSerialRead(dev, eRFPath, RegAddr);
 		BitShift =  rtl8192_CalculateBitShift(BitMask);
-		Readback_Value = (Original_Value & BitMask) >> BitShift;
+		reg = (reg & BitMask) >> BitShift;
 		udelay(200);
-		return Readback_Value;
+		return reg;
 	} else {
-		Original_Value = rtl8192_phy_RFSerialRead(dev, eRFPath, RegAddr);
+		reg = rtl8192_phy_RFSerialRead(dev, eRFPath, RegAddr);
 		BitShift =  rtl8192_CalculateBitShift(BitMask);
-		Readback_Value = (Original_Value & BitMask) >> BitShift;
-		return Readback_Value;
+		reg = (reg & BitMask) >> BitShift;
+		return reg;
 	}
 }
 /******************************************************************************
@@ -352,7 +355,7 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 			      u32 Offset)
 {
-	u32		retValue = 0;
+	u32		reg = 0;
 	u32		Data = 0;
 	u8		time = 0;
 	u32		tmp;
@@ -391,9 +394,9 @@ static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 			return 0;
 		}
 	}
-	read_nic_dword(dev, RF_DATA, &retValue);
+	read_nic_dword(dev, RF_DATA, &reg);
 
-	return retValue;
+	return reg;
 
 }	/* phy_FwRFSerialRead */
 
@@ -712,19 +715,19 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8 bRegValue = 0, eCheckItem = 0, rtStatus = 0;
-	u32 dwRegValue = 0;
+	u8 reg_u8 = 0, eCheckItem = 0, rtStatus = 0;
+	u32 reg_u32 = 0;
 	/**************************************
 	//<1>Initialize BaseBand
 	**************************************/
 
 	/*--set BB Global Reset--*/
-	read_nic_byte(dev, BB_GLOBAL_RESET, &bRegValue);
-	write_nic_byte(dev, BB_GLOBAL_RESET,(bRegValue|BB_GLOBAL_RESET_BIT));
+	read_nic_byte(dev, BB_GLOBAL_RESET, &reg_u8);
+	write_nic_byte(dev, BB_GLOBAL_RESET,(reg_u8|BB_GLOBAL_RESET_BIT));
 	mdelay(50);
 	/*---set BB reset Active---*/
-	read_nic_dword(dev, CPU_GEN, &dwRegValue);
-	write_nic_dword(dev, CPU_GEN, (dwRegValue&(~CPU_GEN_BB_RST)));
+	read_nic_dword(dev, CPU_GEN, &reg_u32);
+	write_nic_dword(dev, CPU_GEN, (reg_u32&(~CPU_GEN_BB_RST)));
 
 	/*----Ckeck FPGAPHY0 and PHY1 board is OK----*/
 	// TODO: this function should be removed on ASIC , Emily 2007.2.2
@@ -742,8 +745,8 @@ void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	rtl8192_phyConfigBB(dev, BaseBand_Config_PHY_REG);
 
 	/*----Set BB reset de-Active----*/
-	read_nic_dword(dev, CPU_GEN, &dwRegValue);
-	write_nic_dword(dev, CPU_GEN, (dwRegValue|CPU_GEN_BB_RST));
+	read_nic_dword(dev, CPU_GEN, &reg_u32);
+	write_nic_dword(dev, CPU_GEN, (reg_u32|CPU_GEN_BB_RST));
 
 	/*----BB AGC table Initialization----*/
 	//==m==>Set PHY REG From Header<==m==
@@ -753,12 +756,12 @@ void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	write_nic_byte_E(dev, 0x5e, 0x00);
 	if (priv->card_8192_version == (u8)VERSION_819xU_A) {
 		//Antenna gain offset from B/C/D to A
-		dwRegValue = (priv->AntennaTxPwDiff[1]<<4 | priv->AntennaTxPwDiff[0]);
-		rtl8192_setBBreg(dev, rFPGA0_TxGainStage, (bXBTxAGC|bXCTxAGC), dwRegValue);
+		reg_u32 = (priv->AntennaTxPwDiff[1]<<4 | priv->AntennaTxPwDiff[0]);
+		rtl8192_setBBreg(dev, rFPGA0_TxGainStage, (bXBTxAGC|bXCTxAGC), reg_u32);
 
 		//XSTALLCap
-		dwRegValue = priv->CrystalCap & 0xf;
-		rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, bXtalCap, dwRegValue);
+		reg_u32 = priv->CrystalCap & 0xf;
+		rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, bXtalCap, reg_u32);
 	}
 
 	// Check if the CCK HighPower is turned ON.
