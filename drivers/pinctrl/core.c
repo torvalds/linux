@@ -41,13 +41,13 @@
 static bool pinctrl_dummy_state;
 
 /* Mutex taken to protect pinctrl_list */
-DEFINE_MUTEX(pinctrl_list_mutex);
+static DEFINE_MUTEX(pinctrl_list_mutex);
 
 /* Mutex taken to protect pinctrl_maps */
 DEFINE_MUTEX(pinctrl_maps_mutex);
 
 /* Mutex taken to protect pinctrldev_list */
-DEFINE_MUTEX(pinctrldev_list_mutex);
+static DEFINE_MUTEX(pinctrldev_list_mutex);
 
 /* Global list of pin control devices (struct pinctrl_dev) */
 static LIST_HEAD(pinctrldev_list);
