@@ -101,7 +101,6 @@ enum iwl_power_level {
  * @power_level: power level, default = 1
  * @debug_level: levels are IWL_DL_*
  * @ant_coupling: antenna coupling in dB, default = 0
- * @bt_ch_announce: BT channel inhibition, default = enable
  * @auto_agg: enable agg. without check, default = true
  */
 struct iwl_mod_params {
@@ -119,7 +118,6 @@ struct iwl_mod_params {
 	u32 debug_level;
 #endif
 	int ant_coupling;
-	bool bt_ch_announce;
 	bool auto_agg;
 	char *nvm_file;
 };

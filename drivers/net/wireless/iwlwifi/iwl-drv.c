@@ -1112,7 +1112,6 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.plcp_check = true,
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
-	.bt_ch_announce = true,
 	.auto_agg = true,
 	.wd_disable = true,
 	/* the rest are 0 by default */
@@ -1220,11 +1219,6 @@ module_param_named(antenna_coupling, iwlwifi_mod_params.ant_coupling,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(antenna_coupling,
 		 "specify antenna coupling in dB (defualt: 0 dB)");
-
-module_param_named(bt_ch_inhibition, iwlwifi_mod_params.bt_ch_announce,
-		   bool, S_IRUGO);
-MODULE_PARM_DESC(bt_ch_inhibition,
-		 "Enable BT channel inhibition (default: enable)");
 
 module_param_named(plcp_check, iwlwifi_mod_params.plcp_check, bool, S_IRUGO);
 MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");

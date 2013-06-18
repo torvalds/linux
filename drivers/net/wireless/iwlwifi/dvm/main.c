@@ -1355,8 +1355,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 			IWL_BT_ANTENNA_COUPLING_THRESHOLD) ?
 			true : false;
 
-	/* enable/disable bt channel inhibition */
-	priv->bt_ch_announce = iwlwifi_mod_params.bt_ch_announce;
+	/* bt channel inhibition enabled*/
+	priv->bt_ch_announce = true;
 	IWL_DEBUG_INFO(priv, "BT channel inhibition is %s\n",
 		       (priv->bt_ch_announce) ? "On" : "Off");
 
