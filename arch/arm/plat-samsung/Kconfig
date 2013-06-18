@@ -421,6 +421,19 @@ config S3C_DMA
 	help
 	  Internal configuration for S3C DMA core
 
+config S5P_IRQ_PM
+	bool
+	default y if S5P_PM
+	help
+	  Legacy IRQ power management for S5P platforms
+
+config SAMSUNG_PM_GPIO
+	bool
+	default y if GPIO_SAMSUNG && PM
+	help
+	  Include legacy GPIO power management code for platforms not using
+	  pinctrl-samsung driver.
+
 endif
 
 config SAMSUNG_DMADEV
