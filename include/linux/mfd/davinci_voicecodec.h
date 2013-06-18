@@ -28,6 +28,7 @@
 #include <linux/mfd/core.h>
 
 #include <mach/edma.h>
+#include <mach/hardware.h>
 
 /*
  * Register values.
