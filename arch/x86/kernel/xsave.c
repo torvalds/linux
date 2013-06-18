@@ -573,7 +573,7 @@ static void __init xstate_enable_boot_cpu(void)
  * This is somewhat obfuscated due to the lack of powerful enough
  * overrides for the section checks.
  */
-void __cpuinit xsave_init(void)
+void xsave_init(void)
 {
 	static __refdata void (*next_func)(void) = xstate_enable_boot_cpu;
 	void (*this_func)(void);
@@ -594,7 +594,7 @@ static inline void __init eager_fpu_init_bp(void)
 		setup_init_fpu_buf();
 }
 
-void __cpuinit eager_fpu_init(void)
+void eager_fpu_init(void)
 {
 	static __refdata void (*boot_func)(void) = eager_fpu_init_bp;
 

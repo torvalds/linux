@@ -134,7 +134,7 @@ static void __init sdv_arch_setup(void)
 }
 
 #ifdef CONFIG_X86_IO_APIC
-static void __cpuinit sdv_pci_init(void)
+static void sdv_pci_init(void)
 {
 	x86_of_pci_init();
 	/* We can't set this earlier, because we need to calibrate the timer */
