@@ -1,0 +1,75 @@
+* SHDMA Device Tree bindings
+
+Sh-/r-mobile and r-car systems often have multiple identical DMA controller
+instances, capable of serving any of a common set of DMA slave devices, using
+the same configuration. To describe this topology we require all compatible
+SHDMA DT nodes to be placed under a DMA multiplexer node. All such compatible
+DMAC instances have the same number of channels and use the same DMA
+descriptors. Therefore respective DMA DT bindings can also all be placed in the
+multiplexer node. Even if there is only one such DMAC instance on a system, it
+still has to be placed under such a multiplexer node.
+
+* DMA multiplexer
+
+Required properties:
+- compatible:	should be "renesas,shdma-mux"
+- #dma-cells:	should be <1>, see "dmas" property below
+
+Optional properties (currently unused):
+- dma-channels:	number of DMA channels
+- dma-requests:	number of DMA request signals
+
+* DMA controller
+
+Required properties:
+- compatible:	should be "renesas,shdma"
+
+Example:
+	dmac: dma-mux0 {
+		compatible = "renesas,shdma-mux";
+		#dma-cells = <1>;
+		dma-channels = <6>;
+		dma-requests = <256>;
+		reg = <0 0>;	/* Needed for AUXDATA */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		dma0: shdma@fe008020 {
+			compatible = "renesas,shdma";
+			reg = <0xfe008020 0x270>,
+				<0xfe009000 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 34 4
+					0 28 4
+					0 29 4
+					0 30 4
+					0 31 4
+					0 32 4
+					0 33 4>;
+			interrupt-names = "error",
+					"ch0", "ch1", "ch2", "ch3",
+					"ch4", "ch5";
+		};
+
+		dma1: shdma@fe018020 {
+			...
+		};
+
+		dma2: shdma@fe028020 {
+			...
+		};
+	};
+
+* DMA client
+
+Required properties:
+- dmas:		a list of <[DMA multiplexer phandle] [MID/RID value]> pairs,
+		where MID/RID values are fixed handles, specified in the SoC
+		manual
+- dma-names:	a list of DMA channel names, one per "dmas" entry
+
+Example:
+	dmas = <&dmac 0xd1
+		&dmac 0xd2>;
+	dma-names = "tx", "rx";
