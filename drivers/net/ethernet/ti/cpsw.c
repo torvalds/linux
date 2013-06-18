@@ -1976,6 +1976,8 @@ static int cpsw_suspend(struct device *dev)
 
 	if (netif_running(ndev))
 		cpsw_ndo_stop(ndev);
+	soft_reset("sliver 0", &priv->slaves[0].sliver->soft_reset);
+	soft_reset("sliver 1", &priv->slaves[1].sliver->soft_reset);
 	pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
