@@ -24,7 +24,6 @@ config SUN4I_EMAC
 	depends on ARCH_SUNXI
 	depends on OF
 	select CRC32
-	select NET_CORE
 	select MII
 	select PHYLIB
         ---help---

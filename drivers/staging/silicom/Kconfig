@@ -32,7 +32,6 @@ config BPCTL
 	depends on PCI && NET
 	depends on m
 	select SBYPASS
-	select NET_CORE
 	select MII
 	---help---
 	  If you have a network (Ethernet) controller of this type, say Y

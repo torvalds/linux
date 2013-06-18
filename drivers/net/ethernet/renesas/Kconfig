@@ -5,7 +5,6 @@
 config SH_ETH
 	tristate "Renesas SuperH Ethernet support"
 	select CRC32
-	select NET_CORE
 	select MII
 	select MDIO_BITBANG
 	select PHYLIB

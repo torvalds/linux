@@ -64,7 +64,6 @@ config JME
 	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports the PCI-Express gigabit ethernet adapters
@@ -96,7 +95,6 @@ config FEALNX
 	tristate "Myson MTD-8xx PCI Ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  Say Y here to support the Myson MTD-800 family of PCI-based Ethernet
@@ -107,7 +105,6 @@ source "drivers/net/ethernet/8390/Kconfig"
 
 config NET_NETX
 	tristate "NetX Ethernet support"
-	select NET_CORE
 	select MII
 	depends on ARCH_NETX
 	---help---
@@ -125,7 +122,6 @@ source "drivers/net/ethernet/oki-semi/Kconfig"
 config ETHOC
 	tristate "OpenCores 10/100 Mbps Ethernet MAC support"
 	depends on HAS_IOMEM && HAS_DMA
-	select NET_CORE
 	select MII
 	select PHYLIB
 	select CRC32

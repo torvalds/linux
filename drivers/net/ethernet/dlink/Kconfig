@@ -36,7 +36,6 @@ config SUNDANCE
 	tristate "Sundance Alta support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This driver is for the Sundance "Alta" chip.

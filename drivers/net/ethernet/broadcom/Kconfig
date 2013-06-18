@@ -22,7 +22,6 @@ config B44
 	tristate "Broadcom 440x/47xx ethernet support"
 	depends on SSB_POSSIBLE && HAS_DMA
 	select SSB
-	select NET_CORE
 	select MII
 	---help---
 	  If you have a network (Ethernet) controller of this type, say Y
@@ -54,7 +53,6 @@ config B44_PCI
 config BCM63XX_ENET
 	tristate "Broadcom 63xx internal mac support"
 	depends on BCM63XX
-	select NET_CORE
 	select MII
 	select PHYLIB
 	help

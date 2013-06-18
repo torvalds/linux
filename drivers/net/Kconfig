@@ -25,6 +25,9 @@ menuconfig NETDEVICES
 # that for each of the symbols.
 if NETDEVICES
 
+config MII
+	tristate
+
 config NET_CORE
 	default y
 	bool "Network core driver support"
@@ -99,13 +102,6 @@ config NET_FC
 	  adaptor card in your computer; say Y here and to the driver for your
 	  adaptor below. You also should have said Y to "SCSI support" and
 	  "SCSI generic support".
-
-config MII
-	tristate "Generic Media Independent Interface device support"
-	help
-	  Most ethernet controllers have MII transceiver either as an external
-	  or internal device.  It is safe to say Y or M here even if your
-	  ethernet card lacks MII.
 
 config IFB
 	tristate "Intermediate Functional Block support"
