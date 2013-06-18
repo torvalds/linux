@@ -754,6 +754,38 @@ int iommu_domain_has_cap(struct iommu_domain *domain,
 }
 EXPORT_SYMBOL_GPL(iommu_domain_has_cap);
 
+static size_t iommu_pgsize(struct iommu_domain *domain,
+			   unsigned long addr_merge, size_t size)
+{
+	unsigned int pgsize_idx;
+	size_t pgsize;
+
+	/* Max page size that still fits into 'size' */
+	pgsize_idx = __fls(size);
+
+	/* need to consider alignment requirements ? */
+	if (likely(addr_merge)) {
+		/* Max page size allowed by address */
+		unsigned int align_pgsize_idx = __ffs(addr_merge);
+		pgsize_idx = min(pgsize_idx, align_pgsize_idx);
+	}
+
+	/* build a mask of acceptable page sizes */
+	pgsize = (1UL << (pgsize_idx + 1)) - 1;
+
+	/* throw away page sizes not supported by the hardware */
+	pgsize &= domain->ops->pgsize_bitmap;
+
+	/* make sure we're still sane */
+	BUG_ON(!pgsize);
+
+	/* pick the biggest page */
+	pgsize_idx = __fls(pgsize);
+	pgsize = 1UL << pgsize_idx;
+
+	return pgsize;
+}
+
 int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	      phys_addr_t paddr, size_t size, int prot)
 {
@@ -785,32 +817,7 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 				(unsigned long)paddr, (unsigned long)size);
 
 	while (size) {
-		unsigned long pgsize, addr_merge = iova | paddr;
-		unsigned int pgsize_idx;
-
-		/* Max page size that still fits into 'size' */
-		pgsize_idx = __fls(size);
-
-		/* need to consider alignment requirements ? */
-		if (likely(addr_merge)) {
-			/* Max page size allowed by both iova and paddr */
-			unsigned int align_pgsize_idx = __ffs(addr_merge);
-
-			pgsize_idx = min(pgsize_idx, align_pgsize_idx);
-		}
-
-		/* build a mask of acceptable page sizes */
-		pgsize = (1UL << (pgsize_idx + 1)) - 1;
-
-		/* throw away page sizes not supported by the hardware */
-		pgsize &= domain->ops->pgsize_bitmap;
-
-		/* make sure we're still sane */
-		BUG_ON(!pgsize);
-
-		/* pick the biggest page */
-		pgsize_idx = __fls(pgsize);
-		pgsize = 1UL << pgsize_idx;
+		size_t pgsize = iommu_pgsize(domain, iova | paddr, size);
 
 		pr_debug("mapping: iova 0x%lx pa 0x%lx pgsize %lu\n", iova,
 					(unsigned long)paddr, pgsize);
@@ -863,9 +870,9 @@ size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 	 * or we hit an area that isn't mapped.
 	 */
 	while (unmapped < size) {
-		size_t left = size - unmapped;
+		size_t pgsize = iommu_pgsize(domain, iova, size - unmapped);
 
-		unmapped_page = domain->ops->unmap(domain, iova, left);
+		unmapped_page = domain->ops->unmap(domain, iova, pgsize);
 		if (!unmapped_page)
 			break;
 
