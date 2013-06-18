@@ -170,7 +170,6 @@ struct brcmf_sdio_dev {
 	atomic_t suspend;		/* suspend flag */
 	wait_queue_head_t request_byte_wait;
 	wait_queue_head_t request_word_wait;
-	wait_queue_head_t request_chain_wait;
 	wait_queue_head_t request_buffer_wait;
 	struct device *dev;
 	struct brcmf_bus *bus_if;
@@ -271,12 +270,6 @@ extern int
 brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 			 uint rw, uint fnc, uint addr,
 			 u32 *word, uint nbyte);
-
-/* read or write any buffer using cmd53 */
-extern int
-brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
-			  uint write, uint func, uint addr,
-			  struct sk_buff_head *pktq);
 
 /* Watchdog timer interface for pm ops */
 extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,

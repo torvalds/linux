@@ -448,8 +448,6 @@ struct brcmf_sdio {
 	uint rxblen;		/* Allocated length of rxbuf */
 	u8 *rxctl;		/* Aligned pointer into rxbuf */
 	u8 *rxctl_orig;		/* pointer for freeing rxctl */
-	u8 *databuf;		/* Buffer for receiving big glom packet */
-	u8 *dataptr;		/* Aligned pointer into databuf */
 	uint rxlen;		/* Length of valid data in buffer */
 	spinlock_t rxctl_lock;	/* protection lock for ctrl frame resources */
 
@@ -473,8 +471,6 @@ struct brcmf_sdio {
 	s32 idletime;		/* Control for activity timeout */
 	s32 idlecount;	/* Activity timeout counter */
 	s32 idleclock;	/* How to set bus driver when idle */
-	s32 sd_rxchain;
-	bool use_rxchain;	/* If brcmf should use PKT chains */
 	bool rxflow_mode;	/* Rx flow control mode */
 	bool rxflow;		/* Is rx flow control on */
 	bool alp_only;		/* Don't use HT clock (ALP only) */
@@ -1025,29 +1021,6 @@ static void brcmf_sdbrcm_rxfail(struct brcmf_sdio *bus, bool abort, bool rtx)
 		bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 }
 
-/* copy a buffer into a pkt buffer chain */
-static uint brcmf_sdbrcm_glom_from_buf(struct brcmf_sdio *bus, uint len)
-{
-	uint n, ret = 0;
-	struct sk_buff *p;
-	u8 *buf;
-
-	buf = bus->dataptr;
-
-	/* copy the data */
-	skb_queue_walk(&bus->glom, p) {
-		n = min_t(uint, p->len, len);
-		memcpy(p->data, buf, n);
-		buf += n;
-		len -= n;
-		ret += n;
-		if (!len)
-			break;
-	}
-
-	return ret;
-}
-
 /* return total length of buffer chain */
 static uint brcmf_sdbrcm_glom_len(struct brcmf_sdio *bus)
 {
@@ -1201,8 +1174,6 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 	int errcode;
 	u8 doff, sfdoff;
 
-	bool usechain = bus->use_rxchain;
-
 	struct brcmf_sdio_read rd_new;
 
 	/* If packets, issue read(s) and send up packet chain */
@@ -1237,7 +1208,6 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 			if (sublen % BRCMF_SDALIGN) {
 				brcmf_err("sublen %d not multiple of %d\n",
 					  sublen, BRCMF_SDALIGN);
-				usechain = false;
 			}
 			totlen += sublen;
 
@@ -1304,27 +1274,9 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 		 * packet and and copy into the chain.
 		 */
 		sdio_claim_host(bus->sdiodev->func[1]);
-		if (usechain) {
-			errcode = brcmf_sdcard_recv_chain(bus->sdiodev,
-					bus->sdiodev->sbwad,
-					SDIO_FUNC_2, F2SYNC, &bus->glom);
-		} else if (bus->dataptr) {
-			errcode = brcmf_sdcard_recv_buf(bus->sdiodev,
-					bus->sdiodev->sbwad,
-					SDIO_FUNC_2, F2SYNC,
-					bus->dataptr, dlen);
-			sublen = (u16) brcmf_sdbrcm_glom_from_buf(bus, dlen);
-			if (sublen != dlen) {
-				brcmf_err("FAILED TO COPY, dlen %d sublen %d\n",
-					  dlen, sublen);
-				errcode = -1;
-			}
-			pnext = NULL;
-		} else {
-			brcmf_err("COULDN'T ALLOC %d-BYTE GLOM, FORCE FAILURE\n",
-				  dlen);
-			errcode = -1;
-		}
+		errcode = brcmf_sdcard_recv_chain(bus->sdiodev,
+				bus->sdiodev->sbwad,
+				SDIO_FUNC_2, F2SYNC, &bus->glom);
 		sdio_release_host(bus->sdiodev->func[1]);
 		bus->sdcnt.f2rxdata++;
 
@@ -3527,9 +3479,6 @@ static void brcmf_sdbrcm_release_malloc(struct brcmf_sdio *bus)
 	kfree(bus->rxbuf);
 	bus->rxctl = bus->rxbuf = NULL;
 	bus->rxlen = 0;
-
-	kfree(bus->databuf);
-	bus->databuf = NULL;
 }
 
 static bool brcmf_sdbrcm_probe_malloc(struct brcmf_sdio *bus)
@@ -3542,29 +3491,10 @@ static bool brcmf_sdbrcm_probe_malloc(struct brcmf_sdio *bus)
 			    ALIGNMENT) + BRCMF_SDALIGN;
 		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
 		if (!(bus->rxbuf))
-			goto fail;
+			return false;
 	}
-
-	/* Allocate buffer to receive glomed packet */
-	bus->databuf = kmalloc(MAX_DATA_BUF, GFP_ATOMIC);
-	if (!(bus->databuf)) {
-		/* release rxbuf which was already located as above */
-		if (!bus->rxblen)
-			kfree(bus->rxbuf);
-		goto fail;
-	}
-
-	/* Align the buffer */
-	if ((unsigned long)bus->databuf % BRCMF_SDALIGN)
-		bus->dataptr = bus->databuf + (BRCMF_SDALIGN -
-			       ((unsigned long)bus->databuf % BRCMF_SDALIGN));
-	else
-		bus->dataptr = bus->databuf;
 
 	return true;
-
-fail:
-	return false;
 }
 
 static bool
@@ -3702,10 +3632,6 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_sdio *bus)
 	/* Query the F2 block size, set roundup accordingly */
 	bus->blocksize = bus->sdiodev->func[2]->cur_blksize;
 	bus->roundup = min(max_roundup, bus->blocksize);
-
-	/* bus module does not support packet chaining */
-	bus->use_rxchain = false;
-	bus->sd_rxchain = false;
 
 	/* SR state */
 	bus->sleeping = false;
