@@ -111,7 +111,7 @@ u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
 
 	read_nic_dword(dev, dwRegAddr, &OriginalValue);
 	BitShift = rtl8192_CalculateBitShift(dwBitMask);
-	Ret =(OriginalValue & dwBitMask) >> BitShift;
+	Ret = (OriginalValue & dwBitMask) >> BitShift;
 
 	return Ret;
 }
@@ -470,7 +470,7 @@ void rtl8192_phy_configmac(struct net_device *dev)
 		dwArrayLen = MACPHY_ArrayLength;
 		pdwArray = rtl819XMACPHY_Array;
 	}
-	for (i = 0; i<dwArrayLen; i=i+3) {
+	for (i = 0; i<dwArrayLen; i = i+3) {
 		if (pdwArray[i] == 0x318) {
 			pdwArray[i+2] = 0x00000800;
 		}
@@ -506,12 +506,12 @@ void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 	}
 #endif
 	if (ConfigType == BaseBand_Config_PHY_REG) {
-		for (i=0; i<PHY_REG_1T2RArrayLength; i+=2) {
+		for (i = 0; i<PHY_REG_1T2RArrayLength; i += 2) {
 			rtl8192_setBBreg(dev, rtl819XPHY_REG_1T2RArray[i], bMaskDWord, rtl819XPHY_REG_1T2RArray[i+1]);
 			RT_TRACE(COMP_DBG, "i: %x, The Rtl819xUsbPHY_REGArray[0] is %x Rtl819xUsbPHY_REGArray[1] is %x \n",i, rtl819XPHY_REG_1T2RArray[i], rtl819XPHY_REG_1T2RArray[i+1]);
 		}
 	} else if (ConfigType == BaseBand_Config_AGC_TAB) {
-		for (i=0; i<AGCTAB_ArrayLength; i+=2) {
+		for (i = 0; i<AGCTAB_ArrayLength; i += 2) {
 			rtl8192_setBBreg(dev, rtl819XAGCTAB_Array[i], bMaskDWord, rtl819XAGCTAB_Array[i+1]);
 			RT_TRACE(COMP_DBG, "i:%x, The rtl819XAGCTAB_Array[0] is %x rtl819XAGCTAB_Array[1] is %x \n",i, rtl819XAGCTAB_Array[i], rtl819XAGCTAB_Array[i+1]);
 		}
@@ -656,7 +656,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 	WriteAddr[HW90_BLOCK_PHY1] = 0x800;
 	WriteAddr[HW90_BLOCK_RF] = 0x3;
 	RT_TRACE(COMP_PHY, "=======>%s(), CheckBlock:%d\n", __FUNCTION__, CheckBlock);
-	for (i=0 ; i < CheckTimes ; i++) {
+	for (i = 0 ; i < CheckTimes ; i++) {
 
 		//
 		// Write Data to register and readback
@@ -728,7 +728,7 @@ void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 
 	/*----Ckeck FPGAPHY0 and PHY1 board is OK----*/
 	// TODO: this function should be removed on ASIC , Emily 2007.2.2
-	for (eCheckItem=(HW90_BLOCK_E)HW90_BLOCK_PHY0; eCheckItem<=HW90_BLOCK_PHY1; eCheckItem++) {
+	for (eCheckItem = (HW90_BLOCK_E)HW90_BLOCK_PHY0; eCheckItem<=HW90_BLOCK_PHY1; eCheckItem++) {
 		rtStatus  = rtl8192_phy_checkBBAndRF(dev, (HW90_BLOCK_E)eCheckItem, (RF90_RADIO_PATH_E)0); //don't care RF path
 		if (rtStatus != 0) {
 			RT_TRACE((COMP_ERR | COMP_PHY), "PHY_RF8256_Config():Check PHY%d Fail!!\n", eCheckItem-1);
@@ -894,7 +894,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 
 	switch (eRFPath) {
 	case RF90_PATH_A:
-		for (i = 0;i<RadioA_ArrayLength; i=i+2) {
+		for (i = 0;i<RadioA_ArrayLength; i = i+2) {
 
 			if (rtl819XRadioA_Array[i] == 0xfe) {
 					mdelay(100);
@@ -906,7 +906,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 		}
 		break;
 	case RF90_PATH_B:
-		for (i = 0;i<RadioB_ArrayLength; i=i+2) {
+		for (i = 0;i<RadioB_ArrayLength; i = i+2) {
 
 			if (rtl819XRadioB_Array[i] == 0xfe) {
 					mdelay(100);
@@ -918,7 +918,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 		}
 		break;
 	case RF90_PATH_C:
-		for (i = 0;i<RadioC_ArrayLength; i=i+2) {
+		for (i = 0;i<RadioC_ArrayLength; i = i+2) {
 
 			if (rtl819XRadioC_Array[i] == 0xfe) {
 					mdelay(100);
@@ -930,7 +930,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 		}
 		break;
 	case RF90_PATH_D:
-		for (i = 0;i<RadioD_ArrayLength; i=i+2) {
+		for (i = 0;i<RadioD_ArrayLength; i = i+2) {
 
 			if (rtl819XRadioD_Array[i] == 0xfe) {
 					mdelay(100);
@@ -1224,23 +1224,23 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8 *stage,
 		do {
 			switch (*stage) {
 			case 0:
-				CurrentCmd=&PreCommonCmd[*step];
+				CurrentCmd = &PreCommonCmd[*step];
 				break;
 			case 1:
-				CurrentCmd=&RfDependCmd[*step];
+				CurrentCmd = &RfDependCmd[*step];
 				break;
 			case 2:
-				CurrentCmd=&PostCommonCmd[*step];
+				CurrentCmd = &PostCommonCmd[*step];
 				break;
 			}
 
 			if (CurrentCmd->CmdID==CmdID_End) {
 				if ((*stage)==2) {
-					(*delay)=CurrentCmd->msDelay;
+					(*delay) = CurrentCmd->msDelay;
 					return true;
 				} else {
 					(*stage)++;
-					(*step)=0;
+					(*step) = 0;
 					continue;
 				}
 			}
@@ -1271,7 +1271,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8 *stage,
 			break;
 		} while (true);
 
-	(*delay)=CurrentCmd->msDelay;
+	(*delay) = CurrentCmd->msDelay;
 	(*step)++;
 	return false;
 }
@@ -1360,10 +1360,10 @@ u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel)
 	if (channel == 0)
 		channel = 1;
 
-	priv->chan=channel;
+	priv->chan = channel;
 
-	priv->SwChnlStage=0;
-	priv->SwChnlStep=0;
+	priv->SwChnlStage = 0;
+	priv->SwChnlStep = 0;
 	if (priv->up)
 	rtl8192_SwChnl_WorkItem(dev);
 
@@ -1394,7 +1394,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 
 
 	if (priv->rf_chip == RF_PSEUDO_11N) {
-		priv->SetBWModeInProgress= false;
+		priv->SetBWModeInProgress = false;
 		return;
 	}
 
@@ -1432,7 +1432,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 				priv->cck_present_attentuation_20Mdefault + priv->cck_present_attentuation_difference;
 
 			if (priv->cck_present_attentuation > 22)
-				priv->cck_present_attentuation= 22;
+				priv->cck_present_attentuation = 22;
 			if (priv->cck_present_attentuation< 0)
 				priv->cck_present_attentuation = 0;
 			RT_TRACE(COMP_INIT, "20M, pHalData->CCKPresentAttentuation = %d\n", priv->cck_present_attentuation);
@@ -1506,7 +1506,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 			RT_TRACE(COMP_ERR, "Unknown RFChipID: %d\n", priv->rf_chip);
 			break;
 	}
-	priv->SetBWModeInProgress= false;
+	priv->SetBWModeInProgress = false;
 
 	RT_TRACE(COMP_SWBW, "<==SetBWMode819xUsb(), %d", atomic_read(&(priv->ieee80211->atm_swbw)));
 }
@@ -1528,7 +1528,7 @@ void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH Bandwidth,
 
 	if (priv->SetBWModeInProgress)
 		return;
-	priv->SetBWModeInProgress= true;
+	priv->SetBWModeInProgress = true;
 
 	priv->CurrentChannelBW = Bandwidth;
 
