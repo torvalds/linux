@@ -84,8 +84,7 @@
 wait_queue_head_t eint_wait;
 int eint_gen;
 int eint_mask;
-struct work_struct mtk_wcn_bt_event_work;
-struct workqueue_struct *mtk_wcn_bt_workqueue;
+int eint_handle_method = 0; // 0: for 4.1; 1: for 4.2 
 
 struct bt_hwctl {
     bool powerup;
@@ -195,7 +194,9 @@ static int bt_hwctl_release(struct inode *inode, struct file *file)
 static unsigned int bt_hwctl_poll(struct file *file, poll_table *wait)
 {
     uint32_t mask = 0;
-    
+   
+    eint_handle_method = 1;
+	 
     BT_HWCTL_DEBUG("bt_hwctl_poll eint_gen %d, eint_mask %d ++\n", eint_gen, eint_mask);
     //poll_wait(file, &eint_wait, wait);
     wait_event_interruptible(eint_wait, (eint_gen == 1 || eint_mask == 1));
@@ -309,8 +310,8 @@ static struct file_operations bt_hwctl_fops = {
 static struct platform_driver mt6622_driver = {
     .probe = mt6622_probe,
     .remove = mt6622_remove,
-    .suspend = mt6622_suspend,
-    .resume = mt6622_resume,
+    //.suspend = mt6622_suspend,
+    //.resume = mt6622_resume,
     .driver = {
         .name = "mt6622",
         .owner = THIS_MODULE,
@@ -412,9 +413,6 @@ static void __exit bt_hwctl_exit(void)
         bh = NULL;
     }
     
-    cancel_work_sync(&mtk_wcn_bt_event_work);
-    destroy_workqueue(mtk_wcn_bt_workqueue);    
-    
     /* release gpio used by BT */
     //mt_bt_gpio_release();
 }
@@ -422,8 +420,8 @@ static void __exit bt_hwctl_exit(void)
 EXPORT_SYMBOL(mt_bt_get_platform_data);
 EXPORT_SYMBOL(eint_wait);
 EXPORT_SYMBOL(eint_gen);
-EXPORT_SYMBOL(mtk_wcn_bt_event_work);
-EXPORT_SYMBOL(mtk_wcn_bt_workqueue);
+//EXPORT_SYMBOL(mtk_wcn_bt_event_work);
+//EXPORT_SYMBOL(mtk_wcn_bt_workqueue);
 
 module_init(bt_hwctl_init);
 module_exit(bt_hwctl_exit);
