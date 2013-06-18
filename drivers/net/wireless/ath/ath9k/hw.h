@@ -893,6 +893,8 @@ struct ath_hw {
 	struct ar5416IniArray iniModes_9271_ANI_reg;
 	struct ar5416IniArray ini_radio_post_sys2ant;
 	struct ar5416IniArray ini_modes_rxgain_5g_xlna;
+	struct ar5416IniArray ini_modes_rxgain_bb_core;
+	struct ar5416IniArray ini_modes_rxgain_bb_postamble;
 
 	struct ar5416IniArray iniMac[ATH_INI_NUM_SPLIT];
 	struct ar5416IniArray iniBB[ATH_INI_NUM_SPLIT];

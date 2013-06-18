@@ -756,6 +756,16 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 
 	if (AR_SREV_9462_20(ah)) {
 		/*
+		 * CUS217 mix LNA mode.
+		 */
+		if (ar9003_hw_get_rx_gain_idx(ah) == 2) {
+			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_bb_core,
+					1, regWrites);
+			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_bb_postamble,
+					modesIndex, regWrites);
+		}
+
+		/*
 		 * 5G-XLNA
 		 */
 		if ((ar9003_hw_get_rx_gain_idx(ah) == 2) ||
