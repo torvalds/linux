@@ -49,7 +49,6 @@ struct addi_board {
 	int i_AiMaxdata;	/*  resolution of A/D */
 	int i_AoMaxdata;	/*  resolution of D/A */
 	const struct comedi_lrange *pr_AiRangelist;	/* rangelist for A/D */
-	const struct comedi_lrange *pr_AoRangelist;	/* rangelist for D/A */
 
 	int i_NbrDiChannel;	/*  Number of DI channels */
 	int i_NbrDoChannel;	/*  Number of DO channels */
@@ -59,7 +58,6 @@ struct addi_board {
 
 	int i_Dma;		/*  dma present or not */
 	int i_Timer;		/*    timer subdevice present or not */
-	unsigned char b_AvailableConvertUnit;
 	unsigned int ui_MinAcquisitiontimeNs;	/*  Minimum Acquisition in Nano secs */
 	unsigned int ui_MinDelaytimeNs;	/*  Minimum Delay in Nano secs */
 
@@ -84,12 +82,8 @@ struct addi_board {
 	int (*ai_cancel)(struct comedi_device *, struct comedi_subdevice *);
 
 	/* Analog Output */
-	int (*ao_config)(struct comedi_device *, struct comedi_subdevice *,
-			 struct comedi_insn *, unsigned int *);
 	int (*ao_write)(struct comedi_device *, struct comedi_subdevice *,
 			struct comedi_insn *, unsigned int *);
-	int (*ao_bits)(struct comedi_device *, struct comedi_subdevice *,
-		       struct comedi_insn *, unsigned int *);
 
 	/* Digital Input */
 	int (*di_config)(struct comedi_device *, struct comedi_subdevice *,
@@ -120,16 +114,6 @@ struct addi_board {
 			  struct comedi_insn *, unsigned int *);
 	int (*timer_bits)(struct comedi_device *, struct comedi_subdevice *,
 			  struct comedi_insn *, unsigned int *);
-
-	/* TTL IO */
-	int (*ttl_config)(struct comedi_device *, struct comedi_subdevice *,
-			  struct comedi_insn *, unsigned int *);
-	int (*ttl_bits)(struct comedi_device *, struct comedi_subdevice *,
-			struct comedi_insn *, unsigned int *);
-	int (*ttl_read)(struct comedi_device *, struct comedi_subdevice *,
-			struct comedi_insn *, unsigned int *);
-	int (*ttl_write)(struct comedi_device *, struct comedi_subdevice *,
-			 struct comedi_insn *, unsigned int *);
 };
 
 /* MODULE INFO STRUCTURE */

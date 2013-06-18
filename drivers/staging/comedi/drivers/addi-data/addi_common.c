@@ -196,8 +196,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 		s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
 		s->len_chanlist =
 			devpriv->s_EeParameters.i_NbrAoChannel;
-		s->range_table = this_board->pr_AoRangelist;
-		s->insn_config = this_board->ao_config;
 		s->insn_write = this_board->ao_write;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -271,10 +269,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 		s->io_bits = 0;	/* all bits input */
 		s->len_chanlist = this_board->i_NbrTTLChannel;
 		s->range_table = &range_digital;
-		s->insn_config = this_board->ttl_config;
-		s->insn_bits = this_board->ttl_bits;
-		s->insn_read = this_board->ttl_read;
-		s->insn_write = this_board->ttl_write;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
