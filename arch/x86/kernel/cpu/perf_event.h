@@ -378,6 +378,7 @@ struct x86_pmu {
 	struct event_constraint *event_constraints;
 	struct x86_pmu_quirk *quirks;
 	int		perfctr_second_write;
+	bool		late_ack;
 
 	/*
 	 * sysfs attrs
