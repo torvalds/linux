@@ -667,7 +667,7 @@ snd_hda_check_power_state(struct hda_codec *codec, hda_nid_t nid,
 	if (state & AC_PWRST_ERROR)
 		return true;
 	state = (state >> 4) & 0x0f;
-	return (state != target_state);
+	return (state == target_state);
 }
 
 unsigned int snd_hda_codec_eapd_power_filter(struct hda_codec *codec,
