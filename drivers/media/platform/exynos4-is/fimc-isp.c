@@ -645,6 +645,22 @@ static const struct v4l2_ctrl_ops fimc_isp_ctrl_ops = {
 	.s_ctrl	= fimc_is_s_ctrl,
 };
 
+static void __isp_subdev_set_default_format(struct fimc_isp *isp)
+{
+	struct fimc_is *is = fimc_isp_to_is(isp);
+
+	isp->sink_fmt.width = DEFAULT_PREVIEW_STILL_WIDTH +
+				FIMC_ISP_CAC_MARGIN_WIDTH;
+	isp->sink_fmt.height = DEFAULT_PREVIEW_STILL_HEIGHT +
+				FIMC_ISP_CAC_MARGIN_HEIGHT;
+	isp->sink_fmt.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+
+	isp->src_fmt.width = DEFAULT_PREVIEW_STILL_WIDTH;
+	isp->src_fmt.height = DEFAULT_PREVIEW_STILL_HEIGHT;
+	isp->src_fmt.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	__is_set_frame_size(is, &isp->src_fmt);
+}
+
 int fimc_isp_subdev_create(struct fimc_isp *isp)
 {
 	const struct v4l2_ctrl_ops *ops = &fimc_isp_ctrl_ops;
@@ -724,6 +740,8 @@ int fimc_isp_subdev_create(struct fimc_isp *isp)
 	sd->internal_ops = &fimc_is_subdev_internal_ops;
 	sd->entity.ops = &fimc_is_subdev_media_ops;
 	v4l2_set_subdevdata(sd, isp);
+
+	__isp_subdev_set_default_format(isp);
 
 	return 0;
 }
