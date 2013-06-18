@@ -529,6 +529,8 @@ static void ath9k_init_platform(struct ath_softc *sc)
 		ath_info(common, "Set parameters for %s\n",
 			 (sc->driver_data & ATH9K_PCI_CUS198) ?
 			 "CUS198" : "CUS230");
+	} else if (sc->driver_data & ATH9K_PCI_CUS217) {
+		ath_info(common, "CUS217 card detected\n");
 	}
 }
 
