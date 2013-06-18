@@ -113,7 +113,7 @@ static struct lock_class_key gpio_lock_class;
 
 /* pins are just named GPIO0..GPIO53 */
 #define BCM2835_GPIO_PIN(a) PINCTRL_PIN(a, "gpio" #a)
-struct pinctrl_pin_desc bcm2835_gpio_pins[] = {
+static struct pinctrl_pin_desc bcm2835_gpio_pins[] = {
 	BCM2835_GPIO_PIN(0),
 	BCM2835_GPIO_PIN(1),
 	BCM2835_GPIO_PIN(2),
