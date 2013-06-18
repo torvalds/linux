@@ -84,7 +84,7 @@ static void enetx_set(struct clk *clk, int enable)
 	else
 		clk_disable_unlocked(&clk_enet_misc);
 
-	if (BCMCPU_IS_6358()) {
+	if (BCMCPU_IS_3368() || BCMCPU_IS_6358()) {
 		u32 mask;
 
 		if (clk->id == 0)
@@ -110,9 +110,8 @@ static struct clk clk_enet1 = {
  */
 static void ephy_set(struct clk *clk, int enable)
 {
-	if (!BCMCPU_IS_6358())
-		return;
-	bcm_hwclock_set(CKCTL_6358_EPHY_EN, enable);
+	if (BCMCPU_IS_3368() || BCMCPU_IS_6358())
+		bcm_hwclock_set(CKCTL_6358_EPHY_EN, enable);
 }
 
 
@@ -155,9 +154,10 @@ static struct clk clk_enetsw = {
  */
 static void pcm_set(struct clk *clk, int enable)
 {
-	if (!BCMCPU_IS_6358())
-		return;
-	bcm_hwclock_set(CKCTL_6358_PCM_EN, enable);
+	if (BCMCPU_IS_3368())
+		bcm_hwclock_set(CKCTL_3368_PCM_EN, enable);
+	if (BCMCPU_IS_6358())
+		bcm_hwclock_set(CKCTL_6358_PCM_EN, enable);
 }
 
 static struct clk clk_pcm = {
@@ -211,7 +211,7 @@ static void spi_set(struct clk *clk, int enable)
 		mask = CKCTL_6338_SPI_EN;
 	else if (BCMCPU_IS_6348())
 		mask = CKCTL_6348_SPI_EN;
-	else if (BCMCPU_IS_6358())
+	else if (BCMCPU_IS_3368() || BCMCPU_IS_6358())
 		mask = CKCTL_6358_SPI_EN;
 	else if (BCMCPU_IS_6362())
 		mask = CKCTL_6362_SPI_EN;
@@ -338,7 +338,7 @@ struct clk *clk_get(struct device *dev, const char *id)
 		return &clk_xtm;
 	if (!strcmp(id, "periph"))
 		return &clk_periph;
-	if (BCMCPU_IS_6358() && !strcmp(id, "pcm"))
+	if ((BCMCPU_IS_3368() || BCMCPU_IS_6358()) && !strcmp(id, "pcm"))
 		return &clk_pcm;
 	if ((BCMCPU_IS_6362() || BCMCPU_IS_6368()) && !strcmp(id, "ipsec"))
 		return &clk_ipsec;
