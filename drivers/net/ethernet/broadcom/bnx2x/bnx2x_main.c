@@ -12091,7 +12091,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	}
 
 	if (IS_PF(bp)) {
-		bp->pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
+		bp->pm_cap = pdev->pm_cap;
 		if (bp->pm_cap == 0) {
 			dev_err(&bp->pdev->dev,
 				"Cannot find power management capability, aborting\n");
@@ -12139,8 +12139,6 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 				  ME_REG_ABS_PF_NUM_SHIFT);
 	}
 	BNX2X_DEV_INFO("me reg PF num: %d\n", bp->pf_num);
-
-	bnx2x_set_power_state(bp, PCI_D0);
 
 	/* clean indirect addresses */
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_ADDRESS,
