@@ -115,23 +115,6 @@ config MACH_EXYNOS5_DT
 	  Machine support for Samsung EXYNOS5 machine with device tree enabled.
 	  Select this if a fdt blob is available for the EXYNOS5 SoC based board.
 
-if ARCH_EXYNOS4
-
-comment "Configuration for HSMMC 8-bit bus width"
-
-config EXYNOS4_SDHCI_CH0_8BIT
-	bool "Channel 0 with 8-bit bus"
-	help
-	  Support HSMMC Channel 0 8-bit bus.
-	  If selected, Channel 1 is disabled.
-
-config EXYNOS4_SDHCI_CH2_8BIT
-	bool "Channel 2 with 8-bit bus"
-	help
-	  Support HSMMC Channel 2 8-bit bus.
-	  If selected, Channel 3 is disabled.
-endif
-
 endmenu
 
 endif

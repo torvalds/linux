@@ -60,8 +60,6 @@ static void exynos5_map_io(void);
 static void exynos5440_map_io(void);
 static int exynos_init(void);
 
-unsigned long xxti_f = 0, xusbxti_f = 0;
-
 static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= EXYNOS4210_CPU_ID,
@@ -322,7 +320,7 @@ void __init exynos_init_late(void)
 	exynos_pm_late_initcall();
 }
 
-int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
+static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
 					int depth, void *data)
 {
 	struct map_desc iodesc;
