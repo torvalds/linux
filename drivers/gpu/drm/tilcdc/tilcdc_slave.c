@@ -323,6 +323,8 @@ static int slave_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	mod->preferred_bpp = slave_info.bpp;
+
 	i2c_node = of_find_node_by_phandle(i2c_phandle);
 	if (!i2c_node) {
 		dev_err(&pdev->dev, "could not get i2c bus node\n");
