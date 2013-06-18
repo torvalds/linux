@@ -206,9 +206,6 @@ struct cgroup {
 	 */
 	struct list_head cset_links;
 
-	struct list_head allcg_node;	/* cgroupfs_root->allcg_list */
-	struct list_head cft_q_node;	/* used during cftype add/rm */
-
 	/*
 	 * Linked list running through all cgroups that can
 	 * potentially be reaped by the release agent. Protected by
@@ -312,9 +309,6 @@ struct cgroupfs_root {
 
 	/* A list running through the active hierarchies */
 	struct list_head root_list;
-
-	/* All cgroups on this root, cgroup_mutex protected */
-	struct list_head allcg_list;
 
 	/* Hierarchy-specific flags */
 	unsigned long flags;
