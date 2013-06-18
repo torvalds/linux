@@ -1026,14 +1026,10 @@ static void haswell_verify_pin_D0(struct hda_codec *codec,
 	/* For Haswell, the converter 1/2 may keep in D3 state after bootup,
 	 * thus pins could only choose converter 0 for use. Make sure the
 	 * converters are in correct power state */
-	pwr = snd_hda_codec_read(codec, cvt_nid, 0, AC_VERB_GET_POWER_STATE, 0);
-	pwr = (pwr & AC_PWRST_ACTUAL) >> AC_PWRST_ACTUAL_SHIFT;
-	if (pwr != AC_PWRST_D0)
+	if (!snd_hda_check_power_state(codec, cvt_nid, AC_PWRST_D0))
 		snd_hda_codec_write(codec, cvt_nid, 0, AC_VERB_SET_POWER_STATE, AC_PWRST_D0);
 
-	pwr = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_POWER_STATE, 0);
-	pwr = (pwr & AC_PWRST_ACTUAL) >> AC_PWRST_ACTUAL_SHIFT;
-	if (pwr != AC_PWRST_D0) {
+	if (!snd_hda_check_power_state(codec, nid, AC_PWRST_D0)) {
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_POWER_STATE,
 				    AC_PWRST_D0);
 		msleep(40);
