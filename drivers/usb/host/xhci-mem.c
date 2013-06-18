@@ -358,11 +358,15 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 static struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 						    int type, gfp_t flags)
 {
-	struct xhci_container_ctx *ctx = kzalloc(sizeof(*ctx), flags);
+	struct xhci_container_ctx *ctx;
+
+	if ((type != XHCI_CTX_TYPE_DEVICE) && (type != XHCI_CTX_TYPE_INPUT))
+		return NULL;
+
+	ctx = kzalloc(sizeof(*ctx), flags);
 	if (!ctx)
 		return NULL;
 
-	BUG_ON((type != XHCI_CTX_TYPE_DEVICE) && (type != XHCI_CTX_TYPE_INPUT));
 	ctx->type = type;
 	ctx->size = HCC_64BYTE_CONTEXT(xhci->hcc_params) ? 2048 : 1024;
 	if (type == XHCI_CTX_TYPE_INPUT)
@@ -385,7 +389,9 @@ static void xhci_free_container_ctx(struct xhci_hcd *xhci,
 struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_hcd *xhci,
 					      struct xhci_container_ctx *ctx)
 {
-	BUG_ON(ctx->type != XHCI_CTX_TYPE_INPUT);
+	if (ctx->type != XHCI_CTX_TYPE_INPUT)
+		return NULL;
+
 	return (struct xhci_input_control_ctx *)ctx->bytes;
 }
 
@@ -1049,6 +1055,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	struct xhci_ep_ctx	*ep0_ctx;
 	struct xhci_slot_ctx    *slot_ctx;
 	u32			port_num;
+	u32			max_packets;
 	struct usb_device *top_dev;
 
 	dev = xhci->devs[udev->slot_id];
@@ -1066,15 +1073,20 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	switch (udev->speed) {
 	case USB_SPEED_SUPER:
 		slot_ctx->dev_info |= cpu_to_le32(SLOT_SPEED_SS);
+		max_packets = MAX_PACKET(512);
 		break;
 	case USB_SPEED_HIGH:
 		slot_ctx->dev_info |= cpu_to_le32(SLOT_SPEED_HS);
+		max_packets = MAX_PACKET(64);
 		break;
+	/* USB core guesses at a 64-byte max packet first for FS devices */
 	case USB_SPEED_FULL:
 		slot_ctx->dev_info |= cpu_to_le32(SLOT_SPEED_FS);
+		max_packets = MAX_PACKET(64);
 		break;
 	case USB_SPEED_LOW:
 		slot_ctx->dev_info |= cpu_to_le32(SLOT_SPEED_LS);
+		max_packets = MAX_PACKET(8);
 		break;
 	case USB_SPEED_WIRELESS:
 		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
@@ -1082,7 +1094,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 		break;
 	default:
 		/* Speed was set earlier, this shouldn't happen. */
-		BUG();
+		return -EINVAL;
 	}
 	/* Find the root hub port this device is under */
 	port_num = xhci_find_real_port_number(xhci, udev);
@@ -1141,31 +1153,10 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	/* Step 4 - ring already allocated */
 	/* Step 5 */
 	ep0_ctx->ep_info2 = cpu_to_le32(EP_TYPE(CTRL_EP));
-	/*
-	 * XXX: Not sure about wireless USB devices.
-	 */
-	switch (udev->speed) {
-	case USB_SPEED_SUPER:
-		ep0_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(512));
-		break;
-	case USB_SPEED_HIGH:
-	/* USB core guesses at a 64-byte max packet first for FS devices */
-	case USB_SPEED_FULL:
-		ep0_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(64));
-		break;
-	case USB_SPEED_LOW:
-		ep0_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(8));
-		break;
-	case USB_SPEED_WIRELESS:
-		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
-		return -EINVAL;
-		break;
-	default:
-		/* New speed? */
-		BUG();
-	}
+
 	/* EP 0 can handle "burst" sizes of 1, so Max Burst Size field is 0 */
-	ep0_ctx->ep_info2 |= cpu_to_le32(MAX_BURST(0) | ERROR_COUNT(3));
+	ep0_ctx->ep_info2 |= cpu_to_le32(MAX_BURST(0) | ERROR_COUNT(3) |
+					 max_packets);
 
 	ep0_ctx->deq = cpu_to_le64(dev->eps[0].ring->first_seg->dma |
 				   dev->eps[0].ring->cycle_state);
@@ -1338,7 +1329,7 @@ static u32 xhci_get_endpoint_type(struct usb_device *udev,
 		else
 			type = EP_TYPE(INT_OUT_EP);
 	} else {
-		BUG();
+		type = 0;
 	}
 	return type;
 }
@@ -1384,9 +1375,15 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	unsigned int max_burst;
 	enum xhci_ring_type type;
 	u32 max_esit_payload;
+	u32 endpoint_type;
 
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
+
+	endpoint_type = xhci_get_endpoint_type(udev, ep);
+	if (!endpoint_type)
+		return -EINVAL;
+	ep_ctx->ep_info2 = cpu_to_le32(endpoint_type);
 
 	type = usb_endpoint_type(&ep->desc);
 	/* Set up the endpoint ring */
@@ -1416,11 +1413,9 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	 * CErr shall be set to 0 for Isoch endpoints.
 	 */
 	if (!usb_endpoint_xfer_isoc(&ep->desc))
-		ep_ctx->ep_info2 = cpu_to_le32(ERROR_COUNT(3));
+		ep_ctx->ep_info2 |= cpu_to_le32(ERROR_COUNT(3));
 	else
-		ep_ctx->ep_info2 = cpu_to_le32(ERROR_COUNT(0));
-
-	ep_ctx->ep_info2 |= cpu_to_le32(xhci_get_endpoint_type(udev, ep));
+		ep_ctx->ep_info2 |= cpu_to_le32(ERROR_COUNT(0));
 
 	/* Set the max packet size and max burst */
 	max_packet = GET_MAX_PACKET(usb_endpoint_maxp(&ep->desc));
