@@ -85,6 +85,13 @@
 		gpio = <&gpio1 1 0>;	/* gpio_1 */
 		startup-delay-us = <70000>;
 		enable-active-high;
+		/*
+		 * boot-on is required along with always-on as the
+		 * regulator framework doesn't enable the regulator
+		 * if boot-on is not there.
+		 */
+		regulator-always-on;
+		regulator-boot-on;
 	};
 
 	/* HS USB Host PHY on PORT 1 */
