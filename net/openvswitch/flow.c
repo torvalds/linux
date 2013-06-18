@@ -198,20 +198,18 @@ void ovs_flow_used(struct sw_flow *flow, struct sk_buff *skb)
 	spin_unlock(&flow->lock);
 }
 
-struct sw_flow_actions *ovs_flow_actions_alloc(const struct nlattr *actions)
+struct sw_flow_actions *ovs_flow_actions_alloc(int size)
 {
-	int actions_len = nla_len(actions);
 	struct sw_flow_actions *sfa;
 
-	if (actions_len > MAX_ACTIONS_BUFSIZE)
+	if (size > MAX_ACTIONS_BUFSIZE)
 		return ERR_PTR(-EINVAL);
 
-	sfa = kmalloc(sizeof(*sfa) + actions_len, GFP_KERNEL);
+	sfa = kmalloc(sizeof(*sfa) + size, GFP_KERNEL);
 	if (!sfa)
 		return ERR_PTR(-ENOMEM);
 
-	sfa->actions_len = actions_len;
-	nla_memcpy(sfa->actions, actions, actions_len);
+	sfa->actions_len = 0;
 	return sfa;
 }
 

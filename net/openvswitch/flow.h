@@ -130,7 +130,7 @@ struct sw_flow *ovs_flow_alloc(void);
 void ovs_flow_deferred_free(struct sw_flow *);
 void ovs_flow_free(struct sw_flow *flow);
 
-struct sw_flow_actions *ovs_flow_actions_alloc(const struct nlattr *);
+struct sw_flow_actions *ovs_flow_actions_alloc(int actions_len);
 void ovs_flow_deferred_free_acts(struct sw_flow_actions *);
 
 int ovs_flow_extract(struct sk_buff *, u16 in_port, struct sw_flow_key *,
