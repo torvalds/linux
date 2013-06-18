@@ -394,6 +394,7 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 	char buffer[30];
 	int thres_count;
 	u32 eax, ebx, ecx, edx;
+	u8 *temp;
 
 	cpuid(6, &eax, &ebx, &ecx, &edx);
 	thres_count = ebx & 0x07;
@@ -417,13 +418,14 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 	spin_lock(&pkg_work_lock);
 	if (topology_physical_package_id(cpu) > max_phy_id)
 		max_phy_id = topology_physical_package_id(cpu);
-	pkg_work_scheduled = krealloc(pkg_work_scheduled,
-				(max_phy_id+1) * sizeof(u8), GFP_ATOMIC);
-	if (!pkg_work_scheduled) {
+	temp = krealloc(pkg_work_scheduled,
+			(max_phy_id+1) * sizeof(u8), GFP_ATOMIC);
+	if (!temp) {
 		spin_unlock(&pkg_work_lock);
 		err = -ENOMEM;
 		goto err_ret_free;
 	}
+	pkg_work_scheduled = temp;
 	pkg_work_scheduled[topology_physical_package_id(cpu)] = 0;
 	spin_unlock(&pkg_work_lock);
 
