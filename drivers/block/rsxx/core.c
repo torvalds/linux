@@ -41,7 +41,7 @@
 #define NO_LEGACY 0
 #define SYNC_START_TIMEOUT (10 * 60) /* 10 minutes */
 
-MODULE_DESCRIPTION("IBM FlashSystem 70/80 PCIe SSD Device Driver");
+MODULE_DESCRIPTION("IBM Flash Adapter 900GB Full Height Device Driver");
 MODULE_AUTHOR("Joshua Morris/Philip Kelleher, IBM");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRIVER_VERSION);
@@ -336,7 +336,7 @@ static int rsxx_eeh_frozen(struct pci_dev *dev)
 	int i;
 	int st;
 
-	dev_warn(&dev->dev, "IBM FlashSystem PCI: preparing for slot reset.\n");
+	dev_warn(&dev->dev, "IBM Flash Adapter PCI: preparing for slot reset.\n");
 
 	card->eeh_state = 1;
 	rsxx_mask_interrupts(card);
@@ -376,7 +376,7 @@ static void rsxx_eeh_failure(struct pci_dev *dev)
 	int i;
 	int cnt = 0;
 
-	dev_err(&dev->dev, "IBM FlashSystem PCI: disabling failed card.\n");
+	dev_err(&dev->dev, "IBM Flash Adapter PCI: disabling failed card.\n");
 
 	card->eeh_state = 1;
 	card->halt = 1;
@@ -450,7 +450,7 @@ static pci_ers_result_t rsxx_slot_reset(struct pci_dev *dev)
 	int st;
 
 	dev_warn(&dev->dev,
-		"IBM FlashSystem PCI: recovering from slot reset.\n");
+		"IBM Flash Adapter PCI: recovering from slot reset.\n");
 
 	st = pci_enable_device(dev);
 	if (st)
@@ -503,7 +503,7 @@ static pci_ers_result_t rsxx_slot_reset(struct pci_dev *dev)
 				&card->ctrl[i].issue_dma_work);
 	}
 
-	dev_info(&dev->dev, "IBM FlashSystem PCI: recovery complete.\n");
+	dev_info(&dev->dev, "IBM Flash Adapter PCI: recovery complete.\n");
 
 	return PCI_ERS_RESULT_RECOVERED;
 
