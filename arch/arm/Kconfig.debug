@@ -251,6 +251,20 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX6Q/DL.
 
+	config DEBUG_KEYSTONE_UART0
+		bool "Kernel low-level debugging on KEYSTONE2 using UART0"
+		depends on ARCH_KEYSTONE
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART0 serial port on KEYSTONE2 devices.
+
+	config DEBUG_KEYSTONE_UART1
+		bool "Kernel low-level debugging on KEYSTONE2 using UART1"
+		depends on ARCH_KEYSTONE
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART1 serial port on KEYSTONE2 devices.
+
 	config DEBUG_MMP_UART2
 		bool "Kernel low-level debugging message via MMP UART2"
 		depends on ARCH_MMP
@@ -657,6 +671,8 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX51_UART || \
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART
+	default "debug/keystone.S" if DEBUG_KEYSTONE_UART0 || \
+				      DEBUG_KEYSTONE_UART1
 	default "debug/mvebu.S" if DEBUG_MVEBU_UART || \
 				   DEBUG_MVEBU_UART_ALTERNATE
 	default "debug/mxs.S" if DEBUG_IMX23_UART || DEBUG_IMX28_UART

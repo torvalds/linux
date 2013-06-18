@@ -1,0 +1,15 @@
+config ARCH_KEYSTONE
+	bool "Texas Instruments Keystone Devices"
+	depends on ARCH_MULTI_V7
+	select CPU_V7
+	select ARM_GIC
+	select HAVE_ARM_ARCH_TIMER
+	select HAVE_SMP
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
+	select HAVE_SCHED_CLOCK
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_ERRATA_798181
+	help
+	  Support for boards based on the Texas Instruments Keystone family of
+	  SoCs.
