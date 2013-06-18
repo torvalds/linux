@@ -255,25 +255,24 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 	}
 
 	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
+		u8 config_bands;
+
 		/* Infra mode */
 		ret = mwifiex_deauthenticate(priv, NULL);
 		if (ret)
 			goto done;
 
-		if (bss_desc) {
-			u8 config_bands = 0;
+		if (!bss_desc)
+			return -1;
 
-			if (mwifiex_band_to_radio_type((u8) bss_desc->bss_band)
-			    == HostCmd_SCAN_RADIO_TYPE_BG)
-				config_bands = BAND_B | BAND_G | BAND_GN |
-					       BAND_GAC;
-			else
-				config_bands = BAND_A | BAND_AN | BAND_AAC;
+		if (mwifiex_band_to_radio_type(bss_desc->bss_band) ==
+						HostCmd_SCAN_RADIO_TYPE_BG)
+			config_bands = BAND_B | BAND_G | BAND_GN | BAND_GAC;
+		else
+			config_bands = BAND_A | BAND_AN | BAND_AAC;
 
-			if (!((config_bands | adapter->fw_bands) &
-			      ~adapter->fw_bands))
-				adapter->config_bands = config_bands;
-		}
+		if (!((config_bands | adapter->fw_bands) & ~adapter->fw_bands))
+			adapter->config_bands = config_bands;
 
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
 		if (ret)
