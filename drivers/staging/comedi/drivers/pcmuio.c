@@ -126,8 +126,6 @@
 #define PCMUIO96_IOSIZE		(ASIC_IOSIZE * 2)
 
 #define NUM_PAGED_REGS		3
-#define NUM_PAGES		4
-#define FIRST_PAGED_REG		0x8
 
 struct pcmuio_board {
 	const char *name;
@@ -193,6 +191,24 @@ struct pcmuio_private {
 	} asics[MAX_ASICS];
 	struct pcmuio_subdev_private *sprivs;
 };
+
+static void pcmuio_write(struct comedi_device *dev, unsigned int val,
+			 int asic, int page, int port)
+{
+	unsigned long iobase = dev->iobase + (asic * ASIC_IOSIZE);
+
+	if (page == 0) {
+		/* Port registers are valid for any page */
+		outb(val & 0xff, iobase + PCMUIO_PORT_REG(port + 0));
+		outb((val >> 8) & 0xff, iobase + PCMUIO_PORT_REG(port + 1));
+		outb((val >> 16) & 0xff, iobase + PCMUIO_PORT_REG(port + 2));
+	} else {
+		outb(PCMUIO_PAGE(page), iobase + PCMUIO_PAGE_LOCK_REG);
+		outb(val & 0xff, iobase + PCMUIO_PAGE_REG(0));
+		outb((val >> 8) & 0xff, iobase + PCMUIO_PAGE_REG(1));
+		outb((val >> 16) & 0xff, iobase + PCMUIO_PAGE_REG(2));
+	}
+}
 
 static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
@@ -315,42 +331,27 @@ static void switch_page(struct comedi_device *dev, int asic, int page)
 }
 
 static void init_asics(struct comedi_device *dev)
-{				/* sets up an
-				   ASIC chip to defaults */
+{
 	const struct pcmuio_board *board = comedi_board(dev);
 	int asic;
 
 	for (asic = 0; asic < board->num_asics; ++asic) {
-		int port, page;
-		unsigned long baseaddr = dev->iobase + asic * ASIC_IOSIZE;
-
-		switch_page(dev, asic, 0);	/* switch back to page 0 */
-
 		/* first, clear all the DIO port bits */
-		for (port = 0; port < PORTS_PER_ASIC; ++port)
-			outb(0, baseaddr + PCMUIO_PORT_REG(port));
+		pcmuio_write(dev, 0, asic, 0, 0);
+		pcmuio_write(dev, 0, asic, 0, 3);
 
 		/* Next, clear all the paged registers for each page */
-		for (page = 1; page < NUM_PAGES; ++page) {
-			int reg;
-			/* now clear all the paged registers */
-			switch_page(dev, asic, page);
-			for (reg = FIRST_PAGED_REG;
-			     reg < FIRST_PAGED_REG + NUM_PAGED_REGS; ++reg)
-				outb(0, baseaddr + reg);
-		}
-
-		/* switch back to default page 0 */
-		switch_page(dev, asic, 0);
+		pcmuio_write(dev, 0, asic, PCMUIO_PAGE_POL, 0);
+		pcmuio_write(dev, 0, asic, PCMUIO_PAGE_ENAB, 0);
+		pcmuio_write(dev, 0, asic, PCMUIO_PAGE_INT_ID, 0);
 	}
 }
 
 static void pcmuio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct pcmuio_private *devpriv = dev->private;
 	struct pcmuio_subdev_private *subpriv = s->private;
-	int nports, firstport, asic, port;
+	int asic;
 
 	asic = subpriv->intr.asic;
 	if (asic < 0)
@@ -359,13 +360,9 @@ static void pcmuio_stop_intr(struct comedi_device *dev,
 	subpriv->intr.enabled_mask = 0;
 	subpriv->intr.active = 0;
 	s->async->inttrig = NULL;
-	nports = subpriv->intr.num_asic_chans / CHANS_PER_PORT;
-	firstport = subpriv->intr.asic_chan / CHANS_PER_PORT;
-	switch_page(dev, asic, PCMUIO_PAGE_ENAB);
-	for (port = firstport; port < firstport + nports; ++port) {
-		/* disable all intrs for this subdev.. */
-		outb(0, devpriv->asics[asic].iobase + PCMUIO_PAGE_REG(port));
-	}
+
+	/* disable all intrs for this subdev.. */
+	pcmuio_write(dev, 0, asic, PCMUIO_PAGE_ENAB, 0);
 }
 
 static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
@@ -503,7 +500,6 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d)
 static int pcmuio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct pcmuio_private *devpriv = dev->private;
 	struct pcmuio_subdev_private *subpriv = s->private;
 
 	if (!subpriv->intr.continuous && subpriv->intr.stop_count == 0) {
@@ -513,7 +509,7 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 		return 1;
 	} else {
 		unsigned bits = 0, pol_bits = 0, n;
-		int nports, firstport, asic, port;
+		int asic;
 		struct comedi_cmd *cmd = &s->async->cmd;
 
 		asic = subpriv->intr.asic;
@@ -522,8 +518,6 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 					   subdev */
 		subpriv->intr.enabled_mask = 0;
 		subpriv->intr.active = 1;
-		nports = subpriv->intr.num_asic_chans / CHANS_PER_PORT;
-		firstport = subpriv->intr.asic_chan / CHANS_PER_PORT;
 		if (cmd->chanlist) {
 			for (n = 0; n < cmd->chanlist_len; n++) {
 				bits |= (1U << CR_CHAN(cmd->chanlist[n]));
@@ -537,21 +531,9 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 			 1) << subpriv->intr.first_chan;
 		subpriv->intr.enabled_mask = bits;
 
-		switch_page(dev, asic, PCMUIO_PAGE_ENAB);
-		for (port = firstport; port < firstport + nports; ++port) {
-			unsigned enab =
-			    bits >> (subpriv->intr.first_chan + (port -
-								 firstport) *
-				     8) & 0xff, pol =
-			    pol_bits >> (subpriv->intr.first_chan +
-					 (port - firstport) * 8) & 0xff;
-			/* set enab intrs for this subdev.. */
-			outb(enab,
-			     devpriv->asics[asic].iobase + PCMUIO_PAGE_REG(port));
-			switch_page(dev, asic, PCMUIO_PAGE_POL);
-			outb(pol,
-			     devpriv->asics[asic].iobase + PCMUIO_PAGE_REG(port));
-		}
+		/* set pol and enab intrs for this subdev.. */
+		pcmuio_write(dev, pol_bits, asic, PCMUIO_PAGE_POL, 0);
+		pcmuio_write(dev, bits, asic, PCMUIO_PAGE_ENAB, 0);
 	}
 	return 0;
 }
