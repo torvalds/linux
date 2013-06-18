@@ -18,12 +18,8 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
-#define LOBYTE(W)	(unsigned char)((W) & 0xFF)
-#define HIBYTE(W)	(unsigned char)(((W) >> 8) & 0xFF)
-#define MAKEWORD(H, L)	(unsigned short)((L) | ((H) << 8))
 #define LOWORD(W)	(unsigned short)((W) & 0xFFFF)
 #define HIWORD(W)	(unsigned short)(((W) >> 16) & 0xFFFF)
-#define MAKEDWORD(H, L)	(unsigned int)((L) | ((H) << 16))
 
 #define ADDI_ENABLE		1
 #define ADDI_DISABLE		0
@@ -33,7 +29,6 @@
 #define ADDIDATA_NO_EEPROM	0
 #define ADDIDATA_93C76		"93C76"
 #define ADDIDATA_S5920		"S5920"
-#define ADDIDATA_S5933		"S5933"
 
 /* ADDIDATA Enable Disable */
 #define ADDIDATA_ENABLE		1
