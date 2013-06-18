@@ -69,6 +69,8 @@
  * zone 0.
  */
 #define WUSB_CHANNEL_STOP_DELAY_MS 8
+#define WUSB_RETRY_COUNT_MAX 15
+#define WUSB_RETRY_COUNT_INFINITE 0
 
 /**
  * Wireless USB device
@@ -254,6 +256,7 @@ struct wusbhc {
 	uint8_t phy_rate;
 	uint8_t dnts_num_slots;
 	uint8_t dnts_interval;
+	uint8_t retry_count;
 	struct wuie_host_info *wuie_host_info;
 
 	struct mutex mutex;			/* locks everything else */

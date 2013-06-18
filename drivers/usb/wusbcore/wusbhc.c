@@ -205,12 +205,42 @@ static ssize_t wusb_dnts_store(struct device *dev,
 }
 static DEVICE_ATTR(wusb_dnts, 0644, wusb_dnts_show, wusb_dnts_store);
 
+static ssize_t wusb_retry_count_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
+
+	return sprintf(buf, "%d\n", wusbhc->retry_count);
+}
+
+static ssize_t wusb_retry_count_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
+	uint8_t retry_count;
+	ssize_t result;
+
+	result = sscanf(buf, "%hhu", &retry_count);
+
+	if (result != 1)
+		return -EINVAL;
+
+	wusbhc->retry_count = max_t(uint8_t, retry_count, WUSB_RETRY_COUNT_MAX);
+
+	return size;
+}
+static DEVICE_ATTR(wusb_retry_count, 0644, wusb_retry_count_show,
+	wusb_retry_count_store);
+
 /* Group all the WUSBHC attributes */
 static struct attribute *wusbhc_attrs[] = {
 		&dev_attr_wusb_trust_timeout.attr,
 		&dev_attr_wusb_chid.attr,
 		&dev_attr_wusb_phy_rate.attr,
 		&dev_attr_wusb_dnts.attr,
+		&dev_attr_wusb_retry_count.attr,
 		NULL,
 };
 
@@ -241,6 +271,7 @@ int wusbhc_create(struct wusbhc *wusbhc)
 	wusbhc->phy_rate = UWB_PHY_RATE_INVALID - 1;
 	wusbhc->dnts_num_slots = 4;
 	wusbhc->dnts_interval = 2;
+	wusbhc->retry_count = WUSB_RETRY_COUNT_INFINITE;
 
 	mutex_init(&wusbhc->mutex);
 	result = wusbhc_mmcie_create(wusbhc);

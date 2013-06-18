@@ -367,8 +367,7 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 	rpipe->descr.bmAttribute = (ep->desc.bmAttributes &
 					USB_ENDPOINT_XFERTYPE_MASK);
 	/* rpipe->descr.bmCharacteristics RO */
-	/* FIXME: bmRetryOptions */
-	rpipe->descr.bmRetryOptions = 15;
+	rpipe->descr.bmRetryOptions = (wa->wusb->retry_count & 0xF);
 	/* FIXME: use for assessing link quality? */
 	rpipe->descr.wNumTransactionErrors = 0;
 	result = __rpipe_set_descr(wa, &rpipe->descr,
