@@ -1813,7 +1813,7 @@ static const struct net_device_ops amd8111e_netdev_ops = {
 static int amd8111e_probe_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
-	int err,i,pm_cap;
+	int err, i;
 	unsigned long reg_addr,reg_len;
 	struct amd8111e_priv* lp;
 	struct net_device* dev;
@@ -1842,7 +1842,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	/* Find power-management capability. */
-	if((pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM))==0){
+	if (!pdev->pm_cap) {
 		printk(KERN_ERR "amd8111e: No Power Management capability, "
 		       "exiting.\n");
 		err = -ENODEV;
@@ -1875,7 +1875,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	lp = netdev_priv(dev);
 	lp->pci_dev = pdev;
 	lp->amd8111e_net_dev = dev;
-	lp->pm_cap = pm_cap;
+	lp->pm_cap = pdev->pm_cap;
 
 	spin_lock_init(&lp->lock);
 
