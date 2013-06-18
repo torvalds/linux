@@ -95,10 +95,10 @@ enum iwl_bt_coex_flags {
 	BT_COEX_NW			= 0x3 << BT_COEX_MODE_POS,
 	BT_USE_DEFAULTS			= BIT(6),
 	BT_SYNC_2_BT_DISABLE		= BIT(7),
-	/*
-	 * For future use - when the flags will be enlarged
-	 * BT_COEX_CORUNNING_TBL_EN	= BIT(8),
-	 */
+	BT_COEX_CORUNNING_TBL_EN	= BIT(8),
+	BT_COEX_MPLUT_TBL_EN		= BIT(9),
+	/* Bit 10 is reserved */
+	BT_COEX_WF_PRIO_BOOST_CHECK_EN	= BIT(11),
 };
 
 /*
@@ -121,11 +121,8 @@ enum iwl_bt_coex_valid_bit_msk {
 	BT_VALID_CORUN_LUT_40		= BIT(13),
 	BT_VALID_ANT_ISOLATION		= BIT(14),
 	BT_VALID_ANT_ISOLATION_THRS	= BIT(15),
-	/*
-	 * For future use - when the valid flags will be enlarged
-	 * BT_VALID_TXTX_DELTA_FREQ_THRS	= BIT(16),
-	 * BT_VALID_TXRX_MAX_FREQ_0	= BIT(17),
-	 */
+	BT_VALID_TXTX_DELTA_FREQ_THRS	= BIT(16),
+	BT_VALID_TXRX_MAX_FREQ_0	= BIT(17),
 };
 
 /**
@@ -142,47 +139,87 @@ enum iwl_bt_reduced_tx_power {
 	BT_REDUCED_TX_POWER_DATA	= BIT(1),
 };
 
+enum iwl_bt_coex_lut_type {
+	BT_COEX_TIGHT_LUT = 0,
+	BT_COEX_LOOSE_LUT,
+	BT_COEX_TX_DIS_LUT,
+
+	BT_COEX_MAX_LUT,
+};
+
 #define BT_COEX_LUT_SIZE (12)
+#define BT_COEX_CORUN_LUT_SIZE (32)
+#define BT_COEX_MULTI_PRIO_LUT_SIZE (2)
+#define BT_COEX_BOOST_SIZE (4)
+#define BT_REDUCED_TX_POWER_BIT BIT(7)
 
 /**
  * struct iwl_bt_coex_cmd - bt coex configuration command
  * @flags:&enum iwl_bt_coex_flags
- * @lead_time:
  * @max_kill:
- * @bt3_time_t7_value:
- * @kill_ack_msk:
- * @kill_cts_msk:
- * @bt3_prio_sample_time:
- * @bt3_timer_t2_value:
- * @bt4_reaction_time:
- * @decision_lut[12]:
  * @bt_reduced_tx_power: enum %iwl_bt_reduced_tx_power
- * @valid_bit_msk: enum %iwl_bt_coex_valid_bit_msk
- * @bt_prio_boost: values for PTA boost register
+ * @bt4_antenna_isolation:
+ * @bt4_antenna_isolation_thr:
+ * @bt4_tx_tx_delta_freq_thr:
+ * @bt4_tx_rx_max_freq0:
+ * @bt_prio_boost:
  * @wifi_tx_prio_boost: SW boost of wifi tx priority
  * @wifi_rx_prio_boost: SW boost of wifi rx priority
+ * @kill_ack_msk:
+ * @kill_cts_msk:
+ * @decision_lut:
+ * @bt4_multiprio_lut:
+ * @bt4_corun_lut20:
+ * @bt4_corun_lut40:
+ * @valid_bit_msk: enum %iwl_bt_coex_valid_bit_msk
  *
  * The structure is used for the BT_COEX command.
  */
 struct iwl_bt_coex_cmd {
-	u8 flags;
-	u8 lead_time;
+	__le32 flags;
 	u8 max_kill;
-	u8 bt3_time_t7_value;
+	u8 bt_reduced_tx_power;
+	u8 reserved[2];
+
+	u8 bt4_antenna_isolation;
+	u8 bt4_antenna_isolation_thr;
+	u8 bt4_tx_tx_delta_freq_thr;
+	u8 bt4_tx_rx_max_freq0;
+
+	__le32 bt_prio_boost[BT_COEX_BOOST_SIZE];
+	__le32 wifi_tx_prio_boost;
+	__le32 wifi_rx_prio_boost;
 	__le32 kill_ack_msk;
 	__le32 kill_cts_msk;
-	u8 bt3_prio_sample_time;
-	u8 bt3_timer_t2_value;
-	__le16 bt4_reaction_time;
-	__le32 decision_lut[BT_COEX_LUT_SIZE];
-	u8 bt_reduced_tx_power;
-	u8 reserved;
-	__le16 valid_bit_msk;
-	__le32 bt_prio_boost;
-	u8 reserved2;
-	u8 wifi_tx_prio_boost;
-	__le16 wifi_rx_prio_boost;
+
+	__le32 decision_lut[BT_COEX_MAX_LUT][BT_COEX_LUT_SIZE];
+	__le32 bt4_multiprio_lut[BT_COEX_MULTI_PRIO_LUT_SIZE];
+	__le32 bt4_corun_lut20[BT_COEX_CORUN_LUT_SIZE];
+	__le32 bt4_corun_lut40[BT_COEX_CORUN_LUT_SIZE];
+
+	__le32 valid_bit_msk;
 } __packed; /* BT_COEX_CMD_API_S_VER_3 */
+
+/**
+ * struct iwl_bt_coex_ci_cmd - bt coex channel inhibition command
+ * @bt_primary_ci:
+ * @bt_secondary_ci:
+ * @co_run_bw_primary:
+ * @co_run_bw_secondary:
+ * @primary_ch_phy_id:
+ * @secondary_ch_phy_id:
+ *
+ * Used for BT_COEX_CI command
+ */
+struct iwl_bt_coex_ci_cmd {
+	__le64 bt_primary_ci;
+	__le64 bt_secondary_ci;
+
+	u8 co_run_bw_primary;
+	u8 co_run_bw_secondary;
+	u8 primary_ch_phy_id;
+	u8 secondary_ch_phy_id;
+} __packed; /* BT_CI_MSG_API_S_VER_1 */
 
 #define BT_MBOX(n_dw, _msg, _pos, _nbits)	\
 	BT_MBOX##n_dw##_##_msg##_POS = (_pos),	\
@@ -244,23 +281,39 @@ enum iwl_bt_mxbox_dw3 {
 	((le32_to_cpu((_notif)->mbox_msg[(_num)]) & BT_MBOX##_num##_##_field)\
 	>> BT_MBOX##_num##_##_field##_POS)
 
+enum iwl_bt_activity_grading {
+	BT_OFF			= 0,
+	BT_ON_NO_CONNECTION	= 1,
+	BT_LOW_TRAFFIC		= 2,
+	BT_HIGH_TRAFFIC		= 3,
+};
+
 /**
  * struct iwl_bt_coex_profile_notif - notification about BT coex
  * @mbox_msg: message from BT to WiFi
- * @:bt_status: 0 - off, 1 - on
- * @:bt_open_conn: number of BT connections open
- * @:bt_traffic_load: load of BT traffic
- * @:bt_agg_traffic_load: aggregated load of BT traffic
- * @:bt_ci_compliance: 0 - no CI compliance, 1 - CI compliant
+ * @msg_idx: the index of the message
+ * @bt_status: 0 - off, 1 - on
+ * @bt_open_conn: number of BT connections open
+ * @bt_traffic_load: load of BT traffic
+ * @bt_agg_traffic_load: aggregated load of BT traffic
+ * @bt_ci_compliance: 0 - no CI compliance, 1 - CI compliant
+ * @primary_ch_lut: LUT used for primary channel
+ * @secondary_ch_lut: LUT used for secondary channel
+ * @bt_activity_grading: the activity of BT enum %iwl_bt_activity_grading
  */
 struct iwl_bt_coex_profile_notif {
 	__le32 mbox_msg[4];
+	__le32 msg_idx;
 	u8 bt_status;
 	u8 bt_open_conn;
 	u8 bt_traffic_load;
 	u8 bt_agg_traffic_load;
 	u8 bt_ci_compliance;
 	u8 reserved[3];
+
+	__le32 primary_ch_lut;
+	__le32 secondary_ch_lut;
+	__le32 bt_activity_grading;
 } __packed; /* BT_COEX_PROFILE_NTFY_API_S_VER_2 */
 
 enum iwl_bt_coex_prio_table_event {

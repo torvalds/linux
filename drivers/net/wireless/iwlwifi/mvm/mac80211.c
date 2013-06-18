@@ -863,7 +863,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (ret)
 				IWL_ERR(mvm, "failed to update power mode\n");
 		}
-		iwl_mvm_bt_coex_vif_assoc(mvm, vif);
+		iwl_mvm_bt_coex_vif_change(mvm, vif);
 	} else if (changes & BSS_CHANGED_BEACON_INFO) {
 		/*
 		 * We received a beacon _after_ association so
@@ -931,6 +931,8 @@ static int iwl_mvm_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	if (vif->p2p && mvm->p2p_device_vif)
 		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif);
 
+	iwl_mvm_bt_coex_vif_change(mvm, vif);
+
 	mutex_unlock(&mvm->mutex);
 	return 0;
 
@@ -955,6 +957,8 @@ static void iwl_mvm_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	mutex_lock(&mvm->mutex);
 
 	mvmvif->ap_active = false;
+
+	iwl_mvm_bt_coex_vif_change(mvm, vif);
 
 	/* Need to update the P2P Device MAC */
 	if (vif->p2p && mvm->p2p_device_vif)
