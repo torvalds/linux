@@ -6,7 +6,7 @@
 
 config PLAT_SAMSUNG
 	bool
-	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P
+	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P || ARCH_EXYNOS
 	default y
 	select GENERIC_IRQ_CHIP
 	select NO_IOPORT
@@ -15,12 +15,10 @@ config PLAT_SAMSUNG
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
+	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
 	default y
 	select ARCH_REQUIRE_GPIOLIB
-	select ARM_GIC if ARCH_EXYNOS
-	select ARM_VIC if !ARCH_EXYNOS
-	select GIC_NON_BANKED if ARCH_EXYNOS4
+	select ARM_VIC
 	select NO_IOPORT
 	select PLAT_SAMSUNG
 	select S3C_GPIO_TRACK
