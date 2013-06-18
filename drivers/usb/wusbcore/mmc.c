@@ -214,9 +214,9 @@ int wusbhc_start(struct wusbhc *wusbhc)
 		dev_err(dev, "error starting security in the HC: %d\n", result);
 		goto error_sec_start;
 	}
-	/* FIXME: the choice of the DNTS parameters is somewhat
-	 * arbitrary */
-	result = wusbhc->set_num_dnts(wusbhc, 0, 15);
+
+	result = wusbhc->set_num_dnts(wusbhc, wusbhc->dnts_interval,
+		wusbhc->dnts_num_slots);
 	if (result < 0) {
 		dev_err(dev, "Cannot set DNTS parameters: %d\n", result);
 		goto error_set_num_dnts;

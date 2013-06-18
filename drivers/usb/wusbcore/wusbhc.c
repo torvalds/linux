@@ -175,11 +175,42 @@ static ssize_t wusb_phy_rate_store(struct device *dev,
 }
 static DEVICE_ATTR(wusb_phy_rate, 0644, wusb_phy_rate_show, wusb_phy_rate_store);
 
+static ssize_t wusb_dnts_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
+
+	return sprintf(buf, "num slots: %d\ninterval: %dms\n",
+			wusbhc->dnts_num_slots, wusbhc->dnts_interval);
+}
+
+static ssize_t wusb_dnts_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
+	uint8_t num_slots, interval;
+	ssize_t result;
+
+	result = sscanf(buf, "%hhu %hhu", &num_slots, &interval);
+
+	if (result != 2)
+		return -EINVAL;
+
+	wusbhc->dnts_num_slots = num_slots;
+	wusbhc->dnts_interval = interval;
+
+	return size;
+}
+static DEVICE_ATTR(wusb_dnts, 0644, wusb_dnts_show, wusb_dnts_store);
+
 /* Group all the WUSBHC attributes */
 static struct attribute *wusbhc_attrs[] = {
 		&dev_attr_wusb_trust_timeout.attr,
 		&dev_attr_wusb_chid.attr,
 		&dev_attr_wusb_phy_rate.attr,
+		&dev_attr_wusb_dnts.attr,
 		NULL,
 };
 
@@ -205,8 +236,11 @@ int wusbhc_create(struct wusbhc *wusbhc)
 {
 	int result = 0;
 
+	/* set defaults.  These can be overwritten using sysfs attributes. */
 	wusbhc->trust_timeout = WUSB_TRUST_TIMEOUT_MS;
 	wusbhc->phy_rate = UWB_PHY_RATE_INVALID - 1;
+	wusbhc->dnts_num_slots = 4;
+	wusbhc->dnts_interval = 2;
 
 	mutex_init(&wusbhc->mutex);
 	result = wusbhc_mmcie_create(wusbhc);
