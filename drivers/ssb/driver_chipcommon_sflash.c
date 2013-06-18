@@ -9,6 +9,19 @@
 
 #include "ssb_private.h"
 
+static struct resource ssb_sflash_resource = {
+	.name	= "ssb_sflash",
+	.start	= SSB_FLASH2,
+	.end	= 0,
+	.flags  = IORESOURCE_MEM | IORESOURCE_READONLY,
+};
+
+struct platform_device ssb_sflash_dev = {
+	.name		= "ssb_sflash",
+	.resource	= &ssb_sflash_resource,
+	.num_resources	= 1,
+};
+
 struct ssb_sflash_tbl_e {
 	char *name;
 	u32 id;
@@ -140,6 +153,12 @@ int ssb_sflash_init(struct ssb_chipcommon *cc)
 
 	pr_info("Found %s serial flash (blocksize: 0x%X, blocks: %d)\n",
 		e->name, e->blocksize, e->numblocks);
+
+	/* Prepare platform device, but don't register it yet. It's too early,
+	 * malloc (required by device_private_init) is not available yet. */
+	ssb_sflash_dev.resource[0].end = ssb_sflash_dev.resource[0].start +
+					 sflash->size;
+	ssb_sflash_dev.dev.platform_data = sflash;
 
 	pr_err("Serial flash support is not implemented yet!\n");
 
