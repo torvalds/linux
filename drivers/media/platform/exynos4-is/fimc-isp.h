@@ -145,7 +145,8 @@ struct fimc_isp {
 	struct vb2_alloc_ctx		*alloc_ctx;
 	struct v4l2_subdev		subdev;
 	struct media_pad		subdev_pads[FIMC_ISP_SD_PADS_NUM];
-	struct v4l2_mbus_framefmt	subdev_fmt;
+	struct v4l2_mbus_framefmt	src_fmt;
+	struct v4l2_mbus_framefmt	sink_fmt;
 	struct v4l2_ctrl		*test_pattern;
 	struct fimc_isp_ctrls		ctrls;
 

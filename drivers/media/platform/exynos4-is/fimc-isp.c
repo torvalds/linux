@@ -128,31 +128,28 @@ static int fimc_isp_subdev_get_fmt(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_format *fmt)
 {
 	struct fimc_isp *isp = v4l2_get_subdevdata(sd);
-	struct fimc_is *is = fimc_isp_to_is(isp);
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
-	struct v4l2_mbus_framefmt cur_fmt;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
-		fmt->format = *mf;
+		*mf = *v4l2_subdev_get_try_format(fh, fmt->pad);
 		return 0;
 	}
 
 	mf->colorspace = V4L2_COLORSPACE_SRGB;
 
 	mutex_lock(&isp->subdev_lock);
-	__is_get_frame_size(is, &cur_fmt);
 
 	if (fmt->pad == FIMC_ISP_SD_PAD_SINK) {
-		/* full camera input frame size */
-		mf->width = cur_fmt.width + FIMC_ISP_CAC_MARGIN_WIDTH;
-		mf->height = cur_fmt.height + FIMC_ISP_CAC_MARGIN_HEIGHT;
-		mf->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+		/* ISP OTF input image format */
+		*mf = isp->sink_fmt;
 	} else {
-		/* crop size */
-		mf->width = cur_fmt.width;
-		mf->height = cur_fmt.height;
-		mf->code = V4L2_MBUS_FMT_YUV10_1X30;
+		/* ISP OTF output image format */
+		*mf = isp->src_fmt;
+
+		if (fmt->pad == FIMC_ISP_SD_PAD_SRC_FIFO) {
+			mf->colorspace = V4L2_COLORSPACE_JPEG;
+			mf->code = V4L2_MBUS_FMT_YUV10_1X30;
+		}
 	}
 
 	mutex_unlock(&isp->subdev_lock);
@@ -164,21 +161,37 @@ static int fimc_isp_subdev_get_fmt(struct v4l2_subdev *sd,
 }
 
 static void __isp_subdev_try_format(struct fimc_isp *isp,
-				   struct v4l2_subdev_format *fmt)
+				    struct v4l2_subdev_fh *fh,
+				    struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
+	struct v4l2_mbus_framefmt *format;
+
+	mf->colorspace = V4L2_COLORSPACE_SRGB;
 
 	if (fmt->pad == FIMC_ISP_SD_PAD_SINK) {
 		v4l_bound_align_image(&mf->width, FIMC_ISP_SINK_WIDTH_MIN,
 				FIMC_ISP_SINK_WIDTH_MAX, 0,
 				&mf->height, FIMC_ISP_SINK_HEIGHT_MIN,
 				FIMC_ISP_SINK_HEIGHT_MAX, 0, 0);
-		isp->subdev_fmt = *mf;
+		mf->code = V4L2_MBUS_FMT_SGRBG10_1X10;
 	} else {
+		if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
+			format = v4l2_subdev_get_try_format(fh,
+						FIMC_ISP_SD_PAD_SINK);
+		else
+			format = &isp->sink_fmt;
+
 		/* Allow changing format only on sink pad */
-		mf->width = isp->subdev_fmt.width - FIMC_ISP_CAC_MARGIN_WIDTH;
-		mf->height = isp->subdev_fmt.height - FIMC_ISP_CAC_MARGIN_HEIGHT;
-		mf->code = isp->subdev_fmt.code;
+		mf->width = format->width - FIMC_ISP_CAC_MARGIN_WIDTH;
+		mf->height = format->height - FIMC_ISP_CAC_MARGIN_HEIGHT;
+
+		if (fmt->pad == FIMC_ISP_SD_PAD_SRC_FIFO) {
+			mf->code = V4L2_MBUS_FMT_YUV10_1X30;
+			mf->colorspace = V4L2_COLORSPACE_JPEG;
+		} else {
+			mf->code = format->code;
+		}
 	}
 }
 
@@ -194,24 +207,47 @@ static int fimc_isp_subdev_set_fmt(struct v4l2_subdev *sd,
 	isp_dbg(1, sd, "%s: pad%d: code: 0x%x, %dx%d\n",
 		 __func__, fmt->pad, mf->code, mf->width, mf->height);
 
-	mf->colorspace = V4L2_COLORSPACE_SRGB;
-
 	mutex_lock(&isp->subdev_lock);
-	__isp_subdev_try_format(isp, fmt);
+	__isp_subdev_try_format(isp, fh, fmt);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
 		*mf = fmt->format;
-		mutex_unlock(&isp->subdev_lock);
-		return 0;
+
+		/* Propagate format to the source pads */
+		if (fmt->pad == FIMC_ISP_SD_PAD_SINK) {
+			struct v4l2_subdev_format format = *fmt;
+			unsigned int pad;
+
+			for (pad = FIMC_ISP_SD_PAD_SRC_FIFO;
+					pad < FIMC_ISP_SD_PADS_NUM; pad++) {
+				format.pad = pad;
+				__isp_subdev_try_format(isp, fh, &format);
+				mf = v4l2_subdev_get_try_format(fh, pad);
+				*mf = format.format;
+			}
+		}
+	} else {
+		if (sd->entity.stream_count == 0) {
+			if (fmt->pad == FIMC_ISP_SD_PAD_SINK) {
+				struct v4l2_subdev_format format = *fmt;
+
+				isp->sink_fmt = *mf;
+
+				format.pad = FIMC_ISP_SD_PAD_SRC_DMA;
+				__isp_subdev_try_format(isp, fh, &format);
+
+				isp->src_fmt = format.format;
+				__is_set_frame_size(is, &isp->src_fmt);
+			} else {
+				isp->src_fmt = *mf;
+			}
+		} else {
+			ret = -EBUSY;
+		}
 	}
 
-	if (sd->entity.stream_count == 0)
-		__is_set_frame_size(is, mf);
-	else
-		ret = -EBUSY;
 	mutex_unlock(&isp->subdev_lock);
-
 	return ret;
 }
 
