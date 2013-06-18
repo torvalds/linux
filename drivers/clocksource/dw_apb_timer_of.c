@@ -55,15 +55,6 @@ static void add_clockevent(struct device_node *event_timer)
 	dw_apb_clockevent_register(ced);
 }
 
-static void __iomem *sched_io_base;
-
-/* This is actually same as __apbt_read_clocksource(), but with
-   different interface */
-static u32 read_sched_clock_sptimer(void)
-{
-	return ~__raw_readl(sched_io_base + APBTMR_N_CURRENT_VALUE);
-}
-
 static void add_clocksource(struct device_node *source_timer)
 {
 	void __iomem *iobase;
@@ -78,27 +69,41 @@ static void add_clocksource(struct device_node *source_timer)
 
 	dw_apb_clocksource_start(cs);
 	dw_apb_clocksource_register(cs);
+}
 
-	sched_io_base = iobase;
-	setup_sched_clock(read_sched_clock_sptimer, 32, rate);
+static void __iomem *sched_io_base;
+
+static u32 read_sched_clock(void)
+{
+	return __raw_readl(sched_io_base);
+}
+
+static const struct of_device_id sptimer_ids[] __initconst = {
+	{ .compatible = "picochip,pc3x2-rtc" },
+	{ .compatible = "snps,dw-apb-timer-sp" },
+	{ /* Sentinel */ },
+};
+
+static void init_sched_clock(void)
+{
+	struct device_node *sched_timer;
+	u32 rate;
+
+	sched_timer = of_find_matching_node(NULL, sptimer_ids);
+	if (!sched_timer)
+		panic("No RTC for sched clock to use");
+
+	timer_get_base_and_rate(sched_timer, &sched_io_base, &rate);
+	of_node_put(sched_timer);
+
+	setup_sched_clock(read_sched_clock, 32, rate);
 }
 
 static const struct of_device_id osctimer_ids[] __initconst = {
 	{ .compatible = "picochip,pc3x2-timer" },
 	{ .compatible = "snps,dw-apb-timer-osc" },
-	{ .compatible = "snps,dw-apb-timer-sp" },
-	{  /* Sentinel */ },
+	{},
 };
-
-/*
-   You don't have to use dw_apb_timer for scheduler clock,
-   this should also work fine on arm:
-
-  twd_local_timer_of_register();
-  arch_timer_of_register();
-  arch_timer_sched_clock_init();
-*/
-
 
 void __init dw_apb_timer_init(void)
 {
@@ -114,6 +119,7 @@ void __init dw_apb_timer_init(void)
 		panic("No timer for clocksource");
 	add_clocksource(source_timer);
 
-	of_node_put(event_timer);
 	of_node_put(source_timer);
+
+	init_sched_clock();
 }
