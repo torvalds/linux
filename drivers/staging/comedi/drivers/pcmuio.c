@@ -257,7 +257,7 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void init_asics(struct comedi_device *dev)
+static void pcmuio_reset(struct comedi_device *dev)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
 	int asic;
@@ -393,7 +393,7 @@ static int pcmuio_handle_asic_interrupt(struct comedi_device *dev, int asic)
 	return got1;
 }
 
-static irqreturn_t interrupt_pcmuio(int irq, void *d)
+static irqreturn_t pcmuio_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pcmuio_private *devpriv = dev->private;
@@ -655,11 +655,11 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		spin_lock_init(&subpriv->intr.spinlock);
 	}
 
-	init_asics(dev);	/* clear out all the registers, basically */
+	pcmuio_reset(dev);
 
 	for (asic = 0; irq[0] && asic < PCMUIO_MAX_ASICS; ++asic) {
 		if (irq[asic]
-		    && request_irq(irq[asic], interrupt_pcmuio,
+		    && request_irq(irq[asic], pcmuio_interrupt,
 				   IRQF_SHARED, board->name, dev)) {
 			int i;
 			/* unroll the allocated irqs.. */
