@@ -169,7 +169,6 @@ int omap_voltage_late_init(void);
 
 extern void omap2xxx_voltagedomains_init(void);
 extern void omap3xxx_voltagedomains_init(void);
-extern void am33xx_voltagedomains_init(void);
 extern void omap44xx_voltagedomains_init(void);
 
 struct voltagedomain *voltdm_lookup(const char *name);
