@@ -153,11 +153,6 @@ struct pcmuio_subdev_private {
 		/* if non-negative, this subdev has an interrupt asic */
 		int asic;
 		/*
-		 * the number of asic channels in this
-		 * subdev that have interrutps
-		 */
-		int num_asic_chans;
-		/*
 		 * if nonnegative, the first channel id with
 		 * respect to the asic that has interrupts
 		 */
@@ -374,7 +369,7 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 		goto done;
 
 	mytrig = triggered >> subpriv->intr.asic_chan;
-	mytrig &= ((0x1 << subpriv->intr.num_asic_chans) - 1);
+	mytrig &= ((0x1 << s->n_chan) - 1);
 
 	if (!(mytrig & subpriv->intr.enabled_mask))
 		goto done;
@@ -517,7 +512,7 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 				    << CR_CHAN(cmd->chanlist[n]);
 			}
 		}
-		bits &= ((0x1 << subpriv->intr.num_asic_chans) - 1);
+		bits &= ((0x1 << s->n_chan) - 1);
 		subpriv->intr.enabled_mask = bits;
 
 		/* set pol and enab intrs for this subdev.. */
@@ -724,7 +719,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->n_chan = min(chans_left, MAX_CHANS_PER_SUBDEV);
 		subpriv->intr.asic = -1;
 		subpriv->intr.asic_chan = -1;
-		subpriv->intr.num_asic_chans = -1;
 		subpriv->intr.active = 0;
 		s->len_chanlist = 1;
 
@@ -748,13 +742,12 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				subpriv->intr.active = 0;
 				subpriv->intr.stop_count = 0;
 				subpriv->intr.asic_chan = thisasic_chanct;
-				subpriv->intr.num_asic_chans = s->n_chan;
 				dev->read_subdev = s;
 				s->subdev_flags |= SDF_CMD_READ;
 				s->cancel = pcmuio_cancel;
 				s->do_cmd = pcmuio_cmd;
 				s->do_cmdtest = pcmuio_cmdtest;
-				s->len_chanlist = subpriv->intr.num_asic_chans;
+				s->len_chanlist = s->n_chan;
 			}
 			thisasic_chanct += CHANS_PER_PORT;
 		}
