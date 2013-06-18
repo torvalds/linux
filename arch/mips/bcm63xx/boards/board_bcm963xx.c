@@ -883,5 +883,9 @@ int __init board_register_devices(void)
 
 	platform_device_register(&bcm63xx_gpio_leds);
 
+	if (board.ephy_reset_gpio && board.ephy_reset_gpio_flags)
+		gpio_request_one(board.ephy_reset_gpio,
+				board.ephy_reset_gpio_flags, "ephy-reset");
+
 	return 0;
 }
