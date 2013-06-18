@@ -110,7 +110,6 @@
 
 #define CHANS_PER_PORT		8
 #define PORTS_PER_ASIC		6
-#define INTR_PORTS_PER_ASIC	3
 /* number of channels per comedi subdevice */
 #define MAX_CHANS_PER_SUBDEV	24
 #define PORTS_PER_SUBDEV	(MAX_CHANS_PER_SUBDEV / CHANS_PER_PORT)
@@ -181,6 +180,27 @@ static void pcmuio_write(struct comedi_device *dev, unsigned int val,
 		outb((val >> 8) & 0xff, iobase + PCMUIO_PAGE_REG(1));
 		outb((val >> 16) & 0xff, iobase + PCMUIO_PAGE_REG(2));
 	}
+}
+
+static unsigned int pcmuio_read(struct comedi_device *dev,
+				int asic, int page, int port)
+{
+	unsigned long iobase = dev->iobase + (asic * ASIC_IOSIZE);
+	unsigned int val;
+
+	if (page == 0) {
+		/* Port registers are valid for any page */
+		val = inb(iobase + PCMUIO_PORT_REG(port + 0));
+		val |= (inb(iobase + PCMUIO_PORT_REG(port + 1)) << 8);
+		val |= (inb(iobase + PCMUIO_PORT_REG(port + 2)) << 16);
+	} else {
+		outb(PCMUIO_PAGE(page), iobase + PCMUIO_PAGE_LOCK_REG);
+		val = inb(iobase + PCMUIO_PAGE_REG(0));
+		val |= (inb(iobase + PCMUIO_PAGE_REG(1)) << 8);
+		val |= (inb(iobase + PCMUIO_PAGE_REG(2)) << 16);
+	}
+
+	return val;
 }
 
 static int pcmuio_dio_insn_bits(struct comedi_device *dev,
@@ -296,12 +316,6 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void switch_page(struct comedi_device *dev, int asic, int page)
-{
-	outb(PCMUIO_PAGE(page),
-	     dev->iobase + ASIC_IOSIZE * asic + PCMUIO_PAGE_LOCK_REG);
-}
-
 static void init_asics(struct comedi_device *dev)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
@@ -401,7 +415,7 @@ static int pcmuio_handle_asic_interrupt(struct comedi_device *dev, int asic)
 	struct pcmuio_private *devpriv = dev->private;
 	struct pcmuio_subdev_private *subpriv;
 	unsigned long iobase = dev->iobase + (asic * ASIC_IOSIZE);
-	unsigned triggered = 0;
+	unsigned int triggered = 0;
 	int got1 = 0;
 	unsigned long flags;
 	unsigned char int_pend;
@@ -411,19 +425,8 @@ static int pcmuio_handle_asic_interrupt(struct comedi_device *dev, int asic)
 
 	int_pend = inb(iobase + PCMUIO_INT_PENDING_REG) & 0x07;
 	if (int_pend) {
-		for (i = 0; i < INTR_PORTS_PER_ASIC; ++i) {
-			if (int_pend & (0x1 << i)) {
-				unsigned char val;
-
-				switch_page(dev, asic, PCMUIO_PAGE_INT_ID);
-				val = inb(iobase + PCMUIO_PAGE_REG(i));
-				if (val)
-					/* clear pending interrupt */
-					outb(0, iobase + PCMUIO_PAGE_REG(i));
-
-					triggered |= (val << (i * 8));
-			}
-		}
+		triggered = pcmuio_read(dev, asic, PCMUIO_PAGE_INT_ID, 0);
+		pcmuio_write(dev, 0, asic, PCMUIO_PAGE_INT_ID, 0);
 
 		++got1;
 	}
