@@ -3509,23 +3509,6 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 	return (atomic_read(&bus->ipend) > 0);
 }
 
-static bool brcmf_sdbrcm_chipmatch(u16 chipid)
-{
-	if (chipid == BCM43143_CHIP_ID)
-		return true;
-	if (chipid == BCM43241_CHIP_ID)
-		return true;
-	if (chipid == BCM4329_CHIP_ID)
-		return true;
-	if (chipid == BCM4330_CHIP_ID)
-		return true;
-	if (chipid == BCM4334_CHIP_ID)
-		return true;
-	if (chipid == BCM4335_CHIP_ID)
-		return true;
-	return false;
-}
-
 static void brcmf_sdio_dataworker(struct work_struct *work)
 {
 	struct brcmf_sdio *bus = container_of(work, struct brcmf_sdio,
@@ -3619,11 +3602,6 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 
 	if (brcmf_sdio_chip_attach(bus->sdiodev, &bus->ci, regsva)) {
 		brcmf_err("brcmf_sdio_chip_attach failed!\n");
-		goto fail;
-	}
-
-	if (!brcmf_sdbrcm_chipmatch((u16) bus->ci->chip)) {
-		brcmf_err("unsupported chip: 0x%04x\n", bus->ci->chip);
 		goto fail;
 	}
 
