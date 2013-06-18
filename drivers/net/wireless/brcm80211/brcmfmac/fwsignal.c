@@ -426,6 +426,7 @@ struct brcmf_fws_info {
 	struct brcmf_fws_stats stats;
 	struct brcmf_fws_hanger hanger;
 	enum brcmf_fws_fcmode fcmode;
+	bool bcmc_credit_check;
 	struct brcmf_fws_macdesc_table desc;
 	struct workqueue_struct *fws_wq;
 	struct work_struct fws_dequeue_work;
@@ -1438,6 +1439,20 @@ static int brcmf_fws_notify_credit_map(struct brcmf_if *ifp,
 	return 0;
 }
 
+static int brcmf_fws_notify_bcmc_credit_support(struct brcmf_if *ifp,
+						const struct brcmf_event_msg *e,
+						void *data)
+{
+	struct brcmf_fws_info *fws = ifp->drvr->fws;
+	ulong flags;
+
+	brcmf_fws_lock(ifp->drvr, flags);
+	if (fws)
+		fws->bcmc_credit_check = true;
+	brcmf_fws_unlock(ifp->drvr, flags);
+	return 0;
+}
+
 int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 		      struct sk_buff *skb)
 {
@@ -1806,6 +1821,12 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 		  eh->h_dest, multicast, fifo);
 
 	brcmf_fws_lock(drvr, flags);
+	/* multicast credit support is conditional, setting
+	 * flag to false to assure credit is consumed below.
+	 */
+	if (fws->bcmc_credit_check)
+		multicast = false;
+
 	if (skcb->mac->suppressed ||
 	    fws->bus_flow_blocked ||
 	    brcmf_fws_mac_desc_closed(fws, skcb->mac, fifo) ||
@@ -1878,7 +1899,8 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 	brcmf_fws_lock(fws->drvr, flags);
 	for (fifo = NL80211_NUM_ACS; fifo >= 0 && !fws->bus_flow_blocked;
 	     fifo--) {
-		while (fws->fifo_credit[fifo]) {
+		while ((fws->fifo_credit[fifo]) || ((!fws->bcmc_credit_check) &&
+		       (fifo == BRCMF_FWS_FIFO_BCMC))) {
 			skb = brcmf_fws_deq(fws, fifo);
 			if (!skb)
 				break;
@@ -1947,6 +1969,13 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 		brcmf_err("register credit map handler failed\n");
 		goto fail;
 	}
+	rc = brcmf_fweh_register(drvr, BRCMF_E_BCMC_CREDIT_SUPPORT,
+				 brcmf_fws_notify_bcmc_credit_support);
+	if (rc < 0) {
+		brcmf_err("register bcmc credit handler failed\n");
+		brcmf_fweh_unregister(drvr, BRCMF_E_FIFO_CREDIT_MAP);
+		goto fail;
+	}
 
 	/* setting the iovar may fail if feature is unsupported
 	 * so leave the rc as is so driver initialization can
@@ -1971,6 +2000,7 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 	return 0;
 
 fail_event:
+	brcmf_fweh_unregister(drvr, BRCMF_E_BCMC_CREDIT_SUPPORT);
 	brcmf_fweh_unregister(drvr, BRCMF_E_FIFO_CREDIT_MAP);
 fail:
 	brcmf_fws_deinit(drvr);
