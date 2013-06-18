@@ -1403,6 +1403,7 @@ struct usb_function *ncm_alloc(struct usb_function_instance *fi)
 				      sizeof(ncm->ethaddr));
 	if (status < 12) { /* strlen("01234567890a") */
 		kfree(ncm);
+		mutex_unlock(&opts->lock);
 		return ERR_PTR(-EINVAL);
 	}
 	ncm_string_defs[STRING_MAC_IDX].s = ncm->ethaddr;
