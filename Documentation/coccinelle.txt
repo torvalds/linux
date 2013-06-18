@@ -91,6 +91,11 @@ To enable verbose messages set the V= variable, for example:
 
    make coccicheck MODE=report V=1
 
+By default, coccicheck tries to run as parallel as possible. To change
+the parallelism, set the J= variable. For example, to run across 4 CPUs:
+
+   make coccicheck MODE=report J=4
+
 
  Using Coccinelle with a single semantic patch
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

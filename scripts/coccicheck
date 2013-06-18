@@ -2,13 +2,22 @@
 
 SPATCH="`which ${SPATCH:=spatch}`"
 
+trap kill_running SIGTERM SIGINT
+declare -a SPATCH_PID
+
 # The verbosity may be set by the environmental parameter V=
 # as for example with 'make V=1 coccicheck'
 
 if [ -n "$V" -a "$V" != "0" ]; then
-	VERBOSE=1
+	VERBOSE="$V"
 else
 	VERBOSE=0
+fi
+
+if [ -z "$J" ]; then
+	NPROC=$(getconf _NPROCESSORS_ONLN)
+else
+	NPROC="$J"
 fi
 
 FLAGS="$SPFLAGS -very_quiet"
@@ -69,12 +78,28 @@ if [ "$ONLINE" = "0" ] ; then
 fi
 
 run_cmd() {
+	local i
 	if [ $VERBOSE -ne 0 ] ; then
-		echo "Running: $@"
+		echo "Running ($NPROC in parallel): $@"
 	fi
-	eval $@
+	for i in $(seq 0 $(( NPROC - 1)) ); do
+		eval "$@ -max $NPROC -index $i &"
+		SPATCH_PID[$i]=$!
+		if [ $VERBOSE -eq 2 ] ; then
+			echo "${SPATCH_PID[$i]} running"
+		fi
+	done
+	wait
 }
 
+kill_running() {
+	for i in $(seq $(( NPROC - 1 )) ); do
+		if [ $VERBOSE -eq 2 ] ; then
+			echo "Killing ${SPATCH_PID[$i]}"
+		fi
+		kill ${SPATCH_PID[$i]} 2>/dev/null
+	done
+}
 
 coccinelle () {
     COCCI="$1"
