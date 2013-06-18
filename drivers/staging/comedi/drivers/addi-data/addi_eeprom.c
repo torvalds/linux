@@ -295,7 +295,7 @@ static void addi_eeprom_read_ai_info(struct comedi_device *dev,
 	devpriv->s_EeParameters.ui_MinDelaytimeNs = tmp * 1000;
 
 	tmp = addi_eeprom_readw(iobase, type, addr + 20);
-	devpriv->s_EeParameters.i_Dma = (tmp >> 13) & 0x01;
+	/* dma = (tmp >> 13) & 0x01; */
 
 	tmp = addi_eeprom_readw(iobase, type, addr + 72) & 0xff;
 	if (tmp) {		/* > 0 */

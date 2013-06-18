@@ -116,7 +116,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 	devpriv->s_EeParameters.i_NbrDiChannel = this_board->i_NbrDiChannel;
 	devpriv->s_EeParameters.i_NbrDoChannel = this_board->i_NbrDoChannel;
 	devpriv->s_EeParameters.i_DoMaxdata = this_board->i_DoMaxdata;
-	devpriv->s_EeParameters.i_Dma = this_board->i_Dma;
 	devpriv->s_EeParameters.i_Timer = this_board->i_Timer;
 	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
 		this_board->ui_MinAcquisitiontimeNs;
