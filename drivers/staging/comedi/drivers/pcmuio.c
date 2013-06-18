@@ -108,21 +108,8 @@
 #define PCMUIO_PAGE_INT_ID		3
 #define PCMUIO_PAGE_REG(x)		(0x08 + (x))
 
-#define CHANS_PER_PORT		8
-#define PORTS_PER_ASIC		6
-/* number of channels per comedi subdevice */
-#define MAX_CHANS_PER_SUBDEV	24
-#define PORTS_PER_SUBDEV	(MAX_CHANS_PER_SUBDEV / CHANS_PER_PORT)
-#define CHANS_PER_ASIC		(CHANS_PER_PORT * PORTS_PER_ASIC)
-#define INTR_CHANS_PER_ASIC	24
-#define INTR_PORTS_PER_SUBDEV	(INTR_CHANS_PER_ASIC / CHANS_PER_PORT)
-#define MAX_DIO_CHANS		(PORTS_PER_ASIC * 2 * CHANS_PER_PORT)
-#define MAX_ASICS		(MAX_DIO_CHANS / CHANS_PER_ASIC)
-
-/* IO Memory sizes */
-#define ASIC_IOSIZE		0x10
-#define PCMUIO48_IOSIZE		ASIC_IOSIZE
-#define PCMUIO96_IOSIZE		(ASIC_IOSIZE * 2)
+#define PCMUIO_ASIC_IOSIZE		0x10
+#define PCMUIO_MAX_ASICS		2
 
 struct pcmuio_board {
 	const char *name;
@@ -160,14 +147,14 @@ struct pcmuio_private {
 	struct {
 		unsigned int irq;
 		spinlock_t spinlock;
-	} asics[MAX_ASICS];
+	} asics[PCMUIO_MAX_ASICS];
 	struct pcmuio_subdev_private *sprivs;
 };
 
 static void pcmuio_write(struct comedi_device *dev, unsigned int val,
 			 int asic, int page, int port)
 {
-	unsigned long iobase = dev->iobase + (asic * ASIC_IOSIZE);
+	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
 
 	if (page == 0) {
 		/* Port registers are valid for any page */
@@ -185,7 +172,7 @@ static void pcmuio_write(struct comedi_device *dev, unsigned int val,
 static unsigned int pcmuio_read(struct comedi_device *dev,
 				int asic, int page, int port)
 {
-	unsigned long iobase = dev->iobase + (asic * ASIC_IOSIZE);
+	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
 	unsigned int val;
 
 	if (page == 0) {
@@ -368,7 +355,7 @@ static int pcmuio_handle_asic_interrupt(struct comedi_device *dev, int asic)
 {
 	struct pcmuio_private *devpriv = dev->private;
 	struct pcmuio_subdev_private *subpriv;
-	unsigned long iobase = dev->iobase + (asic * ASIC_IOSIZE);
+	unsigned long iobase = dev->iobase + (asic * PCMUIO_ASIC_IOSIZE);
 	unsigned int triggered = 0;
 	int got1 = 0;
 	unsigned long flags;
@@ -413,7 +400,7 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d)
 	int got1 = 0;
 	int asic;
 
-	for (asic = 0; asic < MAX_ASICS; ++asic) {
+	for (asic = 0; asic < PCMUIO_MAX_ASICS; ++asic) {
 		if (irq == devpriv->asics[asic].irq) {
 			/* it is an interrupt for ASIC #asic */
 			if (pcmuio_handle_asic_interrupt(dev, asic))
@@ -611,14 +598,14 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pcmuio_private *devpriv;
 	struct pcmuio_subdev_private *subpriv;
 	int sdev_no, n_subdevs, asic;
-	unsigned int irq[MAX_ASICS];
+	unsigned int irq[PCMUIO_MAX_ASICS];
 	int ret;
 
 	irq[0] = it->options[1];
 	irq[1] = it->options[2];
 
 	ret = comedi_request_region(dev, it->options[0],
-				    board->num_asics * ASIC_IOSIZE);
+				    board->num_asics * PCMUIO_ASIC_IOSIZE);
 	if (ret)
 		return ret;
 
@@ -627,7 +614,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	for (asic = 0; asic < MAX_ASICS; ++asic)
+	for (asic = 0; asic < PCMUIO_MAX_ASICS; ++asic)
 		spin_lock_init(&devpriv->asics[asic].spinlock);
 
 	n_subdevs = board->num_asics * 2;
@@ -672,7 +659,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	init_asics(dev);	/* clear out all the registers, basically */
 
-	for (asic = 0; irq[0] && asic < MAX_ASICS; ++asic) {
+	for (asic = 0; irq[0] && asic < PCMUIO_MAX_ASICS; ++asic) {
 		if (irq[asic]
 		    && request_irq(irq[asic], interrupt_pcmuio,
 				   IRQF_SHARED, board->name, dev)) {
@@ -705,7 +692,7 @@ static void pcmuio_detach(struct comedi_device *dev)
 	struct pcmuio_private *devpriv = dev->private;
 	int i;
 
-	for (i = 0; i < MAX_ASICS; ++i) {
+	for (i = 0; i < PCMUIO_MAX_ASICS; ++i) {
 		if (devpriv->asics[i].irq)
 			free_irq(devpriv->asics[i].irq, dev);
 	}
