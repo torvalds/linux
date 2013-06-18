@@ -28,7 +28,11 @@
 #include <bcm63xx_dev_usb_usbd.h>
 #include <board_bcm963xx.h>
 
+#include <uapi/linux/bcm933xx_hcs.h>
+
 #define PFX	"board_bcm963xx: "
+
+#define HCS_OFFSET_128K			0x20000
 
 static struct board_info board;
 
@@ -722,8 +726,9 @@ void __init board_prom_init(void)
 	unsigned int i;
 	u8 *boot_addr, *cfe;
 	char cfe_version[32];
-	char *board_name;
+	char *board_name = NULL;
 	u32 val;
+	struct bcm_hcs *hcs;
 
 	/* read base address of boot chip select (0)
 	 * 6328/6362 do not have MPI but boot from a fixed address
@@ -747,7 +752,12 @@ void __init board_prom_init(void)
 
 	bcm63xx_nvram_init(boot_addr + BCM963XX_NVRAM_OFFSET);
 
-	board_name = bcm63xx_nvram_get_name();
+	if (BCMCPU_IS_3368()) {
+		hcs = (struct bcm_hcs *)boot_addr;
+		board_name = hcs->filename;
+	} else {
+		board_name = bcm63xx_nvram_get_name();
+	}
 	/* find board by name */
 	for (i = 0; i < ARRAY_SIZE(bcm963xx_boards); i++) {
 		if (strncmp(board_name, bcm963xx_boards[i]->name, 16))
