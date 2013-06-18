@@ -125,8 +125,6 @@
 #define PCMUIO48_IOSIZE		ASIC_IOSIZE
 #define PCMUIO96_IOSIZE		(ASIC_IOSIZE * 2)
 
-#define NUM_PAGED_REGS		3
-
 struct pcmuio_board {
 	const char *name;
 	const int num_asics;
@@ -180,11 +178,6 @@ struct pcmuio_subdev_private {
 
 struct pcmuio_private {
 	struct {
-		/* shadow of POLx registers */
-		unsigned char pol[NUM_PAGED_REGS];
-		/* shadow of ENABx registers */
-		unsigned char enab[NUM_PAGED_REGS];
-		int num;
 		unsigned long iobase;
 		unsigned int irq;
 		spinlock_t spinlock;
@@ -701,7 +694,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->private = devpriv;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
-		devpriv->asics[asic].num = asic;
 		devpriv->asics[asic].iobase = dev->iobase + asic * ASIC_IOSIZE;
 		spin_lock_init(&devpriv->asics[asic].spinlock);
 	}
