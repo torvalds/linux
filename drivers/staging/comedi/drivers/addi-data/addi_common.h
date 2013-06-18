@@ -54,8 +54,6 @@ struct addi_board {
 	int i_NbrDoChannel;	/*  Number of DO channels */
 	int i_DoMaxdata;	/*  data to set all channels high */
 
-	int i_NbrTTLChannel;	/*  Number of TTL channels */
-
 	int i_Timer;		/*    timer subdevice present or not */
 	unsigned int ui_MinAcquisitiontimeNs;	/*  Minimum Acquisition in Nano secs */
 	unsigned int ui_MinDelaytimeNs;	/*  Minimum Delay in Nano secs */

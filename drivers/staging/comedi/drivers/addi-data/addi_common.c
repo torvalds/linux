@@ -39,10 +39,6 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
   +-----------------------------------------------------------------------+
 */
 
-#ifndef COMEDI_SUBD_TTLIO
-#define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
-#endif
-
 static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_insn *insn,
@@ -259,18 +255,7 @@ static int addi_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise TTL */
 	s = &dev->subdevices[5];
-	if (this_board->i_NbrTTLChannel) {
-		s->type = COMEDI_SUBD_TTLIO;
-		s->subdev_flags =
-			SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->i_NbrTTLChannel;
-		s->maxdata = 1;
-		s->io_bits = 0;	/* all bits input */
-		s->len_chanlist = this_board->i_NbrTTLChannel;
-		s->range_table = &range_digital;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
 
 	/* EEPROM */
 	s = &dev->subdevices[6];
