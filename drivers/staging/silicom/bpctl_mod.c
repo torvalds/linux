@@ -307,7 +307,8 @@ static void write_pulse(bpctl_dev_t *pbpctl_dev,
 		ctrl = BP10G_READ_REG(pbpctl_dev, ESDP);
 
 	if (pbpctl_dev->bp_10g9) {
-		if (!(pbpctl_dev_c = get_status_port_fn(pbpctl_dev)))
+		pbpctl_dev_c = get_status_port_fn(pbpctl_dev);
+		if (!pbpctl_dev_c)
 			return;
 		ctrl = BP10G_READ_REG(pbpctl_dev_c, ESDP);
 	}
@@ -607,7 +608,8 @@ static int read_pulse(bpctl_dev_t *pbpctl_dev, unsigned int ctrl_ext,
 	if (pbpctl_dev->bp_540)
 		ctrl = BP10G_READ_REG(pbpctl_dev, ESDP);
 	if (pbpctl_dev->bp_10g9) {
-		if (!(pbpctl_dev_c = get_status_port_fn(pbpctl_dev)))
+		pbpctl_dev_c = get_status_port_fn(pbpctl_dev);
+		if (!pbpctl_dev_c)
 			return -1;
 		ctrl = BP10G_READ_REG(pbpctl_dev_c, ESDP);
 	}
@@ -775,7 +777,8 @@ static void write_reg(bpctl_dev_t *pbpctl_dev, unsigned char value,
 	bpctl_dev_t *pbpctl_dev_c = NULL;
 	unsigned long flags;
 	if (pbpctl_dev->bp_10g9) {
-		if (!(pbpctl_dev_c = get_status_port_fn(pbpctl_dev)))
+		pbpctl_dev_c = get_status_port_fn(pbpctl_dev);
+		if (!pbpctl_dev_c)
 			return;
 	}
 	if ((pbpctl_dev->wdt_status == WDT_STATUS_EN) &&
@@ -953,7 +956,8 @@ static int read_reg(bpctl_dev_t *pbpctl_dev, unsigned char addr)
 	atomic_set(&pbpctl_dev->wdt_busy, 1);
 #endif
 	if (pbpctl_dev->bp_10g9) {
-		if (!(pbpctl_dev_c = get_status_port_fn(pbpctl_dev)))
+		pbpctl_dev_c = get_status_port_fn(pbpctl_dev);
+		if (!pbpctl_dev_c)
 			return -1;
 	}
 
@@ -1224,7 +1228,8 @@ static int wdt_pulse(bpctl_dev_t *pbpctl_dev)
 		return -1;
 #endif
 	if (pbpctl_dev->bp_10g9) {
-		if (!(pbpctl_dev_c = get_status_port_fn(pbpctl_dev)))
+		pbpctl_dev_c = get_status_port_fn(pbpctl_dev);
+		if (!pbpctl_dev_c)
 			return -1;
 	}
 
@@ -1744,7 +1749,8 @@ static int write_data_int(bpctl_dev_t *pbpctl_dev, unsigned char value)
 {
 	bpctl_dev_t *pbpctl_dev_b = NULL;
 
-	if (!(pbpctl_dev_b = get_status_port_fn(pbpctl_dev)))
+	pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
+	if (!pbpctl_dev_b)
 		return -1;
 	atomic_set(&pbpctl_dev->wdt_busy, 1);
 	write_data_port_int(pbpctl_dev, value & 0x3);
@@ -1962,7 +1968,8 @@ int tpl_hw_on(bpctl_dev_t *pbpctl_dev)
 	int ret = 0, ctrl = 0;
 	bpctl_dev_t *pbpctl_dev_b = NULL;
 
-	if (!(pbpctl_dev_b = get_status_port_fn(pbpctl_dev)))
+	pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
+	if (!pbpctl_dev_b)
 		return BP_NOT_CAP;
 
 	if (pbpctl_dev->bp_caps_ex & TPL2_CAP_EX) {
@@ -1989,7 +1996,8 @@ int tpl_hw_off(bpctl_dev_t *pbpctl_dev)
 	int ret = 0, ctrl = 0;
 	bpctl_dev_t *pbpctl_dev_b = NULL;
 
-	if (!(pbpctl_dev_b = get_status_port_fn(pbpctl_dev)))
+	pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
+	if (!pbpctl_dev_b)
 		return BP_NOT_CAP;
 	if (pbpctl_dev->bp_caps_ex & TPL2_CAP_EX) {
 		cmnd_on(pbpctl_dev);
@@ -3234,8 +3242,10 @@ int bypass_from_last_read(bpctl_dev_t *pbpctl_dev)
 	uint32_t ctrl_ext = 0;
 	bpctl_dev_t *pbpctl_dev_b = NULL;
 
-	if ((pbpctl_dev->bp_caps & SW_CTL_CAP)
-	    && (pbpctl_dev_b = get_status_port_fn(pbpctl_dev))) {
+	if (pbpctl_dev->bp_caps & SW_CTL_CAP) {
+		pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
+		if (!pbpctl_dev_b)
+			return BP_NOT_CAP;
 		ctrl_ext = BPCTL_READ_REG(pbpctl_dev_b, CTRL_EXT);
 		BPCTL_BP_WRITE_REG(pbpctl_dev_b, CTRL_EXT,
 				   (ctrl_ext & ~BPCTLI_CTRL_EXT_SDP7_DIR));
@@ -3251,9 +3261,10 @@ int bypass_status_clear(bpctl_dev_t *pbpctl_dev)
 {
 	bpctl_dev_t *pbpctl_dev_b = NULL;
 
-	if ((pbpctl_dev->bp_caps & SW_CTL_CAP)
-	    && (pbpctl_dev_b = get_status_port_fn(pbpctl_dev))) {
-
+	if (pbpctl_dev->bp_caps & SW_CTL_CAP) {
+		pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
+		if (!pbpctl_dev_b)
+			return BP_NOT_CAP;
 		send_bypass_clear_pulse(pbpctl_dev_b, 1);
 		return 0;
 	} else
@@ -3326,7 +3337,8 @@ static int bypass_status(bpctl_dev_t *pbpctl_dev)
 
 		bpctl_dev_t *pbpctl_dev_b = NULL;
 
-		if (!(pbpctl_dev_b = get_status_port_fn(pbpctl_dev)))
+		pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
+		if (!pbpctl_dev_b)
 			return BP_NOT_CAP;
 
 		if (INTEL_IF_SERIES(pbpctl_dev->subdevice)) {
@@ -3614,7 +3626,8 @@ int tap_status(bpctl_dev_t *pbpctl_dev)
 	if (pbpctl_dev->bp_caps & TAP_CAP) {
 		bpctl_dev_t *pbpctl_dev_b = NULL;
 
-		if (!(pbpctl_dev_b = get_status_port_fn(pbpctl_dev)))
+		pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
+		if (!pbpctl_dev_b)
 			return BP_NOT_CAP;
 
 		if (pbpctl_dev->bp_ext_ver >= 0x8) {
@@ -3710,7 +3723,8 @@ int disc_off_status(bpctl_dev_t *pbpctl_dev)
 	u32 ctrl_ext = 0;
 
 	if (pbpctl_dev->bp_caps & DISC_CAP) {
-		if (!(pbpctl_dev_b = get_status_port_fn(pbpctl_dev)))
+		pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
+		if (!pbpctl_dev_b)
 			return BP_NOT_CAP;
 		if (DISCF_IF_SERIES(pbpctl_dev->subdevice))
 			return ((((read_reg(pbpctl_dev, STATUS_DISC_REG_ADDR)) &
@@ -3791,11 +3805,10 @@ static int disc_status(bpctl_dev_t *pbpctl_dev)
 {
 	int ctrl = 0;
 	if (pbpctl_dev->bp_caps & DISC_CAP) {
-
-		if ((ctrl = disc_off_status(pbpctl_dev)) < 0)
+		ctrl = disc_off_status(pbpctl_dev);
+		if (ctrl < 0)
 			return ctrl;
 		return ((ctrl == 0) ? 1 : 0);
-
 	}
 	return BP_NOT_CAP;
 }
@@ -3908,7 +3921,8 @@ int tpl_hw_status(bpctl_dev_t *pbpctl_dev)
 {
 	bpctl_dev_t *pbpctl_dev_b = NULL;
 
-	if (!(pbpctl_dev_b = get_status_port_fn(pbpctl_dev)))
+	pbpctl_dev_b = get_status_port_fn(pbpctl_dev);
+	if (!pbpctl_dev_b)
 		return BP_NOT_CAP;
 
 	if (TPL_IF_SERIES(pbpctl_dev->subdevice))
