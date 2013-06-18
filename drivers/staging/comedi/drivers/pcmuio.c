@@ -128,19 +128,15 @@
 struct pcmuio_board {
 	const char *name;
 	const int num_asics;
-	const int num_channels_per_port;
-	const int num_ports;
 };
 
 static const struct pcmuio_board pcmuio_boards[] = {
 	{
 		.name		= "pcmuio48",
 		.num_asics	= 1,
-		.num_ports	= 6,
 	}, {
 		.name		= "pcmuio96",
 		.num_asics	= 2,
-		.num_ports	= 12,
 	},
 };
 
