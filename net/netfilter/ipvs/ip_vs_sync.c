@@ -461,9 +461,10 @@ static int ip_vs_sync_conn_needed(struct netns_ipvs *ipvs,
 	} else if (unlikely(cp->protocol == IPPROTO_SCTP)) {
 		if (!((1 << cp->state) &
 		      ((1 << IP_VS_SCTP_S_ESTABLISHED) |
-		       (1 << IP_VS_SCTP_S_CLOSED) |
-		       (1 << IP_VS_SCTP_S_SHUT_ACK_CLI) |
-		       (1 << IP_VS_SCTP_S_SHUT_ACK_SER))))
+		       (1 << IP_VS_SCTP_S_SHUTDOWN_SENT) |
+		       (1 << IP_VS_SCTP_S_SHUTDOWN_RECEIVED) |
+		       (1 << IP_VS_SCTP_S_SHUTDOWN_ACK_SENT) |
+		       (1 << IP_VS_SCTP_S_CLOSED))))
 			return 0;
 		force = cp->state != cp->old_state;
 		if (force && cp->state != IP_VS_SCTP_S_ESTABLISHED)
