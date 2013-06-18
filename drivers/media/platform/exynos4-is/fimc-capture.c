@@ -1722,8 +1722,8 @@ static int fimc_capture_set_default_format(struct fimc_dev *fimc)
 	struct v4l2_format fmt = {
 		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
 		.fmt.pix_mp = {
-			.width		= 640,
-			.height		= 480,
+			.width		= FIMC_DEFAULT_WIDTH,
+			.height		= FIMC_DEFAULT_HEIGHT,
 			.pixelformat	= V4L2_PIX_FMT_YUYV,
 			.field		= V4L2_FIELD_NONE,
 			.colorspace	= V4L2_COLORSPACE_JPEG,
@@ -1741,6 +1741,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	struct vb2_queue *q = &fimc->vid_cap.vbq;
 	struct fimc_ctx *ctx;
 	struct fimc_vid_cap *vid_cap;
+	struct fimc_fmt *fmt;
 	int ret = -ENOMEM;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -1787,6 +1788,20 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	ret = vb2_queue_init(q);
 	if (ret)
 		goto err_free_ctx;
+
+	/* Default format configuration */
+	fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_CAM, 0);
+	vid_cap->ci_fmt.width = FIMC_DEFAULT_WIDTH;
+	vid_cap->ci_fmt.height = FIMC_DEFAULT_HEIGHT;
+	vid_cap->ci_fmt.code = fmt->mbus_code;
+
+	ctx->s_frame.width = FIMC_DEFAULT_WIDTH;
+	ctx->s_frame.height = FIMC_DEFAULT_HEIGHT;
+	ctx->s_frame.fmt = fmt;
+
+	fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_WRITEBACK, 0);
+	vid_cap->wb_fmt = vid_cap->ci_fmt;
+	vid_cap->wb_fmt.code = fmt->mbus_code;
 
 	vid_cap->vd_pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_init(&vfd->entity, 1, &vid_cap->vd_pad, 0);

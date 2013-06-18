@@ -48,6 +48,8 @@
 #define FIMC_DEF_MIN_SIZE	16
 #define FIMC_DEF_HEIGHT_ALIGN	2
 #define FIMC_DEF_HOR_OFFS_ALIGN	1
+#define FIMC_DEFAULT_WIDTH	640
+#define FIMC_DEFAULT_HEIGHT	480
 
 /* indices to the clocks array */
 enum {
