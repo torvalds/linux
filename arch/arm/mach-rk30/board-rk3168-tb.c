@@ -1429,7 +1429,17 @@ static struct mt6622_platform_data mt6622_platdata = {
 			    .iomux          = {
 				    .name       = NULL,
 				},
-		    }
+		    },
+
+		    .rts_gpio           = { // UART_RTS
+			    .io             = RK30_PIN1_PA3,
+			    .enable         = GPIO_LOW,
+				    .iomux          = {
+				    .name       = "bt_rts",
+				    .fgpio      = GPIO1_A3,
+				    .fmux       = UART0_RTSN,
+			    },
+		    },
 };
 
 static struct platform_device device_mt6622 = {
