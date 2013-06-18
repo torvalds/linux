@@ -805,7 +805,7 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 {
 	pci_power_t ret;
 
-	if (!pci_find_capability(dev, PCI_CAP_ID_PM))
+	if (!dev->pm_cap)
 		return PCI_D0;
 
 	ret = platform_pci_choose_state(dev);
