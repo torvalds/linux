@@ -735,6 +735,9 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 		return -EINVAL;
 	}
 
+	/*
+	 * SOC, MAC, BB, RADIO initvals.
+	 */
 	for (i = 0; i < ATH_INI_NUM_SPLIT; i++) {
 		ar9003_hw_prog_ini(ah, &ah->iniSOC[i], modesIndex);
 		ar9003_hw_prog_ini(ah, &ah->iniMac[i], modesIndex);
@@ -746,11 +749,29 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 					   modesIndex);
 	}
 
+	/*
+	 * RXGAIN initvals.
+	 */
 	REG_WRITE_ARRAY(&ah->iniModesRxGain, 1, regWrites);
+
+	if (AR_SREV_9462_20(ah)) {
+		/*
+		 * 5G-XLNA
+		 */
+		if ((ar9003_hw_get_rx_gain_idx(ah) == 2) ||
+		    (ar9003_hw_get_rx_gain_idx(ah) == 3)) {
+			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
+					modesIndex, regWrites);
+		}
+	}
+
 	if (AR_SREV_9550(ah))
 		REG_WRITE_ARRAY(&ah->ini_modes_rx_gain_bounds, modesIndex,
 				regWrites);
 
+	/*
+	 * TXGAIN initvals.
+	 */
 	if (AR_SREV_9550(ah)) {
 		int modes_txgain_index;
 
@@ -772,8 +793,14 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 		REG_WRITE_ARRAY(&ah->iniModesFastClock,
 				modesIndex, regWrites);
 
+	/*
+	 * Clock frequency initvals.
+	 */
 	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
 
+	/*
+	 * JAPAN regulatory.
+	 */
 	if (chan->channel == 2484)
 		ar9003_hw_prog_ini(ah, &ah->iniCckfirJapan2484, 1);
 
