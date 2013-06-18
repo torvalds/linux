@@ -58,6 +58,18 @@ config PINCTRL_AT91
 	help
 	  Say Y here to enable the at91 pinctrl driver
 
+config PINCTRL_BAYTRAIL
+	bool "Intel Baytrail GPIO pin control"
+	depends on GPIOLIB && ACPI && X86
+        select IRQ_DOMAIN
+	help
+	  driver for memory mapped GPIO functionality on Intel Baytrail
+	  platforms. Supports 3 banks with 102, 28 and 44 gpios.
+	  Most pins are usually muxed to some other functionality by firmware,
+	  so only a small amount is available for gpio use.
+
+	  Requires ACPI device enumeration code to set up a platform device.
+
 config PINCTRL_BCM2835
 	bool
 	select PINMUX
