@@ -134,6 +134,7 @@ struct rsxx_cardinfo {
 		spinlock_t		lock;
 		bool			active;
 		struct creg_cmd		*active_cmd;
+		struct workqueue_struct	*creg_wq;
 		struct work_struct	done_work;
 		struct list_head	queue;
 		unsigned int		q_depth;
@@ -154,6 +155,7 @@ struct rsxx_cardinfo {
 		int buf_len;
 	} log;
 
+	struct workqueue_struct	*event_wq;
 	struct work_struct	event_work;
 	unsigned int		state;
 	u64			size8;

@@ -727,6 +727,11 @@ int rsxx_creg_setup(struct rsxx_cardinfo *card)
 {
 	card->creg_ctrl.active_cmd = NULL;
 
+	card->creg_ctrl.creg_wq =
+			create_singlethread_workqueue(DRIVER_NAME"_creg");
+	if (!card->creg_ctrl.creg_wq)
+		return -ENOMEM;
+
 	INIT_WORK(&card->creg_ctrl.done_work, creg_cmd_done);
 	mutex_init(&card->creg_ctrl.reset_lock);
 	INIT_LIST_HEAD(&card->creg_ctrl.queue);

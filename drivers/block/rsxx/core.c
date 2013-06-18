@@ -163,12 +163,13 @@ static irqreturn_t rsxx_isr(int irq, void *pdata)
 		}
 
 		if (isr & CR_INTR_CREG) {
-			schedule_work(&card->creg_ctrl.done_work);
+			queue_work(card->creg_ctrl.creg_wq,
+				   &card->creg_ctrl.done_work);
 			handled++;
 		}
 
 		if (isr & CR_INTR_EVENT) {
-			schedule_work(&card->event_work);
+			queue_work(card->event_wq, &card->event_work);
 			rsxx_disable_ier_and_isr(card, CR_INTR_EVENT);
 			handled++;
 		}
@@ -610,7 +611,11 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 	}
 
 	/************* Setup Processor Command Interface *************/
-	rsxx_creg_setup(card);
+	st = rsxx_creg_setup(card);
+	if (st) {
+		dev_err(CARD_TO_DEV(card), "Failed to setup creg interface.\n");
+		goto failed_creg_setup;
+	}
 
 	spin_lock_irq(&card->irq_lock);
 	rsxx_enable_ier_and_isr(card, CR_INTR_CREG);
@@ -650,6 +655,12 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 	}
 
 	/************* Setup Card Event Handler *************/
+	card->event_wq = create_singlethread_workqueue(DRIVER_NAME"_event");
+	if (!card->event_wq) {
+		dev_err(CARD_TO_DEV(card), "Failed card event setup.\n");
+		goto failed_event_handler;
+	}
+
 	INIT_WORK(&card->event_work, card_event_handler);
 
 	st = rsxx_setup_dev(card);
@@ -688,9 +699,15 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 	return 0;
 
 failed_create_dev:
+	destroy_workqueue(card->event_wq);
+	card->event_wq = NULL;
+failed_event_handler:
 	rsxx_dma_destroy(card);
 failed_dma_setup:
 failed_compatiblity_check:
+	destroy_workqueue(card->creg_ctrl.creg_wq);
+	card->creg_ctrl.creg_wq = NULL;
+failed_creg_setup:
 	spin_lock_irq(&card->irq_lock);
 	rsxx_disable_ier_and_isr(card, CR_INTR_ALL);
 	spin_unlock_irq(&card->irq_lock);
