@@ -558,6 +558,7 @@ int twl4030_power_probe(struct platform_device *pdev)
 	struct twl4030_power_data *pdata = pdev->dev.platform_data;
 	struct device_node *node = pdev->dev.of_node;
 	int err = 0;
+	int err2 = 0;
 	u8 val;
 
 	if (!pdata && !node) {
@@ -581,12 +582,12 @@ int twl4030_power_probe(struct platform_device *pdev)
 		err = twl4030_power_configure_scripts(pdata);
 		if (err) {
 			pr_err("TWL4030 failed to load scripts\n");
-			return err;
+			goto relock;
 		}
 		err = twl4030_power_configure_resources(pdata);
 		if (err) {
 			pr_err("TWL4030 failed to configure resource\n");
-			return err;
+			goto relock;
 		}
 	}
 
@@ -612,10 +613,13 @@ int twl4030_power_probe(struct platform_device *pdev)
 	}
 
 relock:
-	err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, 0,
+	err2 = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, 0,
 			       TWL4030_PM_MASTER_PROTECT_KEY);
-	if (err)
+	if (err2) {
 		pr_err("TWL4030 Unable to relock registers\n");
+		return err2;
+	}
+
 	return err;
 }
 
