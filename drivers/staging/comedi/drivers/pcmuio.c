@@ -672,16 +672,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->asics[asic].irq = irq[asic];
 	}
 
-	if (irq[0]) {
-		dev_dbg(dev->class_dev, "irq: %u\n", irq[0]);
-		if (irq[1] && board->num_asics == 2)
-			dev_dbg(dev->class_dev, "second ASIC irq: %u\n",
-				irq[1]);
-	} else {
-		dev_dbg(dev->class_dev, "(IRQ mode disabled)\n");
-	}
-
-
 	return 1;
 }
 
