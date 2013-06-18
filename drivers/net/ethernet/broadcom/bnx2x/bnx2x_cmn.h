@@ -605,6 +605,13 @@ int bnx2x_enable_msi(struct bnx2x *bp);
 int bnx2x_poll(struct napi_struct *napi, int budget);
 
 /**
+ * bnx2x_low_latency_recv - LL callback
+ *
+ * @napi:	napi structure
+ */
+int bnx2x_low_latency_recv(struct napi_struct *napi);
+
+/**
  * bnx2x_alloc_mem_bp - allocate memories outsize main driver structure
  *
  * @bp:		driver handle
@@ -846,9 +853,11 @@ static inline void bnx2x_add_all_napi_cnic(struct bnx2x *bp)
 	int i;
 
 	/* Add NAPI objects */
-	for_each_rx_queue_cnic(bp, i)
+	for_each_rx_queue_cnic(bp, i) {
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
 			       bnx2x_poll, NAPI_POLL_WEIGHT);
+		napi_hash_add(&bnx2x_fp(bp, i, napi));
+	}
 }
 
 static inline void bnx2x_add_all_napi(struct bnx2x *bp)
@@ -856,25 +865,31 @@ static inline void bnx2x_add_all_napi(struct bnx2x *bp)
 	int i;
 
 	/* Add NAPI objects */
-	for_each_eth_queue(bp, i)
+	for_each_eth_queue(bp, i) {
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
 			       bnx2x_poll, NAPI_POLL_WEIGHT);
+		napi_hash_add(&bnx2x_fp(bp, i, napi));
+	}
 }
 
 static inline void bnx2x_del_all_napi_cnic(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_rx_queue_cnic(bp, i)
+	for_each_rx_queue_cnic(bp, i) {
+		napi_hash_del(&bnx2x_fp(bp, i, napi));
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
+	}
 }
 
 static inline void bnx2x_del_all_napi(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_eth_queue(bp, i)
+	for_each_eth_queue(bp, i) {
+		napi_hash_del(&bnx2x_fp(bp, i, napi));
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
+	}
 }
 
 int bnx2x_set_int_mode(struct bnx2x *bp);

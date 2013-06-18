@@ -485,6 +485,21 @@ struct bnx2x_fastpath {
 	struct bnx2x		*bp; /* parent */
 
 	struct napi_struct	napi;
+
+#ifdef CONFIG_NET_LL_RX_POLL
+	unsigned int state;
+#define BNX2X_FP_STATE_IDLE		      0
+#define BNX2X_FP_STATE_NAPI		(1 << 0)    /* NAPI owns this FP */
+#define BNX2X_FP_STATE_POLL		(1 << 1)    /* poll owns this FP */
+#define BNX2X_FP_STATE_NAPI_YIELD	(1 << 2)    /* NAPI yielded this FP */
+#define BNX2X_FP_STATE_POLL_YIELD	(1 << 3)    /* poll yielded this FP */
+#define BNX2X_FP_YIELD	(BNX2X_FP_STATE_NAPI_YIELD | BNX2X_FP_STATE_POLL_YIELD)
+#define BNX2X_FP_LOCKED	(BNX2X_FP_STATE_NAPI | BNX2X_FP_STATE_POLL)
+#define BNX2X_FP_USER_PEND (BNX2X_FP_STATE_POLL | BNX2X_FP_STATE_POLL_YIELD)
+	/* protect state */
+	spinlock_t lock;
+#endif /* CONFIG_NET_LL_RX_POLL */
+
 	union host_hc_status_block	status_blk;
 	/* chip independent shortcuts into sb structure */
 	__le16			*sb_index_values;
@@ -556,6 +571,116 @@ struct bnx2x_fastpath {
 #define bnx2x_sp_obj(bp, fp)	((bp)->sp_objs[(fp)->index])
 #define bnx2x_fp_stats(bp, fp)	(&((bp)->fp_stats[(fp)->index]))
 #define bnx2x_fp_qstats(bp, fp)	(&((bp)->fp_stats[(fp)->index].eth_q_stats))
+
+#ifdef CONFIG_NET_LL_RX_POLL
+static inline void bnx2x_fp_init_lock(struct bnx2x_fastpath *fp)
+{
+	spin_lock_init(&fp->lock);
+	fp->state = BNX2X_FP_STATE_IDLE;
+}
+
+/* called from the device poll routine to get ownership of a FP */
+static inline bool bnx2x_fp_lock_napi(struct bnx2x_fastpath *fp)
+{
+	bool rc = true;
+
+	spin_lock(&fp->lock);
+	if (fp->state & BNX2X_FP_LOCKED) {
+		WARN_ON(fp->state & BNX2X_FP_STATE_NAPI);
+		fp->state |= BNX2X_FP_STATE_NAPI_YIELD;
+		rc = false;
+	} else {
+		/* we don't care if someone yielded */
+		fp->state = BNX2X_FP_STATE_NAPI;
+	}
+	spin_unlock(&fp->lock);
+	return rc;
+}
+
+/* returns true is someone tried to get the FP while napi had it */
+static inline bool bnx2x_fp_unlock_napi(struct bnx2x_fastpath *fp)
+{
+	bool rc = false;
+
+	spin_lock(&fp->lock);
+	WARN_ON(fp->state &
+		(BNX2X_FP_STATE_POLL | BNX2X_FP_STATE_NAPI_YIELD));
+
+	if (fp->state & BNX2X_FP_STATE_POLL_YIELD)
+		rc = true;
+	fp->state = BNX2X_FP_STATE_IDLE;
+	spin_unlock(&fp->lock);
+	return rc;
+}
+
+/* called from bnx2x_low_latency_poll() */
+static inline bool bnx2x_fp_lock_poll(struct bnx2x_fastpath *fp)
+{
+	bool rc = true;
+
+	spin_lock_bh(&fp->lock);
+	if ((fp->state & BNX2X_FP_LOCKED)) {
+		fp->state |= BNX2X_FP_STATE_POLL_YIELD;
+		rc = false;
+	} else {
+		/* preserve yield marks */
+		fp->state |= BNX2X_FP_STATE_POLL;
+	}
+	spin_unlock_bh(&fp->lock);
+	return rc;
+}
+
+/* returns true if someone tried to get the FP while it was locked */
+static inline bool bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
+{
+	bool rc = false;
+
+	spin_lock_bh(&fp->lock);
+	WARN_ON(fp->state & BNX2X_FP_STATE_NAPI);
+
+	if (fp->state & BNX2X_FP_STATE_POLL_YIELD)
+		rc = true;
+	fp->state = BNX2X_FP_STATE_IDLE;
+	spin_unlock_bh(&fp->lock);
+	return rc;
+}
+
+/* true if a socket is polling, even if it did not get the lock */
+static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
+{
+	WARN_ON(!(fp->state & BNX2X_FP_LOCKED));
+	return fp->state & BNX2X_FP_USER_PEND;
+}
+#else
+static inline void bnx2x_fp_init_lock(struct bnx2x_fastpath *fp)
+{
+}
+
+static inline bool bnx2x_fp_lock_napi(struct bnx2x_fastpath *fp)
+{
+	return true;
+}
+
+static inline bool bnx2x_fp_unlock_napi(struct bnx2x_fastpath *fp)
+{
+	return false;
+}
+
+static inline bool bnx2x_fp_lock_poll(struct bnx2x_fastpath *fp)
+{
+	return false;
+}
+
+static inline bool bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
+{
+	return false;
+}
+
+static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
+{
+	return false;
+}
+#endif /* CONFIG_NET_LL_RX_POLL */
 
 /* Use 2500 as a mini-jumbo MTU for FCoE */
 #define BNX2X_FCOE_MINI_JUMBO_MTU	2500
