@@ -521,11 +521,14 @@ static void ath9k_init_platform(struct ath_softc *sc)
 	if (common->bus_ops->ath_bus_type != ATH_PCI)
 		return;
 
-	if (sc->driver_data & ATH9K_PCI_CUS198) {
+	if (sc->driver_data & (ATH9K_PCI_CUS198 |
+			       ATH9K_PCI_CUS230)) {
 		ah->config.xlna_gpio = 9;
 		ah->config.xatten_margin_cfg = true;
 
-		ath_info(common, "Set parameters for CUS198\n");
+		ath_info(common, "Set parameters for %s\n",
+			 (sc->driver_data & ATH9K_PCI_CUS198) ?
+			 "CUS198" : "CUS230");
 	}
 }
 

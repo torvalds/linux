@@ -51,16 +51,18 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 			 PCI_VENDOR_ID_AZWAVE,
 			 0x2126),
 	  .driver_data = ATH9K_PCI_CUS198 },
+
+	/* PCI-E CUS230 */
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 PCI_VENDOR_ID_AZWAVE,
 			 0x2152),
-	  .driver_data = ATH9K_PCI_CUS198 },
+	  .driver_data = ATH9K_PCI_CUS230 },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 PCI_VENDOR_ID_FOXCONN,
 			 0xE075),
-	  .driver_data = ATH9K_PCI_CUS198 },
+	  .driver_data = ATH9K_PCI_CUS230 },
 
 	{ PCI_VDEVICE(ATHEROS, 0x0032) }, /* PCI-E  AR9485 */
 	{ PCI_VDEVICE(ATHEROS, 0x0033) }, /* PCI-E  AR9580 */
