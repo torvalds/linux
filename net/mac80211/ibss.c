@@ -300,8 +300,7 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				  tsf, false);
 }
 
-static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
-						  bool auth)
+static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta)
 	__acquires(RCU)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -323,20 +322,12 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
 	/* If it fails, maybe we raced another insertion? */
 	if (sta_info_insert_rcu(sta))
 		return sta_info_get(sdata, addr);
-	if (auth && !sdata->u.ibss.auth_frame_registrations) {
-		ibss_dbg(sdata,
-			 "TX Auth SA=%pM DA=%pM BSSID=%pM (auth_transaction=1)\n",
-			 sdata->vif.addr, addr, sdata->u.ibss.bssid);
-		ieee80211_send_auth(sdata, 1, WLAN_AUTH_OPEN, 0, NULL, 0,
-				    addr, sdata->u.ibss.bssid, NULL, 0, 0, 0);
-	}
 	return sta;
 }
 
 static struct sta_info *
-ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
-		       const u8 *bssid, const u8 *addr,
-		       u32 supp_rates, bool auth)
+ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata, const u8 *bssid,
+		       const u8 *addr, u32 supp_rates)
 	__acquires(RCU)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
@@ -387,7 +378,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	sta->sta.supp_rates[band] = supp_rates |
 			ieee80211_mandatory_rates(sband);
 
-	return ieee80211_ibss_finish_sta(sta, auth);
+	return ieee80211_ibss_finish_sta(sta);
 }
 
 static void ieee80211_rx_mgmt_deauth_ibss(struct ieee80211_sub_if_data *sdata,
@@ -409,8 +400,6 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 					size_t len)
 {
 	u16 auth_alg, auth_transaction;
-	struct sta_info *sta;
-	u8 deauth_frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
 	sdata_assert_lock(sdata);
 
@@ -426,22 +415,6 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 
 	if (auth_alg != WLAN_AUTH_OPEN || auth_transaction != 1)
 		return;
-
-	sta_info_destroy_addr(sdata, mgmt->sa);
-	sta = ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa, 0, false);
-	rcu_read_unlock();
-
-	/*
-	 * if we have any problem in allocating the new station, we reply with a
-	 * DEAUTH frame to tell the other end that we had a problem
-	 */
-	if (!sta) {
-		ieee80211_send_deauth_disassoc(sdata, sdata->u.ibss.bssid,
-					       IEEE80211_STYPE_DEAUTH,
-					       WLAN_REASON_UNSPECIFIED, true,
-					       deauth_frame_buf);
-		return;
-	}
 
 	/*
 	 * IEEE 802.11 standard does not require authentication in IBSS
@@ -508,7 +481,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			} else {
 				rcu_read_unlock();
 				sta = ieee80211_ibss_add_sta(sdata, mgmt->bssid,
-						mgmt->sa, supp_rates, true);
+						mgmt->sa, supp_rates);
 			}
 		}
 
@@ -614,7 +587,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		ieee80211_sta_join_ibss(sdata, bss);
 		supp_rates = ieee80211_sta_get_rates(local, elems, band, NULL);
 		ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa,
-				       supp_rates, true);
+				       supp_rates);
 		rcu_read_unlock();
 	}
 
@@ -986,7 +959,7 @@ void ieee80211_ibss_work(struct ieee80211_sub_if_data *sdata)
 		list_del(&sta->list);
 		spin_unlock_bh(&ifibss->incomplete_lock);
 
-		ieee80211_ibss_finish_sta(sta, true);
+		ieee80211_ibss_finish_sta(sta);
 		rcu_read_unlock();
 		spin_lock_bh(&ifibss->incomplete_lock);
 	}

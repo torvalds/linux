@@ -2924,19 +2924,8 @@ static void ieee80211_mgmt_frame_register(struct wiphy *wiphy,
 					  u16 frame_type, bool reg)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
 	switch (frame_type) {
-	case IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_AUTH:
-		if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-			struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
-
-			if (reg)
-				ifibss->auth_frame_registrations++;
-			else
-				ifibss->auth_frame_registrations--;
-		}
-		break;
 	case IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_REQ:
 		if (reg)
 			local->probe_req_reg++;
