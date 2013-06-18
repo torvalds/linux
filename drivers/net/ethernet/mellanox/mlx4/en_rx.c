@@ -31,6 +31,7 @@
  *
  */
 
+#include <net/ll_poll.h>
 #include <linux/mlx4/cq.h>
 #include <linux/slab.h>
 #include <linux/mlx4/qp.h>
@@ -656,8 +657,11 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				 * - DIX Ethernet (type interpretation)
 				 * - TCP/IP (v4)
 				 * - without IP options
-				 * - not an IP fragment */
-				if (dev->features & NETIF_F_GRO) {
+				 * - not an IP fragment
+				 * - no LLS polling in progress
+				 */
+				if (!mlx4_en_cq_ll_polling(cq) &&
+				    (dev->features & NETIF_F_GRO)) {
 					struct sk_buff *gro_skb = napi_get_frags(&cq->napi);
 					if (!gro_skb)
 						goto next;
@@ -737,6 +741,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 					       timestamp);
 		}
 
+		skb_mark_ll(skb, &cq->napi);
+
 		/* Push it up the stack */
 		netif_receive_skb(skb);
 
@@ -781,7 +787,12 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int done;
 
+	if (!mlx4_en_cq_lock_napi(cq))
+		return budget;
+
 	done = mlx4_en_process_rx_cq(dev, cq, budget);
+
+	mlx4_en_cq_unlock_napi(cq);
 
 	/* If we used up all the quota - we're probably not done yet... */
 	if (done == budget)
