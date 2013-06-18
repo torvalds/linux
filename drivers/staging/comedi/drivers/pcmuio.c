@@ -203,51 +203,42 @@ static unsigned int pcmuio_read(struct comedi_device *dev,
 	return val;
 }
 
+/*
+ * Each channel can be individually programmed for input or output.
+ * Writing a '0' to a channel causes the corresponding output pin
+ * to go to a high-z state (pulled high by an external 10K resistor).
+ * This allows it to be used as an input. When used in the input mode,
+ * a read reflects the inverted state of the I/O pin, such that a
+ * high on the pin will read as a '0' in the register. Writing a '1'
+ * to a bit position causes the pin to sink current (up to 12mA),
+ * effectively pulling it low.
+ */
 static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	unsigned int mask = data[0] & s->io_bits;	/* outputs only */
+	unsigned int bits = data[1];
 	int asic = s->index / 2;
 	int port = (s->index % 2) ? 3 : 0;
-	unsigned long iobase = dev->iobase + (asic * ASIC_IOSIZE);
-	int byte_no;
+	unsigned int val;
 
-	/* NOTE:
-	   reading a 0 means this channel was high
-	   writine a 0 sets the channel high
-	   reading a 1 means this channel was low
-	   writing a 1 means set this channel low
+	/* get inverted state of the channels from the port */
+	val = pcmuio_read(dev, asic, 0, port);
 
-	   Therefore everything is always inverted. */
+	/* get the true state of the channels */
+	s->state = val ^ ((0x1 << s->n_chan) - 1);
 
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (mask & bits);
 
-	s->state = 0;
-
-	for (byte_no = 0; byte_no < s->n_chan / CHANS_PER_PORT; ++byte_no) {
-		/* bit offset of port in 32-bit doubleword */
-		unsigned long offset = byte_no * 8;
-		/* this 8-bit port's data */
-		unsigned char byte = 0,
-		    /* The write mask for this port (if any) */
-		    write_mask_byte = (data[0] >> offset) & 0xff,
-		    /* The data byte for this port */
-		    data_byte = (data[1] >> offset) & 0xff;
-
-		byte = inb(iobase + PCMUIO_PORT_REG(port + byte_no));
-
-		if (write_mask_byte) {
-			byte &= ~write_mask_byte;
-			byte |= ~data_byte & write_mask_byte;
-			outb(byte, iobase + PCMUIO_PORT_REG(port + byte_no));
-		}
-		/* save the digital input lines for this byte.. */
-		s->state |= ((unsigned int)byte) << offset;
+		/* invert the state and update the channels */
+		val = s->state ^ ((0x1 << s->n_chan) - 1);
+		pcmuio_write(dev, val, asic, 0, port);
 	}
 
-	/* now return the DIO lines to data[1] - note they came inverted! */
-	data[1] = ~s->state;
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -256,58 +247,21 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
+	unsigned int chan_mask = 1 << CR_CHAN(insn->chanspec);
 	int asic = s->index / 2;
 	int port = (s->index % 2) ? 3 : 0;
-	unsigned long iobase = dev->iobase + (asic * ASIC_IOSIZE);
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int byte_no = chan / 8;
-	int bit_no = chan % 8;
-	unsigned char byte;
-
-	/* NOTE:
-	   writing a 0 an IO channel's bit sets the channel to INPUT
-	   and pulls the line high as well
-
-	   writing a 1 to an IO channel's  bit pulls the line low
-
-	   All channels are implicitly always in OUTPUT mode -- but when
-	   they are high they can be considered to be in INPUT mode..
-
-	   Thus, we only force channels low if the config request was INPUT,
-	   otherwise we do nothing to the hardware.    */
 
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
-		/* save to io_bits -- don't actually do anything since
-		   all input channels are also output channels... */
-		s->io_bits |= 1 << chan;
+		s->io_bits |= chan_mask;
 		break;
 	case INSN_CONFIG_DIO_INPUT:
-		/* write a 0 to the actual register representing the channel
-		   to set it to 'input'.  0 means "float high". */
-		byte = inb(iobase + PCMUIO_PORT_REG(port + byte_no));
-		byte &= ~(1 << bit_no);
-				/**< set input channel to '0' */
-
-		/*
-		 * write out byte
-		 * This is the only time we actually affect the hardware
-		 * as all channels are implicitly output -- but input
-		 * channels are set to float-high.
-		 */
-		outb(byte, iobase + PCMUIO_PORT_REG(port + byte_no));
-
-		/* save to io_bits */
-		s->io_bits &= ~(1 << chan);
+		s->io_bits &= ~chan_mask;
+		pcmuio_write(dev, s->io_bits, asic, 0, port);
 		break;
-
 	case INSN_CONFIG_DIO_QUERY:
-		/* retrieve from shadow register */
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
+		data[1] = (s->io_bits & chan_mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		break;
-
 	default:
 		return -EINVAL;
 		break;
