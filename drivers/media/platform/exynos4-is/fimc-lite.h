@@ -29,6 +29,8 @@
 #define FLITE_CLK_NAME		"flite"
 #define FIMC_LITE_MAX_DEVS	3
 #define FLITE_REQ_BUFS_MIN	2
+#define FLITE_DEFAULT_WIDTH	640
+#define FLITE_DEFAULT_HEIGHT	480
 
 /* Bit index definitions for struct fimc_lite::state */
 enum {

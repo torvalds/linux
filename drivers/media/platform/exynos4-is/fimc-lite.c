@@ -1281,9 +1281,6 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 	int ret;
 
 	memset(vfd, 0, sizeof(*vfd));
-
-	fimc->inp_frame.fmt = &fimc_lite_formats[0];
-	fimc->out_frame.fmt = &fimc_lite_formats[0];
 	atomic_set(&fimc->out_path, FIMC_IO_DMA);
 
 	snprintf(vfd->name, sizeof(vfd->name), "fimc-lite.%d.capture",
@@ -1398,6 +1395,23 @@ static const struct v4l2_ctrl_config fimc_lite_ctrl = {
 	.name	= "Test Pattern 640x480",
 	.step	= 1,
 };
+
+static void fimc_lite_set_default_config(struct fimc_lite *fimc)
+{
+	struct flite_frame *sink = &fimc->inp_frame;
+	struct flite_frame *source = &fimc->out_frame;
+
+	sink->fmt = &fimc_lite_formats[0];
+	sink->f_width = FLITE_DEFAULT_WIDTH;
+	sink->f_height = FLITE_DEFAULT_HEIGHT;
+
+	sink->rect.width = FLITE_DEFAULT_WIDTH;
+	sink->rect.height = FLITE_DEFAULT_HEIGHT;
+	sink->rect.left = 0;
+	sink->rect.top = 0;
+
+	*source = *sink;
+}
 
 static int fimc_lite_create_capture_subdev(struct fimc_lite *fimc)
 {
@@ -1544,7 +1558,10 @@ static int fimc_lite_probe(struct platform_device *pdev)
 		ret = PTR_ERR(fimc->alloc_ctx);
 		goto err_pm;
 	}
+
 	pm_runtime_put(dev);
+
+	fimc_lite_set_default_config(fimc);
 
 	dev_dbg(dev, "FIMC-LITE.%d registered successfully\n",
 		fimc->index);
