@@ -185,7 +185,7 @@ static inline void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
 u32 tcp_default_init_rwnd(u32 mss)
 {
 	/* Initial receive window should be twice of TCP_INIT_CWND to
-	 * enable proper sending of new unset data during fast recovery
+	 * enable proper sending of new unsent data during fast recovery
 	 * (RFC 3517, Section 4, NextSeg() rule (2)). Further place a
 	 * limit when mss is larger than 1460.
 	 */
