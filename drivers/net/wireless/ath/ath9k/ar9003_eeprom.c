@@ -4562,7 +4562,7 @@ static void ar9003_hw_get_target_power_eeprom(struct ath_hw *ah,
 						 is2GHz);
 
 	for (i = 0; i < ar9300RateSize; i++) {
-		ath_dbg(common, EEPROM, "TPC[%02d] 0x%08x\n",
+		ath_dbg(common, REGULATORY, "TPC[%02d] 0x%08x\n",
 			i, targetPowerValT2[i]);
 	}
 }
@@ -5288,7 +5288,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 		return;
 
 	for (i = 0; i < ar9300RateSize; i++) {
-		ath_dbg(common, EEPROM, "TPC[%02d] 0x%08x\n",
+		ath_dbg(common, REGULATORY, "TPC[%02d] 0x%08x\n",
 			i, targetPowerValT2[i]);
 	}
 
