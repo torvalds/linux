@@ -3760,13 +3760,17 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 	iov->iov_len = ((char*)resp->p) - (char*)iov->iov_base;
 	BUG_ON(iov->iov_len > PAGE_SIZE);
 	if (nfsd4_has_session(cs)) {
+		struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
+		struct nfs4_client *clp = cs->session->se_client;
 		if (cs->status != nfserr_replay_cache) {
 			nfsd4_store_cache_entry(resp);
 			cs->slot->sl_flags &= ~NFSD4_SLOT_INUSE;
 		}
 		/* Renew the clientid on success and on replay */
-		put_client_renew(cs->session->se_client);
+		spin_lock(&nn->client_lock);
 		nfsd4_put_session(cs->session);
+		spin_unlock(&nn->client_lock);
+		put_client_renew(clp);
 	}
 	return 1;
 }

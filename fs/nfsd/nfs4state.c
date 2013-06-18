@@ -97,19 +97,20 @@ nfs4_lock_state(void)
 
 static void free_session(struct nfsd4_session *);
 
-void nfsd4_put_session(struct nfsd4_session *ses)
-{
-	atomic_dec(&ses->se_ref);
-}
-
 static bool is_session_dead(struct nfsd4_session *ses)
 {
 	return ses->se_flags & NFS4_SESSION_DEAD;
 }
 
-static __be32 mark_session_dead_locked(struct nfsd4_session *ses)
+void nfsd4_put_session(struct nfsd4_session *ses)
 {
-	if (atomic_read(&ses->se_ref))
+	if (atomic_dec_and_test(&ses->se_ref) && is_session_dead(ses))
+		free_session(ses);
+}
+
+static __be32 mark_session_dead_locked(struct nfsd4_session *ses, int ref_held_by_me)
+{
+	if (atomic_read(&ses->se_ref) > ref_held_by_me)
 		return nfserr_jukebox;
 	ses->se_flags |= NFS4_SESSION_DEAD;
 	return nfs_ok;
@@ -2074,6 +2075,7 @@ nfsd4_destroy_session(struct svc_rqst *r,
 {
 	struct nfsd4_session *ses;
 	__be32 status;
+	int ref_held_by_me = 0;
 	struct nfsd_net *nn = net_generic(SVC_NET(r), nfsd_net_id);
 
 	nfs4_lock_state();
@@ -2081,6 +2083,7 @@ nfsd4_destroy_session(struct svc_rqst *r,
 	if (nfsd4_compound_in_session(cstate->session, &sessionid->sessionid)) {
 		if (!nfsd4_last_compound_op(r))
 			goto out;
+		ref_held_by_me++;
 	}
 	dump_sessionid(__func__, &sessionid->sessionid);
 	spin_lock(&nn->client_lock);
@@ -2091,17 +2094,19 @@ nfsd4_destroy_session(struct svc_rqst *r,
 	status = nfserr_wrong_cred;
 	if (!mach_creds_match(ses->se_client, r))
 		goto out_client_lock;
-	status = mark_session_dead_locked(ses);
+	nfsd4_get_session_locked(ses);
+	status = mark_session_dead_locked(ses, 1 + ref_held_by_me);
 	if (status)
-		goto out_client_lock;
+		goto out_put_session;
 	unhash_session(ses);
 	spin_unlock(&nn->client_lock);
 
 	nfsd4_probe_callback_sync(ses->se_client);
 
 	spin_lock(&nn->client_lock);
-	free_session(ses);
 	status = nfs_ok;
+out_put_session:
+	nfsd4_put_session(ses);
 out_client_lock:
 	spin_unlock(&nn->client_lock);
 out:
