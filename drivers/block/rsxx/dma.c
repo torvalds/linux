@@ -269,6 +269,7 @@ static void rsxx_requeue_dma(struct rsxx_dma_ctrl *ctrl,
 	 * first.
 	 */
 	spin_lock_bh(&ctrl->queue_lock);
+	ctrl->stats.sw_q_depth++;
 	list_add(&dma->list, &ctrl->queue);
 	spin_unlock_bh(&ctrl->queue_lock);
 }
