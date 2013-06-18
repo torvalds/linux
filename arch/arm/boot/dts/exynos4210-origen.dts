@@ -290,4 +290,25 @@
 			clock-frequency = <24000000>;
 		};
 	};
+
+	fimd@11c00000 {
+		pinctrl-0 = <&lcd_en &lcd_clk &lcd_data24 &pwm0_out>;
+		pinctrl-names = "default";
+		status = "okay";
+	};
+
+	display-timings {
+		native-mode = <&timing0>;
+		timing0: timing {
+			clock-frequency = <50000>;
+			hactive = <1024>;
+			vactive = <600>;
+			hfront-porch = <64>;
+			hback-porch = <16>;
+			hsync-len = <48>;
+			vback-porch = <64>;
+			vfront-porch = <16>;
+			vsync-len = <3>;
+		};
+	};
 };
