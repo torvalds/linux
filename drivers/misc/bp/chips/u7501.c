@@ -67,8 +67,6 @@ static int bp_active(struct bp_private_data *bp, int enable)
 	else
 	{
 	printk("<-----U7501 bp_off----->\n");
-                gpio_set_value(bp->ops->bp_en, GPIO_HIGH);
-                msleep(4000);
                 gpio_set_value(bp->ops->bp_en, GPIO_LOW);
 
 	}
@@ -80,11 +78,10 @@ static int ap_wake_bp(struct bp_private_data *bp, int wake)
 {
 	printk("<-----U7501 ap_wake_bp-------->\n");
 
-	int result = 0;
 	
 	gpio_set_value(bp->ops->ap_wakeup_bp, wake);  
 	
-	return result;
+	return 0;
 
 }
 
@@ -220,7 +217,7 @@ struct bp_operate bp_U7501_ops = {
 	.resume			= bp_resume,
 	.misc_name		= NULL,
 	.private_miscdev	= NULL,
-#elif defined(CONFIG_ARCH_RK30)
+#elif (defined(CONFIG_SOC_RK3168) || defined(CONFIG_SOC_RK3188))
 	.name			= "U7501",
 	.bp_id			= BP_ID_U7501,
 	.bp_bus			= BP_BUS_TYPE_USB_UART,		
