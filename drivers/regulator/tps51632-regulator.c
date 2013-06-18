@@ -305,7 +305,7 @@ static int tps51632_probe(struct i2c_client *client,
 	}
 
 	tps->dev = &client->dev;
-	tps->desc.name = id->name;
+	tps->desc.name = client->name;
 	tps->desc.id = 0;
 	tps->desc.ramp_delay = TPS51632_DEFAULT_RAMP_DELAY;
 	tps->desc.min_uV = TPS51632_MIN_VOLATGE;
