@@ -32,4 +32,7 @@ fmc-trivial.txt
 	- about drivers/fmc/fmc-trivial.ko
 
 fmc-write-eeprom.txt
-        - about drivers/fmc/fmc-write-eeprom.ko
+	- about drivers/fmc/fmc-write-eeprom.ko
+
+fmc-chardev.txt
+	- about drivers/fmc/fmc-chardev.ko

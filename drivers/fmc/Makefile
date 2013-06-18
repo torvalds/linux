@@ -10,3 +10,4 @@ fmc-y += fmc-dump.o
 obj-$(CONFIG_FMC_FAKEDEV) += fmc-fakedev.o
 obj-$(CONFIG_FMC_TRIVIAL) += fmc-trivial.o
 obj-$(CONFIG_FMC_WRITE_EEPROM) += fmc-write-eeprom.o
+obj-$(CONFIG_FMC_CHARDEV) += fmc-chardev.o
