@@ -83,4 +83,24 @@
 #define PHYS_MASK_SHIFT		(40)
 #define PHYS_MASK		((1ULL << PHYS_MASK_SHIFT) - 1)
 
+/*
+ * TTBR0/TTBR1 split (PAGE_OFFSET):
+ *   0x40000000: T0SZ = 2, T1SZ = 0 (not used)
+ *   0x80000000: T0SZ = 0, T1SZ = 1
+ *   0xc0000000: T0SZ = 0, T1SZ = 2
+ *
+ * Only use this feature if PHYS_OFFSET <= PAGE_OFFSET, otherwise
+ * booting secondary CPUs would end up using TTBR1 for the identity
+ * mapping set up in TTBR0.
+ */
+#if defined CONFIG_VMSPLIT_2G
+#define TTBR1_OFFSET	16			/* skip two L1 entries */
+#elif defined CONFIG_VMSPLIT_3G
+#define TTBR1_OFFSET	(4096 * (1 + 3))	/* only L2, skip pgd + 3*pmd */
+#else
+#define TTBR1_OFFSET	0
+#endif
+
+#define TTBR1_SIZE	(((PAGE_OFFSET >> 30) - 1) << 16)
+
 #endif
