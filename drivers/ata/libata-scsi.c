@@ -849,25 +849,24 @@ static void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk,
 		/*  Bad address mark */
 		{0x01, 		MEDIUM_ERROR, 0x13, 0x00}, 	// Address mark not found       Address mark not found for data field
 		/* TRK0 */
-		{0x02, 		HARDWARE_ERROR, 0x00, 0x00}, 	// Track 0 not found		  Hardware error
-		/* Abort & !ICRC */
-		{0x04, 		ABORTED_COMMAND, 0x00, 0x00}, 	// Aborted command              Aborted command
+		{0x02, 		HARDWARE_ERROR, 0x00, 0x00}, 	// Track 0 not found		Hardware error
+		/* Abort: 0x04 is not translated here, see below */
 		/* Media change request */
 		{0x08, 		NOT_READY, 0x04, 0x00}, 	// Media change request	  FIXME: faking offline
-		/* SRV */
-		{0x10, 		ABORTED_COMMAND, 0x14, 0x00}, 	// ID not found                 Recorded entity not found
-		/* Media change */
-		{0x08,  	NOT_READY, 0x04, 0x00}, 	// Media change		  FIXME: faking offline
+		/* SRV/IDNF */
+		{0x10, 		ILLEGAL_REQUEST, 0x21, 0x00}, 	// ID not found                 Logical address out of range
+		/* MC */
+		{0x20, 		UNIT_ATTENTION, 0x28, 0x00}, 	// Media Changed		Not ready to ready change, medium may have changed
 		/* ECC */
 		{0x40, 		MEDIUM_ERROR, 0x11, 0x04}, 	// Uncorrectable ECC error      Unrecovered read error
 		/* BBD - block marked bad */
-		{0x80, 		MEDIUM_ERROR, 0x11, 0x04}, 	// Block marked bad		  Medium error, unrecovered read error
+		{0x80, 		MEDIUM_ERROR, 0x11, 0x04}, 	// Block marked bad		Medium error, unrecovered read error
 		{0xFF, 0xFF, 0xFF, 0xFF}, // END mark
 	};
 	static const unsigned char stat_table[][4] = {
 		/* Must be first because BUSY means no other bits valid */
 		{0x80, 		ABORTED_COMMAND, 0x47, 0x00},	// Busy, fake parity for now
-		{0x20, 		HARDWARE_ERROR,  0x00, 0x00}, 	// Device fault
+		{0x20, 		HARDWARE_ERROR,  0x44, 0x00}, 	// Device fault, internal target failure
 		{0x08, 		ABORTED_COMMAND, 0x47, 0x00},	// Timed out in xfer, fake parity for now
 		{0x04, 		RECOVERED_ERROR, 0x11, 0x00},	// Recovered ECC error	  Medium error, recovered
 		{0xFF, 0xFF, 0xFF, 0xFF}, // END mark
@@ -892,13 +891,13 @@ static void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk,
 				goto translate_done;
 			}
 		}
-		/* No immediate match */
-		if (verbose)
-			printk(KERN_WARNING "ata%u: no sense translation for "
-			       "error 0x%02x\n", id, drv_err);
 	}
 
-	/* Fall back to interpreting status bits */
+	/*
+	 * Fall back to interpreting status bits.  Note that if the drv_err
+	 * has only the ABRT bit set, we decode drv_stat.  ABRT by itself
+	 * is not descriptive enough.
+	 */
 	for (i = 0; stat_table[i][0] != 0xFF; i++) {
 		if (stat_table[i][0] & drv_stat) {
 			*sk = stat_table[i][1];
@@ -907,13 +906,11 @@ static void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk,
 			goto translate_done;
 		}
 	}
-	/* No error?  Undecoded? */
-	if (verbose)
-		printk(KERN_WARNING "ata%u: no sense translation for "
-		       "status: 0x%02x\n", id, drv_stat);
 
-	/* We need a sensible error return here, which is tricky, and one
-	   that won't cause people to do things like return a disk wrongly */
+	/*
+	 * We need a sensible error return here, which is tricky, and one
+	 * that won't cause people to do things like return a disk wrongly.
+	 */
 	*sk = ABORTED_COMMAND;
 	*asc = 0x00;
 	*ascq = 0x00;
