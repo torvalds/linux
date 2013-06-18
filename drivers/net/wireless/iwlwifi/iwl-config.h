@@ -222,6 +222,7 @@ struct iwl_cfg {
 	const u32 max_inst_size;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
+	bool bt_shared_single_ant;
 	u16  nvm_ver;
 	u16  nvm_calib_ver;
 	/* params not likely to change within a device family */
