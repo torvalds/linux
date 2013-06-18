@@ -227,24 +227,6 @@ static bool rsxx_discard_supported(struct rsxx_cardinfo *card)
 	return (pci_rev >= RSXX_DISCARD_SUPPORT);
 }
 
-static unsigned short rsxx_get_logical_block_size(
-					struct rsxx_cardinfo *card)
-{
-	u32 capabilities = 0;
-	int st;
-
-	st = rsxx_get_card_capabilities(card, &capabilities);
-	if (st)
-		dev_warn(CARD_TO_DEV(card),
-			"Failed reading card capabilities register\n");
-
-	/* Earlier firmware did not have support for 512 byte accesses */
-	if (capabilities & CARD_CAP_SUBPAGE_WRITES)
-		return 512;
-	else
-		return RSXX_HW_BLK_SIZE;
-}
-
 int rsxx_attach_dev(struct rsxx_cardinfo *card)
 {
 	mutex_lock(&card->dev_lock);
@@ -307,7 +289,7 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 		return -ENOMEM;
 	}
 
-	blk_size = rsxx_get_logical_block_size(card);
+	blk_size = card->config.data.block_size;
 
 	blk_queue_make_request(card->queue, rsxx_make_request);
 	blk_queue_bounce_limit(card->queue, BLK_BOUNCE_ANY);
