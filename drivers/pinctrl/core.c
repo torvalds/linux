@@ -465,7 +465,7 @@ struct pinctrl_gpio_range *
 pinctrl_find_gpio_range_from_pin(struct pinctrl_dev *pctldev,
 				 unsigned int pin)
 {
-	struct pinctrl_gpio_range *range = NULL;
+	struct pinctrl_gpio_range *range;
 
 	mutex_lock(&pctldev->mutex);
 	/* Loop over the ranges */
@@ -475,17 +475,16 @@ pinctrl_find_gpio_range_from_pin(struct pinctrl_dev *pctldev,
 			int a;
 			for (a = 0; a < range->npins; a++) {
 				if (range->pins[a] == pin)
-					return range;
+					goto out;
 			}
 		} else if (pin >= range->pin_base &&
-			   pin < range->pin_base + range->npins) {
-			mutex_unlock(&pctldev->mutex);
-			return range;
-		}
+			   pin < range->pin_base + range->npins)
+			goto out;
 	}
+	range = NULL;
+out:
 	mutex_unlock(&pctldev->mutex);
-
-	return NULL;
+	return range;
 }
 EXPORT_SYMBOL_GPL(pinctrl_find_gpio_range_from_pin);
 
