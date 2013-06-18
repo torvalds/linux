@@ -19,7 +19,7 @@ void exynos_init_time(void);
 extern unsigned long xxti_f, xusbxti_f;
 
 struct map_desc;
-void exynos_init_io(struct map_desc *mach_desc, int size);
+void exynos_init_io(void);
 void exynos4_restart(char mode, const char *cmd);
 void exynos5_restart(char mode, const char *cmd);
 void exynos_init_late(void);

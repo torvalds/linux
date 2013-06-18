@@ -351,14 +351,11 @@ int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
  * register the standard cpu IO areas
  */
 
-void __init exynos_init_io(struct map_desc *mach_desc, int size)
+void __init exynos_init_io(void)
 {
 	debug_ll_io_init();
 
 	of_scan_flat_dt(exynos_fdt_map_chipid, NULL);
-
-	if (mach_desc)
-		iotable_init(mach_desc, size);
 
 	/* detect cpu id and rev. */
 	s5p_init_cpu(S5P_VA_CHIPID);
