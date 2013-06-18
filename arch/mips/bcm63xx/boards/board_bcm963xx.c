@@ -37,6 +37,38 @@
 static struct board_info board;
 
 /*
+ * known 3368 boards
+ */
+#ifdef CONFIG_BCM63XX_CPU_3368
+static struct board_info __initdata board_cvg834g = {
+	.name				= "CVG834G_E15R3921",
+	.expected_cpu_id		= 0x3368,
+
+	.has_uart0			= 1,
+	.has_uart1			= 1,
+
+	.has_enet0			= 1,
+	.has_pci			= 1,
+
+	.enet0 = {
+		.has_phy		= 1,
+		.use_internal_phy	= 1,
+	},
+
+	.leds = {
+		{
+			.name		= "CVG834G:green:power",
+			.gpio		= 37,
+			.default_trigger= "default-on",
+		},
+	},
+
+	.ephy_reset_gpio		= 36,
+	.ephy_reset_gpio_flags		= GPIOF_INIT_HIGH,
+};
+#endif
+
+/*
  * known 6328 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6328
@@ -643,6 +675,9 @@ static struct board_info __initdata board_DWVS0 = {
  * all boards
  */
 static const struct board_info __initconst *bcm963xx_boards[] = {
+#ifdef CONFIG_BCM63XX_CPU_3368
+	&board_cvg834g,
+#endif
 #ifdef CONFIG_BCM63XX_CPU_6328
 	&board_96328avng,
 #endif
