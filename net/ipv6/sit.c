@@ -723,13 +723,14 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	__be16 df = tiph->frag_off;
 	struct rtable *rt;     			/* Route to the other host */
 	struct net_device *tdev;		/* Device to other host */
-	struct iphdr  *iph;			/* Our new IP header */
 	unsigned int max_headroom;		/* The extra header space needed */
 	__be32 dst = tiph->daddr;
 	struct flowi4 fl4;
 	int    mtu;
 	const struct in6_addr *addr6;
 	int addr_type;
+	u8 ttl;
+	int err;
 
 	if (skb->protocol != htons(ETH_P_IPV6))
 		goto tx_error;
@@ -872,34 +873,14 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		skb = new_skb;
 		iph6 = ipv6_hdr(skb);
 	}
+	ttl = tiph->ttl;
+	if (ttl == 0)
+		ttl = iph6->hop_limit;
+	tos = INET_ECN_encapsulate(tos, ipv6_get_dsfield(iph6));
 
-	skb->transport_header = skb->network_header;
-	skb_push(skb, sizeof(struct iphdr));
-	skb_reset_network_header(skb);
-	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-	IPCB(skb)->flags = 0;
-	skb_dst_drop(skb);
-	skb_dst_set(skb, &rt->dst);
-
-	/*
-	 *	Push down and install the IPIP header.
-	 */
-
-	iph 			=	ip_hdr(skb);
-	iph->version		=	4;
-	iph->ihl		=	sizeof(struct iphdr)>>2;
-	iph->frag_off		=	df;
-	iph->protocol		=	IPPROTO_IPV6;
-	iph->tos		=	INET_ECN_encapsulate(tos, ipv6_get_dsfield(iph6));
-	iph->daddr		=	fl4.daddr;
-	iph->saddr		=	fl4.saddr;
-
-	if ((iph->ttl = tiph->ttl) == 0)
-		iph->ttl	=	iph6->hop_limit;
-
-	skb->ip_summed = CHECKSUM_NONE;
-	ip_select_ident(iph, skb_dst(skb), NULL);
-	iptunnel_xmit(skb, dev);
+	err = iptunnel_xmit(dev_net(dev), rt, skb, fl4.saddr, fl4.daddr,
+			    IPPROTO_IPV6, tos, ttl, df);
+	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 	return NETDEV_TX_OK;
 
 tx_error_icmp:
