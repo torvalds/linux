@@ -2889,7 +2889,8 @@ int cgroup_rm_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 
 	list_for_each_entry(set, &ss->cftsets, node) {
 		if (set->cfts == cfts) {
-			list_del_init(&set->node);
+			list_del(&set->node);
+			kfree(set);
 			cgroup_cfts_commit(ss, cfts, false);
 			return 0;
 		}
