@@ -566,7 +566,7 @@ static void wiimod_ir_in_ir(struct wiimote_data *wdata, const __u8 *ir,
 		break;
 	default:
 		return;
-	};
+	}
 
 	/*
 	 * Basic IR data is encoded into 3 bytes. The first two bytes are the
