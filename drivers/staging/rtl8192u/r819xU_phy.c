@@ -40,14 +40,14 @@ static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 /******************************************************************************
  *function:  This function read BB parameters from Header file we gen,
  *	     and do register read/write
- *   input:  u32	dwBitMask  //taget bit pos in the addr to be modified
+ *   input:  u32	bitmask  //taget bit pos in the addr to be modified
  *  output:  none
  *  return:  u32	return the shift bit position of the mask
  * ****************************************************************************/
-u32 rtl8192_CalculateBitShift(u32 dwBitMask)
+u32 rtl8192_CalculateBitShift(u32 bitmask)
 {
 	u32 i;
-	i = ffs(dwBitMask) - 1;
+	i = ffs(bitmask) - 1;
 	return i;
 }
 /******************************************************************************
@@ -74,22 +74,22 @@ u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device *dev, u32 eRFPath)
  *function:  This function set specific bits to BB register
  *   input:  net_device dev
  *           u32	dwRegAddr  //target addr to be modified
- *           u32	dwBitMask  //taget bit pos in the addr to be modified
+ *           u32	bitmask    //taget bit pos in the addr to be modified
  *           u32	dwData     //value to be write
  *  output:  none
  *  return:  none
  *  notice:
  * ****************************************************************************/
-void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
+void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr, u32 bitmask,
 		      u32 dwData)
 {
 
 	u32 reg, BitShift;
 
-	if (dwBitMask != bMaskDWord) { //if not "double word" write
+	if (bitmask != bMaskDWord) { //if not "double word" write
 		read_nic_dword(dev, dwRegAddr, &reg);
-		BitShift = rtl8192_CalculateBitShift(dwBitMask);
-		reg &= ~dwBitMask;
+		BitShift = rtl8192_CalculateBitShift(bitmask);
+		reg &= ~bitmask;
 		reg |= dwData << BitShift;
 		write_nic_dword(dev, dwRegAddr, reg);
 	} else {
@@ -101,18 +101,18 @@ void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
  *function:  This function reads specific bits from BB register
  *   input:  net_device dev
  *           u32	dwRegAddr  //target addr to be readback
- *           u32	dwBitMask  //taget bit pos in the addr to be readback
+ *           u32	bitmask    //taget bit pos in the addr to be readback
  *  output:  none
  *  return:  u32	Data	//the readback register value
  *  notice:
  * ****************************************************************************/
-u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
+u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr, u32 bitmask)
 {
 	u32 Ret = 0, reg, BitShift;
 
 	read_nic_dword(dev, dwRegAddr, &reg);
-	BitShift = rtl8192_CalculateBitShift(dwBitMask);
-	Ret = (reg & dwBitMask) >> BitShift;
+	BitShift = rtl8192_CalculateBitShift(bitmask);
+	Ret = (reg & bitmask) >> BitShift;
 
 	return Ret;
 }
@@ -270,14 +270,14 @@ void rtl8192_phy_RFSerialWrite(struct net_device *dev,
  *   input:  net_device dev
  *	     RF90_RADIO_PATH_E eRFPath //radio path of A/B/C/D
  *           u32	RegAddr  //target addr to be modified
- *           u32	BitMask  //taget bit pos in the addr to be modified
+ *           u32	bitmask  //taget bit pos in the addr to be modified
  *           u32	Data     //value to be write
  *  output:  none
  *  return:  none
  *  notice:
  * ****************************************************************************/
 void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
-			  u32 RegAddr, u32 BitMask, u32 Data)
+			  u32 RegAddr, u32 bitmask, u32 Data)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32 reg, BitShift;
@@ -286,10 +286,10 @@ void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 		return;
 
 	if (priv->Rf_Mode == RF_OP_By_FW) {
-		if (BitMask != bMask12Bits) { // RF data is 12 bits only
+		if (bitmask != bMask12Bits) { // RF data is 12 bits only
 			reg = phy_FwRFSerialRead(dev, eRFPath, RegAddr);
-			BitShift =  rtl8192_CalculateBitShift(BitMask);
-			reg &= ~BitMask;
+			BitShift =  rtl8192_CalculateBitShift(bitmask);
+			reg &= ~bitmask;
 			reg |= Data << BitShift;
 
 			phy_FwRFSerialWrite(dev, eRFPath, RegAddr, reg);
@@ -300,10 +300,10 @@ void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 		udelay(200);
 
 	} else {
-		if (BitMask != bMask12Bits) { // RF data is 12 bits only
+		if (bitmask != bMask12Bits) { // RF data is 12 bits only
 			reg = rtl8192_phy_RFSerialRead(dev, eRFPath, RegAddr);
-			BitShift =  rtl8192_CalculateBitShift(BitMask);
-			reg &= ~BitMask;
+			BitShift =  rtl8192_CalculateBitShift(bitmask);
+			reg &= ~bitmask;
 			reg |= Data << BitShift;
 
 			rtl8192_phy_RFSerialWrite(dev, eRFPath, RegAddr, reg);
@@ -318,13 +318,13 @@ void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
  *function:  This function reads specific bits from RF register
  *   input:  net_device dev
  *           u32	RegAddr  //target addr to be readback
- *           u32	BitMask  //taget bit pos in the addr to be readback
+ *           u32	bitmask  //taget bit pos in the addr to be readback
  *  output:  none
  *  return:  u32	Data	//the readback register value
  *  notice:
  * ****************************************************************************/
 u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
-			   u32 RegAddr, u32 BitMask)
+			   u32 RegAddr, u32 bitmask)
 {
 	u32 reg, BitShift;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -334,14 +334,14 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 		return 0;
 	if (priv->Rf_Mode == RF_OP_By_FW) {
 		reg = phy_FwRFSerialRead(dev, eRFPath, RegAddr);
-		BitShift =  rtl8192_CalculateBitShift(BitMask);
-		reg = (reg & BitMask) >> BitShift;
+		BitShift =  rtl8192_CalculateBitShift(bitmask);
+		reg = (reg & bitmask) >> BitShift;
 		udelay(200);
 		return reg;
 	} else {
 		reg = rtl8192_phy_RFSerialRead(dev, eRFPath, RegAddr);
-		BitShift =  rtl8192_CalculateBitShift(BitMask);
-		reg = (reg & BitMask) >> BitShift;
+		BitShift =  rtl8192_CalculateBitShift(bitmask);
+		reg = (reg & bitmask) >> BitShift;
 		return reg;
 	}
 }
@@ -1563,7 +1563,7 @@ extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
        struct net_device *dev = priv->ieee80211->dev;
 #define SCAN_RX_INITIAL_GAIN	0x17
 #define POWER_DETECTION_TH	0x08
-	u32	BitMask;
+	u32	bitmask;
 	u8	initial_gain;
 	u8	Operation;
 
@@ -1573,15 +1573,15 @@ extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 		case IG_Backup:
 			RT_TRACE(COMP_SCAN, "IG_Backup, backup the initial gain.\n");
 			initial_gain = SCAN_RX_INITIAL_GAIN;
-			BitMask = bMaskByte0;
+			bitmask = bMaskByte0;
 			if (dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)
 				rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x8);	// FW DIG OFF
-			priv->initgain_backup.xaagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XAAGCCore1, BitMask);
-			priv->initgain_backup.xbagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XBAGCCore1, BitMask);
-			priv->initgain_backup.xcagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XCAGCCore1, BitMask);
-			priv->initgain_backup.xdagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XDAGCCore1, BitMask);
-			BitMask  = bMaskByte2;
-			priv->initgain_backup.cca		= (u8)rtl8192_QueryBBReg(dev, rCCK0_CCA, BitMask);
+			priv->initgain_backup.xaagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XAAGCCore1, bitmask);
+			priv->initgain_backup.xbagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XBAGCCore1, bitmask);
+			priv->initgain_backup.xcagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XCAGCCore1, bitmask);
+			priv->initgain_backup.xdagccore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XDAGCCore1, bitmask);
+			bitmask = bMaskByte2;
+			priv->initgain_backup.cca		= (u8)rtl8192_QueryBBReg(dev, rCCK0_CCA, bitmask);
 
 			RT_TRACE(COMP_SCAN, "Scan InitialGainBackup 0xc50 is %x\n",priv->initgain_backup.xaagccore1);
 			RT_TRACE(COMP_SCAN, "Scan InitialGainBackup 0xc58 is %x\n",priv->initgain_backup.xbagccore1);
@@ -1599,16 +1599,16 @@ extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 			break;
 		case IG_Restore:
 			RT_TRACE(COMP_SCAN, "IG_Restore, restore the initial gain.\n");
-			BitMask = 0x7f; //Bit0~ Bit6
+			bitmask = 0x7f; //Bit0~ Bit6
 			if (dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)
 				rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x8);	// FW DIG OFF
 
-			rtl8192_setBBreg(dev, rOFDM0_XAAGCCore1, BitMask, (u32)priv->initgain_backup.xaagccore1);
-			rtl8192_setBBreg(dev, rOFDM0_XBAGCCore1, BitMask, (u32)priv->initgain_backup.xbagccore1);
-			rtl8192_setBBreg(dev, rOFDM0_XCAGCCore1, BitMask, (u32)priv->initgain_backup.xcagccore1);
-			rtl8192_setBBreg(dev, rOFDM0_XDAGCCore1, BitMask, (u32)priv->initgain_backup.xdagccore1);
-			BitMask  = bMaskByte2;
-			rtl8192_setBBreg(dev, rCCK0_CCA, BitMask, (u32)priv->initgain_backup.cca);
+			rtl8192_setBBreg(dev, rOFDM0_XAAGCCore1, bitmask, (u32)priv->initgain_backup.xaagccore1);
+			rtl8192_setBBreg(dev, rOFDM0_XBAGCCore1, bitmask, (u32)priv->initgain_backup.xbagccore1);
+			rtl8192_setBBreg(dev, rOFDM0_XCAGCCore1, bitmask, (u32)priv->initgain_backup.xcagccore1);
+			rtl8192_setBBreg(dev, rOFDM0_XDAGCCore1, bitmask, (u32)priv->initgain_backup.xdagccore1);
+			bitmask  = bMaskByte2;
+			rtl8192_setBBreg(dev, rCCK0_CCA, bitmask, (u32)priv->initgain_backup.cca);
 
 			RT_TRACE(COMP_SCAN, "Scan BBInitialGainRestore 0xc50 is %x\n",priv->initgain_backup.xaagccore1);
 			RT_TRACE(COMP_SCAN, "Scan BBInitialGainRestore 0xc58 is %x\n",priv->initgain_backup.xbagccore1);
