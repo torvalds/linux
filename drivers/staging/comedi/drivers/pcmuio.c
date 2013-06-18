@@ -653,7 +653,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	struct pcmuio_private *devpriv;
 	struct pcmuio_subdev_private *subpriv;
-	int sdev_no, n_subdevs, port, asic, thisasic_chanct = 0;
+	int sdev_no, n_subdevs, asic;
 	unsigned int irq[MAX_ASICS];
 	int ret;
 
@@ -684,11 +684,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	port = 0;
-	asic = 0;
 	for (sdev_no = 0; sdev_no < (int)dev->n_subdevices; ++sdev_no) {
-		int byte_no;
-
 		s = &dev->subdevices[sdev_no];
 		subpriv = &devpriv->sprivs[sdev_no];
 		s->private = subpriv;
@@ -699,30 +695,20 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->insn_bits = pcmuio_dio_insn_bits;
 		s->insn_config = pcmuio_dio_insn_config;
 		s->n_chan = 24;
-		subpriv->intr.asic = -1;
-		s->len_chanlist = 1;
 
-		for (byte_no = 0; byte_no < PORTS_PER_SUBDEV;
-		     ++byte_no, ++port) {
-			if (port >= PORTS_PER_ASIC) {
-				port = 0;
-				++asic;
-				thisasic_chanct = 0;
-			}
-
-			if (thisasic_chanct <
-			    CHANS_PER_PORT * INTR_PORTS_PER_ASIC
-			    && subpriv->intr.asic < 0) {
-				/* setup the interrupt subdevice */
-				subpriv->intr.asic = asic;
-				dev->read_subdev = s;
-				s->subdev_flags |= SDF_CMD_READ;
-				s->cancel = pcmuio_cancel;
-				s->do_cmd = pcmuio_cmd;
-				s->do_cmdtest = pcmuio_cmdtest;
-				s->len_chanlist = s->n_chan;
-			}
-			thisasic_chanct += CHANS_PER_PORT;
+		/* subdevices 0 and 2 suppport interrupts */
+		if ((sdev_no % 2) == 0) {
+			/* setup the interrupt subdevice */
+			subpriv->intr.asic = sdev_no / 2;
+			dev->read_subdev = s;
+			s->subdev_flags |= SDF_CMD_READ;
+			s->cancel = pcmuio_cancel;
+			s->do_cmd = pcmuio_cmd;
+			s->do_cmdtest = pcmuio_cmdtest;
+			s->len_chanlist = s->n_chan;
+		} else {
+			subpriv->intr.asic = -1;
+			s->len_chanlist = 1;
 		}
 		spin_lock_init(&subpriv->intr.spinlock);
 	}
