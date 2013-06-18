@@ -22,7 +22,6 @@
 #include <linux/etherdevice.h>
 #include <linux/err.h>
 #include <linux/jiffies.h>
-#include <uapi/linux/nl80211.h>
 #include <net/cfg80211.h>
 
 #include <brcmu_utils.h>
@@ -142,7 +141,7 @@ static const char *brcmf_fws_get_tlv_name(enum brcmf_fws_tlv_type id)
 #define BRCMF_FWS_FLOWCONTROL_HIWATER			128
 #define BRCMF_FWS_FLOWCONTROL_LOWATER			64
 
-#define BRCMF_FWS_PSQ_PREC_COUNT		((NL80211_NUM_ACS + 1) * 2)
+#define BRCMF_FWS_PSQ_PREC_COUNT		((BRCMF_FWS_FIFO_COUNT + 1) * 2)
 #define BRCMF_FWS_PSQ_LEN				256
 
 #define BRCMF_FWS_HTOD_FLAG_PKTFROMHOST			0x01
