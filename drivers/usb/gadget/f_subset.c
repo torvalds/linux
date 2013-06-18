@@ -548,6 +548,7 @@ static struct usb_function *geth_alloc(struct usb_function_instance *fi)
 					  sizeof(geth->ethaddr));
 	if (status < 12) {
 		kfree(geth);
+		mutex_unlock(&opts->lock);
 		return ERR_PTR(-EINVAL);
 	}
 	geth_string_defs[1].s = geth->ethaddr;
