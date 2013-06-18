@@ -1767,7 +1767,7 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 		       struct drm_i915_gem_object *batch_obj,
 		       u32 *seqno);
 #define i915_add_request(ring, seqno) \
-	__i915_add_request(ring, NULL, NULL, seqno);
+	__i915_add_request(ring, NULL, NULL, seqno)
 int __must_check i915_wait_seqno(struct intel_ring_buffer *ring,
 				 uint32_t seqno);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
