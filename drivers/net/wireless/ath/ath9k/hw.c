@@ -3042,7 +3042,7 @@ void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 
 	timer_next = tsf + trig_timeout;
 
-	ath_dbg(ath9k_hw_common(ah), HWTIMER,
+	ath_dbg(ath9k_hw_common(ah), BTCOEX,
 		"current tsf %x period %x timer_next %x\n",
 		tsf, timer_period, timer_next);
 
@@ -3141,7 +3141,7 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 		index = rightmost_index(timer_table, &thresh_mask);
 		timer = timer_table->timers[index];
 		BUG_ON(!timer);
-		ath_dbg(common, HWTIMER, "TSF overflow for Gen timer %d\n",
+		ath_dbg(common, BTCOEX, "TSF overflow for Gen timer %d\n",
 			index);
 		timer->overflow(timer->arg);
 	}
@@ -3150,7 +3150,7 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 		index = rightmost_index(timer_table, &trigger_mask);
 		timer = timer_table->timers[index];
 		BUG_ON(!timer);
-		ath_dbg(common, HWTIMER,
+		ath_dbg(common, BTCOEX,
 			"Gen timer[%d] trigger\n", index);
 		timer->trigger(timer->arg);
 	}
