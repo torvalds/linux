@@ -335,8 +335,7 @@ static void iwlagn_recover_from_statistics(struct iwl_priv *priv,
 	if (msecs < 99)
 		return;
 
-	if (iwlwifi_mod_params.plcp_check &&
-	    !iwlagn_good_plcp_health(priv, cur_ofdm, cur_ofdm_ht, msecs))
+	if (!iwlagn_good_plcp_health(priv, cur_ofdm, cur_ofdm_ht, msecs))
 		iwl_force_rf_reset(priv, false);
 }
 

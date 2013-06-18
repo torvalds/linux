@@ -93,7 +93,6 @@ enum iwl_power_level {
  *	use IWL_DISABLE_HT_* constants
  * @amsdu_size_8K: enable 8K amsdu size, default = 0
  * @restart_fw: restart firmware, default = 1
- * @plcp_check: enable plcp health check, default = true
  * @wd_disable: enable stuck queue check, default = 0
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
@@ -108,7 +107,6 @@ struct iwl_mod_params {
 	unsigned int disable_11n;
 	int amsdu_size_8K;
 	bool restart_fw;
-	bool plcp_check;
 	int  wd_disable;
 	bool bt_coex_active;
 	int led_mode;
