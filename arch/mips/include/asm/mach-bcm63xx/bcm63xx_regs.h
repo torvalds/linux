@@ -1477,4 +1477,11 @@
 
 #define PCIE_DEVICE_OFFSET		0x8000
 
+/*************************************************************************
+ * _REG relative to RSET_OTP
+ *************************************************************************/
+
+#define OTP_USER_BITS_6328_REG(i)	(0x20 + (i) * 4)
+#define   OTP_6328_REG3_TP1_DISABLED	BIT(9)
+
 #endif /* BCM63XX_REGS_H_ */

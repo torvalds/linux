@@ -69,7 +69,11 @@ void __init prom_init(void)
 		 * for now.
 		 */
 		if (BCMCPU_IS_6328()) {
-			bmips_smp_enabled = 0;
+			reg = bcm_readl(BCM_6328_OTP_BASE +
+					OTP_USER_BITS_6328_REG(3));
+
+			if (reg & OTP_6328_REG3_TP1_DISABLED)
+				bmips_smp_enabled = 0;
 		} else if (BCMCPU_IS_6358()) {
 			bmips_smp_enabled = 0;
 		}
