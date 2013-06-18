@@ -174,6 +174,9 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
 	if (!card)
 		goto req_err;
 
+	if (bio->bi_sector + (bio->bi_size >> 9) > get_capacity(card->gendisk))
+		goto req_err;
+
 	if (unlikely(card->halt)) {
 		st = -EFAULT;
 		goto req_err;
