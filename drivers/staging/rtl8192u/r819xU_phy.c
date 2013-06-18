@@ -73,100 +73,100 @@ u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device *dev, u32 eRFPath)
 /******************************************************************************
  *function:  This function set specific bits to BB register
  *   input:  net_device dev
- *           u32	dwRegAddr  //target addr to be modified
+ *           u32	reg_addr   //target addr to be modified
  *           u32	bitmask    //taget bit pos in the addr to be modified
- *           u32	dwData     //value to be write
+ *           u32	data       //value to be write
  *  output:  none
  *  return:  none
  *  notice:
  * ****************************************************************************/
-void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr, u32 bitmask,
-		      u32 dwData)
+void rtl8192_setBBreg(struct net_device *dev, u32 reg_addr, u32 bitmask,
+		      u32 data)
 {
 
-	u32 reg, BitShift;
+	u32 reg, bitshift;
 
 	if (bitmask != bMaskDWord) { //if not "double word" write
-		read_nic_dword(dev, dwRegAddr, &reg);
-		BitShift = rtl8192_CalculateBitShift(bitmask);
+		read_nic_dword(dev, reg_addr, &reg);
+		bitshift = rtl8192_CalculateBitShift(bitmask);
 		reg &= ~bitmask;
-		reg |= dwData << BitShift;
-		write_nic_dword(dev, dwRegAddr, reg);
+		reg |= data << bitshift;
+		write_nic_dword(dev, reg_addr, reg);
 	} else {
-		write_nic_dword(dev, dwRegAddr, dwData);
+		write_nic_dword(dev, reg_addr, data);
 	}
 	return;
 }
 /******************************************************************************
  *function:  This function reads specific bits from BB register
  *   input:  net_device dev
- *           u32	dwRegAddr  //target addr to be readback
+ *           u32	reg_addr   //target addr to be readback
  *           u32	bitmask    //taget bit pos in the addr to be readback
  *  output:  none
- *  return:  u32	Data	//the readback register value
+ *  return:  u32	data       //the readback register value
  *  notice:
  * ****************************************************************************/
-u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr, u32 bitmask)
+u32 rtl8192_QueryBBReg(struct net_device *dev, u32 reg_addr, u32 bitmask)
 {
-	u32 Ret = 0, reg, BitShift;
+	u32 Ret = 0, reg, bitshift;
 
-	read_nic_dword(dev, dwRegAddr, &reg);
-	BitShift = rtl8192_CalculateBitShift(bitmask);
-	Ret = (reg & bitmask) >> BitShift;
+	read_nic_dword(dev, reg_addr, &reg);
+	bitshift = rtl8192_CalculateBitShift(bitmask);
+	Ret = (reg & bitmask) >> bitshift;
 
 	return Ret;
 }
 static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
-			      u32 Offset);
+			      u32 offset);
 
 static void phy_FwRFSerialWrite(struct net_device *dev,
-				RF90_RADIO_PATH_E eRFPath, u32  Offset,
-				u32  Data);
+				RF90_RADIO_PATH_E eRFPath, u32  offset,
+				u32  data);
 
 /******************************************************************************
  *function:  This function read register from RF chip
  *   input:  net_device dev
  *	     RF90_RADIO_PATH_E eRFPath //radio path of A/B/C/D
- *           u32	Offset     //target address to be read
+ *           u32	offset     //target address to be read
  *  output:  none
  *  return:  u32	readback value
  *  notice:  There are three types of serial operations:(1) Software serial write.(2)Hardware LSSI-Low Speed Serial Interface.(3)Hardware HSSI-High speed serial write. Driver here need to implement (1) and (2)---need more spec for this information.
  * ****************************************************************************/
 u32 rtl8192_phy_RFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
-			     u32 Offset)
+			     u32 offset)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32 ret = 0;
-	u32 NewOffset = 0;
+	u32 new_offset = 0;
 	BB_REGISTER_DEFINITION_T *pPhyReg = &priv->PHYRegDef[eRFPath];
 	rtl8192_setBBreg(dev, pPhyReg->rfLSSIReadBack, bLSSIReadBackData, 0);
 	//make sure RF register offset is correct
-	Offset &= 0x3f;
+	offset &= 0x3f;
 
 	//switch page for 8256 RF IC
 	if (priv->rf_chip == RF_8256) {
-		if (Offset >= 31) {
+		if (offset >= 31) {
 			priv->RfReg0Value[eRFPath] |= 0x140;
 			//Switch to Reg_Mode2 for Reg 31-45
 			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16));
 			//modify offset
-			NewOffset = Offset -30;
-		} else if (Offset >= 16) {
+			new_offset = offset - 30;
+		} else if (offset >= 16) {
 			priv->RfReg0Value[eRFPath] |= 0x100;
 			priv->RfReg0Value[eRFPath] &= (~0x40);
 			//Switch to Reg_Mode 1 for Reg16-30
 			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16));
 
-			NewOffset = Offset - 15;
+			new_offset = offset - 15;
 		} else {
-			NewOffset = Offset;
+			new_offset = offset;
 		}
 	} else {
 		RT_TRACE((COMP_PHY|COMP_ERR), "check RF type here, need to be 8256\n");
-		NewOffset = Offset;
+		new_offset = offset;
 	}
 	//put desired read addr to LSSI control Register
-	rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2, bLSSIReadAddress, NewOffset);
+	rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2, bLSSIReadAddress, new_offset);
 	//Issue a posedge trigger
 	//
 	rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2,  bLSSIReadEdge, 0x0);
@@ -198,8 +198,8 @@ u32 rtl8192_phy_RFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
  *function:  This function write data to RF register
  *   input:  net_device dev
  *	     RF90_RADIO_PATH_E eRFPath //radio path of A/B/C/D
- *           u32	Offset     //target address to be written
- *           u32	Data	//The new register data to be written
+ *           u32	offset     //target address to be written
+ *           u32	data	   //The new register data to be written
  *  output:  none
  *  return:  none
  *  notice:  For RF8256 only.
@@ -215,45 +215,45 @@ u32 rtl8192_phy_RFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
  *------------------------------------------------------------------
  * ****************************************************************************/
 void rtl8192_phy_RFSerialWrite(struct net_device *dev,
-			       RF90_RADIO_PATH_E eRFPath, u32 Offset, u32 Data)
+			       RF90_RADIO_PATH_E eRFPath, u32 offset, u32 data)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u32 DataAndAddr = 0, NewOffset = 0;
+	u32 DataAndAddr = 0, new_offset = 0;
 	BB_REGISTER_DEFINITION_T	*pPhyReg = &priv->PHYRegDef[eRFPath];
 
-	Offset &= 0x3f;
+	offset &= 0x3f;
 	if (priv->rf_chip == RF_8256) {
 
-		if (Offset >= 31) {
+		if (offset >= 31) {
 			priv->RfReg0Value[eRFPath] |= 0x140;
 			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath] << 16));
-			NewOffset = Offset - 30;
-		} else if (Offset >= 16) {
+			new_offset = offset - 30;
+		} else if (offset >= 16) {
 			priv->RfReg0Value[eRFPath] |= 0x100;
 			priv->RfReg0Value[eRFPath] &= (~0x40);
 			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16));
-			NewOffset = Offset - 15;
+			new_offset = offset - 15;
 		} else {
-			NewOffset = Offset;
+			new_offset = offset;
 		}
 	} else {
 		RT_TRACE((COMP_PHY|COMP_ERR), "check RF type here, need to be 8256\n");
-		NewOffset = Offset;
+		new_offset = offset;
 	}
 
 	// Put write addr in [5:0] and write data in [31:16]
-	DataAndAddr = (Data<<16) | (NewOffset&0x3f);
+	DataAndAddr = (data<<16) | (new_offset&0x3f);
 
 	// Write Operation
 	rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, DataAndAddr);
 
 
-	if (Offset == 0x0)
-		priv->RfReg0Value[eRFPath] = Data;
+	if (offset == 0x0)
+		priv->RfReg0Value[eRFPath] = data;
 
 	// Switch back to Reg_Mode0;
 	if (priv->rf_chip == RF_8256) {
-		if (Offset != 0) {
+		if (offset != 0) {
 			priv->RfReg0Value[eRFPath] &= 0xebf;
 			rtl8192_setBBreg(
 				dev,
@@ -269,46 +269,46 @@ void rtl8192_phy_RFSerialWrite(struct net_device *dev,
  *function:  This function set specific bits to RF register
  *   input:  net_device dev
  *	     RF90_RADIO_PATH_E eRFPath //radio path of A/B/C/D
- *           u32	RegAddr  //target addr to be modified
+ *           u32	reg_addr //target addr to be modified
  *           u32	bitmask  //taget bit pos in the addr to be modified
- *           u32	Data     //value to be write
+ *           u32	data     //value to be write
  *  output:  none
  *  return:  none
  *  notice:
  * ****************************************************************************/
 void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
-			  u32 RegAddr, u32 bitmask, u32 Data)
+			  u32 reg_addr, u32 bitmask, u32 data)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u32 reg, BitShift;
+	u32 reg, bitshift;
 
 	if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
 		return;
 
 	if (priv->Rf_Mode == RF_OP_By_FW) {
 		if (bitmask != bMask12Bits) { // RF data is 12 bits only
-			reg = phy_FwRFSerialRead(dev, eRFPath, RegAddr);
-			BitShift =  rtl8192_CalculateBitShift(bitmask);
+			reg = phy_FwRFSerialRead(dev, eRFPath, reg_addr);
+			bitshift =  rtl8192_CalculateBitShift(bitmask);
 			reg &= ~bitmask;
-			reg |= Data << BitShift;
+			reg |= data << bitshift;
 
-			phy_FwRFSerialWrite(dev, eRFPath, RegAddr, reg);
+			phy_FwRFSerialWrite(dev, eRFPath, reg_addr, reg);
 		} else {
-			phy_FwRFSerialWrite(dev, eRFPath, RegAddr, Data);
+			phy_FwRFSerialWrite(dev, eRFPath, reg_addr, data);
 		}
 
 		udelay(200);
 
 	} else {
 		if (bitmask != bMask12Bits) { // RF data is 12 bits only
-			reg = rtl8192_phy_RFSerialRead(dev, eRFPath, RegAddr);
-			BitShift =  rtl8192_CalculateBitShift(bitmask);
+			reg = rtl8192_phy_RFSerialRead(dev, eRFPath, reg_addr);
+			bitshift =  rtl8192_CalculateBitShift(bitmask);
 			reg &= ~bitmask;
-			reg |= Data << BitShift;
+			reg |= data << bitshift;
 
-			rtl8192_phy_RFSerialWrite(dev, eRFPath, RegAddr, reg);
+			rtl8192_phy_RFSerialWrite(dev, eRFPath, reg_addr, reg);
 		} else {
-			rtl8192_phy_RFSerialWrite(dev, eRFPath, RegAddr, Data);
+			rtl8192_phy_RFSerialWrite(dev, eRFPath, reg_addr, data);
 		}
 	}
 	return;
@@ -317,31 +317,31 @@ void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 /******************************************************************************
  *function:  This function reads specific bits from RF register
  *   input:  net_device dev
- *           u32	RegAddr  //target addr to be readback
+ *           u32	reg_addr //target addr to be readback
  *           u32	bitmask  //taget bit pos in the addr to be readback
  *  output:  none
- *  return:  u32	Data	//the readback register value
+ *  return:  u32	data	//the readback register value
  *  notice:
  * ****************************************************************************/
 u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
-			   u32 RegAddr, u32 bitmask)
+			   u32 reg_addr, u32 bitmask)
 {
-	u32 reg, BitShift;
+	u32 reg, bitshift;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 
 	if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
 		return 0;
 	if (priv->Rf_Mode == RF_OP_By_FW) {
-		reg = phy_FwRFSerialRead(dev, eRFPath, RegAddr);
-		BitShift =  rtl8192_CalculateBitShift(bitmask);
-		reg = (reg & bitmask) >> BitShift;
+		reg = phy_FwRFSerialRead(dev, eRFPath, reg_addr);
+		bitshift =  rtl8192_CalculateBitShift(bitmask);
+		reg = (reg & bitmask) >> bitshift;
 		udelay(200);
 		return reg;
 	} else {
-		reg = rtl8192_phy_RFSerialRead(dev, eRFPath, RegAddr);
-		BitShift =  rtl8192_CalculateBitShift(bitmask);
-		reg = (reg & bitmask) >> BitShift;
+		reg = rtl8192_phy_RFSerialRead(dev, eRFPath, reg_addr);
+		bitshift =  rtl8192_CalculateBitShift(bitmask);
+		reg = (reg & bitmask) >> bitshift;
 		return reg;
 	}
 }
@@ -353,10 +353,10 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
  *  notice:
  * ***************************************************************************/
 static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
-			      u32 Offset)
+			      u32 offset)
 {
 	u32		reg = 0;
-	u32		Data = 0;
+	u32		data = 0;
 	u8		time = 0;
 	u32		tmp;
 	/* 2007/11/02 MH Firmware RF Write control. By Francis' suggestion, we can
@@ -364,12 +364,12 @@ static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 	   much time. This is only for site survey. */
 	// 1. Read operation need not insert data. bit 0-11
 	// 2. Write RF register address. Bit 12-19
-	Data |= ((Offset&0xFF)<<12);
+	data |= ((offset&0xFF)<<12);
 	// 3. Write RF path.  bit 20-21
-	Data |= ((eRFPath&0x3)<<20);
+	data |= ((eRFPath&0x3)<<20);
 	// 4. Set RF read indicator. bit 22=0
 	// 5. Trigger Fw to operate the command. bit 31
-	Data |= 0x80000000;
+	data |= 0x80000000;
 	// 6. We can not execute read operation if bit 31 is 1.
 	read_nic_dword(dev, QPNR, &tmp);
 	while (tmp & 0x80000000) {
@@ -382,7 +382,7 @@ static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 		}
 	}
 	// 7. Execute read operation.
-	write_nic_dword(dev, QPNR, Data);
+	write_nic_dword(dev, QPNR, data);
 	// 8. Check if firmawre send back RF content.
 	read_nic_dword(dev, QPNR, &tmp);
 	while (tmp & 0x80000000) {
@@ -408,7 +408,7 @@ static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
  *  notice:
  * ***************************************************************************/
 static void phy_FwRFSerialWrite(struct net_device *dev,
-				RF90_RADIO_PATH_E eRFPath, u32 Offset, u32 Data)
+				RF90_RADIO_PATH_E eRFPath, u32 offset, u32 data)
 {
 	u8	time = 0;
 	u32	tmp;
@@ -419,13 +419,13 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
 
 	// 1. Set driver write bit and 12 bit data. bit 0-11
 	// 2. Write RF register address. bit 12-19
-	Data |= ((Offset&0xFF)<<12);
+	data |= ((offset&0xFF)<<12);
 	// 3. Write RF path.  bit 20-21
-	Data |= ((eRFPath&0x3)<<20);
+	data |= ((eRFPath&0x3)<<20);
 	// 4. Set RF write indicator. bit 22=1
-	Data |= 0x400000;
+	data |= 0x400000;
 	// 5. Trigger Fw to operate the command. bit 31=1
-	Data |= 0x80000000;
+	data |= 0x80000000;
 
 	// 6. Write operation. We can not write if bit 31 is 1.
 	read_nic_dword(dev, QPNR, &tmp);
@@ -440,7 +440,7 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
 	}
 	// 7. No matter check bit. We always force the write. Because FW will
 	//    not accept the command.
-	write_nic_dword(dev, QPNR, Data);
+	write_nic_dword(dev, QPNR, data);
 	/* 2007/11/02 MH Acoording to test, we must delay 20us to wait firmware
 	   to finish RF write operation. */
 	/* 2008/01/17 MH We support delay in firmware side now. */
@@ -1517,15 +1517,15 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 /******************************************************************************
  *function:  This function schedules bandwidth switch work.
  *   input:  struct net_device *dev
- *	     HT_CHANNEL_WIDTH	Bandwidth  //20M or 40M
- *	     HT_EXTCHNL_OFFSET Offset	   //Upper, Lower, or Don't care
+ *	     HT_CHANNEL_WIDTH	bandwidth  //20M or 40M
+ *	     HT_EXTCHNL_OFFSET  offset	   //Upper, Lower, or Don't care
  *  output:  none
  *  return:  none
  *    Note:  I doubt whether SetBWModeInProgress flag is necessary as we can
  *	     test whether current work in the queue or not.//do I?
  * ***************************************************************************/
-void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH Bandwidth,
-		       HT_EXTCHNL_OFFSET Offset)
+void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH bandwidth,
+		       HT_EXTCHNL_OFFSET offset)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -1533,11 +1533,11 @@ void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH Bandwidth,
 		return;
 	priv->SetBWModeInProgress = true;
 
-	priv->CurrentChannelBW = Bandwidth;
+	priv->CurrentChannelBW = bandwidth;
 
-	if (Offset == HT_EXTCHNL_OFFSET_LOWER)
+	if (offset == HT_EXTCHNL_OFFSET_LOWER)
 		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_UPPER;
-	else if (Offset == HT_EXTCHNL_OFFSET_UPPER)
+	else if (offset == HT_EXTCHNL_OFFSET_UPPER)
 		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_LOWER;
 	else
 		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
