@@ -61,8 +61,8 @@
 struct flock {
 	short	l_type;
 	short	l_whence;
-	off_t	l_start;
-	off_t	l_len;
+	__kernel_off_t	l_start;
+	__kernel_off_t	l_len;
 	long	l_sysid;
 	__kernel_pid_t l_pid;
 	long	pad[4];
