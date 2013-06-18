@@ -618,9 +618,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		spin_lock_init(&devpriv->asics[asic].spinlock);
 
 	n_subdevs = board->num_asics * 2;
-	devpriv->sprivs = kcalloc(n_subdevs,
-				  sizeof(struct pcmuio_subdev_private),
-				  GFP_KERNEL);
+	devpriv->sprivs = kcalloc(n_subdevs, sizeof(*subpriv), GFP_KERNEL);
 	if (!devpriv->sprivs)
 		return -ENOMEM;
 
