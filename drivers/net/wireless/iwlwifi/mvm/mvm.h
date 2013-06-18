@@ -352,12 +352,14 @@ struct iwl_tt_params {
  * @dynamic_smps: Is thermal throttling enabled dynamic_smps?
  * @tx_backoff: The current thremal throttling tx backoff in uSec.
  * @params: Parameters to configure the thermal throttling algorithm.
+ * @throttle: Is thermal throttling is active?
  */
 struct iwl_mvm_tt_mgmt {
 	struct delayed_work ct_kill_exit;
 	bool dynamic_smps;
 	u32 tx_backoff;
 	const struct iwl_tt_params *params;
+	bool throttle;
 };
 
 struct iwl_mvm {
