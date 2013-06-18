@@ -4369,7 +4369,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 	/* cb_client4 */
 	rcu_read_lock();
 	setclientid.sc_netid_len = scnprintf(setclientid.sc_netid,
-				sizeof(setclientid.sc_netid),
+				sizeof(setclientid.sc_netid), "%s",
 				rpc_peeraddr2str(clp->cl_rpcclient,
 							RPC_DISPLAY_NETID));
 	rcu_read_unlock();
