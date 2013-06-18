@@ -16,18 +16,12 @@ Required Properties:
 
   - gpio-controller: Marks the device node as a gpio controller.
   - #gpio-cells: Should be 2. The first cell is the GPIO number and the second
-    cell is used to specify optional parameters as bit flags. Only the GPIO
-    active low flag (bit 0) is currently supported.
-  - gpio-ranges: Range of pins managed by the GPIO controller as a 4-cells
-    tuple using the following syntax.
+    cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>. Only the
+    GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
+  - gpio-ranges: Range of pins managed by the GPIO controller.
 
-    <[phandle of the pin controller node]
-     0
-     [index of the first pin]
-     [number of pins]>
-
-Please refer to gpio.txt in this directory for details of the common GPIO
-bindings used by client devices.
+Please refer to gpio.txt in this directory for details of gpio-ranges property
+and the common GPIO bindings used by client devices.
 
 Example: R8A7779 (R-Car H1) GPIO controller nodes
 
