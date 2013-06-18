@@ -48,6 +48,7 @@ struct lpss_device_desc {
 	const char *clkdev_name;
 	bool ltr_required;
 	unsigned int prv_offset;
+	size_t prv_size_override;
 	bool clk_gate;
 	struct lpss_shared_clock *shared_clock;
 	void (*setup)(struct lpss_private_data *pdata);
@@ -91,6 +92,7 @@ static struct lpss_device_desc lpt_uart_dev_desc = {
 
 static struct lpss_device_desc lpt_sdio_dev_desc = {
 	.prv_offset = 0x1000,
+	.prv_size_override = 0x1018,
 	.ltr_required = true,
 };
 
@@ -249,7 +251,10 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 
 	list_for_each_entry(rentry, &resource_list, node)
 		if (resource_type(&rentry->res) == IORESOURCE_MEM) {
-			pdata->mmio_size = resource_size(&rentry->res);
+			if (dev_desc->prv_size_override)
+				pdata->mmio_size = dev_desc->prv_size_override;
+			else
+				pdata->mmio_size = resource_size(&rentry->res);
 			pdata->mmio_base = ioremap(rentry->res.start,
 						   pdata->mmio_size);
 			pdata->dev_desc = dev_desc;
