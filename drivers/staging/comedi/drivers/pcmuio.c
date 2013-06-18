@@ -713,7 +713,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->insn_config = pcmuio_dio_insn_config;
 		s->n_chan = min(chans_left, MAX_CHANS_PER_SUBDEV);
 		subpriv->intr.asic = -1;
-		subpriv->intr.active = 0;
 		s->len_chanlist = 1;
 
 		/* save the ioport address for each 'port' of 8 channels in the
@@ -733,8 +732,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			    && subpriv->intr.asic < 0) {
 				/* setup the interrupt subdevice */
 				subpriv->intr.asic = asic;
-				subpriv->intr.active = 0;
-				subpriv->intr.stop_count = 0;
 				dev->read_subdev = s;
 				s->subdev_flags |= SDF_CMD_READ;
 				s->cancel = pcmuio_cancel;
