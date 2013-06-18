@@ -658,7 +658,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	struct pcmuio_private *devpriv;
 	struct pcmuio_subdev_private *subpriv;
-	int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;
+	int sdev_no, n_subdevs, port, asic, thisasic_chanct = 0;
 	unsigned int irq[MAX_ASICS];
 	int ret;
 
@@ -680,9 +680,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		spin_lock_init(&devpriv->asics[asic].spinlock);
 	}
 
-	chans_left = CHANS_PER_ASIC * board->num_asics;
-	n_subdevs = (chans_left / MAX_CHANS_PER_SUBDEV) +
-		    (!!(chans_left % MAX_CHANS_PER_SUBDEV));
+	n_subdevs = board->num_asics * 2;
 	devpriv->sprivs = kcalloc(n_subdevs,
 				  sizeof(struct pcmuio_subdev_private),
 				  GFP_KERNEL);
@@ -707,7 +705,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_DIO;
 		s->insn_bits = pcmuio_dio_insn_bits;
 		s->insn_config = pcmuio_dio_insn_config;
-		s->n_chan = min(chans_left, MAX_CHANS_PER_SUBDEV);
+		s->n_chan = 24;
 		subpriv->intr.asic = -1;
 		s->len_chanlist = 1;
 
@@ -738,15 +736,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			thisasic_chanct += CHANS_PER_PORT;
 		}
 		spin_lock_init(&subpriv->intr.spinlock);
-
-		chans_left -= s->n_chan;
-
-		if (!chans_left) {
-			/* reset to our first asic, to do intr subdevs */
-			asic = 0;
-			port = 0;
-		}
-
 	}
 
 	init_asics(dev);	/* clear out all the registers, basically */
