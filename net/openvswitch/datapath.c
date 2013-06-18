@@ -894,10 +894,9 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto err_flow_free;
 
-	err = ovs_flow_metadata_from_nlattrs(flow, a[OVS_PACKET_ATTR_KEY]);
+	err = ovs_flow_metadata_from_nlattrs(flow, key_len, a[OVS_PACKET_ATTR_KEY]);
 	if (err)
 		goto err_flow_free;
-	flow->hash = ovs_flow_hash(&flow->key, key_len);
 	acts = ovs_flow_actions_alloc(nla_len(a[OVS_PACKET_ATTR_ACTIONS]));
 	err = PTR_ERR(acts);
 	if (IS_ERR(acts))
@@ -1276,14 +1275,12 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 			error = PTR_ERR(flow);
 			goto err_unlock_ovs;
 		}
-		flow->key = key;
 		clear_stats(flow);
 
 		rcu_assign_pointer(flow->sf_acts, acts);
 
 		/* Put flow in bucket. */
-		flow->hash = ovs_flow_hash(&key, key_len);
-		ovs_flow_tbl_insert(table, flow);
+		ovs_flow_tbl_insert(table, flow, &key, key_len);
 
 		reply = ovs_flow_cmd_build_info(flow, dp, info->snd_portid,
 						info->snd_seq,
