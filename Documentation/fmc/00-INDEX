@@ -30,3 +30,6 @@ fmc-fakedev.txt
 
 fmc-trivial.txt
 	- about drivers/fmc/fmc-trivial.ko
+
+fmc-write-eeprom.txt
+        - about drivers/fmc/fmc-write-eeprom.ko

@@ -32,4 +32,12 @@ config FMC_TRIVIAL
 	  The driver also handles interrupts (we used it with a real carrier
 	  before the mezzanines were produced)
 
+config FMC_WRITE_EEPROM
+	tristate "FMC mezzanine driver to write I2C EEPROM"
+	help
+	  This driver matches every mezzanine device and can write the
+	  internal EEPROM of the PCB, using the firmware loader to get
+	  its binary and the function carrier->reprogram to actually do it.
+	  It is useful when the mezzanines are produced.
+
 endif # FMC
