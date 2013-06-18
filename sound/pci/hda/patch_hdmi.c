@@ -1110,26 +1110,15 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 	return 0;
 }
 
-/*
- * HDA PCM callbacks
- */
-static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
-			 struct hda_codec *codec,
-			 struct snd_pcm_substream *substream)
+static int hdmi_choose_cvt(struct hda_codec *codec,
+			int pin_idx, int *cvt_id, int *mux_id)
 {
 	struct hdmi_spec *spec = codec->spec;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	int pin_idx, cvt_idx, mux_idx = 0;
 	struct hdmi_spec_per_pin *per_pin;
-	struct hdmi_eld *eld;
 	struct hdmi_spec_per_cvt *per_cvt = NULL;
+	int cvt_idx, mux_idx = 0;
 
-	/* Validate hinfo */
-	pin_idx = hinfo_to_pin_index(spec, hinfo);
-	if (snd_BUG_ON(pin_idx < 0))
-		return -EINVAL;
 	per_pin = get_pin(spec, pin_idx);
-	eld = &per_pin->sink_eld;
 
 	/* Dynamically assign converter to stream */
 	for (cvt_idx = 0; cvt_idx < spec->num_cvts; cvt_idx++) {
@@ -1147,10 +1136,77 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 			continue;
 		break;
 	}
+
 	/* No free converters */
 	if (cvt_idx == spec->num_cvts)
 		return -ENODEV;
 
+	if (cvt_id)
+		*cvt_id = cvt_idx;
+	if (mux_id)
+		*mux_id = mux_idx;
+
+	return 0;
+}
+
+static void haswell_config_cvts(struct hda_codec *codec,
+			int pin_id, int mux_id)
+{
+	struct hdmi_spec *spec = codec->spec;
+	struct hdmi_spec_per_pin *per_pin;
+	int pin_idx, mux_idx;
+	int curr;
+	int err;
+
+	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
+		per_pin = get_pin(spec, pin_idx);
+
+		if (pin_idx == pin_id)
+			continue;
+
+		curr = snd_hda_codec_read(codec, per_pin->pin_nid, 0,
+					  AC_VERB_GET_CONNECT_SEL, 0);
+
+		/* Choose another unused converter */
+		if (curr == mux_id) {
+			err = hdmi_choose_cvt(codec, pin_idx, NULL, &mux_idx);
+			if (err < 0)
+				return;
+			snd_printdd("HDMI: choose converter %d for pin %d\n", mux_idx, pin_idx);
+			snd_hda_codec_write_cache(codec, per_pin->pin_nid, 0,
+					    AC_VERB_SET_CONNECT_SEL,
+					    mux_idx);
+		}
+	}
+}
+
+/*
+ * HDA PCM callbacks
+ */
+static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
+			 struct hda_codec *codec,
+			 struct snd_pcm_substream *substream)
+{
+	struct hdmi_spec *spec = codec->spec;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	int pin_idx, cvt_idx, mux_idx = 0;
+	struct hdmi_spec_per_pin *per_pin;
+	struct hdmi_eld *eld;
+	struct hdmi_spec_per_cvt *per_cvt = NULL;
+	int err;
+
+	/* Validate hinfo */
+	pin_idx = hinfo_to_pin_index(spec, hinfo);
+	if (snd_BUG_ON(pin_idx < 0))
+		return -EINVAL;
+	per_pin = get_pin(spec, pin_idx);
+	eld = &per_pin->sink_eld;
+
+	err = hdmi_choose_cvt(codec, pin_idx, &cvt_idx, &mux_idx);
+	if (err < 0)
+		return err;
+
+	per_cvt = get_cvt(spec, cvt_idx);
 	/* Claim converter */
 	per_cvt->assigned = 1;
 	hinfo->nid = per_cvt->cvt_nid;
@@ -1158,6 +1214,11 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	snd_hda_codec_write_cache(codec, per_pin->pin_nid, 0,
 			    AC_VERB_SET_CONNECT_SEL,
 			    mux_idx);
+
+	/* configure unused pins to choose other converters */
+	if (codec->vendor_id == 0x80862807)
+		haswell_config_cvts(codec, pin_idx, mux_idx);
+
 	snd_hda_spdif_ctls_assign(codec, pin_idx, per_cvt->cvt_nid);
 
 	/* Initially set the converter's capabilities */
