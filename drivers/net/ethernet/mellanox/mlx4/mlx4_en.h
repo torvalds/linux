@@ -290,6 +290,11 @@ struct mlx4_en_rx_ring {
 	void *rx_info;
 	unsigned long bytes;
 	unsigned long packets;
+#ifdef CONFIG_NET_LL_RX_POLL
+	unsigned long yields;
+	unsigned long misses;
+	unsigned long cleaned;
+#endif
 	unsigned long csum_ok;
 	unsigned long csum_none;
 	int hwtstamp_rx_filter;
@@ -625,6 +630,7 @@ static inline bool mlx4_en_cq_lock_poll(struct mlx4_en_cq *cq)
 
 		cq->state |= MLX4_EN_CQ_STATE_POLL_YIELD;
 		rc = false;
+		rx_ring->yields++;
 	} else
 		/* preserve yield marks */
 		cq->state |= MLX4_EN_CQ_STATE_POLL;

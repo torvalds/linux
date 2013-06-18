@@ -85,6 +85,10 @@ static int mlx4_en_low_latency_recv(struct napi_struct *napi)
 		return LL_FLUSH_BUSY;
 
 	done = mlx4_en_process_rx_cq(dev, cq, 4);
+	if (likely(done))
+		rx_ring->cleaned += done;
+	else
+		rx_ring->misses++;
 
 	mlx4_en_cq_unlock_poll(cq);
 
