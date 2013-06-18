@@ -246,10 +246,28 @@ enum ovs_key_attr {
 	OVS_KEY_ATTR_ARP,       /* struct ovs_key_arp */
 	OVS_KEY_ATTR_ND,        /* struct ovs_key_nd */
 	OVS_KEY_ATTR_SKB_MARK,  /* u32 skb mark */
+	OVS_KEY_ATTR_TUNNEL,    /* Nested set of ovs_tunnel attributes */
+
+#ifdef __KERNEL__
+	OVS_KEY_ATTR_IPV4_TUNNEL,  /* struct ovs_key_ipv4_tunnel */
+#endif
 	__OVS_KEY_ATTR_MAX
 };
 
 #define OVS_KEY_ATTR_MAX (__OVS_KEY_ATTR_MAX - 1)
+
+enum ovs_tunnel_key_attr {
+	OVS_TUNNEL_KEY_ATTR_ID,                 /* be64 Tunnel ID */
+	OVS_TUNNEL_KEY_ATTR_IPV4_SRC,           /* be32 src IP address. */
+	OVS_TUNNEL_KEY_ATTR_IPV4_DST,           /* be32 dst IP address. */
+	OVS_TUNNEL_KEY_ATTR_TOS,                /* u8 Tunnel IP ToS. */
+	OVS_TUNNEL_KEY_ATTR_TTL,                /* u8 Tunnel IP TTL. */
+	OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT,      /* No argument, set DF. */
+	OVS_TUNNEL_KEY_ATTR_CSUM,               /* No argument. CSUM packet. */
+	__OVS_TUNNEL_KEY_ATTR_MAX
+};
+
+#define OVS_TUNNEL_KEY_ATTR_MAX (__OVS_TUNNEL_KEY_ATTR_MAX - 1)
 
 /**
  * enum ovs_frag_type - IPv4 and IPv6 fragment type

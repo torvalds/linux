@@ -40,7 +40,22 @@ struct sw_flow_actions {
 	struct nlattr actions[];
 };
 
+/* Used to memset ovs_key_ipv4_tunnel padding. */
+#define OVS_TUNNEL_KEY_SIZE					\
+	(offsetof(struct ovs_key_ipv4_tunnel, ipv4_ttl) +	\
+	FIELD_SIZEOF(struct ovs_key_ipv4_tunnel, ipv4_ttl))
+
+struct ovs_key_ipv4_tunnel {
+	__be64 tun_id;
+	__be32 ipv4_src;
+	__be32 ipv4_dst;
+	u16  tun_flags;
+	u8   ipv4_tos;
+	u8   ipv4_ttl;
+};
+
 struct sw_flow_key {
+	struct ovs_key_ipv4_tunnel tun_key;  /* Encapsulating tunnel key. */
 	struct {
 		u32	priority;	/* Packet QoS priority. */
 		u32	skb_mark;	/* SKB mark. */
@@ -179,5 +194,9 @@ u32 ovs_flow_hash(const struct sw_flow_key *key, int key_len);
 
 struct sw_flow *ovs_flow_tbl_next(struct flow_table *table, u32 *bucket, u32 *idx);
 extern const int ovs_key_lens[OVS_KEY_ATTR_MAX + 1];
+int ovs_ipv4_tun_from_nlattr(const struct nlattr *attr,
+			 struct ovs_key_ipv4_tunnel *tun_key);
+int ovs_ipv4_tun_to_nlattr(struct sk_buff *skb,
+			const struct ovs_key_ipv4_tunnel *tun_key);
 
 #endif /* flow.h */

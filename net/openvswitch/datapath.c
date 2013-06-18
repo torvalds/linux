@@ -362,6 +362,14 @@ static int queue_gso_packets(struct net *net, int dp_ifindex,
 static size_t key_attr_size(void)
 {
 	return    nla_total_size(4)   /* OVS_KEY_ATTR_PRIORITY */
+		+ nla_total_size(0)   /* OVS_KEY_ATTR_TUNNEL */
+		  + nla_total_size(8)   /* OVS_TUNNEL_KEY_ATTR_ID */
+		  + nla_total_size(4)   /* OVS_TUNNEL_KEY_ATTR_IPV4_SRC */
+		  + nla_total_size(4)   /* OVS_TUNNEL_KEY_ATTR_IPV4_DST */
+		  + nla_total_size(1)   /* OVS_TUNNEL_KEY_ATTR_TOS */
+		  + nla_total_size(1)   /* OVS_TUNNEL_KEY_ATTR_TTL */
+		  + nla_total_size(0)   /* OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT */
+		  + nla_total_size(0)   /* OVS_TUNNEL_KEY_ATTR_CSUM */
 		+ nla_total_size(4)   /* OVS_KEY_ATTR_IN_PORT */
 		+ nla_total_size(4)   /* OVS_KEY_ATTR_SKB_MARK */
 		+ nla_total_size(12)  /* OVS_KEY_ATTR_ETHERNET */
@@ -600,8 +608,30 @@ static int validate_tp_port(const struct sw_flow_key *flow_key)
 	return -EINVAL;
 }
 
+static int validate_and_copy_set_tun(const struct nlattr *attr,
+				     struct sw_flow_actions **sfa)
+{
+	struct ovs_key_ipv4_tunnel tun_key;
+	int err, start;
+
+	err = ovs_ipv4_tun_from_nlattr(nla_data(attr), &tun_key);
+	if (err)
+		return err;
+
+	start = add_nested_action_start(sfa, OVS_ACTION_ATTR_SET);
+	if (start < 0)
+		return start;
+
+	err = add_action(sfa, OVS_KEY_ATTR_IPV4_TUNNEL, &tun_key, sizeof(tun_key));
+	add_nested_action_end(*sfa, start);
+
+	return err;
+}
+
 static int validate_set(const struct nlattr *a,
-			const struct sw_flow_key *flow_key)
+			const struct sw_flow_key *flow_key,
+			struct sw_flow_actions **sfa,
+			bool *set_tun)
 {
 	const struct nlattr *ovs_key = nla_data(a);
 	int key_type = nla_type(ovs_key);
@@ -611,16 +641,25 @@ static int validate_set(const struct nlattr *a,
 		return -EINVAL;
 
 	if (key_type > OVS_KEY_ATTR_MAX ||
-	    nla_len(ovs_key) != ovs_key_lens[key_type])
+	   (ovs_key_lens[key_type] != nla_len(ovs_key) &&
+	    ovs_key_lens[key_type] != -1))
 		return -EINVAL;
 
 	switch (key_type) {
 	const struct ovs_key_ipv4 *ipv4_key;
 	const struct ovs_key_ipv6 *ipv6_key;
+	int err;
 
 	case OVS_KEY_ATTR_PRIORITY:
 	case OVS_KEY_ATTR_SKB_MARK:
 	case OVS_KEY_ATTR_ETHERNET:
+		break;
+
+	case OVS_KEY_ATTR_TUNNEL:
+		*set_tun = true;
+		err = validate_and_copy_set_tun(a, sfa);
+		if (err)
+			return err;
 		break;
 
 	case OVS_KEY_ATTR_IPV4:
@@ -771,7 +810,7 @@ static int validate_and_copy_actions(const struct nlattr *attr,
 			break;
 
 		case OVS_ACTION_ATTR_SET:
-			err = validate_set(a, key);
+			err = validate_set(a, key, sfa, &skip_copy);
 			if (err)
 				return err;
 			break;
@@ -993,6 +1032,33 @@ static int sample_action_to_attr(const struct nlattr *attr, struct sk_buff *skb)
 	return err;
 }
 
+static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
+{
+	const struct nlattr *ovs_key = nla_data(a);
+	int key_type = nla_type(ovs_key);
+	struct nlattr *start;
+	int err;
+
+	switch (key_type) {
+	case OVS_KEY_ATTR_IPV4_TUNNEL:
+		start = nla_nest_start(skb, OVS_ACTION_ATTR_SET);
+		if (!start)
+			return -EMSGSIZE;
+
+		err = ovs_ipv4_tun_to_nlattr(skb, nla_data(ovs_key));
+		if (err)
+			return err;
+		nla_nest_end(skb, start);
+		break;
+	default:
+		if (nla_put(skb, OVS_ACTION_ATTR_SET, nla_len(a), ovs_key))
+			return -EMSGSIZE;
+		break;
+	}
+
+	return 0;
+}
+
 static int actions_to_attr(const struct nlattr *attr, int len, struct sk_buff *skb)
 {
 	const struct nlattr *a;
@@ -1002,6 +1068,12 @@ static int actions_to_attr(const struct nlattr *attr, int len, struct sk_buff *s
 		int type = nla_type(a);
 
 		switch (type) {
+		case OVS_ACTION_ATTR_SET:
+			err = set_action_to_attr(a, skb);
+			if (err)
+				return err;
+			break;
+
 		case OVS_ACTION_ATTR_SAMPLE:
 			err = sample_action_to_attr(a, skb);
 			if (err)

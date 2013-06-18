@@ -436,6 +436,10 @@ static int execute_set_action(struct sk_buff *skb,
 		skb->mark = nla_get_u32(nested_attr);
 		break;
 
+	case OVS_KEY_ATTR_IPV4_TUNNEL:
+		OVS_CB(skb)->tun_key = nla_data(nested_attr);
+		break;
+
 	case OVS_KEY_ATTR_ETHERNET:
 		err = set_eth_addr(skb, nla_data(nested_attr));
 		break;
