@@ -25,4 +25,11 @@ config FMC_FAKEDEV
 	  that can be rewritten at run time and usef for matching
 	  mezzanines.
 
+config FMC_TRIVIAL
+	tristate "FMC trivial mezzanine driver (software testing)"
+	help
+	  This is a fake mezzanine driver, to show how FMC works and test it.
+	  The driver also handles interrupts (we used it with a real carrier
+	  before the mezzanines were produced)
+
 endif # FMC

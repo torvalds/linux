@@ -27,3 +27,6 @@ identifiers.txt
 
 fmc-fakedev.txt
 	- about drivers/fmc/fmc-fakedev.ko
+
+fmc-trivial.txt
+	- about drivers/fmc/fmc-trivial.ko
