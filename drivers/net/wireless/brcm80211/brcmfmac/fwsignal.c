@@ -839,7 +839,7 @@ static int brcmf_fws_hdrpush(struct brcmf_fws_info *fws, struct sk_buff *skb)
 
 static bool brcmf_fws_tim_update(struct brcmf_fws_info *fws,
 				 struct brcmf_fws_mac_descriptor *entry,
-				 int prec, bool send_immediately)
+				 int fifo, bool send_immediately)
 {
 	struct sk_buff *skb;
 	struct brcmf_bus *bus;
@@ -848,10 +848,10 @@ static bool brcmf_fws_tim_update(struct brcmf_fws_info *fws,
 	u32 len;
 
 	/* check delayedQ and suppressQ in one call using bitmap */
-	if (brcmu_pktq_mlen(&entry->psq, 3 << (prec * 2)) == 0)
-		entry->traffic_pending_bmp &= ~NBITVAL(prec);
+	if (brcmu_pktq_mlen(&entry->psq, 3 << (fifo * 2)) == 0)
+		entry->traffic_pending_bmp &= ~NBITVAL(fifo);
 	else
-		entry->traffic_pending_bmp |= NBITVAL(prec);
+		entry->traffic_pending_bmp |= NBITVAL(fifo);
 
 	entry->send_tim_signal = false;
 	if (entry->traffic_lastreported_bmp != entry->traffic_pending_bmp)
