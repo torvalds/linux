@@ -400,16 +400,6 @@ void __init exynos_init_time(void)
 	clocksource_of_init();
 }
 
-void __init exynos4_init_irq(void)
-{
-	irqchip_init();
-}
-
-void __init exynos5_init_irq(void)
-{
-	irqchip_init();
-}
-
 struct bus_type exynos_subsys = {
 	.name		= "exynos-core",
 	.dev_name	= "exynos-core",

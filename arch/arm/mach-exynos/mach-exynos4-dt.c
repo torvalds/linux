@@ -55,7 +55,6 @@ static void __init exynos4_reserve(void)
 DT_MACHINE_START(EXYNOS4210_DT, "Samsung Exynos4 (Flattened Device Tree)")
 	/* Maintainer: Thomas Abraham <thomas.abraham@linaro.org> */
 	.smp		= smp_ops(exynos_smp_ops),
-	.init_irq	= exynos4_init_irq,
 	.map_io		= exynos4_dt_map_io,
 	.init_early	= exynos_firmware_init,
 	.init_machine	= exynos4_dt_machine_init,
