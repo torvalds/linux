@@ -162,7 +162,6 @@ struct pcmuio_subdev_private {
 
 struct pcmuio_private {
 	struct {
-		unsigned long iobase;
 		unsigned int irq;
 		spinlock_t spinlock;
 	} asics[MAX_ASICS];
@@ -405,7 +404,7 @@ static int pcmuio_handle_asic_interrupt(struct comedi_device *dev, int asic)
 {
 	struct pcmuio_private *devpriv = dev->private;
 	struct pcmuio_subdev_private *subpriv;
-	unsigned long iobase = devpriv->asics[asic].iobase;
+	unsigned long iobase = dev->iobase + (asic * ASIC_IOSIZE);
 	unsigned triggered = 0;
 	int got1 = 0;
 	unsigned long flags;
@@ -675,10 +674,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	for (asic = 0; asic < MAX_ASICS; ++asic) {
-		devpriv->asics[asic].iobase = dev->iobase + asic * ASIC_IOSIZE;
+	for (asic = 0; asic < MAX_ASICS; ++asic)
 		spin_lock_init(&devpriv->asics[asic].spinlock);
-	}
 
 	n_subdevs = board->num_asics * 2;
 	devpriv->sprivs = kcalloc(n_subdevs,
@@ -718,8 +715,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				++asic;
 				thisasic_chanct = 0;
 			}
-			subpriv->iobases[byte_no] =
-			    devpriv->asics[asic].iobase + port;
+			subpriv->iobases[byte_no] = dev->iobase +
+						    (asic * ASIC_IOSIZE) + port;
 
 			if (thisasic_chanct <
 			    CHANS_PER_PORT * INTR_PORTS_PER_ASIC
