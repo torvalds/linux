@@ -107,6 +107,19 @@ static u64 precise_store_data(u64 status)
 	return val;
 }
 
+static u64 precise_store_data_hsw(u64 status)
+{
+	union perf_mem_data_src dse;
+
+	dse.val = 0;
+	dse.mem_op = PERF_MEM_OP_STORE;
+	dse.mem_lvl = PERF_MEM_LVL_NA;
+	if (status & 1)
+		dse.mem_lvl = PERF_MEM_LVL_L1;
+	/* Nothing else supported. Sorry. */
+	return dse.val;
+}
+
 static u64 load_latency_data(u64 status)
 {
 	union intel_x86_pebs_dse dse;
@@ -566,13 +579,13 @@ struct event_constraint intel_ivb_pebs_event_constraints[] = {
 
 struct event_constraint intel_hsw_pebs_event_constraints[] = {
 	INTEL_UEVENT_CONSTRAINT(0x01c0, 0x2), /* INST_RETIRED.PRECDIST */
-	INTEL_UEVENT_CONSTRAINT(0x01c2, 0xf), /* UOPS_RETIRED.ALL */
+	INTEL_PST_HSW_CONSTRAINT(0x01c2, 0xf), /* UOPS_RETIRED.ALL */
 	INTEL_UEVENT_CONSTRAINT(0x02c2, 0xf), /* UOPS_RETIRED.RETIRE_SLOTS */
 	INTEL_EVENT_CONSTRAINT(0xc4, 0xf),    /* BR_INST_RETIRED.* */
 	INTEL_UEVENT_CONSTRAINT(0x01c5, 0xf), /* BR_MISP_RETIRED.CONDITIONAL */
 	INTEL_UEVENT_CONSTRAINT(0x04c5, 0xf), /* BR_MISP_RETIRED.ALL_BRANCHES */
 	INTEL_UEVENT_CONSTRAINT(0x20c5, 0xf), /* BR_MISP_RETIRED.NEAR_TAKEN */
-	INTEL_EVENT_CONSTRAINT(0xcd, 0x8),    /* MEM_TRANS_RETIRED.* */
+	INTEL_PLD_CONSTRAINT(0x01cd, 0x8),    /* MEM_TRANS_RETIRED.* */
 	/* MEM_UOPS_RETIRED.STLB_MISS_LOADS */
 	INTEL_UEVENT_CONSTRAINT(0x11d0, 0xf),
 	/* MEM_UOPS_RETIRED.STLB_MISS_STORES */
@@ -582,7 +595,7 @@ struct event_constraint intel_hsw_pebs_event_constraints[] = {
 	/* MEM_UOPS_RETIRED.SPLIT_STORES */
 	INTEL_UEVENT_CONSTRAINT(0x42d0, 0xf),
 	INTEL_UEVENT_CONSTRAINT(0x81d0, 0xf), /* MEM_UOPS_RETIRED.ALL_LOADS */
-	INTEL_UEVENT_CONSTRAINT(0x82d0, 0xf), /* MEM_UOPS_RETIRED.ALL_STORES */
+	INTEL_PST_HSW_CONSTRAINT(0x82d0, 0xf), /* MEM_UOPS_RETIRED.ALL_STORES */
 	INTEL_UEVENT_CONSTRAINT(0x01d1, 0xf), /* MEM_LOAD_UOPS_RETIRED.L1_HIT */
 	INTEL_UEVENT_CONSTRAINT(0x02d1, 0xf), /* MEM_LOAD_UOPS_RETIRED.L2_HIT */
 	INTEL_UEVENT_CONSTRAINT(0x04d1, 0xf), /* MEM_LOAD_UOPS_RETIRED.L3_HIT */
@@ -759,7 +772,8 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 		return;
 
 	fll = event->hw.flags & PERF_X86_EVENT_PEBS_LDLAT;
-	fst = event->hw.flags & PERF_X86_EVENT_PEBS_ST;
+	fst = event->hw.flags & (PERF_X86_EVENT_PEBS_ST |
+				 PERF_X86_EVENT_PEBS_ST_HSW);
 
 	perf_sample_data_init(&data, 0, event->hw.last_period);
 
@@ -770,9 +784,6 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 	 * if PEBS-LL or PreciseStore
 	 */
 	if (fll || fst) {
-		if (sample_type & PERF_SAMPLE_ADDR)
-			data.addr = pebs->dla;
-
 		/*
 		 * Use latency for weight (only avail with PEBS-LL)
 		 */
@@ -785,6 +796,9 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 		if (sample_type & PERF_SAMPLE_DATA_SRC) {
 			if (fll)
 				data.data_src.val = load_latency_data(pebs->dse);
+			else if (event->hw.flags & PERF_X86_EVENT_PEBS_ST_HSW)
+				data.data_src.val =
+					precise_store_data_hsw(pebs->dse);
 			else
 				data.data_src.val = precise_store_data(pebs->dse);
 		}
@@ -813,6 +827,10 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 		regs.flags |= PERF_EFLAGS_EXACT;
 	else
 		regs.flags &= ~PERF_EFLAGS_EXACT;
+
+	if ((event->attr.sample_type & PERF_SAMPLE_ADDR) &&
+		x86_pmu.intel_cap.pebs_format >= 1)
+		data.addr = pebs->dla;
 
 	if (has_branch_stack(event))
 		data.br_stack = &cpuc->lbr_stack;
