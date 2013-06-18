@@ -431,6 +431,15 @@ static int __issue_creg_rw(struct rsxx_cardinfo *card,
 	*hw_stat = completion.creg_status;
 
 	if (completion.st) {
+		/*
+		* This read is needed to verify that there has not been any
+		* extreme errors that might have occurred, i.e. EEH. The
+		* function iowrite32 will not detect EEH errors, so it is
+		* necessary that we recover if such an error is the reason
+		* for the timeout. This is a dummy read.
+		*/
+		ioread32(card->regmap + SCRATCH);
+
 		dev_warn(CARD_TO_DEV(card),
 			"creg command failed(%d x%08x)\n",
 			completion.st, addr);
