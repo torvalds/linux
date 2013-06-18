@@ -102,6 +102,17 @@ struct vgic_ops {
 	void	(*enable)(struct kvm_vcpu *vcpu);
 };
 
+struct vgic_params {
+	/* Physical address of vgic virtual cpu interface */
+	phys_addr_t	vcpu_base;
+	/* Number of list registers */
+	u32		nr_lr;
+	/* Interrupt number */
+	unsigned int	maint_irq;
+	/* Virtual control interface base address */
+	void __iomem	*vctrl_base;
+};
+
 struct vgic_dist {
 #ifdef CONFIG_KVM_ARM_VGIC
 	spinlock_t		lock;
