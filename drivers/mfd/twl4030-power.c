@@ -28,6 +28,7 @@
 #include <linux/pm.h>
 #include <linux/i2c/twl.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 
 #include <asm/mach-types.h>
 
@@ -540,11 +541,29 @@ void twl4030_power_off(void)
 		pr_err("TWL4030 Unable to power off\n");
 }
 
+static bool twl4030_power_use_poweroff(struct twl4030_power_data *pdata,
+					struct device_node *node)
+{
+	if (pdata && pdata->use_poweroff)
+		return true;
+
+	if (of_property_read_bool(node, "ti,use_poweroff"))
+		return true;
+
+	return false;
+}
+
 int twl4030_power_probe(struct platform_device *pdev)
 {
 	struct twl4030_power_data *pdata = pdev->dev.platform_data;
+	struct device_node *node = pdev->dev.of_node;
 	int err = 0;
 	u8 val;
+
+	if (!pdata && !node) {
+		dev_err(&pdev->dev, "Platform data is missing\n");
+		return -EINVAL;
+	}
 
 	err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, TWL4030_PM_MASTER_KEY_CFG1,
 			       TWL4030_PM_MASTER_PROTECT_KEY);
@@ -556,15 +575,18 @@ int twl4030_power_probe(struct platform_device *pdev)
 	if (err)
 		goto unlock;
 
-	err = twl4030_power_configure_scripts(pdata);
-	if (err)
-		goto load;
-	err = twl4030_power_configure_resources(pdata);
-	if (err)
-		goto resource;
+	if (pdata) {
+		/* TODO: convert to device tree */
+		err = twl4030_power_configure_scripts(pdata);
+		if (err)
+			goto load;
+		err = twl4030_power_configure_resources(pdata);
+		if (err)
+			goto resource;
+	}
 
 	/* Board has to be wired properly to use this feature */
-	if (pdata->use_poweroff && !pm_power_off) {
+	if (twl4030_power_use_poweroff(pdata, node) && !pm_power_off) {
 		/* Default for SEQ_OFFSYNC is set, lets ensure this */
 		err = twl_i2c_read_u8(TWL_MODULE_PM_MASTER, &val,
 				      TWL4030_PM_MASTER_CFG_P123_TRANSITION);
@@ -610,10 +632,19 @@ static int twl4030_power_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id twl4030_power_of_match[] = {
+	{.compatible = "ti,twl4030-power", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, twl4030_power_of_match);
+#endif
+
 static struct platform_driver twl4030_power_driver = {
 	.driver = {
 		.name	= "twl4030_power",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(twl4030_power_of_match),
 	},
 	.probe		= twl4030_power_probe,
 	.remove		= twl4030_power_remove,
