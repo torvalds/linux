@@ -80,6 +80,34 @@
 
 #include "comedi_fc.h"
 
+/*
+ * Register I/O map
+ *
+ * Offset    Page 0       Page 1       Page 2       Page 3
+ * ------  -----------  -----------  -----------  -----------
+ *  0x00   Port 0 I/O   Port 0 I/O   Port 0 I/O   Port 0 I/O
+ *  0x01   Port 1 I/O   Port 1 I/O   Port 1 I/O   Port 1 I/O
+ *  0x02   Port 2 I/O   Port 2 I/O   Port 2 I/O   Port 2 I/O
+ *  0x03   Port 3 I/O   Port 3 I/O   Port 3 I/O   Port 3 I/O
+ *  0x04   Port 4 I/O   Port 4 I/O   Port 4 I/O   Port 4 I/O
+ *  0x05   Port 5 I/O   Port 5 I/O   Port 5 I/O   Port 5 I/O
+ *  0x06   INT_PENDING  INT_PENDING  INT_PENDING  INT_PENDING
+ *  0x07    Page/Lock    Page/Lock    Page/Lock    Page/Lock
+ *  0x08       N/A         POL_0       ENAB_0       INT_ID0
+ *  0x09       N/A         POL_1       ENAB_1       INT_ID1
+ *  0x0a       N/A         POL_2       ENAB_2       INT_ID2
+ */
+#define PCMUIO_PORT_REG(x)		(0x00 + (x))
+#define PCMUIO_INT_PENDING_REG		0x06
+#define PCMUIO_PAGE_LOCK_REG		0x07
+#define PCMUIO_LOCK_PORT(x)		((1 << (x)) & 0x3f)
+#define PCMUIO_PAGE(x)			(((x) & 0x3) << 6)
+#define PCMUIO_PAGE_MASK		PCMUIO_PAGE(3)
+#define PCMUIO_PAGE_POL			1
+#define PCMUIO_PAGE_ENAB		2
+#define PCMUIO_PAGE_INT_ID		3
+#define PCMUIO_PAGE_REG(x)		(0x08 + (x))
+
 #define CHANS_PER_PORT		8
 #define PORTS_PER_ASIC		6
 #define INTR_PORTS_PER_ASIC	3
@@ -97,53 +125,9 @@
 #define PCMUIO48_IOSIZE		ASIC_IOSIZE
 #define PCMUIO96_IOSIZE		(ASIC_IOSIZE * 2)
 
-/*
- * Some offsets - these are all in the 16byte IO memory offset from
- * the base address.  Note that there is a paging scheme to swap out
- * offsets 0x8-0xA using the PAGELOCK register.  See the table below.
- *
- * Register(s)       Pages        R/W?        Description
- * --------------------------------------------------------------------------
- * REG_PORTx         All          R/W         Read/Write/Configure IO
- * REG_INT_PENDING   All          ReadOnly    Which INT_IDx has int.
- * REG_PAGELOCK      All          WriteOnly   Select a page
- * REG_POLx          Pg. 1 only   WriteOnly   Select edge-detection polarity
- * REG_ENABx         Pg. 2 only   WriteOnly   Enable/Disable edge-detect int.
- * REG_INT_IDx       Pg. 3 only   R/W         See which ports/bits have ints.
- */
-#define REG_PORT0		0x0
-#define REG_PORT1		0x1
-#define REG_PORT2		0x2
-#define REG_PORT3		0x3
-#define REG_PORT4		0x4
-#define REG_PORT5		0x5
-#define REG_INT_PENDING		0x6
-/*
- * page selector register
- * Upper 2 bits select a page and bits 0-5 are used to
- * 'lock down' a particular port above to make it readonly.
- */
-#define REG_PAGELOCK		0x7
-#define REG_POL0		0x8
-#define REG_POL1		0x9
-#define REG_POL2		0xa
-#define REG_ENAB0		0x8
-#define REG_ENAB1		0x9
-#define REG_ENAB2		0xa
-#define REG_INT_ID0		0x8
-#define REG_INT_ID1		0x9
-#define REG_INT_ID2		0xa
-
 #define NUM_PAGED_REGS		3
 #define NUM_PAGES		4
 #define FIRST_PAGED_REG		0x8
-#define REG_PAGE_BITOFFSET	6
-#define REG_LOCK_BITOFFSET	0
-#define REG_PAGE_MASK		(~((0x1 << REG_PAGE_BITOFFSET) - 1))
-#define REG_LOCK_MASK		~(REG_PAGE_MASK)
-#define PAGE_POL		1
-#define PAGE_ENAB		2
-#define PAGE_INT_ID		3
 
 struct pcmuio_board {
 	const char *name;
@@ -336,12 +320,12 @@ static void switch_page(struct comedi_device *dev, int asic, int page)
 	if (page < 0 || page >= NUM_PAGES)
 		return;		/* more paranoia */
 
-	devpriv->asics[asic].pagelock &= ~REG_PAGE_MASK;
-	devpriv->asics[asic].pagelock |= page << REG_PAGE_BITOFFSET;
+	devpriv->asics[asic].pagelock &= ~PCMUIO_PAGE_MASK;
+	devpriv->asics[asic].pagelock |= PCMUIO_PAGE(page);
 
 	/* now write out the shadow register */
 	outb(devpriv->asics[asic].pagelock,
-	     dev->iobase + ASIC_IOSIZE * asic + REG_PAGELOCK);
+	     dev->iobase + ASIC_IOSIZE * asic + PCMUIO_PAGE_LOCK_REG);
 }
 
 static void init_asics(struct comedi_device *dev)
@@ -358,7 +342,7 @@ static void init_asics(struct comedi_device *dev)
 
 		/* first, clear all the DIO port bits */
 		for (port = 0; port < PORTS_PER_ASIC; ++port)
-			outb(0, baseaddr + REG_PORT0 + port);
+			outb(0, baseaddr + PCMUIO_PORT_REG(port));
 
 		/* Next, clear all the paged registers for each page */
 		for (page = 1; page < NUM_PAGES; ++page) {
@@ -369,13 +353,6 @@ static void init_asics(struct comedi_device *dev)
 			     reg < FIRST_PAGED_REG + NUM_PAGED_REGS; ++reg)
 				outb(0, baseaddr + reg);
 		}
-
-		/* DEBUG  set rising edge interrupts on port0 of both asics */
-		/*switch_page(dev, asic, PAGE_POL);
-		   outb(0xff, baseaddr + REG_POL0);
-		   switch_page(dev, asic, PAGE_ENAB);
-		   outb(0xff, baseaddr + REG_ENAB0); */
-		/* END DEBUG */
 
 		/* switch back to default page 0 */
 		switch_page(dev, asic, 0);
@@ -398,10 +375,10 @@ static void pcmuio_stop_intr(struct comedi_device *dev,
 	s->async->inttrig = NULL;
 	nports = subpriv->intr.num_asic_chans / CHANS_PER_PORT;
 	firstport = subpriv->intr.asic_chan / CHANS_PER_PORT;
-	switch_page(dev, asic, PAGE_ENAB);
+	switch_page(dev, asic, PCMUIO_PAGE_ENAB);
 	for (port = firstport; port < firstport + nports; ++port) {
 		/* disable all intrs for this subdev.. */
-		outb(0, devpriv->asics[asic].iobase + REG_ENAB0 + port);
+		outb(0, devpriv->asics[asic].iobase + PCMUIO_PAGE_REG(port));
 	}
 }
 
@@ -478,17 +455,17 @@ static int pcmuio_handle_asic_interrupt(struct comedi_device *dev, int asic)
 
 	spin_lock_irqsave(&devpriv->asics[asic].spinlock, flags);
 
-	int_pend = inb(iobase + REG_INT_PENDING) & 0x07;
+	int_pend = inb(iobase + PCMUIO_INT_PENDING_REG) & 0x07;
 	if (int_pend) {
 		for (i = 0; i < INTR_PORTS_PER_ASIC; ++i) {
 			if (int_pend & (0x1 << i)) {
 				unsigned char val;
 
-				switch_page(dev, asic, PAGE_INT_ID);
-				val = inb(iobase + REG_INT_ID0 + i);
+				switch_page(dev, asic, PCMUIO_PAGE_INT_ID);
+				val = inb(iobase + PCMUIO_PAGE_REG(i));
 				if (val)
 					/* clear pending interrupt */
-					outb(0, iobase + REG_INT_ID0 + i);
+					outb(0, iobase + PCMUIO_PAGE_REG(i));
 
 					triggered |= (val << (i * 8));
 			}
@@ -574,7 +551,7 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 			 1) << subpriv->intr.first_chan;
 		subpriv->intr.enabled_mask = bits;
 
-		switch_page(dev, asic, PAGE_ENAB);
+		switch_page(dev, asic, PCMUIO_PAGE_ENAB);
 		for (port = firstport; port < firstport + nports; ++port) {
 			unsigned enab =
 			    bits >> (subpriv->intr.first_chan + (port -
@@ -584,10 +561,10 @@ static int pcmuio_start_intr(struct comedi_device *dev,
 					 (port - firstport) * 8) & 0xff;
 			/* set enab intrs for this subdev.. */
 			outb(enab,
-			     devpriv->asics[asic].iobase + REG_ENAB0 + port);
-			switch_page(dev, asic, PAGE_POL);
+			     devpriv->asics[asic].iobase + PCMUIO_PAGE_REG(port));
+			switch_page(dev, asic, PCMUIO_PAGE_POL);
 			outb(pol,
-			     devpriv->asics[asic].iobase + REG_ENAB0 + port);
+			     devpriv->asics[asic].iobase + PCMUIO_PAGE_REG(port));
 		}
 	}
 	return 0;
