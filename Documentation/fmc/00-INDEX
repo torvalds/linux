@@ -1,0 +1,26 @@
+
+Documentation in this directory comes from sections of the manual we
+wrote for the externally-developed fmc-bus package. The complete
+manual as of today (2013-02) is available in PDF format at
+http://www.ohwr.org/projects/fmc-bus/files
+
+00-INDEX
+	- this file.
+
+FMC-and-SDB.txt
+	- What are FMC and SDB, basic concepts for this framework
+
+API.txt
+	- The functions that are exported by the bus driver
+
+parameters.txt
+	- The module parameters
+
+carrier.txt
+	- writing a carrier (a device)
+
+mezzanine.txt
+	- writing code for your mezzanine (a driver)
+
+identifiers.txt
+	- how identification and matching works
