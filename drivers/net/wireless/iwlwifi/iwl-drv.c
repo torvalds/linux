@@ -1111,7 +1111,6 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.restart_fw = true,
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
-	.auto_agg = true,
 	.wd_disable = true,
 	/* the rest are 0 by default */
 };
@@ -1260,8 +1259,3 @@ module_param_named(power_level, iwlwifi_mod_params.power_level,
 		int, S_IRUGO);
 MODULE_PARM_DESC(power_level,
 		 "default power save level (range from 1 - 5, default: 1)");
-
-module_param_named(auto_agg, iwlwifi_mod_params.auto_agg,
-		bool, S_IRUGO);
-MODULE_PARM_DESC(auto_agg,
-		 "enable agg w/o check traffic load (default: enable)");
