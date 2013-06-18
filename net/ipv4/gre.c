@@ -201,7 +201,8 @@ static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 				return -EINVAL;
 		}
 	}
-	return 0;
+
+	return iptunnel_pull_header(skb, hdr_len, tpi->proto);
 }
 
 static int gre_cisco_rcv(struct sk_buff *skb)

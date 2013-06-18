@@ -155,6 +155,7 @@ static inline void tunnel_ip_select_ident(struct sk_buff *skb,
 				  (skb_shinfo(skb)->gso_segs ?: 1) - 1);
 }
 
+int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto);
 int iptunnel_xmit(struct net *net, struct rtable *rt,
 		  struct sk_buff *skb,
 		  __be32 src, __be32 dst, __u8 proto,

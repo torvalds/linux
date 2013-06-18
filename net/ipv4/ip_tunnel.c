@@ -408,13 +408,6 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 	const struct iphdr *iph = ip_hdr(skb);
 	int err;
 
-	secpath_reset(skb);
-
-	skb->protocol = tpi->proto;
-
-	skb->mac_header = skb->network_header;
-	__pskb_pull(skb, tunnel->hlen);
-	skb_postpull_rcsum(skb, skb_transport_header(skb), tunnel->hlen);
 #ifdef CONFIG_NET_IPGRE_BROADCAST
 	if (ipv4_is_multicast(iph->daddr)) {
 		/* Looped back packet, drop it! */
@@ -442,23 +435,6 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 		tunnel->i_seqno = ntohl(tpi->seq) + 1;
 	}
 
-	/* Warning: All skb pointers will be invalidated! */
-	if (tunnel->dev->type == ARPHRD_ETHER) {
-		if (!pskb_may_pull(skb, ETH_HLEN)) {
-			tunnel->dev->stats.rx_length_errors++;
-			tunnel->dev->stats.rx_errors++;
-			goto drop;
-		}
-
-		iph = ip_hdr(skb);
-		skb->protocol = eth_type_trans(skb, tunnel->dev);
-		skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
-	}
-
-	skb->pkt_type = PACKET_HOST;
-	__skb_tunnel_rx(skb, tunnel->dev);
-
-	skb_reset_network_header(skb);
 	err = IP_ECN_decapsulate(iph, skb);
 	if (unlikely(err)) {
 		if (log_ecn_error)
@@ -477,6 +453,12 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 	tstats->rx_bytes += skb->len;
 	u64_stats_update_end(&tstats->syncp);
 
+	if (tunnel->dev->type == ARPHRD_ETHER) {
+		skb->protocol = eth_type_trans(skb, tunnel->dev);
+		skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
+	} else {
+		skb->dev = tunnel->dev;
+	}
 	gro_cells_receive(&tunnel->gro_cells, skb);
 	return 0;
 
