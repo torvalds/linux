@@ -209,6 +209,13 @@ config GPIO_RCAR
 	help
 	  Say yes here to support GPIO on Renesas R-Car SoCs.
 
+config GPIO_SAMSUNG
+	bool
+	depends on PLAT_SAMSUNG
+	help
+	  Legacy GPIO support. Use only for platforms without support for
+	  pinctrl.
+
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
 	depends on PLAT_SPEAR
