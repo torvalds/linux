@@ -8,14 +8,9 @@ config BCM63XX_CPU_6328
 config BCM63XX_CPU_6338
 	bool "support 6338 CPU"
 	select HW_HAS_PCI
-	select USB_ARCH_HAS_OHCI
-	select USB_OHCI_BIG_ENDIAN_DESC
-	select USB_OHCI_BIG_ENDIAN_MMIO
 
 config BCM63XX_CPU_6345
 	bool "support 6345 CPU"
-	select USB_OHCI_BIG_ENDIAN_DESC
-	select USB_OHCI_BIG_ENDIAN_MMIO
 
 config BCM63XX_CPU_6348
 	bool "support 6348 CPU"
