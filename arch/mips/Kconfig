@@ -121,6 +121,7 @@ config BCM47XX
 
 config BCM63XX
 	bool "Broadcom BCM63XX based boards"
+	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
