@@ -279,6 +279,8 @@ Handling a page fault is performed as follows:
  - if the RSV bit of the error code is set, the page fault is caused by guest
    accessing MMIO and cached MMIO information is available.
    - walk shadow page table
+   - check for valid generation number in the spte (see "Fast invalidation of
+     MMIO sptes" below)
    - cache the information to vcpu->arch.mmio_gva, vcpu->arch.access and
      vcpu->arch.mmio_gfn, and call the emulator
  - If both P bit and R/W bit of error code are set, this could possibly
@@ -399,6 +401,30 @@ mismatching generation number.
 KVM then walks through all pages and zaps obsolete pages.  While the zap
 operation needs to take the MMU lock, the lock can be released periodically
 so that the VCPUs can make progress.
+
+Fast invalidation of MMIO sptes
+===============================
+
+As mentioned in "Reaction to events" above, kvm will cache MMIO
+information in leaf sptes.  When a new memslot is added or an existing
+memslot is changed, this information may become stale and needs to be
+invalidated.  This also needs to hold the MMU lock while walking all
+shadow pages, and is made more scalable with a similar technique.
+
+MMIO sptes have a few spare bits, which are used to store a
+generation number.  The global generation number is stored in
+kvm_memslots(kvm)->generation, and increased whenever guest memory info
+changes.  This generation number is distinct from the one described in
+the previous section.
+
+When KVM finds an MMIO spte, it checks the generation number of the spte.
+If the generation number of the spte does not equal the global generation
+number, it will ignore the cached MMIO information and handle the page
+fault through the slow path.
+
+Since only 19 bits are used to store generation-number on mmio spte, all
+pages are zapped when there is an overflow.
+
 
 Further reading
 ===============
