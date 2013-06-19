@@ -666,8 +666,8 @@ static int ceph_writepages_start(struct address_space *mapping,
 	 * integrity write (e.g., O_SYNC write or fsync()), or if our
 	 * cap is being revoked.
 	 */
-	do_sync = wbc->sync_mode == WB_SYNC_ALL;
-	if (ceph_caps_revoking(ci, CEPH_CAP_FILE_BUFFER))
+	if ((wbc->sync_mode == WB_SYNC_ALL) ||
+		ceph_caps_revoking(ci, CEPH_CAP_FILE_BUFFER))
 		do_sync = 1;
 	dout("writepages_start %p dosync=%d (mode=%s)\n",
 	     inode, do_sync,
