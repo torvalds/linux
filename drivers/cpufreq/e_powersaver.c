@@ -161,6 +161,9 @@ postchange:
 		current_multiplier);
 	}
 #endif
+	if (err)
+		freqs.new = freqs.old;
+
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 	return err;
 }
