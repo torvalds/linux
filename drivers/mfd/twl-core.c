@@ -118,7 +118,7 @@
 #define TWL6030_BASEADD_GASGAUGE	0x00C0
 #define TWL6030_BASEADD_PIH		0x00D0
 #define TWL6030_BASEADD_CHARGER		0x00E0
-#define TWL6025_BASEADD_CHARGER		0x00DA
+#define TWL6032_BASEADD_CHARGER		0x00DA
 #define TWL6030_BASEADD_LED		0x00F4
 
 /* subchip/slave 2 0x4A - DFT */
@@ -718,9 +718,9 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 					| REGULATOR_CHANGE_STATUS,
 			};
 
-			if (features & TWL6025_SUBCLASS) {
+			if (features & TWL6032_SUBCLASS) {
 				usb3v3.supply =	"ldousb";
-				regulator = TWL6025_REG_LDOUSB;
+				regulator = TWL6032_REG_LDOUSB;
 			} else {
 				usb3v3.supply = "vusb";
 				regulator = TWL6030_REG_VUSB;
@@ -747,8 +747,8 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 			usb3v3.dev_name = dev_name(child);
 	} else if (IS_ENABLED(CONFIG_REGULATOR_TWL4030) &&
 		   twl_class_is_6030()) {
-		if (features & TWL6025_SUBCLASS)
-			child = add_regulator(TWL6025_REG_LDOUSB,
+		if (features & TWL6032_SUBCLASS)
+			child = add_regulator(TWL6032_REG_LDOUSB,
 						pdata->ldousb, features);
 		else
 			child = add_regulator(TWL6030_REG_VUSB,
@@ -872,7 +872,7 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 
 	/* twl6030 regulators */
 	if (IS_ENABLED(CONFIG_REGULATOR_TWL4030) && twl_class_is_6030() &&
-			!(features & TWL6025_SUBCLASS)) {
+			!(features & TWL6032_SUBCLASS)) {
 		child = add_regulator(TWL6030_REG_VDD1, pdata->vdd1,
 					features);
 		if (IS_ERR(child))
@@ -952,60 +952,60 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 			return PTR_ERR(child);
 	}
 
-	/* twl6025 regulators */
+	/* twl6032 regulators */
 	if (IS_ENABLED(CONFIG_REGULATOR_TWL4030) && twl_class_is_6030() &&
-			(features & TWL6025_SUBCLASS)) {
-		child = add_regulator(TWL6025_REG_LDO5, pdata->ldo5,
+			(features & TWL6032_SUBCLASS)) {
+		child = add_regulator(TWL6032_REG_LDO5, pdata->ldo5,
 					features);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL6025_REG_LDO1, pdata->ldo1,
+		child = add_regulator(TWL6032_REG_LDO1, pdata->ldo1,
 					features);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL6025_REG_LDO7, pdata->ldo7,
+		child = add_regulator(TWL6032_REG_LDO7, pdata->ldo7,
 					features);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL6025_REG_LDO6, pdata->ldo6,
+		child = add_regulator(TWL6032_REG_LDO6, pdata->ldo6,
 					features);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL6025_REG_LDOLN, pdata->ldoln,
+		child = add_regulator(TWL6032_REG_LDOLN, pdata->ldoln,
 					features);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL6025_REG_LDO2, pdata->ldo2,
+		child = add_regulator(TWL6032_REG_LDO2, pdata->ldo2,
 					features);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL6025_REG_LDO4, pdata->ldo4,
+		child = add_regulator(TWL6032_REG_LDO4, pdata->ldo4,
 					features);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL6025_REG_LDO3, pdata->ldo3,
+		child = add_regulator(TWL6032_REG_LDO3, pdata->ldo3,
 					features);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL6025_REG_SMPS3, pdata->smps3,
+		child = add_regulator(TWL6032_REG_SMPS3, pdata->smps3,
 					features);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL6025_REG_SMPS4, pdata->smps4,
+		child = add_regulator(TWL6032_REG_SMPS4, pdata->smps4,
 					features);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL6025_REG_VIO, pdata->vio6025,
+		child = add_regulator(TWL6032_REG_VIO, pdata->vio6025,
 					features);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
@@ -1184,10 +1184,10 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if ((id->driver_data) & TWL6030_CLASS) {
 		twl_priv->twl_id = TWL6030_CLASS_ID;
 		twl_priv->twl_map = &twl6030_map[0];
-		/* The charger base address is different in twl6025 */
-		if ((id->driver_data) & TWL6025_SUBCLASS)
+		/* The charger base address is different in twl6032 */
+		if ((id->driver_data) & TWL6032_SUBCLASS)
 			twl_priv->twl_map[TWL_MODULE_MAIN_CHARGE].base =
-							TWL6025_BASEADD_CHARGER;
+							TWL6032_BASEADD_CHARGER;
 		twl_regmap_config = twl6030_regmap_config;
 	} else {
 		twl_priv->twl_id = TWL4030_CLASS_ID;
@@ -1296,7 +1296,7 @@ static const struct i2c_device_id twl_ids[] = {
 	{ "tps65921", TPS_SUBSET },	/* fewer LDOs; no codec, no LED
 					   and vibrator. Charger in USB module*/
 	{ "twl6030", TWL6030_CLASS },	/* "Phoenix power chip" */
-	{ "twl6025", TWL6030_CLASS | TWL6025_SUBCLASS }, /* "Phoenix lite" */
+	{ "twl6032", TWL6030_CLASS | TWL6032_SUBCLASS }, /* "Phoenix lite" */
 	{ /* end of list */ },
 };
 MODULE_DEVICE_TABLE(i2c, twl_ids);
