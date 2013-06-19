@@ -104,7 +104,8 @@ static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 		if (ret != 0) {
 			pr_err("Failed to set VDDARM for %dkHz: %d\n",
 			       freqs.new, ret);
-			goto err;
+			freqs.new = freqs.old;
+			goto post_notify;
 		}
 	}
 #endif
@@ -113,10 +114,13 @@ static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 	if (ret < 0) {
 		pr_err("Failed to set rate %dkHz: %d\n",
 		       freqs.new, ret);
-		goto err;
+		freqs.new = freqs.old;
 	}
 
+post_notify:
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+	if (ret)
+		goto err;
 
 #ifdef CONFIG_REGULATOR
 	if (vddarm && freqs.new < freqs.old) {
