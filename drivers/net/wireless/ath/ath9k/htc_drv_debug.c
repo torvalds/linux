@@ -496,21 +496,7 @@ static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
 	ssize_t retval = 0;
 	char *buf;
 
-	/*
-	 * This can be done since all the 3 EEPROM families have the
-	 * same base header upto a certain point, and we are interested in
-	 * the data only upto that point.
-	 */
-
-	if (AR_SREV_9271(priv->ah))
-		pBase = (struct base_eep_header *)
-			&priv->ah->eeprom.map4k.baseEepHeader;
-	else if (priv->ah->hw_version.usbdev == AR9280_USB)
-		pBase = (struct base_eep_header *)
-			&priv->ah->eeprom.def.baseEepHeader;
-	else if (priv->ah->hw_version.usbdev == AR9287_USB)
-		pBase = (struct base_eep_header *)
-			&priv->ah->eeprom.map9287.baseEepHeader;
+	pBase = ath9k_htc_get_eeprom_base(priv);
 
 	if (pBase == NULL) {
 		ath_err(common, "Unknown EEPROM type\n");

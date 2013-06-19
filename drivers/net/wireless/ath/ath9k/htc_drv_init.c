@@ -716,6 +716,7 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 			       struct ieee80211_hw *hw)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct base_eep_header *pBase;
 
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_AMPDU_AGGREGATION |
@@ -769,6 +770,12 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 		if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
 			setup_ht_cap(priv,
 				     &priv->sbands[IEEE80211_BAND_5GHZ].ht_cap);
+	}
+
+	pBase = ath9k_htc_get_eeprom_base(priv);
+	if (pBase) {
+		hw->wiphy->available_antennas_rx = pBase->rxMask;
+		hw->wiphy->available_antennas_tx = pBase->txMask;
 	}
 
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
