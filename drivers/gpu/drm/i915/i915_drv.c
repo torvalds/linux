@@ -465,9 +465,15 @@ void intel_detect_pch(struct drm_device *dev)
 	 * make graphics device passthrough work easy for VMM, that only
 	 * need to expose ISA bridge to let driver know the real hardware
 	 * underneath. This is a requirement from virtualization team.
+	 *
+	 * In some virtualized environments (e.g. XEN), there is irrelevant
+	 * ISA bridge in the system. To work reliably, we should scan trhough
+	 * all the ISA bridge devices and check for the first match, instead
+	 * of only checking the first one.
 	 */
 	pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
-	if (pch) {
+	while (pch) {
+		struct pci_dev *curr = pch;
 		if (pch->vendor == PCI_VENDOR_ID_INTEL) {
 			unsigned short id;
 			id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
@@ -496,10 +502,18 @@ void intel_detect_pch(struct drm_device *dev)
 				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
 				WARN_ON(!IS_HASWELL(dev));
 				WARN_ON(!IS_ULT(dev));
+			} else {
+				goto check_next;
 			}
+			pci_dev_put(pch);
+			break;
 		}
-		pci_dev_put(pch);
+check_next:
+		pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, curr);
+		pci_dev_put(curr);
 	}
+	if (!pch)
+		DRM_DEBUG_KMS("No PCH found?\n");
 }
 
 bool i915_semaphore_is_enabled(struct drm_device *dev)
