@@ -583,7 +583,7 @@ static inline void enable_cs(struct s3c64xx_spi_driver_data *sdd,
 	writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 }
 
-static u32 wait_for_timeout(struct s3c64xx_spi_driver_data *sdd,
+static u32 s3c64xx_spi_wait_for_timeout(struct s3c64xx_spi_driver_data *sdd,
 					int timeout_ms)
 {
 	void __iomem *regs = sdd->regs;
@@ -676,7 +676,8 @@ static int wait_for_xfer(struct s3c64xx_spi_driver_data *sdd,
 		buf = xfer->rx_buf;
 		do {
 			/* wait for data to be received in the fifo */
-			cpy_len = wait_for_timeout(sdd, (loops ? ms : 0));
+			cpy_len = s3c64xx_spi_wait_for_timeout(sdd,
+						(loops ? ms : 0));
 
 			switch (sdd->cur_bpw) {
 			case 32:
