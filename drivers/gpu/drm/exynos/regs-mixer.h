@@ -44,6 +44,9 @@
 #define MXR_CM_COEFF_Y			0x0080
 #define MXR_CM_COEFF_CB			0x0084
 #define MXR_CM_COEFF_CR			0x0088
+#define MXR_MO				0x0304
+#define MXR_RESOLUTION			0x0310
+
 #define MXR_GRAPHIC0_BASE_S		0x2024
 #define MXR_GRAPHIC1_BASE_S		0x2044
 
@@ -118,6 +121,10 @@
 #define MXR_GRP_WH_V_SCALE(x)		MXR_MASK_VAL(x, 12, 12)
 #define MXR_GRP_WH_WIDTH(x)		MXR_MASK_VAL(x, 26, 16)
 #define MXR_GRP_WH_HEIGHT(x)		MXR_MASK_VAL(x, 10, 0)
+
+/* bits for MXR_RESOLUTION */
+#define MXR_MXR_RES_HEIGHT(x)		MXR_MASK_VAL(x, 26, 16)
+#define MXR_MXR_RES_WIDTH(x)		MXR_MASK_VAL(x, 10, 0)
 
 /* bits for MXR_GRAPHICn_SXY */
 #define MXR_GRP_SXY_SX(x)		MXR_MASK_VAL(x, 26, 16)
