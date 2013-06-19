@@ -99,6 +99,10 @@ void dvfs_adjust_table_lmtvolt(struct clk *clk, struct cpufreq_frequency_table *
 {
 	int i = 0;
 	unsigned int maxvolt = 0;
+	if (IS_ERR(clk) || IS_ERR_OR_NULL(table)) {
+		DVFS_ERR("%s: clk error OR table error\n", __func__);
+		return ;
+	}
 
 	leakage_level = rk_leakage_val();
 	printk("DVFS MSG: %s: %s get leakage_level = %d\n", clk->name, __func__, leakage_level);
