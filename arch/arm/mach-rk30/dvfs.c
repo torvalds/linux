@@ -77,8 +77,8 @@ static struct notifier_block rk_dvfs_clk_notifier = {
 	.notifier_call = rk_dvfs_clk_notifier_event,
 };
 #ifdef CONFIG_ARCH_RK3066B
-static int g_arm_high_logic = 50 * 1000;
-static int g_logic_high_arm = 100 * 1000;
+static int g_arm_high_logic = 0 * 1000;
+static int g_logic_high_arm = 50 * 1000;
 #else
 static int g_arm_high_logic = 150 * 1000;
 static int g_logic_high_arm = 100 * 1000;
