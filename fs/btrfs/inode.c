@@ -7148,7 +7148,6 @@ static void btrfs_submit_direct(int rw, struct bio *dio_bio,
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_dio_private *dip;
-	struct bio_vec *bvec = dio_bio->bi_io_vec;
 	struct bio *io_bio;
 	int skip_sum;
 	int write = rw & REQ_WRITE;
@@ -7170,16 +7169,9 @@ static void btrfs_submit_direct(int rw, struct bio *dio_bio,
 	}
 
 	dip->private = dio_bio->bi_private;
-	io_bio->bi_private = dio_bio->bi_private;
 	dip->inode = inode;
 	dip->logical_offset = file_offset;
-
-	dip->bytes = 0;
-	do {
-		dip->bytes += bvec->bv_len;
-		bvec++;
-	} while (bvec <= (dio_bio->bi_io_vec + dio_bio->bi_vcnt - 1));
-
+	dip->bytes = dio_bio->bi_size;
 	dip->disk_bytenr = (u64)dio_bio->bi_sector << 9;
 	io_bio->bi_private = dip;
 	dip->errors = 0;
