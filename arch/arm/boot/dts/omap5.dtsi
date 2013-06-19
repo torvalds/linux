@@ -696,5 +696,14 @@
 				interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
+
+		bandgap@4a0021e0 {
+			reg = <0x4a0021e0 0xc
+			       0x4a00232c 0xc
+			       0x4a002380 0x2c
+			       0x4a0023C0 0x3c>;
+			interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+			compatible = "ti,omap5430-bandgap";
+		};
 	};
 };
