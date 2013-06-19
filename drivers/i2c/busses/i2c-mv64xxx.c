@@ -280,7 +280,7 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 		/* Doesn't seem to be a device at other end */
 		drv_data->action = MV64XXX_I2C_ACTION_SEND_STOP;
 		drv_data->state = MV64XXX_I2C_STATE_IDLE;
-		drv_data->rc = -ENODEV;
+		drv_data->rc = -ENXIO;
 		break;
 
 	default:
