@@ -233,6 +233,7 @@ struct kvm_mmu_page {
 	int clear_spte_count;
 #endif
 
+	/* Number of writes since the last time traversal visited this page.  */
 	int write_flooding_count;
 };
 

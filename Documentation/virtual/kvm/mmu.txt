@@ -215,6 +215,15 @@ Shadow pages contain the following information:
     atomically.  The reader uses this while running out of the MMU lock
     to detect in-progress updates and retry them until the writer has
     finished the write.
+  write_flooding_count:
+    A guest may write to a page table many times, causing a lot of
+    emulations if the page needs to be write-protected (see "Synchronized
+    and unsynchronized pages" below).  Leaf pages can be unsynchronized
+    so that they do not trigger frequent emulation, but this is not
+    possible for non-leafs.  This field counts the number of emulations
+    since the last time the page table was actually used; if emulation
+    is triggered too frequently on this page, KVM will unmap the page
+    to avoid emulation in the future.
 
 Reverse map
 ===========
