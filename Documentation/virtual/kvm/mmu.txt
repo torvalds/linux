@@ -210,6 +210,10 @@ Shadow pages contain the following information:
     A bitmap indicating which sptes in spt point (directly or indirectly) at
     pages that may be unsynchronized.  Used to quickly locate all unsychronized
     pages reachable from a given page.
+  mmu_valid_gen:
+    Generation number of the page.  It is compared with kvm->arch.mmu_valid_gen
+    during hash table lookup, and used to skip invalidated shadow pages (see
+    "Zapping all pages" below.)
   clear_spte_count:
     Only present on 32-bit hosts, where a 64-bit spte cannot be written
     atomically.  The reader uses this while running out of the MMU lock
@@ -374,6 +378,27 @@ arrays for each memory slot and large page size.  Every write protected page
 causes its write_count to be incremented, thus preventing instantiation of
 a large spte.  The frames at the end of an unaligned memory slot have
 artificially inflated ->write_counts so they can never be instantiated.
+
+Zapping all pages (page generation count)
+=========================================
+
+For the large memory guests, walking and zapping all pages is really slow
+(because there are a lot of pages), and also blocks memory accesses of
+all VCPUs because it needs to hold the MMU lock.
+
+To make it be more scalable, kvm maintains a global generation number
+which is stored in kvm->arch.mmu_valid_gen.  Every shadow page stores
+the current global generation-number into sp->mmu_valid_gen when it
+is created.  Pages with a mismatching generation number are "obsolete".
+
+When KVM need zap all shadow pages sptes, it just simply increases the global
+generation-number then reload root shadow pages on all vcpus.  As the VCPUs
+create new shadow page tables, the old pages are not used because of the
+mismatching generation number.
+
+KVM then walks through all pages and zaps obsolete pages.  While the zap
+operation needs to take the MMU lock, the lock can be released periodically
+so that the VCPUs can make progress.
 
 Further reading
 ===============
