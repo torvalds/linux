@@ -270,7 +270,6 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 
 void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 {
-	struct gfs2_glock *gl = bd->bd_gl;
 	struct gfs2_trans *tr = current->journal_info;
 
 	BUG_ON(!list_empty(&bd->bd_list));
