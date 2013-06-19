@@ -41,7 +41,6 @@
 #include <linux/stat.h>
 #include <linux/sys_soc.h>
 #include <linux/termios.h>
-#include <video/vga.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -57,10 +56,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
-#include <asm/mach/pci.h>
 #include <asm/mach/time.h>
 
 #include "common.h"
+#include "pci_v3.h"
 
 /* Base address to the AP system controller */
 void __iomem *ap_syscon_base;
@@ -78,10 +77,6 @@ void __iomem *ap_syscon_base;
 
 /*
  * Logical      Physical
- * e8000000	40000000	PCI memory		PHYS_PCI_MEM_BASE	(max 512M)
- * ec000000	61000000	PCI config space	PHYS_PCI_CONFIG_BASE	(max 16M)
- * ed000000	62000000	PCI V3 regs		PHYS_PCI_V3_BASE	(max 64k)
- * fee00000	60000000	PCI IO			PHYS_PCI_IO_BASE	(max 16M)
  * ef000000			Cache flush
  * f1000000	10000000	Core module registers
  * f1100000	11000000	System controller registers
@@ -130,29 +125,13 @@ static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 		.pfn		= __phys_to_pfn(INTEGRATOR_AP_GPIO_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
-	}, {
-		.virtual	= (unsigned long)PCI_MEMORY_VADDR,
-		.pfn		= __phys_to_pfn(PHYS_PCI_MEM_BASE),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= (unsigned long)PCI_CONFIG_VADDR,
-		.pfn		= __phys_to_pfn(PHYS_PCI_CONFIG_BASE),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= (unsigned long)PCI_V3_VADDR,
-		.pfn		= __phys_to_pfn(PHYS_PCI_V3_BASE),
-		.length		= SZ_64K,
-		.type		= MT_DEVICE
 	}
 };
 
 static void __init ap_map_io(void)
 {
 	iotable_init(ap_io_desc, ARRAY_SIZE(ap_io_desc));
-	vga_base = (unsigned long)PCI_MEMORY_VADDR;
-	pci_map_io_early(__phys_to_pfn(PHYS_PCI_IO_BASE));
+	pci_v3_early_init();
 }
 
 #ifdef CONFIG_PM
@@ -615,6 +594,11 @@ static void __init ap_map_io_atag(void)
  * for eventual deletion.
  */
 
+static struct platform_device pci_v3_device = {
+	.name		= "pci-v3",
+	.id		= 0,
+};
+
 static struct resource cfi_flash_resource = {
 	.start		= INTEGRATOR_FLASH_BASE,
 	.end		= INTEGRATOR_FLASH_BASE + INTEGRATOR_FLASH_SIZE - 1,
@@ -672,6 +656,7 @@ static void __init ap_init(void)
 	unsigned long sc_dec;
 	int i;
 
+	platform_device_register(&pci_v3_device);
 	platform_device_register(&cfi_flash_device);
 
 	ap_syscon_base = __io_address(INTEGRATOR_SC_BASE);
