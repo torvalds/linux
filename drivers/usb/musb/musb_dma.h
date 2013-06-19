@@ -175,9 +175,20 @@ struct dma_controller {
 /* called after channel_program(), may indicate a fault */
 extern void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit);
 
+#ifdef CONFIG_MUSB_PIO_ONLY
+static inline struct dma_controller *dma_controller_create(struct musb *m,
+		void __iomem *io)
+{
+	return NULL;
+}
+
+static inline void dma_controller_destroy(struct dma_controller *d) { }
+
+#else
 
 extern struct dma_controller *dma_controller_create(struct musb *, void __iomem *);
 
 extern void dma_controller_destroy(struct dma_controller *);
+#endif
 
 #endif	/* __MUSB_DMA_H__ */
