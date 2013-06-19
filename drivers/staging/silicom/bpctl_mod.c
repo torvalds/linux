@@ -43,11 +43,6 @@ MODULE_DESCRIPTION(BP_MOD_DESCR);
 MODULE_VERSION(BP_MOD_VER);
 spinlock_t bpvm_lock;
 
-#define lock_bpctl()					\
-if (down_interruptible(&bpctl_sema)) {			\
-	return -ERESTARTSYS;				\
-}							\
-
 #define unlock_bpctl()					\
 	up(&bpctl_sema);
 
@@ -5414,7 +5409,8 @@ static long device_ioctl(struct file *file,	/* see include/linux/fs.h */
 	static bpctl_dev_t *pbpctl_dev;
 
 	/* lock_kernel(); */
-	lock_bpctl();
+	if (down_interruptible(&bpctl_sema))
+		return -ERESTARTSYS;
 	/* local_irq_save(flags); */
 	/* if(!spin_trylock_irqsave(&bpvm_lock)){
 	   local_irq_restore(flags);
@@ -7871,7 +7867,8 @@ int bypass_proc_create_dev_sd(bpctl_dev_t *pbp_device_block)
 	}
 	current_pfs->bypass_entry = procfs_dir;
 
-#define ENTRY(x) ret |= procfs_add(#x, &x##_ops, pbp_device_block)
+#define ENTRY(x) (ret |= procfs_add(#x, &x##_ops, pbp_device_block))
+
 	ENTRY(bypass_info);
 	if (pbp_device_block->bp_caps & SW_CTL_CAP) {
 		/* Create set param proc's */
