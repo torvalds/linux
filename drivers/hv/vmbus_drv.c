@@ -563,6 +563,9 @@ static int vmbus_bus_init(int irq)
 	 */
 	hv_register_vmbus_handler(irq, vmbus_isr);
 
+	ret = hv_synic_alloc();
+	if (ret)
+		goto err_alloc;
 	/*
 	 * Initialize the per-cpu interrupt state and
 	 * connect to the host.
@@ -570,13 +573,14 @@ static int vmbus_bus_init(int irq)
 	on_each_cpu(hv_synic_init, NULL, 1);
 	ret = vmbus_connect();
 	if (ret)
-		goto err_irq;
+		goto err_alloc;
 
 	vmbus_request_offers();
 
 	return 0;
 
-err_irq:
+err_alloc:
+	hv_synic_free();
 	free_irq(irq, hv_acpi_dev);
 
 err_unregister:
