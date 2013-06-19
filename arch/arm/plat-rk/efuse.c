@@ -69,5 +69,14 @@ int rk_pll_flag(void)
 
 int rk_leakage_val(void)
 {
-	return (efuse_buf[22] >> 4) & 0x0f;
+	/*
+	 * efuse_buf[22]
+	 * bit[3]:
+	 * 	0:enable leakage level auto voltage scale
+	 * 	1:disalbe leakage level avs
+	 */
+	if ((efuse_buf[22] >> 2) & 0x1)
+		return 0;
+	else
+		return  (efuse_buf[22] >> 4) & 0x0f;
 }
