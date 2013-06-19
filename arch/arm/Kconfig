@@ -815,23 +815,6 @@ config ARCH_SHARK
 	  Support for the StrongARM based Digital DNARD machine, also known
 	  as "Shark" (<http://www.shark-linux.de/shark.html>).
 
-config ARCH_U300
-	bool "ST-Ericsson U300 Series"
-	depends on MMU
-	select ARCH_REQUIRE_GPIOLIB
-	select ARM_AMBA
-	select ARM_PATCH_PHYS_VIRT
-	select ARM_VIC
-	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
-	select COMMON_CLK
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select HAVE_TCM
-	select SPARSE_IRQ
-	help
-	  Support for ST-Ericsson U300 series mobile platforms.
-
 config ARCH_DAVINCI
 	bool "TI DaVinci"
 	select ARCH_HAS_HOLES_MEMORYMODEL
@@ -2045,7 +2028,7 @@ config CRASH_DUMP
 
 config AUTO_ZRELADDR
 	bool "Auto calculation of the decompressed kernel image address"
-	depends on !ZBOOT_ROM && !ARCH_U300
+	depends on !ZBOOT_ROM
 	help
 	  ZRELADDR is the physical address where the decompressed kernel
 	  image will be placed. If AUTO_ZRELADDR is selected, the address

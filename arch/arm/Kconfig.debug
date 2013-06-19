@@ -482,6 +482,13 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the uart1 port on SiRFmarco devices.
 
+	config DEBUG_U300_UART
+		bool "Kernel low-level debugging messages via U300 UART0"
+		depends on ARCH_U300
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the uart port on U300 devices.
+
 	config DEBUG_UX500_UART
 		depends on ARCH_U8500
 		bool "Use Ux500 UART for low-level debug"
@@ -685,6 +692,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/socfpga.S" if DEBUG_SOCFPGA_UART
 	default "debug/sunxi.S" if DEBUG_SUNXI_UART0 || DEBUG_SUNXI_UART1
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
+	default "debug/u300.S" if DEBUG_U300_UART
 	default "debug/ux500.S" if DEBUG_UX500_UART
 	default "debug/vexpress.S" if DEBUG_VEXPRESS_UART0_DETECT || \
 		DEBUG_VEXPRESS_UART0_CA9 || DEBUG_VEXPRESS_UART0_RS1

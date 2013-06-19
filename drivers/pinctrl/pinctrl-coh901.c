@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinconf-generic.h>
-#include <linux/platform_data/pinctrl-coh901.h>
 #include "pinctrl-coh901.h"
 
 #define U300_GPIO_PORT_STRIDE				(0x30)
@@ -58,8 +57,9 @@
 #define U300_GPIO_PXICR_IRQ_CONFIG_RISING_EDGE		(0x00000001UL)
 
 /* 8 bits per port, no version has more than 7 ports */
+#define U300_GPIO_NUM_PORTS 7
 #define U300_GPIO_PINS_PER_PORT 8
-#define U300_GPIO_MAX (U300_GPIO_PINS_PER_PORT * 7)
+#define U300_GPIO_MAX (U300_GPIO_PINS_PER_PORT * U300_GPIO_NUM_PORTS)
 
 struct u300_gpio {
 	struct gpio_chip chip;
@@ -111,9 +111,6 @@ struct u300_gpio_confdata {
 	int outval;
 };
 
-/* BS335 has seven ports of 8 bits each = GPIO pins 0..55 */
-#define BS335_GPIO_NUM_PORTS 7
-
 #define U300_FLOATING_INPUT { \
 	.bias_mode = PIN_CONFIG_BIAS_HIGH_IMPEDANCE, \
 	.output = false, \
@@ -136,7 +133,7 @@ struct u300_gpio_confdata {
 
 /* Initial configuration */
 static const struct __initconst u300_gpio_confdata
-bs335_gpio_config[BS335_GPIO_NUM_PORTS][U300_GPIO_PINS_PER_PORT] = {
+bs335_gpio_config[U300_GPIO_NUM_PORTS][U300_GPIO_PINS_PER_PORT] = {
 	/* Port 0, pins 0-7 */
 	{
 		U300_FLOATING_INPUT,
@@ -630,13 +627,12 @@ static void __init u300_gpio_init_pin(struct u300_gpio *gpio,
 	}
 }
 
-static void __init u300_gpio_init_coh901571(struct u300_gpio *gpio,
-				     struct u300_gpio_platform *plat)
+static void __init u300_gpio_init_coh901571(struct u300_gpio *gpio)
 {
 	int i, j;
 
 	/* Write default config and values to all pins */
-	for (i = 0; i < plat->ports; i++) {
+	for (i = 0; i < U300_GPIO_NUM_PORTS; i++) {
 		for (j = 0; j < 8; j++) {
 			const struct u300_gpio_confdata *conf;
 			int offset = (i*8) + j;
@@ -693,7 +689,6 @@ static struct coh901_pinpair coh901_pintable[] = {
 
 static int __init u300_gpio_probe(struct platform_device *pdev)
 {
-	struct u300_gpio_platform *plat = dev_get_platdata(&pdev->dev);
 	struct u300_gpio *gpio;
 	struct resource *memres;
 	int err = 0;
@@ -707,9 +702,9 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gpio->chip = u300_gpio_chip;
-	gpio->chip.ngpio = plat->ports * U300_GPIO_PINS_PER_PORT;
+	gpio->chip.ngpio = U300_GPIO_NUM_PORTS * U300_GPIO_PINS_PER_PORT;
 	gpio->chip.dev = &pdev->dev;
-	gpio->chip.base = plat->gpio_base;
+	gpio->chip.base = 0;
 	gpio->dev = &pdev->dev;
 
 	memres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -750,11 +745,11 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 		 ((val & 0x0000FE00) >> 9) * 8);
 	writel(U300_GPIO_CR_BLOCK_CLKRQ_ENABLE,
 	       gpio->base + U300_GPIO_CR);
-	u300_gpio_init_coh901571(gpio, plat);
+	u300_gpio_init_coh901571(gpio);
 
 	/* Add each port with its IRQ separately */
 	INIT_LIST_HEAD(&gpio->port_list);
-	for (portno = 0 ; portno < plat->ports; portno++) {
+	for (portno = 0 ; portno < U300_GPIO_NUM_PORTS; portno++) {
 		struct u300_gpio_port *port =
 			kmalloc(sizeof(struct u300_gpio_port), GFP_KERNEL);
 
@@ -768,8 +763,7 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 		port->number = portno;
 		port->gpio = gpio;
 
-		port->irq = platform_get_irq_byname(pdev,
-						    port->name);
+		port->irq = platform_get_irq(pdev, portno);
 
 		dev_dbg(gpio->dev, "register IRQ %d for port %s\n", port->irq,
 			port->name);
@@ -806,6 +800,9 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 	}
 	dev_dbg(gpio->dev, "initialized %d GPIO ports\n", portno);
 
+#ifdef CONFIG_OF_GPIO
+	gpio->chip.of_node = pdev->dev.of_node;
+#endif
 	err = gpiochip_add(&gpio->chip);
 	if (err) {
 		dev_err(gpio->dev, "unable to add gpiochip: %d\n", err);
@@ -860,9 +857,15 @@ static int __exit u300_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id u300_gpio_match[] = {
+	{ .compatible = "stericsson,gpio-coh901" },
+	{},
+};
+
 static struct platform_driver u300_gpio_driver = {
 	.driver		= {
 		.name	= "u300-gpio",
+		.of_match_table = u300_gpio_match,
 	},
 	.remove		= __exit_p(u300_gpio_remove),
 };
