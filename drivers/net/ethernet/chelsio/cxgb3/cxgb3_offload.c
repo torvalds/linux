@@ -1157,7 +1157,7 @@ static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new,
  */
 void *cxgb_alloc_mem(unsigned long size)
 {
-	void *p = kzalloc(size, GFP_KERNEL);
+	void *p = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
 
 	if (!p)
 		p = vzalloc(size);

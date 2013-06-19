@@ -219,7 +219,7 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 	len = PAGE_ALIGN(len);
 
 	if (p->buf == p->inline_buf) {
-		tmp_buf = kmalloc(len, GFP_NOFS);
+		tmp_buf = kmalloc(len, GFP_NOFS | __GFP_NOWARN);
 		if (!tmp_buf) {
 			tmp_buf = vmalloc(len);
 			if (!tmp_buf)
