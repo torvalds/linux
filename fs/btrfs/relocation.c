@@ -4458,10 +4458,8 @@ out:
 int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
 {
 	struct btrfs_ordered_sum *sums;
-	struct btrfs_sector_sum *sector_sum;
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	size_t offset;
 	int ret;
 	u64 disk_bytenr;
 	LIST_HEAD(list);
@@ -4475,19 +4473,13 @@ int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
 	if (ret)
 		goto out;
 
+	disk_bytenr = ordered->start;
 	while (!list_empty(&list)) {
 		sums = list_entry(list.next, struct btrfs_ordered_sum, list);
 		list_del_init(&sums->list);
 
-		sector_sum = sums->sums;
-		sums->bytenr = ordered->start;
-
-		offset = 0;
-		while (offset < sums->len) {
-			sector_sum->bytenr += ordered->start - disk_bytenr;
-			sector_sum++;
-			offset += root->sectorsize;
-		}
+		sums->bytenr = disk_bytenr;
+		disk_bytenr += sums->len;
 
 		btrfs_add_ordered_sum(inode, ordered, sums);
 	}

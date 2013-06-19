@@ -2126,8 +2126,7 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u64 len,
 			   u8 *csum)
 {
 	struct btrfs_ordered_sum *sum = NULL;
-	int ret = 0;
-	unsigned long i;
+	unsigned long index;
 	unsigned long num_sectors;
 
 	while (!list_empty(&sctx->csum_list)) {
@@ -2146,19 +2145,14 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u64 len,
 	if (!sum)
 		return 0;
 
+	index = ((u32)(logical - sum->bytenr)) / sctx->sectorsize;
 	num_sectors = sum->len / sctx->sectorsize;
-	for (i = 0; i < num_sectors; ++i) {
-		if (sum->sums[i].bytenr == logical) {
-			memcpy(csum, &sum->sums[i].sum, sctx->csum_size);
-			ret = 1;
-			break;
-		}
-	}
-	if (ret && i == num_sectors - 1) {
+	memcpy(csum, sum->sums + index, sctx->csum_size);
+	if (index == num_sectors - 1) {
 		list_del(&sum->list);
 		kfree(sum);
 	}
-	return ret;
+	return 1;
 }
 
 /* scrub extent tries to collect up to 64 kB for each bio */
