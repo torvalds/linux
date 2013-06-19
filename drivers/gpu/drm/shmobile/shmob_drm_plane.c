@@ -166,7 +166,7 @@ void shmob_drm_plane_setup(struct drm_plane *plane)
 {
 	struct shmob_drm_plane *splane = to_shmob_plane(plane);
 
-	if (plane->fb == NULL || !plane->enabled)
+	if (plane->fb == NULL)
 		return;
 
 	__shmob_drm_plane_setup(splane, plane->fb);
