@@ -208,6 +208,7 @@ struct sensor_platform_data {
 	int irq;
 	int power_pin;
 	int reset_pin;
+	int standby_pin;
 	int irq_enable;         //if irq_enable=1 then use irq else use polling  
 	int poll_delay_ms;      //polling
 	int x_min;              //filter

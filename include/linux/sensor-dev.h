@@ -76,6 +76,7 @@ enum sensor_id {
 	GYRO_ID_ALL,
 	GYRO_ID_L3G4200D,
     	GYRO_ID_L3G20D,
+	GYRO_ID_EWTSA,
 	GYRO_ID_K3G,
 
 	LIGHT_ID_ALL,
