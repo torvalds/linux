@@ -2862,8 +2862,8 @@ static int bcm_enet_shared_probe(struct platform_device *pdev)
 	for (i = 0; i < 3; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		p[i] = devm_ioremap_resource(&pdev->dev, res);
-		if (!p[i])
-			return -ENOMEM;
+		if (IS_ERR(p[i]))
+			return PTR_ERR(p[i]);
 	}
 
 	memcpy(bcm_enet_shared_base, p, sizeof(bcm_enet_shared_base));
