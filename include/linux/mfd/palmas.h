@@ -32,6 +32,19 @@
 			((a) == PALMAS_CHIP_ID))
 #define is_palmas_charger(a) ((a) == PALMAS_CHIP_CHARGER_ID)
 
+/**
+ * Palmas PMIC feature types
+ *
+ * PALMAS_PMIC_FEATURE_SMPS10_BOOST - used when the PMIC provides SMPS10_BOOST
+ *	regulator.
+ *
+ * PALMAS_PMIC_HAS(b, f) - macro to check if a bandgap device is capable of a
+ *	specific feature (above) or not. Return non-zero, if yes.
+ */
+#define PALMAS_PMIC_FEATURE_SMPS10_BOOST	BIT(0)
+#define PALMAS_PMIC_HAS(b, f)			\
+			((b)->features & PALMAS_PMIC_FEATURE_ ## f)
+
 struct palmas_pmic;
 struct palmas_gpadc;
 struct palmas_resource;
@@ -46,6 +59,7 @@ struct palmas {
 	/* Stored chip id */
 	int id;
 
+	unsigned int features;
 	/* IRQ Data */
 	int irq;
 	u32 irq_mask;

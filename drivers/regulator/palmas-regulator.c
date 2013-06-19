@@ -838,6 +838,9 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 				continue;
 			ramp_delay_support = true;
 			break;
+		case PALMAS_REG_SMPS10:
+			if (!PALMAS_PMIC_HAS(palmas, SMPS10_BOOST))
+				continue;
 		}
 
 		if ((id == PALMAS_REG_SMPS6) || (id == PALMAS_REG_SMPS8))
