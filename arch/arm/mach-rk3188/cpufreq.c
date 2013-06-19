@@ -350,15 +350,12 @@ static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 
 	gpu_is_mali400 = cpu_is_rk3188();
 	gpu_clk = clk_get(NULL, "gpu");
-	if (!IS_ERR(gpu_clk)) {
-		clk_enable_dvfs(gpu_clk);
-		if (gpu_is_mali400)
-			dvfs_clk_enable_limit(gpu_clk, 133000000, 600000000);
-	}
+	if (IS_ERR(gpu_clk))
+		return PTR_ERR(gpu_clk);
 
 	ddr_clk = clk_get(NULL, "ddr");
-	if (!IS_ERR(ddr_clk))
-		clk_enable_dvfs(ddr_clk);
+	if (IS_ERR(ddr_clk))
+		return PTR_ERR(ddr_clk);
 
 	cpu_clk = clk_get(NULL, "cpu");
 	if (IS_ERR(cpu_clk))
@@ -371,6 +368,12 @@ static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 		table_adjust = dvfs_get_freq_volt_table(gpu_clk);
 		dvfs_adjust_table_lmtvolt(gpu_clk, table_adjust);
 	}
+
+	clk_enable_dvfs(gpu_clk);
+	if (gpu_is_mali400)
+		dvfs_clk_enable_limit(gpu_clk, 133000000, 600000000);
+
+	clk_enable_dvfs(ddr_clk);
 
 	dvfs_clk_register_set_rate_callback(cpu_clk, cpufreq_scale_rate_for_dvfs);
 	freq_table = dvfs_get_freq_volt_table(cpu_clk);
