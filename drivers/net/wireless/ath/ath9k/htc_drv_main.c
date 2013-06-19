@@ -1837,4 +1837,10 @@ struct ieee80211_ops ath9k_htc_ops = {
 	.set_bitrate_mask   = ath9k_htc_set_bitrate_mask,
 	.get_stats	    = ath9k_htc_get_stats,
 	.get_antenna	    = ath9k_htc_get_antenna,
+
+#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+	.get_et_sset_count  = ath9k_htc_get_et_sset_count,
+	.get_et_stats       = ath9k_htc_get_et_stats,
+	.get_et_strings     = ath9k_htc_get_et_strings,
+#endif
 };

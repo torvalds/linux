@@ -902,6 +902,87 @@ static const struct file_operations fops_modal_eeprom = {
 	.llseek = default_llseek,
 };
 
+
+/* Ethtool support for get-stats */
+#define AMKSTR(nm) #nm "_BE", #nm "_BK", #nm "_VI", #nm "_VO"
+static const char ath9k_htc_gstrings_stats[][ETH_GSTRING_LEN] = {
+	"tx_pkts_nic",
+	"tx_bytes_nic",
+	"rx_pkts_nic",
+	"rx_bytes_nic",
+
+	AMKSTR(d_tx_pkts),
+
+	"d_rx_crc_err",
+	"d_rx_decrypt_crc_err",
+	"d_rx_phy_err",
+	"d_rx_mic_err",
+	"d_rx_pre_delim_crc_err",
+	"d_rx_post_delim_crc_err",
+	"d_rx_decrypt_busy_err",
+
+	"d_rx_phyerr_radar",
+	"d_rx_phyerr_ofdm_timing",
+	"d_rx_phyerr_cck_timing",
+
+};
+#define ATH9K_HTC_SSTATS_LEN ARRAY_SIZE(ath9k_htc_gstrings_stats)
+
+void ath9k_htc_get_et_strings(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      u32 sset, u8 *data)
+{
+	if (sset == ETH_SS_STATS)
+		memcpy(data, *ath9k_htc_gstrings_stats,
+		       sizeof(ath9k_htc_gstrings_stats));
+}
+
+int ath9k_htc_get_et_sset_count(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif, int sset)
+{
+	if (sset == ETH_SS_STATS)
+		return ATH9K_HTC_SSTATS_LEN;
+	return 0;
+}
+
+#define STXBASE priv->debug.tx_stats
+#define SRXBASE priv->debug.rx_stats
+#define ASTXQ(a)					\
+	data[i++] = STXBASE.a[IEEE80211_AC_BE];		\
+	data[i++] = STXBASE.a[IEEE80211_AC_BK];		\
+	data[i++] = STXBASE.a[IEEE80211_AC_VI];		\
+	data[i++] = STXBASE.a[IEEE80211_AC_VO]
+
+void ath9k_htc_get_et_stats(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ethtool_stats *stats, u64 *data)
+{
+	struct ath9k_htc_priv *priv = hw->priv;
+	int i = 0;
+
+	data[i++] = STXBASE.skb_success;
+	data[i++] = STXBASE.skb_success_bytes;
+	data[i++] = SRXBASE.skb_completed;
+	data[i++] = SRXBASE.skb_completed_bytes;
+
+	ASTXQ(queue_stats);
+
+	data[i++] = SRXBASE.err_crc;
+	data[i++] = SRXBASE.err_decrypt_crc;
+	data[i++] = SRXBASE.err_phy;
+	data[i++] = SRXBASE.err_mic;
+	data[i++] = SRXBASE.err_pre_delim;
+	data[i++] = SRXBASE.err_post_delim;
+	data[i++] = SRXBASE.err_decrypt_busy;
+
+	data[i++] = SRXBASE.err_phy_stats[ATH9K_PHYERR_RADAR];
+	data[i++] = SRXBASE.err_phy_stats[ATH9K_PHYERR_OFDM_TIMING];
+	data[i++] = SRXBASE.err_phy_stats[ATH9K_PHYERR_CCK_TIMING];
+
+	WARN_ON(i != ATH9K_HTC_SSTATS_LEN);
+}
+
+
 int ath9k_htc_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
