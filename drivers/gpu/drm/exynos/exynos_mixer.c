@@ -1115,12 +1115,12 @@ static int vp_resources_init(struct exynos_drm_hdmi_context *ctx,
 	return 0;
 }
 
-static struct mixer_drv_data exynos5_mxr_drv_data = {
+static struct mixer_drv_data exynos5250_mxr_drv_data = {
 	.version = MXR_VER_16_0_33_0,
 	.is_vp_enabled = 0,
 };
 
-static struct mixer_drv_data exynos4_mxr_drv_data = {
+static struct mixer_drv_data exynos4210_mxr_drv_data = {
 	.version = MXR_VER_0_0_0_16,
 	.is_vp_enabled = 1,
 };
@@ -1128,10 +1128,10 @@ static struct mixer_drv_data exynos4_mxr_drv_data = {
 static struct platform_device_id mixer_driver_types[] = {
 	{
 		.name		= "s5p-mixer",
-		.driver_data	= (unsigned long)&exynos4_mxr_drv_data,
+		.driver_data	= (unsigned long)&exynos4210_mxr_drv_data,
 	}, {
 		.name		= "exynos5-mixer",
-		.driver_data	= (unsigned long)&exynos5_mxr_drv_data,
+		.driver_data	= (unsigned long)&exynos5250_mxr_drv_data,
 	}, {
 		/* end node */
 	}
@@ -1140,7 +1140,10 @@ static struct platform_device_id mixer_driver_types[] = {
 static struct of_device_id mixer_match_types[] = {
 	{
 		.compatible = "samsung,exynos5-mixer",
-		.data	= &exynos5_mxr_drv_data,
+		.data	= &exynos5250_mxr_drv_data,
+	}, {
+		.compatible = "samsung,exynos5250-mixer",
+		.data	= &exynos5250_mxr_drv_data,
 	}, {
 		/* end node */
 	}
