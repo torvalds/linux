@@ -261,8 +261,6 @@ enum EESR_BIT {
 #define DEFAULT_EESR_ERR_CHECK	(EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE | \
 				 EESR_RDE | EESR_RFRMER | EESR_ADE | \
 				 EESR_TFE | EESR_TDE | EESR_ECI)
-#define DEFAULT_TX_ERROR_CHECK	(EESR_TWB | EESR_TABT | EESR_ADE | EESR_TDE | \
-				 EESR_TFE)
 
 /* EESIPR */
 enum DMAC_IM_BIT {
@@ -468,7 +466,6 @@ struct sh_eth_cpu_data {
 	/* interrupt checking mask */
 	unsigned long tx_check;
 	unsigned long eesr_err_check;
-	unsigned long tx_error_check;
 
 	/* hardware features */
 	unsigned long irq_flags;	/* IRQ configuration flags */
