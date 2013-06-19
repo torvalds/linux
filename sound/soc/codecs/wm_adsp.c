@@ -279,7 +279,7 @@ static const struct soc_enum wm_adsp2_rate_enum[] = {
 			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
 			      ARIZONA_RATE_ENUM_SIZE,
 			      arizona_rate_text, arizona_rate_val),
-	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP3_CONTROL_1,
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP4_CONTROL_1,
 			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
 			      ARIZONA_RATE_ENUM_SIZE,
 			      arizona_rate_text, arizona_rate_val),
