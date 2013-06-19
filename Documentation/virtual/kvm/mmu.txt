@@ -210,6 +210,11 @@ Shadow pages contain the following information:
     A bitmap indicating which sptes in spt point (directly or indirectly) at
     pages that may be unsynchronized.  Used to quickly locate all unsychronized
     pages reachable from a given page.
+  clear_spte_count:
+    Only present on 32-bit hosts, where a 64-bit spte cannot be written
+    atomically.  The reader uses this while running out of the MMU lock
+    to detect in-progress updates and retry them until the writer has
+    finished the write.
 
 Reverse map
 ===========

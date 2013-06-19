@@ -466,9 +466,20 @@ static u64 __update_clear_spte_slow(u64 *sptep, u64 spte)
 /*
  * The idea using the light way get the spte on x86_32 guest is from
  * gup_get_pte(arch/x86/mm/gup.c).
- * The difference is we can not catch the spte tlb flush if we leave
- * guest mode, so we emulate it by increase clear_spte_count when spte
- * is cleared.
+ *
+ * An spte tlb flush may be pending, because kvm_set_pte_rmapp
+ * coalesces them and we are running out of the MMU lock.  Therefore
+ * we need to protect against in-progress updates of the spte.
+ *
+ * Reading the spte while an update is in progress may get the old value
+ * for the high part of the spte.  The race is fine for a present->non-present
+ * change (because the high part of the spte is ignored for non-present spte),
+ * but for a present->present change we must reread the spte.
+ *
+ * All such changes are done in two steps (present->non-present and
+ * non-present->present), hence it is enough to count the number of
+ * present->non-present updates: if it changed while reading the spte,
+ * we might have hit the race.  This is done using clear_spte_count.
  */
 static u64 __get_spte_lockless(u64 *sptep)
 {

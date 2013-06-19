@@ -226,6 +226,10 @@ struct kvm_mmu_page {
 	DECLARE_BITMAP(unsync_child_bitmap, 512);
 
 #ifdef CONFIG_X86_32
+	/*
+	 * Used out of the mmu-lock to avoid reading spte values while an
+	 * update is in progress; see the comments in __get_spte_lockless().
+	 */
 	int clear_spte_count;
 #endif
 
