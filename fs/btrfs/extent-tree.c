@@ -24,6 +24,7 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
+#include <linux/percpu_counter.h>
 #include "compat.h"
 #include "hash.h"
 #include "ctree.h"
@@ -3357,6 +3358,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	struct btrfs_space_info *found;
 	int i;
 	int factor;
+	int ret;
 
 	if (flags & (BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1 |
 		     BTRFS_BLOCK_GROUP_RAID10))
@@ -3379,6 +3381,12 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found = kzalloc(sizeof(*found), GFP_NOFS);
 	if (!found)
 		return -ENOMEM;
+
+	ret = percpu_counter_init(&found->total_bytes_pinned, 0);
+	if (ret) {
+		kfree(found);
+		return ret;
+	}
 
 	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++)
 		INIT_LIST_HEAD(&found->block_groups[i]);
@@ -3612,10 +3620,11 @@ alloc:
 		}
 
 		/*
-		 * If we have less pinned bytes than we want to allocate then
-		 * don't bother committing the transaction, it won't help us.
+		 * If we don't have enough pinned space to deal with this
+		 * allocation don't bother committing the transaction.
 		 */
-		if (data_sinfo->bytes_pinned < bytes)
+		if (percpu_counter_compare(&data_sinfo->total_bytes_pinned,
+					   bytes) < 0)
 			committed = 1;
 		spin_unlock(&data_sinfo->lock);
 
@@ -3624,6 +3633,7 @@ commit_trans:
 		if (!committed &&
 		    !atomic_read(&root->fs_info->open_ioctl_trans)) {
 			committed = 1;
+
 			trans = btrfs_join_transaction(root);
 			if (IS_ERR(trans))
 				return PTR_ERR(trans);
@@ -4044,7 +4054,8 @@ static int may_commit_transaction(struct btrfs_root *root,
 
 	/* See if there is enough pinned space to make this reservation */
 	spin_lock(&space_info->lock);
-	if (space_info->bytes_pinned >= bytes) {
+	if (percpu_counter_compare(&space_info->total_bytes_pinned,
+				   bytes) >= 0) {
 		spin_unlock(&space_info->lock);
 		goto commit;
 	}
@@ -4059,7 +4070,8 @@ static int may_commit_transaction(struct btrfs_root *root,
 
 	spin_lock(&space_info->lock);
 	spin_lock(&delayed_rsv->lock);
-	if (space_info->bytes_pinned + delayed_rsv->size < bytes) {
+	if (percpu_counter_compare(&space_info->total_bytes_pinned,
+				   bytes - delayed_rsv->size) >= 0) {
 		spin_unlock(&delayed_rsv->lock);
 		spin_unlock(&space_info->lock);
 		return -ENOSPC;
@@ -5397,6 +5409,7 @@ void btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
 	struct btrfs_caching_control *next;
 	struct btrfs_caching_control *caching_ctl;
 	struct btrfs_block_group_cache *cache;
+	struct btrfs_space_info *space_info;
 
 	down_write(&fs_info->extent_commit_sem);
 
@@ -5418,6 +5431,9 @@ void btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
 		fs_info->pinned_extents = &fs_info->freed_extents[0];
 
 	up_write(&fs_info->extent_commit_sem);
+
+	list_for_each_entry_rcu(space_info, &fs_info->space_info, list)
+		percpu_counter_set(&space_info->total_bytes_pinned, 0);
 
 	update_global_block_rsv(fs_info);
 }
@@ -5515,6 +5531,27 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 
 	return 0;
 }
+
+static void add_pinned_bytes(struct btrfs_fs_info *fs_info, u64 num_bytes,
+			     u64 owner, u64 root_objectid)
+{
+	struct btrfs_space_info *space_info;
+	u64 flags;
+
+	if (owner < BTRFS_FIRST_FREE_OBJECTID) {
+		if (root_objectid == BTRFS_CHUNK_TREE_OBJECTID)
+			flags = BTRFS_BLOCK_GROUP_SYSTEM;
+		else
+			flags = BTRFS_BLOCK_GROUP_METADATA;
+	} else {
+		flags = BTRFS_BLOCK_GROUP_DATA;
+	}
+
+	space_info = __find_space_info(fs_info, flags);
+	BUG_ON(!space_info); /* Logic bug */
+	percpu_counter_add(&space_info->total_bytes_pinned, num_bytes);
+}
+
 
 static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
@@ -5736,6 +5773,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				goto out;
 			}
 		}
+		add_pinned_bytes(root->fs_info, -num_bytes, owner_objectid,
+				 root_objectid);
 	} else {
 		if (found_extent) {
 			BUG_ON(is_data && refs_to_drop !=
@@ -5859,6 +5898,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 			   u64 parent, int last_ref)
 {
 	struct btrfs_block_group_cache *cache = NULL;
+	int pin = 1;
 	int ret;
 
 	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
@@ -5891,8 +5931,14 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 
 		btrfs_add_free_space(cache, buf->start, buf->len);
 		btrfs_update_reserved_bytes(cache, buf->len, RESERVE_FREE);
+		pin = 0;
 	}
 out:
+	if (pin)
+		add_pinned_bytes(root->fs_info, buf->len,
+				 btrfs_header_level(buf),
+				 root->root_key.objectid);
+
 	/*
 	 * Deleting the buffer, clear the corrupt flag since it doesn't matter
 	 * anymore.
@@ -5908,6 +5954,8 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 {
 	int ret;
 	struct btrfs_fs_info *fs_info = root->fs_info;
+
+	add_pinned_bytes(root->fs_info, num_bytes, owner, root_objectid);
 
 	/*
 	 * tree log blocks never actually go into the extent allocation
@@ -8152,6 +8200,7 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 				dump_space_info(space_info, 0, 0);
 			}
 		}
+		percpu_counter_destroy(&space_info->total_bytes_pinned);
 		list_del(&space_info->list);
 		kfree(space_info);
 	}

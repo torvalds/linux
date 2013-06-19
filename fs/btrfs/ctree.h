@@ -1102,6 +1102,18 @@ struct btrfs_space_info {
 				   account */
 
 	/*
+	 * bytes_pinned is kept in line with what is actually pinned, as in
+	 * we've called update_block_group and dropped the bytes_used counter
+	 * and increased the bytes_pinned counter.  However this means that
+	 * bytes_pinned does not reflect the bytes that will be pinned once the
+	 * delayed refs are flushed, so this counter is inc'ed everytime we call
+	 * btrfs_free_extent so it is a realtime count of what will be freed
+	 * once the transaction is committed.  It will be zero'ed everytime the
+	 * transaction commits.
+	 */
+	struct percpu_counter total_bytes_pinned;
+
+	/*
 	 * we bump reservation progress every time we decrement
 	 * bytes_reserved.  This way people waiting for reservations
 	 * know something good has happened and they can check
