@@ -341,7 +341,7 @@ static int cpufreq_stat_notifier_trans(struct notifier_block *nb,
 	return 0;
 }
 
-static int __cpuinit cpufreq_stat_cpu_callback(struct notifier_block *nfb,
+static int cpufreq_stat_cpu_callback(struct notifier_block *nfb,
 					       unsigned long action,
 					       void *hcpu)
 {
