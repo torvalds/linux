@@ -637,11 +637,11 @@ static long compass_dev_ioctl(struct file *file,
 		break;
 	case ECS_IOCTL_GET_LAYOUT:
 		DBG("%s:ECS_IOCTL_GET_LAYOUT start\n",__func__);
-		layout = 1;	//sensor->pdata->layout;
+		layout = sensor->pdata->layout;
 		break;
 	case ECS_IOCTL_GET_OUTBIT:
 		DBG("%s:ECS_IOCTL_GET_OUTBIT start\n",__func__);
-		outbit = 1;	//sensor->pdata->outbit;
+		outbit = sensor->pdata->outbit;
 		break;
 	case ECS_IOCTL_RESET:
 		DBG("%s:ECS_IOCTL_RESET start\n",__func__);
