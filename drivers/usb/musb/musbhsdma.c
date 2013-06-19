@@ -371,9 +371,6 @@ void dma_controller_destroy(struct dma_controller *c)
 	struct musb_dma_controller *controller = container_of(c,
 			struct musb_dma_controller, controller);
 
-	if (!controller)
-		return;
-
 	if (controller->irq)
 		free_irq(controller->irq, c);
 
