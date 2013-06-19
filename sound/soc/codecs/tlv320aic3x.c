@@ -128,10 +128,8 @@ static const u8 aic3x_reg[AIC3X_CACHEREGNUM] = {
 };
 
 #define SOC_DAPM_SINGLE_AIC3X(xname, reg, shift, mask, invert) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
-	.info = snd_soc_info_volsw, \
-	.get = snd_soc_dapm_get_volsw, .put = snd_soc_dapm_put_volsw_aic3x, \
-	.private_value =  SOC_SINGLE_VALUE(reg, shift, mask, invert) }
+	SOC_SINGLE_EXT(xname, reg, shift, mask, invert, \
+		snd_soc_dapm_get_volsw, snd_soc_dapm_put_volsw_aic3x)
 
 /*
  * All input lines are connected when !0xf and disconnected with 0xf bit field,
