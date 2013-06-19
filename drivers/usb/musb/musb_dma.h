@@ -159,8 +159,6 @@ dma_channel_status(struct dma_channel *c)
  * Controllers manage dma channels.
  */
 struct dma_controller {
-	int			(*start)(struct dma_controller *);
-	int			(*stop)(struct dma_controller *);
 	struct dma_channel	*(*channel_alloc)(struct dma_controller *,
 					struct musb_hw_ep *, u8 is_tx);
 	void			(*channel_release)(struct dma_channel *);
