@@ -129,8 +129,8 @@ struct fmc_gpio {
  * the exception.
  */
 struct fmc_operations {
-	uint32_t (*readl)(struct fmc_device *fmc, int offset);
-	void (*writel)(struct fmc_device *fmc, uint32_t value, int offset);
+	uint32_t (*read32)(struct fmc_device *fmc, int offset);
+	void (*write32)(struct fmc_device *fmc, uint32_t value, int offset);
 	int (*validate)(struct fmc_device *fmc, struct fmc_driver *drv);
 	int (*reprogram)(struct fmc_device *f, struct fmc_driver *d, char *gw);
 	int (*irq_request)(struct fmc_device *fmc, irq_handler_t h,
@@ -194,14 +194,14 @@ struct fmc_device {
  */
 static inline uint32_t fmc_readl(struct fmc_device *fmc, int offset)
 {
-	if (unlikely(fmc->op->readl))
-		return fmc->op->readl(fmc, offset);
+	if (unlikely(fmc->op->read32))
+		return fmc->op->read32(fmc, offset);
 	return readl(fmc->fpga_base + offset);
 }
 static inline void fmc_writel(struct fmc_device *fmc, uint32_t val, int off)
 {
-	if (unlikely(fmc->op->writel))
-		fmc->op->writel(fmc, val, off);
+	if (unlikely(fmc->op->write32))
+		fmc->op->write32(fmc, val, off);
 	else
 		writel(val, fmc->fpga_base + off);
 }
