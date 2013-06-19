@@ -62,14 +62,28 @@ struct drm_prime_member {
 	struct dma_buf *dma_buf;
 	uint32_t handle;
 };
+
+struct drm_prime_attachment {
+	struct sg_table *sgt;
+	enum dma_data_direction dir;
+};
+
 static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle);
 
 static int drm_gem_map_attach(struct dma_buf *dma_buf,
 			      struct device *target_dev,
 			      struct dma_buf_attachment *attach)
 {
+	struct drm_prime_attachment *prime_attach;
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct drm_device *dev = obj->dev;
+
+	prime_attach = kzalloc(sizeof(*prime_attach), GFP_KERNEL);
+	if (!prime_attach)
+		return -ENOMEM;
+
+	prime_attach->dir = DMA_NONE;
+	attach->priv = prime_attach;
 
 	if (!dev->driver->gem_prime_pin)
 		return 0;
@@ -80,18 +94,49 @@ static int drm_gem_map_attach(struct dma_buf *dma_buf,
 static void drm_gem_map_detach(struct dma_buf *dma_buf,
 			       struct dma_buf_attachment *attach)
 {
+	struct drm_prime_attachment *prime_attach = attach->priv;
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct drm_device *dev = obj->dev;
+	struct sg_table *sgt;
 
 	if (dev->driver->gem_prime_unpin)
 		dev->driver->gem_prime_unpin(obj);
+
+	if (!prime_attach)
+		return;
+
+	sgt = prime_attach->sgt;
+
+	if (prime_attach->dir != DMA_NONE)
+		dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents,
+				prime_attach->dir);
+
+	sg_free_table(sgt);
+	kfree(sgt);
+	kfree(prime_attach);
+	attach->priv = NULL;
 }
 
 static struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 		enum dma_data_direction dir)
 {
+	struct drm_prime_attachment *prime_attach = attach->priv;
 	struct drm_gem_object *obj = attach->dmabuf->priv;
 	struct sg_table *sgt;
+
+	if (WARN_ON(dir == DMA_NONE || !prime_attach))
+		return ERR_PTR(-EINVAL);
+
+	/* return the cached mapping when possible */
+	if (prime_attach->dir == dir)
+		return prime_attach->sgt;
+
+	/*
+	 * two mappings with different directions for the same attachment are
+	 * not allowed
+	 */
+	if (WARN_ON(prime_attach->dir != DMA_NONE))
+		return ERR_PTR(-EBUSY);
 
 	mutex_lock(&obj->dev->struct_mutex);
 
@@ -102,6 +147,9 @@ static struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 			sg_free_table(sgt);
 			kfree(sgt);
 			sgt = ERR_PTR(-ENOMEM);
+		} else {
+			prime_attach->sgt = sgt;
+			prime_attach->dir = dir;
 		}
 	}
 
@@ -112,9 +160,7 @@ static struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 static void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 		struct sg_table *sgt, enum dma_data_direction dir)
 {
-	dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents, dir);
-	sg_free_table(sgt);
-	kfree(sgt);
+	/* nothing to be done here */
 }
 
 static void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
