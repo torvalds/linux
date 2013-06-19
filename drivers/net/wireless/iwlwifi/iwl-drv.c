@@ -1000,10 +1000,12 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 */
 	if (load_module) {
 		err = request_module("%s", op->name);
+#ifdef CONFIG_IWLWIFI_OPMODE_MODULAR
 		if (err)
 			IWL_ERR(drv,
 				"failed to load module %s (error %d), is dynamic loading enabled?\n",
 				op->name, err);
+#endif
 	}
 	return;
 

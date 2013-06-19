@@ -95,10 +95,10 @@ struct ip_tunnel_net {
 int ip_tunnel_init(struct net_device *dev);
 void ip_tunnel_uninit(struct net_device *dev);
 void  ip_tunnel_dellink(struct net_device *dev, struct list_head *head);
-int __net_init ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
-				  struct rtnl_link_ops *ops, char *devname);
+int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
+		       struct rtnl_link_ops *ops, char *devname);
 
-void __net_exit ip_tunnel_delete_net(struct ip_tunnel_net *itn);
+void ip_tunnel_delete_net(struct ip_tunnel_net *itn);
 
 void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		    const struct iphdr *tnl_params, const u8 protocol);

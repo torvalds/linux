@@ -652,8 +652,6 @@ static struct {
 	ARCH_TRACE_CLOCKS
 };
 
-int trace_clock_id;
-
 /*
  * trace_parser_get_init - gets the buffer for trace parser
  */
@@ -843,7 +841,15 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 
 	memcpy(max_data->comm, tsk->comm, TASK_COMM_LEN);
 	max_data->pid = tsk->pid;
-	max_data->uid = task_uid(tsk);
+	/*
+	 * If tsk == current, then use current_uid(), as that does not use
+	 * RCU. The irq tracer can be called out of RCU scope.
+	 */
+	if (tsk == current)
+		max_data->uid = current_uid();
+	else
+		max_data->uid = task_uid(tsk);
+
 	max_data->nice = tsk->static_prio - 20 - MAX_RT_PRIO;
 	max_data->policy = tsk->policy;
 	max_data->rt_priority = tsk->rt_priority;
@@ -2818,7 +2824,7 @@ __tracing_open(struct inode *inode, struct file *file, bool snapshot)
 		iter->iter_flags |= TRACE_FILE_ANNOTATE;
 
 	/* Output in nanoseconds only if we are using a clock in nanoseconds. */
-	if (trace_clocks[trace_clock_id].in_ns)
+	if (trace_clocks[tr->clock_id].in_ns)
 		iter->iter_flags |= TRACE_FILE_TIME_IN_NS;
 
 	/* stop the trace while dumping if we are not opening "snapshot" */
@@ -3817,7 +3823,7 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 		iter->iter_flags |= TRACE_FILE_LAT_FMT;
 
 	/* Output in nanoseconds only if we are using a clock in nanoseconds. */
-	if (trace_clocks[trace_clock_id].in_ns)
+	if (trace_clocks[tr->clock_id].in_ns)
 		iter->iter_flags |= TRACE_FILE_TIME_IN_NS;
 
 	iter->cpu_file = tc->cpu;
@@ -5087,7 +5093,7 @@ tracing_stats_read(struct file *filp, char __user *ubuf,
 	cnt = ring_buffer_bytes_cpu(trace_buf->buffer, cpu);
 	trace_seq_printf(s, "bytes: %ld\n", cnt);
 
-	if (trace_clocks[trace_clock_id].in_ns) {
+	if (trace_clocks[tr->clock_id].in_ns) {
 		/* local or global for trace_clock */
 		t = ns2usecs(ring_buffer_oldest_event_ts(trace_buf->buffer, cpu));
 		usec_rem = do_div(t, USEC_PER_SEC);

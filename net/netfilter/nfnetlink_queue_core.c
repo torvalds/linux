@@ -641,9 +641,6 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	if (queue->copy_mode == NFQNL_COPY_NONE)
 		return -EINVAL;
 
-	if ((queue->flags & NFQA_CFG_F_GSO) || !skb_is_gso(entry->skb))
-		return __nfqnl_enqueue_packet(net, queue, entry);
-
 	skb = entry->skb;
 
 	switch (entry->pf) {
@@ -654,6 +651,9 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 		skb->protocol = htons(ETH_P_IPV6);
 		break;
 	}
+
+	if ((queue->flags & NFQA_CFG_F_GSO) || !skb_is_gso(skb))
+		return __nfqnl_enqueue_packet(net, queue, entry);
 
 	nf_bridge_adjust_skb_data(skb);
 	segs = skb_gso_segment(skb, 0);

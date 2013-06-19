@@ -2895,8 +2895,8 @@ F:	drivers/media/dvb-frontends/ec100*
 
 ECRYPT FILE SYSTEM
 M:	Tyler Hicks <tyhicks@canonical.com>
-M:	Dustin Kirkland <dustin.kirkland@gazzang.com>
 L:	ecryptfs@vger.kernel.org
+W:	http://ecryptfs.org
 W:	https://launchpad.net/ecryptfs
 S:	Supported
 F:	Documentation/filesystems/ecryptfs.txt
@@ -4453,6 +4453,16 @@ S:	Maintained
 F:	drivers/scsi/*iscsi*
 F:	include/scsi/*iscsi*
 
+ISCSI EXTENSIONS FOR RDMA (ISER) INITIATOR
+M:	Or Gerlitz <ogerlitz@mellanox.com>
+M:	Roi Dayan <roid@mellanox.com>
+L:	linux-rdma@vger.kernel.org
+S:	Supported
+W:	http://www.openfabrics.org
+W:	www.open-iscsi.org
+Q:	http://patchwork.kernel.org/project/linux-rdma/list/
+F:	drivers/infiniband/ulp/iser
+
 ISDN SUBSYSTEM
 M:	Karsten Keil <isdn@linux-pingi.de>
 L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
@@ -5761,7 +5771,7 @@ M:	Matthew Wilcox <willy@linux.intel.com>
 L:	linux-nvme@lists.infradead.org
 T:	git git://git.infradead.org/users/willy/linux-nvme.git
 S:	Supported
-F:	drivers/block/nvme.c
+F:	drivers/block/nvme*
 F:	include/linux/nvme.h
 
 OMAP SUPPORT
@@ -7619,7 +7629,7 @@ F:	drivers/clk/spear/
 SPI SUBSYSTEM
 M:	Mark Brown <broonie@kernel.org>
 M:	Grant Likely <grant.likely@linaro.org>
-L:	spi-devel-general@lists.sourceforge.net
+L:	linux-spi@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/spi.git
 Q:	http://patchwork.kernel.org/project/spi-devel-general/list/
 S:	Maintained
@@ -8999,7 +9009,7 @@ S:	Maintained
 F:	drivers/net/wireless/wl3501*
 
 WM97XX TOUCHSCREEN DRIVERS
-M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
+M:	Mark Brown <broonie@kernel.org>
 M:	Liam Girdwood <lrg@slimlogic.co.uk>
 L:	linux-input@vger.kernel.org
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-touch
@@ -9009,7 +9019,6 @@ F:	drivers/input/touchscreen/*wm97*
 F:	include/linux/wm97xx.h
 
 WOLFSON MICROELECTRONICS DRIVERS
-M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
 L:	patches@opensource.wolfsonmicro.com
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-asoc
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus

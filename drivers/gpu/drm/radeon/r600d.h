@@ -1342,6 +1342,14 @@
 #define	PACKET3_STRMOUT_BASE_UPDATE			0x72 /* r7xx */
 #define	PACKET3_SURFACE_BASE_UPDATE			0x73
 
+#define R_000011_K8_FB_LOCATION                 0x11
+#define R_000012_MC_MISC_UMA_CNTL               0x12
+#define   G_000012_K8_ADDR_EXT(x)               (((x) >> 0) & 0xFF)
+#define R_0028F8_MC_INDEX			0x28F8
+#define   	S_0028F8_MC_IND_ADDR(x)                 (((x) & 0x1FF) << 0)
+#define   	C_0028F8_MC_IND_ADDR                    0xFFFFFE00
+#define   	S_0028F8_MC_IND_WR_EN(x)                (((x) & 0x1) << 9)
+#define R_0028FC_MC_DATA                        0x28FC
 
 #define	R_008020_GRBM_SOFT_RESET		0x8020
 #define		S_008020_SOFT_RESET_CP(x)		(((x) & 1) << 0)

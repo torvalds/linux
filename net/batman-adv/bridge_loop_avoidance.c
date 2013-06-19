@@ -1073,6 +1073,10 @@ void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
 	group = htons(crc16(0, primary_if->net_dev->dev_addr, ETH_ALEN));
 	bat_priv->bla.claim_dest.group = group;
 
+	/* purge everything when bridge loop avoidance is turned off */
+	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
+		oldif = NULL;
+
 	if (!oldif) {
 		batadv_bla_purge_claims(bat_priv, NULL, 1);
 		batadv_bla_purge_backbone_gw(bat_priv, 1);

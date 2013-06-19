@@ -853,7 +853,7 @@ void ip_tunnel_dellink(struct net_device *dev, struct list_head *head)
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_dellink);
 
-int __net_init ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
+int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 				  struct rtnl_link_ops *ops, char *devname)
 {
 	struct ip_tunnel_net *itn = net_generic(net, ip_tnl_net_id);
@@ -899,7 +899,7 @@ static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head)
 		unregister_netdevice_queue(itn->fb_tunnel_dev, head);
 }
 
-void __net_exit ip_tunnel_delete_net(struct ip_tunnel_net *itn)
+void ip_tunnel_delete_net(struct ip_tunnel_net *itn)
 {
 	LIST_HEAD(list);
 

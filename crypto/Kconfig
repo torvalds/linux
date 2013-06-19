@@ -823,6 +823,7 @@ config CRYPTO_BLOWFISH_X86_64
 config CRYPTO_BLOWFISH_AVX2_X86_64
 	tristate "Blowfish cipher algorithm (x86_64/AVX2)"
 	depends on X86 && 64BIT
+	depends on BROKEN
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
 	select CRYPTO_ABLK_HELPER_X86
@@ -1299,6 +1300,7 @@ config CRYPTO_TWOFISH_AVX_X86_64
 config CRYPTO_TWOFISH_AVX2_X86_64
 	tristate "Twofish cipher algorithm (x86_64/AVX2)"
 	depends on X86 && 64BIT
+	depends on BROKEN
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
 	select CRYPTO_ABLK_HELPER_X86
