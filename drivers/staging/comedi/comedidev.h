@@ -270,7 +270,8 @@ enum subdevice_runflags {
 };
 
 bool comedi_is_subdevice_running(struct comedi_subdevice *s);
-void comedi_set_spriv(struct comedi_subdevice *s, void *data);
+
+void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size);
 
 int comedi_check_chanlist(struct comedi_subdevice *s,
 			  int n,

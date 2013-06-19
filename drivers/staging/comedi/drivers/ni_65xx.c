@@ -281,18 +281,6 @@ static inline struct ni_65xx_subdevice_private *sprivate(struct comedi_subdevice
 	return subdev->private;
 }
 
-static int ni_65xx_alloc_subdevice_private(struct comedi_subdevice *s)
-{
-	struct ni_65xx_subdevice_private *spriv;
-
-	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
-	if (!spriv)
-		return -ENOMEM;
-	comedi_set_spriv(s, spriv);
-
-	return 0;
-}
-
 static int ni_65xx_config_filter(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -587,6 +575,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct ni_65xx_board *board = NULL;
 	struct ni_65xx_private *devpriv;
+	struct ni_65xx_subdevice_private *spriv;
 	struct comedi_subdevice *s;
 	unsigned i;
 	int ret;
@@ -635,10 +624,10 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		s->maxdata = 1;
 		s->insn_config = ni_65xx_dio_insn_config;
 		s->insn_bits = ni_65xx_dio_insn_bits;
-		ret = ni_65xx_alloc_subdevice_private(s);
-		if (ret)
-			return ret;
-		sprivate(s)->base_port = 0;
+		spriv = comedi_alloc_spriv(s, sizeof(*spriv));
+		if (!spriv)
+			return -ENOMEM;
+		spriv->base_port = 0;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -652,10 +641,10 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		s->range_table = &range_digital;
 		s->maxdata = 1;
 		s->insn_bits = ni_65xx_dio_insn_bits;
-		ret = ni_65xx_alloc_subdevice_private(s);
-		if (ret)
-			return ret;
-		sprivate(s)->base_port = board->num_di_ports;
+		spriv = comedi_alloc_spriv(s, sizeof(*spriv));
+		if (!spriv)
+			return -ENOMEM;
+		spriv->base_port = board->num_di_ports;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -670,10 +659,10 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		s->maxdata = 1;
 		s->insn_config = ni_65xx_dio_insn_config;
 		s->insn_bits = ni_65xx_dio_insn_bits;
-		ret = ni_65xx_alloc_subdevice_private(s);
-		if (ret)
-			return ret;
-		sprivate(s)->base_port = 0;
+		spriv = comedi_alloc_spriv(s, sizeof(*spriv));
+		if (!spriv)
+			return -ENOMEM;
+		spriv->base_port = 0;
 		for (i = 0; i < board->num_dio_ports; ++i) {
 			/*  configure all ports for input */
 			writeb(0x1,

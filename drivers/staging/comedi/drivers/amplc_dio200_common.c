@@ -556,10 +556,9 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct dio200_layout *layout = dio200_dev_layout(dev);
 	struct dio200_subdev_intr *subpriv;
 
-	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
+	subpriv = comedi_alloc_spriv(s, sizeof(*subpriv));
 	if (!subpriv)
 		return -ENOMEM;
-	comedi_set_spriv(s, subpriv);
 
 	subpriv->ofs = offset;
 	subpriv->valid_isns = valid_isns;
@@ -883,10 +882,9 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct dio200_subdev_8254 *subpriv;
 	unsigned int chan;
 
-	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
+	subpriv = comedi_alloc_spriv(s, sizeof(*subpriv));
 	if (!subpriv)
 		return -ENOMEM;
-	comedi_set_spriv(s, subpriv);
 
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
@@ -1019,10 +1017,9 @@ static int dio200_subdev_8255_init(struct comedi_device *dev,
 {
 	struct dio200_subdev_8255 *subpriv;
 
-	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
+	subpriv = comedi_alloc_spriv(s, sizeof(*subpriv));
 	if (!subpriv)
 		return -ENOMEM;
-	comedi_set_spriv(s, subpriv);
 
 	subpriv->ofs = offset;
 

@@ -532,19 +532,21 @@ static bool comedi_is_subdevice_idle(struct comedi_subdevice *s)
 }
 
 /**
- * comedi_set_spriv() - Set the subdevice private data pointer.
+ * comedi_alloc_spriv() - Allocate memory for the subdevice private data.
  * @s: comedi_subdevice struct
- * @data: pointer to the private data
+ * @size: size of the memory to allocate
  *
  * This also sets the subdevice runflags to allow the core to automatically
  * free the private data during the detach.
  */
-void comedi_set_spriv(struct comedi_subdevice *s, void *data)
+void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size)
 {
-	s->private = data;
-	comedi_set_subdevice_runflags(s, ~0, SRF_FREE_SPRIV);
+	s->private = kzalloc(size, GFP_KERNEL);
+	if (s->private)
+		comedi_set_subdevice_runflags(s, ~0, SRF_FREE_SPRIV);
+	return s->private;
 }
-EXPORT_SYMBOL_GPL(comedi_set_spriv);
+EXPORT_SYMBOL_GPL(comedi_alloc_spriv);
 
 /*
    This function restores a subdevice to an idle state.

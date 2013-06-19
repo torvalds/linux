@@ -76,7 +76,6 @@ I/O port base address can be found in the output of 'lspci -v'.
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
-#include <linux/slab.h>
 
 #include "comedi_fc.h"
 #include "8255.h"
@@ -285,10 +284,9 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct subdev_8255_private *spriv;
 
-	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
+	spriv = comedi_alloc_spriv(s, sizeof(*spriv));
 	if (!spriv)
 		return -ENOMEM;
-	comedi_set_spriv(s, spriv);
 
 	spriv->iobase	= iobase;
 	spriv->io	= io ? io : subdev_8255_io;

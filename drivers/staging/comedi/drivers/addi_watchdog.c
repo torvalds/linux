@@ -126,10 +126,9 @@ int addi_watchdog_init(struct comedi_subdevice *s, unsigned long iobase)
 {
 	struct addi_watchdog_private *spriv;
 
-	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
+	spriv = comedi_alloc_spriv(s, sizeof(*spriv));
 	if (!spriv)
 		return -ENOMEM;
-	comedi_set_spriv(s, spriv);
 
 	spriv->iobase = iobase;
 
