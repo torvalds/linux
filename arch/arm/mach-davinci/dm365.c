@@ -1068,7 +1068,7 @@ static struct plat_serial8250_port dm365_serial1_platform_data[] = {
 	}
 };
 
-static struct platform_device dm365_serial_device[] = {
+struct platform_device dm365_serial_device[] = {
 	{
 		.name			= "serial8250",
 		.id			= PLAT8250_DEV_PLATFORM,

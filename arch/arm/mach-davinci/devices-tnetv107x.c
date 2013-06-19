@@ -410,7 +410,7 @@ void __init tnetv107x_devices_init(struct tnetv107x_device_info *info)
 	platform_device_register(&tsc_device);
 
 	if (info->serial_config)
-		davinci_serial_init(info->serial_config);
+		davinci_serial_init(tnetv107x_serial_device);
 
 	for (i = 0; i < 2; i++)
 		if (info->mmc_config[i]) {
