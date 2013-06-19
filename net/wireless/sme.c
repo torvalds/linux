@@ -615,19 +615,24 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		kfree(wdev->connect_keys);
 		wdev->connect_keys = NULL;
 		wdev->ssid_len = 0;
-		cfg80211_put_bss(wdev->wiphy, bss);
+		if (bss) {
+			cfg80211_unhold_bss(bss_from_pub(bss));
+			cfg80211_put_bss(wdev->wiphy, bss);
+		}
 		return;
 	}
 
-	if (!bss)
+	if (!bss) {
+		WARN_ON_ONCE(!wiphy_to_dev(wdev->wiphy)->ops->connect);
 		bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
 				       wdev->ssid, wdev->ssid_len,
 				       WLAN_CAPABILITY_ESS,
 				       WLAN_CAPABILITY_ESS);
-	if (WARN_ON(!bss))
-		return;
+		if (WARN_ON(!bss))
+			return;
+		cfg80211_hold_bss(bss_from_pub(bss));
+	}
 
-	cfg80211_hold_bss(bss_from_pub(bss));
 	wdev->current_bss = bss_from_pub(bss);
 
 	cfg80211_upload_connect_keys(wdev);

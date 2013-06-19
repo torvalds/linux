@@ -38,6 +38,7 @@ void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
 	 * frame instead of reassoc.
 	 */
 	if (cfg80211_sme_rx_assoc_resp(wdev, status_code)) {
+		cfg80211_unhold_bss(bss_from_pub(bss));
 		cfg80211_put_bss(wiphy, bss);
 		return;
 	}
@@ -142,6 +143,7 @@ void cfg80211_assoc_timeout(struct net_device *dev, struct cfg80211_bss *bss)
 	nl80211_send_assoc_timeout(rdev, dev, bss->bssid, GFP_KERNEL);
 	cfg80211_sme_assoc_timeout(wdev);
 
+	cfg80211_unhold_bss(bss_from_pub(bss));
 	cfg80211_put_bss(wiphy, bss);
 }
 EXPORT_SYMBOL(cfg80211_assoc_timeout);
@@ -309,6 +311,8 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 		goto out;
 
 	err = rdev_assoc(rdev, dev, req);
+	if (!err)
+		cfg80211_hold_bss(bss_from_pub(req->bss));
 
 out:
 	if (err)
