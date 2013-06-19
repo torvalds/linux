@@ -14,7 +14,6 @@ extern int platform_device_register(struct platform_device *pdev);
 int tps65910_pre_init(struct tps65910 *tps65910){
 
 	int val = 0;
-	int i 	= 0;
 	int err = -1;
 		
 	printk("%s,line=%d\n", __func__,__LINE__);	
