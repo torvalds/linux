@@ -221,15 +221,6 @@ config DW_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called dw_wdt.
 
-config MPCORE_WATCHDOG
-	tristate "MPcore watchdog"
-	depends on HAVE_ARM_TWD
-	help
-	  Watchdog timer embedded into the MPcore system.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mpcore_wdt.
-
 config EP93XX_WATCHDOG
 	tristate "EP93xx Watchdog"
 	depends on ARCH_EP93XX
