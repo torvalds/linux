@@ -87,10 +87,9 @@ void user_enter(void)
  */
 void __sched notrace preempt_schedule_context(void)
 {
-	struct thread_info *ti = current_thread_info();
 	enum ctx_state prev_ctx;
 
-	if (likely(ti->preempt_count || irqs_disabled()))
+	if (likely(!preemptible()))
 		return;
 
 	/*
