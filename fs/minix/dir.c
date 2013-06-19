@@ -93,7 +93,7 @@ static int minix_readdir(struct file *file, struct dir_context *ctx)
 	unsigned offset;
 	unsigned long n;
 
-	ctx->pos = pos = (pos + chunk_size-1) & ~(chunk_size-1);
+	ctx->pos = pos = ALIGN(pos, chunk_size);
 	if (pos >= inode->i_size)
 		return 0;
 
