@@ -1266,7 +1266,8 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 		dev_dbg(musb->controller, "req %p queued to %s while ep %s\n",
 				req, ep->name, "disabled");
 		status = -ESHUTDOWN;
-		goto cleanup;
+		unmap_dma_buffer(request, musb);
+		goto unlock;
 	}
 
 	/* add request to the list */
@@ -1276,7 +1277,7 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 	if (!musb_ep->busy && &request->list == musb_ep->req_list.next)
 		musb_ep_restart(musb, request);
 
-cleanup:
+unlock:
 	spin_unlock_irqrestore(&musb->lock, lockflags);
 	return status;
 }
