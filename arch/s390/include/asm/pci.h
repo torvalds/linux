@@ -120,7 +120,6 @@ struct zpci_dev {
 
 	struct dentry	*debugfs_dev;
 	struct dentry	*debugfs_perf;
-	struct dentry	*debugfs_debug;
 };
 
 struct pci_hp_callback_ops {

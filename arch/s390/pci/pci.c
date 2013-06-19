@@ -85,8 +85,6 @@ static struct intr_bucket *bucket;
 /* Adapter local summary indicator */
 static u8 *zpci_irq_si;
 
-static atomic_t irq_retries = ATOMIC_INIT(0);
-
 /* I/O Map */
 static DEFINE_SPINLOCK(zpci_iomap_lock);
 static DECLARE_BITMAP(zpci_iomap, ZPCI_IOMAP_MAX_ENTRIES);
@@ -452,7 +450,6 @@ scan:
 	max = aisb_max;
 	sbit = find_first_bit_left(bucket->aisb, max);
 	if (sbit != max) {
-		atomic_inc(&irq_retries);
 		rescan++;
 		goto scan;
 	}
@@ -749,16 +746,6 @@ static void zpci_irq_exit(void)
 	s390_unregister_adapter_interrupt(zpci_irq_si, PCI_ISC);
 	isc_unregister(PCI_ISC);
 	kfree(bucket);
-}
-
-void zpci_debug_info(struct zpci_dev *zdev, struct seq_file *m)
-{
-	if (!zdev)
-		return;
-
-	seq_printf(m, "global irq retries: %u\n", atomic_read(&irq_retries));
-	seq_printf(m, "aibv[0]:%016lx  aibv[1]:%016lx  aisb:%016lx\n",
-		   get_imap(0)->aibv, get_imap(1)->aibv, *bucket->aisb);
 }
 
 static struct resource *zpci_alloc_bus_resource(unsigned long start, unsigned long size,
