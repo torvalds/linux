@@ -55,7 +55,6 @@ static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 	return ret;
 }
 
-
 static ssize_t show_speed(struct cpufreq_policy *policy, char *buf)
 {
 	return sprintf(buf, "%u\n", policy->cur);
@@ -101,7 +100,6 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 	return rc;
 }
 
-
 #ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE
 static
 #endif
@@ -118,12 +116,10 @@ static int __init cpufreq_gov_userspace_init(void)
 	return cpufreq_register_governor(&cpufreq_gov_userspace);
 }
 
-
 static void __exit cpufreq_gov_userspace_exit(void)
 {
 	cpufreq_unregister_governor(&cpufreq_gov_userspace);
 }
-
 
 MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>, "
 		"Russell King <rmk@arm.linux.org.uk>");

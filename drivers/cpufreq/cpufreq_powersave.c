@@ -1,7 +1,7 @@
 /*
- *  linux/drivers/cpufreq/cpufreq_powersave.c
+ * linux/drivers/cpufreq/cpufreq_powersave.c
  *
- *  Copyright (C) 2002 - 2003 Dominik Brodowski <linux@brodo.de>
+ * Copyright (C) 2002 - 2003 Dominik Brodowski <linux@brodo.de>
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -48,12 +48,10 @@ static int __init cpufreq_gov_powersave_init(void)
 	return cpufreq_register_governor(&cpufreq_gov_powersave);
 }
 
-
 static void __exit cpufreq_gov_powersave_exit(void)
 {
 	cpufreq_unregister_governor(&cpufreq_gov_powersave);
 }
-
 
 MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>");
 MODULE_DESCRIPTION("CPUfreq policy governor 'powersave'");
