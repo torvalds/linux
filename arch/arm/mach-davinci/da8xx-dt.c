@@ -20,13 +20,6 @@
 
 #define DA8XX_NUM_UARTS	3
 
-static void __init da8xx_uart_clk_enable(void)
-{
-	int i;
-	for (i = 0; i < DA8XX_NUM_UARTS; i++)
-		davinci_serial_setup_clk(i, NULL);
-}
-
 static struct of_device_id da8xx_irq_match[] __initdata = {
 	{ .compatible = "ti,cp-intc", .data = cp_intc_of_init, },
 	{ }
@@ -60,7 +53,6 @@ static void __init da850_init_machine(void)
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     da850_auxdata_lookup, NULL);
 
-	da8xx_uart_clk_enable();
 }
 
 static const char *da850_boards_compat[] __initdata = {
