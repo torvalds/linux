@@ -248,6 +248,14 @@ enum EESR_BIT {
 	EESR_CERF	= 0x00000001,
 };
 
+#define EESR_RX_CHECK		(EESR_FRC  | /* Frame recv */		\
+				 EESR_RMAF | /* Multicast address recv */ \
+				 EESR_RRF  | /* Bit frame recv */	\
+				 EESR_RTLF | /* Long frame recv */	\
+				 EESR_RTSF | /* Short frame recv */	\
+				 EESR_PRE  | /* PHY-LSI recv error */	\
+				 EESR_CERF)  /* Recv frame CRC error */
+
 #define DEFAULT_TX_CHECK	(EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | \
 				 EESR_RTO)
 #define DEFAULT_EESR_ERR_CHECK	(EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE | \
