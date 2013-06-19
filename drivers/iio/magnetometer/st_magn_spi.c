@@ -35,7 +35,7 @@ static int st_magn_spi_probe(struct spi_device *spi)
 
 	st_sensors_spi_configure(indio_dev, spi, mdata);
 
-	err = st_magn_common_probe(indio_dev);
+	err = st_magn_common_probe(indio_dev, NULL);
 	if (err < 0)
 		goto st_magn_common_probe_error;
 

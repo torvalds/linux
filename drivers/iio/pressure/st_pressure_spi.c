@@ -35,7 +35,7 @@ static int st_press_spi_probe(struct spi_device *spi)
 
 	st_sensors_spi_configure(indio_dev, spi, pdata);
 
-	err = st_press_common_probe(indio_dev);
+	err = st_press_common_probe(indio_dev, spi->dev.platform_data);
 	if (err < 0)
 		goto st_press_common_probe_error;
 

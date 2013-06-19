@@ -35,7 +35,7 @@ static int st_accel_spi_probe(struct spi_device *spi)
 
 	st_sensors_spi_configure(indio_dev, spi, adata);
 
-	err = st_accel_common_probe(indio_dev);
+	err = st_accel_common_probe(indio_dev, spi->dev.platform_data);
 	if (err < 0)
 		goto st_accel_common_probe_error;
 

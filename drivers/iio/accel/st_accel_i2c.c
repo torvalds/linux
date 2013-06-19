@@ -36,7 +36,7 @@ static int st_accel_i2c_probe(struct i2c_client *client,
 
 	st_sensors_i2c_configure(indio_dev, client, adata);
 
-	err = st_accel_common_probe(indio_dev);
+	err = st_accel_common_probe(indio_dev, client->dev.platform_data);
 	if (err < 0)
 		goto st_accel_common_probe_error;
 

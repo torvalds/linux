@@ -36,7 +36,8 @@ static int st_gyro_i2c_probe(struct i2c_client *client,
 
 	st_sensors_i2c_configure(indio_dev, client, gdata);
 
-	err = st_gyro_common_probe(indio_dev);
+	err = st_gyro_common_probe(indio_dev,
+				(struct st_sensors_platform_data *)&gyro_pdata);
 	if (err < 0)
 		goto st_gyro_common_probe_error;
 
