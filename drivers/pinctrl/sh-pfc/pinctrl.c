@@ -74,6 +74,7 @@ static void sh_pfc_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, "%s", DRV_NAME);
 }
 
+#ifdef CONFIG_OF
 static int sh_pfc_map_add_config(struct pinctrl_map *map,
 				 const char *group_or_pin,
 				 enum pinctrl_map_type type,
@@ -270,14 +271,17 @@ done:
 
 	return ret;
 }
+#endif /* CONFIG_OF */
 
 static const struct pinctrl_ops sh_pfc_pinctrl_ops = {
 	.get_groups_count	= sh_pfc_get_groups_count,
 	.get_group_name		= sh_pfc_get_group_name,
 	.get_group_pins		= sh_pfc_get_group_pins,
 	.pin_dbg_show		= sh_pfc_pin_dbg_show,
+#ifdef CONFIG_OF
 	.dt_node_to_map		= sh_pfc_dt_node_to_map,
 	.dt_free_map		= sh_pfc_dt_free_map,
+#endif
 };
 
 static int sh_pfc_get_functions_count(struct pinctrl_dev *pctldev)
