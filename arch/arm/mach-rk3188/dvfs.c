@@ -89,6 +89,9 @@ static struct lkg_maxvolt lkg_volt_table[] = {
 };
 
 static int leakage_level = 0;
+#define MHZ	(1000 * 1000)
+#define KHZ	(1000)
+// Delayline bound for nandc = 148.5MHz, Varm = Vlog = 1.00V
 #define HIGH_DELAYLINE	125
 #define LOW_DELAYLINE	110
 static u8 rk30_get_avs_val(void);
@@ -100,16 +103,33 @@ void dvfs_adjust_table_lmtvolt(struct clk *clk, struct cpufreq_frequency_table *
 	leakage_level = rk_leakage_val();
 	printk("DVFS MSG: %s: %s get leakage_level = %d\n", clk->name, __func__, leakage_level);
 	if (leakage_level == 0) {
-		int delayline_val = 0;
-		delayline_val = rk30_get_avs_val();
-		printk("This chip no leakage msg, use delayline instead, val = %d\n", delayline_val);
+		
+		/*
+		 * This is for delayline auto scale voltage, 
+		 * FIXME: HIGH_DELAYLINE / LOW_DELAYLINE value maybe redefined under
+		 * Varm = Vlog = 1.00V.
+		 * Warning: this value is frequency/voltage sensitive, care
+		 * about Freq nandc/Volt log.
+		 *
+		 */
 
-		if (delayline_val >= HIGH_DELAYLINE) {
+		unsigned long delayline_val = 0;
+		unsigned long high_delayline = 0, low_delayline = 0;
+		unsigned long rate_nandc = 0;
+		rate_nandc = clk_get_rate(clk_get(NULL, "nandc")) / KHZ;
+		printk("Get nandc rate = %lu KHz\n", rate_nandc);
+		high_delayline = HIGH_DELAYLINE * 148500 / rate_nandc;
+		low_delayline = LOW_DELAYLINE * 148500 / rate_nandc;
+		delayline_val = rk30_get_avs_val();
+		printk("This chip no leakage msg, use delayline instead, val = %lu.(HDL=%lu, LDL=%lu)\n",
+				delayline_val, high_delayline, low_delayline);
+
+		if (delayline_val >= high_delayline) {
 			leakage_level = 4;	//same as leakage_level > 4
 
-		} else if (delayline_val <= LOW_DELAYLINE) {
+		} else if (delayline_val <= low_delayline) {
 			leakage_level = 1;
-			printk("Delayline TOO LOW, maybe need high voltage\n");
+			printk("Delayline TOO LOW, high voltage request\n");
 
 		} else
 			leakage_level = 2;	//same as leakage_level = 3
