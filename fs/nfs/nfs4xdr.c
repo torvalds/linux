@@ -2003,7 +2003,7 @@ static void encode_free_stateid(struct xdr_stream *xdr,
 				struct compound_hdr *hdr)
 {
 	encode_op_hdr(xdr, OP_FREE_STATEID, decode_free_stateid_maxsz, hdr);
-	encode_nfs4_stateid(xdr, args->stateid);
+	encode_nfs4_stateid(xdr, &args->stateid);
 }
 #endif /* CONFIG_NFS_V4_1 */
 

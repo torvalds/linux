@@ -56,11 +56,11 @@ static int decode_sector_number(__be32 **rp, sector_t *sp)
 /*
  * Release the block device
  */
-int nfs4_blkdev_put(struct block_device *bdev)
+void nfs4_blkdev_put(struct block_device *bdev)
 {
 	dprintk("%s for device %d:%d\n", __func__, MAJOR(bdev->bd_dev),
 			MINOR(bdev->bd_dev));
-	return blkdev_put(bdev, FMODE_READ);
+	blkdev_put(bdev, FMODE_READ);
 }
 
 ssize_t bl_pipe_downcall(struct file *filp, const char __user *src,

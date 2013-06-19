@@ -752,19 +752,29 @@ static void do_smart_update(struct sem_array *sma, struct sembuf *sops, int nsop
 			int otime, struct list_head *pt)
 {
 	int i;
+	int progress;
 
-	if (sma->complex_count || sops == NULL) {
-		if (update_queue(sma, -1, pt))
+	progress = 1;
+retry_global:
+	if (sma->complex_count) {
+		if (update_queue(sma, -1, pt)) {
+			progress = 1;
 			otime = 1;
+			sops = NULL;
+		}
 	}
+	if (!progress)
+		goto done;
 
 	if (!sops) {
 		/* No semops; something special is going on. */
 		for (i = 0; i < sma->sem_nsems; i++) {
-			if (update_queue(sma, i, pt))
+			if (update_queue(sma, i, pt)) {
 				otime = 1;
+				progress = 1;
+			}
 		}
-		goto done;
+		goto done_checkretry;
 	}
 
 	/* Check the semaphores that were modified. */
@@ -772,8 +782,15 @@ static void do_smart_update(struct sem_array *sma, struct sembuf *sops, int nsop
 		if (sops[i].sem_op > 0 ||
 			(sops[i].sem_op < 0 &&
 				sma->sem_base[sops[i].sem_num].semval == 0))
-			if (update_queue(sma, sops[i].sem_num, pt))
+			if (update_queue(sma, sops[i].sem_num, pt)) {
 				otime = 1;
+				progress = 1;
+			}
+	}
+done_checkretry:
+	if (progress) {
+		progress = 0;
+		goto retry_global;
 	}
 done:
 	if (otime)
@@ -796,6 +813,13 @@ static int count_semncnt (struct sem_array * sma, ushort semnum)
 	struct sem_queue * q;
 
 	semncnt = 0;
+	list_for_each_entry(q, &sma->sem_base[semnum].sem_pending, list) {
+		struct sembuf * sops = q->sops;
+		BUG_ON(sops->sem_num != semnum);
+		if ((sops->sem_op < 0) && !(sops->sem_flg & IPC_NOWAIT))
+			semncnt++;
+	}
+
 	list_for_each_entry(q, &sma->sem_pending, list) {
 		struct sembuf * sops = q->sops;
 		int nsops = q->nsops;
@@ -815,6 +839,13 @@ static int count_semzcnt (struct sem_array * sma, ushort semnum)
 	struct sem_queue * q;
 
 	semzcnt = 0;
+	list_for_each_entry(q, &sma->sem_base[semnum].sem_pending, list) {
+		struct sembuf * sops = q->sops;
+		BUG_ON(sops->sem_num != semnum);
+		if ((sops->sem_op == 0) && !(sops->sem_flg & IPC_NOWAIT))
+			semzcnt++;
+	}
+
 	list_for_each_entry(q, &sma->sem_pending, list) {
 		struct sembuf * sops = q->sops;
 		int nsops = q->nsops;

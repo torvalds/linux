@@ -1700,7 +1700,8 @@ static int bfin_mac_probe(struct platform_device *pdev)
 	}
 
 	bfin_mac_hwtstamp_init(ndev);
-	if (bfin_phc_init(ndev, &pdev->dev)) {
+	rc = bfin_phc_init(ndev, &pdev->dev);
+	if (rc) {
 		dev_err(&pdev->dev, "Cannot register PHC device!\n");
 		goto out_err_phc;
 	}

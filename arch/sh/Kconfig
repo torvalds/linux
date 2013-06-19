@@ -93,9 +93,6 @@ config GENERIC_CSUM
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_GPIO
-	def_bool n
-
 config GENERIC_CALIBRATE_DELAY
 	bool
 

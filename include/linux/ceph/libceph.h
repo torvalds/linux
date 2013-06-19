@@ -66,6 +66,7 @@ struct ceph_options {
 #define CEPH_OSD_IDLE_TTL_DEFAULT    60
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
+#define CEPH_MSG_MAX_MIDDLE_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
 
 #define CEPH_AUTH_NAME_DEFAULT   "guest"
@@ -156,31 +157,11 @@ struct ceph_snap_context {
 	u64 snaps[];
 };
 
-static inline struct ceph_snap_context *
-ceph_get_snap_context(struct ceph_snap_context *sc)
-{
-	/*
-	printk("get_snap_context %p %d -> %d\n", sc, atomic_read(&sc->nref),
-	       atomic_read(&sc->nref)+1);
-	*/
-	if (sc)
-		atomic_inc(&sc->nref);
-	return sc;
-}
-
-static inline void ceph_put_snap_context(struct ceph_snap_context *sc)
-{
-	if (!sc)
-		return;
-	/*
-	printk("put_snap_context %p %d -> %d\n", sc, atomic_read(&sc->nref),
-	       atomic_read(&sc->nref)-1);
-	*/
-	if (atomic_dec_and_test(&sc->nref)) {
-		/*printk(" deleting snap_context %p\n", sc);*/
-		kfree(sc);
-	}
-}
+extern struct ceph_snap_context *ceph_create_snap_context(u32 snap_count,
+					gfp_t gfp_flags);
+extern struct ceph_snap_context *ceph_get_snap_context(
+					struct ceph_snap_context *sc);
+extern void ceph_put_snap_context(struct ceph_snap_context *sc);
 
 /*
  * calculate the number of pages a given length and offset map onto,

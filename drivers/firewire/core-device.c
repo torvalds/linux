@@ -692,10 +692,8 @@ static void create_units(struct fw_device *device)
 		 * match the drivers id_tables against it.
 		 */
 		unit = kzalloc(sizeof(*unit), GFP_KERNEL);
-		if (unit == NULL) {
-			fw_err(device->card, "out of memory for unit\n");
+		if (unit == NULL)
 			continue;
-		}
 
 		unit->directory = ci.p + value - 1;
 		unit->device.bus = &fw_bus_type;

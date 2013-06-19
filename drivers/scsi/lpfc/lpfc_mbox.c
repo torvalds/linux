@@ -2149,18 +2149,21 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 
 	/* Only FC supports upd bit */
 	if ((phba->sli4_hba.lnk_info.lnk_tp == LPFC_LNK_TYPE_FC) &&
-	    (vport->fc_flag & FC_VFI_REGISTERED)) {
+	    (vport->fc_flag & FC_VFI_REGISTERED) &&
+	    (!phba->fc_topology_changed)) {
 		bf_set(lpfc_reg_vfi_vp, reg_vfi, 0);
 		bf_set(lpfc_reg_vfi_upd, reg_vfi, 1);
 	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_MBOX,
 			"3134 Register VFI, mydid:x%x, fcfi:%d, "
-			" vfi:%d, vpi:%d, fc_pname:%x%x\n",
+			" vfi:%d, vpi:%d, fc_pname:%x%x fc_flag:x%x"
+			" port_state:x%x topology chg:%d\n",
 			vport->fc_myDID,
 			phba->fcf.fcfi,
 			phba->sli4_hba.vfi_ids[vport->vfi],
 			phba->vpi_ids[vport->vpi],
-			reg_vfi->wwn[0], reg_vfi->wwn[1]);
+			reg_vfi->wwn[0], reg_vfi->wwn[1], vport->fc_flag,
+			vport->port_state, phba->fc_topology_changed);
 }
 
 /**

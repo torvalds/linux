@@ -356,6 +356,11 @@ static inline struct device_node *of_find_node_by_name(struct device_node *from,
 	return NULL;
 }
 
+static inline struct device_node *of_get_parent(const struct device_node *node)
+{
+	return NULL;
+}
+
 static inline bool of_have_populated_dt(void)
 {
 	return false;
@@ -378,6 +383,11 @@ static inline int of_get_child_count(const struct device_node *np)
 
 static inline int of_device_is_compatible(const struct device_node *device,
 					  const char *name)
+{
+	return 0;
+}
+
+static inline int of_device_is_available(const struct device_node *device)
 {
 	return 0;
 }

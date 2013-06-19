@@ -16,7 +16,7 @@ set -e
 # Some variables and settings used throughout the script
 #
 tmpdir="${objtree}/tar-install"
-tarball="${objtree}/linux-${KERNELRELEASE}.tar"
+tarball="${objtree}/linux-${KERNELRELEASE}-${ARCH}.tar"
 
 
 #

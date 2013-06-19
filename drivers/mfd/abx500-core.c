@@ -156,7 +156,7 @@ EXPORT_SYMBOL(abx500_startup_irq_enabled);
 void abx500_dump_all_banks(void)
 {
 	struct abx500_ops *ops;
-	struct device dummy_child = {0};
+	struct device dummy_child = {NULL};
 	struct abx500_device_entry *dev_entry;
 
 	list_for_each_entry(dev_entry, &abx500_list, list) {

@@ -673,6 +673,8 @@ int __compat_save_altstack(compat_stack_t __user *, unsigned long);
 asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 						 struct compat_timespec __user *interval);
 
+asmlinkage long compat_sys_fanotify_mark(int, unsigned int, __u32, __u32,
+					    int, const char __user *);
 #else
 
 #define is_compat_task() (0)

@@ -224,6 +224,9 @@ void __init dove_i2c_init(void)
 void __init dove_init_early(void)
 {
 	orion_time_set_base(TIMER_VIRT_BASE);
+	mvebu_mbus_init("marvell,dove-mbus",
+			BRIDGE_WINS_BASE, BRIDGE_WINS_SZ,
+			DOVE_MC_WINS_BASE, DOVE_MC_WINS_SZ);
 }
 
 static int __init dove_find_tclk(void)
@@ -326,6 +329,40 @@ void __init dove_sdio1_init(void)
 	platform_device_register(&dove_sdio1);
 }
 
+void __init dove_setup_cpu_wins(void)
+{
+	/*
+	 * The PCIe windows will no longer be statically allocated
+	 * here once Dove is migrated to the pci-mvebu driver.
+	 */
+	mvebu_mbus_add_window_remap_flags("pcie0.0",
+					  DOVE_PCIE0_IO_PHYS_BASE,
+					  DOVE_PCIE0_IO_SIZE,
+					  DOVE_PCIE0_IO_BUS_BASE,
+					  MVEBU_MBUS_PCI_IO);
+	mvebu_mbus_add_window_remap_flags("pcie1.0",
+					  DOVE_PCIE1_IO_PHYS_BASE,
+					  DOVE_PCIE1_IO_SIZE,
+					  DOVE_PCIE1_IO_BUS_BASE,
+					  MVEBU_MBUS_PCI_IO);
+	mvebu_mbus_add_window_remap_flags("pcie0.0",
+					  DOVE_PCIE0_MEM_PHYS_BASE,
+					  DOVE_PCIE0_MEM_SIZE,
+					  MVEBU_MBUS_NO_REMAP,
+					  MVEBU_MBUS_PCI_MEM);
+	mvebu_mbus_add_window_remap_flags("pcie1.0",
+					  DOVE_PCIE1_MEM_PHYS_BASE,
+					  DOVE_PCIE1_MEM_SIZE,
+					  MVEBU_MBUS_NO_REMAP,
+					  MVEBU_MBUS_PCI_MEM);
+	mvebu_mbus_add_window("cesa", DOVE_CESA_PHYS_BASE,
+			      DOVE_CESA_SIZE);
+	mvebu_mbus_add_window("bootrom", DOVE_BOOTROM_PHYS_BASE,
+			      DOVE_BOOTROM_SIZE);
+	mvebu_mbus_add_window("scratchpad", DOVE_SCRATCHPAD_PHYS_BASE,
+			      DOVE_SCRATCHPAD_SIZE);
+}
+
 void __init dove_init(void)
 {
 	pr_info("Dove 88AP510 SoC, TCLK = %d MHz.\n",
@@ -334,7 +371,7 @@ void __init dove_init(void)
 #ifdef CONFIG_CACHE_TAUROS2
 	tauros2_init(0);
 #endif
-	dove_setup_cpu_mbus();
+	dove_setup_cpu_wins();
 
 	/* Setup root of clk tree */
 	dove_clk_init();

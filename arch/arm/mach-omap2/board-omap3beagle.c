@@ -112,13 +112,13 @@ static u8 omap3_beagle_version;
  */
 static struct {
 	int mmc1_gpio_wp;
-	int usb_pwr_level;
+	bool usb_pwr_level;	/* 0 - Active Low, 1 - Active High */
 	int dvi_pd_gpio;
 	int usr_button_gpio;
 	int mmc_caps;
 } beagle_config = {
 	.mmc1_gpio_wp = -EINVAL,
-	.usb_pwr_level = GPIOF_OUT_INIT_LOW,
+	.usb_pwr_level = 0,
 	.dvi_pd_gpio = -EINVAL,
 	.usr_button_gpio = 4,
 	.mmc_caps = MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
@@ -178,7 +178,7 @@ static void __init omap3_beagle_init_rev(void)
 	case 0:
 		printk(KERN_INFO "OMAP3 Beagle Rev: xM Ax/Bx\n");
 		omap3_beagle_version = OMAP3BEAGLE_BOARD_XM;
-		beagle_config.usb_pwr_level = GPIOF_OUT_INIT_HIGH;
+		beagle_config.usb_pwr_level = 1;
 		beagle_config.mmc_caps &= ~MMC_CAP_8_BIT_DATA;
 		break;
 	case 2:

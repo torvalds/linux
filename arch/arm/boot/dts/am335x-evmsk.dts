@@ -58,7 +58,7 @@
 			status = "okay";
 		};
 
-		i2c1: i2c@44e0b000 {
+		i2c0: i2c@44e0b000 {
 			status = "okay";
 			clock-frequency = <400000>;
 
@@ -115,26 +115,26 @@
 
 		led@1 {
 			label = "evmsk:green:usr0";
-			gpios = <&gpio2 4 0>;
+			gpios = <&gpio1 4 0>;
 			default-state = "off";
 		};
 
 		led@2 {
 			label = "evmsk:green:usr1";
-			gpios = <&gpio2 5 0>;
+			gpios = <&gpio1 5 0>;
 			default-state = "off";
 		};
 
 		led@3 {
 			label = "evmsk:green:mmc0";
-			gpios = <&gpio2 6 0>;
+			gpios = <&gpio1 6 0>;
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
 
 		led@4 {
 			label = "evmsk:green:heartbeat";
-			gpios = <&gpio2 7 0>;
+			gpios = <&gpio1 7 0>;
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
@@ -148,26 +148,26 @@
 		switch@1 {
 			label = "button0";
 			linux,code = <0x100>;
-			gpios = <&gpio3 3 0>;
+			gpios = <&gpio2 3 0>;
 		};
 
 		switch@2 {
 			label = "button1";
 			linux,code = <0x101>;
-			gpios = <&gpio3 2 0>;
+			gpios = <&gpio2 2 0>;
 		};
 
 		switch@3 {
 			label = "button2";
 			linux,code = <0x102>;
-			gpios = <&gpio1 30 0>;
+			gpios = <&gpio0 30 0>;
 			gpio-key,wakeup;
 		};
 
 		switch@4 {
 			label = "button3";
 			linux,code = <0x103>;
-			gpios = <&gpio3 5 0>;
+			gpios = <&gpio2 5 0>;
 		};
 	};
 };

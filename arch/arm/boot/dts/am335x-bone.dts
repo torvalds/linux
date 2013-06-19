@@ -43,7 +43,7 @@
 			status = "okay";
 		};
 
-		i2c1: i2c@44e0b000 {
+		i2c0: i2c@44e0b000 {
 			status = "okay";
 			clock-frequency = <400000>;
 
@@ -59,27 +59,27 @@
 
 		led@2 {
 			label = "beaglebone:green:heartbeat";
-			gpios = <&gpio2 21 0>;
+			gpios = <&gpio1 21 0>;
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
 
 		led@3 {
 			label = "beaglebone:green:mmc0";
-			gpios = <&gpio2 22 0>;
+			gpios = <&gpio1 22 0>;
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
 
 		led@4 {
 			label = "beaglebone:green:usr2";
-			gpios = <&gpio2 23 0>;
+			gpios = <&gpio1 23 0>;
 			default-state = "off";
 		};
 
 		led@5 {
 			label = "beaglebone:green:usr3";
-			gpios = <&gpio2 24 0>;
+			gpios = <&gpio1 24 0>;
 			default-state = "off";
 		};
 	};

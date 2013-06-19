@@ -1,5 +1,5 @@
 /*
- * LP5521/LP5523/LP55231 Common Driver
+ * LP5521/LP5523/LP55231/LP5562 Common Driver
  *
  * Copyright 2012 Texas Instruments
  *
@@ -12,6 +12,7 @@
  * Derived from leds-lp5521.c, leds-lp5523.c
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
@@ -20,6 +21,9 @@
 #include <linux/platform_data/leds-lp55xx.h>
 
 #include "leds-lp55xx-common.h"
+
+/* External clock rate */
+#define LP55XX_CLK_32K			32768
 
 static struct lp55xx_led *cdev_to_lp55xx_led(struct led_classdev *cdev)
 {
@@ -80,7 +84,7 @@ static ssize_t lp55xx_show_current(struct device *dev,
 {
 	struct lp55xx_led *led = dev_to_lp55xx_led(dev);
 
-	return sprintf(buf, "%d\n", led->led_current);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", led->led_current);
 }
 
 static ssize_t lp55xx_store_current(struct device *dev,
@@ -113,7 +117,7 @@ static ssize_t lp55xx_show_max_current(struct device *dev,
 {
 	struct lp55xx_led *led = dev_to_lp55xx_led(dev);
 
-	return sprintf(buf, "%d\n", led->max_current);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", led->max_current);
 }
 
 static DEVICE_ATTR(led_current, S_IRUGO | S_IWUSR, lp55xx_show_current,
@@ -357,6 +361,35 @@ int lp55xx_update_bits(struct lp55xx_chip *chip, u8 reg, u8 mask, u8 val)
 }
 EXPORT_SYMBOL_GPL(lp55xx_update_bits);
 
+bool lp55xx_is_extclk_used(struct lp55xx_chip *chip)
+{
+	struct clk *clk;
+	int err;
+
+	clk = devm_clk_get(&chip->cl->dev, "32k_clk");
+	if (IS_ERR(clk))
+		goto use_internal_clk;
+
+	err = clk_prepare_enable(clk);
+	if (err)
+		goto use_internal_clk;
+
+	if (clk_get_rate(clk) != LP55XX_CLK_32K) {
+		clk_disable_unprepare(clk);
+		goto use_internal_clk;
+	}
+
+	dev_info(&chip->cl->dev, "%dHz external clock used\n",	LP55XX_CLK_32K);
+
+	chip->clk = clk;
+	return true;
+
+use_internal_clk:
+	dev_info(&chip->cl->dev, "internal clock used\n");
+	return false;
+}
+EXPORT_SYMBOL_GPL(lp55xx_is_extclk_used);
+
 int lp55xx_init_device(struct lp55xx_chip *chip)
 {
 	struct lp55xx_platform_data *pdata;
@@ -420,6 +453,9 @@ EXPORT_SYMBOL_GPL(lp55xx_init_device);
 void lp55xx_deinit_device(struct lp55xx_chip *chip)
 {
 	struct lp55xx_platform_data *pdata = chip->pdata;
+
+	if (chip->clk)
+		clk_disable_unprepare(chip->clk);
 
 	if (pdata->enable)
 		pdata->enable(0);

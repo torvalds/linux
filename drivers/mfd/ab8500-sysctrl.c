@@ -23,7 +23,7 @@
 
 static struct device *sysctrl_dev;
 
-void ab8500_power_off(void)
+static void ab8500_power_off(void)
 {
 	sigset_t old;
 	sigset_t all;
@@ -104,7 +104,7 @@ void ab8500_restart(char mode, const char *cmd)
 
 	plat = dev_get_platdata(sysctrl_dev->parent);
 	pdata = plat->sysctrl;
-	if (pdata->reboot_reason_code)
+	if (pdata && pdata->reboot_reason_code)
 		reason = pdata->reboot_reason_code(cmd);
 	else
 		pr_warn("[%s] No reboot reason set. Default reason %d\n",
@@ -188,14 +188,15 @@ static int ab8500_sysctrl_probe(struct platform_device *pdev)
 
 	plat = dev_get_platdata(pdev->dev.parent);
 
-	if (!(plat && plat->sysctrl))
+	if (!plat)
 		return -EINVAL;
 
-	if (plat->pm_power_off)
+	sysctrl_dev = &pdev->dev;
+
+	if (!pm_power_off)
 		pm_power_off = ab8500_power_off;
 
 	pdata = plat->sysctrl;
-
 	if (pdata) {
 		int last, ret, i, j;
 
@@ -226,6 +227,10 @@ static int ab8500_sysctrl_probe(struct platform_device *pdev)
 static int ab8500_sysctrl_remove(struct platform_device *pdev)
 {
 	sysctrl_dev = NULL;
+
+	if (pm_power_off == ab8500_power_off)
+		pm_power_off = NULL;
+
 	return 0;
 }
 
@@ -242,7 +247,7 @@ static int __init ab8500_sysctrl_init(void)
 {
 	return platform_driver_register(&ab8500_sysctrl_driver);
 }
-subsys_initcall(ab8500_sysctrl_init);
+arch_initcall(ab8500_sysctrl_init);
 
 MODULE_AUTHOR("Mattias Nilsson <mattias.i.nilsson@stericsson.com");
 MODULE_DESCRIPTION("AB8500 system control driver");

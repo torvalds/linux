@@ -1095,9 +1095,9 @@ int dapm_clock_event(struct snd_soc_dapm_widget *w,
 
 #ifdef CONFIG_HAVE_CLK
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
-		return clk_enable(w->clk);
+		return clk_prepare_enable(w->clk);
 	} else {
-		clk_disable(w->clk);
+		clk_disable_unprepare(w->clk);
 		return 0;
 	}
 #endif

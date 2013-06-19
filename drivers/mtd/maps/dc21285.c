@@ -143,9 +143,8 @@ static struct map_info dc21285_map = {
 	.copy_from = dc21285_copy_from,
 };
 
-
 /* Partition stuff */
-static const char *probes[] = { "RedBoot", "cmdlinepart", NULL };
+static const char * const probes[] = { "RedBoot", "cmdlinepart", NULL };
 
 static int __init init_dc21285(void)
 {

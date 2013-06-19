@@ -45,7 +45,7 @@
 #include <linux/reboot.h>
 #include <linux/notifier.h>
 #include <linux/kthread.h>
-
+#include <linux/workqueue.h>
 #define __KERNEL_SYSCALLS__
 #include <linux/unistd.h>
 #include <linux/vmalloc.h>
@@ -63,7 +63,7 @@ int drbd_asender(struct drbd_thread *);
 
 int drbd_init(void);
 static int drbd_open(struct block_device *bdev, fmode_t mode);
-static int drbd_release(struct gendisk *gd, fmode_t mode);
+static void drbd_release(struct gendisk *gd, fmode_t mode);
 static int w_md_sync(struct drbd_work *w, int unused);
 static void md_sync_timer_fn(unsigned long data);
 static int w_bitmap_io(struct drbd_work *w, int unused);
@@ -1849,13 +1849,12 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 	return rv;
 }
 
-static int drbd_release(struct gendisk *gd, fmode_t mode)
+static void drbd_release(struct gendisk *gd, fmode_t mode)
 {
 	struct drbd_conf *mdev = gd->private_data;
 	mutex_lock(&drbd_main_mutex);
 	mdev->open_cnt--;
 	mutex_unlock(&drbd_main_mutex);
-	return 0;
 }
 
 static void drbd_set_defaults(struct drbd_conf *mdev)
@@ -2300,6 +2299,7 @@ static void drbd_cleanup(void)
 	idr_for_each_entry(&minors, mdev, i) {
 		idr_remove(&minors, mdev_to_minor(mdev));
 		idr_remove(&mdev->tconn->volumes, mdev->vnr);
+		destroy_workqueue(mdev->submit.wq);
 		del_gendisk(mdev->vdisk);
 		/* synchronize_rcu(); No other threads running at this point */
 		kref_put(&mdev->kref, &drbd_minor_destroy);
@@ -2589,6 +2589,21 @@ void conn_destroy(struct kref *kref)
 	kfree(tconn);
 }
 
+int init_submitter(struct drbd_conf *mdev)
+{
+	/* opencoded create_singlethread_workqueue(),
+	 * to be able to say "drbd%d", ..., minor */
+	mdev->submit.wq = alloc_workqueue("drbd%u_submit",
+			WQ_UNBOUND | WQ_MEM_RECLAIM, 1, mdev->minor);
+	if (!mdev->submit.wq)
+		return -ENOMEM;
+
+	INIT_WORK(&mdev->submit.worker, do_submit);
+	spin_lock_init(&mdev->submit.lock);
+	INIT_LIST_HEAD(&mdev->submit.writes);
+	return 0;
+}
+
 enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, int vnr)
 {
 	struct drbd_conf *mdev;
@@ -2678,6 +2693,12 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 		goto out_idr_remove_minor;
 	}
 
+	if (init_submitter(mdev)) {
+		err = ERR_NOMEM;
+		drbd_msg_put_info("unable to create submit workqueue");
+		goto out_idr_remove_vol;
+	}
+
 	add_disk(disk);
 	kref_init(&mdev->kref); /* one ref for both idrs and the the add_disk */
 
@@ -2688,6 +2709,8 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 
 	return NO_ERROR;
 
+out_idr_remove_vol:
+	idr_remove(&tconn->volumes, vnr_got);
 out_idr_remove_minor:
 	idr_remove(&minors, minor_got);
 	synchronize_rcu();
@@ -2795,6 +2818,7 @@ void drbd_free_bc(struct drbd_backing_dev *ldev)
 	blkdev_put(ldev->backing_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	blkdev_put(ldev->md_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 
+	kfree(ldev->disk_conf);
 	kfree(ldev);
 }
 
@@ -2834,8 +2858,9 @@ void conn_md_sync(struct drbd_tconn *tconn)
 	rcu_read_unlock();
 }
 
+/* aligned 4kByte */
 struct meta_data_on_disk {
-	u64 la_size;           /* last agreed size. */
+	u64 la_size_sect;      /* last agreed size. */
 	u64 uuid[UI_SIZE];   /* UUIDs. */
 	u64 device_uuid;
 	u64 reserved_u64_1;
@@ -2843,13 +2868,17 @@ struct meta_data_on_disk {
 	u32 magic;
 	u32 md_size_sect;
 	u32 al_offset;         /* offset to this block */
-	u32 al_nr_extents;     /* important for restoring the AL */
+	u32 al_nr_extents;     /* important for restoring the AL (userspace) */
 	      /* `-- act_log->nr_elements <-- ldev->dc.al_extents */
 	u32 bm_offset;         /* offset to the bitmap, from here */
 	u32 bm_bytes_per_bit;  /* BM_BLOCK_SIZE */
 	u32 la_peer_max_bio_size;   /* last peer max_bio_size */
-	u32 reserved_u32[3];
 
+	/* see al_tr_number_to_on_disk_sector() */
+	u32 al_stripes;
+	u32 al_stripe_size_4k;
+
+	u8 reserved_u8[4096 - (7*8 + 10*4)];
 } __packed;
 
 /**
@@ -2861,6 +2890,10 @@ void drbd_md_sync(struct drbd_conf *mdev)
 	struct meta_data_on_disk *buffer;
 	sector_t sector;
 	int i;
+
+	/* Don't accidentally change the DRBD meta data layout. */
+	BUILD_BUG_ON(UI_SIZE != 4);
+	BUILD_BUG_ON(sizeof(struct meta_data_on_disk) != 4096);
 
 	del_timer(&mdev->md_sync_timer);
 	/* timer may be rearmed by drbd_md_mark_dirty() now. */
@@ -2876,9 +2909,9 @@ void drbd_md_sync(struct drbd_conf *mdev)
 	if (!buffer)
 		goto out;
 
-	memset(buffer, 0, 512);
+	memset(buffer, 0, sizeof(*buffer));
 
-	buffer->la_size = cpu_to_be64(drbd_get_capacity(mdev->this_bdev));
+	buffer->la_size_sect = cpu_to_be64(drbd_get_capacity(mdev->this_bdev));
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
 		buffer->uuid[i] = cpu_to_be64(mdev->ldev->md.uuid[i]);
 	buffer->flags = cpu_to_be32(mdev->ldev->md.flags);
@@ -2893,7 +2926,10 @@ void drbd_md_sync(struct drbd_conf *mdev)
 	buffer->bm_offset = cpu_to_be32(mdev->ldev->md.bm_offset);
 	buffer->la_peer_max_bio_size = cpu_to_be32(mdev->peer_max_bio_size);
 
-	D_ASSERT(drbd_md_ss__(mdev, mdev->ldev) == mdev->ldev->md.md_offset);
+	buffer->al_stripes = cpu_to_be32(mdev->ldev->md.al_stripes);
+	buffer->al_stripe_size_4k = cpu_to_be32(mdev->ldev->md.al_stripe_size_4k);
+
+	D_ASSERT(drbd_md_ss(mdev->ldev) == mdev->ldev->md.md_offset);
 	sector = mdev->ldev->md.md_offset;
 
 	if (drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
@@ -2911,13 +2947,141 @@ out:
 	put_ldev(mdev);
 }
 
+static int check_activity_log_stripe_size(struct drbd_conf *mdev,
+		struct meta_data_on_disk *on_disk,
+		struct drbd_md *in_core)
+{
+	u32 al_stripes = be32_to_cpu(on_disk->al_stripes);
+	u32 al_stripe_size_4k = be32_to_cpu(on_disk->al_stripe_size_4k);
+	u64 al_size_4k;
+
+	/* both not set: default to old fixed size activity log */
+	if (al_stripes == 0 && al_stripe_size_4k == 0) {
+		al_stripes = 1;
+		al_stripe_size_4k = MD_32kB_SECT/8;
+	}
+
+	/* some paranoia plausibility checks */
+
+	/* we need both values to be set */
+	if (al_stripes == 0 || al_stripe_size_4k == 0)
+		goto err;
+
+	al_size_4k = (u64)al_stripes * al_stripe_size_4k;
+
+	/* Upper limit of activity log area, to avoid potential overflow
+	 * problems in al_tr_number_to_on_disk_sector(). As right now, more
+	 * than 72 * 4k blocks total only increases the amount of history,
+	 * limiting this arbitrarily to 16 GB is not a real limitation ;-)  */
+	if (al_size_4k > (16 * 1024 * 1024/4))
+		goto err;
+
+	/* Lower limit: we need at least 8 transaction slots (32kB)
+	 * to not break existing setups */
+	if (al_size_4k < MD_32kB_SECT/8)
+		goto err;
+
+	in_core->al_stripe_size_4k = al_stripe_size_4k;
+	in_core->al_stripes = al_stripes;
+	in_core->al_size_4k = al_size_4k;
+
+	return 0;
+err:
+	dev_err(DEV, "invalid activity log striping: al_stripes=%u, al_stripe_size_4k=%u\n",
+			al_stripes, al_stripe_size_4k);
+	return -EINVAL;
+}
+
+static int check_offsets_and_sizes(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
+{
+	sector_t capacity = drbd_get_capacity(bdev->md_bdev);
+	struct drbd_md *in_core = &bdev->md;
+	s32 on_disk_al_sect;
+	s32 on_disk_bm_sect;
+
+	/* The on-disk size of the activity log, calculated from offsets, and
+	 * the size of the activity log calculated from the stripe settings,
+	 * should match.
+	 * Though we could relax this a bit: it is ok, if the striped activity log
+	 * fits in the available on-disk activity log size.
+	 * Right now, that would break how resize is implemented.
+	 * TODO: make drbd_determine_dev_size() (and the drbdmeta tool) aware
+	 * of possible unused padding space in the on disk layout. */
+	if (in_core->al_offset < 0) {
+		if (in_core->bm_offset > in_core->al_offset)
+			goto err;
+		on_disk_al_sect = -in_core->al_offset;
+		on_disk_bm_sect = in_core->al_offset - in_core->bm_offset;
+	} else {
+		if (in_core->al_offset != MD_4kB_SECT)
+			goto err;
+		if (in_core->bm_offset < in_core->al_offset + in_core->al_size_4k * MD_4kB_SECT)
+			goto err;
+
+		on_disk_al_sect = in_core->bm_offset - MD_4kB_SECT;
+		on_disk_bm_sect = in_core->md_size_sect - in_core->bm_offset;
+	}
+
+	/* old fixed size meta data is exactly that: fixed. */
+	if (in_core->meta_dev_idx >= 0) {
+		if (in_core->md_size_sect != MD_128MB_SECT
+		||  in_core->al_offset != MD_4kB_SECT
+		||  in_core->bm_offset != MD_4kB_SECT + MD_32kB_SECT
+		||  in_core->al_stripes != 1
+		||  in_core->al_stripe_size_4k != MD_32kB_SECT/8)
+			goto err;
+	}
+
+	if (capacity < in_core->md_size_sect)
+		goto err;
+	if (capacity - in_core->md_size_sect < drbd_md_first_sector(bdev))
+		goto err;
+
+	/* should be aligned, and at least 32k */
+	if ((on_disk_al_sect & 7) || (on_disk_al_sect < MD_32kB_SECT))
+		goto err;
+
+	/* should fit (for now: exactly) into the available on-disk space;
+	 * overflow prevention is in check_activity_log_stripe_size() above. */
+	if (on_disk_al_sect != in_core->al_size_4k * MD_4kB_SECT)
+		goto err;
+
+	/* again, should be aligned */
+	if (in_core->bm_offset & 7)
+		goto err;
+
+	/* FIXME check for device grow with flex external meta data? */
+
+	/* can the available bitmap space cover the last agreed device size? */
+	if (on_disk_bm_sect < (in_core->la_size_sect+7)/MD_4kB_SECT/8/512)
+		goto err;
+
+	return 0;
+
+err:
+	dev_err(DEV, "meta data offsets don't make sense: idx=%d "
+			"al_s=%u, al_sz4k=%u, al_offset=%d, bm_offset=%d, "
+			"md_size_sect=%u, la_size=%llu, md_capacity=%llu\n",
+			in_core->meta_dev_idx,
+			in_core->al_stripes, in_core->al_stripe_size_4k,
+			in_core->al_offset, in_core->bm_offset, in_core->md_size_sect,
+			(unsigned long long)in_core->la_size_sect,
+			(unsigned long long)capacity);
+
+	return -EINVAL;
+}
+
+
 /**
  * drbd_md_read() - Reads in the meta data super block
  * @mdev:	DRBD device.
  * @bdev:	Device from which the meta data should be read in.
  *
- * Return 0 (NO_ERROR) on success, and an enum drbd_ret_code in case
+ * Return NO_ERROR on success, and an enum drbd_ret_code in case
  * something goes wrong.
+ *
+ * Called exactly once during drbd_adm_attach(), while still being D_DISKLESS,
+ * even before @bdev is assigned to @mdev->ldev.
  */
 int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 {
@@ -2925,12 +3089,17 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	u32 magic, flags;
 	int i, rv = NO_ERROR;
 
-	if (!get_ldev_if_state(mdev, D_ATTACHING))
-		return ERR_IO_MD_DISK;
+	if (mdev->state.disk != D_DISKLESS)
+		return ERR_DISK_CONFIGURED;
 
 	buffer = drbd_md_get_buffer(mdev);
 	if (!buffer)
-		goto out;
+		return ERR_NOMEM;
+
+	/* First, figure out where our meta data superblock is located,
+	 * and read it. */
+	bdev->md.meta_dev_idx = bdev->disk_conf->meta_dev_idx;
+	bdev->md.md_offset = drbd_md_ss(bdev);
 
 	if (drbd_md_sync_page_io(mdev, bdev, bdev->md.md_offset, READ)) {
 		/* NOTE: can't do normal error processing here as this is
@@ -2949,45 +3118,51 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 		rv = ERR_MD_UNCLEAN;
 		goto err;
 	}
+
+	rv = ERR_MD_INVALID;
 	if (magic != DRBD_MD_MAGIC_08) {
 		if (magic == DRBD_MD_MAGIC_07)
 			dev_err(DEV, "Found old (0.7) meta data magic. Did you \"drbdadm create-md\"?\n");
 		else
 			dev_err(DEV, "Meta data magic not found. Did you \"drbdadm create-md\"?\n");
-		rv = ERR_MD_INVALID;
-		goto err;
-	}
-	if (be32_to_cpu(buffer->al_offset) != bdev->md.al_offset) {
-		dev_err(DEV, "unexpected al_offset: %d (expected %d)\n",
-		    be32_to_cpu(buffer->al_offset), bdev->md.al_offset);
-		rv = ERR_MD_INVALID;
-		goto err;
-	}
-	if (be32_to_cpu(buffer->bm_offset) != bdev->md.bm_offset) {
-		dev_err(DEV, "unexpected bm_offset: %d (expected %d)\n",
-		    be32_to_cpu(buffer->bm_offset), bdev->md.bm_offset);
-		rv = ERR_MD_INVALID;
-		goto err;
-	}
-	if (be32_to_cpu(buffer->md_size_sect) != bdev->md.md_size_sect) {
-		dev_err(DEV, "unexpected md_size: %u (expected %u)\n",
-		    be32_to_cpu(buffer->md_size_sect), bdev->md.md_size_sect);
-		rv = ERR_MD_INVALID;
 		goto err;
 	}
 
 	if (be32_to_cpu(buffer->bm_bytes_per_bit) != BM_BLOCK_SIZE) {
 		dev_err(DEV, "unexpected bm_bytes_per_bit: %u (expected %u)\n",
 		    be32_to_cpu(buffer->bm_bytes_per_bit), BM_BLOCK_SIZE);
-		rv = ERR_MD_INVALID;
 		goto err;
 	}
 
-	bdev->md.la_size_sect = be64_to_cpu(buffer->la_size);
+
+	/* convert to in_core endian */
+	bdev->md.la_size_sect = be64_to_cpu(buffer->la_size_sect);
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
 		bdev->md.uuid[i] = be64_to_cpu(buffer->uuid[i]);
 	bdev->md.flags = be32_to_cpu(buffer->flags);
 	bdev->md.device_uuid = be64_to_cpu(buffer->device_uuid);
+
+	bdev->md.md_size_sect = be32_to_cpu(buffer->md_size_sect);
+	bdev->md.al_offset = be32_to_cpu(buffer->al_offset);
+	bdev->md.bm_offset = be32_to_cpu(buffer->bm_offset);
+
+	if (check_activity_log_stripe_size(mdev, buffer, &bdev->md))
+		goto err;
+	if (check_offsets_and_sizes(mdev, bdev))
+		goto err;
+
+	if (be32_to_cpu(buffer->bm_offset) != bdev->md.bm_offset) {
+		dev_err(DEV, "unexpected bm_offset: %d (expected %d)\n",
+		    be32_to_cpu(buffer->bm_offset), bdev->md.bm_offset);
+		goto err;
+	}
+	if (be32_to_cpu(buffer->md_size_sect) != bdev->md.md_size_sect) {
+		dev_err(DEV, "unexpected md_size: %u (expected %u)\n",
+		    be32_to_cpu(buffer->md_size_sect), bdev->md.md_size_sect);
+		goto err;
+	}
+
+	rv = NO_ERROR;
 
 	spin_lock_irq(&mdev->tconn->req_lock);
 	if (mdev->state.conn < C_CONNECTED) {
@@ -3000,8 +3175,6 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 
  err:
 	drbd_md_put_buffer(mdev);
- out:
-	put_ldev(mdev);
 
 	return rv;
 }
@@ -3239,8 +3412,12 @@ static int w_go_diskless(struct drbd_work *w, int unused)
 	 * end up here after a failed attach, before ldev was even assigned.
 	 */
 	if (mdev->bitmap && mdev->ldev) {
+		/* An interrupted resync or similar is allowed to recounts bits
+		 * while we detach.
+		 * Any modifications would not be expected anymore, though.
+		 */
 		if (drbd_bitmap_io_from_worker(mdev, drbd_bm_write,
-					"detach", BM_LOCKED_MASK)) {
+					"detach", BM_LOCKED_TEST_ALLOWED)) {
 			if (test_bit(WAS_READ_ERROR, &mdev->flags)) {
 				drbd_md_set_flag(mdev, MDF_FULL_SYNC);
 				drbd_md_sync(mdev);
@@ -3250,13 +3427,6 @@ static int w_go_diskless(struct drbd_work *w, int unused)
 
 	drbd_force_state(mdev, NS(disk, D_DISKLESS));
 	return 0;
-}
-
-void drbd_go_diskless(struct drbd_conf *mdev)
-{
-	D_ASSERT(mdev->state.disk == D_FAILED);
-	if (!test_and_set_bit(GO_DISKLESS, &mdev->flags))
-		drbd_queue_work(&mdev->tconn->sender_work, &mdev->go_diskless);
 }
 
 /**

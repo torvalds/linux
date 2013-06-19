@@ -361,6 +361,15 @@
 		};
 	};
 
+	pmc {
+		nvidia,suspend-mode = <2>;
+		nvidia,cpu-pwr-good-time = <5000>;
+		nvidia,cpu-pwr-off-time = <5000>;
+		nvidia,core-pwr-good-time = <3845 3845>;
+		nvidia,core-pwr-off-time = <3875>;
+		nvidia,sys-clock-req-active-high;
+	};
+
 	memory-controller@7000f400 {
 		emc-table@83250 {
 			reg = <83250>;
@@ -473,6 +482,9 @@
 			"Mic", "MIC1";
 
 		nvidia,ac97-controller = <&ac97>;
+
+		clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 94>;
+		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 
 	regulators {

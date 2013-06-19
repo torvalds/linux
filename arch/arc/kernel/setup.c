@@ -14,14 +14,13 @@
 #include <linux/module.h>
 #include <linux/cpu.h>
 #include <linux/of_fdt.h>
+#include <linux/cache.h>
 #include <asm/sections.h>
 #include <asm/arcregs.h>
 #include <asm/tlb.h>
-#include <asm/cache.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/irq.h>
-#include <asm/arcregs.h>
 #include <asm/prom.h>
 #include <asm/unwind.h>
 #include <asm/clk.h>
@@ -32,14 +31,14 @@
 int running_on_hw = 1;	/* vs. on ISS */
 
 char __initdata command_line[COMMAND_LINE_SIZE];
-struct machine_desc *machine_desc __initdata;
+struct machine_desc *machine_desc __cpuinitdata;
 
 struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
 
 struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 
 
-void __init read_arc_build_cfg_regs(void)
+void __cpuinit read_arc_build_cfg_regs(void)
 {
 	struct bcr_perip uncached_space;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
@@ -238,7 +237,7 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	return buf;
 }
 
-void __init arc_chk_ccms(void)
+void __cpuinit arc_chk_ccms(void)
 {
 #if defined(CONFIG_ARC_HAS_DCCM) || defined(CONFIG_ARC_HAS_ICCM)
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
@@ -273,7 +272,7 @@ void __init arc_chk_ccms(void)
  * hardware has dedicated regs which need to be saved/restored on ctx-sw
  * (Single Precision uses core regs), thus kernel is kind of oblivious to it
  */
-void __init arc_chk_fpu(void)
+void __cpuinit arc_chk_fpu(void)
 {
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 
@@ -294,7 +293,7 @@ void __init arc_chk_fpu(void)
  *    such as only for boot CPU etc
  */
 
-void __init setup_processor(void)
+void __cpuinit setup_processor(void)
 {
 	char str[512];
 	int cpu_id = smp_processor_id();
@@ -319,23 +318,20 @@ void __init setup_processor(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-#ifdef CONFIG_CMDLINE_UBOOT
-	/* Make sure that a whitespace is inserted before */
-	strlcat(command_line, " ", sizeof(command_line));
-#endif
-	/*
-	 * Append .config cmdline to base command line, which might already
-	 * contain u-boot "bootargs" (handled by head.S, if so configured)
-	 */
-	strlcat(command_line, CONFIG_CMDLINE, sizeof(command_line));
-
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
-	*cmdline_p = command_line;
-
+	/* This also populates @boot_command_line from /bootargs */
 	machine_desc = setup_machine_fdt(__dtb_start);
 	if (!machine_desc)
 		panic("Embedded DT invalid\n");
+
+	/* Append any u-boot provided cmdline */
+#ifdef CONFIG_CMDLINE_UBOOT
+	/* Add a whitespace seperator between the 2 cmdlines */
+	strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
+	strlcat(boot_command_line, command_line, COMMAND_LINE_SIZE);
+#endif
+
+	/* Save unparsed command line copy for /proc/cmdline */
+	*cmdline_p = boot_command_line;
 
 	/* To force early parsing of things like mem=xxx */
 	parse_early_param();

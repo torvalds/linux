@@ -212,8 +212,11 @@ struct dw_dma_chan {
 	/* hardware configuration */
 	unsigned int		block_size;
 	bool			nollp;
+
+	/* custom slave configuration */
 	unsigned int		request_line;
-	struct dw_dma_slave	slave;
+	unsigned char		src_master;
+	unsigned char		dst_master;
 
 	/* configuration passed via DMA_SLAVE_CONFIG */
 	struct dma_slave_config dma_sconfig;
@@ -247,7 +250,6 @@ struct dw_dma {
 	/* hardware configuration */
 	unsigned char		nr_masters;
 	unsigned char		data_width[4];
-	unsigned int		request_line_base;
 
 	struct dw_dma_chan	chan[0];
 };

@@ -1199,8 +1199,6 @@ static int atmel_ac97c_remove(struct platform_device *pdev)
 	snd_card_set_dev(card, NULL);
 	snd_card_free(card);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

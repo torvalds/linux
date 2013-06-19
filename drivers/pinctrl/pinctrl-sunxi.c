@@ -1990,8 +1990,10 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
 		goto gpiochip_error;
+	}
 
 	clk_prepare_enable(clk);
 
@@ -2000,7 +2002,8 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 
 gpiochip_error:
-	ret = gpiochip_remove(pctl->chip);
+	if (gpiochip_remove(pctl->chip))
+		dev_err(&pdev->dev, "failed to remove gpio chip\n");
 pinctrl_error:
 	pinctrl_unregister(pctl->pctl_dev);
 	return ret;

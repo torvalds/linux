@@ -305,6 +305,7 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 	setup_timer(&q->timer, f->frag_expire, (unsigned long)q);
 	spin_lock_init(&q->lock);
 	atomic_set(&q->refcnt, 1);
+	INIT_LIST_HEAD(&q->lru_list);
 
 	return q;
 }

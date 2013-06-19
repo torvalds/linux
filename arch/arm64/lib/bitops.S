@@ -21,13 +21,13 @@
 
 /*
  * x0: bits 5:0  bit offset
- *     bits 63:6 word offset
+ *     bits 31:6 word offset
  * x1: address
  */
 	.macro	bitop, name, instr
 ENTRY(	\name	)
-	and	x3, x0, #63		// Get bit offset
-	eor	x0, x0, x3		// Clear low bits
+	and	w3, w0, #63		// Get bit offset
+	eor	w0, w0, w3		// Clear low bits
 	mov	x2, #1
 	add	x1, x1, x0, lsr #3	// Get word offset
 	lsl	x3, x2, x3		// Create mask
@@ -41,8 +41,8 @@ ENDPROC(\name	)
 
 	.macro	testop, name, instr
 ENTRY(	\name	)
-	and	x3, x0, #63		// Get bit offset
-	eor	x0, x0, x3		// Clear low bits
+	and	w3, w0, #63		// Get bit offset
+	eor	w0, w0, w3		// Clear low bits
 	mov	x2, #1
 	add	x1, x1, x0, lsr #3	// Get word offset
 	lsl	x4, x2, x3		// Create mask

@@ -1990,7 +1990,8 @@ spider_net_open(struct net_device *netdev)
 		goto alloc_rx_failed;
 
 	/* Allocate rx skbs */
-	if (spider_net_alloc_rx_skbs(card))
+	result = spider_net_alloc_rx_skbs(card);
+	if (result)
 		goto alloc_skbs_failed;
 
 	spider_net_set_multi(netdev);

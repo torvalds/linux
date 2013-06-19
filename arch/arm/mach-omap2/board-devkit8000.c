@@ -103,19 +103,6 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
-static int devkit8000_panel_enable_lcd(struct omap_dss_device *dssdev)
-{
-	if (gpio_is_valid(dssdev->reset_gpio))
-		gpio_set_value_cansleep(dssdev->reset_gpio, 1);
-	return 0;
-}
-
-static void devkit8000_panel_disable_lcd(struct omap_dss_device *dssdev)
-{
-	if (gpio_is_valid(dssdev->reset_gpio))
-		gpio_set_value_cansleep(dssdev->reset_gpio, 0);
-}
-
 static struct regulator_consumer_supply devkit8000_vmmc1_supply[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
@@ -127,8 +114,7 @@ static struct regulator_consumer_supply devkit8000_vio_supply[] = {
 
 static struct panel_generic_dpi_data lcd_panel = {
 	.name			= "innolux_at070tn83",
-	.platform_enable        = devkit8000_panel_enable_lcd,
-	.platform_disable       = devkit8000_panel_disable_lcd,
+	/* gpios filled in code */
 };
 
 static struct omap_dss_device devkit8000_lcd_device = {
@@ -210,8 +196,6 @@ static struct gpio_led gpio_leds[];
 static int devkit8000_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
-	int ret;
-
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
 	omap_hsmmc_late_init(mmc);
@@ -220,13 +204,8 @@ static int devkit8000_twl_gpio_setup(struct device *dev,
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
 
 	/* TWL4030_GPIO_MAX + 0 is "LCD_PWREN" (out, active high) */
-	devkit8000_lcd_device.reset_gpio = gpio + TWL4030_GPIO_MAX + 0;
-	ret = gpio_request_one(devkit8000_lcd_device.reset_gpio,
-			       GPIOF_OUT_INIT_LOW, "LCD_PWREN");
-	if (ret < 0) {
-		devkit8000_lcd_device.reset_gpio = -EINVAL;
-		printk(KERN_ERR "Failed to request GPIO for LCD_PWRN\n");
-	}
+	lcd_panel.num_gpios = 1;
+	lcd_panel.gpios[0] = gpio + TWL4030_GPIO_MAX + 0;
 
 	/* gpio + 7 is "DVI_PD" (out, active low) */
 	dvi_panel.power_down_gpio = gpio + 7;

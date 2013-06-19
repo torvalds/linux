@@ -52,7 +52,6 @@ static struct omap_dss_device omap4_panda_dvi_device = {
 	.driver_name		= "tfp410",
 	.data			= &omap4_dvi_panel,
 	.phy.dpi.data_lines	= 24,
-	.reset_gpio		= PANDA_DVI_TFP410_POWER_DOWN_GPIO,
 	.channel		= OMAP_DSS_CHANNEL_LCD2,
 };
 
@@ -177,45 +176,12 @@ static struct picodlp_panel_data sdp4430_picodlp_pdata = {
 	.pwrgood_gpio		= 45,
 };
 
-static void sdp4430_picodlp_init(void)
-{
-	int r;
-	const struct gpio picodlp_gpios[] = {
-		{DLP_POWER_ON_GPIO, GPIOF_OUT_INIT_LOW,
-			"DLP POWER ON"},
-		{sdp4430_picodlp_pdata.emu_done_gpio, GPIOF_IN,
-			"DLP EMU DONE"},
-		{sdp4430_picodlp_pdata.pwrgood_gpio, GPIOF_OUT_INIT_LOW,
-			"DLP PWRGOOD"},
-	};
-
-	r = gpio_request_array(picodlp_gpios, ARRAY_SIZE(picodlp_gpios));
-	if (r)
-		pr_err("Cannot request PicoDLP GPIOs, error %d\n", r);
-}
-
-static int sdp4430_panel_enable_picodlp(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(DISPLAY_SEL_GPIO, 0);
-	gpio_set_value(DLP_POWER_ON_GPIO, 1);
-
-	return 0;
-}
-
-static void sdp4430_panel_disable_picodlp(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(DLP_POWER_ON_GPIO, 0);
-	gpio_set_value(DISPLAY_SEL_GPIO, 1);
-}
-
 static struct omap_dss_device sdp4430_picodlp_device = {
 	.name			= "picodlp",
 	.driver_name		= "picodlp_panel",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.phy.dpi.data_lines	= 24,
 	.channel		= OMAP_DSS_CHANNEL_LCD2,
-	.platform_enable	= sdp4430_panel_enable_picodlp,
-	.platform_disable	= sdp4430_panel_disable_picodlp,
 	.data			= &sdp4430_picodlp_pdata,
 };
 
@@ -232,17 +198,26 @@ static struct omap_dss_board_info sdp4430_dss_data = {
 	.default_device	= &sdp4430_lcd_device,
 };
 
+/*
+ * we select LCD2 by default (instead of Pico DLP) by setting DISPLAY_SEL_GPIO.
+ * Setting DLP_POWER_ON gpio enables the VDLP_2V5 VDLP_1V8 and VDLP_1V0 rails
+ * used by picodlp on the 4430sdp platform. Keep this gpio disabled as LCD2 is
+ * selected by default
+ */
 void __init omap_4430sdp_display_init(void)
 {
 	int r;
 
-	/* Enable LCD2 by default (instead of Pico DLP) */
 	r = gpio_request_one(DISPLAY_SEL_GPIO, GPIOF_OUT_INIT_HIGH,
 			"display_sel");
 	if (r)
 		pr_err("%s: Could not get display_sel GPIO\n", __func__);
 
-	sdp4430_picodlp_init();
+	r = gpio_request_one(DLP_POWER_ON_GPIO, GPIOF_OUT_INIT_LOW,
+		"DLP POWER ON");
+	if (r)
+		pr_err("%s: Could not get DLP POWER ON GPIO\n", __func__);
+
 	omap_display_init(&sdp4430_dss_data);
 	/*
 	 * OMAP4460SDP/Blaze and OMAP4430 ES2.3 SDP/Blaze boards and
@@ -262,12 +237,15 @@ void __init omap_4430sdp_display_init_of(void)
 {
 	int r;
 
-	/* Enable LCD2 by default (instead of Pico DLP) */
 	r = gpio_request_one(DISPLAY_SEL_GPIO, GPIOF_OUT_INIT_HIGH,
 			"display_sel");
 	if (r)
 		pr_err("%s: Could not get display_sel GPIO\n", __func__);
 
-	sdp4430_picodlp_init();
+	r = gpio_request_one(DLP_POWER_ON_GPIO, GPIOF_OUT_INIT_LOW,
+		"DLP POWER ON");
+	if (r)
+		pr_err("%s: Could not get DLP POWER ON GPIO\n", __func__);
+
 	omap_display_init(&sdp4430_dss_data);
 }

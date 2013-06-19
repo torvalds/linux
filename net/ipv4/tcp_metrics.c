@@ -96,7 +96,8 @@ struct tcpm_hash_bucket {
 
 static DEFINE_SPINLOCK(tcp_metrics_lock);
 
-static void tcpm_suck_dst(struct tcp_metrics_block *tm, struct dst_entry *dst)
+static void tcpm_suck_dst(struct tcp_metrics_block *tm, struct dst_entry *dst,
+			  bool fastopen_clear)
 {
 	u32 val;
 
@@ -122,9 +123,11 @@ static void tcpm_suck_dst(struct tcp_metrics_block *tm, struct dst_entry *dst)
 	tm->tcpm_vals[TCP_METRIC_REORDERING] = dst_metric_raw(dst, RTAX_REORDERING);
 	tm->tcpm_ts = 0;
 	tm->tcpm_ts_stamp = 0;
-	tm->tcpm_fastopen.mss = 0;
-	tm->tcpm_fastopen.syn_loss = 0;
-	tm->tcpm_fastopen.cookie.len = 0;
+	if (fastopen_clear) {
+		tm->tcpm_fastopen.mss = 0;
+		tm->tcpm_fastopen.syn_loss = 0;
+		tm->tcpm_fastopen.cookie.len = 0;
+	}
 }
 
 static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
@@ -154,7 +157,7 @@ static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
 	}
 	tm->tcpm_addr = *addr;
 
-	tcpm_suck_dst(tm, dst);
+	tcpm_suck_dst(tm, dst, true);
 
 	if (likely(!reclaim)) {
 		tm->tcpm_next = net->ipv4.tcp_metrics_hash[hash].chain;
@@ -171,7 +174,7 @@ out_unlock:
 static void tcpm_check_stamp(struct tcp_metrics_block *tm, struct dst_entry *dst)
 {
 	if (tm && unlikely(time_after(jiffies, tm->tcpm_stamp + TCP_METRICS_TIMEOUT)))
-		tcpm_suck_dst(tm, dst);
+		tcpm_suck_dst(tm, dst, false);
 }
 
 #define TCP_METRICS_RECLAIM_DEPTH	5

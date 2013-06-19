@@ -17,7 +17,6 @@
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
 #include <mach/bridge-regs.h>
-#include <plat/addr-map.h>
 #include "common.h"
 
 static void kirkwood_enable_pcie_clk(const char *port)

@@ -270,6 +270,9 @@
 #define H_SET_MODE		0x31C
 #define MAX_HCALL_OPCODE	H_SET_MODE
 
+/* Platform specific hcalls, used by KVM */
+#define H_RTAS			0xf000
+
 #ifndef __ASSEMBLY__
 
 /**

@@ -251,7 +251,8 @@ static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
 	switch (enable) {
 	case 0:
 		/*
-		 * When soft_disable is set and enable is cleared, we want
+		 * When soft_disable is set and enable is cleared, the sm_ref
+		 * reference counter is decremented. If it reaches 0, we want
 		 * to clear the SOFT_DISABLED flag but leave the event in the
 		 * state that it was. That is, if the event was enabled and
 		 * SOFT_DISABLED isn't set, then do nothing. But if SOFT_DISABLED
@@ -263,6 +264,8 @@ static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
 		 * "soft enable"s (clearing the SOFT_DISABLED bit) wont work.
 		 */
 		if (soft_disable) {
+			if (atomic_dec_return(&file->sm_ref) > 0)
+				break;
 			disable = file->flags & FTRACE_EVENT_FL_SOFT_DISABLED;
 			clear_bit(FTRACE_EVENT_FL_SOFT_MODE_BIT, &file->flags);
 		} else
@@ -291,8 +294,11 @@ static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
 		 */
 		if (!soft_disable)
 			clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
-		else
+		else {
+			if (atomic_inc_return(&file->sm_ref) > 1)
+				break;
 			set_bit(FTRACE_EVENT_FL_SOFT_MODE_BIT, &file->flags);
+		}
 
 		if (!(file->flags & FTRACE_EVENT_FL_ENABLED)) {
 
@@ -623,6 +629,8 @@ event_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	if (file->flags & FTRACE_EVENT_FL_ENABLED) {
 		if (file->flags & FTRACE_EVENT_FL_SOFT_DISABLED)
 			buf = "0*\n";
+		else if (file->flags & FTRACE_EVENT_FL_SOFT_MODE)
+			buf = "1*\n";
 		else
 			buf = "1\n";
 	} else
@@ -1521,6 +1529,24 @@ __register_event(struct ftrace_event_call *call, struct module *mod)
 	return 0;
 }
 
+static struct ftrace_event_file *
+trace_create_new_event(struct ftrace_event_call *call,
+		       struct trace_array *tr)
+{
+	struct ftrace_event_file *file;
+
+	file = kmem_cache_alloc(file_cachep, GFP_TRACE);
+	if (!file)
+		return NULL;
+
+	file->event_call = call;
+	file->tr = tr;
+	atomic_set(&file->sm_ref, 0);
+	list_add(&file->list, &tr->events);
+
+	return file;
+}
+
 /* Add an event to a trace directory */
 static int
 __trace_add_new_event(struct ftrace_event_call *call,
@@ -1532,13 +1558,9 @@ __trace_add_new_event(struct ftrace_event_call *call,
 {
 	struct ftrace_event_file *file;
 
-	file = kmem_cache_alloc(file_cachep, GFP_TRACE);
+	file = trace_create_new_event(call, tr);
 	if (!file)
 		return -ENOMEM;
-
-	file->event_call = call;
-	file->tr = tr;
-	list_add(&file->list, &tr->events);
 
 	return event_create_dir(tr->event_dir, file, id, enable, filter, format);
 }
@@ -1554,13 +1576,9 @@ __trace_early_add_new_event(struct ftrace_event_call *call,
 {
 	struct ftrace_event_file *file;
 
-	file = kmem_cache_alloc(file_cachep, GFP_TRACE);
+	file = trace_create_new_event(call, tr);
 	if (!file)
 		return -ENOMEM;
-
-	file->event_call = call;
-	file->tr = tr;
-	list_add(&file->list, &tr->events);
 
 	return 0;
 }
@@ -2054,15 +2072,27 @@ event_enable_func(struct ftrace_hash *hash,
  out_reg:
 	/* Don't let event modules unload while probe registered */
 	ret = try_module_get(file->event_call->mod);
-	if (!ret)
+	if (!ret) {
+		ret = -EBUSY;
 		goto out_free;
+	}
 
 	ret = __ftrace_event_enable_disable(file, 1, 1);
 	if (ret < 0)
 		goto out_put;
 	ret = register_ftrace_function_probe(glob, ops, data);
-	if (!ret)
+	/*
+	 * The above returns on success the # of functions enabled,
+	 * but if it didn't find any functions it returns zero.
+	 * Consider no functions a failure too.
+	 */
+	if (!ret) {
+		ret = -ENOENT;
 		goto out_disable;
+	} else if (ret < 0)
+		goto out_disable;
+	/* Just return zero, not the number of enabled functions */
+	ret = 0;
  out:
 	mutex_unlock(&event_mutex);
 	return ret;

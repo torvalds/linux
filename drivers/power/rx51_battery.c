@@ -42,6 +42,7 @@ static int rx51_battery_read_adc(int channel)
 	req.method = TWL4030_MADC_SW1;
 	req.func_cb = NULL;
 	req.type = TWL4030_MADC_WAIT;
+	req.raw = true;
 
 	if (twl4030_madc_conversion(&req) <= 0)
 		return -ENODATA;

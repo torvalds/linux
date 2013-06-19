@@ -50,6 +50,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/thread_info.h>
+#include <asm/vectors.h>
 
 #define WINDOW_VECTORS_SIZE   0x180
 
@@ -220,7 +221,7 @@ ENTRY(_DoubleExceptionVector)
 
 	xsr	a0, depc		# get DEPC, save a0
 
-	movi	a3, XCHAL_WINDOW_VECTORS_VADDR
+	movi	a3, WINDOW_VECTORS_VADDR
 	_bltu	a0, a3, .Lfixup
 	addi	a3, a3, WINDOW_VECTORS_SIZE
 	_bgeu	a0, a3, .Lfixup
@@ -385,9 +386,12 @@ ENDPROC(_DebugInterruptVector)
 	.if	XCHAL_EXCM_LEVEL >= \level
 	.section .Level\level\()InterruptVector.text, "ax"
 ENTRY(_Level\level\()InterruptVector)
-	wsr	a0, epc1
+	wsr	a0, excsave2
 	rsr	a0, epc\level
-	xsr	a0, epc1
+	wsr	a0, epc1
+	movi	a0, EXCCAUSE_LEVEL1_INTERRUPT
+	wsr	a0, exccause
+	rsr	a0, eps\level
 					# branch to user or kernel vector
 	j	_SimulateUserKernelVectorException
 	.endif
@@ -439,10 +443,8 @@ ENDPROC(_WindowOverflow4)
 	 */
 	.align 4
 _SimulateUserKernelVectorException:
-	wsr	a0, excsave2
-	movi	a0, 4			# LEVEL1_INTERRUPT cause
-	wsr	a0, exccause
-	rsr	a0, ps
+	addi	a0, a0, (1 << PS_EXCM_BIT)
+	wsr	a0, ps
 	bbsi.l	a0, PS_UM_BIT, 1f	# branch if user mode
 	rsr	a0, excsave2		# restore a0
 	j	_KernelExceptionVector	# simulate kernel vector exception

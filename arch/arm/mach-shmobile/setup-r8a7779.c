@@ -1,8 +1,9 @@
 /*
  * r8a7779 processor support
  *
- * Copyright (C) 2011  Renesas Solutions Corp.
+ * Copyright (C) 2011, 2013  Renesas Solutions Corp.
  * Copyright (C) 2011  Magnus Damm
+ * Copyright (C) 2013  Cogent Embedded, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/of_platform.h>
+#include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -68,11 +70,6 @@ static struct resource r8a7779_pfc_resources[] = {
 		.end	= 0xfffc023b,
 		.flags	= IORESOURCE_MEM,
 	},
-	[1] = {
-		.start	= 0xffc40000,
-		.end	= 0xffc46fff,
-		.flags	= IORESOURCE_MEM,
-	}
 };
 
 static struct platform_device r8a7779_pfc_device = {
@@ -82,9 +79,59 @@ static struct platform_device r8a7779_pfc_device = {
 	.num_resources	= ARRAY_SIZE(r8a7779_pfc_resources),
 };
 
+#define R8A7779_GPIO(idx, npins) \
+static struct resource r8a7779_gpio##idx##_resources[] = {		\
+	[0] = {								\
+		.start	= 0xffc40000 + 0x1000 * (idx),			\
+		.end	= 0xffc4002b + 0x1000 * (idx),			\
+		.flags	= IORESOURCE_MEM,				\
+	},								\
+	[1] = {								\
+		.start	= gic_iid(0xad + (idx)),			\
+		.flags	= IORESOURCE_IRQ,				\
+	}								\
+};									\
+									\
+static struct gpio_rcar_config r8a7779_gpio##idx##_platform_data = {	\
+	.gpio_base	= 32 * (idx),					\
+	.irq_base	= 0,						\
+	.number_of_pins	= npins,					\
+	.pctl_name	= "pfc-r8a7779",				\
+};									\
+									\
+static struct platform_device r8a7779_gpio##idx##_device = {		\
+	.name		= "gpio_rcar",					\
+	.id		= idx,						\
+	.resource	= r8a7779_gpio##idx##_resources,		\
+	.num_resources	= ARRAY_SIZE(r8a7779_gpio##idx##_resources),	\
+	.dev		= {						\
+		.platform_data	= &r8a7779_gpio##idx##_platform_data,	\
+	},								\
+}
+
+R8A7779_GPIO(0, 32);
+R8A7779_GPIO(1, 32);
+R8A7779_GPIO(2, 32);
+R8A7779_GPIO(3, 32);
+R8A7779_GPIO(4, 32);
+R8A7779_GPIO(5, 32);
+R8A7779_GPIO(6, 9);
+
+static struct platform_device *r8a7779_pinctrl_devices[] __initdata = {
+	&r8a7779_pfc_device,
+	&r8a7779_gpio0_device,
+	&r8a7779_gpio1_device,
+	&r8a7779_gpio2_device,
+	&r8a7779_gpio3_device,
+	&r8a7779_gpio4_device,
+	&r8a7779_gpio5_device,
+	&r8a7779_gpio6_device,
+};
+
 void __init r8a7779_pinmux_init(void)
 {
-	platform_device_register(&r8a7779_pfc_device);
+	platform_add_devices(r8a7779_pinctrl_devices,
+			    ARRAY_SIZE(r8a7779_pinctrl_devices));
 }
 
 static struct plat_sci_port scif0_platform_data = {
@@ -347,6 +394,18 @@ static struct platform_device sata_device = {
 	},
 };
 
+/* Ether */
+static struct resource ether_resources[] = {
+	{
+		.start	= 0xfde00000,
+		.end	= 0xfde003ff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= gic_iid(0xb4),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct platform_device *r8a7779_devices_dt[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -380,6 +439,14 @@ void __init r8a7779_add_standard_devices(void)
 			    ARRAY_SIZE(r8a7779_devices_dt));
 	platform_add_devices(r8a7779_late_devices,
 			    ARRAY_SIZE(r8a7779_late_devices));
+}
+
+void __init r8a7779_add_ether_device(struct sh_eth_plat_data *pdata)
+{
+	platform_device_register_resndata(&platform_bus, "sh_eth", -1,
+					  ether_resources,
+					  ARRAY_SIZE(ether_resources),
+					  pdata, sizeof(*pdata));
 }
 
 /* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */

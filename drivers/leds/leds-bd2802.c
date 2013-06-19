@@ -732,7 +732,7 @@ failed_unregister_dev_file:
 	return ret;
 }
 
-static int __exit bd2802_remove(struct i2c_client *client)
+static int bd2802_remove(struct i2c_client *client)
 {
 	struct bd2802_led *led = i2c_get_clientdata(client);
 	int i;
@@ -747,8 +747,7 @@ static int __exit bd2802_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 static void bd2802_restore_state(struct bd2802_led *led)
 {
 	int i;
@@ -785,12 +784,9 @@ static int bd2802_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(bd2802_pm, bd2802_suspend, bd2802_resume);
-#define BD2802_PM (&bd2802_pm)
-#else		/* CONFIG_PM */
-#define BD2802_PM NULL
-#endif
 
 static const struct i2c_device_id bd2802_id[] = {
 	{ "BD2802", 0 },
@@ -801,10 +797,10 @@ MODULE_DEVICE_TABLE(i2c, bd2802_id);
 static struct i2c_driver bd2802_i2c_driver = {
 	.driver	= {
 		.name	= "BD2802",
-		.pm	= BD2802_PM,
+		.pm	= &bd2802_pm,
 	},
 	.probe		= bd2802_probe,
-	.remove		= __exit_p(bd2802_remove),
+	.remove		= bd2802_remove,
 	.id_table	= bd2802_id,
 };
 

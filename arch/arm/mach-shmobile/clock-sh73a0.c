@@ -21,6 +21,8 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
+#include <asm/processor.h>
+#include <mach/clock.h>
 #include <mach/common.h>
 
 #define FRQCRA		IOMEM(0xe6150000)
@@ -82,59 +84,14 @@ struct clk sh73a0_extal2_clk = {
 	.rate		= 48000000,
 };
 
-/* A fixed divide-by-2 block */
-static unsigned long div2_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 2;
-}
-
-static struct sh_clk_ops div2_clk_ops = {
-	.recalc		= div2_recalc,
-};
-
-static unsigned long div7_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 7;
-}
-
-static struct sh_clk_ops div7_clk_ops = {
-	.recalc		= div7_recalc,
-};
-
-static unsigned long div13_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 13;
-}
-
-static struct sh_clk_ops div13_clk_ops = {
-	.recalc		= div13_recalc,
-};
-
-/* Divide extal1 by two */
-static struct clk extal1_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh73a0_extal1_clk,
-};
-
-/* Divide extal2 by two */
-static struct clk extal2_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh73a0_extal2_clk,
-};
-
 static struct sh_clk_ops main_clk_ops = {
 	.recalc		= followparent_recalc,
 };
 
 /* Main clock */
 static struct clk main_clk = {
+	/* .parent wll be set on sh73a0_clock_init() */
 	.ops		= &main_clk_ops,
-};
-
-/* Divide Main clock by two */
-static struct clk main_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &main_clk,
 };
 
 /* PLL0, PLL1, PLL2, PLL3 */
@@ -192,21 +149,17 @@ static struct clk pll3_clk = {
 	.enable_bit	= 3,
 };
 
-/* Divide PLL */
-static struct clk pll1_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &pll1_clk,
-};
+/* A fixed divide block */
+SH_CLK_RATIO(div2,  1, 2);
+SH_CLK_RATIO(div7,  1, 7);
+SH_CLK_RATIO(div13, 1, 13);
 
-static struct clk pll1_div7_clk = {
-	.ops		= &div7_clk_ops,
-	.parent		= &pll1_clk,
-};
-
-static struct clk pll1_div13_clk = {
-	.ops		= &div13_clk_ops,
-	.parent		= &pll1_clk,
-};
+SH_FIXED_RATIO_CLK(extal1_div2_clk,	sh73a0_extal1_clk,	div2);
+SH_FIXED_RATIO_CLK(extal2_div2_clk,	sh73a0_extal2_clk,	div2);
+SH_FIXED_RATIO_CLK(main_div2_clk,	main_clk,		div2);
+SH_FIXED_RATIO_CLK(pll1_div2_clk,	pll1_clk,		div2);
+SH_FIXED_RATIO_CLK(pll1_div7_clk,	pll1_clk,		div7);
+SH_FIXED_RATIO_CLK(pll1_div13_clk,	pll1_clk,		div13);
 
 /* External input clock */
 struct clk sh73a0_extcki_clk = {
@@ -234,14 +187,24 @@ static struct clk *main_clks[] = {
 	&sh73a0_extalr_clk,
 };
 
+static int frqcr_kick(void)
+{
+	int i;
+
+	/* set KICK bit in FRQCRB to update hardware setting, check success */
+	__raw_writel(__raw_readl(FRQCRB) | (1 << 31), FRQCRB);
+	for (i = 1000; i; i--)
+		if (__raw_readl(FRQCRB) & (1 << 31))
+			cpu_relax();
+		else
+			return i;
+
+	return -ETIMEDOUT;
+}
+
 static void div4_kick(struct clk *clk)
 {
-	unsigned long value;
-
-	/* set KICK bit in FRQCRB to update hardware setting */
-	value = __raw_readl(FRQCRB);
-	value |= (1 << 31);
-	__raw_writel(value, FRQCRB);
+	frqcr_kick();
 }
 
 static int divisors[] = { 2, 3, 4, 6, 8, 12, 16, 18,
@@ -258,7 +221,7 @@ static struct clk_div4_table div4_table = {
 };
 
 enum { DIV4_I, DIV4_ZG, DIV4_M3, DIV4_B, DIV4_M1, DIV4_M2,
-	DIV4_Z, DIV4_ZTR, DIV4_ZT, DIV4_ZX, DIV4_HP, DIV4_NR };
+	DIV4_Z, DIV4_ZX, DIV4_HP, DIV4_NR };
 
 #define DIV4(_reg, _bit, _mask, _flags) \
 	SH_CLK_DIV4(&pll1_clk, _reg, _bit, _mask, _flags)
@@ -271,10 +234,22 @@ static struct clk div4_clks[DIV4_NR] = {
 	[DIV4_M1] = DIV4(FRQCRA, 4, 0x1dff, 0),
 	[DIV4_M2] = DIV4(FRQCRA, 0, 0x1dff, 0),
 	[DIV4_Z] = SH_CLK_DIV4(&pll0_clk, FRQCRB, 24, 0x97f, 0),
-	[DIV4_ZTR] = DIV4(FRQCRB, 20, 0xdff, 0),
-	[DIV4_ZT] = DIV4(FRQCRB, 16, 0xdff, 0),
 	[DIV4_ZX] = DIV4(FRQCRB, 12, 0xdff, 0),
 	[DIV4_HP] = DIV4(FRQCRB, 4, 0xdff, 0),
+};
+
+static unsigned long twd_recalc(struct clk *clk)
+{
+	return clk_get_rate(clk->parent) / 4;
+}
+
+static struct sh_clk_ops twd_clk_ops = {
+	.recalc = twd_recalc,
+};
+
+static struct clk twd_clk = {
+	.parent = &div4_clks[DIV4_Z],
+	.ops = &twd_clk_ops,
 };
 
 enum { DIV6_VCK1, DIV6_VCK2, DIV6_VCK3, DIV6_ZB1,
@@ -471,6 +446,7 @@ static struct clk dsi1phy_clk = {
 static struct clk *late_main_clks[] = {
 	&dsi0phy_clk,
 	&dsi1phy_clk,
+	&twd_clk,
 };
 
 enum { MSTP001,
@@ -535,6 +511,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 static struct clk_lookup lookups[] = {
 	/* main clocks */
 	CLKDEV_CON_ID("r_clk", &r_clk),
+	CLKDEV_DEV_ID("smp_twd", &twd_clk), /* smp_twd */
 
 	/* DIV6 clocks */
 	CLKDEV_CON_ID("vck1_clk", &div6_clks[DIV6_VCK1]),

@@ -20,6 +20,7 @@
  *	(sct@redhat.com), 1993, 1998
  */
 
+#include <linux/aio.h>
 #include "ext4_jbd2.h"
 #include "truncate.h"
 #include "ext4_extents.h"	/* Needed for EXT_MAX_BLOCKS */

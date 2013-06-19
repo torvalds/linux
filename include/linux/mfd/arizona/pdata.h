@@ -78,6 +78,7 @@ struct arizona_micbias {
 	unsigned int ext_cap:1;    /** External capacitor fitted */
 	unsigned int discharge:1;  /** Actively discharge */
 	unsigned int fast_start:1; /** Enable aggressive startup ramp rate */
+	unsigned int bypass:1;     /** Use bypass mode */
 };
 
 struct arizona_micd_config {
@@ -104,7 +105,8 @@ struct arizona_pdata {
 	/** If a direct 32kHz clock is provided on an MCLK specify it here */
 	int clk32k_src;
 
-	bool irq_active_high; /** IRQ polarity */
+	/** Mode for primary IRQ (defaults to active low) */
+	unsigned int irq_flags;
 
 	/* Base GPIO */
 	int gpio_base;
@@ -183,6 +185,9 @@ struct arizona_pdata {
 
 	/** Haptic actuator type */
 	unsigned int hap_act;
+
+	/** GPIO for primary IRQ (used for edge triggered emulation) */
+	int irq_gpio;
 };
 
 #endif

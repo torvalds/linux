@@ -667,7 +667,6 @@ int mv_otg_remove(struct platform_device *pdev)
 	mv_otg_disable(mvotg);
 
 	usb_remove_phy(&mvotg->phy);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -849,8 +848,6 @@ err_disable_clk:
 err_destroy_workqueue:
 	flush_workqueue(mvotg->qwork);
 	destroy_workqueue(mvotg->qwork);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return retval;
 }

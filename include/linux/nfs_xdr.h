@@ -1176,7 +1176,7 @@ struct nfs41_test_stateid_res {
 
 struct nfs41_free_stateid_args {
 	struct nfs4_sequence_args	seq_args;
-	nfs4_stateid			*stateid;
+	nfs4_stateid			stateid;
 };
 
 struct nfs41_free_stateid_res {

@@ -68,16 +68,6 @@ define_pe_printk_level(pe_err, KERN_ERR);
 define_pe_printk_level(pe_warn, KERN_WARNING);
 define_pe_printk_level(pe_info, KERN_INFO);
 
-static struct pci_dn *pnv_ioda_get_pdn(struct pci_dev *dev)
-{
-	struct device_node *np;
-
-	np = pci_device_to_OF_node(dev);
-	if (!np)
-		return NULL;
-	return PCI_DN(np);
-}
-
 static int pnv_ioda_alloc_pe(struct pnv_phb *phb)
 {
 	unsigned long pe;
@@ -110,7 +100,7 @@ static struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	struct pnv_phb *phb = hose->private_data;
-	struct pci_dn *pdn = pnv_ioda_get_pdn(dev);
+	struct pci_dn *pdn = pci_get_pdn(dev);
 
 	if (!pdn)
 		return NULL;
@@ -173,7 +163,7 @@ static int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 
 	/* Add to all parents PELT-V */
 	while (parent) {
-		struct pci_dn *pdn = pnv_ioda_get_pdn(parent);
+		struct pci_dn *pdn = pci_get_pdn(parent);
 		if (pdn && pdn->pe_number != IODA_INVALID_PE) {
 			rc = opal_pci_set_peltv(phb->opal_id, pdn->pe_number,
 						pe->pe_number, OPAL_ADD_PE_TO_DOMAIN);
@@ -252,7 +242,7 @@ static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	struct pnv_phb *phb = hose->private_data;
-	struct pci_dn *pdn = pnv_ioda_get_pdn(dev);
+	struct pci_dn *pdn = pci_get_pdn(dev);
 	struct pnv_ioda_pe *pe;
 	int pe_num;
 
@@ -323,7 +313,7 @@ static void pnv_ioda_setup_same_PE(struct pci_bus *bus, struct pnv_ioda_pe *pe)
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		struct pci_dn *pdn = pnv_ioda_get_pdn(dev);
+		struct pci_dn *pdn = pci_get_pdn(dev);
 
 		if (pdn == NULL) {
 			pr_warn("%s: No device node associated with device !\n",
@@ -436,7 +426,7 @@ static void pnv_pci_ioda_setup_PEs(void)
 
 static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev)
 {
-	struct pci_dn *pdn = pnv_ioda_get_pdn(pdev);
+	struct pci_dn *pdn = pci_get_pdn(pdev);
 	struct pnv_ioda_pe *pe;
 
 	/*
@@ -768,6 +758,7 @@ static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 				  unsigned int is_64, struct msi_msg *msg)
 {
 	struct pnv_ioda_pe *pe = pnv_ioda_get_pe(dev);
+	struct pci_dn *pdn = pci_get_pdn(dev);
 	struct irq_data *idata;
 	struct irq_chip *ichip;
 	unsigned int xive_num = hwirq - phb->msi_base;
@@ -782,6 +773,10 @@ static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 	/* Check if we have an MVE */
 	if (pe->mve_number < 0)
 		return -ENXIO;
+
+	/* Force 32-bit MSI on some broken devices */
+	if (pdn && pdn->force_32bit_msi)
+		is_64 = 0;
 
 	/* Assign XIVE to PE */
 	rc = opal_pci_set_xive_pe(phb->opal_id, pe->pe_number, xive_num);
@@ -915,11 +910,14 @@ static void pnv_ioda_setup_pe_seg(struct pci_controller *hose,
 				index++;
 			}
 		} else if (res->flags & IORESOURCE_MEM) {
+			/* WARNING: Assumes M32 is mem region 0 in PHB. We need to
+			 * harden that algorithm when we start supporting M64
+			 */
 			region.start = res->start -
-				       hose->pci_mem_offset -
+				       hose->mem_offset[0] -
 				       phb->ioda.m32_pci_base;
 			region.end   = res->end -
-				       hose->pci_mem_offset -
+				       hose->mem_offset[0] -
 				       phb->ioda.m32_pci_base;
 			index = region.start / phb->ioda.m32_segsize;
 
@@ -1032,7 +1030,7 @@ static int pnv_pci_enable_device_hook(struct pci_dev *dev)
 	if (!phb->initialized)
 		return 0;
 
-	pdn = pnv_ioda_get_pdn(dev);
+	pdn = pci_get_pdn(dev);
 	if (!pdn || pdn->pe_number == IODA_INVALID_PE)
 		return -EINVAL;
 
@@ -1043,6 +1041,12 @@ static u32 pnv_ioda_bdfn_to_pe(struct pnv_phb *phb, struct pci_bus *bus,
 			       u32 devfn)
 {
 	return phb->ioda.pe_rmap[(bus->number << 8) | devfn];
+}
+
+static void pnv_pci_ioda_shutdown(struct pnv_phb *phb)
+{
+	opal_pci_reset(phb->opal_id, OPAL_PCI_IODA_TABLE_RESET,
+		       OPAL_ASSERT_RESET);
 }
 
 void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
@@ -1089,7 +1093,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 	/* Detect specific models for error handling */
 	if (of_device_is_compatible(np, "ibm,p7ioc-pciex"))
 		phb->model = PNV_PHB_MODEL_P7IOC;
-	else if (of_device_is_compatible(np, "ibm,p8-pciex"))
+	else if (of_device_is_compatible(np, "ibm,power8-pciex"))
 		phb->model = PNV_PHB_MODEL_PHB3;
 	else
 		phb->model = PNV_PHB_MODEL_UNKNOWN;
@@ -1115,8 +1119,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 	phb->ioda.m32_size += 0x10000;
 
 	phb->ioda.m32_segsize = phb->ioda.m32_size / phb->ioda.total_pe;
-	phb->ioda.m32_pci_base = hose->mem_resources[0].start -
-		hose->pci_mem_offset;
+	phb->ioda.m32_pci_base = hose->mem_resources[0].start - hose->mem_offset[0];
 	phb->ioda.io_size = hose->pci_io_size;
 	phb->ioda.io_segsize = phb->ioda.io_size / phb->ioda.total_pe;
 	phb->ioda.io_pci_base = 0; /* XXX calculate this ? */
@@ -1175,6 +1178,9 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 
 	/* Setup TCEs */
 	phb->dma_dev_setup = pnv_pci_ioda_dma_dev_setup;
+
+	/* Setup shutdown function for kexec */
+	phb->shutdown = pnv_pci_ioda_shutdown;
 
 	/* Setup MSI support */
 	pnv_pci_init_ioda_msis(phb);

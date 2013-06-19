@@ -161,7 +161,7 @@ cifs_read_super(struct super_block *sb)
 
 #ifdef CONFIG_CIFS_NFSD_EXPORT
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
-		cFYI(1, "export ops supported");
+		cifs_dbg(FYI, "export ops supported\n");
 		sb->s_export_op = &cifs_export_ops;
 	}
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
@@ -169,7 +169,7 @@ cifs_read_super(struct super_block *sb)
 	return 0;
 
 out_no_root:
-	cERROR(1, "cifs_read_super: get root inode failed");
+	cifs_dbg(VFS, "%s: get root inode failed\n", __func__);
 	return rc;
 }
 
@@ -372,9 +372,6 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	cifs_show_security(s, tcon->ses->server);
 	cifs_show_cache_flavor(s, cifs_sb);
 
-	seq_printf(s, ",unc=");
-	seq_escape(s, tcon->treeName, " \t\n\\");
-
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER)
 		seq_printf(s, ",multiuser");
 	else if (tcon->ses->user_name)
@@ -502,7 +499,7 @@ static void cifs_umount_begin(struct super_block *sb)
 	/* cancel_brl_requests(tcon); */ /* BB mark all brl mids as exiting */
 	/* cancel_notify_requests(tcon); */
 	if (tcon->ses && tcon->ses->server) {
-		cFYI(1, "wake up tasks now - umount begin not complete");
+		cifs_dbg(FYI, "wake up tasks now - umount begin not complete\n");
 		wake_up_all(&tcon->ses->server->request_q);
 		wake_up_all(&tcon->ses->server->response_q);
 		msleep(1); /* yield */
@@ -573,7 +570,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 	if (full_path == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	cFYI(1, "Get root dentry for %s", full_path);
+	cifs_dbg(FYI, "Get root dentry for %s\n", full_path);
 
 	sep = CIFS_DIR_SEP(cifs_sb);
 	dentry = dget(sb->s_root);
@@ -632,7 +629,7 @@ cifs_do_mount(struct file_system_type *fs_type,
 	struct cifs_mnt_data mnt_data;
 	struct dentry *root;
 
-	cFYI(1, "Devname: %s flags: %d ", dev_name, flags);
+	cifs_dbg(FYI, "Devname: %s flags: %d\n", dev_name, flags);
 
 	volume_info = cifs_get_volume_info((char *)data, dev_name);
 	if (IS_ERR(volume_info))
@@ -655,7 +652,8 @@ cifs_do_mount(struct file_system_type *fs_type,
 	rc = cifs_mount(cifs_sb, volume_info);
 	if (rc) {
 		if (!(flags & MS_SILENT))
-			cERROR(1, "cifs_mount failed w/return code = %d", rc);
+			cifs_dbg(VFS, "cifs_mount failed w/return code = %d\n",
+				 rc);
 		root = ERR_PTR(rc);
 		goto out_mountdata;
 	}
@@ -675,7 +673,7 @@ cifs_do_mount(struct file_system_type *fs_type,
 	}
 
 	if (sb->s_root) {
-		cFYI(1, "Use existing superblock");
+		cifs_dbg(FYI, "Use existing superblock\n");
 		cifs_umount(cifs_sb);
 	} else {
 		rc = cifs_read_super(sb);
@@ -691,7 +689,7 @@ cifs_do_mount(struct file_system_type *fs_type,
 	if (IS_ERR(root))
 		goto out_super;
 
-	cFYI(1, "dentry root is: %p", root);
+	cifs_dbg(FYI, "dentry root is: %p\n", root);
 	goto out;
 
 out_super:
@@ -723,7 +721,8 @@ static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
 	rc = filemap_fdatawrite(inode->i_mapping);
 	if (rc)
-		cFYI(1, "cifs_file_aio_write: %d rc on %p inode", rc, inode);
+		cifs_dbg(FYI, "cifs_file_aio_write: %d rc on %p inode\n",
+			 rc, inode);
 
 	return written;
 }
@@ -1030,7 +1029,10 @@ cifs_init_request_bufs(void)
 	} else {
 		CIFSMaxBufSize &= 0x1FE00; /* Round size to even 512 byte mult*/
 	}
-/*	cERROR(1, "CIFSMaxBufSize %d 0x%x",CIFSMaxBufSize,CIFSMaxBufSize); */
+/*
+	cifs_dbg(VFS, "CIFSMaxBufSize %d 0x%x\n",
+		 CIFSMaxBufSize, CIFSMaxBufSize);
+*/
 	cifs_req_cachep = kmem_cache_create("cifs_request",
 					    CIFSMaxBufSize + max_hdr_size, 0,
 					    SLAB_HWCACHE_ALIGN, NULL);
@@ -1041,7 +1043,7 @@ cifs_init_request_bufs(void)
 		cifs_min_rcv = 1;
 	else if (cifs_min_rcv > 64) {
 		cifs_min_rcv = 64;
-		cERROR(1, "cifs_min_rcv set to maximum (64)");
+		cifs_dbg(VFS, "cifs_min_rcv set to maximum (64)\n");
 	}
 
 	cifs_req_poolp = mempool_create_slab_pool(cifs_min_rcv,
@@ -1072,7 +1074,7 @@ cifs_init_request_bufs(void)
 		cifs_min_small = 2;
 	else if (cifs_min_small > 256) {
 		cifs_min_small = 256;
-		cFYI(1, "cifs_min_small set to maximum (256)");
+		cifs_dbg(FYI, "cifs_min_small set to maximum (256)\n");
 	}
 
 	cifs_sm_req_poolp = mempool_create_slab_pool(cifs_min_small,
@@ -1163,10 +1165,11 @@ init_cifs(void)
 
 	if (cifs_max_pending < 2) {
 		cifs_max_pending = 2;
-		cFYI(1, "cifs_max_pending set to min of 2");
+		cifs_dbg(FYI, "cifs_max_pending set to min of 2\n");
 	} else if (cifs_max_pending > CIFS_MAX_REQ) {
 		cifs_max_pending = CIFS_MAX_REQ;
-		cFYI(1, "cifs_max_pending set to max of %u", CIFS_MAX_REQ);
+		cifs_dbg(FYI, "cifs_max_pending set to max of %u\n",
+			 CIFS_MAX_REQ);
 	}
 
 	cifsiod_wq = alloc_workqueue("cifsiod", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
@@ -1235,7 +1238,7 @@ out_clean_proc:
 static void __exit
 exit_cifs(void)
 {
-	cFYI(DBG2, "exit_cifs");
+	cifs_dbg(NOISY, "exit_cifs\n");
 	unregister_filesystem(&cifs_fs_type);
 	cifs_dfs_release_automount_timer();
 #ifdef CONFIG_CIFS_ACL

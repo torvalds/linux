@@ -15,8 +15,9 @@
 #include <linux/spi/spi.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <video/omapdss.h>
-#include "board-zoom.h"
+#include <video/omap-panel-data.h>
 
+#include "board-zoom.h"
 #include "soc.h"
 #include "common.h"
 
@@ -24,37 +25,17 @@
 #define LCD_PANEL_RESET_GPIO_PILOT	55
 #define LCD_PANEL_QVGA_GPIO		56
 
-static struct gpio zoom_lcd_gpios[] __initdata = {
-	{ -EINVAL,		GPIOF_OUT_INIT_HIGH, "lcd reset" },
-	{ LCD_PANEL_QVGA_GPIO,	GPIOF_OUT_INIT_HIGH, "lcd qvga"	 },
+static struct panel_nec_nl8048_data zoom_lcd_data = {
+	/* res_gpio filled in code */
+	.qvga_gpio = LCD_PANEL_QVGA_GPIO,
 };
-
-static void __init zoom_lcd_panel_init(void)
-{
-	zoom_lcd_gpios[0].gpio = (omap_rev() > OMAP3430_REV_ES3_0) ?
-			LCD_PANEL_RESET_GPIO_PROD :
-			LCD_PANEL_RESET_GPIO_PILOT;
-
-	if (gpio_request_array(zoom_lcd_gpios, ARRAY_SIZE(zoom_lcd_gpios)))
-		pr_err("%s: Failed to get LCD GPIOs.\n", __func__);
-}
-
-static int zoom_panel_enable_lcd(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void zoom_panel_disable_lcd(struct omap_dss_device *dssdev)
-{
-}
 
 static struct omap_dss_device zoom_lcd_device = {
 	.name			= "lcd",
 	.driver_name		= "NEC_8048_panel",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.phy.dpi.data_lines	= 24,
-	.platform_enable	= zoom_panel_enable_lcd,
-	.platform_disable	= zoom_panel_disable_lcd,
+	.data			= &zoom_lcd_data,
 };
 
 static struct omap_dss_device *zoom_dss_devices[] = {
@@ -66,6 +47,13 @@ static struct omap_dss_board_info zoom_dss_data = {
 	.devices		= zoom_dss_devices,
 	.default_device		= &zoom_lcd_device,
 };
+
+static void __init zoom_lcd_panel_init(void)
+{
+	zoom_lcd_data.res_gpio = (omap_rev() > OMAP3430_REV_ES3_0) ?
+			LCD_PANEL_RESET_GPIO_PROD :
+			LCD_PANEL_RESET_GPIO_PILOT;
+}
 
 static struct omap2_mcspi_device_config dss_lcd_mcspi_config = {
 	.turbo_mode		= 1,

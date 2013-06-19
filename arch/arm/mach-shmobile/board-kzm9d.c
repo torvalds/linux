@@ -90,6 +90,5 @@ DT_MACHINE_START(KZM9D_DT, "kzm9d")
 	.init_irq	= emev2_init_irq,
 	.init_machine	= kzm9d_add_standard_devices,
 	.init_late	= shmobile_init_late,
-	.init_time	= shmobile_timer_init,
 	.dt_compat	= kzm9d_boards_compat_dt,
 MACHINE_END

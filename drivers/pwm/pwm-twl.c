@@ -248,7 +248,7 @@ static int twl6030_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	twl->twl6030_toggle3 = val;
 out:
 	mutex_unlock(&twl->mutex);
-	return 0;
+	return ret;
 }
 
 static void twl6030_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -287,12 +287,14 @@ static const struct pwm_ops twl4030_pwm_ops = {
 	.disable = twl4030_pwm_disable,
 	.request = twl4030_pwm_request,
 	.free = twl4030_pwm_free,
+	.owner = THIS_MODULE,
 };
 
 static const struct pwm_ops twl6030_pwm_ops = {
 	.config = twl_pwm_config,
 	.enable = twl6030_pwm_enable,
 	.disable = twl6030_pwm_disable,
+	.owner = THIS_MODULE,
 };
 
 static int twl_pwm_probe(struct platform_device *pdev)
@@ -333,7 +335,7 @@ static int twl_pwm_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id twl_pwm_of_match[] = {
+static const struct of_device_id twl_pwm_of_match[] = {
 	{ .compatible = "ti,twl4030-pwm" },
 	{ .compatible = "ti,twl6030-pwm" },
 	{ },

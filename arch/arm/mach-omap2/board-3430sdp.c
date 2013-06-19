@@ -108,53 +108,38 @@ static struct twl4030_keypad_data sdp3430_kp_data = {
 #define SDP3430_LCD_PANEL_BACKLIGHT_GPIO	8
 #define SDP3430_LCD_PANEL_ENABLE_GPIO		5
 
-static struct gpio sdp3430_dss_gpios[] __initdata = {
-	{SDP3430_LCD_PANEL_ENABLE_GPIO,    GPIOF_OUT_INIT_LOW, "LCD reset"    },
-	{SDP3430_LCD_PANEL_BACKLIGHT_GPIO, GPIOF_OUT_INIT_LOW, "LCD Backlight"},
-};
-
 static void __init sdp3430_display_init(void)
 {
 	int r;
 
-	r = gpio_request_array(sdp3430_dss_gpios,
-			       ARRAY_SIZE(sdp3430_dss_gpios));
+	/*
+	 * the backlight GPIO doesn't directly go to the panel, it enables
+	 * an internal circuit on 3430sdp to create the signal V_BKL_28V,
+	 * this is connected to LED+ pin of the sharp panel. This GPIO
+	 * is left enabled in the board file, and not passed to the panel
+	 * as platform_data.
+	 */
+	r = gpio_request_one(SDP3430_LCD_PANEL_BACKLIGHT_GPIO,
+				GPIOF_OUT_INIT_HIGH, "LCD Backlight");
 	if (r)
-		printk(KERN_ERR "failed to get LCD control GPIOs\n");
+		pr_err("failed to get LCD Backlight GPIO\n");
 
 }
 
-static int sdp3430_panel_enable_lcd(struct omap_dss_device *dssdev)
-{
-	gpio_direction_output(SDP3430_LCD_PANEL_ENABLE_GPIO, 1);
-	gpio_direction_output(SDP3430_LCD_PANEL_BACKLIGHT_GPIO, 1);
-
-	return 0;
-}
-
-static void sdp3430_panel_disable_lcd(struct omap_dss_device *dssdev)
-{
-	gpio_direction_output(SDP3430_LCD_PANEL_ENABLE_GPIO, 0);
-	gpio_direction_output(SDP3430_LCD_PANEL_BACKLIGHT_GPIO, 0);
-}
-
-static int sdp3430_panel_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void sdp3430_panel_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
+static struct panel_sharp_ls037v7dw01_data sdp3430_lcd_data = {
+	.resb_gpio = SDP3430_LCD_PANEL_ENABLE_GPIO,
+	.ini_gpio = -1,
+	.mo_gpio = -1,
+	.lr_gpio = -1,
+	.ud_gpio = -1,
+};
 
 static struct omap_dss_device sdp3430_lcd_device = {
 	.name			= "lcd",
 	.driver_name		= "sharp_ls_panel",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.phy.dpi.data_lines	= 16,
-	.platform_enable	= sdp3430_panel_enable_lcd,
-	.platform_disable	= sdp3430_panel_disable_lcd,
+	.data			= &sdp3430_lcd_data,
 };
 
 static struct tfp410_platform_data dvi_panel = {
@@ -175,8 +160,6 @@ static struct omap_dss_device sdp3430_tv_device = {
 	.driver_name		= "venc",
 	.type			= OMAP_DISPLAY_TYPE_VENC,
 	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
-	.platform_enable	= sdp3430_panel_enable_tv,
-	.platform_disable	= sdp3430_panel_disable_tv,
 };
 
 

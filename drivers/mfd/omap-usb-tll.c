@@ -1,8 +1,9 @@
 /**
  * omap-usb-tll.c - The USB TLL driver for OMAP EHCI & OHCI
  *
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2012-2013 Texas Instruments Incorporated - http://www.ti.com
  * Author: Keshava Munegowda <keshava_mgowda@ti.com>
+ * Author: Roger Quadros <rogerq@ti.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2  of
@@ -27,6 +28,7 @@
 #include <linux/err.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_data/usb-omap.h>
+#include <linux/of.h>
 
 #define USBTLL_DRIVER_NAME	"usbhs_tll"
 
@@ -105,8 +107,8 @@
 
 struct usbtll_omap {
 	int					nch;	/* num. of channels */
-	struct usbhs_omap_platform_data		*pdata;
 	struct clk				**ch_clk;
+	void __iomem				*base;
 };
 
 /*-------------------------------------------------------------------------*/
@@ -210,14 +212,10 @@ static unsigned ohci_omap3_fslsmode(enum usbhs_omap_port_mode mode)
 static int usbtll_omap_probe(struct platform_device *pdev)
 {
 	struct device				*dev =  &pdev->dev;
-	struct usbhs_omap_platform_data		*pdata = dev->platform_data;
-	void __iomem				*base;
 	struct resource				*res;
 	struct usbtll_omap			*tll;
-	unsigned				reg;
 	int					ret = 0;
 	int					i, ver;
-	bool needs_tll;
 
 	dev_dbg(dev, "starting TI HSUSB TLL Controller\n");
 
@@ -227,26 +225,16 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (!pdata) {
-		dev_err(dev, "Platform data missing\n");
-		return -ENODEV;
-	}
-
-	tll->pdata = pdata;
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_request_and_ioremap(dev, res);
-	if (!base) {
-		ret = -EADDRNOTAVAIL;
-		dev_err(dev, "Resource request/ioremap failed:%d\n", ret);
-		return ret;
-	}
+	tll->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(tll->base))
+		return PTR_ERR(tll->base);
 
 	platform_set_drvdata(pdev, tll);
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
-	ver =  usbtll_read(base, OMAP_USBTLL_REVISION);
+	ver =  usbtll_read(tll->base, OMAP_USBTLL_REVISION);
 	switch (ver) {
 	case OMAP_USBTLL_REV1:
 	case OMAP_USBTLL_REV4:
@@ -283,11 +271,85 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 			dev_dbg(dev, "can't get clock : %s\n", clkname);
 	}
 
+	pm_runtime_put_sync(dev);
+	/* only after this can omap_tll_enable/disable work */
+	spin_lock(&tll_lock);
+	tll_dev = dev;
+	spin_unlock(&tll_lock);
+
+	return 0;
+
+err_clk_alloc:
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
+
+	return ret;
+}
+
+/**
+ * usbtll_omap_remove - shutdown processing for UHH & TLL HCDs
+ * @pdev: USB Host Controller being removed
+ *
+ * Reverses the effect of usbtll_omap_probe().
+ */
+static int usbtll_omap_remove(struct platform_device *pdev)
+{
+	struct usbtll_omap *tll = platform_get_drvdata(pdev);
+	int i;
+
+	spin_lock(&tll_lock);
+	tll_dev = NULL;
+	spin_unlock(&tll_lock);
+
+	for (i = 0; i < tll->nch; i++)
+		if (!IS_ERR(tll->ch_clk[i]))
+			clk_put(tll->ch_clk[i]);
+
+	pm_runtime_disable(&pdev->dev);
+	return 0;
+}
+
+static const struct of_device_id usbtll_omap_dt_ids[] = {
+	{ .compatible = "ti,usbhs-tll" },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, usbtll_omap_dt_ids);
+
+static struct platform_driver usbtll_omap_driver = {
+	.driver = {
+		.name		= (char *)usbtll_driver_name,
+		.owner		= THIS_MODULE,
+		.of_match_table = of_match_ptr(usbtll_omap_dt_ids),
+	},
+	.probe		= usbtll_omap_probe,
+	.remove		= usbtll_omap_remove,
+};
+
+int omap_tll_init(struct usbhs_omap_platform_data *pdata)
+{
+	int i;
+	bool needs_tll;
+	unsigned reg;
+	struct usbtll_omap *tll;
+
+	spin_lock(&tll_lock);
+
+	if (!tll_dev) {
+		spin_unlock(&tll_lock);
+		return -ENODEV;
+	}
+
+	tll = dev_get_drvdata(tll_dev);
+
 	needs_tll = false;
 	for (i = 0; i < tll->nch; i++)
 		needs_tll |= omap_usb_mode_needs_tll(pdata->port_mode[i]);
 
+	pm_runtime_get_sync(tll_dev);
+
 	if (needs_tll) {
+		void __iomem *base = tll->base;
 
 		/* Program Common TLL register */
 		reg = usbtll_read(base, OMAP_TLL_SHARED_CONF);
@@ -336,51 +398,29 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 		}
 	}
 
-	pm_runtime_put_sync(dev);
-	/* only after this can omap_tll_enable/disable work */
-	spin_lock(&tll_lock);
-	tll_dev = dev;
+	pm_runtime_put_sync(tll_dev);
+
 	spin_unlock(&tll_lock);
 
 	return 0;
-
-err_clk_alloc:
-	pm_runtime_put_sync(dev);
-	pm_runtime_disable(dev);
-
-	return ret;
 }
+EXPORT_SYMBOL_GPL(omap_tll_init);
 
-/**
- * usbtll_omap_remove - shutdown processing for UHH & TLL HCDs
- * @pdev: USB Host Controller being removed
- *
- * Reverses the effect of usbtll_omap_probe().
- */
-static int usbtll_omap_remove(struct platform_device *pdev)
+int omap_tll_enable(struct usbhs_omap_platform_data *pdata)
 {
-	struct usbtll_omap *tll = platform_get_drvdata(pdev);
 	int i;
+	struct usbtll_omap *tll;
 
 	spin_lock(&tll_lock);
-	tll_dev = NULL;
-	spin_unlock(&tll_lock);
 
-	for (i = 0; i < tll->nch; i++)
-		if (!IS_ERR(tll->ch_clk[i]))
-			clk_put(tll->ch_clk[i]);
+	if (!tll_dev) {
+		spin_unlock(&tll_lock);
+		return -ENODEV;
+	}
 
-	pm_runtime_disable(&pdev->dev);
-	return 0;
-}
+	tll = dev_get_drvdata(tll_dev);
 
-static int usbtll_runtime_resume(struct device *dev)
-{
-	struct usbtll_omap			*tll = dev_get_drvdata(dev);
-	struct usbhs_omap_platform_data		*pdata = tll->pdata;
-	int i;
-
-	dev_dbg(dev, "usbtll_runtime_resume\n");
+	pm_runtime_get_sync(tll_dev);
 
 	for (i = 0; i < tll->nch; i++) {
 		if (omap_usb_mode_needs_tll(pdata->port_mode[i])) {
@@ -391,22 +431,31 @@ static int usbtll_runtime_resume(struct device *dev)
 
 			r = clk_enable(tll->ch_clk[i]);
 			if (r) {
-				dev_err(dev,
+				dev_err(tll_dev,
 				 "Error enabling ch %d clock: %d\n", i, r);
 			}
 		}
 	}
 
+	spin_unlock(&tll_lock);
+
 	return 0;
 }
+EXPORT_SYMBOL_GPL(omap_tll_enable);
 
-static int usbtll_runtime_suspend(struct device *dev)
+int omap_tll_disable(struct usbhs_omap_platform_data *pdata)
 {
-	struct usbtll_omap			*tll = dev_get_drvdata(dev);
-	struct usbhs_omap_platform_data		*pdata = tll->pdata;
 	int i;
+	struct usbtll_omap *tll;
 
-	dev_dbg(dev, "usbtll_runtime_suspend\n");
+	spin_lock(&tll_lock);
+
+	if (!tll_dev) {
+		spin_unlock(&tll_lock);
+		return -ENODEV;
+	}
+
+	tll = dev_get_drvdata(tll_dev);
 
 	for (i = 0; i < tll->nch; i++) {
 		if (omap_usb_mode_needs_tll(pdata->port_mode[i])) {
@@ -415,64 +464,16 @@ static int usbtll_runtime_suspend(struct device *dev)
 		}
 	}
 
+	pm_runtime_put_sync(tll_dev);
+
+	spin_unlock(&tll_lock);
+
 	return 0;
-}
-
-static const struct dev_pm_ops usbtllomap_dev_pm_ops = {
-	SET_RUNTIME_PM_OPS(usbtll_runtime_suspend,
-			   usbtll_runtime_resume,
-			   NULL)
-};
-
-static struct platform_driver usbtll_omap_driver = {
-	.driver = {
-		.name		= (char *)usbtll_driver_name,
-		.owner		= THIS_MODULE,
-		.pm		= &usbtllomap_dev_pm_ops,
-	},
-	.probe		= usbtll_omap_probe,
-	.remove		= usbtll_omap_remove,
-};
-
-int omap_tll_enable(void)
-{
-	int ret;
-
-	spin_lock(&tll_lock);
-
-	if (!tll_dev) {
-		pr_err("%s: OMAP USB TLL not initialized\n", __func__);
-		ret = -ENODEV;
-	} else {
-		ret = pm_runtime_get_sync(tll_dev);
-	}
-
-	spin_unlock(&tll_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(omap_tll_enable);
-
-int omap_tll_disable(void)
-{
-	int ret;
-
-	spin_lock(&tll_lock);
-
-	if (!tll_dev) {
-		pr_err("%s: OMAP USB TLL not initialized\n", __func__);
-		ret = -ENODEV;
-	} else {
-		ret = pm_runtime_put_sync(tll_dev);
-	}
-
-	spin_unlock(&tll_lock);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(omap_tll_disable);
 
 MODULE_AUTHOR("Keshava Munegowda <keshava_mgowda@ti.com>");
+MODULE_AUTHOR("Roger Quadros <rogerq@ti.com>");
 MODULE_ALIAS("platform:" USBHS_DRIVER_NAME);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("usb tll driver for TI OMAP EHCI and OHCI controllers");

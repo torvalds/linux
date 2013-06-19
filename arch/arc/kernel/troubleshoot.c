@@ -26,7 +26,6 @@ static noinline void print_reg_file(long *reg_rev, int start_num)
 	char buf[512];
 	int n = 0, len = sizeof(buf);
 
-	/* weird loop because pt_regs regs rev r12..r0, r25..r13 */
 	for (i = start_num; i < start_num + 13; i++) {
 		n += scnprintf(buf + n, len - n, "r%02u: 0x%08lx\t",
 			       i, (unsigned long)*reg_rev);
@@ -34,13 +33,18 @@ static noinline void print_reg_file(long *reg_rev, int start_num)
 		if (((i + 1) % 3) == 0)
 			n += scnprintf(buf + n, len - n, "\n");
 
+		/* because pt_regs has regs reversed: r12..r0, r25..r13 */
 		reg_rev--;
 	}
 
 	if (start_num != 0)
 		n += scnprintf(buf + n, len - n, "\n\n");
 
-	pr_info("%s", buf);
+	/* To continue printing callee regs on same line as scratch regs */
+	if (start_num == 0)
+		pr_info("%s", buf);
+	else
+		pr_cont("%s\n", buf);
 }
 
 static void show_callee_regs(struct callee_regs *cregs)
@@ -83,6 +87,10 @@ static void show_faulting_vma(unsigned long address, char *buf)
 	dev_t dev = 0;
 	char *nm = buf;
 
+	/* can't use print_vma_addr() yet as it doesn't check for
+	 * non-inclusive vma
+	 */
+
 	vma = find_vma(current->active_mm, address);
 
 	/* check against the find_vma( ) behaviour which returns the next VMA
@@ -98,10 +106,13 @@ static void show_faulting_vma(unsigned long address, char *buf)
 			ino = inode->i_ino;
 		}
 		pr_info("    @off 0x%lx in [%s]\n"
-			"    VMA: 0x%08lx to 0x%08lx\n\n",
-		       address - vma->vm_start, nm, vma->vm_start, vma->vm_end);
-	} else
+			"    VMA: 0x%08lx to 0x%08lx\n",
+			vma->vm_start < TASK_UNMAPPED_BASE ?
+				address : address - vma->vm_start,
+			nm, vma->vm_start, vma->vm_end);
+	} else {
 		pr_info("    @No matching VMA found\n");
+	}
 }
 
 static void show_ecr_verbose(struct pt_regs *regs)
@@ -110,7 +121,7 @@ static void show_ecr_verbose(struct pt_regs *regs)
 	unsigned long address;
 
 	cause_reg = current->thread.cause_code;
-	pr_info("\n[ECR]: 0x%08x => ", cause_reg);
+	pr_info("\n[ECR   ]: 0x%08x => ", cause_reg);
 
 	/* For Data fault, this is data address not instruction addr */
 	address = current->thread.fault_address;
@@ -120,7 +131,7 @@ static void show_ecr_verbose(struct pt_regs *regs)
 
 	/* For DTLB Miss or ProtV, display the memory involved too */
 	if (vec == ECR_V_DTLB_MISS) {
-		pr_cont("Invalid (%s) @ 0x%08lx by insn @ 0x%08lx\n",
+		pr_cont("Invalid %s 0x%08lx by insn @ 0x%08lx\n",
 		       (cause_code == 0x01) ? "Read From" :
 		       ((cause_code == 0x02) ? "Write to" : "EX"),
 		       address, regs->ret);
@@ -168,20 +179,23 @@ void show_regs(struct pt_regs *regs)
 	if (current->thread.cause_code)
 		show_ecr_verbose(regs);
 
-	pr_info("[EFA]: 0x%08lx\n", current->thread.fault_address);
-	pr_info("[ERET]: 0x%08lx (PC of Faulting Instr)\n", regs->ret);
+	pr_info("[EFA   ]: 0x%08lx\n[BLINK ]: %pS\n[ERET  ]: %pS\n",
+		current->thread.fault_address,
+		(void *)regs->blink, (void *)regs->ret);
 
-	show_faulting_vma(regs->ret, buf);	/* faulting code, not data */
+	if (user_mode(regs))
+		show_faulting_vma(regs->ret, buf); /* faulting code, not data */
 
-	/* can't use print_vma_addr() yet as it doesn't check for
-	 * non-inclusive vma
-	 */
+	pr_info("[STAT32]: 0x%08lx", regs->status32);
 
-	/* print special regs */
-	pr_info("status32: 0x%08lx\n", regs->status32);
-	pr_info(" SP: 0x%08lx\tFP: 0x%08lx\n", regs->sp, regs->fp);
-	pr_info("BTA: 0x%08lx\tBLINK: 0x%08lx\n",
-		regs->bta, regs->blink);
+#define STS_BIT(r, bit)	r->status32 & STATUS_##bit##_MASK ? #bit : ""
+	if (!user_mode(regs))
+		pr_cont(" : %2s %2s %2s %2s %2s\n",
+			STS_BIT(regs, AE), STS_BIT(regs, A2), STS_BIT(regs, A1),
+			STS_BIT(regs, E2), STS_BIT(regs, E1));
+
+	pr_info("BTA: 0x%08lx\t SP: 0x%08lx\t FP: 0x%08lx\n",
+		regs->bta, regs->sp, regs->fp);
 	pr_info("LPS: 0x%08lx\tLPE: 0x%08lx\tLPC: 0x%08lx\n",
 	       regs->lp_start, regs->lp_end, regs->lp_count);
 

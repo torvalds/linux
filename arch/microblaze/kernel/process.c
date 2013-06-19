@@ -160,3 +160,8 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpregs)
 	return 0; /* MicroBlaze has no separate FPU registers */
 }
 #endif /* CONFIG_MMU */
+
+void arch_cpu_idle(void)
+{
+       local_irq_enable();
+}

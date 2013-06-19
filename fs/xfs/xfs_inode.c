@@ -287,7 +287,7 @@ xfs_ilock_demote(
 	trace_xfs_ilock_demote(ip, lock_flags, _RET_IP_);
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(XFS_WARN)
 int
 xfs_isilocked(
 	xfs_inode_t		*ip,

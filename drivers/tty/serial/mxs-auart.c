@@ -35,7 +35,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/fsl/mxs-dma.h>
+#include <linux/dmaengine.h>
 
 #include <asm/cacheflush.h>
 
@@ -148,11 +148,6 @@ struct mxs_auart_port {
 	struct device *dev;
 
 	/* for DMA */
-	struct mxs_dma_data dma_data;
-	int dma_channel_rx, dma_channel_tx;
-	int dma_irq_rx, dma_irq_tx;
-	int dma_channel;
-
 	struct scatterlist tx_sgl;
 	struct dma_chan	*tx_dma_chan;
 	void *tx_dma_buf;
@@ -440,20 +435,6 @@ static u32 mxs_auart_get_mctrl(struct uart_port *u)
 	return mctrl;
 }
 
-static bool mxs_auart_dma_filter(struct dma_chan *chan, void *param)
-{
-	struct mxs_auart_port *s = param;
-
-	if (!mxs_dma_is_apbx(chan))
-		return false;
-
-	if (s->dma_channel == chan->chan_id) {
-		chan->private = &s->dma_data;
-		return true;
-	}
-	return false;
-}
-
 static int mxs_auart_dma_prep_rx(struct mxs_auart_port *s);
 static void dma_rx_callback(void *arg)
 {
@@ -545,21 +526,11 @@ static void mxs_auart_dma_exit(struct mxs_auart_port *s)
 
 static int mxs_auart_dma_init(struct mxs_auart_port *s)
 {
-	dma_cap_mask_t mask;
-
 	if (auart_dma_enabled(s))
 		return 0;
 
-	/* We do not get the right DMA channels. */
-	if (s->dma_channel_rx == -1 || s->dma_channel_tx == -1)
-		return -EINVAL;
-
 	/* init for RX */
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	s->dma_channel = s->dma_channel_rx;
-	s->dma_data.chan_irq = s->dma_irq_rx;
-	s->rx_dma_chan = dma_request_channel(mask, mxs_auart_dma_filter, s);
+	s->rx_dma_chan = dma_request_slave_channel(s->dev, "rx");
 	if (!s->rx_dma_chan)
 		goto err_out;
 	s->rx_dma_buf = kzalloc(UART_XMIT_SIZE, GFP_KERNEL | GFP_DMA);
@@ -567,9 +538,7 @@ static int mxs_auart_dma_init(struct mxs_auart_port *s)
 		goto err_out;
 
 	/* init for TX */
-	s->dma_channel = s->dma_channel_tx;
-	s->dma_data.chan_irq = s->dma_irq_tx;
-	s->tx_dma_chan = dma_request_channel(mask, mxs_auart_dma_filter, s);
+	s->tx_dma_chan = dma_request_slave_channel(s->dev, "tx");
 	if (!s->tx_dma_chan)
 		goto err_out;
 	s->tx_dma_buf = kzalloc(UART_XMIT_SIZE, GFP_KERNEL | GFP_DMA);
@@ -1020,7 +989,6 @@ static int serial_mxs_probe_dt(struct mxs_auart_port *s,
 		struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	u32 dma_channel[2];
 	int ret;
 
 	if (!np)
@@ -1034,20 +1002,8 @@ static int serial_mxs_probe_dt(struct mxs_auart_port *s,
 	}
 	s->port.line = ret;
 
-	s->dma_irq_rx = platform_get_irq(pdev, 1);
-	s->dma_irq_tx = platform_get_irq(pdev, 2);
+	s->flags |= MXS_AUART_DMA_CONFIG;
 
-	ret = of_property_read_u32_array(np, "fsl,auart-dma-channel",
-					dma_channel, 2);
-	if (ret == 0) {
-		s->dma_channel_rx = dma_channel[0];
-		s->dma_channel_tx = dma_channel[1];
-
-		s->flags |= MXS_AUART_DMA_CONFIG;
-	} else {
-		s->dma_channel_rx = -1;
-		s->dma_channel_tx = -1;
-	}
 	return 0;
 }
 

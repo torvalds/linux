@@ -889,7 +889,7 @@ static int mlx4_en_flow_replace(struct net_device *dev,
 		.queue_mode = MLX4_NET_TRANS_Q_FIFO,
 		.exclusive = 0,
 		.allow_loopback = 1,
-		.promisc_mode = MLX4_FS_PROMISC_NONE,
+		.promisc_mode = MLX4_FS_REGULAR,
 	};
 
 	rule.port = priv->port;

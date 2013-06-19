@@ -1397,18 +1397,7 @@ static struct platform_driver docg4_driver = {
 	.remove		= __exit_p(cleanup_docg4),
 };
 
-static int __init docg4_init(void)
-{
-	return platform_driver_probe(&docg4_driver, probe_docg4);
-}
-
-static void __exit docg4_exit(void)
-{
-	platform_driver_unregister(&docg4_driver);
-}
-
-module_init(docg4_init);
-module_exit(docg4_exit);
+module_platform_driver_probe(docg4_driver, probe_docg4);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mike Dunn");

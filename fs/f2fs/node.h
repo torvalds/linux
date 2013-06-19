@@ -29,6 +29,9 @@
 /* vector size for gang look-up from nat cache that consists of radix tree */
 #define NATVEC_SIZE	64
 
+/* return value for read_node_page */
+#define LOCKED_PAGE	1
+
 /*
  * For node information
  */
@@ -239,7 +242,7 @@ static inline bool IS_DNODE(struct page *node_page)
 		return false;
 	if (ofs >= 6 + 2 * NIDS_PER_BLOCK) {
 		ofs -= 6 + 2 * NIDS_PER_BLOCK;
-		if ((long int)ofs % (NIDS_PER_BLOCK + 1))
+		if (!((long int)ofs % (NIDS_PER_BLOCK + 1)))
 			return false;
 	}
 	return true;
@@ -275,6 +278,21 @@ static inline nid_t get_nid(struct page *p, int off, bool i)
 static inline int is_cold_file(struct inode *inode)
 {
 	return F2FS_I(inode)->i_advise & FADVISE_COLD_BIT;
+}
+
+static inline void set_cold_file(struct inode *inode)
+{
+	F2FS_I(inode)->i_advise |= FADVISE_COLD_BIT;
+}
+
+static inline int is_cp_file(struct inode *inode)
+{
+	return F2FS_I(inode)->i_advise & FADVISE_CP_BIT;
+}
+
+static inline void set_cp_file(struct inode *inode)
+{
+	F2FS_I(inode)->i_advise |= FADVISE_CP_BIT;
 }
 
 static inline int is_cold_data(struct page *page)

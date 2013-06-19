@@ -335,6 +335,7 @@
 struct ddr_config {
 	u32 ddr_clk;
 	u32 dmc_ddrctl;
+	u32 dmc_effctl;
 	u32 dmc_ddrcfg;
 	u32 dmc_ddrtr0;
 	u32 dmc_ddrtr1;
@@ -348,6 +349,7 @@ static struct ddr_config ddr_config_table[] __attribute__((section(".data_l1")))
 	[0] = {
 		.ddr_clk    = 125,
 		.dmc_ddrctl = 0x00000904,
+		.dmc_effctl = 0x004400C0,
 		.dmc_ddrcfg = 0x00000422,
 		.dmc_ddrtr0 = 0x20705212,
 		.dmc_ddrtr1 = 0x201003CF,
@@ -358,6 +360,7 @@ static struct ddr_config ddr_config_table[] __attribute__((section(".data_l1")))
 	[1] = {
 		.ddr_clk    = 133,
 		.dmc_ddrctl = 0x00000904,
+		.dmc_effctl = 0x004400C0,
 		.dmc_ddrcfg = 0x00000422,
 		.dmc_ddrtr0 = 0x20806313,
 		.dmc_ddrtr1 = 0x2013040D,
@@ -368,6 +371,7 @@ static struct ddr_config ddr_config_table[] __attribute__((section(".data_l1")))
 	[2] = {
 		.ddr_clk    = 150,
 		.dmc_ddrctl = 0x00000904,
+		.dmc_effctl = 0x004400C0,
 		.dmc_ddrcfg = 0x00000422,
 		.dmc_ddrtr0 = 0x20A07323,
 		.dmc_ddrtr1 = 0x20160492,
@@ -378,6 +382,7 @@ static struct ddr_config ddr_config_table[] __attribute__((section(".data_l1")))
 	[3] = {
 		.ddr_clk    = 166,
 		.dmc_ddrctl = 0x00000904,
+		.dmc_effctl = 0x004400C0,
 		.dmc_ddrcfg = 0x00000422,
 		.dmc_ddrtr0 = 0x20A07323,
 		.dmc_ddrtr1 = 0x2016050E,
@@ -388,6 +393,7 @@ static struct ddr_config ddr_config_table[] __attribute__((section(".data_l1")))
 	[4] = {
 		.ddr_clk    = 200,
 		.dmc_ddrctl = 0x00000904,
+		.dmc_effctl = 0x004400C0,
 		.dmc_ddrcfg = 0x00000422,
 		.dmc_ddrtr0 = 0x20a07323,
 		.dmc_ddrtr1 = 0x2016050f,
@@ -398,6 +404,7 @@ static struct ddr_config ddr_config_table[] __attribute__((section(".data_l1")))
 	[5] = {
 		.ddr_clk    = 225,
 		.dmc_ddrctl = 0x00000904,
+		.dmc_effctl = 0x004400C0,
 		.dmc_ddrcfg = 0x00000422,
 		.dmc_ddrtr0 = 0x20E0A424,
 		.dmc_ddrtr1 = 0x302006DB,
@@ -408,6 +415,7 @@ static struct ddr_config ddr_config_table[] __attribute__((section(".data_l1")))
 	[6] = {
 		.ddr_clk    = 250,
 		.dmc_ddrctl = 0x00000904,
+		.dmc_effctl = 0x004400C0,
 		.dmc_ddrcfg = 0x00000422,
 		.dmc_ddrtr0 = 0x20E0A424,
 		.dmc_ddrtr1 = 0x3020079E,
@@ -469,6 +477,7 @@ static inline void init_dmc(u32 dmc_clk)
 			bfin_write_DMC0_TR2(ddr_config_table[i].dmc_ddrtr2);
 			bfin_write_DMC0_MR(ddr_config_table[i].dmc_ddrmr);
 			bfin_write_DMC0_EMR1(ddr_config_table[i].dmc_ddrmr1);
+			bfin_write_DMC0_EFFCTL(ddr_config_table[i].dmc_effctl);
 			bfin_write_DMC0_CTL(ddr_config_table[i].dmc_ddrctl);
 			break;
 		}

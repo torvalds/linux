@@ -1,48 +1,35 @@
-#include <variant/core.h>
+/*
+ *  linux/arch/xtensa/boot/boot-elf/boot.lds.S
+ *
+ *  Copyright (C) 2008 - 2013 by Tensilica Inc.
+ *
+ *  Chris Zankel <chris@zankel.net>
+ *  Marc Gauthier <marc@tensilica.com
+ *  Pete Delaney <piet@tensilica.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <asm/vectors.h>
 OUTPUT_ARCH(xtensa)
 ENTRY(_ResetVector)
 
 SECTIONS
 {
-	.start 0xD0000000 : { *(.start) }
-
-	.text 0xD0000000:
+	.ResetVector.text XCHAL_RESET_VECTOR_VADDR :
 	{
-		__reloc_start = . ;
-		_text_start = . ;
-		*(.literal .text.literal .text)
-		_text_end = . ;
+		*(.ResetVector.text)
 	}
 
-	.rodata ALIGN(0x04):
-	{
-		*(.rodata)
-		*(.rodata1)
-	}
-
-	.data ALIGN(0x04):
-	{
-		*(.data)
-		*(.data1)
-		*(.sdata)
-		*(.sdata2)
-		*(.got.plt)
-		*(.got)
-		*(.dynamic)
-	}
-
-	__reloc_end = . ;
-
-	. = ALIGN(0x10);
-	__image_load = . ;
-	.image 0xd0001000:
+	.image KERNELOFFSET: AT (LOAD_MEMORY_ADDRESS)
 	{
 		_image_start = .;
 		*(image)
 		. = (. + 3) & ~ 3;
 		_image_end = .	;
 	}
-
 
 	.bss ((LOADADDR(.image) + SIZEOF(.image) + 3) & ~ 3):
 	{
@@ -53,14 +40,15 @@ SECTIONS
 		*(.bss)
 		__bss_end = .;
 	}
-	_end = .;
-	_param_start = .;
 
-	.ResetVector.text XCHAL_RESET_VECTOR_VADDR :
+	/*
+	 * This is a remapped copy of the Reset Vector Code.
+	 * It keeps gdb in sync with the PC after switching
+	 * to the temporary mapping used while setting up
+	 * the V2 MMU mappings for Linux.
+	 */
+	.ResetVector.remapped_text 0x46000000 (INFO):
 	{
-		*(.ResetVector.text)
+		*(.ResetVector.remapped_text)
 	}
-
-
-	PROVIDE (end = .);
 }

@@ -355,11 +355,17 @@ config HARDWALL
 config KERNEL_PL
 	int "Processor protection level for kernel"
 	range 1 2
-	default "1"
+	default 2 if TILEGX
+	default 1 if !TILEGX
 	---help---
-	  This setting determines the processor protection level the
-	  kernel will be built to run at.  Generally you should use
-	  the default value here.
+	  Since MDE 4.2, the Tilera hypervisor runs the kernel
+	  at PL2 by default.  If running under an older hypervisor,
+	  or as a KVM guest, you must run at PL1.  (The current
+	  hypervisor may also be recompiled with "make HV_PL=2" to
+	  allow it to run a kernel at PL1, but clients running at PL1
+	  are not expected to be supported indefinitely.)
+
+	  If you're not sure, don't change the default.
 
 source "arch/tile/gxio/Kconfig"
 

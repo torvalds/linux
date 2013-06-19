@@ -215,18 +215,12 @@ static int omap4_keypad_parse_dt(struct device *dev,
 				 struct omap4_keypad *keypad_data)
 {
 	struct device_node *np = dev->of_node;
+	int err;
 
-	if (!np) {
-		dev_err(dev, "missing DT data");
-		return -EINVAL;
-	}
-
-	of_property_read_u32(np, "keypad,num-rows", &keypad_data->rows);
-	of_property_read_u32(np, "keypad,num-columns", &keypad_data->cols);
-	if (!keypad_data->rows || !keypad_data->cols) {
-		dev_err(dev, "number of keypad rows/columns not specified\n");
-		return -EINVAL;
-	}
+	err = matrix_keypad_parse_of_params(dev, &keypad_data->rows,
+					    &keypad_data->cols);
+	if (err)
+		return err;
 
 	if (of_get_property(np, "linux,input-no-autorepeat", NULL))
 		keypad_data->no_autorepeat = true;

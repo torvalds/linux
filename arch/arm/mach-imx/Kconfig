@@ -5,6 +5,7 @@ config ARCH_MXC
 	select AUTO_ZRELADDR if !ZBOOT_ROM
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+	select GENERIC_ALLOCATOR
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
 	select MULTI_IRQ_HANDLER
@@ -61,9 +62,8 @@ config MXC_ULPI
 config ARCH_HAS_RNGA
 	bool
 
-config IRAM_ALLOC
+config HAVE_IMX_ANATOP
 	bool
-	select GENERIC_ALLOCATOR
 
 config HAVE_IMX_GPC
 	bool
@@ -73,6 +73,7 @@ config HAVE_IMX_MMDC
 
 config HAVE_IMX_SRC
 	def_bool y if SMP
+	select ARCH_HAS_RESET_CONTROLLER
 
 config IMX_HAVE_IOMUX_V1
 	bool
@@ -115,6 +116,8 @@ config SOC_IMX25
 
 config SOC_IMX27
 	bool
+	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_OPP
 	select COMMON_CLK
 	select CPU_ARM926T
 	select IMX_HAVE_IOMUX_V1
@@ -142,6 +145,7 @@ config SOC_IMX35
 config SOC_IMX5
 	bool
 	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_OPP
 	select ARCH_MXC_IOMUX_V3
 	select COMMON_CLK
 	select CPU_V7
@@ -466,8 +470,6 @@ config MACH_MX31ADS_WM1133_EV1
 	depends on MACH_MX31ADS
 	depends on MFD_WM8350_I2C
 	depends on REGULATOR_WM8350 = y
-	select MFD_WM8350_CONFIG_MODE_0
-	select MFD_WM8352_CONFIG_MODE_0
 	help
 	  Include support for the Wolfson Microelectronics 1133-EV1 PMU
 	  and audio module for the MX31ADS platform.
@@ -785,7 +787,7 @@ config	SOC_IMX53
 	  This enables support for Freescale i.MX53 processor.
 
 config SOC_IMX6Q
-	bool "i.MX6 Quad support"
+	bool "i.MX6 Quad/DualLite support"
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
@@ -798,6 +800,7 @@ config SOC_IMX6Q
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if LOCAL_TIMERS
 	select HAVE_CAN_FLEXCAN if CAN
+	select HAVE_IMX_ANATOP
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC

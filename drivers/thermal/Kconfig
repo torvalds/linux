@@ -67,15 +67,16 @@ config THERMAL_GOV_USER_SPACE
 	  Enable this to let the user space manage the platform thermals.
 
 config CPU_THERMAL
-	tristate "generic cpu cooling support"
+	bool "generic cpu cooling support"
 	depends on CPU_FREQ
 	select CPU_FREQ_TABLE
 	help
 	  This implements the generic cpu cooling mechanism through frequency
-	  reduction, cpu hotplug and any other ways of reducing temperature. An
-	  ACPI version of this already exists(drivers/acpi/processor_thermal.c).
+	  reduction. An ACPI version of this already exists
+	  (drivers/acpi/processor_thermal.c).
 	  This will be useful for platforms using the generic thermal interface
 	  and not the ACPI interface.
+
 	  If you want this support, you should say Y here.
 
 config THERMAL_EMULATION
@@ -85,6 +86,10 @@ config THERMAL_EMULATION
 	  directory to support temperature emulation. With emulation sysfs node,
 	  user can manually input temperature and test the different trip
 	  threshold behaviour for simulation purpose.
+
+	  WARNING: Be careful while enabling this option on production systems,
+	  because userland can easily disable the thermal policy by simply
+	  flooding this sysfs node with low temperature values.
 
 config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"
@@ -117,15 +122,6 @@ config EXYNOS_THERMAL
 	  If you say yes here you get support for TMU (Thermal Management
 	  Unit) on SAMSUNG EXYNOS series of SoC.
 
-config EXYNOS_THERMAL_EMUL
-	bool "EXYNOS TMU emulation mode support"
-	depends on EXYNOS_THERMAL
-	help
-	  Exynos 4412 and 4414 and 5 series has emulation mode on TMU.
-	  Enable this option will be make sysfs node in exynos thermal platform
-	  device directory to support emulation mode. With emulation mode sysfs
-	  node, you can manually input temperature to TMU for simulation purpose.
-
 config DOVE_THERMAL
 	tristate "Temperature sensor on Marvell Dove SoCs"
 	depends on ARCH_DOVE
@@ -143,6 +139,14 @@ config DB8500_THERMAL
 	  management framework. A thermal zone with several trip points will be
 	  created. Cooling devices can be bound to the trip points to cool this
 	  thermal zone if trip points reached.
+
+config ARMADA_THERMAL
+	tristate "Armada 370/XP thermal management"
+	depends on ARCH_MVEBU
+	depends on OF
+	help
+	  Enable this option if you want to have support for thermal management
+	  controller present in Armada 370 and Armada XP SoC.
 
 config DB8500_CPUFREQ_COOLING
 	tristate "DB8500 cpufreq cooling"

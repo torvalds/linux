@@ -291,12 +291,12 @@ event_dispatch:
 	/*  "Nested control path" -- if the previous mode was kernel  */
 	{
 		R0 = memw(R29 + #_PT_ER_VMEST);
-		R16.L = #LO(do_work_pending);
+		R26.L = #LO(do_work_pending);
 	}
 	{
 		P0 = tstbit(R0, #HVM_VMEST_UM_SFT);
 		if (!P0.new) jump:nt restore_all;
-		R16.H = #HI(do_work_pending);
+		R26.H = #HI(do_work_pending);
 		R0 = #VM_INT_DISABLE;
 	}
 
@@ -304,7 +304,7 @@ event_dispatch:
 	 * Check also the return from fork/system call, normally coming back from
 	 * user mode
 	 *
-	 * R16 needs to have do_work_pending, and R0 should have VM_INT_DISABLE
+	 * R26 needs to have do_work_pending, and R0 should have VM_INT_DISABLE
 	 */
 
 check_work_pending:
@@ -313,7 +313,7 @@ check_work_pending:
 	{
 		R0 = R29;  /*  regs should still be at top of stack  */
 		R1 = memw(THREADINFO_REG + #_THREAD_INFO_FLAGS);
-		callr R16;
+		callr R26;
 	}
 
 	{
@@ -375,11 +375,11 @@ _K_enter_debug:
 ret_from_fork:
 	{
 		call schedule_tail
-		R16.H = #HI(do_work_pending);
+		R26.H = #HI(do_work_pending);
 	}
 	{
 		P0 = cmp.eq(R24, #0);
-		R16.L = #LO(do_work_pending);
+		R26.L = #LO(do_work_pending);
 		R0 = #VM_INT_DISABLE;
 	}
 	if P0 jump check_work_pending

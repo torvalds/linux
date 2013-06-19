@@ -21,4 +21,4 @@ pinmux-$(CONFIG_CPU_SUBTYPE_SH7203)	:= pinmux-sh7203.o
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7264)	:= pinmux-sh7264.o
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7269)	:= pinmux-sh7269.o
 
-obj-$(CONFIG_GENERIC_GPIO)	+= $(pinmux-y)
+obj-$(CONFIG_GPIOLIB)			+= $(pinmux-y)

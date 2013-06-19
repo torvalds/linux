@@ -81,8 +81,8 @@ void soft_restart(unsigned long addr)
 void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
 
-void (*pm_restart)(const char *cmd);
-EXPORT_SYMBOL_GPL(pm_restart);
+void (*arm_pm_restart)(char str, const char *cmd);
+EXPORT_SYMBOL_GPL(arm_pm_restart);
 
 void arch_cpu_idle_prepare(void)
 {
@@ -131,8 +131,8 @@ void machine_restart(char *cmd)
 	local_fiq_disable();
 
 	/* Now call the architecture specific reboot code. */
-	if (pm_restart)
-		pm_restart(cmd);
+	if (arm_pm_restart)
+		arm_pm_restart('h', cmd);
 
 	/*
 	 * Whoops - the architecture was unable to reboot.

@@ -31,7 +31,6 @@
 #include <linux/of_i2c.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/fsl/mxs-dma.h>
 
 #define DRIVER_NAME "mxs-i2c"
 
@@ -118,9 +117,7 @@ struct mxs_i2c_dev {
 	uint32_t timing1;
 
 	/* DMA support components */
-	int				dma_channel;
 	struct dma_chan         	*dmach;
-	struct mxs_dma_data		dma_data;
 	uint32_t			pio_data[2];
 	uint32_t			addr_data;
 	struct scatterlist		sg_io[2];
@@ -581,21 +578,6 @@ static const struct i2c_algorithm mxs_i2c_algo = {
 	.functionality = mxs_i2c_func,
 };
 
-static bool mxs_i2c_dma_filter(struct dma_chan *chan, void *param)
-{
-	struct mxs_i2c_dev *i2c = param;
-
-	if (!mxs_dma_is_apbx(chan))
-		return false;
-
-	if (chan->chan_id != i2c->dma_channel)
-		return false;
-
-	chan->private = &i2c->dma_data;
-
-	return true;
-}
-
 static void mxs_i2c_derive_timing(struct mxs_i2c_dev *i2c, int speed)
 {
 	/* The I2C block clock run at 24MHz */
@@ -640,17 +622,6 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 	struct device_node *node = dev->of_node;
 	int ret;
 
-	/*
-	 * TODO: This is a temporary solution and should be changed
-	 * to use generic DMA binding later when the helpers get in.
-	 */
-	ret = of_property_read_u32(node, "fsl,i2c-dma-channel",
-				   &i2c->dma_channel);
-	if (ret) {
-		dev_err(dev, "Failed to get DMA channel!\n");
-		return -ENODEV;
-	}
-
 	ret = of_property_read_u32(node, "clock-frequency", &speed);
 	if (ret) {
 		dev_warn(dev, "No I2C speed selected, using 100kHz\n");
@@ -670,8 +641,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 	struct pinctrl *pinctrl;
 	struct resource *res;
 	resource_size_t res_size;
-	int err, irq, dmairq;
-	dma_cap_mask_t mask;
+	int err, irq;
 
 	pinctrl = devm_pinctrl_get_select_default(dev);
 	if (IS_ERR(pinctrl))
@@ -683,9 +653,8 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	dmairq = platform_get_irq(pdev, 1);
 
-	if (!res || irq < 0 || dmairq < 0)
+	if (!res || irq < 0)
 		return -ENOENT;
 
 	res_size = resource_size(res);
@@ -711,10 +680,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 	}
 
 	/* Setup the DMA */
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	i2c->dma_data.chan_irq = dmairq;
-	i2c->dmach = dma_request_channel(mask, mxs_i2c_dma_filter, i2c);
+	i2c->dmach = dma_request_slave_channel(dev, "rx-tx");
 	if (!i2c->dmach) {
 		dev_err(dev, "Failed to request dma\n");
 		return -ENODEV;

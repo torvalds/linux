@@ -34,13 +34,19 @@
 ENTRY(_start)
 	/* Notify the hypervisor of what version of the API we want */
 	{
+#if KERNEL_PL == 1 && _HV_VERSION == 13
+	  /* Support older hypervisors by asking for API version 12. */
+	  movei r0, _HV_VERSION_OLD_HV_INIT
+#else
+	  movei r0, _HV_VERSION
+#endif
 	  movei r1, TILE_CHIP
-	  movei r2, TILE_CHIP_REV
 	}
 	{
-	  moveli r0, _HV_VERSION
-	  jal hv_init
+	  movei r2, TILE_CHIP_REV
+	  movei r3, KERNEL_PL
 	}
+	jal hv_init
 	/* Get a reasonable default ASID in r0 */
 	{
 	  move r0, zero

@@ -32,6 +32,7 @@
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/io.h>
 
 /* LynxPoint chipset has support for 94 gpio pins */
 

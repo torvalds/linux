@@ -157,7 +157,7 @@ SYSCALL(sys_readv,sys_readv,compat_sys_readv_wrapper)		/* 145 */
 SYSCALL(sys_writev,sys_writev,compat_sys_writev_wrapper)
 SYSCALL(sys_getsid,sys_getsid,sys32_getsid_wrapper)
 SYSCALL(sys_fdatasync,sys_fdatasync,sys32_fdatasync_wrapper)
-SYSCALL(sys_sysctl,sys_sysctl,sys32_sysctl_wrapper)
+SYSCALL(sys_sysctl,sys_sysctl,compat_sys_sysctl)
 SYSCALL(sys_mlock,sys_mlock,sys32_mlock_wrapper)		/* 150 */
 SYSCALL(sys_munlock,sys_munlock,sys32_munlock_wrapper)
 SYSCALL(sys_mlockall,sys_mlockall,sys32_mlockall_wrapper)
@@ -341,7 +341,7 @@ SYSCALL(sys_pwritev,sys_pwritev,compat_sys_pwritev)
 SYSCALL(sys_rt_tgsigqueueinfo,sys_rt_tgsigqueueinfo,compat_sys_rt_tgsigqueueinfo) /* 330 */
 SYSCALL(sys_perf_event_open,sys_perf_event_open,sys_perf_event_open_wrapper)
 SYSCALL(sys_fanotify_init,sys_fanotify_init,sys_fanotify_init_wrapper)
-SYSCALL(sys_fanotify_mark,sys_fanotify_mark,sys_fanotify_mark_wrapper)
+SYSCALL(sys_fanotify_mark,sys_fanotify_mark,compat_sys_fanotify_mark)
 SYSCALL(sys_prlimit64,sys_prlimit64,sys_prlimit64_wrapper)
 SYSCALL(sys_name_to_handle_at,sys_name_to_handle_at,sys_name_to_handle_at_wrapper) /* 335 */
 SYSCALL(sys_open_by_handle_at,sys_open_by_handle_at,compat_sys_open_by_handle_at)

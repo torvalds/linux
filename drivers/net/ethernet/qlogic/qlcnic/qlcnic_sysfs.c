@@ -544,6 +544,9 @@ static ssize_t qlcnic_sysfs_write_esw_config(struct file *file,
 		switch (esw_cfg[i].op_mode) {
 		case QLCNIC_PORT_DEFAULTS:
 			qlcnic_set_eswitch_port_features(adapter, &esw_cfg[i]);
+			rtnl_lock();
+			qlcnic_set_netdev_features(adapter, &esw_cfg[i]);
+			rtnl_unlock();
 			break;
 		case QLCNIC_ADD_VLAN:
 			qlcnic_set_vlan_config(adapter, &esw_cfg[i]);

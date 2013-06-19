@@ -482,7 +482,6 @@ void __init startup_init(void)
 	detect_machine_facilities();
 	setup_topology();
 	sclp_facilities_detect();
-	detect_memory_layout(memory_chunk);
 #ifdef CONFIG_DYNAMIC_FTRACE
 	S390_lowcore.ftrace_func = (unsigned long)ftrace_caller;
 #endif

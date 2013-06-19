@@ -18,13 +18,25 @@
 	.section ".text.head", "ax"
 
 #ifdef CONFIG_SMP
+diag_reg_offset:
+	.word	g_diag_reg - .
+
+	.macro	set_diag_reg
+	adr	r0, diag_reg_offset
+	ldr	r1, [r0]
+	add	r1, r1, r0		@ r1 = physical &g_diag_reg
+	ldr	r0, [r1]
+	mcr	p15, 0, r0, c15, c0, 1	@ write diagnostic register
+	.endm
+
 ENTRY(v7_secondary_startup)
 	bl	v7_invalidate_l1
+	set_diag_reg
 	b	secondary_startup
 ENDPROC(v7_secondary_startup)
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_ARM_CPU_SUSPEND
 /*
  * The following code must assume it is running from physical address
  * where absolute virtual addresses to the data section have to be

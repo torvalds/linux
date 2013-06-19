@@ -56,13 +56,13 @@ static void rs_poll(unsigned long);
 static int rs_open(struct tty_struct *tty, struct file * filp)
 {
 	tty->port = &serial_port;
-	spin_lock(&timer_lock);
+	spin_lock_bh(&timer_lock);
 	if (tty->count == 1) {
 		setup_timer(&serial_timer, rs_poll,
 				(unsigned long)&serial_port);
 		mod_timer(&serial_timer, jiffies + SERIAL_TIMER_VALUE);
 	}
-	spin_unlock(&timer_lock);
+	spin_unlock_bh(&timer_lock);
 
 	return 0;
 }
@@ -99,14 +99,13 @@ static int rs_write(struct tty_struct * tty,
 static void rs_poll(unsigned long priv)
 {
 	struct tty_port *port = (struct tty_port *)priv;
-	struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
 	int i = 0;
 	unsigned char c;
 
 	spin_lock(&timer_lock);
 
-	while (__simc(SYS_select_one, 0, XTISS_SELECT_ONE_READ, (int)&tv,0,0)){
-		__simc (SYS_read, 0, (unsigned long)&c, 1, 0, 0);
+	while (simc_poll(0)) {
+		simc_read(0, &c, 1);
 		tty_insert_flip_char(port, c, TTY_NORMAL);
 		i++;
 	}
@@ -244,8 +243,7 @@ static void iss_console_write(struct console *co, const char *s, unsigned count)
 	int len = strlen(s);
 
 	if (s != 0 && *s != 0)
-		__simc (SYS_write, 1, (unsigned long)s,
-			count < len ? count : len,0,0);
+		simc_write(1, s, count < len ? count : len);
 }
 
 static struct tty_driver* iss_console_device(struct console *c, int *index)

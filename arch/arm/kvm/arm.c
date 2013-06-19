@@ -16,6 +16,7 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
@@ -48,7 +49,7 @@ __asm__(".arch_extension	virt");
 #endif
 
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
-static kvm_kernel_vfp_t __percpu *kvm_host_vfp_state;
+static kvm_cpu_context_t __percpu *kvm_host_cpu_state;
 static unsigned long hyp_default_vectors;
 
 /* Per-CPU variable containing the currently running vcpu. */
@@ -206,7 +207,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = KVM_MAX_VCPUS;
 		break;
 	default:
-		r = 0;
+		r = kvm_arch_dev_ioctl_check_extension(ext);
 		break;
 	}
 	return r;
@@ -218,27 +219,18 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	return -EINVAL;
 }
 
-int kvm_arch_set_memory_region(struct kvm *kvm,
-			       struct kvm_userspace_memory_region *mem,
-			       struct kvm_memory_slot old,
-			       int user_alloc)
-{
-	return 0;
-}
-
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot,
-				   struct kvm_memory_slot old,
 				   struct kvm_userspace_memory_region *mem,
-				   bool user_alloc)
+				   enum kvm_mr_change change)
 {
 	return 0;
 }
 
 void kvm_arch_commit_memory_region(struct kvm *kvm,
 				   struct kvm_userspace_memory_region *mem,
-				   struct kvm_memory_slot old,
-				   bool user_alloc)
+				   const struct kvm_memory_slot *old,
+				   enum kvm_mr_change change)
 {
 }
 
@@ -326,7 +318,7 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	vcpu->cpu = cpu;
-	vcpu->arch.vfp_host = this_cpu_ptr(kvm_host_vfp_state);
+	vcpu->arch.host_cpu_context = this_cpu_ptr(kvm_host_cpu_state);
 
 	/*
 	 * Check whether this vcpu requires the cache to be flushed on
@@ -639,7 +631,8 @@ static int vcpu_interrupt_line(struct kvm_vcpu *vcpu, int number, bool level)
 	return 0;
 }
 
-int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level)
+int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
+			  bool line_status)
 {
 	u32 irq = irq_level->irq;
 	unsigned int irq_type, vcpu_idx, irq_num;
@@ -794,30 +787,48 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 }
 
-static void cpu_init_hyp_mode(void *vector)
+static void cpu_init_hyp_mode(void *dummy)
 {
+	unsigned long long boot_pgd_ptr;
 	unsigned long long pgd_ptr;
 	unsigned long hyp_stack_ptr;
 	unsigned long stack_page;
 	unsigned long vector_ptr;
 
 	/* Switch from the HYP stub to our own HYP init vector */
-	__hyp_set_vectors((unsigned long)vector);
+	__hyp_set_vectors(kvm_get_idmap_vector());
 
+	boot_pgd_ptr = (unsigned long long)kvm_mmu_get_boot_httbr();
 	pgd_ptr = (unsigned long long)kvm_mmu_get_httbr();
 	stack_page = __get_cpu_var(kvm_arm_hyp_stack_page);
 	hyp_stack_ptr = stack_page + PAGE_SIZE;
 	vector_ptr = (unsigned long)__kvm_hyp_vector;
 
-	__cpu_init_hyp_mode(pgd_ptr, hyp_stack_ptr, vector_ptr);
+	__cpu_init_hyp_mode(boot_pgd_ptr, pgd_ptr, hyp_stack_ptr, vector_ptr);
 }
+
+static int hyp_init_cpu_notify(struct notifier_block *self,
+			       unsigned long action, void *cpu)
+{
+	switch (action) {
+	case CPU_STARTING:
+	case CPU_STARTING_FROZEN:
+		cpu_init_hyp_mode(NULL);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block hyp_init_cpu_nb = {
+	.notifier_call = hyp_init_cpu_notify,
+};
 
 /**
  * Inits Hyp-mode on all online CPUs
  */
 static int init_hyp_mode(void)
 {
-	phys_addr_t init_phys_addr;
 	int cpu;
 	int err = 0;
 
@@ -850,24 +861,6 @@ static int init_hyp_mode(void)
 	}
 
 	/*
-	 * Execute the init code on each CPU.
-	 *
-	 * Note: The stack is not mapped yet, so don't do anything else than
-	 * initializing the hypervisor mode on each CPU using a local stack
-	 * space for temporary storage.
-	 */
-	init_phys_addr = virt_to_phys(__kvm_hyp_init);
-	for_each_online_cpu(cpu) {
-		smp_call_function_single(cpu, cpu_init_hyp_mode,
-					 (void *)(long)init_phys_addr, 1);
-	}
-
-	/*
-	 * Unmap the identity mapping
-	 */
-	kvm_clear_hyp_idmap();
-
-	/*
 	 * Map the Hyp-code called directly from the host
 	 */
 	err = create_hyp_mappings(__kvm_hyp_code_start, __kvm_hyp_code_end);
@@ -890,33 +883,38 @@ static int init_hyp_mode(void)
 	}
 
 	/*
-	 * Map the host VFP structures
+	 * Map the host CPU structures
 	 */
-	kvm_host_vfp_state = alloc_percpu(kvm_kernel_vfp_t);
-	if (!kvm_host_vfp_state) {
+	kvm_host_cpu_state = alloc_percpu(kvm_cpu_context_t);
+	if (!kvm_host_cpu_state) {
 		err = -ENOMEM;
-		kvm_err("Cannot allocate host VFP state\n");
+		kvm_err("Cannot allocate host CPU state\n");
 		goto out_free_mappings;
 	}
 
 	for_each_possible_cpu(cpu) {
-		kvm_kernel_vfp_t *vfp;
+		kvm_cpu_context_t *cpu_ctxt;
 
-		vfp = per_cpu_ptr(kvm_host_vfp_state, cpu);
-		err = create_hyp_mappings(vfp, vfp + 1);
+		cpu_ctxt = per_cpu_ptr(kvm_host_cpu_state, cpu);
+		err = create_hyp_mappings(cpu_ctxt, cpu_ctxt + 1);
 
 		if (err) {
-			kvm_err("Cannot map host VFP state: %d\n", err);
-			goto out_free_vfp;
+			kvm_err("Cannot map host CPU state: %d\n", err);
+			goto out_free_context;
 		}
 	}
+
+	/*
+	 * Execute the init code on each CPU.
+	 */
+	on_each_cpu(cpu_init_hyp_mode, NULL, 1);
 
 	/*
 	 * Init HYP view of VGIC
 	 */
 	err = kvm_vgic_hyp_init();
 	if (err)
-		goto out_free_vfp;
+		goto out_free_context;
 
 #ifdef CONFIG_KVM_ARM_VGIC
 		vgic_present = true;
@@ -929,12 +927,19 @@ static int init_hyp_mode(void)
 	if (err)
 		goto out_free_mappings;
 
+#ifndef CONFIG_HOTPLUG_CPU
+	free_boot_hyp_pgd();
+#endif
+
+	kvm_perf_init();
+
 	kvm_info("Hyp mode initialized successfully\n");
+
 	return 0;
-out_free_vfp:
-	free_percpu(kvm_host_vfp_state);
+out_free_context:
+	free_percpu(kvm_host_cpu_state);
 out_free_mappings:
-	free_hyp_pmds();
+	free_hyp_pgds();
 out_free_stack_pages:
 	for_each_possible_cpu(cpu)
 		free_page(per_cpu(kvm_arm_hyp_stack_page, cpu));
@@ -943,26 +948,41 @@ out_err:
 	return err;
 }
 
+static void check_kvm_target_cpu(void *ret)
+{
+	*(int *)ret = kvm_target_cpu();
+}
+
 /**
  * Initialize Hyp-mode and memory mappings on all CPUs.
  */
 int kvm_arch_init(void *opaque)
 {
 	int err;
+	int ret, cpu;
 
 	if (!is_hyp_mode_available()) {
 		kvm_err("HYP mode not available\n");
 		return -ENODEV;
 	}
 
-	if (kvm_target_cpu() < 0) {
-		kvm_err("Target CPU not supported!\n");
-		return -ENODEV;
+	for_each_online_cpu(cpu) {
+		smp_call_function_single(cpu, check_kvm_target_cpu, &ret, 1);
+		if (ret < 0) {
+			kvm_err("Error, CPU %d not supported!\n", cpu);
+			return -ENODEV;
+		}
 	}
 
 	err = init_hyp_mode();
 	if (err)
 		goto out_err;
+
+	err = register_cpu_notifier(&hyp_init_cpu_nb);
+	if (err) {
+		kvm_err("Cannot register HYP init CPU notifier (%d)\n", err);
+		goto out_err;
+	}
 
 	kvm_coproc_table_init();
 	return 0;
@@ -973,6 +993,7 @@ out_err:
 /* NOP: Compiling as a module not supported */
 void kvm_arch_exit(void)
 {
+	kvm_perf_teardown();
 }
 
 static int arm_init(void)

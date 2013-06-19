@@ -830,7 +830,7 @@ static int ipoib_hard_header(struct sk_buff *skb,
 	 */
 	memcpy(cb->hwaddr, daddr, INFINIBAND_ALEN);
 
-	return 0;
+	return sizeof *header;
 }
 
 static void ipoib_set_mcast_list(struct net_device *dev)

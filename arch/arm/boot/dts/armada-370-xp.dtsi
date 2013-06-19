@@ -16,7 +16,7 @@
  * 370 and Armada XP SoC.
  */
 
-/include/ "skeleton.dtsi"
+/include/ "skeleton64.dtsi"
 
 / {
 	model = "Marvell Armada 370 and XP SoC";
@@ -28,204 +28,204 @@
 		};
 	};
 
-	mpic: interrupt-controller@d0020000 {
-	      compatible = "marvell,mpic";
-	      #interrupt-cells = <1>;
-	      #size-cells = <1>;
-	      interrupt-controller;
-	};
-
-	coherency-fabric@d0020200 {
-		compatible = "marvell,coherency-fabric";
-		reg = <0xd0020200 0xb0>,
-		      <0xd0021810 0x1c>;
-	};
-
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		interrupt-parent = <&mpic>;
-		ranges;
+		ranges = <0          0 0xd0000000 0x0100000 /* internal registers */
+			  0xe0000000 0 0xe0000000 0x8100000 /* PCIe */>;
 
-		serial@d0012000 {
+		internal-regs {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			mpic: interrupt-controller@20000 {
+				compatible = "marvell,mpic";
+				#interrupt-cells = <1>;
+				#size-cells = <1>;
+				interrupt-controller;
+			};
+
+			coherency-fabric@20200 {
+				compatible = "marvell,coherency-fabric";
+				reg = <0x20200 0xb0>, <0x21810 0x1c>;
+			};
+
+			serial@12000 {
 				compatible = "snps,dw-apb-uart";
-				reg = <0xd0012000 0x100>;
+				reg = <0x12000 0x100>;
 				reg-shift = <2>;
 				interrupts = <41>;
 				reg-io-width = <1>;
 				status = "disabled";
-		};
-		serial@d0012100 {
+			};
+			serial@12100 {
 				compatible = "snps,dw-apb-uart";
-				reg = <0xd0012100 0x100>;
+				reg = <0x12100 0x100>;
 				reg-shift = <2>;
 				interrupts = <42>;
 				reg-io-width = <1>;
 				status = "disabled";
-		};
+			};
 
-		timer@d0020300 {
-			       compatible = "marvell,armada-370-xp-timer";
-			       reg = <0xd0020300 0x30>,
-			       <0xd0021040 0x30>;
-			       interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
-			       clocks = <&coreclk 2>;
-		};
+			timer@20300 {
+				compatible = "marvell,armada-370-xp-timer";
+				reg = <0x20300 0x30>, <0x21040 0x30>;
+				interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
+				clocks = <&coreclk 2>;
+			};
 
-		addr-decoding@d0020000 {
-			compatible = "marvell,armada-addr-decoding-controller";
-			reg = <0xd0020000 0x258>;
-		};
+			sata@a0000 {
+				compatible = "marvell,orion-sata";
+				reg = <0xa0000 0x2400>;
+				interrupts = <55>;
+				clocks = <&gateclk 15>, <&gateclk 30>;
+				clock-names = "0", "1";
+				status = "disabled";
+			};
 
-		sata@d00a0000 {
-			compatible = "marvell,orion-sata";
-			reg = <0xd00a0000 0x2400>;
-			interrupts = <55>;
-			clocks = <&gateclk 15>, <&gateclk 30>;
-			clock-names = "0", "1";
-			status = "disabled";
-		};
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "marvell,orion-mdio";
+				reg = <0x72004 0x4>;
+			};
 
-		mdio {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "marvell,orion-mdio";
-			reg = <0xd0072004 0x4>;
-		};
-
-		ethernet@d0070000 {
+			ethernet@70000 {
 				compatible = "marvell,armada-370-neta";
-				reg = <0xd0070000 0x2500>;
+				reg = <0x70000 0x2500>;
 				interrupts = <8>;
 				clocks = <&gateclk 4>;
 				status = "disabled";
-		};
+			};
 
-		ethernet@d0074000 {
+			ethernet@74000 {
 				compatible = "marvell,armada-370-neta";
-				reg = <0xd0074000 0x2500>;
+				reg = <0x74000 0x2500>;
 				interrupts = <10>;
 				clocks = <&gateclk 3>;
 				status = "disabled";
-		};
+			};
 
-		i2c0: i2c@d0011000 {
-			compatible = "marvell,mv64xxx-i2c";
-			reg = <0xd0011000 0x20>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			interrupts = <31>;
-			timeout-ms = <1000>;
-			clocks = <&coreclk 0>;
-			status = "disabled";
-		};
+			i2c0: i2c@11000 {
+				compatible = "marvell,mv64xxx-i2c";
+				reg = <0x11000 0x20>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <31>;
+				timeout-ms = <1000>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
+			};
 
-		i2c1: i2c@d0011100 {
-			compatible = "marvell,mv64xxx-i2c";
-			reg = <0xd0011100 0x20>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			interrupts = <32>;
-			timeout-ms = <1000>;
-			clocks = <&coreclk 0>;
-			status = "disabled";
-		};
+			i2c1: i2c@11100 {
+				compatible = "marvell,mv64xxx-i2c";
+				reg = <0x11100 0x20>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <32>;
+				timeout-ms = <1000>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
+			};
 
-		rtc@10300 {
-			compatible = "marvell,orion-rtc";
-			reg = <0xd0010300 0x20>;
-			interrupts = <50>;
-		};
+			rtc@10300 {
+				compatible = "marvell,orion-rtc";
+				reg = <0x10300 0x20>;
+				interrupts = <50>;
+			};
 
-		mvsdio@d00d4000 {
-			compatible = "marvell,orion-sdio";
-			reg = <0xd00d4000 0x200>;
-			interrupts = <54>;
-			clocks = <&gateclk 17>;
-			status = "disabled";
-		};
+			mvsdio@d4000 {
+				compatible = "marvell,orion-sdio";
+				reg = <0xd4000 0x200>;
+				interrupts = <54>;
+				clocks = <&gateclk 17>;
+				status = "disabled";
+			};
 
-		usb@d0050000 {
-			compatible = "marvell,orion-ehci";
-			reg = <0xd0050000 0x500>;
-			interrupts = <45>;
-			status = "disabled";
-		};
+			usb@50000 {
+				compatible = "marvell,orion-ehci";
+				reg = <0x50000 0x500>;
+				interrupts = <45>;
+				status = "disabled";
+			};
 
-		usb@d0051000 {
-			compatible = "marvell,orion-ehci";
-			reg = <0xd0051000 0x500>;
-			interrupts = <46>;
-			status = "disabled";
-		};
+			usb@51000 {
+				compatible = "marvell,orion-ehci";
+				reg = <0x51000 0x500>;
+				interrupts = <46>;
+				status = "disabled";
+			};
 
-		spi0: spi@d0010600 {
-			compatible = "marvell,orion-spi";
-			reg = <0xd0010600 0x28>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			cell-index = <0>;
-			interrupts = <30>;
-			clocks = <&coreclk 0>;
-			status = "disabled";
-		};
+			spi0: spi@10600 {
+				compatible = "marvell,orion-spi";
+				reg = <0x10600 0x28>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cell-index = <0>;
+				interrupts = <30>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
+			};
 
-		spi1: spi@d0010680 {
-			compatible = "marvell,orion-spi";
-			reg = <0xd0010680 0x28>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			cell-index = <1>;
-			interrupts = <92>;
-			clocks = <&coreclk 0>;
-			status = "disabled";
-		};
+			spi1: spi@10680 {
+				compatible = "marvell,orion-spi";
+				reg = <0x10680 0x28>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cell-index = <1>;
+				interrupts = <92>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
+			};
 
-		devbus-bootcs@d0010400 {
-			compatible = "marvell,mvebu-devbus";
-			reg = <0xd0010400 0x8>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			clocks = <&coreclk 0>;
-			status = "disabled";
-		};
+			devbus-bootcs@10400 {
+				compatible = "marvell,mvebu-devbus";
+				reg = <0x10400 0x8>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
+			};
 
-		devbus-cs0@d0010408 {
-			compatible = "marvell,mvebu-devbus";
-			reg = <0xd0010408 0x8>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			clocks = <&coreclk 0>;
-			status = "disabled";
-		};
+			devbus-cs0@10408 {
+				compatible = "marvell,mvebu-devbus";
+				reg = <0x10408 0x8>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
+			};
 
-		devbus-cs1@d0010410 {
-			compatible = "marvell,mvebu-devbus";
-			reg = <0xd0010410 0x8>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			clocks = <&coreclk 0>;
-			status = "disabled";
-		};
+			devbus-cs1@10410 {
+				compatible = "marvell,mvebu-devbus";
+				reg = <0x10410 0x8>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
+			};
 
-		devbus-cs2@d0010418 {
-			compatible = "marvell,mvebu-devbus";
-			reg = <0xd0010418 0x8>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			clocks = <&coreclk 0>;
-			status = "disabled";
-		};
+			devbus-cs2@10418 {
+				compatible = "marvell,mvebu-devbus";
+				reg = <0x10418 0x8>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
+			};
 
-		devbus-cs3@d0010420 {
-			compatible = "marvell,mvebu-devbus";
-			reg = <0xd0010420 0x8>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			clocks = <&coreclk 0>;
-			status = "disabled";
+			devbus-cs3@10420 {
+				compatible = "marvell,mvebu-devbus";
+				reg = <0x10420 0x8>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				clocks = <&coreclk 0>;
+				status = "disabled";
+			};
 		};
 	};
-};
-
+ };

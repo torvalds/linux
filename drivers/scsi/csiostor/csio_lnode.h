@@ -114,7 +114,7 @@ struct csio_lnode_stats {
 	uint32_t	n_rnode_match;  /* matched rnode */
 	uint32_t	n_dev_loss_tmo; /* Device loss timeout */
 	uint32_t	n_fdmi_err;	/* fdmi err */
-	uint32_t	n_evt_fw[PROTO_ERR_IMPL_LOGO];	/* fw events */
+	uint32_t	n_evt_fw[PROTO_ERR_IMPL_LOGO + 1];	/* fw events */
 	enum csio_ln_ev	n_evt_sm[CSIO_LNE_MAX_EVENT];	/* State m/c events */
 	uint32_t	n_rnode_alloc;	/* rnode allocated */
 	uint32_t	n_rnode_free;	/* rnode freed */

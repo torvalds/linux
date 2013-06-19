@@ -54,7 +54,7 @@ config ANDROID_TIMED_OUTPUT
 
 config ANDROID_TIMED_GPIO
 	tristate "Android timed gpio driver"
-	depends on GENERIC_GPIO && ANDROID_TIMED_OUTPUT
+	depends on GPIOLIB && ANDROID_TIMED_OUTPUT
 	default n
 
 config ANDROID_LOW_MEMORY_KILLER

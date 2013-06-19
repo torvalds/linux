@@ -23,40 +23,12 @@
 #include <mach/spear.h>
 
 /* Base addresses */
-#define SPEAR1310_SSP1_BASE			UL(0x5D400000)
-#define SPEAR1310_SATA0_BASE			UL(0xB1000000)
-#define SPEAR1310_SATA1_BASE			UL(0xB1800000)
-#define SPEAR1310_SATA2_BASE			UL(0xB4000000)
-
 #define SPEAR1310_RAS_GRP1_BASE			UL(0xD8000000)
 #define VA_SPEAR1310_RAS_GRP1_BASE		UL(0xFA000000)
 
-static struct arasan_cf_pdata cf_pdata = {
-	.cf_if_clk = CF_IF_CLK_166M,
-	.quirk = CF_BROKEN_UDMA,
-	.dma_priv = &cf_dma_priv,
-};
-
-/* ssp device registration */
-static struct pl022_ssp_controller ssp1_plat_data = {
-	.enable_dma = 0,
-};
-
-/* Add SPEAr1310 auxdata to pass platform data */
-static struct of_dev_auxdata spear1310_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("arasan,cf-spear1340", MCIF_CF_BASE, NULL, &cf_pdata),
-	OF_DEV_AUXDATA("snps,dma-spear1340", DMAC0_BASE, NULL, &dmac_plat_data),
-	OF_DEV_AUXDATA("snps,dma-spear1340", DMAC1_BASE, NULL, &dmac_plat_data),
-	OF_DEV_AUXDATA("arm,pl022", SSP_BASE, NULL, &pl022_plat_data),
-
-	OF_DEV_AUXDATA("arm,pl022", SPEAR1310_SSP1_BASE, NULL, &ssp1_plat_data),
-	{}
-};
-
 static void __init spear1310_dt_init(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table,
-			spear1310_auxdata_lookup, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char * const spear1310_dt_board_compat[] = {

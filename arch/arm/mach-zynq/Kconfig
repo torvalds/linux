@@ -10,6 +10,7 @@ config ARCH_ZYNQ
 	select ICST
 	select MIGHT_HAVE_CACHE_L2X0
 	select USE_OF
+	select HAVE_SMP
 	select SPARSE_IRQ
 	select CADENCE_TTC_TIMER
 	help

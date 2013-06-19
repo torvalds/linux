@@ -339,7 +339,7 @@ out:
 	return md ? 0 : -ENXIO;
 }
 
-static int dm_blk_close(struct gendisk *disk, fmode_t mode)
+static void dm_blk_close(struct gendisk *disk, fmode_t mode)
 {
 	struct mapped_device *md = disk->private_data;
 
@@ -349,8 +349,6 @@ static int dm_blk_close(struct gendisk *disk, fmode_t mode)
 	dm_put(md);
 
 	spin_unlock(&_minor_lock);
-
-	return 0;
 }
 
 int dm_open_count(struct mapped_device *md)

@@ -316,31 +316,14 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 
 static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
 {
-	struct drm_pending_vblank_event *e;
-	struct timeval now;
 	unsigned long flags;
 	struct drm_device *drm = ipu_crtc->base.dev;
 
 	spin_lock_irqsave(&drm->event_lock, flags);
-
-	e = ipu_crtc->page_flip_event;
-	if (!e) {
-		spin_unlock_irqrestore(&drm->event_lock, flags);
-		return;
-	}
-
-	do_gettimeofday(&now);
-	e->event.sequence = 0;
-	e->event.tv_sec = now.tv_sec;
-	e->event.tv_usec = now.tv_usec;
+	if (ipu_crtc->page_flip_event)
+		drm_send_vblank_event(drm, -1, ipu_crtc->page_flip_event);
 	ipu_crtc->page_flip_event = NULL;
-
 	imx_drm_crtc_vblank_put(ipu_crtc->imx_crtc);
-
-	list_add_tail(&e->base.link, &e->base.file_priv->event_list);
-
-	wake_up_interruptible(&e->base.file_priv->event_wait);
-
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
 

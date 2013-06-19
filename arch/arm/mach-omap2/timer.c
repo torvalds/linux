@@ -46,7 +46,6 @@
 #include <asm/smp_twd.h>
 #include <asm/sched_clock.h>
 
-#include <asm/arch_timer.h>
 #include "omap_hwmod.h"
 #include "omap_device.h"
 #include <plat/counter-32k.h>
@@ -133,7 +132,12 @@ static struct property device_disabled = {
 };
 
 static struct of_device_id omap_timer_match[] __initdata = {
-	{ .compatible = "ti,omap2-timer", },
+	{ .compatible = "ti,omap2420-timer", },
+	{ .compatible = "ti,omap3430-timer", },
+	{ .compatible = "ti,omap4430-timer", },
+	{ .compatible = "ti,omap5430-timer", },
+	{ .compatible = "ti,am335x-timer", },
+	{ .compatible = "ti,am335x-timer-1ms", },
 	{ }
 };
 
@@ -549,6 +553,8 @@ static inline void __init realtime_counter_init(void)
 			       clksrc_nr, clksrc_src, clksrc_prop)	\
 void __init omap##name##_gptimer_timer_init(void)			\
 {									\
+	if (omap_clk_init)						\
+		omap_clk_init();					\
 	omap_dmtimer_init();						\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src, clkev_prop);	\
 	omap2_gptimer_clocksource_init((clksrc_nr), clksrc_src,		\
@@ -559,6 +565,8 @@ void __init omap##name##_gptimer_timer_init(void)			\
 				clksrc_nr, clksrc_src, clksrc_prop)	\
 void __init omap##name##_sync32k_timer_init(void)		\
 {									\
+	if (omap_clk_init)						\
+		omap_clk_init();					\
 	omap_dmtimer_init();						\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src, clkev_prop);	\
 	/* Enable the use of clocksource="gp_timer" kernel parameter */	\
@@ -622,14 +630,10 @@ void __init omap4_local_timer_init(void)
 #ifdef CONFIG_SOC_OMAP5
 void __init omap5_realtime_timer_init(void)
 {
-	int err;
-
 	omap4_sync32k_timer_init();
 	realtime_counter_init();
 
-	err = arch_timer_of_register();
-	if (err)
-		pr_err("%s: arch_timer_register failed %d\n", __func__, err);
+	clocksource_of_init();
 }
 #endif /* CONFIG_SOC_OMAP5 */
 

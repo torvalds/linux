@@ -248,14 +248,16 @@ static void __cpuinit arch_timer_stop(struct clock_event_device *clk)
 static int __cpuinit arch_timer_cpu_notify(struct notifier_block *self,
 					   unsigned long action, void *hcpu)
 {
-	struct clock_event_device *evt = this_cpu_ptr(arch_timer_evt);
-
+	/*
+	 * Grab cpu pointer in each case to avoid spurious
+	 * preemptible warnings
+	 */
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_STARTING:
-		arch_timer_setup(evt);
+		arch_timer_setup(this_cpu_ptr(arch_timer_evt));
 		break;
 	case CPU_DYING:
-		arch_timer_stop(evt);
+		arch_timer_stop(this_cpu_ptr(arch_timer_evt));
 		break;
 	}
 
@@ -337,22 +339,14 @@ out:
 	return err;
 }
 
-static const struct of_device_id arch_timer_of_match[] __initconst = {
-	{ .compatible	= "arm,armv7-timer",	},
-	{ .compatible	= "arm,armv8-timer",	},
-	{},
-};
-
-int __init arch_timer_init(void)
+static void __init arch_timer_init(struct device_node *np)
 {
-	struct device_node *np;
 	u32 freq;
 	int i;
 
-	np = of_find_matching_node(NULL, arch_timer_of_match);
-	if (!np) {
-		pr_err("arch_timer: can't find DT node\n");
-		return -ENODEV;
+	if (arch_timer_get_rate()) {
+		pr_warn("arch_timer: multiple nodes in dt, skipping\n");
+		return;
 	}
 
 	/* Try to determine the frequency from the device tree or CNTFRQ */
@@ -378,7 +372,7 @@ int __init arch_timer_init(void)
 		if (!arch_timer_ppi[PHYS_SECURE_PPI] ||
 		    !arch_timer_ppi[PHYS_NONSECURE_PPI]) {
 			pr_warn("arch_timer: No interrupt available, giving up\n");
-			return -EINVAL;
+			return;
 		}
 	}
 
@@ -387,5 +381,8 @@ int __init arch_timer_init(void)
 	else
 		arch_timer_read_counter = arch_counter_get_cntpct;
 
-	return arch_timer_register();
+	arch_timer_register();
+	arch_timer_arch_init();
 }
+CLOCKSOURCE_OF_DECLARE(armv7_arch_timer, "arm,armv7-timer", arch_timer_init);
+CLOCKSOURCE_OF_DECLARE(armv8_arch_timer, "arm,armv8-timer", arch_timer_init);

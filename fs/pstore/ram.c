@@ -438,6 +438,7 @@ static int ramoops_probe(struct platform_device *pdev)
 		pr_err("memory size too small, minimum is %zu\n",
 			cxt->console_size + cxt->record_size +
 			cxt->ftrace_size);
+		err = -EINVAL;
 		goto fail_cnt;
 	}
 
@@ -455,6 +456,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	spin_lock_init(&cxt->pstore.buf_lock);
 	if (!cxt->pstore.buf) {
 		pr_err("cannot allocate pstore buffer\n");
+		err = -ENOMEM;
 		goto fail_clear;
 	}
 

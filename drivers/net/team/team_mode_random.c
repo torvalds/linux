@@ -18,7 +18,7 @@
 
 static u32 random_N(unsigned int N)
 {
-	return reciprocal_divide(random32(), N);
+	return reciprocal_divide(prandom_u32(), N);
 }
 
 static bool rnd_transmit(struct team *team, struct sk_buff *skb)

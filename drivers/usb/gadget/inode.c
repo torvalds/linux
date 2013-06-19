@@ -24,6 +24,8 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
+#include <linux/mmu_context.h>
+#include <linux/aio.h>
 
 #include <linux/device.h>
 #include <linux/moduleparam.h>
@@ -513,6 +515,9 @@ static long ep_ioctl(struct file *fd, unsigned code, unsigned long value)
 struct kiocb_priv {
 	struct usb_request	*req;
 	struct ep_data		*epdata;
+	struct kiocb		*iocb;
+	struct mm_struct	*mm;
+	struct work_struct	work;
 	void			*buf;
 	const struct iovec	*iv;
 	unsigned long		nr_segs;
@@ -528,7 +533,6 @@ static int ep_aio_cancel(struct kiocb *iocb, struct io_event *e)
 	local_irq_disable();
 	epdata = priv->epdata;
 	// spin_lock(&epdata->dev->lock);
-	kiocbSetCancelled(iocb);
 	if (likely(epdata && epdata->ep && priv->req))
 		value = usb_ep_dequeue (epdata->ep, priv->req);
 	else
@@ -540,14 +544,11 @@ static int ep_aio_cancel(struct kiocb *iocb, struct io_event *e)
 	return value;
 }
 
-static ssize_t ep_aio_read_retry(struct kiocb *iocb)
+static ssize_t ep_copy_to_user(struct kiocb_priv *priv)
 {
-	struct kiocb_priv	*priv = iocb->private;
 	ssize_t			len, total;
 	void			*to_copy;
 	int			i;
-
-	/* we "retry" to get the right mm context for this: */
 
 	/* copy stuff into user buffers */
 	total = priv->actual;
@@ -568,9 +569,26 @@ static ssize_t ep_aio_read_retry(struct kiocb *iocb)
 		if (total == 0)
 			break;
 	}
+
+	return len;
+}
+
+static void ep_user_copy_worker(struct work_struct *work)
+{
+	struct kiocb_priv *priv = container_of(work, struct kiocb_priv, work);
+	struct mm_struct *mm = priv->mm;
+	struct kiocb *iocb = priv->iocb;
+	size_t ret;
+
+	use_mm(mm);
+	ret = ep_copy_to_user(priv);
+	unuse_mm(mm);
+
+	/* completing the iocb can drop the ctx and mm, don't touch mm after */
+	aio_complete(iocb, ret, ret);
+
 	kfree(priv->buf);
 	kfree(priv);
-	return len;
 }
 
 static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
@@ -596,14 +614,14 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 		aio_complete(iocb, req->actual ? req->actual : req->status,
 				req->status);
 	} else {
-		/* retry() won't report both; so we hide some faults */
+		/* ep_copy_to_user() won't report both; we hide some faults */
 		if (unlikely(0 != req->status))
 			DBG(epdata->dev, "%s fault %d len %d\n",
 				ep->name, req->status, req->actual);
 
 		priv->buf = req->buf;
 		priv->actual = req->actual;
-		kick_iocb(iocb);
+		schedule_work(&priv->work);
 	}
 	spin_unlock(&epdata->dev->lock);
 
@@ -633,8 +651,10 @@ fail:
 		return value;
 	}
 	iocb->private = priv;
+	priv->iocb = iocb;
 	priv->iv = iv;
 	priv->nr_segs = nr_segs;
+	INIT_WORK(&priv->work, ep_user_copy_worker);
 
 	value = get_ready_ep(iocb->ki_filp->f_flags, epdata);
 	if (unlikely(value < 0)) {
@@ -642,10 +662,11 @@ fail:
 		goto fail;
 	}
 
-	iocb->ki_cancel = ep_aio_cancel;
+	kiocb_set_cancel_fn(iocb, ep_aio_cancel);
 	get_ep(epdata);
 	priv->epdata = epdata;
 	priv->actual = 0;
+	priv->mm = current->mm; /* mm teardown waits for iocbs in exit_aio() */
 
 	/* each kiocb is coupled to one usb_request, but we can't
 	 * allocate or submit those if the host disconnected.
@@ -674,7 +695,7 @@ fail:
 		kfree(priv);
 		put_ep(epdata);
 	} else
-		value = (iv ? -EIOCBRETRY : -EIOCBQUEUED);
+		value = -EIOCBQUEUED;
 	return value;
 }
 
@@ -692,7 +713,6 @@ ep_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	if (unlikely(!buf))
 		return -ENOMEM;
 
-	iocb->ki_retry = ep_aio_read_retry;
 	return ep_aio_rwtail(iocb, buf, iocb->ki_left, epdata, iov, nr_segs);
 }
 

@@ -1144,17 +1144,15 @@ static int pm860x_probe(struct i2c_client *client,
 			return -ENOMEM;
 		ret = pm860x_dt_init(node, &client->dev, pdata);
 		if (ret)
-			goto err;
+			return ret;
 	} else if (!pdata) {
 		pr_info("No platform data in %s!\n", __func__);
 		return -EINVAL;
 	}
 
 	chip = kzalloc(sizeof(struct pm860x_chip), GFP_KERNEL);
-	if (chip == NULL) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (chip == NULL)
+		return -ENOMEM;
 
 	chip->id = verify_addr(client);
 	chip->regmap = regmap_init_i2c(client, &pm860x_regmap_config);
@@ -1194,10 +1192,6 @@ static int pm860x_probe(struct i2c_client *client,
 
 	pm860x_device_init(chip, pdata);
 	return 0;
-err:
-	if (node)
-		devm_kfree(&client->dev, pdata);
-	return ret;
 }
 
 static int pm860x_remove(struct i2c_client *client)

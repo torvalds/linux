@@ -162,14 +162,8 @@ enum {
 	VHOST_SCSI_VQ_IO = 2,
 };
 
-/*
- * VIRTIO_RING_F_EVENT_IDX seems broken. Not sure the bug is in
- * kernel but disabling it helps.
- * TODO: debug and remove the workaround.
- */
 enum {
-	VHOST_SCSI_FEATURES = (VHOST_FEATURES & (~VIRTIO_RING_F_EVENT_IDX)) |
-			      (1ULL << VIRTIO_SCSI_F_HOTPLUG)
+	VHOST_SCSI_FEATURES = VHOST_FEATURES | (1ULL << VIRTIO_SCSI_F_HOTPLUG)
 };
 
 #define VHOST_SCSI_MAX_TARGET	256

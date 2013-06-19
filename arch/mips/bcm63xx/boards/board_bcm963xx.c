@@ -726,11 +726,11 @@ void __init board_prom_init(void)
 	u32 val;
 
 	/* read base address of boot chip select (0)
-	 * 6328 does not have MPI but boots from a fixed address
+	 * 6328/6362 do not have MPI but boot from a fixed address
 	 */
-	if (BCMCPU_IS_6328())
+	if (BCMCPU_IS_6328() || BCMCPU_IS_6362()) {
 		val = 0x18000000;
-	else {
+	} else {
 		val = bcm_mpi_readl(MPI_CSBASE_REG(0));
 		val &= MPI_CSBASE_BASE_MASK;
 	}

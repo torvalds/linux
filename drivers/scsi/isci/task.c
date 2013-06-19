@@ -250,7 +250,7 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 	}
 
 	/* XXX convert to get this from task->tproto like other drivers */
-	if (dev->dev_type == SAS_END_DEV) {
+	if (dev->dev_type == SAS_END_DEVICE) {
 		isci_tmf->proto = SAS_PROTOCOL_SSP;
 		status = sci_task_request_construct_ssp(ireq);
 		if (status != SCI_SUCCESS)

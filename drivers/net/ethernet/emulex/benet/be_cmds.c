@@ -2640,9 +2640,8 @@ int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
 	req = get_mac_list_cmd.va;
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-				OPCODE_COMMON_GET_MAC_LIST, sizeof(*req),
-				wrb, &get_mac_list_cmd);
-
+			       OPCODE_COMMON_GET_MAC_LIST,
+			       get_mac_list_cmd.size, wrb, &get_mac_list_cmd);
 	req->hdr.domain = domain;
 	req->mac_type = MAC_ADDRESS_TYPE_NETWORK;
 	req->perm_override = 1;
@@ -2977,22 +2976,17 @@ static struct be_nic_resource_desc *be_get_nic_desc(u8 *buf, u32 desc_count,
 	for (i = 0; i < desc_count; i++) {
 		desc->desc_len = desc->desc_len ? : RESOURCE_DESC_SIZE;
 		if (((void *)desc + desc->desc_len) >
-		    (void *)(buf + max_buf_size)) {
-			desc = NULL;
-			break;
-		}
+		    (void *)(buf + max_buf_size))
+			return NULL;
 
 		if (desc->desc_type == NIC_RESOURCE_DESC_TYPE_V0 ||
 		    desc->desc_type == NIC_RESOURCE_DESC_TYPE_V1)
-			break;
+			return desc;
 
 		desc = (void *)desc + desc->desc_len;
 	}
 
-	if (!desc || i == MAX_RESOURCE_DESC)
-		return NULL;
-
-	return desc;
+	return NULL;
 }
 
 /* Uses Mbox */

@@ -80,7 +80,7 @@ inline void lpfc_vport_set_state(struct lpfc_vport *vport,
 	}
 }
 
-static int
+int
 lpfc_alloc_vpi(struct lpfc_hba *phba)
 {
 	unsigned long vpi;
@@ -568,6 +568,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
 	long timeout;
+	bool ns_ndlp_referenced = false;
 
 	if (vport->port_type == LPFC_PHYSICAL_PORT) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
@@ -627,6 +628,18 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	lpfc_free_sysfs_attr(vport);
 
 	lpfc_debugfs_terminate(vport);
+
+	/*
+	 * The call to fc_remove_host might release the NameServer ndlp. Since
+	 * we might need to use the ndlp to send the DA_ID CT command,
+	 * increment the reference for the NameServer ndlp to prevent it from
+	 * being released.
+	 */
+	ndlp = lpfc_findnode_did(vport, NameServer_DID);
+	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
+		lpfc_nlp_get(ndlp);
+		ns_ndlp_referenced = true;
+	}
 
 	/* Remove FC host and then SCSI host with the vport */
 	fc_remove_host(lpfc_shost_from_vport(vport));
@@ -734,6 +747,16 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 		lpfc_discovery_wait(vport);
 
 skip_logo:
+
+	/*
+	 * If the NameServer ndlp has been incremented to allow the DA_ID CT
+	 * command to be sent, decrement the ndlp now.
+	 */
+	if (ns_ndlp_referenced) {
+		ndlp = lpfc_findnode_did(vport, NameServer_DID);
+		lpfc_nlp_put(ndlp);
+	}
+
 	lpfc_cleanup(vport);
 	lpfc_sli_host_down(vport);
 

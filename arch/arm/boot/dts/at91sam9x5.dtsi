@@ -104,12 +104,14 @@
 				compatible = "atmel,at91sam9g45-dma";
 				reg = <0xffffec00 0x200>;
 				interrupts = <20 4 0>;
+				#dma-cells = <2>;
 			};
 
 			dma1: dma-controller@ffffee00 {
 				compatible = "atmel,at91sam9g45-dma";
 				reg = <0xffffee00 0x200>;
 				interrupts = <21 4 0>;
+				#dma-cells = <2>;
 			};
 
 			pinctrl@fffff400 {
@@ -465,6 +467,8 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf0008000 0x600>;
 				interrupts = <12 4 0>;
+				dmas = <&dma0 1 0>;
+				dma-names = "rxtx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -474,6 +478,8 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf000c000 0x600>;
 				interrupts = <26 4 0>;
+				dmas = <&dma1 1 0>;
+				dma-names = "rxtx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -535,6 +541,9 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf8010000 0x100>;
 				interrupts = <9 4 6>;
+				dmas = <&dma0 1 7>,
+				       <&dma0 1 8>;
+				dma-names = "tx", "rx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				pinctrl-names = "default";
@@ -546,6 +555,9 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf8014000 0x100>;
 				interrupts = <10 4 6>;
+				dmas = <&dma1 1 5>,
+				       <&dma1 1 6>;
+				dma-names = "tx", "rx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				pinctrl-names = "default";
@@ -557,6 +569,9 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf8018000 0x100>;
 				interrupts = <11 4 6>;
+				dmas = <&dma0 1 9>,
+				       <&dma0 1 10>;
+				dma-names = "tx", "rx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				pinctrl-names = "default";

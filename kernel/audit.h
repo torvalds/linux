@@ -22,12 +22,18 @@
 #include <linux/fs.h>
 #include <linux/audit.h>
 #include <linux/skbuff.h>
+#include <uapi/linux/mqueue.h>
 
 /* 0 = no checking
    1 = put_count checking
    2 = verbose put_count checking
 */
 #define AUDIT_DEBUG 0
+
+/* AUDIT_NAMES is the number of slots we reserve in the audit_context
+ * for saving names from getname().  If we get more names we will allocate
+ * a name dynamically and also add those to the list anchored by names_list. */
+#define AUDIT_NAMES	5
 
 /* At task start time, the audit_state is set in the audit_context using
    a per-task filter.  At syscall entry, the audit_state is augmented by
@@ -59,7 +65,157 @@ struct audit_entry {
 	struct audit_krule	rule;
 };
 
+struct audit_cap_data {
+	kernel_cap_t		permitted;
+	kernel_cap_t		inheritable;
+	union {
+		unsigned int	fE;		/* effective bit of file cap */
+		kernel_cap_t	effective;	/* effective set of process */
+	};
+};
+
+/* When fs/namei.c:getname() is called, we store the pointer in name and
+ * we don't let putname() free it (instead we free all of the saved
+ * pointers at syscall exit time).
+ *
+ * Further, in fs/namei.c:path_lookup() we store the inode and device.
+ */
+struct audit_names {
+	struct list_head	list;		/* audit_context->names_list */
+
+	struct filename		*name;
+	int			name_len;	/* number of chars to log */
+	bool			name_put;	/* call __putname()? */
+
+	unsigned long		ino;
+	dev_t			dev;
+	umode_t			mode;
+	kuid_t			uid;
+	kgid_t			gid;
+	dev_t			rdev;
+	u32			osid;
+	struct audit_cap_data	fcap;
+	unsigned int		fcap_ver;
+	unsigned char		type;		/* record type */
+	/*
+	 * This was an allocated audit_names and not from the array of
+	 * names allocated in the task audit context.  Thus this name
+	 * should be freed on syscall exit.
+	 */
+	bool			should_free;
+};
+
+/* The per-task audit context. */
+struct audit_context {
+	int		    dummy;	/* must be the first element */
+	int		    in_syscall;	/* 1 if task is in a syscall */
+	enum audit_state    state, current_state;
+	unsigned int	    serial;     /* serial number for record */
+	int		    major;      /* syscall number */
+	struct timespec	    ctime;      /* time of syscall entry */
+	unsigned long	    argv[4];    /* syscall arguments */
+	long		    return_code;/* syscall return code */
+	u64		    prio;
+	int		    return_valid; /* return code is valid */
+	/*
+	 * The names_list is the list of all audit_names collected during this
+	 * syscall.  The first AUDIT_NAMES entries in the names_list will
+	 * actually be from the preallocated_names array for performance
+	 * reasons.  Except during allocation they should never be referenced
+	 * through the preallocated_names array and should only be found/used
+	 * by running the names_list.
+	 */
+	struct audit_names  preallocated_names[AUDIT_NAMES];
+	int		    name_count; /* total records in names_list */
+	struct list_head    names_list;	/* struct audit_names->list anchor */
+	char		    *filterkey;	/* key for rule that triggered record */
+	struct path	    pwd;
+	struct audit_aux_data *aux;
+	struct audit_aux_data *aux_pids;
+	struct sockaddr_storage *sockaddr;
+	size_t sockaddr_len;
+				/* Save things to print about task_struct */
+	pid_t		    pid, ppid;
+	kuid_t		    uid, euid, suid, fsuid;
+	kgid_t		    gid, egid, sgid, fsgid;
+	unsigned long	    personality;
+	int		    arch;
+
+	pid_t		    target_pid;
+	kuid_t		    target_auid;
+	kuid_t		    target_uid;
+	unsigned int	    target_sessionid;
+	u32		    target_sid;
+	char		    target_comm[TASK_COMM_LEN];
+
+	struct audit_tree_refs *trees, *first_trees;
+	struct list_head killed_trees;
+	int tree_count;
+
+	int type;
+	union {
+		struct {
+			int nargs;
+			long args[6];
+		} socketcall;
+		struct {
+			kuid_t			uid;
+			kgid_t			gid;
+			umode_t			mode;
+			u32			osid;
+			int			has_perm;
+			uid_t			perm_uid;
+			gid_t			perm_gid;
+			umode_t			perm_mode;
+			unsigned long		qbytes;
+		} ipc;
+		struct {
+			mqd_t			mqdes;
+			struct mq_attr		mqstat;
+		} mq_getsetattr;
+		struct {
+			mqd_t			mqdes;
+			int			sigev_signo;
+		} mq_notify;
+		struct {
+			mqd_t			mqdes;
+			size_t			msg_len;
+			unsigned int		msg_prio;
+			struct timespec		abs_timeout;
+		} mq_sendrecv;
+		struct {
+			int			oflag;
+			umode_t			mode;
+			struct mq_attr		attr;
+		} mq_open;
+		struct {
+			pid_t			pid;
+			struct audit_cap_data	cap;
+		} capset;
+		struct {
+			int			fd;
+			int			flags;
+		} mmap;
+	};
+	int fds[2];
+
+#if AUDIT_DEBUG
+	int		    put_count;
+	int		    ino_count;
+#endif
+};
+
 extern int audit_ever_enabled;
+
+extern void audit_copy_inode(struct audit_names *name,
+			     const struct dentry *dentry,
+			     const struct inode *inode);
+extern void audit_log_cap(struct audit_buffer *ab, char *prefix,
+			  kernel_cap_t *cap);
+extern void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name);
+extern void audit_log_name(struct audit_context *context,
+			   struct audit_names *n, struct path *path,
+			   int record_num, int *call_panic);
 
 extern int audit_pid;
 

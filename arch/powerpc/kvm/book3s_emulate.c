@@ -194,7 +194,9 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				run->papr_hcall.args[i] = gpr;
 			}
 
-			emulated = EMULATE_DO_PAPR;
+			run->exit_reason = KVM_EXIT_PAPR_HCALL;
+			vcpu->arch.hcall_needed = 1;
+			emulated = EMULATE_EXIT_USER;
 			break;
 		}
 #endif

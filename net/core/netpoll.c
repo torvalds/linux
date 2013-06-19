@@ -206,7 +206,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 	 * the dev_open/close paths use this to block netpoll activity
 	 * while changing device state
 	 */
-	if (!down_trylock(&ni->dev_lock))
+	if (down_trylock(&ni->dev_lock))
 		return;
 
 	if (!netif_running(dev)) {

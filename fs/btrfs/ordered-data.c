@@ -986,7 +986,7 @@ out:
  * be reclaimed before their checksum is actually put into the btree
  */
 int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
-			   u32 *sum)
+			   u32 *sum, int len)
 {
 	struct btrfs_ordered_sum *ordered_sum;
 	struct btrfs_sector_sum *sector_sums;
@@ -995,22 +995,28 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
 	unsigned long num_sectors;
 	unsigned long i;
 	u32 sectorsize = BTRFS_I(inode)->root->sectorsize;
-	int ret = 1;
+	int index = 0;
 
 	ordered = btrfs_lookup_ordered_extent(inode, offset);
 	if (!ordered)
-		return 1;
+		return 0;
 
 	spin_lock_irq(&tree->lock);
 	list_for_each_entry_reverse(ordered_sum, &ordered->list, list) {
-		if (disk_bytenr >= ordered_sum->bytenr) {
-			num_sectors = ordered_sum->len / sectorsize;
-			sector_sums = ordered_sum->sums;
-			for (i = 0; i < num_sectors; i++) {
+		if (disk_bytenr >= ordered_sum->bytenr &&
+		    disk_bytenr < ordered_sum->bytenr + ordered_sum->len) {
+			i = (disk_bytenr - ordered_sum->bytenr) >>
+			    inode->i_sb->s_blocksize_bits;
+			sector_sums = ordered_sum->sums + i;
+			num_sectors = ordered_sum->len >>
+				      inode->i_sb->s_blocksize_bits;
+			for (; i < num_sectors; i++) {
 				if (sector_sums[i].bytenr == disk_bytenr) {
-					*sum = sector_sums[i].sum;
-					ret = 0;
-					goto out;
+					sum[index] = sector_sums[i].sum;
+					index++;
+					if (index == len)
+						goto out;
+					disk_bytenr += sectorsize;
 				}
 			}
 		}
@@ -1018,7 +1024,7 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
 out:
 	spin_unlock_irq(&tree->lock);
 	btrfs_put_ordered_extent(ordered);
-	return ret;
+	return index;
 }
 
 

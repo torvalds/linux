@@ -10,9 +10,6 @@
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
-#ifdef CONFIG_BLOCK_DEV_RAM
-#include <linux/blk.h>
-#endif
 #include <linux/swap.h>
 #include <linux/module.h>
 #include <asm/page.h>

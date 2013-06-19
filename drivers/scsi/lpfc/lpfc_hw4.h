@@ -200,6 +200,11 @@ struct lpfc_sli_intf {
 #define LPFC_MAX_IMAX          5000000
 #define LPFC_DEF_IMAX          50000
 
+#define LPFC_MIN_CPU_MAP       0
+#define LPFC_MAX_CPU_MAP       2
+#define LPFC_HBA_CPU_MAP       1
+#define LPFC_DRIVER_CPU_MAP    2  /* Default */
+
 /* PORT_CAPABILITIES constants. */
 #define LPFC_MAX_SUPPORTED_PAGES	8
 
@@ -621,7 +626,7 @@ struct lpfc_register {
 #define lpfc_sliport_status_rdy_SHIFT	23
 #define lpfc_sliport_status_rdy_MASK	0x1
 #define lpfc_sliport_status_rdy_WORD	word0
-#define MAX_IF_TYPE_2_RESETS	1000
+#define MAX_IF_TYPE_2_RESETS		6
 
 #define LPFC_CTL_PORT_CTL_OFFSET	0x408
 #define lpfc_sliport_ctrl_end_SHIFT	30

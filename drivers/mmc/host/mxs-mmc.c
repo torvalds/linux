@@ -552,22 +552,6 @@ static const struct mmc_host_ops mxs_mmc_ops = {
 	.enable_sdio_irq = mxs_mmc_enable_sdio_irq,
 };
 
-static bool mxs_mmc_dma_filter(struct dma_chan *chan, void *param)
-{
-	struct mxs_mmc_host *host = param;
-	struct mxs_ssp *ssp = &host->ssp;
-
-	if (!mxs_dma_is_apbh(chan))
-		return false;
-
-	if (chan->chan_id != ssp->dma_channel)
-		return false;
-
-	chan->private = &ssp->dma_data;
-
-	return true;
-}
-
 static struct platform_device_id mxs_ssp_ids[] = {
 	{
 		.name = "imx23-mmc",
@@ -595,20 +579,17 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct mxs_mmc_host *host;
 	struct mmc_host *mmc;
-	struct resource *iores, *dmares;
+	struct resource *iores;
 	struct pinctrl *pinctrl;
-	int ret = 0, irq_err, irq_dma;
-	dma_cap_mask_t mask;
+	int ret = 0, irq_err;
 	struct regulator *reg_vmmc;
 	enum of_gpio_flags flags;
 	struct mxs_ssp *ssp;
 	u32 bus_width = 0;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	irq_err = platform_get_irq(pdev, 0);
-	irq_dma = platform_get_irq(pdev, 1);
-	if (!iores || irq_err < 0 || irq_dma < 0)
+	if (!iores || irq_err < 0)
 		return -EINVAL;
 
 	mmc = mmc_alloc_host(sizeof(struct mxs_mmc_host), &pdev->dev);
@@ -624,23 +605,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		goto out_mmc_free;
 	}
 
-	if (np) {
-		ssp->devid = (enum mxs_ssp_id) of_id->data;
-		/*
-		 * TODO: This is a temporary solution and should be changed
-		 * to use generic DMA binding later when the helpers get in.
-		 */
-		ret = of_property_read_u32(np, "fsl,ssp-dma-channel",
-					   &ssp->dma_channel);
-		if (ret) {
-			dev_err(mmc_dev(host->mmc),
-				"failed to get dma channel\n");
-			goto out_mmc_free;
-		}
-	} else {
-		ssp->devid = pdev->id_entry->driver_data;
-		ssp->dma_channel = dmares->start;
-	}
+	ssp->devid = (enum mxs_ssp_id) of_id->data;
 
 	host->mmc = mmc;
 	host->sdio_irq_en = 0;
@@ -670,10 +635,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 
 	mxs_mmc_reset(host);
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	ssp->dma_data.chan_irq = irq_dma;
-	ssp->dmach = dma_request_channel(mask, mxs_mmc_dma_filter, host);
+	ssp->dmach = dma_request_slave_channel(&pdev->dev, "rx-tx");
 	if (!ssp->dmach) {
 		dev_err(mmc_dev(host->mmc),
 			"%s: failed to request dma\n", __func__);

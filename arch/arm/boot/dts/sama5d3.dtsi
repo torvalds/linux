@@ -60,6 +60,8 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf0000000 0x600>;
 				interrupts = <21 4 0>;
+				dmas = <&dma0 2 0>;
+				dma-names = "rxtx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0 &pinctrl_mmc0_dat1_3 &pinctrl_mmc0_dat4_7>;
 				status = "disabled";
@@ -73,11 +75,6 @@
 				compatible = "atmel,at91sam9x5-spi";
 				reg = <0xf0004000 0x100>;
 				interrupts = <24 4 3>;
-				cs-gpios = <&pioD 13 0
-					    &pioD 14 0 /* conflicts with SCK0 and CANRX0 */
-					    &pioD 15 0 /* conflicts with CTS0 and CANTX0 */
-					    &pioD 16 0 /* conflicts with RTS0 and PWMFI3 */
-					   >;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi0>;
 				status = "disabled";
@@ -111,6 +108,9 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf0014000 0x4000>;
 				interrupts = <18 4 6>;
+				dmas = <&dma0 2 7>,
+				       <&dma0 2 8>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2c0>;
 				#address-cells = <1>;
@@ -122,6 +122,9 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf0018000 0x4000>;
 				interrupts = <19 4 6>;
+				dmas = <&dma0 2 9>,
+				       <&dma0 2 10>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2c1>;
 				#address-cells = <1>;
@@ -148,7 +151,7 @@
 			};
 
 			macb0: ethernet@f0028000 {
-				compatible = "cnds,pc302-gem", "cdns,gem";
+				compatible = "cdns,pc302-gem", "cdns,gem";
 				reg = <0xf0028000 0x100>;
 				interrupts = <34 4 3>;
 				pinctrl-names = "default";
@@ -167,6 +170,8 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf8000000 0x600>;
 				interrupts = <22 4 0>;
+				dmas = <&dma1 2 0>;
+				dma-names = "rxtx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc1_clk_cmd_dat0 &pinctrl_mmc1_dat1_3>;
 				status = "disabled";
@@ -178,6 +183,8 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf8004000 0x600>;
 				interrupts = <23 4 0>;
+				dmas = <&dma1 2 1>;
+				dma-names = "rxtx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc2_clk_cmd_dat0 &pinctrl_mmc2_dat1_3>;
 				status = "disabled";
@@ -191,11 +198,6 @@
 				compatible = "atmel,at91sam9x5-spi";
 				reg = <0xf8008000 0x100>;
 				interrupts = <25 4 3>;
-				cs-gpios = <&pioC 25 0
-					    &pioC 26 0 /* conflitcs with TWD1 and ISI_D11 */
-					    &pioC 27 0 /* conflitcs with TWCK1 and ISI_D10 */
-					    &pioC 28 0 /* conflitcs with PWMFI0 and ISI_D9 */
-					   >;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi1>;
 				status = "disabled";
@@ -294,6 +296,9 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf801c000 0x4000>;
 				interrupts = <20 4 6>;
+				dmas = <&dma1 2 11>,
+				       <&dma1 2 12>;
+				dma-names = "tx", "rx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -348,14 +353,14 @@
 				compatible = "atmel,at91sam9g45-dma";
 				reg = <0xffffe600 0x200>;
 				interrupts = <30 4 0>;
-				#dma-cells = <1>;
+				#dma-cells = <2>;
 			};
 
 			dma1: dma-controller@ffffe800 {
 				compatible = "atmel,at91sam9g45-dma";
 				reg = <0xffffe800 0x200>;
 				interrupts = <31 4 0>;
-				#dma-cells = <1>;
+				#dma-cells = <2>;
 			};
 
 			ramc0: ramc@ffffea00 {

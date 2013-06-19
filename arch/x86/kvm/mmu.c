@@ -199,8 +199,11 @@ EXPORT_SYMBOL_GPL(kvm_mmu_set_mmio_spte_mask);
 
 static void mark_mmio_spte(u64 *sptep, u64 gfn, unsigned access)
 {
+	struct kvm_mmu_page *sp =  page_header(__pa(sptep));
+
 	access &= ACC_WRITE_MASK | ACC_USER_MASK;
 
+	sp->mmio_cached = true;
 	trace_mark_mmio_spte(sptep, gfn, access);
 	mmu_spte_set(sptep, shadow_mmio_mask | access | gfn << PAGE_SHIFT);
 }
@@ -1502,6 +1505,7 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 					       u64 *parent_pte, int direct)
 {
 	struct kvm_mmu_page *sp;
+
 	sp = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_header_cache);
 	sp->spt = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_cache);
 	if (!direct)
@@ -1644,16 +1648,14 @@ static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 				    struct list_head *invalid_list);
 
-#define for_each_gfn_sp(kvm, sp, gfn)					\
-  hlist_for_each_entry(sp,						\
-   &(kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(gfn)], hash_link)	\
-	if ((sp)->gfn != (gfn)) {} else
+#define for_each_gfn_sp(_kvm, _sp, _gfn)				\
+	hlist_for_each_entry(_sp,					\
+	  &(_kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(_gfn)], hash_link) \
+		if ((_sp)->gfn != (_gfn)) {} else
 
-#define for_each_gfn_indirect_valid_sp(kvm, sp, gfn)			\
-  hlist_for_each_entry(sp,						\
-   &(kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(gfn)], hash_link)	\
-		if ((sp)->gfn != (gfn) || (sp)->role.direct ||		\
-			(sp)->role.invalid) {} else
+#define for_each_gfn_indirect_valid_sp(_kvm, _sp, _gfn)			\
+	for_each_gfn_sp(_kvm, _sp, _gfn)				\
+		if ((_sp)->role.direct || (_sp)->role.invalid) {} else
 
 /* @sp->gfn should be write-protected at the call site */
 static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
@@ -2089,7 +2091,7 @@ static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 				    struct list_head *invalid_list)
 {
-	struct kvm_mmu_page *sp;
+	struct kvm_mmu_page *sp, *nsp;
 
 	if (list_empty(invalid_list))
 		return;
@@ -2106,11 +2108,25 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 	 */
 	kvm_flush_remote_tlbs(kvm);
 
-	do {
-		sp = list_first_entry(invalid_list, struct kvm_mmu_page, link);
+	list_for_each_entry_safe(sp, nsp, invalid_list, link) {
 		WARN_ON(!sp->role.invalid || sp->root_count);
 		kvm_mmu_free_page(sp);
-	} while (!list_empty(invalid_list));
+	}
+}
+
+static bool prepare_zap_oldest_mmu_page(struct kvm *kvm,
+					struct list_head *invalid_list)
+{
+	struct kvm_mmu_page *sp;
+
+	if (list_empty(&kvm->arch.active_mmu_pages))
+		return false;
+
+	sp = list_entry(kvm->arch.active_mmu_pages.prev,
+			struct kvm_mmu_page, link);
+	kvm_mmu_prepare_zap_page(kvm, sp, invalid_list);
+
+	return true;
 }
 
 /*
@@ -2120,23 +2136,15 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int goal_nr_mmu_pages)
 {
 	LIST_HEAD(invalid_list);
-	/*
-	 * If we set the number of mmu pages to be smaller be than the
-	 * number of actived pages , we must to free some mmu pages before we
-	 * change the value
-	 */
 
 	spin_lock(&kvm->mmu_lock);
 
 	if (kvm->arch.n_used_mmu_pages > goal_nr_mmu_pages) {
-		while (kvm->arch.n_used_mmu_pages > goal_nr_mmu_pages &&
-			!list_empty(&kvm->arch.active_mmu_pages)) {
-			struct kvm_mmu_page *page;
+		/* Need to free some mmu pages to achieve the goal. */
+		while (kvm->arch.n_used_mmu_pages > goal_nr_mmu_pages)
+			if (!prepare_zap_oldest_mmu_page(kvm, &invalid_list))
+				break;
 
-			page = container_of(kvm->arch.active_mmu_pages.prev,
-					    struct kvm_mmu_page, link);
-			kvm_mmu_prepare_zap_page(kvm, page, &invalid_list);
-		}
 		kvm_mmu_commit_zap_page(kvm, &invalid_list);
 		goal_nr_mmu_pages = kvm->arch.n_used_mmu_pages;
 	}
@@ -2794,6 +2802,7 @@ exit:
 
 static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
 			 gva_t gva, pfn_t *pfn, bool write, bool *writable);
+static void make_mmu_pages_available(struct kvm_vcpu *vcpu);
 
 static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, u32 error_code,
 			 gfn_t gfn, bool prefault)
@@ -2835,7 +2844,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, u32 error_code,
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
 		goto out_unlock;
-	kvm_mmu_free_some_pages(vcpu);
+	make_mmu_pages_available(vcpu);
 	if (likely(!force_pt_level))
 		transparent_hugepage_adjust(vcpu, &gfn, &pfn, &level);
 	r = __direct_map(vcpu, v, write, map_writable, level, gfn, pfn,
@@ -2913,7 +2922,7 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		spin_lock(&vcpu->kvm->mmu_lock);
-		kvm_mmu_free_some_pages(vcpu);
+		make_mmu_pages_available(vcpu);
 		sp = kvm_mmu_get_page(vcpu, 0, 0, PT64_ROOT_LEVEL,
 				      1, ACC_ALL, NULL);
 		++sp->root_count;
@@ -2925,7 +2934,7 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 
 			ASSERT(!VALID_PAGE(root));
 			spin_lock(&vcpu->kvm->mmu_lock);
-			kvm_mmu_free_some_pages(vcpu);
+			make_mmu_pages_available(vcpu);
 			sp = kvm_mmu_get_page(vcpu, i << (30 - PAGE_SHIFT),
 					      i << 30,
 					      PT32_ROOT_LEVEL, 1, ACC_ALL,
@@ -2964,7 +2973,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		ASSERT(!VALID_PAGE(root));
 
 		spin_lock(&vcpu->kvm->mmu_lock);
-		kvm_mmu_free_some_pages(vcpu);
+		make_mmu_pages_available(vcpu);
 		sp = kvm_mmu_get_page(vcpu, root_gfn, 0, PT64_ROOT_LEVEL,
 				      0, ACC_ALL, NULL);
 		root = __pa(sp->spt);
@@ -2998,7 +3007,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 				return 1;
 		}
 		spin_lock(&vcpu->kvm->mmu_lock);
-		kvm_mmu_free_some_pages(vcpu);
+		make_mmu_pages_available(vcpu);
 		sp = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
 				      PT32_ROOT_LEVEL, 0,
 				      ACC_ALL, NULL);
@@ -3304,7 +3313,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
 		goto out_unlock;
-	kvm_mmu_free_some_pages(vcpu);
+	make_mmu_pages_available(vcpu);
 	if (likely(!force_pt_level))
 		transparent_hugepage_adjust(vcpu, &gfn, &pfn, &level);
 	r = __direct_map(vcpu, gpa, write, map_writable,
@@ -4006,17 +4015,17 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_unprotect_page_virt);
 
-void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
+static void make_mmu_pages_available(struct kvm_vcpu *vcpu)
 {
 	LIST_HEAD(invalid_list);
 
-	while (kvm_mmu_available_pages(vcpu->kvm) < KVM_REFILL_PAGES &&
-	       !list_empty(&vcpu->kvm->arch.active_mmu_pages)) {
-		struct kvm_mmu_page *sp;
+	if (likely(kvm_mmu_available_pages(vcpu->kvm) >= KVM_MIN_FREE_MMU_PAGES))
+		return;
 
-		sp = container_of(vcpu->kvm->arch.active_mmu_pages.prev,
-				  struct kvm_mmu_page, link);
-		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, &invalid_list);
+	while (kvm_mmu_available_pages(vcpu->kvm) < KVM_REFILL_PAGES) {
+		if (!prepare_zap_oldest_mmu_page(vcpu->kvm, &invalid_list))
+			break;
+
 		++vcpu->kvm->stat.mmu_recycled;
 	}
 	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
@@ -4185,17 +4194,22 @@ restart:
 	spin_unlock(&kvm->mmu_lock);
 }
 
-static void kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm,
-						struct list_head *invalid_list)
+void kvm_mmu_zap_mmio_sptes(struct kvm *kvm)
 {
-	struct kvm_mmu_page *page;
+	struct kvm_mmu_page *sp, *node;
+	LIST_HEAD(invalid_list);
 
-	if (list_empty(&kvm->arch.active_mmu_pages))
-		return;
+	spin_lock(&kvm->mmu_lock);
+restart:
+	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link) {
+		if (!sp->mmio_cached)
+			continue;
+		if (kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list))
+			goto restart;
+	}
 
-	page = container_of(kvm->arch.active_mmu_pages.prev,
-			    struct kvm_mmu_page, link);
-	kvm_mmu_prepare_zap_page(kvm, page, invalid_list);
+	kvm_mmu_commit_zap_page(kvm, &invalid_list);
+	spin_unlock(&kvm->mmu_lock);
 }
 
 static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
@@ -4232,7 +4246,7 @@ static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
 		idx = srcu_read_lock(&kvm->srcu);
 		spin_lock(&kvm->mmu_lock);
 
-		kvm_mmu_remove_some_alloc_mmu_pages(kvm, &invalid_list);
+		prepare_zap_oldest_mmu_page(kvm, &invalid_list);
 		kvm_mmu_commit_zap_page(kvm, &invalid_list);
 
 		spin_unlock(&kvm->mmu_lock);

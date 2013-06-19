@@ -22,8 +22,7 @@ config M68KCLASSIC
 
 config COLDFIRE
 	bool "Coldfire CPU family support"
-	select GENERIC_GPIO
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAVE_CUSTOM_GPIO_H
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_MULDIV64
@@ -224,12 +223,24 @@ config M5307
 	help
 	  Motorola ColdFire 5307 processor support.
 
+config M53xx
+	bool
+
 config M532x
 	bool "MCF532x"
 	depends on !MMU
+	select M53xx
 	select HAVE_CACHE_CB
 	help
 	  Freescale (Motorola) ColdFire 532x processor support.
+
+config M537x
+	bool "MCF537x"
+	depends on !MMU
+	select M53xx
+	select HAVE_CACHE_CB
+	help
+	  Freescale ColdFire 537x processor support.
 
 config M5407
 	bool "MCF5407"

@@ -165,10 +165,3 @@ asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_a2,
 	return sys_fallocate(fd, mode, merge_64(offset_a2, offset_a3),
 			     merge_64(len_a4, len_a5));
 }
-
-SYSCALL_DEFINE6(32_fanotify_mark, int, fanotify_fd, unsigned int, flags,
-		u64, a3, u64, a4, int, dfd, const char	__user *, pathname)
-{
-	return sys_fanotify_mark(fanotify_fd, flags, merge_64(a3, a4),
-				 dfd, pathname);
-}

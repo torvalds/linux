@@ -101,23 +101,8 @@ static void gpio_setup_data_reg(struct sh_pfc_chip *chip, unsigned gpio)
 static int gpio_setup_data_regs(struct sh_pfc_chip *chip)
 {
 	struct sh_pfc *pfc = chip->pfc;
-	unsigned long addr = pfc->info->data_regs[0].reg;
 	const struct pinmux_data_reg *dreg;
 	unsigned int i;
-
-	/* Find the window that contain the GPIO registers. */
-	for (i = 0; i < pfc->num_windows; ++i) {
-		struct sh_pfc_window *window = &pfc->window[i];
-
-		if (addr >= window->phys && addr < window->phys + window->size)
-			break;
-	}
-
-	if (i == pfc->num_windows)
-		return -EINVAL;
-
-	/* GPIO data registers must be in the first memory resource. */
-	chip->mem = &pfc->window[i];
 
 	/* Count the number of data registers, allocate memory and initialize
 	 * them.
@@ -319,7 +304,8 @@ static int gpio_function_setup(struct sh_pfc_chip *chip)
  */
 
 static struct sh_pfc_chip *
-sh_pfc_add_gpiochip(struct sh_pfc *pfc, int(*setup)(struct sh_pfc_chip *))
+sh_pfc_add_gpiochip(struct sh_pfc *pfc, int(*setup)(struct sh_pfc_chip *),
+		    struct sh_pfc_window *mem)
 {
 	struct sh_pfc_chip *chip;
 	int ret;
@@ -328,6 +314,7 @@ sh_pfc_add_gpiochip(struct sh_pfc *pfc, int(*setup)(struct sh_pfc_chip *))
 	if (unlikely(!chip))
 		return ERR_PTR(-ENOMEM);
 
+	chip->mem = mem;
 	chip->pfc = pfc;
 
 	ret = setup(chip);
@@ -354,8 +341,27 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	unsigned int i;
 	int ret;
 
+	if (pfc->info->data_regs == NULL)
+		return 0;
+
+	/* Find the memory window that contain the GPIO registers. Boards that
+	 * register a separate GPIO device will not supply a memory resource
+	 * that covers the data registers. In that case don't try to handle
+	 * GPIOs.
+	 */
+	for (i = 0; i < pfc->num_windows; ++i) {
+		struct sh_pfc_window *window = &pfc->window[i];
+
+		if (pfc->info->data_regs[0].reg >= window->phys &&
+		    pfc->info->data_regs[0].reg < window->phys + window->size)
+			break;
+	}
+
+	if (i == pfc->num_windows)
+		return 0;
+
 	/* Register the real GPIOs chip. */
-	chip = sh_pfc_add_gpiochip(pfc, gpio_pin_setup);
+	chip = sh_pfc_add_gpiochip(pfc, gpio_pin_setup, &pfc->window[i]);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
@@ -384,7 +390,10 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	}
 
 	/* Register the function GPIOs chip. */
-	chip = sh_pfc_add_gpiochip(pfc, gpio_function_setup);
+	if (pfc->info->nr_func_gpios == 0)
+		return 0;
+
+	chip = sh_pfc_add_gpiochip(pfc, gpio_function_setup, NULL);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 

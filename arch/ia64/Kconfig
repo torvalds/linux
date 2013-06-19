@@ -101,9 +101,6 @@ config GENERIC_CALIBRATE_DELAY
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y
 
-config GENERIC_GPIO
-	bool
-
 config DMI
 	bool
 	default y

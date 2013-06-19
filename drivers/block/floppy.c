@@ -3601,7 +3601,7 @@ static void __init config_types(void)
 		pr_cont("\n");
 }
 
-static int floppy_release(struct gendisk *disk, fmode_t mode)
+static void floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	int drive = (long)disk->private_data;
 
@@ -3615,8 +3615,6 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 		opened_bdev[drive] = NULL;
 	mutex_unlock(&open_lock);
 	mutex_unlock(&floppy_mutex);
-
-	return 0;
 }
 
 /*
@@ -3777,7 +3775,6 @@ static int __floppy_read_block_0(struct block_device *bdev)
 	bio_vec.bv_len = size;
 	bio_vec.bv_offset = 0;
 	bio.bi_vcnt = 1;
-	bio.bi_idx = 0;
 	bio.bi_size = size;
 	bio.bi_bdev = bdev;
 	bio.bi_sector = 0;

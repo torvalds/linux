@@ -33,6 +33,7 @@
 #include <asm/irqflags.h>
 #include <asm/ftrace.h>
 #include <asm/hw_irq.h>
+#include <asm/context_tracking.h>
 
 /*
  * System calls.
@@ -150,7 +151,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	CURRENT_THREAD_INFO(r11, r1)
 	ld	r10,TI_FLAGS(r11)
 	andi.	r11,r10,_TIF_SYSCALL_T_OR_A
-	bne-	syscall_dotrace
+	bne	syscall_dotrace
 .Lsyscall_dotrace_cont:
 	cmpldi	0,r0,NR_syscalls
 	bge-	syscall_enosys
@@ -376,8 +377,6 @@ _GLOBAL(ret_from_fork)
 _GLOBAL(ret_from_kernel_thread)
 	bl	.schedule_tail
 	REST_NVGPRS(r1)
-	li	r3,0
-	std	r3,0(r1)
 	ld	r14, 0(r14)
 	mtlr	r14
 	mr	r3,r15
@@ -466,6 +465,20 @@ BEGIN_FTR_SECTION
 	std	r0, THREAD_EBBHR(r3)
 	mfspr	r0, SPRN_EBBRR
 	std	r0, THREAD_EBBRR(r3)
+
+	/* PMU registers made user read/(write) by EBB */
+	mfspr	r0, SPRN_SIAR
+	std	r0, THREAD_SIAR(r3)
+	mfspr	r0, SPRN_SDAR
+	std	r0, THREAD_SDAR(r3)
+	mfspr	r0, SPRN_SIER
+	std	r0, THREAD_SIER(r3)
+	mfspr	r0, SPRN_MMCR0
+	std	r0, THREAD_MMCR0(r3)
+	mfspr	r0, SPRN_MMCR2
+	std	r0, THREAD_MMCR2(r3)
+	mfspr	r0, SPRN_MMCRA
+	std	r0, THREAD_MMCRA(r3)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 #endif
 
@@ -561,6 +574,20 @@ BEGIN_FTR_SECTION
 	ld	r0, THREAD_EBBRR(r4)
 	mtspr	SPRN_EBBRR, r0
 
+	/* PMU registers made user read/(write) by EBB */
+	ld	r0, THREAD_SIAR(r4)
+	mtspr	SPRN_SIAR, r0
+	ld	r0, THREAD_SDAR(r4)
+	mtspr	SPRN_SDAR, r0
+	ld	r0, THREAD_SIER(r4)
+	mtspr	SPRN_SIER, r0
+	ld	r0, THREAD_MMCR0(r4)
+	mtspr	SPRN_MMCR0, r0
+	ld	r0, THREAD_MMCR2(r4)
+	mtspr	SPRN_MMCR2, r0
+	ld	r0, THREAD_MMCRA(r4)
+	mtspr	SPRN_MMCRA, r0
+
 	ld	r0,THREAD_TAR(r4)
 	mtspr	SPRN_TAR,r0
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
@@ -634,7 +661,7 @@ _GLOBAL(ret_from_except_lite)
 	andi.	r0,r4,_TIF_NEED_RESCHED
 	beq	1f
 	bl	.restore_interrupts
-	bl	.schedule
+	SCHEDULE_USER
 	b	.ret_from_except_lite
 
 1:	bl	.save_nvgprs

@@ -24,6 +24,11 @@
 #define XFS_BUF_LOCK_TRACKING 1
 #endif
 
+#ifdef CONFIG_XFS_WARN
+#define XFS_WARN 1
+#endif
+
+
 #include "xfs_linux.h"
 
 #endif	/* __XFS_H__ */

@@ -1,4 +1,4 @@
-obj-y				+= common.o addr-map.o irq.o pcie.o mpp.o
+obj-y				+= common.o irq.o pcie.o mpp.o
 
 obj-$(CONFIG_MACH_D2NET_V2)		+= d2net_v2-setup.o lacie_v2-common.o
 obj-$(CONFIG_MACH_DB88F6281_BP)		+= db88f6281-bp-setup.o

@@ -18,7 +18,8 @@
 
 #include "hid-ids.h"
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_BUILTIN(CONFIG_LEDS_CLASS) || \
+    (IS_MODULE(CONFIG_LEDS_CLASS) && IS_MODULE(CONFIG_HID_STEELSERIES))
 #define SRWS1_NUMBER_LEDS 15
 struct steelseries_srws1_data {
 	__u16 led_state;
@@ -107,7 +108,8 @@ static __u8 steelseries_srws1_rdesc_fixed[] = {
 0xC0                /*  End Collection                      */
 };
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_BUILTIN(CONFIG_LEDS_CLASS) || \
+    (IS_MODULE(CONFIG_LEDS_CLASS) && IS_MODULE(CONFIG_HID_STEELSERIES))
 static void steelseries_srws1_set_leds(struct hid_device *hdev, __u16 leds)
 {
 	struct list_head *report_list = &hdev->report_enum[HID_OUTPUT_REPORT].report_list;
@@ -370,7 +372,8 @@ MODULE_DEVICE_TABLE(hid, steelseries_srws1_devices);
 static struct hid_driver steelseries_srws1_driver = {
 	.name = "steelseries_srws1",
 	.id_table = steelseries_srws1_devices,
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_BUILTIN(CONFIG_LEDS_CLASS) || \
+    (IS_MODULE(CONFIG_LEDS_CLASS) && IS_MODULE(CONFIG_HID_STEELSERIES))
 	.probe = steelseries_srws1_probe,
 	.remove = steelseries_srws1_remove,
 #endif

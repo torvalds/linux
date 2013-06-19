@@ -72,13 +72,12 @@ print_ports(const struct sk_buff *skb, uint8_t protocol, int offset)
 }
 
 static void
-ebt_log_packet(u_int8_t pf, unsigned int hooknum,
-   const struct sk_buff *skb, const struct net_device *in,
-   const struct net_device *out, const struct nf_loginfo *loginfo,
-   const char *prefix)
+ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
+	       const struct sk_buff *skb, const struct net_device *in,
+	       const struct net_device *out, const struct nf_loginfo *loginfo,
+	       const char *prefix)
 {
 	unsigned int bitmask;
-	struct net *net = dev_net(in ? in : out);
 
 	/* FIXME: Disabled from containers until syslog ns is supported */
 	if (!net_eq(net, &init_net))
@@ -191,7 +190,7 @@ ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		nf_log_packet(net, NFPROTO_BRIDGE, par->hooknum, skb,
 			      par->in, par->out, &li, "%s", info->prefix);
 	else
-		ebt_log_packet(NFPROTO_BRIDGE, par->hooknum, skb, par->in,
+		ebt_log_packet(net, NFPROTO_BRIDGE, par->hooknum, skb, par->in,
 			       par->out, &li, info->prefix);
 	return EBT_CONTINUE;
 }

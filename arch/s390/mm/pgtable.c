@@ -454,9 +454,8 @@ unsigned long gmap_translate(unsigned long address, struct gmap *gmap)
 }
 EXPORT_SYMBOL_GPL(gmap_translate);
 
-static int gmap_connect_pgtable(unsigned long segment,
-				unsigned long *segment_ptr,
-				struct gmap *gmap)
+static int gmap_connect_pgtable(unsigned long address, unsigned long segment,
+				unsigned long *segment_ptr, struct gmap *gmap)
 {
 	unsigned long vmaddr;
 	struct vm_area_struct *vma;
@@ -491,7 +490,9 @@ static int gmap_connect_pgtable(unsigned long segment,
 	/* Link gmap segment table entry location to page table. */
 	page = pmd_page(*pmd);
 	mp = (struct gmap_pgtable *) page->index;
+	rmap->gmap = gmap;
 	rmap->entry = segment_ptr;
+	rmap->vmaddr = address;
 	spin_lock(&mm->page_table_lock);
 	if (*segment_ptr == segment) {
 		list_add(&rmap->list, &mp->mapper);
@@ -553,7 +554,7 @@ unsigned long __gmap_fault(unsigned long address, struct gmap *gmap)
 		if (!(segment & _SEGMENT_ENTRY_RO))
 			/* Nothing mapped in the gmap address space. */
 			break;
-		rc = gmap_connect_pgtable(segment, segment_ptr, gmap);
+		rc = gmap_connect_pgtable(address, segment, segment_ptr, gmap);
 		if (rc)
 			return rc;
 	}
@@ -618,6 +619,117 @@ void gmap_discard(unsigned long from, unsigned long to, struct gmap *gmap)
 	up_read(&gmap->mm->mmap_sem);
 }
 EXPORT_SYMBOL_GPL(gmap_discard);
+
+static LIST_HEAD(gmap_notifier_list);
+static DEFINE_SPINLOCK(gmap_notifier_lock);
+
+/**
+ * gmap_register_ipte_notifier - register a pte invalidation callback
+ * @nb: pointer to the gmap notifier block
+ */
+void gmap_register_ipte_notifier(struct gmap_notifier *nb)
+{
+	spin_lock(&gmap_notifier_lock);
+	list_add(&nb->list, &gmap_notifier_list);
+	spin_unlock(&gmap_notifier_lock);
+}
+EXPORT_SYMBOL_GPL(gmap_register_ipte_notifier);
+
+/**
+ * gmap_unregister_ipte_notifier - remove a pte invalidation callback
+ * @nb: pointer to the gmap notifier block
+ */
+void gmap_unregister_ipte_notifier(struct gmap_notifier *nb)
+{
+	spin_lock(&gmap_notifier_lock);
+	list_del_init(&nb->list);
+	spin_unlock(&gmap_notifier_lock);
+}
+EXPORT_SYMBOL_GPL(gmap_unregister_ipte_notifier);
+
+/**
+ * gmap_ipte_notify - mark a range of ptes for invalidation notification
+ * @gmap: pointer to guest mapping meta data structure
+ * @address: virtual address in the guest address space
+ * @len: size of area
+ *
+ * Returns 0 if for each page in the given range a gmap mapping exists and
+ * the invalidation notification could be set. If the gmap mapping is missing
+ * for one or more pages -EFAULT is returned. If no memory could be allocated
+ * -ENOMEM is returned. This function establishes missing page table entries.
+ */
+int gmap_ipte_notify(struct gmap *gmap, unsigned long start, unsigned long len)
+{
+	unsigned long addr;
+	spinlock_t *ptl;
+	pte_t *ptep, entry;
+	pgste_t pgste;
+	int rc = 0;
+
+	if ((start & ~PAGE_MASK) || (len & ~PAGE_MASK))
+		return -EINVAL;
+	down_read(&gmap->mm->mmap_sem);
+	while (len) {
+		/* Convert gmap address and connect the page tables */
+		addr = __gmap_fault(start, gmap);
+		if (IS_ERR_VALUE(addr)) {
+			rc = addr;
+			break;
+		}
+		/* Get the page mapped */
+		if (fixup_user_fault(current, gmap->mm, addr, FAULT_FLAG_WRITE)) {
+			rc = -EFAULT;
+			break;
+		}
+		/* Walk the process page table, lock and get pte pointer */
+		ptep = get_locked_pte(gmap->mm, addr, &ptl);
+		if (unlikely(!ptep))
+			continue;
+		/* Set notification bit in the pgste of the pte */
+		entry = *ptep;
+		if ((pte_val(entry) & (_PAGE_INVALID | _PAGE_RO)) == 0) {
+			pgste = pgste_get_lock(ptep);
+			pgste_val(pgste) |= RCP_IN_BIT;
+			pgste_set_unlock(ptep, pgste);
+			start += PAGE_SIZE;
+			len -= PAGE_SIZE;
+		}
+		spin_unlock(ptl);
+	}
+	up_read(&gmap->mm->mmap_sem);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(gmap_ipte_notify);
+
+/**
+ * gmap_do_ipte_notify - call all invalidation callbacks for a specific pte.
+ * @mm: pointer to the process mm_struct
+ * @addr: virtual address in the process address space
+ * @pte: pointer to the page table entry
+ *
+ * This function is assumed to be called with the page table lock held
+ * for the pte to notify.
+ */
+void gmap_do_ipte_notify(struct mm_struct *mm, unsigned long addr, pte_t *pte)
+{
+	unsigned long segment_offset;
+	struct gmap_notifier *nb;
+	struct gmap_pgtable *mp;
+	struct gmap_rmap *rmap;
+	struct page *page;
+
+	segment_offset = ((unsigned long) pte) & (255 * sizeof(pte_t));
+	segment_offset = segment_offset * (4096 / sizeof(pte_t));
+	page = pfn_to_page(__pa(pte) >> PAGE_SHIFT);
+	mp = (struct gmap_pgtable *) page->index;
+	spin_lock(&gmap_notifier_lock);
+	list_for_each_entry(rmap, &mp->mapper, list) {
+		list_for_each_entry(nb, &gmap_notifier_list, list)
+			nb->notifier_call(rmap->gmap,
+					  rmap->vmaddr + segment_offset);
+	}
+	spin_unlock(&gmap_notifier_lock);
+}
 
 static inline unsigned long *page_table_alloc_pgste(struct mm_struct *mm,
 						    unsigned long vmaddr)

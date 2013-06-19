@@ -157,7 +157,8 @@ static void gf_copy_to(struct map_info *map, unsigned long to,
 	memcpy_toio(map->virt + (to % state->win_size), from, len);
 }
 
-static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", NULL };
+static const char * const part_probe_types[] = {
+	"cmdlinepart", "RedBoot", NULL };
 
 /**
  * gpio_flash_probe() - setup a mapping for a GPIO assisted flash

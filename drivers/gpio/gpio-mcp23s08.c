@@ -12,6 +12,8 @@
 #include <linux/spi/mcp23s08.h>
 #include <linux/slab.h>
 #include <asm/byteorder.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 /**
  * MCP types supported by driver
@@ -383,6 +385,10 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	mcp->chip.direction_output = mcp23s08_direction_output;
 	mcp->chip.set = mcp23s08_set;
 	mcp->chip.dbg_show = mcp23s08_dbg_show;
+#ifdef CONFIG_OF
+	mcp->chip.of_gpio_n_cells = 2;
+	mcp->chip.of_node = dev->of_node;
+#endif
 
 	switch (type) {
 #ifdef CONFIG_SPI_MASTER
@@ -473,6 +479,35 @@ fail:
 
 /*----------------------------------------------------------------------*/
 
+#ifdef CONFIG_OF
+#ifdef CONFIG_SPI_MASTER
+static struct of_device_id mcp23s08_spi_of_match[] = {
+	{
+		.compatible = "mcp,mcp23s08", .data = (void *) MCP_TYPE_S08,
+	},
+	{
+		.compatible = "mcp,mcp23s17", .data = (void *) MCP_TYPE_S17,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, mcp23s08_spi_of_match);
+#endif
+
+#if IS_ENABLED(CONFIG_I2C)
+static struct of_device_id mcp23s08_i2c_of_match[] = {
+	{
+		.compatible = "mcp,mcp23008", .data = (void *) MCP_TYPE_008,
+	},
+	{
+		.compatible = "mcp,mcp23017", .data = (void *) MCP_TYPE_017,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, mcp23s08_i2c_of_match);
+#endif
+#endif /* CONFIG_OF */
+
+
 #if IS_ENABLED(CONFIG_I2C)
 
 static int mcp230xx_probe(struct i2c_client *client,
@@ -480,12 +515,23 @@ static int mcp230xx_probe(struct i2c_client *client,
 {
 	struct mcp23s08_platform_data *pdata;
 	struct mcp23s08 *mcp;
-	int status;
+	int status, base, pullups;
+	const struct of_device_id *match;
 
-	pdata = client->dev.platform_data;
-	if (!pdata || !gpio_is_valid(pdata->base)) {
-		dev_dbg(&client->dev, "invalid or missing platform data\n");
-		return -EINVAL;
+	match = of_match_device(of_match_ptr(mcp23s08_i2c_of_match),
+					&client->dev);
+	if (match) {
+		base = -1;
+		pullups = 0;
+	} else {
+		pdata = client->dev.platform_data;
+		if (!pdata || !gpio_is_valid(pdata->base)) {
+			dev_dbg(&client->dev,
+					"invalid or missing platform data\n");
+			return -EINVAL;
+		}
+		base = pdata->base;
+		pullups = pdata->chip[0].pullups;
 	}
 
 	mcp = kzalloc(sizeof *mcp, GFP_KERNEL);
@@ -493,8 +539,7 @@ static int mcp230xx_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	status = mcp23s08_probe_one(mcp, &client->dev, client, client->addr,
-				    id->driver_data, pdata->base,
-				    pdata->chip[0].pullups);
+				    id->driver_data, base, pullups);
 	if (status)
 		goto fail;
 
@@ -531,6 +576,7 @@ static struct i2c_driver mcp230xx_driver = {
 	.driver = {
 		.name	= "mcp230xx",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(mcp23s08_i2c_of_match),
 	},
 	.probe		= mcp230xx_probe,
 	.remove		= mcp230xx_remove,
@@ -565,28 +611,55 @@ static int mcp23s08_probe(struct spi_device *spi)
 	unsigned			chips = 0;
 	struct mcp23s08_driver_data	*data;
 	int				status, type;
-	unsigned			base;
+	unsigned			base = -1,
+					ngpio = 0,
+					pullups[ARRAY_SIZE(pdata->chip)];
+	const struct			of_device_id *match;
+	u32				spi_present_mask = 0;
 
-	type = spi_get_device_id(spi)->driver_data;
+	match = of_match_device(of_match_ptr(mcp23s08_spi_of_match), &spi->dev);
+	if (match) {
+		type = (int)match->data;
+		status = of_property_read_u32(spi->dev.of_node,
+				"mcp,spi-present-mask", &spi_present_mask);
+		if (status) {
+			dev_err(&spi->dev, "DT has no spi-present-mask\n");
+			return -ENODEV;
+		}
+		if ((spi_present_mask <= 0) || (spi_present_mask >= 256)) {
+			dev_err(&spi->dev, "invalid spi-present-mask\n");
+			return -ENODEV;
+		}
 
-	pdata = spi->dev.platform_data;
-	if (!pdata || !gpio_is_valid(pdata->base)) {
-		dev_dbg(&spi->dev, "invalid or missing platform data\n");
-		return -EINVAL;
-	}
-
-	for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
-		if (!pdata->chip[addr].is_present)
-			continue;
-		chips++;
-		if ((type == MCP_TYPE_S08) && (addr > 3)) {
-			dev_err(&spi->dev,
-				"mcp23s08 only supports address 0..3\n");
+		for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++)
+			pullups[addr] = 0;
+	} else {
+		type = spi_get_device_id(spi)->driver_data;
+		pdata = spi->dev.platform_data;
+		if (!pdata || !gpio_is_valid(pdata->base)) {
+			dev_dbg(&spi->dev,
+					"invalid or missing platform data\n");
 			return -EINVAL;
 		}
+
+		for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
+			if (!pdata->chip[addr].is_present)
+				continue;
+			chips++;
+			if ((type == MCP_TYPE_S08) && (addr > 3)) {
+				dev_err(&spi->dev,
+					"mcp23s08 only supports address 0..3\n");
+				return -EINVAL;
+			}
+			spi_present_mask |= 1 << addr;
+			pullups[addr] = pdata->chip[addr].pullups;
+		}
+
+		if (!chips)
+			return -ENODEV;
+
+		base = pdata->base;
 	}
-	if (!chips)
-		return -ENODEV;
 
 	data = kzalloc(sizeof *data + chips * sizeof(struct mcp23s08),
 			GFP_KERNEL);
@@ -594,21 +667,22 @@ static int mcp23s08_probe(struct spi_device *spi)
 		return -ENOMEM;
 	spi_set_drvdata(spi, data);
 
-	base = pdata->base;
 	for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
-		if (!pdata->chip[addr].is_present)
+		if (!(spi_present_mask & (1 << addr)))
 			continue;
 		chips--;
 		data->mcp[addr] = &data->chip[chips];
 		status = mcp23s08_probe_one(data->mcp[addr], &spi->dev, spi,
 					    0x40 | (addr << 1), type, base,
-					    pdata->chip[addr].pullups);
+					    pullups[addr]);
 		if (status < 0)
 			goto fail;
 
-		base += (type == MCP_TYPE_S17) ? 16 : 8;
+		if (base != -1)
+			base += (type == MCP_TYPE_S17) ? 16 : 8;
+		ngpio += (type == MCP_TYPE_S17) ? 16 : 8;
 	}
-	data->ngpio = base - pdata->base;
+	data->ngpio = ngpio;
 
 	/* NOTE:  these chips have a relatively sane IRQ framework, with
 	 * per-signal masking and level/edge triggering.  It's not yet
@@ -668,6 +742,7 @@ static struct spi_driver mcp23s08_driver = {
 	.driver = {
 		.name	= "mcp23s08",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(mcp23s08_spi_of_match),
 	},
 };
 

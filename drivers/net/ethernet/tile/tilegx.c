@@ -930,7 +930,7 @@ static int tile_net_setup_interrupts(struct net_device *dev)
 		if (info->has_iqueue) {
 			gxio_mpipe_request_notif_ring_interrupt(
 				&context, cpu_x(cpu), cpu_y(cpu),
-				1, ingress_irq, info->iqueue.ring);
+				KERNEL_PL, ingress_irq, info->iqueue.ring);
 		}
 	}
 

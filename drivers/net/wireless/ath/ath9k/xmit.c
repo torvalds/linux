@@ -164,7 +164,20 @@ static void ath_set_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 			       ARRAY_SIZE(bf->rates));
 }
 
-static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
+static void ath_tx_clear_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
+{
+	tid->state &= ~AGGR_ADDBA_COMPLETE;
+	tid->state &= ~AGGR_CLEANUP;
+	if (!tid->stop_cb)
+		return;
+
+	ieee80211_start_tx_ba_cb_irqsafe(tid->an->vif, tid->an->sta->addr,
+					 tid->tidno);
+	tid->stop_cb = false;
+}
+
+static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid,
+			     bool flush_packets)
 {
 	struct ath_txq *txq = tid->ac->txq;
 	struct sk_buff *skb;
@@ -181,16 +194,15 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 	while ((skb = __skb_dequeue(&tid->buf_q))) {
 		fi = get_frame_info(skb);
 		bf = fi->bf;
+		if (!bf && !flush_packets)
+			bf = ath_tx_setup_buffer(sc, txq, tid, skb);
 
 		if (!bf) {
-			bf = ath_tx_setup_buffer(sc, txq, tid, skb);
-			if (!bf) {
-				ieee80211_free_txskb(sc->hw, skb);
-				continue;
-			}
+			ieee80211_free_txskb(sc->hw, skb);
+			continue;
 		}
 
-		if (fi->retries) {
+		if (fi->retries || flush_packets) {
 			list_add_tail(&bf->list, &bf_head);
 			ath_tx_update_baw(sc, tid, bf->bf_state.seqno);
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0);
@@ -201,12 +213,10 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 		}
 	}
 
-	if (tid->baw_head == tid->baw_tail) {
-		tid->state &= ~AGGR_ADDBA_COMPLETE;
-		tid->state &= ~AGGR_CLEANUP;
-	}
+	if (tid->baw_head == tid->baw_tail)
+		ath_tx_clear_tid(sc, tid);
 
-	if (sendbar) {
+	if (sendbar && !flush_packets) {
 		ath_txq_unlock(sc, txq);
 		ath_send_bar(tid, tid->seq_start);
 		ath_txq_lock(sc, txq);
@@ -277,9 +287,7 @@ static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 
 		list_add_tail(&bf->list, &bf_head);
 
-		if (fi->retries)
-			ath_tx_update_baw(sc, tid, bf->bf_state.seqno);
-
+		ath_tx_update_baw(sc, tid, bf->bf_state.seqno);
 		ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0);
 	}
 
@@ -602,7 +610,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	}
 
 	if (tid->state & AGGR_CLEANUP)
-		ath_tx_flush_tid(sc, tid);
+		ath_tx_flush_tid(sc, tid, false);
 
 	rcu_read_unlock();
 
@@ -620,6 +628,7 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 				  struct ath_tx_status *ts, struct ath_buf *bf,
 				  struct list_head *bf_head)
 {
+	struct ieee80211_tx_info *info;
 	bool txok, flush;
 
 	txok = !(ts->ts_status & ATH9K_TXERR_MASK);
@@ -631,8 +640,12 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 		txq->axq_ampdu_depth--;
 
 	if (!bf_isampdu(bf)) {
-		if (!flush)
+		if (!flush) {
+			info = IEEE80211_SKB_CB(bf->bf_mpdu);
+			memcpy(info->control.rates, bf->rates,
+			       sizeof(info->control.rates));
 			ath_tx_rc_status(sc, bf, ts, 1, txok ? 0 : 1, txok);
+		}
 		ath_tx_complete_buf(sc, bf, txq, bf_head, ts, txok);
 	} else
 		ath_tx_complete_aggr(sc, txq, bf, bf_head, ts, txok);
@@ -676,7 +689,7 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 
 	skb = bf->bf_mpdu;
 	tx_info = IEEE80211_SKB_CB(skb);
-	rates = tx_info->control.rates;
+	rates = bf->rates;
 
 	/*
 	 * Find the lowest frame length among the rate series that will have a
@@ -1256,18 +1269,23 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 	return 0;
 }
 
-void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
+bool ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid,
+		      bool flush)
 {
 	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 	struct ath_atx_tid *txtid = ATH_AN_2_TID(an, tid);
 	struct ath_txq *txq = txtid->ac->txq;
+	bool ret = !flush;
+
+	if (flush)
+		txtid->stop_cb = false;
 
 	if (txtid->state & AGGR_CLEANUP)
-		return;
+		return false;
 
 	if (!(txtid->state & AGGR_ADDBA_COMPLETE)) {
 		txtid->state &= ~AGGR_ADDBA_PROGRESS;
-		return;
+		return ret;
 	}
 
 	ath_txq_lock(sc, txq);
@@ -1279,13 +1297,17 @@ void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 	 * TID can only be reused after all in-progress subframes have been
 	 * completed.
 	 */
-	if (txtid->baw_head != txtid->baw_tail)
+	if (txtid->baw_head != txtid->baw_tail) {
 		txtid->state |= AGGR_CLEANUP;
-	else
+		ret = false;
+		txtid->stop_cb = !flush;
+	} else {
 		txtid->state &= ~AGGR_ADDBA_COMPLETE;
+	}
 
-	ath_tx_flush_tid(sc, txtid);
+	ath_tx_flush_tid(sc, txtid, flush);
 	ath_txq_unlock_complete(sc, txq);
+	return ret;
 }
 
 void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
@@ -2415,6 +2437,7 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 		tid->ac = &an->ac[acno];
 		tid->state &= ~AGGR_ADDBA_COMPLETE;
 		tid->state &= ~AGGR_ADDBA_PROGRESS;
+		tid->stop_cb = false;
 	}
 
 	for (acno = 0, ac = &an->ac[acno];
@@ -2451,8 +2474,7 @@ void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 		}
 
 		ath_tid_drain(sc, txq, tid);
-		tid->state &= ~AGGR_ADDBA_COMPLETE;
-		tid->state &= ~AGGR_CLEANUP;
+		ath_tx_clear_tid(sc, tid);
 
 		ath_txq_unlock(sc, txq);
 	}

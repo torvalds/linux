@@ -837,6 +837,19 @@ bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
 
 	dat_entry = batadv_dat_entry_hash_find(bat_priv, ip_dst);
 	if (dat_entry) {
+		/* If the ARP request is destined for a local client the local
+		 * client will answer itself. DAT would only generate a
+		 * duplicate packet.
+		 *
+		 * Moreover, if the soft-interface is enslaved into a bridge, an
+		 * additional DAT answer may trigger kernel warnings about
+		 * a packet coming from the wrong port.
+		 */
+		if (batadv_is_my_client(bat_priv, dat_entry->mac_addr)) {
+			ret = true;
+			goto out;
+		}
+
 		skb_new = arp_create(ARPOP_REPLY, ETH_P_ARP, ip_src,
 				     bat_priv->soft_iface, ip_dst, hw_src,
 				     dat_entry->mac_addr, hw_src);

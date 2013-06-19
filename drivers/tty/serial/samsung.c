@@ -1803,6 +1803,7 @@ static int __init s3c24xx_serial_modinit(void)
 
 static void __exit s3c24xx_serial_modexit(void)
 {
+	platform_driver_unregister(&samsung_serial_driver);
 	uart_unregister_driver(&s3c24xx_uart_drv);
 }
 

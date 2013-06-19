@@ -1240,15 +1240,6 @@ int nand_update_bbt(struct mtd_info *mtd, loff_t offs)
  */
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
 
-static uint8_t scan_agand_pattern[] = { 0x1C, 0x71, 0xC7, 0x1C, 0x71, 0xC7 };
-
-static struct nand_bbt_descr agand_flashbased = {
-	.options = NAND_BBT_SCANEMPTY | NAND_BBT_SCANALLPAGES,
-	.offs = 0x20,
-	.len = 6,
-	.pattern = scan_agand_pattern
-};
-
 /* Generic flash bbt descriptors */
 static uint8_t bbt_pattern[] = {'B', 'b', 't', '0' };
 static uint8_t mirror_pattern[] = {'1', 't', 'b', 'B' };
@@ -1332,22 +1323,6 @@ static int nand_create_badblock_pattern(struct nand_chip *this)
 int nand_default_bbt(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
-
-	/*
-	 * Default for AG-AND. We must use a flash based bad block table as the
-	 * devices have factory marked _good_ blocks. Erasing those blocks
-	 * leads to loss of the good / bad information, so we _must_ store this
-	 * information in a good / bad table during startup.
-	 */
-	if (this->options & NAND_IS_AND) {
-		/* Use the default pattern descriptors */
-		if (!this->bbt_td) {
-			this->bbt_td = &bbt_main_descr;
-			this->bbt_md = &bbt_mirror_descr;
-		}
-		this->bbt_options |= NAND_BBT_USE_FLASH;
-		return nand_scan_bbt(mtd, &agand_flashbased);
-	}
 
 	/* Is a flash based bad block table requested? */
 	if (this->bbt_options & NAND_BBT_USE_FLASH) {

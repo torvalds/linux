@@ -52,6 +52,9 @@
 #define MTIP_FTL_REBUILD_MAGIC		0xED51
 #define MTIP_FTL_REBUILD_TIMEOUT_MS	2400000
 
+/* unaligned IO handling */
+#define MTIP_MAX_UNALIGNED_SLOTS	8
+
 /* Macro to extract the tag bit number from a tag value. */
 #define MTIP_TAG_BIT(tag)	(tag & 0x1F)
 
@@ -333,6 +336,8 @@ struct mtip_cmd {
 
 	int scatter_ents; /* Number of scatter list entries used */
 
+	int unaligned; /* command is unaligned on 4k boundary */
+
 	struct scatterlist sg[MTIP_MAX_SG]; /* Scatter list entries */
 
 	int retries; /* The number of retries left for this command. */
@@ -452,6 +457,10 @@ struct mtip_port {
 	 * command slots available.
 	 */
 	struct semaphore cmd_slot;
+
+	/* Semaphore to control queue depth of unaligned IOs */
+	struct semaphore cmd_slot_unal;
+
 	/* Spinlock for working around command-issue bug. */
 	spinlock_t cmd_issue_lock[MTIP_MAX_SLOT_GROUPS];
 };
@@ -501,6 +510,8 @@ struct driver_data {
 	atomic_t irq_workers_active;
 
 	int isr_binding;
+
+	int unal_qdepth; /* qdepth of unaligned IO queue */
 
 	struct list_head online_list; /* linkage for online list */
 

@@ -136,5 +136,12 @@
 			clock-names = "cpu_1x";
 			clock-ranges;
 		};
+		scutimer: scutimer@f8f00600 {
+			interrupt-parent = <&intc>;
+			interrupts = < 1 13 0x301 >;
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = < 0xf8f00600 0x20 >;
+			clocks = <&cpu_clk 1>;
+		} ;
 	};
 };

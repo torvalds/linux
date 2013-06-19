@@ -232,17 +232,10 @@ int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
 			struct inode *ecryptfs_inode)
 {
 	struct file *lower_file;
-	mm_segment_t fs_save;
-	ssize_t rc;
-
 	lower_file = ecryptfs_inode_to_private(ecryptfs_inode)->lower_file;
 	if (!lower_file)
 		return -EIO;
-	fs_save = get_fs();
-	set_fs(get_ds());
-	rc = vfs_read(lower_file, data, size, &offset);
-	set_fs(fs_save);
-	return rc;
+	return kernel_read(lower_file, offset, data, size);
 }
 
 /**

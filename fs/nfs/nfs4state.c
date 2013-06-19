@@ -241,7 +241,7 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 	if (ses == NULL)
 		return;
 	tbl = &ses->fc_slot_table;
-	if (test_and_clear_bit(NFS4_SESSION_DRAINING, &ses->session_state)) {
+	if (test_and_clear_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state)) {
 		spin_lock(&tbl->slot_tbl_lock);
 		nfs41_wake_slot_table(tbl);
 		spin_unlock(&tbl->slot_tbl_lock);
@@ -251,15 +251,15 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 /*
  * Signal state manager thread if session fore channel is drained
  */
-void nfs4_session_drain_complete(struct nfs4_session *session,
-		struct nfs4_slot_table *tbl)
+void nfs4_slot_tbl_drain_complete(struct nfs4_slot_table *tbl)
 {
-	if (nfs4_session_draining(session))
+	if (nfs4_slot_tbl_draining(tbl))
 		complete(&tbl->complete);
 }
 
-static int nfs4_wait_on_slot_tbl(struct nfs4_slot_table *tbl)
+static int nfs4_drain_slot_tbl(struct nfs4_slot_table *tbl)
 {
+	set_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state);
 	spin_lock(&tbl->slot_tbl_lock);
 	if (tbl->highest_used_slotid != NFS4_NO_SLOT) {
 		INIT_COMPLETION(tbl->complete);
@@ -275,13 +275,12 @@ static int nfs4_begin_drain_session(struct nfs_client *clp)
 	struct nfs4_session *ses = clp->cl_session;
 	int ret = 0;
 
-	set_bit(NFS4_SESSION_DRAINING, &ses->session_state);
 	/* back channel */
-	ret = nfs4_wait_on_slot_tbl(&ses->bc_slot_table);
+	ret = nfs4_drain_slot_tbl(&ses->bc_slot_table);
 	if (ret)
 		return ret;
 	/* fore channel */
-	return nfs4_wait_on_slot_tbl(&ses->fc_slot_table);
+	return nfs4_drain_slot_tbl(&ses->fc_slot_table);
 }
 
 static void nfs41_finish_session_reset(struct nfs_client *clp)
@@ -921,6 +920,7 @@ static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_
  */
 void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
 {
+	struct nfs_server *server;
 	struct nfs4_state *state;
 
 	if (lsp == NULL)
@@ -932,11 +932,13 @@ void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
 	if (list_empty(&state->lock_states))
 		clear_bit(LK_STATE_IN_USE, &state->flags);
 	spin_unlock(&state->state_lock);
+	server = state->owner->so_server;
 	if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags)) {
-		if (nfs4_release_lockowner(lsp) == 0)
-			return;
-	}
-	nfs4_free_lock_state(lsp->ls_state->owner->so_server, lsp);
+		struct nfs_client *clp = server->nfs_client;
+
+		clp->cl_mvops->free_lock_state(server, lsp);
+	} else
+		nfs4_free_lock_state(server, lsp);
 }
 
 static void nfs4_fl_copy_lock(struct file_lock *dst, struct file_lock *src)

@@ -37,6 +37,7 @@
 #include <linux/pm.h>
 #include <linux/bootmem.h>
 
+#include <asm/idle.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <asm/bootinfo.h>
@@ -56,7 +57,7 @@ uint64_t nlm_io_base;
 struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
 cpumask_t nlm_cpumask = CPU_MASK_CPU0;
 unsigned int nlm_threads_per_core;
-extern u32 __dtb_start[];
+extern u32 __dtb_xlp_evp_begin[], __dtb_xlp_svp_begin[], __dtb_start[];
 
 static void nlm_linux_exit(void)
 {
@@ -82,8 +83,24 @@ void __init plat_mem_setup(void)
 	 * 64-bit, so convert pointer.
 	 */
 	fdtp = (void *)(long)fw_arg0;
-	if (!fdtp)
-		fdtp = __dtb_start;
+	if (!fdtp) {
+		switch (current_cpu_data.processor_id & 0xff00) {
+#ifdef CONFIG_DT_XLP_SVP
+		case PRID_IMP_NETLOGIC_XLP3XX:
+			fdtp = __dtb_xlp_svp_begin;
+			break;
+#endif
+#ifdef CONFIG_DT_XLP_EVP
+		case PRID_IMP_NETLOGIC_XLP8XX:
+			fdtp = __dtb_xlp_evp_begin;
+			break;
+#endif
+		default:
+			/* Pick a built-in if any, and hope for the best */
+			fdtp = __dtb_start;
+			break;
+		}
+	}
 	fdtp = phys_to_virt(__pa(fdtp));
 	early_init_devtree(fdtp);
 }

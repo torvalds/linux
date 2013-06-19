@@ -20,6 +20,11 @@
 #ifndef __ASM_KVM_BOOK3S_ASM_H__
 #define __ASM_KVM_BOOK3S_ASM_H__
 
+/* XICS ICP register offsets */
+#define XICS_XIRR		4
+#define XICS_MFRR		0xc
+#define XICS_IPI		2	/* interrupt source # for IPIs */
+
 #ifdef __ASSEMBLY__
 
 #ifdef CONFIG_KVM_BOOK3S_HANDLER
@@ -81,10 +86,11 @@ struct kvmppc_host_state {
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	u8 hwthread_req;
 	u8 hwthread_state;
-
+	u8 host_ipi;
 	struct kvm_vcpu *kvm_vcpu;
 	struct kvmppc_vcore *kvm_vcore;
 	unsigned long xics_phys;
+	u32 saved_xirr;
 	u64 dabr;
 	u64 host_mmcr[3];
 	u32 host_pmc[8];

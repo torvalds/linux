@@ -19,21 +19,33 @@
 #ifndef __ARM_KVM_MMU_H__
 #define __ARM_KVM_MMU_H__
 
-#include <asm/cacheflush.h>
-#include <asm/pgalloc.h>
-#include <asm/idmap.h>
+#include <asm/memory.h>
+#include <asm/page.h>
 
 /*
  * We directly use the kernel VA for the HYP, as we can directly share
  * the mapping (HTTBR "covers" TTBR1).
  */
-#define HYP_PAGE_OFFSET_MASK	(~0UL)
+#define HYP_PAGE_OFFSET_MASK	UL(~0)
 #define HYP_PAGE_OFFSET		PAGE_OFFSET
 #define KERN_TO_HYP(kva)	(kva)
 
+/*
+ * Our virtual mapping for the boot-time MMU-enable code. Must be
+ * shared across all the page-tables. Conveniently, we use the vectors
+ * page, where no kernel data will ever be shared with HYP.
+ */
+#define TRAMPOLINE_VA		UL(CONFIG_VECTORS_BASE)
+
+#ifndef __ASSEMBLY__
+
+#include <asm/cacheflush.h>
+#include <asm/pgalloc.h>
+
 int create_hyp_mappings(void *from, void *to);
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t);
-void free_hyp_pmds(void);
+void free_boot_hyp_pgd(void);
+void free_hyp_pgds(void);
 
 int kvm_alloc_stage2_pgd(struct kvm *kvm);
 void kvm_free_stage2_pgd(struct kvm *kvm);
@@ -45,6 +57,8 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run);
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 
 phys_addr_t kvm_mmu_get_httbr(void);
+phys_addr_t kvm_mmu_get_boot_httbr(void);
+phys_addr_t kvm_get_idmap_vector(void);
 int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
 
@@ -113,5 +127,9 @@ static inline void coherent_icache_guest_page(struct kvm *kvm, gfn_t gfn)
 		__flush_icache_all();
 	}
 }
+
+#define kvm_flush_dcache_to_poc(a,l)	__cpuc_flush_dcache_area((a), (l))
+
+#endif	/* !__ASSEMBLY__ */
 
 #endif /* __ARM_KVM_MMU_H__ */

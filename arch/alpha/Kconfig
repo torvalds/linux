@@ -55,9 +55,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config GENERIC_GPIO
-	bool
-
 config ZONE_DMA
 	bool
 	default y

@@ -37,6 +37,7 @@
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
+#include <linux/aio.h>
 
 #include "ext4_jbd2.h"
 #include "xattr.h"
@@ -1487,10 +1488,7 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd,
 	struct ext4_io_submit io_submit;
 
 	BUG_ON(mpd->next_page <= mpd->first_page);
-	ext4_io_submit_init(&io_submit, mpd->wbc);
-	io_submit.io_end = ext4_init_io_end(inode, GFP_NOFS);
-	if (!io_submit.io_end)
-		return -ENOMEM;
+	memset(&io_submit, 0, sizeof(io_submit));
 	/*
 	 * We need to start from the first_page to the next_page - 1
 	 * to make sure we also write the mapped dirty buffer_heads.
@@ -1578,8 +1576,6 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd,
 		pagevec_release(&pvec);
 	}
 	ext4_io_submit(&io_submit);
-	/* Drop io_end reference we got from init */
-	ext4_put_io_end_defer(io_submit.io_end);
 	return ret;
 }
 
@@ -2238,16 +2234,9 @@ static int ext4_writepage(struct page *page,
 		 */
 		return __ext4_journalled_writepage(page, len);
 
-	ext4_io_submit_init(&io_submit, wbc);
-	io_submit.io_end = ext4_init_io_end(inode, GFP_NOFS);
-	if (!io_submit.io_end) {
-		redirty_page_for_writepage(wbc, page);
-		return -ENOMEM;
-	}
+	memset(&io_submit, 0, sizeof(io_submit));
 	ret = ext4_bio_write_page(&io_submit, page, len, wbc);
 	ext4_io_submit(&io_submit);
-	/* Drop io_end reference we got from init */
-	ext4_put_io_end_defer(io_submit.io_end);
 	return ret;
 }
 
@@ -3078,13 +3067,9 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 	struct inode *inode = file_inode(iocb->ki_filp);
         ext4_io_end_t *io_end = iocb->private;
 
-	/* if not async direct IO just return */
-	if (!io_end) {
-		inode_dio_done(inode);
-		if (is_async)
-			aio_complete(iocb, ret, 0);
-		return;
-	}
+	/* if not async direct IO or dio with 0 bytes write, just return */
+	if (!io_end || !size)
+		goto out;
 
 	ext_debug("ext4_end_io_dio(): io_end 0x%p "
 		  "for inode %lu, iocb 0x%p, offset %llu, size %zd\n",
@@ -3092,13 +3077,25 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 		  size);
 
 	iocb->private = NULL;
+
+	/* if not aio dio with unwritten extents, just free io and return */
+	if (!(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
+		ext4_free_io_end(io_end);
+out:
+		inode_dio_done(inode);
+		if (is_async)
+			aio_complete(iocb, ret, 0);
+		return;
+	}
+
 	io_end->offset = offset;
 	io_end->size = size;
 	if (is_async) {
 		io_end->iocb = iocb;
 		io_end->result = ret;
 	}
-	ext4_put_io_end_defer(io_end);
+
+	ext4_add_complete_io(io_end);
 }
 
 /*
@@ -3132,7 +3129,6 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 	get_block_t *get_block_func = NULL;
 	int dio_flags = 0;
 	loff_t final_size = offset + count;
-	ext4_io_end_t *io_end = NULL;
 
 	/* Use the old path for reads and writes beyond i_size. */
 	if (rw != WRITE || final_size > inode->i_size)
@@ -3171,16 +3167,13 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 	iocb->private = NULL;
 	ext4_inode_aio_set(inode, NULL);
 	if (!is_sync_kiocb(iocb)) {
-		io_end = ext4_init_io_end(inode, GFP_NOFS);
+		ext4_io_end_t *io_end = ext4_init_io_end(inode, GFP_NOFS);
 		if (!io_end) {
 			ret = -ENOMEM;
 			goto retake_lock;
 		}
 		io_end->flag |= EXT4_IO_END_DIRECT;
-		/*
-		 * Grab reference for DIO. Will be dropped in ext4_end_io_dio()
-		 */
-		iocb->private = ext4_get_io_end(io_end);
+		iocb->private = io_end;
 		/*
 		 * we save the io structure for current async direct
 		 * IO, so that later ext4_map_blocks() could flag the
@@ -3204,27 +3197,26 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 				   NULL,
 				   dio_flags);
 
-	/*
-	 * Put our reference to io_end. This can free the io_end structure e.g.
-	 * in sync IO case or in case of error. It can even perform extent
-	 * conversion if all bios we submitted finished before we got here.
-	 * Note that in that case iocb->private can be already set to NULL
-	 * here.
-	 */
-	if (io_end) {
+	if (iocb->private)
 		ext4_inode_aio_set(inode, NULL);
-		ext4_put_io_end(io_end);
-		/*
-		 * In case of error or no write ext4_end_io_dio() was not
-		 * called so we have to put iocb's reference.
-		 */
-		if (ret <= 0 && ret != -EIOCBQUEUED) {
-			WARN_ON(iocb->private != io_end);
-			ext4_put_io_end(io_end);
-			iocb->private = NULL;
-		}
-	}
-	if (ret > 0 && !overwrite && ext4_test_inode_state(inode,
+	/*
+	 * The io_end structure takes a reference to the inode, that
+	 * structure needs to be destroyed and the reference to the
+	 * inode need to be dropped, when IO is complete, even with 0
+	 * byte write, or failed.
+	 *
+	 * In the successful AIO DIO case, the io_end structure will
+	 * be destroyed and the reference to the inode will be dropped
+	 * after the end_io call back function is called.
+	 *
+	 * In the case there is 0 byte write, or error case, since VFS
+	 * direct IO won't invoke the end_io call back function, we
+	 * need to free the end_io structure here.
+	 */
+	if (ret != -EIOCBQUEUED && ret <= 0 && iocb->private) {
+		ext4_free_io_end(iocb->private);
+		iocb->private = NULL;
+	} else if (ret > 0 && !overwrite && ext4_test_inode_state(inode,
 						EXT4_STATE_DIO_UNWRITTEN)) {
 		int err;
 		/*

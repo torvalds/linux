@@ -764,7 +764,6 @@ static struct platform_device i2c_bfin_twi1_device = {
 	.num_resources = ARRAY_SIZE(bfin_twi1_resource),
 	.resource = bfin_twi1_resource,
 };
-#endif	/* CONFIG_BF542 */
 #endif	/* CONFIG_I2C_BLACKFIN_TWI */
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)

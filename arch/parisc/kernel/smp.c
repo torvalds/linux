@@ -127,7 +127,7 @@ ipi_interrupt(int irq, void *dev_id)
 	unsigned long flags;
 
 	/* Count this now; we may make a call that never returns. */
-	p->ipi_count++;
+	inc_irq_stat(irq_call_count);
 
 	mb();	/* Order interrupt and bit testing. */
 
@@ -155,6 +155,7 @@ ipi_interrupt(int irq, void *dev_id)
 				
 			case IPI_RESCHEDULE:
 				smp_debug(100, KERN_DEBUG "CPU%d IPI_RESCHEDULE\n", this_cpu);
+				inc_irq_stat(irq_resched_count);
 				scheduler_ipi();
 				break;
 
@@ -260,17 +261,6 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 void arch_send_call_function_single_ipi(int cpu)
 {
 	send_IPI_single(cpu, IPI_CALL_FUNC_SINGLE);
-}
-
-/*
- * Flush all other CPU's tlb and then mine.  Do this with on_each_cpu()
- * as we want to ensure all TLB's flushed before proceeding.
- */
-
-void
-smp_flush_tlb_all(void)
-{
-	on_each_cpu(flush_tlb_all_local, NULL, 1);
 }
 
 /*

@@ -332,7 +332,7 @@ if (ad_value < 0) {
 
 	return voltage;
 }
-EXPORT_SYMBOL(ab8500_gpadc_convert);
+EXPORT_SYMBOL(ab8500_gpadc_sw_hw_convert);
 
 /**
  * ab8500_gpadc_read_raw() - gpadc read
@@ -907,14 +907,17 @@ static int ab8500_gpadc_suspend(struct device *dev)
 static int ab8500_gpadc_resume(struct device *dev)
 {
 	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
+	int ret;
 
-	regulator_enable(gpadc->regu);
+	ret = regulator_enable(gpadc->regu);
+	if (ret)
+		dev_err(dev, "Failed to enable vtvout LDO: %d\n", ret);
 
 	pm_runtime_mark_last_busy(gpadc->dev);
 	pm_runtime_put_autosuspend(gpadc->dev);
 
 	mutex_unlock(&gpadc->ab8500_gpadc_lock);
-	return 0;
+	return ret;
 }
 
 static int ab8500_gpadc_probe(struct platform_device *pdev)

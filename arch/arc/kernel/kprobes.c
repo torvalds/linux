@@ -10,7 +10,6 @@
 #include <linux/kprobes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>

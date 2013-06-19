@@ -10,6 +10,8 @@ Required properties:
  - reg: physical base address of the controller and length of memory mapped
    region.
  - interrupts: interrupt number to the cpu.
+ - clocks: from common clock binding: handle to usb clock.
+ - clock-names: from common clock binding: Shall be "usbhost".
 
 Optional properties:
  - samsung,vbus-gpio:  if present, specifies the GPIO that
@@ -22,6 +24,9 @@ Example:
 		reg = <0x12110000 0x100>;
 		interrupts = <0 71 0>;
 		samsung,vbus-gpio = <&gpx2 6 1 3 3>;
+
+		clocks = <&clock 285>;
+		clock-names = "usbhost";
 	};
 
 OHCI
@@ -31,10 +36,15 @@ Required properties:
  - reg: physical base address of the controller and length of memory mapped
    region.
  - interrupts: interrupt number to the cpu.
+ - clocks: from common clock binding: handle to usb clock.
+ - clock-names: from common clock binding: Shall be "usbhost".
 
 Example:
 	usb@12120000 {
 		compatible = "samsung,exynos4210-ohci";
 		reg = <0x12120000 0x100>;
 		interrupts = <0 71 0>;
+
+		clocks = <&clock 285>;
+		clock-names = "usbhost";
 	};

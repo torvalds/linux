@@ -273,6 +273,27 @@ static struct cpuidle_state hsw_cstates[CPUIDLE_STATE_MAX] = {
 		.target_residency = 500,
 		.enter = &intel_idle },
 	{
+		.name = "C8-HSW",
+		.desc = "MWAIT 0x40",
+		.flags = MWAIT2flg(0x40) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 300,
+		.target_residency = 900,
+		.enter = &intel_idle },
+	{
+		.name = "C9-HSW",
+		.desc = "MWAIT 0x50",
+		.flags = MWAIT2flg(0x50) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 600,
+		.target_residency = 1800,
+		.enter = &intel_idle },
+	{
+		.name = "C10-HSW",
+		.desc = "MWAIT 0x60",
+		.flags = MWAIT2flg(0x60) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 2600,
+		.target_residency = 7700,
+		.enter = &intel_idle },
+	{
 		.enter = NULL }
 };
 

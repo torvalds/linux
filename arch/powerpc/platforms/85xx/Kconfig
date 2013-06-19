@@ -203,7 +203,6 @@ config GE_IMP3A
 	select DEFAULT_UIMAGE
 	select SWIOTLB
 	select MMIO_NVRAM
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GE_FPGA
 	help
@@ -328,7 +327,7 @@ config B4_QDS
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
-	select GENERIC_GPIO
+	select GPIOLIB
 	select ARCH_REQUIRE_GPIOLIB
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC

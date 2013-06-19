@@ -414,10 +414,11 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	int j;
 
 	match = of_match_device(tegra_gpio_of_match, &pdev->dev);
-	if (match)
-		config = (struct tegra_gpio_soc_config *)match->data;
-	else
-		config = &tegra20_gpio_config;
+	if (!match) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		return -ENODEV;
+	}
+	config = (struct tegra_gpio_soc_config *)match->data;
 
 	tegra_gpio_bank_stride = config->bank_stride;
 	tegra_gpio_upper_offset = config->upper_offset;
@@ -462,11 +463,6 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Missing MEM resource\n");
-		return -ENODEV;
-	}
-
 	regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
@@ -478,9 +474,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 		}
 	}
 
-#ifdef CONFIG_OF_GPIO
 	tegra_gpio_chip.of_node = pdev->dev.of_node;
-#endif
 
 	gpiochip_add(&tegra_gpio_chip);
 

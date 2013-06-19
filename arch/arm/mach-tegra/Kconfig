@@ -63,6 +63,7 @@ config ARCH_TEGRA_114_SOC
 	select ARM_ARCH_TIMER
 	select ARM_GIC
 	select ARM_L1_CACHE_SHIFT_6
+	select CPU_FREQ_TABLE if CPU_FREQ
 	select CPU_V7
 	select PINCTRL
 	select PINCTRL_TEGRA114

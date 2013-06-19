@@ -342,9 +342,7 @@ struct mmc_host {
 
 	mmc_pm_flag_t		pm_flags;	/* requested pm features */
 
-#ifdef CONFIG_LEDS_TRIGGERS
 	struct led_trigger	*led;		/* activity led */
-#endif
 
 #ifdef CONFIG_REGULATOR
 	bool			regulator_enabled; /* regulator state */

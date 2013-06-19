@@ -776,22 +776,12 @@ out:
 }
 EXPORT_SYMBOL(rpmsg_send_offchannel_raw);
 
-/* called when an rx buffer is used, and it's time to digest a message */
-static void rpmsg_recv_done(struct virtqueue *rvq)
+static int rpmsg_recv_single(struct virtproc_info *vrp, struct device *dev,
+			     struct rpmsg_hdr *msg, unsigned int len)
 {
-	struct rpmsg_hdr *msg;
-	unsigned int len;
 	struct rpmsg_endpoint *ept;
 	struct scatterlist sg;
-	struct virtproc_info *vrp = rvq->vdev->priv;
-	struct device *dev = &rvq->vdev->dev;
 	int err;
-
-	msg = virtqueue_get_buf(rvq, &len);
-	if (!msg) {
-		dev_err(dev, "uhm, incoming signal, but no used buffer ?\n");
-		return;
-	}
 
 	dev_dbg(dev, "From: 0x%x, To: 0x%x, Len: %d, Flags: %d, Reserved: %d\n",
 					msg->src, msg->dst, msg->len,
@@ -806,7 +796,7 @@ static void rpmsg_recv_done(struct virtqueue *rvq)
 	if (len > RPMSG_BUF_SIZE ||
 		msg->len > (len - sizeof(struct rpmsg_hdr))) {
 		dev_warn(dev, "inbound msg too big: (%d, %d)\n", len, msg->len);
-		return;
+		return -EINVAL;
 	}
 
 	/* use the dst addr to fetch the callback of the appropriate user */
@@ -842,11 +832,42 @@ static void rpmsg_recv_done(struct virtqueue *rvq)
 	err = virtqueue_add_inbuf(vrp->rvq, &sg, 1, msg, GFP_KERNEL);
 	if (err < 0) {
 		dev_err(dev, "failed to add a virtqueue buffer: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+/* called when an rx buffer is used, and it's time to digest a message */
+static void rpmsg_recv_done(struct virtqueue *rvq)
+{
+	struct virtproc_info *vrp = rvq->vdev->priv;
+	struct device *dev = &rvq->vdev->dev;
+	struct rpmsg_hdr *msg;
+	unsigned int len, msgs_received = 0;
+	int err;
+
+	msg = virtqueue_get_buf(rvq, &len);
+	if (!msg) {
+		dev_err(dev, "uhm, incoming signal, but no used buffer ?\n");
 		return;
 	}
 
+	while (msg) {
+		err = rpmsg_recv_single(vrp, dev, msg, len);
+		if (err)
+			break;
+
+		msgs_received++;
+
+		msg = virtqueue_get_buf(rvq, &len);
+	};
+
+	dev_dbg(dev, "Received %u messages\n", msgs_received);
+
 	/* tell the remote processor we added another available rx buffer */
-	virtqueue_kick(vrp->rvq);
+	if (msgs_received)
+		virtqueue_kick(vrp->rvq);
 }
 
 /*

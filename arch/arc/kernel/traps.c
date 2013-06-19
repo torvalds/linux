@@ -16,11 +16,12 @@
 #include <linux/sched.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
-#include <asm/ptrace.h>
+#include <linux/ptrace.h>
+#include <linux/kprobes.h>
+#include <linux/kgdb.h>
 #include <asm/setup.h>
-#include <asm/kprobes.h>
 #include <asm/unaligned.h>
-#include <asm/kgdb.h>
+#include <asm/kprobes.h>
 
 void __init trap_init(void)
 {
@@ -83,6 +84,7 @@ DO_ERROR_INFO(SIGILL, "Invalid Extn Insn", do_extension_fault, ILL_ILLOPC)
 DO_ERROR_INFO(SIGILL, "Illegal Insn (or Seq)", insterror_is_error, ILL_ILLOPC)
 DO_ERROR_INFO(SIGBUS, "Invalid Mem Access", do_memory_error, BUS_ADRERR)
 DO_ERROR_INFO(SIGTRAP, "Breakpoint Set", trap_is_brkpt, TRAP_BRKPT)
+DO_ERROR_INFO(SIGBUS, "Misaligned Access", do_misaligned_error, BUS_ADRALN)
 
 #ifdef CONFIG_ARC_MISALIGN_ACCESS
 /*
@@ -91,21 +93,11 @@ DO_ERROR_INFO(SIGTRAP, "Breakpoint Set", trap_is_brkpt, TRAP_BRKPT)
 int do_misaligned_access(unsigned long cause, unsigned long address,
 			 struct pt_regs *regs, struct callee_regs *cregs)
 {
-	if (misaligned_fixup(address, regs, cause, cregs) != 0) {
-		siginfo_t info;
+	if (misaligned_fixup(address, regs, cause, cregs) != 0)
+		return do_misaligned_error(cause, address, regs);
 
-		info.si_signo = SIGBUS;
-		info.si_errno = 0;
-		info.si_code = BUS_ADRALN;
-		info.si_addr = (void __user *)address;
-		return handle_exception(cause, "Misaligned Access", regs,
-					  &info);
-	}
 	return 0;
 }
-
-#else
-DO_ERROR_INFO(SIGSEGV, "Misaligned Access", do_misaligned_access, SEGV_ACCERR)
 #endif
 
 /*

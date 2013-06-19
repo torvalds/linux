@@ -449,6 +449,18 @@ extern struct clk sh7372_dv_clki_clk;
 extern struct clk sh7372_dv_clki_div2_clk;
 extern struct clk sh7372_pllc2_clk;
 
+extern void sh7372_init_irq(void);
+extern void sh7372_map_io(void);
+extern void sh7372_earlytimer_init(void);
+extern void sh7372_add_early_devices(void);
+extern void sh7372_add_standard_devices(void);
+extern void sh7372_add_early_devices_dt(void);
+extern void sh7372_add_standard_devices_dt(void);
+extern void sh7372_clock_init(void);
+extern void sh7372_pinmux_init(void);
+extern void sh7372_pm_init(void);
+extern void sh7372_resume_core_standby_sysc(void);
+extern int  sh7372_do_idle_sysc(unsigned long sleep_mode);
 extern void sh7372_intcs_suspend(void);
 extern void sh7372_intcs_resume(void);
 extern void sh7372_intca_suspend(void);

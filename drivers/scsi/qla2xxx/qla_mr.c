@@ -3003,12 +3003,10 @@ qlafx00_build_scsi_iocbs(srb_t *sp, struct cmd_type_7_fx00 *cmd_pkt,
 
 	/* Set transfer direction */
 	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
-		lcmd_pkt->cntrl_flags =
-		    __constant_cpu_to_le16(TMF_WRITE_DATA);
+		lcmd_pkt->cntrl_flags = TMF_WRITE_DATA;
 		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
-		lcmd_pkt->cntrl_flags =
-		    __constant_cpu_to_le16(TMF_READ_DATA);
+		lcmd_pkt->cntrl_flags = TMF_READ_DATA;
 		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
 	}
 

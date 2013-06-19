@@ -11,7 +11,9 @@
  */
 
 #include <linux/errno.h>
+#include <linux/jiffies.h>
 #include <asm/cp15.h>
+#include <asm/proc-fns.h>
 
 #include "common.h"
 

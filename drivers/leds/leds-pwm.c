@@ -23,18 +23,42 @@
 #include <linux/pwm.h>
 #include <linux/leds_pwm.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 struct led_pwm_data {
 	struct led_classdev	cdev;
 	struct pwm_device	*pwm;
+	struct work_struct	work;
 	unsigned int		active_low;
 	unsigned int		period;
+	int			duty;
+	bool			can_sleep;
 };
 
 struct led_pwm_priv {
 	int num_leds;
 	struct led_pwm_data leds[0];
 };
+
+static void __led_pwm_set(struct led_pwm_data *led_dat)
+{
+	int new_duty = led_dat->duty;
+
+	pwm_config(led_dat->pwm, new_duty, led_dat->period);
+
+	if (new_duty == 0)
+		pwm_disable(led_dat->pwm);
+	else
+		pwm_enable(led_dat->pwm);
+}
+
+static void led_pwm_work(struct work_struct *work)
+{
+	struct led_pwm_data *led_dat =
+		container_of(work, struct led_pwm_data, work);
+
+	__led_pwm_set(led_dat);
+}
 
 static void led_pwm_set(struct led_classdev *led_cdev,
 	enum led_brightness brightness)
@@ -44,13 +68,12 @@ static void led_pwm_set(struct led_classdev *led_cdev,
 	unsigned int max = led_dat->cdev.max_brightness;
 	unsigned int period =  led_dat->period;
 
-	if (brightness == 0) {
-		pwm_config(led_dat->pwm, 0, period);
-		pwm_disable(led_dat->pwm);
-	} else {
-		pwm_config(led_dat->pwm, brightness * period / max, period);
-		pwm_enable(led_dat->pwm);
-	}
+	led_dat->duty = brightness * period / max;
+
+	if (led_dat->can_sleep)
+		schedule_work(&led_dat->work);
+	else
+		__led_pwm_set(led_dat);
 }
 
 static inline size_t sizeof_pwm_leds_priv(int num_leds)
@@ -99,6 +122,10 @@ static struct led_pwm_priv *led_pwm_create_of(struct platform_device *pdev)
 		led_dat->cdev.brightness_set = led_pwm_set;
 		led_dat->cdev.brightness = LED_OFF;
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
+
+		led_dat->can_sleep = pwm_can_sleep(led_dat->pwm);
+		if (led_dat->can_sleep)
+			INIT_WORK(&led_dat->work, led_pwm_work);
 
 		ret = led_classdev_register(&pdev->dev, &led_dat->cdev);
 		if (ret < 0) {
@@ -153,6 +180,10 @@ static int led_pwm_probe(struct platform_device *pdev)
 			led_dat->cdev.max_brightness = cur_led->max_brightness;
 			led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
+			led_dat->can_sleep = pwm_can_sleep(led_dat->pwm);
+			if (led_dat->can_sleep)
+				INIT_WORK(&led_dat->work, led_pwm_work);
+
 			ret = led_classdev_register(&pdev->dev, &led_dat->cdev);
 			if (ret < 0)
 				goto err;
@@ -180,8 +211,11 @@ static int led_pwm_remove(struct platform_device *pdev)
 	struct led_pwm_priv *priv = platform_get_drvdata(pdev);
 	int i;
 
-	for (i = 0; i < priv->num_leds; i++)
+	for (i = 0; i < priv->num_leds; i++) {
 		led_classdev_unregister(&priv->leds[i].cdev);
+		if (priv->leds[i].can_sleep)
+			cancel_work_sync(&priv->leds[i].work);
+	}
 
 	return 0;
 }

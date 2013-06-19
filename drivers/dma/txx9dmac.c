@@ -1190,7 +1190,7 @@ static int __init txx9dmac_chan_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit txx9dmac_chan_remove(struct platform_device *pdev)
+static int txx9dmac_chan_remove(struct platform_device *pdev)
 {
 	struct txx9dmac_chan *dc = platform_get_drvdata(pdev);
 
@@ -1252,7 +1252,7 @@ static int __init txx9dmac_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit txx9dmac_remove(struct platform_device *pdev)
+static int txx9dmac_remove(struct platform_device *pdev)
 {
 	struct txx9dmac_dev *ddev = platform_get_drvdata(pdev);
 
@@ -1299,14 +1299,14 @@ static const struct dev_pm_ops txx9dmac_dev_pm_ops = {
 };
 
 static struct platform_driver txx9dmac_chan_driver = {
-	.remove		= __exit_p(txx9dmac_chan_remove),
+	.remove		= txx9dmac_chan_remove,
 	.driver = {
 		.name	= "txx9dmac-chan",
 	},
 };
 
 static struct platform_driver txx9dmac_driver = {
-	.remove		= __exit_p(txx9dmac_remove),
+	.remove		= txx9dmac_remove,
 	.shutdown	= txx9dmac_shutdown,
 	.driver = {
 		.name	= "txx9dmac",

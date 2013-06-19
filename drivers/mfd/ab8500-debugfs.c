@@ -91,12 +91,10 @@
 #include <linux/ctype.h>
 #endif
 
-/* TODO: this file should not reference IRQ_DB8500_AB8500! */
-#include <mach/irqs.h>
-
 static u32 debug_bank;
 static u32 debug_address;
 
+static int irq_ab8500;
 static int irq_first;
 static int irq_last;
 static u32 *irq_count;
@@ -1589,7 +1587,7 @@ void ab8500_debug_register_interrupt(int line)
 {
 	if (line < num_interrupt_lines) {
 		num_interrupts[line]++;
-		if (suspend_test_wake_cause_interrupt_is_mine(IRQ_DB8500_AB8500))
+		if (suspend_test_wake_cause_interrupt_is_mine(irq_ab8500))
 			num_wake_interrupts[line]++;
 	}
 }
@@ -2941,6 +2939,7 @@ static int ab8500_debug_probe(struct platform_device *plf)
 	struct dentry *file;
 	int ret = -ENOMEM;
 	struct ab8500 *ab8500;
+	struct resource *res;
 	debug_bank = AB8500_MISC;
 	debug_address = AB8500_REV_REG & 0x00FF;
 
@@ -2958,6 +2957,15 @@ static int ab8500_debug_probe(struct platform_device *plf)
 	event_name = kzalloc(sizeof(*event_name)*num_irqs, GFP_KERNEL);
 	if (!event_name)
 		goto out_freedev_attr;
+
+	res = platform_get_resource_byname(plf, 0, "IRQ_AB8500");
+	if (!res) {
+		dev_err(&plf->dev, "AB8500 irq not found, err %d\n",
+			irq_first);
+		ret = -ENXIO;
+		goto out_freeevent_name;
+	}
+	irq_ab8500 = res->start;
 
 	irq_first = platform_get_irq_byname(plf, "IRQ_FIRST");
 	if (irq_first < 0) {

@@ -18,6 +18,7 @@ OMAP MUSB GLUE
    represents PERIPHERAL.
  - power : Should be "50". This signifies the controller can supply upto
    100mA when operating in host mode.
+ - usb-phy : the phandle for the PHY device
 
 Optional properties:
  - ctrl-module : phandle of the control module this glue uses to write to

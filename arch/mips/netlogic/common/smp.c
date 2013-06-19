@@ -148,8 +148,7 @@ void nlm_cpus_done(void)
 int nlm_cpu_ready[NR_CPUS];
 unsigned long nlm_next_gp;
 unsigned long nlm_next_sp;
-
-cpumask_t phys_cpu_present_map;
+static cpumask_t phys_cpu_present_mask;
 
 void nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
 {
@@ -169,11 +168,12 @@ void __init nlm_smp_setup(void)
 {
 	unsigned int boot_cpu;
 	int num_cpus, i, ncore;
+	char buf[64];
 
 	boot_cpu = hard_smp_processor_id();
-	cpumask_clear(&phys_cpu_present_map);
+	cpumask_clear(&phys_cpu_present_mask);
 
-	cpumask_set_cpu(boot_cpu, &phys_cpu_present_map);
+	cpumask_set_cpu(boot_cpu, &phys_cpu_present_mask);
 	__cpu_number_map[boot_cpu] = 0;
 	__cpu_logical_map[0] = boot_cpu;
 	set_cpu_possible(0, true);
@@ -185,7 +185,7 @@ void __init nlm_smp_setup(void)
 		 * it is only set for ASPs (see smpboot.S)
 		 */
 		if (nlm_cpu_ready[i]) {
-			cpumask_set_cpu(i, &phys_cpu_present_map);
+			cpumask_set_cpu(i, &phys_cpu_present_mask);
 			__cpu_number_map[i] = num_cpus;
 			__cpu_logical_map[num_cpus] = i;
 			set_cpu_possible(num_cpus, true);
@@ -193,16 +193,19 @@ void __init nlm_smp_setup(void)
 		}
 	}
 
+	cpumask_scnprintf(buf, ARRAY_SIZE(buf), &phys_cpu_present_mask);
+	pr_info("Physical CPU mask: %s\n", buf);
+	cpumask_scnprintf(buf, ARRAY_SIZE(buf), cpu_possible_mask);
+	pr_info("Possible CPU mask: %s\n", buf);
+
 	/* check with the cores we have worken up */
 	for (ncore = 0, i = 0; i < NLM_NR_NODES; i++)
 		ncore += hweight32(nlm_get_node(i)->coremask);
 
-	pr_info("Phys CPU present map: %lx, possible map %lx\n",
-		(unsigned long)cpumask_bits(&phys_cpu_present_map)[0],
-		(unsigned long)cpumask_bits(cpu_possible_mask)[0]);
-
 	pr_info("Detected (%dc%dt) %d Slave CPU(s)\n", ncore,
 		nlm_threads_per_core, num_cpus);
+
+	/* switch NMI handler to boot CPUs */
 	nlm_set_nmi_handler(nlm_boot_secondary_cpus);
 }
 

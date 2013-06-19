@@ -579,15 +579,16 @@ void hid_debug_event(struct hid_device *hdev, char *buf)
 {
 	int i;
 	struct hid_debug_list *list;
+	unsigned long flags;
 
-	mutex_lock(&hdev->debug_list_lock);
+	spin_lock_irqsave(&hdev->debug_list_lock, flags);
 	list_for_each_entry(list, &hdev->debug_list, node) {
 		for (i = 0; i < strlen(buf); i++)
 			list->hid_debug_buf[(list->tail + i) % HID_DEBUG_BUFSIZE] =
 				buf[i];
 		list->tail = (list->tail + i) % HID_DEBUG_BUFSIZE;
         }
-	mutex_unlock(&hdev->debug_list_lock);
+	spin_unlock_irqrestore(&hdev->debug_list_lock, flags);
 
 	wake_up_interruptible(&hdev->debug_wait);
 }
@@ -977,6 +978,7 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
 {
 	int err = 0;
 	struct hid_debug_list *list;
+	unsigned long flags;
 
 	if (!(list = kzalloc(sizeof(struct hid_debug_list), GFP_KERNEL))) {
 		err = -ENOMEM;
@@ -992,9 +994,9 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
 	file->private_data = list;
 	mutex_init(&list->read_mutex);
 
-	mutex_lock(&list->hdev->debug_list_lock);
+	spin_lock_irqsave(&list->hdev->debug_list_lock, flags);
 	list_add_tail(&list->node, &list->hdev->debug_list);
-	mutex_unlock(&list->hdev->debug_list_lock);
+	spin_unlock_irqrestore(&list->hdev->debug_list_lock, flags);
 
 out:
 	return err;
@@ -1088,10 +1090,11 @@ static unsigned int hid_debug_events_poll(struct file *file, poll_table *wait)
 static int hid_debug_events_release(struct inode *inode, struct file *file)
 {
 	struct hid_debug_list *list = file->private_data;
+	unsigned long flags;
 
-	mutex_lock(&list->hdev->debug_list_lock);
+	spin_lock_irqsave(&list->hdev->debug_list_lock, flags);
 	list_del(&list->node);
-	mutex_unlock(&list->hdev->debug_list_lock);
+	spin_unlock_irqrestore(&list->hdev->debug_list_lock, flags);
 	kfree(list->hid_debug_buf);
 	kfree(list);
 

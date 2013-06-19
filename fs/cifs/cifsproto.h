@@ -45,17 +45,17 @@ extern void _free_xid(unsigned int);
 #define get_xid()						\
 ({								\
 	unsigned int __xid = _get_xid();				\
-	cFYI(1, "CIFS VFS: in %s as Xid: %u with uid: %d",	\
-	     __func__, __xid,					\
-	     from_kuid(&init_user_ns, current_fsuid()));	\
+	cifs_dbg(FYI, "CIFS VFS: in %s as Xid: %u with uid: %d\n",	\
+		 __func__, __xid,					\
+		 from_kuid(&init_user_ns, current_fsuid()));		\
 	__xid;							\
 })
 
 #define free_xid(curr_xid)					\
 do {								\
 	_free_xid(curr_xid);					\
-	cFYI(1, "CIFS VFS: leaving %s (xid = %u) rc = %d",	\
-	     __func__, curr_xid, (int)rc);			\
+	cifs_dbg(FYI, "CIFS VFS: leaving %s (xid = %u) rc = %d\n",	\
+		 __func__, curr_xid, (int)rc);				\
 } while (0)
 extern int init_cifs_idmap(void);
 extern void exit_cifs_idmap(void);

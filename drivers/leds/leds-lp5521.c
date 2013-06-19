@@ -68,6 +68,18 @@
 #define LP5521_ENABLE_RUN_PROGRAM	\
 	(LP5521_ENABLE_DEFAULT | LP5521_EXEC_RUN)
 
+/* CONFIG register */
+#define LP5521_PWM_HF			0x40	/* PWM: 0 = 256Hz, 1 = 558Hz */
+#define LP5521_PWRSAVE_EN		0x20	/* 1 = Power save mode */
+#define LP5521_CP_MODE_OFF		0	/* Charge pump (CP) off */
+#define LP5521_CP_MODE_BYPASS		8	/* CP forced to bypass mode */
+#define LP5521_CP_MODE_1X5		0x10	/* CP forced to 1.5x mode */
+#define LP5521_CP_MODE_AUTO		0x18	/* Automatic mode selection */
+#define LP5521_R_TO_BATT		0x04	/* R out: 0 = CP, 1 = Vbat */
+#define LP5521_CLK_INT			0x01	/* Internal clock */
+#define LP5521_DEFAULT_CFG		\
+	(LP5521_PWM_HF | LP5521_PWRSAVE_EN | LP5521_CP_MODE_AUTO)
+
 /* Status */
 #define LP5521_EXT_CLK_USED		0x08
 
@@ -296,8 +308,11 @@ static int lp5521_post_init_device(struct lp55xx_chip *chip)
 	/* Set all PWMs to direct control mode */
 	ret = lp55xx_write(chip, LP5521_REG_OP_MODE, LP5521_CMD_DIRECT);
 
-	val = chip->pdata->update_config ?
-		: (LP5521_PWRSAVE_EN | LP5521_CP_MODE_AUTO | LP5521_R_TO_BATT);
+	/* Update configuration for the clock setting */
+	val = LP5521_DEFAULT_CFG;
+	if (!lp55xx_is_extclk_used(chip))
+		val |= LP5521_CLK_INT;
+
 	ret = lp55xx_write(chip, LP5521_REG_CONFIG, val);
 	if (ret)
 		return ret;
@@ -360,7 +375,8 @@ static ssize_t lp5521_selftest(struct device *dev,
 	mutex_lock(&chip->lock);
 	ret = lp5521_run_selftest(chip, buf);
 	mutex_unlock(&chip->lock);
-	return sprintf(buf, "%s\n", ret ? "FAIL" : "OK");
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", ret ? "FAIL" : "OK");
 }
 
 /* device attributes */

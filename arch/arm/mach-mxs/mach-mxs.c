@@ -22,7 +22,6 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/mxs.h>
 #include <linux/micrel_phy.h>
-#include <linux/mxsfb.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/phy.h>
@@ -61,106 +60,6 @@ static inline void __mxs_togl(u32 mask, void __iomem *reg)
 	__raw_writel(mask, reg + MXS_TOG_ADDR);
 }
 
-static struct fb_videomode mx23evk_video_modes[] = {
-	{
-		.name		= "Samsung-LMS430HF02",
-		.refresh	= 60,
-		.xres		= 480,
-		.yres		= 272,
-		.pixclock	= 108096, /* picosecond (9.2 MHz) */
-		.left_margin	= 15,
-		.right_margin	= 8,
-		.upper_margin	= 12,
-		.lower_margin	= 4,
-		.hsync_len	= 1,
-		.vsync_len	= 1,
-	},
-};
-
-static struct fb_videomode mx28evk_video_modes[] = {
-	{
-		.name		= "Seiko-43WVF1G",
-		.refresh	= 60,
-		.xres		= 800,
-		.yres		= 480,
-		.pixclock	= 29851, /* picosecond (33.5 MHz) */
-		.left_margin	= 89,
-		.right_margin	= 164,
-		.upper_margin	= 23,
-		.lower_margin	= 10,
-		.hsync_len	= 10,
-		.vsync_len	= 10,
-	},
-};
-
-static struct fb_videomode m28evk_video_modes[] = {
-	{
-		.name		= "Ampire AM-800480R2TMQW-T01H",
-		.refresh	= 60,
-		.xres		= 800,
-		.yres		= 480,
-		.pixclock	= 30066, /* picosecond (33.26 MHz) */
-		.left_margin	= 0,
-		.right_margin	= 256,
-		.upper_margin	= 0,
-		.lower_margin	= 45,
-		.hsync_len	= 1,
-		.vsync_len	= 1,
-	},
-};
-
-static struct fb_videomode apx4devkit_video_modes[] = {
-	{
-		.name		= "HannStar PJ70112A",
-		.refresh	= 60,
-		.xres		= 800,
-		.yres		= 480,
-		.pixclock	= 33333, /* picosecond (30.00 MHz) */
-		.left_margin	= 88,
-		.right_margin	= 40,
-		.upper_margin	= 32,
-		.lower_margin	= 13,
-		.hsync_len	= 48,
-		.vsync_len	= 3,
-		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	},
-};
-
-static struct fb_videomode apf28dev_video_modes[] = {
-	{
-		.name = "LW700",
-		.refresh = 60,
-		.xres = 800,
-		.yres = 480,
-		.pixclock = 30303, /* picosecond */
-		.left_margin = 96,
-		.right_margin = 96, /* at least 3 & 1 */
-		.upper_margin = 0x14,
-		.lower_margin = 0x15,
-		.hsync_len = 64,
-		.vsync_len = 4,
-		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	},
-};
-
-static struct fb_videomode cfa10049_video_modes[] = {
-	{
-		.name		= "Himax HX8357-B",
-		.refresh	= 60,
-		.xres		= 320,
-		.yres		= 480,
-		.pixclock	= 108506, /* picosecond (9.216 MHz) */
-		.left_margin	= 2,
-		.right_margin	= 2,
-		.upper_margin	= 2,
-		.lower_margin	= 2,
-		.hsync_len	= 15,
-		.vsync_len	= 15,
-	},
-};
-
-static struct mxsfb_platform_data mxsfb_pdata __initdata;
-
 /*
  * MX28EVK_FLEXCAN_SWITCH is shared between both flexcan controllers
  */
@@ -191,8 +90,6 @@ static void mx28evk_flexcan1_switch(int enable)
 static struct flexcan_platform_data flexcan_pdata[2];
 
 static struct of_dev_auxdata mxs_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("fsl,imx23-lcdif", 0x80030000, NULL, &mxsfb_pdata),
-	OF_DEV_AUXDATA("fsl,imx28-lcdif", 0x80030000, NULL, &mxsfb_pdata),
 	OF_DEV_AUXDATA("fsl,imx28-flexcan", 0x80032000, NULL, &flexcan_pdata[0]),
 	OF_DEV_AUXDATA("fsl,imx28-flexcan", 0x80034000, NULL, &flexcan_pdata[1]),
 	{ /* sentinel */ }
@@ -342,16 +239,6 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 	}
 }
 
-static void __init imx23_evk_init(void)
-{
-	mxsfb_pdata.mode_list = mx23evk_video_modes;
-	mxsfb_pdata.mode_count = ARRAY_SIZE(mx23evk_video_modes);
-	mxsfb_pdata.default_bpp = 32;
-	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
-	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
-				MXSFB_SYNC_DOTCLK_FAILING_ACT;
-}
-
 static inline void enable_clk_enet_out(void)
 {
 	struct clk *clk = clk_get_sys("enet_out", NULL);
@@ -362,15 +249,7 @@ static inline void enable_clk_enet_out(void)
 
 static void __init imx28_evk_init(void)
 {
-	enable_clk_enet_out();
 	update_fec_mac_prop(OUI_FSL);
-
-	mxsfb_pdata.mode_list = mx28evk_video_modes;
-	mxsfb_pdata.mode_count = ARRAY_SIZE(mx28evk_video_modes);
-	mxsfb_pdata.default_bpp = 32;
-	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
-	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
-				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 
 	mxs_saif_clkmux_select(MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0);
 }
@@ -382,20 +261,6 @@ static void __init imx28_evk_post_init(void)
 		flexcan_pdata[0].transceiver_switch = mx28evk_flexcan0_switch;
 		flexcan_pdata[1].transceiver_switch = mx28evk_flexcan1_switch;
 	}
-}
-
-static void __init m28evk_init(void)
-{
-	mxsfb_pdata.mode_list = m28evk_video_modes;
-	mxsfb_pdata.mode_count = ARRAY_SIZE(m28evk_video_modes);
-	mxsfb_pdata.default_bpp = 16;
-	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
-	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
-}
-
-static void __init sc_sps1_init(void)
-{
-	enable_clk_enet_out();
 }
 
 static int apx4devkit_phy_fixup(struct phy_device *phy)
@@ -411,13 +276,6 @@ static void __init apx4devkit_init(void)
 	if (IS_BUILTIN(CONFIG_PHYLIB))
 		phy_register_fixup_for_uid(PHY_ID_KSZ8051, MICREL_PHY_ID_MASK,
 					   apx4devkit_phy_fixup);
-
-	mxsfb_pdata.mode_list = apx4devkit_video_modes;
-	mxsfb_pdata.mode_count = ARRAY_SIZE(apx4devkit_video_modes);
-	mxsfb_pdata.default_bpp = 32;
-	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
-	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
-				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 }
 
 #define ENET0_MDC__GPIO_4_0	MXS_GPIO_NR(4, 0)
@@ -496,52 +354,24 @@ static void __init tx28_post_init(void)
 
 static void __init cfa10049_init(void)
 {
-	enable_clk_enet_out();
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
-
-	mxsfb_pdata.mode_list = cfa10049_video_modes;
-	mxsfb_pdata.mode_count = ARRAY_SIZE(cfa10049_video_modes);
-	mxsfb_pdata.default_bpp = 32;
-	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
-	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
 }
 
 static void __init cfa10037_init(void)
 {
-	enable_clk_enet_out();
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
-}
-
-static void __init apf28_init(void)
-{
-	enable_clk_enet_out();
-
-	mxsfb_pdata.mode_list = apf28dev_video_modes;
-	mxsfb_pdata.mode_count = ARRAY_SIZE(apf28dev_video_modes);
-	mxsfb_pdata.default_bpp = 16;
-	mxsfb_pdata.ld_intf_width = STMLCDIF_16BIT;
-	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
-				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 }
 
 static void __init mxs_machine_init(void)
 {
 	if (of_machine_is_compatible("fsl,imx28-evk"))
 		imx28_evk_init();
-	else if (of_machine_is_compatible("fsl,imx23-evk"))
-		imx23_evk_init();
-	else if (of_machine_is_compatible("denx,m28evk"))
-		m28evk_init();
 	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
 		apx4devkit_init();
 	else if (of_machine_is_compatible("crystalfontz,cfa10037"))
 		cfa10037_init();
 	else if (of_machine_is_compatible("crystalfontz,cfa10049"))
 		cfa10049_init();
-	else if (of_machine_is_compatible("armadeus,imx28-apf28"))
-		apf28_init();
-	else if (of_machine_is_compatible("schulercontrol,imx28-sps1"))
-		sc_sps1_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     mxs_auxdata_lookup, NULL);
