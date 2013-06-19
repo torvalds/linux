@@ -108,13 +108,12 @@ void rtl8192_setBBreg(struct net_device *dev, u32 reg_addr, u32 bitmask,
  * ****************************************************************************/
 u32 rtl8192_QueryBBReg(struct net_device *dev, u32 reg_addr, u32 bitmask)
 {
-	u32 Ret = 0, reg, bitshift;
+	u32 reg, bitshift;
 
 	read_nic_dword(dev, reg_addr, &reg);
 	bitshift = rtl8192_CalculateBitShift(bitmask);
-	Ret = (reg & bitmask) >> bitshift;
 
-	return Ret;
+	return (reg & bitmask) >> bitshift;
 }
 static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 			      u32 offset);
