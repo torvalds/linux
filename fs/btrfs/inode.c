@@ -41,6 +41,7 @@
 #include <linux/mount.h>
 #include <linux/btrfs.h>
 #include <linux/blkdev.h>
+#include <linux/posix_acl_xattr.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -56,6 +57,7 @@
 #include "free-space-cache.h"
 #include "inode-map.h"
 #include "backref.h"
+#include "hash.h"
 
 struct btrfs_iget_args {
 	u64 ino;
@@ -3300,7 +3302,16 @@ static noinline int acls_after_inode_item(struct extent_buffer *leaf,
 {
 	u32 nritems = btrfs_header_nritems(leaf);
 	struct btrfs_key found_key;
+	static u64 xattr_access = 0;
+	static u64 xattr_default = 0;
 	int scanned = 0;
+
+	if (!xattr_access) {
+		xattr_access = btrfs_name_hash(POSIX_ACL_XATTR_ACCESS,
+					strlen(POSIX_ACL_XATTR_ACCESS));
+		xattr_default = btrfs_name_hash(POSIX_ACL_XATTR_DEFAULT,
+					strlen(POSIX_ACL_XATTR_DEFAULT));
+	}
 
 	slot++;
 	while (slot < nritems) {
@@ -3311,8 +3322,11 @@ static noinline int acls_after_inode_item(struct extent_buffer *leaf,
 			return 0;
 
 		/* we found an xattr, assume we've got an acl */
-		if (found_key.type == BTRFS_XATTR_ITEM_KEY)
-			return 1;
+		if (found_key.type == BTRFS_XATTR_ITEM_KEY) {
+			if (found_key.offset == xattr_access ||
+			    found_key.offset == xattr_default)
+				return 1;
+		}
 
 		/*
 		 * we found a key greater than an xattr key, there can't
