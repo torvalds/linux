@@ -348,11 +348,14 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	}
 
 	/* deal with driver instance configuration */
-	if (pdata)
+	if (pdata) {
 		memcpy(&p->config, pdata, sizeof(*pdata));
-	else
+	} else {
 		of_property_read_u32(pdev->dev.of_node, "sense-bitfield-width",
 				     &p->config.sense_bitfield_width);
+		p->config.control_parent = of_property_read_bool(pdev->dev.of_node,
+								 "control-parent");
+	}
 	if (!p->config.sense_bitfield_width)
 		p->config.sense_bitfield_width = 4; /* default to 4 bits */
 
