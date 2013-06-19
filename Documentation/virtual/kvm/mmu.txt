@@ -272,14 +272,21 @@ This is the most complicated event.  The cause of a page fault can be:
 
 Handling a page fault is performed as follows:
 
+ - if the RSV bit of the error code is set, the page fault is caused by guest
+   accessing MMIO and cached MMIO information is available.
+   - walk shadow page table
+   - cache the information to vcpu->arch.mmio_gva, vcpu->arch.access and
+     vcpu->arch.mmio_gfn, and call the emulator
  - if needed, walk the guest page tables to determine the guest translation
    (gva->gpa or ngpa->gpa)
    - if permissions are insufficient, reflect the fault back to the guest
  - determine the host page
-   - if this is an mmio request, there is no host page; call the emulator
-     to emulate the instruction instead
+   - if this is an mmio request, there is no host page; cache the info to
+     vcpu->arch.mmio_gva, vcpu->arch.access and vcpu->arch.mmio_gfn
  - walk the shadow page table to find the spte for the translation,
    instantiating missing intermediate page tables as necessary
+   - If this is an mmio request, cache the mmio info to the spte and set some
+     reserved bit on the spte (see callers of kvm_mmu_set_mmio_spte_mask)
  - try to unsynchronize the page
    - if successful, we can let the guest continue and modify the gpte
  - emulate the instruction
