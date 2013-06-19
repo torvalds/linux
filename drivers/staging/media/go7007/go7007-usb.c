@@ -1124,7 +1124,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	case GO7007_BOARDID_LIFEVIEW_LR192:
 		printk(KERN_ERR "go7007-usb: The Lifeview TV Walker Ultra "
 				"is not supported.  Sorry!\n");
-		return 0;
+		return -ENODEV;
 		name = "Lifeview TV Walker Ultra";
 		board = &board_lifeview_lr192;
 		break;
@@ -1140,7 +1140,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	default:
 		printk(KERN_ERR "go7007-usb: unknown board ID %d!\n",
 				(unsigned int)id->driver_info);
-		return 0;
+		return -ENODEV;
 	}
 
 	go = go7007_alloc(&board->main_info, &intf->dev);
