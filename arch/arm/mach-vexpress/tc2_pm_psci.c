@@ -155,6 +155,11 @@ static int __init tc2_pm_psci_init(void)
 		return -ENODEV;
 	}
 
+	if (!vexpress_spc_check_loaded()) {
+		pr_debug("spc not found. Aborting psci init\n");
+		return -ENODEV;
+	}
+
 	tc2_pm_usage_count_init();
 
 	ret = mcpm_platform_register(&tc2_pm_power_ops);
