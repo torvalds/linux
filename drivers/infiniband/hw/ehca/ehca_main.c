@@ -211,6 +211,7 @@ static int ehca_create_slab_caches(void)
 	if (!ctblk_cache) {
 		ehca_gen_err("Cannot create ctblk SLAB cache.");
 		ehca_cleanup_small_qp_cache();
+		ret = -ENOMEM;
 		goto create_slab_caches6;
 	}
 #endif
