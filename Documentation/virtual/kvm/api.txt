@@ -2261,7 +2261,7 @@ return indicates the attribute is implemented.  It does not necessarily
 indicate that the attribute can be read or written in the device's
 current state.  "addr" is ignored.
 
-4.77 KVM_ARM_VCPU_INIT
+4.82 KVM_ARM_VCPU_INIT
 
 Capability: basic
 Architectures: arm
@@ -2285,7 +2285,7 @@ Possible features:
 	  Depends on KVM_CAP_ARM_PSCI.
 
 
-4.78 KVM_GET_REG_LIST
+4.83 KVM_GET_REG_LIST
 
 Capability: basic
 Architectures: arm
@@ -2305,7 +2305,7 @@ This ioctl returns the guest registers that are supported for the
 KVM_GET_ONE_REG/KVM_SET_ONE_REG calls.
 
 
-4.80 KVM_ARM_SET_DEVICE_ADDR
+4.84 KVM_ARM_SET_DEVICE_ADDR
 
 Capability: KVM_CAP_ARM_SET_DEVICE_ADDR
 Architectures: arm
@@ -2342,7 +2342,7 @@ and distributor interface, the ioctl must be called after calling
 KVM_CREATE_IRQCHIP, but before calling KVM_RUN on any of the VCPUs.  Calling
 this ioctl twice for any of the base addresses will return -EEXIST.
 
-4.82 KVM_PPC_RTAS_DEFINE_TOKEN
+4.85 KVM_PPC_RTAS_DEFINE_TOKEN
 
 Capability: KVM_CAP_PPC_RTAS
 Architectures: ppc
