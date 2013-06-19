@@ -190,7 +190,7 @@ static void pca9685_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	if (--pca->active_cnt == 0)
 		regmap_update_bits(pca->regmap, PCA9685_MODE1, MODE1_SLEEP,
-				   0x1);
+				   MODE1_SLEEP);
 }
 
 static const struct pwm_ops pca9685_pwm_ops = {
@@ -264,7 +264,8 @@ static int pca9685_pwm_remove(struct i2c_client *client)
 {
 	struct pca9685 *pca = i2c_get_clientdata(client);
 
-	regmap_update_bits(pca->regmap, PCA9685_MODE1, MODE1_SLEEP, 0x1);
+	regmap_update_bits(pca->regmap, PCA9685_MODE1, MODE1_SLEEP,
+			   MODE1_SLEEP);
 
 	return pwmchip_remove(&pca->chip);
 }
