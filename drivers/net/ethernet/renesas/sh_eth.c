@@ -1504,23 +1504,14 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 	 */
 	intr_status &= sh_eth_read(ndev, EESIPR) | DMAC_M_ECI;
 	/* Clear interrupt */
-	if (intr_status & (EESR_FRC | EESR_RMAF | EESR_RRF |
-			EESR_RTLF | EESR_RTSF | EESR_PRE | EESR_CERF |
-			cd->tx_check | cd->eesr_err_check)) {
+	if (intr_status & (EESR_RX_CHECK | cd->tx_check | cd->eesr_err_check)) {
 		sh_eth_write(ndev, intr_status, EESR);
 		ret = IRQ_HANDLED;
 	} else
 		goto other_irq;
 
-	if (intr_status & (EESR_FRC | /* Frame recv*/
-			EESR_RMAF | /* Multi cast address recv*/
-			EESR_RRF  | /* Bit frame recv */
-			EESR_RTLF | /* Long frame recv*/
-			EESR_RTSF | /* short frame recv */
-			EESR_PRE  | /* PHY-LSI recv error */
-			EESR_CERF)){ /* recv frame CRC error */
+	if (intr_status & EESR_RX_CHECK)
 		sh_eth_rx(ndev, intr_status);
-	}
 
 	/* Tx Check */
 	if (intr_status & cd->tx_check) {
