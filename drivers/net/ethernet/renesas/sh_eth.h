@@ -505,6 +505,7 @@ struct sh_eth_private {
 	u32 cur_tx, dirty_tx;
 	u32 rx_buf_sz;		/* Based on MTU+slack. */
 	int edmac_endian;
+	struct napi_struct napi;
 	/* MII transceiver section. */
 	u32 phy_id;					/* PHY ID */
 	struct mii_bus *mii_bus;	/* MDIO bus control */
