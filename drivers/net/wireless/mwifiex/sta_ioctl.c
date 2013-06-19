@@ -178,6 +178,9 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	 */
 	bss_desc->disable_11ac = true;
 
+	if (bss_desc->cap_info_bitmap & WLAN_CAPABILITY_SPECTRUM_MGMT)
+		bss_desc->sensed_11h = true;
+
 	return mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
 }
 

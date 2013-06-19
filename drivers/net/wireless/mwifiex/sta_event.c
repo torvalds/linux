@@ -427,6 +427,14 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 		break;
 
+	case EVENT_CHANNEL_SWITCH_ANN:
+		dev_dbg(adapter->dev, "event: Channel Switch Announcement\n");
+		ret = mwifiex_send_cmd_async(priv,
+			HostCmd_CMD_802_11_DEAUTHENTICATE,
+			HostCmd_ACT_GEN_SET, 0,
+			priv->curr_bss_params.bss_descriptor.mac_address);
+		break;
+
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
 			eventcause);

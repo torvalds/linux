@@ -391,6 +391,12 @@ mwifiex_is_network_compatible(struct mwifiex_private *priv,
 		return 0;
 	}
 
+	if (bss_desc->chan_sw_ie_present) {
+		dev_err(adapter->dev,
+			"Don't connect to AP with WLAN_EID_CHANNEL_SWITCH\n");
+		return -1;
+	}
+
 	if (mwifiex_is_bss_wapi(priv, bss_desc)) {
 		dev_dbg(adapter->dev, "info: return success for WAPI AP\n");
 		return 0;
@@ -1168,6 +1174,19 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 		case WLAN_EID_ERP_INFO:
 			bss_entry->erp_flags = *(current_ptr + 2);
 			break;
+
+		case WLAN_EID_PWR_CONSTRAINT:
+			bss_entry->local_constraint = *(current_ptr + 2);
+			bss_entry->sensed_11h = true;
+			break;
+
+		case WLAN_EID_CHANNEL_SWITCH:
+			bss_entry->chan_sw_ie_present = true;
+		case WLAN_EID_PWR_CAPABILITY:
+		case WLAN_EID_TPC_REPORT:
+		case WLAN_EID_QUIET:
+			bss_entry->sensed_11h = true;
+		    break;
 
 		case WLAN_EID_EXT_SUPP_RATES:
 			/*
