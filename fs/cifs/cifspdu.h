@@ -1315,6 +1315,14 @@ typedef struct smb_com_ntransact_rsp {
 	/* parms and data follow */
 } __attribute__((packed)) NTRANSACT_RSP;
 
+/* See MS-SMB 2.2.7.2.1.1 */
+struct srv_copychunk {
+	__le64 SourceOffset;
+	__le64 DestinationOffset;
+	__le32 CopyLength;
+	__u32  Reserved;
+} __packed;
+
 typedef struct smb_com_transaction_ioctl_req {
 	struct smb_hdr hdr;	/* wct = 23 */
 	__u8 MaxSetupCount;

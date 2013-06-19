@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/smb2pdu.h
  *
- *   Copyright (c) International Business Machines  Corp., 2009, 2010
+ *   Copyright (c) International Business Machines  Corp., 2009, 2013
  *                 Etersoft, 2012
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Pavel Shilovsky (pshilovsky@samba.org) 2012
@@ -480,6 +480,52 @@ struct create_lease {
 	struct create_context ccontext;
 	__u8   Name[8];
 	struct lease_context lcontext;
+} __packed;
+
+/* this goes in the ioctl buffer when doing a copychunk request */
+struct copychunk_ioctl {
+	char SourceKey[24];
+	__le32 ChunkCount; /* we are only sending 1 */
+	__le32 Reserved;
+	/* array will only be one chunk long for us */
+	__le64 SourceOffset;
+	__le64 TargetOffset;
+	__u32 Length; /* how many bytes to copy */
+	__u32 Reserved2;
+} __packed;
+
+struct smb2_ioctl_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize;	/* Must be 57 */
+	__u16 Reserved;
+	__le32 CtlCode;
+	__u64  PersistentFileId; /* opaque endianness */
+	__u64  VolatileFileId; /* opaque endianness */
+	__le32 InputOffset;
+	__le32 InputCount;
+	__le32 MaxInputResponse;
+	__le32 OutputOffset;
+	__le32 OutputCount;
+	__le32 MaxOutputResponse;
+	__le32 Flags;
+	__u32  Reserved2;
+	char   Buffer[0];
+} __packed;
+
+struct smb2_ioctl_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize;	/* Must be 57 */
+	__u16 Reserved;
+	__le32 CtlCode;
+	__u64  PersistentFileId; /* opaque endianness */
+	__u64  VolatileFileId; /* opaque endianness */
+	__le32 InputOffset;
+	__le32 InputCount;
+	__le32 OutputOffset;
+	__le32 OutputCount;
+	__le32 Flags;
+	__u32  Reserved2;
+	/* char * buffer[] */
 } __packed;
 
 /* Currently defined values for close flags */
