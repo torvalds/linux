@@ -12,3 +12,5 @@ Optional properties:
   properties
 - sense-bitfield-width: width of a single sense bitfield in the SENSE register,
   if different from the default 4 bits
+- control-parent: disable and enable interrupts on the parent interrupt
+  controller, needed for some broken implementations
