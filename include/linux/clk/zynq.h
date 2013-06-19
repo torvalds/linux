@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2013 Xilinx Inc.
  * Copyright (C) 2012 National Instruments
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,6 +20,11 @@
 #ifndef __LINUX_CLK_ZYNQ_H_
 #define __LINUX_CLK_ZYNQ_H_
 
-void __init xilinx_zynq_clocks_init(void __iomem *slcr);
+#include <linux/spinlock.h>
 
+void zynq_clock_init(void __iomem *slcr);
+
+struct clk *clk_register_zynq_pll(const char *name, const char *parent,
+		void __iomem *pll_ctrl, void __iomem *pll_status, u8 lock_index,
+		spinlock_t *lock);
 #endif
