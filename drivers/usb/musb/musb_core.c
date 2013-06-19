@@ -1764,7 +1764,7 @@ static void musb_free(struct musb *musb)
 			disable_irq_wake(musb->nIrq);
 		free_irq(musb->nIrq, musb);
 	}
-	if (is_dma_capable() && musb->dma_controller)
+	if (musb->dma_controller)
 		dma_controller_destroy(musb->dma_controller);
 
 	musb_host_free(musb);
@@ -1840,12 +1840,11 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	pm_runtime_get_sync(musb->controller);
 
-#ifndef CONFIG_MUSB_PIO_ONLY
 	if (use_dma && dev->dma_mask)
 		musb->dma_controller = dma_controller_create(musb, musb->mregs);
-#endif
+
 	/* ideally this would be abstracted in platform setup */
-	if (!is_dma_capable() || !musb->dma_controller)
+	if (!musb->dma_controller)
 		dev->dma_mask = NULL;
 
 	/* be sure interrupts are disabled before connecting ISR */
