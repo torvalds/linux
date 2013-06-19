@@ -112,8 +112,6 @@ struct davinci_vc {
 
 	/* Memory resources */
 	void __iomem *base;
-	resource_size_t pbase;
-	size_t base_size;
 
 	/* MFD cells */
 	struct mfd_cell cells[DAVINCI_VC_CELLS];
