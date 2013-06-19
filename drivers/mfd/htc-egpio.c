@@ -286,7 +286,8 @@ static int __init egpio_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		goto fail;
-	ei->base_addr = ioremap_nocache(res->start, resource_size(res));
+	ei->base_addr = devm_ioremap_nocache(&pdev->dev, res->start,
+					     resource_size(res));
 	if (!ei->base_addr)
 		goto fail;
 	pr_debug("EGPIO phys=%08x virt=%p\n", (u32)res->start, ei->base_addr);
@@ -380,7 +381,6 @@ static int __exit egpio_remove(struct platform_device *pdev)
 		irq_set_chained_handler(ei->chained_irq, NULL);
 		device_init_wakeup(&pdev->dev, 0);
 	}
-	iounmap(ei->base_addr);
 
 	return 0;
 }
