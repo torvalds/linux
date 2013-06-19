@@ -46,16 +46,17 @@ static struct sdb_array *__fmc_scan_sdb_tree(struct fmc_device *fmc,
 	onew = __sdb_rd(fmc, sdb_addr + 4, convert);
 	n = __be16_to_cpu(*(uint16_t *)&onew);
 	arr = kzalloc(sizeof(*arr), GFP_KERNEL);
-	if (arr) {
-		arr->record = kzalloc(sizeof(arr->record[0]) * n, GFP_KERNEL);
-		arr->subtree = kzalloc(sizeof(arr->subtree[0]) * n, GFP_KERNEL);
-	}
-	if (!arr || !arr->record || !arr->subtree) {
+	if (!arr)
+		return ERR_PTR(-ENOMEM);
+	arr->record = kzalloc(sizeof(arr->record[0]) * n, GFP_KERNEL);
+	arr->subtree = kzalloc(sizeof(arr->subtree[0]) * n, GFP_KERNEL);
+	if (!arr->record || !arr->subtree) {
 		kfree(arr->record);
 		kfree(arr->subtree);
 		kfree(arr);
 		return ERR_PTR(-ENOMEM);
 	}
+
 	arr->len = n;
 	arr->level = level;
 	arr->fmc = fmc;
