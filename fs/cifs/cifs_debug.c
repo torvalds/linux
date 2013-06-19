@@ -213,7 +213,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 						   tcon->nativeFileSystem);
 				}
 				seq_printf(m, "DevInfo: 0x%x Attributes: 0x%x"
-					"\nPathComponentMax: %d Status: 0x%d",
+					"\n\tPathComponentMax: %d Status: 0x%d",
 					le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics),
 					le32_to_cpu(tcon->fsAttrInfo.Attributes),
 					le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength),
@@ -224,6 +224,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 					seq_puts(m, " type: CDROM ");
 				else
 					seq_printf(m, " type: %d ", dev_type);
+				if (server->ops->dump_share_caps)
+					server->ops->dump_share_caps(m, tcon);
 
 				if (tcon->need_reconnect)
 					seq_puts(m, "\tDISCONNECTED ");

@@ -281,6 +281,25 @@ smb2_clear_stats(struct cifs_tcon *tcon)
 }
 
 static void
+smb2_dump_share_caps(struct seq_file *m, struct cifs_tcon *tcon)
+{
+	seq_puts(m, "\n\tShare Capabilities:");
+	if (tcon->capabilities & SMB2_SHARE_CAP_DFS)
+		seq_puts(m, " DFS,");
+	if (tcon->capabilities & SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY)
+		seq_puts(m, " CONTINUOUS AVAILABILITY,");
+	if (tcon->capabilities & SMB2_SHARE_CAP_SCALEOUT)
+		seq_puts(m, " SCALEOUT,");
+	if (tcon->capabilities & SMB2_SHARE_CAP_CLUSTER)
+		seq_puts(m, " CLUSTER,");
+	if (tcon->capabilities & SMB2_SHARE_CAP_ASYMMETRIC)
+		seq_puts(m, " ASYMMETRIC,");
+	if (tcon->capabilities == 0)
+		seq_puts(m, " None");
+	seq_printf(m, "\tShare Flags: 0x%x", tcon->share_flags);
+}
+
+static void
 smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 {
 #ifdef CONFIG_CIFS_STATS
@@ -645,6 +664,7 @@ struct smb_version_operations smb30_operations = {
 	.dump_detail = smb2_dump_detail,
 	.clear_stats = smb2_clear_stats,
 	.print_stats = smb2_print_stats,
+	.dump_share_caps = smb2_dump_share_caps,
 	.is_oplock_break = smb2_is_valid_oplock_break,
 	.need_neg = smb2_need_neg,
 	.negotiate = smb2_negotiate,
