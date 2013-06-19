@@ -695,44 +695,6 @@ static struct rcu_torture_ops srcu_sync_ops = {
 	.name		= "srcu_sync"
 };
 
-static int srcu_torture_read_lock_raw(void) __acquires(&srcu_ctl)
-{
-	return srcu_read_lock_raw(&srcu_ctl);
-}
-
-static void srcu_torture_read_unlock_raw(int idx) __releases(&srcu_ctl)
-{
-	srcu_read_unlock_raw(&srcu_ctl, idx);
-}
-
-static struct rcu_torture_ops srcu_raw_ops = {
-	.init		= rcu_sync_torture_init,
-	.readlock	= srcu_torture_read_lock_raw,
-	.read_delay	= srcu_read_delay,
-	.readunlock	= srcu_torture_read_unlock_raw,
-	.completed	= srcu_torture_completed,
-	.deferred_free	= srcu_torture_deferred_free,
-	.sync		= srcu_torture_synchronize,
-	.call		= NULL,
-	.cb_barrier	= NULL,
-	.stats		= srcu_torture_stats,
-	.name		= "srcu_raw"
-};
-
-static struct rcu_torture_ops srcu_raw_sync_ops = {
-	.init		= rcu_sync_torture_init,
-	.readlock	= srcu_torture_read_lock_raw,
-	.read_delay	= srcu_read_delay,
-	.readunlock	= srcu_torture_read_unlock_raw,
-	.completed	= srcu_torture_completed,
-	.deferred_free	= rcu_sync_torture_deferred_free,
-	.sync		= srcu_torture_synchronize,
-	.call		= NULL,
-	.cb_barrier	= NULL,
-	.stats		= srcu_torture_stats,
-	.name		= "srcu_raw_sync"
-};
-
 static void srcu_torture_synchronize_expedited(void)
 {
 	synchronize_srcu_expedited(&srcu_ctl);
@@ -1983,7 +1945,6 @@ rcu_torture_init(void)
 		{ &rcu_ops, &rcu_sync_ops, &rcu_expedited_ops,
 		  &rcu_bh_ops, &rcu_bh_sync_ops, &rcu_bh_expedited_ops,
 		  &srcu_ops, &srcu_sync_ops, &srcu_expedited_ops,
-		  &srcu_raw_ops, &srcu_raw_sync_ops,
 		  &sched_ops, &sched_sync_ops, &sched_expedited_ops, };
 
 	mutex_lock(&fullstop_mutex);
