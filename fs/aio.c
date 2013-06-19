@@ -39,6 +39,8 @@
 #include <asm/kmap_types.h>
 #include <asm/uaccess.h>
 
+#include "internal.h"
+
 #define AIO_RING_MAGIC			0xa10a10a1
 #define AIO_RING_COMPAT_FEATURES	1
 #define AIO_RING_INCOMPAT_FEATURES	0

@@ -316,7 +316,7 @@ out_putf:
  * them to something that fits in "int" so that others
  * won't have to do range checks all the time.
  */
-int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count)
+int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t count)
 {
 	struct inode *inode;
 	loff_t pos;
