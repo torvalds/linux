@@ -138,12 +138,12 @@ static int tegra_update_cpu_speed(struct cpufreq_policy *policy,
 	if (ret) {
 		pr_err("cpu-tegra: Failed to set cpu frequency to %d kHz\n",
 			freqs.new);
-		return ret;
+		freqs.new = freqs.old;
 	}
 
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
-	return 0;
+	return ret;
 }
 
 static unsigned long tegra_cpu_highest_speed(void)
