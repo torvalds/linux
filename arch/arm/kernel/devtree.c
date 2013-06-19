@@ -92,6 +92,9 @@ void __init arm_dt_init_cpu_maps(void)
 	for_each_child_of_node(cpus, cpu) {
 		u32 hwid;
 
+		if (of_node_cmp(cpu->type, "cpu"))
+			continue;
+
 		pr_debug(" * %s...\n", cpu->full_name);
 		/*
 		 * A device tree containing CPU nodes with missing "reg"
