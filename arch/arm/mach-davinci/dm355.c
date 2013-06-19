@@ -357,9 +357,9 @@ static struct clk_lookup dm355_clks[] = {
 	CLK(NULL, "clkout3", &clkout3_clk),
 	CLK(NULL, "arm", &arm_clk),
 	CLK(NULL, "mjcp", &mjcp_clk),
-	CLK(NULL, "uart0", &uart0_clk),
-	CLK(NULL, "uart1", &uart1_clk),
-	CLK(NULL, "uart2", &uart2_clk),
+	CLK("serial8250.0", NULL, &uart0_clk),
+	CLK("serial8250.1", NULL, &uart1_clk),
+	CLK("serial8250.2", NULL, &uart2_clk),
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
 	CLK("davinci-mcbsp.0", NULL, &asp0_clk),
 	CLK("davinci-mcbsp.1", NULL, &asp1_clk),
@@ -922,7 +922,7 @@ static struct davinci_timer_info dm355_timer_info = {
 	.clocksource_id	= T0_TOP,
 };
 
-static struct plat_serial8250_port dm355_serial_platform_data[] = {
+static struct plat_serial8250_port dm355_serial0_platform_data[] = {
 	{
 		.mapbase	= DAVINCI_UART0_BASE,
 		.irq		= IRQ_UARTINT0,
@@ -932,6 +932,11 @@ static struct plat_serial8250_port dm355_serial_platform_data[] = {
 		.regshift	= 2,
 	},
 	{
+		.flags	= 0,
+	}
+};
+static struct plat_serial8250_port dm355_serial1_platform_data[] = {
+	{
 		.mapbase	= DAVINCI_UART1_BASE,
 		.irq		= IRQ_UARTINT1,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
@@ -939,6 +944,11 @@ static struct plat_serial8250_port dm355_serial_platform_data[] = {
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 	},
+	{
+		.flags	= 0,
+	}
+};
+static struct plat_serial8250_port dm355_serial2_platform_data[] = {
 	{
 		.mapbase	= DM355_UART2_BASE,
 		.irq		= IRQ_DM355_UARTINT2,
@@ -948,16 +958,34 @@ static struct plat_serial8250_port dm355_serial_platform_data[] = {
 		.regshift	= 2,
 	},
 	{
-		.flags		= 0
-	},
+		.flags	= 0,
+	}
 };
 
-static struct platform_device dm355_serial_device = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev			= {
-		.platform_data	= dm355_serial_platform_data,
+static struct platform_device dm355_serial_device[] = {
+	{
+		.name			= "serial8250",
+		.id			= PLAT8250_DEV_PLATFORM,
+		.dev			= {
+			.platform_data	= dm355_serial0_platform_data,
+		}
 	},
+	{
+		.name			= "serial8250",
+		.id			= PLAT8250_DEV_PLATFORM1,
+		.dev			= {
+			.platform_data	= dm355_serial1_platform_data,
+		}
+	},
+	{
+		.name			= "serial8250",
+		.id			= PLAT8250_DEV_PLATFORM2,
+		.dev			= {
+			.platform_data	= dm355_serial2_platform_data,
+		}
+	},
+	{
+	}
 };
 
 static struct davinci_soc_info davinci_soc_info_dm355 = {
@@ -981,7 +1009,7 @@ static struct davinci_soc_info davinci_soc_info_dm355 = {
 	.gpio_base		= DAVINCI_GPIO_BASE,
 	.gpio_num		= 104,
 	.gpio_irq		= IRQ_DM355_GPIOBNK0,
-	.serial_dev		= &dm355_serial_device,
+	.serial_dev		= dm355_serial_device,
 	.sram_dma		= 0x00010000,
 	.sram_len		= SZ_32K,
 };

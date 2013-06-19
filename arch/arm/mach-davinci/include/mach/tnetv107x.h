@@ -50,7 +50,7 @@ struct tnetv107x_device_info {
 };
 
 extern struct platform_device tnetv107x_wdt_device;
-extern struct platform_device tnetv107x_serial_device;
+extern struct platform_device tnetv107x_serial_device[];
 
 extern void tnetv107x_init(void);
 extern void tnetv107x_devices_init(struct tnetv107x_device_info *);
