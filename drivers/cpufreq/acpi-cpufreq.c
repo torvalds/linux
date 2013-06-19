@@ -494,12 +494,14 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 			pr_debug("acpi_cpufreq_target failed (%d)\n",
 				policy->cpu);
 			result = -EAGAIN;
-			goto out;
+			freqs.new = freqs.old;
 		}
 	}
 
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	perf->state = next_perf_state;
+
+	if (!result)
+		perf->state = next_perf_state;
 
 out:
 	return result;
