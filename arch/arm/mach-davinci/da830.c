@@ -1199,7 +1199,6 @@ static struct davinci_soc_info davinci_soc_info_da830 = {
 	.gpio_base		= DA8XX_GPIO_BASE,
 	.gpio_num		= 128,
 	.gpio_irq		= IRQ_DA8XX_GPIO0,
-	.serial_dev		= da8xx_serial_device,
 	.emac_pdata		= &da8xx_emac_pdata,
 };
 

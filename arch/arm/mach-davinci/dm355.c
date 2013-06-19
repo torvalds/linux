@@ -1009,7 +1009,6 @@ static struct davinci_soc_info davinci_soc_info_dm355 = {
 	.gpio_base		= DAVINCI_GPIO_BASE,
 	.gpio_num		= 104,
 	.gpio_irq		= IRQ_DM355_GPIOBNK0,
-	.serial_dev		= dm355_serial_device,
 	.sram_dma		= 0x00010000,
 	.sram_len		= SZ_32K,
 };

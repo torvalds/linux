@@ -70,33 +70,12 @@ static void __init davinci_serial_reset(struct plat_serial8250_port *p)
 				 UART_DM646X_SCR_TX_WATERMARK);
 }
 
-/* Enable UART clock and obtain its rate */
-int __init davinci_serial_setup_clk(unsigned instance, unsigned int *rate)
-{
-	struct clk *clk;
-	struct davinci_soc_info *soc_info = &davinci_soc_info;
-	struct device *dev = &soc_info->serial_dev[instance].dev;
-
-	clk = clk_get(dev, NULL);
-	if (IS_ERR(clk)) {
-		pr_err("%s:%d: failed to get UART%d clock\n",
-					__func__, __LINE__, instance);
-		return PTR_ERR(clk);
-	}
-
-	clk_prepare_enable(clk);
-
-	if (rate)
-		*rate = clk_get_rate(clk);
-
-	return 0;
-}
-
 int __init davinci_serial_init(struct platform_device *serial_dev)
 {
 	int i, ret = 0;
 	struct device *dev;
 	struct plat_serial8250_port *p;
+	struct clk *clk;
 
 	/*
 	 * Make sure the serial ports are muxed on at this point.
@@ -110,9 +89,16 @@ int __init davinci_serial_init(struct platform_device *serial_dev)
 		if (ret)
 			continue;
 
-		ret = davinci_serial_setup_clk(i, &p->uartclk);
-		if (ret)
+		clk = clk_get(dev, NULL);
+		if (IS_ERR(clk)) {
+			pr_err("%s:%d: failed to get UART%d clock\n",
+			       __func__, __LINE__, i);
 			continue;
+		}
+
+		clk_prepare_enable(clk);
+
+		p->uartclk = clk_get_rate(clk);
 
 		if (!p->membase && p->mapbase) {
 			p->membase = ioremap(p->mapbase, SZ_4K);
