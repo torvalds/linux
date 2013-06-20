@@ -175,6 +175,7 @@ static const struct of_device_id usbmisc_imx_dt_ids[] = {
 	},
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, usbmisc_imx_dt_ids);
 
 static int usbmisc_imx_probe(struct platform_device *pdev)
 {
