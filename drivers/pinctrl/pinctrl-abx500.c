@@ -30,8 +30,10 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/machine.h>
 
 #include "pinctrl-abx500.h"
+#include "pinconf.h"
 
 /*
  * The AB9540 and AB8540 GPIO support are extended versions
@@ -757,11 +759,193 @@ static void abx500_pin_dbg_show(struct pinctrl_dev *pctldev,
 				 chip->base + offset - 1);
 }
 
+static void abx500_dt_free_map(struct pinctrl_dev *pctldev,
+		struct pinctrl_map *map, unsigned num_maps)
+{
+	int i;
+
+	for (i = 0; i < num_maps; i++)
+		if (map[i].type == PIN_MAP_TYPE_CONFIGS_PIN)
+			kfree(map[i].data.configs.configs);
+	kfree(map);
+}
+
+static int abx500_dt_reserve_map(struct pinctrl_map **map,
+		unsigned *reserved_maps,
+		unsigned *num_maps,
+		unsigned reserve)
+{
+	unsigned old_num = *reserved_maps;
+	unsigned new_num = *num_maps + reserve;
+	struct pinctrl_map *new_map;
+
+	if (old_num >= new_num)
+		return 0;
+
+	new_map = krealloc(*map, sizeof(*new_map) * new_num, GFP_KERNEL);
+	if (!new_map)
+		return -ENOMEM;
+
+	memset(new_map + old_num, 0, (new_num - old_num) * sizeof(*new_map));
+
+	*map = new_map;
+	*reserved_maps = new_num;
+
+	return 0;
+}
+
+static int abx500_dt_add_map_mux(struct pinctrl_map **map,
+		unsigned *reserved_maps,
+		unsigned *num_maps, const char *group,
+		const char *function)
+{
+	if (*num_maps == *reserved_maps)
+		return -ENOSPC;
+
+	(*map)[*num_maps].type = PIN_MAP_TYPE_MUX_GROUP;
+	(*map)[*num_maps].data.mux.group = group;
+	(*map)[*num_maps].data.mux.function = function;
+	(*num_maps)++;
+
+	return 0;
+}
+
+static int abx500_dt_add_map_configs(struct pinctrl_map **map,
+		unsigned *reserved_maps,
+		unsigned *num_maps, const char *group,
+		unsigned long *configs, unsigned num_configs)
+{
+	unsigned long *dup_configs;
+
+	if (*num_maps == *reserved_maps)
+		return -ENOSPC;
+
+	dup_configs = kmemdup(configs, num_configs * sizeof(*dup_configs),
+			      GFP_KERNEL);
+	if (!dup_configs)
+		return -ENOMEM;
+
+	(*map)[*num_maps].type = PIN_MAP_TYPE_CONFIGS_PIN;
+
+	(*map)[*num_maps].data.configs.group_or_pin = group;
+	(*map)[*num_maps].data.configs.configs = dup_configs;
+	(*map)[*num_maps].data.configs.num_configs = num_configs;
+	(*num_maps)++;
+
+	return 0;
+}
+
+static const char *abx500_find_pin_name(struct pinctrl_dev *pctldev,
+					const char *pin_name)
+{
+	int i, pin_number;
+	struct abx500_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+
+	if (sscanf((char *)pin_name, "GPIO%d", &pin_number) == 1)
+		for (i = 0; i < npct->soc->npins; i++)
+			if (npct->soc->pins[i].number == pin_number)
+				return npct->soc->pins[i].name;
+	return NULL;
+}
+
+static int abx500_dt_subnode_to_map(struct pinctrl_dev *pctldev,
+		struct device_node *np,
+		struct pinctrl_map **map,
+		unsigned *reserved_maps,
+		unsigned *num_maps)
+{
+	int ret;
+	const char *function = NULL;
+	unsigned long *configs;
+	unsigned int nconfigs = 0;
+	bool has_config = 0;
+	unsigned reserve = 0;
+	struct property *prop;
+	const char *group, *gpio_name;
+	struct device_node *np_config;
+
+	ret = of_property_read_string(np, "ste,function", &function);
+	if (ret >= 0)
+		reserve = 1;
+
+	ret = pinconf_generic_parse_dt_config(np, &configs, &nconfigs);
+	if (nconfigs)
+		has_config = 1;
+
+	np_config = of_parse_phandle(np, "ste,config", 0);
+	if (np_config) {
+		ret = pinconf_generic_parse_dt_config(np_config, &configs,
+				&nconfigs);
+		if (ret)
+			goto exit;
+		has_config |= nconfigs;
+	}
+
+	ret = of_property_count_strings(np, "ste,pins");
+	if (ret < 0)
+		goto exit;
+
+	if (has_config)
+		reserve++;
+
+	reserve *= ret;
+
+	ret = abx500_dt_reserve_map(map, reserved_maps, num_maps, reserve);
+	if (ret < 0)
+		goto exit;
+
+	of_property_for_each_string(np, "ste,pins", prop, group) {
+		if (function) {
+			ret = abx500_dt_add_map_mux(map, reserved_maps,
+					num_maps, group, function);
+			if (ret < 0)
+				goto exit;
+		}
+		if (has_config) {
+			gpio_name = abx500_find_pin_name(pctldev, group);
+
+			ret = abx500_dt_add_map_configs(map, reserved_maps,
+					num_maps, gpio_name, configs, 1);
+			if (ret < 0)
+				goto exit;
+		}
+
+	}
+exit:
+	return ret;
+}
+
+static int abx500_dt_node_to_map(struct pinctrl_dev *pctldev,
+				 struct device_node *np_config,
+				 struct pinctrl_map **map, unsigned *num_maps)
+{
+	unsigned reserved_maps;
+	struct device_node *np;
+	int ret;
+
+	reserved_maps = 0;
+	*map = NULL;
+	*num_maps = 0;
+
+	for_each_child_of_node(np_config, np) {
+		ret = abx500_dt_subnode_to_map(pctldev, np, map,
+				&reserved_maps, num_maps);
+		if (ret < 0) {
+			abx500_dt_free_map(pctldev, *map, *num_maps);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static const struct pinctrl_ops abx500_pinctrl_ops = {
 	.get_groups_count = abx500_get_groups_cnt,
 	.get_group_name = abx500_get_group_name,
 	.get_group_pins = abx500_get_group_pins,
 	.pin_dbg_show = abx500_pin_dbg_show,
+	.dt_node_to_map = abx500_dt_node_to_map,
+	.dt_free_map = abx500_dt_free_map,
 };
 
 static int abx500_pin_config_get(struct pinctrl_dev *pctldev,
