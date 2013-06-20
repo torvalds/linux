@@ -1052,6 +1052,131 @@ static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 
 /* End items for lio_target_tpg_attrib_cit */
 
+/* Start items for lio_target_tpg_auth_cit */
+
+#define __DEF_TPG_AUTH_STR(prefix, name, flags)					\
+static ssize_t __iscsi_##prefix##_show_##name(					\
+	struct se_portal_group *se_tpg,						\
+	char *page)								\
+{										\
+	struct iscsi_portal_group *tpg = container_of(se_tpg,			\
+				struct iscsi_portal_group, tpg_se_tpg);		\
+	struct iscsi_node_auth *auth = &tpg->tpg_demo_auth;			\
+										\
+	if (!capable(CAP_SYS_ADMIN))						\
+		return -EPERM;							\
+										\
+	return snprintf(page, PAGE_SIZE, "%s\n", auth->name);			\
+}										\
+										\
+static ssize_t __iscsi_##prefix##_store_##name(					\
+	struct se_portal_group *se_tpg,						\
+	const char *page,							\
+	size_t count)								\
+{										\
+	struct iscsi_portal_group *tpg = container_of(se_tpg,			\
+				struct iscsi_portal_group, tpg_se_tpg);		\
+	struct iscsi_node_auth *auth = &tpg->tpg_demo_auth;			\
+										\
+	if (!capable(CAP_SYS_ADMIN))						\
+		return -EPERM;							\
+										\
+	snprintf(auth->name, PAGE_SIZE, "%s", page);				\
+	if (!(strncmp("NULL", auth->name, 4)))					\
+		auth->naf_flags &= ~flags;					\
+	else									\
+		auth->naf_flags |= flags;					\
+										\
+	if ((auth->naf_flags & NAF_USERID_IN_SET) &&				\
+	    (auth->naf_flags & NAF_PASSWORD_IN_SET))				\
+		auth->authenticate_target = 1;					\
+	else									\
+		auth->authenticate_target = 0;					\
+										\
+	return count;								\
+}
+
+#define __DEF_TPG_AUTH_INT(prefix, name)					\
+static ssize_t __iscsi_##prefix##_show_##name(					\
+	struct se_portal_group *se_tpg,						\
+	char *page)								\
+{										\
+	struct iscsi_portal_group *tpg = container_of(se_tpg,			\
+				struct iscsi_portal_group, tpg_se_tpg);		\
+	struct iscsi_node_auth *auth = &tpg->tpg_demo_auth;			\
+										\
+	if (!capable(CAP_SYS_ADMIN))						\
+		return -EPERM;							\
+										\
+	return snprintf(page, PAGE_SIZE, "%d\n", auth->name);			\
+}
+
+#define DEF_TPG_AUTH_STR(name, flags)						\
+	__DEF_TPG_AUTH_STR(tpg_auth, name, flags)				\
+static ssize_t iscsi_tpg_auth_show_##name(					\
+	struct se_portal_group *se_tpg,						\
+	char *page)								\
+{										\
+	return __iscsi_tpg_auth_show_##name(se_tpg, page);			\
+}										\
+										\
+static ssize_t iscsi_tpg_auth_store_##name(					\
+	struct se_portal_group *se_tpg,						\
+	const char *page,							\
+	size_t count)								\
+{										\
+	return __iscsi_tpg_auth_store_##name(se_tpg, page, count);		\
+}
+
+#define DEF_TPG_AUTH_INT(name)							\
+	__DEF_TPG_AUTH_INT(tpg_auth, name)					\
+static ssize_t iscsi_tpg_auth_show_##name(					\
+	struct se_portal_group *se_tpg,						\
+	char *page)								\
+{										\
+	return __iscsi_tpg_auth_show_##name(se_tpg, page);			\
+}
+
+#define TPG_AUTH_ATTR(_name, _mode) TF_TPG_AUTH_ATTR(iscsi, _name, _mode);
+#define TPG_AUTH_ATTR_RO(_name) TF_TPG_AUTH_ATTR_RO(iscsi, _name);
+
+/*
+ *  * One-way authentication userid
+ *   */
+DEF_TPG_AUTH_STR(userid, NAF_USERID_SET);
+TPG_AUTH_ATTR(userid, S_IRUGO | S_IWUSR);
+/*
+ *  * One-way authentication password
+ *   */
+DEF_TPG_AUTH_STR(password, NAF_PASSWORD_SET);
+TPG_AUTH_ATTR(password, S_IRUGO | S_IWUSR);
+/*
+ *  * Enforce mutual authentication
+ *   */
+DEF_TPG_AUTH_INT(authenticate_target);
+TPG_AUTH_ATTR_RO(authenticate_target);
+/*
+ *  * Mutual authentication userid
+ *   */
+DEF_TPG_AUTH_STR(userid_mutual, NAF_USERID_IN_SET);
+TPG_AUTH_ATTR(userid_mutual, S_IRUGO | S_IWUSR);
+/*
+ *  * Mutual authentication password
+ *   */
+DEF_TPG_AUTH_STR(password_mutual, NAF_PASSWORD_IN_SET);
+TPG_AUTH_ATTR(password_mutual, S_IRUGO | S_IWUSR);
+
+static struct configfs_attribute *lio_target_tpg_auth_attrs[] = {
+	&iscsi_tpg_auth_userid.attr,
+	&iscsi_tpg_auth_password.attr,
+	&iscsi_tpg_auth_authenticate_target.attr,
+	&iscsi_tpg_auth_userid_mutual.attr,
+	&iscsi_tpg_auth_password_mutual.attr,
+	NULL,
+};
+
+/* End items for lio_target_tpg_auth_cit */
+
 /* Start items for lio_target_tpg_param_cit */
 
 #define DEF_TPG_PARAM(name)						\
@@ -1865,6 +1990,7 @@ int iscsi_target_register_configfs(void)
 	TF_CIT_TMPL(fabric)->tfc_wwn_cit.ct_attrs = lio_target_wwn_attrs;
 	TF_CIT_TMPL(fabric)->tfc_tpg_base_cit.ct_attrs = lio_target_tpg_attrs;
 	TF_CIT_TMPL(fabric)->tfc_tpg_attrib_cit.ct_attrs = lio_target_tpg_attrib_attrs;
+	TF_CIT_TMPL(fabric)->tfc_tpg_auth_cit.ct_attrs = lio_target_tpg_auth_attrs;
 	TF_CIT_TMPL(fabric)->tfc_tpg_param_cit.ct_attrs = lio_target_tpg_param_attrs;
 	TF_CIT_TMPL(fabric)->tfc_tpg_np_base_cit.ct_attrs = lio_target_portal_attrs;
 	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_base_cit.ct_attrs = lio_target_initiator_attrs;

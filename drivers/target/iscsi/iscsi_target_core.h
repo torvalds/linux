@@ -813,6 +813,7 @@ struct iscsi_portal_group {
 	struct mutex		tpg_access_lock;
 	struct mutex		np_login_lock;
 	struct iscsi_tpg_attrib	tpg_attrib;
+	struct iscsi_node_auth	tpg_demo_auth;
 	/* Pointer to default list of iSCSI parameters for TPG */
 	struct iscsi_param_list	*param_list;
 	struct iscsi_tiqn	*tpg_tiqn;
