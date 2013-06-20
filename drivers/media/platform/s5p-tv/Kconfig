@@ -8,7 +8,7 @@
 
 config VIDEO_SAMSUNG_S5P_TV
 	bool "Samsung TV driver for S5P platform"
-	depends on PLAT_S5P && PM_RUNTIME
+	depends on (PLAT_S5P || ARCH_EXYNOS) && PM_RUNTIME
 	default n
 	---help---
 	  Say Y here to enable selecting the TV output devices for

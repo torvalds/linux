@@ -31,10 +31,10 @@ obj-$(CONFIG_S3C_ADC)	+= adc.o
 
 # devices
 
-obj-y				+= platformdata.o
+obj-$(CONFIG_SAMSUNG_ATAGS)	+= platformdata.o
 
-obj-y				+= devs.o
-obj-y				+= dev-uart.o
+obj-$(CONFIG_SAMSUNG_ATAGS)	+= devs.o
+obj-$(CONFIG_SAMSUNG_ATAGS)	+= dev-uart.o
 obj-$(CONFIG_S5P_DEV_MFC)	+= s5p-dev-mfc.o
 obj-$(CONFIG_S5P_DEV_UART)	+= s5p-dev-uart.o
 
@@ -52,10 +52,11 @@ obj-$(CONFIG_SAMSUNG_DMADEV)	+= dma-ops.o
 # PM support
 
 obj-$(CONFIG_PM)		+= pm.o
-obj-$(CONFIG_PM)		+= pm-gpio.o
+obj-$(CONFIG_SAMSUNG_PM_GPIO)	+= pm-gpio.o
 obj-$(CONFIG_SAMSUNG_PM_CHECK)	+= pm-check.o
 
 obj-$(CONFIG_SAMSUNG_WAKEMASK)	+= wakeup-mask.o
 
-obj-$(CONFIG_S5P_PM)		+= s5p-pm.o s5p-irq-pm.o
+obj-$(CONFIG_S5P_PM)		+= s5p-pm.o
+obj-$(CONFIG_S5P_IRQ_PM)	+= s5p-irq-pm.o
 obj-$(CONFIG_S5P_SLEEP)		+= s5p-sleep.o
