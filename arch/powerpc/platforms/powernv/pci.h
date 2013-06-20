@@ -93,6 +93,7 @@ struct pnv_phb {
 #ifdef CONFIG_EEH
 	struct pnv_eeh_ops	*eeh_ops;
 	int			eeh_enabled;
+	int			removed;
 #endif
 
 #ifdef CONFIG_PCI_MSI
