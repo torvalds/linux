@@ -2016,6 +2016,9 @@ iscsit_process_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	}
 	if (!strncmp("=All", text_ptr, 4)) {
 		cmd->cmd_flags |= IFC_SENDTARGETS_ALL;
+	} else if (!strncmp("=iqn.", text_ptr, 5) ||
+		   !strncmp("=eui.", text_ptr, 5)) {
+		cmd->cmd_flags |= IFC_SENDTARGETS_SINGLE;
 	} else {
 		pr_err("Unable to locate valid SendTargets=%s value\n", text_ptr);
 		goto reject;
@@ -3398,6 +3401,7 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 	struct iscsi_tpg_np *tpg_np;
 	int buffer_len, end_of_buf = 0, len = 0, payload_len = 0;
 	unsigned char buf[ISCSI_IQN_LEN+12]; /* iqn + "TargetName=" + \0 */
+	unsigned char *text_in = cmd->text_in_ptr, *text_ptr = NULL;
 
 	buffer_len = max(conn->conn_ops->MaxRecvDataSegmentLength,
 			 SENDTARGETS_BUF_LIMIT);
@@ -3408,9 +3412,30 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 				" response.\n");
 		return -ENOMEM;
 	}
+	/*
+	 * Locate pointer to iqn./eui. string for IFC_SENDTARGETS_SINGLE
+	 * explicit case..
+	 */
+	if (cmd->cmd_flags & IFC_SENDTARGETS_SINGLE) {
+		text_ptr = strchr(text_in, '=');
+		if (!text_ptr) {
+			pr_err("Unable to locate '=' string in text_in:"
+			       " %s\n", text_in);
+			return -EINVAL;
+		}
+		/*
+		 * Skip over '=' character..
+		 */
+		text_ptr += 1;
+	}
 
 	spin_lock(&tiqn_lock);
 	list_for_each_entry(tiqn, &g_tiqn_list, tiqn_list) {
+		if ((cmd->cmd_flags & IFC_SENDTARGETS_SINGLE) &&
+		     strcmp(tiqn->tiqn, text_ptr)) {
+			continue;
+		}
+
 		len = sprintf(buf, "TargetName=%s", tiqn->tiqn);
 		len += 1;
 
@@ -3463,6 +3488,9 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 		spin_unlock(&tiqn->tiqn_tpg_lock);
 eob:
 		if (end_of_buf)
+			break;
+
+		if (cmd->cmd_flags & IFC_SENDTARGETS_SINGLE)
 			break;
 	}
 	spin_unlock(&tiqn_lock);

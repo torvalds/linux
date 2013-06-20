@@ -134,6 +134,7 @@ enum cmd_flags_table {
 	ICF_OOO_CMDSN				= 0x00000080,
 	ICF_REJECT_FAIL_CONN			= 0x00000100,
 	IFC_SENDTARGETS_ALL			= 0x00000200,
+	IFC_SENDTARGETS_SINGLE			= 0x00000400,
 };
 
 /* struct iscsi_cmd->i_state */
