@@ -249,32 +249,51 @@ finish:
 /*
  * Reschedule call back.
  */
+static inline void __smp_reschedule_interrupt(void)
+{
+	inc_irq_stat(irq_resched_count);
+	scheduler_ipi();
+}
+
 void smp_reschedule_interrupt(struct pt_regs *regs)
 {
 	ack_APIC_irq();
-	inc_irq_stat(irq_resched_count);
-	scheduler_ipi();
+	__smp_reschedule_interrupt();
 	/*
 	 * KVM uses this interrupt to force a cpu out of guest mode
 	 */
 }
 
-void smp_call_function_interrupt(struct pt_regs *regs)
+static inline void call_function_entering_irq(void)
 {
 	ack_APIC_irq();
 	irq_enter();
+}
+
+static inline void __smp_call_function_interrupt(void)
+{
 	generic_smp_call_function_interrupt();
 	inc_irq_stat(irq_call_count);
-	irq_exit();
+}
+
+void smp_call_function_interrupt(struct pt_regs *regs)
+{
+	call_function_entering_irq();
+	__smp_call_function_interrupt();
+	exiting_irq();
+}
+
+static inline void __smp_call_function_single_interrupt(void)
+{
+	generic_smp_call_function_single_interrupt();
+	inc_irq_stat(irq_call_count);
 }
 
 void smp_call_function_single_interrupt(struct pt_regs *regs)
 {
-	ack_APIC_irq();
-	irq_enter();
-	generic_smp_call_function_single_interrupt();
-	inc_irq_stat(irq_call_count);
-	irq_exit();
+	call_function_entering_irq();
+	__smp_call_function_single_interrupt();
+	exiting_irq();
 }
 
 static int __init nonmi_ipi_setup(char *str)
