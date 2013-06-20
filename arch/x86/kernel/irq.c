@@ -17,6 +17,7 @@
 #include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/hw_irq.h>
+#include <asm/trace/irq_vectors.h>
 
 atomic_t irq_err_count;
 
@@ -243,6 +244,18 @@ void smp_kvm_posted_intr_ipi(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 #endif
+
+void smp_trace_x86_platform_ipi(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	entering_ack_irq();
+	trace_x86_platform_ipi_entry(X86_PLATFORM_IPI_VECTOR);
+	__smp_x86_platform_ipi();
+	trace_x86_platform_ipi_exit(X86_PLATFORM_IPI_VECTOR);
+	exiting_irq();
+	set_irq_regs(old_regs);
+}
 
 EXPORT_SYMBOL_GPL(vector_used_by_percpu_irq);
 

@@ -55,6 +55,9 @@
 #include <asm/tsc.h>
 #include <asm/hypervisor.h>
 
+#define CREATE_TRACE_POINTS
+#include <asm/trace/irq_vectors.h>
+
 unsigned int num_processors;
 
 unsigned disabled_cpus __cpuinitdata;
@@ -926,6 +929,27 @@ void __irq_entry smp_apic_timer_interrupt(struct pt_regs *regs)
 	 */
 	entering_ack_irq();
 	local_apic_timer_interrupt();
+	exiting_irq();
+
+	set_irq_regs(old_regs);
+}
+
+void __irq_entry smp_trace_apic_timer_interrupt(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	/*
+	 * NOTE! We'd better ACK the irq immediately,
+	 * because timer handling can be slow.
+	 *
+	 * update_process_times() expects us to have done irq_enter().
+	 * Besides, if we don't timer interrupts ignore the global
+	 * interrupt lock, which is the WrongThing (tm) to do.
+	 */
+	entering_ack_irq();
+	trace_local_timer_entry(LOCAL_TIMER_VECTOR);
+	local_apic_timer_interrupt();
+	trace_local_timer_exit(LOCAL_TIMER_VECTOR);
 	exiting_irq();
 
 	set_irq_regs(old_regs);
@@ -1931,6 +1955,15 @@ void smp_spurious_interrupt(struct pt_regs *regs)
 	exiting_irq();
 }
 
+void smp_trace_spurious_interrupt(struct pt_regs *regs)
+{
+	entering_irq();
+	trace_spurious_apic_entry(SPURIOUS_APIC_VECTOR);
+	__smp_spurious_interrupt();
+	trace_spurious_apic_exit(SPURIOUS_APIC_VECTOR);
+	exiting_irq();
+}
+
 /*
  * This interrupt should never happen with our APIC/SMP architecture
  */
@@ -1975,6 +2008,15 @@ void smp_error_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_error_interrupt(regs);
+	exiting_irq();
+}
+
+void smp_trace_error_interrupt(struct pt_regs *regs)
+{
+	entering_irq();
+	trace_error_apic_entry(ERROR_APIC_VECTOR);
+	__smp_error_interrupt(regs);
+	trace_error_apic_exit(ERROR_APIC_VECTOR);
 	exiting_irq();
 }
 

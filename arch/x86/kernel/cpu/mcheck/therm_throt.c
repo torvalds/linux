@@ -29,6 +29,7 @@
 #include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
+#include <asm/trace/irq_vectors.h>
 
 /* How long to wait between reporting thermal events */
 #define CHECK_INTERVAL		(300 * HZ)
@@ -388,6 +389,15 @@ asmlinkage void smp_thermal_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_thermal_interrupt();
+	exiting_ack_irq();
+}
+
+asmlinkage void smp_trace_thermal_interrupt(struct pt_regs *regs)
+{
+	entering_irq();
+	trace_thermal_apic_entry(THERMAL_APIC_VECTOR);
+	__smp_thermal_interrupt();
+	trace_thermal_apic_exit(THERMAL_APIC_VECTOR);
 	exiting_ack_irq();
 }
 

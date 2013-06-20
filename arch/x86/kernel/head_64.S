@@ -521,6 +521,12 @@ ENTRY(idt_table)
 ENTRY(debug_idt_table)
 	.skip IDT_ENTRIES * 16
 
+#ifdef CONFIG_TRACING
+	.align L1_CACHE_BYTES
+ENTRY(trace_idt_table)
+	.skip IDT_ENTRIES * 16
+#endif
+
 	__PAGE_ALIGNED_BSS
 NEXT_PAGE(empty_zero_page)
 	.skip PAGE_SIZE
