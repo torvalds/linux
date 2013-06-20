@@ -1046,6 +1046,24 @@ int r600_mc_wait_for_idle(struct radeon_device *rdev)
 	return -1;
 }
 
+uint32_t rs780_mc_rreg(struct radeon_device *rdev, uint32_t reg)
+{
+	uint32_t r;
+
+	WREG32(R_0028F8_MC_INDEX, S_0028F8_MC_IND_ADDR(reg));
+	r = RREG32(R_0028FC_MC_DATA);
+	WREG32(R_0028F8_MC_INDEX, ~C_0028F8_MC_IND_ADDR);
+	return r;
+}
+
+void rs780_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
+{
+	WREG32(R_0028F8_MC_INDEX, S_0028F8_MC_IND_ADDR(reg) |
+		S_0028F8_MC_IND_WR_EN(1));
+	WREG32(R_0028FC_MC_DATA, v);
+	WREG32(R_0028F8_MC_INDEX, 0x7F);
+}
+
 static void r600_mc_program(struct radeon_device *rdev)
 {
 	struct rv515_mc_save save;
@@ -1181,6 +1199,8 @@ static int r600_mc_init(struct radeon_device *rdev)
 {
 	u32 tmp;
 	int chansize, numchan;
+	uint32_t h_addr, l_addr;
+	unsigned long long k8_addr;
 
 	/* Get VRAM informations */
 	rdev->mc.vram_is_ddr = true;
@@ -1221,7 +1241,30 @@ static int r600_mc_init(struct radeon_device *rdev)
 	if (rdev->flags & RADEON_IS_IGP) {
 		rs690_pm_info(rdev);
 		rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+
+		if (rdev->family == CHIP_RS780 || rdev->family == CHIP_RS880) {
+			/* Use K8 direct mapping for fast fb access. */
+			rdev->fastfb_working = false;
+			h_addr = G_000012_K8_ADDR_EXT(RREG32_MC(R_000012_MC_MISC_UMA_CNTL));
+			l_addr = RREG32_MC(R_000011_K8_FB_LOCATION);
+			k8_addr = ((unsigned long long)h_addr) << 32 | l_addr;
+#if defined(CONFIG_X86_32) && !defined(CONFIG_X86_PAE)
+			if (k8_addr + rdev->mc.visible_vram_size < 0x100000000ULL)
+#endif
+			{
+				/* FastFB shall be used with UMA memory. Here it is simply disabled when sideport
+		 		* memory is present.
+		 		*/
+				if (rdev->mc.igp_sideport_enabled == false && radeon_fastfb == 1) {
+					DRM_INFO("Direct mapping: aper base at 0x%llx, replaced by direct mapping base 0x%llx.\n",
+						(unsigned long long)rdev->mc.aper_base, k8_addr);
+					rdev->mc.aper_base = (resource_size_t)k8_addr;
+					rdev->fastfb_working = true;
+				}
+			}
+  		}
 	}
+
 	radeon_update_bandwidth_info(rdev);
 	return 0;
 }
@@ -3202,6 +3245,12 @@ static int r600_startup(struct radeon_device *rdev)
 	}
 
 	/* Enable IRQ */
+	if (!rdev->irq.installed) {
+		r = radeon_irq_kms_init(rdev);
+		if (r)
+			return r;
+	}
+
 	r = r600_irq_init(rdev);
 	if (r) {
 		DRM_ERROR("radeon: IH init failed (%d).\n", r);
@@ -3353,10 +3402,6 @@ int r600_init(struct radeon_device *rdev)
 		return r;
 	/* Memory manager */
 	r = radeon_bo_init(rdev);
-	if (r)
-		return r;
-
-	r = radeon_irq_kms_init(rdev);
 	if (r)
 		return r;
 

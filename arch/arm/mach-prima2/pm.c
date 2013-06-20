@@ -101,8 +101,10 @@ static int __init sirfsoc_of_pwrc_init(void)
 	struct device_node *np;
 
 	np = of_find_matching_node(NULL, pwrc_ids);
-	if (!np)
-		panic("unable to find compatible pwrc node in dtb\n");
+	if (!np) {
+		pr_err("unable to find compatible sirf pwrc node in dtb\n");
+		return -ENOENT;
+	}
 
 	/*
 	 * pwrc behind rtciobrg is not located in memory space

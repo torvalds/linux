@@ -3440,8 +3440,16 @@ void dasd_generic_path_event(struct ccw_device *cdev, int *path_event)
 			device->path_data.opm &= ~eventlpm;
 			device->path_data.ppm &= ~eventlpm;
 			device->path_data.npm &= ~eventlpm;
-			if (oldopm && !device->path_data.opm)
-				dasd_generic_last_path_gone(device);
+			if (oldopm && !device->path_data.opm) {
+				dev_warn(&device->cdev->dev,
+					 "No verified channel paths remain "
+					 "for the device\n");
+				DBF_DEV_EVENT(DBF_WARNING, device,
+					      "%s", "last verified path gone");
+				dasd_eer_write(device, NULL, DASD_EER_NOPATH);
+				dasd_device_set_stop_bits(device,
+							  DASD_STOPPED_DC_WAIT);
+			}
 		}
 		if (path_event[chp] & PE_PATH_AVAILABLE) {
 			device->path_data.opm &= ~eventlpm;

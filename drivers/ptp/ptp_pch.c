@@ -628,9 +628,10 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	chip->caps = ptp_pch_caps;
 	chip->ptp_clock = ptp_clock_register(&chip->caps, &pdev->dev);
-
-	if (IS_ERR(chip->ptp_clock))
-		return PTR_ERR(chip->ptp_clock);
+	if (IS_ERR(chip->ptp_clock)) {
+		ret = PTR_ERR(chip->ptp_clock);
+		goto err_ptp_clock_reg;
+	}
 
 	spin_lock_init(&chip->register_lock);
 
@@ -669,6 +670,7 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 err_req_irq:
 	ptp_clock_unregister(chip->ptp_clock);
+err_ptp_clock_reg:
 	iounmap(chip->regs);
 	chip->regs = NULL;
 

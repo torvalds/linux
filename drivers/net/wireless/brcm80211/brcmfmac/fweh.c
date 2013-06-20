@@ -202,7 +202,8 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 			return;
 		brcmf_fws_add_interface(ifp);
 		if (!drvr->fweh.evt_handler[BRCMF_E_IF])
-			err = brcmf_net_attach(ifp, false);
+			if (brcmf_net_attach(ifp, false) < 0)
+				return;
 	}
 
 	if (ifevent->action == BRCMF_E_IF_CHANGE)
