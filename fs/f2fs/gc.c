@@ -321,28 +321,21 @@ static const struct victim_selection default_v_ops = {
 
 static struct inode *find_gc_inode(nid_t ino, struct list_head *ilist)
 {
-	struct list_head *this;
 	struct inode_entry *ie;
 
-	list_for_each(this, ilist) {
-		ie = list_entry(this, struct inode_entry, list);
+	list_for_each_entry(ie, ilist, list)
 		if (ie->inode->i_ino == ino)
 			return ie->inode;
-	}
 	return NULL;
 }
 
 static void add_gc_inode(struct inode *inode, struct list_head *ilist)
 {
-	struct list_head *this;
-	struct inode_entry *new_ie, *ie;
+	struct inode_entry *new_ie;
 
-	list_for_each(this, ilist) {
-		ie = list_entry(this, struct inode_entry, list);
-		if (ie->inode == inode) {
-			iput(inode);
-			return;
-		}
+	if (inode == find_gc_inode(inode->i_ino, ilist)) {
+		iput(inode);
+		return;
 	}
 repeat:
 	new_ie = kmem_cache_alloc(winode_slab, GFP_NOFS);
