@@ -1419,7 +1419,7 @@ static inline struct neigh_parms *lookup_neigh_parms(struct neigh_table *tbl,
 
 	for (p = &tbl->parms; p; p = p->next) {
 		if ((p->dev && p->dev->ifindex == ifindex && net_eq(neigh_parms_net(p), net)) ||
-		    (!p->dev && !ifindex))
+		    (!p->dev && !ifindex && net_eq(net, &init_net)))
 			return p;
 	}
 
