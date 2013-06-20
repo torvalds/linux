@@ -23,9 +23,9 @@ static void arch_detect_cpu(void)
 	chipid = *(const volatile unsigned int __force *) 0xE0100118;
 
 	if ((chipid & 0xff000) == 0x50000)
-		uart_base = S5P6450_PA_UART(CONFIG_S3C_LOWLEVEL_UART_PORT);
+		uart_base = (volatile u8 *)S5P6450_PA_UART(CONFIG_S3C_LOWLEVEL_UART_PORT);
 	else
-		uart_base = S5P6440_PA_UART(CONFIG_S3C_LOWLEVEL_UART_PORT);
+		uart_base = (volatile u8 *)S5P6440_PA_UART(CONFIG_S3C_LOWLEVEL_UART_PORT);
 
 	fifo_mask = S3C2440_UFSTAT_TXMASK;
 	fifo_max = 63 << S3C2440_UFSTAT_TXSHIFT;
