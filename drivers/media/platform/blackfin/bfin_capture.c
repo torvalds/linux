@@ -1004,7 +1004,9 @@ static int bcap_probe(struct platform_device *pdev)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
-	vb2_queue_init(q);
+	ret = vb2_queue_init(q);
+	if (ret)
+		goto err_free_handler;
 
 	mutex_init(&bcap_dev->mutex);
 	init_completion(&bcap_dev->comp);
