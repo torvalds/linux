@@ -17,7 +17,7 @@
 	compatible = "samsung,sd5v1", "samsung,exynos5440";
 
 	chosen {
-		bootargs = "root=/dev/sda2 rw rootwait ignore_loglevel early_printk no_console_suspend mem=2048M@0x80000000 console=ttySAC0,115200";
+		bootargs = "root=/dev/sda2 rw rootwait ignore_loglevel early_printk no_console_suspend mem=2048M@0x80000000 mem=6144M@0x100000000 console=ttySAC0,115200";
 	};
 
 	fixed-rate-clocks {
