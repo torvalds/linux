@@ -3,7 +3,7 @@ menu "ST-Ericsson AB U300/U335 Platform"
 comment "ST-Ericsson Mobile Platform Products"
 
 config ARCH_U300
-	bool "ST-Ericsson U300 Series"
+	bool "ST-Ericsson U300 Series" if ARCH_MULTI_V5
 	depends on MMU
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
