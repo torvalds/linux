@@ -182,7 +182,7 @@ fetch_this_slot(struct bp_busy_slots *slots, int weight)
 /*
  * Add a pinned breakpoint for the given task in our constraint table
  */
-static void toggle_bp_task_slot(struct perf_event *bp, int cpu, bool enable,
+static void toggle_bp_task_slot(struct perf_event *bp, int cpu,
 				enum bp_type_idx type, int weight)
 {
 	/* tsk_pinned[n-1] is the number of tasks having n>0 breakpoints */
@@ -190,10 +190,7 @@ static void toggle_bp_task_slot(struct perf_event *bp, int cpu, bool enable,
 	int old_idx, new_idx;
 
 	old_idx = task_bp_pinned(cpu, bp, type) - 1;
-	if (enable)
-		new_idx = old_idx + weight;
-	else
-		new_idx = old_idx - weight;
+	new_idx = old_idx + weight;
 
 	if (old_idx >= 0)
 		tsk_pinned[old_idx]--;
@@ -211,22 +208,21 @@ toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type,
 	int cpu = bp->cpu;
 	struct task_struct *tsk = bp->hw.bp_target;
 
+	if (!enable)
+		weight = -weight;
+
 	/* Pinned counter cpu profiling */
 	if (!tsk) {
-
-		if (enable)
-			per_cpu(nr_cpu_bp_pinned[type], bp->cpu) += weight;
-		else
-			per_cpu(nr_cpu_bp_pinned[type], bp->cpu) -= weight;
+		per_cpu(nr_cpu_bp_pinned[type], cpu) += weight;
 		return;
 	}
 
 	/* Pinned counter task profiling */
 	if (cpu >= 0) {
-		toggle_bp_task_slot(bp, cpu, enable, type, weight);
+		toggle_bp_task_slot(bp, cpu, type, weight);
 	} else {
 		for_each_possible_cpu(cpu)
-			toggle_bp_task_slot(bp, cpu, enable, type, weight);
+			toggle_bp_task_slot(bp, cpu, type, weight);
 	}
 
 	if (enable)
