@@ -3083,6 +3083,11 @@ void bnx2x_disable_sriov(struct bnx2x *bp)
 static int bnx2x_vf_ndo_sanity(struct bnx2x *bp, int vfidx,
 			       struct bnx2x_virtf *vf)
 {
+	if (bp->state != BNX2X_STATE_OPEN) {
+		BNX2X_ERR("vf ndo called though PF is down\n");
+		return -EINVAL;
+	}
+
 	if (!IS_SRIOV(bp)) {
 		BNX2X_ERR("vf ndo called though sriov is disabled\n");
 		return -EINVAL;
