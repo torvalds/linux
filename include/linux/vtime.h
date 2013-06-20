@@ -34,7 +34,7 @@ static inline void vtime_user_exit(struct task_struct *tsk)
 }
 extern void vtime_guest_enter(struct task_struct *tsk);
 extern void vtime_guest_exit(struct task_struct *tsk);
-extern void vtime_init_idle(struct task_struct *tsk);
+extern void vtime_init_idle(struct task_struct *tsk, int cpu);
 #else
 static inline void vtime_account_irq_exit(struct task_struct *tsk)
 {
@@ -45,7 +45,7 @@ static inline void vtime_user_enter(struct task_struct *tsk) { }
 static inline void vtime_user_exit(struct task_struct *tsk) { }
 static inline void vtime_guest_enter(struct task_struct *tsk) { }
 static inline void vtime_guest_exit(struct task_struct *tsk) { }
-static inline void vtime_init_idle(struct task_struct *tsk) { }
+static inline void vtime_init_idle(struct task_struct *tsk, int cpu) { }
 #endif
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
