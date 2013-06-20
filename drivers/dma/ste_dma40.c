@@ -78,7 +78,7 @@ static int dma40_memcpy_channels[] = {
 };
 
 /* Default configuration for physcial memcpy */
-struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
+static struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
 	.mode = STEDMA40_MODE_PHYSICAL,
 	.dir = DMA_MEM_TO_MEM,
 
@@ -92,7 +92,7 @@ struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
 };
 
 /* Default configuration for logical memcpy */
-struct stedma40_chan_cfg dma40_memcpy_conf_log = {
+static struct stedma40_chan_cfg dma40_memcpy_conf_log = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = DMA_MEM_TO_MEM,
 
