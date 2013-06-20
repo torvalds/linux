@@ -34,7 +34,7 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 
 	ptep = pte_offset_kernel(&pmd, addr);
 	do {
-		pte_t pte = *ptep;
+		pte_t pte = ACCESS_ONCE(*ptep);
 		struct page *page;
 
 		if ((pte_val(pte) & mask) != result)
@@ -63,7 +63,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
 
 	pmdp = pmd_offset(&pud, addr);
 	do {
-		pmd_t pmd = *pmdp;
+		pmd_t pmd = ACCESS_ONCE(*pmdp);
 
 		next = pmd_addr_end(addr, end);
 		/*
@@ -97,7 +97,7 @@ static int gup_pud_range(pgd_t pgd, unsigned long addr, unsigned long end,
 
 	pudp = pud_offset(&pgd, addr);
 	do {
-		pud_t pud = *pudp;
+		pud_t pud = ACCESS_ONCE(*pudp);
 
 		next = pud_addr_end(addr, end);
 		if (pud_none(pud))
@@ -160,7 +160,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 
 	pgdp = pgd_offset(mm, addr);
 	do {
-		pgd_t pgd = *pgdp;
+		pgd_t pgd = ACCESS_ONCE(*pgdp);
 
 		pr_devel("  %016lx: normal pgd %p\n", addr,
 			 (void *)pgd_val(pgd));
