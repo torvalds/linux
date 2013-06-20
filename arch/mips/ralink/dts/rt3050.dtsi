@@ -55,4 +55,14 @@
 			reg-shift = <2>;
 		};
 	};
+
+	usb@101c0000 {
+		compatible = "ralink,rt3050-usb", "snps,dwc2";
+		reg = <0x101c0000 40000>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <18>;
+
+		status = "disabled";
+	};
 };

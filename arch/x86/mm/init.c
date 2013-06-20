@@ -277,6 +277,9 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 	end_pfn = limit_pfn;
 	nr_range = save_mr(mr, nr_range, start_pfn, end_pfn, 0);
 
+	if (!after_bootmem)
+		adjust_range_page_size_mask(mr, nr_range);
+
 	/* try to merge same page size and continuous */
 	for (i = 0; nr_range > 1 && i < nr_range - 1; i++) {
 		unsigned long old_start;
@@ -290,9 +293,6 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 		mr[i--].start = old_start;
 		nr_range--;
 	}
-
-	if (!after_bootmem)
-		adjust_range_page_size_mask(mr, nr_range);
 
 	for (i = 0; i < nr_range; i++)
 		printk(KERN_DEBUG " [mem %#010lx-%#010lx] page %s\n",
@@ -359,7 +359,17 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 }
 
 /*
- * would have hole in the middle or ends, and only ram parts will be mapped.
+ * We need to iterate through the E820 memory map and create direct mappings
+ * for only E820_RAM and E820_KERN_RESERVED regions. We cannot simply
+ * create direct mappings for all pfns from [0 to max_low_pfn) and
+ * [4GB to max_pfn) because of possible memory holes in high addresses
+ * that cannot be marked as UC by fixed/variable range MTRRs.
+ * Depending on the alignment of E820 ranges, this may possibly result
+ * in using smaller size (i.e. 4K instead of 2M or 1G) page tables.
+ *
+ * init_mem_mapping() calls init_range_memory_mapping() with big range.
+ * That range would have hole in the middle or ends, and only ram parts
+ * will be mapped in init_range_memory_mapping().
  */
 static unsigned long __init init_range_memory_mapping(
 					   unsigned long r_start,
@@ -419,6 +429,13 @@ void __init init_mem_mapping(void)
 	max_pfn_mapped = 0; /* will get exact value next */
 	min_pfn_mapped = real_end >> PAGE_SHIFT;
 	last_start = start = real_end;
+
+	/*
+	 * We start from the top (end of memory) and go to the bottom.
+	 * The memblock_find_in_range() gets us a block of RAM from the
+	 * end of RAM in [min_pfn_mapped, max_pfn_mapped) used as new pages
+	 * for page table.
+	 */
 	while (last_start > ISA_END_ADDRESS) {
 		if (last_start > step_size) {
 			start = round_down(last_start - 1, step_size);

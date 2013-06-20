@@ -47,6 +47,10 @@ static int pnv_msi_check_device(struct pci_dev* pdev, int nvec, int type)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	struct pnv_phb *phb = hose->private_data;
+	struct pci_dn *pdn = pci_get_pdn(pdev);
+
+	if (pdn && pdn->force_32bit_msi && !phb->msi32_support)
+		return -ENODEV;
 
 	return (phb && phb->msi_bmp.bitmap) ? 0 : -ENODEV;
 }
@@ -367,7 +371,7 @@ static void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
 	while (npages--)
 		*(tcep++) = 0;
 
-	if (tbl->it_type & TCE_PCI_SWINV_CREATE)
+	if (tbl->it_type & TCE_PCI_SWINV_FREE)
 		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1);
 }
 
@@ -448,6 +452,18 @@ static void pnv_pci_dma_dev_setup(struct pci_dev *pdev)
 		phb->dma_dev_setup(phb, pdev);
 	else
 		pnv_pci_dma_fallback_setup(hose, pdev);
+}
+
+void pnv_pci_shutdown(void)
+{
+	struct pci_controller *hose;
+
+	list_for_each_entry(hose, &hose_list, list_node) {
+		struct pnv_phb *phb = hose->private_data;
+
+		if (phb && phb->shutdown)
+			phb->shutdown(phb);
+	}
 }
 
 /* Fixup wrong class code in p7ioc and p8 root complex */

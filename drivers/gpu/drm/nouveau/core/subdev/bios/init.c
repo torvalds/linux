@@ -1940,8 +1940,8 @@ init_zm_mask_add(struct nvbios_init *init)
 	trace("ZM_MASK_ADD\tR[0x%06x] &= 0x%08x += 0x%08x\n", addr, mask, add);
 	init->offset += 13;
 
-	data  =  init_rd32(init, addr) & mask;
-	data |= ((data + add) & ~mask);
+	data =  init_rd32(init, addr);
+	data = (data & mask) | ((data + add) & ~mask);
 	init_wr32(init, addr, data);
 }
 

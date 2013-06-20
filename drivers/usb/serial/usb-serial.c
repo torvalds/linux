@@ -359,20 +359,29 @@ static int serial_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
-	int count = 0;
 
 	dev_dbg(tty->dev, "%s\n", __func__);
 
-	mutex_lock(&serial->disc_mutex);
-	/* if the device was unplugged then any remaining characters
-	   fell out of the connector ;) */
 	if (serial->disconnected)
-		count = 0;
-	else
-		count = serial->type->chars_in_buffer(tty);
-	mutex_unlock(&serial->disc_mutex);
+		return 0;
 
-	return count;
+	return serial->type->chars_in_buffer(tty);
+}
+
+static void serial_wait_until_sent(struct tty_struct *tty, int timeout)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct usb_serial *serial = port->serial;
+
+	dev_dbg(tty->dev, "%s\n", __func__);
+
+	if (!port->serial->type->wait_until_sent)
+		return;
+
+	mutex_lock(&serial->disc_mutex);
+	if (!serial->disconnected)
+		port->serial->type->wait_until_sent(tty, timeout);
+	mutex_unlock(&serial->disc_mutex);
 }
 
 static void serial_throttle(struct tty_struct *tty)
@@ -399,7 +408,7 @@ static int serial_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	int retval = -ENODEV;
+	int retval = -ENOIOCTLCMD;
 
 	dev_dbg(tty->dev, "%s - cmd 0x%.4x\n", __func__, cmd);
 
@@ -411,8 +420,6 @@ static int serial_ioctl(struct tty_struct *tty,
 	default:
 		if (port->serial->type->ioctl)
 			retval = port->serial->type->ioctl(tty, cmd, arg);
-		else
-			retval = -ENOIOCTLCMD;
 	}
 
 	return retval;
@@ -1191,6 +1198,7 @@ static const struct tty_operations serial_ops = {
 	.unthrottle =		serial_unthrottle,
 	.break_ctl =		serial_break,
 	.chars_in_buffer =	serial_chars_in_buffer,
+	.wait_until_sent =	serial_wait_until_sent,
 	.tiocmget =		serial_tiocmget,
 	.tiocmset =		serial_tiocmset,
 	.get_icount =		serial_get_icount,
@@ -1316,6 +1324,8 @@ static void usb_serial_operations_init(struct usb_serial_driver *device)
 	set_to_generic_if_null(device, close);
 	set_to_generic_if_null(device, write_room);
 	set_to_generic_if_null(device, chars_in_buffer);
+	if (device->tx_empty)
+		set_to_generic_if_null(device, wait_until_sent);
 	set_to_generic_if_null(device, read_bulk_callback);
 	set_to_generic_if_null(device, write_bulk_callback);
 	set_to_generic_if_null(device, process_read_urb);

@@ -134,7 +134,10 @@ struct bcma_host_ops {
 #define BCMA_CORE_I2S			0x834
 #define BCMA_CORE_SDR_DDR1_MEM_CTL	0x835	/* SDR/DDR1 memory controller core */
 #define BCMA_CORE_SHIM			0x837	/* SHIM component in ubus/6362 */
-#define BCMA_CORE_ARM_CR4		0x83e
+#define BCMA_CORE_PHY_AC		0x83B
+#define BCMA_CORE_PCIE2			0x83C	/* PCI Express Gen2 */
+#define BCMA_CORE_USB30_DEV		0x83D
+#define BCMA_CORE_ARM_CR4		0x83E
 #define BCMA_CORE_DEFAULT		0xFFF
 
 #define BCMA_MAX_NR_CORES		16

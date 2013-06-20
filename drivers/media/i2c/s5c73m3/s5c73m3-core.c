@@ -956,7 +956,7 @@ static int s5c73m3_oif_enum_frame_interval(struct v4l2_subdev *sd,
 
 	if (fie->pad != OIF_SOURCE_PAD)
 		return -EINVAL;
-	if (fie->index > ARRAY_SIZE(s5c73m3_intervals))
+	if (fie->index >= ARRAY_SIZE(s5c73m3_intervals))
 		return -EINVAL;
 
 	mutex_lock(&state->lock);

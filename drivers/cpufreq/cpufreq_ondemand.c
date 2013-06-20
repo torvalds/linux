@@ -547,7 +547,6 @@ static int od_init(struct dbs_data *dbs_data)
 	tuners->io_is_busy = should_io_be_busy();
 
 	dbs_data->tuners = tuners;
-	pr_info("%s: tuners %p\n", __func__, tuners);
 	mutex_init(&dbs_data->mutex);
 	return 0;
 }

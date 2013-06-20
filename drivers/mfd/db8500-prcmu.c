@@ -1613,6 +1613,8 @@ static unsigned long dsiclk_rate(u8 n)
 
 	if (divsel == PRCM_DSI_PLLOUT_SEL_OFF)
 		divsel = dsiclk[n].divsel;
+	else
+		dsiclk[n].divsel = divsel;
 
 	switch (divsel) {
 	case PRCM_DSI_PLLOUT_SEL_PHI_4:
@@ -3095,6 +3097,7 @@ static struct mfd_cell db8500_prcmu_devs[] = {
 		.num_resources = ARRAY_SIZE(db8500_thsens_resources),
 		.resources = db8500_thsens_resources,
 		.platform_data = &db8500_thsens_data,
+		.pdata_size = sizeof(db8500_thsens_data),
 	},
 };
 

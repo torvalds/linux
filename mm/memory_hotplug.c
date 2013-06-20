@@ -720,9 +720,12 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
 	start = phys_start_pfn << PAGE_SHIFT;
 	size = nr_pages * PAGE_SIZE;
 	ret = release_mem_region_adjustable(&iomem_resource, start, size);
-	if (ret)
-		pr_warn("Unable to release resource <%016llx-%016llx> (%d)\n",
-				start, start + size - 1, ret);
+	if (ret) {
+		resource_size_t endres = start + size - 1;
+
+		pr_warn("Unable to release resource <%pa-%pa> (%d)\n",
+				&start, &endres, ret);
+	}
 
 	sections_to_remove = nr_pages / PAGES_PER_SECTION;
 	for (i = 0; i < sections_to_remove; i++) {

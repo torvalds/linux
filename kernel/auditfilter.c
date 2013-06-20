@@ -1021,9 +1021,6 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
  * @seq: netlink audit message sequence (serial) number
  * @data: payload data
  * @datasz: size of payload data
- * @loginuid: loginuid of sender
- * @sessionid: sessionid for netlink audit message
- * @sid: SE Linux Security ID of sender
  */
 int audit_receive_filter(int type, int pid, int seq, void *data, size_t datasz)
 {

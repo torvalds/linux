@@ -151,7 +151,7 @@ static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 		struct qxl_bo *cmd_bo;
 		int release_type;
 		struct drm_qxl_command *commands =
-			(struct drm_qxl_command *)execbuffer->commands;
+			(struct drm_qxl_command *)(uintptr_t)execbuffer->commands;
 
 		if (DRM_COPY_FROM_USER(&user_cmd, &commands[cmd_num],
 				       sizeof(user_cmd)))
@@ -193,7 +193,7 @@ static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 
 		for (i = 0 ; i < user_cmd.relocs_num; ++i) {
 			if (DRM_COPY_FROM_USER(&reloc,
-					       &((struct drm_qxl_reloc *)user_cmd.relocs)[i],
+					       &((struct drm_qxl_reloc *)(uintptr_t)user_cmd.relocs)[i],
 					       sizeof(reloc))) {
 				qxl_bo_list_unreserve(&reloc_list, true);
 				qxl_release_unreserve(qdev, release);
@@ -294,6 +294,7 @@ static int qxl_update_area_ioctl(struct drm_device *dev, void *data,
 		goto out;
 
 	if (!qobj->pin_count) {
+		qxl_ttm_placement_from_domain(qobj, qobj->type);
 		ret = ttm_bo_validate(&qobj->tbo, &qobj->placement,
 				      true, false);
 		if (unlikely(ret))

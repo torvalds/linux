@@ -70,11 +70,6 @@ static int pwmss_probe(struct platform_device *pdev)
 	mutex_init(&info->pwmss_lock);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
-		return -ENODEV;
-	}
-
 	info->mmio_base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(info->mmio_base))
 		return PTR_ERR(info->mmio_base);

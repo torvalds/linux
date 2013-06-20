@@ -18,6 +18,9 @@ config PPC_PSERIES
 	select PPC_PCI_CHOICE if EXPERT
 	select ZLIB_DEFLATE
 	select PPC_DOORBELL
+	select HAVE_CONTEXT_TRACKING
+	select HOTPLUG if SMP
+	select HOTPLUG_CPU if SMP
 	default y
 
 config PPC_SPLPAR

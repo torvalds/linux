@@ -1977,8 +1977,10 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 
 	r8a66597->ep0_req = r8a66597_alloc_request(&r8a66597->ep[0].ep,
 							GFP_KERNEL);
-	if (r8a66597->ep0_req == NULL)
+	if (r8a66597->ep0_req == NULL) {
+		ret = -ENOMEM;
 		goto clean_up3;
+	}
 	r8a66597->ep0_req->complete = nop_completion;
 
 	ret = usb_add_gadget_udc(&pdev->dev, &r8a66597->gadget);
