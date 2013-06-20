@@ -143,13 +143,17 @@ static void __cpuinit apply_ucode_in_initrd(void *ucode, size_t size)
 			left  -= offset;
 		}
 
-		offset = data - (u8 *)ucode;
+		/* mark where the next microcode container file starts */
+		offset    = data - (u8 *)ucode;
 		*uoffset += offset;
 		*usize   -= offset;
+		ucode     = data;
 	}
 
-	if (!eq_id)
+	if (!eq_id) {
+		*usize = 0;
 		return;
+	}
 
 	/* find ucode and update if needed */
 
@@ -166,15 +170,21 @@ static void __cpuinit apply_ucode_in_initrd(void *ucode, size_t size)
 		mc = (struct microcode_amd *)(data + SECTION_HDR_SIZE);
 		if (eq_id == mc->hdr.processor_rev_id && rev < mc->hdr.patch_id)
 			if (__apply_microcode_amd(mc) == 0) {
-				if (!(*new_rev))
-					*new_rev = mc->hdr.patch_id;
-				break;
+				rev = mc->hdr.patch_id;
+				*new_rev = rev;
 			}
 
 		offset  = header[1] + SECTION_HDR_SIZE;
 		data   += offset;
 		left   -= offset;
 	}
+
+	/* mark where this microcode container file ends */
+	offset  = *usize - (data - (u8 *)ucode);
+	*usize -= offset;
+
+	if (!(*new_rev))
+		*usize = 0;
 }
 
 void __init load_ucode_amd_bsp(void)
@@ -204,19 +214,20 @@ void __cpuinit load_ucode_amd_ap(void)
 	size_t *usize;
 	void *ucode;
 
-	mc = (struct microcode_amd *)__pa_nodebug(amd_bsp_mpb);
+	mc = (struct microcode_amd *)__pa(amd_bsp_mpb);
 	if (mc->hdr.patch_id && mc->hdr.processor_rev_id) {
 		__apply_microcode_amd(mc);
 		return;
 	}
 
-	initrd  = (unsigned long *)__pa_nodebug(&initrd_start);
-	uoffset = (unsigned long *)__pa_nodebug(&ucode_offset);
-	usize   = (size_t *)__pa_nodebug(&ucode_size);
-	if (!*usize)
+	initrd  = (unsigned long *)__pa(&initrd_start);
+	uoffset = (unsigned long *)__pa(&ucode_offset);
+	usize   = (size_t *)__pa(&ucode_size);
+
+	if (!*usize || !*initrd)
 		return;
 
-	ucode = (void *)((unsigned long)__pa_nodebug(*initrd) + *uoffset);
+	ucode = (void *)((unsigned long)__pa(*initrd) + *uoffset);
 	apply_ucode_in_initrd(ucode, *usize);
 }
 
@@ -250,7 +261,7 @@ void __cpuinit load_ucode_amd_ap(void)
 	if (cpu && !ucode_loaded) {
 		void *ucode;
 
-		if (!ucode_size)
+		if (!ucode_size || !initrd_start)
 			return;
 
 		ucode = (void *)(initrd_start + ucode_offset);
@@ -278,10 +289,7 @@ int __init save_microcode_in_initrd_amd(void)
 		pr_info("microcode: updated early to new patch_level=0x%08x\n",
 			ucode_new_rev);
 
-	if (ucode_loaded)
-		return 0;
-
-	if (!ucode_size)
+	if (ucode_loaded || !ucode_size || !initrd_start)
 		return 0;
 
 	ucode = (void *)(initrd_start + ucode_offset);
