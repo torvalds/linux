@@ -35,7 +35,6 @@
 #include "prm-regbits-34xx.h"
 #include "cm-regbits-34xx.h"
 
-#include "dma.h"
 #include "i2c.h"
 #include "mmc.h"
 #include "wd_timer.h"
@@ -548,8 +547,8 @@ static struct omap_hwmod_irq_info uart4_mpu_irqs[] = {
 };
 
 static struct omap_hwmod_dma_info uart4_sdma_reqs[] = {
-	{ .name = "rx",	.dma_req = OMAP36XX_DMA_UART4_RX, },
-	{ .name = "tx",	.dma_req = OMAP36XX_DMA_UART4_TX, },
+	{ .name = "rx",	.dma_req = 82, },
+	{ .name = "tx",	.dma_req = 81, },
 	{ .dma_req = -1 }
 };
 
@@ -577,8 +576,8 @@ static struct omap_hwmod_irq_info am35xx_uart4_mpu_irqs[] = {
 };
 
 static struct omap_hwmod_dma_info am35xx_uart4_sdma_reqs[] = {
-	{ .name = "rx", .dma_req = AM35XX_DMA_UART4_RX, },
-	{ .name = "tx", .dma_req = AM35XX_DMA_UART4_TX, },
+	{ .name = "rx", .dma_req = 55, },
+	{ .name = "tx", .dma_req = 54, },
 	{ .dma_req = -1 }
 };
 
@@ -857,8 +856,8 @@ static struct omap_hwmod_irq_info i2c3_mpu_irqs[] = {
 };
 
 static struct omap_hwmod_dma_info i2c3_sdma_reqs[] = {
-	{ .name = "tx", .dma_req = OMAP34XX_DMA_I2C3_TX },
-	{ .name = "rx", .dma_req = OMAP34XX_DMA_I2C3_RX },
+	{ .name = "tx", .dma_req = 25 },
+	{ .name = "rx", .dma_req = 26 },
 	{ .dma_req = -1 }
 };
 
@@ -3581,7 +3580,7 @@ static struct omap_hwmod_irq_info omap3_sham_mpu_irqs[] = {
 };
 
 static struct omap_hwmod_dma_info omap3_sham_sdma_reqs[] = {
-	{ .name = "rx", .dma_req = OMAP34XX_DMA_SHA1MD5_RX, },
+	{ .name = "rx", .dma_req = 69, },
 	{ .dma_req = -1 }
 };
 
@@ -3642,8 +3641,8 @@ static struct omap_hwmod_class omap3xxx_aes_class = {
 };
 
 static struct omap_hwmod_dma_info omap3_aes_sdma_reqs[] = {
-	{ .name = "tx", .dma_req = OMAP34XX_DMA_AES2_TX, },
-	{ .name = "rx", .dma_req = OMAP34XX_DMA_AES2_RX, },
+	{ .name = "tx", .dma_req = 65, },
+	{ .name = "rx", .dma_req = 66, },
 	{ .dma_req = -1 }
 };
 

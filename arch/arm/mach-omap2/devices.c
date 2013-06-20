@@ -37,7 +37,6 @@
 #include "mux.h"
 #include "control.h"
 #include "devices.h"
-#include "dma.h"
 
 #define L3_MODULES_MAX_LEN 12
 #define L3_MODULES 3
