@@ -726,6 +726,7 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 {
 	struct event_constraint *c;
 	unsigned long used_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
+	struct perf_event *e;
 	int i, wmin, wmax, num = 0;
 	struct hw_perf_event *hwc;
 
@@ -770,13 +771,31 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 					 wmax, assign);
 
 	/*
+	 * Mark the event as committed, so we do not put_constraint()
+	 * in case new events are added and fail scheduling.
+	 */
+	if (!num && assign) {
+		for (i = 0; i < n; i++) {
+			e = cpuc->event_list[i];
+			e->hw.flags |= PERF_X86_EVENT_COMMITTED;
+		}
+	}
+	/*
 	 * scheduling failed or is just a simulation,
 	 * free resources if necessary
 	 */
 	if (!assign || num) {
 		for (i = 0; i < n; i++) {
+			e = cpuc->event_list[i];
+			/*
+			 * do not put_constraint() on comitted events,
+			 * because they are good to go
+			 */
+			if ((e->hw.flags & PERF_X86_EVENT_COMMITTED))
+				continue;
+
 			if (x86_pmu.put_event_constraints)
-				x86_pmu.put_event_constraints(cpuc, cpuc->event_list[i]);
+				x86_pmu.put_event_constraints(cpuc, e);
 		}
 	}
 	return num ? -EINVAL : 0;
@@ -1154,6 +1173,11 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int i;
+
+	/*
+	 * event is descheduled
+	 */
+	event->hw.flags &= ~PERF_X86_EVENT_COMMITTED;
 
 	/*
 	 * If we're called during a txn, we don't need to do anything.

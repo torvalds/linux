@@ -63,11 +63,12 @@ struct event_constraint {
 	int	flags;
 };
 /*
- * struct event_constraint flags
+ * struct hw_perf_event.flags flags
  */
 #define PERF_X86_EVENT_PEBS_LDLAT	0x1 /* ld+ldlat data address sampling */
 #define PERF_X86_EVENT_PEBS_ST		0x2 /* st data address sampling */
 #define PERF_X86_EVENT_PEBS_ST_HSW	0x4 /* haswell style st data sampling */
+#define PERF_X86_EVENT_COMMITTED	0x8 /* event passed commit_txn */
 
 struct amd_nb {
 	int nb_id;  /* NorthBridge id */
