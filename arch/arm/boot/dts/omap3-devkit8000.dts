@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-/include/ "omap34xx.dtsi"
+#include "omap34xx.dtsi"
 / {
 	model = "TimLL OMAP3 Devkit8000";
 	compatible = "timll,omap3-devkit8000", "ti,omap3";
@@ -22,21 +22,21 @@
 
 		heartbeat {
 			label = "devkit8000::led1";
-			gpios = <&gpio6 26 0>;	/* 186 -> LED1 */
+			gpios = <&gpio6 26 GPIO_ACTIVE_HIGH>;	/* 186 -> LED1 */
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
 
 		mmc {
 			label = "devkit8000::led2";
-			gpios = <&gpio6 3 0>;	/* 163 -> LED2 */
+			gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>;	/* 163 -> LED2 */
 			default-state = "on";
 			linux,default-trigger = "none";
 		};
 
 		usr {
 			label = "devkit8000::led3";
-			gpios = <&gpio6 4 0>;	/* 164 -> LED3 */
+			gpios = <&gpio6 4 GPIO_ACTIVE_HIGH>;	/* 164 -> LED3 */
 			default-state = "on";
 			linux,default-trigger = "usr";
                 };
@@ -80,7 +80,8 @@
 	status = "disabled";
 };
 
-/include/ "twl4030.dtsi"
+#include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
 
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
