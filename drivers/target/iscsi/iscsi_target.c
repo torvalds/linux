@@ -1995,7 +1995,31 @@ int
 iscsit_process_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 			struct iscsi_text *hdr)
 {
+	unsigned char *text_in = cmd->text_in_ptr, *text_ptr;
 	int cmdsn_ret;
+
+	if (!text_in) {
+		pr_err("Unable to locate text_in buffer for sendtargets"
+		       " discovery\n");
+		goto reject;
+	}
+	if (strncmp("SendTargets", text_in, 11) != 0) {
+		pr_err("Received Text Data that is not"
+			" SendTargets, cannot continue.\n");
+		goto reject;
+	}
+	text_ptr = strchr(text_in, '=');
+	if (!text_ptr) {
+		pr_err("No \"=\" separator found in Text Data,"
+			"  cannot continue.\n");
+		goto reject;
+	}
+	if (!strncmp("=All", text_ptr, 4)) {
+		cmd->cmd_flags |= IFC_SENDTARGETS_ALL;
+	} else {
+		pr_err("Unable to locate valid SendTargets=%s value\n", text_ptr);
+		goto reject;
+	}
 
 	spin_lock_bh(&conn->cmd_lock);
 	list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
@@ -2013,6 +2037,10 @@ iscsit_process_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	}
 
 	return iscsit_execute_cmd(cmd, 0);
+
+reject:
+	return iscsit_add_reject_from_cmd(ISCSI_REASON_PROTOCOL_ERROR,
+					  0, 0, (unsigned char *)hdr, cmd);
 }
 EXPORT_SYMBOL(iscsit_process_text_cmd);
 
@@ -2031,7 +2059,6 @@ iscsit_handle_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 
 	rx_size = payload_length;
 	if (payload_length) {
-		char *text_ptr;
 		u32 checksum = 0, data_crc = 0;
 		u32 padding = 0, pad_bytes = 0;
 		int niov = 0, rx_got;
@@ -2043,6 +2070,7 @@ iscsit_handle_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 				" incoming text parameters\n");
 			goto reject;
 		}
+		cmd->text_in_ptr = text_in;
 
 		memset(iov, 0, 3 * sizeof(struct kvec));
 		iov[niov].iov_base	= text_in;
@@ -2101,30 +2129,13 @@ iscsit_handle_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 		text_in[payload_length - 1] = '\0';
 		pr_debug("Successfully read %d bytes of text"
 				" data.\n", payload_length);
-
-		if (strncmp("SendTargets", text_in, 11) != 0) {
-			pr_err("Received Text Data that is not"
-				" SendTargets, cannot continue.\n");
-			goto reject;
-		}
-		text_ptr = strchr(text_in, '=');
-		if (!text_ptr) {
-			pr_err("No \"=\" separator found in Text Data,"
-				"  cannot continue.\n");
-			goto reject;
-		}
-		if (strncmp("=All", text_ptr, 4) != 0) {
-			pr_err("Unable to locate All value for"
-				" SendTargets key,  cannot continue.\n");
-			goto reject;
-		}
-		kfree(text_in);
 	}
 
 	return iscsit_process_text_cmd(conn, cmd, hdr);
 
 reject:
-	kfree(text_in);
+	kfree(cmd->text_in_ptr);
+	cmd->text_in_ptr = NULL;
 	return iscsit_add_reject_from_cmd(ISCSI_REASON_PROTOCOL_ERROR,
 					  0, 0, buf, cmd);
 }

@@ -681,6 +681,7 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 	kfree(cmd->seq_list);
 	kfree(cmd->tmr_req);
 	kfree(cmd->iov_data);
+	kfree(cmd->text_in_ptr);
 
 	kmem_cache_free(lio_cmd_cache, cmd);
 }
