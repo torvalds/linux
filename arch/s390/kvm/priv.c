@@ -596,6 +596,9 @@ static int handle_tprot(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.instruction_tprot++;
 
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
+
 	kvm_s390_get_base_disp_sse(vcpu, &address1, &address2);
 
 	/* we only handle the Linux memory detection case:
