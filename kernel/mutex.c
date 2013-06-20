@@ -651,22 +651,60 @@ mutex_lock_interruptible_nested(struct mutex *lock, unsigned int subclass)
 
 EXPORT_SYMBOL_GPL(mutex_lock_interruptible_nested);
 
+static inline int
+ww_mutex_deadlock_injection(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
+{
+#ifdef CONFIG_DEBUG_WW_MUTEX_SLOWPATH
+	unsigned tmp;
+
+	if (ctx->deadlock_inject_countdown-- == 0) {
+		tmp = ctx->deadlock_inject_interval;
+		if (tmp > UINT_MAX/4)
+			tmp = UINT_MAX;
+		else
+			tmp = tmp*2 + tmp + tmp/2;
+
+		ctx->deadlock_inject_interval = tmp;
+		ctx->deadlock_inject_countdown = tmp;
+		ctx->contending_lock = lock;
+
+		ww_mutex_unlock(lock);
+
+		return -EDEADLK;
+	}
+#endif
+
+	return 0;
+}
 
 int __sched
 __ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
+	int ret;
+
 	might_sleep();
-	return __mutex_lock_common(&lock->base, TASK_UNINTERRUPTIBLE,
+	ret =  __mutex_lock_common(&lock->base, TASK_UNINTERRUPTIBLE,
 				   0, &ctx->dep_map, _RET_IP_, ctx);
+	if (!ret && ctx->acquired > 0)
+		return ww_mutex_deadlock_injection(lock, ctx);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__ww_mutex_lock);
 
 int __sched
 __ww_mutex_lock_interruptible(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
+	int ret;
+
 	might_sleep();
-	return __mutex_lock_common(&lock->base, TASK_INTERRUPTIBLE,
-				   0, &ctx->dep_map, _RET_IP_, ctx);
+	ret = __mutex_lock_common(&lock->base, TASK_INTERRUPTIBLE,
+				  0, &ctx->dep_map, _RET_IP_, ctx);
+
+	if (!ret && ctx->acquired > 0)
+		return ww_mutex_deadlock_injection(lock, ctx);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__ww_mutex_lock_interruptible);
 
