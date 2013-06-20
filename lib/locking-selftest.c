@@ -1162,6 +1162,67 @@ static void ww_test_fail_acquire(void)
 #endif
 }
 
+static void ww_test_normal(void)
+{
+	int ret;
+
+	WWAI(&t);
+
+	/*
+	 * None of the ww_mutex codepaths should be taken in the 'normal'
+	 * mutex calls. The easiest way to verify this is by using the
+	 * normal mutex calls, and making sure o.ctx is unmodified.
+	 */
+
+	/* mutex_lock (and indirectly, mutex_lock_nested) */
+	o.ctx = (void *)~0UL;
+	mutex_lock(&o.base);
+	mutex_unlock(&o.base);
+	WARN_ON(o.ctx != (void *)~0UL);
+
+	/* mutex_lock_interruptible (and *_nested) */
+	o.ctx = (void *)~0UL;
+	ret = mutex_lock_interruptible(&o.base);
+	if (!ret)
+		mutex_unlock(&o.base);
+	else
+		WARN_ON(1);
+	WARN_ON(o.ctx != (void *)~0UL);
+
+	/* mutex_lock_killable (and *_nested) */
+	o.ctx = (void *)~0UL;
+	ret = mutex_lock_killable(&o.base);
+	if (!ret)
+		mutex_unlock(&o.base);
+	else
+		WARN_ON(1);
+	WARN_ON(o.ctx != (void *)~0UL);
+
+	/* trylock, succeeding */
+	o.ctx = (void *)~0UL;
+	ret = mutex_trylock(&o.base);
+	WARN_ON(!ret);
+	if (ret)
+		mutex_unlock(&o.base);
+	else
+		WARN_ON(1);
+	WARN_ON(o.ctx != (void *)~0UL);
+
+	/* trylock, failing */
+	o.ctx = (void *)~0UL;
+	mutex_lock(&o.base);
+	ret = mutex_trylock(&o.base);
+	WARN_ON(ret);
+	mutex_unlock(&o.base);
+	WARN_ON(o.ctx != (void *)~0UL);
+
+	/* nest_lock */
+	o.ctx = (void *)~0UL;
+	mutex_lock_nest_lock(&o.base, &t);
+	mutex_unlock(&o.base);
+	WARN_ON(o.ctx != (void *)~0UL);
+}
+
 static void ww_test_two_contexts(void)
 {
 	WWAI(&t);
@@ -1415,6 +1476,7 @@ static void ww_tests(void)
 
 	print_testname("ww api failures");
 	dotest(ww_test_fail_acquire, SUCCESS, LOCKTYPE_WW);
+	dotest(ww_test_normal, SUCCESS, LOCKTYPE_WW);
 	dotest(ww_test_unneeded_slow, FAILURE, LOCKTYPE_WW);
 	printk("\n");
 
