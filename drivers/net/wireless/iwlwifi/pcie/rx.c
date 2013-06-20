@@ -355,19 +355,16 @@ static void iwl_pcie_rxq_free_rbs(struct iwl_trans *trans)
 	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	int i;
 
-	/* Fill the rx_used queue with _all_ of the Rx buffers */
+	lockdep_assert_held(&rxq->lock);
+
 	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++) {
-		/* In the reset function, these buffers may have been allocated
-		 * to an SKB, so we need to unmap and free potential storage */
-		if (rxq->pool[i].page != NULL) {
-			dma_unmap_page(trans->dev, rxq->pool[i].page_dma,
-				       PAGE_SIZE << trans_pcie->rx_page_order,
-				       DMA_FROM_DEVICE);
-			__free_pages(rxq->pool[i].page,
-				     trans_pcie->rx_page_order);
-			rxq->pool[i].page = NULL;
-		}
-		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
+		if (!rxq->pool[i].page)
+			continue;
+		dma_unmap_page(trans->dev, rxq->pool[i].page_dma,
+			       PAGE_SIZE << trans_pcie->rx_page_order,
+			       DMA_FROM_DEVICE);
+		__free_pages(rxq->pool[i].page, trans_pcie->rx_page_order);
+		rxq->pool[i].page = NULL;
 	}
 }
 
@@ -491,6 +488,20 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
 }
 
+static void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
+{
+	int i;
+
+	lockdep_assert_held(&rxq->lock);
+
+	INIT_LIST_HEAD(&rxq->rx_free);
+	INIT_LIST_HEAD(&rxq->rx_used);
+	rxq->free_count = 0;
+
+	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++)
+		list_add(&rxq->pool[i].list, &rxq->rx_used);
+}
+
 int iwl_pcie_rx_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -505,13 +516,12 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	}
 
 	spin_lock_irqsave(&rxq->lock, flags);
-	INIT_LIST_HEAD(&rxq->rx_free);
-	INIT_LIST_HEAD(&rxq->rx_used);
 
-	INIT_WORK(&trans_pcie->rx_replenish,
-		  iwl_pcie_rx_replenish_work);
+	INIT_WORK(&trans_pcie->rx_replenish, iwl_pcie_rx_replenish_work);
 
+	/* free all first - we might be reconfigured for a different size */
 	iwl_pcie_rxq_free_rbs(trans);
+	iwl_pcie_rx_init_rxb_lists(rxq);
 
 	for (i = 0; i < RX_QUEUE_SIZE; i++)
 		rxq->queue[i] = NULL;
@@ -520,7 +530,6 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	 * not restocked the Rx queue with fresh buffers */
 	rxq->read = rxq->write = 0;
 	rxq->write_actual = 0;
-	rxq->free_count = 0;
 	memset(rxq->rb_stts, 0, sizeof(*rxq->rb_stts));
 	spin_unlock_irqrestore(&rxq->lock, flags);
 
