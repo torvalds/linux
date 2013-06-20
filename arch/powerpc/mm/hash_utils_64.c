@@ -1050,13 +1050,26 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		goto bail;
 	}
 
-#ifdef CONFIG_HUGETLB_PAGE
 	if (hugeshift) {
-		rc = __hash_page_huge(ea, access, vsid, ptep, trap, local,
-					ssize, hugeshift, psize);
+		if (pmd_trans_huge(*(pmd_t *)ptep))
+			rc = __hash_page_thp(ea, access, vsid, (pmd_t *)ptep,
+					     trap, local, ssize, psize);
+#ifdef CONFIG_HUGETLB_PAGE
+		else
+			rc = __hash_page_huge(ea, access, vsid, ptep, trap,
+					      local, ssize, hugeshift, psize);
+#else
+		else {
+			/*
+			 * if we have hugeshift, and is not transhuge with
+			 * hugetlb disabled, something is really wrong.
+			 */
+			rc = 1;
+			WARN_ON(1);
+		}
+#endif
 		goto bail;
 	}
-#endif /* CONFIG_HUGETLB_PAGE */
 
 #ifndef CONFIG_PPC_64K_PAGES
 	DBG_LOW(" i-pte: %016lx\n", pte_val(*ptep));
