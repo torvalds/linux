@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/msi.h>
+#include <linux/notifier.h>
 #include <linux/pci.h>
 #include <linux/string.h>
 
@@ -42,6 +43,26 @@
 #endif
 
 static char *hub_diag = NULL;
+static int ioda_eeh_nb_init = 0;
+
+static int ioda_eeh_event(struct notifier_block *nb,
+			  unsigned long events, void *change)
+{
+	uint64_t changed_evts = (uint64_t)change;
+
+	/* We simply send special EEH event */
+	if ((changed_evts & OPAL_EVENT_PCI_ERROR) &&
+	    (events & OPAL_EVENT_PCI_ERROR))
+		eeh_send_failure_event(NULL);
+
+	return 0;
+}
+
+static struct notifier_block ioda_eeh_nb = {
+	.notifier_call	= ioda_eeh_event,
+	.next		= NULL,
+	.priority	= 0
+};
 
 /**
  * ioda_eeh_post_init - Chip dependent post initialization
@@ -54,6 +75,19 @@ static char *hub_diag = NULL;
 static int ioda_eeh_post_init(struct pci_controller *hose)
 {
 	struct pnv_phb *phb = hose->private_data;
+	int ret;
+
+	/* Register OPAL event notifier */
+	if (!ioda_eeh_nb_init) {
+		ret = opal_notifier_register(&ioda_eeh_nb);
+		if (ret) {
+			pr_err("%s: Can't register OPAL event notifier (%d)\n",
+			       __func__, ret);
+			return ret;
+		}
+
+		ioda_eeh_nb_init = 1;
+	}
 
 	/* FIXME: Enable it for PHB3 later */
 	if (phb->type == PNV_PHB_IODA1) {
@@ -736,8 +770,13 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 	long rc;
 	int ret = 1;
 
-	/* While running here, it's safe to purge the event queue */
+	/*
+	 * While running here, it's safe to purge the event queue.
+	 * And we should keep the cached OPAL notifier event sychronized
+	 * between the kernel and firmware.
+	 */
 	eeh_remove_event(NULL);
+	opal_notifier_update_evt(OPAL_EVENT_PCI_ERROR, 0x0ul);
 
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		/*
