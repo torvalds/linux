@@ -162,10 +162,23 @@ static int abx500_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
 	bool bit;
+	bool is_out;
+	u8 gpio_offset = offset - 1;
 	int ret;
 
-	ret = abx500_gpio_get_bit(chip, AB8500_GPIO_IN1_REG,
-				  offset, &bit);
+	ret = abx500_gpio_get_bit(chip, AB8500_GPIO_DIR1_REG,
+			gpio_offset, &is_out);
+	if (ret < 0) {
+		dev_err(pct->dev, "%s failed\n", __func__);
+		return ret;
+	}
+
+	if (is_out)
+		ret = abx500_gpio_get_bit(chip, AB8500_GPIO_OUT1_REG,
+				gpio_offset, &bit);
+	else
+		ret = abx500_gpio_get_bit(chip, AB8500_GPIO_IN1_REG,
+				gpio_offset, &bit);
 	if (ret < 0) {
 		dev_err(pct->dev, "%s failed\n", __func__);
 		return ret;
