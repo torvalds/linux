@@ -193,6 +193,10 @@
 			usb@47401800 {
 				status = "okay";
 			};
+
+			dma@07402000  {
+				status = "okay";
+			};
 		};
 
 		i2c1: i2c@4802a000 {

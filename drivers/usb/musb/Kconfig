@@ -129,6 +129,10 @@ config USB_TI_CPPI_DMA
 	help
 	  Enable DMA transfers when TI CPPI DMA is available.
 
+config USB_TI_CPPI41_DMA
+	bool 'TI CPPI 4.1 (AM335x)'
+	depends on ARCH_OMAP
+
 config USB_TUSB_OMAP_DMA
 	bool 'TUSB 6010'
 	depends on USB_MUSB_TUSB6010

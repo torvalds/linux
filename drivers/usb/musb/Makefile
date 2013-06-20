@@ -32,3 +32,4 @@ musb_hdrc-$(CONFIG_USB_INVENTRA_DMA)		+= musbhsdma.o
 musb_hdrc-$(CONFIG_USB_TI_CPPI_DMA)		+= cppi_dma.o
 musb_hdrc-$(CONFIG_USB_TUSB_OMAP_DMA)		+= tusb6010_omap.o
 musb_hdrc-$(CONFIG_USB_UX500_DMA)		+= ux500_dma.o
+musb_hdrc-$(CONFIG_USB_TI_CPPI41_DMA)		+= musb_cppi41.o

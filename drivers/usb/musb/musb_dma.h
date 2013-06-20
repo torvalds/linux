@@ -68,7 +68,7 @@ struct musb_hw_ep;
 #define	is_dma_capable()	(1)
 #endif
 
-#ifdef CONFIG_USB_TI_CPPI_DMA
+#if defined(CONFIG_USB_TI_CPPI_DMA) || defined(CONFIG_USB_TI_CPPI41_DMA)
 #define	is_cppi_enabled()	1
 #else
 #define	is_cppi_enabled()	0
