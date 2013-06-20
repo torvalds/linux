@@ -16,7 +16,10 @@
 	compatible = "isee,omap3-igep0020", "ti,omap3";
 
 	leds {
+		pinctrl-names = "default";
+		pinctrl-0 = <&leds_pins>;
 		compatible = "gpio-leds";
+
 		boot {
 			 label = "omap3:green:boot";
 			 gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
@@ -52,6 +55,14 @@
 		regulator-name = "vdd33a";
 		regulator-always-on;
 	};
+};
+
+&leds_pins {
+	pinctrl-single,pins = <
+		0x5c4 (PIN_OUTPUT | MUX_MODE4) /* etk_d12.gpio_26 */
+		0x5c6 (PIN_OUTPUT | MUX_MODE4) /* etk_d13.gpio_27 */
+		0x5c8 (PIN_OUTPUT | MUX_MODE4) /* etk_d14.gpio_28 */
+	>;
 };
 
 &i2c3 {
