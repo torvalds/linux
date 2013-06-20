@@ -185,26 +185,20 @@ fetch_this_slot(struct bp_busy_slots *slots, int weight)
 static void toggle_bp_task_slot(struct perf_event *bp, int cpu, bool enable,
 				enum bp_type_idx type, int weight)
 {
-	unsigned int *tsk_pinned;
-	int old_count = 0;
-	int old_idx = 0;
-	int idx = 0;
+	/* tsk_pinned[n-1] is the number of tasks having n>0 breakpoints */
+	unsigned int *tsk_pinned = per_cpu(nr_task_bp_pinned[type], cpu);
+	int old_idx, new_idx;
 
-	old_count = task_bp_pinned(cpu, bp, type);
-	old_idx = old_count - 1;
-	idx = old_idx + weight;
+	old_idx = task_bp_pinned(cpu, bp, type) - 1;
+	if (enable)
+		new_idx = old_idx + weight;
+	else
+		new_idx = old_idx - weight;
 
-	/* tsk_pinned[n] is the number of tasks having n breakpoints */
-	tsk_pinned = per_cpu(nr_task_bp_pinned[type], cpu);
-	if (enable) {
-		tsk_pinned[idx]++;
-		if (old_count > 0)
-			tsk_pinned[old_idx]--;
-	} else {
-		tsk_pinned[idx]--;
-		if (old_count > 0)
-			tsk_pinned[old_idx]++;
-	}
+	if (old_idx >= 0)
+		tsk_pinned[old_idx]--;
+	if (new_idx >= 0)
+		tsk_pinned[new_idx]++;
 }
 
 /*
@@ -228,10 +222,6 @@ toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type,
 	}
 
 	/* Pinned counter task profiling */
-
-	if (!enable)
-		list_del(&bp->hw.bp_list);
-
 	if (cpu >= 0) {
 		toggle_bp_task_slot(bp, cpu, enable, type, weight);
 	} else {
@@ -241,6 +231,8 @@ toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type,
 
 	if (enable)
 		list_add_tail(&bp->hw.bp_list, &bp_task_head);
+	else
+		list_del(&bp->hw.bp_list);
 }
 
 /*
