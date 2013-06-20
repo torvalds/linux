@@ -25,6 +25,7 @@ config ARCH_MXS
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK_PREPARE
 	select PINCTRL
+	select SOC_BUS
 	select SOC_IMX23
 	select SOC_IMX28
 	select STMP_DEVICE

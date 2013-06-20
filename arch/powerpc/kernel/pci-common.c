@@ -827,6 +827,7 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 	}
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 		struct resource *res = dev->resource + i;
+		struct pci_bus_region reg;
 		if (!res->flags)
 			continue;
 
@@ -835,8 +836,9 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 		 * at 0 as unset as well, except if PCI_PROBE_ONLY is also set
 		 * since in that case, we don't want to re-assign anything
 		 */
+		pcibios_resource_to_bus(dev, &reg, res);
 		if (pci_has_flag(PCI_REASSIGN_ALL_RSRC) ||
-		    (res->start == 0 && !pci_has_flag(PCI_PROBE_ONLY))) {
+		    (reg.start == 0 && !pci_has_flag(PCI_PROBE_ONLY))) {
 			/* Only print message if not re-assigning */
 			if (!pci_has_flag(PCI_REASSIGN_ALL_RSRC))
 				pr_debug("PCI:%s Resource %d %016llx-%016llx [%x] "

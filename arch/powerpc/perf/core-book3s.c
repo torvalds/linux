@@ -1758,7 +1758,7 @@ static void perf_event_interrupt(struct pt_regs *regs)
 			}
 		}
 	}
-	if ((!found) && printk_ratelimit())
+	if (!found && !nmi && printk_ratelimit())
 		printk(KERN_WARNING "Can't find PMC that caused IRQ\n");
 
 	/*

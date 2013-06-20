@@ -33,7 +33,7 @@
 						0x1163 /* MX28_PAD_LCD_D22__GPIO_1_22 */
 						0x1173 /* MX28_PAD_LCD_D22__GPIO_1_23 */
 						0x2153 /* MX28_PAD_SSP2_D5__GPIO_2_21 */
-						0x3173 /* MX28_PAD_LCD_RESET__GPIO_3_23 */
+						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -166,8 +166,8 @@
 
 		apbx@80040000 {
 			pwm: pwm@80064000 {
-				pinctrl-names = "default", "default";
-				pinctrl-1 = <&pwm3_pins_b>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pwm3_pins_b>;
 				status = "okay";
 			};
 
@@ -265,7 +265,7 @@
 		gpio-sck = <&gpio2 16 0>;
 		gpio-mosi = <&gpio2 17 0>;
 		gpio-miso = <&gpio2 18 0>;
-		cs-gpios = <&gpio3 23 0>;
+		cs-gpios = <&gpio3 5 0>;
 		num-chipselects = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
