@@ -249,11 +249,11 @@ qxl_hide_cursor(struct qxl_device *qdev)
 	qxl_release_unreserve(qdev, release);
 }
 
-static int qxl_crtc_cursor_set(struct drm_crtc *crtc,
-			       struct drm_file *file_priv,
-			       uint32_t handle,
-			       uint32_t width,
-			       uint32_t height)
+static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
+				struct drm_file *file_priv,
+				uint32_t handle,
+				uint32_t width,
+				uint32_t height, int32_t hot_x, int32_t hot_y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct qxl_device *qdev = dev->dev_private;
@@ -309,8 +309,8 @@ static int qxl_crtc_cursor_set(struct drm_crtc *crtc,
 	cursor->header.type = SPICE_CURSOR_TYPE_ALPHA;
 	cursor->header.width = 64;
 	cursor->header.height = 64;
-	cursor->header.hot_spot_x = 0;
-	cursor->header.hot_spot_y = 0;
+	cursor->header.hot_spot_x = hot_x;
+	cursor->header.hot_spot_y = hot_y;
 	cursor->data_size = size;
 	cursor->chunk.next_chunk = 0;
 	cursor->chunk.prev_chunk = 0;
@@ -391,7 +391,7 @@ static int qxl_crtc_cursor_move(struct drm_crtc *crtc,
 
 
 static const struct drm_crtc_funcs qxl_crtc_funcs = {
-	.cursor_set = qxl_crtc_cursor_set,
+	.cursor_set2 = qxl_crtc_cursor_set2,
 	.cursor_move = qxl_crtc_cursor_move,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = qxl_crtc_destroy,
