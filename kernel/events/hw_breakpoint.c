@@ -497,8 +497,8 @@ register_wide_hw_breakpoint(struct perf_event_attr *attr,
 			    perf_overflow_handler_t triggered,
 			    void *context)
 {
-	struct perf_event * __percpu *cpu_events, **pevent, *bp;
-	long err;
+	struct perf_event * __percpu *cpu_events, *bp;
+	long err = 0;
 	int cpu;
 
 	cpu_events = alloc_percpu(typeof(*cpu_events));
@@ -507,31 +507,21 @@ register_wide_hw_breakpoint(struct perf_event_attr *attr,
 
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
-		pevent = per_cpu_ptr(cpu_events, cpu);
 		bp = perf_event_create_kernel_counter(attr, cpu, NULL,
 						      triggered, context);
-
-		*pevent = bp;
-
 		if (IS_ERR(bp)) {
 			err = PTR_ERR(bp);
-			goto fail;
-		}
-	}
-	put_online_cpus();
-
-	return cpu_events;
-
-fail:
-	for_each_online_cpu(cpu) {
-		pevent = per_cpu_ptr(cpu_events, cpu);
-		if (IS_ERR(*pevent))
 			break;
-		unregister_hw_breakpoint(*pevent);
+		}
+
+		per_cpu(*cpu_events, cpu) = bp;
 	}
 	put_online_cpus();
 
-	free_percpu(cpu_events);
+	if (likely(!err))
+		return cpu_events;
+
+	unregister_wide_hw_breakpoint(cpu_events);
 	return (void __percpu __force *)ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(register_wide_hw_breakpoint);
@@ -543,12 +533,10 @@ EXPORT_SYMBOL_GPL(register_wide_hw_breakpoint);
 void unregister_wide_hw_breakpoint(struct perf_event * __percpu *cpu_events)
 {
 	int cpu;
-	struct perf_event **pevent;
 
-	for_each_possible_cpu(cpu) {
-		pevent = per_cpu_ptr(cpu_events, cpu);
-		unregister_hw_breakpoint(*pevent);
-	}
+	for_each_possible_cpu(cpu)
+		unregister_hw_breakpoint(per_cpu(*cpu_events, cpu));
+
 	free_percpu(cpu_events);
 }
 EXPORT_SYMBOL_GPL(unregister_wide_hw_breakpoint);
