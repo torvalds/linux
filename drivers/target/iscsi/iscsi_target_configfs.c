@@ -195,8 +195,6 @@ static ssize_t lio_target_np_store_iser(
 		}
 	}
 
-	printk("lio_target_np_store_iser() done, op: %d\n", op);
-
 	iscsit_put_tpg(tpg);
 	return count;
 out:
