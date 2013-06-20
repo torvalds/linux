@@ -154,9 +154,9 @@ static void eeh_enable_irq(struct pci_dev *dev)
  * eeh_report_error - Report pci error to each device driver
  * @data: eeh device
  * @userdata: return value
- * 
- * Report an EEH error to each device driver, collect up and 
- * merge the device driver responses. Cumulative response 
+ *
+ * Report an EEH error to each device driver, collect up and
+ * merge the device driver responses. Cumulative response
  * passed back in "userdata".
  */
 static void *eeh_report_error(void *data, void *userdata)
@@ -376,9 +376,9 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	eeh_pe_restore_bars(pe);
 
 	/* Give the system 5 seconds to finish running the user-space
-	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes, 
-	 * this is a hack, but if we don't do this, and try to bring 
-	 * the device up before the scripts have taken it down, 
+	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes,
+	 * this is a hack, but if we don't do this, and try to bring
+	 * the device up before the scripts have taken it down,
 	 * potentially weird things happen.
 	 */
 	if (bus) {
@@ -520,7 +520,7 @@ void eeh_handle_event(struct eeh_pe *pe)
 	eeh_pe_dev_traverse(pe, eeh_report_resume, NULL);
 
 	return;
-	
+
 excess_failures:
 	/*
 	 * About 90% of all real-life EEH failures in the field
