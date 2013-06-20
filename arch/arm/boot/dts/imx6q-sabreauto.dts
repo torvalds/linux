@@ -32,4 +32,12 @@
 			>;
 		};
 	};
+
+	ecspi1 {
+		pinctrl_ecspi1_sabreauto: ecspi1-sabreauto {
+			fsl,pins = <
+				MX6Q_PAD_EIM_D19__GPIO3_IO19  0x80000000
+			>;
+		};
+	};
 };
