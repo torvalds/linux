@@ -452,11 +452,28 @@ static struct firmware_priv *to_firmware_priv(struct device *dev)
 	return container_of(dev, struct firmware_priv, dev);
 }
 
-static void fw_load_abort(struct firmware_buf *buf)
+static void __fw_load_abort(struct firmware_buf *buf)
 {
+	/*
+	 * There is a small window in which user can write to 'loading'
+	 * between loading done and disappearance of 'loading'
+	 */
+	if (test_bit(FW_STATUS_DONE, &buf->status))
+		return;
+
 	list_del_init(&buf->pending_list);
 	set_bit(FW_STATUS_ABORT, &buf->status);
 	complete_all(&buf->completion);
+}
+
+static void fw_load_abort(struct firmware_priv *fw_priv)
+{
+	struct firmware_buf *buf = fw_priv->buf;
+
+	__fw_load_abort(buf);
+
+	/* avoid user action after loading abort */
+	fw_priv->buf = NULL;
 }
 
 #define is_fw_load_aborted(buf)	\
@@ -470,7 +487,7 @@ static int fw_shutdown_notify(struct notifier_block *unused1,
 {
 	mutex_lock(&fw_lock);
 	while (!list_empty(&pending_fw_head))
-		fw_load_abort(list_first_entry(&pending_fw_head,
+		__fw_load_abort(list_first_entry(&pending_fw_head,
 					       struct firmware_buf,
 					       pending_list));
 	mutex_unlock(&fw_lock);
@@ -550,7 +567,12 @@ static ssize_t firmware_loading_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct firmware_priv *fw_priv = to_firmware_priv(dev);
-	int loading = test_bit(FW_STATUS_LOADING, &fw_priv->buf->status);
+	int loading = 0;
+
+	mutex_lock(&fw_lock);
+	if (fw_priv->buf)
+		loading = test_bit(FW_STATUS_LOADING, &fw_priv->buf->status);
+	mutex_unlock(&fw_lock);
 
 	return sprintf(buf, "%d\n", loading);
 }
@@ -592,12 +614,12 @@ static ssize_t firmware_loading_store(struct device *dev,
 				      const char *buf, size_t count)
 {
 	struct firmware_priv *fw_priv = to_firmware_priv(dev);
-	struct firmware_buf *fw_buf = fw_priv->buf;
+	struct firmware_buf *fw_buf;
 	int loading = simple_strtol(buf, NULL, 10);
 	int i;
 
 	mutex_lock(&fw_lock);
-
+	fw_buf = fw_priv->buf;
 	if (!fw_buf)
 		goto out;
 
@@ -635,7 +657,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 		dev_err(dev, "%s: unexpected value (%d)\n", __func__, loading);
 		/* fallthrough */
 	case -1:
-		fw_load_abort(fw_buf);
+		fw_load_abort(fw_priv);
 		break;
 	}
 out:
@@ -703,7 +725,7 @@ static int fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
 		new_pages = kmalloc(new_array_size * sizeof(void *),
 				    GFP_KERNEL);
 		if (!new_pages) {
-			fw_load_abort(buf);
+			fw_load_abort(fw_priv);
 			return -ENOMEM;
 		}
 		memcpy(new_pages, buf->pages,
@@ -720,7 +742,7 @@ static int fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
 			alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
 
 		if (!buf->pages[buf->nr_pages]) {
-			fw_load_abort(buf);
+			fw_load_abort(fw_priv);
 			return -ENOMEM;
 		}
 		buf->nr_pages++;
@@ -800,11 +822,7 @@ static void firmware_class_timeout_work(struct work_struct *work)
 			struct firmware_priv, timeout_work.work);
 
 	mutex_lock(&fw_lock);
-	if (test_bit(FW_STATUS_DONE, &(fw_priv->buf->status))) {
-		mutex_unlock(&fw_lock);
-		return;
-	}
-	fw_load_abort(fw_priv->buf);
+	fw_load_abort(fw_priv);
 	mutex_unlock(&fw_lock);
 }
 
@@ -886,8 +904,6 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 
 	cancel_delayed_work_sync(&fw_priv->timeout_work);
 
-	fw_priv->buf = NULL;
-
 	device_remove_file(f_dev, &dev_attr_loading);
 err_del_bin_attr:
 	device_remove_bin_file(f_dev, &firmware_attr_data);
@@ -922,7 +938,7 @@ static void kill_requests_without_uevent(void)
 	mutex_lock(&fw_lock);
 	list_for_each_entry_safe(buf, next, &pending_fw_head, pending_list) {
 		if (!buf->need_uevent)
-			 fw_load_abort(buf);
+			 __fw_load_abort(buf);
 	}
 	mutex_unlock(&fw_lock);
 }
