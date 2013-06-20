@@ -22,6 +22,12 @@
 		};
 	};
 
+	src@101e0000 {
+		/* These chrystal drivers are not used on this board */
+		disable-sxtalo;
+		disable-mxtalo;
+	};
+
 	pinctrl {
 		/* Hog CD pins */
 		pinctrl-names = "default";
