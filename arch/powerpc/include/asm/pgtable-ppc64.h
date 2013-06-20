@@ -444,8 +444,7 @@ static inline int pmd_trans_splitting(pmd_t pmd)
 	return 0;
 }
 
-/* We will enable it in the last patch */
-#define has_transparent_hugepage() 0
+extern int has_transparent_hugepage(void);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 static inline pte_t pmd_pte(pmd_t pmd)
