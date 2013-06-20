@@ -396,6 +396,7 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 	struct kvm_book3e_206_tlb_entry *gtlbe;
 	int tlbsel, esel;
 	int recal = 0;
+	int idx;
 
 	tlbsel = get_tlb_tlbsel(vcpu);
 	esel = get_tlb_esel(vcpu, tlbsel);
@@ -430,6 +431,8 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 			kvmppc_set_tlb1map_range(vcpu, gtlbe);
 	}
 
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+
 	/* Invalidate shadow mappings for the about-to-be-clobbered TLBE. */
 	if (tlbe_is_host_safe(vcpu, gtlbe)) {
 		u64 eaddr = get_tlb_eaddr(gtlbe);
@@ -443,6 +446,8 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 		/* Premap the faulting page */
 		kvmppc_mmu_map(vcpu, eaddr, raddr, index_of(tlbsel, esel));
 	}
+
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
 	kvmppc_set_exit_type(vcpu, EMULATED_TLBWE_EXITS);
 	return EMULATE_DONE;
