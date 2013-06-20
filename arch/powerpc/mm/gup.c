@@ -66,9 +66,15 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
 		pmd_t pmd = *pmdp;
 
 		next = pmd_addr_end(addr, end);
-		if (pmd_none(pmd))
+		/*
+		 * If we find a splitting transparent hugepage we
+		 * return zero. That will result in taking the slow
+		 * path which will call wait_split_huge_page()
+		 * if the pmd is still in splitting state
+		 */
+		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
 			return 0;
-		if (pmd_huge(pmd)) {
+		if (pmd_huge(pmd) || pmd_large(pmd)) {
 			if (!gup_hugepte((pte_t *)pmdp, PMD_SIZE, addr, next,
 					 write, pages, nr))
 				return 0;
