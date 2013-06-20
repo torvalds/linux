@@ -1,0 +1,34 @@
+TI EDMA
+
+Required properties:
+- compatible : "ti,edma3"
+- ti,edma-regions: Number of regions
+- ti,edma-slots: Number of slots
+- #dma-cells: Should be set to <1>
+              Clients should use a single channel number per DMA request.
+- dma-channels: Specify total DMA channels per CC
+- reg: Memory map for accessing module
+- interrupt-parent: Interrupt controller the interrupt is routed through
+- interrupts: Exactly 3 interrupts need to be specified in the order:
+              1. Transfer completion interrupt.
+              2. Memory protection interrupt.
+              3. Error interrupt.
+Optional properties:
+- ti,hwmods: Name of the hwmods associated to the EDMA
+- ti,edma-xbar-event-map: Crossbar event to channel map
+
+Example:
+
+edma: edma@49000000 {
+	reg = <0x49000000 0x10000>;
+	interrupt-parent = <&intc>;
+	interrupts = <12 13 14>;
+	compatible = "ti,edma3";
+	ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
+	#dma-cells = <1>;
+	dma-channels = <64>;
+	ti,edma-regions = <4>;
+	ti,edma-slots = <256>;
+	ti,edma-xbar-event-map = <1 12
+				  2 13>;
+};
