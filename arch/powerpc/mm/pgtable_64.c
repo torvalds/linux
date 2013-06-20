@@ -708,6 +708,7 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 {
 	int ssize, i;
 	unsigned long s_addr;
+	int max_hpte_count;
 	unsigned int psize, valid;
 	unsigned char *hpte_slot_array;
 	unsigned long hidx, vpn, vsid, hash, shift, slot;
@@ -727,9 +728,16 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 
 	/* get the base page size */
 	psize = get_slice_psize(mm, s_addr);
-	shift = mmu_psize_defs[psize].shift;
 
-	for (i = 0; i < (HPAGE_PMD_SIZE >> shift); i++) {
+	if (ppc_md.hugepage_invalidate)
+		return ppc_md.hugepage_invalidate(mm, hpte_slot_array,
+						  s_addr, psize);
+	/*
+	 * No bluk hpte removal support, invalidate each entry
+	 */
+	shift = mmu_psize_defs[psize].shift;
+	max_hpte_count = HPAGE_PMD_SIZE >> shift;
+	for (i = 0; i < max_hpte_count; i++) {
 		/*
 		 * 8 bits per each hpte entries
 		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]

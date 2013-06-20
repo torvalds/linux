@@ -57,6 +57,9 @@ struct machdep_calls {
 	void            (*hpte_removebolted)(unsigned long ea,
 					     int psize, int ssize);
 	void		(*flush_hash_range)(unsigned long number, int local);
+	void		(*hugepage_invalidate)(struct mm_struct *mm,
+					       unsigned char *hpte_slot_array,
+					       unsigned long addr, int psize);
 
 	/* special for kexec, to be called in real mode, linear mapping is
 	 * destroyed as well */
