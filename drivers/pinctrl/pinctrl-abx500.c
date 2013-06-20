@@ -33,6 +33,7 @@
 #include <linux/pinctrl/machine.h>
 
 #include "pinctrl-abx500.h"
+#include "core.h"
 #include "pinconf.h"
 
 /*
@@ -963,7 +964,7 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 	struct pullud *pullud = pct->soc->pullud;
 	struct gpio_chip *chip = &pct->chip;
 	unsigned offset;
-	int ret = 0;
+	int ret = -EINVAL;
 	enum pin_config_param param = pinconf_to_config_param(config);
 	enum pin_config_param argument = pinconf_to_config_argument(config);
 
@@ -976,13 +977,32 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 	offset = pin - 1;
 
 	switch (param) {
+	case PIN_CONFIG_BIAS_DISABLE:
+		ret = abx500_gpio_direction_input(chip, offset);
+		/*
+		 * Some chips only support pull down, while some actually
+		 * support both pull up and pull down. Such chips have
+		 * a "pullud" range specified for the pins that support
+		 * both features. If the pin is not within that range, we
+		 * fall back to the old bit set that only support pull down.
+		 */
+		if (pullud &&
+		    pin >= pullud->first_pin &&
+		    pin <= pullud->last_pin)
+			ret = abx500_set_pull_updown(pct,
+				pin,
+				ABX500_GPIO_PULL_NONE);
+		else
+			/* Chip only supports pull down */
+			ret = abx500_gpio_set_bits(chip, AB8500_GPIO_PUD1_REG,
+				offset, ABX500_GPIO_PULL_NONE);
+		break;
+
 	case PIN_CONFIG_BIAS_PULL_DOWN:
+		ret = abx500_gpio_direction_input(chip, offset);
 		/*
 		 * if argument = 1 set the pull down
 		 * else clear the pull down
-		 */
-		ret = abx500_gpio_direction_input(chip, offset);
-		/*
 		 * Some chips only support pull down, while some actually
 		 * support both pull up and pull down. Such chips have
 		 * a "pullud" range specified for the pins that support
@@ -1002,6 +1022,7 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 		break;
 
 	case PIN_CONFIG_BIAS_PULL_UP:
+		ret = abx500_gpio_direction_input(chip, offset);
 		/*
 		 * if argument = 1 set the pull up
 		 * else clear the pull up
@@ -1030,8 +1051,6 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 
 	default:
 		dev_err(chip->dev, "illegal configuration requested\n");
-
-		return -EINVAL;
 	}
 
 	return ret;
