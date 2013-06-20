@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
+#include <linux/notifier.h>
 #include <linux/slab.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
@@ -31,6 +32,10 @@ static DEFINE_SPINLOCK(opal_write_lock);
 extern u64 opal_mc_secondary_handler[];
 static unsigned int *opal_irqs;
 static unsigned int opal_irq_count;
+static ATOMIC_NOTIFIER_HEAD(opal_notifier_head);
+static DEFINE_SPINLOCK(opal_notifier_lock);
+static uint64_t last_notified_mask = 0x0ul;
+static atomic_t opal_notifier_hold = ATOMIC_INIT(0);
 
 int __init early_init_dt_scan_opal(unsigned long node,
 				   const char *uname, int depth, void *data)
@@ -94,6 +99,68 @@ static int __init opal_register_exception_handlers(void)
 }
 
 early_initcall(opal_register_exception_handlers);
+
+int opal_notifier_register(struct notifier_block *nb)
+{
+	if (!nb) {
+		pr_warning("%s: Invalid argument (%p)\n",
+			   __func__, nb);
+		return -EINVAL;
+	}
+
+	atomic_notifier_chain_register(&opal_notifier_head, nb);
+	return 0;
+}
+
+static void opal_do_notifier(uint64_t events)
+{
+	unsigned long flags;
+	uint64_t changed_mask;
+
+	if (atomic_read(&opal_notifier_hold))
+		return;
+
+	spin_lock_irqsave(&opal_notifier_lock, flags);
+	changed_mask = last_notified_mask ^ events;
+	last_notified_mask = events;
+	spin_unlock_irqrestore(&opal_notifier_lock, flags);
+
+	/*
+	 * We feed with the event bits and changed bits for
+	 * enough information to the callback.
+	 */
+	atomic_notifier_call_chain(&opal_notifier_head,
+				   events, (void *)changed_mask);
+}
+
+void opal_notifier_update_evt(uint64_t evt_mask,
+			      uint64_t evt_val)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&opal_notifier_lock, flags);
+	last_notified_mask &= ~evt_mask;
+	last_notified_mask |= evt_val;
+	spin_unlock_irqrestore(&opal_notifier_lock, flags);
+}
+
+void opal_notifier_enable(void)
+{
+	int64_t rc;
+	uint64_t evt = 0;
+
+	atomic_set(&opal_notifier_hold, 0);
+
+	/* Process pending events */
+	rc = opal_poll_events(&evt);
+	if (rc == OPAL_SUCCESS && evt)
+		opal_do_notifier(evt);
+}
+
+void opal_notifier_disable(void)
+{
+	atomic_set(&opal_notifier_hold, 1);
+}
 
 int opal_get_chars(uint32_t vtermno, char *buf, int count)
 {
@@ -297,7 +364,7 @@ static irqreturn_t opal_interrupt(int irq, void *data)
 
 	opal_handle_interrupt(virq_to_hw(irq), &events);
 
-	/* XXX TODO: Do something with the events */
+	opal_do_notifier(events);
 
 	return IRQ_HANDLED;
 }

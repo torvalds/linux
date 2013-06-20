@@ -644,6 +644,11 @@ extern void hvc_opal_init_early(void);
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
 				   int depth, void *data);
 
+extern int opal_notifier_register(struct notifier_block *nb);
+extern void opal_notifier_enable(void);
+extern void opal_notifier_disable(void);
+extern void opal_notifier_update_evt(uint64_t evt_mask, uint64_t evt_val);
+
 extern int opal_get_chars(uint32_t vtermno, char *buf, int count);
 extern int opal_put_chars(uint32_t vtermno, const char *buf, int total_len);
 
