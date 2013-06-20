@@ -78,7 +78,7 @@ static bool log_ecn_error = true;
 module_param(log_ecn_error, bool, 0644);
 MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
 
-static unsigned int vxlan_net_id;
+static int vxlan_net_id;
 
 /* per UDP socket information */
 struct vxlan_sock {
@@ -250,7 +250,7 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 	    nla_put_be16(skb, NDA_PORT, rdst->remote_port))
 		goto nla_put_failure;
 	if (rdst->remote_vni != vxlan->default_dst.remote_vni &&
-	    nla_put_be32(skb, NDA_VNI, rdst->remote_vni))
+	    nla_put_u32(skb, NDA_VNI, rdst->remote_vni))
 		goto nla_put_failure;
 	if (rdst->remote_ifindex &&
 	    nla_put_u32(skb, NDA_IFINDEX, rdst->remote_ifindex))
