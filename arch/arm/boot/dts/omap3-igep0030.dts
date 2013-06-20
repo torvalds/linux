@@ -16,7 +16,10 @@
 	compatible = "isee,omap3-igep0030", "ti,omap3";
 
 	leds {
+		pinctrl-names = "default";
+		pinctrl-0 = <&leds_pins>;
 		compatible = "gpio-leds";
+
 		boot {
 			 label = "omap3:green:boot";
 			 gpios = <&twl_gpio 13 GPIO_ACTIVE_LOW>;
@@ -41,6 +44,12 @@
 			 default-state = "off";
 		};
 	};
+};
+
+&leds_pins {
+	pinctrl-single,pins = <
+		0x5b0 (PIN_OUTPUT | MUX_MODE4) /* etk_d2.gpio_16 */
+	>;
 };
 
 &gpmc {
