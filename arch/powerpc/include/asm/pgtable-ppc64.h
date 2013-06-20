@@ -368,19 +368,6 @@ static inline pte_t *find_linux_pte(pgd_t *pgdir, unsigned long ea)
 	return pt;
 }
 
-#ifdef CONFIG_HUGETLB_PAGE
-pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
-				 unsigned *shift);
-#else
-static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
-					       unsigned *shift)
-{
-	if (shift)
-		*shift = 0;
-	return find_linux_pte(pgdir, ea);
-}
-#endif /* !CONFIG_HUGETLB_PAGE */
-
 #endif /* __ASSEMBLY__ */
 
 /*
