@@ -1552,11 +1552,12 @@ static void sh_eth_error(struct net_device *ndev, int intr_status)
 
 ignore_link:
 	if (intr_status & EESR_TWB) {
-		/* Write buck end. unused write back interrupt */
-		if (intr_status & EESR_TABT)	/* Transmit Abort int */
+		/* Unused write back interrupt */
+		if (intr_status & EESR_TABT) {	/* Transmit Abort int */
 			ndev->stats.tx_aborted_errors++;
 			if (netif_msg_tx_err(mdp))
 				dev_err(&ndev->dev, "Transmit Abort\n");
+		}
 	}
 
 	if (intr_status & EESR_RABT) {
