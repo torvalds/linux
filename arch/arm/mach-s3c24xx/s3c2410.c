@@ -138,6 +138,7 @@ void __init s3c2410_init_clocks(int xtal)
 	s3c2410_baseclk_add();
 	s3c24xx_register_clock(&s3c2410_armclk);
 	clkdev_add_table(s3c2410_clk_lookup, ARRAY_SIZE(s3c2410_clk_lookup));
+	samsung_wdt_reset_init(S3C24XX_VA_WATCHDOG);
 }
 
 struct bus_type s3c2410_subsys = {
@@ -201,7 +202,7 @@ void s3c2410_restart(char mode, const char *cmd)
 		soft_restart(0);
 	}
 
-	arch_wdt_reset();
+	samsung_wdt_reset();
 
 	/* we'll take a jump through zero as a poor second */
 	soft_restart(0);

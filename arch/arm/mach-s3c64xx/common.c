@@ -183,6 +183,12 @@ core_initcall(s3c64xx_dev_init);
 
 void __init s3c64xx_init_irq(u32 vic0_valid, u32 vic1_valid)
 {
+	/*
+	 * FIXME: there is no better place to put this at the moment
+	 * (samsung_wdt_reset_init needs clocks)
+	 */
+	samsung_wdt_reset_init(S3C_VA_WATCHDOG);
+
 	printk(KERN_DEBUG "%s: initialising interrupts\n", __func__);
 
 	/* initialise the pair of VICs */
@@ -378,7 +384,7 @@ arch_initcall(s3c64xx_init_irq_eint);
 void s3c64xx_restart(char mode, const char *cmd)
 {
 	if (mode != 's')
-		arch_wdt_reset();
+		samsung_wdt_reset();
 
 	/* if all else fails, or mode was for soft, jump to 0 */
 	soft_restart(0);

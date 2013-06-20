@@ -21,6 +21,8 @@ static void arch_detect_cpu(void)
 	/* we do not need to do any cpu detection here at the moment. */
 	fifo_mask = S5PV210_UFSTAT_TXMASK;
 	fifo_max = 63 << S5PV210_UFSTAT_TXSHIFT;
+
+	uart_base = (volatile u8 *)S5P_PA_UART(CONFIG_S3C_LOWLEVEL_UART_PORT);
 }
 
 #endif /* __ASM_ARCH_UNCOMPRESS_H */

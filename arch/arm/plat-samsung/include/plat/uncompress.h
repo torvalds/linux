@@ -21,6 +21,8 @@ typedef unsigned int upf_t;	/* cannot include linux/serial_core.h */
 unsigned int fifo_mask;
 unsigned int fifo_max;
 
+volatile u8 *uart_base;
+
 /* forward declerations */
 
 static void arch_detect_cpu(void);
@@ -28,18 +30,23 @@ static void arch_detect_cpu(void);
 /* defines for UART registers */
 
 #include <plat/regs-serial.h>
-#include <plat/regs-watchdog.h>
 
 /* working in physical space... */
-#undef S3C2410_WDOGREG
-#define S3C2410_WDOGREG(x) ((S3C24XX_PA_WATCHDOG + (x)))
+#define S3C_WDOGREG(x)	((S3C_PA_WDT + (x)))
+
+#define S3C2410_WTCON	S3C_WDOGREG(0x00)
+#define S3C2410_WTDAT	S3C_WDOGREG(0x04)
+#define S3C2410_WTCNT	S3C_WDOGREG(0x08)
+
+#define S3C2410_WTCON_RSTEN	(1 << 0)
+#define S3C2410_WTCON_ENABLE	(1 << 5)
+
+#define S3C2410_WTCON_DIV128	(3 << 3)
+
+#define S3C2410_WTCON_PRESCALE(x)	((x) << 8)
 
 /* how many bytes we allow into the FIFO at a time in FIFO mode */
 #define FIFO_MAX	 (14)
-
-#ifdef S3C_PA_UART
-#define uart_base S3C_PA_UART + (S3C_UART_OFFSET * CONFIG_S3C_LOWLEVEL_UART_PORT)
-#endif
 
 static __inline__ void
 uart_wr(unsigned int reg, unsigned int val)

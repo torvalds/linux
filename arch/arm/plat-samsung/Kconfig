@@ -475,6 +475,12 @@ config SAMSUNG_WAKEMASK
 	  and above. This code allows a set of interrupt to wakeup-mask
 	  mappings. See <plat/wakeup-mask.h>
 
+config SAMSUNG_WDT_RESET
+	bool
+	help
+	  Compile support for system restart by triggering watchdog reset.
+	  Used on SoCs that do not provide dedicated reset control.
+
 config S5P_PM
 	bool
 	help
