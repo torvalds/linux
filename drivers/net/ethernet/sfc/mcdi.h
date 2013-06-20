@@ -36,6 +36,7 @@ enum efx_mcdi_mode {
  * @state: Request handling state. Waited for by @wq.
  * @mode: Poll for mcdi completion, or wait for an mcdi_event.
  * @wq: Wait queue for threads waiting for @state != %MCDI_STATE_RUNNING
+ * @new_epoch: Indicates start of day or start of MC reboot recovery
  * @iface_lock: Serialises access to all the following fields
  * @seqno: The next sequence number to use for mcdi requests.
  * @credits: Number of spurious MCDI completion events allowed before we
@@ -49,6 +50,7 @@ struct efx_mcdi_iface {
 	enum efx_mcdi_mode mode;
 	wait_queue_head_t wq;
 	spinlock_t iface_lock;
+	bool new_epoch;
 	unsigned int credits;
 	unsigned int seqno;
 	int resprc;

@@ -26,9 +26,10 @@
 
 /* A reboot/assertion causes the MCDI status word to be set after the
  * command word is set or a REBOOT event is sent. If we notice a reboot
- * via these mechanisms then wait 10ms for the status word to be set. */
+ * via these mechanisms then wait 20ms for the status word to be set.
+ */
 #define MCDI_STATUS_DELAY_US		100
-#define MCDI_STATUS_DELAY_COUNT		100
+#define MCDI_STATUS_DELAY_COUNT		200
 #define MCDI_STATUS_SLEEP_MS						\
 	(MCDI_STATUS_DELAY_US * MCDI_STATUS_DELAY_COUNT / 1000)
 
@@ -56,6 +57,7 @@ int efx_mcdi_init(struct efx_nic *efx)
 	mcdi->mode = MCDI_MODE_POLL;
 
 	(void) efx_mcdi_poll_reboot(efx);
+	mcdi->new_epoch = true;
 
 	/* Recover from a failed assertion before probing */
 	return efx_mcdi_handle_assertion(efx);
@@ -85,24 +87,26 @@ static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
 
 	if (efx->type->mcdi_max_ver == 1) {
 		/* MCDI v1 */
-		EFX_POPULATE_DWORD_6(hdr[0],
+		EFX_POPULATE_DWORD_7(hdr[0],
 				     MCDI_HEADER_RESPONSE, 0,
 				     MCDI_HEADER_RESYNC, 1,
 				     MCDI_HEADER_CODE, cmd,
 				     MCDI_HEADER_DATALEN, inlen,
 				     MCDI_HEADER_SEQ, seqno,
-				     MCDI_HEADER_XFLAGS, xflags);
+				     MCDI_HEADER_XFLAGS, xflags,
+				     MCDI_HEADER_NOT_EPOCH, !mcdi->new_epoch);
 		hdr_len = 4;
 	} else {
 		/* MCDI v2 */
 		BUG_ON(inlen > MCDI_CTL_SDU_LEN_MAX_V2);
-		EFX_POPULATE_DWORD_6(hdr[0],
+		EFX_POPULATE_DWORD_7(hdr[0],
 				     MCDI_HEADER_RESPONSE, 0,
 				     MCDI_HEADER_RESYNC, 1,
 				     MCDI_HEADER_CODE, MC_CMD_V2_EXTN,
 				     MCDI_HEADER_DATALEN, 0,
 				     MCDI_HEADER_SEQ, seqno,
-				     MCDI_HEADER_XFLAGS, xflags);
+				     MCDI_HEADER_XFLAGS, xflags,
+				     MCDI_HEADER_NOT_EPOCH, !mcdi->new_epoch);
 		EFX_POPULATE_DWORD_2(hdr[1],
 				     MC_CMD_V2_EXTN_IN_EXTENDED_CMD, cmd,
 				     MC_CMD_V2_EXTN_IN_ACTUAL_LEN, inlen);
@@ -373,6 +377,7 @@ int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
 	spin_unlock_bh(&mcdi->iface_lock);
 
 	efx_mcdi_copyin(efx, cmd, inbuf, inlen);
+	mcdi->new_epoch = false;
 	return 0;
 }
 
@@ -435,6 +440,7 @@ int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 		if (rc == -EIO || rc == -EINTR) {
 			msleep(MCDI_STATUS_SLEEP_MS);
 			efx_mcdi_poll_reboot(efx);
+			mcdi->new_epoch = true;
 		}
 	}
 
@@ -530,6 +536,7 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 				break;
 			udelay(MCDI_STATUS_DELAY_US);
 		}
+		mcdi->new_epoch = true;
 	}
 
 	spin_unlock(&mcdi->iface_lock);
