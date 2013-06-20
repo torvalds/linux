@@ -165,6 +165,18 @@ static struct list_head vsock_bind_table[VSOCK_HASH_SIZE + 1];
 static struct list_head vsock_connected_table[VSOCK_HASH_SIZE];
 static DEFINE_SPINLOCK(vsock_table_lock);
 
+/* Autobind this socket to the local address if necessary. */
+static int vsock_auto_bind(struct vsock_sock *vsk)
+{
+	struct sock *sk = sk_vsock(vsk);
+	struct sockaddr_vm local_addr;
+
+	if (vsock_addr_bound(&vsk->local_addr))
+		return 0;
+	vsock_addr_init(&local_addr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
+	return __vsock_bind(sk, &local_addr);
+}
+
 static void vsock_init_tables(void)
 {
 	int i;
@@ -956,15 +968,10 @@ static int vsock_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	lock_sock(sk);
 
-	if (!vsock_addr_bound(&vsk->local_addr)) {
-		struct sockaddr_vm local_addr;
+	err = vsock_auto_bind(vsk);
+	if (err)
+		goto out;
 
-		vsock_addr_init(&local_addr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
-		err = __vsock_bind(sk, &local_addr);
-		if (err != 0)
-			goto out;
-
-	}
 
 	/* If the provided message contains an address, use that.  Otherwise
 	 * fall back on the socket's remote handle (if it has been connected).
@@ -1038,15 +1045,9 @@ static int vsock_dgram_connect(struct socket *sock,
 
 	lock_sock(sk);
 
-	if (!vsock_addr_bound(&vsk->local_addr)) {
-		struct sockaddr_vm local_addr;
-
-		vsock_addr_init(&local_addr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
-		err = __vsock_bind(sk, &local_addr);
-		if (err != 0)
-			goto out;
-
-	}
+	err = vsock_auto_bind(vsk);
+	if (err)
+		goto out;
 
 	if (!transport->dgram_allow(remote_addr->svm_cid,
 				    remote_addr->svm_port)) {
@@ -1163,17 +1164,9 @@ static int vsock_stream_connect(struct socket *sock, struct sockaddr *addr,
 		memcpy(&vsk->remote_addr, remote_addr,
 		       sizeof(vsk->remote_addr));
 
-		/* Autobind this socket to the local address if necessary. */
-		if (!vsock_addr_bound(&vsk->local_addr)) {
-			struct sockaddr_vm local_addr;
-
-			vsock_addr_init(&local_addr, VMADDR_CID_ANY,
-					VMADDR_PORT_ANY);
-			err = __vsock_bind(sk, &local_addr);
-			if (err != 0)
-				goto out;
-
-		}
+		err = vsock_auto_bind(vsk);
+		if (err)
+			goto out;
 
 		sk->sk_state = SS_CONNECTING;
 
