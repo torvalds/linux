@@ -53,9 +53,72 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
 	return 0;
 }
 
+/**
+ * ioda_eeh_set_option - Set EEH operation or I/O setting
+ * @pe: EEH PE
+ * @option: options
+ *
+ * Enable or disable EEH option for the indicated PE. The
+ * function also can be used to enable I/O or DMA for the
+ * PE.
+ */
+static int ioda_eeh_set_option(struct eeh_pe *pe, int option)
+{
+	s64 ret;
+	u32 pe_no;
+	struct pci_controller *hose = pe->phb;
+	struct pnv_phb *phb = hose->private_data;
+
+	/* Check on PE number */
+	if (pe->addr < 0 || pe->addr >= phb->ioda.total_pe) {
+		pr_err("%s: PE address %x out of range [0, %x] "
+		       "on PHB#%x\n",
+			__func__, pe->addr, phb->ioda.total_pe,
+			hose->global_number);
+		return -EINVAL;
+	}
+
+	pe_no = pe->addr;
+	switch (option) {
+	case EEH_OPT_DISABLE:
+		ret = -EEXIST;
+		break;
+	case EEH_OPT_ENABLE:
+		ret = 0;
+		break;
+	case EEH_OPT_THAW_MMIO:
+		ret = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
+				OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO);
+		if (ret) {
+			pr_warning("%s: Failed to enable MMIO for "
+				   "PHB#%x-PE#%x, err=%lld\n",
+				__func__, hose->global_number, pe_no, ret);
+			return -EIO;
+		}
+
+		break;
+	case EEH_OPT_THAW_DMA:
+		ret = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
+				OPAL_EEH_ACTION_CLEAR_FREEZE_DMA);
+		if (ret) {
+			pr_warning("%s: Failed to enable DMA for "
+				   "PHB#%x-PE#%x, err=%lld\n",
+				__func__, hose->global_number, pe_no, ret);
+			return -EIO;
+		}
+
+		break;
+	default:
+		pr_warning("%s: Invalid option %d\n", __func__, option);
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 struct pnv_eeh_ops ioda_eeh_ops = {
 	.post_init		= ioda_eeh_post_init,
-	.set_option		= NULL,
+	.set_option		= ioda_eeh_set_option,
 	.get_state		= NULL,
 	.reset			= NULL,
 	.get_log		= NULL,
