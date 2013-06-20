@@ -595,7 +595,12 @@ static int imx_ssi_probe(struct platform_device *pdev)
 		goto failed_register;
 	}
 
-	ret = imx_pcm_fiq_init(pdev);
+	ssi->fiq_params.irq = ssi->irq;
+	ssi->fiq_params.base = ssi->base;
+	ssi->fiq_params.dma_params_rx = &ssi->dma_params_rx;
+	ssi->fiq_params.dma_params_tx = &ssi->dma_params_tx;
+
+	ret = imx_pcm_fiq_init(pdev, &ssi->fiq_params);
 	if (ret)
 		goto failed_pcm_fiq;
 
