@@ -41,6 +41,10 @@
 		enable-active-high;
 	};
 
+	tmu@100C0000 {
+		status = "okay";
+	};
+
 	sdhci@12530000 {
 		bus-width = <4>;
 		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4 &sd2_cd>;
@@ -81,6 +85,150 @@
 
 	serial@13830000 {
 		status = "okay";
+	};
+
+	i2c@13860000 {
+		status = "okay";
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <20000>;
+		pinctrl-0 = <&i2c0_bus>;
+		pinctrl-names = "default";
+
+		max8997_pmic@66 {
+			compatible = "maxim,max8997-pmic";
+			reg = <0x66>;
+			interrupt-parent = <&gpx0>;
+			interrupts = <4 0>, <3 0>;
+
+			max8997,pmic-buck1-dvs-voltage = <1350000>;
+			max8997,pmic-buck2-dvs-voltage = <1100000>;
+			max8997,pmic-buck5-dvs-voltage = <1200000>;
+
+			regulators {
+				ldo1_reg: LDO1 {
+					regulator-name = "VDD_ABB_3.3V";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				ldo2_reg: LDO2 {
+					regulator-name = "VDD_ALIVE_1.1V";
+					regulator-min-microvolt = <1100000>;
+					regulator-max-microvolt = <1100000>;
+					regulator-always-on;
+				};
+
+				ldo3_reg: LDO3 {
+					regulator-name = "VMIPI_1.1V";
+					regulator-min-microvolt = <1100000>;
+					regulator-max-microvolt = <1100000>;
+				};
+
+				ldo4_reg: LDO4 {
+					regulator-name = "VDD_RTC_1.8V";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt	= <1800000>;
+					regulator-always-on;
+				};
+
+				ldo6_reg: LDO6 {
+					regulator-name = "VMIPI_1.8V";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt	= <1800000>;
+					regulator-always-on;
+				};
+
+				ldo7_reg: LDO7 {
+					regulator-name = "VDD_AUD_1.8V";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt	= <1800000>;
+				};
+
+				ldo8_reg: LDO8 {
+					regulator-name = "VADC_3.3V";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt	= <3300000>;
+				};
+
+				ldo9_reg: LDO9 {
+					regulator-name = "DVDD_SWB_2.8V";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt	= <2800000>;
+					regulator-always-on;
+				};
+
+				ldo10_reg: LDO10 {
+					regulator-name = "VDD_PLL_1.1V";
+					regulator-min-microvolt = <1100000>;
+					regulator-max-microvolt	= <1100000>;
+					regulator-always-on;
+				};
+
+				ldo11_reg: LDO11 {
+					regulator-name = "VDD_AUD_3V";
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt	= <3000000>;
+				};
+
+				ldo14_reg: LDO14 {
+					regulator-name = "AVDD18_SWB_1.8V";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt	= <1800000>;
+					regulator-always-on;
+				};
+
+				ldo17_reg: LDO17 {
+					regulator-name = "VDD_SWB_3.3V";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt	= <3300000>;
+					regulator-always-on;
+				};
+
+				ldo21_reg: LDO21 {
+					regulator-name = "VDD_MIF_1.2V";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt	= <1200000>;
+					regulator-always-on;
+				};
+
+				buck1_reg: BUCK1 {
+					regulator-name = "VDD_ARM_1.2V";
+					regulator-min-microvolt = <950000>;
+					regulator-max-microvolt	= <1350000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				buck2_reg: BUCK2 {
+					regulator-name = "VDD_INT_1.1V";
+					regulator-min-microvolt = <900000>;
+					regulator-max-microvolt	= <1100000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				buck3_reg: BUCK3 {
+					regulator-name = "VDD_G3D_1.1V";
+					regulator-min-microvolt = <900000>;
+					regulator-max-microvolt = <1100000>;
+				};
+
+				buck5_reg: BUCK5 {
+					regulator-name = "VDDQ_M1M2_1.2V";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+				};
+
+				buck7_reg: BUCK7 {
+					regulator-name = "VDD_LCD_3.3V";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+			};
+		};
 	};
 
 	gpio_keys {
@@ -141,6 +289,27 @@
 		xusbxti {
 			compatible = "samsung,clock-xusbxti";
 			clock-frequency = <24000000>;
+		};
+	};
+
+	fimd@11c00000 {
+		pinctrl-0 = <&lcd_en &lcd_clk &lcd_data24 &pwm0_out>;
+		pinctrl-names = "default";
+		status = "okay";
+	};
+
+	display-timings {
+		native-mode = <&timing0>;
+		timing0: timing {
+			clock-frequency = <50000>;
+			hactive = <1024>;
+			vactive = <600>;
+			hfront-porch = <64>;
+			hback-porch = <16>;
+			hsync-len = <48>;
+			vback-porch = <64>;
+			vfront-porch = <16>;
+			vsync-len = <3>;
 		};
 	};
 };

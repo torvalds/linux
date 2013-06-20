@@ -16,6 +16,10 @@
 
 	interrupt-parent = <&gic>;
 
+	aliases {
+		spi0 = &spi_0;
+	};
+
 	clock: clock-controller@0x160000 {
 		compatible = "samsung,exynos5440-clock";
 		reg = <0x160000 0x1000>;
@@ -79,8 +83,13 @@
 		interrupts = <0 57 0>;
 		operating-points = <
 				/* KHz	  uV */
+				1500000 1100000
+				1400000 1075000
+				1300000 1050000
 				1200000 1025000
+				1100000 1000000
 				1000000 975000
+				900000  950000
 				800000  925000
 		>;
 	};
@@ -101,14 +110,14 @@
 		clock-names = "uart", "clk_uart_baud0";
 	};
 
-	spi {
-		compatible = "samsung,exynos4210-spi";
-		reg = <0xD0000 0x1000>;
+	spi_0: spi@D0000 {
+		compatible = "samsung,exynos5440-spi";
+		reg = <0xD0000 0x100>;
 		interrupts = <0 4 0>;
-		tx-dma-channel = <&pdma0 5>; /* preliminary */
-		rx-dma-channel = <&pdma0 4>; /* preliminary */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		samsung,spi-src-clk = <0>;
+		num-cs = <1>;
 		clocks = <&clock 21>, <&clock 16>;
 		clock-names = "spi", "spi_busclk0";
 	};
@@ -184,28 +193,6 @@
 		compatible = "arm,amba-bus";
 		interrupt-parent = <&gic>;
 		ranges;
-
-		pdma0: pdma@00121000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x121000 0x1000>;
-			interrupts = <0 46 0>;
-			clocks = <&clock 8>;
-			clock-names = "apb_pclk";
-			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
-		};
-
-		pdma1: pdma@00120000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x120000 0x1000>;
-			interrupts = <0 47 0>;
-			clocks = <&clock 8>;
-			clock-names = "apb_pclk";
-			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
-		};
 	};
 
 	rtc {
@@ -214,6 +201,29 @@
 		interrupts = <0 17 0>, <0 16 0>;
 		clocks = <&clock 21>;
 		clock-names = "rtc";
-		status = "disabled";
+	};
+
+	sata@210000 {
+		compatible = "snps,exynos5440-ahci";
+		reg = <0x210000 0x10000>;
+		interrupts = <0 30 0>;
+		clocks = <&clock 23>;
+		clock-names = "sata";
+	};
+
+	ohci@220000 {
+		compatible = "samsung,exynos5440-ohci";
+		reg = <0x220000 0x1000>;
+		interrupts = <0 29 0>;
+		clocks = <&clock 24>;
+		clock-names = "usbhost";
+	};
+
+	ehci@221000 {
+		compatible = "samsung,exynos5440-ehci";
+		reg = <0x221000 0x1000>;
+		interrupts = <0 29 0>;
+		clocks = <&clock 24>;
+		clock-names = "usbhost";
 	};
 };

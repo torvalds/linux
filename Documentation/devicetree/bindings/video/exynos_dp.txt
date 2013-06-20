@@ -21,6 +21,10 @@ Required properties for dp-controller:
 		of memory mapped region.
 	-interrupts:
 		interrupt combiner values.
+	-clocks:
+		from common clock binding: handle to dp clock.
+	-clock-names:
+		from common clock binding: Shall be "dp".
 	-interrupt-parent:
 		phandle to Interrupt combiner node.
 	-samsung,color-space:
@@ -61,6 +65,8 @@ SOC specific portion:
 		reg = <0x145b0000 0x10000>;
 		interrupts = <10 3>;
 		interrupt-parent = <&combiner>;
+		clocks = <&clock 342>;
+		clock-names = "dp";
 
 		dptx-phy {
 			reg = <0x10040720>;
