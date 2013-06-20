@@ -240,7 +240,8 @@ static void pSeries_lpar_hptab_clear(void)
 static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 				       unsigned long newpp,
 				       unsigned long vpn,
-				       int psize, int ssize, int local)
+				       int psize, int apsize,
+				       int ssize, int local)
 {
 	unsigned long lpar_rc;
 	unsigned long flags = (newpp & 7) | H_AVPN;
@@ -328,7 +329,8 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 }
 
 static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
-					 int psize, int ssize, int local)
+					 int psize, int apsize,
+					 int ssize, int local)
 {
 	unsigned long want_v;
 	unsigned long lpar_rc;
@@ -356,8 +358,10 @@ static void pSeries_lpar_hpte_removebolted(unsigned long ea,
 
 	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
 	BUG_ON(slot == -1);
-
-	pSeries_lpar_hpte_invalidate(slot, vpn, psize, ssize, 0);
+	/*
+	 * lpar doesn't use the passed actual page size
+	 */
+	pSeries_lpar_hpte_invalidate(slot, vpn, psize, 0, ssize, 0);
 }
 
 /* Flag bits for H_BULK_REMOVE */
@@ -400,8 +404,11 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 			slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 			slot += hidx & _PTEIDX_GROUP_IX;
 			if (!firmware_has_feature(FW_FEATURE_BULK_REMOVE)) {
+				/*
+				 * lpar doesn't use the passed actual page size
+				 */
 				pSeries_lpar_hpte_invalidate(slot, vpn, psize,
-							     ssize, local);
+							     0, ssize, local);
 			} else {
 				param[pix] = HBR_REQUEST | HBR_AVPN | slot;
 				param[pix+1] = hpte_encode_avpn(vpn, psize,

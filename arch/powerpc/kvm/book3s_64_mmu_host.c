@@ -34,7 +34,7 @@
 void kvmppc_mmu_invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
 	ppc_md.hpte_invalidate(pte->slot, pte->host_vpn,
-			       MMU_PAGE_4K, MMU_SEGSIZE_256M,
+			       MMU_PAGE_4K, MMU_PAGE_4K, MMU_SEGSIZE_256M,
 			       false);
 }
 

@@ -1232,7 +1232,11 @@ void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize, int ssize,
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += hidx & _PTEIDX_GROUP_IX;
 		DBG_LOW(" sub %ld: hash=%lx, hidx=%lx\n", index, slot, hidx);
-		ppc_md.hpte_invalidate(slot, vpn, psize, ssize, local);
+		/*
+		 * We use same base page size and actual psize, because we don't
+		 * use these functions for hugepage
+		 */
+		ppc_md.hpte_invalidate(slot, vpn, psize, psize, ssize, local);
 	} pte_iterate_hashed_end();
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -1365,7 +1369,8 @@ static void kernel_unmap_linear_page(unsigned long vaddr, unsigned long lmi)
 		hash = ~hash;
 	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	slot += hidx & _PTEIDX_GROUP_IX;
-	ppc_md.hpte_invalidate(slot, vpn, mmu_linear_psize, mmu_kernel_ssize, 0);
+	ppc_md.hpte_invalidate(slot, vpn, mmu_linear_psize, mmu_linear_psize,
+			       mmu_kernel_ssize, 0);
 }
 
 void kernel_map_pages(struct page *page, int numpages, int enable)
