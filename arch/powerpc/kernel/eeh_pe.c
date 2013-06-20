@@ -228,7 +228,7 @@ static void *__eeh_pe_get(void *data, void *flag)
 		return pe;
 
 	/* Try BDF address */
-	if (edev->pe_config_addr &&
+	if (edev->config_addr &&
 	   (edev->config_addr == pe->config_addr))
 		return pe;
 
@@ -246,7 +246,7 @@ static void *__eeh_pe_get(void *data, void *flag)
  * which is composed of PCI bus/device/function number, or unified
  * PE address.
  */
-static struct eeh_pe *eeh_pe_get(struct eeh_dev *edev)
+struct eeh_pe *eeh_pe_get(struct eeh_dev *edev)
 {
 	struct eeh_pe *root = eeh_phb_pe_get(edev->phb);
 	struct eeh_pe *pe;
