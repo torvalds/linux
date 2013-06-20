@@ -3943,12 +3943,11 @@ static void btrfs_writeback_inodes_sb_nr(struct btrfs_root *root,
 					 unsigned long nr_pages)
 {
 	struct super_block *sb = root->fs_info->sb;
-	int started;
 
-	/* If we can not start writeback, just sync all the delalloc file. */
-	started = try_to_writeback_inodes_sb_nr(sb, nr_pages,
-						      WB_REASON_FS_FREE_SPACE);
-	if (!started) {
+	if (down_read_trylock(&sb->s_umount)) {
+		writeback_inodes_sb_nr(sb, nr_pages, WB_REASON_FS_FREE_SPACE);
+		up_read(&sb->s_umount);
+	} else {
 		/*
 		 * We needn't worry the filesystem going from r/w to r/o though
 		 * we don't acquire ->s_umount mutex, because the filesystem
