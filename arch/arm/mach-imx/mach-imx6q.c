@@ -139,12 +139,12 @@ put_clk:
 		clk_put(cko1);
 }
 
-static void __init imx6q_sabrelite_init(void)
+static void __init imx6q_enet_phy_init(void)
 {
-	if (IS_BUILTIN(CONFIG_PHYLIB))
+	if (IS_BUILTIN(CONFIG_PHYLIB)) {
 		phy_register_fixup_for_uid(PHY_ID_KSZ9021, MICREL_PHY_ID_MASK,
 				ksz9021rn_phy_fixup);
-	imx6q_sabrelite_cko1_setup();
+	}
 }
 
 static void __init imx6q_sabresd_cko1_setup(void)
@@ -205,10 +205,12 @@ static void __init imx6q_usb_init(void)
 static void __init imx6q_init_machine(void)
 {
 	if (of_machine_is_compatible("fsl,imx6q-sabrelite"))
-		imx6q_sabrelite_init();
+		imx6q_sabrelite_cko1_setup();
 	else if (of_machine_is_compatible("fsl,imx6q-sabresd") ||
 			of_machine_is_compatible("fsl,imx6dl-sabresd"))
 		imx6q_sabresd_init();
+
+	imx6q_enet_phy_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
