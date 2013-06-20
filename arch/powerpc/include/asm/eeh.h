@@ -150,6 +150,7 @@ struct eeh_ops {
 extern struct eeh_ops *eeh_ops;
 extern int eeh_subsystem_enabled;
 extern struct mutex eeh_mutex;
+extern raw_spinlock_t confirm_error_lock;
 extern int eeh_probe_mode;
 
 #define EEH_PROBE_MODE_DEV	(1<<0)	/* From PCI device	*/
@@ -178,6 +179,16 @@ static inline void eeh_lock(void)
 static inline void eeh_unlock(void)
 {
 	mutex_unlock(&eeh_mutex);
+}
+
+static inline void eeh_serialize_lock(unsigned long *flags)
+{
+	raw_spin_lock_irqsave(&confirm_error_lock, *flags);
+}
+
+static inline void eeh_serialize_unlock(unsigned long flags)
+{
+	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
 }
 
 /*

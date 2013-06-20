@@ -107,7 +107,7 @@ int eeh_probe_mode;
 DEFINE_MUTEX(eeh_mutex);
 
 /* Lock to avoid races due to multiple reports of an error */
-static DEFINE_RAW_SPINLOCK(confirm_error_lock);
+DEFINE_RAW_SPINLOCK(confirm_error_lock);
 
 /* Buffer for reporting pci register dumps. Its here in BSS, and
  * not dynamically alloced, so that it ends up in RMO where RTAS
@@ -325,7 +325,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * in one slot might report errors simultaneously, and we
 	 * only want one error recovery routine running.
 	 */
-	raw_spin_lock_irqsave(&confirm_error_lock, flags);
+	eeh_serialize_lock(&flags);
 	rc = 1;
 	if (pe->state & EEH_PE_ISOLATED) {
 		pe->check_count++;
@@ -374,7 +374,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * bridges.
 	 */
 	eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
-	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
+	eeh_serialize_unlock(flags);
 
 	eeh_send_failure_event(pe);
 
@@ -386,7 +386,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	return 1;
 
 dn_unlock:
-	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
+	eeh_serialize_unlock(flags);
 	return rc;
 }
 
@@ -701,8 +701,6 @@ int __init eeh_init(void)
 			__func__, ret);
 		return ret;
 	}
-
-	raw_spin_lock_init(&confirm_error_lock);
 
 	/* Initialize EEH event */
 	ret = eeh_event_init();
