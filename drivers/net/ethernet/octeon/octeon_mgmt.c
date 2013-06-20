@@ -1141,10 +1141,13 @@ static int octeon_mgmt_open(struct net_device *netdev)
 		/* For compensation state to lock. */
 		ndelay(1040 * NS_PER_PHY_CLK);
 
-		/* Some Ethernet switches cannot handle standard
-		 * Interframe Gap, increase to 16 bytes.
+		/* Default Interframe Gaps are too small.  Recommended
+		 * workaround is.
+		 *
+		 * AGL_GMX_TX_IFG[IFG1]=14
+		 * AGL_GMX_TX_IFG[IFG2]=10
 		 */
-		cvmx_write_csr(CVMX_AGL_GMX_TX_IFG, 0x88);
+		cvmx_write_csr(CVMX_AGL_GMX_TX_IFG, 0xae);
 	}
 
 	octeon_mgmt_rx_fill_ring(netdev);
