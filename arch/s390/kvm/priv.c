@@ -385,16 +385,27 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
+	if (fc > 3) {
+		vcpu->arch.sie_block->gpsw.mask |= 3ul << 44;	  /* cc 3 */
+		return 0;
+	}
+
+	if (vcpu->run->s.regs.gprs[0] & 0x0fffff00
+	    || vcpu->run->s.regs.gprs[1] & 0xffff0000)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
+	if (fc == 0) {
+		vcpu->run->s.regs.gprs[0] = 3 << 28;
+		vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);  /* cc 0 */
+		return 0;
+	}
+
 	operand2 = kvm_s390_get_base_disp_s(vcpu);
 
-	if (operand2 & 0xfff && fc > 0)
+	if (operand2 & 0xfff)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	switch (fc) {
-	case 0:
-		vcpu->run->s.regs.gprs[0] = 3 << 28;
-		vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
-		return 0;
 	case 1: /* same handling for 1 and 2 */
 	case 2:
 		mem = get_zeroed_page(GFP_KERNEL);
@@ -411,8 +422,6 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 			goto out_no_data;
 		handle_stsi_3_2_2(vcpu, (void *) mem);
 		break;
-	default:
-		goto out_no_data;
 	}
 
 	if (copy_to_guest_absolute(vcpu, operand2, (void *) mem, PAGE_SIZE)) {
