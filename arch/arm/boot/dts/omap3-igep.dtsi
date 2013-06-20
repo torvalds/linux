@@ -77,6 +77,8 @@
 			0x1a2 (PIN_INPUT | MUX_MODE4)		/* mcspi1_cs2.gpio_176 */
 		>;
 	};
+
+	leds_pins: pinmux_leds_pins { };
 };
 
 &i2c1 {
