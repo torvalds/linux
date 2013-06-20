@@ -164,6 +164,11 @@ config IBMEBUS
 	help
 	  Bus device driver for GX bus based adapters.
 
+config EEH
+	bool
+	depends on (PPC_POWERNV || PPC_PSERIES) && PCI
+	default y
+
 config PPC_MPC106
 	bool
 	default n

@@ -316,4 +316,3 @@ void __init eeh_addr_cache_build(void)
 	eeh_addr_cache_print(&pci_io_addr_cache_root);
 #endif
 }
-
