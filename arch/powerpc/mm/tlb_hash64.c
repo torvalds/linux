@@ -189,6 +189,7 @@ void tlb_flush(struct mmu_gather *tlb)
 void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 			      unsigned long end)
 {
+	int hugepage_shift;
 	unsigned long flags;
 
 	start = _ALIGN_DOWN(start, PAGE_SIZE);
@@ -206,7 +207,8 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 	local_irq_save(flags);
 	arch_enter_lazy_mmu_mode();
 	for (; start < end; start += PAGE_SIZE) {
-		pte_t *ptep = find_linux_pte(mm->pgd, start);
+		pte_t *ptep = find_linux_pte_or_hugepte(mm->pgd, start,
+							&hugepage_shift);
 		unsigned long pte;
 
 		if (ptep == NULL)
@@ -214,7 +216,10 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 		pte = pte_val(*ptep);
 		if (!(pte & _PAGE_HASHPTE))
 			continue;
-		hpte_need_flush(mm, start, ptep, pte, 0);
+		if (unlikely(hugepage_shift && pmd_trans_huge(*(pmd_t *)pte)))
+			hpte_do_hugepage_flush(mm, start, (pmd_t *)pte);
+		else
+			hpte_need_flush(mm, start, ptep, pte, 0);
 	}
 	arch_leave_lazy_mmu_mode();
 	local_irq_restore(flags);

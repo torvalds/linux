@@ -105,6 +105,7 @@ int pgd_huge(pgd_t pgd)
 
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {
+	/* Only called for hugetlbfs pages, hence can ignore THP */
 	return find_linux_pte_or_hugepte(mm->pgd, addr, NULL);
 }
 
@@ -673,11 +674,14 @@ follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
 	struct page *page;
 	unsigned shift;
 	unsigned long mask;
-
+	/*
+	 * Transparent hugepages are handled by generic code. We can skip them
+	 * here.
+	 */
 	ptep = find_linux_pte_or_hugepte(mm->pgd, address, &shift);
 
 	/* Verify it is a huge page else bail. */
-	if (!ptep || !shift)
+	if (!ptep || !shift || pmd_trans_huge(*(pmd_t *)ptep))
 		return ERR_PTR(-EINVAL);
 
 	mask = (1UL << shift) - 1;
