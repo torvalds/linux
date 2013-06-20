@@ -33,6 +33,8 @@
 #include <asm/iommu.h>
 #include <asm/tce.h>
 #include <asm/firmware.h>
+#include <asm/eeh_event.h>
+#include <asm/eeh.h>
 
 #include "powernv.h"
 #include "pci.h"
@@ -260,6 +262,10 @@ static int pnv_pci_read_config(struct pci_bus *bus,
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct pnv_phb *phb = hose->private_data;
+#ifdef CONFIG_EEH
+	struct device_node *busdn, *dn;
+	struct eeh_pe *phb_pe = NULL;
+#endif
 	u32 bdfn = (((uint64_t)bus->number) << 8) | devfn;
 	s64 rc;
 
@@ -292,8 +298,34 @@ static int pnv_pci_read_config(struct pci_bus *bus,
 	cfg_dbg("pnv_pci_read_config bus: %x devfn: %x +%x/%x -> %08x\n",
 		bus->number, devfn, where, size, *val);
 
-	/* Check if the PHB got frozen due to an error (no response) */
+	/*
+	 * Check if the specified PE has been put into frozen
+	 * state. On the other hand, we needn't do that while
+	 * the PHB has been put into frozen state because of
+	 * PHB-fatal errors.
+	 */
+#ifdef CONFIG_EEH
+	phb_pe = eeh_phb_pe_get(hose);
+	if (phb_pe && (phb_pe->state & EEH_PE_ISOLATED))
+		return PCIBIOS_SUCCESSFUL;
+
+	if (phb->eeh_enabled) {
+		if (*val == EEH_IO_ERROR_VALUE(size)) {
+			busdn = pci_bus_to_OF_node(bus);
+			for (dn = busdn->child; dn; dn = dn->sibling) {
+				struct pci_dn *pdn = PCI_DN(dn);
+
+				if (pdn && pdn->devfn == devfn &&
+				    eeh_dev_check_failure(of_node_to_eeh_dev(dn)))
+					return PCIBIOS_DEVICE_NOT_FOUND;
+			}
+		}
+	} else {
+		pnv_pci_config_check_eeh(phb, bus, bdfn);
+	}
+#else
 	pnv_pci_config_check_eeh(phb, bus, bdfn);
+#endif
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -324,8 +356,14 @@ static int pnv_pci_write_config(struct pci_bus *bus,
 	default:
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 	}
+
 	/* Check if the PHB got frozen due to an error (no response) */
+#ifdef CONFIG_EEH
+	if (!phb->eeh_enabled)
+		pnv_pci_config_check_eeh(phb, bus, bdfn);
+#else
 	pnv_pci_config_check_eeh(phb, bus, bdfn);
+#endif
 
 	return PCIBIOS_SUCCESSFUL;
 }
