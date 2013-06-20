@@ -267,12 +267,21 @@ out:
 	return ret;
 }
 
+static bool abx500_pullud_supported(struct gpio_chip *chip, unsigned gpio)
+{
+	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
+	struct pullud *pullud = pct->soc->pullud;
+
+	return (pullud &&
+		gpio >= pullud->first_pin &&
+		gpio <= pullud->last_pin);
+}
+
 static int abx500_gpio_direction_output(struct gpio_chip *chip,
 					unsigned offset,
 					int val)
 {
 	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
-	struct pullud *pullud = pct->soc->pullud;
 	unsigned gpio;
 	int ret;
 
@@ -288,7 +297,7 @@ static int abx500_gpio_direction_output(struct gpio_chip *chip,
 
 	/* if supported, disable both pull down and pull up */
 	gpio = offset + 1;
-	if (pullud && gpio >= pullud->first_pin && gpio <= pullud->last_pin) {
+	if (abx500_pullud_supported(chip, gpio)) {
 		ret = abx500_set_pull_updown(pct,
 				gpio,
 				ABX500_GPIO_PULL_NONE);
@@ -514,7 +523,6 @@ static void abx500_gpio_dbg_show_one(struct seq_file *s,
 				     unsigned offset, unsigned gpio)
 {
 	struct abx500_pinctrl *pct = pinctrl_dev_get_drvdata(pctldev);
-	struct pullud *pullud = pct->soc->pullud;
 	const char *label = gpiochip_is_requested(chip, offset - 1);
 	u8 gpio_offset = offset - 1;
 	int mode = -1;
@@ -543,9 +551,7 @@ static void abx500_gpio_dbg_show_one(struct seq_file *s,
 		   is_out ? "out" : "in ");
 
 	if (!is_out) {
-		if (pullud &&
-		   (offset >= pullud->first_pin) &&
-		   (offset <= pullud->last_pin)) {
+		if (abx500_pullud_supported(chip, offset)) {
 			abx500_get_pull_updown(pct, offset, &pud);
 			seq_printf(s, " %-9s", pull_up_down[pud]);
 		} else {
@@ -974,7 +980,6 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 			  unsigned long config)
 {
 	struct abx500_pinctrl *pct = pinctrl_dev_get_drvdata(pctldev);
-	struct pullud *pullud = pct->soc->pullud;
 	struct gpio_chip *chip = &pct->chip;
 	unsigned offset;
 	int ret = -EINVAL;
@@ -999,9 +1004,7 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 		 * both features. If the pin is not within that range, we
 		 * fall back to the old bit set that only support pull down.
 		 */
-		if (pullud &&
-		    pin >= pullud->first_pin &&
-		    pin <= pullud->last_pin)
+		if (abx500_pullud_supported(chip, pin))
 			ret = abx500_set_pull_updown(pct,
 				pin,
 				ABX500_GPIO_PULL_NONE);
@@ -1022,9 +1025,7 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 		 * both features. If the pin is not within that range, we
 		 * fall back to the old bit set that only support pull down.
 		 */
-		if (pullud &&
-		    pin >= pullud->first_pin &&
-		    pin <= pullud->last_pin)
+		if (abx500_pullud_supported(chip, pin))
 			ret = abx500_set_pull_updown(pct,
 				pin,
 				argument ? ABX500_GPIO_PULL_DOWN : ABX500_GPIO_PULL_NONE);
@@ -1048,13 +1049,10 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 		 * both features. If the pin is not within that range, do
 		 * nothing
 		 */
-		if (pullud &&
-		    pin >= pullud->first_pin &&
-		    pin <= pullud->last_pin) {
+		if (abx500_pullud_supported(chip, pin))
 			ret = abx500_set_pull_updown(pct,
 				pin,
 				argument ? ABX500_GPIO_PULL_UP : ABX500_GPIO_PULL_NONE);
-		}
 		break;
 
 	case PIN_CONFIG_OUTPUT:
