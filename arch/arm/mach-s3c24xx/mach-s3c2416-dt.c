@@ -43,13 +43,13 @@
  * data from the device tree.
  */
 static const struct of_dev_auxdata s3c2416_auxdata_lookup[] __initconst = {
-	OF_DEV_AUXDATA("samsung,s3c2440-uart", S3C2410_PA_UART0,
+	OF_DEV_AUXDATA("samsung,s3c2440-uart", S3C24XX_PA_UART,
 				"s3c2440-uart.0", NULL),
-	OF_DEV_AUXDATA("samsung,s3c2440-uart", S3C2410_PA_UART1,
+	OF_DEV_AUXDATA("samsung,s3c2440-uart", S3C24XX_PA_UART + 0x4000,
 				"s3c2440-uart.1", NULL),
-	OF_DEV_AUXDATA("samsung,s3c2440-uart", S3C2410_PA_UART2,
+	OF_DEV_AUXDATA("samsung,s3c2440-uart", S3C24XX_PA_UART + 0x8000,
 				"s3c2440-uart.2", NULL),
-	OF_DEV_AUXDATA("samsung,s3c2440-uart", S3C2443_PA_UART3,
+	OF_DEV_AUXDATA("samsung,s3c2440-uart", S3C24XX_PA_UART + 0xC000,
 				"s3c2440-uart.3", NULL),
 	OF_DEV_AUXDATA("samsung,s3c6410-sdhci", S3C_PA_HSMMC0,
 				"s3c-sdhci.0", NULL),
