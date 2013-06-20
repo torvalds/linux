@@ -38,13 +38,3 @@ void __init qnap_dt_ts219_init(void)
 
 	kirkwood_ge00_init(&qnap_ts219_ge00_data);
 }
-
-/* FIXME: Will not work with DT. Maybe use MPP40_GPIO? */
-static int __init ts219_pci_init(void)
-{
-	if (machine_is_ts219())
-		kirkwood_pcie_init(KW_PCIE0);
-
-	return 0;
-}
-subsys_initcall(ts219_pci_init);

@@ -1092,8 +1092,8 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 	}
 
 	port->index = -1;
-	team_port_enable(team, port);
 	list_add_tail_rcu(&port->list, &team->port_list);
+	team_port_enable(team, port);
 	__team_compute_features(team);
 	__team_port_change_port_added(port, !!netif_carrier_ok(port_dev));
 	__team_options_change_check(team);
@@ -2374,7 +2374,8 @@ static int team_nl_send_port_list_get(struct team *team, u32 portid, u32 seq,
 	bool incomplete;
 	int i;
 
-	port = list_first_entry(&team->port_list, struct team_port, list);
+	port = list_first_entry_or_null(&team->port_list,
+					struct team_port, list);
 
 start_again:
 	err = __send_and_alloc_skb(&skb, team, portid, send_func);
@@ -2402,8 +2403,8 @@ start_again:
 		err = team_nl_fill_one_port_get(skb, one_port);
 		if (err)
 			goto errout;
-	} else {
-		list_for_each_entry(port, &team->port_list, list) {
+	} else if (port) {
+		list_for_each_entry_from(port, &team->port_list, list) {
 			err = team_nl_fill_one_port_get(skb, port);
 			if (err) {
 				if (err == -EMSGSIZE) {

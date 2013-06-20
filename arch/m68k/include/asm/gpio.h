@@ -86,6 +86,7 @@ static inline int gpio_cansleep(unsigned gpio)
 	return gpio < MCFGPIO_PIN_MAX ? 0 : __gpio_cansleep(gpio);
 }
 
+#ifndef CONFIG_GPIOLIB
 static inline int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 {
 	int err;
@@ -105,5 +106,5 @@ static inline int gpio_request_one(unsigned gpio, unsigned long flags, const cha
 
 	return err;
 }
-
+#endif /* !CONFIG_GPIOLIB */
 #endif

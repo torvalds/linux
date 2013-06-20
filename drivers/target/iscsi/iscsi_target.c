@@ -651,7 +651,7 @@ static int iscsit_add_reject(
 	cmd->buf_ptr = kmemdup(buf, ISCSI_HDR_LEN, GFP_KERNEL);
 	if (!cmd->buf_ptr) {
 		pr_err("Unable to allocate memory for cmd->buf_ptr\n");
-		iscsit_release_cmd(cmd);
+		iscsit_free_cmd(cmd, false);
 		return -1;
 	}
 
@@ -697,7 +697,7 @@ int iscsit_add_reject_from_cmd(
 	cmd->buf_ptr = kmemdup(buf, ISCSI_HDR_LEN, GFP_KERNEL);
 	if (!cmd->buf_ptr) {
 		pr_err("Unable to allocate memory for cmd->buf_ptr\n");
-		iscsit_release_cmd(cmd);
+		iscsit_free_cmd(cmd, false);
 		return -1;
 	}
 
@@ -1743,7 +1743,7 @@ int iscsit_handle_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	return 0;
 out:
 	if (cmd)
-		iscsit_release_cmd(cmd);
+		iscsit_free_cmd(cmd, false);
 ping_out:
 	kfree(ping_data);
 	return ret;
@@ -2251,7 +2251,7 @@ iscsit_handle_logout_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	if (conn->conn_state != TARG_CONN_STATE_LOGGED_IN) {
 		pr_err("Received logout request on connection that"
 			" is not in logged in state, ignoring request.\n");
-		iscsit_release_cmd(cmd);
+		iscsit_free_cmd(cmd, false);
 		return 0;
 	}
 
@@ -3665,7 +3665,7 @@ iscsit_immediate_queue(struct iscsi_conn *conn, struct iscsi_cmd *cmd, int state
 		list_del(&cmd->i_conn_node);
 		spin_unlock_bh(&conn->cmd_lock);
 
-		iscsit_free_cmd(cmd);
+		iscsit_free_cmd(cmd, false);
 		break;
 	case ISTATE_SEND_NOPIN_WANT_RESPONSE:
 		iscsit_mod_nopin_response_timer(conn);
@@ -4122,7 +4122,7 @@ static void iscsit_release_commands_from_conn(struct iscsi_conn *conn)
 
 		iscsit_increment_maxcmdsn(cmd, sess);
 
-		iscsit_free_cmd(cmd);
+		iscsit_free_cmd(cmd, true);
 
 		spin_lock_bh(&conn->cmd_lock);
 	}

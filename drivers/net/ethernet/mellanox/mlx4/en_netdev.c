@@ -1323,6 +1323,7 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 			priv->last_moder_time[ring] = moder_time;
 			cq = &priv->rx_cq[ring];
 			cq->moder_time = moder_time;
+			cq->moder_cnt = priv->rx_frames;
 			err = mlx4_en_set_cq_moder(priv, cq);
 			if (err)
 				en_err(priv, "Failed modifying moderation for cq:%d\n",
@@ -2118,6 +2119,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	struct mlx4_en_priv *priv;
 	int i;
 	int err;
+	u64 mac_u64;
 
 	dev = alloc_etherdev_mqs(sizeof(struct mlx4_en_priv),
 				 MAX_TX_RINGS, MAX_RX_RINGS);
@@ -2191,10 +2193,17 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->addr_len = ETH_ALEN;
 	mlx4_en_u64_to_mac(dev->dev_addr, mdev->dev->caps.def_mac[priv->port]);
 	if (!is_valid_ether_addr(dev->dev_addr)) {
-		en_err(priv, "Port: %d, invalid mac burned: %pM, quiting\n",
-		       priv->port, dev->dev_addr);
-		err = -EINVAL;
-		goto out;
+		if (mlx4_is_slave(priv->mdev->dev)) {
+			eth_hw_addr_random(dev);
+			en_warn(priv, "Assigned random MAC address %pM\n", dev->dev_addr);
+			mac_u64 = mlx4_en_mac_to_u64(dev->dev_addr);
+			mdev->dev->caps.def_mac[priv->port] = mac_u64;
+		} else {
+			en_err(priv, "Port: %d, invalid mac burned: %pM, quiting\n",
+			       priv->port, dev->dev_addr);
+			err = -EINVAL;
+			goto out;
+		}
 	}
 
 	memcpy(priv->prev_mac, dev->dev_addr, sizeof(priv->prev_mac));

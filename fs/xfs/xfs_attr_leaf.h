@@ -128,6 +128,7 @@ struct xfs_attr3_leaf_hdr {
 	__u8			holes;
 	__u8			pad1;
 	struct xfs_attr_leaf_map freemap[XFS_ATTR_LEAF_MAPSIZE];
+	__be32			pad2;		/* 64 bit alignment */
 };
 
 #define XFS_ATTR3_LEAF_CRC_OFF	(offsetof(struct xfs_attr3_leaf_hdr, info.crc))

@@ -344,13 +344,19 @@ static int vhost_attach_cgroups(struct vhost_dev *dev)
 }
 
 /* Caller should have device mutex */
+bool vhost_dev_has_owner(struct vhost_dev *dev)
+{
+	return dev->mm;
+}
+
+/* Caller should have device mutex */
 long vhost_dev_set_owner(struct vhost_dev *dev)
 {
 	struct task_struct *worker;
 	int err;
 
 	/* Is there an owner already? */
-	if (dev->mm) {
+	if (vhost_dev_has_owner(dev)) {
 		err = -EBUSY;
 		goto err_mm;
 	}

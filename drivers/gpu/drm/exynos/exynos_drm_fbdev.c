@@ -182,7 +182,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	helper->fb = exynos_drm_framebuffer_init(dev, &mode_cmd,
 			&exynos_gem_obj->base);
-	if (IS_ERR_OR_NULL(helper->fb)) {
+	if (IS_ERR(helper->fb)) {
 		DRM_ERROR("failed to create drm framebuffer.\n");
 		ret = PTR_ERR(helper->fb);
 		goto err_destroy_gem;
