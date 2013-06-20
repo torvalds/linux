@@ -62,13 +62,6 @@ config MACH_ONEARM
 	  Select this if you are using Ajeco's 1ARM Single Board Computer.
 	  <http://www.ajeco.fi/>
 
-config ARCH_AT91RM9200DK
-	bool "Atmel AT91RM9200-DK Development board"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Atmel's AT91RM9200-DK Development board.
-	  (Discontinued)
-
 config MACH_AT91RM9200EK
 	bool "Atmel AT91RM9200-EK Evaluation Kit"
 	select HAVE_AT91_DATAFLASH_CARD
