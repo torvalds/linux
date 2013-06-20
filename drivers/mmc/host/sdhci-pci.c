@@ -36,6 +36,7 @@
 #define PCI_DEVICE_ID_INTEL_BYT_EMMC	0x0f14
 #define PCI_DEVICE_ID_INTEL_BYT_SDIO	0x0f15
 #define PCI_DEVICE_ID_INTEL_BYT_SD	0x0f16
+#define PCI_DEVICE_ID_INTEL_BYT_EMMC2	0x0f50
 
 /*
  * PCI registers
@@ -928,6 +929,14 @@ static const struct pci_device_id pci_ids[] = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BYT_EMMC2,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
 	},
 
 	{
