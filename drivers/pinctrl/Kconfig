@@ -212,6 +212,12 @@ config PINCTRL_TEGRA114
 	bool
 	select PINCTRL_TEGRA
 
+config PINCTRL_TZ1090
+	bool "Toumaz Xenif TZ1090 pin control driver"
+	depends on SOC_TZ1090
+	select PINMUX
+	select GENERIC_PINCONF
+
 config PINCTRL_U300
 	bool "U300 pin controller driver"
 	depends on ARCH_U300
