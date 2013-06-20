@@ -403,6 +403,8 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define TI816X_CLASS		0x81600034
 #define TI8168_REV_ES1_0	TI816X_CLASS
 #define TI8168_REV_ES1_1	(TI816X_CLASS | (0x1 << 8))
+#define TI8168_REV_ES2_0	(TI816X_CLASS | (0x2 << 8))
+#define TI8168_REV_ES2_1	(TI816X_CLASS | (0x3 << 8))
 
 #define TI814X_CLASS		0x81400034
 #define TI8148_REV_ES1_0	TI814X_CLASS
@@ -447,6 +449,7 @@ void omap4xxx_check_revision(void);
 void omap5xxx_check_revision(void);
 void omap3xxx_check_features(void);
 void ti81xx_check_features(void);
+void am33xx_check_features(void);
 void omap4xxx_check_features(void);
 
 /*

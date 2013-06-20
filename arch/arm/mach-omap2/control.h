@@ -366,6 +366,10 @@
 #define AM33XX_PWMSS1_TBCLKEN_SHIFT			1
 #define AM33XX_PWMSS2_TBCLKEN_SHIFT			2
 
+/* DEV Feature register to identify AM33XX features */
+#define AM33XX_DEV_FEATURE		0x604
+#define AM33XX_SGX_MASK			BIT(29)
+
 /* CONTROL OMAP STATUS register to identify OMAP3 features */
 #define OMAP3_CONTROL_OMAP_STATUS	0x044c
 
