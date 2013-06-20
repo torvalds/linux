@@ -704,6 +704,11 @@ int __init eeh_init(void)
 
 	raw_spin_lock_init(&confirm_error_lock);
 
+	/* Initialize EEH event */
+	ret = eeh_event_init();
+	if (ret)
+		return ret;
+
 	/* Enable EEH for all adapters */
 	if (eeh_probe_mode_devtree()) {
 		list_for_each_entry_safe(hose, tmp,

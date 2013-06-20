@@ -31,6 +31,7 @@ struct eeh_event {
 	struct eeh_pe		*pe;	/* EEH PE		*/
 };
 
+int eeh_event_init(void);
 int eeh_send_failure_event(struct eeh_pe *pe);
 void eeh_handle_event(struct eeh_pe *pe);
 

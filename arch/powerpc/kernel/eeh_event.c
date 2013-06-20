@@ -18,11 +18,10 @@
 
 #include <linux/delay.h>
 #include <linux/list.h>
-#include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/semaphore.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/workqueue.h>
 #include <linux/kthread.h>
 #include <asm/eeh_event.h>
 #include <asm/ppc-pci.h>
@@ -35,14 +34,9 @@
  *  work-queue, where a worker thread can drive recovery.
  */
 
-/* EEH event workqueue setup. */
 static DEFINE_SPINLOCK(eeh_eventlist_lock);
+static struct semaphore eeh_eventlist_sem;
 LIST_HEAD(eeh_eventlist);
-static void eeh_thread_launcher(struct work_struct *);
-DECLARE_WORK(eeh_event_wq, eeh_thread_launcher);
-
-/* Serialize reset sequences for a given pci device */
-DEFINE_MUTEX(eeh_event_mutex);
 
 /**
  * eeh_event_handler - Dispatch EEH events.
@@ -60,55 +54,62 @@ static int eeh_event_handler(void * dummy)
 	struct eeh_event *event;
 	struct eeh_pe *pe;
 
-	spin_lock_irqsave(&eeh_eventlist_lock, flags);
-	event = NULL;
+	while (!kthread_should_stop()) {
+		down(&eeh_eventlist_sem);
 
-	/* Unqueue the event, get ready to process. */
-	if (!list_empty(&eeh_eventlist)) {
-		event = list_entry(eeh_eventlist.next, struct eeh_event, list);
-		list_del(&event->list);
-	}
-	spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
+		/* Fetch EEH event from the queue */
+		spin_lock_irqsave(&eeh_eventlist_lock, flags);
+		event = NULL;
+		if (!list_empty(&eeh_eventlist)) {
+			event = list_entry(eeh_eventlist.next,
+					   struct eeh_event, list);
+			list_del(&event->list);
+		}
+		spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
+		if (!event)
+			continue;
 
-	if (event == NULL)
-		return 0;
+		/* We might have event without binding PE */
+		pe = event->pe;
+		if (pe) {
+			eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
+			pr_info("EEH: Detected PCI bus error on PHB#%d-PE#%x\n",
+				 pe->phb->global_number, pe->addr);
+			eeh_handle_event(pe);
+			eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
+		} else {
+			eeh_handle_event(NULL);
+		}
 
-	/* Serialize processing of EEH events */
-	mutex_lock(&eeh_event_mutex);
-	pe = event->pe;
-	eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
-	pr_info("EEH: Detected PCI bus error on PHB#%d-PE#%x\n",
-		pe->phb->global_number, pe->addr);
-
-	set_current_state(TASK_INTERRUPTIBLE);	/* Don't add to load average */
-	eeh_handle_event(pe);
-	eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
-
-	kfree(event);
-	mutex_unlock(&eeh_event_mutex);
-
-	/* If there are no new errors after an hour, clear the counter. */
-	if (pe && pe->freeze_count > 0) {
-		msleep_interruptible(3600*1000);
-		if (pe->freeze_count > 0)
-			pe->freeze_count--;
-
+		kfree(event);
 	}
 
 	return 0;
 }
 
 /**
- * eeh_thread_launcher - Start kernel thread to handle EEH events
- * @dummy - unused
+ * eeh_event_init - Start kernel thread to handle EEH events
  *
  * This routine is called to start the kernel thread for processing
  * EEH event.
  */
-static void eeh_thread_launcher(struct work_struct *dummy)
+int eeh_event_init(void)
 {
-	if (IS_ERR(kthread_run(eeh_event_handler, NULL, "eehd")))
-		printk(KERN_ERR "Failed to start EEH daemon\n");
+	struct task_struct *t;
+	int ret = 0;
+
+	/* Initialize semaphore */
+	sema_init(&eeh_eventlist_sem, 0);
+
+	t = kthread_run(eeh_event_handler, NULL, "eehd");
+	if (IS_ERR(t)) {
+		ret = PTR_ERR(t);
+		pr_err("%s: Failed to start EEH daemon (%d)\n",
+			__func__, ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 /**
@@ -136,7 +137,8 @@ int eeh_send_failure_event(struct eeh_pe *pe)
 	list_add(&event->list, &eeh_eventlist);
 	spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
 
-	schedule_work(&eeh_event_wq);
+	/* For EEH deamon to knick in */
+	up(&eeh_eventlist_sem);
 
 	return 0;
 }
