@@ -1887,9 +1887,9 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct sci_port *s = to_sci_port(port);
 	struct plat_sci_reg *reg;
-	unsigned int baud, smr_val, max_baud, cks;
+	unsigned int baud, smr_val, max_baud, cks = 0;
 	int t = -1;
-	unsigned int srr;
+	unsigned int srr = 15;
 
 	/*
 	 * earlyprintk comes here early on with port->uartclk set to zero.
