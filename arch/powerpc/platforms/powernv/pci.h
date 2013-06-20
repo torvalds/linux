@@ -96,6 +96,10 @@ struct pnv_phb {
 	int			removed;
 #endif
 
+#ifdef CONFIG_DEBUG_FS
+	struct dentry		*dbgfs;
+#endif
+
 #ifdef CONFIG_PCI_MSI
 	unsigned int		msi_base;
 	unsigned int		msi32_support;
