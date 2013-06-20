@@ -34,8 +34,27 @@
 #include "powernv.h"
 #include "pci.h"
 
+/**
+ * ioda_eeh_post_init - Chip dependent post initialization
+ * @hose: PCI controller
+ *
+ * The function will be called after eeh PEs and devices
+ * have been built. That means the EEH is ready to supply
+ * service with I/O cache.
+ */
+static int ioda_eeh_post_init(struct pci_controller *hose)
+{
+	struct pnv_phb *phb = hose->private_data;
+
+	/* FIXME: Enable it for PHB3 later */
+	if (phb->type == PNV_PHB_IODA1)
+		phb->eeh_enabled = 1;
+
+	return 0;
+}
+
 struct pnv_eeh_ops ioda_eeh_ops = {
-	.post_init		= NULL,
+	.post_init		= ioda_eeh_post_init,
 	.set_option		= NULL,
 	.get_state		= NULL,
 	.reset			= NULL,
