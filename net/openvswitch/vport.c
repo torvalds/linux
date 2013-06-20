@@ -39,7 +39,7 @@ static const struct vport_ops *vport_ops_list[] = {
 	&ovs_netdev_vport_ops,
 	&ovs_internal_vport_ops,
 
-#ifdef CONFIG_NET_IPGRE_DEMUX
+#if IS_ENABLED(CONFIG_NET_IPGRE_DEMUX)
 	&ovs_gre_vport_ops,
 #endif
 };

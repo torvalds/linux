@@ -16,7 +16,7 @@
  * 02110-1301, USA
  */
 
-#ifdef CONFIG_NET_IPGRE_DEMUX
+#if IS_ENABLED(CONFIG_NET_IPGRE_DEMUX)
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/if.h>
