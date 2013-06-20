@@ -1247,6 +1247,9 @@ request_firmware_nowait(
 }
 EXPORT_SYMBOL(request_firmware_nowait);
 
+#ifdef CONFIG_PM_SLEEP
+static ASYNC_DOMAIN_EXCLUSIVE(fw_cache_domain);
+
 /**
  * cache_firmware - cache one firmware image in kernel memory space
  * @fw_name: the firmware image name
@@ -1306,9 +1309,6 @@ static int uncache_firmware(const char *fw_name)
 
 	return -EINVAL;
 }
-
-#ifdef CONFIG_PM_SLEEP
-static ASYNC_DOMAIN_EXCLUSIVE(fw_cache_domain);
 
 static struct fw_cache_entry *alloc_fw_cache_entry(const char *name)
 {
