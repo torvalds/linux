@@ -169,6 +169,12 @@ config PINCTRL_SUNXI
 	select PINMUX
 	select GENERIC_PINCONF
 
+config PINCTRL_ST
+	bool
+	depends on OF
+	select PINMUX
+	select PINCONF
+
 config PINCTRL_TEGRA
 	bool
 	select PINMUX
