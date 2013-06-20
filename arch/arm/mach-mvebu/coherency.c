@@ -147,8 +147,9 @@ int __init coherency_init(void)
 
 static int __init coherency_late_init(void)
 {
-	bus_register_notifier(&platform_bus_type,
-			      &mvebu_hwcc_platform_nb);
+	if (of_find_matching_node(NULL, of_coherency_table))
+		bus_register_notifier(&platform_bus_type,
+				      &mvebu_hwcc_platform_nb);
 	return 0;
 }
 
