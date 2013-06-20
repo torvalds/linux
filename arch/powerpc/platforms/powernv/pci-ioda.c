@@ -974,6 +974,11 @@ static void pnv_pci_ioda_fixup(void)
 	pnv_pci_ioda_setup_PEs();
 	pnv_pci_ioda_setup_seg();
 	pnv_pci_ioda_setup_DMA();
+
+#ifdef CONFIG_EEH
+	eeh_addr_cache_build();
+	eeh_init();
+#endif
 }
 
 /*
@@ -1050,7 +1055,8 @@ static void pnv_pci_ioda_shutdown(struct pnv_phb *phb)
 		       OPAL_ASSERT_RESET);
 }
 
-void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
+void __init pnv_pci_init_ioda_phb(struct device_node *np,
+				  u64 hub_id, int ioda_type)
 {
 	struct pci_controller *hose;
 	static int primary = 1;
@@ -1088,6 +1094,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 	hose->first_busno = 0;
 	hose->last_busno = 0xff;
 	hose->private_data = phb;
+	phb->hub_id = hub_id;
 	phb->opal_id = phb_id;
 	phb->type = ioda_type;
 
@@ -1173,6 +1180,9 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 		phb->ioda.io_size, phb->ioda.io_segsize);
 
 	phb->hose->ops = &pnv_pci_ops;
+#ifdef CONFIG_EEH
+	phb->eeh_ops = &ioda_eeh_ops;
+#endif
 
 	/* Setup RID -> PE mapping function */
 	phb->bdfn_to_pe = pnv_ioda_bdfn_to_pe;
@@ -1213,7 +1223,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 
 void pnv_pci_init_ioda2_phb(struct device_node *np)
 {
-	pnv_pci_init_ioda_phb(np, PNV_PHB_IODA2);
+	pnv_pci_init_ioda_phb(np, 0, PNV_PHB_IODA2);
 }
 
 void __init pnv_pci_init_ioda_hub(struct device_node *np)
@@ -1236,6 +1246,6 @@ void __init pnv_pci_init_ioda_hub(struct device_node *np)
 	for_each_child_of_node(np, phbn) {
 		/* Look for IODA1 PHBs */
 		if (of_device_is_compatible(phbn, "ibm,ioda-phb"))
-			pnv_pci_init_ioda_phb(phbn, PNV_PHB_IODA1);
+			pnv_pci_init_ioda_phb(phbn, hub_id, PNV_PHB_IODA1);
 	}
 }
