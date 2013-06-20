@@ -2049,6 +2049,12 @@ static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh)
 		}
 	}
 
+	err = -ENOENT;
+	if ((tb[NDTA_THRESH1] || tb[NDTA_THRESH2] ||
+	     tb[NDTA_THRESH3] || tb[NDTA_GC_INTERVAL]) &&
+	    !net_eq(net, &init_net))
+		goto errout_tbl_lock;
+
 	if (tb[NDTA_THRESH1])
 		tbl->gc_thresh1 = nla_get_u32(tb[NDTA_THRESH1]);
 
