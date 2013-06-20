@@ -445,12 +445,65 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 	return ret;
 }
 
+/**
+ * ioda_eeh_get_log - Retrieve error log
+ * @pe: EEH PE
+ * @severity: Severity level of the log
+ * @drv_log: buffer to store the log
+ * @len: space of the log buffer
+ *
+ * The function is used to retrieve error log from P7IOC.
+ */
+static int ioda_eeh_get_log(struct eeh_pe *pe, int severity,
+			    char *drv_log, unsigned long len)
+{
+	s64 ret;
+	unsigned long flags;
+	struct pci_controller *hose = pe->phb;
+	struct pnv_phb *phb = hose->private_data;
+
+	spin_lock_irqsave(&phb->lock, flags);
+
+	ret = opal_pci_get_phb_diag_data2(phb->opal_id,
+			phb->diag.blob, PNV_PCI_DIAG_BUF_SIZE);
+	if (ret) {
+		spin_unlock_irqrestore(&phb->lock, flags);
+		pr_warning("%s: Failed to get log for PHB#%x-PE#%x\n",
+			   __func__, hose->global_number, pe->addr);
+		return -EIO;
+	}
+
+	/*
+	 * FIXME: We probably need log the error in somewhere.
+	 * Lets make it up in future.
+	 */
+	/* pr_info("%s", phb->diag.blob); */
+
+	spin_unlock_irqrestore(&phb->lock, flags);
+
+	return 0;
+}
+
+/**
+ * ioda_eeh_configure_bridge - Configure the PCI bridges for the indicated PE
+ * @pe: EEH PE
+ *
+ * For particular PE, it might have included PCI bridges. In order
+ * to make the PE work properly, those PCI bridges should be configured
+ * correctly. However, we need do nothing on P7IOC since the reset
+ * function will do everything that should be covered by the function.
+ */
+static int ioda_eeh_configure_bridge(struct eeh_pe *pe)
+{
+	return 0;
+}
+
 struct pnv_eeh_ops ioda_eeh_ops = {
 	.post_init		= ioda_eeh_post_init,
 	.set_option		= ioda_eeh_set_option,
 	.get_state		= ioda_eeh_get_state,
 	.reset			= ioda_eeh_reset,
-	.get_log		= NULL,
-	.configure_bridge	= NULL,
+	.get_log		= ioda_eeh_get_log,
+	.configure_bridge	= ioda_eeh_configure_bridge,
 	.next_error		= NULL
 };
