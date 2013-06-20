@@ -976,16 +976,18 @@ static void dotest(void (*testcase_fn)(void), int expected, int lockclass_mask)
 	/*
 	 * Filter out expected failures:
 	 */
-	if (debug_locks != expected) {
 #ifndef CONFIG_PROVE_LOCKING
+	if (expected == FAILURE && debug_locks) {
 		expected_testcase_failures++;
 		printk("failed|");
-#else
+	}
+	else
+#endif
+	if (debug_locks != expected) {
 		unexpected_testcase_failures++;
 		printk("FAILED|");
 
 		dump_stack();
-#endif
 	} else {
 		testcase_successes++;
 		printk("  ok  |");
