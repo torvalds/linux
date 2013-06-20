@@ -156,7 +156,7 @@ void led_classdev_resume(struct led_classdev *led_cdev)
 }
 EXPORT_SYMBOL_GPL(led_classdev_resume);
 
-static int led_suspend(struct device *dev, pm_message_t state)
+static int led_suspend(struct device *dev)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 
@@ -175,6 +175,11 @@ static int led_resume(struct device *dev)
 
 	return 0;
 }
+
+static const struct dev_pm_ops leds_class_dev_pm_ops = {
+	.suspend        = led_suspend,
+	.resume         = led_resume,
+};
 
 /**
  * led_classdev_register - register a new object of led_classdev class.
@@ -252,8 +257,7 @@ static int __init leds_init(void)
 	leds_class = class_create(THIS_MODULE, "leds");
 	if (IS_ERR(leds_class))
 		return PTR_ERR(leds_class);
-	leds_class->suspend = led_suspend;
-	leds_class->resume = led_resume;
+	leds_class->pm = &leds_class_dev_pm_ops;
 	leds_class->dev_attrs = led_class_attrs;
 	return 0;
 }
