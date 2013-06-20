@@ -142,3 +142,40 @@ int eeh_send_failure_event(struct eeh_pe *pe)
 
 	return 0;
 }
+
+/**
+ * eeh_remove_event - Remove EEH event from the queue
+ * @pe: Event binding to the PE
+ *
+ * On PowerNV platform, we might have subsequent coming events
+ * is part of the former one. For that case, those subsequent
+ * coming events are totally duplicated and unnecessary, thus
+ * they should be removed.
+ */
+void eeh_remove_event(struct eeh_pe *pe)
+{
+	unsigned long flags;
+	struct eeh_event *event, *tmp;
+
+	spin_lock_irqsave(&eeh_eventlist_lock, flags);
+	list_for_each_entry_safe(event, tmp, &eeh_eventlist, list) {
+		/*
+		 * If we don't have valid PE passed in, that means
+		 * we already have event corresponding to dead IOC
+		 * and all events should be purged.
+		 */
+		if (!pe) {
+			list_del(&event->list);
+			kfree(event);
+		} else if (pe->type & EEH_PE_PHB) {
+			if (event->pe && event->pe->phb == pe->phb) {
+				list_del(&event->list);
+				kfree(event);
+			}
+		} else if (event->pe == pe) {
+			list_del(&event->list);
+			kfree(event);
+		}
+	}
+	spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
+}
