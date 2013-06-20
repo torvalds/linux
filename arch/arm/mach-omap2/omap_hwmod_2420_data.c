@@ -16,6 +16,7 @@
 #include <linux/i2c-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/omap-dma.h>
+#include <linux/platform_data/mailbox-omap.h>
 #include <plat/dmtimer.h>
 
 #include "omap_hwmod.h"
@@ -166,6 +167,18 @@ static struct omap_hwmod omap2420_dma_system_hwmod = {
 };
 
 /* mailbox */
+static struct omap_mbox_dev_info omap2420_mailbox_info[] = {
+	{ .name = "dsp", .tx_id = 0, .rx_id = 1, .irq_id = 0, .usr_id = 0 },
+	{ .name = "iva", .tx_id = 2, .rx_id = 3, .irq_id = 1, .usr_id = 3 },
+};
+
+static struct omap_mbox_pdata omap2420_mailbox_attrs = {
+	.num_users	= 4,
+	.num_fifos	= 6,
+	.info_cnt	= ARRAY_SIZE(omap2420_mailbox_info),
+	.info		= omap2420_mailbox_info,
+};
+
 static struct omap_hwmod_irq_info omap2420_mailbox_irqs[] = {
 	{ .name = "dsp", .irq = 26 + OMAP_INTC_START, },
 	{ .name = "iva", .irq = 34 + OMAP_INTC_START, },
@@ -186,6 +199,7 @@ static struct omap_hwmod omap2420_mailbox_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_MAILBOXES_SHIFT,
 		},
 	},
+	.dev_attr	= &omap2420_mailbox_attrs,
 };
 
 /*
