@@ -132,7 +132,7 @@ struct eeh_ops {
 	char *name;
 	int (*init)(void);
 	void* (*of_probe)(struct device_node *dn, void *flag);
-	void* (*dev_probe)(struct pci_dev *dev, void *flag);
+	int (*dev_probe)(struct pci_dev *dev, void *flag);
 	int (*set_option)(struct eeh_pe *pe, int option);
 	int (*get_pe_addr)(struct eeh_pe *pe);
 	int (*get_state)(struct eeh_pe *pe, int *state);
@@ -196,6 +196,7 @@ struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe);
 
 void *eeh_dev_init(struct device_node *dn, void *data);
 void eeh_dev_phb_init_dynamic(struct pci_controller *phb);
+int __init eeh_init(void);
 int __init eeh_ops_register(struct eeh_ops *ops);
 int __exit eeh_ops_unregister(const char *name);
 unsigned long eeh_check_failure(const volatile void __iomem *token,
@@ -223,6 +224,11 @@ void eeh_remove_bus_device(struct pci_dev *, int);
 #define EEH_IO_ERROR_VALUE(size)	(~0U >> ((4 - (size)) * 8))
 
 #else /* !CONFIG_EEH */
+
+static inline int eeh_init(void)
+{
+	return 0;
+}
 
 static inline void *eeh_dev_init(struct device_node *dn, void *data)
 {

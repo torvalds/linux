@@ -674,11 +674,21 @@ int __exit eeh_ops_unregister(const char *name)
  * Even if force-off is set, the EEH hardware is still enabled, so that
  * newer systems can boot.
  */
-static int __init eeh_init(void)
+int __init eeh_init(void)
 {
 	struct pci_controller *hose, *tmp;
 	struct device_node *phb;
-	int ret;
+	static int cnt = 0;
+	int ret = 0;
+
+	/*
+	 * We have to delay the initialization on PowerNV after
+	 * the PCI hierarchy tree has been built because the PEs
+	 * are figured out based on PCI devices instead of device
+	 * tree nodes
+	 */
+	if (machine_is(powernv) && cnt++ <= 0)
+		return ret;
 
 	/* call platform initialization function */
 	if (!eeh_ops) {
@@ -700,6 +710,14 @@ static int __init eeh_init(void)
 			phb = hose->dn;
 			traverse_pci_devices(phb, eeh_ops->of_probe, NULL);
 		}
+	} else if (eeh_probe_mode_dev()) {
+		list_for_each_entry_safe(hose, tmp,
+			&hose_list, list_node)
+			pci_walk_bus(hose->bus, eeh_ops->dev_probe, NULL);
+	} else {
+		pr_warning("%s: Invalid probe mode %d\n",
+			   __func__, eeh_probe_mode);
+		return -EINVAL;
 	}
 
 	if (eeh_subsystem_enabled)
