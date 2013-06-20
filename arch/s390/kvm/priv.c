@@ -146,9 +146,10 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 		 * Store the two-word I/O interruption code into the
 		 * provided area.
 		 */
-		put_guest(vcpu, inti->io.subchannel_id, (u16 __user *) addr);
-		put_guest(vcpu, inti->io.subchannel_nr, (u16 __user *) (addr + 2));
-		put_guest(vcpu, inti->io.io_int_parm, (u32 __user *) (addr + 4));
+		if (put_guest(vcpu, inti->io.subchannel_id, (u16 __user *)addr)
+		    || put_guest(vcpu, inti->io.subchannel_nr, (u16 __user *)(addr + 2))
+		    || put_guest(vcpu, inti->io.io_int_parm, (u32 __user *)(addr + 4)))
+			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 	} else {
 		/*
 		 * Store the three-word I/O interruption code into
