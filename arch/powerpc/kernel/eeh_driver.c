@@ -399,24 +399,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
  */
 #define MAX_WAIT_FOR_RECOVERY 150
 
-/**
- * eeh_handle_event - Reset a PCI device after hard lockup.
- * @pe: EEH PE
- *
- * While PHB detects address or data parity errors on particular PCI
- * slot, the associated PE will be frozen. Besides, DMA's occurring
- * to wild addresses (which usually happen due to bugs in device
- * drivers or in PCI adapter firmware) can cause EEH error. #SERR,
- * #PERR or other misc PCI-related errors also can trigger EEH errors.
- *
- * Recovery process consists of unplugging the device driver (which
- * generated hotplug events to userspace), then issuing a PCI #RST to
- * the device, then reconfiguring the PCI config space for all bridges
- * & devices under this slot, and then finally restarting the device
- * drivers (which cause a second set of hotplug events to go out to
- * userspace).
- */
-void eeh_handle_event(struct eeh_pe *pe)
+static void eeh_handle_normal_event(struct eeh_pe *pe)
 {
 	struct pci_bus *frozen_bus;
 	int rc = 0;
@@ -553,4 +536,113 @@ perm_error:
 	/* Shut down the device drivers for good. */
 	if (frozen_bus)
 		pcibios_remove_pci_devices(frozen_bus);
+}
+
+static void eeh_handle_special_event(void)
+{
+	struct eeh_pe *pe, *phb_pe;
+	struct pci_bus *bus;
+	struct pci_controller *hose, *tmp;
+	unsigned long flags;
+	int rc = 0;
+
+	/*
+	 * The return value from next_error() has been classified as follows.
+	 * It might be good to enumerate them. However, next_error() is only
+	 * supported by PowerNV platform for now. So it would be fine to use
+	 * integer directly:
+	 *
+	 * 4 - Dead IOC           3 - Dead PHB
+	 * 2 - Fenced PHB         1 - Frozen PE
+	 * 0 - No error found
+	 *
+	 */
+	rc = eeh_ops->next_error(&pe);
+	if (rc <= 0)
+		return;
+
+	switch (rc) {
+	case 4:
+		/* Mark all PHBs in dead state */
+		eeh_serialize_lock(&flags);
+		list_for_each_entry_safe(hose, tmp,
+				&hose_list, list_node) {
+			phb_pe = eeh_phb_pe_get(hose);
+			if (!phb_pe) continue;
+
+			eeh_pe_state_mark(phb_pe,
+				EEH_PE_ISOLATED | EEH_PE_PHB_DEAD);
+		}
+		eeh_serialize_unlock(flags);
+
+		/* Purge all events */
+		eeh_remove_event(NULL);
+		break;
+	case 3:
+	case 2:
+	case 1:
+		/* Mark the PE in fenced state */
+		eeh_serialize_lock(&flags);
+		if (rc == 3)
+			eeh_pe_state_mark(pe,
+				EEH_PE_ISOLATED | EEH_PE_PHB_DEAD);
+		else
+			eeh_pe_state_mark(pe,
+				EEH_PE_ISOLATED | EEH_PE_RECOVERING);
+		eeh_serialize_unlock(flags);
+
+		/* Purge all events of the PHB */
+		eeh_remove_event(pe);
+		break;
+	default:
+		pr_err("%s: Invalid value %d from next_error()\n",
+		       __func__, rc);
+		return;
+	}
+
+	/*
+	 * For fenced PHB and frozen PE, it's handled as normal
+	 * event. We have to remove the affected PHBs for dead
+	 * PHB and IOC
+	 */
+	if (rc == 2 || rc == 1)
+		eeh_handle_normal_event(pe);
+	else {
+		list_for_each_entry_safe(hose, tmp,
+			&hose_list, list_node) {
+			phb_pe = eeh_phb_pe_get(hose);
+			if (!phb_pe || !(phb_pe->state & EEH_PE_PHB_DEAD))
+				continue;
+
+			bus = eeh_pe_bus_get(phb_pe);
+			/* Notify all devices that they're about to go down. */
+			eeh_pe_dev_traverse(pe, eeh_report_failure, NULL);
+			pcibios_remove_pci_devices(bus);
+		}
+	}
+}
+
+/**
+ * eeh_handle_event - Reset a PCI device after hard lockup.
+ * @pe: EEH PE
+ *
+ * While PHB detects address or data parity errors on particular PCI
+ * slot, the associated PE will be frozen. Besides, DMA's occurring
+ * to wild addresses (which usually happen due to bugs in device
+ * drivers or in PCI adapter firmware) can cause EEH error. #SERR,
+ * #PERR or other misc PCI-related errors also can trigger EEH errors.
+ *
+ * Recovery process consists of unplugging the device driver (which
+ * generated hotplug events to userspace), then issuing a PCI #RST to
+ * the device, then reconfiguring the PCI config space for all bridges
+ * & devices under this slot, and then finally restarting the device
+ * drivers (which cause a second set of hotplug events to go out to
+ * userspace).
+ */
+void eeh_handle_event(struct eeh_pe *pe)
+{
+	if (pe)
+		eeh_handle_normal_event(pe);
+	else
+		eeh_handle_special_event();
 }
