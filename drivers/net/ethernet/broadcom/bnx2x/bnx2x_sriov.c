@@ -1469,9 +1469,6 @@ static u8 bnx2x_vf_is_pcie_pending(struct bnx2x *bp, u8 abs_vfid)
 
 int bnx2x_vf_flr_clnup_epilog(struct bnx2x *bp, u8 abs_vfid)
 {
-	/* Wait 100ms */
-	msleep(100);
-
 	/* Verify no pending pci transactions */
 	if (bnx2x_vf_is_pcie_pending(bp, abs_vfid))
 		BNX2X_ERR("PCIE Transactions still pending\n");
@@ -2174,6 +2171,9 @@ int bnx2x_iov_nic_init(struct bnx2x *bp)
 
 	DP(BNX2X_MSG_IOV, "num of vfs: %d\n", (bp)->vfdb->sriov.nr_virtfn);
 
+	/* let FLR complete ... */
+	msleep(100);
+
 	/* initialize vf database */
 	for_each_vf(bp, vfid) {
 		struct bnx2x_virtf *vf = BP_VF(bp, vfid);
@@ -2775,6 +2775,10 @@ int bnx2x_vf_init(struct bnx2x *bp, struct bnx2x_virtf *vf, dma_addr_t *sb_map)
 		   vf->abs_vfid, vf->state);
 		return -EINVAL;
 	}
+
+	/* let FLR complete ... */
+	msleep(100);
+
 	/* FLR cleanup epilogue */
 	if (bnx2x_vf_flr_clnup_epilog(bp, vf->abs_vfid))
 		return -EBUSY;
