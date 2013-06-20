@@ -502,12 +502,12 @@ static void __update_cpu_load(struct rq *this_rq, unsigned long this_load,
 }
 
 #ifdef CONFIG_SMP
-unsigned long get_rq_runnable_load(struct rq *rq)
+static inline unsigned long get_rq_runnable_load(struct rq *rq)
 {
 	return rq->cfs.runnable_load_avg;
 }
 #else
-unsigned long get_rq_runnable_load(struct rq *rq)
+static inline unsigned long get_rq_runnable_load(struct rq *rq)
 {
 	return rq->load.weight;
 }
