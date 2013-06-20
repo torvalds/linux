@@ -333,8 +333,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 
 	/* sigp in userspace can exit */
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
-		return kvm_s390_inject_program_int(vcpu,
-						   PGM_PRIVILEGED_OPERATION);
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	order_code = kvm_s390_get_base_disp_rs(vcpu);
 

@@ -175,7 +175,7 @@ struct kvm_s390_ext_info {
 };
 
 #define PGM_OPERATION            0x01
-#define PGM_PRIVILEGED_OPERATION 0x02
+#define PGM_PRIVILEGED_OP	 0x02
 #define PGM_EXECUTE              0x03
 #define PGM_PROTECTION           0x04
 #define PGM_ADDRESSING           0x05
