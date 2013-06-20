@@ -1180,13 +1180,25 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	pgdir = mm->pgd;
 	if (pgdir == NULL)
 		return;
+
+	/* Get VSID */
+	ssize = user_segment_size(ea);
+	vsid = get_vsid(mm->context.id, ea, ssize);
+	if (!vsid)
+		return;
+	/*
+	 * Hash doesn't like irqs. Walking linux page table with irq disabled
+	 * saves us from holding multiple locks.
+	 */
+	local_irq_save(flags);
+
 	/*
 	 * THP pages use update_mmu_cache_pmd. We don't do
 	 * hash preload there. Hence can ignore THP here
 	 */
 	ptep = find_linux_pte_or_hugepte(pgdir, ea, &hugepage_shift);
 	if (!ptep)
-		return;
+		goto out_exit;
 
 	WARN_ON(hugepage_shift);
 #ifdef CONFIG_PPC_64K_PAGES
@@ -1197,17 +1209,8 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	 * page size demotion here
 	 */
 	if (pte_val(*ptep) & (_PAGE_4K_PFN | _PAGE_NO_CACHE))
-		return;
+		goto out_exit;
 #endif /* CONFIG_PPC_64K_PAGES */
-
-	/* Get VSID */
-	ssize = user_segment_size(ea);
-	vsid = get_vsid(mm->context.id, ea, ssize);
-	if (!vsid)
-		return;
-
-	/* Hash doesn't like irqs */
-	local_irq_save(flags);
 
 	/* Is that local to this CPU ? */
 	if (cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
@@ -1230,7 +1233,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 				   mm->context.user_psize,
 				   mm->context.user_psize,
 				   pte_val(*ptep));
-
+out_exit:
 	local_irq_restore(flags);
 }
 

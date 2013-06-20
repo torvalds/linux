@@ -37,6 +37,9 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 		/* If PMD busy, retry the access */
 		if (unlikely(old_pmd & _PAGE_BUSY))
 			return 0;
+		/* If PMD is trans splitting retry the access */
+		if (unlikely(old_pmd & _PAGE_SPLITTING))
+			return 0;
 		/* If PMD permissions don't match, take page fault */
 		if (unlikely(access & ~old_pmd))
 			return 1;

@@ -925,12 +925,16 @@ void flush_dcache_icache_hugepage(struct page *page)
  * (2) pointer to next table, as normal; bottom 6 bits == 0
  * (3) leaf pte for huge page, bottom two bits != 00
  * (4) hugepd pointer, bottom two bits == 00, next 4 bits indicate size of table
+ *
+ * So long as we atomically load page table pointers we are safe against teardown,
+ * we can follow the address down to the the page and take a ref on it.
  */
+
 pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift)
 {
-	pgd_t *pg;
-	pud_t *pu;
-	pmd_t *pm;
+	pgd_t pgd, *pgdp;
+	pud_t pud, *pudp;
+	pmd_t pmd, *pmdp;
 	pte_t *ret_pte;
 	hugepd_t *hpdp = NULL;
 	unsigned pdshift = PGDIR_SHIFT;
@@ -938,34 +942,42 @@ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift
 	if (shift)
 		*shift = 0;
 
-	pg = pgdir + pgd_index(ea);
-
+	pgdp = pgdir + pgd_index(ea);
+	pgd  = ACCESS_ONCE(*pgdp);
 	/*
-	 * we should first check for none. That takes care of a
-	 * a parallel hugetlb or THP pagefault moving none entries
-	 * to respective types.
+	 * Always operate on the local stack value. This make sure the
+	 * value don't get updated by a parallel THP split/collapse,
+	 * page fault or a page unmap. The return pte_t * is still not
+	 * stable. So should be checked there for above conditions.
 	 */
-	if (pgd_none(*pg))
+	if (pgd_none(pgd))
 		return NULL;
-	else if (pgd_huge(*pg)) {
-		ret_pte = (pte_t *) pg;
+	else if (pgd_huge(pgd)) {
+		ret_pte = (pte_t *) pgdp;
 		goto out;
-	} else if (is_hugepd(pg))
-		hpdp = (hugepd_t *)pg;
+	} else if (is_hugepd(&pgd))
+		hpdp = (hugepd_t *)&pgd;
 	else {
+		/*
+		 * Even if we end up with an unmap, the pgtable will not
+		 * be freed, because we do an rcu free and here we are
+		 * irq disabled
+		 */
 		pdshift = PUD_SHIFT;
-		pu = pud_offset(pg, ea);
+		pudp = pud_offset(&pgd, ea);
+		pud  = ACCESS_ONCE(*pudp);
 
-		if (pud_none(*pu))
+		if (pud_none(pud))
 			return NULL;
-		else if (pud_huge(*pu)) {
-			ret_pte = (pte_t *) pu;
+		else if (pud_huge(pud)) {
+			ret_pte = (pte_t *) pudp;
 			goto out;
-		} else if (is_hugepd(pu))
-			hpdp = (hugepd_t *)pu;
+		} else if (is_hugepd(&pud))
+			hpdp = (hugepd_t *)&pud;
 		else {
 			pdshift = PMD_SHIFT;
-			pm = pmd_offset(pu, ea);
+			pmdp = pmd_offset(&pud, ea);
+			pmd  = ACCESS_ONCE(*pmdp);
 			/*
 			 * A hugepage collapse is captured by pmd_none, because
 			 * it mark the pmd none and do a hpte invalidate.
@@ -975,16 +987,16 @@ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift
 			 * hpte invalidate
 			 *
 			 */
-			if (pmd_none(*pm) || pmd_trans_splitting(*pm))
+			if (pmd_none(pmd) || pmd_trans_splitting(pmd))
 				return NULL;
 
-			if (pmd_huge(*pm) || pmd_large(*pm)) {
-				ret_pte = (pte_t *) pm;
+			if (pmd_huge(pmd) || pmd_large(pmd)) {
+				ret_pte = (pte_t *) pmdp;
 				goto out;
-			} else if (is_hugepd(pm))
-				hpdp = (hugepd_t *)pm;
+			} else if (is_hugepd(&pmd))
+				hpdp = (hugepd_t *)&pmd;
 			else
-				return pte_offset_kernel(pm, ea);
+				return pte_offset_kernel(&pmd, ea);
 		}
 	}
 	if (!hpdp)
@@ -1019,6 +1031,14 @@ int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 
 	if ((pte_val(pte) & mask) != mask)
 		return 0;
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	/*
+	 * check for splitting here
+	 */
+	if (pmd_trans_splitting(pte_pmd(pte)))
+		return 0;
+#endif
 
 	/* hugepages are never "special" */
 	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
