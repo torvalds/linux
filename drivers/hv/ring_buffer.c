@@ -75,6 +75,8 @@ static bool hv_need_to_signal(u32 old_write, struct hv_ring_buffer_info *rbi)
 	if (rbi->ring_buffer->interrupt_mask)
 		return false;
 
+	/* check interrupt_mask before read_index */
+	rmb();
 	/*
 	 * This is the only case we need to signal when the
 	 * ring transitions from being empty to non-empty.
