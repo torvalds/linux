@@ -116,6 +116,7 @@ struct s5p_platform_fimc {
  * @color: the driver's private color format id
  * @memplanes: number of physically non-contiguous data planes
  * @colplanes: number of physically contiguous data planes
+ * @colorspace: v4l2 colorspace (V4L2_COLORSPACE_*)
  * @depth: per plane driver's private 'number of bits per pixel'
  * @mdataplanes: bitmask indicating meta data plane(s), (1 << plane_no)
  * @flags: flags indicating which operation mode format applies to
@@ -127,6 +128,7 @@ struct fimc_fmt {
 	u32	color;
 	u16	memplanes;
 	u16	colplanes;
+	u8	colorspace;
 	u8	depth[FIMC_MAX_PLANES];
 	u16	mdataplanes;
 	u16	flags;
