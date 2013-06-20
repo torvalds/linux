@@ -2436,6 +2436,11 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 	int err = 0;
 	int i;
 
+	if (!adapter->msix_entries) {
+		err = -EPERM;
+		goto out;
+	}
+
 	if (!num_vfs)
 		goto out;
 	else if (old_vfs && old_vfs == num_vfs)
