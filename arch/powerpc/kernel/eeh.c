@@ -269,6 +269,58 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
 	return pa | (token & (PAGE_SIZE-1));
 }
 
+/*
+ * On PowerNV platform, we might already have fenced PHB there.
+ * For that case, it's meaningless to recover frozen PE. Intead,
+ * We have to handle fenced PHB firstly.
+ */
+static int eeh_phb_check_failure(struct eeh_pe *pe)
+{
+	struct eeh_pe *phb_pe;
+	unsigned long flags;
+	int ret;
+
+	if (!eeh_probe_mode_dev())
+		return -EPERM;
+
+	/* Find the PHB PE */
+	phb_pe = eeh_phb_pe_get(pe->phb);
+	if (!phb_pe) {
+		pr_warning("%s Can't find PE for PHB#%d\n",
+			   __func__, pe->phb->global_number);
+		return -EEXIST;
+	}
+
+	/* If the PHB has been in problematic state */
+	eeh_serialize_lock(&flags);
+	if (phb_pe->state & (EEH_PE_ISOLATED | EEH_PE_PHB_DEAD)) {
+		ret = 0;
+		goto out;
+	}
+
+	/* Check PHB state */
+	ret = eeh_ops->get_state(phb_pe, NULL);
+	if ((ret < 0) ||
+	    (ret == EEH_STATE_NOT_SUPPORT) ||
+	    (ret & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) ==
+	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) {
+		ret = 0;
+		goto out;
+	}
+
+	/* Isolate the PHB and send event */
+	eeh_pe_state_mark(phb_pe, EEH_PE_ISOLATED);
+	eeh_serialize_unlock(flags);
+	eeh_send_failure_event(phb_pe);
+
+	WARN(1, "EEH: PHB failure detected\n");
+
+	return 1;
+out:
+	eeh_serialize_unlock(flags);
+	return ret;
+}
+
 /**
  * eeh_dev_check_failure - Check if all 1's data is due to EEH slot freeze
  * @edev: eeh device
@@ -318,6 +370,14 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 		eeh_stats.no_cfg_addr++;
 		return 0;
 	}
+
+	/*
+	 * On PowerNV platform, we might already have fenced PHB
+	 * there and we need take care of that firstly.
+	 */
+	ret = eeh_phb_check_failure(pe);
+	if (ret > 0)
+		return ret;
 
 	/* If we already have a pending isolation event for this
 	 * slot, we know it's bad already, we don't need to check.
