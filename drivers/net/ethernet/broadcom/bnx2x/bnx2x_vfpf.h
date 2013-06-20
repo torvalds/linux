@@ -331,7 +331,10 @@ struct pf_vf_bulletin_content {
 #define VLAN_VALID		1	/* when set, the vf should not access
 					 * the vfpf channel
 					 */
-
+#define CHANNEL_DOWN		2	/* vfpf channel is disabled. VFs are not
+					 * to attempt to send messages on the
+					 * channel after this bit is set
+					 */
 	u8 mac[ETH_ALEN];
 	u8 mac_padding[2];
 

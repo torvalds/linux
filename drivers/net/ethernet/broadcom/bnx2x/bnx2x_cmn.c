@@ -2871,6 +2871,9 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 	bp->state = BNX2X_STATE_CLOSING_WAIT4_HALT;
 	smp_mb();
 
+	/* indicate to VFs that the PF is going down */
+	bnx2x_iov_channel_down(bp);
+
 	if (CNIC_LOADED(bp))
 		bnx2x_cnic_notify(bp, CNIC_CTL_STOP_CMD);
 

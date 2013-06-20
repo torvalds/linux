@@ -1459,13 +1459,11 @@ static u8 bnx2x_vf_is_pcie_pending(struct bnx2x *bp, u8 abs_vfid)
 	struct bnx2x_virtf *vf = bnx2x_vf_by_abs_fid(bp, abs_vfid);
 
 	if (!vf)
-		goto unknown_dev;
+		return false;
 
 	dev = pci_get_bus_and_slot(vf->bus, vf->devfn);
 	if (dev)
 		return bnx2x_is_pcie_pending(dev);
-
-unknown_dev:
 	return false;
 }
 
@@ -3468,4 +3466,24 @@ int bnx2x_open_epilog(struct bnx2x *bp)
 	}
 
 	return 0;
+}
+
+void bnx2x_iov_channel_down(struct bnx2x *bp)
+{
+	int vf_idx;
+	struct pf_vf_bulletin_content *bulletin;
+
+	if (!IS_SRIOV(bp))
+		return;
+
+	for_each_vf(bp, vf_idx) {
+		/* locate this VFs bulletin board and update the channel down
+		 * bit
+		 */
+		bulletin = BP_VF_BULLETIN(bp, vf_idx);
+		bulletin->valid_bitmap |= 1 << CHANNEL_DOWN;
+
+		/* update vf bulletin board */
+		bnx2x_post_vf_bulletin(bp, vf_idx);
+	}
 }

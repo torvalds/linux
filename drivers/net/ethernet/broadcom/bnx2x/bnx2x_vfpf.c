@@ -113,12 +113,22 @@ static int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping)
 {
 	struct cstorm_vf_zone_data __iomem *zone_data =
 		REG_ADDR(bp, PXP_VF_ADDR_CSDM_GLOBAL_START);
-	int tout = 600, interval = 100; /* wait for 60 seconds */
+	int tout = 100, interval = 100; /* wait for 10 seconds */
 
 	if (*done) {
 		BNX2X_ERR("done was non zero before message to pf was sent\n");
 		WARN_ON(true);
 		return -EINVAL;
+	}
+
+	/* if PF indicated channel is down avoid sending message. Return success
+	 * so calling flow can continue
+	 */
+	bnx2x_sample_bulletin(bp);
+	if (bp->old_bulletin.valid_bitmap & 1 << CHANNEL_DOWN) {
+		DP(BNX2X_MSG_IOV, "detecting channel down. Aborting message\n");
+		*done = PFVF_STATUS_SUCCESS;
+		return 0;
 	}
 
 	/* Write message address */
