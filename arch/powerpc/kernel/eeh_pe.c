@@ -365,6 +365,17 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	pe->config_addr	= edev->config_addr;
 
 	/*
+	 * While doing PE reset, we probably hot-reset the
+	 * upstream bridge. However, the PCI devices including
+	 * the associated EEH devices might be removed when EEH
+	 * core is doing recovery. So that won't safe to retrieve
+	 * the bridge through downstream EEH device. We have to
+	 * trace the parent PCI bus, then the upstream bridge.
+	 */
+	if (eeh_probe_mode_dev())
+		pe->bus = eeh_dev_to_pci_dev(edev)->bus;
+
+	/*
 	 * Put the new EEH PE into hierarchy tree. If the parent
 	 * can't be found, the newly created PE will be attached
 	 * to PHB directly. Otherwise, we have to associate the
@@ -641,12 +652,18 @@ struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe)
 		bus = pe->phb->bus;
 	} else if (pe->type & EEH_PE_BUS ||
 		   pe->type & EEH_PE_DEVICE) {
+		if (pe->bus) {
+			bus = pe->bus;
+			goto out;
+		}
+
 		edev = list_first_entry(&pe->edevs, struct eeh_dev, list);
 		pdev = eeh_dev_to_pci_dev(edev);
 		if (pdev)
 			bus = pdev->bus;
 	}
 
+out:
 	eeh_unlock();
 
 	return bus;
