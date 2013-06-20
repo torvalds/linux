@@ -19,6 +19,8 @@ config OPENVSWITCH
 	  which is able to accept configuration from a variety of sources and
 	  translate it into packet processing rules.
 
+	  Open vSwitch GRE support depends on CONFIG_NET_IPGRE_DEMUX.
+
 	  See http://openvswitch.org for more information and userspace
 	  utilities.
 

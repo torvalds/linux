@@ -40,7 +40,38 @@ struct sw_flow_actions {
 	struct nlattr actions[];
 };
 
+/* Used to memset ovs_key_ipv4_tunnel padding. */
+#define OVS_TUNNEL_KEY_SIZE					\
+	(offsetof(struct ovs_key_ipv4_tunnel, ipv4_ttl) +	\
+	FIELD_SIZEOF(struct ovs_key_ipv4_tunnel, ipv4_ttl))
+
+struct ovs_key_ipv4_tunnel {
+	__be64 tun_id;
+	__be32 ipv4_src;
+	__be32 ipv4_dst;
+	__be16 tun_flags;
+	u8   ipv4_tos;
+	u8   ipv4_ttl;
+};
+
+static inline void ovs_flow_tun_key_init(struct ovs_key_ipv4_tunnel *tun_key,
+					 const struct iphdr *iph, __be64 tun_id,
+					 __be16 tun_flags)
+{
+	tun_key->tun_id = tun_id;
+	tun_key->ipv4_src = iph->saddr;
+	tun_key->ipv4_dst = iph->daddr;
+	tun_key->ipv4_tos = iph->tos;
+	tun_key->ipv4_ttl = iph->ttl;
+	tun_key->tun_flags = tun_flags;
+
+	/* clear struct padding. */
+	memset((unsigned char *) tun_key + OVS_TUNNEL_KEY_SIZE, 0,
+	       sizeof(*tun_key) - OVS_TUNNEL_KEY_SIZE);
+}
+
 struct sw_flow_key {
+	struct ovs_key_ipv4_tunnel tun_key;  /* Encapsulating tunnel key. */
 	struct {
 		u32	priority;	/* Packet QoS priority. */
 		u32	skb_mark;	/* SKB mark. */
@@ -130,7 +161,7 @@ struct sw_flow *ovs_flow_alloc(void);
 void ovs_flow_deferred_free(struct sw_flow *);
 void ovs_flow_free(struct sw_flow *flow);
 
-struct sw_flow_actions *ovs_flow_actions_alloc(const struct nlattr *);
+struct sw_flow_actions *ovs_flow_actions_alloc(int actions_len);
 void ovs_flow_deferred_free_acts(struct sw_flow_actions *);
 
 int ovs_flow_extract(struct sk_buff *, u16 in_port, struct sw_flow_key *,
@@ -141,10 +172,10 @@ u64 ovs_flow_used_time(unsigned long flow_jiffies);
 int ovs_flow_to_nlattrs(const struct sw_flow_key *, struct sk_buff *);
 int ovs_flow_from_nlattrs(struct sw_flow_key *swkey, int *key_lenp,
 		      const struct nlattr *);
-int ovs_flow_metadata_from_nlattrs(struct sw_flow *flow,
+int ovs_flow_metadata_from_nlattrs(struct sw_flow *flow, int key_len,
 				  const struct nlattr *attr);
 
-#define MAX_ACTIONS_BUFSIZE    (16 * 1024)
+#define MAX_ACTIONS_BUFSIZE    (32 * 1024)
 #define TBL_MIN_BUCKETS		1024
 
 struct flow_table {
@@ -173,11 +204,15 @@ void ovs_flow_tbl_deferred_destroy(struct flow_table *table);
 struct flow_table *ovs_flow_tbl_alloc(int new_size);
 struct flow_table *ovs_flow_tbl_expand(struct flow_table *table);
 struct flow_table *ovs_flow_tbl_rehash(struct flow_table *table);
-void ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow);
+void ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
+			 struct sw_flow_key *key, int key_len);
 void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow);
-u32 ovs_flow_hash(const struct sw_flow_key *key, int key_len);
 
 struct sw_flow *ovs_flow_tbl_next(struct flow_table *table, u32 *bucket, u32 *idx);
 extern const int ovs_key_lens[OVS_KEY_ATTR_MAX + 1];
+int ovs_ipv4_tun_from_nlattr(const struct nlattr *attr,
+			 struct ovs_key_ipv4_tunnel *tun_key);
+int ovs_ipv4_tun_to_nlattr(struct sk_buff *skb,
+			const struct ovs_key_ipv4_tunnel *tun_key);
 
 #endif /* flow.h */

@@ -7,6 +7,7 @@
 #define GREPROTO_CISCO		0
 #define GREPROTO_PPTP		1
 #define GREPROTO_MAX		2
+#define GRE_IP_PROTO_MAX	2
 
 struct gre_protocol {
 	int  (*handler)(struct sk_buff *skb);
@@ -21,6 +22,32 @@ struct gre_base_hdr {
 
 int gre_add_protocol(const struct gre_protocol *proto, u8 version);
 int gre_del_protocol(const struct gre_protocol *proto, u8 version);
+
+struct gre_cisco_protocol {
+	int (*handler)(struct sk_buff *skb, const struct tnl_ptk_info *tpi);
+	int (*err_handler)(struct sk_buff *skb, u32 info,
+			   const struct tnl_ptk_info *tpi);
+	u8 priority;
+};
+
+int gre_cisco_register(struct gre_cisco_protocol *proto);
+int gre_cisco_unregister(struct gre_cisco_protocol *proto);
+void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
+		      int hdr_len);
+struct sk_buff *gre_handle_offloads(struct sk_buff *skb, bool gre_csum);
+
+static inline int ip_gre_calc_hlen(__be16 o_flags)
+{
+	int addend = 4;
+
+	if (o_flags&TUNNEL_CSUM)
+		addend += 4;
+	if (o_flags&TUNNEL_KEY)
+		addend += 4;
+	if (o_flags&TUNNEL_SEQ)
+		addend += 4;
+	return addend;
+}
 
 static inline __be16 gre_flags_to_tnl_flags(__be16 flags)
 {
