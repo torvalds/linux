@@ -127,6 +127,13 @@ static int task_bp_pinned(int cpu, struct perf_event *bp, enum bp_type_idx type)
 	return count;
 }
 
+static const struct cpumask *cpumask_of_bp(struct perf_event *bp)
+{
+	if (bp->cpu >= 0)
+		return cpumask_of(bp->cpu);
+	return cpu_possible_mask;
+}
+
 /*
  * Report the number of pinned/un-pinned breakpoints we have in
  * a given cpu (cpu > -1) or in all of them (cpu = -1).
@@ -135,25 +142,13 @@ static void
 fetch_bp_busy_slots(struct bp_busy_slots *slots, struct perf_event *bp,
 		    enum bp_type_idx type)
 {
-	int cpu = bp->cpu;
-	struct task_struct *tsk = bp->hw.bp_target;
+	const struct cpumask *cpumask = cpumask_of_bp(bp);
+	int cpu;
 
-	if (cpu >= 0) {
-		slots->pinned = per_cpu(nr_cpu_bp_pinned[type], cpu);
-		if (!tsk)
-			slots->pinned += max_task_bp_pinned(cpu, type);
-		else
-			slots->pinned += task_bp_pinned(cpu, bp, type);
-		slots->flexible = per_cpu(nr_bp_flexible[type], cpu);
+	for_each_cpu(cpu, cpumask) {
+		unsigned int nr = per_cpu(nr_cpu_bp_pinned[type], cpu);
 
-		return;
-	}
-
-	for_each_possible_cpu(cpu) {
-		unsigned int nr;
-
-		nr = per_cpu(nr_cpu_bp_pinned[type], cpu);
-		if (!tsk)
+		if (!bp->hw.bp_target)
 			nr += max_task_bp_pinned(cpu, type);
 		else
 			nr += task_bp_pinned(cpu, bp, type);
@@ -205,25 +200,21 @@ static void
 toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type,
 	       int weight)
 {
-	int cpu = bp->cpu;
-	struct task_struct *tsk = bp->hw.bp_target;
+	const struct cpumask *cpumask = cpumask_of_bp(bp);
+	int cpu;
 
 	if (!enable)
 		weight = -weight;
 
 	/* Pinned counter cpu profiling */
-	if (!tsk) {
-		per_cpu(nr_cpu_bp_pinned[type], cpu) += weight;
+	if (!bp->hw.bp_target) {
+		per_cpu(nr_cpu_bp_pinned[type], bp->cpu) += weight;
 		return;
 	}
 
 	/* Pinned counter task profiling */
-	if (cpu >= 0) {
+	for_each_cpu(cpu, cpumask)
 		toggle_bp_task_slot(bp, cpu, type, weight);
-	} else {
-		for_each_possible_cpu(cpu)
-			toggle_bp_task_slot(bp, cpu, type, weight);
-	}
 
 	if (enable)
 		list_add_tail(&bp->hw.bp_list, &bp_task_head);
