@@ -1638,7 +1638,7 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 static int nvme_setup_io_queues(struct nvme_dev *dev)
 {
 	struct pci_dev *pdev = dev->pci_dev;
-	int result, cpu, i, nr_io_queues, db_bar_size, q_depth, q_count;
+	int result, cpu, i, vecs, nr_io_queues, db_bar_size, q_depth;
 
 	nr_io_queues = num_online_cpus();
 	result = set_queue_count(dev, nr_io_queues);
@@ -1647,7 +1647,6 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	if (result < nr_io_queues)
 		nr_io_queues = result;
 
-	q_count = nr_io_queues;
 	/* Deregister the admin queue's interrupt */
 	free_irq(dev->entry[0].vector, dev->queues[0]);
 
@@ -1659,38 +1658,41 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 		dev->queues[0]->q_db = dev->dbs;
 	}
 
-	for (i = 0; i < nr_io_queues; i++)
+	vecs = nr_io_queues;
+	for (i = 0; i < vecs; i++)
 		dev->entry[i].entry = i;
 	for (;;) {
-		result = pci_enable_msix(pdev, dev->entry, nr_io_queues);
-		if (result == 0) {
+		result = pci_enable_msix(pdev, dev->entry, vecs);
+		if (result <= 0)
 			break;
-		} else if (result > 0) {
-			nr_io_queues = result;
-			continue;
-		} else {
-			nr_io_queues = 0;
-			break;
+		vecs = result;
+	}
+
+	if (result < 0) {
+		vecs = nr_io_queues;
+		if (vecs > 32)
+			vecs = 32;
+		for (;;) {
+			result = pci_enable_msi_block(pdev, vecs);
+			if (result == 0) {
+				for (i = 0; i < vecs; i++)
+					dev->entry[i].vector = i + pdev->irq;
+				break;
+			} else if (result < 0) {
+				vecs = 1;
+				break;
+			}
+			vecs = result;
 		}
 	}
 
-	if (nr_io_queues == 0) {
-		nr_io_queues = q_count;
-		for (;;) {
-			result = pci_enable_msi_block(pdev, nr_io_queues);
-			if (result == 0) {
-				for (i = 0; i < nr_io_queues; i++)
-					dev->entry[i].vector = i + pdev->irq;
-				break;
-			} else if (result > 0) {
-				nr_io_queues = result;
-				continue;
-			} else {
-				nr_io_queues = 1;
-				break;
-			}
-		}
-	}
+	/*
+	 * Should investigate if there's a performance win from allocating
+	 * more queues than interrupt vectors; it might allow the submission
+	 * path to scale better, even if the receive path is limited by the
+	 * number of interrupts.
+	 */
+	nr_io_queues = vecs;
 
 	result = queue_request_irq(dev, dev->queues[0], "nvme admin");
 	/* XXX: handle failure here */
