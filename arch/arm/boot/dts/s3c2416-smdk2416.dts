@@ -9,7 +9,7 @@
  */
 
 /dts-v1/;
-/include/ "s3c2416.dtsi"
+#include "s3c2416.dtsi"
 
 / {
 	model = "SMDK2416";

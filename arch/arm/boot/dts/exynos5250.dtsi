@@ -17,8 +17,10 @@
  * published by the Free Software Foundation.
 */
 
-/include/ "skeleton.dtsi"
-/include/ "exynos5250-pinctrl.dtsi"
+#include "skeleton.dtsi"
+#include "exynos5250-pinctrl.dtsi"
+
+#include <dt-bindings/clk/exynos-audss-clk.h>
 
 / {
 	compatible = "samsung,exynos5250";
@@ -69,6 +71,12 @@
 	clock: clock-controller@0x10010000 {
 		compatible = "samsung,exynos5250-clock";
 		reg = <0x10010000 0x30000>;
+		#clock-cells = <1>;
+	};
+
+	clock_audss: audss-clock-controller@3810000 {
+		compatible = "samsung,exynos5250-audss-clock";
+		reg = <0x03810000 0x0C>;
 		#clock-cells = <1>;
 	};
 
@@ -451,6 +459,10 @@
 			&pdma0 9
 			&pdma0 8>;
 		dma-names = "tx", "rx", "tx-sec";
+		clocks = <&clock_audss EXYNOS_I2S_BUS>,
+			<&clock_audss EXYNOS_I2S_BUS>,
+			<&clock_audss EXYNOS_SCLK_I2S>;
+		clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 		samsung,supports-6ch;
 		samsung,supports-rstclr;
 		samsung,supports-secdai;
@@ -465,6 +477,8 @@
 		dmas = <&pdma1 12
 			&pdma1 11>;
 		dma-names = "tx", "rx";
+		clocks = <&clock 307>, <&clock 157>;
+		clock-names = "iis", "i2s_opclk0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1_bus>;
 	};
@@ -475,6 +489,8 @@
 		dmas = <&pdma0 12
 			&pdma0 11>;
 		dma-names = "tx", "rx";
+		clocks = <&clock 308>, <&clock 158>;
+		clock-names = "iis", "i2s_opclk0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s2_bus>;
 	};

@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-/include/ "s3c24xx.dtsi"
-/include/ "s3c2416-pinctrl.dtsi"
+#include "s3c24xx.dtsi"
+#include "s3c2416-pinctrl.dtsi"
 
 / {
 	model = "Samsung S3C2416 SoC";
