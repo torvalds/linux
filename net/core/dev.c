@@ -130,6 +130,7 @@
 #include <linux/cpu_rmap.h>
 #include <linux/static_key.h>
 #include <linux/hashtable.h>
+#include <linux/vmalloc.h>
 
 #include "net-sysfs.h"
 
@@ -5253,17 +5254,28 @@ static void netdev_init_one_queue(struct net_device *dev,
 #endif
 }
 
+static void netif_free_tx_queues(struct net_device *dev)
+{
+	if (is_vmalloc_addr(dev->_tx))
+		vfree(dev->_tx);
+	else
+		kfree(dev->_tx);
+}
+
 static int netif_alloc_netdev_queues(struct net_device *dev)
 {
 	unsigned int count = dev->num_tx_queues;
 	struct netdev_queue *tx;
+	size_t sz = count * sizeof(*tx);
 
-	BUG_ON(count < 1);
+	BUG_ON(count < 1 || count > 0xffff);
 
-	tx = kcalloc(count, sizeof(struct netdev_queue), GFP_KERNEL);
-	if (!tx)
-		return -ENOMEM;
-
+	tx = kzalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+	if (!tx) {
+		tx = vzalloc(sz);
+		if (!tx)
+			return -ENOMEM;
+	}
 	dev->_tx = tx;
 
 	netdev_for_each_tx_queue(dev, netdev_init_one_queue, NULL);
@@ -5811,7 +5823,7 @@ free_all:
 
 free_pcpu:
 	free_percpu(dev->pcpu_refcnt);
-	kfree(dev->_tx);
+	netif_free_tx_queues(dev);
 #ifdef CONFIG_RPS
 	kfree(dev->_rx);
 #endif
@@ -5836,7 +5848,7 @@ void free_netdev(struct net_device *dev)
 
 	release_net(dev_net(dev));
 
-	kfree(dev->_tx);
+	netif_free_tx_queues(dev);
 #ifdef CONFIG_RPS
 	kfree(dev->_rx);
 #endif
