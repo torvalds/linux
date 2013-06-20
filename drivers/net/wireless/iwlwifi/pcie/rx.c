@@ -110,9 +110,10 @@
 /*
  * iwl_rxq_space - Return number of free slots available in queue.
  */
-static int iwl_rxq_space(const struct iwl_rxq *q)
+static int iwl_rxq_space(const struct iwl_rxq *rxq)
 {
-	int s = q->read - q->write;
+	int s = rxq->read - rxq->write;
+
 	if (s <= 0)
 		s += RX_QUEUE_SIZE;
 	/* keep some buffer to not confuse full and empty queue */
@@ -143,21 +144,22 @@ int iwl_pcie_rx_stop(struct iwl_trans *trans)
 /*
  * iwl_pcie_rxq_inc_wr_ptr - Update the write pointer for the RX queue
  */
-static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_rxq *q)
+static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
+				    struct iwl_rxq *rxq)
 {
 	unsigned long flags;
 	u32 reg;
 
-	spin_lock_irqsave(&q->lock, flags);
+	spin_lock_irqsave(&rxq->lock, flags);
 
-	if (q->need_update == 0)
+	if (rxq->need_update == 0)
 		goto exit_unlock;
 
 	if (trans->cfg->base_params->shadow_reg_enable) {
 		/* shadow register enabled */
 		/* Device expects a multiple of 8 */
-		q->write_actual = (q->write & ~0x7);
-		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, q->write_actual);
+		rxq->write_actual = (rxq->write & ~0x7);
+		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
 	} else {
 		struct iwl_trans_pcie *trans_pcie =
 			IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -175,22 +177,22 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_rxq *q)
 				goto exit_unlock;
 			}
 
-			q->write_actual = (q->write & ~0x7);
+			rxq->write_actual = (rxq->write & ~0x7);
 			iwl_write_direct32(trans, FH_RSCSR_CHNL0_WPTR,
-					q->write_actual);
+					   rxq->write_actual);
 
 		/* Else device is assumed to be awake */
 		} else {
 			/* Device expects a multiple of 8 */
-			q->write_actual = (q->write & ~0x7);
+			rxq->write_actual = (rxq->write & ~0x7);
 			iwl_write_direct32(trans, FH_RSCSR_CHNL0_WPTR,
-				q->write_actual);
+					   rxq->write_actual);
 		}
 	}
-	q->need_update = 0;
+	rxq->need_update = 0;
 
  exit_unlock:
-	spin_unlock_irqrestore(&q->lock, flags);
+	spin_unlock_irqrestore(&rxq->lock, flags);
 }
 
 /*
