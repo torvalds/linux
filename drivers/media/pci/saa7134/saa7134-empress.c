@@ -511,7 +511,7 @@ static int empress_init(struct saa7134_dev *dev)
 	if (NULL == dev->empress_dev)
 		return -ENOMEM;
 	*(dev->empress_dev) = saa7134_empress_template;
-	dev->empress_dev->parent  = &dev->pci->dev;
+	dev->empress_dev->v4l2_dev  = &dev->v4l2_dev;
 	dev->empress_dev->release = video_device_release;
 	snprintf(dev->empress_dev->name, sizeof(dev->empress_dev->name),
 		 "%s empress (%s)", dev->name,
