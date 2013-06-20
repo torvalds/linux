@@ -136,6 +136,8 @@ static int fc_probe(struct fmc_device *fmc)
 
 	/* Create a char device: we want to create it anew */
 	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
+	if (!fc)
+		return -ENOMEM;
 	fc->fmc = fmc;
 	fc->misc.minor = MISC_DYNAMIC_MINOR;
 	fc->misc.fops = &fc_fops;
@@ -143,15 +145,18 @@ static int fc_probe(struct fmc_device *fmc)
 
 	spin_lock(&fc_lock);
 	ret = misc_register(&fc->misc);
-	if (ret < 0) {
-		kfree(fc->misc.name);
-		kfree(fc);
-	} else {
-		list_add(&fc->list, &fc_devices);
-	}
+	if (ret < 0)
+		goto err_unlock;
+	list_add(&fc->list, &fc_devices);
 	spin_unlock(&fc_lock);
 	dev_info(&fc->fmc->dev, "Created misc device \"%s\"\n",
 		 fc->misc.name);
+	return 0;
+
+err_unlock:
+	spin_unlock(&fc_lock);
+	kfree(fc->misc.name);
+	kfree(fc);
 	return ret;
 }
 
