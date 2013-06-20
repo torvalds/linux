@@ -349,10 +349,12 @@ static void *eeh_report_failure(void *data, void *userdata)
  */
 static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 {
+	struct timeval tstamp;
 	int cnt, rc;
 
 	/* pcibios will clear the counter; save the value */
 	cnt = pe->freeze_count;
+	tstamp = pe->tstamp;
 
 	/*
 	 * We don't remove the corresponding PE instances because
@@ -385,6 +387,8 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 		ssleep(5);
 		pcibios_add_pci_devices(bus);
 	}
+
+	pe->tstamp = tstamp;
 	pe->freeze_count = cnt;
 
 	return 0;
@@ -425,6 +429,7 @@ void eeh_handle_event(struct eeh_pe *pe)
 		return;
 	}
 
+	eeh_pe_update_time_stamp(pe);
 	pe->freeze_count++;
 	if (pe->freeze_count > EEH_MAX_ALLOWED_FREEZES)
 		goto excess_failures;

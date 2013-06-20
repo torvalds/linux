@@ -482,6 +482,33 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev, int purge_pe)
 }
 
 /**
+ * eeh_pe_update_time_stamp - Update PE's frozen time stamp
+ * @pe: EEH PE
+ *
+ * We have time stamp for each PE to trace its time of getting
+ * frozen in last hour. The function should be called to update
+ * the time stamp on first error of the specific PE. On the other
+ * handle, we needn't account for errors happened in last hour.
+ */
+void eeh_pe_update_time_stamp(struct eeh_pe *pe)
+{
+	struct timeval tstamp;
+
+	if (!pe) return;
+
+	if (pe->freeze_count <= 0) {
+		pe->freeze_count = 0;
+		do_gettimeofday(&pe->tstamp);
+	} else {
+		do_gettimeofday(&tstamp);
+		if (tstamp.tv_sec - pe->tstamp.tv_sec > 3600) {
+			pe->tstamp = tstamp;
+			pe->freeze_count = 0;
+		}
+	}
+}
+
+/**
  * __eeh_pe_state_mark - Mark the state for the PE
  * @data: EEH PE
  * @flag: state
