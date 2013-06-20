@@ -2178,10 +2178,10 @@ out:
 	return ret;
 }
 
-int drm_mode_cursor_ioctl(struct drm_device *dev,
-			void *data, struct drm_file *file_priv)
+static int drm_mode_cursor_common(struct drm_device *dev,
+				  struct drm_mode_cursor2 *req,
+				  struct drm_file *file_priv)
 {
-	struct drm_mode_cursor *req = data;
 	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
 	int ret = 0;
@@ -2201,13 +2201,17 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 
 	mutex_lock(&crtc->mutex);
 	if (req->flags & DRM_MODE_CURSOR_BO) {
-		if (!crtc->funcs->cursor_set) {
+		if (!crtc->funcs->cursor_set && !crtc->funcs->cursor_set2) {
 			ret = -ENXIO;
 			goto out;
 		}
 		/* Turns off the cursor if handle is 0 */
-		ret = crtc->funcs->cursor_set(crtc, file_priv, req->handle,
-					      req->width, req->height);
+		if (crtc->funcs->cursor_set2)
+			ret = crtc->funcs->cursor_set2(crtc, file_priv, req->handle,
+						      req->width, req->height, req->hot_x, req->hot_y);
+		else
+			ret = crtc->funcs->cursor_set(crtc, file_priv, req->handle,
+						      req->width, req->height);
 	}
 
 	if (req->flags & DRM_MODE_CURSOR_MOVE) {
@@ -2222,6 +2226,25 @@ out:
 	mutex_unlock(&crtc->mutex);
 
 	return ret;
+
+}
+int drm_mode_cursor_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_cursor *req = data;
+	struct drm_mode_cursor2 new_req;
+
+	memcpy(&new_req, req, sizeof(struct drm_mode_cursor));
+	new_req.hot_x = new_req.hot_y = 0;
+
+	return drm_mode_cursor_common(dev, &new_req, file_priv);
+}
+
+int drm_mode_cursor2_ioctl(struct drm_device *dev,
+			   void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_cursor2 *req = data;
+	return drm_mode_cursor_common(dev, req, file_priv);
 }
 
 /* Original addfb only supported RGB formats, so figure out which one */
