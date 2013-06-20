@@ -34,7 +34,6 @@
 #include <asm/mach-types.h>
 #include <linux/usb/ehci_def.h>
 #include <linux/usb/tegra_usb_phy.h>
-#include <linux/module.h>
 
 #define ULPI_VIEWPORT		0x170
 
