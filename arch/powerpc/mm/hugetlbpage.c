@@ -936,30 +936,50 @@ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift
 
 	pg = pgdir + pgd_index(ea);
 
-	if (pgd_huge(*pg)) {
+	/*
+	 * we should first check for none. That takes care of a
+	 * a parallel hugetlb or THP pagefault moving none entries
+	 * to respective types.
+	 */
+	if (pgd_none(*pg))
+		return NULL;
+	else if (pgd_huge(*pg)) {
 		ret_pte = (pte_t *) pg;
 		goto out;
 	} else if (is_hugepd(pg))
 		hpdp = (hugepd_t *)pg;
-	else if (!pgd_none(*pg)) {
+	else {
 		pdshift = PUD_SHIFT;
 		pu = pud_offset(pg, ea);
 
-		if (pud_huge(*pu)) {
+		if (pud_none(*pu))
+			return NULL;
+		else if (pud_huge(*pu)) {
 			ret_pte = (pte_t *) pu;
 			goto out;
 		} else if (is_hugepd(pu))
 			hpdp = (hugepd_t *)pu;
-		else if (!pud_none(*pu)) {
+		else {
 			pdshift = PMD_SHIFT;
 			pm = pmd_offset(pu, ea);
+			/*
+			 * A hugepage collapse is captured by pmd_none, because
+			 * it mark the pmd none and do a hpte invalidate.
+			 *
+			 * A hugepage split is captured by pmd_trans_splitting
+			 * because we mark the pmd trans splitting and do a
+			 * hpte invalidate
+			 *
+			 */
+			if (pmd_none(*pm) || pmd_trans_splitting(*pm))
+				return NULL;
 
-			if (pmd_huge(*pm)) {
+			if (pmd_huge(*pm) || pmd_large(*pm)) {
 				ret_pte = (pte_t *) pm;
 				goto out;
 			} else if (is_hugepd(pm))
 				hpdp = (hugepd_t *)pm;
-			else if (!pmd_none(*pm))
+			else
 				return pte_offset_kernel(pm, ea);
 		}
 	}
