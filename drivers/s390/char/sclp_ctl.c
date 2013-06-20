@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/ioctl.h>
 #include <linux/fs.h>
-#include <linux/compat.h>
 #include <asm/compat.h>
 #include <asm/sclp_ctl.h>
 #include <asm/sclp.h>
