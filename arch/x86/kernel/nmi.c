@@ -30,6 +30,9 @@
 #include <asm/nmi.h>
 #include <asm/x86_init.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/nmi.h>
+
 struct nmi_desc {
 	spinlock_t lock;
 	struct list_head head;
@@ -108,11 +111,13 @@ static int __kprobes nmi_handle(unsigned int type, struct pt_regs *regs, bool b2
 	 */
 	list_for_each_entry_rcu(a, &desc->head, list) {
 		u64 before, delta, whole_msecs;
-		int decimal_msecs;
+		int decimal_msecs, thishandled;
 
 		before = local_clock();
-		handled += a->handler(type, regs);
+		thishandled = a->handler(type, regs);
+		handled += thishandled;
 		delta = local_clock() - before;
+		trace_nmi_handler(a->handler, (int)delta, thishandled);
 
 		if (delta < nmi_longest_ns)
 			continue;
