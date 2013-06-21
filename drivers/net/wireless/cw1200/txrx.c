@@ -599,15 +599,15 @@ cw1200_tx_h_bt(struct cw1200_common *priv,
 	} else if (ieee80211_is_data(t->hdr->frame_control)) {
 		/* Skip LLC SNAP header (+6) */
 		u8 *payload = &t->skb->data[t->hdrlen];
-		u16 *ethertype = (u16 *)&payload[6];
-		if (*ethertype == __be16_to_cpu(ETH_P_PAE))
+		__be16 *ethertype = (__be16 *)&payload[6];
+		if (be16_to_cpu(*ethertype) == ETH_P_PAE)
 			priority = WSM_EPTA_PRIORITY_EAPOL;
 	} else if (ieee80211_is_assoc_req(t->hdr->frame_control) ||
 		ieee80211_is_reassoc_req(t->hdr->frame_control)) {
 		struct ieee80211_mgmt *mgt_frame =
 				(struct ieee80211_mgmt *)t->hdr;
 
-		if (mgt_frame->u.assoc_req.listen_interval <
+		if (le16_to_cpu(mgt_frame->u.assoc_req.listen_interval) <
 						priv->listen_interval) {
 			pr_debug("Modified Listen Interval to %d from %d\n",
 				 priv->listen_interval,
@@ -615,8 +615,7 @@ cw1200_tx_h_bt(struct cw1200_common *priv,
 			/* Replace listen interval derieved from
 			 * the one read from SDD
 			 */
-			mgt_frame->u.assoc_req.listen_interval =
-				priv->listen_interval;
+			mgt_frame->u.assoc_req.listen_interval = cpu_to_le16(priv->listen_interval);
 		}
 	}
 

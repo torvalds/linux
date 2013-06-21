@@ -238,8 +238,8 @@ static const struct ieee80211_ops cw1200_ops = {
 	/*.cancel_remain_on_channel = cw1200_cancel_remain_on_channel,	*/
 };
 
-int cw1200_ba_rx_tids = -1;
-int cw1200_ba_tx_tids = -1;
+static int cw1200_ba_rx_tids = -1;
+static int cw1200_ba_tx_tids = -1;
 module_param(cw1200_ba_rx_tids, int, 0644);
 module_param(cw1200_ba_tx_tids, int, 0644);
 MODULE_PARM_DESC(cw1200_ba_rx_tids, "Block ACK RX TIDs");
