@@ -815,6 +815,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (s.mask & AUDIT_STATUS_PID) {
 			int new_pid = s.pid;
 
+			if ((!new_pid) && (task_tgid_vnr(current) != audit_pid))
+				return -EACCES;
 			if (audit_enabled != AUDIT_OFF)
 				audit_log_config_change("audit_pid", new_pid, audit_pid, 1);
 			audit_pid = new_pid;
