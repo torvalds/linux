@@ -1074,7 +1074,7 @@ static struct usb_gadget_ops fotg210_gadget_ops = {
 	.udc_stop		= fotg210_udc_stop,
 };
 
-static int __exit fotg210_udc_remove(struct platform_device *pdev)
+static int fotg210_udc_remove(struct platform_device *pdev)
 {
 	struct fotg210_udc *fotg210 = dev_get_drvdata(&pdev->dev);
 
@@ -1088,7 +1088,7 @@ static int __exit fotg210_udc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __init fotg210_udc_probe(struct platform_device *pdev)
+static int fotg210_udc_probe(struct platform_device *pdev)
 {
 	struct resource *res, *ires;
 	struct fotg210_udc *fotg210 = NULL;
