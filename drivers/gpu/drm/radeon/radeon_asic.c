@@ -1061,6 +1061,99 @@ static struct radeon_asic r600_asic = {
 	},
 };
 
+static struct radeon_asic rv6xx_asic = {
+	.init = &r600_init,
+	.fini = &r600_fini,
+	.suspend = &r600_suspend,
+	.resume = &r600_resume,
+	.vga_set_state = &r600_vga_set_state,
+	.asic_reset = &r600_asic_reset,
+	.ioctl_wait_idle = r600_ioctl_wait_idle,
+	.gui_idle = &r600_gui_idle,
+	.mc_wait_for_idle = &r600_mc_wait_for_idle,
+	.get_xclk = &r600_get_xclk,
+	.get_gpu_clock_counter = &r600_get_gpu_clock_counter,
+	.gart = {
+		.tlb_flush = &r600_pcie_gart_tlb_flush,
+		.set_page = &rs600_gart_set_page,
+	},
+	.ring = {
+		[RADEON_RING_TYPE_GFX_INDEX] = {
+			.ib_execute = &r600_ring_ib_execute,
+			.emit_fence = &r600_fence_ring_emit,
+			.emit_semaphore = &r600_semaphore_ring_emit,
+			.cs_parse = &r600_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
+			.is_lockup = &r600_gfx_is_lockup,
+			.get_rptr = &radeon_ring_generic_get_rptr,
+			.get_wptr = &radeon_ring_generic_get_wptr,
+			.set_wptr = &radeon_ring_generic_set_wptr,
+		},
+		[R600_RING_TYPE_DMA_INDEX] = {
+			.ib_execute = &r600_dma_ring_ib_execute,
+			.emit_fence = &r600_dma_fence_ring_emit,
+			.emit_semaphore = &r600_dma_semaphore_ring_emit,
+			.cs_parse = &r600_dma_cs_parse,
+			.ring_test = &r600_dma_ring_test,
+			.ib_test = &r600_dma_ib_test,
+			.is_lockup = &r600_dma_is_lockup,
+			.get_rptr = &radeon_ring_generic_get_rptr,
+			.get_wptr = &radeon_ring_generic_get_wptr,
+			.set_wptr = &radeon_ring_generic_set_wptr,
+		}
+	},
+	.irq = {
+		.set = &r600_irq_set,
+		.process = &r600_irq_process,
+	},
+	.display = {
+		.bandwidth_update = &rv515_bandwidth_update,
+		.get_vblank_counter = &rs600_get_vblank_counter,
+		.wait_for_vblank = &avivo_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
+		.get_backlight_level = &atombios_get_backlight_level,
+	},
+	.copy = {
+		.blit = &r600_copy_blit,
+		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.dma = &r600_copy_dma,
+		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
+		.copy = &r600_copy_dma,
+		.copy_ring_index = R600_RING_TYPE_DMA_INDEX,
+	},
+	.surface = {
+		.set_reg = r600_set_surface_reg,
+		.clear_reg = r600_clear_surface_reg,
+	},
+	.hpd = {
+		.init = &r600_hpd_init,
+		.fini = &r600_hpd_fini,
+		.sense = &r600_hpd_sense,
+		.set_polarity = &r600_hpd_set_polarity,
+	},
+	.pm = {
+		.misc = &r600_pm_misc,
+		.prepare = &rs600_pm_prepare,
+		.finish = &rs600_pm_finish,
+		.init_profile = &r600_pm_init_profile,
+		.get_dynpm_state = &r600_pm_get_dynpm_state,
+		.get_engine_clock = &radeon_atom_get_engine_clock,
+		.set_engine_clock = &radeon_atom_set_engine_clock,
+		.get_memory_clock = &radeon_atom_get_memory_clock,
+		.set_memory_clock = &radeon_atom_set_memory_clock,
+		.get_pcie_lanes = &r600_get_pcie_lanes,
+		.set_pcie_lanes = &r600_set_pcie_lanes,
+		.set_clock_gating = NULL,
+		.get_temperature = &rv6xx_get_temp,
+	},
+	.pflip = {
+		.pre_page_flip = &rs600_pre_page_flip,
+		.page_flip = &rs600_page_flip,
+		.post_page_flip = &rs600_post_page_flip,
+	},
+};
+
 static struct radeon_asic rs780_asic = {
 	.init = &r600_init,
 	.fini = &r600_fini,
@@ -2454,16 +2547,15 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->asic = &r520_asic;
 		break;
 	case CHIP_R600:
+		rdev->asic = &r600_asic;
+		break;
 	case CHIP_RV610:
 	case CHIP_RV630:
 	case CHIP_RV620:
 	case CHIP_RV635:
 	case CHIP_RV670:
-		rdev->asic = &r600_asic;
-		if (rdev->family == CHIP_R600)
-			rdev->has_uvd = false;
-		else
-			rdev->has_uvd = true;
+		rdev->asic = &rv6xx_asic;
+		rdev->has_uvd = true;
 		break;
 	case CHIP_RS780:
 	case CHIP_RS880:
