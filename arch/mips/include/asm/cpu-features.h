@@ -97,13 +97,13 @@
 #define cpu_has_mips16		(cpu_data[0].ases & MIPS_ASE_MIPS16)
 #endif
 #ifndef cpu_has_mdmx
-#define cpu_has_mdmx	       (cpu_data[0].ases & MIPS_ASE_MDMX)
+#define cpu_has_mdmx		(cpu_data[0].ases & MIPS_ASE_MDMX)
 #endif
 #ifndef cpu_has_mips3d
-#define cpu_has_mips3d	       (cpu_data[0].ases & MIPS_ASE_MIPS3D)
+#define cpu_has_mips3d		(cpu_data[0].ases & MIPS_ASE_MIPS3D)
 #endif
 #ifndef cpu_has_smartmips
-#define cpu_has_smartmips      (cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
+#define cpu_has_smartmips	(cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
 #endif
 #ifndef cpu_has_rixi
 #define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
@@ -125,7 +125,7 @@
 #define cpu_has_ic_fills_f_dc	(cpu_data[0].icache.flags & MIPS_CACHE_IC_F_DC)
 #endif
 #ifndef cpu_has_pindexed_dcache
-#define cpu_has_pindexed_dcache (cpu_data[0].dcache.flags & MIPS_CACHE_PINDEX)
+#define cpu_has_pindexed_dcache	(cpu_data[0].dcache.flags & MIPS_CACHE_PINDEX)
 #endif
 #ifndef cpu_has_local_ebase
 #define cpu_has_local_ebase	1
@@ -162,18 +162,18 @@
 #ifndef cpu_has_mips_5
 # define cpu_has_mips_5		(cpu_data[0].isa_level & MIPS_CPU_ISA_V)
 #endif
-# ifndef cpu_has_mips32r1
+#ifndef cpu_has_mips32r1
 # define cpu_has_mips32r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R1)
-# endif
-# ifndef cpu_has_mips32r2
+#endif
+#ifndef cpu_has_mips32r2
 # define cpu_has_mips32r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R2)
-# endif
-# ifndef cpu_has_mips64r1
+#endif
+#ifndef cpu_has_mips64r1
 # define cpu_has_mips64r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R1)
-# endif
-# ifndef cpu_has_mips64r2
+#endif
+#ifndef cpu_has_mips64r2
 # define cpu_has_mips64r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R2)
-# endif
+#endif
 
 /*
  * Shortcuts ...
@@ -195,9 +195,9 @@
  * has CLO and CLZ but not DCLO nor DCLZ.  For 64-bit kernels
  * cpu_has_clo_clz also indicates the availability of DCLO and DCLZ.
  */
-# ifndef cpu_has_clo_clz
-# define cpu_has_clo_clz	cpu_has_mips_r
-# endif
+#ifndef cpu_has_clo_clz
+#define cpu_has_clo_clz	cpu_has_mips_r
+#endif
 
 #ifndef cpu_has_dsp
 #define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
@@ -223,7 +223,7 @@
 # define cpu_has_64bits		(cpu_data[0].isa_level & MIPS_CPU_ISA_64BIT)
 # endif
 # ifndef cpu_has_64bit_zero_reg
-# define cpu_has_64bit_zero_reg (cpu_data[0].isa_level & MIPS_CPU_ISA_64BIT)
+# define cpu_has_64bit_zero_reg	(cpu_data[0].isa_level & MIPS_CPU_ISA_64BIT)
 # endif
 # ifndef cpu_has_64bit_gp_regs
 # define cpu_has_64bit_gp_regs		0
