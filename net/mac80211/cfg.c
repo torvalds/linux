@@ -2827,7 +2827,8 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		    !rcu_access_pointer(sdata->bss->beacon))
 			need_offchan = true;
 		if (!ieee80211_is_action(mgmt->frame_control) ||
-		    mgmt->u.action.category == WLAN_CATEGORY_PUBLIC)
+		    mgmt->u.action.category == WLAN_CATEGORY_PUBLIC ||
+		    mgmt->u.action.category == WLAN_CATEGORY_SELF_PROTECTED)
 			break;
 		rcu_read_lock();
 		sta = sta_info_get(sdata, mgmt->da);
