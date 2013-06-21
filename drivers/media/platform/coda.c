@@ -802,9 +802,8 @@ static void coda_fill_bitstream(struct coda_ctx *ctx)
 /*
  * Mem-to-mem operations.
  */
-static void coda_device_run(void *m2m_priv)
+static void coda_prepare_encode(struct coda_ctx *ctx)
 {
-	struct coda_ctx *ctx = m2m_priv;
 	struct coda_q_data *q_data_src, *q_data_dst;
 	struct vb2_buffer *src_buf, *dst_buf;
 	struct coda_dev *dev = ctx->dev;
@@ -813,8 +812,6 @@ static void coda_device_run(void *m2m_priv)
 	u32 picture_y, picture_cb, picture_cr;
 	u32 pic_stream_buffer_addr, pic_stream_buffer_size;
 	u32 dst_fourcc;
-
-	mutex_lock(&dev->coda_mutex);
 
 	src_buf = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
@@ -926,6 +923,16 @@ static void coda_device_run(void *m2m_priv)
 	coda_write(dev, pic_stream_buffer_addr, CODA_CMD_ENC_PIC_BB_START);
 	coda_write(dev, pic_stream_buffer_size / 1024,
 		   CODA_CMD_ENC_PIC_BB_SIZE);
+}
+
+static void coda_device_run(void *m2m_priv)
+{
+	struct coda_ctx *ctx = m2m_priv;
+	struct coda_dev *dev = ctx->dev;
+
+	mutex_lock(&dev->coda_mutex);
+
+	coda_prepare_encode(ctx);
 
 	if (dev->devtype->product == CODA_7541) {
 		coda_write(dev, CODA7_USE_BIT_ENABLE | CODA7_USE_HOST_BIT_ENABLE |
@@ -2034,39 +2041,11 @@ static const struct v4l2_file_operations coda_fops = {
 	.mmap		= coda_mmap,
 };
 
-static irqreturn_t coda_irq_handler(int irq, void *data)
+static void coda_encode_finish(struct coda_ctx *ctx)
 {
 	struct vb2_buffer *src_buf, *dst_buf;
-	struct coda_dev *dev = data;
+	struct coda_dev *dev = ctx->dev;
 	u32 wr_ptr, start_ptr;
-	struct coda_ctx *ctx;
-
-	cancel_delayed_work(&dev->timeout);
-
-	/* read status register to attend the IRQ */
-	coda_read(dev, CODA_REG_BIT_INT_STATUS);
-	coda_write(dev, CODA_REG_BIT_INT_CLEAR_SET,
-		      CODA_REG_BIT_INT_CLEAR);
-
-	ctx = v4l2_m2m_get_curr_priv(dev->m2m_dev);
-	if (ctx == NULL) {
-		v4l2_err(&dev->v4l2_dev, "Instance released before the end of transaction\n");
-		mutex_unlock(&dev->coda_mutex);
-		return IRQ_HANDLED;
-	}
-
-	if (ctx->aborting) {
-		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
-			 "task has been aborted\n");
-		mutex_unlock(&dev->coda_mutex);
-		return IRQ_HANDLED;
-	}
-
-	if (coda_isbusy(ctx->dev)) {
-		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
-			 "coda is still busy!!!!\n");
-		return IRQ_NONE;
-	}
 
 	src_buf = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 	dst_buf = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
@@ -2115,6 +2094,41 @@ static irqreturn_t coda_irq_handler(int irq, void *data)
 		dst_buf->v4l2_buf.sequence,
 		(dst_buf->v4l2_buf.flags & V4L2_BUF_FLAG_KEYFRAME) ?
 		"KEYFRAME" : "PFRAME");
+}
+
+static irqreturn_t coda_irq_handler(int irq, void *data)
+{
+	struct coda_dev *dev = data;
+	struct coda_ctx *ctx;
+
+	cancel_delayed_work(&dev->timeout);
+
+	/* read status register to attend the IRQ */
+	coda_read(dev, CODA_REG_BIT_INT_STATUS);
+	coda_write(dev, CODA_REG_BIT_INT_CLEAR_SET,
+		      CODA_REG_BIT_INT_CLEAR);
+
+	ctx = v4l2_m2m_get_curr_priv(dev->m2m_dev);
+	if (ctx == NULL) {
+		v4l2_err(&dev->v4l2_dev, "Instance released before the end of transaction\n");
+		mutex_unlock(&dev->coda_mutex);
+		return IRQ_HANDLED;
+	}
+
+	if (ctx->aborting) {
+		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
+			 "task has been aborted\n");
+		mutex_unlock(&dev->coda_mutex);
+		return IRQ_HANDLED;
+	}
+
+	if (coda_isbusy(ctx->dev)) {
+		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
+			 "coda is still busy!!!!\n");
+		return IRQ_NONE;
+	}
+
+	coda_encode_finish(ctx);
 
 	mutex_unlock(&dev->coda_mutex);
 
