@@ -80,3 +80,8 @@ int rk_leakage_val(void)
 	else
 		return  (efuse_buf[22] >> 4) & 0x0f;
 }
+
+int rk3028_version_val(void)
+{
+	return efuse_buf[5];
+}
