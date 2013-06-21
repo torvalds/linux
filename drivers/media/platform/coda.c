@@ -1221,6 +1221,7 @@ static void coda_setup_iram(struct coda_ctx *ctx)
 	int ipacdc_size;
 	int bitram_size;
 	int dbk_size;
+	int ovl_size;
 	int mb_width;
 	int me_size;
 	int size;
@@ -1282,7 +1283,47 @@ static void coda_setup_iram(struct coda_ctx *ctx)
 			size -= ipacdc_size;
 		}
 
-		/* OVL disabled for encoder */
+		/* OVL and BTP disabled for encoder */
+	} else if (ctx->inst_type == CODA_INST_DECODER) {
+		struct coda_q_data *q_data_dst;
+		int mb_height;
+
+		q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+		mb_width = DIV_ROUND_UP(q_data_dst->width, 16);
+		mb_height = DIV_ROUND_UP(q_data_dst->height, 16);
+
+		dbk_size = round_up(256 * mb_width, 1024);
+		if (size >= dbk_size) {
+			iram_info->axi_sram_use |= CODA7_USE_HOST_DBK_ENABLE;
+			iram_info->buf_dbk_y_use = dev->iram_paddr;
+			iram_info->buf_dbk_c_use = dev->iram_paddr +
+						   dbk_size / 2;
+			size -= dbk_size;
+		} else {
+			goto out;
+		}
+
+		bitram_size = round_up(128 * mb_width, 1024);
+		if (size >= bitram_size) {
+			iram_info->axi_sram_use |= CODA7_USE_HOST_BIT_ENABLE;
+			iram_info->buf_bit_use = iram_info->buf_dbk_c_use +
+						 dbk_size / 2;
+			size -= bitram_size;
+		} else {
+			goto out;
+		}
+
+		ipacdc_size = round_up(128 * mb_width, 1024);
+		if (size >= ipacdc_size) {
+			iram_info->axi_sram_use |= CODA7_USE_HOST_IP_ENABLE;
+			iram_info->buf_ip_ac_dc_use = iram_info->buf_bit_use +
+						      bitram_size;
+			size -= ipacdc_size;
+		} else {
+			goto out;
+		}
+
+		ovl_size = round_up(80 * mb_width, 1024);
 	}
 
 out:
@@ -1309,7 +1350,12 @@ out:
 
 	if (dev->devtype->product == CODA_7541) {
 		/* TODO - Enabling these causes picture errors on CODA7541 */
-		if (ctx->inst_type == CODA_INST_ENCODER) {
+		if (ctx->inst_type == CODA_INST_DECODER) {
+			/* fw 1.4.50 */
+			iram_info->axi_sram_use &= ~(CODA7_USE_HOST_IP_ENABLE |
+						     CODA7_USE_IP_ENABLE);
+		} else {
+			/* fw 13.4.29 */
 			iram_info->axi_sram_use &= ~(CODA7_USE_HOST_IP_ENABLE |
 						     CODA7_USE_HOST_DBK_ENABLE |
 						     CODA7_USE_IP_ENABLE |
