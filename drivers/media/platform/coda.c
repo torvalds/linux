@@ -1671,12 +1671,12 @@ static irqreturn_t coda_irq_handler(int irq, void *data)
 	wr_ptr = coda_read(dev, CODA_REG_BIT_WR_PTR(ctx->idx));
 	/* Calculate bytesused field */
 	if (dst_buf->v4l2_buf.sequence == 0) {
-		dst_buf->v4l2_planes[0].bytesused = (wr_ptr - start_ptr) +
-						ctx->vpu_header_size[0] +
-						ctx->vpu_header_size[1] +
-						ctx->vpu_header_size[2];
+		vb2_set_plane_payload(dst_buf, 0, wr_ptr - start_ptr +
+					ctx->vpu_header_size[0] +
+					ctx->vpu_header_size[1] +
+					ctx->vpu_header_size[2]);
 	} else {
-		dst_buf->v4l2_planes[0].bytesused = (wr_ptr - start_ptr);
+		vb2_set_plane_payload(dst_buf, 0, wr_ptr - start_ptr);
 	}
 
 	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev, "frame size = %u\n",
