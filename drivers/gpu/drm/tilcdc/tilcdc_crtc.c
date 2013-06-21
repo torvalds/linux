@@ -443,10 +443,29 @@ int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	if (mode->vdisplay > 2048)
 		return MODE_VIRTUAL_Y;
 
+	/*
+	 * some devices have a maximum allowed pixel clock
+	 * configured from the DT
+	 */
+	if (mode->clock > priv->max_pixelclock) {
+		DBG("Pruning mode, pixel clock too high");
+		return MODE_CLOCK_HIGH;
+	}
+
+	/*
+	 * some devices further limit the max horizontal resolution
+	 * configured from the DT
+	 */
+	if (mode->hdisplay > priv->max_width)
+		return MODE_BAD_WIDTH;
+
 	/* filter out modes that would require too much memory bandwidth: */
-	bandwidth = mode->hdisplay * mode->vdisplay * drm_mode_vrefresh(mode);
-	if (bandwidth > priv->max_bandwidth)
+	bandwidth = mode->hdisplay * mode->vdisplay *
+		drm_mode_vrefresh(mode);
+	if (bandwidth > priv->max_bandwidth) {
+		DBG("Pruning mode, exceeds defined bandwidth limit");
 		return MODE_BAD;
+	}
 
 	return MODE_OK;
 }
