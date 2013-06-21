@@ -289,17 +289,22 @@ static int tilcdc_crtc_mode_set(struct drm_crtc *crtc,
 	reg = tilcdc_read(dev, LCDC_RASTER_TIMING_2_REG) & ~0x000fff00;
 	reg |= LCDC_AC_BIAS_FREQUENCY(info->ac_bias) |
 		LCDC_AC_BIAS_TRANSITIONS_PER_INT(info->ac_bias_intrpt);
+
+	/*
+	 * subtract one from hfp, hbp, hsw because the hardware uses
+	 * a value of 0 as 1
+	 */
 	if (priv->rev == 2) {
-		reg |= (hfp & 0x300) >> 8;
-		reg |= (hbp & 0x300) >> 4;
-		reg |= (hsw & 0x3c0) << 21;
+		reg |= ((hfp-1) & 0x300) >> 8;
+		reg |= ((hbp-1) & 0x300) >> 4;
+		reg |= ((hsw-1) & 0x3c0) << 21;
 	}
 	tilcdc_write(dev, LCDC_RASTER_TIMING_2_REG, reg);
 
 	reg = (((mode->hdisplay >> 4) - 1) << 4) |
-		((hbp & 0xff) << 24) |
-		((hfp & 0xff) << 16) |
-		((hsw & 0x3f) << 10);
+		(((hbp-1) & 0xff) << 24) |
+		(((hfp-1) & 0xff) << 16) |
+		(((hsw-1) & 0x3f) << 10);
 	if (priv->rev == 2)
 		reg |= (((mode->hdisplay >> 4) - 1) & 0x40) >> 3;
 	tilcdc_write(dev, LCDC_RASTER_TIMING_0_REG, reg);
@@ -307,7 +312,7 @@ static int tilcdc_crtc_mode_set(struct drm_crtc *crtc,
 	reg = ((mode->vdisplay - 1) & 0x3ff) |
 		((vbp & 0xff) << 24) |
 		((vfp & 0xff) << 16) |
-		((vsw & 0x3f) << 10);
+		(((vsw-1) & 0x3f) << 10);
 	tilcdc_write(dev, LCDC_RASTER_TIMING_1_REG, reg);
 
 	/*
