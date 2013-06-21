@@ -6,7 +6,11 @@ Required properties :
  - reg             : Offset and length of the register set for the device
  - compatible      : Should be "marvell,mv64xxx-i2c"
  - interrupts      : The interrupt number
- - clock-frequency : Desired I2C bus clock frequency in Hz.
+
+Optional properties :
+
+ - clock-frequency : Desired I2C bus clock frequency in Hz. If not set the
+default frequency is 100kHz
 
 Examples:
 
