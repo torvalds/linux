@@ -634,6 +634,7 @@ void ath_ant_comb_update(struct ath_softc *sc);
 #define ATH9K_PCI_CUS198 0x0001
 #define ATH9K_PCI_CUS230 0x0002
 #define ATH9K_PCI_CUS217 0x0004
+#define ATH9K_PCI_WOW    0x0008
 
 /*
  * Default cache line size, in bytes.
