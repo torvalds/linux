@@ -299,6 +299,57 @@ DEFINE_EVENT_PRINT(pm_qos_update, pm_qos_update_flags,
 			{ PM_QOS_REMOVE_REQ,	"REMOVE_REQ" }),
 		  __entry->prev_value, __entry->curr_value)
 );
+
+DECLARE_EVENT_CLASS(dev_pm_qos_request,
+
+	TP_PROTO(const char *name, enum dev_pm_qos_req_type type,
+		 s32 new_value),
+
+	TP_ARGS(name, type, new_value),
+
+	TP_STRUCT__entry(
+		__string( name,                    name         )
+		__field( enum dev_pm_qos_req_type, type         )
+		__field( s32,                      new_value    )
+	),
+
+	TP_fast_assign(
+		__assign_str(name, name);
+		__entry->type = type;
+		__entry->new_value = new_value;
+	),
+
+	TP_printk("device=%s type=%s new_value=%d",
+		  __get_str(name),
+		  __print_symbolic(__entry->type,
+			{ DEV_PM_QOS_LATENCY,	"DEV_PM_QOS_LATENCY" },
+			{ DEV_PM_QOS_FLAGS,	"DEV_PM_QOS_FLAGS" }),
+		  __entry->new_value)
+);
+
+DEFINE_EVENT(dev_pm_qos_request, dev_pm_qos_add_request,
+
+	TP_PROTO(const char *name, enum dev_pm_qos_req_type type,
+		 s32 new_value),
+
+	TP_ARGS(name, type, new_value)
+);
+
+DEFINE_EVENT(dev_pm_qos_request, dev_pm_qos_update_request,
+
+	TP_PROTO(const char *name, enum dev_pm_qos_req_type type,
+		 s32 new_value),
+
+	TP_ARGS(name, type, new_value)
+);
+
+DEFINE_EVENT(dev_pm_qos_request, dev_pm_qos_remove_request,
+
+	TP_PROTO(const char *name, enum dev_pm_qos_req_type type,
+		 s32 new_value),
+
+	TP_ARGS(name, type, new_value)
+);
 #endif /* _TRACE_POWER_H */
 
 /* This part must be outside protection */
