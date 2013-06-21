@@ -7,7 +7,6 @@ config ARCH_SOCFPGA
 	select CLKDEV_LOOKUP
 	select COMMON_CLK
 	select CPU_V7
-	select DW_APB_TIMER
 	select DW_APB_TIMER_OF
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PL061 if GPIOLIB
