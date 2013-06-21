@@ -323,6 +323,21 @@ static struct clk z_clk = {
 	.ops = &zclk_ops,
 };
 
+/*
+ * It seems only 1/2 divider is usable in manual mode. 1/2 / 2/3
+ * switching is only available in auto-DVFS mode
+ */
+SH_FIXED_RATIO_CLK(pll0_div2_clk,	pll0_clk,		div2);
+
+static struct clk z2_clk = {
+	.parent = &pll0_div2_clk,
+	.div_mask = 0x1f,
+	.enable_bit = 0,
+	/* We'll need to access FRQCRB and FRQCRC */
+	.enable_reg = (void __iomem *)FRQCRB,
+	.ops = &zclk_ops,
+};
+
 static struct clk *main_clks[] = {
 	&extalr_clk,
 	&extal1_clk,
@@ -341,6 +356,8 @@ static struct clk *main_clks[] = {
 	&pll2s_clk,
 	&pll2h_clk,
 	&z_clk,
+	&pll0_div2_clk,
+	&z2_clk,
 };
 
 /* DIV4 */
