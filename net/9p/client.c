@@ -658,12 +658,18 @@ static int p9_client_flush(struct p9_client *c, struct p9_req_t *oldreq)
 
 	/*
 	 * if we haven't received a response for oldreq,
-	 * remove it from the list.
+	 * remove it from the list, and notify the transport
+	 * layer that the reply will never arrive.
 	 */
 	spin_lock(&c->lock);
-	if (oldreq->status == REQ_STATUS_FLSH)
+	if (oldreq->status == REQ_STATUS_FLSH) {
 		list_del(&oldreq->req_list);
-	spin_unlock(&c->lock);
+		spin_unlock(&c->lock);
+		if (c->trans_mod->cancelled)
+			c->trans_mod->cancelled(c, req);
+	} else {
+		spin_unlock(&c->lock);
+	}
 
 	p9_free_req(c, req);
 	return 0;
