@@ -28,6 +28,12 @@ struct rcar_du_group;
 #define RCAR_DU_NUM_KMS_PLANES		9
 #define RCAR_DU_NUM_HW_PLANES		8
 
+enum rcar_du_plane_source {
+	RCAR_DU_PLANE_MEMORY,
+	RCAR_DU_PLANE_VSPD0,
+	RCAR_DU_PLANE_VSPD1,
+};
+
 struct rcar_du_plane {
 	struct drm_plane plane;
 	struct rcar_du_group *group;
@@ -52,6 +58,7 @@ struct rcar_du_plane_state {
 
 	const struct rcar_du_format_info *format;
 	int hwindex;
+	enum rcar_du_plane_source source;
 
 	unsigned int alpha;
 	unsigned int colorkey;

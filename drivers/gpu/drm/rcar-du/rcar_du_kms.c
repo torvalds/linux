@@ -244,11 +244,41 @@ static unsigned int rcar_du_plane_hwmask(struct rcar_du_plane_state *state)
 	return mask;
 }
 
-static int rcar_du_plane_hwalloc(unsigned int num_planes, unsigned int free)
+/*
+ * The R8A7790 DU can source frames directly from the VSP1 devices VSPD0 and
+ * VSPD1. VSPD0 feeds DU0/1 plane 0, and VSPD1 feeds either DU2 plane 0 or
+ * DU0/1 plane 1.
+ *
+ * Allocate the correct fixed plane when sourcing frames from VSPD0 or VSPD1,
+ * and allocate planes in reverse index order otherwise to ensure maximum
+ * availability of planes 0 and 1.
+ *
+ * The caller is responsible for ensuring that the requested source is
+ * compatible with the DU revision.
+ */
+static int rcar_du_plane_hwalloc(struct rcar_du_plane *plane,
+				 struct rcar_du_plane_state *state,
+				 unsigned int free)
 {
-	unsigned int i;
+	unsigned int num_planes = state->format->planes;
+	int fixed = -1;
+	int i;
 
-	for (i = 0; i < RCAR_DU_NUM_HW_PLANES; ++i) {
+	if (state->source == RCAR_DU_PLANE_VSPD0) {
+		/* VSPD0 feeds plane 0 on DU0/1. */
+		if (plane->group->index != 0)
+			return -EINVAL;
+
+		fixed = 0;
+	} else if (state->source == RCAR_DU_PLANE_VSPD1) {
+		/* VSPD1 feeds plane 1 on DU0/1 or plane 0 on DU2. */
+		fixed = plane->group->index == 0 ? 1 : 0;
+	}
+
+	if (fixed >= 0)
+		return free & (1 << fixed) ? fixed : -EBUSY;
+
+	for (i = RCAR_DU_NUM_HW_PLANES - 1; i >= 0; --i) {
 		if (!(free & (1 << i)))
 			continue;
 
@@ -256,7 +286,7 @@ static int rcar_du_plane_hwalloc(unsigned int num_planes, unsigned int free)
 			break;
 	}
 
-	return i == RCAR_DU_NUM_HW_PLANES ? -EBUSY : i;
+	return i < 0 ? -EBUSY : i;
 }
 
 static int rcar_du_atomic_check(struct drm_device *dev,
@@ -413,10 +443,10 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 			    : ~plane->group->dptsr_planes;
 		free = group_free_planes[plane->group->index];
 
-		idx = rcar_du_plane_hwalloc(plane_state->format->planes,
+		idx = rcar_du_plane_hwalloc(plane, plane_state,
 					    free & crtc_planes);
 		if (idx < 0)
-			idx = rcar_du_plane_hwalloc(plane_state->format->planes,
+			idx = rcar_du_plane_hwalloc(plane, plane_state,
 						    free);
 		if (idx < 0) {
 			dev_dbg(rcdu->dev, "%s: no available hardware plane\n",

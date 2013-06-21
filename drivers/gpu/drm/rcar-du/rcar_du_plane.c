@@ -309,6 +309,7 @@ static void rcar_du_plane_reset(struct drm_plane *plane)
 		return;
 
 	state->hwindex = -1;
+	state->source = RCAR_DU_PLANE_MEMORY;
 	state->alpha = 255;
 	state->colorkey = RCAR_DU_COLORKEY_NONE;
 	state->zpos = plane->type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
