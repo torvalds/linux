@@ -341,7 +341,7 @@ static void purge_persistent_gnt(struct xen_blkif *blkif)
 	struct persistent_gnt *persistent_gnt;
 	struct rb_node *n;
 	unsigned int num_clean, total;
-	bool scan_used = false;
+	bool scan_used = false, clean_used = false;
 	struct rb_root *root;
 
 	if (blkif->persistent_gnt_c < xen_blkif_max_pgrants ||
@@ -358,9 +358,8 @@ static void purge_persistent_gnt(struct xen_blkif *blkif)
 	num_clean = (xen_blkif_max_pgrants / 100) * LRU_PERCENT_CLEAN;
 	num_clean = blkif->persistent_gnt_c - xen_blkif_max_pgrants + num_clean;
 	num_clean = min(blkif->persistent_gnt_c, num_clean);
-	if (num_clean >
-	    (blkif->persistent_gnt_c -
-	    atomic_read(&blkif->persistent_gnt_in_use)))
+	if ((num_clean == 0) ||
+	    (num_clean > (blkif->persistent_gnt_c - atomic_read(&blkif->persistent_gnt_in_use))))
 		return;
 
 	/*
@@ -383,6 +382,11 @@ purge_list:
 		BUG_ON(persistent_gnt->handle ==
 			BLKBACK_INVALID_HANDLE);
 
+		if (clean_used) {
+			clear_bit(PERSISTENT_GNT_WAS_ACTIVE, persistent_gnt->flags);
+			continue;
+		}
+
 		if (test_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags))
 			continue;
 		if (!scan_used &&
@@ -400,18 +404,18 @@ purge_list:
 	 * grants that were used since last purge in order to cope
 	 * with the requested num
 	 */
-	if (!scan_used) {
+	if (!scan_used && !clean_used) {
 		pr_debug(DRV_PFX "Still missing %u purged frames\n", num_clean);
 		scan_used = true;
 		goto purge_list;
 	}
 finished:
-	/* Remove the "used" flag from all the persistent grants */
-	foreach_grant_safe(persistent_gnt, n, root, node) {
-		BUG_ON(persistent_gnt->handle ==
-			BLKBACK_INVALID_HANDLE);
-		clear_bit(PERSISTENT_GNT_WAS_ACTIVE, persistent_gnt->flags);
+	if (!clean_used) {
+		pr_debug(DRV_PFX "Finished scanning for grants to clean, removing used flag\n");
+		clean_used = true;
+		goto purge_list;
 	}
+
 	blkif->persistent_gnt_c -= (total - num_clean);
 	blkif->vbd.overflow_max_grants = 0;
 
