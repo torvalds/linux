@@ -367,10 +367,11 @@ void __init arch_get_fast_and_slow_cpus(struct cpumask *fast,
 	cpumask_clear(slow);
 }
 
+struct cpumask hmp_slow_cpu_mask;
+
 void __init arch_get_hmp_domains(struct list_head *hmp_domains_list)
 {
 	struct cpumask hmp_fast_cpu_mask;
-	struct cpumask hmp_slow_cpu_mask;
 	struct hmp_domain *domain;
 
 	arch_get_fast_and_slow_cpus(&hmp_fast_cpu_mask, &hmp_slow_cpu_mask);
