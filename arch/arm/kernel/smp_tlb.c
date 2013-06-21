@@ -103,7 +103,7 @@ static void broadcast_tlb_a15_erratum(void)
 
 static void broadcast_tlb_mm_a15_erratum(struct mm_struct *mm)
 {
-	int cpu, this_cpu;
+	int this_cpu;
 	cpumask_t mask = { CPU_BITS_NONE };
 
 	if (!erratum_a15_798181())
@@ -111,21 +111,7 @@ static void broadcast_tlb_mm_a15_erratum(struct mm_struct *mm)
 
 	dummy_flush_tlb_a15_erratum();
 	this_cpu = get_cpu();
-	for_each_online_cpu(cpu) {
-		if (cpu == this_cpu)
-			continue;
-		/*
-		 * We only need to send an IPI if the other CPUs are running
-		 * the same ASID as the one being invalidated. There is no
-		 * need for locking around the active_asids check since the
-		 * switch_mm() function has at least one dmb() (as required by
-		 * this workaround) in case a context switch happens on
-		 * another CPU after the condition below.
-		 */
-		if (atomic64_read(&mm->context.id) ==
-		    atomic64_read(&per_cpu(active_asids, cpu)))
-			cpumask_set_cpu(cpu, &mask);
-	}
+	a15_erratum_get_cpumask(this_cpu, mm, &mask);
 	smp_call_function_many(&mask, ipi_flush_tlb_a15_erratum, NULL, 1);
 	put_cpu();
 }

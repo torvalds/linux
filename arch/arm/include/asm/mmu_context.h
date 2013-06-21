@@ -28,7 +28,15 @@ void __check_vmalloc_seq(struct mm_struct *mm);
 void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk);
 #define init_new_context(tsk,mm)	({ atomic64_set(&mm->context.id, 0); 0; })
 
-DECLARE_PER_CPU(atomic64_t, active_asids);
+#ifdef CONFIG_ARM_ERRATA_798181
+void a15_erratum_get_cpumask(int this_cpu, struct mm_struct *mm,
+			     cpumask_t *mask);
+#else  /* !CONFIG_ARM_ERRATA_798181 */
+static inline void a15_erratum_get_cpumask(int this_cpu, struct mm_struct *mm,
+					   cpumask_t *mask)
+{
+}
+#endif /* CONFIG_ARM_ERRATA_798181 */
 
 #else	/* !CONFIG_CPU_HAS_ASID */
 
