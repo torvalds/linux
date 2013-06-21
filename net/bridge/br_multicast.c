@@ -1012,7 +1012,7 @@ static int br_ip6_multicast_mld2_report(struct net_bridge *br,
 #endif
 
 /*
- * Add port to rotuer_list
+ * Add port to router_list
  *  list is maintained ordered by pointer value
  *  and locked by br->multicast_lock and RCU
  */
