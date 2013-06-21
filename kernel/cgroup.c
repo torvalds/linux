@@ -1427,7 +1427,7 @@ static void init_cgroup_root(struct cgroupfs_root *root)
 	INIT_LIST_HEAD(&root->root_list);
 	root->number_of_cgroups = 1;
 	cgrp->root = root;
-	cgrp->name = &root_cgroup_name;
+	RCU_INIT_POINTER(cgrp->name, &root_cgroup_name);
 	init_cgroup_housekeeping(cgrp);
 }
 
@@ -2558,7 +2558,7 @@ static int cgroup_rename(struct inode *old_dir, struct dentry *old_dentry,
 		return ret;
 	}
 
-	old_name = cgrp->name;
+	old_name = rcu_dereference_protected(cgrp->name, true);
 	rcu_assign_pointer(cgrp->name, name);
 
 	kfree_rcu(old_name, rcu_head);
@@ -4177,13 +4177,15 @@ static int cgroup_populate_dir(struct cgroup *cgrp, bool base_files,
 	/* This cgroup is ready now */
 	for_each_root_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+		struct css_id *id = rcu_dereference_protected(css->id, true);
+
 		/*
 		 * Update id->css pointer and make this css visible from
 		 * CSS ID functions. This pointer will be dereferened
 		 * from RCU-read-side without locks.
 		 */
-		if (css->id)
-			rcu_assign_pointer(css->id->css, css);
+		if (id)
+			rcu_assign_pointer(id->css, css);
 	}
 
 	return 0;
@@ -4863,7 +4865,7 @@ int __init cgroup_init_early(void)
 	css_set_count = 1;
 	init_cgroup_root(&cgroup_dummy_root);
 	cgroup_root_count = 1;
-	init_task.cgroups = &init_css_set;
+	RCU_INIT_POINTER(init_task.cgroups, &init_css_set);
 
 	init_cgrp_cset_link.cset = &init_css_set;
 	init_cgrp_cset_link.cgrp = cgroup_dummy_top;
@@ -5380,7 +5382,8 @@ bool css_is_ancestor(struct cgroup_subsys_state *child,
 
 void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css)
 {
-	struct css_id *id = css->id;
+	struct css_id *id = rcu_dereference_protected(css->id, true);
+
 	/* When this is called before css_id initialization, id can be NULL */
 	if (!id)
 		return;
@@ -5446,8 +5449,8 @@ static int __init_or_module cgroup_init_idr(struct cgroup_subsys *ss,
 		return PTR_ERR(newid);
 
 	newid->stack[0] = newid->id;
-	newid->css = rootcss;
-	rootcss->id = newid;
+	RCU_INIT_POINTER(newid->css, rootcss);
+	RCU_INIT_POINTER(rootcss->id, newid);
 	return 0;
 }
 
@@ -5461,7 +5464,7 @@ static int alloc_css_id(struct cgroup_subsys *ss, struct cgroup *parent,
 	subsys_id = ss->subsys_id;
 	parent_css = parent->subsys[subsys_id];
 	child_css = child->subsys[subsys_id];
-	parent_id = parent_css->id;
+	parent_id = rcu_dereference_protected(parent_css->id, true);
 	depth = parent_id->depth + 1;
 
 	child_id = get_new_cssid(ss, depth);
