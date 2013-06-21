@@ -1196,7 +1196,8 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 	if (NULL == dev)
 		return -ENOMEM;
 
-	if (v4l2_device_register(&pci_dev->dev, &dev->v4l2_dev)) {
+	err = v4l2_device_register(&pci_dev->dev, &dev->v4l2_dev);
+	if (err < 0) {
 		dev_err(&pci_dev->dev, "v4l2_device_register failed\n");
 		goto fail_free;
 	}
