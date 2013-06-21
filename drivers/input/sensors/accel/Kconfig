@@ -46,6 +46,12 @@ config GS_MXC6225
 	To have support for your sepcific gsensor you will have to
 	select het proper drivers which depend on this option.
 
+config GS_DMT10
+	bool "gsensor dmard10"
+	help
+	To have support for your sepcific gsensor you will have to
+	select het proper drivers which depend on this option.
+
 config GS_BMA023
   bool "gsensor bma023"
   help
