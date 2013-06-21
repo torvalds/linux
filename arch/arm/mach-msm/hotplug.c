@@ -24,33 +24,10 @@ static inline void cpu_leave_lowpower(void)
 
 static inline void platform_do_lowpower(unsigned int cpu)
 {
-	/* Just enter wfi for now. TODO: Properly shut off the cpu. */
-	for (;;) {
-		/*
-		 * here's the WFI
-		 */
-		asm("wfi"
-		    :
-		    :
-		    : "memory", "cc");
-
-		if (pen_release == cpu_logical_map(cpu)) {
-			/*
-			 * OK, proper wakeup, we're done
-			 */
-			break;
-		}
-
-		/*
-		 * getting here, means that we have come out of WFI without
-		 * having been woken up - this shouldn't happen
-		 *
-		 * The trouble is, letting people know about this is not really
-		 * possible, since we are currently running incoherently, and
-		 * therefore cannot safely call printk() or anything else
-		 */
-		pr_debug("CPU%u: spurious wakeup call\n", cpu);
-	}
+	asm("wfi"
+	    :
+	    :
+	    : "memory", "cc");
 }
 
 /*
