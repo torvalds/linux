@@ -1265,7 +1265,6 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 			       struct pvr2_v4l2 *vp,
 			       int v4l_type)
 {
-	struct usb_device *usbdev;
 	int mindevnum;
 	int unit_number;
 	struct pvr2_hdw *hdw;
@@ -1273,7 +1272,6 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	dip->v4lp = vp;
 
 	hdw = vp->channel.mc_head->hdw;
-	usbdev = pvr2_hdw_get_dev(hdw);
 	dip->v4l_type = v4l_type;
 	switch (v4l_type) {
 	case VFL_TYPE_GRABBER:
