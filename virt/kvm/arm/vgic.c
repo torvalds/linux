@@ -1568,6 +1568,9 @@ int kvm_vgic_hyp_init(void)
 
 	on_each_cpu(vgic_init_maintenance_interrupt, NULL, 1);
 
+	/* Callback into for arch code for setup */
+	vgic_arch_setup(vgic);
+
 	return 0;
 
 out_free_irq:
