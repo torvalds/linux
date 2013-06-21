@@ -225,15 +225,27 @@ static int zclk_set_rate(struct clk *clk, unsigned long rate)
 		goto done;
 	}
 
-	frqcrc = clk->mapped_reg + (FRQCRC - (u32)clk->enable_reg);
+	/*
+	 * Users are supposed to first call clk_set_rate() only with
+	 * clk_round_rate() results. So, we don't fix wrong rates here, but
+	 * guard against them anyway
+	 */
 
 	p_rate = clk_get_rate(clk->parent);
 	if (rate == p_rate) {
 		val = 0;
 	} else {
 		step = DIV_ROUND_CLOSEST(p_rate, 32);
+
+		if (rate > p_rate || rate < step) {
+			ret = -EINVAL;
+			goto done;
+		}
+
 		val = 32 - rate / step;
 	}
+
+	frqcrc = clk->mapped_reg + (FRQCRC - (u32)clk->enable_reg);
 
 	iowrite32((ioread32(frqcrc) & ~(clk->div_mask << clk->enable_bit)) |
 		  (val << clk->enable_bit), frqcrc);
