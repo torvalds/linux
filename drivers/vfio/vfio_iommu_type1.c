@@ -48,6 +48,12 @@ module_param_named(allow_unsafe_interrupts,
 MODULE_PARM_DESC(allow_unsafe_interrupts,
 		 "Enable VFIO IOMMU support for on platforms without interrupt remapping support.");
 
+static bool disable_hugepages;
+module_param_named(disable_hugepages,
+		   disable_hugepages, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(disable_hugepages,
+		 "Disable VFIO IOMMU support for IOMMU hugepages.");
+
 struct vfio_iommu {
 	struct iommu_domain	*domain;
 	struct mutex		lock;
@@ -268,6 +274,11 @@ static long vfio_pin_pages(unsigned long vaddr, long npage,
 		pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", __func__,
 			limit << PAGE_SHIFT);
 		return -ENOMEM;
+	}
+
+	if (unlikely(disable_hugepages)) {
+		vfio_lock_acct(1);
+		return 1;
 	}
 
 	/* Lock all the consecutive pages from pfn_base */
