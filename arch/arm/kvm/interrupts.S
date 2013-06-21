@@ -414,6 +414,10 @@ guest_trap:
 	mrcne	p15, 4, r2, c6, c0, 4	@ HPFAR
 	bne	3f
 
+	/* Preserve PAR */
+	mrrc	p15, 0, r0, r1, c7	@ PAR
+	push	{r0, r1}
+
 	/* Resolve IPA using the xFAR */
 	mcr	p15, 0, r2, c7, c8, 0	@ ATS1CPR
 	isb
@@ -424,13 +428,19 @@ guest_trap:
 	lsl	r2, r2, #4
 	orr	r2, r2, r1, lsl #24
 
+	/* Restore PAR */
+	pop	{r0, r1}
+	mcrr	p15, 0, r0, r1, c7	@ PAR
+
 3:	load_vcpu			@ Load VCPU pointer to r0
 	str	r2, [r0, #VCPU_HPFAR]
 
 1:	mov	r1, #ARM_EXCEPTION_HVC
 	b	__kvm_vcpu_return
 
-4:	pop	{r0, r1, r2}		@ Failed translation, return to guest
+4:	pop	{r0, r1}		@ Failed translation, return to guest
+	mcrr	p15, 0, r0, r1, c7	@ PAR
+	pop	{r0, r1, r2}
 	eret
 
 /*
