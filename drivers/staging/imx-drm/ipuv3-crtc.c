@@ -22,7 +22,6 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <drm/drmP.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/fb.h>
 #include <linux/clk.h>
@@ -42,9 +41,6 @@ struct ipu_framebuffer {
 };
 
 struct ipu_crtc {
-	struct drm_fb_helper	fb_helper;
-	struct ipu_framebuffer	ifb;
-	int			num_crtcs;
 	struct device		*dev;
 	struct drm_crtc		base;
 	struct imx_drm_crtc	*imx_crtc;
@@ -54,7 +50,6 @@ struct ipu_crtc {
 	struct dmfc_channel	*dmfc;
 	struct ipu_di		*di;
 	int			enabled;
-	struct ipu_priv		*ipu_priv;
 	struct drm_pending_vblank_event *page_flip_event;
 	struct drm_framebuffer	*newfb;
 	int			irq;

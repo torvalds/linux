@@ -491,7 +491,6 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 {
 	struct imx_drm_device *imxdrm = __imx_drm_device();
 	struct imx_drm_crtc *imx_drm_crtc;
-	const struct drm_crtc_funcs *crtc_funcs;
 	int ret;
 
 	mutex_lock(&imxdrm->mutex);
@@ -511,8 +510,6 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 	imx_drm_crtc->pipe = imxdrm->pipes++;
 	imx_drm_crtc->cookie.cookie = cookie;
 	imx_drm_crtc->cookie.id = id;
-
-	crtc_funcs = imx_drm_helper_funcs->crtc_funcs;
 
 	imx_drm_crtc->crtc = crtc;
 	imx_drm_crtc->imxdrm = imxdrm;
