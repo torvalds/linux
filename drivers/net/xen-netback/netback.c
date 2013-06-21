@@ -1968,8 +1968,8 @@ static void __exit netback_fini(void)
 		del_timer_sync(&netbk->net_timer);
 		kthread_stop(netbk->task);
 		for (j = 0; j < MAX_PENDING_REQS; j++) {
-			if (netbk->mmap_pages[i])
-				__free_page(netbk->mmap_pages[i]);
+			if (netbk->mmap_pages[j])
+				__free_page(netbk->mmap_pages[j]);
 		}
 	}
 
