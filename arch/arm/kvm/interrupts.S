@@ -49,6 +49,7 @@ __kvm_hyp_code_start:
 ENTRY(__kvm_tlb_flush_vmid_ipa)
 	push	{r2, r3}
 
+	dsb	ishst
 	add	r0, r0, #KVM_VTTBR
 	ldrd	r2, r3, [r0]
 	mcrr	p15, 6, r2, r3, c2	@ Write VTTBR
