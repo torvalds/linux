@@ -413,15 +413,6 @@ static void mop500_prox_deactivate(struct device *dev)
 	regulator_put(prox_regulator);
 }
 
-void mop500_snowball_ethernet_clock_enable(void)
-{
-	struct clk *clk;
-
-	clk = clk_get_sys("fsmc", NULL);
-	if (!IS_ERR(clk))
-		clk_prepare_enable(clk);
-}
-
 static struct cryp_platform_data u8500_cryp1_platform_data = {
 		.mem_to_engine = {
 				.dir = DMA_MEM_TO_DEV,
@@ -634,8 +625,6 @@ static void __init snowball_init_machine(void)
 	mop500_spi_init(parent);
 	mop500_audio_init(parent);
 	mop500_uart_init(parent);
-
-	mop500_snowball_ethernet_clock_enable();
 
 	u8500_cryp1_hash1_init(parent);
 

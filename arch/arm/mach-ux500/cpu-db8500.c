@@ -279,7 +279,6 @@ static void __init u8500_init_machine(void)
 		mop500_pinmaps_init();
 	else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
 		snowball_pinmaps_init();
-		mop500_snowball_ethernet_clock_enable();
 	} else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
 		hrefv60_pinmaps_init();
 	else if (of_machine_is_compatible("st-ericsson,ccu9540")) {}
