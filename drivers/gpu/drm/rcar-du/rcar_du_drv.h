@@ -90,6 +90,8 @@ struct rcar_du_device {
 	} props;
 
 	unsigned int dpad0_source;
+	unsigned int vspd1_sink;
+
 	struct rcar_du_lvdsenc *lvds[RCAR_DU_MAX_LVDS];
 
 	struct {

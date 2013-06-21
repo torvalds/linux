@@ -217,17 +217,25 @@ static void rcar_du_output_poll_changed(struct drm_device *dev)
  */
 
 static bool rcar_du_plane_needs_realloc(struct rcar_du_plane *plane,
-					struct rcar_du_plane_state *state)
+					struct rcar_du_plane_state *new_state)
 {
-	const struct rcar_du_format_info *cur_format;
+	struct rcar_du_plane_state *cur_state;
 
-	cur_format = to_rcar_plane_state(plane->plane.state)->format;
+	cur_state = to_rcar_plane_state(plane->plane.state);
 
 	/* Lowering the number of planes doesn't strictly require reallocation
 	 * as the extra hardware plane will be freed when committing, but doing
 	 * so could lead to more fragmentation.
 	 */
-	return !cur_format || cur_format->planes != state->format->planes;
+	if (!cur_state->format ||
+	    cur_state->format->planes != new_state->format->planes)
+		return true;
+
+	/* Reallocate hardware planes if the source has changed. */
+	if (cur_state->source != new_state->source)
+		return true;
+
+	return false;
 }
 
 static unsigned int rcar_du_plane_hwmask(struct rcar_du_plane_state *state)

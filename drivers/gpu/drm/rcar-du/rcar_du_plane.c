@@ -20,6 +20,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include "rcar_du_drv.h"
+#include "rcar_du_group.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_plane.h"
 #include "rcar_du_regs.h"
@@ -35,37 +36,42 @@ static void rcar_du_plane_write(struct rcar_du_group *rgrp,
 		      data);
 }
 
-static void rcar_du_plane_setup_scanout(struct rcar_du_plane *plane)
+static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
+					const struct rcar_du_plane_state *state)
 {
-	struct rcar_du_plane_state *state =
-		to_rcar_plane_state(plane->plane.state);
-	struct drm_framebuffer *fb = plane->plane.state->fb;
-	struct rcar_du_group *rgrp = plane->group;
 	unsigned int src_x = state->state.src_x >> 16;
 	unsigned int src_y = state->state.src_y >> 16;
 	unsigned int index = state->hwindex;
-	struct drm_gem_cma_object *gem;
 	unsigned int pitch;
 	bool interlaced;
-	unsigned int i;
 	u32 dma[2];
 
 	interlaced = state->state.crtc->state->adjusted_mode.flags
 		   & DRM_MODE_FLAG_INTERLACE;
 
+	if (state->source == RCAR_DU_PLANE_MEMORY) {
+		struct drm_framebuffer *fb = state->state.fb;
+		struct drm_gem_cma_object *gem;
+		unsigned int i;
+
+		if (state->format->planes == 2)
+			pitch = fb->pitches[0];
+		else
+			pitch = fb->pitches[0] * 8 / state->format->bpp;
+
+		for (i = 0; i < state->format->planes; ++i) {
+			gem = drm_fb_cma_get_gem_obj(fb, i);
+			dma[i] = gem->paddr + fb->offsets[i];
+		}
+	} else {
+		pitch = state->state.src_w >> 16;
+		dma[0] = 0;
+		dma[1] = 0;
+	}
+
 	/* Memory pitch (expressed in pixels). Must be doubled for interlaced
 	 * operation with 32bpp formats.
 	 */
-	if (state->format->planes == 2)
-		pitch = fb->pitches[0];
-	else
-		pitch = fb->pitches[0] * 8 / state->format->bpp;
-
-	for (i = 0; i < state->format->planes; ++i) {
-		gem = drm_fb_cma_get_gem_obj(fb, i);
-		dma[i] = gem->paddr + fb->offsets[i];
-	}
-
 	rcar_du_plane_write(rgrp, index, PnMWR,
 			    (interlaced && state->format->bpp == 32) ?
 			    pitch * 2 : pitch);
@@ -101,12 +107,10 @@ static void rcar_du_plane_setup_scanout(struct rcar_du_plane *plane)
 	}
 }
 
-static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
-				     unsigned int index)
+static void rcar_du_plane_setup_mode(struct rcar_du_group *rgrp,
+				     unsigned int index,
+				     const struct rcar_du_plane_state *state)
 {
-	struct rcar_du_plane_state *state =
-		to_rcar_plane_state(plane->plane.state);
-	struct rcar_du_group *rgrp = plane->group;
 	u32 colorkey;
 	u32 pnmr;
 
@@ -164,12 +168,10 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 	}
 }
 
-static void rcar_du_plane_setup_format(struct rcar_du_plane *plane,
-				       unsigned int index)
+static void rcar_du_plane_setup_format(struct rcar_du_group *rgrp,
+				       unsigned int index,
+				       const struct rcar_du_plane_state *state)
 {
-	struct rcar_du_plane_state *state =
-		to_rcar_plane_state(plane->plane.state);
-	struct rcar_du_group *rgrp = plane->group;
 	u32 ddcr2 = PnDDCR2_CODE;
 	u32 ddcr4;
 
@@ -179,7 +181,7 @@ static void rcar_du_plane_setup_format(struct rcar_du_plane *plane,
 	 * field in DDCR4.
 	 */
 
-	rcar_du_plane_setup_mode(plane, index);
+	rcar_du_plane_setup_mode(rgrp, index, state);
 
 	if (state->format->planes == 2) {
 		if (state->hwindex != index) {
@@ -199,14 +201,16 @@ static void rcar_du_plane_setup_format(struct rcar_du_plane *plane,
 	rcar_du_plane_write(rgrp, index, PnDDCR2, ddcr2);
 
 	ddcr4 = state->format->edf | PnDDCR4_CODE;
+	if (state->source != RCAR_DU_PLANE_MEMORY)
+		ddcr4 |= PnDDCR4_VSPS;
 
 	rcar_du_plane_write(rgrp, index, PnDDCR4, ddcr4);
 
 	/* Destination position and size */
-	rcar_du_plane_write(rgrp, index, PnDSXR, plane->plane.state->crtc_w);
-	rcar_du_plane_write(rgrp, index, PnDSYR, plane->plane.state->crtc_h);
-	rcar_du_plane_write(rgrp, index, PnDPXR, plane->plane.state->crtc_x);
-	rcar_du_plane_write(rgrp, index, PnDPYR, plane->plane.state->crtc_y);
+	rcar_du_plane_write(rgrp, index, PnDSXR, state->state.crtc_w);
+	rcar_du_plane_write(rgrp, index, PnDSYR, state->state.crtc_h);
+	rcar_du_plane_write(rgrp, index, PnDPXR, state->state.crtc_x);
+	rcar_du_plane_write(rgrp, index, PnDPYR, state->state.crtc_y);
 
 	/* Wrap-around and blinking, disabled */
 	rcar_du_plane_write(rgrp, index, PnWASPR, 0);
@@ -219,12 +223,24 @@ void rcar_du_plane_setup(struct rcar_du_plane *plane)
 {
 	struct rcar_du_plane_state *state =
 		to_rcar_plane_state(plane->plane.state);
+	struct rcar_du_group *rgrp = plane->group;
 
-	rcar_du_plane_setup_format(plane, state->hwindex);
+	rcar_du_plane_setup_format(rgrp, state->hwindex, state);
 	if (state->format->planes == 2)
-		rcar_du_plane_setup_format(plane, (state->hwindex + 1) % 8);
+		rcar_du_plane_setup_format(rgrp, (state->hwindex + 1) % 8,
+					   state);
 
-	rcar_du_plane_setup_scanout(plane);
+	rcar_du_plane_setup_scanout(rgrp, state);
+
+	if (state->source == RCAR_DU_PLANE_VSPD1) {
+		unsigned int vspd1_sink = rgrp->index ? 2 : 0;
+		struct rcar_du_device *rcdu = rgrp->dev;
+
+		if (rcdu->vspd1_sink != vspd1_sink) {
+			rcdu->vspd1_sink = vspd1_sink;
+			rcar_du_set_dpad0_vsp1_routing(rcdu);
+		}
+	}
 }
 
 static int rcar_du_plane_atomic_check(struct drm_plane *plane,

@@ -389,6 +389,7 @@
 
 #define PnDDCR4			0x00190
 #define PnDDCR4_CODE		(0x7766 << 16)
+#define PnDDCR4_VSPS		(1 << 13)
 #define PnDDCR4_SDFS_RGB	(0 << 4)
 #define PnDDCR4_SDFS_YC		(5 << 4)
 #define PnDDCR4_SDFS_MASK	(7 << 4)
