@@ -73,7 +73,7 @@
  * @sq_depth: The depth of the Send Queue
  * @sq_sem: Semaphore for the SQ
  * @rq_depth: The depth of the Receive Queue.
- * @rq_count: Count of requests in the Receive Queue.
+ * @rq_sem: Semaphore for the RQ
  * @addr: The remote peer's address
  * @req_lock: Protects the active request list
  * @cm_done: Completion event for connection management tracking
@@ -98,7 +98,7 @@ struct p9_trans_rdma {
 	int sq_depth;
 	struct semaphore sq_sem;
 	int rq_depth;
-	atomic_t rq_count;
+	struct semaphore rq_sem;
 	struct sockaddr_in addr;
 	spinlock_t req_lock;
 
@@ -341,8 +341,8 @@ static void cq_comp_handler(struct ib_cq *cq, void *cq_context)
 
 		switch (c->wc_op) {
 		case IB_WC_RECV:
-			atomic_dec(&rdma->rq_count);
 			handle_recv(client, rdma, c, wc.status, wc.byte_len);
+			up(&rdma->rq_sem);
 			break;
 
 		case IB_WC_SEND:
@@ -441,12 +441,14 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 	 * outstanding request, so we must keep a count to avoid
 	 * overflowing the RQ.
 	 */
-	if (atomic_inc_return(&rdma->rq_count) <= rdma->rq_depth) {
-		err = post_recv(client, rpl_context);
-		if (err)
-			goto err_free1;
-	} else
-		atomic_dec(&rdma->rq_count);
+	if (down_interruptible(&rdma->rq_sem))
+		goto error; /* FIXME : -EINTR instead */
+
+	err = post_recv(client, rpl_context);
+	if (err) {
+		p9_debug(P9_DEBUG_FCALL, "POST RECV failed\n");
+		goto err_free1;
+	}
 
 	/* remove posted receive buffer from request structure */
 	req->rc = NULL;
@@ -537,7 +539,7 @@ static struct p9_trans_rdma *alloc_rdma(struct p9_rdma_opts *opts)
 	spin_lock_init(&rdma->req_lock);
 	init_completion(&rdma->cm_done);
 	sema_init(&rdma->sq_sem, rdma->sq_depth);
-	atomic_set(&rdma->rq_count, 0);
+	sema_init(&rdma->rq_sem, rdma->rq_depth);
 
 	return rdma;
 }
