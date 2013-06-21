@@ -467,9 +467,6 @@ xfs_setattr_mode(
 	ASSERT(tp);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
-	if (!in_group_p(inode->i_gid) && !capable(CAP_FSETID))
-		mode &= ~S_ISGID;
-
 	ip->i_d.di_mode &= S_IFMT;
 	ip->i_d.di_mode |= mode & ~S_IFMT;
 
@@ -495,15 +492,18 @@ xfs_setattr_nonsize(
 
 	trace_xfs_setattr(ip);
 
-	if (mp->m_flags & XFS_MOUNT_RDONLY)
-		return XFS_ERROR(EROFS);
+	/* If acls are being inherited, we already have this checked */
+	if (!(flags & XFS_ATTR_NOACL)) {
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
+			return XFS_ERROR(EROFS);
 
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		if (XFS_FORCED_SHUTDOWN(mp))
+			return XFS_ERROR(EIO);
 
-	error = -inode_change_ok(inode, iattr);
-	if (error)
-		return XFS_ERROR(error);
+		error = -inode_change_ok(inode, iattr);
+		if (error)
+			return XFS_ERROR(error);
+	}
 
 	ASSERT((mask & ATTR_SIZE) == 0);
 
