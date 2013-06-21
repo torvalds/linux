@@ -548,7 +548,10 @@ static void locks_delete_block(struct file_lock *waiter)
  * the order they blocked. The documentation doesn't require this but
  * it seems like the reasonable thing to do.
  *
- * Must be called with file_lock_lock held!
+ * Must be called with both the i_lock and file_lock_lock held. The fl_block
+ * list itself is protected by the file_lock_list, but by ensuring that the
+ * i_lock is also held on insertions we can avoid taking the file_lock_lock
+ * in some cases when we see that the fl_block list is empty.
  */
 static void __locks_insert_block(struct file_lock *blocker,
 					struct file_lock *waiter)
@@ -576,6 +579,16 @@ static void locks_insert_block(struct file_lock *blocker,
  */
 static void locks_wake_up_blocks(struct file_lock *blocker)
 {
+	/*
+	 * Avoid taking global lock if list is empty. This is safe since new
+	 * blocked requests are only added to the list under the i_lock, and
+	 * the i_lock is always held here. Note that removal from the fl_block
+	 * list does not require the i_lock, so we must recheck list_empty()
+	 * after acquiring the file_lock_lock.
+	 */
+	if (list_empty(&blocker->fl_block))
+		return;
+
 	spin_lock(&file_lock_lock);
 	while (!list_empty(&blocker->fl_block)) {
 		struct file_lock *waiter;
