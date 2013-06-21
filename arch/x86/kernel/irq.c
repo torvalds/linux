@@ -17,6 +17,8 @@
 #include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/hw_irq.h>
+
+#define CREATE_TRACE_POINTS
 #include <asm/trace/irq_vectors.h>
 
 atomic_t irq_err_count;

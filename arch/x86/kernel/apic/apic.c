@@ -35,6 +35,7 @@
 #include <linux/smp.h>
 #include <linux/mm.h>
 
+#include <asm/trace/irq_vectors.h>
 #include <asm/irq_remapping.h>
 #include <asm/perf_event.h>
 #include <asm/x86_init.h>
@@ -54,9 +55,6 @@
 #include <asm/mce.h>
 #include <asm/tsc.h>
 #include <asm/hypervisor.h>
-
-#define CREATE_TRACE_POINTS
-#include <asm/trace/irq_vectors.h>
 
 unsigned int num_processors;
 

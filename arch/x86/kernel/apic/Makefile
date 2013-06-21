@@ -2,7 +2,6 @@
 # Makefile for local APIC drivers and for the IO-APIC code
 #
 
-CFLAGS_apic.o := -I$(src)/../../include/asm/trace
 obj-$(CONFIG_X86_LOCAL_APIC)	+= apic.o apic_noop.o ipi.o
 obj-y				+= hw_nmi.o
 
