@@ -39,10 +39,7 @@
  * non 64-bit operations.
  */
 #define ASID_FIRST_VERSION	(1ULL << ASID_BITS)
-#define NUM_USER_ASIDS		(ASID_FIRST_VERSION - 1)
-
-#define ASID_TO_IDX(asid)	((asid & ~ASID_MASK) - 1)
-#define IDX_TO_ASID(idx)	((idx + 1) & ~ASID_MASK)
+#define NUM_USER_ASIDS		ASID_FIRST_VERSION
 
 static DEFINE_RAW_SPINLOCK(cpu_asid_lock);
 static atomic64_t asid_generation = ATOMIC64_INIT(ASID_FIRST_VERSION);
@@ -137,7 +134,7 @@ static void flush_context(unsigned int cpu)
 			 */
 			if (asid == 0)
 				asid = per_cpu(reserved_asids, i);
-			__set_bit(ASID_TO_IDX(asid), asid_map);
+			__set_bit(asid & ~ASID_MASK, asid_map);
 		}
 		per_cpu(reserved_asids, i) = asid;
 	}
@@ -176,17 +173,19 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 		/*
 		 * Allocate a free ASID. If we can't find one, take a
 		 * note of the currently active ASIDs and mark the TLBs
-		 * as requiring flushes.
+		 * as requiring flushes. We always count from ASID #1,
+		 * as we reserve ASID #0 to switch via TTBR0 and indicate
+		 * rollover events.
 		 */
-		asid = find_first_zero_bit(asid_map, NUM_USER_ASIDS);
+		asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, 1);
 		if (asid == NUM_USER_ASIDS) {
 			generation = atomic64_add_return(ASID_FIRST_VERSION,
 							 &asid_generation);
 			flush_context(cpu);
-			asid = find_first_zero_bit(asid_map, NUM_USER_ASIDS);
+			asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, 1);
 		}
 		__set_bit(asid, asid_map);
-		asid = generation | IDX_TO_ASID(asid);
+		asid |= generation;
 		cpumask_clear(mm_cpumask(mm));
 	}
 
