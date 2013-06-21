@@ -447,7 +447,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 	err = post_recv(client, rpl_context);
 	if (err) {
 		p9_debug(P9_DEBUG_FCALL, "POST RECV failed\n");
-		goto err_free1;
+		goto err_free;
 	}
 
 	/* remove posted receive buffer from request structure */
@@ -457,7 +457,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 	c = kmalloc(sizeof *c, GFP_NOFS);
 	if (!c) {
 		err = -ENOMEM;
-		goto err_free1;
+		goto err_free;
 	}
 	c->req = req;
 
@@ -486,13 +486,10 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 
  error:
 	kfree(c);
-	kfree(rpl_context->rc);
 	kfree(rpl_context);
 	p9_debug(P9_DEBUG_ERROR, "EIO\n");
 	return -EIO;
- err_free1:
-	kfree(rpl_context->rc);
- err_free2:
+ err_free:
 	kfree(rpl_context);
  err_close:
 	spin_lock_irqsave(&rdma->req_lock, flags);
