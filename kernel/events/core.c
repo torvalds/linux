@@ -165,10 +165,26 @@ int sysctl_perf_event_mlock __read_mostly = 512 + (PAGE_SIZE / 1024); /* 'free' 
 /*
  * max perf event sample rate
  */
-#define DEFAULT_MAX_SAMPLE_RATE 100000
-int sysctl_perf_event_sample_rate __read_mostly = DEFAULT_MAX_SAMPLE_RATE;
-static int max_samples_per_tick __read_mostly =
-	DIV_ROUND_UP(DEFAULT_MAX_SAMPLE_RATE, HZ);
+#define DEFAULT_MAX_SAMPLE_RATE		100000
+#define DEFAULT_SAMPLE_PERIOD_NS	(NSEC_PER_SEC / DEFAULT_MAX_SAMPLE_RATE)
+#define DEFAULT_CPU_TIME_MAX_PERCENT	25
+
+int sysctl_perf_event_sample_rate __read_mostly	= DEFAULT_MAX_SAMPLE_RATE;
+
+static int max_samples_per_tick __read_mostly	= DIV_ROUND_UP(DEFAULT_MAX_SAMPLE_RATE, HZ);
+static int perf_sample_period_ns __read_mostly	= DEFAULT_SAMPLE_PERIOD_NS;
+
+static atomic_t perf_sample_allowed_ns __read_mostly =
+	ATOMIC_INIT( DEFAULT_SAMPLE_PERIOD_NS * DEFAULT_CPU_TIME_MAX_PERCENT / 100);
+
+void update_perf_cpu_limits(void)
+{
+	u64 tmp = perf_sample_period_ns;
+
+	tmp *= sysctl_perf_cpu_time_max_percent;
+	tmp = do_div(tmp, 100);
+	atomic_set(&perf_sample_allowed_ns, tmp);
+}
 
 static int perf_rotate_context(struct perf_cpu_context *cpuctx);
 
@@ -182,8 +198,76 @@ int perf_proc_update_handler(struct ctl_table *table, int write,
 		return ret;
 
 	max_samples_per_tick = DIV_ROUND_UP(sysctl_perf_event_sample_rate, HZ);
+	perf_sample_period_ns = NSEC_PER_SEC / sysctl_perf_event_sample_rate;
+	update_perf_cpu_limits();
 
 	return 0;
+}
+
+int sysctl_perf_cpu_time_max_percent __read_mostly = DEFAULT_CPU_TIME_MAX_PERCENT;
+
+int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
+				void __user *buffer, size_t *lenp,
+				loff_t *ppos)
+{
+	int ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (ret || !write)
+		return ret;
+
+	update_perf_cpu_limits();
+
+	return 0;
+}
+
+/*
+ * perf samples are done in some very critical code paths (NMIs).
+ * If they take too much CPU time, the system can lock up and not
+ * get any real work done.  This will drop the sample rate when
+ * we detect that events are taking too long.
+ */
+#define NR_ACCUMULATED_SAMPLES 128
+DEFINE_PER_CPU(u64, running_sample_length);
+
+void perf_sample_event_took(u64 sample_len_ns)
+{
+	u64 avg_local_sample_len;
+	u64 local_samples_len = __get_cpu_var(running_sample_length);
+
+	if (atomic_read(&perf_sample_allowed_ns) == 0)
+		return;
+
+	/* decay the counter by 1 average sample */
+	local_samples_len = __get_cpu_var(running_sample_length);
+	local_samples_len -= local_samples_len/NR_ACCUMULATED_SAMPLES;
+	local_samples_len += sample_len_ns;
+	__get_cpu_var(running_sample_length) = local_samples_len;
+
+	/*
+	 * note: this will be biased artifically low until we have
+	 * seen NR_ACCUMULATED_SAMPLES.  Doing it this way keeps us
+	 * from having to maintain a count.
+	 */
+	avg_local_sample_len = local_samples_len/NR_ACCUMULATED_SAMPLES;
+
+	if (avg_local_sample_len <= atomic_read(&perf_sample_allowed_ns))
+		return;
+
+	if (max_samples_per_tick <= 1)
+		return;
+
+	max_samples_per_tick = DIV_ROUND_UP(max_samples_per_tick, 2);
+	sysctl_perf_event_sample_rate = max_samples_per_tick * HZ;
+	perf_sample_period_ns = NSEC_PER_SEC / sysctl_perf_event_sample_rate;
+
+	printk_ratelimited(KERN_WARNING
+			"perf samples too long (%lld > %d), lowering "
+			"kernel.perf_event_max_sample_rate to %d\n",
+			avg_local_sample_len,
+			atomic_read(&perf_sample_allowed_ns),
+			sysctl_perf_event_sample_rate);
+
+	update_perf_cpu_limits();
 }
 
 static atomic64_t perf_event_id;
