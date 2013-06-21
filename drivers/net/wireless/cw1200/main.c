@@ -245,6 +245,14 @@ module_param(cw1200_ba_tx_tids, int, 0644);
 MODULE_PARM_DESC(cw1200_ba_rx_tids, "Block ACK RX TIDs");
 MODULE_PARM_DESC(cw1200_ba_tx_tids, "Block ACK TX TIDs");
 
+#ifdef CONFIG_PM
+static const struct wiphy_wowlan_support cw1200_wowlan_support = {
+	/* Support only for limited wowlan functionalities */
+	.flags = WIPHY_WOWLAN_ANY | WIPHY_WOWLAN_DISCONNECT,
+};
+#endif
+
+
 static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 						const bool have_5ghz)
 {
@@ -289,10 +297,7 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 					  BIT(NL80211_IFTYPE_P2P_GO);
 
 #ifdef CONFIG_PM
-	/* Support only for limited wowlan functionalities */
-	hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY |
-		WIPHY_WOWLAN_DISCONNECT;
-	hw->wiphy->wowlan.n_patterns = 0;
+	hw->wiphy->wowlan = &cw1200_wowlan_support;
 #endif
 
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;

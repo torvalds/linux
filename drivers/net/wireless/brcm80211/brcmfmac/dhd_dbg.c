@@ -156,8 +156,11 @@ ssize_t brcmf_debugfs_fws_stats_read(struct file *f, char __user *data,
 			"txs_suppr_core:    %u\n"
 			"txs_suppr_ps:      %u\n"
 			"txs_tossed:        %u\n"
+			"txs_host_tossed:   %u\n"
+			"bus_flow_block:    %u\n"
+			"fws_flow_block:    %u\n"
 			"send_pkts:         BK:%u BE:%u VO:%u VI:%u BCMC:%u\n"
-			"fifo_credits_sent: BK:%u BE:%u VO:%u VI:%u BCMC:%u\n",
+			"requested_sent:    BK:%u BE:%u VO:%u VI:%u BCMC:%u\n",
 			fwstats->header_pulls,
 			fwstats->header_only_pkt,
 			fwstats->tlv_parse_failed,
@@ -176,14 +179,17 @@ ssize_t brcmf_debugfs_fws_stats_read(struct file *f, char __user *data,
 			fwstats->txs_supp_core,
 			fwstats->txs_supp_ps,
 			fwstats->txs_tossed,
+			fwstats->txs_host_tossed,
+			fwstats->bus_flow_block,
+			fwstats->fws_flow_block,
 			fwstats->send_pkts[0], fwstats->send_pkts[1],
 			fwstats->send_pkts[2], fwstats->send_pkts[3],
 			fwstats->send_pkts[4],
-			fwstats->fifo_credits_sent[0],
-			fwstats->fifo_credits_sent[1],
-			fwstats->fifo_credits_sent[2],
-			fwstats->fifo_credits_sent[3],
-			fwstats->fifo_credits_sent[4]);
+			fwstats->requested_sent[0],
+			fwstats->requested_sent[1],
+			fwstats->requested_sent[2],
+			fwstats->requested_sent[3],
+			fwstats->requested_sent[4]);
 
 	return simple_read_from_buffer(data, count, ppos, buf, res);
 }

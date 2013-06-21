@@ -576,10 +576,16 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 
 	spin_lock_bh(&txq->lock);
 	while (q->write_ptr != q->read_ptr) {
+		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
+				   txq_id, q->read_ptr);
 		iwl_pcie_txq_free_tfd(trans, txq);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
+	txq->active = false;
 	spin_unlock_bh(&txq->lock);
+
+	/* just in case - this queue may have been stopped */
+	iwl_wake_queue(trans, txq);
 }
 
 /*
@@ -927,6 +933,12 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	spin_lock_bh(&txq->lock);
 
+	if (!txq->active) {
+		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
+				    txq_id, ssn);
+		goto out;
+	}
+
 	if (txq->q.read_ptr == tfd_num)
 		goto out;
 
@@ -1073,6 +1085,7 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 
 		/* enable aggregations for the queue */
 		iwl_set_bits_prph(trans, SCD_AGGR_SEL, BIT(txq_id));
+		trans_pcie->txq[txq_id].ampdu = true;
 	} else {
 		/*
 		 * disable aggregations for the queue, this will also make the
@@ -1107,6 +1120,7 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 		       (fifo << SCD_QUEUE_STTS_REG_POS_TXF) |
 		       (1 << SCD_QUEUE_STTS_REG_POS_WSL) |
 		       SCD_QUEUE_STTS_REG_MSK);
+	trans_pcie->txq[txq_id].active = true;
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d on FIFO %d WrPtr: %d\n",
 			    txq_id, fifo, ssn & 0xff);
 }
@@ -1129,6 +1143,7 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 			    ARRAY_SIZE(zero_val));
 
 	iwl_pcie_txq_unmap(trans, txq_id);
+	trans_pcie->txq[txq_id].ampdu = false;
 
 	IWL_DEBUG_TX_QUEUES(trans, "Deactivate queue %d\n", txq_id);
 }
@@ -1599,7 +1614,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	u8 wait_write_ptr = 0;
 	__le16 fc = hdr->frame_control;
 	u8 hdr_len = ieee80211_hdrlen(fc);
-	u16 __maybe_unused wifi_seq;
+	u16 wifi_seq;
 
 	txq = &trans_pcie->txq[txq_id];
 	q = &txq->q;
@@ -1616,13 +1631,11 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	 * the BA.
 	 * Check here that the packets are in the right place on the ring.
 	 */
-#ifdef CONFIG_IWLWIFI_DEBUG
 	wifi_seq = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
-	WARN_ONCE((iwl_read_prph(trans, SCD_AGGR_SEL) & BIT(txq_id)) &&
-		  ((wifi_seq & 0xff) != q->write_ptr),
+	WARN_ONCE(trans_pcie->txq[txq_id].ampdu &&
+		  (wifi_seq & 0xff) != q->write_ptr,
 		  "Q: %d WiFi Seq %d tfdNum %d",
 		  txq_id, wifi_seq, q->write_ptr);
-#endif
 
 	/* Set up driver data for this TFD */
 	txq->entries[q->write_ptr].skb = skb;

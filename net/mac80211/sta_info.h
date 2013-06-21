@@ -297,6 +297,9 @@ struct sta_ampdu_mlme {
  * @rcu_head: RCU head used for freeing this station struct
  * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
  *	taken from HT/VHT capabilities or VHT operating mode notification
+ * @chains: chains ever used for RX from this station
+ * @chain_signal_last: last signal (per chain)
+ * @chain_signal_avg: signal average (per chain)
  */
 struct sta_info {
 	/* General information, mostly static */

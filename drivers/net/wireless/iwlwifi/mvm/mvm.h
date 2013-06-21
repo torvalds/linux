@@ -458,6 +458,7 @@ struct iwl_mvm {
 	struct ieee80211_vif *p2p_device_vif;
 
 #ifdef CONFIG_PM_SLEEP
+	struct wiphy_wowlan_support wowlan;
 	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	bool d3_test_active;
@@ -689,16 +690,11 @@ void iwl_mvm_bt_coex_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void
 iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
 					 struct iwl_beacon_filter_cmd *cmd);
-int iwl_mvm_dbgfs_set_fw_dbg_log(struct iwl_mvm *mvm);
 #else
 static inline void
 iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
 					 struct iwl_beacon_filter_cmd *cmd)
 {}
-static inline int iwl_mvm_dbgfs_set_fw_dbg_log(struct iwl_mvm *mvm)
-{
-	return 0;
-}
 #endif
 int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);

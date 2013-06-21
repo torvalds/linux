@@ -78,6 +78,7 @@
 
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
+#if IS_ENABLED(CONFIG_IWLDVM)
 	{IWL_PCI_DEVICE(0x4232, 0x1201, iwl5100_agn_cfg)}, /* Mini Card */
 	{IWL_PCI_DEVICE(0x4232, 0x1301, iwl5100_agn_cfg)}, /* Half Mini Card */
 	{IWL_PCI_DEVICE(0x4232, 0x1204, iwl5100_agn_cfg)}, /* Mini Card */
@@ -253,7 +254,9 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0892, 0x0062, iwl135_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0893, 0x0262, iwl135_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0892, 0x0462, iwl135_bgn_cfg)},
+#endif /* CONFIG_IWLDVM */
 
+#if IS_ENABLED(CONFIG_IWLMVM)
 /* 7000 Series */
 	{IWL_PCI_DEVICE(0x08B1, 0x4070, iwl7260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x08B1, 0x4170, iwl7260_2ac_cfg)},
@@ -304,6 +307,7 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x08B3, 0x8062, iwl3160_n_cfg)},
 	{IWL_PCI_DEVICE(0x08B4, 0x8270, iwl3160_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x08B3, 0x8470, iwl3160_2ac_cfg)},
+#endif /* CONFIG_IWLMVM */
 
 	{0}
 };

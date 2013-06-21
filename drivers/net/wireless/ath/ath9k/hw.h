@@ -307,6 +307,10 @@ struct ath9k_ops_config {
 	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
 	u8 max_txtrig_level;
 	u16 ani_poll_interval; /* ANI poll interval in ms */
+
+	/* Platform specific config */
+	u32 xlna_gpio;
+	bool xatten_margin_cfg;
 };
 
 enum ath9k_int {
@@ -888,6 +892,9 @@ struct ath_hw {
 	struct ar5416IniArray iniCckfirJapan2484;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
 	struct ar5416IniArray ini_radio_post_sys2ant;
+	struct ar5416IniArray ini_modes_rxgain_5g_xlna;
+	struct ar5416IniArray ini_modes_rxgain_bb_core;
+	struct ar5416IniArray ini_modes_rxgain_bb_postamble;
 
 	struct ar5416IniArray iniMac[ATH_INI_NUM_SPLIT];
 	struct ar5416IniArray iniBB[ATH_INI_NUM_SPLIT];

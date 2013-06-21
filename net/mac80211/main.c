@@ -686,8 +686,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		return -EINVAL;
 
 #ifdef CONFIG_PM
-	if ((hw->wiphy->wowlan.flags || hw->wiphy->wowlan.n_patterns) &&
-	    (!local->ops->suspend || !local->ops->resume))
+	if (hw->wiphy->wowlan && (!local->ops->suspend || !local->ops->resume))
 		return -EINVAL;
 #endif
 

@@ -571,7 +571,7 @@ static unsigned int llcp_sock_poll(struct file *file, struct socket *sock,
 	if (sk->sk_shutdown == SHUTDOWN_MASK)
 		mask |= POLLHUP;
 
-	if (sock_writeable(sk))
+	if (sock_writeable(sk) && sk->sk_state == LLCP_CONNECTED)
 		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
 	else
 		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
@@ -603,7 +603,7 @@ static int llcp_sock_release(struct socket *sock)
 
 	/* Send a DISC */
 	if (sk->sk_state == LLCP_CONNECTED)
-		nfc_llcp_disconnect(llcp_sock);
+		nfc_llcp_send_disconnect(llcp_sock);
 
 	if (sk->sk_state == LLCP_LISTEN) {
 		struct nfc_llcp_sock *lsk, *n;
@@ -614,7 +614,7 @@ static int llcp_sock_release(struct socket *sock)
 			accept_sk = &lsk->sk;
 			lock_sock(accept_sk);
 
-			nfc_llcp_disconnect(lsk);
+			nfc_llcp_send_disconnect(lsk);
 			nfc_llcp_accept_unlink(accept_sk);
 
 			release_sock(accept_sk);
@@ -625,6 +625,13 @@ static int llcp_sock_release(struct socket *sock)
 		nfc_llcp_put_ssap(llcp_sock->local, llcp_sock->ssap);
 
 	release_sock(sk);
+
+	/* Keep this sock alive and therefore do not remove it from the sockets
+	 * list until the DISC PDU has been actually sent. Otherwise we would
+	 * reply with DM PDUs before sending the DISC one.
+	 */
+	if (sk->sk_state == LLCP_DISCONNECTING)
+		return err;
 
 	if (sock->type == SOCK_RAW)
 		nfc_llcp_sock_unlink(&local->raw_sockets, sk);
@@ -722,14 +729,16 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 	if (ret)
 		goto sock_unlink;
 
+	sk->sk_state = LLCP_CONNECTING;
+
 	ret = sock_wait_state(sk, LLCP_CONNECTED,
 			      sock_sndtimeo(sk, flags & O_NONBLOCK));
-	if (ret)
+	if (ret && ret != -EINPROGRESS)
 		goto sock_unlink;
 
 	release_sock(sk);
 
-	return 0;
+	return ret;
 
 sock_unlink:
 	nfc_llcp_put_ssap(local, llcp_sock->ssap);

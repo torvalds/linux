@@ -627,9 +627,26 @@ static void ar9003_rx_gain_table_mode1(struct ath_hw *ah)
 
 static void ar9003_rx_gain_table_mode2(struct ath_hw *ah)
 {
-	if (AR_SREV_9462_20(ah))
+	if (AR_SREV_9462_20(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			       ar9462_common_mixed_rx_gain_table_2p0);
+		INIT_INI_ARRAY(&ah->ini_modes_rxgain_bb_core,
+			       ar9462_2p0_baseband_core_mix_rxgain);
+		INIT_INI_ARRAY(&ah->ini_modes_rxgain_bb_postamble,
+			       ar9462_2p0_baseband_postamble_mix_rxgain);
+		INIT_INI_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
+			       ar9462_2p0_baseband_postamble_5g_xlna);
+	}
+}
+
+static void ar9003_rx_gain_table_mode3(struct ath_hw *ah)
+{
+	if (AR_SREV_9462_20(ah)) {
+		INIT_INI_ARRAY(&ah->iniModesRxGain,
+			       ar9462_2p0_5g_xlna_only_rxgain);
+		INIT_INI_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
+			       ar9462_2p0_baseband_postamble_5g_xlna);
+	}
 }
 
 static void ar9003_rx_gain_table_apply(struct ath_hw *ah)
@@ -644,6 +661,9 @@ static void ar9003_rx_gain_table_apply(struct ath_hw *ah)
 		break;
 	case 2:
 		ar9003_rx_gain_table_mode2(ah);
+		break;
+	case 3:
+		ar9003_rx_gain_table_mode3(ah);
 		break;
 	}
 }

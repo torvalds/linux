@@ -142,6 +142,7 @@ struct ath9k_htc_target_aggr {
 #define WLAN_RC_40_FLAG  0x02
 #define WLAN_RC_SGI_FLAG 0x04
 #define WLAN_RC_HT_FLAG  0x08
+#define ATH_RC_TX_STBC_FLAG 0x20
 
 struct ath9k_htc_rateset {
 	u8 rs_nrates;

@@ -915,6 +915,9 @@ struct iwl_priv {
 	__le64 replay_ctr;
 	__le16 last_seq_ctl;
 	bool have_rekey_data;
+#ifdef CONFIG_PM_SLEEP
+	struct wiphy_wowlan_support wowlan_support;
+#endif
 
 	/* device_pointers: pointers to ucode event tables */
 	struct {

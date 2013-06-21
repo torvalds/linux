@@ -36,6 +36,16 @@ config NFC_MEI_PHY
 
 	  If unsure, say N.
 
+config NFC_SIM
+	tristate "NFC hardware simulator driver"
+	help
+	  This driver declares two virtual NFC devices supporting NFC-DEP
+	  protocol. An LLCP connection can be established between them and
+	  all packets sent from one device is sent back to the other, acting as
+	  loopback devices.
+
+	  If unsure, say N.
+
 source "drivers/nfc/pn544/Kconfig"
 source "drivers/nfc/microread/Kconfig"
 
