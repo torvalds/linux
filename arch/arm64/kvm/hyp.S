@@ -16,7 +16,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/irqchip/arm-gic.h>
 
 #include <asm/assembler.h>
 #include <asm/memory.h>
@@ -376,100 +375,23 @@
 .endm
 
 /*
- * Save the VGIC CPU state into memory
- * x0: Register pointing to VCPU struct
- * Do not corrupt x1!!!
+ * Call into the vgic backend for state saving
  */
 .macro save_vgic_state
-	/* Get VGIC VCTRL base into x2 */
-	ldr	x2, [x0, #VCPU_KVM]
-	kern_hyp_va	x2
-	ldr	x2, [x2, #KVM_VGIC_VCTRL]
-	kern_hyp_va	x2
-	cbz	x2, 2f		// disabled
-
-	/* Compute the address of struct vgic_cpu */
-	add	x3, x0, #VCPU_VGIC_CPU
-
-	/* Save all interesting registers */
-	ldr	w4, [x2, #GICH_HCR]
-	ldr	w5, [x2, #GICH_VMCR]
-	ldr	w6, [x2, #GICH_MISR]
-	ldr	w7, [x2, #GICH_EISR0]
-	ldr	w8, [x2, #GICH_EISR1]
-	ldr	w9, [x2, #GICH_ELRSR0]
-	ldr	w10, [x2, #GICH_ELRSR1]
-	ldr	w11, [x2, #GICH_APR]
-CPU_BE(	rev	w4,  w4  )
-CPU_BE(	rev	w5,  w5  )
-CPU_BE(	rev	w6,  w6  )
-CPU_BE(	rev	w7,  w7  )
-CPU_BE(	rev	w8,  w8  )
-CPU_BE(	rev	w9,  w9  )
-CPU_BE(	rev	w10, w10 )
-CPU_BE(	rev	w11, w11 )
-
-	str	w4, [x3, #VGIC_V2_CPU_HCR]
-	str	w5, [x3, #VGIC_V2_CPU_VMCR]
-	str	w6, [x3, #VGIC_V2_CPU_MISR]
-	str	w7, [x3, #VGIC_V2_CPU_EISR]
-	str	w8, [x3, #(VGIC_V2_CPU_EISR + 4)]
-	str	w9, [x3, #VGIC_V2_CPU_ELRSR]
-	str	w10, [x3, #(VGIC_V2_CPU_ELRSR + 4)]
-	str	w11, [x3, #VGIC_V2_CPU_APR]
-
-	/* Clear GICH_HCR */
-	str	wzr, [x2, #GICH_HCR]
-
-	/* Save list registers */
-	add	x2, x2, #GICH_LR0
-	ldr	w4, [x3, #VGIC_CPU_NR_LR]
-	add	x3, x3, #VGIC_V2_CPU_LR
-1:	ldr	w5, [x2], #4
-CPU_BE(	rev	w5, w5 )
-	str	w5, [x3], #4
-	sub	w4, w4, #1
-	cbnz	w4, 1b
-2:
+	adr	x24, __vgic_sr_vectors
+	ldr	x24, [x24, VGIC_SAVE_FN]
+	kern_hyp_va	x24
+	blr	x24
 .endm
 
 /*
- * Restore the VGIC CPU state from memory
- * x0: Register pointing to VCPU struct
+ * Call into the vgic backend for state restoring
  */
 .macro restore_vgic_state
-	/* Get VGIC VCTRL base into x2 */
-	ldr	x2, [x0, #VCPU_KVM]
-	kern_hyp_va	x2
-	ldr	x2, [x2, #KVM_VGIC_VCTRL]
-	kern_hyp_va	x2
-	cbz	x2, 2f		// disabled
-
-	/* Compute the address of struct vgic_cpu */
-	add	x3, x0, #VCPU_VGIC_CPU
-
-	/* We only restore a minimal set of registers */
-	ldr	w4, [x3, #VGIC_V2_CPU_HCR]
-	ldr	w5, [x3, #VGIC_V2_CPU_VMCR]
-	ldr	w6, [x3, #VGIC_V2_CPU_APR]
-CPU_BE(	rev	w4, w4 )
-CPU_BE(	rev	w5, w5 )
-CPU_BE(	rev	w6, w6 )
-
-	str	w4, [x2, #GICH_HCR]
-	str	w5, [x2, #GICH_VMCR]
-	str	w6, [x2, #GICH_APR]
-
-	/* Restore list registers */
-	add	x2, x2, #GICH_LR0
-	ldr	w4, [x3, #VGIC_CPU_NR_LR]
-	add	x3, x3, #VGIC_V2_CPU_LR
-1:	ldr	w5, [x3], #4
-CPU_BE(	rev	w5, w5 )
-	str	w5, [x2], #4
-	sub	w4, w4, #1
-	cbnz	w4, 1b
-2:
+	adr	x24, __vgic_sr_vectors
+	ldr	x24, [x24, #VGIC_RESTORE_FN]
+	kern_hyp_va	x24
+	blr	x24
 .endm
 
 .macro save_timer_state
@@ -649,6 +571,12 @@ ENTRY(__kvm_flush_vm_context)
 	dsb	ish
 	ret
 ENDPROC(__kvm_flush_vm_context)
+
+	// struct vgic_sr_vectors __vgi_sr_vectors;
+	.align 3
+ENTRY(__vgic_sr_vectors)
+	.skip	VGIC_SR_VECTOR_SZ
+ENDPROC(__vgic_sr_vectors)
 
 __kvm_hyp_panic:
 	// Guess the context by looking at VTTBR:

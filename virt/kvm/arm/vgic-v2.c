@@ -236,6 +236,7 @@ int vgic_v2_probe(struct device_node *vgic_node,
 	kvm_info("%s@%llx IRQ%d\n", vgic_node->name,
 		 vctrl_res.start, vgic->maint_irq);
 
+	vgic->type = VGIC_V2;
 	*ops = &vgic_v2_ops;
 	*params = vgic;
 	goto out;
