@@ -3666,6 +3666,7 @@ void btrfs_free_reserved_data_space(struct inode *inode, u64 bytes)
 
 	data_sinfo = root->fs_info->data_sinfo;
 	spin_lock(&data_sinfo->lock);
+	WARN_ON(data_sinfo->bytes_may_use < bytes);
 	data_sinfo->bytes_may_use -= bytes;
 	trace_btrfs_space_reservation(root->fs_info, "space_info",
 				      data_sinfo->flags, bytes, 0);

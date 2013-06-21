@@ -543,6 +543,9 @@ int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 
 	btrfs_debug_check_extent_io_range(tree->mapping->host, start, end);
 
+	if (bits & EXTENT_DELALLOC)
+		bits |= EXTENT_NORESERVE;
+
 	if (delete)
 		bits |= ~EXTENT_CTLBITS;
 	bits |= EXTENT_FIRST_DELALLOC;
