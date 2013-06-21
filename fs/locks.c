@@ -157,13 +157,13 @@ int lease_break_time = 45;
  * The global file_lock_list is only used for displaying /proc/locks. Protected
  * by the file_lock_lock.
  */
-static LIST_HEAD(file_lock_list);
+static HLIST_HEAD(file_lock_list);
 
 /*
  * The blocked_list is used to find POSIX lock loops for deadlock detection.
  * Protected by file_lock_lock.
  */
-static LIST_HEAD(blocked_list);
+static HLIST_HEAD(blocked_list);
 
 /*
  * This lock protects the blocked_list, and the file_lock_list. Generally, if
@@ -188,7 +188,7 @@ static struct kmem_cache *filelock_cache __read_mostly;
 
 static void locks_init_lock_heads(struct file_lock *fl)
 {
-	INIT_LIST_HEAD(&fl->fl_link);
+	INIT_HLIST_NODE(&fl->fl_link);
 	INIT_LIST_HEAD(&fl->fl_block);
 	init_waitqueue_head(&fl->fl_wait);
 }
@@ -222,7 +222,7 @@ void locks_free_lock(struct file_lock *fl)
 {
 	BUG_ON(waitqueue_active(&fl->fl_wait));
 	BUG_ON(!list_empty(&fl->fl_block));
-	BUG_ON(!list_empty(&fl->fl_link));
+	BUG_ON(!hlist_unhashed(&fl->fl_link));
 
 	locks_release_private(fl);
 	kmem_cache_free(filelock_cache, fl);
@@ -500,7 +500,7 @@ static inline void
 locks_insert_global_locks(struct file_lock *fl)
 {
 	spin_lock(&file_lock_lock);
-	list_add_tail(&fl->fl_link, &file_lock_list);
+	hlist_add_head(&fl->fl_link, &file_lock_list);
 	spin_unlock(&file_lock_lock);
 }
 
@@ -508,20 +508,20 @@ static inline void
 locks_delete_global_locks(struct file_lock *fl)
 {
 	spin_lock(&file_lock_lock);
-	list_del_init(&fl->fl_link);
+	hlist_del_init(&fl->fl_link);
 	spin_unlock(&file_lock_lock);
 }
 
 static inline void
 locks_insert_global_blocked(struct file_lock *waiter)
 {
-	list_add(&waiter->fl_link, &blocked_list);
+	hlist_add_head(&waiter->fl_link, &blocked_list);
 }
 
 static inline void
 locks_delete_global_blocked(struct file_lock *waiter)
 {
-	list_del_init(&waiter->fl_link);
+	hlist_del_init(&waiter->fl_link);
 }
 
 /* Remove waiter from blocker's block list.
@@ -748,7 +748,7 @@ static struct file_lock *what_owner_is_waiting_for(struct file_lock *block_fl)
 {
 	struct file_lock *fl;
 
-	list_for_each_entry(fl, &blocked_list, fl_link) {
+	hlist_for_each_entry(fl, &blocked_list, fl_link) {
 		if (posix_same_owner(fl, block_fl))
 			return fl->fl_next;
 	}
@@ -2300,7 +2300,7 @@ static int locks_show(struct seq_file *f, void *v)
 {
 	struct file_lock *fl, *bfl;
 
-	fl = list_entry(v, struct file_lock, fl_link);
+	fl = hlist_entry(v, struct file_lock, fl_link);
 
 	lock_get_status(f, fl, *((loff_t *)f->private), "");
 
@@ -2316,14 +2316,14 @@ static void *locks_start(struct seq_file *f, loff_t *pos)
 
 	spin_lock(&file_lock_lock);
 	*p = (*pos + 1);
-	return seq_list_start(&file_lock_list, *pos);
+	return seq_hlist_start(&file_lock_list, *pos);
 }
 
 static void *locks_next(struct seq_file *f, void *v, loff_t *pos)
 {
 	loff_t *p = f->private;
 	++*p;
-	return seq_list_next(v, &file_lock_list, pos);
+	return seq_hlist_next(v, &file_lock_list, pos);
 }
 
 static void locks_stop(struct seq_file *f, void *v)
