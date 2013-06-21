@@ -110,7 +110,7 @@ struct ipu_soc;
 #define IDMAC_BAND_EN(ch)		IPU_IDMAC_REG(0x0040 + 4 * ((ch) / 32))
 #define IDMAC_CHA_BUSY(ch)		IPU_IDMAC_REG(0x0100 + 4 * ((ch) / 32))
 
-#define IPU_NUM_IRQS	(32 * 5)
+#define IPU_NUM_IRQS	(32 * 15)
 
 enum ipu_modules {
 	IPU_CONF_CSI0_EN		= (1 << 0),
