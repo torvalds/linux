@@ -30,22 +30,7 @@
 #include "cikd.h"
 #include "atom.h"
 #include "cik_blit_shaders.h"
-
-/* GFX */
-#define CIK_PFP_UCODE_SIZE 2144
-#define CIK_ME_UCODE_SIZE 2144
-#define CIK_CE_UCODE_SIZE 2144
-/* compute */
-#define CIK_MEC_UCODE_SIZE 4192
-/* interrupts */
-#define BONAIRE_RLC_UCODE_SIZE 2048
-#define KB_RLC_UCODE_SIZE 2560
-#define KV_RLC_UCODE_SIZE 2560
-/* gddr controller */
-#define CIK_MC_UCODE_SIZE 7866
-/* sdma */
-#define CIK_SDMA_UCODE_SIZE 1050
-#define CIK_SDMA_UCODE_VERSION 64
+#include "radeon_ucode.h"
 
 MODULE_FIRMWARE("radeon/BONAIRE_pfp.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_me.bin");
