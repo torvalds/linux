@@ -1006,7 +1006,6 @@ extern int vfs_setlease(struct file *, long, struct file_lock **);
 extern int lease_modify(struct file_lock **, int);
 extern int lock_may_read(struct inode *, loff_t start, unsigned long count);
 extern int lock_may_write(struct inode *, loff_t start, unsigned long count);
-extern void locks_delete_block(struct file_lock *waiter);
 extern void lock_flocks(void);
 extern void unlock_flocks(void);
 #else /* !CONFIG_FILE_LOCKING */
@@ -1148,10 +1147,6 @@ static inline int lock_may_write(struct inode *inode, loff_t start,
 				 unsigned long len)
 {
 	return 1;
-}
-
-static inline void locks_delete_block(struct file_lock *waiter)
-{
 }
 
 static inline void lock_flocks(void)
