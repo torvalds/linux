@@ -427,26 +427,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 		err = -ENOMEM;
 		goto err_close;
 	}
-
-	/*
-	 * If the request has a buffer, steal it, otherwise
-	 * allocate a new one.  Typically, requests should already
-	 * have receive buffers allocated and just swap them around
-	 */
-	if (!req->rc) {
-		req->rc = kmalloc(sizeof(struct p9_fcall)+client->msize,
-				  GFP_NOFS);
-		if (req->rc) {
-			req->rc->sdata = (char *) req->rc +
-						sizeof(struct p9_fcall);
-			req->rc->capacity = client->msize;
-		}
-	}
 	rpl_context->rc = req->rc;
-	if (!rpl_context->rc) {
-		err = -ENOMEM;
-		goto err_free2;
-	}
 
 	/*
 	 * Post a receive buffer for this request. We need to ensure
