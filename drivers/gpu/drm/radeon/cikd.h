@@ -32,6 +32,14 @@
 #define GENERAL_PWRMGT                                    0xC0200000
 #       define GPU_COUNTER_CLK                            (1 << 15)
 
+#define	CG_MULT_THERMAL_STATUS				0xC0300014
+#define		ASIC_MAX_TEMP(x)			((x) << 0)
+#define		ASIC_MAX_TEMP_MASK			0x000001ff
+#define		ASIC_MAX_TEMP_SHIFT			0
+#define		CTF_TEMP(x)				((x) << 9)
+#define		CTF_TEMP_MASK				0x0003fe00
+#define		CTF_TEMP_SHIFT				9
+
 #define	MPLL_BYPASSCLK_SEL				0xC050019C
 #	define MPLL_CLKOUT_SEL(x)			((x) << 8)
 #	define MPLL_CLKOUT_SEL_MASK			0xFF00

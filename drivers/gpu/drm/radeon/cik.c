@@ -69,6 +69,43 @@ static void cik_program_aspm(struct radeon_device *rdev);
 static void cik_init_pg(struct radeon_device *rdev);
 static void cik_init_cg(struct radeon_device *rdev);
 
+/* get temperature in millidegrees */
+int ci_get_temp(struct radeon_device *rdev)
+{
+	u32 temp;
+	int actual_temp = 0;
+
+	temp = (RREG32_SMC(CG_MULT_THERMAL_STATUS) & CTF_TEMP_MASK) >>
+		CTF_TEMP_SHIFT;
+
+	if (temp & 0x200)
+		actual_temp = 255;
+	else
+		actual_temp = temp & 0x1ff;
+
+	actual_temp = actual_temp * 1000;
+
+	return actual_temp;
+}
+
+/* get temperature in millidegrees */
+int kv_get_temp(struct radeon_device *rdev)
+{
+	u32 temp;
+	int actual_temp = 0;
+
+	temp = RREG32_SMC(0xC0300E0C);
+
+	if (temp)
+		actual_temp = (temp / 8) - 49;
+	else
+		actual_temp = 0;
+
+	actual_temp = actual_temp * 1000;
+
+	return actual_temp;
+}
+
 /*
  * Indirect registers accessor
  */

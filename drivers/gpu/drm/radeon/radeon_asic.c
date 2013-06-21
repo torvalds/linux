@@ -2452,6 +2452,7 @@ static struct radeon_asic ci_asic = {
 		.set_pcie_lanes = NULL,
 		.set_clock_gating = NULL,
 		.set_uvd_clocks = &cik_set_uvd_clocks,
+		.get_temperature = &ci_get_temp,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -2607,6 +2608,7 @@ static struct radeon_asic kv_asic = {
 		.set_pcie_lanes = NULL,
 		.set_clock_gating = NULL,
 		.set_uvd_clocks = &cik_set_uvd_clocks,
+		.get_temperature = &kv_get_temp,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,

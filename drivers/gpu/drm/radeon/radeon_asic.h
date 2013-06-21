@@ -747,5 +747,7 @@ u32 cik_compute_ring_get_wptr(struct radeon_device *rdev,
 			      struct radeon_ring *ring);
 void cik_compute_ring_set_wptr(struct radeon_device *rdev,
 			       struct radeon_ring *ring);
+int ci_get_temp(struct radeon_device *rdev);
+int kv_get_temp(struct radeon_device *rdev);
 
 #endif
