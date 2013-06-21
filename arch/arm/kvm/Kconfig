@@ -67,6 +67,4 @@ config KVM_ARM_TIMER
 	---help---
 	  Adds support for the Architected Timers in virtual machines
 
-source drivers/virtio/Kconfig
-
 endif # VIRTUALIZATION
