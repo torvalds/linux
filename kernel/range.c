@@ -48,9 +48,11 @@ int add_range_with_merge(struct range *range, int az, int nr_range,
 		final_start = min(range[i].start, start);
 		final_end = max(range[i].end, end);
 
-		range[i].start = final_start;
-		range[i].end =  final_end;
-		return nr_range;
+		/* clear it and add it back for further merge */
+		range[i].start = 0;
+		range[i].end =  0;
+		return add_range_with_merge(range, az, nr_range,
+			final_start, final_end);
 	}
 
 	/* Need to add it: */

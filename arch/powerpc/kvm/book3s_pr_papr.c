@@ -257,6 +257,8 @@ int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 	case H_CPPR:
 	case H_EOI:
 	case H_IPI:
+	case H_IPOLL:
+	case H_XIRR_X:
 		if (kvmppc_xics_enabled(vcpu))
 			return kvmppc_h_pr_xics_hcall(vcpu, cmd);
 		break;

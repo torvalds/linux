@@ -325,6 +325,7 @@ static int mei_me_pci_resume(struct device *device)
 
 	mutex_lock(&dev->device_lock);
 	dev->dev_state = MEI_DEV_POWER_UP;
+	mei_clear_interrupts(dev);
 	mei_reset(dev, 1);
 	mutex_unlock(&dev->device_lock);
 

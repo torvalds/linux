@@ -53,6 +53,8 @@ static char *def_disp_name;
 module_param_named(def_disp, def_disp_name, charp, 0);
 MODULE_PARM_DESC(def_disp, "default display name");
 
+static bool dss_initialized;
+
 const char *omapdss_get_default_display_name(void)
 {
 	return core.default_display_name;
@@ -65,6 +67,12 @@ enum omapdss_version omapdss_get_version(void)
 	return pdata->version;
 }
 EXPORT_SYMBOL(omapdss_get_version);
+
+bool omapdss_is_initialized(void)
+{
+	return dss_initialized;
+}
+EXPORT_SYMBOL(omapdss_is_initialized);
 
 struct platform_device *dss_get_core_pdev(void)
 {
@@ -603,6 +611,8 @@ static int __init omap_dss_init(void)
 		return r;
 	}
 
+	dss_initialized = true;
+
 	return 0;
 }
 
@@ -633,7 +643,15 @@ static int __init omap_dss_init(void)
 
 static int __init omap_dss_init2(void)
 {
-	return omap_dss_register_drivers();
+	int r;
+
+	r = omap_dss_register_drivers();
+	if (r)
+		return r;
+
+	dss_initialized = true;
+
+	return 0;
 }
 
 core_initcall(omap_dss_init);

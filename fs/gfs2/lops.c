@@ -419,7 +419,9 @@ static void gfs2_before_commit(struct gfs2_sbd *sdp, unsigned int limit,
 		if (total > limit)
 			num = limit;
 		gfs2_log_unlock(sdp);
-		page = gfs2_get_log_desc(sdp, GFS2_LOG_DESC_METADATA, num + 1, num);
+		page = gfs2_get_log_desc(sdp,
+					 is_databuf ? GFS2_LOG_DESC_JDATA :
+					 GFS2_LOG_DESC_METADATA, num + 1, num);
 		ld = page_address(page);
 		gfs2_log_lock(sdp);
 		ptr = (__be64 *)(ld + 1);
