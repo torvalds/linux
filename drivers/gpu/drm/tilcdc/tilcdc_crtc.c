@@ -42,7 +42,8 @@ struct tilcdc_crtc {
 
 static void unref_worker(struct work_struct *work)
 {
-	struct tilcdc_crtc *tilcdc_crtc = container_of(work, struct tilcdc_crtc, work);
+	struct tilcdc_crtc *tilcdc_crtc =
+		container_of(work, struct tilcdc_crtc, work);
 	struct drm_device *dev = tilcdc_crtc->base.dev;
 	struct drm_framebuffer *fb;
 
@@ -55,10 +56,12 @@ static void unref_worker(struct work_struct *work)
 static void set_scanout(struct drm_crtc *crtc, int n)
 {
 	static const uint32_t base_reg[] = {
-			LCDC_DMA_FB_BASE_ADDR_0_REG, LCDC_DMA_FB_BASE_ADDR_1_REG,
+			LCDC_DMA_FB_BASE_ADDR_0_REG,
+			LCDC_DMA_FB_BASE_ADDR_1_REG,
 	};
 	static const uint32_t ceil_reg[] = {
-			LCDC_DMA_FB_CEILING_ADDR_0_REG, LCDC_DMA_FB_CEILING_ADDR_1_REG,
+			LCDC_DMA_FB_CEILING_ADDR_0_REG,
+			LCDC_DMA_FB_CEILING_ADDR_1_REG,
 	};
 	static const uint32_t stat[] = {
 			LCDC_END_OF_FRAME0, LCDC_END_OF_FRAME1,
@@ -194,7 +197,8 @@ static void tilcdc_crtc_dpms(struct drm_crtc *crtc, int mode)
 		tilcdc_crtc->frame_done = false;
 		stop(crtc);
 
-		/* if necessary wait for framedone irq which will still come
+		/*
+		 * if necessary wait for framedone irq which will still come
 		 * before putting things to sleep..
 		 */
 		if (priv->rev == 2) {
@@ -499,7 +503,7 @@ int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	 * configured from the DT
 	 */
 	if (mode->clock > priv->max_pixelclock) {
-		DBG("Pruning mode, pixel clock too high");
+		DBG("Pruning mode: pixel clock too high");
 		return MODE_CLOCK_HIGH;
 	}
 
@@ -514,7 +518,7 @@ int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	bandwidth = mode->hdisplay * mode->vdisplay *
 		drm_mode_vrefresh(mode);
 	if (bandwidth > priv->max_bandwidth) {
-		DBG("Pruning mode, exceeds defined bandwidth limit");
+		DBG("Pruning mode: exceeds defined bandwidth limit");
 		return MODE_BAD;
 	}
 
