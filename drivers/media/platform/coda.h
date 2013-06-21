@@ -43,6 +43,7 @@
 #define		CODA_STREAM_ENDIAN_SELECT	(1 << 0)
 #define CODA_REG_BIT_FRAME_MEM_CTRL		0x110
 #define		CODA_IMAGE_ENDIAN_SELECT	(1 << 0)
+#define CODA_REG_BIT_TEMP_BUF_ADDR		0x118
 #define CODA_REG_BIT_RD_PTR(x)			(0x120 + 8 * (x))
 #define CODA_REG_BIT_WR_PTR(x)			(0x124 + 8 * (x))
 #define CODADX6_REG_BIT_SEARCH_RAM_BASE_ADDR	0x140
@@ -91,6 +92,14 @@
 #define 	CODA_MODE_INVALID		0xffff
 #define CODA_REG_BIT_INT_ENABLE		0x170
 #define		CODA_INT_INTERRUPT_ENABLE	(1 << 3)
+#define CODA7_REG_BIT_RUN_AUX_STD		0x178
+#define		CODA_MP4_AUX_MPEG4		0
+#define		CODA_MP4_AUX_DIVX3		1
+#define		CODA_VPX_AUX_THO		0
+#define		CODA_VPX_AUX_VP6		1
+#define		CODA_VPX_AUX_VP8		2
+#define		CODA_H264_AUX_AVC		0
+#define		CODA_H264_AUX_MVC		1
 
 /*
  * Commands' mailbox:
