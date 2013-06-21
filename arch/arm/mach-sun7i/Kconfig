@@ -1,0 +1,17 @@
+comment "Allwinner Platform Type"
+choice
+    prompt "Allwinner Platform Type"
+    depends on ARCH_SUN7I
+    default AW_ASIC_PLATFORM
+
+config AW_FPGA_PLATFORM
+    bool "FPGA board"
+    help
+        Support for Allwinner's FPGA board
+
+config AW_ASIC_PLATFORM
+    bool "ASIC board"
+    help
+        Support for Allwinner's ASIC board
+
+endchoice

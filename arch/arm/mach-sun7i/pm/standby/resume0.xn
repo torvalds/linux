@@ -1,0 +1,22 @@
+
+OUTPUT_ARCH(arm)
+ENTRY(main)
+
+SECTIONS
+{
+	__resume0_start = . ;
+	.text 0x52000000 :
+	{
+		./super/resume/resume_head.o( .rodata )
+		./super/resume/resume0.o(.text)
+		*(.text)
+	}
+	.rodata : { *(.rodata) }
+	.data   : { *(.data) }
+
+	__bss_start = . ;
+	.bss : { *(.sbss) *(.scommon) *(.bss) *(COMMON) }
+	__bss_end = .;
+	__resume0_end = . ;
+}
+

@@ -1,0 +1,22 @@
+
+OUTPUT_ARCH(arm)
+ENTRY(main)
+
+SECTIONS
+{
+	__suspend_start = . ;
+	.text 0x000000000 :
+	{
+		./super/suspend/suspend.o(.text.startup)
+		*(.text)
+		*(.rodata)
+	}
+
+	.data   : { *(.data) }
+
+	__bss_start = . ;
+	.bss : { *(.sbss) *(.scommon) *(.bss) *(COMMON) }
+	__bss_end = .;
+	__suspend_end = . ;
+}
+
