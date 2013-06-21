@@ -292,6 +292,7 @@ THUMB(	orr	r2, r2, #PSR_T_BIT	)
 	ldr	r2, =BSYM(panic)
 	msr	ELR_hyp, r2
 	ldr	r0, =\panic_str
+	clrex				@ Clear exclusive monitor
 	eret
 .endm
 
@@ -441,6 +442,7 @@ guest_trap:
 
 4:	pop	{r0, r1}		@ Failed translation, return to guest
 	mcrr	p15, 0, r0, r1, c7	@ PAR
+	clrex
 	pop	{r0, r1, r2}
 	eret
 
@@ -467,6 +469,7 @@ switch_to_guest_vfp:
 
 	pop	{r3-r7}
 	pop	{r0-r2}
+	clrex
 	eret
 #endif
 
