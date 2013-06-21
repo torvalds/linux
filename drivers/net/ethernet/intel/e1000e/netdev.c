@@ -2979,17 +2979,10 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	u32 pages = 0;
 
 	/* Workaround Si errata on PCHx - configure jumbo frame flow */
-	if (hw->mac.type >= e1000_pch2lan) {
-		s32 ret_val;
-
-		if (adapter->netdev->mtu > ETH_DATA_LEN)
-			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, true);
-		else
-			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, false);
-
-		if (ret_val)
-			e_dbg("failed to enable jumbo frame workaround mode\n");
-	}
+	if ((hw->mac.type >= e1000_pch2lan) &&
+	    (adapter->netdev->mtu > ETH_DATA_LEN) &&
+	    e1000_lv_jumbo_workaround_ich8lan(hw, true))
+		e_dbg("failed to enable jumbo frame workaround mode\n");
 
 	/* Program MC offset vector base */
 	rctl = er32(RCTL);
@@ -4033,6 +4026,12 @@ void e1000e_down(struct e1000_adapter *adapter)
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
+
+	/* Disable Si errata workaround on PCHx for jumbo frame flow */
+	if ((hw->mac.type >= e1000_pch2lan) &&
+	    (adapter->netdev->mtu > ETH_DATA_LEN) &&
+	    e1000_lv_jumbo_workaround_ich8lan(hw, false))
+		e_dbg("failed to disable jumbo frame workaround mode\n");
 
 	if (!pci_channel_offline(adapter->pdev))
 		e1000e_reset(adapter);
