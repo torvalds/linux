@@ -841,53 +841,6 @@ static void ipu_err_irq_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static void ipu_ack_irq(struct irq_data *d)
-{
-	struct ipu_soc *ipu = irq_data_get_irq_chip_data(d);
-	irq_hw_number_t irq = d->hwirq;
-
-	ipu_cm_write(ipu, 1 << (irq % 32), IPU_INT_STAT(irq / 32));
-}
-
-static void ipu_unmask_irq(struct irq_data *d)
-{
-	struct ipu_soc *ipu = irq_data_get_irq_chip_data(d);
-	irq_hw_number_t irq = d->hwirq;
-	unsigned long flags;
-	u32 reg;
-
-	spin_lock_irqsave(&ipu->lock, flags);
-
-	reg = ipu_cm_read(ipu, IPU_INT_CTRL(irq / 32));
-	reg |= 1 << (irq % 32);
-	ipu_cm_write(ipu, reg, IPU_INT_CTRL(irq / 32));
-
-	spin_unlock_irqrestore(&ipu->lock, flags);
-}
-
-static void ipu_mask_irq(struct irq_data *d)
-{
-	struct ipu_soc *ipu = irq_data_get_irq_chip_data(d);
-	irq_hw_number_t irq = d->hwirq;
-	unsigned long flags;
-	u32 reg;
-
-	spin_lock_irqsave(&ipu->lock, flags);
-
-	reg = ipu_cm_read(ipu, IPU_INT_CTRL(irq / 32));
-	reg &= ~(1 << (irq % 32));
-	ipu_cm_write(ipu, reg, IPU_INT_CTRL(irq / 32));
-
-	spin_unlock_irqrestore(&ipu->lock, flags);
-}
-
-static struct irq_chip ipu_irq_chip = {
-	.name = "IPU",
-	.irq_ack = ipu_ack_irq,
-	.irq_mask = ipu_mask_irq,
-	.irq_unmask = ipu_unmask_irq,
-};
-
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
 		enum ipu_channel_irq irq_type)
 {
@@ -983,30 +936,37 @@ err_register:
 	return ret;
 }
 
-static int ipu_irq_map(struct irq_domain *h, unsigned int irq,
-		       irq_hw_number_t hw)
-{
-	struct ipu_soc *ipu = h->host_data;
-
-	irq_set_chip_and_handler(irq, &ipu_irq_chip, handle_level_irq);
-	set_irq_flags(irq, IRQF_VALID);
-	irq_set_chip_data(irq, ipu);
-
-	return 0;
-}
-
-const struct irq_domain_ops ipu_irq_domain_ops = {
-	.map = ipu_irq_map,
-	.xlate = irq_domain_xlate_onecell,
-};
 
 static int ipu_irq_init(struct ipu_soc *ipu)
 {
+	struct irq_chip_generic *gc;
+	struct irq_chip_type *ct;
+	int ret, i;
+
 	ipu->domain = irq_domain_add_linear(ipu->dev->of_node, IPU_NUM_IRQS,
-					    &ipu_irq_domain_ops, ipu);
+					    &irq_generic_chip_ops, ipu);
 	if (!ipu->domain) {
 		dev_err(ipu->dev, "failed to add irq domain\n");
 		return -ENODEV;
+	}
+
+	ret = irq_alloc_domain_generic_chips(ipu->domain, 32, 1, "IPU",
+					     handle_level_irq, 0, IRQF_VALID, 0);
+	if (ret < 0) {
+		dev_err(ipu->dev, "failed to alloc generic irq chips\n");
+		irq_domain_remove(ipu->domain);
+		return ret;
+	}
+
+	for (i = 0; i < IPU_NUM_IRQS; i += 32) {
+		gc = irq_get_domain_generic_chip(ipu->domain, i);
+		gc->reg_base = ipu->cm_reg;
+		ct = gc->chip_types;
+		ct->chip.irq_ack = irq_gc_ack_set_bit;
+		ct->chip.irq_mask = irq_gc_mask_clr_bit;
+		ct->chip.irq_unmask = irq_gc_mask_set_bit;
+		ct->regs.ack = IPU_INT_STAT(i / 32);
+		ct->regs.mask = IPU_INT_CTRL(i / 32);
 	}
 
 	irq_set_chained_handler(ipu->irq_sync, ipu_irq_handler);
@@ -1025,6 +985,8 @@ static void ipu_irq_exit(struct ipu_soc *ipu)
 	irq_set_handler_data(ipu->irq_err, NULL);
 	irq_set_chained_handler(ipu->irq_sync, NULL);
 	irq_set_handler_data(ipu->irq_sync, NULL);
+
+	/* TODO: remove irq_domain_generic_chips */
 
 	for (i = 0; i < IPU_NUM_IRQS; i++) {
 		irq = irq_linear_revmap(ipu->domain, i);
