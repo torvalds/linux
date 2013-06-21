@@ -147,6 +147,7 @@ static int ipu_page_flip(struct drm_crtc *crtc,
 
 	ipu_crtc->newfb = fb;
 	ipu_crtc->page_flip_event = event;
+	crtc->fb = fb;
 
 	return 0;
 }
@@ -329,7 +330,6 @@ static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
 	imx_drm_handle_vblank(ipu_crtc->imx_crtc);
 
 	if (ipu_crtc->newfb) {
-		ipu_crtc->base.fb = ipu_crtc->newfb;
 		ipu_crtc->newfb = NULL;
 		ipu_drm_set_base(&ipu_crtc->base, 0, 0);
 		ipu_crtc_handle_pageflip(ipu_crtc);
