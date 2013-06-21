@@ -342,7 +342,7 @@ prototypes:
 
 
 locking rules:
-			file_lock_lock	may block
+			inode->i_lock	may block
 fl_copy_lock:		yes		no
 fl_release_private:	maybe		no
 
@@ -355,12 +355,19 @@ prototypes:
 	int (*lm_change)(struct file_lock **, int);
 
 locking rules:
-			file_lock_lock	may block
-lm_compare_owner:	yes		no
-lm_notify:		yes		no
-lm_grant:		no		no
-lm_break:		yes		no
-lm_change		yes		no
+
+			inode->i_lock	file_lock_lock	may block
+lm_compare_owner:	yes[1]		maybe		no
+lm_notify:		yes		yes		no
+lm_grant:		no		no		no
+lm_break:		yes		no		no
+lm_change		yes		no		no
+
+[1]:	->lm_compare_owner is generally called with *an* inode->i_lock held. It
+may not be the i_lock of the inode for either file_lock being compared! This is
+the case with deadlock detection, since the code has to chase down the owners
+of locks that may be entirely unrelated to the one on which the lock is being
+acquired. When doing a search for deadlocks, the file_lock_lock is also held.
 
 --------------------------- buffer_head -----------------------------------
 prototypes:

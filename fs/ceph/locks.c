@@ -192,7 +192,7 @@ void ceph_count_locks(struct inode *inode, int *fcntl_count, int *flock_count)
 
 /**
  * Encode the flock and fcntl locks for the given inode into the ceph_filelock
- * array. Must be called with lock_flocks() already held.
+ * array. Must be called with inode->i_lock already held.
  * If we encounter more of a specific lock type than expected, return -ENOSPC.
  */
 int ceph_encode_locks_to_buffer(struct inode *inode,

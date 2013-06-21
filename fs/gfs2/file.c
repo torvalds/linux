@@ -889,7 +889,7 @@ out_uninit:
  * cluster; until we do, disable leases (by just returning -EINVAL),
  * unless the administrator has requested purely local locking.
  *
- * Locking: called under lock_flocks
+ * Locking: called under i_lock
  *
  * Returns: errno
  */
