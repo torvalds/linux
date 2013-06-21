@@ -182,7 +182,8 @@ config LCD_WY_800X480
 
 config LCD_HH070D_LVDS
 	bool "lcd lvds for 760"
-
+config LCD_LD089WU1_MIPI
+	bool "mipi dsi lcd LD089WU1 1920X1200"
 endchoice
 
 
