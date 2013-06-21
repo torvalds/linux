@@ -240,6 +240,16 @@ config VIRTIO_NET
 	  This is the virtual network driver for virtio.  It can be used with
 	  lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
 
+config NLMON
+	tristate "Virtual netlink monitoring device"
+	---help---
+	  This option enables a monitoring net device for netlink skbs. The
+	  purpose of this is to analyze netlink messages with packet sockets.
+	  Thus applications like tcpdump will be able to see local netlink
+	  messages if they tap into the netlink device, record pcaps for further
+	  diagnostics, etc. This is mostly intended for developers or support
+	  to debug netlink issues. If unsure, say N.
+
 endif # NET_CORE
 
 config SUNGEM_PHY
