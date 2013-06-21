@@ -1891,6 +1891,7 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
  */
 static int nvme_dev_add(struct nvme_dev *dev)
 {
+	struct pci_dev *pdev = dev->pci_dev;
 	int res;
 	unsigned nn, i;
 	struct nvme_ns *ns;
@@ -1900,8 +1901,7 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	dma_addr_t dma_addr;
 	int shift = NVME_CAP_MPSMIN(readq(&dev->bar->cap)) + 12;
 
-	mem = dma_alloc_coherent(&dev->pci_dev->dev, 8192, &dma_addr,
-								GFP_KERNEL);
+	mem = dma_alloc_coherent(&pdev->dev, 8192, &dma_addr, GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
 
@@ -1919,8 +1919,8 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	memcpy(dev->firmware_rev, ctrl->fr, sizeof(ctrl->fr));
 	if (ctrl->mdts)
 		dev->max_hw_sectors = 1 << (ctrl->mdts + shift - 9);
-	if ((dev->pci_dev->vendor == PCI_VENDOR_ID_INTEL) &&
-			(dev->pci_dev->device == 0x0953) && ctrl->vs[3])
+	if ((pdev->vendor == PCI_VENDOR_ID_INTEL) &&
+			(pdev->device == 0x0953) && ctrl->vs[3])
 		dev->stripe_size = 1 << (ctrl->vs[3] + shift);
 
 	id_ns = mem;
