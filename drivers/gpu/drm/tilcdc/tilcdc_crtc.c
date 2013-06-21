@@ -299,6 +299,8 @@ static int tilcdc_crtc_mode_set(struct drm_crtc *crtc,
 	 * a value of 0 as 1
 	 */
 	if (priv->rev == 2) {
+		/* clear bits we're going to set */
+		reg &= ~0x78000033;
 		reg |= ((hfp-1) & 0x300) >> 8;
 		reg |= ((hbp-1) & 0x300) >> 4;
 		reg |= ((hsw-1) & 0x3c0) << 21;
