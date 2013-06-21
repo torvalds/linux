@@ -56,6 +56,14 @@
 							MX6DL_PAD_EIM_D16__ECSPI1_SCLK 0x100b1
 						>;
 					};
+
+					pinctrl_ecspi1_2: ecspi1grp-2 {
+						fsl,pins = <
+							MX6DL_PAD_KEY_COL1__ECSPI1_MISO 0x100b1
+							MX6DL_PAD_KEY_ROW0__ECSPI1_MOSI 0x100b1
+							MX6DL_PAD_KEY_COL0__ECSPI1_SCLK 0x100b1
+						>;
+					};
 				};
 
 				enet {
