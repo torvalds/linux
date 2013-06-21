@@ -3143,8 +3143,10 @@ out_free:
 out_no_deleg:
 	open->op_delegate_type = NFS4_OPEN_DELEGATE_NONE;
 	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS &&
-	    open->op_delegate_type != NFS4_OPEN_DELEGATE_NONE)
+	    open->op_delegate_type != NFS4_OPEN_DELEGATE_NONE) {
 		dprintk("NFSD: WARNING: refusing delegation reclaim\n");
+		open->op_recall = 1;
+	}
 
 	/* 4.1 client asking for a delegation? */
 	if (open->op_deleg_want)
