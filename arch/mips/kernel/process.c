@@ -207,9 +207,6 @@ unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
 
-/*
- *
- */
 struct mips_frame_info {
 	void		*func;
 	unsigned long	func_size;
