@@ -941,6 +941,16 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
+	unsigned long unused[IPU_NUM_IRQS / 32] = {
+		0x400100d0, 0xffe000fd,
+		0x400100d0, 0xffe000fd,
+		0x400100d0, 0xffe000fd,
+		0x4077ffff, 0xffe7e1fd,
+		0x23fffffe, 0x8880fff0,
+		0xf98fe7d0, 0xfff81fff,
+		0x400100d0, 0xffe000fd,
+		0x00000000,
+	};
 	int ret, i;
 
 	ipu->domain = irq_domain_add_linear(ipu->dev->of_node, IPU_NUM_IRQS,
@@ -961,6 +971,7 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 	for (i = 0; i < IPU_NUM_IRQS; i += 32) {
 		gc = irq_get_domain_generic_chip(ipu->domain, i);
 		gc->reg_base = ipu->cm_reg;
+		gc->unused = unused[i / 32];
 		ct = gc->chip_types;
 		ct->chip.irq_ack = irq_gc_ack_set_bit;
 		ct->chip.irq_mask = irq_gc_mask_clr_bit;
