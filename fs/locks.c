@@ -126,6 +126,7 @@
 #include <linux/time.h>
 #include <linux/rcupdate.h>
 #include <linux/pid_namespace.h>
+#include <linux/hashtable.h>
 
 #include <asm/uaccess.h>
 
@@ -160,13 +161,21 @@ int lease_break_time = 45;
 static HLIST_HEAD(file_lock_list);
 
 /*
- * The blocked_list is used to find POSIX lock loops for deadlock detection.
- * Protected by file_lock_lock.
+ * The blocked_hash is used to find POSIX lock loops for deadlock detection.
+ * It is protected by file_lock_lock.
+ *
+ * We hash locks by lockowner in order to optimize searching for the lock a
+ * particular lockowner is waiting on.
+ *
+ * FIXME: make this value scale via some heuristic? We generally will want more
+ * buckets when we have more lockowners holding locks, but that's a little
+ * difficult to determine without knowing what the workload will look like.
  */
-static HLIST_HEAD(blocked_list);
+#define BLOCKED_HASH_BITS	7
+static DEFINE_HASHTABLE(blocked_hash, BLOCKED_HASH_BITS);
 
 /*
- * This lock protects the blocked_list, and the file_lock_list. Generally, if
+ * This lock protects the blocked_hash and the file_lock_list. Generally, if
  * you're accessing one of those lists, you want to be holding this lock.
  *
  * In addition, it also protects the fl->fl_block list, and the fl->fl_next
@@ -515,13 +524,13 @@ locks_delete_global_locks(struct file_lock *fl)
 static inline void
 locks_insert_global_blocked(struct file_lock *waiter)
 {
-	hlist_add_head(&waiter->fl_link, &blocked_list);
+	hash_add(blocked_hash, &waiter->fl_link, (unsigned long)waiter->fl_owner);
 }
 
 static inline void
 locks_delete_global_blocked(struct file_lock *waiter)
 {
-	hlist_del_init(&waiter->fl_link);
+	hash_del(&waiter->fl_link);
 }
 
 /* Remove waiter from blocker's block list.
@@ -748,7 +757,7 @@ static struct file_lock *what_owner_is_waiting_for(struct file_lock *block_fl)
 {
 	struct file_lock *fl;
 
-	hlist_for_each_entry(fl, &blocked_list, fl_link) {
+	hash_for_each_possible(blocked_hash, fl, fl_link, (unsigned long)block_fl->fl_owner) {
 		if (posix_same_owner(fl, block_fl))
 			return fl->fl_next;
 	}
@@ -884,7 +893,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 	/*
 	 * New lock request. Walk all POSIX locks and look for conflicts. If
 	 * there are any, either return error or put the request on the
-	 * blocker's list of waiters and the global blocked_list.
+	 * blocker's list of waiters and the global blocked_hash.
 	 */
 	if (request->fl_type != F_UNLCK) {
 		for_each_lock(inode, before) {
