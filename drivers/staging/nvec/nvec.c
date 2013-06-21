@@ -771,6 +771,27 @@ static void nvec_power_off(void)
 	nvec_write_async(nvec_power_handle, ap_pwr_down, 2);
 }
 
+/*
+ *  Parse common device tree data
+ */
+static int nvec_i2c_parse_dt_pdata(struct nvec_chip *nvec)
+{
+	nvec->gpio = of_get_named_gpio(nvec->dev->of_node, "request-gpios", 0);
+
+	if (nvec->gpio < 0) {
+		dev_err(nvec->dev, "no gpio specified");
+		return -ENODEV;
+	}
+
+	if (of_property_read_u32(nvec->dev->of_node, "slave-addr",
+				&nvec->i2c_addr)) {
+		dev_err(nvec->dev, "no i2c address specified");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int tegra_nvec_probe(struct platform_device *pdev)
 {
 	int err, ret;
@@ -796,17 +817,9 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, nvec);
 	nvec->dev = &pdev->dev;
 
-	nvec->gpio = of_get_named_gpio(nvec->dev->of_node, "request-gpios", 0);
-	if (nvec->gpio < 0) {
-		dev_err(&pdev->dev, "no gpio specified");
-		return -ENODEV;
-	}
-
-	if (of_property_read_u32(nvec->dev->of_node, "slave-addr",
-				 &nvec->i2c_addr)) {
-		dev_err(&pdev->dev, "no i2c address specified");
-		return -ENODEV;
-	}
+	err = nvec_i2c_parse_dt_pdata(nvec);
+	if (err < 0)
+		return err;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
