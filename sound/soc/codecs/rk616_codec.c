@@ -63,6 +63,10 @@ struct rk616_codec_priv {
 
 	int spk_ctl_gpio;
 	int hp_ctl_gpio;
+
+	long int playback_path;
+	long int capture_path;
+	long int voice_call_path;
 };
 
 static struct rk616_codec_priv *rk616_priv = NULL;
@@ -899,6 +903,231 @@ static const struct snd_kcontrol_new rk616_snd_controls[] = {
 	SOC_ENUM("I2S Loop Enable",  rk616_loop_enum),
 };
 
+//For tiny alsa playback/capture/voice call path
+static const char *rk616_playback_path_mode[] = {"OFF", "RCV", "SPK", "HP", "HP_NO_MIC", "BT", "SPK_HP", //0-6
+		"RING_SPK", "RING_HP", "RING_HP_NO_MIC", "RING_SPK_HP"};//7-10
+
+static const char *rk616_capture_path_mode[] = {"MIC OFF", "Main Mic", "Hands Free Mic", "BT Sco Mic"};
+
+static const char *rk616_voice_call_path_mode[] = {"OFF", "RCV", "SPK", "HP", "HP_NO_MIC", "BT"};//0-5
+
+static const SOC_ENUM_SINGLE_DECL(rk616_playback_path_type, 0, 0, rk616_playback_path_mode);
+
+static const SOC_ENUM_SINGLE_DECL(rk616_capture_path_type, 0, 0, rk616_capture_path_mode);
+
+static const SOC_ENUM_SINGLE_DECL(rk616_voice_call_path_type, 0, 0, rk616_voice_call_path_mode);
+
+static int rk616_playback_path_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	if (!rk616_priv) {
+		printk("%s : rk616_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	DBG("%s : playback_path = %ld\n",__func__,ucontrol->value.integer.value[0]);
+
+	ucontrol->value.integer.value[0] = rk616_priv->playback_path;
+
+	return 0;
+}
+
+static int rk616_playback_path_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+	if (!rk616_priv) {
+		printk("%s : rk616_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (rk616_priv->playback_path == ucontrol->value.integer.value[0]){
+		printk("%s : playback_path is not changed!\n",__func__);
+		//return 0;
+	}
+
+	rk616_priv->playback_path = ucontrol->value.integer.value[0];
+
+	DBG("%s : set playback_path = %ld, hdmi %s\n", __func__,
+		rk616_priv->playback_path, get_hdmi_state() ? "in" : "out");
+
+	if(get_hdmi_state())
+		return 0;
+
+	switch (rk616_priv->playback_path) {
+	case OFF:
+		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
+		snd_soc_dapm_sync(&codec->dapm);
+		break;
+	case RCV:
+		break;
+	case SPK_PATH:
+	case RING_SPK:
+		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
+		snd_soc_dapm_sync(&codec->dapm);
+		break;
+	case HP_PATH:
+	case HP_NO_MIC:
+	case RING_HP:
+	case RING_HP_NO_MIC:
+		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
+		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_sync(&codec->dapm);
+		break;
+	case BT:
+		break;
+	case SPK_HP:
+	case RING_SPK_HP:
+		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
+		snd_soc_dapm_sync(&codec->dapm);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rk616_capture_path_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	if (!rk616_priv) {
+		printk("%s : rk616_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	DBG("%s : capture_path = %ld\n", __func__,
+		ucontrol->value.integer.value[0]);
+
+	ucontrol->value.integer.value[0] = rk616_priv->capture_path;
+
+	return 0;
+}
+
+static int rk616_capture_path_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+	if (!rk616_priv) {
+		printk("%s : rk616_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (rk616_priv->capture_path == ucontrol->value.integer.value[0]){
+		printk("%s : capture_path is not changed!\n", __func__);
+		//return 0;
+	}
+
+	rk616_priv->capture_path = ucontrol->value.integer.value[0];
+
+	DBG("%s : set capture_path = %ld\n", __func__, rk616_priv->capture_path);
+
+	switch (rk616_priv->capture_path) {
+	case MIC_OFF:
+		snd_soc_dapm_disable_pin(&codec->dapm, "Mic Jack");
+		snd_soc_dapm_disable_pin(&codec->dapm, "Headset Jack");
+		snd_soc_dapm_sync(&codec->dapm);
+		break;
+	case Main_Mic:
+		snd_soc_dapm_enable_pin(&codec->dapm, "Mic Jack");
+		snd_soc_dapm_disable_pin(&codec->dapm,"Headset Jack");
+		snd_soc_dapm_sync(&codec->dapm);
+		break;
+	case Hands_Free_Mic:
+		snd_soc_dapm_enable_pin(&codec->dapm, "Headset Jack");
+		snd_soc_dapm_disable_pin(&codec->dapm, "Mic Jack");
+		snd_soc_dapm_sync(&codec->dapm);
+		break;
+	case BT_Sco_Mic:
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rk616_voice_call_path_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	if (!rk616_priv) {
+		printk("%s : rk616_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	DBG("%s : playback_path = %ld\n", __func__,
+		ucontrol->value.integer.value[0]);
+
+	ucontrol->value.integer.value[0] = rk616_priv->voice_call_path;
+
+	return 0;
+}
+
+static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+	if (!rk616_priv) {
+		printk("%s : rk616_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (rk616_priv->voice_call_path == ucontrol->value.integer.value[0]){
+		printk("%s : playback_path is not changed!\n",__func__);
+		//return 0;
+	}
+
+	rk616_priv->voice_call_path = ucontrol->value.integer.value[0];
+
+	DBG("%s : set playback_path = %ld\n", __func__,
+		rk616_priv->voice_call_path);
+
+	switch (rk616_priv->voice_call_path) {
+	case OFF:
+		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
+		snd_soc_dapm_sync(&codec->dapm);
+		break;
+	case RCV:
+		break;
+	case SPK_PATH:
+		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
+		snd_soc_dapm_sync(&codec->dapm);
+		break;
+	case HP_PATH:
+	case HP_NO_MIC:
+		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
+		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_sync(&codec->dapm);
+		break;
+	case BT:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new rk616_snd_path_controls[] = {
+	SOC_ENUM_EXT("Playback Path", rk616_playback_path_type,
+		rk616_playback_path_get, rk616_playback_path_put),
+
+	SOC_ENUM_EXT("Capture MIC Path", rk616_capture_path_type,
+		rk616_capture_path_get, rk616_capture_path_put),
+
+	SOC_ENUM_EXT("Voice Call Path", rk616_voice_call_path_type,
+		rk616_voice_call_path_get, rk616_voice_call_path_put),
+};
+
 static int rk616_dacl_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
@@ -1683,18 +1912,18 @@ static struct rk616_reg_val_typ capture_power_up_list[] = {
 	{0x89c, 0x7f}, //MICBIAS1 power up (bit 7, Vout = 1.7 * Vref(1.65V) = 2.8V (bit 3-5)
 	{0x8a8, 0x09}, //ADCL/R power, and clear ADCL/R buf
 	{0x8a8, 0x00}, //ADCL/R power, and clear ADCL/R buf
-    {0x8c4, 0x57}, //L mod time 
-  //{0x904, 0x57}, //R mod time 
-    {0x828, 0x39}, //Set for Capture pop noise && enable agc control pga
-    {0x8a4, 0x03}, //enable cross zero detect
-    {0x8c0, 0x00}, //L agc choice mod 2
-  //{0x900, 0x00}, //R agc choice mod 2
-    {0x8d4, 0x13}, //max low
-    {0x8d8, 0x08}, //max high 
-    {0x8dc, 0xc2}, //min low
-    {0x8e0, 0x16}, //min high 
-    {0x8e4, 0x70}, //L enable agc
-  //{0x924, 0x70}, //R enbale agc
+	{0x8c4, 0x57}, //L mod time
+	//{0x904, 0x57}, //R mod time
+	{0x828, 0x39}, //Set for Capture pop noise && enable agc control pga
+	{0x8a4, 0x03}, //enable cross zero detect
+	{0x8c0, 0x00}, //L agc choice mod 2
+	//{0x900, 0x00}, //R agc choice mod 2
+	{0x8d4, 0x13}, //max low
+	{0x8d8, 0x08}, //max high
+	{0x8dc, 0xc2}, //min low
+	{0x8e0, 0x16}, //min high
+	{0x8e4, 0x70}, //L enable agc
+	//{0x924, 0x70}, //R enbale agc
 };
 #define RK616_CODEC_CAPTURE_POWER_UP_LIST_LEN ARRAY_SIZE(capture_power_up_list)
 
@@ -1706,18 +1935,18 @@ static struct rk616_reg_val_typ capture_power_down_list[] = {
 	{0x848, 0x1f}, //MIXINL power down and mute, MININL No selecting, MICMUX from BST_L
 	{0x840, 0x99}, //BST_L power down, mute, and Single-Ended(bit 6), volume 0(bit 5)
 	{0x83c, 0x7c}, //power down
-    {0x8e4, 0x38}, //L disable agc
-  //{0x924, 0x38}, //R disbale agc
-    {0x8c4, 0x25}, 
-  //{0x904, 0x25}, 
-    {0x828, 0x09}, 
-    {0x8a4, 0x0F},
-    {0x8c0, 0x10}, 
-  //{0x900, 0x10}, 
-    {0x8d4, 0x26}, 
-    {0x8d8, 0x40}, 
-    {0x8dc, 0x36}, 
-    {0x8e0, 0x20},
+	{0x8e4, 0x38}, //L disable agc
+	//{0x924, 0x38}, //R disbale agc
+	{0x8c4, 0x25},
+	//{0x904, 0x25},
+	{0x828, 0x09},
+	{0x8a4, 0x0F},
+	{0x8c0, 0x10},
+	//{0x900, 0x10},
+	{0x8d4, 0x26},
+	{0x8d8, 0x40},
+	{0x8dc, 0x36},
+	{0x8e0, 0x20},
 };
 #define RK616_CODEC_CAPTURE_POWER_DOWN_LIST_LEN ARRAY_SIZE(capture_power_down_list)
 
@@ -1736,11 +1965,11 @@ static int rk616_codec_power_up(int type)
 		type == RK616_CODEC_CAPTURE ? "capture" : "");
 
 	if (type == RK616_CODEC_PALYBACK) {
-		if(! get_hdmi_state())
 		for (i = 0; i < RK616_CODEC_PALYBACK_POWER_UP_LIST_LEN; i++) {
 			snd_soc_write(codec, palyback_power_up_list[i].reg,
 				palyback_power_up_list[i].value);
 		}
+		codec_set_spk(!get_hdmi_state());
 	} else if (type == RK616_CODEC_CAPTURE) {
 		for (i = 0; i < RK616_CODEC_CAPTURE_POWER_UP_LIST_LEN; i++) {
 			snd_soc_write(codec, capture_power_up_list[i].reg,

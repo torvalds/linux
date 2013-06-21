@@ -9,6 +9,9 @@ config SND_RK29_SOC
 config SND_RK29_SOC_I2S
 	tristate
 
+config SND_RK_SOC_SPDIF
+	tristate
+
 config SND_RK29_SOC_I2S_8CH
 	bool "Soc RK29 I2S 8 Channel support(I2S0)"
 	default y
@@ -54,9 +57,6 @@ config SND_RK_SOC_I2S2_2CH
 	help
 		This supports the use of the 2 Channel I2S2 interface on rk30 processors.
 
-config SND_ROCKCHIP_SPDIF
-	tristate
-	select SND_SOC_SPDIF
 if 	SND_RK29_SOC_I2S_2CH || SND_RK29_SOC_I2S_8CH || SND_RK_SOC_I2S2_2CH
 choice
   bool "Set i2s on DMA event mode"
@@ -68,21 +68,24 @@ choice
 		tristate  "static mode"
 endchoice
 endif
-config SND_RK_SOC_SPDIF
-	bool "spdif support for rockchip rk29 or rk30"
-	depends on SND_RK29_SOC 
-	select SND_ROCKCHIP_SPDIF
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the spdif.
-	  
-config SND_RK29_SOC_SPDIF
-	bool "Soc RK29 SPDIF support"
-	depends on SND_RK29_SOC
-	depends on SND_RK29_SOC_I2S
-	help
-		This supports the use of SPDIF interface on rk29 processors
-		
+
+if SND_RK29_SOC && RK_HDMI
+choice
+  bool "Set audio support for HDMI"
+  default SND_RK_SOC_HDMI_I2S
+	config SND_RK_SOC_HDMI_I2S
+		select SND_RK29_SOC_I2S
+		select SND_SOC_HDMI_I2S
+		tristate  "HDMI use I2S"
+
+	config SND_RK_SOC_HDMI_SPDIF
+		depends on SND_RK_SOC_RK616
+		select SND_RK_SOC_SPDIF
+		select SND_SOC_HDMI_SPDIF
+		tristate  "HDMI use SPDIF"
+endchoice
+endif
+
 config SND_RK29_SOC_ES8323
 	tristate "SoC I2S Audio support for rockchip - ES8323"
 	depends on SND_RK29_SOC
@@ -256,14 +259,6 @@ config SND_RK29_SOC_RK1000
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK1000.
 
-config SND_RK29_SOC_HDMI
-	tristate "SoC I2S Audio support for rockchip - HDMI"
-	depends on SND_RK29_SOC && HDMI_ITV
-	select SND_RK29_SOC_I2S
-	help
-	  Say Y if you want to add support for SoC audio on rockchip
-	  with the HDMI.
-
 config SND_RK29_SOC_RK610
 	tristate "SoC I2S Audio support for rockchip - RK610"
 	depends on SND_RK29_SOC && MFD_RK610
@@ -273,7 +268,7 @@ config SND_RK29_SOC_RK610
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK610(JETTA).
 
-config SND_RK29_SOC_RK616
+config SND_RK_SOC_RK616
 	tristate "SoC I2S Audio support for rockchip - RK616"
 	depends on SND_RK29_SOC && MFD_RK616
 	select SND_RK29_SOC_I2S
