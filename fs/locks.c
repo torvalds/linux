@@ -518,9 +518,10 @@ static void locks_insert_block(struct file_lock *blocker,
 		list_add(&waiter->fl_link, &blocked_list);
 }
 
-/* Wake up processes blocked waiting for blocker.
- * If told to wait then schedule the processes until the block list
- * is empty, otherwise empty the block list ourselves.
+/*
+ * Wake up processes blocked waiting for blocker.
+ *
+ * Must be called with the file_lock_lock held!
  */
 static void locks_wake_up_blocks(struct file_lock *blocker)
 {
@@ -806,6 +807,11 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 	}
 
 	lock_flocks();
+	/*
+	 * New lock request. Walk all POSIX locks and look for conflicts. If
+	 * there are any, either return error or put the request on the
+	 * blocker's list of waiters and the global blocked_list.
+	 */
 	if (request->fl_type != F_UNLCK) {
 		for_each_lock(inode, before) {
 			fl = *before;
@@ -844,7 +850,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 		before = &fl->fl_next;
 	}
 
-	/* Process locks with this owner.  */
+	/* Process locks with this owner. */
 	while ((fl = *before) && posix_same_owner(request, fl)) {
 		/* Detect adjacent or overlapping regions (if same lock type)
 		 */
@@ -930,10 +936,9 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 	}
 
 	/*
-	 * The above code only modifies existing locks in case of
-	 * merging or replacing.  If new lock(s) need to be inserted
-	 * all modifications are done bellow this, so it's safe yet to
-	 * bail out.
+	 * The above code only modifies existing locks in case of merging or
+	 * replacing. If new lock(s) need to be inserted all modifications are
+	 * done below this, so it's safe yet to bail out.
 	 */
 	error = -ENOLCK; /* "no luck" */
 	if (right && left == right && !new_fl2)
