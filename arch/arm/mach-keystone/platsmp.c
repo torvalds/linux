@@ -30,18 +30,9 @@ static int __cpuinit keystone_smp_boot_secondary(unsigned int cpu,
 	pr_debug("keystone-smp: booting cpu %d, vector %08lx\n",
 		 cpu, start);
 
-	asm volatile (
-		"mov    r0, #0\n"	/* power on cmd	*/
-		"mov    r1, %1\n"	/* cpu		*/
-		"mov    r2, %2\n"	/* start	*/
-		".inst  0xe1600070\n"	/* smc #0	*/
-		"mov    %0, r0\n"
-		: "=r" (error)
-		: "r"(cpu), "r"(start)
-		: "cc", "r0", "r1", "r2", "memory"
-	);
-
-	pr_debug("keystone-smp: monitor returned %d\n", error);
+	error = keystone_cpu_smc(KEYSTONE_MON_CPU_UP_IDX, cpu, start);
+	if (error)
+		pr_err("CPU %d bringup failed with %d\n", cpu, error);
 
 	return error;
 }
