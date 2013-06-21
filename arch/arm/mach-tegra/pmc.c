@@ -234,7 +234,7 @@ static const struct of_device_id matches[] __initconst = {
 	{ }
 };
 
-static void tegra_pmc_parse_dt(void)
+static void __init tegra_pmc_parse_dt(void)
 {
 	struct device_node *np;
 	u32 prop;
