@@ -284,7 +284,10 @@ struct smb2_tree_connect_rsp {
 #define SHI1005_FLAGS_ALLOW_NAMESPACE_CACHING		0x00000400
 #define SHI1005_FLAGS_ACCESS_BASED_DIRECTORY_ENUM	0x00000800
 #define SHI1005_FLAGS_FORCE_LEVELII_OPLOCK		0x00001000
-#define SHI1005_FLAGS_ENABLE_HASH			0x00002000
+#define SHI1005_FLAGS_ENABLE_HASH_V1			0x00002000
+#define SHI1005_FLAGS_ENABLE_HASH_V2			0x00004000
+#define SHI1005_FLAGS_ENCRYPT_DATA			0x00008000
+#define SHI1005_FLAGS_ALL				0x0000FF33
 
 /* Possible share capabilities */
 #define SMB2_SHARE_CAP_DFS	cpu_to_le32(0x00000008) /* all dialects */
@@ -490,7 +493,7 @@ struct copychunk_ioctl {
 	/* array will only be one chunk long for us */
 	__le64 SourceOffset;
 	__le64 TargetOffset;
-	__u32 Length; /* how many bytes to copy */
+	__le32 Length; /* how many bytes to copy */
 	__u32 Reserved2;
 } __packed;
 
