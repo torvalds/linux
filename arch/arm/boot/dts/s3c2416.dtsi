@@ -1,0 +1,79 @@
+/*
+ * Samsung's S3C2416 SoC device tree source
+ *
+ * Copyright (c) 2013 Heiko Stuebner <heiko@sntech.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "s3c24xx.dtsi"
+#include "s3c2416-pinctrl.dtsi"
+
+/ {
+	model = "Samsung S3C2416 SoC";
+	compatible = "samsung,s3c2416";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu {
+			compatible = "arm,arm926ejs";
+		};
+	};
+
+	interrupt-controller@4a000000 {
+		compatible = "samsung,s3c2416-irq";
+	};
+
+	pinctrl@56000000 {
+		compatible = "samsung,s3c2416-pinctrl";
+	};
+
+	serial@50000000 {
+		compatible = "samsung,s3c2440-uart";
+	};
+
+	serial@50004000 {
+		compatible = "samsung,s3c2440-uart";
+	};
+
+	serial@50008000 {
+		compatible = "samsung,s3c2440-uart";
+	};
+
+	serial@5000C000 {
+		compatible = "samsung,s3c2440-uart";
+		reg = <0x5000C000 0x4000>;
+		interrupts = <1 18 24 4>, <1 18 25 4>;
+		status = "disabled";
+	};
+
+	sdhci@4AC00000 {
+		compatible = "samsung,s3c6410-sdhci";
+		reg = <0x4AC00000 0x100>;
+		interrupts = <0 0 21 3>;
+		status = "disabled";
+	};
+
+	sdhci@4A800000 {
+		compatible = "samsung,s3c6410-sdhci";
+		reg = <0x4A800000 0x100>;
+		interrupts = <0 0 20 3>;
+		status = "disabled";
+	};
+
+	watchdog@53000000 {
+		interrupts = <1 9 27 3>;
+	};
+
+	rtc@57000000 {
+		compatible = "samsung,s3c2416-rtc";
+	};
+
+	i2c@54000000 {
+		compatible = "samsung,s3c2440-i2c";
+	};
+};

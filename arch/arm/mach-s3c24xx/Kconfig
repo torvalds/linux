@@ -490,6 +490,18 @@ config MACH_SMDK2416
 	help
 	  Say Y here if you are using an SMDK2416
 
+config MACH_S3C2416_DT
+	bool "Samsung S3C2416 machine using devicetree"
+	select CLKSRC_OF
+	select USE_OF
+	select PINCTRL
+	select PINCTRL_S3C24XX
+	help
+	  Machine support for Samsung S3C2416 machines with device tree enabled.
+	  Select this if a fdt blob is available for the S3C2416 SoC based board.
+	  Note: This is under development and not all peripherals can be supported
+	  with this machine file.
+
 endif	# CPU_S3C2416
 
 if CPU_S3C2440
