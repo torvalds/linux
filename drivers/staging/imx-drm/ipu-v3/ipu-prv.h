@@ -170,9 +170,9 @@ struct ipu_soc {
 
 	struct ipuv3_channel	channel[64];
 
-	int			irq_start;
 	int			irq_sync;
 	int			irq_err;
+	struct irq_domain	*domain;
 
 	struct ipu_dc_priv	*dc_priv;
 	struct ipu_dp_priv	*dp_priv;
