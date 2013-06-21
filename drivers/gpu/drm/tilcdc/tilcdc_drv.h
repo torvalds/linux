@@ -117,7 +117,7 @@ struct tilcdc_module {
 void tilcdc_module_init(struct tilcdc_module *mod, const char *name,
 		const struct tilcdc_module_ops *funcs);
 void tilcdc_module_cleanup(struct tilcdc_module *mod);
-
+void tilcdc_slave_probedefer(bool defered);
 
 /* Panel config that needs to be set in the crtc, but is not coming from
  * the mode timings.  The display module is expected to call
