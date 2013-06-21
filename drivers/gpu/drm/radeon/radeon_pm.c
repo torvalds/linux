@@ -696,7 +696,8 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 
 	if (rdev->pm.dpm.user_state != rdev->pm.dpm.state) {
 		/* add other state override checks here */
-		if (!rdev->pm.dpm.thermal_active)
+		if ((!rdev->pm.dpm.thermal_active) &&
+		    (!rdev->pm.dpm.uvd_active))
 			rdev->pm.dpm.state = rdev->pm.dpm.user_state;
 	}
 	dpm_state = rdev->pm.dpm.state;
@@ -766,8 +767,16 @@ void radeon_dpm_enable_power_state(struct radeon_device *rdev,
 	case POWER_STATE_TYPE_INTERNAL_THERMAL:
 		rdev->pm.dpm.thermal_active = true;
 		break;
+	case POWER_STATE_TYPE_INTERNAL_UVD:
+	case POWER_STATE_TYPE_INTERNAL_UVD_SD:
+	case POWER_STATE_TYPE_INTERNAL_UVD_HD:
+	case POWER_STATE_TYPE_INTERNAL_UVD_HD2:
+	case POWER_STATE_TYPE_INTERNAL_UVD_MVC:
+		rdev->pm.dpm.uvd_active = true;
+		break;
 	default:
 		rdev->pm.dpm.thermal_active = false;
+		rdev->pm.dpm.uvd_active = false;
 		break;
 	}
 	rdev->pm.dpm.state = dpm_state;
@@ -1220,6 +1229,7 @@ static void radeon_pm_compute_clocks_dpm(struct radeon_device *rdev)
 	radeon_dpm_change_power_state_locked(rdev);
 
 	mutex_unlock(&rdev->pm.mutex);
+
 }
 
 void radeon_pm_compute_clocks(struct radeon_device *rdev)

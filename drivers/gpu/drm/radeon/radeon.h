@@ -1241,6 +1241,7 @@ struct radeon_dpm {
 	int			current_active_crtc_count;
 	/* special states active */
 	bool                    thermal_active;
+	bool                    uvd_active;
 	/* thermal handling */
 	struct radeon_dpm_thermal thermal;
 };
