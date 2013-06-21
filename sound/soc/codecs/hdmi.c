@@ -1,5 +1,5 @@
 /*
- * ALSA SoC codec driver for HDMI audio on OMAP processors.
+ * ALSA SoC codec driver for HDMI audio codecs.
  * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Ricardo Neri <ricardo.neri@ti.com>
  *
@@ -23,10 +23,10 @@
 
 #define DRV_NAME "hdmi-audio-codec"
 
-static struct snd_soc_codec_driver omap_hdmi_codec;
+static struct snd_soc_codec_driver hdmi_codec;
 
-static struct snd_soc_dai_driver omap_hdmi_codec_dai = {
-	.name = "omap-hdmi-hifi",
+static struct snd_soc_dai_driver hdmi_codec_dai = {
+	.name = "hdmi-hifi",
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 8,
@@ -39,31 +39,31 @@ static struct snd_soc_dai_driver omap_hdmi_codec_dai = {
 	},
 };
 
-static int omap_hdmi_codec_probe(struct platform_device *pdev)
+static int hdmi_codec_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev, &omap_hdmi_codec,
-			&omap_hdmi_codec_dai, 1);
+	return snd_soc_register_codec(&pdev->dev, &hdmi_codec,
+			&hdmi_codec_dai, 1);
 }
 
-static int omap_hdmi_codec_remove(struct platform_device *pdev)
+static int hdmi_codec_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 
-static struct platform_driver omap_hdmi_codec_driver = {
+static struct platform_driver hdmi_codec_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
 
-	.probe		= omap_hdmi_codec_probe,
-	.remove		= omap_hdmi_codec_remove,
+	.probe		= hdmi_codec_probe,
+	.remove		= hdmi_codec_remove,
 };
 
-module_platform_driver(omap_hdmi_codec_driver);
+module_platform_driver(hdmi_codec_driver);
 
 MODULE_AUTHOR("Ricardo Neri <ricardo.neri@ti.com>");
-MODULE_DESCRIPTION("ASoC OMAP HDMI codec driver");
+MODULE_DESCRIPTION("ASoC generic HDMI codec driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

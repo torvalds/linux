@@ -425,7 +425,6 @@ static int snd_mfld_mc_remove(struct platform_device *pdev)
 	free_irq(platform_get_irq(pdev, 0), mc_drv_ctx);
 	snd_soc_unregister_card(&snd_soc_card_mfld);
 	kfree(mc_drv_ctx);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

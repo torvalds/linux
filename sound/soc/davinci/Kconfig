@@ -54,16 +54,6 @@ config  SND_DM6467_SOC_EVM
 	help
 	  Say Y if you want to add support for SoC audio on TI
 
-config SND_DAVINCI_SOC_SFFSDR
-	tristate "SoC Audio support for SFFSDR"
-	depends on SND_DAVINCI_SOC && MACH_SFFSDR
-	select SND_DAVINCI_SOC_I2S
-	select SND_SOC_PCM3008
-	select SFFSDR_FPGA
-	help
-	  Say Y if you want to add support for SoC audio on
-	  Lyrtech SFFSDR board.
-
 config  SND_DA830_SOC_EVM
 	tristate "SoC Audio support for DA830/OMAP-L137 EVM"
 	depends on SND_DAVINCI_SOC && MACH_DAVINCI_DA830_EVM

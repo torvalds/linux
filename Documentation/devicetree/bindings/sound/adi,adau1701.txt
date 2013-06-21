@@ -1,0 +1,23 @@
+Analog Devices ADAU1701
+
+Required properties:
+
+ - compatible:		Should contain "adi,adau1701"
+ - reg:			The i2c address. Value depends on the state of ADDR0
+			and ADDR1, as wired in hardware.
+
+Optional properties:
+
+ - reset-gpio: 		A GPIO spec to define which pin is connected to the
+			chip's !RESET pin. If specified, the driver will
+			assert a hardware reset at probe time.
+
+Examples:
+
+	i2c_bus {
+		adau1701@34 {
+			compatible = "adi,adau1701";
+			reg = <0x34>;
+			reset-gpio = <&gpio 23 0>;
+		};
+	};

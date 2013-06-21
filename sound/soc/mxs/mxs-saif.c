@@ -26,8 +26,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/time.h>
-#include <linux/fsl/mxs-dma.h>
-#include <linux/pinctrl/consumer.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -605,8 +603,6 @@ static int mxs_saif_dai_probe(struct snd_soc_dai *dai)
 	struct mxs_saif *saif = dev_get_drvdata(dai->dev);
 
 	snd_soc_dai_set_drvdata(dai, saif);
-	dai->playback_dma_data = &saif->dma_param;
-	dai->capture_dma_data = &saif->dma_param;
 
 	return 0;
 }
@@ -665,9 +661,8 @@ static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 static int mxs_saif_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct resource *iores, *dmares;
+	struct resource *iores;
 	struct mxs_saif *saif;
-	struct pinctrl *pinctrl;
 	int ret = 0;
 	struct device_node *master;
 
@@ -707,12 +702,6 @@ static int mxs_saif_probe(struct platform_device *pdev)
 
 	mxs_saif[saif->id] = saif;
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		return ret;
-	}
-
 	saif->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(saif->clk)) {
 		ret = PTR_ERR(saif->clk);
@@ -727,22 +716,6 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	if (IS_ERR(saif->base))
 		return PTR_ERR(saif->base);
 
-	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!dmares) {
-		/*
-		 * TODO: This is a temporary solution and should be changed
-		 * to use generic DMA binding later when the helplers get in.
-		 */
-		ret = of_property_read_u32(np, "fsl,saif-dma-channel",
-					   &saif->dma_param.chan_num);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to get dma channel\n");
-			return ret;
-		}
-	} else {
-		saif->dma_param.chan_num = dmares->start;
-	}
-
 	saif->irq = platform_get_irq(pdev, 0);
 	if (saif->irq < 0) {
 		ret = saif->irq;
@@ -756,14 +729,6 @@ static int mxs_saif_probe(struct platform_device *pdev)
 			       "mxs-saif", saif);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
-		return ret;
-	}
-
-	saif->dma_param.dma_data.chan_irq = platform_get_irq(pdev, 1);
-	if (saif->dma_param.dma_data.chan_irq < 0) {
-		ret = saif->dma_param.dma_data.chan_irq;
-		dev_err(&pdev->dev, "failed to get dma irq resource: %d\n",
-			ret);
 		return ret;
 	}
 
