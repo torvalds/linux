@@ -103,31 +103,6 @@ struct nvec_msg {
 };
 
 /**
- * struct nvec_subdev - A subdevice of nvec, such as nvec_kbd
- * @name: The name of the sub device
- * @platform_data: Platform data
- * @id: Identifier of the sub device
- */
-struct nvec_subdev {
-	const char *name;
-	void *platform_data;
-	int id;
-};
-
-/**
- * struct nvec_platform_data - platform data for a tegra slave controller
- * @i2c_addr: number of i2c slave adapter the ec is connected to
- * @gpio: gpio number for the ec request line
- *
- * Platform data, to be used in board definitions. For an example, take a
- * look at the paz00 board in arch/arm/mach-tegra/board-paz00.c
- */
-struct nvec_platform_data {
-	int i2c_addr;
-	int gpio;
-};
-
-/**
  * struct nvec_chip - A single connection to an NVIDIA Embedded controller
  * @dev: The device
  * @gpio: The same as for &struct nvec_platform_data

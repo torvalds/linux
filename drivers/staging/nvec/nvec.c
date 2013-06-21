@@ -33,7 +33,6 @@
 #include <linux/mfd/core.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -776,7 +775,6 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 {
 	int err, ret;
 	struct clk *i2c_clk;
-	struct nvec_platform_data *pdata = pdev->dev.platform_data;
 	struct nvec_chip *nvec;
 	struct nvec_msg *msg;
 	struct resource *res;
@@ -784,6 +782,11 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	char	get_firmware_version[] = { NVEC_CNTL, GET_FIRMWARE_VERSION },
 		unmute_speakers[] = { NVEC_OEM0, 0x10, 0x59, 0x95 },
 		enable_event[7] = { NVEC_SYS, CNF_EVENT_REPORTING, true };
+
+	if(!pdev->dev.of_node) {
+		dev_err(&pdev->dev, "must be instantiated using device tree\n");
+		return -ENODEV;
+	}
 
 	nvec = devm_kzalloc(&pdev->dev, sizeof(struct nvec_chip), GFP_KERNEL);
 	if (nvec == NULL) {
@@ -793,23 +796,15 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, nvec);
 	nvec->dev = &pdev->dev;
 
-	if (pdata) {
-		nvec->gpio = pdata->gpio;
-		nvec->i2c_addr = pdata->i2c_addr;
-	} else if (nvec->dev->of_node) {
-		nvec->gpio = of_get_named_gpio(nvec->dev->of_node,
-					"request-gpios", 0);
-		if (nvec->gpio < 0) {
-			dev_err(&pdev->dev, "no gpio specified");
-			return -ENODEV;
-		}
-		if (of_property_read_u32(nvec->dev->of_node,
-					"slave-addr", &nvec->i2c_addr)) {
-			dev_err(&pdev->dev, "no i2c address specified");
-			return -ENODEV;
-		}
-	} else {
-		dev_err(&pdev->dev, "no platform data\n");
+	nvec->gpio = of_get_named_gpio(nvec->dev->of_node, "request-gpios", 0);
+	if (nvec->gpio < 0) {
+		dev_err(&pdev->dev, "no gpio specified");
+		return -ENODEV;
+	}
+
+	if (of_property_read_u32(nvec->dev->of_node, "slave-addr",
+				 &nvec->i2c_addr)) {
+		dev_err(&pdev->dev, "no i2c address specified");
 		return -ENODEV;
 	}
 
