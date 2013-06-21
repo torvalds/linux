@@ -159,10 +159,11 @@ int lease_break_time = 45;
  * by the file_lock_lock.
  */
 static HLIST_HEAD(file_lock_list);
+static DEFINE_SPINLOCK(file_lock_lock);
 
 /*
  * The blocked_hash is used to find POSIX lock loops for deadlock detection.
- * It is protected by file_lock_lock.
+ * It is protected by blocked_lock_lock.
  *
  * We hash locks by lockowner in order to optimize searching for the lock a
  * particular lockowner is waiting on.
@@ -175,8 +176,8 @@ static HLIST_HEAD(file_lock_list);
 static DEFINE_HASHTABLE(blocked_hash, BLOCKED_HASH_BITS);
 
 /*
- * This lock protects the blocked_hash and the file_lock_list. Generally, if
- * you're accessing one of those lists, you want to be holding this lock.
+ * This lock protects the blocked_hash. Generally, if you're accessing it, you
+ * want to be holding this lock.
  *
  * In addition, it also protects the fl->fl_block list, and the fl->fl_next
  * pointer for file_lock structures that are acting as lock requests (in
@@ -191,7 +192,7 @@ static DEFINE_HASHTABLE(blocked_hash, BLOCKED_HASH_BITS);
  * both the i_lock and the blocked_lock_lock (acquired in that order). Deleting
  * an entry from the list however only requires the file_lock_lock.
  */
-static DEFINE_SPINLOCK(file_lock_lock);
+static DEFINE_SPINLOCK(blocked_lock_lock);
 
 static struct kmem_cache *filelock_cache __read_mostly;
 
@@ -544,7 +545,7 @@ locks_delete_global_blocked(struct file_lock *waiter)
 /* Remove waiter from blocker's block list.
  * When blocker ends up pointing to itself then the list is empty.
  *
- * Must be called with file_lock_lock held.
+ * Must be called with blocked_lock_lock held.
  */
 static void __locks_delete_block(struct file_lock *waiter)
 {
@@ -555,9 +556,9 @@ static void __locks_delete_block(struct file_lock *waiter)
 
 static void locks_delete_block(struct file_lock *waiter)
 {
-	spin_lock(&file_lock_lock);
+	spin_lock(&blocked_lock_lock);
 	__locks_delete_block(waiter);
-	spin_unlock(&file_lock_lock);
+	spin_unlock(&blocked_lock_lock);
 }
 
 /* Insert waiter into blocker's block list.
@@ -565,9 +566,9 @@ static void locks_delete_block(struct file_lock *waiter)
  * the order they blocked. The documentation doesn't require this but
  * it seems like the reasonable thing to do.
  *
- * Must be called with both the i_lock and file_lock_lock held. The fl_block
+ * Must be called with both the i_lock and blocked_lock_lock held. The fl_block
  * list itself is protected by the file_lock_list, but by ensuring that the
- * i_lock is also held on insertions we can avoid taking the file_lock_lock
+ * i_lock is also held on insertions we can avoid taking the blocked_lock_lock
  * in some cases when we see that the fl_block list is empty.
  */
 static void __locks_insert_block(struct file_lock *blocker,
@@ -584,9 +585,9 @@ static void __locks_insert_block(struct file_lock *blocker,
 static void locks_insert_block(struct file_lock *blocker,
 					struct file_lock *waiter)
 {
-	spin_lock(&file_lock_lock);
+	spin_lock(&blocked_lock_lock);
 	__locks_insert_block(blocker, waiter);
-	spin_unlock(&file_lock_lock);
+	spin_unlock(&blocked_lock_lock);
 }
 
 /*
@@ -601,12 +602,12 @@ static void locks_wake_up_blocks(struct file_lock *blocker)
 	 * blocked requests are only added to the list under the i_lock, and
 	 * the i_lock is always held here. Note that removal from the fl_block
 	 * list does not require the i_lock, so we must recheck list_empty()
-	 * after acquiring the file_lock_lock.
+	 * after acquiring the blocked_lock_lock.
 	 */
 	if (list_empty(&blocker->fl_block))
 		return;
 
-	spin_lock(&file_lock_lock);
+	spin_lock(&blocked_lock_lock);
 	while (!list_empty(&blocker->fl_block)) {
 		struct file_lock *waiter;
 
@@ -618,7 +619,7 @@ static void locks_wake_up_blocks(struct file_lock *blocker)
 		else
 			wake_up(&waiter->fl_wait);
 	}
-	spin_unlock(&file_lock_lock);
+	spin_unlock(&blocked_lock_lock);
 }
 
 /* Insert file lock fl into an inode's lock list at the position indicated
@@ -772,7 +773,7 @@ static struct file_lock *what_owner_is_waiting_for(struct file_lock *block_fl)
 	return NULL;
 }
 
-/* Must be called with the file_lock_lock held! */
+/* Must be called with the blocked_lock_lock held! */
 static int posix_locks_deadlock(struct file_lock *caller_fl,
 				struct file_lock *block_fl)
 {
@@ -920,12 +921,12 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 			 * locks list must be done while holding the same lock!
 			 */
 			error = -EDEADLK;
-			spin_lock(&file_lock_lock);
+			spin_lock(&blocked_lock_lock);
 			if (likely(!posix_locks_deadlock(request, fl))) {
 				error = FILE_LOCK_DEFERRED;
 				__locks_insert_block(fl, request);
 			}
-			spin_unlock(&file_lock_lock);
+			spin_unlock(&blocked_lock_lock);
 			goto out;
   		}
   	}
@@ -2212,12 +2213,12 @@ posix_unblock_lock(struct file_lock *waiter)
 {
 	int status = 0;
 
-	spin_lock(&file_lock_lock);
+	spin_lock(&blocked_lock_lock);
 	if (waiter->fl_next)
 		__locks_delete_block(waiter);
 	else
 		status = -ENOENT;
-	spin_unlock(&file_lock_lock);
+	spin_unlock(&blocked_lock_lock);
 	return status;
 }
 EXPORT_SYMBOL(posix_unblock_lock);
@@ -2332,6 +2333,7 @@ static void *locks_start(struct seq_file *f, loff_t *pos)
 	loff_t *p = f->private;
 
 	spin_lock(&file_lock_lock);
+	spin_lock(&blocked_lock_lock);
 	*p = (*pos + 1);
 	return seq_hlist_start(&file_lock_list, *pos);
 }
@@ -2345,6 +2347,7 @@ static void *locks_next(struct seq_file *f, void *v, loff_t *pos)
 
 static void locks_stop(struct seq_file *f, void *v)
 {
+	spin_unlock(&blocked_lock_lock);
 	spin_unlock(&file_lock_lock);
 }
 
