@@ -294,6 +294,13 @@ handle_recv(struct p9_client *client, struct p9_trans_rdma *rdma,
 	if (!req)
 		goto err_out;
 
+	/* Check that we have not yet received a reply for this request.
+	 */
+	if (unlikely(req->rc)) {
+		pr_err("Duplicate reply for request %d", tag);
+		goto err_out;
+	}
+
 	req->rc = c->rc;
 	req->status = REQ_STATUS_RCVD;
 	p9_client_cb(client, req);
