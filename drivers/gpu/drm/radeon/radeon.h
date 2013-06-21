@@ -220,11 +220,6 @@ int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
 				   struct atom_clock_dividers *dividers);
 void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 voltage_type);
 void rs690_pm_info(struct radeon_device *rdev);
-extern int rv6xx_get_temp(struct radeon_device *rdev);
-extern int rv770_get_temp(struct radeon_device *rdev);
-extern int evergreen_get_temp(struct radeon_device *rdev);
-extern int sumo_get_temp(struct radeon_device *rdev);
-extern int si_get_temp(struct radeon_device *rdev);
 extern void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
 				    unsigned *bankh, unsigned *mtaspect,
 				    unsigned *tile_split);
@@ -1395,6 +1390,7 @@ struct radeon_asic {
 		void (*set_pcie_lanes)(struct radeon_device *rdev, int lanes);
 		void (*set_clock_gating)(struct radeon_device *rdev, int enable);
 		int (*set_uvd_clocks)(struct radeon_device *rdev, u32 vclk, u32 dclk);
+		int (*get_temperature)(struct radeon_device *rdev);
 	} pm;
 	/* pageflipping */
 	struct {
@@ -2067,6 +2063,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_set_pcie_lanes(rdev, l) (rdev)->asic->pm.set_pcie_lanes((rdev), (l))
 #define radeon_set_clock_gating(rdev, e) (rdev)->asic->pm.set_clock_gating((rdev), (e))
 #define radeon_set_uvd_clocks(rdev, v, d) (rdev)->asic->pm.set_uvd_clocks((rdev), (v), (d))
+#define radeon_get_temperature(rdev) (rdev)->asic->pm.get_temperature((rdev))
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->surface.set_reg((rdev), (r), (f), (p), (o), (s)))
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->surface.clear_reg((rdev), (r)))
 #define radeon_bandwidth_update(rdev) (rdev)->asic->display.bandwidth_update((rdev))
