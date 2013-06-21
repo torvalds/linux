@@ -310,6 +310,21 @@ static int tilcdc_crtc_mode_set(struct drm_crtc *crtc,
 		((vsw & 0x3f) << 10);
 	tilcdc_write(dev, LCDC_RASTER_TIMING_1_REG, reg);
 
+	/*
+	 * be sure to set Bit 10 for the V2 LCDC controller,
+	 * otherwise limited to 1024 pixels width, stopping
+	 * 1920x1080 being suppoted.
+	 */
+	if (priv->rev == 2) {
+		if ((mode->vdisplay - 1) & 0x400) {
+			tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG,
+				LCDC_LPP_B10);
+		} else {
+			tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG,
+				LCDC_LPP_B10);
+		}
+	}
+
 	/* Configure display type: */
 	reg = tilcdc_read(dev, LCDC_RASTER_CTRL_REG) &
 		~(LCDC_TFT_MODE | LCDC_MONO_8BIT_MODE | LCDC_MONOCHROME_MODE |
