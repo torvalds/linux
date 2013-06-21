@@ -351,6 +351,9 @@ static void sh7372_enter_a4s_common(int pllc0_on)
 
 static void sh7372_pm_setup_smfram(void)
 {
+	/* pass physical address of cpu_resume() to assembly resume code */
+	sh7372_cpu_resume = virt_to_phys(cpu_resume);
+
 	memcpy((void *)SMFRAM, sh7372_resume_core_standby_sysc, 0x100);
 }
 #else
