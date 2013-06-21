@@ -1006,7 +1006,6 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx, struct coda_q_data *q_d
 	ysize = round_up(q_data->width, 8) * height;
 
 	/* Allocate frame buffers */
-	ctx->num_internal_frames = CODA_MAX_FRAMEBUFFERS;
 	for (i = 0; i < ctx->num_internal_frames; i++) {
 		ctx->internal_frames[i].size = q_data->sizeimage;
 		if (fourcc == V4L2_PIX_FMT_H264 && dev->devtype->product != CODA_DX6)
@@ -1356,6 +1355,7 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 		goto out;
 	}
 
+	ctx->num_internal_frames = 2;
 	ret = coda_alloc_framebuffers(ctx, q_data_src, dst_fourcc);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "failed to allocate framebuffers\n");
