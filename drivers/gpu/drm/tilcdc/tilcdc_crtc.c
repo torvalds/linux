@@ -437,7 +437,12 @@ int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode)
 {
 	struct tilcdc_drm_private *priv = crtc->dev->dev_private;
 	unsigned int bandwidth;
+	uint32_t hbp, hfp, hsw, vbp, vfp, vsw;
 
+	/*
+	 * check to see if the width is within the range that
+	 * the LCD Controller physically supports
+	 */
 	if (mode->hdisplay > tilcdc_crtc_max_width(crtc))
 		return MODE_VIRTUAL_X;
 
@@ -447,6 +452,47 @@ int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode)
 
 	if (mode->vdisplay > 2048)
 		return MODE_VIRTUAL_Y;
+
+	DBG("Processing mode %dx%d@%d with pixel clock %d",
+		mode->hdisplay, mode->vdisplay,
+		drm_mode_vrefresh(mode), mode->clock);
+
+	hbp = mode->htotal - mode->hsync_end;
+	hfp = mode->hsync_start - mode->hdisplay;
+	hsw = mode->hsync_end - mode->hsync_start;
+	vbp = mode->vtotal - mode->vsync_end;
+	vfp = mode->vsync_start - mode->vdisplay;
+	vsw = mode->vsync_end - mode->vsync_start;
+
+	if ((hbp-1) & ~0x3ff) {
+		DBG("Pruning mode: Horizontal Back Porch out of range");
+		return MODE_HBLANK_WIDE;
+	}
+
+	if ((hfp-1) & ~0x3ff) {
+		DBG("Pruning mode: Horizontal Front Porch out of range");
+		return MODE_HBLANK_WIDE;
+	}
+
+	if ((hsw-1) & ~0x3ff) {
+		DBG("Pruning mode: Horizontal Sync Width out of range");
+		return MODE_HSYNC_WIDE;
+	}
+
+	if (vbp & ~0xff) {
+		DBG("Pruning mode: Vertical Back Porch out of range");
+		return MODE_VBLANK_WIDE;
+	}
+
+	if (vfp & ~0xff) {
+		DBG("Pruning mode: Vertical Front Porch out of range");
+		return MODE_VBLANK_WIDE;
+	}
+
+	if ((vsw-1) & ~0x3f) {
+		DBG("Pruning mode: Vertical Sync Width out of range");
+		return MODE_VSYNC_WIDE;
+	}
 
 	/*
 	 * some devices have a maximum allowed pixel clock
