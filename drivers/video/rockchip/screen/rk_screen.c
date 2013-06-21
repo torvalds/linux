@@ -230,10 +230,21 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	
 #if defined(CONFIG_MIPI_DSI)
        /* MIPI DSI */
+#if defined(MIPI_DSI_LANE)       
     screen->dsi_lane = MIPI_DSI_LANE;
-    //screen->dsi_video_mode = MIPI_DSI_VIDEO_MODE;
-    screen->hs_tx_clk = MIPI_DSI_HS_CLK;
+#else
+	screen->dsi_lane = 4;
 #endif
+    //screen->dsi_video_mode = MIPI_DSI_VIDEO_MODE;
+#if defined(MIPI_DSI_HS_CLK)    
+    screen->hs_tx_clk = MIPI_DSI_HS_CLK;
+#else    
+    screen->hs_tx_clk = 1000000000;        //1GHz
+#endif
+
+#endif
+
+
 	/* Operation function*/
 #if defined(RK_SCREEN_INIT)  //some screen need to init by spi or i2c
 	screen->init = rk_lcd_init;
