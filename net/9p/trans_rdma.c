@@ -57,9 +57,7 @@
 #define P9_RDMA_IRD		0
 #define P9_RDMA_ORD		0
 #define P9_RDMA_TIMEOUT		30000		/* 30 seconds */
-#define P9_RDMA_MAXSIZE		(4*4096)	/* Min SGE is 4, so we can
-						 * safely advertise a maxsize
-						 * of 64k */
+#define P9_RDMA_MAXSIZE		(1024*1024)	/* 1MB */
 
 /**
  * struct p9_trans_rdma - RDMA transport instance
