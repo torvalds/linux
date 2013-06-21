@@ -1,4 +1,4 @@
-Documentation for /proc/sys/net/*	kernel version 2.4.0-test11-pre4
+Documentation for /proc/sys/net/*
 	(c) 1999		Terrehon Bowden <terrehon@pacbell.net>
 				Bodo Bauer <bb@ricochet.net>
 	(c) 2000		Jorge Nerin <comandante@zaralinux.com>
@@ -9,10 +9,10 @@ For general info and legal blurb, please look in README.
 ==============================================================
 
 This file contains the documentation for the sysctl files in
-/proc/sys/net and is valid for Linux kernel version 2.4.0-test11-pre4.
+/proc/sys/net
 
 The interface  to  the  networking  parts  of  the  kernel  is  located  in
-/proc/sys/net. The following table shows all possible subdirectories.You may
+/proc/sys/net. The following table shows all possible subdirectories.  You may
 see only some of them, depending on your kernel's configuration.
 
 
