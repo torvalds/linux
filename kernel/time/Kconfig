@@ -157,6 +157,33 @@ config NO_HZ_FULL_SYSIDLE
 
 	 Say N if you are unsure.
 
+config NO_HZ_FULL_SYSIDLE_SMALL
+	int "Number of CPUs above which large-system approach is used"
+	depends on NO_HZ_FULL_SYSIDLE
+	range 1 NR_CPUS
+	default 8
+	help
+	 The full-system idle detection mechanism takes a lazy approach
+	 on large systems, as is required to attain decent scalability.
+	 However, on smaller systems, scalability is not anywhere near as
+	 large a concern as is energy efficiency.  The sysidle subsystem
+	 therefore uses a fast but non-scalable algorithm for small
+	 systems and a lazier but scalable algorithm for large systems.
+	 This Kconfig parameter defines the number of CPUs in the largest
+	 system that will be considered to be "small".
+
+	 The default value will be fine in most cases.	Battery-powered
+	 systems that (1) enable NO_HZ_FULL_SYSIDLE, (2) have larger
+	 numbers of CPUs, and (3) are suffering from battery-lifetime
+	 problems due to long sysidle latencies might wish to experiment
+	 with larger values for this Kconfig parameter.  On the other
+	 hand, they might be even better served by disabling NO_HZ_FULL
+	 entirely, given that NO_HZ_FULL is intended for HPC and
+	 real-time workloads that at present do not tend to be run on
+	 battery-powered systems.
+
+	 Take the default if you are unsure.
+
 config NO_HZ
 	bool "Old Idle dynticks config"
 	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
