@@ -1577,3 +1577,54 @@ void qlcnic_82xx_api_unlock(struct qlcnic_adapter *adapter)
 {
 	qlcnic_pcie_sem_unlock(adapter, 5);
 }
+
+int qlcnic_82xx_shutdown(struct pci_dev *pdev)
+{
+	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
+	int retval;
+
+	netif_device_detach(netdev);
+
+	qlcnic_cancel_idc_work(adapter);
+
+	if (netif_running(netdev))
+		qlcnic_down(adapter, netdev);
+
+	qlcnic_clr_all_drv_state(adapter, 0);
+
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+
+	retval = pci_save_state(pdev);
+	if (retval)
+		return retval;
+
+	if (qlcnic_wol_supported(adapter)) {
+		pci_enable_wake(pdev, PCI_D3cold, 1);
+		pci_enable_wake(pdev, PCI_D3hot, 1);
+	}
+
+	return 0;
+}
+
+int qlcnic_82xx_resume(struct qlcnic_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	int err;
+
+	err = qlcnic_start_firmware(adapter);
+	if (err) {
+		dev_err(&adapter->pdev->dev, "failed to start firmware\n");
+		return err;
+	}
+
+	if (netif_running(netdev)) {
+		err = qlcnic_up(adapter, netdev);
+		if (!err)
+			qlcnic_restore_indev_addr(netdev, NETDEV_UP);
+	}
+
+	netif_device_attach(netdev);
+	qlcnic_schedule_work(adapter, qlcnic_fw_poll_work, FW_POLL_DELAY);
+	return err;
+}

@@ -1596,6 +1596,8 @@ struct qlcnic_nic_template {
 	void (*napi_del)(struct qlcnic_adapter *);
 	void (*config_ipaddr)(struct qlcnic_adapter *, __be32, int);
 	irqreturn_t (*clear_legacy_intr)(struct qlcnic_adapter *);
+	int (*shutdown)(struct pci_dev *);
+	int (*resume)(struct qlcnic_adapter *);
 };
 
 /* Adapter hardware abstraction */
@@ -1798,6 +1800,18 @@ static inline void qlcnic_napi_del(struct qlcnic_adapter *adapter)
 static inline void qlcnic_napi_enable(struct qlcnic_adapter *adapter)
 {
 	adapter->ahw->hw_ops->napi_enable(adapter);
+}
+
+static inline int __qlcnic_shutdown(struct pci_dev *pdev)
+{
+	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
+
+	return adapter->nic_ops->shutdown(pdev);
+}
+
+static inline int __qlcnic_resume(struct qlcnic_adapter *adapter)
+{
+	return adapter->nic_ops->resume(adapter);
 }
 
 static inline void qlcnic_napi_disable(struct qlcnic_adapter *adapter)

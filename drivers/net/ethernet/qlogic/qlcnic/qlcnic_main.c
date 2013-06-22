@@ -59,13 +59,11 @@ static int qlcnic_close(struct net_device *netdev);
 static void qlcnic_tx_timeout(struct net_device *netdev);
 static void qlcnic_attach_work(struct work_struct *work);
 static void qlcnic_fwinit_work(struct work_struct *work);
-static void qlcnic_fw_poll_work(struct work_struct *work);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void qlcnic_poll_controller(struct net_device *netdev);
 #endif
 
 static void qlcnic_idc_debug_info(struct qlcnic_adapter *adapter, u8 encoding);
-static void qlcnic_clr_all_drv_state(struct qlcnic_adapter *adapter, u8);
 static int qlcnic_can_start_firmware(struct qlcnic_adapter *adapter);
 
 static irqreturn_t qlcnic_tmp_intr(int irq, void *data);
@@ -469,6 +467,8 @@ static struct qlcnic_nic_template qlcnic_ops = {
 	.napi_add		= qlcnic_82xx_napi_add,
 	.napi_del		= qlcnic_82xx_napi_del,
 	.config_ipaddr		= qlcnic_82xx_config_ipaddr,
+	.shutdown		= qlcnic_82xx_shutdown,
+	.resume			= qlcnic_82xx_resume,
 	.clear_legacy_intr	= qlcnic_82xx_clear_legacy_intr,
 };
 
@@ -2277,37 +2277,6 @@ static void qlcnic_remove(struct pci_dev *pdev)
 	kfree(ahw);
 	free_netdev(netdev);
 }
-static int __qlcnic_shutdown(struct pci_dev *pdev)
-{
-	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev = adapter->netdev;
-	int retval;
-
-	netif_device_detach(netdev);
-
-	qlcnic_cancel_idc_work(adapter);
-
-	if (netif_running(netdev))
-		qlcnic_down(adapter, netdev);
-
-	qlcnic_sriov_cleanup(adapter);
-	if (qlcnic_82xx_check(adapter))
-		qlcnic_clr_all_drv_state(adapter, 0);
-
-	clear_bit(__QLCNIC_RESETTING, &adapter->state);
-
-	retval = pci_save_state(pdev);
-	if (retval)
-		return retval;
-	if (qlcnic_82xx_check(adapter)) {
-		if (qlcnic_wol_supported(adapter)) {
-			pci_enable_wake(pdev, PCI_D3cold, 1);
-			pci_enable_wake(pdev, PCI_D3hot, 1);
-		}
-	}
-
-	return 0;
-}
 
 static void qlcnic_shutdown(struct pci_dev *pdev)
 {
@@ -2318,8 +2287,7 @@ static void qlcnic_shutdown(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM
-static int
-qlcnic_suspend(struct pci_dev *pdev, pm_message_t state)
+static int qlcnic_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	int retval;
 
@@ -2331,11 +2299,9 @@ qlcnic_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int
-qlcnic_resume(struct pci_dev *pdev)
+static int qlcnic_resume(struct pci_dev *pdev)
 {
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev = adapter->netdev;
 	int err;
 
 	err = pci_enable_device(pdev);
@@ -2346,23 +2312,7 @@ qlcnic_resume(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
 
-	err = qlcnic_start_firmware(adapter);
-	if (err) {
-		dev_err(&pdev->dev, "failed to start firmware\n");
-		return err;
-	}
-
-	if (netif_running(netdev)) {
-		err = qlcnic_up(adapter, netdev);
-		if (err)
-			goto done;
-
-		qlcnic_restore_indev_addr(netdev, NETDEV_UP);
-	}
-done:
-	netif_device_attach(netdev);
-	qlcnic_schedule_work(adapter, qlcnic_fw_poll_work, FW_POLL_DELAY);
-	return 0;
+	return  __qlcnic_resume(adapter);
 }
 #endif
 
@@ -2701,8 +2651,7 @@ qlcnic_clr_drv_state(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static void
-qlcnic_clr_all_drv_state(struct qlcnic_adapter *adapter, u8 failed)
+void qlcnic_clr_all_drv_state(struct qlcnic_adapter *adapter, u8 failed)
 {
 	u32  val;
 
@@ -3213,8 +3162,7 @@ detach:
 	return 1;
 }
 
-static void
-qlcnic_fw_poll_work(struct work_struct *work)
+void qlcnic_fw_poll_work(struct work_struct *work)
 {
 	struct qlcnic_adapter *adapter = container_of(work,
 				struct qlcnic_adapter, fw_work.work);

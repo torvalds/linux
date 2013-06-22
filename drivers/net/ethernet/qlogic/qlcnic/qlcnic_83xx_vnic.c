@@ -39,7 +39,7 @@ int qlcnic_83xx_disable_vnic_mode(struct qlcnic_adapter *adapter, int lock)
 	return 0;
 }
 
-static int qlcnic_83xx_set_vnic_opmode(struct qlcnic_adapter *adapter)
+int qlcnic_83xx_set_vnic_opmode(struct qlcnic_adapter *adapter)
 {
 	u8 id;
 	int ret = -EBUSY;
@@ -215,6 +215,27 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 
 	ahw->idc.vnic_state = QLCNIC_DEV_NPAR_NON_OPER;
 	ahw->idc.vnic_wait_limit = QLCNIC_DEV_NPAR_OPER_TIMEO;
+
+	return 0;
+}
+
+int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlc_83xx_idc *idc = &ahw->idc;
+	u32 state;
+
+	state = QLCRDX(ahw, QLC_83XX_VNIC_STATE);
+	while (state != QLCNIC_DEV_NPAR_OPER && idc->vnic_wait_limit--) {
+		msleep(1000);
+		state = QLCRDX(ahw, QLC_83XX_VNIC_STATE);
+	}
+
+	if (!idc->vnic_wait_limit) {
+		dev_err(&adapter->pdev->dev,
+			"vNIC mode not operational, state check timed out.\n");
+		return -EIO;
+	}
 
 	return 0;
 }

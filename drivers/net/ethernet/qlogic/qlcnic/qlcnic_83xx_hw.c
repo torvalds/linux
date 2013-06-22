@@ -186,6 +186,8 @@ static struct qlcnic_nic_template qlcnic_83xx_ops = {
 	.napi_del		= qlcnic_83xx_napi_del,
 	.config_ipaddr		= qlcnic_83xx_config_ipaddr,
 	.clear_legacy_intr	= qlcnic_83xx_clear_legacy_intr,
+	.shutdown		= qlcnic_83xx_shutdown,
+	.resume			= qlcnic_83xx_resume,
 };
 
 void qlcnic_83xx_register_map(struct qlcnic_hardware_context *ahw)
@@ -3392,4 +3394,55 @@ int qlcnic_83xx_flash_test(struct qlcnic_adapter *adapter)
 		return 1;
 	}
 	return 0;
+}
+
+int qlcnic_83xx_shutdown(struct pci_dev *pdev)
+{
+	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
+	int retval;
+
+	netif_device_detach(netdev);
+	qlcnic_cancel_idc_work(adapter);
+
+	if (netif_running(netdev))
+		qlcnic_down(adapter, netdev);
+
+	qlcnic_83xx_disable_mbx_intr(adapter);
+	cancel_delayed_work_sync(&adapter->idc_aen_work);
+
+	retval = pci_save_state(pdev);
+	if (retval)
+		return retval;
+
+	return 0;
+}
+
+int qlcnic_83xx_resume(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlc_83xx_idc *idc = &ahw->idc;
+	int err = 0;
+
+	err = qlcnic_83xx_idc_init(adapter);
+	if (err)
+		return err;
+
+	if (ahw->nic_mode == QLC_83XX_VIRTUAL_NIC_MODE) {
+		if (ahw->op_mode == QLCNIC_MGMT_FUNC) {
+			qlcnic_83xx_set_vnic_opmode(adapter);
+		} else {
+			err = qlcnic_83xx_check_vnic_state(adapter);
+			if (err)
+				return err;
+		}
+	}
+
+	err = qlcnic_83xx_idc_reattach_driver(adapter);
+	if (err)
+		return err;
+
+	qlcnic_schedule_work(adapter, qlcnic_83xx_idc_poll_dev_state,
+			     idc->delay);
+	return err;
 }

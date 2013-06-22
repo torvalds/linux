@@ -628,4 +628,10 @@ u32 qlcnic_83xx_mbx_poll(struct qlcnic_adapter *, u32 *);
 void qlcnic_83xx_enable_mbx_poll(struct qlcnic_adapter *);
 void qlcnic_83xx_disable_mbx_poll(struct qlcnic_adapter *);
 void qlcnic_83xx_set_mac_filter_count(struct qlcnic_adapter *);
+int qlcnic_83xx_shutdown(struct pci_dev *);
+int qlcnic_83xx_resume(struct qlcnic_adapter *);
+int qlcnic_83xx_idc_init(struct qlcnic_adapter *);
+int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *);
+int qlcnic_83xx_set_vnic_opmode(struct qlcnic_adapter *);
+int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *);
 #endif

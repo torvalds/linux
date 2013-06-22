@@ -199,4 +199,8 @@ void qlcnic_82xx_api_unlock(struct qlcnic_adapter *);
 void qlcnic_82xx_napi_enable(struct qlcnic_adapter *);
 void qlcnic_82xx_napi_disable(struct qlcnic_adapter *);
 void qlcnic_82xx_napi_del(struct qlcnic_adapter *);
+int qlcnic_82xx_shutdown(struct pci_dev *);
+int qlcnic_82xx_resume(struct qlcnic_adapter *);
+void qlcnic_clr_all_drv_state(struct qlcnic_adapter *adapter, u8 failed);
+void qlcnic_fw_poll_work(struct work_struct *work);
 #endif				/* __QLCNIC_HW_H_ */

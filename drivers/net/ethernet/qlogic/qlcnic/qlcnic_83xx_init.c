@@ -606,7 +606,7 @@ static int qlcnic_83xx_idc_check_fan_failure(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *adapter)
+int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *adapter)
 {
 	int err;
 
@@ -1135,7 +1135,7 @@ qlcnic_83xx_idc_first_to_load_function_handler(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_83xx_idc_init(struct qlcnic_adapter *adapter)
+int qlcnic_83xx_idc_init(struct qlcnic_adapter *adapter)
 {
 	int ret = -EIO;
 
@@ -1554,9 +1554,18 @@ static int qlcnic_83xx_reset_template_checksum(struct qlcnic_adapter *p_dev)
 
 int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *p_dev)
 {
-	u8 *p_buff;
-	u32 addr, count;
 	struct qlcnic_hardware_context *ahw = p_dev->ahw;
+	u32 addr, count, prev_ver, curr_ver;
+	u8 *p_buff;
+
+	if (ahw->reset.buff != NULL) {
+		prev_ver = p_dev->fw_version;
+		curr_ver = qlcnic_83xx_get_fw_version(p_dev);
+		if (curr_ver > prev_ver)
+			kfree(ahw->reset.buff);
+		else
+			return 0;
+	}
 
 	ahw->reset.seq_error = 0;
 	ahw->reset.buff = kzalloc(QLC_83XX_RESTART_TEMPLATE_SIZE, GFP_KERNEL);
