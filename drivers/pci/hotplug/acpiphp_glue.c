@@ -670,6 +670,7 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 	struct pci_bus *bus = slot->bridge->pci_bus;
 	struct acpiphp_func *func;
 	int num, max, pass;
+	LIST_HEAD(add_list);
 
 	if (slot->flags & SLOT_ENABLED)
 		goto err_exit;
@@ -694,13 +695,15 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 				max = pci_scan_bridge(bus, dev, max, pass);
 				if (pass && dev->subordinate) {
 					check_hotplug_bridge(slot, dev);
-					pci_bus_size_bridges(dev->subordinate);
+					pcibios_resource_survey_bus(dev->subordinate);
+					__pci_bus_size_bridges(dev->subordinate,
+							       &add_list);
 				}
 			}
 		}
 	}
 
-	pci_bus_assign_resources(bus);
+	__pci_bus_assign_resources(bus, &add_list, NULL);
 	acpiphp_sanitize_bus(bus);
 	acpiphp_set_hpp_values(bus);
 	acpiphp_set_acpi_region(slot);
