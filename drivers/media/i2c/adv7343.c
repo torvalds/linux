@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 
 #include <media/adv7343.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 
@@ -445,16 +446,21 @@ static int adv7343_probe(struct i2c_client *client,
 				       ADV7343_GAIN_DEF);
 	state->sd.ctrl_handler = &state->hdl;
 	if (state->hdl.error) {
-		int err = state->hdl.error;
-
-		v4l2_ctrl_handler_free(&state->hdl);
-		return err;
+		err = state->hdl.error;
+		goto done;
 	}
 	v4l2_ctrl_handler_setup(&state->hdl);
 
 	err = adv7343_initialize(&state->sd);
 	if (err)
+		goto done;
+
+	err = v4l2_async_register_subdev(&state->sd);
+
+done:
+	if (err < 0)
 		v4l2_ctrl_handler_free(&state->hdl);
+
 	return err;
 }
 
@@ -463,6 +469,7 @@ static int adv7343_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7343_state *state = to_state(sd);
 
+	v4l2_async_unregister_subdev(&state->sd);
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&state->hdl);
 
