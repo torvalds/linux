@@ -393,6 +393,9 @@ struct qlcnic_fw_dump {
 	u32	size;	/* total size of the dump */
 	void	*data;	/* dump data area */
 	struct	qlcnic_dump_template_hdr *tmpl_hdr;
+	dma_addr_t phys_addr;
+	void	*dma_buffer;
+	bool	use_pex_dma;
 };
 
 /*
