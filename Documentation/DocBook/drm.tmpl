@@ -186,11 +186,12 @@
           <varlistentry>
             <term>DRIVER_HAVE_IRQ</term><term>DRIVER_IRQ_SHARED</term>
             <listitem><para>
-              DRIVER_HAVE_IRQ indicates whether the driver has an IRQ handler. The
-              DRM core will automatically register an interrupt handler when the
-              flag is set. DRIVER_IRQ_SHARED indicates whether the device &amp;
-              handler support shared IRQs (note that this is required of PCI
-              drivers).
+              DRIVER_HAVE_IRQ indicates whether the driver has an IRQ handler
+              managed by the DRM Core. The core will support simple IRQ handler
+              installation when the flag is set. The installation process is
+              described in <xref linkend="drm-irq-registration"/>.</para>
+              <para>DRIVER_IRQ_SHARED indicates whether the device &amp; handler
+              support shared IRQs (note that this is required of PCI  drivers).
             </para></listitem>
           </varlistentry>
           <varlistentry>
@@ -344,50 +345,71 @@ char *date;</synopsis>
           The DRM core tries to facilitate IRQ handler registration and
           unregistration by providing <function>drm_irq_install</function> and
           <function>drm_irq_uninstall</function> functions. Those functions only
-          support a single interrupt per device.
+          support a single interrupt per device, devices that use more than one
+          IRQs need to be handled manually.
         </para>
-  <!--!Fdrivers/char/drm/drm_irq.c drm_irq_install-->
-        <para>
-          Both functions get the device IRQ by calling
-          <function>drm_dev_to_irq</function>. This inline function will call a
-          bus-specific operation to retrieve the IRQ number. For platform devices,
-          <function>platform_get_irq</function>(..., 0) is used to retrieve the
-          IRQ number.
-        </para>
-        <para>
-          <function>drm_irq_install</function> starts by calling the
-          <methodname>irq_preinstall</methodname> driver operation. The operation
-          is optional and must make sure that the interrupt will not get fired by
-          clearing all pending interrupt flags or disabling the interrupt.
-        </para>
-        <para>
-          The IRQ will then be requested by a call to
-          <function>request_irq</function>. If the DRIVER_IRQ_SHARED driver
-          feature flag is set, a shared (IRQF_SHARED) IRQ handler will be
-          requested.
-        </para>
-        <para>
-          The IRQ handler function must be provided as the mandatory irq_handler
-          driver operation. It will get passed directly to
-          <function>request_irq</function> and thus has the same prototype as all
-          IRQ handlers. It will get called with a pointer to the DRM device as the
-          second argument.
-        </para>
-        <para>
-          Finally the function calls the optional
-          <methodname>irq_postinstall</methodname> driver operation. The operation
-          usually enables interrupts (excluding the vblank interrupt, which is
-          enabled separately), but drivers may choose to enable/disable interrupts
-          at a different time.
-        </para>
-        <para>
-          <function>drm_irq_uninstall</function> is similarly used to uninstall an
-          IRQ handler. It starts by waking up all processes waiting on a vblank
-          interrupt to make sure they don't hang, and then calls the optional
-          <methodname>irq_uninstall</methodname> driver operation. The operation
-          must disable all hardware interrupts. Finally the function frees the IRQ
-          by calling <function>free_irq</function>.
-        </para>
+        <sect4>
+          <title>Managed IRQ Registration</title>
+          <para>
+            Both the <function>drm_irq_install</function> and
+	    <function>drm_irq_uninstall</function> functions get the device IRQ by
+	    calling <function>drm_dev_to_irq</function>. This inline function will
+	    call a bus-specific operation to retrieve the IRQ number. For platform
+	    devices, <function>platform_get_irq</function>(..., 0) is used to
+	    retrieve the IRQ number.
+          </para>
+          <para>
+            <function>drm_irq_install</function> starts by calling the
+            <methodname>irq_preinstall</methodname> driver operation. The operation
+            is optional and must make sure that the interrupt will not get fired by
+            clearing all pending interrupt flags or disabling the interrupt.
+          </para>
+          <para>
+            The IRQ will then be requested by a call to
+            <function>request_irq</function>. If the DRIVER_IRQ_SHARED driver
+            feature flag is set, a shared (IRQF_SHARED) IRQ handler will be
+            requested.
+          </para>
+          <para>
+            The IRQ handler function must be provided as the mandatory irq_handler
+            driver operation. It will get passed directly to
+            <function>request_irq</function> and thus has the same prototype as all
+            IRQ handlers. It will get called with a pointer to the DRM device as the
+            second argument.
+          </para>
+          <para>
+            Finally the function calls the optional
+            <methodname>irq_postinstall</methodname> driver operation. The operation
+            usually enables interrupts (excluding the vblank interrupt, which is
+            enabled separately), but drivers may choose to enable/disable interrupts
+            at a different time.
+          </para>
+          <para>
+            <function>drm_irq_uninstall</function> is similarly used to uninstall an
+            IRQ handler. It starts by waking up all processes waiting on a vblank
+            interrupt to make sure they don't hang, and then calls the optional
+            <methodname>irq_uninstall</methodname> driver operation. The operation
+            must disable all hardware interrupts. Finally the function frees the IRQ
+            by calling <function>free_irq</function>.
+          </para>
+        </sect4>
+        <sect4>
+          <title>Manual IRQ Registration</title>
+          <para>
+            Drivers that require multiple interrupt handlers can't use the managed
+            IRQ registration functions. In that case IRQs must be registered and
+            unregistered manually (usually with the <function>request_irq</function>
+            and <function>free_irq</function> functions, or their devm_* equivalent).
+          </para>
+          <para>
+            When manually registering IRQs, drivers must not set the DRIVER_HAVE_IRQ
+            driver feature flag, and must not provide the
+	    <methodname>irq_handler</methodname> driver operation. They must set the
+	    <structname>drm_device</structname> <structfield>irq_enabled</structfield>
+	    field to 1 upon registration of the IRQs, and clear it to 0 after
+	    unregistering the IRQs.
+          </para>
+        </sect4>
       </sect3>
       <sect3>
         <title>Memory Manager Initialization</title>
