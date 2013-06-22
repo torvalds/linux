@@ -360,12 +360,15 @@ static int qlcnic_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 		return ndo_dflt_fdb_del(ndm, tb, netdev, addr);
 
 	if (adapter->flags & QLCNIC_ESWITCH_ENABLED) {
-		if (is_unicast_ether_addr(addr))
-			err = qlcnic_nic_del_mac(adapter, addr);
-		else if (is_multicast_ether_addr(addr))
+		if (is_unicast_ether_addr(addr)) {
+			err = dev_uc_del(netdev, addr);
+			if (!err)
+				err = qlcnic_nic_del_mac(adapter, addr);
+		} else if (is_multicast_ether_addr(addr)) {
 			err = dev_mc_del(netdev, addr);
-		else
+		} else {
 			err =  -EINVAL;
+		}
 	}
 	return err;
 }
@@ -388,12 +391,16 @@ static int qlcnic_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	if (ether_addr_equal(addr, adapter->mac_addr))
 		return err;
 
-	if (is_unicast_ether_addr(addr))
-		err = qlcnic_nic_add_mac(adapter, addr, 0);
-	else if (is_multicast_ether_addr(addr))
+	if (is_unicast_ether_addr(addr)) {
+		if (netdev_uc_count(netdev) < adapter->ahw->max_uc_count)
+			err = dev_uc_add_excl(netdev, addr);
+		else
+			err = -ENOMEM;
+	} else if (is_multicast_ether_addr(addr)) {
 		err = dev_mc_add_excl(netdev, addr);
-	else
+	} else {
 		err = -EINVAL;
+	}
 
 	return err;
 }
@@ -505,6 +512,7 @@ static struct qlcnic_hardware_ops qlcnic_hw_ops = {
 	.config_promisc_mode		= qlcnic_82xx_nic_set_promisc,
 	.change_l2_filter		= qlcnic_82xx_change_filter,
 	.get_board_info			= qlcnic_82xx_get_board_info,
+	.set_mac_filter_count		= qlcnic_82xx_set_mac_filter_count,
 	.free_mac_list			= qlcnic_82xx_free_mac_list,
 };
 
@@ -1829,6 +1837,22 @@ qlcnic_reset_context(struct qlcnic_adapter *adapter)
 	return err;
 }
 
+void qlcnic_82xx_set_mac_filter_count(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	u16 act_pci_fn = ahw->act_pci_func;
+	u16 count;
+
+	ahw->max_mc_count = QLCNIC_MAX_MC_COUNT;
+	if (act_pci_fn <= 2)
+		count = (QLCNIC_MAX_UC_COUNT - QLCNIC_MAX_MC_COUNT) /
+			 act_pci_fn;
+	else
+		count = (QLCNIC_LB_MAX_FILTERS - QLCNIC_MAX_MC_COUNT) /
+			 act_pci_fn;
+	ahw->max_uc_count = count;
+}
+
 int
 qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 		    int pci_using_dac)
@@ -1838,7 +1862,7 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 
 	adapter->rx_csum = 1;
 	adapter->ahw->mc_enabled = 0;
-	adapter->ahw->max_mc_count = QLCNIC_MAX_MC_COUNT;
+	qlcnic_set_mac_filter_count(adapter);
 
 	netdev->netdev_ops	   = &qlcnic_netdev_ops;
 	netdev->watchdog_timeo     = QLCNIC_WATCHDOG_TIMEOUTVALUE * HZ;
@@ -1876,6 +1900,7 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 		netdev->features |= NETIF_F_LRO;
 
 	netdev->hw_features = netdev->features;
+	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->irq = adapter->msix_entries[0].vector;
 
 	err = register_netdev(netdev);

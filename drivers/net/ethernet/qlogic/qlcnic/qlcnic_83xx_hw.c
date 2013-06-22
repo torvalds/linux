@@ -172,6 +172,7 @@ static struct qlcnic_hardware_ops qlcnic_83xx_hw_ops = {
 	.config_promisc_mode		= qlcnic_83xx_nic_set_promisc,
 	.change_l2_filter		= qlcnic_83xx_change_l2_filter,
 	.get_board_info			= qlcnic_83xx_get_port_info,
+	.set_mac_filter_count		= qlcnic_83xx_set_mac_filter_count,
 	.free_mac_list			= qlcnic_82xx_free_mac_list,
 };
 
@@ -607,6 +608,22 @@ int qlcnic_83xx_get_port_info(struct qlcnic_adapter *adapter)
 			adapter->ahw->link_autoneg = AUTONEG_ENABLE;
 	}
 	return status;
+}
+
+void qlcnic_83xx_set_mac_filter_count(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	u16 act_pci_fn = ahw->act_pci_func;
+	u16 count;
+
+	ahw->max_mc_count = QLC_83XX_MAX_MC_COUNT;
+	if (act_pci_fn <= 2)
+		count = (QLC_83XX_MAX_UC_COUNT - QLC_83XX_MAX_MC_COUNT) /
+			 act_pci_fn;
+	else
+		count = (QLC_83XX_LB_MAX_FILTERS - QLC_83XX_MAX_MC_COUNT) /
+			 act_pci_fn;
+	ahw->max_uc_count = count;
 }
 
 void qlcnic_83xx_enable_mbx_intrpt(struct qlcnic_adapter *adapter)

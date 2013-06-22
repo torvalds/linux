@@ -426,6 +426,7 @@ struct qlcnic_hardware_context {
 	u8 nic_mode;
 	char diag_cnt;
 
+	u16 max_uc_count;
 	u16 port_type;
 	u16 board_type;
 	u16 supported_type;
@@ -1494,6 +1495,7 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 int qlcnic_set_max_rss(struct qlcnic_adapter *, u8, size_t);
 int qlcnic_validate_max_rss(struct qlcnic_adapter *, __u32);
 void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
+void qlcnic_82xx_set_mac_filter_count(struct qlcnic_adapter *);
 int qlcnic_enable_msix(struct qlcnic_adapter *, u32);
 
 /*  eSwitch management functions */
@@ -1631,6 +1633,7 @@ struct qlcnic_hardware_ops {
 	int (*config_promisc_mode) (struct qlcnic_adapter *, u32);
 	void (*change_l2_filter) (struct qlcnic_adapter *, u64 *, u16);
 	int (*get_board_info) (struct qlcnic_adapter *);
+	void (*set_mac_filter_count) (struct qlcnic_adapter *);
 	void (*free_mac_list) (struct qlcnic_adapter *);
 };
 
@@ -1844,6 +1847,11 @@ static inline int qlcnic_get_board_info(struct qlcnic_adapter *adapter)
 static inline void qlcnic_free_mac_list(struct qlcnic_adapter *adapter)
 {
 	return adapter->ahw->hw_ops->free_mac_list(adapter);
+}
+
+static inline void qlcnic_set_mac_filter_count(struct qlcnic_adapter *adapter)
+{
+	adapter->ahw->hw_ops->set_mac_filter_count(adapter);
 }
 
 static inline void qlcnic_dev_request_reset(struct qlcnic_adapter *adapter,

@@ -393,6 +393,8 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_LB_MAX_FILTERS			2048
 #define QLC_83XX_LB_BUCKET_SIZE			256
 #define QLC_83XX_MINIMUM_VECTOR			3
+#define QLC_83XX_MAX_MC_COUNT			38
+#define QLC_83XX_MAX_UC_COUNT			4096
 
 #define QLC_83XX_GET_FUNC_MODE_FROM_NPAR_INFO(val)	(val & 0x80000000)
 #define QLC_83XX_GET_LRO_CAPABILITY(val)		(val & 0x20)
@@ -624,4 +626,5 @@ u32 qlcnic_83xx_mac_rcode(struct qlcnic_adapter *);
 u32 qlcnic_83xx_mbx_poll(struct qlcnic_adapter *, u32 *);
 void qlcnic_83xx_enable_mbx_poll(struct qlcnic_adapter *);
 void qlcnic_83xx_disable_mbx_poll(struct qlcnic_adapter *);
+void qlcnic_83xx_set_mac_filter_count(struct qlcnic_adapter *);
 #endif
