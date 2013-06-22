@@ -311,7 +311,6 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 	seq_printf(m, "\nSessionSetups: %d sent %d failed",
 		   atomic_read(&sent[SMB2_SESSION_SETUP_HE]),
 		   atomic_read(&failed[SMB2_SESSION_SETUP_HE]));
-#define SMB2LOGOFF		0x0002 /* trivial request/resp */
 	seq_printf(m, "\nLogoffs: %d sent %d failed",
 		   atomic_read(&sent[SMB2_LOGOFF_HE]),
 		   atomic_read(&failed[SMB2_LOGOFF_HE]));
