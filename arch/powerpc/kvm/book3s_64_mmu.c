@@ -167,7 +167,6 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	int i;
 	u8 key = 0;
 	bool found = false;
-	bool perm_err = false;
 	int second = 0;
 	ulong mp_ea = vcpu->arch.magic_page_ea;
 
@@ -248,11 +247,6 @@ do_second:
 				break;
 			}
 
-			if (!gpte->may_read) {
-				perm_err = true;
-				continue;
-			}
-
 			dprintk("KVM MMU: Translated 0x%lx [0x%llx] -> 0x%llx "
 				"-> 0x%lx\n",
 				eaddr, avpn, gpte->vpage, gpte->raddr);
@@ -281,6 +275,8 @@ do_second:
 		if (pteg[i+1] != oldr)
 			copy_to_user((void __user *)ptegp, pteg, sizeof(pteg));
 
+		if (!gpte->may_read)
+			return -EPERM;
 		return 0;
 	} else {
 		dprintk("KVM MMU: No PTE found (ea=0x%lx sdr1=0x%llx "
@@ -296,13 +292,7 @@ do_second:
 		}
 	}
 
-
 no_page_found:
-
-
-	if (perm_err)
-		return -EPERM;
-
 	return -ENOENT;
 
 no_seg_found:
