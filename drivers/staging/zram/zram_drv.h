@@ -112,14 +112,4 @@ struct zram {
 
 	struct zram_stats stats;
 };
-
-#ifdef CONFIG_SYSFS
-extern struct attribute_group zram_disk_attr_group;
-#endif
-
-extern void zram_reset_device(struct zram *zram);
-extern struct zram_meta *zram_meta_alloc(u64 disksize);
-extern void zram_meta_free(struct zram_meta *meta);
-extern void zram_init_device(struct zram *zram, struct zram_meta *meta);
-
 #endif
