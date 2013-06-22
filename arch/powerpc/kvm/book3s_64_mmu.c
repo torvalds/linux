@@ -26,6 +26,7 @@
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
+#include <asm/mmu-hash64.h>
 
 /* #define DEBUG_MMU */
 
@@ -76,6 +77,24 @@ static struct kvmppc_slb *kvmppc_mmu_book3s_64_find_slbe(
 	return NULL;
 }
 
+static int kvmppc_slb_sid_shift(struct kvmppc_slb *slbe)
+{
+	return slbe->tb ? SID_SHIFT_1T : SID_SHIFT;
+}
+
+static u64 kvmppc_slb_offset_mask(struct kvmppc_slb *slbe)
+{
+	return (1ul << kvmppc_slb_sid_shift(slbe)) - 1;
+}
+
+static u64 kvmppc_slb_calc_vpn(struct kvmppc_slb *slb, gva_t eaddr)
+{
+	eaddr &= kvmppc_slb_offset_mask(slb);
+
+	return (eaddr >> VPN_SHIFT) |
+		((slb->vsid) << (kvmppc_slb_sid_shift(slb) - VPN_SHIFT));
+}
+
 static u64 kvmppc_mmu_book3s_64_ea_to_vp(struct kvm_vcpu *vcpu, gva_t eaddr,
 					 bool data)
 {
@@ -85,11 +104,7 @@ static u64 kvmppc_mmu_book3s_64_ea_to_vp(struct kvm_vcpu *vcpu, gva_t eaddr,
 	if (!slb)
 		return 0;
 
-	if (slb->tb)
-		return (((u64)eaddr >> 12) & 0xfffffff) |
-		       (((u64)slb->vsid) << 28);
-
-	return (((u64)eaddr >> 12) & 0xffff) | (((u64)slb->vsid) << 16);
+	return kvmppc_slb_calc_vpn(slb, eaddr);
 }
 
 static int kvmppc_mmu_book3s_64_get_pagesize(struct kvmppc_slb *slbe)
@@ -100,7 +115,8 @@ static int kvmppc_mmu_book3s_64_get_pagesize(struct kvmppc_slb *slbe)
 static u32 kvmppc_mmu_book3s_64_get_page(struct kvmppc_slb *slbe, gva_t eaddr)
 {
 	int p = kvmppc_mmu_book3s_64_get_pagesize(slbe);
-	return ((eaddr & 0xfffffff) >> p);
+
+	return ((eaddr & kvmppc_slb_offset_mask(slbe)) >> p);
 }
 
 static hva_t kvmppc_mmu_book3s_64_get_pteg(
@@ -109,13 +125,15 @@ static hva_t kvmppc_mmu_book3s_64_get_pteg(
 				bool second)
 {
 	u64 hash, pteg, htabsize;
-	u32 page;
+	u32 ssize;
 	hva_t r;
+	u64 vpn;
 
-	page = kvmppc_mmu_book3s_64_get_page(slbe, eaddr);
 	htabsize = ((1 << ((vcpu_book3s->sdr1 & 0x1f) + 11)) - 1);
 
-	hash = slbe->vsid ^ page;
+	vpn = kvmppc_slb_calc_vpn(slbe, eaddr);
+	ssize = slbe->tb ? MMU_SEGSIZE_1T : MMU_SEGSIZE_256M;
+	hash = hpt_hash(vpn, kvmppc_mmu_book3s_64_get_pagesize(slbe), ssize);
 	if (second)
 		hash = ~hash;
 	hash &= ((1ULL << 39ULL) - 1ULL);
@@ -146,7 +164,7 @@ static u64 kvmppc_mmu_book3s_64_get_avpn(struct kvmppc_slb *slbe, gva_t eaddr)
 	u64 avpn;
 
 	avpn = kvmppc_mmu_book3s_64_get_page(slbe, eaddr);
-	avpn |= slbe->vsid << (28 - p);
+	avpn |= slbe->vsid << (kvmppc_slb_sid_shift(slbe) - p);
 
 	if (p < 24)
 		avpn >>= ((80 - p) - 56) - 8;
@@ -189,12 +207,14 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	if (!slbe)
 		goto no_seg_found;
 
+	avpn = kvmppc_mmu_book3s_64_get_avpn(slbe, eaddr);
+	if (slbe->tb)
+		avpn |= SLB_VSID_B_1T;
+
 do_second:
 	ptegp = kvmppc_mmu_book3s_64_get_pteg(vcpu_book3s, slbe, eaddr, second);
 	if (kvm_is_error_hva(ptegp))
 		goto no_page_found;
-
-	avpn = kvmppc_mmu_book3s_64_get_avpn(slbe, eaddr);
 
 	if(copy_from_user(pteg, (void __user *)ptegp, sizeof(pteg))) {
 		printk(KERN_ERR "KVM can't copy data from 0x%lx!\n", ptegp);
@@ -218,7 +238,7 @@ do_second:
 			continue;
 
 		/* AVPN compare */
-		if (HPTE_V_AVPN_VAL(avpn) == HPTE_V_AVPN_VAL(v)) {
+		if (HPTE_V_COMPARE(avpn, v)) {
 			u8 pp = (r & HPTE_R_PP) | key;
 			int eaddr_mask = 0xFFF;
 
@@ -324,7 +344,7 @@ static void kvmppc_mmu_book3s_64_slbmte(struct kvm_vcpu *vcpu, u64 rs, u64 rb)
 	slbe->large = (rs & SLB_VSID_L) ? 1 : 0;
 	slbe->tb    = (rs & SLB_VSID_B_1T) ? 1 : 0;
 	slbe->esid  = slbe->tb ? esid_1t : esid;
-	slbe->vsid  = rs >> 12;
+	slbe->vsid  = (rs & ~SLB_VSID_B) >> (kvmppc_slb_sid_shift(slbe) - 16);
 	slbe->valid = (rb & SLB_ESID_V) ? 1 : 0;
 	slbe->Ks    = (rs & SLB_VSID_KS) ? 1 : 0;
 	slbe->Kp    = (rs & SLB_VSID_KP) ? 1 : 0;
@@ -365,6 +385,7 @@ static u64 kvmppc_mmu_book3s_64_slbmfev(struct kvm_vcpu *vcpu, u64 slb_nr)
 static void kvmppc_mmu_book3s_64_slbie(struct kvm_vcpu *vcpu, u64 ea)
 {
 	struct kvmppc_slb *slbe;
+	u64 seg_size;
 
 	dprintk("KVM MMU: slbie(0x%llx)\n", ea);
 
@@ -377,7 +398,8 @@ static void kvmppc_mmu_book3s_64_slbie(struct kvm_vcpu *vcpu, u64 ea)
 
 	slbe->valid = false;
 
-	kvmppc_mmu_map_segment(vcpu, ea);
+	seg_size = 1ull << kvmppc_slb_sid_shift(slbe);
+	kvmppc_mmu_flush_segment(vcpu, ea & ~(seg_size - 1), seg_size);
 }
 
 static void kvmppc_mmu_book3s_64_slbia(struct kvm_vcpu *vcpu)
@@ -457,8 +479,14 @@ static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 
 	if (vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) {
 		slb = kvmppc_mmu_book3s_64_find_slbe(vcpu, ea);
-		if (slb)
+		if (slb) {
 			gvsid = slb->vsid;
+			if (slb->tb) {
+				gvsid <<= SID_SHIFT_1T - SID_SHIFT;
+				gvsid |= esid & ((1ul << (SID_SHIFT_1T - SID_SHIFT)) - 1);
+				gvsid |= VSID_1T;
+			}
+		}
 	}
 
 	switch (vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) {

@@ -1239,8 +1239,7 @@ out:
 #ifdef CONFIG_PPC64
 int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm, struct kvm_ppc_smmu_info *info)
 {
-	/* No flags */
-	info->flags = 0;
+	info->flags = KVM_PPC_1T_SEGMENTS;
 
 	/* SLB is always 64 entries */
 	info->slb_size = 64;
