@@ -397,6 +397,8 @@ static void kvmppc_mmu_book3s_64_slbie(struct kvm_vcpu *vcpu, u64 ea)
 	dprintk("KVM MMU: slbie(0x%llx, 0x%llx)\n", ea, slbe->esid);
 
 	slbe->valid = false;
+	slbe->orige = 0;
+	slbe->origv = 0;
 
 	seg_size = 1ull << kvmppc_slb_sid_shift(slbe);
 	kvmppc_mmu_flush_segment(vcpu, ea & ~(seg_size - 1), seg_size);
@@ -408,8 +410,11 @@ static void kvmppc_mmu_book3s_64_slbia(struct kvm_vcpu *vcpu)
 
 	dprintk("KVM MMU: slbia()\n");
 
-	for (i = 1; i < vcpu->arch.slb_nr; i++)
+	for (i = 1; i < vcpu->arch.slb_nr; i++) {
 		vcpu->arch.slb[i].valid = false;
+		vcpu->arch.slb[i].orige = 0;
+		vcpu->arch.slb[i].origv = 0;
+	}
 
 	if (vcpu->arch.shared->msr & MSR_IR) {
 		kvmppc_mmu_flush_segments(vcpu);
