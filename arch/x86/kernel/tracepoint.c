@@ -29,7 +29,11 @@ static void set_trace_idt_ctr(int val)
 
 static void switch_idt(void *arg)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
 	load_current_idt();
+	local_irq_restore(flags);
 }
 
 void trace_irq_vector_regfunc(void)

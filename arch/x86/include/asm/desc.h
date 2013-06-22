@@ -497,21 +497,19 @@ static inline void load_trace_idt(void)
 #endif
 
 /*
- * the load_current_idt() is called with interrupt disabled by local_irq_save()
+ * The load_current_idt() must be called with interrupts disabled
  * to avoid races. That way the IDT will always be set back to the expected
- * descriptor.
+ * descriptor. It's also called when a CPU is being initialized, and
+ * that doesn't need to disable interrupts, as nothing should be
+ * bothering the CPU then.
  */
 static inline void load_current_idt(void)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
 	if (is_debug_idt_enabled())
 		load_debug_idt();
 	else if (is_trace_idt_enabled())
 		load_trace_idt();
 	else
 		load_idt((const struct desc_ptr *)&idt_descr);
-	local_irq_restore(flags);
 }
 #endif /* _ASM_X86_DESC_H */
