@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/tvp7002.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
@@ -1039,6 +1040,10 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 	}
 	v4l2_ctrl_handler_setup(&device->hdl);
 
+	error = v4l2_async_register_subdev(&device->sd);
+	if (error)
+		goto error;
+
 	return 0;
 
 error:
@@ -1063,6 +1068,7 @@ static int tvp7002_remove(struct i2c_client *c)
 
 	v4l2_dbg(1, debug, sd, "Removing tvp7002 adapter"
 				"on address 0x%x\n", c->addr);
+	v4l2_async_unregister_subdev(&device->sd);
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&device->sd.entity);
 #endif
