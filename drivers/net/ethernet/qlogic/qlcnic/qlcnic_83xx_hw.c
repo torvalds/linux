@@ -1676,13 +1676,19 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 
 	/* Poll for link up event before running traffic */
 	do {
-		msleep(500);
+		msleep(QLC_83XX_LB_MSLEEP_COUNT);
 		if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
 			qlcnic_83xx_process_aen(adapter);
 
-		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
-			dev_info(&adapter->pdev->dev,
-				 "Firmware didn't sent link up event to loopback request\n");
+		if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
+			netdev_info(netdev,
+				    "Device is resetting, free LB test resources\n");
+			ret = -EIO;
+			goto free_diag_res;
+		}
+		if (loop++ > QLC_83XX_LB_WAIT_COUNT) {
+			netdev_info(netdev,
+				    "Firmware didn't sent link up event to loopback request\n");
 			ret = -QLCNIC_FW_NOT_RESPOND;
 			qlcnic_83xx_clear_lb_mode(adapter, mode);
 			goto free_diag_res;
@@ -1711,6 +1717,7 @@ fail_diag_alloc:
 int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct net_device *netdev = adapter->netdev;
 	int status = 0, loop = 0;
 	u32 config;
 
@@ -1728,9 +1735,9 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 
 	status = qlcnic_83xx_set_port_config(adapter);
 	if (status) {
-		dev_err(&adapter->pdev->dev,
-			"Failed to Set Loopback Mode = 0x%x.\n",
-			ahw->port_config);
+		netdev_err(netdev,
+			   "Failed to Set Loopback Mode = 0x%x.\n",
+			   ahw->port_config);
 		ahw->port_config = config;
 		clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 		return status;
@@ -1738,13 +1745,19 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 
 	/* Wait for Link and IDC Completion AEN */
 	do {
-		msleep(300);
+		msleep(QLC_83XX_LB_MSLEEP_COUNT);
 		if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
 			qlcnic_83xx_process_aen(adapter);
 
-		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
-			dev_err(&adapter->pdev->dev,
-				"FW did not generate IDC completion AEN\n");
+		if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
+			netdev_info(netdev,
+				    "Device is resetting, free LB test resources\n");
+			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
+			return -EIO;
+		}
+		if (loop++ > QLC_83XX_LB_WAIT_COUNT) {
+			netdev_err(netdev,
+				   "Did not receive IDC completion AEN\n");
 			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 			qlcnic_83xx_clear_lb_mode(adapter, mode);
 			return -EIO;
@@ -1759,6 +1772,7 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct net_device *netdev = adapter->netdev;
 	int status = 0, loop = 0;
 	u32 config = ahw->port_config;
 
@@ -1770,9 +1784,9 @@ int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 
 	status = qlcnic_83xx_set_port_config(adapter);
 	if (status) {
-		dev_err(&adapter->pdev->dev,
-			"Failed to Clear Loopback Mode = 0x%x.\n",
-			ahw->port_config);
+		netdev_err(netdev,
+			   "Failed to Clear Loopback Mode = 0x%x.\n",
+			   ahw->port_config);
 		ahw->port_config = config;
 		clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 		return status;
@@ -1780,13 +1794,20 @@ int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 
 	/* Wait for Link and IDC Completion AEN */
 	do {
-		msleep(300);
+		msleep(QLC_83XX_LB_MSLEEP_COUNT);
 		if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
 			qlcnic_83xx_process_aen(adapter);
 
-		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
-			dev_err(&adapter->pdev->dev,
-				"Firmware didn't sent IDC completion AEN\n");
+		if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
+			netdev_info(netdev,
+				    "Device is resetting, free LB test resources\n");
+			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
+			return -EIO;
+		}
+
+		if (loop++ > QLC_83XX_LB_WAIT_COUNT) {
+			netdev_err(netdev,
+				   "Did not receive IDC completion AEN\n");
 			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 			return -EIO;
 		}
