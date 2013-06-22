@@ -44,7 +44,7 @@ struct user_regs_struct {
 		long r19, r18, r17, r16, r15, r14, r13;
 	} callee;
 	long efa;	/* break pt addr, for break points in delay slots */
-	long stop_pc;	/* give dbg stop_pc directly after checking orig_r8 */
+	long stop_pc;	/* give dbg stop_pc after ensuring brkpt trap */
 };
 #endif /* !__ASSEMBLY__ */
 
