@@ -819,7 +819,7 @@ struct qlcnic_mac_list_s {
 
 #define QLCNIC_FW_CAPABILITY_2_LRO_MAX_TCP_SEG	BIT_2
 #define QLCNIC_FW_CAP2_HW_LRO_IPV6		BIT_3
-#define QLCNIC_FW_CAPABILITY_2_OCBB		BIT_5
+#define QLCNIC_FW_CAPABILITY_SET_DRV_VER	BIT_5
 #define QLCNIC_FW_CAPABILITY_2_BEACON		BIT_7
 
 /* module types */
@@ -1476,7 +1476,7 @@ int qlcnic_nic_del_mac(struct qlcnic_adapter *, const u8 *);
 void qlcnic_82xx_free_mac_list(struct qlcnic_adapter *adapter);
 
 int qlcnic_fw_cmd_set_mtu(struct qlcnic_adapter *adapter, int mtu);
-int qlcnic_fw_cmd_set_drv_version(struct qlcnic_adapter *);
+int qlcnic_fw_cmd_set_drv_version(struct qlcnic_adapter *, u32);
 int qlcnic_change_mtu(struct net_device *netdev, int new_mtu);
 netdev_features_t qlcnic_fix_features(struct net_device *netdev,
 	netdev_features_t features);
@@ -1500,6 +1500,7 @@ int qlcnic_validate_max_rss(struct qlcnic_adapter *, __u32);
 void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
 void qlcnic_82xx_set_mac_filter_count(struct qlcnic_adapter *);
 int qlcnic_enable_msix(struct qlcnic_adapter *, u32);
+void qlcnic_set_drv_version(struct qlcnic_adapter *);
 
 /*  eSwitch management functions */
 int qlcnic_config_switch_port(struct qlcnic_adapter *,

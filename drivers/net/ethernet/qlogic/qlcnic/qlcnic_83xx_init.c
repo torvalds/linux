@@ -629,6 +629,7 @@ static int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *adapter)
 		return -EIO;
 	}
 
+	qlcnic_set_drv_version(adapter);
 	qlcnic_83xx_idc_attach_driver(adapter);
 
 	return 0;

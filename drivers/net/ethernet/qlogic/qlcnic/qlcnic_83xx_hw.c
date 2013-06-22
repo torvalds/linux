@@ -63,6 +63,7 @@ static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_STOP_NIC_FUNC, 2, 1},
 	{QLCNIC_CMD_SET_LED_CONFIG, 5, 1},
 	{QLCNIC_CMD_GET_LED_CONFIG, 1, 5},
+	{QLCNIC_CMD_83XX_SET_DRV_VER, 4, 1},
 	{QLCNIC_CMD_ADD_RCV_RINGS, 130, 26},
 	{QLCNIC_CMD_CONFIG_VPORT, 4, 4},
 	{QLCNIC_CMD_BC_EVENT_SETUP, 2, 1},
@@ -2186,16 +2187,17 @@ int qlcnic_83xx_get_nic_info(struct qlcnic_adapter *adapter,
 	u32 temp;
 	u8 op = 0;
 	struct qlcnic_cmd_args cmd;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
 	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_NIC_INFO);
 	if (err)
 		return err;
 
-	if (func_id != adapter->ahw->pci_func) {
+	if (func_id != ahw->pci_func) {
 		temp = func_id << 16;
 		cmd.req.arg[1] = op | BIT_31 | temp;
 	} else {
-		cmd.req.arg[1] = adapter->ahw->pci_func << 16;
+		cmd.req.arg[1] = ahw->pci_func << 16;
 	}
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err) {
@@ -2222,6 +2224,9 @@ int qlcnic_83xx_get_nic_info(struct qlcnic_adapter *adapter,
 		temp = (cmd.rsp.arg[8] & 0x7FFE0000) >> 17;
 		npar_info->max_linkspeed_reg_offset = temp;
 	}
+	if (npar_info->capabilities & QLCNIC_FW_CAPABILITY_MORE_CAPS)
+		memcpy(ahw->extra_capability, &cmd.rsp.arg[16],
+		       sizeof(ahw->extra_capability));
 
 out:
 	qlcnic_free_mbx_args(&cmd);

@@ -1985,6 +1985,21 @@ int qlcnic_alloc_tx_rings(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
+void qlcnic_set_drv_version(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	u32 fw_cmd = 0;
+
+	if (qlcnic_82xx_check(adapter))
+		fw_cmd = QLCNIC_CMD_82XX_SET_DRV_VER;
+	else if (qlcnic_83xx_check(adapter))
+		fw_cmd = QLCNIC_CMD_83XX_SET_DRV_VER;
+
+	if ((ahw->capabilities & QLCNIC_FW_CAPABILITY_MORE_CAPS) &&
+	    (ahw->extra_capability[0] & QLCNIC_FW_CAPABILITY_SET_DRV_VER))
+		qlcnic_fw_cmd_set_drv_version(adapter, fw_cmd);
+}
+
 static int
 qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -1992,7 +2007,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct qlcnic_adapter *adapter = NULL;
 	struct qlcnic_hardware_context *ahw;
 	int err, pci_using_dac = -1;
-	u32 capab2;
 	char board_name[QLCNIC_MAX_BOARD_NAME_LEN + 19]; /* MAC + ": " + name */
 
 	if (pdev->is_virtfn)
@@ -2147,13 +2161,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_out_disable_mbx_intr;
 
-	if (qlcnic_82xx_check(adapter)) {
-		if (ahw->capabilities & QLCNIC_FW_CAPABILITY_MORE_CAPS) {
-			capab2 = QLCRD32(adapter, CRB_FW_CAPABILITIES_2);
-			if (capab2 & QLCNIC_FW_CAPABILITY_2_OCBB)
-				qlcnic_fw_cmd_set_drv_version(adapter);
-		}
-	}
+	qlcnic_set_drv_version(adapter);
 
 	pci_set_drvdata(pdev, adapter);
 
@@ -3124,6 +3132,7 @@ done:
 	adapter->fw_fail_cnt = 0;
 	adapter->flags &= ~QLCNIC_FW_HANG;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	qlcnic_set_drv_version(adapter);
 
 	if (!qlcnic_clr_drv_state(adapter))
 		qlcnic_schedule_work(adapter, qlcnic_fw_poll_work,

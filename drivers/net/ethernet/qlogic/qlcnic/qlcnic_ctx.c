@@ -36,7 +36,7 @@ static const struct qlcnic_mailbox_metadata qlcnic_mbx_tbl[] = {
 	{QLCNIC_CMD_CONFIG_PORT, 4, 1},
 	{QLCNIC_CMD_TEMP_SIZE, 4, 4},
 	{QLCNIC_CMD_GET_TEMP_HDR, 4, 1},
-	{QLCNIC_CMD_SET_DRV_VER, 4, 1},
+	{QLCNIC_CMD_82XX_SET_DRV_VER, 4, 1},
 	{QLCNIC_CMD_GET_LED_STATUS, 4, 2},
 };
 
@@ -182,7 +182,7 @@ int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 	return cmd->rsp.arg[0];
 }
 
-int qlcnic_fw_cmd_set_drv_version(struct qlcnic_adapter *adapter)
+int qlcnic_fw_cmd_set_drv_version(struct qlcnic_adapter *adapter, u32 fw_cmd)
 {
 	struct qlcnic_cmd_args cmd;
 	u32 arg1, arg2, arg3;
@@ -194,7 +194,7 @@ int qlcnic_fw_cmd_set_drv_version(struct qlcnic_adapter *adapter)
 		 _QLCNIC_LINUX_MAJOR, _QLCNIC_LINUX_MINOR,
 		 _QLCNIC_LINUX_SUBVERSION);
 
-	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_SET_DRV_VER);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, fw_cmd);
 	if (err)
 		return err;
 
