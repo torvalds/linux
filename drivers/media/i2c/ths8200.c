@@ -550,10 +550,19 @@ static struct i2c_device_id ths8200_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ths8200_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id ths8200_of_match[] = {
+	{ .compatible = "ti,ths8200", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, ths8200_of_match);
+#endif
+
 static struct i2c_driver ths8200_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "ths8200",
+		.of_match_table = of_match_ptr(ths8200_of_match),
 	},
 	.probe = ths8200_probe,
 	.remove = ths8200_remove,
