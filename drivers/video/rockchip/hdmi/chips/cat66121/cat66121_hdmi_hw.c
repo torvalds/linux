@@ -611,7 +611,7 @@ int cat66121_hdmi_sys_config_audio(struct hdmi_audio *audio)
 	HDMITX_EnableAudioOutput(
 			CNOFIG_INPUT_AUDIO_TYPE,
 			CONFIG_INPUT_AUDIO_SPDIF,
-			audio->rate,
+			INPUT_SAMPLE_FREQ_HZ,
 			audio->channel,
 			NULL, // pointer to cahnnel status.
 			hdmi->tmdsclk*(pixelrep+1));
