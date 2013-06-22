@@ -994,7 +994,7 @@ qlcnic_initialize_nic(struct qlcnic_adapter *adapter)
 	if (adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_MORE_CAPS) {
 		u32 temp;
 		temp = QLCRD32(adapter, CRB_FW_CAPABILITIES_2);
-		adapter->ahw->capabilities2 = temp;
+		adapter->ahw->extra_capability[0] = temp;
 	}
 	adapter->ahw->max_mac_filters = nic_info.max_mac_filters;
 	adapter->ahw->max_mtu = nic_info.max_mtu;
@@ -1486,7 +1486,7 @@ static void qlcnic_get_lro_mss_capability(struct qlcnic_adapter *adapter)
 	u32 capab = 0;
 
 	if (qlcnic_82xx_check(adapter)) {
-		if (adapter->ahw->capabilities2 &
+		if (adapter->ahw->extra_capability[0] &
 		    QLCNIC_FW_CAPABILITY_2_LRO_MAX_TCP_SEG)
 			adapter->flags |= QLCNIC_FW_LRO_MSS_CAP;
 	} else {

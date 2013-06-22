@@ -168,7 +168,7 @@ static int qlcnic_82xx_store_beacon(struct qlcnic_adapter *adapter,
 	if (err)
 		return err;
 
-	if ((ahw->capabilities2 & QLCNIC_FW_CAPABILITY_2_BEACON)) {
+	if (ahw->extra_capability[0] & QLCNIC_FW_CAPABILITY_2_BEACON) {
 		err = qlcnic_get_beacon_state(adapter, &h_beacon_state);
 		if (!err) {
 			dev_info(&adapter->pdev->dev,

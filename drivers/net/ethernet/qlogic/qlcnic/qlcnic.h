@@ -449,7 +449,7 @@ struct qlcnic_hardware_context {
 	u16 max_pci_func;
 
 	u32 capabilities;
-	u32 capabilities2;
+	u32 extra_capability[3];
 	u32 temp;
 	u32 int_vec_bit;
 	u32 fw_hal_version;

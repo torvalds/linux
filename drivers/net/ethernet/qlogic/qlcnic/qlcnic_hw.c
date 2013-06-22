@@ -786,7 +786,8 @@ int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 	word = 0;
 	if (enable) {
 		word = QLCNIC_ENABLE_IPV4_LRO | QLCNIC_NO_DEST_IPV4_CHECK;
-		if (adapter->ahw->capabilities2 & QLCNIC_FW_CAP2_HW_LRO_IPV6)
+		if (adapter->ahw->extra_capability[0] &
+		    QLCNIC_FW_CAP2_HW_LRO_IPV6)
 			word |= QLCNIC_ENABLE_IPV6_LRO |
 				QLCNIC_NO_DEST_IPV6_CHECK;
 	}
