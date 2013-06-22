@@ -261,10 +261,8 @@ static inline void wait_for_flush(void)
  */
 static inline void __dc_entire_op(const int cacheop)
 {
-	unsigned long flags, tmp = tmp;
+	unsigned int tmp = tmp;
 	int aux;
-
-	local_irq_save(flags);
 
 	if (cacheop == OP_FLUSH_N_INV) {
 		/* Dcache provides 2 cmd: FLUSH or INV
@@ -289,8 +287,6 @@ static inline void __dc_entire_op(const int cacheop)
 	/* Switch back the DISCARD ONLY Invalidate mode */
 	if (cacheop == OP_FLUSH_N_INV)
 		write_aux_reg(ARC_REG_DC_CTRL, tmp & ~DC_CTRL_INV_MODE_FLUSH);
-
-	local_irq_restore(flags);
 }
 
 /*
@@ -481,8 +477,15 @@ static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
 	local_irq_restore(flags);
 }
 
+static inline void __ic_entire_inv(void)
+{
+	write_aux_reg(ARC_REG_IC_IVIC, 1);
+	read_aux_reg(ARC_REG_IC_CTRL);	/* blocks */
+}
+
 #else
 
+#define __ic_entire_inv()
 #define __ic_line_inv_vaddr(pstart, vstart, sz)
 
 #endif /* CONFIG_ARC_HAS_ICACHE */
@@ -651,26 +654,13 @@ void ___flush_dcache_page(unsigned long paddr, unsigned long vaddr)
 	__dc_line_op(paddr, vaddr & PAGE_MASK, PAGE_SIZE, OP_FLUSH_N_INV);
 }
 
-void flush_icache_all(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-
-	write_aux_reg(ARC_REG_IC_IVIC, 1);
-
-	/* lr will not complete till the icache inv operation is not over */
-	read_aux_reg(ARC_REG_IC_CTRL);
-	local_irq_restore(flags);
-}
-
 noinline void flush_cache_all(void)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
 
-	flush_icache_all();
+	__ic_entire_inv();
 	__dc_entire_op(OP_FLUSH_N_INV);
 
 	local_irq_restore(flags);
