@@ -994,30 +994,6 @@ err_unregister:
 }
 
 /**
- * dock_remove - free up resources related to the dock station
- */
-static int dock_remove(struct dock_station *ds)
-{
-	struct dock_dependent_device *dd, *tmp;
-	struct platform_device *dock_device = ds->dock_device;
-
-	if (!dock_station_count)
-		return 0;
-
-	/* remove dependent devices */
-	list_for_each_entry_safe(dd, tmp, &ds->dependent_devices, list)
-		kfree(dd);
-
-	list_del(&ds->sibling);
-
-	/* cleanup sysfs */
-	sysfs_remove_group(&dock_device->dev.kobj, &dock_attribute_group);
-	platform_device_unregister(dock_device);
-
-	return 0;
-}
-
-/**
  * find_dock_and_bay - look for dock stations and bays
  * @handle: acpi handle of a device
  * @lvl: unused
@@ -1035,7 +1011,7 @@ find_dock_and_bay(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK;
 }
 
-static int __init dock_init(void)
+int __init acpi_dock_init(void)
 {
 	if (acpi_disabled)
 		return 0;
@@ -1054,19 +1030,3 @@ static int __init dock_init(void)
 		ACPI_DOCK_DRIVER_DESCRIPTION, dock_station_count);
 	return 0;
 }
-
-static void __exit dock_exit(void)
-{
-	struct dock_station *tmp, *dock_station;
-
-	unregister_acpi_bus_notifier(&dock_acpi_notifier);
-	list_for_each_entry_safe(dock_station, tmp, &dock_stations, sibling)
-		dock_remove(dock_station);
-}
-
-/*
- * Must be called before drivers of devices in dock, otherwise we can't know
- * which devices are in a dock
- */
-subsys_initcall(dock_init);
-module_exit(dock_exit);
