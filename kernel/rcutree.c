@@ -1303,6 +1303,7 @@ static int rcu_gp_init(struct rcu_state *rsp)
 	struct rcu_data *rdp;
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
+	rcu_bind_gp_kthread();
 	raw_spin_lock_irq(&rnp->lock);
 	rsp->gp_flags = 0; /* Clear all flags: New grace period. */
 
