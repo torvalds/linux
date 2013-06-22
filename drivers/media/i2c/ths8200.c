@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/v4l2-dv-timings.h>
 
+#include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 
 #include "ths8200_regs.h"
@@ -500,6 +501,7 @@ static int ths8200_probe(struct i2c_client *client,
 {
 	struct ths8200_state *state;
 	struct v4l2_subdev *sd;
+	int error;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -517,6 +519,10 @@ static int ths8200_probe(struct i2c_client *client,
 
 	ths8200_core_init(sd);
 
+	error = v4l2_async_register_subdev(&state->sd);
+	if (error)
+		return error;
+
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 		  client->addr << 1, client->adapter->name);
 
@@ -526,12 +532,13 @@ static int ths8200_probe(struct i2c_client *client,
 static int ths8200_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ths8200_state *decoder = to_state(sd);
 
 	v4l2_dbg(1, debug, sd, "%s removed @ 0x%x (%s)\n", client->name,
 		 client->addr << 1, client->adapter->name);
 
 	ths8200_s_power(sd, false);
-
+	v4l2_async_unregister_subdev(&decoder->sd);
 	v4l2_device_unregister_subdev(sd);
 
 	return 0;
