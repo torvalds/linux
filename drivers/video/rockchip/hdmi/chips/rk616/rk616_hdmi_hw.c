@@ -439,7 +439,7 @@ void rk616_hdmi_work(void)
         	if(hdmi->pwr_mode == LOWER_PWR)
 	        	rk616_hdmi_set_pwr_mode(NORMAL);
 
-		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
+		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(40));	
 
         }
 
