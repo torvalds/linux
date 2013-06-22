@@ -1575,7 +1575,7 @@ static int saa7134_g_fmt_vid_overlay(struct file *file, void *priv,
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
-	struct v4l2_clip *clips = f->fmt.win.clips;
+	struct v4l2_clip __user *clips = f->fmt.win.clips;
 	u32 clipcount = f->fmt.win.clipcount;
 	int err = 0;
 	int i;
