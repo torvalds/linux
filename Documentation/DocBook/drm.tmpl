@@ -1868,10 +1868,6 @@ void intel_crt_init(struct drm_device *dev)
           <synopsis>bool (*mode_fixup)(struct drm_encoder *encoder,
                        const struct drm_display_mode *mode,
                        struct drm_display_mode *adjusted_mode);</synopsis>
-          <note><para>
-            FIXME: The mode argument be const, but the i915 driver modifies
-            mode-&gt;clock in <function>intel_dp_mode_fixup</function>.
-          </para></note>
           <para>
             Let encoders adjust the requested mode or reject it completely. This
             operation returns true if the mode is accepted (possibly after being
