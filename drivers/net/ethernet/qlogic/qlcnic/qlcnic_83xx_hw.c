@@ -844,7 +844,9 @@ void qlcnic_83xx_idc_aen_work(struct work_struct *work)
 	int i, err = 0;
 
 	adapter = container_of(work, struct qlcnic_adapter, idc_aen_work.work);
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_IDC_ACK);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_IDC_ACK);
+	if (err)
+		return;
 
 	for (i = 1; i < QLC_83XX_MBX_AEN_CNT; i++)
 		cmd.req.arg[i] = adapter->ahw->mbox_aen[i];
@@ -1085,8 +1087,10 @@ int qlcnic_83xx_create_rx_ctx(struct qlcnic_adapter *adapter)
 		cap |= QLC_83XX_FW_CAP_LRO_MSS;
 
 	/* set mailbox hdr and capabilities */
-	qlcnic_alloc_mbx_args(&cmd, adapter,
-			      QLCNIC_CMD_CREATE_RX_CTX);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter,
+				    QLCNIC_CMD_CREATE_RX_CTX);
+	if (err)
+		return err;
 
 	if (qlcnic_sriov_pf_check(adapter) || qlcnic_sriov_vf_check(adapter))
 		cmd.req.arg[0] |= (0x3 << 29);
@@ -1244,7 +1248,9 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 		mbx.intr_id = 0xffff;
 	mbx.src = 0;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CREATE_TX_CTX);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CREATE_TX_CTX);
+	if (err)
+		return err;
 
 	if (qlcnic_sriov_pf_check(adapter) || qlcnic_sriov_vf_check(adapter))
 		cmd.req.arg[0] |= (0x3 << 29);
@@ -1390,8 +1396,11 @@ int qlcnic_83xx_config_led(struct qlcnic_adapter *adapter, u32 state,
 
 	if (state) {
 		/* Get LED configuration */
-		qlcnic_alloc_mbx_args(&cmd, adapter,
-				      QLCNIC_CMD_GET_LED_CONFIG);
+		status = qlcnic_alloc_mbx_args(&cmd, adapter,
+					       QLCNIC_CMD_GET_LED_CONFIG);
+		if (status)
+			return status;
+
 		status = qlcnic_issue_cmd(adapter, &cmd);
 		if (status) {
 			dev_err(&adapter->pdev->dev,
@@ -1405,8 +1414,11 @@ int qlcnic_83xx_config_led(struct qlcnic_adapter *adapter, u32 state,
 		/* Set LED Configuration */
 		mbx_in = (LSW(QLC_83XX_LED_CONFIG) << 16) |
 			  LSW(QLC_83XX_LED_CONFIG);
-		qlcnic_alloc_mbx_args(&cmd, adapter,
-				      QLCNIC_CMD_SET_LED_CONFIG);
+		status = qlcnic_alloc_mbx_args(&cmd, adapter,
+					       QLCNIC_CMD_SET_LED_CONFIG);
+		if (status)
+			return status;
+
 		cmd.req.arg[1] = mbx_in;
 		cmd.req.arg[2] = mbx_in;
 		cmd.req.arg[3] = mbx_in;
@@ -1423,8 +1435,11 @@ mbx_err:
 
 	} else {
 		/* Restoring default LED configuration */
-		qlcnic_alloc_mbx_args(&cmd, adapter,
-				      QLCNIC_CMD_SET_LED_CONFIG);
+		status = qlcnic_alloc_mbx_args(&cmd, adapter,
+					       QLCNIC_CMD_SET_LED_CONFIG);
+		if (status)
+			return status;
+
 		cmd.req.arg[1] = adapter->ahw->mbox_reg[0];
 		cmd.req.arg[2] = adapter->ahw->mbox_reg[1];
 		cmd.req.arg[3] = adapter->ahw->mbox_reg[2];
@@ -1494,10 +1509,18 @@ void qlcnic_83xx_register_nic_idc_func(struct qlcnic_adapter *adapter,
 		return;
 
 	if (enable) {
-		qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_INIT_NIC_FUNC);
+		status = qlcnic_alloc_mbx_args(&cmd, adapter,
+					       QLCNIC_CMD_INIT_NIC_FUNC);
+		if (status)
+			return;
+
 		cmd.req.arg[1] = BIT_0 | BIT_31;
 	} else {
-		qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_STOP_NIC_FUNC);
+		status = qlcnic_alloc_mbx_args(&cmd, adapter,
+					       QLCNIC_CMD_STOP_NIC_FUNC);
+		if (status)
+			return;
+
 		cmd.req.arg[1] = BIT_0 | BIT_31;
 	}
 	status = qlcnic_issue_cmd(adapter, &cmd);
@@ -1514,7 +1537,10 @@ int qlcnic_83xx_set_port_config(struct qlcnic_adapter *adapter)
 	struct qlcnic_cmd_args cmd;
 	int err;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_SET_PORT_CONFIG);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_SET_PORT_CONFIG);
+	if (err)
+		return err;
+
 	cmd.req.arg[1] = adapter->ahw->port_config;
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err)
@@ -1528,7 +1554,10 @@ int qlcnic_83xx_get_port_config(struct qlcnic_adapter *adapter)
 	struct qlcnic_cmd_args cmd;
 	int err;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_PORT_CONFIG);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_PORT_CONFIG);
+	if (err)
+		return err;
+
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err)
 		dev_info(&adapter->pdev->dev, "Get Port config failed\n");
@@ -1544,7 +1573,10 @@ int qlcnic_83xx_setup_link_event(struct qlcnic_adapter *adapter, int enable)
 	u32 temp;
 	struct qlcnic_cmd_args cmd;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_LINK_EVENT);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_LINK_EVENT);
+	if (err)
+		return err;
+
 	temp = adapter->recv_ctx->context_id << 16;
 	cmd.req.arg[1] = (enable ? 1 : 0) | BIT_8 | temp;
 	err = qlcnic_issue_cmd(adapter, &cmd);
@@ -1575,7 +1607,11 @@ int qlcnic_83xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
 	if (adapter->recv_ctx->state == QLCNIC_HOST_CTX_STATE_FREED)
 		return -EIO;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIGURE_MAC_RX_MODE);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter,
+				    QLCNIC_CMD_CONFIGURE_MAC_RX_MODE);
+	if (err)
+		return err;
+
 	qlcnic_83xx_set_interface_id_promisc(adapter, &temp);
 	cmd.req.arg[1] = (mode ? 1 : 0) | temp;
 	err = qlcnic_issue_cmd(adapter, &cmd);
@@ -1762,7 +1798,11 @@ void qlcnic_83xx_config_ipaddr(struct qlcnic_adapter *adapter, __be32 ip,
 	u32 temp = 0, temp_ip;
 	struct qlcnic_cmd_args cmd;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIGURE_IP_ADDR);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter,
+				    QLCNIC_CMD_CONFIGURE_IP_ADDR);
+	if (err)
+		return;
+
 	qlcnic_83xx_set_interface_id_ipaddr(adapter, &temp);
 
 	if (mode == QLCNIC_IP_UP)
@@ -1801,7 +1841,10 @@ int qlcnic_83xx_config_hw_lro(struct qlcnic_adapter *adapter, int mode)
 	if (adapter->recv_ctx->state == QLCNIC_HOST_CTX_STATE_FREED)
 		return 0;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIGURE_HW_LRO);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIGURE_HW_LRO);
+	if (err)
+		return err;
+
 	temp = adapter->recv_ctx->context_id << 16;
 	arg1 = lro_bit_mask | temp;
 	cmd.req.arg[1] = arg1;
@@ -1823,8 +1866,9 @@ int qlcnic_83xx_config_rss(struct qlcnic_adapter *adapter, int enable)
 			    0xae7b30b4d0ca2bcbULL, 0x43a38fb04167253dULL,
 			    0x255b0ec26d5a56daULL };
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIGURE_RSS);
-
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIGURE_RSS);
+	if (err)
+		return err;
 	/*
 	 * RSS request:
 	 * bits 3-0: Rsvd
@@ -1930,7 +1974,10 @@ int qlcnic_83xx_get_mac_address(struct qlcnic_adapter *adapter, u8 *mac)
 	struct qlcnic_cmd_args cmd;
 	u32 mac_low, mac_high;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_MAC_ADDRESS);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_MAC_ADDRESS);
+	if (err)
+		return err;
+
 	qlcnic_83xx_configure_mac(adapter, mac, QLCNIC_GET_CURRENT_MAC, &cmd);
 	err = qlcnic_issue_cmd(adapter, &cmd);
 
@@ -1961,7 +2008,10 @@ void qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *adapter)
 	if (adapter->recv_ctx->state == QLCNIC_HOST_CTX_STATE_FREED)
 		return;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_INTR_COAL);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_INTR_COAL);
+	if (err)
+		return;
+
 	if (coal->type == QLCNIC_INTR_COAL_TYPE_RX) {
 		temp = adapter->recv_ctx->context_id;
 		cmd.req.arg[1] = QLCNIC_INTR_COAL_TYPE_RX | temp << 16;
@@ -2033,7 +2083,10 @@ int qlcnic_enable_eswitch(struct qlcnic_adapter *adapter, u8 port, u8 enable)
 		return err;
 	}
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_TOGGLE_ESWITCH);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_TOGGLE_ESWITCH);
+	if (err)
+		return err;
+
 	cmd.req.arg[1] = (port & 0xf) | BIT_4;
 	err = qlcnic_issue_cmd(adapter, &cmd);
 
@@ -2061,7 +2114,10 @@ int qlcnic_83xx_set_nic_info(struct qlcnic_adapter *adapter,
 		return err;
 	}
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_SET_NIC_INFO);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_SET_NIC_INFO);
+	if (err)
+		return err;
+
 	cmd.req.arg[1] = (nic->pci_func << 16);
 	cmd.req.arg[2] = 0x1 << 16;
 	cmd.req.arg[3] = nic->phys_port | (nic->switch_mode << 16);
@@ -2093,7 +2149,10 @@ int qlcnic_83xx_get_nic_info(struct qlcnic_adapter *adapter,
 	u8 op = 0;
 	struct qlcnic_cmd_args cmd;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_NIC_INFO);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_NIC_INFO);
+	if (err)
+		return err;
+
 	if (func_id != adapter->ahw->pci_func) {
 		temp = func_id << 16;
 		cmd.req.arg[1] = op | BIT_31 | temp;
@@ -2140,7 +2199,10 @@ int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 	int i, err = 0, j = 0;
 	u32 temp;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_PCI_INFO);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_PCI_INFO);
+	if (err)
+		return err;
+
 	err = qlcnic_issue_cmd(adapter, &cmd);
 
 	ahw->act_pci_func = 0;
@@ -2195,7 +2257,10 @@ int qlcnic_83xx_config_intrpt(struct qlcnic_adapter *adapter, bool op_type)
 	struct qlcnic_cmd_args cmd;
 
 	max_ints = adapter->ahw->num_msix - 1;
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_INTRPT);
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_INTRPT);
+	if (err)
+		return err;
+
 	cmd.req.arg[1] = max_ints;
 
 	if (qlcnic_sriov_vf_check(adapter))
@@ -2823,7 +2888,11 @@ int qlcnic_83xx_test_link(struct qlcnic_adapter *adapter)
 		dev_info(&adapter->pdev->dev, "link state down\n");
 		return config;
 	}
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_LINK_STATUS);
+
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_LINK_STATUS);
+	if (err)
+		return err;
+
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err) {
 		dev_info(&adapter->pdev->dev,
@@ -3049,7 +3118,9 @@ void qlcnic_83xx_get_stats(struct qlcnic_adapter *adapter, u64 *data)
 	struct net_device *netdev = adapter->netdev;
 	int ret = 0;
 
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_STATISTICS);
+	ret = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_STATISTICS);
+	if (ret)
+		return;
 	/* Get Tx stats */
 	cmd.req.arg[1] = BIT_1 | (adapter->tx_ring->ctx_id << 16);
 	cmd.rsp.num = QLC_83XX_TX_STAT_REGS;
@@ -3139,7 +3210,9 @@ int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 		goto fail_diag_irq;
 
 	ahw->diag_cnt = 0;
-	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_INTRPT_TEST);
+	ret = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_INTRPT_TEST);
+	if (ret)
+		goto fail_diag_irq;
 
 	if (adapter->flags & QLCNIC_MSIX_ENABLED)
 		intrpt_id = ahw->intr_tbl[0].id;

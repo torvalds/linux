@@ -2083,7 +2083,11 @@ static void qlcnic_83xx_clear_function_resources(struct qlcnic_adapter *adapter)
 	audit_mask = QLCRDX(adapter->ahw, QLC_83XX_IDC_DRV_AUDIT);
 
 	if (IS_QLC_83XX_USED(adapter, presence_mask, audit_mask)) {
-		qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_STOP_NIC_FUNC);
+		status = qlcnic_alloc_mbx_args(&cmd, adapter,
+					       QLCNIC_CMD_STOP_NIC_FUNC);
+		if (status)
+			return;
+
 		cmd.req.arg[1] = BIT_31;
 		status = qlcnic_issue_cmd(adapter, &cmd);
 		if (status)
