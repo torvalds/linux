@@ -34,7 +34,15 @@
 #define L2DT_SLP		BIT(3)
 #define CLAMP			BIT(0)
 
+#define APC_PWR_GATE_CTL	0x14
+#define BHS_CNT_SHIFT		24
+#define LDO_PWR_DWN_SHIFT	16
+#define LDO_BYP_SHIFT		8
+#define BHS_SEG_SHIFT		1
+#define BHS_EN			BIT(0)
+
 #define APCS_SAW2_VCTL		0x14
+#define APCS_SAW2_2_VCTL	0x1c
 
 extern void secondary_startup(void);
 
@@ -160,6 +168,106 @@ out_acc:
 	return ret;
 }
 
+static int kpssv2_release_secondary(unsigned int cpu)
+{
+	void __iomem *reg;
+	struct device_node *cpu_node, *l2_node, *acc_node, *saw_node;
+	void __iomem *l2_saw_base;
+	unsigned reg_val;
+	int ret;
+
+	cpu_node = of_get_cpu_node(cpu, NULL);
+	if (!cpu_node)
+		return -ENODEV;
+
+	acc_node = of_parse_phandle(cpu_node, "qcom,acc", 0);
+	if (!acc_node) {
+		ret = -ENODEV;
+		goto out_acc;
+	}
+
+	l2_node = of_parse_phandle(cpu_node, "next-level-cache", 0);
+	if (!l2_node) {
+		ret = -ENODEV;
+		goto out_l2;
+	}
+
+	saw_node = of_parse_phandle(l2_node, "qcom,saw", 0);
+	if (!saw_node) {
+		ret = -ENODEV;
+		goto out_saw;
+	}
+
+	reg = of_iomap(acc_node, 0);
+	if (!reg) {
+		ret = -ENOMEM;
+		goto out_map;
+	}
+
+	l2_saw_base = of_iomap(saw_node, 0);
+	if (!l2_saw_base) {
+		ret = -ENOMEM;
+		goto out_saw_map;
+	}
+
+	/* Turn on the BHS, turn off LDO Bypass and power down LDO */
+	reg_val = (64 << BHS_CNT_SHIFT) | (0x3f << LDO_PWR_DWN_SHIFT) | BHS_EN;
+	writel_relaxed(reg_val, reg + APC_PWR_GATE_CTL);
+	mb();
+	/* wait for the BHS to settle */
+	udelay(1);
+
+	/* Turn on BHS segments */
+	reg_val |= 0x3f << BHS_SEG_SHIFT;
+	writel_relaxed(reg_val, reg + APC_PWR_GATE_CTL);
+	mb();
+	 /* wait for the BHS to settle */
+	udelay(1);
+
+	/* Finally turn on the bypass so that BHS supplies power */
+	reg_val |= 0x3f << LDO_BYP_SHIFT;
+	writel_relaxed(reg_val, reg + APC_PWR_GATE_CTL);
+
+	/* enable max phases */
+	writel_relaxed(0x10003, l2_saw_base + APCS_SAW2_2_VCTL);
+	mb();
+	udelay(50);
+
+	reg_val = COREPOR_RST | CLAMP;
+	writel_relaxed(reg_val, reg + APCS_CPU_PWR_CTL);
+	mb();
+	udelay(2);
+
+	reg_val &= ~CLAMP;
+	writel_relaxed(reg_val, reg + APCS_CPU_PWR_CTL);
+	mb();
+	udelay(2);
+
+	reg_val &= ~COREPOR_RST;
+	writel_relaxed(reg_val, reg + APCS_CPU_PWR_CTL);
+	mb();
+
+	reg_val |= CORE_PWRD_UP;
+	writel_relaxed(reg_val, reg + APCS_CPU_PWR_CTL);
+	mb();
+
+	ret = 0;
+
+	iounmap(l2_saw_base);
+out_saw_map:
+	iounmap(reg);
+out_map:
+	of_node_put(saw_node);
+out_saw:
+	of_node_put(l2_node);
+out_l2:
+	of_node_put(acc_node);
+out_acc:
+	of_node_put(cpu_node);
+
+	return ret;
+}
+
 static DEFINE_PER_CPU(int, cold_boot_done);
 
 static int qcom_boot_secondary(unsigned int cpu, int (*func)(unsigned int))
@@ -202,6 +310,11 @@ static int msm8660_boot_secondary(unsigned int cpu, struct task_struct *idle)
 static int kpssv1_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	return qcom_boot_secondary(cpu, kpssv1_release_secondary);
+}
+
+static int kpssv2_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	return qcom_boot_secondary(cpu, kpssv2_release_secondary);
 }
 
 static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
@@ -253,3 +366,13 @@ static struct smp_operations qcom_smp_kpssv1_ops __initdata = {
 #endif
 };
 CPU_METHOD_OF_DECLARE(qcom_smp_kpssv1, "qcom,kpss-acc-v1", &qcom_smp_kpssv1_ops);
+
+static struct smp_operations qcom_smp_kpssv2_ops __initdata = {
+	.smp_prepare_cpus	= qcom_smp_prepare_cpus,
+	.smp_secondary_init	= qcom_secondary_init,
+	.smp_boot_secondary	= kpssv2_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= qcom_cpu_die,
+#endif
+};
+CPU_METHOD_OF_DECLARE(qcom_smp_kpssv2, "qcom,kpss-acc-v2", &qcom_smp_kpssv2_ops);
