@@ -15,7 +15,7 @@ config AD5064
 	  module will be called ad5064.
 
 config AD5360
-	tristate "Analog Devices Analog Devices AD5360/61/62/63/70/71/73 DAC driver"
+	tristate "Analog Devices AD5360/61/62/63/70/71/73 DAC driver"
 	depends on SPI
 	help
 	  Say yes here to build support for Analog Devices AD5360, AD5361,
@@ -68,7 +68,7 @@ config AD5446
 	  module will be called ad5446.
 
 config AD5449
-	tristate "Analog Device AD5449 and similar DACs driver"
+	tristate "Analog Devices AD5449 and similar DACs driver"
 	depends on SPI_MASTER
 	help
 	  Say yes here to build support for Analog Devices AD5415, AD5426, AD5429,
@@ -131,7 +131,7 @@ config AD5686
 	  module will be called ad5686.
 
 config AD7303
-	tristate "Analog Devices Analog Devices AD7303 DAC driver"
+	tristate "Analog Devices AD7303 DAC driver"
 	depends on SPI
 	help
 	  Say yes here to build support for Analog Devices AD7303 Digital to Analog
