@@ -185,7 +185,7 @@ u32 rtl8192_phy_RFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 
 
 	/* TODO: we should not delay such a long time. Ask for help from SD3 */
-	msleep(1);
+	usleep_range(1000, 1000);
 
 	ret = rtl8192_QueryBBReg(dev, pPhyReg->rfLSSIReadBack,
 				 bLSSIReadBackData);
@@ -741,11 +741,11 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 					     bMask12Bits, WriteData[i]);
 			/* TODO: we should not delay for such a long time.
 			   Ask SD3 */
-			msleep(1);
+			usleep_range(1000, 1000);
 			reg = rtl8192_phy_QueryRFReg(dev, eRFPath,
 						     WriteAddr[HW90_BLOCK_RF],
 						     bMask12Bits);
-			msleep(1);
+			usleep_range(1000, 1000);
 			break;
 
 		default:
