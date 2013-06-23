@@ -123,6 +123,8 @@ struct tvp514x_decoder {
 	/* mc related members */
 	struct media_pad pad;
 	struct v4l2_mbus_framefmt format;
+
+	struct tvp514x_reg *int_seq;
 };
 
 /* TVP514x default register values */
@@ -864,7 +866,6 @@ tvp514x_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
 static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	int err = 0;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tvp514x_decoder *decoder = to_decoder(sd);
 
 	if (decoder->streaming == enable)
@@ -884,11 +885,8 @@ static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable)
 	}
 	case 1:
 	{
-		struct tvp514x_reg *int_seq = (struct tvp514x_reg *)
-				client->driver->id_table->driver_data;
-
 		/* Power Up Sequence */
-		err = tvp514x_write_regs(sd, int_seq);
+		err = tvp514x_write_regs(sd, decoder->int_seq);
 		if (err) {
 			v4l2_err(sd, "Unable to turn on decoder\n");
 			return err;
@@ -1127,6 +1125,8 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Copy default register configuration */
 	memcpy(decoder->tvp514x_regs, tvp514x_reg_list_default,
 			sizeof(tvp514x_reg_list_default));
+
+	decoder->int_seq = (struct tvp514x_reg *)id->driver_data;
 
 	/* Copy board specific information here */
 	decoder->pdata = pdata;
