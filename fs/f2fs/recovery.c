@@ -246,12 +246,12 @@ static int check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 		struct dnode_of_data tdn = *dn;
 		tdn.nid = nid;
 		tdn.node_page = dn->inode_page;
-		tdn.ofs_in_node = sum.ofs_in_node;
+		tdn.ofs_in_node = le16_to_cpu(sum.ofs_in_node);
 		truncate_data_blocks_range(&tdn, 1);
 		return 0;
 	} else if (dn->nid == nid) {
 		struct dnode_of_data tdn = *dn;
-		tdn.ofs_in_node = sum.ofs_in_node;
+		tdn.ofs_in_node = le16_to_cpu(sum.ofs_in_node);
 		truncate_data_blocks_range(&tdn, 1);
 		return 0;
 	}
