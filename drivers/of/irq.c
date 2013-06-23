@@ -482,8 +482,9 @@ void __init of_irq_init(const struct of_device_id *matches)
 		}
 
 		/* Get the next pending parent that might have children */
-		desc = list_first_entry(&intc_parent_list, typeof(*desc), list);
-		if (list_empty(&intc_parent_list) || !desc) {
+		desc = list_first_entry_or_null(&intc_parent_list,
+						typeof(*desc), list);
+		if (!desc) {
 			pr_err("of_irq_init: children remain, but no parents\n");
 			break;
 		}
