@@ -663,8 +663,8 @@ static int inv_mpu_probe(struct i2c_client *client,
 	int result;
 
 	if (!i2c_check_functionality(client->adapter,
-					I2C_FUNC_SMBUS_READ_I2C_BLOCK |
-					I2C_FUNC_SMBUS_WRITE_I2C_BLOCK)) {
+		I2C_FUNC_SMBUS_I2C_BLOCK)) {
+
 		result = -ENOSYS;
 		goto out_no_free;
 	}
