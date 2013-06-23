@@ -233,7 +233,7 @@ struct mei_hw_ops {
 	bool (*host_is_ready) (struct mei_device *dev);
 
 	bool (*hw_is_ready) (struct mei_device *dev);
-	void (*hw_reset) (struct mei_device *dev, bool enable);
+	int (*hw_reset) (struct mei_device *dev, bool enable);
 	int  (*hw_start) (struct mei_device *dev);
 	void (*hw_config) (struct mei_device *dev);
 
@@ -539,9 +539,9 @@ static inline void mei_hw_config(struct mei_device *dev)
 {
 	dev->ops->hw_config(dev);
 }
-static inline void mei_hw_reset(struct mei_device *dev, bool enable)
+static inline int mei_hw_reset(struct mei_device *dev, bool enable)
 {
-	dev->ops->hw_reset(dev, enable);
+	return dev->ops->hw_reset(dev, enable);
 }
 
 static inline void mei_hw_start(struct mei_device *dev)
