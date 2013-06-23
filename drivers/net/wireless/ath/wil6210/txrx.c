@@ -621,7 +621,8 @@ static struct vring *wil_find_tx_vring(struct wil6210_priv *wil,
 	return NULL;
 }
 
-static int wil_tx_desc_map(struct vring_tx_desc *d, dma_addr_t pa, u32 len)
+static int wil_tx_desc_map(struct vring_tx_desc *d, dma_addr_t pa, u32 len,
+			   int vring_index)
 {
 	wil_desc_addr_set(&d->dma.addr, pa);
 	d->dma.ip_length = 0;
@@ -630,7 +631,7 @@ static int wil_tx_desc_map(struct vring_tx_desc *d, dma_addr_t pa, u32 len)
 	d->dma.error = 0;
 	d->dma.status = 0; /* BIT(0) should be 0 for HW_OWNED */
 	d->dma.length = cpu_to_le16((u16)len);
-	d->dma.d0 = 0;
+	d->dma.d0 = (vring_index << DMA_CFG_DESC_TX_0_QID_POS);
 	d->mac.d[0] = 0;
 	d->mac.d[1] = 0;
 	d->mac.d[2] = 0;
@@ -684,7 +685,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	if (unlikely(dma_mapping_error(dev, pa)))
 		return -EINVAL;
 	/* 1-st segment */
-	wil_tx_desc_map(d, pa, skb_headlen(skb));
+	wil_tx_desc_map(d, pa, skb_headlen(skb), vring_index);
 	d->mac.d[2] |= ((nr_frags + 1) <<
 		       MAC_CFG_DESC_TX_2_NUM_OF_DESCRIPTORS_POS);
 	if (nr_frags)
@@ -701,7 +702,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 				DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(dev, pa)))
 			goto dma_error;
-		wil_tx_desc_map(d, pa, len);
+		wil_tx_desc_map(d, pa, len, vring_index);
 		vring->ctx[i] = NULL;
 		*_d = *d;
 	}
@@ -709,7 +710,6 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_CMD_EOP_POS);
 	d->dma.d0 |= BIT(9); /* BUG: undocumented bit */
 	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_CMD_DMA_IT_POS);
-	d->dma.d0 |= (vring_index << DMA_CFG_DESC_TX_0_QID_POS);
 	*_d = *d;
 
 	wil_hex_dump_txrx("Tx ", DUMP_PREFIX_NONE, 32, 4,
