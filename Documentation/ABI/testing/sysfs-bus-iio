@@ -351,6 +351,7 @@ Description:
 		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
 		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
 		100kohm_to_gnd: connected to ground via an 100kOhm resistor,
+		500kohm_to_gnd: connected to ground via a 500kOhm resistor,
 		three_state: left floating.
 		For a list of available output power down options read
 		outX_powerdown_mode_available. If Y is not present the
