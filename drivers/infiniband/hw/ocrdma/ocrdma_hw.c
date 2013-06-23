@@ -1886,7 +1886,7 @@ static int ocrdma_set_create_qp_rq_cmd(struct ocrdma_create_qp_req *cmd,
 
 	qp->rq.va = dma_alloc_coherent(&pdev->dev, len, &pa, GFP_KERNEL);
 	if (!qp->rq.va)
-		return status;
+		return -ENOMEM;
 	memset(qp->rq.va, 0, len);
 	qp->rq.pa = pa;
 	qp->rq.len = len;
