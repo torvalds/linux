@@ -23,7 +23,7 @@ if IIO_BUFFER
 config IIO_BUFFER_CB
 boolean "IIO callback buffer used for push in-kernel interfaces"
 	help
-	  Should be selected by any drivers that do-inkernel push
+	  Should be selected by any drivers that do in-kernel push
 	  usage.  That is, those where the data is pushed to the consumer.
 
 config IIO_KFIFO_BUF
