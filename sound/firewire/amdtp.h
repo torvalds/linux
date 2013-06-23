@@ -3,7 +3,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
-#include <linux/spinlock.h>
 #include "packets-buffer.h"
 
 /**
