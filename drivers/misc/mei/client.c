@@ -485,7 +485,6 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
-	long timeout = mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT);
 	int rets;
 
 	if (WARN_ON(!cl || !cl->dev))
@@ -518,7 +517,7 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 	rets = wait_event_timeout(dev->wait_recvd_msg,
 				 (cl->state == MEI_FILE_CONNECTED ||
 				  cl->state == MEI_FILE_DISCONNECTED),
-				 timeout * HZ);
+				 mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
 	if (cl->state != MEI_FILE_CONNECTED) {
