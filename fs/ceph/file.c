@@ -716,7 +716,6 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
 
-	sb_start_write(inode->i_sb);
 	mutex_lock(&inode->i_mutex);
 	hold_mutex = true;
 
@@ -809,7 +808,6 @@ retry_snap:
 out:
 	if (hold_mutex)
 		mutex_unlock(&inode->i_mutex);
-	sb_end_write(inode->i_sb);
 	current->backing_dev_info = NULL;
 
 	return written ? written : err;
