@@ -5815,7 +5815,7 @@ static const struct file_operations Fops = {
 #define SILICOM_E1000BP_ETHERNET_DEVICE(device_id) {\
 	PCI_DEVICE(SILICOM_VID, device_id)}
 
-typedef enum {
+enum board_type {
 	PXG2BPFI,
 	PXG2BPFIL,
 	PXG2BPFILX,
@@ -5973,7 +5973,7 @@ typedef enum {
 	PE310G4BPi9SR,
 	PE310G4BPi9LR,
 	PE210G2BPi40,
-} board_t;
+};
 
 typedef struct _bpmod_info_t {
 	unsigned int vendor;
