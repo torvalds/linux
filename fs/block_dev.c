@@ -325,31 +325,10 @@ static int blkdev_write_end(struct file *file, struct address_space *mapping,
 static loff_t block_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *bd_inode = file->f_mapping->host;
-	loff_t size;
 	loff_t retval;
 
 	mutex_lock(&bd_inode->i_mutex);
-	size = i_size_read(bd_inode);
-
-	retval = -EINVAL;
-	switch (whence) {
-		case SEEK_END:
-			offset += size;
-			break;
-		case SEEK_CUR:
-			offset += file->f_pos;
-		case SEEK_SET:
-			break;
-		default:
-			goto out;
-	}
-	if (offset >= 0 && offset <= size) {
-		if (offset != file->f_pos) {
-			file->f_pos = offset;
-		}
-		retval = offset;
-	}
-out:
+	retval = fixed_size_llseek(file, offset, whence, i_size_read(bd_inode));
 	mutex_unlock(&bd_inode->i_mutex);
 	return retval;
 }
