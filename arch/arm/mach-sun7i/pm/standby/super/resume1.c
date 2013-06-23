@@ -1,6 +1,6 @@
 /* these code will be removed to sram.
  * function: open the mmu, and jump to dram, for continuing resume*/
-#include "./../super_i.h"
+#include "super_i.h"
 
 static struct aw_mem_para mem_para_info;
 

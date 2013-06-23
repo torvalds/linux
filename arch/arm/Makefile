@@ -201,6 +201,7 @@ machine-$(CONFIG_ARCH_SUN3I)		:= sun3i
 machine-$(CONFIG_ARCH_SUN4I)		:= sun4i
 machine-$(CONFIG_ARCH_SUN5I)		:= sun5i
 machine-$(CONFIG_ARCH_SUN6I)		:= sun6i
+machine-$(CONFIG_ARCH_SUN7I)		:= sun7i
 
 # Platform directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.

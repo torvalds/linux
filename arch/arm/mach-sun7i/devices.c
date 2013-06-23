@@ -35,29 +35,6 @@
 #include <asm/setup.h>
 #include <mach/includes.h>
 
-/* uart */
-static struct plat_serial8250_port debug_uart_platform_data[] = {
-	{
-		.membase        = (void __iomem *)SW_VA_UART0_IO_BASE,
-		.mapbase        = (resource_size_t)SW_PA_UART0_IO_BASE,
-		.irq            = 33,
-		.flags          = UPF_BOOT_AUTOCONF|UPF_IOREMAP,
-		.iotype         = UPIO_MEM32,
-		.regshift       = 2,
-		.uartclk        = 24000000,
-	}, {
-		.flags          = 0,
-	}
- };
-
-static struct platform_device debug_uart = {
-	.name = "serial8250",
-	.id = PLAT8250_DEV_PLATFORM,
-	.dev = {
-		.platform_data = &debug_uart_platform_data[0],
-	},
-};
-
 /* dma */
 static u64 sw_dmac_dmamask = DMA_BIT_MASK(32);
 
@@ -90,14 +67,13 @@ struct platform_device sw_pdev_nand =
 	.name = "sw_nand",
 	.id = -1,
 };
+
 static struct platform_device *sw_pdevs[] __initdata = {
-	&debug_uart,
 	&sw_dmac_device,
 	&sw_pdev_nand,
 };
 
-void sw_pdev_init(void)
+__init void sw_pdev_init(void)
 {
 	platform_add_devices(sw_pdevs, ARRAY_SIZE(sw_pdevs));
 }
-

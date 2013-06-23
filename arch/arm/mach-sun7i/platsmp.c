@@ -43,7 +43,7 @@ static void __iomem *scu_base_addr(void)
 }
 
 
-void enable_aw_cpu(int cpu)
+void __cpuinit enable_aw_cpu(int cpu)
 {
     long paddr;
     u32 pwr_reg;
@@ -97,7 +97,10 @@ void __init smp_init_cpus(void)
 {
     unsigned int i, ncores;
 
-    ncores =  scu_get_core_count(NULL);
+	/* Read current CP15 Cache Size ID Register */
+	asm volatile ("mrc p15, 1, %0, c9, c0, 2" : "=r" (ncores));
+	ncores = ((ncores >> 24) & 0x3) + 1;
+
     pr_debug("[%s] ncores=%d\n", __FUNCTION__, ncores);
 
     for (i = 0; i < ncores; i++) {
@@ -112,11 +115,13 @@ void __init smp_init_cpus(void)
  */
 void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 {
+#if 0
     void __iomem *scu_base;
 
     pr_debug("[%s] enter\n", __FUNCTION__);
     scu_base = scu_base_addr();
     scu_enable(scu_base);
+#endif
 }
 
 /*

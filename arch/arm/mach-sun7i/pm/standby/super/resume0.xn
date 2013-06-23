@@ -4,10 +4,11 @@ ENTRY(main)
 
 SECTIONS
 {
-	__resume1_start = . ;
-	.text 0x00000000 :
+	__resume0_start = . ;
+	.text 0x52000000 :
 	{
-		./super/resume/resume1.o(.text)
+		arch/arm/mach-sun7i/pm/standby/super/resume_head.o( .rodata )
+		arch/arm/mach-sun7i/pm/standby/super/resume0.o(.text)
 		*(.text)
 	}
 	.rodata : { *(.rodata) }
@@ -16,6 +17,6 @@ SECTIONS
 	__bss_start = . ;
 	.bss : { *(.sbss) *(.scommon) *(.bss) *(COMMON) }
 	__bss_end = .;
-	__resume1_end = . ;
+	__resume0_end = . ;
 }
 

@@ -89,30 +89,6 @@ struct mmu_state {
 	__u32 nrrr;	/* Normal Memory Remap Register */
 };
 
-typedef struct _boot_dram_para_t
-{
-    unsigned int           dram_baseaddr;
-    unsigned int           dram_clk;
-    unsigned int           dram_type;
-    unsigned int           dram_rank_num;
-    unsigned int           dram_chip_density;
-    unsigned int           dram_io_width;
-    unsigned int		   dram_bus_width;
-    unsigned int           dram_cas;
-    unsigned int           dram_zq;
-    unsigned int           dram_odt_en;
-    unsigned int 		   dram_size;
-    unsigned int           dram_tpr0;
-    unsigned int           dram_tpr1;
-    unsigned int           dram_tpr2;
-    unsigned int           dram_tpr3;
-    unsigned int           dram_tpr4;
-    unsigned int           dram_tpr5;
-    unsigned int 		   dram_emr1;
-    unsigned int           dram_emr2;
-    unsigned int           dram_emr3;
-}standy_dram_para_t;
-
 /**
 *@brief struct of super mem
 */
@@ -136,28 +112,6 @@ struct aw_mem_para{
 //	struct saved_context saved_cpu_context;
     standy_dram_para_t      dram_para;
 };
-
-/**
-*@brief struct of standby
-*/
-struct aw_standby_para{
-	unsigned int event_enable;     /**<event type for system wakeup    */
-	unsigned int event;          /**<event type for system wakeup    */
-	unsigned int axp_src;        /**<axp event type for system wakeup    */
-	unsigned int axp_enable;     /**<axp event type for system wakeup    */
-	signed int   time_off;       /**<time to power off from now, based on second */
-};
-
-
-/**
-*@brief struct of power management info
-*/
-struct aw_pm_info{
-    struct aw_standby_para  standby_para;   /* standby parameter            */
-    struct aw_pmu_arg       pmu_arg;        /**<args used by main function  */
-    standy_dram_para_t      dram_para;
-};
-
 
 typedef  int (*super_standby_func)(void);
 typedef  int (*normal_standby_func)(struct aw_pm_info *arg);

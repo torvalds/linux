@@ -42,7 +42,7 @@
 #include <mach/irqs.h>
 
 #include "8250.h"
-#if defined(CONFIG_ARCH_SUN4I)
+#if defined(CONFIG_ARCH_SUN4I) || defined(CONFIG_ARCH_SUN7I)
 #define MAX_PORTS	    8
 #elif defined(CONFIG_ARCH_SUN5I)
 #define MAX_PORTS	    4

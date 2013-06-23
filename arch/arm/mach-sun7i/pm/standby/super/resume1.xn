@@ -4,19 +4,18 @@ ENTRY(main)
 
 SECTIONS
 {
-	__suspend_start = . ;
-	.text 0x000000000 :
+	__resume1_start = . ;
+	.text 0x00000000 :
 	{
-		./super/suspend/suspend.o(.text.startup)
+		arch/arm/mach-sun7i/pm/standby/super/resume1.o(.text)
 		*(.text)
-		*(.rodata)
 	}
-
+	.rodata : { *(.rodata) }
 	.data   : { *(.data) }
 
 	__bss_start = . ;
 	.bss : { *(.sbss) *(.scommon) *(.bss) *(COMMON) }
 	__bss_end = .;
-	__suspend_end = . ;
+	__resume1_end = . ;
 }
 

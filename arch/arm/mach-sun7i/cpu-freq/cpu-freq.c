@@ -26,7 +26,7 @@
 #include <linux/cpu.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <linux/cpu.h>
 #include <asm/cpu.h>
 
@@ -770,26 +770,21 @@ static unsigned int __get_valid_freq(unsigned int target_freq)
  */
 static int __init_freq_syscfg(void)
 {
-    int ret = 0;
-#if 1
-    script_item_u max, min;
-    script_item_value_type_e type;
+    int val, ret = 0;
 
-    type = script_get_item("dvfs_table", "max_freq", &max);
-    if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+    if (script_parser_fetch("dvfs_table", "max_freq", &val, sizeof(int))) {
         CPUFREQ_ERR("get cpu max frequency from sysconfig failed\n");
         ret = -1;
         goto fail;
     }
-    cpu_freq_max = max.val;
+    cpu_freq_max = val;
 
-    type = script_get_item("dvfs_table", "min_freq", &min);
-    if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+    if (script_parser_fetch("dvfs_table", "min_freq", &val, sizeof(int))) {
         CPUFREQ_ERR("get cpu min frequency from sysconfig failed\n");
         ret = -1;
         goto fail;
     }
-    cpu_freq_min = min.val;
+    cpu_freq_min = val;
 
     if(cpu_freq_max > SUNXI_CPUFREQ_MAX || cpu_freq_max < SUNXI_CPUFREQ_MIN
         || cpu_freq_min < SUNXI_CPUFREQ_MIN || cpu_freq_min > SUNXI_CPUFREQ_MAX){
@@ -815,7 +810,6 @@ fail:
     cpu_freq_max = SUNXI_CPUFREQ_MAX / 1000;
     cpu_freq_min = SUNXI_CPUFREQ_MIN / 1000;
 
-#endif
     return ret;
 }
 

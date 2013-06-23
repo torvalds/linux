@@ -35,7 +35,7 @@ static cycle_t aw_clksrc_read(struct clocksource *cs)
 	unsigned long flags;
 	u32 lower, upper, temp, cnt = 0x0fffff;
 
-	pr_info("%s(%d)\n", __func__, __LINE__);
+//	pr_info("%s(%d)\n", __func__, __LINE__);
 	spin_lock_irqsave(&clksrc_lock, flags);
 
 	/* latch 64bit counter and wait ready for read */
@@ -51,7 +51,7 @@ static cycle_t aw_clksrc_read(struct clocksource *cs)
 	upper = readl(SW_HSTMR_HIGH_REG);
 
 	spin_unlock_irqrestore(&clksrc_lock, flags);
-	pr_info("%s(%d)\n", __func__, __LINE__);
+//	pr_info("%s(%d)\n", __func__, __LINE__);
 	return (((u64)upper)<<32) | lower;
 }
 
@@ -116,7 +116,7 @@ void __init aw_clksrc_init(void)
 	/* register clock source */
 	clocksource_register(&aw_clocksrc);
 	/* set sched clock */
-	setup_sched_clock(sched_clock_read, 32, AW_HPET_CLOCK_SOURCE_HZ);
+//	setup_sched_clock(sched_clock_read, 32, AW_HPET_CLOCK_SOURCE_HZ);
 	pr_info("%s(%d)\n", __func__, __LINE__);
 }
 

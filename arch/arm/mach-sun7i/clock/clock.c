@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/debugfs.h>
 #include <mach/includes.h>
+#include <plat/sys_config.h>
 
 #include "ccm_i.h"
 
@@ -36,11 +37,8 @@ static struct clk_lookup lookups[AW_CCU_CLK_CNT];
  */
 int clk_init(void)
 {
-    int i;
-#ifdef CONFIG_AW_ASIC_PLATFORM
-    script_item_u val;
+    int i, val;
     struct clk *clk;
-#endif /* CONFIG_AW_ASIC_PLATFORM */
 
     CCU_INF("aw clock manager init\n");
 
@@ -69,96 +67,68 @@ int clk_init(void)
     /* initiate some clocks */
     lookups[AW_MOD_CLK_SMPTWD].dev_id = "smp_twd";
 
-#ifdef CONFIG_AW_FPGA_PLATFORM
-    CCU_INF("skip config pll on fpga\n");
-#elif defined CONFIG_AW_ASIC_PLATFORM
     /* config plls */
-    if (script_get_item("clock", "pll3", &val) ==
-        SCIRPT_ITEM_VALUE_TYPE_INT) {
-        CCU_INF("script config pll3 to %dMHz\n", val.val);
-        if (val.val >= 27 && val.val <= 381) {
+    if (script_parser_fetch("clock", "pll3", &val, sizeof(int)) == 0) {
+        CCU_INF("script config pll3 to %dMHz\n", val);
+        if (val >= 27 && val <= 381) {
             clk = &aw_clock[AW_SYS_CLK_PLL3];
             clk_enable(clk);
-            clk_set_rate(clk, val.val * 1000000);
+            clk_set_rate(clk, val * 1000000);
         } else {
             CCU_ERR("    invalid value, must in 27MHz ~ 381MHz\n");
         }
     }
 
-    if (script_get_item("clock", "pll4", &val) ==
-        SCIRPT_ITEM_VALUE_TYPE_INT) {
-        CCU_INF("script config pll4 to %dMHz\n", val.val);
-        if (val.val >= 240 && val.val <= 2000) {
+    if (script_parser_fetch("clock", "pll4", &val, sizeof(int)) == 0) {
+        CCU_INF("script config pll4 to %dMHz\n", val);
+        if (val >= 240 && val <= 2000) {
             clk = &aw_clock[AW_SYS_CLK_PLL4];
             clk_enable(clk);
-            clk_set_rate(clk, val.val * 1000000);
+            clk_set_rate(clk, val * 1000000);
         } else {
             CCU_ERR("    invalid value, must in 240MHz ~ 2GHz\n");
         }
     }
 
     clk = &aw_clock[AW_SYS_CLK_PLL6];
-    if (script_get_item("clock", "pll6", &val) ==
-        SCIRPT_ITEM_VALUE_TYPE_INT) {
-        CCU_INF("script config pll6 to %dMHz\n", val.val);
-        if (val.val < 240 || val.val > 2000) {
+    if (script_parser_fetch("clock", "pll6", &val, sizeof(int)) == 0) {
+        CCU_INF("script config pll6 to %dMHz\n", val);
+        if (val < 240 || val > 2000) {
             CCU_ERR("    invalid value, must in 240MHz ~ 2GHz\n");
-            val.val = 600;
-            CCU_INF("    change to %dMHz\n", val.val);
+            val = 600;
+            CCU_INF("    change to %dMHz\n", val);
         }
     } else {
-        val.val = 600;
+        val = 600;
     }
     clk_enable(clk);
-    clk_set_rate(clk, val.val * 1000000);
+    clk_set_rate(clk, val * 1000000);
 
-    if (script_get_item("clock", "pll7", &val) ==
-        SCIRPT_ITEM_VALUE_TYPE_INT) {
-        CCU_INF("script config pll7 to %dMHz\n", val.val);
-        if (val.val >= 27 && val.val <= 381) {
+    if (script_parser_fetch("clock", "pll7", &val, sizeof(int)) == 0) {
+        CCU_INF("script config pll7 to %dMHz\n", val);
+        if (val >= 27 && val <= 381) {
             clk = &aw_clock[AW_SYS_CLK_PLL7];
             clk_enable(clk);
-            clk_set_rate(clk, val.val * 1000000);
+            clk_set_rate(clk, val * 1000000);
         } else {
             CCU_ERR("    invalid value, must in 27MHz ~ 381MHz\n");
         }
     }
 
-    if (script_get_item("clock", "pll8", &val) ==
-        SCIRPT_ITEM_VALUE_TYPE_INT) {
-        CCU_INF("script config pll8 to %dMHz\n", val.val);
-        if (val.val >= 240 && val.val <= 2000) {
+    if (script_parser_fetch("clock", "pll8", &val, sizeof(int)) == 0) {
+        CCU_INF("script config pll8 to %dMHz\n", val);
+        if (val >= 240 && val <= 2000) {
             clk = &aw_clock[AW_SYS_CLK_PLL8];
             clk_enable(clk);
-            clk_set_rate(clk, val.val * 1000000);
+            clk_set_rate(clk, val * 1000000);
         } else {
             CCU_ERR("    invalid value, must in 240MHz ~ 2GHz\n");
         }
     }
-#endif /* CONFIG_AW_ASIC_PLATFORM */
 
     return 0;
 }
 arch_initcall(clk_init);
-
-int __clk_get(struct clk *hclk)
-{
-    /*
-     * just noitify, do nothing now,
-     * if you want record if the clock used count,
-     * you can add code here
-     */
-    return 1;
-}
-
-void __clk_put(struct clk *clk)
-{
-    /*
-     * just noitify, do nothing now,
-     * if you want record if the clock used count,
-     * you can add code here
-     */
-}
 
 int clk_enable(struct clk *clk)
 {

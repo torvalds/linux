@@ -78,7 +78,7 @@ config SERIAL_8250_GSC
 
 config SERIAL_8250_SUNXI
 	tristate
-	depends on SERIAL_8250 && (ARCH_SUN4I || ARCH_SUN5I)
+	depends on SERIAL_8250 && (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I)
 	default SERIAL_8250
 
 config SERIAL_8250_PCI

@@ -59,6 +59,7 @@ void serial_init_nommu(void)
 
 }
 
+#if 0
 static void serial_put_char_nommu(char c)
 {
 #ifdef USE_FIFO
@@ -73,6 +74,7 @@ static void serial_put_char_nommu(char c)
 
 
 }
+#endif
 
 static char serial_get_char_nommu(void)
 {

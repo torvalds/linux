@@ -29,7 +29,6 @@
 
 #include "ar100_cp.h"
 #include "ccmu.h"
-#include "clkdev.h"
 #include "clock.h"
 #include "dma.h"
 #include "gpio.h"
@@ -38,7 +37,6 @@
 #include "irqs.h"
 #include "irqs-sun7i.h"
 #include "spi.h"
-#include "sys_config.h"
 #include "timer.h"
 #include "sunxi_dump_reg.h"
 #include "uart.h"

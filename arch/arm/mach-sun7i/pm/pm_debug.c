@@ -38,7 +38,7 @@ void fake_busy_waiting(void)
 void standby_dram_crc(int flag)
 {
     int i, j;
-    int *tmp = 0x40000000;
+    int *tmp = (int *)0x40000000;
     int crc = 0;
     int crc_offset_words = 0;
     crc_offset_words = lread(RTC_DATA_REG(7));

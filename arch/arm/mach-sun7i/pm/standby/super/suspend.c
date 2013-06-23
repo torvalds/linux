@@ -8,7 +8,7 @@
  * before dram enter self-refresh,cpu can not access dram.
  */
  
-#include "./../super_i.h"
+#include "super_i.h"
 #define RETRY_TIMES (5)
 
 static __s32 suspend_with_nommu(void);

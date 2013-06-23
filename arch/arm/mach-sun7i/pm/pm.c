@@ -36,7 +36,7 @@
 #include <asm/cacheflush.h>
 #include "pm_i.h"
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/system.h>
 
 //#define CROSS_MAPPING_STANDBY
@@ -76,13 +76,8 @@
 
 static int debug_mask = PM_STANDBY_PRINT_STANDBY | PM_STANDBY_PRINT_RESUME;
 
-#ifdef CONFIG_AW_FPGA_PLATFORM
-static int standby_axp_enable = 0;
-static int standby_timeout = 5;
-#else
 static int standby_axp_enable = 1;
 static int standby_timeout = 0;
-#endif
 static unsigned long standby_crc_addr = 0x40000000;
 static int standby_crc_size = DRAM_BACKUP_SIZE;
 
@@ -162,7 +157,7 @@ static int late_resume_end = 0;
 #endif
 
 struct aw_mem_para mem_para_info;
-standby_type_e standby_type = NON_STANDBY;
+int standby_type = 0;
 EXPORT_SYMBOL(standby_type);
 standby_level_e standby_level = STANDBY_INITIAL;
 EXPORT_SYMBOL(standby_level);
@@ -477,10 +472,6 @@ static int aw_early_suspend(void)
     //move standby code to sram
     memcpy((void *)SRAM_FUNC_START, (void *)&suspend_bin_start, (int)&suspend_bin_end - (int)&suspend_bin_start);
 
-#ifdef CONFIG_AW_FPGA_PLATFORM
-*(unsigned int *)(0xf0007000 - 0x4) = 0x12345678;
-printk("%s,%d:%d\n",__FILE__,__LINE__, *(unsigned int *)(0xf0007000 - 0x4));
-#endif 
 #ifdef PRE_DISABLE_MMU
     //enable the mapping and jump
     //invalidate tlb? maybe, but now, at this situation,  0x0000 <--> 0x0000 mapping never stay in tlb before this.
@@ -846,14 +837,10 @@ static struct platform_suspend_ops aw_pm_ops = {
 
 static int dram_para_script_fetch(char *sub, u32 *val)
 {
-	script_item_u script_val;
-	script_item_value_type_e type;
-	type = script_get_item("dram_para", sub, &script_val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-		pr_err("type err!");
-        return -1;
+	if (script_parser_fetch("dram_para", sub, val, sizeof(int))) {
+		pr_err("dram para fetch err!");
+		return -1;
 	}
-	*val = script_val.val;
 	pr_info("dram config [dram_para] [%s] : %d\n", sub, *val);
 	return 0;
 }
@@ -988,11 +975,9 @@ static int fetch_and_save_dram_para(standy_dram_para_t *pstandby_dram_para)
 */
 static int __init aw_pm_init(void)
 {
-    script_item_u item;
-    script_item_u   *list = NULL;
     int cpu0_en = 0;
     int dram_selfresh_en = 0;
-    int wakeup_src_cnt = 0;
+    int val;
     
     PM_DBG("aw_pm_init!\n");
 
@@ -1004,13 +989,13 @@ static int __init aw_pm_init(void)
     memcpy(&mem_para_info.dram_para, &standby_info.dram_para, sizeof(standby_info.dram_para));
     
     //get standby_mode.
-    if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("pm_para", "standby_mode", &item)){
+    if(script_parser_fetch("pm_para", "standby_mode", &val, sizeof(int))){
         pr_err("%s: script_parser_fetch err. \n", __func__);
         standby_mode = 0;
         //standby_mode = 1;
         pr_err("notice: standby_mode = %d.\n", standby_mode);
     }else{
-        standby_mode = item.val;
+        standby_mode = val;
         pr_info("standby_mode = %d. \n", standby_mode);
         if(1 != standby_mode){
             pr_err("%s: not support super standby. \n",  __func__);
@@ -1018,18 +1003,18 @@ static int __init aw_pm_init(void)
     }
 
     //get wakeup_src_para cpu_en
-    if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("wakeup_src_para", "cpu_en", &item)){
+    if(script_parser_fetch("wakeup_src_para", "cpu_en", &val, sizeof(int))){
         cpu0_en = 0;
     }else{
-        cpu0_en = item.val;
+        cpu0_en = val;
     }
     pr_info("cpu0_en = %d.\n", cpu0_en);
 
     //get dram_selfresh en
-    if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("wakeup_src_para", "dram_selfresh_en", &item)){
+    if(script_parser_fetch("wakeup_src_para", "dram_selfresh_en", &val, sizeof(int))){
         dram_selfresh_en = 1;
     }else{
-        dram_selfresh_en = item.val;
+        dram_selfresh_en = val;
     }
     pr_info("dram_selfresh_en = %d.\n", dram_selfresh_en);
 
@@ -1044,16 +1029,14 @@ static int __init aw_pm_init(void)
             pr_info("notice: only support ns, standby_mode = %d.\n", standby_mode);
         }
     }
-    
-    //get wakeup_src_cnt
-    wakeup_src_cnt = script_get_pio_list("wakeup_src_para",&list);
-    pr_info("wakeup src cnt is : %d. \n", wakeup_src_cnt);
 
     //script_dump_mainkey("wakeup_src_para");
     mem_para_info.cpus_gpio_wakeup = 0;
 
 /*to fix: add wake src in config.bin*/
 #if 0  
+    wakeup_src_cnt = script_get_pio_list("wakeup_src_para",&list);
+    pr_info("wakeup src cnt is : %d. \n", wakeup_src_cnt);
     if(0 != wakeup_src_cnt){
         unsigned gpio = 0;
         int i = 0;

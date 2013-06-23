@@ -16,6 +16,21 @@ pm_tmp-y += ./mem_ccu.o
 pm_tmp-y += ./pm_debug.o
 pm_tmp-y += ./mem_timing.o
 pm_tmp-y += ./pm.o
-pm_tmp-y += ./standby/super/super_power.o
-pm_tmp-y += ./standby/super/super_twi.o
-pm_tmp-y += ./standby/super/super_clock.o
+pm_tmp-y += ./super_power.o
+pm_tmp-y += ./super_twi.o
+pm_tmp-y += ./super_clock.o
+
+KBUILD_CFLAGS += -I$(srctree)/arch/arm/mach-sun7i/pm/standby/super
+
+$(obj)/standby.o: $(obj)/standby/standby.bin
+
+$(obj)/standby/standby.bin: FORCE
+	$(Q)$(MAKE) $(build)=$(obj)/standby
+
+$(obj)/mem.o: $(obj)/standby/super/suspend.bin $(obj)/standby/super/resume0.bin
+
+$(obj)/standby/super/suspend.bin: FORCE
+	$(Q)$(MAKE) $(build)=$(obj)/standby/super
+
+$(obj)/standby/super/resume0.bin: FORCE
+	$(Q)$(MAKE) $(build)=$(obj)/standby/super

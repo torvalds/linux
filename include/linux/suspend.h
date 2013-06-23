@@ -36,7 +36,13 @@ typedef int __bitwise suspend_state_t;
 #define PM_SUSPEND_ON		((__force suspend_state_t) 0)
 #define PM_SUSPEND_STANDBY	((__force suspend_state_t) 1)
 #define PM_SUSPEND_MEM		((__force suspend_state_t) 3)
+#ifndef CONFIG_ARCH_SUN7I
 #define PM_SUSPEND_MAX		((__force suspend_state_t) 4)
+#else
+#define PM_SUSPEND_BOOTFAST	((__force suspend_state_t) 7)
+#define PM_SUSPEND_MAX		((__force suspend_state_t) 8)
+#endif
+
 
 enum suspend_stat_step {
 	SUSPEND_FREEZE = 1,

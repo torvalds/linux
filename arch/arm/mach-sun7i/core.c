@@ -44,6 +44,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
+#include <plat/sys_config.h>
 #include <mach/includes.h>
 #include <mach/timer.h>
 
@@ -94,14 +95,17 @@ static void sun7i_fixup(struct tag *tags, char **from,
 
 static void __init sun7i_reserve(void)
 {
-	pr_info("memblock reserve %x(%x) for sysconfig, ret=%d\n", SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE,
+	pr_info("memblock reserve %lx(%x) for sysconfig, ret=%d\n", SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE,
 		memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE));
 
-	pr_info("memblock reserve %x(%x) for standby\n", SUPER_STANDBY_BASE, SUPER_STANDBY_SIZE,
+	pr_info("memblock reserve %x(%x) for standby, ret=%d\n", SUPER_STANDBY_BASE, SUPER_STANDBY_SIZE,
 		memblock_reserve(SUPER_STANDBY_BASE, SUPER_STANDBY_SIZE));
 
-	pr_info("memblock remove %x(%x) for fb, ret=%d\n", SW_FB_MEM_BASE, SW_FB_MEM_SIZE,
+	pr_info("memblock remove %lx(%x) for fb, ret=%d\n", SW_FB_MEM_BASE, SW_FB_MEM_SIZE,
 		memblock_remove(SW_FB_MEM_BASE, SW_FB_MEM_SIZE));
+
+	/* Ensure this is set before any arch_init funcs call script_foo */
+	sunxi_script_init((void *)__va(SYS_CONFIG_MEMBASE));
 }
 
 static void sun7i_restart(char mode, const char *cmd)

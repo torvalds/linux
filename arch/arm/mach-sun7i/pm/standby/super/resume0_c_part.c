@@ -8,7 +8,7 @@
  * and excecute these code, and jump to sram for continuing resume.
  */
 
- #include "./../super_i.h"
+#include "super_i.h"
 
 extern char *resume1_bin_start;
 extern char *resume1_bin_end;

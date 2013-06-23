@@ -178,6 +178,7 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 			return -ERANGE;
 	}
 
+#if defined CONFIG_MMC_SUNXI || defined CONFIG_MMC_SUNXI_MODULE
 	if (write) {
 		int i = 0;
 		int r1_ready = 0;
@@ -188,6 +189,7 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 		if (i > 50)
 			printk("[sdio]: busy %d !!\n", i);
 	}
+#endif
 	return 0;
 }
 

@@ -65,6 +65,7 @@
 #define SUSPEND_WAKEUP_SRC_IR       (1<<3)  /* ir event */
 #define SUSPEND_WAKEUP_SRC_ALARM    (1<<4)  /* alarm event  */
 #define SUSPEND_WAKEUP_SRC_TIMEOFF  (1<<5)  /* set time to power off event  */
+#define SUSPEND_WAKEUP_SRC_PIO      (1<<6)  /* gpio event  */
 
 
 
@@ -76,12 +77,51 @@ struct aw_pmu_arg{
     unsigned char dev_addr;     /**<address of pmu device   */
 };
 
+#ifdef CONFIG_ARCH_SUN7I
+typedef enum {
+	STANDBY_INITIAL = 0,
+	STANDBY_WITH_POWER = 1,
+	STANDBY_WITH_POWER_OFF = 2
+} standby_level_e;
+extern standby_level_e standby_level;
+
+typedef struct _boot_dram_para_t
+{
+	unsigned int	dram_baseaddr;
+	unsigned int	dram_clk;
+	unsigned int	dram_type;
+	unsigned int	dram_rank_num;
+	unsigned int	dram_chip_density;
+	unsigned int	dram_io_width;
+	unsigned int	dram_bus_width;
+	unsigned int	dram_cas;
+	unsigned int	dram_zq;
+	unsigned int	dram_odt_en;
+	unsigned int 	dram_size;
+	unsigned int	dram_tpr0;
+	unsigned int	dram_tpr1;
+	unsigned int	dram_tpr2;
+	unsigned int	dram_tpr3;
+	unsigned int	dram_tpr4;
+	unsigned int	dram_tpr5;
+	unsigned int 	dram_emr1;
+	unsigned int	dram_emr2;
+	unsigned int	dram_emr3;
+}standy_dram_para_t;
+#endif
 
 /**
 *@brief struct of standby
 */
 struct aw_standby_para{
+#ifdef CONFIG_ARCH_SUN7I
+	unsigned int event_enable;   /**<event type for system wakeup        */
+#endif
     unsigned int event;     /**<event type for system wakeup    */
+#ifdef CONFIG_ARCH_SUN7I
+	unsigned int axp_src;        /**<axp event type for system wakeup    */
+	unsigned int axp_enable;     /**<axp event type for system wakeup    */
+#endif
     signed int   time_off;  /**<time to power off from now, based on second */
 };
 
@@ -92,6 +132,9 @@ struct aw_standby_para{
 struct aw_pm_info{
     struct aw_standby_para  standby_para;   /* standby parameter            */
     struct aw_pmu_arg       pmu_arg;        /**<args used by main function  */
+#ifdef CONFIG_ARCH_SUN7I
+	standy_dram_para_t	dram_para;
+#endif
 };
 
 
