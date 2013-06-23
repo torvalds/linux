@@ -717,7 +717,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 	WriteAddr[HW90_BLOCK_PHY0] = 0x900;
 	WriteAddr[HW90_BLOCK_PHY1] = 0x800;
 	WriteAddr[HW90_BLOCK_RF] = 0x3;
-	RT_TRACE(COMP_PHY, "%s(), CheckBlock: %d\n", __FUNCTION__, CheckBlock);
+	RT_TRACE(COMP_PHY, "%s(), CheckBlock: %d\n", __func__, CheckBlock);
 	for (i = 0; i < CheckTimes; i++) {
 
 		/* Write data to register and readback */
@@ -931,7 +931,7 @@ void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel)
 	default:
 		RT_TRACE((COMP_PHY|COMP_ERR),
 			 "error RF chipID(8225 or 8258) in function %s()\n",
-			 __FUNCTION__);
+			 __func__);
 		break;
 	}
 	return;
@@ -1280,7 +1280,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8 *stage,
 	u8		eRFPath;
 
 	RT_TRACE(COMP_CH, "%s() stage: %d, step: %d, channel: %d\n",
-		 __FUNCTION__, *stage, *step, channel);
+		 __func__, *stage, *step, channel);
 	if (!IsLegalChannel(priv->ieee80211, channel)) {
 		RT_TRACE(COMP_ERR, "set to illegal channel: %d\n", channel);
 		/* return true to tell upper caller function this channel
@@ -1466,7 +1466,7 @@ void rtl8192_SwChnl_WorkItem(struct net_device *dev)
 u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	RT_TRACE(COMP_CH, "%s(), SwChnlInProgress: %d\n", __FUNCTION__,
+	RT_TRACE(COMP_CH, "%s(), SwChnlInProgress: %d\n", __func__,
 		 priv->SwChnlInProgress);
 	if (!priv->up)
 		return false;
