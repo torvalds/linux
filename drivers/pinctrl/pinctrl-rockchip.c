@@ -1035,6 +1035,7 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 		polarity &= ~mask;
 		break;
 	default:
+		irq_gc_unlock(gc);
 		return -EINVAL;
 	}
 
