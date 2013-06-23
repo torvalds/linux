@@ -273,32 +273,10 @@ static ssize_t srom_write(struct file *filp, const char __user *buf,
 }
 
 /* Provide our own implementation so we can use srom->total_size. */
-loff_t srom_llseek(struct file *filp, loff_t offset, int origin)
+loff_t srom_llseek(struct file *file, loff_t offset, int origin)
 {
-	struct srom_dev *srom = filp->private_data;
-
-	if (mutex_lock_interruptible(&srom->lock))
-		return -ERESTARTSYS;
-
-	switch (origin) {
-	case SEEK_END:
-		offset += srom->total_size;
-		break;
-	case SEEK_CUR:
-		offset += filp->f_pos;
-		break;
-	}
-
-	if (offset < 0 || offset > srom->total_size) {
-		offset = -EINVAL;
-	} else {
-		filp->f_pos = offset;
-		filp->f_version = 0;
-	}
-
-	mutex_unlock(&srom->lock);
-
-	return offset;
+	struct srom_dev *srom = file->private_data;
+	return fixed_size_llseek(file, offset, origin, srom->total_size);
 }
 
 static ssize_t total_show(struct device *dev,
