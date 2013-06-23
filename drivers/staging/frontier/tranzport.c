@@ -731,7 +731,7 @@ static ssize_t usb_tranzport_write(struct file *file,
 	}
 
 	if (dev->interrupt_out_endpoint == NULL) {
-		dev_err(&dev->intf->dev, "Endpoint should not be be null!\n");
+		dev_err(&dev->intf->dev, "Endpoint should not be null!\n");
 		goto unlock_exit;
 	}
 
