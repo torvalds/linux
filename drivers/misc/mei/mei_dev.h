@@ -544,9 +544,9 @@ static inline int mei_hw_reset(struct mei_device *dev, bool enable)
 	return dev->ops->hw_reset(dev, enable);
 }
 
-static inline void mei_hw_start(struct mei_device *dev)
+static inline int mei_hw_start(struct mei_device *dev)
 {
-	dev->ops->hw_start(dev);
+	return dev->ops->hw_start(dev);
 }
 
 static inline void mei_clear_interrupts(struct mei_device *dev)
