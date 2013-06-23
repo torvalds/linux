@@ -52,12 +52,12 @@ if (down_interruptible(&bpctl_sema)) {			\
 	up(&bpctl_sema);
 
 /* Media Types */
-typedef enum {
+enum bp_media_type {
 	bp_copper = 0,
 	bp_fiber,
 	bp_cx4,
 	bp_none,
-} bp_media_type;
+};
 
 struct bypass_pfs_sd {
 	char dir_name[32];
@@ -89,7 +89,7 @@ typedef struct _bpctl_dev {
 	uint32_t reset_time;
 	uint8_t bp_status_un;
 	atomic_t wdt_busy;
-	bp_media_type media_type;
+	enum bp_media_type media_type;
 	int bp_tpl_flag;
 	struct timer_list bp_tpl_timer;
 	spinlock_t bypass_wr_lock;
