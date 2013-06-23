@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/smb2pdu.c
  *
- *   Copyright (C) International Business Machines  Corp., 2009, 2012
+ *   Copyright (C) International Business Machines  Corp., 2009, 2013
  *                 Etersoft, 2012
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Pavel Shilovsky (pshilovsky@samba.org) 2012
@@ -107,6 +107,13 @@ smb2_hdr_assemble(struct smb2_hdr *hdr, __le16 smb2_cmd /* command */ ,
 
 	if (!tcon)
 		goto out;
+
+	/* BB FIXME when we do write > 64K add +1 for every 64K in req or rsp */
+	/* GLOBAL_CAP_LARGE_MTU will only be set if dialect > SMB2.02 */
+	/* See sections 2.2.4 and 3.2.4.1.5 of MS-SMB2 */
+	if (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU)
+		hdr->CreditCharge = cpu_to_le16(1);
+	/* else CreditCharge MBZ */
 
 	hdr->TreeId = tcon->tid;
 	/* Uid is not converted */
