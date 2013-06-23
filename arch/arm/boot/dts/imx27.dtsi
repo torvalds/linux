@@ -110,6 +110,14 @@
 				clock-names = "ipg", "per";
 			};
 
+			kpp: kpp@10008000 {
+				compatible = "fsl,imx27-kpp", "fsl,imx21-kpp";
+				reg = <0x10008000 0x1000>;
+				interrupts = <21>;
+				clocks = <&clks 37>;
+				status = "disabled";
+			};
+
 			uart1: serial@1000a000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1000a000 0x1000>;
