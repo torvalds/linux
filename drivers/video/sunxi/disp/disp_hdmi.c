@@ -316,7 +316,7 @@ __s32 BSP_disp_hdmi_get_hpd_status(__u32 sel)
 	if (gdisp.init_para.hdmi_get_HPD_status) {
 		ret = gdisp.init_para.hdmi_get_HPD_status();
 	} else {
-		DE_WRN("hdmi_get_HPD_status is NULL\n");
+		pr_warn_once("hdmi_get_HPD_status is NULL\n");
 		return -1;
 	}
 

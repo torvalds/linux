@@ -686,8 +686,9 @@ static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			filp_data->version = version;
 			return SUNXI_DISP_VERSION;
 		} else {
-			pr_err("disp: process %d (%s) has skipped the version "
-			       "handshake.\n", current->pid, current->comm);
+			pr_err_once("disp: process %d (%s) has skipped "
+					"the version handshake.\n",
+					current->pid, current->comm);
 			filp_data->version = SUNXI_DISP_VERSION_SKIPPED;
 		}
 	}
