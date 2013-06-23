@@ -709,7 +709,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 			    RF90_RADIO_PATH_E eRFPath)
 {
 	u8 ret = 0;
-	u32 i, CheckTimes = 4, dwRegRead = 0;
+	u32 i, CheckTimes = 4, reg = 0;
 	u32 WriteAddr[4];
 	u32 WriteData[] = {0xfffff027, 0xaa55a02f, 0x00000027, 0x55aa502f};
 	/* Initialize register address offset to be checked */
@@ -731,7 +731,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 		case HW90_BLOCK_PHY1:
 			write_nic_dword(dev, WriteAddr[CheckBlock],
 					WriteData[i]);
-			read_nic_dword(dev, WriteAddr[CheckBlock], &dwRegRead);
+			read_nic_dword(dev, WriteAddr[CheckBlock], &reg);
 			break;
 
 		case HW90_BLOCK_RF:
@@ -742,9 +742,9 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 			/* TODO: we should not delay for such a long time.
 			   Ask SD3 */
 			msleep(1);
-			dwRegRead = rtl8192_phy_QueryRFReg(dev, eRFPath,
-							   WriteAddr[HW90_BLOCK_RF],
-							   bMask12Bits);
+			reg = rtl8192_phy_QueryRFReg(dev, eRFPath,
+						     WriteAddr[HW90_BLOCK_RF],
+						     bMask12Bits);
 			msleep(1);
 			break;
 
@@ -755,10 +755,10 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 
 
 		/* Check whether readback data is correct */
-		if (dwRegRead != WriteData[i]) {
+		if (reg != WriteData[i]) {
 			RT_TRACE((COMP_PHY|COMP_ERR),
-				 "error dwRegRead: %x, WriteData: %x\n",
-				 dwRegRead, WriteData[i]);
+				 "error reg: %x, WriteData: %x\n",
+				 reg, WriteData[i]);
 			ret = 1;
 			break;
 		}
@@ -779,7 +779,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8 reg_u8 = 0, eCheckItem = 0, rtStatus = 0;
+	u8 reg_u8 = 0, eCheckItem = 0, status = 0;
 	u32 reg_u32 = 0;
 	/**************************************
 	 * <1> Initialize BaseBand
@@ -798,9 +798,9 @@ void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	for (eCheckItem = (HW90_BLOCK_E)HW90_BLOCK_PHY0;
 	     eCheckItem <= HW90_BLOCK_PHY1; eCheckItem++) {
 		/* don't care RF path */
-		rtStatus = rtl8192_phy_checkBBAndRF(dev, (HW90_BLOCK_E)eCheckItem,
-						    (RF90_RADIO_PATH_E)0);
-		if (rtStatus != 0) {
+		status = rtl8192_phy_checkBBAndRF(dev, (HW90_BLOCK_E)eCheckItem,
+						  (RF90_RADIO_PATH_E)0);
+		if (status != 0) {
 			RT_TRACE((COMP_ERR | COMP_PHY),
 				 "PHY_RF8256_Config(): Check PHY%d Fail!!\n",
 				 eCheckItem-1);
