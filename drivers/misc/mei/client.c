@@ -731,7 +731,9 @@ int mei_cl_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
 	}
 
 	cl->status = 0;
+	cl->writing_state = MEI_WRITING;
 	cb->buf_idx += mei_hdr.length;
+
 	if (mei_hdr.msg_complete) {
 		if (mei_cl_flow_ctrl_reduce(cl))
 			return -ENODEV;
@@ -783,7 +785,6 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 		cb->buf_idx = 0;
 		/* unseting complete will enqueue the cb for write */
 		mei_hdr.msg_complete = 0;
-		cl->writing_state = MEI_WRITING;
 		rets = buf->size;
 		goto out;
 	}
