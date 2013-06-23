@@ -260,6 +260,13 @@
 				#interrupt-cells = <2>;
 			};
 
+			audmux: audmux@10016000 {
+				compatible = "fsl,imx27-audmux", "fsl,imx21-audmux";
+				reg = <0x10016000 0x1000>;
+				clocks = <&clks 0>;
+				clock-names = "audmux";
+			};
+
 			cspi3: cspi@10017000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
