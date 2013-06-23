@@ -17,7 +17,7 @@
 	compatible = "phytec,imx27-pcm038", "fsl,imx27";
 
 	memory {
-		reg = <0x0 0x0>;
+		reg = <0xa0000000 0x08000000>;
 	};
 
 	soc {
