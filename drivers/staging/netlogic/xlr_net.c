@@ -896,7 +896,7 @@ static int xlr_setup_mdio(struct xlr_net_priv *priv,
 		return err;
 	}
 
-	pr_info("Registerd mdio bus id : %s\n", priv->mii_bus->id);
+	pr_info("Registered mdio bus id : %s\n", priv->mii_bus->id);
 	err = xlr_mii_probe(priv);
 	if (err) {
 		mdiobus_free(priv->mii_bus);
