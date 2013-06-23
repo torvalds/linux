@@ -382,11 +382,6 @@
 			};
 		};
 
-		iram: iram@ffff4c00 {
-			compatible = "mmio-sram";
-			reg = <0xffff4c00 0xb400>;
-		};
-
 		nfc: nand@d8000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -395,6 +390,11 @@
 			interrupts = <29>;
 			clocks = <&clks 54>;
 			status = "disabled";
+		};
+
+		iram: iram@ffff4c00 {
+			compatible = "mmio-sram";
+			reg = <0xffff4c00 0xb400>;
 		};
 	};
 };
