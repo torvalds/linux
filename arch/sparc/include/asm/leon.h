@@ -135,7 +135,7 @@ static inline int sparc_leon3_cpuid(void)
 
 #ifdef CONFIG_SMP
 # define LEON3_IRQ_IPI_DEFAULT		13
-# define LEON3_IRQ_TICKER		(leon3_ticker_irq)
+# define LEON3_IRQ_TICKER		(leon3_gptimer_irq)
 # define LEON3_IRQ_CROSS_CALL		15
 #endif
 

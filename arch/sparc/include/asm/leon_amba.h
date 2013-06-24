@@ -47,6 +47,7 @@ struct amba_prom_registers {
 #define LEON3_GPTIMER_LD 4
 #define LEON3_GPTIMER_IRQEN 8
 #define LEON3_GPTIMER_SEPIRQ 8
+#define LEON3_GPTIMER_TIMERS 0x7
 
 #define LEON23_REG_TIMER_CONTROL_EN    0x00000001 /* 1 = enable counting */
 /* 0 = hold scalar and counter */

@@ -984,8 +984,6 @@ int iscsi_target_setup_login_socket(
 	}
 
 	np->np_transport = t;
-	printk("Set np->np_transport to %p -> %s\n", np->np_transport,
-				np->np_transport->name);
 	return 0;
 }
 
@@ -1002,7 +1000,6 @@ int iscsit_accept_np(struct iscsi_np *np, struct iscsi_conn *conn)
 
 	conn->sock = new_sock;
 	conn->login_family = np->np_sockaddr.ss_family;
-	printk("iSCSI/TCP: Setup conn->sock from new_sock: %p\n", new_sock);
 
 	if (np->np_sockaddr.ss_family == AF_INET6) {
 		memset(&sock_in6, 0, sizeof(struct sockaddr_in6));

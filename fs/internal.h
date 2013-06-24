@@ -132,6 +132,12 @@ extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
 extern ssize_t __kernel_write(struct file *, const char *, size_t, loff_t *);
 
 /*
+ * splice.c
+ */
+extern long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
+		loff_t *opos, size_t len, unsigned int flags);
+
+/*
  * pipe.c
  */
 extern const struct file_operations pipefifo_fops;
