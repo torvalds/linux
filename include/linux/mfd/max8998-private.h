@@ -132,6 +132,8 @@ enum {
 
 #define MAX8998_ENRAMP                  (1 << 4)
 
+struct irq_domain;
+
 /**
  * struct max8998_dev - max8998 master device for sub-drivers
  * @dev: master device of the chip (can be used to access platform data)
@@ -153,7 +155,8 @@ struct max8998_dev {
 	struct mutex iolock;
 	struct mutex irqlock;
 
-	int irq_base;
+	unsigned int irq_base;
+	struct irq_domain *irq_domain;
 	int irq;
 	int ono;
 	u8 irq_masks_cur[MAX8998_NUM_IRQ_REGS];

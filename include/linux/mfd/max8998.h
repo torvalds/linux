@@ -100,7 +100,7 @@ struct max8998_regulator_data {
 struct max8998_platform_data {
 	struct max8998_regulator_data	*regulators;
 	int				num_regulators;
-	int				irq_base;
+	unsigned int			irq_base;
 	int				ono;
 	bool				buck_voltage_lock;
 	int				buck1_voltage1;
