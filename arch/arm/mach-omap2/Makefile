@@ -35,10 +35,9 @@ obj-$(CONFIG_SOC_HAS_OMAP2_SDRC)	+= sdrc.o
 
 smp-$(CONFIG_SMP)			+= omap-smp.o omap-headsmp.o
 smp-$(CONFIG_HOTPLUG_CPU)		+= omap-hotplug.o
-omap-4-5-common				=  omap4-common.o omap-wakeupgen.o \
-					   sleep44xx.o
-obj-$(CONFIG_ARCH_OMAP4)		+= $(omap-4-5-common) $(smp-y)
-obj-$(CONFIG_SOC_OMAP5)			+= $(omap-4-5-common) $(smp-y)
+omap-4-5-common				=  omap4-common.o omap-wakeupgen.o
+obj-$(CONFIG_ARCH_OMAP4)		+= $(omap-4-5-common) $(smp-y) sleep44xx.o
+obj-$(CONFIG_SOC_OMAP5)			+= $(omap-4-5-common) $(smp-y) sleep44xx.o
 obj-$(CONFIG_SOC_AM43XX)		+= $(omap-4-5-common)
 
 plus_sec := $(call as-instr,.arch_extension sec,+sec)
