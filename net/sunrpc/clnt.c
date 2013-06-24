@@ -157,20 +157,15 @@ static struct dentry *rpc_setup_pipedir_sb(struct super_block *sb,
 }
 
 static int
-rpc_setup_pipedir(struct rpc_clnt *clnt, const char *dir_name)
+rpc_setup_pipedir(struct rpc_clnt *clnt, const char *dir_name,
+		  struct super_block *pipefs_sb)
 {
-	struct net *net = rpc_net_ns(clnt);
-	struct super_block *pipefs_sb;
 	struct dentry *dentry;
 
 	clnt->cl_dentry = NULL;
 	if (dir_name == NULL)
 		return 0;
-	pipefs_sb = rpc_get_sb_net(net);
-	if (!pipefs_sb)
-		return 0;
 	dentry = rpc_setup_pipedir_sb(pipefs_sb, clnt, dir_name);
-	rpc_put_sb_net(net);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 	clnt->cl_dentry = dentry;
@@ -296,6 +291,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	struct rpc_clnt		*clnt = NULL;
 	struct rpc_auth		*auth;
 	int err;
+	struct super_block *pipefs_sb;
 
 	/* sanity check the name before trying to print it */
 	dprintk("RPC:       creating %s client for %s (xprt %p)\n",
@@ -354,9 +350,12 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 
 	atomic_set(&clnt->cl_count, 1);
 
-	err = rpc_setup_pipedir(clnt, program->pipe_dir_name);
-	if (err < 0)
-		goto out_no_path;
+	pipefs_sb = rpc_get_sb_net(rpc_net_ns(clnt));
+	if (pipefs_sb) {
+		err = rpc_setup_pipedir(clnt, program->pipe_dir_name, pipefs_sb);
+		if (err)
+			goto out_no_path;
+	}
 
 	auth = rpcauth_create(args->authflavor, clnt);
 	if (IS_ERR(auth)) {
@@ -369,11 +368,16 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	/* save the nodename */
 	rpc_clnt_set_nodename(clnt, utsname()->nodename);
 	rpc_register_client(clnt);
+	if (pipefs_sb)
+		rpc_put_sb_net(rpc_net_ns(clnt));
 	return clnt;
 
 out_no_auth:
-	rpc_clnt_remove_pipedir(clnt);
+	if (pipefs_sb)
+		__rpc_clnt_remove_pipedir(clnt);
 out_no_path:
+	if (pipefs_sb)
+		rpc_put_sb_net(rpc_net_ns(clnt));
 	kfree(clnt->cl_principal);
 out_no_principal:
 	rpc_free_iostats(clnt->cl_metrics);
