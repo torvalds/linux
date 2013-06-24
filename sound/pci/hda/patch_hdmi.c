@@ -1864,12 +1864,33 @@ static void generic_hdmi_free(struct hda_codec *codec)
 	kfree(spec);
 }
 
+#ifdef CONFIG_PM
+static int generic_hdmi_resume(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+	int pin_idx;
+
+	generic_hdmi_init(codec);
+	snd_hda_codec_resume_amp(codec);
+	snd_hda_codec_resume_cache(codec);
+
+	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
+		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
+		hdmi_present_sense(per_pin, 1);
+	}
+	return 0;
+}
+#endif
+
 static const struct hda_codec_ops generic_hdmi_patch_ops = {
 	.init			= generic_hdmi_init,
 	.free			= generic_hdmi_free,
 	.build_pcms		= generic_hdmi_build_pcms,
 	.build_controls		= generic_hdmi_build_controls,
 	.unsol_event		= hdmi_unsol_event,
+#ifdef CONFIG_PM
+	.resume			= generic_hdmi_resume,
+#endif
 };
 
 
