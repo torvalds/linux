@@ -114,14 +114,6 @@ config KIRKWOOD_THERMAL
 	  Support for the Kirkwood thermal sensor driver into the Linux thermal
 	  framework. Only kirkwood 88F6282 and 88F6283 have this sensor.
 
-config EXYNOS_THERMAL
-	tristate "Temperature sensor on Samsung EXYNOS"
-	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5)
-	depends on CPU_THERMAL
-	help
-	  If you say yes here you get support for TMU (Thermal Management
-	  Unit) on SAMSUNG EXYNOS series of SoC.
-
 config DOVE_THERMAL
 	tristate "Temperature sensor on Marvell Dove SoCs"
 	depends on ARCH_DOVE
@@ -182,6 +174,11 @@ config X86_PKG_TEMP_THERMAL
 
 menu "Texas Instruments thermal drivers"
 source "drivers/thermal/ti-soc-thermal/Kconfig"
+endmenu
+
+menu "Samsung thermal drivers"
+depends on PLAT_SAMSUNG
+source "drivers/thermal/samsung/Kconfig"
 endmenu
 
 endif
