@@ -58,6 +58,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
+#include <linux/compiler.h>
 #include <linux/console.h>
 #include <linux/fb.h>
 #include <linux/init.h>
@@ -531,8 +532,8 @@ static int correct_chipset(struct atyfb_par *par)
 	return 0;
 }
 
-static char ram_dram[] = "DRAM";
-static char ram_resv[] = "RESV";
+static char ram_dram[] __maybe_unused = "DRAM";
+static char ram_resv[] __maybe_unused = "RESV";
 #ifdef CONFIG_FB_ATY_GX
 static char ram_vram[] = "VRAM";
 #endif /* CONFIG_FB_ATY_GX */
