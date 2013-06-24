@@ -83,6 +83,10 @@
 #define TAS5086_SPLIT_CAP_CHARGE	0x1a	/* Split cap charge period register */
 #define TAS5086_OSC_TRIM		0x1b	/* Oscillator trim register */
 #define TAS5086_BKNDERR 		0x1c
+#define TAS5086_INPUT_MUX		0x20
+#define TAS5086_PWM_OUTPUT_MUX		0x25
+
+#define TAS5086_MAX_REGISTER		TAS5086_PWM_OUTPUT_MUX
 
 /*
  * Default TAS5086 power-up configuration
@@ -124,6 +128,9 @@ static int tas5086_register_size(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case TAS5086_DEV_ID ... TAS5086_BKNDERR:
 		return 1;
+	case TAS5086_INPUT_MUX:
+	case TAS5086_PWM_OUTPUT_MUX:
+		return 4;
 	}
 
 	dev_err(dev, "Unsupported register address: %d\n", reg);
@@ -132,7 +139,14 @@ static int tas5086_register_size(struct device *dev, unsigned int reg)
 
 static bool tas5086_accessible_reg(struct device *dev, unsigned int reg)
 {
-	return !((reg == 0x0f) || (reg >= 0x11 && reg <= 0x17));
+	switch (reg) {
+	case 0x0f:
+	case 0x11 ... 0x17:
+	case 0x1d ... 0x1f:
+		return false;
+	default:
+		return true;
+	}
 }
 
 static bool tas5086_volatile_reg(struct device *dev, unsigned int reg)
@@ -581,8 +595,8 @@ MODULE_DEVICE_TABLE(i2c, tas5086_i2c_id);
 
 static const struct regmap_config tas5086_regmap = {
 	.reg_bits		= 8,
-	.val_bits		= 8,
-	.max_register		= ARRAY_SIZE(tas5086_reg_defaults),
+	.val_bits		= 32,
+	.max_register		= TAS5086_MAX_REGISTER,
 	.reg_defaults		= tas5086_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(tas5086_reg_defaults),
 	.cache_type		= REGCACHE_RBTREE,
