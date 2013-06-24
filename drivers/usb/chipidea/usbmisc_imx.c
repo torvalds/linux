@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 
-#include "ci13xxx_imx.h"
+#include "ci_hdrc_imx.h"
 
 #define USB_DEV_MAX 4
 

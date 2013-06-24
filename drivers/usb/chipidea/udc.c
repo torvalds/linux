@@ -61,7 +61,7 @@ static inline int hw_ep_bit(int num, int dir)
 	return num + (dir ? 16 : 0);
 }
 
-static inline int ep_to_bit(struct ci13xxx *ci, int n)
+static inline int ep_to_bit(struct ci_hdrc *ci, int n)
 {
 	int fill = 16 - ci->hw_ep_max / 2;
 
@@ -77,7 +77,7 @@ static inline int ep_to_bit(struct ci13xxx *ci, int n)
  *
  * This function returns an error code
  */
-static int hw_device_state(struct ci13xxx *ci, u32 dma)
+static int hw_device_state(struct ci_hdrc *ci, u32 dma)
 {
 	if (dma) {
 		hw_write(ci, OP_ENDPTLISTADDR, ~0, dma);
@@ -97,7 +97,7 @@ static int hw_device_state(struct ci13xxx *ci, u32 dma)
  *
  * This function returns an error code
  */
-static int hw_ep_flush(struct ci13xxx *ci, int num, int dir)
+static int hw_ep_flush(struct ci_hdrc *ci, int num, int dir)
 {
 	int n = hw_ep_bit(num, dir);
 
@@ -118,7 +118,7 @@ static int hw_ep_flush(struct ci13xxx *ci, int num, int dir)
  *
  * This function returns an error code
  */
-static int hw_ep_disable(struct ci13xxx *ci, int num, int dir)
+static int hw_ep_disable(struct ci_hdrc *ci, int num, int dir)
 {
 	hw_ep_flush(ci, num, dir);
 	hw_write(ci, OP_ENDPTCTRL + num,
@@ -134,7 +134,7 @@ static int hw_ep_disable(struct ci13xxx *ci, int num, int dir)
  *
  * This function returns an error code
  */
-static int hw_ep_enable(struct ci13xxx *ci, int num, int dir, int type)
+static int hw_ep_enable(struct ci_hdrc *ci, int num, int dir, int type)
 {
 	u32 mask, data;
 
@@ -168,7 +168,7 @@ static int hw_ep_enable(struct ci13xxx *ci, int num, int dir, int type)
  *
  * This function returns 1 if endpoint halted
  */
-static int hw_ep_get_halt(struct ci13xxx *ci, int num, int dir)
+static int hw_ep_get_halt(struct ci_hdrc *ci, int num, int dir)
 {
 	u32 mask = dir ? ENDPTCTRL_TXS : ENDPTCTRL_RXS;
 
@@ -182,7 +182,7 @@ static int hw_ep_get_halt(struct ci13xxx *ci, int num, int dir)
  *
  * This function returns setup status
  */
-static int hw_test_and_clear_setup_status(struct ci13xxx *ci, int n)
+static int hw_test_and_clear_setup_status(struct ci_hdrc *ci, int n)
 {
 	n = ep_to_bit(ci, n);
 	return hw_test_and_clear(ci, OP_ENDPTSETUPSTAT, BIT(n));
@@ -196,7 +196,7 @@ static int hw_test_and_clear_setup_status(struct ci13xxx *ci, int n)
  *
  * This function returns an error code
  */
-static int hw_ep_prime(struct ci13xxx *ci, int num, int dir, int is_ctrl)
+static int hw_ep_prime(struct ci_hdrc *ci, int num, int dir, int is_ctrl)
 {
 	int n = hw_ep_bit(num, dir);
 
@@ -223,13 +223,13 @@ static int hw_ep_prime(struct ci13xxx *ci, int num, int dir, int is_ctrl)
  *
  * This function returns an error code
  */
-static int hw_ep_set_halt(struct ci13xxx *ci, int num, int dir, int value)
+static int hw_ep_set_halt(struct ci_hdrc *ci, int num, int dir, int value)
 {
 	if (value != 0 && value != 1)
 		return -EINVAL;
 
 	do {
-		enum ci13xxx_regs reg = OP_ENDPTCTRL + num;
+		enum ci_hw_regs reg = OP_ENDPTCTRL + num;
 		u32 mask_xs = dir ? ENDPTCTRL_TXS : ENDPTCTRL_RXS;
 		u32 mask_xr = dir ? ENDPTCTRL_TXR : ENDPTCTRL_RXR;
 
@@ -246,7 +246,7 @@ static int hw_ep_set_halt(struct ci13xxx *ci, int num, int dir, int value)
  *
  * This function returns true if high speed port
  */
-static int hw_port_is_high_speed(struct ci13xxx *ci)
+static int hw_port_is_high_speed(struct ci_hdrc *ci)
 {
 	return ci->hw_bank.lpm ? hw_read(ci, OP_DEVLC, DEVLC_PSPD) :
 		hw_read(ci, OP_PORTSC, PORTSC_HSP);
@@ -257,7 +257,7 @@ static int hw_port_is_high_speed(struct ci13xxx *ci)
  *
  * This function returns register data
  */
-static u32 hw_read_intr_enable(struct ci13xxx *ci)
+static u32 hw_read_intr_enable(struct ci_hdrc *ci)
 {
 	return hw_read(ci, OP_USBINTR, ~0);
 }
@@ -267,7 +267,7 @@ static u32 hw_read_intr_enable(struct ci13xxx *ci)
  *
  * This function returns register data
  */
-static u32 hw_read_intr_status(struct ci13xxx *ci)
+static u32 hw_read_intr_status(struct ci_hdrc *ci)
 {
 	return hw_read(ci, OP_USBSTS, ~0);
 }
@@ -279,7 +279,7 @@ static u32 hw_read_intr_status(struct ci13xxx *ci)
  *
  * This function returns complete status
  */
-static int hw_test_and_clear_complete(struct ci13xxx *ci, int n)
+static int hw_test_and_clear_complete(struct ci_hdrc *ci, int n)
 {
 	n = ep_to_bit(ci, n);
 	return hw_test_and_clear(ci, OP_ENDPTCOMPLETE, BIT(n));
@@ -291,7 +291,7 @@ static int hw_test_and_clear_complete(struct ci13xxx *ci, int n)
  *
  * This function returns active interrutps
  */
-static u32 hw_test_and_clear_intr_active(struct ci13xxx *ci)
+static u32 hw_test_and_clear_intr_active(struct ci_hdrc *ci)
 {
 	u32 reg = hw_read_intr_status(ci) & hw_read_intr_enable(ci);
 
@@ -305,7 +305,7 @@ static u32 hw_test_and_clear_intr_active(struct ci13xxx *ci)
  *
  * This function returns guard value
  */
-static int hw_test_and_clear_setup_guard(struct ci13xxx *ci)
+static int hw_test_and_clear_setup_guard(struct ci_hdrc *ci)
 {
 	return hw_test_and_write(ci, OP_USBCMD, USBCMD_SUTW, 0);
 }
@@ -316,7 +316,7 @@ static int hw_test_and_clear_setup_guard(struct ci13xxx *ci)
  *
  * This function returns guard value
  */
-static int hw_test_and_set_setup_guard(struct ci13xxx *ci)
+static int hw_test_and_set_setup_guard(struct ci_hdrc *ci)
 {
 	return hw_test_and_write(ci, OP_USBCMD, USBCMD_SUTW, USBCMD_SUTW);
 }
@@ -328,7 +328,7 @@ static int hw_test_and_set_setup_guard(struct ci13xxx *ci)
  * This function explicitly sets the address, without the "USBADRA" (advance)
  * feature, which is not supported by older versions of the controller.
  */
-static void hw_usb_set_address(struct ci13xxx *ci, u8 value)
+static void hw_usb_set_address(struct ci_hdrc *ci, u8 value)
 {
 	hw_write(ci, OP_DEVICEADDR, DEVICEADDR_USBADR,
 		 value << __ffs(DEVICEADDR_USBADR));
@@ -340,7 +340,7 @@ static void hw_usb_set_address(struct ci13xxx *ci, u8 value)
  *
  * This function returns an error code
  */
-static int hw_usb_reset(struct ci13xxx *ci)
+static int hw_usb_reset(struct ci_hdrc *ci)
 {
 	hw_usb_set_address(ci, 0);
 
@@ -369,7 +369,7 @@ static int hw_usb_reset(struct ci13xxx *ci)
  * UTIL block
  *****************************************************************************/
 
-static int add_td_to_list(struct ci13xxx_ep *hwep, struct ci13xxx_req *hwreq,
+static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 			  unsigned length)
 {
 	int i;
@@ -387,7 +387,7 @@ static int add_td_to_list(struct ci13xxx_ep *hwep, struct ci13xxx_req *hwreq,
 		return -ENOMEM;
 	}
 
-	memset(node->ptr, 0, sizeof(struct ci13xxx_td));
+	memset(node->ptr, 0, sizeof(struct ci_hw_td));
 	node->ptr->token = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
 	node->ptr->token &= cpu_to_le32(TD_TOTAL_BYTES);
 	node->ptr->token |= cpu_to_le32(TD_STATUS_ACTIVE);
@@ -396,7 +396,7 @@ static int add_td_to_list(struct ci13xxx_ep *hwep, struct ci13xxx_req *hwreq,
 	if (length) {
 		node->ptr->page[0] = cpu_to_le32(temp);
 		for (i = 1; i < TD_PAGE_COUNT; i++) {
-			u32 page = temp + i * CI13XXX_PAGE_SIZE;
+			u32 page = temp + i * CI_HDRC_PAGE_SIZE;
 			page &= ~TD_RESERVED_MASK;
 			node->ptr->page[i] = cpu_to_le32(page);
 		}
@@ -421,7 +421,7 @@ static int add_td_to_list(struct ci13xxx_ep *hwep, struct ci13xxx_req *hwreq,
  * _usb_addr: calculates endpoint address from direction & number
  * @ep:  endpoint
  */
-static inline u8 _usb_addr(struct ci13xxx_ep *ep)
+static inline u8 _usb_addr(struct ci_hw_ep *ep)
 {
 	return ((ep->dir == TX) ? USB_ENDPOINT_DIR_MASK : 0) | ep->num;
 }
@@ -433,9 +433,9 @@ static inline u8 _usb_addr(struct ci13xxx_ep *ep)
  *
  * This function returns an error code
  */
-static int _hardware_enqueue(struct ci13xxx_ep *hwep, struct ci13xxx_req *hwreq)
+static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 {
-	struct ci13xxx *ci = hwep->ci;
+	struct ci_hdrc *ci = hwep->ci;
 	int ret = 0;
 	unsigned rest = hwreq->req.length;
 	int pages = TD_PAGE_COUNT;
@@ -463,7 +463,7 @@ static int _hardware_enqueue(struct ci13xxx_ep *hwep, struct ci13xxx_req *hwreq)
 
 	while (rest > 0) {
 		unsigned count = min(hwreq->req.length - hwreq->req.actual,
-					(unsigned)(pages * CI13XXX_PAGE_SIZE));
+					(unsigned)(pages * CI_HDRC_PAGE_SIZE));
 		add_td_to_list(hwep, hwreq, count);
 		rest -= count;
 	}
@@ -484,14 +484,14 @@ static int _hardware_enqueue(struct ci13xxx_ep *hwep, struct ci13xxx_req *hwreq)
 
 	hwreq->req.actual = 0;
 	if (!list_empty(&hwep->qh.queue)) {
-		struct ci13xxx_req *hwreqprev;
+		struct ci_hw_req *hwreqprev;
 		int n = hw_ep_bit(hwep->num, hwep->dir);
 		int tmp_stat;
 		struct td_node *prevlastnode;
 		u32 next = firstnode->dma & TD_ADDR_MASK;
 
 		hwreqprev = list_entry(hwep->qh.queue.prev,
-				struct ci13xxx_req, queue);
+				struct ci_hw_req, queue);
 		prevlastnode = list_entry(hwreqprev->tds.prev,
 				struct td_node, td);
 
@@ -533,7 +533,7 @@ done:
  * free_pending_td: remove a pending request for the endpoint
  * @hwep: endpoint
  */
-static void free_pending_td(struct ci13xxx_ep *hwep)
+static void free_pending_td(struct ci_hw_ep *hwep)
 {
 	struct td_node *pending = hwep->pending_td;
 
@@ -549,7 +549,7 @@ static void free_pending_td(struct ci13xxx_ep *hwep)
  *
  * This function returns an error code
  */
-static int _hardware_dequeue(struct ci13xxx_ep *hwep, struct ci13xxx_req *hwreq)
+static int _hardware_dequeue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 {
 	u32 tmptoken;
 	struct td_node *node, *tmpnode;
@@ -619,7 +619,7 @@ static int _hardware_dequeue(struct ci13xxx_ep *hwep, struct ci13xxx_req *hwreq)
  * This function returns an error code
  * Caller must hold lock
  */
-static int _ep_nuke(struct ci13xxx_ep *hwep)
+static int _ep_nuke(struct ci_hw_ep *hwep)
 __releases(hwep->lock)
 __acquires(hwep->lock)
 {
@@ -632,9 +632,8 @@ __acquires(hwep->lock)
 	while (!list_empty(&hwep->qh.queue)) {
 
 		/* pop oldest request */
-		struct ci13xxx_req *hwreq = list_entry(hwep->qh.queue.next,
-						       struct ci13xxx_req,
-						       queue);
+		struct ci_hw_req *hwreq = list_entry(hwep->qh.queue.next,
+						     struct ci_hw_req, queue);
 
 		list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
 			dma_pool_free(hwep->td_pool, node->ptr, node->dma);
@@ -668,7 +667,7 @@ __acquires(hwep->lock)
 static int _gadget_stop_activity(struct usb_gadget *gadget)
 {
 	struct usb_ep *ep;
-	struct ci13xxx    *ci = container_of(gadget, struct ci13xxx, gadget);
+	struct ci_hdrc    *ci = container_of(gadget, struct ci_hdrc, gadget);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ci->lock, flags);
@@ -709,7 +708,7 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
  *
  * This function resets USB engine after a bus reset occurred
  */
-static void isr_reset_handler(struct ci13xxx *ci)
+static void isr_reset_handler(struct ci_hdrc *ci)
 __releases(ci->lock)
 __acquires(ci->lock)
 {
@@ -759,9 +758,9 @@ static void isr_get_status_complete(struct usb_ep *ep, struct usb_request *req)
 static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
 		    gfp_t __maybe_unused gfp_flags)
 {
-	struct ci13xxx_ep  *hwep  = container_of(ep,  struct ci13xxx_ep, ep);
-	struct ci13xxx_req *hwreq = container_of(req, struct ci13xxx_req, req);
-	struct ci13xxx *ci = hwep->ci;
+	struct ci_hw_ep  *hwep  = container_of(ep,  struct ci_hw_ep, ep);
+	struct ci_hw_req *hwreq = container_of(req, struct ci_hw_req, req);
+	struct ci_hdrc *ci = hwep->ci;
 	int retval = 0;
 
 	if (ep == NULL || req == NULL || hwep->ep.desc == NULL)
@@ -812,12 +811,12 @@ static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
  *
  * This function returns an error code
  */
-static int isr_get_status_response(struct ci13xxx *ci,
+static int isr_get_status_response(struct ci_hdrc *ci,
 				   struct usb_ctrlrequest *setup)
 __releases(hwep->lock)
 __acquires(hwep->lock)
 {
-	struct ci13xxx_ep *hwep = ci->ep0in;
+	struct ci_hw_ep *hwep = ci->ep0in;
 	struct usb_request *req = NULL;
 	gfp_t gfp_flags = GFP_ATOMIC;
 	int dir, num, retval;
@@ -878,7 +877,7 @@ __acquires(hwep->lock)
 static void
 isr_setup_status_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	struct ci13xxx *ci = req->context;
+	struct ci_hdrc *ci = req->context;
 	unsigned long flags;
 
 	if (ci->setaddr) {
@@ -898,10 +897,10 @@ isr_setup_status_complete(struct usb_ep *ep, struct usb_request *req)
  *
  * This function returns an error code
  */
-static int isr_setup_status_phase(struct ci13xxx *ci)
+static int isr_setup_status_phase(struct ci_hdrc *ci)
 {
 	int retval;
-	struct ci13xxx_ep *hwep;
+	struct ci_hw_ep *hwep;
 
 	hwep = (ci->ep0_dir == TX) ? ci->ep0out : ci->ep0in;
 	ci->status->context = ci;
@@ -919,12 +918,12 @@ static int isr_setup_status_phase(struct ci13xxx *ci)
  * This function returns an error code
  * Caller must hold lock
  */
-static int isr_tr_complete_low(struct ci13xxx_ep *hwep)
+static int isr_tr_complete_low(struct ci_hw_ep *hwep)
 __releases(hwep->lock)
 __acquires(hwep->lock)
 {
-	struct ci13xxx_req *hwreq, *hwreqtemp;
-	struct ci13xxx_ep *hweptemp = hwep;
+	struct ci_hw_req *hwreq, *hwreqtemp;
+	struct ci_hw_ep *hweptemp = hwep;
 	int retval = 0;
 
 	list_for_each_entry_safe(hwreq, hwreqtemp, &hwep->qh.queue,
@@ -955,7 +954,7 @@ __acquires(hwep->lock)
  *
  * This function handles traffic events
  */
-static void isr_tr_complete_handler(struct ci13xxx *ci)
+static void isr_tr_complete_handler(struct ci_hdrc *ci)
 __releases(ci->lock)
 __acquires(ci->lock)
 {
@@ -963,7 +962,7 @@ __acquires(ci->lock)
 	u8 tmode = 0;
 
 	for (i = 0; i < ci->hw_ep_max; i++) {
-		struct ci13xxx_ep *hwep  = &ci->ci13xxx_ep[i];
+		struct ci_hw_ep *hwep  = &ci->ci_hw_ep[i];
 		int type, num, dir, err = -EINVAL;
 		struct usb_ctrlrequest req;
 
@@ -1023,10 +1022,10 @@ __acquires(ci->lock)
 				num &= USB_ENDPOINT_NUMBER_MASK;
 				if (dir) /* TX */
 					num += ci->hw_ep_max/2;
-				if (!ci->ci13xxx_ep[num].wedge) {
+				if (!ci->ci_hw_ep[num].wedge) {
 					spin_unlock(&ci->lock);
 					err = usb_ep_clear_halt(
-						&ci->ci13xxx_ep[num].ep);
+						&ci->ci_hw_ep[num].ep);
 					spin_lock(&ci->lock);
 					if (err)
 						break;
@@ -1076,7 +1075,7 @@ __acquires(ci->lock)
 					num += ci->hw_ep_max/2;
 
 				spin_unlock(&ci->lock);
-				err = usb_ep_set_halt(&ci->ci13xxx_ep[num].ep);
+				err = usb_ep_set_halt(&ci->ci_hw_ep[num].ep);
 				spin_lock(&ci->lock);
 				if (!err)
 					isr_setup_status_phase(ci);
@@ -1141,7 +1140,7 @@ delegate:
 static int ep_enable(struct usb_ep *ep,
 		     const struct usb_endpoint_descriptor *desc)
 {
-	struct ci13xxx_ep *hwep = container_of(ep, struct ci13xxx_ep, ep);
+	struct ci_hw_ep *hwep = container_of(ep, struct ci_hw_ep, ep);
 	int retval = 0;
 	unsigned long flags;
 	u32 cap = 0;
@@ -1194,7 +1193,7 @@ static int ep_enable(struct usb_ep *ep,
  */
 static int ep_disable(struct usb_ep *ep)
 {
-	struct ci13xxx_ep *hwep = container_of(ep, struct ci13xxx_ep, ep);
+	struct ci_hw_ep *hwep = container_of(ep, struct ci_hw_ep, ep);
 	int direction, retval = 0;
 	unsigned long flags;
 
@@ -1230,12 +1229,12 @@ static int ep_disable(struct usb_ep *ep)
  */
 static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 {
-	struct ci13xxx_req *hwreq = NULL;
+	struct ci_hw_req *hwreq = NULL;
 
 	if (ep == NULL)
 		return NULL;
 
-	hwreq = kzalloc(sizeof(struct ci13xxx_req), gfp_flags);
+	hwreq = kzalloc(sizeof(struct ci_hw_req), gfp_flags);
 	if (hwreq != NULL) {
 		INIT_LIST_HEAD(&hwreq->queue);
 		INIT_LIST_HEAD(&hwreq->tds);
@@ -1251,8 +1250,8 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
  */
 static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 {
-	struct ci13xxx_ep  *hwep  = container_of(ep,  struct ci13xxx_ep, ep);
-	struct ci13xxx_req *hwreq = container_of(req, struct ci13xxx_req, req);
+	struct ci_hw_ep  *hwep  = container_of(ep,  struct ci_hw_ep, ep);
+	struct ci_hw_req *hwreq = container_of(req, struct ci_hw_req, req);
 	struct td_node *node, *tmpnode;
 	unsigned long flags;
 
@@ -1285,7 +1284,7 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 		    gfp_t __maybe_unused gfp_flags)
 {
-	struct ci13xxx_ep  *hwep  = container_of(ep,  struct ci13xxx_ep, ep);
+	struct ci_hw_ep  *hwep  = container_of(ep,  struct ci_hw_ep, ep);
 	int retval = 0;
 	unsigned long flags;
 
@@ -1305,8 +1304,8 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
  */
 static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 {
-	struct ci13xxx_ep  *hwep  = container_of(ep,  struct ci13xxx_ep, ep);
-	struct ci13xxx_req *hwreq = container_of(req, struct ci13xxx_req, req);
+	struct ci_hw_ep  *hwep  = container_of(ep,  struct ci_hw_ep, ep);
+	struct ci_hw_req *hwreq = container_of(req, struct ci_hw_req, req);
 	unsigned long flags;
 
 	if (ep == NULL || req == NULL || hwreq->req.status != -EALREADY ||
@@ -1342,7 +1341,7 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
  */
 static int ep_set_halt(struct usb_ep *ep, int value)
 {
-	struct ci13xxx_ep *hwep = container_of(ep, struct ci13xxx_ep, ep);
+	struct ci_hw_ep *hwep = container_of(ep, struct ci_hw_ep, ep);
 	int direction, retval = 0;
 	unsigned long flags;
 
@@ -1386,7 +1385,7 @@ static int ep_set_halt(struct usb_ep *ep, int value)
  */
 static int ep_set_wedge(struct usb_ep *ep)
 {
-	struct ci13xxx_ep *hwep = container_of(ep, struct ci13xxx_ep, ep);
+	struct ci_hw_ep *hwep = container_of(ep, struct ci_hw_ep, ep);
 	unsigned long flags;
 
 	if (ep == NULL || hwep->ep.desc == NULL)
@@ -1406,7 +1405,7 @@ static int ep_set_wedge(struct usb_ep *ep)
  */
 static void ep_fifo_flush(struct usb_ep *ep)
 {
-	struct ci13xxx_ep *hwep = container_of(ep, struct ci13xxx_ep, ep);
+	struct ci_hw_ep *hwep = container_of(ep, struct ci_hw_ep, ep);
 	unsigned long flags;
 
 	if (ep == NULL) {
@@ -1440,13 +1439,13 @@ static const struct usb_ep_ops usb_ep_ops = {
 /******************************************************************************
  * GADGET block
  *****************************************************************************/
-static int ci13xxx_vbus_session(struct usb_gadget *_gadget, int is_active)
+static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 {
-	struct ci13xxx *ci = container_of(_gadget, struct ci13xxx, gadget);
+	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
 	unsigned long flags;
 	int gadget_ready = 0;
 
-	if (!(ci->platdata->flags & CI13XXX_PULLUP_ON_VBUS))
+	if (!(ci->platdata->flags & CI_HDRC_PULLUP_ON_VBUS))
 		return -EOPNOTSUPP;
 
 	spin_lock_irqsave(&ci->lock, flags);
@@ -1464,7 +1463,7 @@ static int ci13xxx_vbus_session(struct usb_gadget *_gadget, int is_active)
 			hw_device_state(ci, 0);
 			if (ci->platdata->notify_event)
 				ci->platdata->notify_event(ci,
-				CI13XXX_CONTROLLER_STOPPED_EVENT);
+				CI_HDRC_CONTROLLER_STOPPED_EVENT);
 			_gadget_stop_activity(&ci->gadget);
 			pm_runtime_put_sync(&_gadget->dev);
 		}
@@ -1473,9 +1472,9 @@ static int ci13xxx_vbus_session(struct usb_gadget *_gadget, int is_active)
 	return 0;
 }
 
-static int ci13xxx_wakeup(struct usb_gadget *_gadget)
+static int ci_udc_wakeup(struct usb_gadget *_gadget)
 {
-	struct ci13xxx *ci = container_of(_gadget, struct ci13xxx, gadget);
+	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
 	unsigned long flags;
 	int ret = 0;
 
@@ -1494,9 +1493,9 @@ out:
 	return ret;
 }
 
-static int ci13xxx_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
+static int ci_udc_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
 {
-	struct ci13xxx *ci = container_of(_gadget, struct ci13xxx, gadget);
+	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
 
 	if (ci->transceiver)
 		return usb_phy_set_power(ci->transceiver, ma);
@@ -1506,9 +1505,9 @@ static int ci13xxx_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
 /* Change Data+ pullup status
  * this func is used by usb_gadget_connect/disconnet
  */
-static int ci13xxx_pullup(struct usb_gadget *_gadget, int is_on)
+static int ci_udc_pullup(struct usb_gadget *_gadget, int is_on)
 {
-	struct ci13xxx *ci = container_of(_gadget, struct ci13xxx, gadget);
+	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
 
 	if (is_on)
 		hw_write(ci, OP_USBCMD, USBCMD_RS, USBCMD_RS);
@@ -1518,9 +1517,9 @@ static int ci13xxx_pullup(struct usb_gadget *_gadget, int is_on)
 	return 0;
 }
 
-static int ci13xxx_start(struct usb_gadget *gadget,
+static int ci_udc_start(struct usb_gadget *gadget,
 			 struct usb_gadget_driver *driver);
-static int ci13xxx_stop(struct usb_gadget *gadget,
+static int ci_udc_stop(struct usb_gadget *gadget,
 			struct usb_gadget_driver *driver);
 /**
  * Device operations part of the API to the USB controller hardware,
@@ -1528,22 +1527,22 @@ static int ci13xxx_stop(struct usb_gadget *gadget,
  * Check  "usb_gadget.h" for details
  */
 static const struct usb_gadget_ops usb_gadget_ops = {
-	.vbus_session	= ci13xxx_vbus_session,
-	.wakeup		= ci13xxx_wakeup,
-	.pullup		= ci13xxx_pullup,
-	.vbus_draw	= ci13xxx_vbus_draw,
-	.udc_start	= ci13xxx_start,
-	.udc_stop	= ci13xxx_stop,
+	.vbus_session	= ci_udc_vbus_session,
+	.wakeup		= ci_udc_wakeup,
+	.pullup		= ci_udc_pullup,
+	.vbus_draw	= ci_udc_vbus_draw,
+	.udc_start	= ci_udc_start,
+	.udc_stop	= ci_udc_stop,
 };
 
-static int init_eps(struct ci13xxx *ci)
+static int init_eps(struct ci_hdrc *ci)
 {
 	int retval = 0, i, j;
 
 	for (i = 0; i < ci->hw_ep_max/2; i++)
 		for (j = RX; j <= TX; j++) {
 			int k = i + j * ci->hw_ep_max/2;
-			struct ci13xxx_ep *hwep = &ci->ci13xxx_ep[k];
+			struct ci_hw_ep *hwep = &ci->ci_hw_ep[k];
 
 			scnprintf(hwep->name, sizeof(hwep->name), "ep%i%s", i,
 					(j == TX)  ? "in" : "out");
@@ -1589,28 +1588,28 @@ static int init_eps(struct ci13xxx *ci)
 	return retval;
 }
 
-static void destroy_eps(struct ci13xxx *ci)
+static void destroy_eps(struct ci_hdrc *ci)
 {
 	int i;
 
 	for (i = 0; i < ci->hw_ep_max; i++) {
-		struct ci13xxx_ep *hwep = &ci->ci13xxx_ep[i];
+		struct ci_hw_ep *hwep = &ci->ci_hw_ep[i];
 
 		dma_pool_free(ci->qh_pool, hwep->qh.ptr, hwep->qh.dma);
 	}
 }
 
 /**
- * ci13xxx_start: register a gadget driver
+ * ci_udc_start: register a gadget driver
  * @gadget: our gadget
  * @driver: the driver being registered
  *
  * Interrupts are enabled here.
  */
-static int ci13xxx_start(struct usb_gadget *gadget,
+static int ci_udc_start(struct usb_gadget *gadget,
 			 struct usb_gadget_driver *driver)
 {
-	struct ci13xxx *ci = container_of(gadget, struct ci13xxx, gadget);
+	struct ci_hdrc *ci = container_of(gadget, struct ci_hdrc, gadget);
 	unsigned long flags;
 	int retval = -ENOMEM;
 
@@ -1631,9 +1630,9 @@ static int ci13xxx_start(struct usb_gadget *gadget,
 
 	ci->driver = driver;
 	pm_runtime_get_sync(&ci->gadget.dev);
-	if (ci->platdata->flags & CI13XXX_PULLUP_ON_VBUS) {
+	if (ci->platdata->flags & CI_HDRC_PULLUP_ON_VBUS) {
 		if (ci->vbus_active) {
-			if (ci->platdata->flags & CI13XXX_REGS_SHARED)
+			if (ci->platdata->flags & CI_HDRC_REGS_SHARED)
 				hw_device_reset(ci, USBMODE_CM_DC);
 		} else {
 			pm_runtime_put_sync(&ci->gadget.dev);
@@ -1651,22 +1650,22 @@ static int ci13xxx_start(struct usb_gadget *gadget,
 }
 
 /**
- * ci13xxx_stop: unregister a gadget driver
+ * ci_udc_stop: unregister a gadget driver
  */
-static int ci13xxx_stop(struct usb_gadget *gadget,
+static int ci_udc_stop(struct usb_gadget *gadget,
 			struct usb_gadget_driver *driver)
 {
-	struct ci13xxx *ci = container_of(gadget, struct ci13xxx, gadget);
+	struct ci_hdrc *ci = container_of(gadget, struct ci_hdrc, gadget);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ci->lock, flags);
 
-	if (!(ci->platdata->flags & CI13XXX_PULLUP_ON_VBUS) ||
+	if (!(ci->platdata->flags & CI_HDRC_PULLUP_ON_VBUS) ||
 			ci->vbus_active) {
 		hw_device_state(ci, 0);
 		if (ci->platdata->notify_event)
 			ci->platdata->notify_event(ci,
-			CI13XXX_CONTROLLER_STOPPED_EVENT);
+			CI_HDRC_CONTROLLER_STOPPED_EVENT);
 		ci->driver = NULL;
 		spin_unlock_irqrestore(&ci->lock, flags);
 		_gadget_stop_activity(&ci->gadget);
@@ -1688,7 +1687,7 @@ static int ci13xxx_stop(struct usb_gadget *gadget,
  * This function returns IRQ_HANDLED if the IRQ has been handled
  * It locks access to registers
  */
-static irqreturn_t udc_irq(struct ci13xxx *ci)
+static irqreturn_t udc_irq(struct ci_hdrc *ci)
 {
 	irqreturn_t retval;
 	u32 intr;
@@ -1698,7 +1697,7 @@ static irqreturn_t udc_irq(struct ci13xxx *ci)
 
 	spin_lock(&ci->lock);
 
-	if (ci->platdata->flags & CI13XXX_REGS_SHARED) {
+	if (ci->platdata->flags & CI_HDRC_REGS_SHARED) {
 		if (hw_read(ci, OP_USBMODE, USBMODE_CM) !=
 				USBMODE_CM_DC) {
 			spin_unlock(&ci->lock);
@@ -1748,7 +1747,7 @@ static irqreturn_t udc_irq(struct ci13xxx *ci)
  * udc_start: initialize gadget role
  * @ci: chipidea controller
  */
-static int udc_start(struct ci13xxx *ci)
+static int udc_start(struct ci_hdrc *ci)
 {
 	struct device *dev = ci->dev;
 	int retval = 0;
@@ -1764,15 +1763,15 @@ static int udc_start(struct ci13xxx *ci)
 	INIT_LIST_HEAD(&ci->gadget.ep_list);
 
 	/* alloc resources */
-	ci->qh_pool = dma_pool_create("ci13xxx_qh", dev,
-				       sizeof(struct ci13xxx_qh),
-				       64, CI13XXX_PAGE_SIZE);
+	ci->qh_pool = dma_pool_create("ci_hw_qh", dev,
+				       sizeof(struct ci_hw_qh),
+				       64, CI_HDRC_PAGE_SIZE);
 	if (ci->qh_pool == NULL)
 		return -ENOMEM;
 
-	ci->td_pool = dma_pool_create("ci13xxx_td", dev,
-				       sizeof(struct ci13xxx_td),
-				       64, CI13XXX_PAGE_SIZE);
+	ci->td_pool = dma_pool_create("ci_hw_td", dev,
+				       sizeof(struct ci_hw_td),
+				       64, CI_HDRC_PAGE_SIZE);
 	if (ci->td_pool == NULL) {
 		retval = -ENOMEM;
 		goto free_qh_pool;
@@ -1790,14 +1789,14 @@ static int udc_start(struct ci13xxx *ci)
 			ci->transceiver = NULL;
 	}
 
-	if (ci->platdata->flags & CI13XXX_REQUIRE_TRANSCEIVER) {
+	if (ci->platdata->flags & CI_HDRC_REQUIRE_TRANSCEIVER) {
 		if (ci->transceiver == NULL) {
 			retval = -ENODEV;
 			goto destroy_eps;
 		}
 	}
 
-	if (!(ci->platdata->flags & CI13XXX_REGS_SHARED)) {
+	if (!(ci->platdata->flags & CI_HDRC_REGS_SHARED)) {
 		retval = hw_device_reset(ci, USBMODE_CM_DC);
 		if (retval)
 			goto put_transceiver;
@@ -1844,7 +1843,7 @@ free_qh_pool:
  *
  * No interrupts active, the IRQ has been released
  */
-static void udc_stop(struct ci13xxx *ci)
+static void udc_stop(struct ci_hdrc *ci)
 {
 	if (ci == NULL)
 		return;
@@ -1871,7 +1870,7 @@ static void udc_stop(struct ci13xxx *ci)
  *
  * This function enables the gadget role, if the device is "device capable".
  */
-int ci_hdrc_gadget_init(struct ci13xxx *ci)
+int ci_hdrc_gadget_init(struct ci_hdrc *ci)
 {
 	struct ci_role_driver *rdrv;
 

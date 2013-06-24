@@ -7,8 +7,8 @@
 
 #include <linux/usb/otg.h>
 
-struct ci13xxx;
-struct ci13xxx_platform_data {
+struct ci_hdrc;
+struct ci_hdrc_platform_data {
 	const char	*name;
 	/* offset of the capability registers */
 	uintptr_t	 capoffset;
@@ -16,24 +16,24 @@ struct ci13xxx_platform_data {
 	struct usb_phy	*phy;
 	enum usb_phy_interface phy_mode;
 	unsigned long	 flags;
-#define CI13XXX_REGS_SHARED		BIT(0)
-#define CI13XXX_REQUIRE_TRANSCEIVER	BIT(1)
-#define CI13XXX_PULLUP_ON_VBUS		BIT(2)
-#define CI13XXX_DISABLE_STREAMING	BIT(3)
+#define CI_HDRC_REGS_SHARED		BIT(0)
+#define CI_HDRC_REQUIRE_TRANSCEIVER	BIT(1)
+#define CI_HDRC_PULLUP_ON_VBUS		BIT(2)
+#define CI_HDRC_DISABLE_STREAMING	BIT(3)
 	enum usb_dr_mode	dr_mode;
-#define CI13XXX_CONTROLLER_RESET_EVENT		0
-#define CI13XXX_CONTROLLER_STOPPED_EVENT	1
-	void	(*notify_event) (struct ci13xxx *ci, unsigned event);
+#define CI_HDRC_CONTROLLER_RESET_EVENT		0
+#define CI_HDRC_CONTROLLER_STOPPED_EVENT	1
+	void	(*notify_event) (struct ci_hdrc *ci, unsigned event);
 };
 
 /* Default offset of capability registers */
 #define DEF_CAPOFFSET		0x100
 
-/* Add ci13xxx device */
-struct platform_device *ci13xxx_add_device(struct device *dev,
+/* Add ci hdrc device */
+struct platform_device *ci_hdrc_add_device(struct device *dev,
 			struct resource *res, int nres,
-			struct ci13xxx_platform_data *platdata);
-/* Remove ci13xxx device */
-void ci13xxx_remove_device(struct platform_device *pdev);
+			struct ci_hdrc_platform_data *platdata);
+/* Remove ci hdrc device */
+void ci_hdrc_remove_device(struct platform_device *pdev);
 
 #endif

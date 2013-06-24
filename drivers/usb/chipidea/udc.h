@@ -20,7 +20,7 @@
 #define TX        1  /* similar to USB_DIR_IN  but can be used as an index */
 
 /* DMA layout of transfer descriptors */
-struct ci13xxx_td {
+struct ci_hw_td {
 	/* 0 */
 	u32 next;
 #define TD_TERMINATE          BIT(0)
@@ -43,7 +43,7 @@ struct ci13xxx_td {
 } __attribute__ ((packed, aligned(4)));
 
 /* DMA layout of queue heads */
-struct ci13xxx_qh {
+struct ci_hw_qh {
 	/* 0 */
 	u32 cap;
 #define QH_IOS                BIT(15)
@@ -54,7 +54,7 @@ struct ci13xxx_qh {
 	/* 1 */
 	u32 curr;
 	/* 2 - 8 */
-	struct ci13xxx_td        td;
+	struct ci_hw_td		td;
 	/* 9 */
 	u32 RESERVED;
 	struct usb_ctrlrequest   setup;
@@ -63,11 +63,11 @@ struct ci13xxx_qh {
 struct td_node {
 	struct list_head	td;
 	dma_addr_t		dma;
-	struct ci13xxx_td	*ptr;
+	struct ci_hw_td		*ptr;
 };
 
 /**
- * struct ci13xxx_req - usb request representation
+ * struct ci_hw_req - usb request representation
  * @req: request structure for gadget drivers
  * @queue: link to QH list
  * @ptr: transfer descriptor for this request
@@ -75,7 +75,7 @@ struct td_node {
  * @zptr: transfer descriptor for the zero packet
  * @zdma: dma address of the zero packet's transfer descriptor
  */
-struct ci13xxx_req {
+struct ci_hw_req {
 	struct usb_request	req;
 	struct list_head	queue;
 	struct list_head	tds;
@@ -83,11 +83,11 @@ struct ci13xxx_req {
 
 #ifdef CONFIG_USB_CHIPIDEA_UDC
 
-int ci_hdrc_gadget_init(struct ci13xxx *ci);
+int ci_hdrc_gadget_init(struct ci_hdrc *ci);
 
 #else
 
-static inline int ci_hdrc_gadget_init(struct ci13xxx *ci)
+static inline int ci_hdrc_gadget_init(struct ci_hdrc *ci)
 {
 	return -ENXIO;
 }
