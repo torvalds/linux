@@ -1947,9 +1947,9 @@ static int clk_i2s_fracdiv_set_rate(struct clk *clk, unsigned long rate)
 
 		while (i--) {
 			cru_writel_frac((numerator - 1) << 16 | denominator, clk->clksel_con);
-			msleep(1);
+			mdelay(1);
 			cru_writel_frac(numerator << 16 | denominator, clk->clksel_con);
-			msleep(1);
+			mdelay(1);
 		}
 		CLKDATA_DBG("%s set rate=%lu,is ok\n", clk->name, rate);
 	} else {
