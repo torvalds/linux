@@ -1474,6 +1474,8 @@ struct drm_i915_file_private {
 #define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 
+#define HAS_IPS(dev)		(IS_ULT(dev))
+
 #define HAS_PIPE_CONTROL(dev) (INTEL_INFO(dev)->gen >= 5)
 
 #define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
