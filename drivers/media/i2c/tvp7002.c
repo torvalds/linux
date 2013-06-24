@@ -1020,7 +1020,6 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 	error = tvp7002_s_dv_timings(sd, &timings);
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	strlcpy(sd->name, TVP7002_MODULE_NAME, sizeof(sd->name));
 	device->pad.flags = MEDIA_PAD_FL_SOURCE;
 	device->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	device->sd.entity.flags |= MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
