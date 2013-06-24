@@ -303,6 +303,12 @@ arp_validate
 	such a situation, validation of backup slaves must be
 	disabled.
 
+	The validation of ARP requests on backup slaves is mainly
+	helping bonding to decide which slaves are more likely to
+	work in case of the active slave failure, it doesn't really
+	guarantee that the backup slave will work if it's selected
+	as the next active slave.
+
 	This option is useful in network configurations in which
 	multiple bonding hosts are concurrently issuing ARPs to one or
 	more targets beyond a common switch.  Should the link between
