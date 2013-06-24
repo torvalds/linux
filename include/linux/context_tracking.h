@@ -3,6 +3,7 @@
 
 #include <linux/sched.h>
 #include <linux/percpu.h>
+#include <linux/vtime.h>
 #include <asm/ptrace.h>
 
 struct context_tracking {
@@ -19,6 +20,26 @@ struct context_tracking {
 	} state;
 };
 
+static inline void __guest_enter(void)
+{
+	/*
+	 * This is running in ioctl context so we can avoid
+	 * the call to vtime_account() with its unnecessary idle check.
+	 */
+	vtime_account_system(current);
+	current->flags |= PF_VCPU;
+}
+
+static inline void __guest_exit(void)
+{
+	/*
+	 * This is running in ioctl context so we can avoid
+	 * the call to vtime_account() with its unnecessary idle check.
+	 */
+	vtime_account_system(current);
+	current->flags &= ~PF_VCPU;
+}
+
 #ifdef CONFIG_CONTEXT_TRACKING
 DECLARE_PER_CPU(struct context_tracking, context_tracking);
 
@@ -34,6 +55,9 @@ static inline bool context_tracking_active(void)
 
 extern void user_enter(void);
 extern void user_exit(void);
+
+extern void guest_enter(void);
+extern void guest_exit(void);
 
 static inline enum ctx_state exception_enter(void)
 {
@@ -57,6 +81,17 @@ extern void context_tracking_task_switch(struct task_struct *prev,
 static inline bool context_tracking_in_user(void) { return false; }
 static inline void user_enter(void) { }
 static inline void user_exit(void) { }
+
+static inline void guest_enter(void)
+{
+	__guest_enter();
+}
+
+static inline void guest_exit(void)
+{
+	__guest_exit();
+}
+
 static inline enum ctx_state exception_enter(void) { return 0; }
 static inline void exception_exit(enum ctx_state prev_ctx) { }
 static inline void context_tracking_task_switch(struct task_struct *prev,

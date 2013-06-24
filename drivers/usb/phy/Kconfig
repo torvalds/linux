@@ -4,11 +4,17 @@
 menuconfig USB_PHY
 	bool "USB Physical Layer drivers"
 	help
-	  USB controllers (those which are host, device or DRD) need a
-	  device to handle the physical layer signalling, commonly called
-	  a PHY.
+	  Most USB controllers have the physical layer signalling part
+	  (commonly called a PHY) built in.  However, dual-role devices
+	  (a.k.a. USB on-the-go) which support being USB master or slave
+	  with the same connector often use an external PHY.
 
-	  The following drivers add support for such PHY devices.
+	  The drivers in this submenu add support for such PHY devices.
+	  They are not needed for standard master-only (or the vast
+	  majority of slave-only) USB interfaces.
+
+	  If you're not sure if this applies to you, it probably doesn't;
+	  say N here.
 
 if USB_PHY
 
