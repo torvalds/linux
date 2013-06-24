@@ -3421,6 +3421,7 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 		if (!text_ptr) {
 			pr_err("Unable to locate '=' string in text_in:"
 			       " %s\n", text_in);
+			kfree(payload);
 			return -EINVAL;
 		}
 		/*
