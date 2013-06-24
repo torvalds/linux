@@ -537,6 +537,7 @@ enum no_fbc_reason {
 	FBC_NOT_TILED, /* buffer not tiled */
 	FBC_MULTIPLE_PIPES, /* more than one pipe active */
 	FBC_MODULE_PARAM,
+	FBC_CHIP_DEFAULT, /* disabled by default on this chip */
 };
 
 enum intel_pch {
