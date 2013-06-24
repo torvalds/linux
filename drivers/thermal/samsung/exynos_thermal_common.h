@@ -44,6 +44,13 @@
 
 #define EXYNOS_ZONE_COUNT	3
 
+enum trigger_type {
+	THROTTLE_ACTIVE = 1,
+	THROTTLE_PASSIVE,
+	SW_TRIP,
+	HW_TRIP,
+};
+
 /**
  * struct freq_clip_table
  * @freq_clip_max: maximum frequency allowed for this cooling state.

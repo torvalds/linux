@@ -32,6 +32,11 @@ enum calibration_type {
 	TYPE_NONE,
 };
 
+enum calibration_mode {
+	SW_MODE,
+	HW_MODE,
+};
+
 enum soc_type {
 	SOC_ARCH_EXYNOS4210 = 1,
 	SOC_ARCH_EXYNOS,
@@ -57,18 +62,15 @@ enum soc_type {
  *	3: temperature for trigger_level3 interrupt
  *	   condition for trigger_level3 interrupt:
  *		current temperature > threshold + trigger_levels[3]
- * @trigger_level0_en:
- *	1 = enable trigger_level0 interrupt,
- *	0 = disable trigger_level0 interrupt
- * @trigger_level1_en:
- *	1 = enable trigger_level1 interrupt,
- *	0 = disable trigger_level1 interrupt
- * @trigger_level2_en:
- *	1 = enable trigger_level2 interrupt,
- *	0 = disable trigger_level2 interrupt
- * @trigger_level3_en:
- *	1 = enable trigger_level3 interrupt,
- *	0 = disable trigger_level3 interrupt
+ * @trigger_type: defines the type of trigger. Possible values are,
+ *	THROTTLE_ACTIVE trigger type
+ *	THROTTLE_PASSIVE trigger type
+ *	SW_TRIP trigger type
+ *	HW_TRIP
+ * @trigger_enable[]: array to denote which trigger levels are enabled.
+ *	1 = enable trigger_level[] interrupt,
+ *	0 = disable trigger_level[] interrupt
+ * @max_trigger_level: max trigger level supported by the TMU
  * @gain: gain of amplifier in the positive-TC generator block
  *	0 <= gain <= 15
  * @reference_voltage: reference voltage of amplifier
@@ -78,7 +80,13 @@ enum soc_type {
  *	000, 100, 101, 110 and 111 can be different modes
  * @type: determines the type of SOC
  * @efuse_value: platform defined fuse value
+ * @min_efuse_value: minimum valid trimming data
+ * @max_efuse_value: maximum valid trimming data
+ * @first_point_trim: temp value of the first point trimming
+ * @second_point_trim: temp value of the second point trimming
+ * @default_temp_offset: default temperature offset in case of no trimming
  * @cal_type: calibration type for temperature
+ * @cal_mode: calibration mode for temperature
  * @freq_clip_table: Table representing frequency reduction percentage.
  * @freq_tab_count: Count of the above table as frequency reduction may
  *	applicable to only some of the trigger levels.
@@ -88,18 +96,23 @@ enum soc_type {
 struct exynos_tmu_platform_data {
 	u8 threshold;
 	u8 threshold_falling;
-	u8 trigger_levels[4];
-	bool trigger_level0_en;
-	bool trigger_level1_en;
-	bool trigger_level2_en;
-	bool trigger_level3_en;
-
+	u8 trigger_levels[MAX_TRIP_COUNT];
+	enum trigger_type trigger_type[MAX_TRIP_COUNT];
+	bool trigger_enable[MAX_TRIP_COUNT];
+	u8 max_trigger_level;
 	u8 gain;
 	u8 reference_voltage;
 	u8 noise_cancel_mode;
+
 	u32 efuse_value;
+	u32 min_efuse_value;
+	u32 max_efuse_value;
+	u8 first_point_trim;
+	u8 second_point_trim;
+	u8 default_temp_offset;
 
 	enum calibration_type cal_type;
+	enum calibration_mode cal_mode;
 	enum soc_type type;
 	struct freq_clip_table freq_tab[4];
 	unsigned int freq_tab_count;

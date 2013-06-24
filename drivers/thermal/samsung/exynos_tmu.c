@@ -49,7 +49,6 @@
 #define EXYNOS_TMU_BUF_SLOPE_SEL_MASK	0xf
 #define EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT	8
 #define EXYNOS_TMU_CORE_EN_SHIFT	0
-#define EXYNOS_TMU_DEF_CODE_TO_TEMP_OFFSET	50
 
 /* Exynos4210 specific registers */
 #define EXYNOS4210_TMU_REG_THRESHOLD_TEMP	0x44
@@ -94,9 +93,6 @@
 #define EXYNOS_TMU_INTEN_FALL1_SHIFT	20
 #define EXYNOS_TMU_INTEN_FALL2_SHIFT	24
 
-#define EFUSE_MIN_VALUE 40
-#define EFUSE_MAX_VALUE 100
-
 #ifdef CONFIG_THERMAL_EMULATION
 #define EXYNOS_EMUL_TIME	0x57F0
 #define EXYNOS_EMUL_TIME_MASK	0xffff
@@ -136,15 +132,16 @@ static int temp_to_code(struct exynos_tmu_data *data, u8 temp)
 
 	switch (pdata->cal_type) {
 	case TYPE_TWO_POINT_TRIMMING:
-		temp_code = (temp - 25) *
-		    (data->temp_error2 - data->temp_error1) /
-		    (85 - 25) + data->temp_error1;
+		temp_code = (temp - pdata->first_point_trim) *
+			(data->temp_error2 - data->temp_error1) /
+			(pdata->second_point_trim - pdata->first_point_trim) +
+			data->temp_error1;
 		break;
 	case TYPE_ONE_POINT_TRIMMING:
-		temp_code = temp + data->temp_error1 - 25;
+		temp_code = temp + data->temp_error1 - pdata->first_point_trim;
 		break;
 	default:
-		temp_code = temp + EXYNOS_TMU_DEF_CODE_TO_TEMP_OFFSET;
+		temp_code = temp + pdata->default_temp_offset;
 		break;
 	}
 out:
@@ -169,14 +166,16 @@ static int code_to_temp(struct exynos_tmu_data *data, u8 temp_code)
 
 	switch (pdata->cal_type) {
 	case TYPE_TWO_POINT_TRIMMING:
-		temp = (temp_code - data->temp_error1) * (85 - 25) /
-		    (data->temp_error2 - data->temp_error1) + 25;
+		temp = (temp_code - data->temp_error1) *
+			(pdata->second_point_trim - pdata->first_point_trim) /
+			(data->temp_error2 - data->temp_error1) +
+			pdata->first_point_trim;
 		break;
 	case TYPE_ONE_POINT_TRIMMING:
-		temp = temp_code - data->temp_error1 + 25;
+		temp = temp_code - data->temp_error1 + pdata->first_point_trim;
 		break;
 	default:
-		temp = temp_code - EXYNOS_TMU_DEF_CODE_TO_TEMP_OFFSET;
+		temp = temp_code - pdata->default_temp_offset;
 		break;
 	}
 out:
@@ -209,8 +208,8 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 	data->temp_error1 = trim_info & EXYNOS_TMU_TRIM_TEMP_MASK;
 	data->temp_error2 = ((trim_info >> 8) & EXYNOS_TMU_TRIM_TEMP_MASK);
 
-	if ((EFUSE_MIN_VALUE > data->temp_error1) ||
-			(data->temp_error1 > EFUSE_MAX_VALUE) ||
+	if ((pdata->min_efuse_value > data->temp_error1) ||
+			(data->temp_error1 > pdata->max_efuse_value) ||
 			(data->temp_error2 != 0))
 		data->temp_error1 = pdata->efuse_value;
 
@@ -300,10 +299,10 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 	if (on) {
 		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
 		interrupt_en =
-		pdata->trigger_level3_en << EXYNOS_TMU_INTEN_RISE3_SHIFT |
-		pdata->trigger_level2_en << EXYNOS_TMU_INTEN_RISE2_SHIFT |
-		pdata->trigger_level1_en << EXYNOS_TMU_INTEN_RISE1_SHIFT |
-		pdata->trigger_level0_en << EXYNOS_TMU_INTEN_RISE0_SHIFT;
+		pdata->trigger_enable[3] << EXYNOS_TMU_INTEN_RISE3_SHIFT |
+		pdata->trigger_enable[2] << EXYNOS_TMU_INTEN_RISE2_SHIFT |
+		pdata->trigger_enable[1] << EXYNOS_TMU_INTEN_RISE1_SHIFT |
+		pdata->trigger_enable[0] << EXYNOS_TMU_INTEN_RISE0_SHIFT;
 		if (pdata->threshold_falling)
 			interrupt_en |=
 				interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
@@ -533,9 +532,9 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 
 	/* Register the sensor with thermal management interface */
 	(&exynos_sensor_conf)->private_data = data;
-	exynos_sensor_conf.trip_data.trip_count = pdata->trigger_level0_en +
-			pdata->trigger_level1_en + pdata->trigger_level2_en +
-			pdata->trigger_level3_en;
+	exynos_sensor_conf.trip_data.trip_count = pdata->trigger_enable[0] +
+			pdata->trigger_enable[1] + pdata->trigger_enable[2]+
+			pdata->trigger_enable[3];
 
 	for (i = 0; i < exynos_sensor_conf.trip_data.trip_count; i++)
 		exynos_sensor_conf.trip_data.trip_val[i] =
