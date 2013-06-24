@@ -47,9 +47,11 @@ static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 u32 rtl8192_CalculateBitShift(u32 bitmask)
 {
 	u32 i;
+
 	i = ffs(bitmask) - 1;
 	return i;
 }
+
 /******************************************************************************
  * function:  This function checks different RF type to execute legal judgement.
  *            If RF Path is illegal, we will return false.
@@ -62,6 +64,7 @@ u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device *dev, u32 eRFPath)
 {
 	u8 ret = 1;
 	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	if (priv->rf_type == RF_2T4R) {
 		ret = 0;
 	} else if (priv->rf_type == RF_1T2R) {
@@ -72,6 +75,7 @@ u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device *dev, u32 eRFPath)
 	}
 	return ret;
 }
+
 /******************************************************************************
  * function:  This function sets specific bits to BB register
  * input:     net_device *dev
@@ -99,6 +103,7 @@ void rtl8192_setBBreg(struct net_device *dev, u32 reg_addr, u32 bitmask,
 	}
 	return;
 }
+
 /******************************************************************************
  * function:  This function reads specific bits from BB register
  * input:     net_device	*dev
@@ -117,6 +122,7 @@ u32 rtl8192_QueryBBReg(struct net_device *dev, u32 reg_addr, u32 bitmask)
 
 	return (reg & bitmask) >> bitshift;
 }
+
 static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 			      u32 offset);
 
@@ -145,6 +151,7 @@ u32 rtl8192_phy_RFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 	u32 ret = 0;
 	u32 new_offset = 0;
 	BB_REGISTER_DEFINITION_T *pPhyReg = &priv->PHYRegDef[eRFPath];
+
 	rtl8192_setBBreg(dev, pPhyReg->rfLSSIReadBack, bLSSIReadBackData, 0);
 	/* Make sure RF register offset is correct */
 	offset &= 0x3f;
@@ -200,7 +207,6 @@ u32 rtl8192_phy_RFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 	}
 
 	return ret;
-
 }
 
 /******************************************************************************
@@ -359,6 +365,7 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 		return reg;
 	}
 }
+
 /******************************************************************************
  * function:  We support firmware to execute RF-R/W.
  * input:     net_device        *dev
@@ -375,6 +382,7 @@ static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 	u32		data = 0;
 	u8		time = 0;
 	u32		tmp;
+
 	/* Firmware RF Write control.
 	 * We can not execute the scheme in the initial step.
 	 * Otherwise, RF-R/W will waste much time.
@@ -416,7 +424,6 @@ static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 	read_nic_dword(dev, RF_DATA, &reg);
 
 	return reg;
-
 }
 
 /******************************************************************************
@@ -468,9 +475,7 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
 	/* According to test, we must delay 20us to wait firmware
 	   to finish RF write operation. */
 	/* We support delay in firmware side now. */
-
 }
-
 
 /******************************************************************************
  * function:  This function reads BB parameters from header file we generate,
@@ -509,7 +514,6 @@ void rtl8192_phy_configmac(struct net_device *dev)
 				 pdwArray[i+2]);
 	}
 	return;
-
 }
 
 /******************************************************************************
@@ -521,13 +525,13 @@ void rtl8192_phy_configmac(struct net_device *dev)
  * notice:    BB parameters may change all the time, so please make
  *            sure it has been synced with the newest.
  *****************************************************************************/
-
 void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 {
 	u32 i;
 
 #ifdef TO_DO_LIST
 	u32 *rtl8192PhyRegArrayTable = NULL, *rtl8192AgcTabArrayTable = NULL;
+
 	if (Adapter->bInHctTest) {
 		PHY_REGArrayLen = PHY_REGArrayLengthDTM;
 		AGCTAB_ArrayLen = AGCTAB_ArrayLengthDTM;
@@ -556,9 +560,8 @@ void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 		}
 	}
 	return;
-
-
 }
+
 /******************************************************************************
  * function:  This function initializes Register definition offset for
  *            Radio Path A/B/C/D
@@ -571,6 +574,7 @@ void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 void rtl8192_InitBBRFRegDef(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	/* RF Interface Software Control */
 	/* 16 LSBs if read 32-bit from 0x870 */
 	priv->PHYRegDef[RF90_PATH_A].rfintfs = rFPGA0_XAB_RFInterfaceSW;
@@ -692,8 +696,8 @@ void rtl8192_InitBBRFRegDef(struct net_device *dev)
 	priv->PHYRegDef[RF90_PATH_B].rfLSSIReadBack = rFPGA0_XB_LSSIReadBack;
 	priv->PHYRegDef[RF90_PATH_C].rfLSSIReadBack = rFPGA0_XC_LSSIReadBack;
 	priv->PHYRegDef[RF90_PATH_D].rfLSSIReadBack = rFPGA0_XD_LSSIReadBack;
-
 }
+
 /******************************************************************************
  * function:  This function is to write register and then readback to make
  *            sure whether BB and RF is OK
@@ -712,6 +716,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 	u32 i, CheckTimes = 4, reg = 0;
 	u32 WriteAddr[4];
 	u32 WriteData[] = {0xfffff027, 0xaa55a02f, 0x00000027, 0x55aa502f};
+
 	/* Initialize register address offset to be checked */
 	WriteAddr[HW90_BLOCK_MAC] = 0x100;
 	WriteAddr[HW90_BLOCK_PHY0] = 0x900;
@@ -724,7 +729,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 		switch (CheckBlock) {
 		case HW90_BLOCK_MAC:
 			RT_TRACE(COMP_ERR,
-				 "PHY_CheckBBRFOK(): Never Write 0x100 here!");
+				 "PHY_CheckBBRFOK(): Never Write 0x100 here!\n");
 			break;
 
 		case HW90_BLOCK_PHY0:
@@ -767,7 +772,6 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 	return ret;
 }
 
-
 /******************************************************************************
  * function:  This function initializes BB&RF
  * input:     net_device	*dev
@@ -781,6 +785,7 @@ void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 reg_u8 = 0, eCheckItem = 0, status = 0;
 	u32 reg_u32 = 0;
+
 	/**************************************
 	 * <1> Initialize BaseBand
 	 *************************************/
@@ -843,6 +848,7 @@ void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 						     0x200);
 	return;
 }
+
 /******************************************************************************
  * function:  This function initializes BB&RF
  * input:     net_device	*dev
@@ -861,6 +867,7 @@ void rtl8192_BBConfig(struct net_device *dev)
 	return;
 }
 
+
 /******************************************************************************
  * function:  This function obtains the initialization value of Tx power Level
  *            offset
@@ -872,6 +879,7 @@ void rtl8192_phy_getTxPower(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 tmp;
+
 	read_nic_dword(dev, rTxAGC_Rate18_06,
 		       &priv->MCSTxPowerLevelOriginalOffset[0]);
 	read_nic_dword(dev, rTxAGC_Rate54_24,
@@ -1053,6 +1061,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 	return ret;
 
 }
+
 /******************************************************************************
  * function:  This function sets Tx Power of the channel
  * input:     net_device        *dev
@@ -1254,6 +1263,7 @@ u8 rtl8192_phy_SetSwChnlCmdArray(SwChnlCmd *CmdTable, u32 CmdTableIdx,
 
 	return true;
 }
+
 /******************************************************************************
  * function:  This function sets channel step by step
  * input:     net_device        *dev
@@ -1434,6 +1444,7 @@ void rtl8192_phy_FinishSwChnlNow(struct net_device *dev, u8 channel)
 			break;
 	}
 }
+
 /******************************************************************************
  * function:  Callback routine of the work item for switch channel.
  * input:     net_device	*dev
@@ -1478,20 +1489,20 @@ u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel)
 	case WIRELESS_MODE_A:
 	case WIRELESS_MODE_N_5G:
 		if (channel <= 14) {
-			RT_TRACE(COMP_ERR, "WIRELESS_MODE_A but channel<=14");
+			RT_TRACE(COMP_ERR, "WIRELESS_MODE_A but channel<=14\n");
 			return false;
 		}
 		break;
 	case WIRELESS_MODE_B:
 		if (channel > 14) {
-			RT_TRACE(COMP_ERR, "WIRELESS_MODE_B but channel>14");
+			RT_TRACE(COMP_ERR, "WIRELESS_MODE_B but channel>14\n");
 			return false;
 		}
 		break;
 	case WIRELESS_MODE_G:
 	case WIRELESS_MODE_N_24G:
 		if (channel > 14) {
-			RT_TRACE(COMP_ERR, "WIRELESS_MODE_G but channel>14");
+			RT_TRACE(COMP_ERR, "WIRELESS_MODE_G but channel>14\n");
 			return false;
 		}
 		break;
@@ -1512,7 +1523,6 @@ u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel)
 	priv->SwChnlInProgress = false;
 	return true;
 }
-
 
 /******************************************************************************
  * function:  Callback routine of the work item for set bandwidth mode.
@@ -1657,7 +1667,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	}
 	priv->SetBWModeInProgress = false;
 
-	RT_TRACE(COMP_SWBW, "<==SetBWMode819xUsb(), %d",
+	RT_TRACE(COMP_SWBW, "<==SetBWMode819xUsb(), %d\n",
 		 atomic_read(&priv->ieee80211->atm_swbw));
 }
 
