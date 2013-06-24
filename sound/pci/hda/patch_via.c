@@ -741,6 +741,8 @@ static int patch_vt1708(struct hda_codec *codec)
 	/* don't support the input jack switching due to lack of unsol event */
 	/* (it may work with polling, though, but it needs testing) */
 	spec->gen.suppress_auto_mic = 1;
+	/* Some machines show the broken speaker mute */
+	spec->gen.auto_mute_via_amp = 1;
 
 	/* Add HP and CD pin config connect bit re-config action */
 	vt1708_set_pinconfig_connect(codec, VT1708_HP_PIN_NID);
