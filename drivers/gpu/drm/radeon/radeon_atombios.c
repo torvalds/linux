@@ -3127,7 +3127,7 @@ union voltage_object {
 static ATOM_VOLTAGE_OBJECT *atom_lookup_voltage_object_v1(ATOM_VOLTAGE_OBJECT_INFO *v1,
 							  u8 voltage_type)
 {
-	u32 size = v1->sHeader.usStructureSize;
+	u32 size = le16_to_cpu(v1->sHeader.usStructureSize);
 	u32 offset = offsetof(ATOM_VOLTAGE_OBJECT_INFO, asVoltageObj[0]);
 	u8 *start = (u8 *)v1;
 
@@ -3144,7 +3144,7 @@ static ATOM_VOLTAGE_OBJECT *atom_lookup_voltage_object_v1(ATOM_VOLTAGE_OBJECT_IN
 static ATOM_VOLTAGE_OBJECT_V2 *atom_lookup_voltage_object_v2(ATOM_VOLTAGE_OBJECT_INFO_V2 *v2,
 							     u8 voltage_type)
 {
-	u32 size = v2->sHeader.usStructureSize;
+	u32 size = le16_to_cpu(v2->sHeader.usStructureSize);
 	u32 offset = offsetof(ATOM_VOLTAGE_OBJECT_INFO_V2, asVoltageObj[0]);
 	u8 *start = (u8*)v2;
 
@@ -3161,7 +3161,7 @@ static ATOM_VOLTAGE_OBJECT_V2 *atom_lookup_voltage_object_v2(ATOM_VOLTAGE_OBJECT
 static ATOM_VOLTAGE_OBJECT_V3 *atom_lookup_voltage_object_v3(ATOM_VOLTAGE_OBJECT_INFO_V3_1 *v3,
 							     u8 voltage_type, u8 voltage_mode)
 {
-	u32 size = v3->sHeader.usStructureSize;
+	u32 size = le16_to_cpu(v3->sHeader.usStructureSize);
 	u32 offset = offsetof(ATOM_VOLTAGE_OBJECT_INFO_V3_1, asVoltageObj[0]);
 	u8 *start = (u8*)v3;
 
@@ -3170,7 +3170,7 @@ static ATOM_VOLTAGE_OBJECT_V3 *atom_lookup_voltage_object_v3(ATOM_VOLTAGE_OBJECT
 		if ((vo->asGpioVoltageObj.sHeader.ucVoltageType == voltage_type) &&
 		    (vo->asGpioVoltageObj.sHeader.ucVoltageMode == voltage_mode))
 			return vo;
-		offset += vo->asGpioVoltageObj.sHeader.usSize;
+		offset += le16_to_cpu(vo->asGpioVoltageObj.sHeader.usSize);
 	}
 	return NULL;
 }
@@ -3708,7 +3708,7 @@ int radeon_atom_init_mc_reg_table(struct radeon_device *rdev,
 					while (!(reg_block->asRegIndexBuf[i].ucPreRegDataLength & ACCESS_PLACEHOLDER) &&
 					      (i < num_entries)) {
 						reg_table->mc_reg_address[i].s1 =
-							(u16)(reg_block->asRegIndexBuf[i].usRegIndex);
+							(u16)(le16_to_cpu(reg_block->asRegIndexBuf[i].usRegIndex));
 						reg_table->mc_reg_address[i].pre_reg_data =
 							(u8)(reg_block->asRegIndexBuf[i].ucPreRegDataLength);
 						i++;
