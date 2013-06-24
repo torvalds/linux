@@ -691,6 +691,18 @@ config GPIO_UCB1400
 	  This enables support for the Philips UCB1400 GPIO pins.
 	  The UCB1400 is an AC97 audio codec.
 
+comment "LPC GPIO expanders:"
+
+config GPIO_KEMPLD
+	tristate "Kontron ETX / COMexpress GPIO"
+	depends on MFD_KEMPLD
+	help
+	  This enables support for the PLD GPIO interface on some Kontron ETX
+	  and COMexpress (ETXexpress) modules.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-kempld.
+
 comment "MODULbus GPIO expanders:"
 
 config GPIO_JANZ_TTL
