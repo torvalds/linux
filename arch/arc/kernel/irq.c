@@ -28,7 +28,7 @@
  * -Disable all IRQs (on CPU side)
  * -Optionally, setup the High priority Interrupts as Level 2 IRQs
  */
-void __cpuinit arc_init_IRQ(void)
+void arc_init_IRQ(void)
 {
 	int level_mask = 0;
 

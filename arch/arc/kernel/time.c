@@ -61,7 +61,7 @@
 
 #ifdef CONFIG_ARC_HAS_RTSC
 
-int __cpuinit arc_counter_setup(void)
+int arc_counter_setup(void)
 {
 	/* RTSC insn taps into cpu clk, needs no setup */
 
@@ -116,7 +116,7 @@ static bool is_usable_as_clocksource(void)
 /*
  * set 32bit TIMER1 to keep counting monotonically and wraparound
  */
-int __cpuinit arc_counter_setup(void)
+int arc_counter_setup(void)
 {
 	write_aux_reg(ARC_REG_TIMER1_LIMIT, ARC_TIMER_MAX);
 	write_aux_reg(ARC_REG_TIMER1_CNT, 0);
@@ -223,7 +223,7 @@ static struct irqaction arc_timer_irq = {
  * Setup the local event timer for @cpu
  * N.B. weak so that some exotic ARC SoCs can completely override it
  */
-void __attribute__((weak)) __cpuinit arc_local_timer_setup(unsigned int cpu)
+void __attribute__((weak)) arc_local_timer_setup(unsigned int cpu)
 {
 	struct clock_event_device *clk = &per_cpu(arc_clockevent_device, cpu);
 

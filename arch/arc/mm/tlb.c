@@ -469,7 +469,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
  * the cpuinfo structure for later use.
  * No Validation is done here, simply read/convert the BCRs
  */
-void __cpuinit read_decode_mmu_bcr(void)
+void read_decode_mmu_bcr(void)
 {
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
 	unsigned int tmp;
@@ -530,7 +530,7 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 	return buf;
 }
 
-void __cpuinit arc_mmu_init(void)
+void arc_mmu_init(void)
 {
 	char str[256];
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;

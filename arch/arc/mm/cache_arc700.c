@@ -129,7 +129,7 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len)
  * the cpuinfo structure for later use.
  * No Validation done here, simply read/convert the BCRs
  */
-void __cpuinit read_decode_cache_bcr(void)
+void read_decode_cache_bcr(void)
 {
 	struct cpuinfo_arc_cache *p_ic, *p_dc;
 	unsigned int cpu = smp_processor_id();
@@ -167,7 +167,7 @@ void __cpuinit read_decode_cache_bcr(void)
  * 3. Enable the Caches, setup default flush mode for D-Cache
  * 3. Calculate the SHMLBA used by user space
  */
-void __cpuinit arc_cache_init(void)
+void arc_cache_init(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct cpuinfo_arc_cache *ic = &cpuinfo_arc700[cpu].icache;
