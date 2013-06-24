@@ -120,7 +120,7 @@ static inline void tegra_cpu_clock_resume(void)
 }
 #endif
 
-#ifdef ARCH_TEGRA
+#ifdef CONFIG_ARCH_TEGRA
 void tegra_periph_reset_deassert(struct clk *c);
 void tegra_periph_reset_assert(struct clk *c);
 #else
