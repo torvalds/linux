@@ -2198,11 +2198,11 @@ static inline int qeth_get_initial_mtu_for_card(struct qeth_card *card)
 		case QETH_LINK_TYPE_LANE_TR:
 			return 2000;
 		default:
-			return 1492;
+			return card->options.layer2 ? 1500 : 1492;
 		}
 	case QETH_CARD_TYPE_OSM:
 	case QETH_CARD_TYPE_OSX:
-		return 1492;
+		return card->options.layer2 ? 1500 : 1492;
 	default:
 		return 1500;
 	}
@@ -2275,9 +2275,10 @@ static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 		card->info.max_mtu = mtu;
 		card->qdio.in_buf_size = mtu + 2 * PAGE_SIZE;
 	} else {
-		card->info.initial_mtu = qeth_get_initial_mtu_for_card(card);
 		card->info.max_mtu = *(__u16 *)QETH_ULP_ENABLE_RESP_MAX_MTU(
 			iob->data);
+		card->info.initial_mtu = min(card->info.max_mtu,
+					qeth_get_initial_mtu_for_card(card));
 		card->qdio.in_buf_size = QETH_IN_BUF_SIZE_DEFAULT;
 	}
 
