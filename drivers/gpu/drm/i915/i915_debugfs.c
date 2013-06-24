@@ -222,7 +222,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 	return 0;
 }
 
-static int i915_gem_object_info(struct seq_file *m, void* data)
+static int i915_gem_object_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -310,7 +310,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	return 0;
 }
 
-static int i915_gem_gtt_info(struct seq_file *m, void* data)
+static int i915_gem_gtt_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -1377,8 +1377,7 @@ static int gen6_drpc_info(struct seq_file *m)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 rpmodectl1, gt_core_status, rcctl1, rc6vids = 0;
 	unsigned forcewake_count;
-	int count=0, ret;
-
+	int count = 0, ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
@@ -1781,7 +1780,7 @@ static int i915_gen6_forcewake_count_info(struct seq_file *m, void *data)
 
 static const char *swizzle_string(unsigned swizzle)
 {
-	switch(swizzle) {
+	switch (swizzle) {
 	case I915_BIT_6_SWIZZLE_NONE:
 		return "none";
 	case I915_BIT_6_SWIZZLE_9:
