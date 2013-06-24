@@ -735,6 +735,9 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 		return -EINVAL;
 	}
 
+	/*
+	 * SOC, MAC, BB, RADIO initvals.
+	 */
 	for (i = 0; i < ATH_INI_NUM_SPLIT; i++) {
 		ar9003_hw_prog_ini(ah, &ah->iniSOC[i], modesIndex);
 		ar9003_hw_prog_ini(ah, &ah->iniMac[i], modesIndex);
@@ -746,11 +749,39 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 					   modesIndex);
 	}
 
+	/*
+	 * RXGAIN initvals.
+	 */
 	REG_WRITE_ARRAY(&ah->iniModesRxGain, 1, regWrites);
+
+	if (AR_SREV_9462_20(ah)) {
+		/*
+		 * CUS217 mix LNA mode.
+		 */
+		if (ar9003_hw_get_rx_gain_idx(ah) == 2) {
+			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_bb_core,
+					1, regWrites);
+			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_bb_postamble,
+					modesIndex, regWrites);
+		}
+
+		/*
+		 * 5G-XLNA
+		 */
+		if ((ar9003_hw_get_rx_gain_idx(ah) == 2) ||
+		    (ar9003_hw_get_rx_gain_idx(ah) == 3)) {
+			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
+					modesIndex, regWrites);
+		}
+	}
+
 	if (AR_SREV_9550(ah))
 		REG_WRITE_ARRAY(&ah->ini_modes_rx_gain_bounds, modesIndex,
 				regWrites);
 
+	/*
+	 * TXGAIN initvals.
+	 */
 	if (AR_SREV_9550(ah)) {
 		int modes_txgain_index;
 
@@ -772,8 +803,14 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 		REG_WRITE_ARRAY(&ah->iniModesFastClock,
 				modesIndex, regWrites);
 
+	/*
+	 * Clock frequency initvals.
+	 */
 	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
 
+	/*
+	 * JAPAN regulatory.
+	 */
 	if (chan->channel == 2484)
 		ar9003_hw_prog_ini(ah, &ah->iniCckfirJapan2484, 1);
 
@@ -906,6 +943,11 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_channel *chan = ah->curchan;
 	struct ar5416AniState *aniState = &ah->ani;
+	int m1ThreshLow, m2ThreshLow;
+	int m1Thresh, m2Thresh;
+	int m2CountThr, m2CountThrLow;
+	int m1ThreshLowExt, m2ThreshLowExt;
+	int m1ThreshExt, m2ThreshExt;
 	s32 value, value2;
 
 	switch (cmd & ah->ani_function) {
@@ -919,6 +961,61 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		 */
 		u32 on = param ? 1 : 0;
 
+		if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
+			goto skip_ws_det;
+
+		m1ThreshLow = on ?
+			aniState->iniDef.m1ThreshLow : m1ThreshLow_off;
+		m2ThreshLow = on ?
+			aniState->iniDef.m2ThreshLow : m2ThreshLow_off;
+		m1Thresh = on ?
+			aniState->iniDef.m1Thresh : m1Thresh_off;
+		m2Thresh = on ?
+			aniState->iniDef.m2Thresh : m2Thresh_off;
+		m2CountThr = on ?
+			aniState->iniDef.m2CountThr : m2CountThr_off;
+		m2CountThrLow = on ?
+			aniState->iniDef.m2CountThrLow : m2CountThrLow_off;
+		m1ThreshLowExt = on ?
+			aniState->iniDef.m1ThreshLowExt : m1ThreshLowExt_off;
+		m2ThreshLowExt = on ?
+			aniState->iniDef.m2ThreshLowExt : m2ThreshLowExt_off;
+		m1ThreshExt = on ?
+			aniState->iniDef.m1ThreshExt : m1ThreshExt_off;
+		m2ThreshExt = on ?
+			aniState->iniDef.m2ThreshExt : m2ThreshExt_off;
+
+		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
+			      AR_PHY_SFCORR_LOW_M1_THRESH_LOW,
+			      m1ThreshLow);
+		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
+			      AR_PHY_SFCORR_LOW_M2_THRESH_LOW,
+			      m2ThreshLow);
+		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
+			      AR_PHY_SFCORR_M1_THRESH,
+			      m1Thresh);
+		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
+			      AR_PHY_SFCORR_M2_THRESH,
+			      m2Thresh);
+		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
+			      AR_PHY_SFCORR_M2COUNT_THR,
+			      m2CountThr);
+		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
+			      AR_PHY_SFCORR_LOW_M2COUNT_THR_LOW,
+			      m2CountThrLow);
+		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
+			      AR_PHY_SFCORR_EXT_M1_THRESH_LOW,
+			      m1ThreshLowExt);
+		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
+			      AR_PHY_SFCORR_EXT_M2_THRESH_LOW,
+			      m2ThreshLowExt);
+		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
+			      AR_PHY_SFCORR_EXT_M1_THRESH,
+			      m1ThreshExt);
+		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
+			      AR_PHY_SFCORR_EXT_M2_THRESH,
+			      m2ThreshExt);
+skip_ws_det:
 		if (on)
 			REG_SET_BIT(ah, AR_PHY_SFCORR_LOW,
 				    AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);

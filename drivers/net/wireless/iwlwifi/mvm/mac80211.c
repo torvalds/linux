@@ -81,12 +81,12 @@
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
 		.max = 1,
-		.types = BIT(NL80211_IFTYPE_STATION) |
-			BIT(NL80211_IFTYPE_AP),
+		.types = BIT(NL80211_IFTYPE_STATION),
 	},
 	{
 		.max = 1,
-		.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
+		.types = BIT(NL80211_IFTYPE_AP) |
+			BIT(NL80211_IFTYPE_P2P_CLIENT) |
 			BIT(NL80211_IFTYPE_P2P_GO),
 	},
 	{
@@ -236,20 +236,20 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	    mvm->trans->ops->d3_suspend &&
 	    mvm->trans->ops->d3_resume &&
 	    device_can_wakeup(mvm->trans->dev)) {
-		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
-					  WIPHY_WOWLAN_DISCONNECT |
-					  WIPHY_WOWLAN_EAP_IDENTITY_REQ |
-					  WIPHY_WOWLAN_RFKILL_RELEASE;
+		mvm->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
+				    WIPHY_WOWLAN_DISCONNECT |
+				    WIPHY_WOWLAN_EAP_IDENTITY_REQ |
+				    WIPHY_WOWLAN_RFKILL_RELEASE;
 		if (!iwlwifi_mod_params.sw_crypto)
-			hw->wiphy->wowlan.flags |=
-				WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
-				WIPHY_WOWLAN_GTK_REKEY_FAILURE |
-				WIPHY_WOWLAN_4WAY_HANDSHAKE;
+			mvm->wowlan.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
+					     WIPHY_WOWLAN_GTK_REKEY_FAILURE |
+					     WIPHY_WOWLAN_4WAY_HANDSHAKE;
 
-		hw->wiphy->wowlan.n_patterns = IWL_WOWLAN_MAX_PATTERNS;
-		hw->wiphy->wowlan.pattern_min_len = IWL_WOWLAN_MIN_PATTERN_LEN;
-		hw->wiphy->wowlan.pattern_max_len = IWL_WOWLAN_MAX_PATTERN_LEN;
-		hw->wiphy->wowlan.tcp = &iwl_mvm_wowlan_tcp_support;
+		mvm->wowlan.n_patterns = IWL_WOWLAN_MAX_PATTERNS;
+		mvm->wowlan.pattern_min_len = IWL_WOWLAN_MIN_PATTERN_LEN;
+		mvm->wowlan.pattern_max_len = IWL_WOWLAN_MAX_PATTERN_LEN;
+		mvm->wowlan.tcp = &iwl_mvm_wowlan_tcp_support;
+		hw->wiphy->wowlan = &mvm->wowlan;
 	}
 #endif
 
@@ -651,8 +651,7 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 * By now, all the AC queues are empty. The AGG queues are
 		 * empty too. We already got all the Tx responses for all the
 		 * packets in the queues. The drain work can have been
-		 * triggered. Flush it. This work item takes the mutex, so kill
-		 * it before we take it.
+		 * triggered. Flush it.
 		 */
 		flush_work(&mvm->sta_drained_wk);
 	}
@@ -778,7 +777,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		ret = iwl_mvm_power_update_mode(mvm, vif);
 		if (ret)
 			IWL_ERR(mvm, "failed to update power mode\n");
-	} else if (changes & BSS_CHANGED_DTIM_PERIOD) {
+	} else if (changes & BSS_CHANGED_BEACON_INFO) {
 		/*
 		 * We received a beacon _after_ association so
 		 * remove the session protection.

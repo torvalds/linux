@@ -9,6 +9,19 @@
 
 #include "ssb_private.h"
 
+static struct resource ssb_sflash_resource = {
+	.name	= "ssb_sflash",
+	.start	= SSB_FLASH2,
+	.end	= 0,
+	.flags  = IORESOURCE_MEM | IORESOURCE_READONLY,
+};
+
+struct platform_device ssb_sflash_dev = {
+	.name		= "ssb_sflash",
+	.resource	= &ssb_sflash_resource,
+	.num_resources	= 1,
+};
+
 struct ssb_sflash_tbl_e {
 	char *name;
 	u32 id;
@@ -16,7 +29,7 @@ struct ssb_sflash_tbl_e {
 	u16 numblocks;
 };
 
-static struct ssb_sflash_tbl_e ssb_sflash_st_tbl[] = {
+static const struct ssb_sflash_tbl_e ssb_sflash_st_tbl[] = {
 	{ "M25P20", 0x11, 0x10000, 4, },
 	{ "M25P40", 0x12, 0x10000, 8, },
 
@@ -27,7 +40,7 @@ static struct ssb_sflash_tbl_e ssb_sflash_st_tbl[] = {
 	{ 0 },
 };
 
-static struct ssb_sflash_tbl_e ssb_sflash_sst_tbl[] = {
+static const struct ssb_sflash_tbl_e ssb_sflash_sst_tbl[] = {
 	{ "SST25WF512", 1, 0x1000, 16, },
 	{ "SST25VF512", 0x48, 0x1000, 16, },
 	{ "SST25WF010", 2, 0x1000, 32, },
@@ -45,7 +58,7 @@ static struct ssb_sflash_tbl_e ssb_sflash_sst_tbl[] = {
 	{ 0 },
 };
 
-static struct ssb_sflash_tbl_e ssb_sflash_at_tbl[] = {
+static const struct ssb_sflash_tbl_e ssb_sflash_at_tbl[] = {
 	{ "AT45DB011", 0xc, 256, 512, },
 	{ "AT45DB021", 0x14, 256, 1024, },
 	{ "AT45DB041", 0x1c, 256, 2048, },
@@ -73,7 +86,8 @@ static void ssb_sflash_cmd(struct ssb_chipcommon *cc, u32 opcode)
 /* Initialize serial flash access */
 int ssb_sflash_init(struct ssb_chipcommon *cc)
 {
-	struct ssb_sflash_tbl_e *e;
+	struct ssb_sflash *sflash = &cc->dev->bus->mipscore.sflash;
+	const struct ssb_sflash_tbl_e *e;
 	u32 id, id2;
 
 	switch (cc->capabilities & SSB_CHIPCO_CAP_FLASHT) {
@@ -131,8 +145,20 @@ int ssb_sflash_init(struct ssb_chipcommon *cc)
 		return -ENOTSUPP;
 	}
 
+	sflash->window = SSB_FLASH2;
+	sflash->blocksize = e->blocksize;
+	sflash->numblocks = e->numblocks;
+	sflash->size = sflash->blocksize * sflash->numblocks;
+	sflash->present = true;
+
 	pr_info("Found %s serial flash (blocksize: 0x%X, blocks: %d)\n",
 		e->name, e->blocksize, e->numblocks);
+
+	/* Prepare platform device, but don't register it yet. It's too early,
+	 * malloc (required by device_private_init) is not available yet. */
+	ssb_sflash_dev.resource[0].end = ssb_sflash_dev.resource[0].start +
+					 sflash->size;
+	ssb_sflash_dev.dev.platform_data = sflash;
 
 	pr_err("Serial flash support is not implemented yet!\n");
 

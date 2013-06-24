@@ -66,7 +66,7 @@ ath5k_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		return;
 	}
 
-	ath5k_tx_queue(hw, skb, &ah->txqs[qnum]);
+	ath5k_tx_queue(hw, skb, &ah->txqs[qnum], control);
 }
 
 

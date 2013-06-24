@@ -542,8 +542,8 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	/*
 	 * Add the requested extra tx headroom in front of the skb.
 	 */
-	skb_push(entry->skb, rt2x00dev->ops->extra_tx_headroom);
-	memset(entry->skb->data, 0, rt2x00dev->ops->extra_tx_headroom);
+	skb_push(entry->skb, rt2x00dev->extra_tx_headroom);
+	memset(entry->skb->data, 0, rt2x00dev->extra_tx_headroom);
 
 	/*
 	 * Call the driver's write_tx_data function, if it exists.
@@ -596,7 +596,7 @@ static void rt2x00queue_bar_check(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_bar *bar = (void *) (entry->skb->data +
-				    rt2x00dev->ops->extra_tx_headroom);
+				    rt2x00dev->extra_tx_headroom);
 	struct rt2x00_bar_list_entry *bar_entry;
 
 	if (likely(!ieee80211_is_back_req(bar->frame_control)))
@@ -1161,8 +1161,7 @@ void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
-static int rt2x00queue_alloc_entries(struct data_queue *queue,
-				     const struct data_queue_desc *qdesc)
+static int rt2x00queue_alloc_entries(struct data_queue *queue)
 {
 	struct queue_entry *entries;
 	unsigned int entry_size;
@@ -1173,7 +1172,7 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 	/*
 	 * Allocate all queue entries.
 	 */
-	entry_size = sizeof(*entries) + qdesc->priv_size;
+	entry_size = sizeof(*entries) + queue->priv_size;
 	entries = kcalloc(queue->limit, entry_size, GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
@@ -1189,7 +1188,7 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 		entries[i].entry_idx = i;
 		entries[i].priv_data =
 		    QUEUE_ENTRY_PRIV_OFFSET(entries, i, queue->limit,
-					    sizeof(*entries), qdesc->priv_size);
+					    sizeof(*entries), queue->priv_size);
 	}
 
 #undef QUEUE_ENTRY_PRIV_OFFSET
@@ -1231,23 +1230,22 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 	int status;
 
-	status = rt2x00queue_alloc_entries(rt2x00dev->rx, rt2x00dev->ops->rx);
+	status = rt2x00queue_alloc_entries(rt2x00dev->rx);
 	if (status)
 		goto exit;
 
 	tx_queue_for_each(rt2x00dev, queue) {
-		status = rt2x00queue_alloc_entries(queue, rt2x00dev->ops->tx);
+		status = rt2x00queue_alloc_entries(queue);
 		if (status)
 			goto exit;
 	}
 
-	status = rt2x00queue_alloc_entries(rt2x00dev->bcn, rt2x00dev->ops->bcn);
+	status = rt2x00queue_alloc_entries(rt2x00dev->bcn);
 	if (status)
 		goto exit;
 
 	if (test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags)) {
-		status = rt2x00queue_alloc_entries(rt2x00dev->atim,
-						   rt2x00dev->ops->atim);
+		status = rt2x00queue_alloc_entries(rt2x00dev->atim);
 		if (status)
 			goto exit;
 	}
@@ -1278,38 +1276,9 @@ void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
-static const struct data_queue_desc *
-rt2x00queue_get_qdesc_by_qid(struct rt2x00_dev *rt2x00dev,
-			     enum data_queue_qid qid)
-{
-	switch (qid) {
-	case QID_RX:
-		return rt2x00dev->ops->rx;
-
-	case QID_AC_BE:
-	case QID_AC_BK:
-	case QID_AC_VO:
-	case QID_AC_VI:
-		return rt2x00dev->ops->tx;
-
-	case QID_BEACON:
-		return rt2x00dev->ops->bcn;
-
-	case QID_ATIM:
-		return rt2x00dev->ops->atim;
-
-	default:
-		break;
-	}
-
-	return NULL;
-}
-
 static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 			     struct data_queue *queue, enum data_queue_qid qid)
 {
-	const struct data_queue_desc *qdesc;
-
 	mutex_init(&queue->status_lock);
 	spin_lock_init(&queue->tx_lock);
 	spin_lock_init(&queue->index_lock);
@@ -1321,14 +1290,9 @@ static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 	queue->cw_min = 5;
 	queue->cw_max = 10;
 
-	qdesc = rt2x00queue_get_qdesc_by_qid(rt2x00dev, qid);
-	BUG_ON(!qdesc);
+	rt2x00dev->ops->queue_init(queue);
 
-	queue->limit = qdesc->entry_num;
-	queue->threshold = DIV_ROUND_UP(qdesc->entry_num, 10);
-	queue->data_size = qdesc->data_size;
-	queue->desc_size = qdesc->desc_size;
-	queue->winfo_size = qdesc->winfo_size;
+	queue->threshold = DIV_ROUND_UP(queue->limit, 10);
 }
 
 int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)

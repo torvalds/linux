@@ -228,10 +228,11 @@ struct iwl_tx_cmd {
 	__le16 len;
 	__le16 next_frame_len;
 	__le32 tx_flags;
-	/* DRAM_SCRATCH_API_U_VER_1 */
-	u8 try_cnt;
-	u8 btkill_cnt;
-	__le16 reserved;
+	struct {
+		u8 try_cnt;
+		u8 btkill_cnt;
+		__le16 reserved;
+	} scratch; /* DRAM_SCRATCH_API_U_VER_1 */
 	__le32 rate_n_flags;
 	u8 sta_id;
 	u8 sec_ctl;

@@ -517,9 +517,7 @@ void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,
 	ieee80211_mps_frame_release(sta, elems);
 out:
 	rcu_read_unlock();
-	sdata_lock(sdata);
 	ieee80211_mbss_info_change_notify(sdata, changed);
-	sdata_unlock(sdata);
 }
 
 static void mesh_plink_timer(unsigned long data)
@@ -1070,9 +1068,6 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 
 	rcu_read_unlock();
 
-	if (changed) {
-		sdata_lock(sdata);
+	if (changed)
 		ieee80211_mbss_info_change_notify(sdata, changed);
-		sdata_unlock(sdata);
-	}
 }

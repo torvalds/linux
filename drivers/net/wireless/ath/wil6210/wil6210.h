@@ -329,7 +329,6 @@ int wmi_set_ssid(struct wil6210_priv *wil, u8 ssid_len, const void *ssid);
 int wmi_get_ssid(struct wil6210_priv *wil, u8 *ssid_len, void *ssid);
 int wmi_set_channel(struct wil6210_priv *wil, int channel);
 int wmi_get_channel(struct wil6210_priv *wil, int *channel);
-int wmi_tx_eapol(struct wil6210_priv *wil, struct sk_buff *skb);
 int wmi_del_cipher_key(struct wil6210_priv *wil, u8 key_index,
 		       const void *mac_addr);
 int wmi_add_cipher_key(struct wil6210_priv *wil, u8 key_index,
