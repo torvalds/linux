@@ -387,25 +387,29 @@ static void sh_mmcif_request_dma(struct sh_mmcif_host *host,
 
 	host->dma_active = false;
 
-	if (!pdata)
+	if (pdata) {
+		if (pdata->slave_id_tx <= 0 || pdata->slave_id_rx <= 0)
+			return;
+	} else if (!host->pd->dev.of_node) {
 		return;
-
-	if (pdata->slave_id_tx <= 0 || pdata->slave_id_rx <= 0)
-		return;
+	}
 
 	/* We can only either use DMA for both Tx and Rx or not use it at all */
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	host->chan_tx = dma_request_channel(mask, shdma_chan_filter,
-					    (void *)pdata->slave_id_tx);
+	host->chan_tx = dma_request_slave_channel_compat(mask, shdma_chan_filter,
+				pdata ? (void *)pdata->slave_id_tx : NULL,
+				&host->pd->dev, "tx");
 	dev_dbg(&host->pd->dev, "%s: TX: got channel %p\n", __func__,
 		host->chan_tx);
 
 	if (!host->chan_tx)
 		return;
 
-	cfg.slave_id = pdata->slave_id_tx;
+	/* In the OF case the driver will get the slave ID from the DT */
+	if (pdata)
+		cfg.slave_id = pdata->slave_id_tx;
 	cfg.direction = DMA_MEM_TO_DEV;
 	cfg.dst_addr = res->start + MMCIF_CE_DATA;
 	cfg.src_addr = 0;
@@ -413,15 +417,17 @@ static void sh_mmcif_request_dma(struct sh_mmcif_host *host,
 	if (ret < 0)
 		goto ecfgtx;
 
-	host->chan_rx = dma_request_channel(mask, shdma_chan_filter,
-					    (void *)pdata->slave_id_rx);
+	host->chan_rx = dma_request_slave_channel_compat(mask, shdma_chan_filter,
+				pdata ? (void *)pdata->slave_id_rx : NULL,
+				&host->pd->dev, "rx");
 	dev_dbg(&host->pd->dev, "%s: RX: got channel %p\n", __func__,
 		host->chan_rx);
 
 	if (!host->chan_rx)
 		goto erqrx;
 
-	cfg.slave_id = pdata->slave_id_rx;
+	if (pdata)
+		cfg.slave_id = pdata->slave_id_rx;
 	cfg.direction = DMA_DEV_TO_MEM;
 	cfg.dst_addr = 0;
 	cfg.src_addr = res->start + MMCIF_CE_DATA;
