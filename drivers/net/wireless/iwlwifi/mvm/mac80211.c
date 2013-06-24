@@ -243,7 +243,11 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
-	return ieee80211_register_hw(mvm->hw);
+	ret = ieee80211_register_hw(mvm->hw);
+	if (ret)
+		iwl_mvm_leds_exit(mvm);
+
+	return ret;
 }
 
 static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
