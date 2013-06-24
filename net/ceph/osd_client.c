@@ -1337,10 +1337,6 @@ static void __send_request(struct ceph_osd_client *osdc,
 
 	ceph_msg_get(req->r_request); /* send consumes a ref */
 
-	/* Mark the request unsafe if this is the first timet's being sent. */
-
-	if (!req->r_sent && req->r_unsafe_callback)
-		req->r_unsafe_callback(req, true);
 	req->r_sent = req->r_osd->o_incarnation;
 
 	ceph_con_send(&req->r_osd->o_con, req->r_request);
@@ -1431,8 +1427,6 @@ static void handle_osds_timeout(struct work_struct *work)
 
 static void complete_request(struct ceph_osd_request *req)
 {
-	if (req->r_unsafe_callback)
-		req->r_unsafe_callback(req, false);
 	complete_all(&req->r_safe_completion);  /* fsync waiter */
 }
 
@@ -1559,14 +1553,20 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	mutex_unlock(&osdc->request_mutex);
 
 	if (!already_completed) {
+		if (req->r_unsafe_callback &&
+		    result >= 0 && !(flags & CEPH_OSD_FLAG_ONDISK))
+			req->r_unsafe_callback(req, true);
 		if (req->r_callback)
 			req->r_callback(req, msg);
 		else
 			complete_all(&req->r_completion);
 	}
 
-	if (flags & CEPH_OSD_FLAG_ONDISK)
+	if (flags & CEPH_OSD_FLAG_ONDISK) {
+		if (req->r_unsafe_callback && already_completed)
+			req->r_unsafe_callback(req, false);
 		complete_request(req);
+	}
 
 done:
 	dout("req=%p req->r_linger=%d\n", req, req->r_linger);
