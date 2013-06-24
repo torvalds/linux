@@ -30,6 +30,7 @@
 #include "intel_drv.h"
 #include "../../../platform/x86/intel_ips.h"
 #include <linux/module.h>
+#include <drm/i915_powerwell.h>
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 2
 
@@ -2465,8 +2466,8 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 
 /* Find the result with the highest level enabled. Check for enable_fbc_wm in
  * case both are at the same level. Prefer r1 in case they're the same. */
-struct hsw_wm_values *hsw_find_best_result(struct hsw_wm_values *r1,
-					   struct hsw_wm_values *r2)
+static struct hsw_wm_values *hsw_find_best_result(struct hsw_wm_values *r1,
+						  struct hsw_wm_values *r2)
 {
 	int i, val_r1 = 0, val_r2 = 0;
 
