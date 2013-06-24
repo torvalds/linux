@@ -403,19 +403,6 @@ static const struct of_device_id exynos_tmu_match[] = {
 MODULE_DEVICE_TABLE(of, exynos_tmu_match);
 #endif
 
-static struct platform_device_id exynos_tmu_driver_ids[] = {
-	{
-		.name		= "exynos4210-tmu",
-		.driver_data    = (kernel_ulong_t)EXYNOS4210_TMU_DRV_DATA,
-	},
-	{
-		.name		= "exynos5250-tmu",
-		.driver_data    = (kernel_ulong_t)EXYNOS5250_TMU_DRV_DATA,
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(platform, exynos_tmu_driver_ids);
-
 static inline struct  exynos_tmu_platform_data *exynos_get_driver_data(
 			struct platform_device *pdev)
 {
@@ -428,8 +415,7 @@ static inline struct  exynos_tmu_platform_data *exynos_get_driver_data(
 		return (struct exynos_tmu_platform_data *) match->data;
 	}
 #endif
-	return (struct exynos_tmu_platform_data *)
-			platform_get_device_id(pdev)->driver_data;
+	return NULL;
 }
 
 static int exynos_tmu_probe(struct platform_device *pdev)
@@ -586,7 +572,6 @@ static struct platform_driver exynos_tmu_driver = {
 	},
 	.probe = exynos_tmu_probe,
 	.remove	= exynos_tmu_remove,
-	.id_table = exynos_tmu_driver_ids,
 };
 
 module_platform_driver(exynos_tmu_driver);
