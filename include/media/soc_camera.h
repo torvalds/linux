@@ -87,7 +87,7 @@ struct soc_camera_host {
 	const char *drv_name;
 	struct soc_camera_host_ops *ops;
 	struct v4l2_async_subdev **asd;	/* Flat array, arranged in groups */
-	int *asd_sizes;			/* 0-terminated array of asd group sizes */
+	unsigned int *asd_sizes;	/* 0-terminated array of asd group sizes */
 };
 
 struct soc_camera_host_ops {

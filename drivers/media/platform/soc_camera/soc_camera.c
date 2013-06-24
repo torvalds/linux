@@ -1459,7 +1459,7 @@ static int soc_camera_async_complete(struct v4l2_async_notifier *notifier)
 }
 
 static int scan_async_group(struct soc_camera_host *ici,
-			    struct v4l2_async_subdev **asd, int size)
+			    struct v4l2_async_subdev **asd, unsigned int size)
 {
 	struct soc_camera_async_subdev *sasd;
 	struct soc_camera_async_client *sasc;
