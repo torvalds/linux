@@ -96,6 +96,9 @@
 #define AB8540_GPIOX_VBAT_START	51
 #define AB8540_GPIOX_VBAT_END	54
 
+#define ABX500_GPIO_INPUT	0
+#define ABX500_GPIO_OUTPUT	1
+
 struct abx500_pinctrl {
 	struct device *dev;
 	struct pinctrl_dev *pctldev;
@@ -286,12 +289,18 @@ static int abx500_gpio_direction_output(struct gpio_chip *chip,
 	int ret;
 
 	/* set direction as output */
-	ret = abx500_gpio_set_bits(chip, AB8500_GPIO_DIR1_REG, offset, 1);
+	ret = abx500_gpio_set_bits(chip,
+				AB8500_GPIO_DIR1_REG,
+				offset,
+				ABX500_GPIO_OUTPUT);
 	if (ret < 0)
 		return ret;
 
 	/* disable pull down */
-	ret = abx500_gpio_set_bits(chip, AB8500_GPIO_PUD1_REG, offset, 1);
+	ret = abx500_gpio_set_bits(chip,
+				AB8500_GPIO_PUD1_REG,
+				offset,
+				ABX500_GPIO_PULL_NONE);
 	if (ret < 0)
 		return ret;
 
@@ -312,7 +321,10 @@ static int abx500_gpio_direction_output(struct gpio_chip *chip,
 static int abx500_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	/* set the register as input */
-	return abx500_gpio_set_bits(chip, AB8500_GPIO_DIR1_REG, offset, 0);
+	return abx500_gpio_set_bits(chip,
+				AB8500_GPIO_DIR1_REG,
+				offset,
+				ABX500_GPIO_INPUT);
 }
 
 static int abx500_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -1032,7 +1044,8 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 		else
 			/* Chip only supports pull down */
 			ret = abx500_gpio_set_bits(chip, AB8500_GPIO_PUD1_REG,
-				offset, argument ? 0 : 1);
+				offset,
+				argument ? ABX500_GPIO_PULL_DOWN : ABX500_GPIO_PULL_NONE);
 		break;
 
 	case PIN_CONFIG_BIAS_PULL_UP:
