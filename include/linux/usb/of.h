@@ -10,19 +10,23 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/phy.h>
 
-#ifdef CONFIG_OF
-enum usb_phy_interface of_usb_get_phy_mode(struct device_node *np);
+#if IS_ENABLED(CONFIG_OF)
 enum usb_dr_mode of_usb_get_dr_mode(struct device_node *np);
+#else
+static inline enum usb_dr_mode of_usb_get_dr_mode(struct device_node *np)
+{
+	return USB_DR_MODE_UNKNOWN;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_USB_PHY)
+enum usb_phy_interface of_usb_get_phy_mode(struct device_node *np);
 #else
 static inline enum usb_phy_interface of_usb_get_phy_mode(struct device_node *np)
 {
 	return USBPHY_INTERFACE_MODE_UNKNOWN;
 }
 
-static inline enum usb_dr_mode of_usb_get_dr_mode(struct device_node *np)
-{
-	return USB_DR_MODE_UNKNOWN;
-}
 #endif
 
 #endif /* __LINUX_USB_OF_H */
