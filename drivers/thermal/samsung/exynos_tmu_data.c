@@ -175,3 +175,74 @@ struct exynos_tmu_init_data const exynos5250_default_tmu_data = {
 	.tmu_count = 1,
 };
 #endif
+
+#if defined(CONFIG_SOC_EXYNOS5440)
+static const struct exynos_tmu_registers exynos5440_tmu_registers = {
+	.triminfo_data = EXYNOS5440_TMU_S0_7_TRIM,
+	.triminfo_25_shift = EXYNOS_TRIMINFO_25_SHIFT,
+	.triminfo_85_shift = EXYNOS_TRIMINFO_85_SHIFT,
+	.tmu_ctrl = EXYNOS5440_TMU_S0_7_CTRL,
+	.buf_vref_sel_shift = EXYNOS_TMU_REF_VOLTAGE_SHIFT,
+	.buf_vref_sel_mask = EXYNOS_TMU_REF_VOLTAGE_MASK,
+	.therm_trip_mode_shift = EXYNOS_TMU_TRIP_MODE_SHIFT,
+	.therm_trip_mode_mask = EXYNOS_TMU_TRIP_MODE_MASK,
+	.therm_trip_en_shift = EXYNOS_TMU_THERM_TRIP_EN_SHIFT,
+	.buf_slope_sel_shift = EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT,
+	.buf_slope_sel_mask = EXYNOS_TMU_BUF_SLOPE_SEL_MASK,
+	.core_en_shift = EXYNOS_TMU_CORE_EN_SHIFT,
+	.tmu_status = EXYNOS5440_TMU_S0_7_STATUS,
+	.tmu_cur_temp = EXYNOS5440_TMU_S0_7_TEMP,
+	.threshold_th0 = EXYNOS5440_TMU_S0_7_TH0,
+	.threshold_th1 = EXYNOS5440_TMU_S0_7_TH1,
+	.threshold_th2 = EXYNOS5440_TMU_S0_7_TH2,
+	.threshold_th3_l0_shift = EXYNOS5440_TMU_TH_RISE4_SHIFT,
+	.tmu_inten = EXYNOS5440_TMU_S0_7_IRQEN,
+	.inten_rise_mask = EXYNOS5440_TMU_RISE_INT_MASK,
+	.inten_rise_shift = EXYNOS5440_TMU_RISE_INT_SHIFT,
+	.inten_fall_mask = EXYNOS5440_TMU_FALL_INT_MASK,
+	.inten_fall_shift = EXYNOS5440_TMU_FALL_INT_SHIFT,
+	.inten_rise0_shift = EXYNOS5440_TMU_INTEN_RISE0_SHIFT,
+	.inten_rise1_shift = EXYNOS5440_TMU_INTEN_RISE1_SHIFT,
+	.inten_rise2_shift = EXYNOS5440_TMU_INTEN_RISE2_SHIFT,
+	.inten_rise3_shift = EXYNOS5440_TMU_INTEN_RISE3_SHIFT,
+	.inten_fall0_shift = EXYNOS5440_TMU_INTEN_FALL0_SHIFT,
+	.tmu_intstat = EXYNOS5440_TMU_S0_7_IRQ,
+	.tmu_intclear = EXYNOS5440_TMU_S0_7_IRQ,
+	.tmu_irqstatus = EXYNOS5440_TMU_IRQ_STATUS,
+	.emul_con = EXYNOS5440_TMU_S0_7_DEBUG,
+	.emul_temp_shift = EXYNOS_EMUL_DATA_SHIFT,
+	.tmu_pmin = EXYNOS5440_TMU_PMIN,
+};
+
+#define EXYNOS5440_TMU_DATA \
+	.trigger_levels[0] = 100, \
+	.trigger_levels[4] = 105, \
+	.trigger_enable[0] = 1, \
+	.trigger_type[0] = SW_TRIP, \
+	.trigger_type[4] = HW_TRIP, \
+	.max_trigger_level = 5, \
+	.gain = 5, \
+	.reference_voltage = 16, \
+	.noise_cancel_mode = 4, \
+	.cal_type = TYPE_ONE_POINT_TRIMMING, \
+	.cal_mode = 0, \
+	.efuse_value = 0x5b2d, \
+	.min_efuse_value = 16, \
+	.max_efuse_value = 76, \
+	.first_point_trim = 25, \
+	.second_point_trim = 70, \
+	.default_temp_offset = 25, \
+	.type = SOC_ARCH_EXYNOS5440, \
+	.registers = &exynos5440_tmu_registers, \
+	.features = (TMU_SUPPORT_EMULATION | TMU_SUPPORT_FALLING_TRIP | \
+			TMU_SUPPORT_MULTI_INST | TMU_SUPPORT_SHARED_MEMORY),
+
+struct exynos_tmu_init_data const exynos5440_default_tmu_data = {
+	.tmu_data = {
+		{ EXYNOS5440_TMU_DATA } ,
+		{ EXYNOS5440_TMU_DATA } ,
+		{ EXYNOS5440_TMU_DATA } ,
+	},
+	.tmu_count = 3,
+};
+#endif
