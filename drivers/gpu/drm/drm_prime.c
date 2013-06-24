@@ -97,7 +97,7 @@ static struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 
 	sgt = obj->dev->driver->gem_prime_get_sg_table(obj);
 
-	if (!IS_ERR_OR_NULL(sgt)) {
+	if (!IS_ERR(sgt)) {
 		if (!dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir)) {
 			sg_free_table(sgt);
 			kfree(sgt);
@@ -437,8 +437,10 @@ struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages)
 	int ret;
 
 	sg = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
-	if (!sg)
+	if (!sg) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	ret = sg_alloc_table_from_pages(sg, pages, nr_pages, 0,
 				nr_pages << PAGE_SHIFT, GFP_KERNEL);
@@ -448,7 +450,7 @@ struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages)
 	return sg;
 out:
 	kfree(sg);
-	return NULL;
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(drm_prime_pages_to_sg);
 
