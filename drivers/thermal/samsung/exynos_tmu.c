@@ -40,6 +40,7 @@
  * @id: identifier of the one instance of the TMU controller.
  * @pdata: pointer to the tmu platform/configuration data
  * @base: base address of the single instance of the TMU controller.
+ * @base_common: base address of the common registers of the TMU controller.
  * @irq: irq number of the TMU controller.
  * @soc: id of the SOC type.
  * @irq_work: pointer to the irq work structure.
@@ -53,6 +54,7 @@ struct exynos_tmu_data {
 	int id;
 	struct exynos_tmu_platform_data *pdata;
 	void __iomem *base;
+	void __iomem *base_common;
 	int irq;
 	enum soc_type soc;
 	struct work_struct irq_work;
@@ -478,6 +480,24 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	data->pdata = pdata;
+	/*
+	 * Check if the TMU shares some registers and then try to map the
+	 * memory of common registers.
+	 */
+	if (!TMU_SUPPORTS(pdata, SHARED_MEMORY))
+		return 0;
+
+	if (of_address_to_resource(pdev->dev.of_node, 1, &res)) {
+		dev_err(&pdev->dev, "failed to get Resource 1\n");
+		return -ENODEV;
+	}
+
+	data->base_common = devm_ioremap(&pdev->dev, res.start,
+					resource_size(&res));
+	if (!data->base) {
+		dev_err(&pdev->dev, "Failed to ioremap memory\n");
+		return -ENOMEM;
+	}
 
 	return 0;
 }
