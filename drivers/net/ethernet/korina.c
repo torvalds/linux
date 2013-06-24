@@ -483,7 +483,6 @@ static void korina_multicast_list(struct net_device *dev)
 	unsigned long flags;
 	struct netdev_hw_addr *ha;
 	u32 recognise = ETH_ARC_AB;	/* always accept broadcasts */
-	int i;
 
 	/* Set promiscuous mode */
 	if (dev->flags & IFF_PROMISC)
