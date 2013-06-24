@@ -250,4 +250,17 @@ struct exynos_tmu_platform_data {
 	unsigned int freq_tab_count;
 	const struct exynos_tmu_registers *registers;
 };
+
+/**
+ * struct exynos_tmu_init_data
+ * @tmu_count: number of TMU instances.
+ * @tmu_data: platform data of all TMU instances.
+ * This structure is required to store data for multi-instance exynos tmu
+ * driver.
+ */
+struct exynos_tmu_init_data {
+	int tmu_count;
+	struct exynos_tmu_platform_data tmu_data[];
+};
+
 #endif /* _EXYNOS_TMU_H */

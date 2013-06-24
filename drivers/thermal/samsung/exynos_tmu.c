@@ -26,15 +26,32 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
 #include "exynos_thermal_common.h"
 #include "exynos_tmu.h"
 #include "exynos_tmu_data.h"
 
+/**
+ * struct exynos_tmu_data : A structure to hold the private data of the TMU
+	driver
+ * @id: identifier of the one instance of the TMU controller.
+ * @pdata: pointer to the tmu platform/configuration data
+ * @base: base address of the single instance of the TMU controller.
+ * @irq: irq number of the TMU controller.
+ * @soc: id of the SOC type.
+ * @irq_work: pointer to the irq work structure.
+ * @lock: lock to implement synchronization.
+ * @clk: pointer to the clock structure.
+ * @temp_error1: fused value of the first point trim.
+ * @temp_error2: fused value of the second point trim.
+ * @reg_conf: pointer to structure to register with core thermal.
+ */
 struct exynos_tmu_data {
+	int id;
 	struct exynos_tmu_platform_data *pdata;
-	struct resource *mem;
 	void __iomem *base;
 	int irq;
 	enum soc_type soc;
@@ -42,6 +59,7 @@ struct exynos_tmu_data {
 	struct mutex lock;
 	struct clk *clk;
 	u8 temp_error1, temp_error2;
+	struct thermal_sensor_conf *reg_conf;
 };
 
 /*
@@ -345,12 +363,6 @@ static int exynos_tmu_set_emulation(void *drv_data,	unsigned long temp)
 	{ return -EINVAL; }
 #endif/*CONFIG_THERMAL_EMULATION*/
 
-static struct thermal_sensor_conf exynos_sensor_conf = {
-	.name			= "exynos-therm",
-	.read_temperature	= (int (*)(void *))exynos_tmu_read,
-	.write_emul_temp	= exynos_tmu_set_emulation,
-};
-
 static void exynos_tmu_work(struct work_struct *work)
 {
 	struct exynos_tmu_data *data = container_of(work,
@@ -359,7 +371,7 @@ static void exynos_tmu_work(struct work_struct *work)
 	const struct exynos_tmu_registers *reg = pdata->registers;
 	unsigned int val_irq;
 
-	exynos_report_trigger(&exynos_sensor_conf);
+	exynos_report_trigger(data->reg_conf);
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
 
@@ -404,33 +416,73 @@ MODULE_DEVICE_TABLE(of, exynos_tmu_match);
 #endif
 
 static inline struct  exynos_tmu_platform_data *exynos_get_driver_data(
-			struct platform_device *pdev)
+			struct platform_device *pdev, int id)
 {
 #ifdef CONFIG_OF
+	struct  exynos_tmu_init_data *data_table;
+	struct exynos_tmu_platform_data *tmu_data;
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(exynos_tmu_match, pdev->dev.of_node);
 		if (!match)
 			return NULL;
-		return (struct exynos_tmu_platform_data *) match->data;
+		data_table = (struct exynos_tmu_init_data *) match->data;
+		if (!data_table || id >= data_table->tmu_count)
+			return NULL;
+		tmu_data = data_table->tmu_data;
+		return (struct exynos_tmu_platform_data *) (tmu_data + id);
 	}
 #endif
 	return NULL;
 }
 
-static int exynos_tmu_probe(struct platform_device *pdev)
+static int exynos_map_dt_data(struct platform_device *pdev)
 {
-	struct exynos_tmu_data *data;
-	struct exynos_tmu_platform_data *pdata = pdev->dev.platform_data;
-	int ret, i;
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exynos_tmu_platform_data *pdata;
+	struct resource res;
 
-	if (!pdata)
-		pdata = exynos_get_driver_data(pdev);
+	if (!data)
+		return -ENODEV;
 
+	data->id = of_alias_get_id(pdev->dev.of_node, "tmuctrl");
+	if (data->id < 0)
+		data->id = 0;
+
+	data->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	if (data->irq <= 0) {
+		dev_err(&pdev->dev, "failed to get IRQ\n");
+		return -ENODEV;
+	}
+
+	if (of_address_to_resource(pdev->dev.of_node, 0, &res)) {
+		dev_err(&pdev->dev, "failed to get Resource 0\n");
+		return -ENODEV;
+	}
+
+	data->base = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
+	if (!data->base) {
+		dev_err(&pdev->dev, "Failed to ioremap memory\n");
+		return -EADDRNOTAVAIL;
+	}
+
+	pdata = exynos_get_driver_data(pdev, data->id);
 	if (!pdata) {
 		dev_err(&pdev->dev, "No platform init data supplied.\n");
 		return -ENODEV;
 	}
+	data->pdata = pdata;
+
+	return 0;
+}
+
+static int exynos_tmu_probe(struct platform_device *pdev)
+{
+	struct exynos_tmu_data *data;
+	struct exynos_tmu_platform_data *pdata;
+	struct thermal_sensor_conf *sensor_conf;
+	int ret, i;
+
 	data = devm_kzalloc(&pdev->dev, sizeof(struct exynos_tmu_data),
 					GFP_KERNEL);
 	if (!data) {
@@ -438,25 +490,16 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	data->irq = platform_get_irq(pdev, 0);
-	if (data->irq < 0) {
-		dev_err(&pdev->dev, "Failed to get platform irq\n");
-		return data->irq;
-	}
+	platform_set_drvdata(pdev, data);
+	mutex_init(&data->lock);
+
+	ret = exynos_map_dt_data(pdev);
+	if (ret)
+		return ret;
+
+	pdata = data->pdata;
 
 	INIT_WORK(&data->irq_work, exynos_tmu_work);
-
-	data->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_ioremap_resource(&pdev->dev, data->mem);
-	if (IS_ERR(data->base))
-		return PTR_ERR(data->base);
-
-	ret = devm_request_irq(&pdev->dev, data->irq, exynos_tmu_irq,
-		IRQF_TRIGGER_RISING, "exynos-tmu", data);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
-		return ret;
-	}
 
 	data->clk = devm_clk_get(&pdev->dev, "tmu_apbif");
 	if (IS_ERR(data->clk)) {
@@ -477,10 +520,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	data->pdata = pdata;
-	platform_set_drvdata(pdev, data);
-	mutex_init(&data->lock);
-
 	ret = exynos_tmu_initialize(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize TMU\n");
@@ -489,33 +528,52 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 
 	exynos_tmu_control(pdev, true);
 
-	/* Register the sensor with thermal management interface */
-	(&exynos_sensor_conf)->driver_data = data;
-	exynos_sensor_conf.trip_data.trip_count = pdata->trigger_enable[0] +
+	/* Allocate a structure to register with the exynos core thermal */
+	sensor_conf = devm_kzalloc(&pdev->dev,
+				sizeof(struct thermal_sensor_conf), GFP_KERNEL);
+	if (!sensor_conf) {
+		dev_err(&pdev->dev, "Failed to allocate registration struct\n");
+		ret = -ENOMEM;
+		goto err_clk;
+	}
+	sprintf(sensor_conf->name, "therm_zone%d", data->id);
+	sensor_conf->read_temperature = (int (*)(void *))exynos_tmu_read;
+	sensor_conf->write_emul_temp =
+		(int (*)(void *, unsigned long))exynos_tmu_set_emulation;
+	sensor_conf->driver_data = data;
+	sensor_conf->trip_data.trip_count = pdata->trigger_enable[0] +
 			pdata->trigger_enable[1] + pdata->trigger_enable[2]+
 			pdata->trigger_enable[3];
 
-	for (i = 0; i < exynos_sensor_conf.trip_data.trip_count; i++) {
-		exynos_sensor_conf.trip_data.trip_val[i] =
+	for (i = 0; i < sensor_conf->trip_data.trip_count; i++) {
+		sensor_conf->trip_data.trip_val[i] =
 			pdata->threshold + pdata->trigger_levels[i];
-		exynos_sensor_conf.trip_data.trip_type[i] =
+		sensor_conf->trip_data.trip_type[i] =
 					pdata->trigger_type[i];
 	}
 
-	exynos_sensor_conf.trip_data.trigger_falling = pdata->threshold_falling;
+	sensor_conf->trip_data.trigger_falling = pdata->threshold_falling;
 
-	exynos_sensor_conf.cooling_data.freq_clip_count =
-						pdata->freq_tab_count;
+	sensor_conf->cooling_data.freq_clip_count = pdata->freq_tab_count;
 	for (i = 0; i < pdata->freq_tab_count; i++) {
-		exynos_sensor_conf.cooling_data.freq_data[i].freq_clip_max =
+		sensor_conf->cooling_data.freq_data[i].freq_clip_max =
 					pdata->freq_tab[i].freq_clip_max;
-		exynos_sensor_conf.cooling_data.freq_data[i].temp_level =
+		sensor_conf->cooling_data.freq_data[i].temp_level =
 					pdata->freq_tab[i].temp_level;
 	}
-
-	ret = exynos_register_thermal(&exynos_sensor_conf);
+	sensor_conf->dev = &pdev->dev;
+	/* Register the sensor with thermal management interface */
+	ret = exynos_register_thermal(sensor_conf);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register thermal interface\n");
+		goto err_clk;
+	}
+	data->reg_conf = sensor_conf;
+
+	ret = devm_request_irq(&pdev->dev, data->irq, exynos_tmu_irq,
+		IRQF_TRIGGER_RISING | IRQF_SHARED, dev_name(&pdev->dev), data);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
 		goto err_clk;
 	}
 
@@ -531,7 +589,7 @@ static int exynos_tmu_remove(struct platform_device *pdev)
 
 	exynos_tmu_control(pdev, false);
 
-	exynos_unregister_thermal(&exynos_sensor_conf);
+	exynos_unregister_thermal(data->reg_conf);
 
 	clk_unprepare(data->clk);
 

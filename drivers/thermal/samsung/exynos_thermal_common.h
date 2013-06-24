@@ -85,6 +85,7 @@ struct thermal_sensor_conf {
 	struct thermal_cooling_conf cooling_data;
 	void *driver_data;
 	void *pzone_data;
+	struct device *dev;
 };
 
 /*Functions used exynos based thermal sensor driver*/

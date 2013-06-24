@@ -94,14 +94,14 @@
 #define EXYNOS_MAX_TRIGGER_PER_REG	4
 
 #if defined(CONFIG_CPU_EXYNOS4210)
-extern struct exynos_tmu_platform_data const exynos4210_default_tmu_data;
+extern struct exynos_tmu_init_data const exynos4210_default_tmu_data;
 #define EXYNOS4210_TMU_DRV_DATA (&exynos4210_default_tmu_data)
 #else
 #define EXYNOS4210_TMU_DRV_DATA (NULL)
 #endif
 
 #if (defined(CONFIG_SOC_EXYNOS5250) || defined(CONFIG_SOC_EXYNOS4412))
-extern struct exynos_tmu_platform_data const exynos5250_default_tmu_data;
+extern struct exynos_tmu_init_data const exynos5250_default_tmu_data;
 #define EXYNOS5250_TMU_DRV_DATA (&exynos5250_default_tmu_data)
 #else
 #define EXYNOS5250_TMU_DRV_DATA (NULL)

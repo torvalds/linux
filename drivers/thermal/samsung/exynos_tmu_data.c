@@ -48,38 +48,44 @@ static const struct exynos_tmu_registers exynos4210_tmu_registers = {
 	.tmu_intstat = EXYNOS_TMU_REG_INTSTAT,
 	.tmu_intclear = EXYNOS_TMU_REG_INTCLEAR,
 };
-struct exynos_tmu_platform_data const exynos4210_default_tmu_data = {
-	.threshold = 80,
-	.trigger_levels[0] = 5,
-	.trigger_levels[1] = 20,
-	.trigger_levels[2] = 30,
-	.trigger_enable[0] = true,
-	.trigger_enable[1] = true,
-	.trigger_enable[2] = true,
-	.trigger_enable[3] = false,
-	.trigger_type[0] = THROTTLE_ACTIVE,
-	.trigger_type[1] = THROTTLE_ACTIVE,
-	.trigger_type[2] = SW_TRIP,
-	.max_trigger_level = 4,
-	.gain = 15,
-	.reference_voltage = 7,
-	.cal_type = TYPE_ONE_POINT_TRIMMING,
-	.min_efuse_value = 40,
-	.max_efuse_value = 100,
-	.first_point_trim = 25,
-	.second_point_trim = 85,
-	.default_temp_offset = 50,
-	.freq_tab[0] = {
-		.freq_clip_max = 800 * 1000,
-		.temp_level = 85,
+
+struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
+	.tmu_data = {
+		{
+		.threshold = 80,
+		.trigger_levels[0] = 5,
+		.trigger_levels[1] = 20,
+		.trigger_levels[2] = 30,
+		.trigger_enable[0] = true,
+		.trigger_enable[1] = true,
+		.trigger_enable[2] = true,
+		.trigger_enable[3] = false,
+		.trigger_type[0] = THROTTLE_ACTIVE,
+		.trigger_type[1] = THROTTLE_ACTIVE,
+		.trigger_type[2] = SW_TRIP,
+		.max_trigger_level = 4,
+		.gain = 15,
+		.reference_voltage = 7,
+		.cal_type = TYPE_ONE_POINT_TRIMMING,
+		.min_efuse_value = 40,
+		.max_efuse_value = 100,
+		.first_point_trim = 25,
+		.second_point_trim = 85,
+		.default_temp_offset = 50,
+		.freq_tab[0] = {
+			.freq_clip_max = 800 * 1000,
+			.temp_level = 85,
+			},
+		.freq_tab[1] = {
+			.freq_clip_max = 200 * 1000,
+			.temp_level = 100,
+		},
+		.freq_tab_count = 2,
+		.type = SOC_ARCH_EXYNOS4210,
+		.registers = &exynos4210_tmu_registers,
+		},
 	},
-	.freq_tab[1] = {
-		.freq_clip_max = 200 * 1000,
-		.temp_level = 100,
-	},
-	.freq_tab_count = 2,
-	.type = SOC_ARCH_EXYNOS4210,
-	.registers = &exynos4210_tmu_registers,
+	.tmu_count = 1,
 };
 #endif
 
@@ -120,41 +126,48 @@ static const struct exynos_tmu_registers exynos5250_tmu_registers = {
 	.emul_time_shift = EXYNOS_EMUL_TIME_SHIFT,
 	.emul_time_mask = EXYNOS_EMUL_TIME_MASK,
 };
-struct exynos_tmu_platform_data const exynos5250_default_tmu_data = {
-	.threshold_falling = 10,
-	.trigger_levels[0] = 85,
-	.trigger_levels[1] = 103,
-	.trigger_levels[2] = 110,
-	.trigger_levels[3] = 120,
-	.trigger_enable[0] = true,
-	.trigger_enable[1] = true,
-	.trigger_enable[2] = true,
-	.trigger_enable[3] = false,
-	.trigger_type[0] = THROTTLE_ACTIVE,
-	.trigger_type[1] = THROTTLE_ACTIVE,
-	.trigger_type[2] = SW_TRIP,
-	.trigger_type[3] = HW_TRIP,
-	.max_trigger_level = 4,
-	.gain = 8,
-	.reference_voltage = 16,
-	.noise_cancel_mode = 4,
-	.cal_type = TYPE_ONE_POINT_TRIMMING,
-	.efuse_value = 55,
-	.min_efuse_value = 40,
-	.max_efuse_value = 100,
-	.first_point_trim = 25,
-	.second_point_trim = 85,
-	.default_temp_offset = 50,
-	.freq_tab[0] = {
-		.freq_clip_max = 800 * 1000,
-		.temp_level = 85,
-	},
-	.freq_tab[1] = {
-		.freq_clip_max = 200 * 1000,
-		.temp_level = 103,
-	},
-	.freq_tab_count = 2,
-	.type = SOC_ARCH_EXYNOS,
+
+#define EXYNOS5250_TMU_DATA \
+	.threshold_falling = 10, \
+	.trigger_levels[0] = 85, \
+	.trigger_levels[1] = 103, \
+	.trigger_levels[2] = 110, \
+	.trigger_levels[3] = 120, \
+	.trigger_enable[0] = true, \
+	.trigger_enable[1] = true, \
+	.trigger_enable[2] = true, \
+	.trigger_enable[3] = false, \
+	.trigger_type[0] = THROTTLE_ACTIVE, \
+	.trigger_type[1] = THROTTLE_ACTIVE, \
+	.trigger_type[2] = SW_TRIP, \
+	.trigger_type[3] = HW_TRIP, \
+	.max_trigger_level = 4, \
+	.gain = 8, \
+	.reference_voltage = 16, \
+	.noise_cancel_mode = 4, \
+	.cal_type = TYPE_ONE_POINT_TRIMMING, \
+	.efuse_value = 55, \
+	.min_efuse_value = 40, \
+	.max_efuse_value = 100, \
+	.first_point_trim = 25, \
+	.second_point_trim = 85, \
+	.default_temp_offset = 50, \
+	.freq_tab[0] = { \
+		.freq_clip_max = 800 * 1000, \
+		.temp_level = 85, \
+	}, \
+	.freq_tab[1] = { \
+		.freq_clip_max = 200 * 1000, \
+		.temp_level = 103, \
+	}, \
+	.freq_tab_count = 2, \
+	.type = SOC_ARCH_EXYNOS, \
 	.registers = &exynos5250_tmu_registers,
+
+struct exynos_tmu_init_data const exynos5250_default_tmu_data = {
+	.tmu_data = {
+		{ EXYNOS5250_TMU_DATA },
+	},
+	.tmu_count = 1,
 };
 #endif
