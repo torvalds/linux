@@ -286,17 +286,11 @@ enum {
 struct cgroupfs_root {
 	struct super_block *sb;
 
-	/*
-	 * The bitmask of subsystems intended to be attached to this
-	 * hierarchy
-	 */
+	/* The bitmask of subsystems attached to this hierarchy */
 	unsigned long subsys_mask;
 
 	/* Unique id for this hierarchy. */
 	int hierarchy_id;
-
-	/* The bitmask of subsystems currently attached to this hierarchy */
-	unsigned long actual_subsys_mask;
 
 	/* A list running through the attached subsystems */
 	struct list_head subsys_list;
