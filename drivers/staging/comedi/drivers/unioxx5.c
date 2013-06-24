@@ -371,15 +371,13 @@ static int __unioxx5_subdev_init(struct comedi_device *dev,
 	int i, to, ndef_flag = 0;
 	int ret;
 
-	usp = kzalloc(sizeof(*usp), GFP_KERNEL);
-	if (usp == NULL)
+	usp = comedi_alloc_spriv(s, sizeof(*usp));
+	if (!usp)
 		return -ENOMEM;
 
 	ret = __comedi_request_region(dev, iobase, UNIOXX5_SIZE);
-	if (ret) {
-		kfree(usp);
+	if (ret)
 		return ret;
-	}
 	usp->usp_iobase = iobase;
 
 	/* defining modules types */
@@ -413,7 +411,6 @@ static int __unioxx5_subdev_init(struct comedi_device *dev,
 
 	/* initial subdevice for digital or analog i/o */
 	s->type = COMEDI_SUBD_DIO;
-	s->private = usp;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = UNIOXX5_NUM_OF_CHANS;
 	s->maxdata = 0xFFF;
@@ -483,7 +480,6 @@ static void unioxx5_detach(struct comedi_device *dev)
 		spriv = s->private;
 		if (spriv && spriv->usp_iobase)
 			release_region(spriv->usp_iobase, UNIOXX5_SIZE);
-		kfree(spriv);
 	}
 }
 
