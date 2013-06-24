@@ -87,11 +87,16 @@
 #define ADAU1701_OSCIPOW_OPD		0x04
 #define ADAU1701_DACSET_DACINIT		1
 
+#define ADAU1707_CLKDIV_UNSET		(-1UL)
+
 #define ADAU1701_FIRMWARE "adau1701.bin"
 
 struct adau1701 {
 	int gpio_nreset;
+	int gpio_pll_mode[2];
 	unsigned int dai_fmt;
+	unsigned int pll_clkdiv;
+	unsigned int sysclk;
 };
 
 static const struct snd_kcontrol_new adau1701_controls[] = {
@@ -184,11 +189,37 @@ static unsigned int adau1701_read(struct snd_soc_codec *codec, unsigned int reg)
 	return value;
 }
 
-static int adau1701_reset(struct snd_soc_codec *codec)
+static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
 {
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *client = to_i2c_client(codec->dev);
 	int ret;
+
+	if (clkdiv != ADAU1707_CLKDIV_UNSET &&
+	    gpio_is_valid(adau1701->gpio_pll_mode[0]) &&
+	    gpio_is_valid(adau1701->gpio_pll_mode[1])) {
+		switch (clkdiv) {
+		case 64:
+			gpio_set_value(adau1701->gpio_pll_mode[0], 0);
+			gpio_set_value(adau1701->gpio_pll_mode[1], 0);
+			break;
+		case 256:
+			gpio_set_value(adau1701->gpio_pll_mode[0], 0);
+			gpio_set_value(adau1701->gpio_pll_mode[1], 1);
+			break;
+		case 384:
+			gpio_set_value(adau1701->gpio_pll_mode[0], 1);
+			gpio_set_value(adau1701->gpio_pll_mode[1], 0);
+			break;
+		case 0:	/* fallback */
+		case 512:
+			gpio_set_value(adau1701->gpio_pll_mode[0], 1);
+			gpio_set_value(adau1701->gpio_pll_mode[1], 1);
+			break;
+		}
+	}
+
+	adau1701->pll_clkdiv = clkdiv;
 
 	if (gpio_is_valid(adau1701->gpio_nreset)) {
 		gpio_set_value(adau1701->gpio_nreset, 0);
@@ -199,10 +230,16 @@ static int adau1701_reset(struct snd_soc_codec *codec)
 		mdelay(85);
 	}
 
-	ret = process_sigma_firmware(client, ADAU1701_FIRMWARE);
-	if (ret) {
-		dev_warn(codec->dev, "Failed to load firmware\n");
-		return ret;
+	/*
+	 * Postpone the firmware download to a point in time when we
+	 * know the correct PLL setup
+	 */
+	if (clkdiv != ADAU1707_CLKDIV_UNSET) {
+		ret = process_sigma_firmware(client, ADAU1701_FIRMWARE);
+		if (ret) {
+			dev_warn(codec->dev, "Failed to load firmware\n");
+			return ret;
+		}
 	}
 
 	snd_soc_write(codec, ADAU1701_DACSET, ADAU1701_DACSET_DACINIT);
@@ -285,8 +322,22 @@ static int adau1701_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
+	unsigned int clkdiv = adau1701->sysclk / params_rate(params);
 	snd_pcm_format_t format;
 	unsigned int val;
+	int ret;
+
+	/*
+	 * If the mclk/lrclk ratio changes, the chip needs updated PLL
+	 * mode GPIO settings, and a full reset cycle, including a new
+	 * firmware upload.
+	 */
+	if (clkdiv != adau1701->pll_clkdiv) {
+		ret = adau1701_reset(codec, clkdiv);
+		if (ret < 0)
+			return ret;
+	}
 
 	switch (params_rate(params)) {
 	case 192000:
@@ -429,6 +480,7 @@ static int adau1701_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	int source, unsigned int freq, int dir)
 {
 	unsigned int val;
+	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 
 	switch (clk_id) {
 	case ADAU1701_CLK_SRC_OSC:
@@ -442,6 +494,7 @@ static int adau1701_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	}
 
 	snd_soc_update_bits(codec, ADAU1701_OSCIPOW, ADAU1701_OSCIPOW_OPD, val);
+	adau1701->sysclk = freq;
 
 	return 0;
 }
@@ -489,11 +542,21 @@ MODULE_DEVICE_TABLE(of, adau1701_dt_ids);
 static int adau1701_probe(struct snd_soc_codec *codec)
 {
 	int ret;
+	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 
 	codec->control_data = to_i2c_client(codec->dev);
 
-	ret = adau1701_reset(codec);
-	if (ret)
+	/*
+	 * Let the pll_clkdiv variable default to something that won't happen
+	 * at runtime. That way, we can postpone the firmware download from
+	 * adau1701_reset() to a point in time when we know the correct PLL
+	 * mode parameters.
+	 */
+	adau1701->pll_clkdiv = ADAU1707_CLKDIV_UNSET;
+
+	/* initalize with pre-configured pll mode settings */
+	ret = adau1701_reset(codec, adau1701->pll_clkdiv);
+	if (ret < 0)
 		return ret;
 
 	return 0;
@@ -526,6 +589,7 @@ static int adau1701_i2c_probe(struct i2c_client *client,
 	struct adau1701 *adau1701;
 	struct device *dev = &client->dev;
 	int gpio_nreset = -EINVAL;
+	int gpio_pll_mode[2] = { -EINVAL, -EINVAL };
 	int ret;
 
 	adau1701 = devm_kzalloc(dev, sizeof(*adau1701), GFP_KERNEL);
@@ -536,6 +600,16 @@ static int adau1701_i2c_probe(struct i2c_client *client,
 		gpio_nreset = of_get_named_gpio(dev->of_node, "reset-gpio", 0);
 		if (gpio_nreset < 0 && gpio_nreset != -ENOENT)
 			return gpio_nreset;
+
+		gpio_pll_mode[0] = of_get_named_gpio(dev->of_node,
+						   "adi,pll-mode-gpios", 0);
+		if (gpio_pll_mode[0] < 0 && gpio_pll_mode[0] != -ENOENT)
+			return gpio_pll_mode[0];
+
+		gpio_pll_mode[1] = of_get_named_gpio(dev->of_node,
+						   "adi,pll-mode-gpios", 1);
+		if (gpio_pll_mode[1] < 0 && gpio_pll_mode[1] != -ENOENT)
+			return gpio_pll_mode[1];
 	}
 
 	if (gpio_is_valid(gpio_nreset)) {
@@ -545,7 +619,24 @@ static int adau1701_i2c_probe(struct i2c_client *client,
 			return ret;
 	}
 
+	if (gpio_is_valid(gpio_pll_mode[0]) &&
+	    gpio_is_valid(gpio_pll_mode[1])) {
+		ret = devm_gpio_request_one(dev, gpio_pll_mode[0],
+					    GPIOF_OUT_INIT_LOW,
+					    "ADAU1701 PLL mode 0");
+		if (ret < 0)
+			return ret;
+
+		ret = devm_gpio_request_one(dev, gpio_pll_mode[1],
+					    GPIOF_OUT_INIT_LOW,
+					    "ADAU1701 PLL mode 1");
+		if (ret < 0)
+			return ret;
+	}
+
 	adau1701->gpio_nreset = gpio_nreset;
+	adau1701->gpio_pll_mode[0] = gpio_pll_mode[0];
+	adau1701->gpio_pll_mode[1] = gpio_pll_mode[1];
 
 	i2c_set_clientdata(client, adau1701);
 	ret = snd_soc_register_codec(&client->dev, &adau1701_codec_drv,

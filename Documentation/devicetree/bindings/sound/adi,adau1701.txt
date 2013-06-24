@@ -11,6 +11,11 @@ Optional properties:
  - reset-gpio: 		A GPIO spec to define which pin is connected to the
 			chip's !RESET pin. If specified, the driver will
 			assert a hardware reset at probe time.
+ - adi,pll-mode-gpios:	An array of two GPIO specs to describe the GPIOs
+			the ADAU's PLL config pins are connected to.
+			The state of the pins are set according to the
+			configured clock divider on ASoC side before the
+			firmware is loaded.
 
 Examples:
 
@@ -19,5 +24,6 @@ Examples:
 			compatible = "adi,adau1701";
 			reg = <0x34>;
 			reset-gpio = <&gpio 23 0>;
+			adi,pll-mode-gpios = <&gpio 24 0 &gpio 25 0>;
 		};
 	};
