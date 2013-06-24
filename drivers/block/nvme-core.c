@@ -79,7 +79,8 @@ struct nvme_queue {
 	u16 sq_head;
 	u16 sq_tail;
 	u16 cq_head;
-	u16 cq_phase;
+	u8 cq_phase;
+	u8 cqe_seen;
 	unsigned long cmdid_data[];
 };
 
@@ -756,7 +757,7 @@ static void nvme_make_request(struct request_queue *q, struct bio *bio)
 	put_nvmeq(nvmeq);
 }
 
-static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
+static int nvme_process_cq(struct nvme_queue *nvmeq)
 {
 	u16 head, phase;
 
@@ -786,13 +787,14 @@ static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 	 * a big problem.
 	 */
 	if (head == nvmeq->cq_head && phase == nvmeq->cq_phase)
-		return IRQ_NONE;
+		return 0;
 
 	writel(head, nvmeq->q_db + (1 << nvmeq->dev->db_stride));
 	nvmeq->cq_head = head;
 	nvmeq->cq_phase = phase;
 
-	return IRQ_HANDLED;
+	nvmeq->cqe_seen = 1;
+	return 1;
 }
 
 static irqreturn_t nvme_irq(int irq, void *data)
@@ -800,7 +802,9 @@ static irqreturn_t nvme_irq(int irq, void *data)
 	irqreturn_t result;
 	struct nvme_queue *nvmeq = data;
 	spin_lock(&nvmeq->q_lock);
-	result = nvme_process_cq(nvmeq);
+	nvme_process_cq(nvmeq);
+	result = nvmeq->cqe_seen ? IRQ_HANDLED : IRQ_NONE;
+	nvmeq->cqe_seen = 0;
 	spin_unlock(&nvmeq->q_lock);
 	return result;
 }
