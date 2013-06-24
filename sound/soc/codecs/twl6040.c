@@ -38,6 +38,14 @@
 
 #include "twl6040.h"
 
+enum twl6040_dai_id {
+	TWL6040_DAI_LEGACY = 0,
+	TWL6040_DAI_UL,
+	TWL6040_DAI_DL1,
+	TWL6040_DAI_DL2,
+	TWL6040_DAI_VIB,
+};
+
 #define TWL6040_RATES		SNDRV_PCM_RATE_8000_96000
 #define TWL6040_FORMATS	(SNDRV_PCM_FMTBIT_S32_LE)
 
@@ -1036,6 +1044,7 @@ static const struct snd_soc_dai_ops twl6040_dai_ops = {
 static struct snd_soc_dai_driver twl6040_dai[] = {
 {
 	.name = "twl6040-legacy",
+	.id = TWL6040_DAI_LEGACY,
 	.playback = {
 		.stream_name = "Legacy Playback",
 		.channels_min = 1,
@@ -1054,6 +1063,7 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 },
 {
 	.name = "twl6040-ul",
+	.id = TWL6040_DAI_UL,
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 1,
@@ -1065,6 +1075,7 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 },
 {
 	.name = "twl6040-dl1",
+	.id = TWL6040_DAI_DL1,
 	.playback = {
 		.stream_name = "Headset Playback",
 		.channels_min = 1,
@@ -1076,6 +1087,7 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 },
 {
 	.name = "twl6040-dl2",
+	.id = TWL6040_DAI_DL2,
 	.playback = {
 		.stream_name = "Handsfree Playback",
 		.channels_min = 1,
@@ -1087,6 +1099,7 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 },
 {
 	.name = "twl6040-vib",
+	.id = TWL6040_DAI_VIB,
 	.playback = {
 		.stream_name = "Vibra Playback",
 		.channels_min = 1,
