@@ -375,7 +375,7 @@ static inline void set_map_flags(struct poseidon *pd, struct usb_device *udev)
 }
 #endif
 
-static int check_firmware(struct usb_device *udev, int *down_firmware)
+static int check_firmware(struct usb_device *udev)
 {
 	void *buf;
 	int ret;
@@ -395,10 +395,8 @@ static int check_firmware(struct usb_device *udev, int *down_firmware)
 			 USB_CTRL_GET_TIMEOUT);
 	kfree(buf);
 
-	if (ret < 0) {
-		*down_firmware = 1;
+	if (ret < 0)
 		return firmware_download(udev);
-	}
 	return 0;
 }
 
@@ -411,9 +409,9 @@ static int poseidon_probe(struct usb_interface *interface,
 	int new_one = 0;
 
 	/* download firmware */
-	check_firmware(udev, &ret);
+	ret = check_firmware(udev);
 	if (ret)
-		return 0;
+		return ret;
 
 	/* Do I recovery from the hibernate ? */
 	pd = find_old_poseidon(udev);
