@@ -1715,6 +1715,12 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_do_sync_ports,
 	},
 	{
+		.procname	= "sync_persist_mode",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
 		.procname	= "sync_qlen_max",
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
@@ -3729,6 +3735,7 @@ static int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 	tbl[idx++].data = &ipvs->sysctl_sync_ver;
 	ipvs->sysctl_sync_ports = 1;
 	tbl[idx++].data = &ipvs->sysctl_sync_ports;
+	tbl[idx++].data = &ipvs->sysctl_sync_persist_mode;
 	ipvs->sysctl_sync_qlen_max = nr_free_buffer_pages() / 32;
 	tbl[idx++].data = &ipvs->sysctl_sync_qlen_max;
 	ipvs->sysctl_sync_sock_size = 0;

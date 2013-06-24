@@ -975,6 +975,7 @@ struct netns_ipvs {
 	int			sysctl_snat_reroute;
 	int			sysctl_sync_ver;
 	int			sysctl_sync_ports;
+	int			sysctl_sync_persist_mode;
 	unsigned long		sysctl_sync_qlen_max;
 	int			sysctl_sync_sock_size;
 	int			sysctl_cache_bypass;
@@ -1076,6 +1077,11 @@ static inline int sysctl_sync_ports(struct netns_ipvs *ipvs)
 	return ACCESS_ONCE(ipvs->sysctl_sync_ports);
 }
 
+static inline int sysctl_sync_persist_mode(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_sync_persist_mode;
+}
+
 static inline unsigned long sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
 {
 	return ipvs->sysctl_sync_qlen_max;
@@ -1137,6 +1143,11 @@ static inline int sysctl_sloppy_sctp(struct netns_ipvs *ipvs)
 static inline int sysctl_sync_ports(struct netns_ipvs *ipvs)
 {
 	return 1;
+}
+
+static inline int sysctl_sync_persist_mode(struct netns_ipvs *ipvs)
+{
+	return 0;
 }
 
 static inline unsigned long sysctl_sync_qlen_max(struct netns_ipvs *ipvs)

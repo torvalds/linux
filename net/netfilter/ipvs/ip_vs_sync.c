@@ -425,6 +425,16 @@ ip_vs_sync_buff_create_v0(struct netns_ipvs *ipvs)
 	return sb;
 }
 
+/* Check if connection is controlled by persistence */
+static inline bool in_persistence(struct ip_vs_conn *cp)
+{
+	for (cp = cp->control; cp; cp = cp->control) {
+		if (cp->flags & IP_VS_CONN_F_TEMPLATE)
+			return true;
+	}
+	return false;
+}
+
 /* Check if conn should be synced.
  * pkts: conn packets, use sysctl_sync_threshold to avoid packet check
  * - (1) sync_refresh_period: reduce sync rate. Additionally, retry
@@ -447,6 +457,8 @@ static int ip_vs_sync_conn_needed(struct netns_ipvs *ipvs,
 	/* Check if we sync in current state */
 	if (unlikely(cp->flags & IP_VS_CONN_F_TEMPLATE))
 		force = 0;
+	else if (unlikely(sysctl_sync_persist_mode(ipvs) && in_persistence(cp)))
+		return 0;
 	else if (likely(cp->protocol == IPPROTO_TCP)) {
 		if (!((1 << cp->state) &
 		      ((1 << IP_VS_TCP_S_ESTABLISHED) |
