@@ -97,8 +97,13 @@ static struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 
 	sgt = obj->dev->driver->gem_prime_get_sg_table(obj);
 
-	if (!IS_ERR_OR_NULL(sgt))
-		dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir);
+	if (!IS_ERR_OR_NULL(sgt)) {
+		if (!dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir)) {
+			sg_free_table(sgt);
+			kfree(sgt);
+			sgt = ERR_PTR(-ENOMEM);
+		}
+	}
 
 	mutex_unlock(&obj->dev->struct_mutex);
 	return sgt;
