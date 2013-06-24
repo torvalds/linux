@@ -53,6 +53,57 @@ static int get_ramp_delay(int ramp_delay)
 	return cnt;
 }
 
+static int s2mps11_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
+				   unsigned int old_selector,
+				   unsigned int new_selector)
+{
+	struct s2mps11_info *s2mps11 = rdev_get_drvdata(rdev);
+	unsigned int ramp_delay = 0;
+	int old_volt, new_volt;
+
+	switch (rdev->desc->id) {
+	case S2MPS11_BUCK2:
+		if (!s2mps11->buck2_ramp)
+			return 0;
+		ramp_delay = s2mps11->ramp_delay2;
+		break;
+	case S2MPS11_BUCK3:
+		if (!s2mps11->buck3_ramp)
+			return 0;
+		ramp_delay = s2mps11->ramp_delay34;
+		break;
+	case S2MPS11_BUCK4:
+		if (!s2mps11->buck4_ramp)
+			return 0;
+		ramp_delay = s2mps11->ramp_delay34;
+		break;
+	case S2MPS11_BUCK5:
+		ramp_delay = s2mps11->ramp_delay5;
+		break;
+	case S2MPS11_BUCK6:
+		if (!s2mps11->buck6_ramp)
+			return 0;
+	case S2MPS11_BUCK1:
+		ramp_delay = s2mps11->ramp_delay16;
+		break;
+	case S2MPS11_BUCK7:
+	case S2MPS11_BUCK8:
+	case S2MPS11_BUCK10:
+		ramp_delay = s2mps11->ramp_delay7810;
+		break;
+	case S2MPS11_BUCK9:
+		ramp_delay = s2mps11->ramp_delay9;
+	}
+
+	if (ramp_delay == 0)
+		ramp_delay = rdev->desc->ramp_delay;
+
+	old_volt = rdev->desc->min_uV + (rdev->desc->uV_step * old_selector);
+	new_volt = rdev->desc->min_uV + (rdev->desc->uV_step * new_selector);
+
+	return DIV_ROUND_UP(abs(new_volt - old_volt), ramp_delay);
+}
+
 static struct regulator_ops s2mps11_ldo_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
@@ -72,7 +123,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.set_voltage_time_sel	= s2mps11_regulator_set_voltage_time_sel,
 };
 
 #define regulator_desc_ldo1(num)	{		\
