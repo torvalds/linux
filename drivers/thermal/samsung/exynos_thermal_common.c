@@ -22,7 +22,6 @@
 
 #include <linux/cpu_cooling.h>
 #include <linux/err.h>
-#include <linux/platform_data/exynos_thermal.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
 

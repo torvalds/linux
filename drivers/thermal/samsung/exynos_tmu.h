@@ -1,8 +1,9 @@
 /*
- * exynos_thermal.h - Samsung EXYNOS TMU (Thermal Management Unit)
+ * exynos_tmu.h - Samsung EXYNOS TMU (Thermal Management Unit)
  *
  *  Copyright (C) 2011 Samsung Electronics
  *  Donggeun Kim <dg77.kim@samsung.com>
+ *  Amit Daniel Kachhap <amit.daniel@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +20,11 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef _LINUX_EXYNOS_THERMAL_H
-#define _LINUX_EXYNOS_THERMAL_H
+#ifndef _EXYNOS_TMU_H
+#define _EXYNOS_TMU_H
 #include <linux/cpu_cooling.h>
+
+#include "exynos_thermal_common.h"
 
 enum calibration_type {
 	TYPE_ONE_POINT_TRIMMING,
@@ -32,21 +35,6 @@ enum calibration_type {
 enum soc_type {
 	SOC_ARCH_EXYNOS4210 = 1,
 	SOC_ARCH_EXYNOS,
-};
-/**
- * struct freq_clip_table
- * @freq_clip_max: maximum frequency allowed for this cooling state.
- * @temp_level: Temperature level at which the temperature clipping will
- *	happen.
- * @mask_val: cpumask of the allowed cpu's where the clipping will take place.
- *
- * This structure is required to be filled and passed to the
- * cpufreq_cooling_unregister function.
- */
-struct freq_clip_table {
-	unsigned int freq_clip_max;
-	unsigned int temp_level;
-	const struct cpumask *mask_val;
 };
 
 /**
@@ -116,4 +104,4 @@ struct exynos_tmu_platform_data {
 	struct freq_clip_table freq_tab[4];
 	unsigned int freq_tab_count;
 };
-#endif /* _LINUX_EXYNOS_THERMAL_H */
+#endif /* _EXYNOS_TMU_H */

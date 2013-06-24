@@ -27,9 +27,9 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/exynos_thermal.h>
 
 #include "exynos_thermal_common.h"
+#include "exynos_tmu.h"
 
 /* Exynos generic registers */
 #define EXYNOS_TMU_REG_TRIMINFO		0x0
