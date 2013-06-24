@@ -1938,12 +1938,19 @@ static struct clk clk_spdif_div = {
 static int clk_i2s_fracdiv_set_rate(struct clk *clk, unsigned long rate)
 {
 	u32 numerator, denominator;
+	int i = 0;
 	//clk_i2s_div->clk_i2s_pll->gpll/cpll
 	//clk->parent->parent
 	if(frac_div_get_seting(rate, clk->parent->parent->rate,
 				&numerator, &denominator) == 0) {
 		clk_set_rate_nolock(clk->parent, clk->parent->parent->rate); //PLL:DIV 1:
-		cru_writel_frac(numerator << 16 | denominator, clk->clksel_con);
+
+		while (i--) {
+			cru_writel_frac((numerator - 1) << 16 | denominator, clk->clksel_con);
+			msleep(1);
+			cru_writel_frac(numerator << 16 | denominator, clk->clksel_con);
+			msleep(1);
+		}
 		CLKDATA_DBG("%s set rate=%lu,is ok\n", clk->name, rate);
 	} else {
 		CLKDATA_ERR("clk_frac_div can't get rate=%lu,%s\n", rate, clk->name);
