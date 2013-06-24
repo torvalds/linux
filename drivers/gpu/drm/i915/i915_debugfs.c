@@ -157,11 +157,11 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 
 	switch (list) {
 	case ACTIVE_LIST:
-		seq_printf(m, "Active:\n");
+		seq_puts(m, "Active:\n");
 		head = &dev_priv->mm.active_list;
 		break;
 	case INACTIVE_LIST:
-		seq_printf(m, "Inactive:\n");
+		seq_puts(m, "Inactive:\n");
 		head = &dev_priv->mm.inactive_list;
 		break;
 	default:
@@ -171,9 +171,9 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 
 	total_obj_size = total_gtt_size = count = 0;
 	list_for_each_entry(obj, head, mm_list) {
-		seq_printf(m, "   ");
+		seq_puts(m, "   ");
 		describe_obj(m, obj);
-		seq_printf(m, "\n");
+		seq_putc(m, '\n');
 		total_obj_size += obj->base.size;
 		total_gtt_size += obj->gtt_space->size;
 		count++;
@@ -290,7 +290,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   dev_priv->gtt.total,
 		   dev_priv->gtt.mappable_end - dev_priv->gtt.start);
 
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct file_stats stats;
 
@@ -329,9 +329,9 @@ static int i915_gem_gtt_info(struct seq_file *m, void* data)
 		if (list == PINNED_LIST && obj->pin_count == 0)
 			continue;
 
-		seq_printf(m, "   ");
+		seq_puts(m, "   ");
 		describe_obj(m, obj);
-		seq_printf(m, "\n");
+		seq_putc(m, '\n');
 		total_obj_size += obj->base.size;
 		total_gtt_size += obj->gtt_space->size;
 		count++;
@@ -371,9 +371,9 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 					   pipe, plane);
 			}
 			if (work->enable_stall_check)
-				seq_printf(m, "Stall check enabled, ");
+				seq_puts(m, "Stall check enabled, ");
 			else
-				seq_printf(m, "Stall check waiting for page flip ioctl, ");
+				seq_puts(m, "Stall check waiting for page flip ioctl, ");
 			seq_printf(m, "%d prepares\n", atomic_read(&work->pending));
 
 			if (work->old_fb_obj) {
@@ -424,7 +424,7 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	mutex_unlock(&dev->struct_mutex);
 
 	if (count == 0)
-		seq_printf(m, "No requests\n");
+		seq_puts(m, "No requests\n");
 
 	return 0;
 }
@@ -574,10 +574,10 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 		seq_printf(m, "Fence %d, pin count = %d, object = ",
 			   i, dev_priv->fence_regs[i].pin_count);
 		if (obj == NULL)
-			seq_printf(m, "unused");
+			seq_puts(m, "unused");
 		else
 			describe_obj(m, obj);
-		seq_printf(m, "\n");
+		seq_putc(m, '\n');
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -1246,7 +1246,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 					(freq_sts >> 8) & 0xff));
 		mutex_unlock(&dev_priv->rps.hw_lock);
 	} else {
-		seq_printf(m, "no P-state info available\n");
+		seq_puts(m, "no P-state info available\n");
 	}
 
 	return 0;
@@ -1341,28 +1341,28 @@ static int ironlake_drpc_info(struct seq_file *m)
 	seq_printf(m, "RS2 VID: %d\n", ((crstandvid >> 8) & 0x3f));
 	seq_printf(m, "Render standby enabled: %s\n",
 		   (rstdbyctl & RCX_SW_EXIT) ? "no" : "yes");
-	seq_printf(m, "Current RS state: ");
+	seq_puts(m, "Current RS state: ");
 	switch (rstdbyctl & RSX_STATUS_MASK) {
 	case RSX_STATUS_ON:
-		seq_printf(m, "on\n");
+		seq_puts(m, "on\n");
 		break;
 	case RSX_STATUS_RC1:
-		seq_printf(m, "RC1\n");
+		seq_puts(m, "RC1\n");
 		break;
 	case RSX_STATUS_RC1E:
-		seq_printf(m, "RC1E\n");
+		seq_puts(m, "RC1E\n");
 		break;
 	case RSX_STATUS_RS1:
-		seq_printf(m, "RS1\n");
+		seq_puts(m, "RS1\n");
 		break;
 	case RSX_STATUS_RS2:
-		seq_printf(m, "RS2 (RC6)\n");
+		seq_puts(m, "RS2 (RC6)\n");
 		break;
 	case RSX_STATUS_RS3:
-		seq_printf(m, "RC3 (RC6+)\n");
+		seq_puts(m, "RC3 (RC6+)\n");
 		break;
 	default:
-		seq_printf(m, "unknown\n");
+		seq_puts(m, "unknown\n");
 		break;
 	}
 
@@ -1389,8 +1389,8 @@ static int gen6_drpc_info(struct seq_file *m)
 	spin_unlock_irq(&dev_priv->gt_lock);
 
 	if (forcewake_count) {
-		seq_printf(m, "RC information inaccurate because somebody "
-			      "holds a forcewake reference \n");
+		seq_puts(m, "RC information inaccurate because somebody "
+			    "holds a forcewake reference \n");
 	} else {
 		/* NB: we cannot use forcewake, else we read the wrong values */
 		while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_ACK) & 1))
@@ -1423,25 +1423,25 @@ static int gen6_drpc_info(struct seq_file *m)
 		   yesno(rcctl1 & GEN6_RC_CTL_RC6p_ENABLE));
 	seq_printf(m, "Deepest RC6 Enabled: %s\n",
 		   yesno(rcctl1 & GEN6_RC_CTL_RC6pp_ENABLE));
-	seq_printf(m, "Current RC state: ");
+	seq_puts(m, "Current RC state: ");
 	switch (gt_core_status & GEN6_RCn_MASK) {
 	case GEN6_RC0:
 		if (gt_core_status & GEN6_CORE_CPD_STATE_MASK)
-			seq_printf(m, "Core Power Down\n");
+			seq_puts(m, "Core Power Down\n");
 		else
-			seq_printf(m, "on\n");
+			seq_puts(m, "on\n");
 		break;
 	case GEN6_RC3:
-		seq_printf(m, "RC3\n");
+		seq_puts(m, "RC3\n");
 		break;
 	case GEN6_RC6:
-		seq_printf(m, "RC6\n");
+		seq_puts(m, "RC6\n");
 		break;
 	case GEN6_RC7:
-		seq_printf(m, "RC7\n");
+		seq_puts(m, "RC7\n");
 		break;
 	default:
-		seq_printf(m, "Unknown\n");
+		seq_puts(m, "Unknown\n");
 		break;
 	}
 
@@ -1485,46 +1485,46 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (!I915_HAS_FBC(dev)) {
-		seq_printf(m, "FBC unsupported on this chipset\n");
+		seq_puts(m, "FBC unsupported on this chipset\n");
 		return 0;
 	}
 
 	if (intel_fbc_enabled(dev)) {
-		seq_printf(m, "FBC enabled\n");
+		seq_puts(m, "FBC enabled\n");
 	} else {
-		seq_printf(m, "FBC disabled: ");
+		seq_puts(m, "FBC disabled: ");
 		switch (dev_priv->no_fbc_reason) {
 		case FBC_NO_OUTPUT:
-			seq_printf(m, "no outputs");
+			seq_puts(m, "no outputs");
 			break;
 		case FBC_STOLEN_TOO_SMALL:
-			seq_printf(m, "not enough stolen memory");
+			seq_puts(m, "not enough stolen memory");
 			break;
 		case FBC_UNSUPPORTED_MODE:
-			seq_printf(m, "mode not supported");
+			seq_puts(m, "mode not supported");
 			break;
 		case FBC_MODE_TOO_LARGE:
-			seq_printf(m, "mode too large");
+			seq_puts(m, "mode too large");
 			break;
 		case FBC_BAD_PLANE:
-			seq_printf(m, "FBC unsupported on plane");
+			seq_puts(m, "FBC unsupported on plane");
 			break;
 		case FBC_NOT_TILED:
-			seq_printf(m, "scanout buffer not tiled");
+			seq_puts(m, "scanout buffer not tiled");
 			break;
 		case FBC_MULTIPLE_PIPES:
-			seq_printf(m, "multiple pipes are enabled");
+			seq_puts(m, "multiple pipes are enabled");
 			break;
 		case FBC_MODULE_PARAM:
-			seq_printf(m, "disabled per module param (default off)");
+			seq_puts(m, "disabled per module param (default off)");
 			break;
 		case FBC_CHIP_DEFAULT:
-			seq_printf(m, "disabled per chip default");
+			seq_puts(m, "disabled per chip default");
 			break;
 		default:
-			seq_printf(m, "unknown reason");
+			seq_puts(m, "unknown reason");
 		}
-		seq_printf(m, "\n");
+		seq_putc(m, '\n');
 	}
 	return 0;
 }
@@ -1607,7 +1607,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	int gpu_freq, ia_freq;
 
 	if (!(IS_GEN6(dev) || IS_GEN7(dev))) {
-		seq_printf(m, "unsupported on this chipset\n");
+		seq_puts(m, "unsupported on this chipset\n");
 		return 0;
 	}
 
@@ -1615,7 +1615,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	seq_printf(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
+	seq_puts(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
 
 	for (gpu_freq = dev_priv->rps.min_delay;
 	     gpu_freq <= dev_priv->rps.max_delay;
@@ -1704,7 +1704,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		   fb->base.bits_per_pixel,
 		   atomic_read(&fb->base.refcount.refcount));
 	describe_obj(m, fb->obj);
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 	mutex_unlock(&dev->mode_config.mutex);
 
 	mutex_lock(&dev->mode_config.fb_lock);
@@ -1719,7 +1719,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 			   fb->base.bits_per_pixel,
 			   atomic_read(&fb->base.refcount.refcount));
 		describe_obj(m, fb->obj);
-		seq_printf(m, "\n");
+		seq_putc(m, '\n');
 	}
 	mutex_unlock(&dev->mode_config.fb_lock);
 
@@ -1739,22 +1739,22 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		return ret;
 
 	if (dev_priv->ips.pwrctx) {
-		seq_printf(m, "power context ");
+		seq_puts(m, "power context ");
 		describe_obj(m, dev_priv->ips.pwrctx);
-		seq_printf(m, "\n");
+		seq_putc(m, '\n');
 	}
 
 	if (dev_priv->ips.renderctx) {
-		seq_printf(m, "render context ");
+		seq_puts(m, "render context ");
 		describe_obj(m, dev_priv->ips.renderctx);
-		seq_printf(m, "\n");
+		seq_putc(m, '\n');
 	}
 
 	for_each_ring(ring, dev_priv, i) {
 		if (ring->default_context) {
 			seq_printf(m, "HW default context %s ring ", ring->name);
 			describe_obj(m, ring->default_context->obj);
-			seq_printf(m, "\n");
+			seq_putc(m, '\n');
 		}
 	}
 
@@ -1871,7 +1871,7 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	if (dev_priv->mm.aliasing_ppgtt) {
 		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 
-		seq_printf(m, "aliasing PPGTT:\n");
+		seq_puts(m, "aliasing PPGTT:\n");
 		seq_printf(m, "pd gtt offset: 0x%08x\n", ppgtt->pd_offset);
 	}
 	seq_printf(m, "ECOCHK: 0x%08x\n", I915_READ(GAM_ECOCHK));
@@ -1889,7 +1889,7 @@ static int i915_dpio_info(struct seq_file *m, void *data)
 
 
 	if (!IS_VALLEYVIEW(dev)) {
-		seq_printf(m, "unsupported\n");
+		seq_puts(m, "unsupported\n");
 		return 0;
 	}
 
