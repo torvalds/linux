@@ -852,6 +852,7 @@ static void au_refresh_iattr(struct inode *inode, struct kstat *st,
 		n = inode->i_nlink;
 		n -= nlink;
 		n += st->nlink;
+		smp_mb();
 		/* 0 can happen */
 		set_nlink(inode, n);
 	}
