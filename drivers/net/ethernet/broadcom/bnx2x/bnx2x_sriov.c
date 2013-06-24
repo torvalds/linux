@@ -3426,6 +3426,20 @@ enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
 	return PFVF_BULLETIN_UPDATED;
 }
 
+void bnx2x_timer_sriov(struct bnx2x *bp)
+{
+	bnx2x_sample_bulletin(bp);
+
+	/* if channel is down we need to self destruct */
+	if (bp->old_bulletin.valid_bitmap & 1 << CHANNEL_DOWN) {
+		smp_mb__before_clear_bit();
+		set_bit(BNX2X_SP_RTNL_VFPF_CHANNEL_DOWN,
+			&bp->sp_rtnl_state);
+		smp_mb__after_clear_bit();
+		schedule_delayed_work(&bp->sp_rtnl_task, 0);
+	}
+}
+
 void __iomem *bnx2x_vf_doorbells(struct bnx2x *bp)
 {
 	/* vf doorbells are embedded within the regview */
