@@ -91,12 +91,12 @@ static void __init ppc47x_init_irq(void)
 }
 
 #ifdef CONFIG_SMP
-static void __cpuinit smp_ppc47x_setup_cpu(int cpu)
+static void smp_ppc47x_setup_cpu(int cpu)
 {
 	mpic_setup_this_cpu();
 }
 
-static int __cpuinit smp_ppc47x_kick_cpu(int cpu)
+static int smp_ppc47x_kick_cpu(int cpu)
 {
 	struct device_node *cpunode = of_get_cpu_node(cpu, NULL);
 	const u64 *spin_table_addr_prop;

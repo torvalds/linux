@@ -40,7 +40,7 @@
 #define DBG(fmt...)
 #endif
 
-static void __cpuinit pnv_smp_setup_cpu(int cpu)
+static void pnv_smp_setup_cpu(int cpu)
 {
 	if (cpu != boot_cpuid)
 		xics_setup_cpu();
