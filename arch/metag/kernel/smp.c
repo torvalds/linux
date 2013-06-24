@@ -404,12 +404,6 @@ asmlinkage void secondary_start_kernel(void)
 	set_cpu_online(cpu, true);
 
 	/*
-	 * Check for cache aliasing.
-	 * Preemption is disabled
-	 */
-	check_for_cache_aliasing(cpu);
-
-	/*
 	 * OK, it's off to the idle thread for us
 	 */
 	cpu_startup_entry(CPUHP_ONLINE);
