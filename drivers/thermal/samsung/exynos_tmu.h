@@ -28,6 +28,8 @@
 
 enum calibration_type {
 	TYPE_ONE_POINT_TRIMMING,
+	TYPE_ONE_POINT_TRIMMING_25,
+	TYPE_ONE_POINT_TRIMMING_85,
 	TYPE_TWO_POINT_TRIMMING,
 	TYPE_NONE,
 };
@@ -90,6 +92,10 @@ enum soc_type {
  * @buf_slope_sel_shift: shift bits of amplifier gain value in tmu_ctrl
 	register.
  * @buf_slope_sel_mask: mask bits of amplifier gain value in tmu_ctrl register.
+ * @calib_mode_shift: shift bits of calibration mode value in tmu_ctrl
+	register.
+ * @calib_mode_mask: mask bits of calibration mode value in tmu_ctrl
+	register.
  * @therm_trip_tq_en_shift: shift bits of thermal trip enable by TQ pin in
 	tmu_ctrl register.
  * @core_en_shift: shift bits of TMU core enable bit in tmu_ctrl register.
@@ -151,6 +157,8 @@ struct exynos_tmu_registers {
 	u32	therm_trip_en_shift;
 	u32	buf_slope_sel_shift;
 	u32	buf_slope_sel_mask;
+	u32	calib_mode_shift;
+	u32	calib_mode_mask;
 	u32	therm_trip_tq_en_shift;
 	u32	core_en_shift;
 
