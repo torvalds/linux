@@ -156,7 +156,26 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 		__raw_writel(1, data->base + reg->triminfo_ctrl);
 
 	/* Save trimming info in order to perform calibration */
-	trim_info = readl(data->base + reg->triminfo_data);
+	if (data->soc == SOC_ARCH_EXYNOS5440) {
+		/*
+		 * For exynos5440 soc triminfo value is swapped between TMU0 and
+		 * TMU2, so the below logic is needed.
+		 */
+		switch (data->id) {
+		case 0:
+			trim_info = readl(data->base +
+			EXYNOS5440_EFUSE_SWAP_OFFSET + reg->triminfo_data);
+			break;
+		case 1:
+			trim_info = readl(data->base + reg->triminfo_data);
+			break;
+		case 2:
+			trim_info = readl(data->base -
+			EXYNOS5440_EFUSE_SWAP_OFFSET + reg->triminfo_data);
+		}
+	} else {
+		trim_info = readl(data->base + reg->triminfo_data);
+	}
 	data->temp_error1 = trim_info & EXYNOS_TMU_TEMP_MASK;
 	data->temp_error2 = ((trim_info >> reg->triminfo_85_shift) &
 				EXYNOS_TMU_TEMP_MASK);
@@ -201,7 +220,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 			reg->threshold_th0 + i * sizeof(reg->threshold_th0));
 
 		writel(reg->inten_rise_mask, data->base + reg->tmu_intclear);
-	} else if (data->soc == SOC_ARCH_EXYNOS) {
+	} else {
 		/* Write temperature code for rising and falling threshold */
 		for (i = 0;
 		i < trigger_levs && i < EXYNOS_MAX_TRIGGER_PER_REG; i++) {
@@ -241,14 +260,26 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 				ret = threshold_code;
 				goto out;
 			}
-			rising_threshold |= threshold_code << 8 * i;
-			writel(rising_threshold,
-				data->base + reg->threshold_th0);
+			if (i == EXYNOS_MAX_TRIGGER_PER_REG - 1) {
+				/* 1-4 level to be assigned in th0 reg */
+				rising_threshold |= threshold_code << 8 * i;
+				writel(rising_threshold,
+					data->base + reg->threshold_th0);
+			} else if (i == EXYNOS_MAX_TRIGGER_PER_REG) {
+				/* 5th level to be assigned in th2 reg */
+				rising_threshold =
+				threshold_code << reg->threshold_th3_l0_shift;
+				writel(rising_threshold,
+					data->base + reg->threshold_th2);
+			}
 			con = readl(data->base + reg->tmu_ctrl);
 			con |= (1 << reg->therm_trip_en_shift);
 			writel(con, data->base + reg->tmu_ctrl);
 		}
 	}
+	/*Clear the PMIN in the common TMU register*/
+	if (reg->tmu_pmin && !data->id)
+		writel(0, data->base_common + reg->tmu_pmin);
 out:
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
@@ -377,7 +408,14 @@ static void exynos_tmu_work(struct work_struct *work)
 			struct exynos_tmu_data, irq_work);
 	struct exynos_tmu_platform_data *pdata = data->pdata;
 	const struct exynos_tmu_registers *reg = pdata->registers;
-	unsigned int val_irq;
+	unsigned int val_irq, val_type;
+
+	/* Find which sensor generated this interrupt */
+	if (reg->tmu_irqstatus) {
+		val_type = readl(data->base_common + reg->tmu_irqstatus);
+		if (!((val_type >> data->id) & 0x1))
+			goto out;
+	}
 
 	exynos_report_trigger(data->reg_conf);
 	mutex_lock(&data->lock);
@@ -390,7 +428,7 @@ static void exynos_tmu_work(struct work_struct *work)
 
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
-
+out:
 	enable_irq(data->irq);
 }
 
@@ -538,7 +576,8 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		return ret;
 
 	if (pdata->type == SOC_ARCH_EXYNOS ||
-				pdata->type == SOC_ARCH_EXYNOS4210)
+		pdata->type == SOC_ARCH_EXYNOS4210 ||
+				pdata->type == SOC_ARCH_EXYNOS5440)
 		data->soc = pdata->type;
 	else {
 		ret = -EINVAL;

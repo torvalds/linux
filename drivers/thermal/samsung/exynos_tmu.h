@@ -40,6 +40,7 @@ enum calibration_mode {
 enum soc_type {
 	SOC_ARCH_EXYNOS4210 = 1,
 	SOC_ARCH_EXYNOS,
+	SOC_ARCH_EXYNOS5440,
 };
 
 /**
@@ -131,6 +132,8 @@ enum soc_type {
  * @emul_temp_shift: shift bits of emulation temperature.
  * @emul_time_shift: shift bits of emulation time.
  * @emul_time_mask: mask bits of emulation time.
+ * @tmu_irqstatus: register to find which TMU generated interrupts.
+ * @tmu_pmin: register to get/set the Pmin value.
  */
 struct exynos_tmu_registers {
 	u32	triminfo_data;
@@ -198,6 +201,9 @@ struct exynos_tmu_registers {
 	u32	emul_temp_shift;
 	u32	emul_time_shift;
 	u32	emul_time_mask;
+
+	u32	tmu_irqstatus;
+	u32	tmu_pmin;
 };
 
 /**
