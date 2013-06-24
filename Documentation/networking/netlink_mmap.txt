@@ -274,9 +274,9 @@ This example assumes some ring parameters of the ring setup are available.
 			/* Get next frame header */
 			hdr = rx_ring + frame_offset;
 
-			if (hdr->nm_status == NL_MMAP_STATUS_VALID)
+			if (hdr->nm_status == NL_MMAP_STATUS_VALID) {
 				/* Regular memory mapped frame */
-				nlh = (void *hdr) + NL_MMAP_HDRLEN;
+				nlh = (void *)hdr + NL_MMAP_HDRLEN;
 				len = hdr->nm_len;
 
 				/* Release empty message immediately. May happen
