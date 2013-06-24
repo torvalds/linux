@@ -351,6 +351,7 @@ static inline int __hash_page_thp(unsigned long ea, unsigned long access,
 				  int ssize, unsigned int psize)
 {
 	BUG();
+	return -1;
 }
 #endif
 extern void hash_failure_debug(unsigned long ea, unsigned long access,
