@@ -143,6 +143,15 @@ config MCP320X
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp320x.
 
+config NAU7802
+	tristate "Nuvoton NAU7802 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Nuvoton NAU7802 ADC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nau7802.
+
 config TI_ADC081C
 	tristate "Texas Instruments ADC081C021/027"
 	depends on I2C
