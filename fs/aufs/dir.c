@@ -33,6 +33,7 @@ void au_add_nlink(struct inode *dir, struct inode *h_dir)
 	nlink += h_dir->i_nlink - 2;
 	if (h_dir->i_nlink < 2)
 		nlink += 2;
+	smp_mb();
 	set_nlink(dir, nlink);
 }
 
@@ -46,6 +47,7 @@ void au_sub_nlink(struct inode *dir, struct inode *h_dir)
 	nlink -= h_dir->i_nlink - 2;
 	if (h_dir->i_nlink < 2)
 		nlink -= 2;
+	smp_mb();
 	set_nlink(dir, nlink);
 }
 
