@@ -50,7 +50,7 @@ static struct pin_config {
 };
 
 /* Global list of devices (struct samsung_pinctrl_drv_data) */
-LIST_HEAD(drvdata_list);
+static LIST_HEAD(drvdata_list);
 
 static unsigned int pin_base;
 
