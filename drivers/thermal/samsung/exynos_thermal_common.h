@@ -1,0 +1,83 @@
+/*
+ * exynos_thermal_common.h - Samsung EXYNOS common header file
+ *
+ *  Copyright (C) 2013 Samsung Electronics
+ *  Amit Daniel Kachhap <amit.daniel@samsung.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
+
+#ifndef _EXYNOS_THERMAL_COMMON_H
+#define _EXYNOS_THERMAL_COMMON_H
+
+/* In-kernel thermal framework related macros & definations */
+#define SENSOR_NAME_LEN	16
+#define MAX_TRIP_COUNT	8
+#define MAX_COOLING_DEVICE 4
+#define MAX_THRESHOLD_LEVS 4
+
+#define ACTIVE_INTERVAL 500
+#define IDLE_INTERVAL 10000
+#define MCELSIUS	1000
+
+/* CPU Zone information */
+#define PANIC_ZONE      4
+#define WARN_ZONE       3
+#define MONITOR_ZONE    2
+#define SAFE_ZONE       1
+
+#define GET_ZONE(trip) (trip + 2)
+#define GET_TRIP(zone) (zone - 2)
+
+#define EXYNOS_ZONE_COUNT	3
+
+struct	thermal_trip_point_conf {
+	int trip_val[MAX_TRIP_COUNT];
+	int trip_count;
+	unsigned char trigger_falling;
+};
+
+struct	thermal_cooling_conf {
+	struct freq_clip_table freq_data[MAX_TRIP_COUNT];
+	int freq_clip_count;
+};
+
+struct thermal_sensor_conf {
+	char name[SENSOR_NAME_LEN];
+	int (*read_temperature)(void *data);
+	int (*write_emul_temp)(void *drv_data, unsigned long temp);
+	struct thermal_trip_point_conf trip_data;
+	struct thermal_cooling_conf cooling_data;
+	void *private_data;
+};
+
+/*Functions used exynos based thermal sensor driver*/
+#ifdef CONFIG_EXYNOS_THERMAL_CORE
+void exynos_unregister_thermal(void);
+int exynos_register_thermal(struct thermal_sensor_conf *sensor_conf);
+void exynos_report_trigger(void);
+#else
+static inline void
+exynos_unregister_thermal(void) { return; }
+
+static inline int
+exynos_register_thermal(struct thermal_sensor_conf *sensor_conf) { return 0; }
+
+static inline void
+exynos_report_trigger(void) { return; }
+
+#endif /* CONFIG_EXYNOS_THERMAL_CORE */
+#endif /* _EXYNOS_THERMAL_COMMON_H */
