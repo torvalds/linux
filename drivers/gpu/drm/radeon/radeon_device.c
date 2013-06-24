@@ -244,16 +244,6 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
  */
 void radeon_wb_disable(struct radeon_device *rdev)
 {
-	int r;
-
-	if (rdev->wb.wb_obj) {
-		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
-		if (unlikely(r != 0))
-			return;
-		radeon_bo_kunmap(rdev->wb.wb_obj);
-		radeon_bo_unpin(rdev->wb.wb_obj);
-		radeon_bo_unreserve(rdev->wb.wb_obj);
-	}
 	rdev->wb.enabled = false;
 }
 
@@ -269,6 +259,11 @@ void radeon_wb_fini(struct radeon_device *rdev)
 {
 	radeon_wb_disable(rdev);
 	if (rdev->wb.wb_obj) {
+		if (!radeon_bo_reserve(rdev->wb.wb_obj, false)) {
+			radeon_bo_kunmap(rdev->wb.wb_obj);
+			radeon_bo_unpin(rdev->wb.wb_obj);
+			radeon_bo_unreserve(rdev->wb.wb_obj);
+		}
 		radeon_bo_unref(&rdev->wb.wb_obj);
 		rdev->wb.wb = NULL;
 		rdev->wb.wb_obj = NULL;
@@ -295,26 +290,26 @@ int radeon_wb_init(struct radeon_device *rdev)
 			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);
 			return r;
 		}
-	}
-	r = radeon_bo_reserve(rdev->wb.wb_obj, false);
-	if (unlikely(r != 0)) {
-		radeon_wb_fini(rdev);
-		return r;
-	}
-	r = radeon_bo_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
-			  &rdev->wb.gpu_addr);
-	if (r) {
+		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+		if (unlikely(r != 0)) {
+			radeon_wb_fini(rdev);
+			return r;
+		}
+		r = radeon_bo_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
+				&rdev->wb.gpu_addr);
+		if (r) {
+			radeon_bo_unreserve(rdev->wb.wb_obj);
+			dev_warn(rdev->dev, "(%d) pin WB bo failed\n", r);
+			radeon_wb_fini(rdev);
+			return r;
+		}
+		r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
 		radeon_bo_unreserve(rdev->wb.wb_obj);
-		dev_warn(rdev->dev, "(%d) pin WB bo failed\n", r);
-		radeon_wb_fini(rdev);
-		return r;
-	}
-	r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
-	radeon_bo_unreserve(rdev->wb.wb_obj);
-	if (r) {
-		dev_warn(rdev->dev, "(%d) map WB bo failed\n", r);
-		radeon_wb_fini(rdev);
-		return r;
+		if (r) {
+			dev_warn(rdev->dev, "(%d) map WB bo failed\n", r);
+			radeon_wb_fini(rdev);
+			return r;
+		}
 	}
 
 	/* clear wb memory */

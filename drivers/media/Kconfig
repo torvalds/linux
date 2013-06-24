@@ -136,9 +136,9 @@ config DVB_NET
 
 # This Kconfig option is used by both PCI and USB drivers
 config TTPCI_EEPROM
-        tristate
-        depends on I2C
-        default n
+	tristate
+	depends on I2C
+	default n
 
 source "drivers/media/dvb-core/Kconfig"
 
@@ -188,6 +188,12 @@ config MEDIA_SUBDRV_AUTOSELECT
 	  the needed demodulators).
 
 	  If unsure say Y.
+
+config MEDIA_ATTACH
+	bool
+	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_RADIO_SUPPORT
+	depends on MODULES
+	default MODULES
 
 source "drivers/media/i2c/Kconfig"
 source "drivers/media/tuners/Kconfig"
