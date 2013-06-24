@@ -2634,6 +2634,10 @@ static int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
 		return RX_HANDLER_ANOTHER;
 
 	read_lock(&bond->lock);
+
+	if (!slave_do_arp_validate(bond, slave))
+		goto out_unlock;
+
 	alen = arp_hdr_len(bond->dev);
 
 	pr_debug("bond_arp_rcv: bond %s skb->dev %s\n",
