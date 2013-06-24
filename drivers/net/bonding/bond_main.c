@@ -104,6 +104,7 @@ static char *xmit_hash_policy;
 static int arp_interval = BOND_LINK_ARP_INTERV;
 static char *arp_ip_target[BOND_MAX_ARP_TARGETS];
 static char *arp_validate;
+static char *arp_all_targets;
 static char *fail_over_mac;
 static int all_slaves_active = 0;
 static struct bond_params bonding_defaults;
@@ -166,6 +167,8 @@ module_param(arp_validate, charp, 0);
 MODULE_PARM_DESC(arp_validate, "validate src/dst of ARP probes; "
 			       "0 for none (default), 1 for active, "
 			       "2 for backup, 3 for all");
+module_param(arp_all_targets, charp, 0);
+MODULE_PARM_DESC(arp_all_targets, "fail on any/all arp targets timeout; 0 for any (default), 1 for all");
 module_param(fail_over_mac, charp, 0);
 MODULE_PARM_DESC(fail_over_mac, "For active-backup, do not set all slaves to "
 				"the same MAC; 0 for none (default), "
@@ -213,6 +216,12 @@ const struct bond_parm_tbl xmit_hashtype_tbl[] = {
 {	"layer2",		BOND_XMIT_POLICY_LAYER2},
 {	"layer3+4",		BOND_XMIT_POLICY_LAYER34},
 {	"layer2+3",		BOND_XMIT_POLICY_LAYER23},
+{	NULL,			-1},
+};
+
+const struct bond_parm_tbl arp_all_targets_tbl[] = {
+{	"any",			BOND_ARP_TARGETS_ANY},
+{	"all",			BOND_ARP_TARGETS_ALL},
 {	NULL,			-1},
 };
 
@@ -1483,7 +1492,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct slave *new_slave = NULL;
 	struct sockaddr addr;
 	int link_reporting;
-	int res = 0;
+	int res = 0, i;
 
 	if (!bond->params.use_carrier &&
 	    slave_dev->ethtool_ops->get_link == NULL &&
@@ -1712,6 +1721,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	new_slave->last_arp_rx = jiffies -
 		(msecs_to_jiffies(bond->params.arp_interval) + 1);
+	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++)
+		new_slave->target_last_arp_rx[i] = new_slave->last_arp_rx;
 
 	if (bond->params.miimon && !bond->params.use_carrier) {
 		link_reporting = bond_check_dev_link(bond, slave_dev, 1);
@@ -2610,16 +2621,20 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 
 static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 sip, __be32 tip)
 {
+	int i;
+
 	if (!sip || !bond_has_this_ip(bond, tip)) {
 		pr_debug("bva: sip %pI4 tip %pI4 not found\n", &sip, &tip);
 		return;
 	}
 
-	if (bond_get_targets_ip(bond->params.arp_targets, sip) == -1) {
+	i = bond_get_targets_ip(bond->params.arp_targets, sip);
+	if (i == -1) {
 		pr_debug("bva: sip %pI4 not found in targets\n", &sip);
 		return;
 	}
 	slave->last_arp_rx = jiffies;
+	slave->target_last_arp_rx[i] = jiffies;
 }
 
 static int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
@@ -4409,6 +4424,7 @@ int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
 static int bond_check_params(struct bond_params *params)
 {
 	int arp_validate_value, fail_over_mac_value, primary_reselect_value, i;
+	int arp_all_targets_value;
 
 	/*
 	 * Convert string parameters.
@@ -4634,6 +4650,18 @@ static int bond_check_params(struct bond_params *params)
 	} else
 		arp_validate_value = 0;
 
+	arp_all_targets_value = 0;
+	if (arp_all_targets) {
+		arp_all_targets_value = bond_parse_parm(arp_all_targets,
+							arp_all_targets_tbl);
+
+		if (arp_all_targets_value == -1) {
+			pr_err("Error: invalid arp_all_targets_value \"%s\"\n",
+			       arp_all_targets);
+			arp_all_targets_value = 0;
+		}
+	}
+
 	if (miimon) {
 		pr_info("MII link monitoring set to %d ms\n", miimon);
 	} else if (arp_interval) {
@@ -4698,6 +4726,7 @@ static int bond_check_params(struct bond_params *params)
 	params->num_peer_notif = num_peer_notif;
 	params->arp_interval = arp_interval;
 	params->arp_validate = arp_validate_value;
+	params->arp_all_targets = arp_all_targets_value;
 	params->updelay = updelay;
 	params->downdelay = downdelay;
 	params->use_carrier = use_carrier;

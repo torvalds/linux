@@ -321,6 +321,25 @@ arp_validate
 
 	This option was added in bonding version 3.1.0.
 
+arp_all_targets
+
+	Specifies the quantity of arp_ip_targets that must be reachable
+	in order for the ARP monitor to consider a slave as being up.
+	This option affects only active-backup mode for slaves with
+	arp_validation enabled.
+
+	Possible values are:
+
+	any or 0
+
+		consider the slave up only when any of the arp_ip_targets
+		is reachable
+
+	all or 1
+
+		consider the slave up only when all of the arp_ip_targets
+		are reachable
+
 downdelay
 
 	Specifies the time, in milliseconds, to wait before disabling

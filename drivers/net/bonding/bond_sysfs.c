@@ -443,6 +443,44 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 
 static DEVICE_ATTR(arp_validate, S_IRUGO | S_IWUSR, bonding_show_arp_validate,
 		   bonding_store_arp_validate);
+/*
+ * Show and set arp_all_targets.
+ */
+static ssize_t bonding_show_arp_all_targets(struct device *d,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct bonding *bond = to_bond(d);
+	int value = bond->params.arp_all_targets;
+
+	return sprintf(buf, "%s %d\n", arp_all_targets_tbl[value].modename,
+		       value);
+}
+
+static ssize_t bonding_store_arp_all_targets(struct device *d,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int new_value;
+
+	new_value = bond_parse_parm(buf, arp_all_targets_tbl);
+	if (new_value < 0) {
+		pr_err("%s: Ignoring invalid arp_all_targets value %s\n",
+		       bond->dev->name, buf);
+		return -EINVAL;
+	}
+	pr_info("%s: setting arp_all_targets to %s (%d).\n",
+		bond->dev->name, arp_all_targets_tbl[new_value].modename,
+		new_value);
+
+	bond->params.arp_all_targets = new_value;
+
+	return count;
+}
+
+static DEVICE_ATTR(arp_all_targets, S_IRUGO | S_IWUSR,
+		   bonding_show_arp_all_targets, bonding_store_arp_all_targets);
 
 /*
  * Show and store fail_over_mac.  User only allowed to change the
@@ -590,10 +628,11 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	__be32 newtarget;
-	int i = 0, ret = -EINVAL;
 	struct bonding *bond = to_bond(d);
-	__be32 *targets;
+	struct slave *slave;
+	__be32 newtarget, *targets;
+	unsigned long *targets_rx;
+	int ind, i, j, ret = -EINVAL;
 
 	targets = bond->params.arp_targets;
 	newtarget = in_aton(buf + 1);
@@ -611,8 +650,8 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 			goto out;
 		}
 
-		i = bond_get_targets_ip(targets, 0); /* first free slot */
-		if (i == -1) {
+		ind = bond_get_targets_ip(targets, 0); /* first free slot */
+		if (ind == -1) {
 			pr_err("%s: ARP target table is full!\n",
 			       bond->dev->name);
 			goto out;
@@ -620,7 +659,12 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 
 		pr_info("%s: adding ARP target %pI4.\n", bond->dev->name,
 			 &newtarget);
-		targets[i] = newtarget;
+		/* not to race with bond_arp_rcv */
+		write_lock_bh(&bond->lock);
+		bond_for_each_slave(bond, slave, i)
+			slave->target_last_arp_rx[ind] = jiffies;
+		targets[ind] = newtarget;
+		write_unlock_bh(&bond->lock);
 	} else if (buf[0] == '-')	{
 		if ((newtarget == 0) || (newtarget == htonl(INADDR_BROADCAST))) {
 			pr_err("%s: invalid ARP target %pI4 specified for removal\n",
@@ -628,18 +672,32 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 			goto out;
 		}
 
-		i = bond_get_targets_ip(targets, newtarget);
-		if (i == -1) {
-			pr_info("%s: unable to remove nonexistent ARP target %pI4.\n",
+		ind = bond_get_targets_ip(targets, newtarget);
+		if (ind == -1) {
+			pr_err("%s: unable to remove nonexistent ARP target %pI4.\n",
 				bond->dev->name, &newtarget);
 			goto out;
 		}
 
+		if (ind == 0 && !targets[1] && bond->params.arp_interval)
+			pr_warn("%s: removing last arp target with arp_interval on\n",
+				bond->dev->name);
+
 		pr_info("%s: removing ARP target %pI4.\n", bond->dev->name,
 			&newtarget);
-		for (; (i < BOND_MAX_ARP_TARGETS-1) && targets[i+1]; i++)
+
+		write_lock_bh(&bond->lock);
+		bond_for_each_slave(bond, slave, i) {
+			targets_rx = slave->target_last_arp_rx;
+			j = ind;
+			for (; (j < BOND_MAX_ARP_TARGETS-1) && targets[j+1]; j++)
+				targets_rx[j] = targets_rx[j+1];
+			targets_rx[j] = 0;
+		}
+		for (i = ind; (i < BOND_MAX_ARP_TARGETS-1) && targets[i+1]; i++)
 			targets[i] = targets[i+1];
 		targets[i] = 0;
+		write_unlock_bh(&bond->lock);
 	} else {
 		pr_err("no command found in arp_ip_targets file for bond %s. Use +<addr> or -<addr>.\n",
 		       bond->dev->name);
@@ -1623,6 +1681,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_mode.attr,
 	&dev_attr_fail_over_mac.attr,
 	&dev_attr_arp_validate.attr,
+	&dev_attr_arp_all_targets.attr,
 	&dev_attr_arp_interval.attr,
 	&dev_attr_arp_ip_target.attr,
 	&dev_attr_downdelay.attr,
