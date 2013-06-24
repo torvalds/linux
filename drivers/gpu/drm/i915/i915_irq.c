@@ -1839,6 +1839,7 @@ static void i915_gem_record_active_context(struct intel_ring_buffer *ring,
 		if ((error->ccid & PAGE_MASK) == obj->gtt_offset) {
 			ering->ctx = i915_error_object_create_sized(dev_priv,
 								    obj, 1);
+			break;
 		}
 	}
 }
