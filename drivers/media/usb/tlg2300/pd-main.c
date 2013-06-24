@@ -436,12 +436,22 @@ static int poseidon_probe(struct usb_interface *interface,
 
 		/* register v4l2 device */
 		ret = v4l2_device_register(&interface->dev, &pd->v4l2_dev);
+		if (ret)
+			goto err_v4l2;
 
 		/* register devices in directory /dev */
 		ret = pd_video_init(pd);
-		poseidon_audio_init(pd);
-		poseidon_fm_init(pd);
-		pd_dvb_usb_device_init(pd);
+		if (ret)
+			goto err_video;
+		ret = poseidon_audio_init(pd);
+		if (ret)
+			goto err_audio;
+		ret = poseidon_fm_init(pd);
+		if (ret)
+			goto err_fm;
+		ret = pd_dvb_usb_device_init(pd);
+		if (ret)
+			goto err_dvb;
 
 		INIT_LIST_HEAD(&pd->device_list);
 		list_add_tail(&pd->device_list, &pd_device_list);
@@ -459,6 +469,17 @@ static int poseidon_probe(struct usb_interface *interface,
 	}
 #endif
 	return 0;
+err_dvb:
+	poseidon_fm_exit(pd);
+err_fm:
+	poseidon_audio_free(pd);
+err_audio:
+	pd_video_exit(pd);
+err_video:
+	v4l2_device_unregister(&pd->v4l2_dev);
+err_v4l2:
+	kfree(pd);
+	return ret;
 }
 
 static void poseidon_disconnect(struct usb_interface *interface)
