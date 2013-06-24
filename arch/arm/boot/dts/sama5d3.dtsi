@@ -84,6 +84,9 @@
 					    &pioD 15 0 /* conflicts with CTS0 and CANTX0 */
 					    &pioD 16 0 /* conflicts with RTS0 and PWMFI3 */
 					   >;
+				dmas = <&dma0 2 AT91_DMA_CFG_PER_ID(1)>,
+				       <&dma0 2 AT91_DMA_CFG_PER_ID(2)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi0>;
 				status = "disabled";
@@ -212,6 +215,9 @@
 					    &pioC 27 0 /* conflitcs with TWCK1 and ISI_D10 */
 					    &pioC 28 0 /* conflitcs with PWMFI0 and ISI_D9 */
 					   >;
+				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(15)>,
+				       <&dma1 2 AT91_DMA_CFG_PER_ID(16)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi1>;
 				status = "disabled";
