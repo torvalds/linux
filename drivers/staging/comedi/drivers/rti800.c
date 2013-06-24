@@ -298,10 +298,9 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	inb(dev->iobase + RTI800_ADCHI);
 	outb(0, dev->iobase + RTI800_CLRFLAGS);
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	devpriv->adc_2comp = (it->options[4] == 0);
 	devpriv->dac_2comp[0] = (it->options[6] == 0);

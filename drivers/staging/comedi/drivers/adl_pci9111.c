@@ -855,10 +855,9 @@ static int pci9111_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev_private = kzalloc(sizeof(*dev_private), GFP_KERNEL);
+	dev_private = comedi_alloc_devpriv(dev, sizeof(*dev_private));
 	if (!dev_private)
 		return -ENOMEM;
-	dev->private = dev_private;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

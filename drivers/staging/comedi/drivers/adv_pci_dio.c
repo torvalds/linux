@@ -1107,10 +1107,9 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = this_board;
 	dev->board_name = this_board->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

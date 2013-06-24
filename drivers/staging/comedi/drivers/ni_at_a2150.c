@@ -719,10 +719,9 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int i;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_request_region(dev, it->options[0], A2150_SIZE);
 	if (ret)

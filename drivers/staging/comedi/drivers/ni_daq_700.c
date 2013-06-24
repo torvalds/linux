@@ -47,7 +47,6 @@ Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
 
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 
 #include "../comedidev.h"
 

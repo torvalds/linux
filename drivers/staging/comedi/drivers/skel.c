@@ -484,10 +484,9 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* dev->board_name = thisboard->name; */
 
 	/* Allocate the private data */
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 /*
  * Supported boards are usually either auto-attached via the
@@ -558,10 +557,9 @@ static int skel_auto_attach(struct comedi_device *dev,
 	dev->board_name = thisboard->name;
 
 	/* Allocate the private data */
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/* Enable the PCI device. */
 	ret = comedi_pci_enable(dev);

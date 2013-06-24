@@ -41,7 +41,6 @@ for my needs.
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
@@ -781,10 +780,9 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	bool is_unipolar;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	sema_init(&devpriv->sem, 1);
 	usb_set_intfdata(intf, devpriv);

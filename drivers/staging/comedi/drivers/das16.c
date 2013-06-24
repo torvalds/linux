@@ -74,7 +74,6 @@ www.measurementcomputing.com
 */
 
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 
 #include <asm/dma.h>
@@ -1102,10 +1101,9 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	if (board->size < 0x400) {
 		ret = comedi_request_region(dev, it->options[0], board->size);

@@ -929,10 +929,9 @@ static int ni_660x_allocate_private(struct comedi_device *dev)
 	struct ni_660x_private *devpriv;
 	unsigned i;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	spin_lock_init(&devpriv->mite_channel_lock);
 	spin_lock_init(&devpriv->interrupt_lock);

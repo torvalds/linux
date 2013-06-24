@@ -1061,10 +1061,9 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 		return -ENODEV;
 	}
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	sema_init(&devpriv->sem, 1);
 	usb_set_intfdata(intf, devpriv);

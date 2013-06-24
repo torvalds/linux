@@ -1511,10 +1511,9 @@ static int das1800_attach(struct comedi_device *dev,
 	int board;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_request_region(dev, it->options[0], DAS1800_SIZE);
 	if (ret)

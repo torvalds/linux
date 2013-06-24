@@ -715,10 +715,9 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
 	ret = comedi_pcmcia_enable(dev, NULL);

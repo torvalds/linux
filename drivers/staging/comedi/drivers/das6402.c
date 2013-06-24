@@ -294,10 +294,9 @@ static int das6402_attach(struct comedi_device *dev,
 
 	dev->irq = irq;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)

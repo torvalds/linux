@@ -59,10 +59,9 @@ static int das08_pci_auto_attach(struct comedi_device *dev,
 	struct das08_private_struct *devpriv;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/* The das08 driver needs the board_ptr */
 	dev->board_ptr = &das08_pci_boards[0];

@@ -719,10 +719,9 @@ static int serial2002_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	devpriv->port = it->options[0];
 	devpriv->speed = it->options[1];

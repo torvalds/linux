@@ -38,7 +38,6 @@ Commands are not supported.
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 
 #include "../comedidev.h"
 
@@ -205,10 +204,9 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)

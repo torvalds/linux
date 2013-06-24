@@ -65,8 +65,6 @@
 #define FALSE   (0)
 #endif
 
-#include <linux/slab.h>
-
 #define S626_SIZE 0x0200
 #define DMABUF_SIZE			4096	/*  4k pages */
 

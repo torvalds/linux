@@ -177,10 +177,9 @@ static int das08_isa_attach(struct comedi_device *dev,
 	struct das08_private_struct *devpriv;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_request_region(dev, it->options[0], thisboard->iosize);
 	if (ret)

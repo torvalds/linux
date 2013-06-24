@@ -483,10 +483,9 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	retval = comedi_pci_enable(dev);
 	if (retval)

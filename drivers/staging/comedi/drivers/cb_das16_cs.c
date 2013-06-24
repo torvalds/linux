@@ -35,7 +35,6 @@ Status: experimental
 */
 
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include "../comedidev.h"
@@ -420,10 +419,9 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 		return ret;
 	dev->irq = link->irq;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)

@@ -56,7 +56,6 @@ NI manuals:
 #include "../comedidev.h"
 
 #include <linux/delay.h>
-#include <linux/slab.h>
 
 #include "8253.h"
 #include "8255.h"
@@ -96,10 +95,9 @@ static int labpc_auto_attach(struct comedi_device *dev,
 	if (!link->irq)
 		return -EINVAL;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	return labpc_common_attach(dev, link->irq, IRQF_SHARED);
 }

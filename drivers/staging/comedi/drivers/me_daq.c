@@ -490,10 +490,9 @@ static int me_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	dev_private = kzalloc(sizeof(*dev_private), GFP_KERNEL);
+	dev_private = comedi_alloc_devpriv(dev, sizeof(*dev_private));
 	if (!dev_private)
 		return -ENOMEM;
-	dev->private = dev_private;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

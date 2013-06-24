@@ -4034,10 +4034,9 @@ static int auto_attach(struct comedi_device *dev,
 		return -ENODEV;
 	dev->board_ptr = thisboard;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	retval = comedi_pci_enable(dev);
 	if (retval)

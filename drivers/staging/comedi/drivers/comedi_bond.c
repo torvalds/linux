@@ -298,10 +298,9 @@ static int bonding_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/*
 	 * Setup our bonding from config params.. sets up our private struct..

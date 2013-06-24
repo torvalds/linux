@@ -1697,10 +1697,9 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned int dma_chan = it->options[2];
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_request_region(dev, it->options[0], LABPC_SIZE);
 	if (ret)

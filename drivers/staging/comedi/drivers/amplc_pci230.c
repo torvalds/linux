@@ -2615,10 +2615,9 @@ static int pci230_alloc_private(struct comedi_device *dev)
 {
 	struct pci230_private *devpriv;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	spin_lock_init(&devpriv->isr_spinlock);
 	spin_lock_init(&devpriv->res_spinlock);

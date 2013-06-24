@@ -2140,10 +2140,9 @@ static int pci9118_attach(struct comedi_device *dev,
 	softsshdelay = it->options[4];
 	hw_err_mask = it->options[5];
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	pcidev = pci9118_find_pci(dev, it);
 	if (!pcidev)
@@ -2160,10 +2159,9 @@ static int pci9118_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct pci9118_private *devpriv;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	dev->board_ptr = pci9118_find_boardinfo(pcidev);
 	if (dev->board_ptr == NULL) {
