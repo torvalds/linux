@@ -1,6 +1,6 @@
 config LUSTRE_FS
 	tristate "Lustre file system client support"
-	depends on STAGING && INET
+	depends on STAGING && INET && BROKEN
 	select LNET
 	select CRYPTO
 	select CRYPTO_CRC32
