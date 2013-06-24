@@ -434,7 +434,7 @@ static inline void put_css_set_taskexit(struct css_set *cset)
 	__put_css_set(cset, 1);
 }
 
-/*
+/**
  * compare_css_sets - helper function for find_existing_css_set().
  * @cset: candidate css_set being tested
  * @old_cset: existing css_set for a task
@@ -506,27 +506,20 @@ static bool compare_css_sets(struct css_set *cset,
 	return true;
 }
 
-/*
- * find_existing_css_set() is a helper for
- * find_css_set(), and checks to see whether an existing
- * css_set is suitable.
- *
- * oldcg: the cgroup group that we're using before the cgroup
- * transition
- *
- * cgrp: the cgroup that we're moving into
- *
- * template: location in which to build the desired set of subsystem
- * state objects for the new cgroup group
+/**
+ * find_existing_css_set - init css array and find the matching css_set
+ * @old_cset: the css_set that we're using before the cgroup transition
+ * @cgrp: the cgroup that we're moving into
+ * @template: out param for the new set of csses, should be clear on entry
  */
 static struct css_set *find_existing_css_set(struct css_set *old_cset,
 					struct cgroup *cgrp,
 					struct cgroup_subsys_state *template[])
 {
-	int i;
 	struct cgroupfs_root *root = cgrp->root;
 	struct css_set *cset;
 	unsigned long key;
+	int i;
 
 	/*
 	 * Build the set of subsystem state objects that we want to see in the
@@ -618,21 +611,24 @@ static void link_css_set(struct list_head *tmp_links, struct css_set *cset,
 	list_add_tail(&link->cgrp_link, &cset->cgrp_links);
 }
 
-/*
- * find_css_set() takes an existing cgroup group and a
- * cgroup object, and returns a css_set object that's
- * equivalent to the old group, but with the given cgroup
- * substituted into the appropriate hierarchy. Must be called with
- * cgroup_mutex held
+/**
+ * find_css_set - return a new css_set with one cgroup updated
+ * @old_cset: the baseline css_set
+ * @cgrp: the cgroup to be updated
+ *
+ * Return a new css_set that's equivalent to @old_cset, but with @cgrp
+ * substituted into the appropriate hierarchy.
  */
 static struct css_set *find_css_set(struct css_set *old_cset,
 				    struct cgroup *cgrp)
 {
+	struct cgroup_subsys_state *template[CGROUP_SUBSYS_COUNT] = { };
 	struct css_set *cset;
-	struct cgroup_subsys_state *template[CGROUP_SUBSYS_COUNT];
 	struct list_head tmp_links;
 	struct cgrp_cset_link *link;
 	unsigned long key;
+
+	lockdep_assert_held(&cgroup_mutex);
 
 	/* First see if we already have a cgroup group that matches
 	 * the desired set */
