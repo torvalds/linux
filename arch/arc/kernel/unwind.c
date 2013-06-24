@@ -111,7 +111,7 @@ UNW_REGISTER_INFO};
 #define DW_EH_PE_indirect 0x80
 #define DW_EH_PE_omit     0xff
 
-#define CIE_ID	0xffffffffUL
+#define CIE_ID	0
 
 typedef unsigned long uleb128_t;
 typedef signed long sleb128_t;
@@ -510,8 +510,7 @@ static const u32 *__cie_for_fde(const u32 *fde)
 {
 	const u32 *cie;
 
-	/* cie = fde + 1 - fde[1] / sizeof(*fde); */
-	cie = (u32 *) fde[1];
+	cie = fde + 1 - fde[1] / sizeof(*fde);
 
 	return cie;
 }

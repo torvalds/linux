@@ -61,18 +61,6 @@ ENTRY(ret_from_fork)
 	b    ret_from_exception
 END(ret_from_fork)
 
-#ifdef CONFIG_ARC_DW2_UNWIND
-; Workaround for bug 94179 (STAR ):
-; Despite -fasynchronous-unwind-tables, linker is not making dwarf2 unwinder
-; section (.debug_frame) as loadable. So we force it here.
-; This also fixes STAR 9000487933 where the prev-workaround (objcopy --setflag)
-; would not work after a clean build due to kernel build system dependencies.
-.section .debug_frame, "wa",@progbits
-
-; Reset to .text as this file is included in entry-<isa>.S
-.section .text, "ax",@progbits
-#endif
-
 ;################### Non TLB Exception Handling #############################
 
 ; ---------------------------------------------
