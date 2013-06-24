@@ -57,6 +57,18 @@ static void comedi_clear_hw_dev(struct comedi_device *dev)
 	dev->hw_dev = NULL;
 }
 
+/**
+ * comedi_alloc_devpriv() - Allocate memory for the device private data.
+ * @dev: comedi_device struct
+ * @size: size of the memory to allocate
+ */
+void *comedi_alloc_devpriv(struct comedi_device *dev, size_t size)
+{
+	dev->private = kzalloc(size, GFP_KERNEL);
+	return dev->private;
+}
+EXPORT_SYMBOL_GPL(comedi_alloc_devpriv);
+
 int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 {
 	struct comedi_subdevice *s;
