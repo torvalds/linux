@@ -219,6 +219,39 @@ int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
 				   bool strobe_mode,
 				   struct atom_clock_dividers *dividers);
 void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 voltage_type);
+int radeon_atom_get_voltage_gpio_settings(struct radeon_device *rdev,
+					  u16 voltage_level, u8 voltage_type,
+					  u32 *gpio_value, u32 *gpio_mask);
+void radeon_atom_set_engine_dram_timings(struct radeon_device *rdev,
+					 u32 eng_clock, u32 mem_clock);
+int radeon_atom_get_voltage_step(struct radeon_device *rdev,
+				 u8 voltage_type, u16 *voltage_step);
+int radeon_atom_round_to_true_voltage(struct radeon_device *rdev,
+				      u8 voltage_type,
+				      u16 nominal_voltage,
+				      u16 *true_voltage);
+int radeon_atom_get_min_voltage(struct radeon_device *rdev,
+				u8 voltage_type, u16 *min_voltage);
+int radeon_atom_get_max_voltage(struct radeon_device *rdev,
+				u8 voltage_type, u16 *max_voltage);
+int radeon_atom_get_voltage_table(struct radeon_device *rdev,
+				  u8 voltage_type,
+				  struct atom_voltage_table *voltage_table);
+bool radeon_atom_is_voltage_gpio(struct radeon_device *rdev, u8 voltage_type);
+void radeon_atom_update_memory_dll(struct radeon_device *rdev,
+				   u32 mem_clock);
+void radeon_atom_set_ac_timing(struct radeon_device *rdev,
+			       u32 mem_clock);
+int radeon_atom_init_mc_reg_table(struct radeon_device *rdev,
+				  u8 module_index,
+				  struct atom_mc_reg_table *reg_table);
+int radeon_atom_get_memory_info(struct radeon_device *rdev,
+				u8 module_index, struct atom_memory_info *mem_info);
+int radeon_atom_get_mclk_range_table(struct radeon_device *rdev,
+				     bool gddr5, u8 module_index,
+				     struct atom_memory_clock_range_table *mclk_range_table);
+int radeon_atom_get_max_vddc(struct radeon_device *rdev, u8 voltage_type,
+			     u16 voltage_id, u16 *voltage);
 void rs690_pm_info(struct radeon_device *rdev);
 extern void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
 				    unsigned *bankh, unsigned *mtaspect,

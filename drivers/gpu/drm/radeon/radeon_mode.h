@@ -519,6 +519,63 @@ struct atom_clock_dividers {
 	u32 flags;
 };
 
+#define MEM_TYPE_GDDR5  0x50
+#define MEM_TYPE_GDDR4  0x40
+#define MEM_TYPE_GDDR3  0x30
+#define MEM_TYPE_DDR2   0x20
+#define MEM_TYPE_GDDR1  0x10
+#define MEM_TYPE_DDR3   0xb0
+#define MEM_TYPE_MASK   0xf0
+
+struct atom_memory_info {
+	u8 mem_vendor;
+	u8 mem_type;
+};
+
+#define MAX_AC_TIMING_ENTRIES 16
+
+struct atom_memory_clock_range_table
+{
+	u8 num_entries;
+	u8 rsv[3];
+	u32 mclk[MAX_AC_TIMING_ENTRIES];
+};
+
+#define VBIOS_MC_REGISTER_ARRAY_SIZE 32
+#define VBIOS_MAX_AC_TIMING_ENTRIES 20
+
+struct atom_mc_reg_entry {
+	u32 mclk_max;
+	u32 mc_data[VBIOS_MC_REGISTER_ARRAY_SIZE];
+};
+
+struct atom_mc_register_address {
+	u16 s1;
+	u8 pre_reg_data;
+};
+
+struct atom_mc_reg_table {
+	u8 last;
+	u8 num_entries;
+	struct atom_mc_reg_entry mc_reg_table_entry[VBIOS_MAX_AC_TIMING_ENTRIES];
+	struct atom_mc_register_address mc_reg_address[VBIOS_MC_REGISTER_ARRAY_SIZE];
+};
+
+#define MAX_VOLTAGE_ENTRIES 32
+
+struct atom_voltage_table_entry
+{
+	u16 value;
+	u32 smio_low;
+};
+
+struct atom_voltage_table
+{
+	u32 count;
+	u32 mask_low;
+	struct atom_voltage_table_entry entries[MAX_VOLTAGE_ENTRIES];
+};
+
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
 extern enum radeon_tv_std

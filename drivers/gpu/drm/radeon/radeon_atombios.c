@@ -56,10 +56,6 @@ extern void
 radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_enum,
 			  uint32_t supported_device);
 
-/* local */
-static int radeon_atom_get_max_vddc(struct radeon_device *rdev, u8 voltage_type,
-				    u16 voltage_id, u16 *voltage);
-
 union atom_supported_devices {
 	struct _ATOM_SUPPORTED_DEVICES_INFO info;
 	struct _ATOM_SUPPORTED_DEVICES_INFO_2 info_2;
@@ -1516,6 +1512,10 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_info->info_2.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
 					ss->type = ss_info->info_2.asSpreadSpectrum[i].ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_info->info_2.asSpreadSpectrum[i].usSpreadRateIn10Hz);
+					if ((crev == 2) &&
+					    ((id == ASIC_INTERNAL_ENGINE_SS) ||
+					     (id == ASIC_INTERNAL_MEMORY_SS)))
+						ss->rate /= 100;
 					return true;
 				}
 			}
@@ -1530,6 +1530,9 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_info->info_3.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
 					ss->type = ss_info->info_3.asSpreadSpectrum[i].ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_info->info_3.asSpreadSpectrum[i].usSpreadRateIn10Hz);
+					if ((id == ASIC_INTERNAL_ENGINE_SS) ||
+					    (id == ASIC_INTERNAL_MEMORY_SS))
+						ss->rate /= 100;
 					if (rdev->flags & RADEON_IS_IGP)
 						radeon_atombios_get_igp_ss_overrides(rdev, ss, id);
 					return true;
@@ -2340,7 +2343,13 @@ static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rde
 			rdev->pm.default_vddc = rdev->pm.power_state[state_index].clock_info[0].voltage.voltage;
 			rdev->pm.default_vddci = rdev->pm.power_state[state_index].clock_info[0].voltage.vddci;
 		} else {
-			/* patch the table values with the default slck/mclk from firmware info */
+			u16 max_vddci = 0;
+
+			if (ASIC_IS_DCE4(rdev))
+				radeon_atom_get_max_voltage(rdev,
+							    SET_VOLTAGE_TYPE_ASIC_VDDCI,
+							    &max_vddci);
+			/* patch the table values with the default sclk/mclk from firmware info */
 			for (j = 0; j < mode_index; j++) {
 				rdev->pm.power_state[state_index].clock_info[j].mclk =
 					rdev->clock.default_mclk;
@@ -2349,6 +2358,9 @@ static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rde
 				if (vddc)
 					rdev->pm.power_state[state_index].clock_info[j].voltage.voltage =
 						vddc;
+				if (max_vddci)
+					rdev->pm.power_state[state_index].clock_info[j].voltage.vddci =
+						max_vddci;
 			}
 		}
 	}
@@ -2874,6 +2886,48 @@ void radeon_atom_set_memory_clock(struct radeon_device *rdev,
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+void radeon_atom_set_engine_dram_timings(struct radeon_device *rdev,
+					 u32 eng_clock, u32 mem_clock)
+{
+	SET_ENGINE_CLOCK_PS_ALLOCATION args;
+	int index = GetIndexIntoMasterTable(COMMAND, DynamicMemorySettings);
+	u32 tmp;
+
+	memset(&args, 0, sizeof(args));
+
+	tmp = eng_clock & SET_CLOCK_FREQ_MASK;
+	tmp |= (COMPUTE_ENGINE_PLL_PARAM << 24);
+
+	args.ulTargetEngineClock = cpu_to_le32(tmp);
+	if (mem_clock)
+		args.sReserved.ulClock = cpu_to_le32(mem_clock & SET_CLOCK_FREQ_MASK);
+
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+}
+
+void radeon_atom_update_memory_dll(struct radeon_device *rdev,
+				   u32 mem_clock)
+{
+	u32 args;
+	int index = GetIndexIntoMasterTable(COMMAND, DynamicMemorySettings);
+
+	args = cpu_to_le32(mem_clock);	/* 10 khz */
+
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+}
+
+void radeon_atom_set_ac_timing(struct radeon_device *rdev,
+			       u32 mem_clock)
+{
+	SET_MEMORY_CLOCK_PS_ALLOCATION args;
+	int index = GetIndexIntoMasterTable(COMMAND, DynamicMemorySettings);
+	u32 tmp = mem_clock | (COMPUTE_MEMORY_PLL_PARAM << 24);
+
+	args.ulTargetMemoryClock = cpu_to_le32(tmp);	/* 10 khz */
+
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+}
+
 union set_voltage {
 	struct _SET_VOLTAGE_PS_ALLOCATION alloc;
 	struct _SET_VOLTAGE_PARAMETERS v1;
@@ -2918,8 +2972,8 @@ void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 v
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
-static int radeon_atom_get_max_vddc(struct radeon_device *rdev, u8 voltage_type,
-				    u16 voltage_id, u16 *voltage)
+int radeon_atom_get_max_vddc(struct radeon_device *rdev, u8 voltage_type,
+			     u16 voltage_id, u16 *voltage)
 {
 	union set_voltage args;
 	int index = GetIndexIntoMasterTable(COMMAND, SetVoltage);
@@ -2955,6 +3009,598 @@ static int radeon_atom_get_max_vddc(struct radeon_device *rdev, u8 voltage_type,
 	}
 
 	return 0;
+}
+
+int radeon_atom_get_voltage_gpio_settings(struct radeon_device *rdev,
+					  u16 voltage_level, u8 voltage_type,
+					  u32 *gpio_value, u32 *gpio_mask)
+{
+	union set_voltage args;
+	int index = GetIndexIntoMasterTable(COMMAND, SetVoltage);
+	u8 frev, crev;
+
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return -EINVAL;
+
+	switch (crev) {
+	case 1:
+		return -EINVAL;
+	case 2:
+		args.v2.ucVoltageType = voltage_type;
+		args.v2.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_GET_GPIOMASK;
+		args.v2.usVoltageLevel = cpu_to_le16(voltage_level);
+
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+		*gpio_mask = le32_to_cpu(*(u32 *)&args.v2);
+
+		args.v2.ucVoltageType = voltage_type;
+		args.v2.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_GET_GPIOVAL;
+		args.v2.usVoltageLevel = cpu_to_le16(voltage_level);
+
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+		*gpio_value = le32_to_cpu(*(u32 *)&args.v2);
+		break;
+	default:
+		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+union voltage_object_info {
+	struct  _ATOM_VOLTAGE_OBJECT_INFO v1;
+	struct  _ATOM_VOLTAGE_OBJECT_INFO_V2 v2;
+};
+
+bool
+radeon_atom_is_voltage_gpio(struct radeon_device *rdev, u8 voltage_type)
+{
+	int index = GetIndexIntoMasterTable(DATA, VoltageObjectInfo);
+	u8 frev, crev;
+	u16 data_offset, size;
+	int num_indices, i;
+	union voltage_object_info *voltage_info;
+
+	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		voltage_info = (union voltage_object_info *)
+			(rdev->mode_info.atom_context->bios + data_offset);
+
+		switch (crev) {
+		case 1:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_VOLTAGE_OBJECT);
+
+			for (i = 0; i < num_indices; i++) {
+				if ((voltage_info->v1.asVoltageObj[i].ucVoltageType == voltage_type) &&
+				    (voltage_info->v1.asVoltageObj[i].asControl.ucVoltageControlId ==
+				     VOLTAGE_CONTROLLED_BY_GPIO))
+					return true;
+			}
+			break;
+		case 2:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_VOLTAGE_OBJECT_INFO_V2);
+
+			for (i = 0; i < num_indices; i++) {
+				if ((voltage_info->v2.asVoltageObj[i].ucVoltageType == voltage_type) &&
+				    (voltage_info->v2.asVoltageObj[i].asControl.ucVoltageControlId ==
+				     VOLTAGE_CONTROLLED_BY_GPIO))
+					return true;
+			}
+			break;
+		default:
+			DRM_ERROR("unknown voltage object table\n");
+			return false;
+		}
+
+	}
+	return false;
+}
+
+int radeon_atom_get_max_voltage(struct radeon_device *rdev,
+				u8 voltage_type, u16 *max_voltage)
+{
+	int index = GetIndexIntoMasterTable(DATA, VoltageObjectInfo);
+	u8 frev, crev;
+	u16 data_offset, size;
+	int num_indices, i;
+	union voltage_object_info *voltage_info;
+
+	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		voltage_info = (union voltage_object_info *)
+			(rdev->mode_info.atom_context->bios + data_offset);
+
+		switch (crev) {
+		case 1:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_VOLTAGE_OBJECT);
+
+			for (i = 0; i < num_indices; i++) {
+				if (voltage_info->v1.asVoltageObj[i].ucVoltageType == voltage_type) {
+					ATOM_VOLTAGE_FORMULA *formula =
+						&voltage_info->v1.asVoltageObj[i].asFormula;
+					if (formula->ucFlag & 1)
+						*max_voltage =
+							le16_to_cpu(formula->usVoltageBaseLevel) +
+							 formula->ucNumOfVoltageEntries / 2 *
+							le16_to_cpu(formula->usVoltageStep);
+					else
+						*max_voltage =
+							le16_to_cpu(formula->usVoltageBaseLevel) +
+							(formula->ucNumOfVoltageEntries - 1) *
+							le16_to_cpu(formula->usVoltageStep);
+					return 0;
+				}
+			}
+			break;
+		case 2:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_VOLTAGE_OBJECT_INFO_V2);
+
+			for (i = 0; i < num_indices; i++) {
+				if (voltage_info->v2.asVoltageObj[i].ucVoltageType == voltage_type) {
+					ATOM_VOLTAGE_FORMULA_V2 *formula =
+						&voltage_info->v2.asVoltageObj[i].asFormula;
+					if (formula->ucNumOfVoltageEntries) {
+						*max_voltage =
+							le16_to_cpu(formula->asVIDAdjustEntries[
+									    formula->ucNumOfVoltageEntries - 1
+									    ].usVoltageValue);
+						return 0;
+					}
+				}
+			}
+			break;
+		default:
+			DRM_ERROR("unknown voltage object table\n");
+			return -EINVAL;
+		}
+
+	}
+	return -EINVAL;
+}
+
+int radeon_atom_get_min_voltage(struct radeon_device *rdev,
+				u8 voltage_type, u16 *min_voltage)
+{
+	int index = GetIndexIntoMasterTable(DATA, VoltageObjectInfo);
+	u8 frev, crev;
+	u16 data_offset, size;
+	int num_indices, i;
+	union voltage_object_info *voltage_info;
+
+	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		voltage_info = (union voltage_object_info *)
+			(rdev->mode_info.atom_context->bios + data_offset);
+
+		switch (crev) {
+		case 1:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_VOLTAGE_OBJECT);
+
+			for (i = 0; i < num_indices; i++) {
+				if (voltage_info->v1.asVoltageObj[i].ucVoltageType == voltage_type) {
+					ATOM_VOLTAGE_FORMULA *formula =
+						&voltage_info->v1.asVoltageObj[i].asFormula;
+					*min_voltage =
+						le16_to_cpu(formula->usVoltageBaseLevel);
+					return 0;
+				}
+			}
+			break;
+		case 2:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_VOLTAGE_OBJECT_INFO_V2);
+
+			for (i = 0; i < num_indices; i++) {
+				if (voltage_info->v2.asVoltageObj[i].ucVoltageType == voltage_type) {
+					ATOM_VOLTAGE_FORMULA_V2 *formula =
+						&voltage_info->v2.asVoltageObj[i].asFormula;
+					if (formula->ucNumOfVoltageEntries) {
+						*min_voltage =
+							le16_to_cpu(formula->asVIDAdjustEntries[
+									    0
+									    ].usVoltageValue);
+						return 0;
+					}
+				}
+			}
+			break;
+		default:
+			DRM_ERROR("unknown voltage object table\n");
+			return -EINVAL;
+		}
+
+	}
+	return -EINVAL;
+}
+
+int radeon_atom_get_voltage_step(struct radeon_device *rdev,
+				 u8 voltage_type, u16 *voltage_step)
+{
+	int index = GetIndexIntoMasterTable(DATA, VoltageObjectInfo);
+	u8 frev, crev;
+	u16 data_offset, size;
+	int num_indices, i;
+	union voltage_object_info *voltage_info;
+
+	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		voltage_info = (union voltage_object_info *)
+			(rdev->mode_info.atom_context->bios + data_offset);
+
+		switch (crev) {
+		case 1:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_VOLTAGE_OBJECT);
+
+			for (i = 0; i < num_indices; i++) {
+				if (voltage_info->v1.asVoltageObj[i].ucVoltageType == voltage_type) {
+					ATOM_VOLTAGE_FORMULA *formula =
+						&voltage_info->v1.asVoltageObj[i].asFormula;
+					if (formula->ucFlag & 1)
+						*voltage_step =
+							(le16_to_cpu(formula->usVoltageStep) + 1) / 2;
+					else
+						*voltage_step =
+							le16_to_cpu(formula->usVoltageStep);
+					return 0;
+				}
+			}
+			break;
+		case 2:
+			return -EINVAL;
+		default:
+			DRM_ERROR("unknown voltage object table\n");
+			return -EINVAL;
+		}
+
+	}
+	return -EINVAL;
+}
+
+int radeon_atom_round_to_true_voltage(struct radeon_device *rdev,
+				      u8 voltage_type,
+				      u16 nominal_voltage,
+				      u16 *true_voltage)
+{
+	u16 min_voltage, max_voltage, voltage_step;
+
+	if (radeon_atom_get_max_voltage(rdev, voltage_type, &max_voltage))
+		return -EINVAL;
+	if (radeon_atom_get_min_voltage(rdev, voltage_type, &min_voltage))
+		return -EINVAL;
+	if (radeon_atom_get_voltage_step(rdev, voltage_type, &voltage_step))
+		return -EINVAL;
+
+	if (nominal_voltage <= min_voltage)
+		*true_voltage = min_voltage;
+	else if (nominal_voltage >= max_voltage)
+		*true_voltage = max_voltage;
+	else
+		*true_voltage = min_voltage +
+			((nominal_voltage - min_voltage) / voltage_step) *
+			voltage_step;
+
+	return 0;
+}
+
+int radeon_atom_get_voltage_table(struct radeon_device *rdev,
+				  u8 voltage_type,
+				  struct atom_voltage_table *voltage_table)
+{
+	int index = GetIndexIntoMasterTable(DATA, VoltageObjectInfo);
+	u8 frev, crev;
+	u16 data_offset, size;
+	int num_indices, i, j, ret;
+	union voltage_object_info *voltage_info;
+
+	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		voltage_info = (union voltage_object_info *)
+			(rdev->mode_info.atom_context->bios + data_offset);
+
+		switch (crev) {
+		case 1:
+			DRM_ERROR("old table version %d, %d\n", frev, crev);
+			return -EINVAL;
+		case 2:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_VOLTAGE_OBJECT_INFO_V2);
+
+			for (i = 0; i < num_indices; i++) {
+				if (voltage_info->v2.asVoltageObj[i].ucVoltageType == voltage_type) {
+					ATOM_VOLTAGE_FORMULA_V2 *formula =
+						&voltage_info->v2.asVoltageObj[i].asFormula;
+					if (formula->ucNumOfVoltageEntries > MAX_VOLTAGE_ENTRIES)
+						return -EINVAL;
+					for (j = 0; j < formula->ucNumOfVoltageEntries; j++) {
+						voltage_table->entries[j].value =
+							le16_to_cpu(formula->asVIDAdjustEntries[j].usVoltageValue);
+						ret = radeon_atom_get_voltage_gpio_settings(rdev,
+											    voltage_table->entries[j].value,
+											    voltage_type,
+											    &voltage_table->entries[j].smio_low,
+											    &voltage_table->mask_low);
+						if (ret)
+							return ret;
+					}
+					voltage_table->count = formula->ucNumOfVoltageEntries;
+					return 0;
+				}
+			}
+			break;
+		default:
+			DRM_ERROR("unknown voltage object table\n");
+			return -EINVAL;
+		}
+
+	}
+	return -EINVAL;
+}
+
+union vram_info {
+	struct _ATOM_VRAM_INFO_V3 v1_3;
+	struct _ATOM_VRAM_INFO_V4 v1_4;
+	struct _ATOM_VRAM_INFO_HEADER_V2_1 v2_1;
+};
+
+int radeon_atom_get_memory_info(struct radeon_device *rdev,
+				u8 module_index, struct atom_memory_info *mem_info)
+{
+	int index = GetIndexIntoMasterTable(DATA, VRAM_Info);
+	u8 frev, crev, i;
+	u16 data_offset, size;
+	union vram_info *vram_info;
+	u8 *p;
+
+	memset(mem_info, 0, sizeof(struct atom_memory_info));
+
+	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		vram_info = (union vram_info *)
+			(rdev->mode_info.atom_context->bios + data_offset);
+		switch (frev) {
+		case 1:
+			switch (crev) {
+			case 3:
+				/* r6xx */
+				if (module_index < vram_info->v1_3.ucNumOfVRAMModule) {
+					ATOM_VRAM_MODULE_V3 *vram_module =
+						(ATOM_VRAM_MODULE_V3 *)vram_info->v1_3.aVramInfo;
+					p = (u8 *)vram_info->v1_3.aVramInfo;
+
+					for (i = 0; i < module_index; i++) {
+						vram_module = (ATOM_VRAM_MODULE_V3 *)p;
+						if (le16_to_cpu(vram_module->usSize) == 0)
+							return -EINVAL;
+						p += le16_to_cpu(vram_module->usSize);
+					}
+					mem_info->mem_vendor = vram_module->asMemory.ucMemoryVenderID & 0xf;
+					mem_info->mem_type = vram_module->asMemory.ucMemoryType & 0xf0;
+				} else
+					return -EINVAL;
+				break;
+			case 4:
+				/* r7xx, evergreen */
+				if (module_index < vram_info->v1_4.ucNumOfVRAMModule) {
+					ATOM_VRAM_MODULE_V4 *vram_module =
+						(ATOM_VRAM_MODULE_V4 *)vram_info->v1_4.aVramInfo;
+					p = (u8 *)vram_info->v1_4.aVramInfo;
+
+					for (i = 0; i < module_index; i++) {
+						vram_module = (ATOM_VRAM_MODULE_V4 *)p;
+						if (le16_to_cpu(vram_module->usModuleSize) == 0)
+							return -EINVAL;
+						p += le16_to_cpu(vram_module->usModuleSize);
+					}
+					mem_info->mem_vendor = vram_module->ucMemoryVenderID & 0xf;
+					mem_info->mem_type = vram_module->ucMemoryType & 0xf0;
+				} else
+					return -EINVAL;
+				break;
+			default:
+				DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+				return -EINVAL;
+			}
+			break;
+		case 2:
+			switch (crev) {
+			case 1:
+				/* ni */
+				if (module_index < vram_info->v2_1.ucNumOfVRAMModule) {
+					ATOM_VRAM_MODULE_V7 *vram_module =
+						(ATOM_VRAM_MODULE_V7 *)vram_info->v2_1.aVramInfo;
+					p = (u8 *)vram_info->v2_1.aVramInfo;
+
+					for (i = 0; i < module_index; i++) {
+						vram_module = (ATOM_VRAM_MODULE_V7 *)p;
+						if (le16_to_cpu(vram_module->usModuleSize) == 0)
+							return -EINVAL;
+						p += le16_to_cpu(vram_module->usModuleSize);
+					}
+					mem_info->mem_vendor = vram_module->ucMemoryVenderID & 0xf;
+					mem_info->mem_type = vram_module->ucMemoryType & 0xf0;
+				} else
+					return -EINVAL;
+				break;
+			default:
+				DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+				return -EINVAL;
+			}
+			break;
+		default:
+			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			return -EINVAL;
+		}
+		return 0;
+	}
+	return -EINVAL;
+}
+
+int radeon_atom_get_mclk_range_table(struct radeon_device *rdev,
+				     bool gddr5, u8 module_index,
+				     struct atom_memory_clock_range_table *mclk_range_table)
+{
+	int index = GetIndexIntoMasterTable(DATA, VRAM_Info);
+	u8 frev, crev, i;
+	u16 data_offset, size;
+	union vram_info *vram_info;
+	u32 mem_timing_size = gddr5 ?
+		sizeof(ATOM_MEMORY_TIMING_FORMAT_V2) : sizeof(ATOM_MEMORY_TIMING_FORMAT);
+	u8 *p;
+
+	memset(mclk_range_table, 0, sizeof(struct atom_memory_clock_range_table));
+
+	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		vram_info = (union vram_info *)
+			(rdev->mode_info.atom_context->bios + data_offset);
+		switch (frev) {
+		case 1:
+			switch (crev) {
+			case 3:
+				DRM_ERROR("old table version %d, %d\n", frev, crev);
+				return -EINVAL;
+			case 4:
+				/* r7xx, evergreen */
+				if (module_index < vram_info->v1_4.ucNumOfVRAMModule) {
+					ATOM_VRAM_MODULE_V4 *vram_module =
+						(ATOM_VRAM_MODULE_V4 *)vram_info->v1_4.aVramInfo;
+					ATOM_MEMORY_TIMING_FORMAT *format;
+					p = (u8 *)vram_info->v1_4.aVramInfo;
+
+					for (i = 0; i < module_index; i++) {
+						vram_module = (ATOM_VRAM_MODULE_V4 *)p;
+						if (le16_to_cpu(vram_module->usModuleSize) == 0)
+							return -EINVAL;
+						p += le16_to_cpu(vram_module->usModuleSize);
+					}
+					mclk_range_table->num_entries = (u8)
+						((vram_module->usModuleSize - offsetof(ATOM_VRAM_MODULE_V4, asMemTiming)) /
+						 mem_timing_size);
+					p = (u8 *)vram_module->asMemTiming;
+					for (i = 0; i < mclk_range_table->num_entries; i++) {
+						format = (ATOM_MEMORY_TIMING_FORMAT *)p;
+						mclk_range_table->mclk[i] = format->ulClkRange;
+						p += mem_timing_size;
+					}
+				} else
+					return -EINVAL;
+				break;
+			default:
+				DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+				return -EINVAL;
+			}
+			break;
+		case 2:
+			DRM_ERROR("new table version %d, %d\n", frev, crev);
+			return -EINVAL;
+		default:
+			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			return -EINVAL;
+		}
+		return 0;
+	}
+	return -EINVAL;
+}
+
+#define MEM_ID_MASK           0xff000000
+#define MEM_ID_SHIFT          24
+#define CLOCK_RANGE_MASK      0x00ffffff
+#define CLOCK_RANGE_SHIFT     0
+#define LOW_NIBBLE_MASK       0xf
+#define DATA_EQU_PREV         0
+#define DATA_FROM_TABLE       4
+
+int radeon_atom_init_mc_reg_table(struct radeon_device *rdev,
+				  u8 module_index,
+				  struct atom_mc_reg_table *reg_table)
+{
+	int index = GetIndexIntoMasterTable(DATA, VRAM_Info);
+	u8 frev, crev, num_entries, t_mem_id, num_ranges = 0;
+	u32 i = 0, j;
+	u16 data_offset, size;
+	union vram_info *vram_info;
+
+	memset(reg_table, 0, sizeof(struct atom_mc_reg_table));
+
+	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		vram_info = (union vram_info *)
+			(rdev->mode_info.atom_context->bios + data_offset);
+		switch (frev) {
+		case 1:
+			DRM_ERROR("old table version %d, %d\n", frev, crev);
+			return -EINVAL;
+		case 2:
+			switch (crev) {
+			case 1:
+				if (module_index < vram_info->v2_1.ucNumOfVRAMModule) {
+					ATOM_INIT_REG_BLOCK *reg_block =
+						(ATOM_INIT_REG_BLOCK *)
+						((u8 *)vram_info + le16_to_cpu(vram_info->v2_1.usMemClkPatchTblOffset));
+					ATOM_MEMORY_SETTING_DATA_BLOCK *reg_data =
+						(ATOM_MEMORY_SETTING_DATA_BLOCK *)
+						((u8 *)reg_block + (2 * sizeof(u16)) +
+						 le16_to_cpu(reg_block->usRegIndexTblSize));
+					num_entries = (u8)((le16_to_cpu(reg_block->usRegIndexTblSize)) /
+							   sizeof(ATOM_INIT_REG_INDEX_FORMAT)) - 1;
+					if (num_entries > VBIOS_MC_REGISTER_ARRAY_SIZE)
+						return -EINVAL;
+					while (!(reg_block->asRegIndexBuf[i].ucPreRegDataLength & ACCESS_PLACEHOLDER) &&
+					      (i < num_entries)) {
+						reg_table->mc_reg_address[i].s1 =
+							(u16)(reg_block->asRegIndexBuf[i].usRegIndex);
+						reg_table->mc_reg_address[i].pre_reg_data =
+							(u8)(reg_block->asRegIndexBuf[i].ucPreRegDataLength);
+						i++;
+					}
+					reg_table->last = i;
+					while ((*(u32 *)reg_data != END_OF_REG_DATA_BLOCK) &&
+					       (num_ranges < VBIOS_MAX_AC_TIMING_ENTRIES)) {
+						t_mem_id = (u8)((*(u32 *)reg_data & MEM_ID_MASK) >> MEM_ID_SHIFT);
+						if (module_index == t_mem_id) {
+							reg_table->mc_reg_table_entry[num_ranges].mclk_max =
+								(u32)((*(u32 *)reg_data & CLOCK_RANGE_MASK) >> CLOCK_RANGE_SHIFT);
+							for (i = 0, j = 1; i < reg_table->last; i++) {
+								if ((reg_table->mc_reg_address[i].pre_reg_data & LOW_NIBBLE_MASK) == DATA_FROM_TABLE) {
+									reg_table->mc_reg_table_entry[num_ranges].mc_data[i] =
+										(u32)*((u32 *)reg_data + j);
+									j++;
+								} else if ((reg_table->mc_reg_address[i].pre_reg_data & LOW_NIBBLE_MASK) == DATA_EQU_PREV) {
+									reg_table->mc_reg_table_entry[num_ranges].mc_data[i] =
+										reg_table->mc_reg_table_entry[num_ranges].mc_data[i - 1];
+								}
+							}
+							num_ranges++;
+						}
+						reg_data += reg_block->usRegDataBlkSize;
+					}
+					if (*(u32 *)reg_data != END_OF_REG_DATA_BLOCK)
+						return -EINVAL;
+					reg_table->num_entries = num_ranges;
+				} else
+					return -EINVAL;
+				break;
+			default:
+				DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+				return -EINVAL;
+			}
+			break;
+		default:
+			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			return -EINVAL;
+		}
+		return 0;
+	}
+	return -EINVAL;
 }
 
 void radeon_atom_initialize_bios_scratch_regs(struct drm_device *dev)
