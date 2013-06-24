@@ -250,6 +250,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	 * we still need to single-step the instruction, but we don't
 	 * generate an event.
 	 */
+	info->type &= ~HW_BRK_TYPE_EXTRANEOUS_IRQ;
 	if (!((bp->attr.bp_addr <= dar) &&
 	      (dar - bp->attr.bp_addr < bp->attr.bp_len)))
 		info->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
