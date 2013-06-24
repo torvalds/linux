@@ -485,6 +485,16 @@ config I2C_IOP3XX
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-iop3xx.
 
+config I2C_KEMPLD
+	tristate "Kontron COM I2C Controller"
+	depends on MFD_KEMPLD
+	help
+	  This enables support for the I2C bus interface on some Kontron ETX
+	  and COMexpress (ETXexpress) modules.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-kempld.
+
 config I2C_MPC
 	tristate "MPC107/824x/85xx/512x/52xx/83xx/86xx"
 	depends on PPC
