@@ -351,17 +351,16 @@ static void exynos_tmu_work(struct work_struct *work)
 			struct exynos_tmu_data, irq_work);
 	struct exynos_tmu_platform_data *pdata = data->pdata;
 	const struct exynos_tmu_registers *reg = pdata->registers;
+	unsigned int val_irq;
 
 	exynos_report_trigger();
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
 
-	if (data->soc == SOC_ARCH_EXYNOS)
-		writel((reg->inten_rise_mask << reg->inten_rise_shift) |
-			(reg->inten_fall_mask << reg->inten_fall_shift),
-				data->base + reg->tmu_intclear);
-	else
-		writel(reg->inten_rise_mask, data->base + reg->tmu_intclear);
+	/* TODO: take action based on particular interrupt */
+	val_irq = readl(data->base + reg->tmu_intstat);
+	/* clear the interrupts */
+	writel(val_irq, data->base + reg->tmu_intclear);
 
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
