@@ -641,14 +641,14 @@ config USB_OCTEON2_COMMON
 
 config USB_SUNXI_EHCI
 	bool "Allwinner sunXi EHCI support"
-	depends on USB && (ARCH_SUN4I || ARCH_SUN5I) && USB_EHCI_HCD
+	depends on USB && (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I) && USB_EHCI_HCD
 	default y
 	help
 	  Enable support for Allwinner's EHCI controller (USB 2.0).
 
 config USB_SUNXI_OHCI
 	bool "Allwinner sunXi OHCI support"
-	depends on USB && (ARCH_SUN4I || ARCH_SUN5I) && USB_OHCI_HCD
+	depends on USB && (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I) && USB_OHCI_HCD
 	default USB_SUNXI_EHCI
 	help
 	  Enable support for Allwinner's OHCI controller (USB 1.1).

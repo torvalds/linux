@@ -3195,7 +3195,7 @@ int sw_usb_device_enable(void)
 	struct platform_device *pdev = g_udc_pdev;
 	struct sw_udc  	*udc    = &sw_udc;
 	int           	retval  = 0;
-	int            	irq     = SW_INTC_IRQNO_USB0;
+	int            	irq     = SW_INT_IRQNO_USB0;
 
 	DMSG_INFO_UDC("sw_usb_device_enable start\n");
 
@@ -3405,7 +3405,7 @@ static int sw_udc_probe_device_only(struct platform_device *pdev)
 	struct sw_udc  	*udc    = &sw_udc;
 //	struct device       *dev    = &pdev->dev;
 	int                 retval  = 0;
-	int                 irq     = SW_INTC_IRQNO_USB0;
+	int                 irq     = SW_INT_IRQNO_USB0;
 
     memset(&g_sw_udc_io, 0, sizeof(sw_udc_io_t));
 

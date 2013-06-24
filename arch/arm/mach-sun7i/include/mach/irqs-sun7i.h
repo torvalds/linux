@@ -100,9 +100,9 @@
 #define SW_INT_IRQNO_SDMC3	(AW_IRQ_GIC_START + 35)    /* MMC3   */
 #define AW_IRQ_MS        	(AW_IRQ_GIC_START + 36)    /* External NMI  */
 #define AW_IRQ_NAND        	(AW_IRQ_GIC_START + 37)    /* NAND  */
-#define AW_IRQ_USB0        	(AW_IRQ_GIC_START + 38)    /* USB0  */
-#define AW_IRQ_USB1        	(AW_IRQ_GIC_START + 39)    /* USB1  */
-#define AW_IRQ_USB2        	(AW_IRQ_GIC_START + 40)    /* USB2  */
+#define SW_INT_IRQNO_USB0	(AW_IRQ_GIC_START + 38)    /* USB0  */
+#define SW_INT_IRQNO_USB1	(AW_IRQ_GIC_START + 39)    /* USB1  */
+#define SW_INT_IRQNO_USB2 	(AW_IRQ_GIC_START + 40)    /* USB2  */
 #define AW_IRQ_SCR       	(AW_IRQ_GIC_START + 41)    /* SCR   */
 #define AW_IRQ_CSI0       	(AW_IRQ_GIC_START + 42)    /* CSI0  */
 #define AW_IRQ_CSI1       	(AW_IRQ_GIC_START + 43)    /* CSI1  */
@@ -126,8 +126,8 @@
 #define AW_IRQ_TVD       	(AW_IRQ_GIC_START + 61)    /* TVD   */
 #define AW_IRQ_PS2_0       	(AW_IRQ_GIC_START + 62)    /* PS2_0 */
 #define AW_IRQ_PS2_1       	(AW_IRQ_GIC_START + 63)    /* PS2_1 */
-#define AW_IRQ_USB3       	(AW_IRQ_GIC_START + 64)    /* USB3  */
-#define AW_IRQ_USB4       	(AW_IRQ_GIC_START + 65)    /* USB4  */
+#define SW_INT_IRQNO_USB3	(AW_IRQ_GIC_START + 64)    /* USB3  */
+#define SW_INT_IRQNO_USB4	(AW_IRQ_GIC_START + 65)    /* USB4  */
 #define AW_IRQ_PLE_PERFMU 	(AW_IRQ_GIC_START + 66)    /* PLE_PERFMU */
 #define AW_IRQ_TIMER4    	(AW_IRQ_GIC_START + 67)    /* TIMER4  */
 #define AW_IRQ_TIMER5    	(AW_IRQ_GIC_START + 68)    /* TIMER5  */

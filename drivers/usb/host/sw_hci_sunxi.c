@@ -52,6 +52,7 @@
 #include <mach/irqs.h>
 
 #include <mach/clock.h>
+#include <mach/platform.h>
 #include <plat/system.h>
 #include <plat/sys_config.h>
 
@@ -863,7 +864,7 @@ static int __init sw_hci_sunxi_init(void)
 	sw_ehci1.drv_vbus_Handle = usb1_drv_vbus_Handle;
 	sw_ohci1.drv_vbus_Handle = usb1_drv_vbus_Handle;
 
-	if (sunxi_is_sun4i()) {
+	if (sunxi_is_sun4i() || sunxi_is_sun7i()) {
 		/* A13 has only one *HCI USB controller */
 		init_sw_hci(&sw_ehci2, 2, 0, ehci_name);
 		init_sw_hci(&sw_ohci2, 2, 1, ohci_name);

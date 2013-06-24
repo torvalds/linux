@@ -1681,7 +1681,7 @@ EXPORT_SYMBOL(sw_usb_host0_disable);
 static int sw_hcd_probe_otg(struct platform_device *pdev)
 {
 	struct device   *dev    = &pdev->dev;
-	int             irq     = SW_INTC_IRQNO_USB0; //platform_get_irq(pdev, 0);
+	int             irq     = SW_INT_IRQNO_USB0; //platform_get_irq(pdev, 0);
 	__s32 			ret 	= 0;
 	__s32 			status	= 0;
 
@@ -1783,7 +1783,7 @@ static int sw_hcd_remove_otg(struct platform_device *pdev)
 static int sw_hcd_probe_host_only(struct platform_device *pdev)
 {
 	struct device   *dev        = &pdev->dev;
-	int             irq         = SW_INTC_IRQNO_USB0; //platform_get_irq(pdev, 0);
+	int             irq         = SW_INT_IRQNO_USB0; //platform_get_irq(pdev, 0);
 	__s32 			ret 		= 0;
 
 	if (irq == 0){

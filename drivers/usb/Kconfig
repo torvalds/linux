@@ -19,6 +19,7 @@ config USB_ARCH_HAS_OHCI
 	default y if ARCH_DAVINCI_DA8XX
 	default y if ARCH_SUN4I
 	default y if ARCH_SUN5I
+	default y if ARCH_SUN7I
 	default y if ARCH_CNS3XXX
 	default y if PLAT_SPEAR
 	default y if ARCH_EXYNOS
@@ -43,6 +44,7 @@ config USB_ARCH_HAS_EHCI
 	default y if ARCH_OMAP3
 	default y if ARCH_SUN4I
 	default y if ARCH_SUN5I
+	default y if ARCH_SUN7I
 	default y if ARCH_CNS3XXX
 	default y if ARCH_VT8500
 	default y if PLAT_SPEAR

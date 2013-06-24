@@ -49,7 +49,7 @@
 
 #ifdef CONFIG_PLATFORM_ARM_SUN4I
 #if defined(CONFIG_MMC_SUNXI_POWER_CONTROL)
-#define SDIOID (sunxi_is_sun4i() ? 3 : 1)
+#define SDIOID ((sunxi_is_sun4i() || sunxi_is_sun7i()) ? 3 : 1)
 #define SUNXI_SDIO_WIFI_NUM_RTL8189ES  10
 extern void sunximmc_rescan_card(unsigned id, unsigned insert);
 extern int mmc_pm_get_mod_type(void);

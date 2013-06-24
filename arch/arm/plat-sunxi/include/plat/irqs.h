@@ -80,9 +80,9 @@
 #define SW_INT_IRQNO_MEMSTICK           36
 #define SW_INT_IRQNO_NAND               37
 
-#define SW_INTC_IRQNO_USB0              38
-#define SW_INTC_IRQNO_USB1              39
-#define SW_INTC_IRQNO_USB2              40
+#define SW_INT_IRQNO_USB0		38
+#define SW_INT_IRQNO_USB1		39
+#define SW_INT_IRQNO_USB2		40
 #define SW_INTC_IRQNO_SCR               41
 #define SW_INTC_IRQNO_CSI0              42
 #define SW_INTC_IRQNO_CSI1              43

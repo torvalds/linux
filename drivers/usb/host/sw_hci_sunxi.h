@@ -36,6 +36,8 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 
+#include <mach/irqs.h>
+
 #define  DMSG_PRINT(stuff...)	printk(stuff)
 #define  DMSG_ERR(...) \
 	(DMSG_PRINT("WRN:L%d(%s):", __LINE__, __FILE__), \
@@ -120,10 +122,10 @@
 #define SW_CCMU_BP_USB_CLK_USBPHY1_RST		1
 #define SW_CCMU_BP_USB_CLK_USBPHY0_RST		0
 
-#define SW_INT_SRC_EHCI0	39
-#define SW_INT_SRC_OHCI0	64
-#define SW_INT_SRC_EHCI1	40
-#define SW_INT_SRC_OHCI1	65
+#define SW_INT_SRC_EHCI0	SW_INT_IRQNO_USB1
+#define SW_INT_SRC_OHCI0	SW_INT_IRQNO_USB3
+#define SW_INT_SRC_EHCI1	SW_INT_IRQNO_USB2
+#define SW_INT_SRC_OHCI1	SW_INT_IRQNO_USB4
 
 #define SW_SDRAM_BASE		0x01c01000
 #define SW_SDRAM_BASE_LEN	0x100
