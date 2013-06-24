@@ -36,8 +36,13 @@ struct indicator_t {
 static LIST_HEAD(tiq_list);
 static DEFINE_MUTEX(tiq_list_lock);
 
-/* adapter local summary indicator */
-static u8 *tiqdio_alsi;
+/* Adapter interrupt definitions */
+static void tiqdio_thinint_handler(struct airq_struct *airq);
+
+static struct airq_struct tiqdio_airq = {
+	.handler = tiqdio_thinint_handler,
+	.isc = QDIO_AIRQ_ISC,
+};
 
 static struct indicator_t *q_indicators;
 
@@ -176,7 +181,7 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
  * @alsi: pointer to adapter local summary indicator
  * @data: NULL
  */
-static void tiqdio_thinint_handler(void *alsi, void *data)
+static void tiqdio_thinint_handler(struct airq_struct *airq)
 {
 	u32 si_used = clear_shared_ind();
 	struct qdio_q *q;
@@ -216,7 +221,7 @@ static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 		summary_indicator_addr = 0;
 		subchannel_indicator_addr = 0;
 	} else {
-		summary_indicator_addr = virt_to_phys(tiqdio_alsi);
+		summary_indicator_addr = virt_to_phys(tiqdio_airq.lsi_ptr);
 		subchannel_indicator_addr = virt_to_phys(irq_ptr->dsci);
 	}
 
@@ -252,14 +257,12 @@ void tiqdio_free_memory(void)
 
 int __init tiqdio_register_thinints(void)
 {
-	isc_register(QDIO_AIRQ_ISC);
-	tiqdio_alsi = s390_register_adapter_interrupt(&tiqdio_thinint_handler,
-						      NULL, QDIO_AIRQ_ISC);
-	if (IS_ERR(tiqdio_alsi)) {
-		DBF_EVENT("RTI:%lx", PTR_ERR(tiqdio_alsi));
-		tiqdio_alsi = NULL;
-		isc_unregister(QDIO_AIRQ_ISC);
-		return -ENOMEM;
+	int rc;
+
+	rc = register_adapter_interrupt(&tiqdio_airq);
+	if (rc) {
+		DBF_EVENT("RTI:%x", rc);
+		return rc;
 	}
 	return 0;
 }
@@ -292,9 +295,5 @@ void qdio_shutdown_thinint(struct qdio_irq *irq_ptr)
 void __exit tiqdio_unregister_thinints(void)
 {
 	WARN_ON(!list_empty(&tiq_list));
-
-	if (tiqdio_alsi) {
-		s390_unregister_adapter_interrupt(tiqdio_alsi, QDIO_AIRQ_ISC);
-		isc_unregister(QDIO_AIRQ_ISC);
-	}
+	unregister_adapter_interrupt(&tiqdio_airq);
 }

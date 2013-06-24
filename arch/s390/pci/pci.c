@@ -82,8 +82,13 @@ struct intr_bucket {
 
 static struct intr_bucket *bucket;
 
-/* Adapter local summary indicator */
-static u8 *zpci_irq_si;
+/* Adapter interrupt definitions */
+static void zpci_irq_handler(struct airq_struct *airq);
+
+static struct airq_struct zpci_airq = {
+	.handler = zpci_irq_handler,
+	.isc = PCI_ISC,
+};
 
 /* I/O Map */
 static DEFINE_SPINLOCK(zpci_iomap_lock);
@@ -402,7 +407,7 @@ static struct pci_ops pci_root_ops = {
 /* store the last handled bit to implement fair scheduling of devices */
 static DEFINE_PER_CPU(unsigned long, next_sbit);
 
-static void zpci_irq_handler(void *dont, void *need)
+static void zpci_irq_handler(struct airq_struct *airq)
 {
 	unsigned long sbit, mbit, last = 0, start = __get_cpu_var(next_sbit);
 	int rescan = 0, max = aisb_max;
@@ -712,25 +717,20 @@ static int __init zpci_irq_init(void)
 		goto out_alloc;
 	}
 
-	isc_register(PCI_ISC);
-	zpci_irq_si = s390_register_adapter_interrupt(&zpci_irq_handler, NULL, PCI_ISC);
-	if (IS_ERR(zpci_irq_si)) {
-		rc = PTR_ERR(zpci_irq_si);
-		zpci_irq_si = NULL;
+	rc = register_adapter_interrupt(&zpci_airq);
+	if (rc)
 		goto out_ai;
-	}
+	/* Set summary to 1 to be called every time for the ISC. */
+	*zpci_airq.lsi_ptr = 1;
 
 	for_each_online_cpu(cpu)
 		per_cpu(next_sbit, cpu) = 0;
 
 	spin_lock_init(&bucket->lock);
-	/* set summary to 1 to be called every time for the ISC */
-	*zpci_irq_si = 1;
 	set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC);
 	return 0;
 
 out_ai:
-	isc_unregister(PCI_ISC);
 	free_page((unsigned long) bucket->alloc);
 out_alloc:
 	free_page((unsigned long) bucket->aisb);
@@ -743,8 +743,7 @@ static void zpci_irq_exit(void)
 {
 	free_page((unsigned long) bucket->alloc);
 	free_page((unsigned long) bucket->aisb);
-	s390_unregister_adapter_interrupt(zpci_irq_si, PCI_ISC);
-	isc_unregister(PCI_ISC);
+	unregister_adapter_interrupt(&zpci_airq);
 	kfree(bucket);
 }
 
