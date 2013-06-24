@@ -155,7 +155,7 @@ static int usi_bm01a_gpio_ctrl(char* name, int level)
     return 0;
     
 power_change:
-#if defined(CONFIG_ARCH_SUN4I)
+#if defined(CONFIG_ARCH_SUN4I) || defined(CONFIG_ARCH_SUN7I)
     ret = gpio_write_one_pin_value(ops->pio_hdle, level, "usi_bm01a_wl_pwr");
 #elif defined(CONFIG_ARCH_SUN5I)
     ret = usi_bm01a_power_onoff(level);

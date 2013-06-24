@@ -37,7 +37,7 @@ enum interrupt_source_e{
     INT_SOURCE_USB2     = AW_IRQ_USB2,
     INT_SOURCE_USB3     = AW_IRQ_USB3,
     INT_SOURCE_USB4     = AW_IRQ_USB4,
-    INT_SOURCE_GPIO     = AW_IRQ_GPIO,
+    INT_SOURCE_GPIO     = SW_INT_IRQNO_PIO,
 };
 
 #define GIC_CPU_CTRL			0x00

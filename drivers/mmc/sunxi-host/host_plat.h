@@ -14,6 +14,8 @@
 #ifndef HOST_PLAT_H
 #define HOST_PLAT_H
 
+#include <mach/irqs.h>
+
 #define DRIVER_NAME "sunxi-mmc"
 #define DRIVER_RIVISION "V2.0"
 #define DRIVER_VERSION "SUNXI MMC Controller, Version: " DRIVER_RIVISION "(Compiled in " __DATE__ " at " __TIME__ ")"
@@ -28,10 +30,10 @@
 #define SMC_BASE(x)             (SMC0_BASE + 0x1000 * (x))
 
 /* interrupt number */
-#define  INTC_IRQNO_SMC0       32
-#define  INTC_IRQNO_SMC1       33
-#define  INTC_IRQNO_SMC2       34
-#define  INTC_IRQNO_SMC3       35
+#define  INTC_IRQNO_SMC0	SW_INT_IRQNO_SDMC0
+#define  INTC_IRQNO_SMC1	SW_INT_IRQNO_SDMC1
+#define  INTC_IRQNO_SMC2	SW_INT_IRQNO_SDMC2
+#define  INTC_IRQNO_SMC3	SW_INT_IRQNO_SDMC3
 
 #define  SUNXI_MMC_USED_MASK       (0xf)
 #define  SUNXI_MMC0_USED           (0x1 << 0)
@@ -67,6 +69,20 @@ enum mclk_src {
 #define SMC_MAX_MOD_CLOCK(n)    (104000000)
 #define SMC_MAX_IO_CLOCK(n)     (52000000)
 #define SMC_MOD_CLK_SRC(n)      (SMC_MCLK_SRC_SATAPLL)
+
+#elif defined(CONFIG_ARCH_SUN7I)
+#define  SUNXI_MMC_HOST_NUM     4
+#define  SUNXI_MMC_USED_CTRL    (SUNXI_MMC0_USED | SUNXI_MMC1_USED | SUNXI_MMC2_USED | SUNXI_MMC3_USED)
+#define  SUNXI_MMC_MAX_DMA_DES_BIT  16
+#define  SUNXI_MMC_DMA_DES_BIT_LEFT 0
+enum mclk_src {
+	SMC_MCLK_SRC_HOSC,
+	SMC_MCLK_SRC_SATAPLL,
+	SMC_MCLK_SRC_DRAMPLL
+};
+#define SMC_MAX_MOD_CLOCK(n)    (104000000)
+#define SMC_MAX_IO_CLOCK(n)     (52000000)
+#define SMC_MOD_CLK_SRC(n)      (SMC_MCLK_SRC_DRAMPLL)
 
 #endif
 
