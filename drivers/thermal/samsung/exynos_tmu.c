@@ -117,7 +117,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct exynos_tmu_platform_data *pdata = data->pdata;
 	const struct exynos_tmu_registers *reg = pdata->registers;
-	unsigned int status, trim_info;
+	unsigned int status, trim_info = 0, con;
 	unsigned int rising_threshold = 0, falling_threshold = 0;
 	int ret = 0, threshold_code, i, trigger_levs = 0;
 
@@ -144,10 +144,26 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 			(data->temp_error2 != 0))
 		data->temp_error1 = pdata->efuse_value;
 
-	/* Count trigger levels to be enabled */
-	for (i = 0; i < MAX_THRESHOLD_LEVS; i++)
-		if (pdata->trigger_levels[i])
+	if (pdata->max_trigger_level > MAX_THRESHOLD_LEVS) {
+		dev_err(&pdev->dev, "Invalid max trigger level\n");
+		goto out;
+	}
+
+	for (i = 0; i < pdata->max_trigger_level; i++) {
+		if (!pdata->trigger_levels[i])
+			continue;
+
+		if ((pdata->trigger_type[i] == HW_TRIP) &&
+		(!pdata->trigger_levels[pdata->max_trigger_level - 1])) {
+			dev_err(&pdev->dev, "Invalid hw trigger level\n");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		/* Count trigger levels except the HW trip*/
+		if (!(pdata->trigger_type[i] == HW_TRIP))
 			trigger_levs++;
+	}
 
 	if (data->soc == SOC_ARCH_EXYNOS4210) {
 		/* Write temperature code for threshold */
@@ -165,7 +181,8 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 		writel(reg->inten_rise_mask, data->base + reg->tmu_intclear);
 	} else if (data->soc == SOC_ARCH_EXYNOS) {
 		/* Write temperature code for rising and falling threshold */
-		for (i = 0; i < trigger_levs; i++) {
+		for (i = 0;
+		i < trigger_levs && i < EXYNOS_MAX_TRIGGER_PER_REG; i++) {
 			threshold_code = temp_to_code(data,
 						pdata->trigger_levels[i]);
 			if (threshold_code < 0) {
@@ -191,6 +208,24 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 		writel((reg->inten_rise_mask << reg->inten_rise_shift) |
 			(reg->inten_fall_mask << reg->inten_fall_shift),
 				data->base + reg->tmu_intclear);
+
+		/* if last threshold limit is also present */
+		i = pdata->max_trigger_level - 1;
+		if (pdata->trigger_levels[i] &&
+				(pdata->trigger_type[i] == HW_TRIP)) {
+			threshold_code = temp_to_code(data,
+						pdata->trigger_levels[i]);
+			if (threshold_code < 0) {
+				ret = threshold_code;
+				goto out;
+			}
+			rising_threshold |= threshold_code << 8 * i;
+			writel(rising_threshold,
+				data->base + reg->threshold_th0);
+			con = readl(data->base + reg->tmu_ctrl);
+			con |= (1 << reg->therm_trip_en_shift);
+			writel(con, data->base + reg->tmu_ctrl);
+		}
 	}
 out:
 	clk_disable(data->clk);

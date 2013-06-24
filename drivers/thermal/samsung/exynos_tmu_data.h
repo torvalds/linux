@@ -91,6 +91,8 @@
 #define EXYNOS_EMUL_DATA_MASK	0xFF
 #define EXYNOS_EMUL_ENABLE	0x1
 
+#define EXYNOS_MAX_TRIGGER_PER_REG	4
+
 #if defined(CONFIG_CPU_EXYNOS4210)
 extern struct exynos_tmu_platform_data const exynos4210_default_tmu_data;
 #define EXYNOS4210_TMU_DRV_DATA (&exynos4210_default_tmu_data)
