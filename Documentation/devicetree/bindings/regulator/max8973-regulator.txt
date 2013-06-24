@@ -1,0 +1,21 @@
+* Maxim MAX8973 Voltage Regulator
+
+Required properties:
+
+- compatible:	must be "maxium,max8973"
+- reg:		the i2c slave address of the regulator. It should be 0x1b.
+
+Any standard regulator properties can be used to configure the single max8973
+DCDC.
+
+Example:
+
+	max8973@1b {
+		compatible = "maxium,max8973";
+		reg = <0x1b>;
+
+		regulator-min-microvolt = <935000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
