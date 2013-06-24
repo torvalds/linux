@@ -401,7 +401,7 @@ static void search_conf(void)
 	struct subtitle_part stpart;
 
 	title = str_new();
-	str_printf( &title, _("Enter %s (sub)string to search for "
+	str_printf( &title, _("Enter %s (sub)string or regexp to search for "
 			      "(with or without \"%s\")"), CONFIG_, CONFIG_);
 
 again:
