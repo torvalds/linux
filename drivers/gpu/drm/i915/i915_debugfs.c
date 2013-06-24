@@ -1483,7 +1483,7 @@ static int i915_ips_status(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!IS_ULT(dev)) {
+	if (!HAS_IPS(dev)) {
 		seq_puts(m, "not supported\n");
 		return 0;
 	}

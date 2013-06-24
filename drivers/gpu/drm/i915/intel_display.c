@@ -3250,7 +3250,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 /* IPS only exists on ULT machines and is tied to pipe A. */
 static bool hsw_crtc_supports_ips(struct intel_crtc *crtc)
 {
-	return IS_ULT(crtc->base.dev) && crtc->pipe == PIPE_A;
+	return HAS_IPS(crtc->base.dev) && crtc->pipe == PIPE_A;
 }
 
 static void hsw_enable_ips(struct intel_crtc *crtc)
@@ -4065,7 +4065,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		pipe_config->pipe_bpp = 8*3;
 	}
 
-	if (IS_HASWELL(dev))
+	if (HAS_IPS(dev))
 		hsw_compute_ips_config(crtc, pipe_config);
 
 	/* XXX: PCH clock sharing is done in ->mode_set, so make sure the old
