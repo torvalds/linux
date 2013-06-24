@@ -474,15 +474,16 @@ static int unioxx5_attach(struct comedi_device *dev,
 
 static void unioxx5_detach(struct comedi_device *dev)
 {
+	struct comedi_subdevice *s;
+	struct unioxx5_subd_priv *spriv;
 	int i;
-	struct comedi_subdevice *subdev;
-	struct unioxx5_subd_priv *usp;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
-		subdev = &dev->subdevices[i];
-		usp = subdev->private;
-		release_region(usp->usp_iobase, UNIOXX5_SIZE);
-		kfree(subdev->private);
+		s = &dev->subdevices[i];
+		spriv = s->private;
+		if (spriv && spriv->usp_iobase)
+			release_region(spriv->usp_iobase, UNIOXX5_SIZE);
+		kfree(spriv);
 	}
 }
 
