@@ -1518,6 +1518,9 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		case FBC_MODULE_PARAM:
 			seq_printf(m, "disabled per module param (default off)");
 			break;
+		case FBC_CHIP_DEFAULT:
+			seq_printf(m, "disabled per chip default");
+			break;
 		default:
 			seq_printf(m, "unknown reason");
 		}
