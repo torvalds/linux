@@ -79,17 +79,24 @@ static int exynos_set_mode(struct thermal_zone_device *thermal,
 static int exynos_get_trip_type(struct thermal_zone_device *thermal, int trip,
 				 enum thermal_trip_type *type)
 {
-	switch (GET_ZONE(trip)) {
-	case MONITOR_ZONE:
-	case WARN_ZONE:
-		*type = THERMAL_TRIP_ACTIVE;
-		break;
-	case PANIC_ZONE:
-		*type = THERMAL_TRIP_CRITICAL;
-		break;
-	default:
+	struct exynos_thermal_zone *th_zone = thermal->devdata;
+	int max_trip = th_zone->sensor_conf->trip_data.trip_count;
+	int trip_type;
+
+	if (trip < 0 || trip >= max_trip)
 		return -EINVAL;
-	}
+
+	trip_type = th_zone->sensor_conf->trip_data.trip_type[trip];
+
+	if (trip_type == SW_TRIP)
+		*type = THERMAL_TRIP_CRITICAL;
+	else if (trip_type == THROTTLE_ACTIVE)
+		*type = THERMAL_TRIP_ACTIVE;
+	else if (trip_type == THROTTLE_PASSIVE)
+		*type = THERMAL_TRIP_PASSIVE;
+	else
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -98,8 +105,9 @@ static int exynos_get_trip_temp(struct thermal_zone_device *thermal, int trip,
 				unsigned long *temp)
 {
 	struct exynos_thermal_zone *th_zone = thermal->devdata;
+	int max_trip = th_zone->sensor_conf->trip_data.trip_count;
 
-	if (trip < GET_TRIP(MONITOR_ZONE) || trip > GET_TRIP(PANIC_ZONE))
+	if (trip < 0 || trip >= max_trip)
 		return -EINVAL;
 
 	*temp = th_zone->sensor_conf->trip_data.trip_val[trip];
@@ -113,10 +121,10 @@ static int exynos_get_trip_temp(struct thermal_zone_device *thermal, int trip,
 static int exynos_get_crit_temp(struct thermal_zone_device *thermal,
 				unsigned long *temp)
 {
-	int ret;
-	/* Panic zone */
-	ret = exynos_get_trip_temp(thermal, GET_TRIP(PANIC_ZONE), temp);
-	return ret;
+	struct exynos_thermal_zone *th_zone = thermal->devdata;
+	int max_trip = th_zone->sensor_conf->trip_data.trip_count;
+	/* Get the temp of highest trip*/
+	return exynos_get_trip_temp(thermal, max_trip - 1, temp);
 }
 
 /* Bind callback functions for thermal zone */
@@ -348,19 +356,28 @@ int exynos_register_thermal(struct thermal_sensor_conf *sensor_conf)
 		return -ENOMEM;
 
 	th_zone->sensor_conf = sensor_conf;
-	cpumask_set_cpu(0, &mask_val);
-	th_zone->cool_dev[0] = cpufreq_cooling_register(&mask_val);
-	if (IS_ERR(th_zone->cool_dev[0])) {
-		pr_err("Failed to register cpufreq cooling device\n");
-		ret = -EINVAL;
-		goto err_unregister;
+	/*
+	 * TODO: 1) Handle multiple cooling devices in a thermal zone
+	 *	 2) Add a flag/name in cooling info to map to specific
+	 *	 sensor
+	 */
+	if (sensor_conf->cooling_data.freq_clip_count > 0) {
+		cpumask_set_cpu(0, &mask_val);
+		th_zone->cool_dev[th_zone->cool_dev_size] =
+					cpufreq_cooling_register(&mask_val);
+		if (IS_ERR(th_zone->cool_dev[th_zone->cool_dev_size])) {
+			pr_err("Failed to register cpufreq cooling device\n");
+			ret = -EINVAL;
+			goto err_unregister;
+		}
+		th_zone->cool_dev_size++;
 	}
-	th_zone->cool_dev_size++;
 
-	th_zone->therm_dev = thermal_zone_device_register(sensor_conf->name,
-			EXYNOS_ZONE_COUNT, 0, th_zone, &exynos_dev_ops, NULL, 0,
-			sensor_conf->trip_data.trigger_falling ?
-			0 : IDLE_INTERVAL);
+	th_zone->therm_dev = thermal_zone_device_register(
+			sensor_conf->name, sensor_conf->trip_data.trip_count,
+			0, th_zone, &exynos_dev_ops, NULL, 0,
+			sensor_conf->trip_data.trigger_falling ? 0 :
+			IDLE_INTERVAL);
 
 	if (IS_ERR(th_zone->therm_dev)) {
 		pr_err("Failed to register thermal zone device\n");

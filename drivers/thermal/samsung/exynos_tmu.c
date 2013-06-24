@@ -509,9 +509,12 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 			pdata->trigger_enable[1] + pdata->trigger_enable[2]+
 			pdata->trigger_enable[3];
 
-	for (i = 0; i < exynos_sensor_conf.trip_data.trip_count; i++)
+	for (i = 0; i < exynos_sensor_conf.trip_data.trip_count; i++) {
 		exynos_sensor_conf.trip_data.trip_val[i] =
 			pdata->threshold + pdata->trigger_levels[i];
+		exynos_sensor_conf.trip_data.trip_type[i] =
+					pdata->trigger_type[i];
+	}
 
 	exynos_sensor_conf.trip_data.trigger_falling = pdata->threshold_falling;
 

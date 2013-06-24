@@ -42,8 +42,6 @@
 #define GET_ZONE(trip) (trip + 2)
 #define GET_TRIP(zone) (zone - 2)
 
-#define EXYNOS_ZONE_COUNT	3
-
 enum trigger_type {
 	THROTTLE_ACTIVE = 1,
 	THROTTLE_PASSIVE,
@@ -69,6 +67,7 @@ struct freq_clip_table {
 
 struct	thermal_trip_point_conf {
 	int trip_val[MAX_TRIP_COUNT];
+	int trip_type[MAX_TRIP_COUNT];
 	int trip_count;
 	unsigned char trigger_falling;
 };
