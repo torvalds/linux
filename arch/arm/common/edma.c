@@ -17,6 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -24,6 +25,13 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/edma.h>
+#include <linux/err.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
+#include <linux/of_dma.h>
+#include <linux/of_irq.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/platform_data/edma.h>
 
@@ -1368,32 +1376,236 @@ void edma_clear_event(unsigned channel)
 }
 EXPORT_SYMBOL(edma_clear_event);
 
-/*-----------------------------------------------------------------------*/
+#if IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_DMADEVICES)
 
-static int __init edma_probe(struct platform_device *pdev)
+static int edma_of_read_u32_to_s16_array(const struct device_node *np,
+					 const char *propname, s16 *out_values,
+					 size_t sz)
+{
+	int ret;
+
+	ret = of_property_read_u16_array(np, propname, out_values, sz);
+	if (ret)
+		return ret;
+
+	/* Terminate it */
+	*out_values++ = -1;
+	*out_values++ = -1;
+
+	return 0;
+}
+
+static int edma_xbar_event_map(struct device *dev,
+			       struct device_node *node,
+			       struct edma_soc_info *pdata, int len)
+{
+	int ret, i;
+	struct resource res;
+	void __iomem *xbar;
+	const s16 (*xbar_chans)[2];
+	u32 shift, offset, mux;
+
+	xbar_chans = devm_kzalloc(dev,
+				  len/sizeof(s16) + 2*sizeof(s16),
+				  GFP_KERNEL);
+	if (!xbar_chans)
+		return -ENOMEM;
+
+	ret = of_address_to_resource(node, 1, &res);
+	if (ret)
+		return -EIO;
+
+	xbar = devm_ioremap(dev, res.start, resource_size(&res));
+	if (!xbar)
+		return -ENOMEM;
+
+	ret = edma_of_read_u32_to_s16_array(node,
+					    "ti,edma-xbar-event-map",
+					    (s16 *)xbar_chans,
+					    len/sizeof(u32));
+	if (ret)
+		return -EIO;
+
+	for (i = 0; xbar_chans[i][0] != -1; i++) {
+		shift = (xbar_chans[i][1] & 0x03) << 3;
+		offset = xbar_chans[i][1] & 0xfffffffc;
+		mux = readl(xbar + offset);
+		mux &= ~(0xff << shift);
+		mux |= xbar_chans[i][0] << shift;
+		writel(mux, (xbar + offset));
+	}
+
+	pdata->xbar_chans = xbar_chans;
+
+	return 0;
+}
+
+static int edma_of_parse_dt(struct device *dev,
+			    struct device_node *node,
+			    struct edma_soc_info *pdata)
+{
+	int ret = 0, i;
+	u32 value;
+	struct property *prop;
+	size_t sz;
+	struct edma_rsv_info *rsv_info;
+	s8 (*queue_tc_map)[2], (*queue_priority_map)[2];
+
+	memset(pdata, 0, sizeof(struct edma_soc_info));
+
+	ret = of_property_read_u32(node, "dma-channels", &value);
+	if (ret < 0)
+		return ret;
+	pdata->n_channel = value;
+
+	ret = of_property_read_u32(node, "ti,edma-regions", &value);
+	if (ret < 0)
+		return ret;
+	pdata->n_region = value;
+
+	ret = of_property_read_u32(node, "ti,edma-slots", &value);
+	if (ret < 0)
+		return ret;
+	pdata->n_slot = value;
+
+	pdata->n_cc = 1;
+
+	rsv_info = devm_kzalloc(dev, sizeof(struct edma_rsv_info), GFP_KERNEL);
+	if (!rsv_info)
+		return -ENOMEM;
+	pdata->rsv = rsv_info;
+
+	queue_tc_map = devm_kzalloc(dev, 8*sizeof(s8), GFP_KERNEL);
+	if (!queue_tc_map)
+		return -ENOMEM;
+
+	for (i = 0; i < 3; i++) {
+		queue_tc_map[i][0] = i;
+		queue_tc_map[i][1] = i;
+	}
+	queue_tc_map[i][0] = -1;
+	queue_tc_map[i][1] = -1;
+
+	pdata->queue_tc_mapping = queue_tc_map;
+
+	queue_priority_map = devm_kzalloc(dev, 8*sizeof(s8), GFP_KERNEL);
+	if (!queue_priority_map)
+		return -ENOMEM;
+
+	for (i = 0; i < 3; i++) {
+		queue_priority_map[i][0] = i;
+		queue_priority_map[i][1] = i;
+	}
+	queue_priority_map[i][0] = -1;
+	queue_priority_map[i][1] = -1;
+
+	pdata->queue_priority_mapping = queue_priority_map;
+
+	pdata->default_queue = 0;
+
+	prop = of_find_property(node, "ti,edma-xbar-event-map", &sz);
+	if (prop)
+		ret = edma_xbar_event_map(dev, node, pdata, sz);
+
+	return ret;
+}
+
+static struct of_dma_filter_info edma_filter_info = {
+	.filter_fn = edma_filter_fn,
+};
+
+static struct edma_soc_info *edma_setup_info_from_dt(struct device *dev,
+						      struct device_node *node)
+{
+	struct edma_soc_info *info;
+	int ret;
+
+	info = devm_kzalloc(dev, sizeof(struct edma_soc_info), GFP_KERNEL);
+	if (!info)
+		return ERR_PTR(-ENOMEM);
+
+	ret = edma_of_parse_dt(dev, node, info);
+	if (ret)
+		return ERR_PTR(ret);
+
+	dma_cap_set(DMA_SLAVE, edma_filter_info.dma_cap);
+	of_dma_controller_register(dev->of_node, of_dma_simple_xlate,
+				   &edma_filter_info);
+
+	return info;
+}
+#else
+static struct edma_soc_info *edma_setup_info_from_dt(struct device *dev,
+						      struct device_node *node)
+{
+	return ERR_PTR(-ENOSYS);
+}
+#endif
+
+static int edma_probe(struct platform_device *pdev)
 {
 	struct edma_soc_info	**info = pdev->dev.platform_data;
-	const s8		(*queue_priority_mapping)[2];
-	const s8		(*queue_tc_mapping)[2];
+	struct edma_soc_info    *ninfo[EDMA_MAX_CC] = {NULL};
+	s8		(*queue_priority_mapping)[2];
+	s8		(*queue_tc_mapping)[2];
 	int			i, j, off, ln, found = 0;
 	int			status = -1;
 	const s16		(*rsv_chans)[2];
 	const s16		(*rsv_slots)[2];
+	const s16		(*xbar_chans)[2];
 	int			irq[EDMA_MAX_CC] = {0, 0};
 	int			err_irq[EDMA_MAX_CC] = {0, 0};
 	struct resource		*r[EDMA_MAX_CC] = {NULL};
-	resource_size_t		len[EDMA_MAX_CC];
+	struct resource		res[EDMA_MAX_CC];
 	char			res_name[10];
 	char			irq_name[10];
+	struct device_node	*node = pdev->dev.of_node;
+	struct device		*dev = &pdev->dev;
+	int			ret;
+
+	if (node) {
+		/* Check if this is a second instance registered */
+		if (arch_num_cc) {
+			dev_err(dev, "only one EDMA instance is supported via DT\n");
+			return -ENODEV;
+		}
+
+		ninfo[0] = edma_setup_info_from_dt(dev, node);
+		if (IS_ERR(ninfo[0])) {
+			dev_err(dev, "failed to get DT data\n");
+			return PTR_ERR(ninfo[0]);
+		}
+
+		info = ninfo;
+	}
 
 	if (!info)
 		return -ENODEV;
 
+	pm_runtime_enable(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "pm_runtime_get_sync() failed\n");
+		return ret;
+	}
+
 	for (j = 0; j < EDMA_MAX_CC; j++) {
-		sprintf(res_name, "edma_cc%d", j);
-		r[j] = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+		if (!info[j]) {
+			if (!found)
+				return -ENODEV;
+			break;
+		}
+		if (node) {
+			ret = of_address_to_resource(node, j, &res[j]);
+			if (!ret)
+				r[j] = &res[j];
+		} else {
+			sprintf(res_name, "edma_cc%d", j);
+			r[j] = platform_get_resource_byname(pdev,
+						IORESOURCE_MEM,
 						res_name);
-		if (!r[j] || !info[j]) {
+		}
+		if (!r[j]) {
 			if (found)
 				break;
 			else
@@ -1402,26 +1614,14 @@ static int __init edma_probe(struct platform_device *pdev)
 			found = 1;
 		}
 
-		len[j] = resource_size(r[j]);
+		edmacc_regs_base[j] = devm_ioremap_resource(&pdev->dev, r[j]);
+		if (IS_ERR(edmacc_regs_base[j]))
+			return PTR_ERR(edmacc_regs_base[j]);
 
-		r[j] = request_mem_region(r[j]->start, len[j],
-			dev_name(&pdev->dev));
-		if (!r[j]) {
-			status = -EBUSY;
-			goto fail1;
-		}
-
-		edmacc_regs_base[j] = ioremap(r[j]->start, len[j]);
-		if (!edmacc_regs_base[j]) {
-			status = -EBUSY;
-			goto fail1;
-		}
-
-		edma_cc[j] = kzalloc(sizeof(struct edma), GFP_KERNEL);
-		if (!edma_cc[j]) {
-			status = -ENOMEM;
-			goto fail1;
-		}
+		edma_cc[j] = devm_kzalloc(&pdev->dev, sizeof(struct edma),
+					  GFP_KERNEL);
+		if (!edma_cc[j])
+			return -ENOMEM;
 
 		edma_cc[j]->num_channels = min_t(unsigned, info[j]->n_channel,
 							EDMA_MAX_DMACH);
@@ -1452,7 +1652,7 @@ static int __init edma_probe(struct platform_device *pdev)
 					off = rsv_chans[i][0];
 					ln = rsv_chans[i][1];
 					clear_bits(off, ln,
-						edma_cc[j]->edma_unused);
+						  edma_cc[j]->edma_unused);
 				}
 			}
 
@@ -1468,26 +1668,48 @@ static int __init edma_probe(struct platform_device *pdev)
 			}
 		}
 
-		sprintf(irq_name, "edma%d", j);
-		irq[j] = platform_get_irq_byname(pdev, irq_name);
-		edma_cc[j]->irq_res_start = irq[j];
-		status = request_irq(irq[j], dma_irq_handler, 0, "edma",
-					&pdev->dev);
-		if (status < 0) {
-			dev_dbg(&pdev->dev, "request_irq %d failed --> %d\n",
-				irq[j], status);
-			goto fail;
+		/* Clear the xbar mapped channels in unused list */
+		xbar_chans = info[j]->xbar_chans;
+		if (xbar_chans) {
+			for (i = 0; xbar_chans[i][1] != -1; i++) {
+				off = xbar_chans[i][1];
+				clear_bits(off, 1,
+					   edma_cc[j]->edma_unused);
+			}
 		}
 
-		sprintf(irq_name, "edma%d_err", j);
-		err_irq[j] = platform_get_irq_byname(pdev, irq_name);
-		edma_cc[j]->irq_res_end = err_irq[j];
-		status = request_irq(err_irq[j], dma_ccerr_handler, 0,
-					"edma_error", &pdev->dev);
+		if (node) {
+			irq[j] = irq_of_parse_and_map(node, 0);
+		} else {
+			sprintf(irq_name, "edma%d", j);
+			irq[j] = platform_get_irq_byname(pdev, irq_name);
+		}
+		edma_cc[j]->irq_res_start = irq[j];
+		status = devm_request_irq(&pdev->dev, irq[j],
+					  dma_irq_handler, 0, "edma",
+					  &pdev->dev);
 		if (status < 0) {
-			dev_dbg(&pdev->dev, "request_irq %d failed --> %d\n",
+			dev_dbg(&pdev->dev,
+				"devm_request_irq %d failed --> %d\n",
+				irq[j], status);
+			return status;
+		}
+
+		if (node) {
+			err_irq[j] = irq_of_parse_and_map(node, 2);
+		} else {
+			sprintf(irq_name, "edma%d_err", j);
+			err_irq[j] = platform_get_irq_byname(pdev, irq_name);
+		}
+		edma_cc[j]->irq_res_end = err_irq[j];
+		status = devm_request_irq(&pdev->dev, err_irq[j],
+					  dma_ccerr_handler, 0,
+					  "edma_error", &pdev->dev);
+		if (status < 0) {
+			dev_dbg(&pdev->dev,
+				"devm_request_irq %d failed --> %d\n",
 				err_irq[j], status);
-			goto fail;
+			return status;
 		}
 
 		for (i = 0; i < edma_cc[j]->num_channels; i++)
@@ -1522,28 +1744,19 @@ static int __init edma_probe(struct platform_device *pdev)
 	}
 
 	return 0;
-
-fail:
-	for (i = 0; i < EDMA_MAX_CC; i++) {
-		if (err_irq[i])
-			free_irq(err_irq[i], &pdev->dev);
-		if (irq[i])
-			free_irq(irq[i], &pdev->dev);
-	}
-fail1:
-	for (i = 0; i < EDMA_MAX_CC; i++) {
-		if (r[i])
-			release_mem_region(r[i]->start, len[i]);
-		if (edmacc_regs_base[i])
-			iounmap(edmacc_regs_base[i]);
-		kfree(edma_cc[i]);
-	}
-	return status;
 }
 
+static const struct of_device_id edma_of_ids[] = {
+	{ .compatible = "ti,edma3", },
+	{}
+};
 
 static struct platform_driver edma_driver = {
-	.driver.name	= "edma",
+	.driver = {
+		.name	= "edma",
+		.of_match_table = edma_of_ids,
+	},
+	.probe = edma_probe,
 };
 
 static int __init edma_init(void)

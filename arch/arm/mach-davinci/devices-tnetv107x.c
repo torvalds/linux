@@ -58,14 +58,14 @@
 #define TNETV107X_DMACH_SDIO1_RX		28
 #define TNETV107X_DMACH_SDIO1_TX		29
 
-static const s8 edma_tc_mapping[][2] = {
+static s8 edma_tc_mapping[][2] = {
 	/* event queue no	TC no	*/
 	{	 0,		 0	},
 	{	 1,		 1	},
 	{	-1,		-1	}
 };
 
-static const s8 edma_priority_mapping[][2] = {
+static s8 edma_priority_mapping[][2] = {
 	/* event queue no	Prio	*/
 	{	 0,		 3	},
 	{	 1,		 7	},
