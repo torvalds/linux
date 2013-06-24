@@ -48,7 +48,6 @@ static char *fimc_is_clocks[ISS_CLKS_MAX] = {
 	[ISS_CLK_LITE0]			= "lite0",
 	[ISS_CLK_LITE1]			= "lite1",
 	[ISS_CLK_MPLL]			= "mpll",
-	[ISS_CLK_SYSREG]		= "sysreg",
 	[ISS_CLK_ISP]			= "isp",
 	[ISS_CLK_DRC]			= "drc",
 	[ISS_CLK_FD]			= "fd",
@@ -71,7 +70,6 @@ static void fimc_is_put_clocks(struct fimc_is *is)
 	for (i = 0; i < ISS_CLKS_MAX; i++) {
 		if (IS_ERR(is->clocks[i]))
 			continue;
-		clk_unprepare(is->clocks[i]);
 		clk_put(is->clocks[i]);
 		is->clocks[i] = ERR_PTR(-EINVAL);
 	}
@@ -90,12 +88,6 @@ static int fimc_is_get_clocks(struct fimc_is *is)
 			ret = PTR_ERR(is->clocks[i]);
 			goto err;
 		}
-		ret = clk_prepare(is->clocks[i]);
-		if (ret < 0) {
-			clk_put(is->clocks[i]);
-			is->clocks[i] = ERR_PTR(-EINVAL);
-			goto err;
-		}
 	}
 
 	return 0;
@@ -103,7 +95,7 @@ err:
 	fimc_is_put_clocks(is);
 	dev_err(&is->pdev->dev, "failed to get clock: %s\n",
 		fimc_is_clocks[i]);
-	return -ENXIO;
+	return ret;
 }
 
 static int fimc_is_setup_clocks(struct fimc_is *is)
@@ -144,7 +136,7 @@ int fimc_is_enable_clocks(struct fimc_is *is)
 	for (i = 0; i < ISS_GATE_CLKS_MAX; i++) {
 		if (IS_ERR(is->clocks[i]))
 			continue;
-		ret = clk_enable(is->clocks[i]);
+		ret = clk_prepare_enable(is->clocks[i]);
 		if (ret < 0) {
 			dev_err(&is->pdev->dev, "clock %s enable failed\n",
 				fimc_is_clocks[i]);
@@ -163,7 +155,7 @@ void fimc_is_disable_clocks(struct fimc_is *is)
 
 	for (i = 0; i < ISS_GATE_CLKS_MAX; i++) {
 		if (!IS_ERR(is->clocks[i])) {
-			clk_disable(is->clocks[i]);
+			clk_disable_unprepare(is->clocks[i]);
 			pr_debug("disabled clock: %s\n", fimc_is_clocks[i]);
 		}
 	}
@@ -325,6 +317,11 @@ int fimc_is_start_firmware(struct fimc_is *is)
 {
 	struct device *dev = &is->pdev->dev;
 	int ret;
+
+	if (is->fw.f_w == NULL) {
+		dev_err(dev, "firmware is not loaded\n");
+		return -EINVAL;
+	}
 
 	memcpy(is->memory.vaddr, is->fw.f_w->data, is->fw.f_w->size);
 	wmb();
@@ -837,22 +834,10 @@ static int fimc_is_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 	pm_runtime_enable(dev);
-	/*
-	 * Enable only the ISP power domain, keep FIMC-IS clocks off until
-	 * the whole clock tree is configured. The ISP power domain needs
-	 * be active in order to acces any CMU_ISP clock registers.
-	 */
+
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
 		goto err_irq;
-
-	ret = fimc_is_setup_clocks(is);
-	pm_runtime_put_sync(dev);
-
-	if (ret < 0)
-		goto err_irq;
-
-	is->clk_init = true;
 
 	is->alloc_ctx = vb2_dma_contig_init_ctx(dev);
 	if (IS_ERR(is->alloc_ctx)) {
@@ -875,6 +860,8 @@ static int fimc_is_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_dfs;
 
+	pm_runtime_put_sync(dev);
+
 	dev_dbg(dev, "FIMC-IS registered successfully\n");
 	return 0;
 
@@ -894,9 +881,11 @@ err_clk:
 static int fimc_is_runtime_resume(struct device *dev)
 {
 	struct fimc_is *is = dev_get_drvdata(dev);
+	int ret;
 
-	if (!is->clk_init)
-		return 0;
+	ret = fimc_is_setup_clocks(is);
+	if (ret)
+		return ret;
 
 	return fimc_is_enable_clocks(is);
 }
@@ -905,9 +894,7 @@ static int fimc_is_runtime_suspend(struct device *dev)
 {
 	struct fimc_is *is = dev_get_drvdata(dev);
 
-	if (is->clk_init)
-		fimc_is_disable_clocks(is);
-
+	fimc_is_disable_clocks(is);
 	return 0;
 }
 
@@ -941,7 +928,8 @@ static int fimc_is_remove(struct platform_device *pdev)
 	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
 	fimc_is_put_clocks(is);
 	fimc_is_debugfs_remove(is);
-	release_firmware(is->fw.f_w);
+	if (is->fw.f_w)
+		release_firmware(is->fw.f_w);
 	fimc_is_free_cpu_memory(is);
 
 	return 0;

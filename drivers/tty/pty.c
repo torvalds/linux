@@ -244,14 +244,9 @@ static void pty_flush_buffer(struct tty_struct *tty)
 
 static int pty_open(struct tty_struct *tty, struct file *filp)
 {
-	int	retval = -ENODEV;
-
 	if (!tty || !tty->link)
-		goto out;
+		return -ENODEV;
 
-	set_bit(TTY_IO_ERROR, &tty->flags);
-
-	retval = -EIO;
 	if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
 		goto out;
 	if (test_bit(TTY_PTY_LOCK, &tty->link->flags))
@@ -262,9 +257,11 @@ static int pty_open(struct tty_struct *tty, struct file *filp)
 	clear_bit(TTY_IO_ERROR, &tty->flags);
 	clear_bit(TTY_OTHER_CLOSED, &tty->link->flags);
 	set_bit(TTY_THROTTLED, &tty->flags);
-	retval = 0;
+	return 0;
+
 out:
-	return retval;
+	set_bit(TTY_IO_ERROR, &tty->flags);
+	return -EIO;
 }
 
 static void pty_set_termios(struct tty_struct *tty,
