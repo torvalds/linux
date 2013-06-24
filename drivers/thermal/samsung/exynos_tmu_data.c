@@ -25,6 +25,28 @@
 #include "exynos_tmu_data.h"
 
 #if defined(CONFIG_CPU_EXYNOS4210)
+static const struct exynos_tmu_registers exynos4210_tmu_registers = {
+	.triminfo_data = EXYNOS_TMU_REG_TRIMINFO,
+	.triminfo_25_shift = EXYNOS_TRIMINFO_25_SHIFT,
+	.triminfo_85_shift = EXYNOS_TRIMINFO_85_SHIFT,
+	.tmu_ctrl = EXYNOS_TMU_REG_CONTROL,
+	.buf_vref_sel_shift = EXYNOS_TMU_REF_VOLTAGE_SHIFT,
+	.buf_vref_sel_mask = EXYNOS_TMU_REF_VOLTAGE_MASK,
+	.buf_slope_sel_shift = EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT,
+	.buf_slope_sel_mask = EXYNOS_TMU_BUF_SLOPE_SEL_MASK,
+	.core_en_shift = EXYNOS_TMU_CORE_EN_SHIFT,
+	.tmu_status = EXYNOS_TMU_REG_STATUS,
+	.tmu_cur_temp = EXYNOS_TMU_REG_CURRENT_TEMP,
+	.threshold_temp = EXYNOS4210_TMU_REG_THRESHOLD_TEMP,
+	.threshold_th0 = EXYNOS4210_TMU_REG_TRIG_LEVEL0,
+	.tmu_inten = EXYNOS_TMU_REG_INTEN,
+	.inten_rise_mask = EXYNOS4210_TMU_TRIG_LEVEL_MASK,
+	.inten_rise0_shift = EXYNOS_TMU_INTEN_RISE0_SHIFT,
+	.inten_rise1_shift = EXYNOS_TMU_INTEN_RISE1_SHIFT,
+	.inten_rise2_shift = EXYNOS_TMU_INTEN_RISE2_SHIFT,
+	.inten_rise3_shift = EXYNOS_TMU_INTEN_RISE3_SHIFT,
+	.tmu_intclear = EXYNOS_TMU_REG_INTCLEAR,
+};
 struct exynos_tmu_platform_data const exynos4210_default_tmu_data = {
 	.threshold = 80,
 	.trigger_levels[0] = 5,
@@ -56,10 +78,46 @@ struct exynos_tmu_platform_data const exynos4210_default_tmu_data = {
 	},
 	.freq_tab_count = 2,
 	.type = SOC_ARCH_EXYNOS4210,
+	.registers = &exynos4210_tmu_registers,
 };
 #endif
 
 #if defined(CONFIG_SOC_EXYNOS5250) || defined(CONFIG_SOC_EXYNOS4412)
+static const struct exynos_tmu_registers exynos5250_tmu_registers = {
+	.triminfo_data = EXYNOS_TMU_REG_TRIMINFO,
+	.triminfo_25_shift = EXYNOS_TRIMINFO_25_SHIFT,
+	.triminfo_85_shift = EXYNOS_TRIMINFO_85_SHIFT,
+	.triminfo_ctrl = EXYNOS_TMU_TRIMINFO_CON,
+	.triminfo_reload_shift = EXYNOS_TRIMINFO_RELOAD_SHIFT,
+	.tmu_ctrl = EXYNOS_TMU_REG_CONTROL,
+	.buf_vref_sel_shift = EXYNOS_TMU_REF_VOLTAGE_SHIFT,
+	.buf_vref_sel_mask = EXYNOS_TMU_REF_VOLTAGE_MASK,
+	.therm_trip_mode_shift = EXYNOS_TMU_TRIP_MODE_SHIFT,
+	.therm_trip_mode_mask = EXYNOS_TMU_TRIP_MODE_MASK,
+	.therm_trip_en_shift = EXYNOS_TMU_THERM_TRIP_EN_SHIFT,
+	.buf_slope_sel_shift = EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT,
+	.buf_slope_sel_mask = EXYNOS_TMU_BUF_SLOPE_SEL_MASK,
+	.core_en_shift = EXYNOS_TMU_CORE_EN_SHIFT,
+	.tmu_status = EXYNOS_TMU_REG_STATUS,
+	.tmu_cur_temp = EXYNOS_TMU_REG_CURRENT_TEMP,
+	.threshold_th0 = EXYNOS_THD_TEMP_RISE,
+	.threshold_th1 = EXYNOS_THD_TEMP_FALL,
+	.tmu_inten = EXYNOS_TMU_REG_INTEN,
+	.inten_rise_mask = EXYNOS_TMU_RISE_INT_MASK,
+	.inten_rise_shift = EXYNOS_TMU_RISE_INT_SHIFT,
+	.inten_fall_mask = EXYNOS_TMU_FALL_INT_MASK,
+	.inten_fall_shift = EXYNOS_TMU_FALL_INT_SHIFT,
+	.inten_rise0_shift = EXYNOS_TMU_INTEN_RISE0_SHIFT,
+	.inten_rise1_shift = EXYNOS_TMU_INTEN_RISE1_SHIFT,
+	.inten_rise2_shift = EXYNOS_TMU_INTEN_RISE2_SHIFT,
+	.inten_rise3_shift = EXYNOS_TMU_INTEN_RISE3_SHIFT,
+	.inten_fall0_shift = EXYNOS_TMU_INTEN_FALL0_SHIFT,
+	.tmu_intclear = EXYNOS_TMU_REG_INTCLEAR,
+	.emul_con = EXYNOS_EMUL_CON,
+	.emul_temp_shift = EXYNOS_EMUL_DATA_SHIFT,
+	.emul_time_shift = EXYNOS_EMUL_TIME_SHIFT,
+	.emul_time_mask = EXYNOS_EMUL_TIME_MASK,
+};
 struct exynos_tmu_platform_data const exynos5250_default_tmu_data = {
 	.threshold_falling = 10,
 	.trigger_levels[0] = 85,
@@ -93,5 +151,6 @@ struct exynos_tmu_platform_data const exynos5250_default_tmu_data = {
 	},
 	.freq_tab_count = 2,
 	.type = SOC_ARCH_EXYNOS,
+	.registers = &exynos5250_tmu_registers,
 };
 #endif

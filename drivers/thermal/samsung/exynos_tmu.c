@@ -32,76 +32,6 @@
 #include "exynos_tmu.h"
 #include "exynos_tmu_data.h"
 
-/* Exynos generic registers */
-#define EXYNOS_TMU_REG_TRIMINFO		0x0
-#define EXYNOS_TMU_REG_CONTROL		0x20
-#define EXYNOS_TMU_REG_STATUS		0x28
-#define EXYNOS_TMU_REG_CURRENT_TEMP	0x40
-#define EXYNOS_TMU_REG_INTEN		0x70
-#define EXYNOS_TMU_REG_INTSTAT		0x74
-#define EXYNOS_TMU_REG_INTCLEAR		0x78
-
-#define EXYNOS_TMU_TRIM_TEMP_MASK	0xff
-#define EXYNOS_TMU_GAIN_SHIFT		8
-#define EXYNOS_TMU_GAIN_MASK		0xf
-#define EXYNOS_TMU_REF_VOLTAGE_SHIFT	24
-#define EXYNOS_TMU_REF_VOLTAGE_MASK	0x1f
-#define EXYNOS_TMU_BUF_SLOPE_SEL_MASK	0xf
-#define EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT	8
-#define EXYNOS_TMU_CORE_EN_SHIFT	0
-
-/* Exynos4210 specific registers */
-#define EXYNOS4210_TMU_REG_THRESHOLD_TEMP	0x44
-#define EXYNOS4210_TMU_REG_TRIG_LEVEL0	0x50
-#define EXYNOS4210_TMU_REG_TRIG_LEVEL1	0x54
-#define EXYNOS4210_TMU_REG_TRIG_LEVEL2	0x58
-#define EXYNOS4210_TMU_REG_TRIG_LEVEL3	0x5C
-#define EXYNOS4210_TMU_REG_PAST_TEMP0	0x60
-#define EXYNOS4210_TMU_REG_PAST_TEMP1	0x64
-#define EXYNOS4210_TMU_REG_PAST_TEMP2	0x68
-#define EXYNOS4210_TMU_REG_PAST_TEMP3	0x6C
-
-#define EXYNOS4210_TMU_TRIG_LEVEL0_MASK	0x1
-#define EXYNOS4210_TMU_TRIG_LEVEL1_MASK	0x10
-#define EXYNOS4210_TMU_TRIG_LEVEL2_MASK	0x100
-#define EXYNOS4210_TMU_TRIG_LEVEL3_MASK	0x1000
-#define EXYNOS4210_TMU_TRIG_LEVEL_MASK	0x1111
-#define EXYNOS4210_TMU_INTCLEAR_VAL	0x1111
-
-/* Exynos5250 and Exynos4412 specific registers */
-#define EXYNOS_TMU_TRIMINFO_CON	0x14
-#define EXYNOS_THD_TEMP_RISE		0x50
-#define EXYNOS_THD_TEMP_FALL		0x54
-#define EXYNOS_EMUL_CON		0x80
-
-#define EXYNOS_TRIMINFO_RELOAD		0x1
-#define EXYNOS_TRIMINFO_SHIFT		0x0
-#define EXYNOS_TMU_RISE_INT_MASK	0x111
-#define EXYNOS_TMU_RISE_INT_SHIFT	0
-#define EXYNOS_TMU_FALL_INT_MASK	0x111
-#define EXYNOS_TMU_FALL_INT_SHIFT	12
-#define EXYNOS_TMU_CLEAR_RISE_INT	0x111
-#define EXYNOS_TMU_CLEAR_FALL_INT	(0x111 << 12)
-#define EXYNOS_TMU_TRIP_MODE_SHIFT	13
-#define EXYNOS_TMU_TRIP_MODE_MASK	0x7
-
-#define EXYNOS_TMU_INTEN_RISE0_SHIFT	0
-#define EXYNOS_TMU_INTEN_RISE1_SHIFT	4
-#define EXYNOS_TMU_INTEN_RISE2_SHIFT	8
-#define EXYNOS_TMU_INTEN_RISE3_SHIFT	12
-#define EXYNOS_TMU_INTEN_FALL0_SHIFT	16
-#define EXYNOS_TMU_INTEN_FALL1_SHIFT	20
-#define EXYNOS_TMU_INTEN_FALL2_SHIFT	24
-
-#ifdef CONFIG_THERMAL_EMULATION
-#define EXYNOS_EMUL_TIME	0x57F0
-#define EXYNOS_EMUL_TIME_MASK	0xffff
-#define EXYNOS_EMUL_TIME_SHIFT	16
-#define EXYNOS_EMUL_DATA_SHIFT	8
-#define EXYNOS_EMUL_DATA_MASK	0xFF
-#define EXYNOS_EMUL_ENABLE	0x1
-#endif /* CONFIG_THERMAL_EMULATION */
-
 struct exynos_tmu_data {
 	struct exynos_tmu_platform_data *pdata;
 	struct resource *mem;
@@ -186,6 +116,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct exynos_tmu_platform_data *pdata = data->pdata;
+	const struct exynos_tmu_registers *reg = pdata->registers;
 	unsigned int status, trim_info;
 	unsigned int rising_threshold = 0, falling_threshold = 0;
 	int ret = 0, threshold_code, i, trigger_levs = 0;
@@ -193,20 +124,20 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
 
-	status = readb(data->base + EXYNOS_TMU_REG_STATUS);
+	status = readb(data->base + reg->tmu_status);
 	if (!status) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	if (data->soc == SOC_ARCH_EXYNOS) {
-		__raw_writel(EXYNOS_TRIMINFO_RELOAD,
-				data->base + EXYNOS_TMU_TRIMINFO_CON);
-	}
+	if (data->soc == SOC_ARCH_EXYNOS)
+		__raw_writel(1, data->base + reg->triminfo_ctrl);
+
 	/* Save trimming info in order to perform calibration */
-	trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO);
-	data->temp_error1 = trim_info & EXYNOS_TMU_TRIM_TEMP_MASK;
-	data->temp_error2 = ((trim_info >> 8) & EXYNOS_TMU_TRIM_TEMP_MASK);
+	trim_info = readl(data->base + reg->triminfo_data);
+	data->temp_error1 = trim_info & EXYNOS_TMU_TEMP_MASK;
+	data->temp_error2 = ((trim_info >> reg->triminfo_85_shift) &
+				EXYNOS_TMU_TEMP_MASK);
 
 	if ((pdata->min_efuse_value > data->temp_error1) ||
 			(data->temp_error1 > pdata->max_efuse_value) ||
@@ -226,13 +157,12 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 			goto out;
 		}
 		writeb(threshold_code,
-			data->base + EXYNOS4210_TMU_REG_THRESHOLD_TEMP);
+			data->base + reg->threshold_temp);
 		for (i = 0; i < trigger_levs; i++)
-			writeb(pdata->trigger_levels[i],
-			data->base + EXYNOS4210_TMU_REG_TRIG_LEVEL0 + i * 4);
+			writeb(pdata->trigger_levels[i], data->base +
+			reg->threshold_th0 + i * sizeof(reg->threshold_th0));
 
-		writel(EXYNOS4210_TMU_INTCLEAR_VAL,
-			data->base + EXYNOS_TMU_REG_INTCLEAR);
+		writel(reg->inten_rise_mask, data->base + reg->tmu_intclear);
 	} else if (data->soc == SOC_ARCH_EXYNOS) {
 		/* Write temperature code for rising and falling threshold */
 		for (i = 0; i < trigger_levs; i++) {
@@ -254,12 +184,13 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 		}
 
 		writel(rising_threshold,
-				data->base + EXYNOS_THD_TEMP_RISE);
+				data->base + reg->threshold_th0);
 		writel(falling_threshold,
-				data->base + EXYNOS_THD_TEMP_FALL);
+				data->base + reg->threshold_th1);
 
-		writel(EXYNOS_TMU_CLEAR_RISE_INT | EXYNOS_TMU_CLEAR_FALL_INT,
-				data->base + EXYNOS_TMU_REG_INTCLEAR);
+		writel((reg->inten_rise_mask << reg->inten_rise_shift) |
+			(reg->inten_fall_mask << reg->inten_fall_shift),
+				data->base + reg->tmu_intclear);
 	}
 out:
 	clk_disable(data->clk);
@@ -272,46 +203,46 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	struct exynos_tmu_platform_data *pdata = data->pdata;
+	const struct exynos_tmu_registers *reg = pdata->registers;
 	unsigned int con, interrupt_en;
 
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
 
-	con = readl(data->base + EXYNOS_TMU_REG_CONTROL);
+	con = readl(data->base + reg->tmu_ctrl);
 
 	if (pdata->reference_voltage) {
-		con &= ~(EXYNOS_TMU_REF_VOLTAGE_MASK <<
-				EXYNOS_TMU_REF_VOLTAGE_SHIFT);
-		con |= pdata->reference_voltage << EXYNOS_TMU_REF_VOLTAGE_SHIFT;
+		con &= ~(reg->buf_vref_sel_mask << reg->buf_vref_sel_shift);
+		con |= pdata->reference_voltage << reg->buf_vref_sel_shift;
 	}
 
 	if (pdata->gain) {
-		con &= ~(EXYNOS_TMU_GAIN_MASK << EXYNOS_TMU_GAIN_SHIFT);
-		con |= (pdata->gain << EXYNOS_TMU_GAIN_SHIFT);
+		con &= ~(reg->buf_slope_sel_mask << reg->buf_slope_sel_shift);
+		con |= (pdata->gain << reg->buf_slope_sel_shift);
 	}
 
 	if (pdata->noise_cancel_mode) {
-		con &= ~(EXYNOS_TMU_TRIP_MODE_MASK <<
-					EXYNOS_TMU_TRIP_MODE_SHIFT);
-		con |= (pdata->noise_cancel_mode << EXYNOS_TMU_TRIP_MODE_SHIFT);
+		con &= ~(reg->therm_trip_mode_mask <<
+					reg->therm_trip_mode_shift);
+		con |= (pdata->noise_cancel_mode << reg->therm_trip_mode_shift);
 	}
 
 	if (on) {
-		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		con |= (1 << reg->core_en_shift);
 		interrupt_en =
-		pdata->trigger_enable[3] << EXYNOS_TMU_INTEN_RISE3_SHIFT |
-		pdata->trigger_enable[2] << EXYNOS_TMU_INTEN_RISE2_SHIFT |
-		pdata->trigger_enable[1] << EXYNOS_TMU_INTEN_RISE1_SHIFT |
-		pdata->trigger_enable[0] << EXYNOS_TMU_INTEN_RISE0_SHIFT;
+			pdata->trigger_enable[3] << reg->inten_rise3_shift |
+			pdata->trigger_enable[2] << reg->inten_rise2_shift |
+			pdata->trigger_enable[1] << reg->inten_rise1_shift |
+			pdata->trigger_enable[0] << reg->inten_rise0_shift;
 		if (pdata->threshold_falling)
 			interrupt_en |=
-				interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
+				interrupt_en << reg->inten_fall0_shift;
 	} else {
-		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		con &= ~(1 << reg->core_en_shift);
 		interrupt_en = 0; /* Disable all interrupts */
 	}
-	writel(interrupt_en, data->base + EXYNOS_TMU_REG_INTEN);
-	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
+	writel(interrupt_en, data->base + reg->tmu_inten);
+	writel(con, data->base + reg->tmu_ctrl);
 
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
@@ -319,13 +250,15 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 
 static int exynos_tmu_read(struct exynos_tmu_data *data)
 {
+	struct exynos_tmu_platform_data *pdata = data->pdata;
+	const struct exynos_tmu_registers *reg = pdata->registers;
 	u8 temp_code;
 	int temp;
 
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
 
-	temp_code = readb(data->base + EXYNOS_TMU_REG_CURRENT_TEMP);
+	temp_code = readb(data->base + reg->tmu_cur_temp);
 	temp = code_to_temp(data, temp_code);
 
 	clk_disable(data->clk);
@@ -338,7 +271,9 @@ static int exynos_tmu_read(struct exynos_tmu_data *data)
 static int exynos_tmu_set_emulation(void *drv_data, unsigned long temp)
 {
 	struct exynos_tmu_data *data = drv_data;
-	unsigned int reg;
+	struct exynos_tmu_platform_data *pdata = data->pdata;
+	const struct exynos_tmu_registers *reg = pdata->registers;
+	unsigned int val;
 	int ret = -EINVAL;
 
 	if (data->soc == SOC_ARCH_EXYNOS4210)
@@ -350,19 +285,19 @@ static int exynos_tmu_set_emulation(void *drv_data, unsigned long temp)
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
 
-	reg = readl(data->base + EXYNOS_EMUL_CON);
+	val = readl(data->base + reg->emul_con);
 
 	if (temp) {
 		temp /= MCELSIUS;
 
-		reg = (EXYNOS_EMUL_TIME << EXYNOS_EMUL_TIME_SHIFT) |
+		val = (EXYNOS_EMUL_TIME << reg->emul_time_shift) |
 			(temp_to_code(data, temp)
-			 << EXYNOS_EMUL_DATA_SHIFT) | EXYNOS_EMUL_ENABLE;
+			 << reg->emul_temp_shift) | EXYNOS_EMUL_ENABLE;
 	} else {
-		reg &= ~EXYNOS_EMUL_ENABLE;
+		val &= ~EXYNOS_EMUL_ENABLE;
 	}
 
-	writel(reg, data->base + EXYNOS_EMUL_CON);
+	writel(val, data->base + reg->emul_con);
 
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
@@ -379,17 +314,20 @@ static void exynos_tmu_work(struct work_struct *work)
 {
 	struct exynos_tmu_data *data = container_of(work,
 			struct exynos_tmu_data, irq_work);
+	struct exynos_tmu_platform_data *pdata = data->pdata;
+	const struct exynos_tmu_registers *reg = pdata->registers;
 
 	exynos_report_trigger();
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
+
 	if (data->soc == SOC_ARCH_EXYNOS)
-		writel(EXYNOS_TMU_CLEAR_RISE_INT |
-				EXYNOS_TMU_CLEAR_FALL_INT,
-				data->base + EXYNOS_TMU_REG_INTCLEAR);
+		writel((reg->inten_rise_mask << reg->inten_rise_shift) |
+			(reg->inten_fall_mask << reg->inten_fall_shift),
+				data->base + reg->tmu_intclear);
 	else
-		writel(EXYNOS4210_TMU_INTCLEAR_VAL,
-				data->base + EXYNOS_TMU_REG_INTCLEAR);
+		writel(reg->inten_rise_mask, data->base + reg->tmu_intclear);
+
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
 
