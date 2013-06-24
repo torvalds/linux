@@ -30,6 +30,9 @@
 #define ADAU1701_SERICTL	0x081f
 
 #define ADAU1701_AUXNPOW	0x0822
+#define ADAU1701_PINCONF_0	0x0820
+#define ADAU1701_PINCONF_1	0x0821
+#define ADAU1701_AUXNPOW	0x0822
 
 #define ADAU1701_OSCIPOW	0x0826
 #define ADAU1701_DACSET		0x0827
@@ -99,6 +102,7 @@ struct adau1701 {
 	unsigned int pll_clkdiv;
 	unsigned int sysclk;
 	struct regmap *regmap;
+	u8 pin_config[12];
 };
 
 static const struct snd_kcontrol_new adau1701_controls[] = {
@@ -134,6 +138,9 @@ static unsigned int adau1701_register_size(struct device *dev,
 		unsigned int reg)
 {
 	switch (reg) {
+	case ADAU1701_PINCONF_0:
+	case ADAU1701_PINCONF_1:
+		return 3;
 	case ADAU1701_DSPCTRL:
 	case ADAU1701_SEROCTL:
 	case ADAU1701_AUXNPOW:
@@ -164,7 +171,7 @@ static int adau1701_reg_write(void *context, unsigned int reg,
 	struct i2c_client *client = context;
 	unsigned int i;
 	unsigned int size;
-	uint8_t buf[4];
+	uint8_t buf[5];
 	int ret;
 
 	size = adau1701_register_size(&client->dev, reg);
@@ -584,7 +591,8 @@ MODULE_DEVICE_TABLE(of, adau1701_dt_ids);
 
 static int adau1701_probe(struct snd_soc_codec *codec)
 {
-	int ret;
+	int i, ret;
+	unsigned int val;
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 
 	codec->control_data = to_i2c_client(codec->dev);
@@ -601,6 +609,19 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 	ret = adau1701_reset(codec, adau1701->pll_clkdiv);
 	if (ret < 0)
 		return ret;
+
+	/* set up pin config */
+	val = 0;
+	for (i = 0; i < 6; i++)
+		val |= adau1701->pin_config[i] << (i * 4);
+
+	regmap_write(adau1701->regmap, ADAU1701_PINCONF_0, val);
+
+	val = 0;
+	for (i = 0; i < 6; i++)
+		val |= adau1701->pin_config[i + 6] << (i * 4);
+
+	regmap_write(adau1701->regmap, ADAU1701_PINCONF_1, val);
 
 	return 0;
 }
@@ -662,6 +683,13 @@ static int adau1701_i2c_probe(struct i2c_client *client,
 						   "adi,pll-mode-gpios", 1);
 		if (gpio_pll_mode[1] < 0 && gpio_pll_mode[1] != -ENOENT)
 			return gpio_pll_mode[1];
+
+		of_property_read_u32(dev->of_node, "adi,pll-clkdiv",
+				     &adau1701->pll_clkdiv);
+
+		of_property_read_u8_array(dev->of_node, "adi,pin-config",
+					  adau1701->pin_config,
+					  ARRAY_SIZE(adau1701->pin_config));
 	}
 
 	if (gpio_is_valid(gpio_nreset)) {
