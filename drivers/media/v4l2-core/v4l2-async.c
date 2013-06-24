@@ -24,11 +24,15 @@
 
 static bool match_i2c(struct device *dev, struct v4l2_async_subdev *asd)
 {
+#if IS_ENABLED(CONFIG_I2C)
 	struct i2c_client *client = i2c_verify_client(dev);
 	return client &&
 		asd->bus_type == V4L2_ASYNC_BUS_I2C &&
 		asd->match.i2c.adapter_id == client->adapter->nr &&
 		asd->match.i2c.address == client->addr;
+#else
+	return false;
+#endif
 }
 
 static bool match_platform(struct device *dev, struct v4l2_async_subdev *asd)
