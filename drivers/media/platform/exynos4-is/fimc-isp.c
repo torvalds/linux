@@ -138,7 +138,7 @@ static int fimc_isp_subdev_get_fmt(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	mf->colorspace = V4L2_COLORSPACE_JPEG;
+	mf->colorspace = V4L2_COLORSPACE_SRGB;
 
 	mutex_lock(&isp->subdev_lock);
 	__is_get_frame_size(is, &cur_fmt);
@@ -194,7 +194,7 @@ static int fimc_isp_subdev_set_fmt(struct v4l2_subdev *sd,
 	v4l2_dbg(1, debug, sd, "%s: pad%d: code: 0x%x, %dx%d\n",
 		 __func__, fmt->pad, mf->code, mf->width, mf->height);
 
-	mf->colorspace = V4L2_COLORSPACE_JPEG;
+	mf->colorspace = V4L2_COLORSPACE_SRGB;
 
 	mutex_lock(&isp->subdev_lock);
 	__isp_subdev_try_format(isp, fmt);
