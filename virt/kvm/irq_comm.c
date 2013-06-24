@@ -91,8 +91,7 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 		if (!kvm_is_dm_lowest_prio(irq)) {
 			if (r < 0)
 				r = 0;
-			kvm_apic_set_irq(vcpu, irq, dest_map);
-			r++;
+			r += kvm_apic_set_irq(vcpu, irq, dest_map);
 		} else if (kvm_lapic_enabled(vcpu)) {
 			if (!lowest)
 				lowest = vcpu;
@@ -101,10 +100,8 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 		}
 	}
 
-	if (lowest) {
-		kvm_apic_set_irq(lowest, irq, dest_map);
-		r = 1;
-	}
+	if (lowest)
+		r = kvm_apic_set_irq(lowest, irq, dest_map);
 
 	return r;
 }

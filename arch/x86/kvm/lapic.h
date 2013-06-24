@@ -57,9 +57,9 @@ void kvm_apic_update_tmr(struct kvm_vcpu *vcpu, u32 *tmr);
 void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir);
 int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u16 dest);
 int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda);
-void kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq,
-		      unsigned long *dest_map);
-void kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type);
+int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq,
+		unsigned long *dest_map);
+int kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type);
 
 bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 		struct kvm_lapic_irq *irq, int *r, unsigned long *dest_map);
