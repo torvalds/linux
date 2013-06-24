@@ -325,13 +325,7 @@ int wusbhc_b_create(struct wusbhc *wusbhc)
 		goto error_create_attr_group;
 	}
 
-	result = wusbhc_pal_register(wusbhc);
-	if (result < 0)
-		goto error_pal_register;
 	return 0;
-
-error_pal_register:
-	sysfs_remove_group(wusbhc_kobj(wusbhc), &wusbhc_attr_group);
 error_create_attr_group:
 	return result;
 }
@@ -457,7 +451,8 @@ EXPORT_SYMBOL_GPL(wusbhc_giveback_urb);
  */
 void wusbhc_reset_all(struct wusbhc *wusbhc)
 {
-	uwb_rc_reset_all(wusbhc->uwb_rc);
+	if (wusbhc->uwb_rc)
+		uwb_rc_reset_all(wusbhc->uwb_rc);
 }
 EXPORT_SYMBOL_GPL(wusbhc_reset_all);
 

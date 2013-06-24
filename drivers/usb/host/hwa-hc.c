@@ -683,12 +683,9 @@ static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface)
 	wa->usb_dev = usb_get_dev(usb_dev);	/* bind the USB device */
 	wa->usb_iface = usb_get_intf(iface);
 	wusbhc->dev = dev;
-	wusbhc->uwb_rc = uwb_rc_get_by_grandpa(iface->dev.parent);
-	if (wusbhc->uwb_rc == NULL) {
-		result = -ENODEV;
-		dev_err(dev, "Cannot get associated UWB Host Controller\n");
-		goto error_rc_get;
-	}
+	/* defer getting the uwb_rc handle until it is needed since it
+	 * may not have been registered by the hwa_rc driver yet. */
+	wusbhc->uwb_rc = NULL;
 	result = wa_fill_descr(wa);	/* Get the device descriptor */
 	if (result < 0)
 		goto error_fill_descriptor;
@@ -731,8 +728,6 @@ error_wusbhc_create:
 	/* WA Descr fill allocs no resources */
 error_security_create:
 error_fill_descriptor:
-	uwb_rc_put(wusbhc->uwb_rc);
-error_rc_get:
 	usb_put_intf(iface);
 	usb_put_dev(usb_dev);
 	return result;
