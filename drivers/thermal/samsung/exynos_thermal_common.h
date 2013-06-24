@@ -85,22 +85,23 @@ struct thermal_sensor_conf {
 	struct thermal_trip_point_conf trip_data;
 	struct thermal_cooling_conf cooling_data;
 	void *private_data;
+	void *pzone_data;
 };
 
 /*Functions used exynos based thermal sensor driver*/
 #ifdef CONFIG_EXYNOS_THERMAL_CORE
-void exynos_unregister_thermal(void);
+void exynos_unregister_thermal(struct thermal_sensor_conf *sensor_conf);
 int exynos_register_thermal(struct thermal_sensor_conf *sensor_conf);
-void exynos_report_trigger(void);
+void exynos_report_trigger(struct thermal_sensor_conf *sensor_conf);
 #else
 static inline void
-exynos_unregister_thermal(void) { return; }
+exynos_unregister_thermal(struct thermal_sensor_conf *sensor_conf) { return; }
 
 static inline int
 exynos_register_thermal(struct thermal_sensor_conf *sensor_conf) { return 0; }
 
 static inline void
-exynos_report_trigger(void) { return; }
+exynos_report_trigger(struct thermal_sensor_conf *sensor_conf) { return; }
 
 #endif /* CONFIG_EXYNOS_THERMAL_CORE */
 #endif /* _EXYNOS_THERMAL_COMMON_H */
