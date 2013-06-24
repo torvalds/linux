@@ -5,7 +5,8 @@ config EXYNOS_THERMAL
 	  If you say yes here you get support for the TMU (Thermal Management
 	  Unit) driver for SAMSUNG EXYNOS series of soc. This driver initialises
 	  the TMU, reports temperature and handles cooling action if defined.
-	  This driver uses the exynos core thermal API's.
+	  This driver uses the exynos core thermal API's and TMU configuration
+	  data from the supported soc's.
 
 config EXYNOS_THERMAL_CORE
 	bool "Core thermal framework support for EXYNOS SOC's"

@@ -30,6 +30,7 @@
 
 #include "exynos_thermal_common.h"
 #include "exynos_tmu.h"
+#include "exynos_tmu_data.h"
 
 /* Exynos generic registers */
 #define EXYNOS_TMU_REG_TRIMINFO		0x0
@@ -381,67 +382,6 @@ static struct thermal_sensor_conf exynos_sensor_conf = {
 	.write_emul_temp	= exynos_tmu_set_emulation,
 };
 
-#if defined(CONFIG_CPU_EXYNOS4210)
-static struct exynos_tmu_platform_data const exynos4210_default_tmu_data = {
-	.threshold = 80,
-	.trigger_levels[0] = 5,
-	.trigger_levels[1] = 20,
-	.trigger_levels[2] = 30,
-	.trigger_level0_en = 1,
-	.trigger_level1_en = 1,
-	.trigger_level2_en = 1,
-	.trigger_level3_en = 0,
-	.gain = 15,
-	.reference_voltage = 7,
-	.cal_type = TYPE_ONE_POINT_TRIMMING,
-	.freq_tab[0] = {
-		.freq_clip_max = 800 * 1000,
-		.temp_level = 85,
-	},
-	.freq_tab[1] = {
-		.freq_clip_max = 200 * 1000,
-		.temp_level = 100,
-	},
-	.freq_tab_count = 2,
-	.type = SOC_ARCH_EXYNOS4210,
-};
-#define EXYNOS4210_TMU_DRV_DATA (&exynos4210_default_tmu_data)
-#else
-#define EXYNOS4210_TMU_DRV_DATA (NULL)
-#endif
-
-#if defined(CONFIG_SOC_EXYNOS5250) || defined(CONFIG_SOC_EXYNOS4412) || \
-	defined(CONFIG_SOC_EXYNOS4212)
-static struct exynos_tmu_platform_data const exynos_default_tmu_data = {
-	.threshold_falling = 10,
-	.trigger_levels[0] = 85,
-	.trigger_levels[1] = 103,
-	.trigger_levels[2] = 110,
-	.trigger_level0_en = 1,
-	.trigger_level1_en = 1,
-	.trigger_level2_en = 1,
-	.trigger_level3_en = 0,
-	.gain = 8,
-	.reference_voltage = 16,
-	.noise_cancel_mode = 4,
-	.cal_type = TYPE_ONE_POINT_TRIMMING,
-	.efuse_value = 55,
-	.freq_tab[0] = {
-		.freq_clip_max = 800 * 1000,
-		.temp_level = 85,
-	},
-	.freq_tab[1] = {
-		.freq_clip_max = 200 * 1000,
-		.temp_level = 103,
-	},
-	.freq_tab_count = 2,
-	.type = SOC_ARCH_EXYNOS,
-};
-#define EXYNOS_TMU_DRV_DATA (&exynos_default_tmu_data)
-#else
-#define EXYNOS_TMU_DRV_DATA (NULL)
-#endif
-
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_tmu_match[] = {
 	{
@@ -450,11 +390,11 @@ static const struct of_device_id exynos_tmu_match[] = {
 	},
 	{
 		.compatible = "samsung,exynos4412-tmu",
-		.data = (void *)EXYNOS_TMU_DRV_DATA,
+		.data = (void *)EXYNOS5250_TMU_DRV_DATA,
 	},
 	{
 		.compatible = "samsung,exynos5250-tmu",
-		.data = (void *)EXYNOS_TMU_DRV_DATA,
+		.data = (void *)EXYNOS5250_TMU_DRV_DATA,
 	},
 	{},
 };
@@ -468,7 +408,7 @@ static struct platform_device_id exynos_tmu_driver_ids[] = {
 	},
 	{
 		.name		= "exynos5250-tmu",
-		.driver_data    = (kernel_ulong_t)EXYNOS_TMU_DRV_DATA,
+		.driver_data    = (kernel_ulong_t)EXYNOS5250_TMU_DRV_DATA,
 	},
 	{ },
 };
