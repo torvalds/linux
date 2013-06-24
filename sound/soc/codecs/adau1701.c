@@ -184,27 +184,20 @@ static unsigned int adau1701_read(struct snd_soc_codec *codec, unsigned int reg)
 	return value;
 }
 
-static void adau1701_reset(struct snd_soc_codec *codec)
+static int adau1701_reset(struct snd_soc_codec *codec)
 {
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
-
-	if (!gpio_is_valid(adau1701->gpio_nreset))
-		return;
-
-	gpio_set_value(adau1701->gpio_nreset, 0);
-	/* minimum reset time is 20ns */
-	udelay(1);
-	gpio_set_value(adau1701->gpio_nreset, 1);
-	/* power-up time may be as long as 85ms */
-	mdelay(85);
-}
-
-static int adau1701_init(struct snd_soc_codec *codec)
-{
-	int ret;
 	struct i2c_client *client = to_i2c_client(codec->dev);
+	int ret;
 
-	adau1701_reset(codec);
+	if (gpio_is_valid(adau1701->gpio_nreset)) {
+		gpio_set_value(adau1701->gpio_nreset, 0);
+		/* minimum reset time is 20ns */
+		udelay(1);
+		gpio_set_value(adau1701->gpio_nreset, 1);
+		/* power-up time may be as long as 85ms */
+		mdelay(85);
+	}
 
 	ret = process_sigma_firmware(client, ADAU1701_FIRMWARE);
 	if (ret) {
@@ -213,6 +206,7 @@ static int adau1701_init(struct snd_soc_codec *codec)
 	}
 
 	snd_soc_write(codec, ADAU1701_DACSET, ADAU1701_DACSET_DACINIT);
+	snd_soc_write(codec, ADAU1701_DSPCTRL, ADAU1701_DSPCTRL_CR);
 
 	return 0;
 }
@@ -498,11 +492,9 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 
 	codec->control_data = to_i2c_client(codec->dev);
 
-	ret = adau1701_init(codec);
+	ret = adau1701_reset(codec);
 	if (ret)
 		return ret;
-
-	snd_soc_write(codec, ADAU1701_DSPCTRL, ADAU1701_DSPCTRL_CR);
 
 	return 0;
 }
