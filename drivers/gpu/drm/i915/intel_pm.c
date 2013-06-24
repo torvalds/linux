@@ -368,7 +368,7 @@ static void intel_cancel_fbc_work(struct drm_i915_private *dev_priv)
 	dev_priv->fbc_work = NULL;
 }
 
-void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+static void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 {
 	struct intel_fbc_work *work;
 	struct drm_device *dev = crtc->dev;
