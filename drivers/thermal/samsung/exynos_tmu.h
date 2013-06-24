@@ -43,6 +43,34 @@ enum soc_type {
 };
 
 /**
+ * EXYNOS TMU supported features.
+ * TMU_SUPPORT_EMULATION - This features is used to set user defined
+ *			temperature to the TMU controller.
+ * TMU_SUPPORT_MULTI_INST - This features denotes that the soc
+ *			has many instances of TMU.
+ * TMU_SUPPORT_TRIM_RELOAD - This features shows that trimming can
+ *			be reloaded.
+ * TMU_SUPPORT_FALLING_TRIP - This features shows that interrupt can
+ *			be registered for falling trips also.
+ * TMU_SUPPORT_READY_STATUS - This feature tells that the TMU current
+ *			state(active/idle) can be checked.
+ * TMU_SUPPORT_EMUL_TIME - This features allows to set next temp emulation
+ *			sample time.
+ * TMU_SUPPORT_SHARED_MEMORY - This feature tells that the different TMU
+ *			sensors shares some common registers.
+ * TMU_SUPPORT - macro to compare the above features with the supplied.
+ */
+#define TMU_SUPPORT_EMULATION			BIT(0)
+#define TMU_SUPPORT_MULTI_INST			BIT(1)
+#define TMU_SUPPORT_TRIM_RELOAD			BIT(2)
+#define TMU_SUPPORT_FALLING_TRIP		BIT(3)
+#define TMU_SUPPORT_READY_STATUS		BIT(4)
+#define TMU_SUPPORT_EMUL_TIME			BIT(5)
+#define TMU_SUPPORT_SHARED_MEMORY		BIT(6)
+
+#define TMU_SUPPORTS(a, b)	(a->features & TMU_SUPPORT_ ## b)
+
+/**
  * struct exynos_tmu_register - register descriptors to access registers and
  * bitfields. The register validity, offsets and bitfield values may vary
  * slightly across different exynos SOC's.
@@ -222,6 +250,8 @@ struct exynos_tmu_registers {
  *	applicable to only some of the trigger levels.
  * @registers: Pointer to structure containing all the TMU controller registers
  *	and bitfields shifts and masks.
+ * @features: a bitfield value indicating the features supported in SOC like
+ *	emulation, multi instance etc
  *
  * This structure is required for configuration of exynos_tmu driver.
  */
@@ -249,6 +279,7 @@ struct exynos_tmu_platform_data {
 	struct freq_clip_table freq_tab[4];
 	unsigned int freq_tab_count;
 	const struct exynos_tmu_registers *registers;
+	unsigned int features;
 };
 
 /**

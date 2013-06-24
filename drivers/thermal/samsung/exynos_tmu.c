@@ -142,13 +142,15 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
 
-	status = readb(data->base + reg->tmu_status);
-	if (!status) {
-		ret = -EBUSY;
-		goto out;
+	if (TMU_SUPPORTS(pdata, READY_STATUS)) {
+		status = readb(data->base + reg->tmu_status);
+		if (!status) {
+			ret = -EBUSY;
+			goto out;
+		}
 	}
 
-	if (data->soc == SOC_ARCH_EXYNOS)
+	if (TMU_SUPPORTS(pdata, TRIM_RELOAD))
 		__raw_writel(1, data->base + reg->triminfo_ctrl);
 
 	/* Save trimming info in order to perform calibration */
@@ -287,7 +289,7 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 			pdata->trigger_enable[2] << reg->inten_rise2_shift |
 			pdata->trigger_enable[1] << reg->inten_rise1_shift |
 			pdata->trigger_enable[0] << reg->inten_rise0_shift;
-		if (pdata->threshold_falling)
+		if (TMU_SUPPORTS(pdata, FALLING_TRIP))
 			interrupt_en |=
 				interrupt_en << reg->inten_fall0_shift;
 	} else {
@@ -329,7 +331,7 @@ static int exynos_tmu_set_emulation(void *drv_data, unsigned long temp)
 	unsigned int val;
 	int ret = -EINVAL;
 
-	if (data->soc == SOC_ARCH_EXYNOS4210)
+	if (!TMU_SUPPORTS(pdata, EMULATION))
 		goto out;
 
 	if (temp && temp < MCELSIUS)
@@ -343,9 +345,13 @@ static int exynos_tmu_set_emulation(void *drv_data, unsigned long temp)
 	if (temp) {
 		temp /= MCELSIUS;
 
-		val = (EXYNOS_EMUL_TIME << reg->emul_time_shift) |
-			(temp_to_code(data, temp)
-			 << reg->emul_temp_shift) | EXYNOS_EMUL_ENABLE;
+		if (TMU_SUPPORTS(pdata, EMUL_TIME)) {
+			val &= ~(EXYNOS_EMUL_TIME_MASK << reg->emul_time_shift);
+			val |= (EXYNOS_EMUL_TIME << reg->emul_time_shift);
+		}
+		val &= ~(EXYNOS_EMUL_DATA_MASK << reg->emul_temp_shift);
+		val |= (temp_to_code(data, temp) << reg->emul_temp_shift) |
+			EXYNOS_EMUL_ENABLE;
 	} else {
 		val &= ~EXYNOS_EMUL_ENABLE;
 	}

@@ -83,6 +83,7 @@ struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
 		.freq_tab_count = 2,
 		.type = SOC_ARCH_EXYNOS4210,
 		.registers = &exynos4210_tmu_registers,
+		.features = TMU_SUPPORT_READY_STATUS,
 		},
 	},
 	.tmu_count = 1,
@@ -162,7 +163,10 @@ static const struct exynos_tmu_registers exynos5250_tmu_registers = {
 	}, \
 	.freq_tab_count = 2, \
 	.type = SOC_ARCH_EXYNOS, \
-	.registers = &exynos5250_tmu_registers,
+	.registers = &exynos5250_tmu_registers, \
+	.features = (TMU_SUPPORT_EMULATION | TMU_SUPPORT_TRIM_RELOAD | \
+			TMU_SUPPORT_FALLING_TRIP | TMU_SUPPORT_READY_STATUS | \
+			TMU_SUPPORT_EMUL_TIME)
 
 struct exynos_tmu_init_data const exynos5250_default_tmu_data = {
 	.tmu_data = {
