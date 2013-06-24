@@ -107,6 +107,7 @@
 #include <net/ll_poll.h>
 
 #ifdef CONFIG_NET_LL_RX_POLL
+unsigned int sysctl_net_ll_read __read_mostly;
 unsigned int sysctl_net_ll_poll __read_mostly;
 #endif
 
@@ -1147,13 +1148,24 @@ EXPORT_SYMBOL(sock_create_lite);
 /* No kernel lock held - perfect */
 static unsigned int sock_poll(struct file *file, poll_table *wait)
 {
+	unsigned int ll_flag = 0;
 	struct socket *sock;
 
 	/*
 	 *      We can't return errors to poll, so it's either yes or no.
 	 */
 	sock = file->private_data;
-	return sock->ops->poll(file, sock, wait);
+
+	if (sk_valid_ll(sock->sk)) {
+		/* this socket can poll_ll so tell the system call */
+		ll_flag = POLL_LL;
+
+		/* once, only if requested by syscall */
+		if (wait && (wait->_key & POLL_LL))
+			sk_poll_ll(sock->sk, 1);
+	}
+
+	return ll_flag | sock->ops->poll(file, sock, wait);
 }
 
 static int sock_mmap(struct file *file, struct vm_area_struct *vma)

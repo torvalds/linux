@@ -306,6 +306,14 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
+	{
+		.procname	= "low_latency_read",
+		.data		= &sysctl_net_ll_read,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+#
 #endif
 #endif /* CONFIG_NET */
 	{

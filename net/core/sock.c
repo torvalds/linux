@@ -2307,7 +2307,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 #ifdef CONFIG_NET_LL_RX_POLL
 	sk->sk_napi_id		=	0;
-	sk->sk_ll_usec		=	sysctl_net_ll_poll;
+	sk->sk_ll_usec		=	sysctl_net_ll_read;
 #endif
 
 	/*

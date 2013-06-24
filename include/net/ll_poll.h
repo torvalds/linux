@@ -30,6 +30,7 @@
 #ifdef CONFIG_NET_LL_RX_POLL
 
 struct napi_struct;
+extern unsigned int sysctl_net_ll_read __read_mostly;
 extern unsigned int sysctl_net_ll_poll __read_mostly;
 
 /* return values from ndo_ll_poll */
@@ -38,17 +39,18 @@ extern unsigned int sysctl_net_ll_poll __read_mostly;
 
 /* we can use sched_clock() because we don't care much about precision
  * we only care that the average is bounded
+ * we don't mind a ~2.5% imprecision so <<10 instead of *1000
+ * sk->sk_ll_usec is a u_int so this can't overflow
  */
-static inline u64 ll_end_time(struct sock *sk)
+static inline u64 ll_sk_end_time(struct sock *sk)
 {
-	u64 end_time = ACCESS_ONCE(sk->sk_ll_usec);
+	return ((u64)ACCESS_ONCE(sk->sk_ll_usec) << 10) + sched_clock();
+}
 
-	/* we don't mind a ~2.5% imprecision
-	 * sk->sk_ll_usec is a u_int so this can't overflow
-	 */
-	end_time = (end_time << 10) + sched_clock();
-
-	return end_time;
+/* in poll/select we use the global sysctl_net_ll_poll value */
+static inline u64 ll_end_time(void)
+{
+	return ((u64)ACCESS_ONCE(sysctl_net_ll_poll) << 10) + sched_clock();
 }
 
 static inline bool sk_valid_ll(struct sock *sk)
@@ -62,10 +64,13 @@ static inline bool can_poll_ll(u64 end_time)
 	return !time_after64(sched_clock(), end_time);
 }
 
+/* when used in sock_poll() nonblock is known at compile time to be true
+ * so the loop and end_time will be optimized out
+ */
 static inline bool sk_poll_ll(struct sock *sk, int nonblock)
 {
+	u64 end_time = nonblock ? 0 : ll_sk_end_time(sk);
 	const struct net_device_ops *ops;
-	u64 end_time = ll_end_time(sk);
 	struct napi_struct *napi;
 	int rc = false;
 
@@ -84,7 +89,6 @@ static inline bool sk_poll_ll(struct sock *sk, int nonblock)
 		goto out;
 
 	do {
-
 		rc = ops->ndo_ll_poll(napi);
 
 		if (rc == LL_FLUSH_FAILED)
@@ -95,8 +99,8 @@ static inline bool sk_poll_ll(struct sock *sk, int nonblock)
 			NET_ADD_STATS_BH(sock_net(sk),
 					 LINUX_MIB_LOWLATENCYRXPACKETS, rc);
 
-	} while (skb_queue_empty(&sk->sk_receive_queue)
-			&& can_poll_ll(end_time) && !nonblock);
+	} while (!nonblock && skb_queue_empty(&sk->sk_receive_queue) &&
+		 can_poll_ll(end_time));
 
 	rc = !skb_queue_empty(&sk->sk_receive_queue);
 out:
@@ -118,7 +122,12 @@ static inline void sk_mark_ll(struct sock *sk, struct sk_buff *skb)
 
 #else /* CONFIG_NET_LL_RX_POLL */
 
-static inline u64 ll_end_time(struct sock *sk)
+static inline u64 sk_ll_end_time(struct sock *sk)
+{
+	return 0;
+}
+
+static inline u64 ll_end_time(void)
 {
 	return 0;
 }
