@@ -133,6 +133,9 @@ static void parse_user_hints(struct hda_codec *codec)
 	val = snd_hda_get_bool_hint(codec, "line_in_auto_switch");
 	if (val >= 0)
 		spec->line_in_auto_switch = !!val;
+	val = snd_hda_get_bool_hint(codec, "auto_mute_via_amp");
+	if (val >= 0)
+		spec->auto_mute_via_amp = !!val;
 	val = snd_hda_get_bool_hint(codec, "need_dac_fix");
 	if (val >= 0)
 		spec->need_dac_fix = !!val;
@@ -808,6 +811,9 @@ static void resume_path_from_idx(struct hda_codec *codec, int path_idx)
  * Helper functions for creating mixer ctl elements
  */
 
+static int hda_gen_mixer_mute_put(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol);
+
 enum {
 	HDA_CTL_WIDGET_VOL,
 	HDA_CTL_WIDGET_MUTE,
@@ -815,7 +821,15 @@ enum {
 };
 static const struct snd_kcontrol_new control_templates[] = {
 	HDA_CODEC_VOLUME(NULL, 0, 0, 0),
-	HDA_CODEC_MUTE(NULL, 0, 0, 0),
+	/* only the put callback is replaced for handling the special mute */
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
+		.info = snd_hda_mixer_amp_switch_info,
+		.get = snd_hda_mixer_amp_switch_get,
+		.put = hda_gen_mixer_mute_put, /* replaced */
+		.private_value = HDA_COMPOSE_AMP_VAL(0, 3, 0, 0),
+	},
 	HDA_BIND_MUTE(NULL, 0, 0, 0),
 };
 
@@ -920,6 +934,23 @@ static int add_stereo_sw(struct hda_codec *codec, const char *pfx,
 {
 	int chs = get_default_ch_nums(codec, path, NID_PATH_MUTE_CTL);
 	return add_sw_ctl(codec, pfx, cidx, chs, path);
+}
+
+/* playback mute control with the software mute bit check */
+static int hda_gen_mixer_mute_put(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hda_gen_spec *spec = codec->spec;
+
+	if (spec->auto_mute_via_amp) {
+		hda_nid_t nid = get_amp_nid(kcontrol);
+		bool enabled = !((spec->mute_bits >> nid) & 1);
+		ucontrol->value.integer.value[0] &= enabled;
+		ucontrol->value.integer.value[1] &= enabled;
+	}
+
+	return snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
 }
 
 /* any ctl assigned to the path with the given index? */
@@ -3719,6 +3750,16 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 		unsigned int val, oldval;
 		if (!nid)
 			break;
+
+		if (spec->auto_mute_via_amp) {
+			if (mute)
+				spec->mute_bits |= (1ULL << nid);
+			else
+				spec->mute_bits &= ~(1ULL << nid);
+			set_pin_eapd(codec, nid, !mute);
+			continue;
+		}
+
 		oldval = snd_hda_codec_get_pin_target(codec, nid);
 		if (oldval & PIN_IN)
 			continue; /* no mute for inputs */
@@ -3786,6 +3827,10 @@ static void call_update_outputs(struct hda_codec *codec)
 		spec->automute_hook(codec);
 	else
 		snd_hda_gen_update_outputs(codec);
+
+	/* sync the whole vmaster slaves to reflect the new auto-mute status */
+	if (spec->auto_mute_via_amp && !codec->bus->shutdown)
+		snd_ctl_sync_vmaster(spec->vmaster_mute.sw_kctl, false);
 }
 
 /* standard HP-automute helper */
