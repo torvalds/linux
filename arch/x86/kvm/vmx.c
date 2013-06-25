@@ -5452,7 +5452,7 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 
 		err = emulate_instruction(vcpu, EMULTYPE_NO_REEXECUTE);
 
-		if (err == EMULATE_DO_MMIO) {
+		if (err == EMULATE_USER_EXIT) {
 			ret = 0;
 			goto out;
 		}
