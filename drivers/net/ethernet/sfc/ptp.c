@@ -1203,18 +1203,16 @@ static int efx_ptp_ts_init(struct efx_nic *efx, struct hwtstamp_config *init)
 	return 0;
 }
 
-int
-efx_ptp_get_ts_info(struct net_device *net_dev, struct ethtool_ts_info *ts_info)
+void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_ptp_data *ptp = efx->ptp_data;
 
 	if (!ptp)
-		return -EOPNOTSUPP;
+		return;
 
-	ts_info->so_timestamping = (SOF_TIMESTAMPING_TX_HARDWARE |
-				    SOF_TIMESTAMPING_RX_HARDWARE |
-				    SOF_TIMESTAMPING_RAW_HARDWARE);
+	ts_info->so_timestamping |= (SOF_TIMESTAMPING_TX_HARDWARE |
+				     SOF_TIMESTAMPING_RX_HARDWARE |
+				     SOF_TIMESTAMPING_RAW_HARDWARE);
 	ts_info->phc_index = ptp_clock_index(ptp->phc_clock);
 	ts_info->tx_types = 1 << HWTSTAMP_TX_OFF | 1 << HWTSTAMP_TX_ON;
 	ts_info->rx_filters = (1 << HWTSTAMP_FILTER_NONE |
@@ -1224,7 +1222,6 @@ efx_ptp_get_ts_info(struct net_device *net_dev, struct ethtool_ts_info *ts_info)
 			       1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT |
 			       1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC |
 			       1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ);
-	return 0;
 }
 
 int efx_ptp_ioctl(struct efx_nic *efx, struct ifreq *ifr, int cmd)

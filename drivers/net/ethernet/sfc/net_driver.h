@@ -243,6 +243,7 @@ struct efx_rx_buffer {
 #define EFX_RX_BUF_LAST_IN_PAGE	0x0001
 #define EFX_RX_PKT_CSUMMED	0x0002
 #define EFX_RX_PKT_DISCARD	0x0004
+#define EFX_RX_PKT_TCP		0x0040
 
 /**
  * struct efx_rx_page_state - Page-based rx buffer state
@@ -788,6 +789,7 @@ struct efx_nic {
 	const struct efx_nic_type *type;
 	int legacy_irq;
 	bool legacy_irq_enabled;
+	bool eeh_disabled_legacy_irq;
 	struct workqueue_struct *workqueue;
 	char workqueue_name[16];
 	struct work_struct reset_work;
