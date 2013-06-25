@@ -45,8 +45,6 @@ Configuration options:
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
-
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
 	4, {
 		RANGE(0, 5),

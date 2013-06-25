@@ -33,8 +33,6 @@ Configuration options:
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
-
 struct boarddef_struct {
 	const char *name;
 	unsigned int iosize;

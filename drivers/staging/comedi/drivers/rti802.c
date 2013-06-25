@@ -35,8 +35,6 @@ Configuration Options:
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
-
 #define RTI802_SIZE 4
 
 #define RTI802_SELECT 0

@@ -60,7 +60,6 @@ cmd triggers supported:
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
 #include <linux/delay.h>
 
 #include "8253.h"

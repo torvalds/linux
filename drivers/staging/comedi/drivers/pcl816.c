@@ -35,7 +35,6 @@ Configuration Options:
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
 #include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/io.h>

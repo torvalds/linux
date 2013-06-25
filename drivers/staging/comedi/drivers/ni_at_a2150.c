@@ -64,7 +64,6 @@ TRIG_WAKE_EOS
 #include <linux/slab.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
 #include <linux/io.h>
 
 #include <asm/dma.h>

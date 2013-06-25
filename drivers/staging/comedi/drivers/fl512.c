@@ -22,7 +22,6 @@ Configuration options:
 #include "../comedidev.h"
 
 #include <linux/delay.h>
-#include <linux/ioport.h>
 
 #define FL512_SIZE 16		/* the size of the used memory */
 struct fl512_private {

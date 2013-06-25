@@ -36,8 +36,6 @@ Configuration options:
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
-
 #define DT2817_SIZE 5
 
 #define DT2817_CR 0

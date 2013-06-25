@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
 #include <linux/delay.h>
 
 #include "8255.h"

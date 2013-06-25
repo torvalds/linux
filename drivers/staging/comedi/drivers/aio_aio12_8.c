@@ -37,7 +37,6 @@ Notes:
 
 #include <linux/module.h>
 #include "../comedidev.h"
-#include <linux/ioport.h>
 #include "8255.h"
 
 /*

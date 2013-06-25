@@ -99,7 +99,6 @@ A word or two about DMA. Driver support DMA operations at two ways:
 */
 
 #include <linux/module.h>
-#include <linux/ioport.h>
 #include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/io.h>

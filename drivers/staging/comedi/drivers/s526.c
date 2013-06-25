@@ -38,7 +38,6 @@ comedi_config /dev/comedi0 s526 0x2C0,0x3
 
 #include <linux/module.h>
 #include "../comedidev.h"
-#include <linux/ioport.h>
 #include <asm/byteorder.h>
 
 #define S526_SIZE 64

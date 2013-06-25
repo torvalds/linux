@@ -39,8 +39,6 @@ Configuration options:
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
-
 /* board egisters */
 /* registers with _2_ are accessed when GRP2WR is set in CFG1 */
 

@@ -36,7 +36,6 @@ Configuration Options:
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
-#include <linux/ioport.h>
 
 #include "comedi_fc.h"
 

@@ -34,8 +34,6 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
-
 #include "comedi_fc.h"
 #include "8255.h"
 

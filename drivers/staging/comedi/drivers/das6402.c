@@ -37,8 +37,6 @@ This driver has suffered bitrot.
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
-
 #define DAS6402_SIZE 16
 
 #define N_WORDS (3000*64)

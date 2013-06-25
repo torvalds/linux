@@ -30,7 +30,6 @@ Status: in development
 #include "../comedidev.h"
 
 #include <linux/delay.h>
-#include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 

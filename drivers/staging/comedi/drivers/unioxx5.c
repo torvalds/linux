@@ -43,7 +43,6 @@ Devices: [Fastwel] UNIOxx-5 (unioxx5),
 #include <linux/module.h>
 #include <linux/delay.h>
 #include "../comedidev.h"
-#include <linux/ioport.h>
 
 #define DRIVER_NAME "unioxx5"
 #define UNIOXX5_SIZE 0x10

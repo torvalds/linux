@@ -100,7 +100,6 @@ TODO:
 #include <linux/io.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
 #include <asm/dma.h>
 
 #include "8253.h"

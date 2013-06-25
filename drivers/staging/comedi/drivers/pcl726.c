@@ -65,8 +65,6 @@ Interrupts are not supported.
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
-
 #undef ACL6126_IRQ		/* no interrupt support (yet) */
 
 #define PCL726_SIZE 16

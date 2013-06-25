@@ -56,7 +56,6 @@ Notes:
 
 #include <linux/delay.h>
 #include <linux/gfp.h>
-#include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 

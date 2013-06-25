@@ -79,7 +79,6 @@ pin, which can be used to wake up tasks.
 #include <linux/module.h>
 #include "../comedidev.h"
 #include <linux/interrupt.h>
-#include <linux/ioport.h>
 
 #include "comedi_fc.h"
 
