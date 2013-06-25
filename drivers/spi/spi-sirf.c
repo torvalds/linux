@@ -538,6 +538,7 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	sspi->bitbang.txrx_bufs = spi_sirfsoc_transfer;
 	sspi->bitbang.master->setup = spi_sirfsoc_setup;
 	master->bus_num = pdev->id;
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST | SPI_CS_HIGH;
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(12) |
 					SPI_BPW_MASK(16) | SPI_BPW_MASK(32);
 	sspi->bitbang.master->dev.of_node = pdev->dev.of_node;
