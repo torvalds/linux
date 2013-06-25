@@ -1391,7 +1391,7 @@ static bool bnx2x_is_nvm_accessible(struct bnx2x *bp)
 					  bp->pm_cap + PCI_PM_CTRL, &pm);
 
 	if ((rc && !netif_running(dev)) ||
-	    (!rc && ((pm & PCI_PM_CTRL_STATE_MASK) != PCI_D0)))
+	    (!rc && ((pm & PCI_PM_CTRL_STATE_MASK) != (__force u16)PCI_D0)))
 		return false;
 
 	return true;
@@ -1610,8 +1610,10 @@ static int bnx2x_nvram_write1(struct bnx2x *bp, u32 offset, u8 *data_buf,
 		 */
 		val = be32_to_cpu(val_be);
 
-		val &= ~le32_to_cpu(0xff << BYTE_OFFSET(offset));
-		val |= le32_to_cpu(*data_buf << BYTE_OFFSET(offset));
+		val &= ~le32_to_cpu((__force __le32)
+				    (0xff << BYTE_OFFSET(offset)));
+		val |= le32_to_cpu((__force __le32)
+				   (*data_buf << BYTE_OFFSET(offset)));
 
 		rc = bnx2x_nvram_write_dword(bp, align_offset, val,
 					     cmd_flags);

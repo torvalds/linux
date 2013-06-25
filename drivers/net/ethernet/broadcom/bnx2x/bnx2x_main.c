@@ -615,7 +615,7 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 	if (rc) {
 		BNX2X_ERR("DMAE returned failure %d\n", rc);
 		bnx2x_panic();
-	};
+	}
 }
 
 static void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
