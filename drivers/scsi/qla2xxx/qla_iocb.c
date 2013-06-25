@@ -1863,8 +1863,8 @@ skip_cmd_array:
 	pkt = req->ring_ptr;
 	memset(pkt, 0, REQUEST_ENTRY_SIZE);
 	if (IS_QLAFX00(ha)) {
-		WRT_REG_BYTE(&pkt->entry_count, req_cnt);
-		WRT_REG_WORD(&pkt->handle, handle);
+		WRT_REG_BYTE((void __iomem *)&pkt->entry_count, req_cnt);
+		WRT_REG_WORD((void __iomem *)&pkt->handle, handle);
 	} else {
 		pkt->entry_count = req_cnt;
 		pkt->handle = handle;
