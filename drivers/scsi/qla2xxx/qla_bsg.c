@@ -269,6 +269,12 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 		type = "FC_BSG_HST_ELS_NOLOGIN";
 	}
 
+	if (!vha->flags.online) {
+		ql_log(ql_log_warn, vha, 0x7005, "Host not online.\n");
+		rval = -EIO;
+		goto done;
+	}
+
 	/* pass through is supported only for ISP 4Gb or higher */
 	if (!IS_FWI2_CAPABLE(ha)) {
 		ql_dbg(ql_dbg_user, vha, 0x7001,
@@ -324,12 +330,6 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 		fcport->loop_id =
 			(fcport->d_id.b.al_pa == 0xFD) ?
 			NPH_FABRIC_CONTROLLER : NPH_F_PORT;
-	}
-
-	if (!vha->flags.online) {
-		ql_log(ql_log_warn, vha, 0x7005, "Host not online.\n");
-		rval = -EIO;
-		goto done;
 	}
 
 	req_sg_cnt =
@@ -399,7 +399,7 @@ done_unmap_sg:
 	goto done_free_fcport;
 
 done_free_fcport:
-	if (bsg_job->request->msgcode == FC_BSG_HST_ELS_NOLOGIN)
+	if (bsg_job->request->msgcode == FC_BSG_RPT_ELS)
 		kfree(fcport);
 done:
 	return rval;
