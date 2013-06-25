@@ -1175,9 +1175,7 @@ __end_handlers:
 
 	/* Equivalents to the above handlers for relocation-on interrupt vectors */
 	STD_RELON_EXCEPTION_HV_OOL(0xe40, emulation_assist)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe40)
 	MASKABLE_RELON_EXCEPTION_HV_OOL(0xe80, h_doorbell)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe80)
 
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf00, performance_monitor)
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf20, altivec_unavailable)
