@@ -68,8 +68,12 @@ struct nfc_ops {
 			     void *cb_context);
 	int (*tm_send)(struct nfc_dev *dev, struct sk_buff *skb);
 	int (*check_presence)(struct nfc_dev *dev, struct nfc_target *target);
-	int (*enable_se)(struct nfc_dev *dev, u32 secure_element);
-	int (*disable_se)(struct nfc_dev *dev, u32 secure_element);
+	int (*fw_upload)(struct nfc_dev *dev, const char *firmware_name);
+
+	/* Secure Element API */
+	int (*discover_se)(struct nfc_dev *dev);
+	int (*enable_se)(struct nfc_dev *dev, u32 se_idx);
+	int (*disable_se)(struct nfc_dev *dev, u32 se_idx);
 };
 
 #define NFC_TARGET_IDX_ANY -1
@@ -83,12 +87,31 @@ struct nfc_target {
 	u8 sel_res;
 	u8 nfcid1_len;
 	u8 nfcid1[NFC_NFCID1_MAXSIZE];
+	u8 nfcid2_len;
+	u8 nfcid2[NFC_NFCID2_MAXSIZE];
 	u8 sensb_res_len;
 	u8 sensb_res[NFC_SENSB_RES_MAXSIZE];
 	u8 sensf_res_len;
 	u8 sensf_res[NFC_SENSF_RES_MAXSIZE];
 	u8 hci_reader_gate;
 	u8 logical_idx;
+};
+
+/**
+ * nfc_se - A structure for NFC accessible secure elements.
+ *
+ * @idx: The secure element index. User space will enable or
+ *       disable a secure element by its index.
+ * @type: The secure element type. It can be SE_UICC or
+ *        SE_EMBEDDED.
+ * @state: The secure element state, either enabled or disabled.
+ *
+ */
+struct nfc_se {
+	struct list_head list;
+	u32 idx;
+	u16 type;
+	u16 state;
 };
 
 struct nfc_genl_data {
@@ -104,6 +127,7 @@ struct nfc_dev {
 	int targets_generation;
 	struct device dev;
 	bool dev_up;
+	bool fw_upload_in_progress;
 	u8 rf_mode;
 	bool polling;
 	struct nfc_target *active_target;
@@ -111,8 +135,7 @@ struct nfc_dev {
 	struct nfc_genl_data genl_data;
 	u32 supported_protocols;
 
-	u32 supported_se;
-	u32 active_se;
+	struct list_head secure_elements;
 
 	int tx_headroom;
 	int tx_tailroom;
@@ -132,7 +155,6 @@ extern struct class nfc_class;
 
 struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 				    u32 supported_protocols,
-				    u32 supported_se,
 				    int tx_headroom,
 				    int tx_tailroom);
 
@@ -215,5 +237,8 @@ int nfc_tm_deactivated(struct nfc_dev *dev);
 int nfc_tm_data_received(struct nfc_dev *dev, struct sk_buff *skb);
 
 void nfc_driver_failure(struct nfc_dev *dev, int err);
+
+int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type);
+int nfc_remove_se(struct nfc_dev *dev, u32 se_idx);
 
 #endif /* __NET_NFC_H */

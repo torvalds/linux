@@ -30,7 +30,7 @@ struct mei_nfc_hdr {
 	u16 req_id;
 	u32 reserved;
 	u16 data_size;
-} __attribute__((packed));
+} __packed;
 
 #define MEI_NFC_MAX_READ (MEI_NFC_HEADER_SIZE + MEI_NFC_MAX_HCI_PAYLOAD)
 
@@ -60,8 +60,17 @@ int nfc_mei_phy_enable(void *phy_id)
 
 	r = mei_cl_enable_device(phy->device);
 	if (r < 0) {
-                pr_err("MEI_PHY: Could not enable device\n");
-                return r;
+		pr_err("MEI_PHY: Could not enable device\n");
+		return r;
+	}
+
+	r = mei_cl_register_event_cb(phy->device, nfc_mei_event_cb, phy);
+	if (r) {
+		pr_err("MEY_PHY: Event cb registration failed\n");
+		mei_cl_disable_device(phy->device);
+		phy->powered = 0;
+
+		return r;
 	}
 
 	phy->powered = 1;

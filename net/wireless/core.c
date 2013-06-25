@@ -301,6 +301,9 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 		return NULL;
 	}
 
+	/* atomic_inc_return makes it start at 1, make it start at 0 */
+	rdev->wiphy_idx--;
+
 	/* give it a proper name */
 	dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
 
@@ -449,8 +452,13 @@ int wiphy_register(struct wiphy *wiphy)
 	u16 ifmodes = wiphy->interface_modes;
 
 #ifdef CONFIG_PM
-	if (WARN_ON((wiphy->wowlan.flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
-		    !(wiphy->wowlan.flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY)))
+	if (WARN_ON(wiphy->wowlan &&
+		    (wiphy->wowlan->flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
+		    !(wiphy->wowlan->flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY)))
+		return -EINVAL;
+	if (WARN_ON(wiphy->wowlan &&
+		    !wiphy->wowlan->flags && !wiphy->wowlan->n_patterns &&
+		    !wiphy->wowlan->tcp))
 		return -EINVAL;
 #endif
 
@@ -540,25 +548,28 @@ int wiphy_register(struct wiphy *wiphy)
 	}
 
 #ifdef CONFIG_PM
-	if (rdev->wiphy.wowlan.n_patterns) {
-		if (WARN_ON(!rdev->wiphy.wowlan.pattern_min_len ||
-			    rdev->wiphy.wowlan.pattern_min_len >
-			    rdev->wiphy.wowlan.pattern_max_len))
-			return -EINVAL;
-	}
+	if (WARN_ON(rdev->wiphy.wowlan && rdev->wiphy.wowlan->n_patterns &&
+		    (!rdev->wiphy.wowlan->pattern_min_len ||
+		     rdev->wiphy.wowlan->pattern_min_len >
+				rdev->wiphy.wowlan->pattern_max_len)))
+		return -EINVAL;
 #endif
 
 	/* check and set up bitrates */
 	ieee80211_set_bitrate_flags(wiphy);
 
-	rtnl_lock();
 
 	res = device_add(&rdev->wiphy.dev);
+	if (res)
+		return res;
+
+	res = rfkill_register(rdev->rfkill);
 	if (res) {
-		rtnl_unlock();
+		device_del(&rdev->wiphy.dev);
 		return res;
 	}
 
+	rtnl_lock();
 	/* set up regulatory info */
 	wiphy_regulatory_register(wiphy);
 
@@ -584,17 +595,6 @@ int wiphy_register(struct wiphy *wiphy)
 	}
 
 	cfg80211_debugfs_rdev_add(rdev);
-
-	res = rfkill_register(rdev->rfkill);
-	if (res) {
-		device_del(&rdev->wiphy.dev);
-
-		debugfs_remove_recursive(rdev->wiphy.debugfsdir);
-		list_del_rcu(&rdev->list);
-		wiphy_regulatory_deregister(wiphy);
-		rtnl_unlock();
-		return res;
-	}
 
 	rdev->wiphy.registered = true;
 	rtnl_unlock();
@@ -632,10 +632,10 @@ void wiphy_unregister(struct wiphy *wiphy)
 		rtnl_unlock();
 		__count == 0; }));
 
+	rfkill_unregister(rdev->rfkill);
+
 	rtnl_lock();
 	rdev->wiphy.registered = false;
-
-	rfkill_unregister(rdev->rfkill);
 
 	BUG_ON(!list_empty(&rdev->wdev_list));
 
@@ -817,7 +817,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 			pr_err("failed to add phy80211 symlink to netdev!\n");
 		}
 		wdev->netdev = dev;
-		wdev->sme_state = CFG80211_SME_IDLE;
 #ifdef CONFIG_CFG80211_WEXT
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;
@@ -935,6 +934,12 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 * freed.
 		 */
 		cfg80211_process_wdev_events(wdev);
+
+		if (WARN_ON(wdev->current_bss)) {
+			cfg80211_unhold_bss(wdev->current_bss);
+			cfg80211_put_bss(wdev->wiphy, &wdev->current_bss->pub);
+			wdev->current_bss = NULL;
+		}
 		break;
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))

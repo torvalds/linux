@@ -81,7 +81,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
-	cfg80211_chandef_create(&chandef, chan, ifibss->channel_type);
+	chandef = ifibss->chandef;
 	if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef)) {
 		chandef.width = NL80211_CHAN_WIDTH_20;
 		chandef.center_freq1 = chan->center_freq;
@@ -176,6 +176,8 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	/* add HT capability and information IEs */
 	if (chandef.width != NL80211_CHAN_WIDTH_20_NOHT &&
+	    chandef.width != NL80211_CHAN_WIDTH_5 &&
+	    chandef.width != NL80211_CHAN_WIDTH_10 &&
 	    sband->ht_cap.ht_supported) {
 		pos = ieee80211_ie_build_ht_cap(pos, &sband->ht_cap,
 						sband->ht_cap.cap);
@@ -298,8 +300,7 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				  tsf, false);
 }
 
-static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
-						  bool auth)
+static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta)
 	__acquires(RCU)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -321,20 +322,12 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
 	/* If it fails, maybe we raced another insertion? */
 	if (sta_info_insert_rcu(sta))
 		return sta_info_get(sdata, addr);
-	if (auth && !sdata->u.ibss.auth_frame_registrations) {
-		ibss_dbg(sdata,
-			 "TX Auth SA=%pM DA=%pM BSSID=%pM (auth_transaction=1)\n",
-			 sdata->vif.addr, addr, sdata->u.ibss.bssid);
-		ieee80211_send_auth(sdata, 1, WLAN_AUTH_OPEN, 0, NULL, 0,
-				    addr, sdata->u.ibss.bssid, NULL, 0, 0, 0);
-	}
 	return sta;
 }
 
 static struct sta_info *
-ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
-		       const u8 *bssid, const u8 *addr,
-		       u32 supp_rates, bool auth)
+ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata, const u8 *bssid,
+		       const u8 *addr, u32 supp_rates)
 	__acquires(RCU)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
@@ -385,7 +378,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	sta->sta.supp_rates[band] = supp_rates |
 			ieee80211_mandatory_rates(sband);
 
-	return ieee80211_ibss_finish_sta(sta, auth);
+	return ieee80211_ibss_finish_sta(sta);
 }
 
 static void ieee80211_rx_mgmt_deauth_ibss(struct ieee80211_sub_if_data *sdata,
@@ -407,8 +400,6 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 					size_t len)
 {
 	u16 auth_alg, auth_transaction;
-	struct sta_info *sta;
-	u8 deauth_frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
 	sdata_assert_lock(sdata);
 
@@ -424,22 +415,6 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 
 	if (auth_alg != WLAN_AUTH_OPEN || auth_transaction != 1)
 		return;
-
-	sta_info_destroy_addr(sdata, mgmt->sa);
-	sta = ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa, 0, false);
-	rcu_read_unlock();
-
-	/*
-	 * if we have any problem in allocating the new station, we reply with a
-	 * DEAUTH frame to tell the other end that we had a problem
-	 */
-	if (!sta) {
-		ieee80211_send_deauth_disassoc(sdata, sdata->u.ibss.bssid,
-					       IEEE80211_STYPE_DEAUTH,
-					       WLAN_REASON_UNSPECIFIED, true,
-					       deauth_frame_buf);
-		return;
-	}
 
 	/*
 	 * IEEE 802.11 standard does not require authentication in IBSS
@@ -506,7 +481,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			} else {
 				rcu_read_unlock();
 				sta = ieee80211_ibss_add_sta(sdata, mgmt->bssid,
-						mgmt->sa, supp_rates, true);
+						mgmt->sa, supp_rates);
 			}
 		}
 
@@ -514,7 +489,9 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			set_sta_flag(sta, WLAN_STA_WME);
 
 		if (sta && elems->ht_operation && elems->ht_cap_elem &&
-		    sdata->u.ibss.channel_type != NL80211_CHAN_NO_HT) {
+		    sdata->u.ibss.chandef.width != NL80211_CHAN_WIDTH_20_NOHT &&
+		    sdata->u.ibss.chandef.width != NL80211_CHAN_WIDTH_5 &&
+		    sdata->u.ibss.chandef.width != NL80211_CHAN_WIDTH_10) {
 			/* we both use HT */
 			struct ieee80211_ht_cap htcap_ie;
 			struct cfg80211_chan_def chandef;
@@ -529,8 +506,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			 * fall back to HT20 if we don't use or use
 			 * the other extension channel
 			 */
-			if (cfg80211_get_chandef_type(&chandef) !=
-						sdata->u.ibss.channel_type)
+			if (chandef.center_freq1 !=
+			    sdata->u.ibss.chandef.center_freq1)
 				htcap_ie.cap_info &=
 					cpu_to_le16(~IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 
@@ -569,7 +546,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 	/* different channel */
 	if (sdata->u.ibss.fixed_channel &&
-	    sdata->u.ibss.channel != cbss->channel)
+	    sdata->u.ibss.chandef.chan != cbss->channel)
 		goto put_bss;
 
 	/* different SSID */
@@ -610,7 +587,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		ieee80211_sta_join_ibss(sdata, bss);
 		supp_rates = ieee80211_sta_get_rates(local, elems, band, NULL);
 		ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa,
-				       supp_rates, true);
+				       supp_rates);
 		rcu_read_unlock();
 	}
 
@@ -759,7 +736,7 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 		sdata->drop_unencrypted = 0;
 
 	__ieee80211_sta_join_ibss(sdata, bssid, sdata->vif.bss_conf.beacon_int,
-				  ifibss->channel, ifibss->basic_rates,
+				  ifibss->chandef.chan, ifibss->basic_rates,
 				  capability, 0, true);
 }
 
@@ -791,7 +768,7 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 	if (ifibss->fixed_bssid)
 		bssid = ifibss->bssid;
 	if (ifibss->fixed_channel)
-		chan = ifibss->channel;
+		chan = ifibss->chandef.chan;
 	if (!is_zero_ether_addr(ifibss->bssid))
 		bssid = ifibss->bssid;
 	cbss = cfg80211_get_bss(local->hw.wiphy, chan, bssid,
@@ -982,7 +959,7 @@ void ieee80211_ibss_work(struct ieee80211_sub_if_data *sdata)
 		list_del(&sta->list);
 		spin_unlock_bh(&ifibss->incomplete_lock);
 
-		ieee80211_ibss_finish_sta(sta, true);
+		ieee80211_ibss_finish_sta(sta);
 		rcu_read_unlock();
 		spin_lock_bh(&ifibss->incomplete_lock);
 	}
@@ -1058,9 +1035,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 
 	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
 
-	sdata->u.ibss.channel = params->chandef.chan;
-	sdata->u.ibss.channel_type =
-		cfg80211_get_chandef_type(&params->chandef);
+	sdata->u.ibss.chandef = params->chandef;
 	sdata->u.ibss.fixed_channel = params->channel_fixed;
 
 	if (params->ie) {
@@ -1119,7 +1094,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 		if (ifibss->privacy)
 			capability |= WLAN_CAPABILITY_PRIVACY;
 
-		cbss = cfg80211_get_bss(local->hw.wiphy, ifibss->channel,
+		cbss = cfg80211_get_bss(local->hw.wiphy, ifibss->chandef.chan,
 					ifibss->bssid, ifibss->ssid,
 					ifibss->ssid_len, WLAN_CAPABILITY_IBSS |
 					WLAN_CAPABILITY_PRIVACY,

@@ -1170,6 +1170,7 @@ u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan)
 static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
+	int txbuf_size;
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
@@ -1223,12 +1224,16 @@ static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 		 * So set the usable tx buf size also to half to
 		 * avoid data/delimiter underruns
 		 */
-		REG_WRITE(ah, AR_PCU_TXBUF_CTRL,
-			  AR_9285_PCU_TXBUF_CTRL_USABLE_SIZE);
-	} else if (!AR_SREV_9271(ah)) {
-		REG_WRITE(ah, AR_PCU_TXBUF_CTRL,
-			  AR_PCU_TXBUF_CTRL_USABLE_SIZE);
+		txbuf_size = AR_9285_PCU_TXBUF_CTRL_USABLE_SIZE;
+	} else if (AR_SREV_9340_13_OR_LATER(ah)) {
+		/* Uses fewer entries for AR934x v1.3+ to prevent rx overruns */
+		txbuf_size = AR_9340_PCU_TXBUF_CTRL_USABLE_SIZE;
+	} else {
+		txbuf_size = AR_PCU_TXBUF_CTRL_USABLE_SIZE;
 	}
+
+	if (!AR_SREV_9271(ah))
+		REG_WRITE(ah, AR_PCU_TXBUF_CTRL, txbuf_size);
 
 	REGWRITE_BUFFER_FLUSH(ah);
 
@@ -1304,9 +1309,13 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 			AR_RTC_RC_COLD_RESET | AR_RTC_RC_WARM_RESET;
 	} else {
 		tmpReg = REG_READ(ah, AR_INTR_SYNC_CAUSE);
-		if (tmpReg &
-		    (AR_INTR_SYNC_LOCAL_TIMEOUT |
-		     AR_INTR_SYNC_RADM_CPL_TIMEOUT)) {
+		if (AR_SREV_9340(ah))
+			tmpReg &= AR9340_INTR_SYNC_LOCAL_TIMEOUT;
+		else
+			tmpReg &= AR_INTR_SYNC_LOCAL_TIMEOUT |
+				  AR_INTR_SYNC_RADM_CPL_TIMEOUT;
+
+		if (tmpReg) {
 			u32 val;
 			REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
 
@@ -1861,7 +1870,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ah->caldata = caldata;
 	if (caldata && (chan->channel != caldata->channel ||
-			chan->channelFlags != caldata->channelFlags)) {
+			chan->channelFlags != caldata->channelFlags ||
+			chan->chanmode != caldata->chanmode)) {
 		/* Operating channel changed, reset channel calibration data */
 		memset(caldata, 0, sizeof(*caldata));
 		ath9k_init_nfcal_hist_buffer(ah, chan);
@@ -2589,7 +2599,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		if (!(ah->ent_mode & AR_ENT_OTP_49GHZ_DISABLE))
 			pCap->hw_caps |= ATH9K_HW_CAP_MCI;
 
-		if (AR_SREV_9462_20(ah))
+		if (AR_SREV_9462_20_OR_LATER(ah))
 			pCap->hw_caps |= ATH9K_HW_CAP_RTT;
 	}
 
@@ -3032,7 +3042,7 @@ void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 
 	timer_next = tsf + trig_timeout;
 
-	ath_dbg(ath9k_hw_common(ah), HWTIMER,
+	ath_dbg(ath9k_hw_common(ah), BTCOEX,
 		"current tsf %x period %x timer_next %x\n",
 		tsf, timer_period, timer_next);
 
@@ -3131,7 +3141,7 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 		index = rightmost_index(timer_table, &thresh_mask);
 		timer = timer_table->timers[index];
 		BUG_ON(!timer);
-		ath_dbg(common, HWTIMER, "TSF overflow for Gen timer %d\n",
+		ath_dbg(common, BTCOEX, "TSF overflow for Gen timer %d\n",
 			index);
 		timer->overflow(timer->arg);
 	}
@@ -3140,7 +3150,7 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 		index = rightmost_index(timer_table, &trigger_mask);
 		timer = timer_table->timers[index];
 		BUG_ON(!timer);
-		ath_dbg(common, HWTIMER,
+		ath_dbg(common, BTCOEX,
 			"Gen timer[%d] trigger\n", index);
 		timer->trigger(timer->arg);
 	}

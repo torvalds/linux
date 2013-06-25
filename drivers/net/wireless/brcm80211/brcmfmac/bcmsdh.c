@@ -22,9 +22,11 @@
 #include <linux/pci_ids.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
+#include <linux/scatterlist.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/host.h>
 #include <linux/platform_data/brcmfmac-sdio.h>
 
 #include <defs.h>
@@ -303,6 +305,153 @@ void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		*ret = retval;
 }
 
+/**
+ * brcmf_sdio_buffrw - SDIO interface function for block data access
+ * @sdiodev: brcmfmac sdio device
+ * @fn: SDIO function number
+ * @write: direction flag
+ * @addr: dongle memory address as source/destination
+ * @pkt: skb pointer
+ *
+ * This function takes the respbonsibility as the interface function to MMC
+ * stack for block data access. It assumes that the skb passed down by the
+ * caller has already been padded and aligned.
+ */
+static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
+			     bool write, u32 addr, struct sk_buff_head *pktlist)
+{
+	unsigned int req_sz, func_blk_sz, sg_cnt, sg_data_sz, pkt_offset;
+	unsigned int max_blks, max_req_sz;
+	unsigned short max_seg_sz, seg_sz;
+	unsigned char *pkt_data;
+	struct sk_buff *pkt_next = NULL;
+	struct mmc_request mmc_req;
+	struct mmc_command mmc_cmd;
+	struct mmc_data mmc_dat;
+	struct sg_table st;
+	struct scatterlist *sgl;
+	struct mmc_host *host;
+	int ret = 0;
+
+	if (!pktlist->qlen)
+		return -EINVAL;
+
+	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
+	if (brcmf_pm_resume_error(sdiodev))
+		return -EIO;
+
+	/* Single skb use the standard mmc interface */
+	if (pktlist->qlen == 1) {
+		pkt_next = pktlist->next;
+		req_sz = pkt_next->len + 3;
+		req_sz &= (uint)~3;
+
+		if (write)
+			return sdio_memcpy_toio(sdiodev->func[fn], addr,
+						((u8 *)(pkt_next->data)),
+						req_sz);
+		else if (fn == 1)
+			return sdio_memcpy_fromio(sdiodev->func[fn],
+						  ((u8 *)(pkt_next->data)),
+						  addr, req_sz);
+		else
+			/* function 2 read is FIFO operation */
+			return sdio_readsb(sdiodev->func[fn],
+					   ((u8 *)(pkt_next->data)), addr,
+					   req_sz);
+	}
+
+	host = sdiodev->func[fn]->card->host;
+	func_blk_sz = sdiodev->func[fn]->cur_blksize;
+	/* Blocks per command is limited by host count, host transfer
+	 * size and the maximum for IO_RW_EXTENDED of 511 blocks.
+	 */
+	max_blks = min_t(unsigned int, host->max_blk_count, 511u);
+	max_req_sz = min_t(unsigned int, host->max_req_size,
+			   max_blks * func_blk_sz);
+	max_seg_sz = min_t(unsigned short, host->max_segs, SG_MAX_SINGLE_ALLOC);
+	max_seg_sz = min_t(unsigned short, max_seg_sz, pktlist->qlen);
+	seg_sz = pktlist->qlen;
+	pkt_offset = 0;
+	pkt_next = pktlist->next;
+
+	if (sg_alloc_table(&st, max_seg_sz, GFP_KERNEL))
+		return -ENOMEM;
+
+	while (seg_sz) {
+		req_sz = 0;
+		sg_cnt = 0;
+		memset(&mmc_req, 0, sizeof(struct mmc_request));
+		memset(&mmc_cmd, 0, sizeof(struct mmc_command));
+		memset(&mmc_dat, 0, sizeof(struct mmc_data));
+		sgl = st.sgl;
+		/* prep sg table */
+		while (pkt_next != (struct sk_buff *)pktlist) {
+			pkt_data = pkt_next->data + pkt_offset;
+			sg_data_sz = pkt_next->len - pkt_offset;
+			if (sg_data_sz > host->max_seg_size)
+				sg_data_sz = host->max_seg_size;
+			if (sg_data_sz > max_req_sz - req_sz)
+				sg_data_sz = max_req_sz - req_sz;
+
+			sg_set_buf(sgl, pkt_data, sg_data_sz);
+
+			sg_cnt++;
+			sgl = sg_next(sgl);
+			req_sz += sg_data_sz;
+			pkt_offset += sg_data_sz;
+			if (pkt_offset == pkt_next->len) {
+				pkt_offset = 0;
+				pkt_next = pkt_next->next;
+			}
+
+			if (req_sz >= max_req_sz || sg_cnt >= max_seg_sz)
+				break;
+		}
+		seg_sz -= sg_cnt;
+
+		if (req_sz % func_blk_sz != 0) {
+			brcmf_err("sg request length %u is not %u aligned\n",
+				  req_sz, func_blk_sz);
+			sg_free_table(&st);
+			return -ENOTBLK;
+		}
+		mmc_dat.sg = st.sgl;
+		mmc_dat.sg_len = sg_cnt;
+		mmc_dat.blksz = func_blk_sz;
+		mmc_dat.blocks = req_sz / func_blk_sz;
+		mmc_dat.flags = write ? MMC_DATA_WRITE : MMC_DATA_READ;
+		mmc_cmd.opcode = SD_IO_RW_EXTENDED;
+		mmc_cmd.arg = write ? 1<<31 : 0;	/* write flag  */
+		mmc_cmd.arg |= (fn & 0x7) << 28;	/* SDIO func num */
+		mmc_cmd.arg |= 1<<27;			/* block mode */
+		/* incrementing addr for function 1 */
+		mmc_cmd.arg |= (fn == 1) ? 1<<26 : 0;
+		mmc_cmd.arg |= (addr & 0x1FFFF) << 9;	/* address */
+		mmc_cmd.arg |= mmc_dat.blocks & 0x1FF;	/* block count */
+		mmc_cmd.flags = MMC_RSP_SPI_R5 | MMC_RSP_R5 | MMC_CMD_ADTC;
+		mmc_req.cmd = &mmc_cmd;
+		mmc_req.data = &mmc_dat;
+		if (fn == 1)
+			addr += req_sz;
+
+		mmc_set_data_timeout(&mmc_dat, sdiodev->func[fn]->card);
+		mmc_wait_for_req(host, &mmc_req);
+
+		ret = mmc_cmd.error ? mmc_cmd.error : mmc_dat.error;
+		if (ret != 0) {
+			brcmf_err("CMD53 sg block %s failed %d\n",
+				  write ? "write" : "read", ret);
+			ret = -EIO;
+			break;
+		}
+	}
+
+	sg_free_table(&st);
+
+	return ret;
+}
+
 static int brcmf_sdcard_recv_prepare(struct brcmf_sdio_dev *sdiodev, uint fn,
 				     uint flags, uint width, u32 *addr)
 {
@@ -355,9 +504,9 @@ int
 brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, struct sk_buff *pkt)
 {
-	uint incr_fix;
 	uint width;
 	int err = 0;
+	struct sk_buff_head pkt_list;
 
 	brcmf_dbg(SDIO, "fun = %d, addr = 0x%x, size = %d\n",
 		  fn, addr, pkt->len);
@@ -367,9 +516,10 @@ brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	if (err)
 		goto done;
 
-	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
-	err = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_READ,
-					 fn, addr, pkt);
+	skb_queue_head_init(&pkt_list);
+	skb_queue_tail(&pkt_list, pkt);
+	err = brcmf_sdio_buffrw(sdiodev, fn, false, addr, &pkt_list);
+	skb_dequeue_tail(&pkt_list);
 
 done:
 	return err;
@@ -391,8 +541,7 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		goto done;
 
 	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
-	err = brcmf_sdioh_request_chain(sdiodev, incr_fix, SDIOH_READ, fn, addr,
-					pktq);
+	err = brcmf_sdio_buffrw(sdiodev, fn, false, addr, pktq);
 
 done:
 	return err;
@@ -424,10 +573,10 @@ int
 brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, struct sk_buff *pkt)
 {
-	uint incr_fix;
 	uint width;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
+	struct sk_buff_head pkt_list;
 
 	brcmf_dbg(SDIO, "fun = %d, addr = 0x%x, size = %d\n",
 		  fn, addr, pkt->len);
@@ -446,13 +595,14 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 
-	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
 	if (width == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	err = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_WRITE, fn,
-					 addr, pkt);
+	skb_queue_head_init(&pkt_list);
+	skb_queue_tail(&pkt_list, pkt);
+	err = brcmf_sdio_buffrw(sdiodev, fn, true, addr, &pkt_list);
+	skb_dequeue_tail(&pkt_list);
 
 done:
 	return err;
@@ -466,6 +616,7 @@ brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 	struct sk_buff *pkt;
 	u32 sdaddr;
 	uint dsize;
+	struct sk_buff_head pkt_list;
 
 	dsize = min_t(uint, SBSDIO_SB_OFT_ADDR_LIMIT, size);
 	pkt = dev_alloc_skb(dsize);
@@ -474,6 +625,7 @@ brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 		return -EIO;
 	}
 	pkt->priority = 0;
+	skb_queue_head_init(&pkt_list);
 
 	/* Determine initial transfer parameters */
 	sdaddr = address & SBSDIO_SB_OFT_ADDR_MASK;
@@ -501,9 +653,10 @@ brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 		skb_put(pkt, dsize);
 		if (write)
 			memcpy(pkt->data, data, dsize);
-		bcmerror = brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_INC,
-						      write, SDIO_FUNC_1,
-						      sdaddr, pkt);
+		skb_queue_tail(&pkt_list, pkt);
+		bcmerror = brcmf_sdio_buffrw(sdiodev, SDIO_FUNC_1, write,
+					     sdaddr, &pkt_list);
+		skb_dequeue_tail(&pkt_list);
 		if (bcmerror) {
 			brcmf_err("membytes transfer failed\n");
 			break;

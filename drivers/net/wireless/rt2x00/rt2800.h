@@ -2625,11 +2625,13 @@ struct mac_iveiv_entry {
 /*
  * DMA descriptor defines.
  */
-#define TXWI_DESC_SIZE			(4 * sizeof(__le32))
-#define RXWI_DESC_SIZE			(4 * sizeof(__le32))
 
-#define TXWI_DESC_SIZE_5592		(5 * sizeof(__le32))
-#define RXWI_DESC_SIZE_5592		(6 * sizeof(__le32))
+#define TXWI_DESC_SIZE_4WORDS		(4 * sizeof(__le32))
+#define TXWI_DESC_SIZE_5WORDS		(5 * sizeof(__le32))
+
+#define RXWI_DESC_SIZE_4WORDS		(4 * sizeof(__le32))
+#define RXWI_DESC_SIZE_6WORDS		(6 * sizeof(__le32))
+
 /*
  * TX WI structure
  */

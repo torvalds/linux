@@ -28,11 +28,21 @@ config NFC_WILINK
 
 config NFC_MEI_PHY
 	tristate "MEI bus NFC device support"
-	depends on INTEL_MEI_BUS_NFC && NFC_HCI
+	depends on INTEL_MEI && NFC_HCI
 	help
 	  This adds support to use an mei bus nfc device. Select this if you
 	  will use an HCI NFC driver for an NFC chip connected behind an
 	  Intel's Management Engine chip.
+
+	  If unsure, say N.
+
+config NFC_SIM
+	tristate "NFC hardware simulator driver"
+	help
+	  This driver declares two virtual NFC devices supporting NFC-DEP
+	  protocol. An LLCP connection can be established between them and
+	  all packets sent from one device is sent back to the other, acting as
+	  loopback devices.
 
 	  If unsure, say N.
 

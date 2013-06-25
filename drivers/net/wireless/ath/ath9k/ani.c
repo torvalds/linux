@@ -46,8 +46,8 @@ static const struct ani_ofdm_level_entry ofdm_level_table[] = {
 	{  5,  4,  1  }, /* lvl 5 */
 	{  6,  5,  1  }, /* lvl 6 */
 	{  7,  6,  1  }, /* lvl 7 */
-	{  7,  6,  0  }, /* lvl 8 */
-	{  7,  7,  0  }  /* lvl 9 */
+	{  7,  7,  1  }, /* lvl 8 */
+	{  7,  8,  0  }  /* lvl 9 */
 };
 #define ATH9K_ANI_OFDM_NUM_LEVEL \
 	ARRAY_SIZE(ofdm_level_table)
@@ -91,8 +91,8 @@ static const struct ani_cck_level_entry cck_level_table[] = {
 	{  4,  0  }, /* lvl 4 */
 	{  5,  0  }, /* lvl 5 */
 	{  6,  0  }, /* lvl 6 */
-	{  6,  0  }, /* lvl 7 (only for high rssi) */
-	{  7,  0  }  /* lvl 8 (only for high rssi) */
+	{  7,  0  }, /* lvl 7 (only for high rssi) */
+	{  8,  0  }  /* lvl 8 (only for high rssi) */
 };
 
 #define ATH9K_ANI_CCK_NUM_LEVEL \
@@ -177,10 +177,15 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel,
 	    BEACON_RSSI(ah) <= ATH9K_ANI_RSSI_THR_HIGH)
 		weak_sig = true;
 
-	if (aniState->ofdmWeakSigDetect != weak_sig)
-			ath9k_hw_ani_control(ah,
-				ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
-				entry_ofdm->ofdm_weak_signal_on);
+	/*
+	 * OFDM Weak signal detection is always enabled for AP mode.
+	 */
+	if (ah->opmode != NL80211_IFTYPE_AP &&
+	    aniState->ofdmWeakSigDetect != weak_sig) {
+		ath9k_hw_ani_control(ah,
+				     ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
+				     entry_ofdm->ofdm_weak_signal_on);
+	}
 
 	if (aniState->ofdmNoiseImmunityLevel >= ATH9K_ANI_OFDM_DEF_LEVEL) {
 		ah->config.ofdm_trig_high = ATH9K_ANI_OFDM_TRIG_HIGH;
@@ -363,18 +368,7 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 	ath9k_hw_set_ofdm_nil(ah, ofdm_nil, is_scanning);
 	ath9k_hw_set_cck_nil(ah, cck_nil, is_scanning);
 
-	/*
-	 * enable phy counters if hw supports or if not, enable phy
-	 * interrupts (so we can count each one)
-	 */
 	ath9k_ani_restart(ah);
-
-	ENABLE_REGWRITE_BUFFER(ah);
-
-	REG_WRITE(ah, AR_PHY_ERR_MASK_1, AR_PHY_ERR_OFDM_TIMING);
-	REG_WRITE(ah, AR_PHY_ERR_MASK_2, AR_PHY_ERR_CCK_TIMING);
-
-	REGWRITE_BUFFER_FLUSH(ah);
 }
 
 static bool ath9k_hw_ani_read_counters(struct ath_hw *ah)

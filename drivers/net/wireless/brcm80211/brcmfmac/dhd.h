@@ -583,6 +583,7 @@ enum brcmf_netif_stop_reason {
  * @bssidx: index of bss associated with this interface.
  * @mac_addr: assigned mac address.
  * @netif_stop: bitmap indicates reason why netif queues are stopped.
+ * @netif_stop_lock: spinlock for update netif_stop from multiple sources.
  * @pend_8021x_cnt: tracks outstanding number of 802.1x frames.
  * @pend_8021x_wait: used for signalling change in count.
  */
@@ -598,6 +599,7 @@ struct brcmf_if {
 	s32 bssidx;
 	u8 mac_addr[ETH_ALEN];
 	u8 netif_stop;
+	spinlock_t netif_stop_lock;
 	atomic_t pend_8021x_cnt;
 	wait_queue_head_t pend_8021x_wait;
 };

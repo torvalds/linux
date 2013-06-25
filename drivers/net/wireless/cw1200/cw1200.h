@@ -267,7 +267,7 @@ struct cw1200_common {
 	struct delayed_work	bss_loss_work;
 	spinlock_t		bss_loss_lock; /* Protect BSS loss state */
 	int                     bss_loss_state;
-	int                     bss_loss_confirm_id;
+	u32                     bss_loss_confirm_id;
 	int			delayed_link_loss;
 	struct work_struct	bss_params_work;
 

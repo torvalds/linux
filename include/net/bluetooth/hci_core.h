@@ -117,13 +117,6 @@ struct oob_data {
 	u8 randomizer[16];
 };
 
-struct le_scan_params {
-	u8 type;
-	u16 interval;
-	u16 window;
-	int timeout;
-};
-
 #define HCI_MAX_SHORT_NAME_LENGTH	10
 
 struct amp_assoc {
@@ -283,9 +276,6 @@ struct hci_dev {
 
 	struct delayed_work	le_scan_disable;
 
-	struct work_struct	le_scan;
-	struct le_scan_params	le_scan_params;
-
 	__s8			adv_tx_power;
 	__u8			adv_data[HCI_MAX_AD_LENGTH];
 	__u8			adv_data_len;
@@ -432,6 +422,7 @@ void hci_inquiry_cache_update_resolve(struct hci_dev *hdev,
 				      struct inquiry_entry *ie);
 bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 			      bool name_known, bool *ssp);
+void hci_inquiry_cache_flush(struct hci_dev *hdev);
 
 /* ----- HCI Connections ----- */
 enum {
@@ -1114,9 +1105,20 @@ void hci_sock_dev_event(struct hci_dev *hdev, int event);
 					 BIT(BDADDR_LE_PUBLIC) | \
 					 BIT(BDADDR_LE_RANDOM))
 
+/* These LE scan and inquiry parameters were chosen according to LE General
+ * Discovery Procedure specification.
+ */
+#define DISCOV_LE_SCAN_WIN		0x12
+#define DISCOV_LE_SCAN_INT		0x12
+#define DISCOV_LE_TIMEOUT		msecs_to_jiffies(10240)
+#define DISCOV_INTERLEAVED_TIMEOUT	msecs_to_jiffies(5120)
+#define DISCOV_INTERLEAVED_INQUIRY_LEN	0x04
+#define DISCOV_BREDR_INQUIRY_LEN	0x08
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t len);
 int mgmt_index_added(struct hci_dev *hdev);
 int mgmt_index_removed(struct hci_dev *hdev);
+int mgmt_set_powered_failed(struct hci_dev *hdev, int err);
 int mgmt_powered(struct hci_dev *hdev, u8 powered);
 int mgmt_discoverable(struct hci_dev *hdev, u8 discoverable);
 int mgmt_connectable(struct hci_dev *hdev, u8 connectable);
@@ -1168,10 +1170,7 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		      u8 ssp, u8 *eir, u16 eir_len);
 int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		     u8 addr_type, s8 rssi, u8 *name, u8 name_len);
-int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status);
-int mgmt_stop_discovery_failed(struct hci_dev *hdev, u8 status);
 int mgmt_discovering(struct hci_dev *hdev, u8 discovering);
-int mgmt_interleaved_discovery(struct hci_dev *hdev);
 int mgmt_device_blocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
 int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
 bool mgmt_valid_hdev(struct hci_dev *hdev);
@@ -1211,11 +1210,6 @@ void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
 					u16 latency, u16 to_multiplier);
 void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __u8 rand[8],
 							__u8 ltk[16]);
-int hci_do_inquiry(struct hci_dev *hdev, u8 length);
-int hci_cancel_inquiry(struct hci_dev *hdev);
-int hci_le_scan(struct hci_dev *hdev, u8 type, u16 interval, u16 window,
-		int timeout);
-int hci_cancel_le_scan(struct hci_dev *hdev);
 
 u8 bdaddr_to_le(u8 bdaddr_type);
 
