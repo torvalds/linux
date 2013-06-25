@@ -281,9 +281,11 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 		/*
 		 * Attempt to capture a firmware dump for further analysis
-		 * of the current firmware state
+		 * of the current firmware state.  We do not need to do this
+		 * if we are intentionally generating a dump.
 		 */
-		ha->isp_ops->fw_dump(vha, 0);
+		if (mcp->mb[0] != MBC_GEN_SYSTEM_ERROR)
+			ha->isp_ops->fw_dump(vha, 0);
 
 		rval = QLA_FUNCTION_TIMEOUT;
 	}
