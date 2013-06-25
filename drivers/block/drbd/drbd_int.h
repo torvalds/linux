@@ -1133,6 +1133,7 @@ extern void drbd_mdev_cleanup(struct drbd_conf *mdev);
 void drbd_print_uuids(struct drbd_conf *mdev, const char *text);
 
 extern void conn_md_sync(struct drbd_tconn *tconn);
+extern void drbd_md_write(struct drbd_conf *mdev, void *buffer);
 extern void drbd_md_sync(struct drbd_conf *mdev);
 extern int  drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev);
 extern void drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local);
@@ -1468,12 +1469,15 @@ extern void drbd_resume_io(struct drbd_conf *mdev);
 extern char *ppsize(char *buf, unsigned long long size);
 extern sector_t drbd_new_dev_size(struct drbd_conf *, struct drbd_backing_dev *, sector_t, int);
 enum determine_dev_size {
+	DS_ERROR_SHRINK = -3,
+	DS_ERROR_SPACE_MD = -2,
 	DS_ERROR = -1,
 	DS_UNCHANGED = 0,
 	DS_SHRUNK = 1,
 	DS_GREW = 2
 };
-extern enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *, enum dds_flags) __must_hold(local);
+extern enum determine_dev_size
+drbd_determine_dev_size(struct drbd_conf *, enum dds_flags, struct resize_parms *) __must_hold(local);
 extern void resync_after_online_grow(struct drbd_conf *);
 extern void drbd_reconsider_max_bio_size(struct drbd_conf *mdev);
 extern enum drbd_state_rv drbd_set_role(struct drbd_conf *mdev,
@@ -1639,6 +1643,7 @@ extern int __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector,
 #define drbd_set_out_of_sync(mdev, sector, size) \
 	__drbd_set_out_of_sync(mdev, sector, size, __FILE__, __LINE__)
 extern void drbd_al_shrink(struct drbd_conf *mdev);
+extern int drbd_initialize_al(struct drbd_conf *, void *);
 
 /* drbd_nl.c */
 /* state info broadcast */

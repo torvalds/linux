@@ -3617,7 +3617,7 @@ static int receive_sizes(struct drbd_tconn *tconn, struct packet_info *pi)
 
 	ddsf = be16_to_cpu(p->dds_flags);
 	if (get_ldev(mdev)) {
-		dd = drbd_determine_dev_size(mdev, ddsf);
+		dd = drbd_determine_dev_size(mdev, ddsf, NULL);
 		put_ldev(mdev);
 		if (dd == DS_ERROR)
 			return -EIO;
