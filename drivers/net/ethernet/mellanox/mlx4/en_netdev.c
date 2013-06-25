@@ -405,7 +405,7 @@ static int mlx4_en_vlan_rx_add_vid(struct net_device *dev,
 			en_err(priv, "Failed configuring VLAN filter\n");
 	}
 	if (mlx4_register_vlan(mdev->dev, priv->port, vid, &idx))
-		en_err(priv, "failed adding vlan %d\n", vid);
+		en_dbg(HW, priv, "failed adding vlan %d\n", vid);
 	mutex_unlock(&mdev->state_lock);
 
 	return 0;
@@ -428,7 +428,7 @@ static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev,
 	if (!mlx4_find_cached_vlan(mdev->dev, priv->port, vid, &idx))
 		mlx4_unregister_vlan(mdev->dev, priv->port, idx);
 	else
-		en_err(priv, "could not find vid %d in cache\n", vid);
+		en_dbg(HW, priv, "could not find vid %d in cache\n", vid);
 
 	if (mdev->device_up && priv->port_up) {
 		err = mlx4_SET_VLAN_FLTR(mdev->dev, priv);
