@@ -1388,6 +1388,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		 *   performing a "check" of the array.
 		 */
 		DMEMIT(" %llu",
+		       (strcmp(rs->md.last_sync_action, "check")) ? 0 :
 		       (unsigned long long)
 		       atomic64_read(&rs->md.resync_mismatches));
 		break;
@@ -1651,7 +1652,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 5, 1},
+	.version = {1, 5, 2},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,
