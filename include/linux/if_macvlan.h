@@ -65,6 +65,7 @@ struct macvlan_dev {
 
 	DECLARE_BITMAP(mc_filter, MACVLAN_MC_FILTER_SZ);
 
+	netdev_features_t	set_features;
 	enum macvlan_mode	mode;
 	u16			flags;
 	int (*receive)(struct sk_buff *skb);
@@ -75,6 +76,7 @@ struct macvlan_dev {
 	struct list_head	queue_list;
 	int			numvtaps;
 	int			numqueues;
+	netdev_features_t	tap_features;
 	int			minor;
 };
 
