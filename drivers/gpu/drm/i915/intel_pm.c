@@ -3461,7 +3461,8 @@ static void vlv_rps_timer_work(struct work_struct *work)
 	 * min freq available.
 	 */
 	mutex_lock(&dev_priv->rps.hw_lock);
-	valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
+	if (dev_priv->rps.cur_delay > dev_priv->rps.rpe_delay)
+		valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
