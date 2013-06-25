@@ -1834,11 +1834,6 @@ static int tz1090_pinconf_group_reg(struct pinctrl_dev *pctldev,
 		*width = 1;
 		*map = tz1090_boolean_map;
 		break;
-	case PIN_CONFIG_SLEW_RATE:
-		*reg = REG_PINCTRL_SR;
-		*width = 1;
-		*map = tz1090_boolean_map;
-		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		*reg = REG_PINCTRL_DR;
 		*width = 2;

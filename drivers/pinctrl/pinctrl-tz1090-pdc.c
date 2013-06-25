@@ -809,11 +809,6 @@ static int tz1090_pdc_pinconf_group_reg(struct pinctrl_dev *pctldev,
 		*width = 1;
 		*map = tz1090_pdc_boolean_map;
 		break;
-	case PIN_CONFIG_SLEW_RATE:
-		*shift = REG_GPIO_CONTROL2_PDC_SR_S;
-		*width = 1;
-		*map = tz1090_pdc_boolean_map;
-		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		*shift = REG_GPIO_CONTROL2_PDC_DR_S;
 		*width = 2;

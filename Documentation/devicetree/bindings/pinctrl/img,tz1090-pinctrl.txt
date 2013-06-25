@@ -44,9 +44,6 @@ Optional subnode-properties:
   - bias-pull-down
   - input-schmitt-enable
   - input-schmitt-disable
-  - slew-rate: Integer, control slew rate of pins.
-      0: slow (half frequency)
-      1: fast
   - drive-strength: Integer, control drive strength of pins in mA.
       2: 2mA
       4: 4mA
@@ -124,7 +121,6 @@ Valid values for pin and group names are:
         function:              afe, ts_out_0.
         input-schmitt-enable:  supported.
         input-schmitt-disable: supported.
-        slew-rate:             supported.
         drive-strength:        supported.
     pdm_d
         pins:                  pdm_d.
@@ -153,12 +149,11 @@ Valid values for pin and group names are:
                                lcd_trace, phy_ringosc.
         input-schmitt-enable:  supported.
         input-schmitt-disable: supported.
-        slew-rate:             supported.
         drive-strength:        supported.
 
   drive groups:
 
-    These all support input-schmitt-enable, input-schmitt-disable, slew-rate,
+    These all support input-schmitt-enable, input-schmitt-disable,
     and drive-strength.
 
     jtag

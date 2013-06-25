@@ -44,9 +44,6 @@ Optional subnode-properties:
   - bias-pull-down
   - input-schmitt-enable
   - input-schmitt-disable
-  - slew-rate: Integer, control slew rate of pins.
-      0: slow (half frequency)
-      1: fast
   - drive-strength: Integer, control drive strength of pins in mA.
       2: 2mA
       4: 4mA
@@ -83,7 +80,7 @@ Valid values for pin and group names are:
 
   drive groups:
 
-    These support input-schmitt-enable, input-schmitt-disable, slew-rate,
+    These support input-schmitt-enable, input-schmitt-disable,
     drive-strength, low-power-enable, and low-power-disable.
 
     pdc
