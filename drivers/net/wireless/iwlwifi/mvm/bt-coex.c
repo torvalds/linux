@@ -120,20 +120,6 @@ int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 				    &iwl_bt_prio_tbl);
 }
 
-static int iwl_send_bt_env(struct iwl_mvm *mvm, u8 action, u8 type)
-{
-	struct iwl_bt_coex_prot_env_cmd env_cmd;
-	int ret;
-
-	env_cmd.action = action;
-	env_cmd.type = type;
-	ret = iwl_mvm_send_cmd_pdu(mvm, BT_COEX_PROT_ENV, CMD_SYNC,
-				   sizeof(env_cmd), &env_cmd);
-	if (ret)
-		IWL_ERR(mvm, "failed to send BT env command\n");
-	return ret;
-}
-
 enum iwl_bt_kill_msk {
 	BT_KILL_MSK_DEFAULT,
 	BT_KILL_MSK_SCO_HID_A2DP,
@@ -303,17 +289,6 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 
 	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWBT_COEX))
 		return 0;
-
-	/* go to CALIB state in internal BT-Coex state machine */
-	ret = iwl_send_bt_env(mvm, BT_COEX_ENV_OPEN,
-			      BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
-	if (ret)
-		return ret;
-
-	ret  = iwl_send_bt_env(mvm, BT_COEX_ENV_CLOSE,
-			       BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
-	if (ret)
-		return ret;
 
 	bt_cmd = kzalloc(sizeof(*bt_cmd), GFP_KERNEL);
 	if (!bt_cmd)

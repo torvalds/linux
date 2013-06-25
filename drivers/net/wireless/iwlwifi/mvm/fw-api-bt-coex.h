@@ -353,20 +353,4 @@ struct iwl_bt_coex_prio_tbl_cmd {
 	u8 prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX];
 } __packed;
 
-enum iwl_bt_coex_env_action {
-	BT_COEX_ENV_CLOSE	 = 0,
-	BT_COEX_ENV_OPEN	 = 1,
-}; /* BT_COEX_PROT_ENV_ACTION_API_E_VER_1 */
-
-/**
- * struct iwl_bt_coex_prot_env_cmd - BT Protection Envelope
- * @action: enum %iwl_bt_coex_env_action
- * @type: enum %iwl_bt_coex_prio_table_event
- */
-struct iwl_bt_coex_prot_env_cmd {
-	u8 action; /* 0 = closed, 1 = open */
-	u8 type; /* 0 .. 15 */
-	u8 reserved[2];
-} __packed;
-
 #endif /* __fw_api_bt_coex_h__ */
