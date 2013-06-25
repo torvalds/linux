@@ -3080,10 +3080,11 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 	WARN_ON(val > dev_priv->rps.max_delay);
 	WARN_ON(val < dev_priv->rps.min_delay);
 
-	DRM_DEBUG_DRIVER("gpu freq request from %d to %d\n",
+	DRM_DEBUG_DRIVER("GPU freq request from %d MHz (%u) to %d MHz (%u)\n",
 			 vlv_gpu_freq(dev_priv->mem_freq,
 				      dev_priv->rps.cur_delay),
-			 vlv_gpu_freq(dev_priv->mem_freq, val));
+			 dev_priv->rps.cur_delay,
+			 vlv_gpu_freq(dev_priv->mem_freq, val), val);
 
 	if (val == dev_priv->rps.cur_delay)
 		return;
@@ -3101,8 +3102,9 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 
 	pval = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 	if ((pval >> 8) != val)
-		DRM_DEBUG_DRIVER("punit overrode freq: %d requested, but got %d\n",
-			  val, pval >> 8);
+		DRM_DEBUG_DRIVER("Punit overrode GPU freq: %d MHz (%u) requested, but got %d Mhz (%u)\n",
+				 vlv_gpu_freq(dev_priv->mem_freq, val), val,
+				 vlv_gpu_freq(dev_priv->mem_freq, pval >> 8), pval >> 8);
 
 	/* Make sure we continue to get interrupts
 	 * until we hit the minimum or maximum frequencies.
@@ -3496,7 +3498,7 @@ static void valleyview_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	u32 gtfifodbg, val, rpe;
+	u32 gtfifodbg, val;
 	int i;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
@@ -3557,31 +3559,39 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", val & 0x10 ? "yes" : "no");
 	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
 
-	DRM_DEBUG_DRIVER("current GPU freq: %d\n",
-			 vlv_gpu_freq(dev_priv->mem_freq, (val >> 8) & 0xff));
 	dev_priv->rps.cur_delay = (val >> 8) & 0xff;
+	DRM_DEBUG_DRIVER("current GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv->mem_freq,
+				      dev_priv->rps.cur_delay),
+			 dev_priv->rps.cur_delay);
 
 	dev_priv->rps.max_delay = valleyview_rps_max_freq(dev_priv);
 	dev_priv->rps.hw_max = dev_priv->rps.max_delay;
-	DRM_DEBUG_DRIVER("max GPU freq: %d\n", vlv_gpu_freq(dev_priv->mem_freq,
-						     dev_priv->rps.max_delay));
+	DRM_DEBUG_DRIVER("max GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv->mem_freq,
+				      dev_priv->rps.max_delay),
+			 dev_priv->rps.max_delay);
 
-	rpe = valleyview_rps_rpe_freq(dev_priv);
-	DRM_DEBUG_DRIVER("RPe GPU freq: %d\n",
-			 vlv_gpu_freq(dev_priv->mem_freq, rpe));
-	dev_priv->rps.rpe_delay = rpe;
+	dev_priv->rps.rpe_delay = valleyview_rps_rpe_freq(dev_priv);
+	DRM_DEBUG_DRIVER("RPe GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv->mem_freq,
+				      dev_priv->rps.rpe_delay),
+			 dev_priv->rps.rpe_delay);
 
-	val = valleyview_rps_min_freq(dev_priv);
-	DRM_DEBUG_DRIVER("min GPU freq: %d\n", vlv_gpu_freq(dev_priv->mem_freq,
-							    val));
-	dev_priv->rps.min_delay = val;
+	dev_priv->rps.min_delay = valleyview_rps_min_freq(dev_priv);
+	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv->mem_freq,
+				      dev_priv->rps.min_delay),
+			 dev_priv->rps.min_delay);
 
-	DRM_DEBUG_DRIVER("setting GPU freq to %d\n",
-			 vlv_gpu_freq(dev_priv->mem_freq, rpe));
+	DRM_DEBUG_DRIVER("setting GPU freq to %d MHz (%u)\n",
+			 vlv_gpu_freq(dev_priv->mem_freq,
+				      dev_priv->rps.rpe_delay),
+			 dev_priv->rps.rpe_delay);
 
 	INIT_DELAYED_WORK(&dev_priv->rps.vlv_work, vlv_rps_timer_work);
 
-	valleyview_set_rps(dev_priv->dev, rpe);
+	valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
 
 	/* requires MSI enabled */
 	I915_WRITE(GEN6_PMIER, GEN6_PM_RPS_EVENTS);
