@@ -247,10 +247,9 @@ void sctp_endpoint_free(struct sctp_endpoint *ep)
 /* Final destructor for endpoint.  */
 static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 {
-	SCTP_ASSERT(ep->base.dead, "Endpoint is not dead", return);
+	struct sock *sk;
 
-	/* Free up the HMAC transform. */
-	crypto_free_hash(sctp_sk(ep->base.sk)->hmac);
+	SCTP_ASSERT(ep->base.dead, "Endpoint is not dead", return);
 
 	/* Free the digest buffer */
 	kfree(ep->digest);
@@ -271,13 +270,15 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 
 	memset(ep->secret_key, 0, sizeof(ep->secret_key));
 
-	/* Remove and free the port */
-	if (sctp_sk(ep->base.sk)->bind_hash)
-		sctp_put_port(ep->base.sk);
-
 	/* Give up our hold on the sock. */
-	if (ep->base.sk)
-		sock_put(ep->base.sk);
+	sk = ep->base.sk;
+	if (sk != NULL) {
+		/* Remove and free the port */
+		if (sctp_sk(sk)->bind_hash)
+			sctp_put_port(sk);
+
+		sock_put(sk);
+	}
 
 	kfree(ep);
 	SCTP_DBG_OBJCNT_DEC(ep);

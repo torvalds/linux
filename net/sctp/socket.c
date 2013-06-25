@@ -93,6 +93,7 @@ static int sctp_wait_for_packet(struct sock * sk, int *err, long *timeo_p);
 static int sctp_wait_for_connect(struct sctp_association *, long *timeo_p);
 static int sctp_wait_for_accept(struct sock *sk, long timeo);
 static void sctp_wait_for_close(struct sock *sk, long timeo);
+static void sctp_destruct_sock(struct sock *sk);
 static struct sctp_af *sctp_sockaddr_af(struct sctp_sock *opt,
 					union sctp_addr *addr, int len);
 static int sctp_bindx_add(struct sock *, struct sockaddr *, int);
@@ -3966,6 +3967,8 @@ static int sctp_init_sock(struct sock *sk)
 
 	sp->hmac = NULL;
 
+	sk->sk_destruct = sctp_destruct_sock;
+
 	SCTP_DBG_OBJCNT_INC(sock);
 
 	local_bh_disable();
@@ -4006,6 +4009,17 @@ static void sctp_destroy_sock(struct sock *sk)
 	percpu_counter_dec(&sctp_sockets_allocated);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	local_bh_enable();
+}
+
+/* Triggered when there are no references on the socket anymore */
+static void sctp_destruct_sock(struct sock *sk)
+{
+	struct sctp_sock *sp = sctp_sk(sk);
+
+	/* Free up the HMAC transform. */
+	crypto_free_hash(sp->hmac);
+
+	inet_sock_destruct(sk);
 }
 
 /* API 4.1.7 shutdown() - TCP Style Syntax
@@ -6848,7 +6862,7 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 	newsk->sk_reuse = sk->sk_reuse;
 
 	newsk->sk_shutdown = sk->sk_shutdown;
-	newsk->sk_destruct = inet_sock_destruct;
+	newsk->sk_destruct = sctp_destruct_sock;
 	newsk->sk_family = sk->sk_family;
 	newsk->sk_protocol = IPPROTO_SCTP;
 	newsk->sk_backlog_rcv = sk->sk_prot->backlog_rcv;
