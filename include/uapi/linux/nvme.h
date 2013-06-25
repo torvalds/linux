@@ -23,7 +23,8 @@
 
 struct nvme_id_power_state {
 	__le16			max_power;	/* centiwatts */
-	__u16			rsvd2;
+	__u8			rsvd2;
+	__u8			flags;
 	__le32			entry_lat;	/* microseconds */
 	__le32			exit_lat;	/* microseconds */
 	__u8			read_tput;
@@ -31,6 +32,11 @@ struct nvme_id_power_state {
 	__u8			write_tput;
 	__u8			write_lat;
 	__u8			rsvd16[16];
+};
+
+enum {
+	NVME_PS_FLAGS_MAX_POWER_SCALE	= 1 << 0,
+	NVME_PS_FLAGS_NON_OP_STATE	= 1 << 1,
 };
 
 struct nvme_id_ctrl {
