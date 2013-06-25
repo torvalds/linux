@@ -458,7 +458,8 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 			notify = 1;
 		}
 		if ((flags & NLM_F_APPEND) &&
-		    is_multicast_ether_addr(f->eth_addr)) {
+		    (is_multicast_ether_addr(f->eth_addr) ||
+		     is_zero_ether_addr(f->eth_addr))) {
 			int rc = vxlan_fdb_append(f, ip, port, vni, ifindex);
 
 			if (rc < 0)
