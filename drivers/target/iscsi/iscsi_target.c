@@ -4105,11 +4105,6 @@ restart:
 			goto transport_err;
 		}
 
-		/*
-		 * Set conn->bad_hdr for use with REJECT PDUs.
-		 */
-		memcpy(&conn->bad_hdr, &buffer, ISCSI_HDR_LEN);
-
 		if (conn->conn_ops->HeaderDigest) {
 			iov.iov_base	= &digest;
 			iov.iov_len	= ISCSI_CRC_LEN;
