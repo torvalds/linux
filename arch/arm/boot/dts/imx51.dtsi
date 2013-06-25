@@ -628,6 +628,13 @@
 			reg = <0x80000000 0x10000000>;
 			ranges;
 
+			iim: iim@83f98000 {
+				compatible = "fsl,imx51-iim", "fsl,imx27-iim";
+				reg = <0x83f98000 0x4000>;
+				interrupts = <69>;
+				clocks = <&clks 107>;
+			};
+
 			ecspi2: ecspi@83fac000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
