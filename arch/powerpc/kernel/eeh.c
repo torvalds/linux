@@ -103,9 +103,6 @@ EXPORT_SYMBOL(eeh_subsystem_enabled);
  */
 int eeh_probe_mode;
 
-/* Global EEH mutex */
-DEFINE_MUTEX(eeh_mutex);
-
 /* Lock to avoid races due to multiple reports of an error */
 DEFINE_RAW_SPINLOCK(confirm_error_lock);
 
