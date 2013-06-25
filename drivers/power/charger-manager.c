@@ -1239,11 +1239,10 @@ static int charger_manager_register_extcon(struct charger_manager *cm)
 
 		charger->consumer = regulator_get(cm->dev,
 					charger->regulator_name);
-		if (charger->consumer == NULL) {
+		if (IS_ERR(charger->consumer)) {
 			dev_err(cm->dev, "Cannot find charger(%s)\n",
 				charger->regulator_name);
-			ret = -EINVAL;
-			goto err;
+			return PTR_ERR(charger->consumer);
 		}
 		charger->cm = cm;
 
