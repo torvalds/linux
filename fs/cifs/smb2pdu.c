@@ -416,18 +416,22 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 
 	security_blob = smb2_get_data_area_len(&blob_offset, &blob_length,
 					       &rsp->hdr);
-	if (blob_length == 0) {
-		cifs_dbg(VFS, "missing security blob on negprot\n");
-		rc = -EIO;
-		goto neg_exit;
-	}
+	/*
+	 * See MS-SMB2 section 2.2.4: if no blob, client picks default which
+	 * for us will be
+	 *	ses->sectype = RawNTLMSSP;
+	 * but for time being this is our only auth choice so doesn't matter.
+	 * We just found a server which sets blob length to zero expecting raw.
+	 */
+	if (blob_length == 0)
+		cifs_dbg(FYI, "missing security blob on negprot\n");
 
 	rc = cifs_enable_signing(server, ses->sign);
 #ifdef CONFIG_SMB2_ASN1  /* BB REMOVEME when updated asn1.c ready */
 	if (rc)
 		goto neg_exit;
-
-	rc = decode_neg_token_init(security_blob, blob_length,
+	if (blob_length)
+		rc = decode_neg_token_init(security_blob, blob_length,
 				   &server->sec_type);
 	if (rc == 1)
 		rc = 0;
