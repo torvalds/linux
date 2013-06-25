@@ -411,10 +411,11 @@ static int au_file_refresh_by_inode(struct file *file, int *need_reopen)
 		/* always superio. */
 		err = au_pin(&pin, dentry, bstart, AuOpt_UDBA_NONE,
 			     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
-		if (!err)
+		if (!err) {
 			err = au_sio_cpup_simple(dentry, bstart, -1,
 						 AuCpup_DTIME, &pin);
-		au_unpin(&pin);
+			au_unpin(&pin);
+		}
 	} else if (hi_wh) {
 		/* already copied-up after unlink */
 		err = au_reopen_wh(file, bstart, hi_wh);
