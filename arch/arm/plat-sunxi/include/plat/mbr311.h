@@ -20,17 +20,21 @@
  * MA 02111-1307 USA
  */
 
-#ifndef    __MBR_H__
-#define    __MBR_H__
+#ifndef    __MBR311_H__
+#define    __MBR311_H__
 
 #include <linux/kernel.h>
 
-#define MAX_PART_COUNT		15	 									//max part count
-#define MBR_COPY_NUM        4    									//mbr backup count
+#define MAX_PART_COUNT		15	 		//max part count
+#define MBR_COPY_NUM		4    			//mbr backup count
 
-#define MBR_START_ADDRESS	0x0										//mbr start address
-#define MBR_SIZE			1024									//mbr size
-#define MBR_RESERVED        (MBR_SIZE - 20 - (MAX_PART_COUNT * 64)) //mbr reserved space
+#define MBR_START_ADDRESS	0x0			//mbr start address
+#define MBR_SIZE		1024UL			//mbr size
+#define MBR_PART_SIZE		sizeof(struct tag_PARTITION)
+#define MBR_RESERVED		(MBR_SIZE - sizeof(struct tag_MBR) - \
+					(MAX_PART_COUNT * MBR_PART_SIZE))
+#define MBR_VERSION		0x100
+#define MBR_MAGIC		"softw311"
 
 struct nand_disk{
 	unsigned long size;
@@ -39,7 +43,7 @@ struct nand_disk{
 };
 
 /* part info */
-typedef struct tag_PARTITION{
+struct tag_PARTITION {
 	__u32 addrhi;				//start address high 32 bit
 	__u32 addrlo;				//start address low 32 bit
 	__u32 lenhi;				//size high 32 bit
@@ -49,18 +53,22 @@ typedef struct tag_PARTITION{
 	unsigned  int       user_type;          //标志当前盘符所属于的用户
 	unsigned  int       ro;                 //标志当前盘符的读写属性
 	__u8  res[16];				//reserved
-}PARTITION;
+};
 
 /* mbr info */
-typedef struct tag_MBR{
+struct tag_MBR {
 	__u32 crc32;					// crc, from byte 4 to mbr tail
 	__u32 version;					// version
 	__u8  magic[8];					// magic number
 	__u8  copy;						// mbr backup count
 	__u8  index;					// current part	no
 	__u16   PartCount;				// part counter
-	PARTITION array[MAX_PART_COUNT];// part info
-	__u8 res[MBR_RESERVED];         // reserved space
-}MBR;
+};
 
-#endif    //__MBR_H__
+struct MBR {
+	struct tag_MBR tag;
+	struct tag_PARTITION array[MAX_PART_COUNT];// part info
+	__u8 res[MBR_RESERVED];         // reserved space
+};
+
+#endif    //__MBR311_H__

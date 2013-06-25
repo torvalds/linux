@@ -21,7 +21,6 @@
  */
 
 #include <linux/semaphore.h>
-#include <plat/mbr.h>
 
 struct nand_blk_ops;
 struct list_head;

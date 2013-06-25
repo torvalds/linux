@@ -49,7 +49,6 @@
 
 #include "nand_private.h"
 #include "../include/type_def.h"
-#include <plat/mbr.h>
 #include "../nandtest/nand_test.h"
 
 #include "nand_private.h"

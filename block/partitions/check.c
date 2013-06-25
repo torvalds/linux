@@ -105,7 +105,8 @@ static int (*check_part[])(struct parsed_partitions *) = {
 	sysv68_partition,
 #endif
 #ifdef CONFIG_SUNXI_NAND_PARTITION
-	sunxi_nand_partition,
+	sunxi_nand311_partition,
+	sunxi_nand411_partition,
 #endif
 	NULL
 };
