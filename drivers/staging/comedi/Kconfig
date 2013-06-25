@@ -122,8 +122,18 @@ config COMEDI_PCL724
 	tristate "Advantech PCL-722/724/731 and ADlink ACL-7122/7124/PET-48DIO"
 	select COMEDI_8255
 	---help---
-	  Enable support for Advantech PCL-724, PCL-722, PCL-731 and
-	  ADlink ACL-7122, ACL-7124, PET-48DIO ISA cards
+	  Enable support for ISA and PC/104 based 8255 digital i/o boards. This
+	  driver provides a legacy comedi driver wrapper for the generic 8255
+	  support driver.
+
+	  Supported boards include:
+	    Advantech PCL-724    24 channels
+	    Advantech PCL-722    144 (or 96) channels
+	    Advantech PCL-731    48 channels
+	    ADlink ACL-7122      144 (or 96) channels
+	    ADlink ACL-7124      24 channels
+	    ADlink PET-48DIO     48 channels
+	    WinSystems PCM-IO48  48 channels (PC/104)
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcl724.
