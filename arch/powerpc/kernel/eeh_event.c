@@ -55,7 +55,8 @@ static int eeh_event_handler(void * dummy)
 	struct eeh_pe *pe;
 
 	while (!kthread_should_stop()) {
-		down(&eeh_eventlist_sem);
+		if (down_interruptible(&eeh_eventlist_sem))
+			break;
 
 		/* Fetch EEH event from the queue */
 		spin_lock_irqsave(&eeh_eventlist_lock, flags);
