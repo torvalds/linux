@@ -602,7 +602,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	u32 hdmi_val;
 
 	hdmi_val = SDVO_ENCODING_HDMI;
-	if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev))
+	if (!HAS_PCH_SPLIT(dev))
 		hdmi_val |= intel_hdmi->color_range;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		hdmi_val |= SDVO_VSYNC_ACTIVE_HIGH;
