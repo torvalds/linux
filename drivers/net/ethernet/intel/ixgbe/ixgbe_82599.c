@@ -49,6 +49,7 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
                                            ixgbe_link_speed speed,
                                            bool autoneg_wait_to_complete);
+static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw);
 static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 				      bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
@@ -429,6 +430,24 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 	}
 out:
 	return media_type;
+}
+
+/**
+ * ixgbe_stop_mac_link_on_d3_82599 - Disables link on D3
+ * @hw: pointer to hardware structure
+ *
+ * Disables link, should be called during D3 power down sequence.
+ *
+ */
+static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw)
+{
+	u32 autoc2_reg;
+
+	if (!hw->mng_fw_enabled && !hw->wol_enabled) {
+		autoc2_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
+		autoc2_reg |= IXGBE_AUTOC2_LINK_DISABLE_ON_D3_MASK;
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC2, autoc2_reg);
+	}
 }
 
 /**
@@ -2477,6 +2496,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.set_lan_id             = &ixgbe_set_lan_id_multi_port_pcie,
 	.read_analog_reg8       = &ixgbe_read_analog_reg8_82599,
 	.write_analog_reg8      = &ixgbe_write_analog_reg8_82599,
+	.stop_link_on_d3	= &ixgbe_stop_mac_link_on_d3_82599,
 	.setup_link             = &ixgbe_setup_mac_link_82599,
 	.set_rxpba		= &ixgbe_set_rxpba_generic,
 	.check_link             = &ixgbe_check_mac_link_generic,
