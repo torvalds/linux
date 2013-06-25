@@ -3069,16 +3069,48 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	trace_intel_gpu_freq_change(val * 50);
 }
 
+/*
+ * Wait until the previous freq change has completed,
+ * or the timeout elapsed, and then update our notion
+ * of the current GPU frequency.
+ */
+static void vlv_update_rps_cur_delay(struct drm_i915_private *dev_priv)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(10);
+	u32 pval;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+
+	do {
+		pval = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
+		if (time_after(jiffies, timeout)) {
+			DRM_DEBUG_DRIVER("timed out waiting for Punit\n");
+			break;
+		}
+		udelay(10);
+	} while (pval & 1);
+
+	pval >>= 8;
+
+	if (pval != dev_priv->rps.cur_delay)
+		DRM_DEBUG_DRIVER("Punit overrode GPU freq: %d MHz (%u) requested, but got %d Mhz (%u)\n",
+				 vlv_gpu_freq(dev_priv->mem_freq, dev_priv->rps.cur_delay),
+				 dev_priv->rps.cur_delay,
+				 vlv_gpu_freq(dev_priv->mem_freq, pval), pval);
+
+	dev_priv->rps.cur_delay = pval;
+}
+
 void valleyview_set_rps(struct drm_device *dev, u8 val)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long timeout = jiffies + msecs_to_jiffies(10);
 	u32 limits = gen6_rps_limits(dev_priv, &val);
-	u32 pval;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 	WARN_ON(val > dev_priv->rps.max_delay);
 	WARN_ON(val < dev_priv->rps.min_delay);
+
+	vlv_update_rps_cur_delay(dev_priv);
 
 	DRM_DEBUG_DRIVER("GPU freq request from %d MHz (%u) to %d MHz (%u)\n",
 			 vlv_gpu_freq(dev_priv->mem_freq,
@@ -3091,27 +3123,12 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 
 	vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
 
-	do {
-		pval = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
-		if (time_after(jiffies, timeout)) {
-			DRM_DEBUG_DRIVER("timed out waiting for Punit\n");
-			break;
-		}
-		udelay(10);
-	} while (pval & 1);
-
-	pval = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
-	if ((pval >> 8) != val)
-		DRM_DEBUG_DRIVER("Punit overrode GPU freq: %d MHz (%u) requested, but got %d Mhz (%u)\n",
-				 vlv_gpu_freq(dev_priv->mem_freq, val), val,
-				 vlv_gpu_freq(dev_priv->mem_freq, pval >> 8), pval >> 8);
-
 	/* Make sure we continue to get interrupts
 	 * until we hit the minimum or maximum frequencies.
 	 */
 	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, limits);
 
-	dev_priv->rps.cur_delay = pval >> 8;
+	dev_priv->rps.cur_delay = val;
 
 	trace_intel_gpu_freq_change(vlv_gpu_freq(dev_priv->mem_freq, val));
 }
