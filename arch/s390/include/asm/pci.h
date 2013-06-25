@@ -59,8 +59,9 @@ struct msi_map {
 	struct hlist_node msi_chain;
 };
 
-#define ZPCI_NR_MSI_VECS	64
-#define ZPCI_MSI_MASK		(ZPCI_NR_MSI_VECS - 1)
+#define ZPCI_MSI_VEC_BITS	11
+#define ZPCI_MSI_VEC_MAX	(1 << ZPCI_MSI_VEC_BITS)
+#define ZPCI_MSI_VEC_MASK	(ZPCI_MSI_VEC_MAX - 1)
 
 enum zpci_state {
 	ZPCI_FN_STATE_RESERVED,
@@ -92,7 +93,8 @@ struct zpci_dev {
 	/* IRQ stuff */
 	u64		msi_addr;	/* MSI address */
 	struct zdev_irq_map *irq_map;
-	struct msi_map *msi_map[ZPCI_NR_MSI_VECS];
+	struct msi_map *msi_map;
+	struct airq_iv *aibv;		/* adapter interrupt bit vector */
 	unsigned int	aisb;		/* number of the summary bit */
 
 	/* DMA stuff */
