@@ -253,7 +253,7 @@ static const struct rtc_class_ops max8998_rtc_ops = {
 static int max8998_rtc_probe(struct platform_device *pdev)
 {
 	struct max8998_dev *max8998 = dev_get_drvdata(pdev->dev.parent);
-	struct max8998_platform_data *pdata = dev_get_platdata(max8998->dev);
+	struct max8998_platform_data *pdata = max8998->pdata;
 	struct max8998_rtc_info *info;
 	int ret;
 

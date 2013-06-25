@@ -58,10 +58,12 @@ enum {
  * max8998_regulator_data - regulator data
  * @id: regulator id
  * @initdata: regulator init data (contraints, supplies, ...)
+ * @reg_node: DT node of regulator (unused on non-DT platforms)
  */
 struct max8998_regulator_data {
 	int				id;
 	struct regulator_init_data	*initdata;
+	struct device_node		*reg_node;
 };
 
 /**
