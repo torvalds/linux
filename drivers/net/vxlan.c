@@ -518,13 +518,60 @@ static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f)
 	call_rcu(&f->rcu, vxlan_fdb_free);
 }
 
+static int vxlan_fdb_parse(struct nlattr *tb[], struct vxlan_dev *vxlan,
+			   __be32 *ip, __be16 *port, u32 *vni, u32 *ifindex)
+{
+	struct net *net = dev_net(vxlan->dev);
+
+	if (tb[NDA_DST]) {
+		if (nla_len(tb[NDA_DST]) != sizeof(__be32))
+			return -EAFNOSUPPORT;
+
+		*ip = nla_get_be32(tb[NDA_DST]);
+	} else {
+		*ip = htonl(INADDR_ANY);
+	}
+
+	if (tb[NDA_PORT]) {
+		if (nla_len(tb[NDA_PORT]) != sizeof(__be16))
+			return -EINVAL;
+		*port = nla_get_be16(tb[NDA_PORT]);
+	} else {
+		*port = vxlan->dst_port;
+	}
+
+	if (tb[NDA_VNI]) {
+		if (nla_len(tb[NDA_VNI]) != sizeof(u32))
+			return -EINVAL;
+		*vni = nla_get_u32(tb[NDA_VNI]);
+	} else {
+		*vni = vxlan->default_dst.remote_vni;
+	}
+
+	if (tb[NDA_IFINDEX]) {
+		struct net_device *tdev;
+
+		if (nla_len(tb[NDA_IFINDEX]) != sizeof(u32))
+			return -EINVAL;
+		*ifindex = nla_get_u32(tb[NDA_IFINDEX]);
+		tdev = dev_get_by_index(net, *ifindex);
+		if (!tdev)
+			return -EADDRNOTAVAIL;
+		dev_put(tdev);
+	} else {
+		*ifindex = 0;
+	}
+
+	return 0;
+}
+
 /* Add static entry (via netlink) */
 static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			 struct net_device *dev,
 			 const unsigned char *addr, u16 flags)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	struct net *net = dev_net(vxlan->dev);
+	/* struct net *net = dev_net(vxlan->dev); */
 	__be32 ip;
 	__be16 port;
 	u32 vni, ifindex;
@@ -539,37 +586,9 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	if (tb[NDA_DST] == NULL)
 		return -EINVAL;
 
-	if (nla_len(tb[NDA_DST]) != sizeof(__be32))
-		return -EAFNOSUPPORT;
-
-	ip = nla_get_be32(tb[NDA_DST]);
-
-	if (tb[NDA_PORT]) {
-		if (nla_len(tb[NDA_PORT]) != sizeof(__be16))
-			return -EINVAL;
-		port = nla_get_be16(tb[NDA_PORT]);
-	} else
-		port = vxlan->dst_port;
-
-	if (tb[NDA_VNI]) {
-		if (nla_len(tb[NDA_VNI]) != sizeof(u32))
-			return -EINVAL;
-		vni = nla_get_u32(tb[NDA_VNI]);
-	} else
-		vni = vxlan->default_dst.remote_vni;
-
-	if (tb[NDA_IFINDEX]) {
-		struct net_device *tdev;
-
-		if (nla_len(tb[NDA_IFINDEX]) != sizeof(u32))
-			return -EINVAL;
-		ifindex = nla_get_u32(tb[NDA_IFINDEX]);
-		tdev = dev_get_by_index(net, ifindex);
-		if (!tdev)
-			return -EADDRNOTAVAIL;
-		dev_put(tdev);
-	} else
-		ifindex = 0;
+	err = vxlan_fdb_parse(tb, vxlan, &ip, &port, &vni, &ifindex);
+	if (err)
+		return err;
 
 	spin_lock_bh(&vxlan->hash_lock);
 	err = vxlan_fdb_create(vxlan, addr, ip, ndm->ndm_state, flags,
