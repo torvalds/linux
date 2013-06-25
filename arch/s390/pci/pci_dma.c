@@ -170,8 +170,8 @@ static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
 		 */
 		goto no_refresh;
 
-	rc = s390pci_refresh_trans((u64) zdev->fh << 32, start_dma_addr,
-				   nr_pages * PAGE_SIZE);
+	rc = zpci_refresh_trans((u64) zdev->fh << 32, start_dma_addr,
+				nr_pages * PAGE_SIZE);
 
 no_refresh:
 	spin_unlock_irqrestore(&zdev->dma_table_lock, irq_flags);
