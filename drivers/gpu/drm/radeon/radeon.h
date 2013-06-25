@@ -1359,6 +1359,7 @@ struct radeon_dpm {
 	struct radeon_dpm_fan fan;
 	u32 tdp_limit;
 	u32 near_tdp_limit;
+	u32 near_tdp_limit_adjusted;
 	u32 sq_ramping_threshold;
 	u32 cac_leakage;
 	u16 tdp_od_limit;

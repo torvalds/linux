@@ -144,6 +144,7 @@ struct rv7xx_pl {
 	u16 vddc;
 	u16 vddci; /* eg+ only */
 	u32 flags;
+	enum radeon_pcie_gen pcie_gen; /* si+ only */
 };
 
 struct rv7xx_ps {

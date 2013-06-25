@@ -719,7 +719,7 @@ static const u32 cayman_sysls_enable[] =
 struct rv7xx_power_info *rv770_get_pi(struct radeon_device *rdev);
 struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
-static struct ni_power_info *ni_get_pi(struct radeon_device *rdev)
+struct ni_power_info *ni_get_pi(struct radeon_device *rdev)
 {
         struct ni_power_info *pi = rdev->pm.dpm.priv;
 
@@ -1471,8 +1471,8 @@ static int ni_populate_smc_tdp_limits(struct radeon_device *rdev,
 	return 0;
 }
 
-static int ni_copy_and_switch_arb_sets(struct radeon_device *rdev,
-				       u32 arb_freq_src, u32 arb_freq_dest)
+int ni_copy_and_switch_arb_sets(struct radeon_device *rdev,
+				u32 arb_freq_src, u32 arb_freq_dest)
 {
 	u32 mc_arb_dram_timing;
 	u32 mc_arb_dram_timing2;
@@ -3488,8 +3488,8 @@ void ni_dpm_setup_asic(struct radeon_device *rdev)
 	rv770_enable_acpi_pm(rdev);
 }
 
-static void ni_update_current_ps(struct radeon_device *rdev,
-				 struct radeon_ps *rps)
+void ni_update_current_ps(struct radeon_device *rdev,
+			  struct radeon_ps *rps)
 {
 	struct ni_ps *new_ps = ni_get_ps(rps);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
@@ -3500,8 +3500,8 @@ static void ni_update_current_ps(struct radeon_device *rdev,
 	eg_pi->current_rps.ps_priv = &ni_pi->current_ps;
 }
 
-static void ni_update_requested_ps(struct radeon_device *rdev,
-				   struct radeon_ps *rps)
+void ni_update_requested_ps(struct radeon_device *rdev,
+			    struct radeon_ps *rps)
 {
 	struct ni_ps *new_ps = ni_get_ps(rps);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
@@ -4192,8 +4192,12 @@ void ni_dpm_print_power_state(struct radeon_device *rdev,
 	printk("\tuvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
 	for (i = 0; i < ps->performance_level_count; i++) {
 		pl = &ps->performance_levels[i];
-		printk("\t\tpower level 0    sclk: %u mclk: %u vddc: %u vddci: %u\n",
-		       pl->sclk, pl->mclk, pl->vddc, pl->vddci);
+		if (rdev->family >= CHIP_TAHITI)
+			printk("\t\tpower level 0    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
+			       pl->sclk, pl->mclk, pl->vddc, pl->vddci, pl->pcie_gen + 1);
+		else
+			printk("\t\tpower level 0    sclk: %u mclk: %u vddc: %u vddci: %u\n",
+			       pl->sclk, pl->mclk, pl->vddc, pl->vddci);
 	}
 	r600_dpm_print_ps_status(rdev, rps);
 }

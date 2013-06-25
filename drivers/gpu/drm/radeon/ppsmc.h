@@ -26,6 +26,9 @@
 #pragma pack(push, 1)
 
 #define PPSMC_SWSTATE_FLAG_DC                           0x01
+#define PPSMC_SWSTATE_FLAG_UVD                          0x02
+#define PPSMC_SWSTATE_FLAG_VCE                          0x04
+#define PPSMC_SWSTATE_FLAG_PCIE_X1                      0x08
 
 #define PPSMC_THERMAL_PROTECT_TYPE_INTERNAL             0x00
 #define PPSMC_THERMAL_PROTECT_TYPE_EXTERNAL             0x01
@@ -36,17 +39,22 @@
 #define PPSMC_SYSTEMFLAG_GDDR5                          0x04
 #define PPSMC_SYSTEMFLAG_DISABLE_BABYSTEP               0x08
 #define PPSMC_SYSTEMFLAG_REGULATOR_HOT                  0x10
+#define PPSMC_SYSTEMFLAG_REGULATOR_HOT_ANALOG           0x20
+#define PPSMC_SYSTEMFLAG_REGULATOR_HOT_PROG_GPIO        0x40
 
 #define PPSMC_EXTRAFLAGS_AC2DC_ACTION_MASK              0x07
 #define PPSMC_EXTRAFLAGS_AC2DC_DONT_WAIT_FOR_VBLANK     0x08
 #define PPSMC_EXTRAFLAGS_AC2DC_ACTION_GOTODPMLOWSTATE   0x00
 #define PPSMC_EXTRAFLAGS_AC2DC_ACTION_GOTOINITIALSTATE  0x01
+#define PPSMC_EXTRAFLAGS_AC2DC_GPIO5_POLARITY_HIGH      0x02
 
 #define PPSMC_DISPLAY_WATERMARK_LOW                     0
 #define PPSMC_DISPLAY_WATERMARK_HIGH                    1
 
 #define PPSMC_STATEFLAG_AUTO_PULSE_SKIP    0x01
 #define PPSMC_STATEFLAG_POWERBOOST         0x02
+#define PPSMC_STATEFLAG_DEEPSLEEP_THROTTLE 0x20
+#define PPSMC_STATEFLAG_DEEPSLEEP_BYPASS   0x40
 
 #define PPSMC_Result_OK             ((uint8_t)0x01)
 #define PPSMC_Result_Failed         ((uint8_t)0xFF)
@@ -80,9 +88,14 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_CACLongTermAvgEnable          ((uint8_t)0x6E)
 #define PPSMC_CACLongTermAvgDisable         ((uint8_t)0x6F)
 #define PPSMC_MSG_CollectCAC_PowerCorreln   ((uint8_t)0x7A)
+#define PPSMC_FlushDataCache                ((uint8_t)0x80)
 #define PPSMC_MSG_SetEnabledLevels          ((uint8_t)0x82)
 #define PPSMC_MSG_SetForcedLevels           ((uint8_t)0x83)
 #define PPSMC_MSG_ResetToDefaults           ((uint8_t)0x84)
+#define PPSMC_MSG_EnableDTE                 ((uint8_t)0x87)
+#define PPSMC_MSG_DisableDTE                ((uint8_t)0x88)
+#define PPSMC_MSG_ThrottleOVRDSCLKDS        ((uint8_t)0x96)
+#define PPSMC_MSG_CancelThrottleOVRDSCLKDS  ((uint8_t)0x97)
 
 /* TN */
 #define PPSMC_MSG_DPM_Config                ((uint32_t) 0x102)

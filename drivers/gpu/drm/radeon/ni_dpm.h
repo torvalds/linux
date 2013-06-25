@@ -231,4 +231,11 @@ struct ni_power_info {
 #define NISLANDS_DPM2_SQ_RAMP_STI_SIZE                  0x1E
 #define NISLANDS_DPM2_SQ_RAMP_LTI_RATIO                 0xF
 
+int ni_copy_and_switch_arb_sets(struct radeon_device *rdev,
+				u32 arb_freq_src, u32 arb_freq_dest);
+void ni_update_current_ps(struct radeon_device *rdev,
+			  struct radeon_ps *rps);
+void ni_update_requested_ps(struct radeon_device *rdev,
+			    struct radeon_ps *rps);
+
 #endif

@@ -111,4 +111,19 @@
 #define CAYMAN_SMC_INT_VECTOR_START  0xffc0
 #define CAYMAN_SMC_INT_VECTOR_SIZE   0x0040
 
+#define TAHITI_SMC_UCODE_START       0x10000
+#define TAHITI_SMC_UCODE_SIZE        0xf458
+
+#define PITCAIRN_SMC_UCODE_START     0x10000
+#define PITCAIRN_SMC_UCODE_SIZE      0xe9f4
+
+#define VERDE_SMC_UCODE_START        0x10000
+#define VERDE_SMC_UCODE_SIZE         0xebe4
+
+#define OLAND_SMC_UCODE_START        0x10000
+#define OLAND_SMC_UCODE_SIZE         0xe7b4
+
+#define HAINAN_SMC_UCODE_START       0x10000
+#define HAINAN_SMC_UCODE_SIZE        0xe67C
+
 #endif

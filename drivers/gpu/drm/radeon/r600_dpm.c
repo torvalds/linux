@@ -906,6 +906,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 	    sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE5)) {
 		rdev->pm.dpm.tdp_limit = le32_to_cpu(power_info->pplib5.ulTDPLimit);
 		rdev->pm.dpm.near_tdp_limit = le32_to_cpu(power_info->pplib5.ulNearTDPLimit);
+		rdev->pm.dpm.near_tdp_limit_adjusted = rdev->pm.dpm.near_tdp_limit;
 		rdev->pm.dpm.tdp_od_limit = le16_to_cpu(power_info->pplib5.usTDPODLimit);
 		if (rdev->pm.dpm.tdp_od_limit)
 			rdev->pm.dpm.power_control = true;
