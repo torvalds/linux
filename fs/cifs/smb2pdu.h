@@ -497,6 +497,29 @@ struct copychunk_ioctl {
 	__u32 Reserved2;
 } __packed;
 
+/* Response and Request are the same format */
+struct validate_negotiate_info {
+	__le32 Capabilities;
+	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
+	__le16 SecurityMode;
+	__le16 DialectCount;
+	__le16 Dialect[1];
+} __packed;
+
+#define RSS_CAPABLE	0x00000001
+#define RDMA_CAPABLE	0x00000002
+
+struct network_interface_info_ioctl_rsp {
+	__le32 Next; /* next interface. zero if this is last one */
+	__le32 IfIndex;
+	__le32 Capability; /* RSS or RDMA Capable */
+	__le32 Reserved;
+	__le64 LinkSpeed;
+	char	SockAddr_Storage[128];
+} __packed;
+
+#define NO_FILE_ID 0xFFFFFFFFFFFFFFFFULL /* general ioctls to srv not to file */
+
 struct smb2_ioctl_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize;	/* Must be 57 */
