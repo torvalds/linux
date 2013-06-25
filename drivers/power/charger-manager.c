@@ -1666,7 +1666,9 @@ err_reg_extcon:
 		charger = &desc->charger_regulators[i];
 		for (j = 0; j < charger->num_cables; j++) {
 			struct charger_cable *cable = &charger->cables[j];
-			extcon_unregister_interest(&cable->extcon_dev);
+			/* Remove notifier block if only edev exists */
+			if (cable->extcon_dev.edev)
+				extcon_unregister_interest(&cable->extcon_dev);
 		}
 
 		regulator_put(desc->charger_regulators[i].consumer);
