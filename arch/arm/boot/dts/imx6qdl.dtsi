@@ -294,7 +294,7 @@
 			};
 
 			gpt: gpt@02098000 {
-				compatible = "fsl,imx6q-gpt";
+				compatible = "fsl,imx6q-gpt", "fsl,imx31-gpt";
 				reg = <0x02098000 0x4000>;
 				interrupts = <0 55 0x04>;
 				clocks = <&clks 119>, <&clks 120>;
