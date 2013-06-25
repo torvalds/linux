@@ -957,6 +957,13 @@
 			reg = <0x60000000 0x10000000>;
 			ranges;
 
+			iim: iim@63f98000 {
+				compatible = "fsl,imx53-iim", "fsl,imx27-iim";
+				reg = <0x63f98000 0x4000>;
+				interrupts = <69>;
+				clocks = <&clks 107>;
+			};
+
 			uart5: serial@63f90000 {
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x63f90000 0x4000>;
