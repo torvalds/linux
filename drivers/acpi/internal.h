@@ -40,6 +40,11 @@ void acpi_container_init(void);
 #else
 static inline void acpi_container_init(void) {}
 #endif
+#ifdef CONFIG_ACPI_DOCK
+void acpi_dock_init(void);
+#else
+static inline void acpi_dock_init(void) {}
+#endif
 #ifdef CONFIG_ACPI_HOTPLUG_MEMORY
 void acpi_memory_hotplug_init(void);
 #else
