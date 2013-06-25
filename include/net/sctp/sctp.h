@@ -188,11 +188,6 @@ extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
  *  Section:  Macros, externs, and inlines
  */
 
-
-#ifdef TEST_FRAME
-#include <test_frame.h>
-#else
-
 /* spin lock wrappers. */
 #define sctp_spin_lock_irqsave(lock, flags) spin_lock_irqsave(lock, flags)
 #define sctp_spin_unlock_irqrestore(lock, flags)  \
@@ -217,8 +212,6 @@ extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
 #define SCTP_INC_STATS_BH(net, field)   SNMP_INC_STATS_BH((net)->sctp.sctp_statistics, field)
 #define SCTP_INC_STATS_USER(net, field) SNMP_INC_STATS_USER((net)->sctp.sctp_statistics, field)
 #define SCTP_DEC_STATS(net, field)      SNMP_DEC_STATS((net)->sctp.sctp_statistics, field)
-
-#endif /* !TEST_FRAME */
 
 /* sctp mib definitions */
 enum {
