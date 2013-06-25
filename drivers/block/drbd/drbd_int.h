@@ -832,6 +832,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 	unsigned susp_nod:1;		/* IO suspended because no data */
 	unsigned susp_fen:1;		/* IO suspended because fence peer handler runs */
 	struct mutex cstate_mutex;	/* Protects graceful disconnects */
+	unsigned int connect_cnt;	/* Inc each time a connection is established */
 
 	unsigned long flags;
 	struct net_conf *net_conf;	/* content protected by rcu */

@@ -417,6 +417,7 @@ static enum drbd_fencing_p highest_fencing_policy(struct drbd_tconn *tconn)
 
 bool conn_try_outdate_peer(struct drbd_tconn *tconn)
 {
+	unsigned int connect_cnt;
 	union drbd_state mask = { };
 	union drbd_state val = { };
 	enum drbd_fencing_p fp;
@@ -427,6 +428,10 @@ bool conn_try_outdate_peer(struct drbd_tconn *tconn)
 		conn_err(tconn, "Expected cstate < C_WF_REPORT_PARAMS\n");
 		return false;
 	}
+
+	spin_lock_irq(&tconn->req_lock);
+	connect_cnt = tconn->connect_cnt;
+	spin_unlock_irq(&tconn->req_lock);
 
 	fp = highest_fencing_policy(tconn);
 	switch (fp) {
@@ -492,8 +497,14 @@ bool conn_try_outdate_peer(struct drbd_tconn *tconn)
 	   here, because we might were able to re-establish the connection in the
 	   meantime. */
 	spin_lock_irq(&tconn->req_lock);
-	if (tconn->cstate < C_WF_REPORT_PARAMS && !test_bit(STATE_SENT, &tconn->flags))
-		_conn_request_state(tconn, mask, val, CS_VERBOSE);
+	if (tconn->cstate < C_WF_REPORT_PARAMS && !test_bit(STATE_SENT, &tconn->flags)) {
+		if (tconn->connect_cnt != connect_cnt)
+			/* In case the connection was established and droped
+			   while the fence-peer handler was running, ignore it */
+			conn_info(tconn, "Ignoring fence-peer exit code\n");
+		else
+			_conn_request_state(tconn, mask, val, CS_VERBOSE);
+	}
 	spin_unlock_irq(&tconn->req_lock);
 
 	return conn_highest_pdsk(tconn) <= D_OUTDATED;
