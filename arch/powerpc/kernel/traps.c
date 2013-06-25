@@ -1286,25 +1286,42 @@ void vsx_unavailable_exception(struct pt_regs *regs)
 	die("Unrecoverable VSX Unavailable Exception", regs, SIGABRT);
 }
 
-void tm_unavailable_exception(struct pt_regs *regs)
+void facility_unavailable_exception(struct pt_regs *regs)
 {
+	static char *facility_strings[] = {
+		"FPU",
+		"VMX/VSX",
+		"DSCR",
+		"PMU SPRs",
+		"BHRB",
+		"TM",
+		"AT",
+		"EBB",
+		"TAR",
+	};
+	char *facility;
+	u64 value;
+
+	value = mfspr(SPRN_FSCR) >> 56;
+
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
-	/* Currently we never expect a TMU exception.  Catch
-	 * this and kill the process!
-	 */
-	printk(KERN_EMERG "Unexpected TM unavailable exception at %lx "
-	       "(msr %lx)\n",
-	       regs->nip, regs->msr);
+	if (value < ARRAY_SIZE(facility_strings))
+		facility = facility_strings[value];
+	else
+		facility = "unknown";
+
+	pr_err("Facility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
+		facility, regs->nip, regs->msr);
 
 	if (user_mode(regs)) {
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 		return;
 	}
 
-	die("Unexpected TM unavailable exception", regs, SIGABRT);
+	die("Unexpected facility unavailable exception", regs, SIGABRT);
 }
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
