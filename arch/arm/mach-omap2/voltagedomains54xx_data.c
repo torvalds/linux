@@ -85,16 +85,6 @@ void __init omap54xx_voltagedomains_init(void)
 	struct voltagedomain *voltdm;
 	int i;
 
-	/*
-	 * XXX Will depend on the process, validation, and binning
-	 * for the currently-running IC. Use OMAP4 data for time being.
-	 */
-#ifdef CONFIG_PM_OPP
-	omap5_voltdm_mpu.volt_data = omap446x_vdd_mpu_volt_data;
-	omap5_voltdm_mm.volt_data = omap446x_vdd_iva_volt_data;
-	omap5_voltdm_core.volt_data = omap446x_vdd_core_volt_data;
-#endif
-
 	for (i = 0; voltdm = voltagedomains_omap5[i], voltdm; i++)
 		voltdm->sys_clk.name = sys_clk_name;
 
