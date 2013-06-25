@@ -1858,6 +1858,13 @@ S:	Odd fixes
 F:	Documentation/video4linux/bttv/
 F:	drivers/media/pci/bt8xx/bttv*
 
+BUSLOGIC SCSI DRIVER
+M:	Khalid Aziz <khalid@gonehiking.org>
+L:	linux-scsi@vger.kernel.org
+S:	Maintained
+F:	drivers/scsi/BusLogic.*
+F:	drivers/scsi/FlashPoint.*
+
 C-MEDIA CMI8788 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
