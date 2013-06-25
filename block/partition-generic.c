@@ -38,8 +38,8 @@ char *disk_name(struct gendisk *hd, int partno, char *buf)
 	else if (isdigit(hd->disk_name[strlen(hd->disk_name)-1]))
 		snprintf(buf, BDEVNAME_SIZE, "%sp%d", hd->disk_name, partno);
 	else
-#ifdef CONFIG_SUNXI_NAND_COMPAT_DEV
-	if (!strcmp(hd->disk_name, "nand"))
+#ifdef CONFIG_SUNXI_NAND_COMPAT_DEV /* nanda - nandz compat names */
+	if (!strcmp(hd->disk_name, "nand") && (partno <= 'z' - 'a' + 1))
 		snprintf(buf, BDEVNAME_SIZE, "%s%c", hd->disk_name, 'a' - 1 + partno);
 	else
 #endif

@@ -21,10 +21,6 @@
 #include <linux/nfs_fs_sb.h>
 #include <linux/nfs_mount.h>
 
-#ifdef CONFIG_SUNXI_NAND_COMPAT_DEV
-#include <plat/mbr.h>
-#endif
-
 #include "do_mounts.h"
 
 int __initdata rd_doload;	/* 1 = load RAM disk, 0 = don't load */
@@ -228,8 +224,13 @@ dev_t name_to_dev_t(char *name)
 		goto done;
 
 #ifdef CONFIG_SUNXI_NAND_COMPAT_DEV
+	/*
+	 * sun6i new partitioning scheme allows for 120 partitions but what
+	 * they would be named is a mystery.
+	 * Make 26 first a-z partitions bootable.
+	 */
 	if (!strncmp(name, "nand", 4)
-	    && name[4] >='a' && name[4] < 'a' + MAX_PART_COUNT  && name[5] == 0) {
+	    && name[4] >= 'a' && name[4] <= 'z' && name[5] == 0) {
 		res = blk_lookup_devt("nand", name[4] - 'a' + 1);
 	if (res)
 		goto done;
