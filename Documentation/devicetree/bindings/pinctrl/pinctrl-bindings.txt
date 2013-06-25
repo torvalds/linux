@@ -165,9 +165,8 @@ output-high		- set the pin to output mode with high level
 
 Arguments for parameters:
 
-- bias-pull-up, -down and -pin-default take as optional argument 0 to disable
-  the pull, on hardware supporting it the pull strength in Ohm. bias-disable
-  will also disable any active pull.
+- bias-pull-up, -down and -pin-default take as optional argument on hardware
+  supporting it the pull strength in Ohm. bias-disable will disable the pull.
 
 - drive-strength takes as argument the target strength in mA.
 
