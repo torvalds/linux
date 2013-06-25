@@ -759,7 +759,6 @@ static int bfin_lq035q1_probe(struct platform_device *pdev)
  out2:
 	free_dma(CH_PPI);
  out1:
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
@@ -788,7 +787,6 @@ static int bfin_lq035q1_remove(struct platform_device *pdev)
 	bfin_lq035q1_free_ports(info->disp_info->ppi_mode ==
 				USE_RGB565_16_BIT_PPI);
 
-	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(fbinfo);
 
 	dev_info(&pdev->dev, "unregistered LCD driver\n");

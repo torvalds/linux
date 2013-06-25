@@ -985,8 +985,6 @@ static int mxsfb_remove(struct platform_device *pdev)
 
 	framebuffer_release(fb_info);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

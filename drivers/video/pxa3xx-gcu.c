@@ -711,7 +711,6 @@ err_misc_deregister:
 	misc_deregister(&priv->misc_dev);
 
 err_free_priv:
-	platform_set_drvdata(dev, NULL);
 	free_buffers(dev, priv);
 	kfree(priv);
 	return ret;
@@ -729,7 +728,6 @@ static int pxa3xx_gcu_remove(struct platform_device *dev)
 			priv->shared, priv->shared_phys);
 	iounmap(priv->mmio_base);
 	release_mem_region(r->start, resource_size(r));
-	platform_set_drvdata(dev, NULL);
 	clk_disable(priv->clk);
 	free_buffers(dev, priv);
 	kfree(priv);
