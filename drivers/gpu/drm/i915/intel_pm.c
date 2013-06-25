@@ -3104,7 +3104,8 @@ static void vlv_update_rps_cur_delay(struct drm_i915_private *dev_priv)
 void valleyview_set_rps(struct drm_device *dev, u8 val)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 limits = gen6_rps_limits(dev_priv, &val);
+
+	gen6_rps_limits(dev_priv, &val);
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 	WARN_ON(val > dev_priv->rps.max_delay);
@@ -3122,11 +3123,6 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 		return;
 
 	vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
-
-	/* Make sure we continue to get interrupts
-	 * until we hit the minimum or maximum frequencies.
-	 */
-	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, limits);
 
 	dev_priv->rps.cur_delay = val;
 
