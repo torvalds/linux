@@ -250,6 +250,15 @@ config REGULATOR_MAX77686
 	  via I2C bus. The provided regulator is suitable for
 	  Exynos-4 chips to control VARM and VINT voltages.
 
+config REGULATOR_MAX77693
+	tristate "Maxim MAX77693 regulator"
+	depends on MFD_MAX77693
+	help
+	  This driver controls a Maxim 77693 regulator via I2C bus.
+	  The regulators include two LDOs, 'SAFEOUT1', 'SAFEOUT2'
+	  and one current regulator 'CHARGER'. This is suitable for
+	  Exynos-4x12 chips.
+
 config REGULATOR_PCAP
 	tristate "Motorola PCAP2 regulator driver"
 	depends on EZX_PCAP
