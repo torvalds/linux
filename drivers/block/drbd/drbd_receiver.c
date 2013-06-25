@@ -1039,6 +1039,8 @@ randomize:
 	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		kref_get(&mdev->kref);
+		rcu_read_unlock();
+
 		/* Prevent a race between resync-handshake and
 		 * being promoted to Primary.
 		 *
@@ -1048,8 +1050,6 @@ randomize:
 		 */
 		mutex_lock(mdev->state_mutex);
 		mutex_unlock(mdev->state_mutex);
-
-		rcu_read_unlock();
 
 		if (discard_my_data)
 			set_bit(DISCARD_MY_DATA, &mdev->flags);
