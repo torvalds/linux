@@ -221,7 +221,7 @@ static int client_s_fmt(struct soc_camera_device *icd,
 	struct device *dev = icd->parent;
 	unsigned int width = mf->width, height = mf->height, tmp_w, tmp_h;
 	struct v4l2_cropcap cap;
-	bool ceu_1to1;
+	bool host_1to1;
 	int ret;
 
 	ret = v4l2_device_call_until_err(sd->v4l2_dev,
@@ -234,11 +234,11 @@ static int client_s_fmt(struct soc_camera_device *icd,
 
 	if (width == mf->width && height == mf->height) {
 		/* Perfect! The client has done it all. */
-		ceu_1to1 = true;
+		host_1to1 = true;
 		goto update_cache;
 	}
 
-	ceu_1to1 = false;
+	host_1to1 = false;
 	if (!host_can_scale)
 		goto update_cache;
 
@@ -282,7 +282,7 @@ update_cache:
 	if (ret < 0)
 		return ret;
 
-	if (ceu_1to1)
+	if (host_1to1)
 		*subrect = *rect;
 	else
 		update_subrect(rect, subrect);
@@ -338,7 +338,7 @@ int soc_camera_client_scale(struct soc_camera_device *icd,
 	mf->colorspace	= mf_tmp.colorspace;
 
 	/*
-	 * 8. Calculate new CEU crop - apply camera scales to previously
+	 * 8. Calculate new host crop - apply camera scales to previously
 	 *    updated "effective" crop.
 	 */
 	*width = soc_camera_shift_scale(subrect->width, shift, scale_h);
@@ -353,7 +353,7 @@ EXPORT_SYMBOL(soc_camera_client_scale);
 /*
  * Calculate real client output window by applying new scales to the current
  * client crop. New scales are calculated from the requested output format and
- * CEU crop, mapped backed onto the client input (subrect).
+ * host crop, mapped backed onto the client input (subrect).
  */
 void soc_camera_calc_client_output(struct soc_camera_device *icd,
 		struct v4l2_rect *rect, struct v4l2_rect *subrect,
@@ -384,7 +384,8 @@ void soc_camera_calc_client_output(struct soc_camera_device *icd,
 
 	/*
 	 * TODO: CEU cannot scale images larger than VGA to smaller than SubQCIF
-	 * (128x96) or larger than VGA
+	 * (128x96) or larger than VGA. This and similar limitations have to be
+	 * taken into account here.
 	 */
 	scale_h = soc_camera_calc_scale(subrect->width, shift, pix->width);
 	scale_v = soc_camera_calc_scale(subrect->height, shift, pix->height);
