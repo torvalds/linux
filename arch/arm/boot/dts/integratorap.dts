@@ -49,11 +49,11 @@
 		interrupts = <17>; /* Bus error IRQ */
 		ranges = <0x00000000 0 0x61000000 /* config space */
 			0x61000000 0 0x00100000 /* 16 MiB @ 61000000 */
-			0x01000000 0 0x60000000 /* I/O space */
+			0x01000000 0 0x0 /* I/O space */
 			0x60000000 0 0x00100000 /* 16 MiB @ 60000000 */
-			0x02000000 0 0x40000000 /* non-prefectable memory */
+			0x02000000 0 0x00000000 /* non-prefectable memory */
 			0x40000000 0 0x10000000 /* 256 MiB @ 40000000 */
-			0x42000000 0 0x50000000 /* prefetchable memory */
+			0x42000000 0 0x10000000 /* prefetchable memory */
 			0x50000000 0 0x10000000>; /* 256 MiB @ 50000000 */
 		interrupt-map-mask = <0xf800 0 0 0x7>;
 		interrupt-map = <
