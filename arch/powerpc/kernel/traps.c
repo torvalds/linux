@@ -866,6 +866,10 @@ static int emulate_string_inst(struct pt_regs *regs, u32 instword)
 		u8 val;
 		u32 shift = 8 * (3 - (pos & 0x3));
 
+		/* if process is 32-bit, clear upper 32 bits of EA */
+		if ((regs->msr & MSR_64BIT) == 0)
+			EA &= 0xFFFFFFFF;
+
 		switch ((instword & PPC_INST_STRING_MASK)) {
 			case PPC_INST_LSWX:
 			case PPC_INST_LSWI:
