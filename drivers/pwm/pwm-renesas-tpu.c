@@ -410,10 +410,8 @@ static int tpu_probe(struct platform_device *pdev)
 	}
 
 	tpu->base = devm_ioremap_resource(&pdev->dev, res);
-	if (tpu->base == NULL) {
-		dev_err(&pdev->dev, "failed to remap I/O memory\n");
-		return -ENXIO;
-	}
+	if (IS_ERR(tpu->base))
+		return PTR_ERR(tpu->base);
 
 	tpu->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(tpu->clk)) {
