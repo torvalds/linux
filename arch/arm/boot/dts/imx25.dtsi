@@ -444,6 +444,13 @@
 				interrupts = <26>;
 			};
 
+			iim: iim@53ff0000 {
+				compatible = "fsl,imx25-iim", "fsl,imx27-iim";
+				reg = <0x53ff0000 0x4000>;
+				interrupts = <19>;
+				clocks = <&clks 99>;
+			};
+
 			usbphy1: usbphy@1 {
 				compatible = "nop-usbphy";
 				status = "disabled";
