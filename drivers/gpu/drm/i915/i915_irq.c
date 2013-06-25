@@ -707,8 +707,8 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	/* sysfs frequency interfaces may have snuck in while servicing the
 	 * interrupt
 	 */
-	if (!(new_delay > dev_priv->rps.max_delay ||
-	      new_delay < dev_priv->rps.min_delay)) {
+	if (new_delay >= dev_priv->rps.min_delay &&
+	    new_delay <= dev_priv->rps.max_delay) {
 		if (IS_VALLEYVIEW(dev_priv->dev))
 			valleyview_set_rps(dev_priv->dev, new_delay);
 		else
