@@ -58,6 +58,7 @@ enum {
 	CS420X_GPIO_23,
 	CS420X_MBP101,
 	CS420X_MBP81,
+	CS420X_MBA42,
 	CS420X_AUTO,
 	/* aliases */
 	CS420X_IMAC27_122 = CS420X_GPIO_23,
@@ -346,6 +347,7 @@ static const struct hda_model_fixup cs420x_models[] = {
 	{ .id = CS420X_APPLE, .name = "apple" },
 	{ .id = CS420X_MBP101, .name = "mbp101" },
 	{ .id = CS420X_MBP81, .name = "mbp81" },
+	{ .id = CS420X_MBA42, .name = "mba42" },
 	{}
 };
 
@@ -361,6 +363,7 @@ static const struct snd_pci_quirk cs420x_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x1c00, "MacBookPro 8,1", CS420X_MBP81),
 	SND_PCI_QUIRK(0x106b, 0x2000, "iMac 12,2", CS420X_IMAC27_122),
 	SND_PCI_QUIRK(0x106b, 0x2800, "MacBookPro 10,1", CS420X_MBP101),
+	SND_PCI_QUIRK(0x106b, 0x5b00, "MacBookAir 4,2", CS420X_MBA42),
 	SND_PCI_QUIRK_VENDOR(0x106b, "Apple", CS420X_APPLE),
 	{} /* terminator */
 };
@@ -411,6 +414,20 @@ static const struct hda_pintbl mbp101_pincfgs[] = {
 	{ 0x0d, 0x40ab90f0 },
 	{ 0x0e, 0x90a600f0 },
 	{ 0x12, 0x50a600f0 },
+	{} /* terminator */
+};
+
+static const struct hda_pintbl mba42_pincfgs[] = {
+	{ 0x09, 0x012b4030 }, /* HP */
+	{ 0x0a, 0x400000f0 },
+	{ 0x0b, 0x90100120 }, /* speaker */
+	{ 0x0c, 0x400000f0 },
+	{ 0x0d, 0x90a00110 }, /* mic */
+	{ 0x0e, 0x400000f0 },
+	{ 0x0f, 0x400000f0 },
+	{ 0x10, 0x400000f0 },
+	{ 0x12, 0x400000f0 },
+	{ 0x15, 0x400000f0 },
 	{} /* terminator */
 };
 
@@ -479,6 +496,12 @@ static const struct hda_fixup cs420x_fixups[] = {
 			{0x11, AC_VERB_SET_PROC_COEF, 0x102a},
 			{}
 		},
+		.chained = true,
+		.chain_id = CS420X_GPIO_13,
+	},
+	[CS420X_MBA42] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = mba42_pincfgs,
 		.chained = true,
 		.chain_id = CS420X_GPIO_13,
 	},

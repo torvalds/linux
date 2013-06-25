@@ -721,9 +721,6 @@ int iscsi_target_locate_portal(
 
 		start += strlen(key) + strlen(value) + 2;
 	}
-
-	printk("i_buf: %s, s_buf: %s, t_buf: %s\n", i_buf, s_buf, t_buf);
-
 	/*
 	 * See 5.3.  Login Phase.
 	 */

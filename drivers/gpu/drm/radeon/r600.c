@@ -2687,6 +2687,9 @@ void r600_uvd_rbc_stop(struct radeon_device *rdev)
 int r600_uvd_init(struct radeon_device *rdev)
 {
 	int i, j, r;
+	/* disable byte swapping */
+	u32 lmi_swap_cntl = 0;
+	u32 mp_swap_cntl = 0;
 
 	/* raise clocks while booting up the VCPU */
 	radeon_set_uvd_clocks(rdev, 53300, 40000);
@@ -2711,9 +2714,13 @@ int r600_uvd_init(struct radeon_device *rdev)
 	WREG32(UVD_LMI_CTRL, 0x40 | (1 << 8) | (1 << 13) |
 			     (1 << 21) | (1 << 9) | (1 << 20));
 
-	/* disable byte swapping */
-	WREG32(UVD_LMI_SWAP_CNTL, 0);
-	WREG32(UVD_MP_SWAP_CNTL, 0);
+#ifdef __BIG_ENDIAN
+	/* swap (8 in 32) RB and IB */
+	lmi_swap_cntl = 0xa;
+	mp_swap_cntl = 0;
+#endif
+	WREG32(UVD_LMI_SWAP_CNTL, lmi_swap_cntl);
+	WREG32(UVD_MP_SWAP_CNTL, mp_swap_cntl);
 
 	WREG32(UVD_MPC_SET_MUXA0, 0x40c2040);
 	WREG32(UVD_MPC_SET_MUXA1, 0x0);

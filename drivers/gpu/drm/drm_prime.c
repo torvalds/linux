@@ -190,8 +190,7 @@ struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 		if (ret)
 			return ERR_PTR(ret);
 	}
-	return dma_buf_export(obj, &drm_gem_prime_dmabuf_ops, obj->size,
-			      0600);
+	return dma_buf_export(obj, &drm_gem_prime_dmabuf_ops, obj->size, flags);
 }
 EXPORT_SYMBOL(drm_gem_prime_export);
 

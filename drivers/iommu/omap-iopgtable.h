@@ -95,4 +95,4 @@ static inline phys_addr_t omap_iommu_translate(u32 d, u32 va, u32 mask)
 #define iopte_offset(iopgd, da)	(iopgd_page_vaddr(iopgd) + iopte_index(da))
 
 #define to_iommu(dev)							\
-	(struct omap_iommu *)platform_get_drvdata(to_platform_device(dev))
+	((struct omap_iommu *)platform_get_drvdata(to_platform_device(dev)))
