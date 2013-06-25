@@ -71,6 +71,11 @@
  * @NFC_CMD_DISABLE_SE: Disable the physical link to a specific secure element.
  * @NFC_CMD_FW_DOWNLOAD: Request to Load/flash firmware, or event to inform
  *	that some firmware was loaded
+ * @NFC_EVENT_SE_ADDED: Event emitted when a new secure element is discovered.
+ *	This typically will be sent whenever a new NFC controller with either
+ *	an embedded SE or an UICC one connected to it through SWP.
+ * @NFC_EVENT_SE_REMOVED: Event emitted when a secure element is removed from
+ *	the system, as a consequence of e.g. an NFC controller being unplugged.
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
