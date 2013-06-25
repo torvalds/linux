@@ -7,6 +7,7 @@
  *
  */
 
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
@@ -62,10 +63,7 @@ int dvma_map_iommu(unsigned long kaddr, unsigned long baddr,
 
 }
 
-void sun3_dvma_init(void)
+void __init sun3_dvma_init(void)
 {
-
 	memset(ptelist, 0, sizeof(ptelist));
-
-
 }

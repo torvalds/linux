@@ -60,7 +60,7 @@ unsigned short mvme16x_config;
 EXPORT_SYMBOL(mvme16x_config);
 
 
-int mvme16x_parse_bootinfo(const struct bi_record *bi)
+int __init mvme16x_parse_bootinfo(const struct bi_record *bi)
 {
 	if (bi->tag == BI_VME_TYPE || bi->tag == BI_VME_BRDINFO)
 		return 0;

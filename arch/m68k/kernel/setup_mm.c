@@ -74,9 +74,9 @@ unsigned long m68k_memoffset;
 struct mem_info m68k_memory[NUM_MEMINFO];
 EXPORT_SYMBOL(m68k_memory);
 
-struct mem_info m68k_ramdisk;
+static struct mem_info m68k_ramdisk __initdata;
 
-static char m68k_command_line[CL_SIZE];
+static char m68k_command_line[CL_SIZE] __initdata;
 
 void (*mach_sched_init) (irq_handler_t handler) __initdata = NULL;
 /* machine dependent irq functions */

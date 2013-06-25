@@ -54,7 +54,7 @@ static void psc_debug_dump(void)
  * expanded to cover what I think are the other 7 channels.
  */
 
-static void psc_dma_die_die_die(void)
+static __init void psc_dma_die_die_die(void)
 {
 	int i;
 

@@ -140,7 +140,7 @@ static struct resource ram_resource[NUM_MEMINFO];
      *  Parse an Amiga-specific record in the bootinfo
      */
 
-int amiga_parse_bootinfo(const struct bi_record *record)
+int __init amiga_parse_bootinfo(const struct bi_record *record)
 {
 	int unknown = 0;
 	const unsigned long *data = record->data;

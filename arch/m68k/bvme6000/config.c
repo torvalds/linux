@@ -50,7 +50,7 @@ void bvme6000_set_vectors (void);
 static irq_handler_t tick_handler;
 
 
-int bvme6000_parse_bootinfo(const struct bi_record *bi)
+int __init bvme6000_parse_bootinfo(const struct bi_record *bi)
 {
 	if (bi->tag == BI_VME_TYPE)
 		return 0;

@@ -1,3 +1,4 @@
+#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -43,8 +44,8 @@ static const char *apollo_models[] = {
 	[APOLLO_DN4500-APOLLO_DN3000] = "DN4500 (Roadrunner)"
 };
 
-int apollo_parse_bootinfo(const struct bi_record *record) {
-
+int __init apollo_parse_bootinfo(const struct bi_record *record)
+{
 	int unknown = 0;
 	const unsigned long *data = record->data;
 
@@ -60,9 +61,8 @@ int apollo_parse_bootinfo(const struct bi_record *record) {
 	return unknown;
 }
 
-void dn_setup_model(void) {
-
-
+static void __init dn_setup_model(void)
+{
 	printk("Apollo hardware found: ");
 	printk("[%s]\n", apollo_models[apollo_model - APOLLO_DN3000]);
 

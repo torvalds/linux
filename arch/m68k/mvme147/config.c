@@ -51,7 +51,7 @@ static int bcd2int (unsigned char b);
 irq_handler_t tick_handler;
 
 
-int mvme147_parse_bootinfo(const struct bi_record *bi)
+int __init mvme147_parse_bootinfo(const struct bi_record *bi)
 {
 	if (bi->tag == BI_VME_TYPE || bi->tag == BI_VME_BRDINFO)
 		return 0;

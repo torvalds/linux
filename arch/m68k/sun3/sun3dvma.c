@@ -6,6 +6,7 @@
  * Contains common routines for sun3/sun3x DVMA management.
  */
 
+#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/gfp.h>
@@ -245,7 +246,7 @@ static inline int free_baddr(unsigned long baddr)
 
 }
 
-void dvma_init(void)
+void __init dvma_init(void)
 {
 
 	struct hole *hole;
