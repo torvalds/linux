@@ -80,6 +80,8 @@ MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
 
 static int vxlan_net_id;
 
+static const u8 all_zeros_mac[ETH_ALEN];
+
 /* per UDP socket information */
 struct vxlan_sock {
 	struct hlist_node hlist;
@@ -1151,7 +1153,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct ethhdr *eth;
 	bool did_rsc = false;
-	struct vxlan_rdst *rdst0, *rdst;
+	struct vxlan_rdst *rdst;
 	struct vxlan_fdb *f;
 
 	skb_reset_mac_header(skb);
@@ -1171,26 +1173,27 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (f == NULL) {
-		rdst0 = &vxlan->default_dst;
+		f = vxlan_find_mac(vxlan, all_zeros_mac);
+		if (f == NULL) {
+			if ((vxlan->flags & VXLAN_F_L2MISS) &&
+			    !is_multicast_ether_addr(eth->h_dest))
+				vxlan_fdb_miss(vxlan, eth->h_dest);
 
-		if (rdst0->remote_ip == htonl(INADDR_ANY) &&
-		    (vxlan->flags & VXLAN_F_L2MISS) &&
-		    !is_multicast_ether_addr(eth->h_dest))
-			vxlan_fdb_miss(vxlan, eth->h_dest);
-	} else {
-		rdst = rdst0 = first_remote(f);
-
-		/* if there are multiple destinations, send copies */
-		list_for_each_entry_continue_rcu(rdst, &f->remotes, list) {
-			struct sk_buff *skb1;
-
-			skb1 = skb_clone(skb, GFP_ATOMIC);
-			if (skb1)
-				vxlan_xmit_one(skb1, dev, rdst, did_rsc);
+			dev->stats.tx_dropped++;
+			dev_kfree_skb(skb);
+			return NETDEV_TX_OK;
 		}
 	}
 
-	vxlan_xmit_one(skb, dev, rdst0, did_rsc);
+	list_for_each_entry_rcu(rdst, &f->remotes, list) {
+		struct sk_buff *skb1;
+
+		skb1 = skb_clone(skb, GFP_ATOMIC);
+		if (skb1)
+			vxlan_xmit_one(skb1, dev, rdst, did_rsc);
+	}
+
+	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -1260,11 +1263,24 @@ static int vxlan_init(struct net_device *dev)
 	return 0;
 }
 
+static void vxlan_fdb_delete_defualt(struct vxlan_dev *vxlan)
+{
+	struct vxlan_fdb *f;
+
+	spin_lock_bh(&vxlan->hash_lock);
+	f = __vxlan_find_mac(vxlan, all_zeros_mac);
+	if (f)
+		vxlan_fdb_destroy(vxlan, f);
+	spin_unlock_bh(&vxlan->hash_lock);
+}
+
 static void vxlan_uninit(struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
 	struct vxlan_sock *vs = vxlan->vn_sock;
+
+	vxlan_fdb_delete_defualt(vxlan);
 
 	if (vs)
 		vxlan_sock_release(vn, vs);
@@ -1304,7 +1320,9 @@ static void vxlan_flush(struct vxlan_dev *vxlan)
 		hlist_for_each_safe(p, n, &vxlan->fdb_head[h]) {
 			struct vxlan_fdb *f
 				= container_of(p, struct vxlan_fdb, hlist);
-			vxlan_fdb_destroy(vxlan, f);
+			/* the all_zeros_mac entry is deleted at vxlan_uninit */
+			if (!is_zero_ether_addr(f->eth_addr))
+				vxlan_fdb_destroy(vxlan, f);
 		}
 	}
 	spin_unlock_bh(&vxlan->hash_lock);
@@ -1657,9 +1675,21 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 
 	SET_ETHTOOL_OPS(dev, &vxlan_ethtool_ops);
 
-	err = register_netdevice(dev);
+	/* create an fdb entry for default destination */
+	err = vxlan_fdb_create(vxlan, all_zeros_mac,
+			       vxlan->default_dst.remote_ip,
+			       NUD_REACHABLE|NUD_PERMANENT,
+			       NLM_F_EXCL|NLM_F_CREATE,
+			       vxlan->dst_port, vxlan->default_dst.remote_vni,
+			       vxlan->default_dst.remote_ifindex, NTF_SELF);
 	if (err)
 		return err;
+
+	err = register_netdevice(dev);
+	if (err) {
+		vxlan_fdb_delete_defualt(vxlan);
+		return err;
+	}
 
 	list_add(&vxlan->next, &vn->vxlan_list);
 
