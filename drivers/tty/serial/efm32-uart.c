@@ -778,8 +778,6 @@ static int efm32_uart_remove(struct platform_device *pdev)
 {
 	struct efm32_uart_port *efm_port = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	uart_remove_one_port(&efm32_uart_reg, &efm_port->port);
 
 	if (pdev->id >= 0 && pdev->id < ARRAY_SIZE(efm32_uart_ports))

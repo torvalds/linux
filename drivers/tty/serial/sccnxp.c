@@ -997,8 +997,6 @@ static int sccnxp_probe(struct platform_device *pdev)
 	}
 
 err_out:
-	platform_set_drvdata(pdev, NULL);
-
 	return ret;
 }
 
@@ -1016,7 +1014,6 @@ static int sccnxp_remove(struct platform_device *pdev)
 		uart_remove_one_port(&s->uart, &s->port[i]);
 
 	uart_unregister_driver(&s->uart);
-	platform_set_drvdata(pdev, NULL);
 
 	if (!IS_ERR(s->regulator))
 		return regulator_disable(s->regulator);

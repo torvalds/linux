@@ -801,8 +801,6 @@ static int pnx8xxx_serial_remove(struct platform_device *pdev)
 {
 	struct pnx8xxx_port *sport = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (sport)
 		uart_remove_one_port(&pnx8xxx_reg, &sport->port);
 

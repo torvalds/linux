@@ -1596,8 +1596,6 @@ static int serial_imx_remove(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 
-	platform_set_drvdata(pdev, NULL);
-
 	uart_remove_one_port(&imx_reg, &sport->port);
 
 	if (pdata && pdata->exit)
