@@ -1635,6 +1635,9 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 		return;
 	}
 
+	/* close port*/
+	mlx4_CLOSE_PORT(mdev->dev, priv->port);
+
 	/* Synchronize with tx routine */
 	netif_tx_lock_bh(dev);
 	if (detach)
@@ -1735,14 +1738,11 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 		}
 		local_bh_enable();
 
-		mlx4_en_deactivate_rx_ring(priv, &priv->rx_ring[i]);
 		while (test_bit(NAPI_STATE_SCHED, &cq->napi.state))
 			msleep(1);
+		mlx4_en_deactivate_rx_ring(priv, &priv->rx_ring[i]);
 		mlx4_en_deactivate_cq(priv, cq);
 	}
-
-	/* close port*/
-	mlx4_CLOSE_PORT(mdev->dev, priv->port);
 }
 
 static void mlx4_en_restart(struct work_struct *work)
