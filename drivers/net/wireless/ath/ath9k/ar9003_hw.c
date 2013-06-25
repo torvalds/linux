@@ -542,6 +542,9 @@ static void ar9003_tx_gain_table_mode4(struct ath_hw *ah)
 	else if (AR_SREV_9462_21(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 		       ar9462_2p1_modes_mix_ob_db_tx_gain);
+	else if (AR_SREV_9462_20(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+		       ar9462_modes_mix_ob_db_tx_gain_table_2p0);
 	else
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9300Modes_mixed_ob_db_tx_gain_table_2p2);
