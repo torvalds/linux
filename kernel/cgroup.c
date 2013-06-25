@@ -4888,13 +4888,13 @@ int __init cgroup_init(void)
 			cgroup_init_idr(ss, init_css_set.subsys[ss->subsys_id]);
 	}
 
-	/* Add init_css_set to the hash table */
-	key = css_set_hash(init_css_set.subsys);
-	hash_add(css_set_table, &init_css_set.hlist, key);
-
 	/* allocate id for the dummy hierarchy */
 	mutex_lock(&cgroup_mutex);
 	mutex_lock(&cgroup_root_mutex);
+
+	/* Add init_css_set to the hash table */
+	key = css_set_hash(init_css_set.subsys);
+	hash_add(css_set_table, &init_css_set.hlist, key);
 
 	BUG_ON(cgroup_init_root_id(&cgroup_dummy_root));
 
