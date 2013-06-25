@@ -154,10 +154,7 @@ drive-open-source	- drive with open source
 drive-strength		- sink or source at most X mA
 input-schmitt-enable	- enable schmitt-trigger mode
 input-schmitt-disable	- disable schmitt-trigger mode
-input-schmitt		- run in schmitt-trigger mode with hysteresis X
 input-debounce		- debounce mode with debound time X
-power-source		- select power source X
-slew-rate		- use slew-rate X
 low-power-enable	- enable low power mode
 low-power-disable	- disable low power mode
 output-low		- set the pin to output mode with low level
@@ -170,15 +167,8 @@ Arguments for parameters:
 
 - drive-strength takes as argument the target strength in mA.
 
-- input-schmitt takes as argument the adjustable hysteresis in a
-  driver-specific format
-
 - input-debounce takes the debounce time in usec as argument
   or 0 to disable debouncing
-
-- power-source argument is the custom value describing the source to select
-
-- slew-rate takes as argument the target rate in a driver-specific format
 
 All parameters not listed here, do not take an argument.
 
