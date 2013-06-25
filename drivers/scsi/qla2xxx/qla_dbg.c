@@ -1470,7 +1470,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	nxt = qla2xxx_copy_queues(ha, nxt);
 
-	nxt = qla24xx_copy_eft(ha, nxt);
+	qla24xx_copy_eft(ha, nxt);
 
 	/* Chain entries -- started with MQ. */
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
@@ -1789,7 +1789,7 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	nxt = qla2xxx_copy_queues(ha, nxt);
 
-	nxt = qla24xx_copy_eft(ha, nxt);
+	qla24xx_copy_eft(ha, nxt);
 
 	/* Chain entries -- started with MQ. */
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
@@ -2291,7 +2291,7 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 copy_queue:
 	nxt = qla2xxx_copy_queues(ha, nxt);
 
-	nxt = qla24xx_copy_eft(ha, nxt);
+	qla24xx_copy_eft(ha, nxt);
 
 	/* Chain entries -- started with MQ. */
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
