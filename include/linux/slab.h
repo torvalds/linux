@@ -373,9 +373,8 @@ int cache_show(struct kmem_cache *s, struct seq_file *m);
 void print_slabinfo_header(struct seq_file *m);
 
 /**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
+ * kmalloc - allocate memory
+ * @size: how many bytes of memory are required.
  * @flags: the type of memory to allocate.
  *
  * The @flags argument may be one of:
@@ -422,6 +421,17 @@ void print_slabinfo_header(struct seq_file *m);
  * There are other flags available as well, but these are not intended
  * for general use, and so are not documented here. For a full list of
  * potential flags, always refer to linux/gfp.h.
+ *
+ * kmalloc is the normal method of allocating memory
+ * in the kernel.
+ */
+static __always_inline void *kmalloc(size_t size, gfp_t flags);
+
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
  */
 static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
 {
@@ -445,7 +455,7 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 /**
  * kmalloc_node - allocate memory from a specific node
  * @size: how many bytes of memory are required.
- * @flags: the type of memory to allocate (see kcalloc).
+ * @flags: the type of memory to allocate (see kmalloc).
  * @node: node to allocate from.
  *
  * kmalloc() for non-local nodes, used to allocate from a specific node
