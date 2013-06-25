@@ -574,6 +574,44 @@
 						>;
 					};
 				};
+
+				usbh1 {
+					pinctrl_usbh1_1: usbh1grp-1 {
+						fsl,pins = <
+							MX51_PAD_USBH1_DATA0__USBH1_DATA0 0x1e5
+							MX51_PAD_USBH1_DATA1__USBH1_DATA1 0x1e5
+							MX51_PAD_USBH1_DATA2__USBH1_DATA2 0x1e5
+							MX51_PAD_USBH1_DATA3__USBH1_DATA3 0x1e5
+							MX51_PAD_USBH1_DATA4__USBH1_DATA4 0x1e5
+							MX51_PAD_USBH1_DATA5__USBH1_DATA5 0x1e5
+							MX51_PAD_USBH1_DATA6__USBH1_DATA6 0x1e5
+							MX51_PAD_USBH1_DATA7__USBH1_DATA7 0x1e5
+							MX51_PAD_USBH1_CLK__USBH1_CLK 0x1e5
+							MX51_PAD_USBH1_DIR__USBH1_DIR 0x1e5
+							MX51_PAD_USBH1_NXT__USBH1_NXT 0x1e5
+							MX51_PAD_USBH1_STP__USBH1_STP 0x1e5
+						>;
+					};
+				};
+
+				usbh2 {
+					pinctrl_usbh2_1: usbh2grp-1 {
+						fsl,pins = <
+							MX51_PAD_EIM_D16__USBH2_DATA0 0x1e5
+							MX51_PAD_EIM_D17__USBH2_DATA1 0x1e5
+							MX51_PAD_EIM_D18__USBH2_DATA2 0x1e5
+							MX51_PAD_EIM_D19__USBH2_DATA3 0x1e5
+							MX51_PAD_EIM_D20__USBH2_DATA4 0x1e5
+							MX51_PAD_EIM_D21__USBH2_DATA5 0x1e5
+							MX51_PAD_EIM_D22__USBH2_DATA6 0x1e5
+							MX51_PAD_EIM_D23__USBH2_DATA7 0x1e5
+							MX51_PAD_EIM_A24__USBH2_CLK 0x1e5
+							MX51_PAD_EIM_A25__USBH2_DIR 0x1e5
+							MX51_PAD_EIM_A27__USBH2_NXT 0x1e5
+							MX51_PAD_EIM_A26__USBH2_STP 0x1e5
+						>;
+					};
+				};
 			};
 
 			pwm1: pwm@73fb4000 {
