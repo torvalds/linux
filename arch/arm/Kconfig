@@ -989,6 +989,8 @@ source "arch/arm/mach-socfpga/Kconfig"
 
 source "arch/arm/mach-spear/Kconfig"
 
+source "arch/arm/mach-sti/Kconfig"
+
 source "arch/arm/mach-s3c24xx/Kconfig"
 
 if ARCH_S3C64XX
