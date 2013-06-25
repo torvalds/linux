@@ -151,6 +151,18 @@ enum sw_ic_ver sw_get_ic_ver(void) __pure;
 #define sunxi_is_a31()		(0)
 #define sunxi_is_a20()		(0)
 
+#elif defined(CONFIG_ARCH_SUN7I)
+#define sunxi_is_sun4i()	(0)
+#define sunxi_is_sun5i()	(0)
+#define sunxi_is_sun6i()	(0)
+#define sunxi_is_sun7i()	(sunxi_chip_id() == SUNXI_MACH_SUN7I)
+#define sunxi_is_a10()		(0)
+#define sunxi_is_a13()		(0)
+#define sunxi_is_a12()		(0)
+#define sunxi_is_a10s()		(0)
+#define sunxi_is_a31()		(0)
+#define sunxi_is_a20()		_sunxi_is(SUNXI_SOC_A20)
+
 #endif
 
 #define sunxi_soc_rev()		(sw_get_ic_ver() & 0xf)

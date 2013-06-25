@@ -1,0 +1,1 @@
+../../../plat-sunxi/include/plat/hardware.h

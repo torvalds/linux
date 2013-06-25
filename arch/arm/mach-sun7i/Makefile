@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y=core.o printk.o devices.o timer.o sunxi_dump_reg.o security_id.o
+obj-y=core.o printk.o devices.o timer.o sunxi_dump_reg.o soc-detect.o
 obj-y += clock/
 obj-y += dma/
 obj-y += sys_config.o script.o

@@ -54,7 +54,7 @@
 #define SW_PA_SDC3_IO_BASE                0x01c12000
 #define SW_PA_USB0_IO_BASE                0x01c13000
 #define SW_PA_USB1_IO_BASE                0x01c14000
-#define SW_PA_SS_IO_BASE                  0x01c15000
+#define SW_PA_SSE_IO_BASE                 0x01c15000
 #define SW_PA_HDMI_IO_BASE                0x01c16000
 #define SW_PA_SPI2_IO_BASE                0x01c17000
 #define SW_PA_SATA_IO_BASE                0x01c18000
@@ -125,6 +125,7 @@
 #define SW_PA_TIMER_P_IO_BASE             0x01c80600 /* CPU private timer, not used */
 
 /* device virtual address */
+#define SW_VA_BROM_BASE                   IO_ADDRESS(SW_PA_BROM_START     )
 #define SW_VA_BROM_START                  IO_ADDRESS(SW_PA_BROM_START     )
 #define SW_VA_BROM_END                    IO_ADDRESS(SW_PA_BROM_END       )
 
@@ -158,7 +159,7 @@
 #define SW_VA_SDC3_IO_BASE                IO_ADDRESS(SW_PA_SDC3_IO_BASE   )
 #define SW_VA_USB0_IO_BASE                IO_ADDRESS(SW_PA_USB0_IO_BASE   )
 #define SW_VA_USB1_IO_BASE                IO_ADDRESS(SW_PA_USB1_IO_BASE   )
-#define SW_VA_SS_IO_BASE                  IO_ADDRESS(SW_PA_SS_IO_BASE     )
+#define SW_VA_SSE_IO_BASE                 IO_ADDRESS(SW_PA_SSE_IO_BASE    )
 #define SW_VA_HDMI_IO_BASE                IO_ADDRESS(SW_PA_HDMI_IO_BASE   )
 #define SW_VA_SPI2_IO_BASE                IO_ADDRESS(SW_PA_SPI2_IO_BASE   )
 #define SW_VA_SATA_IO_BASE                IO_ADDRESS(SW_PA_SATA_IO_BASE   )

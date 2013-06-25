@@ -21,9 +21,12 @@
  * MA 02111-1307 USA
  */
 
-#ifndef __SW_IRQS_H
-#define __SW_IRQS_H
+#ifndef __PLAT_IRQS_H
+#define __PLAT_IRQS_H
 
+#ifndef __MACH_IRQS_H__
+#error plat/irqs.h may only be included from arch/irqs.h
+#endif
 
 #include <mach/platform.h>
 

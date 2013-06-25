@@ -1,0 +1,1 @@
+../plat-sunxi/soc-detect.c

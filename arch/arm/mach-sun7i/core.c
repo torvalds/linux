@@ -65,6 +65,7 @@ static struct map_desc sun7i_io_desc[] __initdata = {
 static void __init sun7i_map_io(void)
 {
 	iotable_init(sun7i_io_desc, ARRAY_SIZE(sun7i_io_desc));
+	sunxi_pr_chip_id();
 }
 
 static void __init gic_init_irq(void)

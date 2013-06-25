@@ -18,6 +18,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <mach/includes.h>
+#include <asm/delay.h>
 
 #include "ccm_i.h"
 
