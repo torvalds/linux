@@ -79,9 +79,16 @@ static int rk610_output_config(struct i2c_client *client,struct rk29fb_screen *s
      if(SCREEN_LVDS == screen->type){
         if(mode == LCD_OUT_SCL || mode == LCD_OUT_BYPASS){
             c = LVDS_OUT_CLK_PIN(0) |LVDS_OUT_CLK_PWR_PIN(1) |LVDS_PLL_PWR_PIN(0) \
-                |LVDS_LANE_IN_FORMAT(DATA_D0_MSB) |LVDS_INPUT_SOURCE(FROM_LCD0_OR_SCL) \
+                |LVDS_LANE_IN_FORMAT(DATA_D0_MSB) \
                 |LVDS_OUTPUT_FORMAT(screen->lvds_format) | LVDS_BIASE_PWR(1); 
+			#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
+			c |=  LVDS_INPUT_SOURCE(FROM_LCD1);
+			#else
+			c |=  LVDS_INPUT_SOURCE(FROM_LCD0_OR_SCL);
+			#endif                
 	        rk610_scaler_write_p0_reg(client, LVDS_CON0, &c);
+	        c = LCD1_OUT_ENABLE(LCD1_AS_IN);
+          rk610_scaler_write_p0_reg(client, LCD1_CON, &c);
             c = LVDS_OUT_ENABLE(0x0) |LVDS_TX_PWR_ENABLE(0x0); 
 	        rk610_scaler_write_p0_reg(client, LVDS_CON1, &c);
 	    }
