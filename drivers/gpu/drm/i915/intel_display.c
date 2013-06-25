@@ -8684,8 +8684,16 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 	} else if (set->crtc->fb != set->fb) {
 		/* If we have no fb then treat it as a full mode set */
 		if (set->crtc->fb == NULL) {
-			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
-			config->mode_changed = true;
+			struct intel_crtc *intel_crtc =
+				to_intel_crtc(set->crtc);
+
+			if (intel_crtc->active && i915_fastboot) {
+				DRM_DEBUG_KMS("crtc has no fb, will flip\n");
+				config->fb_changed = true;
+			} else {
+				DRM_DEBUG_KMS("inactive crtc, full mode set\n");
+				config->mode_changed = true;
+			}
 		} else if (set->fb == NULL) {
 			config->mode_changed = true;
 		} else if (set->fb->pixel_format !=
