@@ -70,7 +70,7 @@
  *	setting pins to this mode.
  * @PIN_CONFIG_INPUT_DEBOUNCE: this will configure the pin to debounce mode,
  *	which means it will wait for signals to settle when reading inputs. The
- *	argument gives the debounce time on a custom format. Setting the
+ *	argument gives the debounce time in usecs. Setting the
  *	argument to zero turns debouncing off.
  * @PIN_CONFIG_POWER_SOURCE: if the pin can select between different power
  *	supplies, the argument to this parameter (on a custom format) tells
