@@ -835,7 +835,7 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
 	char ppb[10];
 
 	int md_moved, la_size_changed;
-	enum determine_dev_size rv = unchanged;
+	enum determine_dev_size rv = DS_UNCHANGED;
 
 	/* race:
 	 * application request passes inc_ap_bio,
@@ -878,7 +878,7 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
 				    "Leaving size unchanged at size = %lu KB\n",
 				    (unsigned long)size);
 			}
-			rv = dev_size_error;
+			rv = DS_ERROR;
 		}
 		/* racy, see comments above. */
 		drbd_set_my_capacity(mdev, size);
@@ -886,7 +886,7 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
 		dev_info(DEV, "size = %s (%llu KB)\n", ppsize(ppb, size>>1),
 		     (unsigned long long)size>>1);
 	}
-	if (rv == dev_size_error)
+	if (rv == DS_ERROR)
 		goto out;
 
 	la_size_changed = (la_size_sect != mdev->ldev->md.la_size_sect);
@@ -905,16 +905,16 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
 		err = drbd_bitmap_io(mdev, md_moved ? &drbd_bm_write_all : &drbd_bm_write,
 				     "size changed", BM_LOCKED_MASK);
 		if (err) {
-			rv = dev_size_error;
+			rv = DS_ERROR;
 			goto out;
 		}
 		drbd_md_mark_dirty(mdev);
 	}
 
 	if (size > la_size_sect)
-		rv = grew;
+		rv = DS_GREW;
 	if (size < la_size_sect)
-		rv = shrunk;
+		rv = DS_SHRUNK;
 out:
 	lc_unlock(mdev->act_log);
 	wake_up(&mdev->al_wait);
@@ -1619,10 +1619,10 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		set_bit(USE_DEGR_WFC_T, &mdev->flags);
 
 	dd = drbd_determine_dev_size(mdev, 0);
-	if (dd == dev_size_error) {
+	if (dd == DS_ERROR) {
 		retcode = ERR_NOMEM_BITMAP;
 		goto force_diskless_dec;
-	} else if (dd == grew)
+	} else if (dd == DS_GREW)
 		set_bit(RESYNC_AFTER_NEG, &mdev->flags);
 
 	if (drbd_md_test_flag(mdev->ldev, MDF_FULL_SYNC) ||
@@ -2387,13 +2387,13 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 	dd = drbd_determine_dev_size(mdev, ddsf);
 	drbd_md_sync(mdev);
 	put_ldev(mdev);
-	if (dd == dev_size_error) {
+	if (dd == DS_ERROR) {
 		retcode = ERR_NOMEM_BITMAP;
 		goto fail;
 	}
 
 	if (mdev->state.conn == C_CONNECTED) {
-		if (dd == grew)
+		if (dd == DS_GREW)
 			set_bit(RESIZE_PENDING, &mdev->flags);
 
 		drbd_send_uuids(mdev);

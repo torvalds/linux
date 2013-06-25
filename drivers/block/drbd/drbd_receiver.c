@@ -3545,7 +3545,7 @@ static int receive_sizes(struct drbd_tconn *tconn, struct packet_info *pi)
 {
 	struct drbd_conf *mdev;
 	struct p_sizes *p = pi->data;
-	enum determine_dev_size dd = unchanged;
+	enum determine_dev_size dd = DS_UNCHANGED;
 	sector_t p_size, p_usize, my_usize;
 	int ldsc = 0; /* local disk size changed */
 	enum dds_flags ddsf;
@@ -3619,7 +3619,7 @@ static int receive_sizes(struct drbd_tconn *tconn, struct packet_info *pi)
 	if (get_ldev(mdev)) {
 		dd = drbd_determine_dev_size(mdev, ddsf);
 		put_ldev(mdev);
-		if (dd == dev_size_error)
+		if (dd == DS_ERROR)
 			return -EIO;
 		drbd_md_sync(mdev);
 	} else {
@@ -3647,7 +3647,7 @@ static int receive_sizes(struct drbd_tconn *tconn, struct packet_info *pi)
 			drbd_send_sizes(mdev, 0, ddsf);
 		}
 		if (test_and_clear_bit(RESIZE_PENDING, &mdev->flags) ||
-		    (dd == grew && mdev->state.conn == C_CONNECTED)) {
+		    (dd == DS_GREW && mdev->state.conn == C_CONNECTED)) {
 			if (mdev->state.pdsk >= D_INCONSISTENT &&
 			    mdev->state.disk >= D_INCONSISTENT) {
 				if (ddsf & DDSF_NO_RESYNC)
