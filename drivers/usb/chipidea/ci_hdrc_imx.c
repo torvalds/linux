@@ -98,7 +98,6 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	};
 	struct resource *res;
 	int ret;
-	struct usb_phy *phy;
 
 	if (of_find_property(pdev->dev.of_node, "fsl,usbmisc", NULL)
 		&& !usbmisc_ops)
@@ -130,14 +129,14 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	phy = devm_usb_get_phy_by_phandle(&pdev->dev, "fsl,usbphy", 0);
-	if (!IS_ERR(phy)) {
-		ret = usb_phy_init(phy);
+	data->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "fsl,usbphy", 0);
+	if (!IS_ERR(data->phy)) {
+		ret = usb_phy_init(data->phy);
 		if (ret) {
 			dev_err(&pdev->dev, "unable to init phy: %d\n", ret);
 			goto err_clk;
 		}
-	} else if (PTR_ERR(phy) == -EPROBE_DEFER) {
+	} else if (PTR_ERR(data->phy) == -EPROBE_DEFER) {
 		ret = -EPROBE_DEFER;
 		goto err_clk;
 	}
