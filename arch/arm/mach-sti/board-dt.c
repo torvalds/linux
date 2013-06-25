@@ -37,10 +37,11 @@ static void __init stih41x_timer_init(void)
 
 static const char *stih41x_dt_match[] __initdata = {
 	"st,stih415",
+	"st,stih416",
 	NULL
 };
 
-DT_MACHINE_START(STM, "STiH415 SoC with Flattened Device Tree")
+DT_MACHINE_START(STM, "STiH415/416 SoC with Flattened Device Tree")
 	.init_time	= stih41x_timer_init,
 	.smp		= smp_ops(sti_smp_ops),
 	.dt_compat	= stih41x_dt_match,
