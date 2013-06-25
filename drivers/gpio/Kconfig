@@ -245,6 +245,7 @@ config GPIO_TS5500
 config GPIO_TZ1090
 	bool "Toumaz Xenif TZ1090 GPIO support"
 	depends on SOC_TZ1090
+	select GENERIC_IRQ_CHIP
 	default y
 	help
 	  Say yes here to support Toumaz Xenif TZ1090 GPIOs.
