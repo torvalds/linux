@@ -251,6 +251,6 @@ typedef struct clk {
     spinlock_t          lock;       /* to synchronize the clock setting */
 } __ccu_clk_t;
 
-int clk_reset(struct clk *clk, __aw_ccu_clk_reset_e reset);
+int clk_reset(struct clk *clk, int reset);
 
 #endif

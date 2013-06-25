@@ -126,11 +126,11 @@ static ssize_t ccu_reset_store(struct device *dev,
 
     switch (itemp) {
         case 1: /* reset */
-            CCU_ASSERT_GOTO(0 == clk_reset(pclk_handle->clk, AW_CCU_CLK_RESET), usign, end);
+            CCU_ASSERT_GOTO(0 == clk_reset(pclk_handle->clk, 1), usign, end);
             CCU_DBG("%s: clk_reset - RESET success\n", __func__);
             break;
         case 0: /* nreset */
-            CCU_ASSERT_GOTO(0 == clk_reset(pclk_handle->clk, AW_CCU_CLK_NRESET), usign, end);
+            CCU_ASSERT_GOTO(0 == clk_reset(pclk_handle->clk, 0), usign, end);
             CCU_DBG("%s: clk_reset - NRESET success\n", __func__);
             break;
         default:

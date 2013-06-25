@@ -273,7 +273,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 }
 EXPORT_SYMBOL(clk_set_parent);
 
-int clk_reset(struct clk *clk, __aw_ccu_clk_reset_e reset)
+int clk_reset(struct clk *clk, int reset)
 {
     DEFINE_FLAGS(flags);
 
@@ -283,6 +283,7 @@ int clk_reset(struct clk *clk, __aw_ccu_clk_reset_e reset)
     }
 
     CCU_LOCK(&clk->lock, flags);
+    reset = reset ? AW_CCU_CLK_RESET : AW_CCU_CLK_NRESET;
     clk->ops->set_reset(clk->aw_clk->id, reset);
     clk->aw_clk->reset = reset;
     CCU_UNLOCK(&clk->lock, flags);
