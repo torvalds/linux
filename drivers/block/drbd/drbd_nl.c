@@ -2658,7 +2658,6 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 		const struct sib_info *sib)
 {
 	struct state_info *si = NULL; /* for sizeof(si->member); */
-	struct net_conf *nc;
 	struct nlattr *nla;
 	int got_ldev;
 	int err = 0;
@@ -2688,13 +2687,19 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 		goto nla_put_failure;
 
 	rcu_read_lock();
-	if (got_ldev)
-		if (disk_conf_to_skb(skb, rcu_dereference(mdev->ldev->disk_conf), exclude_sensitive))
-			goto nla_put_failure;
+	if (got_ldev) {
+		struct disk_conf *disk_conf;
 
-	nc = rcu_dereference(mdev->tconn->net_conf);
-	if (nc)
-		err = net_conf_to_skb(skb, nc, exclude_sensitive);
+		disk_conf = rcu_dereference(mdev->ldev->disk_conf);
+		err = disk_conf_to_skb(skb, disk_conf, exclude_sensitive);
+	}
+	if (!err) {
+		struct net_conf *nc;
+
+		nc = rcu_dereference(mdev->tconn->net_conf);
+		if (nc)
+			err = net_conf_to_skb(skb, nc, exclude_sensitive);
+	}
 	rcu_read_unlock();
 	if (err)
 		goto nla_put_failure;
