@@ -2077,6 +2077,11 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 		       num_vfs, MLX4_MAX_NUM_VF);
 		return -EINVAL;
 	}
+
+	if (num_vfs < 0) {
+		pr_err("num_vfs module parameter cannot be negative\n");
+		return -EINVAL;
+	}
 	/*
 	 * Check for BARs.
 	 */
