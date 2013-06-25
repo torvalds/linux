@@ -5971,7 +5971,7 @@ enum board_type {
 	PE210G2BPi40,
 };
 
-typedef struct _bpmod_info_t {
+struct bpmod_info {
 	unsigned int vendor;
 	unsigned int device;
 	unsigned int subvendor;
@@ -5979,7 +5979,7 @@ typedef struct _bpmod_info_t {
 	unsigned int index;
 	char *bp_name;
 
-} bpmod_info_t;
+};
 
 typedef struct _dev_desc {
 	char *name;
@@ -6155,7 +6155,7 @@ dev_desc_t dev_desc[] = {
 	{0},
 };
 
-static bpmod_info_t tx_ctl_pci_tbl[] = {
+static struct bpmod_info tx_ctl_pci_tbl[] = {
 	{0x8086, 0x107a, SILICOM_SVID, SILICOM_PXG2BPFI_SSID, PXG2BPFI,
 	 "PXG2BPFI-SD"},
 	{0x8086, 0x107a, SILICOM_SVID, SILICOM_PXG2BPFIL_SSID, PXG2BPFIL,
@@ -6653,7 +6653,7 @@ static void find_fw(struct bpctl_dev *dev)
 	printk("firmware version: 0x%x\n", dev->bp_fw_ver);
 }
 
-static int init_one(struct bpctl_dev *dev, bpmod_info_t *info, struct pci_dev *pdev1)
+static int init_one(struct bpctl_dev *dev, struct bpmod_info *info, struct pci_dev *pdev1)
 {
 	unsigned long mmio_start, mmio_len;
 
