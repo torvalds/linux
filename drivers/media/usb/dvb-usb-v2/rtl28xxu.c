@@ -376,7 +376,7 @@ static int rtl2832u_read_config(struct dvb_usb_device *d)
 	struct rtl28xxu_req req_mxl5007t = {0xd9c0, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_e4000 = {0x02c8, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_tda18272 = {0x00c0, CMD_I2C_RD, 2, buf};
-	struct rtl28xxu_req req_r820t = {0x0034, CMD_I2C_RD, 5, buf};
+	struct rtl28xxu_req req_r820t = {0x0034, CMD_I2C_RD, 1, buf};
 
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
@@ -481,9 +481,9 @@ static int rtl2832u_read_config(struct dvb_usb_device *d)
 		goto found;
 	}
 
-	/* check R820T by reading tuner stats at I2C addr 0x1a */
+	/* check R820T ID register; reg=00 val=69 */
 	ret = rtl28xxu_ctrl_msg(d, &req_r820t);
-	if (ret == 0) {
+	if (ret == 0 && buf[0] == 0x69) {
 		priv->tuner = TUNER_RTL2832_R820T;
 		priv->tuner_name = "R820T";
 		goto found;
