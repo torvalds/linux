@@ -6,6 +6,8 @@
 
 extern seqlock_t jiffies_lock;
 
+#define CS_NAME_LEN	32
+
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BUILD
 
 #define TICK_DO_TIMER_NONE	-1
@@ -18,8 +20,18 @@ extern int tick_do_timer_cpu __read_mostly;
 
 extern void tick_setup_periodic(struct clock_event_device *dev, int broadcast);
 extern void tick_handle_periodic(struct clock_event_device *dev);
+extern void tick_check_new_device(struct clock_event_device *dev);
+extern void tick_handover_do_timer(int *cpup);
+extern void tick_shutdown(unsigned int *cpup);
+extern void tick_suspend(void);
+extern void tick_resume(void);
+extern bool tick_check_replacement(struct clock_event_device *curdev,
+				   struct clock_event_device *newdev);
+extern void tick_install_replacement(struct clock_event_device *dev);
 
 extern void clockevents_shutdown(struct clock_event_device *dev);
+
+extern size_t sysfs_get_uname(const char *buf, char *dst, size_t cnt);
 
 /*
  * NO_HZ / high resolution timer shared code
@@ -90,7 +102,7 @@ static inline bool tick_broadcast_oneshot_available(void) { return false; }
  */
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 extern int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu);
-extern int tick_check_broadcast_device(struct clock_event_device *dev);
+extern void tick_install_broadcast_device(struct clock_event_device *dev);
 extern int tick_is_broadcast_device(struct clock_event_device *dev);
 extern void tick_broadcast_on_off(unsigned long reason, int *oncpu);
 extern void tick_shutdown_broadcast(unsigned int *cpup);
@@ -102,9 +114,8 @@ tick_set_periodic_handler(struct clock_event_device *dev, int broadcast);
 
 #else /* !BROADCAST */
 
-static inline int tick_check_broadcast_device(struct clock_event_device *dev)
+static inline void tick_install_broadcast_device(struct clock_event_device *dev)
 {
-	return 0;
 }
 
 static inline int tick_is_broadcast_device(struct clock_event_device *dev)

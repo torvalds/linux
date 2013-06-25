@@ -18,8 +18,8 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/platform_data/clocksource-nomadik-mtu.h>
+#include <linux/sched_clock.h>
 #include <asm/mach/time.h>
-#include <asm/sched_clock.h>
 
 /*
  * The MTU device hosts four different counters, with 4 set of

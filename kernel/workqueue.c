@@ -4311,6 +4311,12 @@ bool current_is_workqueue_rescuer(void)
  * no synchronization around this function and the test result is
  * unreliable and only useful as advisory hints or for debugging.
  *
+ * If @cpu is WORK_CPU_UNBOUND, the test is performed on the local CPU.
+ * Note that both per-cpu and unbound workqueues may be associated with
+ * multiple pool_workqueues which have separate congested states.  A
+ * workqueue being congested on one CPU doesn't mean the workqueue is also
+ * contested on other CPUs / NUMA nodes.
+ *
  * RETURNS:
  * %true if congested, %false otherwise.
  */
@@ -4320,6 +4326,9 @@ bool workqueue_congested(int cpu, struct workqueue_struct *wq)
 	bool ret;
 
 	rcu_read_lock_sched();
+
+	if (cpu == WORK_CPU_UNBOUND)
+		cpu = smp_processor_id();
 
 	if (!(wq->flags & WQ_UNBOUND))
 		pwq = per_cpu_ptr(wq->cpu_pwqs, cpu);

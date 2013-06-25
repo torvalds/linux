@@ -15,12 +15,12 @@
 #include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/platform_device.h>
+#include <linux/sched_clock.h>
 
 #include <asm/smp_twd.h>
 #include <asm/mach/time.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/sched_clock.h>
 
 #include <mach/map.h>
 #include <plat/devs.h>

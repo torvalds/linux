@@ -1133,9 +1133,6 @@ static int qlcnic_sriov_validate_linkevent(struct qlcnic_vf_info *vf,
 	if ((cmd->req.arg[1] >> 16) != vf->rx_ctx_id)
 		return -EINVAL;
 
-	if (!(cmd->req.arg[1] & BIT_8))
-		return -EINVAL;
-
 	return 0;
 }
 

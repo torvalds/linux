@@ -41,10 +41,10 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/dmtimer-omap.h>
+#include <linux/sched_clock.h>
 
 #include <asm/mach/time.h>
 #include <asm/smp_twd.h>
-#include <asm/sched_clock.h>
 
 #include "omap_hwmod.h"
 #include "omap_device.h"
