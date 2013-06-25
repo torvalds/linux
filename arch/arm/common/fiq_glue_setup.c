@@ -18,20 +18,23 @@
 #include <asm/fiq_glue.h>
 
 extern unsigned char fiq_glue, fiq_glue_end;
-extern void fiq_glue_setup(void *func, void *data, void *sp);
+extern void fiq_glue_setup(void *func, void *data, void *sp,
+			   fiq_return_handler_t fiq_return_handler);
 
 static struct fiq_handler fiq_debbuger_fiq_handler = {
 	.name = "fiq_glue",
 };
 DEFINE_PER_CPU(void *, fiq_stack);
 static struct fiq_glue_handler *current_handler;
+static fiq_return_handler_t fiq_return_handler;
 static DEFINE_MUTEX(fiq_glue_lock);
 
 static void fiq_glue_setup_helper(void *info)
 {
 	struct fiq_glue_handler *handler = info;
 	fiq_glue_setup(handler->fiq, handler,
-		__get_cpu_var(fiq_stack) + THREAD_START_SP);
+		__get_cpu_var(fiq_stack) + THREAD_START_SP,
+		fiq_return_handler);
 }
 
 int fiq_glue_register_handler(struct fiq_glue_handler *handler)
@@ -80,6 +83,49 @@ err_busy:
 	return ret;
 }
 
+static void fiq_glue_update_return_handler(void (*fiq_return)(void))
+{
+	fiq_return_handler = fiq_return;
+	if (current_handler)
+		on_each_cpu(fiq_glue_setup_helper, current_handler, true);
+}
+
+int fiq_glue_set_return_handler(void (*fiq_return)(void))
+{
+	int ret;
+
+	mutex_lock(&fiq_glue_lock);
+	if (fiq_return_handler) {
+		ret = -EBUSY;
+		goto err_busy;
+	}
+	fiq_glue_update_return_handler(fiq_return);
+	ret = 0;
+err_busy:
+	mutex_unlock(&fiq_glue_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(fiq_glue_set_return_handler);
+
+int fiq_glue_clear_return_handler(void (*fiq_return)(void))
+{
+	int ret;
+
+	mutex_lock(&fiq_glue_lock);
+	if (WARN_ON(fiq_return_handler != fiq_return)) {
+		ret = -EINVAL;
+		goto err_inval;
+	}
+	fiq_glue_update_return_handler(NULL);
+	ret = 0;
+err_inval:
+	mutex_unlock(&fiq_glue_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(fiq_glue_clear_return_handler);
+
 /**
  * fiq_glue_resume - Restore fiqs after suspend or low power idle states
  *
@@ -93,7 +139,8 @@ void fiq_glue_resume(void)
 	if (!current_handler)
 		return;
 	fiq_glue_setup(current_handler->fiq, current_handler,
-		__get_cpu_var(fiq_stack) + THREAD_START_SP);
+		__get_cpu_var(fiq_stack) + THREAD_START_SP,
+		fiq_return_handler);
 	if (current_handler->resume)
 		current_handler->resume(current_handler);
 }
