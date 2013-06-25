@@ -142,6 +142,8 @@ struct vpif_device {
 	struct v4l2_device v4l2_dev;
 	struct channel_obj *dev[VPIF_CAPTURE_NUM_CHANNELS];
 	struct v4l2_subdev **sd;
+	struct v4l2_async_notifier notifier;
+	struct vpif_capture_config *config;
 };
 
 struct vpif_config_params {

@@ -81,5 +81,7 @@ struct vpif_capture_config {
 	struct vpif_subdev_info *subdev_info;
 	int subdev_count;
 	const char *card_name;
+	struct v4l2_async_subdev **asd;	/* Flat array, arranged in groups */
+	int *asd_sizes;		/* 0-terminated array of asd group sizes */
 };
 #endif /* _VPIF_TYPES_H */
