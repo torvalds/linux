@@ -105,6 +105,7 @@ struct vxlan_rdst {
 	u32			 remote_vni;
 	u32			 remote_ifindex;
 	struct list_head	 list;
+	struct rcu_head		 rcu;
 };
 
 /* Forwarding table entry */
@@ -496,6 +497,12 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 	return 0;
 }
 
+static void vxlan_fdb_free_rdst(struct rcu_head *head)
+{
+	struct vxlan_rdst *rd = container_of(head, struct vxlan_rdst, rcu);
+	kfree(rd);
+}
+
 static void vxlan_fdb_free(struct rcu_head *head)
 {
 	struct vxlan_fdb *f = container_of(head, struct vxlan_fdb, rcu);
@@ -605,14 +612,43 @@ static int vxlan_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_fdb *f;
-	int err = -ENOENT;
+	struct vxlan_rdst *rd = NULL;
+	__be32 ip;
+	__be16 port;
+	u32 vni, ifindex;
+	int err;
+
+	err = vxlan_fdb_parse(tb, vxlan, &ip, &port, &vni, &ifindex);
+	if (err)
+		return err;
+
+	err = -ENOENT;
 
 	spin_lock_bh(&vxlan->hash_lock);
 	f = vxlan_find_mac(vxlan, addr);
-	if (f) {
-		vxlan_fdb_destroy(vxlan, f);
-		err = 0;
+	if (!f)
+		goto out;
+
+	if (ip != htonl(INADDR_ANY)) {
+		rd = vxlan_fdb_find_rdst(f, ip, port, vni, ifindex);
+		if (!rd)
+			goto out;
 	}
+
+	err = 0;
+
+	/* remove a destination if it's not the only one on the list,
+	 * otherwise destroy the fdb entry
+	 */
+	if (rd && !list_is_singular(&f->remotes)) {
+		list_del_rcu(&rd->list);
+		call_rcu(&rd->rcu, vxlan_fdb_free_rdst);
+		goto out;
+	}
+
+	vxlan_fdb_destroy(vxlan, f);
+
+out:
 	spin_unlock_bh(&vxlan->hash_lock);
 
 	return err;
