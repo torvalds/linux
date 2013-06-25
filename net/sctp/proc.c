@@ -138,7 +138,7 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 
 		peer = asoc->peer.primary_path;
 		if (unlikely(peer == NULL)) {
-			WARN(1, "Association %p with NULL primary path!", asoc);
+			WARN(1, "Association %p with NULL primary path!\n", asoc);
 			return;
 		}
 
