@@ -291,6 +291,7 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_OF)
 static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 			 struct platform_device *pdev)
 {
@@ -308,7 +309,7 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 
 	return 0;
 }
-
+#endif
 
 static int davinci_mdio_probe(struct platform_device *pdev)
 {
@@ -477,11 +478,13 @@ static const struct dev_pm_ops davinci_mdio_pm_ops = {
 	.resume_early	= davinci_mdio_resume,
 };
 
+#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id davinci_mdio_of_mtable[] = {
 	{ .compatible = "ti,davinci_mdio", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, davinci_mdio_of_mtable);
+#endif
 
 static struct platform_driver davinci_mdio_driver = {
 	.driver = {
