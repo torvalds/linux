@@ -7,6 +7,13 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 
+#if defined(CONFIG_RK616_DEBUG)
+#define rk616_dbg(dev, format, arg...)		\
+	dev_info(dev , format , ## arg)
+#else
+#define rk616_dbg(dev, format, arg...)	do{}while(0)
+#endif
+
 #define VIF0_REG0 		0x0000
 #define VIF0_DDR_CLK_EN		(1<<3)
 #define VIF0_DDR_PHASEN_EN	(1<<2)  //negative edge first en

@@ -1,8 +1,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/mfd/rk616.h>
+
 
 
 extern int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 cfg_val,u32 frac);
@@ -44,7 +44,7 @@ extern int rk616_pll_pwr_down(struct mfd_rk616 *rk616,int id);
 			
 	}
 
-	dev_info(rk616->dev,"rk616 vif%d disable\n",id);
+	rk616_dbg(rk616->dev,"rk616 vif%d disable\n",id);
 	
 	return 0;
 }
@@ -76,7 +76,7 @@ int rk616_vif_enable(struct mfd_rk616 *rk616,int id)
 	ret = rk616->write_dev(rk616,VIF0_REG0 + offset,&val);
 
 	
-	dev_info(rk616->dev,"rk616 vif%d enable\n",id);
+	rk616_dbg(rk616->dev,"rk616 vif%d enable\n",id);
 
 	return 0;
 	
@@ -97,7 +97,7 @@ static int  rk616_vif_bypass(struct mfd_rk616 *rk616,int id)
 
 	ret = rk616->write_dev(rk616,CRU_CLKSEL2_CON,&val);
 
-	dev_info(rk616->dev,"rk616 vif%d bypass\n",id);
+	rk616_dbg(rk616->dev,"rk616 vif%d bypass\n",id);
 	return 0;
 }
 
@@ -237,7 +237,7 @@ static int rk616_scaler_disable(struct mfd_rk616 *rk616)
 	val &= (~SCL_EN);	//disable scaler
 	val |= (SCL_EN<<16);
 	ret = rk616->write_dev(rk616,SCL_REG0,&val);
-	dev_info(rk616->dev,"rk616 scaler disable\n");
+	rk616_dbg(rk616->dev,"rk616 scaler disable\n");
 	return 0;
 }
 
@@ -417,7 +417,7 @@ int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 	rk616->write_dev(rk616,SCL_REG8,&scl_reg8_value);
 	rk616->write_dev(rk616,SCL_REG0,&scl_reg0_value); 
 
-	dev_info(rk616->dev,"rk616 scaler enable\n");
+	rk616_dbg(rk616->dev,"rk616 scaler enable\n");
 #endif
 	return 0;
 	
@@ -629,13 +629,13 @@ int  rk616_set_router(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
 	{
 		
 		ret = rk616_dual_input_cfg(rk616,screen,enable);
-		dev_info(rk616->dev,"rk616 use dual input for dual display!\n");
+		rk616_dbg(rk616->dev,"rk616 use dual input for dual display!\n");
 	}
 	else if((pdata->lcd0_func == INPUT) && (pdata->lcd1_func == UNUSED))
 	{
 		ret = rk616_lcd0_input_lcd1_unused_cfg(rk616,screen,enable);
 
-		dev_info(rk616->dev,
+		rk616_dbg(rk616->dev,
 			"rk616 use lcd0 as input and lvds/rgb "
 			"port as output for dual display\n");
 	}
@@ -643,14 +643,14 @@ int  rk616_set_router(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
 	{
 		ret = rk616_lcd0_input_lcd1_output_cfg(rk616,screen,enable);
 		
-		dev_info(rk616->dev,
+		rk616_dbg(rk616->dev,
 			"rk616 use lcd0 as input and lcd1 as "
 			"output for dual display\n");
 	}
 	else if((pdata->lcd0_func == UNUSED) && (pdata->lcd1_func == INPUT))
 	{
 		ret = rk616_lcd0_unused_lcd1_input_cfg(rk616,screen,enable);
-		dev_info(rk616->dev,
+		rk616_dbg(rk616->dev,
 			"rk616 use lcd1 as input and lvds/rgb as "
 			"output for dual display\n");
 	}
@@ -692,6 +692,22 @@ static int rk616_router_cfg(struct mfd_rk616 *rk616)
 }
 
 
+static int rk616_dither_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
+{
+	u32 val = 0;
+	int ret = 0;
+	val = FRC_DCLK_INV | (FRC_DCLK_INV << 16);
+	if((screen->face != OUT_P888) && enable)  //enable frc dither if the screen is not 24bit
+		val |= FRC_DITHER_EN | (FRC_DITHER_EN << 16);
+		//val |= (FRC_DITHER_EN << 16);
+	else
+		val |= (FRC_DITHER_EN << 16);
+	ret = rk616->write_dev(rk616,FRC_REG,&val);
+
+	return 0;
+	
+}
+
 int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
 {
 	int ret;
@@ -702,12 +718,11 @@ int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enab
 	ret = rk616_router_cfg(rk616);
 	ret = rk616_vif_cfg(rk616,hdmi_screen,0);
 	ret = rk616_vif_cfg(rk616,hdmi_screen,1);
-	ret = rk616_scaler_cfg(rk616,screen);
-
+	ret = rk616_scaler_cfg(rk616,screen);			
+	ret = rk616_dither_cfg(rk616,screen,enable);
 	return 0;
 	
 }
-
 
 int rk616_set_vif(struct mfd_rk616 *rk616,rk_screen *screen,bool connect)
 {
@@ -736,12 +751,12 @@ int rk616_set_vif(struct mfd_rk616 *rk616,rk_screen *screen,bool connect)
 	{
 		
 		rk616_dual_input_cfg(rk616,screen,connect);
-		dev_info(rk616->dev,"rk616 use dual input for dual display!\n");
+		rk616_dbg(rk616->dev,"rk616 use dual input for dual display!\n");
 	}
 	else if((pdata->lcd0_func == INPUT) && (pdata->lcd1_func == UNUSED))
 	{
 		rk616_lcd0_input_lcd1_unused_cfg(rk616,screen,connect);
-		dev_info(rk616->dev,"rk616 use lcd0 input for hdmi display!\n");
+		rk616_dbg(rk616->dev,"rk616 use lcd0 input for hdmi display!\n");
 	}
 	rk616_router_cfg(rk616);
 	rk616_vif_cfg(rk616,screen,0);

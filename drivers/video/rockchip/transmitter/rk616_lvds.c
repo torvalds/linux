@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include "rk616_lvds.h"
 
+
 struct rk616_lvds *g_lvds;
 
 
@@ -46,7 +47,7 @@ static int rk616_lvds_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 					(LVDS_HBP_ODD_MASK);
 				ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
 				
-				dev_info(rk616->dev,"rk616 use dual lvds channel.......\n");
+				rk616_dbg(rk616->dev,"rk616 use dual lvds channel.......\n");
 			}
 			else //single lvds channel
 			{
@@ -59,7 +60,7 @@ static int rk616_lvds_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 				       (LVDS_OUT_FORMAT_MASK) | (LVDS_DCLK_INV << 16);
 				ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
 
-				dev_info(rk616->dev,"rk616 use single lvds channel.......\n");
+				rk616_dbg(rk616->dev,"rk616 use single lvds channel.......\n");
 				
 			}
 
@@ -75,7 +76,7 @@ static int rk616_lvds_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 			val &= ~(LVDS_OUT_EN);
 			val |= (LVDS_OUT_EN << 16);
 			ret = rk616->write_dev(rk616,CRU_IO_CON0,&val);
-			dev_info(rk616->dev,"rk616 use RGB output.....\n");
+			rk616_dbg(rk616->dev,"rk616 use RGB output.....\n");
 			
 		}
 	}
@@ -83,25 +84,6 @@ static int rk616_lvds_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 	return 0;
 	
 }
-
-
-static int rk616_dither_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
-{
-	u32 val = 0;
-	int ret = 0;
-	val = FRC_DCLK_INV | (FRC_DCLK_INV << 16);
-	if((screen->face != OUT_P888) && enable)  //enable frc dither if the screen is not 24bit
-		val |= FRC_DITHER_EN | (FRC_DITHER_EN << 16);
-		//val |= (FRC_DITHER_EN << 16);
-	else
-		val |= (FRC_DITHER_EN << 16);
-	ret = rk616->write_dev(rk616,FRC_REG,&val);
-
-	return 0;
-	
-}
-
-
 
 
 int rk616_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 1: scale
@@ -113,10 +95,7 @@ int rk616_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 1: s
 		printk(KERN_ERR "%s:mfd rk616 is null!\n",__func__);
 		return -1;
 	}
-	
 	ret = rk616_display_router_cfg(rk616,screen,enable);
-	
-	ret = rk616_dither_cfg(rk616,screen,enable);
 	ret = rk616_lvds_cfg(rk616,screen);
 	return ret;
 }
@@ -126,10 +105,7 @@ static int rk616_lvds_init_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 {
 	int ret ;
 	ret = rk616_display_router_cfg(rk616,screen,0);
-	
-	ret = rk616_dither_cfg(rk616,screen,0);
 	ret = rk616_lvds_cfg(rk616,screen);
-
 	return ret;
 }
 
@@ -156,7 +132,7 @@ static void rk616_lvds_late_resume(struct early_suspend *h)
 {
 	struct rk616_lvds *lvds = container_of(h, struct rk616_lvds,early_suspend);
 	struct mfd_rk616 *rk616 = lvds->rk616;
-	rk616_lvds_cfg(rk616,lvds->screen);
+	rk616_lvds_init_cfg(rk616,lvds->screen);
 }
 
 #endif

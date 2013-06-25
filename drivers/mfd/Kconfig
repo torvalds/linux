@@ -852,6 +852,12 @@ config MFD_RK616
           if you say yes here you get support for the RK616, with func as
           HDMI、LCD、LVDS、CODEC、MIPI.
 
+config RK616_DEBUG
+	bool "RK616(JettaB) debug enable"
+	depends on MFD_RK616
+	help
+	   if you say y here ,it will enable rk616 debug function
+
 endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"
