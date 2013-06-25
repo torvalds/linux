@@ -30,7 +30,8 @@ cflags-$(CONFIG_SIBYTE_BCM1x80) +=					\
 # Sibyte BCM91120C (CRhine) board
 # Sibyte BCM91125C (CRhone) board
 # Sibyte BCM91125E (Rhone) board
-# Sibyte SWARM board
+# Sibyte BCM91250A (SWARM) board
+# Sibyte BCM91250C2 (LittleSur) board
 # Sibyte BCM91x80 (BigSur) board
 #
 load-$(CONFIG_SIBYTE_CARMEL)	:= 0xffffffff80100000
