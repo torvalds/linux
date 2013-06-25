@@ -5981,11 +5981,9 @@ struct bpmod_info {
 
 };
 
-typedef struct _dev_desc {
+struct {
 	char *name;
-} dev_desc_t;
-
-dev_desc_t dev_desc[] = {
+} dev_desc[] = {
 	{"Silicom Bypass PXG2BPFI-SD series adapter"},
 	{"Silicom Bypass PXG2BPFIL-SD series adapter"},
 	{"Silicom Bypass PXG2BPFILX-SD series adapter"},
