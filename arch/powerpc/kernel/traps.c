@@ -1299,10 +1299,18 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		"EBB",
 		"TAR",
 	};
-	char *facility;
+	char *facility, *prefix;
 	u64 value;
 
-	value = mfspr(SPRN_FSCR) >> 56;
+	if (regs->trap == 0xf60) {
+		value = mfspr(SPRN_FSCR);
+		prefix = "";
+	} else {
+		value = mfspr(SPRN_HFSCR);
+		prefix = "Hypervisor ";
+	}
+
+	value = value >> 56;
 
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
@@ -1313,8 +1321,8 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	else
 		facility = "unknown";
 
-	pr_err("Facility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
-		facility, regs->nip, regs->msr);
+	pr_err("%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
+		prefix, facility, regs->nip, regs->msr);
 
 	if (user_mode(regs)) {
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
