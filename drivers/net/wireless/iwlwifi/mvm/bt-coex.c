@@ -384,6 +384,10 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 
 	smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
+	/* non associated BSSes aren't to be considered */
+	if (!vif->bss_conf.assoc)
+		return;
+
 	if (band != IEEE80211_BAND_2GHZ) {
 		iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
 				    smps_mode);
@@ -588,23 +592,5 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 void iwl_mvm_bt_coex_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
-	struct ieee80211_chanctx_conf *chanctx_conf;
-	enum ieee80211_band band;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(vif->chanctx_conf);
-	if (chanctx_conf && chanctx_conf->def.chan)
-		band = chanctx_conf->def.chan->band;
-	else
-		band = -1;
-	rcu_read_unlock();
-
-	/* if we are in 2GHz we will get a notification from the fw */
-	if (band == IEEE80211_BAND_2GHZ)
-		return;
-
-	/* else, we can remove all the constraints */
-	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
-
 	iwl_mvm_bt_coex_notif_handle(mvm);
 }
