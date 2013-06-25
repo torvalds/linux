@@ -4971,6 +4971,41 @@ static int kvm_vcpu_check_hw_bp(unsigned long addr, u32 type, u32 dr7,
 	return dr6;
 }
 
+static void kvm_vcpu_check_singlestep(struct kvm_vcpu *vcpu, int *r)
+{
+	struct kvm_run *kvm_run = vcpu->run;
+
+	/*
+	 * Use the "raw" value to see if TF was passed to the processor.
+	 * Note that the new value of the flags has not been saved yet.
+	 *
+	 * This is correct even for TF set by the guest, because "the
+	 * processor will not generate this exception after the instruction
+	 * that sets the TF flag".
+	 */
+	unsigned long rflags = kvm_x86_ops->get_rflags(vcpu);
+
+	if (unlikely(rflags & X86_EFLAGS_TF)) {
+		if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
+			kvm_run->debug.arch.dr6 = DR6_BS | DR6_FIXED_1;
+			kvm_run->debug.arch.pc = vcpu->arch.singlestep_rip;
+			kvm_run->debug.arch.exception = DB_VECTOR;
+			kvm_run->exit_reason = KVM_EXIT_DEBUG;
+			*r = EMULATE_USER_EXIT;
+		} else {
+			vcpu->arch.emulate_ctxt.eflags &= ~X86_EFLAGS_TF;
+			/*
+			 * "Certain debug exceptions may clear bit 0-3.  The
+			 * remaining contents of the DR6 register are never
+			 * cleared by the processor".
+			 */
+			vcpu->arch.dr6 &= ~15;
+			vcpu->arch.dr6 |= DR6_BS;
+			kvm_queue_exception(vcpu, DB_VECTOR);
+		}
+	}
+}
+
 static bool kvm_vcpu_check_breakpoint(struct kvm_vcpu *vcpu, int *r)
 {
 	struct kvm_run *kvm_run = vcpu->run;
@@ -5117,10 +5152,12 @@ restart:
 
 	if (writeback) {
 		toggle_interruptibility(vcpu, ctxt->interruptibility);
-		kvm_set_rflags(vcpu, ctxt->eflags);
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
 		vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
 		kvm_rip_write(vcpu, ctxt->eip);
+		if (r == EMULATE_DONE)
+			kvm_vcpu_check_singlestep(vcpu, &r);
+		kvm_set_rflags(vcpu, ctxt->eflags);
 	} else
 		vcpu->arch.emulate_regs_need_sync_to_vcpu = true;
 
