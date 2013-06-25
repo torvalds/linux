@@ -1956,41 +1956,44 @@ static int __core_scsi3_write_aptpl_to_file(
  * Clear the APTPL metadata if APTPL has been disabled, otherwise
  * write out the updated metadata to struct file for this SCSI device.
  */
-static int core_scsi3_update_and_write_aptpl(struct se_device *dev, bool aptpl)
+static sense_reason_t core_scsi3_update_and_write_aptpl(struct se_device *dev, bool aptpl)
 {
-	int ret = 0;
+	unsigned char *buf;
+	int rc;
 
 	if (!aptpl) {
 		char *null_buf = "No Registrations or Reservations\n";
 
-		ret = __core_scsi3_write_aptpl_to_file(dev, null_buf);
+		rc = __core_scsi3_write_aptpl_to_file(dev, null_buf);
 		dev->t10_pr.pr_aptpl_active = 0;
 		pr_debug("SPC-3 PR: Set APTPL Bit Deactivated\n");
-	} else {
-		int ret;
-		unsigned char *buf;
 
-		buf = kzalloc(PR_APTPL_BUF_LEN, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
+		if (rc)
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
-		ret = core_scsi3_update_aptpl_buf(dev, buf, PR_APTPL_BUF_LEN);
-		if (ret < 0) {
-			kfree(buf);
-			return ret;
-		}
-
-		ret = __core_scsi3_write_aptpl_to_file(dev, buf);
-		if (ret != 0) {
-			pr_err("SPC-3 PR: Could not update APTPL\n");
-		} else {
-			dev->t10_pr.pr_aptpl_active = 1;
-			pr_debug("SPC-3 PR: Set APTPL Bit Activated\n");
-		}
-		kfree(buf);
+		return 0;
 	}
 
-	return ret;
+	buf = kzalloc(PR_APTPL_BUF_LEN, GFP_KERNEL);
+	if (!buf)
+		return TCM_OUT_OF_RESOURCES;
+
+	rc = core_scsi3_update_aptpl_buf(dev, buf, PR_APTPL_BUF_LEN);
+	if (rc < 0) {
+		kfree(buf);
+		return TCM_OUT_OF_RESOURCES;
+	}
+
+	rc = __core_scsi3_write_aptpl_to_file(dev, buf);
+	if (rc != 0) {
+		pr_err("SPC-3 PR: Could not update APTPL\n");
+		kfree(buf);
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
+	dev->t10_pr.pr_aptpl_active = 1;
+	kfree(buf);
+	pr_debug("SPC-3 PR: Set APTPL Bit Activated\n");
+	return 0;
 }
 
 static sense_reason_t
