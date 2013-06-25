@@ -278,13 +278,19 @@
 			};
 
 			can1: flexcan@02090000 {
+				compatible = "fsl,imx6q-flexcan";
 				reg = <0x02090000 0x4000>;
 				interrupts = <0 110 0x04>;
+				clocks = <&clks 108>, <&clks 109>;
+				clock-names = "ipg", "per";
 			};
 
 			can2: flexcan@02094000 {
+				compatible = "fsl,imx6q-flexcan";
 				reg = <0x02094000 0x4000>;
 				interrupts = <0 111 0x04>;
+				clocks = <&clks 110>, <&clks 111>;
+				clock-names = "ipg", "per";
 			};
 
 			gpt: gpt@02098000 {
