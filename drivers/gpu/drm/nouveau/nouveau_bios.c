@@ -1878,9 +1878,6 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 	if (dcb->version < 0x21)
 		merge_like_dcb_entries(dev, dcb);
 
-	if (!dcb->entries)
-		return -ENXIO;
-
 	/* dump connector table entries to log, if any exist */
 	idx = -1;
 	while ((conn = olddcb_conn(dev, ++idx))) {
