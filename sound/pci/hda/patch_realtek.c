@@ -2603,6 +2603,7 @@ static int alc269_resume(struct hda_codec *codec)
 
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
+	alc_inv_dmic_sync(codec, true);
 	hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
