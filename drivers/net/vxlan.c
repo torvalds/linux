@@ -388,20 +388,33 @@ static struct vxlan_fdb *vxlan_find_mac(struct vxlan_dev *vxlan,
 	return f;
 }
 
+/* caller should hold vxlan->hash_lock */
+static struct vxlan_rdst *vxlan_fdb_find_rdst(struct vxlan_fdb *f,
+					      __be32 ip, __be16 port,
+					      __u32 vni, __u32 ifindex)
+{
+	struct vxlan_rdst *rd;
+
+	list_for_each_entry(rd, &f->remotes, list) {
+		if (rd->remote_ip == ip &&
+		    rd->remote_port == port &&
+		    rd->remote_vni == vni &&
+		    rd->remote_ifindex == ifindex)
+			return rd;
+	}
+
+	return NULL;
+}
+
 /* Add/update destinations for multicast */
 static int vxlan_fdb_append(struct vxlan_fdb *f,
 			    __be32 ip, __be16 port, __u32 vni, __u32 ifindex)
 {
 	struct vxlan_rdst *rd;
 
-	/* protected by vxlan->hash_lock */
-	list_for_each_entry(rd, &f->remotes, list) {
-		if (rd->remote_ip == ip &&
-		    rd->remote_port == port &&
-		    rd->remote_vni == vni &&
-		    rd->remote_ifindex == ifindex)
-			return 0;
-	}
+	rd = vxlan_fdb_find_rdst(f, ip, port, vni, ifindex);
+	if (rd)
+		return 0;
 
 	rd = kmalloc(sizeof(*rd), GFP_ATOMIC);
 	if (rd == NULL)
