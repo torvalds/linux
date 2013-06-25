@@ -473,12 +473,12 @@ static void hash_hw_write_key(struct hash_device_data *device_data,
 		HASH_SET_DIN(&word, nwords);
 	}
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 
 	HASH_SET_DCAL;
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 }
 
@@ -661,7 +661,7 @@ static void hash_messagepad(struct hash_device_data *device_data,
 	if (index_bytes)
 		HASH_SET_DIN(message, nwords);
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 
 	/* num_of_bytes == 0 => NBLW <- 0 (32 bits valid in DATAIN) */
@@ -676,7 +676,7 @@ static void hash_messagepad(struct hash_device_data *device_data,
 			(int)(readl_relaxed(&device_data->base->str) &
 				HASH_STR_NBLW_MASK));
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 }
 
@@ -776,7 +776,7 @@ void hash_begin(struct hash_device_data *device_data, struct hash_ctx *ctx)
 	/* HW and SW initializations */
 	/* Note: there is no need to initialize buffer and digest members */
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 
 	/*
@@ -962,7 +962,7 @@ static int hash_dma_final(struct ahash_request *req)
 	wait_for_completion(&ctx->device->dma.complete);
 	hash_dma_done(ctx);
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 
 	if (ctx->config.oper_mode == HASH_OPER_MODE_HMAC && ctx->key) {
@@ -1060,7 +1060,7 @@ int hash_hw_final(struct ahash_request *req)
 				req_ctx->state.index);
 	} else {
 		HASH_SET_DCAL;
-		while (device_data->base->str & HASH_STR_DCAL_MASK)
+		while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 			cpu_relax();
 	}
 
@@ -1189,7 +1189,7 @@ int hash_resume_state(struct hash_device_data *device_data,
 	temp_cr = device_state->temp_cr;
 	writel_relaxed(temp_cr & HASH_CR_RESUME_MASK, &device_data->base->cr);
 
-	if (device_data->base->cr & HASH_CR_MODE_MASK)
+	if (readl(&device_data->base->cr) & HASH_CR_MODE_MASK)
 		hash_mode = HASH_OPER_MODE_HMAC;
 	else
 		hash_mode = HASH_OPER_MODE_HASH;
@@ -1233,7 +1233,7 @@ int hash_save_state(struct hash_device_data *device_data,
 	 * actually makes sure that there isn't any ongoing calculation in the
 	 * hardware.
 	 */
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 
 	temp_cr = readl_relaxed(&device_data->base->cr);
@@ -1242,7 +1242,7 @@ int hash_save_state(struct hash_device_data *device_data,
 
 	device_state->din_reg = readl_relaxed(&device_data->base->din);
 
-	if (device_data->base->cr & HASH_CR_MODE_MASK)
+	if (readl(&device_data->base->cr) & HASH_CR_MODE_MASK)
 		hash_mode = HASH_OPER_MODE_HMAC;
 	else
 		hash_mode = HASH_OPER_MODE_HASH;
