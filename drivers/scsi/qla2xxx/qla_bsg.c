@@ -2153,6 +2153,7 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 					(sp->type == SRB_ELS_CMD_HST) ||
 					(sp->type == SRB_FXIOCB_BCMD))
 					&& (sp->u.bsg_job == bsg_job)) {
+					req->outstanding_cmds[cnt] = NULL;
 					spin_unlock_irqrestore(&ha->hardware_lock, flags);
 					if (ha->isp_ops->abort_command(sp)) {
 						ql_log(ql_log_warn, vha, 0x7089,
@@ -2180,8 +2181,6 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 
 done:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	if (bsg_job->request->msgcode == FC_BSG_HST_CT)
-		kfree(sp->fcport);
-	qla2x00_rel_sp(vha, sp);
+	sp->free(vha, sp);
 	return 0;
 }
