@@ -1282,14 +1282,7 @@ qla24xx_iidma(struct fc_bsg_job *bsg_job)
 		return -EINVAL;
 	}
 
-	port_param = (struct qla_port_param *)((char *)bsg_job->request +
-		sizeof(struct fc_bsg_request));
-	if (!port_param) {
-		ql_log(ql_log_warn, vha, 0x7047,
-		    "port_param header not provided.\n");
-		return -EINVAL;
-	}
-
+	port_param = (void *)bsg_job->request + sizeof(struct fc_bsg_request);
 	if (port_param->fc_scsi_addr.dest_type != EXT_DEF_TYPE_WWPN) {
 		ql_log(ql_log_warn, vha, 0x7048,
 		    "Invalid destination type.\n");
