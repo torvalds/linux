@@ -76,6 +76,14 @@
  *	an embedded SE or an UICC one connected to it through SWP.
  * @NFC_EVENT_SE_REMOVED: Event emitted when a secure element is removed from
  *	the system, as a consequence of e.g. an NFC controller being unplugged.
+ * @NFC_EVENT_SE_CONNECTIVITY: This event is emitted whenever a secure element
+ *	is requesting connectivity access. For example a UICC SE may need to
+ *	talk with a sleeping modem and will notify this need by sending this
+ *	event. It is then up to userspace to decide if it will wake the modem
+ *	up or not.
+ * @NFC_EVENT_SE_TRANSACTION: This event is sent when an application running on
+ *	a specific SE notifies us about the end of a transaction. The parameter
+ *	for this event is the application ID (AID).
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
@@ -102,6 +110,8 @@ enum nfc_commands {
 	NFC_CMD_FW_DOWNLOAD,
 	NFC_EVENT_SE_ADDED,
 	NFC_EVENT_SE_REMOVED,
+	NFC_EVENT_SE_CONNECTIVITY,
+	NFC_EVENT_SE_TRANSACTION,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
@@ -159,6 +169,7 @@ enum nfc_attrs {
 	NFC_ATTR_FIRMWARE_NAME,
 	NFC_ATTR_SE_INDEX,
 	NFC_ATTR_SE_TYPE,
+	NFC_ATTR_SE_AID,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };
