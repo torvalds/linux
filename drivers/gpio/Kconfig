@@ -249,6 +249,13 @@ config GPIO_TZ1090
 	help
 	  Say yes here to support Toumaz Xenif TZ1090 GPIOs.
 
+config GPIO_TZ1090_PDC
+	bool "Toumaz Xenif TZ1090 PDC GPIO support"
+	depends on SOC_TZ1090
+	default y
+	help
+	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
+
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
 	depends on PPC_OF || MICROBLAZE || ARCH_ZYNQ
