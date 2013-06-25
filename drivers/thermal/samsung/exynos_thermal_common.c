@@ -53,7 +53,8 @@ static int exynos_set_mode(struct thermal_zone_device *thermal,
 {
 	struct exynos_thermal_zone *th_zone = thermal->devdata;
 	if (!th_zone) {
-		pr_notice("thermal zone not registered\n");
+		dev_err(th_zone->sensor_conf->dev,
+			"thermal zone not registered\n");
 		return 0;
 	}
 
@@ -69,8 +70,9 @@ static int exynos_set_mode(struct thermal_zone_device *thermal,
 
 	th_zone->mode = mode;
 	thermal_zone_device_update(thermal);
-	pr_info("thermal polling set for duration=%d msec\n",
-				thermal->polling_delay);
+	dev_dbg(th_zone->sensor_conf->dev,
+		"thermal polling set for duration=%d msec\n",
+		thermal->polling_delay);
 	return 0;
 }
 
@@ -162,7 +164,8 @@ static int exynos_bind(struct thermal_zone_device *thermal,
 		case WARN_ZONE:
 			if (thermal_zone_bind_cooling_device(thermal, i, cdev,
 								level, 0)) {
-				pr_err("error binding cdev inst %d\n", i);
+				dev_err(data->dev,
+					"error unbinding cdev inst=%d\n", i);
 				ret = -EINVAL;
 			}
 			th_zone->bind = true;
@@ -207,7 +210,8 @@ static int exynos_unbind(struct thermal_zone_device *thermal,
 		case WARN_ZONE:
 			if (thermal_zone_unbind_cooling_device(thermal, i,
 								cdev)) {
-				pr_err("error unbinding cdev inst=%d\n", i);
+				dev_err(data->dev,
+					"error unbinding cdev inst=%d\n", i);
 				ret = -EINVAL;
 			}
 			th_zone->bind = false;
@@ -227,7 +231,8 @@ static int exynos_get_temp(struct thermal_zone_device *thermal,
 	void *data;
 
 	if (!th_zone->sensor_conf) {
-		pr_info("Temperature sensor not initialised\n");
+		dev_err(th_zone->sensor_conf->dev,
+			"Temperature sensor not initialised\n");
 		return -EINVAL;
 	}
 	data = th_zone->sensor_conf->driver_data;
@@ -246,7 +251,8 @@ static int exynos_set_emul_temp(struct thermal_zone_device *thermal,
 	struct exynos_thermal_zone *th_zone = thermal->devdata;
 
 	if (!th_zone->sensor_conf) {
-		pr_info("Temperature sensor not initialised\n");
+		dev_err(th_zone->sensor_conf->dev,
+			"Temperature sensor not initialised\n");
 		return -EINVAL;
 	}
 	data = th_zone->sensor_conf->driver_data;
@@ -351,7 +357,8 @@ int exynos_register_thermal(struct thermal_sensor_conf *sensor_conf)
 		return -EINVAL;
 	}
 
-	th_zone = kzalloc(sizeof(struct exynos_thermal_zone), GFP_KERNEL);
+	th_zone = devm_kzalloc(sensor_conf->dev,
+				sizeof(struct exynos_thermal_zone), GFP_KERNEL);
 	if (!th_zone)
 		return -ENOMEM;
 
@@ -366,7 +373,8 @@ int exynos_register_thermal(struct thermal_sensor_conf *sensor_conf)
 		th_zone->cool_dev[th_zone->cool_dev_size] =
 					cpufreq_cooling_register(&mask_val);
 		if (IS_ERR(th_zone->cool_dev[th_zone->cool_dev_size])) {
-			pr_err("Failed to register cpufreq cooling device\n");
+			dev_err(sensor_conf->dev,
+				"Failed to register cpufreq cooling device\n");
 			ret = -EINVAL;
 			goto err_unregister;
 		}
@@ -380,14 +388,16 @@ int exynos_register_thermal(struct thermal_sensor_conf *sensor_conf)
 			IDLE_INTERVAL);
 
 	if (IS_ERR(th_zone->therm_dev)) {
-		pr_err("Failed to register thermal zone device\n");
+		dev_err(sensor_conf->dev,
+			"Failed to register thermal zone device\n");
 		ret = PTR_ERR(th_zone->therm_dev);
 		goto err_unregister;
 	}
 	th_zone->mode = THERMAL_DEVICE_ENABLED;
 	sensor_conf->pzone_data = th_zone;
 
-	pr_info("Exynos: Kernel Thermal management registered\n");
+	dev_info(sensor_conf->dev,
+		"Exynos: Thermal zone(%s) registered\n", sensor_conf->name);
 
 	return 0;
 
@@ -417,6 +427,6 @@ void exynos_unregister_thermal(struct thermal_sensor_conf *sensor_conf)
 			cpufreq_cooling_unregister(th_zone->cool_dev[i]);
 	}
 
-	kfree(th_zone);
-	pr_info("Exynos: Kernel Thermal management unregistered\n");
+	dev_info(sensor_conf->dev,
+		"Exynos: Kernel Thermal management unregistered\n");
 }
