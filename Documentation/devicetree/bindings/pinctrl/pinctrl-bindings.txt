@@ -173,7 +173,8 @@ Arguments for parameters:
 - input-schmitt takes as argument the adjustable hysteresis in a
   driver-specific format
 
-- input-debounce takes the debounce time as argument or 0 to disable debouncing
+- input-debounce takes the debounce time in usec as argument
+  or 0 to disable debouncing
 
 - power-source argument is the custom value describing the source to select
 
