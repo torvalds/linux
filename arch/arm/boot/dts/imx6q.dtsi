@@ -382,7 +382,7 @@
 						>;
 					};
 
-					pinctrl_weim_nor_1: weimnorgrp-1 {
+					pinctrl_weim_nor_1: weim_norgrp-1 {
 						fsl,pins = <
 							MX6Q_PAD_EIM_OE__EIM_OE_B     0xb0b1
 							MX6Q_PAD_EIM_RW__EIM_RW       0xb0b1
@@ -431,7 +431,6 @@
 							MX6Q_PAD_EIM_DA0__EIM_AD00   0xb0b1
 						>;
 					};
-
 				};
 			};
 		};
