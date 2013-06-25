@@ -727,15 +727,6 @@ static void sumo_enable_boost(struct radeon_device *rdev,
 		sumo_boost_state_enable(rdev, false);
 }
 
-static void sumo_update_current_power_levels(struct radeon_device *rdev,
-					     struct radeon_ps *rps)
-{
-	struct sumo_ps *new_ps = sumo_get_ps(rps);
-	struct sumo_power_info *pi = sumo_get_pi(rdev);
-
-	pi->current_ps = *new_ps;
-}
-
 static void sumo_set_forced_level(struct radeon_device *rdev, u32 index)
 {
 	WREG32_P(CG_SCLK_DPM_CTRL_3, FORCE_SCLK_STATE(index), ~FORCE_SCLK_STATE_MASK);
@@ -1089,11 +1080,6 @@ static void sumo_apply_state_adjust_rules(struct radeon_device *rdev,
 	u32 sclk_in_sr = pi->sys_info.min_sclk; /* ??? */
 	u32 i;
 
-	/* point to the hw copy since this function will modify the ps */
-	pi->hw_ps = *ps;
-	rdev->pm.dpm.hw_ps.ps_priv = &pi->hw_ps;
-	ps = &pi->hw_ps;
-
 	if (new_rps->class & ATOM_PPLIB_CLASSIFICATION_THERMAL)
 		return sumo_patch_thermal_state(rdev, ps, current_ps);
 
@@ -1192,6 +1178,28 @@ static int sumo_set_thermal_temperature_range(struct radeon_device *rdev,
 	return 0;
 }
 
+static void sumo_update_current_ps(struct radeon_device *rdev,
+				   struct radeon_ps *rps)
+{
+	struct sumo_ps *new_ps = sumo_get_ps(rps);
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+
+	pi->current_rps = *rps;
+	pi->current_ps = *new_ps;
+	pi->current_rps.ps_priv = &pi->current_ps;
+}
+
+static void sumo_update_requested_ps(struct radeon_device *rdev,
+				     struct radeon_ps *rps)
+{
+	struct sumo_ps *new_ps = sumo_get_ps(rps);
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+
+	pi->requested_rps = *rps;
+	pi->requested_ps = *new_ps;
+	pi->requested_rps.ps_priv = &pi->requested_ps;
+}
+
 int sumo_dpm_enable(struct radeon_device *rdev)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
@@ -1230,6 +1238,8 @@ int sumo_dpm_enable(struct radeon_device *rdev)
 		radeon_irq_set(rdev);
 	}
 
+	sumo_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
+
 	return 0;
 }
 
@@ -1252,19 +1262,34 @@ void sumo_dpm_disable(struct radeon_device *rdev)
 		rdev->irq.dpm_thermal = false;
 		radeon_irq_set(rdev);
 	}
+
+	sumo_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
+}
+
+int sumo_dpm_pre_set_power_state(struct radeon_device *rdev)
+{
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+	struct radeon_ps requested_ps = *rdev->pm.dpm.requested_ps;
+	struct radeon_ps *new_ps = &requested_ps;
+
+	sumo_update_requested_ps(rdev, new_ps);
+
+	if (pi->enable_dynamic_patch_ps)
+		sumo_apply_state_adjust_rules(rdev,
+					      &pi->requested_rps,
+					      &pi->current_rps);
+
+	return 0;
 }
 
 int sumo_dpm_set_power_state(struct radeon_device *rdev)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
-	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
-	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
+	struct radeon_ps *new_ps = &pi->requested_rps;
+	struct radeon_ps *old_ps = &pi->current_rps;
 
-	if (pi->enable_dynamic_patch_ps)
-		sumo_apply_state_adjust_rules(rdev, new_ps, old_ps);
 	if (pi->enable_dpm)
 		sumo_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
-	sumo_update_current_power_levels(rdev, new_ps);
 	if (pi->enable_boost) {
 		sumo_enable_boost(rdev, new_ps, false);
 		sumo_patch_boost_state(rdev, new_ps);
@@ -1291,6 +1316,14 @@ int sumo_dpm_set_power_state(struct radeon_device *rdev)
 		sumo_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	return 0;
+}
+
+void sumo_dpm_post_set_power_state(struct radeon_device *rdev)
+{
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+	struct radeon_ps *new_ps = &pi->requested_rps;
+
+	sumo_update_current_ps(rdev, new_ps);
 }
 
 void sumo_dpm_reset_asic(struct radeon_device *rdev)
@@ -1751,7 +1784,8 @@ void sumo_dpm_fini(struct radeon_device *rdev)
 
 u32 sumo_dpm_get_sclk(struct radeon_device *rdev, bool low)
 {
-	struct sumo_ps *requested_state = sumo_get_ps(rdev->pm.dpm.requested_ps);
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+	struct sumo_ps *requested_state = sumo_get_ps(&pi->requested_rps);
 
 	if (low)
 		return requested_state->levels[0].sclk;

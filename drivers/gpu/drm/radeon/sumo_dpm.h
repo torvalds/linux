@@ -116,7 +116,6 @@ struct sumo_power_info {
 	struct sumo_pl acpi_pl;
 	struct sumo_pl boot_pl;
 	struct sumo_pl boost_pl;
-	struct sumo_ps current_ps;
 	bool disable_gfx_power_gating_in_uvd;
 	bool driver_nbps_policy_disable;
 	bool enable_alt_vddnb;
@@ -129,7 +128,10 @@ struct sumo_power_info {
 	bool enable_dynamic_patch_ps;
 	bool enable_dpm;
 	bool enable_boost;
-	struct sumo_ps hw_ps;
+	struct radeon_ps current_rps;
+	struct sumo_ps current_ps;
+	struct radeon_ps requested_rps;
+	struct sumo_ps requested_ps;
 };
 
 #define SUMO_UTC_DFLT_00                     0x48
