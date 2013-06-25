@@ -192,6 +192,7 @@ machine-$(CONFIG_ARCH_W90X900)		+= w90x900
 machine-$(CONFIG_FOOTBRIDGE)		+= footbridge
 machine-$(CONFIG_ARCH_SOCFPGA)		+= socfpga
 machine-$(CONFIG_PLAT_SPEAR)		+= spear
+machine-$(CONFIG_ARCH_STI)		+= sti
 machine-$(CONFIG_ARCH_VIRT)		+= virt
 machine-$(CONFIG_ARCH_ZYNQ)		+= zynq
 machine-$(CONFIG_ARCH_SUNXI)		+= sunxi

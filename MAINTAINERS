@@ -1201,6 +1201,15 @@ M:	Dinh Nguyen <dinguyen@altera.com>
 S:	Maintained
 F:	drivers/clk/socfpga/
 
+ARM/STI ARCHITECTURE
+M:	Srinivas Kandagatla <srinivas.kandagatla@st.com>
+M:	Stuart Menefy <stuart.menefy@st.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	kernel@stlinux.com
+W:	http://www.stlinux.com
+S:	Maintained
+F:	arch/arm/mach-sti/
+
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
