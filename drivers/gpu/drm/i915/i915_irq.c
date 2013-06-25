@@ -699,9 +699,17 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
-	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD)
+	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
 		new_delay = dev_priv->rps.cur_delay + 1;
-	else
+
+		/*
+		 * For better performance, jump directly
+		 * to RPe if we're below it.
+		 */
+		if (IS_VALLEYVIEW(dev_priv->dev) &&
+		    dev_priv->rps.cur_delay < dev_priv->rps.rpe_delay)
+			new_delay = dev_priv->rps.rpe_delay;
+	} else
 		new_delay = dev_priv->rps.cur_delay - 1;
 
 	/* sysfs frequency interfaces may have snuck in while servicing the
