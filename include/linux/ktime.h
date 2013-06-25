@@ -323,6 +323,11 @@ static inline ktime_t ktime_add_us(const ktime_t kt, const u64 usec)
 	return ktime_add_ns(kt, usec * 1000);
 }
 
+static inline ktime_t ktime_add_ms(const ktime_t kt, const u64 msec)
+{
+	return ktime_add_ns(kt, msec * NSEC_PER_MSEC);
+}
+
 static inline ktime_t ktime_sub_us(const ktime_t kt, const u64 usec)
 {
 	return ktime_sub_ns(kt, usec * 1000);
@@ -366,7 +371,15 @@ extern void ktime_get_ts(struct timespec *ts);
 static inline ktime_t ns_to_ktime(u64 ns)
 {
 	static const ktime_t ktime_zero = { .tv64 = 0 };
+
 	return ktime_add_ns(ktime_zero, ns);
+}
+
+static inline ktime_t ms_to_ktime(u64 ms)
+{
+	static const ktime_t ktime_zero = { .tv64 = 0 };
+
+	return ktime_add_ms(ktime_zero, ms);
 }
 
 #endif
