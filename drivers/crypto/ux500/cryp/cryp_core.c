@@ -553,10 +553,10 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 		dev_dbg(ctx->device->dev, "[%s]: Setting up DMA for buffer "
 			"(TO_DEVICE)", __func__);
 
-		desc = channel->device->device_prep_slave_sg(channel,
-					     ctx->device->dma.sg_src,
-					     ctx->device->dma.sg_src_len,
-					     direction, DMA_CTRL_ACK, NULL);
+		desc = dmaengine_prep_slave_sg(channel,
+				ctx->device->dma.sg_src,
+				ctx->device->dma.sg_src_len,
+				direction, DMA_CTRL_ACK);
 		break;
 
 	case DMA_FROM_DEVICE:
@@ -577,12 +577,12 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 		dev_dbg(ctx->device->dev, "[%s]: Setting up DMA for buffer "
 			"(FROM_DEVICE)", __func__);
 
-		desc = channel->device->device_prep_slave_sg(channel,
-					     ctx->device->dma.sg_dst,
-					     ctx->device->dma.sg_dst_len,
-					     direction,
-					     DMA_CTRL_ACK |
-					     DMA_PREP_INTERRUPT, NULL);
+		desc = dmaengine_prep_slave_sg(channel,
+				ctx->device->dma.sg_dst,
+				ctx->device->dma.sg_dst_len,
+				direction,
+				DMA_CTRL_ACK |
+				DMA_PREP_INTERRUPT);
 
 		desc->callback = cryp_dma_out_callback;
 		desc->callback_param = ctx;
@@ -594,7 +594,7 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 		return -EFAULT;
 	}
 
-	cookie = desc->tx_submit(desc);
+	cookie = dmaengine_submit(desc);
 	dma_async_issue_pending(channel);
 
 	return 0;
@@ -607,12 +607,12 @@ static void cryp_dma_done(struct cryp_ctx *ctx)
 	dev_dbg(ctx->device->dev, "[%s]: ", __func__);
 
 	chan = ctx->device->dma.chan_mem2cryp;
-	chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+	dmaengine_device_control(chan, DMA_TERMINATE_ALL, 0);
 	dma_unmap_sg(chan->device->dev, ctx->device->dma.sg_src,
 		     ctx->device->dma.sg_src_len, DMA_TO_DEVICE);
 
 	chan = ctx->device->dma.chan_cryp2mem;
-	chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+	dmaengine_device_control(chan, DMA_TERMINATE_ALL, 0);
 	dma_unmap_sg(chan->device->dev, ctx->device->dma.sg_dst,
 		     ctx->device->dma.sg_dst_len, DMA_FROM_DEVICE);
 }
