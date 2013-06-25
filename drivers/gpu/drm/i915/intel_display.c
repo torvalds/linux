@@ -2221,6 +2221,20 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
+	/* Update pipe size and adjust fitter if needed */
+	if (i915_fastboot) {
+		I915_WRITE(PIPESRC(intel_crtc->pipe),
+			   ((crtc->mode.hdisplay - 1) << 16) |
+			   (crtc->mode.vdisplay - 1));
+		if (!intel_crtc->config.pch_pfit.size &&
+		    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) ||
+		     intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))) {
+			I915_WRITE(PF_CTL(intel_crtc->pipe), 0);
+			I915_WRITE(PF_WIN_POS(intel_crtc->pipe), 0);
+			I915_WRITE(PF_WIN_SZ(intel_crtc->pipe), 0);
+		}
+	}
+
 	ret = dev_priv->display.update_plane(crtc, fb, x, y);
 	if (ret) {
 		intel_unpin_fb_obj(to_intel_framebuffer(fb)->obj);
