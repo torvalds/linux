@@ -44,6 +44,7 @@ TODO:
 	Support use of both banks X and Y
 */
 
+#include <linux/module.h>
 #include <linux/slab.h>
 
 #include "ni_tio_internal.h"

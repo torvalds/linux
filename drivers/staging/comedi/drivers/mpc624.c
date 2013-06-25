@@ -51,6 +51,7 @@ Configuration Options:
 	1      -10.1V .. +10.1V
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

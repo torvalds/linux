@@ -45,6 +45,7 @@ Configuration Options:
   within each minor will be concatenated together in the order given here.
 */
 
+#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include "../comedi.h"

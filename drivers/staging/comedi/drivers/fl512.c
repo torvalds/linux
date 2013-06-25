@@ -18,6 +18,7 @@ Configuration options:
 
 #define DEBUG 0
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>

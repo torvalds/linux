@@ -51,6 +51,7 @@ Configuration options:
   [12] - Analog output 7 range configuration (same options)
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

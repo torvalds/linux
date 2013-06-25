@@ -33,6 +33,7 @@ connected to a reed-relay. Relay contacts are closed when output is 1.
 The state of the outputs can be read.
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #define PC263_DRIVER_NAME	"amplc_pc263"

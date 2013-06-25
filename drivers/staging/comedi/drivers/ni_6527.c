@@ -36,6 +36,7 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define DEBUG 1
 #define DEBUG_FLAGS
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 

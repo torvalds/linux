@@ -19,21 +19,7 @@
 #ifndef _COMEDIDEV_H
 #define _COMEDIDEV_H
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/kdev_t.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/spinlock.h>
-#include <linux/mutex.h>
-#include <linux/wait.h>
-#include <linux/mm.h>
-#include <linux/init.h>
-#include <linux/vmalloc.h>
 #include <linux/dma-mapping.h>
-#include <linux/uaccess.h>
-#include <linux/io.h>
-#include <linux/timer.h>
 
 #include "comedi.h"
 

@@ -35,6 +35,7 @@ No interrupts, multi channel or FIFO AI, although the card looks like it could s
 See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>

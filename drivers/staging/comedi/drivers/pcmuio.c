@@ -73,6 +73,7 @@
  *             can be the same as first irq!)
  */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 

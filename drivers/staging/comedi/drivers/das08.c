@@ -33,6 +33,7 @@
  * cheap das08 hardware doesn't really support them.
  */
 
+#include <linux/module.h>
 #include <linux/delay.h>
 
 #include "../comedidev.h"

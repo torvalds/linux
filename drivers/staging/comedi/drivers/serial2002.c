@@ -26,6 +26,7 @@ Status: in development
 
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>

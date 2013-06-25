@@ -192,6 +192,7 @@
  * order they appear in the channel list.
  */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include "amplc_dio200.h"

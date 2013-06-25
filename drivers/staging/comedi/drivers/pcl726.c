@@ -62,6 +62,7 @@ Interrupts are not supported.
     their web page.  (http://www.cir.com/)
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

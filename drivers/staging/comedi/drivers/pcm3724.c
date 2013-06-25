@@ -28,6 +28,7 @@ Copy/pasted/hacked from pcm724.c
  *   struct comedi_insn
  */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

@@ -33,6 +33,7 @@ Configuration options:
   [0] - I/O port base base address
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

@@ -32,6 +32,7 @@ Configuration Options:
     [17] - dac#7 ...
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

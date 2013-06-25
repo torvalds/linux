@@ -59,6 +59,8 @@ INSN_CONFIG instructions:
    comedi_do_insn(cf,&insn); //executing configuration
 */
 
+#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>

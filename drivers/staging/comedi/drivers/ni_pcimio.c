@@ -106,6 +106,7 @@ Bugs:
 
 */
 
+#include <linux/module.h>
 #include <linux/delay.h>
 
 #include "../comedidev.h"

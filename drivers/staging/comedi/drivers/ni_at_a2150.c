@@ -58,12 +58,15 @@ TRIG_WAKE_EOS
 
 */
 
+#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
 #include <linux/io.h>
+
 #include <asm/dma.h>
 
 #include "8253.h"

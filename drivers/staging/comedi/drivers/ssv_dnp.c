@@ -26,6 +26,7 @@ Status: unknown
 
 /* include files ----------------------------------------------------------- */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 /* Some global definitions: the registers of the DNP ----------------------- */

@@ -220,6 +220,7 @@
  * order they appear in the channel list.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 

@@ -43,6 +43,7 @@ TODO:
 3. Implement calibration.
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"

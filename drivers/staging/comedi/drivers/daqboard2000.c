@@ -102,6 +102,7 @@ Configuration options: not applicable, uses PCI auto config
 
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>

@@ -89,6 +89,7 @@ are not supported.
 
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 

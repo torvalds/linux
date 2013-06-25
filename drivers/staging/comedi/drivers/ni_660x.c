@@ -34,6 +34,7 @@
  * DAQ 6601/6602 User Manual (NI 322137B-01)
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 

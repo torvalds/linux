@@ -76,6 +76,7 @@ pin, which can be used to wake up tasks.
    or http://www.linux-magazin.de/ausgabe/1999/10/IO/io.html
  */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 #include <linux/interrupt.h>
 #include <linux/ioport.h>

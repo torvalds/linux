@@ -45,6 +45,8 @@ Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
 		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
 */
 
+#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 

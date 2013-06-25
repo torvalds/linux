@@ -37,6 +37,7 @@
  * Only simple analog output writing is supported.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"

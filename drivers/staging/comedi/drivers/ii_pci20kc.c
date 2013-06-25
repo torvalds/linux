@@ -77,6 +77,7 @@ options for PCI-20341M:
 	     3  200
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #define PCI20000_ID			0x1d

@@ -32,6 +32,8 @@ Configuration Options:
   comedi_config /dev/comedi0 dmm32at baseaddr,irq
 */
 
+#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 #include <linux/ioport.h>

@@ -41,6 +41,7 @@ Configuration options:
   [4] - D/A 1 range (same choices)
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 

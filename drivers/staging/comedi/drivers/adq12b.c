@@ -73,6 +73,9 @@ If you do not specify any options, they will default to
 
 */
 
+#include <linux/module.h>
+#include <linux/delay.h>
+
 #include "../comedidev.h"
 
 /* address scheme (page 2.17 of the manual) */

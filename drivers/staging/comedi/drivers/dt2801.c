@@ -29,6 +29,7 @@ Configuration options:
   [5] - D/A 1 range (same choices)
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 #include <linux/delay.h>
 #include <linux/ioport.h>

@@ -108,6 +108,7 @@
  *	   3= 20V unipolar inputs
  */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/gfp.h>
 #include "../comedidev.h"

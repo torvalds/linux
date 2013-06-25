@@ -47,6 +47,7 @@ Status: works
 Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 #include <linux/semaphore.h>
 

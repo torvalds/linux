@@ -48,6 +48,7 @@
  *   [1] - Do Simultaneous Xfer (see description)
  */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 /* AI range is not configurable, it's set by jumpers on the board */

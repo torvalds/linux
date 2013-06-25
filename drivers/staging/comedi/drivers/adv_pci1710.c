@@ -41,6 +41,7 @@ Configuration options:
 	device will be used.
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 

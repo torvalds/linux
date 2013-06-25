@@ -25,6 +25,7 @@
  *	   1,  96:  96 DIO configuration
  */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

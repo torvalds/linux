@@ -29,6 +29,7 @@ Configuration options:
 
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 

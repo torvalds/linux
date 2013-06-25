@@ -31,6 +31,7 @@
  * Configuration Options: not applicable, uses PCI auto config
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"

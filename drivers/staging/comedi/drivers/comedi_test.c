@@ -45,6 +45,7 @@ zero volts).
 
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <asm/div64.h>

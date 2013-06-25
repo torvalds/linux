@@ -72,6 +72,7 @@ Configuration Options:
 	leave out if you don't need this feature)
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 

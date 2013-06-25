@@ -25,6 +25,7 @@ Status: works
 Configuration Options: not applicable, uses comedi PCI auto config
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"

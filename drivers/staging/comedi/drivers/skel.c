@@ -67,6 +67,7 @@ Configuration Options:
  * options that are used with comedi_config.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"

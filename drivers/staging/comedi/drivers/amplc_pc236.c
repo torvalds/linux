@@ -47,6 +47,7 @@ the IRQ jumper.  If no interrupt is connected, then subdevice 1 is
 unused.
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 

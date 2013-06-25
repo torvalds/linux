@@ -33,6 +33,8 @@
  their cards in their manuals.
 */
 
+#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/mutex.h>
 
