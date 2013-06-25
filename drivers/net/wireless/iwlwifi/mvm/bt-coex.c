@@ -527,6 +527,8 @@ static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
 					lockdep_is_held(&mvm->mutex));
 	mvmsta = (void *)sta->drv_priv;
 
+	data->num_bss_ifaces++;
+
 	/*
 	 * This interface doesn't support reduced Tx power (because of low
 	 * RSSI probably), then set bt_kill_msk to default values.
