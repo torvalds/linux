@@ -361,7 +361,7 @@ static void trinity_gfx_powergating_initialize(struct radeon_device *rdev)
 	u32 p, u;
 	u32 value;
 	struct atom_clock_dividers dividers;
-	u32 xclk = sumo_get_xclk(rdev);
+	u32 xclk = radeon_get_xclk(rdev);
 	u32 sssd = 1;
 	int ret;
 	u32 hw_rev = (RREG32(HW_REV) & ATI_REV_ID_MASK) >> ATI_REV_ID_SHIFT;
@@ -880,7 +880,7 @@ static void trinity_setup_uvd_dpm_interval(struct radeon_device *rdev,
 	u32 p, u;
 	u32 tp = RREG32_SMC(PM_TP);
 	u32 val;
-	u32 xclk = sumo_get_xclk(rdev);
+	u32 xclk = radeon_get_xclk(rdev);
 
 	r600_calculate_u_and_p(interval, xclk, 16, &p, &u);
 
@@ -1000,7 +1000,7 @@ static void trinity_program_sclk_dpm(struct radeon_device *rdev)
 	u32 p, u;
 	u32 tp = RREG32_SMC(PM_TP);
 	u32 ni;
-	u32 xclk = sumo_get_xclk(rdev);
+	u32 xclk = radeon_get_xclk(rdev);
 	u32 value;
 
 	r600_calculate_u_and_p(400, xclk, 16, &p, &u);

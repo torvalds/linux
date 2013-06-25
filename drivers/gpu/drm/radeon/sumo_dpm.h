@@ -188,7 +188,6 @@ struct sumo_power_info {
 #define SUMO_GFXPOWERGATINGT_DFLT  100
 
 /* sumo_dpm.c */
-u32 sumo_get_xclk(struct radeon_device *rdev);
 void sumo_gfx_clockgating_initialize(struct radeon_device *rdev);
 void sumo_program_vc(struct radeon_device *rdev, u32 vrc);
 void sumo_clear_vc(struct radeon_device *rdev);

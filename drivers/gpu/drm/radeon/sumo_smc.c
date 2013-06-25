@@ -146,7 +146,7 @@ void sumo_enable_boost_timer(struct radeon_device *rdev)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
 	u32 period, unit, timer_value;
-	u32 xclk = sumo_get_xclk(rdev);
+	u32 xclk = radeon_get_xclk(rdev);
 
 	unit = (RREG32_RCU(RCU_LCLK_SCALING_CNTL) & LCLK_SCALING_TIMER_PRESCALER_MASK)
 		>> LCLK_SCALING_TIMER_PRESCALER_SHIFT;

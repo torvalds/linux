@@ -84,11 +84,6 @@ struct sumo_power_info *sumo_get_pi(struct radeon_device *rdev)
 	return pi;
 }
 
-u32 sumo_get_xclk(struct radeon_device *rdev)
-{
-	return rdev->clock.spll.reference_freq;
-}
-
 static void sumo_gfx_clockgating_enable(struct radeon_device *rdev, bool enable)
 {
 	if (enable)
@@ -124,7 +119,7 @@ static void sumo_mg_clockgating_enable(struct radeon_device *rdev, bool enable)
 static void sumo_program_git(struct radeon_device *rdev)
 {
 	u32 p, u;
-	u32 xclk = sumo_get_xclk(rdev);
+	u32 xclk = radeon_get_xclk(rdev);
 
 	r600_calculate_u_and_p(SUMO_GICST_DFLT,
 			       xclk, 16, &p, &u);
@@ -135,7 +130,7 @@ static void sumo_program_git(struct radeon_device *rdev)
 static void sumo_program_grsd(struct radeon_device *rdev)
 {
 	u32 p, u;
-	u32 xclk = sumo_get_xclk(rdev);
+	u32 xclk = radeon_get_xclk(rdev);
 	u32 grs = 256 * 25 / 100;
 
 	r600_calculate_u_and_p(1, xclk, 14, &p, &u);
@@ -155,7 +150,7 @@ static void sumo_gfx_powergating_initialize(struct radeon_device *rdev)
 	u32 p, u;
 	u32 p_c, p_p, d_p;
 	u32 r_t, i_t;
-	u32 xclk = sumo_get_xclk(rdev);
+	u32 xclk = radeon_get_xclk(rdev);
 
 	if (rdev->family == CHIP_PALM) {
 		p_c = 4;
@@ -319,7 +314,7 @@ static void sumo_calculate_bsp(struct radeon_device *rdev,
 			       u32 high_clk)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
-	u32 xclk = sumo_get_xclk(rdev);
+	u32 xclk = radeon_get_xclk(rdev);
 
 	pi->pasi = 65535 * 100 / high_clk;
 	pi->asi = 65535 * 100 / high_clk;
@@ -466,7 +461,7 @@ void sumo_clear_vc(struct radeon_device *rdev)
 void sumo_program_sstp(struct radeon_device *rdev)
 {
 	u32 p, u;
-	u32 xclk = sumo_get_xclk(rdev);
+	u32 xclk = radeon_get_xclk(rdev);
 
 	r600_calculate_u_and_p(SUMO_SST_DFLT,
 			       xclk, 16, &p, &u);
@@ -909,7 +904,7 @@ static void sumo_start_am(struct radeon_device *rdev)
 
 static void sumo_program_ttp(struct radeon_device *rdev)
 {
-	u32 xclk = sumo_get_xclk(rdev);
+	u32 xclk = radeon_get_xclk(rdev);
 	u32 p, u;
 	u32 cg_sclk_dpm_ctrl_5 = RREG32(CG_SCLK_DPM_CTRL_5);
 
@@ -955,7 +950,7 @@ static void sumo_program_dc_hto(struct radeon_device *rdev)
 {
 	u32 cg_sclk_dpm_ctrl_4 = RREG32(CG_SCLK_DPM_CTRL_4);
 	u32 p, u;
-	u32 xclk = sumo_get_xclk(rdev);
+	u32 xclk = radeon_get_xclk(rdev);
 
 	r600_calculate_u_and_p(100000,
 			       xclk, 14, &p, &u);
