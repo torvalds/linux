@@ -853,6 +853,12 @@ const u32 nfs41_maxread_overhead = ((RPC_MAX_HEADER_WITH_AUTH +
 				     decode_sequence_maxsz +
 				     decode_putfh_maxsz) *
 				    XDR_UNIT);
+
+const u32 nfs41_maxgetdevinfo_overhead = ((RPC_MAX_REPHEADER_WITH_AUTH +
+					   compound_decode_hdr_maxsz +
+					   decode_sequence_maxsz) *
+					  XDR_UNIT);
+EXPORT_SYMBOL_GPL(nfs41_maxgetdevinfo_overhead);
 #endif /* CONFIG_NFS_V4_1 */
 
 static const umode_t nfs_type2fmt[] = {
@@ -1889,7 +1895,7 @@ encode_getdeviceinfo(struct xdr_stream *xdr,
 	p = xdr_encode_opaque_fixed(p, args->pdev->dev_id.data,
 				    NFS4_DEVICEID4_SIZE);
 	*p++ = cpu_to_be32(args->pdev->layout_type);
-	*p++ = cpu_to_be32(args->pdev->pglen);		/* gdia_maxcount */
+	*p++ = cpu_to_be32(args->pdev->maxcount);	/* gdia_maxcount */
 	*p++ = cpu_to_be32(0);				/* bitmap length 0 */
 }
 

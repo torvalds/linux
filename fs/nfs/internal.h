@@ -255,6 +255,7 @@ extern int nfs4_decode_dirent(struct xdr_stream *,
 #ifdef CONFIG_NFS_V4_1
 extern const u32 nfs41_maxread_overhead;
 extern const u32 nfs41_maxwrite_overhead;
+extern const u32 nfs41_maxgetdevinfo_overhead;
 #endif
 
 /* nfs4proc.c */

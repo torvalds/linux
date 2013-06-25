@@ -711,6 +711,7 @@ filelayout_get_device_info(struct inode *inode,
 	pdev->pgbase = 0;
 	pdev->pglen = max_resp_sz;
 	pdev->mincount = 0;
+	pdev->maxcount = max_resp_sz - nfs41_maxgetdevinfo_overhead;
 
 	rc = nfs4_proc_getdeviceinfo(server, pdev, cred);
 	dprintk("%s getdevice info returns %d\n", __func__, rc);

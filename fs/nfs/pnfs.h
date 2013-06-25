@@ -149,9 +149,10 @@ struct pnfs_device {
 	struct nfs4_deviceid dev_id;
 	unsigned int  layout_type;
 	unsigned int  mincount;
+	unsigned int  maxcount;	/* gdia_maxcount */
 	struct page **pages;
 	unsigned int  pgbase;
-	unsigned int  pglen;
+	unsigned int  pglen;	/* reply buffer length */
 };
 
 #define NFS4_PNFS_GETDEVLIST_MAXNUM 16
