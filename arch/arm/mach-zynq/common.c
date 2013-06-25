@@ -64,6 +64,8 @@ static void __init zynq_init_machine(void)
 static void __init zynq_timer_init(void)
 {
 	zynq_slcr_init();
+
+	zynq_clock_init(zynq_slcr_base);
 	clocksource_of_init();
 }
 

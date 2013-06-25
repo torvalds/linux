@@ -106,8 +106,6 @@ int __init zynq_slcr_init(void)
 
 	pr_info("%s mapped to %p\n", np->name, zynq_slcr_base);
 
-	zynq_clock_init(zynq_slcr_base);
-
 	of_node_put(np);
 
 	return 0;
