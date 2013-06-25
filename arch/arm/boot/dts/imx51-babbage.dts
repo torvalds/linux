@@ -108,6 +108,7 @@
 		#size-cells = <0>;
 		compatible = "fsl,mc13892";
 		spi-max-frequency = <6000000>;
+		spi-cs-high;
 		reg = <0>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <8 0x4>;
