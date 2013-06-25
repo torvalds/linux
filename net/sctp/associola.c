@@ -102,13 +102,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	sctp_bind_addr_init(&asoc->base.bind_addr, ep->base.bind_addr.port);
 
 	asoc->state = SCTP_STATE_CLOSED;
-
-	/* Set these values from the socket values, a conversion between
-	 * millsecons to seconds/microseconds must also be done.
-	 */
-	asoc->cookie_life.tv_sec = sp->assocparams.sasoc_cookie_life / 1000;
-	asoc->cookie_life.tv_usec = (sp->assocparams.sasoc_cookie_life % 1000)
-					* 1000;
+	asoc->cookie_life = ms_to_ktime(sp->assocparams.sasoc_cookie_life);
 	asoc->frag_point = 0;
 	asoc->user_frag = sp->user_frag;
 

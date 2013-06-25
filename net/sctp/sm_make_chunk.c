@@ -1630,8 +1630,8 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 	cookie->c.adaptation_ind = asoc->peer.adaptation_ind;
 
 	/* Set an expiration time for the cookie.  */
-	do_gettimeofday(&cookie->c.expiration);
-	TIMEVAL_ADD(asoc->cookie_life, cookie->c.expiration);
+	cookie->c.expiration = ktime_add(asoc->cookie_life,
+					 ktime_get());
 
 	/* Copy the peer's init packet.  */
 	memcpy(&cookie->c.peer_init[0], init_chunk->chunk_hdr,
@@ -1680,7 +1680,7 @@ struct sctp_association *sctp_unpack_cookie(
 	unsigned int len;
 	sctp_scope_t scope;
 	struct sk_buff *skb = chunk->skb;
-	struct timeval tv;
+	ktime_t kt;
 	struct hash_desc desc;
 
 	/* Header size is static data prior to the actual cookie, including
@@ -1757,11 +1757,11 @@ no_hmac:
 	 * down the new association establishment instead of every packet.
 	 */
 	if (sock_flag(ep->base.sk, SOCK_TIMESTAMP))
-		skb_get_timestamp(skb, &tv);
+		kt = skb_get_ktime(skb);
 	else
-		do_gettimeofday(&tv);
+		kt = ktime_get();
 
-	if (!asoc && tv_lt(bear_cookie->expiration, tv)) {
+	if (!asoc && ktime_compare(bear_cookie->expiration, kt) < 0) {
 		/*
 		 * Section 3.3.10.3 Stale Cookie Error (3)
 		 *
@@ -1773,9 +1773,7 @@ no_hmac:
 		len = ntohs(chunk->chunk_hdr->length);
 		*errp = sctp_make_op_error_space(asoc, chunk, len);
 		if (*errp) {
-			suseconds_t usecs = (tv.tv_sec -
-				bear_cookie->expiration.tv_sec) * 1000000L +
-				tv.tv_usec - bear_cookie->expiration.tv_usec;
+			suseconds_t usecs = ktime_to_us(ktime_sub(kt, bear_cookie->expiration));
 			__be32 n = htonl(usecs);
 
 			sctp_init_cause(*errp, SCTP_ERROR_STALE_COOKIE,
@@ -2514,8 +2512,7 @@ do_addr_param:
 		/* Suggested Cookie Life span increment's unit is msec,
 		 * (1/1000sec).
 		 */
-		asoc->cookie_life.tv_sec += stale / 1000;
-		asoc->cookie_life.tv_usec += (stale % 1000) * 1000;
+		asoc->cookie_life = ktime_add_ms(asoc->cookie_life, stale);
 		break;
 
 	case SCTP_PARAM_HOST_NAME_ADDRESS:

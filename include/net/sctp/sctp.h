@@ -560,24 +560,6 @@ for (pos = chunk->subh.fwdtsn_hdr->skip;\
 /* Round an int up to the next multiple of 4.  */
 #define WORD_ROUND(s) (((s)+3)&~3)
 
-/* Compare two timevals.  */
-#define tv_lt(s, t) \
-   (s.tv_sec < t.tv_sec || (s.tv_sec == t.tv_sec && s.tv_usec < t.tv_usec))
-
-/* Add tv1 to tv2. */
-#define TIMEVAL_ADD(tv1, tv2) \
-({ \
-        suseconds_t usecs = (tv2).tv_usec + (tv1).tv_usec; \
-        time_t secs = (tv2).tv_sec + (tv1).tv_sec; \
-\
-        if (usecs >= 1000000) { \
-                usecs -= 1000000; \
-                secs++; \
-        } \
-        (tv2).tv_sec = secs; \
-        (tv2).tv_usec = usecs; \
-})
-
 /* External references. */
 
 extern struct proto sctp_prot;
