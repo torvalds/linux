@@ -9128,6 +9128,7 @@ int intel_framebuffer_init(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
 			   struct drm_i915_gem_object *obj)
 {
+	int pitch_limit;
 	int ret;
 
 	if (obj->tiling_mode == I915_TILING_Y) {
@@ -9141,10 +9142,26 @@ int intel_framebuffer_init(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	/* FIXME <= Gen4 stride limits are bit unclear */
-	if (mode_cmd->pitches[0] > 32768) {
-		DRM_DEBUG("pitch (%d) must be at less than 32768\n",
-			  mode_cmd->pitches[0]);
+	if (INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev)) {
+		pitch_limit = 32*1024;
+	} else if (INTEL_INFO(dev)->gen >= 4) {
+		if (obj->tiling_mode)
+			pitch_limit = 16*1024;
+		else
+			pitch_limit = 32*1024;
+	} else if (INTEL_INFO(dev)->gen >= 3) {
+		if (obj->tiling_mode)
+			pitch_limit = 8*1024;
+		else
+			pitch_limit = 16*1024;
+	} else
+		/* XXX DSPC is limited to 4k tiled */
+		pitch_limit = 8*1024;
+
+	if (mode_cmd->pitches[0] > pitch_limit) {
+		DRM_DEBUG("%s pitch (%d) must be at less than %d\n",
+			  obj->tiling_mode ? "tiled" : "linear",
+			  mode_cmd->pitches[0], pitch_limit);
 		return -EINVAL;
 	}
 
