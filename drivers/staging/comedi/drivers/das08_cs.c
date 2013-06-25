@@ -40,7 +40,6 @@ Command support does not exist, but could be added for this board.
 */
 
 #include <linux/module.h>
-#include <linux/delay.h>
 
 #include "../comedidev.h"
 

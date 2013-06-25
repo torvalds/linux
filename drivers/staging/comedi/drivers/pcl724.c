@@ -28,8 +28,6 @@
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#include <linux/delay.h>
-
 #include "8255.h"
 
 #define SIZE_8255	4

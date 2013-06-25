@@ -31,8 +31,6 @@ Copy/pasted/hacked from pcm724.c
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#include <linux/delay.h>
-
 #include "8255.h"
 
 #define PCM3724_SIZE   16

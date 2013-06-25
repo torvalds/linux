@@ -23,7 +23,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/fcntl.h>
-#include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/slab.h>

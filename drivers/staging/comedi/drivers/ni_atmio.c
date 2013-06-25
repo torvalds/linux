@@ -93,7 +93,6 @@ are not supported.
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#include <linux/delay.h>
 #include <linux/isapnp.h>
 
 #include "ni_stc.h"
