@@ -1718,14 +1718,13 @@
 					 GEN7_CXT_EXTENDED_SIZE(ctx_reg) + \
 					 GEN7_CXT_GT1_SIZE(ctx_reg) + \
 					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
-#define HSW_CXT_POWER_SIZE(ctx_reg)	((ctx_reg >> 26) & 0x3f)
-#define HSW_CXT_RING_SIZE(ctx_reg)	((ctx_reg >> 23) & 0x7)
-#define HSW_CXT_RENDER_SIZE(ctx_reg)	((ctx_reg >> 15) & 0xff)
-#define HSW_CXT_TOTAL_SIZE(ctx_reg)	(HSW_CXT_POWER_SIZE(ctx_reg) + \
-					 HSW_CXT_RING_SIZE(ctx_reg) + \
-					 HSW_CXT_RENDER_SIZE(ctx_reg) + \
-					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
-
+/* Haswell does have the CXT_SIZE register however it does not appear to be
+ * valid. Now, docs explain in dwords what is in the context object. The full
+ * size is 70720 bytes, however, the power context and execlist context will
+ * never be saved (power context is stored elsewhere, and execlists don't work
+ * on HSW) - so the final size is 66944 bytes, which rounds to 17 pages.
+ */
+#define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
 
 /*
  * Overlay regs
