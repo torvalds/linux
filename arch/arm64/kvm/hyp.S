@@ -36,9 +36,6 @@
 	.pushsection	.hyp.text, "ax"
 	.align	PAGE_SHIFT
 
-__kvm_hyp_code_start:
-	.globl __kvm_hyp_code_start
-
 .macro save_common_regs
 	// x2: base address for cpu context
 	// x3: tmp register
@@ -879,8 +876,5 @@ ENTRY(__kvm_hyp_vector)
 	ventry	el1_fiq_invalid			// FIQ 32-bit EL1
 	ventry	el1_error_invalid		// Error 32-bit EL1
 ENDPROC(__kvm_hyp_vector)
-
-__kvm_hyp_code_end:
-	.globl	__kvm_hyp_code_end
 
 	.popsection
