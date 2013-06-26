@@ -2298,8 +2298,7 @@ EXPORT_SYMBOL_GPL(mwifiex_del_virtual_intf);
 
 #ifdef CONFIG_PM
 static bool
-mwifiex_is_pattern_supported(struct cfg80211_wowlan_trig_pkt_pattern *pat,
-			     s8 *byte_seq)
+mwifiex_is_pattern_supported(struct cfg80211_pkt_pattern *pat, s8 *byte_seq)
 {
 	int j, k, valid_byte_cnt = 0;
 	bool dont_care_byte = false;

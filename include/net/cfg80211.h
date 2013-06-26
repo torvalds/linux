@@ -1698,7 +1698,7 @@ struct cfg80211_pmksa {
 };
 
 /**
- * struct cfg80211_wowlan_trig_pkt_pattern - packet pattern
+ * struct cfg80211_pkt_pattern - packet pattern
  * @mask: bitmask where to match pattern and where to ignore bytes,
  *	one bit per byte, in same format as nl80211
  * @pattern: bytes to match where bitmask is 1
@@ -1708,7 +1708,7 @@ struct cfg80211_pmksa {
  * Internal note: @mask and @pattern are allocated in one chunk of
  * memory, free @mask only!
  */
-struct cfg80211_wowlan_trig_pkt_pattern {
+struct cfg80211_pkt_pattern {
 	u8 *mask, *pattern;
 	int pattern_len;
 	int pkt_offset;
@@ -1770,7 +1770,7 @@ struct cfg80211_wowlan {
 	bool any, disconnect, magic_pkt, gtk_rekey_failure,
 	     eap_identity_req, four_way_handshake,
 	     rfkill_release;
-	struct cfg80211_wowlan_trig_pkt_pattern *patterns;
+	struct cfg80211_pkt_pattern *patterns;
 	struct cfg80211_wowlan_tcp *tcp;
 	int n_patterns;
 };

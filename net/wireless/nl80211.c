@@ -974,7 +974,7 @@ static int nl80211_send_wowlan(struct sk_buff *msg,
 		return -ENOBUFS;
 
 	if (dev->wiphy.wowlan->n_patterns) {
-		struct nl80211_wowlan_pattern_support pat = {
+		struct nl80211_pattern_support pat = {
 			.max_patterns = dev->wiphy.wowlan->n_patterns,
 			.min_pattern_len = dev->wiphy.wowlan->pattern_min_len,
 			.max_pattern_len = dev->wiphy.wowlan->pattern_max_len,
@@ -7591,12 +7591,11 @@ static int nl80211_send_wowlan_patterns(struct sk_buff *msg,
 		if (!nl_pat)
 			return -ENOBUFS;
 		pat_len = wowlan->patterns[i].pattern_len;
-		if (nla_put(msg, NL80211_WOWLAN_PKTPAT_MASK,
-			    DIV_ROUND_UP(pat_len, 8),
+		if (nla_put(msg, NL80211_PKTPAT_MASK, DIV_ROUND_UP(pat_len, 8),
 			    wowlan->patterns[i].mask) ||
-		    nla_put(msg, NL80211_WOWLAN_PKTPAT_PATTERN,
-			    pat_len, wowlan->patterns[i].pattern) ||
-		    nla_put_u32(msg, NL80211_WOWLAN_PKTPAT_OFFSET,
+		    nla_put(msg, NL80211_PKTPAT_PATTERN, pat_len,
+			    wowlan->patterns[i].pattern) ||
+		    nla_put_u32(msg, NL80211_PKTPAT_OFFSET,
 				wowlan->patterns[i].pkt_offset))
 			return -ENOBUFS;
 		nla_nest_end(msg, nl_pat);
@@ -7937,7 +7936,7 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 		struct nlattr *pat;
 		int n_patterns = 0;
 		int rem, pat_len, mask_len, pkt_offset;
-		struct nlattr *pat_tb[NUM_NL80211_WOWLAN_PKTPAT];
+		struct nlattr *pat_tb[NUM_NL80211_PKTPAT];
 
 		nla_for_each_nested(pat, tb[NL80211_WOWLAN_TRIG_PKT_PATTERN],
 				    rem)
@@ -7956,26 +7955,25 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 
 		nla_for_each_nested(pat, tb[NL80211_WOWLAN_TRIG_PKT_PATTERN],
 				    rem) {
-			nla_parse(pat_tb, MAX_NL80211_WOWLAN_PKTPAT,
-				  nla_data(pat), nla_len(pat), NULL);
+			nla_parse(pat_tb, MAX_NL80211_PKTPAT, nla_data(pat),
+				  nla_len(pat), NULL);
 			err = -EINVAL;
-			if (!pat_tb[NL80211_WOWLAN_PKTPAT_MASK] ||
-			    !pat_tb[NL80211_WOWLAN_PKTPAT_PATTERN])
+			if (!pat_tb[NL80211_PKTPAT_MASK] ||
+			    !pat_tb[NL80211_PKTPAT_PATTERN])
 				goto error;
-			pat_len = nla_len(pat_tb[NL80211_WOWLAN_PKTPAT_PATTERN]);
+			pat_len = nla_len(pat_tb[NL80211_PKTPAT_PATTERN]);
 			mask_len = DIV_ROUND_UP(pat_len, 8);
-			if (nla_len(pat_tb[NL80211_WOWLAN_PKTPAT_MASK]) !=
-			    mask_len)
+			if (nla_len(pat_tb[NL80211_PKTPAT_MASK]) != mask_len)
 				goto error;
 			if (pat_len > wowlan->pattern_max_len ||
 			    pat_len < wowlan->pattern_min_len)
 				goto error;
 
-			if (!pat_tb[NL80211_WOWLAN_PKTPAT_OFFSET])
+			if (!pat_tb[NL80211_PKTPAT_OFFSET])
 				pkt_offset = 0;
 			else
 				pkt_offset = nla_get_u32(
-					pat_tb[NL80211_WOWLAN_PKTPAT_OFFSET]);
+					pat_tb[NL80211_PKTPAT_OFFSET]);
 			if (pkt_offset > wowlan->max_pkt_offset)
 				goto error;
 			new_triggers.patterns[i].pkt_offset = pkt_offset;
@@ -7989,11 +7987,11 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 			new_triggers.patterns[i].pattern =
 				new_triggers.patterns[i].mask + mask_len;
 			memcpy(new_triggers.patterns[i].mask,
-			       nla_data(pat_tb[NL80211_WOWLAN_PKTPAT_MASK]),
+			       nla_data(pat_tb[NL80211_PKTPAT_MASK]),
 			       mask_len);
 			new_triggers.patterns[i].pattern_len = pat_len;
 			memcpy(new_triggers.patterns[i].pattern,
-			       nla_data(pat_tb[NL80211_WOWLAN_PKTPAT_PATTERN]),
+			       nla_data(pat_tb[NL80211_PKTPAT_PATTERN]),
 			       pat_len);
 			i++;
 		}
