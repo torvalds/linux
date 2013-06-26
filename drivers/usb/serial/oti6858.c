@@ -411,9 +411,6 @@ static void oti6858_set_termios(struct tty_struct *tty,
 	__le16 divisor;
 	int br;
 
-	if (!tty)
-		return;
-
 	cflag = tty->termios.c_cflag;
 
 	spin_lock_irqsave(&priv->lock, flags);
