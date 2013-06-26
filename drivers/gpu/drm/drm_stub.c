@@ -203,7 +203,7 @@ EXPORT_SYMBOL(drm_master_put);
 int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
-	int ret;
+	int ret = 0;
 
 	if (file_priv->is_master)
 		return 0;
@@ -229,7 +229,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	}
 	mutex_unlock(&dev->struct_mutex);
 
-	return 0;
+	return ret;
 }
 
 int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
