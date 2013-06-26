@@ -147,7 +147,7 @@ void ceph_adjust_min_caps(struct ceph_mds_client *mdsc, int delta)
 	spin_unlock(&mdsc->caps_list_lock);
 }
 
-int ceph_reserve_caps(struct ceph_mds_client *mdsc,
+void ceph_reserve_caps(struct ceph_mds_client *mdsc,
 		      struct ceph_cap_reservation *ctx, int need)
 {
 	int i;
@@ -155,7 +155,6 @@ int ceph_reserve_caps(struct ceph_mds_client *mdsc,
 	int have;
 	int alloc = 0;
 	LIST_HEAD(newcaps);
-	int ret = 0;
 
 	dout("reserve caps ctx=%p need=%d\n", ctx, need);
 
@@ -174,14 +173,15 @@ int ceph_reserve_caps(struct ceph_mds_client *mdsc,
 
 	for (i = have; i < need; i++) {
 		cap = kmem_cache_alloc(ceph_cap_cachep, GFP_NOFS);
-		if (!cap) {
-			ret = -ENOMEM;
-			goto out_alloc_count;
-		}
+		if (!cap)
+			break;
 		list_add(&cap->caps_item, &newcaps);
 		alloc++;
 	}
-	BUG_ON(have + alloc != need);
+	/* we didn't manage to reserve as much as we needed */
+	if (have + alloc != need)
+		pr_warn("reserve caps ctx=%p ENOMEM need=%d got=%d\n",
+			ctx, need, have + alloc);
 
 	spin_lock(&mdsc->caps_list_lock);
 	mdsc->caps_total_count += alloc;
@@ -197,13 +197,6 @@ int ceph_reserve_caps(struct ceph_mds_client *mdsc,
 	dout("reserve caps ctx=%p %d = %d used + %d resv + %d avail\n",
 	     ctx, mdsc->caps_total_count, mdsc->caps_use_count,
 	     mdsc->caps_reserve_count, mdsc->caps_avail_count);
-	return 0;
-
-out_alloc_count:
-	/* we didn't manage to reserve as much as we needed */
-	pr_warning("reserve caps ctx=%p ENOMEM need=%d got=%d\n",
-		   ctx, need, have);
-	return ret;
 }
 
 int ceph_unreserve_caps(struct ceph_mds_client *mdsc,
