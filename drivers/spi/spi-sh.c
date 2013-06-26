@@ -434,7 +434,7 @@ static irqreturn_t spi_sh_irq(int irq, void *_ss)
 
 static int spi_sh_remove(struct platform_device *pdev)
 {
-	struct spi_sh_data *ss = dev_get_drvdata(&pdev->dev);
+	struct spi_sh_data *ss = platform_get_drvdata(pdev);
 
 	spi_unregister_master(ss->master);
 	destroy_workqueue(ss->workqueue);
@@ -471,7 +471,7 @@ static int spi_sh_probe(struct platform_device *pdev)
 	}
 
 	ss = spi_master_get_devdata(master);
-	dev_set_drvdata(&pdev->dev, ss);
+	platform_set_drvdata(pdev, ss);
 
 	switch (res->flags & IORESOURCE_MEM_TYPE_MASK) {
 	case IORESOURCE_MEM_8BIT:

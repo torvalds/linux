@@ -864,7 +864,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	dev_set_drvdata(&pdev->dev, master);
+	platform_set_drvdata(pdev, master);
 
 	dspi = spi_master_get_devdata(master);
 	if (dspi == NULL) {
@@ -1044,7 +1044,7 @@ static int davinci_spi_remove(struct platform_device *pdev)
 	struct spi_master *master;
 	struct resource *r;
 
-	master = dev_get_drvdata(&pdev->dev);
+	master = platform_get_drvdata(pdev);
 	dspi = spi_master_get_devdata(master);
 
 	spi_bitbang_stop(&dspi->bitbang);

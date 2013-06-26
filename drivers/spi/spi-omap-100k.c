@@ -502,7 +502,7 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 	master->mode_bits = MODEBITS;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 
-	dev_set_drvdata(&pdev->dev, master);
+	platform_set_drvdata(pdev, master);
 
 	spi100k = spi_master_get_devdata(master);
 	spi100k->master = master;
@@ -561,7 +561,7 @@ static int omap1_spi100k_remove(struct platform_device *pdev)
 	unsigned long		flags;
 	int			status = 0;
 
-	master = dev_get_drvdata(&pdev->dev);
+	master = platform_get_drvdata(pdev);
 	spi100k = spi_master_get_devdata(master);
 
 	spin_lock_irqsave(&spi100k->lock, flags);

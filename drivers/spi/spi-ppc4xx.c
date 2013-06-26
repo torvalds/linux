@@ -394,7 +394,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	if (master == NULL)
 		return -ENOMEM;
 	master->dev.of_node = np;
-	dev_set_drvdata(dev, master);
+	platform_set_drvdata(op, master);
 	hw = spi_master_get_devdata(master);
 	hw->master = spi_master_get(master);
 	hw->dev = dev;
@@ -542,7 +542,6 @@ request_mem_error:
 free_gpios:
 	free_gpios(hw);
 free_master:
-	dev_set_drvdata(dev, NULL);
 	spi_master_put(master);
 
 	dev_err(dev, "initialization failed\n");
@@ -551,11 +550,10 @@ free_master:
 
 static int spi_ppc4xx_of_remove(struct platform_device *op)
 {
-	struct spi_master *master = dev_get_drvdata(&op->dev);
+	struct spi_master *master = platform_get_drvdata(op);
 	struct ppc4xx_spi *hw = spi_master_get_devdata(master);
 
 	spi_bitbang_stop(&hw->bitbang);
-	dev_set_drvdata(&op->dev, NULL);
 	release_mem_region(hw->mapbase, hw->mapsize);
 	free_irq(hw->irqnum, hw);
 	iounmap(hw->regs);

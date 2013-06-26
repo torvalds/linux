@@ -853,7 +853,7 @@ err:
 
 static int of_fsl_spi_remove(struct platform_device *ofdev)
 {
-	struct spi_master *master = dev_get_drvdata(&ofdev->dev);
+	struct spi_master *master = platform_get_drvdata(ofdev);
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(master);
 	int ret;
 
