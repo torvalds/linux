@@ -226,7 +226,6 @@ struct bonding {
 	rwlock_t lock;
 	rwlock_t curr_slave_lock;
 	u8	 send_peer_notif;
-	s8	 setup_by_slave;
 	u8       igmp_retrans;
 #ifdef CONFIG_PROC_FS
 	struct   proc_dir_entry *proc_entry;
