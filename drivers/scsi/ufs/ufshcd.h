@@ -139,7 +139,7 @@ struct ufshcd_lrb {
  * @ufshcd_tm_wait_queue: wait queue for task management
  * @tm_condition: condition variable for task management
  * @ufshcd_state: UFSHCD states
- * @int_enable_mask: Interrupt Mask Bits
+ * @intr_mask: Interrupt Mask Bits
  * @uic_workq: Work queue for UIC completion handling
  * @feh_workq: Work queue for fatal controller error handling
  * @errors: HBA errors
@@ -176,7 +176,7 @@ struct ufs_hba {
 	unsigned long tm_condition;
 
 	u32 ufshcd_state;
-	u32 int_enable_mask;
+	u32 intr_mask;
 
 	/* Work Queues */
 	struct work_struct uic_workq;
