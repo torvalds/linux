@@ -443,7 +443,6 @@ static int tower_release (struct inode *inode, struct file *file)
 	dev = file->private_data;
 
 	if (dev == NULL) {
-		dbg(1, "%s: object is NULL", __func__);
 		retval = -ENODEV;
 		goto exit_nolock;
 	}
@@ -455,7 +454,8 @@ static int tower_release (struct inode *inode, struct file *file)
 	}
 
 	if (dev->open_count != 1) {
-		dbg(1, "%s: device not opened exactly once", __func__);
+		dev_dbg(&dev->udev->dev, "%s: device not opened exactly once\n",
+			__func__);
 		retval = -ENODEV;
 		goto unlock_exit;
 	}
@@ -491,10 +491,8 @@ exit_nolock:
  */
 static void tower_abort_transfers (struct lego_usb_tower *dev)
 {
-	if (dev == NULL) {
-		dbg(1, "%s: dev is null", __func__);
+	if (dev == NULL)
 		return;
-	}
 
 	/* shutdown transfer */
 	if (dev->interrupt_in_running) {
@@ -594,7 +592,7 @@ static ssize_t tower_read (struct file *file, char __user *buffer, size_t count,
 
 	/* verify that we actually have some data to read */
 	if (count == 0) {
-		dbg(1, "%s: read request of 0 bytes", __func__);
+		dev_dbg(&dev->udev->dev, "read request of 0 bytes\n");
 		goto unlock_exit;
 	}
 
@@ -680,7 +678,7 @@ static ssize_t tower_write (struct file *file, const char __user *buffer, size_t
 
 	/* verify that we actually have some data to write */
 	if (count == 0) {
-		dbg(1, "%s: write request of 0 bytes", __func__);
+		dev_dbg(&dev->udev->dev, "write request of 0 bytes\n");
 		goto unlock_exit;
 	}
 
@@ -698,7 +696,8 @@ static ssize_t tower_write (struct file *file, const char __user *buffer, size_t
 
 	/* write the data into interrupt_out_buffer from userspace */
 	bytes_to_write = min_t(int, count, write_buffer_size);
-	dbg(4, "%s: count = %Zd, bytes_to_write = %Zd", __func__, count, bytes_to_write);
+	dev_dbg(&dev->udev->dev, "%s: count = %Zd, bytes_to_write = %Zd\n",
+		__func__, count, bytes_to_write);
 
 	if (copy_from_user (dev->interrupt_out_buffer, buffer, bytes_to_write)) {
 		retval = -EFAULT;
@@ -753,7 +752,9 @@ static void tower_interrupt_in_callback (struct urb *urb)
 		    status == -ESHUTDOWN) {
 			goto exit;
 		} else {
-			dbg(1, "%s: nonzero status received: %d", __func__, status);
+			dev_dbg(&dev->udev->dev,
+				"%s: nonzero status received: %d\n", __func__,
+				status);
 			goto resubmit; /* maybe we can recover */
 		}
 	}
@@ -766,7 +767,8 @@ static void tower_interrupt_in_callback (struct urb *urb)
 				urb->actual_length);
 			dev->read_buffer_length += urb->actual_length;
 			dev->read_last_arrival = jiffies;
-			dbg(3, "%s: received %d bytes", __func__, urb->actual_length);
+			dev_dbg(&dev->udev->dev, "%s: received %d bytes\n",
+				__func__, urb->actual_length);
 		} else {
 			printk(KERN_WARNING "%s: read_buffer overflow, %d bytes dropped", __func__, urb->actual_length);
 		}
@@ -805,8 +807,9 @@ static void tower_interrupt_out_callback (struct urb *urb)
 	if (status && !(status == -ENOENT ||
 			status == -ECONNRESET ||
 			status == -ESHUTDOWN)) {
-		dbg(1, "%s - nonzero write bulk status received: %d",
-		    __func__, status);
+		dev_dbg(&dev->udev->dev,
+			"%s: nonzero write bulk status received: %d\n", __func__,
+			status);
 	}
 
 	dev->interrupt_out_busy = 0;
