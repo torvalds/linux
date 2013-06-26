@@ -4712,6 +4712,27 @@ static void intel_get_pipe_timings(struct intel_crtc *crtc,
 	pipe_config->requested_mode.hdisplay = ((tmp >> 16) & 0xffff) + 1;
 }
 
+static void intel_crtc_mode_from_pipe_config(struct intel_crtc *intel_crtc,
+					     struct intel_crtc_config *pipe_config)
+{
+	struct drm_crtc *crtc = &intel_crtc->base;
+
+	crtc->mode.hdisplay = pipe_config->adjusted_mode.crtc_hdisplay;
+	crtc->mode.htotal = pipe_config->adjusted_mode.crtc_htotal;
+	crtc->mode.hsync_start = pipe_config->adjusted_mode.crtc_hsync_start;
+	crtc->mode.hsync_end = pipe_config->adjusted_mode.crtc_hsync_end;
+
+	crtc->mode.vdisplay = pipe_config->adjusted_mode.crtc_vdisplay;
+	crtc->mode.vtotal = pipe_config->adjusted_mode.crtc_vtotal;
+	crtc->mode.vsync_start = pipe_config->adjusted_mode.crtc_vsync_start;
+	crtc->mode.vsync_end = pipe_config->adjusted_mode.crtc_vsync_end;
+
+	crtc->mode.flags = pipe_config->adjusted_mode.flags;
+
+	crtc->mode.clock = pipe_config->adjusted_mode.clock;
+	crtc->mode.flags |= pipe_config->adjusted_mode.flags;
+}
+
 static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
@@ -9985,6 +10006,22 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	int i;
 
 	intel_modeset_readout_hw_state(dev);
+
+	/*
+	 * Now that we have the config, copy it to each CRTC struct
+	 * Note that this could go away if we move to using crtc_config
+	 * checking everywhere.
+	 */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
+			    base.head) {
+		if (crtc->active && i915_fastboot) {
+			intel_crtc_mode_from_pipe_config(crtc, &crtc->config);
+
+			DRM_DEBUG_KMS("[CRTC:%d] found active mode: ",
+				      crtc->base.base.id);
+			drm_mode_debug_printmodeline(&crtc->base.mode);
+		}
+	}
 
 	/* HW state is read out, now we need to sanitize this mess. */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
