@@ -130,6 +130,21 @@ static void drm_gem_map_detach(struct dma_buf *dma_buf,
 	attach->priv = NULL;
 }
 
+static void drm_prime_remove_buf_handle_locked(
+		struct drm_prime_file_private *prime_fpriv,
+		struct dma_buf *dma_buf)
+{
+	struct drm_prime_member *member, *safe;
+
+	list_for_each_entry_safe(member, safe, &prime_fpriv->head, entry) {
+		if (member->dma_buf == dma_buf) {
+			dma_buf_put(dma_buf);
+			list_del(&member->entry);
+			kfree(member);
+		}
+	}
+}
+
 static struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 		enum dma_data_direction dir)
 {
@@ -321,15 +336,25 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 	if (ret)
 		goto fail_put_dmabuf;
 
-	*prime_fd = dma_buf_fd(buf, flags);
+	ret = dma_buf_fd(buf, flags);
+	if (ret < 0)
+		goto fail_rm_handle;
+
+	*prime_fd = ret;
 	mutex_unlock(&file_priv->prime.lock);
 	return 0;
 
 out_have_obj:
 	get_dma_buf(dmabuf);
-	*prime_fd = dma_buf_fd(dmabuf, flags);
+	ret = dma_buf_fd(dmabuf, flags);
+	if (ret < 0)
+		dma_buf_put(dmabuf);
+	else
+		*prime_fd = ret;
 	goto out;
 
+fail_rm_handle:
+	drm_prime_remove_buf_handle_locked(&file_priv->prime, buf);
 fail_put_dmabuf:
 	/* clear NOT to be checked when releasing dma_buf */
 	obj->export_dma_buf = NULL;
@@ -600,16 +625,8 @@ EXPORT_SYMBOL(drm_prime_lookup_buf_handle);
 
 void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf)
 {
-	struct drm_prime_member *member, *safe;
-
 	mutex_lock(&prime_fpriv->lock);
-	list_for_each_entry_safe(member, safe, &prime_fpriv->head, entry) {
-		if (member->dma_buf == dma_buf) {
-			dma_buf_put(dma_buf);
-			list_del(&member->entry);
-			kfree(member);
-		}
-	}
+	drm_prime_remove_buf_handle_locked(prime_fpriv, dma_buf);
 	mutex_unlock(&prime_fpriv->lock);
 }
 EXPORT_SYMBOL(drm_prime_remove_buf_handle);
