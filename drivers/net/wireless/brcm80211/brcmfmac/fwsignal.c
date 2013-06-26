@@ -1707,37 +1707,6 @@ static int brcmf_fws_borrow_credit(struct brcmf_fws_info *fws)
 	return -ENAVAIL;
 }
 
-static int brcmf_fws_consume_credit(struct brcmf_fws_info *fws, int fifo,
-				    struct sk_buff *skb)
-{
-	struct brcmf_fws_mac_descriptor *entry = brcmf_skbcb(skb)->mac;
-	int *credit = &fws->fifo_credit[fifo];
-
-	if (fifo != BRCMF_FWS_FIFO_AC_BE)
-		fws->borrow_defer_timestamp = jiffies +
-					      BRCMF_FWS_BORROW_DEFER_PERIOD;
-
-	if (!(*credit)) {
-		/* Try to borrow a credit from other queue */
-		if (fifo != BRCMF_FWS_FIFO_AC_BE ||
-		    (brcmf_fws_borrow_credit(fws) != 0)) {
-			brcmf_dbg(DATA, "ac=%d, credits depleted\n", fifo);
-			return -ENAVAIL;
-		}
-	} else {
-		(*credit)--;
-		if (!(*credit))
-			fws->fifo_credit_map &= ~(1 << fifo);
-	}
-
-	brcmf_fws_macdesc_use_req_credit(entry, skb);
-
-	brcmf_dbg(DATA, "ac=%d, credits=%02d:%02d:%02d:%02d\n", fifo,
-		  fws->fifo_credit[0], fws->fifo_credit[1],
-		  fws->fifo_credit[2], fws->fifo_credit[3]);
-	return 0;
-}
-
 static int brcmf_fws_commit_skb(struct brcmf_fws_info *fws, int fifo,
 				struct sk_buff *skb)
 {
@@ -1819,25 +1788,12 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 		  eh->h_dest, multicast, fifo);
 
 	brcmf_fws_lock(drvr, flags);
-	/* multicast credit support is conditional, setting
-	 * flag to false to assure credit is consumed below.
-	 */
-	if (fws->bcmc_credit_check)
-		multicast = false;
-
-	if (skcb->mac->suppressed ||
-	    fws->bus_flow_blocked ||
-	    brcmf_fws_macdesc_closed(fws, skcb->mac, fifo) ||
-	    brcmu_pktq_mlen(&skcb->mac->psq, 3 << (fifo * 2)) ||
-	    (!multicast &&
-	     brcmf_fws_consume_credit(fws, fifo, skb) < 0)) {
-		/* enqueue the packet in delayQ */
-		drvr->fws->fifo_delay_map |= 1 << fifo;
-		brcmf_fws_enq(fws, BRCMF_FWS_SKBSTATE_DELAYED, fifo, skb);
-	} else {
-		brcmf_fws_commit_skb(fws, fifo, skb);
-	}
+	brcmf_fws_enq(fws, BRCMF_FWS_SKBSTATE_DELAYED, fifo, skb);
+	if (fifo != BRCMF_FWS_FIFO_AC_BE && fifo < BRCMF_FWS_FIFO_BCMC)
+		fws->borrow_defer_timestamp = jiffies +
+					      BRCMF_FWS_BORROW_DEFER_PERIOD;
 	brcmf_fws_unlock(drvr, flags);
+	brcmf_fws_schedule_deq(fws);
 	return 0;
 }
 
