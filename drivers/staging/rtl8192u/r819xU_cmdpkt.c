@@ -61,7 +61,7 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	tcb_desc->txbuf_size = (u16)DataLen;
 
 	if (!priv->ieee80211->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
-			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||\
+			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||
 			(priv->ieee80211->queue_stop)) {
 			RT_TRACE(COMP_FIRMWARE, "===================NULL packet==================================> tx full!\n");
 			skb_queue_tail(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index], skb);
@@ -152,7 +152,7 @@ extern rt_status cmpk_message_handle_tx(struct net_device *dev,
 
 
 		if (!priv->ieee80211->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
-			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||\
+			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||
 			(priv->ieee80211->queue_stop)) {
 			RT_TRACE(COMP_FIRMWARE, "=====================================================> tx full!\n");
 			skb_queue_tail(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index], skb);
