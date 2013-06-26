@@ -5347,7 +5347,7 @@ static struct notifier_block pvclock_gtod_notifier = {
 int kvm_arch_init(void *opaque)
 {
 	int r;
-	struct kvm_x86_ops *ops = (struct kvm_x86_ops *)opaque;
+	struct kvm_x86_ops *ops = opaque;
 
 	if (kvm_x86_ops) {
 		printk(KERN_ERR "kvm: already loaded the other module\n");
