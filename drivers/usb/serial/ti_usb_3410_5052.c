@@ -141,20 +141,9 @@ static int ti_download_firmware(struct ti_device *tdev);
 
 /* module parameters */
 static int closing_wait = TI_DEFAULT_CLOSING_WAIT;
-static ushort vendor_3410[TI_EXTRA_VID_PID_COUNT];
-static unsigned int vendor_3410_count;
-static ushort product_3410[TI_EXTRA_VID_PID_COUNT];
-static unsigned int product_3410_count;
-static ushort vendor_5052[TI_EXTRA_VID_PID_COUNT];
-static unsigned int vendor_5052_count;
-static ushort product_5052[TI_EXTRA_VID_PID_COUNT];
-static unsigned int product_5052_count;
 
 /* supported devices */
-/* the array dimension is the number of default entries plus */
-/* TI_EXTRA_VID_PID_COUNT user defined entries plus 1 terminating */
-/* null entry */
-static struct usb_device_id ti_id_table_3410[15+TI_EXTRA_VID_PID_COUNT+1] = {
+static struct usb_device_id ti_id_table_3410[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
@@ -171,16 +160,18 @@ static struct usb_device_id ti_id_table_3410[15+TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_STEREO_PLUG_ID) },
 	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_STRIP_PORT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, FRI2_PRODUCT_ID) },
+	{ }	/* terminator */
 };
 
-static struct usb_device_id ti_id_table_5052[5+TI_EXTRA_VID_PID_COUNT+1] = {
+static struct usb_device_id ti_id_table_5052[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5152_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_EEPROM_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_FIRMWARE_PRODUCT_ID) },
+	{ }	/* terminator */
 };
 
-static struct usb_device_id ti_id_table_combined[19+2*TI_EXTRA_VID_PID_COUNT+1] = {
+static struct usb_device_id ti_id_table_combined[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
@@ -200,7 +191,7 @@ static struct usb_device_id ti_id_table_combined[19+2*TI_EXTRA_VID_PID_COUNT+1] 
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454C_PRODUCT_ID) },
 	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, FRI2_PRODUCT_ID) },
-	{ }
+	{ }	/* terminator */
 };
 
 static struct usb_serial_driver ti_1port_device = {
@@ -289,60 +280,11 @@ module_param(closing_wait, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(closing_wait,
     "Maximum wait for data to drain in close, in .01 secs, default is 4000");
 
-module_param_array(vendor_3410, ushort, &vendor_3410_count, S_IRUGO);
-MODULE_PARM_DESC(vendor_3410,
-		"Vendor ids for 3410 based devices, 1-5 short integers");
-module_param_array(product_3410, ushort, &product_3410_count, S_IRUGO);
-MODULE_PARM_DESC(product_3410,
-		"Product ids for 3410 based devices, 1-5 short integers");
-module_param_array(vendor_5052, ushort, &vendor_5052_count, S_IRUGO);
-MODULE_PARM_DESC(vendor_5052,
-		"Vendor ids for 5052 based devices, 1-5 short integers");
-module_param_array(product_5052, ushort, &product_5052_count, S_IRUGO);
-MODULE_PARM_DESC(product_5052,
-		"Product ids for 5052 based devices, 1-5 short integers");
-
 MODULE_DEVICE_TABLE(usb, ti_id_table_combined);
 
+module_usb_serial_driver(serial_drivers, ti_id_table_combined);
 
 /* Functions */
-
-static int __init ti_init(void)
-{
-	int i, j, c;
-
-	/* insert extra vendor and product ids */
-	c = ARRAY_SIZE(ti_id_table_combined) - 2 * TI_EXTRA_VID_PID_COUNT - 1;
-	j = ARRAY_SIZE(ti_id_table_3410) - TI_EXTRA_VID_PID_COUNT - 1;
-	for (i = 0; i < min(vendor_3410_count, product_3410_count); i++, j++, c++) {
-		ti_id_table_3410[j].idVendor = vendor_3410[i];
-		ti_id_table_3410[j].idProduct = product_3410[i];
-		ti_id_table_3410[j].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
-		ti_id_table_combined[c].idVendor = vendor_3410[i];
-		ti_id_table_combined[c].idProduct = product_3410[i];
-		ti_id_table_combined[c].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
-	}
-	j = ARRAY_SIZE(ti_id_table_5052) - TI_EXTRA_VID_PID_COUNT - 1;
-	for (i = 0; i < min(vendor_5052_count, product_5052_count); i++, j++, c++) {
-		ti_id_table_5052[j].idVendor = vendor_5052[i];
-		ti_id_table_5052[j].idProduct = product_5052[i];
-		ti_id_table_5052[j].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
-		ti_id_table_combined[c].idVendor = vendor_5052[i];
-		ti_id_table_combined[c].idProduct = product_5052[i];
-		ti_id_table_combined[c].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
-	}
-
-	return usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, ti_id_table_combined);
-}
-
-static void __exit ti_exit(void)
-{
-	usb_serial_deregister_drivers(serial_drivers);
-}
-
-module_init(ti_init);
-module_exit(ti_exit);
-
 
 static int ti_startup(struct usb_serial *serial)
 {
