@@ -236,7 +236,7 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 	ret = drm_prime_add_buf_handle(&file_priv->prime,
 				       obj->export_dma_buf, handle);
 	if (ret)
-		goto out;
+		goto fail_put_dmabuf;
 
 	*prime_fd = dma_buf_fd(buf, flags);
 	mutex_unlock(&file_priv->prime.lock);
@@ -245,6 +245,12 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 out_have_obj:
 	get_dma_buf(dmabuf);
 	*prime_fd = dma_buf_fd(dmabuf, flags);
+	goto out;
+
+fail_put_dmabuf:
+	/* clear NOT to be checked when releasing dma_buf */
+	obj->export_dma_buf = NULL;
+	dma_buf_put(buf);
 out:
 	drm_gem_object_unreference_unlocked(obj);
 	mutex_unlock(&file_priv->prime.lock);
