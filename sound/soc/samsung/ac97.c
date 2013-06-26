@@ -440,7 +440,7 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	s3c_ac97.ac97_clk = clk_get(&pdev->dev, "ac97");
+	s3c_ac97.ac97_clk = devm_clk_get(&pdev->dev, "ac97");
 	if (IS_ERR(s3c_ac97.ac97_clk)) {
 		dev_err(&pdev->dev, "ac97 failed to get ac97_clock\n");
 		ret = -ENODEV;
@@ -480,7 +480,6 @@ err5:
 err4:
 err3:
 	clk_disable_unprepare(s3c_ac97.ac97_clk);
-	clk_put(s3c_ac97.ac97_clk);
 err2:
 	iounmap(s3c_ac97.regs);
 err1:
@@ -501,7 +500,6 @@ static int s3c_ac97_remove(struct platform_device *pdev)
 		free_irq(irq_res->start, NULL);
 
 	clk_disable_unprepare(s3c_ac97.ac97_clk);
-	clk_put(s3c_ac97.ac97_clk);
 
 	iounmap(s3c_ac97.regs);
 
