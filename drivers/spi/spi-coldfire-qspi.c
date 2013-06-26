@@ -518,7 +518,6 @@ static int mcfqspi_remove(struct platform_device *pdev)
 	/* disable the hardware (set the baud rate to 0) */
 	mcfqspi_wr_qmr(mcfqspi, MCFQSPI_QMR_MSTR);
 
-	platform_set_drvdata(pdev, NULL);
 	mcfqspi_cs_teardown(mcfqspi);
 	clk_disable(mcfqspi->clk);
 	clk_put(mcfqspi->clk);

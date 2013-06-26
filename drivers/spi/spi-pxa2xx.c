@@ -1283,9 +1283,6 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 	/* Disconnect from the SPI framework */
 	spi_unregister_master(drv_data->master);
 
-	/* Prevent double remove */
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

@@ -285,7 +285,6 @@ err_clk_put:
 err_unmap:
 	iounmap(sp->base);
 err_put_master:
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(sp->bitbang.master);
 
 	return ret;
@@ -300,7 +299,6 @@ static int ath79_spi_remove(struct platform_device *pdev)
 	clk_disable(sp->clk);
 	clk_put(sp->clk);
 	iounmap(sp->base);
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(sp->bitbang.master);
 
 	return 0;

@@ -902,7 +902,6 @@ out_gpio_free:
 	}
 	spi_master_put(master);
 	kfree(master);
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 
@@ -928,8 +927,6 @@ static int spi_imx_remove(struct platform_device *pdev)
 	spi_master_put(master);
 
 	release_mem_region(res->start, resource_size(res));
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

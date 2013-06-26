@@ -273,7 +273,6 @@ static int altera_spi_probe(struct platform_device *pdev)
 exit_busy:
 	err = -EBUSY;
 exit:
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
 	return err;
 }
@@ -284,7 +283,6 @@ static int altera_spi_remove(struct platform_device *dev)
 	struct spi_master *master = hw->bitbang.master;
 
 	spi_bitbang_stop(&hw->bitbang);
-	platform_set_drvdata(dev, NULL);
 	spi_master_put(master);
 	return 0;
 }

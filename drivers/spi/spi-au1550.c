@@ -977,8 +977,6 @@ static int au1550_spi_remove(struct platform_device *pdev)
 		au1xxx_dbdma_chan_free(hw->dma_tx_ch);
 	}
 
-	platform_set_drvdata(pdev, NULL);
-
 	spi_master_put(hw->master);
 	return 0;
 }

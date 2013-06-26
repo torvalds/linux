@@ -1123,7 +1123,6 @@ fail_put_clock:
 	clk_put(espi->clk);
 fail_release_master:
 	spi_master_put(master);
-	platform_set_drvdata(pdev, NULL);
 
 	return error;
 }
@@ -1158,7 +1157,6 @@ static int ep93xx_spi_remove(struct platform_device *pdev)
 
 	ep93xx_spi_release_dma(espi);
 	clk_put(espi->clk);
-	platform_set_drvdata(pdev, NULL);
 
 	spi_unregister_master(master);
 	return 0;

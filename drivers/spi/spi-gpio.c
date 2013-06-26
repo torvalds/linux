@@ -512,8 +512,6 @@ static int spi_gpio_remove(struct platform_device *pdev)
 	status = spi_bitbang_stop(&spi_gpio->bitbang);
 	spi_master_put(spi_gpio->bitbang.master);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (SPI_MISO_GPIO != SPI_GPIO_NO_MISO)
 		gpio_free(SPI_MISO_GPIO);
 	if (SPI_MOSI_GPIO != SPI_GPIO_NO_MOSI)

@@ -1407,9 +1407,6 @@ static int bfin_spi_remove(struct platform_device *pdev)
 
 	peripheral_free_list(drv_data->pin_req);
 
-	/* Prevent double remove */
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
