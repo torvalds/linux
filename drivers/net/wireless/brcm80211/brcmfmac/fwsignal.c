@@ -1851,7 +1851,7 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 	fws = container_of(worker, struct brcmf_fws_info, fws_dequeue_work);
 
 	brcmf_fws_lock(fws->drvr, flags);
-	for (fifo = NL80211_NUM_ACS; fifo >= 0 && !fws->bus_flow_blocked;
+	for (fifo = BRCMF_FWS_FIFO_BCMC; fifo >= 0 && !fws->bus_flow_blocked;
 	     fifo--) {
 		while ((fws->fifo_credit[fifo]) || ((!fws->bcmc_credit_check) &&
 		       (fifo == BRCMF_FWS_FIFO_BCMC))) {
