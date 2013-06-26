@@ -75,6 +75,8 @@
  *   - move reset into open to clean out spurious data
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -325,8 +327,7 @@ static int tower_open (struct inode *inode, struct file *file)
 	interface = usb_find_interface (&tower_driver, subminor);
 
 	if (!interface) {
-		printk(KERN_ERR "%s - error, can't find device for minor %d\n",
-		       __func__, subminor);
+		pr_err("error, can't find device for minor %d\n", subminor);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -563,7 +564,7 @@ static ssize_t tower_read (struct file *file, char __user *buffer, size_t count,
 	/* verify that the device wasn't unplugged */
 	if (dev->udev == NULL) {
 		retval = -ENODEV;
-		printk(KERN_ERR "legousbtower: No device or device unplugged %d\n", retval);
+		pr_err("No device or device unplugged %d\n", retval);
 		goto unlock_exit;
 	}
 
@@ -649,7 +650,7 @@ static ssize_t tower_write (struct file *file, const char __user *buffer, size_t
 	/* verify that the device wasn't unplugged */
 	if (dev->udev == NULL) {
 		retval = -ENODEV;
-		printk(KERN_ERR "legousbtower: No device or device unplugged %d\n", retval);
+		pr_err("No device or device unplugged %d\n", retval);
 		goto unlock_exit;
 	}
 
@@ -748,7 +749,8 @@ static void tower_interrupt_in_callback (struct urb *urb)
 			dev_dbg(&dev->udev->dev, "%s: received %d bytes\n",
 				__func__, urb->actual_length);
 		} else {
-			printk(KERN_WARNING "%s: read_buffer overflow, %d bytes dropped", __func__, urb->actual_length);
+			pr_warn("read_buffer overflow, %d bytes dropped\n",
+				urb->actual_length);
 		}
 		spin_unlock (&dev->read_buffer_lock);
 	}
