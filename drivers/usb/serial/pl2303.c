@@ -263,68 +263,21 @@ static int pl2303_set_control_lines(struct usb_serial_port *port, u8 value)
 	return retval;
 }
 
-static void pl2303_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+static void pl2303_encode_baudrate(struct tty_struct *tty,
+					struct usb_serial_port *port,
+					u8 buf[4])
 {
-	struct usb_serial *serial = port->serial;
-	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
-	struct pl2303_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	unsigned int cflag;
-	unsigned char *buf;
-	int baud;
-	int i;
-	u8 control;
 	const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
 	                         4800, 7200, 9600, 14400, 19200, 28800, 38400,
 	                         57600, 115200, 230400, 460800, 500000, 614400,
 	                         921600, 1228800, 2457600, 3000000, 6000000 };
+
+	struct usb_serial *serial = port->serial;
+	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
+	int baud;
 	int baud_floor, baud_ceil;
 	int k;
 
-	/* The PL2303 is reported to lose bytes if you change
-	   serial settings even to the same values as before. Thus
-	   we actually need to filter in this specific case */
-
-	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
-		return;
-
-	cflag = tty->termios.c_cflag;
-
-	buf = kzalloc(7, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&port->dev, "%s - out of memory.\n", __func__);
-		/* Report back no change occurred */
-		if (old_termios)
-			tty->termios = *old_termios;
-		return;
-	}
-
-	i = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
-			    GET_LINE_REQUEST, GET_LINE_REQUEST_TYPE,
-			    0, 0, buf, 7, 100);
-	dev_dbg(&port->dev, "0xa1:0x21:0:0  %d - %7ph\n", i, buf);
-
-	if (cflag & CSIZE) {
-		switch (cflag & CSIZE) {
-		case CS5:
-			buf[6] = 5;
-			break;
-		case CS6:
-			buf[6] = 6;
-			break;
-		case CS7:
-			buf[6] = 7;
-			break;
-		default:
-		case CS8:
-			buf[6] = 8;
-			break;
-		}
-		dev_dbg(&port->dev, "data bits = %d\n", buf[6]);
-	}
-
-	/* For reference buf[0]:buf[3] baud rate value */
 	/* NOTE: Only the values defined in baud_sup are supported !
 	 *       => if unsupported values are set, the PL2303 seems to use
 	 *          9600 baud (at least my PL2303X always does)
@@ -377,6 +330,68 @@ static void pl2303_set_termios(struct tty_struct *tty,
 			buf[0] = tmp;
 		}
 	}
+
+	/* Save resulting baud rate */
+	if (baud)
+		tty_encode_baud_rate(tty, baud, baud);
+}
+
+static void pl2303_set_termios(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
+{
+	struct usb_serial *serial = port->serial;
+	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
+	struct pl2303_private *priv = usb_get_serial_port_data(port);
+	unsigned long flags;
+	unsigned int cflag;
+	unsigned char *buf;
+	int i;
+	u8 control;
+
+	/* The PL2303 is reported to lose bytes if you change
+	   serial settings even to the same values as before. Thus
+	   we actually need to filter in this specific case */
+
+	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
+		return;
+
+	cflag = tty->termios.c_cflag;
+
+	buf = kzalloc(7, GFP_KERNEL);
+	if (!buf) {
+		dev_err(&port->dev, "%s - out of memory.\n", __func__);
+		/* Report back no change occurred */
+		if (old_termios)
+			tty->termios = *old_termios;
+		return;
+	}
+
+	i = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
+			    GET_LINE_REQUEST, GET_LINE_REQUEST_TYPE,
+			    0, 0, buf, 7, 100);
+	dev_dbg(&port->dev, "0xa1:0x21:0:0  %d - %7ph\n", i, buf);
+
+	if (cflag & CSIZE) {
+		switch (cflag & CSIZE) {
+		case CS5:
+			buf[6] = 5;
+			break;
+		case CS6:
+			buf[6] = 6;
+			break;
+		case CS7:
+			buf[6] = 7;
+			break;
+		default:
+		case CS8:
+			buf[6] = 8;
+			break;
+		}
+		dev_dbg(&port->dev, "data bits = %d\n", buf[6]);
+	}
+
+	/* For reference buf[0]:buf[3] baud rate value */
+	pl2303_encode_baudrate(tty, port, &buf[0]);
 
 	/* For reference buf[4]=0 is 1 stop bits */
 	/* For reference buf[4]=1 is 1.5 stop bits */
@@ -460,10 +475,6 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	} else {
 		pl2303_vendor_write(0x0, 0x0, serial);
 	}
-
-	/* Save resulting baud rate */
-	if (baud)
-		tty_encode_baud_rate(tty, baud, baud);
 
 	kfree(buf);
 }
