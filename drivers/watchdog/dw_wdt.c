@@ -255,14 +255,14 @@ static int dw_wdt_release(struct inode *inode, struct file *filp)
 #ifdef CONFIG_PM_SLEEP
 static int dw_wdt_suspend(struct device *dev)
 {
-	clk_disable(dw_wdt.clk);
+	clk_disable_unprepare(dw_wdt.clk);
 
 	return 0;
 }
 
 static int dw_wdt_resume(struct device *dev)
 {
-	int err = clk_enable(dw_wdt.clk);
+	int err = clk_prepare_enable(dw_wdt.clk);
 
 	if (err)
 		return err;
@@ -306,7 +306,7 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	if (IS_ERR(dw_wdt.clk))
 		return PTR_ERR(dw_wdt.clk);
 
-	ret = clk_enable(dw_wdt.clk);
+	ret = clk_prepare_enable(dw_wdt.clk);
 	if (ret)
 		return ret;
 
@@ -323,7 +323,7 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	return 0;
 
 out_disable_clk:
-	clk_disable(dw_wdt.clk);
+	clk_disable_unprepare(dw_wdt.clk);
 
 	return ret;
 }
@@ -332,7 +332,7 @@ static int dw_wdt_drv_remove(struct platform_device *pdev)
 {
 	misc_deregister(&dw_wdt_miscdev);
 
-	clk_disable(dw_wdt.clk);
+	clk_disable_unprepare(dw_wdt.clk);
 
 	return 0;
 }
