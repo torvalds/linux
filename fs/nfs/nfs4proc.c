@@ -5792,17 +5792,14 @@ int nfs4_proc_get_lease_time(struct nfs_client *clp, struct nfs_fsinfo *fsinfo)
  */
 static void nfs4_init_channel_attrs(struct nfs41_create_session_args *args)
 {
-	struct nfs4_session *session = args->client->cl_session;
-	unsigned int mxrqst_sz = session->fc_target_max_rqst_sz,
-		     mxresp_sz = session->fc_target_max_resp_sz;
+	unsigned int max_rqst_sz, max_resp_sz;
 
-	if (mxrqst_sz == 0)
-		mxrqst_sz = NFS_MAX_FILE_IO_SIZE;
-	if (mxresp_sz == 0)
-		mxresp_sz = NFS_MAX_FILE_IO_SIZE;
+	max_rqst_sz = NFS_MAX_FILE_IO_SIZE + nfs41_maxwrite_overhead;
+	max_resp_sz = NFS_MAX_FILE_IO_SIZE + nfs41_maxread_overhead;
+
 	/* Fore channel attributes */
-	args->fc_attrs.max_rqst_sz = mxrqst_sz;
-	args->fc_attrs.max_resp_sz = mxresp_sz;
+	args->fc_attrs.max_rqst_sz = max_rqst_sz;
+	args->fc_attrs.max_resp_sz = max_resp_sz;
 	args->fc_attrs.max_ops = NFS4_MAX_OPS;
 	args->fc_attrs.max_reqs = max_session_slots;
 

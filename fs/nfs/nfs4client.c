@@ -730,7 +730,7 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 		return -ENOMEM;
 
 	/* We must ensure the session is initialised first */
-	error = nfs4_init_session(server);
+	error = nfs4_init_session(server->nfs_client);
 	if (error < 0)
 		goto out;
 
