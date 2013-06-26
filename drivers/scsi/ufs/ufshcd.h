@@ -186,6 +186,11 @@ struct ufs_hba {
 	u32 errors;
 };
 
+#define ufshcd_writel(hba, val, reg)	\
+	writel((val), (hba)->mmio_base + (reg))
+#define ufshcd_readl(hba, reg)	\
+	readl((hba)->mmio_base + (reg))
+
 int ufshcd_init(struct device *, struct ufs_hba ** , void __iomem * ,
 			unsigned int);
 void ufshcd_remove(struct ufs_hba *);
@@ -196,7 +201,7 @@ void ufshcd_remove(struct ufs_hba *);
  */
 static inline void ufshcd_hba_stop(struct ufs_hba *hba)
 {
-	writel(CONTROLLER_DISABLE, (hba->mmio_base + REG_CONTROLLER_ENABLE));
+	ufshcd_writel(hba, CONTROLLER_DISABLE,  REG_CONTROLLER_ENABLE);
 }
 
 #endif /* End of Header */
