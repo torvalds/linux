@@ -46,7 +46,6 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/stmp_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mxs-spi.h>
@@ -500,7 +499,6 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	struct mxs_spi *spi;
 	struct mxs_ssp *ssp;
 	struct resource *iores;
-	struct pinctrl *pinctrl;
 	struct clk *clk;
 	void __iomem *base;
 	int devid, clk_freq;
@@ -521,10 +519,6 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	base = devm_ioremap_resource(&pdev->dev, iores);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		return PTR_ERR(pinctrl);
 
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk))
