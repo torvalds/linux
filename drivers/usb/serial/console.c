@@ -210,10 +210,10 @@ static void usb_console_write(struct console *co,
 	if (count == 0)
 		return;
 
-	pr_debug("%s - minor %d, %d byte(s)\n", __func__, port->minor, count);
+	dev_dbg(&port->dev, "%s - %d byte(s)\n", __func__, count);
 
 	if (!port->port.console) {
-		pr_debug("%s - port not opened\n", __func__);
+		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
 		return;
 	}
 
@@ -234,7 +234,7 @@ static void usb_console_write(struct console *co,
 			retval = serial->type->write(NULL, port, buf, i);
 		else
 			retval = usb_serial_generic_write(NULL, port, buf, i);
-		pr_debug("%s - return value : %d\n", __func__, retval);
+		dev_dbg(&port->dev, "%s - write: %d\n", __func__, retval);
 		if (lf) {
 			/* append CR after LF */
 			unsigned char cr = 13;
@@ -244,7 +244,8 @@ static void usb_console_write(struct console *co,
 			else
 				retval = usb_serial_generic_write(NULL,
 								port, &cr, 1);
-			pr_debug("%s - return value : %d\n", __func__, retval);
+			dev_dbg(&port->dev, "%s - write cr: %d\n",
+							__func__, retval);
 		}
 		buf += i;
 		count -= i;
