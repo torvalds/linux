@@ -1332,7 +1332,7 @@ static int vxlan_init(struct net_device *dev)
 	return 0;
 }
 
-static void vxlan_fdb_delete_defualt(struct vxlan_dev *vxlan)
+static void vxlan_fdb_delete_default(struct vxlan_dev *vxlan)
 {
 	struct vxlan_fdb *f;
 
@@ -1349,7 +1349,7 @@ static void vxlan_uninit(struct net_device *dev)
 	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
 	struct vxlan_sock *vs = vxlan->vn_sock;
 
-	vxlan_fdb_delete_defualt(vxlan);
+	vxlan_fdb_delete_default(vxlan);
 
 	if (vs)
 		vxlan_sock_release(vn, vs);
@@ -1756,7 +1756,7 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 
 	err = register_netdevice(dev);
 	if (err) {
-		vxlan_fdb_delete_defualt(vxlan);
+		vxlan_fdb_delete_default(vxlan);
 		return err;
 	}
 
