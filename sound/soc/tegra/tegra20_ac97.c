@@ -395,23 +395,9 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	ac97->capture_dma_data.maxburst = 4;
 	ac97->capture_dma_data.slave_id = of_dma[0];
 
-	ret = snd_soc_register_component(&pdev->dev, &tegra20_ac97_component,
-					 &tegra20_ac97_dai, 1);
-	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
-		ret = -ENOMEM;
-		goto err_clk_put;
-	}
-
-	ret = tegra_pcm_platform_register(&pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
-		goto err_unregister_component;
-	}
-
 	ret = tegra_asoc_utils_init(&ac97->util_data, &pdev->dev);
 	if (ret)
-		goto err_unregister_pcm;
+		goto err_clk_put;
 
 	ret = tegra_asoc_utils_set_ac97_rate(&ac97->util_data);
 	if (ret)
@@ -423,17 +409,31 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 		goto err_asoc_utils_fini;
 	}
 
+	ret = snd_soc_register_component(&pdev->dev, &tegra20_ac97_component,
+					 &tegra20_ac97_dai, 1);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
+		ret = -ENOMEM;
+		goto err_asoc_utils_fini;
+	}
+
+	ret = tegra_pcm_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
+		goto err_unregister_component;
+	}
+
 	/* XXX: crufty ASoC AC97 API - only one AC97 codec allowed */
 	workdata = ac97;
 
 	return 0;
 
-err_asoc_utils_fini:
-	tegra_asoc_utils_fini(&ac97->util_data);
 err_unregister_pcm:
 	tegra_pcm_platform_unregister(&pdev->dev);
 err_unregister_component:
 	snd_soc_unregister_component(&pdev->dev);
+err_asoc_utils_fini:
+	tegra_asoc_utils_fini(&ac97->util_data);
 err_clk_put:
 err:
 	return ret;
