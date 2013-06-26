@@ -326,41 +326,32 @@ static int nuc900_ac97_drvprobe(struct platform_device *pdev)
 	if (nuc900_ac97_data)
 		return -EBUSY;
 
-	nuc900_audio = kzalloc(sizeof(struct nuc900_audio), GFP_KERNEL);
+	nuc900_audio = devm_kzalloc(&pdev->dev, sizeof(struct nuc900_audio),
+				    GFP_KERNEL);
 	if (!nuc900_audio)
 		return -ENOMEM;
 
 	spin_lock_init(&nuc900_audio->lock);
 
 	nuc900_audio->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!nuc900_audio->res) {
-		ret = -ENODEV;
-		goto out0;
-	}
+	if (!nuc900_audio->res)
+		return ret;
 
-	if (!request_mem_region(nuc900_audio->res->start,
-			resource_size(nuc900_audio->res), pdev->name)) {
-		ret = -EBUSY;
-		goto out0;
-	}
+	nuc900_audio->mmio = devm_ioremap_resource(&pdev->dev,
+						   nuc900_audio->res);
+	if (IS_ERR(nuc900_audio->mmio))
+		return PTR_ERR(nuc900_audio->mmio);
 
-	nuc900_audio->mmio = ioremap(nuc900_audio->res->start,
-					resource_size(nuc900_audio->res));
-	if (!nuc900_audio->mmio) {
-		ret = -ENOMEM;
-		goto out1;
-	}
-
-	nuc900_audio->clk = clk_get(&pdev->dev, NULL);
+	nuc900_audio->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(nuc900_audio->clk)) {
 		ret = PTR_ERR(nuc900_audio->clk);
-		goto out2;
+		goto out;
 	}
 
 	nuc900_audio->irq_num = platform_get_irq(pdev, 0);
 	if (!nuc900_audio->irq_num) {
 		ret = -EBUSY;
-		goto out3;
+		goto out;
 	}
 
 	nuc900_ac97_data = nuc900_audio;
@@ -368,22 +359,14 @@ static int nuc900_ac97_drvprobe(struct platform_device *pdev)
 	ret = snd_soc_register_component(&pdev->dev, &nuc900_ac97_component,
 					 &nuc900_ac97_dai, 1);
 	if (ret)
-		goto out3;
+		goto out;
 
 	/* enbale ac97 multifunction pin */
 	mfp_set_groupg(nuc900_audio->dev, NULL);
 
 	return 0;
 
-out3:
-	clk_put(nuc900_audio->clk);
-out2:
-	iounmap(nuc900_audio->mmio);
-out1:
-	release_mem_region(nuc900_audio->res->start,
-					resource_size(nuc900_audio->res));
-out0:
-	kfree(nuc900_audio);
+out:
 	return ret;
 }
 
@@ -391,12 +374,6 @@ static int nuc900_ac97_drvremove(struct platform_device *pdev)
 {
 	snd_soc_unregister_component(&pdev->dev);
 
-	clk_put(nuc900_ac97_data->clk);
-	iounmap(nuc900_ac97_data->mmio);
-	release_mem_region(nuc900_ac97_data->res->start,
-				resource_size(nuc900_ac97_data->res));
-
-	kfree(nuc900_ac97_data);
 	nuc900_ac97_data = NULL;
 
 	return 0;
