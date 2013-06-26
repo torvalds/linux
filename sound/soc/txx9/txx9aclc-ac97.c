@@ -119,12 +119,11 @@ static void txx9aclc_ac97_cold_reset(struct snd_ac97 *ac97)
 }
 
 /* AC97 controller operations */
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops txx9aclc_ac97_ops = {
 	.read		= txx9aclc_ac97_read,
 	.write		= txx9aclc_ac97_write,
 	.reset		= txx9aclc_ac97_cold_reset,
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static irqreturn_t txx9aclc_ac97_irq(int irq, void *dev_id)
 {
@@ -206,6 +205,10 @@ static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
+	err = snd_soc_set_ac97_ops(&txx9aclc_ac97_ops);
+	if (err < 0)
+		return err;
+
 	return snd_soc_register_component(&pdev->dev, &txx9aclc_ac97_component,
 					  &txx9aclc_ac97_dai, 1);
 }
@@ -213,6 +216,7 @@ static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 static int txx9aclc_ac97_dev_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_component(&pdev->dev);
+	snd_soc_set_ac97_ops(NULL);
 	return 0;
 }
 

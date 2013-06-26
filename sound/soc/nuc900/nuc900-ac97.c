@@ -197,13 +197,12 @@ static void nuc900_ac97_cold_reset(struct snd_ac97 *ac97)
 }
 
 /* AC97 controller operations */
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops nuc900_ac97_ops = {
 	.read		= nuc900_ac97_read,
 	.write		= nuc900_ac97_write,
 	.reset		= nuc900_ac97_cold_reset,
 	.warm_reset	= nuc900_ac97_warm_reset,
-}
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
+};
 
 static int nuc900_ac97_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
@@ -356,6 +355,10 @@ static int nuc900_ac97_drvprobe(struct platform_device *pdev)
 
 	nuc900_ac97_data = nuc900_audio;
 
+	ret = snd_soc_set_ac97_ops(&nuc900_ac97_ops);
+	if (ret)
+		goto out;
+
 	ret = snd_soc_register_component(&pdev->dev, &nuc900_ac97_component,
 					 &nuc900_ac97_dai, 1);
 	if (ret)
@@ -367,6 +370,7 @@ static int nuc900_ac97_drvprobe(struct platform_device *pdev)
 	return 0;
 
 out:
+	snd_soc_set_ac97_ops(NULL);
 	return ret;
 }
 
@@ -375,6 +379,7 @@ static int nuc900_ac97_drvremove(struct platform_device *pdev)
 	snd_soc_unregister_component(&pdev->dev);
 
 	nuc900_ac97_data = NULL;
+	snd_soc_set_ac97_ops(NULL);
 
 	return 0;
 }

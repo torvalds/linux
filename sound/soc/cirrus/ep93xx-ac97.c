@@ -237,13 +237,12 @@ static irqreturn_t ep93xx_ac97_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops ep93xx_ac97_ops = {
 	.read		= ep93xx_ac97_read,
 	.write		= ep93xx_ac97_write,
 	.reset		= ep93xx_ac97_cold_reset,
 	.warm_reset	= ep93xx_ac97_warm_reset,
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static int ep93xx_ac97_trigger(struct snd_pcm_substream *substream,
 			       int cmd, struct snd_soc_dai *dai)
@@ -395,6 +394,10 @@ static int ep93xx_ac97_probe(struct platform_device *pdev)
 	ep93xx_ac97_info = info;
 	platform_set_drvdata(pdev, info);
 
+	ret = snd_soc_set_ac97_ops(&ep93xx_ac97_ops);
+	if (ret)
+		goto fail;
+
 	ret = snd_soc_register_component(&pdev->dev, &ep93xx_ac97_component,
 					 &ep93xx_ac97_dai, 1);
 	if (ret)
@@ -405,6 +408,7 @@ static int ep93xx_ac97_probe(struct platform_device *pdev)
 fail:
 	platform_set_drvdata(pdev, NULL);
 	ep93xx_ac97_info = NULL;
+	snd_soc_set_ac97_ops(NULL);
 	return ret;
 }
 
@@ -419,6 +423,8 @@ static int ep93xx_ac97_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 	ep93xx_ac97_info = NULL;
+
+	snd_soc_set_ac97_ops(NULL);
 
 	return 0;
 }

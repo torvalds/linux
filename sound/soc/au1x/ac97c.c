@@ -179,13 +179,12 @@ static void au1xac97c_ac97_cold_reset(struct snd_ac97 *ac97)
 }
 
 /* AC97 controller operations */
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops ac97c_bus_ops = {
 	.read		= au1xac97c_ac97_read,
 	.write		= au1xac97c_ac97_write,
 	.reset		= au1xac97c_ac97_cold_reset,
 	.warm_reset	= au1xac97c_ac97_warm_reset,
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);	/* globals be gone! */
 
 static int alchemy_ac97c_startup(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
@@ -271,6 +270,10 @@ static int au1xac97c_drvprobe(struct platform_device *pdev)
 	WR(ctx, AC97_CONFIG, ctx->cfg);
 
 	platform_set_drvdata(pdev, ctx);
+
+	ret = snd_soc_set_ac97_ops(&ac97c_bus_ops);
+	if (ret)
+		return ret;
 
 	ret = snd_soc_register_component(&pdev->dev, &au1xac97c_component,
 					 &au1xac97c_dai_driver, 1);

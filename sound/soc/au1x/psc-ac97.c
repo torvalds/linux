@@ -201,13 +201,12 @@ static void au1xpsc_ac97_cold_reset(struct snd_ac97 *ac97)
 }
 
 /* AC97 controller operations */
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops psc_ac97_ops = {
 	.read		= au1xpsc_ac97_read,
 	.write		= au1xpsc_ac97_write,
 	.reset		= au1xpsc_ac97_cold_reset,
 	.warm_reset	= au1xpsc_ac97_warm_reset,
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static int au1xpsc_ac97_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
@@ -416,6 +415,10 @@ static int au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 	wd->dai_drv.name = dev_name(&pdev->dev);
 
 	platform_set_drvdata(pdev, wd);
+
+	ret = snd_soc_set_ac97_ops(&psc_ac97_ops);
+	if (ret)
+		return ret;
 
 	ret = snd_soc_register_component(&pdev->dev, &au1xpsc_ac97_component,
 					 &wd->dai_drv, 1);

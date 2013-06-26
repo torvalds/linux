@@ -501,13 +501,12 @@ static void imx_ssi_ac97_warm_reset(struct snd_ac97 *ac97)
 	imx_ssi_ac97_read(ac97, 0);
 }
 
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops imx_ssi_ac97_ops = {
 	.read		= imx_ssi_ac97_read,
 	.write		= imx_ssi_ac97_write,
 	.reset		= imx_ssi_ac97_reset,
 	.warm_reset	= imx_ssi_ac97_warm_reset
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static int imx_ssi_probe(struct platform_device *pdev)
 {
@@ -583,6 +582,12 @@ static int imx_ssi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ssi);
 
+	ret = snd_soc_set_ac97_ops(&imx_ssi_ac97_ops);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to set AC'97 ops: %d\n", ret);
+		goto failed_register;
+	}
+
 	ret = snd_soc_register_component(&pdev->dev, &imx_component,
 					 dai, 1);
 	if (ret) {
@@ -630,6 +635,7 @@ failed_register:
 	release_mem_region(res->start, resource_size(res));
 	clk_disable_unprepare(ssi->clk);
 failed_clk:
+	snd_soc_set_ac97_ops(NULL);
 
 	return ret;
 }
@@ -649,6 +655,7 @@ static int imx_ssi_remove(struct platform_device *pdev)
 
 	release_mem_region(res->start, resource_size(res));
 	clk_disable_unprepare(ssi->clk);
+	snd_soc_set_ac97_ops(NULL);
 
 	return 0;
 }

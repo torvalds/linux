@@ -214,13 +214,12 @@ static irqreturn_t s3c_ac97_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops s3c_ac97_ops = {
 	.read       = s3c_ac97_read,
 	.write      = s3c_ac97_write,
 	.warm_reset = s3c_ac97_warm_reset,
 	.reset      = s3c_ac97_cold_reset,
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static int s3c_ac97_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
@@ -452,6 +451,12 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
+	ret = snd_soc_set_ac97_ops(&s3c_ac97_ops);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to set AC'97 ops: %d\n", ret);
+		goto err4;
+	}
+
 	ret = snd_soc_register_component(&pdev->dev, &s3c_ac97_component,
 					 s3c_ac97_dai, ARRAY_SIZE(s3c_ac97_dai));
 	if (ret)
@@ -472,7 +477,7 @@ err4:
 err3:
 	clk_disable_unprepare(s3c_ac97.ac97_clk);
 err2:
-
+	snd_soc_set_ac97_ops(NULL);
 	return ret;
 }
 
@@ -488,6 +493,7 @@ static int s3c_ac97_remove(struct platform_device *pdev)
 		free_irq(irq_res->start, NULL);
 
 	clk_disable_unprepare(s3c_ac97.ac97_clk);
+	snd_soc_set_ac97_ops(NULL);
 
 	return 0;
 }

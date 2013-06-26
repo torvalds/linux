@@ -198,13 +198,12 @@ static void bf5xx_ac97_cold_reset(struct snd_ac97 *ac97)
 #endif
 }
 
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops bf5xx_ac97_ops = {
 	.read	= bf5xx_ac97_read,
 	.write	= bf5xx_ac97_write,
 	.warm_reset	= bf5xx_ac97_warm_reset,
 	.reset	= bf5xx_ac97_cold_reset,
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 #ifdef CONFIG_PM
 static int bf5xx_ac97_suspend(struct snd_soc_dai *dai)
@@ -336,6 +335,12 @@ static int asoc_bfin_ac97_probe(struct platform_device *pdev)
 		goto sport_config_err;
 	}
 
+	ret = snd_soc_set_ac97_ops(&bf5xx_ac97_ops);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to set AC'97 ops: %d\n", ret);
+		goto sport_config_err;
+	}
+
 	ret = snd_soc_register_component(&pdev->dev, &bfin_ac97_component,
 					 &bfin_ac97_dai, 1);
 	if (ret) {
@@ -350,6 +355,7 @@ static int asoc_bfin_ac97_probe(struct platform_device *pdev)
 sport_config_err:
 	sport_done(sport_handle);
 sport_err:
+	snd_soc_set_ac97_ops(NULL);
 
 	return ret;
 }
@@ -360,6 +366,7 @@ static int asoc_bfin_ac97_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_component(&pdev->dev);
 	sport_done(sport_handle);
+	snd_soc_set_ac97_ops(NULL);
 
 	return 0;
 }

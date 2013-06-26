@@ -142,13 +142,12 @@ static void tegra20_ac97_codec_write(struct snd_ac97 *ac97_snd,
 	} while (!time_after(jiffies, timeout));
 }
 
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops tegra20_ac97_ops = {
 	.read		= tegra20_ac97_codec_read,
 	.write		= tegra20_ac97_codec_write,
 	.reset		= tegra20_ac97_codec_reset,
 	.warm_reset	= tegra20_ac97_codec_warm_reset,
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static inline void tegra20_ac97_start_playback(struct tegra20_ac97 *ac97)
 {
@@ -409,6 +408,12 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 		goto err_asoc_utils_fini;
 	}
 
+	ret = snd_soc_set_ac97_ops(&tegra20_ac97_ops);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to set AC'97 ops: %d\n", ret);
+		goto err_asoc_utils_fini;
+	}
+
 	ret = snd_soc_register_component(&pdev->dev, &tegra20_ac97_component,
 					 &tegra20_ac97_dai, 1);
 	if (ret) {
@@ -436,6 +441,7 @@ err_asoc_utils_fini:
 	tegra_asoc_utils_fini(&ac97->util_data);
 err_clk_put:
 err:
+	snd_soc_set_ac97_ops(NULL);
 	return ret;
 }
 
@@ -449,6 +455,8 @@ static int tegra20_ac97_platform_remove(struct platform_device *pdev)
 	tegra_asoc_utils_fini(&ac97->util_data);
 
 	clk_disable_unprepare(ac97->clk_ac97);
+
+	snd_soc_set_ac97_ops(NULL);
 
 	return 0;
 }
