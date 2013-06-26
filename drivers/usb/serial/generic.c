@@ -460,12 +460,7 @@ static bool usb_serial_generic_msr_changed(struct tty_struct *tty,
 	/*
 	 * Use tty-port initialised flag to detect all hangups including the
 	 * one generated at USB-device disconnect.
-	 *
-	 * FIXME: Remove hupping check once tty_port_hangup calls shutdown
-	 *        (which clears the initialised flag) before wake up.
 	 */
-	if (test_bit(TTY_HUPPING, &tty->flags))
-		return true;
 	if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags))
 		return true;
 
@@ -496,12 +491,8 @@ int usb_serial_generic_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 
 	ret = wait_event_interruptible(port->port.delta_msr_wait,
 			usb_serial_generic_msr_changed(tty, arg, &cnow));
-	if (!ret) {
-		if (test_bit(TTY_HUPPING, &tty->flags))
-			ret = -EIO;
-		if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags))
-			ret = -EIO;
-	}
+	if (!ret && !test_bit(ASYNCB_INITIALIZED, &port->port.flags))
+		ret = -EIO;
 
 	return ret;
 }
