@@ -570,10 +570,8 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(data->base)) {
-		dev_err(&pdev->dev, "failed to map memory resource\n");
+	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
-	}
 
 	wmt_desc.pins = data->pins;
 	wmt_desc.npins = data->npins;
