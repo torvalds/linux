@@ -293,13 +293,14 @@ static int asoc_bfin_ac97_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
 	/* Request PB3 as reset pin */
-	if (gpio_request(CONFIG_SND_BF5XX_RESET_GPIO_NUM, "SND_AD198x RESET")) {
-		pr_err("Failed to request GPIO_%d for reset\n",
-				CONFIG_SND_BF5XX_RESET_GPIO_NUM);
-		ret =  -1;
+	ret = devm_gpio_request_one(&pdev->dev,
+				    CONFIG_SND_BF5XX_RESET_GPIO_NUM,
+				    GPIOF_OUT_INIT_HIGH, "SND_AD198x RESET") {
+		dev_err(&pdev->dev,
+			"Failed to request GPIO_%d for reset: %d\n",
+			CONFIG_SND_BF5XX_RESET_GPIO_NUM, ret);
 		goto gpio_err;
 	}
-	gpio_direction_output(CONFIG_SND_BF5XX_RESET_GPIO_NUM, 1);
 #endif
 
 	sport_handle = sport_init(pdev, 2, sizeof(struct ac97_frame),
@@ -349,10 +350,6 @@ static int asoc_bfin_ac97_probe(struct platform_device *pdev)
 sport_config_err:
 	sport_done(sport_handle);
 sport_err:
-#ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
-	gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
-gpio_err:
-#endif
 
 	return ret;
 }
@@ -363,9 +360,6 @@ static int asoc_bfin_ac97_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_component(&pdev->dev);
 	sport_done(sport_handle);
-#ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
-	gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
-#endif
 
 	return 0;
 }
