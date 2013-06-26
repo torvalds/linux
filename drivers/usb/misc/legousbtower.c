@@ -318,8 +318,6 @@ static inline void lego_usb_tower_debug_data (int level, const char *function, i
  */
 static inline void tower_delete (struct lego_usb_tower *dev)
 {
-	dbg(2, "%s: enter", __func__);
-
 	tower_abort_transfers (dev);
 
 	/* free data structures */
@@ -329,8 +327,6 @@ static inline void tower_delete (struct lego_usb_tower *dev)
 	kfree (dev->interrupt_in_buffer);
 	kfree (dev->interrupt_out_buffer);
 	kfree (dev);
-
-	dbg(2, "%s: leave", __func__);
 }
 
 
@@ -345,8 +341,6 @@ static int tower_open (struct inode *inode, struct file *file)
 	struct usb_interface *interface;
 	struct tower_reset_reply reset_reply;
 	int result;
-
-	dbg(2, "%s: enter", __func__);
 
 	nonseekable_open(inode, file);
 	subminor = iminor(inode);
@@ -435,8 +429,6 @@ unlock_exit:
 	mutex_unlock(&dev->lock);
 
 exit:
-	dbg(2, "%s: leave, return value %d ", __func__, retval);
-
 	return retval;
 }
 
@@ -447,8 +439,6 @@ static int tower_release (struct inode *inode, struct file *file)
 {
 	struct lego_usb_tower *dev;
 	int retval = 0;
-
-	dbg(2, "%s: enter", __func__);
 
 	dev = file->private_data;
 
@@ -491,7 +481,6 @@ unlock_exit:
 exit:
 	mutex_unlock(&open_disc_mutex);
 exit_nolock:
-	dbg(2, "%s: leave, return value %d", __func__, retval);
 	return retval;
 }
 
@@ -502,11 +491,9 @@ exit_nolock:
  */
 static void tower_abort_transfers (struct lego_usb_tower *dev)
 {
-	dbg(2, "%s: enter", __func__);
-
 	if (dev == NULL) {
 		dbg(1, "%s: dev is null", __func__);
-		goto exit;
+		return;
 	}
 
 	/* shutdown transfer */
@@ -518,9 +505,6 @@ static void tower_abort_transfers (struct lego_usb_tower *dev)
 	}
 	if (dev->interrupt_out_busy && dev->udev)
 		usb_kill_urb(dev->interrupt_out_urb);
-
-exit:
-	dbg(2, "%s: leave", __func__);
 }
 
 
@@ -553,8 +537,6 @@ static unsigned int tower_poll (struct file *file, poll_table *wait)
 	struct lego_usb_tower *dev;
 	unsigned int mask = 0;
 
-	dbg(2, "%s: enter", __func__);
-
 	dev = file->private_data;
 
 	if (!dev->udev)
@@ -570,8 +552,6 @@ static unsigned int tower_poll (struct file *file, poll_table *wait)
 	if (!dev->interrupt_out_busy) {
 		mask |= POLLOUT | POLLWRNORM;
 	}
-
-	dbg(2, "%s: leave, mask = %d", __func__, mask);
 
 	return mask;
 }
@@ -596,8 +576,6 @@ static ssize_t tower_read (struct file *file, char __user *buffer, size_t count,
 	int i;
 	int retval = 0;
 	unsigned long timeout = 0;
-
-	dbg(2, "%s: enter, count = %Zd", __func__, count);
 
 	dev = file->private_data;
 
@@ -672,7 +650,6 @@ unlock_exit:
 	mutex_unlock(&dev->lock);
 
 exit:
-	dbg(2, "%s: leave, return value %d", __func__, retval);
 	return retval;
 }
 
@@ -685,8 +662,6 @@ static ssize_t tower_write (struct file *file, const char __user *buffer, size_t
 	struct lego_usb_tower *dev;
 	size_t bytes_to_write;
 	int retval = 0;
-
-	dbg(2, "%s: enter, count = %Zd", __func__, count);
 
 	dev = file->private_data;
 
@@ -757,8 +732,6 @@ unlock_exit:
 	mutex_unlock(&dev->lock);
 
 exit:
-	dbg(2, "%s: leave, return value %d", __func__, retval);
-
 	return retval;
 }
 
@@ -771,8 +744,6 @@ static void tower_interrupt_in_callback (struct urb *urb)
 	struct lego_usb_tower *dev = urb->context;
 	int status = urb->status;
 	int retval;
-
-	dbg(4, "%s: enter, status %d", __func__, status);
 
 	lego_usb_tower_debug_data(5, __func__, urb->actual_length, urb->transfer_buffer);
 
@@ -817,7 +788,6 @@ exit:
 	wake_up_interruptible (&dev->read_wait);
 
 	lego_usb_tower_debug_data(5, __func__, urb->actual_length, urb->transfer_buffer);
-	dbg(4, "%s: leave, status %d", __func__, status);
 }
 
 
@@ -829,7 +799,6 @@ static void tower_interrupt_out_callback (struct urb *urb)
 	struct lego_usb_tower *dev = urb->context;
 	int status = urb->status;
 
-	dbg(4, "%s: enter, status %d", __func__, status);
 	lego_usb_tower_debug_data(5, __func__, urb->actual_length, urb->transfer_buffer);
 
 	/* sync/async unlink faults aren't errors */
@@ -844,7 +813,6 @@ static void tower_interrupt_out_callback (struct urb *urb)
 	wake_up_interruptible(&dev->write_wait);
 
 	lego_usb_tower_debug_data(5, __func__, urb->actual_length, urb->transfer_buffer);
-	dbg(4, "%s: leave, status %d", __func__, status);
 }
 
 
@@ -865,8 +833,6 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 	int i;
 	int retval = -ENOMEM;
 	int result;
-
-	dbg(2, "%s: enter", __func__);
 
 	/* allocate memory for our device state and initialize it */
 
@@ -993,8 +959,6 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 
 
 exit:
-	dbg(2, "%s: leave, return value 0x%.8lx (dev)", __func__, (long) dev);
-
 	return retval;
 
 error:
@@ -1012,8 +976,6 @@ static void tower_disconnect (struct usb_interface *interface)
 {
 	struct lego_usb_tower *dev;
 	int minor;
-
-	dbg(2, "%s: enter", __func__);
 
 	dev = usb_get_intfdata (interface);
 	mutex_lock(&open_disc_mutex);
@@ -1041,8 +1003,6 @@ static void tower_disconnect (struct usb_interface *interface)
 
 	dev_info(&interface->dev, "LEGO USB Tower #%d now disconnected\n",
 		 (minor - LEGO_USB_TOWER_MINOR_BASE));
-
-	dbg(2, "%s: leave", __func__);
 }
 
 module_usb_driver(tower_driver);
