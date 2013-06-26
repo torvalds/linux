@@ -1318,7 +1318,7 @@ static void ufshcd_err_handler(struct ufs_hba *hba)
 		goto fatal_eh;
 
 	if (hba->errors & UIC_ERROR) {
-		reg = ufshcd_readl(hba, REG_UIC_ERROR_CODE_PHY_ADAPTER_LAYER);
+		reg = ufshcd_readl(hba, REG_UIC_ERROR_CODE_DATA_LINK_LAYER);
 		if (reg & UIC_DATA_LINK_LAYER_ERROR_PA_INIT)
 			goto fatal_eh;
 	}
