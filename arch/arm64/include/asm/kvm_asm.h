@@ -18,6 +18,8 @@
 #ifndef __ARM_KVM_ASM_H__
 #define __ARM_KVM_ASM_H__
 
+#include <asm/virt.h>
+
 /*
  * 0 is reserved as an invalid value.
  * Order *must* be kept in sync with the hyp switch code.
@@ -96,8 +98,8 @@ extern char __kvm_hyp_init_end[];
 
 extern char __kvm_hyp_vector[];
 
-extern char __kvm_hyp_code_start[];
-extern char __kvm_hyp_code_end[];
+#define	__kvm_hyp_code_start	__hyp_text_start
+#define	__kvm_hyp_code_end	__hyp_text_end
 
 extern void __kvm_flush_vm_context(void);
 extern void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa);
