@@ -5971,8 +5971,8 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 	unsigned long field;
 	u64 field_value;
 	struct vmcs *shadow_vmcs = vmx->nested.current_shadow_vmcs;
-	unsigned long *fields = (unsigned long *)shadow_read_write_fields;
-	int num_fields = max_shadow_read_write_fields;
+	const unsigned long *fields = shadow_read_write_fields;
+	const int num_fields = max_shadow_read_write_fields;
 
 	vmcs_load(shadow_vmcs);
 
@@ -6001,12 +6001,11 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 
 static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx)
 {
-	unsigned long *fields[] = {
-		(unsigned long *)shadow_read_write_fields,
-		(unsigned long *)shadow_read_only_fields
+	const unsigned long *fields[] = {
+		shadow_read_write_fields,
+		shadow_read_only_fields
 	};
-	int num_lists =  ARRAY_SIZE(fields);
-	int max_fields[] = {
+	const int max_fields[] = {
 		max_shadow_read_write_fields,
 		max_shadow_read_only_fields
 	};
@@ -6017,7 +6016,7 @@ static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx)
 
 	vmcs_load(shadow_vmcs);
 
-	for (q = 0; q < num_lists; q++) {
+	for (q = 0; q < ARRAY_SIZE(fields); q++) {
 		for (i = 0; i < max_fields[q]; i++) {
 			field = fields[q][i];
 			vmcs12_read_any(&vmx->vcpu, field, &field_value);
