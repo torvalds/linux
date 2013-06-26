@@ -64,8 +64,6 @@
 
 #define EDGE_CLOSING_WAIT	4000	/* in .01 sec */
 
-#define EDGE_OUT_BUF_SIZE	1024
-
 
 /* Product information read from the Edgeport */
 struct product_info {
@@ -93,7 +91,6 @@ struct edgeport_port {
 	spinlock_t ep_lock;
 	int ep_read_urb_state;
 	int ep_write_urb_in_use;
-	struct kfifo write_fifo;
 };
 
 struct edgeport_serial {
@@ -1903,7 +1900,7 @@ static void edge_close(struct usb_serial_port *port)
 	usb_kill_urb(port->write_urb);
 	edge_port->ep_write_urb_in_use = 0;
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
-	kfifo_reset_out(&edge_port->write_fifo);
+	kfifo_reset_out(&port->write_fifo);
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	dev_dbg(&port->dev, "%s - send umpc_close_port\n", __func__);
@@ -1937,7 +1934,7 @@ static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (edge_port->close_pending == 1)
 		return -ENODEV;
 
-	count = kfifo_in_locked(&edge_port->write_fifo, data, count,
+	count = kfifo_in_locked(&port->write_fifo, data, count,
 							&edge_port->ep_lock);
 	edge_send(port, tty);
 
@@ -1957,7 +1954,7 @@ static void edge_send(struct usb_serial_port *port, struct tty_struct *tty)
 		return;
 	}
 
-	count = kfifo_out(&edge_port->write_fifo,
+	count = kfifo_out(&port->write_fifo,
 				port->write_urb->transfer_buffer,
 				port->bulk_out_size);
 
@@ -2005,7 +2002,7 @@ static int edge_write_room(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
-	room = kfifo_avail(&edge_port->write_fifo);
+	room = kfifo_avail(&port->write_fifo);
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
@@ -2022,7 +2019,7 @@ static int edge_chars_in_buffer(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
-	chars = kfifo_len(&edge_port->write_fifo);
+	chars = kfifo_len(&port->write_fifo);
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
@@ -2449,13 +2446,6 @@ static int edge_port_probe(struct usb_serial_port *port)
 	if (!edge_port)
 		return -ENOMEM;
 
-	ret = kfifo_alloc(&edge_port->write_fifo, EDGE_OUT_BUF_SIZE,
-								GFP_KERNEL);
-	if (ret) {
-		kfree(edge_port);
-		return -ENOMEM;
-	}
-
 	spin_lock_init(&edge_port->ep_lock);
 	edge_port->port = port;
 	edge_port->edge_serial = usb_get_serial_data(port->serial);
@@ -2465,7 +2455,6 @@ static int edge_port_probe(struct usb_serial_port *port)
 
 	ret = edge_create_sysfs_attrs(port);
 	if (ret) {
-		kfifo_free(&edge_port->write_fifo);
 		kfree(edge_port);
 		return ret;
 	}
@@ -2482,7 +2471,6 @@ static int edge_port_remove(struct usb_serial_port *port)
 
 	edge_port = usb_get_serial_port_data(port);
 	edge_remove_sysfs_attrs(port);
-	kfifo_free(&edge_port->write_fifo);
 	kfree(edge_port);
 
 	return 0;
