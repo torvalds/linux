@@ -27,29 +27,10 @@
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
 
-#ifdef CONFIG_USB_DEBUG
-static int debug = 5;
-#else
-static int debug = 1;
-#endif
-
-/* Use our own dbg macro */
-#undef dbg
-#define dbg(lvl, format, arg...)	\
-do {								\
-	if (debug >= lvl)						\
-		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg);	\
-} while (0)
-
-
 /* Version Information */
 #define DRIVER_VERSION "v0.0.13"
 #define DRIVER_AUTHOR "John Homppi"
 #define DRIVER_DESC "adutux (see www.ontrak.net)"
-
-/* Module parameters */
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 /* Define these values to match your device */
 #define ADU_VENDOR_ID 0x0a07
@@ -124,19 +105,11 @@ static DEFINE_MUTEX(adutux_mutex);
 
 static struct usb_driver adu_driver;
 
-static void adu_debug_data(int level, const char *function, int size,
-			   const unsigned char *data)
+static inline void adu_debug_data(struct device *dev, const char *function,
+				  int size, const unsigned char *data)
 {
-	int i;
-
-	if (debug < level)
-		return;
-
-	printk(KERN_DEBUG "%s: %s - length = %d, data = ",
-	       __FILE__, function, size);
-	for (i = 0; i < size; ++i)
-		printk("%.2x ", data[i]);
-	printk("\n");
+	dev_dbg(dev, "%s - length = %d, data = %*ph\n",
+		function, size, size, data);
 }
 
 /**
@@ -185,8 +158,8 @@ static void adu_interrupt_in_callback(struct urb *urb)
 	struct adu_device *dev = urb->context;
 	int status = urb->status;
 
-	adu_debug_data(5, __func__, urb->actual_length,
-		       urb->transfer_buffer);
+	adu_debug_data(&dev->udev->dev, __func__,
+		       urb->actual_length, urb->transfer_buffer);
 
 	spin_lock(&dev->buflock);
 
@@ -222,8 +195,6 @@ exit:
 	spin_unlock(&dev->buflock);
 	/* always wake up so we recover from errors */
 	wake_up_interruptible(&dev->read_wait);
-	adu_debug_data(5, __func__, urb->actual_length,
-		       urb->transfer_buffer);
 }
 
 static void adu_interrupt_out_callback(struct urb *urb)
@@ -231,7 +202,8 @@ static void adu_interrupt_out_callback(struct urb *urb)
 	struct adu_device *dev = urb->context;
 	int status = urb->status;
 
-	adu_debug_data(5, __func__, urb->actual_length, urb->transfer_buffer);
+	adu_debug_data(&dev->udev->dev, __func__,
+		       urb->actual_length, urb->transfer_buffer);
 
 	if (status != 0) {
 		if ((status != -ENOENT) &&
@@ -240,17 +212,13 @@ static void adu_interrupt_out_callback(struct urb *urb)
 				"%s :nonzero status received: %d\n", __func__,
 				status);
 		}
-		goto exit;
+		return;
 	}
 
 	spin_lock(&dev->buflock);
 	dev->out_urb_finished = 1;
 	wake_up(&dev->write_wait);
 	spin_unlock(&dev->buflock);
-exit:
-
-	adu_debug_data(5, __func__, urb->actual_length,
-		       urb->transfer_buffer);
 }
 
 static int adu_open(struct inode *inode, struct file *file)
