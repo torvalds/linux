@@ -343,6 +343,8 @@ static int oti6858_port_probe(struct usb_serial_port *port)
 
 	usb_set_serial_port_data(port, priv);
 
+	port->port.drain_delay = 256;	/* FIXME: check the FIFO length */
+
 	return 0;
 }
 
@@ -558,7 +560,7 @@ static int oti6858_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* setup termios */
 	if (tty)
 		oti6858_set_termios(tty, port, &tmp_termios);
-	port->port.drain_delay = 256;	/* FIXME: check the FIFO length */
+
 	return 0;
 }
 

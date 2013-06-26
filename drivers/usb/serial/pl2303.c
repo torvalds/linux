@@ -235,6 +235,8 @@ static int pl2303_port_probe(struct usb_serial_port *port)
 
 	usb_set_serial_port_data(port, priv);
 
+	port->port.drain_delay = 256;
+
 	return 0;
 }
 
@@ -521,7 +523,6 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return result;
 	}
 
-	port->port.drain_delay = 256;
 	return 0;
 }
 

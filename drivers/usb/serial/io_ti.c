@@ -1872,8 +1872,6 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	++edge_serial->num_ports_open;
 
-	port->port.drain_delay = 1;
-
 	goto release_es_lock;
 
 unlink_int_urb:
@@ -2473,6 +2471,7 @@ static int edge_port_probe(struct usb_serial_port *port)
 	}
 
 	port->port.closing_wait = msecs_to_jiffies(closing_wait * 10);
+	port->port.drain_delay = 1;
 
 	return 0;
 }
