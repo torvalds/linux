@@ -51,6 +51,7 @@
 #include <linux/bitops.h>
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
+#include <linux/completion.h>
 
 #include <asm/irq.h>
 #include <asm/byteorder.h>
@@ -75,6 +76,7 @@
  * @argument3: UIC command argument 3
  * @cmd_active: Indicate if UIC command is outstanding
  * @result: UIC command result
+ * @done: UIC command completion
  */
 struct uic_command {
 	u32 command;
@@ -83,6 +85,7 @@ struct uic_command {
 	u32 argument3;
 	int cmd_active;
 	int result;
+	struct completion done;
 };
 
 /**
@@ -136,11 +139,11 @@ struct ufshcd_lrb {
  * @ufs_version: UFS Version to which controller complies
  * @irq: Irq number of the controller
  * @active_uic_cmd: handle of active UIC command
+ * @uic_cmd_mutex: mutex for uic command
  * @ufshcd_tm_wait_queue: wait queue for task management
  * @tm_condition: condition variable for task management
  * @ufshcd_state: UFSHCD states
  * @intr_mask: Interrupt Mask Bits
- * @uic_workq: Work queue for UIC completion handling
  * @feh_workq: Work queue for fatal controller error handling
  * @errors: HBA errors
  */
@@ -171,7 +174,9 @@ struct ufs_hba {
 	u32 ufs_version;
 	unsigned int irq;
 
-	struct uic_command active_uic_cmd;
+	struct uic_command *active_uic_cmd;
+	struct mutex uic_cmd_mutex;
+
 	wait_queue_head_t ufshcd_tm_wait_queue;
 	unsigned long tm_condition;
 
@@ -179,7 +184,6 @@ struct ufs_hba {
 	u32 intr_mask;
 
 	/* Work Queues */
-	struct work_struct uic_workq;
 	struct work_struct feh_workq;
 
 	/* HBA Errors */
