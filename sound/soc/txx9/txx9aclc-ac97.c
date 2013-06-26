@@ -188,9 +188,9 @@ static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 	if (!r)
 		return -EBUSY;
 
-	if (!devm_request_mem_region(&pdev->dev, r->start, resource_size(r),
-				     dev_name(&pdev->dev)))
-		return -EBUSY;
+	drvdata->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(drvdata->base))
+		return PTR_ERR(drvdata->base);
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
@@ -201,9 +201,6 @@ static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 	    r->start >= TXX9_DIRECTMAP_BASE &&
 	    r->start < TXX9_DIRECTMAP_BASE + 0x400000)
 		drvdata->physbase |= 0xf00000000ull;
-	drvdata->base = devm_ioremap(&pdev->dev, r->start, resource_size(r));
-	if (!drvdata->base)
-		return -EBUSY;
 	err = devm_request_irq(&pdev->dev, irq, txx9aclc_ac97_irq,
 			       0, dev_name(&pdev->dev), drvdata);
 	if (err < 0)
