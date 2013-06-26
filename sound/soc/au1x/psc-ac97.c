@@ -497,19 +497,7 @@ static struct platform_driver au1xpsc_ac97_driver = {
 	.remove		= au1xpsc_ac97_drvremove,
 };
 
-static int __init au1xpsc_ac97_load(void)
-{
-	au1xpsc_ac97_workdata = NULL;
-	return platform_driver_register(&au1xpsc_ac97_driver);
-}
-
-static void __exit au1xpsc_ac97_unload(void)
-{
-	platform_driver_unregister(&au1xpsc_ac97_driver);
-}
-
-module_init(au1xpsc_ac97_load);
-module_exit(au1xpsc_ac97_unload);
+module_platform_driver(au1xpsc_ac97_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Au12x0/Au1550 PSC AC97 ALSA ASoC audio driver");
