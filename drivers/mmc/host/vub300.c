@@ -2079,7 +2079,7 @@ static void vub300_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	kref_put(&vub300->kref, vub300_delete);
 }
 
-void vub300_init_card(struct mmc_host *mmc, struct mmc_card *card)
+static void vub300_init_card(struct mmc_host *mmc, struct mmc_card *card)
 {				/* NOT irq */
 	struct vub300_mmc_host *vub300 = mmc_priv(mmc);
 	dev_info(&vub300->udev->dev, "NO host QUIRKS for this card\n");
