@@ -30,6 +30,7 @@
  */
 #define XSPI_CR_OFFSET		0x60	/* Control Register */
 
+#define XSPI_CR_LOOP		0x01
 #define XSPI_CR_ENABLE		0x02
 #define XSPI_CR_MASTER_MODE	0x04
 #define XSPI_CR_CPOL		0x08
@@ -340,11 +341,12 @@ static const struct of_device_id xilinx_spi_of_match[] = {
 MODULE_DEVICE_TABLE(of, xilinx_spi_of_match);
 
 struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
-	u32 irq, s16 bus_num, int num_cs, int little_endian, int bits_per_word)
+	u32 irq, s16 bus_num, int num_cs, int bits_per_word)
 {
 	struct spi_master *master;
 	struct xilinx_spi *xspi;
 	int ret;
+	u32 tmp;
 
 	master = spi_alloc_master(dev, sizeof(struct xilinx_spi));
 	if (!master)
@@ -376,13 +378,25 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 
 	xspi->mem = *mem;
 	xspi->irq = irq;
-	if (little_endian) {
-		xspi->read_fn = xspi_read32;
-		xspi->write_fn = xspi_write32;
-	} else {
+
+	/*
+	 * Detect endianess on the IP via loop bit in CR. Detection
+	 * must be done before reset is sent because incorrect reset
+	 * value generates error interrupt.
+	 * Setup little endian helper functions first and try to use them
+	 * and check if bit was correctly setup or not.
+	 */
+	xspi->read_fn = xspi_read32;
+	xspi->write_fn = xspi_write32;
+
+	xspi->write_fn(XSPI_CR_LOOP, xspi->regs + XSPI_CR_OFFSET);
+	tmp = xspi->read_fn(xspi->regs + XSPI_CR_OFFSET);
+	tmp &= XSPI_CR_LOOP;
+	if (tmp != XSPI_CR_LOOP) {
 		xspi->read_fn = xspi_read32_be;
 		xspi->write_fn = xspi_write32_be;
 	}
+
 	xspi->bits_per_word = bits_per_word;
 	if (xspi->bits_per_word == 8) {
 		xspi->tx_fn = xspi_tx8;
@@ -446,14 +460,13 @@ static int xilinx_spi_probe(struct platform_device *dev)
 {
 	struct xspi_platform_data *pdata;
 	struct resource *r;
-	int irq, num_cs = 0, little_endian = 0, bits_per_word = 8;
+	int irq, num_cs = 0, bits_per_word = 8;
 	struct spi_master *master;
 	u8 i;
 
 	pdata = dev->dev.platform_data;
 	if (pdata) {
 		num_cs = pdata->num_chipselect;
-		little_endian = pdata->little_endian;
 		bits_per_word = pdata->bits_per_word;
 	}
 
@@ -485,7 +498,7 @@ static int xilinx_spi_probe(struct platform_device *dev)
 		return -ENXIO;
 
 	master = xilinx_spi_init(&dev->dev, r, irq, dev->id, num_cs,
-				 little_endian, bits_per_word);
+				 bits_per_word);
 	if (!master)
 		return -ENODEV;
 
@@ -501,7 +514,6 @@ static int xilinx_spi_probe(struct platform_device *dev)
 static int xilinx_spi_remove(struct platform_device *dev)
 {
 	xilinx_spi_deinit(platform_get_drvdata(dev));
-	platform_set_drvdata(dev, 0);
 
 	return 0;
 }
