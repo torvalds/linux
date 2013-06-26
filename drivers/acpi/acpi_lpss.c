@@ -164,13 +164,22 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 	if (dev_desc->clk_required) {
 		ret = register_device_clock(adev, pdata);
 		if (ret) {
-			/*
-			 * Skip the device, but don't terminate the namespace
-			 * scan.
-			 */
-			kfree(pdata);
-			return 0;
+			/* Skip the device, but continue the namespace scan. */
+			ret = 0;
+			goto err_out;
 		}
+	}
+
+	/*
+	 * This works around a known issue in ACPI tables where LPSS devices
+	 * have _PS0 and _PS3 without _PSC (and no power resources), so
+	 * acpi_bus_init_power() will assume that the BIOS has put them into D0.
+	 */
+	ret = acpi_device_fix_up_power(adev);
+	if (ret) {
+		/* Skip the device, but continue the namespace scan. */
+		ret = 0;
+		goto err_out;
 	}
 
 	adev->driver_data = pdata;
