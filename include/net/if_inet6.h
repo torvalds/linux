@@ -166,6 +166,7 @@ struct inet6_dev {
 	struct net_device	*dev;
 
 	struct list_head	addr_list;
+	int			valid_ll_addr_cnt;
 
 	struct ifmcaddr6	*mc_list;
 	struct ifmcaddr6	*mc_tomb;
