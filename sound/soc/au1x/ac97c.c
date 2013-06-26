@@ -338,19 +338,7 @@ static struct platform_driver au1xac97c_driver = {
 	.remove		= au1xac97c_drvremove,
 };
 
-static int __init au1xac97c_load(void)
-{
-	ac97c_workdata = NULL;
-	return platform_driver_register(&au1xac97c_driver);
-}
-
-static void __exit au1xac97c_unload(void)
-{
-	platform_driver_unregister(&au1xac97c_driver);
-}
-
-module_init(au1xac97c_load);
-module_exit(au1xac97c_unload);
+module_platform_driver(&au1xac97c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Au1000/1500/1100 AC97C ASoC driver");
