@@ -3277,7 +3277,7 @@ static void addrconf_dad_completed(struct inet6_ifaddr *ifp)
 {
 	struct net_device *dev = ifp->idev->dev;
 	struct in6_addr lladdr;
-	bool send_rs;
+	bool send_rs, send_mld;
 
 	addrconf_del_dad_timer(ifp);
 
@@ -3293,13 +3293,20 @@ static void addrconf_dad_completed(struct inet6_ifaddr *ifp)
 
 	read_lock_bh(&ifp->idev->lock);
 	spin_lock(&ifp->lock);
-	send_rs = ipv6_accept_ra(ifp->idev) &&
+	send_mld = ipv6_addr_type(&ifp->addr) & IPV6_ADDR_LINKLOCAL &&
+		   ifp->idev->valid_ll_addr_cnt == 1;
+	send_rs = send_mld &&
+		  ipv6_accept_ra(ifp->idev) &&
 		  ifp->idev->cnf.rtr_solicits > 0 &&
-		  (dev->flags&IFF_LOOPBACK) == 0 &&
-		  ipv6_addr_type(&ifp->addr) & IPV6_ADDR_LINKLOCAL &&
-		  ifp->idev->valid_ll_addr_cnt == 1;
+		  (dev->flags&IFF_LOOPBACK) == 0;
 	spin_unlock(&ifp->lock);
 	read_unlock_bh(&ifp->idev->lock);
+
+	/* While dad is in progress mld report's source address is in6_addrany.
+	 * Resend with proper ll now.
+	 */
+	if (send_mld)
+		ipv6_mc_dad_complete(ifp->idev);
 
 	if (send_rs) {
 		/*

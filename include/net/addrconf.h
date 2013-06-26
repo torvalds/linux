@@ -155,6 +155,7 @@ extern bool ipv6_chk_mcast_addr(struct net_device *dev,
 				const struct in6_addr *group,
 				const struct in6_addr *src_addr);
 
+extern void ipv6_mc_dad_complete(struct inet6_dev *idev);
 /*
  * identify MLD packets for MLD filter exceptions
  */
