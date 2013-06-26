@@ -51,6 +51,7 @@ void btc_apply_voltage_delta_rules(struct radeon_device *rdev,
 				   u16 *vddc, u16 *vddci);
 bool btc_dpm_enabled(struct radeon_device *rdev);
 int btc_reset_to_default(struct radeon_device *rdev);
-void btc_notify_uvd_to_smc(struct radeon_device *rdev);
+void btc_notify_uvd_to_smc(struct radeon_device *rdev,
+			   struct radeon_ps *radeon_new_state);
 
 #endif

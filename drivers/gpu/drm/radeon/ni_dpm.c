@@ -3642,6 +3642,7 @@ int ni_power_control_set_level(struct radeon_device *rdev)
 int ni_dpm_set_power_state(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
 	int ret;
 
 	ni_apply_state_adjust_rules(rdev);
@@ -3651,7 +3652,7 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 	ni_enable_smc_cac(rdev, false);
 	rv770_halt_smc(rdev);
 	if (eg_pi->smu_uvd_hs)
-		btc_notify_uvd_to_smc(rdev);
+		btc_notify_uvd_to_smc(rdev, new_ps);
 	ni_upload_sw_state(rdev);
 	if (eg_pi->dynamic_ac_timing)
 		ni_upload_mc_reg_table(rdev);

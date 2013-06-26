@@ -1604,11 +1604,11 @@ bool btc_dpm_enabled(struct radeon_device *rdev)
 		return false;
 }
 
-static int btc_init_smc_table(struct radeon_device *rdev)
+static int btc_init_smc_table(struct radeon_device *rdev,
+			      struct radeon_ps *radeon_boot_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
-	struct radeon_ps *radeon_boot_state = rdev->pm.dpm.boot_ps;
 	RV770_SMC_STATETABLE *table = &pi->smc_statetable;
 	int ret;
 
@@ -1668,11 +1668,11 @@ static int btc_init_smc_table(struct radeon_device *rdev)
 				       pi->sram_end);
 }
 
-static void btc_set_at_for_uvd(struct radeon_device *rdev)
+static void btc_set_at_for_uvd(struct radeon_device *rdev,
+			       struct radeon_ps *radeon_new_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
 	int idx = 0;
 
 	if (r600_is_uvd_state(radeon_new_state->class, radeon_new_state->class2))
@@ -1692,9 +1692,9 @@ static void btc_set_at_for_uvd(struct radeon_device *rdev)
 
 }
 
-void btc_notify_uvd_to_smc(struct radeon_device *rdev)
+void btc_notify_uvd_to_smc(struct radeon_device *rdev,
+			   struct radeon_ps *radeon_new_state)
 {
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 
 	if (r600_is_uvd_state(radeon_new_state->class, radeon_new_state->class2)) {
@@ -1814,11 +1814,11 @@ static int btc_enable_ulv(struct radeon_device *rdev)
 	return 0;
 }
 
-static int btc_set_power_state_conditionally_enable_ulv(struct radeon_device *rdev)
+static int btc_set_power_state_conditionally_enable_ulv(struct radeon_device *rdev,
+							struct radeon_ps *radeon_new_state)
 {
 	int ret = 0;
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
 
 	if (eg_pi->ulv.supported) {
 		if (btc_is_state_ulv_compatible(rdev, radeon_new_state)) {
@@ -2059,10 +2059,10 @@ static void btc_init_stutter_mode(struct radeon_device *rdev)
 	}
 }
 
-static void btc_apply_state_adjust_rules(struct radeon_device *rdev)
+static void btc_apply_state_adjust_rules(struct radeon_device *rdev,
+					 struct radeon_ps *rps)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
-	struct radeon_ps *rps = rdev->pm.dpm.requested_ps;
 	struct rv7xx_ps *ps = rv770_get_ps(rps);
 	struct radeon_clock_and_voltage_limits *max_limits;
 	bool disable_mclk_switching;
@@ -2236,7 +2236,7 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
 	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
 
-	btc_apply_state_adjust_rules(rdev);
+	btc_apply_state_adjust_rules(rdev, new_ps);
 
 	btc_disable_ulv(rdev);
 	btc_set_boot_state_timing(rdev);
@@ -2247,9 +2247,9 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	rv770_halt_smc(rdev);
-	btc_set_at_for_uvd(rdev);
+	btc_set_at_for_uvd(rdev, new_ps);
 	if (eg_pi->smu_uvd_hs)
-		btc_notify_uvd_to_smc(rdev);
+		btc_notify_uvd_to_smc(rdev, new_ps);
 	cypress_upload_sw_state(rdev, new_ps);
 
 	if (eg_pi->dynamic_ac_timing)
@@ -2264,7 +2264,7 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
-	btc_set_power_state_conditionally_enable_ulv(rdev);
+	btc_set_power_state_conditionally_enable_ulv(rdev, new_ps);
 
 #if 0
 	/* XXX */
@@ -2328,7 +2328,7 @@ int btc_dpm_enable(struct radeon_device *rdev)
 		return -EINVAL;
 
 	cypress_get_table_locations(rdev);
-	btc_init_smc_table(rdev);
+	btc_init_smc_table(rdev, boot_ps);
 
 	if (eg_pi->dynamic_ac_timing)
 		cypress_populate_mc_reg_table(rdev, boot_ps);
