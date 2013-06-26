@@ -526,6 +526,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 			goto out_release;
 		}
 
+		iwl_mvm_vif_dbgfs_register(mvm, vif);
 		goto out_unlock;
 	}
 
