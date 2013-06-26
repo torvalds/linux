@@ -2605,17 +2605,6 @@ static int pn533_setup(struct pn533 *dev)
 
 	switch (dev->device_type) {
 	case PN533_DEVICE_STD:
-		max_retries.mx_rty_atr = PN533_CONFIG_MAX_RETRIES_ENDLESS;
-		max_retries.mx_rty_psl = 2;
-		max_retries.mx_rty_passive_act =
-			PN533_CONFIG_MAX_RETRIES_NO_RETRY;
-
-		timing.rfu = PN533_CONFIG_TIMING_102;
-		timing.atr_res_timeout = PN533_CONFIG_TIMING_204;
-		timing.dep_timeout = PN533_CONFIG_TIMING_409;
-
-		break;
-
 	case PN533_DEVICE_PASORI:
 	case PN533_DEVICE_ACR122U:
 		max_retries.mx_rty_atr = 0x2;
