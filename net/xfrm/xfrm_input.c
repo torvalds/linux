@@ -163,6 +163,11 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		skb->sp->xvec[skb->sp->len++] = x;
 
 		spin_lock(&x->lock);
+		if (unlikely(x->km.state == XFRM_STATE_ACQ)) {
+			XFRM_INC_STATS(net, LINUX_MIB_XFRMACQUIREERROR);
+			goto drop_unlock;
+		}
+
 		if (unlikely(x->km.state != XFRM_STATE_VALID)) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEINVALID);
 			goto drop_unlock;
