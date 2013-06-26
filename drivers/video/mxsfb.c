@@ -899,7 +899,6 @@ static int mxsfb_probe(struct platform_device *pdev)
 
 	host->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->base)) {
-		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = PTR_ERR(host->base);
 		goto fb_release;
 	}
