@@ -87,28 +87,11 @@
 #include <linux/poll.h>
 
 
-#ifdef CONFIG_USB_DEBUG
-	static int debug = 4;
-#else
-	static int debug = 0;
-#endif
-
-/* Use our own dbg macro */
-#undef dbg
-#define dbg(lvl, format, arg...)					\
-do {									\
-	if (debug >= lvl)						\
-		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg);	\
-} while (0)
-
 /* Version Information */
 #define DRIVER_VERSION "v0.96"
 #define DRIVER_AUTHOR "Juergen Stuber <starblue@sourceforge.net>"
 #define DRIVER_DESC "LEGO USB Tower Driver"
 
-/* Module parameters */
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 /* The defaults are chosen to work with the latest versions of leJOS and NQC.
  */
@@ -298,18 +281,12 @@ static struct usb_driver tower_driver = {
 /**
  *	lego_usb_tower_debug_data
  */
-static inline void lego_usb_tower_debug_data (int level, const char *function, int size, const unsigned char *data)
+static inline void lego_usb_tower_debug_data(struct device *dev,
+					     const char *function, int size,
+					     const unsigned char *data)
 {
-	int i;
-
-	if (debug < level)
-		return;
-
-	printk (KERN_DEBUG "%s: %s - length = %d, data = ", __FILE__, function, size);
-	for (i = 0; i < size; ++i) {
-		printk ("%.2x ", data[i]);
-	}
-	printk ("\n");
+	dev_dbg(dev, "%s - length = %d, data = %*ph\n",
+		function, size, size, data);
 }
 
 
@@ -744,7 +721,8 @@ static void tower_interrupt_in_callback (struct urb *urb)
 	int status = urb->status;
 	int retval;
 
-	lego_usb_tower_debug_data(5, __func__, urb->actual_length, urb->transfer_buffer);
+	lego_usb_tower_debug_data(&dev->udev->dev, __func__,
+				  urb->actual_length, urb->transfer_buffer);
 
 	if (status) {
 		if (status == -ENOENT ||
@@ -788,8 +766,6 @@ resubmit:
 exit:
 	dev->interrupt_in_done = 1;
 	wake_up_interruptible (&dev->read_wait);
-
-	lego_usb_tower_debug_data(5, __func__, urb->actual_length, urb->transfer_buffer);
 }
 
 
@@ -801,7 +777,8 @@ static void tower_interrupt_out_callback (struct urb *urb)
 	struct lego_usb_tower *dev = urb->context;
 	int status = urb->status;
 
-	lego_usb_tower_debug_data(5, __func__, urb->actual_length, urb->transfer_buffer);
+	lego_usb_tower_debug_data(&dev->udev->dev, __func__,
+				  urb->actual_length, urb->transfer_buffer);
 
 	/* sync/async unlink faults aren't errors */
 	if (status && !(status == -ENOENT ||
@@ -814,8 +791,6 @@ static void tower_interrupt_out_callback (struct urb *urb)
 
 	dev->interrupt_out_busy = 0;
 	wake_up_interruptible(&dev->write_wait);
-
-	lego_usb_tower_debug_data(5, __func__, urb->actual_length, urb->transfer_buffer);
 }
 
 
