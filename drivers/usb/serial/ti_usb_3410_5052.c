@@ -45,8 +45,6 @@
 
 #define TI_FIRMWARE_BUF_SIZE	16284
 
-#define TI_WRITE_BUF_SIZE	1024
-
 #define TI_TRANSFER_TIMEOUT	2
 
 #define TI_DEFAULT_CLOSING_WAIT	4000		/* in .01 secs */
@@ -77,7 +75,6 @@ struct ti_port {
 	spinlock_t		tp_lock;
 	int			tp_read_urb_state;
 	int			tp_write_urb_in_use;
-	struct kfifo		write_fifo;
 };
 
 struct ti_device {
@@ -431,10 +428,6 @@ static int ti_port_probe(struct usb_serial_port *port)
 		tport->tp_uart_base_addr = TI_UART2_BASE_ADDR;
 	port->port.closing_wait = msecs_to_jiffies(10 * closing_wait);
 	init_waitqueue_head(&tport->tp_write_wait);
-	if (kfifo_alloc(&tport->write_fifo, TI_WRITE_BUF_SIZE, GFP_KERNEL)) {
-		kfree(tport);
-		return -ENOMEM;
-	}
 	tport->tp_port = port;
 	tport->tp_tdev = usb_get_serial_data(port->serial);
 	tport->tp_uart_mode = 0;	/* default is RS232 */
@@ -451,7 +444,6 @@ static int ti_port_remove(struct usb_serial_port *port)
 	struct ti_port *tport;
 
 	tport = usb_get_serial_port_data(port);
-	kfifo_free(&tport->write_fifo);
 	kfree(tport);
 
 	return 0;
@@ -616,7 +608,7 @@ static void ti_close(struct usb_serial_port *port)
 	usb_kill_urb(port->write_urb);
 	tport->tp_write_urb_in_use = 0;
 	spin_lock_irqsave(&tport->tp_lock, flags);
-	kfifo_reset_out(&tport->write_fifo);
+	kfifo_reset_out(&port->write_fifo);
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	port_number = port->port_number;
@@ -655,7 +647,7 @@ static int ti_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (tport == NULL || !tport->tp_is_open)
 		return -ENODEV;
 
-	count = kfifo_in_locked(&tport->write_fifo, data, count,
+	count = kfifo_in_locked(&port->write_fifo, data, count,
 							&tport->tp_lock);
 	ti_send(tport);
 
@@ -674,7 +666,7 @@ static int ti_write_room(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
-	room = kfifo_avail(&tport->write_fifo);
+	room = kfifo_avail(&port->write_fifo);
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
@@ -693,7 +685,7 @@ static int ti_chars_in_buffer(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
-	chars = kfifo_len(&tport->write_fifo);
+	chars = kfifo_len(&port->write_fifo);
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
@@ -1197,7 +1189,7 @@ static void ti_send(struct ti_port *tport)
 	if (tport->tp_write_urb_in_use)
 		goto unlock;
 
-	count = kfifo_out(&tport->write_fifo,
+	count = kfifo_out(&port->write_fifo,
 				port->write_urb->transfer_buffer,
 				port->bulk_out_size);
 
@@ -1312,7 +1304,7 @@ static int ti_get_serial_info(struct ti_port *tport,
 	ret_serial.line = port->minor;
 	ret_serial.port = port->port_number;
 	ret_serial.flags = tport->tp_flags;
-	ret_serial.xmit_fifo_size = TI_WRITE_BUF_SIZE;
+	ret_serial.xmit_fifo_size = kfifo_size(&port->write_fifo);
 	ret_serial.baud_base = tport->tp_tdev->td_is_3410 ? 921600 : 460800;
 	ret_serial.closing_wait = cwait;
 
