@@ -209,9 +209,7 @@ cmpk_count_txstatistic(
 	// reason, ie. there may be a duration while sw switch is changed and hw
 	// switch is being changed. 2006.12.04, by shien chang.
 	if (rtState == eRfOff)
-	{
 		return;
-	}
 #endif
 
 #ifdef TODO
@@ -221,49 +219,35 @@ cmpk_count_txstatistic(
 	/* We can not know the packet length and transmit type: broadcast or uni
 	   or multicast. So the relative statistics must be collected in tx
 	   feedback info. */
-	if (pstx_fb->tok)
-	{
+	if (pstx_fb->tok) {
 		priv->stats.txfeedbackok++;
 		priv->stats.txoktotal++;
 		priv->stats.txokbytestotal += pstx_fb->pkt_length;
 		priv->stats.txokinperiod++;
 
 		/* We can not make sure broadcast/multicast or unicast mode. */
-		if (pstx_fb->pkt_type == PACKET_MULTICAST)
-		{
+		if (pstx_fb->pkt_type == PACKET_MULTICAST) {
 			priv->stats.txmulticast++;
 			priv->stats.txbytesmulticast += pstx_fb->pkt_length;
-		}
-		else if (pstx_fb->pkt_type == PACKET_BROADCAST)
-		{
+		} else if (pstx_fb->pkt_type == PACKET_BROADCAST) {
 			priv->stats.txbroadcast++;
 			priv->stats.txbytesbroadcast += pstx_fb->pkt_length;
-		}
-		else
-		{
+		} else {
 			priv->stats.txunicast++;
 			priv->stats.txbytesunicast += pstx_fb->pkt_length;
 		}
-	}
-	else
-	{
+	} else {
 		priv->stats.txfeedbackfail++;
 		priv->stats.txerrtotal++;
 		priv->stats.txerrbytestotal += pstx_fb->pkt_length;
 
 		/* We can not make sure broadcast/multicast or unicast mode. */
 		if (pstx_fb->pkt_type == PACKET_MULTICAST)
-		{
 			priv->stats.txerrmulticast++;
-		}
 		else if (pstx_fb->pkt_type == PACKET_BROADCAST)
-		{
 			priv->stats.txerrbroadcast++;
-		}
 		else
-		{
 			priv->stats.txerrunicast++;
-		}
 	}
 
 	priv->stats.txretrycount += pstx_fb->retry_cnt;
@@ -326,26 +310,21 @@ cmdpkt_beacontimerinterrupt_819xusb(
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16 tx_rate;
-	{
 		//
 		// 070117, rcnjko: 87B have to S/W beacon for DTM encryption_cmn.
 		//
 		if (priv->ieee80211->current_network.mode == IEEE_A  ||
 			priv->ieee80211->current_network.mode == IEEE_N_5G ||
-			(priv->ieee80211->current_network.mode == IEEE_N_24G  && (!priv->ieee80211->pHTInfo->bCurSuppCCK)))
-		{
+			(priv->ieee80211->current_network.mode == IEEE_N_24G  && (!priv->ieee80211->pHTInfo->bCurSuppCCK))) {
 			tx_rate = 60;
 			DMESG("send beacon frame  tx rate is 6Mbpm\n");
-		}
-		else
-		{
+		} else {
 			tx_rate =10;
 			DMESG("send beacon frame  tx rate is 1Mbpm\n");
 		}
 
 		rtl819xusb_beacon_tx(dev,tx_rate); // HW Beacon
 
-	}
 
 }
 
@@ -387,36 +366,29 @@ cmpk_handle_interrupt_status(
 	   windows OS. So we have to read the content byte by byte or transfer
 	   endian type before copy the message copy. */
 	rx_intr_status.length = pmsg[1];
-	if (rx_intr_status.length != (sizeof(cmpk_intr_sta_t) - 2))
-	{
+	if (rx_intr_status.length != (sizeof(cmpk_intr_sta_t) - 2)) {
 		DMESG("cmpk_Handle_Interrupt_Status: wrong length!\n");
 		return;
 	}
 
 
 	// Statistics of beacon for ad-hoc mode.
-	if (	priv->ieee80211->iw_mode == IW_MODE_ADHOC)
-	{
+	if (	priv->ieee80211->iw_mode == IW_MODE_ADHOC) {
 		//2 maybe need endian transform?
 		rx_intr_status.interrupt_status = *((u32 *)(pmsg + 4));
 
 		DMESG("interrupt status = 0x%x\n", rx_intr_status.interrupt_status);
 
-		if (rx_intr_status.interrupt_status & ISR_TxBcnOk)
-		{
+		if (rx_intr_status.interrupt_status & ISR_TxBcnOk) {
 			priv->ieee80211->bibsscoordinator = true;
 			priv->stats.txbeaconokint++;
-		}
-		else if (rx_intr_status.interrupt_status & ISR_TxBcnErr)
-		{
+		} else if (rx_intr_status.interrupt_status & ISR_TxBcnErr) {
 			priv->ieee80211->bibsscoordinator = false;
 			priv->stats.txbeaconerr++;
 		}
 
 		if (rx_intr_status.interrupt_status & ISR_BcnTimerIntr)
-		{
 			cmdpkt_beacontimerinterrupt_819xusb(dev);
-		}
 
 	}
 
@@ -504,9 +476,7 @@ static	void	cmpk_count_tx_status(	struct net_device *dev,
 	// reason, ie. there may be a duration while sw switch is changed and hw
 	// switch is being changed. 2006.12.04, by shien chang.
 	if (rtState == eRfOff)
-	{
 		return;
-	}
 #endif
 
 	priv->stats.txfeedbackok	+= pstx_status->txok;
@@ -602,9 +572,7 @@ cmpk_handle_tx_rate_history(
 	// reason, ie. there may be a duration while sw switch is changed and hw
 	// switch is being changed. 2006.12.04, by shien chang.
 	if (rtState == eRfOff)
-	{
 		return;
-	}
 #endif
 
 	ptemp = (u32 *)pmsg;
@@ -613,8 +581,7 @@ cmpk_handle_tx_rate_history(
 	// Do endian transfer to word alignment(16 bits) for windows system.
 	// You must do different endian transfer for linux and MAC OS
 	//
-	for (i = 0; i < (length/4); i++)
-	{
+	for (i = 0; i < (length/4); i++) {
 		u16	 temp1, temp2;
 
 		temp1 = ptemp[i]&0x0000FFFF;
@@ -625,12 +592,9 @@ cmpk_handle_tx_rate_history(
 	ptxrate = (cmpk_tx_rahis_t *)pmsg;
 
 	if (ptxrate == NULL )
-	{
 		return;
-	}
 
-	for (i = 0; i < 16; i++)
-	{
+	for (i = 0; i < 16; i++) {
 		// Collect CCK rate packet num
 		if (i < 4)
 			priv->stats.txrate.cck[i] += ptxrate->cck[i];
@@ -679,9 +643,7 @@ cmpk_message_handle_rx(
 	/* 0. Check inpt arguments. If is is a command queue message or pointer is
 	      null. */
 	if (pstats== NULL)
-	{
 		return 0;	/* This is not a command packet. */
-	}
 
 	/* 1. Read received command packet message length from RFD. */
 	total_length = pstats->Length;
@@ -696,13 +658,11 @@ cmpk_message_handle_rx(
 	      element type. Because FW may aggregate RX command packet to minimize
 	      transmit time between DRV and FW.*/
 	// Add a counter to prevent the lock in the loop from being held too long
-	while (total_length > 0 && exe_cnt++ < 100)
-	{
+	while (total_length > 0 && exe_cnt++ < 100) {
 		/* 2007/01/17 MH We support aggregation of different cmd in the same packet. */
 		element_id = pcmd_buff[0];
 
-		switch (element_id)
-		{
+		switch (element_id) {
 			case RX_TX_FEEDBACK:
 				cmpk_handle_tx_feedback (dev, pcmd_buff);
 				cmd_length = CMPK_RX_TX_FB_SIZE;
