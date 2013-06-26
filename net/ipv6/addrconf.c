@@ -4361,8 +4361,11 @@ static int inet6_set_iftoken(struct inet6_dev *idev, struct in6_addr *token)
 
 	write_lock_bh(&idev->lock);
 
-	if (update_rs)
+	if (update_rs) {
 		idev->if_flags |= IF_RS_SENT;
+		idev->rs_probes = 1;
+		addrconf_mod_rs_timer(idev, idev->cnf.rtr_solicit_interval);
+	}
 
 	/* Well, that's kinda nasty ... */
 	list_for_each_entry(ifp, &idev->addr_list, if_list) {
