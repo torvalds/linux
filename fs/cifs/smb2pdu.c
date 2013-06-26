@@ -111,7 +111,8 @@ smb2_hdr_assemble(struct smb2_hdr *hdr, __le16 smb2_cmd /* command */ ,
 	/* BB FIXME when we do write > 64K add +1 for every 64K in req or rsp */
 	/* GLOBAL_CAP_LARGE_MTU will only be set if dialect > SMB2.02 */
 	/* See sections 2.2.4 and 3.2.4.1.5 of MS-SMB2 */
-	if (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU)
+	if ((tcon->ses) &&
+	    (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU))
 		hdr->CreditCharge = cpu_to_le16(1);
 	/* else CreditCharge MBZ */
 
