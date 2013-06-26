@@ -320,6 +320,8 @@
 #define 	THERM_INT_MASK_HIGH			(1 << 24)
 #define 	THERM_INT_MASK_LOW			(1 << 25)
 
+#define	RV770_CG_THERMAL_INT				0x734
+
 #define	HDP_HOST_PATH_CNTL				0x2C00
 #define	HDP_NONSURFACE_BASE				0x2C04
 #define	HDP_NONSURFACE_INFO				0x2C08

@@ -1037,6 +1037,10 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_RV670:
 	case CHIP_RS780:
 	case CHIP_RS880:
+	case CHIP_RV770:
+	case CHIP_RV730:
+	case CHIP_RV710:
+	case CHIP_RV740:
 		if (radeon_dpm == 1)
 			rdev->pm.pm_method = PM_METHOD_DPM;
 		else

@@ -1374,6 +1374,18 @@ static struct radeon_asic rv770_asic = {
 		.set_uvd_clocks = &rv770_set_uvd_clocks,
 		.get_temperature = &rv770_get_temp,
 	},
+	.dpm = {
+		.init = &rv770_dpm_init,
+		.setup_asic = &rv770_dpm_setup_asic,
+		.enable = &rv770_dpm_enable,
+		.disable = &rv770_dpm_disable,
+		.set_power_state = &rv770_dpm_set_power_state,
+		.display_configuration_changed = &rv770_dpm_display_configuration_changed,
+		.fini = &rv770_dpm_fini,
+		.get_sclk = &rv770_dpm_get_sclk,
+		.get_mclk = &rv770_dpm_get_mclk,
+		.print_power_state = &rv770_dpm_print_power_state,
+	},
 	.pflip = {
 		.pre_page_flip = &rs600_pre_page_flip,
 		.page_flip = &rv770_page_flip,

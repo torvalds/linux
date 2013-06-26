@@ -460,6 +460,18 @@ u32 rv770_get_xclk(struct radeon_device *rdev);
 int rv770_uvd_resume(struct radeon_device *rdev);
 int rv770_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 int rv770_get_temp(struct radeon_device *rdev);
+/* rv7xx pm */
+int rv770_dpm_init(struct radeon_device *rdev);
+int rv770_dpm_enable(struct radeon_device *rdev);
+void rv770_dpm_disable(struct radeon_device *rdev);
+int rv770_dpm_set_power_state(struct radeon_device *rdev);
+void rv770_dpm_setup_asic(struct radeon_device *rdev);
+void rv770_dpm_display_configuration_changed(struct radeon_device *rdev);
+void rv770_dpm_fini(struct radeon_device *rdev);
+u32 rv770_dpm_get_sclk(struct radeon_device *rdev, bool low);
+u32 rv770_dpm_get_mclk(struct radeon_device *rdev, bool low);
+void rv770_dpm_print_power_state(struct radeon_device *rdev,
+				 struct radeon_ps *ps);
 
 /*
  * evergreen

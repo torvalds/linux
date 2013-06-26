@@ -44,4 +44,25 @@
 #define BTC_MC_UCODE_SIZE            6024
 #define CAYMAN_MC_UCODE_SIZE         6037
 
+/* SMC */
+#define RV770_SMC_UCODE_START        0x0100
+#define RV770_SMC_UCODE_SIZE         0x410d
+#define RV770_SMC_INT_VECTOR_START   0xffc0
+#define RV770_SMC_INT_VECTOR_SIZE    0x0040
+
+#define RV730_SMC_UCODE_START        0x0100
+#define RV730_SMC_UCODE_SIZE         0x412c
+#define RV730_SMC_INT_VECTOR_START   0xffc0
+#define RV730_SMC_INT_VECTOR_SIZE    0x0040
+
+#define RV710_SMC_UCODE_START        0x0100
+#define RV710_SMC_UCODE_SIZE         0x3f1f
+#define RV710_SMC_INT_VECTOR_START   0xffc0
+#define RV710_SMC_INT_VECTOR_SIZE    0x0040
+
+#define RV740_SMC_UCODE_START        0x0100
+#define RV740_SMC_UCODE_SIZE         0x41c5
+#define RV740_SMC_INT_VECTOR_START   0xffc0
+#define RV740_SMC_INT_VECTOR_SIZE    0x0040
+
 #endif
