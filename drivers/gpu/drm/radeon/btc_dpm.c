@@ -2243,26 +2243,26 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 	rv770_restrict_performance_levels_before_switch(rdev);
 
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_before_state_change(rdev);
+		cypress_notify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
 
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	rv770_halt_smc(rdev);
 	btc_set_at_for_uvd(rdev);
 	if (eg_pi->smu_uvd_hs)
 		btc_notify_uvd_to_smc(rdev);
-	cypress_upload_sw_state(rdev);
+	cypress_upload_sw_state(rdev, new_ps);
 
 	if (eg_pi->dynamic_ac_timing)
-		cypress_upload_mc_reg_table(rdev);
+		cypress_upload_mc_reg_table(rdev, new_ps);
 
-	cypress_program_memory_timing_parameters(rdev);
+	cypress_program_memory_timing_parameters(rdev, new_ps);
 
 	rv770_resume_smc(rdev);
 	rv770_set_sw_state(rdev);
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_after_state_change(rdev);
+		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
 	btc_set_power_state_conditionally_enable_ulv(rdev);
 
@@ -2278,6 +2278,7 @@ int btc_dpm_enable(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
 
 	if (pi->gfx_clock_gating)
 		btc_cg_clock_gating_default(rdev);
@@ -2330,7 +2331,7 @@ int btc_dpm_enable(struct radeon_device *rdev)
 	btc_init_smc_table(rdev);
 
 	if (eg_pi->dynamic_ac_timing)
-		cypress_populate_mc_reg_table(rdev);
+		cypress_populate_mc_reg_table(rdev, boot_ps);
 
 	cypress_program_response_times(rdev);
 	r7xx_start_smc(rdev);

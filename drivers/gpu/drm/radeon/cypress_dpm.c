@@ -353,10 +353,10 @@ static u32 cypress_get_maximum_link_speed(struct radeon_ps *radeon_state)
 	return 0;
 }
 
-void cypress_notify_link_speed_change_after_state_change(struct radeon_device *rdev)
+void cypress_notify_link_speed_change_after_state_change(struct radeon_device *rdev,
+							 struct radeon_ps *radeon_new_state,
+							 struct radeon_ps *radeon_current_state)
 {
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
-	struct radeon_ps *radeon_current_state = rdev->pm.dpm.current_ps;
 	u32 pcie_link_speed_target =  cypress_get_maximum_link_speed(radeon_new_state);
 	u32 pcie_link_speed_current = cypress_get_maximum_link_speed(radeon_current_state);
 	u8 request;
@@ -373,10 +373,10 @@ void cypress_notify_link_speed_change_after_state_change(struct radeon_device *r
 	}
 }
 
-void cypress_notify_link_speed_change_before_state_change(struct radeon_device *rdev)
+void cypress_notify_link_speed_change_before_state_change(struct radeon_device *rdev,
+							  struct radeon_ps *radeon_new_state,
+							  struct radeon_ps *radeon_current_state)
 {
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
-	struct radeon_ps *radeon_current_state = rdev->pm.dpm.current_ps;
 	u32 pcie_link_speed_target =  cypress_get_maximum_link_speed(radeon_new_state);
 	u32 pcie_link_speed_current = cypress_get_maximum_link_speed(radeon_current_state);
 	u8 request;
@@ -856,10 +856,10 @@ static void cypress_convert_mc_reg_table_to_smc(struct radeon_device *rdev,
 						  &mc_reg_table->data[4]);
 }
 
-int cypress_upload_sw_state(struct radeon_device *rdev)
+int cypress_upload_sw_state(struct radeon_device *rdev,
+			    struct radeon_ps *radeon_new_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
 	u16 address = pi->state_table_start +
 		offsetof(RV770_SMC_STATETABLE, driverState);
 	RV770_SMC_SWSTATE state = { 0 };
@@ -874,11 +874,11 @@ int cypress_upload_sw_state(struct radeon_device *rdev)
 				    pi->sram_end);
 }
 
-int cypress_upload_mc_reg_table(struct radeon_device *rdev)
+int cypress_upload_mc_reg_table(struct radeon_device *rdev,
+				struct radeon_ps *radeon_new_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
 	SMC_Evergreen_MCRegisters mc_reg_table = { 0 };
 	u16 address;
 
@@ -914,9 +914,9 @@ u32 cypress_calculate_burst_time(struct radeon_device *rdev,
 	return burst_time;
 }
 
-void cypress_program_memory_timing_parameters(struct radeon_device *rdev)
+void cypress_program_memory_timing_parameters(struct radeon_device *rdev,
+					      struct radeon_ps *radeon_new_state)
 {
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
 	struct rv7xx_ps *new_state = rv770_get_ps(radeon_new_state);
 	u32 mc_arb_burst_time = RREG32(MC_ARB_BURST_TIME);
 
@@ -1106,9 +1106,9 @@ static void cypress_wait_for_mc_sequencer(struct radeon_device *rdev, u8 value)
 	}
 }
 
-static void cypress_force_mc_use_s1(struct radeon_device *rdev)
+static void cypress_force_mc_use_s1(struct radeon_device *rdev,
+				    struct radeon_ps *radeon_boot_state)
 {
-	struct radeon_ps *radeon_boot_state = rdev->pm.dpm.boot_ps;
 	struct rv7xx_ps *boot_state = rv770_get_ps(radeon_boot_state);
 	u32 strobe_mode;
 	u32 mc_seq_cg;
@@ -1167,9 +1167,9 @@ static void cypress_copy_ac_timing_from_s1_to_s0(struct radeon_device *rdev)
 	}
 }
 
-static void cypress_force_mc_use_s0(struct radeon_device *rdev)
+static void cypress_force_mc_use_s0(struct radeon_device *rdev,
+				    struct radeon_ps *radeon_boot_state)
 {
-	struct radeon_ps *radeon_boot_state = rdev->pm.dpm.boot_ps;
 	struct rv7xx_ps *boot_state = rv770_get_ps(radeon_boot_state);
 	u32 strobe_mode;
 	u32 mc_seq_cg;
@@ -1601,10 +1601,10 @@ int cypress_get_mvdd_configuration(struct radeon_device *rdev)
 	return 0;
 }
 
-static int cypress_init_smc_table(struct radeon_device *rdev)
+static int cypress_init_smc_table(struct radeon_device *rdev,
+				  struct radeon_ps *radeon_boot_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
-	struct radeon_ps *radeon_boot_state = rdev->pm.dpm.boot_ps;
 	RV770_SMC_STATETABLE *table = &pi->smc_statetable;
 	int ret;
 
@@ -1653,11 +1653,11 @@ static int cypress_init_smc_table(struct radeon_device *rdev)
 				       pi->sram_end);
 }
 
-int cypress_populate_mc_reg_table(struct radeon_device *rdev)
+int cypress_populate_mc_reg_table(struct radeon_device *rdev,
+				  struct radeon_ps *radeon_boot_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
-	struct radeon_ps *radeon_boot_state = rdev->pm.dpm.boot_ps;
 	struct rv7xx_ps *boot_state = rv770_get_ps(radeon_boot_state);
 	SMC_Evergreen_MCRegisters mc_reg_table = { 0 };
 
@@ -1797,6 +1797,7 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
 
 	if (pi->gfx_clock_gating)
 		rv770_restore_cgcg(rdev);
@@ -1814,9 +1815,9 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 
 	if (eg_pi->dynamic_ac_timing) {
 		cypress_set_mc_reg_address_table(rdev);
-		cypress_force_mc_use_s0(rdev);
+		cypress_force_mc_use_s0(rdev, boot_ps);
 		cypress_initialize_mc_reg_table(rdev);
-		cypress_force_mc_use_s1(rdev);
+		cypress_force_mc_use_s1(rdev, boot_ps);
 	}
 
 	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_BACKBIAS)
@@ -1845,11 +1846,11 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 
 	cypress_get_table_locations(rdev);
 
-	if (cypress_init_smc_table(rdev))
+	if (cypress_init_smc_table(rdev, boot_ps))
 		return -EINVAL;
 
 	if (eg_pi->dynamic_ac_timing)
-		cypress_populate_mc_reg_table(rdev);
+		cypress_populate_mc_reg_table(rdev, boot_ps);
 
 	cypress_program_response_times(rdev);
 
@@ -1892,6 +1893,7 @@ void cypress_dpm_disable(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
 
 	if (!rv770_dpm_enabled(rdev))
 		return;
@@ -1922,7 +1924,7 @@ void cypress_dpm_disable(struct radeon_device *rdev)
 	cypress_enable_spread_spectrum(rdev, false);
 
 	if (eg_pi->dynamic_ac_timing)
-		cypress_force_mc_use_s1(rdev);
+		cypress_force_mc_use_s1(rdev, boot_ps);
 
 	rv770_reset_smio_status(rdev);
 }
@@ -1936,23 +1938,23 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 	rv770_restrict_performance_levels_before_switch(rdev);
 
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_before_state_change(rdev);
+		cypress_notify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
 
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	rv770_halt_smc(rdev);
-	cypress_upload_sw_state(rdev);
+	cypress_upload_sw_state(rdev, new_ps);
 
 	if (eg_pi->dynamic_ac_timing)
-		cypress_upload_mc_reg_table(rdev);
+		cypress_upload_mc_reg_table(rdev, new_ps);
 
-	cypress_program_memory_timing_parameters(rdev);
+	cypress_program_memory_timing_parameters(rdev, new_ps);
 
 	rv770_resume_smc(rdev);
 	rv770_set_sw_state(rdev);
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_after_state_change(rdev);
+		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
 	rv770_unrestrict_performance_levels_after_switch(rdev);
 
