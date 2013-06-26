@@ -209,10 +209,8 @@ static int nspire_keypad_probe(struct platform_device *pdev)
 	}
 
 	keypad->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(keypad->reg_base)) {
-		dev_err(&pdev->dev, "failed to remap I/O memory\n");
+	if (IS_ERR(keypad->reg_base))
 		return PTR_ERR(keypad->reg_base);
-	}
 
 	keypad->input = input = devm_input_allocate_device(&pdev->dev);
 	if (!input) {
