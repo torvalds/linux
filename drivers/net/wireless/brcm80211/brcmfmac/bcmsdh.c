@@ -162,7 +162,7 @@ int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 	return 0;
 }
 
-int
+static int
 brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 {
 	int err = 0, i;
@@ -193,12 +193,33 @@ brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 	return err;
 }
 
+static int
+brcmf_sdio_addrprep(struct brcmf_sdio_dev *sdiodev, uint width, u32 *addr)
+{
+	uint bar0 = *addr & ~SBSDIO_SB_OFT_ADDR_MASK;
+	int err = 0;
+
+	if (bar0 != sdiodev->sbwad) {
+		err = brcmf_sdcard_set_sbaddr_window(sdiodev, bar0);
+		if (err)
+			return err;
+
+		sdiodev->sbwad = bar0;
+	}
+
+	*addr &= SBSDIO_SB_OFT_ADDR_MASK;
+
+	if (width == 4)
+		*addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+
+	return 0;
+}
+
 int
 brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 			void *data, bool write)
 {
 	u8 func_num, reg_size;
-	u32 bar;
 	s32 retry = 0;
 	int ret;
 
@@ -218,18 +239,7 @@ brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		func_num = SDIO_FUNC_1;
 		reg_size = 4;
 
-		/* Set the window for SB core register */
-		bar = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
-		if (bar != sdiodev->sbwad) {
-			ret = brcmf_sdcard_set_sbaddr_window(sdiodev, bar);
-			if (ret != 0) {
-				memset(data, 0xFF, reg_size);
-				return ret;
-			}
-			sdiodev->sbwad = bar;
-		}
-		addr &= SBSDIO_SB_OFT_ADDR_MASK;
-		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+		brcmf_sdio_addrprep(sdiodev, reg_size, &addr);
 	}
 
 	do {
@@ -452,28 +462,6 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	return ret;
 }
 
-static int brcmf_sdcard_recv_prepare(struct brcmf_sdio_dev *sdiodev, uint fn,
-				     uint width, u32 *addr)
-{
-	uint bar0 = *addr & ~SBSDIO_SB_OFT_ADDR_MASK;
-	int err = 0;
-
-	if (bar0 != sdiodev->sbwad) {
-		err = brcmf_sdcard_set_sbaddr_window(sdiodev, bar0);
-		if (err)
-			return err;
-
-		sdiodev->sbwad = bar0;
-	}
-
-	*addr &= SBSDIO_SB_OFT_ADDR_MASK;
-
-	if (width == 4)
-		*addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
-
-	return 0;
-}
-
 int
 brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, u8 *buf, uint nbytes)
@@ -508,7 +496,7 @@ brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		  fn, addr, pkt->len);
 
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdcard_recv_prepare(sdiodev, fn, width, &addr);
+	err = brcmf_sdio_addrprep(sdiodev, width, &addr);
 	if (err)
 		goto done;
 
@@ -532,7 +520,7 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		  fn, addr, pktq->qlen);
 
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdcard_recv_prepare(sdiodev, fn, width, &addr);
+	err = brcmf_sdio_addrprep(sdiodev, width, &addr);
 	if (err)
 		goto done;
 
@@ -570,33 +558,20 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, struct sk_buff *pkt)
 {
 	uint width;
-	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 	struct sk_buff_head pkt_list;
 
 	brcmf_dbg(SDIO, "fun = %d, addr = 0x%x, size = %d\n",
 		  fn, addr, pkt->len);
 
-	if (bar0 != sdiodev->sbwad) {
-		err = brcmf_sdcard_set_sbaddr_window(sdiodev, bar0);
-		if (err)
-			goto done;
-
-		sdiodev->sbwad = bar0;
-	}
-
-	addr &= SBSDIO_SB_OFT_ADDR_MASK;
-
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	if (width == 4)
-		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+	brcmf_sdio_addrprep(sdiodev, width, &addr);
 
 	skb_queue_head_init(&pkt_list);
 	skb_queue_tail(&pkt_list, pkt);
 	err = brcmf_sdio_buffrw(sdiodev, fn, true, addr, &pkt_list);
 	skb_dequeue_tail(&pkt_list);
 
-done:
 	return err;
 }
 
