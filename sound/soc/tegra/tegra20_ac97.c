@@ -327,7 +327,7 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	}
 	dev_set_drvdata(&pdev->dev, ac97);
 
-	ac97->clk_ac97 = clk_get(&pdev->dev, NULL);
+	ac97->clk_ac97 = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ac97->clk_ac97)) {
 		dev_err(&pdev->dev, "Can't retrieve ac97 clock\n");
 		ret = PTR_ERR(ac97->clk_ac97);
@@ -443,7 +443,6 @@ err_unregister_pcm:
 err_unregister_component:
 	snd_soc_unregister_component(&pdev->dev);
 err_clk_put:
-	clk_put(ac97->clk_ac97);
 err:
 	return ret;
 }
@@ -458,7 +457,6 @@ static int tegra20_ac97_platform_remove(struct platform_device *pdev)
 	tegra_asoc_utils_fini(&ac97->util_data);
 
 	clk_disable_unprepare(ac97->clk_ac97);
-	clk_put(ac97->clk_ac97);
 
 	return 0;
 }
