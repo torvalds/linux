@@ -1086,6 +1086,12 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 		}
 	}
 
+	/*
+	 * Mark @root has finished binding subsystems.  @root->subsys_mask
+	 * now matches the bound subsystems.
+	 */
+	root->flags |= CGRP_ROOT_SUBSYS_BOUND;
+
 	return 0;
 }
 
@@ -1485,6 +1491,14 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
 
 	init_cgroup_root(root);
 
+	/*
+	 * We need to set @root->subsys_mask now so that @root can be
+	 * matched by cgroup_test_super() before it finishes
+	 * initialization; otherwise, competing mounts with the same
+	 * options may try to bind the same subsystems instead of waiting
+	 * for the first one leading to unexpected mount errors.
+	 * SUBSYS_BOUND will be set once actual binding is complete.
+	 */
 	root->subsys_mask = opts->subsys_mask;
 	root->flags = opts->flags;
 	ida_init(&root->cgroup_ida);
@@ -1734,9 +1748,11 @@ static void cgroup_kill_sb(struct super_block *sb) {
 	mutex_lock(&cgroup_root_mutex);
 
 	/* Rebind all subsystems back to the default hierarchy */
-	ret = rebind_subsystems(root, 0, root->subsys_mask);
-	/* Shouldn't be able to fail ... */
-	BUG_ON(ret);
+	if (root->flags & CGRP_ROOT_SUBSYS_BOUND) {
+		ret = rebind_subsystems(root, 0, root->subsys_mask);
+		/* Shouldn't be able to fail ... */
+		BUG_ON(ret);
+	}
 
 	/*
 	 * Release all the links from cset_links to this hierarchy's
