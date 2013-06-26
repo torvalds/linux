@@ -61,13 +61,13 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	tcb_desc->txbuf_size = (u16)DataLen;
 
 	if (!priv->ieee80211->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
-			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||
-			(priv->ieee80211->queue_stop)) {
-			RT_TRACE(COMP_FIRMWARE, "===================NULL packet==================================> tx full!\n");
-			skb_queue_tail(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index], skb);
-		} else {
-			priv->ieee80211->softmac_hard_start_xmit(skb, dev);
-		}
+	    (!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||
+	    (priv->ieee80211->queue_stop)) {
+		RT_TRACE(COMP_FIRMWARE, "=== NULL packet ======> tx full!\n");
+		skb_queue_tail(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index], skb);
+	} else {
+		priv->ieee80211->softmac_hard_start_xmit(skb, dev);
+	}
 
 	return rtStatus;
 }
@@ -127,20 +127,20 @@ extern rt_status cmpk_message_handle_tx(struct net_device *dev,
 
 		/* Allocate skb buffer to contain firmware info and tx
 		   descriptor info add 4 to avoid packet appending overflow. */
-		#ifdef RTL8192U
+#ifdef RTL8192U
 		skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + frag_length + 4);
-		#else
+#else
 		skb  = dev_alloc_skb(frag_length + 4);
-		#endif
+#endif
 		memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 		tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = packettype;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
 
-		#ifdef RTL8192U
+#ifdef RTL8192U
 		skb_reserve(skb, USB_HWDESC_HEADER_LEN);
-		#endif
+#endif
 
 		seg_ptr = skb_put(skb, buffer_len);
 		/*
@@ -152,9 +152,9 @@ extern rt_status cmpk_message_handle_tx(struct net_device *dev,
 
 
 		if (!priv->ieee80211->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
-			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||
-			(priv->ieee80211->queue_stop)) {
-			RT_TRACE(COMP_FIRMWARE, "=====================================================> tx full!\n");
+		    (!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||
+		    (priv->ieee80211->queue_stop)) {
+			RT_TRACE(COMP_FIRMWARE, "======> tx full!\n");
 			skb_queue_tail(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index], skb);
 		} else {
 			priv->ieee80211->softmac_hard_start_xmit(skb, dev);
@@ -194,7 +194,8 @@ static void cmpk_count_txstatistic(struct net_device *dev, cmpk_txfb_t *pstx_fb)
 #ifdef ENABLE_PS
 	RT_RF_POWER_STATE	rtState;
 
-	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE, (pu1Byte)(&rtState));
+	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE,
+					  (pu1Byte)(&rtState));
 
 	/* When RF is off, we should not count the packet for hw/sw synchronize
 	   reason, ie. there may be a duration while sw switch is changed and
@@ -298,7 +299,8 @@ void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
 		/* 87B have to S/W beacon for DTM encryption_cmn. */
 		if (priv->ieee80211->current_network.mode == IEEE_A ||
 			priv->ieee80211->current_network.mode == IEEE_N_5G ||
-			(priv->ieee80211->current_network.mode == IEEE_N_24G && (!priv->ieee80211->pHTInfo->bCurSuppCCK))) {
+			(priv->ieee80211->current_network.mode == IEEE_N_24G &&
+			 (!priv->ieee80211->pHTInfo->bCurSuppCCK))) {
 			tx_rate = 60;
 			DMESG("send beacon frame  tx rate is 6Mbpm\n");
 		} else {
@@ -357,7 +359,8 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 		/* 2 maybe need endian transform? */
 		rx_intr_status.interrupt_status = *((u32 *)(pmsg + 4));
 
-		DMESG("interrupt status = 0x%x\n", rx_intr_status.interrupt_status);
+		DMESG("interrupt status = 0x%x\n",
+		      rx_intr_status.interrupt_status);
 
 		if (rx_intr_status.interrupt_status & ISR_TxBcnOk) {
 			priv->ieee80211->bibsscoordinator = true;
@@ -447,7 +450,8 @@ static void cmpk_count_tx_status(struct net_device *dev,
 
 	RT_RF_POWER_STATE	rtstate;
 
-	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE, (pu1Byte)(&rtState));
+	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE,
+					  (pu1Byte)(&rtState));
 
 	/* When RF is off, we should not count the packet for hw/sw synchronize
 	   reason, ie. there may be a duration while sw switch is changed and
@@ -537,7 +541,8 @@ static void cmpk_handle_tx_rate_history(struct net_device *dev, u8 *pmsg)
 
 
 #ifdef ENABLE_PS
-	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE, (pu1Byte)(&rtState));
+	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE,
+					  (pu1Byte)(&rtState));
 
 	/* When RF is off, we should not count the packet for hw/sw synchronize
 	   reason, ie. there may be a duration while sw switch is changed and
@@ -631,41 +636,42 @@ extern u32 cmpk_message_handle_rx(struct net_device *dev,
 		element_id = pcmd_buff[0];
 
 		switch (element_id) {
-			case RX_TX_FEEDBACK:
-				cmpk_handle_tx_feedback(dev, pcmd_buff);
-				cmd_length = CMPK_RX_TX_FB_SIZE;
-				break;
+		case RX_TX_FEEDBACK:
+			cmpk_handle_tx_feedback(dev, pcmd_buff);
+			cmd_length = CMPK_RX_TX_FB_SIZE;
+			break;
 
-			case RX_INTERRUPT_STATUS:
-				cmpk_handle_interrupt_status(dev, pcmd_buff);
-				cmd_length = sizeof(cmpk_intr_sta_t);
-				break;
+		case RX_INTERRUPT_STATUS:
+			cmpk_handle_interrupt_status(dev, pcmd_buff);
+			cmd_length = sizeof(cmpk_intr_sta_t);
+			break;
 
-			case BOTH_QUERY_CONFIG:
-				cmpk_handle_query_config_rx(dev, pcmd_buff);
-				cmd_length = CMPK_BOTH_QUERY_CONFIG_SIZE;
-				break;
+		case BOTH_QUERY_CONFIG:
+			cmpk_handle_query_config_rx(dev, pcmd_buff);
+			cmd_length = CMPK_BOTH_QUERY_CONFIG_SIZE;
+			break;
 
-			case RX_TX_STATUS:
-				cmpk_handle_tx_status(dev, pcmd_buff);
-				cmd_length = CMPK_RX_TX_STS_SIZE;
-				break;
+		case RX_TX_STATUS:
+			cmpk_handle_tx_status(dev, pcmd_buff);
+			cmd_length = CMPK_RX_TX_STS_SIZE;
+			break;
 
-			case RX_TX_PER_PKT_FEEDBACK:
-				/* You must at lease add a switch case element here,
-				   Otherwise, we will jump to default case. */
-				cmd_length = CMPK_RX_TX_FB_SIZE;
-				break;
+		case RX_TX_PER_PKT_FEEDBACK:
+			/* You must at lease add a switch case element here,
+			   Otherwise, we will jump to default case. */
+			cmd_length = CMPK_RX_TX_FB_SIZE;
+			break;
 
-			case RX_TX_RATE_HISTORY:
-				cmpk_handle_tx_rate_history(dev, pcmd_buff);
-				cmd_length = CMPK_TX_RAHIS_SIZE;
-				break;
+		case RX_TX_RATE_HISTORY:
+			cmpk_handle_tx_rate_history(dev, pcmd_buff);
+			cmd_length = CMPK_TX_RAHIS_SIZE;
+			break;
 
-			default:
+		default:
 
-				RT_TRACE(COMP_ERR, "---->cmpk_message_handle_rx():unknow CMD Element\n");
-				return 1;	/* This is a command packet. */
+			RT_TRACE(COMP_ERR, "---->%s():unknown CMD Element\n",
+				 __func__);
+			return 1;	/* This is a command packet. */
 		}
 
 		total_length -= cmd_length;
