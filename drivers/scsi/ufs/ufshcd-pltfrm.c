@@ -122,12 +122,6 @@ static int ufshcd_pltfrm_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	err = dma_set_coherent_mask(dev, dev->coherent_dma_mask);
-	if (err) {
-		dev_err(dev, "set dma mask failed\n");
-		goto out;
-	}
-
 	err = ufshcd_init(dev, &hba, mmio_base, irq);
 	if (err) {
 		dev_err(dev, "Intialization failed\n");
