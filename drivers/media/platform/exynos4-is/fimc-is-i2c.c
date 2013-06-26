@@ -83,21 +83,46 @@ static int fimc_is_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int fimc_is_i2c_suspend(struct device *dev)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
+static int fimc_is_i2c_runtime_suspend(struct device *dev)
 {
 	struct fimc_is_i2c *isp_i2c = dev_get_drvdata(dev);
+
 	clk_disable_unprepare(isp_i2c->clock);
 	return 0;
 }
 
-static int fimc_is_i2c_resume(struct device *dev)
+static int fimc_is_i2c_runtime_resume(struct device *dev)
 {
 	struct fimc_is_i2c *isp_i2c = dev_get_drvdata(dev);
+
 	return clk_prepare_enable(isp_i2c->clock);
 }
+#endif
 
-static UNIVERSAL_DEV_PM_OPS(fimc_is_i2c_pm_ops, fimc_is_i2c_suspend,
-		     fimc_is_i2c_resume, NULL);
+#ifdef CONFIG_PM_SLEEP
+static int fimc_is_i2c_suspend(struct device *dev)
+{
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	return fimc_is_i2c_runtime_suspend(dev);
+}
+
+static int fimc_is_i2c_resume(struct device *dev)
+{
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	return fimc_is_i2c_runtime_resume(dev);
+}
+#endif
+
+static struct dev_pm_ops fimc_is_i2c_pm_ops = {
+	SET_RUNTIME_PM_OPS(fimc_is_i2c_runtime_suspend,
+					fimc_is_i2c_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(fimc_is_i2c_suspend, fimc_is_i2c_resume)
+};
 
 static const struct of_device_id fimc_is_i2c_of_match[] = {
 	{ .compatible = FIMC_IS_I2C_COMPATIBLE },
