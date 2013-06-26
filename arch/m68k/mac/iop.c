@@ -118,9 +118,9 @@
 
 /*#define DEBUG_IOP*/
 
-/* Set to non-zero if the IOPs are present. Set by iop_init() */
+/* Non-zero if the IOPs are present */
 
-int iop_scc_present,iop_ism_present;
+int iop_scc_present, iop_ism_present;
 
 /* structure for tracking channel listeners */
 
