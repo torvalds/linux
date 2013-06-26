@@ -26,19 +26,6 @@
 #include "r8192U.h"
 #include "r819xU_cmdpkt.h"
 
-/* Debug constant */
-#define		CMPK_DEBOUNCE_CNT			1
-/* Add for printing a range of data. */
-#define		CMPK_PRINT(Address)\
-{\
-	unsigned char	i;\
-	u32	temp[10];\
-	\
-	memcpy(temp, Address, 40);\
-	for (i = 0; i < 40; i += 4)\
-		printk("\r\n %08x", temp[i]);\
-}\
-
 rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 {
 	rt_status	rtStatus = RT_STATUS_SUCCESS;
