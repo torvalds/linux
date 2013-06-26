@@ -1596,7 +1596,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	/* If this is the first slave, then we need to set the master's hardware
 	 * address to be the same as the slave's. */
-	if (bond->slave_cnt == 0 && bond->dev_addr_from_first)
+	if (!bond->slave_cnt && bond->dev->addr_assign_type == NET_ADDR_RANDOM)
 		bond_set_dev_addr(bond->dev, slave_dev);
 
 	new_slave = kzalloc(sizeof(struct slave), GFP_KERNEL);
@@ -2041,7 +2041,6 @@ static int __bond_release_one(struct net_device *bond_dev,
 	if (bond->slave_cnt == 0) {
 		bond_set_carrier(bond);
 		eth_hw_addr_random(bond_dev);
-		bond->dev_addr_from_first = true;
 
 		if (bond_vlan_used(bond)) {
 			pr_warning("%s: Warning: clearing HW address of %s while it still has VLANs.\n",
@@ -4800,10 +4799,8 @@ static int bond_init(struct net_device *bond_dev)
 
 	/* Ensure valid dev_addr */
 	if (is_zero_ether_addr(bond_dev->dev_addr) &&
-	    bond_dev->addr_assign_type == NET_ADDR_PERM) {
+	    bond_dev->addr_assign_type == NET_ADDR_PERM)
 		eth_hw_addr_random(bond_dev);
-		bond->dev_addr_from_first = true;
-	}
 
 	return 0;
 }

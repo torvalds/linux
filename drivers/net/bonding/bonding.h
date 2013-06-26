@@ -248,7 +248,6 @@ struct bonding {
 	/* debugging support via debugfs */
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
-	bool	dev_addr_from_first;
 };
 
 static inline bool bond_vlan_used(struct bonding *bond)
