@@ -68,7 +68,20 @@ struct drm_prime_attachment {
 	enum dma_data_direction dir;
 };
 
-static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle);
+static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle)
+{
+	struct drm_prime_member *member;
+
+	member = kmalloc(sizeof(*member), GFP_KERNEL);
+	if (!member)
+		return -ENOMEM;
+
+	get_dma_buf(dma_buf);
+	member->dma_buf = dma_buf;
+	member->handle = handle;
+	list_add(&member->entry, &prime_fpriv->head);
+	return 0;
+}
 
 static int drm_gem_map_attach(struct dma_buf *dma_buf,
 			      struct device *target_dev,
@@ -570,21 +583,6 @@ void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 	WARN_ON(!list_empty(&prime_fpriv->head));
 }
 EXPORT_SYMBOL(drm_prime_destroy_file_private);
-
-static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle)
-{
-	struct drm_prime_member *member;
-
-	member = kmalloc(sizeof(*member), GFP_KERNEL);
-	if (!member)
-		return -ENOMEM;
-
-	get_dma_buf(dma_buf);
-	member->dma_buf = dma_buf;
-	member->handle = handle;
-	list_add(&member->entry, &prime_fpriv->head);
-	return 0;
-}
 
 int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t *handle)
 {
