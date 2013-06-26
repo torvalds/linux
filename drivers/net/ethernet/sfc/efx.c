@@ -2202,8 +2202,6 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 				  "could not restore PHY settings\n");
 	}
 
-	efx->type->reconfigure_mac(efx);
-
 	efx_enable_interrupts(efx);
 	efx_restore_filters(efx);
 	efx_sriov_reset(efx);
