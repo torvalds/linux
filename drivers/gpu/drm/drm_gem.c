@@ -661,6 +661,8 @@ EXPORT_SYMBOL(drm_gem_vm_close);
  * the GEM object is not looked up based on its fake offset. To implement the
  * DRM mmap operation, drivers should use the drm_gem_mmap() function.
  *
+ * NOTE: This function has to be protected with dev->struct_mutex
+ *
  * Return 0 or success or -EINVAL if the object size is smaller than the VMA
  * size, or if no gem_vm_ops are provided.
  */
@@ -668,6 +670,8 @@ int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 		     struct vm_area_struct *vma)
 {
 	struct drm_device *dev = obj->dev;
+
+	lockdep_assert_held(&dev->struct_mutex);
 
 	/* Check for valid size. */
 	if (obj_size < vma->vm_end - vma->vm_start)

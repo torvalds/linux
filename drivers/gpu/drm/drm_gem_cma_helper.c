@@ -487,9 +487,12 @@ static int drm_gem_cma_dmabuf_mmap(struct dma_buf *dmabuf,
 {
 	struct drm_gem_cma_object *cma_obj = dmabuf->priv;
 	struct drm_gem_object *gem_obj = &cma_obj->base;
+	struct drm_device *dev = gem_obj->dev;
 	int ret;
 
+	mutex_lock(&dev->struct_mutex);
 	ret = drm_gem_mmap_obj(gem_obj, gem_obj->size, vma);
+	mutex_unlock(&dev->struct_mutex);
 	if (ret < 0)
 		return ret;
 
