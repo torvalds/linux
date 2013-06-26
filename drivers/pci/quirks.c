@@ -1834,7 +1834,6 @@ static void quirk_e100_interrupt(struct pci_dev *dev)
 	u16 command, pmcsr;
 	u8 __iomem *csr;
 	u8 cmd_hi;
-	int pm;
 
 	switch (dev->device) {
 	/* PCI IDs taken from drivers/net/e100.c */
@@ -1872,9 +1871,8 @@ static void quirk_e100_interrupt(struct pci_dev *dev)
 	 * Check that the device is in the D0 power state. If it's not,
 	 * there is no point to look any further.
 	 */
-	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
-	if (pm) {
-		pci_read_config_word(dev, pm + PCI_PM_CTRL, &pmcsr);
+	if (dev->pm_cap) {
+		pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) != PCI_D0)
 			return;
 	}
