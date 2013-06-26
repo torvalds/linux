@@ -363,6 +363,7 @@
 #define PUNIT_REG_GPU_LFM			0xd3
 #define PUNIT_REG_GPU_FREQ_REQ			0xd4
 #define PUNIT_REG_GPU_FREQ_STS			0xd8
+#define   GENFREQSTATUS				(1<<0)
 #define PUNIT_REG_MEDIA_TURBO_FREQ_REQ		0xdc
 
 #define PUNIT_FUSE_BUS2				0xf6 /* bits 47:40 */

@@ -3075,19 +3075,12 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
  */
 static void vlv_update_rps_cur_delay(struct drm_i915_private *dev_priv)
 {
-	unsigned long timeout = jiffies + msecs_to_jiffies(10);
 	u32 pval;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
-	do {
-		pval = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
-		if (time_after(jiffies, timeout)) {
-			DRM_DEBUG_DRIVER("timed out waiting for Punit\n");
-			break;
-		}
-		udelay(10);
-	} while (pval & 1);
+	if (wait_for(((pval = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS)) & GENFREQSTATUS) == 0, 10))
+		DRM_DEBUG_DRIVER("timed out waiting for Punit\n");
 
 	pval >>= 8;
 
