@@ -1280,13 +1280,6 @@ static int atmel_spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	if (bits < 8 || bits > 16) {
-		dev_dbg(&spi->dev,
-				"setup: invalid bits_per_word %u (8 to 16)\n",
-				bits);
-		return -EINVAL;
-	}
-
 	/* see notes above re chipselect */
 	if (!atmel_spi_is_v2(as)
 			&& spi->chip_select == 0
@@ -1527,7 +1520,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
-
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
 	master->dev.of_node = pdev->dev.of_node;
 	master->bus_num = pdev->id;
 	master->num_chipselect = master->dev.of_node ? 0 : 4;

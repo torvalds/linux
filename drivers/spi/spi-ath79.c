@@ -155,9 +155,6 @@ static int ath79_spi_setup(struct spi_device *spi)
 {
 	int status = 0;
 
-	if (spi->bits_per_word > 32)
-		return -EINVAL;
-
 	if (!spi->controller_state) {
 		status = ath79_spi_setup_cs(spi);
 		if (status)
@@ -226,6 +223,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->setup = ath79_spi_setup;
 	master->cleanup = ath79_spi_cleanup;
 	if (pdata) {

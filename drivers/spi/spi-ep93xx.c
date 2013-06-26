@@ -296,12 +296,6 @@ static int ep93xx_spi_setup(struct spi_device *spi)
 	struct ep93xx_spi *espi = spi_master_get_devdata(spi->master);
 	struct ep93xx_spi_chip *chip;
 
-	if (spi->bits_per_word < 4 || spi->bits_per_word > 16) {
-		dev_err(&espi->pdev->dev, "invalid bits per word %d\n",
-			spi->bits_per_word);
-		return -EINVAL;
-	}
-
 	chip = spi_get_ctldata(spi);
 	if (!chip) {
 		dev_dbg(&espi->pdev->dev, "initial setup for %s\n",
@@ -365,10 +359,6 @@ static int ep93xx_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 
 	/* first validate each transfer */
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
-		if (t->bits_per_word) {
-			if (t->bits_per_word < 4 || t->bits_per_word > 16)
-				return -EINVAL;
-		}
 		if (t->speed_hz && t->speed_hz < espi->min_rate)
 				return -EINVAL;
 	}
@@ -1046,6 +1036,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	master->bus_num = pdev->id;
 	master->num_chipselect = info->num_chipselect;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 
 	platform_set_drvdata(pdev, master);
 

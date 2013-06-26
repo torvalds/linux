@@ -116,15 +116,10 @@ static void txx9spi_cs_func(struct spi_device *spi, struct txx9spi *c,
 static int txx9spi_setup(struct spi_device *spi)
 {
 	struct txx9spi *c = spi_master_get_devdata(spi->master);
-	u8 bits_per_word;
 
 	if (!spi->max_speed_hz
 			|| spi->max_speed_hz > c->max_speed_hz
 			|| spi->max_speed_hz < c->min_speed_hz)
-		return -EINVAL;
-
-	bits_per_word = spi->bits_per_word;
-	if (bits_per_word != 8 && bits_per_word != 16)
 		return -EINVAL;
 
 	if (gpio_direction_output(spi->chip_select,
@@ -319,8 +314,6 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 
 		if (!t->tx_buf && !t->rx_buf && t->len)
 			return -EINVAL;
-		if (bits_per_word != 8 && bits_per_word != 16)
-			return -EINVAL;
 		if (t->len & ((bits_per_word >> 3) - 1))
 			return -EINVAL;
 		if (speed_hz < c->min_speed_hz || speed_hz > c->max_speed_hz)
@@ -411,6 +404,7 @@ static int txx9spi_probe(struct platform_device *dev)
 	master->setup = txx9spi_setup;
 	master->transfer = txx9spi_transfer;
 	master->num_chipselect = (u16)UINT_MAX; /* any GPIO numbers */
+	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 
 	ret = spi_register_master(master);
 	if (ret)

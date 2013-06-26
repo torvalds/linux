@@ -124,17 +124,6 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 /* the spi->mode bits understood by this driver: */
 #define MODEBITS (SPI_CPOL | SPI_CPHA)
 
-static int bcm63xx_spi_setup(struct spi_device *spi)
-{
-	if (spi->bits_per_word != 8) {
-		dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
-			__func__, spi->bits_per_word);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 				unsigned int num_transfers)
 {
@@ -277,13 +266,6 @@ static int bcm63xx_spi_transfer_one(struct spi_master *master,
 	 * full-duplex transfers.
 	 */
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (t->bits_per_word != 8) {
-			dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
-				__func__, t->bits_per_word);
-			status = -EINVAL;
-			goto exit;
-		}
-
 		if (!first)
 			first = t;
 
@@ -430,11 +412,11 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 
 	master->bus_num = pdata->bus_num;
 	master->num_chipselect = pdata->num_chipselect;
-	master->setup = bcm63xx_spi_setup;
 	master->prepare_transfer_hardware = bcm63xx_spi_prepare_transfer;
 	master->unprepare_transfer_hardware = bcm63xx_spi_unprepare_transfer;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	master->mode_bits = MODEBITS;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	bs->msg_type_shift = pdata->msg_type_shift;
 	bs->msg_ctl_width = pdata->msg_ctl_width;
 	bs->tx_io = (u8 *)(bs->regs + bcm63xx_spireg(SPI_MSG_DATA));

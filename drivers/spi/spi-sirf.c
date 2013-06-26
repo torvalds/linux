@@ -426,9 +426,7 @@ spi_sirfsoc_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 					SIRFSOC_SPI_FIFO_WIDTH_DWORD;
 		break;
 	default:
-		dev_err(&spi->dev, "Bits per word %d not supported\n",
-		       bits_per_word);
-		return -EINVAL;
+		BUG();
 	}
 
 	if (!(spi->mode & SPI_CS_HIGH))
@@ -556,6 +554,8 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	sspi->bitbang.txrx_bufs = spi_sirfsoc_transfer;
 	sspi->bitbang.master->setup = spi_sirfsoc_setup;
 	master->bus_num = pdev->id;
+	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(12) |
+					SPI_BPW_MASK(16) | SPI_BPW_MASK(32);
 	sspi->bitbang.master->dev.of_node = pdev->dev.of_node;
 
 	sspi->p = pinctrl_get_select_default(&pdev->dev);

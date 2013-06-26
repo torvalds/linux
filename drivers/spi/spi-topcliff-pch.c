@@ -472,11 +472,6 @@ static int pch_spi_setup(struct spi_device *pspi)
 		dev_dbg(&pspi->dev, "%s 8 bits per word\n", __func__);
 	}
 
-	if ((pspi->bits_per_word != 8) && (pspi->bits_per_word != 16)) {
-		dev_err(&pspi->dev, "%s Invalid bits per word\n", __func__);
-		return -EINVAL;
-	}
-
 	/* Check baud rate setting */
 	/* if baud rate of chip is greater than
 	   max we can support,return error */
@@ -537,17 +532,6 @@ static int pch_spi_transfer(struct spi_device *pspi, struct spi_message *pmsg)
 		/* if baud rate has been specified validate the same */
 		if (transfer->speed_hz > PCH_MAX_BAUDRATE)
 			transfer->speed_hz = PCH_MAX_BAUDRATE;
-
-		/* if bits per word has been specified validate the same */
-		if (transfer->bits_per_word) {
-			if ((transfer->bits_per_word != 8)
-			    && (transfer->bits_per_word != 16)) {
-				retval = -EINVAL;
-				dev_err(&pspi->dev,
-					"%s Invalid bits per word\n", __func__);
-				goto err_return_spinlock;
-			}
-		}
 	}
 	spin_unlock_irqrestore(&data->lock, flags);
 
@@ -1442,6 +1426,7 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 	master->setup = pch_spi_setup;
 	master->transfer = pch_spi_transfer;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
+	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 
 	data->board_dat = board_dat;
 	data->plat_dev = plat_dev;
