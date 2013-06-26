@@ -341,7 +341,7 @@ static struct of_regulator_match ab8500_ext_regulator_match[] = {
 	{ .name = "ab8500_ext3", .driver_data = (void *) AB8500_EXT_SUPPLY3, },
 };
 
-int ab8500_ext_regulator_probe(struct platform_device *pdev)
+static int ab8500_ext_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_platform_data *ppdata;
@@ -433,7 +433,7 @@ int ab8500_ext_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-int ab8500_ext_regulator_remove(struct platform_device *pdev)
+static int ab8500_ext_regulator_remove(struct platform_device *pdev)
 {
 	int i;
 
