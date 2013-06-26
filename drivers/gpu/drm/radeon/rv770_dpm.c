@@ -265,22 +265,21 @@ int rv770_populate_smc_t(struct radeon_device *rdev,
 	l[0] = 0;
 	r[2] = 100;
 
-	a_n = (int)state->medium.sclk * RV770_LMP_DFLT +
-		(int)state->low.sclk * (R600_AH_DFLT - RV770_RLP_DFLT);
-	a_d = (int)state->low.sclk * (100 - (int)RV770_RLP_DFLT) +
-		(int)state->medium.sclk * RV770_LMP_DFLT;
+	a_n = (int)state->medium.sclk * pi->lmp +
+		(int)state->low.sclk * (R600_AH_DFLT - pi->rlp);
+	a_d = (int)state->low.sclk * (100 - (int)pi->rlp) +
+		(int)state->medium.sclk * pi->lmp;
 
-	l[1] = (u8)(RV770_LMP_DFLT - (int)RV770_LMP_DFLT * a_n / a_d);
-	r[0] = (u8)(RV770_RLP_DFLT + (100 - (int)RV770_RLP_DFLT) * a_n / a_d);
+	l[1] = (u8)(pi->lmp - (int)pi->lmp * a_n / a_d);
+	r[0] = (u8)(pi->rlp + (100 - (int)pi->rlp) * a_n / a_d);
 
-	a_n = (int)state->high.sclk * RV770_LHP_DFLT +
-		(int)state->medium.sclk *
-		(R600_AH_DFLT - RV770_RMP_DFLT);
-	a_d = (int)state->medium.sclk * (100 - (int)RV770_RMP_DFLT) +
-		(int)state->high.sclk * RV770_LHP_DFLT;
+	a_n = (int)state->high.sclk * pi->lhp + (int)state->medium.sclk *
+		(R600_AH_DFLT - pi->rmp);
+	a_d = (int)state->medium.sclk * (100 - (int)pi->rmp) +
+		(int)state->high.sclk * pi->lhp;
 
-	l[2] = (u8)(RV770_LHP_DFLT - (int)RV770_LHP_DFLT * a_n / a_d);
-	r[1] = (u8)(RV770_RMP_DFLT + (100 - (int)RV770_RMP_DFLT) * a_n / a_d);
+	l[2] = (u8)(pi->lhp - (int)pi->lhp * a_n / a_d);
+	r[1] = (u8)(pi->rmp + (100 - (int)pi->rmp) * a_n / a_d);
 
 	for (i = 0; i < (RV770_SMC_PERFORMANCE_LEVELS_PER_SWSTATE - 1); i++) {
 		a_t = CG_R(r[i] * pi->bsp / 200) | CG_L(l[i] * pi->bsp / 200);
@@ -2280,6 +2279,11 @@ int rv770_dpm_init(struct radeon_device *rdev)
 
 	pi->mclk_strobe_mode_threshold = 30000;
 	pi->mclk_edc_enable_threshold = 30000;
+
+	pi->rlp = RV770_RLP_DFLT;
+	pi->rmp = RV770_RMP_DFLT;
+	pi->lhp = RV770_LHP_DFLT;
+	pi->lmp = RV770_LMP_DFLT;
 
 	pi->voltage_control =
 		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC);

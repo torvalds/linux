@@ -23,6 +23,10 @@
 #ifndef __BTC_DPM_H__
 #define __BTC_DPM_H__
 
+#define BTC_RLP_UVD_DFLT                              20
+#define BTC_RMP_UVD_DFLT                              50
+#define BTC_LHP_UVD_DFLT                              50
+#define BTC_LMP_UVD_DFLT                              20
 #define BARTS_MGCGCGTSSMCTRL_DFLT                     0x81944000
 #define TURKS_MGCGCGTSSMCTRL_DFLT                     0x6e944000
 #define CAICOS_MGCGCGTSSMCTRL_DFLT                    0x46944040

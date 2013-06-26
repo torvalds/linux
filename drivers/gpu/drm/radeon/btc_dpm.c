@@ -1510,6 +1510,46 @@ static int btc_init_smc_table(struct radeon_device *rdev)
 				       pi->sram_end);
 }
 
+static void btc_set_at_for_uvd(struct radeon_device *rdev)
+{
+	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
+	int idx = 0;
+
+	if (r600_is_uvd_state(radeon_new_state->class, radeon_new_state->class2))
+		idx = 1;
+
+	if ((idx == 1) && !eg_pi->smu_uvd_hs) {
+		pi->rlp = 10;
+		pi->rmp = 100;
+		pi->lhp = 100;
+		pi->lmp = 10;
+	} else {
+		pi->rlp = eg_pi->ats[idx].rlp;
+		pi->rmp = eg_pi->ats[idx].rmp;
+		pi->lhp = eg_pi->ats[idx].lhp;
+		pi->lmp = eg_pi->ats[idx].lmp;
+	}
+
+}
+
+static void btc_notify_uvd_to_smc(struct radeon_device *rdev)
+{
+	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+
+	if (r600_is_uvd_state(radeon_new_state->class, radeon_new_state->class2)) {
+		rv770_write_smc_soft_register(rdev,
+					      RV770_SMC_SOFT_REGISTER_uvd_enabled, 1);
+		eg_pi->uvd_enabled = true;
+	} else {
+		rv770_write_smc_soft_register(rdev,
+					      RV770_SMC_SOFT_REGISTER_uvd_enabled, 0);
+		eg_pi->uvd_enabled = false;
+	}
+}
+
 static int btc_reset_to_default(struct radeon_device *rdev)
 {
 	if (rv770_send_msg_to_smc(rdev, PPSMC_MSG_ResetToDefaults) != PPSMC_Result_OK)
@@ -1880,7 +1920,11 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_before_state_change(rdev);
 
+	rv770_set_uvd_clock_before_set_eng_clock(rdev);
 	rv770_halt_smc(rdev);
+	btc_set_at_for_uvd(rdev);
+	if (eg_pi->smu_uvd_hs)
+		btc_notify_uvd_to_smc(rdev);
 	cypress_upload_sw_state(rdev);
 
 	if (eg_pi->dynamic_ac_timing)
@@ -1890,6 +1934,7 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 
 	rv770_resume_smc(rdev);
 	rv770_set_sw_state(rdev);
+	rv770_set_uvd_clock_after_set_eng_clock(rdev);
 
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_after_state_change(rdev);
@@ -2097,6 +2142,23 @@ int btc_dpm_init(struct radeon_device *rdev)
 	pi->mclk_strobe_mode_threshold = 40000;
 	pi->mclk_edc_enable_threshold = 40000;
 	eg_pi->mclk_edc_wr_enable_threshold = 40000;
+
+	pi->rlp = RV770_RLP_DFLT;
+	pi->rmp = RV770_RMP_DFLT;
+	pi->lhp = RV770_LHP_DFLT;
+	pi->lmp = RV770_LMP_DFLT;
+
+	eg_pi->ats[0].rlp = RV770_RLP_DFLT;
+	eg_pi->ats[0].rmp = RV770_RMP_DFLT;
+	eg_pi->ats[0].lhp = RV770_LHP_DFLT;
+	eg_pi->ats[0].lmp = RV770_LMP_DFLT;
+
+	eg_pi->ats[1].rlp = BTC_RLP_UVD_DFLT;
+	eg_pi->ats[1].rmp = BTC_RMP_UVD_DFLT;
+	eg_pi->ats[1].lhp = BTC_LHP_UVD_DFLT;
+	eg_pi->ats[1].lmp = BTC_LMP_UVD_DFLT;
+
+	eg_pi->smu_uvd_hs = true;
 
 	pi->voltage_control =
 		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC);

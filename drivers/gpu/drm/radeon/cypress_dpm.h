@@ -51,6 +51,13 @@ struct evergreen_arb_registers {
 	u32 mc_arb_burst_time;
 };
 
+struct at {
+	u32 rlp;
+	u32 rmp;
+	u32 lhp;
+	u32 lmp;
+};
+
 struct evergreen_power_info {
 	/* must be first! */
 	struct rv7xx_power_info rv7xx;
@@ -66,6 +73,8 @@ struct evergreen_power_info {
 	bool sclk_deep_sleep;
 	bool dll_default_on;
 	bool ls_clock_gating;
+	bool smu_uvd_hs;
+	bool uvd_enabled;
 	/* stored values */
 	u16 acpi_vddci;
 	u8 mvdd_high_index;
@@ -76,6 +85,7 @@ struct evergreen_power_info {
 	struct atom_voltage_table vddci_voltage_table;
 	struct evergreen_arb_registers bootup_arb_registers;
 	struct evergreen_ulv_param ulv;
+	struct at ats[2];
 	/* smc offsets */
 	u16 mc_reg_table_start;
 };

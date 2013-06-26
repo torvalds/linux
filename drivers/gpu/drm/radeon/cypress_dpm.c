@@ -690,7 +690,8 @@ int cypress_convert_power_level_to_smc(struct radeon_device *rdev,
 
 	level->mcFlags =  0;
 	if (pi->mclk_stutter_mode_threshold &&
-	    (pl->mclk <= pi->mclk_stutter_mode_threshold)) {
+	    (pl->mclk <= pi->mclk_stutter_mode_threshold) &&
+	    !eg_pi->uvd_enabled) {
 		level->mcFlags |= SMC_MC_STUTTER_EN;
 		if (eg_pi->sclk_deep_sleep)
 			level->stateFlags |= PPSMC_STATEFLAG_AUTO_PULSE_SKIP;
@@ -1938,6 +1939,7 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_before_state_change(rdev);
 
+	rv770_set_uvd_clock_before_set_eng_clock(rdev);
 	rv770_halt_smc(rdev);
 	cypress_upload_sw_state(rdev);
 
@@ -1948,6 +1950,7 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 
 	rv770_resume_smc(rdev);
 	rv770_set_sw_state(rdev);
+	rv770_set_uvd_clock_after_set_eng_clock(rdev);
 
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_after_state_change(rdev);
@@ -2011,6 +2014,11 @@ int cypress_dpm_init(struct radeon_device *rdev)
 	pi->mclk_strobe_mode_threshold = 40000;
 	pi->mclk_edc_enable_threshold = 40000;
 	eg_pi->mclk_edc_wr_enable_threshold = 40000;
+
+	pi->rlp = RV770_RLP_DFLT;
+	pi->rmp = RV770_RMP_DFLT;
+	pi->lhp = RV770_LHP_DFLT;
+	pi->lmp = RV770_LMP_DFLT;
 
 	pi->voltage_control =
 		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC);

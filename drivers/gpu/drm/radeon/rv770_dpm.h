@@ -126,6 +126,10 @@ struct rv7xx_power_info {
 	u32 pasi;
 	u32 vrc;
 	u32 restricted_levels;
+	u32 rlp;
+	u32 rmp;
+	u32 lhp;
+	u32 lmp;
 	/* smc offsets */
 	u16 state_table_start;
 	u16 soft_regs_start;

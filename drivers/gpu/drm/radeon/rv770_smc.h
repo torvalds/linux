@@ -184,6 +184,7 @@ typedef struct RV770_SMC_STATETABLE RV770_SMC_STATETABLE;
 #define RV770_SMC_SOFT_REGISTER_mvdd_chg_time           0x68
 #define RV770_SMC_SOFT_REGISTER_mclk_switch_lim         0x78
 #define RV770_SMC_SOFT_REGISTER_mc_block_delay          0x90
+#define RV770_SMC_SOFT_REGISTER_uvd_enabled             0x9C
 #define RV770_SMC_SOFT_REGISTER_is_asic_lombok          0xA0
 
 int rv770_set_smc_sram_address(struct radeon_device *rdev,
