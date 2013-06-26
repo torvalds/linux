@@ -29,6 +29,7 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
+#include <asm/unaligned.h>
 #include "pl2303.h"
 
 /*
@@ -275,65 +276,56 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 	struct usb_serial *serial = port->serial;
 	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
 	int baud;
-	int baud_floor, baud_ceil;
-	int k;
+	int i;
 
-	/* NOTE: Only the values defined in baud_sup are supported !
+	/*
+	 * NOTE: Only the values defined in baud_sup are supported!
 	 *       => if unsupported values are set, the PL2303 seems to use
 	 *          9600 baud (at least my PL2303X always does)
 	 */
 	baud = tty_get_baud_rate(tty);
 	dev_dbg(&port->dev, "baud requested = %d\n", baud);
-	if (baud) {
-		/* Set baudrate to nearest supported value */
-		for (k=0; k<ARRAY_SIZE(baud_sup); k++) {
-			if (baud_sup[k] / baud) {
-				baud_ceil = baud_sup[k];
-				if (k==0) {
-					baud = baud_ceil;
-				} else {
-					baud_floor = baud_sup[k-1];
-					if ((baud_ceil % baud)
-					    > (baud % baud_floor))
-						baud = baud_floor;
-					else
-						baud = baud_ceil;
-				}
-				break;
-			}
+	if (!baud)
+		return;
+
+	/* Set baudrate to nearest supported value */
+	for (i = 0; i < ARRAY_SIZE(baud_sup); ++i) {
+		if (baud_sup[i] > baud)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(baud_sup))
+		baud = baud_sup[i - 1];
+	else if (i > 0 && (baud_sup[i] - baud) > (baud - baud_sup[i - 1]))
+		baud = baud_sup[i - 1];
+	else
+		baud = baud_sup[i];
+
+	/* type_0, type_1 only support up to 1228800 baud */
+	if (spriv->type != HX)
+		baud = max_t(int, baud, 1228800);
+
+	if (baud <= 115200) {
+		put_unaligned_le32(baud, buf);
+	} else {
+		/*
+		 * Apparently the formula for higher speeds is:
+		 * baudrate = 12M * 32 / (2^buf[1]) / buf[0]
+		 */
+		unsigned tmp = 12000000 * 32 / baud;
+		buf[3] = 0x80;
+		buf[2] = 0;
+		buf[1] = (tmp >= 256);
+		while (tmp >= 256) {
+			tmp >>= 2;
+			buf[1] <<= 1;
 		}
-		if (baud > 1228800) {
-			/* type_0, type_1 only support up to 1228800 baud */
-			if (spriv->type != HX)
-				baud = 1228800;
-			else if (baud > 6000000)
-				baud = 6000000;
-		}
-		dev_dbg(&port->dev, "baud set = %d\n", baud);
-		if (baud <= 115200) {
-			buf[0] = baud & 0xff;
-			buf[1] = (baud >> 8) & 0xff;
-			buf[2] = (baud >> 16) & 0xff;
-			buf[3] = (baud >> 24) & 0xff;
-		} else {
-			/* apparently the formula for higher speeds is:
-			 * baudrate = 12M * 32 / (2^buf[1]) / buf[0]
-			 */
-			unsigned tmp = 12*1000*1000*32 / baud;
-			buf[3] = 0x80;
-			buf[2] = 0;
-			buf[1] = (tmp >= 256);
-			while (tmp >= 256) {
-				tmp >>= 2;
-				buf[1] <<= 1;
-			}
-			buf[0] = tmp;
-		}
+		buf[0] = tmp;
 	}
 
 	/* Save resulting baud rate */
-	if (baud)
-		tty_encode_baud_rate(tty, baud, baud);
+	tty_encode_baud_rate(tty, baud, baud);
+	dev_dbg(&port->dev, "baud set = %d\n", baud);
 }
 
 static void pl2303_set_termios(struct tty_struct *tty,
