@@ -1095,7 +1095,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 		goto err_noclose;
 	}
 
-	if (svc_sock_reclen(svsk) < 8) {
+	if (svsk->sk_datalen < 8) {
 		svsk->sk_datalen = 0;
 		goto err_delete; /* client is nuts. */
 	}
