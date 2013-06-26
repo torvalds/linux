@@ -400,6 +400,12 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	struct mcfqspi_platform_data *pdata;
 	int status;
 
+	pdata = pdev->dev.platform_data;
+	if (!pdata) {
+		dev_dbg(&pdev->dev, "platform data is missing\n");
+		return -ENOENT;
+	}
+
 	master = spi_alloc_master(&pdev->dev, sizeof(*mcfqspi));
 	if (master == NULL) {
 		dev_dbg(&pdev->dev, "spi_alloc_master failed\n");
@@ -450,11 +456,6 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	}
 	clk_enable(mcfqspi->clk);
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
-		dev_dbg(&pdev->dev, "platform data is missing\n");
-		goto fail4;
-	}
 	master->bus_num = pdata->bus_num;
 	master->num_chipselect = pdata->num_chipselect;
 
