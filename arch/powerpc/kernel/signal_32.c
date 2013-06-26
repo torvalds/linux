@@ -1309,7 +1309,7 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 	unsigned char tmp;
 	unsigned long new_msr = regs->msr;
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
-	unsigned long new_dbcr0 = current->thread.dbcr0;
+	unsigned long new_dbcr0 = current->thread.debug.dbcr0;
 #endif
 
 	for (i=0; i<ndbg; i++) {
@@ -1324,7 +1324,7 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 			} else {
 				new_dbcr0 &= ~DBCR0_IC;
 				if (!DBCR_ACTIVE_EVENTS(new_dbcr0,
-						current->thread.dbcr1)) {
+						current->thread.debug.dbcr1)) {
 					new_msr &= ~MSR_DE;
 					new_dbcr0 &= ~DBCR0_IDM;
 				}
@@ -1359,7 +1359,7 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 	   the user is really doing something wrong. */
 	regs->msr = new_msr;
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
-	current->thread.dbcr0 = new_dbcr0;
+	current->thread.debug.dbcr0 = new_dbcr0;
 #endif
 
 	if (!access_ok(VERIFY_READ, ctx, sizeof(*ctx))
