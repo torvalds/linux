@@ -331,10 +331,11 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 			     bool write, u32 addr, struct sk_buff_head *pktlist)
 {
 	unsigned int req_sz, func_blk_sz, sg_cnt, sg_data_sz, pkt_offset;
-	unsigned int max_blks, max_req_sz;
+	unsigned int max_blks, max_req_sz, orig_offset, dst_offset;
 	unsigned short max_seg_sz, seg_sz;
-	unsigned char *pkt_data;
-	struct sk_buff *pkt_next = NULL;
+	unsigned char *pkt_data, *orig_data, *dst_data;
+	struct sk_buff *pkt_next = NULL, *local_pkt_next;
+	struct sk_buff_head local_list, *target_list;
 	struct mmc_request mmc_req;
 	struct mmc_command mmc_cmd;
 	struct mmc_data mmc_dat;
@@ -371,6 +372,32 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 					   req_sz);
 	}
 
+	target_list = pktlist;
+	/* for host with broken sg support, prepare a page aligned list */
+	__skb_queue_head_init(&local_list);
+	if (sdiodev->pdata && sdiodev->pdata->broken_sg_support && !write) {
+		req_sz = 0;
+		skb_queue_walk(pktlist, pkt_next)
+			req_sz += pkt_next->len;
+		req_sz = ALIGN(req_sz, sdiodev->func[fn]->cur_blksize);
+		while (req_sz > PAGE_SIZE) {
+			pkt_next = brcmu_pkt_buf_get_skb(PAGE_SIZE);
+			if (pkt_next == NULL) {
+				ret = -ENOMEM;
+				goto exit;
+			}
+			__skb_queue_tail(&local_list, pkt_next);
+			req_sz -= PAGE_SIZE;
+		}
+		pkt_next = brcmu_pkt_buf_get_skb(req_sz);
+		if (pkt_next == NULL) {
+			ret = -ENOMEM;
+			goto exit;
+		}
+		__skb_queue_tail(&local_list, pkt_next);
+		target_list = &local_list;
+	}
+
 	host = sdiodev->func[fn]->card->host;
 	func_blk_sz = sdiodev->func[fn]->cur_blksize;
 	/* Blocks per command is limited by host count, host transfer
@@ -380,13 +407,15 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	max_req_sz = min_t(unsigned int, host->max_req_size,
 			   max_blks * func_blk_sz);
 	max_seg_sz = min_t(unsigned short, host->max_segs, SG_MAX_SINGLE_ALLOC);
-	max_seg_sz = min_t(unsigned short, max_seg_sz, pktlist->qlen);
-	seg_sz = pktlist->qlen;
+	max_seg_sz = min_t(unsigned short, max_seg_sz, target_list->qlen);
+	seg_sz = target_list->qlen;
 	pkt_offset = 0;
-	pkt_next = pktlist->next;
+	pkt_next = target_list->next;
 
-	if (sg_alloc_table(&st, max_seg_sz, GFP_KERNEL))
-		return -ENOMEM;
+	if (sg_alloc_table(&st, max_seg_sz, GFP_KERNEL)) {
+		ret = -ENOMEM;
+		goto exit;
+	}
 
 	while (seg_sz) {
 		req_sz = 0;
@@ -396,7 +425,7 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		memset(&mmc_dat, 0, sizeof(struct mmc_data));
 		sgl = st.sgl;
 		/* prep sg table */
-		while (pkt_next != (struct sk_buff *)pktlist) {
+		while (pkt_next != (struct sk_buff *)target_list) {
 			pkt_data = pkt_next->data + pkt_offset;
 			sg_data_sz = pkt_next->len - pkt_offset;
 			if (sg_data_sz > host->max_seg_size)
@@ -423,8 +452,8 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		if (req_sz % func_blk_sz != 0) {
 			brcmf_err("sg request length %u is not %u aligned\n",
 				  req_sz, func_blk_sz);
-			sg_free_table(&st);
-			return -ENOTBLK;
+			ret = -ENOTBLK;
+			goto exit;
 		}
 		mmc_dat.sg = st.sgl;
 		mmc_dat.sg_len = sg_cnt;
@@ -457,7 +486,34 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		}
 	}
 
+	if (sdiodev->pdata && sdiodev->pdata->broken_sg_support && !write) {
+		local_pkt_next = local_list.next;
+		orig_offset = 0;
+		skb_queue_walk(pktlist, pkt_next) {
+			dst_offset = 0;
+			do {
+				req_sz = local_pkt_next->len - orig_offset;
+				req_sz = min_t(uint, pkt_next->len - dst_offset,
+					       req_sz);
+				orig_data = local_pkt_next->data + orig_offset;
+				dst_data = pkt_next->data + dst_offset;
+				memcpy(dst_data, orig_data, req_sz);
+				orig_offset += req_sz;
+				dst_offset += req_sz;
+				if (orig_offset == local_pkt_next->len) {
+					orig_offset = 0;
+					local_pkt_next = local_pkt_next->next;
+				}
+				if (dst_offset == pkt_next->len)
+					break;
+			} while (!skb_queue_empty(&local_list));
+		}
+	}
+
+exit:
 	sg_free_table(&st);
+	while ((pkt_next = __skb_dequeue(&local_list)) != NULL)
+		brcmu_pkt_buf_free_skb(pkt_next);
 
 	return ret;
 }
