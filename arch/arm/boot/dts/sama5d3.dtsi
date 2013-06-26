@@ -80,9 +80,12 @@
 			spi0: spi@f0004000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "atmel,at91sam9x5-spi";
+				compatible = "atmel,at91rm9200-spi";
 				reg = <0xf0004000 0x100>;
 				interrupts = <24 IRQ_TYPE_LEVEL_HIGH 3>;
+				dmas = <&dma0 2 AT91_DMA_CFG_PER_ID(1)>,
+				       <&dma0 2 AT91_DMA_CFG_PER_ID(2)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi0>;
 				status = "disabled";
@@ -203,9 +206,12 @@
 			spi1: spi@f8008000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "atmel,at91sam9x5-spi";
+				compatible = "atmel,at91rm9200-spi";
 				reg = <0xf8008000 0x100>;
 				interrupts = <25 IRQ_TYPE_LEVEL_HIGH 3>;
+				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(15)>,
+				       <&dma1 2 AT91_DMA_CFG_PER_ID(16)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi1>;
 				status = "disabled";
