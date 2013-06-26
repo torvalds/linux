@@ -42,6 +42,7 @@ struct ip_tunnel {
 	struct ip_tunnel __rcu	*next;
 	struct hlist_node hash_node;
 	struct net_device	*dev;
+	struct net		*net;	/* netns for packet i/o */
 
 	int		err_count;	/* Number of arrived ICMP errors */
 	unsigned long	err_time;	/* Time when the last ICMP error
