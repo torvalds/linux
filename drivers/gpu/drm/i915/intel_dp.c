@@ -1371,6 +1371,13 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	}
 
 	pipe_config->adjusted_mode.flags |= flags;
+
+	if (dp_to_dig_port(intel_dp)->port == PORT_A) {
+		if ((I915_READ(DP_A) & DP_PLL_FREQ_MASK) == DP_PLL_FREQ_160MHZ)
+			pipe_config->port_clock = 162000;
+		else
+			pipe_config->port_clock = 270000;
+	}
 }
 
 static void intel_disable_dp(struct intel_encoder *encoder)

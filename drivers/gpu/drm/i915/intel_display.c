@@ -45,6 +45,11 @@ bool intel_pipe_has_type(struct drm_crtc *crtc, int type);
 static void intel_increase_pllclock(struct drm_crtc *crtc);
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
 
+static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
+				struct intel_crtc_config *pipe_config);
+static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
+				    struct intel_crtc_config *pipe_config);
+
 typedef struct {
 	int	min, max;
 } intel_range_t;
@@ -6854,11 +6859,12 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 }
 
 /* Returns the clock of the currently programmed mode of the given pipe. */
-static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
+static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
+				struct intel_crtc_config *pipe_config)
 {
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	int pipe = pipe_config->cpu_transcoder;
 	u32 dpll = I915_READ(DPLL(pipe));
 	u32 fp;
 	intel_clock_t clock;
@@ -6897,7 +6903,8 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 		default:
 			DRM_DEBUG_KMS("Unknown DPLL mode %08x in programmed "
 				  "mode\n", (int)(dpll & DPLL_MODE_MASK));
-			return 0;
+			pipe_config->adjusted_mode.clock = 0;
+			return;
 		}
 
 		if (IS_PINEVIEW(dev))
@@ -6934,12 +6941,55 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 		}
 	}
 
-	/* XXX: It would be nice to validate the clocks, but we can't reuse
-	 * i830PllIsValid() because it relies on the xf86_config connector
-	 * configuration being accurate, which it isn't necessarily.
+	pipe_config->adjusted_mode.clock = clock.dot *
+		pipe_config->pixel_multiplier;
+}
+
+static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
+				    struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
+	int link_freq, repeat;
+	u64 clock;
+	u32 link_m, link_n;
+
+	repeat = pipe_config->pixel_multiplier;
+
+	/*
+	 * The calculation for the data clock is:
+	 * pixel_clock = ((m/n)*(link_clock * nr_lanes * repeat))/bpp
+	 * But we want to avoid losing precison if possible, so:
+	 * pixel_clock = ((m * link_clock * nr_lanes * repeat)/(n*bpp))
+	 *
+	 * and the link clock is simpler:
+	 * link_clock = (m * link_clock * repeat) / n
 	 */
 
-	return clock.dot;
+	/*
+	 * We need to get the FDI or DP link clock here to derive
+	 * the M/N dividers.
+	 *
+	 * For FDI, we read it from the BIOS or use a fixed 2.7GHz.
+	 * For DP, it's either 1.62GHz or 2.7GHz.
+	 * We do our calculations in 10*MHz since we don't need much precison.
+	 */
+	if (pipe_config->has_pch_encoder)
+		link_freq = intel_fdi_link_freq(dev) * 10000;
+	else
+		link_freq = pipe_config->port_clock;
+
+	link_m = I915_READ(PIPE_LINK_M1(cpu_transcoder));
+	link_n = I915_READ(PIPE_LINK_N1(cpu_transcoder));
+
+	if (!link_m || !link_n)
+		return;
+
+	clock = ((u64)link_m * (u64)link_freq * (u64)repeat);
+	do_div(clock, link_n);
+
+	pipe_config->adjusted_mode.clock = clock;
 }
 
 /** Returns the currently programmed mode of the given pipe. */
@@ -6950,6 +7000,7 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	struct drm_display_mode *mode;
+	struct intel_crtc_config pipe_config;
 	int htot = I915_READ(HTOTAL(cpu_transcoder));
 	int hsync = I915_READ(HSYNC(cpu_transcoder));
 	int vtot = I915_READ(VTOTAL(cpu_transcoder));
@@ -6959,7 +7010,18 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	if (!mode)
 		return NULL;
 
-	mode->clock = intel_crtc_clock_get(dev, crtc);
+	/*
+	 * Construct a pipe_config sufficient for getting the clock info
+	 * back out of crtc_clock_get.
+	 *
+	 * Note, if LVDS ever uses a non-1 pixel multiplier, we'll need
+	 * to use a real value here instead.
+	 */
+	pipe_config.cpu_transcoder = intel_crtc->pipe;
+	pipe_config.pixel_multiplier = 1;
+	i9xx_crtc_clock_get(intel_crtc, &pipe_config);
+
+	mode->clock = pipe_config.adjusted_mode.clock;
 	mode->hdisplay = (htot & 0xffff) + 1;
 	mode->htotal = ((htot & 0xffff0000) >> 16) + 1;
 	mode->hsync_start = (hsync & 0xffff) + 1;
@@ -8020,6 +8082,28 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 
 }
 
+static bool intel_fuzzy_clock_check(struct intel_crtc_config *cur,
+				    struct intel_crtc_config *new)
+{
+	int clock1, clock2, diff;
+
+	clock1 = cur->adjusted_mode.clock;
+	clock2 = new->adjusted_mode.clock;
+
+	if (clock1 == clock2)
+		return true;
+
+	if (!clock1 || !clock2)
+		return false;
+
+	diff = abs(clock1 - clock2);
+
+	if (((((diff + clock1 + clock2) * 100)) / (clock1 + clock2)) < 105)
+		return true;
+
+	return false;
+}
+
 #define for_each_intel_crtc_masked(dev, mask, intel_crtc) \
 	list_for_each_entry((intel_crtc), \
 			    &(dev)->mode_config.crtc_list, \
@@ -8124,6 +8208,15 @@ intel_pipe_config_compare(struct drm_device *dev,
 #undef PIPE_CONF_CHECK_I
 #undef PIPE_CONF_CHECK_FLAGS
 #undef PIPE_CONF_QUIRK
+
+	if (!IS_HASWELL(dev)) {
+		if (!intel_fuzzy_clock_check(current_config, pipe_config)) {
+			DRM_ERROR("mismatch in clock (expected %d, found %d\n",
+				  current_config->adjusted_mode.clock,
+				  pipe_config->adjusted_mode.clock);
+			return false;
+		}
+	}
 
 	return true;
 }
@@ -8252,8 +8345,12 @@ check_crtc_state(struct drm_device *dev)
 			if (encoder->base.crtc != &crtc->base)
 				continue;
 			if (encoder->get_config &&
-			    encoder->get_hw_state(encoder, &pipe))
+			    encoder->get_hw_state(encoder, &pipe) &&
+			    dev_priv->display.get_clock) {
 				encoder->get_config(encoder, &pipe_config);
+				dev_priv->display.get_clock(crtc,
+							    &pipe_config);
+			}
 		}
 
 		WARN(crtc->active != active,
@@ -9261,6 +9358,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.update_plane = ironlake_update_plane;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->display.get_pipe_config = ironlake_get_pipe_config;
+		dev_priv->display.get_clock = ironlake_crtc_clock_get;
 		dev_priv->display.crtc_mode_set = ironlake_crtc_mode_set;
 		dev_priv->display.crtc_enable = ironlake_crtc_enable;
 		dev_priv->display.crtc_disable = ironlake_crtc_disable;
@@ -9268,6 +9366,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.update_plane = ironlake_update_plane;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
+		dev_priv->display.get_clock = i9xx_crtc_clock_get;
 		dev_priv->display.crtc_mode_set = i9xx_crtc_mode_set;
 		dev_priv->display.crtc_enable = valleyview_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
@@ -9275,6 +9374,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.update_plane = i9xx_update_plane;
 	} else {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
+		dev_priv->display.get_clock = i9xx_crtc_clock_get;
 		dev_priv->display.crtc_mode_set = i9xx_crtc_mode_set;
 		dev_priv->display.crtc_enable = i9xx_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
@@ -9837,8 +9937,12 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		if (encoder->get_hw_state(encoder, &pipe)) {
 			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 			encoder->base.crtc = &crtc->base;
-			if (encoder->get_config)
+			if (encoder->get_config &&
+			    dev_priv->display.get_clock) {
 				encoder->get_config(encoder, &crtc->config);
+				dev_priv->display.get_clock(crtc,
+							    &crtc->config);
+			}
 		} else {
 			encoder->base.crtc = NULL;
 		}
