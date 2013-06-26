@@ -218,18 +218,6 @@ static int fw_lookup_and_allocate_buf(const char *fw_name,
 	return tmp ? 0 : -ENOMEM;
 }
 
-static struct firmware_buf *fw_lookup_buf(const char *fw_name)
-{
-	struct firmware_buf *tmp;
-	struct firmware_cache *fwc = &fw_cache;
-
-	spin_lock(&fwc->lock);
-	tmp = __fw_lookup_buf(fw_name);
-	spin_unlock(&fwc->lock);
-
-	return tmp;
-}
-
 static void __fw_free_buf(struct kref *ref)
 {
 	struct firmware_buf *buf = to_fwbuf(ref);
@@ -1278,6 +1266,18 @@ static int cache_firmware(const char *fw_name)
 	pr_debug("%s: %s ret=%d\n", __func__, fw_name, ret);
 
 	return ret;
+}
+
+static struct firmware_buf *fw_lookup_buf(const char *fw_name)
+{
+	struct firmware_buf *tmp;
+	struct firmware_cache *fwc = &fw_cache;
+
+	spin_lock(&fwc->lock);
+	tmp = __fw_lookup_buf(fw_name);
+	spin_unlock(&fwc->lock);
+
+	return tmp;
 }
 
 /**
