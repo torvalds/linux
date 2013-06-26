@@ -18,6 +18,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -236,8 +238,8 @@ static int adu_open(struct inode *inode, struct file *file)
 
 	interface = usb_find_interface(&adu_driver, subminor);
 	if (!interface) {
-		printk(KERN_ERR "adutux: %s - error, can't find device for "
-		       "minor %d\n", __func__, subminor);
+		pr_err("%s - error, can't find device for minor %d\n",
+		       __func__, subminor);
 		retval = -ENODEV;
 		goto exit_no_device;
 	}
@@ -357,8 +359,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 	/* verify that the device wasn't unplugged */
 	if (dev->udev == NULL) {
 		retval = -ENODEV;
-		printk(KERN_ERR "adutux: No device or device unplugged %d\n",
-		       retval);
+		pr_err("No device or device unplugged %d\n", retval);
 		goto exit;
 	}
 
@@ -527,8 +528,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 	/* verify that the device wasn't unplugged */
 	if (dev->udev == NULL) {
 		retval = -ENODEV;
-		printk(KERN_ERR "adutux: No device or device unplugged %d\n",
-		       retval);
+		pr_err("No device or device unplugged %d\n", retval);
 		goto exit;
 	}
 
