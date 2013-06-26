@@ -1883,9 +1883,10 @@ static int ath10k_pci_start_intr_msix(struct ath10k *ar, int num)
 			ath10k_warn("request_irq(%d) failed %d\n",
 				    ar_pci->pdev->irq + i, ret);
 
-			for (; i >= MSI_ASSIGN_CE_INITIAL; i--)
-				free_irq(ar_pci->pdev->irq, ar);
+			for (i--; i >= MSI_ASSIGN_CE_INITIAL; i--)
+				free_irq(ar_pci->pdev->irq + i, ar);
 
+			free_irq(ar_pci->pdev->irq + MSI_ASSIGN_FW, ar);
 			pci_disable_msi(ar_pci->pdev);
 			return ret;
 		}
