@@ -790,8 +790,10 @@ static void pl2303_process_read_urb(struct urb *urb)
 		tty_flag = TTY_PARITY;
 	else if (line_status & UART_FRAME_ERROR)
 		tty_flag = TTY_FRAME;
-	dev_dbg(&port->dev, "%s - tty_flag = %d\n", __func__, tty_flag);
 
+	if (tty_flag != TTY_NORMAL)
+		dev_dbg(&port->dev, "%s - tty_flag = %d\n", __func__,
+								tty_flag);
 	/* overrun is special, not associated with a char */
 	if (line_status & UART_OVERRUN_ERROR)
 		tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
