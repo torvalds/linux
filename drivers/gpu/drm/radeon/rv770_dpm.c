@@ -27,6 +27,7 @@
 #include "rv770d.h"
 #include "r600_dpm.h"
 #include "rv770_dpm.h"
+#include "cypress_dpm.h"
 #include "atom.h"
 
 #define MC_CG_ARB_FREQ_F0           0x0a
@@ -52,6 +53,13 @@ struct rv7xx_ps *rv770_get_ps(struct radeon_ps *rps)
 struct rv7xx_power_info *rv770_get_pi(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rdev->pm.dpm.priv;
+
+	return pi;
+}
+
+struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev)
+{
+	struct evergreen_power_info *pi = rdev->pm.dpm.priv;
 
 	return pi;
 }
@@ -1806,8 +1814,8 @@ void rv770_enable_auto_throttle_source(struct radeon_device *rdev,
 	}
 }
 
-static int rv770_set_thermal_temperature_range(struct radeon_device *rdev,
-					       int min_temp, int max_temp)
+int rv770_set_thermal_temperature_range(struct radeon_device *rdev,
+					int min_temp, int max_temp)
 {
 	int low_temp = 0 * 1000;
 	int high_temp = 255 * 1000;
@@ -2057,6 +2065,7 @@ static void rv7xx_parse_pplib_clock_info(struct radeon_device *rdev,
 					 union pplib_clock_info *clock_info)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct rv7xx_ps *ps = rv770_get_ps(rps);
 	u32 sclk, mclk;
 	u16 vddc;
@@ -2075,13 +2084,24 @@ static void rv7xx_parse_pplib_clock_info(struct radeon_device *rdev,
 		break;
 	}
 
-	sclk = le16_to_cpu(clock_info->r600.usEngineClockLow);
-	sclk |= clock_info->r600.ucEngineClockHigh << 16;
-	mclk = le16_to_cpu(clock_info->r600.usMemoryClockLow);
-	mclk |= clock_info->r600.ucMemoryClockHigh << 16;
+	if (rdev->family >= CHIP_CEDAR) {
+		sclk = le16_to_cpu(clock_info->evergreen.usEngineClockLow);
+		sclk |= clock_info->evergreen.ucEngineClockHigh << 16;
+		mclk = le16_to_cpu(clock_info->evergreen.usMemoryClockLow);
+		mclk |= clock_info->evergreen.ucMemoryClockHigh << 16;
 
-	pl->vddc = le16_to_cpu(clock_info->r600.usVDDC);
-	pl->flags = le32_to_cpu(clock_info->r600.ulFlags);
+		pl->vddc = le16_to_cpu(clock_info->evergreen.usVDDC);
+		pl->vddci = le16_to_cpu(clock_info->evergreen.usVDDCI);
+		pl->flags = le32_to_cpu(clock_info->evergreen.ulFlags);
+	} else {
+		sclk = le16_to_cpu(clock_info->r600.usEngineClockLow);
+		sclk |= clock_info->r600.ucEngineClockHigh << 16;
+		mclk = le16_to_cpu(clock_info->r600.usMemoryClockLow);
+		mclk |= clock_info->r600.ucMemoryClockHigh << 16;
+
+		pl->vddc = le16_to_cpu(clock_info->r600.usVDDC);
+		pl->flags = le32_to_cpu(clock_info->r600.ulFlags);
+	}
 
 	pl->mclk = mclk;
 	pl->sclk = sclk;
@@ -2094,10 +2114,19 @@ static void rv7xx_parse_pplib_clock_info(struct radeon_device *rdev,
 
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_ACPI) {
 		pi->acpi_vddc = pl->vddc;
+		if (rdev->family >= CHIP_CEDAR)
+			eg_pi->acpi_vddci = pl->vddci;
 		if (ps->low.flags & ATOM_PPLIB_R600_FLAGS_PCIEGEN2)
 			pi->acpi_pcie_gen2 = true;
 		else
 			pi->acpi_pcie_gen2 = false;
+	}
+
+	if (rps->class2 & ATOM_PPLIB_CLASSIFICATION2_ULV) {
+		if (rdev->family >= CHIP_BARTS) {
+			eg_pi->ulv.supported = true;
+			eg_pi->ulv.pl = pl;
+		}
 	}
 
 	if (pi->min_vddc_in_table > pl->vddc)

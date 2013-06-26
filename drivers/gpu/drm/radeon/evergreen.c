@@ -4167,6 +4167,7 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	u32 grph1 = 0, grph2 = 0, grph3 = 0, grph4 = 0, grph5 = 0, grph6 = 0;
 	u32 afmt1 = 0, afmt2 = 0, afmt3 = 0, afmt4 = 0, afmt5 = 0, afmt6 = 0;
 	u32 dma_cntl, dma_cntl1 = 0;
+	u32 thermal_int = 0;
 
 	if (!rdev->irq.installed) {
 		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
@@ -4186,6 +4187,8 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	hpd4 = RREG32(DC_HPD4_INT_CONTROL) & ~DC_HPDx_INT_EN;
 	hpd5 = RREG32(DC_HPD5_INT_CONTROL) & ~DC_HPDx_INT_EN;
 	hpd6 = RREG32(DC_HPD6_INT_CONTROL) & ~DC_HPDx_INT_EN;
+	thermal_int = RREG32(CG_THERMAL_INT) &
+		~(THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW);
 
 	afmt1 = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
 	afmt2 = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
@@ -4229,6 +4232,11 @@ int evergreen_irq_set(struct radeon_device *rdev)
 			DRM_DEBUG("r600_irq_set: sw int dma1\n");
 			dma_cntl1 |= TRAP_ENABLE;
 		}
+	}
+
+	if (rdev->irq.dpm_thermal) {
+		DRM_DEBUG("dpm thermal\n");
+		thermal_int |= THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW;
 	}
 
 	if (rdev->irq.crtc_vblank_int[0] ||
@@ -4352,6 +4360,7 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	WREG32(DC_HPD4_INT_CONTROL, hpd4);
 	WREG32(DC_HPD5_INT_CONTROL, hpd5);
 	WREG32(DC_HPD6_INT_CONTROL, hpd6);
+	WREG32(CG_THERMAL_INT, thermal_int);
 
 	WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET, afmt1);
 	WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET, afmt2);
@@ -4543,6 +4552,7 @@ int evergreen_irq_process(struct radeon_device *rdev)
 	u32 ring_index;
 	bool queue_hotplug = false;
 	bool queue_hdmi = false;
+	bool queue_thermal = false;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
@@ -4864,6 +4874,16 @@ restart_ih:
 			DRM_DEBUG("IH: DMA trap\n");
 			radeon_fence_process(rdev, R600_RING_TYPE_DMA_INDEX);
 			break;
+		case 230: /* thermal low to high */
+			DRM_DEBUG("IH: thermal low to high\n");
+			rdev->pm.dpm.thermal.high_to_low = false;
+			queue_thermal = true;
+			break;
+		case 231: /* thermal high to low */
+			DRM_DEBUG("IH: thermal high to low\n");
+			rdev->pm.dpm.thermal.high_to_low = true;
+			queue_thermal = true;
+			break;
 		case 233: /* GUI IDLE */
 			DRM_DEBUG("IH: GUI idle\n");
 			break;
@@ -4886,6 +4906,8 @@ restart_ih:
 		schedule_work(&rdev->hotplug_work);
 	if (queue_hdmi)
 		schedule_work(&rdev->audio_work);
+	if (queue_thermal && rdev->pm.dpm_enabled)
+		schedule_work(&rdev->pm.dpm.thermal.work);
 	rdev->ih.rptr = rptr;
 	WREG32(IH_RB_RPTR, rdev->ih.rptr);
 	atomic_set(&rdev->ih.lock, 0);

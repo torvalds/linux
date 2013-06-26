@@ -70,15 +70,19 @@ MODULE_FIRMWARE("radeon/R700_rlc.bin");
 MODULE_FIRMWARE("radeon/CEDAR_pfp.bin");
 MODULE_FIRMWARE("radeon/CEDAR_me.bin");
 MODULE_FIRMWARE("radeon/CEDAR_rlc.bin");
+MODULE_FIRMWARE("radeon/CEDAR_smc.bin");
 MODULE_FIRMWARE("radeon/REDWOOD_pfp.bin");
 MODULE_FIRMWARE("radeon/REDWOOD_me.bin");
 MODULE_FIRMWARE("radeon/REDWOOD_rlc.bin");
+MODULE_FIRMWARE("radeon/REDWOOD_smc.bin");
 MODULE_FIRMWARE("radeon/JUNIPER_pfp.bin");
 MODULE_FIRMWARE("radeon/JUNIPER_me.bin");
 MODULE_FIRMWARE("radeon/JUNIPER_rlc.bin");
+MODULE_FIRMWARE("radeon/JUNIPER_smc.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_pfp.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_me.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_rlc.bin");
+MODULE_FIRMWARE("radeon/CYPRESS_smc.bin");
 MODULE_FIRMWARE("radeon/PALM_pfp.bin");
 MODULE_FIRMWARE("radeon/PALM_me.bin");
 MODULE_FIRMWARE("radeon/SUMO_rlc.bin");
@@ -2214,19 +2218,27 @@ int r600_init_microcode(struct radeon_device *rdev)
 	case CHIP_CEDAR:
 		chip_name = "CEDAR";
 		rlc_chip_name = "CEDAR";
+		smc_chip_name = "CEDAR";
+		smc_req_size = ALIGN(CEDAR_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_REDWOOD:
 		chip_name = "REDWOOD";
 		rlc_chip_name = "REDWOOD";
+		smc_chip_name = "REDWOOD";
+		smc_req_size = ALIGN(REDWOOD_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_JUNIPER:
 		chip_name = "JUNIPER";
 		rlc_chip_name = "JUNIPER";
+		smc_chip_name = "JUNIPER";
+		smc_req_size = ALIGN(JUNIPER_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_CYPRESS:
 	case CHIP_HEMLOCK:
 		chip_name = "CYPRESS";
 		rlc_chip_name = "CYPRESS";
+		smc_chip_name = "CYPRESS";
+		smc_req_size = ALIGN(CYPRESS_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_PALM:
 		chip_name = "PALM";
@@ -2293,7 +2305,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 		err = -EINVAL;
 	}
 
-	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740)) {
+	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_HEMLOCK)) {
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", smc_chip_name);
 		err = request_firmware(&rdev->smc_fw, fw_name, &pdev->dev);
 		if (err)

@@ -270,4 +270,8 @@ int rv770_read_smc_soft_register(struct radeon_device *rdev,
 int rv770_write_smc_soft_register(struct radeon_device *rdev,
 				  u16 reg_offset, u32 value);
 
+/* thermal */
+int rv770_set_thermal_temperature_range(struct radeon_device *rdev,
+					int min_temp, int max_temp);
+
 #endif

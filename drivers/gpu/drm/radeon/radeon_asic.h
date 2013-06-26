@@ -529,6 +529,13 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 int evergreen_get_temp(struct radeon_device *rdev);
 int sumo_get_temp(struct radeon_device *rdev);
 int tn_get_temp(struct radeon_device *rdev);
+int cypress_dpm_init(struct radeon_device *rdev);
+void cypress_dpm_setup_asic(struct radeon_device *rdev);
+int cypress_dpm_enable(struct radeon_device *rdev);
+void cypress_dpm_disable(struct radeon_device *rdev);
+int cypress_dpm_set_power_state(struct radeon_device *rdev);
+void cypress_dpm_display_configuration_changed(struct radeon_device *rdev);
+void cypress_dpm_fini(struct radeon_device *rdev);
 
 /*
  * cayman

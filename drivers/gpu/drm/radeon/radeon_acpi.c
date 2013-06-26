@@ -78,6 +78,29 @@ struct atcs_verify_interface {
 	u32 function_bits;	/* supported functions bit vector */
 } __packed;
 
+bool radeon_acpi_is_pcie_performance_request_supported(struct radeon_device *rdev)
+{
+	/* XXX: query ATIF */
+
+	return false;
+}
+
+int radeon_acpi_pcie_notify_device_ready(struct radeon_device *rdev)
+{
+	/* XXX: call appropriate ATIF method */
+
+	return -EINVAL;
+
+}
+
+int radeon_acpi_pcie_performance_request(struct radeon_device *rdev,
+					 u8 ref_req, bool advertise)
+{
+	/* XXX: call appropriate ATIF method */
+
+	return -EINVAL;
+}
+
 /* Call the ATIF method
  */
 /**
