@@ -180,13 +180,16 @@ extern int sumo_rlc_init(struct radeon_device *rdev);
 MODULE_FIRMWARE("radeon/BARTS_pfp.bin");
 MODULE_FIRMWARE("radeon/BARTS_me.bin");
 MODULE_FIRMWARE("radeon/BARTS_mc.bin");
+MODULE_FIRMWARE("radeon/BARTS_smc.bin");
 MODULE_FIRMWARE("radeon/BTC_rlc.bin");
 MODULE_FIRMWARE("radeon/TURKS_pfp.bin");
 MODULE_FIRMWARE("radeon/TURKS_me.bin");
 MODULE_FIRMWARE("radeon/TURKS_mc.bin");
+MODULE_FIRMWARE("radeon/TURKS_smc.bin");
 MODULE_FIRMWARE("radeon/CAICOS_pfp.bin");
 MODULE_FIRMWARE("radeon/CAICOS_me.bin");
 MODULE_FIRMWARE("radeon/CAICOS_mc.bin");
+MODULE_FIRMWARE("radeon/CAICOS_smc.bin");
 MODULE_FIRMWARE("radeon/CAYMAN_pfp.bin");
 MODULE_FIRMWARE("radeon/CAYMAN_me.bin");
 MODULE_FIRMWARE("radeon/CAYMAN_mc.bin");
@@ -683,6 +686,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 	const char *chip_name;
 	const char *rlc_chip_name;
 	size_t pfp_req_size, me_req_size, rlc_req_size, mc_req_size;
+	size_t smc_req_size = 0;
 	char fw_name[30];
 	int err;
 
@@ -703,6 +707,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 		me_req_size = EVERGREEN_PM4_UCODE_SIZE * 4;
 		rlc_req_size = EVERGREEN_RLC_UCODE_SIZE * 4;
 		mc_req_size = BTC_MC_UCODE_SIZE * 4;
+		smc_req_size = ALIGN(BARTS_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_TURKS:
 		chip_name = "TURKS";
@@ -711,6 +716,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 		me_req_size = EVERGREEN_PM4_UCODE_SIZE * 4;
 		rlc_req_size = EVERGREEN_RLC_UCODE_SIZE * 4;
 		mc_req_size = BTC_MC_UCODE_SIZE * 4;
+		smc_req_size = ALIGN(TURKS_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_CAICOS:
 		chip_name = "CAICOS";
@@ -719,6 +725,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 		me_req_size = EVERGREEN_PM4_UCODE_SIZE * 4;
 		rlc_req_size = EVERGREEN_RLC_UCODE_SIZE * 4;
 		mc_req_size = BTC_MC_UCODE_SIZE * 4;
+		smc_req_size = ALIGN(CAICOS_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_CAYMAN:
 		chip_name = "CAYMAN";
@@ -789,6 +796,20 @@ int ni_init_microcode(struct radeon_device *rdev)
 			err = -EINVAL;
 		}
 	}
+
+	if ((rdev->family >= CHIP_BARTS) && (rdev->family <= CHIP_CAICOS)) {
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
+		err = request_firmware(&rdev->smc_fw, fw_name, &pdev->dev);
+		if (err)
+			goto out;
+		if (rdev->smc_fw->size != smc_req_size) {
+			printk(KERN_ERR
+			       "ni_mc: Bogus length %zu in firmware \"%s\"\n",
+			       rdev->mc_fw->size, fw_name);
+			err = -EINVAL;
+		}
+	}
+
 out:
 	platform_device_unregister(pdev);
 
