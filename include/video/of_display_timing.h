@@ -10,6 +10,7 @@
 #define __LINUX_OF_DISPLAY_TIMING_H
 
 struct device_node;
+struct display_timing;
 struct display_timings;
 
 #define OF_USE_NATIVE_MODE -1
