@@ -709,6 +709,22 @@ struct radeon_ring {
 	u32			idx;
 	u64			last_semaphore_signal_addr;
 	u64			last_semaphore_wait_addr;
+	/* for CIK queues */
+	u32 me;
+	u32 pipe;
+	u32 queue;
+	struct radeon_bo	*mqd_obj;
+	u32 doorbell_page_num;
+	u32 doorbell_offset;
+	unsigned		wptr_offs;
+};
+
+struct radeon_mec {
+	struct radeon_bo	*hpd_eop_obj;
+	u64			hpd_eop_gpu_addr;
+	u32 num_pipe;
+	u32 num_mec;
+	u32 num_queue;
 };
 
 /*
@@ -966,6 +982,8 @@ struct radeon_wb {
 #define CAYMAN_WB_DMA1_RPTR_OFFSET   2304
 #define R600_WB_UVD_RPTR_OFFSET  2560
 #define R600_WB_EVENT_OFFSET     3072
+#define CIK_WB_CP1_WPTR_OFFSET     3328
+#define CIK_WB_CP2_WPTR_OFFSET     3584
 
 /**
  * struct radeon_pm - power management datas
@@ -1759,6 +1777,7 @@ struct radeon_device {
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */
 	struct si_rlc rlc;
+	struct radeon_mec mec;
 	struct work_struct hotplug_work;
 	struct work_struct audio_work;
 	struct work_struct reset_work;

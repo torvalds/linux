@@ -1687,6 +1687,7 @@ int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	radeon_ring_write(ring, ((scratch - PACKET3_SET_UCONFIG_REG_START) >> 2));
 	radeon_ring_write(ring, 0xDEADBEEF);
 	radeon_ring_unlock_commit(rdev, ring);
+
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF)
@@ -2112,6 +2113,51 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 	return 0;
 }
 
+u32 cik_compute_ring_get_rptr(struct radeon_device *rdev,
+			      struct radeon_ring *ring)
+{
+	u32 rptr;
+
+
+
+	if (rdev->wb.enabled) {
+		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
+	} else {
+		cik_srbm_select(rdev, ring->me, ring->pipe, ring->queue, 0);
+		rptr = RREG32(CP_HQD_PQ_RPTR);
+		cik_srbm_select(rdev, 0, 0, 0, 0);
+	}
+	rptr = (rptr & ring->ptr_reg_mask) >> ring->ptr_reg_shift;
+
+	return rptr;
+}
+
+u32 cik_compute_ring_get_wptr(struct radeon_device *rdev,
+			      struct radeon_ring *ring)
+{
+	u32 wptr;
+
+	if (rdev->wb.enabled) {
+		wptr = le32_to_cpu(rdev->wb.wb[ring->wptr_offs/4]);
+	} else {
+		cik_srbm_select(rdev, ring->me, ring->pipe, ring->queue, 0);
+		wptr = RREG32(CP_HQD_PQ_WPTR);
+		cik_srbm_select(rdev, 0, 0, 0, 0);
+	}
+	wptr = (wptr & ring->ptr_reg_mask) >> ring->ptr_reg_shift;
+
+	return wptr;
+}
+
+void cik_compute_ring_set_wptr(struct radeon_device *rdev,
+			       struct radeon_ring *ring)
+{
+	u32 wptr = (ring->wptr << ring->ptr_reg_shift) & ring->ptr_reg_mask;
+
+	rdev->wb.wb[ring->wptr_offs/4] = cpu_to_le32(wptr);
+	WDOORBELL32(ring->doorbell_offset, wptr);
+}
+
 /**
  * cik_cp_compute_enable - enable/disable the compute CP MEs
  *
@@ -2176,7 +2222,8 @@ static int cik_cp_compute_load_microcode(struct radeon_device *rdev)
  */
 static int cik_cp_compute_start(struct radeon_device *rdev)
 {
-	//todo
+	cik_cp_compute_enable(rdev, true);
+
 	return 0;
 }
 
@@ -2190,9 +2237,170 @@ static int cik_cp_compute_start(struct radeon_device *rdev)
  */
 static void cik_cp_compute_fini(struct radeon_device *rdev)
 {
+	int i, idx, r;
+
 	cik_cp_compute_enable(rdev, false);
-	//todo
+
+	for (i = 0; i < 2; i++) {
+		if (i == 0)
+			idx = CAYMAN_RING_TYPE_CP1_INDEX;
+		else
+			idx = CAYMAN_RING_TYPE_CP2_INDEX;
+
+		if (rdev->ring[idx].mqd_obj) {
+			r = radeon_bo_reserve(rdev->ring[idx].mqd_obj, false);
+			if (unlikely(r != 0))
+				dev_warn(rdev->dev, "(%d) reserve MQD bo failed\n", r);
+
+			radeon_bo_unpin(rdev->ring[idx].mqd_obj);
+			radeon_bo_unreserve(rdev->ring[idx].mqd_obj);
+
+			radeon_bo_unref(&rdev->ring[idx].mqd_obj);
+			rdev->ring[idx].mqd_obj = NULL;
+		}
+	}
 }
+
+static void cik_mec_fini(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->mec.hpd_eop_obj) {
+		r = radeon_bo_reserve(rdev->mec.hpd_eop_obj, false);
+		if (unlikely(r != 0))
+			dev_warn(rdev->dev, "(%d) reserve HPD EOP bo failed\n", r);
+		radeon_bo_unpin(rdev->mec.hpd_eop_obj);
+		radeon_bo_unreserve(rdev->mec.hpd_eop_obj);
+
+		radeon_bo_unref(&rdev->mec.hpd_eop_obj);
+		rdev->mec.hpd_eop_obj = NULL;
+	}
+}
+
+#define MEC_HPD_SIZE 2048
+
+static int cik_mec_init(struct radeon_device *rdev)
+{
+	int r;
+	u32 *hpd;
+
+	/*
+	 * KV:    2 MEC, 4 Pipes/MEC, 8 Queues/Pipe - 64 Queues total
+	 * CI/KB: 1 MEC, 4 Pipes/MEC, 8 Queues/Pipe - 32 Queues total
+	 */
+	if (rdev->family == CHIP_KAVERI)
+		rdev->mec.num_mec = 2;
+	else
+		rdev->mec.num_mec = 1;
+	rdev->mec.num_pipe = 4;
+	rdev->mec.num_queue = rdev->mec.num_mec * rdev->mec.num_pipe * 8;
+
+	if (rdev->mec.hpd_eop_obj == NULL) {
+		r = radeon_bo_create(rdev,
+				     rdev->mec.num_mec *rdev->mec.num_pipe * MEC_HPD_SIZE * 2,
+				     PAGE_SIZE, true,
+				     RADEON_GEM_DOMAIN_GTT, NULL,
+				     &rdev->mec.hpd_eop_obj);
+		if (r) {
+			dev_warn(rdev->dev, "(%d) create HDP EOP bo failed\n", r);
+			return r;
+		}
+	}
+
+	r = radeon_bo_reserve(rdev->mec.hpd_eop_obj, false);
+	if (unlikely(r != 0)) {
+		cik_mec_fini(rdev);
+		return r;
+	}
+	r = radeon_bo_pin(rdev->mec.hpd_eop_obj, RADEON_GEM_DOMAIN_GTT,
+			  &rdev->mec.hpd_eop_gpu_addr);
+	if (r) {
+		dev_warn(rdev->dev, "(%d) pin HDP EOP bo failed\n", r);
+		cik_mec_fini(rdev);
+		return r;
+	}
+	r = radeon_bo_kmap(rdev->mec.hpd_eop_obj, (void **)&hpd);
+	if (r) {
+		dev_warn(rdev->dev, "(%d) map HDP EOP bo failed\n", r);
+		cik_mec_fini(rdev);
+		return r;
+	}
+
+	/* clear memory.  Not sure if this is required or not */
+	memset(hpd, 0, rdev->mec.num_mec *rdev->mec.num_pipe * MEC_HPD_SIZE * 2);
+
+	radeon_bo_kunmap(rdev->mec.hpd_eop_obj);
+	radeon_bo_unreserve(rdev->mec.hpd_eop_obj);
+
+	return 0;
+}
+
+struct hqd_registers
+{
+	u32 cp_mqd_base_addr;
+	u32 cp_mqd_base_addr_hi;
+	u32 cp_hqd_active;
+	u32 cp_hqd_vmid;
+	u32 cp_hqd_persistent_state;
+	u32 cp_hqd_pipe_priority;
+	u32 cp_hqd_queue_priority;
+	u32 cp_hqd_quantum;
+	u32 cp_hqd_pq_base;
+	u32 cp_hqd_pq_base_hi;
+	u32 cp_hqd_pq_rptr;
+	u32 cp_hqd_pq_rptr_report_addr;
+	u32 cp_hqd_pq_rptr_report_addr_hi;
+	u32 cp_hqd_pq_wptr_poll_addr;
+	u32 cp_hqd_pq_wptr_poll_addr_hi;
+	u32 cp_hqd_pq_doorbell_control;
+	u32 cp_hqd_pq_wptr;
+	u32 cp_hqd_pq_control;
+	u32 cp_hqd_ib_base_addr;
+	u32 cp_hqd_ib_base_addr_hi;
+	u32 cp_hqd_ib_rptr;
+	u32 cp_hqd_ib_control;
+	u32 cp_hqd_iq_timer;
+	u32 cp_hqd_iq_rptr;
+	u32 cp_hqd_dequeue_request;
+	u32 cp_hqd_dma_offload;
+	u32 cp_hqd_sema_cmd;
+	u32 cp_hqd_msg_type;
+	u32 cp_hqd_atomic0_preop_lo;
+	u32 cp_hqd_atomic0_preop_hi;
+	u32 cp_hqd_atomic1_preop_lo;
+	u32 cp_hqd_atomic1_preop_hi;
+	u32 cp_hqd_hq_scheduler0;
+	u32 cp_hqd_hq_scheduler1;
+	u32 cp_mqd_control;
+};
+
+struct bonaire_mqd
+{
+	u32 header;
+	u32 dispatch_initiator;
+	u32 dimensions[3];
+	u32 start_idx[3];
+	u32 num_threads[3];
+	u32 pipeline_stat_enable;
+	u32 perf_counter_enable;
+	u32 pgm[2];
+	u32 tba[2];
+	u32 tma[2];
+	u32 pgm_rsrc[2];
+	u32 vmid;
+	u32 resource_limits;
+	u32 static_thread_mgmt01[2];
+	u32 tmp_ring_size;
+	u32 static_thread_mgmt23[2];
+	u32 restart[3];
+	u32 thread_trace_enable;
+	u32 reserved1;
+	u32 user_data[16];
+	u32 vgtcs_invoke_count[2];
+	struct hqd_registers queue_state;
+	u32 dequeue_cntr;
+	u32 interrupt_queue[64];
+};
 
 /**
  * cik_cp_compute_resume - setup the compute queue registers
@@ -2205,24 +2413,247 @@ static void cik_cp_compute_fini(struct radeon_device *rdev)
  */
 static int cik_cp_compute_resume(struct radeon_device *rdev)
 {
-	int r;
+	int r, i, idx;
+	u32 tmp;
+	bool use_doorbell = true;
+	u64 hqd_gpu_addr;
+	u64 mqd_gpu_addr;
+	u64 eop_gpu_addr;
+	u64 wb_gpu_addr;
+	u32 *buf;
+	struct bonaire_mqd *mqd;
 
-	//todo
 	r = cik_cp_compute_start(rdev);
 	if (r)
 		return r;
+
+	/* fix up chicken bits */
+	tmp = RREG32(CP_CPF_DEBUG);
+	tmp |= (1 << 23);
+	WREG32(CP_CPF_DEBUG, tmp);
+
+	/* init the pipes */
+	for (i = 0; i < (rdev->mec.num_pipe * rdev->mec.num_mec); i++) {
+		int me = (i < 4) ? 1 : 2;
+		int pipe = (i < 4) ? i : (i - 4);
+
+		eop_gpu_addr = rdev->mec.hpd_eop_gpu_addr + (i * MEC_HPD_SIZE * 2);
+
+		cik_srbm_select(rdev, me, pipe, 0, 0);
+
+		/* write the EOP addr */
+		WREG32(CP_HPD_EOP_BASE_ADDR, eop_gpu_addr >> 8);
+		WREG32(CP_HPD_EOP_BASE_ADDR_HI, upper_32_bits(eop_gpu_addr) >> 8);
+
+		/* set the VMID assigned */
+		WREG32(CP_HPD_EOP_VMID, 0);
+
+		/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
+		tmp = RREG32(CP_HPD_EOP_CONTROL);
+		tmp &= ~EOP_SIZE_MASK;
+		tmp |= drm_order(MEC_HPD_SIZE / 8);
+		WREG32(CP_HPD_EOP_CONTROL, tmp);
+	}
+	cik_srbm_select(rdev, 0, 0, 0, 0);
+
+	/* init the queues.  Just two for now. */
+	for (i = 0; i < 2; i++) {
+		if (i == 0)
+			idx = CAYMAN_RING_TYPE_CP1_INDEX;
+		else
+			idx = CAYMAN_RING_TYPE_CP2_INDEX;
+
+		if (rdev->ring[idx].mqd_obj == NULL) {
+			r = radeon_bo_create(rdev,
+					     sizeof(struct bonaire_mqd),
+					     PAGE_SIZE, true,
+					     RADEON_GEM_DOMAIN_GTT, NULL,
+					     &rdev->ring[idx].mqd_obj);
+			if (r) {
+				dev_warn(rdev->dev, "(%d) create MQD bo failed\n", r);
+				return r;
+			}
+		}
+
+		r = radeon_bo_reserve(rdev->ring[idx].mqd_obj, false);
+		if (unlikely(r != 0)) {
+			cik_cp_compute_fini(rdev);
+			return r;
+		}
+		r = radeon_bo_pin(rdev->ring[idx].mqd_obj, RADEON_GEM_DOMAIN_GTT,
+				  &mqd_gpu_addr);
+		if (r) {
+			dev_warn(rdev->dev, "(%d) pin MQD bo failed\n", r);
+			cik_cp_compute_fini(rdev);
+			return r;
+		}
+		r = radeon_bo_kmap(rdev->ring[idx].mqd_obj, (void **)&buf);
+		if (r) {
+			dev_warn(rdev->dev, "(%d) map MQD bo failed\n", r);
+			cik_cp_compute_fini(rdev);
+			return r;
+		}
+
+		/* doorbell offset */
+		rdev->ring[idx].doorbell_offset =
+			(rdev->ring[idx].doorbell_page_num * PAGE_SIZE) + 0;
+
+		/* init the mqd struct */
+		memset(buf, 0, sizeof(struct bonaire_mqd));
+
+		mqd = (struct bonaire_mqd *)buf;
+		mqd->header = 0xC0310800;
+		mqd->static_thread_mgmt01[0] = 0xffffffff;
+		mqd->static_thread_mgmt01[1] = 0xffffffff;
+		mqd->static_thread_mgmt23[0] = 0xffffffff;
+		mqd->static_thread_mgmt23[1] = 0xffffffff;
+
+		cik_srbm_select(rdev, rdev->ring[idx].me,
+				rdev->ring[idx].pipe,
+				rdev->ring[idx].queue, 0);
+
+		/* disable wptr polling */
+		tmp = RREG32(CP_PQ_WPTR_POLL_CNTL);
+		tmp &= ~WPTR_POLL_EN;
+		WREG32(CP_PQ_WPTR_POLL_CNTL, tmp);
+
+		/* enable doorbell? */
+		mqd->queue_state.cp_hqd_pq_doorbell_control =
+			RREG32(CP_HQD_PQ_DOORBELL_CONTROL);
+		if (use_doorbell)
+			mqd->queue_state.cp_hqd_pq_doorbell_control |= DOORBELL_EN;
+		else
+			mqd->queue_state.cp_hqd_pq_doorbell_control &= ~DOORBELL_EN;
+		WREG32(CP_HQD_PQ_DOORBELL_CONTROL,
+		       mqd->queue_state.cp_hqd_pq_doorbell_control);
+
+		/* disable the queue if it's active */
+		mqd->queue_state.cp_hqd_dequeue_request = 0;
+		mqd->queue_state.cp_hqd_pq_rptr = 0;
+		mqd->queue_state.cp_hqd_pq_wptr= 0;
+		if (RREG32(CP_HQD_ACTIVE) & 1) {
+			WREG32(CP_HQD_DEQUEUE_REQUEST, 1);
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				if (!(RREG32(CP_HQD_ACTIVE) & 1))
+					break;
+				udelay(1);
+			}
+			WREG32(CP_HQD_DEQUEUE_REQUEST, mqd->queue_state.cp_hqd_dequeue_request);
+			WREG32(CP_HQD_PQ_RPTR, mqd->queue_state.cp_hqd_pq_rptr);
+			WREG32(CP_HQD_PQ_WPTR, mqd->queue_state.cp_hqd_pq_wptr);
+		}
+
+		/* set the pointer to the MQD */
+		mqd->queue_state.cp_mqd_base_addr = mqd_gpu_addr & 0xfffffffc;
+		mqd->queue_state.cp_mqd_base_addr_hi = upper_32_bits(mqd_gpu_addr);
+		WREG32(CP_MQD_BASE_ADDR, mqd->queue_state.cp_mqd_base_addr);
+		WREG32(CP_MQD_BASE_ADDR_HI, mqd->queue_state.cp_mqd_base_addr_hi);
+		/* set MQD vmid to 0 */
+		mqd->queue_state.cp_mqd_control = RREG32(CP_MQD_CONTROL);
+		mqd->queue_state.cp_mqd_control &= ~MQD_VMID_MASK;
+		WREG32(CP_MQD_CONTROL, mqd->queue_state.cp_mqd_control);
+
+		/* set the pointer to the HQD, this is similar CP_RB0_BASE/_HI */
+		hqd_gpu_addr = rdev->ring[idx].gpu_addr >> 8;
+		mqd->queue_state.cp_hqd_pq_base = hqd_gpu_addr;
+		mqd->queue_state.cp_hqd_pq_base_hi = upper_32_bits(hqd_gpu_addr);
+		WREG32(CP_HQD_PQ_BASE, mqd->queue_state.cp_hqd_pq_base);
+		WREG32(CP_HQD_PQ_BASE_HI, mqd->queue_state.cp_hqd_pq_base_hi);
+
+		/* set up the HQD, this is similar to CP_RB0_CNTL */
+		mqd->queue_state.cp_hqd_pq_control = RREG32(CP_HQD_PQ_CONTROL);
+		mqd->queue_state.cp_hqd_pq_control &=
+			~(QUEUE_SIZE_MASK | RPTR_BLOCK_SIZE_MASK);
+
+		mqd->queue_state.cp_hqd_pq_control |=
+			drm_order(rdev->ring[idx].ring_size / 8);
+		mqd->queue_state.cp_hqd_pq_control |=
+			(drm_order(RADEON_GPU_PAGE_SIZE/8) << 8);
+#ifdef __BIG_ENDIAN
+		mqd->queue_state.cp_hqd_pq_control |= BUF_SWAP_32BIT;
+#endif
+		mqd->queue_state.cp_hqd_pq_control &=
+			~(UNORD_DISPATCH | ROQ_PQ_IB_FLIP | PQ_VOLATILE);
+		mqd->queue_state.cp_hqd_pq_control |=
+			PRIV_STATE | KMD_QUEUE; /* assuming kernel queue control */
+		WREG32(CP_HQD_PQ_CONTROL, mqd->queue_state.cp_hqd_pq_control);
+
+		/* only used if CP_PQ_WPTR_POLL_CNTL.WPTR_POLL_EN=1 */
+		if (i == 0)
+			wb_gpu_addr = rdev->wb.gpu_addr + CIK_WB_CP1_WPTR_OFFSET;
+		else
+			wb_gpu_addr = rdev->wb.gpu_addr + CIK_WB_CP2_WPTR_OFFSET;
+		mqd->queue_state.cp_hqd_pq_wptr_poll_addr = wb_gpu_addr & 0xfffffffc;
+		mqd->queue_state.cp_hqd_pq_wptr_poll_addr_hi = upper_32_bits(wb_gpu_addr) & 0xffff;
+		WREG32(CP_HQD_PQ_WPTR_POLL_ADDR, mqd->queue_state.cp_hqd_pq_wptr_poll_addr);
+		WREG32(CP_HQD_PQ_WPTR_POLL_ADDR_HI,
+		       mqd->queue_state.cp_hqd_pq_wptr_poll_addr_hi);
+
+		/* set the wb address wether it's enabled or not */
+		if (i == 0)
+			wb_gpu_addr = rdev->wb.gpu_addr + RADEON_WB_CP1_RPTR_OFFSET;
+		else
+			wb_gpu_addr = rdev->wb.gpu_addr + RADEON_WB_CP2_RPTR_OFFSET;
+		mqd->queue_state.cp_hqd_pq_rptr_report_addr = wb_gpu_addr & 0xfffffffc;
+		mqd->queue_state.cp_hqd_pq_rptr_report_addr_hi =
+			upper_32_bits(wb_gpu_addr) & 0xffff;
+		WREG32(CP_HQD_PQ_RPTR_REPORT_ADDR,
+		       mqd->queue_state.cp_hqd_pq_rptr_report_addr);
+		WREG32(CP_HQD_PQ_RPTR_REPORT_ADDR_HI,
+		       mqd->queue_state.cp_hqd_pq_rptr_report_addr_hi);
+
+		/* enable the doorbell if requested */
+		if (use_doorbell) {
+			mqd->queue_state.cp_hqd_pq_doorbell_control =
+				RREG32(CP_HQD_PQ_DOORBELL_CONTROL);
+			mqd->queue_state.cp_hqd_pq_doorbell_control &= ~DOORBELL_OFFSET_MASK;
+			mqd->queue_state.cp_hqd_pq_doorbell_control |=
+				DOORBELL_OFFSET(rdev->ring[idx].doorbell_offset / 4);
+			mqd->queue_state.cp_hqd_pq_doorbell_control |= DOORBELL_EN;
+			mqd->queue_state.cp_hqd_pq_doorbell_control &=
+				~(DOORBELL_SOURCE | DOORBELL_HIT);
+
+		} else {
+			mqd->queue_state.cp_hqd_pq_doorbell_control = 0;
+		}
+		WREG32(CP_HQD_PQ_DOORBELL_CONTROL,
+		       mqd->queue_state.cp_hqd_pq_doorbell_control);
+
+		/* read and write pointers, similar to CP_RB0_WPTR/_RPTR */
+		rdev->ring[idx].wptr = 0;
+		mqd->queue_state.cp_hqd_pq_wptr = rdev->ring[idx].wptr;
+		WREG32(CP_HQD_PQ_WPTR, mqd->queue_state.cp_hqd_pq_wptr);
+		rdev->ring[idx].rptr = RREG32(CP_HQD_PQ_RPTR);
+		mqd->queue_state.cp_hqd_pq_rptr = rdev->ring[idx].rptr;
+
+		/* set the vmid for the queue */
+		mqd->queue_state.cp_hqd_vmid = 0;
+		WREG32(CP_HQD_VMID, mqd->queue_state.cp_hqd_vmid);
+
+		/* activate the queue */
+		mqd->queue_state.cp_hqd_active = 1;
+		WREG32(CP_HQD_ACTIVE, mqd->queue_state.cp_hqd_active);
+
+		cik_srbm_select(rdev, 0, 0, 0, 0);
+
+		radeon_bo_kunmap(rdev->ring[idx].mqd_obj);
+		radeon_bo_unreserve(rdev->ring[idx].mqd_obj);
+
+		rdev->ring[idx].ready = true;
+		r = radeon_ring_test(rdev, idx, &rdev->ring[idx]);
+		if (r)
+			rdev->ring[idx].ready = false;
+	}
+
 	return 0;
 }
 
-/* XXX temporary wrappers to handle both compute and gfx */
-/* XXX */
 static void cik_cp_enable(struct radeon_device *rdev, bool enable)
 {
 	cik_cp_gfx_enable(rdev, enable);
 	cik_cp_compute_enable(rdev, enable);
 }
 
-/* XXX */
 static int cik_cp_load_microcode(struct radeon_device *rdev)
 {
 	int r;
@@ -2237,14 +2668,12 @@ static int cik_cp_load_microcode(struct radeon_device *rdev)
 	return 0;
 }
 
-/* XXX */
 static void cik_cp_fini(struct radeon_device *rdev)
 {
 	cik_cp_gfx_fini(rdev);
 	cik_cp_compute_fini(rdev);
 }
 
-/* XXX */
 static int cik_cp_resume(struct radeon_device *rdev)
 {
 	int r;
@@ -2865,6 +3294,22 @@ static void cik_print_gpu_status_regs(struct radeon_device *rdev)
 		RREG32(SDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET));
 	dev_info(rdev->dev, "  SDMA1_STATUS_REG   = 0x%08X\n",
 		 RREG32(SDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET));
+	dev_info(rdev->dev, "  CP_STAT = 0x%08x\n", RREG32(CP_STAT));
+	dev_info(rdev->dev, "  CP_STALLED_STAT1 = 0x%08x\n",
+		 RREG32(CP_STALLED_STAT1));
+	dev_info(rdev->dev, "  CP_STALLED_STAT2 = 0x%08x\n",
+		 RREG32(CP_STALLED_STAT2));
+	dev_info(rdev->dev, "  CP_STALLED_STAT3 = 0x%08x\n",
+		 RREG32(CP_STALLED_STAT3));
+	dev_info(rdev->dev, "  CP_CPF_BUSY_STAT = 0x%08x\n",
+		 RREG32(CP_CPF_BUSY_STAT));
+	dev_info(rdev->dev, "  CP_CPF_STALLED_STAT1 = 0x%08x\n",
+		 RREG32(CP_CPF_STALLED_STAT1));
+	dev_info(rdev->dev, "  CP_CPF_STATUS = 0x%08x\n", RREG32(CP_CPF_STATUS));
+	dev_info(rdev->dev, "  CP_CPC_BUSY_STAT = 0x%08x\n", RREG32(CP_CPC_BUSY_STAT));
+	dev_info(rdev->dev, "  CP_CPC_STALLED_STAT1 = 0x%08x\n",
+		 RREG32(CP_CPC_STALLED_STAT1));
+	dev_info(rdev->dev, "  CP_CPC_STATUS = 0x%08x\n", RREG32(CP_CPC_STATUS));
 }
 
 /**
@@ -4952,7 +5397,26 @@ static int cik_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	/* allocate mec buffers */
+	r = cik_mec_init(rdev);
+	if (r) {
+		DRM_ERROR("Failed to init MEC BOs!\n");
+		return r;
+	}
+
 	r = radeon_fence_driver_start_ring(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing CP fences (%d).\n", r);
+		return r;
+	}
+
+	r = radeon_fence_driver_start_ring(rdev, CAYMAN_RING_TYPE_CP1_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing CP fences (%d).\n", r);
+		return r;
+	}
+
+	r = radeon_fence_driver_start_ring(rdev, CAYMAN_RING_TYPE_CP2_INDEX);
 	if (r) {
 		dev_err(rdev->dev, "failed initializing CP fences (%d).\n", r);
 		return r;
@@ -5001,6 +5465,30 @@ static int cik_startup(struct radeon_device *rdev)
 			     0, 0xfffff, RADEON_CP_PACKET2);
 	if (r)
 		return r;
+
+	/* set up the compute queues */
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP1_RPTR_OFFSET,
+			     CP_HQD_PQ_RPTR, CP_HQD_PQ_WPTR,
+			     0, 0xfffff, RADEON_CP_PACKET2);
+	if (r)
+		return r;
+	ring->me = 1; /* first MEC */
+	ring->pipe = 0; /* first pipe */
+	ring->queue = 0; /* first queue */
+	ring->wptr_offs = CIK_WB_CP1_WPTR_OFFSET;
+
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP2_RPTR_OFFSET,
+			     CP_HQD_PQ_RPTR, CP_HQD_PQ_WPTR,
+			     0, 0xffffffff, RADEON_CP_PACKET2);
+	if (r)
+		return r;
+	/* dGPU only have 1 MEC */
+	ring->me = 1; /* first MEC */
+	ring->pipe = 0; /* first pipe */
+	ring->queue = 1; /* second queue */
+	ring->wptr_offs = CIK_WB_CP2_WPTR_OFFSET;
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
@@ -5172,6 +5660,20 @@ int cik_init(struct radeon_device *rdev)
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 1024 * 1024);
 
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
+	ring->ring_obj = NULL;
+	r600_ring_init(rdev, ring, 1024 * 1024);
+	r = radeon_doorbell_get(rdev, &ring->doorbell_page_num);
+	if (r)
+		return r;
+
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
+	ring->ring_obj = NULL;
+	r600_ring_init(rdev, ring, 1024 * 1024);
+	r = radeon_doorbell_get(rdev, &ring->doorbell_page_num);
+	if (r)
+		return r;
+
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 256 * 1024);
@@ -5202,6 +5704,7 @@ int cik_init(struct radeon_device *rdev)
 		cik_sdma_fini(rdev);
 		cik_irq_fini(rdev);
 		si_rlc_fini(rdev);
+		cik_mec_fini(rdev);
 		radeon_wb_fini(rdev);
 		radeon_ib_pool_fini(rdev);
 		radeon_vm_manager_fini(rdev);
@@ -5237,6 +5740,7 @@ void cik_fini(struct radeon_device *rdev)
 	cik_sdma_fini(rdev);
 	cik_irq_fini(rdev);
 	si_rlc_fini(rdev);
+	cik_mec_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);

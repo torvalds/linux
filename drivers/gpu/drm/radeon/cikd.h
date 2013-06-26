@@ -460,6 +460,13 @@
 #       define RDERR_INT_ENABLE                         (1 << 0)
 #       define GUI_IDLE_INT_ENABLE                      (1 << 19)
 
+#define CP_CPC_STATUS					0x8210
+#define CP_CPC_BUSY_STAT				0x8214
+#define CP_CPC_STALLED_STAT1				0x8218
+#define CP_CPF_STATUS					0x821c
+#define CP_CPF_BUSY_STAT				0x8220
+#define CP_CPF_STALLED_STAT1				0x8224
+
 #define CP_MEC_CNTL					0x8234
 #define		MEC_ME2_HALT					(1 << 28)
 #define		MEC_ME1_HALT					(1 << 30)
@@ -467,6 +474,12 @@
 #define CP_MEC_CNTL					0x8234
 #define		MEC_ME2_HALT					(1 << 28)
 #define		MEC_ME1_HALT					(1 << 30)
+
+#define CP_STALLED_STAT3				0x8670
+#define CP_STALLED_STAT1				0x8674
+#define CP_STALLED_STAT2				0x8678
+
+#define CP_STAT						0x8680
 
 #define CP_ME_CNTL					0x86D8
 #define		CP_CE_HALT					(1 << 24)
@@ -701,6 +714,11 @@
 #       define CP_RINGID1_INT_STAT                      (1 << 30)
 #       define CP_RINGID0_INT_STAT                      (1 << 31)
 
+#define CP_CPF_DEBUG                                    0xC200
+
+#define CP_PQ_WPTR_POLL_CNTL                            0xC20C
+#define		WPTR_POLL_EN      			(1 << 31)
+
 #define CP_ME1_PIPE0_INT_CNTL                           0xC214
 #define CP_ME1_PIPE1_INT_CNTL                           0xC218
 #define CP_ME1_PIPE2_INT_CNTL                           0xC21C
@@ -772,6 +790,50 @@
 
 #define RLC_GPM_SCRATCH_ADDR                              0xC4B0
 #define RLC_GPM_SCRATCH_DATA                              0xC4B4
+
+#define CP_HPD_EOP_BASE_ADDR                              0xC904
+#define CP_HPD_EOP_BASE_ADDR_HI                           0xC908
+#define CP_HPD_EOP_VMID                                   0xC90C
+#define CP_HPD_EOP_CONTROL                                0xC910
+#define		EOP_SIZE(x)				((x) << 0)
+#define		EOP_SIZE_MASK      			(0x3f << 0)
+#define CP_MQD_BASE_ADDR                                  0xC914
+#define CP_MQD_BASE_ADDR_HI                               0xC918
+#define CP_HQD_ACTIVE                                     0xC91C
+#define CP_HQD_VMID                                       0xC920
+
+#define CP_HQD_PQ_BASE                                    0xC934
+#define CP_HQD_PQ_BASE_HI                                 0xC938
+#define CP_HQD_PQ_RPTR                                    0xC93C
+#define CP_HQD_PQ_RPTR_REPORT_ADDR                        0xC940
+#define CP_HQD_PQ_RPTR_REPORT_ADDR_HI                     0xC944
+#define CP_HQD_PQ_WPTR_POLL_ADDR                          0xC948
+#define CP_HQD_PQ_WPTR_POLL_ADDR_HI                       0xC94C
+#define CP_HQD_PQ_DOORBELL_CONTROL                        0xC950
+#define		DOORBELL_OFFSET(x)			((x) << 2)
+#define		DOORBELL_OFFSET_MASK			(0x1fffff << 2)
+#define		DOORBELL_SOURCE      			(1 << 28)
+#define		DOORBELL_SCHD_HIT      			(1 << 29)
+#define		DOORBELL_EN      			(1 << 30)
+#define		DOORBELL_HIT      			(1 << 31)
+#define CP_HQD_PQ_WPTR                                    0xC954
+#define CP_HQD_PQ_CONTROL                                 0xC958
+#define		QUEUE_SIZE(x)				((x) << 0)
+#define		QUEUE_SIZE_MASK      			(0x3f << 0)
+#define		RPTR_BLOCK_SIZE(x)			((x) << 8)
+#define		RPTR_BLOCK_SIZE_MASK			(0x3f << 8)
+#define		PQ_VOLATILE      			(1 << 26)
+#define		NO_UPDATE_RPTR      			(1 << 27)
+#define		UNORD_DISPATCH      			(1 << 28)
+#define		ROQ_PQ_IB_FLIP      			(1 << 29)
+#define		PRIV_STATE      			(1 << 30)
+#define		KMD_QUEUE      				(1 << 31)
+
+#define CP_HQD_DEQUEUE_REQUEST                          0xC974
+
+#define CP_MQD_CONTROL                                  0xC99C
+#define		MQD_VMID(x)				((x) << 0)
+#define		MQD_VMID_MASK      			(0xf << 0)
 
 #define PA_SC_RASTER_CONFIG                             0x28350
 #       define RASTER_CONFIG_RB_MAP_0                   0
