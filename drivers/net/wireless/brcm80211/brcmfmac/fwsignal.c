@@ -796,9 +796,8 @@ static int brcmf_fws_hdrpush(struct brcmf_fws_info *fws, struct sk_buff *skb)
 	u8 fillers;
 	__le32 pkttag = cpu_to_le32(brcmf_skbcb(skb)->htod);
 
-	brcmf_dbg(TRACE, "enter: ea=%pM, ifidx=%u (%u), pkttag=0x%08X, hslot=%d\n",
-		  entry->ea, entry->interface_id,
-		  brcmf_skb_if_flags_get_field(skb, INDEX),
+	brcmf_dbg(TRACE, "enter: %s, idx=%d pkttag=0x%08X, hslot=%d\n",
+		  entry->name, brcmf_skb_if_flags_get_field(skb, INDEX),
 		  le32_to_cpu(pkttag), (le32_to_cpu(pkttag) >> 8) & 0xffff);
 	if (entry->send_tim_signal)
 		data_offset += 2 + BRCMF_FWS_TYPE_PENDING_TRAFFIC_BMP_LEN;
@@ -822,8 +821,8 @@ static int brcmf_fws_hdrpush(struct brcmf_fws_info *fws, struct sk_buff *skb)
 		wlh[1] = BRCMF_FWS_TYPE_PENDING_TRAFFIC_BMP_LEN;
 		wlh[2] = entry->mac_handle;
 		wlh[3] = entry->traffic_pending_bmp;
-		brcmf_dbg(TRACE, "adding TIM info: %02X:%02X:%02X:%02X\n",
-			  wlh[0], wlh[1], wlh[2], wlh[3]);
+		brcmf_dbg(TRACE, "adding TIM info: handle %d bmp 0x%X\n",
+			  entry->mac_handle, entry->traffic_pending_bmp);
 		wlh += BRCMF_FWS_TYPE_PENDING_TRAFFIC_BMP_LEN + 2;
 		entry->traffic_lastreported_bmp = entry->traffic_pending_bmp;
 	}
