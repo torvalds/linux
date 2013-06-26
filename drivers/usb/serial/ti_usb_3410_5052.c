@@ -69,7 +69,6 @@ struct ti_port {
 	__u8			tp_uart_mode;	/* 232 or 485 modes */
 	unsigned int		tp_uart_base_addr;
 	int			tp_flags;
-	wait_queue_head_t	tp_write_wait;
 	struct ti_device	*tp_tdev;
 	struct usb_serial_port	*tp_port;
 	spinlock_t		tp_lock;
@@ -427,7 +426,6 @@ static int ti_port_probe(struct usb_serial_port *port)
 	else
 		tport->tp_uart_base_addr = TI_UART2_BASE_ADDR;
 	port->port.closing_wait = msecs_to_jiffies(10 * closing_wait);
-	init_waitqueue_head(&tport->tp_write_wait);
 	tport->tp_port = port;
 	tport->tp_tdev = usb_get_serial_data(port->serial);
 	tport->tp_uart_mode = 0;	/* default is RS232 */
@@ -1082,13 +1080,11 @@ static void ti_bulk_in_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		dev_dbg(dev, "%s - urb shutting down, %d\n", __func__, status);
 		tport->tp_tdev->td_urb_error = 1;
-		wake_up_interruptible(&tport->tp_write_wait);
 		return;
 	default:
 		dev_err(dev, "%s - nonzero urb status, %d\n",
 			__func__, status);
 		tport->tp_tdev->td_urb_error = 1;
-		wake_up_interruptible(&tport->tp_write_wait);
 	}
 
 	if (status == -EPIPE)
@@ -1144,13 +1140,11 @@ static void ti_bulk_out_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		dev_dbg(&port->dev, "%s - urb shutting down, %d\n", __func__, status);
 		tport->tp_tdev->td_urb_error = 1;
-		wake_up_interruptible(&tport->tp_write_wait);
 		return;
 	default:
 		dev_err_console(port, "%s - nonzero urb status, %d\n",
 			__func__, status);
 		tport->tp_tdev->td_urb_error = 1;
-		wake_up_interruptible(&tport->tp_write_wait);
 	}
 
 	/* send any buffered data */
@@ -1224,7 +1218,6 @@ static void ti_send(struct ti_port *tport)
 	/* more room in the buffer for new writes, wakeup */
 	tty_port_tty_wakeup(&port->port);
 
-	wake_up_interruptible(&tport->tp_write_wait);
 	return;
 unlock:
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
