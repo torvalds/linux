@@ -252,7 +252,7 @@ static int dw_wdt_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int dw_wdt_suspend(struct device *dev)
 {
 	clk_disable(dw_wdt.clk);
@@ -271,12 +271,9 @@ static int dw_wdt_resume(struct device *dev)
 
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
 
-static const struct dev_pm_ops dw_wdt_pm_ops = {
-	.suspend	= dw_wdt_suspend,
-	.resume		= dw_wdt_resume,
-};
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(dw_wdt_pm_ops, dw_wdt_suspend, dw_wdt_resume);
 
 static const struct file_operations wdt_fops = {
 	.owner		= THIS_MODULE,
@@ -346,9 +343,7 @@ static struct platform_driver dw_wdt_driver = {
 	.driver		= {
 		.name	= "dw_wdt",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	= &dw_wdt_pm_ops,
-#endif /* CONFIG_PM */
 	},
 };
 
