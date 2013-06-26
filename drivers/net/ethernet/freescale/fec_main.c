@@ -604,6 +604,14 @@ fec_restart(struct net_device *ndev, int duplex)
 	if (fep->bufdesc_ex)
 		ecntl |= (1 << 4);
 
+#ifndef CONFIG_M5272
+	/* Disable, clear, and enable the MIB */
+	writel(1 << 31, fep->hwp + FEC_MIB_CTRLSTAT);
+	for (i = RMON_T_DROP; i < IEEE_R_OCTETS_OK; i++)
+		writel(0, fep->hwp + i);
+	writel(0, fep->hwp + FEC_MIB_CTRLSTAT);
+#endif
+
 	/* And last, enable the transmit and receive processing */
 	writel(ecntl, fep->hwp + FEC_ECNTRL);
 	writel(0, fep->hwp + FEC_R_DES_ACTIVE);
@@ -1435,6 +1443,107 @@ static int fec_enet_set_pauseparam(struct net_device *ndev,
 	return 0;
 }
 
+#ifndef CONFIG_M5272
+static const struct fec_stat {
+	char name[ETH_GSTRING_LEN];
+	u16 offset;
+} fec_stats[] = {
+	/* RMON TX */
+	{ "tx_dropped", RMON_T_DROP },
+	{ "tx_packets", RMON_T_PACKETS },
+	{ "tx_broadcast", RMON_T_BC_PKT },
+	{ "tx_multicast", RMON_T_MC_PKT },
+	{ "tx_crc_errors", RMON_T_CRC_ALIGN },
+	{ "tx_undersize", RMON_T_UNDERSIZE },
+	{ "tx_oversize", RMON_T_OVERSIZE },
+	{ "tx_fragment", RMON_T_FRAG },
+	{ "tx_jabber", RMON_T_JAB },
+	{ "tx_collision", RMON_T_COL },
+	{ "tx_64byte", RMON_T_P64 },
+	{ "tx_65to127byte", RMON_T_P65TO127 },
+	{ "tx_128to255byte", RMON_T_P128TO255 },
+	{ "tx_256to511byte", RMON_T_P256TO511 },
+	{ "tx_512to1023byte", RMON_T_P512TO1023 },
+	{ "tx_1024to2047byte", RMON_T_P1024TO2047 },
+	{ "tx_GTE2048byte", RMON_T_P_GTE2048 },
+	{ "tx_octets", RMON_T_OCTETS },
+
+	/* IEEE TX */
+	{ "IEEE_tx_drop", IEEE_T_DROP },
+	{ "IEEE_tx_frame_ok", IEEE_T_FRAME_OK },
+	{ "IEEE_tx_1col", IEEE_T_1COL },
+	{ "IEEE_tx_mcol", IEEE_T_MCOL },
+	{ "IEEE_tx_def", IEEE_T_DEF },
+	{ "IEEE_tx_lcol", IEEE_T_LCOL },
+	{ "IEEE_tx_excol", IEEE_T_EXCOL },
+	{ "IEEE_tx_macerr", IEEE_T_MACERR },
+	{ "IEEE_tx_cserr", IEEE_T_CSERR },
+	{ "IEEE_tx_sqe", IEEE_T_SQE },
+	{ "IEEE_tx_fdxfc", IEEE_T_FDXFC },
+	{ "IEEE_tx_octets_ok", IEEE_T_OCTETS_OK },
+
+	/* RMON RX */
+	{ "rx_packets", RMON_R_PACKETS },
+	{ "rx_broadcast", RMON_R_BC_PKT },
+	{ "rx_multicast", RMON_R_MC_PKT },
+	{ "rx_crc_errors", RMON_R_CRC_ALIGN },
+	{ "rx_undersize", RMON_R_UNDERSIZE },
+	{ "rx_oversize", RMON_R_OVERSIZE },
+	{ "rx_fragment", RMON_R_FRAG },
+	{ "rx_jabber", RMON_R_JAB },
+	{ "rx_64byte", RMON_R_P64 },
+	{ "rx_65to127byte", RMON_R_P65TO127 },
+	{ "rx_128to255byte", RMON_R_P128TO255 },
+	{ "rx_256to511byte", RMON_R_P256TO511 },
+	{ "rx_512to1023byte", RMON_R_P512TO1023 },
+	{ "rx_1024to2047byte", RMON_R_P1024TO2047 },
+	{ "rx_GTE2048byte", RMON_R_P_GTE2048 },
+	{ "rx_octets", RMON_R_OCTETS },
+
+	/* IEEE RX */
+	{ "IEEE_rx_drop", IEEE_R_DROP },
+	{ "IEEE_rx_frame_ok", IEEE_R_FRAME_OK },
+	{ "IEEE_rx_crc", IEEE_R_CRC },
+	{ "IEEE_rx_align", IEEE_R_ALIGN },
+	{ "IEEE_rx_macerr", IEEE_R_MACERR },
+	{ "IEEE_rx_fdxfc", IEEE_R_FDXFC },
+	{ "IEEE_rx_octets_ok", IEEE_R_OCTETS_OK },
+};
+
+static void fec_enet_get_ethtool_stats(struct net_device *dev,
+	struct ethtool_stats *stats, u64 *data)
+{
+	struct fec_enet_private *fep = netdev_priv(dev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fec_stats); i++)
+		data[i] = readl(fep->hwp + fec_stats[i].offset);
+}
+
+static void fec_enet_get_strings(struct net_device *netdev,
+	u32 stringset, u8 *data)
+{
+	int i;
+	switch (stringset) {
+	case ETH_SS_STATS:
+		for (i = 0; i < ARRAY_SIZE(fec_stats); i++)
+			memcpy(data + i * ETH_GSTRING_LEN,
+				fec_stats[i].name, ETH_GSTRING_LEN);
+		break;
+	}
+}
+
+static int fec_enet_get_sset_count(struct net_device *dev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(fec_stats);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+#endif
+
 static int fec_enet_nway_reset(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
@@ -1455,6 +1564,11 @@ static const struct ethtool_ops fec_enet_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_ts_info		= fec_enet_get_ts_info,
 	.nway_reset		= fec_enet_nway_reset,
+#ifndef CONFIG_M5272
+	.get_ethtool_stats	= fec_enet_get_ethtool_stats,
+	.get_strings		= fec_enet_get_strings,
+	.get_sset_count		= fec_enet_get_sset_count,
+#endif
 };
 
 static int fec_enet_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
