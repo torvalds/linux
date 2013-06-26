@@ -359,6 +359,7 @@ struct pn533 {
 	struct work_struct poll_work;
 	struct work_struct mi_work;
 	struct work_struct tg_work;
+	struct work_struct rf_work;
 
 	struct list_head cmd_queue;
 	struct pn533_cmd *cmd;
@@ -1660,6 +1661,53 @@ static void pn533_listen_mode_timer(unsigned long data)
 	queue_work(dev->wq, &dev->poll_work);
 }
 
+static int pn533_rf_complete(struct pn533 *dev, void *arg,
+			     struct sk_buff *resp)
+{
+	int rc = 0;
+
+	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	if (IS_ERR(resp)) {
+		rc = PTR_ERR(resp);
+
+		nfc_dev_err(&dev->interface->dev, "%s RF setting error %d",
+			    __func__, rc);
+
+		return rc;
+	}
+
+	queue_work(dev->wq, &dev->poll_work);
+
+	dev_kfree_skb(resp);
+	return rc;
+}
+
+static void pn533_wq_rf(struct work_struct *work)
+{
+	struct pn533 *dev = container_of(work, struct pn533, rf_work);
+	struct sk_buff *skb;
+	int rc;
+
+	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	skb = pn533_alloc_skb(dev, 2);
+	if (!skb)
+		return;
+
+	*skb_put(skb, 1) = PN533_CFGITEM_RF_FIELD;
+	*skb_put(skb, 1) = 0;
+
+	rc = pn533_send_cmd_async(dev, PN533_CMD_RF_CONFIGURATION, skb,
+				  pn533_rf_complete, NULL);
+	if (rc < 0) {
+		dev_kfree_skb(skb);
+		nfc_dev_err(&dev->interface->dev, "RF setting error %d", rc);
+	}
+
+	return;
+}
+
 static int pn533_poll_complete(struct pn533 *dev, void *arg,
 			       struct sk_buff *resp)
 {
@@ -1705,7 +1753,8 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 	}
 
 	pn533_poll_next_mod(dev);
-	queue_work(dev->wq, &dev->poll_work);
+	/* Not target found, turn radio off */
+	queue_work(dev->wq, &dev->rf_work);
 
 done:
 	dev_kfree_skb(resp);
@@ -2051,6 +2100,7 @@ static int pn533_mod_to_baud(struct pn533 *dev)
 	}
 }
 
+static int pn533_rf_field(struct nfc_dev *nfc_dev, u8 rf);
 #define PASSIVE_DATA_LEN 5
 static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 			     u8 comm_mode, u8 *gb, size_t gb_len)
@@ -2126,6 +2176,8 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	}
 
 	*arg = !comm_mode;
+
+	pn533_rf_field(dev->nfc_dev, 0);
 
 	rc = pn533_send_cmd_async(dev, PN533_CMD_IN_JUMP_FOR_DEP, skb,
 				  pn533_in_dep_link_up_complete, arg);
@@ -2721,6 +2773,7 @@ static int pn533_probe(struct usb_interface *interface,
 	INIT_WORK(&dev->mi_work, pn533_wq_mi_recv);
 	INIT_WORK(&dev->tg_work, pn533_wq_tg_get_data);
 	INIT_WORK(&dev->poll_work, pn533_wq_poll);
+	INIT_WORK(&dev->rf_work, pn533_wq_rf);
 	dev->wq = alloc_ordered_workqueue("pn533", 0);
 	if (dev->wq == NULL)
 		goto error;
