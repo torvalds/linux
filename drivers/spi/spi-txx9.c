@@ -419,7 +419,6 @@ exit:
 		clk_disable(c->clk);
 		clk_put(c->clk);
 	}
-	platform_set_drvdata(dev, NULL);
 	spi_master_put(master);
 	return ret;
 }
@@ -430,7 +429,6 @@ static int txx9spi_remove(struct platform_device *dev)
 	struct txx9spi *c = spi_master_get_devdata(master);
 
 	spi_unregister_master(master);
-	platform_set_drvdata(dev, NULL);
 	destroy_workqueue(c->workqueue);
 	clk_disable(c->clk);
 	clk_put(c->clk);
