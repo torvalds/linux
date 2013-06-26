@@ -902,9 +902,6 @@ static const char *ftdi_chip_name[] = {
 #define FTDI_STATUS_B1_MASK	(FTDI_RS_BI)
 /* End TIOCMIWAIT */
 
-#define FTDI_IMPL_ASYNC_FLAGS = (ASYNC_SPD_HI | ASYNC_SPD_VHI \
- | ASYNC_SPD_CUST | ASYNC_SPD_SHI | ASYNC_SPD_WARP)
-
 /* function prototypes for a FTDI serial converter */
 static int  ftdi_sio_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
@@ -970,10 +967,6 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 #define WDR_TIMEOUT 5000 /* default urb timeout */
 #define WDR_SHORT_TIMEOUT 1000	/* shorter urb timeout */
-
-/* High and low are for DTR, RTS etc etc */
-#define HIGH 1
-#define LOW 0
 
 /*
  * ***************************************************************************
