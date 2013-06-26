@@ -341,18 +341,10 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 		goto err_clk_put;
 	}
 
-	memregion = devm_request_mem_region(&pdev->dev, mem->start,
-					    resource_size(mem), DRV_NAME);
-	if (!memregion) {
-		dev_err(&pdev->dev, "Memory region already claimed\n");
-		ret = -EBUSY;
-		goto err_clk_put;
-	}
-
-	regs = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
-	if (!regs) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENOMEM;
+	regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(regs)) {
+		ret = PTR_ERR(regs);
+		dev_err(&pdev->dev, "ioremap failed: %d\n", ret);
 		goto err_clk_put;
 	}
 
