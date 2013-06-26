@@ -335,19 +335,17 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
-	unsigned int cflag;
 	unsigned char *buf;
 	int i;
 	u8 control;
 
-	/* The PL2303 is reported to lose bytes if you change
-	   serial settings even to the same values as before. Thus
-	   we actually need to filter in this specific case */
-
+	/*
+	 * The PL2303 is reported to lose bytes if you change serial settings
+	 * even to the same values as before. Thus we actually need to filter
+	 * in this specific case.
+	 */
 	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
 		return;
-
-	cflag = tty->termios.c_cflag;
 
 	buf = kzalloc(7, GFP_KERNEL);
 	if (!buf) {
@@ -363,8 +361,8 @@ static void pl2303_set_termios(struct tty_struct *tty,
 			    0, 0, buf, 7, 100);
 	dev_dbg(&port->dev, "0xa1:0x21:0:0  %d - %7ph\n", i, buf);
 
-	if (cflag & CSIZE) {
-		switch (cflag & CSIZE) {
+	if (C_CSIZE(tty)) {
+		switch (C_CSIZE(tty)) {
 		case CS5:
 			buf[6] = 5;
 			break;
@@ -377,7 +375,6 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		default:
 		case CS8:
 			buf[6] = 8;
-			break;
 		}
 		dev_dbg(&port->dev, "data bits = %d\n", buf[6]);
 	}
@@ -388,11 +385,12 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	/* For reference buf[4]=0 is 1 stop bits */
 	/* For reference buf[4]=1 is 1.5 stop bits */
 	/* For reference buf[4]=2 is 2 stop bits */
-	if (cflag & CSTOPB) {
-		/* NOTE: Comply with "real" UARTs / RS232:
+	if (C_CSTOPB(tty)) {
+		/*
+		 * NOTE: Comply with "real" UARTs / RS232:
 		 *       use 1.5 instead of 2 stop bits with 5 data bits
 		 */
-		if ((cflag & CSIZE) == CS5) {
+		if (C_CSIZE(tty) == CS5) {
 			buf[4] = 1;
 			dev_dbg(&port->dev, "stop bits = 1.5\n");
 		} else {
@@ -404,14 +402,14 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		dev_dbg(&port->dev, "stop bits = 1\n");
 	}
 
-	if (cflag & PARENB) {
+	if (C_PARENB(tty)) {
 		/* For reference buf[5]=0 is none parity */
 		/* For reference buf[5]=1 is odd parity */
 		/* For reference buf[5]=2 is even parity */
 		/* For reference buf[5]=3 is mark parity */
 		/* For reference buf[5]=4 is space parity */
-		if (cflag & PARODD) {
-			if (cflag & CMSPAR) {
+		if (C_PARODD(tty)) {
+			if (tty->termios.c_cflag & CMSPAR) {
 				buf[5] = 3;
 				dev_dbg(&port->dev, "parity = mark\n");
 			} else {
@@ -419,7 +417,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 				dev_dbg(&port->dev, "parity = odd\n");
 			}
 		} else {
-			if (cflag & CMSPAR) {
+			if (tty->termios.c_cflag & CMSPAR) {
 				buf[5] = 4;
 				dev_dbg(&port->dev, "parity = space\n");
 			} else {
@@ -440,7 +438,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	/* change control lines if we are switching to or from B0 */
 	spin_lock_irqsave(&priv->lock, flags);
 	control = priv->line_control;
-	if ((cflag & CBAUD) == B0)
+	if (C_BAUD(tty) == B0)
 		priv->line_control &= ~(CONTROL_DTR | CONTROL_RTS);
 	else if (old_termios && (old_termios->c_cflag & CBAUD) == B0)
 		priv->line_control |= (CONTROL_DTR | CONTROL_RTS);
@@ -452,14 +450,13 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
-	buf[0] = buf[1] = buf[2] = buf[3] = buf[4] = buf[5] = buf[6] = 0;
-
+	memset(buf, 0, 7);
 	i = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			    GET_LINE_REQUEST, GET_LINE_REQUEST_TYPE,
 			    0, 0, buf, 7, 100);
 	dev_dbg(&port->dev, "0xa1:0x21:0:0  %d - %7ph\n", i, buf);
 
-	if (cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		if (spriv->type == HX)
 			pl2303_vendor_write(0x0, 0x61, serial);
 		else
