@@ -367,7 +367,7 @@ static irqreturn_t pch_spi_handler(int irq, void *dev_id)
 
 	if (reg_spsr_val & SPSR_ORF_BIT) {
 		dev_err(&board_dat->pdev->dev, "%s Over run error\n", __func__);
-		if (data->current_msg->complete != 0) {
+		if (data->current_msg->complete) {
 			data->transfer_complete = true;
 			data->current_msg->status = -EIO;
 			data->current_msg->complete(data->current_msg->context);
@@ -643,7 +643,7 @@ static void pch_spi_set_tx(struct pch_spi_data *data, int *bpw)
 		list_for_each_entry_safe(pmsg, tmp, data->queue.next, queue) {
 			pmsg->status = -ENOMEM;
 
-			if (pmsg->complete != 0)
+			if (pmsg->complete)
 				pmsg->complete(pmsg->context);
 
 			/* delete from queue */
@@ -693,7 +693,7 @@ static void pch_spi_nomore_transfer(struct pch_spi_data *data)
 	 * [To the spi core..indicating end of transfer] */
 	data->current_msg->status = 0;
 
-	if (data->current_msg->complete != 0) {
+	if (data->current_msg->complete) {
 		dev_dbg(&data->master->dev,
 			"%s:Invoking callback of SPI core\n", __func__);
 		data->current_msg->complete(data->current_msg->context);
@@ -1186,7 +1186,7 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 		list_for_each_entry_safe(pmsg, tmp, data->queue.next, queue) {
 			pmsg->status = -EIO;
 
-			if (pmsg->complete != 0) {
+			if (pmsg->complete) {
 				spin_unlock(&data->lock);
 				pmsg->complete(pmsg->context);
 				spin_lock(&data->lock);
