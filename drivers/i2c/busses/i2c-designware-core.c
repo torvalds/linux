@@ -67,9 +67,12 @@
 #define DW_IC_STATUS		0x70
 #define DW_IC_TXFLR		0x74
 #define DW_IC_RXFLR		0x78
+#define DW_IC_SDA_HOLD		0x7c
 #define DW_IC_TX_ABRT_SOURCE	0x80
 #define DW_IC_ENABLE_STATUS	0x9c
 #define DW_IC_COMP_PARAM_1	0xf4
+#define DW_IC_COMP_VERSION	0xf8
+#define DW_IC_SDA_HOLD_MIN_VERS	0x3131312A
 #define DW_IC_COMP_TYPE		0xfc
 #define DW_IC_COMP_TYPE_VALUE	0x44570140
 
@@ -331,6 +334,16 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	dw_writel(dev, hcnt, DW_IC_FS_SCL_HCNT);
 	dw_writel(dev, lcnt, DW_IC_FS_SCL_LCNT);
 	dev_dbg(dev->dev, "Fast-mode HCNT:LCNT = %d:%d\n", hcnt, lcnt);
+
+	/* Configure SDA Hold Time if required */
+	if (dev->sda_hold_time) {
+		reg = dw_readl(dev, DW_IC_COMP_VERSION);
+		if (reg >= DW_IC_SDA_HOLD_MIN_VERS)
+			dw_writel(dev, dev->sda_hold_time, DW_IC_SDA_HOLD);
+		else
+			dev_warn(dev->dev,
+				"Hardware too old to adjust SDA hold time.");
+	}
 
 	/* Configure Tx/Rx FIFO threshold levels */
 	dw_writel(dev, dev->tx_fifo_depth - 1, DW_IC_TX_TL);
