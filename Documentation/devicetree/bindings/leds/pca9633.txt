@@ -1,0 +1,45 @@
+LEDs connected to pca9633 or pca9632
+
+Required properties:
+- compatible : should be : "nxp,pca963x"
+
+Optional properties:
+- nxp,totem-pole : use totem pole (push-pull) instead of default open-drain
+
+Each led is represented as a sub-node of the nxp,pca9633 device.
+
+LED sub-node properties:
+- label : (optional) see Documentation/devicetree/bindings/leds/common.txt
+- reg : number of LED line (could be from 0 to 4)
+- linux,default-trigger : (optional)
+   see Documentation/devicetree/bindings/leds/common.txt
+
+Examples:
+
+pca9632: pca9632 {
+	compatible = "nxp,pca9632", "nxp,pca963x";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	reg = <0x62>;
+
+	red@0 {
+		label = "red";
+		reg = <0>;
+		linux,default-trigger = "none";
+	};
+	green@1 {
+		label = "green";
+		reg = <1>;
+		linux,default-trigger = "none";
+	};
+	blue@2 {
+		label = "blue";
+		reg = <2>;
+		linux,default-trigger = "none";
+	};
+	unused@3 {
+		label = "unused";
+		reg = <3>;
+		linux,default-trigger = "none";
+	};
+};

@@ -22,6 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/platform_data/leds-pca9633.h>
 
 /* LED select registers determine the source that drives LED outputs */
@@ -93,6 +94,67 @@ static void pca9633_led_set(struct led_classdev *led_cdev,
 	schedule_work(&pca9633->work);
 }
 
+#if IS_ENABLED(CONFIG_OF)
+static struct pca9633_platform_data *
+pca9633_dt_init(struct i2c_client *client)
+{
+	struct device_node *np = client->dev.of_node, *child;
+	struct pca9633_platform_data *pdata;
+	struct led_info *pca9633_leds;
+	int count;
+
+	count = of_get_child_count(np);
+	if (!count || count > 4)
+		return ERR_PTR(-ENODEV);
+
+	pca9633_leds = devm_kzalloc(&client->dev,
+				sizeof(struct led_info) * count, GFP_KERNEL);
+	if (!pca9633_leds)
+		return ERR_PTR(-ENOMEM);
+
+	for_each_child_of_node(np, child) {
+		struct led_info led;
+		u32 reg;
+		int res;
+
+		led.name =
+			of_get_property(child, "label", NULL) ? : child->name;
+		led.default_trigger =
+			of_get_property(child, "linux,default-trigger", NULL);
+		res = of_property_read_u32(child, "reg", &reg);
+		if (res != 0)
+			continue;
+		pca9633_leds[reg] = led;
+	}
+	pdata = devm_kzalloc(&client->dev,
+			     sizeof(struct pca9633_platform_data), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	pdata->leds.leds = pca9633_leds;
+	pdata->leds.num_leds = count;
+
+	/* default to open-drain unless totem pole (push-pull) is specified */
+	if (of_property_read_bool(np, "nxp,totem-pole"))
+		pdata->outdrv = PCA9633_TOTEM_POLE;
+	else
+		pdata->outdrv = PCA9633_OPEN_DRAIN;
+
+	return pdata;
+}
+
+static const struct of_device_id of_pca9633_match[] = {
+	{ .compatible = "nxp,pca963x", },
+	{},
+};
+#else
+static struct pca9633_platform_data *
+pca9633_dt_init(struct i2c_client *client)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
+
 static int pca9633_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
@@ -101,6 +163,14 @@ static int pca9633_probe(struct i2c_client *client,
 	int i, err;
 
 	pdata = client->dev.platform_data;
+
+	if (!pdata) {
+		pdata = pca9633_dt_init(client);
+		if (IS_ERR(pdata)) {
+			dev_warn(&client->dev, "could not parse configuration\n");
+			pdata = NULL;
+		}
+	}
 
 	if (pdata) {
 		if (pdata->leds.num_leds <= 0 || pdata->leds.num_leds > 4) {
@@ -181,6 +251,7 @@ static struct i2c_driver pca9633_driver = {
 	.driver = {
 		.name	= "leds-pca9633",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(of_pca9633_match),
 	},
 	.probe	= pca9633_probe,
 	.remove	= pca9633_remove,
