@@ -4955,6 +4955,11 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	if (!IS_VALLEYVIEW(dev)) {
 		pipe_config->dpll_hw_state.fp0 = I915_READ(FP0(crtc->pipe));
 		pipe_config->dpll_hw_state.fp1 = I915_READ(FP1(crtc->pipe));
+	} else {
+		/* Mask out read-only status bits. */
+		pipe_config->dpll_hw_state.dpll &= ~(DPLL_LOCK_VLV |
+						     DPLL_PORTC_READY_MASK |
+						     DPLL_PORTB_READY_MASK);
 	}
 
 	return true;
