@@ -24,6 +24,16 @@
 #ifndef cpu_has_tlb
 #define cpu_has_tlb		(cpu_data[0].options & MIPS_CPU_TLB)
 #endif
+
+/*
+ * For the moment we don't consider R6000 and R8000 so we can assume that
+ * anything that doesn't support R4000-style exceptions and interrupts is
+ * R3000-like.  Users should still treat these two macro definitions as
+ * opaque.
+ */
+#ifndef cpu_has_3kex
+#define cpu_has_3kex		(!cpu_has_4kex)
+#endif
 #ifndef cpu_has_4kex
 #define cpu_has_4kex		(cpu_data[0].options & MIPS_CPU_4KEX)
 #endif
@@ -136,7 +146,6 @@
 #endif
 #endif
 
-# define cpu_has_mips_1		(cpu_data[0].isa_level & MIPS_CPU_ISA_I)
 #ifndef cpu_has_mips_2
 # define cpu_has_mips_2		(cpu_data[0].isa_level & MIPS_CPU_ISA_II)
 #endif
