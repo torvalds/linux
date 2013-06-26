@@ -1325,11 +1325,11 @@ static void drop_parsed_module_refcounts(unsigned long subsys_mask)
 	struct cgroup_subsys *ss;
 	int i;
 
-	for_each_subsys(ss, i) {
-		if (!(subsys_mask & (1UL << i)))
-			continue;
-		module_put(cgroup_subsys[i]->module);
-	}
+	mutex_lock(&cgroup_mutex);
+	for_each_subsys(ss, i)
+		if (subsys_mask & (1UL << i))
+			module_put(cgroup_subsys[i]->module);
+	mutex_unlock(&cgroup_mutex);
 }
 
 static int cgroup_remount(struct super_block *sb, int *flags, char *data)
