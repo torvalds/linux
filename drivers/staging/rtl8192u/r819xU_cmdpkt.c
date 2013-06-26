@@ -50,9 +50,6 @@ SendTxCommandPacket(
 	struct sk_buff	    *skb;
 	cb_desc		    *tcb_desc;
 	unsigned char	    *ptr_buf;
-	//bool	bLastInitPacket = false;
-
-	//PlatformAcquireSpinLock(Adapter, RT_TX_SPINLOCK);
 
 	//Get TCB and local buffer from common pool. (It is shared by CmdQ, MgntQ, and USB coalesce DataQ)
 	skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + DataLen + 4);
@@ -75,7 +72,6 @@ SendTxCommandPacket(
 			priv->ieee80211->softmac_hard_start_xmit(skb,dev);
 		}
 
-	//PlatformReleaseSpinLock(Adapter, RT_TX_SPINLOCK);
 	return rtStatus;
 }
 
@@ -113,8 +109,6 @@ SendTxCommandPacket(
 	struct r8192_priv   *priv = ieee80211_priv(dev);
 	u16		    frag_threshold;
 	u16		    frag_length, frag_offset = 0;
-	//u16		    total_size;
-	//int		    i;
 
 	rt_firmware	    *pfirmware = priv->pFirmware;
 	struct sk_buff	    *skb;
@@ -310,15 +304,11 @@ cmpk_handle_tx_feedback(
 
 	priv->stats.txfeedback++;
 
-	/* 0. Display received message. */
-	//cmpk_Display_Message(CMPK_RX_TX_FB_SIZE, pMsg);
-
 	/* 1. Extract TX feedback info from RFD to temp structure buffer. */
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in
 	   windows OS. So we have to read the content byte by byte or transfer
 	   endian type before copy the message copy. */
 	/* 2007/07/05 MH Use pointer to transfer structure memory. */
-	//memcpy((UINT8 *)&rx_tx_fb, pMsg, sizeof(CMPK_TXFB_T));
 	memcpy((u8 *)&rx_tx_fb, pmsg, sizeof(cmpk_txfb_t));
 	/* 2. Use tx feedback info to count TX statistics. */
 	cmpk_count_txstatistic(dev, &rx_tx_fb);
@@ -326,7 +316,6 @@ cmpk_handle_tx_feedback(
 	/* Collect info TX feedback packet to fill TCB. */
 	/* We can not know the packet length and transmit type: broadcast or uni
 	   or multicast. */
-	//CountTxStatistics( pAdapter, &tcb );
 
 }	/* cmpk_Handle_Tx_Feedback */
 
@@ -393,15 +382,10 @@ cmpk_handle_interrupt_status(
 
 	DMESG("---> cmpk_Handle_Interrupt_Status()\n");
 
-	/* 0. Display received message. */
-	//cmpk_Display_Message(CMPK_RX_BEACON_STATE_SIZE, pMsg);
-
 	/* 1. Extract TX feedback info from RFD to temp structure buffer. */
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in
 	   windows OS. So we have to read the content byte by byte or transfer
 	   endian type before copy the message copy. */
-	//rx_bcn_state.Element_ID	= pMsg[0];
-	//rx_bcn_state.Length		= pMsg[1];
 	rx_intr_status.length = pmsg[1];
 	if (rx_intr_status.length != (sizeof(cmpk_intr_sta_t) - 2))
 	{
@@ -415,7 +399,6 @@ cmpk_handle_interrupt_status(
 	{
 		//2 maybe need endian transform?
 		rx_intr_status.interrupt_status = *((u32 *)(pmsg + 4));
-		//rx_intr_status.InterruptStatus = N2H4BYTE(*((UINT32 *)(pMsg + 4)));
 
 		DMESG("interrupt status = 0x%x\n", rx_intr_status.interrupt_status);
 
@@ -471,15 +454,11 @@ cmpk_handle_query_config_rx(
 {
 	cmpk_query_cfg_t	rx_query_cfg;	/* */
 
-	/* 0. Display received message. */
-	//cmpk_Display_Message(CMPK_RX_BEACON_STATE_SIZE, pMsg);
 
 	/* 1. Extract TX feedback info from RFD to temp structure buffer. */
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in
 	   windows OS. So we have to read the content byte by byte or transfer
 	   endian type before copy the message copy. */
-	//rx_query_cfg.Element_ID	= pMsg[0];
-	//rx_query_cfg.Length		= pMsg[1];
 	rx_query_cfg.cfg_action		= (pmsg[4] & 0x80000000)>>31;
 	rx_query_cfg.cfg_type		= (pmsg[4] & 0x60) >> 5;
 	rx_query_cfg.cfg_size		= (pmsg[4] & 0x18) >> 3;
@@ -539,9 +518,6 @@ static	void	cmpk_count_tx_status(	struct net_device *dev,
 	priv->stats.txretrycount		+= pstx_status->txretry;
 	priv->stats.txfeedbackretry	+= pstx_status->txretry;
 
-	//pAdapter->TxStats.NumTxOkBytesTotal += psTx_FB->pkt_length;
-	//pAdapter->TxStats.NumTxErrBytesTotal += psTx_FB->pkt_length;
-	//pAdapter->MgntInfo.LinkDetectInfo.NumTxOkInPeriod++;
 
 	priv->stats.txmulticast	+= pstx_status->txmcok;
 	priv->stats.txbroadcast	+= pstx_status->txbcok;
@@ -613,7 +589,6 @@ cmpk_handle_tx_rate_history(
 	u8	   *pmsg)
 {
 	cmpk_tx_rahis_t	*ptxrate;
-//	RT_RF_POWER_STATE	rtState;
 	u8				i, j;
 	u16				length = sizeof(cmpk_tx_rahis_t);
 	u32				*ptemp;
@@ -696,7 +671,6 @@ cmpk_message_handle_rx(
 	struct net_device *dev,
 	struct ieee80211_rx_stats *pstats)
 {
-//	u32			debug_level = DBG_LOUD;
 	int			total_length;
 	u8			cmd_length, exe_cnt = 0;
 	u8			element_id;
@@ -704,11 +678,8 @@ cmpk_message_handle_rx(
 
 	/* 0. Check inpt arguments. If is is a command queue message or pointer is
 	      null. */
-	if (/*(prfd->queue_id != CMPK_RX_QUEUE_ID) || */(pstats== NULL))
+	if (pstats== NULL)
 	{
-		/* Print error message. */
-		/*RT_TRACE(COMP_SEND, DebugLevel,
-				("\n\r[CMPK]-->Err queue id or pointer"));*/
 		return 0;	/* This is not a command packet. */
 	}
 
@@ -720,8 +691,6 @@ cmpk_message_handle_rx(
 
 	/* 3. Read command packet element id and length. */
 	element_id = pcmd_buff[0];
-	/*RT_TRACE(COMP_SEND, DebugLevel,
-			("\n\r[CMPK]-->element ID=%d Len=%d", element_id, total_length));*/
 
 	/* 4. Check every received command packet content according to different
 	      element type. Because FW may aggregate RX command packet to minimize
@@ -757,12 +726,10 @@ cmpk_message_handle_rx(
 			case RX_TX_PER_PKT_FEEDBACK:
 				// You must at lease add a switch case element here,
 				// Otherwise, we will jump to default case.
-				//DbgPrint("CCX Test\r\n");
 				cmd_length = CMPK_RX_TX_FB_SIZE;
 				break;
 
 			case RX_TX_RATE_HISTORY:
-				//DbgPrint(" rx tx rate history\r\n");
 				cmpk_handle_tx_rate_history(dev, pcmd_buff);
 				cmd_length = CMPK_TX_RAHIS_SIZE;
 				break;
@@ -772,15 +739,10 @@ cmpk_message_handle_rx(
 				RT_TRACE(COMP_ERR, "---->cmpk_message_handle_rx():unknow CMD Element\n");
 				return 1;	/* This is a command packet. */
 		}
-		// 2007/01/22 MH Display received rx command packet info.
-		//cmpk_Display_Message(cmd_length, pcmd_buff);
-
-		// 2007/01/22 MH Add to display tx statistic.
-		//cmpk_DisplayTxStatistic(pAdapter);
 
 		total_length -= cmd_length;
 		pcmd_buff    += cmd_length;
-	}	/* while (total_length > 0) */
+	}
 	return	1;	/* This is a command packet. */
 
 }	/* CMPK_Message_Handle_Rx */
