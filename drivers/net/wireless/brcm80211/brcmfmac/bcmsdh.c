@@ -453,14 +453,10 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 }
 
 static int brcmf_sdcard_recv_prepare(struct brcmf_sdio_dev *sdiodev, uint fn,
-				     uint flags, uint width, u32 *addr)
+				     uint width, u32 *addr)
 {
 	uint bar0 = *addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
-
-	/* Async not implemented yet */
-	if (flags & SDIO_REQ_ASYNC)
-		return -ENOTSUPP;
 
 	if (bar0 != sdiodev->sbwad) {
 		err = brcmf_sdcard_set_sbaddr_window(sdiodev, bar0);
@@ -512,7 +508,7 @@ brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		  fn, addr, pkt->len);
 
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdcard_recv_prepare(sdiodev, fn, flags, width, &addr);
+	err = brcmf_sdcard_recv_prepare(sdiodev, fn, width, &addr);
 	if (err)
 		goto done;
 
@@ -536,7 +532,7 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		  fn, addr, pktq->qlen);
 
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	err = brcmf_sdcard_recv_prepare(sdiodev, fn, flags, width, &addr);
+	err = brcmf_sdcard_recv_prepare(sdiodev, fn, width, &addr);
 	if (err)
 		goto done;
 
@@ -580,10 +576,6 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 
 	brcmf_dbg(SDIO, "fun = %d, addr = 0x%x, size = %d\n",
 		  fn, addr, pkt->len);
-
-	/* Async not implemented yet */
-	if (flags & SDIO_REQ_ASYNC)
-		return -ENOTSUPP;
 
 	if (bar0 != sdiodev->sbwad) {
 		err = brcmf_sdcard_set_sbaddr_window(sdiodev, bar0);
