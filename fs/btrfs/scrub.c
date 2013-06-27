@@ -3224,6 +3224,11 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root, void *ctx)
 		return PTR_ERR(local_root);
 	}
 
+	if (btrfs_root_refs(&local_root->root_item) == 0) {
+		srcu_read_unlock(&fs_info->subvol_srcu, srcu_index);
+		return -ENOENT;
+	}
+
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.objectid = inum;
 	key.offset = 0;
@@ -3232,12 +3237,16 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root, void *ctx)
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
+	/* Avoid truncate/dio/punch hole.. */
+	mutex_lock(&inode->i_mutex);
+	inode_dio_wait(inode);
+
 	ret = 0;
 	physical_for_dev_replace = nocow_ctx->physical_for_dev_replace;
 	len = nocow_ctx->len;
 	while (len >= PAGE_CACHE_SIZE) {
 		index = offset >> PAGE_CACHE_SHIFT;
-
+again:
 		page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
 		if (!page) {
 			pr_err("find_or_create_page() failed\n");
@@ -3258,7 +3267,18 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root, void *ctx)
 				ret = err;
 				goto next_page;
 			}
+
 			lock_page(page);
+			/*
+			 * If the page has been remove from the page cache,
+			 * the data on it is meaningless, because it may be
+			 * old one, the new data may be written into the new
+			 * page in the page cache.
+			 */
+			if (page->mapping != inode->i_mapping) {
+				page_cache_release(page);
+				goto again;
+			}
 			if (!PageUptodate(page)) {
 				ret = -EIO;
 				goto next_page;
@@ -3280,6 +3300,7 @@ next_page:
 		len -= PAGE_CACHE_SIZE;
 	}
 out:
+	mutex_unlock(&inode->i_mutex);
 	iput(inode);
 	return ret;
 }
