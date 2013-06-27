@@ -37,16 +37,18 @@
 #define c5_AIFSR	15	/* Auxilary Instrunction Fault Status R */
 #define c6_DFAR		16	/* Data Fault Address Register */
 #define c6_IFAR		17	/* Instruction Fault Address Register */
-#define c9_L2CTLR	18	/* Cortex A15 L2 Control Register */
-#define c10_PRRR	19	/* Primary Region Remap Register */
-#define c10_NMRR	20	/* Normal Memory Remap Register */
-#define c12_VBAR	21	/* Vector Base Address Register */
-#define c13_CID		22	/* Context ID Register */
-#define c13_TID_URW	23	/* Thread ID, User R/W */
-#define c13_TID_URO	24	/* Thread ID, User R/O */
-#define c13_TID_PRIV	25	/* Thread ID, Privileged */
-#define c14_CNTKCTL	26	/* Timer Control Register (PL1) */
-#define NR_CP15_REGS	27	/* Number of regs (incl. invalid) */
+#define c7_PAR		18	/* Physical Address Register */
+#define c7_PAR_high	19	/* PAR top 32 bits */
+#define c9_L2CTLR	20	/* Cortex A15 L2 Control Register */
+#define c10_PRRR	21	/* Primary Region Remap Register */
+#define c10_NMRR	22	/* Normal Memory Remap Register */
+#define c12_VBAR	23	/* Vector Base Address Register */
+#define c13_CID		24	/* Context ID Register */
+#define c13_TID_URW	25	/* Thread ID, User R/W */
+#define c13_TID_URO	26	/* Thread ID, User R/O */
+#define c13_TID_PRIV	27	/* Thread ID, Privileged */
+#define c14_CNTKCTL	28	/* Timer Control Register (PL1) */
+#define NR_CP15_REGS	29	/* Number of regs (incl. invalid) */
 
 #define ARM_EXCEPTION_RESET	  0
 #define ARM_EXCEPTION_UNDEFINED   1
@@ -71,8 +73,6 @@ extern char __kvm_hyp_vector[];
 
 extern char __kvm_hyp_code_start[];
 extern char __kvm_hyp_code_end[];
-
-extern void __kvm_tlb_flush_vmid(struct kvm *kvm);
 
 extern void __kvm_flush_vm_context(void);
 extern void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa);
