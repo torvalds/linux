@@ -157,8 +157,7 @@ xfs_trans_mod_dquot_byino(
 
 	if (!XFS_IS_QUOTA_RUNNING(mp) ||
 	    !XFS_IS_QUOTA_ON(mp) ||
-	    ip->i_ino == mp->m_sb.sb_uquotino ||
-	    ip->i_ino == mp->m_sb.sb_gquotino)
+	    xfs_is_quota_inode(&mp->m_sb, ip->i_ino))
 		return;
 
 	if (tp->t_dqinfo == NULL)
@@ -816,8 +815,7 @@ xfs_trans_reserve_quota_nblks(
 	if (XFS_IS_PQUOTA_ON(mp))
 		flags |= XFS_QMOPT_ENOSPC;
 
-	ASSERT(ip->i_ino != mp->m_sb.sb_uquotino);
-	ASSERT(ip->i_ino != mp->m_sb.sb_gquotino);
+	ASSERT(!xfs_is_quota_inode(&mp->m_sb, ip->i_ino));
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT((flags & ~(XFS_QMOPT_FORCE_RES | XFS_QMOPT_ENOSPC)) ==

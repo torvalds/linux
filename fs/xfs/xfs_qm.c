@@ -489,8 +489,7 @@ xfs_qm_need_dqattach(
 		return false;
 	if (!XFS_NOT_DQATTACHED(mp, ip))
 		return false;
-	if (ip->i_ino == mp->m_sb.sb_uquotino ||
-	    ip->i_ino == mp->m_sb.sb_gquotino)
+	if (xfs_is_quota_inode(&mp->m_sb, ip->i_ino))
 		return false;
 	return true;
 }
@@ -606,8 +605,7 @@ xfs_qm_dqdetach(
 
 	trace_xfs_dquot_dqdetach(ip);
 
-	ASSERT(ip->i_ino != ip->i_mount->m_sb.sb_uquotino);
-	ASSERT(ip->i_ino != ip->i_mount->m_sb.sb_gquotino);
+	ASSERT(!xfs_is_quota_inode(&ip->i_mount->m_sb, ip->i_ino));
 	if (ip->i_udquot) {
 		xfs_qm_dqrele(ip->i_udquot);
 		ip->i_udquot = NULL;
@@ -1152,7 +1150,7 @@ xfs_qm_dqusage_adjust(
 	 * rootino must have its resources accounted for, not so with the quota
 	 * inodes.
 	 */
-	if (ino == mp->m_sb.sb_uquotino || ino == mp->m_sb.sb_gquotino) {
+	if (xfs_is_quota_inode(&mp->m_sb, ino)) {
 		*res = BULKSTAT_RV_NOTHING;
 		return XFS_ERROR(EINVAL);
 	}
