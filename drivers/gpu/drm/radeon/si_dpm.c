@@ -5864,6 +5864,32 @@ int si_dpm_pre_set_power_state(struct radeon_device *rdev)
 	return 0;
 }
 
+static int si_power_control_set_level(struct radeon_device *rdev)
+{
+	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
+	int ret;
+
+	ret = si_restrict_performance_levels_before_switch(rdev);
+	if (ret)
+		return ret;
+	ret = si_halt_smc(rdev);
+	if (ret)
+		return ret;
+	ret = si_populate_smc_tdp_limits(rdev, new_ps);
+	if (ret)
+		return ret;
+	ret = si_populate_smc_tdp_limits_2(rdev, new_ps);
+	if (ret)
+		return ret;
+	ret = si_resume_smc(rdev);
+	if (ret)
+		return ret;
+	ret = si_set_sw_state(rdev);
+	if (ret)
+		return ret;
+	return 0;
+}
+
 int si_dpm_set_power_state(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
@@ -5928,16 +5954,6 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 	}
 	si_set_pcie_lane_width_in_smc(rdev, new_ps, old_ps);
 
-	ret = si_populate_smc_tdp_limits(rdev, new_ps);
-	if (ret) {
-		DRM_ERROR("si_populate_smc_tdp_limits failed\n");
-		return ret;
-	}
-	ret = si_populate_smc_tdp_limits_2(rdev, new_ps);
-	if (ret) {
-		DRM_ERROR("si_populate_smc_tdp_limits_2 failed\n");
-		return ret;
-	}
 	ret = si_resume_smc(rdev);
 	if (ret) {
 		DRM_ERROR("si_resume_smc failed\n");
@@ -5967,6 +5983,12 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 
+	ret = si_power_control_set_level(rdev);
+	if (ret) {
+		DRM_ERROR("si_power_control_set_level failed\n");
+		return ret;
+	}
+
 #if 0
 	/* XXX */
 	ret = si_unrestrict_performance_levels_after_switch(rdev);
@@ -5976,33 +5998,6 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 	}
 #endif
 
-	return 0;
-}
-
-
-int si_power_control_set_level(struct radeon_device *rdev)
-{
-	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
-	int ret;
-
-	ret = si_restrict_performance_levels_before_switch(rdev);
-	if (ret)
-		return ret;
-	ret = si_halt_smc(rdev);
-	if (ret)
-		return ret;
-	ret = si_populate_smc_tdp_limits(rdev, new_ps);
-	if (ret)
-		return ret;
-	ret = si_populate_smc_tdp_limits_2(rdev, new_ps);
-	if (ret)
-		return ret;
-	ret = si_resume_smc(rdev);
-	if (ret)
-		return ret;
-	ret = si_set_sw_state(rdev);
-	if (ret)
-		return ret;
 	return 0;
 }
 
