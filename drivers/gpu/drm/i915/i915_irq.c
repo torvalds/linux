@@ -875,9 +875,9 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 #define HPD_STORM_DETECT_PERIOD 1000
 #define HPD_STORM_THRESHOLD 5
 
-static inline bool hotplug_irq_storm_detect(struct drm_device *dev,
-					    u32 hotplug_trigger,
-					    const u32 *hpd)
+static inline bool intel_hpd_irq_handler(struct drm_device *dev,
+					 u32 hotplug_trigger,
+					 const u32 *hpd)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -1018,7 +1018,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 					 hotplug_status);
 			if (hotplug_trigger) {
-				if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_status_i915))
+				if (intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915))
 					i915_hpd_irq_setup(dev);
 				queue_work(dev_priv->wq,
 					   &dev_priv->hotplug_work);
@@ -1049,7 +1049,7 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK;
 
 	if (hotplug_trigger) {
-		if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_ibx))
+		if (intel_hpd_irq_handler(dev, hotplug_trigger, hpd_ibx))
 			ibx_hpd_irq_setup(dev);
 		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
 	}
@@ -1154,7 +1154,7 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
 
 	if (hotplug_trigger) {
-		if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_cpt))
+		if (intel_hpd_irq_handler(dev, hotplug_trigger, hpd_cpt))
 			ibx_hpd_irq_setup(dev);
 		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
 	}
@@ -3278,7 +3278,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
 			if (hotplug_trigger) {
-				if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_status_i915))
+				if (intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915))
 					i915_hpd_irq_setup(dev);
 				queue_work(dev_priv->wq,
 					   &dev_priv->hotplug_work);
@@ -3519,7 +3519,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
 			if (hotplug_trigger) {
-				if (hotplug_irq_storm_detect(dev, hotplug_trigger,
+				if (intel_hpd_irq_handler(dev, hotplug_trigger,
 							    IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i915))
 					i915_hpd_irq_setup(dev);
 				queue_work(dev_priv->wq,
