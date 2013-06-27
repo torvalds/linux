@@ -425,6 +425,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * status ... if any child can't handle the reset, then the entire
 	 * slot is dlpar removed and added.
 	 */
+	pr_info("EEH: Notify device drivers to shutdown\n");
 	eeh_pe_dev_traverse(pe, eeh_report_error, &result);
 
 	/* Get the current PCI slot state. This can take a long time,
@@ -432,7 +433,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	 */
 	rc = eeh_ops->wait_state(pe, MAX_WAIT_FOR_RECOVERY*1000);
 	if (rc < 0 || rc == EEH_STATE_NOT_SUPPORT) {
-		printk(KERN_WARNING "EEH: Permanent failure\n");
+		pr_warning("EEH: Permanent failure\n");
 		goto hard_fail;
 	}
 
@@ -440,6 +441,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * don't post the error log until after all dev drivers
 	 * have been informed.
 	 */
+	pr_info("EEH: Collect temporary log\n");
 	eeh_slot_error_detail(pe, EEH_LOG_TEMP);
 
 	/* If all device drivers were EEH-unaware, then shut
@@ -447,15 +449,18 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * go down willingly, without panicing the system.
 	 */
 	if (result == PCI_ERS_RESULT_NONE) {
+		pr_info("EEH: Reset with hotplug activity\n");
 		rc = eeh_reset_device(pe, frozen_bus);
 		if (rc) {
-			printk(KERN_WARNING "EEH: Unable to reset, rc=%d\n", rc);
+			pr_warning("%s: Unable to reset, err=%d\n",
+				   __func__, rc);
 			goto hard_fail;
 		}
 	}
 
 	/* If all devices reported they can proceed, then re-enable MMIO */
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
+		pr_info("EEH: Enable I/O for affected devices\n");
 		rc = eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
 
 		if (rc < 0)
@@ -463,6 +468,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 		if (rc) {
 			result = PCI_ERS_RESULT_NEED_RESET;
 		} else {
+			pr_info("EEH: Notify device drivers to resume I/O\n");
 			result = PCI_ERS_RESULT_NONE;
 			eeh_pe_dev_traverse(pe, eeh_report_mmio_enabled, &result);
 		}
@@ -470,6 +476,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 
 	/* If all devices reported they can proceed, then re-enable DMA */
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
+		pr_info("EEH: Enabled DMA for affected devices\n");
 		rc = eeh_pci_enable(pe, EEH_OPT_THAW_DMA);
 
 		if (rc < 0)
@@ -482,17 +489,22 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 
 	/* If any device has a hard failure, then shut off everything. */
 	if (result == PCI_ERS_RESULT_DISCONNECT) {
-		printk(KERN_WARNING "EEH: Device driver gave up\n");
+		pr_warning("EEH: Device driver gave up\n");
 		goto hard_fail;
 	}
 
 	/* If any device called out for a reset, then reset the slot */
 	if (result == PCI_ERS_RESULT_NEED_RESET) {
+		pr_info("EEH: Reset without hotplug activity\n");
 		rc = eeh_reset_device(pe, NULL);
 		if (rc) {
-			printk(KERN_WARNING "EEH: Cannot reset, rc=%d\n", rc);
+			pr_warning("%s: Cannot reset, err=%d\n",
+				   __func__, rc);
 			goto hard_fail;
 		}
+
+		pr_info("EEH: Notify device drivers "
+			"the completion of reset\n");
 		result = PCI_ERS_RESULT_NONE;
 		eeh_pe_dev_traverse(pe, eeh_report_reset, &result);
 	}
@@ -500,11 +512,12 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	/* All devices should claim they have recovered by now. */
 	if ((result != PCI_ERS_RESULT_RECOVERED) &&
 	    (result != PCI_ERS_RESULT_NONE)) {
-		printk(KERN_WARNING "EEH: Not recovered\n");
+		pr_warning("EEH: Not recovered\n");
 		goto hard_fail;
 	}
 
 	/* Tell all device drivers that they can resume operations */
+	pr_info("EEH: Notify device driver to resume\n");
 	eeh_pe_dev_traverse(pe, eeh_report_resume, NULL);
 
 	return;

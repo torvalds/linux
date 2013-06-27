@@ -329,7 +329,9 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	eeh_serialize_unlock(flags);
 	eeh_send_failure_event(phb_pe);
 
-	WARN(1, "EEH: PHB failure detected\n");
+	pr_err("EEH: PHB#%x failure detected\n",
+		phb_pe->phb->global_number);
+	dump_stack();
 
 	return 1;
 out:
@@ -458,7 +460,10 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out.
 	 */
-	WARN(1, "EEH: failure detected\n");
+	pr_err("EEH: Frozen PE#%x detected on PHB#%x\n",
+		pe->addr, pe->phb->global_number);
+	dump_stack();
+
 	return 1;
 
 dn_unlock:

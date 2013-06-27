@@ -853,11 +853,14 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 					phb->eeh_state |= PNV_EEH_STATE_REMOVED;
 				}
 
-				WARN(1, "EEH: dead IOC detected\n");
+				pr_err("EEH: dead IOC detected\n");
 				ret = 4;
 				goto out;
-			} else if (severity == OPAL_EEH_SEV_INF)
+			} else if (severity == OPAL_EEH_SEV_INF) {
+				pr_info("EEH: IOC informative error "
+					"detected\n");
 				ioda_eeh_hub_diag(hose);
+			}
 
 			break;
 		case OPAL_EEH_PHB_ERROR:
@@ -865,8 +868,8 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 				if (ioda_eeh_get_phb_pe(hose, pe))
 					break;
 
-				WARN(1, "EEH: dead PHB#%x detected\n",
-				     hose->global_number);
+				pr_err("EEH: dead PHB#%x detected\n",
+					hose->global_number);
 				phb->eeh_state |= PNV_EEH_STATE_REMOVED;
 				ret = 3;
 				goto out;
@@ -874,20 +877,24 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 				if (ioda_eeh_get_phb_pe(hose, pe))
 					break;
 
-				WARN(1, "EEH: fenced PHB#%x detected\n",
-				     hose->global_number);
+				pr_err("EEH: fenced PHB#%x detected\n",
+					hose->global_number);
 				ret = 2;
 				goto out;
-			} else if (severity == OPAL_EEH_SEV_INF)
+			} else if (severity == OPAL_EEH_SEV_INF) {
+				pr_info("EEH: PHB#%x informative error "
+					"detected\n",
+					hose->global_number);
 				ioda_eeh_phb_diag(hose);
+			}
 
 			break;
 		case OPAL_EEH_PE_ERROR:
 			if (ioda_eeh_get_pe(hose, frozen_pe_no, pe))
 				break;
 
-			WARN(1, "EEH: Frozen PE#%x on PHB#%x detected\n",
-			     (*pe)->addr, (*pe)->phb->global_number);
+			pr_err("EEH: Frozen PE#%x on PHB#%x detected\n",
+				(*pe)->addr, (*pe)->phb->global_number);
 			ret = 1;
 			goto out;
 		}
