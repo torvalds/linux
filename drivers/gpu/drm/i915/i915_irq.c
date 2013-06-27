@@ -1889,6 +1889,42 @@ static void i915_gem_record_rings(struct drm_device *dev,
 	}
 }
 
+static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
+				     struct drm_i915_error_state *error)
+{
+	struct drm_i915_gem_object *obj;
+	int i;
+
+	i = 0;
+	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list)
+		i++;
+	error->active_bo_count = i;
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
+		if (obj->pin_count)
+			i++;
+	error->pinned_bo_count = i - error->active_bo_count;
+
+	if (i) {
+		error->active_bo = kmalloc(sizeof(*error->active_bo)*i,
+					   GFP_ATOMIC);
+		if (error->active_bo)
+			error->pinned_bo =
+				error->active_bo + error->active_bo_count;
+	}
+
+	if (error->active_bo)
+		error->active_bo_count =
+			capture_active_bo(error->active_bo,
+					  error->active_bo_count,
+					  &dev_priv->mm.active_list);
+
+	if (error->pinned_bo)
+		error->pinned_bo_count =
+			capture_pinned_bo(error->pinned_bo,
+					  error->pinned_bo_count,
+					  &dev_priv->mm.bound_list);
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -1901,10 +1937,9 @@ static void i915_gem_record_rings(struct drm_device *dev,
 static void i915_capture_error_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj;
 	struct drm_i915_error_state *error;
 	unsigned long flags;
-	int i, pipe;
+	int pipe;
 
 	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
 	error = dev_priv->gpu_error.first_error;
@@ -1962,37 +1997,9 @@ static void i915_capture_error_state(struct drm_device *dev)
 
 	i915_get_extra_instdone(dev, error->extra_instdone);
 
+	i915_gem_capture_buffers(dev_priv, error);
 	i915_gem_record_fences(dev, error);
 	i915_gem_record_rings(dev, error);
-
-	i = 0;
-	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list)
-		i++;
-	error->active_bo_count = i;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
-		if (obj->pin_count)
-			i++;
-	error->pinned_bo_count = i - error->active_bo_count;
-
-	if (i) {
-		error->active_bo = kmalloc(sizeof(*error->active_bo)*i,
-					   GFP_ATOMIC);
-		if (error->active_bo)
-			error->pinned_bo =
-				error->active_bo + error->active_bo_count;
-	}
-
-	if (error->active_bo)
-		error->active_bo_count =
-			capture_active_bo(error->active_bo,
-					  error->active_bo_count,
-					  &dev_priv->mm.active_list);
-
-	if (error->pinned_bo)
-		error->pinned_bo_count =
-			capture_pinned_bo(error->pinned_bo,
-					  error->pinned_bo_count,
-					  &dev_priv->mm.bound_list);
 
 	do_gettimeofday(&error->time);
 
