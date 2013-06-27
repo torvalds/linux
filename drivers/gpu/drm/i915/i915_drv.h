@@ -482,8 +482,7 @@ struct i915_gtt {
 				   struct sg_table *st,
 				   unsigned int pg_start,
 				   enum i915_cache_level cache_level);
-	gen6_gtt_pte_t (*pte_encode)(struct drm_device *dev,
-				     dma_addr_t addr,
+	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
 				     enum i915_cache_level level);
 };
 #define gtt_total_entries(gtt) ((gtt).total >> PAGE_SHIFT)
@@ -503,8 +502,7 @@ struct i915_hw_ppgtt {
 			       struct sg_table *st,
 			       unsigned int pg_start,
 			       enum i915_cache_level cache_level);
-	gen6_gtt_pte_t (*pte_encode)(struct drm_device *dev,
-				     dma_addr_t addr,
+	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
 				     enum i915_cache_level level);
 	int (*enable)(struct drm_device *dev);
 	void (*cleanup)(struct i915_hw_ppgtt *ppgtt);
