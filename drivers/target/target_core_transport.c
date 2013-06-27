@@ -52,6 +52,9 @@
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/target.h>
+
 static struct workqueue_struct *target_completion_wq;
 static struct kmem_cache *se_sess_cache;
 struct kmem_cache *se_ua_cache;
@@ -1123,6 +1126,8 @@ target_setup_cmd_from_cdb(struct se_cmd *cmd, unsigned char *cdb)
 	 */
 	memcpy(cmd->t_task_cdb, cdb, scsi_command_size(cdb));
 
+	trace_target_sequencer_start(cmd);
+
 	/*
 	 * Check for an existing UNIT ATTENTION condition
 	 */
@@ -1546,7 +1551,8 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 				cmd->orig_fe_lun, 0x2C,
 				ASCQ_2CH_PREVIOUS_RESERVATION_CONFLICT_STATUS);
 
-		ret = cmd->se_tfo->queue_status(cmd);
+		trace_target_cmd_complete(cmd);
+		ret = cmd->se_tfo-> queue_status(cmd);
 		if (ret == -EAGAIN || ret == -ENOMEM)
 			goto queue_full;
 		goto check_stop;
@@ -1766,6 +1772,7 @@ static void transport_complete_qf(struct se_cmd *cmd)
 	transport_complete_task_attr(cmd);
 
 	if (cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) {
+		trace_target_cmd_complete(cmd);
 		ret = cmd->se_tfo->queue_status(cmd);
 		if (ret)
 			goto out;
@@ -1773,6 +1780,7 @@ static void transport_complete_qf(struct se_cmd *cmd)
 
 	switch (cmd->data_direction) {
 	case DMA_FROM_DEVICE:
+		trace_target_cmd_complete(cmd);
 		ret = cmd->se_tfo->queue_data_in(cmd);
 		break;
 	case DMA_TO_DEVICE:
@@ -1783,6 +1791,7 @@ static void transport_complete_qf(struct se_cmd *cmd)
 		}
 		/* Fall through for DMA_TO_DEVICE */
 	case DMA_NONE:
+		trace_target_cmd_complete(cmd);
 		ret = cmd->se_tfo->queue_status(cmd);
 		break;
 	default:
@@ -1861,6 +1870,7 @@ static void target_complete_ok_work(struct work_struct *work)
 		}
 		spin_unlock(&cmd->se_lun->lun_sep_lock);
 
+		trace_target_cmd_complete(cmd);
 		ret = cmd->se_tfo->queue_data_in(cmd);
 		if (ret == -EAGAIN || ret == -ENOMEM)
 			goto queue_full;
@@ -1889,6 +1899,7 @@ static void target_complete_ok_work(struct work_struct *work)
 		}
 		/* Fall through for DMA_TO_DEVICE */
 	case DMA_NONE:
+		trace_target_cmd_complete(cmd);
 		ret = cmd->se_tfo->queue_status(cmd);
 		if (ret == -EAGAIN || ret == -ENOMEM)
 			goto queue_full;
@@ -2745,6 +2756,7 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 	cmd->scsi_sense_length  = TRANSPORT_SENSE_BUFFER;
 
 after_reason:
+	trace_target_cmd_complete(cmd);
 	return cmd->se_tfo->queue_status(cmd);
 }
 EXPORT_SYMBOL(transport_send_check_condition_and_sense);
@@ -2761,6 +2773,7 @@ int transport_check_aborted_status(struct se_cmd *cmd, int send_status)
 		 cmd->t_task_cdb[0], cmd->se_tfo->get_task_tag(cmd));
 
 	cmd->se_cmd_flags |= SCF_SENT_DELAYED_TAS;
+	trace_target_cmd_complete(cmd);
 	cmd->se_tfo->queue_status(cmd);
 
 	return 1;
@@ -2798,6 +2811,7 @@ void transport_send_task_abort(struct se_cmd *cmd)
 		" ITT: 0x%08x\n", cmd->t_task_cdb[0],
 		cmd->se_tfo->get_task_tag(cmd));
 
+	trace_target_cmd_complete(cmd);
 	cmd->se_tfo->queue_status(cmd);
 }
 
