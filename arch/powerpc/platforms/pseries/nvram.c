@@ -502,6 +502,7 @@ static int nvram_pstore_open(struct pstore_info *psi)
  * @part:               pstore writes data to registered buffer in parts,
  *                      part number will indicate the same.
  * @count:              Indicates oops count
+ * @hsize:              Size of header added by pstore
  * @size:               number of bytes written to the registered buffer
  * @psi:                registered pstore_info structure
  *
@@ -512,7 +513,8 @@ static int nvram_pstore_open(struct pstore_info *psi)
 static int nvram_pstore_write(enum pstore_type_id type,
 				enum kmsg_dump_reason reason,
 				u64 *id, unsigned int part, int count,
-				size_t size, struct pstore_info *psi)
+				size_t hsize, size_t size,
+				struct pstore_info *psi)
 {
 	int rc;
 	struct oops_log_info *oops_hdr = (struct oops_log_info *) oops_buf;

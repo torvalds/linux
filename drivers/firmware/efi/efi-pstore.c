@@ -104,7 +104,7 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 
 static int efi_pstore_write(enum pstore_type_id type,
 		enum kmsg_dump_reason reason, u64 *id,
-		unsigned int part, int count, size_t size,
+		unsigned int part, int count, size_t hsize, size_t size,
 		struct pstore_info *psi)
 {
 	char name[DUMP_NAME_LEN];
