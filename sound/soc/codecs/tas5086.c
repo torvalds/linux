@@ -130,7 +130,7 @@ static const struct reg_default tas5086_reg_defaults[] = {
 static int tas5086_register_size(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case TAS5086_DEV_ID ... TAS5086_BKNDERR:
+	case TAS5086_CLOCK_CONTROL ... TAS5086_BKNDERR:
 		return 1;
 	case TAS5086_INPUT_MUX:
 	case TAS5086_PWM_OUTPUT_MUX:
