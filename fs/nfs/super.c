@@ -1620,19 +1620,6 @@ static int nfs_select_flavor(struct nfs_parsed_mount_data *args,
 	rpc_authflavor_t flavor;
 
 	/*
-	 * The NFSv2 MNT operation does not return a flavor list.
-	 */
-	if (args->mount_server.version != NFS_MNT3_VERSION)
-		goto out_default;
-
-	/*
-	 * Certain releases of Linux's mountd return an empty
-	 * flavor list in some cases.
-	 */
-	if (count == 0)
-		goto out_default;
-
-	/*
 	 * If the sec= mount option is used, the specified flavor or AUTH_NULL
 	 * must be in the list returned by the server.
 	 *
