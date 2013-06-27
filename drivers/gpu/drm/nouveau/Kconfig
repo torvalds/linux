@@ -15,6 +15,13 @@ config DRM_NOUVEAU
 	select ACPI_WMI if ACPI && X86
 	select MXM_WMI if ACPI && X86
 	select POWER_SUPPLY
+	# Similar to i915, we need to select ACPI_VIDEO and it's dependencies
+	select BACKLIGHT_LCD_SUPPORT if ACPI && X86
+	select BACKLIGHT_CLASS_DEVICE if ACPI && X86
+	select VIDEO_OUTPUT_CONTROL if ACPI && X86
+	select INPUT if ACPI && X86
+	select THERMAL if ACPI && X86
+	select ACPI_VIDEO if ACPI && X86
 	help
 	  Choose this option for open-source nVidia support.
 
