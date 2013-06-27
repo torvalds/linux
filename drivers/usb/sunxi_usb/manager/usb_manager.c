@@ -85,6 +85,9 @@ static int usb_hardware_scan_thread(void * pArg)
 {
 	struct usb_cfg *cfg = pArg;
 
+	/* delay for udc & hcd ready */
+	msleep(3000);
+
 	while(thread_run_flag){
 		DMSG_DBG_MANAGER("\n\n");
 
@@ -516,9 +519,7 @@ static int __init usb_manager_init(void)
 #ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
     if(g_usb_cfg.port[0].port_type == USB_PORT_TYPE_OTG
        && g_usb_cfg.port[0].detect_type == USB_DETECT_TYPE_VBUS_ID){
-#if defined(CONFIG_ARCH_SUN5I)
         usb_msg_center_init(&g_usb_cfg);
-#endif
     	usb_hw_scan_init(&g_usb_cfg);
 
     	thread_run_flag = 1;

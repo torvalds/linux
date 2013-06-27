@@ -108,7 +108,7 @@ static struct sw_hcd *g_sw_hcd0 = NULL;
 static void sw_hcd_save_context(struct sw_hcd *sw_hcd);
 static void sw_hcd_restore_context(struct sw_hcd *sw_hcd);
 
-#if defined(CONFIG_ARCH_SUN4I)
+#if 1
 static s32 usb_clock_init(sw_hcd_io_t *sw_hcd_io)
 {
 	sw_hcd_io->sie_clk = clk_get(NULL, "ahb_usb0");
@@ -733,10 +733,6 @@ static void sw_hcd_shutdown(struct platform_device *pdev)
     sw_hcd_generic_disable(sw_hcd);
     spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
-#if defined(CONFIG_ARCH_SUN5I)
-	close_usb_clock(&g_sw_hcd_io);
-	sw_hcd_set_vbus(sw_hcd, 0);
-#else
     sw_hcd_port_suspend_ex(sw_hcd);
     sw_hcd_set_vbus(sw_hcd, 0);
     close_usb_clock(&g_sw_hcd_io);
@@ -745,7 +741,6 @@ static void sw_hcd_shutdown(struct platform_device *pdev)
 
     /* Set aside some time to AXP */
     mdelay(100);
-#endif
 
     DMSG_INFO_HCD0("sw_hcd shutdown end\n");
 
@@ -2246,12 +2241,10 @@ static int sw_hcd_suspend(struct device *dev)
 		return 0;
 	}
 
-#if defined(CONFIG_ARCH_SUN4I)
 	if(!sw_hcd->sw_hcd_io->clk_is_open){
 		DMSG_INFO("wrn: sw_hcd_suspend, usb clock is close, can't close again\n");
 		return 0;
 	}
-#endif
 
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd->suspend = 1;
@@ -2298,12 +2291,10 @@ static int sw_hcd_resume(struct device *dev)
 		return 0;
 	}
 
-#if defined(CONFIG_ARCH_SUN4I)
 	if(sw_hcd->sw_hcd_io->clk_is_open){
 		DMSG_INFO("wrn: sw_hcd_suspend, usb clock is open, can't open again\n");
 		return 0;
 	}
-#endif
 
 	sw_hcd_soft_disconnect(sw_hcd);
 	open_usb_clock(sw_hcd->sw_hcd_io);

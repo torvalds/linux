@@ -838,7 +838,7 @@ static int sw_udc_get_status(struct sw_udc *dev, struct usb_ctrlrequest *crq)
 
 static int sw_udc_set_halt(struct usb_ep *_ep, int value);
 
-#if defined(CONFIG_ARCH_SUN4I)
+#if 1
 
 /*
 *******************************************************************************
@@ -3216,7 +3216,7 @@ static struct sw_udc sw_udc = {
 		.bEndpointAddress   = 4,
 		.bmAttributes	    = USB_ENDPOINT_XFER_BULK,
 	},
-#if defined(CONFIG_ARCH_SUN4I)
+
 	.ep[5] = {
 		.num			= 5,
 		.ep = {
@@ -3229,7 +3229,6 @@ static struct sw_udc sw_udc = {
 		.bEndpointAddress   = 5,
 		.bmAttributes	    = USB_ENDPOINT_XFER_INT,
 	},
-#endif
 };
 
 int sw_usb_device_enable(void)

@@ -47,7 +47,7 @@
 
 #define res_size(_r) (((_r)->end - (_r)->start) + 1)
 
-#if defined(CONFIG_ARCH_SUN4I)
+#if 1
 /*
 *******************************************************************************
 *                     open_usb_clock
