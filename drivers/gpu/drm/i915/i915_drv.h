@@ -470,6 +470,8 @@ struct i915_gtt {
 		struct page *page;
 	} scratch;
 
+	int mtrr;
+
 	/* global gtt ops */
 	int (*gtt_probe)(struct drm_device *dev, size_t *gtt_total,
 			  size_t *stolen, phys_addr_t *mappable_base,
@@ -834,8 +836,6 @@ struct i915_gem_mm {
 
 	/** Usable portion of the GTT for GEM */
 	unsigned long stolen_base; /* limited to low memory (32-bit) */
-
-	int gtt_mtrr;
 
 	/** PPGTT used for aliasing the PPGTT with the GTT */
 	struct i915_hw_ppgtt *aliasing_ppgtt;

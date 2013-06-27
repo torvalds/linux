@@ -1575,8 +1575,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_rmmap;
 	}
 
-	dev_priv->mm.gtt_mtrr = arch_phys_wc_add(dev_priv->gtt.mappable_base,
-						 aperture_size);
+	dev_priv->gtt.mtrr = arch_phys_wc_add(dev_priv->gtt.mappable_base,
+					      aperture_size);
 
 	/* The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
@@ -1678,7 +1678,7 @@ out_gem_unload:
 	pm_qos_remove_request(&dev_priv->pm_qos);
 	destroy_workqueue(dev_priv->wq);
 out_mtrrfree:
-	arch_phys_wc_del(dev_priv->mm.gtt_mtrr);
+	arch_phys_wc_del(dev_priv->gtt.mtrr);
 	io_mapping_free(dev_priv->gtt.mappable);
 	dev_priv->gtt.gtt_remove(dev);
 out_rmmap:
@@ -1716,7 +1716,7 @@ int i915_driver_unload(struct drm_device *dev)
 	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
 
 	io_mapping_free(dev_priv->gtt.mappable);
-	arch_phys_wc_del(dev_priv->mm.gtt_mtrr);
+	arch_phys_wc_del(dev_priv->gtt.mtrr);
 
 	acpi_video_unregister();
 
