@@ -3119,4 +3119,16 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+{
+	/*
+	 * The original product_name is "USB Sound Device", however this name
+	 * is also used by the CM106 based cards, so make it unique.
+	 */
+	USB_DEVICE(0x0d8c, 0x0103),
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.product_name = "Audio Advantage MicroII",
+		.ifnum = QUIRK_NO_INTERFACE
+	}
+},
+
 #undef USB_DEVICE_VENDOR_SPEC
