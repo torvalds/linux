@@ -5872,73 +5872,108 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 	int ret;
 
 	ret = si_disable_ulv(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_disable_ulv failed\n");
 		return ret;
+	}
 	ret = si_restrict_performance_levels_before_switch(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_restrict_performance_levels_before_switch failed\n");
 		return ret;
+	}
 	if (eg_pi->pcie_performance_request)
 		si_request_link_speed_change_before_state_change(rdev, new_ps, old_ps);
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	ret = si_enable_power_containment(rdev, new_ps, false);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_enable_power_containment failed\n");
 		return ret;
+	}
 	ret = si_enable_smc_cac(rdev, new_ps, false);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_enable_smc_cac failed\n");
 		return ret;
+	}
 	ret = si_halt_smc(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_halt_smc failed\n");
 		return ret;
+	}
 	ret = si_upload_sw_state(rdev, new_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_upload_sw_state failed\n");
 		return ret;
+	}
 	ret = si_upload_smc_data(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_upload_smc_data failed\n");
 		return ret;
+	}
 	ret = si_upload_ulv_state(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_upload_ulv_state failed\n");
 		return ret;
+	}
 	if (eg_pi->dynamic_ac_timing) {
 		ret = si_upload_mc_reg_table(rdev, new_ps);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("si_upload_mc_reg_table failed\n");
 			return ret;
+		}
 	}
 	ret = si_program_memory_timing_parameters(rdev, new_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_program_memory_timing_parameters failed\n");
 		return ret;
+	}
 	si_set_pcie_lane_width_in_smc(rdev, new_ps, old_ps);
 
 	ret = si_populate_smc_tdp_limits(rdev, new_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_populate_smc_tdp_limits failed\n");
 		return ret;
+	}
 	ret = si_populate_smc_tdp_limits_2(rdev, new_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_populate_smc_tdp_limits_2 failed\n");
 		return ret;
-
+	}
 	ret = si_resume_smc(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_resume_smc failed\n");
 		return ret;
+	}
 	ret = si_set_sw_state(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_set_sw_state failed\n");
 		return ret;
+	}
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 	if (eg_pi->pcie_performance_request)
 		si_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 	ret = si_set_power_state_conditionally_enable_ulv(rdev, new_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_set_power_state_conditionally_enable_ulv failed\n");
 		return ret;
+	}
 	ret = si_enable_smc_cac(rdev, new_ps, true);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_enable_smc_cac failed\n");
 		return ret;
+	}
 	ret = si_enable_power_containment(rdev, new_ps, true);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_enable_power_containment failed\n");
 		return ret;
+	}
 
 #if 0
 	/* XXX */
 	ret = si_unrestrict_performance_levels_after_switch(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_unrestrict_performance_levels_after_switch failed\n");
 		return ret;
+	}
 #endif
 
 	return 0;
