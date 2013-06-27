@@ -405,43 +405,6 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 
 extern int iwl_alive_start(struct iwl_priv *priv);
 
-/* testmode support */
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-
-extern int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data,
-				   int len);
-extern int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw,
-				    struct sk_buff *skb,
-				    struct netlink_callback *cb,
-				    void *data, int len);
-extern void iwl_testmode_init(struct iwl_priv *priv);
-extern void iwl_testmode_free(struct iwl_priv *priv);
-
-#else
-
-static inline
-int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
-{
-	return -ENOSYS;
-}
-
-static inline
-int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
-		      struct netlink_callback *cb,
-		      void *data, int len)
-{
-	return -ENOSYS;
-}
-
-static inline void iwl_testmode_init(struct iwl_priv *priv)
-{
-}
-
-static inline void iwl_testmode_free(struct iwl_priv *priv)
-{
-}
-#endif
-
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			     enum iwl_rxon_context_id ctxid);

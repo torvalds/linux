@@ -838,8 +838,9 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent,
 						unsigned long *flags)
 {
 	int ret;
-	struct iwl_trans_pcie *pcie_trans = IWL_TRANS_GET_PCIE_TRANS(trans);
-	spin_lock_irqsave(&pcie_trans->reg_lock, *flags);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	spin_lock_irqsave(&trans_pcie->reg_lock, *flags);
 
 	/* this bit wakes up the NIC */
 	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
@@ -875,7 +876,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent,
 			WARN_ONCE(1,
 				  "Timeout waiting for hardware access (CSR_GP_CNTRL 0x%08x)\n",
 				  val);
-			spin_unlock_irqrestore(&pcie_trans->reg_lock, *flags);
+			spin_unlock_irqrestore(&trans_pcie->reg_lock, *flags);
 			return false;
 		}
 	}
@@ -884,22 +885,22 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent,
 	 * Fool sparse by faking we release the lock - sparse will
 	 * track nic_access anyway.
 	 */
-	__release(&pcie_trans->reg_lock);
+	__release(&trans_pcie->reg_lock);
 	return true;
 }
 
 static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
 					      unsigned long *flags)
 {
-	struct iwl_trans_pcie *pcie_trans = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	lockdep_assert_held(&pcie_trans->reg_lock);
+	lockdep_assert_held(&trans_pcie->reg_lock);
 
 	/*
 	 * Fool sparse by faking we acquiring the lock - sparse will
 	 * track nic_access anyway.
 	 */
-	__acquire(&pcie_trans->reg_lock);
+	__acquire(&trans_pcie->reg_lock);
 
 	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
 				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
@@ -910,7 +911,7 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
 	 * scheduled on different CPUs (after we drop reg_lock).
 	 */
 	mmiowb();
-	spin_unlock_irqrestore(&pcie_trans->reg_lock, *flags);
+	spin_unlock_irqrestore(&trans_pcie->reg_lock, *flags);
 }
 
 static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,

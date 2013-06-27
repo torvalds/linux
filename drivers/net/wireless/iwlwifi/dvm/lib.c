@@ -1288,12 +1288,6 @@ int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (!(cmd->flags & CMD_ASYNC))
 		lockdep_assert_held(&priv->mutex);
 
-	if (priv->ucode_owner == IWL_OWNERSHIP_TM &&
-	    !(cmd->flags & CMD_ON_DEMAND)) {
-		IWL_DEBUG_HC(priv, "tm own the uCode, no regular hcmd send\n");
-		return -EIO;
-	}
-
 	return iwl_trans_send_cmd(priv->trans, cmd);
 }
 
