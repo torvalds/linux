@@ -999,6 +999,7 @@ static void pnv_pci_ioda_fixup(void)
 	pnv_pci_ioda_create_dbgfs();
 
 #ifdef CONFIG_EEH
+	eeh_probe_mode_set(EEH_PROBE_MODE_DEV);
 	eeh_addr_cache_build();
 	eeh_init();
 #endif
