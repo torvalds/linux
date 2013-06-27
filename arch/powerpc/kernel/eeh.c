@@ -232,16 +232,30 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 {
 	size_t loglen = 0;
 	struct eeh_dev *edev;
+	bool valid_cfg_log = true;
 
-	eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
-	eeh_ops->configure_bridge(pe);
-	eeh_pe_restore_bars(pe);
+	/*
+	 * When the PHB is fenced or dead, it's pointless to collect
+	 * the data from PCI config space because it should return
+	 * 0xFF's. For ER, we still retrieve the data from the PCI
+	 * config space.
+	 */
+	if (eeh_probe_mode_dev() &&
+	    (pe->type & EEH_PE_PHB) &&
+	    (pe->state & (EEH_PE_ISOLATED | EEH_PE_PHB_DEAD)))
+		valid_cfg_log = false;
 
-	pci_regs_buf[0] = 0;
-	eeh_pe_for_each_dev(pe, edev) {
-		loglen += eeh_gather_pci_data(edev, pci_regs_buf,
-				EEH_PCI_REGS_LOG_LEN);
-        }
+	if (valid_cfg_log) {
+		eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
+		eeh_ops->configure_bridge(pe);
+		eeh_pe_restore_bars(pe);
+
+		pci_regs_buf[0] = 0;
+		eeh_pe_for_each_dev(pe, edev) {
+			loglen += eeh_gather_pci_data(edev, pci_regs_buf + loglen,
+						      EEH_PCI_REGS_LOG_LEN - loglen);
+		}
+	}
 
 	eeh_ops->get_log(pe, severity, pci_regs_buf, loglen);
 }
