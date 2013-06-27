@@ -88,7 +88,8 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 #define XLOG_REG_TYPE_UNMOUNT		17
 #define XLOG_REG_TYPE_COMMIT		18
 #define XLOG_REG_TYPE_TRANSHDR		19
-#define XLOG_REG_TYPE_MAX		19
+#define XLOG_REG_TYPE_ICREATE		20
+#define XLOG_REG_TYPE_MAX		20
 
 typedef struct xfs_log_iovec {
 	void		*i_addr;	/* beginning address of region */
