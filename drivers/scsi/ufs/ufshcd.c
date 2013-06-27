@@ -191,38 +191,6 @@ static inline int ufshcd_get_uic_cmd_result(struct ufs_hba *hba)
 }
 
 /**
- * ufshcd_free_hba_memory - Free allocated memory for LRB, request
- *			    and task lists
- * @hba: Pointer to adapter instance
- */
-static inline void ufshcd_free_hba_memory(struct ufs_hba *hba)
-{
-	size_t utmrdl_size, utrdl_size, ucdl_size;
-
-	kfree(hba->lrb);
-
-	if (hba->utmrdl_base_addr) {
-		utmrdl_size = sizeof(struct utp_task_req_desc) * hba->nutmrs;
-		dma_free_coherent(hba->dev, utmrdl_size,
-				  hba->utmrdl_base_addr, hba->utmrdl_dma_addr);
-	}
-
-	if (hba->utrdl_base_addr) {
-		utrdl_size =
-		(sizeof(struct utp_transfer_req_desc) * hba->nutrs);
-		dma_free_coherent(hba->dev, utrdl_size,
-				  hba->utrdl_base_addr, hba->utrdl_dma_addr);
-	}
-
-	if (hba->ucdl_base_addr) {
-		ucdl_size =
-		(sizeof(struct utp_transfer_cmd_desc) * hba->nutrs);
-		dma_free_coherent(hba->dev, ucdl_size,
-				  hba->ucdl_base_addr, hba->ucdl_dma_addr);
-	}
-}
-
-/**
  * ufshcd_is_valid_req_rsp - checks if controller TR response is valid
  * @ucd_rsp_ptr: pointer to response UPIU
  *
@@ -690,10 +658,10 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 
 	/* Allocate memory for UTP command descriptors */
 	ucdl_size = (sizeof(struct utp_transfer_cmd_desc) * hba->nutrs);
-	hba->ucdl_base_addr = dma_alloc_coherent(hba->dev,
-						 ucdl_size,
-						 &hba->ucdl_dma_addr,
-						 GFP_KERNEL);
+	hba->ucdl_base_addr = dmam_alloc_coherent(hba->dev,
+						  ucdl_size,
+						  &hba->ucdl_dma_addr,
+						  GFP_KERNEL);
 
 	/*
 	 * UFSHCI requires UTP command descriptor to be 128 byte aligned.
@@ -713,10 +681,10 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 	 * UFSHCI requires 1024 byte alignment of UTRD
 	 */
 	utrdl_size = (sizeof(struct utp_transfer_req_desc) * hba->nutrs);
-	hba->utrdl_base_addr = dma_alloc_coherent(hba->dev,
-						  utrdl_size,
-						  &hba->utrdl_dma_addr,
-						  GFP_KERNEL);
+	hba->utrdl_base_addr = dmam_alloc_coherent(hba->dev,
+						   utrdl_size,
+						   &hba->utrdl_dma_addr,
+						   GFP_KERNEL);
 	if (!hba->utrdl_base_addr ||
 	    WARN_ON(hba->utrdl_dma_addr & (PAGE_SIZE - 1))) {
 		dev_err(hba->dev,
@@ -729,10 +697,10 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 	 * UFSHCI requires 1024 byte alignment of UTMRD
 	 */
 	utmrdl_size = sizeof(struct utp_task_req_desc) * hba->nutmrs;
-	hba->utmrdl_base_addr = dma_alloc_coherent(hba->dev,
-						   utmrdl_size,
-						   &hba->utmrdl_dma_addr,
-						   GFP_KERNEL);
+	hba->utmrdl_base_addr = dmam_alloc_coherent(hba->dev,
+						    utmrdl_size,
+						    &hba->utmrdl_dma_addr,
+						    GFP_KERNEL);
 	if (!hba->utmrdl_base_addr ||
 	    WARN_ON(hba->utmrdl_dma_addr & (PAGE_SIZE - 1))) {
 		dev_err(hba->dev,
@@ -741,14 +709,15 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 	}
 
 	/* Allocate memory for local reference block */
-	hba->lrb = kcalloc(hba->nutrs, sizeof(struct ufshcd_lrb), GFP_KERNEL);
+	hba->lrb = devm_kzalloc(hba->dev,
+				hba->nutrs * sizeof(struct ufshcd_lrb),
+				GFP_KERNEL);
 	if (!hba->lrb) {
 		dev_err(hba->dev, "LRB Memory allocation failed\n");
 		goto out;
 	}
 	return 0;
 out:
-	ufshcd_free_hba_memory(hba);
 	return -ENOMEM;
 }
 
@@ -1682,17 +1651,6 @@ int ufshcd_resume(struct ufs_hba *hba)
 EXPORT_SYMBOL_GPL(ufshcd_resume);
 
 /**
- * ufshcd_hba_free - free allocated memory for
- *			host memory space data structures
- * @hba: per adapter instance
- */
-static void ufshcd_hba_free(struct ufs_hba *hba)
-{
-	iounmap(hba->mmio_base);
-	ufshcd_free_hba_memory(hba);
-}
-
-/**
  * ufshcd_remove - de-allocate SCSI host and host memory space
  *		data structure memory
  * @hba - per adapter instance
@@ -1701,9 +1659,7 @@ void ufshcd_remove(struct ufs_hba *hba)
 {
 	/* disable interrupts */
 	ufshcd_disable_intr(hba, hba->intr_mask);
-
 	ufshcd_hba_stop(hba);
-	ufshcd_hba_free(hba);
 
 	scsi_remove_host(hba->host);
 	scsi_host_put(hba->host);
@@ -1789,23 +1745,23 @@ int ufshcd_init(struct device *dev, struct ufs_hba **hba_handle,
 	mutex_init(&hba->uic_cmd_mutex);
 
 	/* IRQ registration */
-	err = request_irq(irq, ufshcd_intr, IRQF_SHARED, UFSHCD, hba);
+	err = devm_request_irq(dev, irq, ufshcd_intr, IRQF_SHARED, UFSHCD, hba);
 	if (err) {
 		dev_err(hba->dev, "request irq failed\n");
-		goto out_lrb_free;
+		goto out_disable;
 	}
 
 	/* Enable SCSI tag mapping */
 	err = scsi_init_shared_tag_map(host, host->can_queue);
 	if (err) {
 		dev_err(hba->dev, "init shared queue failed\n");
-		goto out_free_irq;
+		goto out_disable;
 	}
 
 	err = scsi_add_host(host, hba->dev);
 	if (err) {
 		dev_err(hba->dev, "scsi_add_host failed\n");
-		goto out_free_irq;
+		goto out_disable;
 	}
 
 	/* Host controller enable */
@@ -1823,10 +1779,6 @@ int ufshcd_init(struct device *dev, struct ufs_hba **hba_handle,
 
 out_remove_scsi_host:
 	scsi_remove_host(hba->host);
-out_free_irq:
-	free_irq(irq, hba);
-out_lrb_free:
-	ufshcd_free_hba_memory(hba);
 out_disable:
 	scsi_host_put(host);
 out_error:
