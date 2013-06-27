@@ -341,7 +341,6 @@ static void hci_init1_req(struct hci_request *req, unsigned long opt)
 
 static void bredr_setup(struct hci_request *req)
 {
-	struct hci_cp_delete_stored_link_key cp;
 	__le16 param;
 	__u8 flt_type;
 
@@ -364,10 +363,6 @@ static void bredr_setup(struct hci_request *req)
 	/* Connection accept timeout ~20 secs */
 	param = __constant_cpu_to_le16(0x7d00);
 	hci_req_add(req, HCI_OP_WRITE_CA_TIMEOUT, 2, &param);
-
-	bacpy(&cp.bdaddr, BDADDR_ANY);
-	cp.delete_all = 0x01;
-	hci_req_add(req, HCI_OP_DELETE_STORED_LINK_KEY, sizeof(cp), &cp);
 
 	/* Read page scan parameters */
 	if (req->hdev->hci_ver > BLUETOOTH_VER_1_1) {
@@ -601,6 +596,16 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
 	u8 p;
+
+	/* Only send HCI_Delete_Stored_Link_Key if it is supported */
+	if (hdev->commands[6] & 0x80) {
+		struct hci_cp_delete_stored_link_key cp;
+
+		bacpy(&cp.bdaddr, BDADDR_ANY);
+		cp.delete_all = 0x01;
+		hci_req_add(req, HCI_OP_DELETE_STORED_LINK_KEY,
+			    sizeof(cp), &cp);
+	}
 
 	if (hdev->commands[5] & 0x10)
 		hci_setup_link_policy(req);

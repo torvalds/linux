@@ -632,6 +632,9 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		dev->caps.cqe_size   = 32;
 	}
 
+	dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_TS;
+	mlx4_warn(dev, "Timestamping is not supported in slave mode.\n");
+
 	slave_adjust_steering_mode(dev, &dev_cap, &hca_param);
 
 	return 0;
