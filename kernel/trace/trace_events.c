@@ -41,6 +41,23 @@ static LIST_HEAD(ftrace_common_fields);
 static struct kmem_cache *field_cachep;
 static struct kmem_cache *file_cachep;
 
+#define SYSTEM_FL_FREE_NAME		(1 << 31)
+
+static inline int system_refcount(struct event_subsystem *system)
+{
+	return system->ref_count & ~SYSTEM_FL_FREE_NAME;
+}
+
+static int system_refcount_inc(struct event_subsystem *system)
+{
+	return (system->ref_count++) & ~SYSTEM_FL_FREE_NAME;
+}
+
+static int system_refcount_dec(struct event_subsystem *system)
+{
+	return (--system->ref_count) & ~SYSTEM_FL_FREE_NAME;
+}
+
 /* Double loops, do not use break, only goto's work */
 #define do_for_each_event_file(tr, file)			\
 	list_for_each_entry(tr, &ftrace_trace_arrays, list) {	\
@@ -344,8 +361,8 @@ static void __put_system(struct event_subsystem *system)
 {
 	struct event_filter *filter = system->filter;
 
-	WARN_ON_ONCE(system->ref_count == 0);
-	if (--system->ref_count)
+	WARN_ON_ONCE(system_refcount(system) == 0);
+	if (system_refcount_dec(system))
 		return;
 
 	list_del(&system->list);
@@ -354,13 +371,15 @@ static void __put_system(struct event_subsystem *system)
 		kfree(filter->filter_string);
 		kfree(filter);
 	}
+	if (system->ref_count & SYSTEM_FL_FREE_NAME)
+		kfree(system->name);
 	kfree(system);
 }
 
 static void __get_system(struct event_subsystem *system)
 {
-	WARN_ON_ONCE(system->ref_count == 0);
-	system->ref_count++;
+	WARN_ON_ONCE(system_refcount(system) == 0);
+	system_refcount_inc(system);
 }
 
 static void __get_system_dir(struct ftrace_subsystem_dir *dir)
@@ -374,7 +393,7 @@ static void __put_system_dir(struct ftrace_subsystem_dir *dir)
 {
 	WARN_ON_ONCE(dir->ref_count == 0);
 	/* If the subsystem is about to be freed, the dir must be too */
-	WARN_ON_ONCE(dir->subsystem->ref_count == 1 && dir->ref_count != 1);
+	WARN_ON_ONCE(system_refcount(dir->subsystem) == 1 && dir->ref_count != 1);
 
 	__put_system(dir->subsystem);
 	if (!--dir->ref_count)
@@ -1274,7 +1293,15 @@ create_new_subsystem(const char *name)
 		return NULL;
 
 	system->ref_count = 1;
-	system->name = name;
+
+	/* Only allocate if dynamic (kprobes and modules) */
+	if (!core_kernel_data((unsigned long)name)) {
+		system->ref_count |= SYSTEM_FL_FREE_NAME;
+		system->name = kstrdup(name, GFP_KERNEL);
+		if (!system->name)
+			goto out_free;
+	} else
+		system->name = name;
 
 	system->filter = NULL;
 
@@ -1287,6 +1314,8 @@ create_new_subsystem(const char *name)
 	return system;
 
  out_free:
+	if (system->ref_count & SYSTEM_FL_FREE_NAME)
+		kfree(system->name);
 	kfree(system);
 	return NULL;
 }
