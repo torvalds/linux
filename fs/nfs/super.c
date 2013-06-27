@@ -1701,10 +1701,10 @@ out_err:
  * corresponding to the provided path.
  */
 static int nfs_request_mount(struct nfs_parsed_mount_data *args,
-			     struct nfs_fh *root_fh)
+			     struct nfs_fh *root_fh,
+			     rpc_authflavor_t *server_authlist,
+			     unsigned int *server_authlist_len)
 {
-	rpc_authflavor_t server_authlist[NFS_MAX_SECFLAVORS];
-	unsigned int server_authlist_len = ARRAY_SIZE(server_authlist);
 	struct nfs_mount_request request = {
 		.sap		= (struct sockaddr *)
 						&args->mount_server.address,
@@ -1712,7 +1712,7 @@ static int nfs_request_mount(struct nfs_parsed_mount_data *args,
 		.protocol	= args->mount_server.protocol,
 		.fh		= root_fh,
 		.noresvport	= args->flags & NFS_MOUNT_NORESVPORT,
-		.auth_flav_len	= &server_authlist_len,
+		.auth_flav_len	= server_authlist_len,
 		.auth_flavs	= server_authlist,
 		.net		= args->net,
 	};
@@ -1763,8 +1763,12 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 					struct nfs_subversion *nfs_mod)
 {
 	int status;
+	struct nfs_parsed_mount_data *args = mount_info->parsed;
+	rpc_authflavor_t authlist[NFS_MAX_SECFLAVORS];
+	unsigned int authlist_len = ARRAY_SIZE(authlist);
 
-	status = nfs_request_mount(mount_info->parsed, mount_info->mntfh);
+	status = nfs_request_mount(args, mount_info->mntfh, authlist,
+					&authlist_len);
 	if (status)
 		return ERR_PTR(status);
 
