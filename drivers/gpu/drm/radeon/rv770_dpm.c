@@ -2047,8 +2047,10 @@ int rv770_dpm_set_power_state(struct radeon_device *rdev)
 		rv770_program_dcodt_after_state_switch(rdev, new_ps, old_ps);
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 	ret = rv770_unrestrict_performance_levels_after_switch(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_unrestrict_performance_levels_after_switch failed\n");
 		return ret;
+	}
 
 	return 0;
 }

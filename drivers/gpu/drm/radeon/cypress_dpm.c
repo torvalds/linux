@@ -2015,8 +2015,10 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
 	ret = rv770_unrestrict_performance_levels_after_switch(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_unrestrict_performance_levels_after_switch failed\n");
 		return ret;
+	}
 
 	return 0;
 }
