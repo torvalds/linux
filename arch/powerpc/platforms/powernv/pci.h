@@ -78,6 +78,10 @@ struct pnv_eeh_ops {
 	int (*configure_bridge)(struct eeh_pe *pe);
 	int (*next_error)(struct eeh_pe **pe);
 };
+
+#define PNV_EEH_STATE_ENABLED	(1 << 0)	/* EEH enabled	*/
+#define PNV_EEH_STATE_REMOVED	(1 << 1)	/* PHB removed	*/
+
 #endif /* CONFIG_EEH */
 
 struct pnv_phb {
@@ -92,8 +96,7 @@ struct pnv_phb {
 
 #ifdef CONFIG_EEH
 	struct pnv_eeh_ops	*eeh_ops;
-	int			eeh_enabled;
-	int			removed;
+	int			eeh_state;
 #endif
 
 #ifdef CONFIG_DEBUG_FS

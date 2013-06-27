@@ -132,7 +132,7 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
 					    &ioda_eeh_dbgfs_ops);
 #endif
 
-		phb->eeh_enabled = 1;
+		phb->eeh_state |= PNV_EEH_STATE_ENABLED;
 	}
 
 	return 0;
@@ -815,7 +815,7 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		 * removed, we needn't take care of it any more.
 		 */
 		phb = hose->private_data;
-		if (phb->removed)
+		if (phb->eeh_state & PNV_EEH_STATE_REMOVED)
 			continue;
 
 		rc = opal_pci_next_error(phb->opal_id,
@@ -850,7 +850,7 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 				list_for_each_entry_safe(hose, tmp,
 						&hose_list, list_node) {
 					phb = hose->private_data;
-					phb->removed = 1;
+					phb->eeh_state |= PNV_EEH_STATE_REMOVED;
 				}
 
 				WARN(1, "EEH: dead IOC detected\n");
@@ -867,7 +867,7 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 
 				WARN(1, "EEH: dead PHB#%x detected\n",
 				     hose->global_number);
-				phb->removed = 1;
+				phb->eeh_state |= PNV_EEH_STATE_REMOVED;
 				ret = 3;
 				goto out;
 			} else if (severity == OPAL_EEH_SEV_PHB_FENCED) {

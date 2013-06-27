@@ -309,7 +309,7 @@ static int pnv_pci_read_config(struct pci_bus *bus,
 	if (phb_pe && (phb_pe->state & EEH_PE_ISOLATED))
 		return PCIBIOS_SUCCESSFUL;
 
-	if (phb->eeh_enabled) {
+	if (phb->eeh_state & PNV_EEH_STATE_ENABLED) {
 		if (*val == EEH_IO_ERROR_VALUE(size)) {
 			busdn = pci_bus_to_OF_node(bus);
 			for (dn = busdn->child; dn; dn = dn->sibling) {
@@ -359,7 +359,7 @@ static int pnv_pci_write_config(struct pci_bus *bus,
 
 	/* Check if the PHB got frozen due to an error (no response) */
 #ifdef CONFIG_EEH
-	if (!phb->eeh_enabled)
+	if (!(phb->eeh_state & PNV_EEH_STATE_ENABLED))
 		pnv_pci_config_check_eeh(phb, bus, bdfn);
 #else
 	pnv_pci_config_check_eeh(phb, bus, bdfn);
