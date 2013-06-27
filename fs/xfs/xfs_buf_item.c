@@ -140,6 +140,16 @@ xfs_buf_item_size(
 
 	ASSERT(bip->bli_flags & XFS_BLI_LOGGED);
 
+	if (bip->bli_flags & XFS_BLI_ORDERED) {
+		/*
+		 * The buffer has been logged just to order it.
+		 * It is not being included in the transaction
+		 * commit, so no vectors are used at all.
+		 */
+		trace_xfs_buf_item_size_ordered(bip);
+		return XFS_LOG_VEC_ORDERED;
+	}
+
 	/*
 	 * the vector count is based on the number of buffer vectors we have
 	 * dirty bits in. This will only be greater than one when we have a
@@ -211,6 +221,7 @@ xfs_buf_item_format_segment(
 		ASSERT(blfp->blf_flags & XFS_BLF_CANCEL);
 		goto out;
 	}
+
 
 	/*
 	 * Fill in an iovec for each set of contiguous chunks.
@@ -311,6 +322,16 @@ xfs_buf_item_format(
 		bip->bli_flags &= ~XFS_BLI_INODE_BUF;
 	}
 
+	if ((bip->bli_flags & (XFS_BLI_ORDERED|XFS_BLI_STALE)) ==
+							XFS_BLI_ORDERED) {
+		/*
+		 * The buffer has been logged just to order it.  It is not being
+		 * included in the transaction commit, so don't format it.
+		 */
+		trace_xfs_buf_item_format_ordered(bip);
+		return;
+	}
+
 	for (i = 0; i < bip->bli_format_count; i++) {
 		vecp = xfs_buf_item_format_segment(bip, vecp, offset,
 						&bip->bli_formats[i]);
@@ -340,6 +361,7 @@ xfs_buf_item_pin(
 
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	ASSERT((bip->bli_flags & XFS_BLI_LOGGED) ||
+	       (bip->bli_flags & XFS_BLI_ORDERED) ||
 	       (bip->bli_flags & XFS_BLI_STALE));
 
 	trace_xfs_buf_item_pin(bip);
@@ -512,8 +534,9 @@ xfs_buf_item_unlock(
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	struct xfs_buf		*bp = bip->bli_buf;
-	int			aborted, clean, i;
-	uint			hold;
+	bool			clean;
+	bool			aborted;
+	int			flags;
 
 	/* Clear the buffer's association with this transaction. */
 	bp->b_transp = NULL;
@@ -524,23 +547,21 @@ xfs_buf_item_unlock(
 	 * (cancelled) buffers at unpin time, but we'll never go through the
 	 * pin/unpin cycle if we abort inside commit.
 	 */
-	aborted = (lip->li_flags & XFS_LI_ABORTED) != 0;
-
+	aborted = (lip->li_flags & XFS_LI_ABORTED) ? true : false;
 	/*
-	 * Before possibly freeing the buf item, determine if we should
-	 * release the buffer at the end of this routine.
+	 * Before possibly freeing the buf item, copy the per-transaction state
+	 * so we can reference it safely later after clearing it from the
+	 * buffer log item.
 	 */
-	hold = bip->bli_flags & XFS_BLI_HOLD;
-
-	/* Clear the per transaction state. */
-	bip->bli_flags &= ~(XFS_BLI_LOGGED | XFS_BLI_HOLD);
+	flags = bip->bli_flags;
+	bip->bli_flags &= ~(XFS_BLI_LOGGED | XFS_BLI_HOLD | XFS_BLI_ORDERED);
 
 	/*
 	 * If the buf item is marked stale, then don't do anything.  We'll
 	 * unlock the buffer and free the buf item when the buffer is unpinned
 	 * for the last time.
 	 */
-	if (bip->bli_flags & XFS_BLI_STALE) {
+	if (flags & XFS_BLI_STALE) {
 		trace_xfs_buf_item_unlock_stale(bip);
 		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
 		if (!aborted) {
@@ -557,13 +578,19 @@ xfs_buf_item_unlock(
 	 * be the only reference to the buf item, so we free it anyway
 	 * regardless of whether it is dirty or not. A dirty abort implies a
 	 * shutdown, anyway.
+	 *
+	 * Ordered buffers are dirty but may have no recorded changes, so ensure
+	 * we only release clean items here.
 	 */
-	clean = 1;
-	for (i = 0; i < bip->bli_format_count; i++) {
-		if (!xfs_bitmap_empty(bip->bli_formats[i].blf_data_map,
-			     bip->bli_formats[i].blf_map_size)) {
-			clean = 0;
-			break;
+	clean = (flags & XFS_BLI_DIRTY) ? false : true;
+	if (clean) {
+		int i;
+		for (i = 0; i < bip->bli_format_count; i++) {
+			if (!xfs_bitmap_empty(bip->bli_formats[i].blf_data_map,
+				     bip->bli_formats[i].blf_map_size)) {
+				clean = false;
+				break;
+			}
 		}
 	}
 	if (clean)
@@ -576,7 +603,7 @@ xfs_buf_item_unlock(
 	} else
 		atomic_dec(&bip->bli_refcount);
 
-	if (!hold)
+	if (!(flags & XFS_BLI_HOLD))
 		xfs_buf_relse(bp);
 }
 
@@ -842,12 +869,6 @@ xfs_buf_item_log(
 	struct xfs_buf		*bp = bip->bli_buf;
 
 	/*
-	 * Mark the item as having some dirty data for
-	 * quick reference in xfs_buf_item_dirty.
-	 */
-	bip->bli_flags |= XFS_BLI_DIRTY;
-
-	/*
 	 * walk each buffer segment and mark them dirty appropriately.
 	 */
 	start = 0;
@@ -873,7 +894,7 @@ xfs_buf_item_log(
 
 
 /*
- * Return 1 if the buffer has some data that has been logged (at any
+ * Return 1 if the buffer has been logged or ordered in a transaction (at any
  * point, not just the current transaction) and 0 if not.
  */
 uint
@@ -907,11 +928,11 @@ void
 xfs_buf_item_relse(
 	xfs_buf_t	*bp)
 {
-	xfs_buf_log_item_t	*bip;
+	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
 	trace_xfs_buf_item_relse(bp, _RET_IP_);
+	ASSERT(!(bip->bli_item.li_flags & XFS_LI_IN_AIL));
 
-	bip = bp->b_fspriv;
 	bp->b_fspriv = bip->bli_item.li_bio_list;
 	if (bp->b_fspriv == NULL)
 		bp->b_iodone = NULL;
