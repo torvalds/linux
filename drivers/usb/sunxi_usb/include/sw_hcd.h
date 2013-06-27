@@ -109,6 +109,7 @@ int sw_usb_enable_hcd1(void);
 int sw_usb_disable_hcd2(void);
 int sw_usb_enable_hcd2(void);
 
+void set_hcd0_connect_status(int status);
 
 #endif   //__SW_HCD_H__
 

@@ -2367,12 +2367,6 @@ static int sw_udc_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_
         DMSG_PANIC("ERR: req is NULL\n");
         return -EINVAL;
 	}
-/*
-	if(!list_empty(&req->queue)){
-        DMSG_PANIC("ERR: req->queue is empty\n");
-        return -EINVAL;
-	}
-*/
 	local_irq_save(flags);
 
 	_req->status = -EINPROGRESS;

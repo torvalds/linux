@@ -811,7 +811,7 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 		struct usb_hcd *hcd = sw_hcd_to_hcd(sw_hcd);
 
 		DMSG_INFO("\n------------IRQ CONNECT-------------\n\n");
-
+		set_hcd0_connect_status(1);
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_CONNECT));
 
 		handled = IRQ_HANDLED;
@@ -928,7 +928,7 @@ static irqreturn_t sw_hcd_stage2_irq(struct sw_hcd *sw_hcd,
 
 	if ((int_usb & (1 << USBC_BP_INTUSB_DISCONNECT)) && !sw_hcd->ignore_disconnect) {
 		DMSG_INFO("\n------------IRQ DISCONNECT-------------\n\n");
-
+		set_hcd0_connect_status(0);
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_DISCONNECT));
 
 		handled = IRQ_HANDLED;
