@@ -89,9 +89,8 @@ static int ehci_platform_probe(struct platform_device *dev)
 	 */
 	if (!dev_get_platdata(&dev->dev))
 		dev->dev.platform_data = &ehci_platform_defaults;
-	if (!dev->dev.dma_mask)
-		dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
-	err = dma_set_coherent_mask(&dev->dev, DMA_BIT_MASK(32));
+
+	err = dma_coerce_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
 	if (err)
 		return err;
 
