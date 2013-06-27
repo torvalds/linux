@@ -73,7 +73,7 @@ struct host1x_syncpt_ops {
 	void (*restore_wait_base)(struct host1x_syncpt *syncpt);
 	void (*load_wait_base)(struct host1x_syncpt *syncpt);
 	u32 (*load)(struct host1x_syncpt *syncpt);
-	void (*cpu_incr)(struct host1x_syncpt *syncpt);
+	int (*cpu_incr)(struct host1x_syncpt *syncpt);
 	int (*patch_wait)(struct host1x_syncpt *syncpt, void *patch_addr);
 };
 
@@ -157,10 +157,10 @@ static inline u32 host1x_hw_syncpt_load(struct host1x *host,
 	return host->syncpt_op->load(sp);
 }
 
-static inline void host1x_hw_syncpt_cpu_incr(struct host1x *host,
-					     struct host1x_syncpt *sp)
+static inline int host1x_hw_syncpt_cpu_incr(struct host1x *host,
+					    struct host1x_syncpt *sp)
 {
-	host->syncpt_op->cpu_incr(sp);
+	return host->syncpt_op->cpu_incr(sp);
 }
 
 static inline int host1x_hw_syncpt_patch_wait(struct host1x *host,
