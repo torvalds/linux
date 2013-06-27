@@ -63,6 +63,14 @@ static void put_transaction(struct btrfs_transaction *transaction)
 	if (atomic_dec_and_test(&transaction->use_count)) {
 		BUG_ON(!list_empty(&transaction->list));
 		WARN_ON(transaction->delayed_refs.root.rb_node);
+		while (!list_empty(&transaction->pending_chunks)) {
+			struct extent_map *em;
+
+			em = list_first_entry(&transaction->pending_chunks,
+					      struct extent_map, list);
+			list_del_init(&em->list);
+			free_extent_map(em);
+		}
 		kmem_cache_free(btrfs_transaction_cachep, transaction);
 	}
 }
@@ -202,6 +210,7 @@ loop:
 
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 	INIT_LIST_HEAD(&cur_trans->ordered_operations);
+	INIT_LIST_HEAD(&cur_trans->pending_chunks);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
 	extent_io_tree_init(&cur_trans->dirty_pages,
 			     fs_info->btree_inode->i_mapping);

@@ -7950,6 +7950,7 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	struct btrfs_space_info *space_info;
 	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
 	struct btrfs_device *device;
+	struct btrfs_trans_handle *trans;
 	u64 min_free;
 	u64 dev_min = 1;
 	u64 dev_nr = 0;
@@ -8036,6 +8037,13 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 		do_div(min_free, dev_min);
 	}
 
+	/* We need to do this so that we can look at pending chunks */
+	trans = btrfs_join_transaction(root);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto out;
+	}
+
 	mutex_lock(&root->fs_info->chunk_mutex);
 	list_for_each_entry(device, &fs_devices->alloc_list, dev_alloc_list) {
 		u64 dev_offset;
@@ -8046,7 +8054,7 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 		 */
 		if (device->total_bytes > device->bytes_used + min_free &&
 		    !device->is_tgtdev_for_dev_replace) {
-			ret = find_free_dev_extent(device, min_free,
+			ret = find_free_dev_extent(trans, device, min_free,
 						   &dev_offset, NULL);
 			if (!ret)
 				dev_nr++;
@@ -8058,6 +8066,7 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 		}
 	}
 	mutex_unlock(&root->fs_info->chunk_mutex);
+	btrfs_end_transaction(trans, root);
 out:
 	btrfs_put_block_group(block_group);
 	return ret;
@@ -8421,6 +8430,10 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_insert_item(trans, extent_root, &key, &item,
 					sizeof(item));
+		if (ret)
+			btrfs_abort_transaction(trans, extent_root, ret);
+		ret = btrfs_finish_chunk_alloc(trans, extent_root,
+					       key.objectid, key.offset);
 		if (ret)
 			btrfs_abort_transaction(trans, extent_root, ret);
 	}
