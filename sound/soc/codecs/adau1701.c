@@ -334,7 +334,7 @@ static int adau1701_set_capture_pcm_format(struct snd_soc_codec *codec,
 		mask |= ADAU1701_SEROCTL_MSB_DEALY_MASK;
 	}
 
-	snd_soc_update_bits(codec, ADAU1701_SEROCTL, mask, val);
+	regmap_update_bits(adau1701->regmap, ADAU1701_SEROCTL, mask, val);
 
 	return 0;
 }
@@ -362,7 +362,7 @@ static int adau1701_set_playback_pcm_format(struct snd_soc_codec *codec,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, ADAU1701_SERICTL,
+	regmap_update_bits(adau1701->regmap, ADAU1701_SERICTL,
 		ADAU1701_SERICTL_MODE_MASK, val);
 
 	return 0;
@@ -403,7 +403,7 @@ static int adau1701_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, ADAU1701_DSPCTRL,
+	regmap_update_bits(adau1701->regmap, ADAU1701_DSPCTRL,
 		ADAU1701_DSPCTRL_SR_MASK, val);
 
 	format = params_format(params);
@@ -490,6 +490,7 @@ static int adau1701_set_bias_level(struct snd_soc_codec *codec,
 		enum snd_soc_bias_level level)
 {
 	unsigned int mask = ADAU1701_AUXNPOW_VBPD | ADAU1701_AUXNPOW_VRPD;
+	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -498,11 +499,13 @@ static int adau1701_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* Enable VREF and VREF buffer */
-		snd_soc_update_bits(codec, ADAU1701_AUXNPOW, mask, 0x00);
+		regmap_update_bits(adau1701->regmap,
+				   ADAU1701_AUXNPOW, mask, 0x00);
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* Disable VREF and VREF buffer */
-		snd_soc_update_bits(codec, ADAU1701_AUXNPOW, mask, mask);
+		regmap_update_bits(adau1701->regmap,
+				   ADAU1701_AUXNPOW, mask, mask);
 		break;
 	}
 
@@ -514,6 +517,7 @@ static int adau1701_digital_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	unsigned int mask = ADAU1701_DSPCTRL_DAM;
+	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
 
 	if (mute)
@@ -521,7 +525,7 @@ static int adau1701_digital_mute(struct snd_soc_dai *dai, int mute)
 	else
 		val = mask;
 
-	snd_soc_update_bits(codec, ADAU1701_DSPCTRL, mask, val);
+	regmap_update_bits(adau1701->regmap, ADAU1701_DSPCTRL, mask, val);
 
 	return 0;
 }
@@ -543,7 +547,8 @@ static int adau1701_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, ADAU1701_OSCIPOW, ADAU1701_OSCIPOW_OPD, val);
+	regmap_update_bits(adau1701->regmap, ADAU1701_OSCIPOW,
+			   ADAU1701_OSCIPOW_OPD, val);
 	adau1701->sysclk = freq;
 
 	return 0;
