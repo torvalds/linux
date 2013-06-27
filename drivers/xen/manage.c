@@ -43,6 +43,7 @@ struct suspend_info {
 	void (*post)(int cancelled);
 };
 
+#ifdef CONFIG_HIBERNATE_CALLBACKS
 static void xen_hvm_post_suspend(int cancelled)
 {
 	xen_arch_hvm_post_suspend(cancelled);
@@ -63,7 +64,6 @@ static void xen_post_suspend(int cancelled)
 	xen_mm_unpin_all();
 }
 
-#ifdef CONFIG_HIBERNATE_CALLBACKS
 static int xen_suspend(void *data)
 {
 	struct suspend_info *si = data;
