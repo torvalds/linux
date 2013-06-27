@@ -303,24 +303,6 @@ void mgag200_ttm_placement(struct mgag200_bo *bo, int domain)
 	bo->placement.num_busy_placement = c;
 }
 
-int mgag200_bo_reserve(struct mgag200_bo *bo, bool no_wait)
-{
-	int ret;
-
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
-	if (ret) {
-		if (ret != -ERESTARTSYS && ret != -EBUSY)
-			DRM_ERROR("reserve failed %p %d\n", bo, ret);
-		return ret;
-	}
-	return 0;
-}
-
-void mgag200_bo_unreserve(struct mgag200_bo *bo)
-{
-	ttm_bo_unreserve(&bo->bo);
-}
-
 int mgag200_bo_create(struct drm_device *dev, int size, int align,
 		  uint32_t flags, struct mgag200_bo **pmgabo)
 {
