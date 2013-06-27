@@ -116,7 +116,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	return rc;
 }
 
-int
+void
 generate_smb3signingkey(struct TCP_Server_Info *server)
 {
 	unsigned char zero = 0x0;
@@ -187,7 +187,7 @@ generate_smb3signingkey(struct TCP_Server_Info *server)
 	memcpy(server->smb3signingkey, hashptr, SMB3_SIGNKEY_SIZE);
 
 smb3signkey_ret:
-	return rc;
+	return;
 }
 
 int

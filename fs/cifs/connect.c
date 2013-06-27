@@ -3841,7 +3841,8 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 			server->sequence_number = 0x2;
 			server->session_estab = true;
 			ses->auth_key.response = NULL;
-			generate_smb3signingkey(server);
+			if (server->ops->generate_signingkey)
+				server->ops->generate_signingkey(server);
 		}
 		mutex_unlock(&server->srv_mutex);
 

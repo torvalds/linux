@@ -709,6 +709,7 @@ struct smb_version_operations smb30_operations = {
 	.get_lease_key = smb2_get_lease_key,
 	.set_lease_key = smb2_set_lease_key,
 	.new_lease_key = smb2_new_lease_key,
+	.generate_signingkey = generate_smb3signingkey,
 	.calc_signature = smb3_calc_signature,
 };
 

@@ -365,6 +365,8 @@ struct smb_version_operations {
 	void (*set_lease_key)(struct inode *, struct cifs_fid *fid);
 	/* generate new lease key */
 	void (*new_lease_key)(struct cifs_fid *fid);
+	/* The next two functions will need to be changed to per smb session */
+	void (*generate_signingkey)(struct TCP_Server_Info *server);
 	int (*calc_signature)(struct smb_rqst *rqst,
 				   struct TCP_Server_Info *server);
 };
