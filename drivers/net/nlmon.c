@@ -28,7 +28,11 @@ static netdev_tx_t nlmon_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int nlmon_is_valid_mtu(int new_mtu)
 {
-	return new_mtu >= sizeof(struct nlmsghdr) && new_mtu <= INT_MAX;
+	/* Note that in netlink we do not really have an upper limit. On
+	 * default, we use NLMSG_GOODSIZE. Here at least we should make
+	 * sure that it's at least the header size.
+	 */
+	return new_mtu >= (int) sizeof(struct nlmsghdr);
 }
 
 static int nlmon_change_mtu(struct net_device *dev, int new_mtu)
