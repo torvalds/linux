@@ -148,6 +148,7 @@ nouveau-y += core/engine/dmaobj/nv50.o
 nouveau-y += core/engine/dmaobj/nvc0.o
 nouveau-y += core/engine/dmaobj/nvd0.o
 nouveau-y += core/engine/bsp/nv84.o
+nouveau-y += core/engine/bsp/nv98.o
 nouveau-y += core/engine/bsp/nvc0.o
 nouveau-y += core/engine/bsp/nve0.o
 nouveau-y += core/engine/copy/nva3.o
@@ -222,6 +223,7 @@ nouveau-y += core/engine/software/nv10.o
 nouveau-y += core/engine/software/nv50.o
 nouveau-y += core/engine/software/nvc0.o
 nouveau-y += core/engine/vp/nv84.o
+nouveau-y += core/engine/vp/nv98.o
 nouveau-y += core/engine/vp/nvc0.o
 nouveau-y += core/engine/vp/nve0.o
 
