@@ -199,30 +199,26 @@ static void xen_get_wallclock(struct timespec *now)
 
 static int xen_set_wallclock(const struct timespec *now)
 {
-	struct xen_platform_op op;
-
-	/* do nothing for domU */
-	if (!xen_initial_domain())
-		return -1;
-
-	op.cmd = XENPF_settime;
-	op.u.settime.secs = now->tv_sec;
-	op.u.settime.nsecs = now->tv_nsec;
-	op.u.settime.system_time = xen_clocksource_read();
-
-	return HYPERVISOR_dom0_op(&op);
+	return -1;
 }
 
-static int xen_pvclock_gtod_notify(struct notifier_block *nb, unsigned long was_set,
-				   void *priv)
+static int xen_pvclock_gtod_notify(struct notifier_block *nb,
+				   unsigned long was_set, void *priv)
 {
-	struct timespec now;
-	struct xen_platform_op op;
+	/* Protected by the calling core code serialization */
+	static struct timespec next_sync;
 
-	if (!was_set)
-		return NOTIFY_OK;
+	struct xen_platform_op op;
+	struct timespec now;
 
 	now = __current_kernel_time();
+
+	/*
+	 * We only take the expensive HV call when the clock was set
+	 * or when the 11 minutes RTC synchronization time elapsed.
+	 */
+	if (!was_set && timespec_compare(&now, &next_sync) < 0)
+		return NOTIFY_OK;
 
 	op.cmd = XENPF_settime;
 	op.u.settime.secs = now.tv_sec;
@@ -230,6 +226,15 @@ static int xen_pvclock_gtod_notify(struct notifier_block *nb, unsigned long was_
 	op.u.settime.system_time = xen_clocksource_read();
 
 	(void)HYPERVISOR_dom0_op(&op);
+
+	/*
+	 * Move the next drift compensation time 11 minutes
+	 * ahead. That's emulating the sync_cmos_clock() update for
+	 * the hardware RTC.
+	 */
+	next_sync = now;
+	next_sync.tv_sec += 11 * 60;
+
 	return NOTIFY_OK;
 }
 
@@ -513,7 +518,9 @@ void __init xen_init_time_ops(void)
 
 	x86_platform.calibrate_tsc = xen_tsc_khz;
 	x86_platform.get_wallclock = xen_get_wallclock;
-	x86_platform.set_wallclock = xen_set_wallclock;
+	/* Dom0 uses the native method to set the hardware RTC. */
+	if (!xen_initial_domain())
+		x86_platform.set_wallclock = xen_set_wallclock;
 }
 
 #ifdef CONFIG_XEN_PVHVM
