@@ -3258,7 +3258,7 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root, void *ctx)
 				ret = ret_sub;
 				goto next_page;
 			}
-			wait_on_page_locked(page);
+			lock_page(page);
 			if (!PageUptodate(page)) {
 				ret = -EIO;
 				goto next_page;
