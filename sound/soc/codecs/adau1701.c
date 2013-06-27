@@ -600,8 +600,6 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 	unsigned int val;
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 
-	codec->control_data = to_i2c_client(codec->dev);
-
 	/*
 	 * Let the pll_clkdiv variable default to something that won't happen
 	 * at runtime. That way, we can postpone the firmware download from
