@@ -133,7 +133,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[4] = "Automatic MAC reassignment support",
 		[5] = "Time stamping support",
 		[6] = "VST (control vlan insertion/stripping) support",
-		[7] = "FSM (MAC anti-spoofing) support"
+		[7] = "FSM (MAC anti-spoofing) support",
+		[8] = "Dynamic QP updates support"
 	};
 	int i;
 
@@ -659,6 +660,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			 QUERY_DEV_CAP_MAX_COUNTERS_OFFSET);
 
 	MLX4_GET(field32, outbox, QUERY_DEV_CAP_EXT_2_FLAGS_OFFSET);
+	if (field32 & (1 << 16))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_UPDATE_QP;
 	if (field32 & (1 << 26))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_VLAN_CONTROL;
 	if (field32 & (1 << 20))

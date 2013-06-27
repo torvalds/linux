@@ -111,6 +111,7 @@ enum {
 	MLX4_CMD_INIT2INIT_QP	 = 0x2d,
 	MLX4_CMD_SUSPEND_QP	 = 0x32,
 	MLX4_CMD_UNSUSPEND_QP	 = 0x33,
+	MLX4_CMD_UPDATE_QP	 = 0x61,
 	/* special QP and management commands */
 	MLX4_CMD_CONF_SPECIAL_QP = 0x23,
 	MLX4_CMD_MAD_IFC	 = 0x24,

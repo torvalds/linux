@@ -101,6 +101,8 @@ struct res_qp {
 	spinlock_t		mcg_spl;
 	int			local_qpn;
 	atomic_t		ref_count;
+	u32			qpc_flags;
+	u8			sched_queue;
 };
 
 enum res_mtt_states {
@@ -355,7 +357,7 @@ static void update_gid(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *inbox,
 
 static int update_vport_qp_param(struct mlx4_dev *dev,
 				 struct mlx4_cmd_mailbox *inbox,
-				 u8 slave)
+				 u8 slave, u32 qpn)
 {
 	struct mlx4_qp_context	*qpc = inbox->buf + 8;
 	struct mlx4_vport_oper_state *vp_oper;
@@ -369,8 +371,16 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 
 	if (MLX4_VGT != vp_oper->state.default_vlan) {
 		qp_type	= (be32_to_cpu(qpc->flags) >> 16) & 0xff;
-		if (MLX4_QP_ST_RC == qp_type)
+		if (MLX4_QP_ST_RC == qp_type ||
+		    (MLX4_QP_ST_UD == qp_type &&
+		     !mlx4_is_qp_reserved(dev, qpn)))
 			return -EINVAL;
+
+		/* the reserved QPs (special, proxy, tunnel)
+		 * do not operate over vlans
+		 */
+		if (mlx4_is_qp_reserved(dev, qpn))
+			return 0;
 
 		/* force strip vlan by clear vsd */
 		qpc->param3 &= ~cpu_to_be32(MLX4_STRIP_VLAN);
@@ -2114,6 +2124,8 @@ int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 	if (err)
 		return err;
 	qp->local_qpn = local_qpn;
+	qp->sched_queue = 0;
+	qp->qpc_flags = be32_to_cpu(qpc->flags);
 
 	err = get_res(dev, slave, mtt_base, RES_MTT, &mtt);
 	if (err)
@@ -2836,6 +2848,9 @@ int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 {
 	int err;
 	struct mlx4_qp_context *qpc = inbox->buf + 8;
+	int qpn = vhcr->in_modifier & 0x7fffff;
+	struct res_qp *qp;
+	u8 orig_sched_queue;
 
 	err = verify_qp_parameters(dev, inbox, QP_TRANS_INIT2RTR, slave);
 	if (err)
@@ -2844,11 +2859,30 @@ int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 	update_pkey_index(dev, slave, inbox);
 	update_gid(dev, inbox, (u8)slave);
 	adjust_proxy_tun_qkey(dev, vhcr, qpc);
-	err = update_vport_qp_param(dev, inbox, slave);
+	orig_sched_queue = qpc->pri_path.sched_queue;
+	err = update_vport_qp_param(dev, inbox, slave, qpn);
 	if (err)
 		return err;
 
-	return mlx4_GEN_QP_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
+	err = get_res(dev, slave, qpn, RES_QP, &qp);
+	if (err)
+		return err;
+	if (qp->com.from_state != RES_QP_HW) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
+out:
+	/* if no error, save sched queue value passed in by VF. This is
+	 * essentially the QOS value provided by the VF. This will be useful
+	 * if we allow dynamic changes from VST back to VGT
+	 */
+	if (!err)
+		qp->sched_queue = orig_sched_queue;
+
+	put_res(dev, slave, qpn, RES_QP);
+	return err;
 }
 
 int mlx4_RTR2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
@@ -3931,4 +3965,107 @@ void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave)
 	rem_slave_counters(dev, slave);
 	rem_slave_xrcdns(dev, slave);
 	mutex_unlock(&priv->mfunc.master.res_tracker.slave_list[slave].mutex);
+}
+
+void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work)
+{
+	struct mlx4_vf_immed_vlan_work *work =
+		container_of(_work, struct mlx4_vf_immed_vlan_work, work);
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_update_qp_context *upd_context;
+	struct mlx4_dev *dev = &work->priv->dev;
+	struct mlx4_resource_tracker *tracker =
+		&work->priv->mfunc.master.res_tracker;
+	struct list_head *qp_list =
+		&tracker->slave_list[work->slave].res_list[RES_QP];
+	struct res_qp *qp;
+	struct res_qp *tmp;
+	u64 qp_mask = ((1ULL << MLX4_UPD_QP_PATH_MASK_ETH_TX_BLOCK_UNTAGGED) |
+		       (1ULL << MLX4_UPD_QP_PATH_MASK_ETH_TX_BLOCK_1P) |
+		       (1ULL << MLX4_UPD_QP_PATH_MASK_ETH_TX_BLOCK_TAGGED) |
+		       (1ULL << MLX4_UPD_QP_PATH_MASK_ETH_RX_BLOCK_UNTAGGED) |
+		       (1ULL << MLX4_UPD_QP_PATH_MASK_ETH_RX_BLOCK_1P) |
+		       (1ULL << MLX4_UPD_QP_PATH_MASK_ETH_RX_BLOCK_TAGGED) |
+		       (1ULL << MLX4_UPD_QP_PATH_MASK_VLAN_INDEX) |
+		       (1ULL << MLX4_UPD_QP_PATH_MASK_SCHED_QUEUE));
+
+	int err;
+	int port, errors = 0;
+	u8 vlan_control;
+
+	if (mlx4_is_slave(dev)) {
+		mlx4_warn(dev, "Trying to update-qp in slave %d\n",
+			  work->slave);
+		goto out;
+	}
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		goto out;
+
+	if (!work->vlan_id)
+		vlan_control = MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
+			MLX4_VLAN_CTRL_ETH_RX_BLOCK_TAGGED;
+	else
+		vlan_control = MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
+			MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED |
+			MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED;
+
+	upd_context = mailbox->buf;
+	upd_context->primary_addr_path_mask = cpu_to_be64(qp_mask);
+	upd_context->qp_context.pri_path.vlan_control = vlan_control;
+	upd_context->qp_context.pri_path.vlan_index = work->vlan_ix;
+
+	spin_lock_irq(mlx4_tlock(dev));
+	list_for_each_entry_safe(qp, tmp, qp_list, com.list) {
+		spin_unlock_irq(mlx4_tlock(dev));
+		if (qp->com.owner == work->slave) {
+			if (qp->com.from_state != RES_QP_HW ||
+			    !qp->sched_queue ||  /* no INIT2RTR trans yet */
+			    mlx4_is_qp_reserved(dev, qp->local_qpn) ||
+			    qp->qpc_flags & (1 << MLX4_RSS_QPC_FLAG_OFFSET)) {
+				spin_lock_irq(mlx4_tlock(dev));
+				continue;
+			}
+			port = (qp->sched_queue >> 6 & 1) + 1;
+			if (port != work->port) {
+				spin_lock_irq(mlx4_tlock(dev));
+				continue;
+			}
+			upd_context->qp_context.pri_path.sched_queue =
+				qp->sched_queue & 0xC7;
+			upd_context->qp_context.pri_path.sched_queue |=
+				((work->qos & 0x7) << 3);
+
+			err = mlx4_cmd(dev, mailbox->dma,
+				       qp->local_qpn & 0xffffff,
+				       0, MLX4_CMD_UPDATE_QP,
+				       MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
+			if (err) {
+				mlx4_info(dev, "UPDATE_QP failed for slave %d, "
+					  "port %d, qpn %d (%d)\n",
+					  work->slave, port, qp->local_qpn,
+					  err);
+				errors++;
+			}
+		}
+		spin_lock_irq(mlx4_tlock(dev));
+	}
+	spin_unlock_irq(mlx4_tlock(dev));
+	mlx4_free_cmd_mailbox(dev, mailbox);
+
+	if (errors)
+		mlx4_err(dev, "%d UPDATE_QP failures for slave %d, port %d\n",
+			 errors, work->slave, work->port);
+
+	/* unregister previous vlan_id if needed and we had no errors
+	 * while updating the QPs
+	 */
+	if (work->flags & MLX4_VF_IMMED_VLAN_FLAG_VLAN && !errors &&
+	    NO_INDX != work->orig_vlan_ix)
+		__mlx4_unregister_vlan(&work->priv->dev, work->port,
+				       work->orig_vlan_ix);
+out:
+	kfree(work);
+	return;
 }
