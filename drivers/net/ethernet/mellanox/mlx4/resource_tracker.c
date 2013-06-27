@@ -384,7 +384,17 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 
 		/* force strip vlan by clear vsd */
 		qpc->param3 &= ~cpu_to_be32(MLX4_STRIP_VLAN);
-		if (0 != vp_oper->state.default_vlan) {
+
+		if (vp_oper->state.link_state == IFLA_VF_LINK_STATE_DISABLE &&
+		    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_UPDATE_QP) {
+			qpc->pri_path.vlan_control =
+				MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
+				MLX4_VLAN_CTRL_ETH_TX_BLOCK_PRIO_TAGGED |
+				MLX4_VLAN_CTRL_ETH_TX_BLOCK_UNTAGGED |
+				MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED |
+				MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED |
+				MLX4_VLAN_CTRL_ETH_RX_BLOCK_TAGGED;
+		} else if (0 != vp_oper->state.default_vlan) {
 			qpc->pri_path.vlan_control =
 				MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
 				MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED |
@@ -4002,8 +4012,14 @@ void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work)
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		goto out;
-
-	if (!work->vlan_id)
+	if (work->flags & MLX4_VF_IMMED_VLAN_FLAG_LINK_DISABLE) /* block all */
+		vlan_control = MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
+			MLX4_VLAN_CTRL_ETH_TX_BLOCK_PRIO_TAGGED |
+			MLX4_VLAN_CTRL_ETH_TX_BLOCK_UNTAGGED |
+			MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED |
+			MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED |
+			MLX4_VLAN_CTRL_ETH_RX_BLOCK_TAGGED;
+	else if (!work->vlan_id)
 		vlan_control = MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
 			MLX4_VLAN_CTRL_ETH_RX_BLOCK_TAGGED;
 	else

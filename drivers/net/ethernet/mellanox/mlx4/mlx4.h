@@ -574,6 +574,7 @@ struct mlx4_cmd {
 enum {
 	MLX4_VF_IMMED_VLAN_FLAG_VLAN = 1 << 0,
 	MLX4_VF_IMMED_VLAN_FLAG_QOS = 1 << 1,
+	MLX4_VF_IMMED_VLAN_FLAG_LINK_DISABLE = 1 << 2,
 };
 struct mlx4_vf_immed_vlan_work {
 	struct work_struct	work;

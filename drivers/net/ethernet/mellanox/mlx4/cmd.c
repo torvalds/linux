@@ -1521,6 +1521,10 @@ out:
 	return ret;
 }
 
+static int calculate_transition(u16 oper_vlan, u16 admin_vlan)
+{
+	return (2 * (oper_vlan == MLX4_VGT) + (admin_vlan == MLX4_VGT));
+}
 
 int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 					    int slave, int port)
@@ -1528,15 +1532,36 @@ int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	struct mlx4_vport_oper_state *vp_oper;
 	struct mlx4_vport_state *vp_admin;
 	struct mlx4_vf_immed_vlan_work *work;
+	struct mlx4_dev *dev = &(priv->dev);
 	int err;
 	int admin_vlan_ix = NO_INDX;
+	enum mlx4_vlan_transition vlan_trans;
 
 	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 	vp_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
 
 	if (vp_oper->state.default_vlan == vp_admin->default_vlan &&
-	    vp_oper->state.default_qos == vp_admin->default_qos)
+	    vp_oper->state.default_qos == vp_admin->default_qos &&
+	    vp_oper->state.link_state == vp_admin->link_state)
 		return 0;
+
+	vlan_trans = calculate_transition(vp_oper->state.default_vlan,
+					  vp_admin->default_vlan);
+
+	if (!(priv->mfunc.master.slave_state[slave].active &&
+	      dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_UPDATE_QP &&
+	      vlan_trans == MLX4_VLAN_TRANSITION_VST_VST)) {
+		/* even if the UPDATE_QP command isn't supported, we still want
+		 * to set this VF link according to the admin directive
+		 */
+		vp_oper->state.link_state = vp_admin->link_state;
+		return -1;
+	}
+
+	mlx4_dbg(dev, "updating immediately admin params slave %d port %d\n",
+		 slave, port);
+	mlx4_dbg(dev, "vlan %d QoS %d link down %d\n", vp_admin->default_vlan,
+		 vp_admin->default_qos, vp_admin->link_state);
 
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (!work)
@@ -1572,6 +1597,10 @@ int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 
 	vp_oper->state.default_vlan = vp_admin->default_vlan;
 	vp_oper->state.default_qos = vp_admin->default_qos;
+	vp_oper->state.link_state = vp_admin->link_state;
+
+	if (vp_admin->link_state == IFLA_VF_LINK_STATE_DISABLE)
+		work->flags |= MLX4_VF_IMMED_VLAN_FLAG_LINK_DISABLE;
 
 	/* iterate over QPs owned by this slave, using UPDATE_QP */
 	work->port = port;
@@ -2201,10 +2230,6 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_mac);
 
-static int calculate_transition(u16 oper_vlan, u16 admin_vlan)
-{
-	return (2 * (oper_vlan == MLX4_VGT) + (admin_vlan == MLX4_VGT));
-}
 
 int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 {
@@ -2212,7 +2237,6 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 	struct mlx4_vport_oper_state *vf_oper;
 	struct mlx4_vport_state *vf_admin;
 	int slave;
-	enum mlx4_vlan_transition vlan_trans;
 
 	if ((!mlx4_is_master(dev)) ||
 	    !(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_VLAN_CONTROL))
@@ -2234,16 +2258,10 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 		vf_admin->default_vlan = vlan;
 	vf_admin->default_qos = qos;
 
-	vlan_trans = calculate_transition(vf_oper->state.default_vlan,
-					  vf_admin->default_vlan);
-
-	if (priv->mfunc.master.slave_state[slave].active &&
-	    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_UPDATE_QP &&
-	    vlan_trans == MLX4_VLAN_TRANSITION_VST_VST) {
-		mlx4_info(dev, "updating vf %d port %d config params immediately\n",
+	if (mlx4_master_immediate_activate_vlan_qos(priv, slave, port))
+		mlx4_info(dev,
+			  "updating vf %d port %d config will take effect on next VF restart\n",
 			  vf, port);
-		mlx4_master_immediate_activate_vlan_qos(priv, slave, port);
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_vlan);
@@ -2307,7 +2325,6 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_vport_state *s_info;
-	struct mlx4_vport_oper_state *vp_oper;
 	int slave;
 	u8 link_stat_event;
 
@@ -2337,14 +2354,16 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 			  link_state, slave, port);
 		return -EINVAL;
 	};
-	/* update the admin & oper state on the link state */
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
-	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 	s_info->link_state = link_state;
-	vp_oper->state.link_state = link_state;
 
 	/* send event */
 	mlx4_gen_port_state_change_eqe(dev, slave, port, link_stat_event);
+
+	if (mlx4_master_immediate_activate_vlan_qos(priv, slave, port))
+		mlx4_dbg(dev,
+			 "updating vf %d port %d no link state HW enforcment\n",
+			 vf, port);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_link_state);
