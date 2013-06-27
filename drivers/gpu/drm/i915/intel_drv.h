@@ -140,7 +140,8 @@ struct intel_encoder {
 	 * it is connected to in the pipe parameter. */
 	bool (*get_hw_state)(struct intel_encoder *, enum pipe *pipe);
 	/* Reconstructs the equivalent mode flags for the current hardware
-	 * state. */
+	 * state. This must be called _after_ display->get_pipe_config has
+	 * pre-filled the pipe config. */
 	void (*get_config)(struct intel_encoder *,
 			   struct intel_crtc_config *pipe_config);
 	int crtc_mask;
@@ -193,6 +194,17 @@ typedef struct dpll {
 } intel_clock_t;
 
 struct intel_crtc_config {
+	/**
+	 * quirks - bitfield with hw state readout quirks
+	 *
+	 * For various reasons the hw state readout code might not be able to
+	 * completely faithfully read out the current state. These cases are
+	 * tracked with quirk flags so that fastboot and state checker can act
+	 * accordingly.
+	 */
+#define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS (1<<0) /* unreliable sync mode.flags */
+	unsigned long quirks;
+
 	struct drm_display_mode requested_mode;
 	struct drm_display_mode adjusted_mode;
 	/* This flag must be set by the encoder's compute_config callback if it
@@ -241,14 +253,21 @@ struct intel_crtc_config {
 	 * haswell. */
 	struct dpll dpll;
 
+	/* Selected dpll when shared or DPLL_ID_PRIVATE. */
+	enum intel_dpll_id shared_dpll;
+
+	/* Actual register state of the dpll, for shared dpll cross-checking. */
+	struct intel_dpll_hw_state dpll_hw_state;
+
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
-	/**
-	 * This is currently used by DP and HDMI encoders since those can have a
-	 * target pixel clock != the port link clock (which is currently stored
-	 * in adjusted_mode->clock).
+
+	/*
+	 * Frequence the dpll for the port should run at. Differs from the
+	 * adjusted dotclock e.g. for DP or 12bpc hdmi mode.
 	 */
-	int pixel_target_clock;
+	int port_clock;
+
 	/* Used by SDVO (and if we ever fix it, HDMI). */
 	unsigned pixel_multiplier;
 
@@ -304,8 +323,6 @@ struct intel_crtc {
 
 	struct intel_crtc_config config;
 
-	/* We can share PLLs across outputs if the timings match */
-	struct intel_pch_pll *pch_pll;
 	uint32_t ddi_pll_sel;
 
 	/* reset counter value when the last flip was submitted */
@@ -562,9 +579,10 @@ extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
 extern void intel_mark_busy(struct drm_device *dev);
-extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj);
+extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
+			       struct intel_ring_buffer *ring);
 extern void intel_mark_idle(struct drm_device *dev);
-extern bool intel_lvds_init(struct drm_device *dev);
+extern void intel_lvds_init(struct drm_device *dev);
 extern bool intel_is_dual_link_lvds(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int output_reg,
 			  enum port port);
@@ -628,11 +646,11 @@ extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_crtc_update_dpms(struct drm_crtc *crtc);
 extern void intel_encoder_destroy(struct drm_encoder *encoder);
 extern void intel_encoder_dpms(struct intel_encoder *encoder, int mode);
-extern bool intel_encoder_check_is_cloned(struct intel_encoder *encoder);
 extern void intel_connector_dpms(struct drm_connector *, int mode);
 extern bool intel_connector_get_hw_state(struct intel_connector *connector);
 extern void intel_modeset_check_state(struct drm_device *dev);
 extern void intel_plane_restore(struct drm_plane *plane);
+extern void intel_plane_disable(struct drm_plane *plane);
 
 
 static inline struct intel_encoder *intel_attached_encoder(struct drm_connector *connector)
@@ -767,6 +785,10 @@ extern void intel_update_fbc(struct drm_device *dev);
 extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 extern void intel_gpu_ips_teardown(void);
 
+/* Power well */
+extern int i915_init_power_well(struct drm_device *dev);
+extern void i915_remove_power_well(struct drm_device *dev);
+
 extern bool intel_display_power_enabled(struct drm_device *dev,
 					enum intel_display_power_domain domain);
 extern void intel_init_power_well(struct drm_device *dev);
@@ -786,7 +808,7 @@ extern void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
 extern void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc);
 extern void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc);
 extern void intel_ddi_setup_hw_pll_state(struct drm_device *dev);
-extern bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock);
+extern bool intel_ddi_pll_mode_set(struct drm_crtc *crtc);
 extern void intel_ddi_put_crtc_pll(struct drm_crtc *crtc);
 extern void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
 extern void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);

@@ -176,7 +176,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 
 	pinned = 0;
 	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list)
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
 		if (obj->pin_count)
 			pinned += obj->gtt_space->size;
 	mutex_unlock(&dev->struct_mutex);
@@ -956,7 +956,7 @@ i915_gem_check_olr(struct intel_ring_buffer *ring, u32 seqno)
 
 	ret = 0;
 	if (seqno == ring->outstanding_lazy_request)
-		ret = i915_add_request(ring, NULL, NULL);
+		ret = i915_add_request(ring, NULL);
 
 	return ret;
 }
@@ -1676,7 +1676,7 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	/* ->put_pages might need to allocate memory for the bit17 swizzle
 	 * array, hence protect them from being reaped by removing them from gtt
 	 * lists early. */
-	list_del(&obj->gtt_list);
+	list_del(&obj->global_list);
 
 	ops->put_pages(obj);
 	obj->pages = NULL;
@@ -1696,7 +1696,7 @@ __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 
 	list_for_each_entry_safe(obj, next,
 				 &dev_priv->mm.unbound_list,
-				 gtt_list) {
+				 global_list) {
 		if ((i915_gem_object_is_purgeable(obj) || !purgeable_only) &&
 		    i915_gem_object_put_pages(obj) == 0) {
 			count += obj->base.size >> PAGE_SHIFT;
@@ -1733,7 +1733,8 @@ i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 
 	i915_gem_evict_everything(dev_priv->dev);
 
-	list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list, gtt_list)
+	list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list,
+				 global_list)
 		i915_gem_object_put_pages(obj);
 }
 
@@ -1858,7 +1859,7 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 	if (ret)
 		return ret;
 
-	list_add_tail(&obj->gtt_list, &dev_priv->mm.unbound_list);
+	list_add_tail(&obj->global_list, &dev_priv->mm.unbound_list);
 	return 0;
 }
 
@@ -1996,17 +1997,18 @@ i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
 	return 0;
 }
 
-int
-i915_add_request(struct intel_ring_buffer *ring,
-		 struct drm_file *file,
-		 u32 *out_seqno)
+int __i915_add_request(struct intel_ring_buffer *ring,
+		       struct drm_file *file,
+		       struct drm_i915_gem_object *obj,
+		       u32 *out_seqno)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_request *request;
-	u32 request_ring_position;
+	u32 request_ring_position, request_start;
 	int was_empty;
 	int ret;
 
+	request_start = intel_ring_get_tail(ring);
 	/*
 	 * Emit any outstanding flushes - execbuf can fail to emit the flush
 	 * after having emitted the batchbuffer command. Hence we need to fix
@@ -2038,8 +2040,17 @@ i915_add_request(struct intel_ring_buffer *ring,
 
 	request->seqno = intel_ring_get_seqno(ring);
 	request->ring = ring;
+	request->head = request_start;
 	request->tail = request_ring_position;
 	request->ctx = ring->last_context;
+	request->batch_obj = obj;
+
+	/* Whilst this request exists, batch_obj will be on the
+	 * active_list, and so will hold the active reference. Only when this
+	 * request is retired will the the batch_obj be moved onto the
+	 * inactive_list and lose its active reference. Hence we do not need
+	 * to explicitly hold another reference here.
+	 */
 
 	if (request->ctx)
 		i915_gem_context_reference(request->ctx);
@@ -2096,6 +2107,94 @@ i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 	spin_unlock(&file_priv->mm.lock);
 }
 
+static bool i915_head_inside_object(u32 acthd, struct drm_i915_gem_object *obj)
+{
+	if (acthd >= obj->gtt_offset &&
+	    acthd < obj->gtt_offset + obj->base.size)
+		return true;
+
+	return false;
+}
+
+static bool i915_head_inside_request(const u32 acthd_unmasked,
+				     const u32 request_start,
+				     const u32 request_end)
+{
+	const u32 acthd = acthd_unmasked & HEAD_ADDR;
+
+	if (request_start < request_end) {
+		if (acthd >= request_start && acthd < request_end)
+			return true;
+	} else if (request_start > request_end) {
+		if (acthd >= request_start || acthd < request_end)
+			return true;
+	}
+
+	return false;
+}
+
+static bool i915_request_guilty(struct drm_i915_gem_request *request,
+				const u32 acthd, bool *inside)
+{
+	/* There is a possibility that unmasked head address
+	 * pointing inside the ring, matches the batch_obj address range.
+	 * However this is extremely unlikely.
+	 */
+
+	if (request->batch_obj) {
+		if (i915_head_inside_object(acthd, request->batch_obj)) {
+			*inside = true;
+			return true;
+		}
+	}
+
+	if (i915_head_inside_request(acthd, request->head, request->tail)) {
+		*inside = false;
+		return true;
+	}
+
+	return false;
+}
+
+static void i915_set_reset_status(struct intel_ring_buffer *ring,
+				  struct drm_i915_gem_request *request,
+				  u32 acthd)
+{
+	struct i915_ctx_hang_stats *hs = NULL;
+	bool inside, guilty;
+
+	/* Innocent until proven guilty */
+	guilty = false;
+
+	if (ring->hangcheck.action != wait &&
+	    i915_request_guilty(request, acthd, &inside)) {
+		DRM_ERROR("%s hung %s bo (0x%x ctx %d) at 0x%x\n",
+			  ring->name,
+			  inside ? "inside" : "flushing",
+			  request->batch_obj ?
+			  request->batch_obj->gtt_offset : 0,
+			  request->ctx ? request->ctx->id : 0,
+			  acthd);
+
+		guilty = true;
+	}
+
+	/* If contexts are disabled or this is the default context, use
+	 * file_priv->reset_state
+	 */
+	if (request->ctx && request->ctx->id != DEFAULT_CONTEXT_ID)
+		hs = &request->ctx->hang_stats;
+	else if (request->file_priv)
+		hs = &request->file_priv->hang_stats;
+
+	if (hs) {
+		if (guilty)
+			hs->batch_active++;
+		else
+			hs->batch_pending++;
+	}
+}
+
 static void i915_gem_free_request(struct drm_i915_gem_request *request)
 {
 	list_del(&request->list);
@@ -2110,12 +2209,21 @@ static void i915_gem_free_request(struct drm_i915_gem_request *request)
 static void i915_gem_reset_ring_lists(struct drm_i915_private *dev_priv,
 				      struct intel_ring_buffer *ring)
 {
+	u32 completed_seqno;
+	u32 acthd;
+
+	acthd = intel_ring_get_active_head(ring);
+	completed_seqno = ring->get_seqno(ring, false);
+
 	while (!list_empty(&ring->request_list)) {
 		struct drm_i915_gem_request *request;
 
 		request = list_first_entry(&ring->request_list,
 					   struct drm_i915_gem_request,
 					   list);
+
+		if (request->seqno > completed_seqno)
+			i915_set_reset_status(ring, request, acthd);
 
 		i915_gem_free_request(request);
 	}
@@ -2276,7 +2384,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	idle = true;
 	for_each_ring(ring, dev_priv, i) {
 		if (ring->gpu_caches_dirty)
-			i915_add_request(ring, NULL, NULL);
+			i915_add_request(ring, NULL);
 
 		idle &= list_empty(&ring->request_list);
 	}
@@ -2508,9 +2616,10 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 		obj->has_aliasing_ppgtt_mapping = 0;
 	}
 	i915_gem_gtt_finish_object(obj);
+	i915_gem_object_unpin_pages(obj);
 
 	list_del(&obj->mm_list);
-	list_move_tail(&obj->gtt_list, &dev_priv->mm.unbound_list);
+	list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
 	/* Avoid an unnecessary call to unbind on rebind. */
 	obj->map_and_fenceable = true;
 
@@ -2918,7 +3027,7 @@ static void i915_gem_verify_gtt(struct drm_device *dev)
 	struct drm_i915_gem_object *obj;
 	int err = 0;
 
-	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
+	list_for_each_entry(obj, &dev_priv->mm.gtt_list, global_list) {
 		if (obj->gtt_space == NULL) {
 			printk(KERN_ERR "object found on GTT list with no space reserved\n");
 			err++;
@@ -3042,7 +3151,7 @@ search_free:
 		return ret;
 	}
 
-	list_move_tail(&obj->gtt_list, &dev_priv->mm.bound_list);
+	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
 	obj->gtt_space = node;
@@ -3057,7 +3166,6 @@ search_free:
 
 	obj->map_and_fenceable = mappable && fenceable;
 
-	i915_gem_object_unpin_pages(obj);
 	trace_i915_gem_object_bind(obj, map_and_fenceable);
 	i915_gem_verify_gtt(dev);
 	return 0;
@@ -3757,7 +3865,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops)
 {
 	INIT_LIST_HEAD(&obj->mm_list);
-	INIT_LIST_HEAD(&obj->gtt_list);
+	INIT_LIST_HEAD(&obj->global_list);
 	INIT_LIST_HEAD(&obj->ring_list);
 	INIT_LIST_HEAD(&obj->exec_list);
 
@@ -3857,7 +3965,13 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 		dev_priv->mm.interruptible = was_interruptible;
 	}
 
-	obj->pages_pin_count = 0;
+	/* Stolen objects don't hold a ref, but do hold pin count. Fix that up
+	 * before progressing. */
+	if (obj->stolen)
+		i915_gem_object_unpin_pages(obj);
+
+	if (WARN_ON(obj->pages_pin_count))
+		obj->pages_pin_count = 0;
 	i915_gem_object_put_pages(obj);
 	i915_gem_object_free_mmap_offset(obj);
 	i915_gem_object_release_stolen(obj);
@@ -4498,10 +4612,10 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 	}
 
 	cnt = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, gtt_list)
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list)
 		if (obj->pages_pin_count == 0)
 			cnt += obj->base.size >> PAGE_SHIFT;
-	list_for_each_entry(obj, &dev_priv->mm.inactive_list, gtt_list)
+	list_for_each_entry(obj, &dev_priv->mm.inactive_list, global_list)
 		if (obj->pin_count == 0 && obj->pages_pin_count == 0)
 			cnt += obj->base.size >> PAGE_SHIFT;
 

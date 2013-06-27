@@ -914,9 +914,6 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	if (!tv_mode)
 		return false;
 
-	if (intel_encoder_check_is_cloned(&intel_tv->base))
-		return false;
-
 	pipe_config->adjusted_mode.clock = tv_mode->clock;
 	DRM_DEBUG_KMS("forcing bpc to 8 for TV\n");
 	pipe_config->pipe_bpp = 8*3;

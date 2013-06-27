@@ -677,7 +677,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int max_clock = intel_dp_max_link_bw(intel_dp) == DP_LINK_BW_2_7 ? 1 : 0;
 	int bpp, mode_rate;
 	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };
-	int target_clock, link_avail, link_clock;
+	int link_avail, link_clock;
 
 	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
@@ -694,8 +694,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			intel_pch_panel_fitting(intel_crtc, pipe_config,
 						intel_connector->panel.fitting_mode);
 	}
-	/* We need to take the panel's fixed mode into account. */
-	target_clock = adjusted_mode->clock;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return false;
@@ -706,12 +704,12 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
 	 * bpc in between. */
-	bpp = min_t(int, 8*3, pipe_config->pipe_bpp);
+	bpp = pipe_config->pipe_bpp;
 	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp)
 		bpp = min_t(int, bpp, dev_priv->vbt.edp_bpp);
 
 	for (; bpp >= 6*3; bpp -= 2*3) {
-		mode_rate = intel_dp_link_required(target_clock, bpp);
+		mode_rate = intel_dp_link_required(adjusted_mode->clock, bpp);
 
 		for (clock = 0; clock <= max_clock; clock++) {
 			for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
@@ -746,18 +744,17 @@ found:
 
 	intel_dp->link_bw = bws[clock];
 	intel_dp->lane_count = lane_count;
-	adjusted_mode->clock = drm_dp_bw_code_to_link_rate(intel_dp->link_bw);
 	pipe_config->pipe_bpp = bpp;
-	pipe_config->pixel_target_clock = target_clock;
+	pipe_config->port_clock = drm_dp_bw_code_to_link_rate(intel_dp->link_bw);
 
 	DRM_DEBUG_KMS("DP link bw %02x lane count %d clock %d bpp %d\n",
 		      intel_dp->link_bw, intel_dp->lane_count,
-		      adjusted_mode->clock, bpp);
+		      pipe_config->port_clock, bpp);
 	DRM_DEBUG_KMS("DP link bw required %i available %i\n",
 		      mode_rate, link_avail);
 
 	intel_link_compute_m_n(bpp, lane_count,
-			       target_clock, adjusted_mode->clock,
+			       adjusted_mode->clock, pipe_config->port_clock,
 			       &pipe_config->dp_m_n);
 
 	intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
@@ -780,24 +777,28 @@ void intel_dp_init_link_config(struct intel_dp *intel_dp)
 	}
 }
 
-static void ironlake_set_pll_edp(struct drm_crtc *crtc, int clock)
+static void ironlake_set_pll_cpu_edp(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = crtc->dev;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct intel_crtc *crtc = to_intel_crtc(dig_port->base.base.crtc);
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 dpa_ctl;
 
-	DRM_DEBUG_KMS("eDP PLL enable for clock %d\n", clock);
+	DRM_DEBUG_KMS("eDP PLL enable for clock %d\n", crtc->config.port_clock);
 	dpa_ctl = I915_READ(DP_A);
 	dpa_ctl &= ~DP_PLL_FREQ_MASK;
 
-	if (clock < 200000) {
+	if (crtc->config.port_clock == 162000) {
 		/* For a long time we've carried around a ILK-DevA w/a for the
 		 * 160MHz clock. If we're really unlucky, it's still required.
 		 */
 		DRM_DEBUG_KMS("160MHz cpu eDP clock, might need ilk devA w/a\n");
 		dpa_ctl |= DP_PLL_FREQ_160MHZ;
+		intel_dp->DP |= DP_PLL_FREQ_160MHZ;
 	} else {
 		dpa_ctl |= DP_PLL_FREQ_270MHZ;
+		intel_dp->DP |= DP_PLL_FREQ_270MHZ;
 	}
 
 	I915_WRITE(DP_A, dpa_ctl);
@@ -814,8 +815,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum port port = dp_to_dig_port(intel_dp)->port;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
 
 	/*
 	 * There are four kinds of DP registers:
@@ -845,7 +845,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	if (intel_dp->has_audio) {
 		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
-				 pipe_name(intel_crtc->pipe));
+				 pipe_name(crtc->pipe));
 		intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
 		intel_write_eld(encoder, adjusted_mode);
 	}
@@ -864,13 +864,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		if (intel_dp->link_configuration[1] & DP_LANE_COUNT_ENHANCED_FRAME_EN)
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
-		intel_dp->DP |= intel_crtc->pipe << 29;
-
-		/* don't miss out required setting for eDP */
-		if (adjusted_mode->clock < 200000)
-			intel_dp->DP |= DP_PLL_FREQ_160MHZ;
-		else
-			intel_dp->DP |= DP_PLL_FREQ_270MHZ;
+		intel_dp->DP |= crtc->pipe << 29;
 	} else if (!HAS_PCH_CPT(dev) || port == PORT_A) {
 		if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev))
 			intel_dp->DP |= intel_dp->color_range;
@@ -884,22 +878,14 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		if (intel_dp->link_configuration[1] & DP_LANE_COUNT_ENHANCED_FRAME_EN)
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
-		if (intel_crtc->pipe == 1)
+		if (crtc->pipe == 1)
 			intel_dp->DP |= DP_PIPEB_SELECT;
-
-		if (port == PORT_A && !IS_VALLEYVIEW(dev)) {
-			/* don't miss out required setting for eDP */
-			if (adjusted_mode->clock < 200000)
-				intel_dp->DP |= DP_PLL_FREQ_160MHZ;
-			else
-				intel_dp->DP |= DP_PLL_FREQ_270MHZ;
-		}
 	} else {
 		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
 	}
 
 	if (port == PORT_A && !IS_VALLEYVIEW(dev))
-		ironlake_set_pll_edp(crtc, adjusted_mode->clock);
+		ironlake_set_pll_cpu_edp(intel_dp);
 }
 
 #define IDLE_ON_MASK		(PP_ON | 0 	  | PP_SEQUENCE_MASK | 0                     | PP_SEQUENCE_STATE_MASK)

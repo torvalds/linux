@@ -147,15 +147,9 @@
 #define   VGA_MSR_MEM_EN (1<<1)
 #define   VGA_MSR_CGA_MODE (1<<0)
 
-/*
- * SR01 is the only VGA register touched on non-UMS setups.
- * VLV doesn't do UMS, so the sequencer index/data registers
- * are the only VGA registers which need to include
- * display_mmio_offset.
- */
-#define VGA_SR_INDEX (dev_priv->info->display_mmio_offset + 0x3c4)
+#define VGA_SR_INDEX 0x3c4
 #define SR01			1
-#define VGA_SR_DATA (dev_priv->info->display_mmio_offset + 0x3c5)
+#define VGA_SR_DATA 0x3c5
 
 #define VGA_AR_INDEX 0x3c0
 #define   VGA_AR_VID_EN (1<<5)
@@ -1026,6 +1020,10 @@
 #define IPS_CTL		0x43408
 #define   IPS_ENABLE	(1 << 31)
 
+#define MSG_FBC_REND_STATE	0x50380
+#define   FBC_REND_NUKE		(1<<2)
+#define   FBC_REND_CACHE_CLEAN	(1<<1)
+
 #define _HSW_PIPE_SLICE_CHICKEN_1_A	0x420B0
 #define _HSW_PIPE_SLICE_CHICKEN_1_B	0x420B4
 #define   HSW_BYPASS_FBC_QUEUE		(1<<22)
@@ -1256,7 +1254,7 @@
 #define  DSTATE_PLL_D3_OFF			(1<<3)
 #define  DSTATE_GFX_CLOCK_GATING		(1<<1)
 #define  DSTATE_DOT_CLOCK_GATING		(1<<0)
-#define DSPCLK_GATE_D		0x6200
+#define DSPCLK_GATE_D	(dev_priv->info->display_mmio_offset + 0x6200)
 # define DPUNIT_B_CLOCK_GATE_DISABLE		(1 << 30) /* 965 */
 # define VSUNIT_CLOCK_GATE_DISABLE		(1 << 29) /* 965 */
 # define VRHUNIT_CLOCK_GATE_DISABLE		(1 << 28) /* 965 */
@@ -1368,6 +1366,8 @@
 
 #define FW_BLC_SELF_VLV		(VLV_DISPLAY_BASE + 0x6500)
 #define  FW_CSPWRDWNEN		(1<<15)
+
+#define MI_ARB_VLV		(VLV_DISPLAY_BASE + 0x6504)
 
 /*
  * Palette regs
@@ -3672,9 +3672,9 @@
 #define _GAMMA_MODE_B		0x4ac80
 #define GAMMA_MODE(pipe) _PIPE(pipe, _GAMMA_MODE_A, _GAMMA_MODE_B)
 #define GAMMA_MODE_MODE_MASK	(3 << 0)
-#define GAMMA_MODE_MODE_8bit	(0 << 0)
-#define GAMMA_MODE_MODE_10bit	(1 << 0)
-#define GAMMA_MODE_MODE_12bit	(2 << 0)
+#define GAMMA_MODE_MODE_8BIT	(0 << 0)
+#define GAMMA_MODE_MODE_10BIT	(1 << 0)
+#define GAMMA_MODE_MODE_12BIT	(2 << 0)
 #define GAMMA_MODE_MODE_SPLIT	(3 << 0)
 
 /* interrupts */
@@ -3932,15 +3932,15 @@
 
 #define _PCH_DPLL_A              0xc6014
 #define _PCH_DPLL_B              0xc6018
-#define _PCH_DPLL(pll) (pll == 0 ? _PCH_DPLL_A : _PCH_DPLL_B)
+#define PCH_DPLL(pll) (pll == 0 ? _PCH_DPLL_A : _PCH_DPLL_B)
 
 #define _PCH_FPA0                0xc6040
 #define  FP_CB_TUNE		(0x3<<22)
 #define _PCH_FPA1                0xc6044
 #define _PCH_FPB0                0xc6048
 #define _PCH_FPB1                0xc604c
-#define _PCH_FP0(pll) (pll == 0 ? _PCH_FPA0 : _PCH_FPB0)
-#define _PCH_FP1(pll) (pll == 0 ? _PCH_FPA1 : _PCH_FPB1)
+#define PCH_FP0(pll) (pll == 0 ? _PCH_FPA0 : _PCH_FPB0)
+#define PCH_FP1(pll) (pll == 0 ? _PCH_FPA1 : _PCH_FPB1)
 
 #define PCH_DPLL_TEST           0xc606c
 
@@ -3980,15 +3980,9 @@
 #define PCH_SSC4_AUX_PARMS      0xc6214
 
 #define PCH_DPLL_SEL		0xc7000
-#define  TRANSA_DPLL_ENABLE	(1<<3)
-#define	 TRANSA_DPLLB_SEL	(1<<0)
-#define	 TRANSA_DPLLA_SEL	0
-#define  TRANSB_DPLL_ENABLE	(1<<7)
-#define	 TRANSB_DPLLB_SEL	(1<<4)
-#define	 TRANSB_DPLLA_SEL	(0)
-#define  TRANSC_DPLL_ENABLE	(1<<11)
-#define	 TRANSC_DPLLB_SEL	(1<<8)
-#define	 TRANSC_DPLLA_SEL	(0)
+#define	 TRANS_DPLLB_SEL(pipe)		(1 << (pipe * 4))
+#define	 TRANS_DPLLA_SEL(pipe)		0
+#define  TRANS_DPLL_ENABLE(pipe)	(1 << (pipe * 4 + 3))
 
 /* transcoder */
 

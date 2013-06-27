@@ -37,8 +37,14 @@ struct  intel_hw_status_page {
 #define I915_READ_SYNC_0(ring) I915_READ(RING_SYNC_0((ring)->mmio_base))
 #define I915_READ_SYNC_1(ring) I915_READ(RING_SYNC_1((ring)->mmio_base))
 
+enum intel_ring_hangcheck_action { wait, active, kick, hung };
+
 struct intel_ring_hangcheck {
+	bool deadlock;
 	u32 seqno;
+	u32 acthd;
+	int score;
+	enum intel_ring_hangcheck_action action;
 };
 
 struct  intel_ring_buffer {
@@ -138,6 +144,7 @@ struct  intel_ring_buffer {
 	 */
 	u32 outstanding_lazy_request;
 	bool gpu_caches_dirty;
+	bool fbc_dirty;
 
 	wait_queue_head_t irq_queue;
 

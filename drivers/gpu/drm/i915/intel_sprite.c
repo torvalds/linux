@@ -957,6 +957,14 @@ void intel_plane_restore(struct drm_plane *plane)
 			   intel_plane->src_w, intel_plane->src_h);
 }
 
+void intel_plane_disable(struct drm_plane *plane)
+{
+	if (!plane->crtc || !plane->fb)
+		return;
+
+	intel_disable_plane(plane);
+}
+
 static const struct drm_plane_funcs intel_plane_funcs = {
 	.update_plane = intel_update_plane,
 	.disable_plane = intel_disable_plane,

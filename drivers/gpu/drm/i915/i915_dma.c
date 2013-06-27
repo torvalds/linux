@@ -1001,8 +1001,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = 1;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
-				 param->param);
+		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
 	}
 
@@ -1633,6 +1632,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	/* Start out suspended */
 	dev_priv->mm.suspended = 1;
 
+	if (HAS_POWER_WELL(dev))
+		i915_init_power_well(dev);
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = i915_load_modeset_init(dev);
 		if (ret < 0) {
@@ -1683,6 +1685,9 @@ int i915_driver_unload(struct drm_device *dev)
 	int ret;
 
 	intel_gpu_ips_teardown();
+
+	if (HAS_POWER_WELL(dev))
+		i915_remove_power_well(dev);
 
 	i915_teardown_sysfs(dev);
 
@@ -1775,7 +1780,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv;
 
 	DRM_DEBUG_DRIVER("\n");
-	file_priv = kmalloc(sizeof(*file_priv), GFP_KERNEL);
+	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv)
 		return -ENOMEM;
 

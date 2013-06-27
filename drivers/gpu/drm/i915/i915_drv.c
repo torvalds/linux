@@ -457,7 +457,6 @@ void intel_detect_pch(struct drm_device *dev)
 	 */
 	if (INTEL_INFO(dev)->num_pipes == 0) {
 		dev_priv->pch_type = PCH_NOP;
-		dev_priv->num_pch_pll = 0;
 		return;
 	}
 
@@ -476,34 +475,28 @@ void intel_detect_pch(struct drm_device *dev)
 
 			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_IBX;
-				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
 				WARN_ON(!IS_GEN5(dev));
 			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CPT;
-				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
 				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
 				/* PantherPoint is CPT compatible */
 				dev_priv->pch_type = PCH_CPT;
-				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found PatherPoint PCH\n");
 				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
 			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
-				dev_priv->num_pch_pll = 0;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
 				WARN_ON(!IS_HASWELL(dev));
 				WARN_ON(IS_ULT(dev));
 			} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
-				dev_priv->num_pch_pll = 0;
 				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
 				WARN_ON(!IS_HASWELL(dev));
 				WARN_ON(!IS_ULT(dev));
 			}
-			BUG_ON(dev_priv->num_pch_pll > I915_NUM_PLLS);
 		}
 		pci_dev_put(pch);
 	}
@@ -570,7 +563,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 	intel_opregion_fini(dev);
 
 	console_lock();
-	intel_fbdev_set_suspend(dev, 1);
+	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED);
 	console_unlock();
 
 	return 0;
@@ -614,7 +607,7 @@ void intel_console_resume(struct work_struct *work)
 	struct drm_device *dev = dev_priv->dev;
 
 	console_lock();
-	intel_fbdev_set_suspend(dev, 0);
+	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING);
 	console_unlock();
 }
 
@@ -683,7 +676,7 @@ static int __i915_drm_thaw(struct drm_device *dev)
 	 * path of resume if possible.
 	 */
 	if (console_trylock()) {
-		intel_fbdev_set_suspend(dev, 0);
+		intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING);
 		console_unlock();
 	} else {
 		schedule_work(&dev_priv->console_resume_work);

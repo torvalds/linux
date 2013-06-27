@@ -303,6 +303,34 @@ static int context_idr_cleanup(int id, void *p, void *data)
 	return 0;
 }
 
+struct i915_ctx_hang_stats *
+i915_gem_context_get_hang_stats(struct intel_ring_buffer *ring,
+				struct drm_file *file,
+				u32 id)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct i915_hw_context *to;
+
+	if (dev_priv->hw_contexts_disabled)
+		return ERR_PTR(-ENOENT);
+
+	if (ring->id != RCS)
+		return ERR_PTR(-EINVAL);
+
+	if (file == NULL)
+		return ERR_PTR(-EINVAL);
+
+	if (id == DEFAULT_CONTEXT_ID)
+		return &file_priv->hang_stats;
+
+	to = i915_gem_context_get(file->driver_priv, id);
+	if (to == NULL)
+		return ERR_PTR(-ENOENT);
+
+	return &to->hang_stats;
+}
+
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
@@ -427,7 +455,7 @@ static int do_switch(struct i915_hw_context *to)
 		from->obj->dirty = 1;
 		BUG_ON(from->obj->ring != ring);
 
-		ret = i915_add_request(ring, NULL, NULL);
+		ret = i915_add_request(ring, NULL);
 		if (ret) {
 			/* Too late, we've already scheduled a context switch.
 			 * Try to undo the change so that the hw state is

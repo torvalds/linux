@@ -274,7 +274,7 @@ static void gen7_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	I915_WRITE(IVB_FBC_RT_BASE, obj->gtt_offset | ILK_FBC_RT_VALID);
+	I915_WRITE(IVB_FBC_RT_BASE, obj->gtt_offset);
 
 	I915_WRITE(ILK_DPFC_CONTROL, DPFC_CTL_EN | DPFC_CTL_LIMIT_1X |
 		   IVB_DPFC_CTL_FENCE_EN |
@@ -431,7 +431,7 @@ void intel_disable_fbc(struct drm_device *dev)
  *   - no pixel mulitply/line duplication
  *   - no alpha buffer discard
  *   - no dual wide
- *   - framebuffer <= 2048 in width, 1536 in height
+ *   - framebuffer <= max_hdisplay in width, max_vdisplay in height
  *
  * We can't assume that any compression will take place (worst case),
  * so the compressed buffer has to be the same size as the uncompressed
@@ -449,6 +449,7 @@ void intel_update_fbc(struct drm_device *dev)
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj;
 	int enable_fbc;
+	unsigned int max_hdisplay, max_vdisplay;
 
 	if (!i915_powersave)
 		return;
@@ -507,8 +508,16 @@ void intel_update_fbc(struct drm_device *dev)
 		dev_priv->no_fbc_reason = FBC_UNSUPPORTED_MODE;
 		goto out_disable;
 	}
-	if ((crtc->mode.hdisplay > 2048) ||
-	    (crtc->mode.vdisplay > 1536)) {
+
+	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+		max_hdisplay = 4096;
+		max_vdisplay = 2048;
+	} else {
+		max_hdisplay = 2048;
+		max_vdisplay = 1536;
+	}
+	if ((crtc->mode.hdisplay > max_hdisplay) ||
+	    (crtc->mode.vdisplay > max_vdisplay)) {
 		DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		dev_priv->no_fbc_reason = FBC_MODE_TOO_LARGE;
 		goto out_disable;
@@ -2078,10 +2087,7 @@ static uint32_t hsw_wm_get_pixel_rate(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t pixel_rate, pfit_size;
 
-	if (intel_crtc->config.pixel_target_clock)
-		pixel_rate = intel_crtc->config.pixel_target_clock;
-	else
-		pixel_rate = intel_crtc->config.adjusted_mode.clock;
+	pixel_rate = intel_crtc->config.adjusted_mode.clock;
 
 	/* We only use IF-ID interlacing. If we ever use PF-ID we'll need to
 	 * adjust the pixel_rate here. */
@@ -4381,6 +4387,19 @@ static void ibx_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
 }
 
+static void g4x_disable_trickle_feed(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe;
+
+	for_each_pipe(pipe) {
+		I915_WRITE(DSPCNTR(pipe),
+			   I915_READ(DSPCNTR(pipe)) |
+			   DISPPLANE_TRICKLE_FEED_DISABLE);
+		intel_flush_display_plane(dev_priv, pipe);
+	}
+}
+
 static void ironlake_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4444,6 +4463,8 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(CACHE_MODE_0,
 		   _MASKED_BIT_ENABLE(CM0_PIPELINED_RENDER_FLUSH_DISABLE));
 
+	g4x_disable_trickle_feed(dev);
+
 	ibx_init_clock_gating(dev);
 }
 
@@ -4498,7 +4519,6 @@ static void gen6_check_mch_setup(struct drm_device *dev)
 static void gen6_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
 	uint32_t dspclk_gate = ILK_VRHUNIT_CLOCK_GATE_DISABLE;
 
 	I915_WRITE(ILK_DSPCLK_GATE_D, dspclk_gate);
@@ -4574,12 +4594,7 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
 
-	for_each_pipe(pipe) {
-		I915_WRITE(DSPCNTR(pipe),
-			   I915_READ(DSPCNTR(pipe)) |
-			   DISPPLANE_TRICKLE_FEED_DISABLE);
-		intel_flush_display_plane(dev_priv, pipe);
-	}
+	g4x_disable_trickle_feed(dev);
 
 	/* The default value should be 0x200 according to docs, but the two
 	 * platforms I checked have a 0 for this. (Maybe BIOS overrides?) */
@@ -4640,7 +4655,6 @@ static void lpt_suspend_hw(struct drm_device *dev)
 static void haswell_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
 
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
@@ -4666,12 +4680,7 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 			I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
 			GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
 
-	for_each_pipe(pipe) {
-		I915_WRITE(DSPCNTR(pipe),
-			   I915_READ(DSPCNTR(pipe)) |
-			   DISPPLANE_TRICKLE_FEED_DISABLE);
-		intel_flush_display_plane(dev_priv, pipe);
-	}
+	g4x_disable_trickle_feed(dev);
 
 	/* WaVSRefCountFullforceMissDisable:hsw */
 	gen7_setup_fixed_func_scheduler(dev_priv);
@@ -4697,7 +4706,6 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 static void ivybridge_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
 	uint32_t snpcr;
 
 	I915_WRITE(WM3_LP_ILK, 0);
@@ -4766,12 +4774,7 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 			I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
 			GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
 
-	for_each_pipe(pipe) {
-		I915_WRITE(DSPCNTR(pipe),
-			   I915_READ(DSPCNTR(pipe)) |
-			   DISPPLANE_TRICKLE_FEED_DISABLE);
-		intel_flush_display_plane(dev_priv, pipe);
-	}
+	g4x_disable_trickle_feed(dev);
 
 	/* WaMbcDriverBootEnable:ivb */
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
@@ -4798,13 +4801,8 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 static void valleyview_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
 
-	I915_WRITE(WM3_LP_ILK, 0);
-	I915_WRITE(WM2_LP_ILK, 0);
-	I915_WRITE(WM1_LP_ILK, 0);
-
-	I915_WRITE(ILK_DSPCLK_GATE_D, ILK_VRHUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaDisableEarlyCull:vlv */
 	I915_WRITE(_3D_CHICKEN3,
@@ -4875,12 +4873,7 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 
 	I915_WRITE(GEN7_UCGCTL4, GEN7_L3BANK2X_CLOCK_GATE_DISABLE);
 
-	for_each_pipe(pipe) {
-		I915_WRITE(DSPCNTR(pipe),
-			   I915_READ(DSPCNTR(pipe)) |
-			   DISPPLANE_TRICKLE_FEED_DISABLE);
-		intel_flush_display_plane(dev_priv, pipe);
-	}
+	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
 
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
@@ -4922,6 +4915,8 @@ static void g4x_init_clock_gating(struct drm_device *dev)
 	/* WaDisableRenderCachePipelinedFlush */
 	I915_WRITE(CACHE_MODE_0,
 		   _MASKED_BIT_ENABLE(CM0_PIPELINED_RENDER_FLUSH_DISABLE));
+
+	g4x_disable_trickle_feed(dev);
 }
 
 static void crestline_init_clock_gating(struct drm_device *dev)
@@ -4933,6 +4928,8 @@ static void crestline_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(DSPCLK_GATE_D, 0);
 	I915_WRITE(RAMCLK_GATE_D, 0);
 	I915_WRITE16(DEUC, 0);
+	I915_WRITE(MI_ARB_STATE,
+		   _MASKED_BIT_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
 }
 
 static void broadwater_init_clock_gating(struct drm_device *dev)
@@ -4945,6 +4942,8 @@ static void broadwater_init_clock_gating(struct drm_device *dev)
 		   I965_ISC_CLOCK_GATE_DISABLE |
 		   I965_FBC_CLOCK_GATE_DISABLE);
 	I915_WRITE(RENCLK_GATE_D2, 0);
+	I915_WRITE(MI_ARB_STATE,
+		   _MASKED_BIT_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
 }
 
 static void gen3_init_clock_gating(struct drm_device *dev)
@@ -5022,17 +5021,11 @@ bool intel_display_power_enabled(struct drm_device *dev,
 	}
 }
 
-void intel_set_power_well(struct drm_device *dev, bool enable)
+static void __intel_set_power_well(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool is_enabled, enable_requested;
 	uint32_t tmp;
-
-	if (!HAS_POWER_WELL(dev))
-		return;
-
-	if (!i915_disable_power_well && !enable)
-		return;
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
 	is_enabled = tmp & HSW_PWR_WELL_STATE;
@@ -5054,6 +5047,79 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 			DRM_DEBUG_KMS("Requesting to disable the power well\n");
 		}
 	}
+}
+
+static struct i915_power_well *hsw_pwr;
+
+/* Display audio driver power well request */
+void i915_request_power_well(void)
+{
+	if (WARN_ON(!hsw_pwr))
+		return;
+
+	spin_lock_irq(&hsw_pwr->lock);
+	if (!hsw_pwr->count++ &&
+			!hsw_pwr->i915_request)
+		__intel_set_power_well(hsw_pwr->device, true);
+	spin_unlock_irq(&hsw_pwr->lock);
+}
+EXPORT_SYMBOL_GPL(i915_request_power_well);
+
+/* Display audio driver power well release */
+void i915_release_power_well(void)
+{
+	if (WARN_ON(!hsw_pwr))
+		return;
+
+	spin_lock_irq(&hsw_pwr->lock);
+	WARN_ON(!hsw_pwr->count);
+	if (!--hsw_pwr->count &&
+		       !hsw_pwr->i915_request)
+		__intel_set_power_well(hsw_pwr->device, false);
+	spin_unlock_irq(&hsw_pwr->lock);
+}
+EXPORT_SYMBOL_GPL(i915_release_power_well);
+
+int i915_init_power_well(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	hsw_pwr = &dev_priv->power_well;
+
+	hsw_pwr->device = dev;
+	spin_lock_init(&hsw_pwr->lock);
+	hsw_pwr->count = 0;
+
+	return 0;
+}
+
+void i915_remove_power_well(struct drm_device *dev)
+{
+	hsw_pwr = NULL;
+}
+
+void intel_set_power_well(struct drm_device *dev, bool enable)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_well *power_well = &dev_priv->power_well;
+
+	if (!HAS_POWER_WELL(dev))
+		return;
+
+	if (!i915_disable_power_well && !enable)
+		return;
+
+	spin_lock_irq(&power_well->lock);
+	power_well->i915_request = enable;
+
+	/* only reject "disable" power well request */
+	if (power_well->count && !enable) {
+		spin_unlock_irq(&power_well->lock);
+		return;
+	}
+
+	__intel_set_power_well(dev, enable);
+	spin_unlock_irq(&power_well->lock);
 }
 
 /*

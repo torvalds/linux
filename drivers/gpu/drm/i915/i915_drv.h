@@ -132,15 +132,38 @@ enum hpd_pin {
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
 		if ((intel_encoder)->base.crtc == (__crtc))
 
-struct intel_pch_pll {
+struct drm_i915_private;
+
+enum intel_dpll_id {
+	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
+	/* real shared dpll ids must be >= 0 */
+	DPLL_ID_PCH_PLL_A,
+	DPLL_ID_PCH_PLL_B,
+};
+#define I915_NUM_PLLS 2
+
+struct intel_dpll_hw_state {
+	uint32_t dpll;
+	uint32_t fp0;
+	uint32_t fp1;
+};
+
+struct intel_shared_dpll {
 	int refcount; /* count of number of CRTCs sharing this PLL */
 	int active; /* count of number of active CRTCs (i.e. DPMS on) */
 	bool on; /* is the PLL actually active? Disabled during modeset */
-	int pll_reg;
-	int fp0_reg;
-	int fp1_reg;
+	const char *name;
+	/* should match the index in the dev_priv->shared_dplls array */
+	enum intel_dpll_id id;
+	struct intel_dpll_hw_state hw_state;
+	void (*enable)(struct drm_i915_private *dev_priv,
+		       struct intel_shared_dpll *pll);
+	void (*disable)(struct drm_i915_private *dev_priv,
+			struct intel_shared_dpll *pll);
+	bool (*get_hw_state)(struct drm_i915_private *dev_priv,
+			     struct intel_shared_dpll *pll,
+			     struct intel_dpll_hw_state *hw_state);
 };
-#define I915_NUM_PLLS 2
 
 /* Used by dp and fdi links */
 struct intel_link_m_n {
@@ -195,7 +218,6 @@ struct opregion_header;
 struct opregion_acpi;
 struct opregion_swsci;
 struct opregion_asle;
-struct drm_i915_private;
 
 struct intel_opregion {
 	struct opregion_header __iomem *header;
@@ -306,6 +328,8 @@ struct drm_i915_error_state {
 
 struct intel_crtc_config;
 struct intel_crtc;
+struct intel_limit;
+struct dpll;
 
 struct drm_i915_display_funcs {
 	bool (*fbc_enabled)(struct drm_device *dev);
@@ -313,6 +337,24 @@ struct drm_i915_display_funcs {
 	void (*disable_fbc)(struct drm_device *dev);
 	int (*get_display_clock_speed)(struct drm_device *dev);
 	int (*get_fifo_size)(struct drm_device *dev, int plane);
+	/**
+	 * find_dpll() - Find the best values for the PLL
+	 * @limit: limits for the PLL
+	 * @crtc: current CRTC
+	 * @target: target frequency in kHz
+	 * @refclk: reference clock frequency in kHz
+	 * @match_clock: if provided, @best_clock P divider must
+	 *               match the P divider from @match_clock
+	 *               used for LVDS downclocking
+	 * @best_clock: best PLL values found
+	 *
+	 * Returns true on success, false on failure.
+	 */
+	bool (*find_dpll)(const struct intel_limit *limit,
+			  struct drm_crtc *crtc,
+			  int target, int refclk,
+			  struct dpll *match_clock,
+			  struct dpll *best_clock);
 	void (*update_wm)(struct drm_device *dev);
 	void (*update_sprite_wm)(struct drm_device *dev, int pipe,
 				 uint32_t sprite_width, int pixel_size,
@@ -466,6 +508,13 @@ struct i915_hw_ppgtt {
 	void (*cleanup)(struct i915_hw_ppgtt *ppgtt);
 };
 
+struct i915_ctx_hang_stats {
+	/* This context had batch pending when hang was declared */
+	unsigned batch_pending;
+
+	/* This context had batch active when hang was declared */
+	unsigned batch_active;
+};
 
 /* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_ID 0
@@ -476,6 +525,7 @@ struct i915_hw_context {
 	struct drm_i915_file_private *file_priv;
 	struct intel_ring_buffer *ring;
 	struct drm_i915_gem_object *obj;
+	struct i915_ctx_hang_stats hang_stats;
 };
 
 enum no_fbc_reason {
@@ -720,6 +770,15 @@ struct intel_ilk_power_mgmt {
 	struct drm_i915_gem_object *renderctx;
 };
 
+/* Power well structure for haswell */
+struct i915_power_well {
+	struct drm_device *device;
+	spinlock_t lock;
+	/* power well enable/disable usage count */
+	int count;
+	int i915_request;
+};
+
 struct i915_dri1_state {
 	unsigned allow_batchbuffer : 1;
 	u32 __iomem *gfx_hws_cpu_addr;
@@ -842,7 +901,6 @@ struct i915_gpu_error {
 #define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
 #define DRM_I915_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD)
 	struct timer_list hangcheck_timer;
-	int hangcheck_count;
 
 	/* For reset and error_state handling. */
 	spinlock_t lock;
@@ -998,7 +1056,6 @@ typedef struct drm_i915_private {
 	u32 hpd_event_bits;
 	struct timer_list hotplug_reenable_timer;
 
-	int num_pch_pll;
 	int num_plane;
 
 	unsigned long cfb_size;
@@ -1059,7 +1116,8 @@ typedef struct drm_i915_private {
 	struct drm_crtc *pipe_to_crtc_mapping[3];
 	wait_queue_head_t pending_flip_queue;
 
-	struct intel_pch_pll pch_plls[I915_NUM_PLLS];
+	int num_shared_dpll;
+	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
 	struct intel_ddi_plls ddi_plls;
 
 	/* Reclocking support */
@@ -1079,6 +1137,9 @@ typedef struct drm_i915_private {
 	/* ilk-only ips/rps state. Everything in here is protected by the global
 	 * mchdev_lock in intel_pm.c */
 	struct intel_ilk_power_mgmt ips;
+
+	/* Haswell power well */
+	struct i915_power_well power_well;
 
 	enum no_fbc_reason no_fbc_reason;
 
@@ -1154,7 +1215,7 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *gtt_space;
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
-	struct list_head gtt_list;
+	struct list_head global_list;
 
 	/** This object's place on the active/inactive lists */
 	struct list_head ring_list;
@@ -1301,11 +1362,17 @@ struct drm_i915_gem_request {
 	/** GEM sequence number associated with this request. */
 	uint32_t seqno;
 
-	/** Postion in the ringbuffer of the end of the request */
+	/** Position in the ringbuffer of the start of the request */
+	u32 head;
+
+	/** Position in the ringbuffer of the end of the request */
 	u32 tail;
 
 	/** Context related to this request */
 	struct i915_hw_context *ctx;
+
+	/** Batch buffer related to this request if any */
+	struct drm_i915_gem_object *batch_obj;
 
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
@@ -1324,6 +1391,8 @@ struct drm_i915_file_private {
 		struct list_head request_list;
 	} mm;
 	struct idr context_idr;
+
+	struct i915_ctx_hang_stats hang_stats;
 };
 
 #define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
@@ -1660,6 +1729,7 @@ i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj)
 {
 	if (obj->fence_reg != I915_FENCE_REG_NONE) {
 		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+		WARN_ON(dev_priv->fence_regs[obj->fence_reg].pin_count <= 0);
 		dev_priv->fence_regs[obj->fence_reg].pin_count--;
 	}
 }
@@ -1692,9 +1762,12 @@ void i915_gem_init_swizzling(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_idle(struct drm_device *dev);
-int i915_add_request(struct intel_ring_buffer *ring,
-		     struct drm_file *file,
-		     u32 *seqno);
+int __i915_add_request(struct intel_ring_buffer *ring,
+		       struct drm_file *file,
+		       struct drm_i915_gem_object *batch_obj,
+		       u32 *seqno);
+#define i915_add_request(ring, seqno) \
+	__i915_add_request(ring, NULL, NULL, seqno)
 int __must_check i915_wait_seqno(struct intel_ring_buffer *ring,
 				 uint32_t seqno);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
@@ -1748,6 +1821,10 @@ static inline void i915_gem_context_unreference(struct i915_hw_context *ctx)
 	kref_put(&ctx->ref, i915_gem_context_free);
 }
 
+struct i915_ctx_hang_stats * __must_check
+i915_gem_context_get_hang_stats(struct intel_ring_buffer *ring,
+				struct drm_file *file,
+				u32 id);
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file);
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,

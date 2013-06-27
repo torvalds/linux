@@ -624,7 +624,7 @@ intel_ddi_calculate_wrpll(int clock /* in Hz */,
 		      clock, *p_out, *n2_out, *r2_out);
 }
 
-bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock)
+bool intel_ddi_pll_mode_set(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
@@ -634,6 +634,7 @@ bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock)
 	int type = intel_encoder->type;
 	enum pipe pipe = intel_crtc->pipe;
 	uint32_t reg, val;
+	int clock = intel_crtc->config.port_clock;
 
 	/* TODO: reuse PLLs when possible (compare values) */
 
@@ -1278,7 +1279,6 @@ static void intel_ddi_get_config(struct intel_encoder *encoder,
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
 	pipe_config->adjusted_mode.flags |= flags;
-	pipe_config->pixel_multiplier = 1;
 }
 
 static void intel_ddi_destroy(struct drm_encoder *encoder)
