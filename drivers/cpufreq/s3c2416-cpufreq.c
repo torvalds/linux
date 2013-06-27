@@ -312,7 +312,7 @@ static void __init s3c2416_cpufreq_cfg_regulator(struct s3c2416_data *s3c_freq)
 		if (freq->frequency == CPUFREQ_ENTRY_INVALID)
 			continue;
 
-		dvfs = &s3c2416_dvfs_table[freq->index];
+		dvfs = &s3c2416_dvfs_table[freq->driver_data];
 		found = 0;
 
 		/* Check only the min-voltage, more is always ok on S3C2416 */
@@ -462,7 +462,7 @@ static int __init s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 	freq = s3c_freq->freq_table;
 	while (freq->frequency != CPUFREQ_TABLE_END) {
 		/* special handling for dvs mode */
-		if (freq->index == 0) {
+		if (freq->driver_data == 0) {
 			if (!s3c_freq->hclk) {
 				pr_debug("cpufreq: %dkHz unsupported as it would need unavailable dvs mode\n",
 					 freq->frequency);
