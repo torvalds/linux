@@ -3199,16 +3199,18 @@ out:
 
 static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root, void *ctx)
 {
-	unsigned long index;
 	struct scrub_copy_nocow_ctx *nocow_ctx = ctx;
-	int ret = 0;
+	struct btrfs_fs_info *fs_info = nocow_ctx->sctx->dev_root->fs_info;
 	struct btrfs_key key;
-	struct inode *inode = NULL;
+	struct inode *inode;
+	struct page *page;
 	struct btrfs_root *local_root;
 	u64 physical_for_dev_replace;
 	u64 len;
-	struct btrfs_fs_info *fs_info = nocow_ctx->sctx->dev_root->fs_info;
+	unsigned long index;
 	int srcu_index;
+	int ret;
+	int err;
 
 	key.objectid = root;
 	key.type = BTRFS_ROOT_ITEM_KEY;
@@ -3230,19 +3232,17 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root, void *ctx)
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
+	ret = 0;
 	physical_for_dev_replace = nocow_ctx->physical_for_dev_replace;
 	len = nocow_ctx->len;
 	while (len >= PAGE_CACHE_SIZE) {
-		struct page *page = NULL;
-		int ret_sub;
-
 		index = offset >> PAGE_CACHE_SHIFT;
 
 		page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
 		if (!page) {
 			pr_err("find_or_create_page() failed\n");
 			ret = -ENOMEM;
-			goto next_page;
+			goto out;
 		}
 
 		if (PageUptodate(page)) {
@@ -3250,12 +3250,12 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root, void *ctx)
 				goto next_page;
 		} else {
 			ClearPageError(page);
-			ret_sub = extent_read_full_page(&BTRFS_I(inode)->
+			err = extent_read_full_page(&BTRFS_I(inode)->
 							 io_tree,
 							page, btrfs_get_extent,
 							nocow_ctx->mirror_num);
-			if (ret_sub) {
-				ret = ret_sub;
+			if (err) {
+				ret = err;
 				goto next_page;
 			}
 			lock_page(page);
@@ -3264,25 +3264,23 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root, void *ctx)
 				goto next_page;
 			}
 		}
-		ret_sub = write_page_nocow(nocow_ctx->sctx,
-					   physical_for_dev_replace, page);
-		if (ret_sub) {
-			ret = ret_sub;
-			goto next_page;
-		}
-
+		err = write_page_nocow(nocow_ctx->sctx,
+				       physical_for_dev_replace, page);
+		if (err)
+			ret = err;
 next_page:
-		if (page) {
-			unlock_page(page);
-			put_page(page);
-		}
+		unlock_page(page);
+		page_cache_release(page);
+
+		if (ret)
+			break;
+
 		offset += PAGE_CACHE_SIZE;
 		physical_for_dev_replace += PAGE_CACHE_SIZE;
 		len -= PAGE_CACHE_SIZE;
 	}
-
-	if (inode)
-		iput(inode);
+out:
+	iput(inode);
 	return ret;
 }
 
