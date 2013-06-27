@@ -3719,7 +3719,7 @@ void ni_dpm_disable(struct radeon_device *rdev)
 	ni_update_current_ps(rdev, boot_ps);
 }
 
-int ni_power_control_set_level(struct radeon_device *rdev)
+static int ni_power_control_set_level(struct radeon_device *rdev)
 {
 	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
 	int ret;
@@ -3736,7 +3736,9 @@ int ni_power_control_set_level(struct radeon_device *rdev)
 	ret = rv770_resume_smc(rdev);
 	if (ret)
 		return ret;
-	rv770_set_sw_state(rdev);
+	ret = rv770_set_sw_state(rdev);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -3801,11 +3803,6 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 		DRM_ERROR("ni_program_memory_timing_parameters failed\n");
 		return ret;
 	}
-	ret = ni_populate_smc_tdp_limits(rdev, new_ps);
-	if (ret) {
-		DRM_ERROR("ni_populate_smc_tdp_limits failed\n");
-		return ret;
-	}
 	ret = rv770_resume_smc(rdev);
 	if (ret) {
 		DRM_ERROR("rv770_resume_smc failed\n");
@@ -3825,6 +3822,13 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 	ret = ni_enable_power_containment(rdev, new_ps, true);
 	if (ret) {
 		DRM_ERROR("ni_enable_power_containment failed\n");
+		return ret;
+	}
+
+	/* update tdp */
+	ret = ni_power_control_set_level(rdev);
+	if (ret) {
+		DRM_ERROR("ni_power_control_set_level failed\n");
 		return ret;
 	}
 
