@@ -38,10 +38,26 @@ static sense_reason_t
 sbc_emulate_readcapacity(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
+	unsigned char *cdb = cmd->t_task_cdb;
 	unsigned long long blocks_long = dev->transport->get_blocks(dev);
 	unsigned char *rbuf;
 	unsigned char buf[8];
 	u32 blocks;
+
+	/*
+	 * SBC-2 says:
+	 *   If the PMI bit is set to zero and the LOGICAL BLOCK
+	 *   ADDRESS field is not set to zero, the device server shall
+	 *   terminate the command with CHECK CONDITION status with
+	 *   the sense key set to ILLEGAL REQUEST and the additional
+	 *   sense code set to INVALID FIELD IN CDB.
+	 *
+	 * In SBC-3, these fields are obsolete, but some SCSI
+	 * compliance tests actually check this, so we might as well
+	 * follow SBC-2.
+	 */
+	if (!(cdb[8] & 1) && !!(cdb[2] | cdb[3] | cdb[4] | cdb[5]))
+		return TCM_INVALID_CDB_FIELD;
 
 	if (blocks_long >= 0x00000000ffffffff)
 		blocks = 0xffffffff;
