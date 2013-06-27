@@ -309,56 +309,6 @@ static void write_sum_page(struct f2fs_sb_info *sbi,
 	f2fs_put_page(page, 1);
 }
 
-static unsigned int check_prefree_segments(struct f2fs_sb_info *sbi, int type)
-{
-	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
-	unsigned long *prefree_segmap = dirty_i->dirty_segmap[PRE];
-	unsigned int segno;
-	unsigned int ofs = 0;
-
-	/*
-	 * If there is not enough reserved sections,
-	 * we should not reuse prefree segments.
-	 */
-	if (has_not_enough_free_secs(sbi, 0))
-		return NULL_SEGNO;
-
-	/*
-	 * NODE page should not reuse prefree segment,
-	 * since those information is used for SPOR.
-	 */
-	if (IS_NODESEG(type))
-		return NULL_SEGNO;
-next:
-	segno = find_next_bit(prefree_segmap, TOTAL_SEGS(sbi), ofs);
-	ofs += sbi->segs_per_sec;
-
-	if (segno < TOTAL_SEGS(sbi)) {
-		int i;
-
-		/* skip intermediate segments in a section */
-		if (segno % sbi->segs_per_sec)
-			goto next;
-
-		/* skip if the section is currently used */
-		if (sec_usage_check(sbi, GET_SECNO(sbi, segno)))
-			goto next;
-
-		/* skip if whole section is not prefree */
-		for (i = 1; i < sbi->segs_per_sec; i++)
-			if (!test_bit(segno + i, prefree_segmap))
-				goto next;
-
-		/* skip if whole section was not free at the last checkpoint */
-		for (i = 0; i < sbi->segs_per_sec; i++)
-			if (get_seg_entry(sbi, segno + i)->ckpt_valid_blocks)
-				goto next;
-
-		return segno;
-	}
-	return NULL_SEGNO;
-}
-
 static int is_next_segment_free(struct f2fs_sb_info *sbi, int type)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
@@ -597,11 +547,7 @@ static void allocate_segment_by_default(struct f2fs_sb_info *sbi,
 		goto out;
 	}
 
-	curseg->next_segno = check_prefree_segments(sbi, type);
-
-	if (curseg->next_segno != NULL_SEGNO)
-		change_curseg(sbi, type, false);
-	else if (type == CURSEG_WARM_NODE)
+	if (type == CURSEG_WARM_NODE)
 		new_curseg(sbi, type, false);
 	else if (curseg->alloc_type == LFS && is_next_segment_free(sbi, type))
 		new_curseg(sbi, type, false);
