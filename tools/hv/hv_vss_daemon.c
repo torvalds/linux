@@ -156,7 +156,8 @@ int main(void)
 
 	fd = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
 	if (fd < 0) {
-		syslog(LOG_ERR, "netlink socket creation failed; error:%d", fd);
+		syslog(LOG_ERR, "netlink socket creation failed; error:%d %s",
+				errno, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	addr.nl_family = AF_NETLINK;
@@ -167,7 +168,7 @@ int main(void)
 
 	error = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
 	if (error < 0) {
-		syslog(LOG_ERR, "bind failed; error:%d", error);
+		syslog(LOG_ERR, "bind failed; error:%d %s", errno, strerror(errno));
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
@@ -187,7 +188,7 @@ int main(void)
 
 	len = netlink_send(fd, message);
 	if (len < 0) {
-		syslog(LOG_ERR, "netlink_send failed; error:%d", len);
+		syslog(LOG_ERR, "netlink_send failed; error:%d %s", errno, strerror(errno));
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
@@ -241,7 +242,8 @@ int main(void)
 		vss_msg->error = error;
 		len = netlink_send(fd, incoming_cn_msg);
 		if (len < 0) {
-			syslog(LOG_ERR, "net_link send failed; error:%d", len);
+			syslog(LOG_ERR, "net_link send failed; error:%d %s",
+					errno, strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}
