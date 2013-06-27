@@ -319,6 +319,8 @@ i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask)
 	u32 reg = PIPESTAT(pipe);
 	u32 pipestat = I915_READ(reg) & 0x7fff0000;
 
+	assert_spin_locked(&dev_priv->irq_lock);
+
 	if ((pipestat & mask) == mask)
 		return;
 
@@ -333,6 +335,8 @@ i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask)
 {
 	u32 reg = PIPESTAT(pipe);
 	u32 pipestat = I915_READ(reg) & 0x7fff0000;
+
+	assert_spin_locked(&dev_priv->irq_lock);
 
 	if ((pipestat & mask) == 0)
 		return;
@@ -2864,6 +2868,7 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	u32 gt_irqs;
 	u32 enable_mask;
 	u32 pipestat_enable = PLANE_FLIP_DONE_INT_EN_VLV;
+	unsigned long irqflags;
 
 	enable_mask = I915_DISPLAY_PORT_INTERRUPT;
 	enable_mask |= I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
@@ -2889,9 +2894,13 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(PIPESTAT(1), 0xffff);
 	POSTING_READ(VLV_IER);
 
+	/* Interrupt setup is already guaranteed to be single-threaded, this is
+	 * just to make the assert_spin_locked check happy. */
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	i915_enable_pipestat(dev_priv, 0, pipestat_enable);
 	i915_enable_pipestat(dev_priv, 0, PIPE_GMBUS_EVENT_ENABLE);
 	i915_enable_pipestat(dev_priv, 1, pipestat_enable);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	I915_WRITE(VLV_IIR, 0xffffffff);
 	I915_WRITE(VLV_IIR, 0xffffffff);
@@ -3370,6 +3379,7 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 enable_mask;
 	u32 error_mask;
+	unsigned long irqflags;
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask = ~(I915_ASLE_INTERRUPT |
@@ -3388,7 +3398,11 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	if (IS_G4X(dev))
 		enable_mask |= I915_BSD_USER_INTERRUPT;
 
+	/* Interrupt setup is already guaranteed to be single-threaded, this is
+	 * just to make the assert_spin_locked check happy. */
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	i915_enable_pipestat(dev_priv, 0, PIPE_GMBUS_EVENT_ENABLE);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	/*
 	 * Enable some error detection, note the instruction error mask
