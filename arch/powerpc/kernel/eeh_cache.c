@@ -285,7 +285,7 @@ void eeh_addr_cache_rmv_dev(struct pci_dev *dev)
  * Must be run late in boot process, after the pci controllers
  * have been scanned for devices (after all device resources are known).
  */
-void __init eeh_addr_cache_build(void)
+void eeh_addr_cache_build(void)
 {
 	struct device_node *dn;
 	struct eeh_dev *edev;

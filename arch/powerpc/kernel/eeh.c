@@ -756,7 +756,7 @@ int __exit eeh_ops_unregister(const char *name)
  * Even if force-off is set, the EEH hardware is still enabled, so that
  * newer systems can boot.
  */
-int __init eeh_init(void)
+int eeh_init(void)
 {
 	struct pci_controller *hose, *tmp;
 	struct device_node *phb;
