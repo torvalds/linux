@@ -86,6 +86,8 @@ static void i915_hpd_irq_setup(struct drm_device *dev);
 static void
 ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
+	assert_spin_locked(&dev_priv->irq_lock);
+
 	if ((dev_priv->irq_mask & mask) != 0) {
 		dev_priv->irq_mask &= ~mask;
 		I915_WRITE(DEIMR, dev_priv->irq_mask);
@@ -96,6 +98,8 @@ ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 static void
 ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
+	assert_spin_locked(&dev_priv->irq_lock);
+
 	if ((dev_priv->irq_mask & mask) != mask) {
 		dev_priv->irq_mask |= mask;
 		I915_WRITE(DEIMR, dev_priv->irq_mask);
@@ -108,6 +112,8 @@ static bool ivb_can_enable_err_int(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc;
 	enum pipe pipe;
+
+	assert_spin_locked(&dev_priv->irq_lock);
 
 	for_each_pipe(pipe) {
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
@@ -1217,8 +1223,11 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 	/* On Haswell, also mask ERR_INT because we don't want to risk
 	 * generating "unclaimed register" interrupts from inside the interrupt
 	 * handler. */
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev)) {
+		spin_lock(&dev_priv->irq_lock);
 		ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
+		spin_unlock(&dev_priv->irq_lock);
+	}
 
 	gt_iir = I915_READ(GTIIR);
 	if (gt_iir) {
@@ -1271,8 +1280,12 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 		ret = IRQ_HANDLED;
 	}
 
-	if (IS_HASWELL(dev) && ivb_can_enable_err_int(dev))
-		ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
+	if (IS_HASWELL(dev)) {
+		spin_lock(&dev_priv->irq_lock);
+		if (ivb_can_enable_err_int(dev))
+			ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
+		spin_unlock(&dev_priv->irq_lock);
+	}
 
 	I915_WRITE(DEIER, de_ier);
 	POSTING_READ(DEIER);
@@ -2743,6 +2756,8 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 
 static int ironlake_irq_postinstall(struct drm_device *dev)
 {
+	unsigned long irqflags;
+
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	/* enable kind of interrupts always enabled */
 	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
@@ -2781,7 +2796,13 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 		/* Clear & enable PCU event interrupts */
 		I915_WRITE(DEIIR, DE_PCU_EVENT);
 		I915_WRITE(DEIER, I915_READ(DEIER) | DE_PCU_EVENT);
+
+		/* spinlocking not required here for correctness since interrupt
+		 * setup is guaranteed to run in single-threaded context. But we
+		 * need it to make the assert_spin_locked happy. */
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 		ironlake_enable_display_irq(dev_priv, DE_PCU_EVENT);
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
 
 	return 0;
