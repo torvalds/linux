@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/clock.h>
+#include <asm/idle.h>
 
 #include <asm/mach-loongson/loongson.h>
 
@@ -200,6 +201,7 @@ static void loongson2_cpu_wait(void)
 	LOONGSON_CHIPCFG0 &= ~0x7;	/* Put CPU into wait mode */
 	LOONGSON_CHIPCFG0 = cpu_freq;	/* Restore CPU state */
 	spin_unlock_irqrestore(&loongson2_wait_lock, flags);
+	local_irq_enable();
 }
 
 static int __init cpufreq_init(void)

@@ -560,6 +560,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 		if (!config) {
 			dev_err(&pdev->dev,
 				"failed to allocate musb hdrc config\n");
+			ret = -ENOMEM;
 			goto err2;
 		}
 

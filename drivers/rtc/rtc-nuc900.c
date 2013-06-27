@@ -234,11 +234,6 @@ static int __init nuc900_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "platform_get_resource failed\n");
-		return -ENXIO;
-	}
-
 	nuc900_rtc->rtc_reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(nuc900_rtc->rtc_reg))
 		return PTR_ERR(nuc900_rtc->rtc_reg);

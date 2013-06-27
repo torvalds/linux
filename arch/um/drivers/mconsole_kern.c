@@ -147,7 +147,7 @@ void mconsole_proc(struct mc_request *req)
 	}
 
 	do {
-		loff_t pos;
+		loff_t pos = file->f_pos;
 		mm_segment_t old_fs = get_fs();
 		set_fs(KERNEL_DS);
 		len = vfs_read(file, buf, PAGE_SIZE - 1, &pos);

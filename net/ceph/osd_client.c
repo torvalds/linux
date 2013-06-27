@@ -1204,6 +1204,7 @@ void ceph_osdc_unregister_linger_request(struct ceph_osd_client *osdc,
 	mutex_lock(&osdc->request_mutex);
 	if (req->r_linger) {
 		__unregister_linger_request(osdc, req);
+		req->r_linger = 0;
 		ceph_osdc_put_request(req);
 	}
 	mutex_unlock(&osdc->request_mutex);
@@ -1674,13 +1675,13 @@ static void kick_requests(struct ceph_osd_client *osdc, int force_resend)
 		__register_request(osdc, req);
 		__unregister_linger_request(osdc, req);
 	}
+	reset_changed_osds(osdc);
 	mutex_unlock(&osdc->request_mutex);
 
 	if (needmap) {
 		dout("%d requests for down osds, need new map\n", needmap);
 		ceph_monc_request_next_osdmap(&osdc->client->monc);
 	}
-	reset_changed_osds(osdc);
 }
 
 
@@ -2120,7 +2121,9 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 	down_read(&osdc->map_sem);
 	mutex_lock(&osdc->request_mutex);
 	__register_request(osdc, req);
-	WARN_ON(req->r_sent);
+	req->r_sent = 0;
+	req->r_got_reply = 0;
+	req->r_completed = 0;
 	rc = __map_request(osdc, req, 0);
 	if (rc < 0) {
 		if (nofail) {

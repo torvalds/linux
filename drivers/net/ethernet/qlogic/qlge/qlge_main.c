@@ -1106,6 +1106,7 @@ static int ql_get_next_chunk(struct ql_adapter *qdev, struct rx_ring *rx_ring,
 		if (pci_dma_mapping_error(qdev->pdev, map)) {
 			__free_pages(rx_ring->pg_chunk.page,
 					qdev->lbq_buf_order);
+			rx_ring->pg_chunk.page = NULL;
 			netif_err(qdev, drv, qdev->ndev,
 				  "PCI mapping failed.\n");
 			return -ENOMEM;
@@ -2776,6 +2777,12 @@ static void ql_free_lbq_buffers(struct ql_adapter *qdev, struct rx_ring *rx_ring
 		if (++curr_idx == rx_ring->lbq_len)
 			curr_idx = 0;
 
+	}
+	if (rx_ring->pg_chunk.page) {
+		pci_unmap_page(qdev->pdev, rx_ring->pg_chunk.map,
+			ql_lbq_block_size(qdev), PCI_DMA_FROMDEVICE);
+		put_page(rx_ring->pg_chunk.page);
+		rx_ring->pg_chunk.page = NULL;
 	}
 }
 
@@ -4710,6 +4717,7 @@ static int qlge_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "net device registration failed.\n");
 		ql_release_all(pdev);
 		pci_disable_device(pdev);
+		free_netdev(ndev);
 		return err;
 	}
 	/* Start up the timer to trigger EEH if

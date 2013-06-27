@@ -973,16 +973,57 @@ int qlcnic_change_mtu(struct net_device *netdev, int mtu)
 	return rc;
 }
 
+static netdev_features_t qlcnic_process_flags(struct qlcnic_adapter *adapter,
+					      netdev_features_t features)
+{
+	u32 offload_flags = adapter->offload_flags;
+
+	if (offload_flags & BIT_0) {
+		features |= NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
+			    NETIF_F_IPV6_CSUM;
+		adapter->rx_csum = 1;
+		if (QLCNIC_IS_TSO_CAPABLE(adapter)) {
+			if (!(offload_flags & BIT_1))
+				features &= ~NETIF_F_TSO;
+			else
+				features |= NETIF_F_TSO;
+
+			if (!(offload_flags & BIT_2))
+				features &= ~NETIF_F_TSO6;
+			else
+				features |= NETIF_F_TSO6;
+		}
+	} else {
+		features &= ~(NETIF_F_RXCSUM |
+			      NETIF_F_IP_CSUM |
+			      NETIF_F_IPV6_CSUM);
+
+		if (QLCNIC_IS_TSO_CAPABLE(adapter))
+			features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+		adapter->rx_csum = 0;
+	}
+
+	return features;
+}
 
 netdev_features_t qlcnic_fix_features(struct net_device *netdev,
 	netdev_features_t features)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	netdev_features_t changed;
 
-	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED) &&
-	    qlcnic_82xx_check(adapter)) {
-		netdev_features_t changed = features ^ netdev->features;
-		features ^= changed & (NETIF_F_ALL_CSUM | NETIF_F_RXCSUM);
+	if (qlcnic_82xx_check(adapter) &&
+	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+		if (adapter->flags & QLCNIC_APP_CHANGED_FLAGS) {
+			features = qlcnic_process_flags(adapter, features);
+		} else {
+			changed = features ^ netdev->features;
+			features ^= changed & (NETIF_F_RXCSUM |
+					       NETIF_F_IP_CSUM |
+					       NETIF_F_IPV6_CSUM |
+					       NETIF_F_TSO |
+					       NETIF_F_TSO6);
+		}
 	}
 
 	if (!(features & NETIF_F_RXCSUM))

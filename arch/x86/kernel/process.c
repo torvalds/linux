@@ -277,18 +277,6 @@ void exit_idle(void)
 }
 #endif
 
-void arch_cpu_idle_prepare(void)
-{
-	/*
-	 * If we're the non-boot CPU, nothing set the stack canary up
-	 * for us.  CPU0 already has it initialized but no harm in
-	 * doing it again.  This is a good place for updating it, as
-	 * we wont ever return from this function (so the invalid
-	 * canaries already on the stack wont ever trigger).
-	 */
-	boot_init_stack_canary();
-}
-
 void arch_cpu_idle_enter(void)
 {
 	local_touch_nmi();
@@ -312,6 +300,8 @@ void arch_cpu_idle(void)
 {
 	if (cpuidle_idle_call())
 		x86_idle();
+	else
+		local_irq_enable();
 }
 
 /*
@@ -368,9 +358,6 @@ void amd_e400_remove_cpu(int cpu)
  */
 static void amd_e400_idle(void)
 {
-	if (need_resched())
-		return;
-
 	if (!amd_e400_c1e_detected) {
 		u32 lo, hi;
 

@@ -102,13 +102,6 @@ extern void efi_call_phys_epilog(void);
 extern void efi_unmap_memmap(void);
 extern void efi_memory_uc(u64 addr, unsigned long size);
 
-struct efi_var_bootdata {
-	struct setup_data data;
-	u64 store_size;
-	u64 remaining_size;
-	u64 max_var_size;
-};
-
 #ifdef CONFIG_EFI
 
 static inline bool efi_is_native(void)

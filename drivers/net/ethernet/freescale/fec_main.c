@@ -87,6 +87,8 @@
 #define FEC_QUIRK_HAS_GBIT		(1 << 3)
 /* Controller has extend desc buffer */
 #define FEC_QUIRK_HAS_BUFDESC_EX	(1 << 4)
+/* Controller has hardware checksum support */
+#define FEC_QUIRK_HAS_CSUM		(1 << 5)
 
 static struct platform_device_id fec_devtype[] = {
 	{
@@ -105,9 +107,9 @@ static struct platform_device_id fec_devtype[] = {
 	}, {
 		.name = "imx6q-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_HAS_GBIT |
-				FEC_QUIRK_HAS_BUFDESC_EX,
+				FEC_QUIRK_HAS_BUFDESC_EX | FEC_QUIRK_HAS_CSUM,
 	}, {
-		.name = "mvf-fec",
+		.name = "mvf600-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC,
 	}, {
 		/* sentinel */
@@ -120,7 +122,7 @@ enum imx_fec_type {
 	IMX27_FEC,	/* runs on i.mx27/35/51 */
 	IMX28_FEC,
 	IMX6Q_FEC,
-	MVF_FEC,
+	MVF600_FEC,
 };
 
 static const struct of_device_id fec_dt_ids[] = {
@@ -128,7 +130,7 @@ static const struct of_device_id fec_dt_ids[] = {
 	{ .compatible = "fsl,imx27-fec", .data = &fec_devtype[IMX27_FEC], },
 	{ .compatible = "fsl,imx28-fec", .data = &fec_devtype[IMX28_FEC], },
 	{ .compatible = "fsl,imx6q-fec", .data = &fec_devtype[IMX6Q_FEC], },
-	{ .compatible = "fsl,mvf-fec", .data = &fec_devtype[MVF_FEC], },
+	{ .compatible = "fsl,mvf600-fec", .data = &fec_devtype[MVF600_FEC], },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fec_dt_ids);
@@ -449,7 +451,7 @@ fec_restart(struct net_device *ndev, int duplex)
 		netif_device_detach(ndev);
 		napi_disable(&fep->napi);
 		netif_stop_queue(ndev);
-		netif_tx_lock(ndev);
+		netif_tx_lock_bh(ndev);
 	}
 
 	/* Whack a reset.  We should wait for this. */
@@ -614,10 +616,10 @@ fec_restart(struct net_device *ndev, int duplex)
 	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
 
 	if (netif_running(ndev)) {
-		netif_device_attach(ndev);
-		napi_enable(&fep->napi);
+		netif_tx_unlock_bh(ndev);
 		netif_wake_queue(ndev);
-		netif_tx_unlock(ndev);
+		napi_enable(&fep->napi);
+		netif_device_attach(ndev);
 	}
 }
 
@@ -1034,6 +1036,18 @@ static void fec_get_mac(struct net_device *ndev)
 		*((unsigned short *) &tmpaddr[4]) =
 			be16_to_cpu(readl(fep->hwp + FEC_ADDR_HIGH) >> 16);
 		iap = &tmpaddr[0];
+	}
+
+	/*
+	 * 5) random mac address
+	 */
+	if (!is_valid_ether_addr(iap)) {
+		/* Report it and use a random ethernet address instead */
+		netdev_err(ndev, "Invalid MAC address: %pM\n", iap);
+		eth_hw_addr_random(ndev);
+		netdev_info(ndev, "Using random MAC address: %pM\n",
+			    ndev->dev_addr);
+		return;
 	}
 
 	memcpy(ndev->dev_addr, iap, ETH_ALEN);
@@ -1744,6 +1758,8 @@ static const struct net_device_ops fec_netdev_ops = {
 static int fec_enet_init(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(fep->pdev);
 	struct bufdesc *cbd_base;
 
 	/* Allocate memory for buffer descriptors. */
@@ -1775,12 +1791,14 @@ static int fec_enet_init(struct net_device *ndev)
 	writel(FEC_RX_DISABLED_IMASK, fep->hwp + FEC_IMASK);
 	netif_napi_add(ndev, &fep->napi, fec_enet_rx_napi, FEC_NAPI_WEIGHT);
 
-	/* enable hw accelerator */
-	ndev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
-			| NETIF_F_RXCSUM);
-	ndev->hw_features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
-			| NETIF_F_RXCSUM);
-	fep->csum_flags |= FLAG_RX_CSUM_ENABLED;
+	if (id_entry->driver_data & FEC_QUIRK_HAS_CSUM) {
+		/* enable hw accelerator */
+		ndev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
+				| NETIF_F_RXCSUM);
+		ndev->hw_features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
+				| NETIF_F_RXCSUM);
+		fep->csum_flags |= FLAG_RX_CSUM_ENABLED;
+	}
 
 	fec_restart(ndev, 0);
 

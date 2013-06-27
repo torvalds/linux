@@ -347,11 +347,6 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		pr_debug("%s: RTC resource data missing\n", pdev->name);
-		return -ENOENT;
-	}
-
 	rtc_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(rtc_base))
 		return PTR_ERR(rtc_base);

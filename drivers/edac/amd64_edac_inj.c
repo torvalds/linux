@@ -202,9 +202,9 @@ static DEVICE_ATTR(inject_word, S_IRUGO | S_IWUSR,
 		   amd64_inject_word_show, amd64_inject_word_store);
 static DEVICE_ATTR(inject_ecc_vector, S_IRUGO | S_IWUSR,
 		   amd64_inject_ecc_vector_show, amd64_inject_ecc_vector_store);
-static DEVICE_ATTR(inject_write, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(inject_write, S_IWUSR,
 		   NULL, amd64_inject_write_store);
-static DEVICE_ATTR(inject_read, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(inject_read,  S_IWUSR,
 		   NULL, amd64_inject_read_store);
 
 

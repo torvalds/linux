@@ -580,6 +580,7 @@ struct aer_recover_entry
 	u8	devfn;
 	u16	domain;
 	int	severity;
+	struct aer_capability_regs *regs;
 };
 
 static DEFINE_KFIFO(aer_recover_ring, struct aer_recover_entry,
@@ -593,7 +594,7 @@ static DEFINE_SPINLOCK(aer_recover_ring_lock);
 static DECLARE_WORK(aer_recover_work, aer_recover_work_func);
 
 void aer_recover_queue(int domain, unsigned int bus, unsigned int devfn,
-		       int severity)
+		       int severity, struct aer_capability_regs *aer_regs)
 {
 	unsigned long flags;
 	struct aer_recover_entry entry = {
@@ -601,6 +602,7 @@ void aer_recover_queue(int domain, unsigned int bus, unsigned int devfn,
 		.devfn		= devfn,
 		.domain		= domain,
 		.severity	= severity,
+		.regs		= aer_regs,
 	};
 
 	spin_lock_irqsave(&aer_recover_ring_lock, flags);
@@ -627,6 +629,7 @@ static void aer_recover_work_func(struct work_struct *work)
 			       PCI_SLOT(entry.devfn), PCI_FUNC(entry.devfn));
 			continue;
 		}
+		cper_print_aer(pdev, entry.severity, entry.regs);
 		do_recovery(pdev, entry.severity);
 		pci_dev_put(pdev);
 	}

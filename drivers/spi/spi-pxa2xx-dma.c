@@ -59,7 +59,7 @@ static int pxa2xx_spi_map_dma_buffer(struct driver_data *drv_data,
 		int ret;
 
 		sg_free_table(sgt);
-		ret = sg_alloc_table(sgt, nents, GFP_KERNEL);
+		ret = sg_alloc_table(sgt, nents, GFP_ATOMIC);
 		if (ret)
 			return ret;
 	}

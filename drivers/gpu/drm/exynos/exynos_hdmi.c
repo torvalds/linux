@@ -1946,14 +1946,14 @@ static int hdmi_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_KMS("[%d]\n", __LINE__);
 
-	if (pdev->dev.of_node) {
+	if (dev->of_node) {
 		pdata = drm_hdmi_dt_parse_pdata(dev);
 		if (IS_ERR(pdata)) {
 			DRM_ERROR("failed to parse dt\n");
 			return PTR_ERR(pdata);
 		}
 	} else {
-		pdata = pdev->dev.platform_data;
+		pdata = dev->platform_data;
 	}
 
 	if (!pdata) {
@@ -1961,14 +1961,14 @@ static int hdmi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	drm_hdmi_ctx = devm_kzalloc(&pdev->dev, sizeof(*drm_hdmi_ctx),
+	drm_hdmi_ctx = devm_kzalloc(dev, sizeof(*drm_hdmi_ctx),
 								GFP_KERNEL);
 	if (!drm_hdmi_ctx) {
 		DRM_ERROR("failed to allocate common hdmi context.\n");
 		return -ENOMEM;
 	}
 
-	hdata = devm_kzalloc(&pdev->dev, sizeof(struct hdmi_context),
+	hdata = devm_kzalloc(dev, sizeof(struct hdmi_context),
 								GFP_KERNEL);
 	if (!hdata) {
 		DRM_ERROR("out of memory\n");
@@ -1985,7 +1985,7 @@ static int hdmi_probe(struct platform_device *pdev)
 	if (dev->of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(of_match_ptr(hdmi_match_types),
-					pdev->dev.of_node);
+					dev->of_node);
 		if (match == NULL)
 			return -ENODEV;
 		hdata->type = (enum hdmi_type)match->data;
@@ -2005,16 +2005,11 @@ static int hdmi_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		DRM_ERROR("failed to find registers\n");
-		return -ENOENT;
-	}
-
-	hdata->regs = devm_ioremap_resource(&pdev->dev, res);
+	hdata->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hdata->regs))
 		return PTR_ERR(hdata->regs);
 
-	ret = devm_gpio_request(&pdev->dev, hdata->hpd_gpio, "HPD");
+	ret = devm_gpio_request(dev, hdata->hpd_gpio, "HPD");
 	if (ret) {
 		DRM_ERROR("failed to request HPD gpio\n");
 		return ret;
@@ -2046,7 +2041,7 @@ static int hdmi_probe(struct platform_device *pdev)
 
 	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
 
-	ret = request_threaded_irq(hdata->irq, NULL,
+	ret = devm_request_threaded_irq(dev, hdata->irq, NULL,
 			hdmi_irq_thread, IRQF_TRIGGER_RISING |
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"hdmi", drm_hdmi_ctx);
@@ -2075,15 +2070,10 @@ err_ddc:
 static int hdmi_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct exynos_drm_hdmi_context *ctx = platform_get_drvdata(pdev);
-	struct hdmi_context *hdata = ctx->ctx;
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	pm_runtime_disable(dev);
-
-	free_irq(hdata->irq, hdata);
-
 
 	/* hdmiphy i2c driver */
 	i2c_del_driver(&hdmiphy_driver);

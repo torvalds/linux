@@ -1497,18 +1497,23 @@ mpc52xx_uart_init(void)
 	if (psc_ops && psc_ops->fifoc_init) {
 		ret = psc_ops->fifoc_init();
 		if (ret)
-			return ret;
+			goto err_init;
 	}
 
 	ret = platform_driver_register(&mpc52xx_uart_of_driver);
 	if (ret) {
 		printk(KERN_ERR "%s: platform_driver_register failed (%i)\n",
 		       __FILE__, ret);
-		uart_unregister_driver(&mpc52xx_uart_driver);
-		return ret;
+		goto err_reg;
 	}
 
 	return 0;
+err_reg:
+	if (psc_ops && psc_ops->fifoc_uninit)
+		psc_ops->fifoc_uninit();
+err_init:
+	uart_unregister_driver(&mpc52xx_uart_driver);
+	return ret;
 }
 
 static void __exit

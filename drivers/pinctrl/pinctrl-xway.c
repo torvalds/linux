@@ -716,10 +716,6 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 
 	/* get and remap our register range */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get resource\n");
-		return -ENOENT;
-	}
 	xway_info.membase[0] = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(xway_info.membase[0]))
 		return PTR_ERR(xway_info.membase[0]);

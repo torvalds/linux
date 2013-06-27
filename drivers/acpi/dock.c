@@ -868,8 +868,10 @@ static ssize_t write_undock(struct device *dev, struct device_attribute *attr,
 	if (!count)
 		return -EINVAL;
 
+	acpi_scan_lock_acquire();
 	begin_undock(dock_station);
 	ret = handle_eject_request(dock_station, ACPI_NOTIFY_EJECT_REQUEST);
+	acpi_scan_lock_release();
 	return ret ? ret: count;
 }
 static DEVICE_ATTR(undock, S_IWUSR, NULL, write_undock);

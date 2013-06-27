@@ -673,7 +673,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		ret = s;
 		goto out;
 	}
-	kvmppc_lazy_ee_enable();
 
 	kvm_guest_enter();
 
@@ -698,6 +697,8 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	kvmppc_load_guest_fp(vcpu);
 #endif
+
+	kvmppc_lazy_ee_enable();
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 
@@ -832,6 +833,18 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 {
 	int r = RESUME_HOST;
 	int s;
+	int idx;
+
+#ifdef CONFIG_PPC64
+	WARN_ON(local_paca->irq_happened != 0);
+#endif
+
+	/*
+	 * We enter with interrupts disabled in hardware, but
+	 * we need to call hard_irq_disable anyway to ensure that
+	 * the software state is kept in sync.
+	 */
+	hard_irq_disable();
 
 	/* update before a new last_exit_type is rewritten */
 	kvmppc_update_timing_stats(vcpu);
@@ -1053,6 +1066,8 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			break;
 		}
 
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
+
 		gpaddr = kvmppc_mmu_xlate(vcpu, gtlb_index, eaddr);
 		gfn = gpaddr >> PAGE_SHIFT;
 
@@ -1075,6 +1090,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_account_exit(vcpu, MMIO_EXITS);
 		}
 
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		break;
 	}
 
@@ -1098,6 +1114,8 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 		kvmppc_account_exit(vcpu, ITLB_VIRT_MISS_EXITS);
 
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
+
 		gpaddr = kvmppc_mmu_xlate(vcpu, gtlb_index, eaddr);
 		gfn = gpaddr >> PAGE_SHIFT;
 
@@ -1114,6 +1132,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_MACHINE_CHECK);
 		}
 
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		break;
 	}
 

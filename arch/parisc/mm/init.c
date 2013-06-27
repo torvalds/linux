@@ -47,7 +47,7 @@ pte_t pg0[PT_INITIAL * PTRS_PER_PTE] __attribute__ ((__section__ (".data..vm0.pt
 
 #ifdef CONFIG_DISCONTIGMEM
 struct node_map_data node_data[MAX_NUMNODES] __read_mostly;
-unsigned char pfnnid_map[PFNNID_MAP_MAX] __read_mostly;
+signed char pfnnid_map[PFNNID_MAP_MAX] __read_mostly;
 #endif
 
 static struct resource data_resource = {
@@ -1069,7 +1069,7 @@ void flush_tlb_all(void)
 {
 	int do_recycle;
 
-	inc_irq_stat(irq_tlb_count);
+	__inc_irq_stat(irq_tlb_count);
 	do_recycle = 0;
 	spin_lock(&sid_lock);
 	if (dirty_space_ids > RECYCLE_THRESHOLD) {
@@ -1090,7 +1090,7 @@ void flush_tlb_all(void)
 #else
 void flush_tlb_all(void)
 {
-	inc_irq_stat(irq_tlb_count);
+	__inc_irq_stat(irq_tlb_count);
 	spin_lock(&sid_lock);
 	flush_tlb_all_local(NULL);
 	recycle_sids();

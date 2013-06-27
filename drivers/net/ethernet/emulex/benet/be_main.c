@@ -780,26 +780,18 @@ static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
 	if (unlikely(!skb))
 		return skb;
 
-	if (vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb))
 		vlan_tag = be_get_tx_vlan_tag(adapter, skb);
-		skb = __vlan_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
-		if (skb)
-			skb->vlan_tci = 0;
-	}
-
-	if (qnq_async_evt_rcvd(adapter) && adapter->pvid) {
-		if (!vlan_tag)
-			vlan_tag = adapter->pvid;
-		if (skip_hw_vlan)
-			*skip_hw_vlan = true;
-	}
+	else if (qnq_async_evt_rcvd(adapter) && adapter->pvid)
+		vlan_tag = adapter->pvid;
 
 	if (vlan_tag) {
 		skb = __vlan_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 		if (unlikely(!skb))
 			return skb;
-
 		skb->vlan_tci = 0;
+		if (skip_hw_vlan)
+			*skip_hw_vlan = true;
 	}
 
 	/* Insert the outer VLAN, if any */
@@ -1607,6 +1599,8 @@ static void be_parse_rx_compl_v0(struct be_eth_rx_compl *compl,
 					       compl);
 	}
 	rxcp->port = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, port, compl);
+	rxcp->ip_frag = AMAP_GET_BITS(struct amap_eth_rx_compl_v0,
+				      ip_frag, compl);
 }
 
 static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
@@ -1627,6 +1621,9 @@ static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
 		be_parse_rx_compl_v1(compl, rxcp);
 	else
 		be_parse_rx_compl_v0(compl, rxcp);
+
+	if (rxcp->ip_frag)
+		rxcp->l4_csum = 0;
 
 	if (rxcp->vlanf) {
 		/* vlanf could be wrongly set in some cards.
@@ -2176,7 +2173,7 @@ static irqreturn_t be_msix(int irq, void *dev)
 
 static inline bool do_gro(struct be_rx_compl_info *rxcp)
 {
-	return (rxcp->tcpf && !rxcp->err) ? true : false;
+	return (rxcp->tcpf && !rxcp->err && rxcp->l4_csum) ? true : false;
 }
 
 static int be_process_rx(struct be_rx_obj *rxo, struct napi_struct *napi,
@@ -4101,6 +4098,7 @@ static int be_get_initial_config(struct be_adapter *adapter)
 
 static int lancer_recover_func(struct be_adapter *adapter)
 {
+	struct device *dev = &adapter->pdev->dev;
 	int status;
 
 	status = lancer_test_and_set_rdy_state(adapter);
@@ -4112,8 +4110,7 @@ static int lancer_recover_func(struct be_adapter *adapter)
 
 	be_clear(adapter);
 
-	adapter->hw_error = false;
-	adapter->fw_timeout = false;
+	be_clear_all_error(adapter);
 
 	status = be_setup(adapter);
 	if (status)
@@ -4125,13 +4122,13 @@ static int lancer_recover_func(struct be_adapter *adapter)
 			goto err;
 	}
 
-	dev_err(&adapter->pdev->dev,
-		"Adapter SLIPORT recovery succeeded\n");
+	dev_err(dev, "Error recovery successful\n");
 	return 0;
 err:
-	if (adapter->eeh_error)
-		dev_err(&adapter->pdev->dev,
-			"Adapter SLIPORT recovery failed\n");
+	if (status == -EAGAIN)
+		dev_err(dev, "Waiting for resource provisioning\n");
+	else
+		dev_err(dev, "Error recovery failed\n");
 
 	return status;
 }
@@ -4140,28 +4137,27 @@ static void be_func_recovery_task(struct work_struct *work)
 {
 	struct be_adapter *adapter =
 		container_of(work, struct be_adapter,  func_recovery_work.work);
-	int status;
+	int status = 0;
 
 	be_detect_error(adapter);
 
 	if (adapter->hw_error && lancer_chip(adapter)) {
-
-		if (adapter->eeh_error)
-			goto out;
 
 		rtnl_lock();
 		netif_device_detach(adapter->netdev);
 		rtnl_unlock();
 
 		status = lancer_recover_func(adapter);
-
 		if (!status)
 			netif_device_attach(adapter->netdev);
 	}
 
-out:
-	schedule_delayed_work(&adapter->func_recovery_work,
-			      msecs_to_jiffies(1000));
+	/* In Lancer, for all errors other than provisioning error (-EAGAIN),
+	 * no need to attempt further recovery.
+	 */
+	if (!status || status == -EAGAIN)
+		schedule_delayed_work(&adapter->func_recovery_work,
+				      msecs_to_jiffies(1000));
 }
 
 static void be_worker(struct work_struct *work)
@@ -4266,6 +4262,9 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 		netdev->features |= NETIF_F_HIGHDMA;
 	} else {
 		status = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		if (!status)
+			status = dma_set_coherent_mask(&pdev->dev,
+						       DMA_BIT_MASK(32));
 		if (status) {
 			dev_err(&pdev->dev, "Could not set PCI DMA Mask\n");
 			goto free_netdev;
@@ -4444,20 +4443,19 @@ static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
 
 	dev_err(&adapter->pdev->dev, "EEH error detected\n");
 
-	adapter->eeh_error = true;
+	if (!adapter->eeh_error) {
+		adapter->eeh_error = true;
 
-	cancel_delayed_work_sync(&adapter->func_recovery_work);
+		cancel_delayed_work_sync(&adapter->func_recovery_work);
 
-	rtnl_lock();
-	netif_device_detach(netdev);
-	rtnl_unlock();
-
-	if (netif_running(netdev)) {
 		rtnl_lock();
-		be_close(netdev);
+		netif_device_detach(netdev);
+		if (netif_running(netdev))
+			be_close(netdev);
 		rtnl_unlock();
+
+		be_clear(adapter);
 	}
-	be_clear(adapter);
 
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -4482,7 +4480,6 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 	int status;
 
 	dev_info(&adapter->pdev->dev, "EEH reset\n");
-	be_clear_all_error(adapter);
 
 	status = pci_enable_device(pdev);
 	if (status)
@@ -4500,6 +4497,7 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 
 	pci_cleanup_aer_uncorrect_error_status(pdev);
+	be_clear_all_error(adapter);
 	return PCI_ERS_RESULT_RECOVERED;
 }
 

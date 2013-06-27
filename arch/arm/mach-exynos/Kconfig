@@ -250,6 +250,7 @@ config MACH_ARMLEX4210
 config MACH_UNIVERSAL_C210
 	bool "Mobile UNIVERSAL_C210 Board"
 	select CLKSRC_MMIO
+	select CLKSRC_SAMSUNG_PWM
 	select CPU_EXYNOS4210
 	select EXYNOS4_SETUP_FIMC
 	select EXYNOS4_SETUP_FIMD0
@@ -281,7 +282,6 @@ config MACH_UNIVERSAL_C210
 	select S5P_DEV_TV
 	select S5P_GPIO_INT
 	select S5P_SETUP_MIPIPHY
-	select SAMSUNG_HRT
 	help
 	  Machine support for Samsung Mobile Universal S5PC210 Reference
 	  Board.
@@ -410,6 +410,7 @@ config MACH_EXYNOS4_DT
 	depends on ARCH_EXYNOS4
 	select ARM_AMBA
 	select CLKSRC_OF
+	select CLKSRC_SAMSUNG_PWM if CPU_EXYNOS4210
 	select CPU_EXYNOS4210
 	select KEYBOARD_SAMSUNG if INPUT_KEYBOARD
 	select PINCTRL

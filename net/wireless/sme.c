@@ -231,6 +231,9 @@ void cfg80211_conn_work(struct work_struct *work)
 	mutex_lock(&rdev->sched_scan_mtx);
 
 	list_for_each_entry(wdev, &rdev->wdev_list, list) {
+		if (!wdev->netdev)
+			continue;
+
 		wdev_lock(wdev);
 		if (!netif_running(wdev->netdev)) {
 			wdev_unlock(wdev);
@@ -961,7 +964,7 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 		/* was it connected by userspace SME? */
 		if (!wdev->conn) {
 			cfg80211_mlme_down(rdev, dev);
-			return 0;
+			goto disconnect;
 		}
 
 		if (wdev->sme_state == CFG80211_SME_CONNECTING &&
@@ -987,6 +990,7 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			return err;
 	}
 
+ disconnect:
 	if (wdev->sme_state == CFG80211_SME_CONNECTED)
 		__cfg80211_disconnected(dev, NULL, 0, 0, false);
 	else if (wdev->sme_state == CFG80211_SME_CONNECTING)

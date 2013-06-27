@@ -415,7 +415,11 @@ struct hfs_bnode *hfs_bnode_create(struct hfs_btree *tree, u32 num)
 	spin_lock(&tree->hash_lock);
 	node = hfs_bnode_findhash(tree, num);
 	spin_unlock(&tree->hash_lock);
-	BUG_ON(node);
+	if (node) {
+		pr_crit("new node %u already hashed?\n", num);
+		WARN_ON(1);
+		return node;
+	}
 	node = __hfs_bnode_create(tree, num);
 	if (!node)
 		return ERR_PTR(-ENOMEM);

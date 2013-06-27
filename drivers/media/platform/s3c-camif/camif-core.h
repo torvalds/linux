@@ -229,7 +229,7 @@ struct camif_vp {
 	unsigned int		state;
 	u16			fmt_flags;
 	u8			id;
-	u8			rotation;
+	u16			rotation;
 	u8			hflip;
 	u8			vflip;
 	unsigned int		offset;
