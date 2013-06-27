@@ -565,10 +565,25 @@ static inline void rt_free(struct rtable *rt)
 
 static DEFINE_SPINLOCK(fnhe_lock);
 
+static void fnhe_flush_routes(struct fib_nh_exception *fnhe)
+{
+	struct rtable *rt;
+
+	rt = rcu_dereference(fnhe->fnhe_rth_input);
+	if (rt) {
+		RCU_INIT_POINTER(fnhe->fnhe_rth_input, NULL);
+		rt_free(rt);
+	}
+	rt = rcu_dereference(fnhe->fnhe_rth_output);
+	if (rt) {
+		RCU_INIT_POINTER(fnhe->fnhe_rth_output, NULL);
+		rt_free(rt);
+	}
+}
+
 static struct fib_nh_exception *fnhe_oldest(struct fnhe_hash_bucket *hash)
 {
 	struct fib_nh_exception *fnhe, *oldest;
-	struct rtable *orig;
 
 	oldest = rcu_dereference(hash->chain);
 	for (fnhe = rcu_dereference(oldest->fnhe_next); fnhe;
@@ -576,11 +591,7 @@ static struct fib_nh_exception *fnhe_oldest(struct fnhe_hash_bucket *hash)
 		if (time_before(fnhe->fnhe_stamp, oldest->fnhe_stamp))
 			oldest = fnhe;
 	}
-	orig = rcu_dereference(oldest->fnhe_rth);
-	if (orig) {
-		RCU_INIT_POINTER(oldest->fnhe_rth, NULL);
-		rt_free(orig);
-	}
+	fnhe_flush_routes(oldest);
 	return oldest;
 }
 
@@ -644,7 +655,10 @@ static void update_or_create_fnhe(struct fib_nh *nh, __be32 daddr, __be32 gw,
 			fnhe->fnhe_expires = max(1UL, expires);
 		}
 		/* Update all cached dsts too */
-		rt = rcu_dereference(fnhe->fnhe_rth);
+		rt = rcu_dereference(fnhe->fnhe_rth_input);
+		if (rt)
+			fill_route_from_fnhe(rt, fnhe);
+		rt = rcu_dereference(fnhe->fnhe_rth_output);
 		if (rt)
 			fill_route_from_fnhe(rt, fnhe);
 	} else {
@@ -668,6 +682,10 @@ static void update_or_create_fnhe(struct fib_nh *nh, __be32 daddr, __be32 gw,
 		 * stale, so anyone caching it rechecks if this exception
 		 * applies to them.
 		 */
+		rt = rcu_dereference(nh->nh_rth_input);
+		if (rt)
+			rt->dst.obsolete = DST_OBSOLETE_KILL;
+
 		for_each_possible_cpu(i) {
 			struct rtable __rcu **prt;
 			prt = per_cpu_ptr(nh->nh_pcpu_rth_output, i);
@@ -1242,25 +1260,36 @@ static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
 	spin_lock_bh(&fnhe_lock);
 
 	if (daddr == fnhe->fnhe_daddr) {
+		struct rtable __rcu **porig;
+		struct rtable *orig;
 		int genid = fnhe_genid(dev_net(rt->dst.dev));
-		struct rtable *orig = rcu_dereference(fnhe->fnhe_rth);
+
+		if (rt_is_input_route(rt))
+			porig = &fnhe->fnhe_rth_input;
+		else
+			porig = &fnhe->fnhe_rth_output;
+		orig = rcu_dereference(*porig);
 
 		if (fnhe->fnhe_genid != genid) {
 			fnhe->fnhe_genid = genid;
 			fnhe->fnhe_gw = 0;
 			fnhe->fnhe_pmtu = 0;
 			fnhe->fnhe_expires = 0;
+			fnhe_flush_routes(fnhe);
+			orig = NULL;
 		}
 		fill_route_from_fnhe(rt, fnhe);
 		if (!rt->rt_gateway)
 			rt->rt_gateway = daddr;
 
-		rcu_assign_pointer(fnhe->fnhe_rth, rt);
-		if (orig)
-			rt_free(orig);
+		if (!(rt->dst.flags & DST_NOCACHE)) {
+			rcu_assign_pointer(*porig, rt);
+			if (orig)
+				rt_free(orig);
+			ret = true;
+		}
 
 		fnhe->fnhe_stamp = jiffies;
-		ret = true;
 	}
 	spin_unlock_bh(&fnhe_lock);
 
@@ -1492,6 +1521,7 @@ static int __mkroute_input(struct sk_buff *skb,
 			   struct in_device *in_dev,
 			   __be32 daddr, __be32 saddr, u32 tos)
 {
+	struct fib_nh_exception *fnhe;
 	struct rtable *rth;
 	int err;
 	struct in_device *out_dev;
@@ -1538,8 +1568,13 @@ static int __mkroute_input(struct sk_buff *skb,
 		}
 	}
 
+	fnhe = find_exception(&FIB_RES_NH(*res), daddr);
 	if (do_cache) {
-		rth = rcu_dereference(FIB_RES_NH(*res).nh_rth_input);
+		if (fnhe != NULL)
+			rth = rcu_dereference(fnhe->fnhe_rth_input);
+		else
+			rth = rcu_dereference(FIB_RES_NH(*res).nh_rth_input);
+
 		if (rt_cache_valid(rth)) {
 			skb_dst_set_noref(skb, &rth->dst);
 			goto out;
@@ -1567,7 +1602,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->dst.input = ip_forward;
 	rth->dst.output = ip_output;
 
-	rt_set_nexthop(rth, daddr, res, NULL, res->fi, res->type, itag);
+	rt_set_nexthop(rth, daddr, res, fnhe, res->fi, res->type, itag);
 	skb_dst_set(skb, &rth->dst);
 out:
 	err = 0;
@@ -1882,7 +1917,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 
 		fnhe = find_exception(nh, fl4->daddr);
 		if (fnhe)
-			prth = &fnhe->fnhe_rth;
+			prth = &fnhe->fnhe_rth_output;
 		else {
 			if (unlikely(fl4->flowi4_flags &
 				     FLOWI_FLAG_KNOWN_NH &&
