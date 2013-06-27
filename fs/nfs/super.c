@@ -1759,21 +1759,29 @@ static int nfs_request_mount(struct nfs_parsed_mount_data *args,
 	return nfs_select_flavor(args, &request);
 }
 
+static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_info,
+					struct nfs_subversion *nfs_mod)
+{
+	int status;
+
+	status = nfs_request_mount(mount_info->parsed, mount_info->mntfh);
+	if (status)
+		return ERR_PTR(status);
+
+	return nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
+}
+
 struct dentry *nfs_try_mount(int flags, const char *dev_name,
 			     struct nfs_mount_info *mount_info,
 			     struct nfs_subversion *nfs_mod)
 {
-	int status;
 	struct nfs_server *server;
 
-	if (mount_info->parsed->need_mount) {
-		status = nfs_request_mount(mount_info->parsed, mount_info->mntfh);
-		if (status)
-			return ERR_PTR(status);
-	}
+	if (mount_info->parsed->need_mount)
+		server = nfs_try_mount_request(mount_info, nfs_mod);
+	else
+		server = nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
 
-	/* Get a volume representation */
-	server = nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
 	if (IS_ERR(server))
 		return ERR_CAST(server);
 
