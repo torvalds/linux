@@ -559,7 +559,7 @@ int comedi_driver_register(struct comedi_driver *driver)
 }
 EXPORT_SYMBOL_GPL(comedi_driver_register);
 
-int comedi_driver_unregister(struct comedi_driver *driver)
+void comedi_driver_unregister(struct comedi_driver *driver)
 {
 	struct comedi_driver *prev;
 	int i;
@@ -584,15 +584,14 @@ int comedi_driver_unregister(struct comedi_driver *driver)
 
 	if (comedi_drivers == driver) {
 		comedi_drivers = driver->next;
-		return 0;
+		return;
 	}
 
 	for (prev = comedi_drivers; prev->next; prev = prev->next) {
 		if (prev->next == driver) {
 			prev->next = driver->next;
-			return 0;
+			return;
 		}
 	}
-	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(comedi_driver_unregister);

@@ -363,7 +363,7 @@ int comedi_auto_config(struct device *, struct comedi_driver *,
 void comedi_auto_unconfig(struct device *);
 
 int comedi_driver_register(struct comedi_driver *);
-int comedi_driver_unregister(struct comedi_driver *);
+void comedi_driver_unregister(struct comedi_driver *);
 
 /**
  * module_comedi_driver() - Helper macro for registering a comedi driver
