@@ -3115,7 +3115,7 @@ static int sun4i_start(struct usb_gadget_driver *driver,
 	}
 
 	/* Enable udc */
-	sw_udc_enable(udc);
+	sw_udc_set_pullup(udc, 1);
 
 	return 0;
 
@@ -3164,14 +3164,15 @@ static int sun4i_stop(struct usb_gadget_driver *driver)
 		driver->disconnect(&udc->gadget);
     }
 
+	/* Disable udc */
+	sw_udc_set_pullup(udc, 0);
+
     /* unbind gadget driver */
 	driver->unbind(&udc->gadget);
 	udc->gadget.dev.driver = NULL;
 	device_del(&udc->gadget.dev);
 	udc->driver = NULL;
 
-	/* Disable udc */
-	sw_udc_disable(udc);
 
 	return 0;
 }
@@ -3291,8 +3292,6 @@ int sw_usb_device_enable(void)
         return -1;
     }
 
-	sw_udc_disable(udc);
-
 	udc->sw_udc_io = &g_sw_udc_io;
 	udc->usbc_no = usbd_port_no;
 	strcpy((char *)udc->driver_name, gadget_name);
@@ -3315,10 +3314,9 @@ int sw_usb_device_enable(void)
 		goto err;
 	}
 
-	if(udc->driver && is_udc_enable){
-		sw_udc_enable(udc);
-		cfg_udc_command(SW_UDC_P_ENABLE);
-	}
+	/* Enable udc */
+	if (!is_udc_enable)
+		sw_udc_set_pullup(udc, 1);
 
 	DMSG_INFO_UDC("sw_usb_device_enable end\n");
 
@@ -3356,10 +3354,12 @@ int sw_usb_device_disable(void)
 		return -1;
 	}
 
-    /* disable usb controller */
-	if (udc->driver && udc->driver->disconnect) {
+	/* disable usb controller */
+	if (udc->driver && udc->driver->disconnect)
 		udc->driver->disconnect(&udc->gadget);
-	}
+
+	/* Disable udc */
+	sw_udc_set_pullup(udc, 0);
 
 	if(is_udc_support_dma()){
 		if(udc->sw_udc_dma.dma_hdle >= 0){
@@ -3736,10 +3736,7 @@ static int sw_udc_resume(struct platform_device *pdev)
 
 	if (is_udc_enable){
 		/* enable usb controller */
-		sw_udc_enable(udc);
-
-		/* soft connect */
-		cfg_udc_command(SW_UDC_P_ENABLE);
+		sw_udc_set_pullup(udc, 1);
 	}
 
 	DMSG_INFO_UDC("sw_udc_resume end\n");
