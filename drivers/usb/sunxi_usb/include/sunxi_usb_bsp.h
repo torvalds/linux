@@ -804,6 +804,8 @@ void USBC_EnterMode_Idle(__hdle hUSB);
 
 __u32 USBC_TestMode_ReadReg(__hdle hUSB, __u32 offset, __u32 reg_width);
 
+void USBC_SwitchPhyToOtg(__hdle hUSB, u32 sram_addr);
+void USBC_SetUSBRegIdle(__hdle hUSB);
 
 //---------------------------------------------------------------
 //  bsp入口

@@ -38,6 +38,7 @@
 #define  KEY_USB_ENABLE				"usb_used"
 #define  KEY_USB_PORT_TYPE			"usb_port_type"
 #define  KEY_USB_DETECT_TYPE		"usb_detect_type"
+#define  KEY_USB_CONTROLLER_TYPE	"usb_controller_type"
 #define  KEY_USB_ID_GPIO			"usb_id_gpio"
 #define  KEY_USB_DETVBUS_GPIO		"usb_det_vbus_gpio"
 #define  KEY_USB_DRVVBUS_GPIO		"usb_drv_vbus_gpio"
@@ -66,6 +67,14 @@ enum usb_detect_type{
     USB_DETECT_TYPE_DP_DM = 0,
     USB_DETECT_TYPE_VBUS_ID,
 };
+
+/* 0: Œﬁ£¨ 1: ehci 2:ohci */
+enum sw_usbc_type {
+	SW_USB_UNKOWN = 0,
+	SW_USB_EHCI,
+	SW_USB_OHCI,
+};
+
 
 /* pio‰ø°ÊÅØ */
 typedef struct usb_gpio{

@@ -220,6 +220,59 @@ static u32 get_detect_vbus_state(struct usb_scan_info *info)
     return det_vbus_state;
 }
 
+static u32 get_dp_dm_status_normal(struct usb_scan_info *info)
+{
+	__u32 reg_val = 0;
+	__u32 dp = 0;
+	__u32 dm = 0;
+
+	/* USBC_EnableDpDmPullUp */
+	reg_val = USBC_Readl(USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
+	reg_val |= (1 << USBC_BP_ISCR_DPDM_PULLUP_EN);
+	USBC_Writel(reg_val, USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
+
+	/* USBC_EnableIdPullUp */
+	reg_val = USBC_Readl(USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
+	reg_val |= (1 << USBC_BP_ISCR_ID_PULLUP_EN);
+	USBC_Writel(reg_val, USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
+
+	reg_val = USBC_Readl(USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
+	dp = (reg_val >> USBC_BP_ISCR_EXT_DP_STATUS) & 0x01;
+	dm = (reg_val >> USBC_BP_ISCR_EXT_DM_STATUS) & 0x01;
+
+	/*printk("USBC_REG_ISCR = 0x%x\n", reg_val);*/
+
+	return (dp << 1) | dm;
+}
+
+static u32 get_dp_dm_status(struct usb_scan_info *info)
+{
+	u32 ret  = 0;
+	u32 ret0 = 0;
+	u32 ret1 = 0;
+	u32 ret2 = 0;
+
+	ret0 = get_dp_dm_status_normal(info);
+	ret1 = get_dp_dm_status_normal(info);
+	ret2 = get_dp_dm_status_normal(info);
+
+	/*连续读3次是为了避开电平的瞬间变化*/
+	if ((ret0 == ret1) && (ret0 == ret2))
+		ret = ret0;
+	else if (ret2 == 0x11) {
+		if (get_usb_role() == USB_ROLE_DEVICE) {
+			ret = 0x11;
+			DMSG_INFO("ERR: dp/dm status is continuous(0x11)\n");
+		}
+	} else
+		ret = ret2;
+
+	/*printk("dp/dm: %d, (%d, %d, %d)\n", ret, ret0, ret1, ret2);*/
+
+	return ret;
+}
+
+
 /*
 *******************************************************************************
 *                     do_vbus0_id0
@@ -399,14 +452,17 @@ static void do_vbus1_id1(struct usb_scan_info *info)
 
 	switch(role){
 		case USB_ROLE_NULL:
-			/* delay for vbus is stably */
-			if(info->device_insmod_delay < USB_SCAN_INSMOD_DEVICE_DRIVER_DELAY){
-				info->device_insmod_delay++;
-				break;
-			}
+			if (get_dp_dm_status(info) == 0x00) {
+				/* delay for vbus is stably */
+				if (info->device_insmod_delay <
+					USB_SCAN_INSMOD_DEVICE_DRIVER_DELAY) {
+					info->device_insmod_delay++;
+					break;
+				}
 
-			info->device_insmod_delay = 0;
-			hw_insmod_usb_device();
+				info->device_insmod_delay = 0;
+				hw_insmod_usb_device();
+			}
 		break;
 
 		case USB_ROLE_HOST:
