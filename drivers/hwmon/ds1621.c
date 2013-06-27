@@ -128,6 +128,8 @@ struct ds1621_data {
 
 	u16 temp[3];			/* Register values, word */
 	u8 conf;			/* Register encoding, combined */
+	u8 zbits;			/* Resolution encoded as number of
+					 * zero bits */
 	u16 update_interval;		/* Conversion rate in milliseconds */
 };
 
@@ -139,16 +141,14 @@ static inline int DS1621_TEMP_FROM_REG(u16 reg)
 /*
  * TEMP: 0.001C/bit (-55C to +125C)
  * REG:
- *  - 1621, 1625: 0.5C/bit
- *  - 1631, 1721, 1731: 0.0625C/bit
- * Assume highest resolution and let the bits fall where they may..
+ *  - 1621, 1625: 0.5C/bit, 7 zero-bits
+ *  - 1631, 1721, 1731: 0.0625C/bit, 4 zero-bits
  */
-static inline u16 DS1621_TEMP_TO_REG(long temp)
+static inline u16 DS1621_TEMP_TO_REG(long temp, u8 zbits)
 {
-	int ntemp = clamp_val(temp, DS1621_TEMP_MIN, DS1621_TEMP_MAX);
-	ntemp += (ntemp < 0 ? -31 : 31);
-	ntemp = DIV_ROUND_CLOSEST(ntemp * 10, 625) << 4;
-	return (u16)ntemp;
+	temp = clamp_val(temp, DS1621_TEMP_MIN, DS1621_TEMP_MAX);
+	temp = DIV_ROUND_CLOSEST(temp * (1 << (8 - zbits)), 1000) << zbits;
+	return temp;
 }
 
 static void ds1621_init_client(struct i2c_client *client)
@@ -172,6 +172,7 @@ static void ds1621_init_client(struct i2c_client *client)
 	switch (data->kind) {
 	case ds1625:
 		data->update_interval = DS1625_CONVERSION_MAX;
+		data->zbits = 7;
 		sreg = DS1621_COM_START;
 		break;
 	case ds1631:
@@ -180,10 +181,12 @@ static void ds1621_init_client(struct i2c_client *client)
 		resol = (new_conf & DS1621_REG_CONFIG_RESOL) >>
 			 DS1621_REG_CONFIG_RESOL_SHIFT;
 		data->update_interval = ds1721_convrates[resol];
+		data->zbits = 7 - resol;
 		sreg = DS1721_COM_START;
 		break;
 	default:
 		data->update_interval = DS1621_CONVERSION_MAX;
+		data->zbits = 7;
 		sreg = DS1621_COM_START;
 		break;
 	}
@@ -254,7 +257,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->temp[attr->index] = DS1621_TEMP_TO_REG(val);
+	data->temp[attr->index] = DS1621_TEMP_TO_REG(val, data->zbits);
 	i2c_smbus_write_word_swapped(client, DS1621_REG_TEMP[attr->index],
 				     data->temp[attr->index]);
 	mutex_unlock(&data->update_lock);
