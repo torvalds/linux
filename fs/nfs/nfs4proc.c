@@ -572,7 +572,7 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 	task->tk_timeout = 0;
 
 	spin_lock(&tbl->slot_tbl_lock);
-	if (test_bit(NFS4_SESSION_DRAINING, &session->session_state) &&
+	if (test_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state) &&
 	    !args->sa_privileged) {
 		/* The state manager will wait until the slot table is empty */
 		dprintk("%s session is draining\n", __func__);
@@ -1078,7 +1078,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 	struct nfs4_state *state = opendata->state;
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	struct nfs_delegation *delegation;
-	int open_mode = opendata->o_arg.open_flags & (O_EXCL|O_TRUNC);
+	int open_mode = opendata->o_arg.open_flags;
 	fmode_t fmode = opendata->o_arg.fmode;
 	nfs4_stateid stateid;
 	int ret = -EAGAIN;

@@ -8177,6 +8177,11 @@ intel_modeset_check_state(struct drm_device *dev)
 
 		active = dev_priv->display.get_pipe_config(crtc,
 							   &pipe_config);
+
+		/* hw state is inconsistent with the pipe A quirk */
+		if (crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
+			active = crtc->active;
+
 		WARN(crtc->active != active,
 		     "crtc active state doesn't match with hw state "
 		     "(expected %i, found %i)\n", crtc->active, active);

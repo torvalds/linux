@@ -17,7 +17,6 @@
 #include <asm/ptrace.h>
 #include <asm/types.h>
 #include <asm/percpu.h>
-
 #endif /* __ASSEMBLY__ */
 
 /*
@@ -57,26 +56,6 @@
 #endif
 
 #ifndef __ASSEMBLY__
-
-/*
- * IRQ STACK - used for irq handler
- */
-#ifdef __KERNEL__
-
-#include <linux/spinlock_types.h>
-
-#define IRQ_STACK_SIZE      (4096 << 2) /* 16k irq stack size */
-
-union irq_stack_union {
-	unsigned long stack[IRQ_STACK_SIZE/sizeof(unsigned long)];
-	raw_spinlock_t lock;
-};
-
-DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
-
-void call_on_stack(unsigned long p1, void *func, unsigned long new_stack);
-
-#endif /* __KERNEL__ */
 
 /*
  * Data detected about CPUs at boot time which is the same for all CPU's.

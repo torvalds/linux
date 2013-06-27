@@ -173,6 +173,8 @@ enum {
 	REPLY_DEBUG_CMD = 0xf0,
 	DEBUG_LOG_MSG = 0xf7,
 
+	MCAST_FILTER_CMD = 0xd0,
+
 	/* D3 commands/notifications */
 	D3_CONFIG_CMD = 0xd3,
 	PROT_OFFLOAD_CONFIG_CMD = 0xd4,
@@ -947,5 +949,30 @@ struct iwl_set_calib_default_cmd {
 	__le16 length;
 	u8 data[0];
 } __packed; /* PHY_CALIB_OVERRIDE_VALUES_S */
+
+#define MAX_PORT_ID_NUM	2
+
+/**
+ * struct iwl_mcast_filter_cmd - configure multicast filter.
+ * @filter_own: Set 1 to filter out multicast packets sent by station itself
+ * @port_id:	Multicast MAC addresses array specifier. This is a strange way
+ *		to identify network interface adopted in host-device IF.
+ *		It is used by FW as index in array of addresses. This array has
+ *		MAX_PORT_ID_NUM members.
+ * @count:	Number of MAC addresses in the array
+ * @pass_all:	Set 1 to pass all multicast packets.
+ * @bssid:	current association BSSID.
+ * @addr_list:	Place holder for array of MAC addresses.
+ *		IMPORTANT: add padding if necessary to ensure DWORD alignment.
+ */
+struct iwl_mcast_filter_cmd {
+	u8 filter_own;
+	u8 port_id;
+	u8 count;
+	u8 pass_all;
+	u8 bssid[6];
+	u8 reserved[2];
+	u8 addr_list[0];
+} __packed; /* MCAST_FILTERING_CMD_API_S_VER_1 */
 
 #endif /* __fw_api_h__ */

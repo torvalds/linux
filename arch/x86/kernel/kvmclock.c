@@ -242,6 +242,7 @@ void __init kvmclock_init(void)
 	if (!mem)
 		return;
 	hv_clock = __va(mem);
+	memset(hv_clock, 0, size);
 
 	if (kvm_register_clock("boot clock")) {
 		hv_clock = NULL;

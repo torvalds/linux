@@ -907,8 +907,11 @@ struct qlcnic_ipaddr {
 #define QLCNIC_FW_HANG			0x4000
 #define QLCNIC_FW_LRO_MSS_CAP		0x8000
 #define QLCNIC_TX_INTR_SHARED		0x10000
+#define QLCNIC_APP_CHANGED_FLAGS	0x20000
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
+#define QLCNIC_IS_TSO_CAPABLE(adapter)  \
+	((adapter)->ahw->capabilities & QLCNIC_FW_CAPABILITY_TSO)
 
 #define QLCNIC_DEF_NUM_STS_DESC_RINGS	4
 #define QLCNIC_MSIX_TBL_SPACE		8192
@@ -1034,6 +1037,7 @@ struct qlcnic_adapter {
 	spinlock_t rx_mac_learn_lock;
 	u32 file_prd_off;	/*File fw product offset*/
 	u32 fw_version;
+	u32 offload_flags;
 	const struct firmware *fw;
 };
 
@@ -1542,6 +1546,8 @@ void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int, u16);
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
+void qlcnic_set_netdev_features(struct qlcnic_adapter *,
+				struct qlcnic_esw_func_cfg *);
 void qlcnic_sriov_vf_schedule_multi(struct net_device *);
 void qlcnic_vf_add_mc_list(struct net_device *, u16);
 

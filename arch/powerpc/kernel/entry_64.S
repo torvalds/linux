@@ -487,6 +487,13 @@ BEGIN_FTR_SECTION
 	ldarx	r6,0,r1
 END_FTR_SECTION_IFSET(CPU_FTR_STCX_CHECKS_ADDRESS)
 
+#ifdef CONFIG_PPC_BOOK3S
+/* Cancel all explict user streams as they will have no use after context
+ * switch and will stop the HW from creating streams itself
+ */
+	DCBT_STOP_ALL_STREAM_IDS(r6)
+#endif
+
 	addi	r6,r4,-THREAD	/* Convert THREAD to 'current' */
 	std	r6,PACACURRENT(r13)	/* Set new 'current' */
 

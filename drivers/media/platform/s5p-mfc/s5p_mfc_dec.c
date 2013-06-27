@@ -210,11 +210,11 @@ static int s5p_mfc_ctx_ready(struct s5p_mfc_ctx *ctx)
 	/* Context is to decode a frame */
 	if (ctx->src_queue_cnt >= 1 &&
 	    ctx->state == MFCINST_RUNNING &&
-	    ctx->dst_queue_cnt >= ctx->dpb_count)
+	    ctx->dst_queue_cnt >= ctx->pb_count)
 		return 1;
 	/* Context is to return last frame */
 	if (ctx->state == MFCINST_FINISHING &&
-	    ctx->dst_queue_cnt >= ctx->dpb_count)
+	    ctx->dst_queue_cnt >= ctx->pb_count)
 		return 1;
 	/* Context is to set buffers */
 	if (ctx->src_queue_cnt >= 1 &&
@@ -224,7 +224,7 @@ static int s5p_mfc_ctx_ready(struct s5p_mfc_ctx *ctx)
 	/* Resolution change */
 	if ((ctx->state == MFCINST_RES_CHANGE_INIT ||
 		ctx->state == MFCINST_RES_CHANGE_FLUSH) &&
-		ctx->dst_queue_cnt >= ctx->dpb_count)
+		ctx->dst_queue_cnt >= ctx->pb_count)
 		return 1;
 	if (ctx->state == MFCINST_RES_CHANGE_END &&
 		ctx->src_queue_cnt >= 1)
@@ -537,7 +537,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 			mfc_err("vb2_reqbufs on capture failed\n");
 			return ret;
 		}
-		if (reqbufs->count < ctx->dpb_count) {
+		if (reqbufs->count < ctx->pb_count) {
 			mfc_err("Not enough buffers allocated\n");
 			reqbufs->count = 0;
 			s5p_mfc_clock_on();
@@ -751,7 +751,7 @@ static int s5p_mfc_dec_g_v_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
 		if (ctx->state >= MFCINST_HEAD_PARSED &&
 		    ctx->state < MFCINST_ABORT) {
-			ctrl->val = ctx->dpb_count;
+			ctrl->val = ctx->pb_count;
 			break;
 		} else if (ctx->state != MFCINST_INIT) {
 			v4l2_err(&dev->v4l2_dev, "Decoding not initialised\n");
@@ -763,7 +763,7 @@ static int s5p_mfc_dec_g_v_ctrl(struct v4l2_ctrl *ctrl)
 				S5P_MFC_R2H_CMD_SEQ_DONE_RET, 0);
 		if (ctx->state >= MFCINST_HEAD_PARSED &&
 		    ctx->state < MFCINST_ABORT) {
-			ctrl->val = ctx->dpb_count;
+			ctrl->val = ctx->pb_count;
 		} else {
 			v4l2_err(&dev->v4l2_dev, "Decoding not initialised\n");
 			return -EINVAL;
@@ -924,10 +924,10 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		/* Output plane count is 2 - one for Y and one for CbCr */
 		*plane_count = 2;
 		/* Setup buffer count */
-		if (*buf_count < ctx->dpb_count)
-			*buf_count = ctx->dpb_count;
-		if (*buf_count > ctx->dpb_count + MFC_MAX_EXTRA_DPB)
-			*buf_count = ctx->dpb_count + MFC_MAX_EXTRA_DPB;
+		if (*buf_count < ctx->pb_count)
+			*buf_count = ctx->pb_count;
+		if (*buf_count > ctx->pb_count + MFC_MAX_EXTRA_DPB)
+			*buf_count = ctx->pb_count + MFC_MAX_EXTRA_DPB;
 		if (*buf_count > MFC_MAX_BUFFERS)
 			*buf_count = MFC_MAX_BUFFERS;
 	} else {

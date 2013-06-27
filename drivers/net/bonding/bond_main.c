@@ -764,8 +764,8 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 	struct net_device *bond_dev, *vlan_dev, *upper_dev;
 	struct vlan_entry *vlan;
 
-	rcu_read_lock();
 	read_lock(&bond->lock);
+	rcu_read_lock();
 
 	bond_dev = bond->dev;
 
@@ -787,12 +787,19 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 		if (vlan_dev)
 			__bond_resend_igmp_join_requests(vlan_dev);
 	}
-
-	if (--bond->igmp_retrans > 0)
-		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
-
-	read_unlock(&bond->lock);
 	rcu_read_unlock();
+
+	/* We use curr_slave_lock to protect against concurrent access to
+	 * igmp_retrans from multiple running instances of this function and
+	 * bond_change_active_slave
+	 */
+	write_lock_bh(&bond->curr_slave_lock);
+	if (bond->igmp_retrans > 1) {
+		bond->igmp_retrans--;
+		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
+	}
+	write_unlock_bh(&bond->curr_slave_lock);
+	read_unlock(&bond->lock);
 }
 
 static void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
@@ -1362,6 +1369,7 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 						     slave->dev->features,
 						     mask);
 	}
+	features = netdev_add_tso_features(features, mask);
 
 out:
 	read_unlock(&bond->lock);
@@ -1956,6 +1964,10 @@ err_free:
 
 err_undo_flags:
 	bond_compute_features(bond);
+	/* Enslave of first slave has failed and we need to fix master's mac */
+	if (bond->slave_cnt == 0 &&
+	    ether_addr_equal(bond_dev->dev_addr, slave_dev->dev_addr))
+		eth_hw_addr_random(bond_dev);
 
 	return res;
 }
@@ -2555,8 +2567,8 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_
 {
 	struct sk_buff *skb;
 
-	pr_debug("arp %d on slave %s: dst %x src %x vid %d\n", arp_op,
-		 slave_dev->name, dest_ip, src_ip, vlan_id);
+	pr_debug("arp %d on slave %s: dst %pI4 src %pI4 vid %d\n", arp_op,
+		 slave_dev->name, &dest_ip, &src_ip, vlan_id);
 
 	skb = arp_create(arp_op, ETH_P_ARP, dest_ip, slave_dev, src_ip,
 			 NULL, slave_dev->dev_addr, NULL);
@@ -2588,7 +2600,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		__be32 addr;
 		if (!targets[i])
 			break;
-		pr_debug("basa: target %x\n", targets[i]);
+		pr_debug("basa: target %pI4\n", &targets[i]);
 		if (!bond_vlan_used(bond)) {
 			pr_debug("basa: empty vlan: arp_send\n");
 			addr = bond_confirm_addr(bond->dev, targets[i], 0);
@@ -4470,7 +4482,7 @@ int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
 
 static int bond_check_params(struct bond_params *params)
 {
-	int arp_validate_value, fail_over_mac_value, primary_reselect_value;
+	int arp_validate_value, fail_over_mac_value, primary_reselect_value, i;
 
 	/*
 	 * Convert string parameters.
@@ -4650,19 +4662,18 @@ static int bond_check_params(struct bond_params *params)
 		arp_interval = BOND_LINK_ARP_INTERV;
 	}
 
-	for (arp_ip_count = 0;
-	     (arp_ip_count < BOND_MAX_ARP_TARGETS) && arp_ip_target[arp_ip_count];
-	     arp_ip_count++) {
+	for (arp_ip_count = 0, i = 0;
+	     (arp_ip_count < BOND_MAX_ARP_TARGETS) && arp_ip_target[i]; i++) {
 		/* not complete check, but should be good enough to
 		   catch mistakes */
-		__be32 ip = in_aton(arp_ip_target[arp_ip_count]);
-		if (!isdigit(arp_ip_target[arp_ip_count][0]) ||
-		    ip == 0 || ip == htonl(INADDR_BROADCAST)) {
+		__be32 ip = in_aton(arp_ip_target[i]);
+		if (!isdigit(arp_ip_target[i][0]) || ip == 0 ||
+		    ip == htonl(INADDR_BROADCAST)) {
 			pr_warning("Warning: bad arp_ip_target module parameter (%s), ARP monitoring will not be performed\n",
-				   arp_ip_target[arp_ip_count]);
+				   arp_ip_target[i]);
 			arp_interval = 0;
 		} else {
-			arp_target[arp_ip_count] = ip;
+			arp_target[arp_ip_count++] = ip;
 		}
 	}
 
@@ -4696,8 +4707,6 @@ static int bond_check_params(struct bond_params *params)
 	if (miimon) {
 		pr_info("MII link monitoring set to %d ms\n", miimon);
 	} else if (arp_interval) {
-		int i;
-
 		pr_info("ARP monitoring set to %d ms, validate %s, with %d target(s):",
 			arp_interval,
 			arp_validate_tbl[arp_validate_value].modename,

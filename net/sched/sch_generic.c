@@ -898,14 +898,16 @@ void dev_shutdown(struct net_device *dev)
 	WARN_ON(timer_pending(&dev->watchdog_timer));
 }
 
-void psched_ratecfg_precompute(struct psched_ratecfg *r, u32 rate)
+void psched_ratecfg_precompute(struct psched_ratecfg *r,
+			       const struct tc_ratespec *conf)
 {
 	u64 factor;
 	u64 mult;
 	int shift;
 
-	r->rate_bps = (u64)rate << 3;
-	r->shift = 0;
+	memset(r, 0, sizeof(*r));
+	r->overhead = conf->overhead;
+	r->rate_bps = (u64)conf->rate << 3;
 	r->mult = 1;
 	/*
 	 * Calibrate mult, shift so that token counting is accurate

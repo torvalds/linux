@@ -64,6 +64,15 @@ int nfc_mei_phy_enable(void *phy_id)
                 return r;
 	}
 
+	r = mei_cl_register_event_cb(phy->device, nfc_mei_event_cb, phy);
+	if (r) {
+		pr_err("MEY_PHY: Event cb registration failed\n");
+		mei_cl_disable_device(phy->device);
+		phy->powered = 0;
+
+		return r;
+	}
+
 	phy->powered = 1;
 
 	return 0;

@@ -347,11 +347,11 @@ static u32 get_cur_val(const struct cpumask *mask)
 	switch (per_cpu(acfreq_data, cpumask_first(mask))->cpu_feature) {
 	case SYSTEM_INTEL_MSR_CAPABLE:
 		cmd.type = SYSTEM_INTEL_MSR_CAPABLE;
-		cmd.addr.msr.reg = MSR_IA32_PERF_STATUS;
+		cmd.addr.msr.reg = MSR_IA32_PERF_CTL;
 		break;
 	case SYSTEM_AMD_MSR_CAPABLE:
 		cmd.type = SYSTEM_AMD_MSR_CAPABLE;
-		cmd.addr.msr.reg = MSR_AMD_PERF_STATUS;
+		cmd.addr.msr.reg = MSR_AMD_PERF_CTL;
 		break;
 	case SYSTEM_IO_CAPABLE:
 		cmd.type = SYSTEM_IO_CAPABLE;

@@ -1017,11 +1017,8 @@ acpi_bus_driver_init(struct acpi_device *device, struct acpi_driver *driver)
 		return -ENOSYS;
 
 	result = driver->ops.add(device);
-	if (result) {
-		device->driver = NULL;
-		device->driver_data = NULL;
+	if (result)
 		return result;
-	}
 
 	device->driver = driver;
 
@@ -2043,7 +2040,6 @@ int __init acpi_scan_init(void)
 	acpi_pci_link_init();
 	acpi_platform_init();
 	acpi_lpss_init();
-	acpi_csrt_init();
 	acpi_container_init();
 	acpi_memory_hotplug_init();
 

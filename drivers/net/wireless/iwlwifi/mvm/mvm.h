@@ -292,6 +292,7 @@ struct iwl_mvm {
 	struct ieee80211_sta __rcu *fw_id_to_mac_id[IWL_MVM_STATION_COUNT];
 	struct work_struct sta_drained_wk;
 	unsigned long sta_drained[BITS_TO_LONGS(IWL_MVM_STATION_COUNT)];
+	atomic_t pending_frames[IWL_MVM_STATION_COUNT];
 
 	/* configured by mac80211 */
 	u32 rts_threshold;

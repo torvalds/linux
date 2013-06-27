@@ -84,13 +84,8 @@ static int qlcnic_start_firmware(struct qlcnic_adapter *);
 static void qlcnic_free_lb_filters_mem(struct qlcnic_adapter *adapter);
 static void qlcnic_dev_set_npar_ready(struct qlcnic_adapter *);
 static int qlcnicvf_start_firmware(struct qlcnic_adapter *);
-static void qlcnic_set_netdev_features(struct qlcnic_adapter *,
-				struct qlcnic_esw_func_cfg *);
 static int qlcnic_vlan_rx_add(struct net_device *, __be16, u16);
 static int qlcnic_vlan_rx_del(struct net_device *, __be16, u16);
-
-#define QLCNIC_IS_TSO_CAPABLE(adapter)	\
-	((adapter)->ahw->capabilities & QLCNIC_FW_CAPABILITY_TSO)
 
 static u32 qlcnic_vlan_tx_check(struct qlcnic_adapter *adapter)
 {
@@ -1074,8 +1069,6 @@ void qlcnic_set_eswitch_port_features(struct qlcnic_adapter *adapter,
 
 	if (!esw_cfg->promisc_mode)
 		adapter->flags |= QLCNIC_PROMISC_DISABLED;
-
-	qlcnic_set_netdev_features(adapter, esw_cfg);
 }
 
 int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *adapter)
@@ -1090,51 +1083,23 @@ int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *adapter)
 			return -EIO;
 	qlcnic_set_vlan_config(adapter, &esw_cfg);
 	qlcnic_set_eswitch_port_features(adapter, &esw_cfg);
+	qlcnic_set_netdev_features(adapter, &esw_cfg);
 
 	return 0;
 }
 
-static void
-qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
-		struct qlcnic_esw_func_cfg *esw_cfg)
+void qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
+				struct qlcnic_esw_func_cfg *esw_cfg)
 {
 	struct net_device *netdev = adapter->netdev;
-	unsigned long features, vlan_features;
 
 	if (qlcnic_83xx_check(adapter))
 		return;
 
-	features = (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
-		    NETIF_F_IPV6_CSUM | NETIF_F_GRO);
-	vlan_features = (NETIF_F_SG | NETIF_F_IP_CSUM |
-			NETIF_F_IPV6_CSUM);
-
-	if (QLCNIC_IS_TSO_CAPABLE(adapter)) {
-		features |= (NETIF_F_TSO | NETIF_F_TSO6);
-		vlan_features |= (NETIF_F_TSO | NETIF_F_TSO6);
-	}
-
-	if (netdev->features & NETIF_F_LRO)
-		features |= NETIF_F_LRO;
-
-	if (esw_cfg->offload_flags & BIT_0) {
-		netdev->features |= features;
-		adapter->rx_csum = 1;
-		if (!(esw_cfg->offload_flags & BIT_1)) {
-			netdev->features &= ~NETIF_F_TSO;
-			features &= ~NETIF_F_TSO;
-		}
-		if (!(esw_cfg->offload_flags & BIT_2)) {
-			netdev->features &= ~NETIF_F_TSO6;
-			features &= ~NETIF_F_TSO6;
-		}
-	} else {
-		netdev->features &= ~features;
-		features &= ~features;
-		adapter->rx_csum = 0;
-	}
-
-	netdev->vlan_features = (features & vlan_features);
+	adapter->offload_flags = esw_cfg->offload_flags;
+	adapter->flags |= QLCNIC_APP_CHANGED_FLAGS;
+	netdev_update_features(netdev);
+	adapter->flags &= ~QLCNIC_APP_CHANGED_FLAGS;
 }
 
 static int
@@ -2016,8 +1981,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_enable_pcie_error_reporting(pdev);
 
 	ahw = kzalloc(sizeof(struct qlcnic_hardware_context), GFP_KERNEL);
-	if (!ahw)
+	if (!ahw) {
+		err = -ENOMEM;
 		goto err_out_free_res;
+	}
 
 	switch (ent->device) {
 	case PCI_DEVICE_ID_QLOGIC_QLE824X:
@@ -2053,6 +2020,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->qlcnic_wq = create_singlethread_workqueue("qlcnic");
 	if (adapter->qlcnic_wq == NULL) {
+		err = -ENOMEM;
 		dev_err(&pdev->dev, "Failed to create workqueue\n");
 		goto err_out_free_netdev;
 	}
@@ -2133,6 +2101,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto err_out_disable_msi;
 	}
 
+	err = qlcnic_get_act_pci_func(adapter);
+	if (err)
+		goto err_out_disable_mbx_intr;
+
 	err = qlcnic_setup_netdev(adapter, netdev, pci_using_dac);
 	if (err)
 		goto err_out_disable_mbx_intr;
@@ -2161,9 +2133,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				adapter->netdev->name);
 		break;
 	}
-
-	if (qlcnic_get_act_pci_func(adapter))
-		goto err_out_disable_mbx_intr;
 
 	if (adapter->drv_mac_learn)
 		qlcnic_alloc_lb_filters_mem(adapter);
@@ -3149,10 +3118,8 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 		if (adapter->need_fw_reset)
 			goto detach;
 
-		if (adapter->ahw->reset_context && qlcnic_auto_fw_reset) {
+		if (adapter->ahw->reset_context && qlcnic_auto_fw_reset)
 			qlcnic_reset_hw_context(adapter);
-			adapter->netdev->trans_start = jiffies;
-		}
 
 		return 0;
 	}

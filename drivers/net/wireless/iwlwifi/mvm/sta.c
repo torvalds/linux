@@ -219,7 +219,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	mvm_sta->max_agg_bufsize = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 
 	/* HW restart, don't assume the memory has been zeroed */
-	atomic_set(&mvm_sta->pending_frames, 0);
+	atomic_set(&mvm->pending_frames[sta_id], 0);
 	mvm_sta->tid_disable_agg = 0;
 	mvm_sta->tfd_queue_msk = 0;
 	for (i = 0; i < IEEE80211_NUM_ACS; i++)
@@ -407,14 +407,21 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	}
 
 	/*
+	 * Make sure that the tx response code sees the station as -EBUSY and
+	 * calls the drain worker.
+	 */
+	spin_lock_bh(&mvm_sta->lock);
+	/*
 	 * There are frames pending on the AC queues for this station.
 	 * We need to wait until all the frames are drained...
 	 */
-	if (atomic_read(&mvm_sta->pending_frames)) {
-		ret = iwl_mvm_drain_sta(mvm, mvm_sta, true);
+	if (atomic_read(&mvm->pending_frames[mvm_sta->sta_id])) {
 		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id],
 				   ERR_PTR(-EBUSY));
+		spin_unlock_bh(&mvm_sta->lock);
+		ret = iwl_mvm_drain_sta(mvm, mvm_sta, true);
 	} else {
+		spin_unlock_bh(&mvm_sta->lock);
 		ret = iwl_mvm_rm_sta_common(mvm, mvm_sta->sta_id);
 		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id], NULL);
 	}
