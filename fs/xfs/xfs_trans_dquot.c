@@ -103,8 +103,6 @@ xfs_trans_dup_dqinfo(
 		return;
 
 	xfs_trans_alloc_dqinfo(ntp);
-	oqa = otp->t_dqinfo->dqa_usrdquots;
-	nqa = ntp->t_dqinfo->dqa_usrdquots;
 
 	/*
 	 * Because the quota blk reservation is carried forward,
@@ -113,7 +111,9 @@ xfs_trans_dup_dqinfo(
 	if(otp->t_flags & XFS_TRANS_DQ_DIRTY)
 		ntp->t_flags |= XFS_TRANS_DQ_DIRTY;
 
-	for (j = 0; j < 2; j++) {
+	for (j = 0; j < XFS_QM_TRANS_DQTYPES; j++) {
+		oqa = otp->t_dqinfo->dqs[j];
+		nqa = ntp->t_dqinfo->dqs[j];
 		for (i = 0; i < XFS_QM_TRANS_MAXDQS; i++) {
 			if (oqa[i].qt_dquot == NULL)
 				break;
@@ -138,8 +138,6 @@ xfs_trans_dup_dqinfo(
 			oq->qt_ino_res = oq->qt_ino_res_used;
 
 		}
-		oqa = otp->t_dqinfo->dqa_grpdquots;
-		nqa = ntp->t_dqinfo->dqa_grpdquots;
 	}
 }
 
@@ -177,8 +175,10 @@ xfs_trans_get_dqtrx(
 	int			i;
 	struct xfs_dqtrx	*qa;
 
-	qa = XFS_QM_ISUDQ(dqp) ?
-		tp->t_dqinfo->dqa_usrdquots : tp->t_dqinfo->dqa_grpdquots;
+	if (XFS_QM_ISUDQ(dqp))
+		qa = tp->t_dqinfo->dqs[XFS_QM_TRANS_USR];
+	else
+		qa = tp->t_dqinfo->dqs[XFS_QM_TRANS_GRP];
 
 	for (i = 0; i < XFS_QM_TRANS_MAXDQS; i++) {
 		if (qa[i].qt_dquot == NULL ||
@@ -338,12 +338,10 @@ xfs_trans_apply_dquot_deltas(
 		return;
 
 	ASSERT(tp->t_dqinfo);
-	qa = tp->t_dqinfo->dqa_usrdquots;
-	for (j = 0; j < 2; j++) {
-		if (qa[0].qt_dquot == NULL) {
-			qa = tp->t_dqinfo->dqa_grpdquots;
+	for (j = 0; j < XFS_QM_TRANS_DQTYPES; j++) {
+		qa = tp->t_dqinfo->dqs[j];
+		if (qa[0].qt_dquot == NULL)
 			continue;
-		}
 
 		/*
 		 * Lock all of the dquots and join them to the transaction.
@@ -494,10 +492,6 @@ xfs_trans_apply_dquot_deltas(
 			ASSERT(dqp->q_res_rtbcount >=
 				be64_to_cpu(dqp->q_core.d_rtbcount));
 		}
-		/*
-		 * Do the group quotas next
-		 */
-		qa = tp->t_dqinfo->dqa_grpdquots;
 	}
 }
 
@@ -520,9 +514,9 @@ xfs_trans_unreserve_and_mod_dquots(
 	if (!tp->t_dqinfo || !(tp->t_flags & XFS_TRANS_DQ_DIRTY))
 		return;
 
-	qa = tp->t_dqinfo->dqa_usrdquots;
+	for (j = 0; j < XFS_QM_TRANS_DQTYPES; j++) {
+		qa = tp->t_dqinfo->dqs[j];
 
-	for (j = 0; j < 2; j++) {
 		for (i = 0; i < XFS_QM_TRANS_MAXDQS; i++) {
 			qtrx = &qa[i];
 			/*
@@ -564,7 +558,6 @@ xfs_trans_unreserve_and_mod_dquots(
 				xfs_dqunlock(dqp);
 
 		}
-		qa = tp->t_dqinfo->dqa_grpdquots;
 	}
 }
 

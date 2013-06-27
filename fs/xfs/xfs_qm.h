@@ -116,11 +116,15 @@ extern void	xfs_trans_log_dquot(struct xfs_trans *, struct xfs_dquot *);
  * to do at commit time. All transactions that we know of at this point
  * affect no more than two dquots of one type. Hence, the TRANS_MAXDQS value.
  */
+enum {
+	XFS_QM_TRANS_USR = 0,
+	XFS_QM_TRANS_GRP,
+	XFS_QM_TRANS_DQTYPES
+};
 #define XFS_QM_TRANS_MAXDQS		2
-typedef struct xfs_dquot_acct {
-	xfs_dqtrx_t	dqa_usrdquots[XFS_QM_TRANS_MAXDQS];
-	xfs_dqtrx_t	dqa_grpdquots[XFS_QM_TRANS_MAXDQS];
-} xfs_dquot_acct_t;
+struct xfs_dquot_acct {
+	struct xfs_dqtrx	dqs[XFS_QM_TRANS_DQTYPES][XFS_QM_TRANS_MAXDQS];
+};
 
 /*
  * Users are allowed to have a usage exceeding their softlimit for
