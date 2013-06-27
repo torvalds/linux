@@ -142,6 +142,7 @@ nouveau-y += core/subdev/vm/nv50.o
 nouveau-y += core/subdev/vm/nvc0.o
 
 nouveau-y += core/engine/falcon.o
+nouveau-y += core/engine/xtensa.o
 nouveau-y += core/engine/dmaobj/base.o
 nouveau-y += core/engine/dmaobj/nv04.o
 nouveau-y += core/engine/dmaobj/nv50.o
