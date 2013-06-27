@@ -407,8 +407,8 @@ decode_ext_sec_blob(struct cifs_ses *ses, NEGOTIATE_RSP *pSMBr)
 int
 cifs_enable_signing(struct TCP_Server_Info *server, bool mnt_sign_required)
 {
-	bool srv_sign_required = server->sec_mode & SECMODE_SIGN_REQUIRED;
-	bool srv_sign_enabled = server->sec_mode & SECMODE_SIGN_ENABLED;
+	bool srv_sign_required = server->sec_mode & server->vals->signing_required;
+	bool srv_sign_enabled = server->sec_mode & server->vals->signing_enabled;
 	bool mnt_sign_enabled = global_secflags & CIFSSEC_MAY_SIGN;
 
 	/*
