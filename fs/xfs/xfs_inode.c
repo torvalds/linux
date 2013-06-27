@@ -2048,8 +2048,6 @@ xfs_ifree(
 	int			error;
 	int			delete;
 	xfs_ino_t		first_ino;
-	xfs_dinode_t    	*dip;
-	xfs_buf_t       	*ibp;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(ip->i_d.di_nlink == 0);
@@ -2062,14 +2060,13 @@ xfs_ifree(
 	 * Pull the on-disk inode from the AGI unlinked list.
 	 */
 	error = xfs_iunlink_remove(tp, ip);
-	if (error != 0) {
+	if (error)
 		return error;
-	}
 
 	error = xfs_difree(tp, ip->i_ino, flist, &delete, &first_ino);
-	if (error != 0) {
+	if (error)
 		return error;
-	}
+
 	ip->i_d.di_mode = 0;		/* mark incore inode as free */
 	ip->i_d.di_flags = 0;
 	ip->i_d.di_dmevmask = 0;
@@ -2081,31 +2078,10 @@ xfs_ifree(
 	 * by reincarnations of this inode.
 	 */
 	ip->i_d.di_gen++;
-
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
-	error = xfs_imap_to_bp(ip->i_mount, tp, &ip->i_imap, &dip, &ibp,
-			       0, 0);
-	if (error)
-		return error;
-
-        /*
-	* Clear the on-disk di_mode. This is to prevent xfs_bulkstat
-	* from picking up this inode when it is reclaimed (its incore state
-	* initialzed but not flushed to disk yet). The in-core di_mode is
-	* already cleared  and a corresponding transaction logged.
-	* The hack here just synchronizes the in-core to on-disk
-	* di_mode value in advance before the actual inode sync to disk.
-	* This is OK because the inode is already unlinked and would never
-	* change its di_mode again for this inode generation.
-	* This is a temporary hack that would require a proper fix
-	* in the future.
-	*/
-	dip->di_mode = 0;
-
-	if (delete) {
+	if (delete)
 		error = xfs_ifree_cluster(ip, tp, first_ino);
-	}
 
 	return error;
 }
