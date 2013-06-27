@@ -20,8 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <core/falcon.h>
-
+#include <engine/falcon.h>
 #include <subdev/timer.h>
 
 u32

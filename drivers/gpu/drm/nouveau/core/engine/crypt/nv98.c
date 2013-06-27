@@ -27,11 +27,11 @@
 #include <core/enum.h>
 #include <core/class.h>
 #include <core/engctx.h>
-#include <core/falcon.h>
 
 #include <subdev/timer.h>
 #include <subdev/fb.h>
 
+#include <engine/falcon.h>
 #include <engine/fifo.h>
 #include <engine/crypt.h>
 

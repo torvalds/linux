@@ -12,7 +12,6 @@ nouveau-y += core/core/engctx.o
 nouveau-y += core/core/engine.o
 nouveau-y += core/core/enum.o
 nouveau-y += core/core/event.o
-nouveau-y += core/core/falcon.o
 nouveau-y += core/core/gpuobj.o
 nouveau-y += core/core/handle.o
 nouveau-y += core/core/mm.o
@@ -142,6 +141,7 @@ nouveau-y += core/subdev/vm/nv44.o
 nouveau-y += core/subdev/vm/nv50.o
 nouveau-y += core/subdev/vm/nvc0.o
 
+nouveau-y += core/engine/falcon.o
 nouveau-y += core/engine/dmaobj/base.o
 nouveau-y += core/engine/dmaobj/nv04.o
 nouveau-y += core/engine/dmaobj/nv50.o

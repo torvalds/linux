@@ -22,16 +22,17 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/client.h>
-#include <core/falcon.h>
-#include <core/class.h>
-#include <core/enum.h>
+#include <engine/falcon.h>
+#include <engine/fifo.h>
+#include <engine/copy.h>
 
 #include <subdev/fb.h>
 #include <subdev/vm.h>
 
-#include <engine/fifo.h>
-#include <engine/copy.h>
+#include <core/client.h>
+#include <core/class.h>
+#include <core/enum.h>
+
 
 #include "fuc/nva3.fuc.h"
 
