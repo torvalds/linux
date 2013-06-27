@@ -877,15 +877,13 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 					 const u32 *hpd)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	unsigned long irqflags;
 	int i;
 	bool storm_detected = false;
 
 	if (!hotplug_trigger)
 		return;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-
+	spin_lock(&dev_priv->irq_lock);
 	for (i = 1; i < HPD_NUM_PINS; i++) {
 
 		if (!(hpd[i] & hotplug_trigger) ||
@@ -908,10 +906,9 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 		}
 	}
 
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-
 	if (storm_detected)
 		dev_priv->display.hpd_irq_setup(dev);
+	spin_unlock(&dev_priv->irq_lock);
 
 	queue_work(dev_priv->wq,
 		   &dev_priv->hotplug_work);
@@ -3426,6 +3423,8 @@ static void i915_hpd_irq_setup(struct drm_device *dev)
 	struct intel_encoder *intel_encoder;
 	u32 hotplug_en;
 
+	assert_spin_locked(&dev_priv->irq_lock);
+
 	if (I915_HAS_HOTPLUG(dev)) {
 		hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 		hotplug_en &= ~HOTPLUG_INT_EN_MASK;
@@ -3709,6 +3708,7 @@ void intel_hpd_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
+	unsigned long irqflags;
 	int i;
 
 	for (i = 1; i < HPD_NUM_PINS; i++) {
@@ -3721,6 +3721,11 @@ void intel_hpd_init(struct drm_device *dev)
 		if (!connector->polled && I915_HAS_HOTPLUG(dev) && intel_connector->encoder->hpd_pin > HPD_NONE)
 			connector->polled = DRM_CONNECTOR_POLL_HPD;
 	}
+
+	/* Interrupt setup is already guaranteed to be single-threaded, this is
+	 * just to make the assert_spin_locked checks happy. */
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	if (dev_priv->display.hpd_irq_setup)
 		dev_priv->display.hpd_irq_setup(dev);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
