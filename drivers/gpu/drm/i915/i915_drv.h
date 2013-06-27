@@ -465,8 +465,10 @@ struct i915_gtt {
 	void __iomem *gsm;
 
 	bool do_idle_maps;
-	dma_addr_t scratch_page_dma;
-	struct page *scratch_page;
+	struct {
+		dma_addr_t addr;
+		struct page *page;
+	} scratch;
 
 	/* global gtt ops */
 	int (*gtt_probe)(struct drm_device *dev, size_t *gtt_total,
