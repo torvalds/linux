@@ -3211,7 +3211,7 @@ static int velocity_resume(struct device *dev)
 	velocity_set_power_state(vptr, PCI_D0);
 
 	if (vptr->pdev) {
-		pci_enable_wake(vptr->pdev, 0, 0);
+		pci_enable_wake(vptr->pdev, PCI_D0, 0);
 		pci_restore_state(vptr->pdev);
 	}
 
