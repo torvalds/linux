@@ -228,6 +228,10 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 	struct btrfs_root *root;
 	int err = 0;
 	int ret;
+	bool can_recover = true;
+
+	if (tree_root->fs_info->sb->s_flags & MS_RDONLY)
+		can_recover = false;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -268,9 +272,32 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 		key.offset++;
 
 		root = btrfs_read_fs_root(tree_root, &root_key);
-		if (IS_ERR(root)) {
-			err = PTR_ERR(root);
+		err = PTR_RET(root);
+		if (err && err != -ENOENT) {
 			break;
+		} else if (err == -ENOENT) {
+			struct btrfs_trans_handle *trans;
+
+			btrfs_release_path(path);
+
+			trans = btrfs_join_transaction(tree_root);
+			if (IS_ERR(trans)) {
+				err = PTR_ERR(trans);
+				btrfs_error(tree_root->fs_info, err,
+					    "Failed to start trans to delete "
+					    "orphan item");
+				break;
+			}
+			err = btrfs_del_orphan_item(trans, tree_root,
+						    root_key.objectid);
+			btrfs_end_transaction(trans, tree_root);
+			if (err) {
+				btrfs_error(tree_root->fs_info, err,
+					    "Failed to delete root orphan "
+					    "item");
+				break;
+			}
+			continue;
 		}
 
 		if (btrfs_root_refs(&root->root_item) == 0) {
