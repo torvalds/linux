@@ -73,6 +73,8 @@ nvc0_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	priv->base.pll_set = nvc0_devinit_pll_set;
+	if (nv_rd32(priv, 0x022500) & 0x00000001)
+		priv->base.post = true;
 	return 0;
 }
 

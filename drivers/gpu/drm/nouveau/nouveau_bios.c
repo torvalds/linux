@@ -2051,19 +2051,14 @@ nouveau_bios_posted(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	unsigned htotal;
 
-	if (nv_device(drm->device)->card_type >= NV_50) {
-		if (NVReadVgaCrtc(dev, 0, 0x00) == 0 &&
-		    NVReadVgaCrtc(dev, 0, 0x1a) == 0)
-			return false;
+	if (nv_device(drm->device)->card_type >= NV_50)
 		return true;
-	}
 
 	htotal  = NVReadVgaCrtc(dev, 0, 0x06);
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x01) << 8;
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x20) << 4;
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x25) & 0x01) << 10;
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x41) & 0x01) << 11;
-
 	return (htotal != 0);
 }
 
