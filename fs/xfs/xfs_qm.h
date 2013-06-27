@@ -69,12 +69,22 @@ typedef struct xfs_quotainfo {
 	struct shrinker  qi_shrinker;
 } xfs_quotainfo_t;
 
-#define XFS_DQUOT_TREE(qi, type) \
-	((type & XFS_DQ_USER) ? \
-	 &((qi)->qi_uquota_tree) : \
-	 &((qi)->qi_gquota_tree))
-
-
+static inline struct radix_tree_root *
+xfs_dquot_tree(
+	struct xfs_quotainfo	*qi,
+	int			type)
+{
+	switch (type) {
+	case XFS_DQ_USER:
+		return &qi->qi_uquota_tree;
+	case XFS_DQ_GROUP:
+	case XFS_DQ_PROJ:
+		return &qi->qi_gquota_tree;
+	default:
+		ASSERT(0);
+	}
+	return NULL;
+}
 extern int	xfs_qm_calc_dquots_per_chunk(struct xfs_mount *mp,
 					     unsigned int nbblks);
 extern void	xfs_trans_mod_dquot(xfs_trans_t *, xfs_dquot_t *, uint, long);
