@@ -348,8 +348,24 @@ int ast_gem_create(struct drm_device *dev,
 int ast_bo_pin(struct ast_bo *bo, u32 pl_flag, u64 *gpu_addr);
 int ast_bo_unpin(struct ast_bo *bo);
 
-int ast_bo_reserve(struct ast_bo *bo, bool no_wait);
-void ast_bo_unreserve(struct ast_bo *bo);
+static inline int ast_bo_reserve(struct ast_bo *bo, bool no_wait)
+{
+	int ret;
+
+	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
+	if (ret) {
+		if (ret != -ERESTARTSYS && ret != -EBUSY)
+			DRM_ERROR("reserve failed %p\n", bo);
+		return ret;
+	}
+	return 0;
+}
+
+static inline void ast_bo_unreserve(struct ast_bo *bo)
+{
+	ttm_bo_unreserve(&bo->bo);
+}
+
 void ast_ttm_placement(struct ast_bo *bo, int domain);
 int ast_bo_push_sysram(struct ast_bo *bo);
 int ast_mmap(struct file *filp, struct vm_area_struct *vma);
