@@ -105,6 +105,8 @@ struct xfs_log_vec {
 	int			lv_buf_len;	/* size of formatted buffer */
 };
 
+#define XFS_LOG_VEC_ORDERED	(-1)
+
 /*
  * Structure used to pass callback function and the function's argument
  * to the log manager.
