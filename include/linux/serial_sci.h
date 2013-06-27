@@ -5,7 +5,7 @@
 #include <linux/sh_dma.h>
 
 /*
- * Generic header for SuperH SCI(F) (used by sh/sh64/h8300 and related parts)
+ * Generic header for SuperH (H)SCI(F) (used by sh/sh64/h8300 and related parts)
  */
 
 #define SCIx_NOT_SUPPORTED	(-1)
@@ -16,6 +16,7 @@ enum {
 	SCBRR_ALGO_3,		/* (((clk * 2) + 16 * bps) / (16 * bps) - 1) */
 	SCBRR_ALGO_4,		/* (((clk * 2) + 16 * bps) / (32 * bps) - 1) */
 	SCBRR_ALGO_5,		/* (((clk * 1000 / 32) / bps) - 1) */
+	SCBRR_ALGO_6,		/* HSCIF variable sample rate algorithm */
 };
 
 #define SCSCR_TIE	(1 << 7)
@@ -37,7 +38,7 @@ enum {
 
 #define SCI_DEFAULT_ERROR_MASK (SCI_PER | SCI_FER)
 
-/* SCxSR SCIF */
+/* SCxSR SCIF, HSCIF */
 #define SCIF_ER    0x0080
 #define SCIF_TEND  0x0040
 #define SCIF_TDFE  0x0020
@@ -54,6 +55,9 @@ enum {
 #define SCSPTR_CTSIO	(1 << 5)
 #define SCSPTR_SPB2IO	(1 << 1)
 #define SCSPTR_SPB2DT	(1 << 0)
+
+/* HSSRR HSCIF */
+#define HSCIF_SRE	0x8000
 
 /* Offsets into the sci_port->irqs array */
 enum {
@@ -90,6 +94,7 @@ enum {
 	SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
 	SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 	SCIx_SH7705_SCIF_REGTYPE,
+	SCIx_HSCIF_REGTYPE,
 
 	SCIx_NR_REGTYPES,
 };
@@ -115,6 +120,7 @@ enum {
 	SCSMR, SCBRR, SCSCR, SCxSR,
 	SCFCR, SCFDR, SCxTDR, SCxRDR,
 	SCLSR, SCTFDR, SCRFDR, SCSPTR,
+	HSSRR,
 
 	SCIx_NR_REGS,
 };
@@ -137,7 +143,7 @@ struct plat_sci_port {
 	unsigned long	mapbase;		/* resource base */
 	unsigned int	irqs[SCIx_NR_IRQS];	/* ERI, RXI, TXI, BRI */
 	unsigned int	gpios[SCIx_NR_FNS];	/* SCK, RXD, TXD, CTS, RTS */
-	unsigned int	type;			/* SCI / SCIF / IRDA */
+	unsigned int	type;			/* SCI / SCIF / IRDA / HSCIF */
 	upf_t		flags;			/* UPF_* flags */
 	unsigned long	capabilities;		/* Port features/capabilities */
 
