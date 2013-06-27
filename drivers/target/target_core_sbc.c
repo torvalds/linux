@@ -581,7 +581,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			pr_err("cmd exceeds last lba %llu "
 				"(lba %llu, sectors %u)\n",
 				end_lba, cmd->t_task_lba, sectors);
-			return TCM_INVALID_CDB_FIELD;
+			return TCM_ADDRESS_OUT_OF_RANGE;
 		}
 
 		size = sbc_get_size(cmd, sectors);
