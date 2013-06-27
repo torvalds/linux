@@ -106,7 +106,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		radeon_bo_list_add_object(&p->relocs[i].lobj,
 					  &p->validated);
 	}
-	return radeon_bo_list_validate(&p->validated, p->ring);
+	return radeon_bo_list_validate(&p->ticket, &p->validated, p->ring);
 }
 
 static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority)
@@ -314,15 +314,17 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
  * If error is set than unvalidate buffer, otherwise just free memory
  * used by parsing context.
  **/
-static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
+static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bool backoff)
 {
 	unsigned i;
 
 	if (!error) {
-		ttm_eu_fence_buffer_objects(&parser->validated,
+		ttm_eu_fence_buffer_objects(&parser->ticket,
+					    &parser->validated,
 					    parser->ib.fence);
-	} else {
-		ttm_eu_backoff_reservation(&parser->validated);
+	} else if (backoff) {
+		ttm_eu_backoff_reservation(&parser->ticket,
+					   &parser->validated);
 	}
 
 	if (parser->relocs != NULL) {
@@ -535,7 +537,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	r = radeon_cs_parser_init(&parser, data);
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");
-		radeon_cs_parser_fini(&parser, r);
+		radeon_cs_parser_fini(&parser, r, false);
 		up_read(&rdev->exclusive_lock);
 		r = radeon_cs_handle_lockup(rdev, r);
 		return r;
@@ -544,7 +546,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (r) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to parse relocation %d!\n", r);
-		radeon_cs_parser_fini(&parser, r);
+		radeon_cs_parser_fini(&parser, r, false);
 		up_read(&rdev->exclusive_lock);
 		r = radeon_cs_handle_lockup(rdev, r);
 		return r;
@@ -563,7 +565,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		goto out;
 	}
 out:
-	radeon_cs_parser_fini(&parser, r);
+	radeon_cs_parser_fini(&parser, r, true);
 	up_read(&rdev->exclusive_lock);
 	r = radeon_cs_handle_lockup(rdev, r);
 	return r;

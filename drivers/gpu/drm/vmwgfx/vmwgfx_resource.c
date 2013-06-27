@@ -990,9 +990,11 @@ void vmw_resource_unreserve(struct vmw_resource *res,
  * @val_buf:        On successful return contains data about the
  *                  reserved and validated backup buffer.
  */
-int vmw_resource_check_buffer(struct vmw_resource *res,
-			      bool interruptible,
-			      struct ttm_validate_buffer *val_buf)
+static int
+vmw_resource_check_buffer(struct vmw_resource *res,
+			  struct ww_acquire_ctx *ticket,
+			  bool interruptible,
+			  struct ttm_validate_buffer *val_buf)
 {
 	struct list_head val_list;
 	bool backup_dirty = false;
@@ -1007,7 +1009,7 @@ int vmw_resource_check_buffer(struct vmw_resource *res,
 	INIT_LIST_HEAD(&val_list);
 	val_buf->bo = ttm_bo_reference(&res->backup->base);
 	list_add_tail(&val_buf->head, &val_list);
-	ret = ttm_eu_reserve_buffers(&val_list);
+	ret = ttm_eu_reserve_buffers(ticket, &val_list);
 	if (unlikely(ret != 0))
 		goto out_no_reserve;
 
@@ -1025,7 +1027,7 @@ int vmw_resource_check_buffer(struct vmw_resource *res,
 	return 0;
 
 out_no_validate:
-	ttm_eu_backoff_reservation(&val_list);
+	ttm_eu_backoff_reservation(ticket, &val_list);
 out_no_reserve:
 	ttm_bo_unref(&val_buf->bo);
 	if (backup_dirty)
@@ -1069,7 +1071,9 @@ int vmw_resource_reserve(struct vmw_resource *res, bool no_backup)
  *.
  * @val_buf:        Backup buffer information.
  */
-void vmw_resource_backoff_reservation(struct ttm_validate_buffer *val_buf)
+static void
+vmw_resource_backoff_reservation(struct ww_acquire_ctx *ticket,
+				 struct ttm_validate_buffer *val_buf)
 {
 	struct list_head val_list;
 
@@ -1078,7 +1082,7 @@ void vmw_resource_backoff_reservation(struct ttm_validate_buffer *val_buf)
 
 	INIT_LIST_HEAD(&val_list);
 	list_add_tail(&val_buf->head, &val_list);
-	ttm_eu_backoff_reservation(&val_list);
+	ttm_eu_backoff_reservation(ticket, &val_list);
 	ttm_bo_unref(&val_buf->bo);
 }
 
@@ -1092,12 +1096,13 @@ int vmw_resource_do_evict(struct vmw_resource *res)
 {
 	struct ttm_validate_buffer val_buf;
 	const struct vmw_res_func *func = res->func;
+	struct ww_acquire_ctx ticket;
 	int ret;
 
 	BUG_ON(!func->may_evict);
 
 	val_buf.bo = NULL;
-	ret = vmw_resource_check_buffer(res, true, &val_buf);
+	ret = vmw_resource_check_buffer(res, &ticket, true, &val_buf);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1112,7 +1117,7 @@ int vmw_resource_do_evict(struct vmw_resource *res)
 	res->backup_dirty = true;
 	res->res_dirty = false;
 out_no_unbind:
-	vmw_resource_backoff_reservation(&val_buf);
+	vmw_resource_backoff_reservation(&ticket, &val_buf);
 
 	return ret;
 }

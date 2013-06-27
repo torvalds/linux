@@ -349,14 +349,15 @@ void radeon_bo_list_add_object(struct radeon_bo_list *lobj,
 	}
 }
 
-int radeon_bo_list_validate(struct list_head *head, int ring)
+int radeon_bo_list_validate(struct ww_acquire_ctx *ticket,
+			    struct list_head *head, int ring)
 {
 	struct radeon_bo_list *lobj;
 	struct radeon_bo *bo;
 	u32 domain;
 	int r;
 
-	r = ttm_eu_reserve_buffers(head);
+	r = ttm_eu_reserve_buffers(ticket, head);
 	if (unlikely(r != 0)) {
 		return r;
 	}

@@ -550,6 +550,7 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 			       struct radeon_fence **fence)
 {
 	struct ttm_validate_buffer tv;
+	struct ww_acquire_ctx ticket;
 	struct list_head head;
 	struct radeon_ib ib;
 	uint64_t addr;
@@ -561,7 +562,7 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 	INIT_LIST_HEAD(&head);
 	list_add(&tv.head, &head);
 
-	r = ttm_eu_reserve_buffers(&head);
+	r = ttm_eu_reserve_buffers(&ticket, &head);
 	if (r)
 		return r;
 
@@ -569,16 +570,12 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 	radeon_uvd_force_into_uvd_segment(bo);
 
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-	if (r) {
-		ttm_eu_backoff_reservation(&head);
-		return r;
-	}
+	if (r) 
+		goto err;
 
 	r = radeon_ib_get(rdev, ring, &ib, NULL, 16);
-	if (r) {
-		ttm_eu_backoff_reservation(&head);
-		return r;
-	}
+	if (r)
+		goto err;
 
 	addr = radeon_bo_gpu_offset(bo);
 	ib.ptr[0] = PACKET0(UVD_GPCOM_VCPU_DATA0, 0);
@@ -592,11 +589,9 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 	ib.length_dw = 16;
 
 	r = radeon_ib_schedule(rdev, &ib, NULL);
-	if (r) {
-		ttm_eu_backoff_reservation(&head);
-		return r;
-	}
-	ttm_eu_fence_buffer_objects(&head, ib.fence);
+	if (r)
+		goto err;
+	ttm_eu_fence_buffer_objects(&ticket, &head, ib.fence);
 
 	if (fence)
 		*fence = radeon_fence_ref(ib.fence);
@@ -604,6 +599,10 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 	radeon_ib_free(rdev, &ib);
 	radeon_bo_unref(&bo);
 	return 0;
+
+err:
+	ttm_eu_backoff_reservation(&ticket, &head);
+	return r;
 }
 
 /* multiple fence commands without any stream commands in between can

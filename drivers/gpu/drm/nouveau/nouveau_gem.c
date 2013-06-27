@@ -277,10 +277,12 @@ struct validate_op {
 	struct list_head vram_list;
 	struct list_head gart_list;
 	struct list_head both_list;
+	struct ww_acquire_ctx ticket;
 };
 
 static void
-validate_fini_list(struct list_head *list, struct nouveau_fence *fence)
+validate_fini_list(struct list_head *list, struct nouveau_fence *fence,
+		   struct ww_acquire_ctx *ticket)
 {
 	struct list_head *entry, *tmp;
 	struct nouveau_bo *nvbo;
@@ -297,17 +299,24 @@ validate_fini_list(struct list_head *list, struct nouveau_fence *fence)
 
 		list_del(&nvbo->entry);
 		nvbo->reserved_by = NULL;
-		ttm_bo_unreserve(&nvbo->bo);
+		ttm_bo_unreserve_ticket(&nvbo->bo, ticket);
 		drm_gem_object_unreference_unlocked(nvbo->gem);
 	}
 }
 
 static void
-validate_fini(struct validate_op *op, struct nouveau_fence* fence)
+validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence)
 {
-	validate_fini_list(&op->vram_list, fence);
-	validate_fini_list(&op->gart_list, fence);
-	validate_fini_list(&op->both_list, fence);
+	validate_fini_list(&op->vram_list, fence, &op->ticket);
+	validate_fini_list(&op->gart_list, fence, &op->ticket);
+	validate_fini_list(&op->both_list, fence, &op->ticket);
+}
+
+static void
+validate_fini(struct validate_op *op, struct nouveau_fence *fence)
+{
+	validate_fini_no_ticket(op, fence);
+	ww_acquire_fini(&op->ticket);
 }
 
 static int
@@ -317,13 +326,11 @@ validate_init(struct nouveau_channel *chan, struct drm_file *file_priv,
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct drm_device *dev = chan->drm->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	uint32_t sequence;
 	int trycnt = 0;
 	int ret, i;
 	struct nouveau_bo *res_bo = NULL;
 
-	sequence = atomic_add_return(1, &drm->ttm.validate_sequence);
+	ww_acquire_init(&op->ticket, &reservation_ww_class);
 retry:
 	if (++trycnt > 100000) {
 		NV_ERROR(cli, "%s failed and gave up.\n", __func__);
@@ -338,6 +345,7 @@ retry:
 		gem = drm_gem_object_lookup(dev, file_priv, b->handle);
 		if (!gem) {
 			NV_ERROR(cli, "Unknown handle 0x%08x\n", b->handle);
+			ww_acquire_done(&op->ticket);
 			validate_fini(op, NULL);
 			return -ENOENT;
 		}
@@ -352,21 +360,23 @@ retry:
 			NV_ERROR(cli, "multiple instances of buffer %d on "
 				      "validation list\n", b->handle);
 			drm_gem_object_unreference_unlocked(gem);
+			ww_acquire_done(&op->ticket);
 			validate_fini(op, NULL);
 			return -EINVAL;
 		}
 
-		ret = ttm_bo_reserve(&nvbo->bo, true, false, true, sequence);
+		ret = ttm_bo_reserve(&nvbo->bo, true, false, true, &op->ticket);
 		if (ret) {
-			validate_fini(op, NULL);
+			validate_fini_no_ticket(op, NULL);
 			if (unlikely(ret == -EAGAIN)) {
-				sequence = atomic_add_return(1, &drm->ttm.validate_sequence);
 				ret = ttm_bo_reserve_slowpath(&nvbo->bo, true,
-							      sequence);
+							      &op->ticket);
 				if (!ret)
 					res_bo = nvbo;
 			}
 			if (unlikely(ret)) {
+				ww_acquire_done(&op->ticket);
+				ww_acquire_fini(&op->ticket);
 				drm_gem_object_unreference_unlocked(gem);
 				if (ret != -ERESTARTSYS)
 					NV_ERROR(cli, "fail reserve\n");
@@ -390,6 +400,7 @@ retry:
 			NV_ERROR(cli, "invalid valid domains: 0x%08x\n",
 				 b->valid_domains);
 			list_add_tail(&nvbo->entry, &op->both_list);
+			ww_acquire_done(&op->ticket);
 			validate_fini(op, NULL);
 			return -EINVAL;
 		}
@@ -397,6 +408,7 @@ retry:
 			goto retry;
 	}
 
+	ww_acquire_done(&op->ticket);
 	return 0;
 }
 

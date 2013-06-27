@@ -979,6 +979,7 @@ struct radeon_cs_parser {
 	u32			cs_flags;
 	u32			ring;
 	s32			priority;
+	struct ww_acquire_ctx	ticket;
 };
 
 extern int radeon_cs_finish_pages(struct radeon_cs_parser *p);
