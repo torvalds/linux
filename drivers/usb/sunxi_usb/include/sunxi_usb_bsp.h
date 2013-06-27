@@ -508,7 +508,11 @@
 //-----------------------------------------------------------------------
 
 /* usb资源描述 */
+#if defined(CONFIG_ARCH_SUN4I)
 #define  USBC_MAX_CTL_NUM		3
+#else
+#define  USBC_MAX_CTL_NUM		1
+#endif
 #define  USBC_MAX_EP_NUM      	6   	/* 能够支持的最大ep号, ep0~5 */
 #define  USBC0_MAX_FIFO_SIZE   	(8 * 1024)
 #define  USBC_EP0_FIFOSIZE	  	64	/* This is non-configurable */

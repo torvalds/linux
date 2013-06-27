@@ -81,7 +81,9 @@ static const char *const ep_name[] = {
 	"ep2-bulk",
 	"ep3-bulk",
 	"ep4-bulk",
+#if defined(CONFIG_ARCH_SUN4I)
 	"ep5-int"
+#endif
 };
 
 #define SW_UDC_ENDPOINTS       ARRAY_SIZE(ep_name)

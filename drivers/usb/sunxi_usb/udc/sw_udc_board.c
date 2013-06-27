@@ -47,7 +47,7 @@
 
 #define res_size(_r) (((_r)->end - (_r)->start) + 1)
 
-#if 1
+#if defined(CONFIG_ARCH_SUN4I)
 /*
 *******************************************************************************
 *                     open_usb_clock
@@ -168,6 +168,10 @@ u32  open_usb_clock(sw_udc_io_t *sw_udc_io)
 
     //Gating AHB clock for USB_phy0
 	reg_value = USBC_Readl(ccmu_base + 0x60);
+#if defined(CONFIG_ARCH_SUN5I)
+	reg_value |= (1 << 2);
+	reg_value |= (1 << 1);
+#endif
 	reg_value |= (1 << 0);	            /* AHB clock gate usb0 */
 	USBC_Writel(reg_value, (ccmu_base + 0x60));
 
@@ -177,7 +181,14 @@ u32  open_usb_clock(sw_udc_io_t *sw_udc_io)
 
 	//Enable module clock for USB phy0
 	reg_value = USBC_Readl(ccmu_base + 0xcc);
+#if defined(CONFIG_ARCH_SUN5I)
+	reg_value |= (1 << 9);
+#endif
 	reg_value |= (1 << 8);
+#if defined(CONFIG_ARCH_SUN5I)
+	reg_value |= (1 << 6);
+	reg_value |= (1 << 1);
+#endif
 	reg_value |= (1 << 0);          //disable reset
 	USBC_Writel(reg_value, (ccmu_base + 0xcc));
 
@@ -208,6 +219,7 @@ u32  open_usb_clock(sw_udc_io_t *sw_udc_io)
 */
 u32 close_usb_clock(sw_udc_io_t *sw_udc_io)
 {
+#if defined(CONFIG_ARCH_SUN4I)
     u32 reg_value = 0;
     u32 ccmu_base = SW_VA_CCM_IO_BASE;
 
@@ -215,6 +227,10 @@ u32 close_usb_clock(sw_udc_io_t *sw_udc_io)
 
     //Gating AHB clock for USB_phy0
 	reg_value = USBC_Readl(ccmu_base + 0x60);
+#if defined(CONFIG_ARCH_SUN5I)
+	reg_value &= ~(1 << 2);
+	reg_value &= ~(1 << 1);
+#endif
 	reg_value &= ~(1 << 0);	            /* AHB clock gate usb0 */
 	USBC_Writel(reg_value, (ccmu_base + 0x60));
 
@@ -224,7 +240,14 @@ u32 close_usb_clock(sw_udc_io_t *sw_udc_io)
 
 	//Enable module clock for USB phy0
 	reg_value = USBC_Readl(ccmu_base + 0xcc);
+#if defined(CONFIG_ARCH_SUN5I)
+	reg_value &= ~(1 << 9);
+#endif
 	reg_value &= ~(1 << 8);
+#if defined(CONFIG_ARCH_SUN5I)
+	reg_value &= ~(1 << 6);
+	reg_value &= ~(1 << 1);
+#endif
 	reg_value &= ~(1 << 0);          //disable reset
 	USBC_Writel(reg_value, (ccmu_base + 0xcc));
 
@@ -232,6 +255,7 @@ u32 close_usb_clock(sw_udc_io_t *sw_udc_io)
 	reg_value = 10000;
 	while(reg_value--);
   sw_udc_io->clk_is_open = 0;
+#endif
 	return 0;
 
 }

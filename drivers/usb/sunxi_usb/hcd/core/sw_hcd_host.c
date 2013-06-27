@@ -2694,11 +2694,12 @@ static int sw_hcd_schedule(struct sw_hcd *sw_hcd,
 		 * NAK timeout interval is 8 (128 uframe or 16ms) for HS and
 		 * 4 (8 frame or 8ms) for FS device.
 		 */
-/*
+#if defined(CONFIG_ARCH_SUN5I)
 		if (is_in && qh->dev){
 			qh->intv_reg = (USB_SPEED_HIGH == qh->dev->speed) ? 8 : 4;
         }
-*/
+#endif
+
 		goto success;
 	} else if (best_end < 0) {
 	    DMSG_PANIC("ERR: sw_hcd_schedule, best_end\n");

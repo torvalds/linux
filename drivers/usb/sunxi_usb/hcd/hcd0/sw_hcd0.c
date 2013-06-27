@@ -89,7 +89,7 @@ static struct fifo_cfg ep0_cfg = {
 static sw_hcd_io_t g_sw_hcd_io;
 static __u32 usbc_no = 0;
 
-#ifdef  CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef  CONFIG_USB_SW_SUNXI_USB0_OTG
 static struct platform_device *g_hcd0_pdev = NULL;
 #endif
 
@@ -108,7 +108,7 @@ static struct sw_hcd *g_sw_hcd0 = NULL;
 static void sw_hcd_save_context(struct sw_hcd *sw_hcd);
 static void sw_hcd_restore_context(struct sw_hcd *sw_hcd);
 
-#if 1
+#if defined(CONFIG_ARCH_SUN4I)
 static s32 usb_clock_init(sw_hcd_io_t *sw_hcd_io)
 {
 	sw_hcd_io->sie_clk = clk_get(NULL, "ahb_usb0");
@@ -308,7 +308,14 @@ static u32  open_usb_clock(sw_hcd_io_t *sw_hcd_io)
 
 	//Enable module clock for USB phy0
 	reg_value = USBC_Readl(ccmu_base + 0xcc);
+#if defined(CONFIG_ARCH_SUN5I)
+	reg_value |= (1 << 9);
+#endif
 	reg_value |= (1 << 8);
+#if defined(CONFIG_ARCH_SUN5I)
+	reg_value |= (1 << 6);
+	reg_value |= (1 << 1);
+#endif
 	reg_value |= (1 << 0);          //disable reset
 	USBC_Writel(reg_value, (ccmu_base + 0xcc));
 
@@ -341,6 +348,7 @@ static u32  open_usb_clock(sw_hcd_io_t *sw_hcd_io)
 */
 static u32 close_usb_clock(sw_hcd_io_t *sw_hcd_io)
 {
+#if defined(CONFIG_ARCH_SUN4I)
 	u32 reg_value = 0;
 	u32 ccmu_base = SW_VA_CCM_IO_BASE;
 
@@ -357,7 +365,14 @@ static u32 close_usb_clock(sw_hcd_io_t *sw_hcd_io)
 
 	//Enable module clock for USB phy0
 	reg_value = USBC_Readl(ccmu_base + 0xcc);
+#if defined(CONFIG_ARCH_SUN5I)
+	reg_value &= ~(1 << 9);
+#endif
 	reg_value &= ~(1 << 8);
+#if defined(CONFIG_ARCH_SUN5I)
+	reg_value &= ~(1 << 6);
+	reg_value &= ~(1 << 1);
+#endif
 	reg_value &= ~(1 << 0);          //disable reset
 	USBC_Writel(reg_value, (ccmu_base + 0xcc));
 
@@ -367,6 +382,7 @@ static u32 close_usb_clock(sw_hcd_io_t *sw_hcd_io)
 
 	sw_hcd_io->clk_is_open = 0;
 
+#endif
 	return 0;
 }
 
@@ -717,6 +733,10 @@ static void sw_hcd_shutdown(struct platform_device *pdev)
     sw_hcd_generic_disable(sw_hcd);
     spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
+#if defined(CONFIG_ARCH_SUN5I)
+	close_usb_clock(&g_sw_hcd_io);
+	sw_hcd_set_vbus(sw_hcd, 0);
+#else
     sw_hcd_port_suspend_ex(sw_hcd);
     sw_hcd_set_vbus(sw_hcd, 0);
     close_usb_clock(&g_sw_hcd_io);
@@ -725,6 +745,7 @@ static void sw_hcd_shutdown(struct platform_device *pdev)
 
     /* Set aside some time to AXP */
     mdelay(100);
+#endif
 
     DMSG_INFO_HCD0("sw_hcd shutdown end\n");
 
@@ -1234,7 +1255,7 @@ static struct sw_hcd *allocate_instance(struct device *dev,
 	sw_hcd->nIrq              = -ENODEV;
 	sw_hcd->config            = config;
 
-#ifndef  CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifndef  CONFIG_USB_SW_SUNXI_USB0_OTG
 	g_sw_hcd0 = sw_hcd;
 	sw_hcd->enable = 1;
 #else
@@ -1511,7 +1532,7 @@ fail:
 */
 int sw_usb_host0_enable(void)
 {
-#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
 	struct platform_device 	*pdev 	= NULL;
 	struct device   		*dev  	= NULL;
 	struct sw_hcd 			*sw_hcd	= NULL;
@@ -1587,7 +1608,7 @@ EXPORT_SYMBOL(sw_usb_host0_enable);
 */
 int sw_usb_host0_disable(void)
 {
-#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
 	struct platform_device 	*pdev 	= NULL;
 	struct sw_hcd 			*sw_hcd	= NULL;
 	unsigned long   		flags 	= 0;
@@ -1667,7 +1688,7 @@ EXPORT_SYMBOL(sw_usb_host0_disable);
 *
 *******************************************************************************
 */
-#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
 static int sw_hcd_probe_otg(struct platform_device *pdev)
 {
 	struct device   *dev    = &pdev->dev;
@@ -1728,7 +1749,7 @@ end:
 *
 *******************************************************************************
 */
-#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
 static int sw_hcd_remove_otg(struct platform_device *pdev)
 {
 	struct sw_hcd *sw_hcd = dev_to_sw_hcd(&pdev->dev);
@@ -1863,7 +1884,7 @@ static int sw_hcd_remove_host_only(struct platform_device *pdev)
 */
 static int __init sw_hcd_probe(struct platform_device *pdev)
 {
-#ifdef  CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef  CONFIG_USB_SW_SUNXI_USB0_OTG
 	struct sw_hcd_platform_data	*pdata = pdev->dev.platform_data;
 
     switch(pdata->config->port_info->port_type){
@@ -1905,7 +1926,7 @@ static int __init sw_hcd_probe(struct platform_device *pdev)
 */
 static int __devexit sw_hcd_remove(struct platform_device *pdev)
 {
-#ifdef  CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef  CONFIG_USB_SW_SUNXI_USB0_OTG
 	struct sw_hcd_platform_data	*pdata = pdev->dev.platform_data;
 
     switch(pdata->config->port_info->port_type){
@@ -2049,7 +2070,7 @@ static void sw_hcd_restore_context(struct sw_hcd *sw_hcd)
 */
 int sw_usb_disable_hcd0(void)
 {
-#ifdef  CONFIG_USB_SW_SUN4I_USB0_HOST
+#ifdef  CONFIG_USB_SW_SUNXI_USB0_HOST
 	struct device *dev = NULL;
 	struct platform_device *pdev = NULL;
 	unsigned long flags = 0;
@@ -2072,7 +2093,7 @@ int sw_usb_disable_hcd0(void)
 		return 0;
 	}
 
-#ifndef  CONFIG_USB_SW_SUN4I_USB0_HOST
+#ifndef  CONFIG_USB_SW_SUNXI_USB0_HOST
 	if(sw_hcd->config->port_info->port_type != USB_PORT_TYPE_HOST
 	  || sw_hcd->config->port_info->host_init_state){
         DMSG_PANIC("ERR: only host mode support sw_usb_disable_hcd, (%d, %d)\n",
@@ -2133,7 +2154,7 @@ EXPORT_SYMBOL(sw_usb_disable_hcd0);
 */
 int sw_usb_enable_hcd0(void)
 {
-#ifdef  CONFIG_USB_SW_SUN4I_USB0_HOST
+#ifdef  CONFIG_USB_SW_SUNXI_USB0_HOST
 	struct device *dev = NULL;
 	struct platform_device *pdev = NULL;
 	unsigned long	flags = 0;
@@ -2156,7 +2177,7 @@ int sw_usb_enable_hcd0(void)
 		return 0;
 	}
 
-#ifndef  CONFIG_USB_SW_SUN4I_USB0_HOST
+#ifndef  CONFIG_USB_SW_SUNXI_USB0_HOST
 	if(sw_hcd->config->port_info->port_type != USB_PORT_TYPE_HOST
 	  || sw_hcd->config->port_info->host_init_state){
         DMSG_PANIC("ERR: only host mode support sw_usb_enable_hcd, (%d, %d)\n",
@@ -2225,10 +2246,12 @@ static int sw_hcd_suspend(struct device *dev)
 		return 0;
 	}
 
+#if defined(CONFIG_ARCH_SUN4I)
 	if(!sw_hcd->sw_hcd_io->clk_is_open){
 		DMSG_INFO("wrn: sw_hcd_suspend, usb clock is close, can't close again\n");
 		return 0;
 	}
+#endif
 
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd->suspend = 1;
@@ -2275,10 +2298,12 @@ static int sw_hcd_resume(struct device *dev)
 		return 0;
 	}
 
+#if defined(CONFIG_ARCH_SUN4I)
 	if(sw_hcd->sw_hcd_io->clk_is_open){
 		DMSG_INFO("wrn: sw_hcd_suspend, usb clock is open, can't open again\n");
 		return 0;
 	}
+#endif
 
 	sw_hcd_soft_disconnect(sw_hcd);
 	open_usb_clock(sw_hcd->sw_hcd_io);

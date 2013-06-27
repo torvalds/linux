@@ -71,7 +71,7 @@ static sw_udc_io_t      g_sw_udc_io;
 static u32 usb_connect = 0;
 static u32 is_controller_alive = 0;
 
-#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
 static struct platform_device *g_udc_pdev = NULL;
 #endif
 
@@ -838,7 +838,7 @@ static int sw_udc_get_status(struct sw_udc *dev, struct usb_ctrlrequest *crq)
 
 static int sw_udc_set_halt(struct usb_ep *_ep, int value);
 
-#if 1
+#if defined(CONFIG_ARCH_SUN4I)
 
 /*
 *******************************************************************************
@@ -3216,7 +3216,7 @@ static struct sw_udc sw_udc = {
 		.bEndpointAddress   = 4,
 		.bmAttributes	    = USB_ENDPOINT_XFER_BULK,
 	},
-
+#if defined(CONFIG_ARCH_SUN4I)
 	.ep[5] = {
 		.num			= 5,
 		.ep = {
@@ -3229,6 +3229,7 @@ static struct sw_udc sw_udc = {
 		.bEndpointAddress   = 5,
 		.bmAttributes	    = USB_ENDPOINT_XFER_INT,
 	},
+#endif
 };
 
 int sw_usb_device_enable(void)
@@ -3563,7 +3564,7 @@ static int sw_udc_remove_device_only(struct platform_device *pdev)
 */
 static int __init sw_udc_probe(struct platform_device *pdev)
 {
-#ifdef  CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef  CONFIG_USB_SW_SUNXI_USB0_OTG
 	struct sw_udc_mach_info *udc_cfg = pdev->dev.platform_data;
 
     switch(udc_cfg->port_info->port_type){
@@ -3587,7 +3588,7 @@ static int __init sw_udc_probe(struct platform_device *pdev)
 
 static int __devexit sw_udc_remove(struct platform_device *pdev)
 {
-#ifdef  CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef  CONFIG_USB_SW_SUNXI_USB0_OTG
 	struct sw_udc_mach_info *udc_cfg = pdev->dev.platform_data;
 
     switch(udc_cfg->port_info->port_type){

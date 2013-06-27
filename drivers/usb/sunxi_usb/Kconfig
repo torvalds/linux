@@ -1,31 +1,56 @@
 #
+# softwinner SUNXI USB2.0 Dual Role Controller Driver.
+#
+config USB_SW_SUNXI_USB
+    tristate
+    depends on ARCH_SUN4I || ARCH_SUN5I
+
+config USB_SW_SUNXI_USB_MANAGER
+    tristate
+    depends on USB_SW_SUNXI_USB
+
+
+config USB_SW_SUNXI_USB0_HOST_ONLY
+    boolean
+    select USB_SW_SUNXI_HCD0
+
+config USB_SW_SUNXI_USB0_OTG
+    boolean
+    depends on USB_SW_SUNXI_UDC0
+    select USB_SW_SUNXI_HCD0
+
+config USB_SW_SUNXI_USB0_DEVICE_ONLY
+    boolean
+    depends on USB_SW_SUNXI_UDC0
+
+config USB_SW_SUNXI_USB0_NULL
+    boolean
+
+config USB_SW_SUNXI_USB_DEBUG
+    tristate
+    depends on USB_SW_SUNXI_USB
+
+
+
+
+#
 # softwinner SUN4I USB2.0 Dual Role Controller Driver.
 #
-
-#---------------------------------------------
-#-
-#- config USB2.0 Dual Role Controller.
-#-
-#---------------------------------------------
 menuconfig USB_SW_SUN4I_USB
     tristate "SUN4I USB2.0 Dual Role Controller support"
     depends on ARCH_SUN4I
+    select USB_SW_SUNXI_USB
     help
         SUN4I USB2.0 Dual Role Controller
 
 config USB_SW_SUN4I_USB_MANAGER
     tristate "SUN4I USB2.0 Manager"
     depends on USB_SW_SUN4I_USB
+    select USB_SW_SUNXI_USB_MANAGER
     help
         manager all usb controller.
 
-#---------------------------------------------
-#-
-#- usb0 mode select.
-#-
-#---------------------------------------------
 choice
-
     prompt "USB0 Controller support"
     depends on (USB_SW_SUN4I_USB && USB_SW_SUN4I_USB_MANAGER)
     help
@@ -33,12 +58,13 @@ choice
         choice "host only", then usb0 can only use for host. choice "OTG", then usb0 can only
         use device and host.
 
-        For "device only" and "OTG" modes, you need CONFIG_USB_SW_SUN4SI_UDC0, "SoftWinner
+        For "device only" and "OTG" modes, you need CONFIG_USB_SW_SUN4I_UDC0, "SoftWinner
         SUN4I USB Peripheral Controller", enabled under USB gadget config.
 
 config USB_SW_SUN4I_USB0_HOST_ONLY
     boolean "host only support"
     select USB_SW_SUN4I_HCD0
+    select USB_SW_SUNXI_USB0_HOST_ONLY
     help
         usb0 can only use for host.
 
@@ -46,26 +72,92 @@ config USB_SW_SUN4I_USB0_OTG
     boolean "otg support"
     depends on USB_SW_SUN4I_UDC0
     select USB_SW_SUN4I_HCD0
+    select USB_SW_SUNXI_USB0_OTG
     help
         usb0 can only use for device and host.
 
 config USB_SW_SUN4I_USB0_DEVICE_ONLY
     boolean "device only support"
     depends on USB_SW_SUN4I_UDC0
+    select USB_SW_SUNXI_USB0_DEVICE_ONLY
     help
         usb0 can only use for device.
 
 config USB_SW_SUN4I_USB0_NULL
     boolean "usb manager not support"
+    select USB_SW_SUNXI_USB0_NULL
     help
         usb0 do not monitor hardware, then driver insmod should by application.
-
-
-
 endchoice
 
 config USB_SW_SUN4I_USB_DEBUG
     tristate "SUN4I USB driver debug message"
     depends on USB_SW_SUN4I_USB
+    select USB_SW_SUNXI_USB_DEBUG
     help
         SUN4I USB driver debug message.
+
+
+#
+# softwinner SUN5I USB2.0 Dual Role Controller Driver.
+#
+menuconfig USB_SW_SUN5I_USB
+    tristate "SUN5I USB2.0 Dual Role Controller support"
+    depends on ARCH_SUN5I
+    select USB_SW_SUNXI_USB
+    help
+        SUN5I USB2.0 Dual Role Controller
+
+config USB_SW_SUN5I_USB_MANAGER
+    tristate "SUN5I USB2.0 Manager"
+    depends on USB_SW_SUN5I_USB
+    select USB_SW_SUNXI_USB_MANAGER
+    help
+        manager all usb controller.
+
+choice
+    prompt "USB0 Controller support"
+    depends on (USB_SW_SUN5I_USB && USB_SW_SUN5I_USB_MANAGER)
+    help
+        usb0 Controller mode select. choice "device only", then usb0 can only use for device.
+        choice "host only", then usb0 can only use for host. choice "OTG", then usb0 can only
+        use device and host.
+
+        For "device only" and "OTG" modes, you need CONFIG_USB_SW_SUN5I_UDC0, "SoftWinner
+        SUN5I USB Peripheral Controller", enabled under USB gadget config.
+
+config USB_SW_SUN5I_USB0_HOST_ONLY
+    boolean "host only support"
+    select USB_SW_SUN5I_HCD0
+    select USB_SW_SUNXI_USB0_HOST_ONLY
+    help
+        usb0 can only use for host.
+
+config USB_SW_SUN5I_USB0_OTG
+    boolean "otg support"
+    depends on USB_SW_SUN5I_UDC0
+    select USB_SW_SUN5I_HCD0
+    select USB_SW_SUNXI_USB0_OTG
+    help
+        usb0 can only use for device and host.
+
+config USB_SW_SUN5I_USB0_DEVICE_ONLY
+    boolean "device only support"
+    depends on USB_SW_SUN5I_UDC0
+    select USB_SW_SUNXI_USB0_DEVICE_ONLY
+    help
+        usb0 can only use for device.
+
+config USB_SW_SUN5I_USB0_NULL
+    boolean "usb manager not support"
+    select USB_SW_SUNXI_USB0_NULL
+    help
+        usb0 do not monitor hardware, then driver insmod should by application.
+endchoice
+
+config USB_SW_SUN5I_USB_DEBUG
+    tristate "SUN5I USB driver debug message"
+    depends on USB_SW_SUN5I_USB
+    select USB_SW_SUNXI_USB_DEBUG
+    help
+        SUN5I USB driver debug message.

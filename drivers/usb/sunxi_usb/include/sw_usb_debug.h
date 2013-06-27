@@ -24,7 +24,7 @@
 #ifndef  __SW_USB_DEBUG_H__
 #define  __SW_USB_DEBUG_H__
 
-#ifdef  CONFIG_USB_SW_SUN4I_USB_DEBUG
+#ifdef  CONFIG_USB_SW_SUNXI_USB_DEBUG
 
 #define  DMSG_PRINT(stuff...)		printk(stuff)
 

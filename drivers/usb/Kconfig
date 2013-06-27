@@ -193,6 +193,4 @@ source "drivers/usb/sun3i_usb/Kconfig"
 
 source "drivers/usb/sunxi_usb/Kconfig"
 
-source "drivers/usb/sun5i_usb/Kconfig"
-
 endif # USB_SUPPORT

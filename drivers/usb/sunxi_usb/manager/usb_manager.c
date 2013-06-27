@@ -56,7 +56,7 @@
 
 static struct usb_cfg g_usb_cfg;
 
-#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
 static __u32 thread_run_flag = 1;
 static __u32 thread_stopped_flag = 1;
 #endif
@@ -79,7 +79,7 @@ static __u32 thread_stopped_flag = 1;
 *
 *******************************************************************************
 */
-#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
 
 static int usb_hardware_scan_thread(void * pArg)
 {
@@ -450,26 +450,30 @@ static int __init usb_manager_init(void)
 	bsp_usbc_t usbc;
 	u32 i = 0;
 
-#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
 	struct task_struct *th = NULL;
 #endif
 
     DMSG_MANAGER_DEBUG("[sw usb]: usb_manager_init\n");
 
-#if defined(CONFIG_USB_SW_SUN4I_USB0_DEVICE_ONLY)
-	DMSG_INFO_MANAGER("CONFIG_USB_SW_SUN4I_USB0_DEVICE_ONLY\n");
-#elif defined(CONFIG_USB_SW_SUN4I_USB0_HOST_ONLY)
-	DMSG_INFO_MANAGER("CONFIG_USB_SW_SUN4I_USB0_HOST_ONLY\n");
-#elif defined(CONFIG_USB_SW_SUN4I_USB0_OTG)
-	DMSG_INFO_MANAGER("CONFIG_USB_SW_SUN4I_USB0_OTG\n");
+#if defined(CONFIG_USB_SW_SUNXI_USB0_DEVICE_ONLY)
+	DMSG_INFO_MANAGER("CONFIG_USB_SW_SUNXI_USB0_DEVICE_ONLY\n");
+#elif defined(CONFIG_USB_SW_SUNXI_USB0_HOST_ONLY)
+	DMSG_INFO_MANAGER("CONFIG_USB_SW_SUNXI_USB0_HOST_ONLY\n");
+#elif defined(CONFIG_USB_SW_SUNXI_USB0_OTG)
+	DMSG_INFO_MANAGER("CONFIG_USB_SW_SUNXI_USB0_OTG\n");
 #else
-	DMSG_INFO_MANAGER("CONFIG_USB_SW_SUN4I_USB0_NULL\n");
+	DMSG_INFO_MANAGER("CONFIG_USB_SW_SUNXI_USB0_NULL\n");
 	return 0;
 #endif
 
 	memset(&g_usb_cfg, 0, sizeof(struct usb_cfg));
 	g_usb_cfg.usb_global_enable = 1;
+#if defined(CONFIG_ARCH_SUN4I)
     g_usb_cfg.usbc_num = 3;
+#else
+    g_usb_cfg.usbc_num = 2;
+#endif
 
 	ret = get_usb_cfg(&g_usb_cfg);
 	if(ret != 0){
@@ -509,9 +513,12 @@ static int __init usb_manager_init(void)
 
     usbc0_platform_device_init(&g_usb_cfg.port[0]);
 
-#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
     if(g_usb_cfg.port[0].port_type == USB_PORT_TYPE_OTG
        && g_usb_cfg.port[0].detect_type == USB_DETECT_TYPE_VBUS_ID){
+#if defined(CONFIG_ARCH_SUN5I)
+        usb_msg_center_init(&g_usb_cfg);
+#endif
     	usb_hw_scan_init(&g_usb_cfg);
 
     	thread_run_flag = 1;
@@ -555,14 +562,14 @@ static void __exit usb_manager_exit(void)
 
     DMSG_MANAGER_DEBUG("[sw usb]: usb_manager_exit\n");
 
-#if defined(CONFIG_USB_SW_SUN4I_USB0_DEVICE_ONLY)
-	DMSG_INFO("CONFIG_USB_SW_SUN4I_USB0_DEVICE_ONLY\n");
-#elif defined(CONFIG_USB_SW_SUN4I_USB0_HOST_ONLY)
-	DMSG_INFO("CONFIG_USB_SW_SUN4I_USB0_HOST_ONLY\n");
-#elif defined(CONFIG_USB_SW_SUN4I_USB0_OTG)
-	DMSG_INFO("CONFIG_USB_SW_SUN4I_USB0_OTG\n");
+#if defined(CONFIG_USB_SW_SUNXI_USB0_DEVICE_ONLY)
+	DMSG_INFO("CONFIG_USB_SW_SUNXI_USB0_DEVICE_ONLY\n");
+#elif defined(CONFIG_USB_SW_SUNXI_USB0_HOST_ONLY)
+	DMSG_INFO("CONFIG_USB_SW_SUNXI_USB0_HOST_ONLY\n");
+#elif defined(CONFIG_USB_SW_SUNXI_USB0_OTG)
+	DMSG_INFO("CONFIG_USB_SW_SUNXI_USB0_OTG\n");
 #else
-	DMSG_INFO("CONFIG_USB_SW_SUN4I_USB0_NULL\n");
+	DMSG_INFO("CONFIG_USB_SW_SUNXI_USB0_NULL\n");
 	return;
 #endif
 
@@ -574,7 +581,7 @@ static void __exit usb_manager_exit(void)
     memset(&usbc, 0, sizeof(bsp_usbc_t));
 	USBC_exit(&usbc);
 
-#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
+#ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
     if(g_usb_cfg.port[0].port_type == USB_PORT_TYPE_OTG
        && g_usb_cfg.port[0].detect_type == USB_DETECT_TYPE_VBUS_ID){
     	thread_run_flag = 0;

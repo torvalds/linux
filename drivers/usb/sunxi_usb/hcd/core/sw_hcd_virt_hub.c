@@ -56,6 +56,7 @@
 */
 void sw_hcd_port_suspend_ex(struct sw_hcd *sw_hcd)
 {
+#if defined(CONFIG_ARCH_SUN4I)
     /* if peripheral connect, suspend the device */
     if (sw_hcd->is_active) {
     	/* suspend usb port */
@@ -64,6 +65,13 @@ void sw_hcd_port_suspend_ex(struct sw_hcd *sw_hcd)
     	/* delay for 1000ms */
     	mdelay(1000);
     }
+#else
+	/* suspend usb port */
+	USBC_Host_SuspendPort(sw_hcd->sw_hcd_io->usb_bsp_hdle);
+
+	/* delay for 1000ms */
+	udelay(1000);
+#endif
 
 	return;
 }
@@ -90,7 +98,11 @@ void sw_hcd_port_resume_ex(struct sw_hcd *sw_hcd)
 {
 	/* resume port */
 	USBC_Host_RusumePort(sw_hcd->sw_hcd_io->usb_bsp_hdle);
+#if defined(CONFIG_ARCH_SUN4I)
 	mdelay(500);
+#else
+	udelay(500);
+#endif
 	USBC_Host_ClearRusumePortFlag(sw_hcd->sw_hcd_io->usb_bsp_hdle);
 
 	return;
@@ -121,9 +133,17 @@ void sw_hcd_port_reset_ex(struct sw_hcd *sw_hcd)
 
 	/* reset port */
 	USBC_Host_ResetPort(sw_hcd->sw_hcd_io->usb_bsp_hdle);
+#if defined(CONFIG_ARCH_SUN4I)
 	mdelay(50);
+#else
+	udelay(50);
+#endif
 	USBC_Host_ClearResetPortFlag(sw_hcd->sw_hcd_io->usb_bsp_hdle);
+#if defined(CONFIG_ARCH_SUN4I)
 	mdelay(500);
+#else
+	udelay(500);
+#endif
 
 	return;
 }

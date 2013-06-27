@@ -661,6 +661,10 @@ config USB_SUNXI_COMMON
 	  Enable support for common routines for Allwinner's USB host
 	  controller (USB1 and USB2 for sun4i, and USB1 for sun5i).
 
+config USB_SW_SUNXI_HCD0
+	tristate
+	depends on USB && USB_SW_SUNXI_USB_MANAGER
+
 #-----------------------------------------------------
 #
 # F20 USB Host Controller Drivers
@@ -698,6 +702,7 @@ config USB_SW_SUN3I_HCD2
 config USB_SW_SUN4I_HCD0
 	tristate "SoftWinner SUN4I USB Host Controller0 (OTG)"
 	depends on USB && USB_SW_SUN4I_USB_MANAGER
+	select USB_SW_SUNXI_HCD0
 	help
 	    SoftWinner SUN4I USB2.0 Host Controller0, OTG port.
 
@@ -709,5 +714,6 @@ config USB_SW_SUN4I_HCD0
 config USB_SW_SUN5I_HCD0
 	tristate "SoftWinner SUN5I USB Host Controller0 (OTG)"
 	depends on USB && USB_SW_SUN5I_USB_MANAGER
+	select USB_SW_SUNXI_HCD0
 	help
 	    SoftWinner SUN5I USB2.0 Host Controller0, OTG port.
