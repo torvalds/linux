@@ -39,6 +39,7 @@
 #include <linux/mm.h>
 #include <linux/rbtree.h>
 #include <linux/bitmap.h>
+#include <linux/reservation.h>
 
 struct ttm_bo_device;
 
@@ -153,7 +154,6 @@ struct ttm_tt;
  * Lru lists may keep one refcount, the delayed delete list, and kref != 0
  * keeps one refcount. When this refcount reaches zero,
  * the object is destroyed.
- * @event_queue: Queue for processes waiting on buffer object status change.
  * @mem: structure describing current placement.
  * @persistent_swap_storage: Usually the swap storage is deleted for buffers
  * pinned in physical memory. If this behaviour is not desired, this member
@@ -164,12 +164,6 @@ struct ttm_tt;
  * @lru: List head for the lru list.
  * @ddestroy: List head for the delayed destroy list.
  * @swap: List head for swap LRU list.
- * @val_seq: Sequence of the validation holding the @reserved lock.
- * Used to avoid starvation when many processes compete to validate the
- * buffer. This member is protected by the bo_device::lru_lock.
- * @seq_valid: The value of @val_seq is valid. This value is protected by
- * the bo_device::lru_lock.
- * @reserved: Deadlock-free lock used for synchronization state transitions.
  * @sync_obj: Pointer to a synchronization object.
  * @priv_flags: Flags describing buffer object internal state.
  * @vm_rb: Rb node for the vm rb tree.
@@ -209,10 +203,9 @@ struct ttm_buffer_object {
 
 	struct kref kref;
 	struct kref list_kref;
-	wait_queue_head_t event_queue;
 
 	/**
-	 * Members protected by the bo::reserved lock.
+	 * Members protected by the bo::resv::reserved lock.
 	 */
 
 	struct ttm_mem_reg mem;
@@ -234,15 +227,6 @@ struct ttm_buffer_object {
 	struct list_head ddestroy;
 	struct list_head swap;
 	struct list_head io_reserve_lru;
-	unsigned long val_seq;
-	bool seq_valid;
-
-	/**
-	 * Members protected by the bdev::lru_lock
-	 * only when written to.
-	 */
-
-	atomic_t reserved;
 
 	/**
 	 * Members protected by struct buffer_object_device::fence_lock
@@ -272,6 +256,9 @@ struct ttm_buffer_object {
 	uint32_t cur_placement;
 
 	struct sg_table *sg;
+
+	struct reservation_object *resv;
+	struct reservation_object ttm_resv;
 };
 
 /**
@@ -736,7 +723,7 @@ extern void ttm_bo_swapout_all(struct ttm_bo_device *bdev);
  */
 static inline bool ttm_bo_is_reserved(struct ttm_buffer_object *bo)
 {
-	return atomic_read(&bo->reserved);
+	return ww_mutex_is_locked(&bo->resv->lock);
 }
 
 #endif

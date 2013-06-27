@@ -368,7 +368,7 @@ retry:
 		ret = ttm_bo_reserve(&nvbo->bo, true, false, true, &op->ticket);
 		if (ret) {
 			validate_fini_no_ticket(op, NULL);
-			if (unlikely(ret == -EAGAIN)) {
+			if (unlikely(ret == -EDEADLK)) {
 				ret = ttm_bo_reserve_slowpath(&nvbo->bo, true,
 							      &op->ticket);
 				if (!ret)

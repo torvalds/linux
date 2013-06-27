@@ -48,8 +48,7 @@ static void ttm_eu_backoff_reservation_locked(struct list_head *list,
 			entry->removed = false;
 
 		} else {
-			atomic_set(&bo->reserved, 0);
-			wake_up_all(&bo->event_queue);
+			ww_mutex_unlock(&bo->resv->lock);
 		}
 	}
 }
@@ -134,8 +133,6 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 	glob = entry->bo->glob;
 
 	ww_acquire_init(ticket, &reservation_ww_class);
-	spin_lock(&glob->lru_lock);
-
 retry:
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
@@ -144,42 +141,34 @@ retry:
 		if (entry->reserved)
 			continue;
 
-		ret = ttm_bo_reserve_nolru(bo, true, true, true, ticket);
-		switch (ret) {
-		case 0:
-			break;
-		case -EBUSY:
-			ttm_eu_del_from_lru_locked(list);
-			spin_unlock(&glob->lru_lock);
-			ret = ttm_bo_reserve_nolru(bo, true, false,
-						   true, ticket);
+
+		ret = ttm_bo_reserve_nolru(bo, true, false, true, ticket);
+
+		if (ret == -EDEADLK) {
+			/* uh oh, we lost out, drop every reservation and try
+			 * to only reserve this buffer, then start over if
+			 * this succeeds.
+			 */
 			spin_lock(&glob->lru_lock);
-
-			if (!ret)
-				break;
-
-			if (unlikely(ret != -EAGAIN))
-				goto err;
-
-			/* fallthrough */
-		case -EAGAIN:
 			ttm_eu_backoff_reservation_locked(list, ticket);
 			spin_unlock(&glob->lru_lock);
 			ttm_eu_list_ref_sub(list);
-			ret = ttm_bo_reserve_slowpath_nolru(bo, true, ticket);
-			if (unlikely(ret != 0))
+			ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
+							       ticket);
+			if (unlikely(ret != 0)) {
+				if (ret == -EINTR)
+					ret = -ERESTARTSYS;
 				goto err_fini;
+			}
 
-			spin_lock(&glob->lru_lock);
 			entry->reserved = true;
 			if (unlikely(atomic_read(&bo->cpu_writers) > 0)) {
 				ret = -EBUSY;
 				goto err;
 			}
 			goto retry;
-		default:
+		} else if (ret)
 			goto err;
-		}
 
 		entry->reserved = true;
 		if (unlikely(atomic_read(&bo->cpu_writers) > 0)) {
@@ -189,12 +178,14 @@ retry:
 	}
 
 	ww_acquire_done(ticket);
+	spin_lock(&glob->lru_lock);
 	ttm_eu_del_from_lru_locked(list);
 	spin_unlock(&glob->lru_lock);
 	ttm_eu_list_ref_sub(list);
 	return 0;
 
 err:
+	spin_lock(&glob->lru_lock);
 	ttm_eu_backoff_reservation_locked(list, ticket);
 	spin_unlock(&glob->lru_lock);
 	ttm_eu_list_ref_sub(list);

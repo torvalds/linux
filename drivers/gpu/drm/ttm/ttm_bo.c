@@ -150,24 +150,15 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	if (bo->ttm)
 		ttm_tt_destroy(bo->ttm);
 	atomic_dec(&bo->glob->bo_count);
+	if (bo->resv == &bo->ttm_resv)
+		reservation_object_fini(&bo->ttm_resv);
+
 	if (bo->destroy)
 		bo->destroy(bo);
 	else {
 		kfree(bo);
 	}
 	ttm_mem_global_free(bdev->glob->mem_glob, acc_size);
-}
-
-static int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo,
-				  bool interruptible)
-{
-	if (interruptible) {
-		return wait_event_interruptible(bo->event_queue,
-					       !ttm_bo_is_reserved(bo));
-	} else {
-		wait_event(bo->event_queue, !ttm_bo_is_reserved(bo));
-		return 0;
-	}
 }
 
 void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
@@ -218,65 +209,27 @@ int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
 			  bool no_wait, bool use_ticket,
 			  struct ww_acquire_ctx *ticket)
 {
-	int ret;
+	int ret = 0;
 
-	while (unlikely(atomic_xchg(&bo->reserved, 1) != 0)) {
-		/**
-		 * Deadlock avoidance for multi-bo reserving.
-		 */
-		if (use_ticket && bo->seq_valid) {
-			/**
-			 * We've already reserved this one.
-			 */
-			if (unlikely(ticket->stamp == bo->val_seq))
-				return -EDEADLK;
-			/**
-			 * Already reserved by a thread that will not back
-			 * off for us. We need to back off.
-			 */
-			if (unlikely(ticket->stamp - bo->val_seq <= LONG_MAX))
-				return -EAGAIN;
-		}
+	if (no_wait) {
+		bool success;
 
-		if (no_wait)
+		/* not valid any more, fix your locking! */
+		if (WARN_ON(ticket))
 			return -EBUSY;
 
-		ret = ttm_bo_wait_unreserved(bo, interruptible);
-
-		if (unlikely(ret))
-			return ret;
+		success = ww_mutex_trylock(&bo->resv->lock);
+		return success ? 0 : -EBUSY;
 	}
 
-	if (use_ticket) {
-		bool wake_up = false;
-
-		/**
-		 * Wake up waiters that may need to recheck for deadlock,
-		 * if we decreased the sequence number.
-		 */
-		if (unlikely((bo->val_seq - ticket->stamp <= LONG_MAX)
-			     || !bo->seq_valid))
-			wake_up = true;
-
-		/*
-		 * In the worst case with memory ordering these values can be
-		 * seen in the wrong order. However since we call wake_up_all
-		 * in that case, this will hopefully not pose a problem,
-		 * and the worst case would only cause someone to accidentally
-		 * hit -EAGAIN in ttm_bo_reserve when they see old value of
-		 * val_seq. However this would only happen if seq_valid was
-		 * written before val_seq was, and just means some slightly
-		 * increased cpu usage
-		 */
-		bo->val_seq = ticket->stamp;
-		bo->seq_valid = true;
-		if (wake_up)
-			wake_up_all(&bo->event_queue);
-	} else {
-		bo->seq_valid = false;
-	}
-
-	return 0;
+	if (interruptible)
+		ret = ww_mutex_lock_interruptible(&bo->resv->lock,
+						  ticket);
+	else
+		ret = ww_mutex_lock(&bo->resv->lock, ticket);
+	if (ret == -EINTR)
+		return -ERESTARTSYS;
+	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_reserve);
 
@@ -313,50 +266,27 @@ int ttm_bo_reserve(struct ttm_buffer_object *bo,
 	return ret;
 }
 
-int ttm_bo_reserve_slowpath_nolru(struct ttm_buffer_object *bo,
-				  bool interruptible,
-				  struct ww_acquire_ctx *ticket)
-{
-	bool wake_up = false;
-	int ret;
-
-	while (unlikely(atomic_xchg(&bo->reserved, 1) != 0)) {
-		WARN_ON(bo->seq_valid && ticket->stamp == bo->val_seq);
-
-		ret = ttm_bo_wait_unreserved(bo, interruptible);
-
-		if (unlikely(ret))
-			return ret;
-	}
-
-	if (bo->val_seq - ticket->stamp < LONG_MAX || !bo->seq_valid)
-		wake_up = true;
-
-	/**
-	 * Wake up waiters that may need to recheck for deadlock,
-	 * if we decreased the sequence number.
-	 */
-	bo->val_seq = ticket->stamp;
-	bo->seq_valid = true;
-	if (wake_up)
-		wake_up_all(&bo->event_queue);
-
-	return 0;
-}
-
 int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 			    bool interruptible, struct ww_acquire_ctx *ticket)
 {
 	struct ttm_bo_global *glob = bo->glob;
-	int put_count, ret;
+	int put_count = 0;
+	int ret = 0;
 
-	ret = ttm_bo_reserve_slowpath_nolru(bo, interruptible, ticket);
-	if (likely(!ret)) {
+	if (interruptible)
+		ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
+						       ticket);
+	else
+		ww_mutex_lock_slow(&bo->resv->lock, ticket);
+
+	if (likely(ret == 0)) {
 		spin_lock(&glob->lru_lock);
 		put_count = ttm_bo_del_from_lru(bo);
 		spin_unlock(&glob->lru_lock);
 		ttm_bo_list_ref_sub(bo, put_count, true);
-	}
+	} else if (ret == -EINTR)
+		ret = -ERESTARTSYS;
+
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_reserve_slowpath);
@@ -364,8 +294,7 @@ EXPORT_SYMBOL(ttm_bo_reserve_slowpath);
 void ttm_bo_unreserve_ticket_locked(struct ttm_buffer_object *bo, struct ww_acquire_ctx *ticket)
 {
 	ttm_bo_add_to_lru(bo);
-	atomic_set(&bo->reserved, 0);
-	wake_up_all(&bo->event_queue);
+	ww_mutex_unlock(&bo->resv->lock);
 }
 
 void ttm_bo_unreserve(struct ttm_buffer_object *bo)
@@ -558,17 +487,7 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 	}
 	ttm_bo_mem_put(bo, &bo->mem);
 
-	atomic_set(&bo->reserved, 0);
-	wake_up_all(&bo->event_queue);
-
-	/*
-	 * Since the final reference to this bo may not be dropped by
-	 * the current task we have to put a memory barrier here to make
-	 * sure the changes done in this function are always visible.
-	 *
-	 * This function only needs protection against the final kref_put.
-	 */
-	smp_mb__before_atomic_dec();
+	ww_mutex_unlock (&bo->resv->lock);
 }
 
 static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
@@ -600,10 +519,8 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 		sync_obj = driver->sync_obj_ref(bo->sync_obj);
 	spin_unlock(&bdev->fence_lock);
 
-	if (!ret) {
-		atomic_set(&bo->reserved, 0);
-		wake_up_all(&bo->event_queue);
-	}
+	if (!ret)
+		ww_mutex_unlock(&bo->resv->lock);
 
 	kref_get(&bo->list_kref);
 	list_add_tail(&bo->ddestroy, &bdev->ddestroy);
@@ -653,8 +570,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 		sync_obj = driver->sync_obj_ref(bo->sync_obj);
 		spin_unlock(&bdev->fence_lock);
 
-		atomic_set(&bo->reserved, 0);
-		wake_up_all(&bo->event_queue);
+		ww_mutex_unlock(&bo->resv->lock);
 		spin_unlock(&glob->lru_lock);
 
 		ret = driver->sync_obj_wait(sync_obj, false, interruptible);
@@ -692,8 +608,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 		spin_unlock(&bdev->fence_lock);
 
 	if (ret || unlikely(list_empty(&bo->ddestroy))) {
-		atomic_set(&bo->reserved, 0);
-		wake_up_all(&bo->event_queue);
+		ww_mutex_unlock(&bo->resv->lock);
 		spin_unlock(&glob->lru_lock);
 		return ret;
 	}
@@ -1253,6 +1168,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	int ret = 0;
 	unsigned long num_pages;
 	struct ttm_mem_global *mem_glob = bdev->glob->mem_glob;
+	bool locked;
 
 	ret = ttm_mem_global_alloc(mem_glob, acc_size, false, false);
 	if (ret) {
@@ -1279,8 +1195,6 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	kref_init(&bo->kref);
 	kref_init(&bo->list_kref);
 	atomic_set(&bo->cpu_writers, 0);
-	atomic_set(&bo->reserved, 1);
-	init_waitqueue_head(&bo->event_queue);
 	INIT_LIST_HEAD(&bo->lru);
 	INIT_LIST_HEAD(&bo->ddestroy);
 	INIT_LIST_HEAD(&bo->swap);
@@ -1298,37 +1212,34 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	bo->mem.bus.io_reserved_count = 0;
 	bo->priv_flags = 0;
 	bo->mem.placement = (TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED);
-	bo->seq_valid = false;
 	bo->persistent_swap_storage = persistent_swap_storage;
 	bo->acc_size = acc_size;
 	bo->sg = sg;
+	bo->resv = &bo->ttm_resv;
+	reservation_object_init(bo->resv);
 	atomic_inc(&bo->glob->bo_count);
 
 	ret = ttm_bo_check_placement(bo, placement);
-	if (unlikely(ret != 0))
-		goto out_err;
 
 	/*
 	 * For ttm_bo_type_device buffers, allocate
 	 * address space from the device.
 	 */
-	if (bo->type == ttm_bo_type_device ||
-	    bo->type == ttm_bo_type_sg) {
+	if (likely(!ret) &&
+	    (bo->type == ttm_bo_type_device ||
+	     bo->type == ttm_bo_type_sg))
 		ret = ttm_bo_setup_vm(bo);
-		if (ret)
-			goto out_err;
-	}
 
-	ret = ttm_bo_validate(bo, placement, interruptible, false);
-	if (ret)
-		goto out_err;
+	locked = ww_mutex_trylock(&bo->resv->lock);
+	WARN_ON(!locked);
+
+	if (likely(!ret))
+		ret = ttm_bo_validate(bo, placement, interruptible, false);
 
 	ttm_bo_unreserve(bo);
-	return 0;
 
-out_err:
-	ttm_bo_unreserve(bo);
-	ttm_bo_unref(&bo);
+	if (unlikely(ret))
+		ttm_bo_unref(&bo);
 
 	return ret;
 }
@@ -1941,8 +1852,7 @@ out:
 	 * already swapped buffer.
 	 */
 
-	atomic_set(&bo->reserved, 0);
-	wake_up_all(&bo->event_queue);
+	ww_mutex_unlock(&bo->resv->lock);
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
 }

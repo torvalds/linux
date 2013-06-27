@@ -33,7 +33,6 @@
 
 #include <ttm/ttm_bo_api.h>
 #include <linux/list.h>
-#include <linux/reservation.h>
 
 /**
  * struct ttm_validate_buffer

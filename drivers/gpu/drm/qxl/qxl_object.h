@@ -57,11 +57,6 @@ static inline unsigned long qxl_bo_size(struct qxl_bo *bo)
 	return bo->tbo.num_pages << PAGE_SHIFT;
 }
 
-static inline bool qxl_bo_is_reserved(struct qxl_bo *bo)
-{
-	return !!atomic_read(&bo->tbo.reserved);
-}
-
 static inline u64 qxl_bo_mmap_offset(struct qxl_bo *bo)
 {
 	return bo->tbo.addr_space_offset;
