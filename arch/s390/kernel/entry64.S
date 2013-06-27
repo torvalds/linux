@@ -19,6 +19,7 @@
 #include <asm/unistd.h>
 #include <asm/page.h>
 #include <asm/sigp.h>
+#include <asm/irq.h>
 
 __PT_R0      =	__PT_GPRS
 __PT_R1      =	__PT_GPRS + 8
@@ -468,6 +469,11 @@ io_skip:
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 io_loop:
 	lgr	%r2,%r11		# pass pointer to pt_regs
+	lghi	%r3,IO_INTERRUPT
+	tm	__PT_INT_CODE+8(%r11),0x80	# adapter interrupt ?
+	jz	io_call
+	lghi	%r3,THIN_INTERRUPT
+io_call:
 	brasl	%r14,do_IRQ
 	tm	__LC_MACHINE_FLAGS+6,0x10	# MACHINE_FLAG_LPAR
 	jz	io_return
@@ -623,7 +629,8 @@ ext_skip:
 	TRACE_IRQS_OFF
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r11		# pass pointer to pt_regs
-	brasl	%r14,do_extint
+	lghi	%r3,EXT_INTERRUPT
+	brasl	%r14,do_IRQ
 	j	io_return
 
 /*

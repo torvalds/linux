@@ -18,6 +18,7 @@
 #include <asm/unistd.h>
 #include <asm/page.h>
 #include <asm/sigp.h>
+#include <asm/irq.h>
 
 __PT_R0      =	__PT_GPRS
 __PT_R1      =	__PT_GPRS + 4
@@ -435,6 +436,11 @@ io_skip:
 io_loop:
 	l	%r1,BASED(.Ldo_IRQ)
 	lr	%r2,%r11		# pass pointer to pt_regs
+	lhi	%r3,IO_INTERRUPT
+	tm	__PT_INT_CODE+8(%r11),0x80	# adapter interrupt ?
+	jz	io_call
+	lhi	%r3,THIN_INTERRUPT
+io_call:
 	basr	%r14,%r1		# call do_IRQ
 	tm	__LC_MACHINE_FLAGS+2,0x10	# MACHINE_FLAG_LPAR
 	jz	io_return
@@ -584,9 +590,10 @@ ext_skip:
 	mvc	__PT_INT_CODE(4,%r11),__LC_EXT_CPU_ADDR
 	mvc	__PT_INT_PARM(4,%r11),__LC_EXT_PARAMS
 	TRACE_IRQS_OFF
+	l	%r1,BASED(.Ldo_IRQ)
 	lr	%r2,%r11		# pass pointer to pt_regs
-	l	%r1,BASED(.Ldo_extint)
-	basr	%r14,%r1		# call do_extint
+	lhi	%r3,EXT_INTERRUPT
+	basr	%r14,%r1		# call do_IRQ
 	j	io_return
 
 /*
@@ -902,7 +909,6 @@ cleanup_idle_wait:
 .Ldo_machine_check:	.long	s390_do_machine_check
 .Lhandle_mcck:		.long	s390_handle_mcck
 .Ldo_IRQ:		.long	do_IRQ
-.Ldo_extint:		.long	do_extint
 .Ldo_signal:		.long	do_signal
 .Ldo_notify_resume:	.long	do_notify_resume
 .Ldo_per_trap:		.long	do_per_trap

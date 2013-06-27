@@ -53,12 +53,6 @@ struct zpci_fmb {
 	atomic64_t unmapped_pages;
 } __packed __aligned(16);
 
-struct msi_map {
-	unsigned long irq;
-	struct msi_desc *msi;
-	struct hlist_node msi_chain;
-};
-
 #define ZPCI_MSI_VEC_BITS	11
 #define ZPCI_MSI_VEC_MAX	(1 << ZPCI_MSI_VEC_BITS)
 #define ZPCI_MSI_VEC_MASK	(ZPCI_MSI_VEC_MAX - 1)
@@ -92,8 +86,6 @@ struct zpci_dev {
 
 	/* IRQ stuff */
 	u64		msi_addr;	/* MSI address */
-	struct zdev_irq_map *irq_map;
-	struct msi_map *msi_map;
 	struct airq_iv *aibv;		/* adapter interrupt bit vector */
 	unsigned int	aisb;		/* number of the summary bit */
 
@@ -152,14 +144,6 @@ int clp_find_pci_devices(void);
 int clp_add_pci_device(u32, u32, int);
 int clp_enable_fh(struct zpci_dev *, u8);
 int clp_disable_fh(struct zpci_dev *);
-
-/* MSI */
-struct msi_desc *__irq_get_msi_desc(unsigned int);
-int zpci_msi_set_mask_bits(struct msi_desc *, u32, u32);
-int zpci_setup_msi_irq(struct zpci_dev *, struct msi_desc *, unsigned int, int);
-void zpci_teardown_msi_irq(struct zpci_dev *, struct msi_desc *);
-int zpci_msihash_init(void);
-void zpci_msihash_exit(void);
 
 #ifdef CONFIG_PCI
 /* Error handling and recovery */
