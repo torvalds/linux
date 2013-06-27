@@ -87,7 +87,7 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	int plane, i;
 	u32 fbc_ctl, fbc_ctl2;
 
-	cfb_pitch = dev_priv->cfb_size / FBC_LL_SIZE;
+	cfb_pitch = dev_priv->fbc.size / FBC_LL_SIZE;
 	if (fb->pitches[0] < cfb_pitch)
 		cfb_pitch = fb->pitches[0];
 
@@ -326,7 +326,7 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	mutex_lock(&dev->struct_mutex);
-	if (work == dev_priv->fbc_work) {
+	if (work == dev_priv->fbc.fbc_work) {
 		/* Double check that we haven't switched fb without cancelling
 		 * the prior work.
 		 */
@@ -334,12 +334,12 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 			dev_priv->display.enable_fbc(work->crtc,
 						     work->interval);
 
-			dev_priv->cfb_plane = to_intel_crtc(work->crtc)->plane;
-			dev_priv->cfb_fb = work->crtc->fb->base.id;
-			dev_priv->cfb_y = work->crtc->y;
+			dev_priv->fbc.plane = to_intel_crtc(work->crtc)->plane;
+			dev_priv->fbc.fb_id = work->crtc->fb->base.id;
+			dev_priv->fbc.y = work->crtc->y;
 		}
 
-		dev_priv->fbc_work = NULL;
+		dev_priv->fbc.fbc_work = NULL;
 	}
 	mutex_unlock(&dev->struct_mutex);
 
@@ -348,25 +348,25 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 
 static void intel_cancel_fbc_work(struct drm_i915_private *dev_priv)
 {
-	if (dev_priv->fbc_work == NULL)
+	if (dev_priv->fbc.fbc_work == NULL)
 		return;
 
 	DRM_DEBUG_KMS("cancelling pending FBC enable\n");
 
 	/* Synchronisation is provided by struct_mutex and checking of
-	 * dev_priv->fbc_work, so we can perform the cancellation
+	 * dev_priv->fbc.fbc_work, so we can perform the cancellation
 	 * entirely asynchronously.
 	 */
-	if (cancel_delayed_work(&dev_priv->fbc_work->work))
+	if (cancel_delayed_work(&dev_priv->fbc.fbc_work->work))
 		/* tasklet was killed before being run, clean up */
-		kfree(dev_priv->fbc_work);
+		kfree(dev_priv->fbc.fbc_work);
 
 	/* Mark the work as no longer wanted so that if it does
 	 * wake-up (because the work was already running and waiting
 	 * for our mutex), it will discover that is no longer
 	 * necessary to run.
 	 */
-	dev_priv->fbc_work = NULL;
+	dev_priv->fbc.fbc_work = NULL;
 }
 
 static void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
@@ -392,7 +392,7 @@ static void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	work->interval = interval;
 	INIT_DELAYED_WORK(&work->work, intel_fbc_work_fn);
 
-	dev_priv->fbc_work = work;
+	dev_priv->fbc.fbc_work = work;
 
 	/* Delay the actual enabling to let pageflipping cease and the
 	 * display to settle before starting the compression. Note that
@@ -418,7 +418,7 @@ void intel_disable_fbc(struct drm_device *dev)
 		return;
 
 	dev_priv->display.disable_fbc(dev);
-	dev_priv->cfb_plane = -1;
+	dev_priv->fbc.plane = -1;
 }
 
 /**
@@ -470,7 +470,8 @@ void intel_update_fbc(struct drm_device *dev)
 		    !to_intel_crtc(tmp_crtc)->primary_disabled) {
 			if (crtc) {
 				DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
-				dev_priv->no_fbc_reason = FBC_MULTIPLE_PIPES;
+				dev_priv->fbc.no_fbc_reason =
+					FBC_MULTIPLE_PIPES;
 				goto out_disable;
 			}
 			crtc = tmp_crtc;
@@ -479,7 +480,7 @@ void intel_update_fbc(struct drm_device *dev)
 
 	if (!crtc || crtc->fb == NULL) {
 		DRM_DEBUG_KMS("no output, disabling\n");
-		dev_priv->no_fbc_reason = FBC_NO_OUTPUT;
+		dev_priv->fbc.no_fbc_reason = FBC_NO_OUTPUT;
 		goto out_disable;
 	}
 
@@ -491,19 +492,19 @@ void intel_update_fbc(struct drm_device *dev)
 	if (i915_enable_fbc < 0 &&
 	    INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev)) {
 		DRM_DEBUG_KMS("disabled per chip default\n");
-		dev_priv->no_fbc_reason = FBC_CHIP_DEFAULT;
+		dev_priv->fbc.no_fbc_reason = FBC_CHIP_DEFAULT;
 		goto out_disable;
 	}
 	if (!i915_enable_fbc) {
 		DRM_DEBUG_KMS("fbc disabled per module param\n");
-		dev_priv->no_fbc_reason = FBC_MODULE_PARAM;
+		dev_priv->fbc.no_fbc_reason = FBC_MODULE_PARAM;
 		goto out_disable;
 	}
 	if ((crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) ||
 	    (crtc->mode.flags & DRM_MODE_FLAG_DBLSCAN)) {
 		DRM_DEBUG_KMS("mode incompatible with compression, "
 			      "disabling\n");
-		dev_priv->no_fbc_reason = FBC_UNSUPPORTED_MODE;
+		dev_priv->fbc.no_fbc_reason = FBC_UNSUPPORTED_MODE;
 		goto out_disable;
 	}
 
@@ -517,13 +518,13 @@ void intel_update_fbc(struct drm_device *dev)
 	if ((crtc->mode.hdisplay > max_hdisplay) ||
 	    (crtc->mode.vdisplay > max_vdisplay)) {
 		DRM_DEBUG_KMS("mode too large for compression, disabling\n");
-		dev_priv->no_fbc_reason = FBC_MODE_TOO_LARGE;
+		dev_priv->fbc.no_fbc_reason = FBC_MODE_TOO_LARGE;
 		goto out_disable;
 	}
 	if ((IS_I915GM(dev) || IS_I945GM(dev) || IS_HASWELL(dev)) &&
 	    intel_crtc->plane != 0) {
 		DRM_DEBUG_KMS("plane not 0, disabling compression\n");
-		dev_priv->no_fbc_reason = FBC_BAD_PLANE;
+		dev_priv->fbc.no_fbc_reason = FBC_BAD_PLANE;
 		goto out_disable;
 	}
 
@@ -533,7 +534,7 @@ void intel_update_fbc(struct drm_device *dev)
 	if (obj->tiling_mode != I915_TILING_X ||
 	    obj->fence_reg == I915_FENCE_REG_NONE) {
 		DRM_DEBUG_KMS("framebuffer not tiled or fenced, disabling compression\n");
-		dev_priv->no_fbc_reason = FBC_NOT_TILED;
+		dev_priv->fbc.no_fbc_reason = FBC_NOT_TILED;
 		goto out_disable;
 	}
 
@@ -543,7 +544,7 @@ void intel_update_fbc(struct drm_device *dev)
 
 	if (i915_gem_stolen_setup_compression(dev, intel_fb->obj->base.size)) {
 		DRM_DEBUG_KMS("framebuffer too large, disabling compression\n");
-		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
+		dev_priv->fbc.no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		goto out_disable;
 	}
 
@@ -552,9 +553,9 @@ void intel_update_fbc(struct drm_device *dev)
 	 * cannot be unpinned (and have its GTT offset and fence revoked)
 	 * without first being decoupled from the scanout and FBC disabled.
 	 */
-	if (dev_priv->cfb_plane == intel_crtc->plane &&
-	    dev_priv->cfb_fb == fb->base.id &&
-	    dev_priv->cfb_y == crtc->y)
+	if (dev_priv->fbc.plane == intel_crtc->plane &&
+	    dev_priv->fbc.fb_id == fb->base.id &&
+	    dev_priv->fbc.y == crtc->y)
 		return;
 
 	if (intel_fbc_enabled(dev)) {

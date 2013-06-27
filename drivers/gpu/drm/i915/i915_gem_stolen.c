@@ -120,7 +120,7 @@ static int i915_setup_compression(struct drm_device *dev, int size)
 		if (!compressed_llb)
 			goto err_fb;
 
-		dev_priv->compressed_llb = compressed_llb;
+		dev_priv->fbc.compressed_llb = compressed_llb;
 
 		I915_WRITE(FBC_CFB_BASE,
 			   dev_priv->mm.stolen_base + compressed_fb->start);
@@ -128,8 +128,8 @@ static int i915_setup_compression(struct drm_device *dev, int size)
 			   dev_priv->mm.stolen_base + compressed_llb->start);
 	}
 
-	dev_priv->compressed_fb = compressed_fb;
-	dev_priv->cfb_size = size;
+	dev_priv->fbc.compressed_fb = compressed_fb;
+	dev_priv->fbc.size = size;
 
 	DRM_DEBUG_KMS("reserved %d bytes of contiguous stolen space for FBC\n",
 		      size);
@@ -150,7 +150,7 @@ int i915_gem_stolen_setup_compression(struct drm_device *dev, int size)
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return -ENODEV;
 
-	if (size < dev_priv->cfb_size)
+	if (size < dev_priv->fbc.size)
 		return 0;
 
 	/* Release any current block */
@@ -163,16 +163,16 @@ void i915_gem_stolen_cleanup_compression(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->cfb_size == 0)
+	if (dev_priv->fbc.size == 0)
 		return;
 
-	if (dev_priv->compressed_fb)
-		drm_mm_put_block(dev_priv->compressed_fb);
+	if (dev_priv->fbc.compressed_fb)
+		drm_mm_put_block(dev_priv->fbc.compressed_fb);
 
-	if (dev_priv->compressed_llb)
-		drm_mm_put_block(dev_priv->compressed_llb);
+	if (dev_priv->fbc.compressed_llb)
+		drm_mm_put_block(dev_priv->fbc.compressed_llb);
 
-	dev_priv->cfb_size = 0;
+	dev_priv->fbc.size = 0;
 }
 
 void i915_gem_cleanup_stolen(struct drm_device *dev)

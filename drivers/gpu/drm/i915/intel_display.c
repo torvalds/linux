@@ -3408,7 +3408,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	intel_crtc_wait_for_pending_flips(crtc);
 	drm_vblank_off(dev, pipe);
 
-	if (dev_priv->cfb_plane == plane)
+	if (dev_priv->fbc.plane == plane)
 		intel_disable_fbc(dev);
 
 	intel_crtc_update_cursor(crtc, false);
@@ -3481,7 +3481,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	drm_vblank_off(dev, pipe);
 
 	/* FBC must be disabled before disabling the plane on HSW. */
-	if (dev_priv->cfb_plane == plane)
+	if (dev_priv->fbc.plane == plane)
 		intel_disable_fbc(dev);
 
 	hsw_disable_ips(intel_crtc);
@@ -3720,7 +3720,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	intel_crtc_wait_for_pending_flips(crtc);
 	drm_vblank_off(dev, pipe);
 
-	if (dev_priv->cfb_plane == plane)
+	if (dev_priv->fbc.plane == plane)
 		intel_disable_fbc(dev);
 
 	intel_crtc_dpms_overlay(intel_crtc, false);

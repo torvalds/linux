@@ -528,17 +528,35 @@ struct i915_hw_context {
 	struct i915_ctx_hang_stats hang_stats;
 };
 
-enum no_fbc_reason {
-	FBC_NO_OUTPUT, /* no outputs enabled to compress */
-	FBC_STOLEN_TOO_SMALL, /* not enough space to hold compressed buffers */
-	FBC_UNSUPPORTED_MODE, /* interlace or doublescanned mode */
-	FBC_MODE_TOO_LARGE, /* mode too large for compression */
-	FBC_BAD_PLANE, /* fbc not supported on plane */
-	FBC_NOT_TILED, /* buffer not tiled */
-	FBC_MULTIPLE_PIPES, /* more than one pipe active */
-	FBC_MODULE_PARAM,
-	FBC_CHIP_DEFAULT, /* disabled by default on this chip */
+struct i915_fbc {
+	unsigned long size;
+	unsigned int fb_id;
+	enum plane plane;
+	int y;
+
+	struct drm_mm_node *compressed_fb;
+	struct drm_mm_node *compressed_llb;
+
+	struct intel_fbc_work {
+		struct delayed_work work;
+		struct drm_crtc *crtc;
+		struct drm_framebuffer *fb;
+		int interval;
+	} *fbc_work;
+
+	enum {
+		FBC_NO_OUTPUT, /* no outputs enabled to compress */
+		FBC_STOLEN_TOO_SMALL, /* not enough space for buffers */
+		FBC_UNSUPPORTED_MODE, /* interlace or doublescanned mode */
+		FBC_MODE_TOO_LARGE, /* mode too large for compression */
+		FBC_BAD_PLANE, /* fbc not supported on plane */
+		FBC_NOT_TILED, /* buffer not tiled */
+		FBC_MULTIPLE_PIPES, /* more than one pipe active */
+		FBC_MODULE_PARAM,
+		FBC_CHIP_DEFAULT, /* disabled by default on this chip */
+	} no_fbc_reason;
 };
+
 
 enum intel_pch {
 	PCH_NONE = 0,	/* No PCH present */
@@ -1060,12 +1078,7 @@ typedef struct drm_i915_private {
 
 	int num_plane;
 
-	unsigned long cfb_size;
-	unsigned int cfb_fb;
-	enum plane cfb_plane;
-	int cfb_y;
-	struct intel_fbc_work *fbc_work;
-
+	struct i915_fbc fbc;
 	struct intel_opregion opregion;
 	struct intel_vbt_data vbt;
 
@@ -1142,11 +1155,6 @@ typedef struct drm_i915_private {
 
 	/* Haswell power well */
 	struct i915_power_well power_well;
-
-	enum no_fbc_reason no_fbc_reason;
-
-	struct drm_mm_node *compressed_fb;
-	struct drm_mm_node *compressed_llb;
 
 	struct i915_gpu_error gpu_error;
 

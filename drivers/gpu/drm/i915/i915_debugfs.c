@@ -1492,7 +1492,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		seq_puts(m, "FBC enabled\n");
 	} else {
 		seq_puts(m, "FBC disabled: ");
-		switch (dev_priv->no_fbc_reason) {
+		switch (dev_priv->fbc.no_fbc_reason) {
 		case FBC_NO_OUTPUT:
 			seq_puts(m, "no outputs");
 			break;

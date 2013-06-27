@@ -549,13 +549,6 @@ struct intel_unpin_work {
 	bool enable_stall_check;
 };
 
-struct intel_fbc_work {
-	struct delayed_work work;
-	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb;
-	int interval;
-};
-
 int intel_pch_rawclk(struct drm_device *dev);
 
 int intel_connector_update_modes(struct drm_connector *connector,
