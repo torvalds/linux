@@ -1433,6 +1433,7 @@ static struct usb_driver ax88179_178a_driver = {
 	.probe =	usbnet_probe,
 	.suspend =	ax88179_suspend,
 	.resume =	ax88179_resume,
+	.reset_resume =	ax88179_resume,
 	.disconnect =	usbnet_disconnect,
 	.supports_autosuspend = 1,
 	.disable_hub_initiated_lpm = 1,
