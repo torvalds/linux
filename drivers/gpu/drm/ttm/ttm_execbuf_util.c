@@ -44,12 +44,10 @@ static void ttm_eu_backoff_reservation_locked(struct list_head *list,
 
 		entry->reserved = false;
 		if (entry->removed) {
-			ttm_bo_unreserve_ticket_locked(bo, ticket);
+			ttm_bo_add_to_lru(bo);
 			entry->removed = false;
-
-		} else {
-			ww_mutex_unlock(&bo->resv->lock);
 		}
+		ww_mutex_unlock(&bo->resv->lock);
 	}
 }
 
@@ -220,7 +218,8 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 		bo = entry->bo;
 		entry->old_sync_obj = bo->sync_obj;
 		bo->sync_obj = driver->sync_obj_ref(sync_obj);
-		ttm_bo_unreserve_ticket_locked(bo, ticket);
+		ttm_bo_add_to_lru(bo);
+		ww_mutex_unlock(&bo->resv->lock);
 		entry->reserved = false;
 	}
 	spin_unlock(&bdev->fence_lock);

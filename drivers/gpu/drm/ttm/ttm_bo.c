@@ -182,6 +182,7 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 		}
 	}
 }
+EXPORT_SYMBOL(ttm_bo_add_to_lru);
 
 int ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 {
@@ -204,35 +205,6 @@ int ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 	return put_count;
 }
 
-int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
-			  bool interruptible,
-			  bool no_wait, bool use_ticket,
-			  struct ww_acquire_ctx *ticket)
-{
-	int ret = 0;
-
-	if (no_wait) {
-		bool success;
-
-		/* not valid any more, fix your locking! */
-		if (WARN_ON(ticket))
-			return -EBUSY;
-
-		success = ww_mutex_trylock(&bo->resv->lock);
-		return success ? 0 : -EBUSY;
-	}
-
-	if (interruptible)
-		ret = ww_mutex_lock_interruptible(&bo->resv->lock,
-						  ticket);
-	else
-		ret = ww_mutex_lock(&bo->resv->lock, ticket);
-	if (ret == -EINTR)
-		return -ERESTARTSYS;
-	return ret;
-}
-EXPORT_SYMBOL(ttm_bo_reserve);
-
 static void ttm_bo_ref_bug(struct kref *list_kref)
 {
 	BUG();
@@ -245,77 +217,16 @@ void ttm_bo_list_ref_sub(struct ttm_buffer_object *bo, int count,
 		 (never_free) ? ttm_bo_ref_bug : ttm_bo_release_list);
 }
 
-int ttm_bo_reserve(struct ttm_buffer_object *bo,
-		   bool interruptible,
-		   bool no_wait, bool use_ticket,
-		   struct ww_acquire_ctx *ticket)
+void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo)
 {
-	struct ttm_bo_global *glob = bo->glob;
-	int put_count = 0;
-	int ret;
+	int put_count;
 
-	ret = ttm_bo_reserve_nolru(bo, interruptible, no_wait, use_ticket,
-				    ticket);
-	if (likely(ret == 0)) {
-		spin_lock(&glob->lru_lock);
-		put_count = ttm_bo_del_from_lru(bo);
-		spin_unlock(&glob->lru_lock);
-		ttm_bo_list_ref_sub(bo, put_count, true);
-	}
-
-	return ret;
+	spin_lock(&bo->glob->lru_lock);
+	put_count = ttm_bo_del_from_lru(bo);
+	spin_unlock(&bo->glob->lru_lock);
+	ttm_bo_list_ref_sub(bo, put_count, true);
 }
-
-int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
-			    bool interruptible, struct ww_acquire_ctx *ticket)
-{
-	struct ttm_bo_global *glob = bo->glob;
-	int put_count = 0;
-	int ret = 0;
-
-	if (interruptible)
-		ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
-						       ticket);
-	else
-		ww_mutex_lock_slow(&bo->resv->lock, ticket);
-
-	if (likely(ret == 0)) {
-		spin_lock(&glob->lru_lock);
-		put_count = ttm_bo_del_from_lru(bo);
-		spin_unlock(&glob->lru_lock);
-		ttm_bo_list_ref_sub(bo, put_count, true);
-	} else if (ret == -EINTR)
-		ret = -ERESTARTSYS;
-
-	return ret;
-}
-EXPORT_SYMBOL(ttm_bo_reserve_slowpath);
-
-void ttm_bo_unreserve_ticket_locked(struct ttm_buffer_object *bo, struct ww_acquire_ctx *ticket)
-{
-	ttm_bo_add_to_lru(bo);
-	ww_mutex_unlock(&bo->resv->lock);
-}
-
-void ttm_bo_unreserve(struct ttm_buffer_object *bo)
-{
-	struct ttm_bo_global *glob = bo->glob;
-
-	spin_lock(&glob->lru_lock);
-	ttm_bo_unreserve_ticket_locked(bo, NULL);
-	spin_unlock(&glob->lru_lock);
-}
-EXPORT_SYMBOL(ttm_bo_unreserve);
-
-void ttm_bo_unreserve_ticket(struct ttm_buffer_object *bo, struct ww_acquire_ctx *ticket)
-{
-	struct ttm_bo_global *glob = bo->glob;
-
-	spin_lock(&glob->lru_lock);
-	ttm_bo_unreserve_ticket_locked(bo, ticket);
-	spin_unlock(&glob->lru_lock);
-}
-EXPORT_SYMBOL(ttm_bo_unreserve_ticket);
+EXPORT_SYMBOL(ttm_bo_del_sub_from_lru);
 
 /*
  * Call bo->mutex locked.
