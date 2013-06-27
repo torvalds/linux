@@ -117,10 +117,154 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 }
 
 int
+generate_smb3signingkey(struct TCP_Server_Info *server)
+{
+	unsigned char zero = 0x0;
+	__u8 i[4] = {0, 0, 0, 1};
+	__u8 L[4] = {0, 0, 0, 128};
+	int rc = 0;
+	unsigned char prfhash[SMB2_HMACSHA256_SIZE];
+	unsigned char *hashptr = prfhash;
+
+	memset(prfhash, 0x0, SMB2_HMACSHA256_SIZE);
+	memset(server->smb3signingkey, 0x0, SMB3_SIGNKEY_SIZE);
+
+	rc = crypto_shash_setkey(server->secmech.hmacsha256,
+		server->session_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Could not set with session key\n", __func__);
+		goto smb3signkey_ret;
+	}
+
+	rc = crypto_shash_init(&server->secmech.sdeschmacsha256->shash);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Could not init sign hmac\n", __func__);
+		goto smb3signkey_ret;
+	}
+
+	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
+				i, 4);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Could not update with n\n", __func__);
+		goto smb3signkey_ret;
+	}
+
+	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
+				"SMB2AESCMAC", 12);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Could not update with label\n", __func__);
+		goto smb3signkey_ret;
+	}
+
+	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
+				&zero, 1);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Could not update with zero\n", __func__);
+		goto smb3signkey_ret;
+	}
+
+	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
+				"SmbSign", 8);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Could not update with context\n", __func__);
+		goto smb3signkey_ret;
+	}
+
+	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
+				L, 4);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Could not update with L\n", __func__);
+		goto smb3signkey_ret;
+	}
+
+	rc = crypto_shash_final(&server->secmech.sdeschmacsha256->shash,
+				hashptr);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Could not generate sha256 hash\n", __func__);
+		goto smb3signkey_ret;
+	}
+
+	memcpy(server->smb3signingkey, hashptr, SMB3_SIGNKEY_SIZE);
+
+smb3signkey_ret:
+	return rc;
+}
+
+int
 smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
-	cifs_dbg(FYI, "smb3 signatures not supported yet\n");
-	return -EOPNOTSUPP;
+	int i, rc;
+	unsigned char smb3_signature[SMB2_CMACAES_SIZE];
+	unsigned char *sigptr = smb3_signature;
+	struct kvec *iov = rqst->rq_iov;
+	int n_vec = rqst->rq_nvec;
+	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)iov[0].iov_base;
+
+	memset(smb3_signature, 0x0, SMB2_CMACAES_SIZE);
+	memset(smb2_pdu->Signature, 0x0, SMB2_SIGNATURE_SIZE);
+
+	rc = crypto_shash_setkey(server->secmech.cmacaes,
+		server->smb3signingkey, SMB2_CMACAES_SIZE);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Could not set key for cmac aes\n", __func__);
+		return rc;
+	}
+
+	rc = crypto_shash_init(&server->secmech.sdesccmacaes->shash);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Could not init cmac aes\n", __func__);
+		return rc;
+	}
+
+	for (i = 0; i < n_vec; i++) {
+		if (iov[i].iov_len == 0)
+			continue;
+		if (iov[i].iov_base == NULL) {
+			cifs_dbg(VFS, "null iovec entry");
+			return -EIO;
+		}
+		/*
+		 * The first entry includes a length field (which does not get
+		 * signed that occupies the first 4 bytes before the header).
+		 */
+		if (i == 0) {
+			if (iov[0].iov_len <= 8) /* cmd field at offset 9 */
+				break; /* nothing to sign or corrupt header */
+			rc =
+			crypto_shash_update(
+				&server->secmech.sdesccmacaes->shash,
+				iov[i].iov_base + 4, iov[i].iov_len - 4);
+		} else {
+			rc =
+			crypto_shash_update(
+				&server->secmech.sdesccmacaes->shash,
+				iov[i].iov_base, iov[i].iov_len);
+		}
+		if (rc) {
+			cifs_dbg(VFS, "%s: Couldn't update cmac aes with payload\n",
+							__func__);
+			return rc;
+		}
+	}
+
+	/* now hash over the rq_pages array */
+	for (i = 0; i < rqst->rq_npages; i++) {
+		struct kvec p_iov;
+
+		cifs_rqst_page_to_kvec(rqst, i, &p_iov);
+		crypto_shash_update(&server->secmech.sdesccmacaes->shash,
+					p_iov.iov_base, p_iov.iov_len);
+		kunmap(rqst->rq_pages[i]);
+	}
+
+	rc = crypto_shash_final(&server->secmech.sdesccmacaes->shash,
+						sigptr);
+	if (rc)
+		cifs_dbg(VFS, "%s: Could not generate cmac aes\n", __func__);
+
+	memcpy(smb2_pdu->Signature, sigptr, SMB2_SIGNATURE_SIZE);
+
+	return rc;
 }
 
 /* must be called with server->srv_mutex held */
