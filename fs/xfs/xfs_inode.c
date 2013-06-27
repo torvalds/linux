@@ -1028,6 +1028,11 @@ xfs_dinode_calc_crc(
 
 /*
  * Read the disk inode attributes into the in-core inode structure.
+ *
+ * If we are initialising a new inode and we are not utilising the
+ * XFS_MOUNT_IKEEP inode cluster mode, we can simple build the new inode core
+ * with a random generation number. If we are keeping inodes around, we need to
+ * read the inode cluster to get the existing generation number off disk.
  */
 int
 xfs_iread(
@@ -1046,6 +1051,22 @@ xfs_iread(
 	error = xfs_imap(mp, tp, ip->i_ino, &ip->i_imap, iget_flags);
 	if (error)
 		return error;
+
+	/* shortcut IO on inode allocation if possible */
+	if ((iget_flags & XFS_IGET_CREATE) &&
+	    !(mp->m_flags & XFS_MOUNT_IKEEP)) {
+		/* initialise the on-disk inode core */
+		memset(&ip->i_d, 0, sizeof(ip->i_d));
+		ip->i_d.di_magic = XFS_DINODE_MAGIC;
+		ip->i_d.di_gen = prandom_u32();
+		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+			ip->i_d.di_version = 3;
+			ip->i_d.di_ino = ip->i_ino;
+			uuid_copy(&ip->i_d.di_uuid, &mp->m_sb.sb_uuid);
+		} else
+			ip->i_d.di_version = 2;
+		return 0;
+	}
 
 	/*
 	 * Get pointers to the on-disk inode and the buffer containing it.
@@ -1133,17 +1154,16 @@ xfs_iread(
 	xfs_buf_set_ref(bp, XFS_INO_REF);
 
 	/*
-	 * Use xfs_trans_brelse() to release the buffer containing the
-	 * on-disk inode, because it was acquired with xfs_trans_read_buf()
-	 * in xfs_imap_to_bp() above.  If tp is NULL, this is just a normal
+	 * Use xfs_trans_brelse() to release the buffer containing the on-disk
+	 * inode, because it was acquired with xfs_trans_read_buf() in
+	 * xfs_imap_to_bp() above.  If tp is NULL, this is just a normal
 	 * brelse().  If we're within a transaction, then xfs_trans_brelse()
 	 * will only release the buffer if it is not dirty within the
 	 * transaction.  It will be OK to release the buffer in this case,
-	 * because inodes on disk are never destroyed and we will be
-	 * locking the new in-core inode before putting it in the hash
-	 * table where other processes can find it.  Thus we don't have
-	 * to worry about the inode being changed just because we released
-	 * the buffer.
+	 * because inodes on disk are never destroyed and we will be locking the
+	 * new in-core inode before putting it in the cache where other
+	 * processes can find it.  Thus we don't have to worry about the inode
+	 * being changed just because we released the buffer.
 	 */
  out_brelse:
 	xfs_trans_brelse(tp, bp);
