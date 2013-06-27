@@ -712,18 +712,4 @@ extern ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 
 extern void ttm_bo_swapout_all(struct ttm_bo_device *bdev);
 
-/**
- * ttm_bo_is_reserved - return an indication if a ttm buffer object is reserved
- *
- * @bo:     The buffer object to check.
- *
- * This function returns an indication if a bo is reserved or not, and should
- * only be used to print an error when it is not from incorrect api usage, since
- * there's no guarantee that it is the caller that is holding the reservation.
- */
-static inline bool ttm_bo_is_reserved(struct ttm_buffer_object *bo)
-{
-	return ww_mutex_is_locked(&bo->resv->lock);
-}
-
 #endif
