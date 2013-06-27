@@ -701,6 +701,27 @@ err:
 	return err;
 }
 
+static int f2fs_write_end(struct file *file,
+			struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata)
+{
+	struct inode *inode = page->mapping->host;
+
+	SetPageUptodate(page);
+	set_page_dirty(page);
+
+	if (pos + copied > i_size_read(inode)) {
+		i_size_write(inode, pos + copied);
+		mark_inode_dirty(inode);
+		update_inode_page(inode);
+	}
+
+	unlock_page(page);
+	page_cache_release(page);
+	return copied;
+}
+
 static ssize_t f2fs_direct_IO(int rw, struct kiocb *iocb,
 		const struct iovec *iov, loff_t offset, unsigned long nr_segs)
 {
@@ -757,7 +778,7 @@ const struct address_space_operations f2fs_dblock_aops = {
 	.writepage	= f2fs_write_data_page,
 	.writepages	= f2fs_write_data_pages,
 	.write_begin	= f2fs_write_begin,
-	.write_end	= nobh_write_end,
+	.write_end	= f2fs_write_end,
 	.set_page_dirty	= f2fs_set_data_page_dirty,
 	.invalidatepage	= f2fs_invalidate_data_page,
 	.releasepage	= f2fs_release_data_page,
