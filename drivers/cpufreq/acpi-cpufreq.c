@@ -232,7 +232,7 @@ static unsigned extract_msr(u32 msr, struct acpi_cpufreq_data *data)
 	perf = data->acpi_data;
 
 	for (i = 0; data->freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		if (msr == perf->states[data->freq_table[i].index].status)
+		if (msr == perf->states[data->freq_table[i].driver_data].status)
 			return data->freq_table[i].frequency;
 	}
 	return data->freq_table[0].frequency;
@@ -442,7 +442,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 		goto out;
 	}
 
-	next_perf_state = data->freq_table[next_state].index;
+	next_perf_state = data->freq_table[next_state].driver_data;
 	if (perf->state == next_perf_state) {
 		if (unlikely(data->resume)) {
 			pr_debug("Called after resume, resetting to P%d\n",
@@ -494,12 +494,14 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 			pr_debug("acpi_cpufreq_target failed (%d)\n",
 				policy->cpu);
 			result = -EAGAIN;
-			goto out;
+			freqs.new = freqs.old;
 		}
 	}
 
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	perf->state = next_perf_state;
+
+	if (!result)
+		perf->state = next_perf_state;
 
 out:
 	return result;
@@ -811,7 +813,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		    data->freq_table[valid_states-1].frequency / 1000)
 			continue;
 
-		data->freq_table[valid_states].index = i;
+		data->freq_table[valid_states].driver_data = i;
 		data->freq_table[valid_states].frequency =
 		    perf->states[i].core_frequency * 1000;
 		valid_states++;
@@ -947,7 +949,7 @@ static void __init acpi_cpufreq_boost_init(void)
 	/* We create the boost file in any case, though for systems without
 	 * hardware support it will be read-only and hardwired to return 0.
 	 */
-	if (sysfs_create_file(cpufreq_global_kobject, &(global_boost.attr)))
+	if (cpufreq_sysfs_create_file(&(global_boost.attr)))
 		pr_warn(PFX "could not register global boost sysfs file\n");
 	else
 		pr_debug("registered global boost sysfs file\n");
@@ -955,7 +957,7 @@ static void __init acpi_cpufreq_boost_init(void)
 
 static void __exit acpi_cpufreq_boost_exit(void)
 {
-	sysfs_remove_file(cpufreq_global_kobject, &(global_boost.attr));
+	cpufreq_sysfs_remove_file(&(global_boost.attr));
 
 	if (msrs) {
 		unregister_cpu_notifier(&boost_nb);
