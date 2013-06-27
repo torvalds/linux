@@ -2191,7 +2191,7 @@ static void __cpuinit flush_tlb_handlers(void)
 			   (unsigned long)handle_tlbm + sizeof(handle_tlbm));
 #ifdef CONFIG_MIPS_PGD_C0_CONTEXT
 	local_flush_icache_range((unsigned long)tlbmiss_handler_setup_pgd_array,
-			   (unsigned long)tlbmiss_handler_setup_pgd_array + sizeof(handle_tlbm));
+			   (unsigned long)tlbmiss_handler_setup_pgd_array + sizeof(tlbmiss_handler_setup_pgd_array));
 #endif
 }
 
