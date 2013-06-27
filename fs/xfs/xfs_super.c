@@ -1477,6 +1477,10 @@ xfs_fs_fill_super(
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
 
+	/* version 5 superblocks support inode version counters. */
+	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
+		sb->s_flags |= MS_I_VERSION;
+
 	error = xfs_mountfs(mp);
 	if (error)
 		goto out_filestream_unmount;
