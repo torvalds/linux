@@ -361,7 +361,7 @@ static int rk2928_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 		{
 	        	printk(KERN_ERR ">>>>>> set lcdc%d sclk failed\n",lcdc_dev->id);
 		}
-		lcdc_dev->driver.pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->sclk));
+		//lcdc_dev->driver.pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->sclk));
 		//printk("%s: sclk:%lu>>need:%d",lcdc_dev->driver.name,,screen0->s_pixclock);
 		clk_enable(lcdc_dev->sclk);
 	}
@@ -739,7 +739,15 @@ static int rk2928_lcdc_set_par(struct rk_lcdc_device_driver *dev_drv,int layer_i
         	win1_set_par(lcdc_dev,screen,par);
 	}
 	Scl_X = CalScale(screen->x_res - 1,screen0->x_res - 1);
-	Scl_Y = CalScale(screen->y_res - 1 ,screen0->y_res - 1);
+	if((screen->y_res-1)/(screen0->x_res -1) < 2)
+	{
+
+		Scl_Y = CalScale(screen->y_res - 1 ,screen0->y_res - 1);
+	}
+	else
+	{	
+		Scl_Y = CalScale(screen->y_res - 2 ,screen0->y_res - 1);
+	}
 	LcdWrReg(lcdc_dev,SCL_REG1,v_SCL_V_FACTOR(Scl_Y)|v_SCL_H_FACTOR(Scl_X));
 	
 	return 0;
@@ -1054,6 +1062,7 @@ static int rk2928_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char 
 
 static int rk2928_lcdc_hdmi_process(struct rk_lcdc_device_driver *dev_drv,int mode)
 {
+#if !defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 	printk("%s>>>>>>>>mode:%d\n",__func__,mode);
 	if(mode)
 	{
@@ -1067,6 +1076,7 @@ static int rk2928_lcdc_hdmi_process(struct rk_lcdc_device_driver *dev_drv,int mo
 		if(dev_drv->screen_ctr_info->io_enable)
 			dev_drv->screen_ctr_info->io_enable();
 	}
+#endif
 	
 	return 0;
 	
