@@ -328,9 +328,24 @@ static void do_btree_node_write(struct btree *b)
 
 	b->bio->bi_end_io	= btree_node_write_endio;
 	b->bio->bi_private	= &b->io.cl;
-	b->bio->bi_rw	= REQ_META|WRITE_SYNC;
-	b->bio->bi_size	= set_blocks(i, b->c) * block_bytes(b->c);
+	b->bio->bi_rw		= REQ_META|WRITE_SYNC|REQ_FUA;
+	b->bio->bi_size		= set_blocks(i, b->c) * block_bytes(b->c);
 	bch_bio_map(b->bio, i);
+
+	/*
+	 * If we're appending to a leaf node, we don't technically need FUA -
+	 * this write just needs to be persisted before the next journal write,
+	 * which will be marked FLUSH|FUA.
+	 *
+	 * Similarly if we're writing a new btree root - the pointer is going to
+	 * be in the next journal entry.
+	 *
+	 * But if we're writing a new btree node (that isn't a root) or
+	 * appending to a non leaf btree node, we need either FUA or a flush
+	 * when we write the parent with the new pointer. FUA is cheaper than a
+	 * flush, and writes appending to leaf nodes aren't blocking anything so
+	 * just make all btree node writes FUA to keep things sane.
+	 */
 
 	bkey_copy(&k.key, &b->key);
 	SET_PTR_OFFSET(&k.key, 0, PTR_OFFSET(&k.key, 0) + bset_offset(b, i));
@@ -2092,6 +2107,9 @@ int bch_btree_insert(struct btree_op *op, struct cache_set *c)
 void bch_btree_set_root(struct btree *b)
 {
 	unsigned i;
+	struct closure cl;
+
+	closure_init_stack(&cl);
 
 	trace_bcache_btree_set_root(b);
 
@@ -2107,7 +2125,8 @@ void bch_btree_set_root(struct btree *b)
 	b->c->root = b;
 	__bkey_put(b->c, &b->key);
 
-	bch_journal_meta(b->c, NULL);
+	bch_journal_meta(b->c, &cl);
+	closure_sync(&cl);
 }
 
 /* Cache lookup */
