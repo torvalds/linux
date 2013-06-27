@@ -120,13 +120,20 @@ smb2_hdr_assemble(struct smb2_hdr *hdr, __le16 smb2_cmd /* command */ ,
 	/* Uid is not converted */
 	if (tcon->ses)
 		hdr->SessionId = tcon->ses->Suid;
-	/* BB check following DFS flags BB */
-	/* BB do we have to add check for SHI1005_FLAGS_DFS_ROOT too? */
-	if (tcon->share_flags & SHI1005_FLAGS_DFS)
-		hdr->Flags |= SMB2_FLAGS_DFS_OPERATIONS;
-	/* BB how does SMB2 do case sensitive? */
-	/* if (tcon->nocase)
-		hdr->Flags |= SMBFLG_CASELESS; */
+
+	/*
+	 * If we would set SMB2_FLAGS_DFS_OPERATIONS on open we also would have
+	 * to pass the path on the Open SMB prefixed by \\server\share.
+	 * Not sure when we would need to do the augmented path (if ever) and
+	 * setting this flag breaks the SMB2 open operation since it is
+	 * illegal to send an empty path name (without \\server\share prefix)
+	 * when the DFS flag is set in the SMB open header. We could
+	 * consider setting the flag on all operations other than open
+	 * but it is safer to net set it for now.
+	 */
+/*	if (tcon->share_flags & SHI1005_FLAGS_DFS)
+		hdr->Flags |= SMB2_FLAGS_DFS_OPERATIONS; */
+
 	if (tcon->ses && tcon->ses->server && tcon->ses->server->sign)
 		hdr->Flags |= SMB2_FLAGS_SIGNED;
 out:
