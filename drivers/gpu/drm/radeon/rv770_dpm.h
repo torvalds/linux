@@ -263,6 +263,8 @@ int rv770_resume_smc(struct radeon_device *rdev);
 int rv770_set_sw_state(struct radeon_device *rdev);
 int rv770_set_boot_state(struct radeon_device *rdev);
 int rv7xx_parse_power_table(struct radeon_device *rdev);
+void rv770_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev);
+void rv770_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev);
 
 /* smc */
 int rv770_read_smc_soft_register(struct radeon_device *rdev,

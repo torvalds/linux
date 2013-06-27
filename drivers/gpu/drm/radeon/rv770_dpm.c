@@ -1427,6 +1427,38 @@ int rv770_set_boot_state(struct radeon_device *rdev)
 	return 0;
 }
 
+void rv770_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev)
+{
+	struct rv7xx_ps *new_state = rv770_get_ps(rdev->pm.dpm.requested_ps);
+	struct rv7xx_ps *current_state = rv770_get_ps(rdev->pm.dpm.current_ps);
+
+	if ((rdev->pm.dpm.requested_ps->vclk == rdev->pm.dpm.current_ps->vclk) &&
+	    (rdev->pm.dpm.requested_ps->dclk == rdev->pm.dpm.current_ps->dclk))
+		return;
+
+	if (new_state->high.sclk >= current_state->high.sclk)
+		return;
+
+	radeon_set_uvd_clocks(rdev, rdev->pm.dpm.requested_ps->vclk,
+			      rdev->pm.dpm.requested_ps->dclk);
+}
+
+void rv770_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev)
+{
+	struct rv7xx_ps *new_state = rv770_get_ps(rdev->pm.dpm.requested_ps);
+	struct rv7xx_ps *current_state = rv770_get_ps(rdev->pm.dpm.current_ps);
+
+	if ((rdev->pm.dpm.requested_ps->vclk == rdev->pm.dpm.current_ps->vclk) &&
+	    (rdev->pm.dpm.requested_ps->dclk == rdev->pm.dpm.current_ps->dclk))
+		return;
+
+	if (new_state->high.sclk < current_state->high.sclk)
+		return;
+
+	radeon_set_uvd_clocks(rdev, rdev->pm.dpm.requested_ps->vclk,
+			      rdev->pm.dpm.requested_ps->dclk);
+}
+
 int rv770_restrict_performance_levels_before_switch(struct radeon_device *rdev)
 {
 	if (rv770_send_msg_to_smc(rdev, (PPSMC_Msg)(PPSMC_MSG_NoForcedLevel)) != PPSMC_Result_OK)
@@ -1961,6 +1993,7 @@ int rv770_dpm_set_power_state(struct radeon_device *rdev)
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 
 	rv770_restrict_performance_levels_before_switch(rdev);
+	rv770_set_uvd_clock_before_set_eng_clock(rdev);
 	rv770_halt_smc(rdev);
 	rv770_upload_sw_state(rdev);
 	r7xx_program_memory_timing_parameters(rdev);
@@ -1970,6 +2003,7 @@ int rv770_dpm_set_power_state(struct radeon_device *rdev)
 	rv770_set_sw_state(rdev);
 	if (pi->dcodt)
 		rv770_program_dcodt_after_state_switch(rdev);
+	rv770_set_uvd_clock_after_set_eng_clock(rdev);
 	rv770_unrestrict_performance_levels_after_switch(rdev);
 
 	return 0;
