@@ -98,11 +98,6 @@ static inline unsigned long radeon_bo_size(struct radeon_bo *bo)
 	return bo->tbo.num_pages << PAGE_SHIFT;
 }
 
-static inline bool radeon_bo_is_reserved(struct radeon_bo *bo)
-{
-	return ttm_bo_is_reserved(&bo->tbo);
-}
-
 static inline unsigned radeon_bo_ngpu_pages(struct radeon_bo *bo)
 {
 	return (bo->tbo.num_pages << PAGE_SHIFT) / RADEON_GPU_PAGE_SIZE;
