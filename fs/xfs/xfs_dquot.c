@@ -573,7 +573,7 @@ xfs_qm_dqtobp(
 	xfs_bmbt_irec_t map;
 	int		nmaps = 1, error;
 	xfs_buf_t	*bp;
-	xfs_inode_t	*quotip = XFS_DQ_TO_QIP(dqp);
+	struct xfs_inode	*quotip = xfs_dq_to_quota_inode(dqp);
 	xfs_mount_t	*mp = dqp->q_mount;
 	xfs_dqid_t	id = be32_to_cpu(dqp->q_core.d_id);
 	xfs_trans_t	*tp = (tpp ? *tpp : NULL);

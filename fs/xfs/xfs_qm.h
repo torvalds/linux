@@ -85,6 +85,22 @@ xfs_dquot_tree(
 	}
 	return NULL;
 }
+
+static inline struct xfs_inode *
+xfs_dq_to_quota_inode(struct xfs_dquot *dqp)
+{
+	switch (dqp->dq_flags & XFS_DQ_ALLTYPES) {
+	case XFS_DQ_USER:
+		return dqp->q_mount->m_quotainfo->qi_uquotaip;
+	case XFS_DQ_GROUP:
+	case XFS_DQ_PROJ:
+		return dqp->q_mount->m_quotainfo->qi_gquotaip;
+	default:
+		ASSERT(0);
+	}
+	return NULL;
+}
+
 extern int	xfs_qm_calc_dquots_per_chunk(struct xfs_mount *mp,
 					     unsigned int nbblks);
 extern void	xfs_trans_mod_dquot(xfs_trans_t *, xfs_dquot_t *, uint, long);
