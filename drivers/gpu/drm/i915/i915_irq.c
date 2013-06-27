@@ -1965,10 +1965,6 @@ static void i915_capture_error_state(struct drm_device *dev)
 	i915_gem_record_fences(dev, error);
 	i915_gem_record_rings(dev, error);
 
-	/* Record buffers on the active and pinned lists. */
-	error->active_bo = NULL;
-	error->pinned_bo = NULL;
-
 	i = 0;
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list)
 		i++;
@@ -1978,8 +1974,6 @@ static void i915_capture_error_state(struct drm_device *dev)
 			i++;
 	error->pinned_bo_count = i - error->active_bo_count;
 
-	error->active_bo = NULL;
-	error->pinned_bo = NULL;
 	if (i) {
 		error->active_bo = kmalloc(sizeof(*error->active_bo)*i,
 					   GFP_ATOMIC);
