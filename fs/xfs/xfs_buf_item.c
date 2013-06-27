@@ -310,13 +310,21 @@ xfs_buf_item_format(
 
 	/*
 	 * If it is an inode buffer, transfer the in-memory state to the
-	 * format flags and clear the in-memory state. We do not transfer
+	 * format flags and clear the in-memory state.
+	 *
+	 * For buffer based inode allocation, we do not transfer
 	 * this state if the inode buffer allocation has not yet been committed
 	 * to the log as setting the XFS_BLI_INODE_BUF flag will prevent
 	 * correct replay of the inode allocation.
+	 *
+	 * For icreate item based inode allocation, the buffers aren't written
+	 * to the journal during allocation, and hence we should always tag the
+	 * buffer as an inode buffer so that the correct unlinked list replay
+	 * occurs during recovery.
 	 */
 	if (bip->bli_flags & XFS_BLI_INODE_BUF) {
-		if (!((bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF) &&
+		if (xfs_sb_version_hascrc(&lip->li_mountp->m_sb) ||
+		    !((bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF) &&
 		      xfs_log_item_in_current_chkpt(lip)))
 			bip->__bli_format.blf_flags |= XFS_BLF_INODE_BUF;
 		bip->bli_flags &= ~XFS_BLI_INODE_BUF;
