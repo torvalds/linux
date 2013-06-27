@@ -14,6 +14,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/math64.h>
 #include <linux/gfp.h>
+#include <linux/pvclock_gtod.h>
 
 #include <asm/pvclock.h>
 #include <asm/xen/hypervisor.h>
@@ -211,6 +212,30 @@ static int xen_set_wallclock(const struct timespec *now)
 
 	return HYPERVISOR_dom0_op(&op);
 }
+
+static int xen_pvclock_gtod_notify(struct notifier_block *nb, unsigned long was_set,
+				   void *priv)
+{
+	struct timespec now;
+	struct xen_platform_op op;
+
+	if (!was_set)
+		return NOTIFY_OK;
+
+	now = __current_kernel_time();
+
+	op.cmd = XENPF_settime;
+	op.u.settime.secs = now.tv_sec;
+	op.u.settime.nsecs = now.tv_nsec;
+	op.u.settime.system_time = xen_clocksource_read();
+
+	(void)HYPERVISOR_dom0_op(&op);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block xen_pvclock_gtod_notifier = {
+	.notifier_call = xen_pvclock_gtod_notify,
+};
 
 static struct clocksource xen_clocksource __read_mostly = {
 	.name = "xen",
@@ -473,6 +498,9 @@ static void __init xen_time_init(void)
 	xen_setup_runstate_info(cpu);
 	xen_setup_timer(cpu);
 	xen_setup_cpu_clockevents();
+
+	if (xen_initial_domain())
+		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
 }
 
 void __init xen_init_time_ops(void)
