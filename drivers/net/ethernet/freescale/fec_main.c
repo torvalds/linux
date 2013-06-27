@@ -59,6 +59,8 @@
 
 #include "fec.h"
 
+static void set_multicast_list(struct net_device *ndev);
+
 #if defined(CONFIG_ARM)
 #define FEC_ALIGNMENT	0xf
 #else
@@ -470,9 +472,8 @@ fec_restart(struct net_device *ndev, int duplex)
 	/* Clear any outstanding interrupt. */
 	writel(0xffc00000, fep->hwp + FEC_IEVENT);
 
-	/* Reset all multicast.	*/
-	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
-	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
+	/* Setup multicast filter. */
+	set_multicast_list(ndev);
 #ifndef CONFIG_M5272
 	writel(0, fep->hwp + FEC_HASH_TABLE_HIGH);
 	writel(0, fep->hwp + FEC_HASH_TABLE_LOW);
