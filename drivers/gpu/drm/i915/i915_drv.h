@@ -486,8 +486,6 @@ struct i915_gtt {
 };
 #define gtt_total_entries(gtt) ((gtt).total >> PAGE_SHIFT)
 
-#define I915_PPGTT_PD_ENTRIES 512
-#define I915_PPGTT_PT_ENTRIES 1024
 struct i915_hw_ppgtt {
 	struct drm_device *dev;
 	unsigned num_pd_entries;

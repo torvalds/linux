@@ -28,6 +28,9 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+#define GEN6_PPGTT_PD_ENTRIES 512
+#define I915_PPGTT_PT_ENTRIES (PAGE_SIZE / sizeof(gen6_gtt_pte_t))
+
 /* PPGTT stuff */
 #define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
 
@@ -278,7 +281,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	} else {
 		ppgtt->pte_encode = gen6_pte_encode;
 	}
-	ppgtt->num_pd_entries = I915_PPGTT_PD_ENTRIES;
+	ppgtt->num_pd_entries = GEN6_PPGTT_PD_ENTRIES;
 	ppgtt->enable = gen6_ppgtt_enable;
 	ppgtt->clear_range = gen6_ppgtt_clear_range;
 	ppgtt->insert_entries = gen6_ppgtt_insert_entries;
@@ -688,7 +691,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 		if (INTEL_INFO(dev)->gen <= 7) {
 			/* PPGTT pdes are stolen from global gtt ptes, so shrink the
 			 * aperture accordingly when using aliasing ppgtt. */
-			gtt_size -= I915_PPGTT_PD_ENTRIES*PAGE_SIZE;
+			gtt_size -= GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE;
 		}
 
 		i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
@@ -699,7 +702,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 
 		DRM_ERROR("Aliased PPGTT setup failed %d\n", ret);
 		drm_mm_takedown(&dev_priv->mm.gtt_space);
-		gtt_size += I915_PPGTT_PD_ENTRIES*PAGE_SIZE;
+		gtt_size += GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE;
 	}
 	i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
 }
