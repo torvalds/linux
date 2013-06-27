@@ -101,6 +101,7 @@ struct rk610_codec_priv {
 
 	struct delayed_work rk610_delayed_work;
 	unsigned int spk_ctrl_io;
+	unsigned int pa_enable_time;
 	bool hdmi_ndet;
 #if RESUME_PROBLEM
 	int rk610_workstatus;
@@ -531,7 +532,11 @@ static int rk610_codec_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);
 	u16 iface = 0;
 
-	spk_ctrl_fun(GPIO_LOW);
+//modify 2013-06-27
+	if(rk610_codec->pa_enable_time<300)
+		spk_ctrl_fun(GPIO_LOW);
+	else
+		spk_ctrl_fun(GPIO_HIGH);
 	rk610_codec_write(codec,ACCELCODEC_R1D, 0x2a);  //setup Vmid and Vref, other module power down
 	rk610_codec_write(codec,ACCELCODEC_R1E, 0x40);  ///|ASC_PDASDML_ENABLE);
 
@@ -667,7 +672,9 @@ static int rk610_codec_mute(struct snd_soc_dai *dai, int mute)
 		rk610_codec_write(codec,ACCELCODEC_R18, Volume_Codec_PA|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN); //Volume_Codec_PA|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
         rk610_codec_write(codec,ACCELCODEC_R04, ASC_INT_ACTIVE_L|ASC_INT_ACTIVE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);
 		rk610_codec_write(codec,ACCELCODEC_R19, 0x7F);  //AOM
-		msleep(300);
+
+		if(rk610_codec->pa_enable_time == 0)
+			msleep(300);
 		#if OUT_CAPLESS
     	rk610_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE);
     	#else
@@ -676,7 +683,14 @@ static int rk610_codec_mute(struct snd_soc_dai *dai, int mute)
 	//	schedule_delayed_work(&rk610_codec->rk610_delayed_work, 0);
 	//	rk610_codec_reg_read();
 		if(rk610_codec->hdmi_ndet)
-			spk_ctrl_fun(GPIO_HIGH);
+			if(rk610_codec->pa_enable_time == 0 )
+				spk_ctrl_fun(GPIO_HIGH);
+			else if(rk610_codec->pa_enable_time > 0 && rk610_codec->pa_enable_time < 300){
+				spk_ctrl_fun(GPIO_HIGH);
+				msleep(rk610_codec->pa_enable_time)	;
+			}
+			else if(rk610_codec->pa_enable_time >=300 && rk610_codec->pa_enable_time < 1000)
+				msleep(rk610_codec->pa_enable_time);
     }
 
     return 0;
@@ -923,6 +937,10 @@ static int rk610_codec_i2c_probe(struct i2c_client *i2c,
 //qjb 2013-01-14
 	rk610_codec->pdata = pdata;
 	rk610_codec->spk_ctrl_io = pdata->spk_ctl_io;
+//qjb 2013-06-27	
+	rk610_codec->pa_enable_time = pdata->pa_enable_time;
+	if(rk610_codec->pa_enable_time > 1000)
+		rk610_codec->pa_enable_time = 1000;
 	if(pdata->io_init){
 		ret =  pdata->io_init();
 		if (ret < 0) {
@@ -1000,7 +1018,8 @@ static ssize_t RK610_PROC_write(struct file *file, const char __user *buffer,
 	char *p;
 	int reg;
 	int value;
-	
+	struct rk610_codec_priv *rk610_codec = snd_soc_codec_get_drvdata(rk610_codec_codec);
+
 	cookie_pot = (char *)vmalloc( len );
 	if (!cookie_pot) 
 	{
@@ -1066,6 +1085,16 @@ static ssize_t RK610_PROC_write(struct file *file, const char __user *buffer,
 		printk("Dump reg\n");
 		rk610_codec_reg_read();
 		break;
+	case 't' :
+		printk("old pa_enable_time = %d\n",rk610_codec->pa_enable_time);
+		if(cookie_pot[1] ==':')
+		{
+			strsep(&cookie_pot,":");
+			p=strsep(&cookie_pot," ");
+			rk610_codec->pa_enable_time = simple_strtol(p,NULL,10);
+			printk("new pa_enable_time = %d\n",rk610_codec->pa_enable_time);
+		}
+		break;		
 	}
 
 	return len;
