@@ -2258,7 +2258,7 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 	/* FIXME: temporarily disabled, otherwise we cannot fire up
 	 * the chip again unless reboot.  ACPI bug?
 	 */
-	pci_set_power_state(chip->pci, 3);
+	pci_set_power_state(chip->pci, PCI_D3hot);
 #endif
 
 #ifdef CONFIG_PM_SLEEP
