@@ -188,13 +188,14 @@ static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 				   unsigned first_entry,
 				   unsigned num_entries)
 {
+	struct drm_i915_private *dev_priv = ppgtt->dev->dev_private;
 	gen6_gtt_pte_t *pt_vaddr, scratch_pte;
 	unsigned act_pt = first_entry / I915_PPGTT_PT_ENTRIES;
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	unsigned last_pte, i;
 
 	scratch_pte = ppgtt->pte_encode(ppgtt->dev,
-					ppgtt->scratch_page_dma_addr,
+					dev_priv->gtt.scratch_page_dma,
 					I915_CACHE_LLC);
 
 	while (num_entries) {
@@ -351,7 +352,6 @@ static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 		return -ENOMEM;
 
 	ppgtt->dev = dev;
-	ppgtt->scratch_page_dma_addr = dev_priv->gtt.scratch_page_dma;
 
 	if (INTEL_INFO(dev)->gen < 8)
 		ret = gen6_ppgtt_init(ppgtt);

@@ -492,7 +492,6 @@ struct i915_hw_ppgtt {
 	struct page **pt_pages;
 	uint32_t pd_offset;
 	dma_addr_t *pt_dma_addr;
-	dma_addr_t scratch_page_dma_addr;
 
 	/* pte functions, mirroring the interface of the global gtt. */
 	void (*clear_range)(struct i915_hw_ppgtt *ppgtt,
