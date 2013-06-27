@@ -846,34 +846,28 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	int ret;
 
 	if (INTEL_INFO(dev)->gen <= 5) {
-		dev_priv->gtt.gtt_probe = i915_gmch_probe;
-		dev_priv->gtt.gtt_remove = i915_gmch_remove;
+		gtt->gtt_probe = i915_gmch_probe;
+		gtt->gtt_remove = i915_gmch_remove;
 	} else {
-		dev_priv->gtt.gtt_probe = gen6_gmch_probe;
-		dev_priv->gtt.gtt_remove = gen6_gmch_remove;
-		if (IS_HASWELL(dev)) {
-			dev_priv->gtt.pte_encode = hsw_pte_encode;
-		} else if (IS_VALLEYVIEW(dev)) {
-			dev_priv->gtt.pte_encode = byt_pte_encode;
-		} else {
-			dev_priv->gtt.pte_encode = gen6_pte_encode;
-		}
+		gtt->gtt_probe = gen6_gmch_probe;
+		gtt->gtt_remove = gen6_gmch_remove;
+		if (IS_HASWELL(dev))
+			gtt->pte_encode = hsw_pte_encode;
+		else if (IS_VALLEYVIEW(dev))
+			gtt->pte_encode = byt_pte_encode;
+		else
+			gtt->pte_encode = gen6_pte_encode;
 	}
 
-	ret = dev_priv->gtt.gtt_probe(dev, &dev_priv->gtt.total,
-				     &dev_priv->gtt.stolen_size,
-				     &gtt->mappable_base,
-				     &gtt->mappable_end);
+	ret = gtt->gtt_probe(dev, &gtt->total, &gtt->stolen_size,
+			     &gtt->mappable_base, &gtt->mappable_end);
 	if (ret)
 		return ret;
 
 	/* GMADR is the PCI mmio aperture into the global GTT. */
-	DRM_INFO("Memory usable by graphics device = %zdM\n",
-		 dev_priv->gtt.total >> 20);
-	DRM_DEBUG_DRIVER("GMADR size = %ldM\n",
-			 dev_priv->gtt.mappable_end >> 20);
-	DRM_DEBUG_DRIVER("GTT stolen size = %zdM\n",
-			 dev_priv->gtt.stolen_size >> 20);
+	DRM_INFO("Memory usable by graphics device = %zdM\n", gtt->total >> 20);
+	DRM_DEBUG_DRIVER("GMADR size = %ldM\n", gtt->mappable_end >> 20);
+	DRM_DEBUG_DRIVER("GTT stolen size = %zdM\n", gtt->stolen_size >> 20);
 
 	return 0;
 }
