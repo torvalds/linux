@@ -315,46 +315,6 @@ static int powernv_eeh_configure_bridge(struct eeh_pe *pe)
 }
 
 /**
- * powernv_eeh_read_config - Read PCI config space
- * @dn: device node
- * @where: PCI address
- * @size: size to read
- * @val: return value
- *
- * Read config space from the speicifed device
- */
-static int powernv_eeh_read_config(struct device_node *dn, int where,
-				   int size, u32 *val)
-{
-	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
-	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
-	struct pci_controller *hose = edev->phb;
-
-	return hose->ops->read(dev->bus, dev->devfn, where, size, val);
-}
-
-/**
- * powernv_eeh_write_config - Write PCI config space
- * @dn: device node
- * @where: PCI address
- * @size: size to write
- * @val: value to be written
- *
- * Write config space to the specified device
- */
-static int powernv_eeh_write_config(struct device_node *dn, int where,
-				    int size, u32 val)
-{
-	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
-	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
-	struct pci_controller *hose = edev->phb;
-
-	hose = pci_bus_to_host(dev->bus);
-
-	return hose->ops->write(dev->bus, dev->devfn, where, size, val);
-}
-
-/**
  * powernv_eeh_next_error - Retrieve next EEH error to handle
  * @pe: Affected PE
  *
@@ -389,8 +349,8 @@ static struct eeh_ops powernv_eeh_ops = {
 	.wait_state             = powernv_eeh_wait_state,
 	.get_log                = powernv_eeh_get_log,
 	.configure_bridge       = powernv_eeh_configure_bridge,
-	.read_config            = powernv_eeh_read_config,
-	.write_config           = powernv_eeh_write_config,
+	.read_config            = pnv_pci_cfg_read,
+	.write_config           = pnv_pci_cfg_write,
 	.next_error		= powernv_eeh_next_error
 };
 

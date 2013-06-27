@@ -182,6 +182,10 @@ extern struct pci_ops pnv_pci_ops;
 extern struct pnv_eeh_ops ioda_eeh_ops;
 #endif
 
+int pnv_pci_cfg_read(struct device_node *dn,
+		     int where, int size, u32 *val);
+int pnv_pci_cfg_write(struct device_node *dn,
+		      int where, int size, u32 val);
 extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 				      void *tce_mem, u64 tce_size,
 				      u64 dma_offset);
