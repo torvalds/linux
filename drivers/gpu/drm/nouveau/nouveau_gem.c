@@ -50,7 +50,8 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 		return;
 	nvbo->gem = NULL;
 
-	if (unlikely(nvbo->pin_refcnt)) {
+	/* Lockdep hates you for doing reserve with gem object lock held */
+	if (WARN_ON_ONCE(nvbo->pin_refcnt)) {
 		nvbo->pin_refcnt = 1;
 		nouveau_bo_unpin(nvbo);
 	}
