@@ -1070,8 +1070,11 @@ int vmac_open(struct net_device *dev)
 	clk_enable(clk_get(NULL,"mac_ref"));
 
 	//phy power on
-	if (pdata && pdata->rmii_power_control)
+	if (pdata && pdata->rmii_power_control) {
+        pdata->rmii_power_control(0);
+        msleep(100);
 		pdata->rmii_power_control(1);
+    }
 
 	msleep(1000);
 
