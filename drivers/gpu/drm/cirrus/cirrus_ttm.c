@@ -308,24 +308,6 @@ void cirrus_ttm_placement(struct cirrus_bo *bo, int domain)
 	bo->placement.num_busy_placement = c;
 }
 
-int cirrus_bo_reserve(struct cirrus_bo *bo, bool no_wait)
-{
-	int ret;
-
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
-	if (ret) {
-		if (ret != -ERESTARTSYS && ret != -EBUSY)
-			DRM_ERROR("reserve failed %p\n", bo);
-		return ret;
-	}
-	return 0;
-}
-
-void cirrus_bo_unreserve(struct cirrus_bo *bo)
-{
-	ttm_bo_unreserve(&bo->bo);
-}
-
 int cirrus_bo_create(struct drm_device *dev, int size, int align,
 		  uint32_t flags, struct cirrus_bo **pcirrusbo)
 {
