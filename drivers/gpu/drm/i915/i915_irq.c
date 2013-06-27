@@ -2771,7 +2771,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	/* should always can generate irq */
 	I915_WRITE(DEIIR, I915_READ(DEIIR));
 	I915_WRITE(DEIMR, dev_priv->irq_mask);
-	I915_WRITE(DEIER, display_mask | DE_PIPEA_VBLANK | DE_PIPEB_VBLANK);
+	I915_WRITE(DEIER, display_mask |
+			  DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT);
 	POSTING_READ(DEIER);
 
 	dev_priv->gt_irq_mask = ~0;
@@ -2793,11 +2794,9 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	ibx_irq_postinstall(dev);
 
 	if (IS_IRONLAKE_M(dev)) {
-		/* Clear & enable PCU event interrupts */
-		I915_WRITE(DEIIR, DE_PCU_EVENT);
-		I915_WRITE(DEIER, I915_READ(DEIER) | DE_PCU_EVENT);
-
-		/* spinlocking not required here for correctness since interrupt
+		/* Enable PCU event interrupts
+		 *
+		 * spinlocking not required here for correctness since interrupt
 		 * setup is guaranteed to run in single-threaded context. But we
 		 * need it to make the assert_spin_locked happy. */
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
