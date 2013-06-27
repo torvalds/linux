@@ -2233,6 +2233,8 @@ void btc_dpm_reset_asic(struct radeon_device *rdev)
 int btc_dpm_set_power_state(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
+	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
 
 	btc_apply_state_adjust_rules(rdev);
 
@@ -2243,7 +2245,7 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_before_state_change(rdev);
 
-	rv770_set_uvd_clock_before_set_eng_clock(rdev);
+	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	rv770_halt_smc(rdev);
 	btc_set_at_for_uvd(rdev);
 	if (eg_pi->smu_uvd_hs)
@@ -2257,7 +2259,7 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 
 	rv770_resume_smc(rdev);
 	rv770_set_sw_state(rdev);
-	rv770_set_uvd_clock_after_set_eng_clock(rdev);
+	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_after_state_change(rdev);

@@ -1155,10 +1155,10 @@ static int rv770_populate_smc_mvdd_table(struct radeon_device *rdev,
 	return 0;
 }
 
-static int rv770_init_smc_table(struct radeon_device *rdev)
+static int rv770_init_smc_table(struct radeon_device *rdev,
+				struct radeon_ps *radeon_boot_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
-	struct radeon_ps *radeon_boot_state = rdev->pm.dpm.boot_ps;
 	struct rv7xx_ps *boot_state = rv770_get_ps(radeon_boot_state);
 	RV770_SMC_STATETABLE *table = &pi->smc_statetable;
 	int ret;
@@ -1364,10 +1364,9 @@ static void rv770_enable_dynamic_pcie_gen2(struct radeon_device *rdev,
 		WREG32_P(GENERAL_PWRMGT, 0, ~ENABLE_GEN2PCIE);
 }
 
-static void r7xx_program_memory_timing_parameters(struct radeon_device *rdev)
+static void r7xx_program_memory_timing_parameters(struct radeon_device *rdev,
+						  struct radeon_ps *radeon_new_state)
 {
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
-
 	if ((rdev->family == CHIP_RV730) ||
 	    (rdev->family == CHIP_RV710) ||
 	    (rdev->family == CHIP_RV740))
@@ -1376,10 +1375,10 @@ static void r7xx_program_memory_timing_parameters(struct radeon_device *rdev)
 		rv770_program_memory_timing_parameters(rdev, radeon_new_state);
 }
 
-static int rv770_upload_sw_state(struct radeon_device *rdev)
+static int rv770_upload_sw_state(struct radeon_device *rdev,
+				 struct radeon_ps *radeon_new_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
 	u16 address = pi->state_table_start +
 		offsetof(RV770_SMC_STATETABLE, driverState);
 	RV770_SMC_SWSTATE state = { 0 };
@@ -1426,36 +1425,38 @@ int rv770_set_boot_state(struct radeon_device *rdev)
 	return 0;
 }
 
-void rv770_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev)
+void rv770_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev,
+					      struct radeon_ps *new_ps,
+					      struct radeon_ps *old_ps)
 {
-	struct rv7xx_ps *new_state = rv770_get_ps(rdev->pm.dpm.requested_ps);
-	struct rv7xx_ps *current_state = rv770_get_ps(rdev->pm.dpm.current_ps);
+	struct rv7xx_ps *new_state = rv770_get_ps(new_ps);
+	struct rv7xx_ps *current_state = rv770_get_ps(old_ps);
 
-	if ((rdev->pm.dpm.requested_ps->vclk == rdev->pm.dpm.current_ps->vclk) &&
-	    (rdev->pm.dpm.requested_ps->dclk == rdev->pm.dpm.current_ps->dclk))
+	if ((new_ps->vclk == old_ps->vclk) &&
+	    (new_ps->dclk == old_ps->dclk))
 		return;
 
 	if (new_state->high.sclk >= current_state->high.sclk)
 		return;
 
-	radeon_set_uvd_clocks(rdev, rdev->pm.dpm.requested_ps->vclk,
-			      rdev->pm.dpm.requested_ps->dclk);
+	radeon_set_uvd_clocks(rdev, new_ps->vclk, old_ps->dclk);
 }
 
-void rv770_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev)
+void rv770_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
+					     struct radeon_ps *new_ps,
+					     struct radeon_ps *old_ps)
 {
-	struct rv7xx_ps *new_state = rv770_get_ps(rdev->pm.dpm.requested_ps);
-	struct rv7xx_ps *current_state = rv770_get_ps(rdev->pm.dpm.current_ps);
+	struct rv7xx_ps *new_state = rv770_get_ps(new_ps);
+	struct rv7xx_ps *current_state = rv770_get_ps(old_ps);
 
-	if ((rdev->pm.dpm.requested_ps->vclk == rdev->pm.dpm.current_ps->vclk) &&
-	    (rdev->pm.dpm.requested_ps->dclk == rdev->pm.dpm.current_ps->dclk))
+	if ((new_ps->vclk == old_ps->vclk) &&
+	    (new_ps->dclk == old_ps->dclk))
 		return;
 
 	if (new_state->high.sclk < current_state->high.sclk)
 		return;
 
-	radeon_set_uvd_clocks(rdev, rdev->pm.dpm.requested_ps->vclk,
-			      rdev->pm.dpm.requested_ps->dclk);
+	radeon_set_uvd_clocks(rdev, new_ps->vclk, new_ps->dclk);
 }
 
 int rv770_restrict_performance_levels_before_switch(struct radeon_device *rdev)
@@ -1720,11 +1721,11 @@ void rv770_program_response_times(struct radeon_device *rdev)
 #endif
 }
 
-static void rv770_program_dcodt_before_state_switch(struct radeon_device *rdev)
+static void rv770_program_dcodt_before_state_switch(struct radeon_device *rdev,
+						    struct radeon_ps *radeon_new_state,
+						    struct radeon_ps *radeon_current_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
-	struct radeon_ps *radeon_current_state = rdev->pm.dpm.current_ps;
 	struct rv7xx_ps *new_state = rv770_get_ps(radeon_new_state);
 	struct rv7xx_ps *current_state = rv770_get_ps(radeon_current_state);
 	bool current_use_dc = false;
@@ -1749,11 +1750,11 @@ static void rv770_program_dcodt_before_state_switch(struct radeon_device *rdev)
 		rv730_program_dcodt(rdev, new_use_dc);
 }
 
-static void rv770_program_dcodt_after_state_switch(struct radeon_device *rdev)
+static void rv770_program_dcodt_after_state_switch(struct radeon_device *rdev,
+						   struct radeon_ps *radeon_new_state,
+						   struct radeon_ps *radeon_current_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
-	struct radeon_ps *radeon_current_state = rdev->pm.dpm.current_ps;
 	struct rv7xx_ps *new_state = rv770_get_ps(radeon_new_state);
 	struct rv7xx_ps *current_state = rv770_get_ps(radeon_current_state);
 	bool current_use_dc = false;
@@ -1873,6 +1874,7 @@ int rv770_set_thermal_temperature_range(struct radeon_device *rdev,
 int rv770_dpm_enable(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
+	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
 
 	if (pi->gfx_clock_gating)
 		rv770_restore_cgcg(rdev);
@@ -1915,7 +1917,7 @@ int rv770_dpm_enable(struct radeon_device *rdev)
 	if (rv770_upload_firmware(rdev))
 		return -EINVAL;
 	/* get ucode version ?  */
-	if (rv770_init_smc_table(rdev))
+	if (rv770_init_smc_table(rdev, boot_ps))
 		return -EINVAL;
 	rv770_program_response_times(rdev);
 	r7xx_start_smc(rdev);
@@ -1990,19 +1992,21 @@ void rv770_dpm_disable(struct radeon_device *rdev)
 int rv770_dpm_set_power_state(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
+	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
+	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
 
 	rv770_restrict_performance_levels_before_switch(rdev);
-	rv770_set_uvd_clock_before_set_eng_clock(rdev);
+	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	rv770_halt_smc(rdev);
-	rv770_upload_sw_state(rdev);
-	r7xx_program_memory_timing_parameters(rdev);
+	rv770_upload_sw_state(rdev, new_ps);
+	r7xx_program_memory_timing_parameters(rdev, new_ps);
 	if (pi->dcodt)
-		rv770_program_dcodt_before_state_switch(rdev);
+		rv770_program_dcodt_before_state_switch(rdev, new_ps, old_ps);
 	rv770_resume_smc(rdev);
 	rv770_set_sw_state(rdev);
 	if (pi->dcodt)
-		rv770_program_dcodt_after_state_switch(rdev);
-	rv770_set_uvd_clock_after_set_eng_clock(rdev);
+		rv770_program_dcodt_after_state_switch(rdev, new_ps, old_ps);
+	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 	rv770_unrestrict_performance_levels_after_switch(rdev);
 
 	return 0;
@@ -2011,13 +2015,14 @@ int rv770_dpm_set_power_state(struct radeon_device *rdev)
 void rv770_dpm_reset_asic(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
+	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
 
 	rv770_restrict_performance_levels_before_switch(rdev);
 	if (pi->dcodt)
-		rv770_program_dcodt_before_state_switch(rdev);
+		rv770_program_dcodt_before_state_switch(rdev, boot_ps, boot_ps);
 	rv770_set_boot_state(rdev);
 	if (pi->dcodt)
-		rv770_program_dcodt_after_state_switch(rdev);
+		rv770_program_dcodt_after_state_switch(rdev, boot_ps, boot_ps);
 }
 
 void rv770_dpm_setup_asic(struct radeon_device *rdev)
