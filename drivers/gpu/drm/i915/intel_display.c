@@ -5812,10 +5812,6 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 
 		ironlake_get_fdi_m_n_config(crtc, pipe_config);
 
-		/* XXX: Can't properly read out the pch dpll pixel multiplier
-		 * since we don't have state tracking for pch clocks yet. */
-		pipe_config->pixel_multiplier = 1;
-
 		if (HAS_PCH_IBX(dev_priv->dev)) {
 			pipe_config->shared_dpll = crtc->pipe;
 		} else {
@@ -5830,6 +5826,11 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 
 		WARN_ON(!pll->get_hw_state(dev_priv, pll,
 					   &pipe_config->dpll_hw_state));
+
+		tmp = pipe_config->dpll_hw_state.dpll;
+		pipe_config->pixel_multiplier =
+			((tmp & PLL_REF_SDVO_HDMI_MULTIPLIER_MASK)
+			 >> PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT) + 1;
 	} else {
 		pipe_config->pixel_multiplier = 1;
 	}
@@ -8084,8 +8085,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_I(adjusted_mode.crtc_vsync_start);
 	PIPE_CONF_CHECK_I(adjusted_mode.crtc_vsync_end);
 
-	if (!HAS_PCH_SPLIT(dev))
-		PIPE_CONF_CHECK_I(pixel_multiplier);
+	PIPE_CONF_CHECK_I(pixel_multiplier);
 
 	PIPE_CONF_CHECK_FLAGS(adjusted_mode.flags,
 			      DRM_MODE_FLAG_INTERLACE);

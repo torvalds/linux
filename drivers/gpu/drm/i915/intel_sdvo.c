@@ -1370,9 +1370,6 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 		break;
 	}
 
-	if(HAS_PCH_SPLIT(dev))
-		return; /* no pixel multiplier readout support yet */
-
 	WARN(encoder_pixel_multiplier != pipe_config->pixel_multiplier,
 	     "SDVO pixel multiplier mismatch, port: %i, encoder: %i\n",
 	     pipe_config->pixel_multiplier, encoder_pixel_multiplier);
