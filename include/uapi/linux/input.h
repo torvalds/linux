@@ -506,15 +506,15 @@ struct input_keymap_entry {
 #define BTN_DEAD		0x12f
 
 #define BTN_GAMEPAD		0x130
-#define BTN_A			0x130
 #define BTN_SOUTH		0x130
-#define BTN_B			0x131
+#define BTN_A			BTN_SOUTH
 #define BTN_EAST		0x131
+#define BTN_B			BTN_EAST
 #define BTN_C			0x132
-#define BTN_X			0x133
 #define BTN_NORTH		0x133
-#define BTN_Y			0x134
+#define BTN_X			BTN_NORTH
 #define BTN_WEST		0x134
+#define BTN_Y			BTN_WEST
 #define BTN_Z			0x135
 #define BTN_TL			0x136
 #define BTN_TR			0x137
