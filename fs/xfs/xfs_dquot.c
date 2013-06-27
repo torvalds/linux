@@ -570,13 +570,13 @@ xfs_qm_dqtobp(
 	xfs_buf_t		**O_bpp,
 	uint			flags)
 {
-	xfs_bmbt_irec_t map;
-	int		nmaps = 1, error;
-	xfs_buf_t	*bp;
+	struct xfs_bmbt_irec	map;
+	int			nmaps = 1, error;
+	struct xfs_buf		*bp;
 	struct xfs_inode	*quotip = xfs_dq_to_quota_inode(dqp);
-	xfs_mount_t	*mp = dqp->q_mount;
-	xfs_dqid_t	id = be32_to_cpu(dqp->q_core.d_id);
-	xfs_trans_t	*tp = (tpp ? *tpp : NULL);
+	struct xfs_mount	*mp = dqp->q_mount;
+	xfs_dqid_t		id = be32_to_cpu(dqp->q_core.d_id);
+	struct xfs_trans	*tp = (tpp ? *tpp : NULL);
 
 	dqp->q_fileoffset = (xfs_fileoff_t)id / mp->m_quotainfo->qi_dqperchunk;
 

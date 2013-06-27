@@ -169,13 +169,13 @@ xfs_trans_mod_dquot_byino(
 		(void) xfs_trans_mod_dquot(tp, ip->i_gdquot, field, delta);
 }
 
-STATIC xfs_dqtrx_t *
+STATIC struct xfs_dqtrx *
 xfs_trans_get_dqtrx(
-	xfs_trans_t	*tp,
-	xfs_dquot_t	*dqp)
+	struct xfs_trans	*tp,
+	struct xfs_dquot	*dqp)
 {
-	int		i;
-	xfs_dqtrx_t	*qa;
+	int			i;
+	struct xfs_dqtrx	*qa;
 
 	qa = XFS_QM_ISUDQ(dqp) ?
 		tp->t_dqinfo->dqa_usrdquots : tp->t_dqinfo->dqa_grpdquots;
@@ -747,15 +747,15 @@ error_return:
  */
 int
 xfs_trans_reserve_quota_bydquots(
-	xfs_trans_t	*tp,
-	xfs_mount_t	*mp,
-	xfs_dquot_t	*udqp,
-	xfs_dquot_t	*gdqp,
-	long		nblks,
-	long		ninos,
-	uint		flags)
+	struct xfs_trans	*tp,
+	struct xfs_mount	*mp,
+	struct xfs_dquot	*udqp,
+	struct xfs_dquot	*gdqp,
+	long			nblks,
+	long			ninos,
+	uint			flags)
 {
-	int		resvd = 0, error;
+	int		error;
 
 	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
 		return 0;
@@ -770,28 +770,24 @@ xfs_trans_reserve_quota_bydquots(
 					(flags & ~XFS_QMOPT_ENOSPC));
 		if (error)
 			return error;
-		resvd = 1;
 	}
 
 	if (gdqp) {
 		error = xfs_trans_dqresv(tp, mp, gdqp, nblks, ninos, flags);
-		if (error) {
-			/*
-			 * can't do it, so backout previous reservation
-			 */
-			if (resvd) {
-				flags |= XFS_QMOPT_FORCE_RES;
-				xfs_trans_dqresv(tp, mp, udqp,
-						 -nblks, -ninos, flags);
-			}
-			return error;
-		}
+		if (error)
+			goto unwind_usr;
 	}
 
 	/*
 	 * Didn't change anything critical, so, no need to log
 	 */
 	return 0;
+
+unwind_usr:
+	flags |= XFS_QMOPT_FORCE_RES;
+	if (udqp)
+		xfs_trans_dqresv(tp, mp, udqp, -nblks, -ninos, flags);
+	return error;
 }
 
 

@@ -335,7 +335,8 @@ xfs_iget_cache_miss(
 	iflags = XFS_INEW;
 	if (flags & XFS_IGET_DONTCACHE)
 		iflags |= XFS_IDONTCACHE;
-	ip->i_udquot = ip->i_gdquot = NULL;
+	ip->i_udquot = NULL;
+	ip->i_gdquot = NULL;
 	xfs_iflags_set(ip, iflags);
 
 	/* insert the new inode */
