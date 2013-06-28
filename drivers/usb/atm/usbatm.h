@@ -59,18 +59,12 @@
 	atm_printk(KERN_INFO, instance , format , ## arg)
 #define atm_warn(instance, format, arg...)	\
 	atm_printk(KERN_WARNING, instance , format , ## arg)
-#ifdef DEBUG
-#define atm_dbg(instance, format, arg...)	\
-	atm_printk(KERN_DEBUG, instance , format , ## arg)
-#define atm_rldbg(instance, format, arg...)	\
+#define atm_dbg(instance, format, arg...)		\
+	dynamic_pr_debug("ATM dev %d: " format ,	\
+	(instance)->atm_dev->number , ## arg)
+#define atm_rldbg(instance, format, arg...)		\
 	if (printk_ratelimit())				\
-		atm_printk(KERN_DEBUG, instance , format , ## arg)
-#else
-#define atm_dbg(instance, format, arg...)	\
-	do {} while (0)
-#define atm_rldbg(instance, format, arg...)	\
-	do {} while (0)
-#endif
+		atm_dbg(instance , format , ## arg)
 
 
 /* flags, set by mini-driver in bind() */
