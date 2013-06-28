@@ -71,6 +71,26 @@ efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 	return ((efx_qword_t *) (tx_queue->txd.buf.addr)) + index;
 }
 
+/* Report whether the NIC considers this TX queue empty, given the
+ * write_count used for the last doorbell push.  May return false
+ * negative.
+ */
+static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
+					 unsigned int write_count)
+{
+	unsigned int empty_read_count = ACCESS_ONCE(tx_queue->empty_read_count);
+
+	if (empty_read_count == 0)
+		return false;
+
+	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0;
+}
+
+static inline bool efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue)
+{
+	return __efx_nic_tx_is_empty(tx_queue, tx_queue->write_count);
+}
+
 /* Decide whether to push a TX descriptor to the NIC vs merely writing
  * the doorbell.  This can reduce latency when we are adding a single
  * descriptor to an empty queue, but is otherwise pointless.  Further,
@@ -80,14 +100,10 @@ efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 static inline bool efx_nic_may_push_tx_desc(struct efx_tx_queue *tx_queue,
 					    unsigned int write_count)
 {
-	unsigned empty_read_count = ACCESS_ONCE(tx_queue->empty_read_count);
-
-	if (empty_read_count == 0)
-		return false;
+	bool was_empty = __efx_nic_tx_is_empty(tx_queue, write_count);
 
 	tx_queue->empty_read_count = 0;
-	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0
-		&& tx_queue->write_count - write_count == 1;
+	return was_empty && tx_queue->write_count - write_count == 1;
 }
 
 /* Returns a pointer to the specified descriptor in the RX descriptor queue */
