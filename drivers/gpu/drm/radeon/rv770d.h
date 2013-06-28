@@ -207,6 +207,10 @@
 #       define MUX_TCLK_TO_XCLK                           (1 << 8)
 #       define XTALIN_DIVIDE                              (1 << 9)
 
+#define TARGET_AND_CURRENT_PROFILE_INDEX                  0x66c
+#       define CURRENT_PROFILE_INDEX_MASK                 (0xf << 4)
+#       define CURRENT_PROFILE_INDEX_SHIFT                4
+
 #define S0_VID_LOWER_SMIO_CNTL                            0x678
 #define S1_VID_LOWER_SMIO_CNTL                            0x67c
 #define S2_VID_LOWER_SMIO_CNTL                            0x680
