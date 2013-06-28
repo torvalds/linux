@@ -636,15 +636,15 @@ static void pch_gbe_mac_set_pause_packet(struct pch_gbe_hw *hw)
  */
 static int pch_gbe_alloc_queues(struct pch_gbe_adapter *adapter)
 {
-	adapter->tx_ring = kzalloc(sizeof(*adapter->tx_ring), GFP_KERNEL);
+	adapter->tx_ring = devm_kzalloc(&adapter->pdev->dev,
+					sizeof(*adapter->tx_ring), GFP_KERNEL);
 	if (!adapter->tx_ring)
 		return -ENOMEM;
 
-	adapter->rx_ring = kzalloc(sizeof(*adapter->rx_ring), GFP_KERNEL);
-	if (!adapter->rx_ring) {
-		kfree(adapter->tx_ring);
+	adapter->rx_ring = devm_kzalloc(&adapter->pdev->dev,
+					sizeof(*adapter->rx_ring), GFP_KERNEL);
+	if (!adapter->rx_ring)
 		return -ENOMEM;
-	}
 	return 0;
 }
 
@@ -2588,13 +2588,7 @@ static void pch_gbe_remove(struct pci_dev *pdev)
 
 	pch_gbe_hal_phy_hw_reset(&adapter->hw);
 
-	kfree(adapter->tx_ring);
-	kfree(adapter->rx_ring);
-
-	iounmap(adapter->hw.reg);
-	pci_release_regions(pdev);
 	free_netdev(netdev);
-	pci_disable_device(pdev);
 }
 
 static int pch_gbe_probe(struct pci_dev *pdev,
@@ -2604,7 +2598,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	struct pch_gbe_adapter *adapter;
 	int ret;
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 
@@ -2617,24 +2611,22 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 			if (ret) {
 				dev_err(&pdev->dev, "ERR: No usable DMA "
 					"configuration, aborting\n");
-				goto err_disable_device;
+				return ret;
 			}
 		}
 	}
 
-	ret = pci_request_regions(pdev, KBUILD_MODNAME);
+	ret = pcim_iomap_regions(pdev, 1 << PCH_GBE_PCI_BAR, pci_name(pdev));
 	if (ret) {
 		dev_err(&pdev->dev,
 			"ERR: Can't reserve PCI I/O and memory resources\n");
-		goto err_disable_device;
+		return ret;
 	}
 	pci_set_master(pdev);
 
 	netdev = alloc_etherdev((int)sizeof(struct pch_gbe_adapter));
-	if (!netdev) {
-		ret = -ENOMEM;
-		goto err_release_pci;
-	}
+	if (!netdev)
+		return -ENOMEM;
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	pci_set_drvdata(pdev, netdev);
@@ -2642,18 +2634,14 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
-	adapter->hw.reg = pci_iomap(pdev, PCH_GBE_PCI_BAR, 0);
-	if (!adapter->hw.reg) {
-		ret = -EIO;
-		dev_err(&pdev->dev, "Can't ioremap\n");
-		goto err_free_netdev;
-	}
+	adapter->hw.reg = pcim_iomap_table(pdev)[PCH_GBE_PCI_BAR];
 
 	adapter->ptp_pdev = pci_get_bus_and_slot(adapter->pdev->bus->number,
 					       PCI_DEVFN(12, 4));
 	if (ptp_filter_init(ptp_filter, ARRAY_SIZE(ptp_filter))) {
 		dev_err(&pdev->dev, "Bad ptp filter\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_free_netdev;
 	}
 
 	netdev->netdev_ops = &pch_gbe_netdev_ops;
@@ -2671,7 +2659,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	/* setup the private structure */
 	ret = pch_gbe_sw_init(adapter);
 	if (ret)
-		goto err_iounmap;
+		goto err_free_netdev;
 
 	/* Initialize PHY */
 	ret = pch_gbe_init_phy(adapter);
@@ -2727,16 +2715,8 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 
 err_free_adapter:
 	pch_gbe_hal_phy_hw_reset(&adapter->hw);
-	kfree(adapter->tx_ring);
-	kfree(adapter->rx_ring);
-err_iounmap:
-	iounmap(adapter->hw.reg);
 err_free_netdev:
 	free_netdev(netdev);
-err_release_pci:
-	pci_release_regions(pdev);
-err_disable_device:
-	pci_disable_device(pdev);
 	return ret;
 }
 
