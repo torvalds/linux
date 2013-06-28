@@ -238,7 +238,7 @@ char *sysfs_get_idlestate_desc(unsigned int cpu, unsigned int idlestate)
  * Negativ in error case
  * Zero if cpuidle does not export any C-states
  */
-int sysfs_get_idlestate_count(unsigned int cpu)
+unsigned int sysfs_get_idlestate_count(unsigned int cpu)
 {
 	char file[SYSFS_PATH_MAX];
 	struct stat statbuf;

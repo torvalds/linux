@@ -19,7 +19,7 @@ extern char *sysfs_get_idlestate_name(unsigned int cpu,
 				unsigned int idlestate);
 extern char *sysfs_get_idlestate_desc(unsigned int cpu,
 				unsigned int idlestate);
-extern int sysfs_get_idlestate_count(unsigned int cpu);
+extern unsigned int sysfs_get_idlestate_count(unsigned int cpu);
 
 extern char *sysfs_get_cpuidle_governor(void);
 extern char *sysfs_get_cpuidle_driver(void);
