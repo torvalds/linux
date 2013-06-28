@@ -65,6 +65,8 @@ static void cadence_qspi_work(struct work_struct *work)
 		= container_of(work, struct struct_cqspi, work);
 	unsigned long flags;
 
+	pr_debug("%s\n", __func__);
+
 	spin_lock_irqsave(&cadence_qspi->lock, flags);
 	while ((!list_empty(&cadence_qspi->msg_queue)) &&
 		cadence_qspi->running) {
@@ -124,6 +126,8 @@ static int cadence_qspi_transfer(struct spi_device *spi, struct spi_message *msg
 	struct cqspi_platform_data *pdata = pdev->dev.platform_data;
 	unsigned long flags;
 
+	pr_debug("%s\n", __func__);
+
 	list_for_each_entry(spi_xfer, &msg->transfers, transfer_list) {
 		if (spi_xfer->speed_hz > (pdata->master_ref_clk_hz / 2)) {
 			dev_err(&spi->dev, "speed_hz%d greater than "
@@ -153,6 +157,8 @@ static int cadence_qspi_transfer(struct spi_device *spi, struct spi_message *msg
 
 static int cadence_qspi_setup(struct spi_device *spi)
 {
+	pr_debug("%s\n", __func__);
+
 	if (spi->chip_select > spi->master->num_chipselect) {
 		dev_err(&spi->dev, "%d chip select is out of range\n",
 			spi->chip_select);
@@ -168,6 +174,7 @@ static int cadence_qspi_start_queue(struct struct_cqspi *cadence_qspi)
 {
 	unsigned long flags;
 
+	pr_debug("%s\n", __func__);
 	spin_lock_irqsave(&cadence_qspi->lock, flags);
 
 	if (cadence_qspi->running) {
@@ -274,6 +281,12 @@ static int cadence_qspi_of_get_pdata(struct platform_device *pdev)
 		}
 		f_pdata->block_size = prop;
 
+		if (of_property_read_u32(nc, "read-delay", &prop)) {
+			dev_err(&pdev->dev, "couldn't determine read-delay\n");
+			return -ENXIO;
+		}
+		f_pdata->read_delay = prop;
+
 		if (of_property_read_u32(nc, "tshsl-ns", &prop)) {
 			dev_err(&pdev->dev, "couldn't determine tshsl-ns\n");
 			return -ENXIO;
@@ -309,6 +322,10 @@ static int cadence_qspi_probe(struct platform_device *pdev)
 	struct resource *res_ahb;
 	struct cqspi_platform_data *pdata;
 	int status;
+
+	pr_debug("%s\n", __func__);
+	pr_debug("%s %s %s\n", __func__,
+		pdev->name, pdev->id_entry->name);
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*cadence_qspi));
 	if (master == NULL) {
@@ -422,14 +439,14 @@ static int cadence_qspi_probe(struct platform_device *pdev)
 	master->num_chipselect = pdata->num_chipselect;
 
 	platform_set_drvdata(pdev, master);
+	cadence_qspi_apb_controller_init(cadence_qspi);
+	cadence_qspi->current_cs = -1;
+	pr_debug("%s call spi_register_master\n", __func__);
 	status = spi_register_master(master);
 	if (status) {
 		dev_err(&pdev->dev, "spi_register_master failed\n");
 		goto err_of;
 	}
-
-	cadence_qspi_apb_controller_init(cadence_qspi);
-	cadence_qspi->current_cs = -1;
 
 	dev_info(&pdev->dev, "Cadence QSPI controller driver\n");
 	return 0;

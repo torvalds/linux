@@ -223,4 +223,5 @@ int cadence_qspi_apb_process_queue(struct struct_cqspi *cadence_qspi,
 	struct spi_transfer **spi_xfer);
 void cadence_qspi_apb_controller_enable(void *reg_base_addr);
 void cadence_qspi_apb_controller_disable(void *reg_base_addr);
+
 #endif /* __CADENCE_QSPI_APB_H__ */

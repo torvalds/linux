@@ -29,6 +29,7 @@ struct cqspi_flash_pdata {
 	unsigned int page_size;
 	unsigned int block_size;
 	unsigned int quad;
+	unsigned int read_delay;
 	unsigned int tshsl_ns;
 	unsigned int tsd2d_ns;
 	unsigned int tchsh_ns;

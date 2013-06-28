@@ -39,10 +39,69 @@
 #include "spi-cadence-qspi.h"
 #include "spi-cadence-qspi-apb.h"
 
+/****************************************************************************/
+
+#include <linux/ctype.h>
+
+typedef int (*PRINTF_FUNC)(const char *fmt, ...);
+
+#ifdef DEBUG
+static void __hex_dump(unsigned int address_to_print,
+	const unsigned char *buffer,
+	int length,
+	PRINTF_FUNC _printfunc)
+{
+	int i;
+	int j;
+	for (i = 0; i < length; i += 16) {
+		_printfunc("%08x: ", address_to_print+i);
+		for (j = 0; j < 8; j++) {
+			if ((i+j) < length)
+				_printfunc("%02x ", buffer[i+j]);
+			else
+				_printfunc("   ");
+		}
+		_printfunc(" ");
+		for (j = 8; j < 16; j++) {
+			if ((i+j) < length)
+				_printfunc("%02x ", buffer[i+j]);
+			else
+				_printfunc("   ");
+		}
+		_printfunc("  ");
+		for (j = 0; j < 16; j++) {
+			if ((i+j) < length)
+				_printfunc("%c",
+					isprint(buffer[i+j]) ?
+					buffer[i+j] : '.');
+			else
+				break;
+		}
+		_printfunc("\n");
+	}
+}
+#endif /* #ifdef DEBUG */
+
+#ifdef DEBUG
+#define hex_dump(a, b, c) __hex_dump(a, b, c, (PRINTF_FUNC)&printk)
+#else
+#define hex_dump(a, b, c)
+#endif
+
+
+/****************************************************************************/
+
+
+void cadence_qspi_apb_delay(struct struct_cqspi *cadence_qspi,
+	unsigned int ref_clk, unsigned int sclk_hz);
+
 static unsigned int cadence_qspi_apb_cmd2addr(const unsigned char* addr_buf,
 	unsigned int addr_width)
 {
 	unsigned int addr;
+
+	pr_debug("%s addr_buf %p addr_width %d\n",
+		__func__, addr_buf, addr_width);
 
 	addr = (addr_buf[0] << 16) | (addr_buf[1] << 8) | addr_buf[2];
 
@@ -129,7 +188,7 @@ static void cadence_qspi_apb_readdata_capture(void *reg_base,
 {
 	unsigned int reg;
 
-	cadence_qspi_apb_controller_disable(reg_base);
+	pr_debug("%s %d %d\n", __func__, bypass, delay);
 	reg = CQSPI_READL(reg_base + CQSPI_REG_READCAPTURE);
 
 	if (bypass) {
@@ -146,7 +205,6 @@ static void cadence_qspi_apb_readdata_capture(void *reg_base,
 
 	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_READCAPTURE);
 
-	cadence_qspi_apb_controller_enable(reg_base);
 	return;
 }
 
@@ -156,7 +214,8 @@ static void cadence_qspi_apb_config_baudrate_div(void *reg_base,
 	unsigned int reg;
 	unsigned int div;
 
-	cadence_qspi_apb_controller_disable(reg_base);
+	pr_debug("%s %d %d\n", __func__, ref_clk_hz, sclk_hz);
+
 	reg = CQSPI_READL(reg_base + CQSPI_REG_CONFIG);
 	reg &= ~(CQSPI_REG_CONFIG_BAUD_MASK << CQSPI_REG_CONFIG_BAUD_LSB);
 
@@ -179,7 +238,6 @@ static void cadence_qspi_apb_config_baudrate_div(void *reg_base,
 	reg |= div;
 	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_CONFIG);
 
-	cadence_qspi_apb_controller_enable(reg_base);
 	return;
 }
 
@@ -188,7 +246,7 @@ static void cadence_qspi_apb_chipselect(void * reg_base,
 {
 	unsigned int reg;
 
-	cadence_qspi_apb_controller_disable(reg_base);
+	pr_debug("%s\n", __func__);
 
 	pr_debug("QSPI: chipselect %d decode %d\n", chip_select,
 		decoder_enable);
@@ -215,7 +273,6 @@ static void cadence_qspi_apb_chipselect(void * reg_base,
 			<< CQSPI_REG_CONFIG_CHIPSELECT_LSB;
 	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_CONFIG);
 
-	cadence_qspi_apb_controller_enable(reg_base);
 	return;
 }
 
@@ -259,6 +316,10 @@ static int cadence_qspi_apb_command_read(void *reg_base,
 	unsigned int read_len;
 	int status;
 
+	pr_debug("%s txlen %d txbuf %p rxlen %d rxbuf %p\n",
+		__func__, txlen, txbuf, rxlen, rxbuf);
+	hex_dump((unsigned int)txbuf, txbuf, txlen);
+
 	if (!rxlen || rxlen > CQSPI_STIG_DATA_LEN_MAX || rxbuf == NULL) {
 		pr_err("QSPI: Invalid input argument, len %d rxbuf 0x%08x\n",
 			rxlen, (unsigned int)rxbuf);
@@ -281,6 +342,7 @@ static int cadence_qspi_apb_command_read(void *reg_base,
 	/* Put the read value into rx_buf */
 	read_len = (rxlen > 4) ? 4 : rxlen;
 	memcpy(rxbuf, &reg, read_len);
+	hex_dump((unsigned int)rxbuf, rxbuf, read_len);
 	rxbuf += read_len;
 
 	if (rxlen > 4) {
@@ -288,6 +350,7 @@ static int cadence_qspi_apb_command_read(void *reg_base,
 
 		read_len = rxlen - read_len;
 		memcpy(rxbuf, &reg, read_len);
+		hex_dump((unsigned int)rxbuf, rxbuf, read_len);
 	}
 
 	return 0;
@@ -300,6 +363,9 @@ static int cadence_qspi_apb_command_write(void *reg_base, unsigned txlen,
 	unsigned int reg;
 	unsigned int addr_value;
 	unsigned int data;
+
+	pr_debug("%s txlen %d txbuf %p\n", __func__, txlen, txbuf);
+	hex_dump((unsigned int)txbuf, txbuf, txlen);
 
 	if (!txlen || txlen > 5 || txbuf == NULL) {
 		pr_err("QSPI: Invalid input argument, cmdlen %d txbuf 0x%08x\n",
@@ -343,6 +409,10 @@ static int cadence_qspi_apb_indirect_read_setup(void *reg_base,
 	unsigned int dummy_clk;
 	unsigned int dummy_bytes;
 
+	pr_debug("%s txlen %d txbuf %p addr_bytes %d\n",
+		__func__, txlen, txbuf, addr_bytes);
+	hex_dump((unsigned int)txbuf, txbuf, txlen);
+
 	if ((addr_bytes == 3 && txlen < 4) || (addr_bytes == 4 && txlen < 5)) {
 		pr_err("QSPI: Invalid txbuf length, length %d\n", txlen);
 		return -EINVAL;
@@ -354,6 +424,7 @@ static int cadence_qspi_apb_indirect_read_setup(void *reg_base,
 	reg = txbuf[0] << CQSPI_REG_RD_INSTR_OPCODE_LSB;
 
 #ifdef CONFIG_M25PXX_USE_FAST_READ_QUAD_OUTPUT
+#error WTFO
 	reg |= (CQSPI_INST_TYPE_QUAD << CQSPI_REG_RD_INSTR_TYPE_DATA_LSB);
 #endif /* CONFIG_M25PXX_USE_FAST_READ_QUAD_OUTPUT */
 
@@ -409,6 +480,12 @@ static int cadence_qspi_apb_indirect_read_execute(
 	int remaining = (int)rxlen;
 	int ret = 0;
 
+#ifdef DEBUG
+	unsigned char *saverxbuf = rxbuf;
+	unsigned saverxlen = rxlen;
+#endif /* #ifdef DEBUG */
+
+	pr_debug("%s rxlen %d rxbuf %p\n", __func__, rxlen, rxbuf);
 	if (remaining < watermark)
 		watermark = remaining;
 
@@ -477,6 +554,7 @@ static int cadence_qspi_apb_indirect_read_execute(
 	/* Clear indirect completion status */
 	CQSPI_WRITEL(CQSPI_REG_INDIRECTRD_DONE_MASK,
 		reg_base + CQSPI_REG_INDIRECTRD);
+	hex_dump((unsigned int)saverxbuf, saverxbuf, saverxlen);
 	return 0;
 
 failrd:
@@ -495,13 +573,17 @@ static int cadence_qspi_apb_indirect_write_setup(void *reg_base,
 	unsigned int reg;
 	unsigned int addr_bytes = (txlen >= 5) ? 4: 3;
 
+	pr_debug("%s txlen %d txbuf %p addr_bytes %d\n",
+		__func__, txlen, txbuf, addr_bytes);
+	hex_dump((unsigned int)txbuf, txbuf, txlen);
+
 	if (txlen < 4 || txbuf == NULL) {
 		pr_err("QSPI: Invalid input argument, txlen %d txbuf 0x%08x\n",
 			txlen, (unsigned int)txbuf);
 		return -EINVAL;
 	}
 
-	CQSPI_WRITEL( (ahb_phy_addr & CQSPI_INDIRECTTRIGGER_ADDR_MASK),
+	CQSPI_WRITEL((ahb_phy_addr & CQSPI_INDIRECTTRIGGER_ADDR_MASK),
 		reg_base + CQSPI_REG_INDIRECTTRIGGER);
 
 	/* Set opcode. */
@@ -537,6 +619,8 @@ static int cadence_qspi_apb_indirect_write_execute(
 	int remaining = (int)txlen;
 	unsigned int write_bytes;
 
+	pr_debug("%s txlen %d txbuf %p\n", __func__, txlen, txbuf);
+	hex_dump((unsigned int)txbuf, txbuf, txlen);
 	CQSPI_WRITEL(remaining, reg_base + CQSPI_REG_INDIRECTWRBYTES);
 
 	CQSPI_WRITEL(CQSPI_REG_SRAM_THRESHOLD_BYTES, reg_base +
@@ -626,6 +710,7 @@ failwr:
 void cadence_qspi_apb_controller_enable(void *reg_base)
 {
 	unsigned int reg;
+	pr_debug("%s\n", __func__);
 	reg = CQSPI_READL(reg_base + CQSPI_REG_CONFIG);
 	reg |= CQSPI_REG_CONFIG_ENABLE_MASK;
 	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_CONFIG);
@@ -635,6 +720,7 @@ void cadence_qspi_apb_controller_enable(void *reg_base)
 void cadence_qspi_apb_controller_disable(void *reg_base)
 {
 	unsigned int reg;
+	pr_debug("%s\n", __func__);
 	reg = CQSPI_READL(reg_base + CQSPI_REG_CONFIG);
 	reg &= ~CQSPI_REG_CONFIG_ENABLE_MASK;
 	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_CONFIG);
@@ -656,11 +742,20 @@ void cadence_qspi_apb_controller_init(struct struct_cqspi *cadence_qspi)
 	/* Disable all interrupts. */
 	CQSPI_WRITEL(0, cadence_qspi->iobase + CQSPI_REG_IRQMASK);
 
-	/* Set read data capture to default. */
-	cadence_qspi_apb_readdata_capture(cadence_qspi->iobase, 1, 0);
-
 	cadence_qspi_apb_controller_enable(cadence_qspi->iobase);
 	return;
+}
+
+unsigned int calculate_ticks_for_ns(unsigned int ref_clk_hz,
+	unsigned int ns_val)
+{
+	unsigned int ticks;
+	ticks = ref_clk_hz;
+	ticks /= 1000;
+	ticks *= ns_val;
+	ticks +=  999999;
+	ticks /= 1000000;
+	return ticks;
 }
 
 void cadence_qspi_apb_delay(struct struct_cqspi *cadence_qspi,
@@ -675,8 +770,9 @@ void cadence_qspi_apb_delay(struct struct_cqspi *cadence_qspi,
 	unsigned int sclk_ns;
 	unsigned int tshsl, tchsh, tslch, tsd2d;
 	unsigned int reg;
+	unsigned int tsclk;
 
-	cadence_qspi_apb_controller_disable(iobase);
+	pr_debug("%s %d %d\n", __func__, ref_clk, sclk_hz);
 
 	/* Convert to ns. */
 	ref_clk_ns = (1000000000) / pdata->master_ref_clk_hz;
@@ -684,11 +780,24 @@ void cadence_qspi_apb_delay(struct struct_cqspi *cadence_qspi,
 	/* Convert to ns. */
 	sclk_ns = (1000000000) / sclk_hz;
 
-	/* Plus 1 to round up 1 clock cycle. */
-	tshsl = CQSPI_CAL_DELAY(f_pdata->tshsl_ns, ref_clk_ns, sclk_ns) + 1;
-	tchsh = CQSPI_CAL_DELAY(f_pdata->tchsh_ns, ref_clk_ns, sclk_ns) + 1;
-	tslch = CQSPI_CAL_DELAY(f_pdata->tslch_ns, ref_clk_ns, sclk_ns) + 1;
-	tsd2d = CQSPI_CAL_DELAY(f_pdata->tsd2d_ns, ref_clk_ns, sclk_ns) + 1;
+	/* calculate the number of ref ticks for one sclk tick */
+	tsclk = (pdata->master_ref_clk_hz + sclk_hz - 1) / sclk_hz;
+
+	tshsl = calculate_ticks_for_ns(pdata->master_ref_clk_hz,
+		f_pdata->tshsl_ns);
+	/* this particular value must be at least one sclk */
+	if (tshsl < tsclk)
+		tshsl = tsclk;
+
+	tchsh = calculate_ticks_for_ns(pdata->master_ref_clk_hz,
+		f_pdata->tchsh_ns);
+	tslch = calculate_ticks_for_ns(pdata->master_ref_clk_hz,
+		f_pdata->tslch_ns);
+	tsd2d = calculate_ticks_for_ns(pdata->master_ref_clk_hz,
+		f_pdata->tsd2d_ns);
+
+	pr_debug("%s tshsl %d tsd2d %d tchsh %d tslch %d\n",
+		__func__, tshsl, tsd2d, tchsh, tslch);
 
 	reg = ((tshsl & CQSPI_REG_DELAY_TSHSL_MASK)
 			<< CQSPI_REG_DELAY_TSHSL_LSB);
@@ -700,7 +809,6 @@ void cadence_qspi_apb_delay(struct struct_cqspi *cadence_qspi,
 			<< CQSPI_REG_DELAY_TSD2D_LSB);
 	CQSPI_WRITEL(reg, iobase + CQSPI_REG_DELAY);
 
-	cadence_qspi_apb_controller_enable(iobase);
 	return;
 }
 
@@ -713,6 +821,7 @@ void cadence_qspi_switch_cs(struct struct_cqspi *cadence_qspi,
 	struct cqspi_flash_pdata *f_pdata = &(pdata->f_pdata[cs]);
 	void __iomem *iobase = cadence_qspi->iobase;
 
+	pr_debug("%s\n", __func__);
 	cadence_qspi_apb_controller_disable(iobase);
 
 	/* Configure page size and block size. */
@@ -741,25 +850,33 @@ int cadence_qspi_apb_process_queue(struct struct_cqspi *cadence_qspi,
 	void __iomem *iobase = cadence_qspi->iobase;
 	unsigned int sclk;
 	int ret = 0;
+	struct cqspi_flash_pdata *f_pdata;
+
+	pr_debug("%s %d\n", __func__, n_trans);
 
 	if (!cmd_xfer->len) {
 		pr_err("QSPI: SPI transfer length is 0.\n");
 		return -EINVAL;
 	}
 
-	/* Setup baudrate divisor. */
-	sclk = cmd_xfer->speed_hz ? cmd_xfer->speed_hz : spi->max_speed_hz;
+	/* Setup baudrate divisor and delays */
+	f_pdata = &(pdata->f_pdata[cadence_qspi->current_cs]);
+	sclk = cmd_xfer->speed_hz ?
+		cmd_xfer->speed_hz : spi->max_speed_hz;
+	cadence_qspi_apb_controller_disable(iobase);
 	cadence_qspi_apb_config_baudrate_div(iobase,
 		pdata->master_ref_clk_hz, sclk);
+	cadence_qspi_apb_delay(cadence_qspi,
+		pdata->master_ref_clk_hz, sclk);
+	cadence_qspi_apb_readdata_capture(iobase, 1,
+		f_pdata->read_delay);
+	cadence_qspi_apb_controller_enable(iobase);
 
 	/* Switch chip select. */
 	if (cadence_qspi->current_cs != spi->chip_select) {
 		cadence_qspi->current_cs = spi->chip_select;
 		cadence_qspi_switch_cs(cadence_qspi, spi->chip_select);
 	}
-
-	/* Configure device delay if we change device clock. */
-	cadence_qspi_apb_delay(cadence_qspi, pdata->master_ref_clk_hz, sclk);
 
 	/*
 	 * Use STIG command to send if the transfer length is less than
