@@ -409,8 +409,8 @@ __v7_ca9mp_proc_info:
 	 */
 	.type   __v7_pj4b_proc_info, #object
 __v7_pj4b_proc_info:
-	.long	0x562f5840
-	.long	0xfffffff0
+	.long	0x560f5800
+	.long	0xff0fff00
 	__v7_proc __v7_pj4b_setup
 	.size	__v7_pj4b_proc_info, . - __v7_pj4b_proc_info
 

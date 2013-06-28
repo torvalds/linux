@@ -1178,7 +1178,7 @@ lpfc_debugfs_lseek(struct file *file, loff_t off, int whence)
 		pos = file->f_pos + off;
 		break;
 	case 2:
-		pos = debug->len - off;
+		pos = debug->len + off;
 	}
 	return (pos < 0 || pos > debug->len) ? -EINVAL : (file->f_pos = pos);
 }
