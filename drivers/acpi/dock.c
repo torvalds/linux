@@ -63,7 +63,6 @@ struct dock_station {
 	acpi_handle handle;
 	unsigned long last_dock_time;
 	u32 flags;
-	spinlock_t dd_lock;
 	struct mutex hp_lock;
 	struct list_head dependent_devices;
 
@@ -112,10 +111,7 @@ add_dock_dependent_device(struct dock_station *ds, acpi_handle handle)
 
 	dd->handle = handle;
 	INIT_LIST_HEAD(&dd->list);
-
-	spin_lock(&ds->dd_lock);
 	list_add_tail(&dd->list, &ds->dependent_devices);
-	spin_unlock(&ds->dd_lock);
 
 	return 0;
 }
@@ -220,14 +216,10 @@ find_dock_dependent_device(struct dock_station *ds, acpi_handle handle)
 {
 	struct dock_dependent_device *dd;
 
-	spin_lock(&ds->dd_lock);
-	list_for_each_entry(dd, &ds->dependent_devices, list) {
-		if (handle == dd->handle) {
-			spin_unlock(&ds->dd_lock);
+	list_for_each_entry(dd, &ds->dependent_devices, list)
+		if (handle == dd->handle)
 			return dd;
-		}
-	}
-	spin_unlock(&ds->dd_lock);
+
 	return NULL;
 }
 
@@ -1005,7 +997,6 @@ static int __init dock_add(acpi_handle handle)
 	dock_station->last_dock_time = jiffies - HZ;
 
 	mutex_init(&dock_station->hp_lock);
-	spin_lock_init(&dock_station->dd_lock);
 	INIT_LIST_HEAD(&dock_station->sibling);
 	INIT_LIST_HEAD(&dock_station->dependent_devices);
 
