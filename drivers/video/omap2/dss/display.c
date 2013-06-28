@@ -76,110 +76,154 @@ void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_default_get_timings);
 
-static int dss_suspend_device(struct device *dev, void *data)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
-		dssdev->activate_after_resume = false;
-		return 0;
-	}
-
-	dssdev->driver->disable(dssdev);
-
-	dssdev->activate_after_resume = true;
-
-	return 0;
-}
-
 int dss_suspend_all_devices(void)
 {
-	int r;
-	struct bus_type *bus = dss_get_bus();
+	struct omap_dss_device *dssdev = NULL;
 
-	r = bus_for_each_dev(bus, NULL, NULL, dss_suspend_device);
-	if (r) {
-		/* resume all displays that were suspended */
-		dss_resume_all_devices();
-		return r;
+	for_each_dss_dev(dssdev) {
+		if (!dssdev->driver)
+			continue;
+
+		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
+			dssdev->driver->disable(dssdev);
+			dssdev->activate_after_resume = true;
+		} else {
+			dssdev->activate_after_resume = false;
+		}
 	}
-
-	return 0;
-}
-
-static int dss_resume_device(struct device *dev, void *data)
-{
-	int r;
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-
-	if (dssdev->activate_after_resume) {
-		r = dssdev->driver->enable(dssdev);
-		if (r)
-			return r;
-	}
-
-	dssdev->activate_after_resume = false;
 
 	return 0;
 }
 
 int dss_resume_all_devices(void)
 {
-	struct bus_type *bus = dss_get_bus();
+	struct omap_dss_device *dssdev = NULL;
 
-	return bus_for_each_dev(bus, NULL, NULL, dss_resume_device);
-}
+	for_each_dss_dev(dssdev) {
+		if (!dssdev->driver)
+			continue;
 
-static int dss_disable_device(struct device *dev, void *data)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)
-		dssdev->driver->disable(dssdev);
+		if (dssdev->activate_after_resume) {
+			dssdev->driver->enable(dssdev);
+			dssdev->activate_after_resume = false;
+		}
+	}
 
 	return 0;
 }
 
 void dss_disable_all_devices(void)
 {
-	struct bus_type *bus = dss_get_bus();
-	bus_for_each_dev(bus, NULL, NULL, dss_disable_device);
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev) {
+		if (!dssdev->driver)
+			continue;
+
+		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+			dssdev->driver->disable(dssdev);
+	}
 }
 
+static LIST_HEAD(panel_list);
+static DEFINE_MUTEX(panel_list_mutex);
+static int disp_num_counter;
 
-void omap_dss_get_device(struct omap_dss_device *dssdev)
+int omapdss_register_display(struct omap_dss_device *dssdev)
 {
-	get_device(&dssdev->dev);
+	struct omap_dss_driver *drv = dssdev->driver;
+
+	snprintf(dssdev->alias, sizeof(dssdev->alias),
+			"display%d", disp_num_counter++);
+
+	if (drv && drv->get_resolution == NULL)
+		drv->get_resolution = omapdss_default_get_resolution;
+	if (drv && drv->get_recommended_bpp == NULL)
+		drv->get_recommended_bpp = omapdss_default_get_recommended_bpp;
+	if (drv && drv->get_timings == NULL)
+		drv->get_timings = omapdss_default_get_timings;
+
+	mutex_lock(&panel_list_mutex);
+	list_add_tail(&dssdev->panel_list, &panel_list);
+	mutex_unlock(&panel_list_mutex);
+	return 0;
+}
+EXPORT_SYMBOL(omapdss_register_display);
+
+void omapdss_unregister_display(struct omap_dss_device *dssdev)
+{
+	mutex_lock(&panel_list_mutex);
+	list_del(&dssdev->panel_list);
+	mutex_unlock(&panel_list_mutex);
+}
+EXPORT_SYMBOL(omapdss_unregister_display);
+
+struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev)
+{
+	if (!try_module_get(dssdev->owner))
+		return NULL;
+
+	if (get_device(dssdev->dev) == NULL) {
+		module_put(dssdev->owner);
+		return NULL;
+	}
+
+	return dssdev;
 }
 EXPORT_SYMBOL(omap_dss_get_device);
 
 void omap_dss_put_device(struct omap_dss_device *dssdev)
 {
-	put_device(&dssdev->dev);
+	put_device(dssdev->dev);
+	module_put(dssdev->owner);
 }
 EXPORT_SYMBOL(omap_dss_put_device);
 
-/* ref count of the found device is incremented. ref count
- * of from-device is decremented. */
+/*
+ * ref count of the found device is incremented.
+ * ref count of from-device is decremented.
+ */
 struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from)
 {
-	struct device *dev;
-	struct device *dev_start = NULL;
-	struct omap_dss_device *dssdev = NULL;
+	struct list_head *l;
+	struct omap_dss_device *dssdev;
 
-	int match(struct device *dev, void *data)
-	{
-		return 1;
+	mutex_lock(&panel_list_mutex);
+
+	if (list_empty(&panel_list)) {
+		dssdev = NULL;
+		goto out;
 	}
 
-	if (from)
-		dev_start = &from->dev;
-	dev = bus_find_device(dss_get_bus(), dev_start, NULL, match);
-	if (dev)
-		dssdev = to_dss_device(dev);
-	if (from)
-		put_device(&from->dev);
+	if (from == NULL) {
+		dssdev = list_first_entry(&panel_list, struct omap_dss_device,
+				panel_list);
+		omap_dss_get_device(dssdev);
+		goto out;
+	}
 
+	omap_dss_put_device(from);
+
+	list_for_each(l, &panel_list) {
+		dssdev = list_entry(l, struct omap_dss_device, panel_list);
+		if (dssdev == from) {
+			if (list_is_last(l, &panel_list)) {
+				dssdev = NULL;
+				goto out;
+			}
+
+			dssdev = list_entry(l->next, struct omap_dss_device,
+					panel_list);
+			omap_dss_get_device(dssdev);
+			goto out;
+		}
+	}
+
+	WARN(1, "'from' dssdev not found\n");
+
+	dssdev = NULL;
+out:
+	mutex_unlock(&panel_list_mutex);
 	return dssdev;
 }
 EXPORT_SYMBOL(omap_dss_get_next_device);
@@ -198,24 +242,72 @@ struct omap_dss_device *omap_dss_find_device(void *data,
 }
 EXPORT_SYMBOL(omap_dss_find_device);
 
-int omap_dss_start_device(struct omap_dss_device *dssdev)
+void videomode_to_omap_video_timings(const struct videomode *vm,
+		struct omap_video_timings *ovt)
 {
-	if (!dssdev->driver) {
-		DSSDBG("no driver\n");
-		return -ENODEV;
-	}
+	memset(ovt, 0, sizeof(*ovt));
 
-	if (!try_module_get(dssdev->dev.driver->owner)) {
-		return -ENODEV;
-	}
+	ovt->pixel_clock = vm->pixelclock / 1000;
+	ovt->x_res = vm->hactive;
+	ovt->hbp = vm->hback_porch;
+	ovt->hfp = vm->hfront_porch;
+	ovt->hsw = vm->hsync_len;
+	ovt->y_res = vm->vactive;
+	ovt->vbp = vm->vback_porch;
+	ovt->vfp = vm->vfront_porch;
+	ovt->vsw = vm->vsync_len;
 
-	return 0;
+	ovt->vsync_level = vm->flags & DISPLAY_FLAGS_VSYNC_HIGH ?
+		OMAPDSS_SIG_ACTIVE_HIGH :
+		OMAPDSS_SIG_ACTIVE_LOW;
+	ovt->hsync_level = vm->flags & DISPLAY_FLAGS_HSYNC_HIGH ?
+		OMAPDSS_SIG_ACTIVE_HIGH :
+		OMAPDSS_SIG_ACTIVE_LOW;
+	ovt->de_level = vm->flags & DISPLAY_FLAGS_DE_HIGH ?
+		OMAPDSS_SIG_ACTIVE_HIGH :
+		OMAPDSS_SIG_ACTIVE_HIGH;
+	ovt->data_pclk_edge = vm->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE ?
+		OMAPDSS_DRIVE_SIG_RISING_EDGE :
+		OMAPDSS_DRIVE_SIG_FALLING_EDGE;
+
+	ovt->sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
 }
-EXPORT_SYMBOL(omap_dss_start_device);
+EXPORT_SYMBOL(videomode_to_omap_video_timings);
 
-void omap_dss_stop_device(struct omap_dss_device *dssdev)
+void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,
+		struct videomode *vm)
 {
-	module_put(dssdev->dev.driver->owner);
-}
-EXPORT_SYMBOL(omap_dss_stop_device);
+	memset(vm, 0, sizeof(*vm));
 
+	vm->pixelclock = ovt->pixel_clock * 1000;
+
+	vm->hactive = ovt->x_res;
+	vm->hback_porch = ovt->hbp;
+	vm->hfront_porch = ovt->hfp;
+	vm->hsync_len = ovt->hsw;
+	vm->vactive = ovt->y_res;
+	vm->vback_porch = ovt->vbp;
+	vm->vfront_porch = ovt->vfp;
+	vm->vsync_len = ovt->vsw;
+
+	if (ovt->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
+		vm->flags |= DISPLAY_FLAGS_HSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_HSYNC_LOW;
+
+	if (ovt->vsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
+		vm->flags |= DISPLAY_FLAGS_VSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_VSYNC_LOW;
+
+	if (ovt->de_level == OMAPDSS_SIG_ACTIVE_HIGH)
+		vm->flags |= DISPLAY_FLAGS_DE_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_DE_LOW;
+
+	if (ovt->data_pclk_edge == OMAPDSS_DRIVE_SIG_RISING_EDGE)
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+	else
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+}
+EXPORT_SYMBOL(omap_video_timings_to_videomode);

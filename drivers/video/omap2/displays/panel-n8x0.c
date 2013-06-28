@@ -311,16 +311,16 @@ static int n8x0_panel_power_on(struct omap_dss_device *dssdev)
 	switch (rev & 0xfc) {
 	case 0x9c:
 		ddata->blizzard_ver = BLIZZARD_VERSION_S1D13744;
-		dev_info(&dssdev->dev, "s1d13744 LCD controller rev %d "
+		dev_info(dssdev->dev, "s1d13744 LCD controller rev %d "
 			"initialized (CNF pins %x)\n", rev & 0x03, conf & 0x07);
 		break;
 	case 0xa4:
 		ddata->blizzard_ver = BLIZZARD_VERSION_S1D13745;
-		dev_info(&dssdev->dev, "s1d13745 LCD controller rev %d "
+		dev_info(dssdev->dev, "s1d13745 LCD controller rev %d "
 			"initialized (CNF pins %x)\n", rev & 0x03, conf & 0x07);
 		break;
 	default:
-		dev_err(&dssdev->dev, "invalid s1d1374x revision %02x\n", rev);
+		dev_err(dssdev->dev, "invalid s1d1374x revision %02x\n", rev);
 		r = -ENODEV;
 		goto err_inv_chip;
 	}
@@ -341,13 +341,13 @@ static int n8x0_panel_power_on(struct omap_dss_device *dssdev)
 		panel_name = "ls041y3";
 		break;
 	default:
-		dev_err(&dssdev->dev, "invalid display ID 0x%x\n",
+		dev_err(dssdev->dev, "invalid display ID 0x%x\n",
 				display_id[0]);
 		r = -ENODEV;
 		goto err_inv_panel;
 	}
 
-	dev_info(&dssdev->dev, "%s rev %02x LCD detected\n",
+	dev_info(dssdev->dev, "%s rev %02x LCD detected\n",
 			panel_name, display_id[1]);
 
 	send_sleep_out(spi);
@@ -416,7 +416,7 @@ static int n8x0_panel_probe(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata;
 	int r;
 
-	dev_dbg(&dssdev->dev, "probe\n");
+	dev_dbg(dssdev->dev, "probe\n");
 
 	if (!bdata)
 		return -EINVAL;
@@ -434,14 +434,14 @@ static int n8x0_panel_probe(struct omap_dss_device *dssdev)
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
 
 	if (gpio_is_valid(bdata->panel_reset)) {
-		r = devm_gpio_request_one(&dssdev->dev, bdata->panel_reset,
+		r = devm_gpio_request_one(dssdev->dev, bdata->panel_reset,
 				GPIOF_OUT_INIT_LOW, "PANEL RESET");
 		if (r)
 			return r;
 	}
 
 	if (gpio_is_valid(bdata->ctrl_pwrdown)) {
-		r = devm_gpio_request_one(&dssdev->dev, bdata->ctrl_pwrdown,
+		r = devm_gpio_request_one(dssdev->dev, bdata->ctrl_pwrdown,
 				GPIOF_OUT_INIT_LOW, "PANEL PWRDOWN");
 		if (r)
 			return r;
@@ -452,9 +452,9 @@ static int n8x0_panel_probe(struct omap_dss_device *dssdev)
 
 static void n8x0_panel_remove(struct omap_dss_device *dssdev)
 {
-	dev_dbg(&dssdev->dev, "remove\n");
+	dev_dbg(dssdev->dev, "remove\n");
 
-	dev_set_drvdata(&dssdev->dev, NULL);
+	dev_set_drvdata(dssdev->dev, NULL);
 }
 
 static int n8x0_panel_enable(struct omap_dss_device *dssdev)
@@ -462,7 +462,7 @@ static int n8x0_panel_enable(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = get_drv_data(dssdev);
 	int r;
 
-	dev_dbg(&dssdev->dev, "enable\n");
+	dev_dbg(dssdev->dev, "enable\n");
 
 	mutex_lock(&ddata->lock);
 
@@ -488,7 +488,7 @@ static void n8x0_panel_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = get_drv_data(dssdev);
 
-	dev_dbg(&dssdev->dev, "disable\n");
+	dev_dbg(dssdev->dev, "disable\n");
 
 	mutex_lock(&ddata->lock);
 
@@ -521,13 +521,13 @@ static int n8x0_panel_update(struct omap_dss_device *dssdev,
 	struct panel_drv_data *ddata = get_drv_data(dssdev);
 	u16 dw, dh;
 
-	dev_dbg(&dssdev->dev, "update\n");
+	dev_dbg(dssdev->dev, "update\n");
 
 	dw = dssdev->panel.timings.x_res;
 	dh = dssdev->panel.timings.y_res;
 
 	if (x != 0 || y != 0 || w != dw || h != dh) {
-		dev_err(&dssdev->dev, "invaid update region %d, %d, %d, %d\n",
+		dev_err(dssdev->dev, "invaid update region %d, %d, %d, %d\n",
 			x, y, w, h);
 		return -EINVAL;
 	}
@@ -548,7 +548,7 @@ static int n8x0_panel_sync(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = get_drv_data(dssdev);
 
-	dev_dbg(&dssdev->dev, "sync\n");
+	dev_dbg(dssdev->dev, "sync\n");
 
 	mutex_lock(&ddata->lock);
 	rfbi_bus_lock();

@@ -510,7 +510,7 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 	int max_brightness, brightness;
 	struct backlight_properties props;
 
-	dev_dbg(&dssdev->dev, "%s\n", __func__);
+	dev_dbg(dssdev->dev, "%s\n", __func__);
 
 	if (!panel_data)
 		return -EINVAL;
@@ -519,7 +519,7 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 	dssdev->panel.timings = acx_panel_timings;
 
 	if (gpio_is_valid(panel_data->reset_gpio)) {
-		r = devm_gpio_request_one(&dssdev->dev, panel_data->reset_gpio,
+		r = devm_gpio_request_one(dssdev->dev, panel_data->reset_gpio,
 				GPIOF_OUT_INIT_LOW, "lcd reset");
 		if (r)
 			return r;
@@ -538,7 +538,7 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 
 	r = panel_detect(md);
 	if (r) {
-		dev_err(&dssdev->dev, "%s panel detect error\n", __func__);
+		dev_err(dssdev->dev, "%s panel detect error\n", __func__);
 		if (!md->enabled && gpio_is_valid(panel_data->reset_gpio))
 			gpio_set_value(panel_data->reset_gpio, 0);
 
@@ -593,7 +593,7 @@ static void acx_panel_remove(struct omap_dss_device *dssdev)
 {
 	struct acx565akm_device *md = &acx_dev;
 
-	dev_dbg(&dssdev->dev, "%s\n", __func__);
+	dev_dbg(dssdev->dev, "%s\n", __func__);
 	sysfs_remove_group(&md->bl_dev->dev.kobj, &bldev_attr_group);
 	backlight_device_unregister(md->bl_dev);
 	mutex_lock(&acx_dev.mutex);
@@ -607,7 +607,7 @@ static int acx_panel_power_on(struct omap_dss_device *dssdev)
 	struct panel_acx565akm_data *panel_data = get_panel_data(dssdev);
 	int r;
 
-	dev_dbg(&dssdev->dev, "%s\n", __func__);
+	dev_dbg(dssdev->dev, "%s\n", __func__);
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
@@ -667,7 +667,7 @@ static void acx_panel_power_off(struct omap_dss_device *dssdev)
 	struct acx565akm_device *md = &acx_dev;
 	struct panel_acx565akm_data *panel_data = get_panel_data(dssdev);
 
-	dev_dbg(&dssdev->dev, "%s\n", __func__);
+	dev_dbg(dssdev->dev, "%s\n", __func__);
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return;
@@ -704,7 +704,7 @@ static int acx_panel_enable(struct omap_dss_device *dssdev)
 {
 	int r;
 
-	dev_dbg(&dssdev->dev, "%s\n", __func__);
+	dev_dbg(dssdev->dev, "%s\n", __func__);
 	r = acx_panel_power_on(dssdev);
 
 	if (r)
@@ -716,7 +716,7 @@ static int acx_panel_enable(struct omap_dss_device *dssdev)
 
 static void acx_panel_disable(struct omap_dss_device *dssdev)
 {
-	dev_dbg(&dssdev->dev, "%s\n", __func__);
+	dev_dbg(dssdev->dev, "%s\n", __func__);
 	acx_panel_power_off(dssdev);
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }

@@ -31,6 +31,8 @@
 #include "dss.h"
 
 static struct {
+	struct platform_device *pdev;
+
 	bool update_enabled;
 	struct regulator *vdds_sdi_reg;
 
@@ -38,7 +40,7 @@ static struct {
 	struct omap_video_timings timings;
 	int datapairs;
 
-	struct omap_dss_output output;
+	struct omap_dss_device output;
 } sdi;
 
 struct sdi_clk_calc_ctx {
@@ -109,7 +111,7 @@ static int sdi_calc_clock_div(unsigned long pclk,
 
 static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 {
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	struct omap_overlay_manager *mgr = sdi.output.manager;
 
 	sdi.mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
 
@@ -124,7 +126,7 @@ static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 
 int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out = dssdev->output;
+	struct omap_dss_device *out = &sdi.output;
 	struct omap_video_timings *t = &sdi.timings;
 	struct dss_clock_info dss_cinfo;
 	struct dispc_clock_info dispc_cinfo;
@@ -134,12 +136,6 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (out == NULL || out->manager == NULL) {
 		DSSERR("failed to enable display: no output/manager\n");
 		return -ENODEV;
-	}
-
-	r = omap_dss_start_device(dssdev);
-	if (r) {
-		DSSERR("failed to start device\n");
-		goto err_start_dev;
 	}
 
 	r = regulator_enable(sdi.vdds_sdi_reg);
@@ -213,15 +209,13 @@ err_calc_clock_div:
 err_get_dispc:
 	regulator_disable(sdi.vdds_sdi_reg);
 err_reg_enable:
-	omap_dss_stop_device(dssdev);
-err_start_dev:
 	return r;
 }
 EXPORT_SYMBOL(omapdss_sdi_display_enable);
 
 void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 {
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	struct omap_overlay_manager *mgr = sdi.output.manager;
 
 	dss_mgr_disable(mgr);
 
@@ -230,8 +224,6 @@ void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 	dispc_runtime_put();
 
 	regulator_disable(sdi.vdds_sdi_reg);
-
-	omap_dss_stop_device(dssdev);
 }
 EXPORT_SYMBOL(omapdss_sdi_display_disable);
 
@@ -248,22 +240,24 @@ void omapdss_sdi_set_datapairs(struct omap_dss_device *dssdev, int datapairs)
 }
 EXPORT_SYMBOL(omapdss_sdi_set_datapairs);
 
-static int sdi_init_display(struct omap_dss_device *dssdev)
+static int sdi_init_regulator(void)
 {
-	DSSDBG("SDI init\n");
+	struct regulator *vdds_sdi;
 
-	if (sdi.vdds_sdi_reg == NULL) {
-		struct regulator *vdds_sdi;
+	if (sdi.vdds_sdi_reg)
+		return 0;
 
-		vdds_sdi = dss_get_vdds_sdi();
+	vdds_sdi = dss_get_vdds_sdi();
 
+	if (IS_ERR(vdds_sdi)) {
+		vdds_sdi = devm_regulator_get(&sdi.pdev->dev, "vdds_sdi");
 		if (IS_ERR(vdds_sdi)) {
 			DSSERR("can't get VDDS_SDI regulator\n");
 			return PTR_ERR(vdds_sdi);
 		}
-
-		sdi.vdds_sdi_reg = vdds_sdi;
 	}
+
+	sdi.vdds_sdi_reg = vdds_sdi;
 
 	return 0;
 }
@@ -313,7 +307,7 @@ static int sdi_probe_pdata(struct platform_device *sdidev)
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
 
-	r = sdi_init_display(dssdev);
+	r = sdi_init_regulator();
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
 		dss_put_device(dssdev);
@@ -341,20 +335,21 @@ static int sdi_probe_pdata(struct platform_device *sdidev)
 
 static void sdi_init_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &sdi.output;
+	struct omap_dss_device *out = &sdi.output;
 
-	out->pdev = pdev;
+	out->dev = &pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_SDI;
-	out->type = OMAP_DISPLAY_TYPE_SDI;
+	out->output_type = OMAP_DISPLAY_TYPE_SDI;
 	out->name = "sdi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
+	out->owner = THIS_MODULE;
 
 	dss_register_output(out);
 }
 
 static void __exit sdi_uninit_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &sdi.output;
+	struct omap_dss_device *out = &sdi.output;
 
 	dss_unregister_output(out);
 }
@@ -363,15 +358,21 @@ static int omap_sdi_probe(struct platform_device *pdev)
 {
 	int r;
 
+	sdi.pdev = pdev;
+
 	sdi_init_output(pdev);
 
-	r = sdi_probe_pdata(pdev);
-	if (r) {
-		sdi_uninit_output(pdev);
-		return r;
+	if (pdev->dev.platform_data) {
+		r = sdi_probe_pdata(pdev);
+		if (r)
+			goto err_probe;
 	}
 
 	return 0;
+
+err_probe:
+	sdi_uninit_output(pdev);
+	return r;
 }
 
 static int __exit omap_sdi_remove(struct platform_device *pdev)

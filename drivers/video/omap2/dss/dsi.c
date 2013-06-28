@@ -363,7 +363,7 @@ struct dsi_data {
 	enum omap_dss_dsi_mode mode;
 	struct omap_dss_dsi_videomode_timings vm_timings;
 
-	struct omap_dss_output output;
+	struct omap_dss_device output;
 };
 
 struct dsi_packet_sent_handler_data {
@@ -383,12 +383,12 @@ static inline struct dsi_data *dsi_get_dsidrv_data(struct platform_device *dside
 
 static inline struct platform_device *dsi_get_dsidev_from_dssdev(struct omap_dss_device *dssdev)
 {
-	return dssdev->output->pdev;
+	return to_platform_device(dssdev->output->dev);
 }
 
 struct platform_device *dsi_get_dsidev_from_id(int module)
 {
-	struct omap_dss_output *out;
+	struct omap_dss_device *out;
 	enum omap_dss_output_id	id;
 
 	switch (module) {
@@ -404,7 +404,7 @@ struct platform_device *dsi_get_dsidev_from_id(int module)
 
 	out = omap_dss_get_output(id);
 
-	return out ? out->pdev : NULL;
+	return out ? to_platform_device(out->dev) : NULL;
 }
 
 static inline void dsi_write_reg(struct platform_device *dsidev,
@@ -1114,6 +1114,30 @@ void dsi_runtime_put(struct platform_device *dsidev)
 	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
+static int dsi_regulator_init(struct platform_device *dsidev)
+{
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct regulator *vdds_dsi;
+
+	if (dsi->vdds_dsi_reg != NULL)
+		return 0;
+
+	vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "vdds_dsi");
+
+	/* DT HACK: try VCXIO to make omapdss work for o4 sdp/panda */
+	if (IS_ERR(vdds_dsi))
+		vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "VCXIO");
+
+	if (IS_ERR(vdds_dsi)) {
+		DSSERR("can't get VDDS_DSI regulator\n");
+		return PTR_ERR(vdds_dsi);
+	}
+
+	dsi->vdds_dsi_reg = vdds_dsi;
+
+	return 0;
+}
+
 /* source clock for DSI PLL. this could also be PCLKFREE */
 static inline void dsi_enable_pll_clock(struct platform_device *dsidev,
 		bool enable)
@@ -1592,22 +1616,9 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 	 */
 	enable_hsclk = enable_hsdiv = true;
 
-	if (dsi->vdds_dsi_reg == NULL) {
-		struct regulator *vdds_dsi;
-
-		vdds_dsi = regulator_get(&dsi->pdev->dev, "vdds_dsi");
-
-		/* DT HACK: try VCXIO to make omapdss work for o4 sdp/panda */
-		if (IS_ERR(vdds_dsi))
-			vdds_dsi = regulator_get(&dsi->pdev->dev, "VCXIO");
-
-		if (IS_ERR(vdds_dsi)) {
-			DSSERR("can't get VDDS_DSI regulator\n");
-			return PTR_ERR(vdds_dsi);
-		}
-
-		dsi->vdds_dsi_reg = vdds_dsi;
-	}
+	r = dsi_regulator_init(dsidev);
+	if (r)
+		return r;
 
 	dsi_enable_pll_clock(dsidev, 1);
 	/*
@@ -4122,7 +4133,7 @@ int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct omap_overlay_manager *mgr = dsi->output.manager;
 	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
-	struct omap_dss_output *out = &dsi->output;
+	struct omap_dss_device *out = &dsi->output;
 	u8 data_type;
 	u16 word_count;
 	int r;
@@ -4581,12 +4592,6 @@ int omapdss_dsi_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&dsi->lock);
 
-	r = omap_dss_start_device(dssdev);
-	if (r) {
-		DSSERR("failed to start device\n");
-		goto err_start_dev;
-	}
-
 	r = dsi_runtime_get(dsidev);
 	if (r)
 		goto err_get_dsi;
@@ -4607,8 +4612,6 @@ err_init_dsi:
 	dsi_enable_pll_clock(dsidev, 0);
 	dsi_runtime_put(dsidev);
 err_get_dsi:
-	omap_dss_stop_device(dssdev);
-err_start_dev:
 	mutex_unlock(&dsi->lock);
 	DSSDBG("dsi_display_enable FAILED\n");
 	return r;
@@ -4636,8 +4639,6 @@ void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,
 
 	dsi_runtime_put(dsidev);
 	dsi_enable_pll_clock(dsidev, 0);
-
-	omap_dss_stop_device(dssdev);
 
 	mutex_unlock(&dsi->lock);
 }
@@ -5225,34 +5226,6 @@ static enum omap_channel dsi_get_channel(int module_id)
 	}
 }
 
-static int dsi_init_display(struct omap_dss_device *dssdev)
-{
-	struct platform_device *dsidev =
-			dsi_get_dsidev_from_id(dssdev->phy.dsi.module);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	DSSDBG("DSI init\n");
-
-	if (dsi->vdds_dsi_reg == NULL) {
-		struct regulator *vdds_dsi;
-
-		vdds_dsi = regulator_get(&dsi->pdev->dev, "vdds_dsi");
-
-		/* DT HACK: try VCXIO to make omapdss work for o4 sdp/panda */
-		if (IS_ERR(vdds_dsi))
-			vdds_dsi = regulator_get(&dsi->pdev->dev, "VCXIO");
-
-		if (IS_ERR(vdds_dsi)) {
-			DSSERR("can't get VDDS_DSI regulator\n");
-			return PTR_ERR(vdds_dsi);
-		}
-
-		dsi->vdds_dsi_reg = vdds_dsi;
-	}
-
-	return 0;
-}
-
 int omap_dsi_request_vc(struct omap_dss_device *dssdev, int *channel)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
@@ -5410,18 +5383,15 @@ static int dsi_probe_pdata(struct platform_device *dsidev)
 	if (!plat_dssdev)
 		return 0;
 
+	r = dsi_regulator_init(dsidev);
+	if (r)
+		return r;
+
 	dssdev = dss_alloc_and_init_device(&dsidev->dev);
 	if (!dssdev)
 		return -ENOMEM;
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
-
-	r = dsi_init_display(dssdev);
-	if (r) {
-		DSSERR("device %s init failed: %d\n", dssdev->name, r);
-		dss_put_device(dssdev);
-		return r;
-	}
 
 	r = omapdss_output_set_device(&dsi->output, dssdev);
 	if (r) {
@@ -5445,15 +5415,16 @@ static int dsi_probe_pdata(struct platform_device *dsidev)
 static void dsi_init_output(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_dss_output *out = &dsi->output;
+	struct omap_dss_device *out = &dsi->output;
 
-	out->pdev = dsidev;
+	out->dev = &dsidev->dev;
 	out->id = dsi->module_id == 0 ?
 			OMAP_DSS_OUTPUT_DSI1 : OMAP_DSS_OUTPUT_DSI2;
 
-	out->type = OMAP_DISPLAY_TYPE_DSI;
+	out->output_type = OMAP_DISPLAY_TYPE_DSI;
 	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
 	out->dispc_channel = dsi_get_channel(dsi->module_id);
+	out->owner = THIS_MODULE;
 
 	dss_register_output(out);
 }
@@ -5461,7 +5432,7 @@ static void dsi_init_output(struct platform_device *dsidev)
 static void dsi_uninit_output(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_dss_output *out = &dsi->output;
+	struct omap_dss_device *out = &dsi->output;
 
 	dss_unregister_output(out);
 }
@@ -5563,12 +5534,10 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 
 	dsi_init_output(dsidev);
 
-	r = dsi_probe_pdata(dsidev);
-	if (r) {
-		dsi_runtime_put(dsidev);
-		dsi_uninit_output(dsidev);
-		pm_runtime_disable(&dsidev->dev);
-		return r;
+	if (dsidev->dev.platform_data) {
+		r = dsi_probe_pdata(dsidev);
+		if (r)
+			goto err_probe;
 	}
 
 	dsi_runtime_put(dsidev);
@@ -5586,6 +5555,9 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 #endif
 	return 0;
 
+err_probe:
+	dsi_runtime_put(dsidev);
+	dsi_uninit_output(dsidev);
 err_runtime_get:
 	pm_runtime_disable(&dsidev->dev);
 	return r;
@@ -5603,14 +5575,9 @@ static int __exit omap_dsihw_remove(struct platform_device *dsidev)
 
 	pm_runtime_disable(&dsidev->dev);
 
-	if (dsi->vdds_dsi_reg != NULL) {
-		if (dsi->vdds_dsi_enabled) {
-			regulator_disable(dsi->vdds_dsi_reg);
-			dsi->vdds_dsi_enabled = false;
-		}
-
-		regulator_put(dsi->vdds_dsi_reg);
-		dsi->vdds_dsi_reg = NULL;
+	if (dsi->vdds_dsi_reg != NULL && dsi->vdds_dsi_enabled) {
+		regulator_disable(dsi->vdds_dsi_reg);
+		dsi->vdds_dsi_enabled = false;
 	}
 
 	return 0;

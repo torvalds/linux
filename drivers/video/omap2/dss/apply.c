@@ -420,16 +420,14 @@ static void wait_pending_extra_info_updates(void)
 		DSSWARN("timeout in wait_pending_extra_info_updates\n");
 }
 
-static inline struct omap_dss_device *dss_ovl_get_device(struct omap_overlay *ovl)
-{
-	return ovl->manager ?
-		(ovl->manager->output ? ovl->manager->output->device : NULL) :
-		NULL;
-}
-
-static inline struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_manager *mgr)
+static struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_manager *mgr)
 {
 	return mgr->output ? mgr->output->device : NULL;
+}
+
+static struct omap_dss_device *dss_ovl_get_device(struct omap_overlay *ovl)
+{
+	return ovl->manager ? dss_mgr_get_device(ovl->manager) : NULL;
 }
 
 static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
@@ -790,6 +788,18 @@ static void mgr_clear_shadow_dirty(struct omap_overlay_manager *mgr)
 		op->shadow_info_dirty = false;
 		op->shadow_extra_info_dirty = false;
 	}
+}
+
+static int dss_mgr_connect_compat(struct omap_overlay_manager *mgr,
+		struct omap_dss_device *dst)
+{
+	return mgr->set_output(mgr, dst);
+}
+
+static void dss_mgr_disconnect_compat(struct omap_overlay_manager *mgr,
+		struct omap_dss_device *dst)
+{
+	mgr->unset_output(mgr);
 }
 
 static void dss_mgr_start_update_compat(struct omap_overlay_manager *mgr)
@@ -1156,7 +1166,7 @@ static void dss_mgr_get_info(struct omap_overlay_manager *mgr,
 }
 
 static int dss_mgr_set_output(struct omap_overlay_manager *mgr,
-		struct omap_dss_output *output)
+		struct omap_dss_device *output)
 {
 	int r;
 
@@ -1554,6 +1564,8 @@ static void dss_mgr_unregister_framedone_handler_compat(struct omap_overlay_mana
 }
 
 static const struct dss_mgr_ops apply_mgr_ops = {
+	.connect = dss_mgr_connect_compat,
+	.disconnect = dss_mgr_disconnect_compat,
 	.start_update = dss_mgr_start_update_compat,
 	.enable = dss_mgr_enable_compat,
 	.disable = dss_mgr_disable_compat,
@@ -1569,7 +1581,6 @@ static DEFINE_MUTEX(compat_init_lock);
 int omapdss_compat_init(void)
 {
 	struct platform_device *pdev = dss_get_core_pdev();
-	struct omap_dss_device *dssdev = NULL;
 	int i, r;
 
 	mutex_lock(&compat_init_lock);
@@ -1579,7 +1590,7 @@ int omapdss_compat_init(void)
 
 	apply_init_priv();
 
-	dss_init_overlay_managers(pdev);
+	dss_init_overlay_managers_sysfs(pdev);
 	dss_init_overlays(pdev);
 
 	for (i = 0; i < omap_dss_get_num_overlay_managers(); i++) {
@@ -1615,12 +1626,9 @@ int omapdss_compat_init(void)
 	if (r)
 		goto err_mgr_ops;
 
-	for_each_dss_dev(dssdev) {
-		r = display_init_sysfs(pdev, dssdev);
-		/* XXX uninit sysfs files on error */
-		if (r)
-			goto err_disp_sysfs;
-	}
+	r = display_init_sysfs(pdev);
+	if (r)
+		goto err_disp_sysfs;
 
 	dispc_runtime_get();
 
@@ -1637,12 +1645,13 @@ out:
 
 err_init_irq:
 	dispc_runtime_put();
+	display_uninit_sysfs(pdev);
 
 err_disp_sysfs:
 	dss_uninstall_mgr_ops();
 
 err_mgr_ops:
-	dss_uninit_overlay_managers(pdev);
+	dss_uninit_overlay_managers_sysfs(pdev);
 	dss_uninit_overlays(pdev);
 
 	compat_refcnt--;
@@ -1656,7 +1665,6 @@ EXPORT_SYMBOL(omapdss_compat_init);
 void omapdss_compat_uninit(void)
 {
 	struct platform_device *pdev = dss_get_core_pdev();
-	struct omap_dss_device *dssdev = NULL;
 
 	mutex_lock(&compat_init_lock);
 
@@ -1665,12 +1673,11 @@ void omapdss_compat_uninit(void)
 
 	dss_dispc_uninitialize_irq();
 
-	for_each_dss_dev(dssdev)
-		display_uninit_sysfs(pdev, dssdev);
+	display_uninit_sysfs(pdev);
 
 	dss_uninstall_mgr_ops();
 
-	dss_uninit_overlay_managers(pdev);
+	dss_uninit_overlay_managers_sysfs(pdev);
 	dss_uninit_overlays(pdev);
 out:
 	mutex_unlock(&compat_init_lock);
