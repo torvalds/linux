@@ -554,7 +554,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	clk_register_clkdev(clk[pll4_post_div], "pll4_post_div", NULL);
 	clk_register_clkdev(clk[pll4_audio], "pll4_audio", NULL);
 
-	if (imx6q_revision() != IMX_CHIP_REVISION_1_0) {
+	if ((imx6q_revision() != IMX_CHIP_REVISION_1_0) || cpu_is_imx6dl()) {
 		clk_set_parent(clk[ldb_di0_sel], clk[pll5_video_div]);
 		clk_set_parent(clk[ldb_di1_sel], clk[pll5_video_div]);
 	}
