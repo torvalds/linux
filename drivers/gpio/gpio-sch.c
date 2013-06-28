@@ -272,10 +272,8 @@ static int sch_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 err_sch_gpio_resume:
-	err = gpiochip_remove(&sch_gpio_core);
-	if (err)
-		dev_err(&pdev->dev, "%s failed, %d\n",
-				"gpiochip_remove()", err);
+	if (gpiochip_remove(&sch_gpio_core))
+		dev_err(&pdev->dev, "%s gpiochip_remove failed\n", __func__);
 
 err_sch_gpio_core:
 	release_region(res->start, resource_size(res));

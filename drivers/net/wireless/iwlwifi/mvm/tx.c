@@ -416,9 +416,8 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	spin_unlock(&mvmsta->lock);
 
-	if (mvmsta->vif->type == NL80211_IFTYPE_AP &&
-	    txq_id < IWL_MVM_FIRST_AGG_QUEUE)
-		atomic_inc(&mvmsta->pending_frames);
+	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE)
+		atomic_inc(&mvm->pending_frames[mvmsta->sta_id]);
 
 	return 0;
 
@@ -680,16 +679,41 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	/*
 	 * If the txq is not an AMPDU queue, there is no chance we freed
 	 * several skbs. Check that out...
-	 * If there are no pending frames for this STA, notify mac80211 that
-	 * this station can go to sleep in its STA table.
 	 */
-	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE && mvmsta &&
-	    !WARN_ON(skb_freed > 1) &&
-	    mvmsta->vif->type == NL80211_IFTYPE_AP &&
-	    atomic_sub_and_test(skb_freed, &mvmsta->pending_frames)) {
-		ieee80211_sta_block_awake(mvm->hw, sta, false);
-		set_bit(sta_id, mvm->sta_drained);
-		schedule_work(&mvm->sta_drained_wk);
+	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE && !WARN_ON(skb_freed > 1) &&
+	    atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id])) {
+		if (mvmsta) {
+			/*
+			 * If there are no pending frames for this STA, notify
+			 * mac80211 that this station can go to sleep in its
+			 * STA table.
+			 */
+			if (mvmsta->vif->type == NL80211_IFTYPE_AP)
+				ieee80211_sta_block_awake(mvm->hw, sta, false);
+			/*
+			 * We might very well have taken mvmsta pointer while
+			 * the station was being removed. The remove flow might
+			 * have seen a pending_frame (because we didn't take
+			 * the lock) even if now the queues are drained. So make
+			 * really sure now that this the station is not being
+			 * removed. If it is, run the drain worker to remove it.
+			 */
+			spin_lock_bh(&mvmsta->lock);
+			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
+			if (IS_ERR_OR_NULL(sta)) {
+				/*
+				 * Station disappeared in the meantime:
+				 * so we are draining.
+				 */
+				set_bit(sta_id, mvm->sta_drained);
+				schedule_work(&mvm->sta_drained_wk);
+			}
+			spin_unlock_bh(&mvmsta->lock);
+		} else if (!mvmsta) {
+			/* Tx response without STA, so we are draining */
+			set_bit(sta_id, mvm->sta_drained);
+			schedule_work(&mvm->sta_drained_wk);
+		}
 	}
 
 	rcu_read_unlock();

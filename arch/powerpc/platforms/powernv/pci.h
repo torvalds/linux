@@ -86,6 +86,7 @@ struct pnv_phb {
 	void (*dma_dev_setup)(struct pnv_phb *phb, struct pci_dev *pdev);
 	void (*fixup_phb)(struct pci_controller *hose);
 	u32 (*bdfn_to_pe)(struct pnv_phb *phb, struct pci_bus *bus, u32 devfn);
+	void (*shutdown)(struct pnv_phb *phb);
 
 	union {
 		struct {
@@ -158,4 +159,5 @@ extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);
 extern void pnv_pci_ioda_tce_invalidate(struct iommu_table *tbl,
 					u64 *startp, u64 *endp);
+
 #endif /* __POWERNV_PCI_H */

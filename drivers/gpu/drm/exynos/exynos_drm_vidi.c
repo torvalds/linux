@@ -594,7 +594,7 @@ static int vidi_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -612,7 +612,7 @@ static int vidi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ret = device_create_file(&pdev->dev, &dev_attr_connection);
+	ret = device_create_file(dev, &dev_attr_connection);
 	if (ret < 0)
 		DRM_INFO("failed to create connection sysfs.\n");
 

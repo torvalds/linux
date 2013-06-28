@@ -96,11 +96,12 @@ static inline bool arch_irqs_disabled(void)
 #endif
 
 #define hard_irq_disable()	do {			\
+	u8 _was_enabled = get_paca()->soft_enabled;	\
 	__hard_irq_disable();				\
-	if (local_paca->soft_enabled)			\
-		trace_hardirqs_off();			\
 	get_paca()->soft_enabled = 0;			\
 	get_paca()->irq_happened |= PACA_IRQ_HARD_DIS;	\
+	if (_was_enabled)				\
+		trace_hardirqs_off();			\
 } while(0)
 
 static inline bool lazy_irq_pending(void)

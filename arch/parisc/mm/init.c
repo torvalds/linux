@@ -1069,7 +1069,7 @@ void flush_tlb_all(void)
 {
 	int do_recycle;
 
-	inc_irq_stat(irq_tlb_count);
+	__inc_irq_stat(irq_tlb_count);
 	do_recycle = 0;
 	spin_lock(&sid_lock);
 	if (dirty_space_ids > RECYCLE_THRESHOLD) {
@@ -1090,7 +1090,7 @@ void flush_tlb_all(void)
 #else
 void flush_tlb_all(void)
 {
-	inc_irq_stat(irq_tlb_count);
+	__inc_irq_stat(irq_tlb_count);
 	spin_lock(&sid_lock);
 	flush_tlb_all_local(NULL);
 	recycle_sids();

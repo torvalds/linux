@@ -414,7 +414,7 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 
 	spin_lock(&tbl->slot_tbl_lock);
 	/* state manager is resetting the session */
-	if (test_bit(NFS4_SESSION_DRAINING, &clp->cl_session->session_state)) {
+	if (test_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state)) {
 		spin_unlock(&tbl->slot_tbl_lock);
 		status = htonl(NFS4ERR_DELAY);
 		/* Return NFS4ERR_BADSESSION if we're draining the session

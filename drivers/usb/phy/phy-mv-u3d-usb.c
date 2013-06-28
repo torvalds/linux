@@ -278,11 +278,6 @@ static int mv_u3d_phy_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "missing mem resource\n");
-		return -ENODEV;
-	}
-
 	phy_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(phy_base))
 		return PTR_ERR(phy_base);

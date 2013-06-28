@@ -219,7 +219,7 @@ static int gcm_aes_nx_crypt(struct aead_request *req, int enc)
 	if (enc)
 		NX_CPB_FDM(csbcpb) |= NX_FDM_ENDE_ENCRYPT;
 	else
-		nbytes -= AES_BLOCK_SIZE;
+		nbytes -= crypto_aead_authsize(crypto_aead_reqtfm(req));
 
 	csbcpb->cpb.aes_gcm.bit_length_data = nbytes * 8;
 

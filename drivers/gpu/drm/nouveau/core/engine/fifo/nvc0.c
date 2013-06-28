@@ -71,6 +71,7 @@ nvc0_fifo_playlist_update(struct nvc0_fifo_priv *priv)
 	struct nouveau_gpuobj *cur;
 	int i, p;
 
+	mutex_lock(&nv_subdev(priv)->mutex);
 	cur = priv->playlist[priv->cur_playlist];
 	priv->cur_playlist = !priv->cur_playlist;
 
@@ -87,6 +88,7 @@ nvc0_fifo_playlist_update(struct nvc0_fifo_priv *priv)
 	nv_wr32(priv, 0x002274, 0x01f00000 | (p >> 3));
 	if (!nv_wait(priv, 0x00227c, 0x00100000, 0x00000000))
 		nv_error(priv, "playlist update failed\n");
+	mutex_unlock(&nv_subdev(priv)->mutex);
 }
 
 static int
@@ -248,9 +250,17 @@ nvc0_fifo_chan_fini(struct nouveau_object *object, bool suspend)
 	struct nvc0_fifo_priv *priv = (void *)object->engine;
 	struct nvc0_fifo_chan *chan = (void *)object;
 	u32 chid = chan->base.chid;
+	u32 mask, engine;
 
 	nv_mask(priv, 0x003004 + (chid * 8), 0x00000001, 0x00000000);
 	nvc0_fifo_playlist_update(priv);
+	mask = nv_rd32(priv, 0x0025a4);
+	for (engine = 0; mask && engine < 16; engine++) {
+		if (!(mask & (1 << engine)))
+			continue;
+		nv_mask(priv, 0x0025a8 + (engine * 4), 0x00000000, 0x00000000);
+		mask &= ~(1 << engine);
+	}
 	nv_wr32(priv, 0x003000 + (chid * 8), 0x00000000);
 
 	return nouveau_fifo_channel_fini(&chan->base, suspend);

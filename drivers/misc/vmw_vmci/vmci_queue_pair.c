@@ -23,7 +23,7 @@
 #include <linux/pagemap.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/socket.h>
+#include <linux/uio.h>
 #include <linux/wait.h>
 #include <linux/vmalloc.h>
 

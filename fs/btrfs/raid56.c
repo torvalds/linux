@@ -1050,7 +1050,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 	}
 
 	/* put a new bio on the list */
-	bio = bio_alloc(GFP_NOFS, bio_max_len >> PAGE_SHIFT?:1);
+	bio = btrfs_io_bio_alloc(GFP_NOFS, bio_max_len >> PAGE_SHIFT?:1);
 	if (!bio)
 		return -ENOMEM;
 

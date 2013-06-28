@@ -126,7 +126,7 @@ struct mlx4_rss_context {
 
 struct mlx4_qp_path {
 	u8			fl;
-	u8			reserved1[1];
+	u8			vlan_control;
 	u8			disable_pkey_check;
 	u8			pkey_index;
 	u8			counter_index;
@@ -141,9 +141,30 @@ struct mlx4_qp_path {
 	u8			sched_queue;
 	u8			vlan_index;
 	u8			feup;
-	u8			reserved3;
+	u8			fvl_rx;
 	u8			reserved4[2];
 	u8			dmac[6];
+};
+
+enum { /* fl */
+	MLX4_FL_CV      = 1 << 6,
+	MLX4_FL_ETH_HIDE_CQE_VLAN       = 1 << 2
+};
+enum { /* vlan_control */
+	MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED	= 1 << 6,
+	MLX4_VLAN_CTRL_ETH_RX_BLOCK_TAGGED	= 1 << 2,
+	MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED	= 1 << 1, /* 802.1p priority tag */
+	MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED	= 1 << 0
+};
+
+enum { /* feup */
+	MLX4_FEUP_FORCE_ETH_UP          = 1 << 6, /* force Eth UP */
+	MLX4_FSM_FORCE_ETH_SRC_MAC      = 1 << 5, /* force Source MAC */
+	MLX4_FVL_FORCE_ETH_VLAN         = 1 << 3  /* force Eth vlan */
+};
+
+enum { /* fvl_rx */
+	MLX4_FVL_RX_FORCE_ETH_VLAN      = 1 << 0 /* enforce Eth rx vlan */
 };
 
 struct mlx4_qp_context {
@@ -183,6 +204,10 @@ struct mlx4_qp_context {
 	u8			mtt_base_addr_h;
 	__be32			mtt_base_addr_l;
 	u32			reserved5[10];
+};
+
+enum { /* param3 */
+	MLX4_STRIP_VLAN = 1 << 30
 };
 
 /* Which firmware version adds support for NEC (NoErrorCompletion) bit */

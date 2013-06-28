@@ -784,7 +784,7 @@ static const struct of_device_id davinci_spi_of_match[] = {
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, davini_spi_of_match);
+MODULE_DEVICE_TABLE(of, davinci_spi_of_match);
 
 /**
  * spi_davinci_get_pdata - Get platform data from DTS binding

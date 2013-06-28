@@ -303,4 +303,14 @@ config DEBUG_NMI_SELFTEST
 
 	  If unsure, say N.
 
+config X86_DEBUG_STATIC_CPU_HAS
+	bool "Debug alternatives"
+	depends on DEBUG_KERNEL
+	---help---
+	  This option causes additional code to be generated which
+	  fails if static_cpu_has() is used before alternatives have
+	  run.
+
+	  If unsure, say N.
+
 endmenu

@@ -414,6 +414,7 @@ static int nvec_power_remove(struct platform_device *pdev)
 	struct nvec_power *power = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&power->poller);
+	nvec_unregister_notifier(power->nvec, &power->notifier);
 	switch (pdev->id) {
 	case AC:
 		power_supply_unregister(&nvec_psy);

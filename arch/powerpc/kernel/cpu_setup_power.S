@@ -135,8 +135,12 @@ __init_HFSCR:
 	blr
 
 __init_TLB:
-	/* Clear the TLB */
-	li	r6,128
+	/*
+	 * Clear the TLB using the "IS 3" form of tlbiel instruction
+	 * (invalidate by congruence class). P7 has 128 CCs, P8 has 512
+	 * so we just always do 512
+	 */
+	li	r6,512
 	mtctr	r6
 	li	r7,0xc00	/* IS field = 0b11 */
 	ptesync

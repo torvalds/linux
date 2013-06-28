@@ -27,11 +27,11 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
-#include <linux/spinlock.h>
 #include <linux/types.h>
 #include <asm/io.h>
 
 #include <asm/smp.h>
+#include <asm/ldcw.h>
 
 #undef PARISC_IRQ_CR16_COUNTS
 
@@ -166,22 +166,36 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_printf(p, "%*s: ", prec, "STK");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->kernel_stack_usage);
-	seq_printf(p, "  Kernel stack usage\n");
+	seq_puts(p, "  Kernel stack usage\n");
+# ifdef CONFIG_IRQSTACKS
+	seq_printf(p, "%*s: ", prec, "IST");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stats(j)->irq_stack_usage);
+	seq_puts(p, "  Interrupt stack usage\n");
+# endif
 #endif
 #ifdef CONFIG_SMP
 	seq_printf(p, "%*s: ", prec, "RES");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_resched_count);
-	seq_printf(p, "  Rescheduling interrupts\n");
+	seq_puts(p, "  Rescheduling interrupts\n");
 	seq_printf(p, "%*s: ", prec, "CAL");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_call_count);
-	seq_printf(p, "  Function call interrupts\n");
+	seq_puts(p, "  Function call interrupts\n");
 #endif
+	seq_printf(p, "%*s: ", prec, "UAH");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stats(j)->irq_unaligned_count);
+	seq_puts(p, "  Unaligned access handler traps\n");
+	seq_printf(p, "%*s: ", prec, "FPA");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stats(j)->irq_fpassist_count);
+	seq_puts(p, "  Floating point assist traps\n");
 	seq_printf(p, "%*s: ", prec, "TLB");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_tlb_count);
-	seq_printf(p, "  TLB shootdowns\n");
+	seq_puts(p, "  TLB shootdowns\n");
 	return 0;
 }
 
@@ -366,6 +380,24 @@ static inline int eirr_to_irq(unsigned long eirr)
 	return (BITS_PER_LONG - bit) + TIMER_IRQ;
 }
 
+#ifdef CONFIG_IRQSTACKS
+/*
+ * IRQ STACK - used for irq handler
+ */
+#define IRQ_STACK_SIZE      (4096 << 2) /* 16k irq stack size */
+
+union irq_stack_union {
+	unsigned long stack[IRQ_STACK_SIZE/sizeof(unsigned long)];
+	volatile unsigned int slock[4];
+	volatile unsigned int lock[1];
+};
+
+DEFINE_PER_CPU(union irq_stack_union, irq_stack_union) = {
+		.slock = { 1,1,1,1 },
+	};
+#endif
+
+
 int sysctl_panic_on_stackoverflow = 1;
 
 static inline void stack_overflow_check(struct pt_regs *regs)
@@ -378,6 +410,7 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	unsigned long sp = regs->gr[30];
 	unsigned long stack_usage;
 	unsigned int *last_usage;
+	int cpu = smp_processor_id();
 
 	/* if sr7 != 0, we interrupted a userspace process which we do not want
 	 * to check for stack overflow. We will only check the kernel stack. */
@@ -386,7 +419,31 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 
 	/* calculate kernel stack usage */
 	stack_usage = sp - stack_start;
-	last_usage = &per_cpu(irq_stat.kernel_stack_usage, smp_processor_id());
+#ifdef CONFIG_IRQSTACKS
+	if (likely(stack_usage <= THREAD_SIZE))
+		goto check_kernel_stack; /* found kernel stack */
+
+	/* check irq stack usage */
+	stack_start = (unsigned long) &per_cpu(irq_stack_union, cpu).stack;
+	stack_usage = sp - stack_start;
+
+	last_usage = &per_cpu(irq_stat.irq_stack_usage, cpu);
+	if (unlikely(stack_usage > *last_usage))
+		*last_usage = stack_usage;
+
+	if (likely(stack_usage < (IRQ_STACK_SIZE - STACK_MARGIN)))
+		return;
+
+	pr_emerg("stackcheck: %s will most likely overflow irq stack "
+		 "(sp:%lx, stk bottom-top:%lx-%lx)\n",
+		current->comm, sp, stack_start, stack_start + IRQ_STACK_SIZE);
+	goto panic_check;
+
+check_kernel_stack:
+#endif
+
+	/* check kernel stack usage */
+	last_usage = &per_cpu(irq_stat.kernel_stack_usage, cpu);
 
 	if (unlikely(stack_usage > *last_usage))
 		*last_usage = stack_usage;
@@ -398,31 +455,66 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 		 "(sp:%lx, stk bottom-top:%lx-%lx)\n",
 		current->comm, sp, stack_start, stack_start + THREAD_SIZE);
 
+#ifdef CONFIG_IRQSTACKS
+panic_check:
+#endif
 	if (sysctl_panic_on_stackoverflow)
 		panic("low stack detected by irq handler - check messages\n");
 #endif
 }
 
 #ifdef CONFIG_IRQSTACKS
-DEFINE_PER_CPU(union irq_stack_union, irq_stack_union);
+/* in entry.S: */
+void call_on_stack(unsigned long p1, void *func, unsigned long new_stack);
 
 static void execute_on_irq_stack(void *func, unsigned long param1)
 {
-	unsigned long *irq_stack_start;
+	union irq_stack_union *union_ptr;
 	unsigned long irq_stack;
-	int cpu = smp_processor_id();
+	volatile unsigned int *irq_stack_in_use;
 
-	irq_stack_start = &per_cpu(irq_stack_union, cpu).stack[0];
-	irq_stack = (unsigned long) irq_stack_start;
-	irq_stack = ALIGN(irq_stack, 16); /* align for stack frame usage */
+	union_ptr = &per_cpu(irq_stack_union, smp_processor_id());
+	irq_stack = (unsigned long) &union_ptr->stack;
+	irq_stack = ALIGN(irq_stack + sizeof(irq_stack_union.slock),
+			 64); /* align for stack frame usage */
 
-	BUG_ON(*irq_stack_start); /* report bug if we were called recursive. */
-	*irq_stack_start = 1;
+	/* We may be called recursive. If we are already using the irq stack,
+	 * just continue to use it. Use spinlocks to serialize
+	 * the irq stack usage.
+	 */
+	irq_stack_in_use = (volatile unsigned int *)__ldcw_align(union_ptr);
+	if (!__ldcw(irq_stack_in_use)) {
+		void (*direct_call)(unsigned long p1) = func;
+
+		/* We are using the IRQ stack already.
+		 * Do direct call on current stack. */
+		direct_call(param1);
+		return;
+	}
 
 	/* This is where we switch to the IRQ stack. */
 	call_on_stack(param1, func, irq_stack);
 
-	*irq_stack_start = 0;
+	/* free up irq stack usage. */
+	*irq_stack_in_use = 1;
+}
+
+asmlinkage void do_softirq(void)
+{
+	__u32 pending;
+	unsigned long flags;
+
+	if (in_interrupt())
+		return;
+
+	local_irq_save(flags);
+
+	pending = local_softirq_pending();
+
+	if (pending)
+		execute_on_irq_stack(__do_softirq, 0);
+
+	local_irq_restore(flags);
 }
 #endif /* CONFIG_IRQSTACKS */
 
