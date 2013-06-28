@@ -2780,11 +2780,26 @@ out:
 	return error;
 }
 
+/**
+ * cgroup_addrm_files - add or remove files to a cgroup directory
+ * @cgrp: the target cgroup
+ * @subsys: the subsystem of files to be added
+ * @cfts: array of cftypes to be added
+ * @is_add: whether to add or remove
+ *
+ * Depending on @is_add, add or remove files defined by @cfts on @cgrp.
+ * All @cfts should belong to @subsys.  For removals, this function never
+ * fails.  If addition fails, this function doesn't remove files already
+ * added.  The caller is responsible for cleaning up.
+ */
 static int cgroup_addrm_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
 			      struct cftype cfts[], bool is_add)
 {
 	struct cftype *cft;
-	int err, ret = 0;
+	int ret;
+
+	lockdep_assert_held(&cgrp->dentry->d_inode->i_mutex);
+	lockdep_assert_held(&cgroup_mutex);
 
 	for (cft = cfts; cft->name[0] != '\0'; cft++) {
 		/* does cft->flags tell us to skip this file on @cgrp? */
@@ -2796,16 +2811,17 @@ static int cgroup_addrm_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
 			continue;
 
 		if (is_add) {
-			err = cgroup_add_file(cgrp, subsys, cft);
-			if (err)
+			ret = cgroup_add_file(cgrp, subsys, cft);
+			if (ret) {
 				pr_warn("cgroup_addrm_files: failed to add %s, err=%d\n",
-					cft->name, err);
-			ret = err;
+					cft->name, ret);
+				return ret;
+			}
 		} else {
 			cgroup_rm_file(cgrp, cft);
 		}
 	}
-	return ret;
+	return 0;
 }
 
 static void cgroup_cfts_prepare(void)
