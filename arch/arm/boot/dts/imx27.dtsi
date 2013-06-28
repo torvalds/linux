@@ -366,6 +366,15 @@
 			reg = <0x10020000 0x20000>;
 			ranges;
 
+			fb: fb@10021000 {
+				compatible = "fsl,imx27-fb", "fsl,imx21-fb";
+				interrupts = <61>;
+				reg = <0x10021000 0x1000>;
+				clocks = <&clks 36>, <&clks 65>, <&clks 59>;
+				clock-names = "ipg", "ahb", "per";
+				status = "disabled";
+			};
+
 			coda: coda@10023000 {
 				compatible = "fsl,imx27-vpu";
 				reg = <0x10023000 0x0200>;
