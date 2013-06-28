@@ -37,11 +37,7 @@
  * recovery time (MSCx = 0x7f8c) with a memory clock of 99.53 MHz.
  */
 
-#ifdef CONFIG_USB_DEBUG
-# define ISP1362_DEBUG
-#else
-# undef ISP1362_DEBUG
-#endif
+#undef ISP1362_DEBUG
 
 /*
  * The PXA255 UDC apparently doesn't handle GET_STATUS, GET_CONFIG and

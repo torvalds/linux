@@ -76,13 +76,13 @@ static inline void delayed_insw(unsigned int addr, void *buf, int len)
 
 #define ISP1362_REG_WRITE_OFFSET	0x80
 
-#ifdef ISP1362_DEBUG
-typedef const unsigned int isp1362_reg_t;
-
 #define REG_WIDTH_16			0x000
 #define REG_WIDTH_32			0x100
 #define REG_WIDTH_MASK			0x100
 #define REG_NO_MASK			0x0ff
+
+#ifdef ISP1362_DEBUG
+typedef const unsigned int isp1362_reg_t;
 
 #define REG_ACCESS_R			0x200
 #define REG_ACCESS_W			0x400
@@ -582,15 +582,11 @@ static inline struct usb_hcd *isp1362_hcd_to_hcd(struct isp1362_hcd *isp1362_hcd
  * ISP1362 HW Interface
  */
 
-#ifdef ISP1362_DEBUG
 #define DBG(level, fmt...) \
 	do { \
 		if (dbg_level > level) \
 			pr_debug(fmt); \
 	} while (0)
-#else
-#define DBG(fmt...)		do {} while (0)
-#endif
 
 #ifdef VERBOSE
 #    define VDBG(fmt...)	DBG(3, fmt)
@@ -833,7 +829,6 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 		isp1362_write_reg32(d, r, __v & ~m);	\
 }
 
-#ifdef ISP1362_DEBUG
 #define isp1362_show_reg(d, r) {								\
 	if ((ISP1362_REG_##r & REG_WIDTH_MASK) == REG_WIDTH_32)			\
 		DBG(0, "%-12s[%02x]: %08x\n", #r,					\
@@ -842,9 +837,6 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 		DBG(0, "%-12s[%02x]:     %04x\n", #r,					\
 			ISP1362_REG_NO(ISP1362_REG_##r), isp1362_read_reg16(d, r));	\
 }
-#else
-#define isp1362_show_reg(d, r)	do {} while (0)
-#endif
 
 static void __attribute__((__unused__)) isp1362_show_regs(struct isp1362_hcd *isp1362_hcd)
 {
@@ -967,7 +959,7 @@ static void __attribute__((unused)) dump_data(char *buf, int len)
 	}
 }
 
-#if defined(ISP1362_DEBUG) && defined(PTD_TRACE)
+#if defined(PTD_TRACE)
 
 static void dump_ptd(struct ptd *ptd)
 {
