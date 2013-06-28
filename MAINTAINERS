@@ -242,6 +242,8 @@ F:	drivers/acpi/
 F:	drivers/pnp/pnpacpi/
 F:	include/linux/acpi.h
 F:	include/acpi/
+F:	Documentation/acpi
+F:	Documentation/ABI/testing/sysfs-bus-acpi
 
 ACPI FAN DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
