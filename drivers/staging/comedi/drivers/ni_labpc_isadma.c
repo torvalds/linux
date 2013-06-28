@@ -29,6 +29,57 @@
 
 /* size in bytes of dma buffer */
 static const int dma_buffer_size = 0xff00;
+/* 2 bytes per sample */
+static const int sample_size = 2;
+
+/* utility function that suggests a dma transfer size in bytes */
+static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd)
+{
+	unsigned int size;
+	unsigned int freq;
+
+	if (cmd->convert_src == TRIG_TIMER)
+		freq = 1000000000 / cmd->convert_arg;
+	else
+		/* return some default value */
+		freq = 0xffffffff;
+
+	/* make buffer fill in no more than 1/3 second */
+	size = (freq / 3) * sample_size;
+
+	/* set a minimum and maximum size allowed */
+	if (size > dma_buffer_size)
+		size = dma_buffer_size - dma_buffer_size % sample_size;
+	else if (size < sample_size)
+		size = sample_size;
+
+	return size;
+}
+
+void labpc_setup_dma(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	struct labpc_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned long irq_flags;
+
+	irq_flags = claim_dma_lock();
+	disable_dma(devpriv->dma_chan);
+	/* clear flip-flop to make sure 2-byte registers for
+	 * count and address get set correctly */
+	clear_dma_ff(devpriv->dma_chan);
+	set_dma_addr(devpriv->dma_chan, devpriv->dma_addr);
+	/* set appropriate size of transfer */
+	devpriv->dma_transfer_size = labpc_suggest_transfer_size(cmd);
+	if (cmd->stop_src == TRIG_COUNT &&
+	    devpriv->count * sample_size < devpriv->dma_transfer_size)
+		devpriv->dma_transfer_size = devpriv->count * sample_size;
+	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
+	enable_dma(devpriv->dma_chan);
+	release_dma_lock(irq_flags);
+	/* set CMD3 bits for caller to enable DMA and interrupt */
+	devpriv->cmd3 |= (CMD3_DMAEN | CMD3_DMATCINTEN);
+}
+EXPORT_SYMBOL_GPL(labpc_setup_dma);
 
 int labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan)
 {
