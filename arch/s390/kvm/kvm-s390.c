@@ -395,6 +395,9 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 						    CPUSTAT_STOPPED |
 						    CPUSTAT_GED);
 	vcpu->arch.sie_block->ecb   = 6;
+	if (test_vfacility(50) && test_vfacility(73))
+		vcpu->arch.sie_block->ecb |= 0x10;
+
 	vcpu->arch.sie_block->ecb2  = 8;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
 	vcpu->arch.sie_block->fac   = (int) (long) vfacilities;
@@ -411,6 +414,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 				      unsigned int id)
 {
 	struct kvm_vcpu *vcpu;
+	struct sie_page *sie_page;
 	int rc = -EINVAL;
 
 	if (id >= KVM_MAX_VCPUS)
@@ -422,11 +426,12 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	if (!vcpu)
 		goto out;
 
-	vcpu->arch.sie_block = (struct kvm_s390_sie_block *)
-					get_zeroed_page(GFP_KERNEL);
-
-	if (!vcpu->arch.sie_block)
+	sie_page = (struct sie_page *) get_zeroed_page(GFP_KERNEL);
+	if (!sie_page)
 		goto out_free_cpu;
+
+	vcpu->arch.sie_block = &sie_page->sie_block;
+	vcpu->arch.sie_block->itdba = (unsigned long) &sie_page->itdb;
 
 	vcpu->arch.sie_block->icpua = id;
 	if (!kvm_is_ucontrol(kvm)) {
@@ -1178,8 +1183,8 @@ static int __init kvm_s390_init(void)
 		return -ENOMEM;
 	}
 	memcpy(vfacilities, S390_lowcore.stfle_fac_list, 16);
-	vfacilities[0] &= 0xff82fff3f47c0000UL;
-	vfacilities[1] &= 0x001c000000000000UL;
+	vfacilities[0] &= 0xff82fff3f47c2000UL;
+	vfacilities[1] &= 0x005c000000000000UL;
 	return 0;
 }
 

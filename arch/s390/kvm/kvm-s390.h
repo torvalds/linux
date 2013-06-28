@@ -26,6 +26,12 @@ extern unsigned long *vfacilities;
 
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
 
+/* Transactional Memory Execution related macros */
+#define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & 0x10))
+#define TDB_ADDR		0x1800UL
+#define TDB_FORMAT1		1
+#define IS_ITDB_VALID(vcpu)	((*(char *)vcpu->arch.sie_block->itdba == TDB_FORMAT1))
+
 #define VM_EVENT(d_kvm, d_loglevel, d_string, d_args...)\
 do { \
 	debug_sprintf_event(d_kvm->arch.dbf, d_loglevel, d_string "\n", \
