@@ -626,6 +626,8 @@ u32 trinity_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 trinity_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void trinity_dpm_print_power_state(struct radeon_device *rdev,
 				   struct radeon_ps *ps);
+void trinity_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+							 struct seq_file *m);
 
 /* DCE6 - SI */
 void dce6_bandwidth_update(struct radeon_device *rdev);
