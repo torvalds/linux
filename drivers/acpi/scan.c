@@ -193,8 +193,6 @@ static acpi_status acpi_bus_online_companions(acpi_handle handle, u32 lvl,
 static int acpi_scan_hot_remove(struct acpi_device *device)
 {
 	acpi_handle handle = device->handle;
-	struct acpi_object_list arg_list;
-	union acpi_object arg;
 	struct device *errdev;
 	acpi_status status;
 	unsigned long long sta;
@@ -257,32 +255,15 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	put_device(&device->dev);
 	device = NULL;
 
-	if (acpi_has_method(handle, "_LCK")) {
-		arg_list.count = 1;
-		arg_list.pointer = &arg;
-		arg.type = ACPI_TYPE_INTEGER;
-		arg.integer.value = 0;
-		acpi_evaluate_object(handle, "_LCK", &arg_list, NULL);
-	}
-
-	arg_list.count = 1;
-	arg_list.pointer = &arg;
-	arg.type = ACPI_TYPE_INTEGER;
-	arg.integer.value = 1;
-
+	acpi_evaluate_lck(handle, 0);
 	/*
 	 * TBD: _EJD support.
 	 */
-	status = acpi_evaluate_object(handle, "_EJ0", &arg_list, NULL);
-	if (ACPI_FAILURE(status)) {
-		if (status == AE_NOT_FOUND) {
-			return -ENODEV;
-		} else {
-			acpi_handle_warn(handle, "Eject failed (0x%x)\n",
-								status);
-			return -EIO;
-		}
-	}
+	status = acpi_evaluate_ej0(handle);
+	if (status == AE_NOT_FOUND)
+		return -ENODEV;
+	else if (ACPI_FAILURE(status))
+		return -EIO;
 
 	/*
 	 * Verify if eject was indeed successful.  If not, log an error
