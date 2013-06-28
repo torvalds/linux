@@ -91,6 +91,15 @@ sent in the evdev event stream.
     event and query the device (using EVIOCG* ioctls) to obtain its
     current state.
 
+* SYN_TIME_SEC, SYN_TIME_NSEC:
+  - Used to convey hardware timestamp associated with the current
+    event packet. The use of these event codes by hardware drivers
+    is optional. If used, the hardware driver should send the timestamp
+    ahead of any other events associated with this packet. The timestamp
+    should be adjusted to CLOCK_MONOTONIC base.
+    This becomes useful for drivers of hardware that handle batching
+    without involving the main CPU.
+
 EV_KEY:
 ----------
 EV_KEY events take the form KEY_<name> or BTN_<name>. For example, KEY_A is used

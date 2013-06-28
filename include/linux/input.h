@@ -198,6 +198,8 @@ struct input_keymap_entry {
 #define SYN_CONFIG		1
 #define SYN_MT_REPORT		2
 #define SYN_DROPPED		3
+#define SYN_TIME_SEC		4
+#define SYN_TIME_NSEC		5
 
 /*
  * Keys and buttons
