@@ -1097,6 +1097,7 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 			 * not yet reaped.  Take this opportunity to
 			 * drop our task ref.
 			 */
+			cpu_timer_sample_group(timer->it_clock, p, &now);
 			clear_dead_task(timer, now);
 			goto out_unlock;
 		}
