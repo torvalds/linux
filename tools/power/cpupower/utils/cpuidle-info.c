@@ -48,10 +48,14 @@ static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 		return;
 
 	for (idlestate = 0; idlestate < idlestates; idlestate++) {
+		int disabled = sysfs_is_idlestate_disabled(cpu, idlestate);
+		/* Disabled interface not supported on older kernels */
+		if (disabled < 0)
+			disabled = 0;
 		tmp = sysfs_get_idlestate_name(cpu, idlestate);
 		if (!tmp)
 			continue;
-		printf("%s:\n", tmp);
+		printf("%s%s:\n", tmp, (disabled) ? " (DISABLED) " : "");
 		free(tmp);
 
 		tmp = sysfs_get_idlestate_desc(cpu, idlestate);
