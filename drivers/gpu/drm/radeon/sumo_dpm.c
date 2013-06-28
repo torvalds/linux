@@ -1133,22 +1133,6 @@ static void sumo_cleanup_asic(struct radeon_device *rdev)
 	sumo_take_smu_control(rdev, false);
 }
 
-static void sumo_uvd_init(struct radeon_device *rdev)
-{
-	u32 tmp;
-
-	tmp = RREG32(CG_VCLK_CNTL);
-	tmp &= ~VCLK_DIR_CNTL_EN;
-	WREG32(CG_VCLK_CNTL, tmp);
-
-	tmp = RREG32(CG_DCLK_CNTL);
-	tmp &= ~DCLK_DIR_CNTL_EN;
-	WREG32(CG_DCLK_CNTL, tmp);
-
-	/* 100 Mhz */
-	radeon_set_uvd_clocks(rdev, 10000, 10000);
-}
-
 static int sumo_set_thermal_temperature_range(struct radeon_device *rdev,
 					      int min_temp, int max_temp)
 {
@@ -1348,7 +1332,6 @@ void sumo_dpm_setup_asic(struct radeon_device *rdev)
 	sumo_program_acpi_power_level(rdev);
 	sumo_enable_acpi_pm(rdev);
 	sumo_take_smu_control(rdev, true);
-	sumo_uvd_init(rdev);
 }
 
 void sumo_dpm_display_configuration_changed(struct radeon_device *rdev)
