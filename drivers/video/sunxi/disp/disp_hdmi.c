@@ -116,6 +116,7 @@ __s32 BSP_disp_hdmi_open(__u32 sel, __u32 wait_edid)
 		gdisp.screen[sel].lcdc_status |= LCDC_TCON1_USED;
 		gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_HDMI;
 
+		Disp_set_out_interlace(sel);
 		Display_set_fb_timing(sel);
 	}
 
@@ -158,6 +159,8 @@ __s32 BSP_disp_hdmi_close(__u32 sel)
 		gdisp.screen[sel].pll_use_status &=
 			(gdisp.screen[sel].pll_use_status == VIDEO_PLL0_USED) ?
 			~VIDEO_PLL0_USED : ~VIDEO_PLL1_USED;
+
+		Disp_set_out_interlace(sel);
 	}
 
 	return DIS_SUCCESS;
