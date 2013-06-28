@@ -2836,8 +2836,8 @@ static void cgroup_cfts_prepare(void)
 	mutex_lock(&cgroup_mutex);
 }
 
-static void cgroup_cfts_commit(struct cgroup_subsys *ss,
-			       struct cftype *cfts, bool is_add)
+static int cgroup_cfts_commit(struct cgroup_subsys *ss,
+			      struct cftype *cfts, bool is_add)
 	__releases(&cgroup_mutex)
 {
 	LIST_HEAD(pending);
@@ -2846,12 +2846,13 @@ static void cgroup_cfts_commit(struct cgroup_subsys *ss,
 	struct dentry *prev = NULL;
 	struct inode *inode;
 	u64 update_before;
+	int ret = 0;
 
 	/* %NULL @cfts indicates abort and don't bother if @ss isn't attached */
 	if (!cfts || ss->root == &cgroup_dummy_root ||
 	    !atomic_inc_not_zero(&sb->s_active)) {
 		mutex_unlock(&cgroup_mutex);
-		return;
+		return 0;
 	}
 
 	/*
@@ -2867,9 +2868,12 @@ static void cgroup_cfts_commit(struct cgroup_subsys *ss,
 	inode = root->dentry->d_inode;
 	mutex_lock(&inode->i_mutex);
 	mutex_lock(&cgroup_mutex);
-	cgroup_addrm_files(root, ss, cfts, is_add);
+	ret = cgroup_addrm_files(root, ss, cfts, is_add);
 	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&inode->i_mutex);
+
+	if (ret)
+		goto out_deact;
 
 	/* add/rm files for all cgroups created before */
 	rcu_read_lock();
@@ -2887,15 +2891,19 @@ static void cgroup_cfts_commit(struct cgroup_subsys *ss,
 		mutex_lock(&inode->i_mutex);
 		mutex_lock(&cgroup_mutex);
 		if (cgrp->serial_nr < update_before && !cgroup_is_dead(cgrp))
-			cgroup_addrm_files(cgrp, ss, cfts, is_add);
+			ret = cgroup_addrm_files(cgrp, ss, cfts, is_add);
 		mutex_unlock(&cgroup_mutex);
 		mutex_unlock(&inode->i_mutex);
 
 		rcu_read_lock();
+		if (ret)
+			break;
 	}
 	rcu_read_unlock();
 	dput(prev);
+out_deact:
 	deactivate_super(sb);
+	return ret;
 }
 
 /**
@@ -2915,6 +2923,7 @@ static void cgroup_cfts_commit(struct cgroup_subsys *ss,
 int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 {
 	struct cftype_set *set;
+	int ret;
 
 	set = kzalloc(sizeof(*set), GFP_KERNEL);
 	if (!set)
@@ -2923,9 +2932,10 @@ int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 	cgroup_cfts_prepare();
 	set->cfts = cfts;
 	list_add_tail(&set->node, &ss->cftsets);
-	cgroup_cfts_commit(ss, cfts, true);
-
-	return 0;
+	ret = cgroup_cfts_commit(ss, cfts, true);
+	if (ret)
+		cgroup_rm_cftypes(ss, cfts);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(cgroup_add_cftypes);
 
