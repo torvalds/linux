@@ -74,4 +74,6 @@ nl80211_radar_notify(struct cfg80211_registered_device *rdev,
 		     enum nl80211_radar_event event,
 		     struct net_device *netdev, gfp_t gfp);
 
+void cfg80211_rdev_free_coalesce(struct cfg80211_registered_device *rdev);
+
 #endif /* __NET_WIRELESS_NL80211_H */
