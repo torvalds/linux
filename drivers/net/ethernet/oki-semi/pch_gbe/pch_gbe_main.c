@@ -287,7 +287,7 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
 
-inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
+static inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
 {
 	iowrite32(0x01, &hw->reg->MAC_ADDR_LOAD);
 }

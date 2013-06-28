@@ -235,7 +235,7 @@ void pch_gbe_phy_power_down(struct pch_gbe_hw *hw)
  * pch_gbe_phy_set_rgmii - RGMII interface setting
  * @hw:	            Pointer to the HW structure
  */
-inline void pch_gbe_phy_set_rgmii(struct pch_gbe_hw *hw)
+void pch_gbe_phy_set_rgmii(struct pch_gbe_hw *hw)
 {
 	pch_gbe_phy_sw_reset(hw);
 }
@@ -270,5 +270,4 @@ void pch_gbe_phy_init_setting(struct pch_gbe_hw *hw)
 	pch_gbe_phy_read_reg_miic(hw, PHY_PHYSP_CONTROL, &mii_reg);
 	mii_reg |= PHYSP_CTRL_ASSERT_CRS_TX;
 	pch_gbe_phy_write_reg_miic(hw, PHY_PHYSP_CONTROL, mii_reg);
-
 }
