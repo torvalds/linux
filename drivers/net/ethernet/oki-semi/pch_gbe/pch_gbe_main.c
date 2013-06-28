@@ -300,6 +300,7 @@ inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
  */
 s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
 {
+	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
 	u32  adr1a, adr1b;
 
 	adr1a = ioread32(&hw->reg->mac_adr[0].high);
@@ -312,7 +313,7 @@ s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
 	hw->mac.addr[4] = (u8)(adr1b & 0xFF);
 	hw->mac.addr[5] = (u8)((adr1b >> 8) & 0xFF);
 
-	pr_debug("hw->mac.addr : %pM\n", hw->mac.addr);
+	netdev_dbg(adapter->netdev, "hw->mac.addr : %pM\n", hw->mac.addr);
 	return 0;
 }
 
@@ -324,6 +325,7 @@ s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
 static void pch_gbe_wait_clr_bit(void *reg, u32 bit)
 {
 	u32 tmp;
+
 	/* wait busy */
 	tmp = 1000;
 	while ((ioread32(reg) & bit) && --tmp)
@@ -340,9 +342,10 @@ static void pch_gbe_wait_clr_bit(void *reg, u32 bit)
  */
 static void pch_gbe_mac_mar_set(struct pch_gbe_hw *hw, u8 * addr, u32 index)
 {
+	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
 	u32 mar_low, mar_high, adrmask;
 
-	pr_debug("index : 0x%x\n", index);
+	netdev_dbg(adapter->netdev, "index : 0x%x\n", index);
 
 	/*
 	 * HW expects these in little endian so we reverse the byte order
@@ -468,10 +471,11 @@ static void pch_gbe_mac_mc_addr_list_update(struct pch_gbe_hw *hw,
  */
 s32 pch_gbe_mac_force_mac_fc(struct pch_gbe_hw *hw)
 {
+	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
 	struct pch_gbe_mac_info *mac = &hw->mac;
 	u32 rx_fctrl;
 
-	pr_debug("mac->fc = %u\n", mac->fc);
+	netdev_dbg(adapter->netdev, "mac->fc = %u\n", mac->fc);
 
 	rx_fctrl = ioread32(&hw->reg->RX_FCTRL);
 
@@ -493,14 +497,16 @@ s32 pch_gbe_mac_force_mac_fc(struct pch_gbe_hw *hw)
 		mac->tx_fc_enable = true;
 		break;
 	default:
-		pr_err("Flow control param set incorrectly\n");
+		netdev_err(adapter->netdev,
+			   "Flow control param set incorrectly\n");
 		return -EINVAL;
 	}
 	if (mac->link_duplex == DUPLEX_HALF)
 		rx_fctrl &= ~PCH_GBE_FL_CTRL_EN;
 	iowrite32(rx_fctrl, &hw->reg->RX_FCTRL);
-	pr_debug("RX_FCTRL reg : 0x%08x  mac->tx_fc_enable : %d\n",
-		 ioread32(&hw->reg->RX_FCTRL), mac->tx_fc_enable);
+	netdev_dbg(adapter->netdev,
+		   "RX_FCTRL reg : 0x%08x  mac->tx_fc_enable : %d\n",
+		   ioread32(&hw->reg->RX_FCTRL), mac->tx_fc_enable);
 	return 0;
 }
 
@@ -511,10 +517,11 @@ s32 pch_gbe_mac_force_mac_fc(struct pch_gbe_hw *hw)
  */
 static void pch_gbe_mac_set_wol_event(struct pch_gbe_hw *hw, u32 wu_evt)
 {
+	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
 	u32 addr_mask;
 
-	pr_debug("wu_evt : 0x%08x  ADDR_MASK reg : 0x%08x\n",
-		 wu_evt, ioread32(&hw->reg->ADDR_MASK));
+	netdev_dbg(adapter->netdev, "wu_evt : 0x%08x  ADDR_MASK reg : 0x%08x\n",
+		   wu_evt, ioread32(&hw->reg->ADDR_MASK));
 
 	if (wu_evt) {
 		/* Set Wake-On-Lan address mask */
@@ -546,6 +553,7 @@ static void pch_gbe_mac_set_wol_event(struct pch_gbe_hw *hw, u32 wu_evt)
 u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 			u16 data)
 {
+	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
 	u32 data_out = 0;
 	unsigned int i;
 	unsigned long flags;
@@ -558,7 +566,7 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 		udelay(20);
 	}
 	if (i == 0) {
-		pr_err("pch-gbe.miim won't go Ready\n");
+		netdev_err(adapter->netdev, "pch-gbe.miim won't go Ready\n");
 		spin_unlock_irqrestore(&hw->miim_lock, flags);
 		return 0;	/* No way to indicate timeout error */
 	}
@@ -573,9 +581,9 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 	}
 	spin_unlock_irqrestore(&hw->miim_lock, flags);
 
-	pr_debug("PHY %s: reg=%d, data=0x%04X\n",
-		 dir == PCH_GBE_MIIM_OPER_READ ? "READ" : "WRITE", reg,
-		 dir == PCH_GBE_MIIM_OPER_READ ? data_out : data);
+	netdev_dbg(adapter->netdev, "PHY %s: reg=%d, data=0x%04X\n",
+		   dir == PCH_GBE_MIIM_OPER_READ ? "READ" : "WRITE", reg,
+		   dir == PCH_GBE_MIIM_OPER_READ ? data_out : data);
 	return (u16) data_out;
 }
 
@@ -585,6 +593,7 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
  */
 static void pch_gbe_mac_set_pause_packet(struct pch_gbe_hw *hw)
 {
+	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
 	unsigned long tmp2, tmp3;
 
 	/* Set Pause packet */
@@ -606,10 +615,13 @@ static void pch_gbe_mac_set_pause_packet(struct pch_gbe_hw *hw)
 	/* Transmit Pause Packet */
 	iowrite32(PCH_GBE_PS_PKT_RQ, &hw->reg->PAUSE_REQ);
 
-	pr_debug("PAUSE_PKT1-5 reg : 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
-		 ioread32(&hw->reg->PAUSE_PKT1), ioread32(&hw->reg->PAUSE_PKT2),
-		 ioread32(&hw->reg->PAUSE_PKT3), ioread32(&hw->reg->PAUSE_PKT4),
-		 ioread32(&hw->reg->PAUSE_PKT5));
+	netdev_dbg(adapter->netdev,
+		   "PAUSE_PKT1-5 reg : 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+		   ioread32(&hw->reg->PAUSE_PKT1),
+		   ioread32(&hw->reg->PAUSE_PKT2),
+		   ioread32(&hw->reg->PAUSE_PKT3),
+		   ioread32(&hw->reg->PAUSE_PKT4),
+		   ioread32(&hw->reg->PAUSE_PKT5));
 
 	return;
 }
@@ -669,7 +681,7 @@ static int pch_gbe_init_phy(struct pch_gbe_adapter *adapter)
 			break;
 	}
 	adapter->hw.phy.addr = adapter->mii.phy_id;
-	pr_debug("phy_addr = %d\n", adapter->mii.phy_id);
+	netdev_dbg(netdev, "phy_addr = %d\n", adapter->mii.phy_id);
 	if (addr == 32)
 		return -EAGAIN;
 	/* Selected the phy and isolate the rest */
@@ -758,13 +770,15 @@ void pch_gbe_reinit_locked(struct pch_gbe_adapter *adapter)
  */
 void pch_gbe_reset(struct pch_gbe_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
+
 	pch_gbe_mac_reset_hw(&adapter->hw);
 	/* reprogram multicast address register after reset */
-	pch_gbe_set_multi(adapter->netdev);
+	pch_gbe_set_multi(netdev);
 	/* Setup the receive address. */
 	pch_gbe_mac_init_rx_addrs(&adapter->hw, PCH_GBE_MAR_ENTRIES);
 	if (pch_gbe_hal_init_hw(&adapter->hw))
-		pr_err("Hardware Error\n");
+		netdev_err(netdev, "Hardware Error\n");
 }
 
 /**
@@ -778,7 +792,7 @@ static void pch_gbe_free_irq(struct pch_gbe_adapter *adapter)
 	free_irq(adapter->pdev->irq, netdev);
 	if (adapter->have_msi) {
 		pci_disable_msi(adapter->pdev);
-		pr_debug("call pci_disable_msi\n");
+		netdev_dbg(netdev, "call pci_disable_msi\n");
 	}
 }
 
@@ -795,7 +809,8 @@ static void pch_gbe_irq_disable(struct pch_gbe_adapter *adapter)
 	ioread32(&hw->reg->INT_ST);
 	synchronize_irq(adapter->pdev->irq);
 
-	pr_debug("INT_EN reg : 0x%08x\n", ioread32(&hw->reg->INT_EN));
+	netdev_dbg(adapter->netdev, "INT_EN reg : 0x%08x\n",
+		   ioread32(&hw->reg->INT_EN));
 }
 
 /**
@@ -809,7 +824,8 @@ static void pch_gbe_irq_enable(struct pch_gbe_adapter *adapter)
 	if (likely(atomic_dec_and_test(&adapter->irq_sem)))
 		iowrite32(PCH_GBE_INT_ENABLE_MASK, &hw->reg->INT_EN);
 	ioread32(&hw->reg->INT_ST);
-	pr_debug("INT_EN reg : 0x%08x\n", ioread32(&hw->reg->INT_EN));
+	netdev_dbg(adapter->netdev, "INT_EN reg : 0x%08x\n",
+		   ioread32(&hw->reg->INT_EN));
 }
 
 
@@ -846,9 +862,9 @@ static void pch_gbe_configure_tx(struct pch_gbe_adapter *adapter)
 	struct pch_gbe_hw *hw = &adapter->hw;
 	u32 tdba, tdlen, dctrl;
 
-	pr_debug("dma addr = 0x%08llx  size = 0x%08x\n",
-		 (unsigned long long)adapter->tx_ring->dma,
-		 adapter->tx_ring->size);
+	netdev_dbg(adapter->netdev, "dma addr = 0x%08llx  size = 0x%08x\n",
+		   (unsigned long long)adapter->tx_ring->dma,
+		   adapter->tx_ring->size);
 
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 	tdba = adapter->tx_ring->dma;
@@ -894,9 +910,9 @@ static void pch_gbe_configure_rx(struct pch_gbe_adapter *adapter)
 	struct pch_gbe_hw *hw = &adapter->hw;
 	u32 rdba, rdlen, rxdma;
 
-	pr_debug("dma adr = 0x%08llx  size = 0x%08x\n",
-		 (unsigned long long)adapter->rx_ring->dma,
-		 adapter->rx_ring->size);
+	netdev_dbg(adapter->netdev, "dma adr = 0x%08llx  size = 0x%08x\n",
+		   (unsigned long long)adapter->rx_ring->dma,
+		   adapter->rx_ring->size);
 
 	pch_gbe_mac_force_mac_fc(hw);
 
@@ -907,9 +923,10 @@ static void pch_gbe_configure_rx(struct pch_gbe_adapter *adapter)
 	rxdma &= ~PCH_GBE_RX_DMA_EN;
 	iowrite32(rxdma, &hw->reg->DMA_CTRL);
 
-	pr_debug("MAC_RX_EN reg = 0x%08x  DMA_CTRL reg = 0x%08x\n",
-		 ioread32(&hw->reg->MAC_RX_EN),
-		 ioread32(&hw->reg->DMA_CTRL));
+	netdev_dbg(adapter->netdev,
+		   "MAC_RX_EN reg = 0x%08x  DMA_CTRL reg = 0x%08x\n",
+		   ioread32(&hw->reg->MAC_RX_EN),
+		   ioread32(&hw->reg->DMA_CTRL));
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring */
@@ -977,7 +994,8 @@ static void pch_gbe_clean_tx_ring(struct pch_gbe_adapter *adapter,
 		buffer_info = &tx_ring->buffer_info[i];
 		pch_gbe_unmap_and_free_tx_resource(adapter, buffer_info);
 	}
-	pr_debug("call pch_gbe_unmap_and_free_tx_resource() %d count\n", i);
+	netdev_dbg(adapter->netdev,
+		   "call pch_gbe_unmap_and_free_tx_resource() %d count\n", i);
 
 	size = (unsigned long)sizeof(struct pch_gbe_buffer) * tx_ring->count;
 	memset(tx_ring->buffer_info, 0, size);
@@ -1009,7 +1027,8 @@ pch_gbe_clean_rx_ring(struct pch_gbe_adapter *adapter,
 		buffer_info = &rx_ring->buffer_info[i];
 		pch_gbe_unmap_and_free_rx_resource(adapter, buffer_info);
 	}
-	pr_debug("call pch_gbe_unmap_and_free_rx_resource() %d count\n", i);
+	netdev_dbg(adapter->netdev,
+		   "call pch_gbe_unmap_and_free_rx_resource() %d count\n", i);
 	size = (unsigned long)sizeof(struct pch_gbe_buffer) * rx_ring->count;
 	memset(rx_ring->buffer_info, 0, size);
 
@@ -1087,7 +1106,7 @@ static void pch_gbe_watchdog(unsigned long data)
 	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_hw *hw = &adapter->hw;
 
-	pr_debug("right now = %ld\n", jiffies);
+	netdev_dbg(netdev, "right now = %ld\n", jiffies);
 
 	pch_gbe_update_stats(adapter);
 	if ((mii_link_ok(&adapter->mii)) && (!netif_carrier_ok(netdev))) {
@@ -1095,7 +1114,7 @@ static void pch_gbe_watchdog(unsigned long data)
 		netdev->tx_queue_len = adapter->tx_queue_len;
 		/* mii library handles link maintenance tasks */
 		if (mii_ethtool_gset(&adapter->mii, &cmd)) {
-			pr_err("ethtool get setting Error\n");
+			netdev_err(netdev, "ethtool get setting Error\n");
 			mod_timer(&adapter->watchdog_timer,
 				  round_jiffies(jiffies +
 						PCH_GBE_WATCHDOG_PERIOD));
@@ -1213,7 +1232,7 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 					  buffer_info->length,
 					  DMA_TO_DEVICE);
 	if (dma_mapping_error(&adapter->pdev->dev, buffer_info->dma)) {
-		pr_err("TX DMA map failed\n");
+		netdev_err(adapter->netdev, "TX DMA map failed\n");
 		buffer_info->dma = 0;
 		buffer_info->time_stamp = 0;
 		tx_ring->next_to_use = ring_num;
@@ -1333,13 +1352,13 @@ static irqreturn_t pch_gbe_intr(int irq, void *data)
 	/* When request status is no interruption factor */
 	if (unlikely(!int_st))
 		return IRQ_NONE;	/* Not our interrupt. End processing. */
-	pr_debug("%s occur int_st = 0x%08x\n", __func__, int_st);
+	netdev_dbg(netdev, "%s occur int_st = 0x%08x\n", __func__, int_st);
 	if (int_st & PCH_GBE_INT_RX_FRAME_ERR)
 		adapter->stats.intr_rx_frame_err_count++;
 	if (int_st & PCH_GBE_INT_RX_FIFO_ERR)
 		if (!adapter->rx_stop_flag) {
 			adapter->stats.intr_rx_fifo_err_count++;
-			pr_debug("Rx fifo over run\n");
+			netdev_dbg(netdev, "Rx fifo over run\n");
 			adapter->rx_stop_flag = true;
 			int_en = ioread32(&hw->reg->INT_EN);
 			iowrite32((int_en & ~PCH_GBE_INT_RX_FIFO_ERR),
@@ -1359,7 +1378,7 @@ static irqreturn_t pch_gbe_intr(int irq, void *data)
 	/* When Rx descriptor is empty  */
 	if ((int_st & PCH_GBE_INT_RX_DSC_EMP)) {
 		adapter->stats.intr_rx_dsc_empty_count++;
-		pr_debug("Rx descriptor is empty\n");
+		netdev_dbg(netdev, "Rx descriptor is empty\n");
 		int_en = ioread32(&hw->reg->INT_EN);
 		iowrite32((int_en & ~PCH_GBE_INT_RX_DSC_EMP), &hw->reg->INT_EN);
 		if (hw->mac.tx_fc_enable) {
@@ -1382,8 +1401,8 @@ static irqreturn_t pch_gbe_intr(int irq, void *data)
 			__napi_schedule(&adapter->napi);
 		}
 	}
-	pr_debug("return = 0x%08x  INT_EN reg = 0x%08x\n",
-		 IRQ_HANDLED, ioread32(&hw->reg->INT_EN));
+	netdev_dbg(netdev, "return = 0x%08x  INT_EN reg = 0x%08x\n",
+		   IRQ_HANDLED, ioread32(&hw->reg->INT_EN));
 	return IRQ_HANDLED;
 }
 
@@ -1437,9 +1456,10 @@ pch_gbe_alloc_rx_buffers(struct pch_gbe_adapter *adapter,
 		rx_desc->buffer_addr = (buffer_info->dma);
 		rx_desc->gbec_status = DSC_INIT16;
 
-		pr_debug("i = %d  buffer_info->dma = 0x08%llx  buffer_info->length = 0x%x\n",
-			 i, (unsigned long long)buffer_info->dma,
-			 buffer_info->length);
+		netdev_dbg(netdev,
+			   "i = %d  buffer_info->dma = 0x08%llx  buffer_info->length = 0x%x\n",
+			   i, (unsigned long long)buffer_info->dma,
+			   buffer_info->length);
 
 		if (unlikely(++i == rx_ring->count))
 			i = 0;
@@ -1531,12 +1551,13 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 	bool cleaned = false;
 	int unused, thresh;
 
-	pr_debug("next_to_clean : %d\n", tx_ring->next_to_clean);
+	netdev_dbg(adapter->netdev, "next_to_clean : %d\n",
+		   tx_ring->next_to_clean);
 
 	i = tx_ring->next_to_clean;
 	tx_desc = PCH_GBE_TX_DESC(*tx_ring, i);
-	pr_debug("gbec_status:0x%04x  dma_status:0x%04x\n",
-		 tx_desc->gbec_status, tx_desc->dma_status);
+	netdev_dbg(adapter->netdev, "gbec_status:0x%04x  dma_status:0x%04x\n",
+		   tx_desc->gbec_status, tx_desc->dma_status);
 
 	unused = PCH_GBE_DESC_UNUSED(tx_ring);
 	thresh = tx_ring->count - PCH_GBE_TX_WEIGHT;
@@ -1544,8 +1565,10 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 	{  /* current marked clean, tx queue filling up, do extra clean */
 		int j, k;
 		if (unused < 8) {  /* tx queue nearly full */
-			pr_debug("clean_tx: transmit queue warning (%x,%x) unused=%d\n",
-				tx_ring->next_to_clean,tx_ring->next_to_use,unused);
+			netdev_dbg(adapter->netdev,
+				   "clean_tx: transmit queue warning (%x,%x) unused=%d\n",
+				   tx_ring->next_to_clean, tx_ring->next_to_use,
+				   unused);
 		}
 
 		/* current marked clean, scan for more that need cleaning. */
@@ -1557,49 +1580,56 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 			if (++k >= tx_ring->count) k = 0;  /*increment, wrap*/
 		}
 		if (j < PCH_GBE_TX_WEIGHT) {
-			pr_debug("clean_tx: unused=%d loops=%d found tx_desc[%x,%x:%x].gbec_status=%04x\n",
-				unused,j, i,k, tx_ring->next_to_use, tx_desc->gbec_status);
+			netdev_dbg(adapter->netdev,
+				   "clean_tx: unused=%d loops=%d found tx_desc[%x,%x:%x].gbec_status=%04x\n",
+				   unused, j, i, k, tx_ring->next_to_use,
+				   tx_desc->gbec_status);
 			i = k;  /*found one to clean, usu gbec_status==2000.*/
 		}
 	}
 
 	while ((tx_desc->gbec_status & DSC_INIT16) == 0x0000) {
-		pr_debug("gbec_status:0x%04x\n", tx_desc->gbec_status);
+		netdev_dbg(adapter->netdev, "gbec_status:0x%04x\n",
+			   tx_desc->gbec_status);
 		buffer_info = &tx_ring->buffer_info[i];
 		skb = buffer_info->skb;
 		cleaned = true;
 
 		if ((tx_desc->gbec_status & PCH_GBE_TXD_GMAC_STAT_ABT)) {
 			adapter->stats.tx_aborted_errors++;
-			pr_err("Transfer Abort Error\n");
+			netdev_err(adapter->netdev, "Transfer Abort Error\n");
 		} else if ((tx_desc->gbec_status & PCH_GBE_TXD_GMAC_STAT_CRSER)
 			  ) {
 			adapter->stats.tx_carrier_errors++;
-			pr_err("Transfer Carrier Sense Error\n");
+			netdev_err(adapter->netdev,
+				   "Transfer Carrier Sense Error\n");
 		} else if ((tx_desc->gbec_status & PCH_GBE_TXD_GMAC_STAT_EXCOL)
 			  ) {
 			adapter->stats.tx_aborted_errors++;
-			pr_err("Transfer Collision Abort Error\n");
+			netdev_err(adapter->netdev,
+				   "Transfer Collision Abort Error\n");
 		} else if ((tx_desc->gbec_status &
 			    (PCH_GBE_TXD_GMAC_STAT_SNGCOL |
 			     PCH_GBE_TXD_GMAC_STAT_MLTCOL))) {
 			adapter->stats.collisions++;
 			adapter->stats.tx_packets++;
 			adapter->stats.tx_bytes += skb->len;
-			pr_debug("Transfer Collision\n");
+			netdev_dbg(adapter->netdev, "Transfer Collision\n");
 		} else if ((tx_desc->gbec_status & PCH_GBE_TXD_GMAC_STAT_CMPLT)
 			  ) {
 			adapter->stats.tx_packets++;
 			adapter->stats.tx_bytes += skb->len;
 		}
 		if (buffer_info->mapped) {
-			pr_debug("unmap buffer_info->dma : %d\n", i);
+			netdev_dbg(adapter->netdev,
+				   "unmap buffer_info->dma : %d\n", i);
 			dma_unmap_single(&adapter->pdev->dev, buffer_info->dma,
 					 buffer_info->length, DMA_TO_DEVICE);
 			buffer_info->mapped = false;
 		}
 		if (buffer_info->skb) {
-			pr_debug("trim buffer_info->skb : %d\n", i);
+			netdev_dbg(adapter->netdev,
+				   "trim buffer_info->skb : %d\n", i);
 			skb_trim(buffer_info->skb, 0);
 		}
 		tx_desc->gbec_status = DSC_INIT16;
@@ -1613,8 +1643,9 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 			break;
 		}
 	}
-	pr_debug("called pch_gbe_unmap_and_free_tx_resource() %d count\n",
-		 cleaned_count);
+	netdev_dbg(adapter->netdev,
+		   "called pch_gbe_unmap_and_free_tx_resource() %d count\n",
+		   cleaned_count);
 	if (cleaned_count > 0)  { /*skip this if nothing cleaned*/
 		/* Recover from running out of Tx resources in xmit_frame */
 		spin_lock(&tx_ring->tx_lock);
@@ -1622,12 +1653,13 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 		{
 			netif_wake_queue(adapter->netdev);
 			adapter->stats.tx_restart_count++;
-			pr_debug("Tx wake queue\n");
+			netdev_dbg(adapter->netdev, "Tx wake queue\n");
 		}
 
 		tx_ring->next_to_clean = i;
 
-		pr_debug("next_to_clean : %d\n", tx_ring->next_to_clean);
+		netdev_dbg(adapter->netdev, "next_to_clean : %d\n",
+			   tx_ring->next_to_clean);
 		spin_unlock(&tx_ring->tx_lock);
 	}
 	return cleaned;
@@ -1684,22 +1716,22 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
 				   buffer_info->length, DMA_FROM_DEVICE);
 		buffer_info->mapped = false;
 
-		pr_debug("RxDecNo = 0x%04x  Status[DMA:0x%02x GBE:0x%04x "
-			 "TCP:0x%08x]  BufInf = 0x%p\n",
-			 i, dma_status, gbec_status, tcp_ip_status,
-			 buffer_info);
+		netdev_dbg(netdev,
+			   "RxDecNo = 0x%04x  Status[DMA:0x%02x GBE:0x%04x TCP:0x%08x]  BufInf = 0x%p\n",
+			   i, dma_status, gbec_status, tcp_ip_status,
+			   buffer_info);
 		/* Error check */
 		if (unlikely(gbec_status & PCH_GBE_RXD_GMAC_STAT_NOTOCTAL)) {
 			adapter->stats.rx_frame_errors++;
-			pr_err("Receive Not Octal Error\n");
+			netdev_err(netdev, "Receive Not Octal Error\n");
 		} else if (unlikely(gbec_status &
 				PCH_GBE_RXD_GMAC_STAT_NBLERR)) {
 			adapter->stats.rx_frame_errors++;
-			pr_err("Receive Nibble Error\n");
+			netdev_err(netdev, "Receive Nibble Error\n");
 		} else if (unlikely(gbec_status &
 				PCH_GBE_RXD_GMAC_STAT_CRCERR)) {
 			adapter->stats.rx_crc_errors++;
-			pr_err("Receive CRC Error\n");
+			netdev_err(netdev, "Receive CRC Error\n");
 		} else {
 			/* get receive length */
 			/* length convert[-3], length includes FCS length */
@@ -1730,8 +1762,9 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
 
 			napi_gro_receive(&adapter->napi, skb);
 			(*work_done)++;
-			pr_debug("Receive skb->ip_summed: %d length: %d\n",
-				 skb->ip_summed, length);
+			netdev_dbg(netdev,
+				   "Receive skb->ip_summed: %d length: %d\n",
+				   skb->ip_summed, length);
 		}
 		/* return some buffers to hardware, one at a time is too slow */
 		if (unlikely(cleaned_count >= PCH_GBE_RX_BUFFER_WRITE)) {
@@ -1787,10 +1820,10 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 		tx_desc = PCH_GBE_TX_DESC(*tx_ring, desNo);
 		tx_desc->gbec_status = DSC_INIT16;
 	}
-	pr_debug("tx_ring->desc = 0x%p  tx_ring->dma = 0x%08llx\n"
-		 "next_to_clean = 0x%08x  next_to_use = 0x%08x\n",
-		 tx_ring->desc, (unsigned long long)tx_ring->dma,
-		 tx_ring->next_to_clean, tx_ring->next_to_use);
+	netdev_dbg(adapter->netdev,
+		   "tx_ring->desc = 0x%p  tx_ring->dma = 0x%08llx next_to_clean = 0x%08x  next_to_use = 0x%08x\n",
+		   tx_ring->desc, (unsigned long long)tx_ring->dma,
+		   tx_ring->next_to_clean, tx_ring->next_to_use);
 	return 0;
 }
 
@@ -1829,10 +1862,10 @@ int pch_gbe_setup_rx_resources(struct pch_gbe_adapter *adapter,
 		rx_desc = PCH_GBE_RX_DESC(*rx_ring, desNo);
 		rx_desc->gbec_status = DSC_INIT16;
 	}
-	pr_debug("rx_ring->desc = 0x%p  rx_ring->dma = 0x%08llx "
-		 "next_to_clean = 0x%08x  next_to_use = 0x%08x\n",
-		 rx_ring->desc, (unsigned long long)rx_ring->dma,
-		 rx_ring->next_to_clean, rx_ring->next_to_use);
+	netdev_dbg(adapter->netdev,
+		   "rx_ring->desc = 0x%p  rx_ring->dma = 0x%08llx next_to_clean = 0x%08x  next_to_use = 0x%08x\n",
+		   rx_ring->desc, (unsigned long long)rx_ring->dma,
+		   rx_ring->next_to_clean, rx_ring->next_to_use);
 	return 0;
 }
 
@@ -1886,9 +1919,9 @@ static int pch_gbe_request_irq(struct pch_gbe_adapter *adapter)
 	flags = IRQF_SHARED;
 	adapter->have_msi = false;
 	err = pci_enable_msi(adapter->pdev);
-	pr_debug("call pci_enable_msi\n");
+	netdev_dbg(netdev, "call pci_enable_msi\n");
 	if (err) {
-		pr_debug("call pci_enable_msi - Error: %d\n", err);
+		netdev_dbg(netdev, "call pci_enable_msi - Error: %d\n", err);
 	} else {
 		flags = 0;
 		adapter->have_msi = true;
@@ -1896,9 +1929,11 @@ static int pch_gbe_request_irq(struct pch_gbe_adapter *adapter)
 	err = request_irq(adapter->pdev->irq, &pch_gbe_intr,
 			  flags, netdev->name, netdev);
 	if (err)
-		pr_err("Unable to allocate interrupt Error: %d\n", err);
-	pr_debug("adapter->have_msi : %d  flags : 0x%04x  return : 0x%04x\n",
-		 adapter->have_msi, flags, err);
+		netdev_err(netdev, "Unable to allocate interrupt Error: %d\n",
+			   err);
+	netdev_dbg(netdev,
+		   "adapter->have_msi : %d  flags : 0x%04x  return : 0x%04x\n",
+		   adapter->have_msi, flags, err);
 	return err;
 }
 
@@ -1919,7 +1954,7 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 
 	/* Ensure we have a valid MAC */
 	if (!is_valid_ether_addr(adapter->hw.mac.addr)) {
-		pr_err("Error: Invalid MAC address\n");
+		netdev_err(netdev, "Error: Invalid MAC address\n");
 		goto out;
 	}
 
@@ -1933,12 +1968,14 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 
 	err = pch_gbe_request_irq(adapter);
 	if (err) {
-		pr_err("Error: can't bring device up - irq request failed\n");
+		netdev_err(netdev,
+			   "Error: can't bring device up - irq request failed\n");
 		goto out;
 	}
 	err = pch_gbe_alloc_rx_buffers_pool(adapter, rx_ring, rx_ring->count);
 	if (err) {
-		pr_err("Error: can't bring device up - alloc rx buffers pool failed\n");
+		netdev_err(netdev,
+			   "Error: can't bring device up - alloc rx buffers pool failed\n");
 		goto freeirq;
 	}
 	pch_gbe_alloc_tx_buffers(adapter, tx_ring);
@@ -2015,11 +2052,11 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 
 	/* Initialize the hardware-specific values */
 	if (pch_gbe_hal_setup_init_funcs(hw)) {
-		pr_err("Hardware Initialization Failure\n");
+		netdev_err(netdev, "Hardware Initialization Failure\n");
 		return -EIO;
 	}
 	if (pch_gbe_alloc_queues(adapter)) {
-		pr_err("Unable to allocate memory for queues\n");
+		netdev_err(netdev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
 	}
 	spin_lock_init(&adapter->hw.miim_lock);
@@ -2030,9 +2067,10 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 
 	pch_gbe_init_stats(adapter);
 
-	pr_debug("rx_buffer_len : %d  mac.min_frame_size : %d  mac.max_frame_size : %d\n",
-		 (u32) adapter->rx_buffer_len,
-		 hw->mac.min_frame_size, hw->mac.max_frame_size);
+	netdev_dbg(netdev,
+		   "rx_buffer_len : %d  mac.min_frame_size : %d  mac.max_frame_size : %d\n",
+		   (u32) adapter->rx_buffer_len,
+		   hw->mac.min_frame_size, hw->mac.max_frame_size);
 	return 0;
 }
 
@@ -2061,7 +2099,7 @@ static int pch_gbe_open(struct net_device *netdev)
 	err = pch_gbe_up(adapter);
 	if (err)
 		goto err_up;
-	pr_debug("Success End\n");
+	netdev_dbg(netdev, "Success End\n");
 	return 0;
 
 err_up:
@@ -2072,7 +2110,7 @@ err_setup_rx:
 	pch_gbe_free_tx_resources(adapter, adapter->tx_ring);
 err_setup_tx:
 	pch_gbe_reset(adapter);
-	pr_err("Error End\n");
+	netdev_err(netdev, "Error End\n");
 	return err;
 }
 
@@ -2116,8 +2154,9 @@ static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely(!PCH_GBE_DESC_UNUSED(tx_ring))) {
 		netif_stop_queue(netdev);
 		spin_unlock_irqrestore(&tx_ring->tx_lock, flags);
-		pr_debug("Return : BUSY  next_to use : 0x%08x  next_to clean : 0x%08x\n",
-			 tx_ring->next_to_use, tx_ring->next_to_clean);
+		netdev_dbg(netdev,
+			   "Return : BUSY  next_to use : 0x%08x  next_to clean : 0x%08x\n",
+			   tx_ring->next_to_use, tx_ring->next_to_clean);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -2152,7 +2191,7 @@ static void pch_gbe_set_multi(struct net_device *netdev)
 	int i;
 	int mc_count;
 
-	pr_debug("netdev->flags : 0x%08x\n", netdev->flags);
+	netdev_dbg(netdev, "netdev->flags : 0x%08x\n", netdev->flags);
 
 	/* Check for Promiscuous and All Multicast modes */
 	rctl = ioread32(&hw->reg->RX_MODE);
@@ -2192,7 +2231,8 @@ static void pch_gbe_set_multi(struct net_device *netdev)
 					PCH_GBE_MAR_ENTRIES);
 	kfree(mta_list);
 
-	pr_debug("RX_MODE reg(check bit31,30 ADD,MLT) : 0x%08x  netdev->mc_count : 0x%08x\n",
+	netdev_dbg(netdev,
+		 "RX_MODE reg(check bit31,30 ADD,MLT) : 0x%08x  netdev->mc_count : 0x%08x\n",
 		 ioread32(&hw->reg->RX_MODE), mc_count);
 }
 
@@ -2218,12 +2258,12 @@ static int pch_gbe_set_mac(struct net_device *netdev, void *addr)
 		pch_gbe_mac_mar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 		ret_val = 0;
 	}
-	pr_debug("ret_val : 0x%08x\n", ret_val);
-	pr_debug("dev_addr : %pM\n", netdev->dev_addr);
-	pr_debug("mac_addr : %pM\n", adapter->hw.mac.addr);
-	pr_debug("MAC_ADR1AB reg : 0x%08x 0x%08x\n",
-		 ioread32(&adapter->hw.reg->mac_adr[0].high),
-		 ioread32(&adapter->hw.reg->mac_adr[0].low));
+	netdev_dbg(netdev, "ret_val : 0x%08x\n", ret_val);
+	netdev_dbg(netdev, "dev_addr : %pM\n", netdev->dev_addr);
+	netdev_dbg(netdev, "mac_addr : %pM\n", adapter->hw.mac.addr);
+	netdev_dbg(netdev, "MAC_ADR1AB reg : 0x%08x 0x%08x\n",
+		   ioread32(&adapter->hw.reg->mac_adr[0].high),
+		   ioread32(&adapter->hw.reg->mac_adr[0].low));
 	return ret_val;
 }
 
@@ -2245,7 +2285,7 @@ static int pch_gbe_change_mtu(struct net_device *netdev, int new_mtu)
 	max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 	if ((max_frame < ETH_ZLEN + ETH_FCS_LEN) ||
 		(max_frame > PCH_GBE_MAX_JUMBO_FRAME_SIZE)) {
-		pr_err("Invalid MTU setting\n");
+		netdev_err(netdev, "Invalid MTU setting\n");
 		return -EINVAL;
 	}
 	if (max_frame <= PCH_GBE_FRAME_SIZE_2048)
@@ -2274,9 +2314,10 @@ static int pch_gbe_change_mtu(struct net_device *netdev, int new_mtu)
 		adapter->hw.mac.max_frame_size = max_frame;
 	}
 
-	pr_debug("max_frame : %d  rx_buffer_len : %d  mtu : %d  max_frame_size : %d\n",
-		 max_frame, (u32) adapter->rx_buffer_len, netdev->mtu,
-		 adapter->hw.mac.max_frame_size);
+	netdev_dbg(netdev,
+		   "max_frame : %d  rx_buffer_len : %d  mtu : %d  max_frame_size : %d\n",
+		   max_frame, (u32) adapter->rx_buffer_len, netdev->mtu,
+		   adapter->hw.mac.max_frame_size);
 	return 0;
 }
 
@@ -2317,7 +2358,7 @@ static int pch_gbe_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 
-	pr_debug("cmd : 0x%04x\n", cmd);
+	netdev_dbg(netdev, "cmd : 0x%04x\n", cmd);
 
 	if (cmd == SIOCSHWTSTAMP)
 		return hwtstamp_ioctl(netdev, ifr, cmd);
@@ -2354,7 +2395,7 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 	bool poll_end_flag = false;
 	bool cleaned = false;
 
-	pr_debug("budget : %d\n", budget);
+	netdev_dbg(adapter->netdev, "budget : %d\n", budget);
 
 	pch_gbe_clean_rx(adapter, adapter->rx_ring, &work_done, budget);
 	cleaned = pch_gbe_clean_tx(adapter, adapter->tx_ring);
@@ -2377,8 +2418,9 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 		pch_gbe_enable_dma_rx(&adapter->hw);
 	}
 
-	pr_debug("poll_end_flag : %d  work_done : %d  budget : %d\n",
-		 poll_end_flag, work_done, budget);
+	netdev_dbg(adapter->netdev,
+		   "poll_end_flag : %d  work_done : %d  budget : %d\n",
+		   poll_end_flag, work_done, budget);
 
 	return work_done;
 }
@@ -2435,7 +2477,7 @@ static pci_ers_result_t pch_gbe_io_slot_reset(struct pci_dev *pdev)
 	struct pch_gbe_hw *hw = &adapter->hw;
 
 	if (pci_enable_device(pdev)) {
-		pr_err("Cannot re-enable PCI device after reset\n");
+		netdev_err(netdev, "Cannot re-enable PCI device after reset\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	pci_set_master(pdev);
@@ -2455,7 +2497,8 @@ static void pch_gbe_io_resume(struct pci_dev *pdev)
 
 	if (netif_running(netdev)) {
 		if (pch_gbe_up(adapter)) {
-			pr_debug("can't bring device back up after reset\n");
+			netdev_dbg(netdev,
+				   "can't bring device back up after reset\n");
 			return;
 		}
 	}
@@ -2509,7 +2552,7 @@ static int pch_gbe_resume(struct device *device)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		pr_err("Cannot enable PCI device from suspend\n");
+		netdev_err(netdev, "Cannot enable PCI device from suspend\n");
 		return err;
 	}
 	pci_set_master(pdev);
@@ -2609,7 +2652,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	adapter->ptp_pdev = pci_get_bus_and_slot(adapter->pdev->bus->number,
 					       PCI_DEVFN(12, 4));
 	if (ptp_filter_init(ptp_filter, ARRAY_SIZE(ptp_filter))) {
-		pr_err("Bad ptp filter\n");
+		dev_err(&pdev->dev, "Bad ptp filter\n");
 		return -EINVAL;
 	}
 

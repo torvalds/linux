@@ -633,6 +633,8 @@ struct pch_gbe_adapter {
 	struct pci_dev *ptp_pdev;
 };
 
+#define pch_gbe_hw_to_adapter(hw)	container_of(hw, struct pch_gbe_adapter, hw)
+
 extern const char pch_driver_version[];
 
 /* pch_gbe_main.c */
