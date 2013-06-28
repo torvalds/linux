@@ -257,7 +257,7 @@ static const struct pn533_poll_modulations poll_mod[] = {
 			.initiator_data.felica = {
 				.opcode = PN533_FELICA_OPC_SENSF_REQ,
 				.sc = PN533_FELICA_SENSF_SC_ALL,
-				.rc = PN533_FELICA_SENSF_RC_NO_SYSTEM_CODE,
+				.rc = PN533_FELICA_SENSF_RC_SYSTEM_CODE,
 				.tsn = 0x03,
 			},
 		},
@@ -270,7 +270,7 @@ static const struct pn533_poll_modulations poll_mod[] = {
 			.initiator_data.felica = {
 				.opcode = PN533_FELICA_OPC_SENSF_REQ,
 				.sc = PN533_FELICA_SENSF_SC_ALL,
-				.rc = PN533_FELICA_SENSF_RC_NO_SYSTEM_CODE,
+				.rc = PN533_FELICA_SENSF_RC_SYSTEM_CODE,
 				.tsn = 0x03,
 			},
 		 },
