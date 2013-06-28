@@ -91,8 +91,6 @@ typedef const unsigned int isp1362_reg_t;
 
 #define ISP1362_REG_NO(r)		((r) & REG_NO_MASK)
 
-#define _WARN_ON(x)	WARN_ON(x)
-
 #define ISP1362_REG(name, addr, width, rw) \
 static isp1362_reg_t ISP1362_REG_##name = ((addr) | (width) | (rw))
 
@@ -101,7 +99,6 @@ static isp1362_reg_t ISP1362_REG_##name = ((addr) | (width) | (rw))
 #else
 typedef const unsigned char isp1362_reg_t;
 #define ISP1362_REG_NO(r)		(r)
-#define _WARN_ON(x)			do {} while (0)
 
 #define ISP1362_REG(name, addr, width, rw) \
 static isp1362_reg_t ISP1362_REG_##name = addr
@@ -926,14 +923,11 @@ static void isp1362_read_buffer(struct isp1362_hcd *isp1362_hcd, void *buf, u16 
 	    __func__, len, offset, buf);
 
 	isp1362_write_reg16(isp1362_hcd, HCuPINT, HCuPINT_EOT);
-	_WARN_ON((isp1362_read_reg16(isp1362_hcd, HCuPINT) & HCuPINT_EOT));
 
 	isp1362_write_addr(isp1362_hcd, ISP1362_REG_HCDIRDATA);
 
 	isp1362_read_fifo(isp1362_hcd, buf, len);
-	_WARN_ON(!(isp1362_read_reg16(isp1362_hcd, HCuPINT) & HCuPINT_EOT));
 	isp1362_write_reg16(isp1362_hcd, HCuPINT, HCuPINT_EOT);
-	_WARN_ON((isp1362_read_reg16(isp1362_hcd, HCuPINT) & HCuPINT_EOT));
 }
 
 static void isp1362_write_buffer(struct isp1362_hcd *isp1362_hcd, void *buf, u16 offset, int len)
@@ -944,14 +938,11 @@ static void isp1362_write_buffer(struct isp1362_hcd *isp1362_hcd, void *buf, u16
 	    __func__, len, offset, buf);
 
 	isp1362_write_reg16(isp1362_hcd, HCuPINT, HCuPINT_EOT);
-	_WARN_ON((isp1362_read_reg16(isp1362_hcd, HCuPINT) & HCuPINT_EOT));
 
 	isp1362_write_addr(isp1362_hcd, ISP1362_REG_HCDIRDATA | ISP1362_REG_WRITE_OFFSET);
 	isp1362_write_fifo(isp1362_hcd, buf, len);
 
-	_WARN_ON(!(isp1362_read_reg16(isp1362_hcd, HCuPINT) & HCuPINT_EOT));
 	isp1362_write_reg16(isp1362_hcd, HCuPINT, HCuPINT_EOT);
-	_WARN_ON((isp1362_read_reg16(isp1362_hcd, HCuPINT) & HCuPINT_EOT));
 }
 
 static void __attribute__((unused)) dump_data(char *buf, int len)
