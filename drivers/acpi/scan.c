@@ -933,32 +933,43 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
 					   acpi_device_notify);
 }
 
-static int acpi_bus_driver_init(struct acpi_device *, struct acpi_driver *);
-static int acpi_device_probe(struct device * dev)
+static int acpi_device_probe(struct device *dev)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_driver *acpi_drv = to_acpi_driver(dev->driver);
 	int ret;
 
-	ret = acpi_bus_driver_init(acpi_dev, acpi_drv);
-	if (!ret) {
-		if (acpi_drv->ops.notify) {
-			ret = acpi_device_install_notify_handler(acpi_dev);
-			if (ret) {
-				if (acpi_drv->ops.remove)
-					acpi_drv->ops.remove(acpi_dev);
-				acpi_dev->driver = NULL;
-				acpi_dev->driver_data = NULL;
-				return ret;
-			}
-		}
+	if (acpi_dev->handler)
+		return -EINVAL;
 
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"Found driver [%s] for device [%s]\n",
-			acpi_drv->name, acpi_dev->pnp.bus_id));
-		get_device(dev);
+	if (!acpi_drv->ops.add)
+		return -ENOSYS;
+
+	ret = acpi_drv->ops.add(acpi_dev);
+	if (ret)
+		return ret;
+
+	acpi_dev->driver = acpi_drv;
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			  "Driver [%s] successfully bound to device [%s]\n",
+			  acpi_drv->name, acpi_dev->pnp.bus_id));
+
+	if (acpi_drv->ops.notify) {
+		ret = acpi_device_install_notify_handler(acpi_dev);
+		if (ret) {
+			if (acpi_drv->ops.remove)
+				acpi_drv->ops.remove(acpi_dev);
+
+			acpi_dev->driver = NULL;
+			acpi_dev->driver_data = NULL;
+			return ret;
+		}
 	}
-	return ret;
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found driver [%s] for device [%s]\n",
+			  acpi_drv->name, acpi_dev->pnp.bus_id));
+	get_device(dev);
+	return 0;
 }
 
 static int acpi_device_remove(struct device * dev)
@@ -1113,41 +1124,6 @@ static void acpi_device_unregister(struct acpi_device *device)
 /* --------------------------------------------------------------------------
                                  Driver Management
    -------------------------------------------------------------------------- */
-/**
- * acpi_bus_driver_init - add a device to a driver
- * @device: the device to add and initialize
- * @driver: driver for the device
- *
- * Used to initialize a device via its device driver.  Called whenever a
- * driver is bound to a device.  Invokes the driver's add() ops.
- */
-static int
-acpi_bus_driver_init(struct acpi_device *device, struct acpi_driver *driver)
-{
-	int result = 0;
-
-	if (!device || !driver)
-		return -EINVAL;
-
-	if (!driver->ops.add)
-		return -ENOSYS;
-
-	result = driver->ops.add(device);
-	if (result)
-		return result;
-
-	device->driver = driver;
-
-	/*
-	 * TBD - Configuration Management: Assign resources to device based
-	 * upon possible configuration and currently allocated resources.
-	 */
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "Driver successfully bound to device\n"));
-	return 0;
-}
-
 /**
  * acpi_bus_register_driver - register a driver with the ACPI bus
  * @driver: driver being registered
