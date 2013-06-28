@@ -51,6 +51,11 @@ void acpi_memory_hotplug_init(void);
 #else
 static inline void acpi_memory_hotplug_init(void) {}
 #endif
+#ifdef CONFIG_X86
+void acpi_cmos_rtc_init(void);
+#else
+static inline void acpi_cmos_rtc_init(void) {}
+#endif
 
 extern bool acpi_force_hot_remove;
 
