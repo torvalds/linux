@@ -412,8 +412,6 @@ static int snd_mfld_mc_probe(struct platform_device *pdev)
 
 static int snd_mfld_mc_remove(struct platform_device *pdev)
 {
-	struct mfld_mc_private *mc_drv_ctx = platform_get_drvdata(pdev);
-
 	pr_debug("snd_mfld_mc_remove called\n");
 	snd_soc_unregister_card(&snd_soc_card_mfld);
 	return 0;
