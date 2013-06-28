@@ -618,6 +618,10 @@
 #       define MRDCKD0_BYPASS                           (1 << 30)
 #       define MRDCKD1_BYPASS                           (1 << 31)
 
+#define TARGET_AND_CURRENT_PROFILE_INDEX                  0x66c
+#       define CURRENT_STATE_INDEX_MASK                   (0xf << 4)
+#       define CURRENT_STATE_INDEX_SHIFT                  4
+
 #define CG_AT                                           0x6d4
 #       define CG_R(x)					((x) << 0)
 #       define CG_R_MASK				(0xffff << 0)

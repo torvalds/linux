@@ -1936,6 +1936,7 @@ static struct radeon_asic cayman_asic = {
 		.get_sclk = &ni_dpm_get_sclk,
 		.get_mclk = &ni_dpm_get_mclk,
 		.print_power_state = &ni_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &ni_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,

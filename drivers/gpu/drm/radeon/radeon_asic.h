@@ -613,6 +613,8 @@ u32 ni_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 ni_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void ni_dpm_print_power_state(struct radeon_device *rdev,
 			      struct radeon_ps *ps);
+void ni_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						    struct seq_file *m);
 int trinity_dpm_init(struct radeon_device *rdev);
 int trinity_dpm_enable(struct radeon_device *rdev);
 void trinity_dpm_disable(struct radeon_device *rdev);
