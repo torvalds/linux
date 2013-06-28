@@ -91,13 +91,14 @@
 				compatible = "n25q00";
 				reg = <0>;      /* chip select */
 				spi-max-frequency = <100000000>;
+				m25p,fast-read;
 				page-size = <256>;
 				block-size = <16>; /* 2^16, 64KB */
-				quad = <1>;        /* 1-support quad */
-				tshsl-ns = <200>;
-				tsd2d-ns = <255>;
-				tchsh-ns = <20>;
-				tslch-ns = <20>;
+				read-delay = <4>;  /* delay value in read data capture register */
+				tshsl-ns = <50>;
+				tsd2d-ns = <50>;
+				tchsh-ns = <4>;
+				tslch-ns = <4>;
 
 				partition@0 {
 					/* 8MB for raw data. */
@@ -105,30 +106,9 @@
 					reg = <0x0 0x800000>;
 				};
 				partition@800000 {
-					/* 8MB for jffs2 data. */
+					/* 120MB for jffs2 data. */
 					label = "Flash 0 jffs2 Filesystem";
-					reg = <0x800000 0x800000>;
-				};
-			};
-
-			flash1: n25q128@1 {
-				#address-cells = <1>;
-				#size-cells = <1>;
-				compatible = "n25q128";
-				reg = <1>;      /* chip select */
-				spi-max-frequency = <100000000>;
-				page-size = <256>;
-				block-size = <16>; /* 2^16, 64KB */
-				quad = <1>;
-				tshsl-ns = <200>;
-				tsd2d-ns = <255>;
-				tchsh-ns = <20>;
-				tslch-ns = <20>;
-
-				partition@0 {
-					/* 16MB for user data. */
-					label = "Flash 1 User Data";
-					reg = <0x0 0x1000000>;
+					reg = <0x800000 0x7800000>;
 				};
 			};
 		};
