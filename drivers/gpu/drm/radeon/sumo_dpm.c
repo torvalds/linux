@@ -1752,6 +1752,34 @@ void sumo_dpm_print_power_state(struct radeon_device *rdev,
 	r600_dpm_print_ps_status(rdev, rps);
 }
 
+void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						      struct seq_file *m)
+{
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct sumo_ps *ps = sumo_get_ps(rps);
+	struct sumo_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURR_INDEX_MASK) >>
+		CURR_INDEX_SHIFT;
+
+	if (current_index == BOOST_DPM_LEVEL) {
+		pl = &pi->boost_pl;
+		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+		seq_printf(m, "power level %d    sclk: %u vddc: %u\n",
+			   current_index, pl->sclk,
+			   sumo_convert_voltage_index_to_value(rdev, pl->vddc_index));
+	} else if (current_index >= ps->num_levels) {
+		seq_printf(m, "invalid dpm profile %d\n", current_index);
+	} else {
+		pl = &ps->levels[current_index];
+		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+		seq_printf(m, "power level %d    sclk: %u vddc: %u\n",
+			   current_index, pl->sclk,
+			   sumo_convert_voltage_index_to_value(rdev, pl->vddc_index));
+	}
+}
+
 void sumo_dpm_fini(struct radeon_device *rdev)
 {
 	int i;

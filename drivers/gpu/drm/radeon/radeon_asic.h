@@ -565,6 +565,8 @@ u32 sumo_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 sumo_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void sumo_dpm_print_power_state(struct radeon_device *rdev,
 				struct radeon_ps *ps);
+void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						      struct seq_file *m);
 
 /*
  * cayman
