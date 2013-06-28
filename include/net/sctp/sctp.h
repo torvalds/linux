@@ -83,16 +83,6 @@
 #include <net/sctp/structs.h>
 #include <net/sctp/constants.h>
 
-
-/* Set SCTP_DEBUG flag via config if not already set. */
-#ifndef SCTP_DEBUG
-#ifdef CONFIG_SCTP_DBG_MSG
-#define SCTP_DEBUG	1
-#else
-#define SCTP_DEBUG      0
-#endif /* CONFIG_SCTP_DBG */
-#endif /* SCTP_DEBUG */
-
 #ifdef CONFIG_IP_SCTP_MODULE
 #define SCTP_PROTOSW_FLAG 0
 #else /* static! */
@@ -269,61 +259,6 @@ static inline void sctp_max_rto(struct sctp_association *asoc,
 			trans->af_specific->sockaddr_len);
 	}
 }
-
-/* Print debugging messages.  */
-#if SCTP_DEBUG
-extern int sctp_debug_flag;
-#define SCTP_DEBUG_PRINTK(fmt, args...)			\
-do {							\
-	if (sctp_debug_flag)				\
-		printk(KERN_DEBUG pr_fmt(fmt), ##args);	\
-} while (0)
-#define SCTP_DEBUG_PRINTK_CONT(fmt, args...)		\
-do {							\
-	if (sctp_debug_flag)				\
-		pr_cont(fmt, ##args);			\
-} while (0)
-#define SCTP_DEBUG_PRINTK_IPADDR(fmt_lead, fmt_trail,			\
-				 args_lead, addr, args_trail...)	\
-do {									\
-	const union sctp_addr *_addr = (addr);				\
-	if (sctp_debug_flag) {						\
-		if (_addr->sa.sa_family == AF_INET6) {			\
-			printk(KERN_DEBUG				\
-			       pr_fmt(fmt_lead "%pI6" fmt_trail),	\
-			       args_lead,				\
-			       &_addr->v6.sin6_addr,			\
-			       args_trail);				\
-		} else {						\
-			printk(KERN_DEBUG				\
-			       pr_fmt(fmt_lead "%pI4" fmt_trail),	\
-			       args_lead,				\
-			       &_addr->v4.sin_addr.s_addr,		\
-			       args_trail);				\
-		}							\
-	}								\
-} while (0)
-#define SCTP_ENABLE_DEBUG { sctp_debug_flag = 1; }
-#define SCTP_DISABLE_DEBUG { sctp_debug_flag = 0; }
-
-#define SCTP_ASSERT(expr, str, func) \
-	if (!(expr)) { \
-		SCTP_DEBUG_PRINTK("Assertion Failed: %s(%s) at %s:%s:%d\n", \
-			str, (#expr), __FILE__, __func__, __LINE__); \
-		func; \
-	}
-
-#else	/* SCTP_DEBUG */
-
-#define SCTP_DEBUG_PRINTK(whatever...)
-#define SCTP_DEBUG_PRINTK_CONT(fmt, args...)
-#define SCTP_DEBUG_PRINTK_IPADDR(whatever...)
-#define SCTP_ENABLE_DEBUG
-#define SCTP_DISABLE_DEBUG
-#define SCTP_ASSERT(expr, str, func)
-
-#endif /* SCTP_DEBUG */
-
 
 /*
  * Macros for keeping a global reference of object allocations.
@@ -595,16 +530,6 @@ static inline int param_type2af(__be16 type)
 	default:
 		return 0;
 	}
-}
-
-/* Perform some sanity checks. */
-static inline int sctp_sanity_check(void)
-{
-	SCTP_ASSERT(sizeof(struct sctp_ulpevent) <=
-		    sizeof(((struct sk_buff *)0)->cb),
-		    "SCTP: ulpevent does not fit in skb!\n", return 0);
-
-	return 1;
 }
 
 /* Warning: The following hash functions assume a power of two 'size'. */

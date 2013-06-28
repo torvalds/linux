@@ -193,8 +193,9 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		msg->expires_at = jiffies +
 				    msecs_to_jiffies(sinfo->sinfo_timetolive);
 		msg->can_abandon = 1;
-		SCTP_DEBUG_PRINTK("%s: msg:%p expires_at: %ld jiffies:%ld\n",
-				  __func__, msg, msg->expires_at, jiffies);
+
+		pr_debug("%s: msg:%p expires_at:%ld jiffies:%ld\n", __func__,
+			 msg, msg->expires_at, jiffies);
 	}
 
 	/* This is the biggest possible DATA chunk that can fit into

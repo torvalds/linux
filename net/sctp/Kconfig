@@ -30,7 +30,8 @@ menuconfig IP_SCTP
 	  homing at either or both ends of an association."
 
 	  To compile this protocol support as a module, choose M here: the
-	  module will be called sctp.
+	  module will be called sctp. Debug messages are handeled by the
+	  kernel's dynamic debugging framework.
 
 	  If in doubt, say N.
 
@@ -48,13 +49,14 @@ config NET_SCTPPROBE
         To compile this code as a module, choose M here: the
         module will be called sctp_probe.
 
-config SCTP_DBG_MSG
-	bool "SCTP: Debug messages"
+config SCTP_DBG_TSNS
+	bool "SCTP: Debug transactions"
 	help
-	  If you say Y, this will enable verbose debugging messages. 
+	  If you say Y, this will enable transaction debugging, visible
+	  from the kernel's dynamic debugging framework.
 
 	  If unsure, say N.  However, if you are running into problems, use 
-	  this option to gather detailed trace information
+	  this option to gather outqueue trace information.
 
 config SCTP_DBG_OBJCNT
 	bool "SCTP: Debug object counts"

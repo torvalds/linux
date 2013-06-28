@@ -741,7 +741,8 @@ struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc)
 
 	memset(gabs, 0, sizeof(gabs));
 	ctsn = sctp_tsnmap_get_ctsn(map);
-	SCTP_DEBUG_PRINTK("sackCTSNAck sent:  0x%x.\n", ctsn);
+
+	pr_debug("%s: sackCTSNAck sent:0x%x\n", __func__, ctsn);
 
 	/* How much room is needed in the chunk? */
 	num_gabs = sctp_tsnmap_num_gabs(map, gabs);
@@ -1287,10 +1288,8 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *skb,
 
 	if (!retval)
 		goto nodata;
-
-	if (!sk) {
-		SCTP_DEBUG_PRINTK("chunkifying skb %p w/o an sk\n", skb);
-	}
+	if (!sk)
+		pr_debug("%s: chunkifying skb:%p w/o an sk\n", __func__, skb);
 
 	INIT_LIST_HEAD(&retval->list);
 	retval->skb		= skb;
@@ -2191,8 +2190,9 @@ static sctp_ierror_t sctp_verify_param(struct net *net,
 		break;
 fallthrough:
 	default:
-		SCTP_DEBUG_PRINTK("Unrecognized param: %d for chunk %d.\n",
-				ntohs(param.p->type), cid);
+		pr_debug("%s: unrecognized param:%d for chunk:%d\n",
+			 __func__, ntohs(param.p->type), cid);
+
 		retval = sctp_process_unk_param(asoc, param, chunk, err_chunk);
 		break;
 	}
@@ -2516,7 +2516,7 @@ do_addr_param:
 		break;
 
 	case SCTP_PARAM_HOST_NAME_ADDRESS:
-		SCTP_DEBUG_PRINTK("unimplemented SCTP_HOST_NAME_ADDRESS\n");
+		pr_debug("%s: unimplemented SCTP_HOST_NAME_ADDRESS\n", __func__);
 		break;
 
 	case SCTP_PARAM_SUPPORTED_ADDRESS_TYPES:
@@ -2662,8 +2662,8 @@ fall_through:
 		 * called prior to this routine.  Simply log the error
 		 * here.
 		 */
-		SCTP_DEBUG_PRINTK("Ignoring param: %d for association %p.\n",
-				  ntohs(param.p->type), asoc);
+		pr_debug("%s: ignoring param:%d for association:%p.\n",
+			 __func__, ntohs(param.p->type), asoc);
 		break;
 	}
 
@@ -2805,7 +2805,10 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
 			totallen += paramlen;
 			totallen += addr_param_len;
 			del_pickup = 1;
-			SCTP_DEBUG_PRINTK("mkasconf_update_ip: picked same-scope del_pending addr, totallen for all addresses is %d\n", totallen);
+
+			pr_debug("%s: picked same-scope del_pending addr, "
+				 "totallen for all addresses is %d\n",
+				 __func__, totallen);
 		}
 	}
 

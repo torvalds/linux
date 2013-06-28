@@ -249,7 +249,10 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 {
 	struct sock *sk;
 
-	SCTP_ASSERT(ep->base.dead, "Endpoint is not dead", return);
+	if (unlikely(!ep->base.dead)) {
+		WARN(1, "Attempt to destroy undead endpoint %p!\n", ep);
+		return;
+	}
 
 	/* Free the digest buffer */
 	kfree(ep->digest);
