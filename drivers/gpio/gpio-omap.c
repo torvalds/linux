@@ -1090,6 +1090,8 @@ static int omap_gpio_irq_map(struct irq_domain *d, unsigned int virq,
 			     irq_hw_number_t hwirq)
 {
 	struct gpio_bank *bank = d->host_data;
+	int gpio;
+	int ret;
 
 	if (!bank)
 		return -EINVAL;
@@ -1102,6 +1104,22 @@ static int omap_gpio_irq_map(struct irq_domain *d, unsigned int virq,
 		irq_set_chip_and_handler(virq, &gpio_irq_chip,
 					 handle_simple_irq);
 		set_irq_flags(virq, IRQF_VALID);
+	}
+
+	/*
+	 * REVISIT most GPIO IRQ chip drivers need to call
+	 * gpio_request() before a GPIO line can be used as an
+	 * IRQ. Ideally this should be handled by the IRQ core
+	 * but until then this has to be done on a per driver
+	 * basis. Remove this once this is managed by the core.
+	 */
+	if (bank->chip.of_node) {
+		gpio = irq_to_gpio(bank, hwirq);
+		ret = gpio_request_one(gpio, GPIOF_IN, NULL);
+		if (ret) {
+			dev_err(bank->dev, "Could not request GPIO%d\n", gpio);
+			return ret;
+		}
 	}
 
 	return 0;
