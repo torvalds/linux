@@ -1592,6 +1592,9 @@ struct cfg80211_disassoc_request {
  *	user space. Otherwise, port is marked authorized by default.
  * @basic_rates: bitmap of basic rates to use when creating the IBSS
  * @mcast_rate: per-band multicast rate index + 1 (0: disabled)
+ * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
+ *   will be used in ht_capa.  Un-supported values will be ignored.
+ * @ht_capa_mask:  The bits of ht_capa which are to be used.
  */
 struct cfg80211_ibss_params {
 	u8 *ssid;
@@ -1605,6 +1608,8 @@ struct cfg80211_ibss_params {
 	bool privacy;
 	bool control_port;
 	int mcast_rate[IEEE80211_NUM_BANDS];
+	struct ieee80211_ht_cap ht_capa;
+	struct ieee80211_ht_cap ht_capa_mask;
 };
 
 /**
