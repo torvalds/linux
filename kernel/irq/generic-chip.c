@@ -45,7 +45,7 @@ void irq_gc_mask_disable_reg(struct irq_data *d)
 }
 
 /**
- * irq_gc_mask_set_mask_bit - Mask chip via setting bit in mask register
+ * irq_gc_mask_set_bit - Mask chip via setting bit in mask register
  * @d: irq_data
  *
  * Chip has a single mask register. Values of this register are cached
@@ -65,7 +65,7 @@ void irq_gc_mask_set_bit(struct irq_data *d)
 EXPORT_SYMBOL_GPL(irq_gc_mask_set_bit);
 
 /**
- * irq_gc_mask_set_mask_bit - Mask chip via clearing bit in mask register
+ * irq_gc_mask_clr_bit - Mask chip via clearing bit in mask register
  * @d: irq_data
  *
  * Chip has a single mask register. Values of this register are cached
@@ -167,7 +167,8 @@ void irq_gc_eoi(struct irq_data *d)
 
 /**
  * irq_gc_set_wake - Set/clr wake bit for an interrupt
- * @d: irq_data
+ * @d:  irq_data
+ * @on: Indicates whether the wake bit should be set or cleared
  *
  * For chips where the wake from suspend functionality is not
  * configured in a separate register and the wakeup active state is
@@ -339,7 +340,7 @@ EXPORT_SYMBOL_GPL(irq_get_domain_generic_chip);
  */
 static struct lock_class_key irq_nested_lock_class;
 
-/**
+/*
  * irq_map_generic_chip - Map a generic chip for an irq domain
  */
 static int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
@@ -454,7 +455,7 @@ EXPORT_SYMBOL_GPL(irq_setup_generic_chip);
 /**
  * irq_setup_alt_chip - Switch to alternative chip
  * @d:		irq_data for this interrupt
- * @type	Flow type to be initialized
+ * @type:	Flow type to be initialized
  *
  * Only to be called from chip->irq_set_type() callbacks.
  */
