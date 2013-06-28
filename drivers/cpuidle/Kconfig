@@ -1,7 +1,9 @@
 
-config CPU_IDLE
+menuconfig CPU_IDLE
 	bool "CPU idle PM support"
 	default y if ACPI || PPC_PSERIES
+	select CPU_IDLE_GOV_LADDER if (!NO_HZ && !NO_HZ_IDLE)
+	select CPU_IDLE_GOV_MENU if (NO_HZ || NO_HZ_IDLE)
 	help
 	  CPU idle is a generic framework for supporting software-controlled
 	  idle processor power management.  It includes modular cross-platform
@@ -9,9 +11,10 @@ config CPU_IDLE
 
 	  If you're using an ACPI-enabled platform, you should say Y here.
 
+if CPU_IDLE
+
 config CPU_IDLE_MULTIPLE_DRIVERS
         bool "Support multiple cpuidle drivers"
-        depends on CPU_IDLE
         default n
         help
          Allows the cpuidle framework to use different drivers for each CPU.
@@ -19,19 +22,12 @@ config CPU_IDLE_MULTIPLE_DRIVERS
          states. If unsure say N.
 
 config CPU_IDLE_GOV_LADDER
-	bool
-	depends on CPU_IDLE
+	bool "Ladder governor (for periodic timer tick)"
 	default y
 
 config CPU_IDLE_GOV_MENU
-	bool
-	depends on CPU_IDLE && NO_HZ
+	bool "Menu governor (for tickless system)"
 	default y
-
-config ARCH_NEEDS_CPU_IDLE_COUPLED
-	def_bool n
-
-if CPU_IDLE
 
 config CPU_IDLE_CALXEDA
 	bool "CPU Idle Driver for Calxeda processors"
@@ -39,4 +35,13 @@ config CPU_IDLE_CALXEDA
 	help
 	  Select this to enable cpuidle on Calxeda processors.
 
+config CPU_IDLE_ZYNQ
+	bool "CPU Idle Driver for Xilinx Zynq processors"
+	depends on ARCH_ZYNQ
+	help
+	  Select this to enable cpuidle on Xilinx Zynq processors.
+
 endif
+
+config ARCH_NEEDS_CPU_IDLE_COUPLED
+	def_bool n
