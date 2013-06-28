@@ -132,7 +132,6 @@ int main(void)
 	DEFINE(THREAD_SIER, offsetof(struct thread_struct, sier));
 	DEFINE(THREAD_MMCR0, offsetof(struct thread_struct, mmcr0));
 	DEFINE(THREAD_MMCR2, offsetof(struct thread_struct, mmcr2));
-	DEFINE(THREAD_MMCRA, offsetof(struct thread_struct, mmcra));
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	DEFINE(PACATMSCRATCH, offsetof(struct paca_struct, tm_scratch));

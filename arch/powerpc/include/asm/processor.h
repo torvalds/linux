@@ -289,7 +289,6 @@ struct thread_struct {
 	unsigned long	sier;
 	unsigned long	mmcr0;
 	unsigned long	mmcr2;
-	unsigned long	mmcra;
 #endif
 };
 
