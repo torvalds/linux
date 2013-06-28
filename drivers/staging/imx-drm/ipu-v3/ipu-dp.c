@@ -317,9 +317,8 @@ int ipu_dp_init(struct ipu_soc *ipu, struct device *dev, unsigned long base)
 	ipu->dp_priv = priv;
 
 	priv->base = devm_ioremap(dev, base, PAGE_SIZE);
-	if (!priv->base) {
+	if (!priv->base)
 		return -ENOMEM;
-	}
 
 	mutex_init(&priv->mutex);
 
