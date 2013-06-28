@@ -379,12 +379,7 @@ asmlinkage void secondary_start_kernel(void)
 
 	setup_priv();
 
-	/*
-	 * Enable local interrupts.
-	 */
-	tbi_startup_interrupt(TBID_SIGNUM_TRT);
 	notify_cpu_starting(cpu);
-	local_irq_enable();
 
 	pr_info("CPU%u (thread %u): Booted secondary processor\n",
 		cpu, cpu_2_hwthread_id[cpu]);
@@ -396,6 +391,12 @@ asmlinkage void secondary_start_kernel(void)
 	 * OK, now it's safe to let the boot CPU continue
 	 */
 	set_cpu_online(cpu, true);
+
+	/*
+	 * Enable local interrupts.
+	 */
+	tbi_startup_interrupt(TBID_SIGNUM_TRT);
+	local_irq_enable();
 
 	/*
 	 * OK, it's off to the idle thread for us
