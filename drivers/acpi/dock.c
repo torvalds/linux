@@ -100,7 +100,7 @@ struct dock_dependent_device {
  *
  * Add the dependent device to the dock's dependent device list.
  */
-static int
+static int __init
 add_dock_dependent_device(struct dock_station *ds, acpi_handle handle)
 {
 	struct dock_dependent_device *dd;
@@ -244,7 +244,7 @@ static int is_dock(acpi_handle handle)
 	return 1;
 }
 
-static int is_ejectable(acpi_handle handle)
+static int __init is_ejectable(acpi_handle handle)
 {
 	acpi_status status;
 	acpi_handle tmp;
@@ -255,7 +255,7 @@ static int is_ejectable(acpi_handle handle)
 	return 1;
 }
 
-static int is_ata(acpi_handle handle)
+static int __init is_ata(acpi_handle handle)
 {
 	acpi_handle tmp;
 
@@ -268,7 +268,7 @@ static int is_ata(acpi_handle handle)
 	return 0;
 }
 
-static int is_battery(acpi_handle handle)
+static int __init is_battery(acpi_handle handle)
 {
 	struct acpi_device_info *info;
 	int ret = 1;
@@ -284,7 +284,7 @@ static int is_battery(acpi_handle handle)
 	return ret;
 }
 
-static int is_ejectable_bay(acpi_handle handle)
+static int __init is_ejectable_bay(acpi_handle handle)
 {
 	acpi_handle phandle;
 
@@ -848,7 +848,7 @@ static struct notifier_block dock_acpi_notifier = {
  * check to see if an object has an _EJD method.  If it does, then it
  * will see if it is dependent on the dock station.
  */
-static acpi_status
+static acpi_status __init
 find_dock_devices(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	acpi_status status;
