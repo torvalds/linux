@@ -2392,7 +2392,7 @@ static void rt2800_config_channel_rf55xx(struct rt2x00_dev *rt2x00dev,
 	rt2800_rfcsr_write(rt2x00dev, 49, rfcsr);
 
 	rt2800_rfcsr_read(rt2x00dev, 50, &rfcsr);
-	if (info->default_power1 > power_bound)
+	if (info->default_power2 > power_bound)
 		rt2x00_set_field8(&rfcsr, RFCSR50_TX, power_bound);
 	else
 		rt2x00_set_field8(&rfcsr, RFCSR50_TX, info->default_power2);
@@ -2678,30 +2678,53 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 
 	tx_pin = 0;
 
-	/* Turn on unused PA or LNA when not using 1T or 1R */
-	if (rt2x00dev->default_ant.tx_chain_num == 2) {
+	switch (rt2x00dev->default_ant.tx_chain_num) {
+	case 3:
+		/* Turn on tertiary PAs */
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_A2_EN,
+				   rf->channel > 14);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G2_EN,
+				   rf->channel <= 14);
+		/* fall-through */
+	case 2:
+		/* Turn on secondary PAs */
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_A1_EN,
 				   rf->channel > 14);
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G1_EN,
 				   rf->channel <= 14);
+		/* fall-through */
+	case 1:
+		/* Turn on primary PAs */
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_A0_EN,
+				   rf->channel > 14);
+		if (test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags))
+			rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G0_EN, 1);
+		else
+			rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G0_EN,
+					   rf->channel <= 14);
+		break;
 	}
 
-	/* Turn on unused PA or LNA when not using 1T or 1R */
-	if (rt2x00dev->default_ant.rx_chain_num == 2) {
+	switch (rt2x00dev->default_ant.rx_chain_num) {
+	case 3:
+		/* Turn on tertiary LNAs */
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A2_EN, 1);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G2_EN, 1);
+		/* fall-through */
+	case 2:
+		/* Turn on secondary LNAs */
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A1_EN, 1);
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G1_EN, 1);
+		/* fall-through */
+	case 1:
+		/* Turn on primary LNAs */
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A0_EN, 1);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G0_EN, 1);
+		break;
 	}
 
-	rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A0_EN, 1);
-	rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G0_EN, 1);
 	rt2x00_set_field32(&tx_pin, TX_PIN_CFG_RFTR_EN, 1);
 	rt2x00_set_field32(&tx_pin, TX_PIN_CFG_TRSW_EN, 1);
-	if (test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags))
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G0_EN, 1);
-	else
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G0_EN,
-				   rf->channel <= 14);
-	rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_A0_EN, rf->channel > 14);
 
 	rt2800_register_write(rt2x00dev, TX_PIN_CFG, tx_pin);
 
@@ -6254,8 +6277,8 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		default_power2 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A2);
 
 		for (i = 14; i < spec->num_channels; i++) {
-			info[i].default_power1 = default_power1[i];
-			info[i].default_power2 = default_power2[i];
+			info[i].default_power1 = default_power1[i - 14];
+			info[i].default_power2 = default_power2[i - 14];
 		}
 	}
 

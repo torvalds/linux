@@ -1111,11 +1111,8 @@ void iwl_drv_stop(struct iwl_drv *drv)
 /* shared module parameters */
 struct iwl_mod_params iwlwifi_mod_params = {
 	.restart_fw = true,
-	.plcp_check = true,
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
-	.bt_ch_announce = true,
-	.auto_agg = true,
 	.wd_disable = true,
 	/* the rest are 0 by default */
 };
@@ -1223,14 +1220,6 @@ module_param_named(antenna_coupling, iwlwifi_mod_params.ant_coupling,
 MODULE_PARM_DESC(antenna_coupling,
 		 "specify antenna coupling in dB (defualt: 0 dB)");
 
-module_param_named(bt_ch_inhibition, iwlwifi_mod_params.bt_ch_announce,
-		   bool, S_IRUGO);
-MODULE_PARM_DESC(bt_ch_inhibition,
-		 "Enable BT channel inhibition (default: enable)");
-
-module_param_named(plcp_check, iwlwifi_mod_params.plcp_check, bool, S_IRUGO);
-MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");
-
 module_param_named(wd_disable, iwlwifi_mod_params.wd_disable, int, S_IRUGO);
 MODULE_PARM_DESC(wd_disable,
 		"Disable stuck queue watchdog timer 0=system default, "
@@ -1272,8 +1261,3 @@ module_param_named(power_level, iwlwifi_mod_params.power_level,
 		int, S_IRUGO);
 MODULE_PARM_DESC(power_level,
 		 "default power save level (range from 1 - 5, default: 1)");
-
-module_param_named(auto_agg, iwlwifi_mod_params.auto_agg,
-		bool, S_IRUGO);
-MODULE_PARM_DESC(auto_agg,
-		 "enable agg w/o check traffic load (default: enable)");

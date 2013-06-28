@@ -83,6 +83,7 @@ static int wiphy_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static void cfg80211_leave_all(struct cfg80211_registered_device *rdev)
 {
 	struct wireless_dev *wdev;
@@ -91,7 +92,6 @@ static void cfg80211_leave_all(struct cfg80211_registered_device *rdev)
 		cfg80211_leave(rdev, wdev);
 }
 
-#ifdef CONFIG_PM
 static int wiphy_suspend(struct device *dev, pm_message_t state)
 {
 	struct cfg80211_registered_device *rdev = dev_to_rdev(dev);

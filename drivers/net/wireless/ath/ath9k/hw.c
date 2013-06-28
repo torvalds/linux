@@ -2599,7 +2599,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		if (!(ah->ent_mode & AR_ENT_OTP_49GHZ_DISABLE))
 			pCap->hw_caps |= ATH9K_HW_CAP_MCI;
 
-		if (AR_SREV_9462_20(ah))
+		if (AR_SREV_9462_20_OR_LATER(ah))
 			pCap->hw_caps |= ATH9K_HW_CAP_RTT;
 	}
 

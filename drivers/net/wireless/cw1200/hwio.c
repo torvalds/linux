@@ -69,31 +69,33 @@ static int __cw1200_reg_write(struct cw1200_common *priv, u16 addr,
 static inline int __cw1200_reg_read_32(struct cw1200_common *priv,
 					u16 addr, u32 *val)
 {
-	int i = __cw1200_reg_read(priv, addr, val, sizeof(*val), 0);
-	*val = le32_to_cpu(*val);
+	__le32 tmp;
+	int i = __cw1200_reg_read(priv, addr, &tmp, sizeof(tmp), 0);
+	*val = le32_to_cpu(tmp);
 	return i;
 }
 
 static inline int __cw1200_reg_write_32(struct cw1200_common *priv,
 					u16 addr, u32 val)
 {
-	val = cpu_to_le32(val);
-	return __cw1200_reg_write(priv, addr, &val, sizeof(val), 0);
+	__le32 tmp = cpu_to_le32(val);
+	return __cw1200_reg_write(priv, addr, &tmp, sizeof(tmp), 0);
 }
 
 static inline int __cw1200_reg_read_16(struct cw1200_common *priv,
 					u16 addr, u16 *val)
 {
-	int i = __cw1200_reg_read(priv, addr, val, sizeof(*val), 0);
-	*val = le16_to_cpu(*val);
+	__le16 tmp;
+	int i = __cw1200_reg_read(priv, addr, &tmp, sizeof(tmp), 0);
+	*val = le16_to_cpu(tmp);
 	return i;
 }
 
 static inline int __cw1200_reg_write_16(struct cw1200_common *priv,
 					u16 addr, u16 val)
 {
-	val = cpu_to_le16(val);
-	return __cw1200_reg_write(priv, addr, &val, sizeof(val), 0);
+	__le16 tmp = cpu_to_le16(val);
+	return __cw1200_reg_write(priv, addr, &tmp, sizeof(tmp), 0);
 }
 
 int cw1200_reg_read(struct cw1200_common *priv, u16 addr, void *buf,

@@ -202,6 +202,22 @@ static const __le32 iwl_concurrent_lookup[BT_COEX_LUT_SIZE] = {
 	cpu_to_le32(0x00000000),
 };
 
+/* single shared antenna */
+static const __le32 iwl_single_shared_ant_lookup[BT_COEX_LUT_SIZE] = {
+	cpu_to_le32(0x40000000),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0x44000000),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0x40000000),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0x44000000),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0xC0004000),
+	cpu_to_le32(0xF0005000),
+	cpu_to_le32(0xC0004000),
+	cpu_to_le32(0xF0005000),
+};
+
 int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 {
 	struct iwl_bt_coex_cmd cmd = {
@@ -225,7 +241,10 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 					BT_VALID_REDUCED_TX_POWER |
 					BT_VALID_LUT);
 
-	if (is_loose_coex())
+	if (mvm->cfg->bt_shared_single_ant)
+		memcpy(&cmd.decision_lut, iwl_single_shared_ant_lookup,
+		       sizeof(iwl_single_shared_ant_lookup));
+	else if (is_loose_coex())
 		memcpy(&cmd.decision_lut, iwl_loose_lookup,
 		       sizeof(iwl_tight_lookup));
 	else

@@ -54,7 +54,6 @@ static int ath10k_send_key(struct ath10k_vif *arvif,
 		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
-		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
 		arg.key_cipher = WMI_CIPHER_TKIP;
 		arg.key_txmic_len = 8;
 		arg.key_rxmic_len = 8;
@@ -237,6 +236,8 @@ chan_to_phymode(const struct cfg80211_chan_def *chandef)
 		case NL80211_CHAN_WIDTH_40:
 			phymode = MODE_11NG_HT40;
 			break;
+		case NL80211_CHAN_WIDTH_5:
+		case NL80211_CHAN_WIDTH_10:
 		case NL80211_CHAN_WIDTH_80:
 		case NL80211_CHAN_WIDTH_80P80:
 		case NL80211_CHAN_WIDTH_160:
@@ -258,6 +259,8 @@ chan_to_phymode(const struct cfg80211_chan_def *chandef)
 		case NL80211_CHAN_WIDTH_80:
 			phymode = MODE_11AC_VHT80;
 			break;
+		case NL80211_CHAN_WIDTH_5:
+		case NL80211_CHAN_WIDTH_10:
 		case NL80211_CHAN_WIDTH_80P80:
 		case NL80211_CHAN_WIDTH_160:
 			phymode = MODE_UNKNOWN;
@@ -2721,30 +2724,30 @@ static const struct ieee80211_channel ath10k_2ghz_channels[] = {
 };
 
 static const struct ieee80211_channel ath10k_5ghz_channels[] = {
-	CHAN5G(36, 5180, 14),
-	CHAN5G(40, 5200, 15),
-	CHAN5G(44, 5220, 16),
-	CHAN5G(48, 5240, 17),
-	CHAN5G(52, 5260, 18),
-	CHAN5G(56, 5280, 19),
-	CHAN5G(60, 5300, 20),
-	CHAN5G(64, 5320, 21),
-	CHAN5G(100, 5500, 22),
-	CHAN5G(104, 5520, 23),
-	CHAN5G(108, 5540, 24),
-	CHAN5G(112, 5560, 25),
-	CHAN5G(116, 5580, 26),
-	CHAN5G(120, 5600, 27),
-	CHAN5G(124, 5620, 28),
-	CHAN5G(128, 5640, 29),
-	CHAN5G(132, 5660, 30),
-	CHAN5G(136, 5680, 31),
-	CHAN5G(140, 5700, 32),
-	CHAN5G(149, 5745, 33),
-	CHAN5G(153, 5765, 34),
-	CHAN5G(157, 5785, 35),
-	CHAN5G(161, 5805, 36),
-	CHAN5G(165, 5825, 37),
+	CHAN5G(36, 5180, 0),
+	CHAN5G(40, 5200, 0),
+	CHAN5G(44, 5220, 0),
+	CHAN5G(48, 5240, 0),
+	CHAN5G(52, 5260, 0),
+	CHAN5G(56, 5280, 0),
+	CHAN5G(60, 5300, 0),
+	CHAN5G(64, 5320, 0),
+	CHAN5G(100, 5500, 0),
+	CHAN5G(104, 5520, 0),
+	CHAN5G(108, 5540, 0),
+	CHAN5G(112, 5560, 0),
+	CHAN5G(116, 5580, 0),
+	CHAN5G(120, 5600, 0),
+	CHAN5G(124, 5620, 0),
+	CHAN5G(128, 5640, 0),
+	CHAN5G(132, 5660, 0),
+	CHAN5G(136, 5680, 0),
+	CHAN5G(140, 5700, 0),
+	CHAN5G(149, 5745, 0),
+	CHAN5G(153, 5765, 0),
+	CHAN5G(157, 5785, 0),
+	CHAN5G(161, 5805, 0),
+	CHAN5G(165, 5825, 0),
 };
 
 static struct ieee80211_rate ath10k_rates[] = {

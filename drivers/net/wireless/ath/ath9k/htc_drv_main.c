@@ -1183,7 +1183,7 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		mutex_lock(&priv->htc_pm_lock);
 
 		priv->ps_idle = !!(conf->flags & IEEE80211_CONF_IDLE);
-		if (priv->ps_idle)
+		if (!priv->ps_idle)
 			chip_reset = true;
 
 		mutex_unlock(&priv->htc_pm_lock);
@@ -1774,6 +1774,43 @@ static int ath9k_htc_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
+struct base_eep_header *ath9k_htc_get_eeprom_base(struct ath9k_htc_priv *priv)
+{
+	struct base_eep_header *pBase = NULL;
+	/*
+	 * This can be done since all the 3 EEPROM families have the
+	 * same base header upto a certain point, and we are interested in
+	 * the data only upto that point.
+	 */
+
+	if (AR_SREV_9271(priv->ah))
+		pBase = (struct base_eep_header *)
+			&priv->ah->eeprom.map4k.baseEepHeader;
+	else if (priv->ah->hw_version.usbdev == AR9280_USB)
+		pBase = (struct base_eep_header *)
+			&priv->ah->eeprom.def.baseEepHeader;
+	else if (priv->ah->hw_version.usbdev == AR9287_USB)
+		pBase = (struct base_eep_header *)
+			&priv->ah->eeprom.map9287.baseEepHeader;
+	return pBase;
+}
+
+
+static int ath9k_htc_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant,
+				 u32 *rx_ant)
+{
+	struct ath9k_htc_priv *priv = hw->priv;
+	struct base_eep_header *pBase = ath9k_htc_get_eeprom_base(priv);
+	if (pBase) {
+		*tx_ant = pBase->txMask;
+		*rx_ant = pBase->rxMask;
+	} else {
+		*tx_ant = 0;
+		*rx_ant = 0;
+	}
+	return 0;
+}
+
 struct ieee80211_ops ath9k_htc_ops = {
 	.tx                 = ath9k_htc_tx,
 	.start              = ath9k_htc_start,
@@ -1799,4 +1836,11 @@ struct ieee80211_ops ath9k_htc_ops = {
 	.set_coverage_class = ath9k_htc_set_coverage_class,
 	.set_bitrate_mask   = ath9k_htc_set_bitrate_mask,
 	.get_stats	    = ath9k_htc_get_stats,
+	.get_antenna	    = ath9k_htc_get_antenna,
+
+#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+	.get_et_sset_count  = ath9k_htc_get_et_sset_count,
+	.get_et_stats       = ath9k_htc_get_et_stats,
+	.get_et_strings     = ath9k_htc_get_et_strings,
+#endif
 };

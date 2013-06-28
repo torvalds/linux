@@ -188,6 +188,8 @@ struct ieee80211_channel {
  *	when used with 802.11g (on the 2.4 GHz band); filled by the
  *	core code when registering the wiphy.
  * @IEEE80211_RATE_ERP_G: This is an ERP rate in 802.11g mode.
+ * @IEEE80211_RATE_SUPPORTS_5MHZ: Rate can be used in 5 MHz mode
+ * @IEEE80211_RATE_SUPPORTS_10MHZ: Rate can be used in 10 MHz mode
  */
 enum ieee80211_rate_flags {
 	IEEE80211_RATE_SHORT_PREAMBLE	= 1<<0,
@@ -195,6 +197,8 @@ enum ieee80211_rate_flags {
 	IEEE80211_RATE_MANDATORY_B	= 1<<2,
 	IEEE80211_RATE_MANDATORY_G	= 1<<3,
 	IEEE80211_RATE_ERP_G		= 1<<4,
+	IEEE80211_RATE_SUPPORTS_5MHZ	= 1<<5,
+	IEEE80211_RATE_SUPPORTS_10MHZ	= 1<<6,
 };
 
 /**
@@ -431,6 +435,30 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef);
 bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			     const struct cfg80211_chan_def *chandef,
 			     u32 prohibited_flags);
+
+/**
+ * ieee80211_chandef_rate_flags - returns rate flags for a channel
+ *
+ * In some channel types, not all rates may be used - for example CCK
+ * rates may not be used in 5/10 MHz channels.
+ *
+ * @chandef: channel definition for the channel
+ *
+ * Returns: rate flags which apply for this channel
+ */
+static inline enum ieee80211_rate_flags
+ieee80211_chandef_rate_flags(struct cfg80211_chan_def *chandef)
+{
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_5:
+		return IEEE80211_RATE_SUPPORTS_5MHZ;
+	case NL80211_CHAN_WIDTH_10:
+		return IEEE80211_RATE_SUPPORTS_10MHZ;
+	default:
+		break;
+	}
+	return 0;
+}
 
 /**
  * enum survey_info_flags - survey information flags
@@ -1431,7 +1459,8 @@ const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie);
  * This structure provides information needed to complete IEEE 802.11
  * authentication.
  *
- * @bss: The BSS to authenticate with.
+ * @bss: The BSS to authenticate with, the callee must obtain a reference
+ *	to it if it needs to keep it.
  * @auth_type: Authentication type (algorithm)
  * @ie: Extra IEs to add to Authentication frame or %NULL
  * @ie_len: Length of ie buffer in octets
@@ -1469,11 +1498,10 @@ enum cfg80211_assoc_req_flags {
  *
  * This structure provides information needed to complete IEEE 802.11
  * (re)association.
- * @bss: The BSS to associate with. If the call is successful the driver
- *	is given a reference that it must release, normally via a call to
- *	cfg80211_send_rx_assoc(), or, if association timed out, with a
- *	call to cfg80211_put_bss() (in addition to calling
- *	cfg80211_send_assoc_timeout())
+ * @bss: The BSS to associate with. If the call is successful the driver is
+ *	given a reference that it must give back to cfg80211_send_rx_assoc()
+ *	or to cfg80211_assoc_timeout(). To ensure proper refcounting, new
+ *	association requests while already associating must be rejected.
  * @ie: Extra IEs to add to (Re)Association Request frame or %NULL
  * @ie_len: Length of ie buffer in octets
  * @use_mfp: Use management frame protection (IEEE 802.11w) in this association
@@ -2342,6 +2370,7 @@ struct cfg80211_ops {
  *	responds to probe-requests in hardware.
  * @WIPHY_FLAG_OFFCHAN_TX: Device supports direct off-channel TX.
  * @WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL: Device supports remain-on-channel call.
+ * @WIPHY_FLAG_SUPPORTS_5_10_MHZ: Device supports 5 MHz and 10 MHz channels.
  */
 enum wiphy_flags {
 	WIPHY_FLAG_CUSTOM_REGULATORY		= BIT(0),
@@ -2365,6 +2394,7 @@ enum wiphy_flags {
 	WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD	= BIT(19),
 	WIPHY_FLAG_OFFCHAN_TX			= BIT(20),
 	WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL	= BIT(21),
+	WIPHY_FLAG_SUPPORTS_5_10_MHZ		= BIT(22),
 };
 
 /**
@@ -3492,11 +3522,11 @@ void cfg80211_rx_assoc_resp(struct net_device *dev,
 /**
  * cfg80211_assoc_timeout - notification of timed out association
  * @dev: network device
- * @addr: The MAC address of the device with which the association timed out
+ * @bss: The BSS entry with which association timed out.
  *
  * This function may sleep. The caller must hold the corresponding wdev's mutex.
  */
-void cfg80211_assoc_timeout(struct net_device *dev, const u8 *addr);
+void cfg80211_assoc_timeout(struct net_device *dev, struct cfg80211_bss *bss);
 
 /**
  * cfg80211_tx_mlme_mgmt - notification of transmitted deauth/disassoc frame

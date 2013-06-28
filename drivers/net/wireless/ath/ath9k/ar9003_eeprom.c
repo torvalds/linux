@@ -3606,7 +3606,7 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 	 *   7:4 R/W  SWITCH_TABLE_COM_SPDT_WLAN_IDLE
 	 * SWITCH_TABLE_COM_SPDT_WLAN_IDLE
 	 */
-	if (AR_SREV_9462_20(ah) || AR_SREV_9565(ah)) {
+	if (AR_SREV_9462_20_OR_LATER(ah) || AR_SREV_9565(ah)) {
 		value = ar9003_switch_com_spdt_get(ah, is2ghz);
 		REG_RMW_FIELD(ah, AR_PHY_GLB_CONTROL,
 				AR_SWITCH_TABLE_COM_SPDT_ALL, value);
@@ -4059,8 +4059,9 @@ static void ar9003_hw_thermo_cal_apply(struct ath_hw *ah)
 {
 	u32 data, ko, kg;
 
-	if (!AR_SREV_9462_20(ah))
+	if (!AR_SREV_9462_20_OR_LATER(ah))
 		return;
+
 	ar9300_otp_read_word(ah, 1, &data);
 	ko = data & 0xff;
 	kg = (data >> 8) & 0xff;
@@ -4752,7 +4753,7 @@ tempslope:
 			      AR_PHY_TPC_19_ALPHA_THERM, temp_slope);
 	}
 
-	if (AR_SREV_9462_20(ah))
+	if (AR_SREV_9462_20_OR_LATER(ah))
 		REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
 			      AR_PHY_TPC_19_B1_ALPHA_THERM, temp_slope);
 

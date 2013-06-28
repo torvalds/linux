@@ -73,7 +73,6 @@
 #include "iwl-trans.h"
 #include "iwl-notif-wait.h"
 #include "iwl-eeprom-parse.h"
-#include "iwl-test.h"
 #include "iwl-trans.h"
 #include "sta.h"
 #include "fw-api.h"
@@ -159,6 +158,8 @@ enum iwl_dbgfs_pm_mask {
 	MVM_DEBUGFS_PM_RX_DATA_TIMEOUT = BIT(3),
 	MVM_DEBUGFS_PM_TX_DATA_TIMEOUT = BIT(4),
 	MVM_DEBUGFS_PM_DISABLE_POWER_OFF = BIT(5),
+	MVM_DEBUGFS_PM_LPRX_ENA = BIT(6),
+	MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD = BIT(7),
 };
 
 struct iwl_dbgfs_pm {
@@ -168,6 +169,8 @@ struct iwl_dbgfs_pm {
 	bool skip_over_dtim;
 	u8 skip_dtim_periods;
 	bool disable_power_off;
+	bool lprx_ena;
+	u32 lprx_rssi_threshold;
 	int mask;
 };
 
@@ -353,12 +356,14 @@ struct iwl_tt_params {
  * @dynamic_smps: Is thermal throttling enabled dynamic_smps?
  * @tx_backoff: The current thremal throttling tx backoff in uSec.
  * @params: Parameters to configure the thermal throttling algorithm.
+ * @throttle: Is thermal throttling is active?
  */
 struct iwl_mvm_tt_mgmt {
 	struct delayed_work ct_kill_exit;
 	bool dynamic_smps;
 	u32 tx_backoff;
 	const struct iwl_tt_params *params;
+	bool throttle;
 };
 
 struct iwl_mvm {
@@ -461,6 +466,7 @@ struct iwl_mvm {
 	struct wiphy_wowlan_support wowlan;
 	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
+	u32 d3_wake_sysassert; /* must be u32 for debugfs_create_bool */
 	bool d3_test_active;
 	bool store_d3_resume_sram;
 	void *d3_resume_sram;

@@ -806,7 +806,7 @@ struct wsm_tx {
 	struct wsm_hdr hdr;
 
 	/* Packet identifier that meant to be used in completion. */
-	__le32 packet_id;
+	u32 packet_id;  /* Note this is actually a cookie */
 
 	/* WSM_TRANSMIT_RATE_... */
 	u8 max_tx_rate;
@@ -825,18 +825,18 @@ struct wsm_tx {
 	u8 flags;
 
 	/* Should be 0. */
-	__le32 reserved;
+	u32 reserved;
 
 	/* The elapsed time in TUs, after the initial transmission */
 	/* of an MSDU, after which further attempts to transmit */
 	/* the MSDU shall be terminated. Overrides the global */
 	/* dot11MaxTransmitMsduLifeTime setting [optional] */
 	/* Device will set the default value if this is 0. */
-	__le32 expire_time;
+	u32 expire_time;
 
 	/* WSM_HT_TX_... */
 	__le32 ht_tx_parameters;
-};
+} __packed;
 
 /* = sizeof(generic hi hdr) + sizeof(wsm hdr) + sizeof(alignment) */
 #define WSM_TX_EXTRA_HEADROOM (28)
@@ -846,10 +846,10 @@ struct wsm_tx {
 
 struct wsm_rx {
 	/* WSM_STATUS_... */
-	__le32 status;
+	u32 status;
 
 	/* Specifies the channel of the received packet. */
-	__le16 channel_number;
+	u16 channel_number;
 
 	/* WSM_TRANSMIT_RATE_... */
 	u8 rx_rate;
@@ -859,11 +859,8 @@ struct wsm_rx {
 	u8 rcpi_rssi;
 
 	/* WSM_RX_STATUS_... */
-	__le32 flags;
-
-	/* Payload */
-	u8 data[0];
-} __packed;
+	u32 flags;
+};
 
 /* = sizeof(generic hi hdr) + sizeof(wsm hdr) */
 #define WSM_RX_EXTRA_HEADROOM (16)
@@ -1119,22 +1116,22 @@ int wsm_set_tx_queue_params(struct cw1200_common *priv,
 #define WSM_EDCA_PARAMS_RESP_ID 0x0413
 struct wsm_edca_queue_params {
 	/* CWmin (in slots) for the access class. */
-	__le16 cwmin;
+	u16 cwmin;
 
 	/* CWmax (in slots) for the access class. */
-	__le16 cwmax;
+	u16 cwmax;
 
 	/* AIFS (in slots) for the access class. */
-	__le16 aifns;
+	u16 aifns;
 
 	/* TX OP Limit (in microseconds) for the access class. */
-	__le16 txop_limit;
+	u16 txop_limit;
 
 	/* dot11MaxReceiveLifetime to be used for the specified */
 	/* the access class. Overrides the global */
 	/* dot11MaxReceiveLifetime value */
-	__le32 max_rx_lifetime;
-} __packed;
+	u32 max_rx_lifetime;
+};
 
 struct wsm_edca_params {
 	/* NOTE: index is a linux queue id. */
@@ -1147,12 +1144,12 @@ struct wsm_edca_params {
 		     __uapsd) \
 	do {							\
 		struct wsm_edca_queue_params *p = &(__edca)->params[__queue]; \
-		p->cwmin = (__cw_min);				\
-		p->cwmax = (__cw_max);				\
-		p->aifns = (__aifs);				\
-		p->txop_limit = ((__txop) * TXOP_UNIT);		\
-		p->max_rx_lifetime = (__lifetime);		\
-		(__edca)->uapsd_enable[__queue] = (__uapsd);	\
+		p->cwmin = __cw_min;					\
+		p->cwmax = __cw_max;					\
+		p->aifns = __aifs;					\
+		p->txop_limit = ((__txop) * TXOP_UNIT);			\
+		p->max_rx_lifetime = __lifetime;			\
+		(__edca)->uapsd_enable[__queue] = (__uapsd);		\
 	} while (0)
 
 int wsm_set_edca_params(struct cw1200_common *priv,
@@ -1475,7 +1472,7 @@ static inline int wsm_set_template_frame(struct cw1200_common *priv,
 	u8 *p = skb_push(arg->skb, 4);
 	p[0] = arg->frame_type;
 	p[1] = arg->rate;
-	((u16 *)p)[1] = __cpu_to_le16(arg->skb->len - 4);
+	((__le16 *)p)[1] = __cpu_to_le16(arg->skb->len - 4);
 	ret = wsm_write_mib(priv, WSM_MIB_ID_TEMPLATE_FRAME, p, arg->skb->len);
 	skb_pull(arg->skb, 4);
 	return ret;

@@ -1766,8 +1766,6 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.remain_on_channel = iwlagn_mac_remain_on_channel,
 	.cancel_remain_on_channel = iwlagn_mac_cancel_remain_on_channel,
 	.rssi_callback = iwlagn_mac_rssi_callback,
-	CFG80211_TESTMODE_CMD(iwlagn_mac_testmode_cmd)
-	CFG80211_TESTMODE_DUMP(iwlagn_mac_testmode_dump)
 	.set_tim = iwlagn_mac_set_tim,
 };
 

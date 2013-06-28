@@ -38,6 +38,7 @@ void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
 	 * frame instead of reassoc.
 	 */
 	if (cfg80211_sme_rx_assoc_resp(wdev, status_code)) {
+		cfg80211_unhold_bss(bss_from_pub(bss));
 		cfg80211_put_bss(wiphy, bss);
 		return;
 	}
@@ -131,16 +132,19 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr)
 }
 EXPORT_SYMBOL(cfg80211_auth_timeout);
 
-void cfg80211_assoc_timeout(struct net_device *dev, const u8 *addr)
+void cfg80211_assoc_timeout(struct net_device *dev, struct cfg80211_bss *bss)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
-	trace_cfg80211_send_assoc_timeout(dev, addr);
+	trace_cfg80211_send_assoc_timeout(dev, bss->bssid);
 
-	nl80211_send_assoc_timeout(rdev, dev, addr, GFP_KERNEL);
+	nl80211_send_assoc_timeout(rdev, dev, bss->bssid, GFP_KERNEL);
 	cfg80211_sme_assoc_timeout(wdev);
+
+	cfg80211_unhold_bss(bss_from_pub(bss));
+	cfg80211_put_bss(wiphy, bss);
 }
 EXPORT_SYMBOL(cfg80211_assoc_timeout);
 
@@ -307,6 +311,8 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 		goto out;
 
 	err = rdev_assoc(rdev, dev, req);
+	if (!err)
+		cfg80211_hold_bss(bss_from_pub(req->bss));
 
 out:
 	if (err)

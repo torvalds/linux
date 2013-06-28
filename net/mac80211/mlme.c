@@ -190,6 +190,12 @@ static u32 chandef_downgrade(struct cfg80211_chan_def *c)
 		c->width = NL80211_CHAN_WIDTH_20_NOHT;
 		ret = IEEE80211_STA_DISABLE_HT | IEEE80211_STA_DISABLE_VHT;
 		break;
+	case NL80211_CHAN_WIDTH_5:
+	case NL80211_CHAN_WIDTH_10:
+		WARN_ON_ONCE(1);
+		/* keep c->width */
+		ret = IEEE80211_STA_DISABLE_HT | IEEE80211_STA_DISABLE_VHT;
+		break;
 	}
 
 	WARN_ON_ONCE(!cfg80211_chandef_valid(c));
@@ -1779,8 +1785,10 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		 * probably just won't work at all.
 		 */
 		bss_conf->dtim_period = sdata->u.mgd.dtim_period ?: 1;
+		bss_conf->beacon_rate = bss->beacon_rate;
 		bss_info_changed |= BSS_CHANGED_BEACON_INFO;
 	} else {
+		bss_conf->beacon_rate = NULL;
 		bss_conf->dtim_period = 0;
 	}
 
@@ -1903,6 +1911,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	del_timer_sync(&sdata->u.mgd.chswitch_timer);
 
 	sdata->vif.bss_conf.dtim_period = 0;
+	sdata->vif.bss_conf.beacon_rate = NULL;
+
 	ifmgd->have_beacon = false;
 
 	ifmgd->flags = 0;
@@ -2785,8 +2795,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		if (!ieee80211_assoc_success(sdata, bss, mgmt, len)) {
 			/* oops -- internal error -- send timeout for now */
 			ieee80211_destroy_assoc_data(sdata, false);
-			cfg80211_put_bss(sdata->local->hw.wiphy, bss);
-			cfg80211_assoc_timeout(sdata->dev, mgmt->bssid);
+			cfg80211_assoc_timeout(sdata->dev, bss);
 			return;
 		}
 		sdata_info(sdata, "associated\n");
@@ -2827,8 +2836,10 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 	bss = ieee80211_bss_info_update(local, rx_status, mgmt, len, elems,
 					channel);
-	if (bss)
+	if (bss) {
 		ieee80211_rx_bss_put(local, bss);
+		sdata->vif.bss_conf.beacon_rate = bss->beacon_rate;
+	}
 
 	if (!sdata->u.mgd.associated ||
 	    !ether_addr_equal(mgmt->bssid, sdata->u.mgd.associated->bssid))
@@ -3501,13 +3512,10 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 	    time_after(jiffies, ifmgd->assoc_data->timeout)) {
 		if ((ifmgd->assoc_data->need_beacon && !ifmgd->have_beacon) ||
 		    ieee80211_do_assoc(sdata)) {
-			u8 bssid[ETH_ALEN];
-
-			memcpy(bssid, ifmgd->assoc_data->bss->bssid, ETH_ALEN);
+			struct cfg80211_bss *bss = ifmgd->assoc_data->bss;
 
 			ieee80211_destroy_assoc_data(sdata, false);
-
-			cfg80211_assoc_timeout(sdata->dev, bssid);
+			cfg80211_assoc_timeout(sdata->dev, bss);
 		}
 	} else if (ifmgd->assoc_data && ifmgd->assoc_data->timeout_started)
 		run_again(sdata, ifmgd->assoc_data->timeout);
@@ -3838,6 +3846,12 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	 */
 	ret = ieee80211_vif_use_channel(sdata, &chandef,
 					IEEE80211_CHANCTX_SHARED);
+
+	/* don't downgrade for 5 and 10 MHz channels, though. */
+	if (chandef.width == NL80211_CHAN_WIDTH_5 ||
+	    chandef.width == NL80211_CHAN_WIDTH_10)
+		return ret;
+
 	while (ret && chandef.width != NL80211_CHAN_WIDTH_20_NOHT) {
 		ifmgd->flags |= chandef_downgrade(&chandef);
 		ret = ieee80211_vif_use_channel(sdata, &chandef,
@@ -4427,8 +4441,11 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 	cancel_work_sync(&ifmgd->chswitch_work);
 
 	sdata_lock(sdata);
-	if (ifmgd->assoc_data)
+	if (ifmgd->assoc_data) {
+		struct cfg80211_bss *bss = ifmgd->assoc_data->bss;
 		ieee80211_destroy_assoc_data(sdata, false);
+		cfg80211_assoc_timeout(sdata->dev, bss);
+	}
 	if (ifmgd->auth_data)
 		ieee80211_destroy_auth_data(sdata, false);
 	del_timer_sync(&ifmgd->timer);

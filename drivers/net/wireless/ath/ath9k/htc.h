@@ -324,7 +324,9 @@ static inline struct ath9k_htc_tx_ctl *HTC_SKB_CB(struct sk_buff *skb)
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
 
 #define TX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c++)
+#define TX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c += a)
 #define RX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.rx_stats.c++)
+#define RX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->debug.rx_stats.c += a)
 #define CAB_STAT_INC   priv->debug.tx_stats.cab_queued++
 
 #define TX_QSTAT_INC(q) (priv->debug.tx_stats.queue_stats[q]++)
@@ -337,6 +339,7 @@ struct ath_tx_stats {
 	u32 buf_completed;
 	u32 skb_queued;
 	u32 skb_success;
+	u32 skb_success_bytes;
 	u32 skb_failed;
 	u32 cab_queued;
 	u32 queue_stats[IEEE80211_NUM_ACS];
@@ -345,6 +348,7 @@ struct ath_tx_stats {
 struct ath_rx_stats {
 	u32 skb_allocated;
 	u32 skb_completed;
+	u32 skb_completed_bytes;
 	u32 skb_dropped;
 	u32 err_crc;
 	u32 err_decrypt_crc;
@@ -362,10 +366,20 @@ struct ath9k_debug {
 	struct ath_rx_stats rx_stats;
 };
 
+void ath9k_htc_get_et_strings(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      u32 sset, u8 *data);
+int ath9k_htc_get_et_sset_count(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif, int sset);
+void ath9k_htc_get_et_stats(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ethtool_stats *stats, u64 *data);
 #else
 
 #define TX_STAT_INC(c) do { } while (0)
+#define TX_STAT_ADD(c, a) do { } while (0)
 #define RX_STAT_INC(c) do { } while (0)
+#define RX_STAT_ADD(c, a) do { } while (0)
 #define CAB_STAT_INC   do { } while (0)
 
 #define TX_QSTAT_INC(c) do { } while (0)
@@ -582,6 +596,8 @@ bool ath9k_htc_setpower(struct ath9k_htc_priv *priv,
 
 void ath9k_start_rfkill_poll(struct ath9k_htc_priv *priv);
 void ath9k_htc_rfkill_poll_state(struct ieee80211_hw *hw);
+
+struct base_eep_header *ath9k_htc_get_eeprom_base(struct ath9k_htc_priv *priv);
 
 #ifdef CONFIG_MAC80211_LEDS
 void ath9k_init_leds(struct ath9k_htc_priv *priv);
