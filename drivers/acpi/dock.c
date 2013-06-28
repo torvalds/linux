@@ -351,10 +351,8 @@ static int dock_present(struct dock_station *ds)
  *  handle if one does not exist already.  This should cause
  *  acpi to scan for drivers for the given devices, and call
  *  matching driver's add routine.
- *
- *  Returns a pointer to the acpi_device corresponding to the handle.
  */
-static struct acpi_device * dock_create_acpi_device(acpi_handle handle)
+static void dock_create_acpi_device(acpi_handle handle)
 {
 	struct acpi_device *device;
 	int ret;
@@ -367,10 +365,7 @@ static struct acpi_device * dock_create_acpi_device(acpi_handle handle)
 		ret = acpi_bus_scan(handle);
 		if (ret)
 			pr_debug("error adding bus, %x\n", -ret);
-
-		acpi_bus_get_device(handle, &device);
 	}
-	return device;
 }
 
 /**
