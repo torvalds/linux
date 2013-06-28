@@ -201,7 +201,6 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	struct acpiphp_bridge *bridge = (struct acpiphp_bridge *)context;
 	struct acpiphp_slot *slot;
 	struct acpiphp_func *newfunc;
-	acpi_handle tmp;
 	acpi_status status = AE_OK;
 	unsigned long long adr, sun;
 	int device, function, retval, found = 0;
@@ -232,19 +231,19 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	newfunc->handle = handle;
 	newfunc->function = function;
 
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_EJ0", &tmp)))
+	if (acpi_has_method(handle, "_EJ0"))
 		newfunc->flags = FUNC_HAS_EJ0;
 
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_STA", &tmp)))
+	if (acpi_has_method(handle, "_STA"))
 		newfunc->flags |= FUNC_HAS_STA;
 
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_PS0", &tmp)))
+	if (acpi_has_method(handle, "_PS0"))
 		newfunc->flags |= FUNC_HAS_PS0;
 
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_PS3", &tmp)))
+	if (acpi_has_method(handle, "_PS3"))
 		newfunc->flags |= FUNC_HAS_PS3;
 
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_DCK", &tmp)))
+	if (acpi_has_method(handle, "_DCK"))
 		newfunc->flags |= FUNC_HAS_DCK;
 
 	status = acpi_evaluate_integer(handle, "_SUN", NULL, &sun);
@@ -843,25 +842,14 @@ static unsigned int get_slot_status(struct acpiphp_slot *slot)
  */
 int acpiphp_eject_slot(struct acpiphp_slot *slot)
 {
-	acpi_status status;
 	struct acpiphp_func *func;
-	struct acpi_object_list arg_list;
-	union acpi_object arg;
 
 	list_for_each_entry(func, &slot->funcs, sibling) {
 		/* We don't want to call _EJ0 on non-existing functions. */
 		if ((func->flags & FUNC_HAS_EJ0)) {
-			/* _EJ0 method take one argument */
-			arg_list.count = 1;
-			arg_list.pointer = &arg;
-			arg.type = ACPI_TYPE_INTEGER;
-			arg.integer.value = 1;
-
-			status = acpi_evaluate_object(func->handle, "_EJ0", &arg_list, NULL);
-			if (ACPI_FAILURE(status)) {
-				warn("%s: _EJ0 failed\n", __func__);
+			if (ACPI_FAILURE(acpi_evaluate_ej0(func->handle)))
 				return -1;
-			} else
+			else
 				break;
 		}
 	}
@@ -1171,7 +1159,6 @@ static void handle_hotplug_event_func(acpi_handle handle, u32 type,
  */
 void acpiphp_enumerate_slots(struct pci_bus *bus, acpi_handle handle)
 {
-	acpi_handle dummy_handle;
 	struct acpiphp_bridge *bridge;
 
 	if (acpiphp_disabled)
@@ -1200,8 +1187,7 @@ void acpiphp_enumerate_slots(struct pci_bus *bus, acpi_handle handle)
 	get_device(&bus->dev);
 
 	if (!pci_is_root_bus(bridge->pci_bus) &&
-	    ACPI_SUCCESS(acpi_get_handle(bridge->handle,
-					"_EJ0", &dummy_handle))) {
+	    acpi_has_method(bridge->handle, "_EJ0")) {
 		dbg("found ejectable p2p bridge\n");
 		bridge->flags |= BRIDGE_HAS_EJ0;
 		bridge->func = acpiphp_bridge_handle_to_function(handle);
