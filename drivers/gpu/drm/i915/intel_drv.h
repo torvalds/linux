@@ -141,7 +141,8 @@ struct intel_encoder {
 	bool (*get_hw_state)(struct intel_encoder *, enum pipe *pipe);
 	/* Reconstructs the equivalent mode flags for the current hardware
 	 * state. This must be called _after_ display->get_pipe_config has
-	 * pre-filled the pipe config. */
+	 * pre-filled the pipe config. Note that intel_encoder->base.crtc must
+	 * be set correctly before calling this function. */
 	void (*get_config)(struct intel_encoder *,
 			   struct intel_crtc_config *pipe_config);
 	int crtc_mask;
