@@ -49,6 +49,24 @@
 		};
 	};
 
+	cpus {
+		#size-cells = <0>;
+		#address-cells = <1>;
+
+		cpu {
+			device_type = "cpu";
+			compatible = "arm,arm926ej-s";
+			operating-points = <
+				/* kHz  uV (No regulator support) */
+				133000  0
+				399000  0
+			>;
+			clock-latency = <61036>; /* two CLK32 periods */
+			clocks = <&clks 18>;
+			clock-names = "cpu";
+		};
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
