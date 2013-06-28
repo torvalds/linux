@@ -854,7 +854,7 @@ static int add_control_with_pfx(struct hda_gen_spec *spec, int type,
 				const char *pfx, const char *dir,
 				const char *sfx, int cidx, unsigned long val)
 {
-	char name[44];
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	snprintf(name, sizeof(name), "%s %s %s", pfx, dir, sfx);
 	if (!add_control(spec, type, name, cidx, val))
 		return -ENOMEM;
@@ -1931,7 +1931,7 @@ static int create_extra_outs(struct hda_codec *codec, int num_pins,
 
 	for (i = 0; i < num_pins; i++) {
 		const char *name;
-		char tmp[44];
+		char tmp[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 		int err, idx = 0;
 
 		if (num_pins == 2 && i == 1 && !strcmp(pfx, "Speaker"))
@@ -2484,7 +2484,7 @@ static int create_out_jack_modes(struct hda_codec *codec, int num_pins,
 		}
 		if (get_out_jack_num_items(codec, pin) > 1) {
 			struct snd_kcontrol_new *knew;
-			char name[44];
+			char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 			get_jack_mode_name(codec, pin, name, sizeof(name));
 			knew = snd_hda_gen_add_kctl(spec, name,
 						    &out_jack_mode_enum);
@@ -2616,7 +2616,7 @@ static int create_in_jack_mode(struct hda_codec *codec, hda_nid_t pin)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	struct snd_kcontrol_new *knew;
-	char name[44];
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	unsigned int defcfg;
 
 	if (pin == spec->hp_mic_pin)
@@ -3316,7 +3316,7 @@ static int add_single_cap_ctl(struct hda_codec *codec, const char *label,
 			      bool inv_dmic)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	char tmpname[44];
+	char tmpname[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int type = is_switch ? HDA_CTL_WIDGET_MUTE : HDA_CTL_WIDGET_VOL;
 	const char *sfx = is_switch ? "Switch" : "Volume";
 	unsigned int chs = inv_dmic ? 1 : 3;
@@ -3578,7 +3578,7 @@ static int parse_mic_boost(struct hda_codec *codec)
 		struct nid_path *path;
 		unsigned int val;
 		int idx;
-		char boost_label[44];
+		char boost_label[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 
 		idx = imux->items[i].index;
 		if (idx >= imux->num_items)

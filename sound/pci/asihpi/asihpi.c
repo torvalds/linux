@@ -1278,7 +1278,7 @@ struct hpi_control {
 	u16 dst_node_type;
 	u16 dst_node_index;
 	u16 band;
-	char name[44]; /* copied to snd_ctl_elem_id.name[44]; */
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN]; /* copied to snd_ctl_elem_id.name[44]; */
 };
 
 static const char * const asihpi_tuner_band_names[] = {

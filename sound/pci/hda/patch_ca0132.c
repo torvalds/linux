@@ -139,7 +139,7 @@ enum {
 #define DSP_SPEAKER_OUT_LATENCY         7
 
 struct ct_effect {
-	char name[44];
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	hda_nid_t nid;
 	int mid; /*effect module ID*/
 	int reqs[EFFECT_VALS_MAX_COUNT]; /*effect module request*/
@@ -270,7 +270,7 @@ enum {
 };
 
 struct ct_tuning_ctl {
-	char name[44];
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	hda_nid_t parent_nid;
 	hda_nid_t nid;
 	int mid; /*effect module ID*/
@@ -3103,7 +3103,7 @@ static int add_tuning_control(struct hda_codec *codec,
 				hda_nid_t pnid, hda_nid_t nid,
 				const char *name, int dir)
 {
-	char namestr[44];
+	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int type = dir ? HDA_INPUT : HDA_OUTPUT;
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_VOLUME_MONO(namestr, nid, 1, 0, type);
@@ -3935,7 +3935,7 @@ static int ca0132_volume_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 static int add_fx_switch(struct hda_codec *codec, hda_nid_t nid,
 			 const char *pfx, int dir)
 {
-	char namestr[44];
+	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int type = dir ? HDA_INPUT : HDA_OUTPUT;
 	struct snd_kcontrol_new knew =
 		CA0132_CODEC_MUTE_MONO(namestr, nid, 1, type);

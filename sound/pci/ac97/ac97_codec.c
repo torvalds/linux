@@ -1296,7 +1296,7 @@ static int snd_ac97_cmix_new_stereo(struct snd_card *card, const char *pfx,
 				    struct snd_ac97 *ac97)
 {
 	int err;
-	char name[44];
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	unsigned char lo_max, hi_max;
 
 	if (! snd_ac97_valid_reg(ac97, reg))
