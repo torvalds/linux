@@ -416,6 +416,8 @@ u32 rv6xx_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 rv6xx_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void rv6xx_dpm_print_power_state(struct radeon_device *rdev,
 				 struct radeon_ps *ps);
+void rv6xx_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						       struct seq_file *m);
 /* rs780 dpm */
 int rs780_dpm_init(struct radeon_device *rdev);
 int rs780_dpm_enable(struct radeon_device *rdev);

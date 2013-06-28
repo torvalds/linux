@@ -1160,6 +1160,7 @@ static struct radeon_asic rv6xx_asic = {
 		.get_sclk = &rv6xx_dpm_get_sclk,
 		.get_mclk = &rv6xx_dpm_get_mclk,
 		.print_power_state = &rv6xx_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &rv6xx_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &rs600_pre_page_flip,
