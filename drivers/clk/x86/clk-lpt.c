@@ -1,5 +1,5 @@
 /*
- * Intel Lynxpoint LPSS clocks.
+ * Intel Low Power Subsystem clocks.
  *
  * Copyright (C) 2013, Intel Corporation
  * Authors: Mika Westerberg <mika.westerberg@linux.intel.com>
@@ -17,8 +17,6 @@
 #include <linux/module.h>
 #include <linux/platform_data/clk-lpss.h>
 #include <linux/platform_device.h>
-
-#define PRV_CLOCK_PARAMS 0x800
 
 static int lpt_clk_probe(struct platform_device *pdev)
 {
