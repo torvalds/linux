@@ -37,20 +37,40 @@ extern unsigned int sysctl_net_ll_poll __read_mostly;
 #define LL_FLUSH_FAILED		-1
 #define LL_FLUSH_BUSY		-2
 
-/* we can use sched_clock() because we don't care much about precision
+/* a wrapper to make debug_smp_processor_id() happy
+ * we can use sched_clock() because we don't care much about precision
  * we only care that the average is bounded
- * we don't mind a ~2.5% imprecision so <<10 instead of *1000
+ */
+#ifdef CONFIG_DEBUG_PREEMPT
+static inline u64 ll_sched_clock(void)
+{
+	u64 rc;
+
+	preempt_disable_notrace();
+	rc = sched_clock();
+	preempt_enable_no_resched_notrace();
+
+	return rc;
+}
+#else /* CONFIG_DEBUG_PREEMPT */
+static inline u64 ll_sched_clock(void)
+{
+	return sched_clock();
+}
+#endif /* CONFIG_DEBUG_PREEMPT */
+
+/* we don't mind a ~2.5% imprecision so <<10 instead of *1000
  * sk->sk_ll_usec is a u_int so this can't overflow
  */
 static inline u64 ll_sk_end_time(struct sock *sk)
 {
-	return ((u64)ACCESS_ONCE(sk->sk_ll_usec) << 10) + sched_clock();
+	return ((u64)ACCESS_ONCE(sk->sk_ll_usec) << 10) + ll_sched_clock();
 }
 
 /* in poll/select we use the global sysctl_net_ll_poll value */
 static inline u64 ll_end_time(void)
 {
-	return ((u64)ACCESS_ONCE(sysctl_net_ll_poll) << 10) + sched_clock();
+	return ((u64)ACCESS_ONCE(sysctl_net_ll_poll) << 10) + ll_sched_clock();
 }
 
 static inline bool sk_valid_ll(struct sock *sk)
@@ -61,7 +81,7 @@ static inline bool sk_valid_ll(struct sock *sk)
 
 static inline bool can_poll_ll(u64 end_time)
 {
-	return !time_after64(sched_clock(), end_time);
+	return !time_after64(ll_sched_clock(), end_time);
 }
 
 /* when used in sock_poll() nonblock is known at compile time to be true
