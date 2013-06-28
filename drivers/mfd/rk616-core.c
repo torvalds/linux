@@ -103,13 +103,15 @@ static int rk616_i2c_write_bits(struct mfd_rk616 *rk616, u16 reg,u32 mask,u32 *p
 	int ret;
 	u32 reg_val;
 	char *tx_buf = NULL;
-	mutex_lock(&rk616->reg_lock);
+	
 	tx_buf = (char *)kmalloc(6, GFP_KERNEL);
 	if(!tx_buf)
 		return -ENOMEM;
 	
+	mutex_lock(&rk616->reg_lock);
 	rk616->read_dev(rk616,reg,&reg_val);
 	reg_val &= ~mask;
+	*pval &= mask;
 	reg_val |= *pval;
 	*pval = reg_val;
 	memcpy(tx_buf, &reg, 2); 
