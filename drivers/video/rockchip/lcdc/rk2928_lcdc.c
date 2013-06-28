@@ -33,7 +33,7 @@
 #include <mach/iomux.h>
 #include <mach/gpio.h>
 #include "rk2928_lcdc.h"
-#include "../lvds/rk_lvds.h"
+#include "../transmitter/rk2928_lvds.h"
 
 
 
