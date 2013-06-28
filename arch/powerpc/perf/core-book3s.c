@@ -926,6 +926,11 @@ static void power_pmu_enable(struct pmu *pmu)
 	if (!cpuhw->disabled)
 		goto out;
 
+	if (cpuhw->n_events == 0) {
+		ppc_set_pmu_inuse(0);
+		goto out;
+	}
+
 	cpuhw->disabled = 0;
 
 	/*
@@ -937,8 +942,6 @@ static void power_pmu_enable(struct pmu *pmu)
 	if (!cpuhw->n_added) {
 		mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 		mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
-		if (cpuhw->n_events == 0)
-			ppc_set_pmu_inuse(0);
 		goto out_enable;
 	}
 
