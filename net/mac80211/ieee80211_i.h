@@ -509,6 +509,9 @@ struct ieee80211_if_ibss {
 	/* probe response/beacon for IBSS */
 	struct beacon_data __rcu *presp;
 
+	struct ieee80211_ht_cap ht_capa; /* configured ht-cap over-rides */
+	struct ieee80211_ht_cap ht_capa_mask; /* Valid parts of ht_capa */
+
 	spinlock_t incomplete_lock;
 	struct list_head incomplete_stations;
 

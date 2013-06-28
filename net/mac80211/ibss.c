@@ -179,8 +179,12 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	    chandef.width != NL80211_CHAN_WIDTH_5 &&
 	    chandef.width != NL80211_CHAN_WIDTH_10 &&
 	    sband->ht_cap.ht_supported) {
-		pos = ieee80211_ie_build_ht_cap(pos, &sband->ht_cap,
-						sband->ht_cap.cap);
+		struct ieee80211_sta_ht_cap ht_cap;
+
+		memcpy(&ht_cap, &sband->ht_cap, sizeof(ht_cap));
+		ieee80211_apply_htcap_overrides(sdata, &ht_cap);
+
+		pos = ieee80211_ie_build_ht_cap(pos, &ht_cap, ht_cap.cap);
 		/*
 		 * Note: According to 802.11n-2009 9.13.3.1, HT Protection
 		 * field and RIFS Mode are reserved in IBSS mode, therefore
@@ -1051,6 +1055,11 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	memcpy(sdata->u.ibss.ssid, params->ssid, params->ssid_len);
 	sdata->u.ibss.ssid_len = params->ssid_len;
 
+	memcpy(&sdata->u.ibss.ht_capa, &params->ht_capa,
+	       sizeof(sdata->u.ibss.ht_capa));
+	memcpy(&sdata->u.ibss.ht_capa_mask, &params->ht_capa_mask,
+	       sizeof(sdata->u.ibss.ht_capa_mask));
+
 	/*
 	 * 802.11n-2009 9.13.3.1: In an IBSS, the HT Protection field is
 	 * reserved, but an HT STA shall protect HT transmissions as though
@@ -1131,6 +1140,11 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	presp = rcu_dereference_protected(ifibss->presp,
 					  lockdep_is_held(&sdata->wdev.mtx));
 	RCU_INIT_POINTER(sdata->u.ibss.presp, NULL);
+
+	/* on the next join, re-program HT parameters */
+	memset(&ifibss->ht_capa, 0, sizeof(ifibss->ht_capa));
+	memset(&ifibss->ht_capa_mask, 0, sizeof(ifibss->ht_capa_mask));
+
 	sdata->vif.bss_conf.ibss_joined = false;
 	sdata->vif.bss_conf.ibss_creator = false;
 	sdata->vif.bss_conf.enable_beacon = false;
