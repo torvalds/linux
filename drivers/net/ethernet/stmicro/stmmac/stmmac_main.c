@@ -789,13 +789,13 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 	int interface = priv->plat->interface;
 
 	if (priv->dma_cap.pcs) {
-		if ((interface & PHY_INTERFACE_MODE_RGMII) ||
-		    (interface & PHY_INTERFACE_MODE_RGMII_ID) ||
-		    (interface & PHY_INTERFACE_MODE_RGMII_RXID) ||
-		    (interface & PHY_INTERFACE_MODE_RGMII_TXID)) {
+		if ((interface == PHY_INTERFACE_MODE_RGMII) ||
+		    (interface == PHY_INTERFACE_MODE_RGMII_ID) ||
+		    (interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
+		    (interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
 			pr_debug("STMMAC: PCS RGMII support enable\n");
 			priv->pcs = STMMAC_PCS_RGMII;
-		} else if (interface & PHY_INTERFACE_MODE_SGMII) {
+		} else if (interface == PHY_INTERFACE_MODE_SGMII) {
 			pr_debug("STMMAC: PCS SGMII support enable\n");
 			priv->pcs = STMMAC_PCS_SGMII;
 		}
