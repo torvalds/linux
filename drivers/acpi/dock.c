@@ -1007,7 +1007,6 @@ static int __init dock_add(acpi_handle handle)
 	mutex_init(&dock_station->hp_lock);
 	spin_lock_init(&dock_station->dd_lock);
 	INIT_LIST_HEAD(&dock_station->sibling);
-	ATOMIC_INIT_NOTIFIER_HEAD(&dock_notifier_list);
 	INIT_LIST_HEAD(&dock_station->dependent_devices);
 
 	/* we want the dock device to send uevents */
@@ -1078,6 +1077,7 @@ void __init acpi_dock_init(void)
 		return;
 	}
 
+	ATOMIC_INIT_NOTIFIER_HEAD(&dock_notifier_list);
 	register_acpi_bus_notifier(&dock_acpi_notifier);
 	pr_info(PREFIX "%s: %d docks/bays found\n",
 		ACPI_DOCK_DRIVER_DESCRIPTION, dock_station_count);
