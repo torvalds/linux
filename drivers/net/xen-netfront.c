@@ -29,6 +29,8 @@
  * IN THE SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -385,9 +387,8 @@ static void xennet_tx_buf_gc(struct net_device *dev)
 			skb = np->tx_skbs[id].skb;
 			if (unlikely(gnttab_query_foreign_access(
 				np->grant_tx_ref[id]) != 0)) {
-				printk(KERN_ALERT "xennet_tx_buf_gc: warning "
-				       "-- grant still in use by backend "
-				       "domain.\n");
+				pr_alert("%s: warning -- grant still in use by backend domain\n",
+					 __func__);
 				BUG();
 			}
 			gnttab_end_foreign_access_ref(
@@ -804,14 +805,14 @@ static int xennet_set_skb_gso(struct sk_buff *skb,
 {
 	if (!gso->u.gso.size) {
 		if (net_ratelimit())
-			printk(KERN_WARNING "GSO size must not be zero.\n");
+			pr_warn("GSO size must not be zero\n");
 		return -EINVAL;
 	}
 
 	/* Currently only TCPv4 S.O. is supported. */
 	if (gso->u.gso.type != XEN_NETIF_GSO_TYPE_TCPV4) {
 		if (net_ratelimit())
-			printk(KERN_WARNING "Bad GSO type %d.\n", gso->u.gso.type);
+			pr_warn("Bad GSO type %d\n", gso->u.gso.type);
 		return -EINVAL;
 	}
 
@@ -910,9 +911,8 @@ static int checksum_setup(struct net_device *dev, struct sk_buff *skb)
 		break;
 	default:
 		if (net_ratelimit())
-			printk(KERN_ERR "Attempting to checksum a non-"
-			       "TCP/UDP packet, dropping a protocol"
-			       " %d packet", iph->protocol);
+			pr_err("Attempting to checksum a non-TCP/UDP packet, dropping a protocol %d packet\n",
+			       iph->protocol);
 		goto out;
 	}
 
@@ -1359,14 +1359,14 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	/* A grant for every tx ring slot */
 	if (gnttab_alloc_grant_references(TX_MAX_TARGET,
 					  &np->gref_tx_head) < 0) {
-		printk(KERN_ALERT "#### netfront can't alloc tx grant refs\n");
+		pr_alert("can't alloc tx grant refs\n");
 		err = -ENOMEM;
 		goto exit_free_stats;
 	}
 	/* A grant for every rx ring slot */
 	if (gnttab_alloc_grant_references(RX_MAX_TARGET,
 					  &np->gref_rx_head) < 0) {
-		printk(KERN_ALERT "#### netfront can't alloc rx grant refs\n");
+		pr_alert("can't alloc rx grant refs\n");
 		err = -ENOMEM;
 		goto exit_free_tx;
 	}
@@ -1430,16 +1430,14 @@ static int netfront_probe(struct xenbus_device *dev,
 
 	err = register_netdev(info->netdev);
 	if (err) {
-		printk(KERN_WARNING "%s: register_netdev err=%d\n",
-		       __func__, err);
+		pr_warn("%s: register_netdev err=%d\n", __func__, err);
 		goto fail;
 	}
 
 	err = xennet_sysfs_addif(info->netdev);
 	if (err) {
 		unregister_netdev(info->netdev);
-		printk(KERN_WARNING "%s: add sysfs failed err=%d\n",
-		       __func__, err);
+		pr_warn("%s: add sysfs failed err=%d\n", __func__, err);
 		goto fail;
 	}
 
@@ -2116,7 +2114,7 @@ static int __init netif_init(void)
 	if (xen_hvm_domain() && !xen_platform_pci_unplug)
 		return -ENODEV;
 
-	printk(KERN_INFO "Initialising Xen virtual ethernet driver.\n");
+	pr_info("Initialising Xen virtual ethernet driver\n");
 
 	return xenbus_register_frontend(&netfront_driver);
 }

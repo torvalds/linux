@@ -1890,9 +1890,8 @@ static int __init netback_init(void)
 		return -ENODEV;
 
 	if (fatal_skb_slots < XEN_NETBK_LEGACY_SLOTS_MAX) {
-		printk(KERN_INFO
-		       "xen-netback: fatal_skb_slots too small (%d), bump it to XEN_NETBK_LEGACY_SLOTS_MAX (%d)\n",
-		       fatal_skb_slots, XEN_NETBK_LEGACY_SLOTS_MAX);
+		pr_info("fatal_skb_slots too small (%d), bump it to XEN_NETBK_LEGACY_SLOTS_MAX (%d)\n",
+			fatal_skb_slots, XEN_NETBK_LEGACY_SLOTS_MAX);
 		fatal_skb_slots = XEN_NETBK_LEGACY_SLOTS_MAX;
 	}
 
@@ -1921,7 +1920,7 @@ static int __init netback_init(void)
 					     "netback/%u", group);
 
 		if (IS_ERR(netbk->task)) {
-			printk(KERN_ALERT "kthread_create() fails at netback\n");
+			pr_alert("kthread_create() fails at netback\n");
 			del_timer(&netbk->net_timer);
 			rc = PTR_ERR(netbk->task);
 			goto failed_init;
