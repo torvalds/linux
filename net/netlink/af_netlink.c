@@ -849,7 +849,10 @@ static void netlink_skb_destructor(struct sk_buff *skb)
 	}
 #endif
 	if (is_vmalloc_addr(skb->head)) {
-		vfree(skb->head);
+		if (!skb->cloned ||
+		    !atomic_dec_return(&(skb_shinfo(skb)->dataref)))
+			vfree(skb->head);
+
 		skb->head = NULL;
 	}
 	if (skb->sk != NULL)
@@ -1532,33 +1535,31 @@ struct sock *netlink_getsockbyfilp(struct file *filp)
 	return sock;
 }
 
-static struct sk_buff *netlink_alloc_large_skb(unsigned int size)
+static struct sk_buff *netlink_alloc_large_skb(unsigned int size,
+					       int broadcast)
 {
 	struct sk_buff *skb;
 	void *data;
 
-	if (size <= NLMSG_GOODSIZE)
+	if (size <= NLMSG_GOODSIZE || broadcast)
 		return alloc_skb(size, GFP_KERNEL);
 
-	skb = alloc_skb_head(GFP_KERNEL);
-	if (skb == NULL)
-		return NULL;
+	size = SKB_DATA_ALIGN(size) +
+	       SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	data = vmalloc(size);
 	if (data == NULL)
-		goto err;
+		return NULL;
 
-	skb->head	= data;
-	skb->data	= data;
-	skb_reset_tail_pointer(skb);
-	skb->end	= skb->tail + size;
-	skb->len	= 0;
-	skb->destructor = netlink_skb_destructor;
+	skb = build_skb(data, size);
+	if (skb == NULL)
+		vfree(data);
+	else {
+		skb->head_frag = 0;
+		skb->destructor = netlink_skb_destructor;
+	}
 
 	return skb;
-err:
-	kfree_skb(skb);
-	return NULL;
 }
 
 /*
@@ -2244,7 +2245,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (len > sk->sk_sndbuf - 32)
 		goto out;
 	err = -ENOBUFS;
-	skb = netlink_alloc_large_skb(len);
+	skb = netlink_alloc_large_skb(len, dst_group);
 	if (skb == NULL)
 		goto out;
 

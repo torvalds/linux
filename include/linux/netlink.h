@@ -85,6 +85,22 @@ int netlink_attachskb(struct sock *sk, struct sk_buff *skb,
 void netlink_detachskb(struct sock *sk, struct sk_buff *skb);
 int netlink_sendskb(struct sock *sk, struct sk_buff *skb);
 
+static inline struct sk_buff *
+netlink_skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
+{
+	struct sk_buff *nskb;
+
+	nskb = skb_clone(skb, gfp_mask);
+	if (!nskb)
+		return NULL;
+
+	/* This is a large skb, set destructor callback to release head */
+	if (is_vmalloc_addr(skb->head))
+		nskb->destructor = skb->destructor;
+
+	return nskb;
+}
+
 /*
  *	skb should fit one page. This choice is good for headerless malloc.
  *	But we should limit to 8K so that userspace does not have to

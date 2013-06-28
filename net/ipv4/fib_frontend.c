@@ -961,7 +961,7 @@ static void nl_fib_input(struct sk_buff *skb)
 	    nlmsg_len(nlh) < sizeof(*frn))
 		return;
 
-	skb = skb_clone(skb, GFP_KERNEL);
+	skb = netlink_skb_clone(skb, GFP_KERNEL);
 	if (skb == NULL)
 		return;
 	nlh = nlmsg_hdr(skb);
