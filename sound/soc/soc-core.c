@@ -2080,6 +2080,7 @@ int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 EXPORT_SYMBOL_GPL(snd_soc_new_ac97_codec);
 
 struct snd_ac97_bus_ops *soc_ac97_ops;
+EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops)
 {
