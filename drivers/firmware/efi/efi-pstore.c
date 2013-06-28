@@ -235,7 +235,11 @@ static __init int efivars_pstore_init(void)
 	efi_pstore_info.bufsize = 1024;
 	spin_lock_init(&efi_pstore_info.buf_lock);
 
-	pstore_register(&efi_pstore_info);
+	if (pstore_register(&efi_pstore_info)) {
+		kfree(efi_pstore_info.buf);
+		efi_pstore_info.buf = NULL;
+		efi_pstore_info.bufsize = 0;
+	}
 
 	return 0;
 }
