@@ -104,6 +104,15 @@ config NFS_V4_1
 
 	  If unsure, say N.
 
+config NFS_V4_2
+	bool "NFS client support for NFSv4.2"
+	depends on NFS_V4_1
+	help
+	  This option enables support for minor version 2 of the NFSv4 protocol
+	  in the kernel's NFS client.
+
+	  If unsure, say N.
+
 config PNFS_FILE_LAYOUT
 	tristate
 	depends on NFS_V4_1
@@ -130,6 +139,11 @@ config NFS_V4_1_IMPLEMENTATION_ID_DOMAIN
 	  name of the distribution.
 	  If the NFS client is unchanged from the upstream kernel, this
 	  option should be set to the default "kernel.org".
+
+config NFS_V4_SECURITY_LABEL
+	bool
+	depends on NFS_V4_2 && SECURITY
+	default y
 
 config ROOT_NFS
 	bool "Root file system on NFS"
