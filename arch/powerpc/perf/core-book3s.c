@@ -75,6 +75,7 @@ static unsigned int freeze_events_kernel = MMCR0_FCS;
 
 #define MMCR0_FCHV		0
 #define MMCR0_PMCjCE		MMCR0_PMCnCE
+#define MMCR0_FC56		0
 #define MMCR0_PMAO		0
 
 #define SPRN_MMCRA		SPRN_MMCR2
@@ -870,11 +871,11 @@ static void power_pmu_disable(struct pmu *pmu)
 		}
 
 		/*
-		 * Set the 'freeze counters' bit, clear PMAO.
+		 * Set the 'freeze counters' bit, clear PMAO/FC56.
 		 */
 		val  = mfspr(SPRN_MMCR0);
 		val |= MMCR0_FC;
-		val &= ~MMCR0_PMAO;
+		val &= ~(MMCR0_PMAO | MMCR0_FC56);
 
 		/*
 		 * The barrier is to make sure the mtspr has been
