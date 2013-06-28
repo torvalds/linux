@@ -14,6 +14,8 @@ hvcs.txt
 	- IBM "Hypervisor Virtual Console Server" Installation Guide
 mpc52xx.txt
 	- Linux 2.6.x on MPC52xx family
+pmu-ebb.txt
+	- Description of the API for using the PMU with Event Based Branches.
 qe_firmware.txt
 	- describes the layout of firmware binaries for the Freescale QUICC
 	  Engine and the code that parses and uploads the microcode therein.
