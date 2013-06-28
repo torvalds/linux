@@ -202,6 +202,13 @@ void __init r8a73a4_add_standard_devices(void)
 	r8a7790_register_cmt(10);
 }
 
+void __init r8a73a4_init_delay(void)
+{
+#ifndef CONFIG_ARM_ARCH_TIMER
+	shmobile_setup_delay(1500, 2, 4); /* Cortex-A15 @ 1500MHz */
+#endif
+}
+
 #ifdef CONFIG_USE_OF
 void __init r8a73a4_add_standard_devices_dt(void)
 {
@@ -215,6 +222,7 @@ static const char *r8a73a4_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(R8A73A4_DT, "Generic R8A73A4 (Flattened Device Tree)")
+	.init_early	= r8a73a4_init_delay,
 	.init_machine	= r8a73a4_add_standard_devices_dt,
 	.init_time	= shmobile_timer_init,
 	.dt_compat	= r8a73a4_boards_compat_dt,
