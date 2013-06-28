@@ -1663,6 +1663,13 @@ static int clksel_set_rate_hdmi(struct clk *clk, unsigned long rate)
 
 static int dclk_lcdc_set_rate(struct clk *clk, unsigned long rate)
 {
+	if (rate == 27 * MHZ)
+		return clkset_rate_freediv_autosel_parents(clk, rate);
+	else
+		return clkset_rate_evendiv_autosel_parents(clk, rate);
+
+#if 0
+
 	int ret = 0;
 	struct clk *parent;
 
@@ -1690,13 +1697,14 @@ static int dclk_lcdc_set_rate(struct clk *clk, unsigned long rate)
 		}
 	}
 	return ret;
+#endif
 }
 
 static struct clk *dclk_lcdc0_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc0 = {
 	.name		= "dclk_lcdc0",
 	.mode		= gate_mode,
-	.set_rate	= clkset_rate_evendiv_autosel_parents,
+	.set_rate	= dclk_lcdc_set_rate,
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC0_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(27),
@@ -1709,7 +1717,7 @@ static struct clk *dclk_lcdc1_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc1 = {
 	.name		= "dclk_lcdc1",
 	.mode		= gate_mode,
-	.set_rate	= clkset_rate_evendiv_autosel_parents,
+	.set_rate	= dclk_lcdc_set_rate,
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC1_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(28),
