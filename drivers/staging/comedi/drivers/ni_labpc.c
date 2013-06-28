@@ -1712,13 +1712,15 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 #ifdef CONFIG_ISA_DMA_API
 	if (dev->irq && (dma_chan == 1 || dma_chan == 3)) {
-		devpriv->dma_buffer = kmalloc(dma_buffer_size,
-					      GFP_KERNEL | GFP_DMA);
-		if (devpriv->dma_buffer) {
+		void *dma_buffer = kmalloc(dma_buffer_size,
+					   GFP_KERNEL | GFP_DMA);
+
+		if (dma_buffer) {
 			ret = request_dma(dma_chan, dev->board_name);
 			if (ret == 0) {
 				unsigned long dma_flags;
 
+				devpriv->dma_buffer = dma_buffer;
 				devpriv->dma_chan = dma_chan;
 				devpriv->dma_addr =
 					virt_to_bus(devpriv->dma_buffer);
@@ -1728,7 +1730,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
 				release_dma_lock(dma_flags);
 			} else {
-				kfree(devpriv->dma_buffer);
+				kfree(dma_buffer);
 			}
 		}
 	}
