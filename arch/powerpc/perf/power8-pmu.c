@@ -109,6 +109,16 @@
 #define EVENT_IS_MARKED		(EVENT_MARKED_MASK << EVENT_MARKED_SHIFT)
 #define EVENT_PSEL_MASK		0xff	/* PMCxSEL value */
 
+#define EVENT_VALID_MASK	\
+	((EVENT_THRESH_MASK    << EVENT_THRESH_SHIFT)		|	\
+	 (EVENT_SAMPLE_MASK    << EVENT_SAMPLE_SHIFT)		|	\
+	 (EVENT_CACHE_SEL_MASK << EVENT_CACHE_SEL_SHIFT)	|	\
+	 (EVENT_PMC_MASK       << EVENT_PMC_SHIFT)		|	\
+	 (EVENT_UNIT_MASK      << EVENT_UNIT_SHIFT)		|	\
+	 (EVENT_COMBINE_MASK   << EVENT_COMBINE_SHIFT)		|	\
+	 (EVENT_MARKED_MASK    << EVENT_MARKED_SHIFT)		|	\
+	  EVENT_PSEL_MASK)
+
 /* MMCRA IFM bits - POWER8 */
 #define	POWER8_MMCRA_IFM1		0x0000000040000000UL
 #define	POWER8_MMCRA_IFM2		0x0000000080000000UL
@@ -211,6 +221,9 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 	unsigned long mask, value;
 
 	mask = value = 0;
+
+	if (event & ~EVENT_VALID_MASK)
+		return -1;
 
 	pmc   = (event >> EVENT_PMC_SHIFT)       & EVENT_PMC_MASK;
 	unit  = (event >> EVENT_UNIT_SHIFT)      & EVENT_UNIT_MASK;
