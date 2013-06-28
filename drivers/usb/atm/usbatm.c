@@ -661,7 +661,7 @@ static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 
 	/* racy disconnection check - fine */
 	if (!instance || instance->disconnected) {
-#ifdef DEBUG
+#ifdef VERBOSE_DEBUG
 		printk_ratelimited(KERN_DEBUG "%s: %s!\n", __func__, instance ? "disconnected" : "NULL instance");
 #endif
 		err = -ENODEV;
@@ -1120,14 +1120,13 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	instance->rx_channel.buf_size = num_packets * maxpacket;
 	instance->rx_channel.packet_size = maxpacket;
 
-#ifdef DEBUG
 	for (i = 0; i < 2; i++) {
 		struct usbatm_channel *channel = i ?
 			&instance->tx_channel : &instance->rx_channel;
 
-		dev_dbg(dev, "%s: using %d byte buffer for %s channel 0x%p\n", __func__, channel->buf_size, i ? "tx" : "rx", channel);
+		dev_dbg(dev, "%s: using %d byte buffer for %s channel 0x%p\n",
+			__func__, channel->buf_size, i ? "tx" : "rx", channel);
 	}
-#endif
 
 	/* initialize urbs */
 
