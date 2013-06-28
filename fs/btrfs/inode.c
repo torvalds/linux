@@ -4391,9 +4391,6 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 	int mask = attr->ia_valid;
 	int ret;
 
-	if (newsize == oldsize)
-		return 0;
-
 	/*
 	 * The regular truncate() case without ATTR_CTIME and ATTR_MTIME is a
 	 * special case where we need to update the times despite not having
