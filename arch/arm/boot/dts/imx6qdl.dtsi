@@ -574,13 +574,11 @@
 
 				lvds-channel@0 {
 					reg = <0>;
-					crtcs = <&ipu1 0>;
 					status = "disabled";
 				};
 
 				lvds-channel@1 {
 					reg = <1>;
-					crtcs = <&ipu1 1>;
 					status = "disabled";
 				};
 			};

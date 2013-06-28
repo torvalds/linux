@@ -419,3 +419,20 @@
 		};
 	};
 };
+
+&ldb {
+	clocks = <&clks 33>, <&clks 34>,
+		 <&clks 39>, <&clks 40>,
+		 <&clks 135>, <&clks 136>;
+	clock-names = "di0_pll", "di1_pll",
+		      "di0_sel", "di1_sel",
+		      "di0", "di1";
+
+	lvds-channel@0 {
+		crtcs = <&ipu1 0>, <&ipu1 1>;
+	};
+
+	lvds-channel@1 {
+		crtcs = <&ipu1 0>, <&ipu1 1>;
+	};
+};
