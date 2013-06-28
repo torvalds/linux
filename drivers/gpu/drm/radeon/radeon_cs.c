@@ -550,6 +550,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		return r;
 	}
 
+	/* XXX pick SD/HD/MVC */
 	if (parser.ring == R600_RING_TYPE_UVD_INDEX)
 		radeon_uvd_note_usage(rdev);
 

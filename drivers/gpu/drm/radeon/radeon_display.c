@@ -153,7 +153,13 @@ static void dce5_crtc_load_lut(struct drm_crtc *crtc)
 		NI_OUTPUT_CSC_OVL_MODE(NI_OUTPUT_CSC_BYPASS)));
 	/* XXX match this to the depth of the crtc fmt block, move to modeset? */
 	WREG32(0x6940 + radeon_crtc->crtc_offset, 0);
-
+	if (ASIC_IS_DCE8(rdev)) {
+		/* XXX this only needs to be programmed once per crtc at startup,
+		 * not sure where the best place for it is
+		 */
+		WREG32(CIK_ALPHA_CONTROL + radeon_crtc->crtc_offset,
+		       CIK_CURSOR_ALPHA_BLND_ENA);
+	}
 }
 
 static void legacy_crtc_load_lut(struct drm_crtc *crtc)
@@ -512,6 +518,14 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 	radeon_crtc->crtc_id = index;
 	rdev->mode_info.crtcs[index] = radeon_crtc;
 
+	if (rdev->family >= CHIP_BONAIRE) {
+		radeon_crtc->max_cursor_width = CIK_CURSOR_WIDTH;
+		radeon_crtc->max_cursor_height = CIK_CURSOR_HEIGHT;
+	} else {
+		radeon_crtc->max_cursor_width = CURSOR_WIDTH;
+		radeon_crtc->max_cursor_height = CURSOR_HEIGHT;
+	}
+
 #if 0
 	radeon_crtc->mode_set.crtc = &radeon_crtc->base;
 	radeon_crtc->mode_set.connectors = (struct drm_connector **)(radeon_crtc + 1);
@@ -530,7 +544,7 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 		radeon_legacy_init_crtc(dev, radeon_crtc);
 }
 
-static const char *encoder_names[37] = {
+static const char *encoder_names[38] = {
 	"NONE",
 	"INTERNAL_LVDS",
 	"INTERNAL_TMDS1",
@@ -567,7 +581,8 @@ static const char *encoder_names[37] = {
 	"INTERNAL_UNIPHY2",
 	"NUTMEG",
 	"TRAVIS",
-	"INTERNAL_VCE"
+	"INTERNAL_VCE",
+	"INTERNAL_UNIPHY3",
 };
 
 static const char *hpd_names[6] = {
