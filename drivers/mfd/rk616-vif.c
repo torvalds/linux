@@ -203,6 +203,7 @@ int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 	}
 
 	
+	
 	ret = rk616->write_dev(rk616,VIF0_REG1 + offset,&val);
 
 	val = (screen->hsync_len << 16) | (screen->hsync_len + screen->left_margin + 
@@ -223,6 +224,16 @@ int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 		(screen->vsync_len + screen->upper_margin);
 	ret = rk616->write_dev(rk616,VIF0_REG5 + offset,&val);
 
+	if(id == 0)
+	{
+		val = VIF0_SYNC_EN | (VIF0_SYNC_EN << 16);
+		rk616->write_dev(rk616,CRU_IO_CON0,&val);
+	}
+	else
+	{
+		val = VIF1_SYNC_EN | (VIF1_SYNC_EN << 16);
+		rk616->write_dev(rk616,CRU_IO_CON0,&val);
+	}
 	rk616_vif_enable(rk616,id);
 	
 	return ret;
@@ -436,7 +447,8 @@ static int rk616_dual_input_cfg(struct mfd_rk616 *rk616,rk_screen *screen,
 	route->pll0_clk_sel = PLL0_CLK_SEL(LCD0_DCLK);
 	route->pll1_clk_sel = PLL1_CLK_SEL(LCD1_DCLK);
 	route->vif1_clk_sel = VIF1_CLKIN_SEL(VIF_CLKIN_SEL_PLL1);
-	route->hdmi_sel     = HDMI_IN_SEL(HDMI_CLK_SEL_VIF1);
+	route->hdmi_sel     = HDMI_IN_SEL(HDMI_IN_SEL_VIF1);
+	route->hdmi_clk_sel = HDMI_CLK_SEL(HDMI_CLK_SEL_VIF1);
 	if(enable)  //hdmi plug in
 	{
 		route->vif1_bypass  = 0;
@@ -491,8 +503,8 @@ static int rk616_lcd0_input_lcd1_unused_cfg(struct mfd_rk616 *rk616,rk_screen *s
 		route->scl_en       = 1;
 		route->sclk_sel     = SCLK_SEL(SCLK_SEL_PLL1);
 		route->dither_sel   = DITHER_IN_SEL(DITHER_SEL_SCL); //dither from sclaer
-		route->hdmi_sel     = HDMI_IN_SEL(HDMI_CLK_SEL_VIF0);//from vif0
-		
+		route->hdmi_sel     = HDMI_IN_SEL(HDMI_IN_SEL_VIF0);//from vif0
+		route->hdmi_clk_sel = HDMI_CLK_SEL(HDMI_CLK_SEL_VIF0);	
 	}
 	else
 	{
@@ -501,7 +513,7 @@ static int rk616_lcd0_input_lcd1_unused_cfg(struct mfd_rk616 *rk616,rk_screen *s
 		route->sclin_sel   = SCL_IN_SEL(SCL_SEL_VIF0); //from vif0
 		route->scl_en      = 0;
 		route->dither_sel  = DITHER_IN_SEL(DITHER_SEL_VIF0); //dither from sclaer
-		route->hdmi_sel    = HDMI_IN_SEL(HDMI_CLK_SEL_VIF0);//from vif0
+		route->hdmi_sel    = HDMI_IN_SEL(HDMI_IN_SEL_VIF0);//from vif0
 	}
 	route->pll1_clk_sel = PLL1_CLK_SEL(LCD0_DCLK);
 	route->pll0_clk_sel = PLL0_CLK_SEL(LCD0_DCLK);
@@ -544,7 +556,8 @@ static int rk616_lcd0_input_lcd1_output_cfg(struct mfd_rk616 *rk616,rk_screen *s
 		route->scl_en       = 1;
 		route->sclk_sel     = SCLK_SEL(SCLK_SEL_PLL1);
 		route->dither_sel   = DITHER_IN_SEL(DITHER_SEL_SCL); //dither from sclaer
-		route->hdmi_sel     = HDMI_IN_SEL(HDMI_CLK_SEL_VIF0);//from vif0
+		route->hdmi_sel     = HDMI_IN_SEL(HDMI_IN_SEL_VIF0);//from vif0
+		route->hdmi_clk_sel = HDMI_CLK_SEL(HDMI_CLK_SEL_VIF0);
 	}
 	else
 	{
@@ -553,7 +566,8 @@ static int rk616_lcd0_input_lcd1_output_cfg(struct mfd_rk616 *rk616,rk_screen *s
 		route->sclin_sel   = SCL_IN_SEL(SCL_SEL_VIF0); //from vif0
 		route->scl_en      = 0;
 		route->dither_sel  = DITHER_IN_SEL(DITHER_SEL_VIF0); //dither from sclaer
-		route->hdmi_sel    = HDMI_IN_SEL(HDMI_CLK_SEL_VIF0);//from vif0	
+		route->hdmi_sel    = HDMI_IN_SEL(HDMI_IN_SEL_VIF0);//from vif0
+		route->hdmi_clk_sel = HDMI_CLK_SEL(HDMI_CLK_SEL_VIF1);
 	}
 	route->pll0_clk_sel = PLL0_CLK_SEL(LCD0_DCLK);
 	route->pll1_clk_sel = PLL1_CLK_SEL(LCD0_DCLK);
@@ -598,7 +612,8 @@ static int rk616_lcd0_unused_lcd1_input_cfg(struct mfd_rk616 *rk616,rk_screen *s
 	route->sclk_sel    = SCLK_SEL(SCLK_SEL_PLL0);
 	
 	route->dither_sel  = DITHER_IN_SEL(DITHER_SEL_SCL); //dither from sclaer
-	route->hdmi_sel    = HDMI_IN_SEL(HDMI_CLK_SEL_VIF1); //from vif1
+	route->hdmi_sel    = HDMI_IN_SEL(HDMI_IN_SEL_VIF1); //from vif1
+	route->hdmi_clk_sel = HDMI_CLK_SEL(HDMI_CLK_SEL_VIF1);
 	route->lcd1_input  = 1;  
 	if(screen->type == SCREEN_RGB)
 	{
@@ -687,6 +702,8 @@ static int rk616_router_cfg(struct mfd_rk616 *rk616)
 		(route->hdmi_sel) | (route->vif1_bypass) | (route->vif0_bypass) |
 		(route->vif1_clk_sel)| (route->vif0_clk_sel); 
 	ret = rk616->write_dev(rk616,CRU_CLKSEL2_CON,&val);
+	val = route->hdmi_clk_sel;
+	ret = rk616->write_dev_bits(rk616,CRU_CFGMISC_CON,HDMI_CLK_SEL_MASK,&val);
 
 	return ret;
 }
