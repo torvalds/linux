@@ -22,9 +22,11 @@
 *        add support flash control;
 *
 *v0.1.5/v0.1.7:
-*        fix use v4l2_mbus_framefmt.reserved array overflow in generic_sensor_s_fmt;        
+*        fix use v4l2_mbus_framefmt.reserved array overflow in generic_sensor_s_fmt;  
+*v0.1.9:
+*        fix sensor_find_ctrl may be overflow;
 */
-static int version = KERNEL_VERSION(0,1,7);
+static int version = KERNEL_VERSION(0,1,9);
 module_param(version, int, S_IRUGO);
 
 
