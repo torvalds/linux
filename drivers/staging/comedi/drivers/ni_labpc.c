@@ -871,25 +871,20 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return ret;
 	}
 
-#ifdef CONFIG_ISA_DMA_API
-	/*  figure out what method we will use to transfer data */
-	if (devpriv->dma_chan &&	/*  need a dma channel allocated */
-		/*
-		 * dma unsafe at RT priority,
-		 * and too much setup time for TRIG_WAKE_EOS for
-		 */
-	    (cmd->flags & (TRIG_WAKE_EOS | TRIG_RT)) == 0) {
+	/* figure out what method we will use to transfer data */
+	if (labpc_have_dma_chan(dev) &&
+	    /* dma unsafe at RT priority,
+	     * and too much setup time for TRIG_WAKE_EOS */
+	    (cmd->flags & (TRIG_WAKE_EOS | TRIG_RT)) == 0)
 		xfer = isa_dma_transfer;
-		/* pc-plus has no fifo-half full interrupt */
-	} else
-#endif
-	if (board->is_labpc1200 &&
-		   /*  wake-end-of-scan should interrupt on fifo not empty */
-		   (cmd->flags & TRIG_WAKE_EOS) == 0 &&
-		   /*  make sure we are taking more than just a few points */
-		   (cmd->stop_src != TRIG_COUNT || devpriv->count > 256)) {
+	else if (/* pc-plus has no fifo-half full interrupt */
+		 board->is_labpc1200 &&
+		 /* wake-end-of-scan should interrupt on fifo not empty */
+		 (cmd->flags & TRIG_WAKE_EOS) == 0 &&
+		 /* make sure we are taking more than just a few points */
+		 (cmd->stop_src != TRIG_COUNT || devpriv->count > 256))
 		xfer = fifo_half_full_transfer;
-	} else
+	else
 		xfer = fifo_not_empty_transfer;
 	devpriv->current_transfer = xfer;
 
