@@ -76,6 +76,8 @@ enum{
 #define I2C_STARTIPD            (1 << 4)
 #define I2C_STOPIPD             (1 << 5)
 #define I2C_NAKRCVIPD           (1 << 6)
+
+#define I2C_HOLD_SCL           	(1 << 7)
 #define I2C_IPD_ALL_CLEAN       0x7f
 
 /* finished count */
@@ -209,22 +211,36 @@ static inline void rk30_i2c_enable_irq(struct rk30_i2c *i2c)
 {
         i2c_writel(IRQ_MST_ENABLE, i2c->regs + I2C_IEN);
 }
-
-/* SCL Divisor = 8 * (CLKDIVL + CLKDIVH)
+static void rk30_get_div(int div, int *divh, int *divl)
+{
+	if(div % 2 == 0){
+		*divh = div/2; 
+		*divl = div/2;
+	}else{
+		*divh = rk30_ceil(div, 2);
+		*divl = div/2;
+	}
+}
+/* SCL Divisor = 8 * (CLKDIVL+1 + CLKDIVH+1)
  * SCL = i2c_rate/ SCLK Divisor
 */
 static void  rk30_i2c_set_clk(struct rk30_i2c *i2c, unsigned long scl_rate)
 {
         unsigned long i2c_rate = clk_get_rate(i2c->clk);
 
-        unsigned int div, divl, divh;
+        int div, divl, divh;
 
         if((scl_rate == i2c->scl_rate) && (i2c_rate == i2c->i2c_rate))
                 return; 
         i2c->i2c_rate = i2c_rate;
         i2c->scl_rate = scl_rate;
-        div = rk30_ceil(i2c_rate, scl_rate * 8);
-        divh = divl = rk30_ceil(div, 2);
+        div = rk30_ceil(i2c_rate, (scl_rate * 8)) - 2;
+	if(unlikely(div < 0)){
+		dev_warn(i2c->dev, "Divisor(%d) is negative, set divl = divh = 0\n", div);
+		divh =divl = 0;
+	}else{
+		rk30_get_div(div, &divh, &divl);
+	}
         i2c_writel(I2C_CLKDIV_VAL(divl, divh), i2c->regs + I2C_CLKDIV);
         i2c_dbg(i2c->dev, "set clk(I2C_CLKDIV: 0x%08x)\n", i2c_readl(i2c->regs + I2C_CLKDIV));
         return;
@@ -572,11 +588,14 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
 	if (timeout == 0){
+		unsigned int ipd = i2c_readl(i2c->regs + I2C_IPD);
                 if(error < 0)
                         i2c_dbg(i2c->dev, "error = %d\n", error);
                 else if((i2c->complete_what !=COMPLETE_READ  && i2c->complete_what != COMPLETE_WRITE)){
+			if(ipd & I2C_HOLD_SCL)
+				dev_err(i2c->dev, "SCL was hold by slave\n");
                         dev_err(i2c->dev, "Addr[0x%04x] wait event timeout, state: %d, is_busy: %d, error: %d, complete_what: 0x%x, ipd: 0x%x\n", 
-                                msgs[0].addr, i2c->state, i2c->is_busy, error, i2c->complete_what, i2c_readl(i2c->regs + I2C_IPD));  
+                                msgs[0].addr, i2c->state, i2c->is_busy, error, i2c->complete_what, ipd);  
                         //rk30_show_regs(i2c);
                         error = -ETIMEDOUT;
 			if(in_atomic())
