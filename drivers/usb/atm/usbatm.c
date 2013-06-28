@@ -311,8 +311,6 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 	int vci = ((source[1] & 0x0f) << 12) | (source[2] << 4) | (source[3] >> 4);
 	u8 pti = ((source[3] & 0xe) >> 1);
 
-	vdbg(&instance->usb_intf->dev, "%s: vpi %hd, vci %d, pti %d", __func__, vpi, vci, pti);
-
 	if ((vci != instance->cached_vci) || (vpi != instance->cached_vpi)) {
 		instance->cached_vpi = vpi;
 		instance->cached_vci = vci;
@@ -476,9 +474,6 @@ static unsigned int usbatm_write_cells(struct usbatm_data *instance,
 	unsigned int bytes_written;
 	unsigned int stride = instance->tx_channel.stride;
 
-	vdbg(&instance->usb_intf->dev, "%s: skb->len=%d, avail_space=%u",
-	     __func__, skb->len, avail_space);
-
 	for (bytes_written = 0; bytes_written < avail_space && ctrl->len;
 	     bytes_written += stride, target += stride) {
 		unsigned int data_len = min_t(unsigned int, skb->len, ATM_CELL_PAYLOAD);
@@ -639,7 +634,6 @@ static void usbatm_cancel_send(struct usbatm_data *instance,
 {
 	struct sk_buff *skb, *n;
 
-	atm_dbg(instance, "%s entered\n", __func__);
 	spin_lock_irq(&instance->sndqueue.lock);
 	skb_queue_walk_safe(&instance->sndqueue, skb, n) {
 		if (UDSL_SKB(skb)->atm.vcc == vcc) {
@@ -657,7 +651,6 @@ static void usbatm_cancel_send(struct usbatm_data *instance,
 		usbatm_pop(vcc, skb);
 	}
 	tasklet_enable(&instance->tx_channel.tasklet);
-	atm_dbg(instance, "%s done\n", __func__);
 }
 
 static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
@@ -674,9 +667,6 @@ static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 		err = -ENODEV;
 		goto fail;
 	}
-
-	vdbg(&instance->usb_intf->dev, "%s called (skb 0x%p, len %u)", __func__,
-	     skb, skb->len);
 
 	if (vcc->qos.aal != ATM_AAL5) {
 		atm_rldbg(instance, "%s: unsupported ATM type %d!\n", __func__, vcc->qos.aal);
@@ -717,8 +707,6 @@ static void usbatm_destroy_instance(struct kref *kref)
 {
 	struct usbatm_data *instance = container_of(kref, struct usbatm_data, refcount);
 
-	usb_dbg(instance, "%s\n", __func__);
-
 	tasklet_kill(&instance->rx_channel.tasklet);
 	tasklet_kill(&instance->tx_channel.tasklet);
 	usb_put_dev(instance->usb_dev);
@@ -727,15 +715,11 @@ static void usbatm_destroy_instance(struct kref *kref)
 
 static void usbatm_get_instance(struct usbatm_data *instance)
 {
-	usb_dbg(instance, "%s\n", __func__);
-
 	kref_get(&instance->refcount);
 }
 
 static void usbatm_put_instance(struct usbatm_data *instance)
 {
-	usb_dbg(instance, "%s\n", __func__);
-
 	kref_put(&instance->refcount, usbatm_destroy_instance);
 }
 
@@ -751,7 +735,6 @@ static void usbatm_atm_dev_close(struct atm_dev *atm_dev)
 	if (!instance)
 		return;
 
-	usb_dbg(instance, "%s\n", __func__);
 	atm_dev->dev_data = NULL; /* catch bugs */
 	usbatm_put_instance(instance);	/* taken in usbatm_atm_init */
 }
@@ -806,8 +789,6 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 
 	if (!instance)
 		return -ENODEV;
-
-	atm_dbg(instance, "%s: vpi %hd, vci %d\n", __func__, vpi, vci);
 
 	/* only support AAL5 */
 	if ((vcc->qos.aal != ATM_AAL5)) {
@@ -885,11 +866,6 @@ static void usbatm_atm_close(struct atm_vcc *vcc)
 	if (!instance || !vcc_data)
 		return;
 
-	atm_dbg(instance, "%s entered\n", __func__);
-
-	atm_dbg(instance, "%s: deallocating vcc 0x%p with vpi %d vci %d\n",
-		__func__, vcc_data, vcc_data->vpi, vcc_data->vci);
-
 	usbatm_cancel_send(instance, vcc);
 
 	mutex_lock(&instance->serialize);	/* vs self, usbatm_atm_open, usbatm_usb_disconnect */
@@ -916,8 +892,6 @@ static void usbatm_atm_close(struct atm_vcc *vcc)
 	clear_bit(ATM_VF_ADDR, &vcc->flags);
 
 	mutex_unlock(&instance->serialize);
-
-	atm_dbg(instance, "%s successful\n", __func__);
 }
 
 static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd,
@@ -1053,12 +1027,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	int error = -ENOMEM;
 	int i, length;
 	unsigned int maxpacket, num_packets;
-
-	dev_dbg(dev, "%s: trying driver %s with vendor=%04x, product=%04x, ifnum %2d\n",
-			__func__, driver->driver_name,
-			le16_to_cpu(usb_dev->descriptor.idVendor),
-			le16_to_cpu(usb_dev->descriptor.idProduct),
-			intf->altsetting->desc.bInterfaceNumber);
 
 	/* instance init */
 	instance = kzalloc(sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs), GFP_KERNEL);
@@ -1257,8 +1225,6 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 	struct usbatm_data *instance = usb_get_intfdata(intf);
 	struct usbatm_vcc_data *vcc_data;
 	int i;
-
-	dev_dbg(dev, "%s entered\n", __func__);
 
 	if (!instance) {
 		dev_dbg(dev, "%s: NULL instance!\n", __func__);
