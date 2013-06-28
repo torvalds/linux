@@ -2,6 +2,7 @@
 include include/uapi/asm-generic/Kbuild.asm
 
 header-y += byteorder.h
+header-y += ech.h
 header-y += ptrace.h
 header-y += resource.h
 header-y += sigcontext.h

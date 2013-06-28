@@ -45,25 +45,24 @@
 #include "cxd2820r.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
-static DEFINE_MUTEX(anysee_usb_mutex);
 
-static int anysee_ctrl_msg(struct dvb_usb_device *d, u8 *sbuf, u8 slen,
-	u8 *rbuf, u8 rlen)
+static int anysee_ctrl_msg(struct dvb_usb_device *d,
+		u8 *sbuf, u8 slen, u8 *rbuf, u8 rlen)
 {
 	struct anysee_state *state = d_to_priv(d);
 	int act_len, ret, i;
-	u8 buf[64];
 
-	memcpy(&buf[0], sbuf, slen);
-	buf[60] = state->seq++;
+	mutex_lock(&d->usb_mutex);
 
-	mutex_lock(&anysee_usb_mutex);
+	memcpy(&state->buf[0], sbuf, slen);
+	state->buf[60] = state->seq++;
 
-	dev_dbg(&d->udev->dev, "%s: >>> %*ph\n", __func__, slen, buf);
+	dev_dbg(&d->udev->dev, "%s: >>> %*ph\n", __func__, slen, state->buf);
 
 	/* We need receive one message more after dvb_usb_generic_rw due
 	   to weird transaction flow, which is 1 x send + 2 x receive. */
-	ret = dvb_usbv2_generic_rw(d, buf, sizeof(buf), buf, sizeof(buf));
+	ret = dvb_usbv2_generic_rw_locked(d, state->buf, sizeof(state->buf),
+			state->buf, sizeof(state->buf));
 	if (ret)
 		goto error_unlock;
 
@@ -82,20 +81,19 @@ static int anysee_ctrl_msg(struct dvb_usb_device *d, u8 *sbuf, u8 slen,
 	for (i = 0; i < 3; i++) {
 		/* receive 2nd answer */
 		ret = usb_bulk_msg(d->udev, usb_rcvbulkpipe(d->udev,
-			d->props->generic_bulk_ctrl_endpoint), buf, sizeof(buf),
-			&act_len, 2000);
-
+				d->props->generic_bulk_ctrl_endpoint),
+				state->buf, sizeof(state->buf), &act_len, 2000);
 		if (ret) {
-			dev_dbg(&d->udev->dev, "%s: recv bulk message " \
-					"failed=%d\n", __func__, ret);
+			dev_dbg(&d->udev->dev,
+					"%s: recv bulk message failed=%d\n",
+					__func__, ret);
 		} else {
 			dev_dbg(&d->udev->dev, "%s: <<< %*ph\n", __func__,
-					rlen, buf);
+					rlen, state->buf);
 
-			if (buf[63] != 0x4f)
-				dev_dbg(&d->udev->dev, "%s: cmd failed\n",
-						__func__);
-
+			if (state->buf[63] != 0x4f)
+				dev_dbg(&d->udev->dev,
+						"%s: cmd failed\n", __func__);
 			break;
 		}
 	}
@@ -109,11 +107,10 @@ static int anysee_ctrl_msg(struct dvb_usb_device *d, u8 *sbuf, u8 slen,
 
 	/* read request, copy returned data to return buf */
 	if (rbuf && rlen)
-		memcpy(rbuf, buf, rlen);
+		memcpy(rbuf, state->buf, rlen);
 
 error_unlock:
-	mutex_unlock(&anysee_usb_mutex);
-
+	mutex_unlock(&d->usb_mutex);
 	return ret;
 }
 
@@ -638,7 +635,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct anysee_state *state = adap_to_priv(adap);
 	struct dvb_usb_device *d = adap_to_d(adap);
-	int ret;
+	int ret = 0;
 	u8 tmp;
 	struct i2c_msg msg[2] = {
 		{
@@ -884,9 +881,8 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	if (!adap->fe[0]) {
 		/* we have no frontend :-( */
 		ret = -ENODEV;
-		dev_err(&d->udev->dev, "%s: Unsupported Anysee version. " \
-				"Please report the " \
-				"<linux-media@vger.kernel.org>.\n",
+		dev_err(&d->udev->dev,
+				"%s: Unsupported Anysee version. Please report to <linux-media@vger.kernel.org>.\n",
 				KBUILD_MODNAME);
 	}
 error:

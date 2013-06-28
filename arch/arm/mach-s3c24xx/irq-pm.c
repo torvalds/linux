@@ -16,10 +16,15 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/syscore_ops.h>
+#include <linux/io.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
-#include <plat/irq.h>
+#include <plat/map-base.h>
+#include <plat/map-s3c.h>
+
+#include <mach/regs-irq.h>
+#include <mach/regs-gpio.h>
 
 #include <asm/irq.h>
 

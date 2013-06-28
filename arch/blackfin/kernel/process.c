@@ -46,15 +46,14 @@ EXPORT_SYMBOL(pm_power_off);
  * The idle loop on BFIN
  */
 #ifdef CONFIG_IDLE_L1
-static void default_idle(void)__attribute__((l1_text));
-void cpu_idle(void)__attribute__((l1_text));
+void arch_cpu_idle(void)__attribute__((l1_text));
 #endif
 
 /*
  * This is our default idle handler.  We need to disable
  * interrupts here to ensure we don't miss a wakeup call.
  */
-static void default_idle(void)
+void arch_cpu_idle(void)
 {
 #ifdef CONFIG_IPIPE
 	ipipe_suspend_domain();
@@ -66,31 +65,12 @@ static void default_idle(void)
 	hard_local_irq_enable();
 }
 
-/*
- * The idle thread.  We try to conserve power, while trying to keep
- * overall latency low.  The architecture specific idle is passed
- * a value to indicate the level of "idleness" of the system.
- */
-void cpu_idle(void)
-{
-	/* endless idle loop with no priority at all */
-	while (1) {
-
 #ifdef CONFIG_HOTPLUG_CPU
-		if (cpu_is_offline(smp_processor_id()))
-			cpu_die();
-#endif
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		while (!need_resched())
-			default_idle();
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-	}
+void arch_cpu_idle_dead(void)
+{
+	cpu_die();
 }
+#endif
 
 /*
  * Do necessary setup to start up a newly executed thread.

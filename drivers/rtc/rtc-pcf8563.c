@@ -245,14 +245,13 @@ static int pcf8563_probe(struct i2c_client *client,
 {
 	struct pcf8563 *pcf8563;
 
-	int err = 0;
-
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	pcf8563 = kzalloc(sizeof(struct pcf8563), GFP_KERNEL);
+	pcf8563 = devm_kzalloc(&client->dev, sizeof(struct pcf8563),
+				GFP_KERNEL);
 	if (!pcf8563)
 		return -ENOMEM;
 
@@ -260,31 +259,18 @@ static int pcf8563_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, pcf8563);
 
-	pcf8563->rtc = rtc_device_register(pcf8563_driver.driver.name,
-				&client->dev, &pcf8563_rtc_ops, THIS_MODULE);
+	pcf8563->rtc = devm_rtc_device_register(&client->dev,
+				pcf8563_driver.driver.name,
+				&pcf8563_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(pcf8563->rtc)) {
-		err = PTR_ERR(pcf8563->rtc);
-		goto exit_kfree;
-	}
+	if (IS_ERR(pcf8563->rtc))
+		return PTR_ERR(pcf8563->rtc);
 
 	return 0;
-
-exit_kfree:
-	kfree(pcf8563);
-
-	return err;
 }
 
 static int pcf8563_remove(struct i2c_client *client)
 {
-	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
-
-	if (pcf8563->rtc)
-		rtc_device_unregister(pcf8563->rtc);
-
-	kfree(pcf8563);
-
 	return 0;
 }
 

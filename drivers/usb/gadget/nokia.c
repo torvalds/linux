@@ -37,11 +37,9 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#define USB_FACM_INCLUDED
-#include "f_acm.c"
+#define USBF_OBEX_INCLUDED
 #include "f_ecm.c"
 #include "f_obex.c"
-#include "f_serial.c"
 #include "f_phonet.c"
 #include "u_ether.c"
 
@@ -98,44 +96,18 @@ MODULE_AUTHOR("Felipe Balbi");
 MODULE_LICENSE("GPL");
 
 /*-------------------------------------------------------------------------*/
-
+static struct usb_function *f_acm_cfg1;
+static struct usb_function *f_acm_cfg2;
 static u8 hostaddr[ETH_ALEN];
+static struct eth_dev *the_dev;
 
 enum {
 	TTY_PORT_OBEX0,
 	TTY_PORT_OBEX1,
-	TTY_PORT_ACM,
 	TTY_PORTS_MAX,
 };
 
 static unsigned char tty_lines[TTY_PORTS_MAX];
-
-static int __init nokia_bind_config(struct usb_configuration *c)
-{
-	int status = 0;
-
-	status = phonet_bind_config(c);
-	if (status)
-		printk(KERN_DEBUG "could not bind phonet config\n");
-
-	status = obex_bind_config(c, tty_lines[TTY_PORT_OBEX0]);
-	if (status)
-		printk(KERN_DEBUG "could not bind obex config %d\n", 0);
-
-	status = obex_bind_config(c, tty_lines[TTY_PORT_OBEX1]);
-	if (status)
-		printk(KERN_DEBUG "could not bind obex config %d\n", 0);
-
-	status = acm_bind_config(c, tty_lines[TTY_PORT_ACM]);
-	if (status)
-		printk(KERN_DEBUG "could not bind acm config\n");
-
-	status = ecm_bind_config(c, hostaddr);
-	if (status)
-		printk(KERN_DEBUG "could not bind ecm config\n");
-
-	return status;
-}
 
 static struct usb_configuration nokia_config_500ma_driver = {
 	.label		= "Bus Powered",
@@ -153,6 +125,51 @@ static struct usb_configuration nokia_config_100ma_driver = {
 	.MaxPower	= 100,
 };
 
+static struct usb_function_instance *fi_acm;
+
+static int __init nokia_bind_config(struct usb_configuration *c)
+{
+	struct usb_function *f_acm;
+	int status = 0;
+
+	status = phonet_bind_config(c);
+	if (status)
+		printk(KERN_DEBUG "could not bind phonet config\n");
+
+	status = obex_bind_config(c, tty_lines[TTY_PORT_OBEX0]);
+	if (status)
+		printk(KERN_DEBUG "could not bind obex config %d\n", 0);
+
+	status = obex_bind_config(c, tty_lines[TTY_PORT_OBEX1]);
+	if (status)
+		printk(KERN_DEBUG "could not bind obex config %d\n", 0);
+
+	f_acm = usb_get_function(fi_acm);
+	if (IS_ERR(f_acm))
+		return PTR_ERR(f_acm);
+
+	status = usb_add_function(c, f_acm);
+	if (status)
+		goto err_conf;
+
+	status = ecm_bind_config(c, hostaddr, the_dev);
+	if (status) {
+		pr_debug("could not bind ecm config %d\n", status);
+		goto err_ecm;
+	}
+	if (c == &nokia_config_500ma_driver)
+		f_acm_cfg1 = f_acm;
+	else
+		f_acm_cfg2 = f_acm;
+
+	return status;
+err_ecm:
+	usb_remove_function(c, f_acm);
+err_conf:
+	usb_put_function(f_acm);
+	return status;
+}
+
 static int __init nokia_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
@@ -169,9 +186,11 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 			goto err_ether;
 	}
 
-	status = gether_setup(cdev->gadget, hostaddr);
-	if (status < 0)
+	the_dev = gether_setup(cdev->gadget, hostaddr);
+	if (IS_ERR(the_dev)) {
+		status = PTR_ERR(the_dev);
 		goto err_ether;
+	}
 
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
@@ -185,24 +204,32 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 	if (!gadget_supports_altsettings(gadget))
 		goto err_usb;
 
+	fi_acm = usb_get_function_instance("acm");
+	if (IS_ERR(fi_acm))
+		goto err_usb;
+
 	/* finally register the configuration */
 	status = usb_add_config(cdev, &nokia_config_500ma_driver,
 			nokia_bind_config);
 	if (status < 0)
-		goto err_usb;
+		goto err_acm_inst;
 
 	status = usb_add_config(cdev, &nokia_config_100ma_driver,
 			nokia_bind_config);
 	if (status < 0)
-		goto err_usb;
+		goto err_put_cfg1;
 
 	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, "%s\n", NOKIA_LONG_NAME);
 
 	return 0;
 
+err_put_cfg1:
+	usb_put_function(f_acm_cfg1);
+err_acm_inst:
+	usb_put_function_instance(fi_acm);
 err_usb:
-	gether_cleanup();
+	gether_cleanup(the_dev);
 err_ether:
 	cur_line--;
 	while (cur_line >= 0)
@@ -217,12 +244,15 @@ static int __exit nokia_unbind(struct usb_composite_dev *cdev)
 {
 	int i;
 
+	usb_put_function(f_acm_cfg1);
+	usb_put_function(f_acm_cfg2);
+	usb_put_function_instance(fi_acm);
 	gphonet_cleanup();
 
 	for (i = 0; i < TTY_PORTS_MAX; i++)
 		gserial_free_line(tty_lines[i]);
 
-	gether_cleanup();
+	gether_cleanup(the_dev);
 
 	return 0;
 }
@@ -247,4 +277,3 @@ static void __exit nokia_cleanup(void)
 	usb_composite_unregister(&nokia_driver);
 }
 module_exit(nokia_cleanup);
-

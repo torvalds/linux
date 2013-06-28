@@ -261,7 +261,7 @@ static void __init create_mapping(phys_addr_t phys, unsigned long virt,
 void __iomem * __init early_io_map(phys_addr_t phys, unsigned long virt)
 {
 	unsigned long size, mask;
-	bool page64k = IS_ENABLED(ARM64_64K_PAGES);
+	bool page64k = IS_ENABLED(CONFIG_ARM64_64K_PAGES);
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -391,17 +391,14 @@ int kern_addr_valid(unsigned long addr)
 }
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 #ifdef CONFIG_ARM64_64K_PAGES
-int __meminit vmemmap_populate(struct page *start_page,
-			       unsigned long size, int node)
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 {
-	return vmemmap_populate_basepages(start_page, size, node);
+	return vmemmap_populate_basepages(start, end, node);
 }
 #else	/* !CONFIG_ARM64_64K_PAGES */
-int __meminit vmemmap_populate(struct page *start_page,
-			       unsigned long size, int node)
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 {
-	unsigned long addr = (unsigned long)start_page;
-	unsigned long end = (unsigned long)(start_page + size);
+	unsigned long addr = start;
 	unsigned long next;
 	pgd_t *pgd;
 	pud_t *pud;
@@ -434,7 +431,7 @@ int __meminit vmemmap_populate(struct page *start_page,
 	return 0;
 }
 #endif	/* CONFIG_ARM64_64K_PAGES */
-void vmemmap_free(struct page *memmap, unsigned long nr_pages)
+void vmemmap_free(unsigned long start, unsigned long end)
 {
 }
 #endif	/* CONFIG_SPARSEMEM_VMEMMAP */

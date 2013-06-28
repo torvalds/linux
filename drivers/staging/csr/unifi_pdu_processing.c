@@ -403,7 +403,7 @@ CsrResult enque_tx_data_pdu(unifi_priv_t *priv, bulk_data_param_t *bulkdata,
 
 
 
-    tx_q_item = (tx_buffered_packets_t *)kmalloc(sizeof(tx_buffered_packets_t), GFP_ATOMIC);
+    tx_q_item = kmalloc(sizeof(tx_buffered_packets_t), GFP_ATOMIC);
     if (tx_q_item == NULL) {
         unifi_error(priv,
                 "Failed to allocate %d bytes for tx packet record\n",
@@ -1468,7 +1468,7 @@ static int update_macheader(unifi_priv_t *priv, struct sk_buff *skb,
             }
     }
 
-    /* prepare the complete skb, by pushing the MAC header to the begining of the skb->data */
+    /* prepare the complete skb, by pushing the MAC header to the beginning of the skb->data */
     unifi_trace(priv, UDBG5, "updated Mac Header: %d \n",macHeaderLengthInBytes);
     memcpy(bufPtr, macHeaderBuf, macHeaderLengthInBytes);
 
@@ -1546,7 +1546,7 @@ uf_ap_process_data_pdu(unifi_priv_t *priv, struct sk_buff *skb,
         return -1;
     }
 
-    /* fetch the destination record from staion record database */
+    /* fetch the destination record from station record database */
     dstStaInfo = CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv, ehdr->h_dest, interfaceTag);
 
     /* AP mode processing, & if packet is unicast */
@@ -1878,13 +1878,13 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
         }
         else if ((pktType == CSR_WIFI_MULTICAST_PDU) && (!status))
         {
-            /* If broadcast Tim is set && queuing is successfull, then only update TIM */
+            /* If broadcast Tim is set && queuing is successful, then only update TIM */
             spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
             interfacePriv->noOfbroadcastPktQueued++;
             spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
         }
     }
-    /* If broadcast Tim is set && queuing is successfull, then only update TIM */
+    /* If broadcast Tim is set && queuing is successful, then only update TIM */
     if(setBcTim && !status) {
         unifi_trace(priv, UDBG3, "tim set due to broadcast pkt\n");
         if (!interfacePriv->bcTimSetReqPendingFlag)
@@ -1995,7 +1995,7 @@ s8 uf_get_protection_bit_from_interfacemode(unifi_priv_t *priv, u16 interfaceTag
                      */
                     protection = interfacePriv->protect;
                 } else {
-                    /* fetch the destination record from staion record database */
+                    /* fetch the destination record from station record database */
                     dstStaInfo = CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv, daddr, interfaceTag);
                     if (!dstStaInfo) {
                         unifi_trace(priv, UDBG3, "peer not found in station record in send_ma_pkt_request\n");
@@ -3170,7 +3170,7 @@ void uf_process_ps_poll(unifi_priv_t *priv,u8* sa,u8* da,u8 pmBit,u16 interfaceT
         /*Send Data From Management Frames*/
         /* Priority orders for delivering the buffered packets are
          * 1. Deliver the Management frames if there
-         * 2. Other access catagory frames which are non deliver enable including UNIFI_TRAFFIC_Q_VO
+         * 2. Other access category frames which are non deliver enable including UNIFI_TRAFFIC_Q_VO
          * priority is from VO->BK
          */
 
@@ -3282,7 +3282,7 @@ void add_to_send_cfm_list(unifi_priv_t * priv,
 {
     tx_buffered_packets_t *send_cfm_list_item = NULL;
 
-    send_cfm_list_item = (tx_buffered_packets_t *) kmalloc(sizeof(tx_buffered_packets_t), GFP_ATOMIC);
+    send_cfm_list_item = kmalloc(sizeof(tx_buffered_packets_t), GFP_ATOMIC);
 
     if(send_cfm_list_item == NULL){
         unifi_warning(priv, "%s: Failed to allocate memory for new list item \n");
@@ -3439,7 +3439,7 @@ CsrWifiRouterCtrlStaInfo_t *CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(
 
     interfacePriv = priv->interfacePriv[interfaceTag];
 
-    /* disable the preemption untill station record is fetched */
+    /* disable the preemption until station record is fetched */
     spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
 
     for (i = 0; i < UNIFI_MAX_CONNECTIONS; i++) {
@@ -3665,7 +3665,7 @@ void update_eosp_to_head_of_broadcast_list_head(unifi_priv_t *priv,u16 interface
     if (interfacePriv->noOfbroadcastPktQueued) {
 
         /* Update the EOSP to the HEAD of b/c list
-         * beacuse we have received any mgmt packet so it should not hold for long time
+         * because we have received any mgmt packet so it should not hold for long time
          * peer may time out.
          */
         spin_lock_irqsave(&priv->tx_q_lock,lock_flags);

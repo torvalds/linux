@@ -33,7 +33,7 @@ extern asmlinkage void ret_from_kernel_thread(void);
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-static void c6x_idle(void)
+void arch_cpu_idle(void)
 {
 	unsigned long tmp;
 
@@ -47,32 +47,6 @@ static void c6x_idle(void)
 		      "   mvc .s2 %0,CSR\n"
 		      "|| idle\n"
 		      : "=b"(tmp));
-}
-
-/*
- * The idle loop for C64x
- */
-void cpu_idle(void)
-{
-	/* endless idle loop with no priority at all */
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		while (1) {
-			local_irq_disable();
-			if (need_resched()) {
-				local_irq_enable();
-				break;
-			}
-			c6x_idle(); /* enables local irqs */
-		}
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-	}
 }
 
 static void halt_loop(void)

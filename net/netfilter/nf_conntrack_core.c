@@ -5,6 +5,7 @@
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
  * (C) 2003,2004 USAGI/WIDE Project <http://www.linux-ipv6.org>
+ * (C) 2005-2012 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -48,6 +49,7 @@
 #include <net/netfilter/nf_conntrack_labels.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
+#include <net/netfilter/nf_nat_helper.h>
 
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
@@ -264,7 +266,7 @@ static void death_by_event(unsigned long ul_conntrack)
 	if (nf_conntrack_event(IPCT_DESTROY, ct) < 0) {
 		/* bad luck, let's retry again */
 		ecache->timeout.expires = jiffies +
-			(random32() % net->ct.sysctl_events_retry_timeout);
+			(prandom_u32() % net->ct.sysctl_events_retry_timeout);
 		add_timer(&ecache->timeout);
 		return;
 	}
@@ -283,7 +285,7 @@ void nf_ct_dying_timeout(struct nf_conn *ct)
 	/* set a new timer to retry event delivery */
 	setup_timer(&ecache->timeout, death_by_event, (unsigned long)ct);
 	ecache->timeout.expires = jiffies +
-		(random32() % net->ct.sysctl_events_retry_timeout);
+		(prandom_u32() % net->ct.sysctl_events_retry_timeout);
 	add_timer(&ecache->timeout);
 }
 EXPORT_SYMBOL_GPL(nf_ct_dying_timeout);
@@ -1259,7 +1261,7 @@ void nf_ct_iterate_cleanup(struct net *net,
 EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup);
 
 struct __nf_ct_flush_report {
-	u32 pid;
+	u32 portid;
 	int report;
 };
 
@@ -1274,7 +1276,7 @@ static int kill_report(struct nf_conn *i, void *data)
 
 	/* If we fail to deliver the event, death_by_timeout() will retry */
 	if (nf_conntrack_event_report(IPCT_DESTROY, i,
-				      fr->pid, fr->report) < 0)
+				      fr->portid, fr->report) < 0)
 		return 1;
 
 	/* Avoid the delivery of the destroy event in death_by_timeout(). */
@@ -1297,10 +1299,10 @@ void nf_ct_free_hashtable(void *hash, unsigned int size)
 }
 EXPORT_SYMBOL_GPL(nf_ct_free_hashtable);
 
-void nf_conntrack_flush_report(struct net *net, u32 pid, int report)
+void nf_conntrack_flush_report(struct net *net, u32 portid, int report)
 {
 	struct __nf_ct_flush_report fr = {
-		.pid 	= pid,
+		.portid	= portid,
 		.report = report,
 	};
 	nf_ct_iterate_cleanup(net, kill_report, &fr);
@@ -1364,30 +1366,48 @@ void nf_conntrack_cleanup_end(void)
  */
 void nf_conntrack_cleanup_net(struct net *net)
 {
+	LIST_HEAD(single);
+
+	list_add(&net->exit_list, &single);
+	nf_conntrack_cleanup_net_list(&single);
+}
+
+void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list)
+{
+	int busy;
+	struct net *net;
+
 	/*
 	 * This makes sure all current packets have passed through
 	 *  netfilter framework.  Roll on, two-stage module
 	 *  delete...
 	 */
 	synchronize_net();
- i_see_dead_people:
-	nf_ct_iterate_cleanup(net, kill_all, NULL);
-	nf_ct_release_dying_list(net);
-	if (atomic_read(&net->ct.count) != 0) {
+i_see_dead_people:
+	busy = 0;
+	list_for_each_entry(net, net_exit_list, exit_list) {
+		nf_ct_iterate_cleanup(net, kill_all, NULL);
+		nf_ct_release_dying_list(net);
+		if (atomic_read(&net->ct.count) != 0)
+			busy = 1;
+	}
+	if (busy) {
 		schedule();
 		goto i_see_dead_people;
 	}
 
-	nf_ct_free_hashtable(net->ct.hash, net->ct.htable_size);
-	nf_conntrack_proto_pernet_fini(net);
-	nf_conntrack_helper_pernet_fini(net);
-	nf_conntrack_ecache_pernet_fini(net);
-	nf_conntrack_tstamp_pernet_fini(net);
-	nf_conntrack_acct_pernet_fini(net);
-	nf_conntrack_expect_pernet_fini(net);
-	kmem_cache_destroy(net->ct.nf_conntrack_cachep);
-	kfree(net->ct.slabname);
-	free_percpu(net->ct.stat);
+	list_for_each_entry(net, net_exit_list, exit_list) {
+		nf_ct_free_hashtable(net->ct.hash, net->ct.htable_size);
+		nf_conntrack_proto_pernet_fini(net);
+		nf_conntrack_helper_pernet_fini(net);
+		nf_conntrack_ecache_pernet_fini(net);
+		nf_conntrack_tstamp_pernet_fini(net);
+		nf_conntrack_acct_pernet_fini(net);
+		nf_conntrack_expect_pernet_fini(net);
+		kmem_cache_destroy(net->ct.nf_conntrack_cachep);
+		kfree(net->ct.slabname);
+		free_percpu(net->ct.stat);
+	}
 }
 
 void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls)

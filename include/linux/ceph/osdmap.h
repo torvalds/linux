@@ -3,6 +3,7 @@
 
 #include <linux/rbtree.h>
 #include <linux/ceph/types.h>
+#include <linux/ceph/decode.h>
 #include <linux/ceph/ceph_fs.h>
 #include <linux/crush/crush.h>
 
@@ -119,6 +120,29 @@ static inline struct ceph_entity_addr *ceph_osd_addr(struct ceph_osdmap *map,
 	return &map->osd_addr[osd];
 }
 
+static inline int ceph_decode_pgid(void **p, void *end, struct ceph_pg *pgid)
+{
+	__u8 version;
+
+	if (!ceph_has_room(p, end, 1 + 8 + 4 + 4)) {
+		pr_warning("incomplete pg encoding");
+
+		return -EINVAL;
+	}
+	version = ceph_decode_8(p);
+	if (version > 1) {
+		pr_warning("do not understand pg encoding %d > 1",
+			(int)version);
+		return -EINVAL;
+	}
+
+	pgid->pool = ceph_decode_64(p);
+	pgid->seed = ceph_decode_32(p);
+	*p += 4;	/* skip deprecated preferred value */
+
+	return 0;
+}
+
 extern struct ceph_osdmap *osdmap_decode(void **p, void *end);
 extern struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 					    struct ceph_osdmap *map,
@@ -131,10 +155,8 @@ extern int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 					 u64 *bno, u64 *oxoff, u64 *oxlen);
 
 /* calculate mapping of object to a placement group */
-extern int ceph_calc_object_layout(struct ceph_pg *pg,
-				   const char *oid,
-				   struct ceph_file_layout *fl,
-				   struct ceph_osdmap *osdmap);
+extern int ceph_calc_ceph_pg(struct ceph_pg *pg, const char *oid,
+			  struct ceph_osdmap *osdmap, uint64_t pool);
 extern int ceph_calc_pg_acting(struct ceph_osdmap *osdmap,
 			       struct ceph_pg pgid,
 			       int *acting);

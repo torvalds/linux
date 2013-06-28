@@ -1171,112 +1171,36 @@ printk("sym_user_command: data=%ld\n", uc->data);
 #endif	/* SYM_LINUX_USER_COMMAND_SUPPORT */
 
 
-#ifdef SYM_LINUX_USER_INFO_SUPPORT
-/*
- *  Informations through the proc file system.
- */
-struct info_str {
-	char *buffer;
-	int length;
-	int offset;
-	int pos;
-};
-
-static void copy_mem_info(struct info_str *info, char *data, int len)
-{
-	if (info->pos + len > info->length)
-		len = info->length - info->pos;
-
-	if (info->pos + len < info->offset) {
-		info->pos += len;
-		return;
-	}
-	if (info->pos < info->offset) {
-		data += (info->offset - info->pos);
-		len  -= (info->offset - info->pos);
-	}
-
-	if (len > 0) {
-		memcpy(info->buffer + info->pos, data, len);
-		info->pos += len;
-	}
-}
-
-static int copy_info(struct info_str *info, char *fmt, ...)
-{
-	va_list args;
-	char buf[81];
-	int len;
-
-	va_start(args, fmt);
-	len = vsprintf(buf, fmt, args);
-	va_end(args);
-
-	copy_mem_info(info, buf, len);
-	return len;
-}
-
 /*
  *  Copy formatted information into the input buffer.
  */
-static int sym_host_info(struct Scsi_Host *shost, char *ptr, off_t offset, int len)
+static int sym_show_info(struct seq_file *m, struct Scsi_Host *shost)
 {
+#ifdef SYM_LINUX_USER_INFO_SUPPORT
 	struct sym_data *sym_data = shost_priv(shost);
 	struct pci_dev *pdev = sym_data->pdev;
 	struct sym_hcb *np = sym_data->ncb;
-	struct info_str info;
 
-	info.buffer	= ptr;
-	info.length	= len;
-	info.offset	= offset;
-	info.pos	= 0;
-
-	copy_info(&info, "Chip " NAME53C "%s, device id 0x%x, "
-			 "revision id 0x%x\n", np->s.chip_name,
-			 pdev->device, pdev->revision);
-	copy_info(&info, "At PCI address %s, IRQ %u\n",
+	seq_printf(m, "Chip " NAME53C "%s, device id 0x%x, "
+		 "revision id 0x%x\n", np->s.chip_name,
+		 pdev->device, pdev->revision);
+	seq_printf(m, "At PCI address %s, IRQ %u\n",
 			 pci_name(pdev), pdev->irq);
-	copy_info(&info, "Min. period factor %d, %s SCSI BUS%s\n",
-			 (int) (np->minsync_dt ? np->minsync_dt : np->minsync),
-			 np->maxwide ? "Wide" : "Narrow",
-			 np->minsync_dt ? ", DT capable" : "");
+	seq_printf(m, "Min. period factor %d, %s SCSI BUS%s\n",
+		 (int) (np->minsync_dt ? np->minsync_dt : np->minsync),
+		 np->maxwide ? "Wide" : "Narrow",
+		 np->minsync_dt ? ", DT capable" : "");
 
-	copy_info(&info, "Max. started commands %d, "
-			 "max. commands per LUN %d\n",
-			 SYM_CONF_MAX_START, SYM_CONF_MAX_TAG);
+	seq_printf(m, "Max. started commands %d, "
+		 "max. commands per LUN %d\n",
+		 SYM_CONF_MAX_START, SYM_CONF_MAX_TAG);
 
-	return info.pos > info.offset? info.pos - info.offset : 0;
-}
+	return 0;
+#else
+	return -EINVAL;
 #endif /* SYM_LINUX_USER_INFO_SUPPORT */
-
-/*
- *  Entry point of the scsi proc fs of the driver.
- *  - func = 0 means read  (returns adapter infos)
- *  - func = 1 means write (not yet merget from sym53c8xx)
- */
-static int sym53c8xx_proc_info(struct Scsi_Host *shost, char *buffer,
-			char **start, off_t offset, int length, int func)
-{
-	int retv;
-
-	if (func) {
-#ifdef	SYM_LINUX_USER_COMMAND_SUPPORT
-		retv = sym_user_command(shost, buffer, length);
-#else
-		retv = -EINVAL;
-#endif
-	} else {
-		if (start)
-			*start = buffer;
-#ifdef SYM_LINUX_USER_INFO_SUPPORT
-		retv = sym_host_info(shost, buffer, offset, length);
-#else
-		retv = -EINVAL;
-#endif
-	}
-
-	return retv;
 }
+
 #endif /* SYM_LINUX_PROC_INFO_SUPPORT */
 
 /*
@@ -1742,7 +1666,10 @@ static struct scsi_host_template sym2_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.max_sectors		= 0xFFFF,
 #ifdef SYM_LINUX_PROC_INFO_SUPPORT
-	.proc_info		= sym53c8xx_proc_info,
+	.show_info		= sym_show_info,
+#ifdef	SYM_LINUX_USER_COMMAND_SUPPORT
+	.write_info		= sym_user_command,
+#endif
 	.proc_name		= NAME53C8XX,
 #endif
 };

@@ -304,10 +304,8 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	err = rpciod_up();
 	if (err)
 		goto out_no_rpciod;
-	err = -EINVAL;
-	if (!xprt)
-		goto out_no_xprt;
 
+	err = -EINVAL;
 	if (args->version >= program->nrvers)
 		goto out_err;
 	version = program->version[args->version];
@@ -362,7 +360,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 
 	auth = rpcauth_create(args->authflavor, clnt);
 	if (IS_ERR(auth)) {
-		printk(KERN_INFO "RPC: Couldn't create auth handle (flavor %u)\n",
+		dprintk("RPC:       Couldn't create auth handle (flavor %u)\n",
 				args->authflavor);
 		err = PTR_ERR(auth);
 		goto out_no_auth;
@@ -382,10 +380,9 @@ out_no_principal:
 out_no_stats:
 	kfree(clnt);
 out_err:
-	xprt_put(xprt);
-out_no_xprt:
 	rpciod_down();
 out_no_rpciod:
+	xprt_put(xprt);
 	return ERR_PTR(err);
 }
 
@@ -414,6 +411,10 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	};
 	char servername[48];
 
+	if (args->flags & RPC_CLNT_CREATE_INFINITE_SLOTS)
+		xprtargs.flags |= XPRT_CREATE_INFINITE_SLOTS;
+	if (args->flags & RPC_CLNT_CREATE_NO_IDLE_TIMEOUT)
+		xprtargs.flags |= XPRT_CREATE_NO_IDLE_TIMEOUT;
 	/*
 	 * If the caller chooses not to specify a hostname, whip
 	 * up a string representation of the passed-in address.
@@ -512,7 +513,7 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	new = rpc_new_client(args, xprt);
 	if (IS_ERR(new)) {
 		err = PTR_ERR(new);
-		goto out_put;
+		goto out_err;
 	}
 
 	atomic_inc(&clnt->cl_count);
@@ -525,8 +526,6 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	new->cl_chatty = clnt->cl_chatty;
 	return new;
 
-out_put:
-	xprt_put(xprt);
 out_err:
 	dprintk("RPC:       %s: returned error %d\n", __func__, err);
 	return ERR_PTR(err);
@@ -684,6 +683,7 @@ rpc_release_client(struct rpc_clnt *clnt)
 	if (atomic_dec_and_test(&clnt->cl_count))
 		rpc_free_auth(clnt);
 }
+EXPORT_SYMBOL_GPL(rpc_release_client);
 
 /**
  * rpc_bind_new_program - bind a new RPC program to an existing client
@@ -1306,6 +1306,8 @@ call_reserve(struct rpc_task *task)
 	xprt_reserve(task);
 }
 
+static void call_retry_reserve(struct rpc_task *task);
+
 /*
  * 1b.	Grok the result of xprt_reserve()
  */
@@ -1347,7 +1349,7 @@ call_reserveresult(struct rpc_task *task)
 	case -ENOMEM:
 		rpc_delay(task, HZ >> 2);
 	case -EAGAIN:	/* woken up; retry */
-		task->tk_action = call_reserve;
+		task->tk_action = call_retry_reserve;
 		return;
 	case -EIO:	/* probably a shutdown */
 		break;
@@ -1357,6 +1359,19 @@ call_reserveresult(struct rpc_task *task)
 		break;
 	}
 	rpc_exit(task, status);
+}
+
+/*
+ * 1c.	Retry reserving an RPC call slot
+ */
+static void
+call_retry_reserve(struct rpc_task *task)
+{
+	dprint_status(task);
+
+	task->tk_status  = 0;
+	task->tk_action  = call_reserveresult;
+	xprt_retry_reserve(task);
 }
 
 /*
@@ -1644,22 +1659,26 @@ call_connect_status(struct rpc_task *task)
 
 	dprint_status(task);
 
-	task->tk_status = 0;
-	if (status >= 0 || status == -EAGAIN) {
-		clnt->cl_stats->netreconn++;
-		task->tk_action = call_transmit;
-		return;
-	}
-
 	trace_rpc_connect_status(task, status);
 	switch (status) {
 		/* if soft mounted, test if we've timed out */
 	case -ETIMEDOUT:
 		task->tk_action = call_timeout;
-		break;
-	default:
-		rpc_exit(task, -EIO);
+		return;
+	case -ECONNREFUSED:
+	case -ECONNRESET:
+	case -ENETUNREACH:
+		if (RPC_IS_SOFTCONN(task))
+			break;
+		/* retry with existing socket, after a delay */
+	case 0:
+	case -EAGAIN:
+		task->tk_status = 0;
+		clnt->cl_stats->netreconn++;
+		task->tk_action = call_transmit;
+		return;
 	}
+	rpc_exit(task, status);
 }
 
 /*

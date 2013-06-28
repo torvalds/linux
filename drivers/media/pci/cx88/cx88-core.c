@@ -48,9 +48,9 @@ MODULE_LICENSE("GPL");
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int core_debug;
-module_param(core_debug,int,0644);
-MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
+unsigned int cx88_core_debug;
+module_param_named(core_debug, cx88_core_debug, int, 0644);
+MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
 
 static unsigned int nicam;
 module_param(nicam,int,0644);
@@ -60,8 +60,10 @@ static unsigned int nocomb;
 module_param(nocomb,int,0644);
 MODULE_PARM_DESC(nocomb,"disable comb filter");
 
-#define dprintk(level,fmt, arg...)	if (core_debug >= level)	\
-	printk(KERN_DEBUG "%s: " fmt, core->name , ## arg)
+#define dprintk(level,fmt, arg...)	do {				\
+	if (cx88_core_debug >= level)					\
+		printk(KERN_DEBUG "%s: " fmt, core->name , ## arg);	\
+	} while(0)
 
 static unsigned int cx88_devcount;
 static LIST_HEAD(cx88_devlist);

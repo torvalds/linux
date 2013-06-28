@@ -471,15 +471,6 @@ int cio_disable_subchannel(struct subchannel *sch)
 }
 EXPORT_SYMBOL_GPL(cio_disable_subchannel);
 
-int cio_create_sch_lock(struct subchannel *sch)
-{
-	sch->lock = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
-	if (!sch->lock)
-		return -ENOMEM;
-	spin_lock_init(sch->lock);
-	return 0;
-}
-
 static int cio_check_devno_blacklisted(struct subchannel *sch)
 {
 	if (is_blacklisted(sch->schid.ssid, sch->schib.pmcw.dev)) {
@@ -536,32 +527,19 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 	sprintf(dbf_txt, "valsch%x", schid.sch_no);
 	CIO_TRACE_EVENT(4, dbf_txt);
 
-	/* Nuke all fields. */
-	memset(sch, 0, sizeof(struct subchannel));
-
-	sch->schid = schid;
-	if (cio_is_console(schid)) {
-		sch->lock = cio_get_console_lock();
-	} else {
-		err = cio_create_sch_lock(sch);
-		if (err)
-			goto out;
-	}
-	mutex_init(&sch->reg_mutex);
-
 	/*
 	 * The first subchannel that is not-operational (ccode==3)
-	 *  indicates that there aren't any more devices available.
+	 * indicates that there aren't any more devices available.
 	 * If stsch gets an exception, it means the current subchannel set
-	 *  is not valid.
+	 * is not valid.
 	 */
-	ccode = stsch_err (schid, &sch->schib);
+	ccode = stsch_err(schid, &sch->schib);
 	if (ccode) {
 		err = (ccode == 3) ? -ENXIO : ccode;
 		goto out;
 	}
-	/* Copy subchannel type from path management control word. */
 	sch->st = sch->schib.pmcw.st;
+	sch->schid = schid;
 
 	switch (sch->st) {
 	case SUBCHANNEL_TYPE_IO:
@@ -578,11 +556,7 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 
 	CIO_MSG_EVENT(4, "Subchannel 0.%x.%04x reports subchannel type %04X\n",
 		      sch->schid.ssid, sch->schid.sch_no, sch->st);
-	return 0;
 out:
-	if (!cio_is_console(schid))
-		kfree(sch->lock);
-	sch->lock = NULL;
 	return err;
 }
 
@@ -650,15 +624,13 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_CCW_CONSOLE
-static struct subchannel console_subchannel;
-static struct io_subchannel_private console_priv;
-static int console_subchannel_in_use;
+static struct subchannel *console_sch;
 
 /*
  * Use cio_tsch to update the subchannel status and call the interrupt handler
- * if status had been pending. Called with the console_subchannel lock.
+ * if status had been pending. Called with the subchannel's lock held.
  */
-static void cio_tsch(struct subchannel *sch)
+void cio_tsch(struct subchannel *sch)
 {
 	struct irb *irb;
 	int irq_context;
@@ -675,6 +647,7 @@ static void cio_tsch(struct subchannel *sch)
 		local_bh_disable();
 		irq_enter();
 	}
+	kstat_incr_irqs_this_cpu(IO_INTERRUPT, NULL);
 	if (sch->driver && sch->driver->irq)
 		sch->driver->irq(sch);
 	else
@@ -685,135 +658,90 @@ static void cio_tsch(struct subchannel *sch)
 	}
 }
 
-void *cio_get_console_priv(void)
+static int cio_test_for_console(struct subchannel_id schid, void *data)
 {
-	return &console_priv;
-}
+	struct schib schib;
 
-/*
- * busy wait for the next interrupt on the console
- */
-void wait_cons_dev(void)
-{
-	if (!console_subchannel_in_use)
-		return;
-
-	while (1) {
-		cio_tsch(&console_subchannel);
-		if (console_subchannel.schib.scsw.cmd.actl == 0)
-			break;
-		udelay_simple(100);
-	}
-}
-
-static int
-cio_test_for_console(struct subchannel_id schid, void *data)
-{
-	if (stsch_err(schid, &console_subchannel.schib) != 0)
+	if (stsch_err(schid, &schib) != 0)
 		return -ENXIO;
-	if ((console_subchannel.schib.pmcw.st == SUBCHANNEL_TYPE_IO) &&
-	    console_subchannel.schib.pmcw.dnv &&
-	    (console_subchannel.schib.pmcw.dev == console_devno)) {
+	if ((schib.pmcw.st == SUBCHANNEL_TYPE_IO) && schib.pmcw.dnv &&
+	    (schib.pmcw.dev == console_devno)) {
 		console_irq = schid.sch_no;
 		return 1; /* found */
 	}
 	return 0;
 }
 
-
-static int
-cio_get_console_sch_no(void)
+static int cio_get_console_sch_no(void)
 {
 	struct subchannel_id schid;
-	
+	struct schib schib;
+
 	init_subchannel_id(&schid);
 	if (console_irq != -1) {
 		/* VM provided us with the irq number of the console. */
 		schid.sch_no = console_irq;
-		if (stsch_err(schid, &console_subchannel.schib) != 0 ||
-		    (console_subchannel.schib.pmcw.st != SUBCHANNEL_TYPE_IO) ||
-		    !console_subchannel.schib.pmcw.dnv)
+		if (stsch_err(schid, &schib) != 0 ||
+		    (schib.pmcw.st != SUBCHANNEL_TYPE_IO) || !schib.pmcw.dnv)
 			return -1;
-		console_devno = console_subchannel.schib.pmcw.dev;
+		console_devno = schib.pmcw.dev;
 	} else if (console_devno != -1) {
 		/* At least the console device number is known. */
 		for_each_subchannel(cio_test_for_console, NULL);
-		if (console_irq == -1)
-			return -1;
-	} else {
-		/* unlike in 2.4, we cannot autoprobe here, since
-		 * the channel subsystem is not fully initialized.
-		 * With some luck, the HWC console can take over */
-		return -1;
 	}
 	return console_irq;
 }
 
-struct subchannel *
-cio_probe_console(void)
+struct subchannel *cio_probe_console(void)
 {
-	int sch_no, ret;
 	struct subchannel_id schid;
+	struct subchannel *sch;
+	int sch_no, ret;
 
-	if (xchg(&console_subchannel_in_use, 1) != 0)
-		return ERR_PTR(-EBUSY);
 	sch_no = cio_get_console_sch_no();
 	if (sch_no == -1) {
-		console_subchannel_in_use = 0;
 		pr_warning("No CCW console was found\n");
 		return ERR_PTR(-ENODEV);
 	}
-	memset(&console_subchannel, 0, sizeof(struct subchannel));
 	init_subchannel_id(&schid);
 	schid.sch_no = sch_no;
-	ret = cio_validate_subchannel(&console_subchannel, schid);
-	if (ret) {
-		console_subchannel_in_use = 0;
-		return ERR_PTR(-ENODEV);
-	}
+	sch = css_alloc_subchannel(schid);
+	if (IS_ERR(sch))
+		return sch;
 
-	/*
-	 * enable console I/O-interrupt subclass
-	 */
 	isc_register(CONSOLE_ISC);
-	console_subchannel.config.isc = CONSOLE_ISC;
-	console_subchannel.config.intparm = (u32)(addr_t)&console_subchannel;
-	ret = cio_commit_config(&console_subchannel);
+	sch->config.isc = CONSOLE_ISC;
+	sch->config.intparm = (u32)(addr_t)sch;
+	ret = cio_commit_config(sch);
 	if (ret) {
 		isc_unregister(CONSOLE_ISC);
-		console_subchannel_in_use = 0;
+		put_device(&sch->dev);
 		return ERR_PTR(ret);
 	}
-	return &console_subchannel;
+	console_sch = sch;
+	return sch;
 }
 
-void
-cio_release_console(void)
+int cio_is_console(struct subchannel_id schid)
 {
-	console_subchannel.config.intparm = 0;
-	cio_commit_config(&console_subchannel);
-	isc_unregister(CONSOLE_ISC);
-	console_subchannel_in_use = 0;
-}
-
-/* Bah... hack to catch console special sausages. */
-int
-cio_is_console(struct subchannel_id schid)
-{
-	if (!console_subchannel_in_use)
+	if (!console_sch)
 		return 0;
-	return schid_equal(&schid, &console_subchannel.schid);
+	return schid_equal(&schid, &console_sch->schid);
 }
 
-struct subchannel *
-cio_get_console_subchannel(void)
+void cio_register_early_subchannels(void)
 {
-	if (!console_subchannel_in_use)
-		return NULL;
-	return &console_subchannel;
-}
+	int ret;
 
-#endif
+	if (!console_sch)
+		return;
+
+	ret = css_register_subchannel(console_sch);
+	if (ret)
+		put_device(&console_sch->dev);
+}
+#endif /* CONFIG_CCW_CONSOLE */
+
 static int
 __disable_subchannel_easy(struct subchannel_id schid, struct schib *schib)
 {

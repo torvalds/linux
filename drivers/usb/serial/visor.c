@@ -257,24 +257,18 @@ static void visor_close(struct usb_serial_port *port)
 {
 	unsigned char *transfer_buffer;
 
-	/* shutdown our urbs */
 	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (!port->serial->disconnected) {
-		/* Try to send shutdown message, unless the device is gone */
-		transfer_buffer =  kmalloc(0x12, GFP_KERNEL);
-		if (transfer_buffer) {
-			usb_control_msg(port->serial->dev,
+	transfer_buffer = kmalloc(0x12, GFP_KERNEL);
+	if (!transfer_buffer)
+		return;
+	usb_control_msg(port->serial->dev,
 					 usb_rcvctrlpipe(port->serial->dev, 0),
 					 VISOR_CLOSE_NOTIFICATION, 0xc2,
 					 0x0000, 0x0000,
 					 transfer_buffer, 0x12, 300);
-			kfree(transfer_buffer);
-		}
-	}
-	mutex_unlock(&port->serial->disc_mutex);
+	kfree(transfer_buffer);
 }
 
 static void visor_read_int_callback(struct urb *urb)
@@ -566,10 +560,19 @@ static int treo_attach(struct usb_serial *serial)
 	*/
 #define COPY_PORT(dest, src)						\
 	do { \
+		int i;							\
+									\
+		for (i = 0; i < ARRAY_SIZE(src->read_urbs); ++i) {	\
+			dest->read_urbs[i] = src->read_urbs[i];		\
+			dest->read_urbs[i]->context = dest;		\
+			dest->bulk_in_buffers[i] = src->bulk_in_buffers[i]; \
+		}							\
 		dest->read_urb = src->read_urb;				\
 		dest->bulk_in_endpointAddress = src->bulk_in_endpointAddress;\
 		dest->bulk_in_buffer = src->bulk_in_buffer;		\
+		dest->bulk_in_size = src->bulk_in_size;			\
 		dest->interrupt_in_urb = src->interrupt_in_urb;		\
+		dest->interrupt_in_urb->context = dest;			\
 		dest->interrupt_in_endpointAddress = \
 					src->interrupt_in_endpointAddress;\
 		dest->interrupt_in_buffer = src->interrupt_in_buffer;	\

@@ -24,6 +24,7 @@
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 #include <asm/errno.h>
+#include <asm/esr.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
 #include <asm/unistd32.h>
@@ -239,18 +240,18 @@ ENDPROC(el1_error_invalid)
 el1_sync:
 	kernel_entry 1
 	mrs	x1, esr_el1			// read the syndrome register
-	lsr	x24, x1, #26			// exception class
-	cmp	x24, #0x25			// data abort in EL1
+	lsr	x24, x1, #ESR_EL1_EC_SHIFT	// exception class
+	cmp	x24, #ESR_EL1_EC_DABT_EL1	// data abort in EL1
 	b.eq	el1_da
-	cmp	x24, #0x18			// configurable trap
+	cmp	x24, #ESR_EL1_EC_SYS64		// configurable trap
 	b.eq	el1_undef
-	cmp	x24, #0x26			// stack alignment exception
+	cmp	x24, #ESR_EL1_EC_SP_ALIGN	// stack alignment exception
 	b.eq	el1_sp_pc
-	cmp	x24, #0x22			// pc alignment exception
+	cmp	x24, #ESR_EL1_EC_PC_ALIGN	// pc alignment exception
 	b.eq	el1_sp_pc
-	cmp	x24, #0x00			// unknown exception in EL1
+	cmp	x24, #ESR_EL1_EC_UNKNOWN	// unknown exception in EL1
 	b.eq	el1_undef
-	cmp	x24, #0x30			// debug exception in EL1
+	cmp	x24, #ESR_EL1_EC_BREAKPT_EL1	// debug exception in EL1
 	b.ge	el1_dbg
 	b	el1_inv
 el1_da:
@@ -346,27 +347,27 @@ el1_preempt:
 el0_sync:
 	kernel_entry 0
 	mrs	x25, esr_el1			// read the syndrome register
-	lsr	x24, x25, #26			// exception class
-	cmp	x24, #0x15			// SVC in 64-bit state
+	lsr	x24, x25, #ESR_EL1_EC_SHIFT	// exception class
+	cmp	x24, #ESR_EL1_EC_SVC64		// SVC in 64-bit state
 	b.eq	el0_svc
 	adr	lr, ret_from_exception
-	cmp	x24, #0x24			// data abort in EL0
+	cmp	x24, #ESR_EL1_EC_DABT_EL0	// data abort in EL0
 	b.eq	el0_da
-	cmp	x24, #0x20			// instruction abort in EL0
+	cmp	x24, #ESR_EL1_EC_IABT_EL0	// instruction abort in EL0
 	b.eq	el0_ia
-	cmp	x24, #0x07			// FP/ASIMD access
+	cmp	x24, #ESR_EL1_EC_FP_ASIMD	// FP/ASIMD access
 	b.eq	el0_fpsimd_acc
-	cmp	x24, #0x2c			// FP/ASIMD exception
+	cmp	x24, #ESR_EL1_EC_FP_EXC64	// FP/ASIMD exception
 	b.eq	el0_fpsimd_exc
-	cmp	x24, #0x18			// configurable trap
+	cmp	x24, #ESR_EL1_EC_SYS64		// configurable trap
 	b.eq	el0_undef
-	cmp	x24, #0x26			// stack alignment exception
+	cmp	x24, #ESR_EL1_EC_SP_ALIGN	// stack alignment exception
 	b.eq	el0_sp_pc
-	cmp	x24, #0x22			// pc alignment exception
+	cmp	x24, #ESR_EL1_EC_PC_ALIGN	// pc alignment exception
 	b.eq	el0_sp_pc
-	cmp	x24, #0x00			// unknown exception in EL0
+	cmp	x24, #ESR_EL1_EC_UNKNOWN	// unknown exception in EL0
 	b.eq	el0_undef
-	cmp	x24, #0x30			// debug exception in EL0
+	cmp	x24, #ESR_EL1_EC_BREAKPT_EL0	// debug exception in EL0
 	b.ge	el0_dbg
 	b	el0_inv
 
@@ -375,21 +376,31 @@ el0_sync:
 el0_sync_compat:
 	kernel_entry 0, 32
 	mrs	x25, esr_el1			// read the syndrome register
-	lsr	x24, x25, #26			// exception class
-	cmp	x24, #0x11			// SVC in 32-bit state
+	lsr	x24, x25, #ESR_EL1_EC_SHIFT	// exception class
+	cmp	x24, #ESR_EL1_EC_SVC32		// SVC in 32-bit state
 	b.eq	el0_svc_compat
 	adr	lr, ret_from_exception
-	cmp	x24, #0x24			// data abort in EL0
+	cmp	x24, #ESR_EL1_EC_DABT_EL0	// data abort in EL0
 	b.eq	el0_da
-	cmp	x24, #0x20			// instruction abort in EL0
+	cmp	x24, #ESR_EL1_EC_IABT_EL0	// instruction abort in EL0
 	b.eq	el0_ia
-	cmp	x24, #0x07			// FP/ASIMD access
+	cmp	x24, #ESR_EL1_EC_FP_ASIMD	// FP/ASIMD access
 	b.eq	el0_fpsimd_acc
-	cmp	x24, #0x28			// FP/ASIMD exception
+	cmp	x24, #ESR_EL1_EC_FP_EXC32	// FP/ASIMD exception
 	b.eq	el0_fpsimd_exc
-	cmp	x24, #0x00			// unknown exception in EL0
+	cmp	x24, #ESR_EL1_EC_UNKNOWN	// unknown exception in EL0
 	b.eq	el0_undef
-	cmp	x24, #0x30			// debug exception in EL0
+	cmp	x24, #ESR_EL1_EC_CP15_32	// CP15 MRC/MCR trap
+	b.eq	el0_undef
+	cmp	x24, #ESR_EL1_EC_CP15_64	// CP15 MRRC/MCRR trap
+	b.eq	el0_undef
+	cmp	x24, #ESR_EL1_EC_CP14_MR	// CP14 MRC/MCR trap
+	b.eq	el0_undef
+	cmp	x24, #ESR_EL1_EC_CP14_LS	// CP14 LDC/STC trap
+	b.eq	el0_undef
+	cmp	x24, #ESR_EL1_EC_CP14_64	// CP14 MRRC/MCRR trap
+	b.eq	el0_undef
+	cmp	x24, #ESR_EL1_EC_BREAKPT_EL0	// debug exception in EL0
 	b.ge	el0_dbg
 	b	el0_inv
 el0_svc_compat:

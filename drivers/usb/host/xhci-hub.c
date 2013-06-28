@@ -1075,7 +1075,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 			set_bit(port_index, &bus_state->bus_suspended);
 		}
 		/* USB core sets remote wake mask for USB 3.0 hubs,
-		 * including the USB 3.0 roothub, but only if CONFIG_USB_SUSPEND
+		 * including the USB 3.0 roothub, but only if CONFIG_PM_RUNTIME
 		 * is enabled, so also enable remote wake here.
 		 */
 		if (hcd->self.root_hub->do_remote_wakeup) {

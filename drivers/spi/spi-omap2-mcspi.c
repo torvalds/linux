@@ -285,8 +285,12 @@ static int mcspi_wait_for_reg_bit(void __iomem *reg, unsigned long bit)
 
 	timeout = jiffies + msecs_to_jiffies(1000);
 	while (!(__raw_readl(reg) & bit)) {
-		if (time_after(jiffies, timeout))
-			return -1;
+		if (time_after(jiffies, timeout)) {
+			if (!(__raw_readl(reg) & bit))
+				return -ETIMEDOUT;
+			else
+				return 0;
+		}
 		cpu_relax();
 	}
 	return 0;
@@ -805,6 +809,10 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 	return 0;
 }
 
+/*
+ * Note that we currently allow DMA only if we get a channel
+ * for both rx and tx. Otherwise we'll do PIO for both rx and tx.
+ */
 static int omap2_mcspi_request_dma(struct spi_device *spi)
 {
 	struct spi_master	*master = spi->master;
@@ -823,21 +831,22 @@ static int omap2_mcspi_request_dma(struct spi_device *spi)
 	dma_cap_set(DMA_SLAVE, mask);
 	sig = mcspi_dma->dma_rx_sync_dev;
 	mcspi_dma->dma_rx = dma_request_channel(mask, omap_dma_filter_fn, &sig);
-	if (!mcspi_dma->dma_rx) {
-		dev_err(&spi->dev, "no RX DMA engine channel for McSPI\n");
-		return -EAGAIN;
-	}
+	if (!mcspi_dma->dma_rx)
+		goto no_dma;
 
 	sig = mcspi_dma->dma_tx_sync_dev;
 	mcspi_dma->dma_tx = dma_request_channel(mask, omap_dma_filter_fn, &sig);
 	if (!mcspi_dma->dma_tx) {
-		dev_err(&spi->dev, "no TX DMA engine channel for McSPI\n");
 		dma_release_channel(mcspi_dma->dma_rx);
 		mcspi_dma->dma_rx = NULL;
-		return -EAGAIN;
+		goto no_dma;
 	}
 
 	return 0;
+
+no_dma:
+	dev_warn(&spi->dev, "not using DMA for McSPI\n");
+	return -EAGAIN;
 }
 
 static int omap2_mcspi_setup(struct spi_device *spi)
@@ -870,7 +879,7 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 
 	if (!mcspi_dma->dma_rx || !mcspi_dma->dma_tx) {
 		ret = omap2_mcspi_request_dma(spi);
-		if (ret < 0)
+		if (ret < 0 && ret != -EAGAIN)
 			return ret;
 	}
 
@@ -928,6 +937,7 @@ static void omap2_mcspi_work(struct omap2_mcspi *mcspi, struct spi_message *m)
 	struct spi_device		*spi;
 	struct spi_transfer		*t = NULL;
 	struct spi_master		*master;
+	struct omap2_mcspi_dma		*mcspi_dma;
 	int				cs_active = 0;
 	struct omap2_mcspi_cs		*cs;
 	struct omap2_mcspi_device_config *cd;
@@ -937,6 +947,7 @@ static void omap2_mcspi_work(struct omap2_mcspi *mcspi, struct spi_message *m)
 
 	spi = m->spi;
 	master = spi->master;
+	mcspi_dma = mcspi->dma_channels + spi->chip_select;
 	cs = spi->controller_state;
 	cd = spi->controller_data;
 
@@ -993,7 +1004,8 @@ static void omap2_mcspi_work(struct omap2_mcspi *mcspi, struct spi_message *m)
 				__raw_writel(0, cs->base
 						+ OMAP2_MCSPI_TX0);
 
-			if (m->is_dma_mapped || t->len >= DMA_MIN_BYTES)
+			if ((mcspi_dma->dma_rx && mcspi_dma->dma_tx) &&
+			    (m->is_dma_mapped || t->len >= DMA_MIN_BYTES))
 				count = omap2_mcspi_txrx_dma(spi, t);
 			else
 				count = omap2_mcspi_txrx_pio(spi, t);
@@ -1040,10 +1052,14 @@ static void omap2_mcspi_work(struct omap2_mcspi *mcspi, struct spi_message *m)
 static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 		struct spi_message *m)
 {
+	struct spi_device	*spi;
 	struct omap2_mcspi	*mcspi;
+	struct omap2_mcspi_dma	*mcspi_dma;
 	struct spi_transfer	*t;
 
+	spi = m->spi;
 	mcspi = spi_master_get_devdata(master);
+	mcspi_dma = mcspi->dma_channels + spi->chip_select;
 	m->actual_length = 0;
 	m->status = 0;
 
@@ -1078,7 +1094,7 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 		if (m->is_dma_mapped || len < DMA_MIN_BYTES)
 			continue;
 
-		if (tx_buf != NULL) {
+		if (mcspi_dma->dma_tx && tx_buf != NULL) {
 			t->tx_dma = dma_map_single(mcspi->dev, (void *) tx_buf,
 					len, DMA_TO_DEVICE);
 			if (dma_mapping_error(mcspi->dev, t->tx_dma)) {
@@ -1087,7 +1103,7 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 				return -EINVAL;
 			}
 		}
-		if (rx_buf != NULL) {
+		if (mcspi_dma->dma_rx && rx_buf != NULL) {
 			t->rx_dma = dma_map_single(mcspi->dev, rx_buf, t->len,
 					DMA_FROM_DEVICE);
 			if (dma_mapping_error(mcspi->dev, t->rx_dma)) {
@@ -1277,7 +1293,8 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(&pdev->dev, SPI_AUTOSUSPEND_TIMEOUT);
 	pm_runtime_enable(&pdev->dev);
 
-	if (status || omap2_mcspi_master_setup(mcspi) < 0)
+	status = omap2_mcspi_master_setup(mcspi);
+	if (status < 0)
 		goto disable_pm;
 
 	status = spi_register_master(master);

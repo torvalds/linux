@@ -14,8 +14,7 @@ Description:
 		The /sys/class/mtd/mtd{0,1,2,3,...} directories correspond
 		to each /dev/mtdX character device.  These may represent
 		physical/simulated flash devices, partitions on a flash
-		device, or concatenated flash devices.  They exist regardless
-		of whether CONFIG_MTD_CHAR is actually enabled.
+		device, or concatenated flash devices.
 
 What:		/sys/class/mtd/mtdXro/
 Date:		April 2009
@@ -23,8 +22,7 @@ KernelVersion:	2.6.29
 Contact:	linux-mtd@lists.infradead.org
 Description:
 		These directories provide the corresponding read-only device
-		nodes for /sys/class/mtd/mtdX/ .  They are only created
-		(for the benefit of udev) if CONFIG_MTD_CHAR is enabled.
+		nodes for /sys/class/mtd/mtdX/ .
 
 What:		/sys/class/mtd/mtdX/dev
 Date:		April 2009

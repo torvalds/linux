@@ -242,14 +242,12 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 2);
@@ -306,14 +304,9 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 
 static void pci1723_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase) {
-			pci1723_reset(dev);
-			comedi_pci_disable(pcidev);
-		}
-	}
+	if (dev->iobase)
+		pci1723_reset(dev);
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver adv_pci1723_driver = {
@@ -324,9 +317,10 @@ static struct comedi_driver adv_pci1723_driver = {
 };
 
 static int adv_pci1723_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &adv_pci1723_driver);
+	return comedi_pci_auto_config(dev, &adv_pci1723_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adv_pci1723_pci_table) = {

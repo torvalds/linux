@@ -882,7 +882,7 @@ int err_inj()
 			cpu=parameters[i].cpu;
 			k = cpu%64;
 			j = cpu/64;
-			mask[j]=1<<k;
+			mask[j] = 1UL << k;
 
 			if (sched_setaffinity(0, MASK_SIZE*8, mask)==-1) {
 				perror("Error sched_setaffinity:");

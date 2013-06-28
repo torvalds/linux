@@ -39,7 +39,7 @@ int arch_prepare_hugepage(struct page *page)
 	if (!ptep)
 		return -ENOMEM;
 
-	pte = mk_pte(page, PAGE_RW);
+	pte_val(pte) = addr;
 	for (i = 0; i < PTRS_PER_PTE; i++) {
 		set_pte_at(&init_mm, addr + i * PAGE_SIZE, ptep + i, pte);
 		pte_val(pte) += PAGE_SIZE;

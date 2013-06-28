@@ -201,9 +201,9 @@ static int ad7266_read_raw(struct iio_dev *indio_dev,
 	.indexed = 1,					\
 	.channel = (_chan),				\
 	.address = (_chan),				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT	\
-		| IIO_CHAN_INFO_SCALE_SHARED_BIT	\
-		| IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) \
+		| BIT(IIO_CHAN_INFO_OFFSET),			\
 	.scan_index = (_chan),				\
 	.scan_type = {					\
 		.sign = (_sign),			\
@@ -249,9 +249,9 @@ static AD7266_DECLARE_SINGLE_ENDED_CHANNELS_FIXED(s, 's');
 	.channel = (_chan) * 2,				\
 	.channel2 = (_chan) * 2 + 1,			\
 	.address = (_chan),				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT	\
-		| IIO_CHAN_INFO_SCALE_SHARED_BIT	\
-		| IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE)	\
+		| BIT(IIO_CHAN_INFO_OFFSET),			\
 	.scan_index = (_chan),				\
 	.scan_type = {					\
 		.sign = _sign,			\

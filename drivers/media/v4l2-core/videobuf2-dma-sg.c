@@ -21,6 +21,15 @@
 #include <media/videobuf2-memops.h>
 #include <media/videobuf2-dma-sg.h>
 
+static int debug;
+module_param(debug, int, 0644);
+
+#define dprintk(level, fmt, arg...)					\
+	do {								\
+		if (debug >= level)					\
+			printk(KERN_DEBUG "vb2-dma-sg: " fmt, ## arg);	\
+	} while (0)
+
 struct vb2_dma_sg_buf {
 	void				*vaddr;
 	struct page			**pages;
@@ -33,7 +42,7 @@ struct vb2_dma_sg_buf {
 
 static void vb2_dma_sg_put(void *buf_priv);
 
-static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size)
+static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_flags)
 {
 	struct vb2_dma_sg_buf *buf;
 	int i;
@@ -46,7 +55,8 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size)
 	buf->write = 0;
 	buf->offset = 0;
 	buf->sg_desc.size = size;
-	buf->sg_desc.num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	/* size is already page aligned */
+	buf->sg_desc.num_pages = size >> PAGE_SHIFT;
 
 	buf->sg_desc.sglist = vzalloc(buf->sg_desc.num_pages *
 				      sizeof(*buf->sg_desc.sglist));
@@ -60,7 +70,8 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size)
 		goto fail_pages_array_alloc;
 
 	for (i = 0; i < buf->sg_desc.num_pages; ++i) {
-		buf->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN);
+		buf->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO |
+					   __GFP_NOWARN | gfp_flags);
 		if (NULL == buf->pages[i])
 			goto fail_pages_alloc;
 		sg_set_page(&buf->sg_desc.sglist[i],
@@ -73,7 +84,7 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size)
 
 	atomic_inc(&buf->refcount);
 
-	printk(KERN_DEBUG "%s: Allocated buffer of %d pages\n",
+	dprintk(1, "%s: Allocated buffer of %d pages\n",
 		__func__, buf->sg_desc.num_pages);
 	return buf;
 
@@ -96,7 +107,7 @@ static void vb2_dma_sg_put(void *buf_priv)
 	int i = buf->sg_desc.num_pages;
 
 	if (atomic_dec_and_test(&buf->refcount)) {
-		printk(KERN_DEBUG "%s: Freeing buffer of %d pages\n", __func__,
+		dprintk(1, "%s: Freeing buffer of %d pages\n", __func__,
 			buf->sg_desc.num_pages);
 		if (buf->vaddr)
 			vm_unmap_ram(buf->vaddr, buf->sg_desc.num_pages);
@@ -162,7 +173,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	return buf;
 
 userptr_fail_get_user_pages:
-	printk(KERN_DEBUG "get_user_pages requested/got: %d/%d]\n",
+	dprintk(1, "get_user_pages requested/got: %d/%d]\n",
 	       num_pages_from_user, buf->sg_desc.num_pages);
 	while (--num_pages_from_user >= 0)
 		put_page(buf->pages[num_pages_from_user]);
@@ -185,7 +196,7 @@ static void vb2_dma_sg_put_userptr(void *buf_priv)
 	struct vb2_dma_sg_buf *buf = buf_priv;
 	int i = buf->sg_desc.num_pages;
 
-	printk(KERN_DEBUG "%s: Releasing userspace buffer of %d pages\n",
+	dprintk(1, "%s: Releasing userspace buffer of %d pages\n",
 	       __func__, buf->sg_desc.num_pages);
 	if (buf->vaddr)
 		vm_unmap_ram(buf->vaddr, buf->sg_desc.num_pages);

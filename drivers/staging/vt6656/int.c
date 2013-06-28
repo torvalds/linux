@@ -40,18 +40,7 @@
 #include "bssdb.h"
 #include "usbpipe.h"
 
-/*---------------------  Static Definitions -------------------------*/
 static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
-
-/*---------------------  Static Functions  --------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 /*+
  *
@@ -98,8 +87,8 @@ void INTnsProcessData(struct vnt_private *pDevice)
 	pINTData = (PSINTData) pDevice->intBuf.pDataBuf;
 	if (pINTData->byTSR0 & TSR_VALID) {
 		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(BYTE)(pINTData->byPkt0 & 0x0F),
-					(BYTE)(pINTData->byPkt0>>4),
+					(u8)(pINTData->byPkt0 & 0x0F),
+					(u8)(pINTData->byPkt0>>4),
 					pINTData->byTSR0);
 		BSSvUpdateNodeTxCounter(pDevice,
 					&(pDevice->scStatistic),
@@ -109,8 +98,8 @@ void INTnsProcessData(struct vnt_private *pDevice)
 	}
 	if (pINTData->byTSR1 & TSR_VALID) {
 		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(BYTE)(pINTData->byPkt1 & 0x0F),
-					(BYTE)(pINTData->byPkt1>>4),
+					(u8)(pINTData->byPkt1 & 0x0F),
+					(u8)(pINTData->byPkt1>>4),
 					pINTData->byTSR1);
 		BSSvUpdateNodeTxCounter(pDevice,
 					&(pDevice->scStatistic),
@@ -120,8 +109,8 @@ void INTnsProcessData(struct vnt_private *pDevice)
 	}
 	if (pINTData->byTSR2 & TSR_VALID) {
 		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(BYTE)(pINTData->byPkt2 & 0x0F),
-					(BYTE)(pINTData->byPkt2>>4),
+					(u8)(pINTData->byPkt2 & 0x0F),
+					(u8)(pINTData->byPkt2>>4),
 					pINTData->byTSR2);
 		BSSvUpdateNodeTxCounter(pDevice,
 					&(pDevice->scStatistic),
@@ -131,8 +120,8 @@ void INTnsProcessData(struct vnt_private *pDevice)
 	}
 	if (pINTData->byTSR3 & TSR_VALID) {
 		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(BYTE)(pINTData->byPkt3 & 0x0F),
-					(BYTE)(pINTData->byPkt3>>4),
+					(u8)(pINTData->byPkt3 & 0x0F),
+					(u8)(pINTData->byPkt3>>4),
 					pINTData->byTSR3);
 		BSSvUpdateNodeTxCounter(pDevice,
 					&(pDevice->scStatistic),

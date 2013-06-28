@@ -11,7 +11,7 @@
  */
 
 /dts-v1/;
-/include/ "imx51.dtsi"
+#include "imx51.dtsi"
 
 / {
 	model = "Freescale i.MX51 Babbage Board";
@@ -222,13 +222,13 @@
 	hog {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				694  0x20d5	/* MX51_PAD_GPIO1_0__SD1_CD */
-				697  0x20d5	/* MX51_PAD_GPIO1_1__SD1_WP */
-				737  0x100	/* MX51_PAD_GPIO1_5__GPIO1_5 */
-				740  0x100	/* MX51_PAD_GPIO1_6__GPIO1_6 */
-				121  0x5	/* MX51_PAD_EIM_A27__GPIO2_21 */
-				402  0x85	/* MX51_PAD_CSPI1_SS0__GPIO4_24 */
-				405  0x85	/* MX51_PAD_CSPI1_SS1__GPIO4_25 */
+				MX51_PAD_GPIO1_0__SD1_CD     0x20d5
+				MX51_PAD_GPIO1_1__SD1_WP     0x20d5
+				MX51_PAD_GPIO1_5__GPIO1_5    0x100
+				MX51_PAD_GPIO1_6__GPIO1_6    0x100
+				MX51_PAD_EIM_A27__GPIO2_21   0x5
+				MX51_PAD_CSPI1_SS0__GPIO4_24 0x85
+				MX51_PAD_CSPI1_SS1__GPIO4_25 0x85
 			>;
 		};
 	};

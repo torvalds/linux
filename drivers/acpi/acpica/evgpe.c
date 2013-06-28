@@ -707,7 +707,7 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"Unable to clear GPE%02X", gpe_number));
-			return_VALUE(ACPI_INTERRUPT_NOT_HANDLED);
+			return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 		}
 	}
 
@@ -724,7 +724,7 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"Unable to disable GPE%02X", gpe_number));
-		return_VALUE(ACPI_INTERRUPT_NOT_HANDLED);
+		return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 	}
 
 	/*
@@ -784,7 +784,7 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 		break;
 	}
 
-	return_VALUE(ACPI_INTERRUPT_HANDLED);
+	return_UINT32(ACPI_INTERRUPT_HANDLED);
 }
 
 #endif				/* !ACPI_REDUCED_HARDWARE */

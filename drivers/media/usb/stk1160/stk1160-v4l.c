@@ -375,7 +375,7 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 {
 	struct stk1160 *dev = video_drvdata(file);
 	struct vb2_queue *q = &dev->vb_vidq;
@@ -388,7 +388,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 		return -ENODEV;
 
 	/* We need to set this now, before we call stk1160_set_std */
-	dev->norm = *norm;
+	dev->norm = norm;
 
 	/* This is taken from saa7115 video decoder */
 	if (dev->norm & V4L2_STD_525_60) {
@@ -458,7 +458,7 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 	       struct v4l2_dbg_chip_ident *chip)
 {
 	switch (chip->match.type) {
-	case V4L2_CHIP_MATCH_HOST:
+	case V4L2_CHIP_MATCH_BRIDGE:
 		chip->ident = V4L2_IDENT_NONE;
 		chip->revision = 0;
 		return 0;
@@ -476,9 +476,6 @@ static int vidioc_g_register(struct file *file, void *priv,
 	u8 val;
 
 	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_AC97:
-		/* TODO: Support me please :-( */
-		return -EINVAL;
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
 		return 0;
@@ -500,13 +497,11 @@ static int vidioc_g_register(struct file *file, void *priv,
 }
 
 static int vidioc_s_register(struct file *file, void *priv,
-			     struct v4l2_dbg_register *reg)
+			     const struct v4l2_dbg_register *reg)
 {
 	struct stk1160 *dev = video_drvdata(file);
 
 	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_AC97:
-		return -EINVAL;
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
 		return 0;
@@ -687,6 +682,7 @@ int stk1160_vb2_setup(struct stk1160 *dev)
 	q->buf_struct_size = sizeof(struct stk1160_buffer);
 	q->ops = &stk1160_video_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	rc = vb2_queue_init(q);
 	if (rc < 0)

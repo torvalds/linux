@@ -797,6 +797,7 @@ static int mx2_camera_init_videobuf(struct vb2_queue *q,
 	q->ops = &mx2_videobuf_ops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct mx2_buffer);
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	return vb2_queue_init(q);
 }
@@ -1453,7 +1454,7 @@ static int mx27_camera_emma_init(struct platform_device *pdev)
 	err = devm_request_irq(pcdev->dev, irq_emma, mx27_camera_emma_irq, 0,
 			       MX2_CAM_DRV_NAME, pcdev);
 	if (err) {
-		dev_err(pcdev->dev, "Camera EMMA interrupt register failed \n");
+		dev_err(pcdev->dev, "Camera EMMA interrupt register failed\n");
 		goto out;
 	}
 
@@ -1614,15 +1615,14 @@ static int mx2_camera_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver mx2_camera_driver = {
-	.driver 	= {
+	.driver		= {
 		.name	= MX2_CAM_DRV_NAME,
 	},
 	.id_table	= mx2_camera_devtype,
 	.remove		= mx2_camera_remove,
-	.probe		= mx2_camera_probe,
 };
 
-module_platform_driver(mx2_camera_driver);
+module_platform_driver_probe(mx2_camera_driver, mx2_camera_probe);
 
 MODULE_DESCRIPTION("i.MX27 SoC Camera Host driver");
 MODULE_AUTHOR("Sascha Hauer <sha@pengutronix.de>");

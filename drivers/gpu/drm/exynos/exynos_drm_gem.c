@@ -164,6 +164,27 @@ out:
 	exynos_gem_obj = NULL;
 }
 
+unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
+						unsigned int gem_handle,
+						struct drm_file *file_priv)
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct drm_gem_object *obj;
+
+	obj = drm_gem_object_lookup(dev, file_priv, gem_handle);
+	if (!obj) {
+		DRM_ERROR("failed to lookup gem object.\n");
+		return 0;
+	}
+
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+
+	drm_gem_object_unreference_unlocked(obj);
+
+	return exynos_gem_obj->buffer->size;
+}
+
+
 struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 						      unsigned long size)
 {
@@ -661,7 +682,8 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	args->pitch = args->width * ((args->bpp + 7) / 8);
 	args->size = args->pitch * args->height;
 
-	exynos_gem_obj = exynos_drm_gem_create(dev, args->flags, args->size);
+	exynos_gem_obj = exynos_drm_gem_create(dev, EXYNOS_BO_CONTIG |
+						EXYNOS_BO_WC, args->size);
 	if (IS_ERR(exynos_gem_obj))
 		return PTR_ERR(exynos_gem_obj);
 

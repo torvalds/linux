@@ -42,7 +42,6 @@
 #include "control.h"
 #include "rndis.h"
 
-
 static const long frequency_list[] = {
 	2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472, 2484,
 	4915, 4920, 4925, 4935, 4940, 4945, 4960, 4980,
@@ -61,8 +60,8 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 	pDevice->wstats.status = pDevice->eOPMode;
 	if (pDevice->scStatistic.LinkQuality > 100)
 		pDevice->scStatistic.LinkQuality = 100;
-	pDevice->wstats.qual.qual =(BYTE)pDevice->scStatistic.LinkQuality;
-	RFvRSSITodBm(pDevice, (BYTE)(pDevice->uCurrRSSI), &ldBm);
+	pDevice->wstats.qual.qual =(u8)pDevice->scStatistic.LinkQuality;
+	RFvRSSITodBm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
 	pDevice->wstats.qual.level = ldBm;
 	pDevice->wstats.qual.noise = 0;
 	pDevice->wstats.qual.updated = 1;
@@ -95,7 +94,7 @@ int iwctl_siwscan(struct net_device *dev, struct iw_request_info *info,
 	struct iw_point *wrq = &wrqu->data;
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct iw_scan_req *req = (struct iw_scan_req *)extra;
-	BYTE abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
+	u8 abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
 	PWLAN_IE_SSID pItemSSID = NULL;
 
 	if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
@@ -238,7 +237,7 @@ int iwctl_giwscan(struct net_device *dev, struct iw_request_info *info,
 			// ADD quality
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVQUAL;
-			RFvRSSITodBm(pDevice, (BYTE)(pBSS->uRSSI), &ldBm);
+			RFvRSSITodBm(pDevice, (u8)(pBSS->uRSSI), &ldBm);
 			iwe.u.qual.level = ldBm;
 			iwe.u.qual.noise = 0;
 
@@ -356,7 +355,6 @@ int iwctl_giwfreq(struct net_device *dev, struct iw_request_info *info,
 
 	if (pMgmt == NULL)
 		return -EFAULT;
-
 
 #ifdef WEXT_USECHANNELS
 	wrq->m = (int)pMgmt->uCurrChannel;
@@ -482,7 +480,6 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 		pDevice->bCommit = false;
 	}
 
-
 	return rc;
 }
 
@@ -532,7 +529,7 @@ int iwctl_giwrange(struct net_device *dev, struct iw_request_info *info,
 	struct iw_range *range = (struct iw_range *)extra;
 	int i;
 	int k;
-	BYTE abySupportedRates[13] = {
+	u8 abySupportedRates[13] = {
 		0x02, 0x04, 0x0B, 0x16, 0x0c, 0x12, 0x18, 0x24, 0x30, 0x48,
 		0x60, 0x6C, 0x90
 	};
@@ -635,7 +632,7 @@ int iwctl_siwap(struct net_device *dev, struct iw_request_info *info,
 	struct sockaddr *wrq = &wrqu->ap_addr;
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	int rc = 0;
-	BYTE ZeroBSSID[WLAN_BSSID_LEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	u8 ZeroBSSID[WLAN_BSSID_LEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 	PRINT_K(" SIOCSIWAP\n");
 
@@ -819,7 +816,7 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 		if (pDevice->bWPASuppWextEnabled == true)  {
 			/*******search if  in hidden ssid mode ****/
 			PKnownBSS pCurr = NULL;
-			BYTE abyTmpDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
+			u8 abyTmpDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
 			unsigned ii;
 			unsigned uSameBssidNum = 0;
 
@@ -913,7 +910,7 @@ int iwctl_siwrate(struct net_device *dev, struct iw_request_info *info,
 	int rc = 0;
 	u8 brate = 0;
 	int i;
-	BYTE abySupportedRates[13] = {
+	u8 abySupportedRates[13] = {
 		0x02, 0x04, 0x0B, 0x16, 0x0c, 0x12, 0x18, 0x24, 0x30, 0x48,
 		0x60, 0x6C, 0x90
 	};
@@ -996,7 +993,7 @@ int iwctl_giwrate(struct net_device *dev, struct iw_request_info *info,
 		return -EFAULT;
 
 	{
-		BYTE abySupportedRates[13] = {
+		u8 abySupportedRates[13] = {
 			0x02, 0x04, 0x0B, 0x16, 0x0c, 0x12, 0x18, 0x24, 0x30,
 			0x48, 0x60, 0x6C, 0x90
 		};
@@ -1227,7 +1224,7 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 					KEY_CTL_WEP);
 			spin_unlock_irq(&pDevice->lock);
 		}
-		pDevice->byKeyIndex = (BYTE)dwKeyIndex;
+		pDevice->byKeyIndex = (u8)dwKeyIndex;
 		pDevice->uKeyLength = wrq->length;
 		pDevice->bTransmitKey = true;
 		pDevice->bEncryptionEnable = true;
@@ -1317,7 +1314,7 @@ int iwctl_giwencode(struct net_device *dev, struct iw_request_info *info,
 			memcpy(abyKey, pKey->abyKey,	pKey->uKeyLength);
 			memcpy(extra,  abyKey, WLAN_WEP232_KEYLEN);
 		}
-	} else if (KeybGetKey(&(pDevice->sKey), pDevice->abyBroadcastAddr, (BYTE)index, &pKey)) {
+	} else if (KeybGetKey(&(pDevice->sKey), pDevice->abyBroadcastAddr, (u8)index, &pKey)) {
 		wrq->length = pKey->uKeyLength;
 		memcpy(abyKey, pKey->abyKey, pKey->uKeyLength);
 		memcpy(extra, abyKey, WLAN_WEP232_KEYLEN);
@@ -1348,9 +1345,12 @@ int iwctl_siwpower(struct net_device *dev, struct iw_request_info *info,
 		return rc;
 	}
 
+	spin_lock_irq(&pDevice->lock);
+
 	if (wrq->disabled) {
 		pDevice->ePSMode = WMAC_POWER_CAM;
 		PSvDisablePowerSaving(pDevice);
+		spin_unlock_irq(&pDevice->lock);
 		return rc;
 	}
 	if ((wrq->flags & IW_POWER_TYPE) == IW_POWER_TIMEOUT) {
@@ -1361,6 +1361,9 @@ int iwctl_siwpower(struct net_device *dev, struct iw_request_info *info,
 		pDevice->ePSMode = WMAC_POWER_FAST;
 		PSvEnablePowerSaving((void *)pDevice, pMgmt->wListenInterval);
 	}
+
+	spin_unlock_irq(&pDevice->lock);
+
 	switch (wrq->flags & IW_POWER_MODE) {
 	case IW_POWER_UNICAST_R:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWPOWER: IW_POWER_UNICAST_R \n");
@@ -1424,7 +1427,7 @@ int iwctl_giwsens(struct net_device *dev, struct iw_request_info *info,
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWSENS\n");
 	if (pDevice->bLinkPass == true) {
-		RFvRSSITodBm(pDevice, (BYTE)(pDevice->uCurrRSSI), &ldBm);
+		RFvRSSITodBm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
 		wrq->value = ldBm;
 	} else {
 		wrq->value = 0;

@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 
 #include <asm/bootinfo.h>
+#include <asm/idle.h>
 #include <asm/time.h>		/* for mips_hpt_frequency */
 #include <asm/reboot.h>		/* for _machine_{restart,halt} */
 #include <asm/mips_machine.h>
@@ -49,20 +50,6 @@ static void ath79_halt(void)
 {
 	while (1)
 		cpu_wait();
-}
-
-static void __init ath79_detect_mem_size(void)
-{
-	unsigned long size;
-
-	for (size = ATH79_MEM_SIZE_MIN; size < ATH79_MEM_SIZE_MAX;
-	     size <<= 1) {
-		if (!memcmp(ath79_detect_mem_size,
-			    ath79_detect_mem_size + size, 1024))
-			break;
-	}
-
-	add_memory_region(0, size, BOOT_MEM_RAM);
 }
 
 static void __init ath79_detect_sys_type(void)
@@ -212,7 +199,7 @@ void __init plat_mem_setup(void)
 					 AR71XX_DDR_CTRL_SIZE);
 
 	ath79_detect_sys_type();
-	ath79_detect_mem_size();
+	detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
 	ath79_clocks_init();
 
 	_machine_restart = ath79_restart;

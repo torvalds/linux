@@ -612,6 +612,17 @@ static void bm_memset(struct drbd_bitmap *b, size_t offset, int c, size_t len)
 	}
 }
 
+/* For the layout, see comment above drbd_md_set_sector_offsets(). */
+static u64 drbd_md_on_disk_bits(struct drbd_backing_dev *ldev)
+{
+	u64 bitmap_sectors;
+	if (ldev->md.al_offset == 8)
+		bitmap_sectors = ldev->md.md_size_sect - ldev->md.bm_offset;
+	else
+		bitmap_sectors = ldev->md.al_offset - ldev->md.bm_offset;
+	return bitmap_sectors << (9 + 3);
+}
+
 /*
  * make sure the bitmap has enough room for the attached storage,
  * if necessary, resize.
@@ -668,7 +679,7 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 	words = ALIGN(bits, 64) >> LN2_BPL;
 
 	if (get_ldev(mdev)) {
-		u64 bits_on_disk = ((u64)mdev->ldev->md.md_size_sect-MD_BM_OFFSET) << 12;
+		u64 bits_on_disk = drbd_md_on_disk_bits(mdev->ldev);
 		put_ldev(mdev);
 		if (bits > bits_on_disk) {
 			dev_info(DEV, "bits = %lu\n", bits);

@@ -257,10 +257,31 @@ void rfbi_bus_unlock(void);
 
 /* DSI */
 
+enum omap_dss_dsi_trans_mode {
+	/* Sync Pulses: both sync start and end packets sent */
+	OMAP_DSS_DSI_PULSE_MODE,
+	/* Sync Events: only sync start packets sent */
+	OMAP_DSS_DSI_EVENT_MODE,
+	/* Burst: only sync start packets sent, pixels are time compressed */
+	OMAP_DSS_DSI_BURST_MODE,
+};
+
 struct omap_dss_dsi_videomode_timings {
+	unsigned long hsclk;
+
+	unsigned ndl;
+	unsigned bitspp;
+
+	/* pixels */
+	u16 hact;
+	/* lines */
+	u16 vact;
+
 	/* DSI video mode blanking data */
 	/* Unit: byte clock cycles */
+	u16 hss;
 	u16 hsa;
+	u16 hse;
 	u16 hfp;
 	u16 hbp;
 	/* Unit: line clocks */
@@ -274,12 +295,22 @@ struct omap_dss_dsi_videomode_timings {
 	int hbp_blanking_mode;
 	int hfp_blanking_mode;
 
-	/* Video port sync events */
-	bool vp_vsync_end;
-	bool vp_hsync_end;
+	enum omap_dss_dsi_trans_mode trans_mode;
 
 	bool ddr_clk_always_on;
 	int window_sync;
+};
+
+struct omap_dss_dsi_config {
+	enum omap_dss_dsi_mode mode;
+	enum omap_dss_dsi_pixel_format pixel_format;
+	const struct omap_video_timings *timings;
+
+	unsigned long hs_clk_min, hs_clk_max;
+	unsigned long lp_clk_min, lp_clk_max;
+
+	bool ddr_clk_always_on;
+	enum omap_dss_dsi_trans_mode trans_mode;
 };
 
 void dsi_bus_lock(struct omap_dss_device *dssdev);
@@ -541,8 +572,13 @@ struct omap_dss_writeback_info {
 struct omap_dss_output {
 	struct list_head list;
 
+	const char *name;
+
 	/* display type supported by the output */
 	enum omap_display_type type;
+
+	/* DISPC channel for this output */
+	enum omap_channel dispc_channel;
 
 	/* output instance */
 	enum omap_dss_output_id id;
@@ -561,6 +597,7 @@ struct omap_dss_device {
 
 	enum omap_display_type type;
 
+	/* obsolete, to be removed */
 	enum omap_channel channel;
 
 	union {
@@ -591,40 +628,10 @@ struct omap_dss_device {
 	} phy;
 
 	struct {
-		struct {
-			struct {
-				u16 lck_div;
-				u16 pck_div;
-				enum omap_dss_clk_source lcd_clk_src;
-			} channel;
-
-			enum omap_dss_clk_source dispc_fclk_src;
-		} dispc;
-
-		struct {
-			/* regn is one greater than TRM's REGN value */
-			u16 regn;
-			u16 regm;
-			u16 regm_dispc;
-			u16 regm_dsi;
-
-			u16 lp_clk_div;
-			enum omap_dss_clk_source dsi_fclk_src;
-		} dsi;
-
-		struct {
-			/* regn is one greater than TRM's REGN value */
-			u16 regn;
-			u16 regm2;
-		} hdmi;
-	} clocks;
-
-	struct {
 		struct omap_video_timings timings;
 
 		enum omap_dss_dsi_pixel_format dsi_pix_fmt;
 		enum omap_dss_dsi_mode dsi_mode;
-		struct omap_dss_dsi_videomode_timings dsi_vm_timings;
 	} panel;
 
 	struct {
@@ -741,6 +748,7 @@ struct omap_dss_driver {
 };
 
 enum omapdss_version omapdss_get_version(void);
+bool omapdss_is_initialized(void);
 
 int omap_dss_register_driver(struct omap_dss_driver *);
 void omap_dss_unregister_driver(struct omap_dss_driver *);
@@ -829,15 +837,8 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
 		bool enable);
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
-void omapdss_dsi_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings);
-void omapdss_dsi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h);
-void omapdss_dsi_set_pixel_format(struct omap_dss_device *dssdev,
-		enum omap_dss_dsi_pixel_format fmt);
-void omapdss_dsi_set_operation_mode(struct omap_dss_device *dssdev,
-		enum omap_dss_dsi_mode mode);
-void omapdss_dsi_set_videomode_timings(struct omap_dss_device *dssdev,
-		struct omap_dss_dsi_videomode_timings *timings);
+int omapdss_dsi_set_config(struct omap_dss_device *dssdev,
+		const struct omap_dss_dsi_config *config);
 
 int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
 		void (*callback)(int, void *), void *data);
@@ -846,8 +847,6 @@ int omap_dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id);
 void omap_dsi_release_vc(struct omap_dss_device *dssdev, int channel);
 int omapdss_dsi_configure_pins(struct omap_dss_device *dssdev,
 		const struct omap_dsi_pin_config *pin_cfg);
-int omapdss_dsi_set_clocks(struct omap_dss_device *dssdev,
-		unsigned long ddr_clk, unsigned long lp_clk);
 
 int omapdss_dsi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,

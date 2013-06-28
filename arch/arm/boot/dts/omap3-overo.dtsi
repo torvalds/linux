@@ -11,16 +11,25 @@
  */
 /dts-v1/;
 
-/include/ "omap3.dtsi"
+/include/ "omap34xx.dtsi"
 
 / {
-	leds {
-		compatible = "gpio-leds";
+	pwmleds {
+		compatible = "pwm-leds";
+
 		overo {
 			label = "overo:blue:COM";
-			gpios = <&twl_gpio 19 0>;
-			linux,default-trigger = "mmc0";
+			pwms = <&twl_pwmled 1 7812500>;
+			max-brightness = <127>;
 		};
+	};
+
+	sound {
+		compatible = "ti,omap-twl4030";
+		ti,model = "overo";
+
+		ti,mcbsp = <&mcbsp2>;
+		ti,codec = <&twl_audio>;
 	};
 };
 
@@ -31,6 +40,12 @@
 		reg = <0x48>;
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
+
+		twl_audio: audio {
+			compatible = "ti,twl4030-audio";
+			codec {
+			};
+		};
 	};
 };
 
@@ -54,4 +69,11 @@
 
 &twl_gpio {
 	ti,use-leds;
+};
+
+&usb_otg_hs {
+	interface-type = <0>;
+	usb-phy = <&usb2_phy>;
+	mode = <3>;
+	power = <50>;
 };

@@ -1,8 +1,10 @@
 #ifndef __KERNEL_PRINTK__
 #define __KERNEL_PRINTK__
 
+#include <stdarg.h>
 #include <linux/init.h>
 #include <linux/kern_levels.h>
+#include <linux/linkage.h>
 
 extern const char linux_banner[];
 extern const char linux_proc_banner[];
@@ -95,8 +97,14 @@ int no_printk(const char *fmt, ...)
 	return 0;
 }
 
+#ifdef CONFIG_EARLY_PRINTK
 extern asmlinkage __printf(1, 2)
 void early_printk(const char *fmt, ...);
+void early_vprintk(const char *fmt, va_list ap);
+#else
+static inline __printf(1, 2) __cold
+void early_printk(const char *s, ...) { }
+#endif
 
 #ifdef CONFIG_PRINTK
 asmlinkage __printf(5, 0)
@@ -134,8 +142,13 @@ extern int printk_delay_msec;
 extern int dmesg_restrict;
 extern int kptr_restrict;
 
+extern void wake_up_klogd(void);
+
 void log_buf_kexec_setup(void);
 void __init setup_log_buf(int early);
+void dump_stack_set_arch_desc(const char *fmt, ...);
+void dump_stack_print_info(const char *log_lvl);
+void show_regs_print_info(const char *log_lvl);
 #else
 static inline __printf(1, 0)
 int vprintk(const char *s, va_list args)
@@ -162,11 +175,27 @@ static inline bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 	return false;
 }
 
+static inline void wake_up_klogd(void)
+{
+}
+
 static inline void log_buf_kexec_setup(void)
 {
 }
 
 static inline void setup_log_buf(int early)
+{
+}
+
+static inline void dump_stack_set_arch_desc(const char *fmt, ...)
+{
+}
+
+static inline void dump_stack_print_info(const char *log_lvl)
+{
+}
+
+static inline void show_regs_print_info(const char *log_lvl)
 {
 }
 #endif

@@ -24,6 +24,16 @@
 	};
 
 	ahb {
+		apb {
+			pinctrl@fffff400 {
+				1wire_cm {
+					pinctrl_1wire_cm: 1wire_cm-0 {
+						atmel,pins = <1 18 0x0 0x2>; /* PB18 multidrive, conflicts with led */
+					};
+				};
+			};
+		};
+
 		nand0: nand@40000000 {
 			nand-bus-width = <8>;
 			nand-ecc-mode = "hw";
@@ -74,4 +84,14 @@
 			gpios = <&pioD 21 0>;
 		};
 	};
+
+	1wire_cm {
+		compatible = "w1-gpio";
+		gpios = <&pioB 18 0>;
+		linux,open-drain;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_1wire_cm>;
+		status = "okay";
+	};
+
 };

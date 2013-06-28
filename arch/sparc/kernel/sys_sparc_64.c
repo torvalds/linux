@@ -353,7 +353,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 		case SEMCTL: {
 			err = sys_semctl(first, second,
 					 (int)third | IPC_64,
-					 (union semun) ptr);
+					 (unsigned long) ptr);
 			goto out;
 		}
 		default:
@@ -470,10 +470,6 @@ SYSCALL_DEFINE2(64_munmap, unsigned long, addr, size_t, len)
 
 	return vm_munmap(addr, len);
 }
-
-extern unsigned long do_mremap(unsigned long addr,
-	unsigned long old_len, unsigned long new_len,
-	unsigned long flags, unsigned long new_addr);
                 
 SYSCALL_DEFINE5(64_mremap, unsigned long, addr,	unsigned long, old_len,
 		unsigned long, new_len, unsigned long, flags,

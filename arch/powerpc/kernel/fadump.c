@@ -1045,10 +1045,7 @@ static void fadump_release_memory(unsigned long begin, unsigned long end)
 		if (addr <= ra_end && ((addr + PAGE_SIZE) > ra_start))
 			continue;
 
-		ClearPageReserved(pfn_to_page(addr >> PAGE_SHIFT));
-		init_page_count(pfn_to_page(addr >> PAGE_SHIFT));
-		free_page((unsigned long)__va(addr));
-		totalram_pages++;
+		free_reserved_page(pfn_to_page(addr >> PAGE_SHIFT));
 	}
 }
 

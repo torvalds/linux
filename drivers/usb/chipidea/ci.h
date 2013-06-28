@@ -21,6 +21,7 @@
 /******************************************************************************
  * DEFINE
  *****************************************************************************/
+#define TD_PAGE_COUNT      5
 #define CI13XXX_PAGE_SIZE  4096ul /* page size for TD's */
 #define ENDPT_MAX          32
 
@@ -129,6 +130,7 @@ struct hw_bank {
  * @vbus_active: is VBUS active
  * @transceiver: pointer to USB PHY, if any
  * @hcd: pointer to usb_hcd for ehci host driver
+ * @debugfs: root dentry for this controller in debugfs
  */
 struct ci13xxx {
 	struct device			*dev;
@@ -139,7 +141,6 @@ struct ci13xxx {
 	enum ci_role			role;
 	bool				is_otg;
 	struct work_struct		work;
-	struct work_struct		vbus_work;
 	struct workqueue_struct		*wq;
 
 	struct dma_pool			*qh_pool;
@@ -165,6 +166,7 @@ struct ci13xxx {
 	bool				global_phy;
 	struct usb_phy			*transceiver;
 	struct usb_hcd			*hcd;
+	struct dentry			*debugfs;
 };
 
 static inline struct ci_role_driver *ci_role(struct ci13xxx *ci)
@@ -234,19 +236,6 @@ enum ci13xxx_regs {
 };
 
 /**
- * ffs_nr: find first (least significant) bit set
- * @x: the word to search
- *
- * This function returns bit number (instead of position)
- */
-static inline int ffs_nr(u32 x)
-{
-	int n = ffs(x);
-
-	return n ? n-1 : 32;
-}
-
-/**
  * hw_read: reads from a hw register
  * @reg:  register index
  * @mask: bitfield mask
@@ -304,7 +293,7 @@ static inline u32 hw_test_and_write(struct ci13xxx *ci, enum ci13xxx_regs reg,
 	u32 val = hw_read(ci, reg, ~0);
 
 	hw_write(ci, reg, mask, data);
-	return (val & mask) >> ffs_nr(mask);
+	return (val & mask) >> __ffs(mask);
 }
 
 int hw_device_reset(struct ci13xxx *ci, u32 mode);

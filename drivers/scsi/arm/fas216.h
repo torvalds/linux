@@ -358,9 +358,9 @@ extern void fas216_remove (struct Scsi_Host *instance);
  */
 extern void fas216_release (struct Scsi_Host *instance);
 
-extern int fas216_print_host(FAS216_Info *info, char *buffer);
-extern int fas216_print_stats(FAS216_Info *info, char *buffer);
-extern int fas216_print_devices(FAS216_Info *info, char *buffer);
+extern void fas216_print_host(FAS216_Info *info, struct seq_file *m);
+extern void fas216_print_stats(FAS216_Info *info, struct seq_file *m);
+extern void fas216_print_devices(FAS216_Info *info, struct seq_file *m);
 
 /* Function: int fas216_eh_abort(struct scsi_cmnd *SCpnt)
  * Purpose : abort this command

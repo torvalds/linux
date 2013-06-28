@@ -24,7 +24,7 @@
 #include <linux/gpio.h>
 #include <drm/drm_edid.h>
 
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 
 static const struct omap_video_timings tfp410_default_timings = {
 	.x_res		= 640,
@@ -135,7 +135,7 @@ static int tfp410_probe(struct omap_dss_device *dssdev)
 		if (!adapter) {
 			dev_err(&dssdev->dev, "Failed to get I2C adapter, bus %d\n",
 					i2c_bus_num);
-			return -EINVAL;
+			return -EPROBE_DEFER;
 		}
 
 		ddata->i2c_adapter = adapter;

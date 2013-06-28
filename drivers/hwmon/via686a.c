@@ -125,7 +125,7 @@ static const u8 VIA686A_REG_TEMP_HYST[]	= { 0x3a, 0x3e, 0x1e };
  * (These conversions were contributed by Jonathan Teh Soon Yew
  * <j.teh@iname.com>)
  */
-static inline u8 IN_TO_REG(long val, int inNum)
+static inline u8 IN_TO_REG(long val, int in_num)
 {
 	/*
 	 * To avoid floating point, we multiply constants by 10 (100 for +12V).
@@ -134,29 +134,29 @@ static inline u8 IN_TO_REG(long val, int inNum)
 	 * by an additional 10000 (100000 for +12V): 1000 for val and 10 (100)
 	 * for the constants.
 	 */
-	if (inNum <= 1)
+	if (in_num <= 1)
 		return (u8) clamp_val((val * 21024 - 1205000) / 250000, 0, 255);
-	else if (inNum == 2)
+	else if (in_num == 2)
 		return (u8) clamp_val((val * 15737 - 1205000) / 250000, 0, 255);
-	else if (inNum == 3)
+	else if (in_num == 3)
 		return (u8) clamp_val((val * 10108 - 1205000) / 250000, 0, 255);
 	else
 		return (u8) clamp_val((val * 41714 - 12050000) / 2500000, 0,
 				      255);
 }
 
-static inline long IN_FROM_REG(u8 val, int inNum)
+static inline long IN_FROM_REG(u8 val, int in_num)
 {
 	/*
 	 * To avoid floating point, we multiply constants by 10 (100 for +12V).
 	 * We also multiply them by 1000 because we want 0.001V/bit for the
 	 * output value. Rounding is done.
 	 */
-	if (inNum <= 1)
+	if (in_num <= 1)
 		return (long) ((250000 * val + 1330000 + 21024 / 2) / 21024);
-	else if (inNum == 2)
+	else if (in_num == 2)
 		return (long) ((250000 * val + 1330000 + 15737 / 2) / 15737);
-	else if (inNum == 3)
+	else if (in_num == 3)
 		return (long) ((250000 * val + 1330000 + 10108 / 2) / 10108);
 	else
 		return (long) ((2500000 * val + 13300000 + 41714 / 2) / 41714);
@@ -210,10 +210,10 @@ static inline u8 FAN_TO_REG(long rpm, int div)
  * VIA register values 0-255.  I *10 before rounding, so we get tenth-degree
  * precision.  (I could have done all 1024 values for our 10-bit readings,
  * but the function is very linear in the useful range (0-80 deg C), so
- * we'll just use linear interpolation for 10-bit readings.)  So, tempLUT
+ * we'll just use linear interpolation for 10-bit readings.)  So, temp_lut
  * is the temp at via register values 0-255:
  */
-static const s16 tempLUT[] = {
+static const s16 temp_lut[] = {
 	-709, -688, -667, -646, -627, -607, -589, -570, -553, -536, -519,
 	-503, -487, -471, -456, -442, -428, -414, -400, -387, -375,
 	-362, -350, -339, -327, -316, -305, -295, -285, -275, -265,
@@ -261,7 +261,7 @@ static const s16 tempLUT[] = {
  * - 2.525453e-04*val^3 + 1.424593e-02*val^2 + 2.148941e+00*val +7.275808e+01)
  * Note that n=161:
  */
-static const u8 viaLUT[] = {
+static const u8 via_lut[] = {
 	12, 12, 13, 14, 14, 15, 16, 16, 17, 18, 18, 19, 20, 20, 21, 22, 23,
 	23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 37, 39, 40,
 	41, 43, 45, 46, 48, 49, 51, 53, 55, 57, 59, 60, 62, 64, 66,
@@ -284,26 +284,26 @@ static const u8 viaLUT[] = {
  */
 static inline u8 TEMP_TO_REG(long val)
 {
-	return viaLUT[val <= -50000 ? 0 : val >= 110000 ? 160 :
+	return via_lut[val <= -50000 ? 0 : val >= 110000 ? 160 :
 		      (val < 0 ? val - 500 : val + 500) / 1000 + 50];
 }
 
 /* for 8-bit temperature hyst and over registers */
-#define TEMP_FROM_REG(val)	((long)tempLUT[val] * 100)
+#define TEMP_FROM_REG(val)	((long)temp_lut[val] * 100)
 
 /* for 10-bit temperature readings */
 static inline long TEMP_FROM_REG10(u16 val)
 {
-	u16 eightBits = val >> 2;
-	u16 twoBits = val & 3;
+	u16 eight_bits = val >> 2;
+	u16 two_bits = val & 3;
 
 	/* no interpolation for these */
-	if (twoBits == 0 || eightBits == 255)
-		return TEMP_FROM_REG(eightBits);
+	if (two_bits == 0 || eight_bits == 255)
+		return TEMP_FROM_REG(eight_bits);
 
 	/* do some linear interpolation */
-	return (tempLUT[eightBits] * (4 - twoBits) +
-		tempLUT[eightBits + 1] * twoBits) * 25;
+	return (temp_lut[eight_bits] * (4 - two_bits) +
+		temp_lut[eight_bits + 1] * two_bits) * 25;
 }
 
 #define DIV_FROM_REG(val) (1 << (val))
@@ -889,8 +889,8 @@ static int via686a_pci_probe(struct pci_dev *dev,
 
 	address = val & ~(VIA686A_EXTENT - 1);
 	if (address == 0) {
-		dev_err(&dev->dev, "base address not set - upgrade BIOS "
-			"or use force_addr=0xaddr\n");
+		dev_err(&dev->dev,
+			"base address not set - upgrade BIOS or use force_addr=0xaddr\n");
 		return -ENODEV;
 	}
 
@@ -899,8 +899,9 @@ static int via686a_pci_probe(struct pci_dev *dev,
 		return -ENODEV;
 	if (!(val & 0x0001)) {
 		if (!force_addr) {
-			dev_warn(&dev->dev, "Sensors disabled, enable "
-				 "with force_addr=0x%x\n", address);
+			dev_warn(&dev->dev,
+				 "Sensors disabled, enable with force_addr=0x%x\n",
+				 address);
 			return -ENODEV;
 		}
 

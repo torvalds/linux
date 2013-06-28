@@ -28,7 +28,7 @@
 struct rsxx_dma {
 	struct list_head	 list;
 	u8			 cmd;
-	unsigned int		 laddr;     /* Logical address on the ramsan */
+	unsigned int		 laddr;     /* Logical address */
 	struct {
 		u32		 off;
 		u32		 cnt;
@@ -81,9 +81,6 @@ enum rsxx_hw_status {
 	HW_STATUS_FAULT		= 0x08,
 };
 
-#define STATUS_BUFFER_SIZE8     4096
-#define COMMAND_BUFFER_SIZE8    4096
-
 static struct kmem_cache *rsxx_dma_pool;
 
 struct dma_tracker {
@@ -122,7 +119,7 @@ static unsigned int rsxx_get_dma_tgt(struct rsxx_cardinfo *card, u64 addr8)
 	return tgt;
 }
 
-static void rsxx_dma_queue_reset(struct rsxx_cardinfo *card)
+void rsxx_dma_queue_reset(struct rsxx_cardinfo *card)
 {
 	/* Reset all DMA Command/Status Queues */
 	iowrite32(DMA_QUEUE_RESET, card->regmap + RESET);
@@ -210,7 +207,8 @@ static void dma_intr_coal_auto_tune(struct rsxx_cardinfo *card)
 	u32 q_depth = 0;
 	u32 intr_coal;
 
-	if (card->config.data.intr_coal.mode != RSXX_INTR_COAL_AUTO_TUNE)
+	if (card->config.data.intr_coal.mode != RSXX_INTR_COAL_AUTO_TUNE ||
+	    unlikely(card->eeh_state))
 		return;
 
 	for (i = 0; i < card->n_targets; i++)
@@ -223,31 +221,26 @@ static void dma_intr_coal_auto_tune(struct rsxx_cardinfo *card)
 }
 
 /*----------------- RSXX DMA Handling -------------------*/
-static void rsxx_complete_dma(struct rsxx_cardinfo *card,
+static void rsxx_complete_dma(struct rsxx_dma_ctrl *ctrl,
 				  struct rsxx_dma *dma,
 				  unsigned int status)
 {
 	if (status & DMA_SW_ERR)
-		printk_ratelimited(KERN_ERR
-				   "SW Error in DMA(cmd x%02x, laddr x%08x)\n",
-				   dma->cmd, dma->laddr);
+		ctrl->stats.dma_sw_err++;
 	if (status & DMA_HW_FAULT)
-		printk_ratelimited(KERN_ERR
-				   "HW Fault in DMA(cmd x%02x, laddr x%08x)\n",
-				   dma->cmd, dma->laddr);
+		ctrl->stats.dma_hw_fault++;
 	if (status & DMA_CANCELLED)
-		printk_ratelimited(KERN_ERR
-				   "DMA Cancelled(cmd x%02x, laddr x%08x)\n",
-				   dma->cmd, dma->laddr);
+		ctrl->stats.dma_cancelled++;
 
 	if (dma->dma_addr)
-		pci_unmap_page(card->dev, dma->dma_addr, get_dma_size(dma),
+		pci_unmap_page(ctrl->card->dev, dma->dma_addr,
+			       get_dma_size(dma),
 			       dma->cmd == HW_CMD_BLK_WRITE ?
 					   PCI_DMA_TODEVICE :
 					   PCI_DMA_FROMDEVICE);
 
 	if (dma->cb)
-		dma->cb(card, dma->cb_data, status ? 1 : 0);
+		dma->cb(ctrl->card, dma->cb_data, status ? 1 : 0);
 
 	kmem_cache_free(rsxx_dma_pool, dma);
 }
@@ -330,14 +323,15 @@ static void rsxx_handle_dma_error(struct rsxx_dma_ctrl *ctrl,
 	if (requeue_cmd)
 		rsxx_requeue_dma(ctrl, dma);
 	else
-		rsxx_complete_dma(ctrl->card, dma, status);
+		rsxx_complete_dma(ctrl, dma, status);
 }
 
 static void dma_engine_stalled(unsigned long data)
 {
 	struct rsxx_dma_ctrl *ctrl = (struct rsxx_dma_ctrl *)data;
 
-	if (atomic_read(&ctrl->stats.hw_q_depth) == 0)
+	if (atomic_read(&ctrl->stats.hw_q_depth) == 0 ||
+	    unlikely(ctrl->card->eeh_state))
 		return;
 
 	if (ctrl->cmd.idx != ioread32(ctrl->regmap + SW_CMD_IDX)) {
@@ -369,7 +363,8 @@ static void rsxx_issue_dmas(struct work_struct *work)
 	ctrl = container_of(work, struct rsxx_dma_ctrl, issue_dma_work);
 	hw_cmd_buf = ctrl->cmd.buf;
 
-	if (unlikely(ctrl->card->halt))
+	if (unlikely(ctrl->card->halt) ||
+	    unlikely(ctrl->card->eeh_state))
 		return;
 
 	while (1) {
@@ -397,7 +392,7 @@ static void rsxx_issue_dmas(struct work_struct *work)
 		 */
 		if (unlikely(ctrl->card->dma_fault)) {
 			push_tracker(ctrl->trackers, tag);
-			rsxx_complete_dma(ctrl->card, dma, DMA_CANCELLED);
+			rsxx_complete_dma(ctrl, dma, DMA_CANCELLED);
 			continue;
 		}
 
@@ -432,19 +427,15 @@ static void rsxx_issue_dmas(struct work_struct *work)
 
 	/* Let HW know we've queued commands. */
 	if (cmds_pending) {
-		/*
-		 * We must guarantee that the CPU writes to 'ctrl->cmd.buf'
-		 * (which is in PCI-consistent system-memory) from the loop
-		 * above make it into the coherency domain before the
-		 * following PIO "trigger" updating the cmd.idx.  A WMB is
-		 * sufficient. We need not explicitly CPU cache-flush since
-		 * the memory is a PCI-consistent (ie; coherent) mapping.
-		 */
-		wmb();
-
 		atomic_add(cmds_pending, &ctrl->stats.hw_q_depth);
 		mod_timer(&ctrl->activity_timer,
 			  jiffies + DMA_ACTIVITY_TIMEOUT);
+
+		if (unlikely(ctrl->card->eeh_state)) {
+			del_timer_sync(&ctrl->activity_timer);
+			return;
+		}
+
 		iowrite32(ctrl->cmd.idx, ctrl->regmap + SW_CMD_IDX);
 	}
 }
@@ -463,7 +454,8 @@ static void rsxx_dma_done(struct work_struct *work)
 	hw_st_buf = ctrl->status.buf;
 
 	if (unlikely(ctrl->card->halt) ||
-	    unlikely(ctrl->card->dma_fault))
+	    unlikely(ctrl->card->dma_fault) ||
+	    unlikely(ctrl->card->eeh_state))
 		return;
 
 	count = le16_to_cpu(hw_st_buf[ctrl->status.idx].count);
@@ -508,7 +500,7 @@ static void rsxx_dma_done(struct work_struct *work)
 		if (status)
 			rsxx_handle_dma_error(ctrl, dma, status);
 		else
-			rsxx_complete_dma(ctrl->card, dma, 0);
+			rsxx_complete_dma(ctrl, dma, 0);
 
 		push_tracker(ctrl->trackers, tag);
 
@@ -727,19 +719,53 @@ bvec_err:
 
 
 /*----------------- DMA Engine Initialization & Setup -------------------*/
+int rsxx_hw_buffers_init(struct pci_dev *dev, struct rsxx_dma_ctrl *ctrl)
+{
+	ctrl->status.buf = pci_alloc_consistent(dev, STATUS_BUFFER_SIZE8,
+				&ctrl->status.dma_addr);
+	ctrl->cmd.buf = pci_alloc_consistent(dev, COMMAND_BUFFER_SIZE8,
+				&ctrl->cmd.dma_addr);
+	if (ctrl->status.buf == NULL || ctrl->cmd.buf == NULL)
+		return -ENOMEM;
+
+	memset(ctrl->status.buf, 0xac, STATUS_BUFFER_SIZE8);
+	iowrite32(lower_32_bits(ctrl->status.dma_addr),
+		ctrl->regmap + SB_ADD_LO);
+	iowrite32(upper_32_bits(ctrl->status.dma_addr),
+		ctrl->regmap + SB_ADD_HI);
+
+	memset(ctrl->cmd.buf, 0x83, COMMAND_BUFFER_SIZE8);
+	iowrite32(lower_32_bits(ctrl->cmd.dma_addr), ctrl->regmap + CB_ADD_LO);
+	iowrite32(upper_32_bits(ctrl->cmd.dma_addr), ctrl->regmap + CB_ADD_HI);
+
+	ctrl->status.idx = ioread32(ctrl->regmap + HW_STATUS_CNT);
+	if (ctrl->status.idx > RSXX_MAX_OUTSTANDING_CMDS) {
+		dev_crit(&dev->dev, "Failed reading status cnt x%x\n",
+			ctrl->status.idx);
+		return -EINVAL;
+	}
+	iowrite32(ctrl->status.idx, ctrl->regmap + HW_STATUS_CNT);
+	iowrite32(ctrl->status.idx, ctrl->regmap + SW_STATUS_CNT);
+
+	ctrl->cmd.idx = ioread32(ctrl->regmap + HW_CMD_IDX);
+	if (ctrl->cmd.idx > RSXX_MAX_OUTSTANDING_CMDS) {
+		dev_crit(&dev->dev, "Failed reading cmd cnt x%x\n",
+			ctrl->status.idx);
+		return -EINVAL;
+	}
+	iowrite32(ctrl->cmd.idx, ctrl->regmap + HW_CMD_IDX);
+	iowrite32(ctrl->cmd.idx, ctrl->regmap + SW_CMD_IDX);
+
+	return 0;
+}
+
 static int rsxx_dma_ctrl_init(struct pci_dev *dev,
 				  struct rsxx_dma_ctrl *ctrl)
 {
 	int i;
+	int st;
 
 	memset(&ctrl->stats, 0, sizeof(ctrl->stats));
-
-	ctrl->status.buf = pci_alloc_consistent(dev, STATUS_BUFFER_SIZE8,
-						&ctrl->status.dma_addr);
-	ctrl->cmd.buf = pci_alloc_consistent(dev, COMMAND_BUFFER_SIZE8,
-					     &ctrl->cmd.dma_addr);
-	if (ctrl->status.buf == NULL || ctrl->cmd.buf == NULL)
-		return -ENOMEM;
 
 	ctrl->trackers = vmalloc(DMA_TRACKER_LIST_SIZE8);
 	if (!ctrl->trackers)
@@ -770,35 +796,9 @@ static int rsxx_dma_ctrl_init(struct pci_dev *dev,
 	INIT_WORK(&ctrl->issue_dma_work, rsxx_issue_dmas);
 	INIT_WORK(&ctrl->dma_done_work, rsxx_dma_done);
 
-	memset(ctrl->status.buf, 0xac, STATUS_BUFFER_SIZE8);
-	iowrite32(lower_32_bits(ctrl->status.dma_addr),
-		  ctrl->regmap + SB_ADD_LO);
-	iowrite32(upper_32_bits(ctrl->status.dma_addr),
-		  ctrl->regmap + SB_ADD_HI);
-
-	memset(ctrl->cmd.buf, 0x83, COMMAND_BUFFER_SIZE8);
-	iowrite32(lower_32_bits(ctrl->cmd.dma_addr), ctrl->regmap + CB_ADD_LO);
-	iowrite32(upper_32_bits(ctrl->cmd.dma_addr), ctrl->regmap + CB_ADD_HI);
-
-	ctrl->status.idx = ioread32(ctrl->regmap + HW_STATUS_CNT);
-	if (ctrl->status.idx > RSXX_MAX_OUTSTANDING_CMDS) {
-		dev_crit(&dev->dev, "Failed reading status cnt x%x\n",
-			 ctrl->status.idx);
-		return -EINVAL;
-	}
-	iowrite32(ctrl->status.idx, ctrl->regmap + HW_STATUS_CNT);
-	iowrite32(ctrl->status.idx, ctrl->regmap + SW_STATUS_CNT);
-
-	ctrl->cmd.idx = ioread32(ctrl->regmap + HW_CMD_IDX);
-	if (ctrl->cmd.idx > RSXX_MAX_OUTSTANDING_CMDS) {
-		dev_crit(&dev->dev, "Failed reading cmd cnt x%x\n",
-			 ctrl->status.idx);
-		return -EINVAL;
-	}
-	iowrite32(ctrl->cmd.idx, ctrl->regmap + HW_CMD_IDX);
-	iowrite32(ctrl->cmd.idx, ctrl->regmap + SW_CMD_IDX);
-
-	wmb();
+	st = rsxx_hw_buffers_init(dev, ctrl);
+	if (st)
+		return st;
 
 	return 0;
 }
@@ -834,7 +834,7 @@ static int rsxx_dma_stripe_setup(struct rsxx_cardinfo *card,
 	return 0;
 }
 
-static int rsxx_dma_configure(struct rsxx_cardinfo *card)
+int rsxx_dma_configure(struct rsxx_cardinfo *card)
 {
 	u32 intr_coal;
 
@@ -980,6 +980,103 @@ void rsxx_dma_destroy(struct rsxx_cardinfo *card)
 	}
 }
 
+int rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card)
+{
+	int i;
+	int j;
+	int cnt;
+	struct rsxx_dma *dma;
+	struct list_head *issued_dmas;
+
+	issued_dmas = kzalloc(sizeof(*issued_dmas) * card->n_targets,
+			      GFP_KERNEL);
+	if (!issued_dmas)
+		return -ENOMEM;
+
+	for (i = 0; i < card->n_targets; i++) {
+		INIT_LIST_HEAD(&issued_dmas[i]);
+		cnt = 0;
+		for (j = 0; j < RSXX_MAX_OUTSTANDING_CMDS; j++) {
+			dma = get_tracker_dma(card->ctrl[i].trackers, j);
+			if (dma == NULL)
+				continue;
+
+			if (dma->cmd == HW_CMD_BLK_WRITE)
+				card->ctrl[i].stats.writes_issued--;
+			else if (dma->cmd == HW_CMD_BLK_DISCARD)
+				card->ctrl[i].stats.discards_issued--;
+			else
+				card->ctrl[i].stats.reads_issued--;
+
+			list_add_tail(&dma->list, &issued_dmas[i]);
+			push_tracker(card->ctrl[i].trackers, j);
+			cnt++;
+		}
+
+		spin_lock(&card->ctrl[i].queue_lock);
+		list_splice(&issued_dmas[i], &card->ctrl[i].queue);
+
+		atomic_sub(cnt, &card->ctrl[i].stats.hw_q_depth);
+		card->ctrl[i].stats.sw_q_depth += cnt;
+		card->ctrl[i].e_cnt = 0;
+
+		list_for_each_entry(dma, &card->ctrl[i].queue, list) {
+			if (dma->dma_addr)
+				pci_unmap_page(card->dev, dma->dma_addr,
+					       get_dma_size(dma),
+					       dma->cmd == HW_CMD_BLK_WRITE ?
+					       PCI_DMA_TODEVICE :
+					       PCI_DMA_FROMDEVICE);
+		}
+		spin_unlock(&card->ctrl[i].queue_lock);
+	}
+
+	kfree(issued_dmas);
+
+	return 0;
+}
+
+void rsxx_eeh_cancel_dmas(struct rsxx_cardinfo *card)
+{
+	struct rsxx_dma *dma;
+	struct rsxx_dma *tmp;
+	int i;
+
+	for (i = 0; i < card->n_targets; i++) {
+		spin_lock(&card->ctrl[i].queue_lock);
+		list_for_each_entry_safe(dma, tmp, &card->ctrl[i].queue, list) {
+			list_del(&dma->list);
+
+			rsxx_complete_dma(&card->ctrl[i], dma, DMA_CANCELLED);
+		}
+		spin_unlock(&card->ctrl[i].queue_lock);
+	}
+}
+
+int rsxx_eeh_remap_dmas(struct rsxx_cardinfo *card)
+{
+	struct rsxx_dma *dma;
+	int i;
+
+	for (i = 0; i < card->n_targets; i++) {
+		spin_lock(&card->ctrl[i].queue_lock);
+		list_for_each_entry(dma, &card->ctrl[i].queue, list) {
+			dma->dma_addr = pci_map_page(card->dev, dma->page,
+					dma->pg_off, get_dma_size(dma),
+					dma->cmd == HW_CMD_BLK_WRITE ?
+					PCI_DMA_TODEVICE :
+					PCI_DMA_FROMDEVICE);
+			if (!dma->dma_addr) {
+				spin_unlock(&card->ctrl[i].queue_lock);
+				kmem_cache_free(rsxx_dma_pool, dma);
+				return -ENOMEM;
+			}
+		}
+		spin_unlock(&card->ctrl[i].queue_lock);
+	}
+
+	return 0;
+}
 
 int rsxx_dma_init(void)
 {

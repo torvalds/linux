@@ -757,7 +757,7 @@ static size_t smmu_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 }
 
 static phys_addr_t smmu_iommu_iova_to_phys(struct iommu_domain *domain,
-					   unsigned long iova)
+					   dma_addr_t iova)
 {
 	struct smmu_as *as = domain->priv;
 	unsigned long *pte;
@@ -772,7 +772,8 @@ static phys_addr_t smmu_iommu_iova_to_phys(struct iommu_domain *domain,
 	pfn = *pte & SMMU_PFN_MASK;
 	WARN_ON(!pfn_valid(pfn));
 	dev_dbg(as->smmu->dev,
-		"iova:%08lx pfn:%08lx asid:%d\n", iova, pfn, as->asid);
+		"iova:%08llx pfn:%08lx asid:%d\n", (unsigned long long)iova,
+		 pfn, as->asid);
 
 	spin_unlock_irqrestore(&as->lock, flags);
 	return PFN_PHYS(pfn);

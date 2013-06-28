@@ -965,7 +965,7 @@ static void ar9003_hw_do_manual_peak_cal(struct ath_hw *ah,
 {
 	int i;
 
-	if (!AR_SREV_9462(ah) && !AR_SREV_9565(ah))
+	if (!AR_SREV_9462(ah) && !AR_SREV_9565(ah) && !AR_SREV_9485(ah))
 		return;
 
 	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
@@ -1023,6 +1023,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 					  AR_PHY_AGC_CONTROL_FLTR_CAL   |
 					  AR_PHY_AGC_CONTROL_PKDET_CAL;
 
+	/* Use chip chainmask only for calibration */
 	ar9003_hw_set_chain_masks(ah, ah->caps.rx_chainmask, ah->caps.tx_chainmask);
 
 	if (rtt) {
@@ -1125,7 +1126,8 @@ skip_tx_iqcal:
 			ar9003_hw_rtt_disable(ah);
 
 		ath_dbg(common, CALIBRATE,
-			"offset calibration failed to complete in 1ms; noisy environment?\n");
+			"offset calibration failed to complete in %d ms; noisy environment?\n",
+			AH_WAIT_TIMEOUT / 1000);
 		return false;
 	}
 
@@ -1149,6 +1151,9 @@ skip_tx_iqcal:
 
 		ar9003_hw_rtt_disable(ah);
 	}
+
+	/* Revert chainmask to runtime parameters */
+	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
 
 	/* Initialize list pointers */
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;

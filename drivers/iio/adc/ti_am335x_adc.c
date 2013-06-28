@@ -89,7 +89,7 @@ static int tiadc_channel_init(struct iio_dev *indio_dev, int channels)
 		chan->type = IIO_VOLTAGE;
 		chan->indexed = 1;
 		chan->channel = i;
-		chan->info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT;
+		chan->info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
 	}
 
 	indio_dev->channels = chan_array;

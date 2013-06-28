@@ -32,6 +32,38 @@
 #define	DEV_NAME			"max77693-muic"
 #define	DELAY_MS_DEFAULT		20000		/* unit: millisecond */
 
+/*
+ * Default value of MAX77693 register to bring up MUIC device.
+ * If user don't set some initial value for MUIC device through platform data,
+ * extcon-max77693 driver use 'default_init_data' to bring up base operation
+ * of MAX77693 MUIC device.
+ */
+static struct max77693_reg_data default_init_data[] = {
+	{
+		/* STATUS2 - [3]ChgDetRun */
+		.addr = MAX77693_MUIC_REG_STATUS2,
+		.data = STATUS2_CHGDETRUN_MASK,
+	}, {
+		/* INTMASK1 - Unmask [3]ADC1KM,[0]ADCM */
+		.addr = MAX77693_MUIC_REG_INTMASK1,
+		.data = INTMASK1_ADC1K_MASK
+			| INTMASK1_ADC_MASK,
+	}, {
+		/* INTMASK2 - Unmask [0]ChgTypM */
+		.addr = MAX77693_MUIC_REG_INTMASK2,
+		.data = INTMASK2_CHGTYP_MASK,
+	}, {
+		/* INTMASK3 - Mask all of interrupts */
+		.addr = MAX77693_MUIC_REG_INTMASK3,
+		.data = 0x0,
+	}, {
+		/* CDETCTRL2 */
+		.addr = MAX77693_MUIC_REG_CDETCTRL2,
+		.data = CDETCTRL2_VIDRMEN_MASK
+			| CDETCTRL2_DXOVPEN_MASK,
+	},
+};
+
 enum max77693_muic_adc_debounce_time {
 	ADC_DEBOUNCE_TIME_5MS = 0,
 	ADC_DEBOUNCE_TIME_10MS,
@@ -226,7 +258,7 @@ static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 					  CONTROL3_ADCDBSET_MASK);
 		if (ret) {
 			dev_err(info->dev, "failed to set ADC debounce time\n");
-			return -EAGAIN;
+			return ret;
 		}
 		break;
 	default:
@@ -262,7 +294,7 @@ static int max77693_muic_set_path(struct max77693_muic_info *info,
 			MAX77693_MUIC_REG_CTRL1, ctrl1, COMP_SW_MASK);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to update MUIC register\n");
-		return -EAGAIN;
+		return ret;
 	}
 
 	if (attached)
@@ -275,7 +307,7 @@ static int max77693_muic_set_path(struct max77693_muic_info *info,
 			CONTROL2_LOWPWR_MASK | CONTROL2_CPEN_MASK);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to update MUIC register\n");
-		return -EAGAIN;
+		return ret;
 	}
 
 	dev_info(info->dev,
@@ -1003,7 +1035,7 @@ static int max77693_muic_detect_accessory(struct max77693_muic_info *info)
 	if (ret) {
 		dev_err(info->dev, "failed to read MUIC register\n");
 		mutex_unlock(&info->mutex);
-		return -EINVAL;
+		return ret;
 	}
 
 	adc = max77693_muic_get_cable_type(info, MAX77693_CABLE_GROUP_ADC,
@@ -1045,8 +1077,9 @@ static int max77693_muic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *max77693 = dev_get_drvdata(pdev->dev.parent);
 	struct max77693_platform_data *pdata = dev_get_platdata(max77693->dev);
-	struct max77693_muic_platform_data *muic_pdata = pdata->muic_data;
 	struct max77693_muic_info *info;
+	struct max77693_reg_data *init_data;
+	int num_init_data;
 	int delay_jiffies;
 	int ret;
 	int i;
@@ -1145,15 +1178,25 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	/* Initialize MUIC register by using platform data */
-	for (i = 0 ; i < muic_pdata->num_init_data ; i++) {
-		enum max77693_irq_source irq_src = MAX77693_IRQ_GROUP_NR;
+
+	/* Initialize MUIC register by using platform data or default data */
+	if (pdata->muic_data) {
+		init_data = pdata->muic_data->init_data;
+		num_init_data = pdata->muic_data->num_init_data;
+	} else {
+		init_data = default_init_data;
+		num_init_data = ARRAY_SIZE(default_init_data);
+	}
+
+	for (i = 0 ; i < num_init_data ; i++) {
+		enum max77693_irq_source irq_src
+				= MAX77693_IRQ_GROUP_NR;
 
 		max77693_write_reg(info->max77693->regmap_muic,
-				muic_pdata->init_data[i].addr,
-				muic_pdata->init_data[i].data);
+				init_data[i].addr,
+				init_data[i].data);
 
-		switch (muic_pdata->init_data[i].addr) {
+		switch (init_data[i].addr) {
 		case MAX77693_MUIC_REG_INTMASK1:
 			irq_src = MUIC_INT1;
 			break;
@@ -1167,22 +1210,40 @@ static int max77693_muic_probe(struct platform_device *pdev)
 
 		if (irq_src < MAX77693_IRQ_GROUP_NR)
 			info->max77693->irq_masks_cur[irq_src]
-				= muic_pdata->init_data[i].data;
+				= init_data[i].data;
 	}
 
-	/*
-	 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
-	 * h/w path of COMP2/COMN1 on CONTROL1 register.
-	 */
-	if (muic_pdata->path_uart)
-		info->path_uart = muic_pdata->path_uart;
-	else
-		info->path_uart = CONTROL1_SW_UART;
+	if (pdata->muic_data) {
+		struct max77693_muic_platform_data *muic_pdata = pdata->muic_data;
 
-	if (muic_pdata->path_usb)
-		info->path_usb = muic_pdata->path_usb;
-	else
+		/*
+		 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
+		 * h/w path of COMP2/COMN1 on CONTROL1 register.
+		 */
+		if (muic_pdata->path_uart)
+			info->path_uart = muic_pdata->path_uart;
+		else
+			info->path_uart = CONTROL1_SW_UART;
+
+		if (muic_pdata->path_usb)
+			info->path_usb = muic_pdata->path_usb;
+		else
+			info->path_usb = CONTROL1_SW_USB;
+
+		/*
+		 * Default delay time for detecting cable state
+		 * after certain time.
+		 */
+		if (muic_pdata->detcable_delay_ms)
+			delay_jiffies =
+				msecs_to_jiffies(muic_pdata->detcable_delay_ms);
+		else
+			delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
+	} else {
 		info->path_usb = CONTROL1_SW_USB;
+		info->path_uart = CONTROL1_SW_UART;
+		delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
+	}
 
 	/* Set initial path for UART */
 	 max77693_muic_set_path(info, info->path_uart, true);
@@ -1208,10 +1269,6 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	 * driver should notify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, max77693_muic_detect_cable_wq);
-	if (muic_pdata->detcable_delay_ms)
-		delay_jiffies = msecs_to_jiffies(muic_pdata->detcable_delay_ms);
-	else
-		delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
 	schedule_delayed_work(&info->wq_detcable, delay_jiffies);
 
 	return ret;

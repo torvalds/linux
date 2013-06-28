@@ -35,14 +35,16 @@
 static int
 nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
-	/* nothing to do */
+	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	man->priv = pfb;
 	return 0;
 }
 
 static int
 nouveau_vram_manager_fini(struct ttm_mem_type_manager *man)
 {
-	/* nothing to do */
+	man->priv = NULL;
 	return 0;
 }
 
@@ -104,7 +106,8 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 static void
 nouveau_vram_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 {
-	struct nouveau_mm *mm = man->priv;
+	struct nouveau_fb *pfb = man->priv;
+	struct nouveau_mm *mm = &pfb->vram;
 	struct nouveau_mm_node *r;
 	u32 total = 0, free = 0;
 
@@ -161,6 +164,8 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_placement *placement,
 			 struct ttm_mem_reg *mem)
 {
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_mem *node;
 
 	if (unlikely((mem->num_pages << PAGE_SHIFT) >= 512 * 1024 * 1024))
@@ -170,6 +175,20 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	if (!node)
 		return -ENOMEM;
 	node->page_shift = 12;
+
+	switch (nv_device(drm->device)->card_type) {
+	case NV_50:
+		if (nv_device(drm->device)->chipset != 0x50)
+			node->memtype = (nvbo->tile_flags & 0x7f00) >> 8;
+		break;
+	case NV_C0:
+	case NV_D0:
+	case NV_E0:
+		node->memtype = (nvbo->tile_flags & 0xff00) >> 8;
+		break;
+	default:
+		break;
+	}
 
 	mem->mm_node = node;
 	mem->start   = 0;

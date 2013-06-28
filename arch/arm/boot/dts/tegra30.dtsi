@@ -148,6 +148,7 @@
 			      0 42 0x04
 			      0 121 0x04
 			      0 122 0x04>;
+		clocks = <&tegra_car 5>;
 	};
 
 	tegra_car: clock {
@@ -285,12 +286,14 @@
 		reg = <0x7000a000 0x100>;
 		#pwm-cells = <2>;
 		clocks = <&tegra_car 17>;
+		status = "disabled";
 	};
 
 	rtc {
 		compatible = "nvidia,tegra30-rtc", "nvidia,tegra20-rtc";
 		reg = <0x7000e000 0x100>;
 		interrupts = <0 2 0x04>;
+		clocks = <&tegra_car 4>;
 	};
 
 	i2c@7000c000 {
@@ -372,7 +375,7 @@
 
 	spi@7000d800 {
 		compatible = "nvidia,tegra30-slink", "nvidia,tegra20-slink";
-		reg = <0x7000d480 0x200>;
+		reg = <0x7000d800 0x200>;
 		interrupts = <0 83 0x04>;
 		nvidia,dma-request-selector = <&apbdma 17>;
 		#address-cells = <1>;
@@ -423,8 +426,10 @@
 	};
 
 	pmc {
-		compatible = "nvidia,tegra20-pmc", "nvidia,tegra30-pmc";
+		compatible = "nvidia,tegra30-pmc";
 		reg = <0x7000e400 0x400>;
+		clocks = <&tegra_car 218>, <&clk32k_in>;
+		clock-names = "pclk", "clk32k_in";
 	};
 
 	memory-controller {

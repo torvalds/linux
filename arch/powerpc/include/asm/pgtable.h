@@ -17,6 +17,12 @@ struct mm_struct;
 #  include <asm/pgtable-ppc32.h>
 #endif
 
+/*
+ * We save the slot number & secondary bit in the second half of the
+ * PTE page. We use the 8 bytes per each pte entry.
+ */
+#define PTE_PAGE_HIDX_OFFSET (PTRS_PER_PTE * 8)
+
 #ifndef __ASSEMBLY__
 
 #include <asm/tlbflush.h>
@@ -212,6 +218,8 @@ extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 extern int gup_hugepd(hugepd_t *hugepd, unsigned pdshift, unsigned long addr,
 		      unsigned long end, int write, struct page **pages, int *nr);
 
+extern int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
+		       unsigned long end, int write, struct page **pages, int *nr);
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

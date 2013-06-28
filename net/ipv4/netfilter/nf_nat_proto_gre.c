@@ -21,6 +21,8 @@
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  *
+ * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
+ *
  */
 
 #include <linux/module.h>

@@ -24,8 +24,6 @@
 #ifndef __NOUVEAU_DISPBIOS_H__
 #define __NOUVEAU_DISPBIOS_H__
 
-#include "nvreg.h"
-
 #define DCB_MAX_NUM_ENTRIES 16
 #define DCB_MAX_NUM_I2C_ENTRIES 16
 #define DCB_MAX_NUM_GPIO_ENTRIES 32

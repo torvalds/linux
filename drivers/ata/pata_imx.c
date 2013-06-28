@@ -37,7 +37,7 @@
 struct pata_imx_priv {
 	struct clk *clk;
 	/* timings/interrupt/control regs */
-	u8 *host_regs;
+	void __iomem *host_regs;
 	u32 ata_ctl;
 };
 
@@ -98,6 +98,7 @@ static int pata_imx_probe(struct platform_device *pdev)
 	struct pata_imx_priv *priv;
 	int irq = 0;
 	struct resource *io_res;
+	int ret;
 
 	io_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (io_res == NULL)
@@ -112,7 +113,7 @@ static int pata_imx_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->clk = clk_get(&pdev->dev, NULL);
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		dev_err(&pdev->dev, "Failed to get clock\n");
 		return PTR_ERR(priv->clk);
@@ -121,8 +122,10 @@ static int pata_imx_probe(struct platform_device *pdev)
 	clk_prepare_enable(priv->clk);
 
 	host = ata_host_alloc(&pdev->dev, 1);
-	if (!host)
-		goto free_priv;
+	if (!host) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	host->private_data = priv;
 	ap = host->ports[0];
@@ -135,7 +138,8 @@ static int pata_imx_probe(struct platform_device *pdev)
 		resource_size(io_res));
 	if (!priv->host_regs) {
 		dev_err(&pdev->dev, "failed to map IO/CTL base\n");
-		goto free_priv;
+		ret = -EBUSY;
+		goto err;
 	}
 
 	ap->ioaddr.cmd_addr = priv->host_regs + PATA_IMX_DRIVE_DATA;
@@ -158,13 +162,17 @@ static int pata_imx_probe(struct platform_device *pdev)
 			priv->host_regs + PATA_IMX_ATA_INT_EN);
 
 	/* activate */
-	return ata_host_activate(host, irq, ata_sff_interrupt, 0,
+	ret = ata_host_activate(host, irq, ata_sff_interrupt, 0,
 				&pata_imx_sht);
 
-free_priv:
+	if (ret)
+		goto err;
+
+	return 0;
+err:
 	clk_disable_unprepare(priv->clk);
-	clk_put(priv->clk);
-	return -ENOMEM;
+
+	return ret;
 }
 
 static int pata_imx_remove(struct platform_device *pdev)
@@ -177,7 +185,6 @@ static int pata_imx_remove(struct platform_device *pdev)
 	__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
 
 	clk_disable_unprepare(priv->clk);
-	clk_put(priv->clk);
 
 	return 0;
 }
@@ -223,11 +230,20 @@ static const struct dev_pm_ops pata_imx_pm_ops = {
 };
 #endif
 
+static const struct of_device_id imx_pata_dt_ids[] = {
+	{
+		.compatible = "fsl,imx27-pata",
+	}, {
+		/* sentinel */
+	}
+};
+
 static struct platform_driver pata_imx_driver = {
 	.probe		= pata_imx_probe,
 	.remove		= pata_imx_remove,
 	.driver = {
 		.name		= DRV_NAME,
+		.of_match_table	= imx_pata_dt_ids,
 		.owner		= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm		= &pata_imx_pm_ops,

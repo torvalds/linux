@@ -77,22 +77,12 @@ static int aio_iiro_16_dio_insn_bits_read(struct comedi_device *dev,
 static int aio_iiro_16_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
-	int iobase;
 	struct comedi_subdevice *s;
 	int ret;
 
-	printk(KERN_INFO "comedi%d: aio_iiro_16: ", dev->minor);
-
-	dev->board_name = dev->driver->driver_name;
-
-	iobase = it->options[0];
-
-	if (!request_region(iobase, AIO_IIRO_16_SIZE, dev->board_name)) {
-		printk("I/O port conflict");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], AIO_IIRO_16_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -114,22 +104,14 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = aio_iiro_16_dio_insn_bits_read;
 
-	printk("attached\n");
-
 	return 1;
-}
-
-static void aio_iiro_16_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, AIO_IIRO_16_SIZE);
 }
 
 static struct comedi_driver aio_iiro_16_driver = {
 	.driver_name	= "aio_iiro_16",
 	.module		= THIS_MODULE,
 	.attach		= aio_iiro_16_attach,
-	.detach		= aio_iiro_16_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(aio_iiro_16_driver);
 

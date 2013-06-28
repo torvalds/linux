@@ -22,6 +22,7 @@
 #include <linux/videodev2.h>
 #include <linux/workqueue.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/videobuf2-core.h>
 #include "s5p_mfc_common.h"
 #include "s5p_mfc_debug.h"
@@ -623,17 +624,27 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 /* Dequeue a buffer */
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
+	const struct v4l2_event ev = {
+		.type = V4L2_EVENT_EOS
+	};
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
+	int ret;
 
 	if (ctx->state == MFCINST_ERROR) {
 		mfc_err("Call on DQBUF after unrecoverable error\n");
 		return -EIO;
 	}
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
-		return vb2_dqbuf(&ctx->vq_src, buf, file->f_flags & O_NONBLOCK);
-	else if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return vb2_dqbuf(&ctx->vq_dst, buf, file->f_flags & O_NONBLOCK);
-	return -EINVAL;
+		ret = vb2_dqbuf(&ctx->vq_src, buf, file->f_flags & O_NONBLOCK);
+	else if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		ret = vb2_dqbuf(&ctx->vq_dst, buf, file->f_flags & O_NONBLOCK);
+		if (ret == 0 && ctx->state == MFCINST_FINISHED &&
+				list_empty(&ctx->vq_dst.done_list))
+			v4l2_event_queue_fh(&ctx->fh, &ev);
+	} else {
+		ret = -EINVAL;
+	}
+	return ret;
 }
 
 /* Export DMA buffer */
@@ -809,6 +820,59 @@ static int vidioc_g_crop(struct file *file, void *priv,
 	return 0;
 }
 
+int vidioc_decoder_cmd(struct file *file, void *priv,
+						struct v4l2_decoder_cmd *cmd)
+{
+	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
+	struct s5p_mfc_dev *dev = ctx->dev;
+	struct s5p_mfc_buf *buf;
+	unsigned long flags;
+
+	switch (cmd->cmd) {
+	case V4L2_ENC_CMD_STOP:
+		if (cmd->flags != 0)
+			return -EINVAL;
+
+		if (!ctx->vq_src.streaming)
+			return -EINVAL;
+
+		spin_lock_irqsave(&dev->irqlock, flags);
+		if (list_empty(&ctx->src_queue)) {
+			mfc_err("EOS: empty src queue, entering finishing state");
+			ctx->state = MFCINST_FINISHING;
+			if (s5p_mfc_ctx_ready(ctx))
+				set_work_bit_irqsave(ctx);
+			spin_unlock_irqrestore(&dev->irqlock, flags);
+			s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+		} else {
+			mfc_err("EOS: marking last buffer of stream");
+			buf = list_entry(ctx->src_queue.prev,
+						struct s5p_mfc_buf, list);
+			if (buf->flags & MFC_BUF_FLAG_USED)
+				ctx->state = MFCINST_FINISHING;
+			else
+				buf->flags |= MFC_BUF_FLAG_EOS;
+			spin_unlock_irqrestore(&dev->irqlock, flags);
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int vidioc_subscribe_event(struct v4l2_fh *fh,
+				const struct  v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_EOS:
+		return v4l2_event_subscribe(fh, sub, 2, NULL);
+	default:
+		return -EINVAL;
+	}
+}
+
+
 /* v4l2_ioctl_ops */
 static const struct v4l2_ioctl_ops s5p_mfc_dec_ioctl_ops = {
 	.vidioc_querycap = vidioc_querycap,
@@ -830,6 +894,9 @@ static const struct v4l2_ioctl_ops s5p_mfc_dec_ioctl_ops = {
 	.vidioc_streamon = vidioc_streamon,
 	.vidioc_streamoff = vidioc_streamoff,
 	.vidioc_g_crop = vidioc_g_crop,
+	.vidioc_decoder_cmd = vidioc_decoder_cmd,
+	.vidioc_subscribe_event = vidioc_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static int s5p_mfc_queue_setup(struct vb2_queue *vq,
@@ -1147,3 +1214,4 @@ void s5p_mfc_dec_init(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "Default src_fmt is %x, dest_fmt is %x\n",
 			(unsigned int)ctx->src_fmt, (unsigned int)ctx->dst_fmt);
 }
+

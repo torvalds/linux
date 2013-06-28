@@ -306,7 +306,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *v)
+					const struct v4l2_tuner *v)
 {
 	struct snd_tea575x *tea = video_drvdata(file);
 	u32 orig_val = tea->val;
@@ -336,7 +336,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-					struct v4l2_frequency *f)
+					const struct v4l2_frequency *f)
 {
 	struct snd_tea575x *tea = video_drvdata(file);
 
@@ -350,7 +350,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	else
 		tea->band = BAND_FM;
 
-	tea->freq = clamp(f->frequency, bands[tea->band].rangelow,
+	tea->freq = clamp_t(u32, f->frequency, bands[tea->band].rangelow,
 					bands[tea->band].rangehigh);
 	snd_tea575x_set_freq(tea);
 	return 0;

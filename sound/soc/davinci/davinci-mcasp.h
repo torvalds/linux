@@ -38,7 +38,7 @@ struct davinci_audio_dev {
 	u8	num_serializer;
 	u8	*serial_dir;
 	u8	version;
-	u8	bclk_lrclk_ratio;
+	u16	bclk_lrclk_ratio;
 
 	/* McASP FIFO related */
 	u8	txnumevt;

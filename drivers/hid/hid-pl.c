@@ -43,13 +43,11 @@
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/usb.h>
 #include <linux/hid.h>
 
 #include "hid-ids.h"
 
 #ifdef CONFIG_PANTHERLORD_FF
-#include "usbhid/usbhid.h"
 
 struct plff_device {
 	struct hid_report *report;
@@ -75,7 +73,7 @@ static int hid_plff_play(struct input_dev *dev, void *data,
 	*plff->strong = left;
 	*plff->weak = right;
 	debug("running with 0x%02x 0x%02x", left, right);
-	usbhid_submit_report(hid, plff->report, USB_DIR_OUT);
+	hid_hw_request(hid, plff->report, HID_REQ_SET_REPORT);
 
 	return 0;
 }
@@ -169,7 +167,7 @@ static int plff_init(struct hid_device *hid)
 
 		*strong = 0x00;
 		*weak = 0x00;
-		usbhid_submit_report(hid, plff->report, USB_DIR_OUT);
+		hid_hw_request(hid, plff->report, HID_REQ_SET_REPORT);
 	}
 
 	hid_info(hid, "Force feedback for PantherLord/GreenAsia devices by Anssi Hannula <anssi.hannula@gmail.com>\n");

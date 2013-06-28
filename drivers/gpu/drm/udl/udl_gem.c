@@ -303,6 +303,8 @@ struct drm_gem_object *udl_gem_prime_import(struct drm_device *dev,
 	if (IS_ERR(attach))
 		return ERR_CAST(attach);
 
+	get_dma_buf(dma_buf);
+
 	sg = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sg)) {
 		ret = PTR_ERR(sg);
@@ -322,5 +324,7 @@ fail_unmap:
 	dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
+	dma_buf_put(dma_buf);
+
 	return ERR_PTR(ret);
 }

@@ -25,28 +25,27 @@
 
 #include <linux/gpio.h>
 
-/* register offsets within a pin bank */
-#define DAT_REG		0x4
-#define PUD_REG		0x8
-#define DRV_REG		0xC
-#define CONPDN_REG	0x10
-#define PUDPDN_REG	0x14
-
 /* pinmux function number for pin as gpio output line */
 #define FUNC_OUTPUT	0x1
 
 /**
  * enum pincfg_type - possible pin configuration types supported.
+ * @PINCFG_TYPE_FUNC: Function configuration.
+ * @PINCFG_TYPE_DAT: Pin value configuration.
  * @PINCFG_TYPE_PUD: Pull up/down configuration.
  * @PINCFG_TYPE_DRV: Drive strength configuration.
  * @PINCFG_TYPE_CON_PDN: Pin function in power down mode.
  * @PINCFG_TYPE_PUD_PDN: Pull up/down configuration in power down mode.
  */
 enum pincfg_type {
+	PINCFG_TYPE_FUNC,
+	PINCFG_TYPE_DAT,
 	PINCFG_TYPE_PUD,
 	PINCFG_TYPE_DRV,
 	PINCFG_TYPE_CON_PDN,
 	PINCFG_TYPE_PUD_PDN,
+
+	PINCFG_TYPE_NUM
 };
 
 /*
@@ -103,40 +102,52 @@ enum eint_type {
 struct samsung_pinctrl_drv_data;
 
 /**
+ * struct samsung_pin_bank_type: pin bank type description
+ * @fld_width: widths of configuration bitfields (0 if unavailable)
+ * @reg_offset: offsets of configuration registers (don't care of width is 0)
+ */
+struct samsung_pin_bank_type {
+	u8 fld_width[PINCFG_TYPE_NUM];
+	u8 reg_offset[PINCFG_TYPE_NUM];
+};
+
+/**
  * struct samsung_pin_bank: represent a controller pin-bank.
+ * @type: type of the bank (register offsets and bitfield widths)
  * @pctl_offset: starting offset of the pin-bank registers.
  * @pin_base: starting pin number of the bank.
  * @nr_pins: number of pins included in this bank.
- * @func_width: width of the function selector bit field.
- * @pud_width: width of the pin pull up/down selector bit field.
- * @drv_width: width of the pin driver strength selector bit field.
- * @conpdn_width: width of the sleep mode function selector bin field.
- * @pudpdn_width: width of the sleep mode pull up/down selector bit field.
+ * @eint_func: function to set in CON register to configure pin as EINT.
  * @eint_type: type of the external interrupt supported by the bank.
+ * @eint_mask: bit mask of pins which support EINT function.
  * @name: name to be prefixed for each pin in this pin bank.
  * @of_node: OF node of the bank.
  * @drvdata: link to controller driver data
  * @irq_domain: IRQ domain of the bank.
  * @gpio_chip: GPIO chip of the bank.
  * @grange: linux gpio pin range supported by this bank.
+ * @slock: spinlock protecting bank registers
+ * @pm_save: saved register values during suspend
  */
 struct samsung_pin_bank {
+	struct samsung_pin_bank_type *type;
 	u32		pctl_offset;
 	u32		pin_base;
 	u8		nr_pins;
-	u8		func_width;
-	u8		pud_width;
-	u8		drv_width;
-	u8		conpdn_width;
-	u8		pudpdn_width;
+	u8		eint_func;
 	enum eint_type	eint_type;
+	u32		eint_mask;
 	u32		eint_offset;
 	char		*name;
+	void		*soc_priv;
 	struct device_node *of_node;
 	struct samsung_pinctrl_drv_data *drvdata;
 	struct irq_domain *irq_domain;
 	struct gpio_chip gpio_chip;
 	struct pinctrl_gpio_range grange;
+	spinlock_t slock;
+
+	u32 pm_save[PINCFG_TYPE_NUM + 1]; /* +1 to handle double CON registers*/
 };
 
 /**
@@ -177,11 +188,15 @@ struct samsung_pin_ctrl {
 
 	int		(*eint_gpio_init)(struct samsung_pinctrl_drv_data *);
 	int		(*eint_wkup_init)(struct samsung_pinctrl_drv_data *);
+	void		(*suspend)(struct samsung_pinctrl_drv_data *);
+	void		(*resume)(struct samsung_pinctrl_drv_data *);
+
 	char		*label;
 };
 
 /**
  * struct samsung_pinctrl_drv_data: wrapper for holding driver data together.
+ * @node: global list node
  * @virt_base: register base address of the controller.
  * @dev: device instance representing the controller.
  * @irq: interrpt number used by the controller to notify gpio interrupts.
@@ -194,6 +209,7 @@ struct samsung_pin_ctrl {
  * @nr_function: number of such pin functions.
  */
 struct samsung_pinctrl_drv_data {
+	struct list_head		node;
 	void __iomem			*virt_base;
 	struct device			*dev;
 	int				irq;
@@ -237,5 +253,7 @@ struct samsung_pmx_func {
 /* list of all exported SoC specific data */
 extern struct samsung_pin_ctrl exynos4210_pin_ctrl[];
 extern struct samsung_pin_ctrl exynos4x12_pin_ctrl[];
+extern struct samsung_pin_ctrl exynos5250_pin_ctrl[];
+extern struct samsung_pin_ctrl s3c64xx_pin_ctrl[];
 
 #endif /* __PINCTRL_SAMSUNG_H */

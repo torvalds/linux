@@ -53,6 +53,18 @@
 #define KS8737_CTRL_INT_ACTIVE_HIGH		(1 << 14)
 #define KSZ8051_RMII_50MHZ_CLK			(1 << 7)
 
+static int ksz_config_flags(struct phy_device *phydev)
+{
+	int regval;
+
+	if (phydev->dev_flags & MICREL_PHY_50MHZ_CLK) {
+		regval = phy_read(phydev, MII_KSZPHY_CTRL);
+		regval |= KSZ8051_RMII_50MHZ_CLK;
+		return phy_write(phydev, MII_KSZPHY_CTRL, regval);
+	}
+	return 0;
+}
+
 static int kszphy_ack_interrupt(struct phy_device *phydev)
 {
 	/* bit[7..0] int status, which is a read and clear register. */
@@ -114,22 +126,19 @@ static int kszphy_config_init(struct phy_device *phydev)
 
 static int ksz8021_config_init(struct phy_device *phydev)
 {
+	int rc;
 	const u16 val = KSZPHY_OMSO_B_CAST_OFF | KSZPHY_OMSO_RMII_OVERRIDE;
 	phy_write(phydev, MII_KSZPHY_OMSO, val);
-	return 0;
+	rc = ksz_config_flags(phydev);
+	return rc < 0 ? rc : 0;
 }
 
 static int ks8051_config_init(struct phy_device *phydev)
 {
-	int regval;
+	int rc;
 
-	if (phydev->dev_flags & MICREL_PHY_50MHZ_CLK) {
-		regval = phy_read(phydev, MII_KSZPHY_CTRL);
-		regval |= KSZ8051_RMII_50MHZ_CLK;
-		phy_write(phydev, MII_KSZPHY_CTRL, regval);
-	}
-
-	return 0;
+	rc = ksz_config_flags(phydev);
+	return rc < 0 ? rc : 0;
 }
 
 #define KSZ8873MLL_GLOBAL_CONTROL_4	0x06
@@ -182,6 +191,19 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id		= PHY_ID_KSZ8021,
 	.phy_id_mask	= 0x00ffffff,
 	.name		= "Micrel KSZ8021 or KSZ8031",
+	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
+			   SUPPORTED_Asym_Pause),
+	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.config_init	= ksz8021_config_init,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
+	.ack_interrupt	= kszphy_ack_interrupt,
+	.config_intr	= kszphy_config_intr,
+	.driver		= { .owner = THIS_MODULE,},
+}, {
+	.phy_id		= PHY_ID_KSZ8031,
+	.phy_id_mask	= 0x00ffffff,
+	.name		= "Micrel KSZ8031",
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
 			   SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
@@ -325,6 +347,7 @@ static struct mdio_device_id __maybe_unused micrel_tbl[] = {
 	{ PHY_ID_KSZ8001, 0x00ffffff },
 	{ PHY_ID_KS8737, 0x00fffff0 },
 	{ PHY_ID_KSZ8021, 0x00ffffff },
+	{ PHY_ID_KSZ8031, 0x00ffffff },
 	{ PHY_ID_KSZ8041, 0x00fffff0 },
 	{ PHY_ID_KSZ8051, 0x00fffff0 },
 	{ PHY_ID_KSZ8061, 0x00fffff0 },

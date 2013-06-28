@@ -457,10 +457,10 @@ static const struct backlight_ops corgi_bl_ops = {
 	.update_status  = corgi_bl_update_status,
 };
 
-#ifdef CONFIG_PM
-static int corgi_lcd_suspend(struct spi_device *spi, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int corgi_lcd_suspend(struct device *dev)
 {
-	struct corgi_lcd *lcd = spi_get_drvdata(spi);
+	struct corgi_lcd *lcd = dev_get_drvdata(dev);
 
 	corgibl_flags |= CORGIBL_SUSPENDED;
 	corgi_bl_set_intensity(lcd, 0);
@@ -468,19 +468,18 @@ static int corgi_lcd_suspend(struct spi_device *spi, pm_message_t state)
 	return 0;
 }
 
-static int corgi_lcd_resume(struct spi_device *spi)
+static int corgi_lcd_resume(struct device *dev)
 {
-	struct corgi_lcd *lcd = spi_get_drvdata(spi);
+	struct corgi_lcd *lcd = dev_get_drvdata(dev);
 
 	corgibl_flags &= ~CORGIBL_SUSPENDED;
 	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_UNBLANK);
 	backlight_update_status(lcd->bl_dev);
 	return 0;
 }
-#else
-#define corgi_lcd_suspend	NULL
-#define corgi_lcd_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(corgi_lcd_pm_ops, corgi_lcd_suspend, corgi_lcd_resume);
 
 static int setup_gpio_backlight(struct corgi_lcd *lcd,
 				struct corgi_lcd_platform_data *pdata)
@@ -611,11 +610,10 @@ static struct spi_driver corgi_lcd_driver = {
 	.driver		= {
 		.name	= "corgi-lcd",
 		.owner	= THIS_MODULE,
+		.pm	= &corgi_lcd_pm_ops,
 	},
 	.probe		= corgi_lcd_probe,
 	.remove		= corgi_lcd_remove,
-	.suspend	= corgi_lcd_suspend,
-	.resume		= corgi_lcd_resume,
 };
 
 module_spi_driver(corgi_lcd_driver);

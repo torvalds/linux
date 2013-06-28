@@ -41,9 +41,19 @@
 #define DRV_VERSION "0.1"
 
 MODULE_AUTHOR("Steve Wise");
-MODULE_DESCRIPTION("Chelsio T4 RDMA Driver");
+MODULE_DESCRIPTION("Chelsio T4/T5 RDMA Driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
+
+static int allow_db_fc_on_t5;
+module_param(allow_db_fc_on_t5, int, 0644);
+MODULE_PARM_DESC(allow_db_fc_on_t5,
+		 "Allow DB Flow Control on T5 (default = 0)");
+
+static int allow_db_coalescing_on_t5;
+module_param(allow_db_coalescing_on_t5, int, 0644);
+MODULE_PARM_DESC(allow_db_coalescing_on_t5,
+		 "Allow DB Coalescing on T5 (default = 0)");
 
 struct uld_ctx {
 	struct list_head entry;
@@ -614,7 +624,7 @@ static int rdma_supported(const struct cxgb4_lld_info *infop)
 {
 	return infop->vr->stag.size > 0 && infop->vr->pbl.size > 0 &&
 	       infop->vr->rq.size > 0 && infop->vr->qp.size > 0 &&
-	       infop->vr->cq.size > 0 && infop->vr->ocq.size > 0;
+	       infop->vr->cq.size > 0;
 }
 
 static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
@@ -627,6 +637,22 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		       pci_name(infop->pdev));
 		return ERR_PTR(-ENOSYS);
 	}
+	if (!ocqp_supported(infop))
+		pr_info("%s: On-Chip Queues not supported on this device.\n",
+			pci_name(infop->pdev));
+
+	if (!is_t4(infop->adapter_type)) {
+		if (!allow_db_fc_on_t5) {
+			db_fc_threshold = 100000;
+			pr_info("DB Flow Control Disabled.\n");
+		}
+
+		if (!allow_db_coalescing_on_t5) {
+			db_coalescing_threshold = -1;
+			pr_info("DB Coalescing Disabled.\n");
+		}
+	}
+
 	devp = (struct c4iw_dev *)ib_alloc_device(sizeof(*devp));
 	if (!devp) {
 		printk(KERN_ERR MOD "Cannot allocate ib device\n");
@@ -678,8 +704,8 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 	int i;
 
 	if (!vers_printed++)
-		printk(KERN_INFO MOD "Chelsio T4 RDMA Driver - version %s\n",
-		       DRV_VERSION);
+		pr_info("Chelsio T4/T5 RDMA Driver - version %s\n",
+			DRV_VERSION);
 
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
 	if (!ctx) {

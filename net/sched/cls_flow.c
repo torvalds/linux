@@ -393,7 +393,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 			return -EOPNOTSUPP;
 
 		if ((keymask & (FLOW_KEY_SKUID|FLOW_KEY_SKGID)) &&
-		    sk_user_ns(NETLINK_CB(in_skb).ssk) != &init_user_ns)
+		    sk_user_ns(NETLINK_CB(in_skb).sk) != &init_user_ns)
 			return -EOPNOTSUPP;
 	}
 

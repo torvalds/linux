@@ -1049,7 +1049,7 @@ static struct bio *_create_sg_bios(struct osd_request *or,
 
 	bio = bio_kmalloc(GFP_KERNEL, numentries);
 	if (unlikely(!bio)) {
-		OSD_DEBUG("Faild to allocate BIO size=%u\n", numentries);
+		OSD_DEBUG("Failed to allocate BIO size=%u\n", numentries);
 		return ERR_PTR(-ENOMEM);
 	}
 

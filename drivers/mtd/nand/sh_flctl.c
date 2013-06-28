@@ -1081,7 +1081,6 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 	return pdata;
 }
 #else /* CONFIG_OF */
-#define of_flctl_match NULL
 static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 {
 	return NULL;
@@ -1219,22 +1218,11 @@ static struct platform_driver flctl_driver = {
 	.driver = {
 		.name	= "sh_flctl",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_flctl_match,
+		.of_match_table = of_match_ptr(of_flctl_match),
 	},
 };
 
-static int __init flctl_nand_init(void)
-{
-	return platform_driver_probe(&flctl_driver, flctl_probe);
-}
-
-static void __exit flctl_nand_cleanup(void)
-{
-	platform_driver_unregister(&flctl_driver);
-}
-
-module_init(flctl_nand_init);
-module_exit(flctl_nand_cleanup);
+module_platform_driver_probe(flctl_driver, flctl_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");

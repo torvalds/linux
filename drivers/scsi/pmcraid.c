@@ -3599,19 +3599,6 @@ static int pmcraid_chr_open(struct inode *inode, struct file *filep)
 }
 
 /**
- * pmcraid_release - char node "release" entry point
- */
-static int pmcraid_chr_release(struct inode *inode, struct file *filep)
-{
-	struct pmcraid_instance *pinstance = filep->private_data;
-
-	filep->private_data = NULL;
-	fasync_helper(-1, filep, 0, &pinstance->aen_queue);
-
-	return 0;
-}
-
-/**
  * pmcraid_fasync - Async notifier registration from applications
  *
  * This function adds the calling process to a driver global queue. When an
@@ -4167,7 +4154,6 @@ static long pmcraid_chr_ioctl(
 static const struct file_operations pmcraid_fops = {
 	.owner = THIS_MODULE,
 	.open = pmcraid_chr_open,
-	.release = pmcraid_chr_release,
 	.fasync = pmcraid_chr_fasync,
 	.unlocked_ioctl = pmcraid_chr_ioctl,
 #ifdef CONFIG_COMPAT

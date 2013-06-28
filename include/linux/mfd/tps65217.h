@@ -228,6 +228,7 @@ enum tps65217_bl_fdim {
 struct tps65217_bl_pdata {
 	enum tps65217_bl_isel isel;
 	enum tps65217_bl_fdim fdim;
+	int dft_brightness;
 };
 
 /**

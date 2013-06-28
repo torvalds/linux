@@ -6,6 +6,7 @@
 
 #include <linux/sched.h>
 #include <linux/pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
@@ -168,6 +169,16 @@ void pcibios_fixup_bus(struct pci_bus *b)
 	pci_read_bridge_bases(b);
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
+}
+
+void pcibios_add_bus(struct pci_bus *bus)
+{
+	acpi_pci_add_bus(bus);
+}
+
+void pcibios_remove_bus(struct pci_bus *bus)
+{
+	acpi_pci_remove_bus(bus);
 }
 
 /*
@@ -617,7 +628,9 @@ int pcibios_add_device(struct pci_dev *dev)
 
 	pa_data = boot_params.hdr.setup_data;
 	while (pa_data) {
-		data = phys_to_virt(pa_data);
+		data = ioremap(pa_data, sizeof(*rom));
+		if (!data)
+			return -ENOMEM;
 
 		if (data->type == SETUP_PCI) {
 			rom = (struct pci_setup_rom *)data;
@@ -634,6 +647,7 @@ int pcibios_add_device(struct pci_dev *dev)
 			}
 		}
 		pa_data = data->next;
+		iounmap(data);
 	}
 	return 0;
 }

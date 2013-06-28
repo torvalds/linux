@@ -18,27 +18,25 @@
 */
 
 /*
-Driver: ni_660x
-Description: National Instruments 660x counter/timer boards
-Devices:
-[National Instruments] PCI-6601 (ni_660x), PCI-6602, PXI-6602,
-	PXI-6608
-Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
-	Herman.Bruyninckx@mech.kuleuven.ac.be,
-	Wim.Meeussen@mech.kuleuven.ac.be,
-	Klaas.Gadeyne@mech.kuleuven.ac.be,
-	Frank Mori Hess <fmhess@users.sourceforge.net>
-Updated: Thu Oct 18 12:56:06 EDT 2007
-Status: experimental
-
-Encoders work.  PulseGeneration (both single pulse and pulse train)
-works. Buffered commands work for input but not output.
-
-References:
-DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
-DAQ 6601/6602 User Manual (NI 322137B-01)
-
-*/
+ * Driver: ni_660x
+ * Description: National Instruments 660x counter/timer boards
+ * Devices: [National Instruments] PCI-6601 (ni_660x), PCI-6602, PXI-6602,
+ *   PXI-6608, PXI-6624
+ * Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
+ *   Herman.Bruyninckx@mech.kuleuven.ac.be,
+ *   Wim.Meeussen@mech.kuleuven.ac.be,
+ *   Klaas.Gadeyne@mech.kuleuven.ac.be,
+ *   Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Updated: Fri, 15 Mar 2013 10:47:56 +0000
+ * Status: experimental
+ *
+ * Encoders work.  PulseGeneration (both single pulse and pulse train)
+ * works.  Buffered commands work for input but not output.
+ * 
+ * References:
+ * DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
+ * DAQ 6601/6602 User Manual (NI 322137B-01)
+ */
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -389,34 +387,40 @@ enum global_interrupt_config_register_bits {
 /* First chip is at base-address + 0x00, etc. */
 static const unsigned GPCT_OFFSET[2] = { 0x0, 0x800 };
 
-/* Board description*/
+enum ni_660x_boardid {
+	BOARD_PCI6601,
+	BOARD_PCI6602,
+	BOARD_PXI6602,
+	BOARD_PXI6608,
+	BOARD_PXI6624
+};
+
 struct ni_660x_board {
-	unsigned short dev_id;	/* `lspci` will show you this */
 	const char *name;
 	unsigned n_chips;	/* total number of TIO chips */
 };
 
 static const struct ni_660x_board ni_660x_boards[] = {
-	{
-	 .dev_id = 0x2c60,
-	 .name = "PCI-6601",
-	 .n_chips = 1,
-	 },
-	{
-	 .dev_id = 0x1310,
-	 .name = "PCI-6602",
-	 .n_chips = 2,
-	 },
-	{
-	 .dev_id = 0x1360,
-	 .name = "PXI-6602",
-	 .n_chips = 2,
-	 },
-	{
-	 .dev_id = 0x2cc0,
-	 .name = "PXI-6608",
-	 .n_chips = 2,
-	 },
+	[BOARD_PCI6601] = {
+		.name		= "PCI-6601",
+		.n_chips	= 1,
+	},
+	[BOARD_PCI6602] = {
+		.name		= "PCI-6602",
+		.n_chips	= 2,
+	},
+	[BOARD_PXI6602] = {
+		.name		= "PXI-6602",
+		.n_chips	= 2,
+	},
+	[BOARD_PXI6608] = {
+		.name		= "PXI-6608",
+		.n_chips	= 2,
+	},
+	[BOARD_PXI6624] = {
+		.name		= "PXI-6624",
+		.n_chips	= 2,
+	},
 };
 
 #define NI_660X_MAX_NUM_CHIPS 2
@@ -883,7 +887,7 @@ static irqreturn_t ni_660x_interrupt(int irq, void *d)
 	unsigned i;
 	unsigned long flags;
 
-	if (dev->attached == 0)
+	if (!dev->attached)
 		return IRQ_NONE;
 	/* lock to avoid race with comedi_poll */
 	spin_lock_irqsave(&devpriv->interrupt_lock, flags);
@@ -972,20 +976,6 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 		for (j = 0; j < counters_per_chip; ++j)
 			mite_free_ring(devpriv->mite_rings[i][j]);
 	}
-}
-
-static const struct ni_660x_board *
-ni_660x_find_boardinfo(struct pci_dev *pcidev)
-{
-	unsigned int dev_id = pcidev->device;
-	unsigned int n;
-
-	for (n = 0; n < ARRAY_SIZE(ni_660x_boards); n++) {
-		const struct ni_660x_board *board = &ni_660x_boards[n];
-		if (board->dev_id == dev_id)
-			return board;
-	}
-	return NULL;
 }
 
 static int
@@ -1170,31 +1160,35 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 }
 
 static int ni_660x_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct ni_660x_board *board;
+	const struct ni_660x_board *board = NULL;
 	struct ni_660x_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	unsigned i;
 	unsigned global_interrupt_config_bits;
 
+	if (context < ARRAY_SIZE(ni_660x_boards))
+		board = &ni_660x_boards[context];
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
+
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+
 	ret = ni_660x_allocate_private(dev);
 	if (ret < 0)
 		return ret;
 	devpriv = dev->private;
 
-	dev->board_ptr = ni_660x_find_boardinfo(pcidev);
-	if (!dev->board_ptr)
-		return -ENODEV;
-	board = comedi_board(dev);
-
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
 		return -ENOMEM;
-
-	dev->board_name = board->name;
 
 	ret = mite_setup2(devpriv->mite, 1);
 	if (ret < 0) {
@@ -1315,6 +1309,7 @@ static void ni_660x_detach(struct comedi_device *dev)
 			mite_free(devpriv->mite);
 		}
 	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver ni_660x_driver = {
@@ -1325,17 +1320,18 @@ static struct comedi_driver ni_660x_driver = {
 };
 
 static int ni_660x_pci_probe(struct pci_dev *dev,
-				       const struct pci_device_id *ent)
+			     const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &ni_660x_driver);
+	return comedi_pci_auto_config(dev, &ni_660x_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(ni_660x_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c60)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1310)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1360)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2cc0)},
-	{0}
+	{ PCI_VDEVICE(NI, 0x1310), BOARD_PCI6602 },
+	{ PCI_VDEVICE(NI, 0x1360), BOARD_PXI6602 },
+	{ PCI_VDEVICE(NI, 0x2c60), BOARD_PCI6601 },
+	{ PCI_VDEVICE(NI, 0x2cc0), BOARD_PXI6608 },
+	{ PCI_VDEVICE(NI, 0x1e40), BOARD_PXI6624 },
+	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_660x_pci_table);
 

@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-kirkwood/cpuidle.c
- *
  * CPU idle Marvell Kirkwood SoCs
  *
  * This file is licensed under the terms of the GNU General Public
@@ -11,6 +9,9 @@
  * to implement two idle states -
  * #1 wait-for-interrupt
  * #2 wait-for-interrupt and DDR self refresh
+ *
+ * Maintainer: Jason Cooper <jason@lakedaemon.net>
+ * Maintainer: Andrew Lunn <andrew@lunn.ch>
  */
 
 #include <linux/kernel.h>
@@ -41,7 +42,6 @@ static int kirkwood_enter_idle(struct cpuidle_device *dev,
 static struct cpuidle_driver kirkwood_idle_driver = {
 	.name			= "kirkwood_idle",
 	.owner			= THIS_MODULE,
-	.en_core_tk_irqen	= 1,
 	.states[0]		= ARM_CPUIDLE_WFI_STATE,
 	.states[1]		= {
 		.enter			= kirkwood_enter_idle,
@@ -53,9 +53,6 @@ static struct cpuidle_driver kirkwood_idle_driver = {
 	},
 	.state_count = KIRKWOOD_MAX_STATES,
 };
-static struct cpuidle_device *device;
-
-static DEFINE_PER_CPU(struct cpuidle_device, kirkwood_cpuidle_device);
 
 /* Initialize CPU idle by registering the idle states */
 static int kirkwood_cpuidle_probe(struct platform_device *pdev)
@@ -66,26 +63,16 @@ static int kirkwood_cpuidle_probe(struct platform_device *pdev)
 	if (res == NULL)
 		return -EINVAL;
 
-	ddr_operation_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ddr_operation_base)
-		return -EADDRNOTAVAIL;
+	ddr_operation_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ddr_operation_base))
+		return PTR_ERR(ddr_operation_base);
 
-	device = &per_cpu(kirkwood_cpuidle_device, smp_processor_id());
-	device->state_count = KIRKWOOD_MAX_STATES;
-
-	cpuidle_register_driver(&kirkwood_idle_driver);
-	if (cpuidle_register_device(device)) {
-		pr_err("kirkwood_init_cpuidle: Failed registering\n");
-		return -EIO;
-	}
-	return 0;
+	return cpuidle_register(&kirkwood_idle_driver, NULL);
 }
 
 int kirkwood_cpuidle_remove(struct platform_device *pdev)
 {
-	cpuidle_unregister_device(device);
-	cpuidle_unregister_driver(&kirkwood_idle_driver);
-
+	cpuidle_unregister(&kirkwood_idle_driver);
 	return 0;
 }
 

@@ -84,6 +84,55 @@ nfs_page_free(struct nfs_page *p)
 	kmem_cache_free(nfs_page_cachep, p);
 }
 
+static void
+nfs_iocounter_inc(struct nfs_io_counter *c)
+{
+	atomic_inc(&c->io_count);
+}
+
+static void
+nfs_iocounter_dec(struct nfs_io_counter *c)
+{
+	if (atomic_dec_and_test(&c->io_count)) {
+		clear_bit(NFS_IO_INPROGRESS, &c->flags);
+		smp_mb__after_clear_bit();
+		wake_up_bit(&c->flags, NFS_IO_INPROGRESS);
+	}
+}
+
+static int
+__nfs_iocounter_wait(struct nfs_io_counter *c)
+{
+	wait_queue_head_t *wq = bit_waitqueue(&c->flags, NFS_IO_INPROGRESS);
+	DEFINE_WAIT_BIT(q, &c->flags, NFS_IO_INPROGRESS);
+	int ret = 0;
+
+	do {
+		prepare_to_wait(wq, &q.wait, TASK_KILLABLE);
+		set_bit(NFS_IO_INPROGRESS, &c->flags);
+		if (atomic_read(&c->io_count) == 0)
+			break;
+		ret = nfs_wait_bit_killable(&c->flags);
+	} while (atomic_read(&c->io_count) != 0);
+	finish_wait(wq, &q.wait);
+	return ret;
+}
+
+/**
+ * nfs_iocounter_wait - wait for i/o to complete
+ * @c: nfs_io_counter to use
+ *
+ * returns -ERESTARTSYS if interrupted by a fatal signal.
+ * Otherwise returns 0 once the io_count hits 0.
+ */
+int
+nfs_iocounter_wait(struct nfs_io_counter *c)
+{
+	if (atomic_read(&c->io_count) == 0)
+		return 0;
+	return __nfs_iocounter_wait(c);
+}
+
 /**
  * nfs_create_request - Create an NFS read/write request.
  * @ctx: open context to use
@@ -104,6 +153,8 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 	struct nfs_page		*req;
 	struct nfs_lock_context *l_ctx;
 
+	if (test_bit(NFS_CONTEXT_BAD, &ctx->flags))
+		return ERR_PTR(-EBADF);
 	/* try to allocate the request struct */
 	req = nfs_page_alloc();
 	if (req == NULL)
@@ -116,6 +167,7 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 		return ERR_CAST(l_ctx);
 	}
 	req->wb_lock_context = l_ctx;
+	nfs_iocounter_inc(&l_ctx->io_count);
 
 	/* Initialize the request struct. Initially, we assume a
 	 * long write-back delay. This will be adjusted in
@@ -175,6 +227,7 @@ static void nfs_clear_request(struct nfs_page *req)
 		req->wb_page = NULL;
 	}
 	if (l_ctx != NULL) {
+		nfs_iocounter_dec(&l_ctx->io_count);
 		nfs_put_lock_context(l_ctx);
 		req->wb_lock_context = NULL;
 	}

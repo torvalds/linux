@@ -58,10 +58,9 @@ static int mlx4_en_test_loopback_xmit(struct mlx4_en_priv *priv)
 
 	/* build the pkt before xmit */
 	skb = netdev_alloc_skb(priv->dev, MLX4_LOOPBACK_TEST_PAYLOAD + ETH_HLEN + NET_IP_ALIGN);
-	if (!skb) {
-		en_err(priv, "-LOOPBACK_TEST_XMIT- failed to create skb for xmit\n");
+	if (!skb)
 		return -ENOMEM;
-	}
+
 	skb_reserve(skb, NET_IP_ALIGN);
 
 	ethh = (struct ethhdr *)skb_put(skb, sizeof(struct ethhdr));

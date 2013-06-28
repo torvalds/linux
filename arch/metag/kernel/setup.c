@@ -124,6 +124,7 @@ struct machine_desc *machine_desc __initdata;
 u8 cpu_2_hwthread_id[NR_CPUS] __read_mostly = {
 	[0 ... NR_CPUS-1] = BAD_HWTHREAD_ID
 };
+EXPORT_SYMBOL_GPL(cpu_2_hwthread_id);
 
 /*
  * Map a hardware thread ID to a Linux CPU number

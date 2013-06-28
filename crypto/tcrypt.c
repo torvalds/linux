@@ -1095,7 +1095,6 @@ static int do_test(int m)
 		break;
 
 	case 28:
-
 		ret += tcrypt_test("tgr160");
 		break;
 
@@ -1118,6 +1117,7 @@ static int do_test(int m)
 		ret += tcrypt_test("lrw(camellia)");
 		ret += tcrypt_test("xts(camellia)");
 		break;
+
 	case 33:
 		ret += tcrypt_test("sha224");
 		break;
@@ -1213,6 +1213,7 @@ static int do_test(int m)
 	case 109:
 		ret += tcrypt_test("vmac(aes)");
 		break;
+
 	case 110:
 		ret += tcrypt_test("hmac(crc32)");
 		break;
@@ -1223,6 +1224,18 @@ static int do_test(int m)
 
 	case 151:
 		ret += tcrypt_test("rfc4106(gcm(aes))");
+		break;
+
+	case 152:
+		ret += tcrypt_test("rfc4543(gcm(aes))");
+		break;
+
+	case 153:
+		ret += tcrypt_test("cmac(aes)");
+		break;
+
+	case 154:
+		ret += tcrypt_test("cmac(des3_ede)");
 		break;
 
 	case 200:
@@ -1753,6 +1766,21 @@ static int do_test(int m)
 				   speed_template_32_64);
 		test_acipher_speed("xts(camellia)", DECRYPT, sec, NULL, 0,
 				   speed_template_32_64);
+		break;
+
+	case 509:
+		test_acipher_speed("ecb(blowfish)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("ecb(blowfish)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("cbc(blowfish)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("cbc(blowfish)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("ctr(blowfish)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("ctr(blowfish)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_32);
 		break;
 
 	case 1000:

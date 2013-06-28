@@ -817,12 +817,12 @@ static int s6e63m0_remove(struct spi_device *spi)
 	return 0;
 }
 
-#if defined(CONFIG_PM)
-static int s6e63m0_suspend(struct spi_device *spi, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int s6e63m0_suspend(struct device *dev)
 {
-	struct s6e63m0 *lcd = spi_get_drvdata(spi);
+	struct s6e63m0 *lcd = dev_get_drvdata(dev);
 
-	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
+	dev_dbg(dev, "lcd->power = %d\n", lcd->power);
 
 	/*
 	 * when lcd panel is suspend, lcd panel becomes off
@@ -831,18 +831,17 @@ static int s6e63m0_suspend(struct spi_device *spi, pm_message_t mesg)
 	return s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
 }
 
-static int s6e63m0_resume(struct spi_device *spi)
+static int s6e63m0_resume(struct device *dev)
 {
-	struct s6e63m0 *lcd = spi_get_drvdata(spi);
+	struct s6e63m0 *lcd = dev_get_drvdata(dev);
 
 	lcd->power = FB_BLANK_POWERDOWN;
 
 	return s6e63m0_power(lcd, FB_BLANK_UNBLANK);
 }
-#else
-#define s6e63m0_suspend		NULL
-#define s6e63m0_resume		NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(s6e63m0_pm_ops, s6e63m0_suspend, s6e63m0_resume);
 
 /* Power down all displays on reboot, poweroff or halt. */
 static void s6e63m0_shutdown(struct spi_device *spi)
@@ -856,12 +855,11 @@ static struct spi_driver s6e63m0_driver = {
 	.driver = {
 		.name	= "s6e63m0",
 		.owner	= THIS_MODULE,
+		.pm	= &s6e63m0_pm_ops,
 	},
 	.probe		= s6e63m0_probe,
 	.remove		= s6e63m0_remove,
 	.shutdown	= s6e63m0_shutdown,
-	.suspend	= s6e63m0_suspend,
-	.resume		= s6e63m0_resume,
 };
 
 module_spi_driver(s6e63m0_driver);

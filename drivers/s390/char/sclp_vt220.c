@@ -114,7 +114,6 @@ static struct sclp_register sclp_vt220_register = {
 static void
 sclp_vt220_process_queue(struct sclp_vt220_request *request)
 {
-	struct tty_struct *tty;
 	unsigned long flags;
 	void *page;
 
@@ -139,12 +138,7 @@ sclp_vt220_process_queue(struct sclp_vt220_request *request)
 	} while (__sclp_vt220_emit(request));
 	if (request == NULL && sclp_vt220_flush_later)
 		sclp_vt220_emit_current();
-	/* Check if the tty needs a wake up call */
-	tty = tty_port_tty_get(&sclp_vt220_port);
-	if (tty) {
-		tty_wakeup(tty);
-		tty_kref_put(tty);
-	}
+	tty_port_tty_wakeup(&sclp_vt220_port);
 }
 
 #define SCLP_BUFFER_MAX_RETRY		1

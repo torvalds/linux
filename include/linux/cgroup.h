@@ -19,6 +19,7 @@
 #include <linux/idr.h>
 #include <linux/workqueue.h>
 #include <linux/xattr.h>
+#include <linux/fs.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -27,13 +28,10 @@ struct cgroup_subsys;
 struct inode;
 struct cgroup;
 struct css_id;
+struct eventfd_ctx;
 
 extern int cgroup_init_early(void);
 extern int cgroup_init(void);
-extern void cgroup_lock(void);
-extern int cgroup_lock_is_held(void);
-extern bool cgroup_lock_live_group(struct cgroup *cgrp);
-extern void cgroup_unlock(void);
 extern void cgroup_fork(struct task_struct *p);
 extern void cgroup_post_fork(struct task_struct *p);
 extern void cgroup_exit(struct task_struct *p, int run_callbacks);
@@ -42,16 +40,27 @@ extern int cgroupstats_build(struct cgroupstats *stats,
 extern int cgroup_load_subsys(struct cgroup_subsys *ss);
 extern void cgroup_unload_subsys(struct cgroup_subsys *ss);
 
-extern const struct file_operations proc_cgroup_operations;
+extern int proc_cgroup_show(struct seq_file *, void *);
 
-/* Define the enumeration of all builtin cgroup subsystems */
+/*
+ * Define the enumeration of all cgroup subsystems.
+ *
+ * We define ids for builtin subsystems and then modular ones.
+ */
 #define SUBSYS(_x) _x ## _subsys_id,
-#define IS_SUBSYS_ENABLED(option) IS_ENABLED(option)
 enum cgroup_subsys_id {
+#define IS_SUBSYS_ENABLED(option) IS_BUILTIN(option)
 #include <linux/cgroup_subsys.h>
+#undef IS_SUBSYS_ENABLED
+	CGROUP_BUILTIN_SUBSYS_COUNT,
+
+	__CGROUP_SUBSYS_TEMP_PLACEHOLDER = CGROUP_BUILTIN_SUBSYS_COUNT - 1,
+
+#define IS_SUBSYS_ENABLED(option) IS_MODULE(option)
+#include <linux/cgroup_subsys.h>
+#undef IS_SUBSYS_ENABLED
 	CGROUP_SUBSYS_COUNT,
 };
-#undef IS_SUBSYS_ENABLED
 #undef SUBSYS
 
 /* Per-subsystem/per-cgroup state maintained by the system. */
@@ -148,6 +157,13 @@ enum {
 	 * specified at mount time and thus is implemented here.
 	 */
 	CGRP_CPUSET_CLONE_CHILDREN,
+	/* see the comment above CGRP_ROOT_SANE_BEHAVIOR for details */
+	CGRP_SANE_BEHAVIOR,
+};
+
+struct cgroup_name {
+	struct rcu_head rcu_head;
+	char name[];
 };
 
 struct cgroup {
@@ -172,11 +188,23 @@ struct cgroup {
 	struct cgroup *parent;		/* my parent */
 	struct dentry *dentry;		/* cgroup fs entry, RCU protected */
 
+	/*
+	 * This is a copy of dentry->d_name, and it's needed because
+	 * we can't use dentry->d_name in cgroup_path().
+	 *
+	 * You must acquire rcu_read_lock() to access cgrp->name, and
+	 * the only place that can change it is rename(), which is
+	 * protected by parent dir's i_mutex.
+	 *
+	 * Normally you should use cgroup_name() wrapper rather than
+	 * access it directly.
+	 */
+	struct cgroup_name __rcu *name;
+
 	/* Private pointers for each registered subsystem */
 	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
 
 	struct cgroupfs_root *root;
-	struct cgroup *top_cgroup;
 
 	/*
 	 * List of cg_cgroup_links pointing at css_sets with
@@ -211,6 +239,96 @@ struct cgroup {
 
 	/* directory xattrs */
 	struct simple_xattrs xattrs;
+};
+
+#define MAX_CGROUP_ROOT_NAMELEN 64
+
+/* cgroupfs_root->flags */
+enum {
+	/*
+	 * Unfortunately, cgroup core and various controllers are riddled
+	 * with idiosyncrasies and pointless options.  The following flag,
+	 * when set, will force sane behavior - some options are forced on,
+	 * others are disallowed, and some controllers will change their
+	 * hierarchical or other behaviors.
+	 *
+	 * The set of behaviors affected by this flag are still being
+	 * determined and developed and the mount option for this flag is
+	 * prefixed with __DEVEL__.  The prefix will be dropped once we
+	 * reach the point where all behaviors are compatible with the
+	 * planned unified hierarchy, which will automatically turn on this
+	 * flag.
+	 *
+	 * The followings are the behaviors currently affected this flag.
+	 *
+	 * - Mount options "noprefix" and "clone_children" are disallowed.
+	 *   Also, cgroupfs file cgroup.clone_children is not created.
+	 *
+	 * - When mounting an existing superblock, mount options should
+	 *   match.
+	 *
+	 * - Remount is disallowed.
+	 *
+	 * - memcg: use_hierarchy is on by default and the cgroup file for
+	 *   the flag is not created.
+	 *
+	 * The followings are planned changes.
+	 *
+	 * - release_agent will be disallowed once replacement notification
+	 *   mechanism is implemented.
+	 */
+	CGRP_ROOT_SANE_BEHAVIOR	= (1 << 0),
+
+	CGRP_ROOT_NOPREFIX	= (1 << 1), /* mounted subsystems have no named prefix */
+	CGRP_ROOT_XATTR		= (1 << 2), /* supports extended attributes */
+};
+
+/*
+ * A cgroupfs_root represents the root of a cgroup hierarchy, and may be
+ * associated with a superblock to form an active hierarchy.  This is
+ * internal to cgroup core.  Don't access directly from controllers.
+ */
+struct cgroupfs_root {
+	struct super_block *sb;
+
+	/*
+	 * The bitmask of subsystems intended to be attached to this
+	 * hierarchy
+	 */
+	unsigned long subsys_mask;
+
+	/* Unique id for this hierarchy. */
+	int hierarchy_id;
+
+	/* The bitmask of subsystems currently attached to this hierarchy */
+	unsigned long actual_subsys_mask;
+
+	/* A list running through the attached subsystems */
+	struct list_head subsys_list;
+
+	/* The root cgroup for this hierarchy */
+	struct cgroup top_cgroup;
+
+	/* Tracks how many cgroups are currently defined in hierarchy.*/
+	int number_of_cgroups;
+
+	/* A list running through the active hierarchies */
+	struct list_head root_list;
+
+	/* All cgroups on this root, cgroup_mutex protected */
+	struct list_head allcg_list;
+
+	/* Hierarchy-specific flags */
+	unsigned long flags;
+
+	/* IDs for cgroups in this hierarchy */
+	struct ida cgroup_ida;
+
+	/* The path to use for release notifications. */
+	char release_agent_path[PATH_MAX];
+
+	/* The name for this hierarchy - may be empty */
+	char name[MAX_CGROUP_ROOT_NAMELEN];
 };
 
 /*
@@ -278,6 +396,7 @@ struct cgroup_map_cb {
 /* cftype->flags */
 #define CFTYPE_ONLY_ON_ROOT	(1U << 0)	/* only create on root cg */
 #define CFTYPE_NOT_ON_ROOT	(1U << 1)	/* don't create on root cg */
+#define CFTYPE_INSANE		(1U << 2)	/* don't create if sane_behavior */
 
 #define MAX_CFTYPE_NAME		64
 
@@ -303,9 +422,6 @@ struct cftype {
 
 	/* CFTYPE_* flags */
 	unsigned int flags;
-
-	/* file xattrs */
-	struct simple_xattrs xattrs;
 
 	int (*open)(struct inode *inode, struct file *file);
 	ssize_t (*read)(struct cgroup *cgrp, struct cftype *cft,
@@ -404,17 +520,30 @@ struct cgroup_scanner {
 	void *data;
 };
 
+/*
+ * See the comment above CGRP_ROOT_SANE_BEHAVIOR for details.  This
+ * function can be called as long as @cgrp is accessible.
+ */
+static inline bool cgroup_sane_behavior(const struct cgroup *cgrp)
+{
+	return cgrp->root->flags & CGRP_ROOT_SANE_BEHAVIOR;
+}
+
+/* Caller should hold rcu_read_lock() */
+static inline const char *cgroup_name(const struct cgroup *cgrp)
+{
+	return rcu_dereference(cgrp->name)->name;
+}
+
 int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_rm_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 
 int cgroup_is_removed(const struct cgroup *cgrp);
+bool cgroup_is_descendant(struct cgroup *cgrp, struct cgroup *ancestor);
 
 int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen);
 
 int cgroup_task_count(const struct cgroup *cgrp);
-
-/* Return true if cgrp is a descendant of the task's cgroup */
-int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct *task);
 
 /*
  * Control Group taskset, used to pass around set of tasks to cgroup_subsys
@@ -458,7 +587,6 @@ struct cgroup_subsys {
 	void (*bind)(struct cgroup *root);
 
 	int subsys_id;
-	int active;
 	int disabled;
 	int early_init;
 	/*
@@ -523,10 +651,16 @@ static inline struct cgroup_subsys_state *cgroup_subsys_state(
  * rcu_dereference_check() conditions, such as locks used during the
  * cgroup_subsys::attach() methods.
  */
+#ifdef CONFIG_PROVE_RCU
+extern struct mutex cgroup_mutex;
 #define task_subsys_state_check(task, subsys_id, __c)			\
-	rcu_dereference_check(task->cgroups->subsys[subsys_id],		\
-			      lockdep_is_held(&task->alloc_lock) ||	\
-			      cgroup_lock_is_held() || (__c))
+	rcu_dereference_check((task)->cgroups->subsys[(subsys_id)],	\
+			      lockdep_is_held(&(task)->alloc_lock) ||	\
+			      lockdep_is_held(&cgroup_mutex) || (__c))
+#else
+#define task_subsys_state_check(task, subsys_id, __c)			\
+	rcu_dereference((task)->cgroups->subsys[(subsys_id)])
+#endif
 
 static inline struct cgroup_subsys_state *
 task_subsys_state(struct task_struct *task, int subsys_id)
@@ -573,7 +707,7 @@ struct cgroup *cgroup_rightmost_descendant(struct cgroup *pos);
  *
  * If a subsystem synchronizes against the parent in its ->css_online() and
  * before starting iterating, and synchronizes against @pos on each
- * iteration, any descendant cgroup which finished ->css_offline() is
+ * iteration, any descendant cgroup which finished ->css_online() is
  * guaranteed to be visible in the future iterations.
  *
  * In other words, the following guarantees that a descendant can't escape
@@ -661,8 +795,8 @@ struct task_struct *cgroup_iter_next(struct cgroup *cgrp,
 					struct cgroup_iter *it);
 void cgroup_iter_end(struct cgroup *cgrp, struct cgroup_iter *it);
 int cgroup_scan_tasks(struct cgroup_scanner *scan);
-int cgroup_attach_task(struct cgroup *, struct task_struct *);
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
+int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
 
 /*
  * CSS ID is ID for cgroup_subsys_state structs under subsys. This only works
@@ -686,13 +820,6 @@ void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css);
 /* Find a cgroup_subsys_state which has given ID */
 
 struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id);
-
-/*
- * Get a cgroup whose id is greater than or equal to id under tree of root.
- * Returning a cgroup_subsys_state or NULL.
- */
-struct cgroup_subsys_state *css_get_next(struct cgroup_subsys *ss, int id,
-		struct cgroup_subsys_state *root, int *foundid);
 
 /* Returns true if root is ancestor of cg */
 bool css_is_ancestor(struct cgroup_subsys_state *cg,

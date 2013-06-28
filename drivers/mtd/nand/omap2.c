@@ -1023,9 +1023,9 @@ static int omap_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	int status, state = this->state;
 
 	if (state == FL_ERASING)
-		timeo += (HZ * 400) / 1000;
+		timeo += msecs_to_jiffies(400);
 	else
-		timeo += (HZ * 20) / 1000;
+		timeo += msecs_to_jiffies(20);
 
 	writeb(NAND_CMD_STATUS & 0xFF, info->reg.gpmc_nand_command);
 	while (time_before(jiffies, timeo)) {
@@ -1701,8 +1701,9 @@ static int omap3_init_bch(struct mtd_info *mtd, int ecc_opt)
 		elm_node = of_find_node_by_phandle(be32_to_cpup(parp));
 		pdev = of_find_device_by_node(elm_node);
 		info->elm_dev = &pdev->dev;
-		elm_config(info->elm_dev, bch_type);
-		info->is_elm_used = true;
+
+		if (elm_config(info->elm_dev, bch_type) == 0)
+			info->is_elm_used = true;
 	}
 
 	if (info->is_elm_used && (mtd->writesize <= 4096)) {

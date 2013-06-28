@@ -95,7 +95,7 @@ static void __cpuinit cpu_bringup(void)
 static void __cpuinit cpu_bringup_and_idle(void)
 {
 	cpu_bringup();
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 static int xen_smp_intr_init(unsigned int cpu)
@@ -144,6 +144,13 @@ static int xen_smp_intr_init(unsigned int cpu)
 		goto fail;
 	per_cpu(xen_callfuncsingle_irq, cpu) = rc;
 
+	/*
+	 * The IRQ worker on PVHVM goes through the native path and uses the
+	 * IPI mechanism.
+	 */
+	if (xen_hvm_domain())
+		return 0;
+
 	callfunc_name = kasprintf(GFP_KERNEL, "irqwork%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_IRQ_WORK_VECTOR,
 				    cpu,
@@ -167,6 +174,9 @@ static int xen_smp_intr_init(unsigned int cpu)
 	if (per_cpu(xen_callfuncsingle_irq, cpu) >= 0)
 		unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu),
 				       NULL);
+	if (xen_hvm_domain())
+		return rc;
+
 	if (per_cpu(xen_irq_work, cpu) >= 0)
 		unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
 
@@ -418,7 +428,7 @@ static int xen_cpu_disable(void)
 
 static void xen_cpu_die(unsigned int cpu)
 {
-	while (HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL)) {
+	while (xen_pv_domain() && HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL)) {
 		current->state = TASK_UNINTERRUPTIBLE;
 		schedule_timeout(HZ/10);
 	}
@@ -426,7 +436,8 @@ static void xen_cpu_die(unsigned int cpu)
 	unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
 	unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
 	unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
+	if (!xen_hvm_domain())
+		unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
 	xen_uninit_lock_cpu(cpu);
 	xen_teardown_timer(cpu);
 }
@@ -565,24 +576,22 @@ void xen_send_IPI_mask_allbutself(const struct cpumask *mask,
 {
 	unsigned cpu;
 	unsigned int this_cpu = smp_processor_id();
+	int xen_vector = xen_map_vector(vector);
 
-	if (!(num_online_cpus() > 1))
+	if (!(num_online_cpus() > 1) || (xen_vector < 0))
 		return;
 
 	for_each_cpu_and(cpu, mask, cpu_online_mask) {
 		if (this_cpu == cpu)
 			continue;
 
-		xen_smp_send_call_function_single_ipi(cpu);
+		xen_send_IPI_one(cpu, xen_vector);
 	}
 }
 
 void xen_send_IPI_allbutself(int vector)
 {
-	int xen_vector = xen_map_vector(vector);
-
-	if (xen_vector >= 0)
-		xen_send_IPI_mask_allbutself(cpu_online_mask, xen_vector);
+	xen_send_IPI_mask_allbutself(cpu_online_mask, vector);
 }
 
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id)
@@ -657,11 +666,7 @@ static int __cpuinit xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 static void xen_hvm_cpu_die(unsigned int cpu)
 {
-	unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
+	xen_cpu_die(cpu);
 	native_cpu_die(cpu);
 }
 

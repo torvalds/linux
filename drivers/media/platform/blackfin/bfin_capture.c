@@ -384,7 +384,7 @@ static int bcap_start_streaming(struct vb2_queue *vq, unsigned int count)
 	params.ppi_control = bcap_dev->cfg->ppi_control;
 	params.int_mask = bcap_dev->cfg->int_mask;
 	if (bcap_dev->cfg->inputs[bcap_dev->cur_input].capabilities
-			& V4L2_IN_CAP_CUSTOM_TIMINGS) {
+			& V4L2_IN_CAP_DV_TIMINGS) {
 		struct v4l2_bt_timings *bt = &bcap_dev->dv_timings.bt;
 
 		params.hdelay = bt->hsync + bt->hbackporch;
@@ -633,7 +633,7 @@ static int bcap_g_std(struct file *file, void *priv, v4l2_std_id *std)
 	return 0;
 }
 
-static int bcap_s_std(struct file *file, void *priv, v4l2_std_id *std)
+static int bcap_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
 	int ret;
@@ -641,11 +641,11 @@ static int bcap_s_std(struct file *file, void *priv, v4l2_std_id *std)
 	if (vb2_is_busy(&bcap_dev->buffer_queue))
 		return -EBUSY;
 
-	ret = v4l2_subdev_call(bcap_dev->sd, core, s_std, *std);
+	ret = v4l2_subdev_call(bcap_dev->sd, core, s_std, std);
 	if (ret < 0)
 		return ret;
 
-	bcap_dev->std = *std;
+	bcap_dev->std = std;
 	return 0;
 }
 
@@ -890,7 +890,7 @@ static int bcap_dbg_g_register(struct file *file, void *priv,
 }
 
 static int bcap_dbg_s_register(struct file *file, void *priv,
-		struct v4l2_dbg_register *reg)
+		const struct v4l2_dbg_register *reg)
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
 
@@ -1029,6 +1029,7 @@ static int bcap_probe(struct platform_device *pdev)
 	q->buf_struct_size = sizeof(struct bcap_buffer);
 	q->ops = &bcap_video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	vb2_queue_init(q);
 
@@ -1110,7 +1111,7 @@ static int bcap_probe(struct platform_device *pdev)
 		}
 		bcap_dev->std = std;
 	}
-	if (config->inputs[0].capabilities & V4L2_IN_CAP_CUSTOM_TIMINGS) {
+	if (config->inputs[0].capabilities & V4L2_IN_CAP_DV_TIMINGS) {
 		struct v4l2_dv_timings dv_timings;
 		ret = v4l2_subdev_call(bcap_dev->sd, video,
 				g_dv_timings, &dv_timings);

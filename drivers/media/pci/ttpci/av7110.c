@@ -990,7 +990,7 @@ static int av7110_start_feed(struct dvb_demux_feed *feed)
 
 	if (feed->type == DMX_TYPE_TS) {
 		if ((feed->ts_type & TS_DECODER) &&
-		    (feed->pes_type <= DMX_TS_PES_PCR)) {
+		    (feed->pes_type <= DMX_PES_PCR)) {
 			switch (demux->dmx.frontend->source) {
 			case DMX_MEMORY_FE:
 				if (feed->ts_type & TS_DECODER)
@@ -1051,14 +1051,14 @@ static int av7110_stop_feed(struct dvb_demux_feed *feed)
 
 	if (feed->type == DMX_TYPE_TS) {
 		if (feed->ts_type & TS_DECODER) {
-			if (feed->pes_type >= DMX_TS_PES_OTHER ||
+			if (feed->pes_type >= DMX_PES_OTHER ||
 			    !demux->pesfilter[feed->pes_type])
 				return -EINVAL;
 			demux->pids[feed->pes_type] |= 0x8000;
 			demux->pesfilter[feed->pes_type] = NULL;
 		}
 		if (feed->ts_type & TS_DECODER &&
-		    feed->pes_type < DMX_TS_PES_OTHER) {
+		    feed->pes_type < DMX_PES_OTHER) {
 			ret = dvb_feed_stop_pid(feed);
 		} else
 			if ((feed->ts_type & TS_PACKET) &&

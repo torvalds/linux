@@ -956,11 +956,10 @@ static int vhci_bus_resume(struct usb_hcd *hcd)
 	dev_dbg(&hcd->self.root_hub->dev, "%s\n", __func__);
 
 	spin_lock(&vhci->lock);
-	if (!HCD_HW_ACCESSIBLE(hcd)) {
+	if (!HCD_HW_ACCESSIBLE(hcd))
 		rc = -ESHUTDOWN;
-	} else {
+	else
 		hcd->state = HC_STATE_RUNNING;
-	}
 	spin_unlock(&vhci->lock);
 
 	return rc;

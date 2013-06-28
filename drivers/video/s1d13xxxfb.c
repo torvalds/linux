@@ -862,7 +862,7 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 		printk(KERN_INFO PFX
 			"unknown chip production id %i, revision %i\n",
 			prod_id, revision);
-		printk(KERN_INFO PFX "please contant maintainer\n");
+		printk(KERN_INFO PFX "please contact maintainer\n");
 		goto bail;
 	}
 

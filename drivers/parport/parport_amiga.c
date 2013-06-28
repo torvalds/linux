@@ -244,20 +244,7 @@ static struct platform_driver amiga_parallel_driver = {
 	},
 };
 
-static int __init amiga_parallel_init(void)
-{
-	return platform_driver_probe(&amiga_parallel_driver,
-				     amiga_parallel_probe);
-}
-
-module_init(amiga_parallel_init);
-
-static void __exit amiga_parallel_exit(void)
-{
-	platform_driver_unregister(&amiga_parallel_driver);
-}
-
-module_exit(amiga_parallel_exit);
+module_platform_driver_probe(amiga_parallel_driver, amiga_parallel_probe);
 
 MODULE_AUTHOR("Joerg Dorchain <joerg@dorchain.net>");
 MODULE_DESCRIPTION("Parport Driver for Amiga builtin Port");

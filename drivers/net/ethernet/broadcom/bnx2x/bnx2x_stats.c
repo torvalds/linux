@@ -1547,11 +1547,51 @@ static void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 	}
 }
 
+void bnx2x_memset_stats(struct bnx2x *bp)
+{
+	int i;
+
+	/* function stats */
+	for_each_queue(bp, i) {
+		struct bnx2x_fp_stats *fp_stats = &bp->fp_stats[i];
+
+		memset(&fp_stats->old_tclient, 0,
+		       sizeof(fp_stats->old_tclient));
+		memset(&fp_stats->old_uclient, 0,
+		       sizeof(fp_stats->old_uclient));
+		memset(&fp_stats->old_xclient, 0,
+		       sizeof(fp_stats->old_xclient));
+		if (bp->stats_init) {
+			memset(&fp_stats->eth_q_stats, 0,
+			       sizeof(fp_stats->eth_q_stats));
+			memset(&fp_stats->eth_q_stats_old, 0,
+			       sizeof(fp_stats->eth_q_stats_old));
+		}
+	}
+
+	memset(&bp->dev->stats, 0, sizeof(bp->dev->stats));
+
+	if (bp->stats_init) {
+		memset(&bp->net_stats_old, 0, sizeof(bp->net_stats_old));
+		memset(&bp->fw_stats_old, 0, sizeof(bp->fw_stats_old));
+		memset(&bp->eth_stats_old, 0, sizeof(bp->eth_stats_old));
+		memset(&bp->eth_stats, 0, sizeof(bp->eth_stats));
+		memset(&bp->func_stats, 0, sizeof(bp->func_stats));
+	}
+
+	bp->stats_state = STATS_STATE_DISABLED;
+
+	if (bp->port.pmf && bp->port.port_stx)
+		bnx2x_port_stats_base_init(bp);
+
+	/* mark the end of statistics initializiation */
+	bp->stats_init = false;
+}
+
 void bnx2x_stats_init(struct bnx2x *bp)
 {
 	int /*abs*/port = BP_PORT(bp);
 	int mb_idx = BP_FW_MB_IDX(bp);
-	int i;
 
 	bp->stats_pending = 0;
 	bp->executer_idx = 0;
@@ -1587,36 +1627,11 @@ void bnx2x_stats_init(struct bnx2x *bp)
 			    &(bp->port.old_nig_stats.egress_mac_pkt1_lo), 2);
 	}
 
-	/* function stats */
-	for_each_queue(bp, i) {
-		struct bnx2x_fp_stats *fp_stats = &bp->fp_stats[i];
-
-		memset(&fp_stats->old_tclient, 0,
-		       sizeof(fp_stats->old_tclient));
-		memset(&fp_stats->old_uclient, 0,
-		       sizeof(fp_stats->old_uclient));
-		memset(&fp_stats->old_xclient, 0,
-		       sizeof(fp_stats->old_xclient));
-		if (bp->stats_init) {
-			memset(&fp_stats->eth_q_stats, 0,
-			       sizeof(fp_stats->eth_q_stats));
-			memset(&fp_stats->eth_q_stats_old, 0,
-			       sizeof(fp_stats->eth_q_stats_old));
-		}
-	}
-
 	/* Prepare statistics ramrod data */
 	bnx2x_prep_fw_stats_req(bp);
 
-	memset(&bp->dev->stats, 0, sizeof(bp->dev->stats));
+	/* Clean SP from previous statistics */
 	if (bp->stats_init) {
-		memset(&bp->net_stats_old, 0, sizeof(bp->net_stats_old));
-		memset(&bp->fw_stats_old, 0, sizeof(bp->fw_stats_old));
-		memset(&bp->eth_stats_old, 0, sizeof(bp->eth_stats_old));
-		memset(&bp->eth_stats, 0, sizeof(bp->eth_stats));
-		memset(&bp->func_stats, 0, sizeof(bp->func_stats));
-
-		/* Clean SP from previous statistics */
 		if (bp->func_stx) {
 			memset(bnx2x_sp(bp, func_stats), 0,
 			       sizeof(struct host_func_stats));
@@ -1626,13 +1641,7 @@ void bnx2x_stats_init(struct bnx2x *bp)
 		}
 	}
 
-	bp->stats_state = STATS_STATE_DISABLED;
-
-	if (bp->port.pmf && bp->port.port_stx)
-		bnx2x_port_stats_base_init(bp);
-
-	/* mark the end of statistics initializiation */
-	bp->stats_init = false;
+	bnx2x_memset_stats(bp);
 }
 
 void bnx2x_save_statistics(struct bnx2x *bp)

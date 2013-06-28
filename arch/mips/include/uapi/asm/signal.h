@@ -72,6 +72,12 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
  *
  * SA_ONESHOT and SA_NOMASK are the historical Linux names for the Single
  * Unix names RESETHAND and NODEFER respectively.
+ *
+ * SA_RESTORER used to be defined as 0x04000000 but only the O32 ABI ever
+ * supported its use and no libc was using it, so the entire sa-restorer
+ * functionality was removed with lmo commit 39bffc12c3580ab for 2.5.48
+ * retaining only the SA_RESTORER definition as a reminder to avoid
+ * accidental reuse of the mask bit.
  */
 #define SA_ONSTACK	0x08000000
 #define SA_RESETHAND	0x80000000
@@ -83,8 +89,6 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 
 #define SA_NOMASK	SA_NODEFER
 #define SA_ONESHOT	SA_RESETHAND
-
-#define SA_RESTORER	0x04000000	/* Only for o32 */
 
 #define MINSIGSTKSZ    2048
 #define SIGSTKSZ       8192

@@ -285,14 +285,14 @@ int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
 	if (phy->attached_tproto & SAS_PROTOCOL_STP)
 		dev->tproto = phy->attached_tproto;
 	if (phy->attached_sata_dev)
-		dev->tproto |= SATA_DEV;
+		dev->tproto |= SAS_SATA_DEV;
 
-	if (phy->attached_dev_type == SATA_PENDING)
-		dev->dev_type = SATA_PENDING;
+	if (phy->attached_dev_type == SAS_SATA_PENDING)
+		dev->dev_type = SAS_SATA_PENDING;
 	else {
 		int res;
 
-		dev->dev_type = SATA_DEV;
+		dev->dev_type = SAS_SATA_DEV;
 		res = sas_get_report_phy_sata(dev->parent, phy->phy_id,
 					      &dev->sata_dev.rps_resp);
 		if (res) {
@@ -314,7 +314,7 @@ static int sas_ata_clear_pending(struct domain_device *dev, struct ex_phy *phy)
 	int res;
 
 	/* we weren't pending, so successfully end the reset sequence now */
-	if (dev->dev_type != SATA_PENDING)
+	if (dev->dev_type != SAS_SATA_PENDING)
 		return 1;
 
 	/* hmmm, if this succeeds do we need to repost the domain_device to the
@@ -348,9 +348,9 @@ static int smp_ata_check_ready(struct ata_link *link)
 		return 0;
 
 	switch (ex_phy->attached_dev_type) {
-	case SATA_PENDING:
+	case SAS_SATA_PENDING:
 		return 0;
-	case SAS_END_DEV:
+	case SAS_END_DEVICE:
 		if (ex_phy->attached_sata_dev)
 			return sas_ata_clear_pending(dev, ex_phy);
 	default:
@@ -631,7 +631,7 @@ static void sas_get_ata_command_set(struct domain_device *dev)
 	struct dev_to_host_fis *fis =
 		(struct dev_to_host_fis *) dev->frame_rcvd;
 
-	if (dev->dev_type == SATA_PENDING)
+	if (dev->dev_type == SAS_SATA_PENDING)
 		return;
 
 	if ((fis->sector_count == 1 && /* ATA */
@@ -797,7 +797,7 @@ int sas_discover_sata(struct domain_device *dev)
 {
 	int res;
 
-	if (dev->dev_type == SATA_PM)
+	if (dev->dev_type == SAS_SATA_PM)
 		return -ENODEV;
 
 	sas_get_ata_command_set(dev);

@@ -76,9 +76,11 @@
 #define ABIT_UGURU3_SYNCHRONIZE_TIMEOUT		5
 /* utility macros */
 #define ABIT_UGURU3_NAME			"abituguru3"
-#define ABIT_UGURU3_DEBUG(format, arg...)	\
-	if (verbose)				\
-		printk(KERN_DEBUG ABIT_UGURU3_NAME ": "	format , ## arg)
+#define ABIT_UGURU3_DEBUG(format, arg...)		\
+	do {						\
+		if (verbose)				\
+			pr_debug(format , ## arg);	\
+	} while (0)
 
 /* Macros to help calculate the sysfs_names array length */
 #define ABIT_UGURU3_MAX_NO_SENSORS 26
@@ -1159,7 +1161,7 @@ static int abituguru3_resume(struct device *dev)
 }
 
 static SIMPLE_DEV_PM_OPS(abituguru3_pm, abituguru3_suspend, abituguru3_resume);
-#define ABIT_UGURU3_PM	&abituguru3_pm
+#define ABIT_UGURU3_PM	(&abituguru3_pm)
 #else
 #define ABIT_UGURU3_PM	NULL
 #endif /* CONFIG_PM */

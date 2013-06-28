@@ -28,18 +28,18 @@
 
 #include "pseries.h"
 
-typedef struct {
+struct hypertas_fw_feature {
     unsigned long val;
     char * name;
-} firmware_feature_t;
+};
 
 /*
  * The names in this table match names in rtas/ibm,hypertas-functions.  If the
  * entry ends in a '*', only upto the '*' is matched.  Otherwise the entire
  * string must match.
  */
-static __initdata firmware_feature_t
-firmware_features_table[FIRMWARE_MAX_FEATURES] = {
+static __initdata struct hypertas_fw_feature
+hypertas_fw_features_table[] = {
 	{FW_FEATURE_PFT,		"hcall-pft"},
 	{FW_FEATURE_TCE,		"hcall-tce"},
 	{FW_FEATURE_SPRG0,		"hcall-sprg0"},
@@ -69,20 +69,18 @@ firmware_features_table[FIRMWARE_MAX_FEATURES] = {
  * device-tree/ibm,hypertas-functions.  Ultimately this functionality may
  * be moved into prom.c prom_init().
  */
-void __init fw_feature_init(const char *hypertas, unsigned long len)
+void __init fw_hypertas_feature_init(const char *hypertas, unsigned long len)
 {
 	const char *s;
 	int i;
 
-	pr_debug(" -> fw_feature_init()\n");
+	pr_debug(" -> fw_hypertas_feature_init()\n");
 
 	for (s = hypertas; s < hypertas + len; s += strlen(s) + 1) {
-		for (i = 0; i < FIRMWARE_MAX_FEATURES; i++) {
-			const char *name = firmware_features_table[i].name;
+		for (i = 0; i < ARRAY_SIZE(hypertas_fw_features_table); i++) {
+			const char *name = hypertas_fw_features_table[i].name;
 			size_t size;
-			/* check value against table of strings */
-			if (!name)
-				continue;
+
 			/*
 			 * If there is a '*' at the end of name, only check
 			 * upto there
@@ -96,10 +94,40 @@ void __init fw_feature_init(const char *hypertas, unsigned long len)
 
 			/* we have a match */
 			powerpc_firmware_features |=
-				firmware_features_table[i].val;
+				hypertas_fw_features_table[i].val;
 			break;
 		}
 	}
 
-	pr_debug(" <- fw_feature_init()\n");
+	pr_debug(" <- fw_hypertas_feature_init()\n");
+}
+
+struct vec5_fw_feature {
+	unsigned long	val;
+	unsigned int	feature;
+};
+
+static __initdata struct vec5_fw_feature
+vec5_fw_features_table[] = {
+	{FW_FEATURE_TYPE1_AFFINITY,	OV5_TYPE1_AFFINITY},
+	{FW_FEATURE_PRRN,		OV5_PRRN},
+};
+
+void __init fw_vec5_feature_init(const char *vec5, unsigned long len)
+{
+	unsigned int index, feat;
+	int i;
+
+	pr_debug(" -> fw_vec5_feature_init()\n");
+
+	for (i = 0; i < ARRAY_SIZE(vec5_fw_features_table); i++) {
+		index = OV5_INDX(vec5_fw_features_table[i].feature);
+		feat = OV5_FEAT(vec5_fw_features_table[i].feature);
+
+		if (vec5[index] & feat)
+			powerpc_firmware_features |=
+				vec5_fw_features_table[i].val;
+	}
+
+	pr_debug(" <- fw_vec5_feature_init()\n");
 }

@@ -615,12 +615,20 @@ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
 }
 static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 {
-	vmemmap_free(memmap, nr_pages);
+	unsigned long start = (unsigned long)memmap;
+	unsigned long end = (unsigned long)(memmap + nr_pages);
+
+	vmemmap_free(start, end);
 }
+#ifdef CONFIG_MEMORY_HOTREMOVE
 static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
 {
-	vmemmap_free(memmap, nr_pages);
+	unsigned long start = (unsigned long)memmap;
+	unsigned long end = (unsigned long)(memmap + nr_pages);
+
+	vmemmap_free(start, end);
 }
+#endif /* CONFIG_MEMORY_HOTREMOVE */
 #else
 static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
 {
@@ -658,6 +666,7 @@ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 			   get_order(sizeof(struct page) * nr_pages));
 }
 
+#ifdef CONFIG_MEMORY_HOTREMOVE
 static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
 {
 	unsigned long maps_section_nr, removing_section_nr, i;
@@ -684,39 +693,8 @@ static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
 			put_page_bootmem(page);
 	}
 }
+#endif /* CONFIG_MEMORY_HOTREMOVE */
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
-
-static void free_section_usemap(struct page *memmap, unsigned long *usemap)
-{
-	struct page *usemap_page;
-	unsigned long nr_pages;
-
-	if (!usemap)
-		return;
-
-	usemap_page = virt_to_page(usemap);
-	/*
-	 * Check to see if allocation came from hot-plug-add
-	 */
-	if (PageSlab(usemap_page) || PageCompound(usemap_page)) {
-		kfree(usemap);
-		if (memmap)
-			__kfree_section_memmap(memmap, PAGES_PER_SECTION);
-		return;
-	}
-
-	/*
-	 * The usemap came from bootmem. This is packed with other usemaps
-	 * on the section which has pgdat at boot time. Just keep it as is now.
-	 */
-
-	if (memmap) {
-		nr_pages = PAGE_ALIGN(PAGES_PER_SECTION * sizeof(struct page))
-			>> PAGE_SHIFT;
-
-		free_map_bootmem(memmap, nr_pages);
-	}
-}
 
 /*
  * returns the number of sections whose mem_maps were properly
@@ -794,6 +772,39 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
 }
 #endif
 
+#ifdef CONFIG_MEMORY_HOTREMOVE
+static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+{
+	struct page *usemap_page;
+	unsigned long nr_pages;
+
+	if (!usemap)
+		return;
+
+	usemap_page = virt_to_page(usemap);
+	/*
+	 * Check to see if allocation came from hot-plug-add
+	 */
+	if (PageSlab(usemap_page) || PageCompound(usemap_page)) {
+		kfree(usemap);
+		if (memmap)
+			__kfree_section_memmap(memmap, PAGES_PER_SECTION);
+		return;
+	}
+
+	/*
+	 * The usemap came from bootmem. This is packed with other usemaps
+	 * on the section which has pgdat at boot time. Just keep it as is now.
+	 */
+
+	if (memmap) {
+		nr_pages = PAGE_ALIGN(PAGES_PER_SECTION * sizeof(struct page))
+			>> PAGE_SHIFT;
+
+		free_map_bootmem(memmap, nr_pages);
+	}
+}
+
 void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
 {
 	struct page *memmap = NULL;
@@ -813,4 +824,5 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
 	clear_hwpoisoned_pages(memmap, PAGES_PER_SECTION);
 	free_section_usemap(memmap, usemap);
 }
-#endif
+#endif /* CONFIG_MEMORY_HOTREMOVE */
+#endif /* CONFIG_MEMORY_HOTPLUG */

@@ -55,8 +55,8 @@ static int adc081c_read_raw(struct iio_dev *iio,
 
 static const struct iio_chan_spec adc081c_channel = {
 	.type = IIO_VOLTAGE,
-	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT |
-		     IIO_CHAN_INFO_RAW_SEPARATE_BIT,
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 };
 
 static const struct iio_info adc081c_info = {

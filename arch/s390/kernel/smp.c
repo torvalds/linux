@@ -181,8 +181,10 @@ static int __cpuinit pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc = pcpu->lowcore;
 	memcpy(lc, &S390_lowcore, 512);
 	memset((char *) lc + 512, 0, sizeof(*lc) - 512);
-	lc->async_stack = pcpu->async_stack + ASYNC_SIZE;
-	lc->panic_stack = pcpu->panic_stack + PAGE_SIZE;
+	lc->async_stack = pcpu->async_stack + ASYNC_SIZE
+		- STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
+	lc->panic_stack = pcpu->panic_stack + PAGE_SIZE
+		- STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->cpu_nr = cpu;
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
@@ -253,7 +255,8 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 	struct _lowcore *lc = pcpu->lowcore;
 	struct thread_info *ti = task_thread_info(tsk);
 
-	lc->kernel_stack = (unsigned long) task_stack_page(tsk) + THREAD_SIZE;
+	lc->kernel_stack = (unsigned long) task_stack_page(tsk)
+		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->thread_info = (unsigned long) task_thread_info(tsk);
 	lc->current_task = (unsigned long) tsk;
 	lc->user_timer = ti->user_timer;
@@ -425,34 +428,27 @@ void smp_stop_cpu(void)
  * This is the main routine where commands issued by other
  * cpus are handled.
  */
+static void smp_handle_ext_call(void)
+{
+	unsigned long bits;
+
+	/* handle bit signal external calls */
+	bits = xchg(&pcpu_devices[smp_processor_id()].ec_mask, 0);
+	if (test_bit(ec_stop_cpu, &bits))
+		smp_stop_cpu();
+	if (test_bit(ec_schedule, &bits))
+		scheduler_ipi();
+	if (test_bit(ec_call_function, &bits))
+		generic_smp_call_function_interrupt();
+	if (test_bit(ec_call_function_single, &bits))
+		generic_smp_call_function_single_interrupt();
+}
+
 static void do_ext_call_interrupt(struct ext_code ext_code,
 				  unsigned int param32, unsigned long param64)
 {
-	unsigned long bits;
-	int cpu;
-
-	cpu = smp_processor_id();
-	if (ext_code.code == 0x1202)
-		inc_irq_stat(IRQEXT_EXC);
-	else
-		inc_irq_stat(IRQEXT_EMS);
-	/*
-	 * handle bit signal external calls
-	 */
-	bits = xchg(&pcpu_devices[cpu].ec_mask, 0);
-
-	if (test_bit(ec_stop_cpu, &bits))
-		smp_stop_cpu();
-
-	if (test_bit(ec_schedule, &bits))
-		scheduler_ipi();
-
-	if (test_bit(ec_call_function, &bits))
-		generic_smp_call_function_interrupt();
-
-	if (test_bit(ec_call_function_single, &bits))
-		generic_smp_call_function_single_interrupt();
-
+	inc_irq_stat(ext_code.code == 0x1202 ? IRQEXT_EXC : IRQEXT_EMS);
+	smp_handle_ext_call();
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
@@ -642,7 +638,7 @@ static int __cpuinit __smp_rescan_cpus(struct sclp_cpu_info *info,
 			continue;
 		pcpu = pcpu_devices + cpu;
 		pcpu->address = info->cpu[i].address;
-		pcpu->state = (cpu >= info->configured) ?
+		pcpu->state = (i >= info->configured) ?
 			CPU_STATE_STANDBY : CPU_STATE_CONFIGURED;
 		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 		set_cpu_present(cpu, true);
@@ -711,8 +707,7 @@ static void __cpuinit smp_start_secondary(void *cpuvoid)
 	set_cpu_online(smp_processor_id(), true);
 	inc_irq_stat(CPU_RST);
 	local_irq_enable();
-	/* cpu_idle will call schedule for us */
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 /* Upping and downing of CPUs */
@@ -758,6 +753,8 @@ int __cpu_disable(void)
 {
 	unsigned long cregs[16];
 
+	/* Handle possible pending IPIs */
+	smp_handle_ext_call();
 	set_cpu_online(smp_processor_id(), false);
 	/* Disable pseudo page faults on this cpu. */
 	pfault_fini();
@@ -810,8 +807,10 @@ void __init smp_prepare_boot_cpu(void)
 	pcpu->state = CPU_STATE_CONFIGURED;
 	pcpu->address = boot_cpu_address;
 	pcpu->lowcore = (struct _lowcore *)(unsigned long) store_prefix();
-	pcpu->async_stack = S390_lowcore.async_stack - ASYNC_SIZE;
-	pcpu->panic_stack = S390_lowcore.panic_stack - PAGE_SIZE;
+	pcpu->async_stack = S390_lowcore.async_stack - ASYNC_SIZE
+		+ STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
+	pcpu->panic_stack = S390_lowcore.panic_stack - PAGE_SIZE
+		+ STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
 	set_cpu_present(0, true);

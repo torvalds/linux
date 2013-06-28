@@ -330,6 +330,7 @@ int r600_dma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int r600_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 int r600_dma_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
+int r600_uvd_ring_test(struct radeon_device *rdev, struct radeon_ring *ring);
 int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
 		   unsigned num_gpu_pages, struct radeon_fence **fence);
@@ -346,6 +347,8 @@ extern bool r600_gui_idle(struct radeon_device *rdev);
 extern void r600_pm_misc(struct radeon_device *rdev);
 extern void r600_pm_init_profile(struct radeon_device *rdev);
 extern void rs780_pm_init_profile(struct radeon_device *rdev);
+extern uint32_t rs780_mc_rreg(struct radeon_device *rdev, uint32_t reg);
+extern void rs780_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 extern void r600_pm_get_dynpm_state(struct radeon_device *rdev);
 extern void r600_set_pcie_lanes(struct radeon_device *rdev, int lanes);
 extern int r600_get_pcie_lanes(struct radeon_device *rdev);
@@ -373,11 +376,12 @@ void r600_disable_interrupts(struct radeon_device *rdev);
 void r600_rlc_stop(struct radeon_device *rdev);
 /* r600 audio */
 int r600_audio_init(struct radeon_device *rdev);
-void r600_audio_set_clock(struct drm_encoder *encoder, int clock);
 struct r600_audio r600_audio_status(struct radeon_device *rdev);
 void r600_audio_fini(struct radeon_device *rdev);
 int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
+void r600_hdmi_enable(struct drm_encoder *encoder, bool enable);
+void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 /* r600 blit */
 int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages,
 			   struct radeon_fence **fence, struct radeon_sa_bo **vb,
@@ -391,6 +395,19 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 int r600_mc_wait_for_idle(struct radeon_device *rdev);
 u32 r600_get_xclk(struct radeon_device *rdev);
 uint64_t r600_get_gpu_clock_counter(struct radeon_device *rdev);
+
+/* uvd */
+int r600_uvd_init(struct radeon_device *rdev);
+int r600_uvd_rbc_start(struct radeon_device *rdev);
+void r600_uvd_rbc_stop(struct radeon_device *rdev);
+int r600_uvd_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
+void r600_uvd_fence_emit(struct radeon_device *rdev,
+			 struct radeon_fence *fence);
+void r600_uvd_semaphore_emit(struct radeon_device *rdev,
+			     struct radeon_ring *ring,
+			     struct radeon_semaphore *semaphore,
+			     bool emit_wait);
+void r600_uvd_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 
 /*
  * rv770,rv730,rv710,rv740
@@ -409,6 +426,8 @@ int rv770_copy_dma(struct radeon_device *rdev,
 		  unsigned num_gpu_pages,
 		   struct radeon_fence **fence);
 u32 rv770_get_xclk(struct radeon_device *rdev);
+int rv770_uvd_resume(struct radeon_device *rdev);
+int rv770_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 
 /*
  * evergreen
@@ -444,6 +463,8 @@ extern void evergreen_pm_prepare(struct radeon_device *rdev);
 extern void evergreen_pm_finish(struct radeon_device *rdev);
 extern void sumo_pm_init_profile(struct radeon_device *rdev);
 extern void btc_pm_init_profile(struct radeon_device *rdev);
+int sumo_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
+int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 extern void evergreen_pre_page_flip(struct radeon_device *rdev, int crtc);
 extern u32 evergreen_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 extern void evergreen_post_page_flip(struct radeon_device *rdev, int crtc);
@@ -459,12 +480,18 @@ int evergreen_copy_dma(struct radeon_device *rdev,
 		       uint64_t src_offset, uint64_t dst_offset,
 		       unsigned num_gpu_pages,
 		       struct radeon_fence **fence);
+void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable);
+void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 
 /*
  * cayman
  */
 void cayman_fence_ring_emit(struct radeon_device *rdev,
 			    struct radeon_fence *fence);
+void cayman_uvd_semaphore_emit(struct radeon_device *rdev,
+			       struct radeon_ring *ring,
+			       struct radeon_semaphore *semaphore,
+			       bool emit_wait);
 void cayman_pcie_gart_tlb_flush(struct radeon_device *rdev);
 int cayman_init(struct radeon_device *rdev);
 void cayman_fini(struct radeon_device *rdev);
@@ -524,5 +551,6 @@ int si_copy_dma(struct radeon_device *rdev,
 void si_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 u32 si_get_xclk(struct radeon_device *rdev);
 uint64_t si_get_gpu_clock_counter(struct radeon_device *rdev);
+int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 
 #endif

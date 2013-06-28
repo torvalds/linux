@@ -166,7 +166,7 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 	trace_ext4_load_inode_bitmap(sb, block_group);
 	bh->b_end_io = ext4_end_bitmap_read;
 	get_bh(bh);
-	submit_bh(READ, bh);
+	submit_bh(READ | REQ_META | REQ_PRIO, bh);
 	wait_on_buffer(bh);
 	if (!buffer_uptodate(bh)) {
 		put_bh(bh);
@@ -324,8 +324,8 @@ error_return:
 }
 
 struct orlov_stats {
+	__u64 free_clusters;
 	__u32 free_inodes;
-	__u32 free_clusters;
 	__u32 used_dirs;
 };
 
@@ -342,7 +342,7 @@ static void get_orlov_stats(struct super_block *sb, ext4_group_t g,
 
 	if (flex_size > 1) {
 		stats->free_inodes = atomic_read(&flex_group[g].free_inodes);
-		stats->free_clusters = atomic_read(&flex_group[g].free_clusters);
+		stats->free_clusters = atomic64_read(&flex_group[g].free_clusters);
 		stats->used_dirs = atomic_read(&flex_group[g].used_dirs);
 		return;
 	}
@@ -666,6 +666,23 @@ struct inode *__ext4_new_inode(handle_t *handle, struct inode *dir,
 	ei = EXT4_I(inode);
 	sbi = EXT4_SB(sb);
 
+	/*
+	 * Initalize owners and quota early so that we don't have to account
+	 * for quota initialization worst case in standard inode creating
+	 * transaction
+	 */
+	if (owner) {
+		inode->i_mode = mode;
+		i_uid_write(inode, owner[0]);
+		i_gid_write(inode, owner[1]);
+	} else if (test_opt(sb, GRPID)) {
+		inode->i_mode = mode;
+		inode->i_uid = current_fsuid();
+		inode->i_gid = dir->i_gid;
+	} else
+		inode_init_owner(inode, dir, mode);
+	dquot_initialize(inode);
+
 	if (!goal)
 		goal = sbi->s_inode_goal;
 
@@ -697,7 +714,7 @@ got_group:
 
 		gdp = ext4_get_group_desc(sb, group, &group_desc_bh);
 		if (!gdp)
-			goto fail;
+			goto out;
 
 		/*
 		 * Check free inodes count before loading bitmap.
@@ -711,7 +728,7 @@ got_group:
 		brelse(inode_bitmap_bh);
 		inode_bitmap_bh = ext4_read_inode_bitmap(sb, group);
 		if (!inode_bitmap_bh)
-			goto fail;
+			goto out;
 
 repeat_in_this_group:
 		ino = ext4_find_next_zero_bit((unsigned long *)
@@ -733,13 +750,16 @@ repeat_in_this_group:
 							 handle_type, nblocks);
 			if (IS_ERR(handle)) {
 				err = PTR_ERR(handle);
-				goto fail;
+				ext4_std_error(sb, err);
+				goto out;
 			}
 		}
 		BUFFER_TRACE(inode_bitmap_bh, "get_write_access");
 		err = ext4_journal_get_write_access(handle, inode_bitmap_bh);
-		if (err)
-			goto fail;
+		if (err) {
+			ext4_std_error(sb, err);
+			goto out;
+		}
 		ext4_lock_group(sb, group);
 		ret2 = ext4_test_and_set_bit(ino, inode_bitmap_bh->b_data);
 		ext4_unlock_group(sb, group);
@@ -755,8 +775,10 @@ repeat_in_this_group:
 got:
 	BUFFER_TRACE(inode_bitmap_bh, "call ext4_handle_dirty_metadata");
 	err = ext4_handle_dirty_metadata(handle, NULL, inode_bitmap_bh);
-	if (err)
-		goto fail;
+	if (err) {
+		ext4_std_error(sb, err);
+		goto out;
+	}
 
 	/* We may have to initialize the block bitmap if it isn't already */
 	if (ext4_has_group_desc_csum(sb) &&
@@ -768,7 +790,8 @@ got:
 		err = ext4_journal_get_write_access(handle, block_bitmap_bh);
 		if (err) {
 			brelse(block_bitmap_bh);
-			goto fail;
+			ext4_std_error(sb, err);
+			goto out;
 		}
 
 		BUFFER_TRACE(block_bitmap_bh, "dirty block bitmap");
@@ -787,14 +810,18 @@ got:
 		ext4_unlock_group(sb, group);
 		brelse(block_bitmap_bh);
 
-		if (err)
-			goto fail;
+		if (err) {
+			ext4_std_error(sb, err);
+			goto out;
+		}
 	}
 
 	BUFFER_TRACE(group_desc_bh, "get_write_access");
 	err = ext4_journal_get_write_access(handle, group_desc_bh);
-	if (err)
-		goto fail;
+	if (err) {
+		ext4_std_error(sb, err);
+		goto out;
+	}
 
 	/* Update the relevant bg descriptor fields */
 	if (ext4_has_group_desc_csum(sb)) {
@@ -840,8 +867,10 @@ got:
 
 	BUFFER_TRACE(group_desc_bh, "call ext4_handle_dirty_metadata");
 	err = ext4_handle_dirty_metadata(handle, NULL, group_desc_bh);
-	if (err)
-		goto fail;
+	if (err) {
+		ext4_std_error(sb, err);
+		goto out;
+	}
 
 	percpu_counter_dec(&sbi->s_freeinodes_counter);
 	if (S_ISDIR(mode))
@@ -851,16 +880,6 @@ got:
 		flex_group = ext4_flex_group(sbi, group);
 		atomic_dec(&sbi->s_flex_groups[flex_group].free_inodes);
 	}
-	if (owner) {
-		inode->i_mode = mode;
-		i_uid_write(inode, owner[0]);
-		i_gid_write(inode, owner[1]);
-	} else if (test_opt(sb, GRPID)) {
-		inode->i_mode = mode;
-		inode->i_uid = current_fsuid();
-		inode->i_gid = dir->i_gid;
-	} else
-		inode_init_owner(inode, dir, mode);
 
 	inode->i_ino = ino + group * EXT4_INODES_PER_GROUP(sb);
 	/* This is the optimal IO size (for stat), not the fs block size */
@@ -889,7 +908,9 @@ got:
 		 * twice.
 		 */
 		err = -EIO;
-		goto fail;
+		ext4_error(sb, "failed to insert inode %lu: doubly allocated?",
+			   inode->i_ino);
+		goto out;
 	}
 	spin_lock(&sbi->s_next_gen_lock);
 	inode->i_generation = sbi->s_next_generation++;
@@ -899,7 +920,6 @@ got:
 	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
 			EXT4_FEATURE_RO_COMPAT_METADATA_CSUM)) {
 		__u32 csum;
-		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 		__le32 inum = cpu_to_le32(inode->i_ino);
 		__le32 gen = cpu_to_le32(inode->i_generation);
 		csum = ext4_chksum(sbi, sbi->s_csum_seed, (__u8 *)&inum,
@@ -918,7 +938,6 @@ got:
 		ext4_set_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
 
 	ret = inode;
-	dquot_initialize(inode);
 	err = dquot_alloc_inode(inode);
 	if (err)
 		goto fail_drop;
@@ -952,24 +971,17 @@ got:
 
 	ext4_debug("allocating inode %lu\n", inode->i_ino);
 	trace_ext4_allocate_inode(inode, dir, mode);
-	goto really_out;
-fail:
-	ext4_std_error(sb, err);
-out:
-	iput(inode);
-	ret = ERR_PTR(err);
-really_out:
 	brelse(inode_bitmap_bh);
 	return ret;
 
 fail_free_drop:
 	dquot_free_inode(inode);
-
 fail_drop:
-	dquot_drop(inode);
-	inode->i_flags |= S_NOQUOTA;
 	clear_nlink(inode);
 	unlock_new_inode(inode);
+out:
+	dquot_drop(inode);
+	inode->i_flags |= S_NOQUOTA;
 	iput(inode);
 	brelse(inode_bitmap_bh);
 	return ERR_PTR(err);

@@ -25,6 +25,7 @@
 #include <linux/if_arp.h>
 #include <linux/crc-ccitt.h>
 
+#include <net/ieee802154_netdev.h>
 #include <net/mac802154.h>
 #include <net/wpan-phy.h>
 
@@ -39,12 +40,12 @@ struct xmit_work {
 	struct mac802154_priv *priv;
 	u8 chan;
 	u8 page;
-	u8 xmit_attempts;
 };
 
 static void mac802154_xmit_worker(struct work_struct *work)
 {
 	struct xmit_work *xw = container_of(work, struct xmit_work, work);
+	struct mac802154_sub_if_data *sdata;
 	int res;
 
 	mutex_lock(&xw->priv->phy->pib_lock);
@@ -57,21 +58,23 @@ static void mac802154_xmit_worker(struct work_struct *work)
 			pr_debug("set_channel failed\n");
 			goto out;
 		}
+
+		xw->priv->phy->current_channel = xw->chan;
+		xw->priv->phy->current_page = xw->page;
 	}
 
 	res = xw->priv->ops->xmit(&xw->priv->hw, xw->skb);
+	if (res)
+		pr_debug("transmission failed\n");
 
 out:
 	mutex_unlock(&xw->priv->phy->pib_lock);
 
-	if (res) {
-		if (xw->xmit_attempts++ < MAC802154_MAX_XMIT_ATTEMPTS) {
-			queue_work(xw->priv->dev_workqueue, &xw->work);
-			return;
-		} else
-			pr_debug("transmission failed for %d times",
-				 MAC802154_MAX_XMIT_ATTEMPTS);
-	}
+	/* Restart the netif queue on each sub_if_data object. */
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &xw->priv->slaves, list)
+		netif_wake_queue(sdata->dev);
+	rcu_read_unlock();
 
 	dev_kfree_skb(xw->skb);
 
@@ -82,6 +85,7 @@ netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
 			 u8 page, u8 chan)
 {
 	struct xmit_work *work;
+	struct mac802154_sub_if_data *sdata;
 
 	if (!(priv->phy->channels_supported[page] & (1 << chan))) {
 		WARN_ON(1);
@@ -109,12 +113,17 @@ netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
+	/* Stop the netif queue on each sub_if_data object. */
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &priv->slaves, list)
+		netif_stop_queue(sdata->dev);
+	rcu_read_unlock();
+
 	INIT_WORK(&work->work, mac802154_xmit_worker);
 	work->skb = skb;
 	work->priv = priv;
 	work->page = page;
 	work->chan = chan;
-	work->xmit_attempts = 0;
 
 	queue_work(priv->dev_workqueue, &work->work);
 

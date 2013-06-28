@@ -532,16 +532,17 @@ static int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
 {
 	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
+	unsigned long flags;
 
 	/* stop mpeg dma */
-	spin_lock(&dev->slock);
+	spin_lock_irqsave(&dev->slock, flags);
 	if (!list_empty(&dev->mpegq.active)) {
 		dprintk( 2, "suspend\n" );
 		printk("%s: suspend mpeg\n", core->name);
 		cx8802_stop_dma(dev);
 		del_timer(&dev->mpegq.timeout);
 	}
-	spin_unlock(&dev->slock);
+	spin_unlock_irqrestore(&dev->slock, flags);
 
 	/* FIXME -- shutdown device */
 	cx88_shutdown(dev->core);
@@ -558,6 +559,7 @@ static int cx8802_resume_common(struct pci_dev *pci_dev)
 {
 	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
+	unsigned long flags;
 	int err;
 
 	if (dev->state.disabled) {
@@ -584,12 +586,12 @@ static int cx8802_resume_common(struct pci_dev *pci_dev)
 	cx88_reset(dev->core);
 
 	/* restart video+vbi capture */
-	spin_lock(&dev->slock);
+	spin_lock_irqsave(&dev->slock, flags);
 	if (!list_empty(&dev->mpegq.active)) {
 		printk("%s: resume mpeg\n", core->name);
 		cx8802_restart_queue(dev,&dev->mpegq);
 	}
-	spin_unlock(&dev->slock);
+	spin_unlock_irqrestore(&dev->slock, flags);
 
 	return 0;
 }

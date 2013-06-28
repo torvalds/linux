@@ -28,6 +28,9 @@
 /* The resource ID on which control packets are sent. */
 #define VMCI_TRANSPORT_PACKET_RID 1
 
+/* The resource ID on which control packets are sent to the hypervisor. */
+#define VMCI_TRANSPORT_HYPERVISOR_PACKET_RID 15
+
 #define VSOCK_PROTO_INVALID        0
 #define VSOCK_PROTO_PKT_ON_NOTIFY (1 << 0)
 #define VSOCK_PROTO_ALL_SUPPORTED (VSOCK_PROTO_PKT_ON_NOTIFY)

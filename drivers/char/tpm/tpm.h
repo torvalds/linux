@@ -32,10 +32,12 @@ enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
 	TPM_BUFSIZE = 4096,
 	TPM_NUM_DEVICES = 256,
+	TPM_RETRY = 50,		/* 5 seconds */
 };
 
 enum tpm_timeout {
 	TPM_TIMEOUT = 5,	/* msecs */
+	TPM_TIMEOUT_RETRY = 100 /* msecs */
 };
 
 /* TPM addresses */
@@ -44,6 +46,7 @@ enum tpm_addr {
 	TPM_ADDR = 0x4E,
 };
 
+#define TPM_WARN_RETRY          0x800
 #define TPM_WARN_DOING_SELFTEST 0x802
 #define TPM_ERR_DEACTIVATED     0x6
 #define TPM_ERR_DISABLED        0x7

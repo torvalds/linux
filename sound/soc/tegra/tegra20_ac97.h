@@ -85,8 +85,8 @@
 
 struct tegra20_ac97 {
 	struct clk *clk_ac97;
-	struct tegra_pcm_dma_params capture_dma_data;
-	struct tegra_pcm_dma_params playback_dma_data;
+	struct snd_dmaengine_dai_dma_data capture_dma_data;
+	struct snd_dmaengine_dai_dma_data playback_dma_data;
 	struct regmap *regmap;
 	int reset_gpio;
 	int sync_gpio;

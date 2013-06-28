@@ -55,11 +55,7 @@ static void asix_status(struct usbnet *dev, struct urb *urb)
 	event = urb->transfer_buffer;
 	link = event->link & 0x01;
 	if (netif_carrier_ok(dev->net) != link) {
-		if (link) {
-			netif_carrier_on(dev->net);
-			usbnet_defer_kevent (dev, EVENT_LINK_RESET );
-		} else
-			netif_carrier_off(dev->net);
+		usbnet_link_change(dev, link, 1);
 		netdev_dbg(dev->net, "Link Status is: %d\n", link);
 	}
 }

@@ -36,7 +36,7 @@ static void report_jump_idx(u32 status, char *outstr)
 
 static void report_ccb_status(u32 status, char *outstr)
 {
-	char *cha_id_list[] = {
+	static const char * const cha_id_list[] = {
 		"",
 		"AES",
 		"DES",
@@ -51,7 +51,7 @@ static void report_ccb_status(u32 status, char *outstr)
 		"ZUCE",
 		"ZUCA",
 	};
-	char *err_id_list[] = {
+	static const char * const err_id_list[] = {
 		"No error.",
 		"Mode error.",
 		"Data size error.",
@@ -69,7 +69,7 @@ static void report_ccb_status(u32 status, char *outstr)
 		"Invalid CHA combination was selected",
 		"Invalid CHA selected.",
 	};
-	char *rng_err_id_list[] = {
+	static const char * const rng_err_id_list[] = {
 		"",
 		"",
 		"",
@@ -117,7 +117,7 @@ static void report_jump_status(u32 status, char *outstr)
 
 static void report_deco_status(u32 status, char *outstr)
 {
-	const struct {
+	static const struct {
 		u8 value;
 		char *error_text;
 	} desc_error_list[] = {
@@ -245,7 +245,7 @@ static void report_cond_code_status(u32 status, char *outstr)
 
 char *caam_jr_strstatus(char *outstr, u32 status)
 {
-	struct stat_src {
+	static const struct stat_src {
 		void (*report_ssed)(u32 status, char *outstr);
 		char *error;
 	} status_src[] = {

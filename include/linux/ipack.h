@@ -207,19 +207,41 @@ int ipack_driver_register(struct ipack_driver *edrv, struct module *owner,
 void ipack_driver_unregister(struct ipack_driver *edrv);
 
 /**
- *	ipack_device_register -- register an IPack device with the kernel
- *	@dev: the new device to register.
+ *	ipack_device_init -- initialize an IPack device
+ * @dev: the new device to initialize.
  *
- *	Register a new IPack device ("module" in IndustryPack jargon). The call
- *	is done by the carrier driver.  The carrier should populate the fields
- *	bus and slot as well as the region array of @dev prior to calling this
- *	function.  The rest of the fields will be allocated and populated
- *	during registration.
+ * Initialize a new IPack device ("module" in IndustryPack jargon). The call
+ * is done by the carrier driver.  The carrier should populate the fields
+ * bus and slot as well as the region array of @dev prior to calling this
+ * function.  The rest of the fields will be allocated and populated
+ * during initalization.
  *
- *	Return zero on success or error code on failure.
+ * Return zero on success or error code on failure.
+ *
+ * NOTE: _Never_ directly free @dev after calling this function, even
+ * if it returned an error! Always use ipack_put_device() to give up the
+ * reference initialized in this function instead.
  */
-int ipack_device_register(struct ipack_device *dev);
-void ipack_device_unregister(struct ipack_device *dev);
+int ipack_device_init(struct ipack_device *dev);
+
+/**
+ *	ipack_device_add -- Add an IPack device
+ * @dev: the new device to add.
+ *
+ * Add a new IPack device. The call is done by the carrier driver
+ * after calling ipack_device_init().
+ *
+ * Return zero on success or error code on failure.
+ *
+ * NOTE: _Never_ directly free @dev after calling this function, even
+ * if it returned an error! Always use ipack_put_device() to give up the
+ * reference initialized in this function instead.
+ */
+int ipack_device_add(struct ipack_device *dev);
+void ipack_device_del(struct ipack_device *dev);
+
+void ipack_get_device(struct ipack_device *dev);
+void ipack_put_device(struct ipack_device *dev);
 
 /**
  * DEFINE_IPACK_DEVICE_TABLE - macro used to describe a IndustryPack table

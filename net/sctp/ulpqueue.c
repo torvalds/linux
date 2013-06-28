@@ -68,7 +68,6 @@ struct sctp_ulpq *sctp_ulpq_init(struct sctp_ulpq *ulpq,
 	skb_queue_head_init(&ulpq->reasm);
 	skb_queue_head_init(&ulpq->lobby);
 	ulpq->pd_mode  = 0;
-	ulpq->malloced = 0;
 
 	return ulpq;
 }
@@ -96,8 +95,6 @@ void sctp_ulpq_flush(struct sctp_ulpq *ulpq)
 void sctp_ulpq_free(struct sctp_ulpq *ulpq)
 {
 	sctp_ulpq_flush(ulpq);
-	if (ulpq->malloced)
-		kfree(ulpq);
 }
 
 /* Process an incoming DATA chunk.  */

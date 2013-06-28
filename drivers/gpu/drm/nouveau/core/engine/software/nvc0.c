@@ -94,6 +94,32 @@ nvc0_software_mthd_flip(struct nouveau_object *object, u32 mthd,
 	return -EINVAL;
 }
 
+static int
+nvc0_software_mthd_mp_control(struct nouveau_object *object, u32 mthd,
+                              void *args, u32 size)
+{
+	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nvc0_software_priv *priv = (void *)nv_object(chan)->engine;
+	u32 data = *(u32 *)args;
+
+	switch (mthd) {
+	case 0x600:
+		nv_wr32(priv, 0x419e00, data); /* MP.PM_UNK000 */
+		break;
+	case 0x644:
+		if (data & ~0x1ffffe)
+			return -EINVAL;
+		nv_wr32(priv, 0x419e44, data); /* MP.TRAP_WARP_ERROR_EN */
+		break;
+	case 0x6ac:
+		nv_wr32(priv, 0x419eac, data); /* MP.PM_UNK0AC */
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static struct nouveau_omthds
 nvc0_software_omthds[] = {
 	{ 0x0400, 0x0400, nvc0_software_mthd_vblsem_offset },
@@ -101,6 +127,9 @@ nvc0_software_omthds[] = {
 	{ 0x0408, 0x0408, nvc0_software_mthd_vblsem_value },
 	{ 0x040c, 0x040c, nvc0_software_mthd_vblsem_release },
 	{ 0x0500, 0x0500, nvc0_software_mthd_flip },
+	{ 0x0600, 0x0600, nvc0_software_mthd_mp_control },
+	{ 0x0644, 0x0644, nvc0_software_mthd_mp_control },
+	{ 0x06ac, 0x06ac, nvc0_software_mthd_mp_control },
 	{}
 };
 

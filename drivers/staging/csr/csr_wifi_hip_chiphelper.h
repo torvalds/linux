@@ -354,7 +354,7 @@ CHIP_HELPER_LIST(C_DEC)
     map that is part of the window and the size is the number of
     visible words.
 
-    Some of the windows have thier lowest portion covered by
+    Some of the windows have their lowest portion covered by
     registers.  For these windows address is the first address
     after the registers and size is the siave excluding the part
     covered by registers.
@@ -375,7 +375,7 @@ CHIP_HELPER_LIST(C_DEC)
     will be needed if the device is being booted from cold.  These
     register writes enable the clocks and setup the PLL to a basic
     working state.  SPI access might be unreliable until these writes
-    have occured (And they may take mulitple goes).
+    have occurred (And they may take mulitple goes).
 */
 /*  HostResetSequence
 

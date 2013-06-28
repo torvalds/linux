@@ -21,7 +21,6 @@
 #include <mach/hardware.h>
 
 #include "../codecs/tlv320aic23.h"
-#include "ep93xx-pcm.h"
 
 #define CODEC_CLOCK 5644800
 

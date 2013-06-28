@@ -12,6 +12,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
@@ -19,6 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/log2.h>
 #include <linux/pm.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
@@ -121,6 +123,11 @@ struct mt9p031 {
 	struct mutex power_lock; /* lock to protect power_count */
 	int power_count;
 
+	struct clk *clk;
+	struct regulator *vaa;
+	struct regulator *vdd;
+	struct regulator *vdd_io;
+
 	enum mt9p031_model model;
 	struct aptina_pll pll;
 	int reset;
@@ -195,7 +202,7 @@ static int mt9p031_reset(struct mt9p031 *mt9p031)
 					  0);
 }
 
-static int mt9p031_pll_setup(struct mt9p031 *mt9p031)
+static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 {
 	static const struct aptina_pll_limits limits = {
 		.ext_clock_min = 6000000,
@@ -215,6 +222,12 @@ static int mt9p031_pll_setup(struct mt9p031 *mt9p031)
 
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 	struct mt9p031_platform_data *pdata = mt9p031->pdata;
+
+	mt9p031->clk = devm_clk_get(&client->dev, NULL);
+	if (IS_ERR(mt9p031->clk))
+		return PTR_ERR(mt9p031->clk);
+
+	clk_set_rate(mt9p031->clk, pdata->ext_freq);
 
 	mt9p031->pll.ext_clock = pdata->ext_freq;
 	mt9p031->pll.pix_clock = pdata->target_freq;
@@ -264,10 +277,14 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 		usleep_range(1000, 2000);
 	}
 
+	/* Bring up the supplies */
+	regulator_enable(mt9p031->vdd);
+	regulator_enable(mt9p031->vdd_io);
+	regulator_enable(mt9p031->vaa);
+
 	/* Emable clock */
-	if (mt9p031->pdata->set_xclk)
-		mt9p031->pdata->set_xclk(&mt9p031->subdev,
-					 mt9p031->pdata->ext_freq);
+	if (mt9p031->clk)
+		clk_prepare_enable(mt9p031->clk);
 
 	/* Now RESET_BAR must be high */
 	if (mt9p031->reset != -1) {
@@ -285,8 +302,12 @@ static void mt9p031_power_off(struct mt9p031 *mt9p031)
 		usleep_range(1000, 2000);
 	}
 
-	if (mt9p031->pdata->set_xclk)
-		mt9p031->pdata->set_xclk(&mt9p031->subdev, 0);
+	regulator_disable(mt9p031->vaa);
+	regulator_disable(mt9p031->vdd_io);
+	regulator_disable(mt9p031->vdd);
+
+	if (mt9p031->clk)
+		clk_disable_unprepare(mt9p031->clk);
 }
 
 static int __mt9p031_set_power(struct mt9p031 *mt9p031, bool on)
@@ -927,7 +948,7 @@ static int mt9p031_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	mt9p031 = kzalloc(sizeof(*mt9p031), GFP_KERNEL);
+	mt9p031 = devm_kzalloc(&client->dev, sizeof(*mt9p031), GFP_KERNEL);
 	if (mt9p031 == NULL)
 		return -ENOMEM;
 
@@ -936,6 +957,16 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->mode2 = MT9P031_READ_MODE_2_ROW_BLC;
 	mt9p031->model = did->driver_data;
 	mt9p031->reset = -1;
+
+	mt9p031->vaa = devm_regulator_get(&client->dev, "vaa");
+	mt9p031->vdd = devm_regulator_get(&client->dev, "vdd");
+	mt9p031->vdd_io = devm_regulator_get(&client->dev, "vdd_io");
+
+	if (IS_ERR(mt9p031->vaa) || IS_ERR(mt9p031->vdd) ||
+	    IS_ERR(mt9p031->vdd_io)) {
+		dev_err(&client->dev, "Unable to get regulators\n");
+		return -ENODEV;
+	}
 
 	v4l2_ctrl_handler_init(&mt9p031->ctrls, ARRAY_SIZE(mt9p031_ctrls) + 6);
 
@@ -1001,24 +1032,20 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->format.colorspace = V4L2_COLORSPACE_SRGB;
 
 	if (pdata->reset != -1) {
-		ret = gpio_request_one(pdata->reset, GPIOF_OUT_INIT_LOW,
-				       "mt9p031_rst");
+		ret = devm_gpio_request_one(&client->dev, pdata->reset,
+					    GPIOF_OUT_INIT_LOW, "mt9p031_rst");
 		if (ret < 0)
 			goto done;
 
 		mt9p031->reset = pdata->reset;
 	}
 
-	ret = mt9p031_pll_setup(mt9p031);
+	ret = mt9p031_clk_setup(mt9p031);
 
 done:
 	if (ret < 0) {
-		if (mt9p031->reset != -1)
-			gpio_free(mt9p031->reset);
-
 		v4l2_ctrl_handler_free(&mt9p031->ctrls);
 		media_entity_cleanup(&mt9p031->subdev.entity);
-		kfree(mt9p031);
 	}
 
 	return ret;
@@ -1032,9 +1059,6 @@ static int mt9p031_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&mt9p031->ctrls);
 	v4l2_device_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
-	if (mt9p031->reset != -1)
-		gpio_free(mt9p031->reset);
-	kfree(mt9p031);
 
 	return 0;
 }

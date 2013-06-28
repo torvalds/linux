@@ -949,7 +949,7 @@ static void __exit exit_r2nm(void)
 	r2hb_exit();
 }
 
-static int __init init_r2nm(void)
+int r2nm_init(void)
 {
 	int ret = -1;
 
@@ -986,10 +986,11 @@ out_r2hb:
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(r2nm_init);
 
 MODULE_AUTHOR("Oracle");
 MODULE_LICENSE("GPL");
 
-/* module_init(init_r2nm) */
-late_initcall(init_r2nm);
-/* module_exit(exit_r2nm) */
+#ifndef CONFIG_RAMSTER_MODULE
+late_initcall(r2nm_init);
+#endif

@@ -54,6 +54,10 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 				if (ipv6_rcv_saddr_equal(sk, sk2))
 					break;
 			}
+			if (!relax && reuse && sk2->sk_reuse &&
+			    sk2->sk_state != TCP_LISTEN &&
+			    ipv6_rcv_saddr_equal(sk, sk2))
+				break;
 		}
 	}
 
@@ -169,10 +173,8 @@ void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr * uaddr)
 	sin6->sin6_port	= inet_sk(sk)->inet_dport;
 	/* We do not store received flowlabel for TCP */
 	sin6->sin6_flowinfo = 0;
-	sin6->sin6_scope_id = 0;
-	if (sk->sk_bound_dev_if &&
-	    ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL)
-		sin6->sin6_scope_id = sk->sk_bound_dev_if;
+	sin6->sin6_scope_id = ipv6_iface_scope_id(&sin6->sin6_addr,
+						  sk->sk_bound_dev_if);
 }
 
 EXPORT_SYMBOL_GPL(inet6_csk_addr2sockaddr);

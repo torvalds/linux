@@ -19,7 +19,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -367,6 +367,8 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 		return -EIO;
 	}
 
+	priv->ucode_loaded = true;
+
 	if (ucode_type != IWL_UCODE_WOWLAN) {
 		/* delay a bit to give rfkill time to run */
 		msleep(5);
@@ -379,8 +381,6 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 		priv->cur_ucode = old_type;
 		return ret;
 	}
-
-	priv->ucode_loaded = true;
 
 	return 0;
 }

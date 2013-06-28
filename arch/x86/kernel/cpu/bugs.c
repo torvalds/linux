@@ -59,7 +59,7 @@ static void __init check_fpu(void)
 	 * trap_init() enabled FXSR and company _before_ testing for FP
 	 * problems here.
 	 *
-	 * Test for the divl bug..
+	 * Test for the divl bug: http://en.wikipedia.org/wiki/Fdiv_bug
 	 */
 	__asm__("fninit\n\t"
 		"fldl %1\n\t"
@@ -75,25 +75,11 @@ static void __init check_fpu(void)
 
 	kernel_fpu_end();
 
-	boot_cpu_data.fdiv_bug = fdiv_bug;
-	if (boot_cpu_data.fdiv_bug)
+	if (fdiv_bug) {
+		set_cpu_bug(&boot_cpu_data, X86_BUG_FDIV);
 		pr_warn("Hmm, FPU with FDIV bug\n");
+	}
 }
-
-/*
- * Check whether we are able to run this kernel safely on SMP.
- *
- * - i386 is no longer supported.
- * - In order to run on anything without a TSC, we need to be
- *   compiled for a i486.
- */
-
-static void __init check_config(void)
-{
-	if (boot_cpu_data.x86 < 4)
-		panic("Kernel requires i486+ for 'invlpg' and other features");
-}
-
 
 void __init check_bugs(void)
 {
@@ -102,7 +88,17 @@ void __init check_bugs(void)
 	pr_info("CPU: ");
 	print_cpu_info(&boot_cpu_data);
 #endif
-	check_config();
+
+	/*
+	 * Check whether we are able to run this kernel safely on SMP.
+	 *
+	 * - i386 is no longer supported.
+	 * - In order to run on anything without a TSC, we need to be
+	 *   compiled for a i486.
+	 */
+	if (boot_cpu_data.x86 < 4)
+		panic("Kernel requires i486+ for 'invlpg' and other features");
+
 	init_utsname()->machine[1] =
 		'0' + (boot_cpu_data.x86 > 6 ? 6 : boot_cpu_data.x86);
 	alternative_instructions();

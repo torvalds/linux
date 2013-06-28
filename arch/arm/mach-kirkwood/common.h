@@ -30,7 +30,7 @@ void kirkwood_init(void);
 void kirkwood_init_early(void);
 void kirkwood_init_irq(void);
 
-void kirkwood_setup_cpu_mbus(void);
+void kirkwood_setup_wins(void);
 
 void kirkwood_enable_pcie(void);
 void kirkwood_pcie_id(u32 *dev, u32 *rev);
@@ -141,10 +141,22 @@ void openblocks_a6_init(void);
 static inline void openblocks_a6_init(void) {};
 #endif
 
+#ifdef CONFIG_MACH_READYNAS_DT
+void netgear_readynas_init(void);
+#else
+static inline void netgear_readynas_init(void) {};
+#endif
+
 #ifdef CONFIG_MACH_TOPKICK_DT
 void usi_topkick_init(void);
 #else
 static inline void usi_topkick_init(void) {};
+#endif
+
+#ifdef CONFIG_MACH_CLOUDBOX_DT
+void cloudbox_init(void);
+#else
+static inline void cloudbox_init(void) {};
 #endif
 
 /* early init functions not converted to fdt yet */

@@ -386,8 +386,9 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *da,
 		data->fan_div[nr] = 3;
 		break;
 	default:
-		dev_err(dev, "fan_div value %ld not "
-			"supported. Choose one of 1, 2, 4 or 8!\n", val);
+		dev_err(dev,
+			"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n",
+			val);
 		mutex_unlock(&data->update_lock);
 		return -EINVAL;
 	}
@@ -636,8 +637,9 @@ static int lm78_i2c_detect(struct i2c_client *client,
 		goto err_nodev;
 
 	if (lm78_alias_detect(client, i)) {
-		dev_dbg(&adapter->dev, "Device at 0x%02x appears to "
-			"be the same as ISA device\n", address);
+		dev_dbg(&adapter->dev,
+			"Device at 0x%02x appears to be the same as ISA device\n",
+			address);
 		goto err_nodev;
 	}
 

@@ -270,6 +270,9 @@ static struct snd_soc_dai_driver psc_ac97_dai[] = {
 	.ops = &psc_ac97_digital_ops,
 } };
 
+static const struct snd_soc_component_driver psc_ac97_component = {
+	.name		= DRV_NAME,
+};
 
 
 /* ---------------------------------------------------------------------
@@ -287,7 +290,8 @@ static int psc_ac97_of_probe(struct platform_device *op)
 	if (rc != 0)
 		return rc;
 
-	rc = snd_soc_register_dais(&op->dev, psc_ac97_dai, ARRAY_SIZE(psc_ac97_dai));
+	rc = snd_soc_register_component(&op->dev, &psc_ac97_component,
+					psc_ac97_dai, ARRAY_SIZE(psc_ac97_dai));
 	if (rc != 0) {
 		dev_err(&op->dev, "Failed to register DAI\n");
 		return rc;
@@ -313,7 +317,7 @@ static int psc_ac97_of_probe(struct platform_device *op)
 static int psc_ac97_of_remove(struct platform_device *op)
 {
 	mpc5200_audio_dma_destroy(op);
-	snd_soc_unregister_dais(&op->dev, ARRAY_SIZE(psc_ac97_dai));
+	snd_soc_unregister_component(&op->dev);
 	return 0;
 }
 

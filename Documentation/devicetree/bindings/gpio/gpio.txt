@@ -98,7 +98,7 @@ announce the pinrange to the pin ctrl subsystem. For example,
 		compatible = "fsl,qe-pario-bank-e", "fsl,qe-pario-bank";
 		reg = <0x1460 0x18>;
 		gpio-controller;
-		gpio-ranges = <&pinctrl1 20 10>, <&pinctrl2 50 20>;
+		gpio-ranges = <&pinctrl1 0 20 10>, <&pinctrl2 10 50 20>;
 
     }
 
@@ -107,8 +107,8 @@ where,
 
    Next values specify the base pin and number of pins for the range
    handled by 'qe_pio_e' gpio. In the given example from base pin 20 to
-   pin 29 under pinctrl1 and pin 50 to pin 69 under pinctrl2 is handled
-   by this gpio controller.
+   pin 29 under pinctrl1 with gpio offset 0 and pin 50 to pin 69 under
+   pinctrl2 with gpio offset 10 is handled by this gpio controller.
 
 The pinctrl node must have "#gpio-range-cells" property to show number of
 arguments to pass with phandle from gpio controllers node.

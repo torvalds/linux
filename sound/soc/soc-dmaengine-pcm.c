@@ -33,8 +33,6 @@ struct dmaengine_pcm_runtime_data {
 	dma_cookie_t cookie;
 
 	unsigned int pos;
-
-	void *data;
 };
 
 static inline struct dmaengine_pcm_runtime_data *substream_to_prtd(
@@ -42,33 +40,6 @@ static inline struct dmaengine_pcm_runtime_data *substream_to_prtd(
 {
 	return substream->runtime->private_data;
 }
-
-/**
- * snd_dmaengine_pcm_set_data - Set dmaengine substream private data
- * @substream: PCM substream
- * @data: Data to set
- */
-void snd_dmaengine_pcm_set_data(struct snd_pcm_substream *substream, void *data)
-{
-	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
-
-	prtd->data = data;
-}
-EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_set_data);
-
-/**
- * snd_dmaengine_pcm_get_data - Get dmaeinge substream private data
- * @substream: PCM substream
- *
- * Returns the data previously set with snd_dmaengine_pcm_set_data
- */
-void *snd_dmaengine_pcm_get_data(struct snd_pcm_substream *substream)
-{
-	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
-
-	return prtd->data;
-}
-EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_get_data);
 
 struct dma_chan *snd_dmaengine_pcm_get_chan(struct snd_pcm_substream *substream)
 {
@@ -118,9 +89,48 @@ int snd_hwparams_to_dma_slave_config(const struct snd_pcm_substream *substream,
 		slave_config->src_addr_width = buswidth;
 	}
 
+	slave_config->device_fc = false;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hwparams_to_dma_slave_config);
+
+/**
+ * snd_dmaengine_pcm_set_config_from_dai_data() - Initializes a dma slave config
+ *  using DAI DMA data.
+ * @substream: PCM substream
+ * @dma_data: DAI DMA data
+ * @slave_config: DMA slave configuration
+ *
+ * Initializes the {dst,src}_addr, {dst,src}_maxburst, {dst,src}_addr_width and
+ * slave_id fields of the DMA slave config from the same fields of the DAI DMA
+ * data struct. The src and dst fields will be initialized depending on the
+ * direction of the substream. If the substream is a playback stream the dst
+ * fields will be initialized, if it is a capture stream the src fields will be
+ * initialized. The {dst,src}_addr_width field will only be initialized if the
+ * addr_width field of the DAI DMA data struct is not equal to
+ * DMA_SLAVE_BUSWIDTH_UNDEFINED.
+ */
+void snd_dmaengine_pcm_set_config_from_dai_data(
+	const struct snd_pcm_substream *substream,
+	const struct snd_dmaengine_dai_dma_data *dma_data,
+	struct dma_slave_config *slave_config)
+{
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		slave_config->dst_addr = dma_data->addr;
+		slave_config->dst_maxburst = dma_data->maxburst;
+		if (dma_data->addr_width != DMA_SLAVE_BUSWIDTH_UNDEFINED)
+			slave_config->dst_addr_width = dma_data->addr_width;
+	} else {
+		slave_config->src_addr = dma_data->addr;
+		slave_config->src_maxburst = dma_data->maxburst;
+		if (dma_data->addr_width != DMA_SLAVE_BUSWIDTH_UNDEFINED)
+			slave_config->src_addr_width = dma_data->addr_width;
+	}
+
+	slave_config->slave_id = dma_data->slave_id;
+}
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_set_config_from_dai_data);
 
 static void dmaengine_pcm_dma_complete(void *arg)
 {
@@ -244,43 +254,47 @@ snd_pcm_uframes_t snd_dmaengine_pcm_pointer(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_pointer);
 
-static int dmaengine_pcm_request_channel(struct dmaengine_pcm_runtime_data *prtd,
-	dma_filter_fn filter_fn, void *filter_data)
+/**
+ * snd_dmaengine_pcm_request_channel - Request channel for the dmaengine PCM
+ * @filter_fn: Filter function used to request the DMA channel
+ * @filter_data: Data passed to the DMA filter function
+ *
+ * Returns NULL or the requested DMA channel.
+ *
+ * This function request a DMA channel for usage with dmaengine PCM.
+ */
+struct dma_chan *snd_dmaengine_pcm_request_channel(dma_filter_fn filter_fn,
+	void *filter_data)
 {
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 	dma_cap_set(DMA_CYCLIC, mask);
-	prtd->dma_chan = dma_request_channel(mask, filter_fn, filter_data);
 
-	if (!prtd->dma_chan)
-		return -ENXIO;
-
-	return 0;
+	return dma_request_channel(mask, filter_fn, filter_data);
 }
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_request_channel);
 
 /**
  * snd_dmaengine_pcm_open - Open a dmaengine based PCM substream
  * @substream: PCM substream
- * @filter_fn: Filter function used to request the DMA channel
- * @filter_data: Data passed to the DMA filter function
+ * @chan: DMA channel to use for data transfers
  *
  * Returns 0 on success, a negative error code otherwise.
  *
- * This function will request a DMA channel using the passed filter function and
- * data. The function should usually be called from the pcm open callback.
- *
- * Note that this function will use private_data field of the substream's
- * runtime. So it is not availabe to your pcm driver implementation. If you need
- * to keep additional data attached to a substream use
- * snd_dmaengine_pcm_{set,get}_data.
+ * The function should usually be called from the pcm open callback. Note that
+ * this function will use private_data field of the substream's runtime. So it
+ * is not availabe to your pcm driver implementation.
  */
 int snd_dmaengine_pcm_open(struct snd_pcm_substream *substream,
-	dma_filter_fn filter_fn, void *filter_data)
+	struct dma_chan *chan)
 {
 	struct dmaengine_pcm_runtime_data *prtd;
 	int ret;
+
+	if (!chan)
+		return -ENXIO;
 
 	ret = snd_pcm_hw_constraint_integer(substream->runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
@@ -291,17 +305,34 @@ int snd_dmaengine_pcm_open(struct snd_pcm_substream *substream,
 	if (!prtd)
 		return -ENOMEM;
 
-	ret = dmaengine_pcm_request_channel(prtd, filter_fn, filter_data);
-	if (ret < 0) {
-		kfree(prtd);
-		return ret;
-	}
+	prtd->dma_chan = chan;
 
 	substream->runtime->private_data = prtd;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_open);
+
+/**
+ * snd_dmaengine_pcm_open_request_chan - Open a dmaengine based PCM substream and request channel
+ * @substream: PCM substream
+ * @filter_fn: Filter function used to request the DMA channel
+ * @filter_data: Data passed to the DMA filter function
+ *
+ * Returns 0 on success, a negative error code otherwise.
+ *
+ * This function will request a DMA channel using the passed filter function and
+ * data. The function should usually be called from the pcm open callback. Note
+ * that this function will use private_data field of the substream's runtime. So
+ * it is not availabe to your pcm driver implementation.
+ */
+int snd_dmaengine_pcm_open_request_chan(struct snd_pcm_substream *substream,
+	dma_filter_fn filter_fn, void *filter_data)
+{
+	return snd_dmaengine_pcm_open(substream,
+		    snd_dmaengine_pcm_request_channel(filter_fn, filter_data));
+}
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_open_request_chan);
 
 /**
  * snd_dmaengine_pcm_close - Close a dmaengine based PCM substream
@@ -311,11 +342,26 @@ int snd_dmaengine_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 
-	dma_release_channel(prtd->dma_chan);
 	kfree(prtd);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_close);
+
+/**
+ * snd_dmaengine_pcm_release_chan_close - Close a dmaengine based PCM substream and release channel
+ * @substream: PCM substream
+ *
+ * Releases the DMA channel associated with the PCM substream.
+ */
+int snd_dmaengine_pcm_close_release_chan(struct snd_pcm_substream *substream)
+{
+	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
+
+	dma_release_channel(prtd->dma_chan);
+
+	return snd_dmaengine_pcm_close(substream);
+}
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_close_release_chan);
 
 MODULE_LICENSE("GPL");

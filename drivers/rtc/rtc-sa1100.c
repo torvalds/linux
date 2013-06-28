@@ -234,14 +234,13 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	if (irq_1hz < 0 || irq_alarm < 0)
 		return -ENODEV;
 
-	info = kzalloc(sizeof(struct sa1100_rtc), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct sa1100_rtc), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
-	info->clk = clk_get(&pdev->dev, NULL);
+	info->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(info->clk)) {
 		dev_err(&pdev->dev, "failed to find rtc clock source\n");
-		ret = PTR_ERR(info->clk);
-		goto err_clk;
+		return PTR_ERR(info->clk);
 	}
 	info->irq_1hz = irq_1hz;
 	info->irq_alarm = irq_alarm;
@@ -268,8 +267,8 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	rtc = rtc_device_register(pdev->name, &pdev->dev, &sa1100_rtc_ops,
-		THIS_MODULE);
+	rtc = devm_rtc_device_register(&pdev->dev, pdev->name, &sa1100_rtc_ops,
+					THIS_MODULE);
 
 	if (IS_ERR(rtc)) {
 		ret = PTR_ERR(rtc);
@@ -306,9 +305,6 @@ err_dev:
 	clk_disable_unprepare(info->clk);
 err_enable_clk:
 	platform_set_drvdata(pdev, NULL);
-	clk_put(info->clk);
-err_clk:
-	kfree(info);
 	return ret;
 }
 
@@ -317,17 +313,14 @@ static int sa1100_rtc_remove(struct platform_device *pdev)
 	struct sa1100_rtc *info = platform_get_drvdata(pdev);
 
 	if (info) {
-		rtc_device_unregister(info->rtc);
 		clk_disable_unprepare(info->clk);
-		clk_put(info->clk);
 		platform_set_drvdata(pdev, NULL);
-		kfree(info);
 	}
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sa1100_rtc_suspend(struct device *dev)
 {
 	struct sa1100_rtc *info = dev_get_drvdata(dev);
@@ -343,12 +336,10 @@ static int sa1100_rtc_resume(struct device *dev)
 		disable_irq_wake(info->irq_alarm);
 	return 0;
 }
-
-static const struct dev_pm_ops sa1100_rtc_pm_ops = {
-	.suspend	= sa1100_rtc_suspend,
-	.resume		= sa1100_rtc_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(sa1100_rtc_pm_ops, sa1100_rtc_suspend,
+			sa1100_rtc_resume);
 
 #ifdef CONFIG_OF
 static struct of_device_id sa1100_rtc_dt_ids[] = {
@@ -364,9 +355,7 @@ static struct platform_driver sa1100_rtc_driver = {
 	.remove		= sa1100_rtc_remove,
 	.driver		= {
 		.name	= "sa1100-rtc",
-#ifdef CONFIG_PM
 		.pm	= &sa1100_rtc_pm_ops,
-#endif
 		.of_match_table = of_match_ptr(sa1100_rtc_dt_ids),
 	},
 };

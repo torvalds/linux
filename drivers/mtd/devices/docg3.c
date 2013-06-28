@@ -123,7 +123,7 @@ static inline void doc_flash_address(struct docg3 *docg3, u8 addr)
 	doc_writeb(docg3, addr, DOC_FLASHADDRESS);
 }
 
-static char const *part_probes[] = { "cmdlinepart", "saftlpart", NULL };
+static char const * const part_probes[] = { "cmdlinepart", "saftlpart", NULL };
 
 static int doc_register_readb(struct docg3 *docg3, int reg)
 {
@@ -2144,18 +2144,7 @@ static struct platform_driver g3_driver = {
 	.remove		= __exit_p(docg3_release),
 };
 
-static int __init docg3_init(void)
-{
-	return platform_driver_probe(&g3_driver, docg3_probe);
-}
-module_init(docg3_init);
-
-
-static void __exit docg3_exit(void)
-{
-	platform_driver_unregister(&g3_driver);
-}
-module_exit(docg3_exit);
+module_platform_driver_probe(g3_driver, docg3_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Robert Jarzmik <robert.jarzmik@free.fr>");

@@ -724,7 +724,7 @@ static int m5mols_s_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		if (is_code(code, M5MOLS_RESTYPE_MONITOR))
 			ret = m5mols_start_monitor(info);
-		if (is_code(code, M5MOLS_RESTYPE_CAPTURE))
+		else if (is_code(code, M5MOLS_RESTYPE_CAPTURE))
 			ret = m5mols_start_capture(info);
 		else
 			ret = -EINVAL;

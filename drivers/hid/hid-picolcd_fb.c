@@ -19,8 +19,6 @@
 
 #include <linux/hid.h>
 #include <linux/vmalloc.h>
-#include "usbhid/usbhid.h"
-#include <linux/usb.h>
 
 #include <linux/fb.h>
 #include <linux/module.h>
@@ -143,8 +141,8 @@ static int picolcd_fb_send_tile(struct picolcd_data *data, u8 *vbitmap,
 		else
 			hid_set_field(report2->field[0], 4 + i - 32, tdata[i]);
 
-	usbhid_submit_report(data->hdev, report1, USB_DIR_OUT);
-	usbhid_submit_report(data->hdev, report2, USB_DIR_OUT);
+	hid_hw_request(data->hdev, report1, HID_REQ_SET_REPORT);
+	hid_hw_request(data->hdev, report2, HID_REQ_SET_REPORT);
 	spin_unlock_irqrestore(&data->lock, flags);
 	return 0;
 }
@@ -214,7 +212,7 @@ int picolcd_fb_reset(struct picolcd_data *data, int clear)
 				hid_set_field(report->field[0], j, mapcmd[j]);
 			else
 				hid_set_field(report->field[0], j, 0);
-		usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
+		hid_hw_request(data->hdev, report, HID_REQ_SET_REPORT);
 	}
 	spin_unlock_irqrestore(&data->lock, flags);
 
@@ -270,7 +268,7 @@ static void picolcd_fb_update(struct fb_info *info)
 				mutex_unlock(&info->lock);
 				if (!data)
 					return;
-				usbhid_wait_io(data->hdev);
+				hid_hw_wait(data->hdev);
 				mutex_lock(&info->lock);
 				n = 0;
 			}
@@ -288,7 +286,7 @@ static void picolcd_fb_update(struct fb_info *info)
 		spin_unlock_irqrestore(&fbdata->lock, flags);
 		mutex_unlock(&info->lock);
 		if (data)
-			usbhid_wait_io(data->hdev);
+			hid_hw_wait(data->hdev);
 		return;
 	}
 out:

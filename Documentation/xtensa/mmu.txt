@@ -1,0 +1,46 @@
+MMUv3 initialization sequence.
+
+The code in the initialize_mmu macro sets up MMUv3 memory mapping
+identically to MMUv2 fixed memory mapping. Depending on
+CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX symbol this code is
+located in one of the following address ranges:
+
+    0xF0000000..0xFFFFFFFF (will keep same address in MMU v2 layout;
+    			 typically ROM)
+    0x00000000..0x07FFFFFF (system RAM; this code is actually linked
+    			 at 0xD0000000..0xD7FFFFFF [cached]
+    			 or 0xD8000000..0xDFFFFFFF [uncached];
+    			 in any case, initially runs elsewhere
+    			 than linked, so have to be careful)
+
+The code has the following assumptions:
+  This code fragment is run only on an MMU v3.
+  TLBs are in their reset state.
+  ITLBCFG and DTLBCFG are zero (reset state).
+  RASID is 0x04030201 (reset state).
+  PS.RING is zero (reset state).
+  LITBASE is zero (reset state, PC-relative literals); required to be PIC.
+
+TLB setup proceeds along the following steps.
+
+  Legend:
+    VA = virtual address (two upper nibbles of it);
+    PA = physical address (two upper nibbles of it);
+    pc = physical range that contains this code;
+
+After step 2, we jump to virtual address in 0x40000000..0x5fffffff
+that corresponds to next instruction to execute in this code.
+After step 4, we jump to intended (linked) address of this code.
+
+    Step 0     Step1     Step 2     Step3     Step 4     Step5
+ ============  =====  ============  =====  ============  =====
+   VA      PA     PA    VA      PA     PA    VA      PA     PA
+ ------    --     --  ------    --     --  ------    --     --
+ E0..FF -> E0  -> E0  E0..FF -> E0         F0..FF -> F0  -> F0
+ C0..DF -> C0  -> C0  C0..DF -> C0         E0..EF -> F0  -> F0
+ A0..BF -> A0  -> A0  A0..BF -> A0         D8..DF -> 00  -> 00
+ 80..9F -> 80  -> 80  80..9F -> 80         D0..D7 -> 00  -> 00
+ 60..7F -> 60  -> 60  60..7F -> 60
+ 40..5F -> 40         40..5F -> pc  -> pc  40..5F -> pc
+ 20..3F -> 20  -> 20  20..3F -> 20
+ 00..1F -> 00  -> 00  00..1F -> 00

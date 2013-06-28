@@ -670,6 +670,10 @@ snd_hda_check_power_state(struct hda_codec *codec, hda_nid_t nid,
 	return (state != target_state);
 }
 
+unsigned int snd_hda_codec_eapd_power_filter(struct hda_codec *codec,
+					     hda_nid_t nid,
+					     unsigned int power_state);
+
 /*
  * AMP control callbacks
  */

@@ -299,7 +299,7 @@ EXPORT_SYMBOL(snd_ac97_write);
  * Reads a value from the given register.  This will invoke the read
  * callback directly after the register check.
  *
- * Returns the read value.
+ * Return: The read value.
  */
 unsigned short snd_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
@@ -352,7 +352,7 @@ EXPORT_SYMBOL(snd_ac97_write_cache);
  * Compares the value with the register cache and updates the value
  * only when the value is changed.
  *
- * Returns 1 if the value is changed, 0 if no change, or a negative
+ * Return: 1 if the value is changed, 0 if no change, or a negative
  * code on failure.
  */
 int snd_ac97_update(struct snd_ac97 *ac97, unsigned short reg, unsigned short value)
@@ -384,7 +384,7 @@ EXPORT_SYMBOL(snd_ac97_update);
  * Updates the masked-bits on the given register only when the value
  * is changed.
  *
- * Returns 1 if the bits are changed, 0 if no change, or a negative
+ * Return: 1 if the bits are changed, 0 if no change, or a negative
  * code on failure.
  */
 int snd_ac97_update_bits(struct snd_ac97 *ac97, unsigned short reg, unsigned short mask, unsigned short value)
@@ -1836,7 +1836,7 @@ void snd_ac97_get_name(struct snd_ac97 *ac97, unsigned int id, char *name, int m
  * snd_ac97_get_short_name - retrieve codec name
  * @ac97: the codec instance
  *
- * Returns the short identifying name of the codec.
+ * Return: The short identifying name of the codec.
  */
 const char *snd_ac97_get_short_name(struct snd_ac97 *ac97)
 {
@@ -1910,7 +1910,7 @@ static int ac97_reset_wait(struct snd_ac97 *ac97, int timeout, int with_modem)
  * The AC97 bus instance is registered as a low-level device, so you don't
  * have to release it manually.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_ac97_bus(struct snd_card *card, int num, struct snd_ac97_bus_ops *ops,
 		 void *private_data, struct snd_ac97_bus **rbus)
@@ -2006,7 +2006,7 @@ static void do_update_power(struct work_struct *work)
  * The ac97 instance is registered as a low-level device, so you don't
  * have to release it manually.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template, struct snd_ac97 **rac97)
 {
@@ -2373,6 +2373,8 @@ static struct ac97_power_reg power_regs[PWIDX_SIZE] = {
  * @powerup: non-zero when power up the part
  *
  * Update the AC97 powerdown register bits of the given part.
+ *
+ * Return: Zero.
  */
 int snd_ac97_update_power(struct snd_ac97 *ac97, int reg, int powerup)
 {
@@ -2885,7 +2887,7 @@ static int apply_quirk_str(struct snd_ac97 *ac97, const char *typestr)
  * headphone (true line-out) control as "Master".
  * The quirk-list must be terminated with a zero-filled entry.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 
 int snd_ac97_tune_hardware(struct snd_ac97 *ac97, struct ac97_quirk *quirk, const char *override)

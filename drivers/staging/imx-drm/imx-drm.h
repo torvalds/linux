@@ -1,14 +1,24 @@
 #ifndef _IMX_DRM_H_
 #define _IMX_DRM_H_
 
+#include <linux/videodev2.h>
+
+#define IPU_PIX_FMT_GBR24	v4l2_fourcc('G', 'B', 'R', '3')
+
+struct drm_crtc;
+struct drm_connector;
+struct drm_device;
+struct drm_encoder;
 struct imx_drm_crtc;
 struct drm_fbdev_cma;
+struct drm_framebuffer;
+struct platform_device;
 
 struct imx_drm_crtc_helper_funcs {
 	int (*enable_vblank)(struct drm_crtc *crtc);
 	void (*disable_vblank)(struct drm_crtc *crtc);
 	int (*set_interface_pix_fmt)(struct drm_crtc *crtc, u32 encoder_type,
-			u32 pix_fmt);
+			u32 pix_fmt, int hsync_pin, int vsync_pin);
 	const struct drm_crtc_helper_funcs *crtc_helper_funcs;
 	const struct drm_crtc_funcs *crtc_funcs;
 };
@@ -44,6 +54,8 @@ struct drm_gem_cma_object *imx_drm_fb_get_obj(struct drm_framebuffer *fb);
 
 struct drm_device *imx_drm_device_get(void);
 void imx_drm_device_put(void);
+int imx_drm_crtc_panel_format_pins(struct drm_crtc *crtc, u32 encoder_type,
+		u32 interface_pix_fmt, int hsync_pin, int vsync_pin);
 int imx_drm_crtc_panel_format(struct drm_crtc *crtc, u32 encoder_type,
 		u32 interface_pix_fmt);
 void imx_drm_fb_helper_set(struct drm_fbdev_cma *fbdev_helper);

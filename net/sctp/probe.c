@@ -63,7 +63,7 @@ static struct {
 	struct timespec	  tstart;
 } sctpw;
 
-static void printl(const char *fmt, ...)
+static __printf(1, 2) void printl(const char *fmt, ...)
 {
 	va_list args;
 	int len;

@@ -690,7 +690,7 @@ static int sccb_check_status(struct gspca_dev *gspca_dev)
 		case 0x03:
 			break;
 		default:
-			PDEBUG(D_ERR, "sccb status 0x%02x, attempt %d/5",
+			PERR("sccb status 0x%02x, attempt %d/5",
 			       data, i + 1);
 		}
 	}

@@ -320,6 +320,8 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	}
 	ring->buf = ring->wqres.buf.direct.buf;
 
+	ring->hwtstamp_rx_filter = priv->hwtstamp_config.rx_filter;
+
 	return 0;
 
 err_hwq:
@@ -554,6 +556,7 @@ static void mlx4_en_refill_rx_buffers(struct mlx4_en_priv *priv,
 int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int budget)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_cqe *cqe;
 	struct mlx4_en_rx_ring *ring = &priv->rx_ring[cq->ring];
 	struct mlx4_en_rx_alloc *frags;
@@ -565,6 +568,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	int polled = 0;
 	int ip_summed;
 	int factor = priv->cqe_factor;
+	u64 timestamp;
 
 	if (!priv->port_up)
 		return 0;
@@ -669,19 +673,27 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 					gro_skb->data_len = length;
 					gro_skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-					if (cqe->vlan_my_qpn &
-					    cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK)) {
+					if ((cqe->vlan_my_qpn &
+					    cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK)) &&
+					    (dev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
 						u16 vid = be16_to_cpu(cqe->sl_vid);
 
-						__vlan_hwaccel_put_tag(gro_skb, vid);
+						__vlan_hwaccel_put_tag(gro_skb, htons(ETH_P_8021Q), vid);
 					}
 
 					if (dev->features & NETIF_F_RXHASH)
 						gro_skb->rxhash = be32_to_cpu(cqe->immed_rss_invalid);
 
 					skb_record_rx_queue(gro_skb, cq->ring);
-					napi_gro_frags(&cq->napi);
 
+					if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
+						timestamp = mlx4_en_get_cqe_ts(cqe);
+						mlx4_en_fill_hwtstamps(mdev,
+								       skb_hwtstamps(gro_skb),
+								       timestamp);
+					}
+
+					napi_gro_frags(&cq->napi);
 					goto next;
 				}
 
@@ -714,9 +726,16 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		if (dev->features & NETIF_F_RXHASH)
 			skb->rxhash = be32_to_cpu(cqe->immed_rss_invalid);
 
-		if (be32_to_cpu(cqe->vlan_my_qpn) &
-		    MLX4_CQE_VLAN_PRESENT_MASK)
-			__vlan_hwaccel_put_tag(skb, be16_to_cpu(cqe->sl_vid));
+		if ((be32_to_cpu(cqe->vlan_my_qpn) &
+		    MLX4_CQE_VLAN_PRESENT_MASK) &&
+		    (dev->features & NETIF_F_HW_VLAN_CTAG_RX))
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), be16_to_cpu(cqe->sl_vid));
+
+		if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
+			timestamp = mlx4_en_get_cqe_ts(cqe);
+			mlx4_en_fill_hwtstamps(mdev, skb_hwtstamps(skb),
+					       timestamp);
+		}
 
 		/* Push it up the stack */
 		netif_receive_skb(skb);

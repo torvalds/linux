@@ -6,3 +6,13 @@ Required root node properties:
     - compatible = should be one or more of the following.
         (a) "samsung,smdkv310" - for Samsung's SMDKV310 eval board.
         (b) "samsung,exynos4210"  - for boards based on Exynos4210 SoC.
+
+Optional:
+    - firmware node, specifying presence and type of secure firmware:
+        - compatible: only "samsung,secure-firmware" is currently supported
+        - reg: address of non-secure SYSRAM used for communication with firmware
+
+	firmware@0203F000 {
+		compatible = "samsung,secure-firmware";
+		reg = <0x0203F000 0x1000>;
+	};

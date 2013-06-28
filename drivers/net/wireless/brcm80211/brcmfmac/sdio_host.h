@@ -48,7 +48,13 @@
 #define SBSDIO_NUM_FUNCTION		3
 
 /* function 0 vendor specific CCCR registers */
-#define SDIO_CCCR_BRCM_SEPINT		0xf2
+#define SDIO_CCCR_BRCM_CARDCAP			0xf0
+#define SDIO_CCCR_BRCM_CARDCAP_CMD14_SUPPORT	0x02
+#define SDIO_CCCR_BRCM_CARDCAP_CMD14_EXT	0x04
+#define SDIO_CCCR_BRCM_CARDCAP_CMD_NODEC	0x08
+#define SDIO_CCCR_BRCM_CARDCTRL		0xf1
+#define SDIO_CCCR_BRCM_CARDCTRL_WLANRESET	0x02
+#define SDIO_CCCR_BRCM_SEPINT			0xf2
 
 #define  SDIO_SEPINT_MASK		0x01
 #define  SDIO_SEPINT_OE			0x02
@@ -97,9 +103,23 @@
 #define SBSDIO_FUNC1_RFRAMEBCLO		0x1001B
 /* Read Frame Byte Count High */
 #define SBSDIO_FUNC1_RFRAMEBCHI		0x1001C
+/* MesBusyCtl (rev 11) */
+#define SBSDIO_FUNC1_MESBUSYCTRL	0x1001D
+/* Sdio Core Rev 12 */
+#define SBSDIO_FUNC1_WAKEUPCTRL		0x1001E
+#define SBSDIO_FUNC1_WCTRL_ALPWAIT_MASK		0x1
+#define SBSDIO_FUNC1_WCTRL_ALPWAIT_SHIFT	0
+#define SBSDIO_FUNC1_WCTRL_HTWAIT_MASK		0x2
+#define SBSDIO_FUNC1_WCTRL_HTWAIT_SHIFT		1
+#define SBSDIO_FUNC1_SLEEPCSR		0x1001F
+#define SBSDIO_FUNC1_SLEEPCSR_KSO_MASK		0x1
+#define SBSDIO_FUNC1_SLEEPCSR_KSO_SHIFT		0
+#define SBSDIO_FUNC1_SLEEPCSR_KSO_EN		1
+#define SBSDIO_FUNC1_SLEEPCSR_DEVON_MASK	0x2
+#define SBSDIO_FUNC1_SLEEPCSR_DEVON_SHIFT	1
 
 #define SBSDIO_FUNC1_MISC_REG_START	0x10000	/* f1 misc register start */
-#define SBSDIO_FUNC1_MISC_REG_LIMIT	0x1001C	/* f1 misc register end */
+#define SBSDIO_FUNC1_MISC_REG_LIMIT	0x1001F	/* f1 misc register end */
 
 /* function 1 OCP space */
 
@@ -154,13 +174,11 @@ struct brcmf_sdio_dev {
 	wait_queue_head_t request_buffer_wait;
 	struct device *dev;
 	struct brcmf_bus *bus_if;
-#ifdef CONFIG_BRCMFMAC_SDIO_OOB
-	unsigned int irq;		/* oob interrupt number */
-	unsigned long irq_flags;	/* board specific oob flags */
+	struct brcmfmac_sdio_platform_data *pdata;
+	bool oob_irq_requested;
 	bool irq_en;			/* irq enable flags */
 	spinlock_t irq_en_lock;
 	bool irq_wake;			/* irq wake enable flags */
-#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
 };
 
 /* Register/deregister interrupt handler. */
@@ -224,6 +242,8 @@ brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
  */
 extern int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw,
 			       u32 addr, u8 *buf, uint nbytes);
+extern int brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write,
+			    u32 address, u8 *data, uint size);
 
 /* Issue an abort to the specified function */
 extern int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);

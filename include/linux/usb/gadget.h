@@ -482,6 +482,7 @@ struct usb_gadget_ops {
  * @speed: Speed of current connection to USB host.
  * @max_speed: Maximal speed the UDC can handle.  UDC must support this
  *      and all slower speeds.
+ * @state: the state we are now (attached, suspended, configured, etc)
  * @sg_supported: true if we can handle scatter-gather
  * @is_otg: True if the USB device port uses a Mini-AB jack, so that the
  *	gadget driver must provide a USB OTG descriptor.
@@ -525,6 +526,7 @@ struct usb_gadget {
 	struct list_head		ep_list;	/* of usb_ep */
 	enum usb_device_speed		speed;
 	enum usb_device_speed		max_speed;
+	enum usb_device_state		state;
 	unsigned			sg_supported:1;
 	unsigned			is_otg:1;
 	unsigned			is_a_peripheral:1;
@@ -561,9 +563,8 @@ static inline int gadget_is_dualspeed(struct usb_gadget *g)
 }
 
 /**
- * gadget_is_superspeed() - return true if the hardware handles
- * supperspeed
- * @g: controller that might support supper speed
+ * gadget_is_superspeed() - return true if the hardware handles superspeed
+ * @g: controller that might support superspeed
  */
 static inline int gadget_is_superspeed(struct usb_gadget *g)
 {
@@ -872,6 +873,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver);
  */
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver);
 
+extern int usb_add_gadget_udc_release(struct device *parent,
+		struct usb_gadget *gadget, void (*release)(struct device *dev));
 extern int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget);
 extern void usb_del_gadget_udc(struct usb_gadget *gadget);
 extern int udc_attach_driver(const char *name,
@@ -956,6 +959,13 @@ extern int usb_gadget_map_request(struct usb_gadget *gadget,
 
 extern void usb_gadget_unmap_request(struct usb_gadget *gadget,
 		struct usb_request *req, int is_in);
+
+/*-------------------------------------------------------------------------*/
+
+/* utility to set gadget state properly */
+
+extern void usb_gadget_set_state(struct usb_gadget *gadget,
+		enum usb_device_state state);
 
 /*-------------------------------------------------------------------------*/
 

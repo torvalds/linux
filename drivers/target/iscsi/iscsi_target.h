@@ -16,11 +16,12 @@ extern int iscsit_reset_np_thread(struct iscsi_np *, struct iscsi_tpg_np *,
 				struct iscsi_portal_group *);
 extern int iscsit_del_np(struct iscsi_np *);
 extern int iscsit_add_reject_from_cmd(u8, int, int, unsigned char *, struct iscsi_cmd *);
+extern void iscsit_set_unsoliticed_dataout(struct iscsi_cmd *);
 extern int iscsit_logout_closesession(struct iscsi_cmd *, struct iscsi_conn *);
 extern int iscsit_logout_closeconnection(struct iscsi_cmd *, struct iscsi_conn *);
 extern int iscsit_logout_removeconnforrecovery(struct iscsi_cmd *, struct iscsi_conn *);
 extern int iscsit_send_async_msg(struct iscsi_conn *, u16, u8, u8);
-extern int iscsit_build_r2ts_for_cmd(struct iscsi_cmd *, struct iscsi_conn *, bool recovery);
+extern int iscsit_build_r2ts_for_cmd(struct iscsi_conn *, struct iscsi_cmd *, bool recovery);
 extern void iscsit_thread_get_cpumask(struct iscsi_conn *);
 extern int iscsi_target_tx_thread(void *);
 extern int iscsi_target_rx_thread(void *);

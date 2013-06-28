@@ -93,6 +93,13 @@ struct dm_verity_io {
 	 */
 };
 
+struct dm_verity_prefetch_work {
+	struct work_struct work;
+	struct dm_verity *v;
+	sector_t block;
+	unsigned n_blocks;
+};
+
 static struct shash_desc *io_hash_desc(struct dm_verity *v, struct dm_verity_io *io)
 {
 	return (struct shash_desc *)(io + 1);
@@ -424,15 +431,18 @@ static void verity_end_io(struct bio *bio, int error)
  * The root buffer is not prefetched, it is assumed that it will be cached
  * all the time.
  */
-static void verity_prefetch_io(struct dm_verity *v, struct dm_verity_io *io)
+static void verity_prefetch_io(struct work_struct *work)
 {
+	struct dm_verity_prefetch_work *pw =
+		container_of(work, struct dm_verity_prefetch_work, work);
+	struct dm_verity *v = pw->v;
 	int i;
 
 	for (i = v->levels - 2; i >= 0; i--) {
 		sector_t hash_block_start;
 		sector_t hash_block_end;
-		verity_hash_at_level(v, io->block, i, &hash_block_start, NULL);
-		verity_hash_at_level(v, io->block + io->n_blocks - 1, i, &hash_block_end, NULL);
+		verity_hash_at_level(v, pw->block, i, &hash_block_start, NULL);
+		verity_hash_at_level(v, pw->block + pw->n_blocks - 1, i, &hash_block_end, NULL);
 		if (!i) {
 			unsigned cluster = ACCESS_ONCE(dm_verity_prefetch_cluster);
 
@@ -452,6 +462,25 @@ no_prefetch_cluster:
 		dm_bufio_prefetch(v->bufio, hash_block_start,
 				  hash_block_end - hash_block_start + 1);
 	}
+
+	kfree(pw);
+}
+
+static void verity_submit_prefetch(struct dm_verity *v, struct dm_verity_io *io)
+{
+	struct dm_verity_prefetch_work *pw;
+
+	pw = kmalloc(sizeof(struct dm_verity_prefetch_work),
+		GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+
+	if (!pw)
+		return;
+
+	INIT_WORK(&pw->work, verity_prefetch_io);
+	pw->v = v;
+	pw->block = io->block;
+	pw->n_blocks = io->n_blocks;
+	queue_work(v->verify_wq, &pw->work);
 }
 
 /*
@@ -472,7 +501,7 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 		return -EIO;
 	}
 
-	if ((bio->bi_sector + bio_sectors(bio)) >>
+	if (bio_end_sector(bio) >>
 	    (v->data_dev_block_bits - SECTOR_SHIFT) > v->data_blocks) {
 		DMERR_LIMIT("io out of range");
 		return -EIO;
@@ -490,7 +519,7 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 
 	bio->bi_end_io = verity_end_io;
 	bio->bi_private = io;
-	io->io_vec_size = bio->bi_vcnt - bio->bi_idx;
+	io->io_vec_size = bio_segments(bio);
 	if (io->io_vec_size < DM_VERITY_IO_VEC_INLINE)
 		io->io_vec = io->io_vec_inline;
 	else
@@ -498,7 +527,7 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 	memcpy(io->io_vec, bio_iovec(bio),
 	       io->io_vec_size * sizeof(struct bio_vec));
 
-	verity_prefetch_io(v, io);
+	verity_submit_prefetch(v, io);
 
 	generic_make_request(bio);
 
@@ -858,7 +887,7 @@ bad:
 
 static struct target_type verity_target = {
 	.name		= "verity",
-	.version	= {1, 1, 1},
+	.version	= {1, 2, 0},
 	.module		= THIS_MODULE,
 	.ctr		= verity_ctr,
 	.dtr		= verity_dtr,

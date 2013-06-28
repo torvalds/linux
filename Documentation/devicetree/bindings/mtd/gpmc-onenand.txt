@@ -10,6 +10,8 @@ Documentation/devicetree/bindings/bus/ti-gpmc.txt
 Required properties:
 
  - reg:			The CS line the peripheral is connected to
+ - gpmc,device-width	Width of the ONENAND device connected to the GPMC
+			in bytes. Must be 1 or 2.
 
 Optional properties:
 
@@ -34,6 +36,7 @@ Example for an OMAP3430 board:
 
 		onenand@0 {
 			reg = <0 0 0>; /* CS0, offset 0 */
+			gpmc,device-width = <2>;
 
 			#address-cells = <1>;
 			#size-cells = <1>;

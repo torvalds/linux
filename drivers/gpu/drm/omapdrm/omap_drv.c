@@ -74,54 +74,53 @@ static int get_connector_type(struct omap_dss_device *dssdev)
 	}
 }
 
+static bool channel_used(struct drm_device *dev, enum omap_channel channel)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+	int i;
+
+	for (i = 0; i < priv->num_crtcs; i++) {
+		struct drm_crtc *crtc = priv->crtcs[i];
+
+		if (omap_crtc_channel(crtc) == channel)
+			return true;
+	}
+
+	return false;
+}
+
 static int omap_modeset_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_dss_device *dssdev = NULL;
 	int num_ovls = dss_feat_get_num_ovls();
-	int id;
+	int num_mgrs = dss_feat_get_num_mgrs();
+	int num_crtcs;
+	int i, id = 0;
 
 	drm_mode_config_init(dev);
 
 	omap_drm_irq_install(dev);
 
 	/*
-	 * Create private planes and CRTCs for the last NUM_CRTCs overlay
-	 * plus manager:
+	 * We usually don't want to create a CRTC for each manager, at least
+	 * not until we have a way to expose private planes to userspace.
+	 * Otherwise there would not be enough video pipes left for drm planes.
+	 * We use the num_crtc argument to limit the number of crtcs we create.
 	 */
-	for (id = 0; id < min(num_crtc, num_ovls); id++) {
-		struct drm_plane *plane;
-		struct drm_crtc *crtc;
+	num_crtcs = min3(num_crtc, num_mgrs, num_ovls);
 
-		plane = omap_plane_init(dev, id, true);
-		crtc = omap_crtc_init(dev, plane, pipe2chan(id), id);
-
-		BUG_ON(priv->num_crtcs >= ARRAY_SIZE(priv->crtcs));
-		priv->crtcs[id] = crtc;
-		priv->num_crtcs++;
-
-		priv->planes[id] = plane;
-		priv->num_planes++;
-	}
-
-	/*
-	 * Create normal planes for the remaining overlays:
-	 */
-	for (; id < num_ovls; id++) {
-		struct drm_plane *plane = omap_plane_init(dev, id, false);
-
-		BUG_ON(priv->num_planes >= ARRAY_SIZE(priv->planes));
-		priv->planes[priv->num_planes++] = plane;
-	}
+	dssdev = NULL;
 
 	for_each_dss_dev(dssdev) {
 		struct drm_connector *connector;
 		struct drm_encoder *encoder;
+		enum omap_channel channel;
 
 		if (!dssdev->driver) {
 			dev_warn(dev->dev, "%s has no driver.. skipping it\n",
 					dssdev->name);
-			return 0;
+			continue;
 		}
 
 		if (!(dssdev->driver->get_timings ||
@@ -129,7 +128,7 @@ static int omap_modeset_init(struct drm_device *dev)
 			dev_warn(dev->dev, "%s driver does not support "
 				"get_timings or read_edid.. skipping it!\n",
 				dssdev->name);
-			return 0;
+			continue;
 		}
 
 		encoder = omap_encoder_init(dev, dssdev);
@@ -157,15 +156,117 @@ static int omap_modeset_init(struct drm_device *dev)
 
 		drm_mode_connector_attach_encoder(connector, encoder);
 
+		/*
+		 * if we have reached the limit of the crtcs we are allowed to
+		 * create, let's not try to look for a crtc for this
+		 * panel/encoder and onwards, we will, of course, populate the
+		 * the possible_crtcs field for all the encoders with the final
+		 * set of crtcs we create
+		 */
+		if (id == num_crtcs)
+			continue;
+
+		/*
+		 * get the recommended DISPC channel for this encoder. For now,
+		 * we only try to get create a crtc out of the recommended, the
+		 * other possible channels to which the encoder can connect are
+		 * not considered.
+		 */
+		channel = dssdev->output->dispc_channel;
+
+		/*
+		 * if this channel hasn't already been taken by a previously
+		 * allocated crtc, we create a new crtc for it
+		 */
+		if (!channel_used(dev, channel)) {
+			struct drm_plane *plane;
+			struct drm_crtc *crtc;
+
+			plane = omap_plane_init(dev, id, true);
+			crtc = omap_crtc_init(dev, plane, channel, id);
+
+			BUG_ON(priv->num_crtcs >= ARRAY_SIZE(priv->crtcs));
+			priv->crtcs[id] = crtc;
+			priv->num_crtcs++;
+
+			priv->planes[id] = plane;
+			priv->num_planes++;
+
+			id++;
+		}
+	}
+
+	/*
+	 * we have allocated crtcs according to the need of the panels/encoders,
+	 * adding more crtcs here if needed
+	 */
+	for (; id < num_crtcs; id++) {
+
+		/* find a free manager for this crtc */
+		for (i = 0; i < num_mgrs; i++) {
+			if (!channel_used(dev, i)) {
+				struct drm_plane *plane;
+				struct drm_crtc *crtc;
+
+				plane = omap_plane_init(dev, id, true);
+				crtc = omap_crtc_init(dev, plane, i, id);
+
+				BUG_ON(priv->num_crtcs >=
+					ARRAY_SIZE(priv->crtcs));
+
+				priv->crtcs[id] = crtc;
+				priv->num_crtcs++;
+
+				priv->planes[id] = plane;
+				priv->num_planes++;
+
+				break;
+			} else {
+				continue;
+			}
+		}
+
+		if (i == num_mgrs) {
+			/* this shouldn't really happen */
+			dev_err(dev->dev, "no managers left for crtc\n");
+			return -ENOMEM;
+		}
+	}
+
+	/*
+	 * Create normal planes for the remaining overlays:
+	 */
+	for (; id < num_ovls; id++) {
+		struct drm_plane *plane = omap_plane_init(dev, id, false);
+
+		BUG_ON(priv->num_planes >= ARRAY_SIZE(priv->planes));
+		priv->planes[priv->num_planes++] = plane;
+	}
+
+	for (i = 0; i < priv->num_encoders; i++) {
+		struct drm_encoder *encoder = priv->encoders[i];
+		struct omap_dss_device *dssdev =
+					omap_encoder_get_dssdev(encoder);
+
 		/* figure out which crtc's we can connect the encoder to: */
 		encoder->possible_crtcs = 0;
 		for (id = 0; id < priv->num_crtcs; id++) {
-			enum omap_dss_output_id supported_outputs =
-					dss_feat_get_supported_outputs(pipe2chan(id));
+			struct drm_crtc *crtc = priv->crtcs[id];
+			enum omap_channel crtc_channel;
+			enum omap_dss_output_id supported_outputs;
+
+			crtc_channel = omap_crtc_channel(crtc);
+			supported_outputs =
+				dss_feat_get_supported_outputs(crtc_channel);
+
 			if (supported_outputs & dssdev->output->id)
 				encoder->possible_crtcs |= (1 << id);
 		}
 	}
+
+	DBG("registered %d planes, %d crtcs, %d encoders and %d connectors\n",
+		priv->num_planes, priv->num_crtcs, priv->num_encoders,
+		priv->num_connectors);
 
 	dev->mode_config.min_width = 32;
 	dev->mode_config.min_height = 32;
@@ -303,7 +404,7 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 	return ret;
 }
 
-struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
+static struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
 	DRM_IOCTL_DEF_DRV(OMAP_GET_PARAM, ioctl_get_param, DRM_UNLOCKED|DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(OMAP_SET_PARAM, ioctl_set_param, DRM_UNLOCKED|DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_NEW, ioctl_gem_new, DRM_UNLOCKED|DRM_AUTH),
@@ -548,6 +649,9 @@ static void pdev_shutdown(struct platform_device *device)
 
 static int pdev_probe(struct platform_device *device)
 {
+	if (omapdss_is_initialized() == false)
+		return -EPROBE_DEFER;
+
 	DBG("%s", device->name);
 	return drm_platform_init(&omap_drm_driver, device);
 }
@@ -567,7 +671,7 @@ static const struct dev_pm_ops omapdrm_pm_ops = {
 };
 #endif
 
-struct platform_driver pdev = {
+static struct platform_driver pdev = {
 		.driver = {
 			.name = DRIVER_NAME,
 			.owner = THIS_MODULE,

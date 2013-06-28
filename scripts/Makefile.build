@@ -211,7 +211,8 @@ $(obj)/%.i: $(src)/%.c FORCE
 
 cmd_gensymtypes =                                                           \
     $(CPP) -D__GENKSYMS__ $(c_flags) $< |                                   \
-    $(GENKSYMS) $(if $(1), -T $(2)) -a $(ARCH)                              \
+    $(GENKSYMS) $(if $(1), -T $(2))                                         \
+     $(patsubst y,-s _,$(CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX))             \
      $(if $(KBUILD_PRESERVE),-p)                                            \
      -r $(firstword $(wildcard $(2:.symtypes=.symref) /dev/null))
 

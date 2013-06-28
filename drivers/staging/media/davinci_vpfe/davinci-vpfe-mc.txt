@@ -38,7 +38,7 @@ interface to userspace.
 	DAVINCI RESIZER A
 	DAVINCI RESIZER B
 
-Each possible link in the VPFE is modeled by a link in the Media controller
+Each possible link in the VPFE is modelled by a link in the Media controller
 interface. For an example program see [1].
 
 

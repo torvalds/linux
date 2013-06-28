@@ -753,6 +753,7 @@ static struct mfd_cell ab3100_devs[] = {
 	},
 	{
 		.name = "ab3100-regulators",
+		.of_compatible = "stericsson,ab3100-regulators",
 		.id = -1,
 	},
 	{

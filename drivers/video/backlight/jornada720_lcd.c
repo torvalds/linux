@@ -9,8 +9,6 @@
  *
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/device.h>
 #include <linux/fb.h>
 #include <linux/kernel.h>
@@ -27,7 +25,7 @@
 #define LCD_MAX_CONTRAST	0xff
 #define LCD_DEF_CONTRAST	0x80
 
-static int jornada_lcd_get_power(struct lcd_device *dev)
+static int jornada_lcd_get_power(struct lcd_device *ld)
 {
 	/* LDD2 in PPC = LCD POWER */
 	if (PPSR & PPC_LDD2)
@@ -36,17 +34,17 @@ static int jornada_lcd_get_power(struct lcd_device *dev)
 		return FB_BLANK_POWERDOWN;	/* PW OFF */
 }
 
-static int jornada_lcd_get_contrast(struct lcd_device *dev)
+static int jornada_lcd_get_contrast(struct lcd_device *ld)
 {
 	int ret;
 
-	if (jornada_lcd_get_power(dev) != FB_BLANK_UNBLANK)
+	if (jornada_lcd_get_power(ld) != FB_BLANK_UNBLANK)
 		return 0;
 
 	jornada_ssp_start();
 
 	if (jornada_ssp_byte(GETCONTRAST) != TXDUMMY) {
-		pr_err("get contrast failed\n");
+		dev_err(&ld->dev, "get contrast failed\n");
 		jornada_ssp_end();
 		return -ETIMEDOUT;
 	} else {
@@ -56,7 +54,7 @@ static int jornada_lcd_get_contrast(struct lcd_device *dev)
 	}
 }
 
-static int jornada_lcd_set_contrast(struct lcd_device *dev, int value)
+static int jornada_lcd_set_contrast(struct lcd_device *ld, int value)
 {
 	int ret;
 
@@ -67,7 +65,7 @@ static int jornada_lcd_set_contrast(struct lcd_device *dev, int value)
 
 	/* push the new value */
 	if (jornada_ssp_byte(value) != TXDUMMY) {
-		pr_err("set contrast failed\n");
+		dev_err(&ld->dev, "set contrast failed\n");
 		jornada_ssp_end();
 		return -ETIMEDOUT;
 	}
@@ -78,13 +76,14 @@ static int jornada_lcd_set_contrast(struct lcd_device *dev, int value)
 	return 0;
 }
 
-static int jornada_lcd_set_power(struct lcd_device *dev, int power)
+static int jornada_lcd_set_power(struct lcd_device *ld, int power)
 {
 	if (power != FB_BLANK_UNBLANK) {
 		PPSR &= ~PPC_LDD2;
 		PPDR |= PPC_LDD2;
-	} else
+	} else {
 		PPSR |= PPC_LDD2;
+	}
 
 	return 0;
 }
@@ -105,7 +104,7 @@ static int jornada_lcd_probe(struct platform_device *pdev)
 
 	if (IS_ERR(lcd_device)) {
 		ret = PTR_ERR(lcd_device);
-		pr_err("failed to register device\n");
+		dev_err(&pdev->dev, "failed to register device\n");
 		return ret;
 	}
 

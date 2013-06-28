@@ -1381,6 +1381,58 @@ static struct tuner_params tuner_philips_fq1236_mk5_params[] = {
 	},
 };
 
+/* --------- Sony BTF-PG472Z PAL/SECAM ------- */
+
+static struct tuner_range tuner_sony_btf_pg472z_ranges[] = {
+	{ 16 * 144.25 /*MHz*/, 0xc6, 0x01, },
+	{ 16 * 427.25 /*MHz*/, 0xc6, 0x02, },
+	{ 16 * 999.99        , 0xc6, 0x04, },
+};
+
+static struct tuner_params tuner_sony_btf_pg472z_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_PAL,
+		.ranges = tuner_sony_btf_pg472z_ranges,
+		.count  = ARRAY_SIZE(tuner_sony_btf_pg472z_ranges),
+		.has_tda9887 = 1,
+		.port1_active = 1,
+		.port2_invert_for_secam_lc = 1,
+	},
+};
+
+/* 90-99 */
+/* --------- Sony BTF-PG467Z NTSC-M-JP ------- */
+
+static struct tuner_range tuner_sony_btf_pg467z_ranges[] = {
+	{ 16 * 220.25 /*MHz*/, 0xc6, 0x01, },
+	{ 16 * 467.25 /*MHz*/, 0xc6, 0x02, },
+	{ 16 * 999.99        , 0xc6, 0x04, },
+};
+
+static struct tuner_params tuner_sony_btf_pg467z_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_sony_btf_pg467z_ranges,
+		.count  = ARRAY_SIZE(tuner_sony_btf_pg467z_ranges),
+	},
+};
+
+/* --------- Sony BTF-PG463Z NTSC-M ------- */
+
+static struct tuner_range tuner_sony_btf_pg463z_ranges[] = {
+	{ 16 * 130.25 /*MHz*/, 0xc6, 0x01, },
+	{ 16 * 364.25 /*MHz*/, 0xc6, 0x02, },
+	{ 16 * 999.99        , 0xc6, 0x04, },
+};
+
+static struct tuner_params tuner_sony_btf_pg463z_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_sony_btf_pg463z_ranges,
+		.count  = ARRAY_SIZE(tuner_sony_btf_pg463z_ranges),
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1871,6 +1923,23 @@ struct tunertype tuners[] = {
 	[TUNER_XC5000C] = { /* Xceive 5000C */
 		.name   = "Xceive 5000C tuner",
 		/* see xc5000.c for details */
+	},
+	[TUNER_SONY_BTF_PG472Z] = {
+		.name   = "Sony BTF-PG472Z PAL/SECAM",
+		.params = tuner_sony_btf_pg472z_params,
+		.count  = ARRAY_SIZE(tuner_sony_btf_pg472z_params),
+	},
+
+	/* 90-99 */
+	[TUNER_SONY_BTF_PK467Z] = {
+		.name   = "Sony BTF-PK467Z NTSC-M-JP",
+		.params = tuner_sony_btf_pg467z_params,
+		.count  = ARRAY_SIZE(tuner_sony_btf_pg467z_params),
+	},
+	[TUNER_SONY_BTF_PB463Z] = {
+		.name   = "Sony BTF-PB463Z NTSC-M",
+		.params = tuner_sony_btf_pg463z_params,
+		.count  = ARRAY_SIZE(tuner_sony_btf_pg463z_params),
 	},
 };
 EXPORT_SYMBOL(tuners);

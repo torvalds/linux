@@ -41,12 +41,10 @@
  */
 ENTRY(tegra_resume)
 	bl	v7_invalidate_l1
-	/* Enable coresight */
-	mov32	r0, 0xC5ACCE55
-	mcr	p14, 0, r0, c7, c12, 6
 
 	cpu_id	r0
 	cmp	r0, #0				@ CPU0?
+ THUMB(	it	ne )
 	bne	cpu_resume			@ no
 
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
@@ -99,6 +97,8 @@ ENTRY(__tegra_cpu_reset_handler_start)
  *
  * Register usage within the reset handler:
  *
+ *      Others: scratch
+ *      R6  = SoC ID << 8
  *      R7  = CPU present (to the OS) mask
  *      R8  = CPU in LP1 state mask
  *      R9  = CPU in LP2 state mask
@@ -114,6 +114,40 @@ ENTRY(__tegra_cpu_reset_handler_start)
 ENTRY(__tegra_cpu_reset_handler)
 
 	cpsid	aif, 0x13			@ SVC mode, interrupts disabled
+
+	mov32	r6, TEGRA_APB_MISC_BASE
+	ldr	r6, [r6, #APB_MISC_GP_HIDREV]
+	and	r6, r6, #0xff00
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+t20_check:
+	cmp	r6, #(0x20 << 8)
+	bne	after_t20_check
+t20_errata:
+	# Tegra20 is a Cortex-A9 r1p1
+	mrc	p15, 0, r0, c1, c0, 0   @ read system control register
+	orr	r0, r0, #1 << 14        @ erratum 716044
+	mcr	p15, 0, r0, c1, c0, 0   @ write system control register
+	mrc	p15, 0, r0, c15, c0, 1  @ read diagnostic register
+	orr	r0, r0, #1 << 4         @ erratum 742230
+	orr	r0, r0, #1 << 11        @ erratum 751472
+	mcr	p15, 0, r0, c15, c0, 1  @ write diagnostic register
+	b	after_errata
+after_t20_check:
+#endif
+#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+t30_check:
+	cmp	r6, #(0x30 << 8)
+	bne	after_t30_check
+t30_errata:
+	# Tegra30 is a Cortex-A9 r2p9
+	mrc	p15, 0, r0, c15, c0, 1  @ read diagnostic register
+	orr	r0, r0, #1 << 6         @ erratum 743622
+	orr	r0, r0, #1 << 11        @ erratum 751472
+	mcr	p15, 0, r0, c15, c0, 1  @ write diagnostic register
+	b	after_errata
+after_t30_check:
+#endif
+after_errata:
 	mrc	p15, 0, r10, c0, c0, 5		@ MPIDR
 	and	r10, r10, #0x3			@ R10 = CPU number
 	mov	r11, #1
@@ -129,16 +163,13 @@ ENTRY(__tegra_cpu_reset_handler)
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	/* Are we on Tegra20? */
-	mov32	r6, TEGRA_APB_MISC_BASE
-	ldr	r0, [r6, #APB_MISC_GP_HIDREV]
-	and	r0, r0, #0xff00
-	cmp	r0, #(0x20 << 8)
+	cmp	r6, #(0x20 << 8)
 	bne	1f
 	/* If not CPU0, don't let CPU0 reset CPU1 now that CPU1 is coming up. */
-	mov32	r6, TEGRA_PMC_BASE
+	mov32	r5, TEGRA_PMC_BASE
 	mov	r0, #0
 	cmp	r10, #0
-	strne	r0, [r6, #PMC_SCRATCH41]
+	strne	r0, [r5, #PMC_SCRATCH41]
 1:
 #endif
 

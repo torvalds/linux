@@ -976,14 +976,14 @@ static int exynos_dp_dt_parse_phydata(struct exynos_dp_device *dp)
 	}
 
 	if (of_property_read_u32(dp_phy_node, "reg", &phy_base)) {
-		dev_err(dp->dev, "faild to get reg for dptx-phy\n");
+		dev_err(dp->dev, "failed to get reg for dptx-phy\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
 	if (of_property_read_u32(dp_phy_node, "samsung,enable-mask",
 				&dp->enable_mask)) {
-		dev_err(dp->dev, "faild to get enable-mask for dptx-phy\n");
+		dev_err(dp->dev, "failed to get enable-mask for dptx-phy\n");
 		ret = -EINVAL;
 		goto err;
 	}

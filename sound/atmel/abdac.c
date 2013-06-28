@@ -583,8 +583,6 @@ static int atmel_abdac_remove(struct platform_device *pdev)
 	free_irq(dac->irq, dac);
 	snd_card_free(card);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

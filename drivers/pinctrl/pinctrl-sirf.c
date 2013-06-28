@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/consumer.h>
@@ -25,7 +26,6 @@
 #include <linux/bitops.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
-#include <asm/mach/irq.h>
 
 #define DRIVER_NAME "pinmux-sirf"
 
@@ -979,7 +979,7 @@ static void sirfsoc_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops sirfsoc_pctrl_ops = {
+static const struct pinctrl_ops sirfsoc_pctrl_ops = {
 	.get_groups_count = sirfsoc_get_groups_count,
 	.get_group_name = sirfsoc_get_group_name,
 	.get_group_pins = sirfsoc_get_group_pins,
@@ -1181,7 +1181,7 @@ static int sirfsoc_pinmux_request_gpio(struct pinctrl_dev *pmxdev,
 	return 0;
 }
 
-static struct pinmux_ops sirfsoc_pinmux_ops = {
+static const struct pinmux_ops sirfsoc_pinmux_ops = {
 	.enable = sirfsoc_pinmux_enable,
 	.disable = sirfsoc_pinmux_disable,
 	.get_functions_count = sirfsoc_pinmux_get_funcs_count,
@@ -1347,7 +1347,7 @@ static inline int sirfsoc_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct sirfsoc_gpio_bank *bank = container_of(to_of_mm_gpio_chip(chip),
 		struct sirfsoc_gpio_bank, chip);
 
-	return irq_find_mapping(bank->domain, offset);
+	return irq_create_mapping(bank->domain, offset);
 }
 
 static inline int sirfsoc_gpio_to_offset(unsigned int gpio)
@@ -1485,7 +1485,6 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 	struct sirfsoc_gpio_bank *bank = irq_get_handler_data(irq);
 	u32 status, ctrl;
 	int idx = 0;
-	unsigned int first_irq;
 	struct irq_chip *chip = irq_get_chip(irq);
 
 	chained_irq_enter(chip, desc);
@@ -1499,8 +1498,6 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 		return;
 	}
 
-	first_irq = bank->domain->revmap_data.legacy.first_irq;
-
 	while (status) {
 		ctrl = readl(bank->chip.regs + SIRFSOC_GPIO_CTRL(bank->id, idx));
 
@@ -1511,7 +1508,7 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 		if ((status & 0x1) && (ctrl & SIRFSOC_GPIO_CTL_INTR_EN_MASK)) {
 			pr_debug("%s: gpio id %d idx %d happens\n",
 				__func__, bank->id, idx);
-			generic_handle_irq(first_irq + idx);
+			generic_handle_irq(irq_find_mapping(bank->domain, idx));
 		}
 
 		idx++;
@@ -1685,15 +1682,12 @@ static void sirfsoc_gpio_set_pullup(const u32 *pullups)
 	const unsigned long *p = (const unsigned long *)pullups;
 
 	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {
-		n = find_first_bit(p + i, BITS_PER_LONG);
-		while (n < BITS_PER_LONG) {
+		for_each_set_bit(n, p + i, BITS_PER_LONG) {
 			u32 offset = SIRFSOC_GPIO_CTRL(i, n);
 			u32 val = readl(sgpio_bank[i].chip.regs + offset);
 			val |= SIRFSOC_GPIO_CTL_PULL_MASK;
 			val |= SIRFSOC_GPIO_CTL_PULL_HIGH;
 			writel(val, sgpio_bank[i].chip.regs + offset);
-
-			n = find_next_bit(p + i, BITS_PER_LONG, n + 1);
 		}
 	}
 }
@@ -1704,15 +1698,12 @@ static void sirfsoc_gpio_set_pulldown(const u32 *pulldowns)
 	const unsigned long *p = (const unsigned long *)pulldowns;
 
 	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {
-		n = find_first_bit(p + i, BITS_PER_LONG);
-		while (n < BITS_PER_LONG) {
+		for_each_set_bit(n, p + i, BITS_PER_LONG) {
 			u32 offset = SIRFSOC_GPIO_CTRL(i, n);
 			u32 val = readl(sgpio_bank[i].chip.regs + offset);
 			val |= SIRFSOC_GPIO_CTL_PULL_MASK;
 			val &= ~SIRFSOC_GPIO_CTL_PULL_HIGH;
 			writel(val, sgpio_bank[i].chip.regs + offset);
-
-			n = find_next_bit(p + i, BITS_PER_LONG, n + 1);
 		}
 	}
 }
@@ -1770,9 +1761,8 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 			goto out;
 		}
 
-		bank->domain = irq_domain_add_legacy(np, SIRFSOC_GPIO_BANK_SIZE,
-			SIRFSOC_GPIO_IRQ_START + i * SIRFSOC_GPIO_BANK_SIZE, 0,
-			&sirfsoc_gpio_irq_simple_ops, bank);
+		bank->domain = irq_domain_add_linear(np, SIRFSOC_GPIO_BANK_SIZE,
+						&sirfsoc_gpio_irq_simple_ops, bank);
 
 		if (!bank->domain) {
 			pr_err("%s: Failed to create irqdomain\n", np->full_name);

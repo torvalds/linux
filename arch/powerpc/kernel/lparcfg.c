@@ -41,8 +41,6 @@
 
 /* #define LPARCFG_DEBUG */
 
-static struct proc_dir_entry *proc_ppc64_lparcfg;
-
 /*
  * Track sum of all purrs across all processors. This is used to further
  * calculate usage values by different applications
@@ -301,6 +299,7 @@ static void parse_system_parameter_string(struct seq_file *m)
 				__pa(rtas_data_buf),
 				RTAS_DATA_BUF_SIZE);
 	memcpy(local_buffer, rtas_data_buf, SPLPAR_MAXLENGTH);
+	local_buffer[SPLPAR_MAXLENGTH - 1] = '\0';
 	spin_unlock(&rtas_data_buf_lock);
 
 	if (call_status != 0) {
@@ -688,27 +687,22 @@ static const struct file_operations lparcfg_fops = {
 
 static int __init lparcfg_init(void)
 {
-	struct proc_dir_entry *ent;
 	umode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
 
 	/* Allow writing if we have FW_FEATURE_SPLPAR */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR))
 		mode |= S_IWUSR;
 
-	ent = proc_create("powerpc/lparcfg", mode, NULL, &lparcfg_fops);
-	if (!ent) {
+	if (!proc_create("powerpc/lparcfg", mode, NULL, &lparcfg_fops)) {
 		printk(KERN_ERR "Failed to create powerpc/lparcfg\n");
 		return -EIO;
 	}
-
-	proc_ppc64_lparcfg = ent;
 	return 0;
 }
 
 static void __exit lparcfg_cleanup(void)
 {
-	if (proc_ppc64_lparcfg)
-		remove_proc_entry("lparcfg", proc_ppc64_lparcfg->parent);
+	remove_proc_subtree("powerpc/lparcfg", NULL);
 }
 
 module_init(lparcfg_init);

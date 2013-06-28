@@ -16,7 +16,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x80000000>; /* 2 GB */
+		reg = <0x80000000 0x7F000000>; /* 2032 MB */
 	};
 
 	vmmcsd_fixed: fixedregulator-mmcsd {
@@ -80,6 +80,68 @@
 			0x15a 0x100	/* abemcbsp2_clkx.abemcbsp2_clkx INPUT | MODE0 */
 		>;
 	};
+
+        i2c1_pins: pinmux_i2c1_pins {
+                pinctrl-single,pins = <
+                        0x1b2 0x118        /* i2c1_scl PULLUP | INPUTENABLE | MODE0 */
+                        0x1b4 0x118        /* i2c1_sda PULLUP | INPUTENABLE | MODE0 */
+                >;
+        };
+
+	i2c2_pins: pinmux_i2c2_pins {
+		pinctrl-single,pins = <
+			0x178 0x100        /* i2c2_scl INPUTENABLE | MODE0 */
+			0x17a 0x100        /* i2c2_sda INPUTENABLE | MODE0 */
+		>;
+	};
+
+	i2c3_pins: pinmux_i2c3_pins {
+		pinctrl-single,pins = <
+			0x13a 0x100        /* i2c3_scl INPUTENABLE | MODE0 */
+			0x13c 0x100     /* i2c3_sda INPUTENABLE | MODE0 */
+		>;
+	};
+
+	i2c4_pins: pinmux_i2c4_pins {
+		pinctrl-single,pins = <
+			0xb8 0x100        /* i2c4_scl INPUTENABLE | MODE0 */
+			0xba 0x100     /* i2c4_sda INPUTENABLE | MODE0 */
+		>;
+	};
+
+	i2c5_pins: pinmux_i2c5_pins {
+		pinctrl-single,pins = <
+			0x184 0x100        /* i2c5_scl INPUTENABLE | MODE0 */
+			0x186 0x100     /* i2c5_sda INPUTENABLE | MODE0 */
+		>;
+	};
+
+	mcspi2_pins: pinmux_mcspi2_pins {
+		pinctrl-single,pins = <
+			0xbc 0x100	/*  MCSPI2_CLK INPUTENABLE | MODE0 */
+			0xbe 0x100	/*  MCSPI2_SIMO INPUTENABLE | MODE0 */
+			0xc0 0x118	/*  MCSPI2_SOMI PULLUP | INPUTENABLE | MODE0*/
+			0xc2 0x0	/*  MCSPI2_CS MODE0*/
+		>;
+	};
+
+	mcspi3_pins: pinmux_mcspi3_pins {
+		pinctrl-single,pins = <
+			0x78 0x101	/*  MCSPI2_SOMI INPUTENABLE | MODE1 */
+			0x7a 0x101	/*  MCSPI2_CS INPUTENABLE | MODE1 */
+			0x7c 0x101	/*  MCSPI2_SIMO INPUTENABLE | MODE1 */
+			0x7e 0x101	/*  MCSPI2_CLK INPUTENABLE | MODE1 */
+		>;
+	};
+
+	mcspi4_pins: pinmux_mcspi4_pins {
+		pinctrl-single,pins = <
+			0x164 0x101	/*  MCSPI2_CLK INPUTENABLE | MODE1 */
+			0x168 0x101	/*  MCSPI2_SIMO INPUTENABLE | MODE1 */
+			0x16a 0x101	/*  MCSPI2_SOMI INPUTENABLE | MODE1 */
+			0x16c 0x101	/*  MCSPI2_CS INPUTENABLE | MODE1 */
+		>;
+	};
 };
 
 &mmc1 {
@@ -106,7 +168,17 @@
 	status = "disabled";
 };
 
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+
+	clock-frequency = <400000>;
+};
+
 &i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+
 	clock-frequency = <400000>;
 
 	/* Pressure Sensor */
@@ -116,7 +188,17 @@
 	};
 };
 
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+
+	clock-frequency = <400000>;
+};
+
 &i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_pins>;
+
 	clock-frequency = <400000>;
 
 	/* Temperature Sensor */
@@ -124,6 +206,13 @@
 		compatible = "ti,tmp102";
 		reg = <0x48>;
 	};
+};
+
+&i2c5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5_pins>;
+
+	clock-frequency = <400000>;
 };
 
 &keypad {
@@ -150,4 +239,23 @@
 &emif2 {
 	cs1-used;
 	device-handle = <&samsung_K3PE0E000B>;
+};
+
+&mcspi1 {
+
+};
+
+&mcspi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcspi2_pins>;
+};
+
+&mcspi3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcspi3_pins>;
+};
+
+&mcspi4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcspi4_pins>;
 };

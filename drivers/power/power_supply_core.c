@@ -26,17 +26,42 @@ EXPORT_SYMBOL_GPL(power_supply_class);
 
 static struct device_type power_supply_dev_type;
 
+static bool __power_supply_is_supplied_by(struct power_supply *supplier,
+					 struct power_supply *supply)
+{
+	int i;
+
+	if (!supply->supplied_from && !supplier->supplied_to)
+		return false;
+
+	/* Support both supplied_to and supplied_from modes */
+	if (supply->supplied_from) {
+		if (!supplier->name)
+			return false;
+		for (i = 0; i < supply->num_supplies; i++)
+			if (!strcmp(supplier->name, supply->supplied_from[i]))
+				return true;
+	} else {
+		if (!supply->name)
+			return false;
+		for (i = 0; i < supplier->num_supplicants; i++)
+			if (!strcmp(supplier->supplied_to[i], supply->name))
+				return true;
+	}
+
+	return false;
+}
+
 static int __power_supply_changed_work(struct device *dev, void *data)
 {
 	struct power_supply *psy = (struct power_supply *)data;
 	struct power_supply *pst = dev_get_drvdata(dev);
-	int i;
 
-	for (i = 0; i < psy->num_supplicants; i++)
-		if (!strcmp(psy->supplied_to[i], pst->name)) {
-			if (pst->external_power_changed)
-				pst->external_power_changed(pst);
-		}
+	if (__power_supply_is_supplied_by(psy, pst)) {
+		if (pst->external_power_changed)
+			pst->external_power_changed(pst);
+	}
+
 	return 0;
 }
 
@@ -63,22 +88,151 @@ void power_supply_changed(struct power_supply *psy)
 }
 EXPORT_SYMBOL_GPL(power_supply_changed);
 
+#ifdef CONFIG_OF
+#include <linux/of.h>
+
+static int __power_supply_populate_supplied_from(struct device *dev,
+						 void *data)
+{
+	struct power_supply *psy = (struct power_supply *)data;
+	struct power_supply *epsy = dev_get_drvdata(dev);
+	struct device_node *np;
+	int i = 0;
+
+	do {
+		np = of_parse_phandle(psy->of_node, "power-supplies", i++);
+		if (!np)
+			continue;
+
+		if (np == epsy->of_node) {
+			dev_info(psy->dev, "%s: Found supply : %s\n",
+				psy->name, epsy->name);
+			psy->supplied_from[i-1] = (char *)epsy->name;
+			psy->num_supplies++;
+			break;
+		}
+	} while (np);
+
+	return 0;
+}
+
+static int power_supply_populate_supplied_from(struct power_supply *psy)
+{
+	int error;
+
+	error = class_for_each_device(power_supply_class, NULL, psy,
+				      __power_supply_populate_supplied_from);
+
+	dev_dbg(psy->dev, "%s %d\n", __func__, error);
+
+	return error;
+}
+
+static int  __power_supply_find_supply_from_node(struct device *dev,
+						 void *data)
+{
+	struct device_node *np = (struct device_node *)data;
+	struct power_supply *epsy = dev_get_drvdata(dev);
+
+	/* return error breaks out of class_for_each_device loop */
+	if (epsy->of_node == np)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int power_supply_find_supply_from_node(struct device_node *supply_node)
+{
+	int error;
+	struct device *dev;
+	struct class_dev_iter iter;
+
+	/*
+	 * Use iterator to see if any other device is registered.
+	 * This is required since class_for_each_device returns 0
+	 * if there are no devices registered.
+	 */
+	class_dev_iter_init(&iter, power_supply_class, NULL, NULL);
+	dev = class_dev_iter_next(&iter);
+
+	if (!dev)
+		return -EPROBE_DEFER;
+
+	/*
+	 * We have to treat the return value as inverted, because if
+	 * we return error on not found, then it won't continue looking.
+	 * So we trick it by returning error on success to stop looking
+	 * once the matching device is found.
+	 */
+	error = class_for_each_device(power_supply_class, NULL, supply_node,
+				       __power_supply_find_supply_from_node);
+
+	return error ? 0 : -EPROBE_DEFER;
+}
+
+static int power_supply_check_supplies(struct power_supply *psy)
+{
+	struct device_node *np;
+	int cnt = 0;
+
+	/* If there is already a list honor it */
+	if (psy->supplied_from && psy->num_supplies > 0)
+		return 0;
+
+	/* No device node found, nothing to do */
+	if (!psy->of_node)
+		return 0;
+
+	do {
+		int ret;
+
+		np = of_parse_phandle(psy->of_node, "power-supplies", cnt++);
+		if (!np)
+			continue;
+
+		ret = power_supply_find_supply_from_node(np);
+		if (ret) {
+			dev_dbg(psy->dev, "Failed to find supply, defer!\n");
+			return -EPROBE_DEFER;
+		}
+	} while (np);
+
+	/* All supplies found, allocate char ** array for filling */
+	psy->supplied_from = devm_kzalloc(psy->dev, sizeof(psy->supplied_from),
+					  GFP_KERNEL);
+	if (!psy->supplied_from) {
+		dev_err(psy->dev, "Couldn't allocate memory for supply list\n");
+		return -ENOMEM;
+	}
+
+	*psy->supplied_from = devm_kzalloc(psy->dev, sizeof(char *) * cnt,
+					   GFP_KERNEL);
+	if (!*psy->supplied_from) {
+		dev_err(psy->dev, "Couldn't allocate memory for supply list\n");
+		return -ENOMEM;
+	}
+
+	return power_supply_populate_supplied_from(psy);
+}
+#else
+static inline int power_supply_check_supplies(struct power_supply *psy)
+{
+	return 0;
+}
+#endif
+
 static int __power_supply_am_i_supplied(struct device *dev, void *data)
 {
 	union power_supply_propval ret = {0,};
 	struct power_supply *psy = (struct power_supply *)data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
-	int i;
 
-	for (i = 0; i < epsy->num_supplicants; i++) {
-		if (!strcmp(epsy->supplied_to[i], psy->name)) {
-			if (epsy->get_property(epsy,
-				  POWER_SUPPLY_PROP_ONLINE, &ret))
-				continue;
+	if (__power_supply_is_supplied_by(epsy, psy))
+		if (!epsy->get_property(epsy, POWER_SUPPLY_PROP_ONLINE, &ret)) {
 			if (ret.intval)
 				return ret.intval;
 		}
-	}
+
 	return 0;
 }
 
@@ -336,6 +490,12 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 
 	INIT_WORK(&psy->changed_work, power_supply_changed_work);
 
+	rc = power_supply_check_supplies(psy);
+	if (rc) {
+		dev_info(dev, "Not all required supplies found, defer probe\n");
+		goto check_supplies_failed;
+	}
+
 	rc = kobject_set_name(&dev->kobj, "%s", psy->name);
 	if (rc)
 		goto kobject_set_name_failed;
@@ -368,6 +528,7 @@ register_thermal_failed:
 	device_del(dev);
 kobject_set_name_failed:
 device_add_failed:
+check_supplies_failed:
 	put_device(dev);
 success:
 	return rc;

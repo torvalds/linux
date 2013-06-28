@@ -936,19 +936,19 @@ static struct v4l2_input adv7842_inputs[] = {
 		.index = 2,
 		.name = "Component",
 		.type = V4L2_INPUT_TYPE_CAMERA,
-		.capabilities = V4L2_IN_CAP_CUSTOM_TIMINGS,
+		.capabilities = V4L2_IN_CAP_DV_TIMINGS,
 	},
 	{
 		.index = 3,
 		.name = "VGA",
 		.type = V4L2_INPUT_TYPE_CAMERA,
-		.capabilities = V4L2_IN_CAP_CUSTOM_TIMINGS,
+		.capabilities = V4L2_IN_CAP_DV_TIMINGS,
 	},
 	{
 		.index = 4,
 		.name = "HDMI",
 		.type = V4L2_INPUT_TYPE_CAMERA,
-		.capabilities = V4L2_IN_CAP_CUSTOM_TIMINGS,
+		.capabilities = V4L2_IN_CAP_DV_TIMINGS,
 	},
 };
 
@@ -1074,7 +1074,7 @@ static struct v4l2_output adv7511_outputs[] = {
 		.index = 0,
 		.name = "HDMI",
 		.type = V4L2_INPUT_TYPE_CAMERA,
-		.capabilities = V4L2_OUT_CAP_CUSTOM_TIMINGS,
+		.capabilities = V4L2_OUT_CAP_DV_TIMINGS,
 	},
 };
 

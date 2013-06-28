@@ -639,7 +639,7 @@ static void __usbhid_submit_report(struct hid_device *hid, struct hid_report *re
 	}
 }
 
-void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, unsigned char dir)
+static void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, unsigned char dir)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
 	unsigned long flags;
@@ -648,7 +648,6 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 	__usbhid_submit_report(hid, report, dir);
 	spin_unlock_irqrestore(&usbhid->lock, flags);
 }
-EXPORT_SYMBOL_GPL(usbhid_submit_report);
 
 /* Workqueue routine to send requests to change LEDs */
 static void hid_led(struct work_struct *work)
@@ -706,7 +705,7 @@ static int usb_hidinput_input_event(struct input_dev *dev, unsigned int type, un
 	return 0;
 }
 
-int usbhid_wait_io(struct hid_device *hid)
+static int usbhid_wait_io(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
 
@@ -720,7 +719,6 @@ int usbhid_wait_io(struct hid_device *hid)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(usbhid_wait_io);
 
 static int hid_set_idle(struct usb_device *dev, int ifnum, int report, int idle)
 {
@@ -1243,6 +1241,32 @@ static int usbhid_power(struct hid_device *hid, int lvl)
 	return r;
 }
 
+static void usbhid_request(struct hid_device *hid, struct hid_report *rep, int reqtype)
+{
+	switch (reqtype) {
+	case HID_REQ_GET_REPORT:
+		usbhid_submit_report(hid, rep, USB_DIR_IN);
+		break;
+	case HID_REQ_SET_REPORT:
+		usbhid_submit_report(hid, rep, USB_DIR_OUT);
+		break;
+	}
+}
+
+static int usbhid_idle(struct hid_device *hid, int report, int idle,
+		int reqtype)
+{
+	struct usb_device *dev = hid_to_usb_dev(hid);
+	struct usb_interface *intf = to_usb_interface(hid->dev.parent);
+	struct usb_host_interface *interface = intf->cur_altsetting;
+	int ifnum = interface->desc.bInterfaceNumber;
+
+	if (reqtype != HID_REQ_SET_IDLE)
+		return -EINVAL;
+
+	return hid_set_idle(dev, ifnum, report, idle);
+}
+
 static struct hid_ll_driver usb_hid_driver = {
 	.parse = usbhid_parse,
 	.start = usbhid_start,
@@ -1251,6 +1275,9 @@ static struct hid_ll_driver usb_hid_driver = {
 	.close = usbhid_close,
 	.power = usbhid_power,
 	.hidinput_input_event = usb_hidinput_input_event,
+	.request = usbhid_request,
+	.wait = usbhid_wait_io,
+	.idle = usbhid_idle,
 };
 
 static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -1493,7 +1520,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct hid_device *hid = usb_get_intfdata(intf);
 	struct usbhid_device *usbhid = hid->driver_data;
-	int status;
+	int status = 0;
 	bool driver_suspended = false;
 
 	if (PMSG_IS_AUTO(message)) {
@@ -1520,19 +1547,15 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 		}
 
 	} else {
-		if (hid->driver && hid->driver->suspend) {
+		/* TODO: resume() might need to handle suspend failure */
+		if (hid->driver && hid->driver->suspend)
 			status = hid->driver->suspend(hid, message);
-			if (status < 0)
-				return status;
-		}
 		driver_suspended = true;
 		spin_lock_irq(&usbhid->lock);
 		set_bit(HID_SUSPENDED, &usbhid->iofl);
 		spin_unlock_irq(&usbhid->lock);
-		if (usbhid_wait_io(hid) < 0) {
+		if (usbhid_wait_io(hid) < 0)
 			status = -EIO;
-			goto failed;
-		}
 	}
 
 	hid_cancel_delayed_stuff(usbhid);
@@ -1544,7 +1567,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 		goto failed;
 	}
 	dev_dbg(&intf->dev, "suspend\n");
-	return 0;
+	return status;
 
  failed:
 	hid_resume_common(hid, driver_suspended);

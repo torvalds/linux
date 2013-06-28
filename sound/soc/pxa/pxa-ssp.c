@@ -794,14 +794,19 @@ static struct snd_soc_dai_driver pxa_ssp_dai = {
 		.ops = &pxa_ssp_dai_ops,
 };
 
+static const struct snd_soc_component_driver pxa_ssp_component = {
+	.name		= "pxa-ssp",
+};
+
 static int asoc_ssp_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_dai(&pdev->dev, &pxa_ssp_dai);
+	return snd_soc_register_component(&pdev->dev, &pxa_ssp_component,
+					  &pxa_ssp_dai, 1);
 }
 
 static int asoc_ssp_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 

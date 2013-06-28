@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/clk-provider.h>
+#include <linux/clk/zynq.h>
 
 static void __iomem *slcr_base;
 

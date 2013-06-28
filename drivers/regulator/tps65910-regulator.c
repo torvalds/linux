@@ -748,6 +748,7 @@ static struct regulator_ops tps65910_ops_dcdc = {
 	.set_voltage_sel	= tps65910_set_voltage_dcdc_sel,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.list_voltage		= tps65910_list_voltage_dcdc,
+	.map_voltage		= regulator_map_voltage_ascend,
 };
 
 static struct regulator_ops tps65910_ops_vdd3 = {
@@ -758,6 +759,7 @@ static struct regulator_ops tps65910_ops_vdd3 = {
 	.get_mode		= tps65910_get_mode,
 	.get_voltage		= tps65910_get_voltage_vdd3,
 	.list_voltage		= regulator_list_voltage_table,
+	.map_voltage		= regulator_map_voltage_ascend,
 };
 
 static struct regulator_ops tps65910_ops = {
@@ -769,6 +771,7 @@ static struct regulator_ops tps65910_ops = {
 	.get_voltage_sel	= tps65910_get_voltage_sel,
 	.set_voltage_sel	= tps65910_set_voltage_sel,
 	.list_voltage		= regulator_list_voltage_table,
+	.map_voltage		= regulator_map_voltage_ascend,
 };
 
 static struct regulator_ops tps65911_ops = {
@@ -780,6 +783,7 @@ static struct regulator_ops tps65911_ops = {
 	.get_voltage_sel	= tps65911_get_voltage_sel,
 	.set_voltage_sel	= tps65911_set_voltage_sel,
 	.list_voltage		= tps65911_list_voltage,
+	.map_voltage		= regulator_map_voltage_ascend,
 };
 
 static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,

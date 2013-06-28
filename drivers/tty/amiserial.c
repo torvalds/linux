@@ -1798,19 +1798,7 @@ static struct platform_driver amiga_serial_driver = {
 	},
 };
 
-static int __init amiga_serial_init(void)
-{
-	return platform_driver_probe(&amiga_serial_driver, amiga_serial_probe);
-}
-
-module_init(amiga_serial_init);
-
-static void __exit amiga_serial_exit(void)
-{
-	platform_driver_unregister(&amiga_serial_driver);
-}
-
-module_exit(amiga_serial_exit);
+module_platform_driver_probe(amiga_serial_driver, amiga_serial_probe);
 
 
 #if defined(CONFIG_SERIAL_CONSOLE) && !defined(MODULE)

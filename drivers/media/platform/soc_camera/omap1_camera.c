@@ -1546,7 +1546,7 @@ static struct soc_camera_host_ops omap1_host_ops = {
 	.poll		= omap1_cam_poll,
 };
 
-static int __init omap1_cam_probe(struct platform_device *pdev)
+static int omap1_cam_probe(struct platform_device *pdev)
 {
 	struct omap1_cam_dev *pcdev;
 	struct resource *res;
@@ -1677,7 +1677,7 @@ exit:
 	return err;
 }
 
-static int __exit omap1_cam_remove(struct platform_device *pdev)
+static int omap1_cam_remove(struct platform_device *pdev)
 {
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct omap1_cam_dev *pcdev = container_of(soc_host,
@@ -1709,7 +1709,7 @@ static struct platform_driver omap1_cam_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= omap1_cam_probe,
-	.remove		= __exit_p(omap1_cam_remove),
+	.remove		= omap1_cam_remove,
 };
 
 module_platform_driver(omap1_cam_driver);

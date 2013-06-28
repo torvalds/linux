@@ -277,7 +277,7 @@ static void sd_isoc_irq(struct urb *urb)
 		if (gspca_dev->frozen)
 			return;
 #endif
-		PDEBUG(D_ERR, "urb status: %d", urb->status);
+		PERR("urb status: %d", urb->status);
 		st = usb_submit_urb(urb, GFP_ATOMIC);
 		if (st < 0)
 			pr_err("resubmit urb error %d\n", st);
@@ -295,33 +295,30 @@ static void sd_isoc_irq(struct urb *urb)
 	sd->last_data_urb = NULL;
 
 	if (!data_urb || data_urb->start_frame != status_urb->start_frame) {
-		PDEBUG(D_ERR|D_PACK, "lost sync on frames");
+		PERR("lost sync on frames");
 		goto resubmit;
 	}
 
 	if (data_urb->number_of_packets != status_urb->number_of_packets) {
-		PDEBUG(D_ERR|D_PACK,
-		       "no packets does not match, data: %d, status: %d",
-		       data_urb->number_of_packets,
-		       status_urb->number_of_packets);
+		PERR("no packets does not match, data: %d, status: %d",
+		     data_urb->number_of_packets,
+		     status_urb->number_of_packets);
 		goto resubmit;
 	}
 
 	for (i = 0; i < status_urb->number_of_packets; i++) {
 		if (data_urb->iso_frame_desc[i].status ||
 		    status_urb->iso_frame_desc[i].status) {
-			PDEBUG(D_ERR|D_PACK,
-			       "pkt %d data-status %d, status-status %d", i,
-			       data_urb->iso_frame_desc[i].status,
-			       status_urb->iso_frame_desc[i].status);
+			PERR("pkt %d data-status %d, status-status %d", i,
+			     data_urb->iso_frame_desc[i].status,
+			     status_urb->iso_frame_desc[i].status);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
 		}
 
 		if (status_urb->iso_frame_desc[i].actual_length != 1) {
-			PDEBUG(D_ERR|D_PACK,
-			       "bad status packet length %d",
-			       status_urb->iso_frame_desc[i].actual_length);
+			PERR("bad status packet length %d",
+			     status_urb->iso_frame_desc[i].actual_length);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
 		}
@@ -366,12 +363,11 @@ resubmit:
 	if (data_urb) {
 		st = usb_submit_urb(data_urb, GFP_ATOMIC);
 		if (st < 0)
-			PDEBUG(D_ERR|D_PACK,
-			       "usb_submit_urb(data_urb) ret %d", st);
+			PERR("usb_submit_urb(data_urb) ret %d", st);
 	}
 	st = usb_submit_urb(status_urb, GFP_ATOMIC);
 	if (st < 0)
-		pr_err("usb_submit_urb(status_urb) ret %d\n", st);
+		PERR("usb_submit_urb(status_urb) ret %d\n", st);
 }
 
 static int sd_s_ctrl(struct v4l2_ctrl *ctrl)

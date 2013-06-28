@@ -1471,7 +1471,6 @@ static int m66592_udc_start(struct usb_gadget *g,
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	m66592->driver = driver;
-	m66592->gadget.dev.driver = &driver->driver;
 
 	m66592_bset(m66592, M66592_VBSE | M66592_URST, M66592_INTENB0);
 	if (m66592_read(m66592, M66592_INTSTS0) & M66592_VBSTS) {
@@ -1494,7 +1493,6 @@ static int m66592_udc_stop(struct usb_gadget *g,
 	m66592_bclr(m66592, M66592_VBSE | M66592_URST, M66592_INTENB0);
 
 	driver->unbind(&m66592->gadget);
-	m66592->gadget.dev.driver = NULL;
 
 	init_controller(m66592);
 	disable_controller(m66592);
@@ -1538,7 +1536,6 @@ static int __exit m66592_remove(struct platform_device *pdev)
 	struct m66592		*m66592 = dev_get_drvdata(&pdev->dev);
 
 	usb_del_gadget_udc(&m66592->gadget);
-	device_del(&m66592->gadget.dev);
 
 	del_timer_sync(&m66592->timer);
 	iounmap(m66592->reg);
@@ -1608,12 +1605,7 @@ static int __init m66592_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, m66592);
 
 	m66592->gadget.ops = &m66592_gadget_ops;
-	device_initialize(&m66592->gadget.dev);
-	dev_set_name(&m66592->gadget.dev, "gadget");
 	m66592->gadget.max_speed = USB_SPEED_HIGH;
-	m66592->gadget.dev.parent = &pdev->dev;
-	m66592->gadget.dev.dma_mask = pdev->dev.dma_mask;
-	m66592->gadget.dev.release = pdev->dev.release;
 	m66592->gadget.name = udc_name;
 
 	init_timer(&m66592->timer);
@@ -1668,17 +1660,13 @@ static int __init m66592_probe(struct platform_device *pdev)
 	m66592->epaddr2ep[0] = &m66592->ep[0];
 
 	m66592->ep0_req = m66592_alloc_request(&m66592->ep[0].ep, GFP_KERNEL);
-	if (m66592->ep0_req == NULL)
+	if (m66592->ep0_req == NULL) {
+		ret = -ENOMEM;
 		goto clean_up3;
+	}
 	m66592->ep0_req->complete = nop_completion;
 
 	init_controller(m66592);
-
-	ret = device_add(&m66592->gadget.dev);
-	if (ret) {
-		pr_err("device_add error (%d)\n", ret);
-		goto err_device_add;
-	}
 
 	ret = usb_add_gadget_udc(&pdev->dev, &m66592->gadget);
 	if (ret)
@@ -1688,9 +1676,6 @@ static int __init m66592_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_udc:
-	device_del(&m66592->gadget.dev);
-
-err_device_add:
 	m66592_free_request(&m66592->ep[0].ep, m66592->ep0_req);
 
 clean_up3:

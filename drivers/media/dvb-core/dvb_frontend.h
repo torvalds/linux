@@ -245,8 +245,8 @@ struct analog_demod_ops {
 
 	void (*set_params)(struct dvb_frontend *fe,
 			   struct analog_parameters *params);
-	int  (*has_signal)(struct dvb_frontend *fe);
-	int  (*get_afc)(struct dvb_frontend *fe);
+	int  (*has_signal)(struct dvb_frontend *fe, u16 *signal);
+	int  (*get_afc)(struct dvb_frontend *fe, s32 *afc);
 	void (*tuner_status)(struct dvb_frontend *fe);
 	void (*standby)(struct dvb_frontend *fe);
 	void (*release)(struct dvb_frontend *fe);

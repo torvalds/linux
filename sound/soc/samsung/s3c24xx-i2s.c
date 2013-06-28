@@ -24,7 +24,7 @@
 #include <sound/pcm_params.h>
 
 #include <mach/dma.h>
-#include <plat/regs-iis.h>
+#include "regs-iis.h"
 
 #include "dma.h"
 #include "s3c24xx-i2s.h"
@@ -465,11 +465,16 @@ static struct snd_soc_dai_driver s3c24xx_i2s_dai = {
 	.ops = &s3c24xx_i2s_dai_ops,
 };
 
+static const struct snd_soc_component_driver s3c24xx_i2s_component = {
+	.name		= "s3c24xx-i2s",
+};
+
 static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
-	ret = snd_soc_register_dai(&pdev->dev, &s3c24xx_i2s_dai);
+	ret = snd_soc_register_component(&pdev->dev, &s3c24xx_i2s_component,
+					 &s3c24xx_i2s_dai, 1);
 	if (ret) {
 		pr_err("failed to register the dai\n");
 		return ret;
@@ -483,14 +488,14 @@ static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 
 	return 0;
 err:
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	return ret;
 }
 
 static int s3c24xx_iis_dev_remove(struct platform_device *pdev)
 {
 	asoc_dma_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 

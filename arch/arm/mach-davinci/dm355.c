@@ -35,6 +35,8 @@
 #include "asp.h"
 
 #define DM355_UART2_BASE	(IO_PHYS + 0x206000)
+#define DM355_OSD_BASE		(IO_PHYS + 0x70200)
+#define DM355_VENC_BASE		(IO_PHYS + 0x70400)
 
 /*
  * Device specific clocks
@@ -345,8 +347,8 @@ static struct clk_lookup dm355_clks[] = {
 	CLK(NULL, "pll1_aux", &pll1_aux_clk),
 	CLK(NULL, "pll1_sysclkbp", &pll1_sysclkbp),
 	CLK(NULL, "vpss_dac", &vpss_dac_clk),
-	CLK(NULL, "vpss_master", &vpss_master_clk),
-	CLK(NULL, "vpss_slave", &vpss_slave_clk),
+	CLK("vpss", "master", &vpss_master_clk),
+	CLK("vpss", "slave", &vpss_slave_clk),
 	CLK(NULL, "clkout1", &clkout1_clk),
 	CLK(NULL, "clkout2", &clkout2_clk),
 	CLK(NULL, "pll2", &pll2_clk),
@@ -361,8 +363,8 @@ static struct clk_lookup dm355_clks[] = {
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
 	CLK("davinci-mcbsp.0", NULL, &asp0_clk),
 	CLK("davinci-mcbsp.1", NULL, &asp1_clk),
-	CLK("davinci_mmc.0", NULL, &mmcsd0_clk),
-	CLK("davinci_mmc.1", NULL, &mmcsd1_clk),
+	CLK("dm6441-mmc.0", NULL, &mmcsd0_clk),
+	CLK("dm6441-mmc.1", NULL, &mmcsd1_clk),
 	CLK("spi_davinci.0", NULL, &spi0_clk),
 	CLK("spi_davinci.1", NULL, &spi1_clk),
 	CLK("spi_davinci.2", NULL, &spi2_clk),
@@ -744,10 +746,145 @@ static struct platform_device vpfe_capture_dev = {
 	},
 };
 
-void dm355_set_vpfe_config(struct vpfe_config *cfg)
+static struct resource dm355_osd_resources[] = {
+	{
+		.start	= DM355_OSD_BASE,
+		.end	= DM355_OSD_BASE + 0x17f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device dm355_osd_dev = {
+	.name		= DM355_VPBE_OSD_SUBDEV_NAME,
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(dm355_osd_resources),
+	.resource	= dm355_osd_resources,
+	.dev		= {
+		.dma_mask		= &vpfe_capture_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+static struct resource dm355_venc_resources[] = {
+	{
+		.start	= IRQ_VENCINT,
+		.end	= IRQ_VENCINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	/* venc registers io space */
+	{
+		.start	= DM355_VENC_BASE,
+		.end	= DM355_VENC_BASE + 0x17f,
+		.flags	= IORESOURCE_MEM,
+	},
+	/* VDAC config register io space */
+	{
+		.start	= DAVINCI_SYSTEM_MODULE_BASE + SYSMOD_VDAC_CONFIG,
+		.end	= DAVINCI_SYSTEM_MODULE_BASE + SYSMOD_VDAC_CONFIG + 3,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct resource dm355_v4l2_disp_resources[] = {
+	{
+		.start	= IRQ_VENCINT,
+		.end	= IRQ_VENCINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	/* venc registers io space */
+	{
+		.start	= DM355_VENC_BASE,
+		.end	= DM355_VENC_BASE + 0x17f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static int dm355_vpbe_setup_pinmux(enum v4l2_mbus_pixelcode if_type,
+			    int field)
 {
-	vpfe_capture_dev.dev.platform_data = cfg;
+	switch (if_type) {
+	case V4L2_MBUS_FMT_SGRBG8_1X8:
+		davinci_cfg_reg(DM355_VOUT_FIELD_G70);
+		break;
+	case V4L2_MBUS_FMT_YUYV10_1X20:
+		if (field)
+			davinci_cfg_reg(DM355_VOUT_FIELD);
+		else
+			davinci_cfg_reg(DM355_VOUT_FIELD_G70);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	davinci_cfg_reg(DM355_VOUT_COUTL_EN);
+	davinci_cfg_reg(DM355_VOUT_COUTH_EN);
+
+	return 0;
 }
+
+static int dm355_venc_setup_clock(enum vpbe_enc_timings_type type,
+				   unsigned int pclock)
+{
+	void __iomem *vpss_clk_ctrl_reg;
+
+	vpss_clk_ctrl_reg = DAVINCI_SYSMOD_VIRT(SYSMOD_VPSS_CLKCTL);
+
+	switch (type) {
+	case VPBE_ENC_STD:
+		writel(VPSS_DACCLKEN_ENABLE | VPSS_VENCCLKEN_ENABLE,
+		       vpss_clk_ctrl_reg);
+		break;
+	case VPBE_ENC_DV_TIMINGS:
+		if (pclock > 27000000)
+			/*
+			 * For HD, use external clock source since we cannot
+			 * support HD mode with internal clocks.
+			 */
+			writel(VPSS_MUXSEL_EXTCLK_ENABLE, vpss_clk_ctrl_reg);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static struct platform_device dm355_vpbe_display = {
+	.name		= "vpbe-v4l2",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(dm355_v4l2_disp_resources),
+	.resource	= dm355_v4l2_disp_resources,
+	.dev		= {
+		.dma_mask		= &vpfe_capture_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+struct venc_platform_data dm355_venc_pdata = {
+	.setup_pinmux	= dm355_vpbe_setup_pinmux,
+	.setup_clock	= dm355_venc_setup_clock,
+};
+
+static struct platform_device dm355_venc_dev = {
+	.name		= DM355_VPBE_VENC_SUBDEV_NAME,
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(dm355_venc_resources),
+	.resource	= dm355_venc_resources,
+	.dev		= {
+		.dma_mask		= &vpfe_capture_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= (void *)&dm355_venc_pdata,
+	},
+};
+
+static struct platform_device dm355_vpbe_dev = {
+	.name		= "vpbe_controller",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= &vpfe_capture_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
 
 /*----------------------------------------------------------------------*/
 
@@ -868,19 +1005,36 @@ void __init dm355_init(void)
 	davinci_map_sysmod();
 }
 
+int __init dm355_init_video(struct vpfe_config *vpfe_cfg,
+				struct vpbe_config *vpbe_cfg)
+{
+	if (vpfe_cfg || vpbe_cfg)
+		platform_device_register(&dm355_vpss_device);
+
+	if (vpfe_cfg) {
+		vpfe_capture_dev.dev.platform_data = vpfe_cfg;
+		platform_device_register(&dm355_ccdc_dev);
+		platform_device_register(&vpfe_capture_dev);
+	}
+
+	if (vpbe_cfg) {
+		dm355_vpbe_dev.dev.platform_data = vpbe_cfg;
+		platform_device_register(&dm355_osd_dev);
+		platform_device_register(&dm355_venc_dev);
+		platform_device_register(&dm355_vpbe_dev);
+		platform_device_register(&dm355_vpbe_display);
+	}
+
+	return 0;
+}
+
 static int __init dm355_init_devices(void)
 {
 	if (!cpu_is_davinci_dm355())
 		return 0;
 
-	/* Add ccdc clock aliases */
-	clk_add_alias("master", dm355_ccdc_dev.name, "vpss_master", NULL);
-	clk_add_alias("slave", dm355_ccdc_dev.name, "vpss_master", NULL);
 	davinci_cfg_reg(DM355_INT_EDMA_CC);
 	platform_device_register(&dm355_edma_device);
-	platform_device_register(&dm355_vpss_device);
-	platform_device_register(&dm355_ccdc_dev);
-	platform_device_register(&vpfe_capture_dev);
 
 	return 0;
 }

@@ -160,7 +160,7 @@ static int sendcmd(
 	unsigned int log_unit );
 
 static int ida_unlocked_open(struct block_device *bdev, fmode_t mode);
-static int ida_release(struct gendisk *disk, fmode_t mode);
+static void ida_release(struct gendisk *disk, fmode_t mode);
 static int ida_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg);
 static int ida_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 static int ida_ctlr_ioctl(ctlr_info_t *h, int dsk, ida_ioctl_t *io);
@@ -296,7 +296,7 @@ static int ida_proc_show(struct seq_file *m, void *v)
 
 static int ida_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, ida_proc_show, PDE(inode)->data);
+	return single_open(file, ida_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations ida_proc_fops = {
@@ -856,7 +856,7 @@ static int ida_unlocked_open(struct block_device *bdev, fmode_t mode)
 /*
  * Close.  Sync first.
  */
-static int ida_release(struct gendisk *disk, fmode_t mode)
+static void ida_release(struct gendisk *disk, fmode_t mode)
 {
 	ctlr_info_t *host;
 
@@ -864,8 +864,6 @@ static int ida_release(struct gendisk *disk, fmode_t mode)
 	host = get_host(disk);
 	host->usage_count--;
 	mutex_unlock(&cpqarray_mutex);
-
-	return 0;
 }
 
 /*

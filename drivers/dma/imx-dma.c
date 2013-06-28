@@ -859,8 +859,7 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_cyclic(
 
 	desc = list_first_entry(&imxdmac->ld_free, struct imxdma_desc, node);
 
-	if (imxdmac->sg_list)
-		kfree(imxdmac->sg_list);
+	kfree(imxdmac->sg_list);
 
 	imxdmac->sg_list = kcalloc(periods + 1,
 			sizeof(struct scatterlist), GFP_KERNEL);
@@ -1145,7 +1144,7 @@ err:
 	return ret;
 }
 
-static int __exit imxdma_remove(struct platform_device *pdev)
+static int imxdma_remove(struct platform_device *pdev)
 {
 	struct imxdma_engine *imxdma = platform_get_drvdata(pdev);
 
@@ -1162,7 +1161,7 @@ static struct platform_driver imxdma_driver = {
 		.name	= "imx-dma",
 	},
 	.id_table	= imx_dma_devtype,
-	.remove		= __exit_p(imxdma_remove),
+	.remove		= imxdma_remove,
 };
 
 static int __init imxdma_module_init(void)

@@ -245,6 +245,10 @@ static struct snd_soc_dai_driver bf5xx_i2s_dai = {
 	.ops = &bf5xx_i2s_dai_ops,
 };
 
+static const struct snd_soc_component_driver bf5xx_i2s_component = {
+	.name		= "bf5xx-i2s",
+};
+
 static int bf5xx_i2s_probe(struct platform_device *pdev)
 {
 	struct sport_device *sport_handle;
@@ -257,7 +261,8 @@ static int bf5xx_i2s_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* register with the ASoC layers */
-	ret = snd_soc_register_dai(&pdev->dev, &bf5xx_i2s_dai);
+	ret = snd_soc_register_component(&pdev->dev, &bf5xx_i2s_component,
+					 &bf5xx_i2s_dai, 1);
 	if (ret) {
 		pr_err("Failed to register DAI: %d\n", ret);
 		sport_done(sport_handle);
@@ -273,7 +278,7 @@ static int bf5xx_i2s_remove(struct platform_device *pdev)
 
 	pr_debug("%s enter\n", __func__);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	sport_done(sport_handle);
 
 	return 0;

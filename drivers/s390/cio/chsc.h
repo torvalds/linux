@@ -43,7 +43,9 @@ struct channel_path_desc_fmt1 {
 	u8 chpid;
 	u32:24;
 	u8 chpp;
-	u32 unused[3];
+	u32 unused[2];
+	u16 chid;
+	u32:16;
 	u16 mdc;
 	u16:13;
 	u8 r:1;
@@ -156,8 +158,10 @@ int chsc_scm_info(struct chsc_scm_info *scm_area, u64 token);
 
 #ifdef CONFIG_SCM_BUS
 int scm_update_information(void);
+int scm_process_availability_information(void);
 #else /* CONFIG_SCM_BUS */
 static inline int scm_update_information(void) { return 0; }
+static inline int scm_process_availability_information(void) { return 0; }
 #endif /* CONFIG_SCM_BUS */
 
 

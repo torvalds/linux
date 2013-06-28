@@ -122,9 +122,9 @@ config USB
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbcore.
 
-source "drivers/usb/core/Kconfig"
+if USB
 
-source "drivers/usb/dwc3/Kconfig"
+source "drivers/usb/core/Kconfig"
 
 source "drivers/usb/mon/Kconfig"
 
@@ -134,8 +134,6 @@ source "drivers/usb/host/Kconfig"
 
 source "drivers/usb/musb/Kconfig"
 
-source "drivers/usb/chipidea/Kconfig"
-
 source "drivers/usb/renesas_usbhs/Kconfig"
 
 source "drivers/usb/class/Kconfig"
@@ -144,12 +142,19 @@ source "drivers/usb/storage/Kconfig"
 
 source "drivers/usb/image/Kconfig"
 
+endif
+
+source "drivers/usb/dwc3/Kconfig"
+
+source "drivers/usb/chipidea/Kconfig"
+
 comment "USB port drivers"
-	depends on USB
+
+if USB
 
 config USB_USS720
 	tristate "USS720 parport driver"
-	depends on USB && PARPORT
+	depends on PARPORT
 	select PARPORT_NOT_PC
 	---help---
 	  This driver is for USB parallel port adapters that use the Lucent
@@ -180,12 +185,12 @@ source "drivers/usb/serial/Kconfig"
 
 source "drivers/usb/misc/Kconfig"
 
-source "drivers/usb/phy/Kconfig"
-
 source "drivers/usb/atm/Kconfig"
 
-source "drivers/usb/gadget/Kconfig"
+endif # USB
 
-source "drivers/usb/otg/Kconfig"
+source "drivers/usb/phy/Kconfig"
+
+source "drivers/usb/gadget/Kconfig"
 
 endif # USB_SUPPORT

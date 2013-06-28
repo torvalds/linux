@@ -12,6 +12,7 @@
 #define pr_fmt(fmt) "generic pinconfig core: " fmt
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -33,7 +34,7 @@ struct pin_config_item {
 
 #define PCONFDUMP(a, b, c) { .param = a, .display = b, .format = c }
 
-struct pin_config_item conf_items[] = {
+static struct pin_config_item conf_items[] = {
 	PCONFDUMP(PIN_CONFIG_BIAS_DISABLE, "input bias disabled", NULL),
 	PCONFDUMP(PIN_CONFIG_BIAS_HIGH_IMPEDANCE, "input bias high impedance", NULL),
 	PCONFDUMP(PIN_CONFIG_BIAS_PULL_UP, "input bias pull up", NULL),
@@ -59,7 +60,7 @@ void pinconf_generic_dump_pin(struct pinctrl_dev *pctldev,
 	if (!ops->is_generic)
 		return;
 
-	for(i = 0; i < ARRAY_SIZE(conf_items); i++) {
+	for (i = 0; i < ARRAY_SIZE(conf_items); i++) {
 		unsigned long config;
 		int ret;
 
@@ -94,7 +95,7 @@ void pinconf_generic_dump_group(struct pinctrl_dev *pctldev,
 	if (!ops->is_generic)
 		return;
 
-	for(i = 0; i < ARRAY_SIZE(conf_items); i++) {
+	for (i = 0; i < ARRAY_SIZE(conf_items); i++) {
 		unsigned long config;
 		int ret;
 
@@ -120,4 +121,17 @@ void pinconf_generic_dump_group(struct pinctrl_dev *pctldev,
 	}
 }
 
+void pinconf_generic_dump_config(struct pinctrl_dev *pctldev,
+				 struct seq_file *s, unsigned long config)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(conf_items); i++) {
+		if (pinconf_to_config_param(config) != conf_items[i].param)
+			continue;
+		seq_printf(s, "%s: 0x%x", conf_items[i].display,
+			   pinconf_to_config_argument(config));
+	}
+}
+EXPORT_SYMBOL_GPL(pinconf_generic_dump_config);
 #endif

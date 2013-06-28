@@ -14,7 +14,7 @@ config IIO_PERIODIC_RTC_TRIGGER
 
 config IIO_GPIO_TRIGGER
 	tristate "GPIO trigger"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  Provides support for using GPIO pins as IIO triggers.
 

@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/init.h>
+#include <linux/sizes.h>
 #include <linux/of_fdt.h>
 #include <linux/kernel.h>
 #include <linux/bootmem.h>
@@ -85,6 +86,14 @@ void __init plat_mem_setup(void)
 	 * parsed resulting in our memory appearing
 	 */
 	__dt_setup_arch(&__dtb_start);
+
+	if (soc_info.mem_size)
+		add_memory_region(soc_info.mem_base, soc_info.mem_size * SZ_1M,
+				  BOOT_MEM_RAM);
+	else
+		detect_memory_region(soc_info.mem_base,
+				     soc_info.mem_size_min * SZ_1M,
+				     soc_info.mem_size_max * SZ_1M);
 }
 
 static int __init plat_of_setup(void)

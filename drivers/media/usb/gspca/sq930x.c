@@ -541,13 +541,11 @@ static void ucbus_write(struct gspca_dev *gspca_dev,
 	if (gspca_dev->usb_err < 0)
 		return;
 
-#ifdef GSPCA_DEBUG
 	if ((batchsize - 1) * 3 > USB_BUF_SZ) {
-		pr_err("Bug: usb_buf overflow\n");
+		PERR("Bug: usb_buf overflow\n");
 		gspca_dev->usb_err = -ENOMEM;
 		return;
 	}
-#endif
 
 	for (;;) {
 		len = ncmds;

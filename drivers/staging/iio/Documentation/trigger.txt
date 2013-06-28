@@ -10,9 +10,6 @@ struct iio_trig *trig = iio_trigger_alloc("<trigger format string>", ...);
 allocates a trigger structure.  The key elements to then fill in within
 a driver are:
 
-trig->private_data
-	Device specific private data.
-
 trig->owner
 	Typically set to THIS_MODULE. Used to ensure correct
 	ownership of core allocated resources.

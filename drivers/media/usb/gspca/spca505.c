@@ -544,10 +544,11 @@ static const u8 spca505b_open_data_ccd[][3] = {
 	{}
 };
 
-static int reg_write(struct usb_device *dev,
+static int reg_write(struct gspca_dev *gspca_dev,
 		     u16 req, u16 index, u16 value)
 {
 	int ret;
+	struct usb_device *dev = gspca_dev->dev;
 
 	ret = usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
@@ -584,11 +585,11 @@ static int reg_read(struct gspca_dev *gspca_dev,
 static int write_vector(struct gspca_dev *gspca_dev,
 			const u8 data[][3])
 {
-	struct usb_device *dev = gspca_dev->dev;
 	int ret, i = 0;
 
 	while (data[i][0] != 0) {
-		ret = reg_write(dev, data[i][0], data[i][2], data[i][1]);
+		ret = reg_write(gspca_dev, data[i][0], data[i][2],
+								data[i][1]);
 		if (ret < 0)
 			return ret;
 		i++;
@@ -629,14 +630,13 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 static void setbrightness(struct gspca_dev *gspca_dev, s32 brightness)
 {
-	reg_write(gspca_dev->dev, 0x05, 0x00, (255 - brightness) >> 6);
-	reg_write(gspca_dev->dev, 0x05, 0x01, (255 - brightness) << 2);
+	reg_write(gspca_dev, 0x05, 0x00, (255 - brightness) >> 6);
+	reg_write(gspca_dev, 0x05, 0x01, (255 - brightness) << 2);
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	int ret, mode;
 	static u8 mode_tb[][3] = {
 	/*	  r00   r06   r07	*/
@@ -654,9 +654,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	ret = reg_read(gspca_dev, 0x06, 0x16);
 
 	if (ret < 0) {
-		PDEBUG(D_ERR|D_CONF,
-		       "register read failed err: %d",
-		       ret);
+		PERR("register read failed err: %d", ret);
 		return ret;
 	}
 	if (ret != 0x0101) {
@@ -664,22 +662,22 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		       ret);
 	}
 
-	ret = reg_write(gspca_dev->dev, 0x06, 0x16, 0x0a);
+	ret = reg_write(gspca_dev, 0x06, 0x16, 0x0a);
 	if (ret < 0)
 		return ret;
-	reg_write(gspca_dev->dev, 0x05, 0xc2, 0x12);
+	reg_write(gspca_dev, 0x05, 0xc2, 0x12);
 
 	/* necessary because without it we can see stream
 	 * only once after loading module */
 	/* stopping usb registers Tomasz change */
-	reg_write(dev, 0x02, 0x00, 0x00);
+	reg_write(gspca_dev, 0x02, 0x00, 0x00);
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
-	reg_write(dev, SPCA50X_REG_COMPRESS, 0x00, mode_tb[mode][0]);
-	reg_write(dev, SPCA50X_REG_COMPRESS, 0x06, mode_tb[mode][1]);
-	reg_write(dev, SPCA50X_REG_COMPRESS, 0x07, mode_tb[mode][2]);
+	reg_write(gspca_dev, SPCA50X_REG_COMPRESS, 0x00, mode_tb[mode][0]);
+	reg_write(gspca_dev, SPCA50X_REG_COMPRESS, 0x06, mode_tb[mode][1]);
+	reg_write(gspca_dev, SPCA50X_REG_COMPRESS, 0x07, mode_tb[mode][2]);
 
-	return reg_write(dev, SPCA50X_REG_USB,
+	return reg_write(gspca_dev, SPCA50X_REG_USB,
 			 SPCA50X_USB_CTRL,
 			 SPCA50X_CUSB_ENABLE);
 }
@@ -687,7 +685,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	/* Disable ISO packet machine */
-	reg_write(gspca_dev->dev, 0x02, 0x00, 0x00);
+	reg_write(gspca_dev, 0x02, 0x00, 0x00);
 }
 
 /* called on streamoff with alt 0 and on disconnect */
@@ -697,11 +695,11 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		return;
 
 	/* This maybe reset or power control */
-	reg_write(gspca_dev->dev, 0x03, 0x03, 0x20);
-	reg_write(gspca_dev->dev, 0x03, 0x01, 0x00);
-	reg_write(gspca_dev->dev, 0x03, 0x00, 0x01);
-	reg_write(gspca_dev->dev, 0x05, 0x10, 0x01);
-	reg_write(gspca_dev->dev, 0x05, 0x11, 0x0f);
+	reg_write(gspca_dev, 0x03, 0x03, 0x20);
+	reg_write(gspca_dev, 0x03, 0x01, 0x00);
+	reg_write(gspca_dev, 0x03, 0x00, 0x01);
+	reg_write(gspca_dev, 0x05, 0x10, 0x01);
+	reg_write(gspca_dev, 0x05, 0x11, 0x0f);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,

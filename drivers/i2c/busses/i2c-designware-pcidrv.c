@@ -208,68 +208,45 @@ static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 }
 
 static int i2c_dw_pci_probe(struct pci_dev *pdev,
-const struct pci_device_id *id)
+			    const struct pci_device_id *id)
 {
 	struct dw_i2c_dev *dev;
 	struct i2c_adapter *adap;
-	unsigned long start, len;
-	void __iomem *base;
 	int r;
 	struct  dw_pci_controller *controller;
 
 	if (id->driver_data >= ARRAY_SIZE(dw_pci_controllers)) {
-		printk(KERN_ERR "dw_i2c_pci_probe: invalid driver data %ld\n",
+		dev_err(&pdev->dev, "%s: invalid driver data %ld\n", __func__,
 			id->driver_data);
 		return -EINVAL;
 	}
 
 	controller = &dw_pci_controllers[id->driver_data];
 
-	r = pci_enable_device(pdev);
+	r = pcim_enable_device(pdev);
 	if (r) {
 		dev_err(&pdev->dev, "Failed to enable I2C PCI device (%d)\n",
 			r);
-		goto exit;
+		return r;
 	}
 
-	/* Determine the address of the I2C area */
-	start = pci_resource_start(pdev, 0);
-	len = pci_resource_len(pdev, 0);
-	if (!start || len == 0) {
-		dev_err(&pdev->dev, "base address not set\n");
-		r = -ENODEV;
-		goto exit;
-	}
-
-	r = pci_request_region(pdev, 0, DRIVER_NAME);
+	r = pcim_iomap_regions(pdev, 1 << 0, pci_name(pdev));
 	if (r) {
-		dev_err(&pdev->dev, "failed to request I2C region "
-			"0x%lx-0x%lx\n", start,
-			(unsigned long)pci_resource_end(pdev, 0));
-		goto exit;
-	}
-
-	base = ioremap_nocache(start, len);
-	if (!base) {
 		dev_err(&pdev->dev, "I/O memory remapping failed\n");
-		r = -ENOMEM;
-		goto err_release_region;
+		return r;
 	}
 
-
-	dev = kzalloc(sizeof(struct dw_i2c_dev), GFP_KERNEL);
-	if (!dev) {
-		r = -ENOMEM;
-		goto err_release_region;
-	}
+	dev = devm_kzalloc(&pdev->dev, sizeof(struct dw_i2c_dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
 
 	init_completion(&dev->cmd_complete);
 	mutex_init(&dev->lock);
 	dev->clk = NULL;
 	dev->controller = controller;
 	dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
-	dev->base = base;
-	dev->dev = get_device(&pdev->dev);
+	dev->base = pcim_iomap_table(pdev)[0];
+	dev->dev = &pdev->dev;
 	dev->functionality =
 		I2C_FUNC_I2C |
 		I2C_FUNC_SMBUS_BYTE |
@@ -284,7 +261,7 @@ const struct pci_device_id *id)
 	dev->rx_fifo_depth = controller->rx_fifo_depth;
 	r = i2c_dw_init(dev);
 	if (r)
-		goto err_iounmap;
+		return r;
 
 	adap = &dev->adapter;
 	i2c_set_adapdata(adap, dev);
@@ -296,10 +273,11 @@ const struct pci_device_id *id)
 	snprintf(adap->name, sizeof(adap->name), "i2c-designware-pci-%d",
 		adap->nr);
 
-	r = request_irq(pdev->irq, i2c_dw_isr, IRQF_SHARED, adap->name, dev);
+	r = devm_request_irq(&pdev->dev, pdev->irq, i2c_dw_isr, IRQF_SHARED,
+			adap->name, dev);
 	if (r) {
 		dev_err(&pdev->dev, "failure requesting irq %i\n", dev->irq);
-		goto err_iounmap;
+		return r;
 	}
 
 	i2c_dw_disable_int(dev);
@@ -307,24 +285,14 @@ const struct pci_device_id *id)
 	r = i2c_add_numbered_adapter(adap);
 	if (r) {
 		dev_err(&pdev->dev, "failure adding adapter\n");
-		goto err_free_irq;
+		return r;
 	}
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
+	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;
-
-err_free_irq:
-	free_irq(pdev->irq, dev);
-err_iounmap:
-	iounmap(dev->base);
-	put_device(&pdev->dev);
-	kfree(dev);
-err_release_region:
-	pci_release_region(pdev, 0);
-exit:
-	return r;
 }
 
 static void i2c_dw_pci_remove(struct pci_dev *pdev)
@@ -336,11 +304,6 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 	pm_runtime_get_noresume(&pdev->dev);
 
 	i2c_del_adapter(&dev->adapter);
-	put_device(&pdev->dev);
-
-	free_irq(dev->irq, dev);
-	kfree(dev);
-	pci_release_region(pdev, 0);
 }
 
 /* work with hotplug and coldplug */

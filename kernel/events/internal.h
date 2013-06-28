@@ -16,7 +16,7 @@ struct ring_buffer {
 	int				page_order;	/* allocation order  */
 #endif
 	int				nr_pages;	/* nr of data pages  */
-	int				writable;	/* are we writable   */
+	int				overwrite;	/* can overwrite itself */
 
 	atomic_t			poll;		/* POLL_ for wakeups */
 

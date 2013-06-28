@@ -1169,10 +1169,8 @@ static int bigmac_ether_init(struct platform_device *op,
 	bp->bmac_block = dma_alloc_coherent(&bp->bigmac_op->dev,
 					    PAGE_SIZE,
 					    &bp->bblock_dvma, GFP_ATOMIC);
-	if (bp->bmac_block == NULL || bp->bblock_dvma == 0) {
-		printk(KERN_ERR "BIGMAC: Cannot allocate consistent DMA.\n");
+	if (bp->bmac_block == NULL || bp->bblock_dvma == 0)
 		goto fail_and_cleanup;
-	}
 
 	/* Get the board revision of this BigMAC. */
 	bp->board_rev = of_getintprop_default(bp->bigmac_op->dev.of_node,

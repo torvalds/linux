@@ -12,7 +12,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/usb-exynos.h>
+#include <linux/platform_data/usb-ohci-exynos.h>
 
 #include <mach/irqs.h>
 #include <mach/map.h>

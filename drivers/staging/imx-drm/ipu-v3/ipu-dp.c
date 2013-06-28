@@ -316,7 +316,6 @@ int ipu_dp_init(struct ipu_soc *ipu, struct device *dev, unsigned long base)
 
 	priv->base = devm_ioremap(dev, base, PAGE_SIZE);
 	if (!priv->base) {
-		kfree(priv);
 		return -ENOMEM;
 	}
 

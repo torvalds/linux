@@ -81,7 +81,6 @@ tracepoint_synchronize_unregister() must be called before the end of
 the module exit function to make sure there is no caller left using
 the probe. This, and the fact that preemption is disabled around the
 probe call, make sure that probe removal and module unload are safe.
-See the "Probe example" section below for a sample probe module.
 
 The tracepoint mechanism supports inserting multiple instances of the
 same tracepoint, but a single definition must be made of a given
@@ -100,17 +99,3 @@ core kernel image or in modules.
 If the tracepoint has to be used in kernel modules, an
 EXPORT_TRACEPOINT_SYMBOL_GPL() or EXPORT_TRACEPOINT_SYMBOL() can be
 used to export the defined tracepoints.
-
-* Probe / tracepoint example
-
-See the example provided in samples/tracepoints
-
-Compile them with your kernel.  They are built during 'make' (not
-'make modules') when CONFIG_SAMPLE_TRACEPOINTS=m.
-
-Run, as root :
-modprobe tracepoint-sample (insmod order is not important)
-modprobe tracepoint-probe-sample
-cat /proc/tracepoint-sample (returns an expected error)
-rmmod tracepoint-sample tracepoint-probe-sample
-dmesg

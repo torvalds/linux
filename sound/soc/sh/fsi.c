@@ -296,7 +296,6 @@ struct fsi_core {
 
 struct fsi_master {
 	void __iomem *base;
-	int irq;
 	struct fsi_priv fsia;
 	struct fsi_priv fsib;
 	const struct fsi_core *core;
@@ -1886,6 +1885,10 @@ static struct snd_soc_platform_driver fsi_soc_platform = {
 	.pcm_free	= fsi_pcm_free,
 };
 
+static const struct snd_soc_component_driver fsi_soc_component = {
+	.name		= "fsi",
+};
+
 /*
  *		platform function
  */
@@ -2002,7 +2005,6 @@ static int fsi_probe(struct platform_device *pdev)
 	}
 
 	/* master setting */
-	master->irq		= irq;
 	master->core		= core;
 	spin_lock_init(&master->lock);
 
@@ -2046,10 +2048,10 @@ static int fsi_probe(struct platform_device *pdev)
 		goto exit_fsib;
 	}
 
-	ret = snd_soc_register_dais(&pdev->dev, fsi_soc_dai,
-				    ARRAY_SIZE(fsi_soc_dai));
+	ret = snd_soc_register_component(&pdev->dev, &fsi_soc_component,
+				    fsi_soc_dai, ARRAY_SIZE(fsi_soc_dai));
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot snd dai register\n");
+		dev_err(&pdev->dev, "cannot snd component register\n");
 		goto exit_snd_soc;
 	}
 
@@ -2074,7 +2076,7 @@ static int fsi_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(fsi_soc_dai));
+	snd_soc_unregister_component(&pdev->dev);
 	snd_soc_unregister_platform(&pdev->dev);
 
 	fsi_stream_remove(&master->fsia);

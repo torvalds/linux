@@ -16,7 +16,7 @@
 #include "s5p_mfc_debug.h"
 
 /* This function is used to send a command to the MFC */
-int s5p_mfc_cmd_host2risc_v5(struct s5p_mfc_dev *dev, int cmd,
+static int s5p_mfc_cmd_host2risc_v5(struct s5p_mfc_dev *dev, int cmd,
 				struct s5p_mfc_cmd_args *args)
 {
 	int cur_cmd;
@@ -41,7 +41,7 @@ int s5p_mfc_cmd_host2risc_v5(struct s5p_mfc_dev *dev, int cmd,
 }
 
 /* Initialize the MFC */
-int s5p_mfc_sys_init_cmd_v5(struct s5p_mfc_dev *dev)
+static int s5p_mfc_sys_init_cmd_v5(struct s5p_mfc_dev *dev)
 {
 	struct s5p_mfc_cmd_args h2r_args;
 
@@ -52,7 +52,7 @@ int s5p_mfc_sys_init_cmd_v5(struct s5p_mfc_dev *dev)
 }
 
 /* Suspend the MFC hardware */
-int s5p_mfc_sleep_cmd_v5(struct s5p_mfc_dev *dev)
+static int s5p_mfc_sleep_cmd_v5(struct s5p_mfc_dev *dev)
 {
 	struct s5p_mfc_cmd_args h2r_args;
 
@@ -61,7 +61,7 @@ int s5p_mfc_sleep_cmd_v5(struct s5p_mfc_dev *dev)
 }
 
 /* Wake up the MFC hardware */
-int s5p_mfc_wakeup_cmd_v5(struct s5p_mfc_dev *dev)
+static int s5p_mfc_wakeup_cmd_v5(struct s5p_mfc_dev *dev)
 {
 	struct s5p_mfc_cmd_args h2r_args;
 
@@ -71,7 +71,7 @@ int s5p_mfc_wakeup_cmd_v5(struct s5p_mfc_dev *dev)
 }
 
 
-int s5p_mfc_open_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
+static int s5p_mfc_open_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_cmd_args h2r_args;
@@ -124,7 +124,7 @@ int s5p_mfc_open_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
 	return ret;
 }
 
-int s5p_mfc_close_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
+static int s5p_mfc_close_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_cmd_args h2r_args;

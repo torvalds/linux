@@ -158,18 +158,17 @@ int cx23885_g_register(struct file *file, void *fh,
 }
 
 static int cx23885_s_host_register(struct cx23885_dev *dev,
-				   struct v4l2_dbg_register *reg)
+				   const struct v4l2_dbg_register *reg)
 {
 	if ((reg->reg & 0x3) != 0 || reg->reg >= pci_resource_len(dev->pci, 0))
 		return -EINVAL;
 
-	reg->size = 4;
 	cx_write(reg->reg, reg->val);
 	return 0;
 }
 
 static int cx23417_s_register(struct cx23885_dev *dev,
-			      struct v4l2_dbg_register *reg)
+			      const struct v4l2_dbg_register *reg)
 {
 	if (dev->v4l_device == NULL)
 		return -EINVAL;
@@ -179,13 +178,11 @@ static int cx23417_s_register(struct cx23885_dev *dev,
 
 	if (mc417_register_write(dev, (u16) reg->reg, (u32) reg->val))
 		return -EINVAL; /* V4L2 spec, but -EREMOTEIO really */
-
-	reg->size = 4;
 	return 0;
 }
 
 int cx23885_s_register(struct file *file, void *fh,
-		       struct v4l2_dbg_register *reg)
+		       const struct v4l2_dbg_register *reg)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
 

@@ -5,11 +5,16 @@
 
 #include <linux/kernel.h>
 #include <linux/export.h>
+#include <linux/sched.h>
 
+/**
+ * dump_stack - dump the current task information and its stack trace
+ *
+ * Architectures can override this implementation by implementing its own.
+ */
 void dump_stack(void)
 {
-	printk(KERN_NOTICE
-		"This architecture does not implement dump_stack()\n");
+	dump_stack_print_info(KERN_DEFAULT);
+	show_stack(NULL, NULL);
 }
-
 EXPORT_SYMBOL(dump_stack);

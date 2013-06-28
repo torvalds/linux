@@ -153,7 +153,21 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 			" or cmd size is 0, not sending\n");
 		if (cmd_node->wait_q_enabled)
 			adapter->cmd_wait_q.status = -1;
-		mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
+		mwifiex_recycle_cmd_node(adapter, cmd_node);
+		return -1;
+	}
+
+	cmd_code = le16_to_cpu(host_cmd->command);
+	cmd_size = le16_to_cpu(host_cmd->size);
+
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_RESET &&
+	    cmd_code != HostCmd_CMD_FUNC_SHUTDOWN &&
+	    cmd_code != HostCmd_CMD_FUNC_INIT) {
+		dev_err(adapter->dev,
+			"DNLD_CMD: FW in reset state, ignore cmd %#x\n",
+			cmd_code);
+		mwifiex_complete_cmd(adapter, cmd_node);
+		mwifiex_recycle_cmd_node(adapter, cmd_node);
 		return -1;
 	}
 
@@ -167,9 +181,6 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 	adapter->curr_cmd = cmd_node;
 	spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
-
-	cmd_code = le16_to_cpu(host_cmd->command);
-	cmd_size = le16_to_cpu(host_cmd->size);
 
 	/* Adjust skb length */
 	if (cmd_node->cmd_skb->len > cmd_size)
@@ -217,7 +228,7 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 			adapter->cmd_sent = false;
 		if (cmd_node->wait_q_enabled)
 			adapter->cmd_wait_q.status = -1;
-		mwifiex_insert_cmd_to_free_q(adapter, adapter->curr_cmd);
+		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 		adapter->curr_cmd = NULL;
@@ -239,7 +250,7 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 
 	/* Setup the timer after transmit command */
 	mod_timer(&adapter->cmd_timer,
-		  jiffies + (MWIFIEX_TIMER_10S * HZ) / 1000);
+		  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));
 
 	return 0;
 }
@@ -484,8 +495,6 @@ int mwifiex_send_cmd_sync(struct mwifiex_private *priv, uint16_t cmd_no,
 
 	ret = mwifiex_send_cmd_async(priv, cmd_no, cmd_action, cmd_oid,
 				     data_buf);
-	if (!ret)
-		ret = mwifiex_wait_queue_complete(adapter);
 
 	return ret;
 }
@@ -588,9 +597,10 @@ int mwifiex_send_cmd_async(struct mwifiex_private *priv, uint16_t cmd_no,
 	if (cmd_no == HostCmd_CMD_802_11_SCAN) {
 		mwifiex_queue_scan_cmd(priv, cmd_node);
 	} else {
-		adapter->cmd_queued = cmd_node;
 		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
 		queue_work(adapter->workqueue, &adapter->main_work);
+		if (cmd_node->wait_q_enabled)
+			ret = mwifiex_wait_queue_complete(adapter, cmd_node);
 	}
 
 	return ret;
@@ -620,6 +630,20 @@ mwifiex_insert_cmd_to_free_q(struct mwifiex_adapter *adapter,
 	spin_lock_irqsave(&adapter->cmd_free_q_lock, flags);
 	list_add_tail(&cmd_node->list, &adapter->cmd_free_q);
 	spin_unlock_irqrestore(&adapter->cmd_free_q_lock, flags);
+}
+
+/* This function reuses a command node. */
+void mwifiex_recycle_cmd_node(struct mwifiex_adapter *adapter,
+			      struct cmd_ctrl_node *cmd_node)
+{
+	struct host_cmd_ds_command *host_cmd = (void *)cmd_node->cmd_skb->data;
+
+	mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
+
+	atomic_dec(&adapter->cmd_pending);
+	dev_dbg(adapter->dev, "cmd: FREE_CMD: cmd=%#x, cmd_pending=%d\n",
+		le16_to_cpu(host_cmd->command),
+		atomic_read(&adapter->cmd_pending));
 }
 
 /*
@@ -663,7 +687,9 @@ mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
 		list_add(&cmd_node->list, &adapter->cmd_pending_q);
 	spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
 
-	dev_dbg(adapter->dev, "cmd: QUEUE_CMD: cmd=%#x is queued\n", command);
+	atomic_inc(&adapter->cmd_pending);
+	dev_dbg(adapter->dev, "cmd: QUEUE_CMD: cmd=%#x, cmd_pending=%d\n",
+		command, atomic_read(&adapter->cmd_pending));
 }
 
 /*
@@ -773,7 +799,7 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	if (adapter->curr_cmd->cmd_flag & CMD_F_CANCELED) {
 		dev_err(adapter->dev, "CMD_RESP: %#x been canceled\n",
 			le16_to_cpu(resp->command));
-		mwifiex_insert_cmd_to_free_q(adapter, adapter->curr_cmd);
+		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 		adapter->curr_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
@@ -823,7 +849,7 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 		if (adapter->curr_cmd->wait_q_enabled)
 			adapter->cmd_wait_q.status = -1;
 
-		mwifiex_insert_cmd_to_free_q(adapter, adapter->curr_cmd);
+		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 		adapter->curr_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
@@ -855,8 +881,7 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 		if (adapter->curr_cmd->wait_q_enabled)
 			adapter->cmd_wait_q.status = ret;
 
-		/* Clean up and put current command back to cmd_free_q */
-		mwifiex_insert_cmd_to_free_q(adapter, adapter->curr_cmd);
+		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 		adapter->curr_cmd = NULL;
@@ -983,7 +1008,7 @@ mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 			mwifiex_complete_cmd(adapter, cmd_node);
 			cmd_node->wait_q_enabled = false;
 		}
-		mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
+		mwifiex_recycle_cmd_node(adapter, cmd_node);
 		spin_lock_irqsave(&adapter->cmd_pending_q_lock, flags);
 	}
 	spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
@@ -1030,7 +1055,7 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 		cmd_node = adapter->curr_cmd;
 		cmd_node->wait_q_enabled = false;
 		cmd_node->cmd_flag |= CMD_F_CANCELED;
-		mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
+		mwifiex_recycle_cmd_node(adapter, cmd_node);
 		mwifiex_complete_cmd(adapter, adapter->curr_cmd);
 		adapter->curr_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
@@ -1139,7 +1164,7 @@ int mwifiex_ret_802_11_hs_cfg(struct mwifiex_private *priv,
 			phs_cfg->params.hs_config.gpio,
 			phs_cfg->params.hs_config.gap);
 	}
-	if (conditions != HOST_SLEEP_CFG_CANCEL) {
+	if (conditions != HS_CFG_CANCEL) {
 		adapter->is_hs_configured = true;
 		if (adapter->iface_type == MWIFIEX_USB ||
 		    adapter->iface_type == MWIFIEX_PCIE)
@@ -1166,6 +1191,7 @@ mwifiex_process_hs_config(struct mwifiex_adapter *adapter)
 	adapter->if_ops.wakeup(adapter);
 	adapter->hs_activated = false;
 	adapter->is_hs_configured = false;
+	adapter->is_suspended = false;
 	mwifiex_hs_activated_event(mwifiex_get_priv(adapter,
 						    MWIFIEX_BSS_ROLE_ANY),
 				   false);

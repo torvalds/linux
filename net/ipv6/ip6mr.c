@@ -842,9 +842,9 @@ static void ip6mr_destroy_unres(struct mr6_table *mrt, struct mfc6_cache *c)
 		if (ipv6_hdr(skb)->version == 0) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct ipv6hdr));
 			nlh->nlmsg_type = NLMSG_ERROR;
-			nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
+			nlh->nlmsg_len = nlmsg_msg_size(sizeof(struct nlmsgerr));
 			skb_trim(skb, nlh->nlmsg_len);
-			((struct nlmsgerr *)NLMSG_DATA(nlh))->error = -ETIMEDOUT;
+			((struct nlmsgerr *)nlmsg_data(nlh))->error = -ETIMEDOUT;
 			rtnl_unicast(skb, net, NETLINK_CB(skb).portid);
 		} else
 			kfree_skb(skb);
@@ -1100,13 +1100,13 @@ static void ip6mr_cache_resolve(struct net *net, struct mr6_table *mrt,
 		if (ipv6_hdr(skb)->version == 0) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct ipv6hdr));
 
-			if (__ip6mr_fill_mroute(mrt, skb, c, NLMSG_DATA(nlh)) > 0) {
+			if (__ip6mr_fill_mroute(mrt, skb, c, nlmsg_data(nlh)) > 0) {
 				nlh->nlmsg_len = skb_tail_pointer(skb) - (u8 *)nlh;
 			} else {
 				nlh->nlmsg_type = NLMSG_ERROR;
-				nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
+				nlh->nlmsg_len = nlmsg_msg_size(sizeof(struct nlmsgerr));
 				skb_trim(skb, nlh->nlmsg_len);
-				((struct nlmsgerr *)NLMSG_DATA(nlh))->error = -EMSGSIZE;
+				((struct nlmsgerr *)nlmsg_data(nlh))->error = -EMSGSIZE;
 			}
 			rtnl_unicast(skb, net, NETLINK_CB(skb).portid);
 		} else

@@ -143,7 +143,7 @@ struct strlist *strlist__new(bool dupstr, const char *list)
 		slist->rblist.node_delete = strlist__node_delete;
 
 		slist->dupstr	 = dupstr;
-		if (slist && strlist__parse_list(slist, list) != 0)
+		if (list && strlist__parse_list(slist, list) != 0)
 			goto out_error;
 	}
 

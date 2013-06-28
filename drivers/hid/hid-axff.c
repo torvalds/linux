@@ -29,14 +29,12 @@
 
 #include <linux/input.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 #include <linux/hid.h>
 #include <linux/module.h>
 
 #include "hid-ids.h"
 
 #ifdef CONFIG_HID_ACRUX_FF
-#include "usbhid/usbhid.h"
 
 struct axff_device {
 	struct hid_report *report;
@@ -68,7 +66,7 @@ static int axff_play(struct input_dev *dev, void *data, struct ff_effect *effect
 	}
 
 	dbg_hid("running with 0x%02x 0x%02x", left, right);
-	usbhid_submit_report(hid, axff->report, USB_DIR_OUT);
+	hid_hw_request(hid, axff->report, HID_REQ_SET_REPORT);
 
 	return 0;
 }
@@ -114,7 +112,7 @@ static int axff_init(struct hid_device *hid)
 		goto err_free_mem;
 
 	axff->report = report;
-	usbhid_submit_report(hid, axff->report, USB_DIR_OUT);
+	hid_hw_request(hid, axff->report, HID_REQ_SET_REPORT);
 
 	hid_info(hid, "Force Feedback for ACRUX game controllers by Sergei Kolzun <x0r@dv-life.ru>\n");
 

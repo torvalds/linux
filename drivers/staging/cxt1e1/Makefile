@@ -12,8 +12,9 @@ cxt1e1-y := 	\
   linux.o 		\
   functions.o 		\
   hwprobe.o 		\
-  sbeproc.o 		\
   pmc93x6_eeprom.o 	\
   sbecrc.o 		\
   comet_tables.o 	\
   sbeid.o
+
+cxt1e1-$(CONFIG_PROC_FS) += sbeproc.o

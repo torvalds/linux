@@ -365,7 +365,13 @@ static int lc_unused_element_available(struct lru_cache *lc)
 	return 0;
 }
 
-static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, bool may_change)
+/* used as internal flags to __lc_get */
+enum {
+	LC_GET_MAY_CHANGE = 1,
+	LC_GET_MAY_USE_UNCOMMITTED = 2,
+};
+
+static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, unsigned int flags)
 {
 	struct lc_element *e;
 
@@ -380,22 +386,31 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, bool 
 	 * this enr is currently being pulled in already,
 	 * and will be available once the pending transaction
 	 * has been committed. */
-	if (e && e->lc_new_number == e->lc_number) {
+	if (e) {
+		if (e->lc_new_number != e->lc_number) {
+			/* It has been found above, but on the "to_be_changed"
+			 * list, not yet committed.  Don't pull it in twice,
+			 * wait for the transaction, then try again...
+			 */
+			if (!(flags & LC_GET_MAY_USE_UNCOMMITTED))
+				RETURN(NULL);
+			/* ... unless the caller is aware of the implications,
+			 * probably preparing a cumulative transaction. */
+			++e->refcnt;
+			++lc->hits;
+			RETURN(e);
+		}
+		/* else: lc_new_number == lc_number; a real hit. */
 		++lc->hits;
 		if (e->refcnt++ == 0)
 			lc->used++;
 		list_move(&e->list, &lc->in_use); /* Not evictable... */
 		RETURN(e);
 	}
+	/* e == NULL */
 
 	++lc->misses;
-	if (!may_change)
-		RETURN(NULL);
-
-	/* It has been found above, but on the "to_be_changed" list, not yet
-	 * committed.  Don't pull it in twice, wait for the transaction, then
-	 * try again */
-	if (e)
+	if (!(flags & LC_GET_MAY_CHANGE))
 		RETURN(NULL);
 
 	/* To avoid races with lc_try_lock(), first, mark us dirty
@@ -477,7 +492,27 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, bool 
  */
 struct lc_element *lc_get(struct lru_cache *lc, unsigned int enr)
 {
-	return __lc_get(lc, enr, 1);
+	return __lc_get(lc, enr, LC_GET_MAY_CHANGE);
+}
+
+/**
+ * lc_get_cumulative - like lc_get; also finds to-be-changed elements
+ * @lc: the lru cache to operate on
+ * @enr: the label to look up
+ *
+ * Unlike lc_get this also returns the element for @enr, if it is belonging to
+ * a pending transaction, so the return values are like for lc_get(),
+ * plus:
+ *
+ * pointer to an element already on the "to_be_changed" list.
+ * 	In this case, the cache was already marked %LC_DIRTY.
+ *
+ * Caller needs to make sure that the pending transaction is completed,
+ * before proceeding to actually use this element.
+ */
+struct lc_element *lc_get_cumulative(struct lru_cache *lc, unsigned int enr)
+{
+	return __lc_get(lc, enr, LC_GET_MAY_CHANGE|LC_GET_MAY_USE_UNCOMMITTED);
 }
 
 /**
@@ -648,3 +683,4 @@ EXPORT_SYMBOL(lc_seq_printf_stats);
 EXPORT_SYMBOL(lc_seq_dump_details);
 EXPORT_SYMBOL(lc_try_lock);
 EXPORT_SYMBOL(lc_is_used);
+EXPORT_SYMBOL(lc_get_cumulative);

@@ -96,11 +96,11 @@
 				marvell,function = "gpio";
 			};
 			pmx_led_rebuild_brt_ctrl_1: pmx-led-rebuild-brt-ctrl-1 {
-				marvell,pins = "mpp44";
+				marvell,pins = "mpp46";
 				marvell,function = "gpio";
 			};
 			pmx_led_rebuild_brt_ctrl_2: pmx-led-rebuild-brt-ctrl-2 {
-				marvell,pins = "mpp45";
+				marvell,pins = "mpp47";
 				marvell,function = "gpio";
 			};
 
@@ -157,13 +157,13 @@
 			gpios = <&gpio0 16 0>;
 			linux,default-trigger = "default-on";
 		};
-		health_led1 {
+		rebuild_led {
+			label = "status:white:rebuild_led";
+			gpios = <&gpio1 4 0>;
+		};
+		health_led {
 			label = "status:red:health_led";
 			gpios = <&gpio1 5 0>;
-		};
-		health_led2 {
-			label = "status:white:health_led";
-			gpios = <&gpio1 4 0>;
 		};
 		backup_led {
 			label = "status:blue:backup_led";

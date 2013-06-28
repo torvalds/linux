@@ -226,7 +226,6 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 		if (lpfc_check_sli_ndlp(phba, pring, iocb, ndlp)) {
 			/* It matches, so deque and call compl with anp error */
 			list_move_tail(&iocb->list, &completions);
-			pring->txq_cnt--;
 		}
 	}
 
@@ -333,9 +332,11 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	/* PLOGI chkparm OK */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-			 "0114 PLOGI chkparm OK Data: x%x x%x x%x x%x\n",
+			 "0114 PLOGI chkparm OK Data: x%x x%x x%x "
+			 "x%x x%x x%x\n",
 			 ndlp->nlp_DID, ndlp->nlp_state, ndlp->nlp_flag,
-			 ndlp->nlp_rpi);
+			 ndlp->nlp_rpi, vport->port_state,
+			 vport->fc_flag);
 
 	if (vport->cfg_fcp_class == 2 && sp->cls2.classValid)
 		ndlp->nlp_fcp_info |= CLASS2;
@@ -575,7 +576,7 @@ out:
 	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp, NULL);
 
 	/* 1 sec timeout */
-	mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
+	mod_timer(&ndlp->nlp_delayfunc, jiffies + msecs_to_jiffies(1000));
 
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag |= NLP_DELAY_TMO;
@@ -632,7 +633,8 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			 * If there are other active VLinks present,
 			 * re-instantiate the Vlink using FDISC.
 			 */
-			mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
+			mod_timer(&ndlp->nlp_delayfunc,
+				  jiffies + msecs_to_jiffies(1000));
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag |= NLP_DELAY_TMO;
 			spin_unlock_irq(shost->host_lock);
@@ -649,7 +651,8 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		!(ndlp->nlp_type & NLP_FCP_INITIATOR))) ||
 		(ndlp->nlp_state == NLP_STE_ADISC_ISSUE)) {
 		/* Only try to re-login if this is NOT a Fabric Node */
-		mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ * 1);
+		mod_timer(&ndlp->nlp_delayfunc,
+			  jiffies + msecs_to_jiffies(1000 * 1));
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_DELAY_TMO;
 		spin_unlock_irq(shost->host_lock);
@@ -970,7 +973,7 @@ lpfc_rcv_els_plogi_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	}
 
 	/* Put ndlp in npr state set plogi timer for 1 sec */
-	mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ * 1);
+	mod_timer(&ndlp->nlp_delayfunc, jiffies + msecs_to_jiffies(1000 * 1));
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag |= NLP_DELAY_TMO;
 	spin_unlock_irq(shost->host_lock);
@@ -1304,7 +1307,8 @@ lpfc_cmpl_adisc_adisc_issue(struct lpfc_vport *vport,
 	if ((irsp->ulpStatus) ||
 	    (!lpfc_check_adisc(vport, ndlp, &ap->nodeName, &ap->portName))) {
 		/* 1 sec timeout */
-		mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
+		mod_timer(&ndlp->nlp_delayfunc,
+			  jiffies + msecs_to_jiffies(1000));
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_DELAY_TMO;
 		spin_unlock_irq(shost->host_lock);
@@ -1510,7 +1514,8 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 		}
 
 		/* Put ndlp in npr state set plogi timer for 1 sec */
-		mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ * 1);
+		mod_timer(&ndlp->nlp_delayfunc,
+			  jiffies + msecs_to_jiffies(1000 * 1));
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_DELAY_TMO;
 		spin_unlock_irq(shost->host_lock);
@@ -2146,7 +2151,8 @@ lpfc_rcv_prlo_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
 
 	if ((ndlp->nlp_flag & NLP_DELAY_TMO) == 0) {
-		mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ * 1);
+		mod_timer(&ndlp->nlp_delayfunc,
+			  jiffies + msecs_to_jiffies(1000 * 1));
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_DELAY_TMO;
 		ndlp->nlp_flag &= ~NLP_NPR_ADISC;

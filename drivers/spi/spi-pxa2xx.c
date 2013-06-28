@@ -22,6 +22,7 @@
 #include <linux/device.h>
 #include <linux/ioport.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/spi/pxa2xx_spi.h>
@@ -68,6 +69,7 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 #define LPSS_TX_HITHRESH_DFLT	224
 
 /* Offset from drv_data->lpss_base */
+#define SSP_REG			0x0c
 #define SPI_CS_CONTROL		0x18
 #define SPI_CS_CONTROL_SW_MODE	BIT(0)
 #define SPI_CS_CONTROL_CS_HIGH	BIT(1)
@@ -138,6 +140,10 @@ detection_done:
 	/* Enable software chip select control */
 	value = SPI_CS_CONTROL_SW_MODE | SPI_CS_CONTROL_CS_HIGH;
 	__lpss_ssp_write_priv(drv_data, SPI_CS_CONTROL, value);
+
+	/* Enable multiblock DMA transfers */
+	if (drv_data->master_info->enable_dma)
+		__lpss_ssp_write_priv(drv_data, SSP_REG, 1);
 }
 
 static void lpss_ssp_cs_control(struct driver_data *drv_data, bool enable)
@@ -1083,11 +1089,9 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 	ssp = &pdata->ssp;
 
 	ssp->phys_base = res->start;
-	ssp->mmio_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ssp->mmio_base) {
-		dev_err(&pdev->dev, "failed to ioremap mmio_base\n");
-		return NULL;
-	}
+	ssp->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ssp->mmio_base))
+		return PTR_ERR(ssp->mmio_base);
 
 	ssp->clk = devm_clk_get(&pdev->dev, NULL);
 	ssp->irq = platform_get_irq(pdev, 0);
@@ -1168,7 +1172,6 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 
 	master->dev.parent = &pdev->dev;
 	master->dev.of_node = pdev->dev.of_node;
-	ACPI_HANDLE_SET(&master->dev, ACPI_HANDLE(&pdev->dev));
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
 

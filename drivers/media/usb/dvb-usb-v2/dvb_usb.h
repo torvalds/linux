@@ -329,13 +329,16 @@ struct dvb_usb_adapter {
 	u8 feed_count;
 	u8 max_feed_count;
 	s8 active_fe;
+#define ADAP_INIT                0
+#define ADAP_SLEEP               1
+#define ADAP_STREAMING           2
+	unsigned long state_bits;
 
 	/* dvb */
 	struct dvb_adapter   dvb_adap;
 	struct dmxdev        dmxdev;
 	struct dvb_demux     demux;
 	struct dvb_net       dvb_net;
-	struct mutex         sync_mutex;
 
 	struct dvb_frontend *fe[MAX_NO_OF_FE_PER_ADAP];
 	int (*fe_init[MAX_NO_OF_FE_PER_ADAP]) (struct dvb_frontend *);
@@ -400,5 +403,9 @@ extern int dvb_usbv2_reset_resume(struct usb_interface *);
 /* the generic read/write method for device control */
 extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16);
 extern int dvb_usbv2_generic_write(struct dvb_usb_device *, u8 *, u16);
+/* caller must hold lock when locked versions are called */
+extern int dvb_usbv2_generic_rw_locked(struct dvb_usb_device *,
+		u8 *, u16, u8 *, u16);
+extern int dvb_usbv2_generic_write_locked(struct dvb_usb_device *, u8 *, u16);
 
 #endif

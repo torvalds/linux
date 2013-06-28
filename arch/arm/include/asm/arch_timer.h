@@ -10,8 +10,7 @@
 #include <clocksource/arm_arch_timer.h>
 
 #ifdef CONFIG_ARM_ARCH_TIMER
-int arch_timer_of_register(void);
-int arch_timer_sched_clock_init(void);
+int arch_timer_arch_init(void);
 
 /*
  * These register accessors are marked inline so the compiler can
@@ -109,16 +108,6 @@ static inline void __cpuinit arch_counter_set_user_access(void)
 	cntkctl &= ~((3 << 8) | (7 << 0));
 
 	asm volatile("mcr p15, 0, %0, c14, c1, 0" : : "r" (cntkctl));
-}
-#else
-static inline int arch_timer_of_register(void)
-{
-	return -ENXIO;
-}
-
-static inline int arch_timer_sched_clock_init(void)
-{
-	return -ENXIO;
 }
 #endif
 

@@ -49,6 +49,12 @@ static struct hv_util_service util_kvp = {
 	.util_deinit = hv_kvp_deinit,
 };
 
+static struct hv_util_service util_vss = {
+	.util_cb = hv_vss_onchannelcallback,
+	.util_init = hv_vss_init,
+	.util_deinit = hv_vss_deinit,
+};
+
 static void perform_shutdown(struct work_struct *dummy)
 {
 	orderly_poweroff(true);
@@ -338,6 +344,10 @@ static const struct hv_vmbus_device_id id_table[] = {
 	/* KVP guid */
 	{ HV_KVP_GUID,
 	  .driver_data = (unsigned long)&util_kvp
+	},
+	/* VSS GUID */
+	{ HV_VSS_GUID,
+	  .driver_data = (unsigned long)&util_vss
 	},
 	{ },
 };

@@ -20,6 +20,8 @@
 /* Use the standard ABI for syscalls. */
 #include <asm-generic/unistd.h>
 
+#define NR_syscalls __NR_syscalls
+
 /* Additional Tilera-specific syscalls. */
 #define __NR_cacheflush	(__NR_arch_specific_syscall + 1)
 __SYSCALL(__NR_cacheflush, sys_cacheflush)

@@ -1259,13 +1259,13 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *tvnorms)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 	dprintk(1, "%s()\n", __func__);
 
 	mutex_lock(&dev->lock);
-	cx23885_set_tvnorm(dev, *tvnorms);
+	cx23885_set_tvnorm(dev, tvnorms);
 	mutex_unlock(&dev->lock);
 
 	return 0;
@@ -1486,7 +1486,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 
@@ -1518,7 +1518,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int cx23885_set_freq(struct cx23885_dev *dev, struct v4l2_frequency *f)
+static int cx23885_set_freq(struct cx23885_dev *dev, const struct v4l2_frequency *f)
 {
 	struct v4l2_control ctrl;
 
@@ -1550,7 +1550,7 @@ static int cx23885_set_freq(struct cx23885_dev *dev, struct v4l2_frequency *f)
 }
 
 static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
-	struct v4l2_frequency *f)
+	const struct v4l2_frequency *f)
 {
 	struct v4l2_control ctrl;
 	struct videobuf_dvb_frontend *vfe;
@@ -1608,7 +1608,7 @@ static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
 }
 
 int cx23885_set_frequency(struct file *file, void *priv,
-	struct v4l2_frequency *f)
+	const struct v4l2_frequency *f)
 {
 	struct cx23885_fh *fh = priv;
 	struct cx23885_dev *dev = fh->dev;
@@ -1628,7 +1628,7 @@ int cx23885_set_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-	struct v4l2_frequency *f)
+	const struct v4l2_frequency *f)
 {
 	return cx23885_set_frequency(file, priv, f);
 }

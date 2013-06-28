@@ -145,7 +145,7 @@ void remove_divas_proc(void)
 static ssize_t grp_opt_proc_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
-	diva_os_xdi_adapter_t *a = PDE(file_inode(file))->data;
+	diva_os_xdi_adapter_t *a = PDE_DATA(file_inode(file));
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
 	if ((count == 1) || (count == 2)) {
@@ -172,7 +172,7 @@ static ssize_t grp_opt_proc_write(struct file *file, const char __user *buffer,
 static ssize_t d_l1_down_proc_write(struct file *file, const char __user *buffer,
 				    size_t count, loff_t *pos)
 {
-	diva_os_xdi_adapter_t *a = PDE(file_inode(file))->data;
+	diva_os_xdi_adapter_t *a = PDE_DATA(file_inode(file));
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
 	if ((count == 1) || (count == 2)) {
@@ -210,7 +210,7 @@ static int d_l1_down_proc_show(struct seq_file *m, void *v)
 
 static int d_l1_down_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, d_l1_down_proc_show, PDE(inode)->data);
+	return single_open(file, d_l1_down_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations d_l1_down_proc_fops = {
@@ -236,7 +236,7 @@ static int grp_opt_proc_show(struct seq_file *m, void *v)
 
 static int grp_opt_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, grp_opt_proc_show, PDE(inode)->data);
+	return single_open(file, grp_opt_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations grp_opt_proc_fops = {
@@ -251,7 +251,7 @@ static const struct file_operations grp_opt_proc_fops = {
 static ssize_t info_proc_write(struct file *file, const char __user *buffer,
 			       size_t count, loff_t *pos)
 {
-	diva_os_xdi_adapter_t *a = PDE(file_inode(file))->data;
+	diva_os_xdi_adapter_t *a = PDE_DATA(file_inode(file));
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 	char c[4];
 
@@ -335,7 +335,7 @@ static int info_proc_show(struct seq_file *m, void *v)
 
 static int info_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, info_proc_show, PDE(inode)->data);
+	return single_open(file, info_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations info_proc_fops = {

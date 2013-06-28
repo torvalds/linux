@@ -61,7 +61,7 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/compat.h>
 #include <linux/export.h>
-#include <net/ipip.h>
+#include <net/ip_tunnels.h>
 #include <net/checksum.h>
 #include <net/netlink.h>
 #include <net/fib_rules.h>
@@ -626,9 +626,9 @@ static void ipmr_destroy_unres(struct mr_table *mrt, struct mfc_cache *c)
 		if (ip_hdr(skb)->version == 0) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct iphdr));
 			nlh->nlmsg_type = NLMSG_ERROR;
-			nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
+			nlh->nlmsg_len = nlmsg_msg_size(sizeof(struct nlmsgerr));
 			skb_trim(skb, nlh->nlmsg_len);
-			e = NLMSG_DATA(nlh);
+			e = nlmsg_data(nlh);
 			e->error = -ETIMEDOUT;
 			memset(&e->msg, 0, sizeof(e->msg));
 
@@ -910,14 +910,14 @@ static void ipmr_cache_resolve(struct net *net, struct mr_table *mrt,
 		if (ip_hdr(skb)->version == 0) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct iphdr));
 
-			if (__ipmr_fill_mroute(mrt, skb, c, NLMSG_DATA(nlh)) > 0) {
+			if (__ipmr_fill_mroute(mrt, skb, c, nlmsg_data(nlh)) > 0) {
 				nlh->nlmsg_len = skb_tail_pointer(skb) -
 						 (u8 *)nlh;
 			} else {
 				nlh->nlmsg_type = NLMSG_ERROR;
-				nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
+				nlh->nlmsg_len = nlmsg_msg_size(sizeof(struct nlmsgerr));
 				skb_trim(skb, nlh->nlmsg_len);
-				e = NLMSG_DATA(nlh);
+				e = nlmsg_data(nlh);
 				e->error = -EMSGSIZE;
 				memset(&e->msg, 0, sizeof(e->msg));
 			}

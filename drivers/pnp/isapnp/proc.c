@@ -55,9 +55,7 @@ static loff_t isapnp_proc_bus_lseek(struct file *file, loff_t off, int whence)
 static ssize_t isapnp_proc_bus_read(struct file *file, char __user * buf,
 				    size_t nbytes, loff_t * ppos)
 {
-	struct inode *ino = file_inode(file);
-	struct proc_dir_entry *dp = PDE(ino);
-	struct pnp_dev *dev = dp->data;
+	struct pnp_dev *dev = PDE_DATA(file_inode(file));
 	int pos = *ppos;
 	int cnt, size = 256;
 
@@ -107,7 +105,7 @@ static int isapnp_proc_attach_device(struct pnp_dev *dev)
 			&isapnp_proc_bus_file_operations, dev);
 	if (!e)
 		return -ENOMEM;
-	e->size = 256;
+	proc_set_size(e, 256);
 	return 0;
 }
 

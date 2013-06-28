@@ -1253,7 +1253,7 @@ static int atalk_getname(struct socket *sock, struct sockaddr *uaddr,
 			goto out;
 
 	*uaddr_len = sizeof(struct sockaddr_at);
-	memset(&sat.sat_zero, 0, sizeof(sat.sat_zero));
+	memset(&sat, 0, sizeof(sat));
 
 	if (peer) {
 		err = -ENOTCONN;

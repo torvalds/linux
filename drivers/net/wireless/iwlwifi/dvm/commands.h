@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -1526,6 +1526,7 @@ struct iwl_compressed_ba_resp {
 	__le16 scd_ssn;
 	u8 txed;	/* number of frames sent */
 	u8 txed_2_done; /* number of frames acked */
+	__le16 reserved1;
 } __packed;
 
 /*

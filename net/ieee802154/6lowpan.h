@@ -92,9 +92,10 @@
  */
 #define lowpan_is_iid_16_bit_compressable(a)	\
 	((((a)->s6_addr16[4]) == 0) &&		\
-	 (((a)->s6_addr16[5]) == 0) &&		\
-	 (((a)->s6_addr16[6]) == 0) &&		\
-	 ((((a)->s6_addr[14]) & 0x80) == 0))
+	 (((a)->s6_addr[10]) == 0) &&		\
+	 (((a)->s6_addr[11]) == 0xff) &&	\
+	 (((a)->s6_addr[12]) == 0xfe) &&	\
+	 (((a)->s6_addr[13]) == 0))
 
 /* multicast address */
 #define is_addr_mcast(a) (((a)->s6_addr[0]) == 0xFF)

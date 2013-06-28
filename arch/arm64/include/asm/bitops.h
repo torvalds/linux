@@ -32,6 +32,16 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
+/*
+ * Little endian assembly atomic bitops.
+ */
+extern void set_bit(int nr, volatile unsigned long *p);
+extern void clear_bit(int nr, volatile unsigned long *p);
+extern void change_bit(int nr, volatile unsigned long *p);
+extern int test_and_set_bit(int nr, volatile unsigned long *p);
+extern int test_and_clear_bit(int nr, volatile unsigned long *p);
+extern int test_and_change_bit(int nr, volatile unsigned long *p);
+
 #include <asm-generic/bitops/builtin-__ffs.h>
 #include <asm-generic/bitops/builtin-ffs.h>
 #include <asm-generic/bitops/builtin-__fls.h>
@@ -45,9 +55,13 @@
 #include <asm-generic/bitops/hweight.h>
 #include <asm-generic/bitops/lock.h>
 
-#include <asm-generic/bitops/atomic.h>
 #include <asm-generic/bitops/non-atomic.h>
 #include <asm-generic/bitops/le.h>
-#include <asm-generic/bitops/ext2-atomic.h>
+
+/*
+ * Ext2 is defined to use little-endian byte ordering.
+ */
+#define ext2_set_bit_atomic(lock, nr, p)	test_and_set_bit_le(nr, p)
+#define ext2_clear_bit_atomic(lock, nr, p)	test_and_clear_bit_le(nr, p)
 
 #endif /* __ASM_BITOPS_H */

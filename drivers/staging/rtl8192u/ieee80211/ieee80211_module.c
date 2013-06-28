@@ -243,38 +243,33 @@ static int debug = \
 			    ;
 struct proc_dir_entry *ieee80211_proc;
 
-static int show_debug_level(char *page, char **start, off_t offset,
-			    int count, int *eof, void *data)
+static int show_debug_level(struct seq_file *m, void *v)
 {
-	return snprintf(page, count, "0x%08X\n", ieee80211_debug_level);
+	return seq_printf(m, "0x%08X\n", ieee80211_debug_level);
 }
 
-static int store_debug_level(struct file *file, const char *buffer,
-			     unsigned long count, void *data)
+static ssize_t write_debug_level(struct file *file, const char __user *buffer,
+			     size_t count, loff_t *ppos)
 {
-	char buf[] = "0x00000000";
-	unsigned long len = min_t(unsigned long, sizeof(buf) - 1, count);
-	char *p = (char *)buf;
 	unsigned long val;
-
-	if (copy_from_user(buf, buffer, len))
-		return count;
-	buf[len] = 0;
-	if (p[1] == 'x' || p[1] == 'X' || p[0] == 'x' || p[0] == 'X') {
-		p++;
-		if (p[0] == 'x' || p[0] == 'X')
-			p++;
-		val = simple_strtoul(p, &p, 16);
-	} else
-		val = simple_strtoul(p, &p, 10);
-	if (p == buf)
-		printk(KERN_INFO DRV_NAME
-		       ": %s is not in hex or decimal form.\n", buf);
-	else
-		ieee80211_debug_level = val;
-
-	return strnlen(buf, count);
+	int err = kstrtoul_from_user(buffer, count, 0, &val);
+	if (err)
+		return err;
+	ieee80211_debug_level = val;
+	return count;
 }
+
+static int open_debug_level(struct inode *inode, struct file *file)
+{
+	return single_open(file, show_debug_level, NULL);
+}
+
+static const struct file_operations fops = {
+	.open = open_debug_level,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = write_debug_level
+};
 
 int __init ieee80211_debug_init(void)
 {
@@ -288,17 +283,13 @@ int __init ieee80211_debug_init(void)
 				" proc directory\n");
 		return -EIO;
 	}
-	e = create_proc_entry("debug_level", S_IFREG | S_IRUGO | S_IWUSR,
-			      ieee80211_proc);
+	e = proc_create("debug_level", S_IRUGO | S_IWUSR, 
+			      ieee80211_proc, &fops);
 	if (!e) {
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		ieee80211_proc = NULL;
 		return -EIO;
 	}
-	e->read_proc = show_debug_level;
-	e->write_proc = store_debug_level;
-	e->data = NULL;
-
 	return 0;
 }
 

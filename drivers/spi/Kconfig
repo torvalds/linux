@@ -55,13 +55,14 @@ comment "SPI Master Controller Drivers"
 
 config SPI_ALTERA
 	tristate "Altera SPI Controller"
+	depends on GENERIC_HARDIRQS
 	select SPI_BITBANG
 	help
 	  This is the driver for the Altera SPI Controller.
 
 config SPI_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X SPI controller driver"
-	depends on ATH79 && GENERIC_GPIO
+	depends on ATH79 && GPIOLIB
 	select SPI_BITBANG
 	help
 	  This enables support for the SPI controller present on the
@@ -73,6 +74,17 @@ config SPI_ATMEL
 	help
 	  This selects a driver for the Atmel SPI Controller, present on
 	  many AT32 (AVR32) and AT91 (ARM) chips.
+
+config SPI_BCM2835
+	tristate "BCM2835 SPI controller"
+	depends on ARCH_BCM2835
+	help
+	  This selects a driver for the Broadcom BCM2835 SPI master.
+
+	  The BCM2835 contains two types of SPI master controller; the
+	  "universal SPI master", and the regular SPI controller. This driver
+	  is for the regular SPI controller. Slave mode operation is not also
+	  not supported.
 
 config SPI_BFIN5XX
 	tristate "SPI controller driver for ADI Blackfin5xx"
@@ -163,7 +175,7 @@ config SPI_FALCON
 
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select SPI_BITBANG
 	help
 	  This simple GPIO bitbanging SPI master uses the arch-neutral GPIO
@@ -218,16 +230,23 @@ config SPI_MPC512x_PSC
 
 config SPI_FSL_LIB
 	tristate
+	depends on OF
+
+config SPI_FSL_CPM
+	tristate
 	depends on FSL_SOC
 
 config SPI_FSL_SPI
-	bool "Freescale SPI controller"
-	depends on FSL_SOC
+	bool "Freescale SPI controller and Aeroflex Gaisler GRLIB SPI controller"
+	depends on OF
 	select SPI_FSL_LIB
+	select SPI_FSL_CPM if FSL_SOC
 	help
 	  This enables using the Freescale SPI controllers in master mode.
 	  MPC83xx platform uses the controller in cpu mode or CPM/QE mode.
 	  MPC8569 uses the controller in QE mode, MPC8610 in cpu mode.
+	  This also enables using the Aeroflex Gaisler GRLIB SPI controller in
+	  master mode.
 
 config SPI_FSL_ESPI
 	bool "Freescale eSPI controller"
@@ -240,7 +259,7 @@ config SPI_FSL_ESPI
 
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select SPI_BITBANG
 	help
 	  This is the driver for OpenCores tiny SPI master controller.
@@ -310,7 +329,7 @@ config SPI_PXA2XX_DMA
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
-	depends on ARCH_PXA || PCI || ACPI
+	depends on (ARCH_PXA || PCI || ACPI) && GENERIC_HARDIRQS
 	select PXA_SSP if ARCH_PXA
 	help
 	  This enables using a PXA2xx or Sodaville SSP port as a SPI master
@@ -397,6 +416,14 @@ config SPI_MXS
 	help
 	  SPI driver for Freescale MXS devices.
 
+config SPI_TEGRA114
+	tristate "NVIDIA Tegra114 SPI Controller"
+	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	help
+	  SPI driver for NVIDIA Tegra114 SPI Controller interface. This controller
+	  is different than the older SoCs SPI controller and also register interface
+	  get changed with this controller.
+
 config SPI_TEGRA20_SFLASH
 	tristate "Nvidia Tegra20 Serial flash Controller"
 	depends on ARCH_TEGRA
@@ -430,7 +457,7 @@ config SPI_TOPCLIFF_PCH
 
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"
-	depends on GENERIC_GPIO && CPU_TX49XX
+	depends on GPIOLIB && CPU_TX49XX
 	help
 	  SPI driver for Toshiba TXx9 MIPS SoCs
 

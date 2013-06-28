@@ -1,0 +1,39 @@
+menu "EFI (Extensible Firmware Interface) Support"
+	depends on EFI
+
+config EFI_VARS
+	tristate "EFI Variable Support via sysfs"
+	depends on EFI
+	default n
+	help
+	  If you say Y here, you are able to get EFI (Extensible Firmware
+	  Interface) variable information via sysfs.  You may read,
+	  write, create, and destroy EFI variables through this interface.
+
+	  Note that using this driver in concert with efibootmgr requires
+	  at least test release version 0.5.0-test3 or later, which is
+	  available from Matt Domsch's website located at:
+	  <http://linux.dell.com/efibootmgr/testing/efibootmgr-0.5.0-test3.tar.gz>
+
+	  Subsequent efibootmgr releases may be found at:
+	  <http://linux.dell.com/efibootmgr>
+
+config EFI_VARS_PSTORE
+	tristate "Register efivars backend for pstore"
+	depends on EFI_VARS && PSTORE
+	default y
+	help
+	  Say Y here to enable use efivars as a backend to pstore. This
+	  will allow writing console messages, crash dumps, or anything
+	  else supported by pstore to EFI variables.
+
+config EFI_VARS_PSTORE_DEFAULT_DISABLE
+	bool "Disable using efivars as a pstore backend by default"
+	depends on EFI_VARS_PSTORE
+	default n
+	help
+	  Saying Y here will disable the use of efivars as a storage
+	  backend for pstore by default. This setting can be overridden
+	  using the efivars module's pstore_disable parameter.
+
+endmenu

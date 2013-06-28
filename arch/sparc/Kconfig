@@ -62,7 +62,6 @@ config SPARC64
 	select HAVE_RCU_TABLE_FREE if SMP
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
-	select HAVE_SYSCALL_WRAPPERS
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -84,12 +83,6 @@ config ARCH_DEFCONFIG
 	default "arch/sparc/configs/sparc32_defconfig" if SPARC32
 	default "arch/sparc/configs/sparc64_defconfig" if SPARC64
 
-# CONFIG_BITS can be used at source level to get 32/64 bits
-config BITS
-	int
-	default 32 if SPARC32
-	default 64 if SPARC64
-
 config IOMMU_HELPER
 	bool
 	default y if SPARC64
@@ -105,6 +98,9 @@ config LOCKDEP_SUPPORT
 config HAVE_LATENCYTOP_SUPPORT
 	bool
 	default y if SPARC64
+
+config ARCH_HIBERNATION_POSSIBLE
+	def_bool y if SPARC64
 
 config AUDIT_ARCH
 	bool
@@ -140,11 +136,6 @@ config NEED_SG_DMA_LENGTH
 config GENERIC_ISA_DMA
 	bool
 	default y if SPARC32
-
-config GENERIC_GPIO
-	bool
-	help
-	  Generic GPIO API support
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y if SPARC64
@@ -197,7 +188,7 @@ config RWSEM_XCHGADD_ALGORITHM
 
 config GENERIC_HWEIGHT
 	bool
-	default y if !ULTRA_HAS_POPULATION_COUNT
+	default y
 
 config GENERIC_CALIBRATE_DELAY
 	bool
@@ -260,29 +251,6 @@ config HOTPLUG_CPU
 
 if SPARC64
 source "drivers/cpufreq/Kconfig"
-
-config US3_FREQ
-	tristate "UltraSPARC-III CPU Frequency driver"
-	depends on CPU_FREQ
-	select CPU_FREQ_TABLE
-	help
-	  This adds the CPUFreq driver for UltraSPARC-III processors.
-
-	  For details, take a look at <file:Documentation/cpu-freq>.
-
-	  If in doubt, say N.
-
-config US2E_FREQ
-	tristate "UltraSPARC-IIe CPU Frequency driver"
-	depends on CPU_FREQ
-	select CPU_FREQ_TABLE
-	help
-	  This adds the CPUFreq driver for UltraSPARC-IIe processors.
-
-	  For details, take a look at <file:Documentation/cpu-freq>.
-
-	  If in doubt, say N.
-
 endif
 
 config US3_MC
@@ -332,6 +300,10 @@ config ARCH_SPARSEMEM_DEFAULT
 	def_bool y if SPARC64
 
 source "mm/Kconfig"
+
+if SPARC64
+source "kernel/power/Kconfig"
+endif
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
@@ -413,6 +385,8 @@ config SERIAL_CONSOLE
 config SPARC_LEON
 	bool "Sparc Leon processor family"
 	depends on SPARC32
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_DESC
 	---help---
 	  If you say Y here if you are running on a SPARC-LEON processor.
 	  The LEON processor is a synthesizable VHDL model of the
@@ -500,7 +474,18 @@ config LEON_PCI
 	depends on PCI && SPARC_LEON
 	default y
 
-config GRPCI2
+config SPARC_GRPCI1
+	bool "GRPCI Host Bridge Support"
+	depends on LEON_PCI
+	default y
+	help
+	  Say Y here to include the GRPCI Host Bridge Driver. The GRPCI
+	  PCI host controller is typically found in GRLIB SPARC32/LEON
+	  systems. The driver has one property (all_pci_errors) controlled
+	  from the bootloader that makes the GRPCI to generate interrupts
+	  on detected PCI Parity and System errors.
+
+config SPARC_GRPCI2
 	bool "GRPCI2 Host Bridge Support"
 	depends on LEON_PCI
 	default y

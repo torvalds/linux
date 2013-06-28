@@ -619,7 +619,7 @@ static int ds1305_probe(struct spi_device *spi)
 		return -EINVAL;
 
 	/* set up driver data */
-	ds1305 = kzalloc(sizeof *ds1305, GFP_KERNEL);
+	ds1305 = devm_kzalloc(&spi->dev, sizeof(*ds1305), GFP_KERNEL);
 	if (!ds1305)
 		return -ENOMEM;
 	ds1305->spi = spi;
@@ -632,7 +632,7 @@ static int ds1305_probe(struct spi_device *spi)
 	if (status < 0) {
 		dev_dbg(&spi->dev, "can't %s, %d\n",
 				"read", status);
-		goto fail0;
+		return status;
 	}
 
 	dev_dbg(&spi->dev, "ctrl %s: %3ph\n", "read", ds1305->ctrl);
@@ -644,8 +644,7 @@ static int ds1305_probe(struct spi_device *spi)
 	 */
 	if ((ds1305->ctrl[0] & 0x38) != 0 || (ds1305->ctrl[1] & 0xfc) != 0) {
 		dev_dbg(&spi->dev, "RTC chip is not present\n");
-		status = -ENODEV;
-		goto fail0;
+		return -ENODEV;
 	}
 	if (ds1305->ctrl[2] == 0)
 		dev_dbg(&spi->dev, "chip may not be present\n");
@@ -664,7 +663,7 @@ static int ds1305_probe(struct spi_device *spi)
 
 		dev_dbg(&spi->dev, "clear WP --> %d\n", status);
 		if (status < 0)
-			goto fail0;
+			return status;
 	}
 
 	/* on DS1305, maybe start oscillator; like most low power
@@ -718,7 +717,7 @@ static int ds1305_probe(struct spi_device *spi)
 		if (status < 0) {
 			dev_dbg(&spi->dev, "can't %s, %d\n",
 					"write", status);
-			goto fail0;
+			return status;
 		}
 
 		dev_dbg(&spi->dev, "ctrl %s: %3ph\n", "write", ds1305->ctrl);
@@ -730,7 +729,7 @@ static int ds1305_probe(struct spi_device *spi)
 				&value, sizeof value);
 	if (status < 0) {
 		dev_dbg(&spi->dev, "read HOUR --> %d\n", status);
-		goto fail0;
+		return status;
 	}
 
 	ds1305->hr12 = (DS1305_HR_12 & value) != 0;
@@ -738,12 +737,12 @@ static int ds1305_probe(struct spi_device *spi)
 		dev_dbg(&spi->dev, "AM/PM\n");
 
 	/* register RTC ... from here on, ds1305->ctrl needs locking */
-	ds1305->rtc = rtc_device_register("ds1305", &spi->dev,
+	ds1305->rtc = devm_rtc_device_register(&spi->dev, "ds1305",
 			&ds1305_ops, THIS_MODULE);
 	if (IS_ERR(ds1305->rtc)) {
 		status = PTR_ERR(ds1305->rtc);
 		dev_dbg(&spi->dev, "register rtc --> %d\n", status);
-		goto fail0;
+		return status;
 	}
 
 	/* Maybe set up alarm IRQ; be ready to handle it triggering right
@@ -754,12 +753,12 @@ static int ds1305_probe(struct spi_device *spi)
 	 */
 	if (spi->irq) {
 		INIT_WORK(&ds1305->work, ds1305_work);
-		status = request_irq(spi->irq, ds1305_irq,
+		status = devm_request_irq(&spi->dev, spi->irq, ds1305_irq,
 				0, dev_name(&ds1305->rtc->dev), ds1305);
 		if (status < 0) {
 			dev_dbg(&spi->dev, "request_irq %d --> %d\n",
 					spi->irq, status);
-			goto fail1;
+			return status;
 		}
 
 		device_set_wakeup_capable(&spi->dev, 1);
@@ -769,18 +768,10 @@ static int ds1305_probe(struct spi_device *spi)
 	status = sysfs_create_bin_file(&spi->dev.kobj, &nvram);
 	if (status < 0) {
 		dev_dbg(&spi->dev, "register nvram --> %d\n", status);
-		goto fail2;
+		return status;
 	}
 
 	return 0;
-
-fail2:
-	free_irq(spi->irq, ds1305);
-fail1:
-	rtc_device_unregister(ds1305->rtc);
-fail0:
-	kfree(ds1305);
-	return status;
 }
 
 static int ds1305_remove(struct spi_device *spi)
@@ -792,13 +783,11 @@ static int ds1305_remove(struct spi_device *spi)
 	/* carefully shut down irq and workqueue, if present */
 	if (spi->irq) {
 		set_bit(FLAG_EXITING, &ds1305->flags);
-		free_irq(spi->irq, ds1305);
+		devm_free_irq(&spi->dev, spi->irq, ds1305);
 		cancel_work_sync(&ds1305->work);
 	}
 
-	rtc_device_unregister(ds1305->rtc);
 	spi_set_drvdata(spi, NULL);
-	kfree(ds1305);
 	return 0;
 }
 

@@ -44,10 +44,10 @@ endchoice
 
 config ARCH_MSM8X60
 	bool "MSM8X60"
-	select ARCH_MSM_SCORPIONMP
 	select ARM_GIC
 	select CPU_V7
 	select GPIO_MSM_V2
+	select HAVE_SMP
 	select MSM_GPIOMUX
 	select MSM_SCM if SMP
 	select MSM_V2_TLMM
@@ -55,9 +55,9 @@ config ARCH_MSM8X60
 
 config ARCH_MSM8960
 	bool "MSM8960"
-	select ARCH_MSM_SCORPIONMP
 	select ARM_GIC
 	select CPU_V7
+	select HAVE_SMP
 	select MSM_GPIOMUX
 	select MSM_SCM if SMP
 	select MSM_V2_TLMM
@@ -68,9 +68,6 @@ config MSM_HAS_DEBUG_UART_HS
 
 config MSM_SOC_REV_A
 	bool
-config  ARCH_MSM_SCORPIONMP
-	bool
-	select HAVE_SMP
 
 config  ARCH_MSM_ARM11
 	bool

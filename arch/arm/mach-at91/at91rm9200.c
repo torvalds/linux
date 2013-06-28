@@ -212,6 +212,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("t2_clk", "fffa4000.timer", &tc5_clk),
 	CLKDEV_CON_DEV_ID("mci_clk", "fffb4000.mmc", &mmc_clk),
 	CLKDEV_CON_DEV_ID("emac_clk", "fffbc000.ethernet", &ether_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffb8000.i2c", &twi_clk),
 	CLKDEV_CON_DEV_ID("hclk", "300000.ohci", &ohci_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffff400.gpio", &pioA_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffff600.gpio", &pioB_clk),
@@ -384,7 +385,7 @@ static unsigned int at91rm9200_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	0	/* Advanced Interrupt Controller (IRQ6) */
 };
 
-AT91_SOC_START(rm9200)
+AT91_SOC_START(at91rm9200)
 	.map_io = at91rm9200_map_io,
 	.default_irq_priority = at91rm9200_default_irq_priority,
 	.ioremap_registers = at91rm9200_ioremap_registers,

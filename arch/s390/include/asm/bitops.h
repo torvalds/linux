@@ -61,8 +61,6 @@ extern const char _sb_findmap[];
 
 #ifndef CONFIG_64BIT
 
-#define __BITOPS_ALIGN		3
-#define __BITOPS_WORDSIZE	32
 #define __BITOPS_OR		"or"
 #define __BITOPS_AND		"nr"
 #define __BITOPS_XOR		"xr"
@@ -81,8 +79,6 @@ extern const char _sb_findmap[];
 
 #else /* CONFIG_64BIT */
 
-#define __BITOPS_ALIGN		7
-#define __BITOPS_WORDSIZE	64
 #define __BITOPS_OR		"ogr"
 #define __BITOPS_AND		"ngr"
 #define __BITOPS_XOR		"xgr"
@@ -101,8 +97,7 @@ extern const char _sb_findmap[];
 
 #endif /* CONFIG_64BIT */
 
-#define __BITOPS_WORDS(bits) (((bits)+__BITOPS_WORDSIZE-1)/__BITOPS_WORDSIZE)
-#define __BITOPS_BARRIER() asm volatile("" : : : "memory")
+#define __BITOPS_WORDS(bits) (((bits) + BITS_PER_LONG - 1) / BITS_PER_LONG)
 
 #ifdef CONFIG_SMP
 /*
@@ -114,9 +109,9 @@ static inline void set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
-	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
+	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
 	/* make OR mask */
-	mask = 1UL << (nr & (__BITOPS_WORDSIZE - 1));
+	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	/* Do the atomic update. */
 	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_OR);
 }
@@ -130,9 +125,9 @@ static inline void clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
-	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
+	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
 	/* make AND mask */
-	mask = ~(1UL << (nr & (__BITOPS_WORDSIZE - 1)));
+	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
 	/* Do the atomic update. */
 	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_AND);
 }
@@ -146,9 +141,9 @@ static inline void change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
-	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
+	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
 	/* make XOR mask */
-	mask = 1UL << (nr & (__BITOPS_WORDSIZE - 1));
+	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	/* Do the atomic update. */
 	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_XOR);
 }
@@ -163,12 +158,12 @@ test_and_set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
-	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
+	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
 	/* make OR/test mask */
-	mask = 1UL << (nr & (__BITOPS_WORDSIZE - 1));
+	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	/* Do the atomic update. */
 	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_OR);
-	__BITOPS_BARRIER();
+	barrier();
 	return (old & mask) != 0;
 }
 
@@ -182,12 +177,12 @@ test_and_clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
-	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
+	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
 	/* make AND/test mask */
-	mask = ~(1UL << (nr & (__BITOPS_WORDSIZE - 1)));
+	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
 	/* Do the atomic update. */
 	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_AND);
-	__BITOPS_BARRIER();
+	barrier();
 	return (old ^ new) != 0;
 }
 
@@ -201,12 +196,12 @@ test_and_change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
-	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
+	addr += (nr ^ (nr & (BITS_PER_LONG - 1))) >> 3;
 	/* make XOR/test mask */
-	mask = 1UL << (nr & (__BITOPS_WORDSIZE - 1));
+	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	/* Do the atomic update. */
 	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_XOR);
-	__BITOPS_BARRIER();
+	barrier();
 	return (old & mask) != 0;
 }
 #endif /* CONFIG_SMP */
@@ -218,7 +213,7 @@ static inline void __set_bit(unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned long addr;
 
-	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
+	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	asm volatile(
 		"	oc	%O0(1,%R0),%1"
 		: "=Q" (*(char *) addr) : "Q" (_oi_bitmap[nr & 7]) : "cc" );
@@ -229,7 +224,7 @@ __constant_set_bit(const unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned long addr;
 
-	addr = ((unsigned long) ptr) + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
+	addr = ((unsigned long) ptr) + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	*(unsigned char *) addr |= 1 << (nr & 7);
 }
 
@@ -246,7 +241,7 @@ __clear_bit(unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned long addr;
 
-	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
+	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	asm volatile(
 		"	nc	%O0(1,%R0),%1"
 		: "=Q" (*(char *) addr) : "Q" (_ni_bitmap[nr & 7]) : "cc" );
@@ -257,7 +252,7 @@ __constant_clear_bit(const unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned long addr;
 
-	addr = ((unsigned long) ptr) + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
+	addr = ((unsigned long) ptr) + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	*(unsigned char *) addr &= ~(1 << (nr & 7));
 }
 
@@ -273,7 +268,7 @@ static inline void __change_bit(unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned long addr;
 
-	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
+	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	asm volatile(
 		"	xc	%O0(1,%R0),%1"
 		: "=Q" (*(char *) addr) : "Q" (_oi_bitmap[nr & 7]) : "cc" );
@@ -284,7 +279,7 @@ __constant_change_bit(const unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned long addr;
 
-	addr = ((unsigned long) ptr) + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
+	addr = ((unsigned long) ptr) + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	*(unsigned char *) addr ^= 1 << (nr & 7);
 }
 
@@ -302,7 +297,7 @@ test_and_set_bit_simple(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long addr;
 	unsigned char ch;
 
-	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
+	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	ch = *(unsigned char *) addr;
 	asm volatile(
 		"	oc	%O0(1,%R0),%1"
@@ -321,7 +316,7 @@ test_and_clear_bit_simple(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long addr;
 	unsigned char ch;
 
-	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
+	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	ch = *(unsigned char *) addr;
 	asm volatile(
 		"	nc	%O0(1,%R0),%1"
@@ -340,7 +335,7 @@ test_and_change_bit_simple(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long addr;
 	unsigned char ch;
 
-	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
+	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	ch = *(unsigned char *) addr;
 	asm volatile(
 		"	xc	%O0(1,%R0),%1"
@@ -376,7 +371,7 @@ static inline int __test_bit(unsigned long nr, const volatile unsigned long *ptr
 	unsigned long addr;
 	unsigned char ch;
 
-	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
+	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	ch = *(volatile unsigned char *) addr;
 	return (ch >> (nr & 7)) & 1;
 }
@@ -384,7 +379,7 @@ static inline int __test_bit(unsigned long nr, const volatile unsigned long *ptr
 static inline int 
 __constant_test_bit(unsigned long nr, const volatile unsigned long *addr) {
     return (((volatile char *) addr)
-	    [(nr^(__BITOPS_WORDSIZE-8))>>3] & (1<<(nr&7))) != 0;
+	    [(nr^(BITS_PER_LONG-8))>>3] & (1<<(nr&7))) != 0;
 }
 
 #define test_bit(nr,addr) \
@@ -693,18 +688,18 @@ static inline int find_next_bit_left(const unsigned long *addr,
 
 	if (offset >= size)
 		return size;
-	bit = offset & (__BITOPS_WORDSIZE - 1);
+	bit = offset & (BITS_PER_LONG - 1);
 	offset -= bit;
 	size -= offset;
-	p = addr + offset / __BITOPS_WORDSIZE;
+	p = addr + offset / BITS_PER_LONG;
 	if (bit) {
 		set = __flo_word(0, *p & (~0UL << bit));
 		if (set >= size)
 			return size + offset;
-		if (set < __BITOPS_WORDSIZE)
+		if (set < BITS_PER_LONG)
 			return set + offset;
-		offset += __BITOPS_WORDSIZE;
-		size -= __BITOPS_WORDSIZE;
+		offset += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
 		p++;
 	}
 	return offset + find_first_bit_left(p, size);
@@ -736,22 +731,22 @@ static inline int find_next_zero_bit (const unsigned long * addr,
 
 	if (offset >= size)
 		return size;
-	bit = offset & (__BITOPS_WORDSIZE - 1);
+	bit = offset & (BITS_PER_LONG - 1);
 	offset -= bit;
 	size -= offset;
-	p = addr + offset / __BITOPS_WORDSIZE;
+	p = addr + offset / BITS_PER_LONG;
 	if (bit) {
 		/*
-		 * __ffz_word returns __BITOPS_WORDSIZE
+		 * __ffz_word returns BITS_PER_LONG
 		 * if no zero bit is present in the word.
 		 */
 		set = __ffz_word(bit, *p >> bit);
 		if (set >= size)
 			return size + offset;
-		if (set < __BITOPS_WORDSIZE)
+		if (set < BITS_PER_LONG)
 			return set + offset;
-		offset += __BITOPS_WORDSIZE;
-		size -= __BITOPS_WORDSIZE;
+		offset += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
 		p++;
 	}
 	return offset + find_first_zero_bit(p, size);
@@ -773,22 +768,22 @@ static inline int find_next_bit (const unsigned long * addr,
 
 	if (offset >= size)
 		return size;
-	bit = offset & (__BITOPS_WORDSIZE - 1);
+	bit = offset & (BITS_PER_LONG - 1);
 	offset -= bit;
 	size -= offset;
-	p = addr + offset / __BITOPS_WORDSIZE;
+	p = addr + offset / BITS_PER_LONG;
 	if (bit) {
 		/*
-		 * __ffs_word returns __BITOPS_WORDSIZE
+		 * __ffs_word returns BITS_PER_LONG
 		 * if no one bit is present in the word.
 		 */
 		set = __ffs_word(0, *p & (~0UL << bit));
 		if (set >= size)
 			return size + offset;
-		if (set < __BITOPS_WORDSIZE)
+		if (set < BITS_PER_LONG)
 			return set + offset;
-		offset += __BITOPS_WORDSIZE;
-		size -= __BITOPS_WORDSIZE;
+		offset += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
 		p++;
 	}
 	return offset + find_first_bit(p, size);
@@ -843,22 +838,22 @@ static inline int find_next_zero_bit_le(void *vaddr, unsigned long size,
 
         if (offset >= size)
                 return size;
-	bit = offset & (__BITOPS_WORDSIZE - 1);
+	bit = offset & (BITS_PER_LONG - 1);
 	offset -= bit;
 	size -= offset;
-	p = addr + offset / __BITOPS_WORDSIZE;
+	p = addr + offset / BITS_PER_LONG;
         if (bit) {
 		/*
-		 * s390 version of ffz returns __BITOPS_WORDSIZE
+		 * s390 version of ffz returns BITS_PER_LONG
 		 * if no zero bit is present in the word.
 		 */
 		set = __ffz_word(bit, __load_ulong_le(p, 0) >> bit);
 		if (set >= size)
 			return size + offset;
-		if (set < __BITOPS_WORDSIZE)
+		if (set < BITS_PER_LONG)
 			return set + offset;
-		offset += __BITOPS_WORDSIZE;
-		size -= __BITOPS_WORDSIZE;
+		offset += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
 		p++;
         }
 	return offset + find_first_zero_bit_le(p, size);
@@ -885,22 +880,22 @@ static inline int find_next_bit_le(void *vaddr, unsigned long size,
 
 	if (offset >= size)
 		return size;
-	bit = offset & (__BITOPS_WORDSIZE - 1);
+	bit = offset & (BITS_PER_LONG - 1);
 	offset -= bit;
 	size -= offset;
-	p = addr + offset / __BITOPS_WORDSIZE;
+	p = addr + offset / BITS_PER_LONG;
 	if (bit) {
 		/*
-		 * s390 version of ffz returns __BITOPS_WORDSIZE
+		 * s390 version of ffz returns BITS_PER_LONG
 		 * if no zero bit is present in the word.
 		 */
 		set = __ffs_word(0, __load_ulong_le(p, 0) & (~0UL << bit));
 		if (set >= size)
 			return size + offset;
-		if (set < __BITOPS_WORDSIZE)
+		if (set < BITS_PER_LONG)
 			return set + offset;
-		offset += __BITOPS_WORDSIZE;
-		size -= __BITOPS_WORDSIZE;
+		offset += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
 		p++;
 	}
 	return offset + find_first_bit_le(p, size);

@@ -22,6 +22,7 @@
 struct regmap;
 struct regulator_dev;
 struct regulator_init_data;
+struct regulator_enable_gpio;
 
 enum regulator_status {
 	REGULATOR_STATUS_OFF,
@@ -199,6 +200,8 @@ enum regulator_type {
  *                output when using regulator_set_voltage_sel_regmap
  * @enable_reg: Register for control when using regmap enable/disable ops
  * @enable_mask: Mask for control when using regmap enable/disable ops
+ * @enable_is_inverted: A flag to indicate set enable_mask bits to disable
+ *                      when using regulator_enable_regmap and friends APIs.
  * @bypass_reg: Register for control when using regmap set_bypass
  * @bypass_mask: Mask for control when using regmap set_bypass
  *
@@ -228,6 +231,7 @@ struct regulator_desc {
 	unsigned int apply_bit;
 	unsigned int enable_reg;
 	unsigned int enable_mask;
+	bool enable_is_inverted;
 	unsigned int bypass_reg;
 	unsigned int bypass_mask;
 
@@ -302,8 +306,7 @@ struct regulator_dev {
 
 	struct dentry *debugfs;
 
-	int ena_gpio;
-	unsigned int ena_gpio_invert:1;
+	struct regulator_enable_gpio *ena_pin;
 	unsigned int ena_gpio_state:1;
 };
 
@@ -328,6 +331,8 @@ int regulator_list_voltage_table(struct regulator_dev *rdev,
 int regulator_map_voltage_linear(struct regulator_dev *rdev,
 				  int min_uV, int max_uV);
 int regulator_map_voltage_iterate(struct regulator_dev *rdev,
+				  int min_uV, int max_uV);
+int regulator_map_voltage_ascend(struct regulator_dev *rdev,
 				  int min_uV, int max_uV);
 int regulator_get_voltage_sel_regmap(struct regulator_dev *rdev);
 int regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel);

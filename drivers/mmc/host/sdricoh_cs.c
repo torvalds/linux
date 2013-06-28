@@ -543,25 +543,7 @@ static struct pcmcia_driver sdricoh_driver = {
 	.suspend = sdricoh_pcmcia_suspend,
 	.resume = sdricoh_pcmcia_resume,
 };
-
-/*****************************************************************************\
- *                                                                           *
- * Driver init/exit                                                          *
- *                                                                           *
-\*****************************************************************************/
-
-static int __init sdricoh_drv_init(void)
-{
-	return pcmcia_register_driver(&sdricoh_driver);
-}
-
-static void __exit sdricoh_drv_exit(void)
-{
-	pcmcia_unregister_driver(&sdricoh_driver);
-}
-
-module_init(sdricoh_drv_init);
-module_exit(sdricoh_drv_exit);
+module_pcmcia_driver(sdricoh_driver);
 
 module_param(switchlocked, uint, 0444);
 

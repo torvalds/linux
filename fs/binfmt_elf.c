@@ -240,6 +240,9 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	NEW_AUX_ENT(AT_EGID, from_kgid_munged(cred->user_ns, cred->egid));
  	NEW_AUX_ENT(AT_SECURE, security_bprm_secureexec(bprm));
 	NEW_AUX_ENT(AT_RANDOM, (elf_addr_t)(unsigned long)u_rand_bytes);
+#ifdef ELF_HWCAP2
+	NEW_AUX_ENT(AT_HWCAP2, ELF_HWCAP2);
+#endif
 	NEW_AUX_ENT(AT_EXECFN, bprm->exec);
 	if (k_platform) {
 		NEW_AUX_ENT(AT_PLATFORM,
@@ -803,7 +806,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			 * follow the loader, and is not movable.  */
 #ifdef CONFIG_ARCH_BINFMT_ELF_RANDOMIZE_PIE
 			/* Memory randomization might have been switched off
-			 * in runtime via sysctl.
+			 * in runtime via sysctl or explicit setting of
+			 * personality flags.
 			 * If that is the case, retain the original non-zero
 			 * load_bias value in order to establish proper
 			 * non-randomized mappings.
@@ -1137,6 +1141,7 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
 			goto whole;
 		if (!(vma->vm_flags & VM_SHARED) && FILTER(HUGETLB_PRIVATE))
 			goto whole;
+		return 0;
 	}
 
 	/* Do not dump I/O mapped devices or special mappings */
@@ -2090,8 +2095,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 		goto cleanup;
 
 	has_dumped = 1;
-	current->flags |= PF_DUMPCORE;
-  
+
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 

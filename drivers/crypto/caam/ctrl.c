@@ -66,7 +66,7 @@ static void build_instantiation_desc(u32 *desc)
 
 	/*
 	 * load 1 to clear written reg:
-	 * resets the done interrrupt and returns the RNG to idle.
+	 * resets the done interrupt and returns the RNG to idle.
 	 */
 	append_load_imm_u32(desc, 1, LDST_SRCDST_WORD_CLRW);
 
@@ -304,6 +304,9 @@ static int caam_probe(struct platform_device *pdev)
 			caam_remove(pdev);
 			return ret;
 		}
+
+		/* Enable RDB bit so that RNG works faster */
+		setbits32(&topregs->ctrl.scfgr, SCFGR_RDBENABLE);
 	}
 
 	/* NOTE: RTIC detection ought to go here, around Si time */

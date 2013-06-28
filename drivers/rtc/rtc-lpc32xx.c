@@ -273,8 +273,8 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	rtc->rtc = rtc_device_register(RTC_NAME, &pdev->dev, &lpc32xx_rtc_ops,
-		THIS_MODULE);
+	rtc->rtc = devm_rtc_device_register(&pdev->dev, RTC_NAME,
+					&lpc32xx_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc)) {
 		dev_err(&pdev->dev, "Can't get RTC\n");
 		platform_set_drvdata(pdev, NULL);
@@ -307,7 +307,6 @@ static int lpc32xx_rtc_remove(struct platform_device *pdev)
 		device_init_wakeup(&pdev->dev, 0);
 
 	platform_set_drvdata(pdev, NULL);
-	rtc_device_unregister(rtc->rtc);
 
 	return 0;
 }

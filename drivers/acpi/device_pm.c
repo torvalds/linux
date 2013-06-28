@@ -37,68 +37,6 @@
 #define _COMPONENT	ACPI_POWER_COMPONENT
 ACPI_MODULE_NAME("device_pm");
 
-static DEFINE_MUTEX(acpi_pm_notifier_lock);
-
-/**
- * acpi_add_pm_notifier - Register PM notifier for given ACPI device.
- * @adev: ACPI device to add the notifier for.
- * @context: Context information to pass to the notifier routine.
- *
- * NOTE: @adev need not be a run-wake or wakeup device to be a valid source of
- * PM wakeup events.  For example, wakeup events may be generated for bridges
- * if one of the devices below the bridge is signaling wakeup, even if the
- * bridge itself doesn't have a wakeup GPE associated with it.
- */
-acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
-				 acpi_notify_handler handler, void *context)
-{
-	acpi_status status = AE_ALREADY_EXISTS;
-
-	mutex_lock(&acpi_pm_notifier_lock);
-
-	if (adev->wakeup.flags.notifier_present)
-		goto out;
-
-	status = acpi_install_notify_handler(adev->handle,
-					     ACPI_SYSTEM_NOTIFY,
-					     handler, context);
-	if (ACPI_FAILURE(status))
-		goto out;
-
-	adev->wakeup.flags.notifier_present = true;
-
- out:
-	mutex_unlock(&acpi_pm_notifier_lock);
-	return status;
-}
-
-/**
- * acpi_remove_pm_notifier - Unregister PM notifier from given ACPI device.
- * @adev: ACPI device to remove the notifier from.
- */
-acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
-				    acpi_notify_handler handler)
-{
-	acpi_status status = AE_BAD_PARAMETER;
-
-	mutex_lock(&acpi_pm_notifier_lock);
-
-	if (!adev->wakeup.flags.notifier_present)
-		goto out;
-
-	status = acpi_remove_notify_handler(adev->handle,
-					    ACPI_SYSTEM_NOTIFY,
-					    handler);
-	if (ACPI_FAILURE(status))
-		goto out;
-
-	adev->wakeup.flags.notifier_present = false;
-
- out:
-	mutex_unlock(&acpi_pm_notifier_lock);
-	return status;
-}
-
 /**
  * acpi_power_state_string - String representation of ACPI device power state.
  * @state: ACPI device power state to return the string representation of.
@@ -145,27 +83,36 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 	}
 
 	/*
-	 * Get the device's power state either directly (via _PSC) or
-	 * indirectly (via power resources).
+	 * Get the device's power state from power resources settings and _PSC,
+	 * if available.
 	 */
-	if (device->power.flags.explicit_get) {
-		unsigned long long psc;
-		acpi_status status = acpi_evaluate_integer(device->handle,
-							   "_PSC", NULL, &psc);
-		if (ACPI_FAILURE(status))
-			return -ENODEV;
-
-		result = psc;
-	}
-	/* The test below covers ACPI_STATE_UNKNOWN too. */
-	if (result <= ACPI_STATE_D2) {
-	  ; /* Do nothing. */
-	} else if (device->power.flags.power_resources) {
+	if (device->power.flags.power_resources) {
 		int error = acpi_power_get_inferred_state(device, &result);
 		if (error)
 			return error;
-	} else if (result == ACPI_STATE_D3_HOT) {
-		result = ACPI_STATE_D3;
+	}
+	if (device->power.flags.explicit_get) {
+		acpi_handle handle = device->handle;
+		unsigned long long psc;
+		acpi_status status;
+
+		status = acpi_evaluate_integer(handle, "_PSC", NULL, &psc);
+		if (ACPI_FAILURE(status))
+			return -ENODEV;
+
+		/*
+		 * The power resources settings may indicate a power state
+		 * shallower than the actual power state of the device.
+		 *
+		 * Moreover, on systems predating ACPI 4.0, if the device
+		 * doesn't depend on any power resources and _PSC returns 3,
+		 * that means "power off".  We need to maintain compatibility
+		 * with those systems.
+		 */
+		if (psc > result && psc < ACPI_STATE_D3_COLD)
+			result = psc;
+		else if (result == ACPI_STATE_UNKNOWN)
+			result = psc > ACPI_STATE_D2 ? ACPI_STATE_D3_COLD : psc;
 	}
 
 	/*
@@ -331,11 +278,13 @@ int acpi_bus_init_power(struct acpi_device *device)
 		if (result)
 			return result;
 	} else if (state == ACPI_STATE_UNKNOWN) {
-		/* No power resources and missing _PSC? Try to force D0. */
+		/*
+		 * No power resources and missing _PSC?  Cross fingers and make
+		 * it D0 in hope that this is what the BIOS put the device into.
+		 * [We tried to force D0 here by executing _PS0, but that broke
+		 * Toshiba P870-303 in a nasty way.]
+		 */
 		state = ACPI_STATE_D0;
-		result = acpi_dev_pm_explicit_set(device, state);
-		if (result)
-			return result;
 	}
 	device->power.state = state;
 	return 0;
@@ -375,6 +324,69 @@ bool acpi_bus_power_manageable(acpi_handle handle)
 	return result ? false : device->flags.power_manageable;
 }
 EXPORT_SYMBOL(acpi_bus_power_manageable);
+
+#ifdef CONFIG_PM
+static DEFINE_MUTEX(acpi_pm_notifier_lock);
+
+/**
+ * acpi_add_pm_notifier - Register PM notifier for given ACPI device.
+ * @adev: ACPI device to add the notifier for.
+ * @context: Context information to pass to the notifier routine.
+ *
+ * NOTE: @adev need not be a run-wake or wakeup device to be a valid source of
+ * PM wakeup events.  For example, wakeup events may be generated for bridges
+ * if one of the devices below the bridge is signaling wakeup, even if the
+ * bridge itself doesn't have a wakeup GPE associated with it.
+ */
+acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
+				 acpi_notify_handler handler, void *context)
+{
+	acpi_status status = AE_ALREADY_EXISTS;
+
+	mutex_lock(&acpi_pm_notifier_lock);
+
+	if (adev->wakeup.flags.notifier_present)
+		goto out;
+
+	status = acpi_install_notify_handler(adev->handle,
+					     ACPI_SYSTEM_NOTIFY,
+					     handler, context);
+	if (ACPI_FAILURE(status))
+		goto out;
+
+	adev->wakeup.flags.notifier_present = true;
+
+ out:
+	mutex_unlock(&acpi_pm_notifier_lock);
+	return status;
+}
+
+/**
+ * acpi_remove_pm_notifier - Unregister PM notifier from given ACPI device.
+ * @adev: ACPI device to remove the notifier from.
+ */
+acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
+				    acpi_notify_handler handler)
+{
+	acpi_status status = AE_BAD_PARAMETER;
+
+	mutex_lock(&acpi_pm_notifier_lock);
+
+	if (!adev->wakeup.flags.notifier_present)
+		goto out;
+
+	status = acpi_remove_notify_handler(adev->handle,
+					    ACPI_SYSTEM_NOTIFY,
+					    handler);
+	if (ACPI_FAILURE(status))
+		goto out;
+
+	adev->wakeup.flags.notifier_present = false;
+
+ out:
+	mutex_unlock(&acpi_pm_notifier_lock);
+	return status;
+}
 
 bool acpi_bus_can_wakeup(acpi_handle handle)
 {
@@ -1014,3 +1026,4 @@ void acpi_dev_pm_remove_dependent(acpi_handle handle, struct device *depdev)
 	mutex_unlock(&adev->physical_node_lock);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_pm_remove_dependent);
+#endif /* CONFIG_PM */

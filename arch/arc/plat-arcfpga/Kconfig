@@ -53,7 +53,7 @@ menuconfig ARC_HAS_BVCI_LAT_UNIT
 	bool "BVCI Bus Latency Unit"
 	depends on ARC_BOARD_ML509 || ARC_BOARD_ANGEL4
 	help
-	  IP to add artifical latency to BVCI Bus Based FPGA builds.
+	  IP to add artificial latency to BVCI Bus Based FPGA builds.
 	  The default latency (even worst case) for FPGA is non-realistic
 	  (~10 SDRAM, ~5 SSRAM).
 

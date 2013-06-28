@@ -12,11 +12,6 @@ config CLOCKSOURCE_WATCHDOG
 config ARCH_CLOCKSOURCE_DATA
 	bool
 
-# Platforms has a persistent clock
-config ALWAYS_USE_PERSISTENT_CLOCK
-	bool
-	default n
-
 # Timekeeping vsyscall support
 config GENERIC_TIME_VSYSCALL
 	bool
@@ -64,20 +59,88 @@ config GENERIC_CMOS_UPDATE
 if GENERIC_CLOCKEVENTS
 menu "Timers subsystem"
 
-# Core internal switch. Selected by NO_HZ / HIGH_RES_TIMERS. This is
+# Core internal switch. Selected by NO_HZ_COMMON / HIGH_RES_TIMERS. This is
 # only related to the tick functionality. Oneshot clockevent devices
 # are supported independ of this.
 config TICK_ONESHOT
 	bool
 
-config NO_HZ
-	bool "Tickless System (Dynamic Ticks)"
+config NO_HZ_COMMON
+	bool
 	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
 	select TICK_ONESHOT
+
+choice
+	prompt "Timer tick handling"
+	default NO_HZ_IDLE if NO_HZ
+
+config HZ_PERIODIC
+	bool "Periodic timer ticks (constant rate, no dynticks)"
 	help
-	  This option enables a tickless system: timer interrupts will
-	  only trigger on an as-needed basis both when the system is
-	  busy and when the system is idle.
+	  This option keeps the tick running periodically at a constant
+	  rate, even when the CPU doesn't need it.
+
+config NO_HZ_IDLE
+	bool "Idle dynticks system (tickless idle)"
+	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
+	select NO_HZ_COMMON
+	help
+	  This option enables a tickless idle system: timer interrupts
+	  will only trigger on an as-needed basis when the system is idle.
+	  This is usually interesting for energy saving.
+
+	  Most of the time you want to say Y here.
+
+config NO_HZ_FULL
+	bool "Full dynticks system (tickless)"
+	# NO_HZ_COMMON dependency
+	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
+	# We need at least one periodic CPU for timekeeping
+	depends on SMP
+	# RCU_USER_QS dependency
+	depends on HAVE_CONTEXT_TRACKING
+	# VIRT_CPU_ACCOUNTING_GEN dependency
+	depends on 64BIT
+	select NO_HZ_COMMON
+	select RCU_USER_QS
+	select RCU_NOCB_CPU
+	select VIRT_CPU_ACCOUNTING_GEN
+	select CONTEXT_TRACKING_FORCE
+	select IRQ_WORK
+	help
+	 Adaptively try to shutdown the tick whenever possible, even when
+	 the CPU is running tasks. Typically this requires running a single
+	 task on the CPU. Chances for running tickless are maximized when
+	 the task mostly runs in userspace and has few kernel activity.
+
+	 You need to fill up the nohz_full boot parameter with the
+	 desired range of dynticks CPUs.
+
+	 This is implemented at the expense of some overhead in user <-> kernel
+	 transitions: syscalls, exceptions and interrupts. Even when it's
+	 dynamically off.
+
+	 Say N.
+
+endchoice
+
+config NO_HZ_FULL_ALL
+       bool "Full dynticks system on all CPUs by default"
+       depends on NO_HZ_FULL
+       help
+         If the user doesn't pass the nohz_full boot option to
+	 define the range of full dynticks CPUs, consider that all
+	 CPUs in the system are full dynticks by default.
+	 Note the boot CPU will still be kept outside the range to
+	 handle the timekeeping duty.
+
+config NO_HZ
+	bool "Old Idle dynticks config"
+	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
+	help
+	  This is the old config entry that enables dynticks idle.
+	  We keep it around for a little while to enforce backward
+	  compatibility with older config files.
 
 config HIGH_RES_TIMERS
 	bool "High Resolution Timer Support"

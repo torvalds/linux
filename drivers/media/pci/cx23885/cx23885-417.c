@@ -1222,14 +1222,14 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct cx23885_fh  *fh  = file->private_data;
 	struct cx23885_dev *dev = fh->dev;
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(cx23885_tvnorms); i++)
-		if (*id & cx23885_tvnorms[i].id)
+		if (id & cx23885_tvnorms[i].id)
 			break;
 	if (i == ARRAY_SIZE(cx23885_tvnorms))
 		return -EINVAL;
@@ -1237,7 +1237,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
 
 	/* Have the drier core notify the subdevices */
 	mutex_lock(&dev->lock);
-	cx23885_set_tvnorm(dev, *id);
+	cx23885_set_tvnorm(dev, id);
 	mutex_unlock(&dev->lock);
 
 	return 0;
@@ -1280,7 +1280,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct cx23885_fh  *fh  = file->private_data;
 	struct cx23885_dev *dev = fh->dev;
@@ -1311,7 +1311,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-	struct v4l2_frequency *f)
+	const struct v4l2_frequency *f)
 {
 	return cx23885_set_frequency(file, priv, f);
 }

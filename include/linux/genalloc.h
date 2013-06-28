@@ -29,6 +29,10 @@
 
 #ifndef __GENALLOC_H__
 #define __GENALLOC_H__
+
+struct device;
+struct device_node;
+
 /**
  * Allocation callback function type definition
  * @map: Pointer to bitmap
@@ -105,4 +109,18 @@ extern unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
 extern unsigned long gen_pool_best_fit(unsigned long *map, unsigned long size,
 		unsigned long start, unsigned int nr, void *data);
 
+extern struct gen_pool *devm_gen_pool_create(struct device *dev,
+		int min_alloc_order, int nid);
+extern struct gen_pool *dev_get_gen_pool(struct device *dev);
+
+#ifdef CONFIG_OF
+extern struct gen_pool *of_get_named_gen_pool(struct device_node *np,
+	const char *propname, int index);
+#else
+static inline struct gen_pool *of_get_named_gen_pool(struct device_node *np,
+	const char *propname, int index)
+{
+	return NULL;
+}
+#endif
 #endif /* __GENALLOC_H__ */

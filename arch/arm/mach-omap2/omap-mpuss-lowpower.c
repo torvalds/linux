@@ -139,20 +139,6 @@ static inline void cpu_clear_prev_logic_pwrst(unsigned int cpu_id)
 	}
 }
 
-/**
- * omap4_mpuss_read_prev_context_state:
- * Function returns the MPUSS previous context state
- */
-u32 omap4_mpuss_read_prev_context_state(void)
-{
-	u32 reg;
-
-	reg = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
-		OMAP4430_PRM_MPU_INST, OMAP4_RM_MPU_MPU_CONTEXT_OFFSET);
-	reg &= OMAP4430_LOSTCONTEXT_DFF_MASK;
-	return reg;
-}
-
 /*
  * Store the CPU cluster state for L2X0 low power operations.
  */

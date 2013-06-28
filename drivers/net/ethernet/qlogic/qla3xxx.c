@@ -312,7 +312,6 @@ static void ql_release_to_lrg_buf_free_list(struct ql3_adapter *qdev,
 		lrg_buf_cb->skb = netdev_alloc_skb(qdev->ndev,
 						   qdev->lrg_buffer_len);
 		if (unlikely(!lrg_buf_cb->skb)) {
-			netdev_err(qdev->ndev, "failed netdev_alloc_skb()\n");
 			qdev->lrg_buf_skb_check++;
 		} else {
 			/*

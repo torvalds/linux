@@ -76,15 +76,6 @@ static const struct drm_mode_config_funcs mga_mode_funcs = {
 	.fb_create = mgag200_user_framebuffer_create,
 };
 
-/* Unmap the framebuffer from the core and release the memory */
-static void mga_vram_fini(struct mga_device *mdev)
-{
-	pci_iounmap(mdev->dev->pdev, mdev->rmmio);
-	mdev->rmmio = NULL;
-	if (mdev->mc.vram_base)
-		release_mem_region(mdev->mc.vram_base, mdev->mc.vram_window);
-}
-
 static int mga_probe_vram(struct mga_device *mdev, void __iomem *mem)
 {
 	int offset;
@@ -140,7 +131,7 @@ static int mga_vram_init(struct mga_device *mdev)
 	remove_conflicting_framebuffers(aper, "mgafb", true);
 	kfree(aper);
 
-	if (!request_mem_region(mdev->mc.vram_base, mdev->mc.vram_window,
+	if (!devm_request_mem_region(mdev->dev->dev, mdev->mc.vram_base, mdev->mc.vram_window,
 				"mgadrmfb_vram")) {
 		DRM_ERROR("can't reserve VRAM\n");
 		return -ENXIO;
@@ -173,13 +164,13 @@ static int mgag200_device_init(struct drm_device *dev,
 	mdev->rmmio_base = pci_resource_start(mdev->dev->pdev, 1);
 	mdev->rmmio_size = pci_resource_len(mdev->dev->pdev, 1);
 
-	if (!request_mem_region(mdev->rmmio_base, mdev->rmmio_size,
+	if (!devm_request_mem_region(mdev->dev->dev, mdev->rmmio_base, mdev->rmmio_size,
 				"mgadrmfb_mmio")) {
 		DRM_ERROR("can't reserve mmio registers\n");
 		return -ENOMEM;
 	}
 
-	mdev->rmmio = pci_iomap(dev->pdev, 1, 0);
+	mdev->rmmio = pcim_iomap(dev->pdev, 1, 0);
 	if (mdev->rmmio == NULL)
 		return -ENOMEM;
 
@@ -188,22 +179,14 @@ static int mgag200_device_init(struct drm_device *dev,
 		mdev->reg_1e24 = RREG32(0x1e24);
 
 	ret = mga_vram_init(mdev);
-	if (ret) {
-		release_mem_region(mdev->rmmio_base, mdev->rmmio_size);
+	if (ret)
 		return ret;
-	}
 
 	mdev->bpp_shifts[0] = 0;
 	mdev->bpp_shifts[1] = 1;
 	mdev->bpp_shifts[2] = 0;
 	mdev->bpp_shifts[3] = 2;
 	return 0;
-}
-
-void mgag200_device_fini(struct mga_device *mdev)
-{
-	release_mem_region(mdev->rmmio_base, mdev->rmmio_size);
-	mga_vram_fini(mdev);
 }
 
 /*
@@ -217,7 +200,7 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 	struct mga_device *mdev;
 	int r;
 
-	mdev = kzalloc(sizeof(struct mga_device), GFP_KERNEL);
+	mdev = devm_kzalloc(dev->dev, sizeof(struct mga_device), GFP_KERNEL);
 	if (mdev == NULL)
 		return -ENOMEM;
 	dev->dev_private = (void *)mdev;
@@ -234,8 +217,6 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_init(dev);
 	dev->mode_config.funcs = (void *)&mga_mode_funcs;
-	dev->mode_config.min_width = 0;
-	dev->mode_config.min_height = 0;
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
 
@@ -258,8 +239,6 @@ int mgag200_driver_unload(struct drm_device *dev)
 	mgag200_fbdev_fini(mdev);
 	drm_mode_config_cleanup(dev);
 	mgag200_mm_fini(mdev);
-	mgag200_device_fini(mdev);
-	kfree(mdev);
 	dev->dev_private = NULL;
 	return 0;
 }

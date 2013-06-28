@@ -218,12 +218,11 @@ static void parse_backlight_data(struct drm_psb_private *dev_priv,
 	bl_start = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	vbt_lvds_bl = (struct bdb_lvds_backlight *)(bl_start + 1) + p_type;
 
-	lvds_bl = kzalloc(sizeof(*vbt_lvds_bl), GFP_KERNEL);
+	lvds_bl = kmemdup(vbt_lvds_bl, sizeof(*vbt_lvds_bl), GFP_KERNEL);
 	if (!lvds_bl) {
 		dev_err(dev_priv->dev->dev, "out of memory for backlight data\n");
 		return;
 	}
-	memcpy(lvds_bl, vbt_lvds_bl, sizeof(*vbt_lvds_bl));
 	dev_priv->lvds_bl = lvds_bl;
 }
 

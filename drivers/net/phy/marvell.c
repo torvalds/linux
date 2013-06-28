@@ -7,6 +7,8 @@
  *
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
  *
+ * Copyright (c) 2013 Michael Stapelberg <michael@stapelberg.de>
+ *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
@@ -79,6 +81,28 @@
 
 #define MII_88E1318S_PHY_MSCR1_REG	16
 #define MII_88E1318S_PHY_MSCR1_PAD_ODD	BIT(6)
+
+/* Copper Specific Interrupt Enable Register */
+#define MII_88E1318S_PHY_CSIER                              0x12
+/* WOL Event Interrupt Enable */
+#define MII_88E1318S_PHY_CSIER_WOL_EIE                      BIT(7)
+
+/* LED Timer Control Register */
+#define MII_88E1318S_PHY_LED_PAGE                           0x03
+#define MII_88E1318S_PHY_LED_TCR                            0x12
+#define MII_88E1318S_PHY_LED_TCR_FORCE_INT                  BIT(15)
+#define MII_88E1318S_PHY_LED_TCR_INTn_ENABLE                BIT(7)
+#define MII_88E1318S_PHY_LED_TCR_INT_ACTIVE_LOW             BIT(11)
+
+/* Magic Packet MAC address registers */
+#define MII_88E1318S_PHY_MAGIC_PACKET_WORD2                 0x17
+#define MII_88E1318S_PHY_MAGIC_PACKET_WORD1                 0x18
+#define MII_88E1318S_PHY_MAGIC_PACKET_WORD0                 0x19
+
+#define MII_88E1318S_PHY_WOL_PAGE                           0x11
+#define MII_88E1318S_PHY_WOL_CTRL                           0x10
+#define MII_88E1318S_PHY_WOL_CTRL_CLEAR_WOL_STATUS          BIT(12)
+#define MII_88E1318S_PHY_WOL_CTRL_MAGIC_PACKET_MATCH_ENABLE BIT(14)
 
 #define MII_88E1121_PHY_LED_CTRL	16
 #define MII_88E1121_PHY_LED_PAGE	3
@@ -696,6 +720,107 @@ static int m88e1121_did_interrupt(struct phy_device *phydev)
 	return 0;
 }
 
+static void m88e1318_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+{
+	wol->supported = WAKE_MAGIC;
+	wol->wolopts = 0;
+
+	if (phy_write(phydev, MII_MARVELL_PHY_PAGE,
+		      MII_88E1318S_PHY_WOL_PAGE) < 0)
+		return;
+
+	if (phy_read(phydev, MII_88E1318S_PHY_WOL_CTRL) &
+	    MII_88E1318S_PHY_WOL_CTRL_MAGIC_PACKET_MATCH_ENABLE)
+		wol->wolopts |= WAKE_MAGIC;
+
+	if (phy_write(phydev, MII_MARVELL_PHY_PAGE, 0x00) < 0)
+		return;
+}
+
+static int m88e1318_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+{
+	int err, oldpage, temp;
+
+	oldpage = phy_read(phydev, MII_MARVELL_PHY_PAGE);
+
+	if (wol->wolopts & WAKE_MAGIC) {
+		/* Explicitly switch to page 0x00, just to be sure */
+		err = phy_write(phydev, MII_MARVELL_PHY_PAGE, 0x00);
+		if (err < 0)
+			return err;
+
+		/* Enable the WOL interrupt */
+		temp = phy_read(phydev, MII_88E1318S_PHY_CSIER);
+		temp |= MII_88E1318S_PHY_CSIER_WOL_EIE;
+		err = phy_write(phydev, MII_88E1318S_PHY_CSIER, temp);
+		if (err < 0)
+			return err;
+
+		err = phy_write(phydev, MII_MARVELL_PHY_PAGE,
+				MII_88E1318S_PHY_LED_PAGE);
+		if (err < 0)
+			return err;
+
+		/* Setup LED[2] as interrupt pin (active low) */
+		temp = phy_read(phydev, MII_88E1318S_PHY_LED_TCR);
+		temp &= ~MII_88E1318S_PHY_LED_TCR_FORCE_INT;
+		temp |= MII_88E1318S_PHY_LED_TCR_INTn_ENABLE;
+		temp |= MII_88E1318S_PHY_LED_TCR_INT_ACTIVE_LOW;
+		err = phy_write(phydev, MII_88E1318S_PHY_LED_TCR, temp);
+		if (err < 0)
+			return err;
+
+		err = phy_write(phydev, MII_MARVELL_PHY_PAGE,
+				MII_88E1318S_PHY_WOL_PAGE);
+		if (err < 0)
+			return err;
+
+		/* Store the device address for the magic packet */
+		err = phy_write(phydev, MII_88E1318S_PHY_MAGIC_PACKET_WORD2,
+				((phydev->attached_dev->dev_addr[5] << 8) |
+				 phydev->attached_dev->dev_addr[4]));
+		if (err < 0)
+			return err;
+		err = phy_write(phydev, MII_88E1318S_PHY_MAGIC_PACKET_WORD1,
+				((phydev->attached_dev->dev_addr[3] << 8) |
+				 phydev->attached_dev->dev_addr[2]));
+		if (err < 0)
+			return err;
+		err = phy_write(phydev, MII_88E1318S_PHY_MAGIC_PACKET_WORD0,
+				((phydev->attached_dev->dev_addr[1] << 8) |
+				 phydev->attached_dev->dev_addr[0]));
+		if (err < 0)
+			return err;
+
+		/* Clear WOL status and enable magic packet matching */
+		temp = phy_read(phydev, MII_88E1318S_PHY_WOL_CTRL);
+		temp |= MII_88E1318S_PHY_WOL_CTRL_CLEAR_WOL_STATUS;
+		temp |= MII_88E1318S_PHY_WOL_CTRL_MAGIC_PACKET_MATCH_ENABLE;
+		err = phy_write(phydev, MII_88E1318S_PHY_WOL_CTRL, temp);
+		if (err < 0)
+			return err;
+	} else {
+		err = phy_write(phydev, MII_MARVELL_PHY_PAGE,
+				MII_88E1318S_PHY_WOL_PAGE);
+		if (err < 0)
+			return err;
+
+		/* Clear WOL status and disable magic packet matching */
+		temp = phy_read(phydev, MII_88E1318S_PHY_WOL_CTRL);
+		temp |= MII_88E1318S_PHY_WOL_CTRL_CLEAR_WOL_STATUS;
+		temp &= ~MII_88E1318S_PHY_WOL_CTRL_MAGIC_PACKET_MATCH_ENABLE;
+		err = phy_write(phydev, MII_88E1318S_PHY_WOL_CTRL, temp);
+		if (err < 0)
+			return err;
+	}
+
+	err = phy_write(phydev, MII_MARVELL_PHY_PAGE, oldpage);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
 static struct phy_driver marvell_drivers[] = {
 	{
 		.phy_id = MARVELL_PHY_ID_88E1101,
@@ -772,6 +897,8 @@ static struct phy_driver marvell_drivers[] = {
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
 		.did_interrupt = &m88e1121_did_interrupt,
+		.get_wol = &m88e1318_get_wol,
+		.set_wol = &m88e1318_set_wol,
 		.driver = { .owner = THIS_MODULE },
 	},
 	{

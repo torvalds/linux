@@ -1,7 +1,7 @@
 /*
  * arch/hexagon/kernel/kgdb.c - Hexagon KGDB Support
  *
- * Copyright (c) 2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -70,6 +70,8 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] = {
 	{ "lc1", GDB_SIZEOF_REG, offsetof(struct pt_regs, lc1)},
 	{ " gp", GDB_SIZEOF_REG, offsetof(struct pt_regs, gp)},
 	{ "ugp", GDB_SIZEOF_REG, offsetof(struct pt_regs, ugp)},
+	{ "cs0", GDB_SIZEOF_REG, offsetof(struct pt_regs, cs0)},
+	{ "cs1", GDB_SIZEOF_REG, offsetof(struct pt_regs, cs1)},
 	{ "psp", GDB_SIZEOF_REG, offsetof(struct pt_regs, hvmer.vmpsp)},
 	{ "elr", GDB_SIZEOF_REG, offsetof(struct pt_regs, hvmer.vmel)},
 	{ "est", GDB_SIZEOF_REG, offsetof(struct pt_regs, hvmer.vmest)},

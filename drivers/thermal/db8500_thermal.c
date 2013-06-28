@@ -419,7 +419,8 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 	low_irq = platform_get_irq_byname(pdev, "IRQ_HOTMON_LOW");
 	if (low_irq < 0) {
 		dev_err(&pdev->dev, "Get IRQ_HOTMON_LOW failed.\n");
-		return low_irq;
+		ret = low_irq;
+		goto out_unlock;
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, low_irq, NULL,
@@ -427,13 +428,14 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 		"dbx500_temp_low", pzone);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to allocate temp low irq.\n");
-		return ret;
+		goto out_unlock;
 	}
 
 	high_irq = platform_get_irq_byname(pdev, "IRQ_HOTMON_HIGH");
 	if (high_irq < 0) {
 		dev_err(&pdev->dev, "Get IRQ_HOTMON_HIGH failed.\n");
-		return high_irq;
+		ret = high_irq;
+		goto out_unlock;
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, high_irq, NULL,
@@ -441,15 +443,16 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 		"dbx500_temp_high", pzone);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to allocate temp high irq.\n");
-		return ret;
+		goto out_unlock;
 	}
 
 	pzone->therm_dev = thermal_zone_device_register("db8500_thermal_zone",
 		ptrips->num_trips, 0, pzone, &thdev_ops, NULL, 0, 0);
 
-	if (IS_ERR_OR_NULL(pzone->therm_dev)) {
+	if (IS_ERR(pzone->therm_dev)) {
 		dev_err(&pdev->dev, "Register thermal zone device failed.\n");
-		return PTR_ERR(pzone->therm_dev);
+		ret = PTR_ERR(pzone->therm_dev);
+		goto out_unlock;
 	}
 	dev_info(&pdev->dev, "Thermal zone device registered.\n");
 
@@ -461,9 +464,11 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pzone);
 	pzone->mode = THERMAL_DEVICE_ENABLED;
+
+out_unlock:
 	mutex_unlock(&pzone->th_lock);
 
-	return 0;
+	return ret;
 }
 
 static int db8500_thermal_remove(struct platform_device *pdev)

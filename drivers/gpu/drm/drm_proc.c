@@ -49,7 +49,7 @@
 /**
  * Proc file list.
  */
-static struct drm_info_list drm_proc_list[] = {
+static const struct drm_info_list drm_proc_list[] = {
 	{"name", drm_name_info, 0},
 	{"vm", drm_vm_info, 0},
 	{"clients", drm_clients_info, 0},
@@ -63,7 +63,7 @@ static struct drm_info_list drm_proc_list[] = {
 
 static int drm_proc_open(struct inode *inode, struct file *file)
 {
-	struct drm_info_node* node = PDE(inode)->data;
+	struct drm_info_node* node = PDE_DATA(inode);
 
 	return single_open(file, node->info_ent->show, node);
 }
@@ -89,13 +89,13 @@ static const struct file_operations drm_proc_fops = {
  * Create a given set of proc files represented by an array of
  * gdm_proc_lists in the given root directory.
  */
-static int drm_proc_create_files(struct drm_info_list *files, int count,
+static int drm_proc_create_files(const struct drm_info_list *files, int count,
 			  struct proc_dir_entry *root, struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
 	struct proc_dir_entry *ent;
 	struct drm_info_node *tmp;
-	int i, ret;
+	int i;
 
 	for (i = 0; i < count; i++) {
 		u32 features = files[i].driver_features;
@@ -105,10 +105,9 @@ static int drm_proc_create_files(struct drm_info_list *files, int count,
 			continue;
 
 		tmp = kmalloc(sizeof(struct drm_info_node), GFP_KERNEL);
-		if (tmp == NULL) {
-			ret = -1;
-			goto fail;
-		}
+		if (!tmp)
+			return -1;
+
 		tmp->minor = minor;
 		tmp->info_ent = &files[i];
 		list_add(&tmp->list, &minor->proc_nodes.list);
@@ -116,28 +115,20 @@ static int drm_proc_create_files(struct drm_info_list *files, int count,
 		ent = proc_create_data(files[i].name, S_IRUGO, root,
 				       &drm_proc_fops, tmp);
 		if (!ent) {
-			DRM_ERROR("Cannot create /proc/dri/%s/%s\n",
-				  root->name, files[i].name);
+			DRM_ERROR("Cannot create /proc/dri/%u/%s\n",
+				  minor->index, files[i].name);
 			list_del(&tmp->list);
 			kfree(tmp);
-			ret = -1;
-			goto fail;
+			return -1;
 		}
-
 	}
 	return 0;
-
-fail:
-	for (i = 0; i < count; i++)
-		remove_proc_entry(drm_proc_list[i].name, minor->proc_root);
-	return ret;
 }
 
 /**
  * Initialize the DRI proc filesystem for a device
  *
  * \param dev DRM device
- * \param minor device minor number
  * \param root DRI proc dir entry.
  * \param dev_root resulting DRI device proc dir entry.
  * \return root entry pointer on success, or NULL on failure.
@@ -146,14 +137,13 @@ fail:
  * "/proc/dri/%minor%/", and each entry in proc_list as
  * "/proc/dri/%minor%/%name%".
  */
-int drm_proc_init(struct drm_minor *minor, int minor_id,
-		  struct proc_dir_entry *root)
+int drm_proc_init(struct drm_minor *minor, struct proc_dir_entry *root)
 {
-	char name[64];
+	char name[12];
 	int ret;
 
 	INIT_LIST_HEAD(&minor->proc_nodes.list);
-	sprintf(name, "%d", minor_id);
+	sprintf(name, "%u", minor->index);
 	minor->proc_root = proc_mkdir(name, root);
 	if (!minor->proc_root) {
 		DRM_ERROR("Cannot create /proc/dri/%s\n", name);
@@ -163,7 +153,7 @@ int drm_proc_init(struct drm_minor *minor, int minor_id,
 	ret = drm_proc_create_files(drm_proc_list, DRM_PROC_ENTRIES,
 				    minor->proc_root, minor);
 	if (ret) {
-		remove_proc_entry(name, root);
+		remove_proc_subtree(name, root);
 		minor->proc_root = NULL;
 		DRM_ERROR("Failed to create core drm proc files\n");
 		return ret;
@@ -172,7 +162,7 @@ int drm_proc_init(struct drm_minor *minor, int minor_id,
 	return 0;
 }
 
-static int drm_proc_remove_files(struct drm_info_list *files, int count,
+static int drm_proc_remove_files(const struct drm_info_list *files, int count,
 			  struct drm_minor *minor)
 {
 	struct list_head *pos, *q;
@@ -213,8 +203,7 @@ int drm_proc_cleanup(struct drm_minor *minor, struct proc_dir_entry *root)
 	drm_proc_remove_files(drm_proc_list, DRM_PROC_ENTRIES, minor);
 
 	sprintf(name, "%d", minor->index);
-	remove_proc_entry(name, root);
-
+	remove_proc_subtree(name, root);
 	return 0;
 }
 

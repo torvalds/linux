@@ -39,6 +39,7 @@
 #define DISPC_GLOBAL_BUFFER		0x0800
 #define DISPC_CONTROL3                  0x0848
 #define DISPC_CONFIG3                   0x084C
+#define DISPC_MSTANDBY_CTRL		0x0858
 
 /* DISPC overlay registers */
 #define DISPC_OVL_BA0(n)		(DISPC_OVL_BASE(n) + \

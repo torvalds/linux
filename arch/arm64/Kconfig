@@ -6,10 +6,10 @@ config ARM64
 	select ARCH_WANT_FRAME_POINTERS
 	select ARM_AMBA
 	select ARM_ARCH_TIMER
+	select ARM_GIC
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_HARDIRQS_NO_DEPRECATED
 	select GENERIC_IOMAP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -32,6 +32,8 @@ config ARM64
 	select OF
 	select OF_EARLY_FLATTREE
 	select PERF_USE_VMALLOC
+	select POWER_RESET
+	select POWER_SUPPLY
 	select RTC_LIB
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
@@ -93,14 +95,21 @@ config SWIOTLB
 config IOMMU_HELPER
 	def_bool SWIOTLB
 
-config GENERIC_GPIO
-	bool
-
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
 
-menu "System Type"
+menu "Platform selection"
+
+config ARCH_VEXPRESS
+	bool "ARMv8 software model (Versatile Express)"
+	select ARCH_REQUIRE_GPIOLIB
+	select COMMON_CLK_VERSATILE
+	select POWER_RESET_VEXPRESS
+	select VEXPRESS_CONFIG
+	help
+	  This enables support for the ARMv8 software model (Versatile
+	  Express).
 
 endmenu
 
@@ -112,8 +121,6 @@ config ARM_AMBA
 endmenu
 
 menu "Kernel Features"
-
-source "kernel/time/Kconfig"
 
 config ARM64_64K_PAGES
 	bool "Enable 64KB pages support"

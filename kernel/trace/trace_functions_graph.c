@@ -218,7 +218,7 @@ int __trace_graph_entry(struct trace_array *tr,
 {
 	struct ftrace_event_call *call = &event_funcgraph_entry;
 	struct ring_buffer_event *event;
-	struct ring_buffer *buffer = tr->buffer;
+	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ftrace_graph_ent_entry *entry;
 
 	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
@@ -265,7 +265,7 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
+	data = per_cpu_ptr(tr->trace_buffer.data, cpu);
 	disabled = atomic_inc_return(&data->disabled);
 	if (likely(disabled == 1)) {
 		pc = preempt_count();
@@ -323,7 +323,7 @@ void __trace_graph_return(struct trace_array *tr,
 {
 	struct ftrace_event_call *call = &event_funcgraph_exit;
 	struct ring_buffer_event *event;
-	struct ring_buffer *buffer = tr->buffer;
+	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ftrace_graph_ret_entry *entry;
 
 	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
@@ -350,7 +350,7 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
+	data = per_cpu_ptr(tr->trace_buffer.data, cpu);
 	disabled = atomic_inc_return(&data->disabled);
 	if (likely(disabled == 1)) {
 		pc = preempt_count();
@@ -560,9 +560,9 @@ get_return_for_leaf(struct trace_iterator *iter,
 			 * We need to consume the current entry to see
 			 * the next one.
 			 */
-			ring_buffer_consume(iter->tr->buffer, iter->cpu,
+			ring_buffer_consume(iter->trace_buffer->buffer, iter->cpu,
 					    NULL, NULL);
-			event = ring_buffer_peek(iter->tr->buffer, iter->cpu,
+			event = ring_buffer_peek(iter->trace_buffer->buffer, iter->cpu,
 						 NULL, NULL);
 		}
 

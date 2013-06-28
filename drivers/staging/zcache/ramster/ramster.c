@@ -42,6 +42,7 @@
 #include "ramster.h"
 #include "ramster_nodemanager.h"
 #include "tcp.h"
+#include "debug.h"
 
 #define RAMSTER_TESTING
 
@@ -63,78 +64,9 @@ static atomic_t ramster_remote_pers_pages = ATOMIC_INIT(0);
 static bool ramster_nodes_manual_up[MANUAL_NODES] __read_mostly;
 static int ramster_remote_target_nodenum __read_mostly = -1;
 
-/* these counters are made available via debugfs */
-static long ramster_flnodes;
-static atomic_t ramster_flnodes_atomic = ATOMIC_INIT(0);
-static unsigned long ramster_flnodes_max;
-static ssize_t ramster_foreign_eph_pages;
-static atomic_t ramster_foreign_eph_pages_atomic = ATOMIC_INIT(0);
-static ssize_t ramster_foreign_eph_pages_max;
-static ssize_t ramster_foreign_pers_pages;
-static atomic_t ramster_foreign_pers_pages_atomic = ATOMIC_INIT(0);
-static ssize_t ramster_foreign_pers_pages_max;
-static ssize_t ramster_eph_pages_remoted;
-static ssize_t ramster_pers_pages_remoted;
-static ssize_t ramster_eph_pages_remote_failed;
-static ssize_t ramster_pers_pages_remote_failed;
-static ssize_t ramster_remote_eph_pages_succ_get;
-static ssize_t ramster_remote_pers_pages_succ_get;
-static ssize_t ramster_remote_eph_pages_unsucc_get;
-static ssize_t ramster_remote_pers_pages_unsucc_get;
-static ssize_t ramster_pers_pages_remote_nomem;
-static ssize_t ramster_remote_objects_flushed;
-static ssize_t ramster_remote_object_flushes_failed;
-static ssize_t ramster_remote_pages_flushed;
-static ssize_t ramster_remote_page_flushes_failed;
+/* Used by this code. */
+long ramster_flnodes;
 /* FIXME frontswap selfshrinking knobs in debugfs? */
-
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
-#define	zdfs	debugfs_create_size_t
-#define	zdfs64	debugfs_create_u64
-static int __init ramster_debugfs_init(void)
-{
-	struct dentry *root = debugfs_create_dir("ramster", NULL);
-	if (root == NULL)
-		return -ENXIO;
-
-	zdfs("eph_pages_remoted", S_IRUGO, root, &ramster_eph_pages_remoted);
-	zdfs("pers_pages_remoted", S_IRUGO, root, &ramster_pers_pages_remoted);
-	zdfs("eph_pages_remote_failed", S_IRUGO, root,
-			&ramster_eph_pages_remote_failed);
-	zdfs("pers_pages_remote_failed", S_IRUGO, root,
-			&ramster_pers_pages_remote_failed);
-	zdfs("remote_eph_pages_succ_get", S_IRUGO, root,
-			&ramster_remote_eph_pages_succ_get);
-	zdfs("remote_pers_pages_succ_get", S_IRUGO, root,
-			&ramster_remote_pers_pages_succ_get);
-	zdfs("remote_eph_pages_unsucc_get", S_IRUGO, root,
-			&ramster_remote_eph_pages_unsucc_get);
-	zdfs("remote_pers_pages_unsucc_get", S_IRUGO, root,
-			&ramster_remote_pers_pages_unsucc_get);
-	zdfs("pers_pages_remote_nomem", S_IRUGO, root,
-			&ramster_pers_pages_remote_nomem);
-	zdfs("remote_objects_flushed", S_IRUGO, root,
-			&ramster_remote_objects_flushed);
-	zdfs("remote_pages_flushed", S_IRUGO, root,
-			&ramster_remote_pages_flushed);
-	zdfs("remote_object_flushes_failed", S_IRUGO, root,
-			&ramster_remote_object_flushes_failed);
-	zdfs("remote_page_flushes_failed", S_IRUGO, root,
-			&ramster_remote_page_flushes_failed);
-	zdfs("foreign_eph_pages", S_IRUGO, root,
-			&ramster_foreign_eph_pages);
-	zdfs("foreign_eph_pages_max", S_IRUGO, root,
-			&ramster_foreign_eph_pages_max);
-	zdfs("foreign_pers_pages", S_IRUGO, root,
-			&ramster_foreign_pers_pages);
-	zdfs("foreign_pers_pages_max", S_IRUGO, root,
-			&ramster_foreign_pers_pages_max);
-	return 0;
-}
-#undef	zdebugfs
-#undef	zdfs64
-#endif
 
 static LIST_HEAD(ramster_rem_op_list);
 static DEFINE_SPINLOCK(ramster_rem_op_list_lock);
@@ -154,9 +86,7 @@ static struct flushlist_node *ramster_flnode_alloc(struct tmem_pool *pool)
 	flnode = kp->flnode;
 	BUG_ON(flnode == NULL);
 	kp->flnode = NULL;
-	ramster_flnodes = atomic_inc_return(&ramster_flnodes_atomic);
-	if (ramster_flnodes > ramster_flnodes_max)
-		ramster_flnodes_max = ramster_flnodes;
+	inc_ramster_flnodes();
 	return flnode;
 }
 
@@ -165,10 +95,8 @@ static struct flushlist_node *ramster_flnode_alloc(struct tmem_pool *pool)
 static void ramster_flnode_free(struct flushlist_node *flnode,
 				struct tmem_pool *pool)
 {
-	int flnodes;
-
-	flnodes = atomic_dec_return(&ramster_flnodes_atomic);
-	BUG_ON(flnodes < 0);
+	dec_ramster_flnodes();
+	BUG_ON(ramster_flnodes < 0);
 	kmem_cache_free(ramster_flnode_cache, flnode);
 }
 
@@ -191,6 +119,7 @@ int ramster_do_preload_flnode(struct tmem_pool *pool)
 		kmem_cache_free(ramster_flnode_cache, flnode);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ramster_do_preload_flnode);
 
 /*
  * Called by the message handler after a (still compressed) page has been
@@ -226,9 +155,9 @@ int ramster_localify(int pool_id, struct tmem_oid *oidp, uint32_t index,
 		pr_err("UNTESTED pampd==NULL in ramster_localify\n");
 #endif
 		if (eph)
-			ramster_remote_eph_pages_unsucc_get++;
+			inc_ramster_remote_eph_pages_unsucc_get();
 		else
-			ramster_remote_pers_pages_unsucc_get++;
+			inc_ramster_remote_pers_pages_unsucc_get();
 		obj = NULL;
 		goto finish;
 	} else if (unlikely(!pampd_is_remote(pampd))) {
@@ -237,9 +166,9 @@ int ramster_localify(int pool_id, struct tmem_oid *oidp, uint32_t index,
 		pr_err("UNTESTED dup while waiting in ramster_localify\n");
 #endif
 		if (eph)
-			ramster_remote_eph_pages_unsucc_get++;
+			inc_ramster_remote_eph_pages_unsucc_get();
 		else
-			ramster_remote_pers_pages_unsucc_get++;
+			inc_ramster_remote_pers_pages_unsucc_get();
 		obj = NULL;
 		pampd = NULL;
 		ret = -EEXIST;
@@ -248,7 +177,7 @@ int ramster_localify(int pool_id, struct tmem_oid *oidp, uint32_t index,
 		/* no remote data, delete the local is_remote pampd */
 		pampd = NULL;
 		if (eph)
-			ramster_remote_eph_pages_unsucc_get++;
+			inc_ramster_remote_eph_pages_unsucc_get();
 		else
 			BUG();
 		delete = true;
@@ -279,9 +208,9 @@ int ramster_localify(int pool_id, struct tmem_oid *oidp, uint32_t index,
 	BUG_ON(extra == NULL);
 	zcache_decompress_to_page(data, size, (struct page *)extra);
 	if (eph)
-		ramster_remote_eph_pages_succ_get++;
+		inc_ramster_remote_eph_pages_succ_get();
 	else
-		ramster_remote_pers_pages_succ_get++;
+		inc_ramster_remote_pers_pages_succ_get();
 	ret = 0;
 finish:
 	tmem_localify_finish(obj, index, pampd, saved_hb, delete);
@@ -366,7 +295,7 @@ void *ramster_pampd_repatriate_preload(void *pampd, struct tmem_pool *pool,
 		c = atomic_dec_return(&ramster_remote_pers_pages);
 		WARN_ON_ONCE(c < 0);
 	} else {
-		ramster_pers_pages_remote_nomem++;
+		inc_ramster_pers_pages_remote_nomem();
 	}
 	local_irq_restore(flags);
 out:
@@ -458,37 +387,32 @@ void *ramster_pampd_free(void *pampd, struct tmem_pool *pool,
 	}
 	return local_pampd;
 }
+EXPORT_SYMBOL_GPL(ramster_pampd_free);
 
 void ramster_count_foreign_pages(bool eph, int count)
 {
-	int c;
-
 	BUG_ON(count != 1 && count != -1);
 	if (eph) {
 		if (count > 0) {
-			c = atomic_inc_return(
-					&ramster_foreign_eph_pages_atomic);
-			if (c > ramster_foreign_eph_pages_max)
-				ramster_foreign_eph_pages_max = c;
+			inc_ramster_foreign_eph_pages();
 		} else {
-			c = atomic_dec_return(&ramster_foreign_eph_pages_atomic);
-			WARN_ON_ONCE(c < 0);
+			dec_ramster_foreign_eph_pages();
+#ifdef CONFIG_RAMSTER_DEBUG
+			WARN_ON_ONCE(ramster_foreign_eph_pages < 0);
+#endif
 		}
-		ramster_foreign_eph_pages = c;
 	} else {
 		if (count > 0) {
-			c = atomic_inc_return(
-					&ramster_foreign_pers_pages_atomic);
-			if (c > ramster_foreign_pers_pages_max)
-				ramster_foreign_pers_pages_max = c;
+			inc_ramster_foreign_pers_pages();
 		} else {
-			c = atomic_dec_return(
-					&ramster_foreign_pers_pages_atomic);
-			WARN_ON_ONCE(c < 0);
+			dec_ramster_foreign_pers_pages();
+#ifdef CONFIG_RAMSTER_DEBUG
+			WARN_ON_ONCE(ramster_foreign_pers_pages < 0);
+#endif
 		}
-		ramster_foreign_pers_pages = c;
 	}
 }
+EXPORT_SYMBOL_GPL(ramster_count_foreign_pages);
 
 /*
  * For now, just push over a few pages every few seconds to
@@ -516,9 +440,9 @@ static void ramster_remote_flush_page(struct flushlist_node *flnode)
 	remotenode = flnode->xh.client_id;
 	ret = r2net_remote_flush(xh, remotenode);
 	if (ret >= 0)
-		ramster_remote_pages_flushed++;
+		inc_ramster_remote_pages_flushed();
 	else
-		ramster_remote_page_flushes_failed++;
+		inc_ramster_remote_page_flushes_failed();
 	preempt_enable_no_resched();
 	ramster_flnode_free(flnode, NULL);
 }
@@ -533,9 +457,9 @@ static void ramster_remote_flush_object(struct flushlist_node *flnode)
 	remotenode = flnode->xh.client_id;
 	ret = r2net_remote_flush_object(xh, remotenode);
 	if (ret >= 0)
-		ramster_remote_objects_flushed++;
+		inc_ramster_remote_objects_flushed();
 	else
-		ramster_remote_object_flushes_failed++;
+		inc_ramster_remote_object_flushes_failed();
 	preempt_enable_no_resched();
 	ramster_flnode_free(flnode, NULL);
 }
@@ -586,18 +510,18 @@ int ramster_remotify_pageframe(bool eph)
 		 * But count them so we know if it becomes a problem.
 		 */
 			if (eph)
-				ramster_eph_pages_remote_failed++;
+				inc_ramster_eph_pages_remote_failed();
 			else
-				ramster_pers_pages_remote_failed++;
+				inc_ramster_pers_pages_remote_failed();
 			break;
 		} else {
 			if (!eph)
 				atomic_inc(&ramster_remote_pers_pages);
 		}
 		if (eph)
-			ramster_eph_pages_remoted++;
+			inc_ramster_eph_pages_remoted();
 		else
-			ramster_pers_pages_remoted++;
+			inc_ramster_pers_pages_remoted();
 		/*
 		 * data was successfully remoted so change the local version to
 		 * point to the remote node where it landed
@@ -674,7 +598,7 @@ requeue:
 	ramster_remotify_queue_delayed_work(HZ);
 }
 
-void __init ramster_remotify_init(void)
+void ramster_remotify_init(void)
 {
 	unsigned long n = 60UL;
 	ramster_remotify_workqueue =
@@ -849,8 +773,10 @@ static bool frontswap_selfshrinking __read_mostly;
 static void selfshrink_process(struct work_struct *work);
 static DECLARE_DELAYED_WORK(selfshrink_worker, selfshrink_process);
 
+#ifndef CONFIG_RAMSTER_MODULE
 /* Enable/disable with kernel boot option. */
-static bool use_frontswap_selfshrink __initdata = true;
+static bool use_frontswap_selfshrink = true;
+#endif
 
 /*
  * The default values for the following parameters were deemed reasonable
@@ -905,6 +831,7 @@ static void frontswap_selfshrink(void)
 	frontswap_shrink(tgt_frontswap_pages);
 }
 
+#ifndef CONFIG_RAMSTER_MODULE
 static int __init ramster_nofrontswap_selfshrink_setup(char *s)
 {
 	use_frontswap_selfshrink = false;
@@ -912,6 +839,7 @@ static int __init ramster_nofrontswap_selfshrink_setup(char *s)
 }
 
 __setup("noselfshrink", ramster_nofrontswap_selfshrink_setup);
+#endif
 
 static void selfshrink_process(struct work_struct *work)
 {
@@ -930,6 +858,7 @@ void ramster_cpu_up(int cpu)
 	per_cpu(ramster_remoteputmem1, cpu) = p1;
 	per_cpu(ramster_remoteputmem2, cpu) = p2;
 }
+EXPORT_SYMBOL_GPL(ramster_cpu_up);
 
 void ramster_cpu_down(int cpu)
 {
@@ -945,6 +874,7 @@ void ramster_cpu_down(int cpu)
 		kp->flnode = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(ramster_cpu_down);
 
 void ramster_register_pamops(struct tmem_pamops *pamops)
 {
@@ -955,9 +885,11 @@ void ramster_register_pamops(struct tmem_pamops *pamops)
 	pamops->repatriate = ramster_pampd_repatriate;
 	pamops->repatriate_preload = ramster_pampd_repatriate_preload;
 }
+EXPORT_SYMBOL_GPL(ramster_register_pamops);
 
-void __init ramster_init(bool cleancache, bool frontswap,
-				bool frontswap_exclusive_gets)
+void ramster_init(bool cleancache, bool frontswap,
+				bool frontswap_exclusive_gets,
+				bool frontswap_selfshrink)
 {
 	int ret = 0;
 
@@ -972,10 +904,17 @@ void __init ramster_init(bool cleancache, bool frontswap,
 	if (ret)
 		pr_err("ramster: can't create sysfs for ramster\n");
 	(void)r2net_register_handlers();
+#ifdef CONFIG_RAMSTER_MODULE
+	ret = r2nm_init();
+	if (ret)
+		pr_err("ramster: can't init r2net\n");
+	frontswap_selfshrinking = frontswap_selfshrink;
+#else
+	frontswap_selfshrinking = use_frontswap_selfshrink;
+#endif
 	INIT_LIST_HEAD(&ramster_rem_op_list);
 	ramster_flnode_cache = kmem_cache_create("ramster_flnode",
 				sizeof(struct flushlist_node), 0, 0, NULL);
-	frontswap_selfshrinking = use_frontswap_selfshrink;
 	if (frontswap_selfshrinking) {
 		pr_info("ramster: Initializing frontswap selfshrink driver.\n");
 		schedule_delayed_work(&selfshrink_worker,
@@ -983,3 +922,4 @@ void __init ramster_init(bool cleancache, bool frontswap,
 	}
 	ramster_remotify_init();
 }
+EXPORT_SYMBOL_GPL(ramster_init);

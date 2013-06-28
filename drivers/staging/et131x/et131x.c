@@ -595,7 +595,7 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 	 */
 
 	err = eeprom_wait_ready(pdev, NULL);
-	if (err)
+	if (err < 0)
 		return err;
 
 	 /* 2. Write to the LBCIF Control Register:  bit 7=1, bit 6=1, bit 3=0,
@@ -709,7 +709,7 @@ static int eeprom_read(struct et131x_adapter *adapter, u32 addr, u8 *pdata)
 	 */
 
 	err = eeprom_wait_ready(pdev, NULL);
-	if (err)
+	if (err < 0)
 		return err;
 	/* Write to the LBCIF Control Register:  bit 7=1, bit 6=0, bit 3=0,
 	 * and bits 1:0 both =0.  Bit 5 should be set according to the type
@@ -3953,6 +3953,7 @@ static void et131x_pci_remove(struct pci_dev *pdev)
 	unregister_netdev(netdev);
 	phy_disconnect(adapter->phydev);
 	mdiobus_unregister(adapter->mii_bus);
+	cancel_work_sync(&adapter->task);
 	kfree(adapter->mii_bus->irq);
 	mdiobus_free(adapter->mii_bus);
 

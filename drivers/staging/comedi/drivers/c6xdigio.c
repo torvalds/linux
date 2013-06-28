@@ -397,12 +397,6 @@ static void board_init(struct comedi_device *dev)
 
 }
 
-/*
-   options[0] - I/O port
-   options[1] - irq
-   options[2] - number of encoder chips installed
- */
-
 static const struct pnp_device_id c6xdigio_pnp_tbl[] = {
 	/* Standard LPT Printer Port */
 	{.id = "PNP0400", .driver_data = 0},
@@ -419,33 +413,19 @@ static struct pnp_driver c6xdigio_pnp_driver = {
 static int c6xdigio_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
-	int result = 0;
-	unsigned long iobase;
-	unsigned int irq;
 	struct comedi_subdevice *s;
+	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_DEBUG "comedi%d: c6xdigio: 0x%04lx\n", dev->minor, iobase);
-	if (!request_region(iobase, C6XDIGIO_SIZE, "c6xdigio")) {
-		printk(KERN_ERR "comedi%d: I/O port conflict\n", dev->minor);
-		return -EIO;
-	}
-	dev->iobase = iobase;
-	dev->board_name = "c6xdigio";
+	ret = comedi_request_region(dev, it->options[0], C6XDIGIO_SIZE);
+	if (ret)
+		return ret;
 
-	result = comedi_alloc_subdevices(dev, 2);
-	if (result)
-		return result;
+	ret = comedi_alloc_subdevices(dev, 2);
+	if (ret)
+		return ret;
 
 	/*  Make sure that PnP ports get activated */
 	pnp_register_driver(&c6xdigio_pnp_driver);
-
-	irq = it->options[1];
-	if (irq > 0)
-		printk(KERN_DEBUG "comedi%d: irq = %u ignored\n",
-				dev->minor, irq);
-	else if (irq == 0)
-		printk(KERN_DEBUG "comedi%d: no irq\n", dev->minor);
 
 	s = &dev->subdevices[0];
 	/* pwm output subdevice */
@@ -488,10 +468,7 @@ static int c6xdigio_attach(struct comedi_device *dev,
 
 static void c6xdigio_detach(struct comedi_device *dev)
 {
-	if (dev->iobase)
-		release_region(dev->iobase, C6XDIGIO_SIZE);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
+	comedi_legacy_detach(dev);
 	pnp_unregister_driver(&c6xdigio_pnp_driver);
 }
 

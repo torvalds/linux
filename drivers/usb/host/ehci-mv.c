@@ -33,25 +33,17 @@ struct ehci_hcd_mv {
 
 	struct mv_usb_platform_data *pdata;
 
-	/* clock source and total clock number */
-	unsigned int clknum;
-	struct clk *clk[0];
+	struct clk *clk;
 };
 
 static void ehci_clock_enable(struct ehci_hcd_mv *ehci_mv)
 {
-	unsigned int i;
-
-	for (i = 0; i < ehci_mv->clknum; i++)
-		clk_prepare_enable(ehci_mv->clk[i]);
+	clk_prepare_enable(ehci_mv->clk);
 }
 
 static void ehci_clock_disable(struct ehci_hcd_mv *ehci_mv)
 {
-	unsigned int i;
-
-	for (i = 0; i < ehci_mv->clknum; i++)
-		clk_disable_unprepare(ehci_mv->clk[i]);
+	clk_disable_unprepare(ehci_mv->clk);
 }
 
 static int mv_ehci_enable(struct ehci_hcd_mv *ehci_mv)
@@ -144,9 +136,8 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	struct ehci_hcd *ehci;
 	struct ehci_hcd_mv *ehci_mv;
 	struct resource *r;
-	int clk_i, retval = -ENODEV;
+	int retval = -ENODEV;
 	u32 offset;
-	size_t size;
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "missing platform_data\n");
@@ -160,8 +151,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	if (!hcd)
 		return -ENOMEM;
 
-	size = sizeof(*ehci_mv) + sizeof(struct clk *) * pdata->clknum;
-	ehci_mv = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	ehci_mv = devm_kzalloc(&pdev->dev, sizeof(*ehci_mv), GFP_KERNEL);
 	if (ehci_mv == NULL) {
 		dev_err(&pdev->dev, "cannot allocate ehci_hcd_mv\n");
 		retval = -ENOMEM;
@@ -172,16 +162,11 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	ehci_mv->pdata = pdata;
 	ehci_mv->hcd = hcd;
 
-	ehci_mv->clknum = pdata->clknum;
-	for (clk_i = 0; clk_i < ehci_mv->clknum; clk_i++) {
-		ehci_mv->clk[clk_i] =
-		    devm_clk_get(&pdev->dev, pdata->clkname[clk_i]);
-		if (IS_ERR(ehci_mv->clk[clk_i])) {
-			dev_err(&pdev->dev, "error get clck \"%s\"\n",
-				pdata->clkname[clk_i]);
-			retval = PTR_ERR(ehci_mv->clk[clk_i]);
-			goto err_clear_drvdata;
-		}
+	ehci_mv->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(ehci_mv->clk)) {
+		dev_err(&pdev->dev, "error getting clock\n");
+		retval = PTR_ERR(ehci_mv->clk);
+		goto err_clear_drvdata;
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phyregs");
@@ -225,7 +210,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		(void __iomem *) ((unsigned long) ehci_mv->cap_regs + offset);
 
 	hcd->rsrc_start = r->start;
-	hcd->rsrc_len = r->end - r->start + 1;
+	hcd->rsrc_len = resource_size(r);
 	hcd->regs = ehci_mv->op_regs;
 
 	hcd->irq = platform_get_irq(pdev, 0);
@@ -240,12 +225,16 @@ static int mv_ehci_probe(struct platform_device *pdev)
 
 	ehci_mv->mode = pdata->mode;
 	if (ehci_mv->mode == MV_USB_MODE_OTG) {
-#ifdef CONFIG_USB_OTG_UTILS
 		ehci_mv->otg = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
-		if (IS_ERR_OR_NULL(ehci_mv->otg)) {
-			dev_err(&pdev->dev,
-				"unable to find transceiver\n");
-			retval = -ENODEV;
+		if (IS_ERR(ehci_mv->otg)) {
+			retval = PTR_ERR(ehci_mv->otg);
+
+			if (retval == -ENXIO)
+				dev_info(&pdev->dev, "MV_USB_MODE_OTG "
+						"must have CONFIG_USB_PHY enabled\n");
+			else
+				dev_err(&pdev->dev,
+						"unable to find transceiver\n");
 			goto err_disable_clk;
 		}
 
@@ -258,11 +247,6 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		}
 		/* otg will enable clock before use as host */
 		mv_ehci_disable(ehci_mv);
-#else
-		dev_info(&pdev->dev, "MV_USB_MODE_OTG "
-			 "must have CONFIG_USB_OTG_UTILS enabled\n");
-		goto err_disable_clk;
-#endif
 	} else {
 		if (pdata->set_vbus)
 			pdata->set_vbus(1);

@@ -195,7 +195,7 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 	skb->protocol = eth_type_trans(skb, priv->netdev);
 	skb->ip_summed = CHECKSUM_NONE;
 
-	/* This is required only in case of 11n and USB as we alloc
+	/* This is required only in case of 11n and USB/PCIE as we alloc
 	 * a buffer of 4K only if its 11N (to be able to receive 4K
 	 * AMSDU packets). In case of SD we allocate buffers based
 	 * on the size of packet and hence this is not needed.
@@ -212,7 +212,8 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 	 * fragments. Currently we fail the Filesndl-ht.scr script
 	 * for UDP, hence this fix
 	 */
-	if ((priv->adapter->iface_type == MWIFIEX_USB) &&
+	if ((priv->adapter->iface_type == MWIFIEX_USB ||
+	     priv->adapter->iface_type == MWIFIEX_PCIE) &&
 	    (skb->truesize > MWIFIEX_RX_DATA_BUF_SIZE))
 		skb->truesize += (skb->len - MWIFIEX_RX_DATA_BUF_SIZE);
 
@@ -238,7 +239,6 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
 			 struct cmd_ctrl_node *cmd_node)
 {
-	atomic_dec(&adapter->cmd_pending);
 	dev_dbg(adapter->dev, "cmd completed: status=%d\n",
 		adapter->cmd_wait_q.status);
 

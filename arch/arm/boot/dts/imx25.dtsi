@@ -9,7 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	aliases {
@@ -141,8 +141,8 @@
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
 				reg = <0x43fa4000 0x4000>;
-				clocks = <&clks 62>;
-				clock-names = "ipg";
+				clocks = <&clks 62>, <&clks 62>;
+				clock-names = "ipg", "per";
 				interrupts = <14>;
 				status = "disabled";
 			};
@@ -182,8 +182,8 @@
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
 				reg = <0x50004000 0x4000>;
 				interrupts = <0>;
-				clocks = <&clks 80>;
-				clock-names = "ipg";
+				clocks = <&clks 80>, <&clks 80>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -210,8 +210,8 @@
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
 				reg = <0x50010000 0x4000>;
-				clocks = <&clks 79>;
-				clock-names = "ipg";
+				clocks = <&clks 79>, <&clks 79>;
+				clock-names = "ipg", "per";
 				interrupts = <13>;
 				status = "disabled";
 			};

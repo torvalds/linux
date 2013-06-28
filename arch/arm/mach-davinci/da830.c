@@ -394,7 +394,7 @@ static struct clk_lookup da830_clks[] = {
 	CLK(NULL,		"tpcc",		&tpcc_clk),
 	CLK(NULL,		"tptc0",	&tptc0_clk),
 	CLK(NULL,		"tptc1",	&tptc1_clk),
-	CLK("davinci_mmc.0",	NULL,		&mmcsd_clk),
+	CLK("da830-mmc.0",	NULL,		&mmcsd_clk),
 	CLK(NULL,		"uart0",	&uart0_clk),
 	CLK(NULL,		"uart1",	&uart1_clk),
 	CLK(NULL,		"uart2",	&uart2_clk),

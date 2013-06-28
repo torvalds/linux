@@ -810,11 +810,8 @@ static int __qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter,
 
 	tmp_addr = dma_alloc_coherent(&adapter->pdev->dev, temp_size,
 				      &tmp_addr_t, GFP_KERNEL);
-	if (!tmp_addr) {
-		dev_err(&adapter->pdev->dev,
-			"Can't get memory for FW dump template\n");
+	if (!tmp_addr)
 		return -ENOMEM;
-	}
 
 	if (qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_TEMP_HDR)) {
 		err = -ENOMEM;

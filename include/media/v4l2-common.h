@@ -201,7 +201,6 @@ void v4l_bound_align_image(unsigned int *w, unsigned int wmin,
 			   unsigned int *h, unsigned int hmin,
 			   unsigned int hmax, unsigned int halign,
 			   unsigned int salign);
-int v4l_fill_dv_preset_info(u32 preset, struct v4l2_dv_enum_preset *info);
 
 struct v4l2_discrete_probe {
 	const struct v4l2_frmsize_discrete	*sizes;

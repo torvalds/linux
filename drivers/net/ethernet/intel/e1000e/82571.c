@@ -184,7 +184,7 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 	default:
 		nvm->type = e1000_nvm_eeprom_spi;
 		size = (u16)((eecd & E1000_EECD_SIZE_EX_MASK) >>
-				  E1000_EECD_SIZE_EX_SHIFT);
+			     E1000_EECD_SIZE_EX_SHIFT);
 		/* Added to a constant, "size" becomes the left-shift value
 		 * for setting word_size.
 		 */
@@ -437,7 +437,7 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 			return ret_val;
 
 		phy->id = (u32)(phy_id << 16);
-		udelay(20);
+		usleep_range(20, 40);
 		ret_val = e1e_rphy(hw, MII_PHYSID2, &phy_id);
 		if (ret_val)
 			return ret_val;
@@ -482,7 +482,7 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 		if (!(swsm & E1000_SWSM_SMBI))
 			break;
 
-		udelay(50);
+		usleep_range(50, 100);
 		i++;
 	}
 
@@ -499,7 +499,7 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 		if (er32(SWSM) & E1000_SWSM_SWESMBI)
 			break;
 
-		udelay(50);
+		usleep_range(50, 100);
 	}
 
 	if (i == fw_timeout) {
@@ -526,6 +526,7 @@ static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw)
 	swsm &= ~(E1000_SWSM_SMBI | E1000_SWSM_SWESMBI);
 	ew32(SWSM, swsm);
 }
+
 /**
  *  e1000_get_hw_semaphore_82573 - Acquire hardware semaphore
  *  @hw: pointer to the HW structure
@@ -846,9 +847,9 @@ static s32 e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
 	}
 
 	for (i = 0; i < words; i++) {
-		eewr = (data[i] << E1000_NVM_RW_REG_DATA) |
-		       ((offset+i) << E1000_NVM_RW_ADDR_SHIFT) |
-		       E1000_NVM_RW_REG_START;
+		eewr = ((data[i] << E1000_NVM_RW_REG_DATA) |
+			((offset + i) << E1000_NVM_RW_ADDR_SHIFT) |
+			E1000_NVM_RW_REG_START);
 
 		ret_val = e1000e_poll_eerd_eewr_done(hw, E1000_NVM_POLL_WRITE);
 		if (ret_val)
@@ -875,8 +876,7 @@ static s32 e1000_get_cfg_done_82571(struct e1000_hw *hw)
 	s32 timeout = PHY_CFG_TIMEOUT;
 
 	while (timeout) {
-		if (er32(EEMNGCTL) &
-		    E1000_NVM_CFG_DONE_PORT_0)
+		if (er32(EEMNGCTL) & E1000_NVM_CFG_DONE_PORT_0)
 			break;
 		usleep_range(1000, 2000);
 		timeout--;
@@ -1022,7 +1022,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	}
 
 	if (hw->nvm.type == e1000_nvm_flash_hw) {
-		udelay(10);
+		usleep_range(10, 20);
 		ctrl_ext = er32(CTRL_EXT);
 		ctrl_ext |= E1000_CTRL_EXT_EE_RST;
 		ew32(CTRL_EXT, ctrl_ext);
@@ -1095,9 +1095,9 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 
 	/* Initialize identification LED */
 	ret_val = mac->ops.id_led_init(hw);
+	/* An error is not fatal and we should not stop init due to this */
 	if (ret_val)
 		e_dbg("Error initializing identification LED\n");
-		/* This is not fatal and we should not stop init due to this */
 
 	/* Disabling VLAN filtering */
 	e_dbg("Initializing the IEEE VLAN\n");
@@ -1122,9 +1122,8 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 
 	/* Set the transmit descriptor write-back policy */
 	reg_data = er32(TXDCTL(0));
-	reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
-		   E1000_TXDCTL_FULL_TX_DESC_WB |
-		   E1000_TXDCTL_COUNT_DESC;
+	reg_data = ((reg_data & ~E1000_TXDCTL_WTHRESH) |
+		    E1000_TXDCTL_FULL_TX_DESC_WB | E1000_TXDCTL_COUNT_DESC);
 	ew32(TXDCTL(0), reg_data);
 
 	/* ...for both queues. */
@@ -1140,9 +1139,9 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 		break;
 	default:
 		reg_data = er32(TXDCTL(1));
-		reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
-			   E1000_TXDCTL_FULL_TX_DESC_WB |
-			   E1000_TXDCTL_COUNT_DESC;
+		reg_data = ((reg_data & ~E1000_TXDCTL_WTHRESH) |
+			    E1000_TXDCTL_FULL_TX_DESC_WB |
+			    E1000_TXDCTL_COUNT_DESC);
 		ew32(TXDCTL(1), reg_data);
 		break;
 	}
@@ -1530,7 +1529,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 	status = er32(STATUS);
 	er32(RXCW);
 	/* SYNCH bit and IV bit are sticky */
-	udelay(10);
+	usleep_range(10, 20);
 	rxcw = er32(RXCW);
 
 	if ((rxcw & E1000_RXCW_SYNCH) && !(rxcw & E1000_RXCW_IV)) {
@@ -1633,7 +1632,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			 * the IV bit and restart Autoneg
 			 */
 			for (i = 0; i < AN_RETRY_COUNT; i++) {
-				udelay(10);
+				usleep_range(10, 20);
 				rxcw = er32(RXCW);
 				if ((rxcw & E1000_RXCW_SYNCH) &&
 				    (rxcw & E1000_RXCW_C))
@@ -2066,4 +2065,3 @@ const struct e1000_info e1000_82583_info = {
 	.phy_ops		= &e82_phy_ops_bm,
 	.nvm_ops		= &e82571_nvm_ops,
 };
-

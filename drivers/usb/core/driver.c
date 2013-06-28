@@ -1196,9 +1196,14 @@ done:
  *
  * This is the central routine for suspending USB devices.  It calls the
  * suspend methods for all the interface drivers in @udev and then calls
- * the suspend method for @udev itself.  If an error occurs at any stage,
- * all the interfaces which were suspended are resumed so that they remain
- * in the same state as the device.
+ * the suspend method for @udev itself.  When the routine is called in
+ * autosuspend, if an error occurs at any stage, all the interfaces
+ * which were suspended are resumed so that they remain in the same
+ * state as the device, but when called from system sleep, all error
+ * from suspend methods of interfaces and the non-root-hub device itself
+ * are simply ignored, so all suspended interfaces are only resumed
+ * to the device's state when @udev is root-hub and its suspend method
+ * returns failure.
  *
  * Autosuspend requests originating from a child device or an interface
  * driver may be made without the protection of @udev's device lock, but
@@ -1248,10 +1253,12 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 
 	/* If the suspend failed, resume interfaces that did get suspended */
 	if (status != 0) {
-		msg.event ^= (PM_EVENT_SUSPEND | PM_EVENT_RESUME);
-		while (++i < n) {
-			intf = udev->actconfig->interface[i];
-			usb_resume_interface(udev, intf, msg, 0);
+		if (udev->actconfig) {
+			msg.event ^= (PM_EVENT_SUSPEND | PM_EVENT_RESUME);
+			while (++i < n) {
+				intf = udev->actconfig->interface[i];
+				usb_resume_interface(udev, intf, msg, 0);
+			}
 		}
 
 	/* If the suspend succeeded then prevent any more URB submissions
@@ -1407,7 +1414,7 @@ int usb_resume(struct device *dev, pm_message_t msg)
 
 #endif /* CONFIG_PM */
 
-#ifdef CONFIG_USB_SUSPEND
+#ifdef CONFIG_PM_RUNTIME
 
 /**
  * usb_enable_autosuspend - allow a USB device to be autosuspended
@@ -1775,7 +1782,7 @@ int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
 	return ret;
 }
 
-#endif /* CONFIG_USB_SUSPEND */
+#endif /* CONFIG_PM_RUNTIME */
 
 struct bus_type usb_bus_type = {
 	.name =		"usb",

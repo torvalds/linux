@@ -196,9 +196,9 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 {
 	struct dwc3_pci	*glue = pci_get_drvdata(pci);
 
+	platform_device_unregister(glue->dwc3);
 	platform_device_unregister(glue->usb2_phy);
 	platform_device_unregister(glue->usb3_phy);
-	platform_device_unregister(glue->dwc3);
 	pci_set_drvdata(pci, NULL);
 	pci_disable_device(pci);
 }
@@ -212,11 +212,49 @@ static DEFINE_PCI_DEVICE_TABLE(dwc3_pci_id_table) = {
 };
 MODULE_DEVICE_TABLE(pci, dwc3_pci_id_table);
 
+#ifdef CONFIG_PM
+static int dwc3_pci_suspend(struct device *dev)
+{
+	struct pci_dev	*pci = to_pci_dev(dev);
+
+	pci_disable_device(pci);
+
+	return 0;
+}
+
+static int dwc3_pci_resume(struct device *dev)
+{
+	struct pci_dev	*pci = to_pci_dev(dev);
+	int		ret;
+
+	ret = pci_enable_device(pci);
+	if (ret) {
+		dev_err(dev, "can't re-enable device --> %d\n", ret);
+		return ret;
+	}
+
+	pci_set_master(pci);
+
+	return 0;
+}
+
+static const struct dev_pm_ops dwc3_pci_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dwc3_pci_suspend, dwc3_pci_resume)
+};
+
+#define DEV_PM_OPS	(&dwc3_pci_dev_pm_ops)
+#else
+#define DEV_PM_OPS	NULL
+#endif /* CONFIG_PM */
+
 static struct pci_driver dwc3_pci_driver = {
 	.name		= "dwc3-pci",
 	.id_table	= dwc3_pci_id_table,
 	.probe		= dwc3_pci_probe,
 	.remove		= dwc3_pci_remove,
+	.driver		= {
+		.pm	= DEV_PM_OPS,
+	},
 };
 
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");

@@ -50,9 +50,8 @@ xfs_efi_item_free(
  * Freeing the efi requires that we remove it from the AIL if it has already
  * been placed there. However, the EFI may not yet have been placed in the AIL
  * when called by xfs_efi_release() from EFD processing due to the ordering of
- * committed vs unpin operations in bulk insert operations. Hence the
- * test_and_clear_bit(XFS_EFI_COMMITTED) to ensure only the last caller frees
- * the EFI.
+ * committed vs unpin operations in bulk insert operations. Hence the reference
+ * count to ensure only the last caller frees the EFI.
  */
 STATIC void
 __xfs_efi_release(
@@ -60,7 +59,7 @@ __xfs_efi_release(
 {
 	struct xfs_ail		*ailp = efip->efi_item.li_ailp;
 
-	if (!test_and_clear_bit(XFS_EFI_COMMITTED, &efip->efi_flags)) {
+	if (atomic_dec_and_test(&efip->efi_refcount)) {
 		spin_lock(&ailp->xa_lock);
 		/* xfs_trans_ail_delete() drops the AIL lock. */
 		xfs_trans_ail_delete(ailp, &efip->efi_item,
@@ -126,8 +125,8 @@ xfs_efi_item_pin(
  * which the EFI is manipulated during a transaction.  If we are being asked to
  * remove the EFI it's because the transaction has been cancelled and by
  * definition that means the EFI cannot be in the AIL so remove it from the
- * transaction and free it.  Otherwise coordinate with xfs_efi_release() (via
- * XFS_EFI_COMMITTED) to determine who gets to free the EFI.
+ * transaction and free it.  Otherwise coordinate with xfs_efi_release()
+ * to determine who gets to free the EFI.
  */
 STATIC void
 xfs_efi_item_unpin(
@@ -171,19 +170,13 @@ xfs_efi_item_unlock(
 
 /*
  * The EFI is logged only once and cannot be moved in the log, so simply return
- * the lsn at which it's been logged.  For bulk transaction committed
- * processing, the EFI may be processed but not yet unpinned prior to the EFD
- * being processed. Set the XFS_EFI_COMMITTED flag so this case can be detected
- * when processing the EFD.
+ * the lsn at which it's been logged.
  */
 STATIC xfs_lsn_t
 xfs_efi_item_committed(
 	struct xfs_log_item	*lip,
 	xfs_lsn_t		lsn)
 {
-	struct xfs_efi_log_item	*efip = EFI_ITEM(lip);
-
-	set_bit(XFS_EFI_COMMITTED, &efip->efi_flags);
 	return lsn;
 }
 
@@ -241,6 +234,7 @@ xfs_efi_init(
 	efip->efi_format.efi_nextents = nextents;
 	efip->efi_format.efi_id = (__psint_t)(void*)efip;
 	atomic_set(&efip->efi_next_extent, 0);
+	atomic_set(&efip->efi_refcount, 2);
 
 	return efip;
 }
@@ -310,8 +304,14 @@ xfs_efi_release(xfs_efi_log_item_t	*efip,
 		uint			nextents)
 {
 	ASSERT(atomic_read(&efip->efi_next_extent) >= nextents);
-	if (atomic_sub_and_test(nextents, &efip->efi_next_extent))
+	if (atomic_sub_and_test(nextents, &efip->efi_next_extent)) {
+		/* recovery needs us to drop the EFI reference, too */
+		if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags))
+			__xfs_efi_release(efip);
+
 		__xfs_efi_release(efip);
+		/* efip may now have been freed, do not reference it again. */
+	}
 }
 
 static inline struct xfs_efd_log_item *EFD_ITEM(struct xfs_log_item *lip)

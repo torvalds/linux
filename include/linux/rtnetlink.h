@@ -69,6 +69,15 @@ extern int ndo_dflt_fdb_dump(struct sk_buff *skb,
 			     struct netlink_callback *cb,
 			     struct net_device *dev,
 			     int idx);
+extern int ndo_dflt_fdb_add(struct ndmsg *ndm,
+			    struct nlattr *tb[],
+			    struct net_device *dev,
+			    const unsigned char *addr,
+			     u16 flags);
+extern int ndo_dflt_fdb_del(struct ndmsg *ndm,
+			    struct nlattr *tb[],
+			    struct net_device *dev,
+			    const unsigned char *addr);
 
 extern int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				   struct net_device *dev, u16 mode);

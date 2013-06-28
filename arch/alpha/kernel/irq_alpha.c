@@ -45,6 +45,14 @@ do_entInt(unsigned long type, unsigned long vector,
 	  unsigned long la_ptr, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
+
+	/*
+	 * Disable interrupts during IRQ handling.
+	 * Note that there is no matching local_irq_enable() due to
+	 * severe problems with RTI at IPL0 and some MILO PALcode
+	 * (namely LX164).
+	 */
+	local_irq_disable();
 	switch (type) {
 	case 0:
 #ifdef CONFIG_SMP
@@ -62,7 +70,6 @@ do_entInt(unsigned long type, unsigned long vector,
 	  {
 		long cpu;
 
-		local_irq_disable();
 		smp_percpu_timer_interrupt(regs);
 		cpu = smp_processor_id();
 		if (cpu != boot_cpuid) {
@@ -222,7 +229,6 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
 
 struct irqaction timer_irqaction = {
 	.handler	= timer_interrupt,
-	.flags		= IRQF_DISABLED,
 	.name		= "timer",
 };
 

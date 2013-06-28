@@ -29,11 +29,13 @@
  * block to complete the transaction.
  *
  * For extents-enabled fs we may have to allocate and modify up to
- * 5 levels of tree + root which are stored in the inode. */
+ * 5 levels of tree, data block (for each of these we need bitmap + group
+ * summaries), root which is stored in the inode, sb
+ */
 
 #define EXT4_SINGLEDATA_TRANS_BLOCKS(sb)				\
 	(EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS)   \
-	 ? 27U : 8U)
+	 ? 20U : 8U)
 
 /* Extended attribute operations touch at most two data buffers,
  * two bitmap buffers, and two group summaries, in addition to the inode
@@ -194,16 +196,20 @@ static inline void ext4_journal_callback_add(handle_t *handle,
  * ext4_journal_callback_del: delete a registered callback
  * @handle: active journal transaction handle on which callback was registered
  * @jce: registered journal callback entry to unregister
+ * Return true if object was sucessfully removed
  */
-static inline void ext4_journal_callback_del(handle_t *handle,
+static inline bool ext4_journal_callback_try_del(handle_t *handle,
 					     struct ext4_journal_cb_entry *jce)
 {
+	bool deleted;
 	struct ext4_sb_info *sbi =
 			EXT4_SB(handle->h_transaction->t_journal->j_private);
 
 	spin_lock(&sbi->s_md_lock);
+	deleted = !list_empty(&jce->jce_list);
 	list_del_init(&jce->jce_list);
 	spin_unlock(&sbi->s_md_lock);
+	return deleted;
 }
 
 int

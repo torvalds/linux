@@ -475,6 +475,7 @@ il3945_tx_skb(struct il_priv *il,
 	dma_addr_t txcmd_phys;
 	int txq_id = skb_get_queue_mapping(skb);
 	u16 len, idx, hdr_len;
+	u16 firstlen, secondlen;
 	u8 id;
 	u8 unicast;
 	u8 sta_id;
@@ -589,21 +590,22 @@ il3945_tx_skb(struct il_priv *il,
 	len =
 	    sizeof(struct il3945_tx_cmd) + sizeof(struct il_cmd_header) +
 	    hdr_len;
-	len = (len + 3) & ~3;
+	firstlen = (len + 3) & ~3;
 
 	/* Physical address of this Tx command's header (not MAC header!),
 	 * within command buffer array. */
 	txcmd_phys =
-	    pci_map_single(il->pci_dev, &out_cmd->hdr, len, PCI_DMA_TODEVICE);
+	    pci_map_single(il->pci_dev, &out_cmd->hdr, firstlen,
+			   PCI_DMA_TODEVICE);
 	if (unlikely(pci_dma_mapping_error(il->pci_dev, txcmd_phys)))
 		goto drop_unlock;
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
-	len = skb->len - hdr_len;
-	if (len) {
+	secondlen = skb->len - hdr_len;
+	if (secondlen > 0) {
 		phys_addr =
-		    pci_map_single(il->pci_dev, skb->data + hdr_len, len,
+		    pci_map_single(il->pci_dev, skb->data + hdr_len, secondlen,
 				   PCI_DMA_TODEVICE);
 		if (unlikely(pci_dma_mapping_error(il->pci_dev, phys_addr)))
 			goto drop_unlock;
@@ -611,12 +613,12 @@ il3945_tx_skb(struct il_priv *il,
 
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
-	il->ops->txq_attach_buf_to_tfd(il, txq, txcmd_phys, len, 1, 0);
+	il->ops->txq_attach_buf_to_tfd(il, txq, txcmd_phys, firstlen, 1, 0);
 	dma_unmap_addr_set(out_meta, mapping, txcmd_phys);
-	dma_unmap_len_set(out_meta, len, len);
-	if (len)
-		il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, len, 0,
-					       U32_PAD(len));
+	dma_unmap_len_set(out_meta, len, firstlen);
+	if (secondlen > 0)
+		il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, secondlen, 0,
+					       U32_PAD(secondlen));
 
 	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		txq->need_update = 1;
@@ -3475,7 +3477,7 @@ static struct attribute_group il3945_attribute_group = {
 	.attrs = il3945_sysfs_entries,
 };
 
-struct ieee80211_ops il3945_mac_ops = {
+static struct ieee80211_ops il3945_mac_ops __read_mostly = {
 	.tx = il3945_mac_tx,
 	.start = il3945_mac_start,
 	.stop = il3945_mac_stop,

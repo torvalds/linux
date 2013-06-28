@@ -88,11 +88,9 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	addr = devm_request_and_ioremap(dev, res);
-	if (!addr) {
-		pr_err("%s: ERROR: memory mapping failed", __func__);
-		return -ENOMEM;
-	}
+	addr = devm_ioremap_resource(dev, res);
+	if (IS_ERR(addr))
+		return PTR_ERR(addr);
 
 	if (pdev->dev.of_node) {
 		plat_dat = devm_kzalloc(&pdev->dev,

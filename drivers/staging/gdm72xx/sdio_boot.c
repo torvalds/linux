@@ -27,6 +27,7 @@
 #include <linux/firmware.h>
 
 #include "gdm_sdio.h"
+#include "sdio_boot.h"
 
 #define TYPE_A_HEADER_SIZE	4
 #define TYPE_A_LOOKAHEAD_SIZE   16

@@ -5,7 +5,7 @@ Authors: Milo(Woogyom) Kim <milo.kim@ti.com>
 
 Description
 -----------
-LP5521, LP5523/55231 have common features as below.
+LP5521, LP5523/55231 and LP5562 have common features as below.
 
   Register access via the I2C
   Device initialization/deinitialization
@@ -116,3 +116,47 @@ To support this, 'run_engine' and 'firmware_cb' are configurable in each driver.
 run_engine  : Control the selected engine
 firmware_cb : The callback function after loading the firmware is done.
               Chip specific commands for loading and updating program memory.
+
+( Predefined pattern data )
+
+Without the firmware interface, LP55xx driver provides another method for
+loading a LED pattern. That is 'predefined' pattern.
+A predefined pattern is defined in the platform data and load it(or them)
+via the sysfs if needed.
+To use the predefined pattern concept, 'patterns' and 'num_patterns' should be
+configured.
+
+  Example of predefined pattern data:
+
+  /* mode_1: blinking data */
+  static const u8 mode_1[] = {
+		0x40, 0x00, 0x60, 0x00, 0x40, 0xFF, 0x60, 0x00,
+		};
+
+  /* mode_2: always on */
+  static const u8 mode_2[] = { 0x40, 0xFF, };
+
+  struct lp55xx_predef_pattern board_led_patterns[] = {
+	{
+		.r = mode_1,
+		.size_r = ARRAY_SIZE(mode_1),
+	},
+	{
+		.b = mode_2,
+		.size_b = ARRAY_SIZE(mode_2),
+	},
+  }
+
+  struct lp55xx_platform_data lp5562_pdata = {
+  ...
+	.patterns      = board_led_patterns,
+	.num_patterns  = ARRAY_SIZE(board_led_patterns),
+  };
+
+Then, mode_1 and mode_2 can be run via through the sysfs.
+
+  echo 1 > /sys/bus/i2c/devices/xxxx/led_pattern    # red blinking LED pattern
+  echo 2 > /sys/bus/i2c/devices/xxxx/led_pattern    # blue LED always on
+
+To stop running pattern,
+  echo 0 > /sys/bus/i2c/devices/xxxx/led_pattern

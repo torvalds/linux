@@ -51,21 +51,27 @@ struct drm_hdmi_context {
 
 int exynos_platform_device_hdmi_register(void)
 {
+	struct platform_device *pdev;
+
 	if (exynos_drm_hdmi_pdev)
 		return -EEXIST;
 
-	exynos_drm_hdmi_pdev = platform_device_register_simple(
+	pdev = platform_device_register_simple(
 			"exynos-drm-hdmi", -1, NULL, 0);
-	if (IS_ERR_OR_NULL(exynos_drm_hdmi_pdev))
-		return PTR_ERR(exynos_drm_hdmi_pdev);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	exynos_drm_hdmi_pdev = pdev;
 
 	return 0;
 }
 
 void exynos_platform_device_hdmi_unregister(void)
 {
-	if (exynos_drm_hdmi_pdev)
+	if (exynos_drm_hdmi_pdev) {
 		platform_device_unregister(exynos_drm_hdmi_pdev);
+		exynos_drm_hdmi_pdev = NULL;
+	}
 }
 
 void exynos_hdmi_drv_attach(struct exynos_drm_hdmi_context *ctx)
@@ -205,13 +211,45 @@ static void drm_hdmi_mode_fixup(struct device *subdrv_dev,
 				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
-	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
+	struct drm_display_mode *m;
+	int mode_ok;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	if (hdmi_ops && hdmi_ops->mode_fixup)
-		hdmi_ops->mode_fixup(ctx->hdmi_ctx->ctx, connector, mode,
-				     adjusted_mode);
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
+
+	mode_ok = drm_hdmi_check_timing(subdrv_dev, adjusted_mode);
+
+	/* just return if user desired mode exists. */
+	if (mode_ok == 0)
+		return;
+
+	/*
+	 * otherwise, find the most suitable mode among modes and change it
+	 * to adjusted_mode.
+	 */
+	list_for_each_entry(m, &connector->modes, head) {
+		mode_ok = drm_hdmi_check_timing(subdrv_dev, m);
+
+		if (mode_ok == 0) {
+			struct drm_mode_object base;
+			struct list_head head;
+
+			DRM_INFO("desired mode doesn't exist so\n");
+			DRM_INFO("use the most suitable mode among modes.\n");
+
+			DRM_DEBUG_KMS("Adjusted Mode: [%d]x[%d] [%d]Hz\n",
+				m->hdisplay, m->vdisplay, m->vrefresh);
+
+			/* preserve display mode header while copying. */
+			head = adjusted_mode->head;
+			base = adjusted_mode->base;
+			memcpy(adjusted_mode, m, sizeof(*m));
+			adjusted_mode->head = head;
+			adjusted_mode->base = base;
+			break;
+		}
+	}
 }
 
 static void drm_hdmi_mode_set(struct device *subdrv_dev, void *mode)
@@ -404,7 +442,7 @@ static int exynos_drm_hdmi_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		DRM_LOG_KMS("failed to alloc common hdmi context.\n");
 		return -ENOMEM;

@@ -40,6 +40,7 @@
 #include <linux/cred.h>
 #include <linux/sched.h>
 #include <linux/ratelimit.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include "dgrp_common.h"
@@ -52,7 +53,7 @@ static long dgrp_dpa_ioctl(struct file *file, unsigned int cmd,
 			   unsigned long arg);
 static unsigned int dgrp_dpa_select(struct file *, struct poll_table_struct *);
 
-static const struct file_operations dpa_ops = {
+const struct file_operations dgrp_dpa_ops = {
 	.owner   =  THIS_MODULE,
 	.read    =  dgrp_dpa_read,
 	.poll    =  dgrp_dpa_select,
@@ -60,12 +61,6 @@ static const struct file_operations dpa_ops = {
 	.open    =  dgrp_dpa_open,
 	.release =  dgrp_dpa_release,
 };
-
-static struct inode_operations dpa_inode_ops = {
-	.permission = dgrp_inode_permission
-};
-
-
 
 struct digi_node {
 	uint	nd_state;		/* Node state: 1 = up, 0 = down. */
@@ -111,17 +106,6 @@ struct digi_debug {
 #define DIGI_SETDEBUG      (('d'<<8) | 247)	/* set debug info */
 
 
-void dgrp_register_dpa_hook(struct proc_dir_entry *de)
-{
-	struct nd_struct *node = de->data;
-
-	de->proc_iops = &dpa_inode_ops;
-	de->proc_fops = &dpa_ops;
-
-	node->nd_dpa_de = de;
-	spin_lock_init(&node->nd_dpa_lock);
-}
-
 /*
  * dgrp_dpa_open -- open the DPA device for a particular PortServer
  */
@@ -129,8 +113,6 @@ static int dgrp_dpa_open(struct inode *inode, struct file *file)
 {
 	struct nd_struct *nd;
 	int rtn = 0;
-
-	struct proc_dir_entry *de;
 
 	rtn = try_module_get(THIS_MODULE);
 	if (!rtn)
@@ -154,12 +136,7 @@ static int dgrp_dpa_open(struct inode *inode, struct file *file)
 	/*
 	 *  Get the node pointer, and fail if it doesn't exist.
 	 */
-	de = PDE(inode);
-	if (!de) {
-		rtn = -ENXIO;
-		goto done;
-	}
-	nd = (struct nd_struct *)de->data;
+	nd = PDE_DATA(inode);
 	if (!nd) {
 		rtn = -ENXIO;
 		goto done;
@@ -432,6 +409,7 @@ static long dgrp_dpa_ioctl(struct file *file, unsigned int cmd,
 
 
 	case DIGI_GETVPD:
+		memset(&vpd, 0, sizeof(vpd));
 		if (nd->nd_vpd_len > 0) {
 			vpd.vpd_len = nd->nd_vpd_len;
 			memcpy(&vpd.vpd_data, &nd->nd_vpd, nd->nd_vpd_len);

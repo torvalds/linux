@@ -19,14 +19,6 @@
 #undef _CACHE
 #undef MULTI_CACHE
 
-#if defined(CONFIG_CPU_CACHE_V3)
-# ifdef _CACHE
-#  define MULTI_CACHE 1
-# else
-#  define _CACHE v3
-# endif
-#endif
-
 #if defined(CONFIG_CPU_CACHE_V4)
 # ifdef _CACHE
 #  define MULTI_CACHE 1

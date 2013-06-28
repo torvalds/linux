@@ -18,13 +18,7 @@
 
 #include <linux/of.h>
 
-int __init vt8500_irq_init(struct device_node *node,
-				struct device_node *parent);
-
 /* defined in drivers/clk/clk-vt8500.c */
 void __init vtwm_clk_init(void __iomem *pmc_base);
-
-/* defined in irq.c */
-asmlinkage void vt8500_handle_irq(struct pt_regs *regs);
 
 #endif

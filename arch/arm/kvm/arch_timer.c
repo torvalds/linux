@@ -22,6 +22,7 @@
 #include <linux/kvm_host.h>
 #include <linux/interrupt.h>
 
+#include <clocksource/arm_arch_timer.h>
 #include <asm/arch_timer.h>
 
 #include <asm/kvm_vgic.h>
@@ -64,7 +65,7 @@ static void kvm_timer_inject_irq(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 
-	timer->cntv_ctl |= 1 << 1; /* Mask the interrupt in the guest */
+	timer->cntv_ctl |= ARCH_TIMER_CTRL_IT_MASK;
 	kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
 			    vcpu->arch.timer_cpu.irq->irq,
 			    vcpu->arch.timer_cpu.irq->level);
@@ -133,8 +134,8 @@ void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 	cycle_t cval, now;
 	u64 ns;
 
-	/* Check if the timer is enabled and unmasked first */
-	if ((timer->cntv_ctl & 3) != 1)
+	if ((timer->cntv_ctl & ARCH_TIMER_CTRL_IT_MASK) ||
+		!(timer->cntv_ctl & ARCH_TIMER_CTRL_ENABLE))
 		return;
 
 	cval = timer->cntv_cval;

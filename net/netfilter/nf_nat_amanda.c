@@ -1,6 +1,7 @@
 /* Amanda extension for TCP NAT alteration.
  * (C) 2002 by Brian J. Murrell <netfilter@interlinx.bc.ca>
  * based on a copy of HW's ip_nat_irc.c as well as other modules
+ * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

@@ -528,7 +528,7 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
 	for (; rxfc != 0; rxfc--) {
 		rxh = ks8851_rdreg32(ks, KS_RXFHSR);
 		rxstat = rxh & 0xffff;
-		rxlen = rxh >> 16;
+		rxlen = (rxh >> 16) & 0xfff;
 
 		netif_dbg(ks, rx_status, ks->netdev,
 			  "rx: stat 0x%04x, len 0x%04x\n", rxstat, rxlen);
@@ -1364,36 +1364,36 @@ static int ks8851_read_selftest(struct ks8851_net *ks)
 
 /* driver bus management functions */
 
-#ifdef CONFIG_PM
-static int ks8851_suspend(struct spi_device *spi, pm_message_t state)
-{
-	struct ks8851_net *ks = dev_get_drvdata(&spi->dev);
-	struct net_device *dev = ks->netdev;
+#ifdef CONFIG_PM_SLEEP
 
-	if (netif_running(dev)) {
-		netif_device_detach(dev);
-		ks8851_net_stop(dev);
+static int ks8851_suspend(struct device *dev)
+{
+	struct ks8851_net *ks = dev_get_drvdata(dev);
+	struct net_device *netdev = ks->netdev;
+
+	if (netif_running(netdev)) {
+		netif_device_detach(netdev);
+		ks8851_net_stop(netdev);
 	}
 
 	return 0;
 }
 
-static int ks8851_resume(struct spi_device *spi)
+static int ks8851_resume(struct device *dev)
 {
-	struct ks8851_net *ks = dev_get_drvdata(&spi->dev);
-	struct net_device *dev = ks->netdev;
+	struct ks8851_net *ks = dev_get_drvdata(dev);
+	struct net_device *netdev = ks->netdev;
 
-	if (netif_running(dev)) {
-		ks8851_net_open(dev);
-		netif_device_attach(dev);
+	if (netif_running(netdev)) {
+		ks8851_net_open(netdev);
+		netif_device_attach(netdev);
 	}
 
 	return 0;
 }
-#else
-#define ks8851_suspend NULL
-#define ks8851_resume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(ks8851_pm_ops, ks8851_suspend, ks8851_resume);
 
 static int ks8851_probe(struct spi_device *spi)
 {
@@ -1456,7 +1456,7 @@ static int ks8851_probe(struct spi_device *spi)
 	SET_ETHTOOL_OPS(ndev, &ks8851_ethtool_ops);
 	SET_NETDEV_DEV(ndev, &spi->dev);
 
-	dev_set_drvdata(&spi->dev, ks);
+	spi_set_drvdata(spi, ks);
 
 	ndev->if_port = IF_PORT_100BASET;
 	ndev->netdev_ops = &ks8851_netdev_ops;
@@ -1516,7 +1516,7 @@ err_irq:
 
 static int ks8851_remove(struct spi_device *spi)
 {
-	struct ks8851_net *priv = dev_get_drvdata(&spi->dev);
+	struct ks8851_net *priv = spi_get_drvdata(spi);
 
 	if (netif_msg_drv(priv))
 		dev_info(&spi->dev, "remove\n");
@@ -1532,25 +1532,12 @@ static struct spi_driver ks8851_driver = {
 	.driver = {
 		.name = "ks8851",
 		.owner = THIS_MODULE,
+		.pm = &ks8851_pm_ops,
 	},
 	.probe = ks8851_probe,
 	.remove = ks8851_remove,
-	.suspend = ks8851_suspend,
-	.resume = ks8851_resume,
 };
-
-static int __init ks8851_init(void)
-{
-	return spi_register_driver(&ks8851_driver);
-}
-
-static void __exit ks8851_exit(void)
-{
-	spi_unregister_driver(&ks8851_driver);
-}
-
-module_init(ks8851_init);
-module_exit(ks8851_exit);
+module_spi_driver(ks8851_driver);
 
 MODULE_DESCRIPTION("KS8851 Network driver");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");

@@ -704,9 +704,9 @@ EXPORT_SYMBOL(ccw_device_tm_start_timeout);
 int ccw_device_get_mdc(struct ccw_device *cdev, u8 mask)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
-	struct channel_path_desc_fmt1 desc;
+	struct channel_path *chp;
 	struct chp_id chpid;
-	int mdc = 0, ret, i;
+	int mdc = 0, i;
 
 	/* Adjust requested path mask to excluded varied off paths. */
 	if (mask)
@@ -719,14 +719,20 @@ int ccw_device_get_mdc(struct ccw_device *cdev, u8 mask)
 		if (!(mask & (0x80 >> i)))
 			continue;
 		chpid.id = sch->schib.pmcw.chpid[i];
-		ret = chsc_determine_fmt1_channel_path_desc(chpid, &desc);
-		if (ret)
-			return ret;
-		if (!desc.f)
+		chp = chpid_to_chp(chpid);
+		if (!chp)
+			continue;
+
+		mutex_lock(&chp->lock);
+		if (!chp->desc_fmt1.f) {
+			mutex_unlock(&chp->lock);
 			return 0;
-		if (!desc.r)
+		}
+		if (!chp->desc_fmt1.r)
 			mdc = 1;
-		mdc = mdc ? min(mdc, (int)desc.mdc) : desc.mdc;
+		mdc = mdc ? min_t(int, mdc, chp->desc_fmt1.mdc) :
+			    chp->desc_fmt1.mdc;
+		mutex_unlock(&chp->lock);
 	}
 
 	return mdc;

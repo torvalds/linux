@@ -30,6 +30,7 @@
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 
 #include <linux/genhd.h>
 #include <linux/idr.h>
@@ -39,8 +40,8 @@
 
 #define NO_LEGACY 0
 
-MODULE_DESCRIPTION("IBM RamSan PCIe Flash SSD Device Driver");
-MODULE_AUTHOR("IBM <support@ramsan.com>");
+MODULE_DESCRIPTION("IBM FlashSystem 70/80 PCIe SSD Device Driver");
+MODULE_AUTHOR("Joshua Morris/Philip Kelleher, IBM");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRIVER_VERSION);
 
@@ -52,6 +53,13 @@ static DEFINE_IDA(rsxx_disk_ida);
 static DEFINE_SPINLOCK(rsxx_ida_lock);
 
 /*----------------- Interrupt Control & Handling -------------------*/
+
+static void rsxx_mask_interrupts(struct rsxx_cardinfo *card)
+{
+	card->isr_mask = 0;
+	card->ier_mask = 0;
+}
+
 static void __enable_intr(unsigned int *mask, unsigned int intr)
 {
 	*mask |= intr;
@@ -71,7 +79,8 @@ static void __disable_intr(unsigned int *mask, unsigned int intr)
  */
 void rsxx_enable_ier(struct rsxx_cardinfo *card, unsigned int intr)
 {
-	if (unlikely(card->halt))
+	if (unlikely(card->halt) ||
+	    unlikely(card->eeh_state))
 		return;
 
 	__enable_intr(&card->ier_mask, intr);
@@ -80,6 +89,9 @@ void rsxx_enable_ier(struct rsxx_cardinfo *card, unsigned int intr)
 
 void rsxx_disable_ier(struct rsxx_cardinfo *card, unsigned int intr)
 {
+	if (unlikely(card->eeh_state))
+		return;
+
 	__disable_intr(&card->ier_mask, intr);
 	iowrite32(card->ier_mask, card->regmap + IER);
 }
@@ -87,7 +99,8 @@ void rsxx_disable_ier(struct rsxx_cardinfo *card, unsigned int intr)
 void rsxx_enable_ier_and_isr(struct rsxx_cardinfo *card,
 				 unsigned int intr)
 {
-	if (unlikely(card->halt))
+	if (unlikely(card->halt) ||
+	    unlikely(card->eeh_state))
 		return;
 
 	__enable_intr(&card->isr_mask, intr);
@@ -97,6 +110,9 @@ void rsxx_enable_ier_and_isr(struct rsxx_cardinfo *card,
 void rsxx_disable_ier_and_isr(struct rsxx_cardinfo *card,
 				  unsigned int intr)
 {
+	if (unlikely(card->eeh_state))
+		return;
+
 	__disable_intr(&card->isr_mask, intr);
 	__disable_intr(&card->ier_mask, intr);
 	iowrite32(card->ier_mask, card->regmap + IER);
@@ -114,6 +130,9 @@ static irqreturn_t rsxx_isr(int irq, void *pdata)
 
 	do {
 		reread_isr = 0;
+
+		if (unlikely(card->eeh_state))
+			break;
 
 		isr = ioread32(card->regmap + ISR);
 		if (isr == 0xffffffff) {
@@ -161,9 +180,9 @@ static irqreturn_t rsxx_isr(int irq, void *pdata)
 }
 
 /*----------------- Card Event Handler -------------------*/
-static char *rsxx_card_state_to_str(unsigned int state)
+static const char * const rsxx_card_state_to_str(unsigned int state)
 {
-	static char *state_strings[] = {
+	static const char * const state_strings[] = {
 		"Unknown", "Shutdown", "Starting", "Formatting",
 		"Uninitialized", "Good", "Shutting Down",
 		"Fault", "Read Only Fault", "dStroying"
@@ -304,6 +323,192 @@ static int card_shutdown(struct rsxx_cardinfo *card)
 	return 0;
 }
 
+static int rsxx_eeh_frozen(struct pci_dev *dev)
+{
+	struct rsxx_cardinfo *card = pci_get_drvdata(dev);
+	int i;
+	int st;
+
+	dev_warn(&dev->dev, "IBM FlashSystem PCI: preparing for slot reset.\n");
+
+	card->eeh_state = 1;
+	rsxx_mask_interrupts(card);
+
+	/*
+	 * We need to guarantee that the write for eeh_state and masking
+	 * interrupts does not become reordered. This will prevent a possible
+	 * race condition with the EEH code.
+	 */
+	wmb();
+
+	pci_disable_device(dev);
+
+	st = rsxx_eeh_save_issued_dmas(card);
+	if (st)
+		return st;
+
+	rsxx_eeh_save_issued_creg(card);
+
+	for (i = 0; i < card->n_targets; i++) {
+		if (card->ctrl[i].status.buf)
+			pci_free_consistent(card->dev, STATUS_BUFFER_SIZE8,
+					    card->ctrl[i].status.buf,
+					    card->ctrl[i].status.dma_addr);
+		if (card->ctrl[i].cmd.buf)
+			pci_free_consistent(card->dev, COMMAND_BUFFER_SIZE8,
+					    card->ctrl[i].cmd.buf,
+					    card->ctrl[i].cmd.dma_addr);
+	}
+
+	return 0;
+}
+
+static void rsxx_eeh_failure(struct pci_dev *dev)
+{
+	struct rsxx_cardinfo *card = pci_get_drvdata(dev);
+	int i;
+
+	dev_err(&dev->dev, "IBM FlashSystem PCI: disabling failed card.\n");
+
+	card->eeh_state = 1;
+
+	for (i = 0; i < card->n_targets; i++)
+		del_timer_sync(&card->ctrl[i].activity_timer);
+
+	rsxx_eeh_cancel_dmas(card);
+}
+
+static int rsxx_eeh_fifo_flush_poll(struct rsxx_cardinfo *card)
+{
+	unsigned int status;
+	int iter = 0;
+
+	/* We need to wait for the hardware to reset */
+	while (iter++ < 10) {
+		status = ioread32(card->regmap + PCI_RECONFIG);
+
+		if (status & RSXX_FLUSH_BUSY) {
+			ssleep(1);
+			continue;
+		}
+
+		if (status & RSXX_FLUSH_TIMEOUT)
+			dev_warn(CARD_TO_DEV(card), "HW: flash controller timeout\n");
+		return 0;
+	}
+
+	/* Hardware failed resetting itself. */
+	return -1;
+}
+
+static pci_ers_result_t rsxx_error_detected(struct pci_dev *dev,
+					    enum pci_channel_state error)
+{
+	int st;
+
+	if (dev->revision < RSXX_EEH_SUPPORT)
+		return PCI_ERS_RESULT_NONE;
+
+	if (error == pci_channel_io_perm_failure) {
+		rsxx_eeh_failure(dev);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	st = rsxx_eeh_frozen(dev);
+	if (st) {
+		dev_err(&dev->dev, "Slot reset setup failed\n");
+		rsxx_eeh_failure(dev);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t rsxx_slot_reset(struct pci_dev *dev)
+{
+	struct rsxx_cardinfo *card = pci_get_drvdata(dev);
+	unsigned long flags;
+	int i;
+	int st;
+
+	dev_warn(&dev->dev,
+		"IBM FlashSystem PCI: recovering from slot reset.\n");
+
+	st = pci_enable_device(dev);
+	if (st)
+		goto failed_hw_setup;
+
+	pci_set_master(dev);
+
+	st = rsxx_eeh_fifo_flush_poll(card);
+	if (st)
+		goto failed_hw_setup;
+
+	rsxx_dma_queue_reset(card);
+
+	for (i = 0; i < card->n_targets; i++) {
+		st = rsxx_hw_buffers_init(dev, &card->ctrl[i]);
+		if (st)
+			goto failed_hw_buffers_init;
+	}
+
+	if (card->config_valid)
+		rsxx_dma_configure(card);
+
+	/* Clears the ISR register from spurious interrupts */
+	st = ioread32(card->regmap + ISR);
+
+	card->eeh_state = 0;
+
+	st = rsxx_eeh_remap_dmas(card);
+	if (st)
+		goto failed_remap_dmas;
+
+	spin_lock_irqsave(&card->irq_lock, flags);
+	if (card->n_targets & RSXX_MAX_TARGETS)
+		rsxx_enable_ier_and_isr(card, CR_INTR_ALL_G);
+	else
+		rsxx_enable_ier_and_isr(card, CR_INTR_ALL_C);
+	spin_unlock_irqrestore(&card->irq_lock, flags);
+
+	rsxx_kick_creg_queue(card);
+
+	for (i = 0; i < card->n_targets; i++) {
+		spin_lock(&card->ctrl[i].queue_lock);
+		if (list_empty(&card->ctrl[i].queue)) {
+			spin_unlock(&card->ctrl[i].queue_lock);
+			continue;
+		}
+		spin_unlock(&card->ctrl[i].queue_lock);
+
+		queue_work(card->ctrl[i].issue_wq,
+				&card->ctrl[i].issue_dma_work);
+	}
+
+	dev_info(&dev->dev, "IBM FlashSystem PCI: recovery complete.\n");
+
+	return PCI_ERS_RESULT_RECOVERED;
+
+failed_hw_buffers_init:
+failed_remap_dmas:
+	for (i = 0; i < card->n_targets; i++) {
+		if (card->ctrl[i].status.buf)
+			pci_free_consistent(card->dev,
+					STATUS_BUFFER_SIZE8,
+					card->ctrl[i].status.buf,
+					card->ctrl[i].status.dma_addr);
+		if (card->ctrl[i].cmd.buf)
+			pci_free_consistent(card->dev,
+					COMMAND_BUFFER_SIZE8,
+					card->ctrl[i].cmd.buf,
+					card->ctrl[i].cmd.dma_addr);
+	}
+failed_hw_setup:
+	rsxx_eeh_failure(dev);
+	return PCI_ERS_RESULT_DISCONNECT;
+
+}
+
 /*----------------- Driver Initialization & Setup -------------------*/
 /* Returns:   0 if the driver is compatible with the device
 	     -1 if the driver is NOT compatible with the device */
@@ -383,6 +588,7 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 
 	spin_lock_init(&card->irq_lock);
 	card->halt = 0;
+	card->eeh_state = 0;
 
 	spin_lock_irq(&card->irq_lock);
 	rsxx_disable_ier_and_isr(card, CR_INTR_ALL);
@@ -538,9 +744,6 @@ static void rsxx_pci_remove(struct pci_dev *dev)
 	rsxx_disable_ier_and_isr(card, CR_INTR_EVENT);
 	spin_unlock_irqrestore(&card->irq_lock, flags);
 
-	/* Prevent work_structs from re-queuing themselves. */
-	card->halt = 1;
-
 	cancel_work_sync(&card->event_work);
 
 	rsxx_destroy_dev(card);
@@ -549,6 +752,10 @@ static void rsxx_pci_remove(struct pci_dev *dev)
 	spin_lock_irqsave(&card->irq_lock, flags);
 	rsxx_disable_ier_and_isr(card, CR_INTR_ALL);
 	spin_unlock_irqrestore(&card->irq_lock, flags);
+
+	/* Prevent work_structs from re-queuing themselves. */
+	card->halt = 1;
+
 	free_irq(dev->irq, card);
 
 	if (!force_legacy)
@@ -592,11 +799,14 @@ static void rsxx_pci_shutdown(struct pci_dev *dev)
 	card_shutdown(card);
 }
 
+static const struct pci_error_handlers rsxx_err_handler = {
+	.error_detected = rsxx_error_detected,
+	.slot_reset     = rsxx_slot_reset,
+};
+
 static DEFINE_PCI_DEVICE_TABLE(rsxx_pci_ids) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_TMS_IBM, PCI_DEVICE_ID_RS70_FLASH)},
-	{PCI_DEVICE(PCI_VENDOR_ID_TMS_IBM, PCI_DEVICE_ID_RS70D_FLASH)},
-	{PCI_DEVICE(PCI_VENDOR_ID_TMS_IBM, PCI_DEVICE_ID_RS80_FLASH)},
-	{PCI_DEVICE(PCI_VENDOR_ID_TMS_IBM, PCI_DEVICE_ID_RS81_FLASH)},
+	{PCI_DEVICE(PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_FS70_FLASH)},
+	{PCI_DEVICE(PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_FS80_FLASH)},
 	{0,},
 };
 
@@ -609,6 +819,7 @@ static struct pci_driver rsxx_pci_driver = {
 	.remove		= rsxx_pci_remove,
 	.suspend	= rsxx_pci_suspend,
 	.shutdown	= rsxx_pci_shutdown,
+	.err_handler    = &rsxx_err_handler,
 };
 
 static int __init rsxx_core_init(void)

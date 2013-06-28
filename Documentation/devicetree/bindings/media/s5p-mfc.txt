@@ -21,3 +21,24 @@ Required properties:
 
   - samsung,mfc-l : Base address of the second memory bank used by MFC
 		    for DMA contiguous memory allocation and its size.
+
+Optional properties:
+  - samsung,power-domain : power-domain property defined with a phandle
+			   to respective power domain.
+
+Example:
+SoC specific DT entry:
+
+mfc: codec@13400000 {
+	compatible = "samsung,mfc-v5";
+	reg = <0x13400000 0x10000>;
+	interrupts = <0 94 0>;
+	samsung,power-domain = <&pd_mfc>;
+};
+
+Board specific DT entry:
+
+codec@13400000 {
+	samsung,mfc-r = <0x43000000 0x800000>;
+	samsung,mfc-l = <0x51000000 0x800000>;
+};

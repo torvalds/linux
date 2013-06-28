@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 
@@ -28,13 +29,14 @@ struct opal {
 static struct device_node *opal_node;
 static DEFINE_SPINLOCK(opal_write_lock);
 extern u64 opal_mc_secondary_handler[];
+static unsigned int *opal_irqs;
+static unsigned int opal_irq_count;
 
 int __init early_init_dt_scan_opal(unsigned long node,
 				   const char *uname, int depth, void *data)
 {
 	const void *basep, *entryp;
 	unsigned long basesz, entrysz;
-	u64 glue;
 
 	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
 		return 0;
@@ -54,12 +56,26 @@ int __init early_init_dt_scan_opal(unsigned long node,
 		 opal.entry, entryp, entrysz);
 
 	powerpc_firmware_features |= FW_FEATURE_OPAL;
-	if (of_flat_dt_is_compatible(node, "ibm,opal-v2")) {
+	if (of_flat_dt_is_compatible(node, "ibm,opal-v3")) {
+		powerpc_firmware_features |= FW_FEATURE_OPALv2;
+		powerpc_firmware_features |= FW_FEATURE_OPALv3;
+		printk("OPAL V3 detected !\n");
+	} else if (of_flat_dt_is_compatible(node, "ibm,opal-v2")) {
 		powerpc_firmware_features |= FW_FEATURE_OPALv2;
 		printk("OPAL V2 detected !\n");
 	} else {
 		printk("OPAL V1 detected !\n");
 	}
+
+	return 1;
+}
+
+static int __init opal_register_exception_handlers(void)
+{
+	u64 glue;
+
+	if (!(powerpc_firmware_features & FW_FEATURE_OPAL))
+		return -ENODEV;
 
 	/* Hookup some exception handlers. We use the fwnmi area at 0x7000
 	 * to provide the glue space to OPAL
@@ -74,8 +90,10 @@ int __init early_init_dt_scan_opal(unsigned long node,
 	glue += 128;
 	opal_register_exception_handler(OPAL_SOFTPATCH_HANDLER, 0, glue);
 
-	return 1;
+	return 0;
 }
+
+early_initcall(opal_register_exception_handlers);
 
 int opal_get_chars(uint32_t vtermno, char *buf, int count)
 {
@@ -133,6 +151,13 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 				rc == OPAL_BUSY_EVENT || rc == OPAL_SUCCESS)) {
 		len = total_len;
 		rc = opal_console_write(vtermno, &len, data);
+
+		/* Closed or other error drop */
+		if (rc != OPAL_SUCCESS && rc != OPAL_BUSY &&
+		    rc != OPAL_BUSY_EVENT) {
+			written = total_len;
+			break;
+		}
 		if (rc == OPAL_SUCCESS) {
 			total_len -= len;
 			data += len;
@@ -305,6 +330,8 @@ static int __init opal_init(void)
 	irqs = of_get_property(opal_node, "opal-interrupts", &irqlen);
 	pr_debug("opal: Found %d interrupts reserved for OPAL\n",
 		 irqs ? (irqlen / 4) : 0);
+	opal_irq_count = irqlen / 4;
+	opal_irqs = kzalloc(opal_irq_count * sizeof(unsigned int), GFP_KERNEL);
 	for (i = 0; irqs && i < (irqlen / 4); i++, irqs++) {
 		unsigned int hwirq = be32_to_cpup(irqs);
 		unsigned int irq = irq_create_mapping(NULL, hwirq);
@@ -316,7 +343,19 @@ static int __init opal_init(void)
 		if (rc)
 			pr_warning("opal: Error %d requesting irq %d"
 				   " (0x%x)\n", rc, irq, hwirq);
+		opal_irqs[i] = irq;
 	}
 	return 0;
 }
 subsys_initcall(opal_init);
+
+void opal_shutdown(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < opal_irq_count; i++) {
+		if (opal_irqs[i])
+			free_irq(opal_irqs[i], 0);
+		opal_irqs[i] = 0;
+	}
+}

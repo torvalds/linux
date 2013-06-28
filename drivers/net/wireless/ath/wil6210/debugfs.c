@@ -216,7 +216,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_iomem_x32, wil_debugfs_iomem_x32_get,
 			wil_debugfs_iomem_x32_set, "0x%08llx\n");
 
 static struct dentry *wil_debugfs_create_iomem_x32(const char *name,
-						   mode_t mode,
+						   umode_t mode,
 						   struct dentry *parent,
 						   void __iomem *value)
 {
@@ -312,14 +312,6 @@ static const struct file_operations fops_memread = {
 	.llseek		= seq_lseek,
 };
 
-static int wil_default_open(struct inode *inode, struct file *file)
-{
-	if (inode->i_private)
-		file->private_data = inode->i_private;
-
-	return 0;
-}
-
 static ssize_t wil_read_file_ioblob(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
@@ -361,13 +353,13 @@ static ssize_t wil_read_file_ioblob(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_ioblob = {
 	.read =		wil_read_file_ioblob,
-	.open =		wil_default_open,
+	.open =		simple_open,
 	.llseek =	default_llseek,
 };
 
 static
 struct dentry *wil_debugfs_create_ioblob(const char *name,
-					 mode_t mode,
+					 umode_t mode,
 					 struct dentry *parent,
 					 struct debugfs_blob_wrapper *blob)
 {
@@ -396,7 +388,7 @@ static ssize_t wil_write_file_reset(struct file *file, const char __user *buf,
 
 static const struct file_operations fops_reset = {
 	.write = wil_write_file_reset,
-	.open  = wil_default_open,
+	.open  = simple_open,
 };
 /*---------Tx descriptor------------*/
 
@@ -526,7 +518,50 @@ static ssize_t wil_write_file_ssid(struct file *file, const char __user *buf,
 static const struct file_operations fops_ssid = {
 	.read = wil_read_file_ssid,
 	.write = wil_write_file_ssid,
-	.open  = wil_default_open,
+	.open  = simple_open,
+};
+
+/*---------temp------------*/
+static void print_temp(struct seq_file *s, const char *prefix, u32 t)
+{
+	switch (t) {
+	case 0:
+	case ~(u32)0:
+		seq_printf(s, "%s N/A\n", prefix);
+	break;
+	default:
+		seq_printf(s, "%s %d.%03d\n", prefix, t / 1000, t % 1000);
+		break;
+	}
+}
+
+static int wil_temp_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	u32 t_m, t_r;
+
+	int rc = wmi_get_temperature(wil, &t_m, &t_r);
+	if (rc) {
+		seq_printf(s, "Failed\n");
+		return 0;
+	}
+
+	print_temp(s, "MAC temperature   :", t_m);
+	print_temp(s, "Radio temperature :", t_r);
+
+	return 0;
+}
+
+static int wil_temp_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_temp_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations fops_temp = {
+	.open		= wil_temp_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
 };
 
 /*----------------*/
@@ -563,6 +598,7 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	debugfs_create_file("mem_val", S_IRUGO, dbg, wil, &fops_memread);
 
 	debugfs_create_file("reset", S_IWUSR, dbg, wil, &fops_reset);
+	debugfs_create_file("temp", S_IRUGO, dbg, wil, &fops_temp);
 
 	wil->rgf_blob.data = (void * __force)wil->csr + 0;
 	wil->rgf_blob.size = 0xa000;

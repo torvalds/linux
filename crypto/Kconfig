@@ -198,6 +198,7 @@ config CRYPTO_GCM
 	select CRYPTO_CTR
 	select CRYPTO_AEAD
 	select CRYPTO_GHASH
+	select CRYPTO_NULL
 	help
 	  Support for Galois/Counter Mode (GCM) and Galois Message
 	  Authentication Code (GMAC). Required for IPSec.
@@ -282,6 +283,17 @@ config CRYPTO_XTS
 
 comment "Hash modes"
 
+config CRYPTO_CMAC
+	tristate "CMAC support"
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  Cipher-based Message Authentication Code (CMAC) specified by
+	  The National Institute of Standards and Technology (NIST).
+
+	  https://tools.ietf.org/html/rfc4493
+	  http://csrc.nist.gov/publications/nistpubs/800-38B/SP_800-38B.pdf
+
 config CRYPTO_HMAC
 	tristate "HMAC support"
 	select CRYPTO_HASH
@@ -322,19 +334,9 @@ config CRYPTO_CRC32C
 	  by iSCSI for header and data digests and by others.
 	  See Castagnoli93.  Module will be crc32c.
 
-config CRYPTO_CRC32C_X86_64
-	bool
-	depends on X86 && 64BIT
-	select CRYPTO_HASH
-	help
-	  In Intel processor with SSE4.2 supported, the processor will
-	  support CRC32C calculation using hardware accelerated CRC32
-	  instruction optimized with PCLMULQDQ instruction when available.
-
 config CRYPTO_CRC32C_INTEL
 	tristate "CRC32c INTEL hardware acceleration"
 	depends on X86
-	select CRYPTO_CRC32C_X86_64 if 64BIT
 	select CRYPTO_HASH
 	help
 	  In Intel processor with SSE4.2 supported, the processor will
@@ -479,6 +481,28 @@ config CRYPTO_SHA1_SSSE3
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
 	  using Supplemental SSE3 (SSSE3) instructions or Advanced Vector
 	  Extensions (AVX), when available.
+
+config CRYPTO_SHA256_SSSE3
+	tristate "SHA256 digest algorithm (SSSE3/AVX/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  SHA-256 secure hash standard (DFIPS 180-2) implemented
+	  using Supplemental SSE3 (SSSE3) instructions, or Advanced Vector
+	  Extensions version 1 (AVX1), or Advanced Vector Extensions
+	  version 2 (AVX2) instructions, when available.
+
+config CRYPTO_SHA512_SSSE3
+	tristate "SHA512 digest algorithm (SSSE3/AVX/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA512
+	select CRYPTO_HASH
+	help
+	  SHA-512 secure hash standard (DFIPS 180-2) implemented
+	  using Supplemental SSE3 (SSSE3) instructions, or Advanced Vector
+	  Extensions version 1 (AVX1), or Advanced Vector Extensions
+	  version 2 (AVX2) instructions, when available.
 
 config CRYPTO_SHA1_SPARC64
 	tristate "SHA1 digest algorithm (SPARC64)"
@@ -654,6 +678,7 @@ config CRYPTO_AES_NI_INTEL
 	select CRYPTO_CRYPTD
 	select CRYPTO_ABLK_HELPER_X86
 	select CRYPTO_ALGAPI
+	select CRYPTO_GLUE_HELPER_X86 if 64BIT
 	select CRYPTO_LRW
 	select CRYPTO_XTS
 	help
@@ -795,6 +820,24 @@ config CRYPTO_BLOWFISH_X86_64
 	  See also:
 	  <http://www.schneier.com/blowfish.html>
 
+config CRYPTO_BLOWFISH_AVX2_X86_64
+	tristate "Blowfish cipher algorithm (x86_64/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_BLOWFISH_COMMON
+	select CRYPTO_BLOWFISH_X86_64
+	help
+	  Blowfish cipher algorithm (x86_64/AVX2), by Bruce Schneier.
+
+	  This is a variable key length cipher which can use keys from 32
+	  bits to 448 bits in length.  It's fast, simple and specifically
+	  designed for use on "large microprocessors".
+
+	  See also:
+	  <http://www.schneier.com/blowfish.html>
+
 config CRYPTO_CAMELLIA
 	tristate "Camellia cipher algorithms"
 	depends on CRYPTO
@@ -842,6 +885,29 @@ config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	select CRYPTO_XTS
 	help
 	  Camellia cipher algorithm module (x86_64/AES-NI/AVX).
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+
+config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
+	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX2)"
+	depends on X86 && 64BIT
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_CAMELLIA_X86_64
+	select CRYPTO_CAMELLIA_AESNI_AVX_X86_64
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Camellia cipher algorithm module (x86_64/AES-NI/AVX2).
 
 	  Camellia is a symmetric key block cipher developed jointly
 	  at NTT and Mitsubishi Electric Corporation.
@@ -1088,6 +1154,29 @@ config CRYPTO_SERPENT_AVX_X86_64
 	  See also:
 	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
 
+config CRYPTO_SERPENT_AVX2_X86_64
+	tristate "Serpent cipher algorithm (x86_64/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_SERPENT
+	select CRYPTO_SERPENT_AVX_X86_64
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+
+	  Keys are allowed to be from 0 to 256 bits in length, in steps
+	  of 8 bits.
+
+	  This module provides Serpent cipher algorithm that processes 16
+	  blocks parallel using AVX2 instruction set.
+
+	  See also:
+	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+
 config CRYPTO_TEA
 	tristate "TEA, XTEA and XETA cipher algorithms"
 	select CRYPTO_ALGAPI
@@ -1203,6 +1292,30 @@ config CRYPTO_TWOFISH_AVX_X86_64
 
 	  This module provides the Twofish cipher algorithm that processes
 	  eight blocks parallel using the AVX Instruction Set.
+
+	  See also:
+	  <http://www.schneier.com/twofish.html>
+
+config CRYPTO_TWOFISH_AVX2_X86_64
+	tristate "Twofish cipher algorithm (x86_64/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_TWOFISH_COMMON
+	select CRYPTO_TWOFISH_X86_64
+	select CRYPTO_TWOFISH_X86_64_3WAY
+	select CRYPTO_TWOFISH_AVX_X86_64
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Twofish cipher algorithm (x86_64/AVX2).
+
+	  Twofish was submitted as an AES (Advanced Encryption Standard)
+	  candidate cipher by researchers at CounterPane Systems.  It is a
+	  16 round block cipher supporting key sizes of 128, 192, and 256
+	  bits.
 
 	  See also:
 	  <http://www.schneier.com/twofish.html>

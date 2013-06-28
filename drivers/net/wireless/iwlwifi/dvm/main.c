@@ -1795,7 +1795,7 @@ static int iwl_print_last_event_logs(struct iwl_priv *priv, u32 capacity,
 #define DEFAULT_DUMP_EVENT_LOG_ENTRIES (20)
 
 int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
-			    char **buf, bool display)
+			    char **buf)
 {
 	u32 base;       /* SRAM byte address of event log header */
 	u32 capacity;   /* event log capacity in # entries */
@@ -1866,7 +1866,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 		size);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (display) {
+	if (buf) {
 		if (full_log)
 			bufsz = capacity * 48;
 		else
@@ -1962,7 +1962,7 @@ static void iwl_nic_error(struct iwl_op_mode *op_mode)
 		priv->fw->fw_version);
 
 	iwl_dump_nic_error_log(priv);
-	iwl_dump_nic_event_log(priv, false, NULL, false);
+	iwl_dump_nic_event_log(priv, false, NULL);
 
 	iwlagn_fw_error(priv, false);
 }

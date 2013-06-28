@@ -92,7 +92,8 @@ static inline long regs_return_value(struct pt_regs *regs)
 	} while(0)
 
 struct task_struct;
-extern unsigned long ptrace_get_reg(struct task_struct *task, int regno);
+extern int ptrace_get_reg(struct task_struct *task, int regno,
+			  unsigned long *data);
 extern int ptrace_put_reg(struct task_struct *task, int regno,
 			  unsigned long data);
 

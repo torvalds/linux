@@ -21,3 +21,14 @@ config NFC_PN544_I2C
 
 	  If you choose to build a module, it'll be called pn544_i2c.
 	  Say N if unsure.
+
+config NFC_PN544_MEI
+	tristate "NFC PN544 MEI support"
+	depends on NFC_PN544 && NFC_MEI_PHY
+	---help---
+	  This module adds support for the mei interface of adapters using
+	  NXP pn544 chipsets.  Select this if your pn544 chipset
+	  is handled by Intel's Management Engine Interface on your platform.
+
+	  If you choose to build a module, it'll be called pn544_mei.
+	  Say N if unsure.

@@ -51,8 +51,9 @@ new_skb(ulong len)
 {
 	struct sk_buff *skb;
 
-	skb = alloc_skb(len, GFP_ATOMIC);
+	skb = alloc_skb(len + MAX_HEADER, GFP_ATOMIC);
 	if (skb) {
+		skb_reserve(skb, MAX_HEADER);
 		skb_reset_mac_header(skb);
 		skb_reset_network_header(skb);
 		skb->protocol = __constant_htons(ETH_P_AOE);
@@ -919,16 +920,14 @@ bio_pagedec(struct bio *bio)
 static void
 bufinit(struct buf *buf, struct request *rq, struct bio *bio)
 {
-	struct bio_vec *bv;
-
 	memset(buf, 0, sizeof(*buf));
 	buf->rq = rq;
 	buf->bio = bio;
 	buf->resid = bio->bi_size;
 	buf->sector = bio->bi_sector;
 	bio_pageinc(bio);
-	buf->bv = bv = &bio->bi_io_vec[bio->bi_idx];
-	buf->bv_resid = bv->bv_len;
+	buf->bv = bio_iovec(bio);
+	buf->bv_resid = buf->bv->bv_len;
 	WARN_ON(buf->bv_resid == 0);
 }
 

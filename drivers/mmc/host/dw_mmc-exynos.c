@@ -152,45 +152,8 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 	return 0;
 }
 
-static int dw_mci_exynos_setup_bus(struct dw_mci *host,
-				struct device_node *slot_np, u8 bus_width)
-{
-	int idx, gpio, ret;
-
-	if (!slot_np)
-		return -EINVAL;
-
-	/* cmd + clock + bus-width pins */
-	for (idx = 0; idx < NUM_PINS(bus_width); idx++) {
-		gpio = of_get_gpio(slot_np, idx);
-		if (!gpio_is_valid(gpio)) {
-			dev_err(host->dev, "invalid gpio: %d\n", gpio);
-			return -EINVAL;
-		}
-
-		ret = devm_gpio_request(host->dev, gpio, "dw-mci-bus");
-		if (ret) {
-			dev_err(host->dev, "gpio [%d] request failed\n", gpio);
-			return -EBUSY;
-		}
-	}
-
-	if (host->pdata->quirks & DW_MCI_QUIRK_BROKEN_CARD_DETECTION)
-		return 0;
-
-	gpio = of_get_named_gpio(slot_np, "samsung,cd-pinmux-gpio", 0);
-	if (gpio_is_valid(gpio)) {
-		if (devm_gpio_request(host->dev, gpio, "dw-mci-cd"))
-			dev_err(host->dev, "gpio [%d] request failed\n", gpio);
-	} else {
-		dev_info(host->dev, "cd gpio not available");
-	}
-
-	return 0;
-}
-
-/* Exynos5250 controller specific capabilities */
-static unsigned long exynos5250_dwmmc_caps[4] = {
+/* Common capabilities of Exynos4/Exynos5 SoC */
+static unsigned long exynos_dwmmc_caps[4] = {
 	MMC_CAP_UHS_DDR50 | MMC_CAP_1_8V_DDR |
 		MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
@@ -198,24 +161,25 @@ static unsigned long exynos5250_dwmmc_caps[4] = {
 	MMC_CAP_CMD23,
 };
 
-static const struct dw_mci_drv_data exynos5250_drv_data = {
-	.caps			= exynos5250_dwmmc_caps,
+static const struct dw_mci_drv_data exynos_drv_data = {
+	.caps			= exynos_dwmmc_caps,
 	.init			= dw_mci_exynos_priv_init,
 	.setup_clock		= dw_mci_exynos_setup_clock,
 	.prepare_command	= dw_mci_exynos_prepare_command,
 	.set_ios		= dw_mci_exynos_set_ios,
 	.parse_dt		= dw_mci_exynos_parse_dt,
-	.setup_bus		= dw_mci_exynos_setup_bus,
 };
 
 static const struct of_device_id dw_mci_exynos_match[] = {
+	{ .compatible = "samsung,exynos4412-dw-mshc",
+			.data = &exynos_drv_data, },
 	{ .compatible = "samsung,exynos5250-dw-mshc",
-			.data = &exynos5250_drv_data, },
+			.data = &exynos_drv_data, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dw_mci_exynos_match);
 
-int dw_mci_exynos_probe(struct platform_device *pdev)
+static int dw_mci_exynos_probe(struct platform_device *pdev)
 {
 	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
@@ -230,7 +194,7 @@ static struct platform_driver dw_mci_exynos_pltfm_driver = {
 	.remove		= __exit_p(dw_mci_pltfm_remove),
 	.driver		= {
 		.name		= "dwmmc_exynos",
-		.of_match_table	= of_match_ptr(dw_mci_exynos_match),
+		.of_match_table	= dw_mci_exynos_match,
 		.pm		= &dw_mci_pltfm_pmops,
 	},
 };

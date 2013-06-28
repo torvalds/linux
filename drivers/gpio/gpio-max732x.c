@@ -589,7 +589,8 @@ static int max732x_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	chip = kzalloc(sizeof(struct max732x_chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev, sizeof(struct max732x_chip),
+			GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->client = client;
@@ -647,7 +648,6 @@ static int max732x_probe(struct i2c_client *client,
 
 out_failed:
 	max732x_irq_teardown(chip);
-	kfree(chip);
 	return ret;
 }
 
@@ -680,7 +680,6 @@ static int max732x_remove(struct i2c_client *client)
 	if (chip->client_dummy)
 		i2c_unregister_device(chip->client_dummy);
 
-	kfree(chip);
 	return 0;
 }
 

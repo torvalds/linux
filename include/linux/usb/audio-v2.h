@@ -170,6 +170,8 @@ struct uac2_as_header_descriptor {
 	__u8 iChannelNames;
 } __attribute__((packed));
 
+#define UAC2_FORMAT_TYPE_I_RAW_DATA	(1 << 31)
+
 /* 4.10.1.2 Class-Specific AS Isochronous Audio Data Endpoint Descriptor */
 
 struct uac2_iso_endpoint_descriptor {

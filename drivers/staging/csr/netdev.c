@@ -2365,7 +2365,7 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
         rx_buffered_packets_t *rx_q_item;
         struct list_head *rx_list;
 
-        rx_q_item = (rx_buffered_packets_t *)kmalloc(sizeof(rx_buffered_packets_t),
+        rx_q_item = kmalloc(sizeof(rx_buffered_packets_t),
                 GFP_KERNEL);
         if (rx_q_item == NULL) {
             unifi_error(priv, "%s: Failed to allocate %d bytes for rx packet record\n",

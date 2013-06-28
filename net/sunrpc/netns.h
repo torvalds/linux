@@ -23,6 +23,16 @@ struct sunrpc_net {
 	struct rpc_clnt *rpcb_local_clnt4;
 	spinlock_t rpcb_clnt_lock;
 	unsigned int rpcb_users;
+
+	struct mutex gssp_lock;
+	wait_queue_head_t gssp_wq;
+	struct rpc_clnt *gssp_clnt;
+	int use_gss_proxy;
+	int pipe_version;
+	atomic_t pipe_users;
+	struct proc_dir_entry *use_gssp_proc;
+
+	unsigned int gssd_running;
 };
 
 extern int sunrpc_net_id;

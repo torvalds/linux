@@ -22,15 +22,15 @@ static void fpu_end(void)
 #include "addi-data/hwdrv_apci3200.c"
 #include "addi-data/addi_common.c"
 
+enum apci3200_boardid {
+	BOARD_APCI3200,
+	BOARD_APCI3300,
+};
+
 static const struct addi_board apci3200_boardtypes[] = {
-	{
+	[BOARD_APCI3200] = {
 		.pc_DriverName		= "apci3200",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3000,
-		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= 256,
-		.i_IorangeBase2		= 4,
-		.i_IorangeBase3		= 4,
 		.i_PCIEeprom		= ADDIDATA_EEPROM,
 		.pc_EepromChip		= ADDIDATA_S5920,
 		.i_NbrAiChannel		= 16,
@@ -53,14 +53,10 @@ static const struct addi_board apci3200_boardtypes[] = {
 		.ai_cancel		= i_APCI3200_StopCyclicAcquisition,
 		.di_bits		= apci3200_di_insn_bits,
 		.do_bits		= apci3200_do_insn_bits,
-	}, {
+	},
+	[BOARD_APCI3300] = {
 		.pc_DriverName		= "apci3300",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3007,
-		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= 256,
-		.i_IorangeBase2		= 4,
-		.i_IorangeBase3		= 4,
 		.i_PCIEeprom		= ADDIDATA_EEPROM,
 		.pc_EepromChip		= ADDIDATA_S5920,
 		.i_NbrAiChannelDiff	= 8,
@@ -85,28 +81,39 @@ static const struct addi_board apci3200_boardtypes[] = {
 	},
 };
 
-static DEFINE_PCI_DEVICE_TABLE(apci3200_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x3000) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x3007) },
-	{ 0 }
-};
-MODULE_DEVICE_TABLE(pci, apci3200_pci_table);
+static int apci3200_auto_attach(struct comedi_device *dev,
+				unsigned long context)
+{
+	const struct addi_board *board = NULL;
+
+	if (context < ARRAY_SIZE(apci3200_boardtypes))
+		board = &apci3200_boardtypes[context];
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+
+	return addi_auto_attach(dev, context);
+}
 
 static struct comedi_driver apci3200_driver = {
 	.driver_name	= "addi_apci_3200",
 	.module		= THIS_MODULE,
-	.auto_attach	= addi_auto_attach,
+	.auto_attach	= apci3200_auto_attach,
 	.detach		= i_ADDI_Detach,
-	.num_names	= ARRAY_SIZE(apci3200_boardtypes),
-	.board_name	= &apci3200_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
 };
 
 static int apci3200_pci_probe(struct pci_dev *dev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &apci3200_driver);
+	return comedi_pci_auto_config(dev, &apci3200_driver, id->driver_data);
 }
+
+static DEFINE_PCI_DEVICE_TABLE(apci3200_pci_table) = {
+	{ PCI_VDEVICE(ADDIDATA, 0x3000), BOARD_APCI3200 },
+	{ PCI_VDEVICE(ADDIDATA, 0x3007), BOARD_APCI3300 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, apci3200_pci_table);
 
 static struct pci_driver apci3200_pci_driver = {
 	.name		= "addi_apci_3200",

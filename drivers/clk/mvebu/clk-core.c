@@ -156,8 +156,8 @@ static u32 __init armada_370_get_cpu_freq(void __iomem *sar)
 
 	cpu_freq_select = ((readl(sar) >> SARL_A370_PCLK_FREQ_OPT) &
 			   SARL_A370_PCLK_FREQ_OPT_MASK);
-	if (cpu_freq_select > ARRAY_SIZE(armada_370_cpu_frequencies)) {
-		pr_err("CPU freq select unsuported %d\n", cpu_freq_select);
+	if (cpu_freq_select >= ARRAY_SIZE(armada_370_cpu_frequencies)) {
+		pr_err("CPU freq select unsupported %d\n", cpu_freq_select);
 		cpu_freq = 0;
 	} else
 		cpu_freq = armada_370_cpu_frequencies[cpu_freq_select];
@@ -278,8 +278,8 @@ static u32 __init armada_xp_get_cpu_freq(void __iomem *sar)
 	cpu_freq_select |= (((readl(sar+4) >> SARH_AXP_PCLK_FREQ_OPT) &
 			     SARH_AXP_PCLK_FREQ_OPT_MASK)
 			    << SARH_AXP_PCLK_FREQ_OPT_SHIFT);
-	if (cpu_freq_select > ARRAY_SIZE(armada_xp_cpu_frequencies)) {
-		pr_err("CPU freq select unsuported: %d\n", cpu_freq_select);
+	if (cpu_freq_select >= ARRAY_SIZE(armada_xp_cpu_frequencies)) {
+		pr_err("CPU freq select unsupported: %d\n", cpu_freq_select);
 		cpu_freq = 0;
 	} else
 		cpu_freq = armada_xp_cpu_frequencies[cpu_freq_select];

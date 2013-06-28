@@ -359,6 +359,9 @@ void bttv_gpio_bits(struct bttv_core *core, u32 mask, u32 bits);
 #define bttv_call_all(btv, o, f, args...) \
 	v4l2_device_call_all(&btv->c.v4l2_dev, 0, o, f, ##args)
 
+#define bttv_call_all_err(btv, o, f, args...) \
+	v4l2_device_call_until_err(&btv->c.v4l2_dev, 0, o, f, ##args)
+
 extern int bttv_I2CRead(struct bttv *btv, unsigned char addr, char *probe_for);
 extern int bttv_I2CWrite(struct bttv *btv, unsigned char addr, unsigned char b1,
 			 unsigned char b2, int both);

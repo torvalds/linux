@@ -149,7 +149,6 @@ static int __fops ## _open(struct inode *inode, struct file *file)	\
 	return spufs_attr_open(inode, file, __get, __set, __fmt);	\
 }									\
 static const struct file_operations __fops = {				\
-	.owner	 = THIS_MODULE,						\
 	.open	 = __fops ## _open,					\
 	.release = spufs_attr_release,					\
 	.read	 = spufs_attr_read,					\
@@ -352,7 +351,7 @@ static unsigned long spufs_get_unmapped_area(struct file *file,
 
 	/* Else, try to obtain a 64K pages slice */
 	return slice_get_unmapped_area(addr, len, flags,
-				       MMU_PAGE_64K, 1, 0);
+				       MMU_PAGE_64K, 1);
 }
 #endif /* CONFIG_SPU_FS_64K_LS */
 
@@ -2591,7 +2590,6 @@ static unsigned int spufs_switch_log_poll(struct file *file, poll_table *wait)
 }
 
 static const struct file_operations spufs_switch_log_fops = {
-	.owner		= THIS_MODULE,
 	.open		= spufs_switch_log_open,
 	.read		= spufs_switch_log_read,
 	.poll		= spufs_switch_log_poll,

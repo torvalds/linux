@@ -12,10 +12,6 @@
 #include "trace.h"
 
 static DEFINE_MUTEX(syscall_trace_lock);
-static int sys_refcount_enter;
-static int sys_refcount_exit;
-static DECLARE_BITMAP(enabled_enter_syscalls, NR_syscalls);
-static DECLARE_BITMAP(enabled_exit_syscalls, NR_syscalls);
 
 static int syscall_enter_register(struct ftrace_event_call *event,
 				 enum trace_reg type, void *data);
@@ -41,7 +37,7 @@ static inline bool arch_syscall_match_sym_name(const char *sym, const char *name
 	/*
 	 * Only compare after the "sys" prefix. Archs that use
 	 * syscall wrappers may have syscalls symbols aliases prefixed
-	 * with "SyS" instead of "sys", leading to an unwanted
+	 * with ".SyS" or ".sys" instead of "sys", leading to an unwanted
 	 * mismatch.
 	 */
 	return !strcmp(sym + 3, name + 3);
@@ -265,7 +261,7 @@ static void free_syscall_print_fmt(struct ftrace_event_call *call)
 		kfree(call->print_fmt);
 }
 
-static int syscall_enter_define_fields(struct ftrace_event_call *call)
+static int __init syscall_enter_define_fields(struct ftrace_event_call *call)
 {
 	struct syscall_trace_enter trace;
 	struct syscall_metadata *meta = call->data;
@@ -288,7 +284,7 @@ static int syscall_enter_define_fields(struct ftrace_event_call *call)
 	return ret;
 }
 
-static int syscall_exit_define_fields(struct ftrace_event_call *call)
+static int __init syscall_exit_define_fields(struct ftrace_event_call *call)
 {
 	struct syscall_trace_exit trace;
 	int ret;
@@ -303,8 +299,9 @@ static int syscall_exit_define_fields(struct ftrace_event_call *call)
 	return ret;
 }
 
-static void ftrace_syscall_enter(void *ignore, struct pt_regs *regs, long id)
+static void ftrace_syscall_enter(void *data, struct pt_regs *regs, long id)
 {
+	struct trace_array *tr = data;
 	struct syscall_trace_enter *entry;
 	struct syscall_metadata *sys_data;
 	struct ring_buffer_event *event;
@@ -315,7 +312,7 @@ static void ftrace_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 	syscall_nr = trace_get_syscall_nr(current, regs);
 	if (syscall_nr < 0)
 		return;
-	if (!test_bit(syscall_nr, enabled_enter_syscalls))
+	if (!test_bit(syscall_nr, tr->enabled_enter_syscalls))
 		return;
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
@@ -324,7 +321,8 @@ static void ftrace_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 
 	size = sizeof(*entry) + sizeof(unsigned long) * sys_data->nb_args;
 
-	event = trace_current_buffer_lock_reserve(&buffer,
+	buffer = tr->trace_buffer.buffer;
+	event = trace_buffer_lock_reserve(buffer,
 			sys_data->enter_event->event.type, size, 0, 0);
 	if (!event)
 		return;
@@ -338,8 +336,9 @@ static void ftrace_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 		trace_current_buffer_unlock_commit(buffer, event, 0, 0);
 }
 
-static void ftrace_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
+static void ftrace_syscall_exit(void *data, struct pt_regs *regs, long ret)
 {
+	struct trace_array *tr = data;
 	struct syscall_trace_exit *entry;
 	struct syscall_metadata *sys_data;
 	struct ring_buffer_event *event;
@@ -349,14 +348,15 @@ static void ftrace_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 	syscall_nr = trace_get_syscall_nr(current, regs);
 	if (syscall_nr < 0)
 		return;
-	if (!test_bit(syscall_nr, enabled_exit_syscalls))
+	if (!test_bit(syscall_nr, tr->enabled_exit_syscalls))
 		return;
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
 	if (!sys_data)
 		return;
 
-	event = trace_current_buffer_lock_reserve(&buffer,
+	buffer = tr->trace_buffer.buffer;
+	event = trace_buffer_lock_reserve(buffer,
 			sys_data->exit_event->event.type, sizeof(*entry), 0, 0);
 	if (!event)
 		return;
@@ -370,8 +370,10 @@ static void ftrace_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 		trace_current_buffer_unlock_commit(buffer, event, 0, 0);
 }
 
-static int reg_event_syscall_enter(struct ftrace_event_call *call)
+static int reg_event_syscall_enter(struct ftrace_event_file *file,
+				   struct ftrace_event_call *call)
 {
+	struct trace_array *tr = file->tr;
 	int ret = 0;
 	int num;
 
@@ -379,33 +381,37 @@ static int reg_event_syscall_enter(struct ftrace_event_call *call)
 	if (WARN_ON_ONCE(num < 0 || num >= NR_syscalls))
 		return -ENOSYS;
 	mutex_lock(&syscall_trace_lock);
-	if (!sys_refcount_enter)
-		ret = register_trace_sys_enter(ftrace_syscall_enter, NULL);
+	if (!tr->sys_refcount_enter)
+		ret = register_trace_sys_enter(ftrace_syscall_enter, tr);
 	if (!ret) {
-		set_bit(num, enabled_enter_syscalls);
-		sys_refcount_enter++;
+		set_bit(num, tr->enabled_enter_syscalls);
+		tr->sys_refcount_enter++;
 	}
 	mutex_unlock(&syscall_trace_lock);
 	return ret;
 }
 
-static void unreg_event_syscall_enter(struct ftrace_event_call *call)
+static void unreg_event_syscall_enter(struct ftrace_event_file *file,
+				      struct ftrace_event_call *call)
 {
+	struct trace_array *tr = file->tr;
 	int num;
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 	if (WARN_ON_ONCE(num < 0 || num >= NR_syscalls))
 		return;
 	mutex_lock(&syscall_trace_lock);
-	sys_refcount_enter--;
-	clear_bit(num, enabled_enter_syscalls);
-	if (!sys_refcount_enter)
-		unregister_trace_sys_enter(ftrace_syscall_enter, NULL);
+	tr->sys_refcount_enter--;
+	clear_bit(num, tr->enabled_enter_syscalls);
+	if (!tr->sys_refcount_enter)
+		unregister_trace_sys_enter(ftrace_syscall_enter, tr);
 	mutex_unlock(&syscall_trace_lock);
 }
 
-static int reg_event_syscall_exit(struct ftrace_event_call *call)
+static int reg_event_syscall_exit(struct ftrace_event_file *file,
+				  struct ftrace_event_call *call)
 {
+	struct trace_array *tr = file->tr;
 	int ret = 0;
 	int num;
 
@@ -413,28 +419,30 @@ static int reg_event_syscall_exit(struct ftrace_event_call *call)
 	if (WARN_ON_ONCE(num < 0 || num >= NR_syscalls))
 		return -ENOSYS;
 	mutex_lock(&syscall_trace_lock);
-	if (!sys_refcount_exit)
-		ret = register_trace_sys_exit(ftrace_syscall_exit, NULL);
+	if (!tr->sys_refcount_exit)
+		ret = register_trace_sys_exit(ftrace_syscall_exit, tr);
 	if (!ret) {
-		set_bit(num, enabled_exit_syscalls);
-		sys_refcount_exit++;
+		set_bit(num, tr->enabled_exit_syscalls);
+		tr->sys_refcount_exit++;
 	}
 	mutex_unlock(&syscall_trace_lock);
 	return ret;
 }
 
-static void unreg_event_syscall_exit(struct ftrace_event_call *call)
+static void unreg_event_syscall_exit(struct ftrace_event_file *file,
+				     struct ftrace_event_call *call)
 {
+	struct trace_array *tr = file->tr;
 	int num;
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 	if (WARN_ON_ONCE(num < 0 || num >= NR_syscalls))
 		return;
 	mutex_lock(&syscall_trace_lock);
-	sys_refcount_exit--;
-	clear_bit(num, enabled_exit_syscalls);
-	if (!sys_refcount_exit)
-		unregister_trace_sys_exit(ftrace_syscall_exit, NULL);
+	tr->sys_refcount_exit--;
+	clear_bit(num, tr->enabled_exit_syscalls);
+	if (!tr->sys_refcount_exit)
+		unregister_trace_sys_exit(ftrace_syscall_exit, tr);
 	mutex_unlock(&syscall_trace_lock);
 }
 
@@ -471,7 +479,7 @@ struct trace_event_functions exit_syscall_print_funcs = {
 	.trace		= print_syscall_exit,
 };
 
-struct ftrace_event_class event_class_syscall_enter = {
+struct ftrace_event_class __refdata event_class_syscall_enter = {
 	.system		= "syscalls",
 	.reg		= syscall_enter_register,
 	.define_fields	= syscall_enter_define_fields,
@@ -479,7 +487,7 @@ struct ftrace_event_class event_class_syscall_enter = {
 	.raw_init	= init_syscall_trace,
 };
 
-struct ftrace_event_class event_class_syscall_exit = {
+struct ftrace_event_class __refdata event_class_syscall_exit = {
 	.system		= "syscalls",
 	.reg		= syscall_exit_register,
 	.define_fields	= syscall_exit_define_fields,
@@ -685,11 +693,13 @@ static void perf_sysexit_disable(struct ftrace_event_call *call)
 static int syscall_enter_register(struct ftrace_event_call *event,
 				 enum trace_reg type, void *data)
 {
+	struct ftrace_event_file *file = data;
+
 	switch (type) {
 	case TRACE_REG_REGISTER:
-		return reg_event_syscall_enter(event);
+		return reg_event_syscall_enter(file, event);
 	case TRACE_REG_UNREGISTER:
-		unreg_event_syscall_enter(event);
+		unreg_event_syscall_enter(file, event);
 		return 0;
 
 #ifdef CONFIG_PERF_EVENTS
@@ -711,11 +721,13 @@ static int syscall_enter_register(struct ftrace_event_call *event,
 static int syscall_exit_register(struct ftrace_event_call *event,
 				 enum trace_reg type, void *data)
 {
+	struct ftrace_event_file *file = data;
+
 	switch (type) {
 	case TRACE_REG_REGISTER:
-		return reg_event_syscall_exit(event);
+		return reg_event_syscall_exit(file, event);
 	case TRACE_REG_UNREGISTER:
-		unreg_event_syscall_exit(event);
+		unreg_event_syscall_exit(file, event);
 		return 0;
 
 #ifdef CONFIG_PERF_EVENTS

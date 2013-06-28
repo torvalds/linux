@@ -71,7 +71,6 @@
 static struct cpuidle_driver intel_idle_driver = {
 	.name = "intel_idle",
 	.owner = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 };
 /* intel_idle.max_cstate=0 disables driver */
 static int max_cstate = CPUIDLE_STATE_MAX - 1;
@@ -274,6 +273,27 @@ static struct cpuidle_state hsw_cstates[CPUIDLE_STATE_MAX] = {
 		.target_residency = 500,
 		.enter = &intel_idle },
 	{
+		.name = "C8-HSW",
+		.desc = "MWAIT 0x40",
+		.flags = MWAIT2flg(0x40) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 300,
+		.target_residency = 900,
+		.enter = &intel_idle },
+	{
+		.name = "C9-HSW",
+		.desc = "MWAIT 0x50",
+		.flags = MWAIT2flg(0x50) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 600,
+		.target_residency = 1800,
+		.enter = &intel_idle },
+	{
+		.name = "C10-HSW",
+		.desc = "MWAIT 0x60",
+		.flags = MWAIT2flg(0x60) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 2600,
+		.target_residency = 7700,
+		.enter = &intel_idle },
+	{
 		.enter = NULL }
 };
 
@@ -339,7 +359,6 @@ static int intel_idle(struct cpuidle_device *dev,
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
 		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
 
-	stop_critical_timings();
 	if (!need_resched()) {
 
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
@@ -347,8 +366,6 @@ static int intel_idle(struct cpuidle_device *dev,
 		if (!need_resched())
 			__mwait(eax, ecx);
 	}
-
-	start_critical_timings();
 
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
 		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
@@ -465,6 +482,7 @@ static const struct x86_cpu_id intel_idle_ids[] = {
 	ICPU(0x3c, idle_cpu_hsw),
 	ICPU(0x3f, idle_cpu_hsw),
 	ICPU(0x45, idle_cpu_hsw),
+	ICPU(0x46, idle_cpu_hsw),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_idle_ids);

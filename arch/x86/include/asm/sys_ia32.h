@@ -30,23 +30,14 @@ asmlinkage long sys32_fstatat(unsigned int, const char __user *,
 			      struct stat64 __user *, int);
 struct mmap_arg_struct32;
 asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *);
-asmlinkage long sys32_mprotect(unsigned long, size_t, unsigned long);
-
-asmlinkage long sys32_alarm(unsigned int);
 
 asmlinkage long sys32_waitpid(compat_pid_t, unsigned int __user *, int);
-asmlinkage long sys32_sysfs(int, u32, u32);
 
 asmlinkage long sys32_pread(unsigned int, char __user *, u32, u32, u32);
 asmlinkage long sys32_pwrite(unsigned int, const char __user *, u32, u32, u32);
 
-asmlinkage long sys32_personality(unsigned long);
-asmlinkage long sys32_sendfile(int, int, compat_off_t __user *, s32);
-
-long sys32_kill(int, int);
 long sys32_fadvise64_64(int, __u32, __u32, __u32, __u32, int);
 long sys32_vm86_warning(void);
-long sys32_lookup_dcookie(u32, u32, char __user *, size_t);
 
 asmlinkage ssize_t sys32_readahead(int, unsigned, unsigned, size_t);
 asmlinkage long sys32_sync_file_range(int, unsigned, unsigned,
@@ -58,12 +49,6 @@ asmlinkage long sys32_fallocate(int, int, unsigned,
 /* ia32/ia32_signal.c */
 asmlinkage long sys32_sigreturn(void);
 asmlinkage long sys32_rt_sigreturn(void);
-
-/* ia32/ipc32.c */
-asmlinkage long sys32_ipc(u32, int, int, int, compat_uptr_t, u32);
-
-asmlinkage long sys32_fanotify_mark(int, unsigned int, u32, u32, int,
-				    const char __user *);
 
 #endif /* CONFIG_COMPAT */
 

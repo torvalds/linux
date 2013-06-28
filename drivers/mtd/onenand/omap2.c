@@ -832,19 +832,7 @@ static struct platform_driver omap2_onenand_driver = {
 	},
 };
 
-static int __init omap2_onenand_init(void)
-{
-	printk(KERN_INFO "OneNAND driver initializing\n");
-	return platform_driver_register(&omap2_onenand_driver);
-}
-
-static void __exit omap2_onenand_exit(void)
-{
-	platform_driver_unregister(&omap2_onenand_driver);
-}
-
-module_init(omap2_onenand_init);
-module_exit(omap2_onenand_exit);
+module_platform_driver(omap2_onenand_driver);
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_LICENSE("GPL");

@@ -556,7 +556,7 @@ static int sa1100fb_mmap(struct fb_info *info,
 			 struct vm_area_struct *vma)
 {
 	struct sa1100fb_info *fbi = (struct sa1100fb_info *)info;
-	unsigned long start, len, off = vma->vm_pgoff << PAGE_SHIFT;
+	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
 
 	if (off < info->fix.smem_len) {
 		vma->vm_pgoff += 1; /* skip over the palette */
@@ -564,19 +564,9 @@ static int sa1100fb_mmap(struct fb_info *info,
 					     fbi->map_dma, fbi->map_size);
 	}
 
-	start = info->fix.mmio_start;
-	len = PAGE_ALIGN((start & ~PAGE_MASK) + info->fix.mmio_len);
-
-	if ((vma->vm_end - vma->vm_start + off) > len)
-		return -EINVAL;
-
-	off += start & PAGE_MASK;
-	vma->vm_pgoff = off >> PAGE_SHIFT;
-	vma->vm_flags |= VM_IO;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	return io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
-				   vma->vm_end - vma->vm_start,
-				   vma->vm_page_prot);
+
+	return vm_iomap_memory(vma, info->fix.mmio_start, info->fix.mmio_len);
 }
 
 static struct fb_ops sa1100fb_ops = {

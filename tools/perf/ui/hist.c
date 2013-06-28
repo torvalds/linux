@@ -16,6 +16,7 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 {
 	int ret;
 	struct hists *hists = he->hists;
+	struct perf_evsel *evsel = hists_to_evsel(hists);
 
 	if (fmt_percent) {
 		double percent = 0.0;
@@ -28,14 +29,10 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	} else
 		ret = print_fn(hpp->buf, hpp->size, fmt, get_field(he));
 
-	if (symbol_conf.event_group) {
+	if (perf_evsel__is_group_event(evsel)) {
 		int prev_idx, idx_delta;
-		struct perf_evsel *evsel = hists_to_evsel(hists);
 		struct hist_entry *pair;
 		int nr_members = evsel->nr_members;
-
-		if (nr_members <= 1)
-			return ret;
 
 		prev_idx = perf_evsel__group_idx(evsel);
 

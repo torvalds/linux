@@ -34,9 +34,7 @@ static struct platform_suspend_ops mxs_suspend_ops = {
 	.valid = suspend_valid_only_mem,
 };
 
-static int __init mxs_pm_init(void)
+void __init mxs_pm_init(void)
 {
 	suspend_set_ops(&mxs_suspend_ops);
-	return 0;
 }
-device_initcall(mxs_pm_init);

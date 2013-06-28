@@ -102,7 +102,6 @@
 
 #include "mxc.h"
 
-#include "mx6q.h"
 #include "mx51.h"
 #include "mx53.h"
 #include "mx3x.h"

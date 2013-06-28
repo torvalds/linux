@@ -26,6 +26,8 @@
  * @SOC_MBUS_PACKING_VARIABLE:	compressed formats with variable packing
  * @SOC_MBUS_PACKING_1_5X8:	used for packed YUV 4:2:0 formats, where 4
  *				pixels occupy 6 bytes in RAM
+ * @SOC_MBUS_PACKING_EXTEND32:	sample width (e.g., 24 bits) has to be extended
+ *				to 32 bits
  */
 enum soc_mbus_packing {
 	SOC_MBUS_PACKING_NONE,
@@ -34,6 +36,7 @@ enum soc_mbus_packing {
 	SOC_MBUS_PACKING_EXTEND16,
 	SOC_MBUS_PACKING_VARIABLE,
 	SOC_MBUS_PACKING_1_5X8,
+	SOC_MBUS_PACKING_EXTEND32,
 };
 
 /**

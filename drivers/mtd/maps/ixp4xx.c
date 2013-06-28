@@ -148,7 +148,7 @@ struct ixp4xx_flash_info {
 	struct resource *res;
 };
 
-static const char *probes[] = { "RedBoot", "cmdlinepart", NULL };
+static const char * const probes[] = { "RedBoot", "cmdlinepart", NULL };
 
 static int ixp4xx_flash_remove(struct platform_device *dev)
 {

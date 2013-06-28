@@ -13,9 +13,9 @@
 						 * whether IO subsystem is idle
 						 * or not
 						 */
-#define GC_THREAD_MIN_SLEEP_TIME	10000 /* milliseconds */
-#define GC_THREAD_MAX_SLEEP_TIME	30000
-#define GC_THREAD_NOGC_SLEEP_TIME	10000
+#define GC_THREAD_MIN_SLEEP_TIME	30000	/* milliseconds */
+#define GC_THREAD_MAX_SLEEP_TIME	60000
+#define GC_THREAD_NOGC_SLEEP_TIME	300000	/* wait 5 min */
 #define LIMIT_INVALID_BLOCK	40 /* percentage over total user space */
 #define LIMIT_FREE_BLOCK	40 /* percentage over invalid + free space */
 
@@ -58,6 +58,9 @@ static inline block_t limit_free_user_blocks(struct f2fs_sb_info *sbi)
 
 static inline long increase_sleep_time(long wait)
 {
+	if (wait == GC_THREAD_NOGC_SLEEP_TIME)
+		return wait;
+
 	wait += GC_THREAD_MIN_SLEEP_TIME;
 	if (wait > GC_THREAD_MAX_SLEEP_TIME)
 		wait = GC_THREAD_MAX_SLEEP_TIME;
@@ -66,6 +69,9 @@ static inline long increase_sleep_time(long wait)
 
 static inline long decrease_sleep_time(long wait)
 {
+	if (wait == GC_THREAD_NOGC_SLEEP_TIME)
+		wait = GC_THREAD_MAX_SLEEP_TIME;
+
 	wait -= GC_THREAD_MIN_SLEEP_TIME;
 	if (wait <= GC_THREAD_MIN_SLEEP_TIME)
 		wait = GC_THREAD_MIN_SLEEP_TIME;

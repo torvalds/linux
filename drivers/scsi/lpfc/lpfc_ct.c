@@ -1811,7 +1811,8 @@ lpfc_fdmi_timeout_handler(struct lpfc_vport *vport)
 		if (init_utsname()->nodename[0] != '\0')
 			lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA);
 		else
-			mod_timer(&vport->fc_fdmitmo, jiffies + HZ * 60);
+			mod_timer(&vport->fc_fdmitmo, jiffies +
+				  msecs_to_jiffies(1000 * 60));
 	}
 	return;
 }

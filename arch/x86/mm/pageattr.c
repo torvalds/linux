@@ -467,7 +467,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	 * We are safe now. Check whether the new pgprot is the same:
 	 */
 	old_pte = *kpte;
-	old_prot = new_prot = req_prot = pte_pgprot(old_pte);
+	old_prot = req_prot = pte_pgprot(old_pte);
 
 	pgprot_val(req_prot) &= ~pgprot_val(cpa->mask_clr);
 	pgprot_val(req_prot) |= pgprot_val(cpa->mask_set);
@@ -478,12 +478,12 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	 * a non present pmd. The canon_pgprot will clear _PAGE_GLOBAL
 	 * for the ancient hardware that doesn't support it.
 	 */
-	if (pgprot_val(new_prot) & _PAGE_PRESENT)
-		pgprot_val(new_prot) |= _PAGE_PSE | _PAGE_GLOBAL;
+	if (pgprot_val(req_prot) & _PAGE_PRESENT)
+		pgprot_val(req_prot) |= _PAGE_PSE | _PAGE_GLOBAL;
 	else
-		pgprot_val(new_prot) &= ~(_PAGE_PSE | _PAGE_GLOBAL);
+		pgprot_val(req_prot) &= ~(_PAGE_PSE | _PAGE_GLOBAL);
 
-	new_prot = canon_pgprot(new_prot);
+	req_prot = canon_pgprot(req_prot);
 
 	/*
 	 * old_pte points to the large page base address. So we need
@@ -542,13 +542,14 @@ out_unlock:
 	return do_split;
 }
 
-int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
+static int
+__split_large_page(pte_t *kpte, unsigned long address, struct page *base)
 {
+	pte_t *pbase = (pte_t *)page_address(base);
 	unsigned long pfn, pfninc = 1;
 	unsigned int i, level;
 	pte_t *tmp;
 	pgprot_t ref_prot;
-	struct page *base = virt_to_page(pbase);
 
 	spin_lock(&pgd_lock);
 	/*
@@ -633,7 +634,6 @@ int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
 
 static int split_large_page(pte_t *kpte, unsigned long address)
 {
-	pte_t *pbase;
 	struct page *base;
 
 	if (!debug_pagealloc)
@@ -644,8 +644,7 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	if (!base)
 		return -ENOMEM;
 
-	pbase = (pte_t *)page_address(base);
-	if (__split_large_page(kpte, address, pbase))
+	if (__split_large_page(kpte, address, base))
 		__free_page(base);
 
 	return 0;
@@ -1413,6 +1412,8 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 	 * but that can deadlock->flush only current cpu:
 	 */
 	__flush_tlb_all();
+
+	arch_flush_lazy_mmu_mode();
 }
 
 #ifdef CONFIG_HIBERNATION

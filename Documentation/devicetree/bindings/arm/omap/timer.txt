@@ -1,7 +1,20 @@
 OMAP Timer bindings
 
 Required properties:
-- compatible:		Must be "ti,omap2-timer" for OMAP2+ controllers.
+- compatible:		Should be set to one of the below. Please note that
+			OMAP44xx devices have timer instances that are 100%
+			register compatible with OMAP3xxx devices as well as
+			newer timers that are not 100% register compatible.
+			So for OMAP44xx devices timer instances may use
+			different compatible strings.
+
+			ti,omap2420-timer (applicable to OMAP24xx devices)
+			ti,omap3430-timer (applicable to OMAP3xxx/44xx devices)
+			ti,omap4430-timer (applicable to OMAP44xx devices)
+			ti,omap5430-timer (applicable to OMAP543x devices)
+			ti,am335x-timer	(applicable to AM335x devices)
+			ti,am335x-timer-1ms (applicable to AM335x devices)
+
 - reg:			Contains timer register address range (base address and
 			length).
 - interrupts: 		Contains the interrupt information for the timer. The
@@ -22,7 +35,7 @@ Optional properties:
 Example:
 
 timer12: timer@48304000 {
-	compatible = "ti,omap2-timer";
+	compatible = "ti,omap3430-timer";
 	reg = <0x48304000 0x400>;
 	interrupts = <95>;
 	ti,hwmods = "timer12"

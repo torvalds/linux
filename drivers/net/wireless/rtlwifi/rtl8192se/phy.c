@@ -1307,6 +1307,8 @@ static void _rtl92s_phy_set_fwcmd_io(struct ieee80211_hw *hw)
 	if (is_hal_stop(rtlhal))
 		return;
 
+	if (hal_get_firmwareversion(rtlpriv) < 0x34)
+		goto skip;
 	/* We re-map RA related CMD IO to combinational ones */
 	/* if FW version is v.52 or later. */
 	switch (rtlhal->current_fwcmd_io) {
@@ -1320,6 +1322,7 @@ static void _rtl92s_phy_set_fwcmd_io(struct ieee80211_hw *hw)
 		break;
 	}
 
+skip:
 	switch (rtlhal->current_fwcmd_io) {
 	case FW_CMD_RA_RESET:
 		RT_TRACE(rtlpriv, COMP_CMD, DBG_DMESG, "FW_CMD_RA_RESET\n");
@@ -1440,7 +1443,7 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	u32	fw_param = FW_CMD_IO_PARA_QUERY(rtlpriv);
 	u16	fw_cmdmap = FW_CMD_IO_QUERY(rtlpriv);
-	bool bPostProcessing = false;
+	bool postprocessing = false;
 
 	RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD,
 		 "Set FW Cmd(%#x), set_fwcmd_inprogress(%d)\n",
@@ -1449,15 +1452,24 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 	do {
 		/* We re-map to combined FW CMD ones if firmware version */
 		/* is v.53 or later. */
-		switch (fw_cmdio) {
-		case FW_CMD_RA_REFRESH_N:
-			fw_cmdio = FW_CMD_RA_REFRESH_N_COMB;
-			break;
-		case FW_CMD_RA_REFRESH_BG:
-			fw_cmdio = FW_CMD_RA_REFRESH_BG_COMB;
-			break;
-		default:
-			break;
+		if (hal_get_firmwareversion(rtlpriv) >= 0x35) {
+			switch (fw_cmdio) {
+			case FW_CMD_RA_REFRESH_N:
+				fw_cmdio = FW_CMD_RA_REFRESH_N_COMB;
+				break;
+			case FW_CMD_RA_REFRESH_BG:
+				fw_cmdio = FW_CMD_RA_REFRESH_BG_COMB;
+				break;
+			default:
+				break;
+			}
+		} else {
+			if ((fw_cmdio == FW_CMD_IQK_ENABLE) ||
+			    (fw_cmdio == FW_CMD_RA_REFRESH_N) ||
+			    (fw_cmdio == FW_CMD_RA_REFRESH_BG)) {
+				postprocessing = true;
+				break;
+			}
 		}
 
 		/* If firmware version is v.62 or later,
@@ -1588,19 +1600,19 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 				fw_cmdmap &= ~FW_DIG_ENABLE_CTL;
 
 			FW_CMD_IO_SET(rtlpriv, fw_cmdmap);
-			bPostProcessing = true;
+			postprocessing = true;
 			break;
 		case FW_CMD_PAUSE_DM_BY_SCAN:
 			fw_cmdmap &= ~(FW_DIG_ENABLE_CTL |
 				       FW_HIGH_PWR_ENABLE_CTL |
 				       FW_SS_CTL);
 			FW_CMD_IO_SET(rtlpriv, fw_cmdmap);
-			bPostProcessing = true;
+			postprocessing = true;
 			break;
 		case FW_CMD_HIGH_PWR_DISABLE:
 			fw_cmdmap &= ~FW_HIGH_PWR_ENABLE_CTL;
 			FW_CMD_IO_SET(rtlpriv, fw_cmdmap);
-			bPostProcessing = true;
+			postprocessing = true;
 			break;
 		case FW_CMD_HIGH_PWR_ENABLE:
 			if (!(rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) &&
@@ -1608,7 +1620,7 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 				fw_cmdmap |= (FW_HIGH_PWR_ENABLE_CTL |
 					      FW_SS_CTL);
 				FW_CMD_IO_SET(rtlpriv, fw_cmdmap);
-				bPostProcessing = true;
+				postprocessing = true;
 			}
 			break;
 		case FW_CMD_DIG_MODE_FA:
@@ -1629,14 +1641,15 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 		default:
 			/* Pass to original FW CMD processing callback
 			 * routine. */
-			bPostProcessing = true;
+			postprocessing = true;
 			break;
 		}
 	} while (false);
 
 	/* We shall post processing these FW CMD if
-	 * variable bPostProcessing is set. */
-	if (bPostProcessing && !rtlhal->set_fwcmd_inprogress) {
+	 * variable postprocessing is set.
+	 */
+	if (postprocessing && !rtlhal->set_fwcmd_inprogress) {
 		rtlhal->set_fwcmd_inprogress = true;
 		/* Update current FW Cmd for callback use. */
 		rtlhal->current_fwcmd_io = fw_cmdio;
@@ -1697,8 +1710,18 @@ void rtl92s_phy_switch_ephy_parameter(struct ieee80211_hw *hw)
 
 }
 
-void rtl92s_phy_set_beacon_hwreg(struct ieee80211_hw *hw, u16 BeaconInterval)
+void rtl92s_phy_set_beacon_hwreg(struct ieee80211_hw *hw, u16 beaconinterval)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	rtl_write_dword(rtlpriv, WFM5, 0xF1000000 | (BeaconInterval << 8));
+	u32 new_bcn_num = 0;
+
+	if (hal_get_firmwareversion(rtlpriv) >= 0x33) {
+		/* Fw v.51 and later. */
+		rtl_write_dword(rtlpriv, WFM5, 0xF1000000 |
+				(beaconinterval << 8));
+	} else {
+		new_bcn_num = beaconinterval * 32 - 64;
+		rtl_write_dword(rtlpriv, WFM3 + 4, new_bcn_num);
+		rtl_write_dword(rtlpriv, WFM3, 0xB026007C);
+	}
 }

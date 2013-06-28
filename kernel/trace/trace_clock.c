@@ -57,6 +57,16 @@ u64 notrace trace_clock(void)
 	return local_clock();
 }
 
+/*
+ * trace_jiffy_clock(): Simply use jiffies as a clock counter.
+ */
+u64 notrace trace_clock_jiffies(void)
+{
+	u64 jiffy = jiffies - INITIAL_JIFFIES;
+
+	/* Return nsecs */
+	return (u64)jiffies_to_usecs(jiffy) * 1000ULL;
+}
 
 /*
  * trace_clock_global(): special globally coherent trace clock

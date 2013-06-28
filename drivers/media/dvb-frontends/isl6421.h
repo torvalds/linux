@@ -42,10 +42,10 @@
 #if IS_ENABLED(CONFIG_DVB_ISL6421)
 /* override_set and override_clear control which system register bits (above) to always set & clear */
 extern struct dvb_frontend *isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 i2c_addr,
-			  u8 override_set, u8 override_clear);
+			  u8 override_set, u8 override_clear, bool override_tone);
 #else
 static inline struct dvb_frontend *isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 i2c_addr,
-						  u8 override_set, u8 override_clear)
+						  u8 override_set, u8 override_clear, bool override_tone)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;

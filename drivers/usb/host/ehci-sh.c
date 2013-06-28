@@ -77,7 +77,6 @@ static const struct hc_driver ehci_sh_hc_driver = {
 
 static int ehci_hcd_sh_probe(struct platform_device *pdev)
 {
-	const struct hc_driver *driver = &ehci_sh_hc_driver;
 	struct resource *res;
 	struct ehci_sh_priv *priv;
 	struct ehci_sh_platdata *pdata;
@@ -170,7 +169,7 @@ fail_create_hcd:
 	return ret;
 }
 
-static int __exit ehci_hcd_sh_remove(struct platform_device *pdev)
+static int ehci_hcd_sh_remove(struct platform_device *pdev)
 {
 	struct ehci_sh_priv *priv = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = priv->hcd;
@@ -196,7 +195,7 @@ static void ehci_hcd_sh_shutdown(struct platform_device *pdev)
 
 static struct platform_driver ehci_hcd_sh_driver = {
 	.probe		= ehci_hcd_sh_probe,
-	.remove		= __exit_p(ehci_hcd_sh_remove),
+	.remove		= ehci_hcd_sh_remove,
 	.shutdown	= ehci_hcd_sh_shutdown,
 	.driver		= {
 		.name	= "sh_ehci",

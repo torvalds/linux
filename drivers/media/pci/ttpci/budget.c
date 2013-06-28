@@ -537,6 +537,16 @@ static void frontend_init(struct budget *budget)
 		}
 		break;
 
+	case 0x4f52: /* Cards based on Philips Semi Sylt PCI ref. design */
+		budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config, &budget->i2c_adap);
+		if (budget->dvb_frontend) {
+			printk(KERN_INFO "budget: tuner ALPS BSRU6 in Philips Semi. Sylt detected\n");
+			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
+			budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
+			break;
+		}
+		break;
+
 	case 0x4f60: /* Fujitsu Siemens Activy Budget-S PCI rev AL (stv0299/tsa5059) */
 	{
 		int subtype = i2c_readreg(&budget->i2c_adap, 0x50, 0x67);
@@ -818,6 +828,7 @@ MAKE_BUDGET_INFO(fsacs1, "Fujitsu Siemens Activy Budget-S PCI (rev AL/alps front
 MAKE_BUDGET_INFO(fsact,	 "Fujitsu Siemens Activy Budget-T PCI (rev GR/Grundig frontend)", BUDGET_FS_ACTIVY);
 MAKE_BUDGET_INFO(fsact1, "Fujitsu Siemens Activy Budget-T PCI (rev AL/ALPS TDHD1-204A)", BUDGET_FS_ACTIVY);
 MAKE_BUDGET_INFO(omicom, "Omicom S2 PCI", BUDGET_TT);
+MAKE_BUDGET_INFO(sylt,   "Philips Semi Sylt PCI", BUDGET_TT_HW_DISEQC);
 
 static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbs,  0x13c2, 0x1003),
@@ -832,6 +843,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(fsact1, 0x1131, 0x5f60),
 	MAKE_EXTENSION_PCI(fsact, 0x1131, 0x5f61),
 	MAKE_EXTENSION_PCI(omicom, 0x14c4, 0x1020),
+	MAKE_EXTENSION_PCI(sylt, 0x1131, 0x4f52),
 	{
 		.vendor    = 0,
 	}

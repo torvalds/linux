@@ -88,7 +88,8 @@ static int max8998_battery_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	max8998 = kzalloc(sizeof(struct max8998_battery_data), GFP_KERNEL);
+	max8998 = devm_kzalloc(&pdev->dev, sizeof(struct max8998_battery_data),
+				GFP_KERNEL);
 	if (!max8998)
 		return -ENOMEM;
 
@@ -174,7 +175,6 @@ static int max8998_battery_probe(struct platform_device *pdev)
 
 	return 0;
 err:
-	kfree(max8998);
 	return ret;
 }
 
@@ -183,7 +183,6 @@ static int max8998_battery_remove(struct platform_device *pdev)
 	struct max8998_battery_data *max8998 = platform_get_drvdata(pdev);
 
 	power_supply_unregister(&max8998->battery);
-	kfree(max8998);
 
 	return 0;
 }

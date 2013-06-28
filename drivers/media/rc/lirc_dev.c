@@ -152,7 +152,7 @@ static int lirc_thread(void *irctl)
 }
 
 
-static struct file_operations lirc_dev_fops = {
+static const struct file_operations lirc_dev_fops = {
 	.owner		= THIS_MODULE,
 	.read		= lirc_dev_fop_read,
 	.write		= lirc_dev_fop_write,

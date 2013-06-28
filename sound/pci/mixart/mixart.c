@@ -1175,7 +1175,7 @@ static void snd_mixart_proc_read(struct snd_info_entry *entry,
 
 			snd_iprintf(buffer, "\tstreaming          : %d\n", streaming);
 			snd_iprintf(buffer, "\tmailbox            : %d\n", mailbox);
-			snd_iprintf(buffer, "\tinterrups handling : %d\n\n", interr);
+			snd_iprintf(buffer, "\tinterrupts handling : %d\n\n", interr);
 		}
 	} /* endif elf loaded */
 }

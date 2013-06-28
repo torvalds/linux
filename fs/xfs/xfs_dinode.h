@@ -19,7 +19,7 @@
 #define	__XFS_DINODE_H__
 
 #define	XFS_DINODE_MAGIC		0x494e	/* 'IN' */
-#define XFS_DINODE_GOOD_VERSION(v)	(((v) == 1 || (v) == 2))
+#define XFS_DINODE_GOOD_VERSION(v)	((v) >= 1 && (v) <= 3)
 
 typedef struct xfs_timestamp {
 	__be32		t_sec;		/* timestamp seconds */
@@ -70,9 +70,34 @@ typedef struct xfs_dinode {
 
 	/* di_next_unlinked is the only non-core field in the old dinode */
 	__be32		di_next_unlinked;/* agi unlinked list ptr */
-} __attribute__((packed)) xfs_dinode_t;
+
+	/* start of the extended dinode, writable fields */
+	__le32		di_crc;		/* CRC of the inode */
+	__be64		di_changecount;	/* number of attribute changes */
+	__be64		di_lsn;		/* flush sequence */
+	__be64		di_flags2;	/* more random flags */
+	__u8		di_pad2[16];	/* more padding for future expansion */
+
+	/* fields only written to during inode creation */
+	xfs_timestamp_t	di_crtime;	/* time created */
+	__be64		di_ino;		/* inode number */
+	uuid_t		di_uuid;	/* UUID of the filesystem */
+
+	/* structure must be padded to 64 bit alignment */
+} xfs_dinode_t;
 
 #define DI_MAX_FLUSH 0xffff
+
+/*
+ * Size of the core inode on disk.  Version 1 and 2 inodes have
+ * the same size, but version 3 has grown a few additional fields.
+ */
+static inline uint xfs_dinode_size(int version)
+{
+	if (version == 3)
+		return sizeof(struct xfs_dinode);
+	return offsetof(struct xfs_dinode, di_crc);
+}
 
 /*
  * The 32 bit link count in the inode theoretically maxes out at UINT_MAX.
@@ -104,11 +129,11 @@ typedef enum xfs_dinode_fmt {
 /*
  * Inode size for given fs.
  */
-#define XFS_LITINO(mp) \
-	((int)(((mp)->m_sb.sb_inodesize) - sizeof(struct xfs_dinode)))
+#define XFS_LITINO(mp, version) \
+	((int)(((mp)->m_sb.sb_inodesize) - xfs_dinode_size(version)))
 
-#define	XFS_BROOT_SIZE_ADJ	\
-	(XFS_BTREE_LBLOCK_LEN - sizeof(xfs_bmdr_block_t))
+#define XFS_BROOT_SIZE_ADJ(ip) \
+	(XFS_BMBT_BLOCK_LEN((ip)->i_mount) - sizeof(xfs_bmdr_block_t))
 
 /*
  * Inode data & attribute fork sizes, per inode.
@@ -119,10 +144,10 @@ typedef enum xfs_dinode_fmt {
 #define XFS_DFORK_DSIZE(dip,mp) \
 	(XFS_DFORK_Q(dip) ? \
 		XFS_DFORK_BOFF(dip) : \
-		XFS_LITINO(mp))
+		XFS_LITINO(mp, (dip)->di_version))
 #define XFS_DFORK_ASIZE(dip,mp) \
 	(XFS_DFORK_Q(dip) ? \
-		XFS_LITINO(mp) - XFS_DFORK_BOFF(dip) : \
+		XFS_LITINO(mp, (dip)->di_version) - XFS_DFORK_BOFF(dip) : \
 		0)
 #define XFS_DFORK_SIZE(dip,mp,w) \
 	((w) == XFS_DATA_FORK ? \
@@ -133,7 +158,7 @@ typedef enum xfs_dinode_fmt {
  * Return pointers to the data or attribute forks.
  */
 #define XFS_DFORK_DPTR(dip) \
-	((char *)(dip) + sizeof(struct xfs_dinode))
+	((char *)dip + xfs_dinode_size(dip->di_version))
 #define XFS_DFORK_APTR(dip)	\
 	(XFS_DFORK_DPTR(dip) + XFS_DFORK_BOFF(dip))
 #define XFS_DFORK_PTR(dip,w)	\

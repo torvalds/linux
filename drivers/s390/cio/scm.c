@@ -211,7 +211,7 @@ static void scmdev_update(struct scm_device *scmdev, struct sale *sale)
 		goto out;
 	scmdrv = to_scm_drv(scmdev->dev.driver);
 	if (changed && scmdrv->notify)
-		scmdrv->notify(scmdev);
+		scmdrv->notify(scmdev, SCM_CHANGE);
 out:
 	device_unlock(&scmdev->dev);
 	if (changed)
@@ -295,6 +295,22 @@ int scm_update_information(void)
 	free_page((unsigned long)scm_info);
 
 	return ret;
+}
+
+static int scm_dev_avail(struct device *dev, void *unused)
+{
+	struct scm_driver *scmdrv = to_scm_drv(dev->driver);
+	struct scm_device *scmdev = to_scm_dev(dev);
+
+	if (dev->driver && scmdrv->notify)
+		scmdrv->notify(scmdev, SCM_AVAIL);
+
+	return 0;
+}
+
+int scm_process_availability_information(void)
+{
+	return bus_for_each_dev(&scm_bus_type, NULL, NULL, scm_dev_avail);
 }
 
 static int __init scm_init(void)

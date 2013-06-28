@@ -90,16 +90,18 @@ enum sas_oob_mode {
 };
 
 /* See sas_discover.c if you plan on changing these */
-enum sas_dev_type {
-	NO_DEVICE   = 0,	  /* protocol */
-	SAS_END_DEV = 1,	  /* protocol */
-	EDGE_DEV    = 2,	  /* protocol */
-	FANOUT_DEV  = 3,	  /* protocol */
-	SAS_HA      = 4,
-	SATA_DEV    = 5,
-	SATA_PM     = 7,
-	SATA_PM_PORT= 8,
-	SATA_PENDING  = 9,
+enum sas_device_type {
+	/* these are SAS protocol defined (attached device type field) */
+	SAS_PHY_UNUSED = 0,
+	SAS_END_DEVICE = 1,
+	SAS_EDGE_EXPANDER_DEVICE = 2,
+	SAS_FANOUT_EXPANDER_DEVICE = 3,
+	/* these are internal to libsas */
+	SAS_HA = 4,
+	SAS_SATA_DEV = 5,
+	SAS_SATA_PM = 7,
+	SAS_SATA_PM_PORT = 8,
+	SAS_SATA_PENDING = 9,
 };
 
 enum sas_protocol {

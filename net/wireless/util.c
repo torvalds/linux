@@ -511,7 +511,7 @@ int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
 		encaps_data = bridge_tunnel_header;
 		encaps_len = sizeof(bridge_tunnel_header);
 		skip_header_bytes -= 2;
-	} else if (ethertype > 0x600) {
+	} else if (ethertype >= ETH_P_802_3_MIN) {
 		encaps_data = rfc1042_header;
 		encaps_len = sizeof(rfc1042_header);
 		skip_header_bytes -= 2;
@@ -1155,6 +1155,26 @@ int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
 }
 EXPORT_SYMBOL(cfg80211_get_p2p_attr);
 
+bool ieee80211_operating_class_to_band(u8 operating_class,
+				       enum ieee80211_band *band)
+{
+	switch (operating_class) {
+	case 112:
+	case 115 ... 127:
+		*band = IEEE80211_BAND_5GHZ;
+		return true;
+	case 81:
+	case 82:
+	case 83:
+	case 84:
+		*band = IEEE80211_BAND_2GHZ;
+		return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(ieee80211_operating_class_to_band);
+
 int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 				 u32 beacon_int)
 {
@@ -1258,11 +1278,11 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 	list_for_each_entry(wdev_iter, &rdev->wdev_list, list) {
 		if (wdev_iter == wdev)
 			continue;
-		if (wdev_iter->netdev) {
-			if (!netif_running(wdev_iter->netdev))
-				continue;
-		} else if (wdev_iter->iftype == NL80211_IFTYPE_P2P_DEVICE) {
+		if (wdev_iter->iftype == NL80211_IFTYPE_P2P_DEVICE) {
 			if (!wdev_iter->p2p_started)
+				continue;
+		} else if (wdev_iter->netdev) {
+			if (!netif_running(wdev_iter->netdev))
 				continue;
 		} else {
 			WARN_ON(1);

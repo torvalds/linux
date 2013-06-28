@@ -53,6 +53,8 @@ static struct mv_sata_platform_data guruplug_sata_data = {
 
 static struct mvsdio_platform_data guruplug_mvsdio_data = {
 	/* unfortunately the CD signal has not been connected */
+	.gpio_card_detect = -1,
+	.gpio_write_protect = -1,
 };
 
 static struct gpio_led guruplug_led_pins[] = {

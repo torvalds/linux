@@ -33,7 +33,7 @@ SECTIONS
 
 	. = ALIGN(0x10);
 	__image_load = . ;
-	.image 0xd0001000: AT(__image_load)
+	.image 0xd0003000: AT(__image_load)
 	{
 		_image_start = .;
 		*(image)

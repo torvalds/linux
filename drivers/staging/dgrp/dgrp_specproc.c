@@ -37,6 +37,7 @@
 #include <linux/sched.h>
 #include <linux/cred.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -44,42 +45,16 @@
 
 #include "dgrp_common.h"
 
-static struct dgrp_proc_entry dgrp_table[];
 static struct proc_dir_entry *dgrp_proc_dir_entry;
 
 static int dgrp_add_id(long id);
 static int dgrp_remove_nd(struct nd_struct *nd);
-static void unregister_dgrp_device(struct proc_dir_entry *de);
-static void register_dgrp_device(struct nd_struct *node,
+static struct proc_dir_entry *add_proc_file(struct nd_struct *node,
 				 struct proc_dir_entry *root,
-				 void (*register_hook)(struct proc_dir_entry *de));
+				 const struct file_operations *fops);
 
 /* File operation declarations */
-static int dgrp_gen_proc_open(struct inode *, struct file *);
-static int dgrp_gen_proc_close(struct inode *, struct file *);
 static int parse_write_config(char *);
-
-
-static const struct file_operations dgrp_proc_file_ops = {
-	.owner   = THIS_MODULE,
-	.open    = dgrp_gen_proc_open,
-	.release = dgrp_gen_proc_close,
-};
-
-static struct inode_operations proc_inode_ops = {
-	.permission = dgrp_inode_permission
-};
-
-
-static void register_proc_table(struct dgrp_proc_entry *,
-				struct proc_dir_entry *);
-static void unregister_proc_table(struct dgrp_proc_entry *,
-				  struct proc_dir_entry *);
-
-static struct dgrp_proc_entry dgrp_net_table[];
-static struct dgrp_proc_entry dgrp_mon_table[];
-static struct dgrp_proc_entry dgrp_ports_table[];
-static struct dgrp_proc_entry dgrp_dpa_table[];
 
 static ssize_t dgrp_config_proc_write(struct file *file,
 				      const char __user *buffer,
@@ -89,7 +64,7 @@ static int dgrp_nodeinfo_proc_open(struct inode *inode, struct file *file);
 static int dgrp_info_proc_open(struct inode *inode, struct file *file);
 static int dgrp_config_proc_open(struct inode *inode, struct file *file);
 
-static struct file_operations config_proc_file_ops = {
+static const struct file_operations config_proc_file_ops = {
 	.owner	 = THIS_MODULE,
 	.open	 = dgrp_config_proc_open,
 	.read	 = seq_read,
@@ -98,7 +73,7 @@ static struct file_operations config_proc_file_ops = {
 	.write   = dgrp_config_proc_write,
 };
 
-static struct file_operations info_proc_file_ops = {
+static const struct file_operations info_proc_file_ops = {
 	.owner	 = THIS_MODULE,
 	.open	 = dgrp_info_proc_open,
 	.read	 = seq_read,
@@ -106,7 +81,7 @@ static struct file_operations info_proc_file_ops = {
 	.release = single_release,
 };
 
-static struct file_operations nodeinfo_proc_file_ops = {
+static const struct file_operations nodeinfo_proc_file_ops = {
 	.owner	 = THIS_MODULE,
 	.open	 = dgrp_nodeinfo_proc_open,
 	.read	 = seq_read,
@@ -114,71 +89,25 @@ static struct file_operations nodeinfo_proc_file_ops = {
 	.release = seq_release,
 };
 
-static struct dgrp_proc_entry dgrp_table[] = {
-	{
-		.id = DGRP_CONFIG,
-		.name = "config",
-		.mode = 0644,
-		.proc_file_ops = &config_proc_file_ops,
-	},
-	{
-		.id = DGRP_INFO,
-		.name = "info",
-		.mode = 0644,
-		.proc_file_ops = &info_proc_file_ops,
-	},
-	{
-		.id = DGRP_NODEINFO,
-		.name = "nodeinfo",
-		.mode = 0644,
-		.proc_file_ops = &nodeinfo_proc_file_ops,
-	},
-	{
-		.id = DGRP_NETDIR,
-		.name = "net",
-		.mode = 0500,
-		.child = dgrp_net_table
-	},
-	{
-		.id = DGRP_MONDIR,
-		.name = "mon",
-		.mode = 0500,
-		.child = dgrp_mon_table
-	},
-	{
-		.id = DGRP_PORTSDIR,
-		.name = "ports",
-		.mode = 0500,
-		.child = dgrp_ports_table
-	},
-	{
-		.id = DGRP_DPADIR,
-		.name = "dpa",
-		.mode = 0500,
-		.child = dgrp_dpa_table
-	}
-};
-
 static struct proc_dir_entry *net_entry_pointer;
 static struct proc_dir_entry *mon_entry_pointer;
 static struct proc_dir_entry *dpa_entry_pointer;
 static struct proc_dir_entry *ports_entry_pointer;
 
-static struct dgrp_proc_entry dgrp_net_table[] = {
-	{0}
-};
-
-static struct dgrp_proc_entry dgrp_mon_table[] = {
-	{0}
-};
-
-static struct dgrp_proc_entry dgrp_ports_table[] = {
-	{0}
-};
-
-static struct dgrp_proc_entry dgrp_dpa_table[] = {
-	{0}
-};
+static void remove_files(struct nd_struct *nd)
+{
+	char buf[3];
+	ID_TO_CHAR(nd->nd_ID, buf);
+	dgrp_remove_node_class_sysfs_files(nd);
+	if (nd->nd_net_de)
+		remove_proc_entry(buf, net_entry_pointer);
+	if (nd->nd_mon_de)
+		remove_proc_entry(buf, mon_entry_pointer);
+	if (nd->nd_dpa_de)
+		remove_proc_entry(buf, dpa_entry_pointer);
+	if (nd->nd_ports_de)
+		remove_proc_entry(buf, ports_entry_pointer);
+}
 
 void dgrp_unregister_proc(void)
 {
@@ -188,12 +117,19 @@ void dgrp_unregister_proc(void)
 	ports_entry_pointer = NULL;
 
 	if (dgrp_proc_dir_entry) {
-		unregister_proc_table(dgrp_table, dgrp_proc_dir_entry);
-		remove_proc_entry(dgrp_proc_dir_entry->name,
-				  dgrp_proc_dir_entry->parent);
+		struct nd_struct *nd;
+		list_for_each_entry(nd, &nd_struct_list, list)
+			remove_files(nd);
+		remove_proc_entry("dgrp/config", NULL);
+		remove_proc_entry("dgrp/info", NULL);
+		remove_proc_entry("dgrp/nodeinfo", NULL);
+		remove_proc_entry("dgrp/net", NULL);
+		remove_proc_entry("dgrp/mon", NULL);
+		remove_proc_entry("dgrp/dpa", NULL);
+		remove_proc_entry("dgrp/ports", NULL);
+		remove_proc_entry("dgrp", NULL);
 		dgrp_proc_dir_entry = NULL;
 	}
-
 }
 
 void dgrp_register_proc(void)
@@ -201,209 +137,16 @@ void dgrp_register_proc(void)
 	/*
 	 *	Register /proc/dgrp
 	 */
-	dgrp_proc_dir_entry = proc_create("dgrp", S_IFDIR, NULL,
-					  &dgrp_proc_file_ops);
-	register_proc_table(dgrp_table, dgrp_proc_dir_entry);
-}
-
-/*
- * /proc/sys support
- */
-static int dgrp_proc_match(int len, const char *name, struct proc_dir_entry *de)
-{
-	if (!de || !de->low_ino)
-		return 0;
-	if (de->namelen != len)
-		return 0;
-	return !memcmp(name, de->name, len);
-}
-
-
-/*
- *  Scan the entries in table and add them all to /proc at the position
- *  referred to by "root"
- */
-static void register_proc_table(struct dgrp_proc_entry *table,
-				struct proc_dir_entry *root)
-{
-	struct proc_dir_entry *de;
-	int len;
-	mode_t mode;
-
-	if (table == NULL)
+	dgrp_proc_dir_entry = proc_mkdir("dgrp", NULL);
+	if (!dgrp_proc_dir_entry)
 		return;
-	if (root == NULL)
-		return;
-
-	for (; table->id; table++) {
-		/* Can't do anything without a proc name. */
-		if (!table->name)
-			continue;
-
-		/* Maybe we can't do anything with it... */
-		if (!table->proc_file_ops &&
-		    !table->child) {
-			pr_warn("dgrp: Can't register %s\n",
-				table->name);
-			continue;
-		}
-
-		len = strlen(table->name);
-		mode = table->mode;
-
-		de = NULL;
-		if (!table->child)
-			mode |= S_IFREG;
-		else {
-			mode |= S_IFDIR;
-			for (de = root->subdir; de; de = de->next) {
-				if (dgrp_proc_match(len, table->name, de))
-					break;
-			}
-			/* If the subdir exists already, de is non-NULL */
-		}
-
-		if (!de) {
-			de = create_proc_entry(table->name, mode, root);
-			if (!de)
-				continue;
-			de->data = (void *) table;
-			if (!table->child) {
-				de->proc_iops = &proc_inode_ops;
-				if (table->proc_file_ops)
-					de->proc_fops = table->proc_file_ops;
-				else
-					de->proc_fops = &dgrp_proc_file_ops;
-			}
-		}
-		table->de = de;
-		if (de->mode & S_IFDIR)
-			register_proc_table(table->child, de);
-
-		if (table->id == DGRP_NETDIR)
-			net_entry_pointer = de;
-
-		if (table->id == DGRP_MONDIR)
-			mon_entry_pointer = de;
-
-		if (table->id == DGRP_DPADIR)
-			dpa_entry_pointer = de;
-
-		if (table->id == DGRP_PORTSDIR)
-			ports_entry_pointer = de;
-	}
-}
-
-/*
- * Unregister a /proc sysctl table and any subdirectories.
- */
-static void unregister_proc_table(struct dgrp_proc_entry *table,
-				  struct proc_dir_entry *root)
-{
-	struct proc_dir_entry *de;
-	struct nd_struct *tmp;
-
-	if (table == NULL)
-		return;
-
-	list_for_each_entry(tmp, &nd_struct_list, list) {
-		if ((table == dgrp_net_table) && (tmp->nd_net_de)) {
-			unregister_dgrp_device(tmp->nd_net_de);
-			dgrp_remove_node_class_sysfs_files(tmp);
-		}
-
-		if ((table == dgrp_mon_table) && (tmp->nd_mon_de))
-			unregister_dgrp_device(tmp->nd_mon_de);
-
-		if ((table == dgrp_dpa_table) && (tmp->nd_dpa_de))
-			unregister_dgrp_device(tmp->nd_dpa_de);
-
-		if ((table == dgrp_ports_table) && (tmp->nd_ports_de))
-			unregister_dgrp_device(tmp->nd_ports_de);
-	}
-
-	for (; table->id; table++) {
-		de = table->de;
-
-		if (!de)
-			continue;
-		if (de->mode & S_IFDIR) {
-			if (!table->child) {
-				pr_alert("dgrp: malformed sysctl tree on free\n");
-				continue;
-			}
-			unregister_proc_table(table->child, de);
-
-	/* Don't unregister directories which still have entries */
-			if (de->subdir)
-				continue;
-		}
-
-		/* Don't unregister proc entries that are still being used.. */
-		if ((atomic_read(&de->count)) != 1) {
-			pr_alert("proc entry %s in use, not removing\n",
-				de->name);
-			continue;
-		}
-
-		remove_proc_entry(de->name, de->parent);
-		table->de = NULL;
-	}
-}
-
-static int dgrp_gen_proc_open(struct inode *inode, struct file *file)
-{
-	struct proc_dir_entry *de;
-	struct dgrp_proc_entry *entry;
-	int ret = 0;
-
-	de = (struct proc_dir_entry *) PDE(file_inode(file));
-	if (!de || !de->data) {
-		ret = -ENXIO;
-		goto done;
-	}
-
-	entry = (struct dgrp_proc_entry *) de->data;
-	if (!entry) {
-		ret = -ENXIO;
-		goto done;
-	}
-
-	down(&entry->excl_sem);
-
-	if (entry->excl_cnt)
-		ret = -EBUSY;
-	else
-		entry->excl_cnt++;
-
-	up(&entry->excl_sem);
-
-done:
-	return ret;
-}
-
-static int dgrp_gen_proc_close(struct inode *inode, struct file *file)
-{
-	struct proc_dir_entry *de;
-	struct dgrp_proc_entry *entry;
-
-	de = (struct proc_dir_entry *) PDE(file_inode(file));
-	if (!de || !de->data)
-		goto done;
-
-	entry = (struct dgrp_proc_entry *) de->data;
-	if (!entry)
-		goto done;
-
-	down(&entry->excl_sem);
-
-	if (entry->excl_cnt)
-		entry->excl_cnt = 0;
-
-	up(&entry->excl_sem);
-
-done:
-	return 0;
+	proc_create("dgrp/config", 0644, NULL, &config_proc_file_ops);
+	proc_create("dgrp/info", 0644, NULL, &info_proc_file_ops);
+	proc_create("dgrp/nodeinfo", 0644, NULL, &nodeinfo_proc_file_ops);
+	net_entry_pointer = proc_mkdir_mode("dgrp/net", 0500, NULL);
+	mon_entry_pointer = proc_mkdir_mode("dgrp/mon", 0500, NULL);
+	dpa_entry_pointer = proc_mkdir_mode("dgrp/dpa", 0500, NULL);
+	ports_entry_pointer = proc_mkdir_mode("dgrp/ports", 0500, NULL);
 }
 
 static void *dgrp_config_proc_start(struct seq_file *m, loff_t *pos)
@@ -734,6 +477,10 @@ static int dgrp_add_id(long id)
 	init_waitqueue_head(&nd->nd_tx_waitq);
 	init_waitqueue_head(&nd->nd_mon_wqueue);
 	init_waitqueue_head(&nd->nd_dpa_wqueue);
+	sema_init(&nd->nd_mon_semaphore, 1);
+	sema_init(&nd->nd_net_semaphore, 1);
+	spin_lock_init(&nd->nd_dpa_lock);
+	nd->nd_state = NS_CLOSED;
 	for (i = 0; i < SEQ_MAX; i++)
 		init_waitqueue_head(&nd->nd_seq_wque[i]);
 
@@ -748,12 +495,12 @@ static int dgrp_add_id(long id)
 	if (ret)
 		goto error_out;
 
-	register_dgrp_device(nd, net_entry_pointer, dgrp_register_net_hook);
-	register_dgrp_device(nd, mon_entry_pointer, dgrp_register_mon_hook);
-	register_dgrp_device(nd, dpa_entry_pointer, dgrp_register_dpa_hook);
-	register_dgrp_device(nd, ports_entry_pointer,
-			      dgrp_register_ports_hook);
-
+	dgrp_create_node_class_sysfs_files(nd);
+	nd->nd_net_de = add_proc_file(nd, net_entry_pointer, &dgrp_net_ops);
+	nd->nd_mon_de = add_proc_file(nd, mon_entry_pointer, &dgrp_mon_ops);
+	nd->nd_dpa_de = add_proc_file(nd, dpa_entry_pointer, &dgrp_dpa_ops);
+	nd->nd_ports_de = add_proc_file(nd, ports_entry_pointer,
+					&dgrp_ports_ops);
 	return 0;
 
 	/* FIXME this guy should free the tty driver stored in nd and destroy
@@ -772,16 +519,7 @@ static int dgrp_remove_nd(struct nd_struct *nd)
 	if (nd->nd_tty_ref_cnt)
 		return -EBUSY;
 
-	if (nd->nd_net_de) {
-		unregister_dgrp_device(nd->nd_net_de);
-		dgrp_remove_node_class_sysfs_files(nd);
-	}
-
-	unregister_dgrp_device(nd->nd_mon_de);
-
-	unregister_dgrp_device(nd->nd_ports_de);
-
-	unregister_dgrp_device(nd->nd_dpa_de);
+	remove_files(nd);
 
 	dgrp_tty_uninit(nd);
 
@@ -793,38 +531,11 @@ static int dgrp_remove_nd(struct nd_struct *nd)
 	return 0;
 }
 
-static void register_dgrp_device(struct nd_struct *node,
+static struct proc_dir_entry *add_proc_file(struct nd_struct *node,
 				 struct proc_dir_entry *root,
-				 void (*register_hook)(struct proc_dir_entry *de))
+				 const struct file_operations *fops)
 {
 	char buf[3];
-	struct proc_dir_entry *de;
-
 	ID_TO_CHAR(node->nd_ID, buf);
-
-	de = create_proc_entry(buf, 0600 | S_IFREG, root);
-	if (!de)
-		return;
-
-	de->data = (void *) node;
-
-	if (register_hook)
-		register_hook(de);
-
-}
-
-static void unregister_dgrp_device(struct proc_dir_entry *de)
-{
-	if (!de)
-		return;
-
-	/* Don't unregister proc entries that are still being used.. */
-	if ((atomic_read(&de->count)) != 1) {
-		pr_alert("%s - proc entry %s in use. Not removing.\n",
-			 __func__, de->name);
-		return;
-	}
-
-	remove_proc_entry(de->name, de->parent);
-	de = NULL;
+	return proc_create_data(buf, 0600, root, fops, node);
 }

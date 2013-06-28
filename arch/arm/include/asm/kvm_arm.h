@@ -211,4 +211,8 @@
 
 #define HSR_HVC_IMM_MASK	((1UL << 16) - 1)
 
+#define HSR_DABT_S1PTW		(1U << 7)
+#define HSR_DABT_CM		(1U << 8)
+#define HSR_DABT_EA		(1U << 9)
+
 #endif /* __ARM_KVM_ARM_H__ */

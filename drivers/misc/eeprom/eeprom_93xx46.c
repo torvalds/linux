@@ -363,7 +363,7 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 			dev_err(&spi->dev, "can't create erase interface\n");
 	}
 
-	dev_set_drvdata(&spi->dev, edev);
+	spi_set_drvdata(spi, edev);
 	return 0;
 fail:
 	kfree(edev);
@@ -372,13 +372,13 @@ fail:
 
 static int eeprom_93xx46_remove(struct spi_device *spi)
 {
-	struct eeprom_93xx46_dev *edev = dev_get_drvdata(&spi->dev);
+	struct eeprom_93xx46_dev *edev = spi_get_drvdata(spi);
 
 	if (!(edev->pdata->flags & EE_READONLY))
 		device_remove_file(&spi->dev, &dev_attr_erase);
 
 	sysfs_remove_bin_file(&spi->dev.kobj, &edev->bin);
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	kfree(edev);
 	return 0;
 }

@@ -26,8 +26,8 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.78.02-0"
-#define DRV_MODULE_RELDATE      "2013/01/14"
+#define DRV_MODULE_VERSION      "1.78.17-0"
+#define DRV_MODULE_RELDATE      "2013/04/11"
 #define BNX2X_BC_VER            0x040200
 
 #if defined(CONFIG_DCB)
@@ -492,7 +492,6 @@ enum bnx2x_tpa_mode_t {
 struct bnx2x_fastpath {
 	struct bnx2x		*bp; /* parent */
 
-#define BNX2X_NAPI_WEIGHT       128
 	struct napi_struct	napi;
 	union host_hc_status_block	status_blk;
 	/* chip independed shortcuts into sb structure */
@@ -613,9 +612,10 @@ struct bnx2x_fastpath {
  * START_BD		- describes packed
  * START_BD(splitted)	- includes unpaged data segment for GSO
  * PARSING_BD		- for TSO and CSUM data
+ * PARSING_BD2		- for encapsulation data
  * Frag BDs		- decribes pages for frags
  */
-#define BDS_PER_TX_PKT		3
+#define BDS_PER_TX_PKT		4
 #define MAX_BDS_PER_TX_PKT	(MAX_SKB_FRAGS + BDS_PER_TX_PKT)
 /* max BDs per tx packet including next pages */
 #define MAX_DESC_PER_TX_PKT	(MAX_BDS_PER_TX_PKT + \
@@ -730,18 +730,24 @@ struct bnx2x_fastpath {
 #define SKB_CS(skb)		(*(u16 *)(skb_transport_header(skb) + \
 					  skb->csum_offset))
 
-#define pbd_tcp_flags(skb)	(ntohl(tcp_flag_word(tcp_hdr(skb)))>>16 & 0xff)
+#define pbd_tcp_flags(tcp_hdr)	(ntohl(tcp_flag_word(tcp_hdr))>>16 & 0xff)
 
-#define XMIT_PLAIN			0
-#define XMIT_CSUM_V4			0x1
-#define XMIT_CSUM_V6			0x2
-#define XMIT_CSUM_TCP			0x4
-#define XMIT_GSO_V4			0x8
-#define XMIT_GSO_V6			0x10
+#define XMIT_PLAIN		0
+#define XMIT_CSUM_V4		(1 << 0)
+#define XMIT_CSUM_V6		(1 << 1)
+#define XMIT_CSUM_TCP		(1 << 2)
+#define XMIT_GSO_V4		(1 << 3)
+#define XMIT_GSO_V6		(1 << 4)
+#define XMIT_CSUM_ENC_V4	(1 << 5)
+#define XMIT_CSUM_ENC_V6	(1 << 6)
+#define XMIT_GSO_ENC_V4		(1 << 7)
+#define XMIT_GSO_ENC_V6		(1 << 8)
 
-#define XMIT_CSUM			(XMIT_CSUM_V4 | XMIT_CSUM_V6)
-#define XMIT_GSO			(XMIT_GSO_V4 | XMIT_GSO_V6)
+#define XMIT_CSUM_ENC		(XMIT_CSUM_ENC_V4 | XMIT_CSUM_ENC_V6)
+#define XMIT_GSO_ENC		(XMIT_GSO_ENC_V4 | XMIT_GSO_ENC_V6)
 
+#define XMIT_CSUM		(XMIT_CSUM_V4 | XMIT_CSUM_V6 | XMIT_CSUM_ENC)
+#define XMIT_GSO		(XMIT_GSO_V4 | XMIT_GSO_V6 | XMIT_GSO_ENC)
 
 /* stuff added to make the code fit 80Col */
 #define CQE_TYPE(cqe_fp_flags)	 ((cqe_fp_flags) & ETH_FAST_PATH_RX_CQE_TYPE)
@@ -844,6 +850,9 @@ struct bnx2x_common {
 #define CHIP_IS_57840_VF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57840_VF)
 #define CHIP_IS_E1H(bp)			(CHIP_IS_57711(bp) || \
 					 CHIP_IS_57711E(bp))
+#define CHIP_IS_57811xx(bp)		(CHIP_IS_57811(bp) || \
+					 CHIP_IS_57811_MF(bp) || \
+					 CHIP_IS_57811_VF(bp))
 #define CHIP_IS_E2(bp)			(CHIP_IS_57712(bp) || \
 					 CHIP_IS_57712_MF(bp) || \
 					 CHIP_IS_57712_VF(bp))
@@ -853,9 +862,7 @@ struct bnx2x_common {
 					 CHIP_IS_57810(bp) || \
 					 CHIP_IS_57810_MF(bp) || \
 					 CHIP_IS_57810_VF(bp) || \
-					 CHIP_IS_57811(bp) || \
-					 CHIP_IS_57811_MF(bp) || \
-					 CHIP_IS_57811_VF(bp) || \
+					 CHIP_IS_57811xx(bp) || \
 					 CHIP_IS_57840(bp) || \
 					 CHIP_IS_57840_MF(bp) || \
 					 CHIP_IS_57840_VF(bp))
@@ -1215,14 +1222,16 @@ enum {
 	BNX2X_SP_RTNL_ENABLE_SRIOV,
 	BNX2X_SP_RTNL_VFPF_MCAST,
 	BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
+	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
 };
 
 
 struct bnx2x_prev_path_list {
+	struct list_head list;
 	u8 bus;
 	u8 slot;
 	u8 path;
-	struct list_head list;
+	u8 aer;
 	u8 undi;
 };
 
@@ -1269,6 +1278,8 @@ struct bnx2x {
 #define BP_FW_MB_IDX(bp)		BP_FW_MB_IDX_VN(bp, BP_VN(bp))
 
 #ifdef CONFIG_BNX2X_SRIOV
+	/* protects vf2pf mailbox from simultaneous access */
+	struct mutex		vf2pf_mutex;
 	/* vf pf channel mailbox contains request and response buffers */
 	struct bnx2x_vf_mbx_msg	*vf2pf_mbox;
 	dma_addr_t		vf2pf_mbox_mapping;
@@ -1281,6 +1292,8 @@ struct bnx2x {
 	dma_addr_t		pf2vf_bulletin_mapping;
 
 	struct pf_vf_bulletin_content	old_bulletin;
+
+	u16 requested_nr_virtfn;
 #endif /* CONFIG_BNX2X_SRIOV */
 
 	struct net_device	*dev;
@@ -1944,12 +1957,9 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 			    bool is_pf);
 
-#define BNX2X_ILT_ZALLOC(x, y, size) \
-	do { \
-		x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
-		if (x) \
-			memset(x, 0, size); \
-	} while (0)
+#define BNX2X_ILT_ZALLOC(x, y, size)				\
+	x = dma_alloc_coherent(&bp->pdev->dev, size, y,		\
+			       GFP_KERNEL | __GFP_ZERO)
 
 #define BNX2X_ILT_FREE(x, y, size) \
 	do { \
@@ -2286,7 +2296,7 @@ static const u32 dmae_reg_go_c[] = {
 	DMAE_REG_GO_C12, DMAE_REG_GO_C13, DMAE_REG_GO_C14, DMAE_REG_GO_C15
 };
 
-void bnx2x_set_ethtool_ops(struct net_device *netdev);
+void bnx2x_set_ethtool_ops(struct bnx2x *bp, struct net_device *netdev);
 void bnx2x_notify_link_changed(struct bnx2x *bp);
 
 #define BNX2X_MF_SD_PROTOCOL(bp) \

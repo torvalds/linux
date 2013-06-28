@@ -359,6 +359,7 @@ enum queue_entry_flags {
 	ENTRY_DATA_PENDING,
 	ENTRY_DATA_IO_FAILED,
 	ENTRY_DATA_STATUS_PENDING,
+	ENTRY_DATA_STATUS_SET,
 };
 
 /**
@@ -372,6 +373,7 @@ enum queue_entry_flags {
  * @entry_idx: The entry index number.
  * @priv_data: Private data belonging to this queue entry. The pointer
  *	points to data specific to a particular driver and queue type.
+ * @status: Device specific status
  */
 struct queue_entry {
 	unsigned long flags;
@@ -382,6 +384,8 @@ struct queue_entry {
 	struct sk_buff *skb;
 
 	unsigned int entry_idx;
+
+	u32 status;
 
 	void *priv_data;
 };
@@ -475,7 +479,8 @@ struct data_queue {
 	unsigned short cw_max;
 
 	unsigned short data_size;
-	unsigned short desc_size;
+	unsigned char  desc_size;
+	unsigned char  winfo_size;
 
 	unsigned short usb_endpoint;
 	unsigned short usb_maxpacket;
@@ -495,7 +500,8 @@ struct data_queue {
 struct data_queue_desc {
 	unsigned short entry_num;
 	unsigned short data_size;
-	unsigned short desc_size;
+	unsigned char  desc_size;
+	unsigned char  winfo_size;
 	unsigned short priv_size;
 };
 
@@ -584,6 +590,7 @@ struct data_queue_desc {
  * @queue: Pointer to @data_queue
  * @start: &enum queue_index Pointer to start index
  * @end: &enum queue_index Pointer to end index
+ * @data: Data to pass to the callback function
  * @fn: The function to call for each &struct queue_entry
  *
  * This will walk through all entries in the queue, in chronological
@@ -596,7 +603,9 @@ struct data_queue_desc {
 bool rt2x00queue_for_each_entry(struct data_queue *queue,
 				enum queue_index start,
 				enum queue_index end,
-				bool (*fn)(struct queue_entry *entry));
+				void *data,
+				bool (*fn)(struct queue_entry *entry,
+					   void *data));
 
 /**
  * rt2x00queue_empty - Check if the queue is empty.

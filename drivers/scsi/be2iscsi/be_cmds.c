@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2012 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -155,6 +155,7 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 	uint16_t status = 0, addl_status = 0, wrb_num = 0;
 	struct be_mcc_wrb *temp_wrb;
 	struct be_cmd_req_hdr *ioctl_hdr;
+	struct be_cmd_resp_hdr *ioctl_resp_hdr;
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 
 	if (beiscsi_error(phba))
@@ -204,6 +205,12 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 			    ioctl_hdr->subsystem,
 			    ioctl_hdr->opcode,
 			    status, addl_status);
+
+		if (status == MCC_STATUS_INSUFFICIENT_BUFFER) {
+			ioctl_resp_hdr = (struct be_cmd_resp_hdr *) ioctl_hdr;
+			if (ioctl_resp_hdr->response_length)
+				goto release_mcc_tag;
+		}
 		rc = -EAGAIN;
 	}
 
@@ -267,6 +274,7 @@ static int be_mcc_compl_process(struct be_ctrl_info *ctrl,
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	struct be_cmd_req_hdr *hdr = embedded_payload(wrb);
+	struct be_cmd_resp_hdr *resp_hdr;
 
 	be_dws_le_to_cpu(compl, 4);
 
@@ -284,6 +292,11 @@ static int be_mcc_compl_process(struct be_ctrl_info *ctrl,
 			    hdr->subsystem, hdr->opcode,
 			    compl_status, extd_status);
 
+		if (compl_status == MCC_STATUS_INSUFFICIENT_BUFFER) {
+			resp_hdr = (struct be_cmd_resp_hdr *) hdr;
+			if (resp_hdr->response_length)
+				return 0;
+		}
 		return -EBUSY;
 	}
 	return 0;
@@ -335,30 +348,26 @@ static void be2iscsi_fail_session(struct iscsi_cls_session *cls_session)
 void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 		struct be_async_event_link_state *evt)
 {
-	switch (evt->port_link_status) {
-	case ASYNC_EVENT_LINK_DOWN:
+	if ((evt->port_link_status == ASYNC_EVENT_LINK_DOWN) ||
+	    ((evt->port_link_status & ASYNC_EVENT_LOGICAL) &&
+	     (evt->port_fault != BEISCSI_PHY_LINK_FAULT_NONE))) {
+		phba->state = BE_ADAPTER_LINK_DOWN;
+
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
-			    "BC_%d : Link Down on Physical Port %d\n",
+			    "BC_%d : Link Down on Port %d\n",
 			    evt->physical_port);
 
-		phba->state |= BE_ADAPTER_LINK_DOWN;
 		iscsi_host_for_each_session(phba->shost,
 					    be2iscsi_fail_session);
-		break;
-	case ASYNC_EVENT_LINK_UP:
+	} else if ((evt->port_link_status & ASYNC_EVENT_LINK_UP) ||
+		    ((evt->port_link_status & ASYNC_EVENT_LOGICAL) &&
+		     (evt->port_fault == BEISCSI_PHY_LINK_FAULT_NONE))) {
 		phba->state = BE_ADAPTER_UP;
+
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
-			    "BC_%d : Link UP on Physical Port %d\n",
-			    evt->physical_port);
-		break;
-	default:
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
-			    "BC_%d : Unexpected Async Notification %d on"
-			    "Physical Port %d\n",
-			    evt->port_link_status,
+			    "BC_%d : Link UP on Port %d\n",
 			    evt->physical_port);
 	}
 }
@@ -479,7 +488,7 @@ static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 {
 	void __iomem *db = ctrl->db + MPU_MAILBOX_DB_OFFSET;
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
-	int wait = 0;
+	uint32_t wait = 0;
 	u32 ready;
 
 	do {
@@ -526,6 +535,10 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 	struct be_mcc_mailbox *mbox = mbox_mem->va;
 	struct be_mcc_compl *compl = &mbox->compl;
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
+
+	status = be_mbox_db_ready_wait(ctrl);
+	if (status)
+		return status;
 
 	val &= ~MPU_MAILBOX_DB_RDY_MASK;
 	val |= MPU_MAILBOX_DB_HI_MASK;
@@ -579,6 +592,10 @@ static int be_mbox_notify_wait(struct beiscsi_hba *phba)
 	struct be_mcc_mailbox *mbox = mbox_mem->va;
 	struct be_mcc_compl *compl = &mbox->compl;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
+
+	status = be_mbox_db_ready_wait(ctrl);
+	if (status)
+		return status;
 
 	val |= MPU_MAILBOX_DB_HI_MASK;
 	/* at bits 2 - 31 place mbox dma addr msb bits 34 - 63 */
@@ -732,6 +749,16 @@ int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 	return status;
 }
 
+/**
+ * be_cmd_fw_initialize()- Initialize FW
+ * @ctrl: Pointer to function control structure
+ *
+ * Send FW initialize pattern for the function.
+ *
+ * return
+ * Success: 0
+ * Failure: Non-Zero value
+ **/
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl)
 {
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
@@ -762,6 +789,47 @@ int be_cmd_fw_initialize(struct be_ctrl_info *ctrl)
 	return status;
 }
 
+/**
+ * be_cmd_fw_uninit()- Uinitialize FW
+ * @ctrl: Pointer to function control structure
+ *
+ * Send FW uninitialize pattern for the function
+ *
+ * return
+ * Success: 0
+ * Failure: Non-Zero value
+ **/
+int be_cmd_fw_uninit(struct be_ctrl_info *ctrl)
+{
+	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
+	int status;
+	u8 *endian_check;
+
+	spin_lock(&ctrl->mbox_lock);
+	memset(wrb, 0, sizeof(*wrb));
+
+	endian_check = (u8 *) wrb;
+	*endian_check++ = 0xFF;
+	*endian_check++ = 0xAA;
+	*endian_check++ = 0xBB;
+	*endian_check++ = 0xFF;
+	*endian_check++ = 0xFF;
+	*endian_check++ = 0xCC;
+	*endian_check++ = 0xDD;
+	*endian_check = 0xFF;
+
+	be_dws_cpu_to_le(wrb, sizeof(*wrb));
+
+	status = be_mbox_notify(ctrl);
+	if (status)
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BC_%d : be_cmd_fw_uninit Failed\n");
+
+	spin_unlock(&ctrl->mbox_lock);
+	return status;
+}
+
 int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 			  struct be_queue_info *cq, struct be_queue_info *eq,
 			  bool sol_evts, bool no_delay, int coalesce_wm)
@@ -783,20 +851,7 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 			OPCODE_COMMON_CQ_CREATE, sizeof(*req));
 
 	req->num_pages = cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
-	if (chip_skh_r(ctrl->pdev)) {
-		req->hdr.version = MBX_CMD_VER2;
-		req->page_size = 1;
-		AMAP_SET_BITS(struct amap_cq_context_v2, coalescwm,
-			      ctxt, coalesce_wm);
-		AMAP_SET_BITS(struct amap_cq_context_v2, nodelay,
-			      ctxt, no_delay);
-		AMAP_SET_BITS(struct amap_cq_context_v2, count, ctxt,
-			      __ilog2_u32(cq->len / 256));
-		AMAP_SET_BITS(struct amap_cq_context_v2, valid, ctxt, 1);
-		AMAP_SET_BITS(struct amap_cq_context_v2, eventable, ctxt, 1);
-		AMAP_SET_BITS(struct amap_cq_context_v2, eqid, ctxt, eq->id);
-		AMAP_SET_BITS(struct amap_cq_context_v2, armed, ctxt, 1);
-	} else {
+	if (is_chip_be2_be3r(phba)) {
 		AMAP_SET_BITS(struct amap_cq_context, coalescwm,
 			      ctxt, coalesce_wm);
 		AMAP_SET_BITS(struct amap_cq_context, nodelay, ctxt, no_delay);
@@ -809,6 +864,19 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 		AMAP_SET_BITS(struct amap_cq_context, armed, ctxt, 1);
 		AMAP_SET_BITS(struct amap_cq_context, func, ctxt,
 			      PCI_FUNC(ctrl->pdev->devfn));
+	} else {
+		req->hdr.version = MBX_CMD_VER2;
+		req->page_size = 1;
+		AMAP_SET_BITS(struct amap_cq_context_v2, coalescwm,
+			      ctxt, coalesce_wm);
+		AMAP_SET_BITS(struct amap_cq_context_v2, nodelay,
+			      ctxt, no_delay);
+		AMAP_SET_BITS(struct amap_cq_context_v2, count, ctxt,
+			      __ilog2_u32(cq->len / 256));
+		AMAP_SET_BITS(struct amap_cq_context_v2, valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_v2, eventable, ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_v2, eqid, ctxt, eq->id);
+		AMAP_SET_BITS(struct amap_cq_context_v2, armed, ctxt, 1);
 	}
 
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
@@ -949,6 +1017,7 @@ int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
 	struct be_defq_create_req *req = embedded_payload(wrb);
 	struct be_dma_mem *q_mem = &dq->dma_mem;
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	void *ctxt = &req->context;
 	int status;
 
@@ -961,17 +1030,36 @@ int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 			   OPCODE_COMMON_ISCSI_DEFQ_CREATE, sizeof(*req));
 
 	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, rx_pdid, ctxt, 0);
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, rx_pdid_valid, ctxt,
-		      1);
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, pci_func_id, ctxt,
-		      PCI_FUNC(ctrl->pdev->devfn));
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, ring_size, ctxt,
-		      be_encoded_q_len(length / sizeof(struct phys_addr)));
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, default_buffer_size,
-		      ctxt, entry_size);
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, cq_id_recv, ctxt,
-		      cq->id);
+
+	if (is_chip_be2_be3r(phba)) {
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      rx_pdid, ctxt, 0);
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      rx_pdid_valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      pci_func_id, ctxt, PCI_FUNC(ctrl->pdev->devfn));
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      ring_size, ctxt,
+			      be_encoded_q_len(length /
+			      sizeof(struct phys_addr)));
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      default_buffer_size, ctxt, entry_size);
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      cq_id_recv, ctxt,	cq->id);
+	} else {
+		AMAP_SET_BITS(struct amap_default_pdu_context_ext,
+			      rx_pdid, ctxt, 0);
+		AMAP_SET_BITS(struct amap_default_pdu_context_ext,
+			      rx_pdid_valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_default_pdu_context_ext,
+			      ring_size, ctxt,
+			      be_encoded_q_len(length /
+			      sizeof(struct phys_addr)));
+		AMAP_SET_BITS(struct amap_default_pdu_context_ext,
+			      default_buffer_size, ctxt, entry_size);
+		AMAP_SET_BITS(struct amap_default_pdu_context_ext,
+			      cq_id_recv, ctxt, cq->id);
+	}
 
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
 

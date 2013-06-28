@@ -568,8 +568,7 @@ EXPORT_SYMBOL_GPL(das08_common_attach);
 
 void das08_common_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[4]);
+	comedi_spriv_free(dev, 4);
 }
 EXPORT_SYMBOL_GPL(das08_common_detach);
 

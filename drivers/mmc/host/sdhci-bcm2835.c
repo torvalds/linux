@@ -124,7 +124,7 @@ unsigned int bcm2835_sdhci_get_min_clock(struct sdhci_host *host)
 	return MIN_FREQ;
 }
 
-static struct sdhci_ops bcm2835_sdhci_ops = {
+static const struct sdhci_ops bcm2835_sdhci_ops = {
 	.write_l = bcm2835_sdhci_writel,
 	.write_w = bcm2835_sdhci_writew,
 	.write_b = bcm2835_sdhci_writeb,
@@ -135,7 +135,7 @@ static struct sdhci_ops bcm2835_sdhci_ops = {
 	.get_min_clock = bcm2835_sdhci_get_min_clock,
 };
 
-static struct sdhci_pltfm_data bcm2835_sdhci_pdata = {
+static const struct sdhci_pltfm_data bcm2835_sdhci_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK,
 	.ops = &bcm2835_sdhci_ops,

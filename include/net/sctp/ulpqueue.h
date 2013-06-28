@@ -49,7 +49,6 @@
 
 /* A structure to carry information to the ULP (e.g. Sockets API) */
 struct sctp_ulpq {
-	char malloced;
 	char pd_mode;
 	struct sctp_association *asoc;
 	struct sk_buff_head reasm;

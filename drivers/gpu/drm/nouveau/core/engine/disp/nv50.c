@@ -572,7 +572,8 @@ nv50_disp_base_ctor(struct nouveau_object *parent,
 	priv->base.vblank->priv = priv;
 	priv->base.vblank->enable = nv50_disp_base_vblank_enable;
 	priv->base.vblank->disable = nv50_disp_base_vblank_disable;
-	return nouveau_ramht_new(parent, parent, 0x1000, 0, &base->ramht);
+	return nouveau_ramht_new(nv_object(base), nv_object(base), 0x1000, 0,
+				&base->ramht);
 }
 
 static void
@@ -719,7 +720,7 @@ nv50_disp_data_ctor(struct nouveau_object *parent,
 	if (nv_mclass(parent) != NV_DEVICE_CLASS) {
 		atomic_inc(&parent->refcount);
 		*pobject = parent;
-		return 0;
+		return 1;
 	}
 
 	/* allocate display hardware to client */

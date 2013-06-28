@@ -15,6 +15,7 @@ config ARCH_OMAP2PLUS
 	select OMAP_DM_TIMER
 	select PINCTRL
 	select PROC_DEVICETREE if PROC_FS
+	select SOC_BUS
 	select SPARSE_IRQ
 	select USE_OF
 	help
@@ -36,8 +37,6 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select NEON if ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5
 	select PM_RUNTIME
 	select REGULATOR
-	select SERIAL_OMAP
-	select SERIAL_OMAP_CONSOLE
 	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4
 	select TWL4030_POWER if ARCH_OMAP3 || ARCH_OMAP4
 	select VFP
@@ -55,6 +54,7 @@ config SOC_HAS_REALTIME_COUNTER
 config ARCH_OMAP2
 	bool "TI OMAP2"
 	depends on ARCH_OMAP2PLUS
+	depends on ARCH_MULTI_V6
 	default y
 	select CPU_V6
 	select MULTI_IRQ_HANDLER
@@ -64,6 +64,7 @@ config ARCH_OMAP2
 config ARCH_OMAP3
 	bool "TI OMAP3"
 	depends on ARCH_OMAP2PLUS
+	depends on ARCH_MULTI_V7
 	default y
 	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
@@ -80,6 +81,7 @@ config ARCH_OMAP4
 	bool "TI OMAP4"
 	default y
 	depends on ARCH_OMAP2PLUS
+	depends on ARCH_MULTI_V7
 	select ARCH_HAS_OPP
 	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 	select ARM_CPU_SUSPEND if PM
@@ -87,6 +89,8 @@ config ARCH_OMAP4
 	select ARM_GIC
 	select CACHE_L2X0
 	select CPU_V7
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
 	select HAVE_SMP
 	select LOCAL_TIMERS if SMP
 	select OMAP_INTERCONNECT
@@ -96,9 +100,12 @@ config ARCH_OMAP4
 	select PM_RUNTIME if CPU_IDLE
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select COMMON_CLK
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
 
 config SOC_OMAP5
 	bool "TI OMAP5"
+	depends on ARCH_MULTI_V7
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
 	select CPU_V7
@@ -135,6 +142,7 @@ config SOC_TI81XX
 
 config SOC_AM33XX
 	bool "AM33XX support"
+	depends on ARCH_MULTI_V7
 	default y
 	select ARM_CPU_SUSPEND if PM
 	select CPU_V7
@@ -408,7 +416,7 @@ config OMAP3_SDRC_AC_TIMING
 
 config OMAP4_ERRATA_I688
 	bool "OMAP4 errata: Async Bridge Corruption"
-	depends on ARCH_OMAP4 && !ARCH_MULTIPLATFORM
+	depends on (ARCH_OMAP4 || SOC_OMAP5) && !ARCH_MULTIPLATFORM
 	select ARCH_HAS_BARRIERS
 	help
 	  If a data is stalled inside asynchronous bridge because of back

@@ -553,7 +553,7 @@ static int lcd_proc_show(struct seq_file *m, void *v)
 
 static int lcd_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, lcd_proc_show, PDE(inode)->data);
+	return single_open(file, lcd_proc_show, PDE_DATA(inode));
 }
 
 static int set_lcd_brightness(struct toshiba_acpi_dev *dev, int value)
@@ -583,7 +583,7 @@ static int set_lcd_status(struct backlight_device *bd)
 static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
+	struct toshiba_acpi_dev *dev = PDE_DATA(file_inode(file));
 	char cmd[42];
 	size_t len;
 	int value;
@@ -644,13 +644,13 @@ static int video_proc_show(struct seq_file *m, void *v)
 
 static int video_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, video_proc_show, PDE(inode)->data);
+	return single_open(file, video_proc_show, PDE_DATA(inode));
 }
 
 static ssize_t video_proc_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
+	struct toshiba_acpi_dev *dev = PDE_DATA(file_inode(file));
 	char *cmd, *buffer;
 	int ret;
 	int value;
@@ -744,13 +744,13 @@ static int fan_proc_show(struct seq_file *m, void *v)
 
 static int fan_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, fan_proc_show, PDE(inode)->data);
+	return single_open(file, fan_proc_show, PDE_DATA(inode));
 }
 
 static ssize_t fan_proc_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
+	struct toshiba_acpi_dev *dev = PDE_DATA(file_inode(file));
 	char cmd[42];
 	size_t len;
 	int value;
@@ -816,13 +816,13 @@ static int keys_proc_show(struct seq_file *m, void *v)
 
 static int keys_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, keys_proc_show, PDE(inode)->data);
+	return single_open(file, keys_proc_show, PDE_DATA(inode));
 }
 
 static ssize_t keys_proc_write(struct file *file, const char __user *buf,
 			       size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
+	struct toshiba_acpi_dev *dev = PDE_DATA(file_inode(file));
 	char cmd[42];
 	size_t len;
 	int value;
@@ -859,7 +859,7 @@ static int version_proc_show(struct seq_file *m, void *v)
 
 static int version_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, version_proc_show, PDE(inode)->data);
+	return single_open(file, version_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations version_proc_fops = {

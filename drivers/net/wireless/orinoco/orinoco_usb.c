@@ -1584,7 +1584,7 @@ static int ezusb_probe(struct usb_interface *interface,
 	struct ezusb_priv *upriv = NULL;
 	struct usb_interface_descriptor *iface_desc;
 	struct usb_endpoint_descriptor *ep;
-	const struct firmware *fw_entry;
+	const struct firmware *fw_entry = NULL;
 	int retval = 0;
 	int i;
 

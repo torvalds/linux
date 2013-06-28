@@ -50,7 +50,6 @@
 
 struct eth_dev {
 	/* lock is held while accessing port_usb
-	 * or updating its backlink port_usb->ioport
 	 */
 	spinlock_t		lock;
 	struct gether		*port_usb;
@@ -729,8 +728,6 @@ static int get_ether_addr(const char *str, u8 *dev_addr)
 	return 1;
 }
 
-static struct eth_dev *the_dev;
-
 static const struct net_device_ops eth_netdev_ops = {
 	.ndo_open		= eth_open,
 	.ndo_stop		= eth_stop,
@@ -758,19 +755,16 @@ static struct device_type gadget_type = {
  *
  * Returns negative errno, or zero on success
  */
-int gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
+struct eth_dev *gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
 		const char *netname)
 {
 	struct eth_dev		*dev;
 	struct net_device	*net;
 	int			status;
 
-	if (the_dev)
-		return -EBUSY;
-
 	net = alloc_etherdev(sizeof *dev);
 	if (!net)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	dev = netdev_priv(net);
 	spin_lock_init(&dev->lock);
@@ -807,11 +801,10 @@ int gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
 	if (status < 0) {
 		dev_dbg(&g->dev, "register_netdev failed, %d\n", status);
 		free_netdev(net);
+		dev = ERR_PTR(status);
 	} else {
 		INFO(dev, "MAC %pM\n", net->dev_addr);
 		INFO(dev, "HOST MAC %pM\n", dev->host_mac);
-
-		the_dev = dev;
 
 		/* two kinds of host-initiated state changes:
 		 *  - iff DATA transfer is active, carrier is "on"
@@ -820,7 +813,7 @@ int gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
 		netif_carrier_off(net);
 	}
 
-	return status;
+	return dev;
 }
 
 /**
@@ -829,18 +822,15 @@ int gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
  *
  * This is called to free all resources allocated by @gether_setup().
  */
-void gether_cleanup(void)
+void gether_cleanup(struct eth_dev *dev)
 {
-	if (!the_dev)
+	if (!dev)
 		return;
 
-	unregister_netdev(the_dev->net);
-	flush_work(&the_dev->work);
-	free_netdev(the_dev->net);
-
-	the_dev = NULL;
+	unregister_netdev(dev->net);
+	flush_work(&dev->work);
+	free_netdev(dev->net);
 }
-
 
 /**
  * gether_connect - notify network layer that USB link is active
@@ -860,7 +850,7 @@ void gether_cleanup(void)
  */
 struct net_device *gether_connect(struct gether *link)
 {
-	struct eth_dev		*dev = the_dev;
+	struct eth_dev		*dev = link->ioport;
 	int			result = 0;
 
 	if (!dev)
@@ -895,7 +885,6 @@ struct net_device *gether_connect(struct gether *link)
 
 		spin_lock(&dev->lock);
 		dev->port_usb = link;
-		link->ioport = dev;
 		if (netif_running(dev->net)) {
 			if (link->open)
 				link->open(link);
@@ -989,6 +978,5 @@ void gether_disconnect(struct gether *link)
 
 	spin_lock(&dev->lock);
 	dev->port_usb = NULL;
-	link->ioport = NULL;
 	spin_unlock(&dev->lock);
 }

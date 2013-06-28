@@ -8,7 +8,10 @@
 
 obj-y := prom.o of.o reset.o clk.o irq.o
 
+obj-$(CONFIG_SOC_RT288X) += rt288x.o
 obj-$(CONFIG_SOC_RT305X) += rt305x.o
+obj-$(CONFIG_SOC_RT3883) += rt3883.o
+obj-$(CONFIG_SOC_MT7620) += mt7620.o
 
 obj-$(CONFIG_EARLY_PRINTK) += early_printk.o
 

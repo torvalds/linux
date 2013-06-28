@@ -34,11 +34,17 @@
 			reg = <0x7e100000 0x28>;
 		};
 
+		rng {
+			compatible = "brcm,bcm2835-rng";
+			reg = <0x7e104000 0x10>;
+		};
+
 		uart@20201000 {
 			compatible = "brcm,bcm2835-pl011", "arm,pl011", "arm,primecell";
 			reg = <0x7e201000 0x1000>;
 			interrupts = <2 25>;
 			clock-frequency = <3000000>;
+			arm,primecell-periphid = <0x00241011>;
 		};
 
 		gpio: gpio {
@@ -62,6 +68,16 @@
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
+		};
+
+		spi: spi@20204000 {
+			compatible = "brcm,bcm2835-spi";
+			reg = <0x7e204000 0x1000>;
+			interrupts = <2 22>;
+			clocks = <&clk_spi>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		i2c0: i2c@20205000 {
@@ -104,6 +120,13 @@
 		clk_i2c: i2c {
 			compatible = "fixed-clock";
 			reg = <1>;
+			#clock-cells = <0>;
+			clock-frequency = <250000000>;
+		};
+
+		clk_spi: spi {
+			compatible = "fixed-clock";
+			reg = <2>;
 			#clock-cells = <0>;
 			clock-frequency = <250000000>;
 		};

@@ -97,6 +97,7 @@
 #include <net/ip.h>
 #include <net/udp.h>
 #include <net/xfrm.h>
+#include <net/inet_common.h>
 
 #include <asm/byteorder.h>
 #include <linux/atomic.h>
@@ -259,7 +260,7 @@ static void pppol2tp_recv(struct l2tp_session *session, struct sk_buff *skb, int
 			  session->name);
 
 		/* Not bound. Nothing we can do, so discard. */
-		session->stats.rx_errors++;
+		atomic_long_inc(&session->stats.rx_errors);
 		kfree_skb(skb);
 	}
 
@@ -447,34 +448,16 @@ static void pppol2tp_session_close(struct l2tp_session *session)
 {
 	struct pppol2tp_session *ps = l2tp_session_priv(session);
 	struct sock *sk = ps->sock;
-	struct sk_buff *skb;
+	struct socket *sock = sk->sk_socket;
 
 	BUG_ON(session->magic != L2TP_SESSION_MAGIC);
 
-	if (session->session_id == 0)
-		goto out;
 
-	if (sk != NULL) {
-		lock_sock(sk);
-
-		if (sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND)) {
-			pppox_unbind_sock(sk);
-			sk->sk_state = PPPOX_DEAD;
-			sk->sk_state_change(sk);
-		}
-
-		/* Purge any queued data */
-		skb_queue_purge(&sk->sk_receive_queue);
-		skb_queue_purge(&sk->sk_write_queue);
-		while ((skb = skb_dequeue(&session->reorder_q))) {
-			kfree_skb(skb);
-			sock_put(sk);
-		}
-
-		release_sock(sk);
+	if (sock) {
+		inet_shutdown(sock, 2);
+		/* Don't let the session go away before our socket does */
+		l2tp_session_inc_refcount(session);
 	}
-
-out:
 	return;
 }
 
@@ -483,19 +466,12 @@ out:
  */
 static void pppol2tp_session_destruct(struct sock *sk)
 {
-	struct l2tp_session *session;
-
-	if (sk->sk_user_data != NULL) {
-		session = sk->sk_user_data;
-		if (session == NULL)
-			goto out;
-
+	struct l2tp_session *session = sk->sk_user_data;
+	if (session) {
 		sk->sk_user_data = NULL;
 		BUG_ON(session->magic != L2TP_SESSION_MAGIC);
 		l2tp_session_dec_refcount(session);
 	}
-
-out:
 	return;
 }
 
@@ -525,16 +501,13 @@ static int pppol2tp_release(struct socket *sock)
 	session = pppol2tp_sock_to_session(sk);
 
 	/* Purge any queued data */
-	skb_queue_purge(&sk->sk_receive_queue);
-	skb_queue_purge(&sk->sk_write_queue);
 	if (session != NULL) {
-		struct sk_buff *skb;
-		while ((skb = skb_dequeue(&session->reorder_q))) {
-			kfree_skb(skb);
-			sock_put(sk);
-		}
+		__l2tp_session_unhash(session);
+		l2tp_session_queue_purge(session);
 		sock_put(sk);
 	}
+	skb_queue_purge(&sk->sk_receive_queue);
+	skb_queue_purge(&sk->sk_write_queue);
 
 	release_sock(sk);
 
@@ -880,18 +853,6 @@ out:
 	return error;
 }
 
-/* Called when deleting sessions via the netlink interface.
- */
-static int pppol2tp_session_delete(struct l2tp_session *session)
-{
-	struct pppol2tp_session *ps = l2tp_session_priv(session);
-
-	if (ps->sock == NULL)
-		l2tp_session_dec_refcount(session);
-
-	return 0;
-}
-
 #endif /* CONFIG_L2TP_V3 */
 
 /* getname() support.
@@ -1025,14 +986,14 @@ end:
 static void pppol2tp_copy_stats(struct pppol2tp_ioc_stats *dest,
 				struct l2tp_stats *stats)
 {
-	dest->tx_packets = stats->tx_packets;
-	dest->tx_bytes = stats->tx_bytes;
-	dest->tx_errors = stats->tx_errors;
-	dest->rx_packets = stats->rx_packets;
-	dest->rx_bytes = stats->rx_bytes;
-	dest->rx_seq_discards = stats->rx_seq_discards;
-	dest->rx_oos_packets = stats->rx_oos_packets;
-	dest->rx_errors = stats->rx_errors;
+	dest->tx_packets = atomic_long_read(&stats->tx_packets);
+	dest->tx_bytes = atomic_long_read(&stats->tx_bytes);
+	dest->tx_errors = atomic_long_read(&stats->tx_errors);
+	dest->rx_packets = atomic_long_read(&stats->rx_packets);
+	dest->rx_bytes = atomic_long_read(&stats->rx_bytes);
+	dest->rx_seq_discards = atomic_long_read(&stats->rx_seq_discards);
+	dest->rx_oos_packets = atomic_long_read(&stats->rx_oos_packets);
+	dest->rx_errors = atomic_long_read(&stats->rx_errors);
 }
 
 /* Session ioctl helper.
@@ -1666,14 +1627,14 @@ static void pppol2tp_seq_tunnel_show(struct seq_file *m, void *v)
 		   tunnel->name,
 		   (tunnel == tunnel->sock->sk_user_data) ? 'Y' : 'N',
 		   atomic_read(&tunnel->ref_count) - 1);
-	seq_printf(m, " %08x %llu/%llu/%llu %llu/%llu/%llu\n",
+	seq_printf(m, " %08x %ld/%ld/%ld %ld/%ld/%ld\n",
 		   tunnel->debug,
-		   (unsigned long long)tunnel->stats.tx_packets,
-		   (unsigned long long)tunnel->stats.tx_bytes,
-		   (unsigned long long)tunnel->stats.tx_errors,
-		   (unsigned long long)tunnel->stats.rx_packets,
-		   (unsigned long long)tunnel->stats.rx_bytes,
-		   (unsigned long long)tunnel->stats.rx_errors);
+		   atomic_long_read(&tunnel->stats.tx_packets),
+		   atomic_long_read(&tunnel->stats.tx_bytes),
+		   atomic_long_read(&tunnel->stats.tx_errors),
+		   atomic_long_read(&tunnel->stats.rx_packets),
+		   atomic_long_read(&tunnel->stats.rx_bytes),
+		   atomic_long_read(&tunnel->stats.rx_errors));
 }
 
 static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
@@ -1708,14 +1669,14 @@ static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
 		   session->lns_mode ? "LNS" : "LAC",
 		   session->debug,
 		   jiffies_to_msecs(session->reorder_timeout));
-	seq_printf(m, "   %hu/%hu %llu/%llu/%llu %llu/%llu/%llu\n",
+	seq_printf(m, "   %hu/%hu %ld/%ld/%ld %ld/%ld/%ld\n",
 		   session->nr, session->ns,
-		   (unsigned long long)session->stats.tx_packets,
-		   (unsigned long long)session->stats.tx_bytes,
-		   (unsigned long long)session->stats.tx_errors,
-		   (unsigned long long)session->stats.rx_packets,
-		   (unsigned long long)session->stats.rx_bytes,
-		   (unsigned long long)session->stats.rx_errors);
+		   atomic_long_read(&session->stats.tx_packets),
+		   atomic_long_read(&session->stats.tx_bytes),
+		   atomic_long_read(&session->stats.tx_errors),
+		   atomic_long_read(&session->stats.rx_packets),
+		   atomic_long_read(&session->stats.rx_bytes),
+		   atomic_long_read(&session->stats.rx_errors));
 
 	if (po)
 		seq_printf(m, "   interface %s\n", ppp_dev_name(&po->chan));
@@ -1839,7 +1800,7 @@ static const struct pppox_proto pppol2tp_proto = {
 
 static const struct l2tp_nl_cmd_ops pppol2tp_nl_cmd_ops = {
 	.session_create	= pppol2tp_session_create,
-	.session_delete	= pppol2tp_session_delete,
+	.session_delete	= l2tp_session_delete,
 };
 
 #endif /* CONFIG_L2TP_V3 */

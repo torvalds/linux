@@ -312,6 +312,8 @@
 #define bfin_write_DMC0_EMR1(val) bfin_write32(DMC0_EMR1, val)
 #define bfin_read_DMC0_CTL() bfin_read32(DMC0_CTL)
 #define bfin_write_DMC0_CTL(val) bfin_write32(DMC0_CTL, val)
+#define bfin_read_DMC0_EFFCTL() bfin_read32(DMC0_EFFCTL)
+#define bfin_write_DMC0_EFFCTL(val) bfin_write32(DMC0_EFFCTL, val)
 #define bfin_read_DMC0_STAT() bfin_read32(DMC0_STAT)
 #define bfin_write_DMC0_STAT(val) bfin_write32(DMC0_STAT, val)
 #define bfin_read_DMC0_DLLCTL() bfin_read32(DMC0_DLLCTL)

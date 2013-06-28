@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx27.dtsi"
+#include "imx27.dtsi"
 
 / {
 	model = "Freescale i.MX27 Product Development Kit";

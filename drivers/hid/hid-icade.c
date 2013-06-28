@@ -159,7 +159,7 @@ static const struct icade_key icade_usage_table[30] = {
 
 static const struct icade_key *icade_find_translation(u16 from)
 {
-	if (from < 0 || from > ICADE_MAX_USAGE)
+	if (from > ICADE_MAX_USAGE)
 		return NULL;
 	return &icade_usage_table[from];
 }

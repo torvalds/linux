@@ -22,6 +22,9 @@
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/omap-twl4030.h>
 #include <linux/usb/phy.h>
+#include <linux/pwm.h>
+#include <linux/leds_pwm.h>
+#include <linux/pwm_backlight.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -193,6 +196,53 @@ static struct platform_device omap_vwlan_device = {
 	},
 };
 
+static struct pwm_lookup zoom_pwm_lookup[] = {
+	PWM_LOOKUP("twl-pwm", 0, "leds_pwm", "zoom::keypad"),
+	PWM_LOOKUP("twl-pwm", 1, "pwm-backlight", "backlight"),
+};
+
+static struct led_pwm zoom_pwm_leds[] = {
+	{
+		.name		= "zoom::keypad",
+		.max_brightness	= 127,
+		.pwm_period_ns	= 7812500,
+	},
+};
+
+static struct led_pwm_platform_data zoom_pwm_data = {
+	.num_leds	= ARRAY_SIZE(zoom_pwm_leds),
+	.leds		= zoom_pwm_leds,
+};
+
+static struct platform_device zoom_leds_pwm = {
+	.name	= "leds_pwm",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &zoom_pwm_data,
+	},
+};
+
+static struct platform_pwm_backlight_data zoom_backlight_data = {
+	.pwm_id = 1,
+	.max_brightness = 127,
+	.dft_brightness = 127,
+	.pwm_period_ns = 7812500,
+};
+
+static struct platform_device zoom_backlight_pwm = {
+	.name   = "pwm-backlight",
+	.id     = -1,
+	.dev    = {
+		.platform_data = &zoom_backlight_data,
+	},
+};
+
+static struct platform_device *zoom_devices[] __initdata = {
+	&omap_vwlan_device,
+	&zoom_leds_pwm,
+	&zoom_backlight_pwm,
+};
+
 static struct wl12xx_platform_data omap_zoom_wlan_data __initdata = {
 	.board_ref_clock = WL12XX_REFCLOCK_26, /* 26 MHz */
 };
@@ -301,7 +351,8 @@ void __init zoom_peripherals_init(void)
 
 	omap_hsmmc_init(mmc);
 	omap_i2c_init();
-	platform_device_register(&omap_vwlan_device);
+	pwm_add_table(zoom_pwm_lookup, ARRAY_SIZE(zoom_pwm_lookup));
+	platform_add_devices(zoom_devices, ARRAY_SIZE(zoom_devices));
 	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	enable_board_wakeup_source();

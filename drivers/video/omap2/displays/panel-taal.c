@@ -33,7 +33,7 @@
 #include <linux/mutex.h>
 
 #include <video/omapdss.h>
-#include <video/omap-panel-nokia-dsi.h>
+#include <video/omap-panel-data.h>
 #include <video/mipi_display.h>
 
 /* DSI Virtual channel. Hardcoded for now. */
@@ -54,61 +54,6 @@ static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable);
 
 static int taal_panel_reset(struct omap_dss_device *dssdev);
 
-/**
- * struct panel_config - panel configuration
- * @name: panel name
- * @type: panel type
- * @timings: panel resolution
- * @sleep: various panel specific delays, passed to msleep() if non-zero
- * @reset_sequence: reset sequence timings, passed to udelay() if non-zero
- * @regulators: array of panel regulators
- * @num_regulators: number of regulators in the array
- */
-struct panel_config {
-	const char *name;
-	int type;
-
-	struct omap_video_timings timings;
-
-	struct {
-		unsigned int sleep_in;
-		unsigned int sleep_out;
-		unsigned int hw_reset;
-		unsigned int enable_te;
-	} sleep;
-
-	struct {
-		unsigned int high;
-		unsigned int low;
-	} reset_sequence;
-
-};
-
-enum {
-	PANEL_TAAL,
-};
-
-static struct panel_config panel_configs[] = {
-	{
-		.name		= "taal",
-		.type		= PANEL_TAAL,
-		.timings	= {
-			.x_res		= 864,
-			.y_res		= 480,
-		},
-		.sleep		= {
-			.sleep_in	= 5,
-			.sleep_out	= 5,
-			.hw_reset	= 5,
-			.enable_te	= 100, /* possible panel bug */
-		},
-		.reset_sequence	= {
-			.high		= 10,
-			.low		= 10,
-		},
-	},
-};
-
 struct taal_data {
 	struct mutex lock;
 
@@ -121,9 +66,6 @@ struct taal_data {
 
 	struct omap_dss_device *dssdev;
 
-	/* panel specific HW info */
-	struct panel_config *panel_config;
-
 	/* panel HW configuration from DT or platform data */
 	int reset_gpio;
 	int ext_te_gpio;
@@ -134,8 +76,6 @@ struct taal_data {
 
 	/* runtime variables */
 	bool enabled;
-	u8 rotate;
-	bool mirror;
 
 	bool te_enabled;
 
@@ -221,8 +161,7 @@ static int taal_sleep_in(struct taal_data *td)
 
 	hw_guard_start(td, 120);
 
-	if (td->panel_config->sleep.sleep_in)
-		msleep(td->panel_config->sleep.sleep_in);
+	msleep(5);
 
 	return 0;
 }
@@ -239,8 +178,7 @@ static int taal_sleep_out(struct taal_data *td)
 
 	hw_guard_start(td, 120);
 
-	if (td->panel_config->sleep.sleep_out)
-		msleep(td->panel_config->sleep.sleep_out);
+	msleep(5);
 
 	return 0;
 }
@@ -260,49 +198,6 @@ static int taal_get_id(struct taal_data *td, u8 *id1, u8 *id2, u8 *id3)
 		return r;
 
 	return 0;
-}
-
-static int taal_set_addr_mode(struct taal_data *td, u8 rotate, bool mirror)
-{
-	int r;
-	u8 mode;
-	int b5, b6, b7;
-
-	r = taal_dcs_read_1(td, MIPI_DCS_GET_ADDRESS_MODE, &mode);
-	if (r)
-		return r;
-
-	switch (rotate) {
-	default:
-	case 0:
-		b7 = 0;
-		b6 = 0;
-		b5 = 0;
-		break;
-	case 1:
-		b7 = 0;
-		b6 = 1;
-		b5 = 1;
-		break;
-	case 2:
-		b7 = 1;
-		b6 = 1;
-		b5 = 0;
-		break;
-	case 3:
-		b7 = 1;
-		b6 = 0;
-		b5 = 1;
-		break;
-	}
-
-	if (mirror)
-		b6 = !b6;
-
-	mode &= ~((1<<7) | (1<<6) | (1<<5));
-	mode |= (b7 << 7) | (b6 << 6) | (b5 << 5);
-
-	return taal_dcs_write_1(td, MIPI_DCS_SET_ADDRESS_MODE, mode);
 }
 
 static int taal_set_update_window(struct taal_data *td,
@@ -515,15 +410,8 @@ static const struct backlight_ops taal_bl_ops = {
 static void taal_get_resolution(struct omap_dss_device *dssdev,
 		u16 *xres, u16 *yres)
 {
-	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-
-	if (td->rotate == 0 || td->rotate == 2) {
-		*xres = dssdev->panel.timings.x_res;
-		*yres = dssdev->panel.timings.y_res;
-	} else {
-		*yres = dssdev->panel.timings.x_res;
-		*xres = dssdev->panel.timings.y_res;
-	}
+	*xres = dssdev->panel.timings.x_res;
+	*yres = dssdev->panel.timings.y_res;
 }
 
 static ssize_t taal_num_errors_show(struct device *dev,
@@ -845,17 +733,14 @@ static void taal_hw_reset(struct omap_dss_device *dssdev)
 		return;
 
 	gpio_set_value(td->reset_gpio, 1);
-	if (td->panel_config->reset_sequence.high)
-		udelay(td->panel_config->reset_sequence.high);
+	udelay(10);
 	/* reset the panel */
 	gpio_set_value(td->reset_gpio, 0);
 	/* assert reset */
-	if (td->panel_config->reset_sequence.low)
-		udelay(td->panel_config->reset_sequence.low);
+	udelay(10);
 	gpio_set_value(td->reset_gpio, 1);
 	/* wait after releasing reset */
-	if (td->panel_config->sleep.hw_reset)
-		msleep(td->panel_config->sleep.hw_reset);
+	msleep(5);
 }
 
 static void taal_probe_pdata(struct taal_data *td,
@@ -881,8 +766,7 @@ static int taal_probe(struct omap_dss_device *dssdev)
 	struct backlight_properties props;
 	struct taal_data *td;
 	struct backlight_device *bldev = NULL;
-	int r, i;
-	const char *panel_name;
+	int r;
 
 	dev_dbg(&dssdev->dev, "probe\n");
 
@@ -897,26 +781,13 @@ static int taal_probe(struct omap_dss_device *dssdev)
 		const struct nokia_dsi_panel_data *pdata = dssdev->data;
 
 		taal_probe_pdata(td, pdata);
-
-		panel_name = pdata->name;
 	} else {
 		return -ENODEV;
 	}
 
-	if (panel_name == NULL)
-		return -EINVAL;
-
-	for (i = 0; i < ARRAY_SIZE(panel_configs); i++) {
-		if (strcmp(panel_name, panel_configs[i].name) == 0) {
-			td->panel_config = &panel_configs[i];
-			break;
-		}
-	}
-
-	if (!td->panel_config)
-		return -EINVAL;
-
-	dssdev->panel.timings = td->panel_config->timings;
+	dssdev->panel.timings.x_res = 864;
+	dssdev->panel.timings.y_res = 480;
+	dssdev->panel.timings.pixel_clock = DIV_ROUND_UP(864 * 480 * 60, 1000);
 	dssdev->panel.dsi_pix_fmt = OMAP_DSS_DSI_FMT_RGB888;
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
 		OMAP_DSS_DISPLAY_CAP_TEAR_ELIM;
@@ -1049,6 +920,15 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	u8 id1, id2, id3;
 	int r;
+	struct omap_dss_dsi_config dsi_config = {
+		.mode = OMAP_DSS_DSI_CMD_MODE,
+		.pixel_format = OMAP_DSS_DSI_FMT_RGB888,
+		.timings = &dssdev->panel.timings,
+		.hs_clk_min = 150000000,
+		.hs_clk_max = 300000000,
+		.lp_clk_min = 7000000,
+		.lp_clk_max = 10000000,
+	};
 
 	r = omapdss_dsi_configure_pins(dssdev, &td->pin_config);
 	if (r) {
@@ -1056,14 +936,9 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 		goto err0;
 	};
 
-	omapdss_dsi_set_size(dssdev, dssdev->panel.timings.x_res,
-		dssdev->panel.timings.y_res);
-	omapdss_dsi_set_pixel_format(dssdev, OMAP_DSS_DSI_FMT_RGB888);
-	omapdss_dsi_set_operation_mode(dssdev, OMAP_DSS_DSI_CMD_MODE);
-
-	r = omapdss_dsi_set_clocks(dssdev, 216000000, 10000000);
+	r = omapdss_dsi_set_config(dssdev, &dsi_config);
 	if (r) {
-		dev_err(&dssdev->dev, "failed to set HS and LP clocks\n");
+		dev_err(&dssdev->dev, "failed to configure DSI\n");
 		goto err0;
 	}
 
@@ -1086,8 +961,7 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 		goto err;
 
 	/* on early Taal revisions CABC is broken */
-	if (td->panel_config->type == PANEL_TAAL &&
-		(id2 == 0x00 || id2 == 0xff || id2 == 0x81))
+	if (id2 == 0x00 || id2 == 0xff || id2 == 0x81)
 		td->cabc_broken = true;
 
 	r = taal_dcs_write_1(td, DCS_BRIGHTNESS, 0xff);
@@ -1101,10 +975,6 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 
 	r = taal_dcs_write_1(td, MIPI_DCS_SET_PIXEL_FORMAT,
 		MIPI_DCS_PIXEL_FMT_24BIT);
-	if (r)
-		goto err;
-
-	r = taal_set_addr_mode(td, td->rotate, td->mirror);
 	if (r)
 		goto err;
 
@@ -1129,8 +999,8 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	td->enabled = 1;
 
 	if (!td->intro_printed) {
-		dev_info(&dssdev->dev, "%s panel revision %02x.%02x.%02x\n",
-			td->panel_config->name, id1, id2, id3);
+		dev_info(&dssdev->dev, "panel revision %02x.%02x.%02x\n",
+			id1, id2, id3);
 		if (td->cabc_broken)
 			dev_info(&dssdev->dev,
 					"old Taal version, CABC disabled\n");
@@ -1311,8 +1181,8 @@ static int taal_update(struct omap_dss_device *dssdev,
 
 	/* XXX no need to send this every frame, but dsi break if not done */
 	r = taal_set_update_window(td, 0, 0,
-			td->panel_config->timings.x_res,
-			td->panel_config->timings.y_res);
+			dssdev->panel.timings.x_res,
+			dssdev->panel.timings.y_res);
 	if (r)
 		goto err;
 
@@ -1365,8 +1235,8 @@ static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 	if (!gpio_is_valid(td->ext_te_gpio))
 		omapdss_dsi_enable_te(dssdev, enable);
 
-	if (td->panel_config->sleep.enable_te)
-		msleep(td->panel_config->sleep.enable_te);
+	/* possible panel bug */
+	msleep(100);
 
 	return r;
 }
@@ -1414,112 +1284,6 @@ static int taal_get_te(struct omap_dss_device *dssdev)
 
 	mutex_lock(&td->lock);
 	r = td->te_enabled;
-	mutex_unlock(&td->lock);
-
-	return r;
-}
-
-static int taal_rotate(struct omap_dss_device *dssdev, u8 rotate)
-{
-	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	u16 dw, dh;
-	int r;
-
-	dev_dbg(&dssdev->dev, "rotate %d\n", rotate);
-
-	mutex_lock(&td->lock);
-
-	if (td->rotate == rotate)
-		goto end;
-
-	dsi_bus_lock(dssdev);
-
-	if (td->enabled) {
-		r = taal_wake_up(dssdev);
-		if (r)
-			goto err;
-
-		r = taal_set_addr_mode(td, rotate, td->mirror);
-		if (r)
-			goto err;
-	}
-
-	if (rotate == 0 || rotate == 2) {
-		dw = dssdev->panel.timings.x_res;
-		dh = dssdev->panel.timings.y_res;
-	} else {
-		dw = dssdev->panel.timings.y_res;
-		dh = dssdev->panel.timings.x_res;
-	}
-
-	omapdss_dsi_set_size(dssdev, dw, dh);
-
-	td->rotate = rotate;
-
-	dsi_bus_unlock(dssdev);
-end:
-	mutex_unlock(&td->lock);
-	return 0;
-err:
-	dsi_bus_unlock(dssdev);
-	mutex_unlock(&td->lock);
-	return r;
-}
-
-static u8 taal_get_rotate(struct omap_dss_device *dssdev)
-{
-	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	int r;
-
-	mutex_lock(&td->lock);
-	r = td->rotate;
-	mutex_unlock(&td->lock);
-
-	return r;
-}
-
-static int taal_mirror(struct omap_dss_device *dssdev, bool enable)
-{
-	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	int r;
-
-	dev_dbg(&dssdev->dev, "mirror %d\n", enable);
-
-	mutex_lock(&td->lock);
-
-	if (td->mirror == enable)
-		goto end;
-
-	dsi_bus_lock(dssdev);
-	if (td->enabled) {
-		r = taal_wake_up(dssdev);
-		if (r)
-			goto err;
-
-		r = taal_set_addr_mode(td, td->rotate, enable);
-		if (r)
-			goto err;
-	}
-
-	td->mirror = enable;
-
-	dsi_bus_unlock(dssdev);
-end:
-	mutex_unlock(&td->lock);
-	return 0;
-err:
-	dsi_bus_unlock(dssdev);
-	mutex_unlock(&td->lock);
-	return r;
-}
-
-static bool taal_get_mirror(struct omap_dss_device *dssdev)
-{
-	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	int r;
-
-	mutex_lock(&td->lock);
-	r = td->mirror;
 	mutex_unlock(&td->lock);
 
 	return r;
@@ -1758,10 +1522,6 @@ static struct omap_dss_driver taal_driver = {
 	.enable_te	= taal_enable_te,
 	.get_te		= taal_get_te,
 
-	.set_rotate	= taal_rotate,
-	.get_rotate	= taal_get_rotate,
-	.set_mirror	= taal_mirror,
-	.get_mirror	= taal_get_mirror,
 	.run_test	= taal_run_test,
 	.memory_read	= taal_memory_read,
 

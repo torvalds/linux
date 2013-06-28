@@ -59,11 +59,18 @@ struct nfs_lockowner {
 	pid_t l_pid;
 };
 
+#define NFS_IO_INPROGRESS 0
+struct nfs_io_counter {
+	unsigned long flags;
+	atomic_t io_count;
+};
+
 struct nfs_lock_context {
 	atomic_t count;
 	struct list_head list;
 	struct nfs_open_context *open_context;
 	struct nfs_lockowner lockowner;
+	struct nfs_io_counter io_count;
 };
 
 struct nfs4_state;
@@ -77,6 +84,7 @@ struct nfs_open_context {
 	unsigned long flags;
 #define NFS_CONTEXT_ERROR_WRITE		(0)
 #define NFS_CONTEXT_RESEND_WRITES	(1)
+#define NFS_CONTEXT_BAD			(2)
 	int error;
 
 	struct list_head list;

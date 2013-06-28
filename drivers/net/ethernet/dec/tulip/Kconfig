@@ -108,6 +108,7 @@ config TULIP_DM910X
 config DE4X5
 	tristate "Generic DECchip & DIGITAL EtherWORKS PCI/EISA"
 	depends on (PCI || EISA)
+	depends on VIRT_TO_BUS || ALPHA || PPC || SPARC
 	select CRC32
 	---help---
 	  This is support for the DIGITAL series of PCI/EISA Ethernet cards.

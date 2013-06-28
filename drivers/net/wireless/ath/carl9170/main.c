@@ -929,6 +929,9 @@ static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+		enum nl80211_channel_type channel_type =
+			cfg80211_get_chandef_type(&hw->conf.chandef);
+
 		/* adjust slot time for 5 GHz */
 		err = carl9170_set_slot_time(ar);
 		if (err)
@@ -938,8 +941,8 @@ static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (err)
 			goto out;
 
-		err = carl9170_set_channel(ar, hw->conf.channel,
-			hw->conf.channel_type, CARL9170_RFI_NONE);
+		err = carl9170_set_channel(ar, hw->conf.chandef.chan,
+					   channel_type);
 		if (err)
 			goto out;
 
@@ -957,7 +960,7 @@ static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		err = carl9170_set_mac_tpc(ar, ar->hw->conf.channel);
+		err = carl9170_set_mac_tpc(ar, ar->hw->conf.chandef.chan);
 		if (err)
 			goto out;
 	}
@@ -1703,7 +1706,7 @@ found:
 	return 0;
 }
 
-static void carl9170_op_flush(struct ieee80211_hw *hw, bool drop)
+static void carl9170_op_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 {
 	struct ar9170 *ar = hw->priv;
 	unsigned int vid;

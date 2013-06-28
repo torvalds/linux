@@ -169,8 +169,9 @@ static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
 		 * needs to be redone!
 		 */
 		goto no_refresh;
-	rc = rpcit_instr((u64) zdev->fh << 32, start_dma_addr,
-			  nr_pages * PAGE_SIZE);
+
+	rc = s390pci_refresh_trans((u64) zdev->fh << 32, start_dma_addr,
+				   nr_pages * PAGE_SIZE);
 
 no_refresh:
 	spin_unlock_irqrestore(&zdev->dma_table_lock, irq_flags);
@@ -268,8 +269,6 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 	int flags = ZPCI_PTE_VALID;
 	dma_addr_t dma_addr;
 
-	WARN_ON_ONCE(offset > PAGE_SIZE);
-
 	/* This rounds up number of pages based on size and offset */
 	nr_pages = iommu_num_pages(pa, size, PAGE_SIZE);
 	iommu_page_index = dma_alloc_iommu(zdev, nr_pages);
@@ -291,7 +290,7 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 
 	if (!dma_update_trans(zdev, pa, dma_addr, size, flags)) {
 		atomic64_add(nr_pages, (atomic64_t *) &zdev->fmb->mapped_pages);
-		return dma_addr + offset;
+		return dma_addr + (offset & ~PAGE_MASK);
 	}
 
 out_free:

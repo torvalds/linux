@@ -3547,6 +3547,16 @@ void bttv_init_card2(struct bttv *btv)
 	if (btv->sd_msp34xx)
 		return;
 
+	/* Now see if we can find one of the tvaudio devices. */
+	btv->sd_tvaudio = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
+		&btv->c.i2c_adap, "tvaudio", 0, tvaudio_addrs());
+	if (btv->sd_tvaudio) {
+		/* There may be two tvaudio chips on the card, so try to
+		   find another. */
+		v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
+			&btv->c.i2c_adap, "tvaudio", 0, tvaudio_addrs());
+	}
+
 	/* it might also be a tda7432. */
 	if (!bttv_tvcards[btv->c.type].no_tda7432) {
 		static const unsigned short addrs[] = {
@@ -3554,14 +3564,11 @@ void bttv_init_card2(struct bttv *btv)
 			I2C_CLIENT_END
 		};
 
-		if (v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, "tda7432", 0, addrs))
+		btv->sd_tda7432 = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
+				&btv->c.i2c_adap, "tda7432", 0, addrs);
+		if (btv->sd_tda7432)
 			return;
 	}
-
-	/* Now see if we can find one of the tvaudio devices. */
-	btv->sd_tvaudio = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-		&btv->c.i2c_adap, "tvaudio", 0, tvaudio_addrs());
 	if (btv->sd_tvaudio)
 		return;
 
@@ -3940,7 +3947,7 @@ static void avermedia_eeprom(struct bttv *btv)
 u32 bttv_tda9880_setnorm(struct bttv *btv, u32 gpiobits)
 {
 
-	if (btv->audio == TVAUDIO_INPUT_TUNER) {
+	if (btv->audio_input == TVAUDIO_INPUT_TUNER) {
 		if (bttv_tvnorms[btv->tvnorm].v4l2_id & V4L2_STD_MN)
 			gpiobits |= 0x10000;
 		else

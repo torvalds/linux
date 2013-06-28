@@ -318,8 +318,6 @@ static int lance_rx (struct net_device *dev)
 			struct sk_buff *skb = netdev_alloc_skb(dev, len + 2);
 
                         if (!skb) {
-                                printk ("%s: Memory squeeze, deferring packet.\n",
-                                        dev->name);
                                 dev->stats.rx_dropped++;
                                 rd->mblength = 0;
                                 rd->rmd1_bits = LE_R1_OWN;

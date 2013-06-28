@@ -59,12 +59,34 @@ static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
                                          bool autoneg_wait_to_complete);
 static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw);
 
+static bool ixgbe_mng_enabled(struct ixgbe_hw *hw)
+{
+	u32 fwsm, manc, factps;
+
+	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM);
+	if ((fwsm & IXGBE_FWSM_MODE_MASK) != IXGBE_FWSM_FW_MODE_PT)
+		return false;
+
+	manc = IXGBE_READ_REG(hw, IXGBE_MANC);
+	if (!(manc & IXGBE_MANC_RCV_TCO_EN))
+		return false;
+
+	factps = IXGBE_READ_REG(hw, IXGBE_FACTPS);
+	if (factps & IXGBE_FACTPS_MNGCG)
+		return false;
+
+	return true;
+}
+
 static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
 
-	/* enable the laser control functions for SFP+ fiber */
-	if (mac->ops.get_media_type(hw) == ixgbe_media_type_fiber) {
+	/* enable the laser control functions for SFP+ fiber
+	 * and MNG not enabled
+	 */
+	if ((mac->ops.get_media_type(hw) == ixgbe_media_type_fiber) &&
+	    !hw->mng_fw_enabled) {
 		mac->ops.disable_tx_laser =
 		                       &ixgbe_disable_tx_laser_multispeed_fiber;
 		mac->ops.enable_tx_laser =
@@ -145,9 +167,9 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 		}
 
 		/* Restart DSP and set SFI mode */
-		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, (IXGBE_READ_REG(hw,
-				IXGBE_AUTOC) | IXGBE_AUTOC_LMS_10G_SERIAL));
-
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, ((hw->mac.orig_autoc) |
+				IXGBE_AUTOC_LMS_10G_SERIAL));
+		hw->mac.cached_autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 		ret_val = ixgbe_reset_pipeline_82599(hw);
 
 		if (got_lock) {
@@ -244,6 +266,8 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	/* Determine 1G link capabilities off of SFP+ type */
 	if (hw->phy.sfp_type == ixgbe_sfp_type_1g_cu_core0 ||
 	    hw->phy.sfp_type == ixgbe_sfp_type_1g_cu_core1 ||
+	    hw->phy.sfp_type == ixgbe_sfp_type_1g_lx_core0 ||
+	    hw->phy.sfp_type == ixgbe_sfp_type_1g_lx_core1 ||
 	    hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
 	    hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1) {
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
@@ -563,7 +587,8 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 			return status;
 
 		/* Flap the tx laser if it has not already been done */
-		hw->mac.ops.flap_tx_laser(hw);
+		if (hw->mac.ops.flap_tx_laser)
+			hw->mac.ops.flap_tx_laser(hw);
 
 		/*
 		 * Wait for the controller to acquire link.  Per IEEE 802.3ap,
@@ -615,7 +640,8 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 			return status;
 
 		/* Flap the tx laser if it has not already been done */
-		hw->mac.ops.flap_tx_laser(hw);
+		if (hw->mac.ops.flap_tx_laser)
+			hw->mac.ops.flap_tx_laser(hw);
 
 		/* Wait for the link partner to also set speed */
 		msleep(100);
@@ -777,12 +803,9 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 				      bool autoneg_wait_to_complete)
 {
 	s32 status = 0;
-	u32 autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	u32 autoc, pma_pmd_1g, link_mode, start_autoc;
 	u32 autoc2 = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
-	u32 start_autoc = autoc;
 	u32 orig_autoc = 0;
-	u32 link_mode = autoc & IXGBE_AUTOC_LMS_MASK;
-	u32 pma_pmd_1g = autoc & IXGBE_AUTOC_1G_PMA_PMD_MASK;
 	u32 pma_pmd_10g_serial = autoc2 & IXGBE_AUTOC2_10G_SERIAL_PMA_PMD_MASK;
 	u32 links_reg;
 	u32 i;
@@ -805,9 +828,14 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 
 	/* Use stored value (EEPROM defaults) of AUTOC to find KR/KX4 support*/
 	if (hw->mac.orig_link_settings_stored)
-		orig_autoc = hw->mac.orig_autoc;
+		autoc = hw->mac.orig_autoc;
 	else
-		orig_autoc = autoc;
+		autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+
+	orig_autoc = autoc;
+	start_autoc = hw->mac.cached_autoc;
+	link_mode = autoc & IXGBE_AUTOC_LMS_MASK;
+	pma_pmd_1g = autoc & IXGBE_AUTOC_1G_PMA_PMD_MASK;
 
 	if (link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR ||
 	    link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR_1G_AN ||
@@ -861,6 +889,7 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 
 		/* Restart link */
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc);
+		hw->mac.cached_autoc = autoc;
 		ixgbe_reset_pipeline_82599(hw);
 
 		if (got_lock)
@@ -932,7 +961,8 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 {
 	ixgbe_link_speed link_speed;
 	s32 status;
-	u32 ctrl, i, autoc, autoc2;
+	u32 ctrl, i, autoc2;
+	u32 curr_lms;
 	bool link_up = false;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
@@ -963,6 +993,13 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	/* Reset PHY */
 	if (hw->phy.reset_disable == false && hw->phy.ops.reset != NULL)
 		hw->phy.ops.reset(hw);
+
+	/* remember AUTOC from before we reset */
+	if (hw->mac.cached_autoc)
+		curr_lms = hw->mac.cached_autoc & IXGBE_AUTOC_LMS_MASK;
+	else
+		curr_lms = IXGBE_READ_REG(hw, IXGBE_AUTOC) &
+			   IXGBE_AUTOC_LMS_MASK;
 
 mac_reset_top:
 	/*
@@ -1012,14 +1049,35 @@ mac_reset_top:
 	 * stored off yet.  Otherwise restore the stored original
 	 * values since the reset operation sets back to defaults.
 	 */
-	autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	hw->mac.cached_autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	autoc2 = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
+
+	/* Enable link if disabled in NVM */
+	if (autoc2 & IXGBE_AUTOC2_LINK_DISABLE_MASK) {
+		autoc2 &= ~IXGBE_AUTOC2_LINK_DISABLE_MASK;
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC2, autoc2);
+		IXGBE_WRITE_FLUSH(hw);
+	}
+
 	if (hw->mac.orig_link_settings_stored == false) {
-		hw->mac.orig_autoc = autoc;
+		hw->mac.orig_autoc = hw->mac.cached_autoc;
 		hw->mac.orig_autoc2 = autoc2;
 		hw->mac.orig_link_settings_stored = true;
 	} else {
-		if (autoc != hw->mac.orig_autoc) {
+
+		/* If MNG FW is running on a multi-speed device that
+		 * doesn't autoneg with out driver support we need to
+		 * leave LMS in the state it was before we MAC reset.
+		 * Likewise if we support WoL we don't want change the
+		 * LMS state either.
+		 */
+		if ((hw->phy.multispeed_fiber && hw->mng_fw_enabled) ||
+		    hw->wol_enabled)
+			hw->mac.orig_autoc =
+				(hw->mac.orig_autoc & ~IXGBE_AUTOC_LMS_MASK) |
+				curr_lms;
+
+		if (hw->mac.cached_autoc != hw->mac.orig_autoc) {
 			/* Need SW/FW semaphore around AUTOC writes if LESM is
 			 * on, likewise reset_pipeline requires us to hold
 			 * this lock as it also writes to AUTOC.
@@ -1035,6 +1093,7 @@ mac_reset_top:
 			}
 
 			IXGBE_WRITE_REG(hw, IXGBE_AUTOC, hw->mac.orig_autoc);
+			hw->mac.cached_autoc = hw->mac.orig_autoc;
 			ixgbe_reset_pipeline_82599(hw);
 
 			if (got_lock)
@@ -2135,10 +2194,19 @@ static s32 ixgbe_read_eeprom_82599(struct ixgbe_hw *hw,
  **/
 s32 ixgbe_reset_pipeline_82599(struct ixgbe_hw *hw)
 {
-	s32 i, autoc_reg, ret_val;
-	s32 anlp1_reg = 0;
+	s32 ret_val;
+	u32 anlp1_reg = 0;
+	u32 i, autoc_reg, autoc2_reg;
 
-	autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	/* Enable link if disabled in NVM */
+	autoc2_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
+	if (autoc2_reg & IXGBE_AUTOC2_LINK_DISABLE_MASK) {
+		autoc2_reg &= ~IXGBE_AUTOC2_LINK_DISABLE_MASK;
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC2, autoc2_reg);
+		IXGBE_WRITE_FLUSH(hw);
+	}
+
+	autoc_reg = hw->mac.cached_autoc;
 	autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 
 	/* Write AUTOC register with toggled LMS[2] bit and Restart_AN */
@@ -2216,7 +2284,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.release_swfw_sync      = &ixgbe_release_swfw_sync,
 	.get_thermal_sensor_data = &ixgbe_get_thermal_sensor_data_generic,
 	.init_thermal_sensor_thresh = &ixgbe_init_thermal_sensor_thresh_generic,
-
+	.mng_fw_enabled		= &ixgbe_mng_enabled,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82599 = {

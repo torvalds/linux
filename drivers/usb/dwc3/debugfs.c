@@ -59,7 +59,7 @@
 	.offset	= DWC3_ ##nm - DWC3_GLOBALS_REGS_START,	\
 }
 
-static struct debugfs_reg32 dwc3_regs[] = {
+static const struct debugfs_reg32 dwc3_regs[] = {
 	dump_register(GSBUSCFG0),
 	dump_register(GSBUSCFG1),
 	dump_register(GTXTHRCFG),
@@ -372,6 +372,7 @@ static struct debugfs_reg32 dwc3_regs[] = {
 
 	dump_register(OCFG),
 	dump_register(OCTL),
+	dump_register(OEVT),
 	dump_register(OEVTEN),
 	dump_register(OSTS),
 };
@@ -577,8 +578,14 @@ static int dwc3_link_state_show(struct seq_file *s, void *unused)
 	case DWC3_LINK_STATE_LPBK:
 		seq_printf(s, "Loopback\n");
 		break;
+	case DWC3_LINK_STATE_RESET:
+		seq_printf(s, "Reset\n");
+		break;
+	case DWC3_LINK_STATE_RESUME:
+		seq_printf(s, "Resume\n");
+		break;
 	default:
-		seq_printf(s, "UNKNOWN %d\n", reg);
+		seq_printf(s, "UNKNOWN %d\n", state);
 	}
 
 	return 0;
@@ -661,28 +668,31 @@ int dwc3_debugfs_init(struct dwc3 *dwc)
 		goto err1;
 	}
 
-#if IS_ENABLED(CONFIG_USB_DWC3_GADGET)
-	file = debugfs_create_file("mode", S_IRUGO | S_IWUSR, root,
-			dwc, &dwc3_mode_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
+	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE)) {
+		file = debugfs_create_file("mode", S_IRUGO | S_IWUSR, root,
+				dwc, &dwc3_mode_fops);
+		if (!file) {
+			ret = -ENOMEM;
+			goto err1;
+		}
 	}
 
-	file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root,
-			dwc, &dwc3_testmode_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
+	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE) ||
+			IS_ENABLED(CONFIG_USB_DWC3_GADGET)) {
+		file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root,
+				dwc, &dwc3_testmode_fops);
+		if (!file) {
+			ret = -ENOMEM;
+			goto err1;
+		}
 
-	file = debugfs_create_file("link_state", S_IRUGO | S_IWUSR, root,
-			dwc, &dwc3_link_state_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
+		file = debugfs_create_file("link_state", S_IRUGO | S_IWUSR, root,
+				dwc, &dwc3_link_state_fops);
+		if (!file) {
+			ret = -ENOMEM;
+			goto err1;
+		}
 	}
-#endif
 
 	return 0;
 

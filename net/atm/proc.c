@@ -385,7 +385,7 @@ static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 	page = get_zeroed_page(GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
-	dev = PDE(file_inode(file))->data;
+	dev = PDE_DATA(file_inode(file));
 	if (!dev->ops->proc_read)
 		length = -EINVAL;
 	else {

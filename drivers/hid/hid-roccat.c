@@ -242,7 +242,6 @@ static int roccat_release(struct inode *inode, struct file *file)
  * roccat_report_event() - output data to readers
  * @minor: minor device number returned by roccat_connect()
  * @data: pointer to data
- * @len: size of data
  *
  * Return value is zero on success, a negative error code on failure.
  *
@@ -290,6 +289,7 @@ EXPORT_SYMBOL_GPL(roccat_report_event);
  * @class: the class thats used to create the device. Meant to hold device
  * specific sysfs attributes.
  * @hid: the hid device the char device should be connected to.
+ * @report_size: size of reports
  *
  * Return value is minor device number in Range [0, ROCCAT_MAX_DEVICES] on
  * success, a negative error code on failure.

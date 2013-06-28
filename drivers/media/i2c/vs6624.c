@@ -748,7 +748,7 @@ static int vs6624_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *r
 	return 0;
 }
 
-static int vs6624_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+static int vs6624_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

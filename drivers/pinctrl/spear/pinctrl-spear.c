@@ -198,7 +198,7 @@ static void spear_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops spear_pinctrl_ops = {
+static const struct pinctrl_ops spear_pinctrl_ops = {
 	.get_groups_count = spear_pinctrl_get_groups_cnt,
 	.get_group_name = spear_pinctrl_get_group_name,
 	.get_group_pins = spear_pinctrl_get_group_pins,
@@ -340,7 +340,7 @@ static void gpio_disable_free(struct pinctrl_dev *pctldev,
 	gpio_request_endisable(pctldev, range, offset, false);
 }
 
-static struct pinmux_ops spear_pinmux_ops = {
+static const struct pinmux_ops spear_pinmux_ops = {
 	.get_functions_count = spear_pinctrl_get_funcs_count,
 	.get_function_name = spear_pinctrl_get_func_name,
 	.get_function_groups = spear_pinctrl_get_func_groups,

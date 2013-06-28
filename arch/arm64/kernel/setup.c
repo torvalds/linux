@@ -32,6 +32,7 @@
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 #include <linux/root_dev.h>
+#include <linux/clk-provider.h>
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
@@ -46,6 +47,7 @@
 #include <asm/cputable.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
+#include <asm/smp_plat.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
@@ -240,6 +242,8 @@ static void __init request_standard_resources(void)
 	}
 }
 
+u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
+
 void __init setup_arch(char **cmdline_p)
 {
 	setup_processor();
@@ -264,6 +268,7 @@ void __init setup_arch(char **cmdline_p)
 
 	psci_init();
 
+	cpu_logical_map(0) = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
 #ifdef CONFIG_SMP
 	smp_init_cpus();
 #endif
@@ -276,6 +281,14 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 }
+
+static int __init arm64_device_init(void)
+{
+	of_clk_init(NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	return 0;
+}
+arch_initcall(arm64_device_init);
 
 static DEFINE_PER_CPU(struct cpu, cpu_data);
 
@@ -292,13 +305,6 @@ static int __init topology_init(void)
 	return 0;
 }
 subsys_initcall(topology_init);
-
-static int __init arm64_device_probe(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-	return 0;
-}
-device_initcall(arm64_device_probe);
 
 static const char *hwcap_str[] = {
 	"fp",

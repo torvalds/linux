@@ -43,7 +43,7 @@ int of_get_videomode(struct device_node *np, struct videomode *vm,
 	if (index == OF_USE_NATIVE_MODE)
 		index = disp->native_mode;
 
-	ret = videomode_from_timing(disp, vm, index);
+	ret = videomode_from_timings(disp, vm, index);
 	if (ret)
 		return ret;
 

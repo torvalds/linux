@@ -347,10 +347,8 @@ int yama_ptrace_traceme(struct task_struct *parent)
 	/* Only disallow PTRACE_TRACEME on more aggressive settings. */
 	switch (ptrace_scope) {
 	case YAMA_SCOPE_CAPABILITY:
-		rcu_read_lock();
-		if (!ns_capable(__task_cred(parent)->user_ns, CAP_SYS_PTRACE))
+		if (!has_ns_capability(parent, current_user_ns(), CAP_SYS_PTRACE))
 			rc = -EPERM;
-		rcu_read_unlock();
 		break;
 	case YAMA_SCOPE_NO_ATTACH:
 		rc = -EPERM;

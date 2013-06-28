@@ -27,10 +27,4 @@ int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq);
 #define kvm_apic_present(x) (true)
 #define kvm_lapic_enabled(x) (true)
 
-static inline bool kvm_apic_vid_enabled(void)
-{
-	/* IA64 has no apicv supporting, do nothing here */
-	return false;
-}
-
 #endif

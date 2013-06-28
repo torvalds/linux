@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/if_vlan.h>
+#include <net/checksum.h>
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
 
@@ -1641,9 +1642,8 @@ netxen_process_lro(struct netxen_adapter *adapter,
 	th = (struct tcphdr *)((skb->data + vhdr_len) + (iph->ihl << 2));
 
 	length = (iph->ihl << 2) + (th->doff << 2) + lro_length;
+	csum_replace2(&iph->check, iph->tot_len, htons(length));
 	iph->tot_len = htons(length);
-	iph->check = 0;
-	iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
 	th->psh = push;
 	th->seq = htonl(seq_number);
 

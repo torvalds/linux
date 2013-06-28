@@ -110,6 +110,11 @@ static enum drm_connector_status omap_connector_detect(
 			ret = connector_status_connected;
 		else
 			ret = connector_status_disconnected;
+	} else if (dssdev->type == OMAP_DISPLAY_TYPE_DPI ||
+			dssdev->type == OMAP_DISPLAY_TYPE_DBI ||
+			dssdev->type == OMAP_DISPLAY_TYPE_SDI ||
+			dssdev->type == OMAP_DISPLAY_TYPE_DSI) {
+		ret = connector_status_connected;
 	} else {
 		ret = connector_status_unknown;
 	}
@@ -189,12 +194,30 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	struct omap_video_timings timings = {0};
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *new_mode;
-	int ret = MODE_BAD;
+	int r, ret = MODE_BAD;
 
 	copy_timings_drm_to_omap(&timings, mode);
 	mode->vrefresh = drm_mode_vrefresh(mode);
 
-	if (!dssdrv->check_timings(dssdev, &timings)) {
+	/*
+	 * if the panel driver doesn't have a check_timings, it's most likely
+	 * a fixed resolution panel, check if the timings match with the
+	 * panel's timings
+	 */
+	if (dssdrv->check_timings) {
+		r = dssdrv->check_timings(dssdev, &timings);
+	} else {
+		struct omap_video_timings t = {0};
+
+		dssdrv->get_timings(dssdev, &t);
+
+		if (memcmp(&timings, &t, sizeof(struct omap_video_timings)))
+			r = -EINVAL;
+		else
+			r = 0;
+	}
+
+	if (!r) {
 		/* check if vrefresh is still valid */
 		new_mode = drm_mode_duplicate(dev, mode);
 		new_mode->clock = timings.pixel_clock;

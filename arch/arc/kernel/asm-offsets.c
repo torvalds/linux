@@ -11,9 +11,9 @@
 #include <linux/interrupt.h>
 #include <linux/thread_info.h>
 #include <linux/kbuild.h>
+#include <linux/ptrace.h>
 #include <asm/hardirq.h>
 #include <asm/page.h>
-#include <asm/ptrace.h>
 
 int main(void)
 {

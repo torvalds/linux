@@ -118,17 +118,11 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	void __iomem *rom;
 
 	/*
-	 * Some devices may provide ROMs via a source other than the BAR
-	 */
-	if (pdev->rom && pdev->romlen) {
-		*size = pdev->romlen;
-		return phys_to_virt(pdev->rom);
-	/*
 	 * IORESOURCE_ROM_SHADOW set on x86, x86_64 and IA64 supports legacy
 	 * memory map if the VGA enable bit of the Bridge Control register is
 	 * set for embedded VGA.
 	 */
-	} else if (res->flags & IORESOURCE_ROM_SHADOW) {
+	if (res->flags & IORESOURCE_ROM_SHADOW) {
 		/* primary video rom always starts here */
 		start = (loff_t)0xC0000;
 		*size = 0x20000; /* cover C000:0 through E000:0 */
@@ -187,8 +181,7 @@ void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom)
 	if (res->flags & (IORESOURCE_ROM_COPY | IORESOURCE_ROM_BIOS_COPY))
 		return;
 
-	if (!pdev->rom || !pdev->romlen)
-		iounmap(rom);
+	iounmap(rom);
 
 	/* Disable again before continuing, leave enabled if pci=rom */
 	if (!(res->flags & (IORESOURCE_ROM_ENABLE | IORESOURCE_ROM_SHADOW)))
@@ -212,7 +205,24 @@ void pci_cleanup_rom(struct pci_dev *pdev)
 	}
 }
 
+/**
+ * pci_platform_rom - provides a pointer to any ROM image provided by the
+ * platform
+ * @pdev: pointer to pci device struct
+ * @size: pointer to receive size of pci window over ROM
+ */
+void __iomem *pci_platform_rom(struct pci_dev *pdev, size_t *size)
+{
+	if (pdev->rom && pdev->romlen) {
+		*size = pdev->romlen;
+		return phys_to_virt((phys_addr_t)pdev->rom);
+	}
+
+	return NULL;
+}
+
 EXPORT_SYMBOL(pci_map_rom);
 EXPORT_SYMBOL(pci_unmap_rom);
 EXPORT_SYMBOL_GPL(pci_enable_rom);
 EXPORT_SYMBOL_GPL(pci_disable_rom);
+EXPORT_SYMBOL(pci_platform_rom);

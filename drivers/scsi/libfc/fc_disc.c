@@ -712,12 +712,13 @@ static void fc_disc_stop_final(struct fc_lport *lport)
 }
 
 /**
- * fc_disc_init() - Initialize the discovery layer for a local port
- * @lport: The local port that needs the discovery layer to be initialized
+ * fc_disc_config() - Configure the discovery layer for a local port
+ * @lport: The local port that needs the discovery layer to be configured
+ * @priv: Private data structre for users of the discovery layer
  */
-int fc_disc_init(struct fc_lport *lport)
+void fc_disc_config(struct fc_lport *lport, void *priv)
 {
-	struct fc_disc *disc;
+	struct fc_disc *disc = &lport->disc;
 
 	if (!lport->tt.disc_start)
 		lport->tt.disc_start = fc_disc_start;
@@ -732,12 +733,21 @@ int fc_disc_init(struct fc_lport *lport)
 		lport->tt.disc_recv_req = fc_disc_recv_req;
 
 	disc = &lport->disc;
+
+	disc->priv = priv;
+}
+EXPORT_SYMBOL(fc_disc_config);
+
+/**
+ * fc_disc_init() - Initialize the discovery layer for a local port
+ * @lport: The local port that needs the discovery layer to be initialized
+ */
+void fc_disc_init(struct fc_lport *lport)
+{
+	struct fc_disc *disc = &lport->disc;
+
 	INIT_DELAYED_WORK(&disc->disc_work, fc_disc_timeout);
 	mutex_init(&disc->disc_mutex);
 	INIT_LIST_HEAD(&disc->rports);
-
-	disc->priv = lport;
-
-	return 0;
 }
 EXPORT_SYMBOL(fc_disc_init);

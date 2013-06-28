@@ -211,17 +211,17 @@ static int saa7164_encoder_initialize(struct saa7164_port *port)
 }
 
 /* -- V4L2 --------------------------------------------------------- */
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 	unsigned int i;
 
-	dprintk(DBGLVL_ENC, "%s(id=0x%x)\n", __func__, (u32)*id);
+	dprintk(DBGLVL_ENC, "%s(id=0x%x)\n", __func__, (u32)id);
 
 	for (i = 0; i < ARRAY_SIZE(saa7164_tvnorms); i++) {
-		if (*id & saa7164_tvnorms[i].id)
+		if (id & saa7164_tvnorms[i].id)
 			break;
 	}
 	if (i == ARRAY_SIZE(saa7164_tvnorms))
@@ -234,7 +234,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
 	 */
 	saa7164_api_set_audio_std(port);
 
-	dprintk(DBGLVL_ENC, "%s(id=0x%x) OK\n", __func__, (u32)*id);
+	dprintk(DBGLVL_ENC, "%s(id=0x%x) OK\n", __func__, (u32)id);
 
 	return 0;
 }
@@ -318,7 +318,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-	struct v4l2_tuner *t)
+	const struct v4l2_tuner *t)
 {
 	/* Update the A/V core */
 	return 0;
@@ -337,7 +337,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-	struct v4l2_frequency *f)
+	const struct v4l2_frequency *f)
 {
 	struct saa7164_encoder_fh *fh = file->private_data;
 	struct saa7164_port *port = fh->port;
@@ -1313,7 +1313,7 @@ static int saa7164_g_register(struct file *file, void *fh,
 }
 
 static int saa7164_s_register(struct file *file, void *fh,
-			      struct v4l2_dbg_register *reg)
+			      const struct v4l2_dbg_register *reg)
 {
 	struct saa7164_port *port = ((struct saa7164_encoder_fh *)fh)->port;
 	struct saa7164_dev *dev = port->dev;

@@ -167,8 +167,7 @@
  * Find an entry in a page-table-directory.  We combine the address region
  * (the high order N bits) and the pgd portion of the address.
  */
-/* to avoid overflow in free_pgtables we don't use PTRS_PER_PGD here */
-#define pgd_index(address) (((address) >> (PGDIR_SHIFT)) & 0x1ff)
+#define pgd_index(address) (((address) >> (PGDIR_SHIFT)) & (PTRS_PER_PGD - 1))
 
 #define pgd_offset(mm, address)	 ((mm)->pgd + pgd_index(address))
 

@@ -39,27 +39,27 @@
 #include <linux/pci.h>
 
 #ifdef CONFIG_IGB_HWMON
-struct i2c_board_info i350_sensor_info = {
+static struct i2c_board_info i350_sensor_info = {
 	I2C_BOARD_INFO("i350bb", (0Xf8 >> 1)),
 };
 
 /* hwmon callback functions */
 static ssize_t igb_hwmon_show_location(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
+				       struct device_attribute *attr,
+				       char *buf)
 {
 	struct hwmon_attr *igb_attr = container_of(attr, struct hwmon_attr,
-						     dev_attr);
+						   dev_attr);
 	return sprintf(buf, "loc%u\n",
 		       igb_attr->sensor->location);
 }
 
 static ssize_t igb_hwmon_show_temp(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
+				   struct device_attribute *attr,
+				   char *buf)
 {
 	struct hwmon_attr *igb_attr = container_of(attr, struct hwmon_attr,
-						     dev_attr);
+						   dev_attr);
 	unsigned int value;
 
 	/* reset the temp field */
@@ -74,11 +74,11 @@ static ssize_t igb_hwmon_show_temp(struct device *dev,
 }
 
 static ssize_t igb_hwmon_show_cautionthresh(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
+					    struct device_attribute *attr,
+					    char *buf)
 {
 	struct hwmon_attr *igb_attr = container_of(attr, struct hwmon_attr,
-						     dev_attr);
+						   dev_attr);
 	unsigned int value = igb_attr->sensor->caution_thresh;
 
 	/* display millidegree */
@@ -88,11 +88,11 @@ static ssize_t igb_hwmon_show_cautionthresh(struct device *dev,
 }
 
 static ssize_t igb_hwmon_show_maxopthresh(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
+					  struct device_attribute *attr,
+					  char *buf)
 {
 	struct hwmon_attr *igb_attr = container_of(attr, struct hwmon_attr,
-						     dev_attr);
+						   dev_attr);
 	unsigned int value = igb_attr->sensor->max_op_thresh;
 
 	/* display millidegree */
@@ -111,7 +111,8 @@ static ssize_t igb_hwmon_show_maxopthresh(struct device *dev,
  * the data structures we need to get the data to display.
  */
 static int igb_add_hwmon_attr(struct igb_adapter *adapter,
-				unsigned int offset, int type) {
+			      unsigned int offset, int type)
+{
 	int rc;
 	unsigned int n_attr;
 	struct hwmon_attr *igb_attr;
@@ -217,7 +218,7 @@ int igb_sysfs_init(struct igb_adapter *adapter)
 	 */
 	n_attrs = E1000_MAX_SENSORS * 4;
 	igb_hwmon->hwmon_list = kcalloc(n_attrs, sizeof(struct hwmon_attr),
-					  GFP_KERNEL);
+					GFP_KERNEL);
 	if (!igb_hwmon->hwmon_list) {
 		rc = -ENOMEM;
 		goto err;

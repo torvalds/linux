@@ -150,12 +150,6 @@ int addi_watchdog_init(struct comedi_subdevice *s, unsigned long iobase)
 }
 EXPORT_SYMBOL_GPL(addi_watchdog_init);
 
-void addi_watchdog_cleanup(struct comedi_subdevice *s)
-{
-	kfree(s->private);
-}
-EXPORT_SYMBOL_GPL(addi_watchdog_cleanup);
-
 static int __init addi_watchdog_module_init(void)
 {
 	return 0;

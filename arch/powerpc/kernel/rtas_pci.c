@@ -201,7 +201,7 @@ static void python_countermeasures(struct device_node *dev)
 	iounmap(chip_regs);
 }
 
-void __init init_pci_config_tokens (void)
+void __init init_pci_config_tokens(void)
 {
 	read_pci_config = rtas_token("read-pci-config");
 	write_pci_config = rtas_token("write-pci-config");
@@ -209,7 +209,7 @@ void __init init_pci_config_tokens (void)
 	ibm_write_pci_config = rtas_token("ibm,write-pci-config");
 }
 
-unsigned long get_phb_buid (struct device_node *phb)
+unsigned long get_phb_buid(struct device_node *phb)
 {
 	struct resource r;
 

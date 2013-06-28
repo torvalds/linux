@@ -466,6 +466,8 @@ static void __init pSeries_setup_arch(void)
 	else
 		ppc_md.enable_pmcs = power4_enable_pmcs;
 
+	ppc_md.pcibios_root_bridge_prepare = pseries_root_bridge_prepare;
+
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		long rc;
 		if ((rc = pSeries_enable_reloc_on_exc()) != H_SUCCESS) {
@@ -628,25 +630,39 @@ static void __init pSeries_init_early(void)
  * Called very early, MMU is off, device-tree isn't unflattened
  */
 
-static int __init pSeries_probe_hypertas(unsigned long node,
-					 const char *uname, int depth,
-					 void *data)
+static int __init pseries_probe_fw_features(unsigned long node,
+					    const char *uname, int depth,
+					    void *data)
 {
-	const char *hypertas;
+	const char *prop;
 	unsigned long len;
+	static int hypertas_found;
+	static int vec5_found;
 
-	if (depth != 1 ||
-	    (strcmp(uname, "rtas") != 0 && strcmp(uname, "rtas@0") != 0))
+	if (depth != 1)
 		return 0;
 
-	hypertas = of_get_flat_dt_prop(node, "ibm,hypertas-functions", &len);
-	if (!hypertas)
-		return 1;
+	if (!strcmp(uname, "rtas") || !strcmp(uname, "rtas@0")) {
+		prop = of_get_flat_dt_prop(node, "ibm,hypertas-functions",
+					   &len);
+		if (prop) {
+			powerpc_firmware_features |= FW_FEATURE_LPAR;
+			fw_hypertas_feature_init(prop, len);
+		}
 
-	powerpc_firmware_features |= FW_FEATURE_LPAR;
-	fw_feature_init(hypertas, len);
+		hypertas_found = 1;
+	}
 
-	return 1;
+	if (!strcmp(uname, "chosen")) {
+		prop = of_get_flat_dt_prop(node, "ibm,architecture-vec-5",
+					   &len);
+		if (prop)
+			fw_vec5_feature_init(prop, len);
+
+		vec5_found = 1;
+	}
+
+	return hypertas_found && vec5_found;
 }
 
 static int __init pSeries_probe(void)
@@ -669,7 +685,7 @@ static int __init pSeries_probe(void)
 	pr_debug("pSeries detected, looking for LPAR capability...\n");
 
 	/* Now try to figure out if we are running on LPAR */
-	of_scan_flat_dt(pSeries_probe_hypertas, NULL);
+	of_scan_flat_dt(pseries_probe_fw_features, NULL);
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		hpte_init_lpar();

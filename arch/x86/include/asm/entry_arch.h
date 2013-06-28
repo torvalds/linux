@@ -19,6 +19,10 @@ BUILD_INTERRUPT(reboot_interrupt,REBOOT_VECTOR)
 
 BUILD_INTERRUPT(x86_platform_ipi, X86_PLATFORM_IPI_VECTOR)
 
+#ifdef CONFIG_HAVE_KVM
+BUILD_INTERRUPT(kvm_posted_intr_ipi, POSTED_INTR_VECTOR)
+#endif
+
 /*
  * every pentium local APIC has two 'local interrupts', with a
  * soft-definable vector attached to both interrupts, one of

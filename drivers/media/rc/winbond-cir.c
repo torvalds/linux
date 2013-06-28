@@ -1151,6 +1151,7 @@ exit_release_wbase:
 	release_region(data->wbase, WAKEUP_IOMEM_LEN);
 exit_unregister_device:
 	rc_unregister_device(data->dev);
+	data->dev = NULL;
 exit_free_rc:
 	rc_free_device(data->dev);
 exit_unregister_led:

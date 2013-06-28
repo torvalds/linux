@@ -11,7 +11,11 @@
 
 #include <asm/addrspace.h>
 
+#ifdef CONFIG_SOC_RT288X
+#define EARLY_UART_BASE         0x300c00
+#else
 #define EARLY_UART_BASE         0x10000c00
+#endif
 
 #define UART_REG_RX             0x00
 #define UART_REG_TX             0x04

@@ -566,11 +566,10 @@ static void twl_rtc_shutdown(struct platform_device *pdev)
 	mask_rtc_irq_bit(BIT_RTC_INTERRUPTS_REG_IT_TIMER_M);
 }
 
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 static unsigned char irqstat;
 
-static int twl_rtc_suspend(struct platform_device *pdev, pm_message_t state)
+static int twl_rtc_suspend(struct device *dev)
 {
 	irqstat = rtc_irq_bits;
 
@@ -578,16 +577,14 @@ static int twl_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int twl_rtc_resume(struct platform_device *pdev)
+static int twl_rtc_resume(struct device *dev)
 {
 	set_rtc_irq_bit(irqstat);
 	return 0;
 }
-
-#else
-#define twl_rtc_suspend NULL
-#define twl_rtc_resume  NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(twl_rtc_pm_ops, twl_rtc_suspend, twl_rtc_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id twl_rtc_of_match[] = {
@@ -603,11 +600,10 @@ static struct platform_driver twl4030rtc_driver = {
 	.probe		= twl_rtc_probe,
 	.remove		= twl_rtc_remove,
 	.shutdown	= twl_rtc_shutdown,
-	.suspend	= twl_rtc_suspend,
-	.resume		= twl_rtc_resume,
 	.driver		= {
 		.owner		= THIS_MODULE,
 		.name		= "twl_rtc",
+		.pm		= &twl_rtc_pm_ops,
 		.of_match_table = of_match_ptr(twl_rtc_of_match),
 	},
 };

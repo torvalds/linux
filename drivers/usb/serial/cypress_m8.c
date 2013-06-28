@@ -65,6 +65,7 @@ static const struct usb_device_id id_table_earthmate[] = {
 static const struct usb_device_id id_table_cyphidcomrs232[] = {
 	{ USB_DEVICE(VENDOR_ID_CYPRESS, PRODUCT_ID_CYPHIDCOM) },
 	{ USB_DEVICE(VENDOR_ID_POWERCOM, PRODUCT_ID_UPS) },
+	{ USB_DEVICE(VENDOR_ID_FRWD, PRODUCT_ID_CYPHIDCOM_FRWD) },
 	{ }						/* Terminating entry */
 };
 
@@ -78,6 +79,7 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(VENDOR_ID_DELORME, PRODUCT_ID_EARTHMATEUSB_LT20) },
 	{ USB_DEVICE(VENDOR_ID_CYPRESS, PRODUCT_ID_CYPHIDCOM) },
 	{ USB_DEVICE(VENDOR_ID_POWERCOM, PRODUCT_ID_UPS) },
+	{ USB_DEVICE(VENDOR_ID_FRWD, PRODUCT_ID_CYPHIDCOM_FRWD) },
 	{ USB_DEVICE(VENDOR_ID_DAZZLE, PRODUCT_ID_CA42) },
 	{ }						/* Terminating entry */
 };
@@ -111,7 +113,6 @@ struct cypress_private {
 	int baud_rate;			   /* stores current baud rate in
 					      integer form */
 	int isthrottled;		   /* if throttled, discard reads */
-	wait_queue_head_t delta_msr_wait;  /* used for TIOCMIWAIT */
 	char prev_status, diff_status;	   /* used for TIOCMIWAIT */
 	/* we pass a pointer to this as the argument sent to
 	   cypress_set_termios old_termios */
@@ -130,13 +131,12 @@ static int  cypress_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 static void cypress_send(struct usb_serial_port *port);
 static int  cypress_write_room(struct tty_struct *tty);
-static int  cypress_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg);
 static void cypress_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  cypress_tiocmget(struct tty_struct *tty);
 static int  cypress_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
+static int  cypress_tiocmiwait(struct tty_struct *tty, unsigned long arg);
 static int  cypress_chars_in_buffer(struct tty_struct *tty);
 static void cypress_throttle(struct tty_struct *tty);
 static void cypress_unthrottle(struct tty_struct *tty);
@@ -159,10 +159,10 @@ static struct usb_serial_driver cypress_earthmate_device = {
 	.dtr_rts =			cypress_dtr_rts,
 	.write =			cypress_write,
 	.write_room =			cypress_write_room,
-	.ioctl =			cypress_ioctl,
 	.set_termios =			cypress_set_termios,
 	.tiocmget =			cypress_tiocmget,
 	.tiocmset =			cypress_tiocmset,
+	.tiocmiwait =			cypress_tiocmiwait,
 	.chars_in_buffer =		cypress_chars_in_buffer,
 	.throttle =		 	cypress_throttle,
 	.unthrottle =			cypress_unthrottle,
@@ -185,10 +185,10 @@ static struct usb_serial_driver cypress_hidcom_device = {
 	.dtr_rts =			cypress_dtr_rts,
 	.write =			cypress_write,
 	.write_room =			cypress_write_room,
-	.ioctl =			cypress_ioctl,
 	.set_termios =			cypress_set_termios,
 	.tiocmget =			cypress_tiocmget,
 	.tiocmset =			cypress_tiocmset,
+	.tiocmiwait =			cypress_tiocmiwait,
 	.chars_in_buffer =		cypress_chars_in_buffer,
 	.throttle =			cypress_throttle,
 	.unthrottle =			cypress_unthrottle,
@@ -211,10 +211,10 @@ static struct usb_serial_driver cypress_ca42v2_device = {
 	.dtr_rts =			cypress_dtr_rts,
 	.write =			cypress_write,
 	.write_room =			cypress_write_room,
-	.ioctl =			cypress_ioctl,
 	.set_termios =			cypress_set_termios,
 	.tiocmget =			cypress_tiocmget,
 	.tiocmset =			cypress_tiocmset,
+	.tiocmiwait =			cypress_tiocmiwait,
 	.chars_in_buffer =		cypress_chars_in_buffer,
 	.throttle =			cypress_throttle,
 	.unthrottle =			cypress_unthrottle,
@@ -231,6 +231,12 @@ static struct usb_serial_driver * const serial_drivers[] = {
  * Cypress serial helper functions
  *****************************************************************************/
 
+/* FRWD Dongle hidcom needs to skip reset and speed checks */
+static inline bool is_frwd(struct usb_device *dev)
+{
+	return ((le16_to_cpu(dev->descriptor.idVendor) == VENDOR_ID_FRWD) &&
+		(le16_to_cpu(dev->descriptor.idProduct) == PRODUCT_ID_CYPHIDCOM_FRWD));
+}
 
 static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 {
@@ -238,6 +244,10 @@ static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 	priv = usb_get_serial_port_data(port);
 
 	if (unstable_bauds)
+		return new_rate;
+
+	/* FRWD Dongle uses 115200 bps */
+	if (is_frwd(port->serial->dev))
 		return new_rate;
 
 	/*
@@ -449,9 +459,12 @@ static int cypress_generic_port_probe(struct usb_serial_port *port)
 		kfree(priv);
 		return -ENOMEM;
 	}
-	init_waitqueue_head(&priv->delta_msr_wait);
 
-	usb_reset_configuration(serial->dev);
+	/* Skip reset for FRWD device. It is a workaound:
+	   device hangs if it receives SET_CONFIGURE in Configured
+	   state. */
+	if (!is_frwd(serial->dev))
+		usb_reset_configuration(serial->dev);
 
 	priv->cmd_ctrl = 0;
 	priv->line_control = 0;
@@ -635,12 +648,6 @@ static void cypress_close(struct usb_serial_port *port)
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
-	/* writing is potentially harmful, lock must be taken */
-	mutex_lock(&port->serial->disc_mutex);
-	if (port->serial->disconnected) {
-		mutex_unlock(&port->serial->disc_mutex);
-		return;
-	}
 	spin_lock_irqsave(&priv->lock, flags);
 	kfifo_reset_out(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -652,7 +659,6 @@ static void cypress_close(struct usb_serial_port *port)
 	if (stats)
 		dev_info(&port->dev, "Statistics: %d Bytes In | %d Bytes Out | %d Commands Issued\n",
 			priv->bytes_in, priv->bytes_out, priv->cmd_count);
-	mutex_unlock(&port->serial->disc_mutex);
 } /* cypress_close */
 
 
@@ -857,51 +863,43 @@ static int cypress_tiocmset(struct tty_struct *tty,
 }
 
 
-static int cypress_ioctl(struct tty_struct *tty,
-					unsigned int cmd, unsigned long arg)
+static int cypress_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
+	char diff;
 
-	dev_dbg(&port->dev, "%s - port %d, cmd 0x%.4x\n", __func__, port->number, cmd);
+	for (;;) {
+		interruptible_sleep_on(&port->port.delta_msr_wait);
+		/* see if a signal did it */
+		if (signal_pending(current))
+			return -ERESTARTSYS;
 
-	switch (cmd) {
-	/* This code comes from drivers/char/serial.c and ftdi_sio.c */
-	case TIOCMIWAIT:
-		while (priv != NULL) {
-			interruptible_sleep_on(&priv->delta_msr_wait);
-			/* see if a signal did it */
-			if (signal_pending(current))
-				return -ERESTARTSYS;
-			else {
-				char diff = priv->diff_status;
-				if (diff == 0)
-					return -EIO; /* no change => error */
+		if (port->serial->disconnected)
+			return -EIO;
 
-				/* consume all events */
-				priv->diff_status = 0;
+		diff = priv->diff_status;
+		if (diff == 0)
+			return -EIO; /* no change => error */
 
-				/* return 0 if caller wanted to know about
-				   these bits */
-				if (((arg & TIOCM_RNG) && (diff & UART_RI)) ||
-				    ((arg & TIOCM_DSR) && (diff & UART_DSR)) ||
-				    ((arg & TIOCM_CD) && (diff & UART_CD)) ||
-				    ((arg & TIOCM_CTS) && (diff & UART_CTS)))
-					return 0;
-				/* otherwise caller can't care less about what
-				 * happened, and so we continue to wait for
-				 * more events.
-				 */
-			}
-		}
-		return 0;
-	default:
-		break;
+		/* consume all events */
+		priv->diff_status = 0;
+
+		/* return 0 if caller wanted to know about
+		   these bits */
+		if (((arg & TIOCM_RNG) && (diff & UART_RI))  ||
+			((arg & TIOCM_DSR) && (diff & UART_DSR)) ||
+			((arg & TIOCM_CD)  && (diff & UART_CD))  ||
+			((arg & TIOCM_CTS) && (diff & UART_CTS)))
+			return 0;
+		/* otherwise caller can't care less about what
+		 * happened, and so we continue to wait for
+		 * more events.
+		 */
 	}
-	dev_dbg(&port->dev, "%s - arg not supported - it was 0x%04x - check include/asm/ioctls.h\n", __func__, cmd);
-	return -ENOIOCTLCMD;
-} /* cypress_ioctl */
 
+	return 0;
+}
 
 static void cypress_set_termios(struct tty_struct *tty,
 	struct usb_serial_port *port, struct ktermios *old_termios)
@@ -1187,7 +1185,7 @@ static void cypress_read_int_callback(struct urb *urb)
 	if (priv->current_status != priv->prev_status) {
 		priv->diff_status |= priv->current_status ^
 			priv->prev_status;
-		wake_up_interruptible(&priv->delta_msr_wait);
+		wake_up_interruptible(&port->port.delta_msr_wait);
 		priv->prev_status = priv->current_status;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);

@@ -289,11 +289,11 @@
 #define  SSB_SPROM4_ETHPHY_ET1A_SHIFT	5
 #define  SSB_SPROM4_ETHPHY_ET0M		(1<<14)	/* MDIO for enet0 */
 #define  SSB_SPROM4_ETHPHY_ET1M		(1<<15)	/* MDIO for enet1 */
-#define SSB_SPROM4_ANTAVAIL		0x005D  /* Antenna available bitfields */
-#define  SSB_SPROM4_ANTAVAIL_A		0x00FF	/* A-PHY bitfield */
-#define  SSB_SPROM4_ANTAVAIL_A_SHIFT	0
-#define  SSB_SPROM4_ANTAVAIL_BG		0xFF00	/* B-PHY and G-PHY bitfield */
-#define  SSB_SPROM4_ANTAVAIL_BG_SHIFT	8
+#define SSB_SPROM4_ANTAVAIL		0x005C  /* Antenna available bitfields */
+#define  SSB_SPROM4_ANTAVAIL_BG		0x00FF	/* B-PHY and G-PHY bitfield */
+#define  SSB_SPROM4_ANTAVAIL_BG_SHIFT	0
+#define  SSB_SPROM4_ANTAVAIL_A		0xFF00	/* A-PHY bitfield */
+#define  SSB_SPROM4_ANTAVAIL_A_SHIFT	8
 #define SSB_SPROM4_AGAIN01		0x005E	/* Antenna Gain (in dBm Q5.2) */
 #define  SSB_SPROM4_AGAIN0		0x00FF	/* Antenna 0 */
 #define  SSB_SPROM4_AGAIN0_SHIFT	0

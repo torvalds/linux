@@ -36,6 +36,7 @@
 #include "xfs_trans_space.h"
 #include "xfs_trans_priv.h"
 #include "xfs_qm.h"
+#include "xfs_cksum.h"
 #include "xfs_trace.h"
 
 /*
@@ -85,17 +86,23 @@ xfs_qm_dqdestroy(
  */
 void
 xfs_qm_adjust_dqlimits(
-	xfs_mount_t		*mp,
-	xfs_disk_dquot_t	*d)
+	struct xfs_mount	*mp,
+	struct xfs_dquot	*dq)
 {
-	xfs_quotainfo_t		*q = mp->m_quotainfo;
+	struct xfs_quotainfo	*q = mp->m_quotainfo;
+	struct xfs_disk_dquot	*d = &dq->q_core;
+	int			prealloc = 0;
 
 	ASSERT(d->d_id);
 
-	if (q->qi_bsoftlimit && !d->d_blk_softlimit)
+	if (q->qi_bsoftlimit && !d->d_blk_softlimit) {
 		d->d_blk_softlimit = cpu_to_be64(q->qi_bsoftlimit);
-	if (q->qi_bhardlimit && !d->d_blk_hardlimit)
+		prealloc = 1;
+	}
+	if (q->qi_bhardlimit && !d->d_blk_hardlimit) {
 		d->d_blk_hardlimit = cpu_to_be64(q->qi_bhardlimit);
+		prealloc = 1;
+	}
 	if (q->qi_isoftlimit && !d->d_ino_softlimit)
 		d->d_ino_softlimit = cpu_to_be64(q->qi_isoftlimit);
 	if (q->qi_ihardlimit && !d->d_ino_hardlimit)
@@ -104,6 +111,9 @@ xfs_qm_adjust_dqlimits(
 		d->d_rtb_softlimit = cpu_to_be64(q->qi_rtbsoftlimit);
 	if (q->qi_rtbhardlimit && !d->d_rtb_hardlimit)
 		d->d_rtb_hardlimit = cpu_to_be64(q->qi_rtbhardlimit);
+
+	if (prealloc)
+		xfs_dquot_set_prealloc_limits(dq);
 }
 
 /*
@@ -239,6 +249,11 @@ xfs_qm_init_dquot_blk(
 		d->dd_diskdq.d_version = XFS_DQUOT_VERSION;
 		d->dd_diskdq.d_id = cpu_to_be32(curid);
 		d->dd_diskdq.d_flags = type;
+		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+			uuid_copy(&d->dd_uuid, &mp->m_sb.sb_uuid);
+			xfs_update_cksum((char *)d, sizeof(struct xfs_dqblk),
+					 XFS_DQUOT_CRC_OFF);
+		}
 	}
 
 	xfs_trans_dquot_buf(tp, bp,
@@ -248,15 +263,84 @@ xfs_qm_init_dquot_blk(
 	xfs_trans_log_buf(tp, bp, 0, BBTOB(q->qi_dqchunklen) - 1);
 }
 
-static void
-xfs_dquot_buf_verify(
+/*
+ * Initialize the dynamic speculative preallocation thresholds. The lo/hi
+ * watermarks correspond to the soft and hard limits by default. If a soft limit
+ * is not specified, we use 95% of the hard limit.
+ */
+void
+xfs_dquot_set_prealloc_limits(struct xfs_dquot *dqp)
+{
+	__uint64_t space;
+
+	dqp->q_prealloc_hi_wmark = be64_to_cpu(dqp->q_core.d_blk_hardlimit);
+	dqp->q_prealloc_lo_wmark = be64_to_cpu(dqp->q_core.d_blk_softlimit);
+	if (!dqp->q_prealloc_lo_wmark) {
+		dqp->q_prealloc_lo_wmark = dqp->q_prealloc_hi_wmark;
+		do_div(dqp->q_prealloc_lo_wmark, 100);
+		dqp->q_prealloc_lo_wmark *= 95;
+	}
+
+	space = dqp->q_prealloc_hi_wmark;
+
+	do_div(space, 100);
+	dqp->q_low_space[XFS_QLOWSP_1_PCNT] = space;
+	dqp->q_low_space[XFS_QLOWSP_3_PCNT] = space * 3;
+	dqp->q_low_space[XFS_QLOWSP_5_PCNT] = space * 5;
+}
+
+STATIC bool
+xfs_dquot_buf_verify_crc(
+	struct xfs_mount	*mp,
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
-	struct xfs_disk_dquot	*ddq;
-	xfs_dqid_t		id = 0;
+	int			ndquots;
 	int			i;
+
+	if (!xfs_sb_version_hascrc(&mp->m_sb))
+		return true;
+
+	/*
+	 * if we are in log recovery, the quota subsystem has not been
+	 * initialised so we have no quotainfo structure. In that case, we need
+	 * to manually calculate the number of dquots in the buffer.
+	 */
+	if (mp->m_quotainfo)
+		ndquots = mp->m_quotainfo->qi_dqperchunk;
+	else
+		ndquots = xfs_qm_calc_dquots_per_chunk(mp,
+					XFS_BB_TO_FSB(mp, bp->b_length));
+
+	for (i = 0; i < ndquots; i++, d++) {
+		if (!xfs_verify_cksum((char *)d, sizeof(struct xfs_dqblk),
+				 XFS_DQUOT_CRC_OFF))
+			return false;
+		if (!uuid_equal(&d->dd_uuid, &mp->m_sb.sb_uuid))
+			return false;
+	}
+	return true;
+}
+
+STATIC bool
+xfs_dquot_buf_verify(
+	struct xfs_mount	*mp,
+	struct xfs_buf		*bp)
+{
+	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
+	xfs_dqid_t		id = 0;
+	int			ndquots;
+	int			i;
+
+	/*
+	 * if we are in log recovery, the quota subsystem has not been
+	 * initialised so we have no quotainfo structure. In that case, we need
+	 * to manually calculate the number of dquots in the buffer.
+	 */
+	if (mp->m_quotainfo)
+		ndquots = mp->m_quotainfo->qi_dqperchunk;
+	else
+		ndquots = xfs_qm_calc_dquots_per_chunk(mp, bp->b_length);
 
 	/*
 	 * On the first read of the buffer, verify that each dquot is valid.
@@ -265,8 +349,9 @@ xfs_dquot_buf_verify(
 	 * first id is corrupt, then it will fail on the second dquot in the
 	 * buffer so corruptions could point to the wrong dquot in this case.
 	 */
-	for (i = 0; i < mp->m_quotainfo->qi_dqperchunk; i++) {
-		int	error;
+	for (i = 0; i < ndquots; i++) {
+		struct xfs_disk_dquot	*ddq;
+		int			error;
 
 		ddq = &d[i].dd_diskdq;
 
@@ -274,27 +359,41 @@ xfs_dquot_buf_verify(
 			id = be32_to_cpu(ddq->d_id);
 
 		error = xfs_qm_dqcheck(mp, ddq, id + i, 0, XFS_QMOPT_DOWARN,
-					"xfs_dquot_read_verify");
-		if (error) {
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, d);
-			xfs_buf_ioerror(bp, EFSCORRUPTED);
-			break;
-		}
+				       "xfs_dquot_buf_verify");
+		if (error)
+			return false;
 	}
+	return true;
 }
 
 static void
 xfs_dquot_buf_read_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_dquot_buf_verify(bp);
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+
+	if (!xfs_dquot_buf_verify_crc(mp, bp) || !xfs_dquot_buf_verify(mp, bp)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
 }
 
+/*
+ * we don't calculate the CRC here as that is done when the dquot is flushed to
+ * the buffer after the update is done. This ensures that the dquot in the
+ * buffer always has an up-to-date CRC value.
+ */
 void
 xfs_dquot_buf_write_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_dquot_buf_verify(bp);
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+
+	if (!xfs_dquot_buf_verify(mp, bp)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		return;
+	}
 }
 
 const struct xfs_buf_ops xfs_dquot_buf_ops = {
@@ -647,6 +746,9 @@ xfs_qm_dqread(
 	dqp->q_res_bcount = be64_to_cpu(ddqp->d_bcount);
 	dqp->q_res_icount = be64_to_cpu(ddqp->d_icount);
 	dqp->q_res_rtbcount = be64_to_cpu(ddqp->d_rtbcount);
+
+	/* initialize the dquot speculative prealloc thresholds */
+	xfs_dquot_set_prealloc_limits(dqp);
 
 	/* Mark the buf so that this will stay incore a little longer */
 	xfs_buf_set_ref(bp, XFS_DQUOT_REF);
@@ -1033,6 +1135,23 @@ xfs_qm_dqflush(
 
 	xfs_trans_ail_copy_lsn(mp->m_ail, &dqp->q_logitem.qli_flush_lsn,
 					&dqp->q_logitem.qli_item.li_lsn);
+
+	/*
+	 * copy the lsn into the on-disk dquot now while we have the in memory
+	 * dquot here. This can't be done later in the write verifier as we
+	 * can't get access to the log item at that point in time.
+	 *
+	 * We also calculate the CRC here so that the on-disk dquot in the
+	 * buffer always has a valid CRC. This ensures there is no possibility
+	 * of a dquot without an up-to-date CRC getting to disk.
+	 */
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		struct xfs_dqblk *dqb = (struct xfs_dqblk *)ddqp;
+
+		dqb->dd_lsn = cpu_to_be64(dqp->q_logitem.qli_item.li_lsn);
+		xfs_update_cksum((char *)dqb, sizeof(struct xfs_dqblk),
+				 XFS_DQUOT_CRC_OFF);
+	}
 
 	/*
 	 * Attach an iodone routine so that we can remove this dquot from the

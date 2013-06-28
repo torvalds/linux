@@ -248,6 +248,22 @@ nouveau_bios_shadow_pci(struct nouveau_bios *bios)
 	}
 }
 
+static void
+nouveau_bios_shadow_platform(struct nouveau_bios *bios)
+{
+	struct pci_dev *pdev = nv_device(bios)->pdev;
+	size_t size;
+
+	void __iomem *rom = pci_platform_rom(pdev, &size);
+	if (rom && size) {
+		bios->data = kmalloc(size, GFP_KERNEL);
+		if (bios->data) {
+			memcpy_fromio(bios->data, rom, size);
+			bios->size = size;
+		}
+	}
+}
+
 static int
 nouveau_bios_score(struct nouveau_bios *bios, const bool writeable)
 {
@@ -288,6 +304,7 @@ nouveau_bios_shadow(struct nouveau_bios *bios)
 		{ "PROM", nouveau_bios_shadow_prom, false, 0, 0, NULL },
 		{ "ACPI", nouveau_bios_shadow_acpi, true, 0, 0, NULL },
 		{ "PCIROM", nouveau_bios_shadow_pci, true, 0, 0, NULL },
+		{ "PLATFORM", nouveau_bios_shadow_platform, true, 0, 0, NULL },
 		{}
 	};
 	struct methods *mthd, *best;

@@ -455,6 +455,7 @@ static struct platform_device bfin_async_nand_device = {
 static void bfin_plat_nand_init(void)
 {
 	gpio_request(BFIN_NAND_PLAT_READY, "bfin_nand_plat");
+	gpio_direction_input(BFIN_NAND_PLAT_READY);
 }
 #else
 static void bfin_plat_nand_init(void) {}

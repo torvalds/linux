@@ -5,12 +5,14 @@
  */
 
 
+#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <asm/da.h>
 #include <asm/metag_mem.h>
 
 bool _metag_da_present;
+EXPORT_SYMBOL_GPL(_metag_da_present);
 
 int __init metag_da_probe(void)
 {

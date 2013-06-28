@@ -66,7 +66,7 @@
 #define E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES  0x00C00000
 #define E1000_CTRL_EXT_EIAME          0x01000000
 #define E1000_CTRL_EXT_DRV_LOAD       0x10000000 /* Driver loaded bit for FW */
-#define E1000_CTRL_EXT_IAME           0x08000000 /* Interrupt acknowledge Auto-mask */
+#define E1000_CTRL_EXT_IAME		0x08000000 /* Int ACK Auto-mask */
 #define E1000_CTRL_EXT_PBA_CLR        0x80000000 /* PBA Clear */
 #define E1000_CTRL_EXT_LSECCK         0x00001000
 #define E1000_CTRL_EXT_PHYPDEN        0x00100000
@@ -216,6 +216,8 @@
 #define E1000_CTRL_MEHE     0x00080000  /* Memory Error Handling Enable */
 #define E1000_CTRL_SWDPIN0  0x00040000  /* SWDPIN 0 value */
 #define E1000_CTRL_SWDPIN1  0x00080000  /* SWDPIN 1 value */
+#define E1000_CTRL_ADVD3WUC 0x00100000  /* D3 WUC */
+#define E1000_CTRL_EN_PHY_PWR_MGMT 0x00200000 /* PHY PM enable */
 #define E1000_CTRL_SWDPIO0  0x00400000  /* SWDPIN 0 Input or output */
 #define E1000_CTRL_RST      0x04000000  /* Global reset */
 #define E1000_CTRL_RFCE     0x08000000  /* Receive Flow Control enable */
@@ -234,16 +236,16 @@
 #define E1000_STATUS_FUNC_SHIFT 2
 #define E1000_STATUS_FUNC_1     0x00000004      /* Function 1 */
 #define E1000_STATUS_TXOFF      0x00000010      /* transmission paused */
+#define E1000_STATUS_SPEED_MASK 0x000000C0
 #define E1000_STATUS_SPEED_10   0x00000000      /* Speed 10Mb/s */
 #define E1000_STATUS_SPEED_100  0x00000040      /* Speed 100Mb/s */
 #define E1000_STATUS_SPEED_1000 0x00000080      /* Speed 1000Mb/s */
 #define E1000_STATUS_LAN_INIT_DONE 0x00000200   /* Lan Init Completion by NVM */
 #define E1000_STATUS_PHYRA      0x00000400      /* PHY Reset Asserted */
-#define E1000_STATUS_GIO_MASTER_ENABLE 0x00080000 /* Status of Master requests. */
+#define E1000_STATUS_GIO_MASTER_ENABLE	0x00080000	/* Master Req status */
 
 #define HALF_DUPLEX 1
 #define FULL_DUPLEX 2
-
 
 #define ADVERTISE_10_HALF                 0x0001
 #define ADVERTISE_10_FULL                 0x0002
@@ -311,6 +313,7 @@
 
 /* SerDes Control */
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400
+#define E1000_SCTL_ENABLE_SERDES_LOOPBACK	0x0410
 
 /* Receive Checksum Control */
 #define E1000_RXCSUM_TUOFL     0x00000200   /* TCP / UDP checksum offload */
@@ -400,7 +403,8 @@
 #define E1000_ICR_RXDMT0        0x00000010 /* Rx desc min. threshold (0) */
 #define E1000_ICR_RXT0          0x00000080 /* Rx timer intr (ring 0) */
 #define E1000_ICR_ECCER         0x00400000 /* Uncorrectable ECC Error */
-#define E1000_ICR_INT_ASSERTED  0x80000000 /* If this bit asserted, the driver should claim the interrupt */
+/* If this bit asserted, the driver should claim the interrupt */
+#define E1000_ICR_INT_ASSERTED	0x80000000
 #define E1000_ICR_RXQ0          0x00100000 /* Rx Queue 0 Interrupt */
 #define E1000_ICR_RXQ1          0x00200000 /* Rx Queue 1 Interrupt */
 #define E1000_ICR_TXQ0          0x00400000 /* Tx Queue 0 Interrupt */
@@ -583,13 +587,13 @@
 #define E1000_EECD_SEC1VAL   0x00400000 /* Sector One Valid */
 #define E1000_EECD_SEC1VAL_VALID_MASK (E1000_EECD_AUTO_RD | E1000_EECD_PRES)
 
-#define E1000_NVM_RW_REG_DATA   16   /* Offset to data in NVM read/write registers */
-#define E1000_NVM_RW_REG_DONE   2    /* Offset to READ/WRITE done bit */
-#define E1000_NVM_RW_REG_START  1    /* Start operation */
-#define E1000_NVM_RW_ADDR_SHIFT 2    /* Shift to the address bits */
-#define E1000_NVM_POLL_WRITE    1    /* Flag for polling for write complete */
-#define E1000_NVM_POLL_READ     0    /* Flag for polling for read complete */
-#define E1000_FLASH_UPDATES  2000
+#define E1000_NVM_RW_REG_DATA	16	/* Offset to data in NVM r/w regs */
+#define E1000_NVM_RW_REG_DONE	2	/* Offset to READ/WRITE done bit */
+#define E1000_NVM_RW_REG_START	1	/* Start operation */
+#define E1000_NVM_RW_ADDR_SHIFT	2	/* Shift to the address bits */
+#define E1000_NVM_POLL_WRITE	1	/* Flag for polling write complete */
+#define E1000_NVM_POLL_READ	0	/* Flag for polling read complete */
+#define E1000_FLASH_UPDATES	2000
 
 /* NVM Word Offsets */
 #define NVM_COMPAT                 0x0003
@@ -785,6 +789,7 @@
 	GG82563_REG(194, 18) /* Inband Control */
 
 /* MDI Control */
+#define E1000_MDIC_REG_MASK	0x001F0000
 #define E1000_MDIC_REG_SHIFT 16
 #define E1000_MDIC_PHY_SHIFT 21
 #define E1000_MDIC_OP_WRITE  0x04000000

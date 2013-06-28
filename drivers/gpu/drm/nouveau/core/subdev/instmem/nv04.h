@@ -9,7 +9,6 @@
 
 struct nv04_instmem_priv {
 	struct nouveau_instmem base;
-	bool created;
 
 	void __iomem *iomem;
 	struct nouveau_mm heap;

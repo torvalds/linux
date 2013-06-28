@@ -301,10 +301,6 @@ static u32 tlb_handler[128] __cpuinitdata;
 static struct uasm_label labels[128] __cpuinitdata;
 static struct uasm_reloc relocs[128] __cpuinitdata;
 
-#ifdef CONFIG_64BIT
-static int check_for_high_segbits __cpuinitdata;
-#endif
-
 static int check_for_high_segbits __cpuinitdata;
 
 static unsigned int kscratch_used_mask __cpuinitdata;
@@ -1458,17 +1454,17 @@ u32 handle_tlbl[FASTPATH_SIZE] __cacheline_aligned;
 u32 handle_tlbs[FASTPATH_SIZE] __cacheline_aligned;
 u32 handle_tlbm[FASTPATH_SIZE] __cacheline_aligned;
 #ifdef CONFIG_MIPS_PGD_C0_CONTEXT
-u32 tlbmiss_handler_setup_pgd[16] __cacheline_aligned;
+u32 tlbmiss_handler_setup_pgd_array[16] __cacheline_aligned;
 
 static void __cpuinit build_r4000_setup_pgd(void)
 {
 	const int a0 = 4;
 	const int a1 = 5;
-	u32 *p = tlbmiss_handler_setup_pgd;
+	u32 *p = tlbmiss_handler_setup_pgd_array;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 
-	memset(tlbmiss_handler_setup_pgd, 0, sizeof(tlbmiss_handler_setup_pgd));
+	memset(tlbmiss_handler_setup_pgd_array, 0, sizeof(tlbmiss_handler_setup_pgd_array));
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
@@ -1496,15 +1492,15 @@ static void __cpuinit build_r4000_setup_pgd(void)
 		uasm_i_jr(&p, 31);
 		UASM_i_MTC0(&p, a0, 31, pgd_reg);
 	}
-	if (p - tlbmiss_handler_setup_pgd > ARRAY_SIZE(tlbmiss_handler_setup_pgd))
-		panic("tlbmiss_handler_setup_pgd space exceeded");
+	if (p - tlbmiss_handler_setup_pgd_array > ARRAY_SIZE(tlbmiss_handler_setup_pgd_array))
+		panic("tlbmiss_handler_setup_pgd_array space exceeded");
 	uasm_resolve_relocs(relocs, labels);
-	pr_debug("Wrote tlbmiss_handler_setup_pgd (%u instructions).\n",
-		 (unsigned int)(p - tlbmiss_handler_setup_pgd));
+	pr_debug("Wrote tlbmiss_handler_setup_pgd_array (%u instructions).\n",
+		 (unsigned int)(p - tlbmiss_handler_setup_pgd_array));
 
 	dump_handler("tlbmiss_handler",
-		     tlbmiss_handler_setup_pgd,
-		     ARRAY_SIZE(tlbmiss_handler_setup_pgd));
+		     tlbmiss_handler_setup_pgd_array,
+		     ARRAY_SIZE(tlbmiss_handler_setup_pgd_array));
 }
 #endif
 
@@ -2030,6 +2026,13 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 
 	uasm_l_nopage_tlbl(&l, p);
 	build_restore_work_registers(&p);
+#ifdef CONFIG_CPU_MICROMIPS
+	if ((unsigned long)tlb_do_page_fault_0 & 1) {
+		uasm_i_lui(&p, K0, uasm_rel_hi((long)tlb_do_page_fault_0));
+		uasm_i_addiu(&p, K0, K0, uasm_rel_lo((long)tlb_do_page_fault_0));
+		uasm_i_jr(&p, K0);
+	} else
+#endif
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_0 & 0x0fffffff);
 	uasm_i_nop(&p);
 
@@ -2077,6 +2080,13 @@ static void __cpuinit build_r4000_tlb_store_handler(void)
 
 	uasm_l_nopage_tlbs(&l, p);
 	build_restore_work_registers(&p);
+#ifdef CONFIG_CPU_MICROMIPS
+	if ((unsigned long)tlb_do_page_fault_1 & 1) {
+		uasm_i_lui(&p, K0, uasm_rel_hi((long)tlb_do_page_fault_1));
+		uasm_i_addiu(&p, K0, K0, uasm_rel_lo((long)tlb_do_page_fault_1));
+		uasm_i_jr(&p, K0);
+	} else
+#endif
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
 	uasm_i_nop(&p);
 
@@ -2125,6 +2135,13 @@ static void __cpuinit build_r4000_tlb_modify_handler(void)
 
 	uasm_l_nopage_tlbm(&l, p);
 	build_restore_work_registers(&p);
+#ifdef CONFIG_CPU_MICROMIPS
+	if ((unsigned long)tlb_do_page_fault_1 & 1) {
+		uasm_i_lui(&p, K0, uasm_rel_hi((long)tlb_do_page_fault_1));
+		uasm_i_addiu(&p, K0, K0, uasm_rel_lo((long)tlb_do_page_fault_1));
+		uasm_i_jr(&p, K0);
+	} else
+#endif
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
 	uasm_i_nop(&p);
 
@@ -2162,8 +2179,11 @@ void __cpuinit build_tlb_refill_handler(void)
 	case CPU_TX3922:
 	case CPU_TX3927:
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
-		build_r3000_tlb_refill_handler();
+		if (cpu_has_local_ebase)
+			build_r3000_tlb_refill_handler();
 		if (!run_once) {
+			if (!cpu_has_local_ebase)
+				build_r3000_tlb_refill_handler();
 			build_r3000_tlb_load_handler();
 			build_r3000_tlb_store_handler();
 			build_r3000_tlb_modify_handler();
@@ -2192,9 +2212,12 @@ void __cpuinit build_tlb_refill_handler(void)
 			build_r4000_tlb_load_handler();
 			build_r4000_tlb_store_handler();
 			build_r4000_tlb_modify_handler();
+			if (!cpu_has_local_ebase)
+				build_r4000_tlb_refill_handler();
 			run_once++;
 		}
-		build_r4000_tlb_refill_handler();
+		if (cpu_has_local_ebase)
+			build_r4000_tlb_refill_handler();
 	}
 }
 
@@ -2207,7 +2230,7 @@ void __cpuinit flush_tlb_handlers(void)
 	local_flush_icache_range((unsigned long)handle_tlbm,
 			   (unsigned long)handle_tlbm + sizeof(handle_tlbm));
 #ifdef CONFIG_MIPS_PGD_C0_CONTEXT
-	local_flush_icache_range((unsigned long)tlbmiss_handler_setup_pgd,
-			   (unsigned long)tlbmiss_handler_setup_pgd + sizeof(handle_tlbm));
+	local_flush_icache_range((unsigned long)tlbmiss_handler_setup_pgd_array,
+			   (unsigned long)tlbmiss_handler_setup_pgd_array + sizeof(handle_tlbm));
 #endif
 }

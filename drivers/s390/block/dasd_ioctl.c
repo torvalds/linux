@@ -143,12 +143,12 @@ static int dasd_ioctl_resume(struct dasd_block *block)
 /*
  * performs formatting of _device_ according to _fdata_
  * Note: The discipline's format_function is assumed to deliver formatting
- * commands to format a single unit of the device. In terms of the ECKD
- * devices this means CCWs are generated to format a single track.
+ * commands to format multiple units of the device. In terms of the ECKD
+ * devices this means CCWs are generated to format multiple tracks.
  */
-static int dasd_format(struct dasd_block *block, struct format_data_t *fdata)
+static int
+dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 {
-	struct dasd_ccw_req *cqr;
 	struct dasd_device *base;
 	int rc;
 
@@ -157,8 +157,8 @@ static int dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 		return -EPERM;
 
 	if (base->state != DASD_STATE_BASIC) {
-		pr_warning("%s: The DASD cannot be formatted while it is "
-			   "enabled\n",  dev_name(&base->cdev->dev));
+		pr_warn("%s: The DASD cannot be formatted while it is enabled\n",
+			dev_name(&base->cdev->dev));
 		return -EBUSY;
 	}
 
@@ -178,21 +178,10 @@ static int dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 		bdput(bdev);
 	}
 
-	while (fdata->start_unit <= fdata->stop_unit) {
-		cqr = base->discipline->format_device(base, fdata);
-		if (IS_ERR(cqr))
-			return PTR_ERR(cqr);
-		rc = dasd_sleep_on_interruptible(cqr);
-		dasd_sfree_request(cqr, cqr->memdev);
-		if (rc) {
-			if (rc != -ERESTARTSYS)
-				pr_err("%s: Formatting unit %d failed with "
-				       "rc=%d\n", dev_name(&base->cdev->dev),
-				       fdata->start_unit, rc);
-			return rc;
-		}
-		fdata->start_unit++;
-	}
+	rc = base->discipline->format_device(base, fdata);
+	if (rc)
+		return rc;
+
 	return 0;
 }
 

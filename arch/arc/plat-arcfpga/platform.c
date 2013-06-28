@@ -224,3 +224,15 @@ MACHINE_START(ML509, "ml509")
 	.init_smp	= iss_model_init_smp,
 #endif
 MACHINE_END
+
+static const char *nsimosci_compat[] __initdata = {
+	"snps,nsimosci",
+	NULL,
+};
+
+MACHINE_START(NSIMOSCI, "nsimosci")
+	.dt_compat	= nsimosci_compat,
+	.init_early	= NULL,
+	.init_machine	= plat_fpga_populate_dev,
+	.init_irq	= NULL,
+MACHINE_END

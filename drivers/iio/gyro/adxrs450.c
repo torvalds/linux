@@ -383,16 +383,16 @@ static const struct iio_chan_spec adxrs450_channels[2][2] = {
 			.type = IIO_ANGL_VEL,
 			.modified = 1,
 			.channel2 = IIO_MOD_Z,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
-			IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_CALIBBIAS) |
+			BIT(IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
 		}, {
 			.type = IIO_TEMP,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
 		}
 	},
 	[ID_ADXRS453] = {
@@ -400,15 +400,15 @@ static const struct iio_chan_spec adxrs450_channels[2][2] = {
 			.type = IIO_ANGL_VEL,
 			.modified = 1,
 			.channel2 = IIO_MOD_Z,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
-			IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW),
 		}, {
 			.type = IIO_TEMP,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
 		}
 	},
 };

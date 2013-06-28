@@ -21,6 +21,12 @@
 #endif
 
 /*
+ * With ES_AGGRESSIVE_TEST defined, the result of es caching will be
+ * checked with old map_block's result.
+ */
+#define ES_AGGRESSIVE_TEST__
+
+/*
  * These flags live in the high bits of extent_status.es_pblk
  */
 #define EXTENT_STATUS_WRITTEN	(1ULL << 63)
@@ -32,6 +38,8 @@
 				 EXTENT_STATUS_UNWRITTEN | \
 				 EXTENT_STATUS_DELAYED | \
 				 EXTENT_STATUS_HOLE)
+
+struct ext4_extent;
 
 struct extent_status {
 	struct rb_node rb_node;
@@ -54,10 +62,12 @@ extern int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 				 unsigned long long status);
 extern int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 				 ext4_lblk_t len);
-extern void ext4_es_find_delayed_extent(struct inode *inode, ext4_lblk_t lblk,
+extern void ext4_es_find_delayed_extent_range(struct inode *inode,
+					ext4_lblk_t lblk, ext4_lblk_t end,
 					struct extent_status *es);
 extern int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 				 struct extent_status *es);
+extern int ext4_es_zeroout(struct inode *inode, struct ext4_extent *ex);
 
 static inline int ext4_es_is_written(struct extent_status *es)
 {

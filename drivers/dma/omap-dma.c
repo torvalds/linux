@@ -16,6 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/of_dma.h>
+#include <linux/of_device.h>
 
 #include "virt-dma.h"
 
@@ -65,6 +67,10 @@ static const unsigned es_bytes[] = {
 	[OMAP_DMA_DATA_TYPE_S8] = 1,
 	[OMAP_DMA_DATA_TYPE_S16] = 2,
 	[OMAP_DMA_DATA_TYPE_S32] = 4,
+};
+
+static struct of_dma_filter_info omap_dma_info = {
+	.filter_fn = omap_dma_filter_fn,
 };
 
 static inline struct omap_dmadev *to_omap_dma_dev(struct dma_device *d)
@@ -276,12 +282,20 @@ static void omap_dma_issue_pending(struct dma_chan *chan)
 
 	spin_lock_irqsave(&c->vc.lock, flags);
 	if (vchan_issue_pending(&c->vc) && !c->desc) {
-		struct omap_dmadev *d = to_omap_dma_dev(chan->device);
-		spin_lock(&d->lock);
-		if (list_empty(&c->node))
-			list_add_tail(&c->node, &d->pending);
-		spin_unlock(&d->lock);
-		tasklet_schedule(&d->task);
+		/*
+		 * c->cyclic is used only by audio and in this case the DMA need
+		 * to be started without delay.
+		 */
+		if (!c->cyclic) {
+			struct omap_dmadev *d = to_omap_dma_dev(chan->device);
+			spin_lock(&d->lock);
+			if (list_empty(&c->node))
+				list_add_tail(&c->node, &d->pending);
+			spin_unlock(&d->lock);
+			tasklet_schedule(&d->task);
+		} else {
+			omap_dma_start_desc(c);
+		}
 	}
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 }
@@ -621,8 +635,22 @@ static int omap_dma_probe(struct platform_device *pdev)
 		pr_warn("OMAP-DMA: failed to register slave DMA engine device: %d\n",
 			rc);
 		omap_dma_free(od);
-	} else {
-		platform_set_drvdata(pdev, od);
+		return rc;
+	}
+
+	platform_set_drvdata(pdev, od);
+
+	if (pdev->dev.of_node) {
+		omap_dma_info.dma_cap = od->ddev.cap_mask;
+
+		/* Device-tree DMA controller registration */
+		rc = of_dma_controller_register(pdev->dev.of_node,
+				of_dma_simple_xlate, &omap_dma_info);
+		if (rc) {
+			pr_warn("OMAP-DMA: failed to register DMA controller\n");
+			dma_async_device_unregister(&od->ddev);
+			omap_dma_free(od);
+		}
 	}
 
 	dev_info(&pdev->dev, "OMAP DMA engine driver\n");
@@ -634,11 +662,24 @@ static int omap_dma_remove(struct platform_device *pdev)
 {
 	struct omap_dmadev *od = platform_get_drvdata(pdev);
 
+	if (pdev->dev.of_node)
+		of_dma_controller_free(pdev->dev.of_node);
+
 	dma_async_device_unregister(&od->ddev);
 	omap_dma_free(od);
 
 	return 0;
 }
+
+static const struct of_device_id omap_dma_match[] = {
+	{ .compatible = "ti,omap2420-sdma", },
+	{ .compatible = "ti,omap2430-sdma", },
+	{ .compatible = "ti,omap3430-sdma", },
+	{ .compatible = "ti,omap3630-sdma", },
+	{ .compatible = "ti,omap4430-sdma", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap_dma_match);
 
 static struct platform_driver omap_dma_driver = {
 	.probe	= omap_dma_probe,
@@ -646,6 +687,7 @@ static struct platform_driver omap_dma_driver = {
 	.driver = {
 		.name = "omap-dma-engine",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(omap_dma_match),
 	},
 };
 

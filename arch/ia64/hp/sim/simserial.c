@@ -142,8 +142,7 @@ static void transmit_chars(struct tty_struct *tty, struct serial_state *info,
 		goto out;
 	}
 
-	if (info->xmit.head == info->xmit.tail || tty->stopped ||
-			tty->hw_stopped) {
+	if (info->xmit.head == info->xmit.tail || tty->stopped) {
 #ifdef SIMSERIAL_DEBUG
 		printk("transmit_chars: head=%d, tail=%d, stopped=%d\n",
 		       info->xmit.head, info->xmit.tail, tty->stopped);
@@ -181,7 +180,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 	struct serial_state *info = tty->driver_data;
 
 	if (info->xmit.head == info->xmit.tail || tty->stopped ||
-			tty->hw_stopped || !info->xmit.buf)
+			!info->xmit.buf)
 		return;
 
 	transmit_chars(tty, info, NULL);
@@ -217,7 +216,7 @@ static int rs_write(struct tty_struct * tty,
 	 * Hey, we transmit directly from here in our case
 	 */
 	if (CIRC_CNT(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE) &&
-			!tty->stopped && !tty->hw_stopped)
+			!tty->stopped)
 		transmit_chars(tty, info, NULL);
 
 	return ret;
@@ -325,14 +324,6 @@ static int rs_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 
 #define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 
-static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
-{
-	/* Handle turning off CRTSCTS */
-	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios.c_cflag & CRTSCTS)) {
-		tty->hw_stopped = 0;
-	}
-}
 /*
  * This routine will shutdown a serial port; interrupts are disabled, and
  * DTR is dropped if the hangup on close termio flag is on.
@@ -481,7 +472,6 @@ static const struct tty_operations hp_ops = {
 	.throttle = rs_throttle,
 	.unthrottle = rs_unthrottle,
 	.send_xchar = rs_send_xchar,
-	.set_termios = rs_set_termios,
 	.hangup = rs_hangup,
 	.proc_fops = &rs_proc_fops,
 };

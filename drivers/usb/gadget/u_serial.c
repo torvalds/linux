@@ -136,7 +136,7 @@ static struct portmaster {
 	pr_debug(fmt, ##arg)
 #endif /* pr_vdebug */
 #else
-#ifndef pr_vdebig
+#ifndef pr_vdebug
 #define pr_vdebug(fmt, arg...) \
 	({ if (0) pr_debug(fmt, ##arg); })
 #endif /* pr_vdebug */

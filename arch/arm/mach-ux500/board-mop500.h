@@ -8,8 +8,8 @@
 #define __BOARD_MOP500_H
 
 /* For NOMADIK_NR_GPIO */
-#include <mach/irqs.h>
-#include <mach/msp.h>
+#include "irqs.h"
+#include <linux/platform_data/asoc-ux500-msp.h>
 #include <linux/amba/mmci.h>
 
 /* Snowball specific GPIO assignments, this board has no GPIO expander */
@@ -104,6 +104,7 @@ void __init mop500_pinmaps_init(void);
 void __init snowball_pinmaps_init(void);
 void __init hrefv60_pinmaps_init(void);
 void mop500_audio_init(struct device *parent);
+void mop500_snowball_ethernet_clock_enable(void);
 
 int __init mop500_uib_init(void);
 void mop500_uib_i2c_add(int busnum, struct i2c_board_info *info,

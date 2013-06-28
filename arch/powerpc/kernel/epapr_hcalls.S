@@ -17,6 +17,7 @@
 #include <asm/asm-compat.h>
 #include <asm/asm-offsets.h>
 
+#ifndef CONFIG_PPC64
 /* epapr_ev_idle() was derived from e500_idle() */
 _GLOBAL(epapr_ev_idle)
 	CURRENT_THREAD_INFO(r3, r1)
@@ -42,6 +43,7 @@ epapr_ev_idle_start:
 	 * _TLF_NAPPING.
 	 */
 	b	idle_loop
+#endif
 
 /* Hypercall entry point. Will be patched with device tree instructions. */
 .global epapr_hypercall_start

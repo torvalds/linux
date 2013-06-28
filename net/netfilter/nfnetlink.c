@@ -24,10 +24,9 @@
 #include <linux/skbuff.h>
 #include <asm/uaccess.h>
 #include <net/sock.h>
-#include <net/netlink.h>
 #include <linux/init.h>
 
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <linux/netfilter/nfnetlink.h>
 
 MODULE_LICENSE("GPL");
@@ -113,22 +112,30 @@ int nfnetlink_has_listeners(struct net *net, unsigned int group)
 }
 EXPORT_SYMBOL_GPL(nfnetlink_has_listeners);
 
-int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 pid,
+struct sk_buff *nfnetlink_alloc_skb(struct net *net, unsigned int size,
+				    u32 dst_portid, gfp_t gfp_mask)
+{
+	return netlink_alloc_skb(net->nfnl, size, dst_portid, gfp_mask);
+}
+EXPORT_SYMBOL_GPL(nfnetlink_alloc_skb);
+
+int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 portid,
 		   unsigned int group, int echo, gfp_t flags)
 {
-	return nlmsg_notify(net->nfnl, skb, pid, group, echo, flags);
+	return nlmsg_notify(net->nfnl, skb, portid, group, echo, flags);
 }
 EXPORT_SYMBOL_GPL(nfnetlink_send);
 
-int nfnetlink_set_err(struct net *net, u32 pid, u32 group, int error)
+int nfnetlink_set_err(struct net *net, u32 portid, u32 group, int error)
 {
-	return netlink_set_err(net->nfnl, pid, group, error);
+	return netlink_set_err(net->nfnl, portid, group, error);
 }
 EXPORT_SYMBOL_GPL(nfnetlink_set_err);
 
-int nfnetlink_unicast(struct sk_buff *skb, struct net *net, u_int32_t pid, int flags)
+int nfnetlink_unicast(struct sk_buff *skb, struct net *net, u32 portid,
+		      int flags)
 {
-	return netlink_unicast(net->nfnl, skb, pid, flags);
+	return netlink_unicast(net->nfnl, skb, portid, flags);
 }
 EXPORT_SYMBOL_GPL(nfnetlink_unicast);
 
@@ -144,7 +151,7 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -EPERM;
 
 	/* All the messages must at least contain nfgenmsg */
-	if (nlh->nlmsg_len < NLMSG_LENGTH(sizeof(struct nfgenmsg)))
+	if (nlmsg_len(nlh) < sizeof(struct nfgenmsg))
 		return 0;
 
 	type = nlh->nlmsg_type;
@@ -172,7 +179,7 @@ replay:
 	}
 
 	{
-		int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
+		int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
 		u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
 		struct nlattr *cda[ss->cb[cb_id].attr_count + 1];
 		struct nlattr *attr = (void *)nlh + min_len;

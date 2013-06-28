@@ -101,15 +101,13 @@ config GENERIC_CALIBRATE_DELAY
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y
 
-config GENERIC_GPIO
-	bool
-
 config DMI
 	bool
 	default y
 
 config EFI
 	bool
+	select UCS2_STRING
 	default y
 
 config SCHED_OMIT_FRAME_POINTER
@@ -187,7 +185,7 @@ config IA64_DIG
 
 config IA64_DIG_VTD
 	bool "DIG+Intel+IOMMU"
-	select DMAR
+	select INTEL_IOMMU
 	select PCI_MSI
 
 config IA64_HP_ZX1
@@ -591,9 +589,9 @@ source "kernel/power/Kconfig"
 source "drivers/acpi/Kconfig"
 
 if PM
-
-source "arch/ia64/kernel/cpufreq/Kconfig"
-
+menu "CPU Frequency scaling"
+source "drivers/cpufreq/Kconfig"
+endmenu
 endif
 
 endmenu

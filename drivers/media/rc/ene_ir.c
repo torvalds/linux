@@ -1098,6 +1098,7 @@ exit_release_hw_io:
 	release_region(dev->hw_io, ENE_IO_SIZE);
 exit_unregister_device:
 	rc_unregister_device(rdev);
+	rdev = NULL;
 exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(dev);

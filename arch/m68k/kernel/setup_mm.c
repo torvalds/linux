@@ -381,6 +381,12 @@ void __init setup_arch(char **cmdline_p)
 		isa_sex = 1;
 	}
 #endif
+#ifdef CONFIG_ATARI_ROM_ISA
+	if (MACH_IS_ATARI) {
+		isa_type = ISA_TYPE_ENEC;
+		isa_sex = 0;
+	}
+#endif
 #endif
 }
 

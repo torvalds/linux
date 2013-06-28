@@ -4777,7 +4777,7 @@ static int ipr_eh_host_reset(struct scsi_cmnd *cmd)
 	ioa_cfg = (struct ipr_ioa_cfg *) cmd->device->host->hostdata;
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 
-	if (!ioa_cfg->in_reset_reload) {
+	if (!ioa_cfg->in_reset_reload && !ioa_cfg->hrrq[IPR_INIT_HRRQ].ioa_is_dead) {
 		ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_ABBREV);
 		dev_err(&ioa_cfg->pdev->dev,
 			"Adapter being reset as a result of error recovery.\n");
@@ -5148,7 +5148,7 @@ static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
 		ipr_trace;
 	}
 
-	list_add_tail(&ipr_cmd->queue, &hrrq->hrrq_free_q);
+	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
 	if (!ipr_is_naca_model(res))
 		res->needs_sync_complete = 1;
 
@@ -6421,7 +6421,7 @@ static void ipr_build_ata_ioadl64(struct ipr_cmnd *ipr_cmd,
 {
 	u32 ioadl_flags = 0;
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
-	struct ipr_ioadl64_desc *ioadl64 = ipr_cmd->i.ioadl64;
+	struct ipr_ioadl64_desc *ioadl64 = ipr_cmd->i.ata_ioadl.ioadl64;
 	struct ipr_ioadl64_desc *last_ioadl64 = NULL;
 	int len = qc->nbytes;
 	struct scatterlist *sg;
@@ -6441,7 +6441,7 @@ static void ipr_build_ata_ioadl64(struct ipr_cmnd *ipr_cmd,
 	ioarcb->ioadl_len =
 		cpu_to_be32(sizeof(struct ipr_ioadl64_desc) * ipr_cmd->dma_use_sg);
 	ioarcb->u.sis64_addr_data.data_ioadl_addr =
-		cpu_to_be64(dma_addr + offsetof(struct ipr_cmnd, i.ata_ioadl));
+		cpu_to_be64(dma_addr + offsetof(struct ipr_cmnd, i.ata_ioadl.ioadl64));
 
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		ioadl64->flags = cpu_to_be32(ioadl_flags);
@@ -6739,6 +6739,7 @@ static int ipr_invalid_adapter(struct ipr_ioa_cfg *ioa_cfg)
 static int ipr_ioa_bringdown_done(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	int i;
 
 	ENTER;
 	if (!ioa_cfg->hrrq[IPR_INIT_HRRQ].removing_ioa) {
@@ -6750,6 +6751,13 @@ static int ipr_ioa_bringdown_done(struct ipr_cmnd *ipr_cmd)
 
 	ioa_cfg->in_reset_reload = 0;
 	ioa_cfg->reset_retries = 0;
+	for (i = 0; i < ioa_cfg->hrrq_num; i++) {
+		spin_lock(&ioa_cfg->hrrq[i]._lock);
+		ioa_cfg->hrrq[i].ioa_is_dead = 1;
+		spin_unlock(&ioa_cfg->hrrq[i]._lock);
+	}
+	wmb();
+
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
 	wake_up_all(&ioa_cfg->reset_wait_q);
 	LEAVE;
@@ -8651,7 +8659,7 @@ static void ipr_pci_perm_failure(struct pci_dev *pdev)
 	spin_lock_irqsave(ioa_cfg->host->host_lock, flags);
 	if (ioa_cfg->sdt_state == WAIT_FOR_DUMP)
 		ioa_cfg->sdt_state = ABORT_DUMP;
-	ioa_cfg->reset_retries = IPR_NUM_RESET_RELOAD_RETRIES;
+	ioa_cfg->reset_retries = IPR_NUM_RESET_RELOAD_RETRIES - 1;
 	ioa_cfg->in_ioa_bringdown = 1;
 	for (i = 0; i < ioa_cfg->hrrq_num; i++) {
 		spin_lock(&ioa_cfg->hrrq[i]._lock);
@@ -9349,7 +9357,10 @@ static int ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg, struct pci_dev *pdev)
 	int_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
-	rc = request_irq(pdev->irq, ipr_test_intr, 0, IPR_NAME, ioa_cfg);
+	if (ioa_cfg->intr_flag == IPR_USE_MSIX)
+		rc = request_irq(ioa_cfg->vectors_info[0].vec, ipr_test_intr, 0, IPR_NAME, ioa_cfg);
+	else
+		rc = request_irq(pdev->irq, ipr_test_intr, 0, IPR_NAME, ioa_cfg);
 	if (rc) {
 		dev_err(&pdev->dev, "Can not assign irq %d\n", pdev->irq);
 		return rc;
@@ -9371,7 +9382,10 @@ static int ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg, struct pci_dev *pdev)
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
-	free_irq(pdev->irq, ioa_cfg);
+	if (ioa_cfg->intr_flag == IPR_USE_MSIX)
+		free_irq(ioa_cfg->vectors_info[0].vec, ioa_cfg);
+	else
+		free_irq(pdev->irq, ioa_cfg);
 
 	LEAVE;
 
@@ -9722,6 +9736,7 @@ static void __ipr_remove(struct pci_dev *pdev)
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, host_lock_flags);
 	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
 	flush_work(&ioa_cfg->work_q);
+	INIT_LIST_HEAD(&ioa_cfg->used_res_q);
 	spin_lock_irqsave(ioa_cfg->host->host_lock, host_lock_flags);
 
 	spin_lock(&ipr_driver_lock);

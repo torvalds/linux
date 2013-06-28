@@ -90,6 +90,7 @@ static const struct snmp_mib snmp6_ipstats_list[] = {
 	SNMP_MIB_ITEM("Ip6OutMcastOctets", IPSTATS_MIB_OUTMCASTOCTETS),
 	SNMP_MIB_ITEM("Ip6InBcastOctets", IPSTATS_MIB_INBCASTOCTETS),
 	SNMP_MIB_ITEM("Ip6OutBcastOctets", IPSTATS_MIB_OUTBCASTOCTETS),
+	/* IPSTATS_MIB_CSUMERRORS is not relevant in IPv6 (no checksum) */
 	SNMP_MIB_SENTINEL
 };
 
@@ -99,6 +100,7 @@ static const struct snmp_mib snmp6_icmp6_list[] = {
 	SNMP_MIB_ITEM("Icmp6InErrors", ICMP6_MIB_INERRORS),
 	SNMP_MIB_ITEM("Icmp6OutMsgs", ICMP6_MIB_OUTMSGS),
 	SNMP_MIB_ITEM("Icmp6OutErrors", ICMP6_MIB_OUTERRORS),
+	SNMP_MIB_ITEM("Icmp6InCsumErrors", ICMP6_MIB_CSUMERRORS),
 	SNMP_MIB_SENTINEL
 };
 
@@ -129,6 +131,7 @@ static const struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_ITEM("Udp6OutDatagrams", UDP_MIB_OUTDATAGRAMS),
 	SNMP_MIB_ITEM("Udp6RcvbufErrors", UDP_MIB_RCVBUFERRORS),
 	SNMP_MIB_ITEM("Udp6SndbufErrors", UDP_MIB_SNDBUFERRORS),
+	SNMP_MIB_ITEM("Udp6InCsumErrors", UDP_MIB_CSUMERRORS),
 	SNMP_MIB_SENTINEL
 };
 
@@ -139,6 +142,7 @@ static const struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_ITEM("UdpLite6OutDatagrams", UDP_MIB_OUTDATAGRAMS),
 	SNMP_MIB_ITEM("UdpLite6RcvbufErrors", UDP_MIB_RCVBUFERRORS),
 	SNMP_MIB_ITEM("UdpLite6SndbufErrors", UDP_MIB_SNDBUFERRORS),
+	SNMP_MIB_ITEM("UdpLite6InCsumErrors", UDP_MIB_CSUMERRORS),
 	SNMP_MIB_SENTINEL
 };
 
@@ -247,7 +251,7 @@ static int snmp6_dev_seq_show(struct seq_file *seq, void *v)
 
 static int snmp6_dev_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, snmp6_dev_seq_show, PDE(inode)->data);
+	return single_open(file, snmp6_dev_seq_show, PDE_DATA(inode));
 }
 
 static const struct file_operations snmp6_dev_seq_fops = {
@@ -287,8 +291,7 @@ int snmp6_unregister_dev(struct inet6_dev *idev)
 		return -ENOENT;
 	if (!idev->stats.proc_dir_entry)
 		return -EINVAL;
-	remove_proc_entry(idev->stats.proc_dir_entry->name,
-			  net->mib.proc_net_devsnmp6);
+	proc_remove(idev->stats.proc_dir_entry);
 	idev->stats.proc_dir_entry = NULL;
 	return 0;
 }

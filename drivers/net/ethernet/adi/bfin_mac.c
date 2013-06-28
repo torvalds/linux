@@ -188,10 +188,9 @@ static int desc_list_init(struct net_device *dev)
 
 		/* allocate a new skb for next time receive */
 		new_skb = netdev_alloc_skb(dev, PKT_BUF_SZ + NET_IP_ALIGN);
-		if (!new_skb) {
-			pr_notice("init: low on mem - packet dropped\n");
+		if (!new_skb)
 			goto init_error;
-		}
+
 		skb_reserve(new_skb, NET_IP_ALIGN);
 		/* Invidate the data cache of skb->data range when it is write back
 		 * cache. It will prevent overwritting the new data from DMA
@@ -1236,7 +1235,6 @@ static void bfin_mac_rx(struct net_device *dev)
 
 	new_skb = netdev_alloc_skb(dev, PKT_BUF_SZ + NET_IP_ALIGN);
 	if (!new_skb) {
-		netdev_notice(dev, "rx: low on mem - packet dropped\n");
 		dev->stats.rx_dropped++;
 		goto out;
 	}
@@ -1702,7 +1700,8 @@ static int bfin_mac_probe(struct platform_device *pdev)
 	}
 
 	bfin_mac_hwtstamp_init(ndev);
-	if (bfin_phc_init(ndev, &pdev->dev)) {
+	rc = bfin_phc_init(ndev, &pdev->dev);
+	if (rc) {
 		dev_err(&pdev->dev, "Cannot register PHC device!\n");
 		goto out_err_phc;
 	}

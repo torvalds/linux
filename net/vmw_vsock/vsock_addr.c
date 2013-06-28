@@ -64,16 +64,6 @@ bool vsock_addr_equals_addr(const struct sockaddr_vm *addr,
 }
 EXPORT_SYMBOL_GPL(vsock_addr_equals_addr);
 
-bool vsock_addr_equals_addr_any(const struct sockaddr_vm *addr,
-				const struct sockaddr_vm *other)
-{
-	return (addr->svm_cid == VMADDR_CID_ANY ||
-		other->svm_cid == VMADDR_CID_ANY ||
-		addr->svm_cid == other->svm_cid) &&
-	       addr->svm_port == other->svm_port;
-}
-EXPORT_SYMBOL_GPL(vsock_addr_equals_addr_any);
-
 int vsock_addr_cast(const struct sockaddr *addr,
 		    size_t len, struct sockaddr_vm **out_addr)
 {

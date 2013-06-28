@@ -60,6 +60,8 @@ struct ipu_crtc {
 	int			irq;
 	u32			interface_pix_fmt;
 	unsigned long		di_clkflags;
+	int			di_hsync_pin;
+	int			di_vsync_pin;
 };
 
 #define to_ipu_crtc(x) container_of(x, struct ipu_crtc, base)
@@ -255,6 +257,9 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 
 	sig_cfg.v_to_h_sync = 0;
 
+	sig_cfg.hsync_pin = ipu_crtc->di_hsync_pin;
+	sig_cfg.vsync_pin = ipu_crtc->di_vsync_pin;
+
 	if (ipu_crtc->dp) {
 		ret = ipu_dp_setup_channel(ipu_crtc->dp, IPUV3_COLORSPACE_RGB,
 				IPUV3_COLORSPACE_RGB);
@@ -311,31 +316,14 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 
 static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
 {
-	struct drm_pending_vblank_event *e;
-	struct timeval now;
 	unsigned long flags;
 	struct drm_device *drm = ipu_crtc->base.dev;
 
 	spin_lock_irqsave(&drm->event_lock, flags);
-
-	e = ipu_crtc->page_flip_event;
-	if (!e) {
-		spin_unlock_irqrestore(&drm->event_lock, flags);
-		return;
-	}
-
-	do_gettimeofday(&now);
-	e->event.sequence = 0;
-	e->event.tv_sec = now.tv_sec;
-	e->event.tv_usec = now.tv_usec;
+	if (ipu_crtc->page_flip_event)
+		drm_send_vblank_event(drm, -1, ipu_crtc->page_flip_event);
 	ipu_crtc->page_flip_event = NULL;
-
 	imx_drm_crtc_vblank_put(ipu_crtc->imx_crtc);
-
-	list_add_tail(&e->base.link, &e->base.file_priv->event_list);
-
-	wake_up_interruptible(&e->base.file_priv->event_wait);
-
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
 
@@ -406,13 +394,17 @@ static void ipu_disable_vblank(struct drm_crtc *crtc)
 }
 
 static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc, u32 encoder_type,
-		u32 pixfmt)
+		u32 pixfmt, int hsync_pin, int vsync_pin)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 
 	ipu_crtc->interface_pix_fmt = pixfmt;
+	ipu_crtc->di_hsync_pin = hsync_pin;
+	ipu_crtc->di_vsync_pin = vsync_pin;
 
 	switch (encoder_type) {
+	case DRM_MODE_ENCODER_DAC:
+	case DRM_MODE_ENCODER_TVDAC:
 	case DRM_MODE_ENCODER_LVDS:
 		ipu_crtc->di_clkflags = IPU_DI_CLKMODE_SYNC |
 			IPU_DI_CLKMODE_EXT;

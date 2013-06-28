@@ -138,7 +138,7 @@
 
 /*
  * New Feature Selectors as added by USB 3.0
- * See USB 3.0 spec Table 9-6
+ * See USB 3.0 spec Table 9-7
  */
 #define USB_DEVICE_U1_ENABLE	48	/* dev may initiate U1 transition */
 #define USB_DEVICE_U2_ENABLE	49	/* dev may initiate U2 transition */
@@ -147,7 +147,7 @@
 
 #define USB_INTR_FUNC_SUSPEND_OPT_MASK	0xFF00
 /*
- * Suspend Options, Table 9-7 USB 3.0 spec
+ * Suspend Options, Table 9-8 USB 3.0 spec
  */
 #define USB_INTRF_FUNC_SUSPEND_LP	(1 << (8 + 0))
 #define USB_INTRF_FUNC_SUSPEND_RW	(1 << (8 + 1))

@@ -119,6 +119,32 @@ static bool check_pincap_validity(struct hda_codec *codec, hda_nid_t pin,
 	}
 }
 
+static bool can_be_headset_mic(struct hda_codec *codec,
+			       struct auto_pin_cfg_item *item,
+			       int seq_number)
+{
+	int attr;
+	unsigned int def_conf;
+	if (item->type != AUTO_PIN_MIC)
+		return false;
+
+	if (item->is_headset_mic || item->is_headphone_mic)
+		return false; /* Already assigned */
+
+	def_conf = snd_hda_codec_get_pincfg(codec, item->pin);
+	attr = snd_hda_get_input_pin_attr(def_conf);
+	if (attr <= INPUT_PIN_ATTR_DOCK)
+		return false;
+
+	if (seq_number >= 0) {
+		int seq = get_defcfg_sequence(def_conf);
+		if (seq != seq_number)
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * Parse all pin widgets and store the useful pin nids to cfg
  *
@@ -260,6 +286,38 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 		}
 	}
 
+	/* Find a pin that could be a headset or headphone mic */
+	if (cond_flags & HDA_PINCFG_HEADSET_MIC || cond_flags & HDA_PINCFG_HEADPHONE_MIC) {
+		bool hsmic = !!(cond_flags & HDA_PINCFG_HEADSET_MIC);
+		bool hpmic = !!(cond_flags & HDA_PINCFG_HEADPHONE_MIC);
+		for (i = 0; (hsmic || hpmic) && (i < cfg->num_inputs); i++)
+			if (hsmic && can_be_headset_mic(codec, &cfg->inputs[i], 0xc)) {
+				cfg->inputs[i].is_headset_mic = 1;
+				hsmic = false;
+			} else if (hpmic && can_be_headset_mic(codec, &cfg->inputs[i], 0xd)) {
+				cfg->inputs[i].is_headphone_mic = 1;
+				hpmic = false;
+			}
+
+		/* If we didn't find our sequence number mark, fall back to any sequence number */
+		for (i = 0; (hsmic || hpmic) && (i < cfg->num_inputs); i++) {
+			if (!can_be_headset_mic(codec, &cfg->inputs[i], -1))
+				continue;
+			if (hsmic) {
+				cfg->inputs[i].is_headset_mic = 1;
+				hsmic = false;
+			} else if (hpmic) {
+				cfg->inputs[i].is_headphone_mic = 1;
+				hpmic = false;
+			}
+		}
+
+		if (hsmic)
+			snd_printdd("Told to look for a headset mic, but didn't find any.\n");
+		if (hpmic)
+			snd_printdd("Told to look for a headphone mic, but didn't find any.\n");
+	}
+
 	/* FIX-UP:
 	 * If no line-out is defined but multiple HPs are found,
 	 * some of them might be the real line-outs.
@@ -388,6 +446,7 @@ EXPORT_SYMBOL_HDA(snd_hda_get_input_pin_attr);
  */
 
 static const char *hda_get_input_pin_label(struct hda_codec *codec,
+					   const struct auto_pin_cfg_item *item,
 					   hda_nid_t pin, bool check_location)
 {
 	unsigned int def_conf;
@@ -400,6 +459,10 @@ static const char *hda_get_input_pin_label(struct hda_codec *codec,
 
 	switch (get_defcfg_device(def_conf)) {
 	case AC_JACK_MIC_IN:
+		if (item && item->is_headset_mic)
+			return "Headset Mic";
+		if (item && item->is_headphone_mic)
+			return "Headphone Mic";
 		if (!check_location)
 			return "Mic";
 		attr = snd_hda_get_input_pin_attr(def_conf);
@@ -480,7 +543,8 @@ const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 		has_multiple_pins = 1;
 	if (has_multiple_pins && type == AUTO_PIN_MIC)
 		has_multiple_pins &= check_mic_location_need(codec, cfg, input);
-	return hda_get_input_pin_label(codec, cfg->inputs[input].pin,
+	return hda_get_input_pin_label(codec, &cfg->inputs[input],
+				       cfg->inputs[input].pin,
 				       has_multiple_pins);
 }
 EXPORT_SYMBOL_HDA(hda_get_autocfg_input_label);
@@ -649,7 +713,7 @@ int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 			}
 		}
 		if (!name)
-			name = hda_get_input_pin_label(codec, nid, true);
+			name = hda_get_input_pin_label(codec, NULL, nid, true);
 		break;
 	}
 	if (!name)

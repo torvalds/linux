@@ -331,7 +331,7 @@ static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
  * Should we set other tuner attributes, too?
  */
 static int fm_v4l2_vidioc_s_tuner(struct file *file, void *priv,
-		struct v4l2_tuner *tuner)
+		const struct v4l2_tuner *tuner)
 {
 	struct fmdev *fmdev = video_drvdata(file);
 	u16 aud_mode;
@@ -388,7 +388,7 @@ static int fm_v4l2_vidioc_g_freq(struct file *file, void *priv,
 
 /* Set tuner or modulator radio frequency */
 static int fm_v4l2_vidioc_s_freq(struct file *file, void *priv,
-		struct v4l2_frequency *freq)
+		const struct v4l2_frequency *freq)
 {
 	struct fmdev *fmdev = video_drvdata(file);
 
@@ -396,9 +396,7 @@ static int fm_v4l2_vidioc_s_freq(struct file *file, void *priv,
 	 * As V4L2_TUNER_CAP_LOW is set 1 user sends the frequency
 	 * in units of 62.5 Hz.
 	 */
-	freq->frequency = (u32)(freq->frequency / 16);
-
-	return fmc_set_freq(fmdev, freq->frequency);
+	return fmc_set_freq(fmdev, freq->frequency / 16);
 }
 
 /* Set hardware frequency seek. If current mode is NOT RX, set it RX. */

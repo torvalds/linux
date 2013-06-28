@@ -512,7 +512,7 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 	int retval = 0;
 	struct ds2760_device_info *di;
 
-	di = kzalloc(sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
 	if (!di) {
 		retval = -ENOMEM;
 		goto di_alloc_failed;
@@ -576,7 +576,6 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 workqueue_failed:
 	power_supply_unregister(&di->bat);
 batt_failed:
-	kfree(di);
 di_alloc_failed:
 success:
 	return retval;
@@ -590,7 +589,6 @@ static int ds2760_battery_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&di->set_charged_work);
 	destroy_workqueue(di->monitor_wqueue);
 	power_supply_unregister(&di->bat);
-	kfree(di);
 
 	return 0;
 }

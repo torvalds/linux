@@ -113,6 +113,7 @@ struct omap_dss_output *omap_dss_get_output(enum omap_dss_output_id id)
 
 	return NULL;
 }
+EXPORT_SYMBOL(omap_dss_get_output);
 
 static const struct dss_mgr_ops *dss_mgr_ops;
 

@@ -129,7 +129,10 @@ static void wm8350_led_disable(struct wm8350_led *led)
 	ret = regulator_disable(led->isink);
 	if (ret != 0) {
 		dev_err(led->cdev.dev, "Failed to disable ISINK: %d\n", ret);
-		regulator_enable(led->dcdc);
+		ret = regulator_enable(led->dcdc);
+		if (ret != 0)
+			dev_err(led->cdev.dev, "Failed to reenable DCDC: %d\n",
+				ret);
 		return;
 	}
 

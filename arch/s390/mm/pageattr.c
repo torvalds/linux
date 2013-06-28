@@ -9,31 +9,25 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 
+static inline unsigned long sske_frame(unsigned long addr, unsigned char skey)
+{
+	asm volatile(".insn rrf,0xb22b0000,%[skey],%[addr],9,0"
+		     : [addr] "+a" (addr) : [skey] "d" (skey));
+	return addr;
+}
+
 void storage_key_init_range(unsigned long start, unsigned long end)
 {
-	unsigned long boundary, function, size;
+	unsigned long boundary, size;
 
 	while (start < end) {
-		if (MACHINE_HAS_EDAT2) {
-			/* set storage keys for a 2GB frame */
-			function = 0x22000 | PAGE_DEFAULT_KEY;
-			size = 1UL << 31;
-			boundary = (start + size) & ~(size - 1);
-			if (boundary <= end) {
-				do {
-					start = pfmf(function, start);
-				} while (start < boundary);
-				continue;
-			}
-		}
 		if (MACHINE_HAS_EDAT1) {
 			/* set storage keys for a 1MB frame */
-			function = 0x21000 | PAGE_DEFAULT_KEY;
 			size = 1UL << 20;
 			boundary = (start + size) & ~(size - 1);
 			if (boundary <= end) {
 				do {
-					start = pfmf(function, start);
+					start = sske_frame(start, PAGE_DEFAULT_KEY);
 				} while (start < boundary);
 				continue;
 			}

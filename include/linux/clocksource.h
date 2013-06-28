@@ -206,6 +206,7 @@ struct clocksource {
 #define CLOCK_SOURCE_WATCHDOG			0x10
 #define CLOCK_SOURCE_VALID_FOR_HRES		0x20
 #define CLOCK_SOURCE_UNSTABLE			0x40
+#define CLOCK_SOURCE_SUSPEND_NONSTOP		0x80
 
 /* simplify initialization of mask field */
 #define CLOCKSOURCE_MASK(bits) (cycle_t)((bits) < 64 ? ((1ULL<<(bits))-1) : -1)
@@ -332,15 +333,23 @@ extern int clocksource_mmio_init(void __iomem *, const char *,
 
 extern int clocksource_i8253_init(void);
 
+struct device_node;
+typedef void(*clocksource_of_init_fn)(struct device_node *);
 #ifdef CONFIG_CLKSRC_OF
 extern void clocksource_of_init(void);
 
 #define CLOCKSOURCE_OF_DECLARE(name, compat, fn)			\
 	static const struct of_device_id __clksrc_of_table_##name	\
 		__used __section(__clksrc_of_table)			\
-		 = { .compatible = compat, .data = fn };
+		 = { .compatible = compat,				\
+		     .data = (fn == (clocksource_of_init_fn)NULL) ? fn : fn }
 #else
-#define CLOCKSOURCE_OF_DECLARE(name, compat, fn)
+static inline void clocksource_of_init(void) {}
+#define CLOCKSOURCE_OF_DECLARE(name, compat, fn)			\
+	static const struct of_device_id __clksrc_of_table_##name	\
+		__attribute__((unused))					\
+		 = { .compatible = compat,				\
+		     .data = (fn == (clocksource_of_init_fn)NULL) ? fn : fn }
 #endif
 
 #endif /* _LINUX_CLOCKSOURCE_H */

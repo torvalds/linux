@@ -55,6 +55,7 @@ static struct mv_sata_platform_data openrd_sata_data = {
 
 static struct mvsdio_platform_data openrd_mvsdio_data = {
 	.gpio_card_detect = 29,	/* MPP29 used as SD card detect */
+	.gpio_write_protect = -1,
 };
 
 static unsigned int openrd_mpp_config[] __initdata = {

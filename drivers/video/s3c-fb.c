@@ -24,10 +24,9 @@
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
+#include <linux/platform_data/video_s3c.h>
 
 #include <video/samsung_fimd.h>
-#include <mach/map.h>
-#include <plat/fb.h>
 
 /* This driver will export a number of framebuffer interfaces depending
  * on the configuration passed in via the platform data. Each fb instance

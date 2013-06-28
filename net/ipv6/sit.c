@@ -49,7 +49,7 @@
 #include <net/ip.h>
 #include <net/udp.h>
 #include <net/icmp.h>
-#include <net/ipip.h>
+#include <net/ip_tunnels.h>
 #include <net/inet_ecn.h>
 #include <net/xfrm.h>
 #include <net/dsfield.h>
@@ -86,41 +86,6 @@ struct sit_net {
 
 	struct net_device *fb_tunnel_dev;
 };
-
-static struct rtnl_link_stats64 *ipip6_get_stats64(struct net_device *dev,
-						   struct rtnl_link_stats64 *tot)
-{
-	int i;
-
-	for_each_possible_cpu(i) {
-		const struct pcpu_tstats *tstats = per_cpu_ptr(dev->tstats, i);
-		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
-		unsigned int start;
-
-		do {
-			start = u64_stats_fetch_begin_bh(&tstats->syncp);
-			rx_packets = tstats->rx_packets;
-			tx_packets = tstats->tx_packets;
-			rx_bytes = tstats->rx_bytes;
-			tx_bytes = tstats->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&tstats->syncp, start));
-
-		tot->rx_packets += rx_packets;
-		tot->tx_packets += tx_packets;
-		tot->rx_bytes   += rx_bytes;
-		tot->tx_bytes   += tx_bytes;
-	}
-
-	tot->rx_errors = dev->stats.rx_errors;
-	tot->rx_frame_errors = dev->stats.rx_frame_errors;
-	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
-	tot->tx_carrier_errors = dev->stats.tx_carrier_errors;
-	tot->tx_dropped = dev->stats.tx_dropped;
-	tot->tx_aborted_errors = dev->stats.tx_aborted_errors;
-	tot->tx_errors = dev->stats.tx_errors;
-
-	return tot;
-}
 
 /*
  * Must be invoked with rcu_read_lock
@@ -899,6 +864,8 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	if ((iph->ttl = tiph->ttl) == 0)
 		iph->ttl	=	iph6->hop_limit;
 
+	skb->ip_summed = CHECKSUM_NONE;
+	ip_select_ident(iph, skb_dst(skb), NULL);
 	iptunnel_xmit(skb, dev);
 	return NETDEV_TX_OK;
 
@@ -1200,7 +1167,7 @@ static const struct net_device_ops ipip6_netdev_ops = {
 	.ndo_start_xmit	= ipip6_tunnel_xmit,
 	.ndo_do_ioctl	= ipip6_tunnel_ioctl,
 	.ndo_change_mtu	= ipip6_tunnel_change_mtu,
-	.ndo_get_stats64= ipip6_get_stats64,
+	.ndo_get_stats64 = ip_tunnel_get_stats64,
 };
 
 static void ipip6_dev_free(struct net_device *dev)

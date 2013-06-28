@@ -118,6 +118,7 @@ nvc0_graph_class(void *obj)
 		return 0x9197;
 	case 0xc8:
 	case 0xd9:
+	case 0xd7:
 		return 0x9297;
 	case 0xe4:
 	case 0xe7:
@@ -168,5 +169,7 @@ int  nvc0_graph_context_ctor(struct nouveau_object *, struct nouveau_object *,
 			     struct nouveau_oclass *, void *, u32,
 			     struct nouveau_object **);
 void nvc0_graph_context_dtor(struct nouveau_object *);
+
+u64 nvc0_graph_units(struct nouveau_graph *);
 
 #endif

@@ -296,7 +296,7 @@ done:
 }
 
 static phys_addr_t shmobile_iommu_iova_to_phys(struct iommu_domain *domain,
-					       unsigned long iova)
+					       dma_addr_t iova)
 {
 	struct shmobile_iommu_domain *sh_domain = domain->priv;
 	uint32_t l1entry = 0, l2entry = 0;

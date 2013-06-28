@@ -92,18 +92,11 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct rti802_private *devpriv;
 	struct comedi_subdevice *s;
 	int i;
-	unsigned long iobase;
 	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: rti802: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, RTI802_SIZE, "rti802")) {
-		printk(KERN_WARNING "I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-
-	dev->board_name = "rti802";
+	ret = comedi_request_region(dev, it->options[0], RTI802_SIZE);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -135,17 +128,11 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void rti802_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, RTI802_SIZE);
-}
-
 static struct comedi_driver rti802_driver = {
 	.driver_name	= "rti802",
 	.module		= THIS_MODULE,
 	.attach		= rti802_attach,
-	.detach		= rti802_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(rti802_driver);
 

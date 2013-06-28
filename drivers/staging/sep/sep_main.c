@@ -1986,7 +1986,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 					dma_ctx,
 					sep_lli_entries);
 		if (error)
-			return error;
+			goto end_function_error;
 		lli_table_alloc_addr = *dmatables_region;
 	}
 
@@ -2276,7 +2276,7 @@ static int sep_construct_dma_tables_from_lli(
 			table_data_size);
 
 		/* If info entry is null - this is the first table built */
-		if (info_in_entry_ptr == NULL) {
+		if (info_in_entry_ptr == NULL || info_out_entry_ptr == NULL) {
 			/* Set the output parameters to physical addresses */
 			*lli_table_in_ptr =
 			sep_shared_area_virt_to_bus(sep, dma_in_lli_table_ptr);
@@ -2880,6 +2880,8 @@ static int sep_free_dma_tables_and_dcb(struct sep_device *sep, bool isapplet,
 
 	dev_dbg(&sep->pdev->dev, "[PID%d] sep_free_dma_tables_and_dcb\n",
 					current->pid);
+	if (!dma_ctx || !*dma_ctx) /* nothing to be done here*/
+		return 0;
 
 	if (((*dma_ctx)->secure_dma == false) && (isapplet == true)) {
 		dev_dbg(&sep->pdev->dev, "[PID%d] handling applet\n",
@@ -2895,8 +2897,7 @@ static int sep_free_dma_tables_and_dcb(struct sep_device *sep, bool isapplet,
 		 * Go over each DCB and see if
 		 * tail pointer must be updated
 		 */
-		for (i = 0; dma_ctx && *dma_ctx &&
-			i < (*dma_ctx)->nr_dcb_creat; i++, dcb_table_ptr++) {
+		for (i = 0; i < (*dma_ctx)->nr_dcb_creat; i++, dcb_table_ptr++) {
 			if (dcb_table_ptr->out_vr_tail_pt) {
 				pt_hold = (unsigned long)dcb_table_ptr->
 					out_vr_tail_pt;

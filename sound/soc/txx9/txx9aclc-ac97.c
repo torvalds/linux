@@ -170,6 +170,10 @@ static struct snd_soc_dai_driver txx9aclc_ac97_dai = {
 	},
 };
 
+static const struct snd_soc_component_driver txx9aclc_ac97_component = {
+	.name		= "txx9aclc-ac97",
+};
+
 static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 {
 	struct txx9aclc_plat_drvdata *drvdata;
@@ -205,12 +209,13 @@ static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	return snd_soc_register_dai(&pdev->dev, &txx9aclc_ac97_dai);
+	return snd_soc_register_component(&pdev->dev, &txx9aclc_ac97_component,
+					  &txx9aclc_ac97_dai, 1);
 }
 
 static int txx9aclc_ac97_dev_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 

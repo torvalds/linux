@@ -4,7 +4,7 @@
 #include <linux/rtnetlink.h>
 #include <net/netlink.h>
 
-typedef int (*rtnl_doit_func)(struct sk_buff *, struct nlmsghdr *, void *);
+typedef int (*rtnl_doit_func)(struct sk_buff *, struct nlmsghdr *);
 typedef int (*rtnl_dumpit_func)(struct sk_buff *, struct netlink_callback *);
 typedef u16 (*rtnl_calcit_func)(struct sk_buff *, struct nlmsghdr *);
 

@@ -358,7 +358,7 @@ static int fm3130_probe(struct i2c_client *client,
 			I2C_FUNC_I2C | I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return -EIO;
 
-	fm3130 = kzalloc(sizeof(struct fm3130), GFP_KERNEL);
+	fm3130 = devm_kzalloc(&client->dev, sizeof(struct fm3130), GFP_KERNEL);
 
 	if (!fm3130)
 		return -ENOMEM;
@@ -395,7 +395,7 @@ static int fm3130_probe(struct i2c_client *client,
 
 	tmp = i2c_transfer(adapter, fm3130->msg, 4);
 	if (tmp != 4) {
-		pr_debug("read error %d\n", tmp);
+		dev_dbg(&client->dev, "read error %d\n", tmp);
 		err = -EIO;
 		goto exit_free;
 	}
@@ -507,7 +507,7 @@ bad_clock:
 
 	/* We won't bail out here because we just got invalid data.
 	   Time setting from u-boot doesn't work anyway */
-	fm3130->rtc = rtc_device_register(client->name, &client->dev,
+	fm3130->rtc = devm_rtc_device_register(&client->dev, client->name,
 				&fm3130_rtc_ops, THIS_MODULE);
 	if (IS_ERR(fm3130->rtc)) {
 		err = PTR_ERR(fm3130->rtc);
@@ -517,16 +517,11 @@ bad_clock:
 	}
 	return 0;
 exit_free:
-	kfree(fm3130);
 	return err;
 }
 
 static int fm3130_remove(struct i2c_client *client)
 {
-	struct fm3130 *fm3130 = i2c_get_clientdata(client);
-
-	rtc_device_unregister(fm3130->rtc);
-	kfree(fm3130);
 	return 0;
 }
 

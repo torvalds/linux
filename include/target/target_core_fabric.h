@@ -114,16 +114,16 @@ sense_reason_t	transport_generic_new_cmd(struct se_cmd *);
 
 void	target_execute_cmd(struct se_cmd *cmd);
 
-void	transport_generic_free_cmd(struct se_cmd *, int);
+int	transport_generic_free_cmd(struct se_cmd *, int);
 
 bool	transport_wait_for_tasks(struct se_cmd *);
 int	transport_check_aborted_status(struct se_cmd *, int);
 int	transport_send_check_condition_and_sense(struct se_cmd *,
 		sense_reason_t, int);
-
+int	target_get_sess_cmd(struct se_session *, struct se_cmd *, bool);
 int	target_put_sess_cmd(struct se_session *, struct se_cmd *);
 void	target_sess_cmd_list_set_waiting(struct se_session *);
-void	target_wait_for_sess_cmds(struct se_session *, int);
+void	target_wait_for_sess_cmds(struct se_session *);
 
 int	core_alua_check_nonop_delay(struct se_cmd *);
 

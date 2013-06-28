@@ -360,10 +360,12 @@ int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data)
 	return 1;
 }
 
-int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
+int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	struct kvm_pmc *pmc;
+	u32 index = msr_info->index;
+	u64 data = msr_info->data;
 
 	switch (index) {
 	case MSR_CORE_PERF_FIXED_CTR_CTRL:
@@ -375,6 +377,10 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
 		}
 		break;
 	case MSR_CORE_PERF_GLOBAL_STATUS:
+		if (msr_info->host_initiated) {
+			pmu->global_status = data;
+			return 0;
+		}
 		break; /* RO MSR */
 	case MSR_CORE_PERF_GLOBAL_CTRL:
 		if (pmu->global_ctrl == data)
@@ -386,7 +392,8 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
 		break;
 	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
 		if (!(data & (pmu->global_ctrl_mask & ~(3ull<<62)))) {
-			pmu->global_status &= ~data;
+			if (!msr_info->host_initiated)
+				pmu->global_status &= ~data;
 			pmu->global_ovf_ctrl = data;
 			return 0;
 		}
@@ -394,7 +401,8 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
 	default:
 		if ((pmc = get_gp_pmc(pmu, index, MSR_IA32_PERFCTR0)) ||
 				(pmc = get_fixed_pmc(pmu, index))) {
-			data = (s64)(s32)data;
+			if (!msr_info->host_initiated)
+				data = (s64)(s32)data;
 			pmc->counter += data - read_pmc(pmc);
 			return 0;
 		} else if ((pmc = get_gp_pmc(pmu, index, MSR_P6_EVNTSEL0))) {

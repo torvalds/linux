@@ -367,7 +367,7 @@ static const struct rtc_class_ops rs5c313_rtc_ops = {
 
 static int rs5c313_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = rtc_device_register("rs5c313", &pdev->dev,
+	struct rtc_device *rtc = devm_rtc_device_register(&pdev->dev, "rs5c313",
 				&rs5c313_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
@@ -380,10 +380,6 @@ static int rs5c313_rtc_probe(struct platform_device *pdev)
 
 static int rs5c313_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = platform_get_drvdata( pdev );
-
-	rtc_device_unregister(rtc);
-
 	return 0;
 }
 

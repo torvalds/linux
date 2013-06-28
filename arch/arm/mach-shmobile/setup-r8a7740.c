@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
 #include <linux/serial_sci.h>
@@ -94,6 +95,126 @@ void __init r8a7740_pinmux_init(void)
 	platform_device_register(&r8a7740_pfc_device);
 }
 
+static struct renesas_intc_irqpin_config irqpin0_platform_data = {
+	.irq_base = irq_pin(0), /* IRQ0 -> IRQ7 */
+};
+
+static struct resource irqpin0_resources[] = {
+	DEFINE_RES_MEM(0xe6900000, 4), /* ICR1A */
+	DEFINE_RES_MEM(0xe6900010, 4), /* INTPRI00A */
+	DEFINE_RES_MEM(0xe6900020, 1), /* INTREQ00A */
+	DEFINE_RES_MEM(0xe6900040, 1), /* INTMSK00A */
+	DEFINE_RES_MEM(0xe6900060, 1), /* INTMSKCLR00A */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ0 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ1 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ2 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ3 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ4 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ5 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ6 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ7 */
+};
+
+static struct platform_device irqpin0_device = {
+	.name		= "renesas_intc_irqpin",
+	.id		= 0,
+	.resource	= irqpin0_resources,
+	.num_resources	= ARRAY_SIZE(irqpin0_resources),
+	.dev		= {
+		.platform_data  = &irqpin0_platform_data,
+	},
+};
+
+static struct renesas_intc_irqpin_config irqpin1_platform_data = {
+	.irq_base = irq_pin(8), /* IRQ8 -> IRQ15 */
+};
+
+static struct resource irqpin1_resources[] = {
+	DEFINE_RES_MEM(0xe6900004, 4), /* ICR2A */
+	DEFINE_RES_MEM(0xe6900014, 4), /* INTPRI10A */
+	DEFINE_RES_MEM(0xe6900024, 1), /* INTREQ10A */
+	DEFINE_RES_MEM(0xe6900044, 1), /* INTMSK10A */
+	DEFINE_RES_MEM(0xe6900064, 1), /* INTMSKCLR10A */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ8 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ9 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ10 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ11 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ12 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ13 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ14 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ15 */
+};
+
+static struct platform_device irqpin1_device = {
+	.name		= "renesas_intc_irqpin",
+	.id		= 1,
+	.resource	= irqpin1_resources,
+	.num_resources	= ARRAY_SIZE(irqpin1_resources),
+	.dev		= {
+		.platform_data  = &irqpin1_platform_data,
+	},
+};
+
+static struct renesas_intc_irqpin_config irqpin2_platform_data = {
+	.irq_base = irq_pin(16), /* IRQ16 -> IRQ23 */
+};
+
+static struct resource irqpin2_resources[] = {
+	DEFINE_RES_MEM(0xe6900008, 4), /* ICR3A */
+	DEFINE_RES_MEM(0xe6900018, 4), /* INTPRI30A */
+	DEFINE_RES_MEM(0xe6900028, 1), /* INTREQ30A */
+	DEFINE_RES_MEM(0xe6900048, 1), /* INTMSK30A */
+	DEFINE_RES_MEM(0xe6900068, 1), /* INTMSKCLR30A */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ16 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ17 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ18 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ19 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ20 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ21 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ22 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ23 */
+};
+
+static struct platform_device irqpin2_device = {
+	.name		= "renesas_intc_irqpin",
+	.id		= 2,
+	.resource	= irqpin2_resources,
+	.num_resources	= ARRAY_SIZE(irqpin2_resources),
+	.dev		= {
+		.platform_data  = &irqpin2_platform_data,
+	},
+};
+
+static struct renesas_intc_irqpin_config irqpin3_platform_data = {
+	.irq_base = irq_pin(24), /* IRQ24 -> IRQ31 */
+};
+
+static struct resource irqpin3_resources[] = {
+	DEFINE_RES_MEM(0xe690000c, 4), /* ICR3A */
+	DEFINE_RES_MEM(0xe690001c, 4), /* INTPRI30A */
+	DEFINE_RES_MEM(0xe690002c, 1), /* INTREQ30A */
+	DEFINE_RES_MEM(0xe690004c, 1), /* INTMSK30A */
+	DEFINE_RES_MEM(0xe690006c, 1), /* INTMSKCLR30A */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ24 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ25 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ26 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ27 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ28 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ29 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ30 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ31 */
+};
+
+static struct platform_device irqpin3_device = {
+	.name		= "renesas_intc_irqpin",
+	.id		= 3,
+	.resource	= irqpin3_resources,
+	.num_resources	= ARRAY_SIZE(irqpin3_resources),
+	.dev		= {
+		.platform_data  = &irqpin3_platform_data,
+	},
+};
+
 /* SCIFA0 */
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xe6c40000,
@@ -101,7 +222,7 @@ static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c00)),
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(100)),
 };
 
 static struct platform_device scif0_device = {
@@ -119,7 +240,7 @@ static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c20)),
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(101)),
 };
 
 static struct platform_device scif1_device = {
@@ -137,7 +258,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c40)),
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(102)),
 };
 
 static struct platform_device scif2_device = {
@@ -155,7 +276,7 @@ static struct plat_sci_port scif3_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c60)),
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(103)),
 };
 
 static struct platform_device scif3_device = {
@@ -173,7 +294,7 @@ static struct plat_sci_port scif4_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0d20)),
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(104)),
 };
 
 static struct platform_device scif4_device = {
@@ -191,7 +312,7 @@ static struct plat_sci_port scif5_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0d40)),
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(105)),
 };
 
 static struct platform_device scif5_device = {
@@ -209,7 +330,7 @@ static struct plat_sci_port scif6_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x04c0)),
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(106)),
 };
 
 static struct platform_device scif6_device = {
@@ -227,7 +348,7 @@ static struct plat_sci_port scif7_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x04e0)),
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(107)),
 };
 
 static struct platform_device scif7_device = {
@@ -245,7 +366,7 @@ static struct plat_sci_port scifb_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFB,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0d60)),
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(108)),
 };
 
 static struct platform_device scifb_device = {
@@ -273,7 +394,7 @@ static struct resource cmt10_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= evt2irq(0x0b00),
+		.start	= gic_spi(58),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -304,7 +425,7 @@ static struct resource tmu00_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= intcs_evt2irq(0xe80),
+		.start	= gic_spi(198),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -334,7 +455,7 @@ static struct resource tmu01_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= intcs_evt2irq(0xea0),
+		.start	= gic_spi(199),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -364,7 +485,7 @@ static struct resource tmu02_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= intcs_evt2irq(0xec0),
+		.start	= gic_spi(200),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -411,6 +532,10 @@ static struct platform_device ipmmu_device = {
 };
 
 static struct platform_device *r8a7740_early_devices[] __initdata = {
+	&irqpin0_device,
+	&irqpin1_device,
+	&irqpin2_device,
+	&irqpin3_device,
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
@@ -525,14 +650,14 @@ static struct resource r8a7740_dmae0_resources[] = {
 	},
 	{
 		.name	= "error_irq",
-		.start	= evt2irq(0x20c0),
-		.end	= evt2irq(0x20c0),
+		.start	= gic_spi(34),
+		.end	= gic_spi(34),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channels 0-5 */
-		.start	= evt2irq(0x2000),
-		.end	= evt2irq(0x20a0),
+		.start	= gic_spi(28),
+		.end	= gic_spi(33),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -553,14 +678,14 @@ static struct resource r8a7740_dmae1_resources[] = {
 	},
 	{
 		.name	= "error_irq",
-		.start	= evt2irq(0x21c0),
-		.end	= evt2irq(0x21c0),
+		.start	= gic_spi(41),
+		.end	= gic_spi(41),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channels 0-5 */
-		.start	= evt2irq(0x2100),
-		.end	= evt2irq(0x21a0),
+		.start	= gic_spi(35),
+		.end	= gic_spi(40),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -581,14 +706,14 @@ static struct resource r8a7740_dmae2_resources[] = {
 	},
 	{
 		.name	= "error_irq",
-		.start	= evt2irq(0x22c0),
-		.end	= evt2irq(0x22c0),
+		.start	= gic_spi(48),
+		.end	= gic_spi(48),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channels 0-5 */
-		.start	= evt2irq(0x2200),
-		.end	= evt2irq(0x22a0),
+		.start	= gic_spi(42),
+		.end	= gic_spi(47),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -677,8 +802,8 @@ static struct resource r8a7740_usb_dma_resources[] = {
 	},
 	{
 		/* IRQ for channels */
-		.start	= evt2irq(0x0a00),
-		.end	= evt2irq(0x0a00),
+		.start	= gic_spi(49),
+		.end	= gic_spi(49),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -702,8 +827,8 @@ static struct resource i2c0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= intcs_evt2irq(0xe00),
-		.end	= intcs_evt2irq(0xe60),
+		.start	= gic_spi(201),
+		.end	= gic_spi(204),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -716,8 +841,8 @@ static struct resource i2c1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = evt2irq(0x780), /* IIC1_ALI1 */
-		.end    = evt2irq(0x7e0), /* IIC1_DTEI1 */
+		.start  = gic_spi(70), /* IIC1_ALI1 */
+		.end    = gic_spi(73), /* IIC1_DTEI1 */
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -738,8 +863,8 @@ static struct platform_device i2c1_device = {
 
 static struct resource pmu_resources[] = {
 	[0] = {
-		.start	= evt2irq(0x19a0),
-		.end	= evt2irq(0x19a0),
+		.start	= gic_spi(83),
+		.end	= gic_spi(83),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -904,9 +1029,7 @@ DT_MACHINE_START(R8A7740_DT, "Generic R8A7740 (Flattened Device Tree)")
 	.map_io		= r8a7740_map_io,
 	.init_early	= r8a7740_add_early_devices_dt,
 	.init_irq	= r8a7740_init_irq,
-	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= r8a7740_add_standard_devices_dt,
-	.init_time	= shmobile_timer_init,
 	.dt_compat	= r8a7740_boards_compat_dt,
 MACHINE_END
 

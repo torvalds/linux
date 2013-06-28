@@ -125,12 +125,12 @@ static inline const char *hotplug_slot_name(const struct hotplug_slot *slot)
 	return pci_slot_name(slot->pci_slot);
 }
 
-extern int __pci_hp_register(struct hotplug_slot *slot, struct pci_bus *pbus,
-			     int nr, const char *name,
-			     struct module *owner, const char *mod_name);
-extern int pci_hp_deregister(struct hotplug_slot *slot);
-extern int __must_check pci_hp_change_slot_info	(struct hotplug_slot *slot,
-						 struct hotplug_slot_info *info);
+int __pci_hp_register(struct hotplug_slot *slot, struct pci_bus *pbus, int nr,
+		      const char *name, struct module *owner,
+		      const char *mod_name);
+int pci_hp_deregister(struct hotplug_slot *slot);
+int __must_check pci_hp_change_slot_info(struct hotplug_slot *slot,
+					 struct hotplug_slot_info *info);
 
 /* use a define to avoid include chaining to get THIS_MODULE & friends */
 #define pci_hp_register(slot, pbus, devnr, name) \

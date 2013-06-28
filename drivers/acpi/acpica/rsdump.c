@@ -385,6 +385,14 @@ void acpi_rs_dump_resource_list(struct acpi_resource *resource_list)
 			return;
 		}
 
+		/* Sanity check the length. It must not be zero, or we loop forever */
+
+		if (!resource_list->length) {
+			acpi_os_printf
+			    ("Invalid zero length descriptor in resource list\n");
+			return;
+		}
+
 		/* Dump the resource descriptor */
 
 		if (type == ACPI_RESOURCE_TYPE_SERIAL_BUS) {

@@ -63,6 +63,12 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_PING		= UEVENT_BASE + 22,
 	ISCSI_UEVENT_GET_CHAP		= UEVENT_BASE + 23,
 	ISCSI_UEVENT_DELETE_CHAP	= UEVENT_BASE + 24,
+	ISCSI_UEVENT_SET_FLASHNODE_PARAMS	= UEVENT_BASE + 25,
+	ISCSI_UEVENT_NEW_FLASHNODE	= UEVENT_BASE + 26,
+	ISCSI_UEVENT_DEL_FLASHNODE	= UEVENT_BASE + 27,
+	ISCSI_UEVENT_LOGIN_FLASHNODE	= UEVENT_BASE + 28,
+	ISCSI_UEVENT_LOGOUT_FLASHNODE	= UEVENT_BASE + 29,
+	ISCSI_UEVENT_LOGOUT_FLASHNODE_SID	= UEVENT_BASE + 30,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -210,6 +216,31 @@ struct iscsi_uevent {
 		       uint32_t        host_no;
 		       uint16_t        chap_tbl_idx;
 		} delete_chap;
+		struct msg_set_flashnode_param {
+			uint32_t	host_no;
+			uint32_t	flashnode_idx;
+			uint32_t	count;
+		} set_flashnode;
+		struct msg_new_flashnode {
+			uint32_t	host_no;
+			uint32_t	len;
+		} new_flashnode;
+		struct msg_del_flashnode {
+			uint32_t	host_no;
+			uint32_t	flashnode_idx;
+		} del_flashnode;
+		struct msg_login_flashnode {
+			uint32_t	host_no;
+			uint32_t	flashnode_idx;
+		} login_flashnode;
+		struct msg_logout_flashnode {
+			uint32_t	host_no;
+			uint32_t	flashnode_idx;
+		} logout_flashnode;
+		struct msg_logout_flashnode_sid {
+			uint32_t	host_no;
+			uint32_t	sid;
+		} logout_flashnode_sid;
 	} u;
 	union {
 		/* messages k -> u */
@@ -267,6 +298,9 @@ struct iscsi_uevent {
 						   with each ping request */
 			uint32_t        data_size;
 		} ping_comp;
+		struct msg_new_flashnode_ret {
+			uint32_t	flashnode_idx;
+		} new_flashnode_ret;
 	} r;
 } __attribute__ ((aligned (sizeof(uint64_t))));
 
@@ -274,6 +308,7 @@ enum iscsi_param_type {
 	ISCSI_PARAM,		/* iscsi_param (session, conn, target, LU) */
 	ISCSI_HOST_PARAM,	/* iscsi_host_param */
 	ISCSI_NET_PARAM,	/* iscsi_net_param */
+	ISCSI_FLASHNODE_PARAM,	/* iscsi_flashnode_param */
 };
 
 struct iscsi_iface_param_info {
@@ -467,6 +502,88 @@ enum iscsi_host_param {
 	ISCSI_HOST_PARAM_PORT_STATE,
 	ISCSI_HOST_PARAM_PORT_SPEED,
 	ISCSI_HOST_PARAM_MAX,
+};
+
+/* portal type */
+#define PORTAL_TYPE_IPV4	"ipv4"
+#define PORTAL_TYPE_IPV6	"ipv6"
+
+/* iSCSI Flash Target params */
+enum iscsi_flashnode_param {
+	ISCSI_FLASHNODE_IS_FW_ASSIGNED_IPV6,
+	ISCSI_FLASHNODE_PORTAL_TYPE,
+	ISCSI_FLASHNODE_AUTO_SND_TGT_DISABLE,
+	ISCSI_FLASHNODE_DISCOVERY_SESS,
+	ISCSI_FLASHNODE_ENTRY_EN,
+	ISCSI_FLASHNODE_HDR_DGST_EN,
+	ISCSI_FLASHNODE_DATA_DGST_EN,
+	ISCSI_FLASHNODE_IMM_DATA_EN,
+	ISCSI_FLASHNODE_INITIAL_R2T_EN,
+	ISCSI_FLASHNODE_DATASEQ_INORDER,
+	ISCSI_FLASHNODE_PDU_INORDER,
+	ISCSI_FLASHNODE_CHAP_AUTH_EN,
+	ISCSI_FLASHNODE_SNACK_REQ_EN,
+	ISCSI_FLASHNODE_DISCOVERY_LOGOUT_EN,
+	ISCSI_FLASHNODE_BIDI_CHAP_EN,
+	/* make authentication for discovery sessions optional */
+	ISCSI_FLASHNODE_DISCOVERY_AUTH_OPTIONAL,
+	ISCSI_FLASHNODE_ERL,
+	ISCSI_FLASHNODE_TCP_TIMESTAMP_STAT,
+	ISCSI_FLASHNODE_TCP_NAGLE_DISABLE,
+	ISCSI_FLASHNODE_TCP_WSF_DISABLE,
+	ISCSI_FLASHNODE_TCP_TIMER_SCALE,
+	ISCSI_FLASHNODE_TCP_TIMESTAMP_EN,
+	ISCSI_FLASHNODE_IP_FRAG_DISABLE,
+	ISCSI_FLASHNODE_MAX_RECV_DLENGTH,
+	ISCSI_FLASHNODE_MAX_XMIT_DLENGTH,
+	ISCSI_FLASHNODE_FIRST_BURST,
+	ISCSI_FLASHNODE_DEF_TIME2WAIT,
+	ISCSI_FLASHNODE_DEF_TIME2RETAIN,
+	ISCSI_FLASHNODE_MAX_R2T,
+	ISCSI_FLASHNODE_KEEPALIVE_TMO,
+	ISCSI_FLASHNODE_ISID,
+	ISCSI_FLASHNODE_TSID,
+	ISCSI_FLASHNODE_PORT,
+	ISCSI_FLASHNODE_MAX_BURST,
+	ISCSI_FLASHNODE_DEF_TASKMGMT_TMO,
+	ISCSI_FLASHNODE_IPADDR,
+	ISCSI_FLASHNODE_ALIAS,
+	ISCSI_FLASHNODE_REDIRECT_IPADDR,
+	ISCSI_FLASHNODE_MAX_SEGMENT_SIZE,
+	ISCSI_FLASHNODE_LOCAL_PORT,
+	ISCSI_FLASHNODE_IPV4_TOS,
+	ISCSI_FLASHNODE_IPV6_TC,
+	ISCSI_FLASHNODE_IPV6_FLOW_LABEL,
+	ISCSI_FLASHNODE_NAME,
+	ISCSI_FLASHNODE_TPGT,
+	ISCSI_FLASHNODE_LINK_LOCAL_IPV6,
+	ISCSI_FLASHNODE_DISCOVERY_PARENT_IDX,
+	ISCSI_FLASHNODE_DISCOVERY_PARENT_TYPE,
+	ISCSI_FLASHNODE_TCP_XMIT_WSF,
+	ISCSI_FLASHNODE_TCP_RECV_WSF,
+	ISCSI_FLASHNODE_CHAP_IN_IDX,
+	ISCSI_FLASHNODE_CHAP_OUT_IDX,
+	ISCSI_FLASHNODE_USERNAME,
+	ISCSI_FLASHNODE_USERNAME_IN,
+	ISCSI_FLASHNODE_PASSWORD,
+	ISCSI_FLASHNODE_PASSWORD_IN,
+	ISCSI_FLASHNODE_STATSN,
+	ISCSI_FLASHNODE_EXP_STATSN,
+	ISCSI_FLASHNODE_IS_BOOT_TGT,
+
+	ISCSI_FLASHNODE_MAX,
+};
+
+struct iscsi_flashnode_param_info {
+	uint32_t len;		/* Actual length of the param */
+	uint16_t param;		/* iscsi param value */
+	uint8_t value[0];	/* length sized value follows */
+} __packed;
+
+enum iscsi_discovery_parent_type {
+	ISCSI_DISC_PARENT_UNKNOWN	= 0x1,
+	ISCSI_DISC_PARENT_SENDTGT	= 0x2,
+	ISCSI_DISC_PARENT_ISNS		= 0x3,
 };
 
 /* iSCSI port Speed */

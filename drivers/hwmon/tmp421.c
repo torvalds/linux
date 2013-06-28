@@ -208,8 +208,8 @@ static int tmp421_init_client(struct i2c_client *client)
 	/* Start conversions (disable shutdown if necessary) */
 	config = i2c_smbus_read_byte_data(client, TMP421_CONFIG_REG_1);
 	if (config < 0) {
-		dev_err(&client->dev, "Could not read configuration"
-			 " register (%d)\n", config);
+		dev_err(&client->dev,
+			"Could not read configuration register (%d)\n", config);
 		return -ENODEV;
 	}
 
@@ -322,6 +322,5 @@ static struct i2c_driver tmp421_driver = {
 module_i2c_driver(tmp421_driver);
 
 MODULE_AUTHOR("Andre Prendel <andre.prendel@gmx.de>");
-MODULE_DESCRIPTION("Texas Instruments TMP421/422/423 temperature sensor"
-		   " driver");
+MODULE_DESCRIPTION("Texas Instruments TMP421/422/423 temperature sensor driver");
 MODULE_LICENSE("GPL");

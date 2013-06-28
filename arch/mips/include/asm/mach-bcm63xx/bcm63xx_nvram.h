@@ -9,10 +9,8 @@
  *
  * Initialized the local nvram copy from the target address and checks
  * its checksum.
- *
- * Returns 0 on success.
  */
-int __init bcm63xx_nvram_init(void *nvram);
+void bcm63xx_nvram_init(void *nvram);
 
 /**
  * bcm63xx_nvram_get_name() - returns the board name according to nvram

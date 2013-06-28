@@ -131,26 +131,24 @@ static int ds1390_probe(struct spi_device *spi)
 	spi->bits_per_word = 8;
 	spi_setup(spi);
 
-	chip = kzalloc(sizeof *chip, GFP_KERNEL);
+	chip = devm_kzalloc(&spi->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip) {
 		dev_err(&spi->dev, "unable to allocate device memory\n");
 		return -ENOMEM;
 	}
-	dev_set_drvdata(&spi->dev, chip);
+	spi_set_drvdata(spi, chip);
 
 	res = ds1390_get_reg(&spi->dev, DS1390_REG_SECONDS, &tmp);
 	if (res != 0) {
 		dev_err(&spi->dev, "unable to read device\n");
-		kfree(chip);
 		return res;
 	}
 
-	chip->rtc = rtc_device_register("ds1390",
-				&spi->dev, &ds1390_rtc_ops, THIS_MODULE);
+	chip->rtc = devm_rtc_device_register(&spi->dev, "ds1390",
+					&ds1390_rtc_ops, THIS_MODULE);
 	if (IS_ERR(chip->rtc)) {
 		dev_err(&spi->dev, "unable to register device\n");
 		res = PTR_ERR(chip->rtc);
-		kfree(chip);
 	}
 
 	return res;
@@ -158,11 +156,6 @@ static int ds1390_probe(struct spi_device *spi)
 
 static int ds1390_remove(struct spi_device *spi)
 {
-	struct ds1390 *chip = spi_get_drvdata(spi);
-
-	rtc_device_unregister(chip->rtc);
-	kfree(chip);
-
 	return 0;
 }
 

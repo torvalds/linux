@@ -12,10 +12,10 @@ if ARCH_S5PV210
 config CPU_S5PV210
 	bool
 	select S5P_EXT_INT
-	select S5P_HRT
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
 	select SAMSUNG_DMADEV
+	select SAMSUNG_HRT
 	help
 	  Enable S5PV210 CPU support
 

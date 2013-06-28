@@ -379,8 +379,8 @@ static void rtl8187_rx_cb(struct urb *urb)
 	rate = (flags >> 20) & 0xF;
 	skb_trim(skb, flags & 0x0FFF);
 	rx_status.rate_idx = rate;
-	rx_status.freq = dev->conf.channel->center_freq;
-	rx_status.band = dev->conf.channel->band;
+	rx_status.freq = dev->conf.chandef.chan->center_freq;
+	rx_status.band = dev->conf.chandef.chan->band;
 	rx_status.flag |= RX_FLAG_MACTIME_START;
 	if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;

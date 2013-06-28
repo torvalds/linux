@@ -13,7 +13,7 @@
  * info about what this counter is.
  */
 
-#include <linux/cgroup.h>
+#include <linux/spinlock.h>
 #include <linux/errno.h>
 
 /*

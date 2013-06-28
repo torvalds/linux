@@ -233,14 +233,14 @@ static int ohci_urb_enqueue (
 			urb->start_frame = frame;
 		}
 	} else if (ed->type == PIPE_ISOCHRONOUS) {
-		u16	next = ohci_frame_no(ohci) + 2;
+		u16	next = ohci_frame_no(ohci) + 1;
 		u16	frame = ed->last_iso + ed->interval;
 
 		/* Behind the scheduling threshold? */
 		if (unlikely(tick_before(frame, next))) {
 
 			/* USB_ISO_ASAP: Round up to the first available slot */
-			if (urb->transfer_flags & URB_ISO_ASAP)
+			if (urb->transfer_flags & URB_ISO_ASAP) {
 				frame += (next - frame + ed->interval - 1) &
 						-ed->interval;
 
@@ -248,21 +248,25 @@ static int ohci_urb_enqueue (
 			 * Not ASAP: Use the next slot in the stream.  If
 			 * the entire URB falls before the threshold, fail.
 			 */
-			else if (tick_before(frame + ed->interval *
+			} else {
+				if (tick_before(frame + ed->interval *
 					(urb->number_of_packets - 1), next)) {
-				retval = -EXDEV;
-				usb_hcd_unlink_urb_from_ep(hcd, urb);
-				goto fail;
-			}
+					retval = -EXDEV;
+					usb_hcd_unlink_urb_from_ep(hcd, urb);
+					goto fail;
+				}
 
-			/*
-			 * Some OHCI hardware doesn't handle late TDs
-			 * correctly.  After retiring them it proceeds to
-			 * the next ED instead of the next TD.  Therefore
-			 * we have to omit the late TDs entirely.
-			 */
-			urb_priv->td_cnt = DIV_ROUND_UP(next - frame,
-					ed->interval);
+				/*
+				 * Some OHCI hardware doesn't handle late TDs
+				 * correctly.  After retiring them it proceeds
+				 * to the next ED instead of the next TD.
+				 * Therefore we have to omit the late TDs
+				 * entirely.
+				 */
+				urb_priv->td_cnt = DIV_ROUND_UP(
+						(u16) (next - frame),
+						ed->interval);
+			}
 		}
 		urb->start_frame = frame;
 	}
@@ -1102,12 +1106,12 @@ MODULE_LICENSE ("GPL");
 
 #if defined(CONFIG_ARCH_S3C24XX) || defined(CONFIG_ARCH_S3C64XX)
 #include "ohci-s3c2410.c"
-#define PLATFORM_DRIVER		ohci_hcd_s3c2410_driver
+#define S3C2410_PLATFORM_DRIVER	ohci_hcd_s3c2410_driver
 #endif
 
 #ifdef CONFIG_USB_OHCI_EXYNOS
 #include "ohci-exynos.c"
-#define PLATFORM_DRIVER		exynos_ohci_driver
+#define EXYNOS_PLATFORM_DRIVER	exynos_ohci_driver
 #endif
 
 #ifdef CONFIG_USB_OHCI_HCD_OMAP1
@@ -1127,24 +1131,23 @@ MODULE_LICENSE ("GPL");
 
 #ifdef CONFIG_ARCH_EP93XX
 #include "ohci-ep93xx.c"
-#define PLATFORM_DRIVER		ohci_hcd_ep93xx_driver
+#define EP93XX_PLATFORM_DRIVER	ohci_hcd_ep93xx_driver
 #endif
 
 #ifdef CONFIG_ARCH_AT91
 #include "ohci-at91.c"
-#define PLATFORM_DRIVER		ohci_hcd_at91_driver
+#define AT91_PLATFORM_DRIVER	ohci_hcd_at91_driver
 #endif
 
 #ifdef CONFIG_ARCH_LPC32XX
 #include "ohci-nxp.c"
-#define PLATFORM_DRIVER		usb_hcd_nxp_driver
+#define NXP_PLATFORM_DRIVER	usb_hcd_nxp_driver
 #endif
 
 #ifdef CONFIG_ARCH_DAVINCI_DA8XX
 #include "ohci-da8xx.c"
-#define PLATFORM_DRIVER		ohci_hcd_da8xx_driver
+#define DAVINCI_PLATFORM_DRIVER	ohci_hcd_da8xx_driver
 #endif
-
 
 #ifdef CONFIG_USB_OHCI_HCD_PPC_OF
 #include "ohci-ppc-of.c"
@@ -1153,7 +1156,7 @@ MODULE_LICENSE ("GPL");
 
 #ifdef CONFIG_PLAT_SPEAR
 #include "ohci-spear.c"
-#define PLATFORM_DRIVER		spear_ohci_hcd_driver
+#define SPEAR_PLATFORM_DRIVER	spear_ohci_hcd_driver
 #endif
 
 #ifdef CONFIG_PPC_PS3
@@ -1199,7 +1202,14 @@ MODULE_LICENSE ("GPL");
 	!defined(SA1111_DRIVER) &&	\
 	!defined(PS3_SYSTEM_BUS_DRIVER) && \
 	!defined(SM501_OHCI_DRIVER) && \
-	!defined(TMIO_OHCI_DRIVER)
+	!defined(TMIO_OHCI_DRIVER) && \
+	!defined(S3C2410_PLATFORM_DRIVER) && \
+	!defined(EXYNOS_PLATFORM_DRIVER) && \
+	!defined(EP93XX_PLATFORM_DRIVER) && \
+	!defined(AT91_PLATFORM_DRIVER) && \
+	!defined(NXP_PLATFORM_DRIVER) && \
+	!defined(DAVINCI_PLATFORM_DRIVER) && \
+	!defined(SPEAR_PLATFORM_DRIVER)
 #error "missing bus glue for ohci-hcd"
 #endif
 
@@ -1277,9 +1287,79 @@ static int __init ohci_hcd_mod_init(void)
 		goto error_tmio;
 #endif
 
+#ifdef S3C2410_PLATFORM_DRIVER
+	retval = platform_driver_register(&S3C2410_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto error_s3c2410;
+#endif
+
+#ifdef EXYNOS_PLATFORM_DRIVER
+	retval = platform_driver_register(&EXYNOS_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto error_exynos;
+#endif
+
+#ifdef EP93XX_PLATFORM_DRIVER
+	retval = platform_driver_register(&EP93XX_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto error_ep93xx;
+#endif
+
+#ifdef AT91_PLATFORM_DRIVER
+	retval = platform_driver_register(&AT91_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto error_at91;
+#endif
+
+#ifdef NXP_PLATFORM_DRIVER
+	retval = platform_driver_register(&NXP_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto error_nxp;
+#endif
+
+#ifdef DAVINCI_PLATFORM_DRIVER
+	retval = platform_driver_register(&DAVINCI_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto error_davinci;
+#endif
+
+#ifdef SPEAR_PLATFORM_DRIVER
+	retval = platform_driver_register(&SPEAR_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto error_spear;
+#endif
+
 	return retval;
 
 	/* Error path */
+#ifdef SPEAR_PLATFORM_DRIVER
+	platform_driver_unregister(&SPEAR_PLATFORM_DRIVER);
+ error_spear:
+#endif
+#ifdef DAVINCI_PLATFORM_DRIVER
+	platform_driver_unregister(&DAVINCI_PLATFORM_DRIVER);
+ error_davinci:
+#endif
+#ifdef NXP_PLATFORM_DRIVER
+	platform_driver_unregister(&NXP_PLATFORM_DRIVER);
+ error_nxp:
+#endif
+#ifdef AT91_PLATFORM_DRIVER
+	platform_driver_unregister(&AT91_PLATFORM_DRIVER);
+ error_at91:
+#endif
+#ifdef EP93XX_PLATFORM_DRIVER
+	platform_driver_unregister(&EP93XX_PLATFORM_DRIVER);
+ error_ep93xx:
+#endif
+#ifdef EXYNOS_PLATFORM_DRIVER
+	platform_driver_unregister(&EXYNOS_PLATFORM_DRIVER);
+ error_exynos:
+#endif
+#ifdef S3C2410_PLATFORM_DRIVER
+	platform_driver_unregister(&S3C2410_PLATFORM_DRIVER);
+ error_s3c2410:
+#endif
 #ifdef TMIO_OHCI_DRIVER
 	platform_driver_unregister(&TMIO_OHCI_DRIVER);
  error_tmio:
@@ -1300,17 +1380,17 @@ static int __init ohci_hcd_mod_init(void)
 	platform_driver_unregister(&OF_PLATFORM_DRIVER);
  error_of_platform:
 #endif
-#ifdef PLATFORM_DRIVER
-	platform_driver_unregister(&PLATFORM_DRIVER);
- error_platform:
+#ifdef OMAP3_PLATFORM_DRIVER
+	platform_driver_unregister(&OMAP3_PLATFORM_DRIVER);
+ error_omap3_platform:
 #endif
 #ifdef OMAP1_PLATFORM_DRIVER
 	platform_driver_unregister(&OMAP1_PLATFORM_DRIVER);
  error_omap1_platform:
 #endif
-#ifdef OMAP3_PLATFORM_DRIVER
-	platform_driver_unregister(&OMAP3_PLATFORM_DRIVER);
- error_omap3_platform:
+#ifdef PLATFORM_DRIVER
+	platform_driver_unregister(&PLATFORM_DRIVER);
+ error_platform:
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
@@ -1329,6 +1409,27 @@ module_init(ohci_hcd_mod_init);
 
 static void __exit ohci_hcd_mod_exit(void)
 {
+#ifdef SPEAR_PLATFORM_DRIVER
+	platform_driver_unregister(&SPEAR_PLATFORM_DRIVER);
+#endif
+#ifdef DAVINCI_PLATFORM_DRIVER
+	platform_driver_unregister(&DAVINCI_PLATFORM_DRIVER);
+#endif
+#ifdef NXP_PLATFORM_DRIVER
+	platform_driver_unregister(&NXP_PLATFORM_DRIVER);
+#endif
+#ifdef AT91_PLATFORM_DRIVER
+	platform_driver_unregister(&AT91_PLATFORM_DRIVER);
+#endif
+#ifdef EP93XX_PLATFORM_DRIVER
+	platform_driver_unregister(&EP93XX_PLATFORM_DRIVER);
+#endif
+#ifdef EXYNOS_PLATFORM_DRIVER
+	platform_driver_unregister(&EXYNOS_PLATFORM_DRIVER);
+#endif
+#ifdef S3C2410_PLATFORM_DRIVER
+	platform_driver_unregister(&S3C2410_PLATFORM_DRIVER);
+#endif
 #ifdef TMIO_OHCI_DRIVER
 	platform_driver_unregister(&TMIO_OHCI_DRIVER);
 #endif
@@ -1344,11 +1445,14 @@ static void __exit ohci_hcd_mod_exit(void)
 #ifdef OF_PLATFORM_DRIVER
 	platform_driver_unregister(&OF_PLATFORM_DRIVER);
 #endif
-#ifdef PLATFORM_DRIVER
-	platform_driver_unregister(&PLATFORM_DRIVER);
-#endif
 #ifdef OMAP3_PLATFORM_DRIVER
 	platform_driver_unregister(&OMAP3_PLATFORM_DRIVER);
+#endif
+#ifdef OMAP1_PLATFORM_DRIVER
+	platform_driver_unregister(&OMAP1_PLATFORM_DRIVER);
+#endif
+#ifdef PLATFORM_DRIVER
+	platform_driver_unregister(&PLATFORM_DRIVER);
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);

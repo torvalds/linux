@@ -33,8 +33,8 @@ static unsigned long ram[] = {0, 0, 0, 0};
 static bool do_reset = 0;
 
 module_param_array(io, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
-module_param_array(ram, int, NULL, 0);
+module_param_array(irq, byte, NULL, 0);
+module_param_array(ram, long, NULL, 0);
 module_param(do_reset, bool, 0);
 
 static int identify_board(unsigned long, unsigned int);

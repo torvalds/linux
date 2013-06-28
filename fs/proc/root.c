@@ -16,6 +16,7 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
+#include <linux/user_namespace.h>
 #include <linux/mount.h>
 #include <linux/pid_namespace.h>
 #include <linux/parser.h>
@@ -108,6 +109,9 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 	} else {
 		ns = task_active_pid_ns(current);
 		options = data;
+
+		if (!current_user_ns()->may_mount_proc)
+			return ERR_PTR(-EPERM);
 	}
 
 	sb = sget(fs_type, proc_test_super, proc_set_super, flags, ns);
@@ -137,6 +141,8 @@ static void proc_kill_sb(struct super_block *sb)
 	struct pid_namespace *ns;
 
 	ns = (struct pid_namespace *)sb->s_fs_info;
+	if (ns->proc_self)
+		dput(ns->proc_self);
 	kill_anon_super(sb);
 	put_pid_ns(ns);
 }

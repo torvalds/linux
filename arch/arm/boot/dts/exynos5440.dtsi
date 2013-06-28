@@ -16,63 +16,89 @@
 
 	interrupt-parent = <&gic>;
 
+	clock: clock-controller@0x160000 {
+		compatible = "samsung,exynos5440-clock";
+		reg = <0x160000 0x1000>;
+		#clock-cells = <1>;
+	};
+
 	gic:interrupt-controller@2E0000 {
 		compatible = "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
-		reg = <0x2E1000 0x1000>, <0x2E2000 0x1000>;
+		reg =	<0x2E1000 0x1000>,
+			<0x2E2000 0x1000>,
+			<0x2E4000 0x2000>,
+			<0x2E6000 0x2000>;
+		interrupts = <1 9 0xf04>;
 	};
 
 	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		cpu@0 {
 			compatible = "arm,cortex-a15";
-			timer {
-				compatible = "arm,armv7-timer";
-				interrupts = <1 13 0xf08>;
-				clock-frequency = <1000000>;
-			};
+			reg = <0>;
 		};
 		cpu@1 {
 			compatible = "arm,cortex-a15";
-			timer {
-				compatible = "arm,armv7-timer";
-				interrupts = <1 14 0xf08>;
-				clock-frequency = <1000000>;
-			};
+			reg = <1>;
 		};
 		cpu@2 {
 			compatible = "arm,cortex-a15";
-			timer {
-				compatible = "arm,armv7-timer";
-				interrupts = <1 14 0xf08>;
-				clock-frequency = <1000000>;
-			};
+			reg = <2>;
 		};
 		cpu@3 {
 			compatible = "arm,cortex-a15";
-			timer {
-				compatible = "arm,armv7-timer";
-				interrupts = <1 14 0xf08>;
-				clock-frequency = <1000000>;
-			};
+			reg = <3>;
 		};
 	};
 
-	common {
-		compatible = "samsung,exynos5440";
+	arm-pmu {
+		compatible = "arm,cortex-a15-pmu", "arm,cortex-a9-pmu";
+		interrupts = <0 52 4>,
+			     <0 53 4>,
+			     <0 54 4>,
+			     <0 55 4>;
+	};
 
+	timer {
+		compatible = "arm,cortex-a15-timer",
+			     "arm,armv7-timer";
+		interrupts = <1 13 0xf08>,
+			     <1 14 0xf08>,
+			     <1 11 0xf08>,
+			     <1 10 0xf08>;
+		clock-frequency = <50000000>;
+	};
+
+	cpufreq@160000 {
+		compatible = "samsung,exynos5440-cpufreq";
+		reg = <0x160000 0x1000>;
+		interrupts = <0 57 0>;
+		operating-points = <
+				/* KHz	  uV */
+				1200000 1025000
+				1000000 975000
+				800000  925000
+		>;
 	};
 
 	serial@B0000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0xB0000 0x1000>;
 		interrupts = <0 2 0>;
+		clocks = <&clock 21>, <&clock 21>;
+		clock-names = "uart", "clk_uart_baud0";
 	};
 
 	serial@C0000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0xC0000 0x1000>;
 		interrupts = <0 3 0>;
+		clocks = <&clock 21>, <&clock 21>;
+		clock-names = "uart", "clk_uart_baud0";
 	};
 
 	spi {
@@ -83,11 +109,15 @@
 		rx-dma-channel = <&pdma0 4>; /* preliminary */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&clock 21>, <&clock 16>;
+		clock-names = "spi", "spi_busclk0";
 	};
 
 	pinctrl {
 		compatible = "samsung,exynos5440-pinctrl";
 		reg = <0xE0000 0x1000>;
+		interrupts = <0 37 0>, <0 38 0>, <0 39 0>, <0 40 0>,
+			     <0 41 0>, <0 42 0>, <0 43 0>, <0 44 0>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		#gpio-cells = <2>;
@@ -110,25 +140,42 @@
 	};
 
 	i2c@F0000 {
-		compatible = "samsung,s3c2440-i2c";
+		compatible = "samsung,exynos5440-i2c";
 		reg = <0xF0000 0x1000>;
 		interrupts = <0 5 0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&clock 21>;
+		clock-names = "i2c";
 	};
 
 	i2c@100000 {
-		compatible = "samsung,s3c2440-i2c";
+		compatible = "samsung,exynos5440-i2c";
 		reg = <0x100000 0x1000>;
 		interrupts = <0 6 0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clocks = <&clock 21>;
+		clock-names = "i2c";
 	};
 
 	watchdog {
 		compatible = "samsung,s3c2410-wdt";
 		reg = <0x110000 0x1000>;
 		interrupts = <0 1 0>;
+		clocks = <&clock 21>;
+		clock-names = "watchdog";
+	};
+
+	gmac: ethernet@00230000 {
+		compatible = "snps,dwmac-3.70a";
+		reg = <0x00230000 0x8000>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 31 4>;
+		interrupt-names = "macirq";
+		phy-mode = "sgmii";
+		clocks = <&clock 25>;
+		clock-names = "stmmaceth";
 	};
 
 	amba {
@@ -138,16 +185,26 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
-		pdma0: pdma@121A0000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x120000 0x1000>;
-			interrupts = <0 34 0>;
-		};
-
-		pdma1: pdma@121B0000 {
+		pdma0: pdma@00121000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x121000 0x1000>;
-			interrupts = <0 35 0>;
+			interrupts = <0 46 0>;
+			clocks = <&clock 8>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
+		};
+
+		pdma1: pdma@00120000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x120000 0x1000>;
+			interrupts = <0 47 0>;
+			clocks = <&clock 8>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
 		};
 	};
 
@@ -155,5 +212,8 @@
 		compatible = "samsung,s3c6410-rtc";
 		reg = <0x130000 0x1000>;
 		interrupts = <0 17 0>, <0 16 0>;
+		clocks = <&clock 21>;
+		clock-names = "rtc";
+		status = "disabled";
 	};
 };

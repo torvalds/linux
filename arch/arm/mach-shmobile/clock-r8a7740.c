@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
+#include <mach/clock.h>
 #include <mach/common.h>
 #include <mach/r8a7740.h>
 
@@ -97,42 +98,13 @@ static struct clk dv_clk = {
 	.rate	= 27000000,
 };
 
-static unsigned long div_recalc(struct clk *clk)
-{
-	return clk->parent->rate / (int)(clk->priv);
-}
+SH_CLK_RATIO(div2,	1, 2);
+SH_CLK_RATIO(div1k,	1, 1024);
 
-static struct sh_clk_ops div_clk_ops = {
-	.recalc	= div_recalc,
-};
-
-/* extal1 / 2 */
-static struct clk extal1_div2_clk = {
-	.ops	= &div_clk_ops,
-	.priv	= (void *)2,
-	.parent	= &extal1_clk,
-};
-
-/* extal1 / 1024 */
-static struct clk extal1_div1024_clk = {
-	.ops	= &div_clk_ops,
-	.priv	= (void *)1024,
-	.parent	= &extal1_clk,
-};
-
-/* extal1 / 2 / 1024 */
-static struct clk extal1_div2048_clk = {
-	.ops	= &div_clk_ops,
-	.priv	= (void *)1024,
-	.parent	= &extal1_div2_clk,
-};
-
-/* extal2 / 2 */
-static struct clk extal2_div2_clk = {
-	.ops	= &div_clk_ops,
-	.priv	= (void *)2,
-	.parent	= &extal2_clk,
-};
+SH_FIXED_RATIO_CLK(extal1_div2_clk,	extal1_clk,		div2);
+SH_FIXED_RATIO_CLK(extal1_div1024_clk,	extal1_clk,		div1k);
+SH_FIXED_RATIO_CLK(extal1_div2048_clk,	extal1_div2_clk,	div1k);
+SH_FIXED_RATIO_CLK(extal2_div2_clk,	extal2_clk,		div2);
 
 static struct sh_clk_ops followparent_clk_ops = {
 	.recalc	= followparent_recalc,
@@ -143,11 +115,7 @@ static struct clk system_clk = {
 	.ops	= &followparent_clk_ops,
 };
 
-static struct clk system_div2_clk = {
-	.ops	= &div_clk_ops,
-	.priv	= (void *)2,
-	.parent	= &system_clk,
-};
+SH_FIXED_RATIO_CLK(system_div2_clk, system_clk,	div2);
 
 /* r_clk */
 static struct clk r_clk = {
@@ -184,11 +152,7 @@ static struct clk pllc1_clk = {
 };
 
 /* PLLC1 / 2 */
-static struct clk pllc1_div2_clk = {
-	.ops		= &div_clk_ops,
-	.priv		= (void *)2,
-	.parent		= &pllc1_clk,
-};
+SH_FIXED_RATIO_CLK(pllc1_div2_clk, pllc1_clk, div2);
 
 /* USB clock */
 /*
@@ -323,6 +287,7 @@ struct clk *main_clks[] = {
 	&fsibck_clk,
 };
 
+/* DIV4 clocks */
 static void div4_kick(struct clk *clk)
 {
 	unsigned long value;
@@ -344,6 +309,26 @@ static struct clk_div_mult_table div4_div_mult_table = {
 static struct clk_div4_table div4_table = {
 	.div_mult_table = &div4_div_mult_table,
 	.kick = div4_kick,
+};
+
+enum {
+	DIV4_I, DIV4_ZG, DIV4_B, DIV4_M1, DIV4_HP,
+	DIV4_HPP, DIV4_USBP, DIV4_S, DIV4_ZB, DIV4_M3, DIV4_CP,
+	DIV4_NR
+};
+
+struct clk div4_clks[DIV4_NR] = {
+	[DIV4_I]	= SH_CLK_DIV4(&pllc1_clk, FRQCRA, 20, 0x6fff, CLK_ENABLE_ON_INIT),
+	[DIV4_ZG]	= SH_CLK_DIV4(&pllc1_clk, FRQCRA, 16, 0x6fff, CLK_ENABLE_ON_INIT),
+	[DIV4_B]	= SH_CLK_DIV4(&pllc1_clk, FRQCRA,  8, 0x6fff, CLK_ENABLE_ON_INIT),
+	[DIV4_M1]	= SH_CLK_DIV4(&pllc1_clk, FRQCRA,  4, 0x6fff, CLK_ENABLE_ON_INIT),
+	[DIV4_HP]	= SH_CLK_DIV4(&pllc1_clk, FRQCRB,  4, 0x6fff, 0),
+	[DIV4_HPP]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC, 20, 0x6fff, 0),
+	[DIV4_USBP]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC, 16, 0x6fff, 0),
+	[DIV4_S]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC, 12, 0x6fff, 0),
+	[DIV4_ZB]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC,  8, 0x6fff, 0),
+	[DIV4_M3]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC,  4, 0x6fff, 0),
+	[DIV4_CP]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC,  0, 0x6fff, 0),
 };
 
 /* DIV6 reparent */
@@ -389,6 +374,16 @@ static struct clk div6_reparent_clks[DIV6_REPARENT_NR] = {
 				      fsia_parents, ARRAY_SIZE(fsia_parents), 6, 2),
 	[DIV6_FSIB] = SH_CLK_DIV6_EXT(FSIBCKCR, 0,
 				      fsib_parents, ARRAY_SIZE(fsib_parents), 6, 2),
+};
+
+/* DIV6 clocks */
+enum {
+	DIV6_SUB,
+	DIV6_NR
+};
+
+static struct clk div6_clks[DIV6_NR] = {
+	[DIV6_SUB]	= SH_CLK_DIV6(&pllc1_div2_clk, SUBCKCR, 0),
 };
 
 /* HDMI1/2 clock */
@@ -455,35 +450,6 @@ static struct clk fsidivs[] = {
 };
 
 /* MSTP */
-enum {
-	DIV4_I, DIV4_ZG, DIV4_B, DIV4_M1, DIV4_HP,
-	DIV4_HPP, DIV4_USBP, DIV4_S, DIV4_ZB, DIV4_M3, DIV4_CP,
-	DIV4_NR
-};
-
-struct clk div4_clks[DIV4_NR] = {
-	[DIV4_I]	= SH_CLK_DIV4(&pllc1_clk, FRQCRA, 20, 0x6fff, CLK_ENABLE_ON_INIT),
-	[DIV4_ZG]	= SH_CLK_DIV4(&pllc1_clk, FRQCRA, 16, 0x6fff, CLK_ENABLE_ON_INIT),
-	[DIV4_B]	= SH_CLK_DIV4(&pllc1_clk, FRQCRA,  8, 0x6fff, CLK_ENABLE_ON_INIT),
-	[DIV4_M1]	= SH_CLK_DIV4(&pllc1_clk, FRQCRA,  4, 0x6fff, CLK_ENABLE_ON_INIT),
-	[DIV4_HP]	= SH_CLK_DIV4(&pllc1_clk, FRQCRB,  4, 0x6fff, 0),
-	[DIV4_HPP]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC, 20, 0x6fff, 0),
-	[DIV4_USBP]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC, 16, 0x6fff, 0),
-	[DIV4_S]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC, 12, 0x6fff, 0),
-	[DIV4_ZB]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC,  8, 0x6fff, 0),
-	[DIV4_M3]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC,  4, 0x6fff, 0),
-	[DIV4_CP]	= SH_CLK_DIV4(&pllc1_clk, FRQCRC,  0, 0x6fff, 0),
-};
-
-enum {
-	DIV6_SUB,
-	DIV6_NR
-};
-
-static struct clk div6_clks[DIV6_NR] = {
-	[DIV6_SUB]	= SH_CLK_DIV6(&pllc1_div2_clk, SUBCKCR, 0),
-};
-
 enum {
 	MSTP128, MSTP127, MSTP125,
 	MSTP116, MSTP111, MSTP100, MSTP117,
@@ -593,29 +559,42 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh_mobile_ceu.1",	&mstp_clks[MSTP128]),
 
 	CLKDEV_DEV_ID("sh-sci.4",		&mstp_clks[MSTP200]),
+	CLKDEV_DEV_ID("e6c80000.sci",		&mstp_clks[MSTP200]),
 	CLKDEV_DEV_ID("sh-sci.3",		&mstp_clks[MSTP201]),
+	CLKDEV_DEV_ID("e6c70000.sci",		&mstp_clks[MSTP201]),
 	CLKDEV_DEV_ID("sh-sci.2",		&mstp_clks[MSTP202]),
+	CLKDEV_DEV_ID("e6c60000.sci",		&mstp_clks[MSTP202]),
 	CLKDEV_DEV_ID("sh-sci.1",		&mstp_clks[MSTP203]),
+	CLKDEV_DEV_ID("e6c50000.sci",		&mstp_clks[MSTP203]),
 	CLKDEV_DEV_ID("sh-sci.0",		&mstp_clks[MSTP204]),
+	CLKDEV_DEV_ID("e6c40000.sci",		&mstp_clks[MSTP204]),
 	CLKDEV_DEV_ID("sh-sci.8",		&mstp_clks[MSTP206]),
+	CLKDEV_DEV_ID("e6c30000.sci",		&mstp_clks[MSTP206]),
 	CLKDEV_DEV_ID("sh-sci.5",		&mstp_clks[MSTP207]),
+	CLKDEV_DEV_ID("e6cb0000.sci",		&mstp_clks[MSTP207]),
 	CLKDEV_DEV_ID("sh-dma-engine.3",	&mstp_clks[MSTP214]),
 	CLKDEV_DEV_ID("sh-dma-engine.2",	&mstp_clks[MSTP216]),
 	CLKDEV_DEV_ID("sh-dma-engine.1",	&mstp_clks[MSTP217]),
 	CLKDEV_DEV_ID("sh-dma-engine.0",	&mstp_clks[MSTP218]),
 	CLKDEV_DEV_ID("sh-sci.7",		&mstp_clks[MSTP222]),
+	CLKDEV_DEV_ID("e6cd0000.sci",		&mstp_clks[MSTP222]),
 	CLKDEV_DEV_ID("sh-sci.6",		&mstp_clks[MSTP230]),
+	CLKDEV_DEV_ID("e6cc0000.sci",		&mstp_clks[MSTP230]),
 
 	CLKDEV_DEV_ID("sh_cmt.10",		&mstp_clks[MSTP329]),
 	CLKDEV_DEV_ID("sh_fsi2",		&mstp_clks[MSTP328]),
 	CLKDEV_DEV_ID("i2c-sh_mobile.1",	&mstp_clks[MSTP323]),
 	CLKDEV_DEV_ID("renesas_usbhs",		&mstp_clks[MSTP320]),
 	CLKDEV_DEV_ID("sh_mobile_sdhi.0",	&mstp_clks[MSTP314]),
+	CLKDEV_DEV_ID("e6850000.sdhi",          &mstp_clks[MSTP314]),
 	CLKDEV_DEV_ID("sh_mobile_sdhi.1",	&mstp_clks[MSTP313]),
+	CLKDEV_DEV_ID("e6860000.sdhi",          &mstp_clks[MSTP313]),
 	CLKDEV_DEV_ID("sh_mmcif",		&mstp_clks[MSTP312]),
+	CLKDEV_DEV_ID("e6bd0000.mmcif",         &mstp_clks[MSTP312]),
 	CLKDEV_DEV_ID("sh-eth",			&mstp_clks[MSTP309]),
 
 	CLKDEV_DEV_ID("sh_mobile_sdhi.2",	&mstp_clks[MSTP415]),
+	CLKDEV_DEV_ID("e6870000.sdhi",          &mstp_clks[MSTP415]),
 
 	/* ICK */
 	CLKDEV_ICK_ID("host",	"renesas_usbhs",	&mstp_clks[MSTP416]),

@@ -207,7 +207,7 @@ static struct usb_gadget_strings *dev_strings[] = {
 };
 
 static u8 hostaddr[ETH_ALEN];
-
+static struct eth_dev *the_dev;
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -224,7 +224,7 @@ static int __init rndis_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	return rndis_bind_config(c, hostaddr);
+	return rndis_bind_config(c, hostaddr, the_dev);
 }
 
 static struct usb_configuration rndis_config_driver = {
@@ -257,11 +257,11 @@ static int __init eth_do_config(struct usb_configuration *c)
 	}
 
 	if (use_eem)
-		return eem_bind_config(c);
+		return eem_bind_config(c, the_dev);
 	else if (can_support_ecm(c->cdev->gadget))
-		return ecm_bind_config(c, hostaddr);
+		return ecm_bind_config(c, hostaddr, the_dev);
 	else
-		return geth_bind_config(c, hostaddr);
+		return geth_bind_config(c, hostaddr, the_dev);
 }
 
 static struct usb_configuration eth_config_driver = {
@@ -279,9 +279,9 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 	int			status;
 
 	/* set up network link layer */
-	status = gether_setup(cdev->gadget, hostaddr);
-	if (status < 0)
-		return status;
+	the_dev = gether_setup(cdev->gadget, hostaddr);
+	if (IS_ERR(the_dev))
+		return PTR_ERR(the_dev);
 
 	/* set up main config label and device descriptor */
 	if (use_eem) {
@@ -338,13 +338,13 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 	return 0;
 
 fail:
-	gether_cleanup();
+	gether_cleanup(the_dev);
 	return status;
 }
 
 static int __exit eth_unbind(struct usb_composite_dev *cdev)
 {
-	gether_cleanup();
+	gether_cleanup(the_dev);
 	return 0;
 }
 

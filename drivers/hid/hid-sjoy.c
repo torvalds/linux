@@ -28,13 +28,11 @@
 
 #include <linux/input.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 #include <linux/hid.h>
 #include <linux/module.h>
 #include "hid-ids.h"
 
 #ifdef CONFIG_SMARTJOYPLUS_FF
-#include "usbhid/usbhid.h"
 
 struct sjoyff_device {
 	struct hid_report *report;
@@ -57,7 +55,7 @@ static int hid_sjoyff_play(struct input_dev *dev, void *data,
 	sjoyff->report->field[0]->value[1] = right;
 	sjoyff->report->field[0]->value[2] = left;
 	dev_dbg(&dev->dev, "running with 0x%02x 0x%02x\n", left, right);
-	usbhid_submit_report(hid, sjoyff->report, USB_DIR_OUT);
+	hid_hw_request(hid, sjoyff->report, HID_REQ_SET_REPORT);
 
 	return 0;
 }
@@ -115,7 +113,7 @@ static int sjoyff_init(struct hid_device *hid)
 		sjoyff->report->field[0]->value[0] = 0x01;
 		sjoyff->report->field[0]->value[1] = 0x00;
 		sjoyff->report->field[0]->value[2] = 0x00;
-		usbhid_submit_report(hid, sjoyff->report, USB_DIR_OUT);
+		hid_hw_request(hid, sjoyff->report, HID_REQ_SET_REPORT);
 	}
 
 	hid_info(hid, "Force feedback for SmartJoy PLUS PS2/USB adapter\n");

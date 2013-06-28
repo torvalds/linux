@@ -24,9 +24,49 @@
  *
  * ---------------------------------------------------------------------------
  */
+#include <linux/seq_file.h>
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_card.h"
 
+
+static void unifi_print_unsafe_sdio_status(card_t *card, struct seq_file *m)
+{
+#ifdef CSR_UNSAFE_SDIO_ACCESS
+	s32 iostate;
+	CsrResult r;
+	static const char *const states[] = {
+		"AWAKE", "DROWSY", "TORPID"
+	};
+#define SHARED_READ_RETRY_LIMIT 10
+	u8 b;
+
+	seq_printf(m, "Host State: %s\n", states[card->host_state]);
+
+	r = unifi_check_io_status(card, &iostate);
+	if (iostate == 1) {
+		seq_puts(m, remaining, "I/O Check: F1 disabled\n");
+        } else {
+		if (iostate == 1) {
+			seq_puts(m, "I/O Check: pending interrupt\n");
+
+		seq_printf(m, "BH reason interrupt = %d\n", card->bh_reason_unifi);
+		seq_printf(m, "BH reason host      = %d\n", card->bh_reason_host);
+
+		for (i = 0; i < SHARED_READ_RETRY_LIMIT; i++) {
+			r = unifi_read_8_or_16(card, card->sdio_ctrl_addr + 2, &b);
+			if (r == CSR_RESULT_SUCCESS && !(b & 0x80)) {
+				seq_printf(m, "fhsr: %u (driver thinks is %u)\n",
+					   b, card->from_host_signals_r);
+				break;
+			}
+		}
+
+		iostate = unifi_read_shared_count(card, card->sdio_ctrl_addr + 4);
+		seq_printf(m, "thsw: %u (driver thinks is %u)\n",
+			   iostate, card->to_host_signals_w);
+        }
+#endif
+}
 
 /*
  * ---------------------------------------------------------------------------
@@ -41,228 +81,93 @@
  *      None.
  * ---------------------------------------------------------------------------
  */
-s32 unifi_print_status(card_t *card, char *str, s32 *remain)
+s32 unifi_print_status(card_t *card, struct seq_file *m)
 {
-    char *p = str;
-    sdio_config_data_t *cfg;
-    u16 i, n;
-    s32 remaining = *remain;
-    s32 written;
-#ifdef CSR_UNSAFE_SDIO_ACCESS
-    s32 iostate;
-    CsrResult r;
-    static const char *const states[] = {
-        "AWAKE", "DROWSY", "TORPID"
-    };
-    #define SHARED_READ_RETRY_LIMIT 10
-    u8 b;
-#endif
+	sdio_config_data_t *cfg;
+	u16 i, n;
 
-    if (remaining <= 0)
-    {
-        return 0;
-    }
+	i = n = 0;
+	seq_printf(m, "Chip ID %u\n", card->chip_id);
+	seq_printf(m, "Chip Version %04X\n", card->chip_version);
+	seq_printf(m, "HIP v%u.%u\n",
+		   (card->config_data.version >> 8) & 0xFF,
+		   card->config_data.version & 0xFF);
+	seq_printf(m, "Build %u: %s\n", card->build_id, card->build_id_string);
 
-    i = n = 0;
-    written = scnprintf(p, remaining, "Chip ID %u\n",
-                          (u16)card->chip_id);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "Chip Version %04X\n",
-                          card->chip_version);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "HIP v%u.%u\n",
-                          (card->config_data.version >> 8) & 0xFF,
-                          card->config_data.version & 0xFF);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "Build %u: %s\n",
-                          card->build_id, card->build_id_string);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	cfg = &card->config_data;
 
-    cfg = &card->config_data;
+	seq_printf(m, "sdio ctrl offset          %u\n", cfg->sdio_ctrl_offset);
+	seq_printf(m, "fromhost sigbuf handle    %u\n", cfg->fromhost_sigbuf_handle);
+	seq_printf(m, "tohost_sigbuf_handle      %u\n", cfg->tohost_sigbuf_handle);
+	seq_printf(m, "num_fromhost_sig_frags    %u\n", cfg->num_fromhost_sig_frags);
+	seq_printf(m, "num_tohost_sig_frags      %u\n", cfg->num_tohost_sig_frags);
+	seq_printf(m, "num_fromhost_data_slots   %u\n", cfg->num_fromhost_data_slots);
+	seq_printf(m, "num_tohost_data_slots     %u\n", cfg->num_tohost_data_slots);
+	seq_printf(m, "data_slot_size            %u\n", cfg->data_slot_size);
 
-    written = scnprintf(p, remaining, "sdio ctrl offset          %u\n",
-                          cfg->sdio_ctrl_offset);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "fromhost sigbuf handle    %u\n",
-                          cfg->fromhost_sigbuf_handle);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "tohost_sigbuf_handle      %u\n",
-                          cfg->tohost_sigbuf_handle);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "num_fromhost_sig_frags    %u\n",
-                          cfg->num_fromhost_sig_frags);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "num_tohost_sig_frags      %u\n",
-                          cfg->num_tohost_sig_frags);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "num_fromhost_data_slots   %u\n",
-                          cfg->num_fromhost_data_slots);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "num_tohost_data_slots     %u\n",
-                          cfg->num_tohost_data_slots);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "data_slot_size            %u\n",
-                          cfg->data_slot_size);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	/* Added by protocol version 0x0001 */
+	seq_printf(m, "overlay_size              %u\n", cfg->overlay_size);
 
-    /* Added by protocol version 0x0001 */
-    written = scnprintf(p, remaining, "overlay_size              %u\n",
-                          (u16)cfg->overlay_size);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	/* Added by protocol version 0x0300 */
+	seq_printf(m, "data_slot_round           %u\n", cfg->data_slot_round);
+	seq_printf(m, "sig_frag_size             %u\n", cfg->sig_frag_size);
 
-    /* Added by protocol version 0x0300 */
-    written = scnprintf(p, remaining, "data_slot_round           %u\n",
-                          cfg->data_slot_round);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "sig_frag_size             %u\n",
-                          cfg->sig_frag_size);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	/* Added by protocol version 0x0300 */
+	seq_printf(m, "tohost_sig_pad            %u\n", cfg->tohost_signal_padding);
 
-    /* Added by protocol version 0x0300 */
-    written = scnprintf(p, remaining, "tohost_sig_pad            %u\n",
-                          cfg->tohost_signal_padding);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	seq_puts(m, "\nInternal state:\n");
 
-    written = scnprintf(p, remaining, "\nInternal state:\n");
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	seq_printf(m, "Last PHY PANIC: %04x:%04x\n",
+		   card->last_phy_panic_code, card->last_phy_panic_arg);
+	seq_printf(m, "Last MAC PANIC: %04x:%04x\n",
+		   card->last_mac_panic_code, card->last_mac_panic_arg);
 
-    written = scnprintf(p, remaining, "Last PHY PANIC: %04x:%04x\n",
-                          card->last_phy_panic_code, card->last_phy_panic_arg);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "Last MAC PANIC: %04x:%04x\n",
-                          card->last_mac_panic_code, card->last_mac_panic_arg);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	seq_printf(m, "fhsr: %hu\n", (u16)card->from_host_signals_r);
+	seq_printf(m, "fhsw: %hu\n", (u16)card->from_host_signals_w);
+	seq_printf(m, "thsr: %hu\n", (u16)card->to_host_signals_r);
+	seq_printf(m, "thsw: %hu\n", (u16)card->to_host_signals_w);
+	seq_printf(m, "fh buffer contains: %d signals, %td bytes\n",
+		   card->fh_buffer.count,
+		   card->fh_buffer.ptr - card->fh_buffer.buf);
 
-    written = scnprintf(p, remaining, "fhsr: %u\n",
-                          (u16)card->from_host_signals_r);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "fhsw: %u\n",
-                          (u16)card->from_host_signals_w);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "thsr: %u\n",
-                          (u16)card->to_host_signals_r);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "thsw: %u\n",
-                          (u16)card->to_host_signals_w);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining,
-                          "fh buffer contains: %d signals, %td bytes\n",
-                          card->fh_buffer.count,
-                          card->fh_buffer.ptr - card->fh_buffer.buf);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	seq_puts(m, "paused: ");
+	for (i = 0; i < ARRAY_SIZE(card->tx_q_paused_flag); i++)
+		seq_printf(m, card->tx_q_paused_flag[i] ? "1" : "0");
+	seq_putc(m, '\n');
 
-    written = scnprintf(p, remaining, "paused: ");
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    for (i = 0; i < sizeof(card->tx_q_paused_flag) / sizeof(card->tx_q_paused_flag[0]); i++)
-    {
-        written = scnprintf(p, remaining, card->tx_q_paused_flag[i]?"1" : "0");
-        UNIFI_SNPRINTF_RET(p, remaining, written);
-    }
-    written = scnprintf(p, remaining, "\n");
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	seq_printf(m, "fh command q: %u waiting, %u free of %u:\n",
+		   CSR_WIFI_HIP_Q_SLOTS_USED(&card->fh_command_queue),
+		   CSR_WIFI_HIP_Q_SLOTS_FREE(&card->fh_command_queue),
+		   UNIFI_SOFT_COMMAND_Q_LENGTH);
 
-    written = scnprintf(p, remaining,
-                          "fh command q: %u waiting, %u free of %u:\n",
-                          CSR_WIFI_HIP_Q_SLOTS_USED(&card->fh_command_queue),
-                          CSR_WIFI_HIP_Q_SLOTS_FREE(&card->fh_command_queue),
-                          UNIFI_SOFT_COMMAND_Q_LENGTH);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    for (i = 0; i < UNIFI_NO_OF_TX_QS; i++)
-    {
-        written = scnprintf(p, remaining,
-                              "fh traffic q[%u]: %u waiting, %u free of %u:\n",
-                              i,
-                              CSR_WIFI_HIP_Q_SLOTS_USED(&card->fh_traffic_queue[i]),
-                              CSR_WIFI_HIP_Q_SLOTS_FREE(&card->fh_traffic_queue[i]),
-                              UNIFI_SOFT_TRAFFIC_Q_LENGTH);
-        UNIFI_SNPRINTF_RET(p, remaining, written);
-    }
+	for (i = 0; i < UNIFI_NO_OF_TX_QS; i++)
+		seq_printf(m, "fh traffic q[%u]: %u waiting, %u free of %u:\n",
+			   i,
+			   CSR_WIFI_HIP_Q_SLOTS_USED(&card->fh_traffic_queue[i]),
+			   CSR_WIFI_HIP_Q_SLOTS_FREE(&card->fh_traffic_queue[i]),
+			   UNIFI_SOFT_TRAFFIC_Q_LENGTH);
 
-    written = scnprintf(p, remaining, "fh data slots free: %u\n",
-                          card->from_host_data?CardGetFreeFromHostDataSlots(card) : 0);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	seq_printf(m, "fh data slots free: %u\n",
+		   card->from_host_data ? CardGetFreeFromHostDataSlots(card) : 0);
 
+	seq_puts(m, "From host data slots:");
+	n = card->config_data.num_fromhost_data_slots;
+	for (i = 0; i < n && card->from_host_data; i++)
+		seq_printf(m, " %hu", (u16)card->from_host_data[i].bd.data_length);
+	seq_putc(m, '\n');
 
-    written = scnprintf(p, remaining, "From host data slots:");
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    n = card->config_data.num_fromhost_data_slots;
-    for (i = 0; i < n && card->from_host_data; i++)
-    {
-        written = scnprintf(p, remaining, " %u",
-                              (u16)card->from_host_data[i].bd.data_length);
-        UNIFI_SNPRINTF_RET(p, remaining, written);
-    }
-    written = scnprintf(p, remaining, "\n");
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	seq_puts(m, "To host data slots:");
+	n = card->config_data.num_tohost_data_slots;
+	for (i = 0; i < n && card->to_host_data; i++)
+		seq_printf(m, " %hu", (u16)card->to_host_data[i].data_length);
+	seq_putc(m, '\n');
 
-    written = scnprintf(p, remaining, "To host data slots:");
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    n = card->config_data.num_tohost_data_slots;
-    for (i = 0; i < n && card->to_host_data; i++)
-    {
-        written = scnprintf(p, remaining, " %u",
-                              (u16)card->to_host_data[i].data_length);
-        UNIFI_SNPRINTF_RET(p, remaining, written);
-    }
+	unifi_print_unsafe_sdio_status(card, m);
 
-    written = scnprintf(p, remaining, "\n");
-    UNIFI_SNPRINTF_RET(p, remaining, written);
+	seq_puts(m, "\nStats:\n");
+	seq_printf(m, "Total SDIO bytes: R=%u W=%u\n",
+		   card->sdio_bytes_read, card->sdio_bytes_written);
 
-#ifdef CSR_UNSAFE_SDIO_ACCESS
-    written = scnprintf(p, remaining, "Host State: %s\n", states[card->host_state]);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-
-    r = unifi_check_io_status(card, &iostate);
-    if (iostate == 1)
-    {
-        written = scnprintf(p, remaining, "I/O Check: F1 disabled\n");
-        UNIFI_SNPRINTF_RET(p, remaining, written);
-    }
-    else
-    {
-        if (iostate == 1)
-        {
-            written = scnprintf(p, remaining, "I/O Check: pending interrupt\n");
-            UNIFI_SNPRINTF_RET(p, remaining, written);
-        }
-
-        written = scnprintf(p, remaining, "BH reason interrupt = %d\n",
-                              card->bh_reason_unifi);
-        UNIFI_SNPRINTF_RET(p, remaining, written);
-        written = scnprintf(p, remaining, "BH reason host      = %d\n",
-                              card->bh_reason_host);
-        UNIFI_SNPRINTF_RET(p, remaining, written);
-
-        for (i = 0; i < SHARED_READ_RETRY_LIMIT; i++)
-        {
-            r = unifi_read_8_or_16(card, card->sdio_ctrl_addr + 2, &b);
-            if ((r == CSR_RESULT_SUCCESS) && (!(b & 0x80)))
-            {
-                written = scnprintf(p, remaining, "fhsr: %u (driver thinks is %u)\n",
-                                      b, card->from_host_signals_r);
-                UNIFI_SNPRINTF_RET(p, remaining, written);
-                break;
-            }
-        }
-        iostate = unifi_read_shared_count(card, card->sdio_ctrl_addr + 4);
-        written = scnprintf(p, remaining, "thsw: %u (driver thinks is %u)\n",
-                              iostate, card->to_host_signals_w);
-        UNIFI_SNPRINTF_RET(p, remaining, written);
-    }
-#endif
-
-    written = scnprintf(p, remaining, "\nStats:\n");
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "Total SDIO bytes: R=%u W=%u\n",
-                          card->sdio_bytes_read, card->sdio_bytes_written);
-
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-    written = scnprintf(p, remaining, "Interrupts generated on card: %u\n",
-                          card->unifi_interrupt_seq);
-    UNIFI_SNPRINTF_RET(p, remaining, written);
-
-    *remain = remaining;
-    return (p - str);
-} /* unifi_print_status() */
-
-
+	seq_printf(m, "Interrupts generated on card: %u\n", card->unifi_interrupt_seq);
+	return 0;
+}

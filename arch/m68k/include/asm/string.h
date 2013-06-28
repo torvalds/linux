@@ -4,15 +4,6 @@
 #include <linux/types.h>
 #include <linux/compiler.h>
 
-static inline size_t __kernel_strlen(const char *s)
-{
-	const char *sc;
-
-	for (sc = s; *sc++; )
-		;
-	return sc - s - 1;
-}
-
 static inline char *__kernel_strcpy(char *dest, const char *src)
 {
 	char *xdest = dest;
@@ -26,11 +17,6 @@ static inline char *__kernel_strcpy(char *dest, const char *src)
 }
 
 #ifndef __IN_STRING_C
-
-#define __HAVE_ARCH_STRLEN
-#define strlen(s)	(__builtin_constant_p(s) ?	\
-			 __builtin_strlen(s) :		\
-			 __kernel_strlen(s))
 
 #define __HAVE_ARCH_STRNLEN
 static inline size_t strnlen(const char *s, size_t count)

@@ -226,7 +226,7 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 
 static int bcm_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, bcm_proc_show, PDE(inode)->data);
+	return single_open(file, bcm_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations bcm_proc_fops = {

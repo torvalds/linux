@@ -158,8 +158,8 @@
 				usart1 {
 					pinctrl_usart1: usart1-0 {
 						atmel,pins =
-							<2 6 0x1 0x1	/* PB6 periph A with pullup */
-							 2 7 0x1 0x0>;	/* PB7 periph A */
+							<1 6 0x1 0x1	/* PB6 periph A with pullup */
+							 1 7 0x1 0x0>;	/* PB7 periph A */
 					};
 
 					pinctrl_usart1_rts: usart1_rts-0 {
@@ -194,18 +194,18 @@
 				usart3 {
 					pinctrl_usart3: usart3-0 {
 						atmel,pins =
-							<2 10 0x1 0x1	/* PB10 periph A with pullup */
-							 2 11 0x1 0x0>;	/* PB11 periph A */
+							<1 10 0x1 0x1	/* PB10 periph A with pullup */
+							 1 11 0x1 0x0>;	/* PB11 periph A */
 					};
 
 					pinctrl_usart3_rts: usart3_rts-0 {
 						atmel,pins =
-							<3 8 0x2 0x0>;	/* PB8 periph B */
+							<2 8 0x2 0x0>;	/* PC8 periph B */
 					};
 
 					pinctrl_usart3_cts: usart3_cts-0 {
 						atmel,pins =
-							<3 10 0x2 0x0>;	/* PB10 periph B */
+							<2 10 0x2 0x0>;	/* PC10 periph B */
 					};
 				};
 
@@ -220,8 +220,8 @@
 				uart1 {
 					pinctrl_uart1: uart1-0 {
 						atmel,pins =
-							<2 12 0x1 0x1	/* PB12 periph A with pullup */
-							 2 13 0x1 0x0>;	/* PB13 periph A */
+							<1 12 0x1 0x1	/* PB12 periph A with pullup */
+							 1 13 0x1 0x0>;	/* PB13 periph A */
 					};
 				};
 
@@ -264,7 +264,7 @@
 						atmel,pins =
 							<0 10 0x2 0x0	/* PA10 periph B */
 							 0 11 0x2 0x0	/* PA11 periph B */
-							 0 24 0x2 0x0	/* PA24 periph B */
+							 0 22 0x2 0x0	/* PA22 periph B */
 							 0 25 0x2 0x0	/* PA25 periph B */
 							 0 26 0x2 0x0	/* PA26 periph B */
 							 0 27 0x2 0x0	/* PA27 periph B */
@@ -319,6 +319,24 @@
 							<1 19 0x1 0x0	/* PB19 periph A */
 							 1 20 0x1 0x0	/* PB20 periph A */
 							 1 21 0x1 0x0>;	/* PB21 periph A */
+					};
+				};
+
+				spi0 {
+					pinctrl_spi0: spi0-0 {
+						atmel,pins =
+							<0 0 0x1 0x0	/* PA0 periph A SPI0_MISO pin */
+							 0 1 0x1 0x0	/* PA1 periph A SPI0_MOSI pin */
+							 0 2 0x1 0x0>;	/* PA2 periph A SPI0_SPCK pin */
+					};
+				};
+
+				spi1 {
+					pinctrl_spi1: spi1-0 {
+						atmel,pins =
+							<1 0 0x1 0x0	/* PB0 periph A SPI1_MISO pin */
+							 1 1 0x1 0x0	/* PB1 periph A SPI1_MOSI pin */
+							 1 2 0x1 0x0>;	/* PB2 periph A SPI1_SPCK pin */
 					};
 				};
 
@@ -471,6 +489,28 @@
 				status = "disabled";
 			};
 
+			spi0: spi@fffc8000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "atmel,at91rm9200-spi";
+				reg = <0xfffc8000 0x200>;
+				interrupts = <12 4 3>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_spi0>;
+				status = "disabled";
+			};
+
+			spi1: spi@fffcc000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "atmel,at91rm9200-spi";
+				reg = <0xfffcc000 0x200>;
+				interrupts = <13 4 3>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_spi1>;
+				status = "disabled";
+			};
+
 			adc0: adc@fffe0000 {
 				compatible = "atmel,at91sam9260-adc";
 				reg = <0xfffe0000 0x100>;
@@ -484,6 +524,9 @@
 				atmel,adc-drdy-mask = <0x10000>;
 				atmel,adc-status-register = <0x1c>;
 				atmel,adc-trigger-register = <0x04>;
+				atmel,adc-res = <8 10>;
+				atmel,adc-res-names = "lowres", "highres";
+				atmel,adc-use-res = "highres";
 
 				trigger@0 {
 					trigger-name = "timer-counter-0";

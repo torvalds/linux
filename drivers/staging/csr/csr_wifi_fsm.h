@@ -70,7 +70,7 @@ extern CsrWifiFsmContext* CsrWifiFsmInit(void *applicationContext, void *externa
  *   This function is used to free any dynamic resources allocated for the
  *   given context by CsrWifiFsmInit().
  *   The FSM's reset function is called to cleanup any fsm specific memory
- *   The reset funtion does NOT need to free the fsm data pointer as
+ *   The reset function does NOT need to free the fsm data pointer as
  *   CsrWifiFsmShutdown() will do it.
  *   the FSM's init function is call again to reinitialise the FSM context.
  *   CsrWifiFsmReset() should NEVER be called when CsrWifiFsmExecute() is running.
@@ -91,7 +91,7 @@ extern void CsrWifiFsmReset(CsrWifiFsmContext *context);
  *   given context by CsrWifiFsmInit(), prior to complete termination of
  *   the program.
  *   The FSM's reset function is called to cleanup any fsm specific memory.
- *   The reset funtion does NOT need to free the fsm data pointer as
+ *   The reset function does NOT need to free the fsm data pointer as
  *   CsrWifiFsmShutdown() will do it.
  *   CsrWifiFsmShutdown() should NEVER be called when CsrWifiFsmExecute() is running.
  *
@@ -203,7 +203,7 @@ extern void CsrWifiFsmFastForward(CsrWifiFsmContext *context, u16 ms);
  *   shift the current time of day by ms amount
  *
  * @par Description
- *   usefull to speed up tests where time needs to pass
+ *   useful to speed up tests where time needs to pass
  *
  * @param[in]    context  : FSM context
  * @param[in]    ms       : ms to adjust time by

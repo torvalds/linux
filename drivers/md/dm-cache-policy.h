@@ -130,8 +130,8 @@ struct dm_cache_policy {
 	 *
 	 * Must not block.
 	 *
-	 * Returns 1 iff in cache, 0 iff not, < 0 on error (-EWOULDBLOCK
-	 * would be typical).
+	 * Returns 0 if in cache, -ENOENT if not, < 0 for other errors
+	 * (-EWOULDBLOCK would be typical).
 	 */
 	int (*lookup)(struct dm_cache_policy *p, dm_oblock_t oblock, dm_cblock_t *cblock);
 
@@ -196,6 +196,7 @@ struct dm_cache_policy {
  * We maintain a little register of the different policy types.
  */
 #define CACHE_POLICY_NAME_SIZE 16
+#define CACHE_POLICY_VERSION_SIZE 3
 
 struct dm_cache_policy_type {
 	/* For use by the register code only. */
@@ -206,6 +207,7 @@ struct dm_cache_policy_type {
 	 * what gets passed on the target line to select your policy.
 	 */
 	char name[CACHE_POLICY_NAME_SIZE];
+	unsigned version[CACHE_POLICY_VERSION_SIZE];
 
 	/*
 	 * Policies may store a hint for each each cache block.

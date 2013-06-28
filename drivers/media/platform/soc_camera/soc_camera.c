@@ -256,12 +256,12 @@ static int soc_camera_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-static int soc_camera_s_std(struct file *file, void *priv, v4l2_std_id *a)
+static int soc_camera_s_std(struct file *file, void *priv, v4l2_std_id a)
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	return v4l2_subdev_call(sd, core, s_std, *a);
+	return v4l2_subdev_call(sd, core, s_std, a);
 }
 
 static int soc_camera_g_std(struct file *file, void *priv, v4l2_std_id *a)
@@ -508,36 +508,49 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 static int soc_camera_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
-	struct soc_camera_device *icd = dev_get_drvdata(vdev->parent);
-	struct soc_camera_desc *sdesc = to_soc_camera_desc(icd);
+	struct soc_camera_device *icd;
 	struct soc_camera_host *ici;
 	int ret;
 
-	if (!to_soc_camera_control(icd))
-		/* No device driver attached */
-		return -ENODEV;
-
 	/*
 	 * Don't mess with the host during probe: wait until the loop in
-	 * scan_add_host() completes
+	 * scan_add_host() completes. Also protect against a race with
+	 * soc_camera_host_unregister().
 	 */
 	if (mutex_lock_interruptible(&list_lock))
 		return -ERESTARTSYS;
-	ici = to_soc_camera_host(icd->parent);
-	mutex_unlock(&list_lock);
 
-	if (mutex_lock_interruptible(&ici->host_lock))
-		return -ERESTARTSYS;
-	if (!try_module_get(ici->ops->owner)) {
-		dev_err(icd->pdev, "Couldn't lock capture bus driver.\n");
-		ret = -EINVAL;
-		goto emodule;
+	if (!vdev || !video_is_registered(vdev)) {
+		mutex_unlock(&list_lock);
+		return -ENODEV;
 	}
 
+	icd = dev_get_drvdata(vdev->parent);
+	ici = to_soc_camera_host(icd->parent);
+
+	ret = try_module_get(ici->ops->owner) ? 0 : -ENODEV;
+	mutex_unlock(&list_lock);
+
+	if (ret < 0) {
+		dev_err(icd->pdev, "Couldn't lock capture bus driver.\n");
+		return ret;
+	}
+
+	if (!to_soc_camera_control(icd)) {
+		/* No device driver attached */
+		ret = -ENODEV;
+		goto econtrol;
+	}
+
+	if (mutex_lock_interruptible(&ici->host_lock)) {
+		ret = -ERESTARTSYS;
+		goto elockhost;
+	}
 	icd->use_count++;
 
 	/* Now we really have to activate the camera */
 	if (icd->use_count == 1) {
+		struct soc_camera_desc *sdesc = to_soc_camera_desc(icd);
 		/* Restore parameters before the last close() per V4L2 API */
 		struct v4l2_format f = {
 			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
@@ -609,9 +622,10 @@ epower:
 	ici->ops->remove(icd);
 eiciadd:
 	icd->use_count--;
-	module_put(ici->ops->owner);
-emodule:
 	mutex_unlock(&ici->host_lock);
+elockhost:
+econtrol:
+	module_put(ici->ops->owner);
 
 	return ret;
 }
@@ -1042,7 +1056,7 @@ static int soc_camera_g_register(struct file *file, void *fh,
 }
 
 static int soc_camera_s_register(struct file *file, void *fh,
-				 struct v4l2_dbg_register *reg)
+				 const struct v4l2_dbg_register *reg)
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);

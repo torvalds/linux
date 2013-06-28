@@ -360,14 +360,19 @@ static struct snd_soc_dai_driver pxa_i2s_dai = {
 	.symmetric_rates = 1,
 };
 
+static const struct snd_soc_component_driver pxa_i2s_component = {
+	.name		= "pxa-i2s",
+};
+
 static int pxa2xx_i2s_drv_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_dai(&pdev->dev, &pxa_i2s_dai);
+	return snd_soc_register_component(&pdev->dev, &pxa_i2s_component,
+					  &pxa_i2s_dai, 1);
 }
 
 static int pxa2xx_i2s_drv_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 

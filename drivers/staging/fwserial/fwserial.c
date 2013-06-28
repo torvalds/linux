@@ -744,7 +744,6 @@ static void fwtty_tx_complete(struct fw_card *card, int rcode,
 			      struct fwtty_transaction *txn)
 {
 	struct fwtty_port *port = txn->port;
-	struct tty_struct *tty;
 	int len;
 
 	fwtty_dbg(port, "rcode: %d", rcode);
@@ -769,13 +768,8 @@ static void fwtty_tx_complete(struct fw_card *card, int rcode,
 		port->stats.dropped += txn->dma_pended.len;
 	}
 
-	if (len < WAKEUP_CHARS) {
-		tty = tty_port_tty_get(&port->port);
-		if (tty) {
-			tty_wakeup(tty);
-			tty_kref_put(tty);
-		}
-	}
+	if (len < WAKEUP_CHARS)
+		tty_port_tty_wakeup(&port->port);
 }
 
 static int fwtty_tx(struct fwtty_port *port, bool drain)
@@ -1527,7 +1521,7 @@ static void fwtty_debugfs_show_port(struct seq_file *m, struct fwtty_port *port)
 		   stats.watermark);
 
 	if (port->port.console) {
-		seq_printf(m, "\n    ");
+		seq_puts(m, "\n    ");
 		(*port->fwcon_ops->proc_show)(m, port->con_data);
 	}
 
@@ -1559,7 +1553,7 @@ static int fwtty_proc_show(struct seq_file *m, void *v)
 		if (capable(CAP_SYS_ADMIN))
 			fwtty_proc_show_port(m, port);
 		fwtty_port_put(port);
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 	}
 	return 0;
 }
@@ -1577,7 +1571,7 @@ static int fwtty_debugfs_stats_show(struct seq_file *m, void *v)
 			fwtty_proc_show_port(m, port);
 			fwtty_debugfs_show_port(m, port);
 			fwtty_port_put(port);
-			seq_printf(m, "\n");
+			seq_puts(m, "\n");
 		}
 	}
 	return 0;

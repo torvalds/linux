@@ -24,7 +24,7 @@ config SFC_MCDI_MON
 	bool "Solarflare SFC9000-family hwmon support"
 	depends on SFC && HWMON && !(SFC=y && HWMON=m)
 	default y
-	----help---
+	---help---
 	  This exposes the on-board firmware-managed sensors as a
 	  hardware monitor device.
 config SFC_SRIOV

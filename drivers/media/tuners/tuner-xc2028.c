@@ -1378,8 +1378,7 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 	 * For the firmware name, keep a local copy of the string,
 	 * in order to avoid troubles during device release.
 	 */
-	if (priv->ctrl.fname)
-		kfree(priv->ctrl.fname);
+	kfree(priv->ctrl.fname);
 	memcpy(&priv->ctrl, p, sizeof(priv->ctrl));
 	if (p->fname) {
 		priv->ctrl.fname = kstrdup(p->fname, GFP_KERNEL);

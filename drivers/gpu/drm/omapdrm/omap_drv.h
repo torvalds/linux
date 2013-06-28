@@ -139,8 +139,8 @@ void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
 int omap_gem_resume(struct device *dev);
 #endif
 
-int omap_irq_enable_vblank(struct drm_device *dev, int crtc);
-void omap_irq_disable_vblank(struct drm_device *dev, int crtc);
+int omap_irq_enable_vblank(struct drm_device *dev, int crtc_id);
+void omap_irq_disable_vblank(struct drm_device *dev, int crtc_id);
 irqreturn_t omap_irq_handler(DRM_IRQ_ARGS);
 void omap_irq_preinstall(struct drm_device *dev);
 int omap_irq_postinstall(struct drm_device *dev);
@@ -271,39 +271,9 @@ static inline int align_pitch(int pitch, int width, int bpp)
 	return ALIGN(pitch, 8 * bytespp);
 }
 
-static inline enum omap_channel pipe2chan(int pipe)
-{
-	int num_mgrs = dss_feat_get_num_mgrs();
-
-	/*
-	 * We usually don't want to create a CRTC for each manager,
-	 * at least not until we have a way to expose private planes
-	 * to userspace.  Otherwise there would not be enough video
-	 * pipes left for drm planes.  The higher #'d managers tend
-	 * to have more features so start in reverse order.
-	 */
-	return num_mgrs - pipe - 1;
-}
-
 /* map crtc to vblank mask */
-static inline uint32_t pipe2vbl(int crtc)
-{
-	enum omap_channel channel = pipe2chan(crtc);
-	return dispc_mgr_get_vsync_irq(channel);
-}
-
-static inline int crtc2pipe(struct drm_device *dev, struct drm_crtc *crtc)
-{
-	struct omap_drm_private *priv = dev->dev_private;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(priv->crtcs); i++)
-		if (priv->crtcs[i] == crtc)
-			return i;
-
-	BUG();  /* bogus CRTC ptr */
-	return -1;
-}
+uint32_t pipe2vbl(struct drm_crtc *crtc);
+struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder);
 
 /* should these be made into common util helpers?
  */

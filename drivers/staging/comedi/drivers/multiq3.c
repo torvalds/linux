@@ -222,41 +222,20 @@ static void encoder_reset(struct comedi_device *dev)
 	}
 }
 
-/*
-   options[0] - I/O port
-   options[1] - irq
-   options[2] - number of encoder chips installed
- */
-
 static int multiq3_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	struct multiq3_private *devpriv;
-	int result = 0;
-	unsigned long iobase;
-	unsigned int irq;
 	struct comedi_subdevice *s;
+	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: multiq3: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, MULTIQ3_SIZE, "multiq3")) {
-		printk(KERN_ERR "comedi%d: I/O port conflict\n", dev->minor);
-		return -EIO;
-	}
+	ret = comedi_request_region(dev, it->options[0], MULTIQ3_SIZE);
+	if (ret)
+		return ret;
 
-	dev->iobase = iobase;
-
-	irq = it->options[1];
-	if (irq)
-		printk(KERN_WARNING "comedi%d: irq = %u ignored\n",
-			dev->minor, irq);
-	else
-		printk(KERN_WARNING "comedi%d: no irq\n", dev->minor);
-	dev->board_name = "multiq3";
-
-	result = comedi_alloc_subdevices(dev, 5);
-	if (result)
-		return result;
+	ret = comedi_alloc_subdevices(dev, 5);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -315,19 +294,11 @@ static int multiq3_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void multiq3_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, MULTIQ3_SIZE);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-}
-
 static struct comedi_driver multiq3_driver = {
 	.driver_name	= "multiq3",
 	.module		= THIS_MODULE,
 	.attach		= multiq3_attach,
-	.detach		= multiq3_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(multiq3_driver);
 

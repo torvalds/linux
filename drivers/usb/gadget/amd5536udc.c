@@ -1922,7 +1922,6 @@ static int amd5536_udc_start(struct usb_gadget *g,
 
 	driver->driver.bus = NULL;
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 
 	/* Some gadget drivers use both ep0 directions.
 	 * NOTE: to gadget driver, ep0 is just one endpoint...
@@ -1973,7 +1972,6 @@ static int amd5536_udc_stop(struct usb_gadget *g,
 	shutdown(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	/* set SD */
@@ -3080,7 +3078,6 @@ static void udc_pci_remove(struct pci_dev *pdev)
 	if (dev->active)
 		pci_disable_device(pdev);
 
-	device_unregister(&dev->gadget.dev);
 	pci_set_drvdata(pdev, NULL);
 
 	udc_remove(dev);
@@ -3245,8 +3242,6 @@ static int udc_pci_probe(
 	dev->phys_addr = resource;
 	dev->irq = pdev->irq;
 	dev->pdev = pdev;
-	dev->gadget.dev.parent = &pdev->dev;
-	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
 
 	/* general probing */
 	if (udc_probe(dev) == 0)
@@ -3273,7 +3268,6 @@ static int udc_probe(struct udc *dev)
 	dev->gadget.ops = &udc_ops;
 
 	dev_set_name(&dev->gadget.dev, "gadget");
-	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = name;
 	dev->gadget.max_speed = USB_SPEED_HIGH;
 
@@ -3297,16 +3291,10 @@ static int udc_probe(struct udc *dev)
 		"driver version: %s(for Geode5536 B1)\n", tmp);
 	udc = dev;
 
-	retval = usb_add_gadget_udc(&udc->pdev->dev, &dev->gadget);
+	retval = usb_add_gadget_udc_release(&udc->pdev->dev, &dev->gadget,
+			gadget_release);
 	if (retval)
 		goto finished;
-
-	retval = device_register(&dev->gadget.dev);
-	if (retval) {
-		usb_del_gadget_udc(&dev->gadget);
-		put_device(&dev->gadget.dev);
-		goto finished;
-	}
 
 	/* timer init */
 	init_timer(&udc_timer);

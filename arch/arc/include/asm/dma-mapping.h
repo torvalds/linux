@@ -126,7 +126,7 @@ dma_map_sg(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for_each_sg(sg, s, nents, i)
-		sg->dma_address = dma_map_page(dev, sg_page(s), s->offset,
+		s->dma_address = dma_map_page(dev, sg_page(s), s->offset,
 					       s->length, dir);
 
 	return nents;

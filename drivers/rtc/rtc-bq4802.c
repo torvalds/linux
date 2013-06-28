@@ -142,7 +142,7 @@ static const struct rtc_class_ops bq4802_ops = {
 
 static int bq4802_probe(struct platform_device *pdev)
 {
-	struct bq4802 *p = kzalloc(sizeof(*p), GFP_KERNEL);
+	struct bq4802 *p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	int err = -ENOMEM;
 
 	if (!p)
@@ -155,53 +155,40 @@ static int bq4802_probe(struct platform_device *pdev)
 		p->r = platform_get_resource(pdev, IORESOURCE_IO, 0);
 		err = -EINVAL;
 		if (!p->r)
-			goto out_free;
+			goto out;
 	}
 	if (p->r->flags & IORESOURCE_IO) {
 		p->ioport = p->r->start;
 		p->read = bq4802_read_io;
 		p->write = bq4802_write_io;
 	} else if (p->r->flags & IORESOURCE_MEM) {
-		p->regs = ioremap(p->r->start, resource_size(p->r));
+		p->regs = devm_ioremap(&pdev->dev, p->r->start,
+					resource_size(p->r));
 		p->read = bq4802_read_mem;
 		p->write = bq4802_write_mem;
 	} else {
 		err = -EINVAL;
-		goto out_free;
+		goto out;
 	}
 
 	platform_set_drvdata(pdev, p);
 
-	p->rtc = rtc_device_register("bq4802", &pdev->dev,
-				     &bq4802_ops, THIS_MODULE);
+	p->rtc = devm_rtc_device_register(&pdev->dev, "bq4802",
+					&bq4802_ops, THIS_MODULE);
 	if (IS_ERR(p->rtc)) {
 		err = PTR_ERR(p->rtc);
-		goto out_iounmap;
+		goto out;
 	}
 
 	err = 0;
 out:
 	return err;
 
-out_iounmap:
-	if (p->r->flags & IORESOURCE_MEM)
-		iounmap(p->regs);
-out_free:
-	kfree(p);
-	goto out;
 }
 
 static int bq4802_remove(struct platform_device *pdev)
 {
-	struct bq4802 *p = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(p->rtc);
-	if (p->r->flags & IORESOURCE_MEM)
-		iounmap(p->regs);
-
 	platform_set_drvdata(pdev, NULL);
-
-	kfree(p);
 
 	return 0;
 }

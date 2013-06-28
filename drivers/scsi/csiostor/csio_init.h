@@ -52,31 +52,6 @@
 #define CSIO_DRV_DESC			"Chelsio FCoE driver"
 #define CSIO_DRV_VERSION		"1.0.0"
 
-#define CSIO_DEVICE(devid, idx)					\
-{ PCI_VENDOR_ID_CHELSIO, (devid), PCI_ANY_ID, PCI_ANY_ID, 0, 0, (idx) }
-
-#define CSIO_IS_T4_FPGA(_dev)		(((_dev) == CSIO_DEVID_PE10K) ||\
-					 ((_dev) == CSIO_DEVID_PE10K_PF1))
-
-/* FCoE device IDs */
-#define CSIO_DEVID_PE10K		0xA000
-#define CSIO_DEVID_PE10K_PF1		0xA001
-#define CSIO_DEVID_T440DBG_FCOE		0x4600
-#define CSIO_DEVID_T420CR_FCOE		0x4601
-#define CSIO_DEVID_T422CR_FCOE		0x4602
-#define CSIO_DEVID_T440CR_FCOE		0x4603
-#define CSIO_DEVID_T420BCH_FCOE		0x4604
-#define CSIO_DEVID_T440BCH_FCOE		0x4605
-#define CSIO_DEVID_T440CH_FCOE		0x4606
-#define CSIO_DEVID_T420SO_FCOE		0x4607
-#define CSIO_DEVID_T420CX_FCOE		0x4608
-#define CSIO_DEVID_T420BT_FCOE		0x4609
-#define CSIO_DEVID_T404BT_FCOE		0x460A
-#define CSIO_DEVID_B420_FCOE		0x460B
-#define CSIO_DEVID_B404_FCOE		0x460C
-#define CSIO_DEVID_T480CR_FCOE		0x460D
-#define CSIO_DEVID_T440LPCR_FCOE	0x460E
-
 extern struct fc_function_template csio_fc_transport_funcs;
 extern struct fc_function_template csio_fc_transport_vport_funcs;
 
@@ -99,6 +74,10 @@ struct csio_lnode *csio_shost_init(struct csio_hw *, struct device *, bool,
 					struct csio_lnode *);
 void csio_shost_exit(struct csio_lnode *);
 void csio_lnodes_exit(struct csio_hw *, bool);
+
+/* DebugFS helper routines */
+void csio_add_debugfs_mem(struct csio_hw *, const char *,
+		unsigned int, unsigned int);
 
 static inline struct Scsi_Host *
 csio_ln_to_shost(struct csio_lnode *ln)

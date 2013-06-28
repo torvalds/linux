@@ -16,10 +16,6 @@
  *
  * None of this really applies for Power Macintoshes.  There is
  * basically just enough here to get kernel/dma.c to compile.
- *
- * There may be some comments or restrictions made here which are
- * not valid for the PReP platform.  Take what you read
- * with a grain of salt.
  */
 
 #include <asm/io.h>
@@ -57,7 +53,6 @@
  *  - page registers for 5-7 don't use data bit 0, represent 128K pages
  *  - page registers for 0-3 use bit 0, represent 64K pages
  *
- * On PReP, DMA transfers are limited to the lower 16MB of _physical_ memory.
  * On CHRP, the W83C553F (and VLSI Tollgate?) support full 32 bit addressing.
  * Note that addresses loaded into registers must be _physical_ addresses,
  * not logical addresses (which may differ if paging is active).

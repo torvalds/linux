@@ -299,10 +299,10 @@ int security_sb_set_mnt_opts(struct super_block *sb,
 }
 EXPORT_SYMBOL(security_sb_set_mnt_opts);
 
-void security_sb_clone_mnt_opts(const struct super_block *oldsb,
+int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb)
 {
-	security_ops->sb_clone_mnt_opts(oldsb, newsb);
+	return security_ops->sb_clone_mnt_opts(oldsb, newsb);
 }
 EXPORT_SYMBOL(security_sb_clone_mnt_opts);
 
@@ -1289,6 +1289,11 @@ int security_tun_dev_open(void *security)
 	return security_ops->tun_dev_open(security);
 }
 EXPORT_SYMBOL(security_tun_dev_open);
+
+void security_skb_owned_by(struct sk_buff *skb, struct sock *sk)
+{
+	security_ops->skb_owned_by(skb, sk);
+}
 
 #endif	/* CONFIG_SECURITY_NETWORK */
 

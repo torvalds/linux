@@ -21,7 +21,7 @@
 #include <linux/serial_reg.h>
 #include <linux/time.h>
 
-static const char *part_probes[] = { "bcm47xxpart", NULL };
+static const char * const part_probes[] = { "bcm47xxpart", NULL };
 
 static struct physmap_flash_data bcma_pflash_data = {
 	.part_probe_types	= part_probes,

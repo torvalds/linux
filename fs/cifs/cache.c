@@ -92,7 +92,7 @@ static uint16_t cifs_server_get_key(const void *cookie_netfs_data,
 		break;
 
 	default:
-		cERROR(1, "Unknown network family '%d'", sa->sa_family);
+		cifs_dbg(VFS, "Unknown network family '%d'\n", sa->sa_family);
 		key_len = 0;
 		break;
 	}
@@ -152,7 +152,7 @@ static uint16_t cifs_super_get_key(const void *cookie_netfs_data, void *buffer,
 
 	sharename = extract_sharename(tcon->treeName);
 	if (IS_ERR(sharename)) {
-		cFYI(1, "%s: couldn't extract sharename", __func__);
+		cifs_dbg(FYI, "%s: couldn't extract sharename\n", __func__);
 		sharename = NULL;
 		return 0;
 	}
@@ -302,7 +302,7 @@ static void cifs_fscache_inode_now_uncached(void *cookie_netfs_data)
 	pagevec_init(&pvec, 0);
 	first = 0;
 
-	cFYI(1, "%s: cifs inode 0x%p now uncached", __func__, cifsi);
+	cifs_dbg(FYI, "%s: cifs inode 0x%p now uncached\n", __func__, cifsi);
 
 	for (;;) {
 		nr_pages = pagevec_lookup(&pvec,

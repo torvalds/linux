@@ -14,6 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/backlight.h>
 #include <linux/err.h>
+#include <linux/of.h>
 #include <linux/platform_data/lp855x.h>
 #include <linux/pwm.h>
 
@@ -35,9 +36,13 @@
 #define LP8557_EPROM_START		0x10
 #define LP8557_EPROM_END		0x1E
 
-#define BUF_SIZE		20
 #define DEFAULT_BL_NAME		"lcd-backlight"
 #define MAX_BRIGHTNESS		255
+
+enum lp855x_brightness_ctrl_mode {
+	PWM_BASED = 1,
+	REGISTER_BASED,
+};
 
 struct lp855x;
 
@@ -58,6 +63,7 @@ struct lp855x_device_config {
 struct lp855x {
 	const char *chipname;
 	enum lp855x_chip_id chip_id;
+	enum lp855x_brightness_ctrl_mode mode;
 	struct lp855x_device_config *cfg;
 	struct i2c_client *client;
 	struct backlight_device *bl;
@@ -187,7 +193,7 @@ static int lp855x_configure(struct lp855x *lp)
 	if (ret)
 		goto err;
 
-	if (pd->load_new_rom_data && pd->size_program) {
+	if (pd->size_program > 0) {
 		for (i = 0; i < pd->size_program; i++) {
 			addr = pd->rom_data[i].addr;
 			val = pd->rom_data[i].val;
@@ -239,18 +245,17 @@ static void lp855x_pwm_ctrl(struct lp855x *lp, int br, int max_br)
 static int lp855x_bl_update_status(struct backlight_device *bl)
 {
 	struct lp855x *lp = bl_get_data(bl);
-	enum lp855x_brightness_ctrl_mode mode = lp->pdata->mode;
 
 	if (bl->props.state & BL_CORE_SUSPENDED)
 		bl->props.brightness = 0;
 
-	if (mode == PWM_BASED) {
+	if (lp->mode == PWM_BASED) {
 		int br = bl->props.brightness;
 		int max_br = bl->props.max_brightness;
 
 		lp855x_pwm_ctrl(lp, br, max_br);
 
-	} else if (mode == REGISTER_BASED) {
+	} else if (lp->mode == REGISTER_BASED) {
 		u8 val = bl->props.brightness;
 		lp855x_write_byte(lp, lp->cfg->reg_brightness, val);
 	}
@@ -274,7 +279,7 @@ static int lp855x_backlight_register(struct lp855x *lp)
 	struct backlight_device *bl;
 	struct backlight_properties props;
 	struct lp855x_platform_data *pdata = lp->pdata;
-	char *name = pdata->name ? : DEFAULT_BL_NAME;
+	const char *name = pdata->name ? : DEFAULT_BL_NAME;
 
 	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = MAX_BRIGHTNESS;
@@ -304,22 +309,21 @@ static ssize_t lp855x_get_chip_id(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct lp855x *lp = dev_get_drvdata(dev);
-	return scnprintf(buf, BUF_SIZE, "%s\n", lp->chipname);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", lp->chipname);
 }
 
 static ssize_t lp855x_get_bl_ctl_mode(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct lp855x *lp = dev_get_drvdata(dev);
-	enum lp855x_brightness_ctrl_mode mode = lp->pdata->mode;
 	char *strmode = NULL;
 
-	if (mode == PWM_BASED)
+	if (lp->mode == PWM_BASED)
 		strmode = "pwm based";
-	else if (mode == REGISTER_BASED)
+	else if (lp->mode == REGISTER_BASED)
 		strmode = "register based";
 
-	return scnprintf(buf, BUF_SIZE, "%s\n", strmode);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", strmode);
 }
 
 static DEVICE_ATTR(chip_id, S_IRUGO, lp855x_get_chip_id, NULL);
@@ -335,16 +339,71 @@ static const struct attribute_group lp855x_attr_group = {
 	.attrs = lp855x_attributes,
 };
 
+#ifdef CONFIG_OF
+static int lp855x_parse_dt(struct device *dev, struct device_node *node)
+{
+	struct lp855x_platform_data *pdata;
+	int rom_length;
+
+	if (!node) {
+		dev_err(dev, "no platform data\n");
+		return -EINVAL;
+	}
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	of_property_read_string(node, "bl-name", &pdata->name);
+	of_property_read_u8(node, "dev-ctrl", &pdata->device_control);
+	of_property_read_u8(node, "init-brt", &pdata->initial_brightness);
+	of_property_read_u32(node, "pwm-period", &pdata->period_ns);
+
+	/* Fill ROM platform data if defined */
+	rom_length = of_get_child_count(node);
+	if (rom_length > 0) {
+		struct lp855x_rom_data *rom;
+		struct device_node *child;
+		int i = 0;
+
+		rom = devm_kzalloc(dev, sizeof(*rom) * rom_length, GFP_KERNEL);
+		if (!rom)
+			return -ENOMEM;
+
+		for_each_child_of_node(node, child) {
+			of_property_read_u8(child, "rom-addr", &rom[i].addr);
+			of_property_read_u8(child, "rom-val", &rom[i].val);
+			i++;
+		}
+
+		pdata->size_program = rom_length;
+		pdata->rom_data = &rom[0];
+	}
+
+	dev->platform_data = pdata;
+
+	return 0;
+}
+#else
+static int lp855x_parse_dt(struct device *dev, struct device_node *node)
+{
+	return -EINVAL;
+}
+#endif
+
 static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct lp855x *lp;
 	struct lp855x_platform_data *pdata = cl->dev.platform_data;
-	enum lp855x_brightness_ctrl_mode mode;
+	struct device_node *node = cl->dev.of_node;
 	int ret;
 
 	if (!pdata) {
-		dev_err(&cl->dev, "no platform data supplied\n");
-		return -EINVAL;
+		ret = lp855x_parse_dt(&cl->dev, node);
+		if (ret < 0)
+			return ret;
+
+		pdata = cl->dev.platform_data;
 	}
 
 	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
@@ -354,7 +413,11 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	if (!lp)
 		return -ENOMEM;
 
-	mode = pdata->mode;
+	if (pdata->period_ns > 0)
+		lp->mode = PWM_BASED;
+	else
+		lp->mode = REGISTER_BASED;
+
 	lp->client = cl;
 	lp->dev = &cl->dev;
 	lp->pdata = pdata;
@@ -402,6 +465,17 @@ static int lp855x_remove(struct i2c_client *cl)
 	return 0;
 }
 
+static const struct of_device_id lp855x_dt_ids[] = {
+	{ .compatible = "ti,lp8550", },
+	{ .compatible = "ti,lp8551", },
+	{ .compatible = "ti,lp8552", },
+	{ .compatible = "ti,lp8553", },
+	{ .compatible = "ti,lp8556", },
+	{ .compatible = "ti,lp8557", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, lp855x_dt_ids);
+
 static const struct i2c_device_id lp855x_ids[] = {
 	{"lp8550", LP8550},
 	{"lp8551", LP8551},
@@ -416,6 +490,7 @@ MODULE_DEVICE_TABLE(i2c, lp855x_ids);
 static struct i2c_driver lp855x_driver = {
 	.driver = {
 		   .name = "lp855x",
+		   .of_match_table = of_match_ptr(lp855x_dt_ids),
 		   },
 	.probe = lp855x_probe,
 	.remove = lp855x_remove,

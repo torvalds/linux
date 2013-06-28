@@ -86,10 +86,12 @@ enum mx27_clks {
 };
 
 static struct clk *clk[clk_max];
+static struct clk_onecell_data clk_data;
 
 int __init mx27_clocks_init(unsigned long fref)
 {
 	int i;
+	struct device_node *np;
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
@@ -198,6 +200,13 @@ int __init mx27_clocks_init(unsigned long fref)
 			pr_err("i.MX27 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
 
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx27-ccm");
+	if (np) {
+		clk_data.clks = clk;
+		clk_data.clk_num = ARRAY_SIZE(clk);
+		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+	}
+
 	clk_register_clkdev(clk[uart1_ipg_gate], "ipg", "imx21-uart.0");
 	clk_register_clkdev(clk[per1_gate], "per", "imx21-uart.0");
 	clk_register_clkdev(clk[uart2_ipg_gate], "ipg", "imx21-uart.1");
@@ -276,10 +285,8 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[ata_ahb_gate], "ata", NULL);
 	clk_register_clkdev(clk[rtc_ipg_gate], NULL, "imx21-rtc");
 	clk_register_clkdev(clk[scc_ipg_gate], "scc", NULL);
-	clk_register_clkdev(clk[cpu_div], "cpu", NULL);
+	clk_register_clkdev(clk[cpu_div], NULL, "cpufreq-cpu0.0");
 	clk_register_clkdev(clk[emi_ahb_gate], "emi_ahb" , NULL);
-	clk_register_clkdev(clk[ssi1_baud_gate], "bitrate" , "imx-ssi.0");
-	clk_register_clkdev(clk[ssi2_baud_gate], "bitrate" , "imx-ssi.1");
 
 	mxc_timer_init(MX27_IO_ADDRESS(MX27_GPT1_BASE_ADDR), MX27_INT_GPT1);
 

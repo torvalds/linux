@@ -187,6 +187,7 @@
 
 #include <linux/dmaengine.h>
 #include <linux/platform_data/dma-imx.h>
+#include <sound/dmaengine_pcm.h>
 #include "imx-pcm.h"
 
 struct imx_ssi {
@@ -204,8 +205,10 @@ struct imx_ssi {
 	void (*ac97_reset) (struct snd_ac97 *ac97);
 	void (*ac97_warm_reset)(struct snd_ac97 *ac97);
 
-	struct imx_pcm_dma_params	dma_params_rx;
-	struct imx_pcm_dma_params	dma_params_tx;
+	struct snd_dmaengine_dai_dma_data dma_params_rx;
+	struct snd_dmaengine_dai_dma_data dma_params_tx;
+	struct imx_dma_data filter_data_tx;
+	struct imx_dma_data filter_data_rx;
 
 	int enabled;
 

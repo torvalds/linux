@@ -357,7 +357,7 @@ static int vpfe_pipeline_disable(struct vpfe_pipeline *pipe)
  *
  * Set the pipeline to the given stream state.
  *
- * Return 0 if successfull, or the return value of the failed video::s_stream
+ * Return 0 if successful, or the return value of the failed video::s_stream
  * operation otherwise.
  */
 static int vpfe_pipeline_set_stream(struct vpfe_pipeline *pipe,
@@ -644,7 +644,7 @@ static int vpfe_g_fmt(struct file *file, void *priv,
  * fills v4l2_fmtdesc structure with output format set on adjacent subdev,
  * only one format is enumearted as subdevs are already configured
  *
- * Return 0 if successfull, error code otherwise
+ * Return 0 if successful, error code otherwise
  */
 static int vpfe_enum_fmt(struct file *file, void  *priv,
 				   struct v4l2_fmtdesc *fmt)
@@ -769,7 +769,7 @@ static int vpfe_try_fmt(struct file *file, void *priv,
  * fills v4l2_input structure with input available on media chain,
  * only one input is enumearted as media chain is setup by this time
  *
- * Return 0 if successfull, -EINVAL is media chain is invalid
+ * Return 0 if successful, -EINVAL is media chain is invalid
  */
 static int vpfe_enum_input(struct file *file, void *priv,
 				 struct v4l2_input *inp)
@@ -779,7 +779,7 @@ static int vpfe_enum_input(struct file *file, void *priv,
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_enum_input\n");
-	/* enumerate from the subdev user has choosen through mc */
+	/* enumerate from the subdev user has chosen through mc */
 	if (inp->index < sdinfo->num_inputs) {
 		memcpy(inp, &sdinfo->inputs[inp->index],
 		       sizeof(struct v4l2_input));
@@ -924,7 +924,7 @@ static int vpfe_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
  *
  * Return 0 on success, error code otherwise
  */
-static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
+static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
 	struct vpfe_video_device *video = video_drvdata(file);
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
@@ -945,13 +945,13 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 		goto unlock_out;
 	}
 	ret = v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 core, s_std, *std_id);
+					 core, s_std, std_id);
 	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Failed to set standard\n");
 		video->stdid = V4L2_STD_UNKNOWN;
 		goto unlock_out;
 	}
-	video->stdid = *std_id;
+	video->stdid = std_id;
 unlock_out:
 	mutex_unlock(&video->lock);
 	return ret;
@@ -1016,12 +1016,12 @@ vpfe_query_dv_timings(struct file *file, void *fh,
 }
 
 /*
- * vpfe_s_dv_timings() - set dv_preset on external subdev
+ * vpfe_s_dv_timings() - set dv_timings on external subdev
  * @file: file pointer
  * @priv: void pointer
  * @timings: pointer to v4l2_dv_timings structure
  *
- * set dv_timings pointed by preset on external subdev through
+ * set dv_timings pointed by timings on external subdev through
  * v4l2_device_call_until_err, this configures amplifier also
  *
  * Return 0 on success, error code otherwise
@@ -1042,12 +1042,12 @@ vpfe_s_dv_timings(struct file *file, void *fh,
 }
 
 /*
- * vpfe_g_dv_timings() - get dv_preset which is set on external subdev
+ * vpfe_g_dv_timings() - get dv_timings which is set on external subdev
  * @file: file pointer
  * @priv: void pointer
  * @timings: pointer to v4l2_dv_timings structure
  *
- * get dv_preset which is set on external subdev through
+ * get dv_timings which is set on external subdev through
  * v4l2_subdev_call
  *
  * Return 0 on success, error code otherwise
@@ -1423,7 +1423,7 @@ static int vpfe_dqbuf(struct file *file, void *priv,
 }
 
 /*
- * vpfe_streamon() - get dv_preset which is set on external subdev
+ * vpfe_streamon() - start streaming
  * @file: file pointer
  * @priv: void pointer
  * @buf_type: enum v4l2_buf_type
@@ -1472,7 +1472,7 @@ static int vpfe_streamon(struct file *file, void *priv,
 }
 
 /*
- * vpfe_streamoff() - get dv_preset which is set on external subdev
+ * vpfe_streamoff() - stop streaming
  * @file: file pointer
  * @priv: void pointer
  * @buf_type: enum v4l2_buf_type

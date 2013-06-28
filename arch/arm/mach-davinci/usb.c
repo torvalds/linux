@@ -10,6 +10,7 @@
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/cputype.h>
+#include <mach/da8xx.h>
 #include <linux/platform_data/usb-davinci.h>
 
 #define DAVINCI_USB_OTG_BASE	0x01c64000
@@ -17,7 +18,7 @@
 #define DA8XX_USB0_BASE 	0x01e00000
 #define DA8XX_USB1_BASE 	0x01e25000
 
-#if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
+#if IS_ENABLED(CONFIG_USB_MUSB_HDRC)
 static struct musb_hdrc_eps_bits musb_eps[] = {
 	{ "ep1_tx", 8, },
 	{ "ep1_rx", 8, },

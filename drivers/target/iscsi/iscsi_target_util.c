@@ -24,6 +24,7 @@
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
+#include <target/iscsi/iscsi_transport.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_parameters.h"
@@ -148,6 +149,18 @@ void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
 	spin_unlock_bh(&cmd->r2t_lock);
 }
 
+struct iscsi_cmd *iscsit_alloc_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
+{
+	struct iscsi_cmd *cmd;
+
+	cmd = kmem_cache_zalloc(lio_cmd_cache, gfp_mask);
+	if (!cmd)
+		return NULL;
+
+	cmd->release_cmd = &iscsit_release_cmd;
+	return cmd;
+}
+
 /*
  * May be called from software interrupt (timer) context for allocating
  * iSCSI NopINs.
@@ -156,13 +169,12 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 {
 	struct iscsi_cmd *cmd;
 
-	cmd = kmem_cache_zalloc(lio_cmd_cache, gfp_mask);
+	cmd = conn->conn_transport->iscsit_alloc_cmd(conn, gfp_mask);
 	if (!cmd) {
 		pr_err("Unable to allocate memory for struct iscsi_cmd.\n");
 		return NULL;
 	}
-
-	cmd->conn	= conn;
+	cmd->conn = conn;
 	INIT_LIST_HEAD(&cmd->i_conn_node);
 	INIT_LIST_HEAD(&cmd->datain_list);
 	INIT_LIST_HEAD(&cmd->cmd_r2t_list);
@@ -175,6 +187,7 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 
 	return cmd;
 }
+EXPORT_SYMBOL(iscsit_allocate_cmd);
 
 struct iscsi_seq *iscsit_get_seq_holder_for_datain(
 	struct iscsi_cmd *cmd,
@@ -304,6 +317,7 @@ int iscsit_sequence_cmd(
 
 	return ret;
 }
+EXPORT_SYMBOL(iscsit_sequence_cmd);
 
 int iscsit_check_unsolicited_dataout(struct iscsi_cmd *cmd, unsigned char *buf)
 {
@@ -662,35 +676,56 @@ void iscsit_free_queue_reqs_for_conn(struct iscsi_conn *conn)
 
 void iscsit_release_cmd(struct iscsi_cmd *cmd)
 {
-	struct iscsi_conn *conn = cmd->conn;
-
-	iscsit_free_r2ts_from_list(cmd);
-	iscsit_free_all_datain_reqs(cmd);
-
 	kfree(cmd->buf_ptr);
 	kfree(cmd->pdu_list);
 	kfree(cmd->seq_list);
 	kfree(cmd->tmr_req);
 	kfree(cmd->iov_data);
 
-	if (conn) {
-		iscsit_remove_cmd_from_immediate_queue(cmd, conn);
-		iscsit_remove_cmd_from_response_queue(cmd, conn);
-	}
-
 	kmem_cache_free(lio_cmd_cache, cmd);
 }
 
-void iscsit_free_cmd(struct iscsi_cmd *cmd)
+static void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool scsi_cmd,
+			      bool check_queues)
 {
+	struct iscsi_conn *conn = cmd->conn;
+
+	if (scsi_cmd) {
+		if (cmd->data_direction == DMA_TO_DEVICE) {
+			iscsit_stop_dataout_timer(cmd);
+			iscsit_free_r2ts_from_list(cmd);
+		}
+		if (cmd->data_direction == DMA_FROM_DEVICE)
+			iscsit_free_all_datain_reqs(cmd);
+	}
+
+	if (conn && check_queues) {
+		iscsit_remove_cmd_from_immediate_queue(cmd, conn);
+		iscsit_remove_cmd_from_response_queue(cmd, conn);
+	}
+}
+
+void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
+{
+	struct se_cmd *se_cmd = NULL;
+	int rc;
 	/*
 	 * Determine if a struct se_cmd is associated with
 	 * this struct iscsi_cmd.
 	 */
 	switch (cmd->iscsi_opcode) {
 	case ISCSI_OP_SCSI_CMD:
+		se_cmd = &cmd->se_cmd;
+		__iscsit_free_cmd(cmd, true, shutdown);
+		/*
+		 * Fallthrough
+		 */
 	case ISCSI_OP_SCSI_TMFUNC:
-		transport_generic_free_cmd(&cmd->se_cmd, 1);
+		rc = transport_generic_free_cmd(&cmd->se_cmd, 1);
+		if (!rc && shutdown && se_cmd && se_cmd->se_sess) {
+			__iscsit_free_cmd(cmd, true, shutdown);
+			target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+		}
 		break;
 	case ISCSI_OP_REJECT:
 		/*
@@ -699,12 +734,20 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd)
 		 * associated cmd->se_cmd needs to be released.
 		 */
 		if (cmd->se_cmd.se_tfo != NULL) {
-			transport_generic_free_cmd(&cmd->se_cmd, 1);
+			se_cmd = &cmd->se_cmd;
+			__iscsit_free_cmd(cmd, true, shutdown);
+
+			rc = transport_generic_free_cmd(&cmd->se_cmd, 1);
+			if (!rc && shutdown && se_cmd->se_sess) {
+				__iscsit_free_cmd(cmd, true, shutdown);
+				target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+			}
 			break;
 		}
 		/* Fall-through */
 	default:
-		iscsit_release_cmd(cmd);
+		__iscsit_free_cmd(cmd, false, shutdown);
+		cmd->release_cmd(cmd);
 		break;
 	}
 }
@@ -1226,34 +1269,19 @@ send_datacrc:
  */
 int iscsit_tx_login_rsp(struct iscsi_conn *conn, u8 status_class, u8 status_detail)
 {
-	u8 iscsi_hdr[ISCSI_HDR_LEN];
-	int err;
-	struct kvec iov;
 	struct iscsi_login_rsp *hdr;
+	struct iscsi_login *login = conn->conn_login;
 
+	login->login_failed = 1;
 	iscsit_collect_login_stats(conn, status_class, status_detail);
 
-	memset(&iov, 0, sizeof(struct kvec));
-	memset(&iscsi_hdr, 0x0, ISCSI_HDR_LEN);
-
-	hdr	= (struct iscsi_login_rsp *)&iscsi_hdr;
+	hdr	= (struct iscsi_login_rsp *)&login->rsp[0];
 	hdr->opcode		= ISCSI_OP_LOGIN_RSP;
 	hdr->status_class	= status_class;
 	hdr->status_detail	= status_detail;
 	hdr->itt		= conn->login_itt;
 
-	iov.iov_base		= &iscsi_hdr;
-	iov.iov_len		= ISCSI_HDR_LEN;
-
-	PRINT_BUFF(iscsi_hdr, ISCSI_HDR_LEN);
-
-	err = tx_data(conn, &iov, 1, ISCSI_HDR_LEN);
-	if (err != ISCSI_HDR_LEN) {
-		pr_err("tx_data returned less than expected\n");
-		return -1;
-	}
-
-	return 0;
+	return conn->conn_transport->iscsit_put_login_tx(conn, login, 0);
 }
 
 void iscsit_print_session_params(struct iscsi_session *sess)
@@ -1432,7 +1460,8 @@ void iscsit_collect_login_stats(
 		strcpy(ls->last_intr_fail_name,
 		       (intrname ? intrname->value : "Unknown"));
 
-		ls->last_intr_fail_ip_family = conn->sock->sk->sk_family;
+		ls->last_intr_fail_ip_family = conn->login_family;
+
 		snprintf(ls->last_intr_fail_ip_addr, IPV6_ADDRESS_SPACE,
 				"%s", conn->login_ip);
 		ls->last_fail_time = get_jiffies_64();

@@ -412,7 +412,7 @@ static int bfin_can_err(struct net_device *dev, u16 isrc, u16 status)
 	return 0;
 }
 
-irqreturn_t bfin_can_interrupt(int irq, void *dev_id)
+static irqreturn_t bfin_can_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct bfin_can_priv *priv = netdev_priv(dev);
@@ -504,7 +504,7 @@ static int bfin_can_close(struct net_device *dev)
 	return 0;
 }
 
-struct net_device *alloc_bfin_candev(void)
+static struct net_device *alloc_bfin_candev(void)
 {
 	struct net_device *dev;
 	struct bfin_can_priv *priv;

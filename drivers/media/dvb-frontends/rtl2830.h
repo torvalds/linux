@@ -21,6 +21,7 @@
 #ifndef RTL2830_H
 #define RTL2830_H
 
+#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 struct rtl2830_config {
@@ -59,8 +60,7 @@ struct rtl2830_config {
 	u8 agc_targ_val;
 };
 
-#if defined(CONFIG_DVB_RTL2830) || \
-	(defined(CONFIG_DVB_RTL2830_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_RTL2830)
 extern struct dvb_frontend *rtl2830_attach(
 	const struct rtl2830_config *config,
 	struct i2c_adapter *i2c

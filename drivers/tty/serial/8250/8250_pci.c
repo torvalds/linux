@@ -1554,6 +1554,7 @@ pci_wch_ch353_setup(struct serial_private *priv,
 #define PCI_DEVICE_ID_PLX_CRONYX_OMEGA	0xc001
 #define PCI_DEVICE_ID_INTEL_PATSBURG_KT 0x1d3d
 #define PCI_VENDOR_ID_WCH		0x4348
+#define PCI_DEVICE_ID_WCH_CH352_2S	0x3253
 #define PCI_DEVICE_ID_WCH_CH353_4S	0x3453
 #define PCI_DEVICE_ID_WCH_CH353_2S1PF	0x5046
 #define PCI_DEVICE_ID_WCH_CH353_2S1P	0x7053
@@ -2171,6 +2172,14 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subvendor      = PCI_ANY_ID,
 		.subdevice      = PCI_ANY_ID,
 		.setup          = pci_wch_ch353_setup,
+	},
+	/* WCH CH352 2S card (16550 clone) */
+	{
+		.vendor		= PCI_VENDOR_ID_WCH,
+		.device		= PCI_DEVICE_ID_WCH_CH352_2S,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_wch_ch353_setup,
 	},
 	/*
 	 * ASIX devices with FIFO bug
@@ -4867,6 +4876,10 @@ static struct pci_device_id serial_pci_tbl[] = {
 		0, 0, pbn_b0_bt_4_115200 },
 
 	{	PCI_VENDOR_ID_WCH, PCI_DEVICE_ID_WCH_CH353_2S1PF,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0, pbn_b0_bt_2_115200 },
+
+	{	PCI_VENDOR_ID_WCH, PCI_DEVICE_ID_WCH_CH352_2S,
 		PCI_ANY_ID, PCI_ANY_ID,
 		0, 0, pbn_b0_bt_2_115200 },
 

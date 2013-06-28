@@ -183,7 +183,6 @@ int usb_stor_suspend(struct usb_interface *iface, pm_message_t message)
 	/* Wait until no command is running */
 	mutex_lock(&us->dev_mutex);
 
-	US_DEBUGP("%s\n", __func__);
 	if (us->suspend_resume_hook)
 		(us->suspend_resume_hook)(us, US_SUSPEND);
 
@@ -201,7 +200,6 @@ int usb_stor_resume(struct usb_interface *iface)
 
 	mutex_lock(&us->dev_mutex);
 
-	US_DEBUGP("%s\n", __func__);
 	if (us->suspend_resume_hook)
 		(us->suspend_resume_hook)(us, US_RESUME);
 
@@ -213,8 +211,6 @@ EXPORT_SYMBOL_GPL(usb_stor_resume);
 int usb_stor_reset_resume(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
-
-	US_DEBUGP("%s\n", __func__);
 
 	/* Report the reset to the SCSI core */
 	usb_stor_report_bus_reset(us);
@@ -236,8 +232,6 @@ int usb_stor_pre_reset(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
-	US_DEBUGP("%s\n", __func__);
-
 	/* Make sure no command runs during the reset */
 	mutex_lock(&us->dev_mutex);
 	return 0;
@@ -247,8 +241,6 @@ EXPORT_SYMBOL_GPL(usb_stor_pre_reset);
 int usb_stor_post_reset(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
-
-	US_DEBUGP("%s\n", __func__);
 
 	/* Report the reset to the SCSI core */
 	usb_stor_report_bus_reset(us);
@@ -311,11 +303,11 @@ static int usb_stor_control_thread(void * __us)
 	struct Scsi_Host *host = us_to_host(us);
 
 	for (;;) {
-		US_DEBUGP("*** thread sleeping.\n");
+		usb_stor_dbg(us, "*** thread sleeping\n");
 		if (wait_for_completion_interruptible(&us->cmnd_ready))
 			break;
 
-		US_DEBUGP("*** thread awakened.\n");
+		usb_stor_dbg(us, "*** thread awakened\n");
 
 		/* lock the device pointers */
 		mutex_lock(&(us->dev_mutex));
@@ -327,7 +319,7 @@ static int usb_stor_control_thread(void * __us)
 		if (us->srb == NULL) {
 			scsi_unlock(host);
 			mutex_unlock(&us->dev_mutex);
-			US_DEBUGP("-- exiting\n");
+			usb_stor_dbg(us, "-- exiting\n");
 			break;
 		}
 
@@ -343,7 +335,7 @@ static int usb_stor_control_thread(void * __us)
 		 * is UNKNOWN
 		 */
 		if (us->srb->sc_data_direction == DMA_BIDIRECTIONAL) {
-			US_DEBUGP("UNKNOWN data direction\n");
+			usb_stor_dbg(us, "UNKNOWN data direction\n");
 			us->srb->result = DID_ERROR << 16;
 		}
 
@@ -352,14 +344,14 @@ static int usb_stor_control_thread(void * __us)
 		 */
 		else if (us->srb->device->id &&
 				!(us->fflags & US_FL_SCM_MULT_TARG)) {
-			US_DEBUGP("Bad target number (%d:%d)\n",
-				  us->srb->device->id, us->srb->device->lun);
+			usb_stor_dbg(us, "Bad target number (%d:%d)\n",
+				     us->srb->device->id, us->srb->device->lun);
 			us->srb->result = DID_BAD_TARGET << 16;
 		}
 
 		else if (us->srb->device->lun > us->max_lun) {
-			US_DEBUGP("Bad LUN (%d:%d)\n",
-				  us->srb->device->id, us->srb->device->lun);
+			usb_stor_dbg(us, "Bad LUN (%d:%d)\n",
+				     us->srb->device->id, us->srb->device->lun);
 			us->srb->result = DID_BAD_TARGET << 16;
 		}
 
@@ -371,14 +363,14 @@ static int usb_stor_control_thread(void * __us)
 			    0x00, 0x80, 0x02, 0x02,
 			    0x1F, 0x00, 0x00, 0x00};
 
-			US_DEBUGP("Faking INQUIRY command\n");
+			usb_stor_dbg(us, "Faking INQUIRY command\n");
 			fill_inquiry_response(us, data_ptr, 36);
 			us->srb->result = SAM_STAT_GOOD;
 		}
 
 		/* we've got a command, let's do it! */
 		else {
-			US_DEBUG(usb_stor_show_command(us->srb));
+			US_DEBUG(usb_stor_show_command(us, us->srb));
 			us->proto_handler(us->srb, us);
 			usb_mark_last_busy(us->pusb_dev);
 		}
@@ -388,12 +380,12 @@ static int usb_stor_control_thread(void * __us)
 
 		/* indicate that the command is done */
 		if (us->srb->result != DID_ABORT << 16) {
-			US_DEBUGP("scsi cmd done, result=0x%x\n",
-				   us->srb->result);
+			usb_stor_dbg(us, "scsi cmd done, result=0x%x\n",
+				     us->srb->result);
 			us->srb->scsi_done(us->srb);
 		} else {
 SkipForAbort:
-			US_DEBUGP("scsi command aborted\n");
+			usb_stor_dbg(us, "scsi command aborted\n");
 		}
 
 		/* If an abort request was received we need to signal that
@@ -435,34 +427,30 @@ SkipForAbort:
 /* Associate our private data with the USB device */
 static int associate_dev(struct us_data *us, struct usb_interface *intf)
 {
-	US_DEBUGP("-- %s\n", __func__);
-
 	/* Fill in the device-related fields */
 	us->pusb_dev = interface_to_usbdev(intf);
 	us->pusb_intf = intf;
 	us->ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
-	US_DEBUGP("Vendor: 0x%04x, Product: 0x%04x, Revision: 0x%04x\n",
-			le16_to_cpu(us->pusb_dev->descriptor.idVendor),
-			le16_to_cpu(us->pusb_dev->descriptor.idProduct),
-			le16_to_cpu(us->pusb_dev->descriptor.bcdDevice));
-	US_DEBUGP("Interface Subclass: 0x%02x, Protocol: 0x%02x\n",
-			intf->cur_altsetting->desc.bInterfaceSubClass,
-			intf->cur_altsetting->desc.bInterfaceProtocol);
+	usb_stor_dbg(us, "Vendor: 0x%04x, Product: 0x%04x, Revision: 0x%04x\n",
+		     le16_to_cpu(us->pusb_dev->descriptor.idVendor),
+		     le16_to_cpu(us->pusb_dev->descriptor.idProduct),
+		     le16_to_cpu(us->pusb_dev->descriptor.bcdDevice));
+	usb_stor_dbg(us, "Interface Subclass: 0x%02x, Protocol: 0x%02x\n",
+		     intf->cur_altsetting->desc.bInterfaceSubClass,
+		     intf->cur_altsetting->desc.bInterfaceProtocol);
 
 	/* Store our private data in the interface */
 	usb_set_intfdata(intf, us);
 
 	/* Allocate the control/setup and DMA-mapped buffers */
 	us->cr = kmalloc(sizeof(*us->cr), GFP_KERNEL);
-	if (!us->cr) {
-		US_DEBUGP("usb_ctrlrequest allocation failed\n");
+	if (!us->cr)
 		return -ENOMEM;
-	}
 
 	us->iobuf = usb_alloc_coherent(us->pusb_dev, US_IOBUF_SIZE,
 			GFP_KERNEL, &us->iobuf_dma);
 	if (!us->iobuf) {
-		US_DEBUGP("I/O buffer allocation failed\n");
+		usb_stor_dbg(us, "I/O buffer allocation failed\n");
 		return -ENOMEM;
 	}
 	return 0;
@@ -738,7 +726,7 @@ static int get_pipes(struct us_data *us)
 	}
 
 	if (!ep_in || !ep_out || (us->protocol == USB_PR_CBI && !ep_int)) {
-		US_DEBUGP("Endpoint sanity check failed! Rejecting dev.\n");
+		usb_stor_dbg(us, "Endpoint sanity check failed! Rejecting dev.\n");
 		return -EIO;
 	}
 
@@ -765,7 +753,7 @@ static int usb_stor_acquire_resources(struct us_data *us)
 
 	us->current_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!us->current_urb) {
-		US_DEBUGP("URB allocation failed\n");
+		usb_stor_dbg(us, "URB allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -792,20 +780,18 @@ static int usb_stor_acquire_resources(struct us_data *us)
 /* Release all our dynamic resources */
 static void usb_stor_release_resources(struct us_data *us)
 {
-	US_DEBUGP("-- %s\n", __func__);
-
 	/* Tell the control thread to exit.  The SCSI host must
 	 * already have been removed and the DISCONNECTING flag set
 	 * so that we won't accept any more commands.
 	 */
-	US_DEBUGP("-- sending exit command to thread\n");
+	usb_stor_dbg(us, "-- sending exit command to thread\n");
 	complete(&us->cmnd_ready);
 	if (us->ctl_thread)
 		kthread_stop(us->ctl_thread);
 
 	/* Call the destructor routine, if it exists */
 	if (us->extra_destructor) {
-		US_DEBUGP("-- calling extra_destructor()\n");
+		usb_stor_dbg(us, "-- calling extra_destructor()\n");
 		us->extra_destructor(us->extra);
 	}
 
@@ -817,8 +803,6 @@ static void usb_stor_release_resources(struct us_data *us)
 /* Dissociate from the USB device */
 static void dissociate_dev(struct us_data *us)
 {
-	US_DEBUGP("-- %s\n", __func__);
-
 	/* Free the buffers */
 	kfree(us->cr);
 	usb_free_coherent(us->pusb_dev, US_IOBUF_SIZE, us->iobuf, us->iobuf_dma);
@@ -918,7 +902,7 @@ int usb_stor_probe1(struct us_data **pus,
 	struct us_data *us;
 	int result;
 
-	US_DEBUGP("USB Mass Storage device detected\n");
+	dev_info(&intf->dev, "USB Mass Storage device detected\n");
 
 	/*
 	 * Ask the SCSI layer to allocate a host structure, with extra
@@ -926,8 +910,7 @@ int usb_stor_probe1(struct us_data **pus,
 	 */
 	host = scsi_host_alloc(&usb_stor_host_template, sizeof(*us));
 	if (!host) {
-		dev_warn(&intf->dev,
-				"Unable to allocate the scsi host\n");
+		dev_warn(&intf->dev, "Unable to allocate the scsi host\n");
 		return -ENOMEM;
 	}
 
@@ -964,7 +947,7 @@ int usb_stor_probe1(struct us_data **pus,
 	return 0;
 
 BadDevice:
-	US_DEBUGP("storage_probe() failed\n");
+	usb_stor_dbg(us, "storage_probe() failed\n");
 	release_everything(us);
 	return result;
 }
@@ -981,8 +964,8 @@ int usb_stor_probe2(struct us_data *us)
 		result = -ENXIO;
 		goto BadDevice;
 	}
-	US_DEBUGP("Transport: %s\n", us->transport_name);
-	US_DEBUGP("Protocol: %s\n", us->protocol_name);
+	usb_stor_dbg(us, "Transport: %s\n", us->transport_name);
+	usb_stor_dbg(us, "Protocol: %s\n", us->protocol_name);
 
 	/* fix for single-lun devices */
 	if (us->fflags & US_FL_SINGLE_LUN)
@@ -1028,7 +1011,7 @@ int usb_stor_probe2(struct us_data *us)
 
 	/* We come here if there are any problems */
 BadDevice:
-	US_DEBUGP("storage_probe() failed\n");
+	usb_stor_dbg(us, "storage_probe() failed\n");
 	release_everything(us);
 	return result;
 }
@@ -1039,7 +1022,6 @@ void usb_stor_disconnect(struct usb_interface *intf)
 {
 	struct us_data *us = usb_get_intfdata(intf);
 
-	US_DEBUGP("storage_disconnect() called\n");
 	quiesce_and_remove_host(us);
 	release_everything(us);
 }
@@ -1075,8 +1057,7 @@ static int storage_probe(struct usb_interface *intf,
 	} else {
 		unusual_dev = &for_dynamic_ids;
 
-		US_DEBUGP("%s %s 0x%04x 0x%04x\n", "Use Bulk-Only transport",
-			"with the Transparent SCSI protocol for dynamic id:",
+		dev_dbg(&intf->dev, "Use Bulk-Only transport with the Transparent SCSI protocol for dynamic id: 0x%04x 0x%04x\n",
 			id->idVendor, id->idProduct);
 	}
 
@@ -1089,10 +1070,6 @@ static int storage_probe(struct usb_interface *intf,
 	result = usb_stor_probe2(us);
 	return result;
 }
-
-/***********************************************************************
- * Initialization and registration
- ***********************************************************************/
 
 static struct usb_driver usb_storage_driver = {
 	.name =		"usb-storage",
@@ -1108,30 +1085,4 @@ static struct usb_driver usb_storage_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init usb_stor_init(void)
-{
-	int retval;
-
-	pr_info("Initializing USB Mass Storage driver...\n");
-
-	/* register the driver, return usb_register return code if error */
-	retval = usb_register(&usb_storage_driver);
-	if (retval == 0)
-		pr_info("USB Mass Storage support registered.\n");
-	return retval;
-}
-
-static void __exit usb_stor_exit(void)
-{
-	US_DEBUGP("usb_stor_exit() called\n");
-
-	/* Deregister the driver
-	 * This will cause disconnect() to be called for each
-	 * attached unit
-	 */
-	US_DEBUGP("-- calling usb_deregister()\n");
-	usb_deregister(&usb_storage_driver) ;
-}
-
-module_init(usb_stor_init);
-module_exit(usb_stor_exit);
+module_usb_driver(usb_storage_driver);

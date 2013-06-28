@@ -236,17 +236,14 @@ static int xircom_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	private->rx_buffer = dma_alloc_coherent(d, 8192,
 						&private->rx_dma_handle,
 						GFP_KERNEL);
-	if (private->rx_buffer == NULL) {
-		pr_err("%s: no memory for rx buffer\n", __func__);
+	if (private->rx_buffer == NULL)
 		goto rx_buf_fail;
-	}
+
 	private->tx_buffer = dma_alloc_coherent(d, 8192,
 						&private->tx_dma_handle,
 						GFP_KERNEL);
-	if (private->tx_buffer == NULL) {
-		pr_err("%s: no memory for tx buffer\n", __func__);
+	if (private->tx_buffer == NULL)
 		goto tx_buf_fail;
-	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 

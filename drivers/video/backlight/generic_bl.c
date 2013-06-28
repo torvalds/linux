@@ -9,8 +9,6 @@
  *
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -108,7 +106,7 @@ static int genericbl_probe(struct platform_device *pdev)
 
 	generic_backlight_device = bd;
 
-	pr_info("Generic Backlight Driver Initialized.\n");
+	dev_info(&pdev->dev, "Generic Backlight Driver Initialized.\n");
 	return 0;
 }
 
@@ -122,7 +120,7 @@ static int genericbl_remove(struct platform_device *pdev)
 
 	backlight_device_unregister(bd);
 
-	pr_info("Generic Backlight Driver Unloaded\n");
+	dev_info(&pdev->dev, "Generic Backlight Driver Unloaded\n");
 	return 0;
 }
 

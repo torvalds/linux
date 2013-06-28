@@ -213,10 +213,11 @@ static int meth_init_tx_ring(struct meth_private *priv)
 {
 	/* Init TX ring */
 	priv->tx_ring = dma_alloc_coherent(NULL, TX_RING_BUFFER_SIZE,
-	                                   &priv->tx_ring_dma, GFP_ATOMIC);
+	                                   &priv->tx_ring_dma,
+					   GFP_ATOMIC | __GFP_ZERO);
 	if (!priv->tx_ring)
 		return -ENOMEM;
-	memset(priv->tx_ring, 0, TX_RING_BUFFER_SIZE);
+
 	priv->tx_count = priv->tx_read = priv->tx_write = 0;
 	mace->eth.tx_ring_base = priv->tx_ring_dma;
 	/* Now init skb save area */

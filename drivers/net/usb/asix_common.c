@@ -100,6 +100,9 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
 				   rx->size);
 			kfree_skb(rx->ax_skb);
+			rx->ax_skb = NULL;
+			rx->size = 0U;
+
 			return 0;
 		}
 

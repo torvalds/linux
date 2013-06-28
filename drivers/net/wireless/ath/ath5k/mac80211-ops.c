@@ -202,7 +202,7 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&ah->lock);
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		ret = ath5k_chan_set(ah, conf->channel);
+		ret = ath5k_chan_set(ah, conf->chandef.chan);
 		if (ret < 0)
 			goto unlock;
 	}
@@ -678,7 +678,7 @@ ath5k_get_survey(struct ieee80211_hw *hw, int idx, struct survey_info *survey)
 
 	memcpy(survey, &ah->survey, sizeof(*survey));
 
-	survey->channel = conf->channel;
+	survey->channel = conf->chandef.chan;
 	survey->noise = ah->ah_noise_floor;
 	survey->filled = SURVEY_INFO_NOISE_DBM |
 			SURVEY_INFO_CHANNEL_TIME |

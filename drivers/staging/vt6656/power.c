@@ -37,7 +37,6 @@
  *
  */
 
-#include "ttype.h"
 #include "mac.h"
 #include "device.h"
 #include "wmgr.h"
@@ -48,17 +47,7 @@
 #include "control.h"
 #include "rndis.h"
 
-/*---------------------  Static Definitions -------------------------*/
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
 static int msglevel = MSG_LEVEL_INFO;
-/*---------------------  Static Functions  --------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 /*
  *
@@ -290,7 +279,7 @@ int PSbSendNullPacket(struct vnt_private *pDevice)
 	pTxPacket->p80211Header->sA3.wFrameCtl = cpu_to_le16(flags);
 
 	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA)
-		pTxPacket->p80211Header->sA3.wFrameCtl |= cpu_to_le16((WORD)WLAN_SET_FC_TODS(1));
+		pTxPacket->p80211Header->sA3.wFrameCtl |= cpu_to_le16((u16)WLAN_SET_FC_TODS(1));
 
 	memcpy(pTxPacket->p80211Header->sA3.abyAddr1, pMgmt->abyCurrBSSID, WLAN_ADDR_LEN);
 	memcpy(pTxPacket->p80211Header->sA3.abyAddr2, pMgmt->abyMACAddr, WLAN_ADDR_LEN);

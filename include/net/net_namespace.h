@@ -17,6 +17,7 @@
 #include <net/netns/ipv6.h>
 #include <net/netns/sctp.h>
 #include <net/netns/dccp.h>
+#include <net/netns/netfilter.h>
 #include <net/netns/x_tables.h>
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #include <net/netns/conntrack.h>
@@ -94,6 +95,7 @@ struct net {
 	struct netns_dccp	dccp;
 #endif
 #ifdef CONFIG_NETFILTER
+	struct netns_nf		nf;
 	struct netns_xt		xt;
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	struct netns_ct		ct;

@@ -455,7 +455,7 @@ start_secondary (void *unused)
 	preempt_disable();
 	smp_callin();
 
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 	return 0;
 }
 

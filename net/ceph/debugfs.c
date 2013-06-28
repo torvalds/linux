@@ -123,8 +123,8 @@ static int osdc_show(struct seq_file *s, void *pp)
 	mutex_lock(&osdc->request_mutex);
 	for (p = rb_first(&osdc->requests); p; p = rb_next(p)) {
 		struct ceph_osd_request *req;
+		unsigned int i;
 		int opcode;
-		int i;
 
 		req = rb_entry(p, struct ceph_osd_request, r_node);
 
@@ -142,7 +142,7 @@ static int osdc_show(struct seq_file *s, void *pp)
 			seq_printf(s, "\t");
 
 		for (i = 0; i < req->r_num_ops; i++) {
-			opcode = le16_to_cpu(req->r_request_ops[i].op);
+			opcode = req->r_ops[i].op;
 			seq_printf(s, "\t%s", ceph_osd_op_name(opcode));
 		}
 

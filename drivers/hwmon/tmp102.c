@@ -155,8 +155,8 @@ static int tmp102_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
-		dev_err(&client->dev, "adapter doesn't support SMBus word "
-			"transactions\n");
+		dev_err(&client->dev,
+			"adapter doesn't support SMBus word transactions\n");
 		return -ENODEV;
 	}
 

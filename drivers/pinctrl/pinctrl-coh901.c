@@ -318,13 +318,16 @@ static int u300_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct u300_gpio_port *port = NULL;
 	struct list_head *p;
 	int retirq;
+	bool found = false;
 
 	list_for_each(p, &gpio->port_list) {
 		port = list_entry(p, struct u300_gpio_port, node);
-		if (port->number == portno)
+		if (port->number == portno) {
+			found = true;
 			break;
+		}
 	}
-	if (port == NULL) {
+	if (!found) {
 		dev_err(gpio->dev, "could not locate port for GPIO %d IRQ\n",
 			offset);
 		return -EINVAL;
@@ -359,7 +362,7 @@ int u300_gpio_config_get(struct gpio_chip *chip,
 	drmode &= (U300_GPIO_PXPCR_PIN_MODE_MASK << ((offset & 0x07) << 1));
 	drmode >>= ((offset & 0x07) << 1);
 
-	switch(param) {
+	switch (param) {
 	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
 		*config = 0;
 		if (biasmode)
@@ -710,11 +713,6 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 	gpio->dev = &pdev->dev;
 
 	memres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!memres) {
-		dev_err(gpio->dev, "could not get GPIO memory resource\n");
-		return -ENODEV;
-	}
-
 	gpio->base = devm_ioremap_resource(&pdev->dev, memres);
 	if (IS_ERR(gpio->base))
 		return PTR_ERR(gpio->base);
@@ -832,7 +830,8 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 err_no_range:
-	err = gpiochip_remove(&gpio->chip);
+	if (gpiochip_remove(&gpio->chip))
+		dev_err(&pdev->dev, "failed to remove gpio chip\n");
 err_no_chip:
 err_no_domain:
 err_no_port:

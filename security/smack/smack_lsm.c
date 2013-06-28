@@ -654,7 +654,7 @@ static int smack_inode_unlink(struct inode *dir, struct dentry *dentry)
 		/*
 		 * You also need write access to the containing directory
 		 */
-		smk_ad_setfield_u_fs_path_dentry(&ad, NULL);
+		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_INODE);
 		smk_ad_setfield_u_fs_inode(&ad, dir);
 		rc = smk_curacc(smk_of_inode(dir), MAY_WRITE, &ad);
 	}
@@ -685,7 +685,7 @@ static int smack_inode_rmdir(struct inode *dir, struct dentry *dentry)
 		/*
 		 * You also need write access to the containing directory
 		 */
-		smk_ad_setfield_u_fs_path_dentry(&ad, NULL);
+		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_INODE);
 		smk_ad_setfield_u_fs_inode(&ad, dir);
 		rc = smk_curacc(smk_of_inode(dir), MAY_WRITE, &ad);
 	}

@@ -35,6 +35,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-event.h>
 
 #include "stk-webcam.h"
 
@@ -63,13 +64,51 @@ static struct usb_device_id stkwebcam_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, stkwebcam_table);
 
-/* The stk webcam laptop module is mounted upside down in some laptops :( */
+/*
+ * The stk webcam laptop module is mounted upside down in some laptops :(
+ *
+ * Some background information (thanks to Hans de Goede for providing this):
+ *
+ * 1) Once upon a time the stkwebcam driver was written
+ *
+ * 2) The webcam in question was used mostly in Asus laptop models, including
+ * the laptop of the original author of the driver, and in these models, in
+ * typical Asus fashion (see the long long list for uvc cams inside v4l-utils),
+ * they mounted the webcam-module the wrong way up. So the hflip and vflip
+ * module options were given a default value of 1 (the correct value for
+ * upside down mounted models)
+ *
+ * 3) Years later I got a bug report from a user with a laptop with stkwebcam,
+ * where the module was actually mounted the right way up, and thus showed
+ * upside down under Linux. So now I was facing the choice of 2 options:
+ *
+ * a) Add a not-upside-down list to stkwebcam, which overrules the default.
+ *
+ * b) Do it like all the other drivers do, and make the default right for
+ *    cams mounted the proper way and add an upside-down model list, with
+ *    models where we need to flip-by-default.
+ *
+ * Despite knowing that going b) would cause a period of pain where we were
+ * building the table I opted to go for option b), since a) is just too ugly,
+ * and worse different from how every other driver does it leading to
+ * confusion in the long run. This change was made in kernel 3.6.
+ *
+ * So for any user report about upside-down images since kernel 3.6 ask them
+ * to provide the output of 'sudo dmidecode' so the laptop can be added in
+ * the table below.
+ */
 static const struct dmi_system_id stk_upside_down_dmi_table[] = {
 	{
 		.ident = "ASUS G1",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "G1")
+		}
+	}, {
+		.ident = "ASUS F3JC",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "F3JC")
 		}
 	},
 	{}
@@ -565,31 +604,31 @@ static void stk_free_buffers(struct stk_camera *dev)
 
 static int v4l_stk_open(struct file *fp)
 {
-	static int first_init = 1; /* webcam LED management */
-	struct stk_camera *dev;
-	struct video_device *vdev;
-
-	vdev = video_devdata(fp);
-	dev = vdev_to_camera(vdev);
+	struct stk_camera *dev = video_drvdata(fp);
+	int err;
 
 	if (dev == NULL || !is_present(dev))
 		return -ENXIO;
 
-	if (!first_init)
+	if (mutex_lock_interruptible(&dev->lock))
+		return -ERESTARTSYS;
+	if (!dev->first_init)
 		stk_camera_write_reg(dev, 0x0, 0x24);
 	else
-		first_init = 0;
+		dev->first_init = 0;
 
-	fp->private_data = dev;
-	usb_autopm_get_interface(dev->interface);
-
-	return 0;
+	err = v4l2_fh_open(fp);
+	if (!err)
+		usb_autopm_get_interface(dev->interface);
+	mutex_unlock(&dev->lock);
+	return err;
 }
 
 static int v4l_stk_release(struct file *fp)
 {
-	struct stk_camera *dev = fp->private_data;
+	struct stk_camera *dev = video_drvdata(fp);
 
+	mutex_lock(&dev->lock);
 	if (dev->owner == fp) {
 		stk_stop_stream(dev);
 		stk_free_buffers(dev);
@@ -600,22 +639,22 @@ static int v4l_stk_release(struct file *fp)
 
 	if (is_present(dev))
 		usb_autopm_put_interface(dev->interface);
-
-	return 0;
+	mutex_unlock(&dev->lock);
+	return v4l2_fh_release(fp);
 }
 
-static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
+static ssize_t stk_read(struct file *fp, char __user *buf,
 		size_t count, loff_t *f_pos)
 {
 	int i;
 	int ret;
 	unsigned long flags;
 	struct stk_sio_buffer *sbuf;
-	struct stk_camera *dev = fp->private_data;
+	struct stk_camera *dev = video_drvdata(fp);
 
 	if (!is_present(dev))
 		return -EIO;
-	if (dev->owner && dev->owner != fp)
+	if (dev->owner && (!dev->reading || dev->owner != fp))
 		return -EBUSY;
 	dev->owner = fp;
 	if (!is_streaming(dev)) {
@@ -623,6 +662,7 @@ static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
 			|| stk_allocate_buffers(dev, 3)
 			|| stk_start_stream(dev))
 			return -ENOMEM;
+		dev->reading = 1;
 		spin_lock_irqsave(&dev->spinlock, flags);
 		for (i = 0; i < dev->n_sbufs; i++) {
 			list_add_tail(&dev->sio_bufs[i].list, &dev->sio_avail);
@@ -665,9 +705,23 @@ static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
 	return count;
 }
 
+static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
+		size_t count, loff_t *f_pos)
+{
+	struct stk_camera *dev = video_drvdata(fp);
+	int ret;
+
+	if (mutex_lock_interruptible(&dev->lock))
+		return -ERESTARTSYS;
+	ret = stk_read(fp, buf, count, f_pos);
+	mutex_unlock(&dev->lock);
+	return ret;
+}
+
 static unsigned int v4l_stk_poll(struct file *fp, poll_table *wait)
 {
-	struct stk_camera *dev = fp->private_data;
+	struct stk_camera *dev = video_drvdata(fp);
+	unsigned res = v4l2_ctrl_poll(fp, wait);
 
 	poll_wait(fp, &dev->wait_frame, wait);
 
@@ -675,9 +729,9 @@ static unsigned int v4l_stk_poll(struct file *fp, poll_table *wait)
 		return POLLERR;
 
 	if (!list_empty(&dev->sio_full))
-		return POLLIN | POLLRDNORM;
+		return res | POLLIN | POLLRDNORM;
 
-	return 0;
+	return res;
 }
 
 
@@ -703,7 +757,7 @@ static int v4l_stk_mmap(struct file *fp, struct vm_area_struct *vma)
 	unsigned int i;
 	int ret;
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
-	struct stk_camera *dev = fp->private_data;
+	struct stk_camera *dev = video_drvdata(fp);
 	struct stk_sio_buffer *sbuf = NULL;
 
 	if (!(vma->vm_flags & VM_WRITE) || !(vma->vm_flags & VM_SHARED))
@@ -733,12 +787,15 @@ static int v4l_stk_mmap(struct file *fp, struct vm_area_struct *vma)
 static int stk_vidioc_querycap(struct file *filp,
 		void *priv, struct v4l2_capability *cap)
 {
+	struct stk_camera *dev = video_drvdata(filp);
+
 	strcpy(cap->driver, "stk");
 	strcpy(cap->card, "stk");
-	cap->version = DRIVER_VERSION_NUM;
+	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE
 		| V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -762,111 +819,28 @@ static int stk_vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
 
 static int stk_vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 {
-	if (i != 0)
-		return -EINVAL;
-	else
-		return 0;
+	return i ? -EINVAL : 0;
 }
 
-/* from vivi.c */
-static int stk_vidioc_s_std(struct file *filp, void *priv, v4l2_std_id *a)
+static int stk_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	return 0;
-}
+	struct stk_camera *dev =
+		container_of(ctrl->handler, struct stk_camera, hdl);
 
-/* List of all V4Lv2 controls supported by the driver */
-static struct v4l2_queryctrl stk_controls[] = {
-	{
-		.id      = V4L2_CID_BRIGHTNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Brightness",
-		.minimum = 0,
-		.maximum = 0xffff,
-		.step    = 0x0100,
-		.default_value = 0x6000,
-	},
-	{
-		.id      = V4L2_CID_HFLIP,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Horizontal Flip",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 1,
-	},
-	{
-		.id      = V4L2_CID_VFLIP,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Vertical Flip",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 1,
-	},
-};
-
-static int stk_vidioc_queryctrl(struct file *filp,
-		void *priv, struct v4l2_queryctrl *c)
-{
-	int i;
-	int nbr;
-	nbr = ARRAY_SIZE(stk_controls);
-
-	for (i = 0; i < nbr; i++) {
-		if (stk_controls[i].id == c->id) {
-			memcpy(c, &stk_controls[i],
-				sizeof(struct v4l2_queryctrl));
-			return 0;
-		}
-	}
-	return -EINVAL;
-}
-
-static int stk_vidioc_g_ctrl(struct file *filp,
-		void *priv, struct v4l2_control *c)
-{
-	struct stk_camera *dev = priv;
-	switch (c->id) {
+	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		c->value = dev->vsettings.brightness;
-		break;
+		return stk_sensor_set_brightness(dev, ctrl->val);
 	case V4L2_CID_HFLIP:
 		if (dmi_check_system(stk_upside_down_dmi_table))
-			c->value = !dev->vsettings.hflip;
+			dev->vsettings.hflip = !ctrl->val;
 		else
-			c->value = dev->vsettings.hflip;
-		break;
-	case V4L2_CID_VFLIP:
-		if (dmi_check_system(stk_upside_down_dmi_table))
-			c->value = !dev->vsettings.vflip;
-		else
-			c->value = dev->vsettings.vflip;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int stk_vidioc_s_ctrl(struct file *filp,
-		void *priv, struct v4l2_control *c)
-{
-	struct stk_camera *dev = priv;
-	switch (c->id) {
-	case V4L2_CID_BRIGHTNESS:
-		dev->vsettings.brightness = c->value;
-		return stk_sensor_set_brightness(dev, c->value >> 8);
-	case V4L2_CID_HFLIP:
-		if (dmi_check_system(stk_upside_down_dmi_table))
-			dev->vsettings.hflip = !c->value;
-		else
-			dev->vsettings.hflip = c->value;
+			dev->vsettings.hflip = ctrl->val;
 		return 0;
 	case V4L2_CID_VFLIP:
 		if (dmi_check_system(stk_upside_down_dmi_table))
-			dev->vsettings.vflip = !c->value;
+			dev->vsettings.vflip = !ctrl->val;
 		else
-			dev->vsettings.vflip = c->value;
+			dev->vsettings.vflip = ctrl->val;
 		return 0;
 	default:
 		return -EINVAL;
@@ -921,7 +895,7 @@ static int stk_vidioc_g_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_format *f)
 {
 	struct v4l2_pix_format *pix_format = &f->fmt.pix;
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(stk_sizes) &&
@@ -942,11 +916,12 @@ static int stk_vidioc_g_fmt_vid_cap(struct file *filp,
 		pix_format->bytesperline = 2 * pix_format->width;
 	pix_format->sizeimage = pix_format->bytesperline
 				* pix_format->height;
+	pix_format->priv = 0;
 	return 0;
 }
 
-static int stk_vidioc_try_fmt_vid_cap(struct file *filp,
-		void *priv, struct v4l2_format *fmtd)
+static int stk_try_fmt_vid_cap(struct file *filp,
+		struct v4l2_format *fmtd, int *idx)
 {
 	int i;
 	switch (fmtd->fmt.pix.pixelformat) {
@@ -968,11 +943,13 @@ static int stk_vidioc_try_fmt_vid_cap(struct file *filp,
 			< abs(fmtd->fmt.pix.width - stk_sizes[i].w))) {
 		fmtd->fmt.pix.height = stk_sizes[i-1].h;
 		fmtd->fmt.pix.width = stk_sizes[i-1].w;
-		fmtd->fmt.pix.priv = i - 1;
+		if (idx)
+			*idx = i - 1;
 	} else {
 		fmtd->fmt.pix.height = stk_sizes[i].h;
 		fmtd->fmt.pix.width = stk_sizes[i].w;
-		fmtd->fmt.pix.priv = i;
+		if (idx)
+			*idx = i;
 	}
 
 	fmtd->fmt.pix.field = V4L2_FIELD_NONE;
@@ -983,7 +960,14 @@ static int stk_vidioc_try_fmt_vid_cap(struct file *filp,
 		fmtd->fmt.pix.bytesperline = 2 * fmtd->fmt.pix.width;
 	fmtd->fmt.pix.sizeimage = fmtd->fmt.pix.bytesperline
 		* fmtd->fmt.pix.height;
+	fmtd->fmt.pix.priv = 0;
 	return 0;
+}
+
+static int stk_vidioc_try_fmt_vid_cap(struct file *filp,
+		void *priv, struct v4l2_format *fmtd)
+{
+	return stk_try_fmt_vid_cap(filp, fmtd, NULL);
 }
 
 static int stk_setup_format(struct stk_camera *dev)
@@ -1026,7 +1010,8 @@ static int stk_vidioc_s_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_format *fmtd)
 {
 	int ret;
-	struct stk_camera *dev = priv;
+	int idx;
+	struct stk_camera *dev = video_drvdata(filp);
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -1034,17 +1019,16 @@ static int stk_vidioc_s_fmt_vid_cap(struct file *filp,
 		return -ENODEV;
 	if (is_streaming(dev))
 		return -EBUSY;
-	if (dev->owner && dev->owner != filp)
+	if (dev->owner)
 		return -EBUSY;
-	ret = stk_vidioc_try_fmt_vid_cap(filp, priv, fmtd);
+	ret = stk_try_fmt_vid_cap(filp, fmtd, &idx);
 	if (ret)
 		return ret;
-	dev->owner = filp;
 
 	dev->vsettings.palette = fmtd->fmt.pix.pixelformat;
 	stk_free_buffers(dev);
 	dev->frame_size = fmtd->fmt.pix.sizeimage;
-	dev->vsettings.mode = stk_sizes[fmtd->fmt.pix.priv].m;
+	dev->vsettings.mode = stk_sizes[idx].m;
 
 	stk_initialise(dev);
 	return stk_setup_format(dev);
@@ -1053,7 +1037,7 @@ static int stk_vidioc_s_fmt_vid_cap(struct file *filp,
 static int stk_vidioc_reqbufs(struct file *filp,
 		void *priv, struct v4l2_requestbuffers *rb)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -1062,6 +1046,13 @@ static int stk_vidioc_reqbufs(struct file *filp,
 	if (is_streaming(dev)
 		|| (dev->owner && dev->owner != filp))
 		return -EBUSY;
+	stk_free_buffers(dev);
+	if (rb->count == 0) {
+		stk_camera_write_reg(dev, 0x0, 0x49); /* turn off the LED */
+		unset_initialised(dev);
+		dev->owner = NULL;
+		return 0;
+	}
 	dev->owner = filp;
 
 	/*FIXME If they ask for zero, we must stop streaming and free */
@@ -1079,7 +1070,7 @@ static int stk_vidioc_reqbufs(struct file *filp,
 static int stk_vidioc_querybuf(struct file *filp,
 		void *priv, struct v4l2_buffer *buf)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	struct stk_sio_buffer *sbuf;
 
 	if (buf->index >= dev->n_sbufs)
@@ -1092,7 +1083,7 @@ static int stk_vidioc_querybuf(struct file *filp,
 static int stk_vidioc_qbuf(struct file *filp,
 		void *priv, struct v4l2_buffer *buf)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	struct stk_sio_buffer *sbuf;
 	unsigned long flags;
 
@@ -1116,7 +1107,7 @@ static int stk_vidioc_qbuf(struct file *filp,
 static int stk_vidioc_dqbuf(struct file *filp,
 		void *priv, struct v4l2_buffer *buf)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	struct stk_sio_buffer *sbuf;
 	unsigned long flags;
 	int ret;
@@ -1149,7 +1140,7 @@ static int stk_vidioc_dqbuf(struct file *filp,
 static int stk_vidioc_streamon(struct file *filp,
 		void *priv, enum v4l2_buf_type type)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	if (is_streaming(dev))
 		return 0;
 	if (dev->sio_bufs == NULL)
@@ -1161,7 +1152,7 @@ static int stk_vidioc_streamon(struct file *filp,
 static int stk_vidioc_streamoff(struct file *filp,
 		void *priv, enum v4l2_buf_type type)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	unsigned long flags;
 	int i;
 	stk_stop_stream(dev);
@@ -1206,6 +1197,10 @@ static int stk_vidioc_enum_framesizes(struct file *filp,
 	}
 }
 
+static const struct v4l2_ctrl_ops stk_ctrl_ops = {
+	.s_ctrl = stk_s_ctrl,
+};
+
 static struct v4l2_file_operations v4l_stk_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l_stk_open,
@@ -1213,7 +1208,7 @@ static struct v4l2_file_operations v4l_stk_fops = {
 	.read = v4l_stk_read,
 	.poll = v4l_stk_poll,
 	.mmap = v4l_stk_mmap,
-	.ioctl = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops v4l_stk_ioctl_ops = {
@@ -1225,18 +1220,17 @@ static const struct v4l2_ioctl_ops v4l_stk_ioctl_ops = {
 	.vidioc_enum_input = stk_vidioc_enum_input,
 	.vidioc_s_input = stk_vidioc_s_input,
 	.vidioc_g_input = stk_vidioc_g_input,
-	.vidioc_s_std = stk_vidioc_s_std,
 	.vidioc_reqbufs = stk_vidioc_reqbufs,
 	.vidioc_querybuf = stk_vidioc_querybuf,
 	.vidioc_qbuf = stk_vidioc_qbuf,
 	.vidioc_dqbuf = stk_vidioc_dqbuf,
 	.vidioc_streamon = stk_vidioc_streamon,
 	.vidioc_streamoff = stk_vidioc_streamoff,
-	.vidioc_queryctrl = stk_vidioc_queryctrl,
-	.vidioc_g_ctrl = stk_vidioc_g_ctrl,
-	.vidioc_s_ctrl = stk_vidioc_s_ctrl,
 	.vidioc_g_parm = stk_vidioc_g_parm,
 	.vidioc_enum_framesizes = stk_vidioc_enum_framesizes,
+	.vidioc_log_status = v4l2_ctrl_log_status,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static void stk_v4l_dev_release(struct video_device *vd)
@@ -1251,8 +1245,6 @@ static void stk_v4l_dev_release(struct video_device *vd)
 
 static struct video_device stk_v4l_data = {
 	.name = "stkwebcam",
-	.tvnorms = V4L2_STD_UNKNOWN,
-	.current_norm = V4L2_STD_UNKNOWN,
 	.fops = &v4l_stk_fops,
 	.ioctl_ops = &v4l_stk_ioctl_ops,
 	.release = stk_v4l_dev_release,
@@ -1264,8 +1256,11 @@ static int stk_register_video_device(struct stk_camera *dev)
 	int err;
 
 	dev->vdev = stk_v4l_data;
+	dev->vdev.lock = &dev->lock;
 	dev->vdev.debug = debug;
-	dev->vdev.parent = &dev->interface->dev;
+	dev->vdev.v4l2_dev = &dev->v4l2_dev;
+	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev.flags);
+	video_set_drvdata(&dev->vdev, dev);
 	err = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (err)
 		STK_ERROR("v4l registration failed\n");
@@ -1281,8 +1276,9 @@ static int stk_register_video_device(struct stk_camera *dev)
 static int stk_camera_probe(struct usb_interface *interface,
 		const struct usb_device_id *id)
 {
-	int i;
+	struct v4l2_ctrl_handler *hdl;
 	int err = 0;
+	int i;
 
 	struct stk_camera *dev = NULL;
 	struct usb_device *udev = interface_to_usbdev(interface);
@@ -1294,9 +1290,31 @@ static int stk_camera_probe(struct usb_interface *interface,
 		STK_ERROR("Out of memory !\n");
 		return -ENOMEM;
 	}
+	err = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
+	if (err < 0) {
+		dev_err(&udev->dev, "couldn't register v4l2_device\n");
+		kfree(dev);
+		return err;
+	}
+	hdl = &dev->hdl;
+	v4l2_ctrl_handler_init(hdl, 3);
+	v4l2_ctrl_new_std(hdl, &stk_ctrl_ops,
+			  V4L2_CID_BRIGHTNESS, 0, 0xff, 0x1, 0x60);
+	v4l2_ctrl_new_std(hdl, &stk_ctrl_ops,
+			  V4L2_CID_HFLIP, 0, 1, 1, 1);
+	v4l2_ctrl_new_std(hdl, &stk_ctrl_ops,
+			  V4L2_CID_VFLIP, 0, 1, 1, 1);
+	if (hdl->error) {
+		err = hdl->error;
+		dev_err(&udev->dev, "couldn't register control\n");
+		goto error;
+	}
+	dev->v4l2_dev.ctrl_handler = hdl;
 
 	spin_lock_init(&dev->spinlock);
+	mutex_init(&dev->lock);
 	init_waitqueue_head(&dev->wait_frame);
+	dev->first_init = 1; /* webcam LED management */
 
 	dev->udev = udev;
 	dev->interface = interface;
@@ -1337,7 +1355,6 @@ static int stk_camera_probe(struct usb_interface *interface,
 		err = -ENODEV;
 		goto error;
 	}
-	dev->vsettings.brightness = 0x7fff;
 	dev->vsettings.palette = V4L2_PIX_FMT_RGB565;
 	dev->vsettings.mode = MODE_VGA;
 	dev->frame_size = 640 * 480 * 2;
@@ -1354,6 +1371,8 @@ static int stk_camera_probe(struct usb_interface *interface,
 	return 0;
 
 error:
+	v4l2_ctrl_handler_free(hdl);
+	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 	return err;
 }
@@ -1371,6 +1390,8 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 		 video_device_node_name(&dev->vdev));
 
 	video_unregister_device(&dev->vdev);
+	v4l2_ctrl_handler_free(&dev->hdl);
+	v4l2_device_unregister(&dev->v4l2_dev);
 }
 
 #ifdef CONFIG_PM

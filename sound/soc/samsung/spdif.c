@@ -357,6 +357,10 @@ static struct snd_soc_dai_driver samsung_spdif_dai = {
 	.resume = spdif_resume,
 };
 
+static const struct snd_soc_component_driver samsung_spdif_component = {
+	.name		= "samsung-spdif",
+};
+
 static int spdif_probe(struct platform_device *pdev)
 {
 	struct s3c_audio_pdata *spdif_pdata;
@@ -424,7 +428,8 @@ static int spdif_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, spdif);
 
-	ret = snd_soc_register_dai(&pdev->dev, &samsung_spdif_dai);
+	ret = snd_soc_register_component(&pdev->dev, &samsung_spdif_component,
+					 &samsung_spdif_dai, 1);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "fail to register dai\n");
 		goto err4;
@@ -445,7 +450,7 @@ static int spdif_probe(struct platform_device *pdev)
 
 	return 0;
 err5:
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 err4:
 	iounmap(spdif->regs);
 err3:
@@ -466,7 +471,7 @@ static int spdif_remove(struct platform_device *pdev)
 	struct resource *mem_res;
 
 	asoc_dma_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	iounmap(spdif->regs);
 

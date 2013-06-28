@@ -1107,7 +1107,7 @@ static int sm_flush(struct mtd_blktrans_dev *dev)
 }
 
 /* outside interface: device is released */
-static int sm_release(struct mtd_blktrans_dev *dev)
+static void sm_release(struct mtd_blktrans_dev *dev)
 {
 	struct sm_ftl *ftl = dev->priv;
 
@@ -1116,7 +1116,6 @@ static int sm_release(struct mtd_blktrans_dev *dev)
 	cancel_work_sync(&ftl->flush_work);
 	sm_cache_flush(ftl);
 	mutex_unlock(&ftl->mutex);
-	return 0;
 }
 
 /* outside interface: get geometry */

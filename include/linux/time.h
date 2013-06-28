@@ -117,14 +117,10 @@ static inline bool timespec_valid_strict(const struct timespec *ts)
 
 extern bool persistent_clock_exist;
 
-#ifdef ALWAYS_USE_PERSISTENT_CLOCK
-#define has_persistent_clock()	true
-#else
 static inline bool has_persistent_clock(void)
 {
 	return persistent_clock_exist;
 }
-#endif
 
 extern void read_persistent_clock(struct timespec *ts);
 extern void read_boot_clock(struct timespec *ts);
@@ -181,6 +177,9 @@ extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
 extern int timekeeping_valid_for_hres(void);
 extern u64 timekeeping_max_deferment(void);
 extern int timekeeping_inject_offset(struct timespec *ts);
+extern s32 timekeeping_get_tai_offset(void);
+extern void timekeeping_set_tai_offset(s32 tai_offset);
+extern void timekeeping_clocktai(struct timespec *ts);
 
 struct tms;
 extern void do_sys_times(struct tms *);

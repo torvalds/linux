@@ -106,6 +106,7 @@ void lpfc_cleanup_discovery_resources(struct lpfc_vport *);
 void lpfc_cleanup(struct lpfc_vport *);
 void lpfc_disc_timeout(unsigned long);
 
+int lpfc_unregister_fcf_prep(struct lpfc_hba *);
 struct lpfc_nodelist *__lpfc_findnode_rpi(struct lpfc_vport *, uint16_t);
 struct lpfc_nodelist *lpfc_findnode_rpi(struct lpfc_vport *, uint16_t);
 void lpfc_worker_wake_up(struct lpfc_hba *);
@@ -469,3 +470,4 @@ int lpfc_sli4_xri_sgl_update(struct lpfc_hba *);
 void lpfc_free_sgl_list(struct lpfc_hba *, struct list_head *);
 uint32_t lpfc_sli_port_speed_get(struct lpfc_hba *);
 int lpfc_sli4_request_firmware_update(struct lpfc_hba *, uint8_t);
+void lpfc_sli4_offline_eratt(struct lpfc_hba *);

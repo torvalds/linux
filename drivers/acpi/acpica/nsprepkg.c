@@ -112,9 +112,15 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 	elements = return_object->package.elements;
 	count = return_object->package.count;
 
-	/* The package must have at least one element, else invalid */
-
+	/*
+	 * Most packages must have at least one element. The only exception
+	 * is the variable-length package (ACPI_PTYPE1_VAR).
+	 */
 	if (!count) {
+		if (package->ret_info.type == ACPI_PTYPE1_VAR) {
+			return (AE_OK);
+		}
+
 		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
 				      "Return Package has no elements (empty)"));
 

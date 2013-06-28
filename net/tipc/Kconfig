@@ -31,3 +31,10 @@ config TIPC_PORTS
 
 	  Setting this to a smaller value saves some memory,
 	  setting it to higher allows for more ports.
+
+config TIPC_MEDIA_IB
+	bool "InfiniBand media type support"
+	depends on TIPC && INFINIBAND_IPOIB
+	help
+	  Saying Y here will enable support for running TIPC on
+	  IP-over-InfiniBand devices.

@@ -268,39 +268,29 @@ static int pcf8583_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct pcf8583 *pcf8583;
-	int err;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	pcf8583 = kzalloc(sizeof(struct pcf8583), GFP_KERNEL);
+	pcf8583 = devm_kzalloc(&client->dev, sizeof(struct pcf8583),
+				GFP_KERNEL);
 	if (!pcf8583)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, pcf8583);
 
-	pcf8583->rtc = rtc_device_register(pcf8583_driver.driver.name,
-			&client->dev, &pcf8583_rtc_ops, THIS_MODULE);
+	pcf8583->rtc = devm_rtc_device_register(&client->dev,
+				pcf8583_driver.driver.name,
+				&pcf8583_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(pcf8583->rtc)) {
-		err = PTR_ERR(pcf8583->rtc);
-		goto exit_kfree;
-	}
+	if (IS_ERR(pcf8583->rtc))
+		return PTR_ERR(pcf8583->rtc);
 
 	return 0;
-
-exit_kfree:
-	kfree(pcf8583);
-	return err;
 }
 
 static int pcf8583_remove(struct i2c_client *client)
 {
-	struct pcf8583 *pcf8583 = i2c_get_clientdata(client);
-
-	if (pcf8583->rtc)
-		rtc_device_unregister(pcf8583->rtc);
-	kfree(pcf8583);
 	return 0;
 }
 

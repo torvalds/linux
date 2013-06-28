@@ -21,6 +21,7 @@
 #ifndef TDA10071_H
 #define TDA10071_H
 
+#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 struct tda10071_config {
@@ -71,8 +72,7 @@ struct tda10071_config {
 };
 
 
-#if defined(CONFIG_DVB_TDA10071) || \
-	(defined(CONFIG_DVB_TDA10071_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_TDA10071)
 extern struct dvb_frontend *tda10071_attach(
 	const struct tda10071_config *config, struct i2c_adapter *i2c);
 #else

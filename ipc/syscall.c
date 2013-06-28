@@ -33,12 +33,12 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 	case SEMGET:
 		return sys_semget(first, second, third);
 	case SEMCTL: {
-		union semun fourth;
+		unsigned long arg;
 		if (!ptr)
 			return -EINVAL;
-		if (get_user(fourth.__pad, (void __user * __user *) ptr))
+		if (get_user(arg, (unsigned long __user *) ptr))
 			return -EFAULT;
-		return sys_semctl(first, second, third, fourth);
+		return sys_semctl(first, second, third, arg);
 	}
 
 	case MSGSND:

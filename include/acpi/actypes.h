@@ -650,13 +650,14 @@ typedef u32 acpi_event_type;
  * The encoding of acpi_event_status is illustrated below.
  * Note that a set bit (1) indicates the property is TRUE
  * (e.g. if bit 0 is set then the event is enabled).
- * +-------------+-+-+-+
- * |   Bits 31:3 |2|1|0|
- * +-------------+-+-+-+
- *          |     | | |
- *          |     | | +- Enabled?
- *          |     | +--- Enabled for wake?
- *          |     +----- Set?
+ * +-------------+-+-+-+-+
+ * |   Bits 31:4 |3|2|1|0|
+ * +-------------+-+-+-+-+
+ *          |     | | | |
+ *          |     | | | +- Enabled?
+ *          |     | | +--- Enabled for wake?
+ *          |     | +----- Set?
+ *          |     +------- Has a handler?
  *          +----------- <Reserved>
  */
 typedef u32 acpi_event_status;
@@ -1128,7 +1129,6 @@ struct acpi_memory_list {
 	u16 object_size;
 	u16 max_depth;
 	u16 current_depth;
-	u16 link_offset;
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 

@@ -20,6 +20,8 @@
  * Copyright (C) 2007-2008 Marvell Semiconductor
  *			   Lennert Buytenhek <buytenh@marvell.com>
  *
+ * Copyright (C) 2013 Michael Stapelberg <michael@stapelberg.de>
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -54,8 +56,8 @@
 #include <linux/phy.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/io.h>
+#include <linux/interrupt.h>
 #include <linux/types.h>
-#include <linux/inet_lro.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 
@@ -67,14 +69,6 @@ static char mv643xx_eth_driver_version[] = "1.4";
  * Registers shared between all ports.
  */
 #define PHY_ADDR			0x0000
-#define SMI_REG				0x0004
-#define  SMI_BUSY			0x10000000
-#define  SMI_READ_VALID			0x08000000
-#define  SMI_OPCODE_READ		0x04000000
-#define  SMI_OPCODE_WRITE		0x00000000
-#define ERR_INT_CAUSE			0x0080
-#define  ERR_INT_SMI_DONE		0x00000010
-#define ERR_INT_MASK			0x0084
 #define WINDOW_BASE(w)			(0x0200 + ((w) << 3))
 #define WINDOW_SIZE(w)			(0x0204 + ((w) << 3))
 #define WINDOW_REMAP_HIGH(w)		(0x0280 + ((w) << 2))
@@ -264,25 +258,6 @@ struct mv643xx_eth_shared_private {
 	void __iomem *base;
 
 	/*
-	 * Points at the right SMI instance to use.
-	 */
-	struct mv643xx_eth_shared_private *smi;
-
-	/*
-	 * Provides access to local SMI interface.
-	 */
-	struct mii_bus *smi_bus;
-
-	/*
-	 * If we have access to the error interrupt pin (which is
-	 * somewhat misnamed as it not only reflects internal errors
-	 * but also reflects SMI completion), use that to wait for
-	 * SMI access completion instead of polling the SMI busy bit.
-	 */
-	int err_interrupt;
-	wait_queue_head_t smi_busy_wait;
-
-	/*
 	 * Per-port MBUS window access register value.
 	 */
 	u32 win_protect;
@@ -293,7 +268,7 @@ struct mv643xx_eth_shared_private {
 	int extended_rx_coal_limit;
 	int tx_bw_control;
 	int tx_csum_limit;
-
+	struct clk *clk;
 };
 
 #define TX_BW_CONTROL_ABSENT		0
@@ -341,12 +316,6 @@ struct mib_counters {
 	u32 rx_overrun;
 };
 
-struct lro_counters {
-	u32 lro_aggregated;
-	u32 lro_flushed;
-	u32 lro_no_desc;
-};
-
 struct rx_queue {
 	int index;
 
@@ -360,9 +329,6 @@ struct rx_queue {
 	dma_addr_t rx_desc_dma;
 	int rx_desc_area_size;
 	struct sk_buff **rx_skb;
-
-	struct net_lro_mgr lro_mgr;
-	struct net_lro_desc lro_arr[8];
 };
 
 struct tx_queue {
@@ -397,8 +363,6 @@ struct mv643xx_eth_private {
 	struct timer_list mib_counters_timer;
 	spinlock_t mib_counters_lock;
 	struct mib_counters mib_counters;
-
-	struct lro_counters lro_counters;
 
 	struct work_struct tx_timeout_task;
 
@@ -435,9 +399,7 @@ struct mv643xx_eth_private {
 	/*
 	 * Hardware-specific parameters.
 	 */
-#if defined(CONFIG_HAVE_CLK)
 	struct clk *clk;
-#endif
 	unsigned int t_clk;
 };
 
@@ -530,42 +492,12 @@ static void txq_maybe_wake(struct tx_queue *txq)
 	}
 }
 
-
-/* rx napi ******************************************************************/
-static int
-mv643xx_get_skb_header(struct sk_buff *skb, void **iphdr, void **tcph,
-		       u64 *hdr_flags, void *priv)
-{
-	unsigned long cmd_sts = (unsigned long)priv;
-
-	/*
-	 * Make sure that this packet is Ethernet II, is not VLAN
-	 * tagged, is IPv4, has a valid IP header, and is TCP.
-	 */
-	if ((cmd_sts & (RX_IP_HDR_OK | RX_PKT_IS_IPV4 |
-		       RX_PKT_IS_ETHERNETV2 | RX_PKT_LAYER4_TYPE_MASK |
-		       RX_PKT_IS_VLAN_TAGGED)) !=
-	    (RX_IP_HDR_OK | RX_PKT_IS_IPV4 |
-	     RX_PKT_IS_ETHERNETV2 | RX_PKT_LAYER4_TYPE_TCP_IPV4))
-		return -1;
-
-	skb_reset_network_header(skb);
-	skb_set_transport_header(skb, ip_hdrlen(skb));
-	*iphdr = ip_hdr(skb);
-	*tcph = tcp_hdr(skb);
-	*hdr_flags = LRO_IPV4 | LRO_TCP;
-
-	return 0;
-}
-
 static int rxq_process(struct rx_queue *rxq, int budget)
 {
 	struct mv643xx_eth_private *mp = rxq_to_mp(rxq);
 	struct net_device_stats *stats = &mp->dev->stats;
-	int lro_flush_needed;
 	int rx;
 
-	lro_flush_needed = 0;
 	rx = 0;
 	while (rx < budget && rxq->rx_desc_count) {
 		struct rx_desc *rx_desc;
@@ -626,12 +558,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->protocol = eth_type_trans(skb, mp->dev);
 
-		if (skb->dev->features & NETIF_F_LRO &&
-		    skb->ip_summed == CHECKSUM_UNNECESSARY) {
-			lro_receive_skb(&rxq->lro_mgr, skb, (void *)cmd_sts);
-			lro_flush_needed = 1;
-		} else
-			netif_receive_skb(skb);
+		napi_gro_receive(&mp->napi, skb);
 
 		continue;
 
@@ -650,9 +577,6 @@ err:
 
 		dev_kfree_skb(skb);
 	}
-
-	if (lro_flush_needed)
-		lro_flush_all(&rxq->lro_mgr);
 
 	if (rx < budget)
 		mp->work_rx &= ~(1 << rxq->index);
@@ -943,7 +867,7 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 	struct netdev_queue *nq = netdev_get_tx_queue(mp->dev, txq->index);
 	int reclaimed;
 
-	__netif_tx_lock(nq, smp_processor_id());
+	__netif_tx_lock_bh(nq);
 
 	reclaimed = 0;
 	while (reclaimed < budget && txq->tx_desc_count > 0) {
@@ -989,7 +913,7 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 		dev_kfree_skb(skb);
 	}
 
-	__netif_tx_unlock(nq);
+	__netif_tx_unlock_bh(nq);
 
 	if (reclaimed < budget)
 		mp->work_tx &= ~(1 << txq->index);
@@ -1120,97 +1044,6 @@ out_write:
 	wrlp(mp, PORT_SERIAL_CONTROL, pscr);
 }
 
-static irqreturn_t mv643xx_eth_err_irq(int irq, void *dev_id)
-{
-	struct mv643xx_eth_shared_private *msp = dev_id;
-
-	if (readl(msp->base + ERR_INT_CAUSE) & ERR_INT_SMI_DONE) {
-		writel(~ERR_INT_SMI_DONE, msp->base + ERR_INT_CAUSE);
-		wake_up(&msp->smi_busy_wait);
-		return IRQ_HANDLED;
-	}
-
-	return IRQ_NONE;
-}
-
-static int smi_is_done(struct mv643xx_eth_shared_private *msp)
-{
-	return !(readl(msp->base + SMI_REG) & SMI_BUSY);
-}
-
-static int smi_wait_ready(struct mv643xx_eth_shared_private *msp)
-{
-	if (msp->err_interrupt == NO_IRQ) {
-		int i;
-
-		for (i = 0; !smi_is_done(msp); i++) {
-			if (i == 10)
-				return -ETIMEDOUT;
-			msleep(10);
-		}
-
-		return 0;
-	}
-
-	if (!smi_is_done(msp)) {
-		wait_event_timeout(msp->smi_busy_wait, smi_is_done(msp),
-				   msecs_to_jiffies(100));
-		if (!smi_is_done(msp))
-			return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
-static int smi_bus_read(struct mii_bus *bus, int addr, int reg)
-{
-	struct mv643xx_eth_shared_private *msp = bus->priv;
-	void __iomem *smi_reg = msp->base + SMI_REG;
-	int ret;
-
-	if (smi_wait_ready(msp)) {
-		pr_warn("SMI bus busy timeout\n");
-		return -ETIMEDOUT;
-	}
-
-	writel(SMI_OPCODE_READ | (reg << 21) | (addr << 16), smi_reg);
-
-	if (smi_wait_ready(msp)) {
-		pr_warn("SMI bus busy timeout\n");
-		return -ETIMEDOUT;
-	}
-
-	ret = readl(smi_reg);
-	if (!(ret & SMI_READ_VALID)) {
-		pr_warn("SMI bus read not valid\n");
-		return -ENODEV;
-	}
-
-	return ret & 0xffff;
-}
-
-static int smi_bus_write(struct mii_bus *bus, int addr, int reg, u16 val)
-{
-	struct mv643xx_eth_shared_private *msp = bus->priv;
-	void __iomem *smi_reg = msp->base + SMI_REG;
-
-	if (smi_wait_ready(msp)) {
-		pr_warn("SMI bus busy timeout\n");
-		return -ETIMEDOUT;
-	}
-
-	writel(SMI_OPCODE_WRITE | (reg << 21) |
-		(addr << 16) | (val & 0xffff), smi_reg);
-
-	if (smi_wait_ready(msp)) {
-		pr_warn("SMI bus busy timeout\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
-
 /* statistics ***************************************************************/
 static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *dev)
 {
@@ -1234,26 +1067,6 @@ static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *dev)
 	stats->tx_dropped = tx_dropped;
 
 	return stats;
-}
-
-static void mv643xx_eth_grab_lro_stats(struct mv643xx_eth_private *mp)
-{
-	u32 lro_aggregated = 0;
-	u32 lro_flushed = 0;
-	u32 lro_no_desc = 0;
-	int i;
-
-	for (i = 0; i < mp->rxq_count; i++) {
-		struct rx_queue *rxq = mp->rxq + i;
-
-		lro_aggregated += rxq->lro_mgr.stats.aggregated;
-		lro_flushed += rxq->lro_mgr.stats.flushed;
-		lro_no_desc += rxq->lro_mgr.stats.no_desc;
-	}
-
-	mp->lro_counters.lro_aggregated = lro_aggregated;
-	mp->lro_counters.lro_flushed = lro_flushed;
-	mp->lro_counters.lro_no_desc = lro_no_desc;
 }
 
 static inline u32 mib_read(struct mv643xx_eth_private *mp, int offset)
@@ -1419,10 +1232,6 @@ struct mv643xx_eth_stats {
 	{ #m, FIELD_SIZEOF(struct mib_counters, m),		\
 	  -1, offsetof(struct mv643xx_eth_private, mib_counters.m) }
 
-#define LROSTAT(m)						\
-	{ #m, FIELD_SIZEOF(struct lro_counters, m),		\
-	  -1, offsetof(struct mv643xx_eth_private, lro_counters.m) }
-
 static const struct mv643xx_eth_stats mv643xx_eth_stats[] = {
 	SSTAT(rx_packets),
 	SSTAT(tx_packets),
@@ -1464,9 +1273,6 @@ static const struct mv643xx_eth_stats mv643xx_eth_stats[] = {
 	MIBSTAT(late_collision),
 	MIBSTAT(rx_discard),
 	MIBSTAT(rx_overrun),
-	LROSTAT(lro_aggregated),
-	LROSTAT(lro_flushed),
-	LROSTAT(lro_no_desc),
 };
 
 static int
@@ -1521,6 +1327,34 @@ mv643xx_eth_get_settings_phyless(struct mv643xx_eth_private *mp,
 	cmd->maxrxpkt = 1;
 
 	return 0;
+}
+
+static void
+mv643xx_eth_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+	wol->supported = 0;
+	wol->wolopts = 0;
+	if (mp->phy)
+		phy_ethtool_get_wol(mp->phy, wol);
+}
+
+static int
+mv643xx_eth_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+	int err;
+
+	if (mp->phy == NULL)
+		return -EOPNOTSUPP;
+
+	err = phy_ethtool_set_wol(mp->phy, wol);
+	/* Given that mv643xx_eth works without the marvell-specific PHY driver,
+	 * this debugging hint is useful to have.
+	 */
+	if (err == -EOPNOTSUPP)
+		netdev_info(dev, "The PHY does not support set_wol, was CONFIG_MARVELL_PHY enabled?\n");
+	return err;
 }
 
 static int
@@ -1668,7 +1502,6 @@ static void mv643xx_eth_get_ethtool_stats(struct net_device *dev,
 
 	mv643xx_eth_get_stats(dev);
 	mib_counters_update(mp);
-	mv643xx_eth_grab_lro_stats(mp);
 
 	for (i = 0; i < ARRAY_SIZE(mv643xx_eth_stats); i++) {
 		const struct mv643xx_eth_stats *stat;
@@ -1708,6 +1541,8 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
 	.get_sset_count		= mv643xx_eth_get_sset_count,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_wol                = mv643xx_eth_get_wol,
+	.set_wol                = mv643xx_eth_set_wol,
 };
 
 
@@ -1938,19 +1773,6 @@ static int rxq_init(struct mv643xx_eth_private *mp, int index)
 		rx_desc[i].next_desc_ptr = rxq->rx_desc_dma +
 					nexti * sizeof(struct rx_desc);
 	}
-
-	rxq->lro_mgr.dev = mp->dev;
-	memset(&rxq->lro_mgr.stats, 0, sizeof(rxq->lro_mgr.stats));
-	rxq->lro_mgr.features = LRO_F_NAPI;
-	rxq->lro_mgr.ip_summed = CHECKSUM_UNNECESSARY;
-	rxq->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
-	rxq->lro_mgr.max_desc = ARRAY_SIZE(rxq->lro_arr);
-	rxq->lro_mgr.max_aggr = 32;
-	rxq->lro_mgr.frag_align_pad = 0;
-	rxq->lro_mgr.lro_arr = rxq->lro_arr;
-	rxq->lro_mgr.get_skb_header = mv643xx_get_skb_header;
-
-	memset(&rxq->lro_arr, 0, sizeof(rxq->lro_arr));
 
 	return 0;
 
@@ -2635,66 +2457,26 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	struct mv643xx_eth_shared_private *msp;
 	const struct mbus_dram_target_info *dram;
 	struct resource *res;
-	int ret;
 
 	if (!mv643xx_eth_version_printed++)
 		pr_notice("MV-643xx 10/100/1000 ethernet driver version %s\n",
 			  mv643xx_eth_driver_version);
 
-	ret = -EINVAL;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL)
-		goto out;
+		return -EINVAL;
 
-	ret = -ENOMEM;
-	msp = kzalloc(sizeof(*msp), GFP_KERNEL);
+	msp = devm_kzalloc(&pdev->dev, sizeof(*msp), GFP_KERNEL);
 	if (msp == NULL)
-		goto out;
+		return -ENOMEM;
 
 	msp->base = ioremap(res->start, resource_size(res));
 	if (msp->base == NULL)
-		goto out_free;
+		return -ENOMEM;
 
-	/*
-	 * Set up and register SMI bus.
-	 */
-	if (pd == NULL || pd->shared_smi == NULL) {
-		msp->smi_bus = mdiobus_alloc();
-		if (msp->smi_bus == NULL)
-			goto out_unmap;
-
-		msp->smi_bus->priv = msp;
-		msp->smi_bus->name = "mv643xx_eth smi";
-		msp->smi_bus->read = smi_bus_read;
-		msp->smi_bus->write = smi_bus_write,
-		snprintf(msp->smi_bus->id, MII_BUS_ID_SIZE, "%s-%d",
-			pdev->name, pdev->id);
-		msp->smi_bus->parent = &pdev->dev;
-		msp->smi_bus->phy_mask = 0xffffffff;
-		if (mdiobus_register(msp->smi_bus) < 0)
-			goto out_free_mii_bus;
-		msp->smi = msp;
-	} else {
-		msp->smi = platform_get_drvdata(pd->shared_smi);
-	}
-
-	msp->err_interrupt = NO_IRQ;
-	init_waitqueue_head(&msp->smi_busy_wait);
-
-	/*
-	 * Check whether the error interrupt is hooked up.
-	 */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res != NULL) {
-		int err;
-
-		err = request_irq(res->start, mv643xx_eth_err_irq,
-				  IRQF_SHARED, "mv643xx_eth", msp);
-		if (!err) {
-			writel(ERR_INT_SMI_DONE, msp->base + ERR_INT_MASK);
-			msp->err_interrupt = res->start;
-		}
-	}
+	msp->clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(msp->clk))
+		clk_prepare_enable(msp->clk);
 
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
@@ -2710,30 +2492,15 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, msp);
 
 	return 0;
-
-out_free_mii_bus:
-	mdiobus_free(msp->smi_bus);
-out_unmap:
-	iounmap(msp->base);
-out_free:
-	kfree(msp);
-out:
-	return ret;
 }
 
 static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 {
 	struct mv643xx_eth_shared_private *msp = platform_get_drvdata(pdev);
-	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
 
-	if (pd == NULL || pd->shared_smi == NULL) {
-		mdiobus_unregister(msp->smi_bus);
-		mdiobus_free(msp->smi_bus);
-	}
-	if (msp->err_interrupt != NO_IRQ)
-		free_irq(msp->err_interrupt, msp);
 	iounmap(msp->base);
-	kfree(msp);
+	if (!IS_ERR(msp->clk))
+		clk_disable_unprepare(msp->clk);
 
 	return 0;
 }
@@ -2794,14 +2561,21 @@ static void set_params(struct mv643xx_eth_private *mp,
 	mp->txq_count = pd->tx_queue_count ? : 1;
 }
 
+static void mv643xx_eth_adjust_link(struct net_device *dev)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+
+	mv643xx_adjust_pscr(mp);
+}
+
 static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
 				   int phy_addr)
 {
-	struct mii_bus *bus = mp->shared->smi->smi_bus;
 	struct phy_device *phydev;
 	int start;
 	int num;
 	int i;
+	char phy_id[MII_BUS_ID_SIZE + 3];
 
 	if (phy_addr == MV643XX_ETH_PHY_ADDR_DEFAULT) {
 		start = phy_addr_get(mp) & 0x1f;
@@ -2811,17 +2585,19 @@ static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
 		num = 1;
 	}
 
-	phydev = NULL;
+	/* Attempt to connect to the PHY using orion-mdio */
+	phydev = ERR_PTR(-ENODEV);
 	for (i = 0; i < num; i++) {
 		int addr = (start + i) & 0x1f;
 
-		if (bus->phy_map[addr] == NULL)
-			mdiobus_scan(bus, addr);
+		snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
+				"orion-mdio-mii", addr);
 
-		if (phydev == NULL) {
-			phydev = bus->phy_map[addr];
-			if (phydev != NULL)
-				phy_addr_set(mp, addr);
+		phydev = phy_connect(mp->dev, phy_id, mv643xx_eth_adjust_link,
+				PHY_INTERFACE_MODE_GMII);
+		if (!IS_ERR(phydev)) {
+			phy_addr_set(mp, addr);
+			break;
 		}
 	}
 
@@ -2833,8 +2609,6 @@ static void phy_init(struct mv643xx_eth_private *mp, int speed, int duplex)
 	struct phy_device *phy = mp->phy;
 
 	phy_reset(mp);
-
-	phy_attach(mp->dev, dev_name(&phy->dev), PHY_INTERFACE_MODE_GMII);
 
 	if (speed == 0) {
 		phy->autoneg = AUTONEG_ENABLE;
@@ -2932,22 +2706,27 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	 * it to override the default.
 	 */
 	mp->t_clk = 133000000;
-#if defined(CONFIG_HAVE_CLK)
-	mp->clk = clk_get(&pdev->dev, (pdev->id ? "1" : "0"));
+	mp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!IS_ERR(mp->clk)) {
 		clk_prepare_enable(mp->clk);
 		mp->t_clk = clk_get_rate(mp->clk);
 	}
-#endif
+
 	set_params(mp, pd);
 	netif_set_real_num_tx_queues(dev, mp->txq_count);
 	netif_set_real_num_rx_queues(dev, mp->rxq_count);
 
-	if (pd->phy_addr != MV643XX_ETH_PHY_NONE)
+	if (pd->phy_addr != MV643XX_ETH_PHY_NONE) {
 		mp->phy = phy_scan(mp, pd->phy_addr);
 
-	if (mp->phy != NULL)
+		if (IS_ERR(mp->phy)) {
+			err = PTR_ERR(mp->phy);
+			if (err == -ENODEV)
+				err = -EPROBE_DEFER;
+			goto out;
+		}
 		phy_init(mp, pd->speed, pd->duplex);
+	}
 
 	SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops);
 
@@ -2966,7 +2745,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	INIT_WORK(&mp->tx_timeout_task, tx_timeout_task);
 
-	netif_napi_add(dev, &mp->napi, mv643xx_eth_poll, 128);
+	netif_napi_add(dev, &mp->napi, mv643xx_eth_poll, NAPI_POLL_WEIGHT);
 
 	init_timer(&mp->rx_oom);
 	mp->rx_oom.data = (unsigned long)mp;
@@ -2982,8 +2761,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;
 
-	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
-		NETIF_F_RXCSUM | NETIF_F_LRO;
+	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM;
 
@@ -3014,12 +2792,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	return 0;
 
 out:
-#if defined(CONFIG_HAVE_CLK)
-	if (!IS_ERR(mp->clk)) {
+	if (!IS_ERR(mp->clk))
 		clk_disable_unprepare(mp->clk);
-		clk_put(mp->clk);
-	}
-#endif
 	free_netdev(dev);
 
 	return err;
@@ -3034,12 +2808,8 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 		phy_detach(mp->phy);
 	cancel_work_sync(&mp->tx_timeout_task);
 
-#if defined(CONFIG_HAVE_CLK)
-	if (!IS_ERR(mp->clk)) {
+	if (!IS_ERR(mp->clk))
 		clk_disable_unprepare(mp->clk);
-		clk_put(mp->clk);
-	}
-#endif
 
 	free_netdev(mp->dev);
 

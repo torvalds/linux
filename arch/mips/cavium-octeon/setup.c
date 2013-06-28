@@ -174,7 +174,10 @@ static int octeon_kexec_prepare(struct kimage *image)
 
 static void octeon_generic_shutdown(void)
 {
-	int cpu, i;
+	int i;
+#ifdef CONFIG_SMP
+	int cpu;
+#endif
 	struct cvmx_bootmem_desc *bootmem_desc;
 	void *named_block_array_ptr;
 
@@ -425,13 +428,16 @@ static void octeon_restart(char *command)
  */
 static void octeon_kill_core(void *arg)
 {
-	mb();
-	if (octeon_is_simulation()) {
-		/* The simulator needs the watchdog to stop for dead cores */
-		cvmx_write_csr(CVMX_CIU_WDOGX(cvmx_get_core_num()), 0);
+	if (octeon_is_simulation())
 		/* A break instruction causes the simulator stop a core */
-		asm volatile ("sync\nbreak");
-	}
+		asm volatile ("break" ::: "memory");
+
+	local_irq_disable();
+	/* Disable watchdog on this core. */
+	cvmx_write_csr(CVMX_CIU_WDOGX(cvmx_get_core_num()), 0);
+	/* Spin in a low power mode. */
+	while (true)
+		asm volatile ("wait" ::: "memory");
 }
 
 

@@ -399,7 +399,18 @@ static struct platform_driver em_sti_device_driver = {
 	}
 };
 
-module_platform_driver(em_sti_device_driver);
+static int __init em_sti_init(void)
+{
+	return platform_driver_register(&em_sti_device_driver);
+}
+
+static void __exit em_sti_exit(void)
+{
+	platform_driver_unregister(&em_sti_device_driver);
+}
+
+subsys_initcall(em_sti_init);
+module_exit(em_sti_exit);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("Renesas Emma Mobile STI Timer Driver");

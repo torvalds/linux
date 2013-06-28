@@ -96,11 +96,16 @@ nv04_timer_alarm(struct nouveau_timer *ptimer, u64 time,
 
 	/* append new alarm to list, in soonest-alarm-first order */
 	spin_lock_irqsave(&priv->lock, flags);
-	list_for_each_entry(list, &priv->alarms, head) {
-		if (list->timestamp > alarm->timestamp)
-			break;
+	if (!time) {
+		if (!list_empty(&alarm->head))
+			list_del(&alarm->head);
+	} else {
+		list_for_each_entry(list, &priv->alarms, head) {
+			if (list->timestamp > alarm->timestamp)
+				break;
+		}
+		list_add_tail(&alarm->head, &list->head);
 	}
-	list_add_tail(&alarm->head, &list->head);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* process pending alarms */

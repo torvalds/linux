@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/security.h>
+#include <linux/pid_namespace.h>
 #include <linux/pid.h>
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
@@ -52,7 +53,8 @@ static __inline__ int scm_check_creds(struct ucred *creds)
 	if (!uid_valid(uid) || !gid_valid(gid))
 		return -EINVAL;
 
-	if ((creds->pid == task_tgid_vnr(current) || nsown_capable(CAP_SYS_ADMIN)) &&
+	if ((creds->pid == task_tgid_vnr(current) ||
+	     ns_capable(current->nsproxy->pid_ns->user_ns, CAP_SYS_ADMIN)) &&
 	    ((uid_eq(uid, cred->uid)   || uid_eq(uid, cred->euid) ||
 	      uid_eq(uid, cred->suid)) || nsown_capable(CAP_SETUID)) &&
 	    ((gid_eq(gid, cred->gid)   || gid_eq(gid, cred->egid) ||
@@ -185,22 +187,6 @@ int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 
 			p->creds.uid = uid;
 			p->creds.gid = gid;
-
-			if (!p->cred ||
-			    !uid_eq(p->cred->euid, uid) ||
-			    !gid_eq(p->cred->egid, gid)) {
-				struct cred *cred;
-				err = -ENOMEM;
-				cred = prepare_creds();
-				if (!cred)
-					goto error;
-
-				cred->uid = cred->euid = uid;
-				cred->gid = cred->egid = gid;
-				if (p->cred)
-					put_cred(p->cred);
-				p->cred = cred;
-			}
 			break;
 		}
 		default:
@@ -304,8 +290,8 @@ void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 		/* Bump the usage count and install the file. */
 		sock = sock_from_file(fp[i], &err);
 		if (sock) {
-			sock_update_netprioidx(sock->sk, current);
-			sock_update_classid(sock->sk, current);
+			sock_update_netprioidx(sock->sk);
+			sock_update_classid(sock->sk);
 		}
 		fd_install(new_fd, get_file(fp[i]));
 	}

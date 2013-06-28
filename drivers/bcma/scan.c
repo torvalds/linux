@@ -84,6 +84,8 @@ static const struct bcma_device_id_name bcma_bcm_device_names[] = {
 	{ BCMA_CORE_I2S, "I2S" },
 	{ BCMA_CORE_SDR_DDR1_MEM_CTL, "SDR/DDR1 Memory Controller" },
 	{ BCMA_CORE_SHIM, "SHIM" },
+	{ BCMA_CORE_PCIE2, "PCIe Gen2" },
+	{ BCMA_CORE_ARM_CR4, "ARM CR4" },
 	{ BCMA_CORE_DEFAULT, "Default" },
 };
 
@@ -137,19 +139,19 @@ static void bcma_scan_switch_core(struct bcma_bus *bus, u32 addr)
 				       addr);
 }
 
-static u32 bcma_erom_get_ent(struct bcma_bus *bus, u32 **eromptr)
+static u32 bcma_erom_get_ent(struct bcma_bus *bus, u32 __iomem **eromptr)
 {
 	u32 ent = readl(*eromptr);
 	(*eromptr)++;
 	return ent;
 }
 
-static void bcma_erom_push_ent(u32 **eromptr)
+static void bcma_erom_push_ent(u32 __iomem **eromptr)
 {
 	(*eromptr)--;
 }
 
-static s32 bcma_erom_get_ci(struct bcma_bus *bus, u32 **eromptr)
+static s32 bcma_erom_get_ci(struct bcma_bus *bus, u32 __iomem **eromptr)
 {
 	u32 ent = bcma_erom_get_ent(bus, eromptr);
 	if (!(ent & SCAN_ER_VALID))
@@ -159,14 +161,14 @@ static s32 bcma_erom_get_ci(struct bcma_bus *bus, u32 **eromptr)
 	return ent;
 }
 
-static bool bcma_erom_is_end(struct bcma_bus *bus, u32 **eromptr)
+static bool bcma_erom_is_end(struct bcma_bus *bus, u32 __iomem **eromptr)
 {
 	u32 ent = bcma_erom_get_ent(bus, eromptr);
 	bcma_erom_push_ent(eromptr);
 	return (ent == (SCAN_ER_TAG_END | SCAN_ER_VALID));
 }
 
-static bool bcma_erom_is_bridge(struct bcma_bus *bus, u32 **eromptr)
+static bool bcma_erom_is_bridge(struct bcma_bus *bus, u32 __iomem **eromptr)
 {
 	u32 ent = bcma_erom_get_ent(bus, eromptr);
 	bcma_erom_push_ent(eromptr);
@@ -175,7 +177,7 @@ static bool bcma_erom_is_bridge(struct bcma_bus *bus, u32 **eromptr)
 		((ent & SCAN_ADDR_TYPE) == SCAN_ADDR_TYPE_BRIDGE));
 }
 
-static void bcma_erom_skip_component(struct bcma_bus *bus, u32 **eromptr)
+static void bcma_erom_skip_component(struct bcma_bus *bus, u32 __iomem **eromptr)
 {
 	u32 ent;
 	while (1) {
@@ -189,7 +191,7 @@ static void bcma_erom_skip_component(struct bcma_bus *bus, u32 **eromptr)
 	bcma_erom_push_ent(eromptr);
 }
 
-static s32 bcma_erom_get_mst_port(struct bcma_bus *bus, u32 **eromptr)
+static s32 bcma_erom_get_mst_port(struct bcma_bus *bus, u32 __iomem **eromptr)
 {
 	u32 ent = bcma_erom_get_ent(bus, eromptr);
 	if (!(ent & SCAN_ER_VALID))
@@ -199,7 +201,7 @@ static s32 bcma_erom_get_mst_port(struct bcma_bus *bus, u32 **eromptr)
 	return ent;
 }
 
-static s32 bcma_erom_get_addr_desc(struct bcma_bus *bus, u32 **eromptr,
+static s32 bcma_erom_get_addr_desc(struct bcma_bus *bus, u32 __iomem **eromptr,
 				  u32 type, u8 port)
 {
 	u32 addrl, addrh, sizel, sizeh = 0;

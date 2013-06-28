@@ -171,8 +171,8 @@ static void rtl92d_dm_diginit(struct ieee80211_hw *hw)
 	de_digtable->rssi_highthresh = DM_DIG_THRESH_HIGH;
 	de_digtable->fa_lowthresh = DM_FALSEALARM_THRESH_LOW;
 	de_digtable->fa_highthresh = DM_FALSEALARM_THRESH_HIGH;
-	de_digtable->rx_gain_range_max = DM_DIG_FA_UPPER;
-	de_digtable->rx_gain_range_min = DM_DIG_FA_LOWER;
+	de_digtable->rx_gain_max = DM_DIG_FA_UPPER;
+	de_digtable->rx_gain_min = DM_DIG_FA_LOWER;
 	de_digtable->back_val = DM_DIG_BACKOFF_DEFAULT;
 	de_digtable->back_range_max = DM_DIG_BACKOFF_MAX;
 	de_digtable->back_range_min = DM_DIG_BACKOFF_MIN;
@@ -444,8 +444,8 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 		 "dm_DIG() Before: large_fa_hit=%d, forbidden_igi=%x\n",
 		 de_digtable->large_fa_hit, de_digtable->forbidden_igi);
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
-		 "dm_DIG() Before: Recover_cnt=%d, rx_gain_range_min=%x\n",
-		 de_digtable->recover_cnt, de_digtable->rx_gain_range_min);
+		 "dm_DIG() Before: Recover_cnt=%d, rx_gain_min=%x\n",
+		 de_digtable->recover_cnt, de_digtable->rx_gain_min);
 
 	/* deal with abnorally large false alarm */
 	if (falsealm_cnt->cnt_all > 10000) {
@@ -459,9 +459,9 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 		}
 		if (de_digtable->large_fa_hit >= 3) {
 			if ((de_digtable->forbidden_igi + 1) > DM_DIG_MAX)
-				de_digtable->rx_gain_range_min = DM_DIG_MAX;
+				de_digtable->rx_gain_min = DM_DIG_MAX;
 			else
-				de_digtable->rx_gain_range_min =
+				de_digtable->rx_gain_min =
 				    (de_digtable->forbidden_igi + 1);
 			de_digtable->recover_cnt = 3600;	/* 3600=2hr */
 		}
@@ -475,12 +475,12 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 				    DM_DIG_FA_LOWER) {
 					de_digtable->forbidden_igi =
 							 DM_DIG_FA_LOWER;
-					de_digtable->rx_gain_range_min =
+					de_digtable->rx_gain_min =
 							 DM_DIG_FA_LOWER;
 
 				} else {
 					de_digtable->forbidden_igi--;
-					de_digtable->rx_gain_range_min =
+					de_digtable->rx_gain_min =
 					    (de_digtable->forbidden_igi + 1);
 				}
 			} else if (de_digtable->large_fa_hit == 3) {
@@ -492,13 +492,13 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 		 "dm_DIG() After: large_fa_hit=%d, forbidden_igi=%x\n",
 		 de_digtable->large_fa_hit, de_digtable->forbidden_igi);
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
-		 "dm_DIG() After: recover_cnt=%d, rx_gain_range_min=%x\n",
-		 de_digtable->recover_cnt, de_digtable->rx_gain_range_min);
+		 "dm_DIG() After: recover_cnt=%d, rx_gain_min=%x\n",
+		 de_digtable->recover_cnt, de_digtable->rx_gain_min);
 
 	if (value_igi > DM_DIG_MAX)
 		value_igi = DM_DIG_MAX;
-	else if (value_igi < de_digtable->rx_gain_range_min)
-		value_igi = de_digtable->rx_gain_range_min;
+	else if (value_igi < de_digtable->rx_gain_min)
+		value_igi = de_digtable->rx_gain_min;
 	de_digtable->cur_igvalue = value_igi;
 	rtl92d_dm_write_dig(hw);
 	if (rtlpriv->rtlhal.current_bandtype != BAND_ON_5G)
@@ -1071,9 +1071,9 @@ static void rtl92d_dm_txpower_tracking_callback_thermalmeter(
 			}
 			ele_d = (ofdmswing_table[(u8) ofdm_index[0]] &
 						 0xFFC00000) >> 22;
-			val_x = rtlphy->iqk_matrix_regsetting
+			val_x = rtlphy->iqk_matrix
 						[indexforchannel].value[0][0];
-			val_y = rtlphy->iqk_matrix_regsetting
+			val_y = rtlphy->iqk_matrix
 						[indexforchannel].value[0][1];
 			if (val_x != 0) {
 				if ((val_x & 0x00000200) != 0)
@@ -1175,9 +1175,9 @@ static void rtl92d_dm_txpower_tracking_callback_thermalmeter(
 			if (is2t) {
 				ele_d = (ofdmswing_table[(u8) ofdm_index[1]] &
 						0xFFC00000) >> 22;
-				val_x = rtlphy->iqk_matrix_regsetting
+				val_x = rtlphy->iqk_matrix
 						[indexforchannel].value[0][4];
-				val_y = rtlphy->iqk_matrix_regsetting
+				val_y = rtlphy->iqk_matrix
 						[indexforchannel].value[0][5];
 				if (val_x != 0) {
 					if ((val_x & 0x00000200) != 0)

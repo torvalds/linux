@@ -256,7 +256,6 @@ static int s3c2416_cpufreq_set_target(struct cpufreq_policy *policy,
 		goto out;
 	}
 
-	freqs.cpu = 0;
 	freqs.flags = 0;
 	freqs.old = s3c_freq->is_dvs ? FREQ_DVS
 				     : clk_get_rate(s3c_freq->armclk) / 1000;
@@ -274,7 +273,7 @@ static int s3c2416_cpufreq_set_target(struct cpufreq_policy *policy,
 	if (!to_dvs && freqs.old == freqs.new)
 		goto out;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	if (to_dvs) {
 		pr_debug("cpufreq: enter dvs\n");
@@ -287,7 +286,7 @@ static int s3c2416_cpufreq_set_target(struct cpufreq_policy *policy,
 		ret = s3c2416_cpufreq_set_armdiv(s3c_freq, freqs.new);
 	}
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 out:
 	mutex_unlock(&cpufreq_lock);

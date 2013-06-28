@@ -8,9 +8,9 @@ Command line parameters
 
   Enable logging of debug information in case of ccw device timeouts.
 
-* cio_ignore = {all} |
-	       {<device> | <range of devices>} |
-	       {!<device> | !<range of devices>}
+* cio_ignore = device[,device[,..]]
+
+	device := {all | [!]ipldev | [!]condev | [!]<devno> | [!]<devno>-<devno>}
 
   The given devices will be ignored by the common I/O-layer; no detection
   and device sensing will be done on any of those devices. The subchannel to 
@@ -24,8 +24,10 @@ Command line parameters
   device numbers (0xabcd or abcd, for 2.4 backward compatibility). If you
   give a device number 0xabcd, it will be interpreted as 0.0.abcd.
 
-  You can use the 'all' keyword to ignore all devices.
-  The '!' operator will cause the I/O-layer to _not_ ignore a device.
+  You can use the 'all' keyword to ignore all devices. The 'ipldev' and 'condev'
+  keywords can be used to refer to the CCW based boot device and CCW console
+  device respectively (these are probably useful only when combined with the '!'
+  operator). The '!' operator will cause the I/O-layer to _not_ ignore a device.
   The command line is parsed from left to right.
 
   For example, 

@@ -18,9 +18,8 @@
 static int ip6t_npt_checkentry(const struct xt_tgchk_param *par)
 {
 	struct ip6t_npt_tginfo *npt = par->targinfo;
-	__wsum src_sum = 0, dst_sum = 0;
 	struct in6_addr pfx;
-	unsigned int i;
+	__wsum src_sum, dst_sum;
 
 	if (npt->src_pfx_len > 64 || npt->dst_pfx_len > 64)
 		return -EINVAL;
@@ -33,12 +32,8 @@ static int ip6t_npt_checkentry(const struct xt_tgchk_param *par)
 	if (!ipv6_addr_equal(&pfx, &npt->dst_pfx.in6))
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(npt->src_pfx.in6.s6_addr16); i++) {
-		src_sum = csum_add(src_sum,
-				(__force __wsum)npt->src_pfx.in6.s6_addr16[i]);
-		dst_sum = csum_add(dst_sum,
-				(__force __wsum)npt->dst_pfx.in6.s6_addr16[i]);
-	}
+	src_sum = csum_partial(&npt->src_pfx.in6, sizeof(npt->src_pfx.in6), 0);
+	dst_sum = csum_partial(&npt->dst_pfx.in6, sizeof(npt->dst_pfx.in6), 0);
 
 	npt->adjustment = ~csum_fold(csum_sub(src_sum, dst_sum));
 	return 0;
@@ -57,7 +52,7 @@ static bool ip6t_npt_map_pfx(const struct ip6t_npt_tginfo *npt,
 		if (pfx_len - i >= 32)
 			mask = 0;
 		else
-			mask = htonl(~((1 << (pfx_len - i)) - 1));
+			mask = htonl((1 << (i - pfx_len + 32)) - 1);
 
 		idx = i / 32;
 		addr->s6_addr32[idx] &= mask;
@@ -114,6 +109,7 @@ ip6t_dnpt_tg(struct sk_buff *skb, const struct xt_action_param *par)
 static struct xt_target ip6t_npt_target_reg[] __read_mostly = {
 	{
 		.name		= "SNPT",
+		.table		= "mangle",
 		.target		= ip6t_snpt_tg,
 		.targetsize	= sizeof(struct ip6t_npt_tginfo),
 		.checkentry	= ip6t_npt_checkentry,
@@ -124,6 +120,7 @@ static struct xt_target ip6t_npt_target_reg[] __read_mostly = {
 	},
 	{
 		.name		= "DNPT",
+		.table		= "mangle",
 		.target		= ip6t_dnpt_tg,
 		.targetsize	= sizeof(struct ip6t_npt_tginfo),
 		.checkentry	= ip6t_npt_checkentry,

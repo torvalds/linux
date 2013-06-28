@@ -267,7 +267,7 @@ __create_page_tables:
 	addne	r6, r6, #1 << SECTION_SHIFT
 	strne	r6, [r3]
 
-#if defined(CONFIG_LPAE) && defined(CONFIG_CPU_ENDIAN_BE8)
+#if defined(CONFIG_ARM_LPAE) && defined(CONFIG_CPU_ENDIAN_BE8)
 	sub	r4, r4, #4			@ Fixup page table pointer
 						@ for 64-bit descriptors
 #endif

@@ -8,6 +8,7 @@ extern struct iscsi_r2t *iscsit_get_r2t_for_eos(struct iscsi_cmd *, u32, u32);
 extern struct iscsi_r2t *iscsit_get_r2t_from_list(struct iscsi_cmd *);
 extern void iscsit_free_r2t(struct iscsi_r2t *, struct iscsi_cmd *);
 extern void iscsit_free_r2ts_from_list(struct iscsi_cmd *);
+extern struct iscsi_cmd *iscsit_alloc_cmd(struct iscsi_conn *, gfp_t);
 extern struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *, gfp_t);
 extern struct iscsi_seq *iscsit_get_seq_holder_for_datain(struct iscsi_cmd *, u32);
 extern struct iscsi_seq *iscsit_get_seq_holder_for_r2t(struct iscsi_cmd *);
@@ -28,7 +29,7 @@ extern void iscsit_remove_cmd_from_tx_queues(struct iscsi_cmd *, struct iscsi_co
 extern bool iscsit_conn_all_queues_empty(struct iscsi_conn *);
 extern void iscsit_free_queue_reqs_for_conn(struct iscsi_conn *);
 extern void iscsit_release_cmd(struct iscsi_cmd *);
-extern void iscsit_free_cmd(struct iscsi_cmd *);
+extern void iscsit_free_cmd(struct iscsi_cmd *, bool);
 extern int iscsit_check_session_usage_count(struct iscsi_session *);
 extern void iscsit_dec_session_usage_count(struct iscsi_session *);
 extern void iscsit_inc_session_usage_count(struct iscsi_session *);

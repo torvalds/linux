@@ -37,6 +37,7 @@
 #include <linux/if_ether.h>
 #include "unicast.h"
 #include "bridge_loop_avoidance.h"
+#include "network-coding.h"
 
 
 static int batadv_get_settings(struct net_device *dev, struct ethtool_cmd *cmd);
@@ -401,55 +402,6 @@ static void batadv_set_lockdep_class(struct net_device *dev)
 }
 
 /**
- * batadv_softif_init - Late stage initialization of soft interface
- * @dev: registered network device to modify
- *
- * Returns error code on failures
- */
-static int batadv_softif_init(struct net_device *dev)
-{
-	batadv_set_lockdep_class(dev);
-
-	return 0;
-}
-
-static const struct net_device_ops batadv_netdev_ops = {
-	.ndo_init = batadv_softif_init,
-	.ndo_open = batadv_interface_open,
-	.ndo_stop = batadv_interface_release,
-	.ndo_get_stats = batadv_interface_stats,
-	.ndo_set_mac_address = batadv_interface_set_mac_addr,
-	.ndo_change_mtu = batadv_interface_change_mtu,
-	.ndo_start_xmit = batadv_interface_tx,
-	.ndo_validate_addr = eth_validate_addr
-};
-
-static void batadv_interface_setup(struct net_device *dev)
-{
-	struct batadv_priv *priv = netdev_priv(dev);
-
-	ether_setup(dev);
-
-	dev->netdev_ops = &batadv_netdev_ops;
-	dev->destructor = free_netdev;
-	dev->tx_queue_len = 0;
-
-	/* can't call min_mtu, because the needed variables
-	 * have not been initialized yet
-	 */
-	dev->mtu = ETH_DATA_LEN;
-	/* reserve more space in the skbuff for our header */
-	dev->hard_header_len = BATADV_HEADER_LEN;
-
-	/* generate random address */
-	eth_hw_addr_random(dev);
-
-	SET_ETHTOOL_OPS(dev, &batadv_ethtool_ops);
-
-	memset(priv, 0, sizeof(*priv));
-}
-
-/**
  * batadv_softif_destroy_finish - cleans up the remains of a softif
  * @work: work queue item
  *
@@ -465,7 +417,6 @@ static void batadv_softif_destroy_finish(struct work_struct *work)
 				cleanup_work);
 	soft_iface = bat_priv->soft_iface;
 
-	batadv_debugfs_del_meshif(soft_iface);
 	batadv_sysfs_del_meshif(soft_iface);
 
 	rtnl_lock();
@@ -473,21 +424,22 @@ static void batadv_softif_destroy_finish(struct work_struct *work)
 	rtnl_unlock();
 }
 
-struct net_device *batadv_softif_create(const char *name)
+/**
+ * batadv_softif_init_late - late stage initialization of soft interface
+ * @dev: registered network device to modify
+ *
+ * Returns error code on failures
+ */
+static int batadv_softif_init_late(struct net_device *dev)
 {
-	struct net_device *soft_iface;
 	struct batadv_priv *bat_priv;
 	int ret;
 	size_t cnt_len = sizeof(uint64_t) * BATADV_CNT_NUM;
 
-	soft_iface = alloc_netdev(sizeof(*bat_priv), name,
-				  batadv_interface_setup);
+	batadv_set_lockdep_class(dev);
 
-	if (!soft_iface)
-		goto out;
-
-	bat_priv = netdev_priv(soft_iface);
-	bat_priv->soft_iface = soft_iface;
+	bat_priv = netdev_priv(dev);
+	bat_priv->soft_iface = dev;
 	INIT_WORK(&bat_priv->cleanup_work, batadv_softif_destroy_finish);
 
 	/* batadv_interface_stats() needs to be available as soon as
@@ -495,14 +447,7 @@ struct net_device *batadv_softif_create(const char *name)
 	 */
 	bat_priv->bat_counters = __alloc_percpu(cnt_len, __alignof__(uint64_t));
 	if (!bat_priv->bat_counters)
-		goto free_soft_iface;
-
-	ret = register_netdevice(soft_iface);
-	if (ret < 0) {
-		pr_err("Unable to register the batman interface '%s': %i\n",
-		       name, ret);
-		goto free_bat_counters;
-	}
+		return -ENOMEM;
 
 	atomic_set(&bat_priv->aggregated_ogms, 1);
 	atomic_set(&bat_priv->bonding, 0);
@@ -540,47 +485,195 @@ struct net_device *batadv_softif_create(const char *name)
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;
 
+	batadv_nc_init_bat_priv(bat_priv);
+
 	ret = batadv_algo_select(bat_priv, batadv_routing_algo);
 	if (ret < 0)
-		goto unreg_soft_iface;
+		goto free_bat_counters;
 
-	ret = batadv_sysfs_add_meshif(soft_iface);
+	ret = batadv_debugfs_add_meshif(dev);
 	if (ret < 0)
-		goto unreg_soft_iface;
+		goto free_bat_counters;
 
-	ret = batadv_debugfs_add_meshif(soft_iface);
-	if (ret < 0)
-		goto unreg_sysfs;
-
-	ret = batadv_mesh_init(soft_iface);
+	ret = batadv_mesh_init(dev);
 	if (ret < 0)
 		goto unreg_debugfs;
 
-	return soft_iface;
+	return 0;
 
 unreg_debugfs:
-	batadv_debugfs_del_meshif(soft_iface);
-unreg_sysfs:
-	batadv_sysfs_del_meshif(soft_iface);
-unreg_soft_iface:
-	free_percpu(bat_priv->bat_counters);
-	unregister_netdevice(soft_iface);
-	return NULL;
-
+	batadv_debugfs_del_meshif(dev);
 free_bat_counters:
 	free_percpu(bat_priv->bat_counters);
-free_soft_iface:
-	free_netdev(soft_iface);
-out:
-	return NULL;
+	bat_priv->bat_counters = NULL;
+
+	return ret;
 }
 
-void batadv_softif_destroy(struct net_device *soft_iface)
+/**
+ * batadv_softif_slave_add - Add a slave interface to a batadv_soft_interface
+ * @dev: batadv_soft_interface used as master interface
+ * @slave_dev: net_device which should become the slave interface
+ *
+ * Return 0 if successful or error otherwise.
+ */
+static int batadv_softif_slave_add(struct net_device *dev,
+				   struct net_device *slave_dev)
+{
+	struct batadv_hard_iface *hard_iface;
+	int ret = -EINVAL;
+
+	hard_iface = batadv_hardif_get_by_netdev(slave_dev);
+	if (!hard_iface || hard_iface->soft_iface != NULL)
+		goto out;
+
+	ret = batadv_hardif_enable_interface(hard_iface, dev->name);
+
+out:
+	if (hard_iface)
+		batadv_hardif_free_ref(hard_iface);
+	return ret;
+}
+
+/**
+ * batadv_softif_slave_del - Delete a slave iface from a batadv_soft_interface
+ * @dev: batadv_soft_interface used as master interface
+ * @slave_dev: net_device which should be removed from the master interface
+ *
+ * Return 0 if successful or error otherwise.
+ */
+static int batadv_softif_slave_del(struct net_device *dev,
+				   struct net_device *slave_dev)
+{
+	struct batadv_hard_iface *hard_iface;
+	int ret = -EINVAL;
+
+	hard_iface = batadv_hardif_get_by_netdev(slave_dev);
+
+	if (!hard_iface || hard_iface->soft_iface != dev)
+		goto out;
+
+	batadv_hardif_disable_interface(hard_iface, BATADV_IF_CLEANUP_KEEP);
+	ret = 0;
+
+out:
+	if (hard_iface)
+		batadv_hardif_free_ref(hard_iface);
+	return ret;
+}
+
+static const struct net_device_ops batadv_netdev_ops = {
+	.ndo_init = batadv_softif_init_late,
+	.ndo_open = batadv_interface_open,
+	.ndo_stop = batadv_interface_release,
+	.ndo_get_stats = batadv_interface_stats,
+	.ndo_set_mac_address = batadv_interface_set_mac_addr,
+	.ndo_change_mtu = batadv_interface_change_mtu,
+	.ndo_start_xmit = batadv_interface_tx,
+	.ndo_validate_addr = eth_validate_addr,
+	.ndo_add_slave = batadv_softif_slave_add,
+	.ndo_del_slave = batadv_softif_slave_del,
+};
+
+/**
+ * batadv_softif_free - Deconstructor of batadv_soft_interface
+ * @dev: Device to cleanup and remove
+ */
+static void batadv_softif_free(struct net_device *dev)
+{
+	batadv_debugfs_del_meshif(dev);
+	batadv_mesh_free(dev);
+
+	/* some scheduled RCU callbacks need the bat_priv struct to accomplish
+	 * their tasks. Wait for them all to be finished before freeing the
+	 * netdev and its private data (bat_priv)
+	 */
+	rcu_barrier();
+
+	free_netdev(dev);
+}
+
+/**
+ * batadv_softif_init_early - early stage initialization of soft interface
+ * @dev: registered network device to modify
+ */
+static void batadv_softif_init_early(struct net_device *dev)
+{
+	struct batadv_priv *priv = netdev_priv(dev);
+
+	ether_setup(dev);
+
+	dev->netdev_ops = &batadv_netdev_ops;
+	dev->destructor = batadv_softif_free;
+	dev->tx_queue_len = 0;
+
+	/* can't call min_mtu, because the needed variables
+	 * have not been initialized yet
+	 */
+	dev->mtu = ETH_DATA_LEN;
+	/* reserve more space in the skbuff for our header */
+	dev->hard_header_len = BATADV_HEADER_LEN;
+
+	/* generate random address */
+	eth_hw_addr_random(dev);
+
+	SET_ETHTOOL_OPS(dev, &batadv_ethtool_ops);
+
+	memset(priv, 0, sizeof(*priv));
+}
+
+struct net_device *batadv_softif_create(const char *name)
+{
+	struct net_device *soft_iface;
+	int ret;
+
+	soft_iface = alloc_netdev(sizeof(struct batadv_priv), name,
+				  batadv_softif_init_early);
+	if (!soft_iface)
+		return NULL;
+
+	soft_iface->rtnl_link_ops = &batadv_link_ops;
+
+	ret = register_netdevice(soft_iface);
+	if (ret < 0) {
+		pr_err("Unable to register the batman interface '%s': %i\n",
+		       name, ret);
+		free_netdev(soft_iface);
+		return NULL;
+	}
+
+	return soft_iface;
+}
+
+/**
+ * batadv_softif_destroy_sysfs - deletion of batadv_soft_interface via sysfs
+ * @soft_iface: the to-be-removed batman-adv interface
+ */
+void batadv_softif_destroy_sysfs(struct net_device *soft_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 
-	batadv_mesh_free(soft_iface);
 	queue_work(batadv_event_workqueue, &bat_priv->cleanup_work);
+}
+
+/**
+ * batadv_softif_destroy_netlink - deletion of batadv_soft_interface via netlink
+ * @soft_iface: the to-be-removed batman-adv interface
+ * @head: list pointer
+ */
+static void batadv_softif_destroy_netlink(struct net_device *soft_iface,
+					  struct list_head *head)
+{
+	struct batadv_hard_iface *hard_iface;
+
+	list_for_each_entry(hard_iface, &batadv_hardif_list, list) {
+		if (hard_iface->soft_iface == soft_iface)
+			batadv_hardif_disable_interface(hard_iface,
+							BATADV_IF_CLEANUP_KEEP);
+	}
+
+	batadv_sysfs_del_meshif(soft_iface);
+	unregister_netdevice_queue(soft_iface, head);
 }
 
 int batadv_softif_is_valid(const struct net_device *net_dev)
@@ -590,6 +683,13 @@ int batadv_softif_is_valid(const struct net_device *net_dev)
 
 	return 0;
 }
+
+struct rtnl_link_ops batadv_link_ops __read_mostly = {
+	.kind		= "batadv",
+	.priv_size	= sizeof(struct batadv_priv),
+	.setup		= batadv_softif_init_early,
+	.dellink	= batadv_softif_destroy_netlink,
+};
 
 /* ethtool */
 static int batadv_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -661,6 +761,17 @@ static const struct {
 	{ "dat_put_tx" },
 	{ "dat_put_rx" },
 	{ "dat_cached_reply_tx" },
+#endif
+#ifdef CONFIG_BATMAN_ADV_NC
+	{ "nc_code" },
+	{ "nc_code_bytes" },
+	{ "nc_recode" },
+	{ "nc_recode_bytes" },
+	{ "nc_buffer" },
+	{ "nc_decode" },
+	{ "nc_decode_bytes" },
+	{ "nc_decode_failed" },
+	{ "nc_sniffed" },
 #endif
 };
 

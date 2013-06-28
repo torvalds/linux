@@ -174,19 +174,69 @@ static int prism2_pda_ok(u8 *buf)
 }
 
 
-static int prism2_download_aux_dump(struct net_device *dev,
-				     unsigned int addr, int len, u8 *buf)
+#define prism2_download_aux_dump_npages 65536
+
+struct prism2_download_aux_dump {
+	local_info_t *local;
+	u16 page[0x80];
+};
+
+static int prism2_download_aux_dump_proc_show(struct seq_file *m, void *v)
 {
-	int res;
+	struct prism2_download_aux_dump *ctx = m->private;
 
-	prism2_enable_aux_port(dev, 1);
-	res = hfa384x_from_aux(dev, addr, len, buf);
-	prism2_enable_aux_port(dev, 0);
-	if (res)
-		return -1;
-
+	hfa384x_from_aux(ctx->local->dev, (unsigned long)v - 1, 0x80, ctx->page);
+	seq_write(m, ctx->page, 0x80);
 	return 0;
 }
+
+static void *prism2_download_aux_dump_proc_start(struct seq_file *m, loff_t *_pos)
+{
+	struct prism2_download_aux_dump *ctx = m->private;
+	prism2_enable_aux_port(ctx->local->dev, 1);
+	if (*_pos >= prism2_download_aux_dump_npages)
+		return NULL;
+	return (void *)((unsigned long)*_pos + 1);
+}
+
+static void *prism2_download_aux_dump_proc_next(struct seq_file *m, void *v, loff_t *_pos)
+{
+	++*_pos;
+	if (*_pos >= prism2_download_aux_dump_npages)
+		return NULL;
+	return (void *)((unsigned long)*_pos + 1);
+}
+
+static void prism2_download_aux_dump_proc_stop(struct seq_file *m, void *v)
+{
+	struct prism2_download_aux_dump *ctx = m->private;
+	prism2_enable_aux_port(ctx->local->dev, 0);
+}
+
+static const struct seq_operations prism2_download_aux_dump_proc_seqops = {
+	.start	= prism2_download_aux_dump_proc_start,
+	.next	= prism2_download_aux_dump_proc_next,
+	.stop	= prism2_download_aux_dump_proc_stop,
+	.show	= prism2_download_aux_dump_proc_show,
+};
+
+static int prism2_download_aux_dump_proc_open(struct inode *inode, struct file *file)
+{
+	int ret = seq_open_private(file, &prism2_download_aux_dump_proc_seqops,
+				   sizeof(struct prism2_download_aux_dump));
+	if (ret == 0) {
+		struct seq_file *m = file->private_data;
+		m->private = PDE_DATA(inode);
+	}
+	return ret;
+}
+
+static const struct file_operations prism2_download_aux_dump_proc_fops = {
+	.open		= prism2_download_aux_dump_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release_private,
+};
 
 
 static u8 * prism2_read_pda(struct net_device *dev)

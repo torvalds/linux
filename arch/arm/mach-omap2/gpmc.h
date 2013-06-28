@@ -58,7 +58,7 @@
 #define GPMC_CONFIG1_DEVICESIZE_16      GPMC_CONFIG1_DEVICESIZE(1)
 #define GPMC_CONFIG1_DEVICETYPE(val)    ((val & 3) << 10)
 #define GPMC_CONFIG1_DEVICETYPE_NOR     GPMC_CONFIG1_DEVICETYPE(0)
-#define GPMC_CONFIG1_MUXADDDATA         (1 << 9)
+#define GPMC_CONFIG1_MUXTYPE(val)       ((val & 3) << 8)
 #define GPMC_CONFIG1_TIME_PARA_GRAN     (1 << 4)
 #define GPMC_CONFIG1_FCLK_DIV(val)      (val & 3)
 #define GPMC_CONFIG1_FCLK_DIV2          (GPMC_CONFIG1_FCLK_DIV(1))
@@ -73,6 +73,13 @@
 #define GPMC_IRQ_FIFOEVENTENABLE	0x01
 #define GPMC_IRQ_COUNT_EVENT		0x02
 
+#define GPMC_BURST_4			4	/* 4 word burst */
+#define GPMC_BURST_8			8	/* 8 word burst */
+#define GPMC_BURST_16			16	/* 16 word burst */
+#define GPMC_DEVWIDTH_8BIT		1	/* 8-bit device width */
+#define GPMC_DEVWIDTH_16BIT		2	/* 16-bit device width */
+#define GPMC_MUX_AAD			1	/* Addr-Addr-Data multiplex */
+#define GPMC_MUX_AD			2	/* Addr-Data multiplex */
 
 /* bool type time settings */
 struct gpmc_bool_timings {
@@ -178,10 +185,6 @@ struct gpmc_device_timings {
 	u8 cyc_wpl;	/* write deassertion time in cycles */
 	u32 cyc_iaa;	/* initial access time in cycles */
 
-	bool mux;	/* address & data muxed */
-	bool sync_write;/* synchronous write */
-	bool sync_read;	/* synchronous read */
-
 	/* extra delays */
 	bool ce_xdelay;
 	bool avd_xdelay;
@@ -189,28 +192,40 @@ struct gpmc_device_timings {
 	bool we_xdelay;
 };
 
+struct gpmc_settings {
+	bool burst_wrap;	/* enables wrap bursting */
+	bool burst_read;	/* enables read page/burst mode */
+	bool burst_write;	/* enables write page/burst mode */
+	bool device_nand;	/* device is NAND */
+	bool sync_read;		/* enables synchronous reads */
+	bool sync_write;	/* enables synchronous writes */
+	bool wait_on_read;	/* monitor wait on reads */
+	bool wait_on_write;	/* monitor wait on writes */
+	u32 burst_len;		/* page/burst length */
+	u32 device_width;	/* device bus width (8 or 16 bit) */
+	u32 mux_add_data;	/* multiplex address & data */
+	u32 wait_pin;		/* wait-pin to be used */
+};
+
 extern int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
-				struct gpmc_device_timings *dev_t);
+			     struct gpmc_settings *gpmc_s,
+			     struct gpmc_device_timings *dev_t);
 
 extern void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs);
 extern int gpmc_get_client_irq(unsigned irq_config);
 
-extern unsigned int gpmc_ns_to_ticks(unsigned int time_ns);
-extern unsigned int gpmc_ps_to_ticks(unsigned int time_ps);
 extern unsigned int gpmc_ticks_to_ns(unsigned int ticks);
-extern unsigned int gpmc_round_ns_to_ticks(unsigned int time_ns);
-extern unsigned long gpmc_get_fclk_period(void);
 
 extern void gpmc_cs_write_reg(int cs, int idx, u32 val);
-extern u32 gpmc_cs_read_reg(int cs, int idx);
 extern int gpmc_calc_divider(unsigned int sync_clk);
 extern int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t);
+extern int gpmc_cs_program_settings(int cs, struct gpmc_settings *p);
 extern int gpmc_cs_request(int cs, unsigned long size, unsigned long *base);
 extern void gpmc_cs_free(int cs);
-extern int gpmc_cs_set_reserved(int cs, int reserved);
-extern int gpmc_cs_reserved(int cs);
 extern void omap3_gpmc_save_context(void);
 extern void omap3_gpmc_restore_context(void);
-extern int gpmc_cs_configure(int cs, int cmd, int wval);
+extern int gpmc_configure(int cmd, int wval);
+extern void gpmc_read_settings_dt(struct device_node *np,
+				  struct gpmc_settings *p);
 
 #endif

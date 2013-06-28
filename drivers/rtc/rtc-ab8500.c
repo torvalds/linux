@@ -422,20 +422,19 @@ static int ab8500_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, true);
 
-	rtc = rtc_device_register("ab8500-rtc", &pdev->dev, &ab8500_rtc_ops,
-			THIS_MODULE);
+	rtc = devm_rtc_device_register(&pdev->dev, "ab8500-rtc",
+					&ab8500_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		dev_err(&pdev->dev, "Registration failed\n");
 		err = PTR_ERR(rtc);
 		return err;
 	}
 
-	err = request_threaded_irq(irq, NULL, rtc_alarm_handler,
-		IRQF_NO_SUSPEND | IRQF_ONESHOT, "ab8500-rtc", rtc);
-	if (err < 0) {
-		rtc_device_unregister(rtc);
+	err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+			rtc_alarm_handler, IRQF_NO_SUSPEND | IRQF_ONESHOT,
+			"ab8500-rtc", rtc);
+	if (err < 0)
 		return err;
-	}
 
 	platform_set_drvdata(pdev, rtc);
 
@@ -450,13 +449,8 @@ static int ab8500_rtc_probe(struct platform_device *pdev)
 
 static int ab8500_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	int irq = platform_get_irq_byname(pdev, "ALARM");
-
 	ab8500_sysfs_rtc_unregister(&pdev->dev);
 
-	free_irq(irq, rtc);
-	rtc_device_unregister(rtc);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

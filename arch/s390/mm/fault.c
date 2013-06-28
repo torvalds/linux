@@ -395,8 +395,13 @@ void __kprobes do_protection_exception(struct pt_regs *regs)
 	int fault;
 
 	trans_exc_code = regs->int_parm_long;
-	/* Protection exception is suppressing, decrement psw address. */
-	regs->psw.addr = __rewind_psw(regs->psw, regs->int_code >> 16);
+	/*
+	 * Protection exceptions are suppressing, decrement psw address.
+	 * The exception to this rule are aborted transactions, for these
+	 * the PSW already points to the correct location.
+	 */
+	if (!(regs->int_code & 0x200))
+		regs->psw.addr = __rewind_psw(regs->psw, regs->int_code >> 16);
 	/*
 	 * Check for low-address protection.  This needs to be treated
 	 * as a special case because the translation exception code

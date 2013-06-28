@@ -663,8 +663,10 @@ static void handle_transaction_done(struct smi_info *smi_info)
 		/* We got the flags from the SMI, now handle them. */
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
 		if (msg[2] != 0) {
-			dev_warn(smi_info->dev, "Could not enable interrupts"
-				 ", failed get, using polled mode.\n");
+			dev_warn(smi_info->dev,
+				 "Couldn't get irq info: %x.\n", msg[2]);
+			dev_warn(smi_info->dev,
+				 "Maybe ok, but ipmi might run very slowly.\n");
 			smi_info->si_state = SI_NORMAL;
 		} else {
 			msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
@@ -685,10 +687,12 @@ static void handle_transaction_done(struct smi_info *smi_info)
 
 		/* We got the flags from the SMI, now handle them. */
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
-		if (msg[2] != 0)
-			dev_warn(smi_info->dev, "Could not enable interrupts"
-				 ", failed set, using polled mode.\n");
-		else
+		if (msg[2] != 0) {
+			dev_warn(smi_info->dev,
+				 "Couldn't set irq info: %x.\n", msg[2]);
+			dev_warn(smi_info->dev,
+				 "Maybe ok, but ipmi might run very slowly.\n");
+		} else
 			smi_info->interrupt_disabled = 0;
 		smi_info->si_state = SI_NORMAL;
 		break;
@@ -2839,7 +2843,7 @@ static int smi_type_proc_show(struct seq_file *m, void *v)
 
 static int smi_type_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, smi_type_proc_show, PDE(inode)->data);
+	return single_open(file, smi_type_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations smi_type_proc_ops = {
@@ -2882,7 +2886,7 @@ static int smi_si_stats_proc_show(struct seq_file *m, void *v)
 
 static int smi_si_stats_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, smi_si_stats_proc_show, PDE(inode)->data);
+	return single_open(file, smi_si_stats_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations smi_si_stats_proc_ops = {
@@ -2910,7 +2914,7 @@ static int smi_params_proc_show(struct seq_file *m, void *v)
 
 static int smi_params_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, smi_params_proc_show, PDE(inode)->data);
+	return single_open(file, smi_params_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations smi_params_proc_ops = {

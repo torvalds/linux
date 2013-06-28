@@ -282,6 +282,7 @@ struct hid_item {
 #define HID_QUIRK_BADPAD			0x00000020
 #define HID_QUIRK_MULTI_INPUT			0x00000040
 #define HID_QUIRK_HIDINPUT_FORCE		0x00000080
+#define HID_QUIRK_NO_EMPTY_INPUT		0x00000100
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00010000
 #define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
 #define HID_QUIRK_NO_INIT_REPORTS		0x20000000
@@ -456,7 +457,8 @@ struct hid_device {							/* device report descriptor */
 	unsigned country;						/* HID country */
 	struct hid_report_enum report_enum[HID_REPORT_TYPES];
 
-	struct semaphore driver_lock;					/* protects the current driver */
+	struct semaphore driver_lock;					/* protects the current driver, except during input */
+	struct semaphore driver_input_lock;				/* protects the current driver */
 	struct device dev;						/* device */
 	struct hid_driver *driver;
 	struct hid_ll_driver *ll_driver;
@@ -477,6 +479,7 @@ struct hid_device {							/* device report descriptor */
 	unsigned int status;						/* see STAT flags above */
 	unsigned claimed;						/* Claimed by hidinput, hiddev? */
 	unsigned quirks;						/* Various quirks the device can pull on us */
+	bool io_started;						/* Protected by driver_lock. If IO has started */
 
 	struct list_head inputs;					/* The list of inputs */
 	void *hiddev;							/* The hiddev structure */
@@ -512,6 +515,7 @@ struct hid_device {							/* device report descriptor */
 	struct dentry *debug_rdesc;
 	struct dentry *debug_events;
 	struct list_head debug_list;
+	spinlock_t  debug_list_lock;
 	wait_queue_head_t debug_wait;
 };
 
@@ -599,6 +603,10 @@ struct hid_usage_id {
  * @resume: invoked on resume if device was not reset (NULL means nop)
  * @reset_resume: invoked on resume if device was reset (NULL means nop)
  *
+ * probe should return -errno on error, or 0 on success. During probe,
+ * input will not be passed to raw_event unless hid_device_io_start is
+ * called.
+ *
  * raw_event and event should return 0 on no action performed, 1 when no
  * further processing should be done and negative on error
  *
@@ -662,6 +670,9 @@ struct hid_driver {
  * @hidinput_input_event: event input event (e.g. ff or leds)
  * @parse: this method is called only once to parse the device data,
  *	   shouldn't allocate anything to not leak memory
+ * @request: send report request to device (e.g. feature report)
+ * @wait: wait for buffered io to complete (send/recv reports)
+ * @idle: send idle request to device
  */
 struct hid_ll_driver {
 	int (*start)(struct hid_device *hdev);
@@ -676,6 +687,13 @@ struct hid_ll_driver {
 			unsigned int code, int value);
 
 	int (*parse)(struct hid_device *hdev);
+
+	void (*request)(struct hid_device *hdev,
+			struct hid_report *report, int reqtype);
+
+	int (*wait)(struct hid_device *hdev);
+	int (*idle)(struct hid_device *hdev, int report, int idle, int reqtype);
+
 };
 
 #define	PM_HINT_FULLON	1<<5
@@ -736,6 +754,44 @@ void hid_disconnect(struct hid_device *hid);
 const struct hid_device_id *hid_match_id(struct hid_device *hdev,
 					 const struct hid_device_id *id);
 s32 hid_snto32(__u32 value, unsigned n);
+
+/**
+ * hid_device_io_start - enable HID input during probe, remove
+ *
+ * @hid - the device
+ *
+ * This should only be called during probe or remove and only be
+ * called by the thread calling probe or remove. It will allow
+ * incoming packets to be delivered to the driver.
+ */
+static inline void hid_device_io_start(struct hid_device *hid) {
+	if (hid->io_started) {
+		dev_warn(&hid->dev, "io already started");
+		return;
+	}
+	hid->io_started = true;
+	up(&hid->driver_input_lock);
+}
+
+/**
+ * hid_device_io_stop - disable HID input during probe, remove
+ *
+ * @hid - the device
+ *
+ * Should only be called after hid_device_io_start. It will prevent
+ * incoming packets from going to the driver for the duration of
+ * probe, remove. If called during probe, packets will still go to the
+ * driver after probe is complete. This function should only be called
+ * by the thread calling probe or remove.
+ */
+static inline void hid_device_io_stop(struct hid_device *hid) {
+	if (!hid->io_started) {
+		dev_warn(&hid->dev, "io already stopped");
+		return;
+	}
+	hid->io_started = false;
+	down(&hid->driver_input_lock);
+}
 
 /**
  * hid_map_usage - map usage input bits
@@ -881,6 +937,49 @@ static inline void hid_hw_close(struct hid_device *hdev)
 static inline int hid_hw_power(struct hid_device *hdev, int level)
 {
 	return hdev->ll_driver->power ? hdev->ll_driver->power(hdev, level) : 0;
+}
+
+
+/**
+ * hid_hw_request - send report request to device
+ *
+ * @hdev: hid device
+ * @report: report to send
+ * @reqtype: hid request type
+ */
+static inline void hid_hw_request(struct hid_device *hdev,
+				  struct hid_report *report, int reqtype)
+{
+	if (hdev->ll_driver->request)
+		hdev->ll_driver->request(hdev, report, reqtype);
+}
+
+/**
+ * hid_hw_idle - send idle request to device
+ *
+ * @hdev: hid device
+ * @report: report to control
+ * @idle: idle state
+ * @reqtype: hid request type
+ */
+static inline int hid_hw_idle(struct hid_device *hdev, int report, int idle,
+		int reqtype)
+{
+	if (hdev->ll_driver->idle)
+		return hdev->ll_driver->idle(hdev, report, idle, reqtype);
+
+	return 0;
+}
+
+/**
+ * hid_hw_wait - wait for buffered io to complete
+ *
+ * @hdev: hid device
+ */
+static inline void hid_hw_wait(struct hid_device *hdev)
+{
+	if (hdev->ll_driver->wait)
+		hdev->ll_driver->wait(hdev);
 }
 
 int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,

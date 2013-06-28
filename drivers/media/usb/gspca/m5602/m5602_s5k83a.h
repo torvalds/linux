@@ -45,6 +45,7 @@ extern bool dump_sensor;
 
 int s5k83a_probe(struct sd *sd);
 int s5k83a_init(struct sd *sd);
+int s5k83a_init_controls(struct sd *sd);
 int s5k83a_start(struct sd *sd);
 int s5k83a_stop(struct sd *sd);
 void s5k83a_disconnect(struct sd *sd);
@@ -53,18 +54,12 @@ static const struct m5602_sensor s5k83a = {
 	.name = "S5K83A",
 	.probe = s5k83a_probe,
 	.init = s5k83a_init,
+	.init_controls = s5k83a_init_controls,
 	.start = s5k83a_start,
 	.stop = s5k83a_stop,
 	.disconnect = s5k83a_disconnect,
 	.i2c_slave_id = 0x5a,
 	.i2c_regW = 2,
-};
-
-struct s5k83a_priv {
-	/* We use another thread periodically
-	   probing the orientation of the camera */
-	struct task_struct *rotation_thread;
-	s32 *settings;
 };
 
 static const unsigned char preinit_s5k83a[][4] = {

@@ -65,13 +65,6 @@ static inline void release_thread(struct task_struct *dead_task)
 
 #define cpu_relax()     barrier()
 
-/*
- * disable hlt during certain critical i/o operations
- */
-#define HAVE_DISABLE_HLT
-void disable_hlt(void);
-void enable_hlt(void);
-
 void default_idle(void);
 
 #endif /* __ASM_CRIS_PROCESSOR_H */

@@ -112,6 +112,15 @@ config VIDEO_TLV320AIC23B
 	  To compile this driver as a module, choose M here: the
 	  module will be called tlv320aic23b.
 
+config VIDEO_UDA1342
+	tristate "Philips UDA1342 audio codec"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Philips UDA1342 audio codec.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uda1342.
+
 config VIDEO_WM8775
 	tristate "Wolfson Microelectronics WM8775 audio ADC with input mixer"
 	depends on VIDEO_V4L2 && I2C
@@ -133,13 +142,22 @@ config VIDEO_WM8739
 	  module will be called wm8739.
 
 config VIDEO_VP27SMPX
-	tristate "Panasonic VP27s internal MPX"
+	tristate "Panasonic VP27's internal MPX"
 	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the internal MPX of the Panasonic VP27s tuner.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vp27smpx.
+
+config VIDEO_SONY_BTF_MPX
+	tristate "Sony BTF's internal MPX"
+	depends on VIDEO_V4L2 && I2C
+	help
+	  Support for the internal MPX of the Sony BTF-PG472Z tuner.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sony-btf-mpx.
 
 comment "RDS decoders"
 
@@ -283,6 +301,35 @@ config VIDEO_TVP7002
 	  To compile this driver as a module, choose M here: the
 	  module will be called tvp7002.
 
+config VIDEO_TW2804
+	tristate "Techwell TW2804 multiple video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Techwell tw2804 multiple video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tw2804.
+
+config VIDEO_TW9903
+	tristate "Techwell TW9903 video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Techwell tw9903 multi-standard video decoder
+	  with high quality down scaler.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tw9903.
+
+config VIDEO_TW9906
+	tristate "Techwell TW9906 video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Techwell tw9906 enhanced multi-standard comb filter
+	  video decoder with YCbCr input support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tw9906.
+
 config VIDEO_VPX3220
 	tristate "vpx3220a, vpx3216b & vpx3214c video decoders"
 	depends on VIDEO_V4L2 && I2C
@@ -385,6 +432,17 @@ config VIDEO_APTINA_PLL
 
 config VIDEO_SMIAPP_PLL
 	tristate
+
+config VIDEO_OV7640
+	tristate "OmniVision OV7640 sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV7640 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov7640.
 
 config VIDEO_OV7670
 	tristate "OmniVision OV7670 sensor support"
@@ -501,8 +559,8 @@ config VIDEO_S5C73M3
 	tristate "Samsung S5C73M3 sensor support"
 	depends on I2C && SPI && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	---help---
-	This is a V4L2 sensor-level driver for Samsung S5C73M3
-	8 Mpixel camera.
+	  This is a V4L2 sensor-level driver for Samsung S5C73M3
+	  8 Mpixel camera.
 
 comment "Flash devices"
 
@@ -550,10 +608,10 @@ config VIDEO_UPD64083
 comment "Miscelaneous helper chips"
 
 config VIDEO_THS7303
-	tristate "THS7303 Video Amplifier"
-	depends on I2C
+	tristate "THS7303/53 Video Amplifier"
+	depends on VIDEO_V4L2 && I2C
 	help
-	  Support for TI THS7303 video amplifier
+	  Support for TI THS7303/53 video amplifier
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ths7303.

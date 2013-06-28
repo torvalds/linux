@@ -16,25 +16,40 @@
 /* Masks for actual TLB "PD"s */
 #define PTE_BITS_IN_PD0	(_PAGE_GLOBAL | _PAGE_PRESENT)
 #define PTE_BITS_IN_PD1	(PAGE_MASK | _PAGE_CACHEABLE | \
-			 _PAGE_EXECUTE | _PAGE_WRITE | _PAGE_READ | \
+			 _PAGE_U_EXECUTE | _PAGE_U_WRITE | _PAGE_U_READ | \
 			 _PAGE_K_EXECUTE | _PAGE_K_WRITE | _PAGE_K_READ)
 
 #ifndef __ASSEMBLY__
 
-#define tlb_flush(tlb) local_flush_tlb_mm((tlb)->mm)
+#define tlb_flush(tlb)				\
+do {						\
+	if (tlb->fullmm)			\
+		flush_tlb_mm((tlb)->mm);	\
+} while (0)
 
 /*
  * This pair is called at time of munmap/exit to flush cache and TLB entries
  * for mappings being torn down.
- * 1) cache-flush part -implemented via tlb_start_vma( ) can be NOP (for now)
- *    as we don't support aliasing configs in our VIPT D$.
- * 2) tlb-flush part - implemted via tlb_end_vma( ) can be NOP as well-
- *    albiet for difft reasons - its better handled by moving to new ASID
+ * 1) cache-flush part -implemented via tlb_start_vma( ) for VIPT aliasing D$
+ * 2) tlb-flush part - implemted via tlb_end_vma( ) flushes the TLB range
  *
  * Note, read http://lkml.org/lkml/2004/1/15/6
  */
+#ifndef CONFIG_ARC_CACHE_VIPT_ALIASING
 #define tlb_start_vma(tlb, vma)
-#define tlb_end_vma(tlb, vma)
+#else
+#define tlb_start_vma(tlb, vma)						\
+do {									\
+	if (!tlb->fullmm)						\
+		flush_cache_range(vma, vma->vm_start, vma->vm_end);	\
+} while(0)
+#endif
+
+#define tlb_end_vma(tlb, vma)						\
+do {									\
+	if (!tlb->fullmm)						\
+		flush_tlb_range(vma, vma->vm_start, vma->vm_end);	\
+} while (0)
 
 #define __tlb_remove_tlb_entry(tlb, ptep, address)
 

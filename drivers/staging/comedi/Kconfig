@@ -230,9 +230,9 @@ config COMEDI_AMPLC_PC236_ISA
 
 config COMEDI_AMPLC_PC263_ISA
 	tristate "Amplicon PC263 relay board support"
-	select COMEDI_AMPLC_PC263
 	---help---
-	  Enable support for Amplicon PC263 ISA relay board.
+	  Enable support for Amplicon PC263 ISA relay board.  This board has
+	  16 reed relay output channels.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_pc263.
@@ -484,6 +484,19 @@ config COMEDI_NI_ATMIO16D
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_atmio16d.
 
+config COMEDI_NI_LABPC_ISA
+	tristate "NI Lab-PC and compatibles ISA support"
+	select COMEDI_NI_LABPC
+	depends on VIRT_TO_BUS
+	---help---
+	  Enable support for National Instruments Lab-PC and compatibles
+	  Lab-PC-1200, Lab-PC-1200AI, Lab-PC+.
+	  Kernel-level ISA plug-and-play support for the lab-pc-1200 boards has
+	  not yet been added to the driver.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ni_labpc.
+
 config COMEDI_PCMAD
 	tristate "Winsystems PCM-A/D12 and PCM-A/D16 PC/104 board support"
 	---help---
@@ -728,6 +741,16 @@ config COMEDI_ADV_PCI1723
 	  To compile this driver as a module, choose M here: the module will be
 	  called adv_pci1723.
 
+config COMEDI_ADV_PCI1724
+	tristate "Advantech PCI-1724U support"
+	---help---
+	  Enable support for Advantech PCI-1724U cards.  These are 32-channel
+	  analog output cards with voltage and current loop output ranges and
+	  14-bit resolution.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called adv_pci1724.
+
 config COMEDI_ADV_PCI_DIO
 	tristate "Advantech PCI DIO card support"
 	select COMEDI_8255
@@ -748,7 +771,7 @@ config COMEDI_AMPLC_DIO200_PCI
 	  and PCIe296 DIO boards.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called amplc_dio200.
+	  called amplc_dio200_pci.
 
 config COMEDI_AMPLC_PC236_PCI
 	tristate "Amplicon PCI236 DIO board support"
@@ -761,12 +784,12 @@ config COMEDI_AMPLC_PC236_PCI
 
 config COMEDI_AMPLC_PC263_PCI
 	tristate "Amplicon PCI263 relay board support"
-	select COMEDI_AMPLC_PC263
 	---help---
-	  Enable support for Amplicon PCI263 relay board.
+	  Enable support for Amplicon PCI263 relay board.  This is a PCI board
+	  with 16 reed relay output channels.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called amplc_pc263.
+	  called amplc_pci263.
 
 config COMEDI_AMPLC_PCI224
 	tristate "Amplicon PCI224 and PCI234 support"
@@ -958,6 +981,7 @@ config COMEDI_ME_DAQ
 
 config COMEDI_NI_6527
 	tristate "NI 6527 support"
+	depends on HAS_DMA
 	select COMEDI_MITE
 	---help---
 	  Enable support for the National Instruments 6527 PCI card
@@ -967,6 +991,7 @@ config COMEDI_NI_6527
 
 config COMEDI_NI_65XX
 	tristate "NI 65xx static dio PCI card support"
+	depends on HAS_DMA
 	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments 65xx static dio boards.
@@ -980,16 +1005,18 @@ config COMEDI_NI_65XX
 
 config COMEDI_NI_660X
 	tristate "NI 660x counter/timer PCI card support"
+	depends on HAS_DMA
 	select COMEDI_NI_TIOCMD
 	---help---
 	  Enable support for National Instruments PCI-6601 (ni_660x), PCI-6602,
-	  PXI-6602 and PXI-6608.
+	  PXI-6602, PXI-6608 and PXI-6624.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_660x.
 
 config COMEDI_NI_670X
 	tristate "NI 670x PCI card support"
+	depends on HAS_DMA
 	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments PCI-6703 and PCI-6704
@@ -997,23 +1024,20 @@ config COMEDI_NI_670X
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_670x.
 
-config COMEDI_NI_LABPC
-	tristate "NI Lab-PC and compatibles ISA and PCI support"
+config COMEDI_NI_LABPC_PCI
+	tristate "NI Lab-PC PCI-1200 support"
+	depends on HAS_DMA
+	select COMEDI_NI_LABPC
 	select COMEDI_MITE
-	select COMEDI_8255
-	select COMEDI_FC
-	depends on VIRT_TO_BUS
 	---help---
-	  Enable support for National Instruments Lab-PC and compatibles
-	  Lab-PC-1200, Lab-PC-1200AI, Lab-PC+ and PCI-1200.
-	  Kernel-level ISA plug-and-play support for the lab-pc-1200 boards has
-	  not yet been added to the driver.
+	  Enable support for National Instruments Lab-PC PCI-1200.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called ni_labpc.
+	  called ni_labpc_pci.
 
 config COMEDI_NI_PCIDIO
 	tristate "NI PCI-DIO32HS, PCI-6533, PCI-6534 support"
+	depends on HAS_DMA
 	select COMEDI_MITE
 	select COMEDI_8255
 	---help---
@@ -1025,6 +1049,7 @@ config COMEDI_NI_PCIDIO
 
 config COMEDI_NI_PCIMIO
 	tristate "NI PCI-MIO-E series and M series support"
+	depends on HAS_DMA
 	select COMEDI_NI_TIOCMD
 	select COMEDI_8255
 	select COMEDI_FC
@@ -1077,10 +1102,12 @@ config COMEDI_SSV_DNP
 	  called ssv_dnp.
 
 config COMEDI_MITE
+	depends on HAS_DMA
 	tristate
 
 config COMEDI_NI_TIOCMD
 	tristate
+	depends on HAS_DMA
 	select COMEDI_NI_TIO
 	select COMEDI_MITE
 
@@ -1132,7 +1159,7 @@ config COMEDI_NI_DAQ_DIO24_CS
 
 config COMEDI_NI_LABPC_CS
 	tristate "NI DAQCard-1200 PCMCIA support"
-	depends on COMEDI_NI_LABPC
+	select COMEDI_NI_LABPC
 	---help---
 	  Enable support for the National Instruments PCMCIA DAQCard-1200
 
@@ -1241,12 +1268,14 @@ config COMEDI_AMPLC_PC236
 	tristate
 	select COMEDI_8255
 
-config COMEDI_AMPLC_PC263
-	tristate
-
 config COMEDI_DAS08
 	tristate
 	select COMEDI_8255
+
+config COMEDI_NI_LABPC
+	tristate
+	select COMEDI_8255
+	select COMEDI_FC
 
 config COMEDI_NI_TIO
 	tristate

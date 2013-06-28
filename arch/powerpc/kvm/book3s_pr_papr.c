@@ -227,6 +227,13 @@ static int kvmppc_h_pr_put_tce(struct kvm_vcpu *vcpu)
 	return EMULATE_DONE;
 }
 
+static int kvmppc_h_pr_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
+{
+	long rc = kvmppc_xics_hcall(vcpu, cmd);
+	kvmppc_set_gpr(vcpu, 3, rc);
+	return EMULATE_DONE;
+}
+
 int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 {
 	switch (cmd) {
@@ -245,6 +252,22 @@ int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 		kvm_vcpu_block(vcpu);
 		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
 		vcpu->stat.halt_wakeup++;
+		return EMULATE_DONE;
+	case H_XIRR:
+	case H_CPPR:
+	case H_EOI:
+	case H_IPI:
+	case H_IPOLL:
+	case H_XIRR_X:
+		if (kvmppc_xics_enabled(vcpu))
+			return kvmppc_h_pr_xics_hcall(vcpu, cmd);
+		break;
+	case H_RTAS:
+		if (list_empty(&vcpu->kvm->arch.rtas_tokens))
+			return RESUME_HOST;
+		if (kvmppc_rtas_hcall(vcpu))
+			break;
+		kvmppc_set_gpr(vcpu, 3, 0);
 		return EMULATE_DONE;
 	}
 

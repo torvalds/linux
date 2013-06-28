@@ -15,7 +15,7 @@
  */
 
 /dts-v1/;
-/include/ "imx51.dtsi"
+#include "imx51.dtsi"
 
 / {
 	model = "Armadeus Systems APF51 module";

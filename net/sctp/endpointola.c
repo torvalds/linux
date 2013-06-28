@@ -121,8 +121,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 
 	/* Initialize the basic object fields. */
 	atomic_set(&ep->base.refcnt, 1);
-	ep->base.dead = 0;
-	ep->base.malloced = 1;
+	ep->base.dead = false;
 
 	/* Create an input queue.  */
 	sctp_inq_init(&ep->base.inqueue);
@@ -198,7 +197,7 @@ struct sctp_endpoint *sctp_endpoint_new(struct sock *sk, gfp_t gfp)
 		goto fail;
 	if (!sctp_endpoint_init(ep, sk, gfp))
 		goto fail_init;
-	ep->base.malloced = 1;
+
 	SCTP_DBG_OBJCNT_INC(ep);
 	return ep;
 
@@ -234,7 +233,7 @@ void sctp_endpoint_add_asoc(struct sctp_endpoint *ep,
  */
 void sctp_endpoint_free(struct sctp_endpoint *ep)
 {
-	ep->base.dead = 1;
+	ep->base.dead = true;
 
 	ep->base.sk->sk_state = SCTP_SS_CLOSED;
 
@@ -279,11 +278,8 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 	if (ep->base.sk)
 		sock_put(ep->base.sk);
 
-	/* Finally, free up our memory. */
-	if (ep->base.malloced) {
-		kfree(ep);
-		SCTP_DBG_OBJCNT_DEC(ep);
-	}
+	kfree(ep);
+	SCTP_DBG_OBJCNT_DEC(ep);
 }
 
 /* Hold a reference to an endpoint. */

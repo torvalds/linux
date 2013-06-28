@@ -4,9 +4,9 @@ config DRM_TILCDC
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_GEM_CMA_HELPER
-	select OF_VIDEOMODE
-	select OF_DISPLAY_TIMING
+	select VIDEOMODE_HELPERS
 	select BACKLIGHT_CLASS_DEVICE
+	select BACKLIGHT_LCD_SUPPORT
 	help
 	  Choose this option if you have an TI SoC with LCDC display
 	  controller, for example AM33xx in beagle-bone, DA8xx, or

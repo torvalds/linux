@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/mpage.h>
 #include <linux/sched.h>
+#include <linux/aio.h>
 
 #include "hfs_fs.h"
 #include "btree.h"
@@ -237,7 +238,7 @@ void hfs_delete_inode(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 
-	dprint(DBG_INODE, "delete_inode: %lu\n", inode->i_ino);
+	hfs_dbg(INODE, "delete_inode: %lu\n", inode->i_ino);
 	if (S_ISDIR(inode->i_mode)) {
 		HFS_SB(sb)->folder_count--;
 		if (HFS_I(inode)->cat_key.ParID == cpu_to_be32(HFS_ROOT_CNID))
@@ -416,9 +417,12 @@ int hfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct inode *main_inode = inode;
 	struct hfs_find_data fd;
 	hfs_cat_rec rec;
+	int res;
 
-	dprint(DBG_INODE, "hfs_write_inode: %lu\n", inode->i_ino);
-	hfs_ext_write_extent(inode);
+	hfs_dbg(INODE, "hfs_write_inode: %lu\n", inode->i_ino);
+	res = hfs_ext_write_extent(inode);
+	if (res)
+		return res;
 
 	if (inode->i_ino < HFS_FIRSTUSER_CNID) {
 		switch (inode->i_ino) {
@@ -515,7 +519,11 @@ static struct dentry *hfs_file_lookup(struct inode *dir, struct dentry *dentry,
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
-	hfs_find_init(HFS_SB(dir->i_sb)->cat_tree, &fd);
+	res = hfs_find_init(HFS_SB(dir->i_sb)->cat_tree, &fd);
+	if (res) {
+		iput(inode);
+		return ERR_PTR(res);
+	}
 	fd.search_key->cat = HFS_I(dir)->cat_key;
 	res = hfs_brec_read(&fd, &rec, sizeof(rec));
 	if (!res) {

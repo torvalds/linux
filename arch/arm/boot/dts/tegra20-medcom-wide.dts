@@ -6,6 +6,10 @@
 	model = "Avionic Design Medcom-Wide board";
 	compatible = "ad,medcom-wide", "ad,tamonten", "nvidia,tegra20";
 
+	pwm {
+		status = "okay";
+	};
+
 	i2c@7000c000 {
 		wm8903: wm8903@1a {
 			compatible = "wlf,wm8903";
@@ -54,5 +58,8 @@
 
 		nvidia,spkr-en-gpios = <&wm8903 2 0>;
 		nvidia,hp-det-gpios = <&gpio 178 0>; /* gpio PW2 */
+
+		clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 94>;
+		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };

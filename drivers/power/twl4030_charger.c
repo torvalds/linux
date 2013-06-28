@@ -636,17 +636,7 @@ static struct platform_driver twl4030_bci_driver = {
 	.remove	= __exit_p(twl4030_bci_remove),
 };
 
-static int __init twl4030_bci_init(void)
-{
-	return platform_driver_probe(&twl4030_bci_driver, twl4030_bci_probe);
-}
-module_init(twl4030_bci_init);
-
-static void __exit twl4030_bci_exit(void)
-{
-	platform_driver_unregister(&twl4030_bci_driver);
-}
-module_exit(twl4030_bci_exit);
+module_platform_driver_probe(twl4030_bci_driver, twl4030_bci_probe);
 
 MODULE_AUTHOR("Gražvydas Ignotas");
 MODULE_DESCRIPTION("TWL4030 Battery Charger Interface driver");

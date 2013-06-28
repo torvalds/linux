@@ -383,7 +383,7 @@ static int vlsi_seq_show(struct seq_file *seq, void *v)
 
 static int vlsi_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, vlsi_seq_show, PDE(inode)->data);
+	return single_open(file, vlsi_seq_show, PDE_DATA(inode));
 }
 
 static const struct file_operations vlsi_proc_fops = {
@@ -1678,7 +1678,7 @@ vlsi_irda_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			IRDA_WARNING("%s: failed to create proc entry\n",
 				     __func__);
 		} else {
-			ent->size = 0;
+			proc_set_size(ent, 0);
 		}
 		idev->proc_entry = ent;
 	}

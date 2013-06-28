@@ -172,4 +172,6 @@ void __init init_IRQ(void)
 	 * and commits this patch.  ~~gcl */
 	root_domain = irq_domain_add_linear(intc, nr_irq, &xintc_irq_domain_ops,
 							(void *)intr_mask);
+
+	irq_set_default_host(root_domain);
 }

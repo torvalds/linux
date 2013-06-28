@@ -36,6 +36,8 @@ enum {
 struct auto_pin_cfg_item {
 	hda_nid_t pin;
 	int type;
+	unsigned int is_headset_mic:1;
+	unsigned int is_headphone_mic:1; /* Mic-only in headphone jack */
 };
 
 struct auto_pin_cfg;
@@ -78,8 +80,10 @@ struct auto_pin_cfg {
 };
 
 /* bit-flags for snd_hda_parse_pin_def_config() behavior */
-#define HDA_PINCFG_NO_HP_FIXUP	(1 << 0) /* no HP-split */
-#define HDA_PINCFG_NO_LO_FIXUP	(1 << 1) /* don't take other outs as LO */
+#define HDA_PINCFG_NO_HP_FIXUP   (1 << 0) /* no HP-split */
+#define HDA_PINCFG_NO_LO_FIXUP   (1 << 1) /* don't take other outs as LO */
+#define HDA_PINCFG_HEADSET_MIC   (1 << 2) /* Try to find headset mic; mark seq number as 0xc to trigger */
+#define HDA_PINCFG_HEADPHONE_MIC (1 << 3) /* Try to find headphone mic; mark seq number as 0xd to trigger */
 
 int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			     struct auto_pin_cfg *cfg,
@@ -89,5 +93,26 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 /* older function */
 #define snd_hda_parse_pin_def_config(codec, cfg, ignore) \
 	snd_hda_parse_pin_defcfg(codec, cfg, ignore, 0)
+
+static inline int auto_cfg_hp_outs(const struct auto_pin_cfg *cfg)
+{
+	return (cfg->line_out_type == AUTO_PIN_HP_OUT) ?
+	       cfg->line_outs : cfg->hp_outs;
+}
+static inline const hda_nid_t *auto_cfg_hp_pins(const struct auto_pin_cfg *cfg)
+{
+	return (cfg->line_out_type == AUTO_PIN_HP_OUT) ?
+	       cfg->line_out_pins : cfg->hp_pins;
+}
+static inline int auto_cfg_speaker_outs(const struct auto_pin_cfg *cfg)
+{
+	return (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) ?
+	       cfg->line_outs : cfg->speaker_outs;
+}
+static inline const hda_nid_t *auto_cfg_speaker_pins(const struct auto_pin_cfg *cfg)
+{
+	return (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) ?
+	       cfg->line_out_pins : cfg->speaker_pins;
+}
 
 #endif /* __SOUND_HDA_AUTO_PARSER_H */

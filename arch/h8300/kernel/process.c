@@ -53,40 +53,13 @@ asmlinkage void ret_from_kernel_thread(void);
  * The idle loop on an H8/300..
  */
 #if !defined(CONFIG_H8300H_SIM) && !defined(CONFIG_H8S_SIM)
-static void default_idle(void)
+void arch_cpu_idle(void)
 {
-	local_irq_disable();
-	if (!need_resched()) {
-		local_irq_enable();
-		/* XXX: race here! What if need_resched() gets set now? */
-		__asm__("sleep");
-	} else
-		local_irq_enable();
-}
-#else
-static void default_idle(void)
-{
-	cpu_relax();
+	local_irq_enable();
+	/* XXX: race here! What if need_resched() gets set now? */
+	__asm__("sleep");
 }
 #endif
-void (*idle)(void) = default_idle;
-
-/*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
- */
-void cpu_idle(void)
-{
-	while (1) {
-		rcu_idle_enter();
-		while (!need_resched())
-			idle();
-		rcu_idle_exit();
-		schedule_preempt_disabled();
-	}
-}
 
 void machine_restart(char * __unused)
 {
@@ -110,6 +83,8 @@ void machine_power_off(void)
 
 void show_regs(struct pt_regs * regs)
 {
+	show_regs_print_info(KERN_DEFAULT);
+
 	printk("\nPC: %08lx  Status: %02x",
 	       regs->pc, regs->ccr);
 	printk("\nORIG_ER0: %08lx ER0: %08lx ER1: %08lx",

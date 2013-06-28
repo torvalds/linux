@@ -1,0 +1,7 @@
+What:		/sys/bus/mei/devices/.../modalias
+Date:		March 2013
+KernelVersion:	3.10
+Contact:	Samuel Ortiz <sameo@linux.intel.com>
+		linux-mei@linux.intel.com
+Description:	Stores the same MODALIAS value emitted by uevent
+		Format: mei:<mei device name>

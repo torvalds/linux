@@ -55,6 +55,30 @@ config NFETH
 	  which will emulate a regular ethernet device while presenting an
 	  ethertap device to the host system.
 
+config ATARI_ETHERNAT
+	bool "Atari EtherNAT Ethernet support"
+	depends on ATARI
+	---help---
+	  Say Y to include support for the EtherNAT network adapter for the
+	  CT/60 extension port.
+
+	  To compile the actual ethernet driver, choose Y or M for the SMC91X
+	  option in the network device section; the module will be called smc91x.
+
+config ATARI_ETHERNEC
+	bool "Atari EtherNEC Ethernet support"
+	depends on ATARI_ROM_ISA
+	---help---
+	  Say Y to include support for the EtherNEC network adapter for the
+	  ROM port. The driver works by polling instead of interrupts, so it
+	  is quite slow.
+
+	  This driver also suppports the ethernet part of the NetUSBee ROM
+	  port combined Ethernet/USB adapter.
+
+	  To compile the actual ethernet driver, choose Y or M in for the NE2000
+	  option in the network device section; the module will be called ne.
+
 endmenu
 
 menu "Character devices"

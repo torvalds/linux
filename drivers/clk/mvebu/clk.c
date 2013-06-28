@@ -10,18 +10,14 @@
  * warranty of any kind, whether express or implied.
  */
 #include <linux/kernel.h>
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/of_address.h>
-#include <linux/clk/mvebu.h>
 #include <linux/of.h>
 #include "clk-core.h"
-#include "clk-cpu.h"
 #include "clk-gating-ctrl.h"
 
 void __init mvebu_clocks_init(void)
 {
 	mvebu_core_clk_init();
 	mvebu_gating_clk_init();
-	mvebu_cpu_clk_init();
+	of_clk_init(NULL);
 }

@@ -373,7 +373,6 @@ static int apm_cpu_idle(struct cpuidle_device *dev,
 static struct cpuidle_driver apm_idle_driver = {
 	.name = "apm_idle",
 	.owner = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 	.states = {
 		{ /* entry 0 is for polling */ },
 		{ /* entry 1 is for APM idle */

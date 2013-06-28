@@ -167,11 +167,19 @@ static int pxav3_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 	return 0;
 }
 
-static struct sdhci_ops pxav3_sdhci_ops = {
+static const struct sdhci_ops pxav3_sdhci_ops = {
 	.platform_reset_exit = pxav3_set_private_registers,
 	.set_uhs_signaling = pxav3_set_uhs_signaling,
 	.platform_send_init_74_clocks = pxav3_gen_init_74_clocks,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
+};
+
+static struct sdhci_pltfm_data sdhci_pxav3_pdata = {
+	.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK
+		| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC
+		| SDHCI_QUIRK_32BIT_ADMA_SIZE
+		| SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.ops = &pxav3_sdhci_ops,
 };
 
 #ifdef CONFIG_OF
@@ -187,28 +195,15 @@ static struct sdhci_pxa_platdata *pxav3_get_mmc_pdata(struct device *dev)
 {
 	struct sdhci_pxa_platdata *pdata;
 	struct device_node *np = dev->of_node;
-	u32 bus_width;
 	u32 clk_delay_cycles;
-	enum of_gpio_flags gpio_flags;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	if (of_find_property(np, "non-removable", NULL))
-		pdata->flags |= PXA_FLAG_CARD_PERMANENT;
-
-	of_property_read_u32(np, "bus-width", &bus_width);
-	if (bus_width == 8)
-		pdata->flags |= PXA_FLAG_SD_8_BIT_CAPABLE_SLOT;
-
 	of_property_read_u32(np, "mrvl,clk-delay-cycles", &clk_delay_cycles);
 	if (clk_delay_cycles > 0)
 		pdata->clk_delay_cycles = clk_delay_cycles;
-
-	pdata->ext_cd_gpio = of_get_named_gpio_flags(np, "cd-gpios", 0, &gpio_flags);
-	if (gpio_flags != OF_GPIO_ACTIVE_LOW)
-		pdata->host_caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 
 	return pdata;
 }
@@ -235,7 +230,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	if (!pxa)
 		return -ENOMEM;
 
-	host = sdhci_pltfm_init(pdev, NULL);
+	host = sdhci_pltfm_init(pdev, &sdhci_pxav3_pdata);
 	if (IS_ERR(host)) {
 		kfree(pxa);
 		return PTR_ERR(host);
@@ -252,24 +247,18 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	pltfm_host->clk = clk;
 	clk_prepare_enable(clk);
 
-	host->quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
-		| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC
-		| SDHCI_QUIRK_32BIT_ADMA_SIZE
-		| SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN;
-
 	/* enable 1/8V DDR capable */
 	host->mmc->caps |= MMC_CAP_1_8V_DDR;
 
 	match = of_match_device(of_match_ptr(sdhci_pxav3_of_match), &pdev->dev);
-	if (match)
+	if (match) {
+		mmc_of_parse(host->mmc);
+		sdhci_get_of_property(pdev);
 		pdata = pxav3_get_mmc_pdata(dev);
-
-	if (pdata) {
-		if (pdata->flags & PXA_FLAG_CARD_PERMANENT) {
-			/* on-chip device */
-			host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+	} else if (pdata) {
+		/* on-chip device */
+		if (pdata->flags & PXA_FLAG_CARD_PERMANENT)
 			host->mmc->caps |= MMC_CAP_NONREMOVABLE;
-		}
 
 		/* If slot design supports 8 bit data, indicate this to MMC. */
 		if (pdata->flags & PXA_FLAG_SD_8_BIT_CAPABLE_SLOT)
@@ -296,10 +285,6 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 		}
 	}
 
-	host->ops = &pxav3_sdhci_ops;
-
-	sdhci_get_of_property(pdev);
-
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, PXAV3_RPM_DELAY_MS);
@@ -317,7 +302,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	if (pdata->pm_caps & MMC_PM_KEEP_POWER) {
+	if (host->mmc->pm_caps & MMC_PM_KEEP_POWER) {
 		device_init_wakeup(&pdev->dev, 1);
 		host->mmc->pm_flags |= MMC_PM_WAKE_SDIO_IRQ;
 	} else {

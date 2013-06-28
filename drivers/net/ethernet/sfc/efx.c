@@ -22,6 +22,7 @@
 #include <linux/topology.h>
 #include <linux/gfp.h>
 #include <linux/cpu_rmap.h>
+#include <linux/aer.h>
 #include "net_driver.h"
 #include "efx.h"
 #include "nic.h"
@@ -71,20 +72,20 @@ const char *const efx_loopback_mode_names[] = {
 
 const unsigned int efx_reset_type_max = RESET_TYPE_MAX;
 const char *const efx_reset_type_names[] = {
-	[RESET_TYPE_INVISIBLE]     = "INVISIBLE",
-	[RESET_TYPE_ALL]           = "ALL",
-	[RESET_TYPE_WORLD]         = "WORLD",
-	[RESET_TYPE_DISABLE]       = "DISABLE",
-	[RESET_TYPE_TX_WATCHDOG]   = "TX_WATCHDOG",
-	[RESET_TYPE_INT_ERROR]     = "INT_ERROR",
-	[RESET_TYPE_RX_RECOVERY]   = "RX_RECOVERY",
-	[RESET_TYPE_RX_DESC_FETCH] = "RX_DESC_FETCH",
-	[RESET_TYPE_TX_DESC_FETCH] = "TX_DESC_FETCH",
-	[RESET_TYPE_TX_SKIP]       = "TX_SKIP",
-	[RESET_TYPE_MC_FAILURE]    = "MC_FAILURE",
+	[RESET_TYPE_INVISIBLE]          = "INVISIBLE",
+	[RESET_TYPE_ALL]                = "ALL",
+	[RESET_TYPE_RECOVER_OR_ALL]     = "RECOVER_OR_ALL",
+	[RESET_TYPE_WORLD]              = "WORLD",
+	[RESET_TYPE_RECOVER_OR_DISABLE] = "RECOVER_OR_DISABLE",
+	[RESET_TYPE_DISABLE]            = "DISABLE",
+	[RESET_TYPE_TX_WATCHDOG]        = "TX_WATCHDOG",
+	[RESET_TYPE_INT_ERROR]          = "INT_ERROR",
+	[RESET_TYPE_RX_RECOVERY]        = "RX_RECOVERY",
+	[RESET_TYPE_RX_DESC_FETCH]      = "RX_DESC_FETCH",
+	[RESET_TYPE_TX_DESC_FETCH]      = "TX_DESC_FETCH",
+	[RESET_TYPE_TX_SKIP]            = "TX_SKIP",
+	[RESET_TYPE_MC_FAILURE]         = "MC_FAILURE",
 };
-
-#define EFX_MAX_MTU (9 * 1024)
 
 /* Reset workqueue. If any NIC has a hardware failure then a reset will be
  * queued onto this work queue. This is not a per-nic work queue, because
@@ -117,9 +118,12 @@ MODULE_PARM_DESC(separate_tx_channels,
 static int napi_weight = 64;
 
 /* This is the time (in jiffies) between invocations of the hardware
- * monitor.  On Falcon-based NICs, this will:
+ * monitor.
+ * On Falcon-based NICs, this will:
  * - Check the on-board hardware monitor;
  * - Poll the link state and reconfigure the hardware as necessary.
+ * On Siena-based NICs for power systems with EEH support, this will give EEH a
+ * chance to start.
  */
 static unsigned int efx_monitor_interval = 1 * HZ;
 
@@ -203,13 +207,14 @@ static void efx_stop_all(struct efx_nic *efx);
 #define EFX_ASSERT_RESET_SERIALISED(efx)		\
 	do {						\
 		if ((efx->state == STATE_READY) ||	\
+		    (efx->state == STATE_RECOVERY) ||	\
 		    (efx->state == STATE_DISABLED))	\
 			ASSERT_RTNL();			\
 	} while (0)
 
 static int efx_check_disabled(struct efx_nic *efx)
 {
-	if (efx->state == STATE_DISABLED) {
+	if (efx->state == STATE_DISABLED || efx->state == STATE_RECOVERY) {
 		netif_err(efx, drv, efx->net_dev,
 			  "device is disabled due to earlier errors\n");
 		return -EIO;
@@ -242,15 +247,9 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 		struct efx_rx_queue *rx_queue =
 			efx_channel_get_rx_queue(channel);
 
-		/* Deliver last RX packet. */
-		if (channel->rx_pkt) {
-			__efx_rx_packet(channel, channel->rx_pkt);
-			channel->rx_pkt = NULL;
-		}
-		if (rx_queue->enabled) {
-			efx_rx_strategy(channel);
+		efx_rx_flush_packet(channel);
+		if (rx_queue->enabled)
 			efx_fast_push_rx_descriptors(rx_queue);
-		}
 	}
 
 	return spent;
@@ -625,20 +624,53 @@ fail:
  */
 static void efx_start_datapath(struct efx_nic *efx)
 {
+	bool old_rx_scatter = efx->rx_scatter;
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
 	struct efx_channel *channel;
+	size_t rx_buf_len;
 
 	/* Calculate the rx buffer allocation parameters required to
 	 * support the current MTU, including padding for header
 	 * alignment and overruns.
 	 */
-	efx->rx_buffer_len = (max(EFX_PAGE_IP_ALIGN, NET_IP_ALIGN) +
-			      EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
-			      efx->type->rx_buffer_hash_size +
-			      efx->type->rx_buffer_padding);
-	efx->rx_buffer_order = get_order(efx->rx_buffer_len +
-					 sizeof(struct efx_rx_page_state));
+	efx->rx_dma_len = (efx->type->rx_buffer_hash_size +
+			   EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
+			   efx->type->rx_buffer_padding);
+	rx_buf_len = (sizeof(struct efx_rx_page_state) +
+		      NET_IP_ALIGN + efx->rx_dma_len);
+	if (rx_buf_len <= PAGE_SIZE) {
+		efx->rx_scatter = false;
+		efx->rx_buffer_order = 0;
+	} else if (efx->type->can_rx_scatter) {
+		BUILD_BUG_ON(EFX_RX_USR_BUF_SIZE % L1_CACHE_BYTES);
+		BUILD_BUG_ON(sizeof(struct efx_rx_page_state) +
+			     2 * ALIGN(NET_IP_ALIGN + EFX_RX_USR_BUF_SIZE,
+				       EFX_RX_BUF_ALIGNMENT) >
+			     PAGE_SIZE);
+		efx->rx_scatter = true;
+		efx->rx_dma_len = EFX_RX_USR_BUF_SIZE;
+		efx->rx_buffer_order = 0;
+	} else {
+		efx->rx_scatter = false;
+		efx->rx_buffer_order = get_order(rx_buf_len);
+	}
+
+	efx_rx_config_page_split(efx);
+	if (efx->rx_buffer_order)
+		netif_dbg(efx, drv, efx->net_dev,
+			  "RX buf len=%u; page order=%u batch=%u\n",
+			  efx->rx_dma_len, efx->rx_buffer_order,
+			  efx->rx_pages_per_batch);
+	else
+		netif_dbg(efx, drv, efx->net_dev,
+			  "RX buf len=%u step=%u bpp=%u; page batch=%u\n",
+			  efx->rx_dma_len, efx->rx_page_buf_step,
+			  efx->rx_bufs_per_page, efx->rx_pages_per_batch);
+
+	/* RX filters also have scatter-enabled flags */
+	if (efx->rx_scatter != old_rx_scatter)
+		efx_filter_update_rx_scatter(efx);
 
 	/* We must keep at least one descriptor in a TX ring empty.
 	 * We could avoid this when the queue size does not exactly
@@ -655,16 +687,12 @@ static void efx_start_datapath(struct efx_nic *efx)
 		efx_for_each_channel_tx_queue(tx_queue, channel)
 			efx_init_tx_queue(tx_queue);
 
-		/* The rx buffer allocation strategy is MTU dependent */
-		efx_rx_strategy(channel);
-
 		efx_for_each_channel_rx_queue(rx_queue, channel) {
 			efx_init_rx_queue(rx_queue);
 			efx_nic_generate_fill_event(rx_queue);
 		}
 
-		WARN_ON(channel->rx_pkt != NULL);
-		efx_rx_strategy(channel);
+		WARN_ON(channel->rx_pkt_n_frags);
 	}
 
 	if (netif_device_present(efx->net_dev))
@@ -683,7 +711,7 @@ static void efx_stop_datapath(struct efx_nic *efx)
 	BUG_ON(efx->port_enabled);
 
 	/* Only perform flush if dma is enabled */
-	if (dev->is_busmaster) {
+	if (dev->is_busmaster && efx->state != STATE_RECOVERY) {
 		rc = efx_nic_flush_queues(efx);
 
 		if (rc && EFX_WORKAROUND_7803(efx)) {
@@ -1596,13 +1624,15 @@ static void efx_start_all(struct efx_nic *efx)
 	efx_start_port(efx);
 	efx_start_datapath(efx);
 
-	/* Start the hardware monitor if there is one. Otherwise (we're link
-	 * event driven), we have to poll the PHY because after an event queue
-	 * flush, we could have a missed a link state change */
-	if (efx->type->monitor != NULL) {
+	/* Start the hardware monitor if there is one */
+	if (efx->type->monitor != NULL)
 		queue_delayed_work(efx->workqueue, &efx->monitor_work,
 				   efx_monitor_interval);
-	} else {
+
+	/* If link state detection is normally event-driven, we have
+	 * to poll now because we could have missed a change
+	 */
+	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0) {
 		mutex_lock(&efx->mac_lock);
 		if (efx->phy_op->poll(efx))
 			efx_link_status_changed(efx);
@@ -2309,7 +2339,9 @@ int efx_reset(struct efx_nic *efx, enum reset_type method)
 
 out:
 	/* Leave device stopped if necessary */
-	disabled = rc || method == RESET_TYPE_DISABLE;
+	disabled = rc ||
+		method == RESET_TYPE_DISABLE ||
+		method == RESET_TYPE_RECOVER_OR_DISABLE;
 	rc2 = efx_reset_up(efx, method, !disabled);
 	if (rc2) {
 		disabled = true;
@@ -2328,13 +2360,48 @@ out:
 	return rc;
 }
 
+/* Try recovery mechanisms.
+ * For now only EEH is supported.
+ * Returns 0 if the recovery mechanisms are unsuccessful.
+ * Returns a non-zero value otherwise.
+ */
+static int efx_try_recovery(struct efx_nic *efx)
+{
+#ifdef CONFIG_EEH
+	/* A PCI error can occur and not be seen by EEH because nothing
+	 * happens on the PCI bus. In this case the driver may fail and
+	 * schedule a 'recover or reset', leading to this recovery handler.
+	 * Manually call the eeh failure check function.
+	 */
+	struct eeh_dev *eehdev =
+		of_node_to_eeh_dev(pci_device_to_OF_node(efx->pci_dev));
+
+	if (eeh_dev_check_failure(eehdev)) {
+		/* The EEH mechanisms will handle the error and reset the
+		 * device if necessary.
+		 */
+		return 1;
+	}
+#endif
+	return 0;
+}
+
 /* The worker thread exists so that code that cannot sleep can
  * schedule a reset for later.
  */
 static void efx_reset_work(struct work_struct *data)
 {
 	struct efx_nic *efx = container_of(data, struct efx_nic, reset_work);
-	unsigned long pending = ACCESS_ONCE(efx->reset_pending);
+	unsigned long pending;
+	enum reset_type method;
+
+	pending = ACCESS_ONCE(efx->reset_pending);
+	method = fls(pending) - 1;
+
+	if ((method == RESET_TYPE_RECOVER_OR_DISABLE ||
+	     method == RESET_TYPE_RECOVER_OR_ALL) &&
+	    efx_try_recovery(efx))
+		return;
 
 	if (!pending)
 		return;
@@ -2346,7 +2413,7 @@ static void efx_reset_work(struct work_struct *data)
 	 * it cannot change again.
 	 */
 	if (efx->state == STATE_READY)
-		(void)efx_reset(efx, fls(pending) - 1);
+		(void)efx_reset(efx, method);
 
 	rtnl_unlock();
 }
@@ -2355,11 +2422,20 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 {
 	enum reset_type method;
 
+	if (efx->state == STATE_RECOVERY) {
+		netif_dbg(efx, drv, efx->net_dev,
+			  "recovering: skip scheduling %s reset\n",
+			  RESET_TYPE(type));
+		return;
+	}
+
 	switch (type) {
 	case RESET_TYPE_INVISIBLE:
 	case RESET_TYPE_ALL:
+	case RESET_TYPE_RECOVER_OR_ALL:
 	case RESET_TYPE_WORLD:
 	case RESET_TYPE_DISABLE:
+	case RESET_TYPE_RECOVER_OR_DISABLE:
 		method = type;
 		netif_dbg(efx, drv, efx->net_dev, "scheduling %s reset\n",
 			  RESET_TYPE(method));
@@ -2569,6 +2645,8 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	efx_fini_struct(efx);
 	pci_set_drvdata(pci_dev, NULL);
 	free_netdev(efx->net_dev);
+
+	pci_disable_pcie_error_reporting(pci_dev);
 };
 
 /* NIC VPD information
@@ -2741,6 +2819,11 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 		netif_warn(efx, probe, efx->net_dev,
 			   "failed to create MTDs (%d)\n", rc);
 
+	rc = pci_enable_pcie_error_reporting(pci_dev);
+	if (rc && rc != -EINVAL)
+		netif_warn(efx, probe, efx->net_dev,
+			   "pci_enable_pcie_error_reporting failed (%d)\n", rc);
+
 	return 0;
 
  fail4:
@@ -2865,12 +2948,112 @@ static const struct dev_pm_ops efx_pm_ops = {
 	.restore	= efx_pm_resume,
 };
 
+/* A PCI error affecting this device was detected.
+ * At this point MMIO and DMA may be disabled.
+ * Stop the software path and request a slot reset.
+ */
+static pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
+					      enum pci_channel_state state)
+{
+	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
+	struct efx_nic *efx = pci_get_drvdata(pdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	rtnl_lock();
+
+	if (efx->state != STATE_DISABLED) {
+		efx->state = STATE_RECOVERY;
+		efx->reset_pending = 0;
+
+		efx_device_detach_sync(efx);
+
+		efx_stop_all(efx);
+		efx_stop_interrupts(efx, false);
+
+		status = PCI_ERS_RESULT_NEED_RESET;
+	} else {
+		/* If the interface is disabled we don't want to do anything
+		 * with it.
+		 */
+		status = PCI_ERS_RESULT_RECOVERED;
+	}
+
+	rtnl_unlock();
+
+	pci_disable_device(pdev);
+
+	return status;
+}
+
+/* Fake a successfull reset, which will be performed later in efx_io_resume. */
+static pci_ers_result_t efx_io_slot_reset(struct pci_dev *pdev)
+{
+	struct efx_nic *efx = pci_get_drvdata(pdev);
+	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
+	int rc;
+
+	if (pci_enable_device(pdev)) {
+		netif_err(efx, hw, efx->net_dev,
+			  "Cannot re-enable PCI device after reset.\n");
+		status =  PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	rc = pci_cleanup_aer_uncorrect_error_status(pdev);
+	if (rc) {
+		netif_err(efx, hw, efx->net_dev,
+		"pci_cleanup_aer_uncorrect_error_status failed (%d)\n", rc);
+		/* Non-fatal error. Continue. */
+	}
+
+	return status;
+}
+
+/* Perform the actual reset and resume I/O operations. */
+static void efx_io_resume(struct pci_dev *pdev)
+{
+	struct efx_nic *efx = pci_get_drvdata(pdev);
+	int rc;
+
+	rtnl_lock();
+
+	if (efx->state == STATE_DISABLED)
+		goto out;
+
+	rc = efx_reset(efx, RESET_TYPE_ALL);
+	if (rc) {
+		netif_err(efx, hw, efx->net_dev,
+			  "efx_reset failed after PCI error (%d)\n", rc);
+	} else {
+		efx->state = STATE_READY;
+		netif_dbg(efx, hw, efx->net_dev,
+			  "Done resetting and resuming IO after PCI error.\n");
+	}
+
+out:
+	rtnl_unlock();
+}
+
+/* For simplicity and reliability, we always require a slot reset and try to
+ * reset the hardware when a pci error affecting the device is detected.
+ * We leave both the link_reset and mmio_enabled callback unimplemented:
+ * with our request for slot reset the mmio_enabled callback will never be
+ * called, and the link_reset callback is not used by AER or EEH mechanisms.
+ */
+static struct pci_error_handlers efx_err_handlers = {
+	.error_detected = efx_io_error_detected,
+	.slot_reset	= efx_io_slot_reset,
+	.resume		= efx_io_resume,
+};
+
 static struct pci_driver efx_pci_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= efx_pci_table,
 	.probe		= efx_pci_probe,
 	.remove		= efx_pci_remove,
 	.driver.pm	= &efx_pm_ops,
+	.err_handler	= &efx_err_handlers,
 };
 
 /**************************************************************************

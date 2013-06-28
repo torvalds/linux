@@ -105,8 +105,6 @@ static const struct of_device_id dataflash_dt_ids[] = {
 	{ .compatible = "atmel,dataflash", },
 	{ /* sentinel */ }
 };
-#else
-#define dataflash_dt_ids NULL
 #endif
 
 /* ......................................................................... */
@@ -914,7 +912,7 @@ static struct spi_driver dataflash_driver = {
 	.driver = {
 		.name		= "mtd_dataflash",
 		.owner		= THIS_MODULE,
-		.of_match_table = dataflash_dt_ids,
+		.of_match_table = of_match_ptr(dataflash_dt_ids),
 	},
 
 	.probe		= dataflash_probe,

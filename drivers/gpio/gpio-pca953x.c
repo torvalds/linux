@@ -146,8 +146,7 @@ static int pca953x_write_regs(struct pca953x_chip *chip, int reg, u8 *val)
 		ret = i2c_smbus_write_i2c_block_data(chip->client,
 					(reg << bank_shift) | REG_ADDR_AI,
 					NBANK(chip), val);
-	}
-	else {
+	} else {
 		switch (chip->chip_type) {
 		case PCA953X_TYPE:
 			ret = i2c_smbus_write_word_data(chip->client,
@@ -575,7 +574,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 						chip->gpio_chip.ngpio,
 						irq_base,
 						&pca953x_irq_simple_ops,
-						NULL);
+						chip);
 		if (!chip->domain)
 			return -ENODEV;
 

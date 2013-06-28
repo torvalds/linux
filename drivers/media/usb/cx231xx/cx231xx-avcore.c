@@ -357,6 +357,7 @@ int cx231xx_afe_update_power_control(struct cx231xx *dev,
 	case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
 	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL:
 	case CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC:
+	case CX231XX_BOARD_OTG102:
 		if (avmode == POLARIS_AVMODE_ANALOGT_TV) {
 			while (afe_power_status != (FLD_PWRDN_TUNING_BIAS |
 						FLD_PWRDN_ENABLE_PLL)) {
@@ -1720,6 +1721,7 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 	case CX231XX_BOARD_CNXT_RDU_250:
 	case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
 	case CX231XX_BOARD_HAUPPAUGE_EXETER:
+	case CX231XX_BOARD_OTG102:
 		func_mode = 0x03;
 		break;
 	case CX231XX_BOARD_CNXT_RDE_253S:
@@ -2133,7 +2135,7 @@ int cx231xx_tuner_post_channel_change(struct cx231xx *dev)
 
 	status = vid_blk_write_word(dev, DIF_AGC_IF_REF, dwval);
 
-	return status;
+	return status == sizeof(dwval) ? 0 : -EIO;
 }
 
 /******************************************************************************
@@ -2221,7 +2223,7 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 	if (status < 0)
 		return status;
 
-	tmp = *((u32 *) value);
+	tmp = le32_to_cpu(*((u32 *) value));
 
 	switch (mode) {
 	case POLARIS_AVMODE_ENXTERNAL_AV:
@@ -2442,7 +2444,7 @@ int cx231xx_power_suspend(struct cx231xx *dev)
 	if (status > 0)
 		return status;
 
-	tmp = *((u32 *) value);
+	tmp = le32_to_cpu(*((u32 *) value));
 	tmp &= (~PWR_MODE_MASK);
 
 	value[0] = (u8) tmp;
@@ -2470,7 +2472,7 @@ int cx231xx_start_stream(struct cx231xx *dev, u32 ep_mask)
 	if (status < 0)
 		return status;
 
-	tmp = *((u32 *) value);
+	tmp = le32_to_cpu(*((u32 *) value));
 	tmp |= ep_mask;
 	value[0] = (u8) tmp;
 	value[1] = (u8) (tmp >> 8);
@@ -2495,7 +2497,7 @@ int cx231xx_stop_stream(struct cx231xx *dev, u32 ep_mask)
 	if (status < 0)
 		return status;
 
-	tmp = *((u32 *) value);
+	tmp = le32_to_cpu(*((u32 *) value));
 	tmp &= (~ep_mask);
 	value[0] = (u8) tmp;
 	value[1] = (u8) (tmp >> 8);
@@ -2638,20 +2640,23 @@ EXPORT_SYMBOL_GPL(cx231xx_capture_start);
 /*****************************************************************************
 *                   G P I O   B I T control functions                        *
 ******************************************************************************/
-int cx231xx_set_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val)
+static int cx231xx_set_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u32 gpio_val)
 {
 	int status = 0;
 
-	status = cx231xx_send_gpio_cmd(dev, gpio_bit, gpio_val, 4, 0, 0);
+	gpio_val = cpu_to_le32(gpio_val);
+	status = cx231xx_send_gpio_cmd(dev, gpio_bit, (u8 *)&gpio_val, 4, 0, 0);
 
 	return status;
 }
 
-int cx231xx_get_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val)
+static int cx231xx_get_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u32 *gpio_val)
 {
+	u32 tmp;
 	int status = 0;
 
-	status = cx231xx_send_gpio_cmd(dev, gpio_bit, gpio_val, 4, 0, 1);
+	status = cx231xx_send_gpio_cmd(dev, gpio_bit, (u8 *)&tmp, 4, 0, 1);
+	*gpio_val = le32_to_cpu(tmp);
 
 	return status;
 }
@@ -2683,7 +2688,7 @@ int cx231xx_set_gpio_direction(struct cx231xx *dev,
 	else
 		value = dev->gpio_dir | (1 << pin_number);
 
-	status = cx231xx_set_gpio_bit(dev, value, (u8 *) &dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, value, dev->gpio_val);
 
 	/* cache the value for future */
 	dev->gpio_dir = value;
@@ -2717,7 +2722,7 @@ int cx231xx_set_gpio_value(struct cx231xx *dev, int pin_number, int pin_value)
 		value = dev->gpio_dir | (1 << pin_number);
 		dev->gpio_dir = value;
 		status = cx231xx_set_gpio_bit(dev, dev->gpio_dir,
-					      (u8 *) &dev->gpio_val);
+					      dev->gpio_val);
 		value = 0;
 	}
 
@@ -2730,7 +2735,7 @@ int cx231xx_set_gpio_value(struct cx231xx *dev, int pin_number, int pin_value)
 	dev->gpio_val = value;
 
 	/* toggle bit0 of GP_IO */
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	return status;
 }
@@ -2748,7 +2753,7 @@ int cx231xx_gpio_i2c_start(struct cx231xx *dev)
 	dev->gpio_val |= 1 << dev->board.tuner_scl_gpio;
 	dev->gpio_val |= 1 << dev->board.tuner_sda_gpio;
 
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 	if (status < 0)
 		return -EINVAL;
 
@@ -2756,7 +2761,7 @@ int cx231xx_gpio_i2c_start(struct cx231xx *dev)
 	dev->gpio_val |= 1 << dev->board.tuner_scl_gpio;
 	dev->gpio_val &= ~(1 << dev->board.tuner_sda_gpio);
 
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 	if (status < 0)
 		return -EINVAL;
 
@@ -2764,7 +2769,7 @@ int cx231xx_gpio_i2c_start(struct cx231xx *dev)
 	dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
 	dev->gpio_val &= ~(1 << dev->board.tuner_sda_gpio);
 
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 	if (status < 0)
 		return -EINVAL;
 
@@ -2782,7 +2787,7 @@ int cx231xx_gpio_i2c_end(struct cx231xx *dev)
 	dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
 	dev->gpio_val &= ~(1 << dev->board.tuner_sda_gpio);
 
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 	if (status < 0)
 		return -EINVAL;
 
@@ -2790,7 +2795,7 @@ int cx231xx_gpio_i2c_end(struct cx231xx *dev)
 	dev->gpio_val |= 1 << dev->board.tuner_scl_gpio;
 	dev->gpio_val &= ~(1 << dev->board.tuner_sda_gpio);
 
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 	if (status < 0)
 		return -EINVAL;
 
@@ -2800,7 +2805,7 @@ int cx231xx_gpio_i2c_end(struct cx231xx *dev)
 	dev->gpio_dir &= ~(1 << dev->board.tuner_sda_gpio);
 
 	status =
-	    cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	    cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 	if (status < 0)
 		return -EINVAL;
 
@@ -2822,33 +2827,33 @@ int cx231xx_gpio_i2c_write_byte(struct cx231xx *dev, u8 data)
 			dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
 			dev->gpio_val &= ~(1 << dev->board.tuner_sda_gpio);
 			status = cx231xx_set_gpio_bit(dev, dev->gpio_dir,
-						      (u8 *)&dev->gpio_val);
+						      dev->gpio_val);
 
 			/* set SCL to output 1; set SDA to output 0     */
 			dev->gpio_val |= 1 << dev->board.tuner_scl_gpio;
 			status = cx231xx_set_gpio_bit(dev, dev->gpio_dir,
-						      (u8 *)&dev->gpio_val);
+						      dev->gpio_val);
 
 			/* set SCL to output 0; set SDA to output 0     */
 			dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
 			status = cx231xx_set_gpio_bit(dev, dev->gpio_dir,
-						      (u8 *)&dev->gpio_val);
+						      dev->gpio_val);
 		} else {
 			/* set SCL to output 0; set SDA to output 1     */
 			dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
 			dev->gpio_val |= 1 << dev->board.tuner_sda_gpio;
 			status = cx231xx_set_gpio_bit(dev, dev->gpio_dir,
-						      (u8 *)&dev->gpio_val);
+						      dev->gpio_val);
 
 			/* set SCL to output 1; set SDA to output 1     */
 			dev->gpio_val |= 1 << dev->board.tuner_scl_gpio;
 			status = cx231xx_set_gpio_bit(dev, dev->gpio_dir,
-						      (u8 *)&dev->gpio_val);
+						      dev->gpio_val);
 
 			/* set SCL to output 0; set SDA to output 1     */
 			dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
 			status = cx231xx_set_gpio_bit(dev, dev->gpio_dir,
-						      (u8 *)&dev->gpio_val);
+						      dev->gpio_val);
 		}
 	}
 	return status;
@@ -2867,17 +2872,17 @@ int cx231xx_gpio_i2c_read_byte(struct cx231xx *dev, u8 *buf)
 		/* set SCL to output 0; set SDA to input */
 		dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
 		status = cx231xx_set_gpio_bit(dev, dev->gpio_dir,
-					      (u8 *)&dev->gpio_val);
+					      dev->gpio_val);
 
 		/* set SCL to output 1; set SDA to input */
 		dev->gpio_val |= 1 << dev->board.tuner_scl_gpio;
 		status = cx231xx_set_gpio_bit(dev, dev->gpio_dir,
-					      (u8 *)&dev->gpio_val);
+					      dev->gpio_val);
 
 		/* get SDA data bit */
 		gpio_logic_value = dev->gpio_val;
 		status = cx231xx_get_gpio_bit(dev, dev->gpio_dir,
-					      (u8 *)&dev->gpio_val);
+					      &dev->gpio_val);
 		if ((dev->gpio_val & (1 << dev->board.tuner_sda_gpio)) != 0)
 			value |= (1 << (8 - i - 1));
 
@@ -2888,7 +2893,7 @@ int cx231xx_gpio_i2c_read_byte(struct cx231xx *dev, u8 *buf)
 	   !!!set SDA to input, never to modify SDA direction at
 	   the same times */
 	dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	/* store the value */
 	*buf = value & 0xff;
@@ -2909,12 +2914,12 @@ int cx231xx_gpio_i2c_read_ack(struct cx231xx *dev)
 	dev->gpio_dir &= ~(1 << dev->board.tuner_scl_gpio);
 
 	gpio_logic_value = dev->gpio_val;
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	do {
 		msleep(2);
 		status = cx231xx_get_gpio_bit(dev, dev->gpio_dir,
-					      (u8 *)&dev->gpio_val);
+					      &dev->gpio_val);
 		nCnt--;
 	} while (((dev->gpio_val &
 			  (1 << dev->board.tuner_scl_gpio)) == 0) &&
@@ -2929,7 +2934,7 @@ int cx231xx_gpio_i2c_read_ack(struct cx231xx *dev)
 	 * through clock stretch, slave has given a SCL signal,
 	 * so the SDA data can be directly read.
 	 */
-	status = cx231xx_get_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_get_gpio_bit(dev, dev->gpio_dir, &dev->gpio_val);
 
 	if ((dev->gpio_val & 1 << dev->board.tuner_sda_gpio) == 0) {
 		dev->gpio_val = gpio_logic_value;
@@ -2945,7 +2950,7 @@ int cx231xx_gpio_i2c_read_ack(struct cx231xx *dev)
 	dev->gpio_val = gpio_logic_value;
 	dev->gpio_dir |= (1 << dev->board.tuner_scl_gpio);
 	dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	return status;
 }
@@ -2956,24 +2961,24 @@ int cx231xx_gpio_i2c_write_ack(struct cx231xx *dev)
 
 	/* set SDA to ouput */
 	dev->gpio_dir |= 1 << dev->board.tuner_sda_gpio;
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	/* set SCL = 0 (output); set SDA = 0 (output) */
 	dev->gpio_val &= ~(1 << dev->board.tuner_sda_gpio);
 	dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	/* set SCL = 1 (output); set SDA = 0 (output) */
 	dev->gpio_val |= 1 << dev->board.tuner_scl_gpio;
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	/* set SCL = 0 (output); set SDA = 0 (output) */
 	dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	/* set SDA to input,and then the slave will read data from SDA. */
 	dev->gpio_dir &= ~(1 << dev->board.tuner_sda_gpio);
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	return status;
 }
@@ -2985,15 +2990,15 @@ int cx231xx_gpio_i2c_write_nak(struct cx231xx *dev)
 	/* set scl to output ; set sda to input */
 	dev->gpio_dir |= 1 << dev->board.tuner_scl_gpio;
 	dev->gpio_dir &= ~(1 << dev->board.tuner_sda_gpio);
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	/* set scl to output 0; set sda to input */
 	dev->gpio_val &= ~(1 << dev->board.tuner_scl_gpio);
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	/* set scl to output 1; set sda to input */
 	dev->gpio_val |= 1 << dev->board.tuner_scl_gpio;
-	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, (u8 *)&dev->gpio_val);
+	status = cx231xx_set_gpio_bit(dev, dev->gpio_dir, dev->gpio_val);
 
 	return status;
 }

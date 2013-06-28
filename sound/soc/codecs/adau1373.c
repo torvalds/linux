@@ -133,6 +133,8 @@ struct adau1373 {
 #define ADAU1373_DAI_FORMAT_DSP		0x3
 
 #define ADAU1373_BCLKDIV_SOURCE		BIT(5)
+#define ADAU1373_BCLKDIV_SR_MASK	(0x07 << 2)
+#define ADAU1373_BCLKDIV_BCLK_MASK	0x03
 #define ADAU1373_BCLKDIV_32		0x03
 #define ADAU1373_BCLKDIV_64		0x02
 #define ADAU1373_BCLKDIV_128		0x01
@@ -937,7 +939,8 @@ static int adau1373_hw_params(struct snd_pcm_substream *substream,
 	adau1373_dai->enable_src = (div != 0);
 
 	snd_soc_update_bits(codec, ADAU1373_BCLKDIV(dai->id),
-		~ADAU1373_BCLKDIV_SOURCE, (div << 2) | ADAU1373_BCLKDIV_64);
+		ADAU1373_BCLKDIV_SR_MASK | ADAU1373_BCLKDIV_BCLK_MASK,
+		(div << 2) | ADAU1373_BCLKDIV_64);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:

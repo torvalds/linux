@@ -337,24 +337,14 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct atao_board *board = comedi_board(dev);
 	struct atao_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 	int ao_unipolar;
 	int ret;
 
-	iobase = it->options[0];
-	if (iobase == 0)
-		iobase = 0x1c0;
 	ao_unipolar = it->options[3];
 
-	printk(KERN_INFO "comedi%d: ni_at_ao: 0x%04lx", dev->minor, iobase);
-
-	if (!request_region(iobase, ATAO_SIZE, "ni_at_ao")) {
-		printk(" I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-
-	dev->board_name = board->name;
+	ret = comedi_request_region(dev, it->options[0], ATAO_SIZE);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -409,12 +399,6 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void atao_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, ATAO_SIZE);
-}
-
 static const struct atao_board atao_boards[] = {
 	{
 		.name		= "ai-ao-6",
@@ -429,7 +413,7 @@ static struct comedi_driver ni_at_ao_driver = {
 	.driver_name	= "ni_at_ao",
 	.module		= THIS_MODULE,
 	.attach		= atao_attach,
-	.detach		= atao_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &atao_boards[0].name,
 	.offset		= sizeof(struct atao_board),
 	.num_names	= ARRAY_SIZE(atao_boards),

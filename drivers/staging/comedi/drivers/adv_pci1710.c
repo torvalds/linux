@@ -59,9 +59,6 @@ Configuration options:
 #define TYPE_PCI1713	2
 #define TYPE_PCI1720	3
 
-#define IORANGE_171x	32
-#define IORANGE_1720	16
-
 #define PCI171x_AD_DATA	 0	/* R:   A/D data */
 #define PCI171x_SOFTTRG	 0	/* W:   soft trigger for A/D */
 #define PCI171x_RANGE	 2	/* W:   A/D gain/range register */
@@ -178,10 +175,17 @@ static const struct comedi_lrange range_pci171x_da = { 2, {
 							   }
 };
 
+enum pci1710_boardid {
+	BOARD_PCI1710,
+	BOARD_PCI1710HG,
+	BOARD_PCI1711,
+	BOARD_PCI1713,
+	BOARD_PCI1720,
+	BOARD_PCI1731,
+};
+
 struct boardtype {
 	const char *name;	/*  board name */
-	int device_id;
-	int iorange;		/*  I/O range len */
 	char have_irq;		/*  1=card support IRQ */
 	char cardtype;		/*  0=1710& co. 2=1713, ... */
 	int n_aichan;		/*  num of A/D chans */
@@ -200,10 +204,8 @@ struct boardtype {
 };
 
 static const struct boardtype boardtypes[] = {
-	{
+	[BOARD_PCI1710] = {
 		.name		= "pci1710",
-		.device_id	= 0x1710,
-		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
@@ -219,10 +221,9 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
-	}, {
+	},
+	[BOARD_PCI1710HG] = {
 		.name		= "pci1710hg",
-		.device_id	= 0x1710,
-		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
@@ -238,10 +239,9 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
-	}, {
+	},
+	[BOARD_PCI1711] = {
 		.name		= "pci1711",
-		.device_id	= 0x1711,
-		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
@@ -256,10 +256,9 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 512,
-	}, {
+	},
+	[BOARD_PCI1713] = {
 		.name		= "pci1713",
-		.device_id	= 0x1713,
-		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI1713,
 		.n_aichan	= 32,
@@ -269,18 +268,16 @@ static const struct boardtype boardtypes[] = {
 		.rangecode_ai	= range_codes_pci1710_3,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
-	}, {
+	},
+	[BOARD_PCI1720] = {
 		.name		= "pci1720",
-		.device_id	= 0x1720,
-		.iorange	= IORANGE_1720,
 		.cardtype	= TYPE_PCI1720,
 		.n_aochan	= 4,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ao	= &range_pci1720,
-	}, {
+	},
+	[BOARD_PCI1731] = {
 		.name		= "pci1731",
-		.device_id	= 0x1731,
-		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
@@ -307,7 +304,7 @@ struct pci1710_private {
 	unsigned int ai_et_CntrlReg;
 	unsigned int ai_et_MuxVal;
 	unsigned int ai_et_div1, ai_et_div2;
-	unsigned int act_chanlist[32];	/*  list of scaned channel */
+	unsigned int act_chanlist[32];	/*  list of scanned channel */
 	unsigned char act_chanlist_len;	/*  len of scanlist */
 	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
@@ -334,7 +331,7 @@ static const unsigned int muxonechan[] = {
 
 /*
 ==============================================================================
- Check if channel list from user is builded correctly
+ Check if channel list from user is built correctly
  If it's ok, then program scan/gain logic.
  This works for all cards.
 */
@@ -1220,30 +1217,17 @@ static int pci1710_reset(struct comedi_device *dev)
 	}
 }
 
-static const void *pci1710_find_boardinfo(struct comedi_device *dev,
-					  struct pci_dev *pcidev)
-{
-	const struct boardtype *this_board;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
-		this_board = &boardtypes[i];
-		if (pcidev->device == this_board->device_id)
-			return this_board;
-	}
-	return NULL;
-}
-
 static int pci1710_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct boardtype *this_board;
+	const struct boardtype *this_board = NULL;
 	struct pci1710_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
 
-	this_board = pci1710_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(boardtypes))
+		this_board = &boardtypes[context];
 	if (!this_board)
 		return -ENODEV;
 	dev->board_ptr = this_board;
@@ -1254,7 +1238,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 2);
@@ -1378,16 +1362,11 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 static void pci1710_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
 	if (dev->iobase)
 		pci1710_reset(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver adv_pci1710_driver = {
@@ -1398,17 +1377,68 @@ static struct comedi_driver adv_pci1710_driver = {
 };
 
 static int adv_pci1710_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &adv_pci1710_driver);
+	return comedi_pci_auto_config(dev, &adv_pci1710_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adv_pci1710_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1710) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1711) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1713) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1720) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1731) },
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0x0000),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb100),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb200),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc100),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc200),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710, 0x1000, 0xd100),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0x0002),
+		.driver_data = BOARD_PCI1710HG,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb102),
+		.driver_data = BOARD_PCI1710HG,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb202),
+		.driver_data = BOARD_PCI1710HG,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc102),
+		.driver_data = BOARD_PCI1710HG,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc202),
+		.driver_data = BOARD_PCI1710HG,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710, 0x1000, 0xd102),
+		.driver_data = BOARD_PCI1710HG,
+	},
+	{ PCI_VDEVICE(ADVANTECH, 0x1711), BOARD_PCI1711 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1713), BOARD_PCI1713 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1720), BOARD_PCI1720 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1731), BOARD_PCI1731 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adv_pci1710_pci_table);

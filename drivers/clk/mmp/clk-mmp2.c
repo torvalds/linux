@@ -221,7 +221,7 @@ void __init mmp2_clk_init(void)
 
 	clk = mmp_clk_register_apbc("gpio", "vctcxo",
 				apbc_base + APBC_GPIO, 10, 0, &clk_lock);
-	clk_register_clkdev(clk, NULL, "pxa-gpio");
+	clk_register_clkdev(clk, NULL, "mmp2-gpio");
 
 	clk = mmp_clk_register_apbc("kpc", "clk32",
 				apbc_base + APBC_KPC, 10, 0, &clk_lock);

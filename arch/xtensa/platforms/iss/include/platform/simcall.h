@@ -59,56 +59,58 @@
 
 static int errno;
 
-static inline int __simc(int a, int b, int c, int d, int e, int f)
+static inline int __simc(int a, int b, int c, int d)
 {
 	int ret;
 	register int a1 asm("a2") = a;
 	register int b1 asm("a3") = b;
 	register int c1 asm("a4") = c;
 	register int d1 asm("a5") = d;
-	register int e1 asm("a6") = e;
-	register int f1 asm("a7") = f;
 	__asm__ __volatile__ (
 			"simcall\n"
 			"mov %0, a2\n"
 			"mov %1, a3\n"
 			: "=a" (ret), "=a" (errno), "+r"(a1), "+r"(b1)
-			: "r"(c1), "r"(d1), "r"(e1), "r"(f1)
+			: "r"(c1), "r"(d1)
 			: "memory");
 	return ret;
 }
 
 static inline int simc_open(const char *file, int flags, int mode)
 {
-	return __simc(SYS_open, (int) file, flags, mode, 0, 0);
+	return __simc(SYS_open, (int) file, flags, mode);
 }
 
 static inline int simc_close(int fd)
 {
-	return __simc(SYS_close, fd, 0, 0, 0, 0);
+	return __simc(SYS_close, fd, 0, 0);
 }
 
 static inline int simc_ioctl(int fd, int request, void *arg)
 {
-	return __simc(SYS_ioctl, fd, request, (int) arg, 0, 0);
+	return __simc(SYS_ioctl, fd, request, (int) arg);
 }
 
 static inline int simc_read(int fd, void *buf, size_t count)
 {
-	return __simc(SYS_read, fd, (int) buf, count, 0, 0);
+	return __simc(SYS_read, fd, (int) buf, count);
 }
 
 static inline int simc_write(int fd, const void *buf, size_t count)
 {
-	return __simc(SYS_write, fd, (int) buf, count, 0, 0);
+	return __simc(SYS_write, fd, (int) buf, count);
 }
 
 static inline int simc_poll(int fd)
 {
 	struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
 
-	return __simc(SYS_select_one, fd, XTISS_SELECT_ONE_READ, (int)&tv,
-			0, 0);
+	return __simc(SYS_select_one, fd, XTISS_SELECT_ONE_READ, (int)&tv);
+}
+
+static inline int simc_lseek(int fd, uint32_t off, int whence)
+{
+	return __simc(SYS_lseek, fd, off, whence);
 }
 
 #endif /* _XTENSA_PLATFORM_ISS_SIMCALL_H */

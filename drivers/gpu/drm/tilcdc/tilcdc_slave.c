@@ -353,7 +353,6 @@ static struct of_device_id slave_of_match[] = {
 		{ .compatible = "ti,tilcdc,slave", },
 		{ },
 };
-MODULE_DEVICE_TABLE(of, slave_of_match);
 
 struct platform_driver slave_driver = {
 	.probe = slave_probe,

@@ -386,20 +386,16 @@ static int mace_open(struct net_device *dev)
 	/* Allocate the DMA ring buffers */
 
 	mp->tx_ring = dma_alloc_coherent(mp->device,
-			N_TX_RING * MACE_BUFF_SIZE,
-			&mp->tx_ring_phys, GFP_KERNEL);
-	if (mp->tx_ring == NULL) {
-		printk(KERN_ERR "%s: unable to allocate DMA tx buffers\n", dev->name);
+					 N_TX_RING * MACE_BUFF_SIZE,
+					 &mp->tx_ring_phys, GFP_KERNEL);
+	if (mp->tx_ring == NULL)
 		goto out1;
-	}
 
 	mp->rx_ring = dma_alloc_coherent(mp->device,
-			N_RX_RING * MACE_BUFF_SIZE,
-			&mp->rx_ring_phys, GFP_KERNEL);
-	if (mp->rx_ring == NULL) {
-		printk(KERN_ERR "%s: unable to allocate DMA rx buffers\n", dev->name);
+					 N_RX_RING * MACE_BUFF_SIZE,
+					 &mp->rx_ring_phys, GFP_KERNEL);
+	if (mp->rx_ring == NULL)
 		goto out2;
-	}
 
 	mace_dma_off(dev);
 

@@ -387,7 +387,7 @@ static struct btrfs_path *alloc_path_for_send(void)
 	return path;
 }
 
-int write_buf(struct file *filp, const void *buf, u32 len, loff_t *off)
+static int write_buf(struct file *filp, const void *buf, u32 len, loff_t *off)
 {
 	int ret;
 	mm_segment_t old_fs;
@@ -3479,7 +3479,6 @@ static int __process_changed_new_xattr(int num, struct btrfs_key *di_key,
 	struct send_ctx *sctx = ctx;
 	char *found_data = NULL;
 	int found_data_len  = 0;
-	struct fs_path *p = NULL;
 
 	ret = find_xattr(sctx, sctx->parent_root, sctx->right_path,
 			sctx->cmp_key, name, name_len, &found_data,
@@ -3498,7 +3497,6 @@ static int __process_changed_new_xattr(int num, struct btrfs_key *di_key,
 	}
 
 	kfree(found_data);
-	fs_path_free(sctx, p);
 	return ret;
 }
 
@@ -3945,12 +3943,10 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 		    found_key.type != key.type) {
 			key.offset += right_len;
 			break;
-		} else {
-			if (found_key.offset != key.offset + right_len) {
-				/* Should really not happen */
-				ret = -EIO;
-				goto out;
-			}
+		}
+		if (found_key.offset != key.offset + right_len) {
+			ret = 0;
+			goto out;
 		}
 		key = found_key;
 	}
@@ -4531,9 +4527,11 @@ static int send_subvol(struct send_ctx *sctx)
 {
 	int ret;
 
-	ret = send_header(sctx);
-	if (ret < 0)
-		goto out;
+	if (!(sctx->flags & BTRFS_SEND_FLAG_OMIT_STREAM_HEADER)) {
+		ret = send_header(sctx);
+		if (ret < 0)
+			goto out;
+	}
 
 	ret = send_subvol_begin(sctx);
 	if (ret < 0)
@@ -4595,7 +4593,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		goto out;
 	}
 
-	if (arg->flags & ~BTRFS_SEND_FLAG_NO_FILE_DATA) {
+	if (arg->flags & ~BTRFS_SEND_FLAG_MASK) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -4614,8 +4612,8 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	sctx->flags = arg->flags;
 
 	sctx->send_filp = fget(arg->send_fd);
-	if (IS_ERR(sctx->send_filp)) {
-		ret = PTR_ERR(sctx->send_filp);
+	if (!sctx->send_filp) {
+		ret = -EBADF;
 		goto out;
 	}
 
@@ -4706,12 +4704,14 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	if (ret < 0)
 		goto out;
 
-	ret = begin_cmd(sctx, BTRFS_SEND_C_END);
-	if (ret < 0)
-		goto out;
-	ret = send_cmd(sctx);
-	if (ret < 0)
-		goto out;
+	if (!(sctx->flags & BTRFS_SEND_FLAG_OMIT_END_CMD)) {
+		ret = begin_cmd(sctx, BTRFS_SEND_C_END);
+		if (ret < 0)
+			goto out;
+		ret = send_cmd(sctx);
+		if (ret < 0)
+			goto out;
+	}
 
 out:
 	kfree(arg);

@@ -53,7 +53,7 @@
 #define smp_mb__after_clear_bit()	smp_mb()
 
 /* Macro for generating the ***_bits() functions */
-#define DEFINE_BITOP(fn, op, prefix, postfix)	\
+#define DEFINE_BITOP(fn, op, prefix)		\
 static __inline__ void fn(unsigned long mask,	\
 		volatile unsigned long *_p)	\
 {						\
@@ -66,16 +66,15 @@ static __inline__ void fn(unsigned long mask,	\
 	PPC405_ERR77(0,%3)			\
 	PPC_STLCX "%0,0,%3\n"			\
 	"bne- 1b\n"				\
-	postfix					\
 	: "=&r" (old), "+m" (*p)		\
 	: "r" (mask), "r" (p)			\
 	: "cc", "memory");			\
 }
 
-DEFINE_BITOP(set_bits, or, "", "")
-DEFINE_BITOP(clear_bits, andc, "", "")
-DEFINE_BITOP(clear_bits_unlock, andc, PPC_RELEASE_BARRIER, "")
-DEFINE_BITOP(change_bits, xor, "", "")
+DEFINE_BITOP(set_bits, or, "")
+DEFINE_BITOP(clear_bits, andc, "")
+DEFINE_BITOP(clear_bits_unlock, andc, PPC_RELEASE_BARRIER)
+DEFINE_BITOP(change_bits, xor, "")
 
 static __inline__ void set_bit(int nr, volatile unsigned long *addr)
 {

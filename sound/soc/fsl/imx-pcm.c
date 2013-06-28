@@ -114,7 +114,11 @@ static int imx_pcm_probe(struct platform_device *pdev)
 
 static int imx_pcm_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&pdev->dev);
+	if (strcmp(pdev->id_entry->name, "imx-fiq-pcm-audio") == 0)
+		snd_soc_unregister_platform(&pdev->dev);
+	else
+		imx_pcm_dma_exit(pdev);
+
 	return 0;
 }
 

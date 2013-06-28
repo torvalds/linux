@@ -146,21 +146,18 @@ static int ds3234_probe(struct spi_device *spi)
 	ds3234_get_reg(&spi->dev, DS3234_REG_CONT_STAT, &tmp);
 	dev_info(&spi->dev, "Ctrl/Stat Reg: 0x%02x\n", tmp);
 
-	rtc = rtc_device_register("ds3234",
-				&spi->dev, &ds3234_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&spi->dev, "ds3234",
+				&ds3234_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	dev_set_drvdata(&spi->dev, rtc);
+	spi_set_drvdata(spi, rtc);
 
 	return 0;
 }
 
 static int ds3234_remove(struct spi_device *spi)
 {
-	struct rtc_device *rtc = spi_get_drvdata(spi);
-
-	rtc_device_unregister(rtc);
 	return 0;
 }
 

@@ -715,14 +715,14 @@ static void ir_close(struct input_dev *idev)
 }
 
 /* class for /sys/class/rc */
-static char *ir_devnode(struct device *dev, umode_t *mode)
+static char *rc_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "rc/%s", dev_name(dev));
 }
 
-static struct class ir_input_class = {
+static struct class rc_class = {
 	.name		= "rc",
-	.devnode	= ir_devnode,
+	.devnode	= rc_devnode,
 };
 
 /*
@@ -783,13 +783,12 @@ static ssize_t show_protocols(struct device *device,
 
 	mutex_lock(&dev->lock);
 
-	if (dev->driver_type == RC_DRIVER_SCANCODE) {
-		enabled = dev->rc_map.rc_type;
+	enabled = dev->enabled_protocols;
+	if (dev->driver_type == RC_DRIVER_SCANCODE)
 		allowed = dev->allowed_protos;
-	} else if (dev->raw) {
-		enabled = dev->raw->enabled_protocols;
+	else if (dev->raw)
 		allowed = ir_raw_get_allowed_protocols();
-	} else {
+	else {
 		mutex_unlock(&dev->lock);
 		return -ENODEV;
 	}
@@ -847,7 +846,6 @@ static ssize_t store_protocols(struct device *device,
 	u64 type;
 	u64 mask;
 	int rc, i, count = 0;
-	unsigned long flags;
 	ssize_t ret;
 
 	/* Device is being removed */
@@ -856,15 +854,12 @@ static ssize_t store_protocols(struct device *device,
 
 	mutex_lock(&dev->lock);
 
-	if (dev->driver_type == RC_DRIVER_SCANCODE)
-		type = dev->rc_map.rc_type;
-	else if (dev->raw)
-		type = dev->raw->enabled_protocols;
-	else {
+	if (dev->driver_type != RC_DRIVER_SCANCODE && !dev->raw) {
 		IR_dprintk(1, "Protocol switching not supported\n");
 		ret = -EINVAL;
 		goto out;
 	}
+	type = dev->enabled_protocols;
 
 	while ((tmp = strsep((char **) &data, " \n")) != NULL) {
 		if (!*tmp)
@@ -922,14 +917,7 @@ static ssize_t store_protocols(struct device *device,
 		}
 	}
 
-	if (dev->driver_type == RC_DRIVER_SCANCODE) {
-		spin_lock_irqsave(&dev->rc_map.lock, flags);
-		dev->rc_map.rc_type = type;
-		spin_unlock_irqrestore(&dev->rc_map.lock, flags);
-	} else {
-		dev->raw->enabled_protocols = type;
-	}
-
+	dev->enabled_protocols = type;
 	IR_dprintk(1, "Current protocol(s): 0x%llx\n",
 		   (long long)type);
 
@@ -1016,7 +1004,7 @@ struct rc_dev *rc_allocate_device(void)
 	setup_timer(&dev->timer_keyup, ir_timer_keyup, (unsigned long)dev);
 
 	dev->dev.type = &rc_dev_type;
-	dev->dev.class = &ir_input_class;
+	dev->dev.class = &rc_class;
 	device_initialize(&dev->dev);
 
 	__module_get(THIS_MODULE);
@@ -1068,9 +1056,8 @@ int rc_register_device(struct rc_dev *dev)
 	/*
 	 * Take the lock here, as the device sysfs node will appear
 	 * when device_add() is called, which may trigger an ir-keytable udev
-	 * rule, which will in turn call show_protocols and access either
-	 * dev->rc_map.rc_type or dev->raw->enabled_protocols before it has
-	 * been initialized.
+	 * rule, which will in turn call show_protocols and access
+	 * dev->enabled_protocols before it has been initialized.
 	 */
 	mutex_lock(&dev->lock);
 
@@ -1132,6 +1119,7 @@ int rc_register_device(struct rc_dev *dev)
 		rc = dev->change_protocol(dev, &rc_type);
 		if (rc < 0)
 			goto out_raw;
+		dev->enabled_protocols = rc_type;
 	}
 
 	mutex_unlock(&dev->lock);
@@ -1190,7 +1178,7 @@ EXPORT_SYMBOL_GPL(rc_unregister_device);
 
 static int __init rc_core_init(void)
 {
-	int rc = class_register(&ir_input_class);
+	int rc = class_register(&rc_class);
 	if (rc) {
 		printk(KERN_ERR "rc_core: unable to register rc class\n");
 		return rc;
@@ -1203,11 +1191,11 @@ static int __init rc_core_init(void)
 
 static void __exit rc_core_exit(void)
 {
-	class_unregister(&ir_input_class);
+	class_unregister(&rc_class);
 	rc_map_unregister(&empty_map);
 }
 
-module_init(rc_core_init);
+subsys_initcall(rc_core_init);
 module_exit(rc_core_exit);
 
 int rc_core_debug;    /* ir_debug level (0,1,2) */

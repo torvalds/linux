@@ -44,8 +44,8 @@ struct ixgbevf_tx_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
 	unsigned long time_stamp;
+	union ixgbe_adv_tx_desc *next_to_watch;
 	u16 length;
-	u16 next_to_watch;
 	u16 mapped_as_page;
 };
 

@@ -248,7 +248,6 @@ config PPC4xx_GPIO
 	bool "PPC4xx GPIO support"
 	depends on 44x
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_GPIO
 	help
 	  Enable gpiolib support for ppc440 based boards
 
@@ -274,6 +273,8 @@ config 440EPX
 	select IBM_EMAC_EMAC4
 	select IBM_EMAC_RGMII
 	select IBM_EMAC_ZMII
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_DESC
 
 config 440GRX
 	bool

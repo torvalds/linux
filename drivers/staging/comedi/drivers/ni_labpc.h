@@ -27,48 +27,45 @@
 #define EEPROM_SIZE	256	/*  256 byte eeprom */
 #define NUM_AO_CHAN	2	/*  boards have two analog output channels */
 
-enum labpc_bustype { isa_bustype, pci_bustype, pcmcia_bustype };
 enum labpc_register_layout { labpc_plus_layout, labpc_1200_layout };
 enum transfer_type { fifo_not_empty_transfer, fifo_half_full_transfer,
 	isa_dma_transfer
 };
 
-struct labpc_board_struct {
+struct labpc_boardinfo {
 	const char *name;
 	int device_id;		/*  device id for pci and pcmcia boards */
 	int ai_speed;		/*  maximum input speed in nanoseconds */
-	enum labpc_bustype bustype;	/*  ISA/PCI/etc. */
 
 	/*  1200 has extra registers compared to pc+ */
 	enum labpc_register_layout register_layout;
 	int has_ao;		/*  has analog output true/false */
 	const struct comedi_lrange *ai_range_table;
 	const int *ai_range_code;
-	const int *ai_range_is_unipolar;
 
 	/*  board can auto scan up in ai channels, not just down */
 	unsigned ai_scan_up:1;
 
 	/* uses memory mapped io instead of ioports */
-	unsigned memory_mapped_io:1;
+	unsigned has_mmio:1;
 };
 
 struct labpc_private {
 	struct mite_struct *mite;	/*  for mite chip on pci-1200 */
 	/*  number of data points left to be taken */
-	volatile unsigned long long count;
+	unsigned long long count;
 	/*  software copy of analog output values */
 	unsigned int ao_value[NUM_AO_CHAN];
 	/*  software copys of bits written to command registers */
-	volatile unsigned int command1_bits;
-	volatile unsigned int command2_bits;
-	volatile unsigned int command3_bits;
-	volatile unsigned int command4_bits;
-	volatile unsigned int command5_bits;
-	volatile unsigned int command6_bits;
+	unsigned int cmd1;
+	unsigned int cmd2;
+	unsigned int cmd3;
+	unsigned int cmd4;
+	unsigned int cmd5;
+	unsigned int cmd6;
 	/*  store last read of board status registers */
-	volatile unsigned int status1_bits;
-	volatile unsigned int status2_bits;
+	unsigned int stat1;
+	unsigned int stat2;
 	/*
 	 * value to load into board's counter a0 (conversion pacing) for timed
 	 * conversions
@@ -85,6 +82,7 @@ struct labpc_private {
 	unsigned int divisor_b1;
 	unsigned int dma_chan;	/*  dma channel to use */
 	u16 *dma_buffer;	/*  buffer ai will dma into */
+	phys_addr_t dma_addr;
 	/* transfer size in bytes for current transfer */
 	unsigned int dma_transfer_size;
 	/* we are using dma/fifo-half-full/etc. */
@@ -101,11 +99,10 @@ struct labpc_private {
 	void (*write_byte) (unsigned int byte, unsigned long address);
 };
 
-int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
-			unsigned int irq, unsigned int dma);
+int labpc_common_attach(struct comedi_device *dev,
+			unsigned int irq, unsigned long isr_flags);
 void labpc_common_detach(struct comedi_device *dev);
 
-extern const int labpc_1200_is_unipolar[];
 extern const int labpc_1200_ai_gain_bits[];
 extern const struct comedi_lrange range_labpc_1200_ai;
 

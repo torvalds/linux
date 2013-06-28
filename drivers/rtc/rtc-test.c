@@ -99,8 +99,10 @@ static DEVICE_ATTR(irq, S_IRUGO | S_IWUSR, test_irq_show, test_irq_store);
 static int test_probe(struct platform_device *plat_dev)
 {
 	int err;
-	struct rtc_device *rtc = rtc_device_register("test", &plat_dev->dev,
-						&test_rtc_ops, THIS_MODULE);
+	struct rtc_device *rtc;
+
+	rtc = devm_rtc_device_register(&plat_dev->dev, "test",
+				&test_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		err = PTR_ERR(rtc);
 		return err;
@@ -115,15 +117,11 @@ static int test_probe(struct platform_device *plat_dev)
 	return 0;
 
 err:
-	rtc_device_unregister(rtc);
 	return err;
 }
 
 static int test_remove(struct platform_device *plat_dev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(plat_dev);
-
-	rtc_device_unregister(rtc);
 	device_remove_file(&plat_dev->dev, &dev_attr_irq);
 
 	return 0;

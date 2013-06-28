@@ -16,6 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/clk.h>
 #include <linux/sirfsoc_dma.h>
 
 #include "dmaengine.h"
@@ -78,6 +79,7 @@ struct sirfsoc_dma {
 	struct sirfsoc_dma_chan		channels[SIRFSOC_DMA_CHANNELS];
 	void __iomem			*base;
 	int				irq;
+	struct clk			*clk;
 	bool				is_marco;
 };
 
@@ -639,6 +641,12 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 		return -EINVAL;
 	}
 
+	sdma->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(sdma->clk)) {
+		dev_err(dev, "failed to get a clock.\n");
+		return PTR_ERR(sdma->clk);
+	}
+
 	ret = of_address_to_resource(dn, 0, &res);
 	if (ret) {
 		dev_err(dev, "Error parsing memory region!\n");
@@ -698,6 +706,8 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 
 	tasklet_init(&sdma->tasklet, sirfsoc_dma_tasklet, (unsigned long)sdma);
 
+	clk_prepare_enable(sdma->clk);
+
 	/* Register DMA engine */
 	dev_set_drvdata(dev, sdma);
 	ret = dma_async_device_register(dma);
@@ -720,6 +730,7 @@ static int sirfsoc_dma_remove(struct platform_device *op)
 	struct device *dev = &op->dev;
 	struct sirfsoc_dma *sdma = dev_get_drvdata(dev);
 
+	clk_disable_unprepare(sdma->clk);
 	dma_async_device_unregister(&sdma->dma);
 	free_irq(sdma->irq, sdma);
 	irq_dispose_mapping(sdma->irq);
@@ -742,7 +753,18 @@ static struct platform_driver sirfsoc_dma_driver = {
 	},
 };
 
-module_platform_driver(sirfsoc_dma_driver);
+static __init int sirfsoc_dma_init(void)
+{
+	return platform_driver_register(&sirfsoc_dma_driver);
+}
+
+static void __exit sirfsoc_dma_exit(void)
+{
+	platform_driver_unregister(&sirfsoc_dma_driver);
+}
+
+subsys_initcall(sirfsoc_dma_init);
+module_exit(sirfsoc_dma_exit);
 
 MODULE_AUTHOR("Rongjun Ying <rongjun.ying@csr.com>, "
 	"Barry Song <baohua.song@csr.com>");

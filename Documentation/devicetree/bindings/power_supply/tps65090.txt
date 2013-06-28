@@ -1,0 +1,17 @@
+TPS65090 Frontend PMU with Switchmode Charger
+
+Required Properties:
+-compatible: "ti,tps65090-charger"
+
+Optional Properties:
+-ti,enable-low-current-chrg: Enables charging when a low current is detected
+ while the default logic is to stop charging.
+
+This node is a subnode of the tps65090 PMIC.
+
+Example:
+
+	tps65090-charger {
+		compatible = "ti,tps65090-charger";
+		ti,enable-low-current-chrg;
+	};

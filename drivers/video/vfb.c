@@ -420,9 +420,12 @@ static int vfb_mmap(struct fb_info *info,
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long page, pos;
 
-	if (offset + size > info->fix.smem_len) {
+	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
-	}
+	if (size > info->fix.smem_len)
+		return -EINVAL;
+	if (offset > info->fix.smem_len - size)
+		return -EINVAL;
 
 	pos = (unsigned long)info->fix.smem_start + offset;
 

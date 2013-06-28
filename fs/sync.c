@@ -283,8 +283,8 @@ EXPORT_SYMBOL(generic_write_sync);
  * already-instantiated disk blocks, there are no guarantees here that the data
  * will be available after a crash.
  */
-SYSCALL_DEFINE(sync_file_range)(int fd, loff_t offset, loff_t nbytes,
-				unsigned int flags)
+SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
+				unsigned int, flags)
 {
 	int ret;
 	struct fd f;
@@ -365,29 +365,11 @@ out_put:
 out:
 	return ret;
 }
-#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
-asmlinkage long SyS_sync_file_range(long fd, loff_t offset, loff_t nbytes,
-				    long flags)
-{
-	return SYSC_sync_file_range((int) fd, offset, nbytes,
-				    (unsigned int) flags);
-}
-SYSCALL_ALIAS(sys_sync_file_range, SyS_sync_file_range);
-#endif
 
 /* It would be nice if people remember that not all the world's an i386
    when they introduce new system calls */
-SYSCALL_DEFINE(sync_file_range2)(int fd, unsigned int flags,
-				 loff_t offset, loff_t nbytes)
+SYSCALL_DEFINE4(sync_file_range2, int, fd, unsigned int, flags,
+				 loff_t, offset, loff_t, nbytes)
 {
 	return sys_sync_file_range(fd, offset, nbytes, flags);
 }
-#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
-asmlinkage long SyS_sync_file_range2(long fd, long flags,
-				     loff_t offset, loff_t nbytes)
-{
-	return SYSC_sync_file_range2((int) fd, (unsigned int) flags,
-				     offset, nbytes);
-}
-SYSCALL_ALIAS(sys_sync_file_range2, SyS_sync_file_range2);
-#endif

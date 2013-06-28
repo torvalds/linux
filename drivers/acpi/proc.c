@@ -120,7 +120,7 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 
 static int acpi_system_alarm_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_system_alarm_seq_show, PDE(inode)->data);
+	return single_open(file, acpi_system_alarm_seq_show, PDE_DATA(inode));
 }
 
 static int get_date_field(char **p, u32 * value)
@@ -397,7 +397,7 @@ static int
 acpi_system_wakeup_device_open_fs(struct inode *inode, struct file *file)
 {
 	return single_open(file, acpi_system_wakeup_device_seq_show,
-			   PDE(inode)->data);
+			   PDE_DATA(inode));
 }
 
 static const struct file_operations acpi_system_wakeup_device_fops = {

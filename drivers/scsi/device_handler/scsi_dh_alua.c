@@ -232,13 +232,13 @@ static void stpg_endio(struct request *req, int error)
 	struct scsi_sense_hdr sense_hdr;
 	unsigned err = SCSI_DH_OK;
 
-	if (error || host_byte(req->errors) != DID_OK ||
-			msg_byte(req->errors) != COMMAND_COMPLETE) {
+	if (host_byte(req->errors) != DID_OK ||
+	    msg_byte(req->errors) != COMMAND_COMPLETE) {
 		err = SCSI_DH_IO;
 		goto done;
 	}
 
-	if (h->senselen > 0) {
+	if (req->sense_len > 0) {
 		err = scsi_normalize_sense(h->sense, SCSI_SENSE_BUFFERSIZE,
 					   &sense_hdr);
 		if (!err) {
@@ -255,7 +255,9 @@ static void stpg_endio(struct request *req, int error)
 			    ALUA_DH_NAME, sense_hdr.sense_key,
 			    sense_hdr.asc, sense_hdr.ascq);
 		err = SCSI_DH_IO;
-	}
+	} else if (error)
+		err = SCSI_DH_IO;
+
 	if (err == SCSI_DH_OK) {
 		h->state = TPGS_STATE_OPTIMIZED;
 		sdev_printk(KERN_INFO, h->sdev,
@@ -710,6 +712,10 @@ static int alua_set_params(struct scsi_device *sdev, const char *params)
 	return result;
 }
 
+static uint optimize_stpg;
+module_param(optimize_stpg, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(optimize_stpg, "Allow use of a non-optimized path, rather than sending a STPG, when implicit TPGS is supported (0=No,1=Yes). Default is 0.");
+
 /*
  * alua_activate - activate a path
  * @sdev: device on the path to be activated
@@ -730,6 +736,9 @@ static int alua_activate(struct scsi_device *sdev,
 	err = alua_rtpg(sdev, h);
 	if (err != SCSI_DH_OK)
 		goto out;
+
+	if (optimize_stpg)
+		h->flags |= ALUA_OPTIMIZE_STPG;
 
 	if (h->tpgs & TPGS_MODE_EXPLICIT) {
 		switch (h->state) {

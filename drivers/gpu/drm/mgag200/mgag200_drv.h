@@ -115,6 +115,8 @@ struct mga_fbdev {
 	void *sysram;
 	int size;
 	struct ttm_bo_kmap_obj mapping;
+	int x1, y1, x2, y2; /* dirty rect */
+	spinlock_t dirty_lock;
 };
 
 struct mga_crtc {
@@ -215,7 +217,7 @@ mgag200_bo(struct ttm_buffer_object *bo)
 {
 	return container_of(bo, struct mgag200_bo, bo);
 }
-				/* mga_crtc.c */
+				/* mgag200_crtc.c */
 void mga_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 			     u16 blue, int regno);
 void mga_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
@@ -225,7 +227,7 @@ void mga_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 int mgag200_modeset_init(struct mga_device *mdev);
 void mgag200_modeset_fini(struct mga_device *mdev);
 
-				/* mga_fbdev.c */
+				/* mgag200_fb.c */
 int mgag200_fbdev_init(struct mga_device *mdev);
 void mgag200_fbdev_fini(struct mga_device *mdev);
 
@@ -254,7 +256,7 @@ mgag200_dumb_mmap_offset(struct drm_file *file,
 			 struct drm_device *dev,
 			 uint32_t handle,
 			 uint64_t *offset);
-				/* mga_i2c.c */
+				/* mgag200_i2c.c */
 struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev);
 void mgag200_i2c_destroy(struct mga_i2c_chan *i2c);
 

@@ -466,7 +466,8 @@ log_packet_common(struct sbuff *m,
 
 
 static void
-ipt_log_packet(u_int8_t pf,
+ipt_log_packet(struct net *net,
+	       u_int8_t pf,
 	       unsigned int hooknum,
 	       const struct sk_buff *skb,
 	       const struct net_device *in,
@@ -474,7 +475,13 @@ ipt_log_packet(u_int8_t pf,
 	       const struct nf_loginfo *loginfo,
 	       const char *prefix)
 {
-	struct sbuff *m = sb_open();
+	struct sbuff *m;
+
+	/* FIXME: Disabled from containers until syslog ns is supported */
+	if (!net_eq(net, &init_net))
+		return;
+
+	m = sb_open();
 
 	if (!loginfo)
 		loginfo = &default_loginfo;
@@ -730,7 +737,7 @@ static void dump_ipv6_packet(struct sbuff *m,
 		dump_sk_uid_gid(m, skb->sk);
 
 	/* Max length: 16 "MARK=0xFFFFFFFF " */
-	if (!recurse && skb->mark)
+	if (recurse && skb->mark)
 		sb_add(m, "MARK=0x%x ", skb->mark);
 }
 
@@ -790,7 +797,8 @@ fallback:
 }
 
 static void
-ip6t_log_packet(u_int8_t pf,
+ip6t_log_packet(struct net *net,
+		u_int8_t pf,
 		unsigned int hooknum,
 		const struct sk_buff *skb,
 		const struct net_device *in,
@@ -798,7 +806,13 @@ ip6t_log_packet(u_int8_t pf,
 		const struct nf_loginfo *loginfo,
 		const char *prefix)
 {
-	struct sbuff *m = sb_open();
+	struct sbuff *m;
+
+	/* FIXME: Disabled from containers until syslog ns is supported */
+	if (!net_eq(net, &init_net))
+		return;
+
+	m = sb_open();
 
 	if (!loginfo)
 		loginfo = &default_loginfo;
@@ -819,17 +833,18 @@ log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_log_info *loginfo = par->targinfo;
 	struct nf_loginfo li;
+	struct net *net = dev_net(par->in ? par->in : par->out);
 
 	li.type = NF_LOG_TYPE_LOG;
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
 	if (par->family == NFPROTO_IPV4)
-		ipt_log_packet(NFPROTO_IPV4, par->hooknum, skb, par->in,
+		ipt_log_packet(net, NFPROTO_IPV4, par->hooknum, skb, par->in,
 			       par->out, &li, loginfo->prefix);
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	else if (par->family == NFPROTO_IPV6)
-		ip6t_log_packet(NFPROTO_IPV6, par->hooknum, skb, par->in,
+		ip6t_log_packet(net, NFPROTO_IPV6, par->hooknum, skb, par->in,
 				par->out, &li, loginfo->prefix);
 #endif
 	else
@@ -893,23 +908,55 @@ static struct nf_logger ip6t_log_logger __read_mostly = {
 };
 #endif
 
+static int __net_init log_net_init(struct net *net)
+{
+	nf_log_set(net, NFPROTO_IPV4, &ipt_log_logger);
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+	nf_log_set(net, NFPROTO_IPV6, &ip6t_log_logger);
+#endif
+	return 0;
+}
+
+static void __net_exit log_net_exit(struct net *net)
+{
+	nf_log_unset(net, &ipt_log_logger);
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+	nf_log_unset(net, &ip6t_log_logger);
+#endif
+}
+
+static struct pernet_operations log_net_ops = {
+	.init = log_net_init,
+	.exit = log_net_exit,
+};
+
 static int __init log_tg_init(void)
 {
 	int ret;
 
+	ret = register_pernet_subsys(&log_net_ops);
+	if (ret < 0)
+		goto err_pernet;
+
 	ret = xt_register_targets(log_tg_regs, ARRAY_SIZE(log_tg_regs));
 	if (ret < 0)
-		return ret;
+		goto err_target;
 
 	nf_log_register(NFPROTO_IPV4, &ipt_log_logger);
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	nf_log_register(NFPROTO_IPV6, &ip6t_log_logger);
 #endif
 	return 0;
+
+err_target:
+	unregister_pernet_subsys(&log_net_ops);
+err_pernet:
+	return ret;
 }
 
 static void __exit log_tg_exit(void)
 {
+	unregister_pernet_subsys(&log_net_ops);
 	nf_log_unregister(&ipt_log_logger);
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	nf_log_unregister(&ip6t_log_logger);

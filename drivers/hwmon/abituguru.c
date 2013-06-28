@@ -96,9 +96,12 @@
 #define ABIT_UGURU_MAX_TIMEOUTS			2
 /* utility macros */
 #define ABIT_UGURU_NAME				"abituguru"
-#define ABIT_UGURU_DEBUG(level, format, arg...)				\
-	if (level <= verbose)						\
-		printk(KERN_DEBUG ABIT_UGURU_NAME ": "	format , ## arg)
+#define ABIT_UGURU_DEBUG(level, format, arg...)		\
+	do {						\
+		if (level <= verbose)			\
+			pr_debug(format , ## arg);	\
+	} while (0)
+
 /* Macros to help calculate the sysfs_names array length */
 /*
  * sum of strlen of: in??_input\0, in??_{min,max}\0, in??_{min,max}_alarm\0,
@@ -1411,14 +1414,18 @@ static int abituguru_probe(struct platform_device *pdev)
 	pr_info("found Abit uGuru\n");
 
 	/* Register sysfs hooks */
-	for (i = 0; i < sysfs_attr_i; i++)
-		if (device_create_file(&pdev->dev,
-				&data->sysfs_attr[i].dev_attr))
+	for (i = 0; i < sysfs_attr_i; i++) {
+		res = device_create_file(&pdev->dev,
+					 &data->sysfs_attr[i].dev_attr);
+		if (res)
 			goto abituguru_probe_error;
-	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
-		if (device_create_file(&pdev->dev,
-				&abituguru_sysfs_attr[i].dev_attr))
+	}
+	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++) {
+		res = device_create_file(&pdev->dev,
+					 &abituguru_sysfs_attr[i].dev_attr);
+		if (res)
 			goto abituguru_probe_error;
+	}
 
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
 	if (!IS_ERR(data->hwmon_dev))
@@ -1533,7 +1540,7 @@ static int abituguru_resume(struct device *dev)
 }
 
 static SIMPLE_DEV_PM_OPS(abituguru_pm, abituguru_suspend, abituguru_resume);
-#define ABIT_UGURU_PM	&abituguru_pm
+#define ABIT_UGURU_PM	(&abituguru_pm)
 #else
 #define ABIT_UGURU_PM	NULL
 #endif /* CONFIG_PM */

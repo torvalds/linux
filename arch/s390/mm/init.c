@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
+#include <linux/memory.h>
 #include <linux/pfn.h>
 #include <linux/poison.h>
 #include <linux/initrd.h>
@@ -36,17 +37,17 @@
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
 #include <asm/ctl_reg.h>
+#include <asm/sclp.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
 
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
 
-static unsigned long __init setup_zero_pages(void)
+static void __init setup_zero_pages(void)
 {
 	struct cpuid cpu_id;
 	unsigned int order;
-	unsigned long size;
 	struct page *page;
 	int i;
 
@@ -63,10 +64,18 @@ static unsigned long __init setup_zero_pages(void)
 		break;
 	case 0x2097:	/* z10 */
 	case 0x2098:	/* z10 */
-	default:
+	case 0x2817:	/* z196 */
+	case 0x2818:	/* z196 */
 		order = 2;
 		break;
+	case 0x2827:	/* zEC12 */
+	default:
+		order = 5;
+		break;
 	}
+	/* Limit number of empty zero pages for small memory sizes */
+	if (order > 2 && totalram_pages <= 16384)
+		order = 2;
 
 	empty_zero_page = __get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
 	if (!empty_zero_page)
@@ -75,14 +84,11 @@ static unsigned long __init setup_zero_pages(void)
 	page = virt_to_page((void *) empty_zero_page);
 	split_page(page, order);
 	for (i = 1 << order; i > 0; i--) {
-		SetPageReserved(page);
+		mark_page_reserved(page);
 		page++;
 	}
 
-	size = PAGE_SIZE << order;
-	zero_page_mask = (size - 1) & PAGE_MASK;
-
-	return 1UL << order;
+	zero_page_mask = ((PAGE_SIZE << order) - 1) & PAGE_MASK;
 }
 
 /*
@@ -139,7 +145,7 @@ void __init mem_init(void)
 
 	/* this will put all low memory onto the freelists */
 	totalram_pages += free_all_bootmem();
-	totalram_pages -= setup_zero_pages();	/* Setup zeroed pages. */
+	setup_zero_pages();	/* Setup zeroed pages. */
 
 	reservedpages = 0;
 
@@ -158,34 +164,15 @@ void __init mem_init(void)
 	       PFN_ALIGN((unsigned long)&_eshared) - 1);
 }
 
-void free_init_pages(char *what, unsigned long begin, unsigned long end)
-{
-	unsigned long addr = begin;
-
-	if (begin >= end)
-		return;
-	for (; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
-		memset((void *)(addr & PAGE_MASK), POISON_FREE_INITMEM,
-		       PAGE_SIZE);
-		free_page(addr);
-		totalram_pages++;
-	}
-	printk(KERN_INFO "Freeing %s: %luk freed\n", what, (end - begin) >> 10);
-}
-
 void free_initmem(void)
 {
-	free_init_pages("unused kernel memory",
-			(unsigned long)&__init_begin,
-			(unsigned long)&__init_end);
+	free_initmem_default(0);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
-	free_init_pages("initrd memory", start, end);
+	free_reserved_area(start, end, POISON_FREE_INITMEM, "initrd");
 }
 #endif
 
@@ -227,6 +214,15 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	if (rc)
 		vmem_remove_mapping(start, size);
 	return rc;
+}
+
+unsigned long memory_block_size_bytes(void)
+{
+	/*
+	 * Make sure the memory block size is always greater
+	 * or equal than the memory increment size.
+	 */
+	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp_get_rzm());
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE

@@ -379,7 +379,7 @@ brcms_c_channel_set_chanspec(struct brcms_cm_info *wlc_cm, u16 chanspec,
 			 u8 local_constraint_qdbm)
 {
 	struct brcms_c_info *wlc = wlc_cm->wlc;
-	struct ieee80211_channel *ch = wlc->pub->ieee_hw->conf.channel;
+	struct ieee80211_channel *ch = wlc->pub->ieee_hw->conf.chandef.chan;
 	struct txpwr_limits txpwr;
 
 	brcms_c_channel_reg_limits(wlc_cm, chanspec, &txpwr);
@@ -404,7 +404,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 		       struct txpwr_limits *txpwr)
 {
 	struct brcms_c_info *wlc = wlc_cm->wlc;
-	struct ieee80211_channel *ch = wlc->pub->ieee_hw->conf.channel;
+	struct ieee80211_channel *ch = wlc->pub->ieee_hw->conf.chandef.chan;
 	uint i;
 	uint chan;
 	int maxpwr;

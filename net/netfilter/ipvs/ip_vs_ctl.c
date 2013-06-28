@@ -55,9 +55,6 @@
 /* semaphore for IPVS sockopts. And, [gs]etsockopt may sleep. */
 static DEFINE_MUTEX(__ip_vs_mutex);
 
-/* lock for service table */
-static DEFINE_RWLOCK(__ip_vs_svc_lock);
-
 /* sysctl variables */
 
 #ifdef CONFIG_IP_VS_DEBUG
@@ -71,7 +68,7 @@ int ip_vs_get_debug_level(void)
 
 
 /*  Protos */
-static void __ip_vs_del_service(struct ip_vs_service *svc);
+static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup);
 
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -257,9 +254,9 @@ ip_vs_use_count_dec(void)
 #define IP_VS_SVC_TAB_MASK (IP_VS_SVC_TAB_SIZE - 1)
 
 /* the service table hashed by <protocol, addr, port> */
-static struct list_head ip_vs_svc_table[IP_VS_SVC_TAB_SIZE];
+static struct hlist_head ip_vs_svc_table[IP_VS_SVC_TAB_SIZE];
 /* the service table hashed by fwmark */
-static struct list_head ip_vs_svc_fwm_table[IP_VS_SVC_TAB_SIZE];
+static struct hlist_head ip_vs_svc_fwm_table[IP_VS_SVC_TAB_SIZE];
 
 
 /*
@@ -271,16 +268,18 @@ ip_vs_svc_hashkey(struct net *net, int af, unsigned int proto,
 {
 	register unsigned int porth = ntohs(port);
 	__be32 addr_fold = addr->ip;
+	__u32 ahash;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
 		addr_fold = addr->ip6[0]^addr->ip6[1]^
 			    addr->ip6[2]^addr->ip6[3];
 #endif
-	addr_fold ^= ((size_t)net>>8);
+	ahash = ntohl(addr_fold);
+	ahash ^= ((size_t) net >> 8);
 
-	return (proto^ntohl(addr_fold)^(porth>>IP_VS_SVC_TAB_BITS)^porth)
-		& IP_VS_SVC_TAB_MASK;
+	return (proto ^ ahash ^ (porth >> IP_VS_SVC_TAB_BITS) ^ porth) &
+	       IP_VS_SVC_TAB_MASK;
 }
 
 /*
@@ -312,13 +311,13 @@ static int ip_vs_svc_hash(struct ip_vs_service *svc)
 		 */
 		hash = ip_vs_svc_hashkey(svc->net, svc->af, svc->protocol,
 					 &svc->addr, svc->port);
-		list_add(&svc->s_list, &ip_vs_svc_table[hash]);
+		hlist_add_head_rcu(&svc->s_list, &ip_vs_svc_table[hash]);
 	} else {
 		/*
 		 *  Hash it by fwmark in svc_fwm_table
 		 */
 		hash = ip_vs_svc_fwm_hashkey(svc->net, svc->fwmark);
-		list_add(&svc->f_list, &ip_vs_svc_fwm_table[hash]);
+		hlist_add_head_rcu(&svc->f_list, &ip_vs_svc_fwm_table[hash]);
 	}
 
 	svc->flags |= IP_VS_SVC_F_HASHED;
@@ -342,10 +341,10 @@ static int ip_vs_svc_unhash(struct ip_vs_service *svc)
 
 	if (svc->fwmark == 0) {
 		/* Remove it from the svc_table table */
-		list_del(&svc->s_list);
+		hlist_del_rcu(&svc->s_list);
 	} else {
 		/* Remove it from the svc_fwm_table table */
-		list_del(&svc->f_list);
+		hlist_del_rcu(&svc->f_list);
 	}
 
 	svc->flags &= ~IP_VS_SVC_F_HASHED;
@@ -367,7 +366,7 @@ __ip_vs_service_find(struct net *net, int af, __u16 protocol,
 	/* Check for "full" addressed entries */
 	hash = ip_vs_svc_hashkey(net, af, protocol, vaddr, vport);
 
-	list_for_each_entry(svc, &ip_vs_svc_table[hash], s_list){
+	hlist_for_each_entry_rcu(svc, &ip_vs_svc_table[hash], s_list) {
 		if ((svc->af == af)
 		    && ip_vs_addr_equal(af, &svc->addr, vaddr)
 		    && (svc->port == vport)
@@ -394,7 +393,7 @@ __ip_vs_svc_fwm_find(struct net *net, int af, __u32 fwmark)
 	/* Check for fwmark addressed entries */
 	hash = ip_vs_svc_fwm_hashkey(net, fwmark);
 
-	list_for_each_entry(svc, &ip_vs_svc_fwm_table[hash], f_list) {
+	hlist_for_each_entry_rcu(svc, &ip_vs_svc_fwm_table[hash], f_list) {
 		if (svc->fwmark == fwmark && svc->af == af
 		    && net_eq(svc->net, net)) {
 			/* HIT */
@@ -405,14 +404,13 @@ __ip_vs_svc_fwm_find(struct net *net, int af, __u32 fwmark)
 	return NULL;
 }
 
+/* Find service, called under RCU lock */
 struct ip_vs_service *
-ip_vs_service_get(struct net *net, int af, __u32 fwmark, __u16 protocol,
-		  const union nf_inet_addr *vaddr, __be16 vport)
+ip_vs_service_find(struct net *net, int af, __u32 fwmark, __u16 protocol,
+		   const union nf_inet_addr *vaddr, __be16 vport)
 {
 	struct ip_vs_service *svc;
 	struct netns_ipvs *ipvs = net_ipvs(net);
-
-	read_lock(&__ip_vs_svc_lock);
 
 	/*
 	 *	Check the table hashed by fwmark first
@@ -449,10 +447,6 @@ ip_vs_service_get(struct net *net, int af, __u32 fwmark, __u16 protocol,
 	}
 
   out:
-	if (svc)
-		atomic_inc(&svc->usecnt);
-	read_unlock(&__ip_vs_svc_lock);
-
 	IP_VS_DBG_BUF(9, "lookup service: fwm %u %s %s:%u %s\n",
 		      fwmark, ip_vs_proto_name(protocol),
 		      IP_VS_DBG_ADDR(af, vaddr), ntohs(vport),
@@ -469,6 +463,13 @@ __ip_vs_bind_svc(struct ip_vs_dest *dest, struct ip_vs_service *svc)
 	dest->svc = svc;
 }
 
+static void ip_vs_service_free(struct ip_vs_service *svc)
+{
+	if (svc->stats.cpustats)
+		free_percpu(svc->stats.cpustats);
+	kfree(svc);
+}
+
 static void
 __ip_vs_unbind_svc(struct ip_vs_dest *dest)
 {
@@ -476,12 +477,11 @@ __ip_vs_unbind_svc(struct ip_vs_dest *dest)
 
 	dest->svc = NULL;
 	if (atomic_dec_and_test(&svc->refcnt)) {
-		IP_VS_DBG_BUF(3, "Removing service %u/%s:%u usecnt=%d\n",
+		IP_VS_DBG_BUF(3, "Removing service %u/%s:%u\n",
 			      svc->fwmark,
 			      IP_VS_DBG_ADDR(svc->af, &svc->addr),
-			      ntohs(svc->port), atomic_read(&svc->usecnt));
-		free_percpu(svc->stats.cpustats);
-		kfree(svc);
+			      ntohs(svc->port));
+		ip_vs_service_free(svc);
 	}
 }
 
@@ -506,17 +506,13 @@ static inline unsigned int ip_vs_rs_hashkey(int af,
 		& IP_VS_RTAB_MASK;
 }
 
-/*
- *	Hashes ip_vs_dest in rs_table by <proto,addr,port>.
- *	should be called with locked tables.
- */
-static int ip_vs_rs_hash(struct netns_ipvs *ipvs, struct ip_vs_dest *dest)
+/* Hash ip_vs_dest in rs_table by <proto,addr,port>. */
+static void ip_vs_rs_hash(struct netns_ipvs *ipvs, struct ip_vs_dest *dest)
 {
 	unsigned int hash;
 
-	if (!list_empty(&dest->d_list)) {
-		return 0;
-	}
+	if (dest->in_rs_table)
+		return;
 
 	/*
 	 *	Hash by proto,addr,port,
@@ -524,64 +520,51 @@ static int ip_vs_rs_hash(struct netns_ipvs *ipvs, struct ip_vs_dest *dest)
 	 */
 	hash = ip_vs_rs_hashkey(dest->af, &dest->addr, dest->port);
 
-	list_add(&dest->d_list, &ipvs->rs_table[hash]);
-
-	return 1;
+	hlist_add_head_rcu(&dest->d_list, &ipvs->rs_table[hash]);
+	dest->in_rs_table = 1;
 }
 
-/*
- *	UNhashes ip_vs_dest from rs_table.
- *	should be called with locked tables.
- */
-static int ip_vs_rs_unhash(struct ip_vs_dest *dest)
+/* Unhash ip_vs_dest from rs_table. */
+static void ip_vs_rs_unhash(struct ip_vs_dest *dest)
 {
 	/*
 	 * Remove it from the rs_table table.
 	 */
-	if (!list_empty(&dest->d_list)) {
-		list_del_init(&dest->d_list);
+	if (dest->in_rs_table) {
+		hlist_del_rcu(&dest->d_list);
+		dest->in_rs_table = 0;
 	}
-
-	return 1;
 }
 
-/*
- *	Lookup real service by <proto,addr,port> in the real service table.
- */
-struct ip_vs_dest *
-ip_vs_lookup_real_service(struct net *net, int af, __u16 protocol,
-			  const union nf_inet_addr *daddr,
-			  __be16 dport)
+/* Check if real service by <proto,addr,port> is present */
+bool ip_vs_has_real_service(struct net *net, int af, __u16 protocol,
+			    const union nf_inet_addr *daddr, __be16 dport)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	unsigned int hash;
 	struct ip_vs_dest *dest;
 
-	/*
-	 *	Check for "full" addressed entries
-	 *	Return the first found entry
-	 */
+	/* Check for "full" addressed entries */
 	hash = ip_vs_rs_hashkey(af, daddr, dport);
 
-	read_lock(&ipvs->rs_lock);
-	list_for_each_entry(dest, &ipvs->rs_table[hash], d_list) {
-		if ((dest->af == af)
-		    && ip_vs_addr_equal(af, &dest->addr, daddr)
-		    && (dest->port == dport)
-		    && ((dest->protocol == protocol) ||
-			dest->vfwmark)) {
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(dest, &ipvs->rs_table[hash], d_list) {
+		if (dest->port == dport &&
+		    dest->af == af &&
+		    ip_vs_addr_equal(af, &dest->addr, daddr) &&
+		    (dest->protocol == protocol || dest->vfwmark)) {
 			/* HIT */
-			read_unlock(&ipvs->rs_lock);
-			return dest;
+			rcu_read_unlock();
+			return true;
 		}
 	}
-	read_unlock(&ipvs->rs_lock);
+	rcu_read_unlock();
 
-	return NULL;
+	return false;
 }
 
-/*
- *	Lookup destination by {addr,port} in the given service
+/* Lookup destination by {addr,port} in the given service
+ * Called under RCU lock.
  */
 static struct ip_vs_dest *
 ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
@@ -592,7 +575,7 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 	/*
 	 * Find the destination for the given service
 	 */
-	list_for_each_entry(dest, &svc->destinations, n_list) {
+	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
 		if ((dest->af == svc->af)
 		    && ip_vs_addr_equal(svc->af, &dest->addr, daddr)
 		    && (dest->port == dport)) {
@@ -606,13 +589,11 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 
 /*
  * Find destination by {daddr,dport,vaddr,protocol}
- * Cretaed to be used in ip_vs_process_message() in
+ * Created to be used in ip_vs_process_message() in
  * the backup synchronization daemon. It finds the
  * destination to be bound to the received connection
  * on the backup.
- *
- * ip_vs_lookup_real_service() looked promissing, but
- * seems not working as expected.
+ * Called under RCU lock, no refcnt is returned.
  */
 struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
 				   const union nf_inet_addr *daddr,
@@ -625,7 +606,7 @@ struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
 	struct ip_vs_service *svc;
 	__be16 port = dport;
 
-	svc = ip_vs_service_get(net, af, fwmark, protocol, vaddr, vport);
+	svc = ip_vs_service_find(net, af, fwmark, protocol, vaddr, vport);
 	if (!svc)
 		return NULL;
 	if (fwmark && (flags & IP_VS_CONN_F_FWD_MASK) != IP_VS_CONN_F_MASQ)
@@ -633,10 +614,29 @@ struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
 	dest = ip_vs_lookup_dest(svc, daddr, port);
 	if (!dest)
 		dest = ip_vs_lookup_dest(svc, daddr, port ^ dport);
-	if (dest)
-		atomic_inc(&dest->refcnt);
-	ip_vs_service_put(svc);
 	return dest;
+}
+
+void ip_vs_dest_dst_rcu_free(struct rcu_head *head)
+{
+	struct ip_vs_dest_dst *dest_dst = container_of(head,
+						       struct ip_vs_dest_dst,
+						       rcu_head);
+
+	dst_release(dest_dst->dst_cache);
+	kfree(dest_dst);
+}
+
+/* Release dest_dst and dst_cache for dest in user context */
+static void __ip_vs_dst_cache_reset(struct ip_vs_dest *dest)
+{
+	struct ip_vs_dest_dst *old;
+
+	old = rcu_dereference_protected(dest->dest_dst, 1);
+	if (old) {
+		RCU_INIT_POINTER(dest->dest_dst, NULL);
+		call_rcu(&old->rcu_head, ip_vs_dest_dst_rcu_free);
+	}
 }
 
 /*
@@ -653,19 +653,25 @@ static struct ip_vs_dest *
 ip_vs_trash_get_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 		     __be16 dport)
 {
-	struct ip_vs_dest *dest, *nxt;
+	struct ip_vs_dest *dest;
 	struct netns_ipvs *ipvs = net_ipvs(svc->net);
 
 	/*
 	 * Find the destination in trash
 	 */
-	list_for_each_entry_safe(dest, nxt, &ipvs->dest_trash, n_list) {
+	spin_lock_bh(&ipvs->dest_trash_lock);
+	list_for_each_entry(dest, &ipvs->dest_trash, t_list) {
 		IP_VS_DBG_BUF(3, "Destination %u/%s:%u still in trash, "
 			      "dest->refcnt=%d\n",
 			      dest->vfwmark,
 			      IP_VS_DBG_ADDR(svc->af, &dest->addr),
 			      ntohs(dest->port),
 			      atomic_read(&dest->refcnt));
+		/* We can not reuse dest while in grace period
+		 * because conns still can use dest->svc
+		 */
+		if (test_bit(IP_VS_DEST_STATE_REMOVING, &dest->state))
+			continue;
 		if (dest->af == svc->af &&
 		    ip_vs_addr_equal(svc->af, &dest->addr, daddr) &&
 		    dest->port == dport &&
@@ -675,29 +681,27 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 		     (ip_vs_addr_equal(svc->af, &dest->vaddr, &svc->addr) &&
 		      dest->vport == svc->port))) {
 			/* HIT */
-			return dest;
-		}
-
-		/*
-		 * Try to purge the destination from trash if not referenced
-		 */
-		if (atomic_read(&dest->refcnt) == 1) {
-			IP_VS_DBG_BUF(3, "Removing destination %u/%s:%u "
-				      "from trash\n",
-				      dest->vfwmark,
-				      IP_VS_DBG_ADDR(svc->af, &dest->addr),
-				      ntohs(dest->port));
-			list_del(&dest->n_list);
-			ip_vs_dst_reset(dest);
-			__ip_vs_unbind_svc(dest);
-			free_percpu(dest->stats.cpustats);
-			kfree(dest);
+			list_del(&dest->t_list);
+			ip_vs_dest_hold(dest);
+			goto out;
 		}
 	}
 
-	return NULL;
+	dest = NULL;
+
+out:
+	spin_unlock_bh(&ipvs->dest_trash_lock);
+
+	return dest;
 }
 
+static void ip_vs_dest_free(struct ip_vs_dest *dest)
+{
+	__ip_vs_dst_cache_reset(dest);
+	__ip_vs_unbind_svc(dest);
+	free_percpu(dest->stats.cpustats);
+	kfree(dest);
+}
 
 /*
  *  Clean up all the destinations in the trash
@@ -706,19 +710,18 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
  *  When the ip_vs_control_clearup is activated by ipvs module exit,
  *  the service tables must have been flushed and all the connections
  *  are expired, and the refcnt of each destination in the trash must
- *  be 1, so we simply release them here.
+ *  be 0, so we simply release them here.
  */
 static void ip_vs_trash_cleanup(struct net *net)
 {
 	struct ip_vs_dest *dest, *nxt;
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	list_for_each_entry_safe(dest, nxt, &ipvs->dest_trash, n_list) {
-		list_del(&dest->n_list);
-		ip_vs_dst_reset(dest);
-		__ip_vs_unbind_svc(dest);
-		free_percpu(dest->stats.cpustats);
-		kfree(dest);
+	del_timer_sync(&ipvs->dest_trash_timer);
+	/* No need to use dest_trash_lock */
+	list_for_each_entry_safe(dest, nxt, &ipvs->dest_trash, t_list) {
+		list_del(&dest->t_list);
+		ip_vs_dest_free(dest);
 	}
 }
 
@@ -768,6 +771,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 		    struct ip_vs_dest_user_kern *udest, int add)
 {
 	struct netns_ipvs *ipvs = net_ipvs(svc->net);
+	struct ip_vs_scheduler *sched;
 	int conn_flags;
 
 	/* set the weight and the flags */
@@ -783,9 +787,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 		 *    Put the real service in rs_table if not present.
 		 *    For now only for NAT!
 		 */
-		write_lock_bh(&ipvs->rs_lock);
 		ip_vs_rs_hash(ipvs, dest);
-		write_unlock_bh(&ipvs->rs_lock);
 	}
 	atomic_set(&dest->conn_flags, conn_flags);
 
@@ -809,27 +811,20 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	dest->l_threshold = udest->l_threshold;
 
 	spin_lock_bh(&dest->dst_lock);
-	ip_vs_dst_reset(dest);
+	__ip_vs_dst_cache_reset(dest);
 	spin_unlock_bh(&dest->dst_lock);
 
-	if (add)
-		ip_vs_start_estimator(svc->net, &dest->stats);
-
-	write_lock_bh(&__ip_vs_svc_lock);
-
-	/* Wait until all other svc users go away */
-	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 0);
-
+	sched = rcu_dereference_protected(svc->scheduler, 1);
 	if (add) {
-		list_add(&dest->n_list, &svc->destinations);
+		ip_vs_start_estimator(svc->net, &dest->stats);
+		list_add_rcu(&dest->n_list, &svc->destinations);
 		svc->num_dests++;
+		if (sched->add_dest)
+			sched->add_dest(svc, dest);
+	} else {
+		if (sched->upd_dest)
+			sched->upd_dest(svc, dest);
 	}
-
-	/* call the update_service, because server weight may be changed */
-	if (svc->scheduler->update_service)
-		svc->scheduler->update_service(svc);
-
-	write_unlock_bh(&__ip_vs_svc_lock);
 }
 
 
@@ -881,7 +876,7 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 	atomic_set(&dest->persistconns, 0);
 	atomic_set(&dest->refcnt, 1);
 
-	INIT_LIST_HEAD(&dest->d_list);
+	INIT_HLIST_NODE(&dest->d_list);
 	spin_lock_init(&dest->dst_lock);
 	spin_lock_init(&dest->stats.lock);
 	__ip_vs_update_dest(svc, dest, udest, 1);
@@ -923,10 +918,10 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	ip_vs_addr_copy(svc->af, &daddr, &udest->addr);
 
-	/*
-	 * Check if the dest already exists in the list
-	 */
+	/* We use function that requires RCU lock */
+	rcu_read_lock();
 	dest = ip_vs_lookup_dest(svc, &daddr, dport);
+	rcu_read_unlock();
 
 	if (dest != NULL) {
 		IP_VS_DBG(1, "%s(): dest already exists\n", __func__);
@@ -947,11 +942,6 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 			      dest->vfwmark,
 			      IP_VS_DBG_ADDR(svc->af, &dest->vaddr),
 			      ntohs(dest->vport));
-
-		/*
-		 * Get the destination from the trash
-		 */
-		list_del(&dest->n_list);
 
 		__ip_vs_update_dest(svc, dest, udest, 1);
 		ret = 0;
@@ -992,10 +982,10 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	ip_vs_addr_copy(svc->af, &daddr, &udest->addr);
 
-	/*
-	 *  Lookup the destination list
-	 */
+	/* We use function that requires RCU lock */
+	rcu_read_lock();
 	dest = ip_vs_lookup_dest(svc, &daddr, dport);
+	rcu_read_unlock();
 
 	if (dest == NULL) {
 		IP_VS_DBG(1, "%s(): dest doesn't exist\n", __func__);
@@ -1008,11 +998,21 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	return 0;
 }
 
+static void ip_vs_dest_wait_readers(struct rcu_head *head)
+{
+	struct ip_vs_dest *dest = container_of(head, struct ip_vs_dest,
+					       rcu_head);
+
+	/* End of grace period after unlinking */
+	clear_bit(IP_VS_DEST_STATE_REMOVING, &dest->state);
+}
+
 
 /*
  *	Delete a destination (must be already unlinked from the service)
  */
-static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest)
+static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest,
+			     bool cleanup)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
@@ -1021,38 +1021,24 @@ static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest)
 	/*
 	 *  Remove it from the d-linked list with the real services.
 	 */
-	write_lock_bh(&ipvs->rs_lock);
 	ip_vs_rs_unhash(dest);
-	write_unlock_bh(&ipvs->rs_lock);
 
-	/*
-	 *  Decrease the refcnt of the dest, and free the dest
-	 *  if nobody refers to it (refcnt=0). Otherwise, throw
-	 *  the destination into the trash.
-	 */
-	if (atomic_dec_and_test(&dest->refcnt)) {
-		IP_VS_DBG_BUF(3, "Removing destination %u/%s:%u\n",
-			      dest->vfwmark,
-			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
-			      ntohs(dest->port));
-		ip_vs_dst_reset(dest);
-		/* simply decrease svc->refcnt here, let the caller check
-		   and release the service if nobody refers to it.
-		   Only user context can release destination and service,
-		   and only one user context can update virtual service at a
-		   time, so the operation here is OK */
-		atomic_dec(&dest->svc->refcnt);
-		free_percpu(dest->stats.cpustats);
-		kfree(dest);
-	} else {
-		IP_VS_DBG_BUF(3, "Moving dest %s:%u into trash, "
-			      "dest->refcnt=%d\n",
-			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
-			      ntohs(dest->port),
-			      atomic_read(&dest->refcnt));
-		list_add(&dest->n_list, &ipvs->dest_trash);
-		atomic_inc(&dest->refcnt);
+	if (!cleanup) {
+		set_bit(IP_VS_DEST_STATE_REMOVING, &dest->state);
+		call_rcu(&dest->rcu_head, ip_vs_dest_wait_readers);
 	}
+
+	spin_lock_bh(&ipvs->dest_trash_lock);
+	IP_VS_DBG_BUF(3, "Moving dest %s:%u into trash, dest->refcnt=%d\n",
+		      IP_VS_DBG_ADDR(dest->af, &dest->addr), ntohs(dest->port),
+		      atomic_read(&dest->refcnt));
+	if (list_empty(&ipvs->dest_trash) && !cleanup)
+		mod_timer(&ipvs->dest_trash_timer,
+			  jiffies + IP_VS_DEST_TRASH_PERIOD);
+	/* dest lives in trash without reference */
+	list_add(&dest->t_list, &ipvs->dest_trash);
+	spin_unlock_bh(&ipvs->dest_trash_lock);
+	ip_vs_dest_put(dest);
 }
 
 
@@ -1068,14 +1054,16 @@ static void __ip_vs_unlink_dest(struct ip_vs_service *svc,
 	/*
 	 *  Remove it from the d-linked destination list.
 	 */
-	list_del(&dest->n_list);
+	list_del_rcu(&dest->n_list);
 	svc->num_dests--;
 
-	/*
-	 *  Call the update_service function of its scheduler
-	 */
-	if (svcupd && svc->scheduler->update_service)
-			svc->scheduler->update_service(svc);
+	if (svcupd) {
+		struct ip_vs_scheduler *sched;
+
+		sched = rcu_dereference_protected(svc->scheduler, 1);
+		if (sched->del_dest)
+			sched->del_dest(svc, dest);
+	}
 }
 
 
@@ -1090,37 +1078,56 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	EnterFunction(2);
 
+	/* We use function that requires RCU lock */
+	rcu_read_lock();
 	dest = ip_vs_lookup_dest(svc, &udest->addr, dport);
+	rcu_read_unlock();
 
 	if (dest == NULL) {
 		IP_VS_DBG(1, "%s(): destination not found!\n", __func__);
 		return -ENOENT;
 	}
 
-	write_lock_bh(&__ip_vs_svc_lock);
-
-	/*
-	 *	Wait until all other svc users go away.
-	 */
-	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 0);
-
 	/*
 	 *	Unlink dest from the service
 	 */
 	__ip_vs_unlink_dest(svc, dest, 1);
 
-	write_unlock_bh(&__ip_vs_svc_lock);
-
 	/*
 	 *	Delete the destination
 	 */
-	__ip_vs_del_dest(svc->net, dest);
+	__ip_vs_del_dest(svc->net, dest, false);
 
 	LeaveFunction(2);
 
 	return 0;
 }
 
+static void ip_vs_dest_trash_expire(unsigned long data)
+{
+	struct net *net = (struct net *) data;
+	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct ip_vs_dest *dest, *next;
+
+	spin_lock(&ipvs->dest_trash_lock);
+	list_for_each_entry_safe(dest, next, &ipvs->dest_trash, t_list) {
+		/* Skip if dest is in grace period */
+		if (test_bit(IP_VS_DEST_STATE_REMOVING, &dest->state))
+			continue;
+		if (atomic_read(&dest->refcnt) > 0)
+			continue;
+		IP_VS_DBG_BUF(3, "Removing destination %u/%s:%u from trash\n",
+			      dest->vfwmark,
+			      IP_VS_DBG_ADDR(dest->svc->af, &dest->addr),
+			      ntohs(dest->port));
+		list_del(&dest->t_list);
+		ip_vs_dest_free(dest);
+	}
+	if (!list_empty(&ipvs->dest_trash))
+		mod_timer(&ipvs->dest_trash_timer,
+			  jiffies + IP_VS_DEST_TRASH_PERIOD);
+	spin_unlock(&ipvs->dest_trash_lock);
+}
 
 /*
  *	Add a service into the service hash table
@@ -1157,9 +1164,13 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	}
 
 #ifdef CONFIG_IP_VS_IPV6
-	if (u->af == AF_INET6 && (u->netmask < 1 || u->netmask > 128)) {
-		ret = -EINVAL;
-		goto out_err;
+	if (u->af == AF_INET6) {
+		__u32 plen = (__force __u32) u->netmask;
+
+		if (plen < 1 || plen > 128) {
+			ret = -EINVAL;
+			goto out_err;
+		}
 	}
 #endif
 
@@ -1176,7 +1187,6 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	}
 
 	/* I'm the first user of the service */
-	atomic_set(&svc->usecnt, 0);
 	atomic_set(&svc->refcnt, 0);
 
 	svc->af = u->af;
@@ -1190,7 +1200,7 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	svc->net = net;
 
 	INIT_LIST_HEAD(&svc->destinations);
-	rwlock_init(&svc->sched_lock);
+	spin_lock_init(&svc->sched_lock);
 	spin_lock_init(&svc->stats.lock);
 
 	/* Bind the scheduler */
@@ -1200,7 +1210,7 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	sched = NULL;
 
 	/* Bind the ct retriever */
-	ip_vs_bind_pe(svc, pe);
+	RCU_INIT_POINTER(svc->pe, pe);
 	pe = NULL;
 
 	/* Update the virtual service counters */
@@ -1216,9 +1226,7 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 		ipvs->num_services++;
 
 	/* Hash the service into the service table */
-	write_lock_bh(&__ip_vs_svc_lock);
 	ip_vs_svc_hash(svc);
-	write_unlock_bh(&__ip_vs_svc_lock);
 
 	*svc_p = svc;
 	/* Now there is a service - full throttle */
@@ -1228,15 +1236,8 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 
  out_err:
 	if (svc != NULL) {
-		ip_vs_unbind_scheduler(svc);
-		if (svc->inc) {
-			local_bh_disable();
-			ip_vs_app_inc_put(svc->inc);
-			local_bh_enable();
-		}
-		if (svc->stats.cpustats)
-			free_percpu(svc->stats.cpustats);
-		kfree(svc);
+		ip_vs_unbind_scheduler(svc, sched);
+		ip_vs_service_free(svc);
 	}
 	ip_vs_scheduler_put(sched);
 	ip_vs_pe_put(pe);
@@ -1280,18 +1281,27 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	}
 
 #ifdef CONFIG_IP_VS_IPV6
-	if (u->af == AF_INET6 && (u->netmask < 1 || u->netmask > 128)) {
-		ret = -EINVAL;
-		goto out;
+	if (u->af == AF_INET6) {
+		__u32 plen = (__force __u32) u->netmask;
+
+		if (plen < 1 || plen > 128) {
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 #endif
 
-	write_lock_bh(&__ip_vs_svc_lock);
-
-	/*
-	 * Wait until all other svc users go away.
-	 */
-	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 0);
+	old_sched = rcu_dereference_protected(svc->scheduler, 1);
+	if (sched != old_sched) {
+		/* Bind the new scheduler */
+		ret = ip_vs_bind_scheduler(svc, sched);
+		if (ret) {
+			old_sched = sched;
+			goto out;
+		}
+		/* Unbind the old scheduler on success */
+		ip_vs_unbind_scheduler(svc, old_sched);
+	}
 
 	/*
 	 * Set the flags and timeout value
@@ -1300,57 +1310,30 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	svc->timeout = u->timeout * HZ;
 	svc->netmask = u->netmask;
 
-	old_sched = svc->scheduler;
-	if (sched != old_sched) {
-		/*
-		 * Unbind the old scheduler
-		 */
-		if ((ret = ip_vs_unbind_scheduler(svc))) {
-			old_sched = sched;
-			goto out_unlock;
-		}
+	old_pe = rcu_dereference_protected(svc->pe, 1);
+	if (pe != old_pe)
+		rcu_assign_pointer(svc->pe, pe);
 
-		/*
-		 * Bind the new scheduler
-		 */
-		if ((ret = ip_vs_bind_scheduler(svc, sched))) {
-			/*
-			 * If ip_vs_bind_scheduler fails, restore the old
-			 * scheduler.
-			 * The main reason of failure is out of memory.
-			 *
-			 * The question is if the old scheduler can be
-			 * restored all the time. TODO: if it cannot be
-			 * restored some time, we must delete the service,
-			 * otherwise the system may crash.
-			 */
-			ip_vs_bind_scheduler(svc, old_sched);
-			old_sched = sched;
-			goto out_unlock;
-		}
-	}
-
-	old_pe = svc->pe;
-	if (pe != old_pe) {
-		ip_vs_unbind_pe(svc);
-		ip_vs_bind_pe(svc, pe);
-	}
-
-out_unlock:
-	write_unlock_bh(&__ip_vs_svc_lock);
 out:
 	ip_vs_scheduler_put(old_sched);
 	ip_vs_pe_put(old_pe);
 	return ret;
 }
 
+static void ip_vs_service_rcu_free(struct rcu_head *head)
+{
+	struct ip_vs_service *svc;
+
+	svc = container_of(head, struct ip_vs_service, rcu_head);
+	ip_vs_service_free(svc);
+}
 
 /*
  *	Delete a service from the service list
  *	- The service must be unlinked, unlocked and not referenced!
  *	- We are called under _bh lock
  */
-static void __ip_vs_del_service(struct ip_vs_service *svc)
+static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
 {
 	struct ip_vs_dest *dest, *nxt;
 	struct ip_vs_scheduler *old_sched;
@@ -1366,27 +1349,20 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 	ip_vs_stop_estimator(svc->net, &svc->stats);
 
 	/* Unbind scheduler */
-	old_sched = svc->scheduler;
-	ip_vs_unbind_scheduler(svc);
+	old_sched = rcu_dereference_protected(svc->scheduler, 1);
+	ip_vs_unbind_scheduler(svc, old_sched);
 	ip_vs_scheduler_put(old_sched);
 
-	/* Unbind persistence engine */
-	old_pe = svc->pe;
-	ip_vs_unbind_pe(svc);
+	/* Unbind persistence engine, keep svc->pe */
+	old_pe = rcu_dereference_protected(svc->pe, 1);
 	ip_vs_pe_put(old_pe);
-
-	/* Unbind app inc */
-	if (svc->inc) {
-		ip_vs_app_inc_put(svc->inc);
-		svc->inc = NULL;
-	}
 
 	/*
 	 *    Unlink the whole destination list
 	 */
 	list_for_each_entry_safe(dest, nxt, &svc->destinations, n_list) {
 		__ip_vs_unlink_dest(svc, dest, 0);
-		__ip_vs_del_dest(svc->net, dest);
+		__ip_vs_del_dest(svc->net, dest, cleanup);
 	}
 
 	/*
@@ -1400,13 +1376,12 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 	/*
 	 *    Free the service if nobody refers to it
 	 */
-	if (atomic_read(&svc->refcnt) == 0) {
-		IP_VS_DBG_BUF(3, "Removing service %u/%s:%u usecnt=%d\n",
+	if (atomic_dec_and_test(&svc->refcnt)) {
+		IP_VS_DBG_BUF(3, "Removing service %u/%s:%u\n",
 			      svc->fwmark,
 			      IP_VS_DBG_ADDR(svc->af, &svc->addr),
-			      ntohs(svc->port), atomic_read(&svc->usecnt));
-		free_percpu(svc->stats.cpustats);
-		kfree(svc);
+			      ntohs(svc->port));
+		call_rcu(&svc->rcu_head, ip_vs_service_rcu_free);
 	}
 
 	/* decrease the module use count */
@@ -1416,23 +1391,16 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 /*
  * Unlink a service from list and try to delete it if its refcnt reached 0
  */
-static void ip_vs_unlink_service(struct ip_vs_service *svc)
+static void ip_vs_unlink_service(struct ip_vs_service *svc, bool cleanup)
 {
+	/* Hold svc to avoid double release from dest_trash */
+	atomic_inc(&svc->refcnt);
 	/*
 	 * Unhash it from the service table
 	 */
-	write_lock_bh(&__ip_vs_svc_lock);
-
 	ip_vs_svc_unhash(svc);
 
-	/*
-	 * Wait until all the svc users go away.
-	 */
-	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 0);
-
-	__ip_vs_del_service(svc);
-
-	write_unlock_bh(&__ip_vs_svc_lock);
+	__ip_vs_del_service(svc, cleanup);
 }
 
 /*
@@ -1442,7 +1410,7 @@ static int ip_vs_del_service(struct ip_vs_service *svc)
 {
 	if (svc == NULL)
 		return -EEXIST;
-	ip_vs_unlink_service(svc);
+	ip_vs_unlink_service(svc, false);
 
 	return 0;
 }
@@ -1451,19 +1419,20 @@ static int ip_vs_del_service(struct ip_vs_service *svc)
 /*
  *	Flush all the virtual services
  */
-static int ip_vs_flush(struct net *net)
+static int ip_vs_flush(struct net *net, bool cleanup)
 {
 	int idx;
-	struct ip_vs_service *svc, *nxt;
+	struct ip_vs_service *svc;
+	struct hlist_node *n;
 
 	/*
 	 * Flush the service table hashed by <netns,protocol,addr,port>
 	 */
 	for(idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
-		list_for_each_entry_safe(svc, nxt, &ip_vs_svc_table[idx],
-					 s_list) {
+		hlist_for_each_entry_safe(svc, n, &ip_vs_svc_table[idx],
+					  s_list) {
 			if (net_eq(svc->net, net))
-				ip_vs_unlink_service(svc);
+				ip_vs_unlink_service(svc, cleanup);
 		}
 	}
 
@@ -1471,10 +1440,10 @@ static int ip_vs_flush(struct net *net)
 	 * Flush the service table hashed by fwmark
 	 */
 	for(idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
-		list_for_each_entry_safe(svc, nxt,
-					 &ip_vs_svc_fwm_table[idx], f_list) {
+		hlist_for_each_entry_safe(svc, n, &ip_vs_svc_fwm_table[idx],
+					  f_list) {
 			if (net_eq(svc->net, net))
-				ip_vs_unlink_service(svc);
+				ip_vs_unlink_service(svc, cleanup);
 		}
 	}
 
@@ -1490,32 +1459,32 @@ void ip_vs_service_net_cleanup(struct net *net)
 	EnterFunction(2);
 	/* Check for "full" addressed entries */
 	mutex_lock(&__ip_vs_mutex);
-	ip_vs_flush(net);
+	ip_vs_flush(net, true);
 	mutex_unlock(&__ip_vs_mutex);
 	LeaveFunction(2);
 }
-/*
- * Release dst hold by dst_cache
- */
+
+/* Put all references for device (dst_cache) */
 static inline void
-__ip_vs_dev_reset(struct ip_vs_dest *dest, struct net_device *dev)
+ip_vs_forget_dev(struct ip_vs_dest *dest, struct net_device *dev)
 {
+	struct ip_vs_dest_dst *dest_dst;
+
 	spin_lock_bh(&dest->dst_lock);
-	if (dest->dst_cache && dest->dst_cache->dev == dev) {
+	dest_dst = rcu_dereference_protected(dest->dest_dst, 1);
+	if (dest_dst && dest_dst->dst_cache->dev == dev) {
 		IP_VS_DBG_BUF(3, "Reset dev:%s dest %s:%u ,dest->refcnt=%d\n",
 			      dev->name,
 			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
 			      ntohs(dest->port),
 			      atomic_read(&dest->refcnt));
-		ip_vs_dst_reset(dest);
+		__ip_vs_dst_cache_reset(dest);
 	}
 	spin_unlock_bh(&dest->dst_lock);
 
 }
-/*
- * Netdev event receiver
- * Currently only NETDEV_UNREGISTER is handled, i.e. if we hold a reference to
- * a device that is "unregister" it must be released.
+/* Netdev event receiver
+ * Currently only NETDEV_DOWN is handled to release refs to cached dsts
  */
 static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
 			    void *ptr)
@@ -1527,35 +1496,37 @@ static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
 	struct ip_vs_dest *dest;
 	unsigned int idx;
 
-	if (event != NETDEV_UNREGISTER || !ipvs)
+	if (event != NETDEV_DOWN || !ipvs)
 		return NOTIFY_DONE;
 	IP_VS_DBG(3, "%s() dev=%s\n", __func__, dev->name);
 	EnterFunction(2);
 	mutex_lock(&__ip_vs_mutex);
 	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
-		list_for_each_entry(svc, &ip_vs_svc_table[idx], s_list) {
+		hlist_for_each_entry(svc, &ip_vs_svc_table[idx], s_list) {
 			if (net_eq(svc->net, net)) {
 				list_for_each_entry(dest, &svc->destinations,
 						    n_list) {
-					__ip_vs_dev_reset(dest, dev);
+					ip_vs_forget_dev(dest, dev);
 				}
 			}
 		}
 
-		list_for_each_entry(svc, &ip_vs_svc_fwm_table[idx], f_list) {
+		hlist_for_each_entry(svc, &ip_vs_svc_fwm_table[idx], f_list) {
 			if (net_eq(svc->net, net)) {
 				list_for_each_entry(dest, &svc->destinations,
 						    n_list) {
-					__ip_vs_dev_reset(dest, dev);
+					ip_vs_forget_dev(dest, dev);
 				}
 			}
 
 		}
 	}
 
-	list_for_each_entry(dest, &ipvs->dest_trash, n_list) {
-		__ip_vs_dev_reset(dest, dev);
+	spin_lock_bh(&ipvs->dest_trash_lock);
+	list_for_each_entry(dest, &ipvs->dest_trash, t_list) {
+		ip_vs_forget_dev(dest, dev);
 	}
+	spin_unlock_bh(&ipvs->dest_trash_lock);
 	mutex_unlock(&__ip_vs_mutex);
 	LeaveFunction(2);
 	return NOTIFY_DONE;
@@ -1568,12 +1539,10 @@ static int ip_vs_zero_service(struct ip_vs_service *svc)
 {
 	struct ip_vs_dest *dest;
 
-	write_lock_bh(&__ip_vs_svc_lock);
 	list_for_each_entry(dest, &svc->destinations, n_list) {
 		ip_vs_zero_stats(&dest->stats);
 	}
 	ip_vs_zero_stats(&svc->stats);
-	write_unlock_bh(&__ip_vs_svc_lock);
 	return 0;
 }
 
@@ -1583,14 +1552,14 @@ static int ip_vs_zero_all(struct net *net)
 	struct ip_vs_service *svc;
 
 	for(idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
-		list_for_each_entry(svc, &ip_vs_svc_table[idx], s_list) {
+		hlist_for_each_entry(svc, &ip_vs_svc_table[idx], s_list) {
 			if (net_eq(svc->net, net))
 				ip_vs_zero_service(svc);
 		}
 	}
 
 	for(idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
-		list_for_each_entry(svc, &ip_vs_svc_fwm_table[idx], f_list) {
+		hlist_for_each_entry(svc, &ip_vs_svc_fwm_table[idx], f_list) {
 			if (net_eq(svc->net, net))
 				ip_vs_zero_service(svc);
 		}
@@ -1808,6 +1777,12 @@ static struct ctl_table vs_vars[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+	{
+		.procname	= "backup_only",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
 #ifdef CONFIG_IP_VS_DEBUG
 	{
 		.procname	= "debug_level",
@@ -1912,7 +1887,7 @@ static struct ctl_table vs_vars[] = {
 
 struct ip_vs_iter {
 	struct seq_net_private p;  /* Do not move this, netns depends upon it*/
-	struct list_head *table;
+	struct hlist_head *table;
 	int bucket;
 };
 
@@ -1945,7 +1920,7 @@ static struct ip_vs_service *ip_vs_info_array(struct seq_file *seq, loff_t pos)
 
 	/* look in hash by protocol */
 	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
-		list_for_each_entry(svc, &ip_vs_svc_table[idx], s_list) {
+		hlist_for_each_entry_rcu(svc, &ip_vs_svc_table[idx], s_list) {
 			if (net_eq(svc->net, net) && pos-- == 0) {
 				iter->table = ip_vs_svc_table;
 				iter->bucket = idx;
@@ -1956,7 +1931,8 @@ static struct ip_vs_service *ip_vs_info_array(struct seq_file *seq, loff_t pos)
 
 	/* keep looking in fwmark */
 	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
-		list_for_each_entry(svc, &ip_vs_svc_fwm_table[idx], f_list) {
+		hlist_for_each_entry_rcu(svc, &ip_vs_svc_fwm_table[idx],
+					 f_list) {
 			if (net_eq(svc->net, net) && pos-- == 0) {
 				iter->table = ip_vs_svc_fwm_table;
 				iter->bucket = idx;
@@ -1969,17 +1945,16 @@ static struct ip_vs_service *ip_vs_info_array(struct seq_file *seq, loff_t pos)
 }
 
 static void *ip_vs_info_seq_start(struct seq_file *seq, loff_t *pos)
-__acquires(__ip_vs_svc_lock)
+	__acquires(RCU)
 {
-
-	read_lock_bh(&__ip_vs_svc_lock);
+	rcu_read_lock();
 	return *pos ? ip_vs_info_array(seq, *pos - 1) : SEQ_START_TOKEN;
 }
 
 
 static void *ip_vs_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct list_head *e;
+	struct hlist_node *e;
 	struct ip_vs_iter *iter;
 	struct ip_vs_service *svc;
 
@@ -1992,13 +1967,14 @@ static void *ip_vs_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	if (iter->table == ip_vs_svc_table) {
 		/* next service in table hashed by protocol */
-		if ((e = svc->s_list.next) != &ip_vs_svc_table[iter->bucket])
-			return list_entry(e, struct ip_vs_service, s_list);
-
+		e = rcu_dereference(hlist_next_rcu(&svc->s_list));
+		if (e)
+			return hlist_entry(e, struct ip_vs_service, s_list);
 
 		while (++iter->bucket < IP_VS_SVC_TAB_SIZE) {
-			list_for_each_entry(svc,&ip_vs_svc_table[iter->bucket],
-					    s_list) {
+			hlist_for_each_entry_rcu(svc,
+						 &ip_vs_svc_table[iter->bucket],
+						 s_list) {
 				return svc;
 			}
 		}
@@ -2009,13 +1985,15 @@ static void *ip_vs_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	}
 
 	/* next service in hashed by fwmark */
-	if ((e = svc->f_list.next) != &ip_vs_svc_fwm_table[iter->bucket])
-		return list_entry(e, struct ip_vs_service, f_list);
+	e = rcu_dereference(hlist_next_rcu(&svc->f_list));
+	if (e)
+		return hlist_entry(e, struct ip_vs_service, f_list);
 
  scan_fwmark:
 	while (++iter->bucket < IP_VS_SVC_TAB_SIZE) {
-		list_for_each_entry(svc, &ip_vs_svc_fwm_table[iter->bucket],
-				    f_list)
+		hlist_for_each_entry_rcu(svc,
+					 &ip_vs_svc_fwm_table[iter->bucket],
+					 f_list)
 			return svc;
 	}
 
@@ -2023,9 +2001,9 @@ static void *ip_vs_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void ip_vs_info_seq_stop(struct seq_file *seq, void *v)
-__releases(__ip_vs_svc_lock)
+	__releases(RCU)
 {
-	read_unlock_bh(&__ip_vs_svc_lock);
+	rcu_read_unlock();
 }
 
 
@@ -2043,6 +2021,7 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 		const struct ip_vs_service *svc = v;
 		const struct ip_vs_iter *iter = seq->private;
 		const struct ip_vs_dest *dest;
+		struct ip_vs_scheduler *sched = rcu_dereference(svc->scheduler);
 
 		if (iter->table == ip_vs_svc_table) {
 #ifdef CONFIG_IP_VS_IPV6
@@ -2051,18 +2030,18 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 					   ip_vs_proto_name(svc->protocol),
 					   &svc->addr.in6,
 					   ntohs(svc->port),
-					   svc->scheduler->name);
+					   sched->name);
 			else
 #endif
 				seq_printf(seq, "%s  %08X:%04X %s %s ",
 					   ip_vs_proto_name(svc->protocol),
 					   ntohl(svc->addr.ip),
 					   ntohs(svc->port),
-					   svc->scheduler->name,
+					   sched->name,
 					   (svc->flags & IP_VS_SVC_F_ONEPACKET)?"ops ":"");
 		} else {
 			seq_printf(seq, "FWM  %08X %s %s",
-				   svc->fwmark, svc->scheduler->name,
+				   svc->fwmark, sched->name,
 				   (svc->flags & IP_VS_SVC_F_ONEPACKET)?"ops ":"");
 		}
 
@@ -2073,7 +2052,7 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 		else
 			seq_putc(seq, '\n');
 
-		list_for_each_entry(dest, &svc->destinations, n_list) {
+		list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
 #ifdef CONFIG_IP_VS_IPV6
 			if (dest->af == AF_INET6)
 				seq_printf(seq,
@@ -2167,7 +2146,7 @@ static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
 {
 	struct net *net = seq_file_single_net(seq);
 	struct ip_vs_stats *tot_stats = &net_ipvs(net)->tot_stats;
-	struct ip_vs_cpu_stats *cpustats = tot_stats->cpustats;
+	struct ip_vs_cpu_stats __percpu *cpustats = tot_stats->cpustats;
 	struct ip_vs_stats_user rates;
 	int i;
 
@@ -2383,7 +2362,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 
 	if (cmd == IP_VS_SO_SET_FLUSH) {
 		/* Flush the virtual service */
-		ret = ip_vs_flush(net);
+		ret = ip_vs_flush(net, false);
 		goto out_unlock;
 	} else if (cmd == IP_VS_SO_SET_TIMEOUT) {
 		/* Set timeout values for (tcp tcpfin udp) */
@@ -2418,11 +2397,13 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	}
 
 	/* Lookup the exact service by <protocol, addr, port> or fwmark */
+	rcu_read_lock();
 	if (usvc.fwmark == 0)
 		svc = __ip_vs_service_find(net, usvc.af, usvc.protocol,
 					   &usvc.addr, usvc.port);
 	else
 		svc = __ip_vs_svc_fwm_find(net, usvc.af, usvc.fwmark);
+	rcu_read_unlock();
 
 	if (cmd != IP_VS_SO_SET_ADD
 	    && (svc == NULL || svc->protocol != usvc.protocol)) {
@@ -2474,11 +2455,14 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 static void
 ip_vs_copy_service(struct ip_vs_service_entry *dst, struct ip_vs_service *src)
 {
+	struct ip_vs_scheduler *sched;
+
+	sched = rcu_dereference_protected(src->scheduler, 1);
 	dst->protocol = src->protocol;
 	dst->addr = src->addr.ip;
 	dst->port = src->port;
 	dst->fwmark = src->fwmark;
-	strlcpy(dst->sched_name, src->scheduler->name, sizeof(dst->sched_name));
+	strlcpy(dst->sched_name, sched->name, sizeof(dst->sched_name));
 	dst->flags = src->flags;
 	dst->timeout = src->timeout / HZ;
 	dst->netmask = src->netmask;
@@ -2497,7 +2481,7 @@ __ip_vs_get_service_entries(struct net *net,
 	int ret = 0;
 
 	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
-		list_for_each_entry(svc, &ip_vs_svc_table[idx], s_list) {
+		hlist_for_each_entry(svc, &ip_vs_svc_table[idx], s_list) {
 			/* Only expose IPv4 entries to old interface */
 			if (svc->af != AF_INET || !net_eq(svc->net, net))
 				continue;
@@ -2516,7 +2500,7 @@ __ip_vs_get_service_entries(struct net *net,
 	}
 
 	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
-		list_for_each_entry(svc, &ip_vs_svc_fwm_table[idx], f_list) {
+		hlist_for_each_entry(svc, &ip_vs_svc_fwm_table[idx], f_list) {
 			/* Only expose IPv4 entries to old interface */
 			if (svc->af != AF_INET || !net_eq(svc->net, net))
 				continue;
@@ -2545,11 +2529,13 @@ __ip_vs_get_dest_entries(struct net *net, const struct ip_vs_get_dests *get,
 	union nf_inet_addr addr = { .ip = get->addr };
 	int ret = 0;
 
+	rcu_read_lock();
 	if (get->fwmark)
 		svc = __ip_vs_svc_fwm_find(net, AF_INET, get->fwmark);
 	else
 		svc = __ip_vs_service_find(net, AF_INET, get->protocol, &addr,
 					   get->port);
+	rcu_read_unlock();
 
 	if (svc) {
 		int count = 0;
@@ -2732,12 +2718,14 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 
 		entry = (struct ip_vs_service_entry *)arg;
 		addr.ip = entry->addr;
+		rcu_read_lock();
 		if (entry->fwmark)
 			svc = __ip_vs_svc_fwm_find(net, AF_INET, entry->fwmark);
 		else
 			svc = __ip_vs_service_find(net, AF_INET,
 						   entry->protocol, &addr,
 						   entry->port);
+		rcu_read_unlock();
 		if (svc) {
 			ip_vs_copy_service(entry, svc);
 			if (copy_to_user(user, entry, sizeof(*entry)) != 0)
@@ -2894,6 +2882,8 @@ nla_put_failure:
 static int ip_vs_genl_fill_service(struct sk_buff *skb,
 				   struct ip_vs_service *svc)
 {
+	struct ip_vs_scheduler *sched;
+	struct ip_vs_pe *pe;
 	struct nlattr *nl_service;
 	struct ip_vs_flags flags = { .flags = svc->flags,
 				     .mask = ~0 };
@@ -2910,16 +2900,17 @@ static int ip_vs_genl_fill_service(struct sk_buff *skb,
 	} else {
 		if (nla_put_u16(skb, IPVS_SVC_ATTR_PROTOCOL, svc->protocol) ||
 		    nla_put(skb, IPVS_SVC_ATTR_ADDR, sizeof(svc->addr), &svc->addr) ||
-		    nla_put_u16(skb, IPVS_SVC_ATTR_PORT, svc->port))
+		    nla_put_be16(skb, IPVS_SVC_ATTR_PORT, svc->port))
 			goto nla_put_failure;
 	}
 
-	if (nla_put_string(skb, IPVS_SVC_ATTR_SCHED_NAME, svc->scheduler->name) ||
-	    (svc->pe &&
-	     nla_put_string(skb, IPVS_SVC_ATTR_PE_NAME, svc->pe->name)) ||
+	sched = rcu_dereference_protected(svc->scheduler, 1);
+	pe = rcu_dereference_protected(svc->pe, 1);
+	if (nla_put_string(skb, IPVS_SVC_ATTR_SCHED_NAME, sched->name) ||
+	    (pe && nla_put_string(skb, IPVS_SVC_ATTR_PE_NAME, pe->name)) ||
 	    nla_put(skb, IPVS_SVC_ATTR_FLAGS, sizeof(flags), &flags) ||
 	    nla_put_u32(skb, IPVS_SVC_ATTR_TIMEOUT, svc->timeout / HZ) ||
-	    nla_put_u32(skb, IPVS_SVC_ATTR_NETMASK, svc->netmask))
+	    nla_put_be32(skb, IPVS_SVC_ATTR_NETMASK, svc->netmask))
 		goto nla_put_failure;
 	if (ip_vs_genl_fill_stats(skb, IPVS_SVC_ATTR_STATS, &svc->stats))
 		goto nla_put_failure;
@@ -2965,7 +2956,7 @@ static int ip_vs_genl_dump_services(struct sk_buff *skb,
 
 	mutex_lock(&__ip_vs_mutex);
 	for (i = 0; i < IP_VS_SVC_TAB_SIZE; i++) {
-		list_for_each_entry(svc, &ip_vs_svc_table[i], s_list) {
+		hlist_for_each_entry(svc, &ip_vs_svc_table[i], s_list) {
 			if (++idx <= start || !net_eq(svc->net, net))
 				continue;
 			if (ip_vs_genl_dump_service(skb, svc, cb) < 0) {
@@ -2976,7 +2967,7 @@ static int ip_vs_genl_dump_services(struct sk_buff *skb,
 	}
 
 	for (i = 0; i < IP_VS_SVC_TAB_SIZE; i++) {
-		list_for_each_entry(svc, &ip_vs_svc_fwm_table[i], f_list) {
+		hlist_for_each_entry(svc, &ip_vs_svc_fwm_table[i], f_list) {
 			if (++idx <= start || !net_eq(svc->net, net))
 				continue;
 			if (ip_vs_genl_dump_service(skb, svc, cb) < 0) {
@@ -3032,15 +3023,17 @@ static int ip_vs_genl_parse_service(struct net *net,
 	} else {
 		usvc->protocol = nla_get_u16(nla_protocol);
 		nla_memcpy(&usvc->addr, nla_addr, sizeof(usvc->addr));
-		usvc->port = nla_get_u16(nla_port);
+		usvc->port = nla_get_be16(nla_port);
 		usvc->fwmark = 0;
 	}
 
+	rcu_read_lock();
 	if (usvc->fwmark)
 		svc = __ip_vs_svc_fwm_find(net, usvc->af, usvc->fwmark);
 	else
 		svc = __ip_vs_service_find(net, usvc->af, usvc->protocol,
 					   &usvc->addr, usvc->port);
+	rcu_read_unlock();
 	*ret_svc = svc;
 
 	/* If a full entry was requested, check for the additional fields */
@@ -3070,7 +3063,7 @@ static int ip_vs_genl_parse_service(struct net *net,
 		usvc->sched_name = nla_data(nla_sched);
 		usvc->pe_name = nla_pe ? nla_data(nla_pe) : NULL;
 		usvc->timeout = nla_get_u32(nla_timeout);
-		usvc->netmask = nla_get_u32(nla_netmask);
+		usvc->netmask = nla_get_be32(nla_netmask);
 	}
 
 	return 0;
@@ -3096,7 +3089,7 @@ static int ip_vs_genl_fill_dest(struct sk_buff *skb, struct ip_vs_dest *dest)
 		return -EMSGSIZE;
 
 	if (nla_put(skb, IPVS_DEST_ATTR_ADDR, sizeof(dest->addr), &dest->addr) ||
-	    nla_put_u16(skb, IPVS_DEST_ATTR_PORT, dest->port) ||
+	    nla_put_be16(skb, IPVS_DEST_ATTR_PORT, dest->port) ||
 	    nla_put_u32(skb, IPVS_DEST_ATTR_FWD_METHOD,
 			(atomic_read(&dest->conn_flags) &
 			 IP_VS_CONN_F_FWD_MASK)) ||
@@ -3205,7 +3198,7 @@ static int ip_vs_genl_parse_dest(struct ip_vs_dest_user_kern *udest,
 	memset(udest, 0, sizeof(*udest));
 
 	nla_memcpy(&udest->addr, nla_addr, sizeof(udest->addr));
-	udest->port = nla_get_u16(nla_port);
+	udest->port = nla_get_be16(nla_port);
 
 	/* If a full entry was requested, check for the additional fields */
 	if (full_entry) {
@@ -3230,8 +3223,8 @@ static int ip_vs_genl_parse_dest(struct ip_vs_dest_user_kern *udest,
 	return 0;
 }
 
-static int ip_vs_genl_fill_daemon(struct sk_buff *skb, __be32 state,
-				  const char *mcast_ifn, __be32 syncid)
+static int ip_vs_genl_fill_daemon(struct sk_buff *skb, __u32 state,
+				  const char *mcast_ifn, __u32 syncid)
 {
 	struct nlattr *nl_daemon;
 
@@ -3252,8 +3245,8 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int ip_vs_genl_dump_daemon(struct sk_buff *skb, __be32 state,
-				  const char *mcast_ifn, __be32 syncid,
+static int ip_vs_genl_dump_daemon(struct sk_buff *skb, __u32 state,
+				  const char *mcast_ifn, __u32 syncid,
 				  struct netlink_callback *cb)
 {
 	void *hdr;
@@ -3392,7 +3385,7 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 	mutex_lock(&__ip_vs_mutex);
 
 	if (cmd == IPVS_CMD_FLUSH) {
-		ret = ip_vs_flush(net);
+		ret = ip_vs_flush(net, false);
 		goto out;
 	} else if (cmd == IPVS_CMD_SET_CONFIG) {
 		ret = ip_vs_genl_set_config(net, info->attrs);
@@ -3741,6 +3734,7 @@ static int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 	tbl[idx++].data = &ipvs->sysctl_nat_icmp_send;
 	ipvs->sysctl_pmtu_disc = 1;
 	tbl[idx++].data = &ipvs->sysctl_pmtu_disc;
+	tbl[idx++].data = &ipvs->sysctl_backup_only;
 
 
 	ipvs->sysctl_hdr = register_net_sysctl(net, "net/ipv4/vs", tbl);
@@ -3783,13 +3777,14 @@ int __net_init ip_vs_control_net_init(struct net *net)
 	int idx;
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	rwlock_init(&ipvs->rs_lock);
-
 	/* Initialize rs_table */
 	for (idx = 0; idx < IP_VS_RTAB_SIZE; idx++)
-		INIT_LIST_HEAD(&ipvs->rs_table[idx]);
+		INIT_HLIST_HEAD(&ipvs->rs_table[idx]);
 
 	INIT_LIST_HEAD(&ipvs->dest_trash);
+	spin_lock_init(&ipvs->dest_trash_lock);
+	setup_timer(&ipvs->dest_trash_timer, ip_vs_dest_trash_expire,
+		    (unsigned long) net);
 	atomic_set(&ipvs->ftpsvc_counter, 0);
 	atomic_set(&ipvs->nullsvc_counter, 0);
 
@@ -3819,6 +3814,10 @@ void __net_exit ip_vs_control_net_cleanup(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
+	/* Some dest can be in grace period even before cleanup, we have to
+	 * defer ip_vs_trash_cleanup until ip_vs_dest_wait_readers is called.
+	 */
+	rcu_barrier();
 	ip_vs_trash_cleanup(net);
 	ip_vs_stop_estimator(net, &ipvs->tot_stats);
 	ip_vs_control_net_cleanup_sysctl(net);
@@ -3864,10 +3863,10 @@ int __init ip_vs_control_init(void)
 
 	EnterFunction(2);
 
-	/* Initialize svc_table, ip_vs_svc_fwm_table, rs_table */
+	/* Initialize svc_table, ip_vs_svc_fwm_table */
 	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
-		INIT_LIST_HEAD(&ip_vs_svc_table[idx]);
-		INIT_LIST_HEAD(&ip_vs_svc_fwm_table[idx]);
+		INIT_HLIST_HEAD(&ip_vs_svc_table[idx]);
+		INIT_HLIST_HEAD(&ip_vs_svc_fwm_table[idx]);
 	}
 
 	smp_wmb();	/* Do we really need it now ? */

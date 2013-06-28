@@ -357,7 +357,7 @@ static int s5c73m3_load_fw(struct v4l2_subdev *sd)
 		return -EINVAL;
 	}
 
-	v4l2_info(sd, "Loading firmware (%s, %d B)\n", fw_name, fw->size);
+	v4l2_info(sd, "Loading firmware (%s, %zu B)\n", fw_name, fw->size);
 
 	ret = s5c73m3_spi_write(state, fw->data, fw->size, 64);
 
@@ -1457,6 +1457,12 @@ static int s5c73m3_oif_registered(struct v4l2_subdev *sd)
 	return ret;
 }
 
+static void s5c73m3_oif_unregistered(struct v4l2_subdev *sd)
+{
+	struct s5c73m3 *state = oif_sd_to_s5c73m3(sd);
+	v4l2_device_unregister_subdev(&state->sensor_sd);
+}
+
 static const struct v4l2_subdev_internal_ops s5c73m3_internal_ops = {
 	.open		= s5c73m3_open,
 };
@@ -1474,6 +1480,7 @@ static const struct v4l2_subdev_ops s5c73m3_subdev_ops = {
 
 static const struct v4l2_subdev_internal_ops oif_internal_ops = {
 	.registered	= s5c73m3_oif_registered,
+	.unregistered	= s5c73m3_oif_unregistered,
 	.open		= s5c73m3_oif_open,
 };
 
@@ -1668,13 +1675,17 @@ out_err1:
 
 static int s5c73m3_remove(struct i2c_client *client)
 {
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct s5c73m3 *state = sensor_sd_to_s5c73m3(sd);
+	struct v4l2_subdev *oif_sd = i2c_get_clientdata(client);
+	struct s5c73m3 *state = oif_sd_to_s5c73m3(oif_sd);
+	struct v4l2_subdev *sensor_sd = &state->sensor_sd;
 
-	v4l2_device_unregister_subdev(sd);
+	v4l2_device_unregister_subdev(oif_sd);
 
-	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	media_entity_cleanup(&sd->entity);
+	v4l2_ctrl_handler_free(oif_sd->ctrl_handler);
+	media_entity_cleanup(&oif_sd->entity);
+
+	v4l2_device_unregister_subdev(sensor_sd);
+	media_entity_cleanup(&sensor_sd->entity);
 
 	s5c73m3_unregister_spi_driver(state);
 	s5c73m3_free_gpios(state);

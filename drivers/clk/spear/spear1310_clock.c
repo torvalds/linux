@@ -17,12 +17,10 @@
 #include <linux/io.h>
 #include <linux/of_platform.h>
 #include <linux/spinlock_types.h>
-#include <mach/spear.h>
 #include "clk.h"
 
-#define VA_SPEAR1310_RAS_BASE			IOMEM(UL(0xFA400000))
 /* PLL related registers and bit values */
-#define SPEAR1310_PLL_CFG			(VA_MISC_BASE + 0x210)
+#define SPEAR1310_PLL_CFG			(misc_base + 0x210)
 	/* PLL_CFG bit values */
 	#define SPEAR1310_CLCD_SYNT_CLK_MASK		1
 	#define SPEAR1310_CLCD_SYNT_CLK_SHIFT		31
@@ -35,15 +33,15 @@
 	#define SPEAR1310_PLL2_CLK_SHIFT		22
 	#define SPEAR1310_PLL1_CLK_SHIFT		20
 
-#define SPEAR1310_PLL1_CTR			(VA_MISC_BASE + 0x214)
-#define SPEAR1310_PLL1_FRQ			(VA_MISC_BASE + 0x218)
-#define SPEAR1310_PLL2_CTR			(VA_MISC_BASE + 0x220)
-#define SPEAR1310_PLL2_FRQ			(VA_MISC_BASE + 0x224)
-#define SPEAR1310_PLL3_CTR			(VA_MISC_BASE + 0x22C)
-#define SPEAR1310_PLL3_FRQ			(VA_MISC_BASE + 0x230)
-#define SPEAR1310_PLL4_CTR			(VA_MISC_BASE + 0x238)
-#define SPEAR1310_PLL4_FRQ			(VA_MISC_BASE + 0x23C)
-#define SPEAR1310_PERIP_CLK_CFG			(VA_MISC_BASE + 0x244)
+#define SPEAR1310_PLL1_CTR			(misc_base + 0x214)
+#define SPEAR1310_PLL1_FRQ			(misc_base + 0x218)
+#define SPEAR1310_PLL2_CTR			(misc_base + 0x220)
+#define SPEAR1310_PLL2_FRQ			(misc_base + 0x224)
+#define SPEAR1310_PLL3_CTR			(misc_base + 0x22C)
+#define SPEAR1310_PLL3_FRQ			(misc_base + 0x230)
+#define SPEAR1310_PLL4_CTR			(misc_base + 0x238)
+#define SPEAR1310_PLL4_FRQ			(misc_base + 0x23C)
+#define SPEAR1310_PERIP_CLK_CFG			(misc_base + 0x244)
 	/* PERIP_CLK_CFG bit values */
 	#define SPEAR1310_GPT_OSC24_VAL			0
 	#define SPEAR1310_GPT_APB_VAL			1
@@ -65,7 +63,7 @@
 	#define SPEAR1310_C3_CLK_MASK			1
 	#define SPEAR1310_C3_CLK_SHIFT			1
 
-#define SPEAR1310_GMAC_CLK_CFG			(VA_MISC_BASE + 0x248)
+#define SPEAR1310_GMAC_CLK_CFG			(misc_base + 0x248)
 	#define SPEAR1310_GMAC_PHY_IF_SEL_MASK		3
 	#define SPEAR1310_GMAC_PHY_IF_SEL_SHIFT		4
 	#define SPEAR1310_GMAC_PHY_CLK_MASK		1
@@ -73,7 +71,7 @@
 	#define SPEAR1310_GMAC_PHY_INPUT_CLK_MASK	2
 	#define SPEAR1310_GMAC_PHY_INPUT_CLK_SHIFT	1
 
-#define SPEAR1310_I2S_CLK_CFG			(VA_MISC_BASE + 0x24C)
+#define SPEAR1310_I2S_CLK_CFG			(misc_base + 0x24C)
 	/* I2S_CLK_CFG register mask */
 	#define SPEAR1310_I2S_SCLK_X_MASK		0x1F
 	#define SPEAR1310_I2S_SCLK_X_SHIFT		27
@@ -91,21 +89,21 @@
 	#define SPEAR1310_I2S_SRC_CLK_MASK		2
 	#define SPEAR1310_I2S_SRC_CLK_SHIFT		0
 
-#define SPEAR1310_C3_CLK_SYNT			(VA_MISC_BASE + 0x250)
-#define SPEAR1310_UART_CLK_SYNT			(VA_MISC_BASE + 0x254)
-#define SPEAR1310_GMAC_CLK_SYNT			(VA_MISC_BASE + 0x258)
-#define SPEAR1310_SDHCI_CLK_SYNT		(VA_MISC_BASE + 0x25C)
-#define SPEAR1310_CFXD_CLK_SYNT			(VA_MISC_BASE + 0x260)
-#define SPEAR1310_ADC_CLK_SYNT			(VA_MISC_BASE + 0x264)
-#define SPEAR1310_AMBA_CLK_SYNT			(VA_MISC_BASE + 0x268)
-#define SPEAR1310_CLCD_CLK_SYNT			(VA_MISC_BASE + 0x270)
-#define SPEAR1310_RAS_CLK_SYNT0			(VA_MISC_BASE + 0x280)
-#define SPEAR1310_RAS_CLK_SYNT1			(VA_MISC_BASE + 0x288)
-#define SPEAR1310_RAS_CLK_SYNT2			(VA_MISC_BASE + 0x290)
-#define SPEAR1310_RAS_CLK_SYNT3			(VA_MISC_BASE + 0x298)
+#define SPEAR1310_C3_CLK_SYNT			(misc_base + 0x250)
+#define SPEAR1310_UART_CLK_SYNT			(misc_base + 0x254)
+#define SPEAR1310_GMAC_CLK_SYNT			(misc_base + 0x258)
+#define SPEAR1310_SDHCI_CLK_SYNT		(misc_base + 0x25C)
+#define SPEAR1310_CFXD_CLK_SYNT			(misc_base + 0x260)
+#define SPEAR1310_ADC_CLK_SYNT			(misc_base + 0x264)
+#define SPEAR1310_AMBA_CLK_SYNT			(misc_base + 0x268)
+#define SPEAR1310_CLCD_CLK_SYNT			(misc_base + 0x270)
+#define SPEAR1310_RAS_CLK_SYNT0			(misc_base + 0x280)
+#define SPEAR1310_RAS_CLK_SYNT1			(misc_base + 0x288)
+#define SPEAR1310_RAS_CLK_SYNT2			(misc_base + 0x290)
+#define SPEAR1310_RAS_CLK_SYNT3			(misc_base + 0x298)
 	/* Check Fractional synthesizer reg masks */
 
-#define SPEAR1310_PERIP1_CLK_ENB		(VA_MISC_BASE + 0x300)
+#define SPEAR1310_PERIP1_CLK_ENB		(misc_base + 0x300)
 	/* PERIP1_CLK_ENB register masks */
 	#define SPEAR1310_RTC_CLK_ENB			31
 	#define SPEAR1310_ADC_CLK_ENB			30
@@ -138,7 +136,7 @@
 	#define SPEAR1310_SYSROM_CLK_ENB		1
 	#define SPEAR1310_BUS_CLK_ENB			0
 
-#define SPEAR1310_PERIP2_CLK_ENB		(VA_MISC_BASE + 0x304)
+#define SPEAR1310_PERIP2_CLK_ENB		(misc_base + 0x304)
 	/* PERIP2_CLK_ENB register masks */
 	#define SPEAR1310_THSENS_CLK_ENB		8
 	#define SPEAR1310_I2S_REF_PAD_CLK_ENB		7
@@ -150,7 +148,7 @@
 	#define SPEAR1310_DDR_CORE_CLK_ENB		1
 	#define SPEAR1310_DDR_CTRL_CLK_ENB		0
 
-#define SPEAR1310_RAS_CLK_ENB			(VA_MISC_BASE + 0x310)
+#define SPEAR1310_RAS_CLK_ENB			(misc_base + 0x310)
 	/* RAS_CLK_ENB register masks */
 	#define SPEAR1310_SYNT3_CLK_ENB			17
 	#define SPEAR1310_SYNT2_CLK_ENB			16
@@ -172,7 +170,7 @@
 	#define SPEAR1310_ACLK_CLK_ENB			0
 
 /* RAS Area Control Register */
-#define SPEAR1310_RAS_CTRL_REG0			(VA_SPEAR1310_RAS_BASE + 0x000)
+#define SPEAR1310_RAS_CTRL_REG0			(ras_base + 0x000)
 	#define SPEAR1310_SSP1_CLK_MASK			3
 	#define SPEAR1310_SSP1_CLK_SHIFT		26
 	#define SPEAR1310_TDM_CLK_MASK			1
@@ -197,12 +195,12 @@
 	#define SPEAR1310_PCI_CLK_MASK			1
 	#define SPEAR1310_PCI_CLK_SHIFT			0
 
-#define SPEAR1310_RAS_CTRL_REG1			(VA_SPEAR1310_RAS_BASE + 0x004)
+#define SPEAR1310_RAS_CTRL_REG1			(ras_base + 0x004)
 	#define SPEAR1310_PHY_CLK_MASK			0x3
 	#define SPEAR1310_RMII_PHY_CLK_SHIFT		0
 	#define SPEAR1310_SMII_RGMII_PHY_CLK_SHIFT	2
 
-#define SPEAR1310_RAS_SW_CLK_CTRL		(VA_SPEAR1310_RAS_BASE + 0x0148)
+#define SPEAR1310_RAS_SW_CLK_CTRL		(ras_base + 0x0148)
 	#define SPEAR1310_CAN1_CLK_ENB			25
 	#define SPEAR1310_CAN0_CLK_ENB			24
 	#define SPEAR1310_GPT64_CLK_ENB			23
@@ -385,7 +383,7 @@ static const char *ssp1_parents[] = { "ras_apb_clk", "gen_syn1_clk",
 static const char *pci_parents[] = { "ras_pll3_clk", "gen_syn2_clk", };
 static const char *tdm_parents[] = { "ras_pll3_clk", "gen_syn1_clk", };
 
-void __init spear1310_clk_init(void)
+void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 {
 	struct clk *clk, *clk1;
 

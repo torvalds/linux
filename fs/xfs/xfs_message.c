@@ -93,6 +93,14 @@ xfs_alert_tag(
 }
 
 void
+asswarn(char *expr, char *file, int line)
+{
+	xfs_warn(NULL, "Assertion failed: %s, file: %s, line: %d",
+		expr, file, line);
+	WARN_ON(1);
+}
+
+void
 assfail(char *expr, char *file, int line)
 {
 	xfs_emerg(NULL, "Assertion failed: %s, file: %s, line: %d",

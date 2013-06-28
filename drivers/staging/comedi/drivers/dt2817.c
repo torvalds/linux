@@ -126,16 +126,10 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: dt2817: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, DT2817_SIZE, "dt2817")) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-	dev->board_name = "dt2817";
+	ret = comedi_request_region(dev, it->options[0], DT2817_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
@@ -154,22 +148,14 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->state = 0;
 	outb(0, dev->iobase + DT2817_CR);
 
-	printk(KERN_INFO "\n");
-
 	return 0;
-}
-
-static void dt2817_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, DT2817_SIZE);
 }
 
 static struct comedi_driver dt2817_driver = {
 	.driver_name	= "dt2817",
 	.module		= THIS_MODULE,
 	.attach		= dt2817_attach,
-	.detach		= dt2817_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(dt2817_driver);
 

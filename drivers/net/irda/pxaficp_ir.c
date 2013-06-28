@@ -700,12 +700,12 @@ static int pxa_irda_start(struct net_device *dev)
 
 	err = -ENOMEM;
 	si->dma_rx_buff = dma_alloc_coherent(si->dev, IRDA_FRAME_SIZE_LIMIT,
-					     &si->dma_rx_buff_phy, GFP_KERNEL );
+					     &si->dma_rx_buff_phy, GFP_KERNEL);
 	if (!si->dma_rx_buff)
 		goto err_dma_rx_buff;
 
 	si->dma_tx_buff = dma_alloc_coherent(si->dev, IRDA_FRAME_SIZE_LIMIT,
-					     &si->dma_tx_buff_phy, GFP_KERNEL );
+					     &si->dma_tx_buff_phy, GFP_KERNEL);
 	if (!si->dma_tx_buff)
 		goto err_dma_tx_buff;
 

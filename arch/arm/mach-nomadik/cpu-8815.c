@@ -38,7 +38,6 @@
 #include <linux/gpio.h>
 #include <linux/amba/mmci.h>
 
-#include <mach/irqs.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>

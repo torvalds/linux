@@ -85,7 +85,6 @@ static struct davinci_mmc_config mmc_config = {
 	.wires		= 4,
 	.max_freq	= 50000000,
 	.caps		= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
-	.version	= MMC_CTLR_VERSION_1,
 };
 
 static const short sdio1_pins[] __initconst = {

@@ -36,23 +36,6 @@ config FIRMWARE_MEMMAP
 
       See also Documentation/ABI/testing/sysfs-firmware-memmap.
 
-config EFI_VARS
-	tristate "EFI Variable Support via sysfs"
-	depends on EFI
-	default n
-	help
-	  If you say Y here, you are able to get EFI (Extensible Firmware
-	  Interface) variable information via sysfs.  You may read,
-	  write, create, and destroy EFI variables through this interface.
-
-	  Note that using this driver in concert with efibootmgr requires
-	  at least test release version 0.5.0-test3 or later, which is
-	  available from Matt Domsch's website located at:
-	  <http://linux.dell.com/efibootmgr/testing/efibootmgr-0.5.0-test3.tar.gz>
-
-	  Subsequent efibootmgr releases may be found at:
-	  <http://linux.dell.com/efibootmgr>
-
 config EFI_PCDP
 	bool "Console device selection via EFI PCDP or HCDP table"
 	depends on ACPI && EFI && IA64
@@ -146,5 +129,6 @@ config ISCSI_IBFT
 	  Otherwise, say N.
 
 source "drivers/firmware/google/Kconfig"
+source "drivers/firmware/efi/Kconfig"
 
 endmenu

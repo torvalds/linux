@@ -596,22 +596,22 @@ static void tda9887_tuner_status(struct dvb_frontend *fe)
 		   priv->data[1], priv->data[2], priv->data[3]);
 }
 
-static int tda9887_get_afc(struct dvb_frontend *fe)
+static int tda9887_get_afc(struct dvb_frontend *fe, s32 *afc)
 {
 	struct tda9887_priv *priv = fe->analog_demod_priv;
-	static int AFC_BITS_2_kHz[] = {
+	static const int AFC_BITS_2_kHz[] = {
 		-12500,  -37500,  -62500,  -97500,
 		-112500, -137500, -162500, -187500,
 		187500,  162500,  137500,  112500,
 		97500 ,  62500,   37500 ,  12500
 	};
-	int afc=0;
 	__u8 reg = 0;
 
-	if (1 == tuner_i2c_xfer_recv(&priv->i2c_props,&reg,1))
-		afc = AFC_BITS_2_kHz[(reg>>1)&0x0f];
-
-	return afc;
+	if (priv->mode != V4L2_TUNER_RADIO)
+		return 0;
+	if (1 == tuner_i2c_xfer_recv(&priv->i2c_props, &reg, 1))
+		*afc = AFC_BITS_2_kHz[(reg >> 1) & 0x0f];
+	return 0;
 }
 
 static void tda9887_standby(struct dvb_frontend *fe)

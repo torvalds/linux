@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -114,9 +114,6 @@
  * completely agnostic to these differences.
  * The transport does provide helper functionnality (i.e. SYNC / ASYNC mode),
  */
-#define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
-#define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
-#define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
 #define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
 #define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
 #define SEQ_TO_INDEX(s)	((s) & 0xff)
@@ -308,7 +305,6 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
  * currently supports
  */
 #define IWL_MAX_HW_QUEUES		32
-#define IWL_INVALID_STATION	255
 #define IWL_MAX_TID_COUNT	8
 #define IWL_FRAME_LIMIT	64
 
@@ -685,7 +681,7 @@ static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
 static inline void iwl_trans_ac_txq_enable(struct iwl_trans *trans, int queue,
 					   int fifo)
 {
-	iwl_trans_txq_enable(trans, queue, fifo, IWL_INVALID_STATION,
+	iwl_trans_txq_enable(trans, queue, fifo, -1,
 			     IWL_MAX_TID_COUNT, IWL_FRAME_LIMIT, 0);
 }
 

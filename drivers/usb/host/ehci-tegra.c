@@ -28,6 +28,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/ehci_def.h>
 #include <linux/usb/tegra_usb_phy.h>
+#include <linux/clk/tegra.h>
 
 #define TEGRA_USB_BASE			0xC5000000
 #define TEGRA_USB2_BASE			0xC5004000
@@ -610,7 +611,7 @@ static const struct dev_pm_ops tegra_ehci_pm_ops = {
 /* Bits of PORTSC1, which will get cleared by writing 1 into them */
 #define TEGRA_PORTSC1_RWC_BITS (PORT_CSC | PORT_PEC | PORT_OCC)
 
-void tegra_ehci_set_pts(struct usb_phy *x, u8 pts_val)
+static void tegra_ehci_set_pts(struct usb_phy *x, u8 pts_val)
 {
 	unsigned long val;
 	struct usb_hcd *hcd = bus_to_hcd(x->otg->host);
@@ -621,9 +622,8 @@ void tegra_ehci_set_pts(struct usb_phy *x, u8 pts_val)
 	val |= TEGRA_USB_PORTSC1_PTS(pts_val & 3);
 	writel(val, base + TEGRA_USB_PORTSC1);
 }
-EXPORT_SYMBOL_GPL(tegra_ehci_set_pts);
 
-void tegra_ehci_set_phcd(struct usb_phy *x, bool enable)
+static void tegra_ehci_set_phcd(struct usb_phy *x, bool enable)
 {
 	unsigned long val;
 	struct usb_hcd *hcd = bus_to_hcd(x->otg->host);
@@ -636,9 +636,6 @@ void tegra_ehci_set_phcd(struct usb_phy *x, bool enable)
 		val &= ~TEGRA_USB_PORTSC1_PHCD;
 	writel(val, base + TEGRA_USB_PORTSC1);
 }
-EXPORT_SYMBOL_GPL(tegra_ehci_set_phcd);
-
-static u64 tegra_ehci_dma_mask = DMA_BIT_MASK(32);
 
 static int tegra_ehci_probe(struct platform_device *pdev)
 {
@@ -662,7 +659,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	 * Once we have dma capability bindings this can go away.
 	 */
 	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &tegra_ehci_dma_mask;
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	if (!pdev->dev.coherent_dma_mask)
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	setup_vbus_gpio(pdev, pdata);
 
@@ -690,6 +689,10 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	err = clk_prepare_enable(tegra->clk);
 	if (err)
 		goto fail_clk;
+
+	tegra_periph_reset_assert(tegra->clk);
+	udelay(1);
+	tegra_periph_reset_deassert(tegra->clk);
 
 	tegra->needs_double_reset = of_property_read_bool(pdev->dev.of_node,
 		"nvidia,needs-double-reset");
@@ -733,7 +736,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 	tegra->phy = tegra_usb_phy_open(&pdev->dev, instance, hcd->regs,
 					pdata->phy_config,
-					TEGRA_USB_PHY_MODE_HOST);
+					TEGRA_USB_PHY_MODE_HOST,
+					tegra_ehci_set_pts,
+					tegra_ehci_set_phcd);
 	if (IS_ERR(tegra->phy)) {
 		dev_err(&pdev->dev, "Failed to open USB phy\n");
 		err = -ENXIO;
@@ -755,7 +760,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	err = usb_phy_set_suspend(hcd->phy, 0);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to power on the phy\n");
-		goto fail;
+		goto fail_phy;
 	}
 
 	tegra->host_resumed = 1;
@@ -765,17 +770,17 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	if (!irq) {
 		dev_err(&pdev->dev, "Failed to get IRQ\n");
 		err = -ENODEV;
-		goto fail;
+		goto fail_phy;
 	}
 
-#ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->operating_mode == TEGRA_USB_OTG) {
 		tegra->transceiver =
 			devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
-		if (!IS_ERR_OR_NULL(tegra->transceiver))
+		if (!IS_ERR(tegra->transceiver))
 			otg_set_host(tegra->transceiver->otg, &hcd->self);
+	} else {
+		tegra->transceiver = ERR_PTR(-ENODEV);
 	}
-#endif
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err) {
@@ -794,10 +799,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	return err;
 
 fail:
-#ifdef CONFIG_USB_OTG_UTILS
-	if (!IS_ERR_OR_NULL(tegra->transceiver))
+	if (!IS_ERR(tegra->transceiver))
 		otg_set_host(tegra->transceiver->otg, NULL);
-#endif
+fail_phy:
 	usb_phy_shutdown(hcd->phy);
 fail_io:
 	clk_disable_unprepare(tegra->clk);
@@ -815,10 +819,8 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
 
-#ifdef CONFIG_USB_OTG_UTILS
-	if (!IS_ERR_OR_NULL(tegra->transceiver))
+	if (!IS_ERR(tegra->transceiver))
 		otg_set_host(tegra->transceiver->otg, NULL);
-#endif
 
 	usb_phy_shutdown(hcd->phy);
 	usb_remove_hcd(hcd);

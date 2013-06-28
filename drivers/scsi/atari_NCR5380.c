@@ -719,119 +719,94 @@ static void __init NCR5380_print_options(struct Scsi_Host *instance)
  * Inputs : instance, pointer to this instance.
  */
 
+static void lprint_Scsi_Cmnd(Scsi_Cmnd *cmd)
+{
+	int i, s;
+	unsigned char *command;
+	printk("scsi%d: destination target %d, lun %d\n",
+		H_NO(cmd), cmd->device->id, cmd->device->lun);
+	printk(KERN_CONT "        command = ");
+	command = cmd->cmnd;
+	printk(KERN_CONT "%2d (0x%02x)", command[0], command[0]);
+	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
+		printk(KERN_CONT " %02x", command[i]);
+	printk("\n");
+}
+
 static void NCR5380_print_status(struct Scsi_Host *instance)
 {
-	char *pr_bfr;
-	char *start;
-	int len;
+	struct NCR5380_hostdata *hostdata;
+	Scsi_Cmnd *ptr;
+	unsigned long flags;
 
 	NCR_PRINT(NDEBUG_ANY);
 	NCR_PRINT_PHASE(NDEBUG_ANY);
 
-	pr_bfr = (char *)__get_free_page(GFP_ATOMIC);
-	if (!pr_bfr) {
-		printk("NCR5380_print_status: no memory for print buffer\n");
-		return;
-	}
-	len = NCR5380_proc_info(instance, pr_bfr, &start, 0, PAGE_SIZE, 0);
-	pr_bfr[len] = 0;
-	printk("\n%s\n", pr_bfr);
-	free_page((unsigned long)pr_bfr);
-}
-
-
-/******************************************/
-/*
- * /proc/scsi/[dtc pas16 t128 generic]/[0-ASC_NUM_BOARD_SUPPORTED]
- *
- * *buffer: I/O buffer
- * **start: if inout == FALSE pointer into buffer where user read should start
- * offset: current offset
- * length: length of buffer
- * hostno: Scsi_Host host_no
- * inout: TRUE - user is writing; FALSE - user is reading
- *
- * Return the number of bytes read from or written
-*/
-
-#undef SPRINTF
-#define SPRINTF(fmt,args...)							\
-	do {									\
-		if (pos + strlen(fmt) + 20 /* slop */ < buffer + length)	\
-			pos += sprintf(pos, fmt , ## args);			\
-	} while(0)
-static char *lprint_Scsi_Cmnd(Scsi_Cmnd *cmd, char *pos, char *buffer, int length);
-
-static int NCR5380_proc_info(struct Scsi_Host *instance, char *buffer,
-			     char **start, off_t offset, int length, int inout)
-{
-	char *pos = buffer;
-	struct NCR5380_hostdata *hostdata;
-	Scsi_Cmnd *ptr;
-	unsigned long flags;
-	off_t begin = 0;
-#define check_offset()					\
-	do {						\
-		if (pos - buffer < offset - begin) {	\
-			begin += pos - buffer;		\
-			pos = buffer;			\
-		}					\
-	} while (0)
-
 	hostdata = (struct NCR5380_hostdata *)instance->hostdata;
 
-	if (inout)			/* Has data been written to the file ? */
-		return -ENOSYS;		/* Currently this is a no-op */
-	SPRINTF("NCR5380 core release=%d.\n", NCR5380_PUBLIC_RELEASE);
-	check_offset();
+	printk("\nNCR5380 core release=%d.\n", NCR5380_PUBLIC_RELEASE);
 	local_irq_save(flags);
-	SPRINTF("NCR5380: coroutine is%s running.\n",
+	printk("NCR5380: coroutine is%s running.\n",
 		main_running ? "" : "n't");
-	check_offset();
 	if (!hostdata->connected)
-		SPRINTF("scsi%d: no currently connected command\n", HOSTNO);
+		printk("scsi%d: no currently connected command\n", HOSTNO);
 	else
-		pos = lprint_Scsi_Cmnd((Scsi_Cmnd *) hostdata->connected,
-				       pos, buffer, length);
-	SPRINTF("scsi%d: issue_queue\n", HOSTNO);
-	check_offset();
-	for (ptr = (Scsi_Cmnd *)hostdata->issue_queue; ptr; ptr = NEXT(ptr)) {
-		pos = lprint_Scsi_Cmnd(ptr, pos, buffer, length);
-		check_offset();
-	}
+		lprint_Scsi_Cmnd((Scsi_Cmnd *) hostdata->connected);
+	printk("scsi%d: issue_queue\n", HOSTNO);
+	for (ptr = (Scsi_Cmnd *)hostdata->issue_queue; ptr; ptr = NEXT(ptr))
+		lprint_Scsi_Cmnd(ptr);
 
-	SPRINTF("scsi%d: disconnected_queue\n", HOSTNO);
-	check_offset();
+	printk("scsi%d: disconnected_queue\n", HOSTNO);
 	for (ptr = (Scsi_Cmnd *) hostdata->disconnected_queue; ptr;
-	     ptr = NEXT(ptr)) {
-		pos = lprint_Scsi_Cmnd(ptr, pos, buffer, length);
-		check_offset();
-	}
+	     ptr = NEXT(ptr))
+		lprint_Scsi_Cmnd(ptr);
 
 	local_irq_restore(flags);
-	*start = buffer + (offset - begin);
-	if (pos - buffer < offset - begin)
-		return 0;
-	else if (pos - buffer - (offset - begin) < length)
-		return pos - buffer - (offset - begin);
-	return length;
+	printk("\n");
 }
 
-static char *lprint_Scsi_Cmnd(Scsi_Cmnd *cmd, char *pos, char *buffer, int length)
+static void show_Scsi_Cmnd(Scsi_Cmnd *cmd, struct seq_file *m)
 {
 	int i, s;
 	unsigned char *command;
-	SPRINTF("scsi%d: destination target %d, lun %d\n",
+	seq_printf(m, "scsi%d: destination target %d, lun %d\n",
 		H_NO(cmd), cmd->device->id, cmd->device->lun);
-	SPRINTF("        command = ");
+	seq_printf(m, "        command = ");
 	command = cmd->cmnd;
-	SPRINTF("%2d (0x%02x)", command[0], command[0]);
+	seq_printf(m, "%2d (0x%02x)", command[0], command[0]);
 	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
-		SPRINTF(" %02x", command[i]);
-	SPRINTF("\n");
-	return pos;
+		seq_printf(m, " %02x", command[i]);
+	seq_printf(m, "\n");
 }
 
+static int NCR5380_show_info(struct seq_file *m, struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata;
+	Scsi_Cmnd *ptr;
+	unsigned long flags;
+
+	hostdata = (struct NCR5380_hostdata *)instance->hostdata;
+
+	seq_printf(m, "NCR5380 core release=%d.\n", NCR5380_PUBLIC_RELEASE);
+	local_irq_save(flags);
+	seq_printf(m, "NCR5380: coroutine is%s running.\n",
+		main_running ? "" : "n't");
+	if (!hostdata->connected)
+		seq_printf(m, "scsi%d: no currently connected command\n", HOSTNO);
+	else
+		show_Scsi_Cmnd((Scsi_Cmnd *) hostdata->connected, m);
+	seq_printf(m, "scsi%d: issue_queue\n", HOSTNO);
+	for (ptr = (Scsi_Cmnd *)hostdata->issue_queue; ptr; ptr = NEXT(ptr))
+		show_Scsi_Cmnd(ptr, m);
+
+	seq_printf(m, "scsi%d: disconnected_queue\n", HOSTNO);
+	for (ptr = (Scsi_Cmnd *) hostdata->disconnected_queue; ptr;
+	     ptr = NEXT(ptr))
+		show_Scsi_Cmnd(ptr, m);
+
+	local_irq_restore(flags);
+	return 0;
+}
 
 /*
  * Function : void NCR5380_init (struct Scsi_Host *instance)

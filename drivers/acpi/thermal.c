@@ -723,9 +723,19 @@ static int thermal_get_trend(struct thermal_zone_device *thermal,
 		return -EINVAL;
 
 	if (type == THERMAL_TRIP_ACTIVE) {
-		/* aggressive active cooling */
-		*trend = THERMAL_TREND_RAISING;
-		return 0;
+		unsigned long trip_temp;
+		unsigned long temp = KELVIN_TO_MILLICELSIUS(tz->temperature,
+							tz->kelvin_offset);
+		if (thermal_get_trip_temp(thermal, trip, &trip_temp))
+			return -EINVAL;
+
+		if (temp > trip_temp) {
+			*trend = THERMAL_TREND_RAISING;
+			return 0;
+		} else {
+			/* Fall back on default trend */
+			return -EINVAL;
+		}
 	}
 
 	/*

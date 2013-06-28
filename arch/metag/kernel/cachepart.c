@@ -24,15 +24,21 @@
 unsigned int get_dcache_size(void)
 {
 	unsigned int config2 = metag_in32(METAC_CORE_CONFIG2);
-	return 0x1000 << ((config2 & METAC_CORECFG2_DCSZ_BITS)
-				>> METAC_CORECFG2_DCSZ_S);
+	unsigned int sz = 0x1000 << ((config2 & METAC_CORECFG2_DCSZ_BITS)
+				     >> METAC_CORECFG2_DCSZ_S);
+	if (config2 & METAC_CORECFG2_DCSMALL_BIT)
+		sz >>= 6;
+	return sz;
 }
 
 unsigned int get_icache_size(void)
 {
 	unsigned int config2 = metag_in32(METAC_CORE_CONFIG2);
-	return 0x1000 << ((config2 & METAC_CORE_C2ICSZ_BITS)
-				>> METAC_CORE_C2ICSZ_S);
+	unsigned int sz = 0x1000 << ((config2 & METAC_CORE_C2ICSZ_BITS)
+				     >> METAC_CORE_C2ICSZ_S);
+	if (config2 & METAC_CORECFG2_ICSMALL_BIT)
+		sz >>= 6;
+	return sz;
 }
 
 unsigned int get_global_dcache_size(void)
@@ -61,7 +67,7 @@ static unsigned int get_thread_cache_size(unsigned int cache, int thread_id)
 		return 0;
 #if PAGE_OFFSET >= LINGLOBAL_BASE
 	/* Checking for global cache */
-	cache_size = (cache == DCACHE ? get_global_dache_size() :
+	cache_size = (cache == DCACHE ? get_global_dcache_size() :
 		get_global_icache_size());
 	offset = 8;
 #else

@@ -479,7 +479,7 @@ nv50_display_flip_wait(void *data)
 {
 	struct nv50_display_flip *flip = data;
 	if (nouveau_bo_rd32(flip->disp->sync, flip->chan->addr / 4) ==
-					      flip->chan->data);
+					      flip->chan->data)
 		return true;
 	usleep_range(1, 2);
 	return false;
@@ -524,6 +524,8 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	swap_interval <<= 4;
 	if (swap_interval == 0)
 		swap_interval |= 0x100;
+	if (chan == NULL)
+		evo_sync(crtc->dev);
 
 	push = evo_wait(sync, 128);
 	if (unlikely(push == NULL))
@@ -586,8 +588,6 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		sync->addr ^= 0x10;
 		sync->data++;
 		FIRE_RING (chan);
-	} else {
-		evo_sync(crtc->dev);
 	}
 
 	/* queue the flip */
@@ -1554,7 +1554,9 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
 	int ret, or = nouveau_encoder(encoder)->or;
-	u32 load = 0;
+	u32 load = nouveau_drm(encoder->dev)->vbios.dactestval;
+	if (load == 0)
+		load = 340;
 
 	ret = nv_exec(disp->core, NV50_DISP_DAC_LOAD + or, &load, sizeof(load));
 	if (ret || load != 7)
@@ -2174,6 +2176,7 @@ int
 nv50_display_create(struct drm_device *dev)
 {
 	static const u16 oclass[] = {
+		NVF0_DISP_CLASS,
 		NVE0_DISP_CLASS,
 		NVD0_DISP_CLASS,
 		NVA3_DISP_CLASS,

@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+#include <linux/compat.h>
 
 #include <asm/ioctls.h>
 
@@ -755,9 +756,9 @@ out_destroy_group:
 	return fd;
 }
 
-SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
-			      __u64 mask, int dfd,
-			      const char  __user * pathname)
+SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
+			      __u64, mask, int, dfd,
+			      const char  __user *, pathname)
 {
 	struct inode *inode = NULL;
 	struct vfsmount *mnt = NULL;
@@ -857,15 +858,20 @@ fput_and_out:
 	return ret;
 }
 
-#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
-asmlinkage long SyS_fanotify_mark(long fanotify_fd, long flags, __u64 mask,
-				  long dfd, long pathname)
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE6(fanotify_mark,
+				int, fanotify_fd, unsigned int, flags,
+				__u32, mask0, __u32, mask1, int, dfd,
+				const char  __user *, pathname)
 {
-	return SYSC_fanotify_mark((int) fanotify_fd, (unsigned int) flags,
-				  mask, (int) dfd,
-				  (const char  __user *) pathname);
+	return sys_fanotify_mark(fanotify_fd, flags,
+#ifdef __BIG_ENDIAN
+				((__u64)mask1 << 32) | mask0,
+#else
+				((__u64)mask0 << 32) | mask1,
+#endif
+				 dfd, pathname);
 }
-SYSCALL_ALIAS(sys_fanotify_mark, SyS_fanotify_mark);
 #endif
 
 /*

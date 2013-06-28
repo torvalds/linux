@@ -177,7 +177,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	new_bus->write = &stmmac_mdio_write;
 	new_bus->reset = &stmmac_mdio_reset;
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
-		new_bus->name, priv->plat->bus_id);
+		 new_bus->name, priv->plat->bus_id);
 	new_bus->priv = ndev;
 	new_bus->irq = irqlist;
 	new_bus->phy_mask = mdio_bus_data->phy_mask;

@@ -24,9 +24,9 @@
 #include "dhd_proto.h"
 #include "dhd_dbg.h"
 #include "fwil.h"
+#include "tracepoint.h"
 
 #define PKTFILTER_BUF_SIZE		128
-#define BRCMF_ARPOL_MODE		0xb	/* agent|snoop|peer_autoreply */
 #define BRCMF_DEFAULT_BCN_TIMEOUT	3
 #define BRCMF_DEFAULT_SCAN_CHANNEL_TIME	40
 #define BRCMF_DEFAULT_SCAN_UNASSOC_TIME	40
@@ -337,23 +337,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		goto done;
 	}
 
-	/* Try to set and enable ARP offload feature, this may fail */
-	err = brcmf_fil_iovar_int_set(ifp, "arp_ol", BRCMF_ARPOL_MODE);
-	if (err) {
-		brcmf_dbg(TRACE, "failed to set ARP offload mode to 0x%x, err = %d\n",
-			  BRCMF_ARPOL_MODE, err);
-		err = 0;
-	} else {
-		err = brcmf_fil_iovar_int_set(ifp, "arpoe", 1);
-		if (err) {
-			brcmf_dbg(TRACE, "failed to enable ARP offload err = %d\n",
-				  err);
-			err = 0;
-		} else
-			brcmf_dbg(TRACE, "successfully enabled ARP offload to 0x%x\n",
-				  BRCMF_ARPOL_MODE);
-	}
-
 	/* Setup packet filter */
 	brcmf_c_pktfilter_offload_set(ifp, BRCMF_DEFAULT_PACKET_FILTER);
 	brcmf_c_pktfilter_offload_enable(ifp, BRCMF_DEFAULT_PACKET_FILTER,
@@ -373,3 +356,35 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 done:
 	return err;
 }
+
+#ifdef CONFIG_BRCM_TRACING
+void __brcmf_err(const char *func, const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+	pr_err("%s: %pV", func, &vaf);
+	trace_brcmf_err(func, &vaf);
+	va_end(args);
+}
+#endif
+#if defined(CONFIG_BRCM_TRACING) || defined(CONFIG_BRCMDBG)
+void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+	if (brcmf_msg_level & level)
+		pr_debug("%s %pV", func, &vaf);
+	trace_brcmf_dbg(level, func, &vaf);
+	va_end(args);
+}
+#endif

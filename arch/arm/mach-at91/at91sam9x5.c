@@ -237,6 +237,8 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID(NULL, "f8010000.i2c", &twi0_clk),
 	CLKDEV_CON_DEV_ID(NULL, "f8014000.i2c", &twi1_clk),
 	CLKDEV_CON_DEV_ID(NULL, "f8018000.i2c", &twi2_clk),
+	CLKDEV_CON_DEV_ID("spi_clk", "f0000000.spi", &spi0_clk),
+	CLKDEV_CON_DEV_ID("spi_clk", "f0004000.spi", &spi1_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffff400.gpio", &pioAB_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffff600.gpio", &pioAB_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffff800.gpio", &pioCD_clk),
@@ -320,7 +322,7 @@ static void __init at91sam9x5_map_io(void)
  *  Interrupt initialization
  * -------------------------------------------------------------------- */
 
-AT91_SOC_START(sam9x5)
+AT91_SOC_START(at91sam9x5)
 	.map_io = at91sam9x5_map_io,
 	.register_clocks = at91sam9x5_register_clocks,
 AT91_SOC_END

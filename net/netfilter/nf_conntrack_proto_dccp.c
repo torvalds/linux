@@ -456,7 +456,8 @@ static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 out_invalid:
 	if (LOG_INVALID(net, IPPROTO_DCCP))
-		nf_log_packet(nf_ct_l3num(ct), 0, skb, NULL, NULL, NULL, msg);
+		nf_log_packet(net, nf_ct_l3num(ct), 0, skb, NULL, NULL,
+			      NULL, msg);
 	return false;
 }
 
@@ -542,13 +543,13 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 
 		spin_unlock_bh(&ct->lock);
 		if (LOG_INVALID(net, IPPROTO_DCCP))
-			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
+			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_dccp: invalid packet ignored ");
 		return NF_ACCEPT;
 	case CT_DCCP_INVALID:
 		spin_unlock_bh(&ct->lock);
 		if (LOG_INVALID(net, IPPROTO_DCCP))
-			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
+			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_dccp: invalid state transition ");
 		return -NF_ACCEPT;
 	}
@@ -613,7 +614,7 @@ static int dccp_error(struct net *net, struct nf_conn *tmpl,
 
 out_invalid:
 	if (LOG_INVALID(net, IPPROTO_DCCP))
-		nf_log_packet(pf, 0, skb, NULL, NULL, NULL, msg);
+		nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL, msg);
 	return -NF_ACCEPT;
 }
 
@@ -969,6 +970,10 @@ static int __init nf_conntrack_proto_dccp_init(void)
 {
 	int ret;
 
+	ret = register_pernet_subsys(&dccp_net_ops);
+	if (ret < 0)
+		goto out_pernet;
+
 	ret = nf_ct_l4proto_register(&dccp_proto4);
 	if (ret < 0)
 		goto out_dccp4;
@@ -977,16 +982,12 @@ static int __init nf_conntrack_proto_dccp_init(void)
 	if (ret < 0)
 		goto out_dccp6;
 
-	ret = register_pernet_subsys(&dccp_net_ops);
-	if (ret < 0)
-		goto out_pernet;
-
 	return 0;
-out_pernet:
-	nf_ct_l4proto_unregister(&dccp_proto6);
 out_dccp6:
 	nf_ct_l4proto_unregister(&dccp_proto4);
 out_dccp4:
+	unregister_pernet_subsys(&dccp_net_ops);
+out_pernet:
 	return ret;
 }
 

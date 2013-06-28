@@ -197,14 +197,12 @@ static int __init sonic_probe1(struct net_device *dev)
 	 *  We also allocate extra space for a pointer to allow freeing
 	 *  this structure later on (in xtsonic_cleanup_module()).
 	 */
-	lp->descriptors =
-		dma_alloc_coherent(lp->device,
-			SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
-			&lp->descriptors_laddr, GFP_KERNEL);
-
+	lp->descriptors = dma_alloc_coherent(lp->device,
+					     SIZEOF_SONIC_DESC *
+					     SONIC_BUS_SCALE(lp->dma_bitmode),
+					     &lp->descriptors_laddr,
+					     GFP_KERNEL);
 	if (lp->descriptors == NULL) {
-		printk(KERN_ERR "%s: couldn't alloc DMA memory for "
-				" descriptors.\n", dev_name(lp->device));
 		err = -ENOMEM;
 		goto out;
 	}

@@ -488,7 +488,7 @@ func_end:
  *      Call the bridge_dev_ctrl fxn with the Argument. This is a Synchronous
  *      Operation. arg can be null.
  */
-int proc_ctrl(void *hprocessor, u32 dw_cmd, struct dsp_cbdata * arg)
+int proc_ctrl(void *hprocessor, u32 dw_cmd, struct dsp_cbdata *arg)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = hprocessor;
@@ -982,7 +982,7 @@ int proc_get_state(void *hprocessor,
  *      This call is destructive, meaning the processor is placed in the monitor
  *      state as a result of this function.
  */
-int proc_get_trace(void *hprocessor, u8 * pbuf, u32 max_size)
+int proc_get_trace(void *hprocessor, u8 *pbuf, u32 max_size)
 {
 	int status;
 	status = -ENOSYS;
@@ -1338,7 +1338,7 @@ func_end:
  */
 int proc_register_notify(void *hprocessor, u32 event_mask,
 				u32 notify_type, struct dsp_notification
-				* hnotification)
+				*hnotification)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
@@ -1549,8 +1549,8 @@ int proc_stop(void *hprocessor)
 		status = node_enum_nodes(hnode_mgr, &hnode, node_tab_size,
 					 &num_nodes, &nodes_allocated);
 		if ((status == -EINVAL) || (nodes_allocated > 0)) {
-			pr_err("%s: Can't stop device, active nodes = %d \n",
-			       __func__, nodes_allocated);
+			pr_err("%s: Can't stop device, active nodes = %d\n",
+				__func__, nodes_allocated);
 			return -EBADR;
 		}
 	}
@@ -1819,7 +1819,7 @@ func_end:
  *  Purpose:
  *      Retrieves the processor ID.
  */
-int proc_get_processor_id(void *proc, u32 * proc_id)
+int proc_get_processor_id(void *proc, u32 *proc_id)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)proc;

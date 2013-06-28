@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 
 #include <asm/cacheflush.h>
+#include <asm/idle.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
 

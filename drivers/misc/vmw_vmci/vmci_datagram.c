@@ -42,9 +42,11 @@ struct datagram_entry {
 
 struct delayed_datagram_info {
 	struct datagram_entry *entry;
-	struct vmci_datagram msg;
 	struct work_struct work;
 	bool in_dg_host_queue;
+	/* msg and msg_payload must be together. */
+	struct vmci_datagram msg;
+	u8 msg_payload[];
 };
 
 /* Number of in-flight host->host datagrams */

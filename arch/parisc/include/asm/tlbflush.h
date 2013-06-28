@@ -22,6 +22,8 @@ extern spinlock_t pa_tlb_lock;
 extern void flush_tlb_all(void);
 extern void flush_tlb_all_local(void *);
 
+#define smp_flush_tlb_all()	flush_tlb_all()
+
 /*
  * flush_tlb_mm()
  *

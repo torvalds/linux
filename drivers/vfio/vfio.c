@@ -24,8 +24,10 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
@@ -57,7 +59,7 @@ struct vfio_iommu_driver {
 struct vfio_container {
 	struct kref			kref;
 	struct list_head		group_list;
-	struct mutex			group_lock;
+	struct rw_semaphore		group_lock;
 	struct vfio_iommu_driver	*iommu_driver;
 	void				*iommu_data;
 };
@@ -392,12 +394,13 @@ static void vfio_device_release(struct kref *kref)
 }
 
 /* Device reference always implies a group reference */
-static void vfio_device_put(struct vfio_device *device)
+void vfio_device_put(struct vfio_device *device)
 {
 	struct vfio_group *group = device->group;
 	kref_put_mutex(&device->kref, vfio_device_release, &group->device_lock);
 	vfio_group_put(group);
 }
+EXPORT_SYMBOL_GPL(vfio_device_put);
 
 static void vfio_device_get(struct vfio_device *device)
 {
@@ -627,6 +630,33 @@ int vfio_add_group_dev(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(vfio_add_group_dev);
 
+/**
+ * Get a reference to the vfio_device for a device that is known to
+ * be bound to a vfio driver.  The driver implicitly holds a
+ * vfio_device reference between vfio_add_group_dev and
+ * vfio_del_group_dev.  We can therefore use drvdata to increment
+ * that reference from the struct device.  This additional
+ * reference must be released by calling vfio_device_put.
+ */
+struct vfio_device *vfio_device_get_from_dev(struct device *dev)
+{
+	struct vfio_device *device = dev_get_drvdata(dev);
+
+	vfio_device_get(device);
+
+	return device;
+}
+EXPORT_SYMBOL_GPL(vfio_device_get_from_dev);
+
+/*
+ * Caller must hold a reference to the vfio_device
+ */
+void *vfio_device_data(struct vfio_device *device)
+{
+	return device->device_data;
+}
+EXPORT_SYMBOL_GPL(vfio_device_data);
+
 /* Given a referenced group, check if it contains the device */
 static bool vfio_dev_present(struct vfio_group *group, struct device *dev)
 {
@@ -675,8 +705,12 @@ EXPORT_SYMBOL_GPL(vfio_del_group_dev);
 static long vfio_ioctl_check_extension(struct vfio_container *container,
 				       unsigned long arg)
 {
-	struct vfio_iommu_driver *driver = container->iommu_driver;
+	struct vfio_iommu_driver *driver;
 	long ret = 0;
+
+	down_read(&container->group_lock);
+
+	driver = container->iommu_driver;
 
 	switch (arg) {
 		/* No base extensions yet */
@@ -707,10 +741,12 @@ static long vfio_ioctl_check_extension(struct vfio_container *container,
 						 VFIO_CHECK_EXTENSION, arg);
 	}
 
+	up_read(&container->group_lock);
+
 	return ret;
 }
 
-/* hold container->group_lock */
+/* hold write lock on container->group_lock */
 static int __vfio_container_attach_groups(struct vfio_container *container,
 					  struct vfio_iommu_driver *driver,
 					  void *data)
@@ -741,7 +777,7 @@ static long vfio_ioctl_set_iommu(struct vfio_container *container,
 	struct vfio_iommu_driver *driver;
 	long ret = -ENODEV;
 
-	mutex_lock(&container->group_lock);
+	down_write(&container->group_lock);
 
 	/*
 	 * The container is designed to be an unprivileged interface while
@@ -752,7 +788,7 @@ static long vfio_ioctl_set_iommu(struct vfio_container *container,
 	 * the container is deprivileged and returns to an unset state.
 	 */
 	if (list_empty(&container->group_list) || container->iommu_driver) {
-		mutex_unlock(&container->group_lock);
+		up_write(&container->group_lock);
 		return -EINVAL;
 	}
 
@@ -799,7 +835,7 @@ static long vfio_ioctl_set_iommu(struct vfio_container *container,
 
 	mutex_unlock(&vfio.iommu_drivers_lock);
 skip_drivers_unlock:
-	mutex_unlock(&container->group_lock);
+	up_write(&container->group_lock);
 
 	return ret;
 }
@@ -815,9 +851,6 @@ static long vfio_fops_unl_ioctl(struct file *filep,
 	if (!container)
 		return ret;
 
-	driver = container->iommu_driver;
-	data = container->iommu_data;
-
 	switch (cmd) {
 	case VFIO_GET_API_VERSION:
 		ret = VFIO_API_VERSION;
@@ -829,8 +862,15 @@ static long vfio_fops_unl_ioctl(struct file *filep,
 		ret = vfio_ioctl_set_iommu(container, arg);
 		break;
 	default:
+		down_read(&container->group_lock);
+
+		driver = container->iommu_driver;
+		data = container->iommu_data;
+
 		if (driver) /* passthrough all unrecognized ioctls */
 			ret = driver->ops->ioctl(data, cmd, arg);
+
+		up_read(&container->group_lock);
 	}
 
 	return ret;
@@ -854,7 +894,7 @@ static int vfio_fops_open(struct inode *inode, struct file *filep)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&container->group_list);
-	mutex_init(&container->group_lock);
+	init_rwsem(&container->group_lock);
 	kref_init(&container->kref);
 
 	filep->private_data = container;
@@ -881,35 +921,55 @@ static ssize_t vfio_fops_read(struct file *filep, char __user *buf,
 			      size_t count, loff_t *ppos)
 {
 	struct vfio_container *container = filep->private_data;
-	struct vfio_iommu_driver *driver = container->iommu_driver;
+	struct vfio_iommu_driver *driver;
+	ssize_t ret = -EINVAL;
 
-	if (unlikely(!driver || !driver->ops->read))
-		return -EINVAL;
+	down_read(&container->group_lock);
 
-	return driver->ops->read(container->iommu_data, buf, count, ppos);
+	driver = container->iommu_driver;
+	if (likely(driver && driver->ops->read))
+		ret = driver->ops->read(container->iommu_data,
+					buf, count, ppos);
+
+	up_read(&container->group_lock);
+
+	return ret;
 }
 
 static ssize_t vfio_fops_write(struct file *filep, const char __user *buf,
 			       size_t count, loff_t *ppos)
 {
 	struct vfio_container *container = filep->private_data;
-	struct vfio_iommu_driver *driver = container->iommu_driver;
+	struct vfio_iommu_driver *driver;
+	ssize_t ret = -EINVAL;
 
-	if (unlikely(!driver || !driver->ops->write))
-		return -EINVAL;
+	down_read(&container->group_lock);
 
-	return driver->ops->write(container->iommu_data, buf, count, ppos);
+	driver = container->iommu_driver;
+	if (likely(driver && driver->ops->write))
+		ret = driver->ops->write(container->iommu_data,
+					 buf, count, ppos);
+
+	up_read(&container->group_lock);
+
+	return ret;
 }
 
 static int vfio_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 {
 	struct vfio_container *container = filep->private_data;
-	struct vfio_iommu_driver *driver = container->iommu_driver;
+	struct vfio_iommu_driver *driver;
+	int ret = -EINVAL;
 
-	if (unlikely(!driver || !driver->ops->mmap))
-		return -EINVAL;
+	down_read(&container->group_lock);
 
-	return driver->ops->mmap(container->iommu_data, vma);
+	driver = container->iommu_driver;
+	if (likely(driver && driver->ops->mmap))
+		ret = driver->ops->mmap(container->iommu_data, vma);
+
+	up_read(&container->group_lock);
+
+	return ret;
 }
 
 static const struct file_operations vfio_fops = {
@@ -933,7 +993,7 @@ static void __vfio_group_unset_container(struct vfio_group *group)
 	struct vfio_container *container = group->container;
 	struct vfio_iommu_driver *driver;
 
-	mutex_lock(&container->group_lock);
+	down_write(&container->group_lock);
 
 	driver = container->iommu_driver;
 	if (driver)
@@ -951,7 +1011,7 @@ static void __vfio_group_unset_container(struct vfio_group *group)
 		container->iommu_data = NULL;
 	}
 
-	mutex_unlock(&container->group_lock);
+	up_write(&container->group_lock);
 
 	vfio_container_put(container);
 }
@@ -1011,7 +1071,7 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	container = f.file->private_data;
 	WARN_ON(!container); /* fget ensures we don't race vfio_release */
 
-	mutex_lock(&container->group_lock);
+	down_write(&container->group_lock);
 
 	driver = container->iommu_driver;
 	if (driver) {
@@ -1029,7 +1089,7 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	atomic_inc(&group->container_users);
 
 unlock_out:
-	mutex_unlock(&container->group_lock);
+	up_write(&container->group_lock);
 	fdput(f);
 	return ret;
 }
@@ -1300,6 +1360,9 @@ static const struct file_operations vfio_device_fops = {
  */
 static char *vfio_devnode(struct device *dev, umode_t *mode)
 {
+	if (mode && (MINOR(dev->devt) == 0))
+		*mode = S_IRUGO | S_IWUGO;
+
 	return kasprintf(GFP_KERNEL, "vfio/%s", dev_name(dev));
 }
 

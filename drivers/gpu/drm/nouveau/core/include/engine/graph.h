@@ -26,6 +26,10 @@ struct nouveau_graph_chan {
 
 struct nouveau_graph {
 	struct nouveau_engine base;
+
+	/* Returns chipset-specific counts of units packed into an u64.
+	 */
+	u64 (*units)(struct nouveau_graph *);
 };
 
 static inline struct nouveau_graph *

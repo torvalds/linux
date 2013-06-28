@@ -60,6 +60,10 @@ sense_reason_t	sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops);
 u32	sbc_get_device_rev(struct se_device *dev);
 u32	sbc_get_device_type(struct se_device *dev);
 sector_t	sbc_get_write_same_sectors(struct se_cmd *cmd);
+sense_reason_t sbc_execute_unmap(struct se_cmd *cmd,
+	sense_reason_t (*do_unmap_fn)(struct se_cmd *cmd, void *priv,
+				      sector_t lba, sector_t nolb),
+	void *priv);
 
 void	transport_set_vpd_proto_id(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_assoc(struct t10_vpd *, unsigned char *);

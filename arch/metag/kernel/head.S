@@ -1,6 +1,7 @@
 	! Copyright 2005,2006,2007,2009 Imagination Technologies
 
 #include <linux/init.h>
+#include <asm/metag_mem.h>
 #include <generated/asm-offsets.h>
 #undef __exit
 
@@ -48,6 +49,13 @@ __exit:
 	.global _secondary_startup
 	.type _secondary_startup,function
 _secondary_startup:
+#if CONFIG_PAGE_OFFSET < LINGLOBAL_BASE
+	! In case GCOn has just been turned on we need to fence any writes that
+	! the boot thread might have performed prior to coherency taking effect.
+	MOVT	D0Re0,#HI(LINSYSEVENT_WR_ATOMIC_UNLOCK)
+	MOV	D1Re0,#0
+	SETD	[D0Re0], D1Re0
+#endif
 	MOVT	A0StP,#HI(_secondary_data_stack)
 	ADD	A0StP,A0StP,#LO(_secondary_data_stack)
 	GETD	A0StP,[A0StP]

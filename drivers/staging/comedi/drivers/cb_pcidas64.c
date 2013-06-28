@@ -118,13 +118,6 @@ static const int max_counter_value = 0xffffff;
 
 /* PCI-DAS64xxx base addresses */
 
-/* indices of base address regions */
-enum base_address_regions {
-	PLX9080_BADDRINDEX = 0,
-	MAIN_BADDRINDEX = 2,
-	DIO_COUNTER_BADDRINDEX = 3,
-};
-
 /* devpriv->main_iobase registers */
 enum write_only_registers {
 	INTR_ENABLE_REG = 0x0,	/*  interrupt enable register */
@@ -543,13 +536,6 @@ static const int ao_range_code_64xx[] = {
 	0x3,
 };
 
-static const struct comedi_lrange ao_ranges_60xx = {
-	1,
-	{
-	 BIP_RANGE(10),
-	 }
-};
-
 static const int ao_range_code_60xx[] = {
 	0x0,
 };
@@ -593,9 +579,39 @@ struct hw_fifo_info {
 	uint16_t fifo_size_reg_mask;
 };
 
+enum pcidas64_boardid {
+	BOARD_PCIDAS6402_16,
+	BOARD_PCIDAS6402_12,
+	BOARD_PCIDAS64_M1_16,
+	BOARD_PCIDAS64_M2_16,
+	BOARD_PCIDAS64_M3_16,
+	BOARD_PCIDAS6013,
+	BOARD_PCIDAS6014,
+	BOARD_PCIDAS6023,
+	BOARD_PCIDAS6025,
+	BOARD_PCIDAS6030,
+	BOARD_PCIDAS6031,
+	BOARD_PCIDAS6032,
+	BOARD_PCIDAS6033,
+	BOARD_PCIDAS6034,
+	BOARD_PCIDAS6035,
+	BOARD_PCIDAS6036,
+	BOARD_PCIDAS6040,
+	BOARD_PCIDAS6052,
+	BOARD_PCIDAS6070,
+	BOARD_PCIDAS6071,
+	BOARD_PCIDAS4020_12,
+	BOARD_PCIDAS6402_16_JR,
+	BOARD_PCIDAS64_M1_16_JR,
+	BOARD_PCIDAS64_M2_16_JR,
+	BOARD_PCIDAS64_M3_16_JR,
+	BOARD_PCIDAS64_M1_14,
+	BOARD_PCIDAS64_M2_14,
+	BOARD_PCIDAS64_M3_14,
+};
+
 struct pcidas64_board {
 	const char *name;
-	int device_id;		/*  pci device id */
 	int ai_se_chans;	/*  number of ai inputs in single-ended mode */
 	int ai_bits;		/*  analog input resolution */
 	int ai_speed;		/*  fastest conversion period in ns */
@@ -648,421 +664,397 @@ static inline unsigned int ai_dma_ring_count(const struct pcidas64_board *board)
 static const int bytes_in_sample = 2;
 
 static const struct pcidas64_board pcidas64_boards[] = {
-	{
-	 .name = "pci-das6402/16",
-	 .device_id = 0x1d,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ao_range_table = &ao_ranges_64xx,
-	 .ao_range_code = ao_range_code_64xx,
-	 .ai_fifo = &ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das6402/12",	/*  XXX check */
-	 .device_id = 0x1e,
-	 .ai_se_chans = 64,
-	 .ai_bits = 12,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ao_range_table = &ao_ranges_64xx,
-	 .ao_range_code = ao_range_code_64xx,
-	 .ai_fifo = &ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m1/16",
-	 .device_id = 0x35,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 1000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ao_range_table = &ao_ranges_64xx,
-	 .ao_range_code = ao_range_code_64xx,
-	 .ai_fifo = &ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m2/16",
-	 .device_id = 0x36,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 500,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ao_range_table = &ao_ranges_64xx,
-	 .ao_range_code = ao_range_code_64xx,
-	 .ai_fifo = &ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m3/16",
-	 .device_id = 0x37,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 333,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ao_range_table = &ao_ranges_64xx,
-	 .ao_range_code = ao_range_code_64xx,
-	 .ai_fifo = &ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das6013",
-	 .device_id = 0x78,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 0,
-	 .ao_bits = 16,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6014",
-	 .device_id = 0x79,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 100000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6023",
-	 .device_id = 0x5d,
-	 .ai_se_chans = 16,
-	 .ai_bits = 12,
-	 .ai_speed = 5000,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 100000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das6025",
-	 .device_id = 0x5e,
-	 .ai_se_chans = 16,
-	 .ai_bits = 12,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 100000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das6030",
-	 .device_id = 0x5f,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 10000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6030,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6031",
-	 .device_id = 0x60,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 10000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6030,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6032",
-	 .device_id = 0x61,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 10000,
-	 .ao_nchan = 0,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6033",
-	 .device_id = 0x62,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 10000,
-	 .ao_nchan = 0,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6034",
-	 .device_id = 0x63,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 0,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6035",
-	 .device_id = 0x64,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 100000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6036",
-	 .device_id = 0x6f,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 100000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6040",
-	 .device_id = 0x65,
-	 .ai_se_chans = 16,
-	 .ai_bits = 12,
-	 .ai_speed = 2000,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 1000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6052,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6052",
-	 .device_id = 0x66,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 3333,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 3333,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6052,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6070",
-	 .device_id = 0x67,
-	 .ai_se_chans = 16,
-	 .ai_bits = 12,
-	 .ai_speed = 800,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 1000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6052,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6071",
-	 .device_id = 0x68,
-	 .ai_se_chans = 64,
-	 .ai_bits = 12,
-	 .ai_speed = 800,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 1000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6052,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das4020/12",
-	 .device_id = 0x52,
-	 .ai_se_chans = 4,
-	 .ai_bits = 12,
-	 .ai_speed = 50,
-	 .ao_bits = 12,
-	 .ao_nchan = 2,
-	 .ao_scan_speed = 0,	/*  no hardware pacing on ao */
-	 .layout = LAYOUT_4020,
-	 .ai_range_table = &ai_ranges_4020,
-	 .ao_range_table = &ao_ranges_4020,
-	 .ao_range_code = ao_range_code_4020,
-	 .ai_fifo = &ai_fifo_4020,
-	 .has_8255 = 1,
-	 },
+	[BOARD_PCIDAS6402_16] = {
+		.name		= "pci-das6402/16",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ao_range_table	= &ao_ranges_64xx,
+		.ao_range_code	= ao_range_code_64xx,
+		.ai_fifo	= &ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS6402_12] = {
+		.name		= "pci-das6402/12",	/*  XXX check */
+		.ai_se_chans	= 64,
+		.ai_bits	= 12,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ao_range_table	= &ao_ranges_64xx,
+		.ao_range_code	= ao_range_code_64xx,
+		.ai_fifo	= &ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M1_16] = {
+		.name		= "pci-das64/m1/16",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 1000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ao_range_table	= &ao_ranges_64xx,
+		.ao_range_code	= ao_range_code_64xx,
+		.ai_fifo	= &ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M2_16] = {
+		.name = "pci-das64/m2/16",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 500,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ao_range_table	= &ao_ranges_64xx,
+		.ao_range_code	= ao_range_code_64xx,
+		.ai_fifo	= &ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M3_16] = {
+		.name		= "pci-das64/m3/16",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 333,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ao_range_table	= &ao_ranges_64xx,
+		.ao_range_code	= ao_range_code_64xx,
+		.ai_fifo	= &ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS6013] = {
+		.name		= "pci-das6013",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 0,
+		.ao_bits	= 16,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6014] = {
+		.name		= "pci-das6014",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 100000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6023] = {
+		.name		= "pci-das6023",
+		.ai_se_chans	= 16,
+		.ai_bits	= 12,
+		.ai_speed	= 5000,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 100000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS6025] = {
+		.name		= "pci-das6025",
+		.ai_se_chans	= 16,
+		.ai_bits	= 12,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 100000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS6030] = {
+		.name		= "pci-das6030",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 10000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6030,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6031] = {
+		.name		= "pci-das6031",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 10000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6030,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6032] = {
+		.name		= "pci-das6032",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 10000,
+		.ao_nchan	= 0,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6033] = {
+		.name		= "pci-das6033",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 10000,
+		.ao_nchan	= 0,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6034] = {
+		.name		= "pci-das6034",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 0,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6035] = {
+		.name		= "pci-das6035",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 100000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6036] = {
+		.name		= "pci-das6036",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 100000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6040] = {
+		.name		= "pci-das6040",
+		.ai_se_chans	= 16,
+		.ai_bits	= 12,
+		.ai_speed	= 2000,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 1000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6052,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6052] = {
+		.name		= "pci-das6052",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 3333,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 3333,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6052,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6070] = {
+		.name		= "pci-das6070",
+		.ai_se_chans	= 16,
+		.ai_bits	= 12,
+		.ai_speed	= 800,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 1000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6052,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6071] = {
+		.name		= "pci-das6071",
+		.ai_se_chans	= 64,
+		.ai_bits	= 12,
+		.ai_speed	= 800,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 1000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6052,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS4020_12] = {
+		.name		= "pci-das4020/12",
+		.ai_se_chans	= 4,
+		.ai_bits	= 12,
+		.ai_speed	= 50,
+		.ao_bits	= 12,
+		.ao_nchan	= 2,
+		.ao_scan_speed	= 0,	/*  no hardware pacing on ao */
+		.layout		= LAYOUT_4020,
+		.ai_range_table	= &ai_ranges_4020,
+		.ao_range_table	= &ao_ranges_4020,
+		.ao_range_code	= ao_range_code_4020,
+		.ai_fifo	= &ai_fifo_4020,
+		.has_8255	= 1,
+	},
 #if 0
-	{
-	 .name = "pci-das6402/16/jr",
-	 .device_id = 0		/*  XXX, */
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m1/16/jr",
-	 .device_id = 0		/*  XXX, */
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 1000,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m2/16/jr",
-	 .device_id = 0		/*  XXX, */
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 500,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m3/16/jr",
-	 .device_id = 0		/*  XXX, */
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 333,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m1/14",
-	 .device_id = 0,	/*  XXX */
-	 .ai_se_chans = 64,
-	 .ai_bits = 14,
-	 .ai_speed = 1000,
-	 .ao_nchan = 2,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m2/14",
-	 .device_id = 0,	/*  XXX */
-	 .ai_se_chans = 64,
-	 .ai_bits = 14,
-	 .ai_speed = 500,
-	 .ao_nchan = 2,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m3/14",
-	 .device_id = 0,	/*  XXX */
-	 .ai_se_chans = 64,
-	 .ai_bits = 14,
-	 .ai_speed = 333,
-	 .ao_nchan = 2,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
+	/*
+	 * The device id for these boards is unknown
+	 */
+
+	[BOARD_PCIDAS6402_16_JR] = {
+		.name		= "pci-das6402/16/jr",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M1_16_JR] = {
+		.name		= "pci-das64/m1/16/jr",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 1000,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M2_16_JR] = {
+		.name = "pci-das64/m2/16/jr",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 500,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M3_16_JR] = {
+		.name		= "pci-das64/m3/16/jr",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 333,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M1_14] = {
+		.name		= "pci-das64/m1/14",
+		.ai_se_chans	= 64,
+		.ai_bits	= 14,
+		.ai_speed	= 1000,
+		.ao_nchan	= 2,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M2_14] = {
+		.name		= "pci-das64/m2/14",
+		.ai_se_chans	= 64,
+		.ai_bits	= 14,
+		.ai_speed	= 500,
+		.ao_nchan	= 2,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M3_14] = {
+		.name		= "pci-das64/m3/14",
+		.ai_se_chans	= 64,
+		.ai_bits	= 14,
+		.ai_speed	= 333,
+		.ao_nchan	= 2,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
 #endif
 };
 
@@ -1088,7 +1080,6 @@ struct ext_clock_info {
 /* this structure is for data unique to this hardware driver. */
 struct pcidas64_private {
 	/*  base addresses (physical) */
-	resource_size_t plx9080_phys_iobase;
 	resource_size_t main_phys_iobase;
 	resource_size_t dio_counter_phys_iobase;
 	/*  base addresses (ioremapped) */
@@ -1523,7 +1514,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	struct pcidas64_private *devpriv = dev->private;
 	int i;
 
-	/*  alocate pci dma buffers */
+	/*  allocate pci dma buffers */
 	for (i = 0; i < ai_dma_ring_count(thisboard); i++) {
 		devpriv->ai_buffer[i] =
 			pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
@@ -3107,7 +3098,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	/* an interrupt before all the postconfig stuff gets done could
 	 * cause a NULL dereference if we continue through the
 	 * interrupt handler */
-	if (dev->attached == 0) {
+	if (!dev->attached) {
 		DEBUG_PRINT("premature interrupt, ignoring\n");
 		return IRQ_HANDLED;
 	}
@@ -4033,68 +4024,40 @@ static int setup_subdevices(struct comedi_device *dev)
 	return 0;
 }
 
-static const struct pcidas64_board
-*cb_pcidas64_find_pci_board(struct pci_dev *pcidev)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(pcidas64_boards); i++)
-		if (pcidev->device == pcidas64_boards[i].device_id)
-			return &pcidas64_boards[i];
-	return NULL;
-}
-
 static int auto_attach(struct comedi_device *dev,
-				 unsigned long context_unused)
+		       unsigned long context)
 {
-	const struct pcidas64_board *thisboard;
-	struct pcidas64_private *devpriv;
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct pcidas64_board *thisboard = NULL;
+	struct pcidas64_private *devpriv;
 	uint32_t local_range, local_decode;
 	int retval;
 
-	dev->board_ptr = cb_pcidas64_find_pci_board(pcidev);
-	if (!dev->board_ptr) {
-		dev_err(dev->class_dev,
-			"cb_pcidas64: does not support pci %s\n",
-			pci_name(pcidev));
-		return -EINVAL;
-	}
-	thisboard = comedi_board(dev);
+	if (context < ARRAY_SIZE(pcidas64_boards))
+		thisboard = &pcidas64_boards[context];
+	if (!thisboard)
+		return -ENODEV;
+	dev->board_ptr = thisboard;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
-		dev_warn(dev->class_dev,
-			 "failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
+	retval = comedi_pci_enable(dev);
+	if (retval)
+		return retval;
 	pci_set_master(pcidev);
 
 	/* Initialize dev->board_name */
 	dev->board_name = thisboard->name;
 
-	dev->iobase = pci_resource_start(pcidev, MAIN_BADDRINDEX);
+	devpriv->main_phys_iobase = pci_resource_start(pcidev, 2);
+	devpriv->dio_counter_phys_iobase = pci_resource_start(pcidev, 3);
 
-	devpriv->plx9080_phys_iobase =
-		pci_resource_start(pcidev, PLX9080_BADDRINDEX);
-	devpriv->main_phys_iobase = dev->iobase;
-	devpriv->dio_counter_phys_iobase =
-		pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
-
-	/*  remap, won't work with 2.0 kernels but who cares */
-	devpriv->plx9080_iobase =
-		ioremap(devpriv->plx9080_phys_iobase,
-			pci_resource_len(pcidev, PLX9080_BADDRINDEX));
-	devpriv->main_iobase =
-		ioremap(devpriv->main_phys_iobase,
-			pci_resource_len(pcidev, MAIN_BADDRINDEX));
-	devpriv->dio_counter_iobase =
-		ioremap(devpriv->dio_counter_phys_iobase,
-			pci_resource_len(pcidev, DIO_COUNTER_BADDRINDEX));
+	devpriv->plx9080_iobase = pci_ioremap_bar(pcidev, 0);
+	devpriv->main_iobase = pci_ioremap_bar(pcidev, 2);
+	devpriv->dio_counter_iobase = pci_ioremap_bar(pcidev, 3);
 
 	if (!devpriv->plx9080_iobase || !devpriv->main_iobase
 	    || !devpriv->dio_counter_iobase) {
@@ -4200,12 +4163,8 @@ static void detach(struct comedi_device *dev)
 					devpriv->ao_dma_desc_bus_addr);
 		}
 	}
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[4]);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_spriv_free(dev, 4);
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver cb_pcidas64_driver = {
@@ -4216,31 +4175,34 @@ static struct comedi_driver cb_pcidas64_driver = {
 };
 
 static int cb_pcidas64_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &cb_pcidas64_driver);
+	return comedi_pci_auto_config(dev, &cb_pcidas64_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidas64_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001e) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0035) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0036) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0037) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0052) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x005d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x005e) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x005f) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0061) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0062) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0063) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0064) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0066) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0067) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0068) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x006f) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0078) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0079) },
+	{ PCI_VDEVICE(CB, 0x001d), BOARD_PCIDAS6402_16 },
+	{ PCI_VDEVICE(CB, 0x001e), BOARD_PCIDAS6402_12 },
+	{ PCI_VDEVICE(CB, 0x0035), BOARD_PCIDAS64_M1_16 },
+	{ PCI_VDEVICE(CB, 0x0036), BOARD_PCIDAS64_M2_16 },
+	{ PCI_VDEVICE(CB, 0x0037), BOARD_PCIDAS64_M3_16 },
+	{ PCI_VDEVICE(CB, 0x0052), BOARD_PCIDAS4020_12 },
+	{ PCI_VDEVICE(CB, 0x005d), BOARD_PCIDAS6023 },
+	{ PCI_VDEVICE(CB, 0x005e), BOARD_PCIDAS6025 },
+	{ PCI_VDEVICE(CB, 0x005f), BOARD_PCIDAS6030 },
+	{ PCI_VDEVICE(CB, 0x0060), BOARD_PCIDAS6031 },
+	{ PCI_VDEVICE(CB, 0x0061), BOARD_PCIDAS6032 },
+	{ PCI_VDEVICE(CB, 0x0062), BOARD_PCIDAS6033 },
+	{ PCI_VDEVICE(CB, 0x0063), BOARD_PCIDAS6034 },
+	{ PCI_VDEVICE(CB, 0x0064), BOARD_PCIDAS6035 },
+	{ PCI_VDEVICE(CB, 0x0065), BOARD_PCIDAS6040 },
+	{ PCI_VDEVICE(CB, 0x0066), BOARD_PCIDAS6052 },
+	{ PCI_VDEVICE(CB, 0x0067), BOARD_PCIDAS6070 },
+	{ PCI_VDEVICE(CB, 0x0068), BOARD_PCIDAS6071 },
+	{ PCI_VDEVICE(CB, 0x006f), BOARD_PCIDAS6036 },
+	{ PCI_VDEVICE(CB, 0x0078), BOARD_PCIDAS6013 },
+	{ PCI_VDEVICE(CB, 0x0079), BOARD_PCIDAS6014 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, cb_pcidas64_pci_table);

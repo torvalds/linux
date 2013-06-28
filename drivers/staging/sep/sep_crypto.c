@@ -1206,7 +1206,7 @@ static int sep_crypto_block_data(struct ablkcipher_request *req)
 
 		if (copy_result != crypto_ablkcipher_blocksize(tfm)) {
 			dev_warn(&ta_ctx->sep_used->pdev->dev,
-				"des block copy faild\n");
+				"des block copy failed\n");
 			return -ENOMEM;
 		}
 
@@ -1637,7 +1637,7 @@ static u32 crypto_post_op(struct sep_device *sep)
 					crypto_ablkcipher_blocksize(tfm)) {
 
 					dev_warn(&ta_ctx->sep_used->pdev->dev,
-						"des block copy faild\n");
+						"des block copy failed\n");
 					sep_crypto_release(sctx, ta_ctx,
 						-ENOMEM);
 					return -ENOMEM;

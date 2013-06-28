@@ -11,6 +11,7 @@ Optional properties:
   that indicate usb controller index
 - vbus-supply: regulator for vbus
 - disable-over-current: disable over current detect
+- external-vbus-divider: enables off-chip resistor divider for Vbus
 
 Examples:
 usb@02184000 { /* USB OTG */
@@ -20,4 +21,5 @@ usb@02184000 { /* USB OTG */
 	fsl,usbphy = <&usbphy1>;
 	fsl,usbmisc = <&usbmisc 0>;
 	disable-over-current;
+	external-vbus-divider;
 };

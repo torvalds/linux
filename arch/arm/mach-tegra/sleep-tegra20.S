@@ -197,7 +197,7 @@ ENTRY(tegra20_sleep_cpu_secondary_finish)
 	mov	r3, #CPU_RESETTABLE
 	str	r3, [r0]
 
-	bl	cpu_do_idle
+	bl	tegra_cpu_do_idle
 
 	/*
 	 * cpu may be reset while in wfi, which will return through

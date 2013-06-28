@@ -270,6 +270,10 @@ static struct snd_soc_dai_driver spdif_out_dai = {
 	.ops = &spdif_out_dai_ops,
 };
 
+static const struct snd_soc_component_driver spdif_out_component = {
+	.name		= "spdif-out",
+};
+
 static int spdif_out_probe(struct platform_device *pdev)
 {
 	struct spdif_out_dev *host;
@@ -314,7 +318,8 @@ static int spdif_out_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, host);
 
-	ret = snd_soc_register_dai(&pdev->dev, &spdif_out_dai);
+	ret = snd_soc_register_component(&pdev->dev, &spdif_out_component,
+					 &spdif_out_dai, 1);
 	if (ret != 0) {
 		clk_put(host->clk);
 		return ret;
@@ -327,7 +332,7 @@ static int spdif_out_remove(struct platform_device *pdev)
 {
 	struct spdif_out_dev *host = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	dev_set_drvdata(&pdev->dev, NULL);
 
 	clk_put(host->clk);

@@ -34,11 +34,13 @@
 			interrupts = <56 57 58 59 60 61 62 63>;
 		};
 
-		gpio: gpio-controller@d8110000 {
-			compatible = "wm,wm8650-gpio";
-			gpio-controller;
+		pinctrl: pinctrl@d8110000 {
+			compatible = "wm,wm8650-pinctrl";
 			reg = <0xd8110000 0x10000>;
-			#gpio-cells = <3>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		pmc@d8130000 {
@@ -128,11 +130,9 @@
 			interrupts = <43>;
 		};
 
-		fb@d8050800 {
+		fb: fb@d8050800 {
 			compatible = "wm,wm8505-fb";
 			reg = <0xd8050800 0x200>;
-			display = <&display>;
-			default-mode = <&mode0>;
 		};
 
 		ge_rops@d8050400 {

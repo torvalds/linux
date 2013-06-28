@@ -81,12 +81,17 @@
 /* Device instance number, incremented each time a device is probed. */
 static int instance;
 
+struct list_head online_list;
+struct list_head removing_list;
+spinlock_t dev_lock;
+
 /*
  * Global variable used to hold the major block device number
  * allocated in mtip_init().
  */
 static int mtip_major;
 static struct dentry *dfs_parent;
+static struct dentry *dfs_device_status;
 
 static u32 cpu_use[NR_CPUS];
 
@@ -243,21 +248,15 @@ static inline void release_slot(struct mtip_port *port, int tag)
 /*
  * Reset the HBA (without sleeping)
  *
- * Just like hba_reset, except does not call sleep, so can be
- * run from interrupt/tasklet context.
- *
  * @dd Pointer to the driver data structure.
  *
  * return value
  *	0	The reset was successful.
  *	-1	The HBA Reset bit did not clear.
  */
-static int hba_reset_nosleep(struct driver_data *dd)
+static int mtip_hba_reset(struct driver_data *dd)
 {
 	unsigned long timeout;
-
-	/* Chip quirk: quiesce any chip function */
-	mdelay(10);
 
 	/* Set the reset bit */
 	writel(HOST_RESET, dd->mmio + HOST_CTL);
@@ -265,18 +264,15 @@ static int hba_reset_nosleep(struct driver_data *dd)
 	/* Flush */
 	readl(dd->mmio + HOST_CTL);
 
-	/*
-	 * Wait 10ms then spin for up to 1 second
-	 * waiting for reset acknowledgement
-	 */
-	timeout = jiffies + msecs_to_jiffies(1000);
-	mdelay(10);
-	while ((readl(dd->mmio + HOST_CTL) & HOST_RESET)
-		 && time_before(jiffies, timeout))
-		mdelay(1);
+	/* Spin for up to 2 seconds, waiting for reset acknowledgement */
+	timeout = jiffies + msecs_to_jiffies(2000);
+	do {
+		mdelay(10);
+		if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag))
+			return -1;
 
-	if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag))
-		return -1;
+	} while ((readl(dd->mmio + HOST_CTL) & HOST_RESET)
+		 && time_before(jiffies, timeout));
 
 	if (readl(dd->mmio + HOST_CTL) & HOST_RESET)
 		return -1;
@@ -481,7 +477,7 @@ static void mtip_restart_port(struct mtip_port *port)
 		dev_warn(&port->dd->pdev->dev,
 			"PxCMD.CR not clear, escalating reset\n");
 
-		if (hba_reset_nosleep(port->dd))
+		if (mtip_hba_reset(port->dd))
 			dev_err(&port->dd->pdev->dev,
 				"HBA reset escalation failed.\n");
 
@@ -525,6 +521,26 @@ static void mtip_restart_port(struct mtip_port *port)
 	mtip_init_port(port);
 	mtip_start_port(port);
 
+}
+
+static int mtip_device_reset(struct driver_data *dd)
+{
+	int rv = 0;
+
+	if (mtip_check_surprise_removal(dd->pdev))
+		return 0;
+
+	if (mtip_hba_reset(dd) < 0)
+		rv = -EFAULT;
+
+	mdelay(1);
+	mtip_init_port(dd->port);
+	mtip_start_port(dd->port);
+
+	/* Enable interrupts on the HBA. */
+	writel(readl(dd->mmio + HOST_CTL) | HOST_IRQ_EN,
+					dd->mmio + HOST_CTL);
+	return rv;
 }
 
 /*
@@ -632,7 +648,7 @@ static void mtip_timeout_function(unsigned long int data)
 	if (cmdto_cnt) {
 		print_tags(port->dd, "timed out", tagaccum, cmdto_cnt);
 		if (!test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags)) {
-			mtip_restart_port(port);
+			mtip_device_reset(port->dd);
 			wake_up_interruptible(&port->svc_wait);
 		}
 		clear_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
@@ -712,7 +728,10 @@ static void mtip_async_complete(struct mtip_port *port,
 	atomic_set(&port->commands[tag].active, 0);
 	release_slot(port, tag);
 
-	up(&port->cmd_slot);
+	if (unlikely(command->unaligned))
+		up(&port->cmd_slot_unal);
+	else
+		up(&port->cmd_slot);
 }
 
 /*
@@ -1283,11 +1302,11 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 	int rv = 0, ready2go = 1;
 	struct mtip_cmd *int_cmd = &port->commands[MTIP_TAG_INTERNAL];
 	unsigned long to;
+	struct driver_data *dd = port->dd;
 
 	/* Make sure the buffer is 8 byte aligned. This is asic specific. */
 	if (buffer & 0x00000007) {
-		dev_err(&port->dd->pdev->dev,
-			"SG buffer is not 8 byte aligned\n");
+		dev_err(&dd->pdev->dev, "SG buffer is not 8 byte aligned\n");
 		return -EFAULT;
 	}
 
@@ -1300,23 +1319,21 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 		mdelay(100);
 	} while (time_before(jiffies, to));
 	if (!ready2go) {
-		dev_warn(&port->dd->pdev->dev,
+		dev_warn(&dd->pdev->dev,
 			"Internal cmd active. new cmd [%02X]\n", fis->command);
 		return -EBUSY;
 	}
 	set_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags);
 	port->ic_pause_timer = 0;
 
-	if (fis->command == ATA_CMD_SEC_ERASE_UNIT)
-		clear_bit(MTIP_PF_SE_ACTIVE_BIT, &port->flags);
-	else if (fis->command == ATA_CMD_DOWNLOAD_MICRO)
-		clear_bit(MTIP_PF_DM_ACTIVE_BIT, &port->flags);
+	clear_bit(MTIP_PF_SE_ACTIVE_BIT, &port->flags);
+	clear_bit(MTIP_PF_DM_ACTIVE_BIT, &port->flags);
 
 	if (atomic == GFP_KERNEL) {
 		if (fis->command != ATA_CMD_STANDBYNOW1) {
 			/* wait for io to complete if non atomic */
 			if (mtip_quiesce_io(port, 5000) < 0) {
-				dev_warn(&port->dd->pdev->dev,
+				dev_warn(&dd->pdev->dev,
 					"Failed to quiesce IO\n");
 				release_slot(port, MTIP_TAG_INTERNAL);
 				clear_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags);
@@ -1361,58 +1378,84 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 	/* Issue the command to the hardware */
 	mtip_issue_non_ncq_command(port, MTIP_TAG_INTERNAL);
 
-	/* Poll if atomic, wait_for_completion otherwise */
 	if (atomic == GFP_KERNEL) {
 		/* Wait for the command to complete or timeout. */
-		if (wait_for_completion_timeout(
+		if (wait_for_completion_interruptible_timeout(
 				&wait,
-				msecs_to_jiffies(timeout)) == 0) {
-			dev_err(&port->dd->pdev->dev,
-				"Internal command did not complete [%d] "
-				"within timeout of  %lu ms\n",
-				atomic, timeout);
-			if (mtip_check_surprise_removal(port->dd->pdev) ||
+				msecs_to_jiffies(timeout)) <= 0) {
+			if (rv == -ERESTARTSYS) { /* interrupted */
+				dev_err(&dd->pdev->dev,
+					"Internal command [%02X] was interrupted after %lu ms\n",
+					fis->command, timeout);
+				rv = -EINTR;
+				goto exec_ic_exit;
+			} else if (rv == 0) /* timeout */
+				dev_err(&dd->pdev->dev,
+					"Internal command did not complete [%02X] within timeout of  %lu ms\n",
+					fis->command, timeout);
+			else
+				dev_err(&dd->pdev->dev,
+					"Internal command [%02X] wait returned code [%d] after %lu ms - unhandled\n",
+					fis->command, rv, timeout);
+
+			if (mtip_check_surprise_removal(dd->pdev) ||
 				test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
-						&port->dd->dd_flag)) {
+						&dd->dd_flag)) {
+				dev_err(&dd->pdev->dev,
+					"Internal command [%02X] wait returned due to SR\n",
+					fis->command);
 				rv = -ENXIO;
 				goto exec_ic_exit;
 			}
+			mtip_device_reset(dd); /* recover from timeout issue */
 			rv = -EAGAIN;
+			goto exec_ic_exit;
 		}
 	} else {
+		u32 hba_stat, port_stat;
+
 		/* Spin for <timeout> checking if command still outstanding */
 		timeout = jiffies + msecs_to_jiffies(timeout);
 		while ((readl(port->cmd_issue[MTIP_TAG_INTERNAL])
 				& (1 << MTIP_TAG_INTERNAL))
 				&& time_before(jiffies, timeout)) {
-			if (mtip_check_surprise_removal(port->dd->pdev)) {
+			if (mtip_check_surprise_removal(dd->pdev)) {
 				rv = -ENXIO;
 				goto exec_ic_exit;
 			}
 			if ((fis->command != ATA_CMD_STANDBYNOW1) &&
 				test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
-						&port->dd->dd_flag)) {
+						&dd->dd_flag)) {
 				rv = -ENXIO;
 				goto exec_ic_exit;
 			}
-			if (readl(port->mmio + PORT_IRQ_STAT) & PORT_IRQ_ERR) {
-				atomic_inc(&int_cmd->active); /* error */
-				break;
+			port_stat = readl(port->mmio + PORT_IRQ_STAT);
+			if (!port_stat)
+				continue;
+
+			if (port_stat & PORT_IRQ_ERR) {
+				dev_err(&dd->pdev->dev,
+					"Internal command [%02X] failed\n",
+					fis->command);
+				mtip_device_reset(dd);
+				rv = -EIO;
+				goto exec_ic_exit;
+			} else {
+				writel(port_stat, port->mmio + PORT_IRQ_STAT);
+				hba_stat = readl(dd->mmio + HOST_IRQ_STAT);
+				if (hba_stat)
+					writel(hba_stat,
+						dd->mmio + HOST_IRQ_STAT);
 			}
+			break;
 		}
 	}
 
-	if (atomic_read(&int_cmd->active) > 1) {
-		dev_err(&port->dd->pdev->dev,
-			"Internal command [%02X] failed\n", fis->command);
-		rv = -EIO;
-	}
 	if (readl(port->cmd_issue[MTIP_TAG_INTERNAL])
 			& (1 << MTIP_TAG_INTERNAL)) {
 		rv = -ENXIO;
-		if (!test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
-					&port->dd->dd_flag)) {
-			mtip_restart_port(port);
+		if (!test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag)) {
+			mtip_device_reset(dd);
 			rv = -EAGAIN;
 		}
 	}
@@ -1520,10 +1563,12 @@ static int mtip_get_identify(struct mtip_port *port, void __user *user_buffer)
 	}
 #endif
 
+#ifdef MTIP_TRIM /* Disabling TRIM support temporarily */
 	/* Demux ID.DRAT & ID.RZAT to determine trim support */
 	if (port->identify[69] & (1 << 14) && port->identify[69] & (1 << 5))
 		port->dd->trim_supp = true;
 	else
+#endif
 		port->dd->trim_supp = false;
 
 	/* Set the identify buffer as valid. */
@@ -1724,7 +1769,8 @@ static int mtip_get_smart_attr(struct mtip_port *port, unsigned int id,
  *      -EINVAL		Invalid parameters passed in, trim not supported
  *      -EIO		Error submitting trim request to hw
  */
-static int mtip_send_trim(struct driver_data *dd, unsigned int lba, unsigned int len)
+static int mtip_send_trim(struct driver_data *dd, unsigned int lba,
+				unsigned int len)
 {
 	int i, rv = 0;
 	u64 tlba, tlen, sect_left;
@@ -1808,45 +1854,6 @@ static bool mtip_hw_get_capacity(struct driver_data *dd, sector_t *sectors)
 	total = raw0 | raw1<<16 | raw2<<32 | raw3<<48;
 	*sectors = total;
 	return (bool) !!port->identify_valid;
-}
-
-/*
- * Reset the HBA.
- *
- * Resets the HBA by setting the HBA Reset bit in the Global
- * HBA Control register. After setting the HBA Reset bit the
- * function waits for 1 second before reading the HBA Reset
- * bit to make sure it has cleared. If HBA Reset is not clear
- * an error is returned. Cannot be used in non-blockable
- * context.
- *
- * @dd Pointer to the driver data structure.
- *
- * return value
- *	0  The reset was successful.
- *	-1 The HBA Reset bit did not clear.
- */
-static int mtip_hba_reset(struct driver_data *dd)
-{
-	mtip_deinit_port(dd->port);
-
-	/* Set the reset bit */
-	writel(HOST_RESET, dd->mmio + HOST_CTL);
-
-	/* Flush */
-	readl(dd->mmio + HOST_CTL);
-
-	/* Wait for reset to clear */
-	ssleep(1);
-
-	/* Check the bit has cleared */
-	if (readl(dd->mmio + HOST_CTL) & HOST_RESET) {
-		dev_err(&dd->pdev->dev,
-			"Reset bit did not clear.\n");
-		return -1;
-	}
-
-	return 0;
 }
 
 /*
@@ -2555,7 +2562,7 @@ static int mtip_hw_ioctl(struct driver_data *dd, unsigned int cmd,
  */
 static void mtip_hw_submit_io(struct driver_data *dd, sector_t sector,
 			      int nsect, int nents, int tag, void *callback,
-			      void *data, int dir)
+			      void *data, int dir, int unaligned)
 {
 	struct host_to_dev_fis	*fis;
 	struct mtip_port *port = dd->port;
@@ -2568,6 +2575,7 @@ static void mtip_hw_submit_io(struct driver_data *dd, sector_t sector,
 
 	command->scatter_ents = nents;
 
+	command->unaligned = unaligned;
 	/*
 	 * The number of retries for this command before it is
 	 * reported as a failure to the upper layers.
@@ -2595,6 +2603,9 @@ static void mtip_hw_submit_io(struct driver_data *dd, sector_t sector,
 	fis->res2        = 0;
 	fis->res3        = 0;
 	fill_command_sg(dd, command, nents);
+
+	if (unaligned)
+		fis->device |= 1 << 7;
 
 	/* Populate the command header */
 	command->command_header->opts =
@@ -2642,9 +2653,13 @@ static void mtip_hw_submit_io(struct driver_data *dd, sector_t sector,
  * return value
  *      None
  */
-static void mtip_hw_release_scatterlist(struct driver_data *dd, int tag)
+static void mtip_hw_release_scatterlist(struct driver_data *dd, int tag,
+								int unaligned)
 {
+	struct semaphore *sem = unaligned ? &dd->port->cmd_slot_unal :
+							&dd->port->cmd_slot;
 	release_slot(dd->port, tag);
+	up(sem);
 }
 
 /*
@@ -2659,22 +2674,25 @@ static void mtip_hw_release_scatterlist(struct driver_data *dd, int tag)
  *	or NULL if no command slots are available.
  */
 static struct scatterlist *mtip_hw_get_scatterlist(struct driver_data *dd,
-						   int *tag)
+						   int *tag, int unaligned)
 {
+	struct semaphore *sem = unaligned ? &dd->port->cmd_slot_unal :
+							&dd->port->cmd_slot;
+
 	/*
 	 * It is possible that, even with this semaphore, a thread
 	 * may think that no command slots are available. Therefore, we
 	 * need to make an attempt to get_slot().
 	 */
-	down(&dd->port->cmd_slot);
+	down(sem);
 	*tag = get_slot(dd->port);
 
 	if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag))) {
-		up(&dd->port->cmd_slot);
+		up(sem);
 		return NULL;
 	}
 	if (unlikely(*tag < 0)) {
-		up(&dd->port->cmd_slot);
+		up(sem);
 		return NULL;
 	}
 
@@ -2709,6 +2727,100 @@ static ssize_t mtip_hw_show_status(struct device *dev,
 }
 
 static DEVICE_ATTR(status, S_IRUGO, mtip_hw_show_status, NULL);
+
+/* debugsfs entries */
+
+static ssize_t show_device_status(struct device_driver *drv, char *buf)
+{
+	int size = 0;
+	struct driver_data *dd, *tmp;
+	unsigned long flags;
+	char id_buf[42];
+	u16 status = 0;
+
+	spin_lock_irqsave(&dev_lock, flags);
+	size += sprintf(&buf[size], "Devices Present:\n");
+	list_for_each_entry_safe(dd, tmp, &online_list, online_list) {
+		if (dd->pdev) {
+			if (dd->port &&
+			    dd->port->identify &&
+			    dd->port->identify_valid) {
+				strlcpy(id_buf,
+					(char *) (dd->port->identify + 10), 21);
+				status = *(dd->port->identify + 141);
+			} else {
+				memset(id_buf, 0, 42);
+				status = 0;
+			}
+
+			if (dd->port &&
+			    test_bit(MTIP_PF_REBUILD_BIT, &dd->port->flags)) {
+				size += sprintf(&buf[size],
+					" device %s %s (ftl rebuild %d %%)\n",
+					dev_name(&dd->pdev->dev),
+					id_buf,
+					status);
+			} else {
+				size += sprintf(&buf[size],
+					" device %s %s\n",
+					dev_name(&dd->pdev->dev),
+					id_buf);
+			}
+		}
+	}
+
+	size += sprintf(&buf[size], "Devices Being Removed:\n");
+	list_for_each_entry_safe(dd, tmp, &removing_list, remove_list) {
+		if (dd->pdev) {
+			if (dd->port &&
+			    dd->port->identify &&
+			    dd->port->identify_valid) {
+				strlcpy(id_buf,
+					(char *) (dd->port->identify+10), 21);
+				status = *(dd->port->identify + 141);
+			} else {
+				memset(id_buf, 0, 42);
+				status = 0;
+			}
+
+			if (dd->port &&
+			    test_bit(MTIP_PF_REBUILD_BIT, &dd->port->flags)) {
+				size += sprintf(&buf[size],
+					" device %s %s (ftl rebuild %d %%)\n",
+					dev_name(&dd->pdev->dev),
+					id_buf,
+					status);
+			} else {
+				size += sprintf(&buf[size],
+					" device %s %s\n",
+					dev_name(&dd->pdev->dev),
+					id_buf);
+			}
+		}
+	}
+	spin_unlock_irqrestore(&dev_lock, flags);
+
+	return size;
+}
+
+static ssize_t mtip_hw_read_device_status(struct file *f, char __user *ubuf,
+						size_t len, loff_t *offset)
+{
+	int size = *offset;
+	char buf[MTIP_DFS_MAX_BUF_SIZE];
+
+	if (!len || *offset)
+		return 0;
+
+	size += show_device_status(NULL, buf);
+
+	*offset = size <= len ? size : len;
+	size = copy_to_user(ubuf, buf, *offset);
+	if (size)
+		return -EFAULT;
+
+	return *offset;
+}
 
 static ssize_t mtip_hw_read_registers(struct file *f, char __user *ubuf,
 				  size_t len, loff_t *offset)
@@ -2803,6 +2915,13 @@ static ssize_t mtip_hw_read_flags(struct file *f, char __user *ubuf,
 
 	return *offset;
 }
+
+static const struct file_operations mtip_device_status_fops = {
+	.owner  = THIS_MODULE,
+	.open   = simple_open,
+	.read   = mtip_hw_read_device_status,
+	.llseek = no_llseek,
+};
 
 static const struct file_operations mtip_regs_fops = {
 	.owner  = THIS_MODULE,
@@ -2905,6 +3024,11 @@ static inline void hba_setup(struct driver_data *dd)
 		HSORG_DISABLE_SLOTGRP_INTR |
 		HSORG_DISABLE_SLOTGRP_PXIS,
 		dd->mmio + HOST_HSORG);
+}
+
+static int mtip_device_unaligned_constrained(struct driver_data *dd)
+{
+	return (dd->pdev->device == P420M_DEVICE_ID ? 1 : 0);
 }
 
 /*
@@ -3129,8 +3253,15 @@ static int mtip_hw_init(struct driver_data *dd)
 	for (i = 0; i < MTIP_MAX_SLOT_GROUPS; i++)
 		dd->work[i].port = dd->port;
 
+	/* Enable unaligned IO constraints for some devices */
+	if (mtip_device_unaligned_constrained(dd))
+		dd->unal_qdepth = MTIP_MAX_UNALIGNED_SLOTS;
+	else
+		dd->unal_qdepth = 0;
+
 	/* Counting semaphore to track command slot usage */
-	sema_init(&dd->port->cmd_slot, num_command_slots - 1);
+	sema_init(&dd->port->cmd_slot, num_command_slots - 1 - dd->unal_qdepth);
+	sema_init(&dd->port->cmd_slot_unal, dd->unal_qdepth);
 
 	/* Spinlock to prevent concurrent issue */
 	for (i = 0; i < MTIP_MAX_SLOT_GROUPS; i++)
@@ -3733,7 +3864,7 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 	struct scatterlist *sg;
 	struct bio_vec *bvec;
 	int nents = 0;
-	int tag = 0;
+	int tag = 0, unaligned = 0;
 
 	if (unlikely(dd->dd_flag & MTIP_DDF_STOP_IO)) {
 		if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
@@ -3769,7 +3900,15 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 		return;
 	}
 
-	sg = mtip_hw_get_scatterlist(dd, &tag);
+	if (bio_data_dir(bio) == WRITE && bio_sectors(bio) <= 64 &&
+							dd->unal_qdepth) {
+		if (bio->bi_sector % 8 != 0) /* Unaligned on 4k boundaries */
+			unaligned = 1;
+		else if (bio_sectors(bio) % 8 != 0) /* Aligned but not 4k/8k */
+			unaligned = 1;
+	}
+
+	sg = mtip_hw_get_scatterlist(dd, &tag, unaligned);
 	if (likely(sg != NULL)) {
 		blk_queue_bounce(queue, &bio);
 
@@ -3777,7 +3916,7 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 			dev_warn(&dd->pdev->dev,
 				"Maximum number of SGL entries exceeded\n");
 			bio_io_error(bio);
-			mtip_hw_release_scatterlist(dd, tag);
+			mtip_hw_release_scatterlist(dd, tag, unaligned);
 			return;
 		}
 
@@ -3797,7 +3936,8 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 				tag,
 				bio_endio,
 				bio,
-				bio_data_dir(bio));
+				bio_data_dir(bio),
+				unaligned);
 	} else
 		bio_io_error(bio);
 }
@@ -4053,25 +4193,23 @@ static int mtip_block_remove(struct driver_data *dd)
  */
 static int mtip_block_shutdown(struct driver_data *dd)
 {
-	dev_info(&dd->pdev->dev,
-		"Shutting down %s ...\n", dd->disk->disk_name);
-
 	/* Delete our gendisk structure, and cleanup the blk queue. */
 	if (dd->disk) {
-		if (dd->disk->queue)
-			del_gendisk(dd->disk);
-		else
-			put_disk(dd->disk);
-	}
+		dev_info(&dd->pdev->dev,
+			"Shutting down %s ...\n", dd->disk->disk_name);
 
+		if (dd->disk->queue) {
+			del_gendisk(dd->disk);
+			blk_cleanup_queue(dd->queue);
+		} else
+			put_disk(dd->disk);
+		dd->disk  = NULL;
+		dd->queue = NULL;
+	}
 
 	spin_lock(&rssd_index_lock);
 	ida_remove(&rssd_index_ida, dd->index);
 	spin_unlock(&rssd_index_lock);
-
-	blk_cleanup_queue(dd->queue);
-	dd->disk  = NULL;
-	dd->queue = NULL;
 
 	mtip_hw_shutdown(dd);
 	return 0;
@@ -4161,6 +4299,7 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	const struct cpumask *node_mask;
 	int cpu, i = 0, j = 0;
 	int my_node = NUMA_NO_NODE;
+	unsigned long flags;
 
 	/* Allocate memory for this devices private data. */
 	my_node = pcibus_to_node(pdev->bus);
@@ -4218,12 +4357,16 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	dd->pdev	= pdev;
 	dd->numa_node	= my_node;
 
+	INIT_LIST_HEAD(&dd->online_list);
+	INIT_LIST_HEAD(&dd->remove_list);
+
 	memset(dd->workq_name, 0, 32);
 	snprintf(dd->workq_name, 31, "mtipq%d", dd->instance);
 
 	dd->isr_workq = create_workqueue(dd->workq_name);
 	if (!dd->isr_workq) {
 		dev_warn(&pdev->dev, "Can't create wq %d\n", dd->instance);
+		rv = -ENOMEM;
 		goto block_initialize_err;
 	}
 
@@ -4282,7 +4425,8 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	INIT_WORK(&dd->work[7].work, mtip_workq_sdbf7);
 
 	pci_set_master(pdev);
-	if (pci_enable_msi(pdev)) {
+	rv = pci_enable_msi(pdev);
+	if (rv) {
 		dev_warn(&pdev->dev,
 			"Unable to enable MSI interrupt.\n");
 		goto block_initialize_err;
@@ -4303,6 +4447,14 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	instance++;
 	if (rv != MTIP_FTL_REBUILD_MAGIC)
 		set_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag);
+	else
+		rv = 0; /* device in rebuild state, return 0 from probe */
+
+	/* Add to online list even if in ftl rebuild */
+	spin_lock_irqsave(&dev_lock, flags);
+	list_add(&dd->online_list, &online_list);
+	spin_unlock_irqrestore(&dev_lock, flags);
+
 	goto done;
 
 block_initialize_err:
@@ -4336,8 +4488,14 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 {
 	struct driver_data *dd = pci_get_drvdata(pdev);
 	int counter = 0;
+	unsigned long flags;
 
 	set_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag);
+
+	spin_lock_irqsave(&dev_lock, flags);
+	list_del_init(&dd->online_list);
+	list_add(&dd->remove_list, &removing_list);
+	spin_unlock_irqrestore(&dev_lock, flags);
 
 	if (mtip_check_surprise_removal(pdev)) {
 		while (!test_bit(MTIP_DDF_CLEANUP_BIT, &dd->dd_flag)) {
@@ -4363,6 +4521,10 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 	}
 
 	pci_disable_msi(pdev);
+
+	spin_lock_irqsave(&dev_lock, flags);
+	list_del_init(&dd->remove_list);
+	spin_unlock_irqrestore(&dev_lock, flags);
 
 	kfree(dd);
 	pcim_iounmap_regions(pdev, 1 << MTIP_ABAR);
@@ -4511,6 +4673,11 @@ static int __init mtip_init(void)
 
 	pr_info(MTIP_DRV_NAME " Version " MTIP_DRV_VERSION "\n");
 
+	spin_lock_init(&dev_lock);
+
+	INIT_LIST_HEAD(&online_list);
+	INIT_LIST_HEAD(&removing_list);
+
 	/* Allocate a major block device number to use with this driver. */
 	error = register_blkdev(0, MTIP_DRV_NAME);
 	if (error <= 0) {
@@ -4520,11 +4687,18 @@ static int __init mtip_init(void)
 	}
 	mtip_major = error;
 
-	if (!dfs_parent) {
-		dfs_parent = debugfs_create_dir("rssd", NULL);
-		if (IS_ERR_OR_NULL(dfs_parent)) {
-			pr_warn("Error creating debugfs parent\n");
-			dfs_parent = NULL;
+	dfs_parent = debugfs_create_dir("rssd", NULL);
+	if (IS_ERR_OR_NULL(dfs_parent)) {
+		pr_warn("Error creating debugfs parent\n");
+		dfs_parent = NULL;
+	}
+	if (dfs_parent) {
+		dfs_device_status = debugfs_create_file("device_status",
+					S_IRUGO, dfs_parent, NULL,
+					&mtip_device_status_fops);
+		if (IS_ERR_OR_NULL(dfs_device_status)) {
+			pr_err("Error creating device_status node\n");
+			dfs_device_status = NULL;
 		}
 	}
 

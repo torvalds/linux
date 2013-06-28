@@ -1166,7 +1166,6 @@ static void pcnet32_rx_entry(struct net_device *dev,
 		skb = netdev_alloc_skb(dev, pkt_len + NET_IP_ALIGN);
 
 	if (skb == NULL) {
-		netif_err(lp, drv, dev, "Memory squeeze, dropping packet\n");
 		dev->stats.rx_dropped++;
 		return;
 	}

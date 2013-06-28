@@ -103,7 +103,7 @@ static const struct iio_info lpc32xx_adc_iio_info = {
 	.type = IIO_VOLTAGE,				\
 	.indexed = 1,					\
 	.channel = _index,				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 	.address = AD_IN * _index,			\
 	.scan_index = _index,				\
 }

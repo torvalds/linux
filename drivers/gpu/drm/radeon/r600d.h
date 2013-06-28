@@ -691,6 +691,7 @@
 #define SRBM_SOFT_RESET                                   0xe60
 #       define SOFT_RESET_DMA                             (1 << 12)
 #       define SOFT_RESET_RLC                             (1 << 13)
+#       define SOFT_RESET_UVD                             (1 << 18)
 #       define RV770_SOFT_RESET_DMA                       (1 << 20)
 
 #define CP_INT_CNTL                                       0xc124
@@ -909,7 +910,12 @@
 #       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
 #       define SELECTABLE_DEEMPHASIS                      (1 << 6)
 
-/* Audio clocks */
+/* Audio clocks DCE 2.0/3.0 */
+#define AUDIO_DTO                         0x7340
+#       define AUDIO_DTO_PHASE(x)         (((x) & 0xffff) << 0)
+#       define AUDIO_DTO_MODULE(x)        (((x) & 0xffff) << 16)
+
+/* Audio clocks DCE 3.2 */
 #define DCCG_AUDIO_DTO0_PHASE             0x0514
 #define DCCG_AUDIO_DTO0_MODULE            0x0518
 #define DCCG_AUDIO_DTO0_LOAD              0x051c
@@ -1143,6 +1149,70 @@
 #       define AFMT_AZ_AUDIO_ENABLE_CHG_ACK  (1 << 30)
 
 /*
+ * UVD
+ */
+#define UVD_SEMA_ADDR_LOW				0xef00
+#define UVD_SEMA_ADDR_HIGH				0xef04
+#define UVD_SEMA_CMD					0xef08
+
+#define UVD_GPCOM_VCPU_CMD				0xef0c
+#define UVD_GPCOM_VCPU_DATA0				0xef10
+#define UVD_GPCOM_VCPU_DATA1				0xef14
+#define UVD_ENGINE_CNTL					0xef18
+
+#define UVD_SEMA_CNTL					0xf400
+#define UVD_RB_ARB_CTRL					0xf480
+
+#define UVD_LMI_EXT40_ADDR				0xf498
+#define UVD_CGC_GATE					0xf4a8
+#define UVD_LMI_CTRL2					0xf4f4
+#define UVD_MASTINT_EN					0xf500
+#define UVD_LMI_ADDR_EXT				0xf594
+#define UVD_LMI_CTRL					0xf598
+#define UVD_LMI_SWAP_CNTL				0xf5b4
+#define UVD_MP_SWAP_CNTL				0xf5bC
+#define UVD_MPC_CNTL					0xf5dC
+#define UVD_MPC_SET_MUXA0				0xf5e4
+#define UVD_MPC_SET_MUXA1				0xf5e8
+#define UVD_MPC_SET_MUXB0				0xf5eC
+#define UVD_MPC_SET_MUXB1				0xf5f0
+#define UVD_MPC_SET_MUX					0xf5f4
+#define UVD_MPC_SET_ALU					0xf5f8
+
+#define UVD_VCPU_CNTL					0xf660
+#define UVD_SOFT_RESET					0xf680
+#define		RBC_SOFT_RESET					(1<<0)
+#define		LBSI_SOFT_RESET					(1<<1)
+#define		LMI_SOFT_RESET					(1<<2)
+#define		VCPU_SOFT_RESET					(1<<3)
+#define		CSM_SOFT_RESET					(1<<5)
+#define		CXW_SOFT_RESET					(1<<6)
+#define		TAP_SOFT_RESET					(1<<7)
+#define		LMI_UMC_SOFT_RESET				(1<<13)
+#define UVD_RBC_IB_BASE					0xf684
+#define UVD_RBC_IB_SIZE					0xf688
+#define UVD_RBC_RB_BASE					0xf68c
+#define UVD_RBC_RB_RPTR					0xf690
+#define UVD_RBC_RB_WPTR					0xf694
+#define UVD_RBC_RB_WPTR_CNTL				0xf698
+
+#define UVD_STATUS					0xf6bc
+
+#define UVD_SEMA_TIMEOUT_STATUS				0xf6c0
+#define UVD_SEMA_WAIT_INCOMPLETE_TIMEOUT_CNTL		0xf6c4
+#define UVD_SEMA_WAIT_FAULT_TIMEOUT_CNTL		0xf6c8
+#define UVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL		0xf6cc
+
+#define UVD_RBC_RB_CNTL					0xf6a4
+#define UVD_RBC_RB_RPTR_ADDR				0xf6a8
+
+#define UVD_CONTEXT_ID					0xf6f4
+
+#	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_CTLACK_MASK				0x40000000
+#	define UPLL_CTLACK2_MASK			0x80000000
+
+/*
  * PM4
  */
 #define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
@@ -1272,6 +1342,14 @@
 #define	PACKET3_STRMOUT_BASE_UPDATE			0x72 /* r7xx */
 #define	PACKET3_SURFACE_BASE_UPDATE			0x73
 
+#define R_000011_K8_FB_LOCATION                 0x11
+#define R_000012_MC_MISC_UMA_CNTL               0x12
+#define   G_000012_K8_ADDR_EXT(x)               (((x) >> 0) & 0xFF)
+#define R_0028F8_MC_INDEX			0x28F8
+#define   	S_0028F8_MC_IND_ADDR(x)                 (((x) & 0x1FF) << 0)
+#define   	C_0028F8_MC_IND_ADDR                    0xFFFFFE00
+#define   	S_0028F8_MC_IND_WR_EN(x)                (((x) & 0x1) << 9)
+#define R_0028FC_MC_DATA                        0x28FC
 
 #define	R_008020_GRBM_SOFT_RESET		0x8020
 #define		S_008020_SOFT_RESET_CP(x)		(((x) & 1) << 0)

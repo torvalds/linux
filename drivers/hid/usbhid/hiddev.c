@@ -705,8 +705,8 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (report == NULL)
 			break;
 
-		usbhid_submit_report(hid, report, USB_DIR_IN);
-		usbhid_wait_io(hid);
+		hid_hw_request(hid, report, HID_REQ_GET_REPORT);
+		hid_hw_wait(hid);
 
 		r = 0;
 		break;
@@ -724,8 +724,8 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (report == NULL)
 			break;
 
-		usbhid_submit_report(hid, report, USB_DIR_OUT);
-		usbhid_wait_io(hid);
+		hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+		hid_hw_wait(hid);
 
 		r = 0;
 		break;

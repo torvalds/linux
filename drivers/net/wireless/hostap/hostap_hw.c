@@ -38,6 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/if_arp.h>
 #include <linux/delay.h>
 #include <linux/random.h>
@@ -129,8 +130,7 @@ static void prism2_check_sta_fw_version(local_info_t *local);
 
 #ifdef PRISM2_DOWNLOAD_SUPPORT
 /* hostap_download.c */
-static int prism2_download_aux_dump(struct net_device *dev,
-				    unsigned int addr, int len, u8 *buf);
+static const struct file_operations prism2_download_aux_dump_proc_fops;
 static u8 * prism2_read_pda(struct net_device *dev);
 static int prism2_download(local_info_t *local,
 			   struct prism2_download_param *param);
@@ -2894,19 +2894,12 @@ static void hostap_tick_timer(unsigned long data)
 
 
 #ifndef PRISM2_NO_PROCFS_DEBUG
-static int prism2_registers_proc_read(char *page, char **start, off_t off,
-				      int count, int *eof, void *data)
+static int prism2_registers_proc_show(struct seq_file *m, void *v)
 {
-	char *p = page;
-	local_info_t *local = (local_info_t *) data;
-
-	if (off != 0) {
-		*eof = 1;
-		return 0;
-	}
+	local_info_t *local = m->private;
 
 #define SHOW_REG(n) \
-p += sprintf(p, #n "=%04x\n", hfa384x_read_reg(local->dev, HFA384X_##n##_OFF))
+  seq_printf(m, #n "=%04x\n", hfa384x_read_reg(local->dev, HFA384X_##n##_OFF))
 
 	SHOW_REG(CMD);
 	SHOW_REG(PARAM0);
@@ -2952,8 +2945,21 @@ p += sprintf(p, #n "=%04x\n", hfa384x_read_reg(local->dev, HFA384X_##n##_OFF))
 	SHOW_REG(PCI_M1_CTL);
 #endif /* PRISM2_PCI */
 
-	return (p - page);
+	return 0;
 }
+
+static int prism2_registers_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, prism2_registers_proc_show, PDE_DATA(inode));
+}
+
+static const struct file_operations prism2_registers_proc_fops = {
+	.open		= prism2_registers_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 #endif /* PRISM2_NO_PROCFS_DEBUG */
 
 
@@ -3128,7 +3134,7 @@ prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 	local->func->reset_port = prism2_reset_port;
 	local->func->schedule_reset = prism2_schedule_reset;
 #ifdef PRISM2_DOWNLOAD_SUPPORT
-	local->func->read_aux = prism2_download_aux_dump;
+	local->func->read_aux_fops = &prism2_download_aux_dump_proc_fops;
 	local->func->download = prism2_download;
 #endif /* PRISM2_DOWNLOAD_SUPPORT */
 	local->func->tx = prism2_tx_80211;
@@ -3274,8 +3280,8 @@ static int hostap_hw_ready(struct net_device *dev)
 		}
 		hostap_init_proc(local);
 #ifndef PRISM2_NO_PROCFS_DEBUG
-		create_proc_read_entry("registers", 0, local->proc,
-				       prism2_registers_proc_read, local);
+		proc_create_data("registers", 0, local->proc,
+				 &prism2_registers_proc_fops, local);
 #endif /* PRISM2_NO_PROCFS_DEBUG */
 		hostap_init_ap_proc(local);
 		return 0;

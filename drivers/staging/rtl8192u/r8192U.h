@@ -946,7 +946,6 @@ typedef struct r8192_priv {
 	/*stats*/
 	struct Stats stats;
 	struct iw_statistics wstats;
-	struct proc_dir_entry *dir_dev;
 
 	/*RX stuff*/
 //	u32 *rxring;

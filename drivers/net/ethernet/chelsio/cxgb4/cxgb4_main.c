@@ -68,8 +68,8 @@
 #include "t4fw_api.h"
 #include "l2t.h"
 
-#define DRV_VERSION "1.3.0-ko"
-#define DRV_DESC "Chelsio T4 Network Driver"
+#define DRV_VERSION "2.0.0-ko"
+#define DRV_DESC "Chelsio T4/T5 Network Driver"
 
 /*
  * Max interrupt hold-off timer value in us.  Queues fall back to this value
@@ -229,11 +229,51 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4_pci_tbl) = {
 	CH_DEVICE(0x440a, 4),
 	CH_DEVICE(0x440d, 4),
 	CH_DEVICE(0x440e, 4),
+	CH_DEVICE(0x5001, 4),
+	CH_DEVICE(0x5002, 4),
+	CH_DEVICE(0x5003, 4),
+	CH_DEVICE(0x5004, 4),
+	CH_DEVICE(0x5005, 4),
+	CH_DEVICE(0x5006, 4),
+	CH_DEVICE(0x5007, 4),
+	CH_DEVICE(0x5008, 4),
+	CH_DEVICE(0x5009, 4),
+	CH_DEVICE(0x500A, 4),
+	CH_DEVICE(0x500B, 4),
+	CH_DEVICE(0x500C, 4),
+	CH_DEVICE(0x500D, 4),
+	CH_DEVICE(0x500E, 4),
+	CH_DEVICE(0x500F, 4),
+	CH_DEVICE(0x5010, 4),
+	CH_DEVICE(0x5011, 4),
+	CH_DEVICE(0x5012, 4),
+	CH_DEVICE(0x5013, 4),
+	CH_DEVICE(0x5401, 4),
+	CH_DEVICE(0x5402, 4),
+	CH_DEVICE(0x5403, 4),
+	CH_DEVICE(0x5404, 4),
+	CH_DEVICE(0x5405, 4),
+	CH_DEVICE(0x5406, 4),
+	CH_DEVICE(0x5407, 4),
+	CH_DEVICE(0x5408, 4),
+	CH_DEVICE(0x5409, 4),
+	CH_DEVICE(0x540A, 4),
+	CH_DEVICE(0x540B, 4),
+	CH_DEVICE(0x540C, 4),
+	CH_DEVICE(0x540D, 4),
+	CH_DEVICE(0x540E, 4),
+	CH_DEVICE(0x540F, 4),
+	CH_DEVICE(0x5410, 4),
+	CH_DEVICE(0x5411, 4),
+	CH_DEVICE(0x5412, 4),
+	CH_DEVICE(0x5413, 4),
 	{ 0, }
 };
 
 #define FW_FNAME "cxgb4/t4fw.bin"
+#define FW5_FNAME "cxgb4/t5fw.bin"
 #define FW_CFNAME "cxgb4/t4-config.txt"
+#define FW5_CFNAME "cxgb4/t5-config.txt"
 
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Chelsio Communications");
@@ -241,6 +281,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, cxgb4_pci_tbl);
 MODULE_FIRMWARE(FW_FNAME);
+MODULE_FIRMWARE(FW5_FNAME);
 
 /*
  * Normally we're willing to become the firmware's Master PF but will be happy
@@ -319,7 +360,10 @@ static bool vf_acls;
 module_param(vf_acls, bool, 0644);
 MODULE_PARM_DESC(vf_acls, "if set enable virtualization L2 ACL enforcement");
 
-static unsigned int num_vf[4];
+/* Configure the number of PCI-E Virtual Function which are to be instantiated
+ * on SR-IOV Capable Physical Functions.
+ */
+static unsigned int num_vf[NUM_OF_PF_WITH_SRIOV];
 
 module_param_array(num_vf, uint, NULL, 0644);
 MODULE_PARM_DESC(num_vf, "number of VFs for each of PFs 0-3");
@@ -515,7 +559,7 @@ static int link_start(struct net_device *dev)
 	 * that step explicitly.
 	 */
 	ret = t4_set_rxmode(pi->adapter, mb, pi->viid, dev->mtu, -1, -1, -1,
-			    !!(dev->features & NETIF_F_HW_VLAN_RX), true);
+			    !!(dev->features & NETIF_F_HW_VLAN_CTAG_RX), true);
 	if (ret == 0) {
 		ret = t4_change_mac(pi->adapter, mb, pi->viid,
 				    pi->xact_addr_filt, dev->dev_addr, true,
@@ -601,6 +645,21 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 	u8 opcode = ((const struct rss_header *)rsp)->opcode;
 
 	rsp++;                                          /* skip RSS header */
+
+	/* FW can send EGR_UPDATEs encapsulated in a CPL_FW4_MSG.
+	 */
+	if (unlikely(opcode == CPL_FW4_MSG &&
+	   ((const struct cpl_fw4_msg *)rsp)->type == FW_TYPE_RSSCPL)) {
+		rsp++;
+		opcode = ((const struct rss_header *)rsp)->opcode;
+		rsp++;
+		if (opcode != CPL_SGE_EGR_UPDATE) {
+			dev_err(q->adap->pdev_dev, "unexpected FW4/CPL %#x on FW event queue\n"
+				, opcode);
+			goto out;
+		}
+	}
+
 	if (likely(opcode == CPL_SGE_EGR_UPDATE)) {
 		const struct cpl_sge_egr_update *p = (void *)rsp;
 		unsigned int qid = EGR_QID(ntohl(p->opcode_qid));
@@ -635,6 +694,7 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 	} else
 		dev_err(q->adap->pdev_dev,
 			"unexpected CPL %#x on FW event queue\n", opcode);
+out:
 	return 0;
 }
 
@@ -651,6 +711,12 @@ static int uldrx_handler(struct sge_rspq *q, const __be64 *rsp,
 			 const struct pkt_gl *gl)
 {
 	struct sge_ofld_rxq *rxq = container_of(q, struct sge_ofld_rxq, rspq);
+
+	/* FW can send CPLs encapsulated in a CPL_FW4_MSG.
+	 */
+	if (((const struct rss_header *)rsp)->opcode == CPL_FW4_MSG &&
+	    ((const struct cpl_fw4_msg *)(rsp + 1))->type == FW_TYPE_RSSCPL)
+		rsp += 2;
 
 	if (ulds[q->uld].rx_handler(q->adap->uld_handle[q->uld], rsp, gl)) {
 		rxq->stats.nomem++;
@@ -1002,21 +1068,36 @@ freeout:	t4_free_sge_resources(adap);
 static int upgrade_fw(struct adapter *adap)
 {
 	int ret;
-	u32 vers;
+	u32 vers, exp_major;
 	const struct fw_hdr *hdr;
 	const struct firmware *fw;
 	struct device *dev = adap->pdev_dev;
+	char *fw_file_name;
 
-	ret = request_firmware(&fw, FW_FNAME, dev);
+	switch (CHELSIO_CHIP_VERSION(adap->chip)) {
+	case CHELSIO_T4:
+		fw_file_name = FW_FNAME;
+		exp_major = FW_VERSION_MAJOR;
+		break;
+	case CHELSIO_T5:
+		fw_file_name = FW5_FNAME;
+		exp_major = FW_VERSION_MAJOR_T5;
+		break;
+	default:
+		dev_err(dev, "Unsupported chip type, %x\n", adap->chip);
+		return -EINVAL;
+	}
+
+	ret = request_firmware(&fw, fw_file_name, dev);
 	if (ret < 0) {
-		dev_err(dev, "unable to load firmware image " FW_FNAME
-			", error %d\n", ret);
+		dev_err(dev, "unable to load firmware image %s, error %d\n",
+			fw_file_name, ret);
 		return ret;
 	}
 
 	hdr = (const struct fw_hdr *)fw->data;
 	vers = ntohl(hdr->fw_ver);
-	if (FW_HDR_FW_VER_MAJOR_GET(vers) != FW_VERSION_MAJOR) {
+	if (FW_HDR_FW_VER_MAJOR_GET(vers) != exp_major) {
 		ret = -EINVAL;              /* wrong major version, won't do */
 		goto out;
 	}
@@ -1024,18 +1105,15 @@ static int upgrade_fw(struct adapter *adap)
 	/*
 	 * If the flash FW is unusable or we found something newer, load it.
 	 */
-	if (FW_HDR_FW_VER_MAJOR_GET(adap->params.fw_vers) != FW_VERSION_MAJOR ||
+	if (FW_HDR_FW_VER_MAJOR_GET(adap->params.fw_vers) != exp_major ||
 	    vers > adap->params.fw_vers) {
 		dev_info(dev, "upgrading firmware ...\n");
 		ret = t4_fw_upgrade(adap, adap->mbox, fw->data, fw->size,
 				    /*force=*/false);
 		if (!ret)
-			dev_info(dev, "firmware successfully upgraded to "
-				 FW_FNAME " (%d.%d.%d.%d)\n",
-				 FW_HDR_FW_VER_MAJOR_GET(vers),
-				 FW_HDR_FW_VER_MINOR_GET(vers),
-				 FW_HDR_FW_VER_MICRO_GET(vers),
-				 FW_HDR_FW_VER_BUILD_GET(vers));
+			dev_info(dev,
+				 "firmware upgraded to version %pI4 from %s\n",
+				 &hdr->fw_ver, fw_file_name);
 		else
 			dev_err(dev, "firmware upgrade failed! err=%d\n", -ret);
 	} else {
@@ -1308,6 +1386,8 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"VLANinsertions     ",
 	"GROpackets         ",
 	"GROmerged          ",
+	"WriteCoalSuccess   ",
+	"WriteCoalFail      ",
 };
 
 static int get_sset_count(struct net_device *dev, int sset)
@@ -1321,10 +1401,15 @@ static int get_sset_count(struct net_device *dev, int sset)
 }
 
 #define T4_REGMAP_SIZE (160 * 1024)
+#define T5_REGMAP_SIZE (332 * 1024)
 
 static int get_regs_len(struct net_device *dev)
 {
-	return T4_REGMAP_SIZE;
+	struct adapter *adap = netdev2adap(dev);
+	if (is_t4(adap->chip))
+		return T4_REGMAP_SIZE;
+	else
+		return T5_REGMAP_SIZE;
 }
 
 static int get_eeprom_len(struct net_device *dev)
@@ -1398,11 +1483,25 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
+	u32 val1, val2;
 
 	t4_get_port_stats(adapter, pi->tx_chan, (struct port_stats *)data);
 
 	data += sizeof(struct port_stats) / sizeof(u64);
 	collect_sge_port_stats(adapter, pi, (struct queue_port_stats *)data);
+	data += sizeof(struct queue_port_stats) / sizeof(u64);
+	if (!is_t4(adapter->chip)) {
+		t4_write_reg(adapter, SGE_STAT_CFG, STATSOURCE_T5(7));
+		val1 = t4_read_reg(adapter, SGE_STAT_TOTAL);
+		val2 = t4_read_reg(adapter, SGE_STAT_MATCH);
+		*data = val1 - val2;
+		data++;
+		*data = val2;
+		data++;
+	} else {
+		memset(data, 0, 2 * sizeof(u64));
+		*data += 2;
+	}
 }
 
 /*
@@ -1413,7 +1512,8 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
  */
 static inline unsigned int mk_adap_vers(const struct adapter *ap)
 {
-	return 4 | (ap->params.rev << 10) | (1 << 16);
+	return CHELSIO_CHIP_VERSION(ap->chip) |
+		(CHELSIO_CHIP_RELEASE(ap->chip) << 10) | (1 << 16);
 }
 
 static void reg_block_dump(struct adapter *ap, void *buf, unsigned int start,
@@ -1428,7 +1528,7 @@ static void reg_block_dump(struct adapter *ap, void *buf, unsigned int start,
 static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		     void *buf)
 {
-	static const unsigned int reg_ranges[] = {
+	static const unsigned int t4_reg_ranges[] = {
 		0x1008, 0x1108,
 		0x1180, 0x11b4,
 		0x11fc, 0x123c,
@@ -1648,13 +1748,452 @@ static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		0x27e00, 0x27e04
 	};
 
+	static const unsigned int t5_reg_ranges[] = {
+		0x1008, 0x1148,
+		0x1180, 0x11b4,
+		0x11fc, 0x123c,
+		0x1280, 0x173c,
+		0x1800, 0x18fc,
+		0x3000, 0x3028,
+		0x3060, 0x30d8,
+		0x30e0, 0x30fc,
+		0x3140, 0x357c,
+		0x35a8, 0x35cc,
+		0x35ec, 0x35ec,
+		0x3600, 0x5624,
+		0x56cc, 0x575c,
+		0x580c, 0x5814,
+		0x5890, 0x58bc,
+		0x5940, 0x59dc,
+		0x59fc, 0x5a18,
+		0x5a60, 0x5a9c,
+		0x5b9c, 0x5bfc,
+		0x6000, 0x6040,
+		0x6058, 0x614c,
+		0x7700, 0x7798,
+		0x77c0, 0x78fc,
+		0x7b00, 0x7c54,
+		0x7d00, 0x7efc,
+		0x8dc0, 0x8de0,
+		0x8df8, 0x8e84,
+		0x8ea0, 0x8f84,
+		0x8fc0, 0x90f8,
+		0x9400, 0x9470,
+		0x9600, 0x96f4,
+		0x9800, 0x9808,
+		0x9820, 0x983c,
+		0x9850, 0x9864,
+		0x9c00, 0x9c6c,
+		0x9c80, 0x9cec,
+		0x9d00, 0x9d6c,
+		0x9d80, 0x9dec,
+		0x9e00, 0x9e6c,
+		0x9e80, 0x9eec,
+		0x9f00, 0x9f6c,
+		0x9f80, 0xa020,
+		0xd004, 0xd03c,
+		0xdfc0, 0xdfe0,
+		0xe000, 0x11088,
+		0x1109c, 0x1117c,
+		0x11190, 0x11204,
+		0x19040, 0x1906c,
+		0x19078, 0x19080,
+		0x1908c, 0x19124,
+		0x19150, 0x191b0,
+		0x191d0, 0x191e8,
+		0x19238, 0x19290,
+		0x193f8, 0x19474,
+		0x19490, 0x194cc,
+		0x194f0, 0x194f8,
+		0x19c00, 0x19c60,
+		0x19c94, 0x19e10,
+		0x19e50, 0x19f34,
+		0x19f40, 0x19f50,
+		0x19f90, 0x19fe4,
+		0x1a000, 0x1a06c,
+		0x1a0b0, 0x1a120,
+		0x1a128, 0x1a138,
+		0x1a190, 0x1a1c4,
+		0x1a1fc, 0x1a1fc,
+		0x1e008, 0x1e00c,
+		0x1e040, 0x1e04c,
+		0x1e284, 0x1e290,
+		0x1e2c0, 0x1e2c0,
+		0x1e2e0, 0x1e2e0,
+		0x1e300, 0x1e384,
+		0x1e3c0, 0x1e3c8,
+		0x1e408, 0x1e40c,
+		0x1e440, 0x1e44c,
+		0x1e684, 0x1e690,
+		0x1e6c0, 0x1e6c0,
+		0x1e6e0, 0x1e6e0,
+		0x1e700, 0x1e784,
+		0x1e7c0, 0x1e7c8,
+		0x1e808, 0x1e80c,
+		0x1e840, 0x1e84c,
+		0x1ea84, 0x1ea90,
+		0x1eac0, 0x1eac0,
+		0x1eae0, 0x1eae0,
+		0x1eb00, 0x1eb84,
+		0x1ebc0, 0x1ebc8,
+		0x1ec08, 0x1ec0c,
+		0x1ec40, 0x1ec4c,
+		0x1ee84, 0x1ee90,
+		0x1eec0, 0x1eec0,
+		0x1eee0, 0x1eee0,
+		0x1ef00, 0x1ef84,
+		0x1efc0, 0x1efc8,
+		0x1f008, 0x1f00c,
+		0x1f040, 0x1f04c,
+		0x1f284, 0x1f290,
+		0x1f2c0, 0x1f2c0,
+		0x1f2e0, 0x1f2e0,
+		0x1f300, 0x1f384,
+		0x1f3c0, 0x1f3c8,
+		0x1f408, 0x1f40c,
+		0x1f440, 0x1f44c,
+		0x1f684, 0x1f690,
+		0x1f6c0, 0x1f6c0,
+		0x1f6e0, 0x1f6e0,
+		0x1f700, 0x1f784,
+		0x1f7c0, 0x1f7c8,
+		0x1f808, 0x1f80c,
+		0x1f840, 0x1f84c,
+		0x1fa84, 0x1fa90,
+		0x1fac0, 0x1fac0,
+		0x1fae0, 0x1fae0,
+		0x1fb00, 0x1fb84,
+		0x1fbc0, 0x1fbc8,
+		0x1fc08, 0x1fc0c,
+		0x1fc40, 0x1fc4c,
+		0x1fe84, 0x1fe90,
+		0x1fec0, 0x1fec0,
+		0x1fee0, 0x1fee0,
+		0x1ff00, 0x1ff84,
+		0x1ffc0, 0x1ffc8,
+		0x30000, 0x30030,
+		0x30100, 0x30144,
+		0x30190, 0x301d0,
+		0x30200, 0x30318,
+		0x30400, 0x3052c,
+		0x30540, 0x3061c,
+		0x30800, 0x30834,
+		0x308c0, 0x30908,
+		0x30910, 0x309ac,
+		0x30a00, 0x30a04,
+		0x30a0c, 0x30a2c,
+		0x30a44, 0x30a50,
+		0x30a74, 0x30c24,
+		0x30d08, 0x30d14,
+		0x30d1c, 0x30d20,
+		0x30d3c, 0x30d50,
+		0x31200, 0x3120c,
+		0x31220, 0x31220,
+		0x31240, 0x31240,
+		0x31600, 0x31600,
+		0x31608, 0x3160c,
+		0x31a00, 0x31a1c,
+		0x31e04, 0x31e20,
+		0x31e38, 0x31e3c,
+		0x31e80, 0x31e80,
+		0x31e88, 0x31ea8,
+		0x31eb0, 0x31eb4,
+		0x31ec8, 0x31ed4,
+		0x31fb8, 0x32004,
+		0x32208, 0x3223c,
+		0x32600, 0x32630,
+		0x32a00, 0x32abc,
+		0x32b00, 0x32b70,
+		0x33000, 0x33048,
+		0x33060, 0x3309c,
+		0x330f0, 0x33148,
+		0x33160, 0x3319c,
+		0x331f0, 0x332e4,
+		0x332f8, 0x333e4,
+		0x333f8, 0x33448,
+		0x33460, 0x3349c,
+		0x334f0, 0x33548,
+		0x33560, 0x3359c,
+		0x335f0, 0x336e4,
+		0x336f8, 0x337e4,
+		0x337f8, 0x337fc,
+		0x33814, 0x33814,
+		0x3382c, 0x3382c,
+		0x33880, 0x3388c,
+		0x338e8, 0x338ec,
+		0x33900, 0x33948,
+		0x33960, 0x3399c,
+		0x339f0, 0x33ae4,
+		0x33af8, 0x33b10,
+		0x33b28, 0x33b28,
+		0x33b3c, 0x33b50,
+		0x33bf0, 0x33c10,
+		0x33c28, 0x33c28,
+		0x33c3c, 0x33c50,
+		0x33cf0, 0x33cfc,
+		0x34000, 0x34030,
+		0x34100, 0x34144,
+		0x34190, 0x341d0,
+		0x34200, 0x34318,
+		0x34400, 0x3452c,
+		0x34540, 0x3461c,
+		0x34800, 0x34834,
+		0x348c0, 0x34908,
+		0x34910, 0x349ac,
+		0x34a00, 0x34a04,
+		0x34a0c, 0x34a2c,
+		0x34a44, 0x34a50,
+		0x34a74, 0x34c24,
+		0x34d08, 0x34d14,
+		0x34d1c, 0x34d20,
+		0x34d3c, 0x34d50,
+		0x35200, 0x3520c,
+		0x35220, 0x35220,
+		0x35240, 0x35240,
+		0x35600, 0x35600,
+		0x35608, 0x3560c,
+		0x35a00, 0x35a1c,
+		0x35e04, 0x35e20,
+		0x35e38, 0x35e3c,
+		0x35e80, 0x35e80,
+		0x35e88, 0x35ea8,
+		0x35eb0, 0x35eb4,
+		0x35ec8, 0x35ed4,
+		0x35fb8, 0x36004,
+		0x36208, 0x3623c,
+		0x36600, 0x36630,
+		0x36a00, 0x36abc,
+		0x36b00, 0x36b70,
+		0x37000, 0x37048,
+		0x37060, 0x3709c,
+		0x370f0, 0x37148,
+		0x37160, 0x3719c,
+		0x371f0, 0x372e4,
+		0x372f8, 0x373e4,
+		0x373f8, 0x37448,
+		0x37460, 0x3749c,
+		0x374f0, 0x37548,
+		0x37560, 0x3759c,
+		0x375f0, 0x376e4,
+		0x376f8, 0x377e4,
+		0x377f8, 0x377fc,
+		0x37814, 0x37814,
+		0x3782c, 0x3782c,
+		0x37880, 0x3788c,
+		0x378e8, 0x378ec,
+		0x37900, 0x37948,
+		0x37960, 0x3799c,
+		0x379f0, 0x37ae4,
+		0x37af8, 0x37b10,
+		0x37b28, 0x37b28,
+		0x37b3c, 0x37b50,
+		0x37bf0, 0x37c10,
+		0x37c28, 0x37c28,
+		0x37c3c, 0x37c50,
+		0x37cf0, 0x37cfc,
+		0x38000, 0x38030,
+		0x38100, 0x38144,
+		0x38190, 0x381d0,
+		0x38200, 0x38318,
+		0x38400, 0x3852c,
+		0x38540, 0x3861c,
+		0x38800, 0x38834,
+		0x388c0, 0x38908,
+		0x38910, 0x389ac,
+		0x38a00, 0x38a04,
+		0x38a0c, 0x38a2c,
+		0x38a44, 0x38a50,
+		0x38a74, 0x38c24,
+		0x38d08, 0x38d14,
+		0x38d1c, 0x38d20,
+		0x38d3c, 0x38d50,
+		0x39200, 0x3920c,
+		0x39220, 0x39220,
+		0x39240, 0x39240,
+		0x39600, 0x39600,
+		0x39608, 0x3960c,
+		0x39a00, 0x39a1c,
+		0x39e04, 0x39e20,
+		0x39e38, 0x39e3c,
+		0x39e80, 0x39e80,
+		0x39e88, 0x39ea8,
+		0x39eb0, 0x39eb4,
+		0x39ec8, 0x39ed4,
+		0x39fb8, 0x3a004,
+		0x3a208, 0x3a23c,
+		0x3a600, 0x3a630,
+		0x3aa00, 0x3aabc,
+		0x3ab00, 0x3ab70,
+		0x3b000, 0x3b048,
+		0x3b060, 0x3b09c,
+		0x3b0f0, 0x3b148,
+		0x3b160, 0x3b19c,
+		0x3b1f0, 0x3b2e4,
+		0x3b2f8, 0x3b3e4,
+		0x3b3f8, 0x3b448,
+		0x3b460, 0x3b49c,
+		0x3b4f0, 0x3b548,
+		0x3b560, 0x3b59c,
+		0x3b5f0, 0x3b6e4,
+		0x3b6f8, 0x3b7e4,
+		0x3b7f8, 0x3b7fc,
+		0x3b814, 0x3b814,
+		0x3b82c, 0x3b82c,
+		0x3b880, 0x3b88c,
+		0x3b8e8, 0x3b8ec,
+		0x3b900, 0x3b948,
+		0x3b960, 0x3b99c,
+		0x3b9f0, 0x3bae4,
+		0x3baf8, 0x3bb10,
+		0x3bb28, 0x3bb28,
+		0x3bb3c, 0x3bb50,
+		0x3bbf0, 0x3bc10,
+		0x3bc28, 0x3bc28,
+		0x3bc3c, 0x3bc50,
+		0x3bcf0, 0x3bcfc,
+		0x3c000, 0x3c030,
+		0x3c100, 0x3c144,
+		0x3c190, 0x3c1d0,
+		0x3c200, 0x3c318,
+		0x3c400, 0x3c52c,
+		0x3c540, 0x3c61c,
+		0x3c800, 0x3c834,
+		0x3c8c0, 0x3c908,
+		0x3c910, 0x3c9ac,
+		0x3ca00, 0x3ca04,
+		0x3ca0c, 0x3ca2c,
+		0x3ca44, 0x3ca50,
+		0x3ca74, 0x3cc24,
+		0x3cd08, 0x3cd14,
+		0x3cd1c, 0x3cd20,
+		0x3cd3c, 0x3cd50,
+		0x3d200, 0x3d20c,
+		0x3d220, 0x3d220,
+		0x3d240, 0x3d240,
+		0x3d600, 0x3d600,
+		0x3d608, 0x3d60c,
+		0x3da00, 0x3da1c,
+		0x3de04, 0x3de20,
+		0x3de38, 0x3de3c,
+		0x3de80, 0x3de80,
+		0x3de88, 0x3dea8,
+		0x3deb0, 0x3deb4,
+		0x3dec8, 0x3ded4,
+		0x3dfb8, 0x3e004,
+		0x3e208, 0x3e23c,
+		0x3e600, 0x3e630,
+		0x3ea00, 0x3eabc,
+		0x3eb00, 0x3eb70,
+		0x3f000, 0x3f048,
+		0x3f060, 0x3f09c,
+		0x3f0f0, 0x3f148,
+		0x3f160, 0x3f19c,
+		0x3f1f0, 0x3f2e4,
+		0x3f2f8, 0x3f3e4,
+		0x3f3f8, 0x3f448,
+		0x3f460, 0x3f49c,
+		0x3f4f0, 0x3f548,
+		0x3f560, 0x3f59c,
+		0x3f5f0, 0x3f6e4,
+		0x3f6f8, 0x3f7e4,
+		0x3f7f8, 0x3f7fc,
+		0x3f814, 0x3f814,
+		0x3f82c, 0x3f82c,
+		0x3f880, 0x3f88c,
+		0x3f8e8, 0x3f8ec,
+		0x3f900, 0x3f948,
+		0x3f960, 0x3f99c,
+		0x3f9f0, 0x3fae4,
+		0x3faf8, 0x3fb10,
+		0x3fb28, 0x3fb28,
+		0x3fb3c, 0x3fb50,
+		0x3fbf0, 0x3fc10,
+		0x3fc28, 0x3fc28,
+		0x3fc3c, 0x3fc50,
+		0x3fcf0, 0x3fcfc,
+		0x40000, 0x4000c,
+		0x40040, 0x40068,
+		0x40080, 0x40144,
+		0x40180, 0x4018c,
+		0x40200, 0x40298,
+		0x402ac, 0x4033c,
+		0x403f8, 0x403fc,
+		0x41300, 0x413c4,
+		0x41400, 0x4141c,
+		0x41480, 0x414d0,
+		0x44000, 0x44078,
+		0x440c0, 0x44278,
+		0x442c0, 0x44478,
+		0x444c0, 0x44678,
+		0x446c0, 0x44878,
+		0x448c0, 0x449fc,
+		0x45000, 0x45068,
+		0x45080, 0x45084,
+		0x450a0, 0x450b0,
+		0x45200, 0x45268,
+		0x45280, 0x45284,
+		0x452a0, 0x452b0,
+		0x460c0, 0x460e4,
+		0x47000, 0x4708c,
+		0x47200, 0x47250,
+		0x47400, 0x47420,
+		0x47600, 0x47618,
+		0x47800, 0x47814,
+		0x48000, 0x4800c,
+		0x48040, 0x48068,
+		0x48080, 0x48144,
+		0x48180, 0x4818c,
+		0x48200, 0x48298,
+		0x482ac, 0x4833c,
+		0x483f8, 0x483fc,
+		0x49300, 0x493c4,
+		0x49400, 0x4941c,
+		0x49480, 0x494d0,
+		0x4c000, 0x4c078,
+		0x4c0c0, 0x4c278,
+		0x4c2c0, 0x4c478,
+		0x4c4c0, 0x4c678,
+		0x4c6c0, 0x4c878,
+		0x4c8c0, 0x4c9fc,
+		0x4d000, 0x4d068,
+		0x4d080, 0x4d084,
+		0x4d0a0, 0x4d0b0,
+		0x4d200, 0x4d268,
+		0x4d280, 0x4d284,
+		0x4d2a0, 0x4d2b0,
+		0x4e0c0, 0x4e0e4,
+		0x4f000, 0x4f08c,
+		0x4f200, 0x4f250,
+		0x4f400, 0x4f420,
+		0x4f600, 0x4f618,
+		0x4f800, 0x4f814,
+		0x50000, 0x500cc,
+		0x50400, 0x50400,
+		0x50800, 0x508cc,
+		0x50c00, 0x50c00,
+		0x51000, 0x5101c,
+		0x51300, 0x51308,
+	};
+
 	int i;
 	struct adapter *ap = netdev2adap(dev);
+	static const unsigned int *reg_ranges;
+	int arr_size = 0, buf_size = 0;
+
+	if (is_t4(ap->chip)) {
+		reg_ranges = &t4_reg_ranges[0];
+		arr_size = ARRAY_SIZE(t4_reg_ranges);
+		buf_size = T4_REGMAP_SIZE;
+	} else {
+		reg_ranges = &t5_reg_ranges[0];
+		arr_size = ARRAY_SIZE(t5_reg_ranges);
+		buf_size = T5_REGMAP_SIZE;
+	}
 
 	regs->version = mk_adap_vers(ap);
 
-	memset(buf, 0, T4_REGMAP_SIZE);
-	for (i = 0; i < ARRAY_SIZE(reg_ranges); i += 2)
+	memset(buf, 0, buf_size);
+	for (i = 0; i < arr_size; i += 2)
 		reg_block_dump(ap, buf, reg_ranges[i], reg_ranges[i + 1]);
 }
 
@@ -2205,14 +2744,14 @@ static int cxgb_set_features(struct net_device *dev, netdev_features_t features)
 	netdev_features_t changed = dev->features ^ features;
 	int err;
 
-	if (!(changed & NETIF_F_HW_VLAN_RX))
+	if (!(changed & NETIF_F_HW_VLAN_CTAG_RX))
 		return 0;
 
 	err = t4_set_rxmode(pi->adapter, pi->adapter->fn, pi->viid, -1,
 			    -1, -1, -1,
-			    !!(features & NETIF_F_HW_VLAN_RX), true);
+			    !!(features & NETIF_F_HW_VLAN_CTAG_RX), true);
 	if (unlikely(err))
-		dev->features = features ^ NETIF_F_HW_VLAN_RX;
+		dev->features = features ^ NETIF_F_HW_VLAN_CTAG_RX;
 	return err;
 }
 
@@ -2363,8 +2902,8 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 		int ret, ofst;
 		__be32 data[16];
 
-		if (mem == MEM_MC)
-			ret = t4_mc_read(adap, pos, data, NULL);
+		if ((mem == MEM_MC) || (mem == MEM_MC1))
+			ret = t4_mc_read(adap, mem % MEM_MC, pos, data, NULL);
 		else
 			ret = t4_edc_read(adap, mem, pos, data, NULL);
 		if (ret)
@@ -2405,18 +2944,37 @@ static void add_debugfs_mem(struct adapter *adap, const char *name,
 static int setup_debugfs(struct adapter *adap)
 {
 	int i;
+	u32 size;
 
 	if (IS_ERR_OR_NULL(adap->debugfs_root))
 		return -1;
 
 	i = t4_read_reg(adap, MA_TARGET_MEM_ENABLE);
-	if (i & EDRAM0_ENABLE)
-		add_debugfs_mem(adap, "edc0", MEM_EDC0, 5);
-	if (i & EDRAM1_ENABLE)
-		add_debugfs_mem(adap, "edc1", MEM_EDC1, 5);
-	if (i & EXT_MEM_ENABLE)
-		add_debugfs_mem(adap, "mc", MEM_MC,
-			EXT_MEM_SIZE_GET(t4_read_reg(adap, MA_EXT_MEMORY_BAR)));
+	if (i & EDRAM0_ENABLE) {
+		size = t4_read_reg(adap, MA_EDRAM0_BAR);
+		add_debugfs_mem(adap, "edc0", MEM_EDC0,	EDRAM_SIZE_GET(size));
+	}
+	if (i & EDRAM1_ENABLE) {
+		size = t4_read_reg(adap, MA_EDRAM1_BAR);
+		add_debugfs_mem(adap, "edc1", MEM_EDC1, EDRAM_SIZE_GET(size));
+	}
+	if (is_t4(adap->chip)) {
+		size = t4_read_reg(adap, MA_EXT_MEMORY_BAR);
+		if (i & EXT_MEM_ENABLE)
+			add_debugfs_mem(adap, "mc", MEM_MC,
+					EXT_MEM_SIZE_GET(size));
+	} else {
+		if (i & EXT_MEM_ENABLE) {
+			size = t4_read_reg(adap, MA_EXT_MEMORY_BAR);
+			add_debugfs_mem(adap, "mc0", MEM_MC0,
+					EXT_MEM_SIZE_GET(size));
+		}
+		if (i & EXT_MEM1_ENABLE) {
+			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR);
+			add_debugfs_mem(adap, "mc1", MEM_MC1,
+					EXT_MEM_SIZE_GET(size));
+		}
+	}
 	if (adap->l2t)
 		debugfs_create_file("l2t", S_IRUSR, adap->debugfs_root, adap,
 				    &t4_l2t_fops);
@@ -2747,10 +3305,18 @@ EXPORT_SYMBOL(cxgb4_port_chan);
 unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo)
 {
 	struct adapter *adap = netdev2adap(dev);
-	u32 v;
+	u32 v1, v2, lp_count, hp_count;
 
-	v = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
-	return lpfifo ? G_LP_COUNT(v) : G_HP_COUNT(v);
+	v1 = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
+	v2 = t4_read_reg(adap, SGE_DBFIFO_STATUS2);
+	if (is_t4(adap->chip)) {
+		lp_count = G_LP_COUNT(v1);
+		hp_count = G_HP_COUNT(v1);
+	} else {
+		lp_count = G_LP_COUNT_T5(v1);
+		hp_count = G_HP_COUNT_T5(v2);
+	}
+	return lpfifo ? lp_count : hp_count;
 }
 EXPORT_SYMBOL(cxgb4_dbfifo_count);
 
@@ -2853,6 +3419,25 @@ out:
 }
 EXPORT_SYMBOL(cxgb4_sync_txq_pidx);
 
+void cxgb4_disable_db_coalescing(struct net_device *dev)
+{
+	struct adapter *adap;
+
+	adap = netdev2adap(dev);
+	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_NOCOALESCE,
+			 F_NOCOALESCE);
+}
+EXPORT_SYMBOL(cxgb4_disable_db_coalescing);
+
+void cxgb4_enable_db_coalescing(struct net_device *dev)
+{
+	struct adapter *adap;
+
+	adap = netdev2adap(dev);
+	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_NOCOALESCE, 0);
+}
+EXPORT_SYMBOL(cxgb4_enable_db_coalescing);
+
 static struct pci_driver cxgb4_driver;
 
 static void check_neigh_update(struct neighbour *neigh)
@@ -2888,14 +3473,23 @@ static struct notifier_block cxgb4_netevent_nb = {
 
 static void drain_db_fifo(struct adapter *adap, int usecs)
 {
-	u32 v;
+	u32 v1, v2, lp_count, hp_count;
 
 	do {
+		v1 = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
+		v2 = t4_read_reg(adap, SGE_DBFIFO_STATUS2);
+		if (is_t4(adap->chip)) {
+			lp_count = G_LP_COUNT(v1);
+			hp_count = G_HP_COUNT(v1);
+		} else {
+			lp_count = G_LP_COUNT_T5(v1);
+			hp_count = G_HP_COUNT_T5(v2);
+		}
+
+		if (lp_count == 0 && hp_count == 0)
+			break;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(usecs_to_jiffies(usecs));
-		v = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
-		if (G_LP_COUNT(v) == 0 && G_HP_COUNT(v) == 0)
-			break;
 	} while (1);
 }
 
@@ -3004,24 +3598,62 @@ static void process_db_drop(struct work_struct *work)
 
 	adap = container_of(work, struct adapter, db_drop_task);
 
+	if (is_t4(adap->chip)) {
+		disable_dbs(adap);
+		notify_rdma_uld(adap, CXGB4_CONTROL_DB_DROP);
+		drain_db_fifo(adap, 1);
+		recover_all_queues(adap);
+		enable_dbs(adap);
+	} else {
+		u32 dropped_db = t4_read_reg(adap, 0x010ac);
+		u16 qid = (dropped_db >> 15) & 0x1ffff;
+		u16 pidx_inc = dropped_db & 0x1fff;
+		unsigned int s_qpp;
+		unsigned short udb_density;
+		unsigned long qpshift;
+		int page;
+		u32 udb;
+
+		dev_warn(adap->pdev_dev,
+			 "Dropped DB 0x%x qid %d bar2 %d coalesce %d pidx %d\n",
+			 dropped_db, qid,
+			 (dropped_db >> 14) & 1,
+			 (dropped_db >> 13) & 1,
+			 pidx_inc);
+
+		drain_db_fifo(adap, 1);
+
+		s_qpp = QUEUESPERPAGEPF1 * adap->fn;
+		udb_density = 1 << QUEUESPERPAGEPF0_GET(t4_read_reg(adap,
+				SGE_EGRESS_QUEUES_PER_PAGE_PF) >> s_qpp);
+		qpshift = PAGE_SHIFT - ilog2(udb_density);
+		udb = qid << qpshift;
+		udb &= PAGE_MASK;
+		page = udb / PAGE_SIZE;
+		udb += (qid - (page * udb_density)) * 128;
+
+		writel(PIDX(pidx_inc),  adap->bar2 + udb + 8);
+
+		/* Re-enable BAR2 WC */
+		t4_set_reg_field(adap, 0x10b0, 1<<15, 1<<15);
+	}
+
 	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_DROPPED_DB, 0);
-	disable_dbs(adap);
-	notify_rdma_uld(adap, CXGB4_CONTROL_DB_DROP);
-	drain_db_fifo(adap, 1);
-	recover_all_queues(adap);
-	enable_dbs(adap);
 }
 
 void t4_db_full(struct adapter *adap)
 {
-	t4_set_reg_field(adap, SGE_INT_ENABLE3,
-			 DBFIFO_HP_INT | DBFIFO_LP_INT, 0);
-	queue_work(workq, &adap->db_full_task);
+	if (is_t4(adap->chip)) {
+		t4_set_reg_field(adap, SGE_INT_ENABLE3,
+				 DBFIFO_HP_INT | DBFIFO_LP_INT, 0);
+		queue_work(workq, &adap->db_full_task);
+	}
 }
 
 void t4_db_dropped(struct adapter *adap)
 {
-	queue_work(workq, &adap->db_drop_task);
+	if (is_t4(adap->chip))
+		queue_work(workq, &adap->db_drop_task);
 }
 
 static void uld_attach(struct adapter *adap, unsigned int uld)
@@ -3566,17 +4198,27 @@ void t4_fatal_err(struct adapter *adap)
 
 static void setup_memwin(struct adapter *adap)
 {
-	u32 bar0;
+	u32 bar0, mem_win0_base, mem_win1_base, mem_win2_base;
 
 	bar0 = pci_resource_start(adap->pdev, 0);  /* truncation intentional */
+	if (is_t4(adap->chip)) {
+		mem_win0_base = bar0 + MEMWIN0_BASE;
+		mem_win1_base = bar0 + MEMWIN1_BASE;
+		mem_win2_base = bar0 + MEMWIN2_BASE;
+	} else {
+		/* For T5, only relative offset inside the PCIe BAR is passed */
+		mem_win0_base = MEMWIN0_BASE;
+		mem_win1_base = MEMWIN1_BASE_T5;
+		mem_win2_base = MEMWIN2_BASE_T5;
+	}
 	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 0),
-		     (bar0 + MEMWIN0_BASE) | BIR(0) |
+		     mem_win0_base | BIR(0) |
 		     WINDOW(ilog2(MEMWIN0_APERTURE) - 10));
 	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 1),
-		     (bar0 + MEMWIN1_BASE) | BIR(0) |
+		     mem_win1_base | BIR(0) |
 		     WINDOW(ilog2(MEMWIN1_APERTURE) - 10));
 	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 2),
-		     (bar0 + MEMWIN2_BASE) | BIR(0) |
+		     mem_win2_base | BIR(0) |
 		     WINDOW(ilog2(MEMWIN2_APERTURE) - 10));
 }
 
@@ -3745,6 +4387,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	unsigned long mtype = 0, maddr = 0;
 	u32 finiver, finicsum, cfcsum;
 	int ret, using_flash;
+	char *fw_config_file, fw_config_file_path[256];
 
 	/*
 	 * Reset device if necessary.
@@ -3761,7 +4404,21 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 * then use that.  Otherwise, use the configuration file stored
 	 * in the adapter flash ...
 	 */
-	ret = request_firmware(&cf, FW_CFNAME, adapter->pdev_dev);
+	switch (CHELSIO_CHIP_VERSION(adapter->chip)) {
+	case CHELSIO_T4:
+		fw_config_file = FW_CFNAME;
+		break;
+	case CHELSIO_T5:
+		fw_config_file = FW5_CFNAME;
+		break;
+	default:
+		dev_err(adapter->pdev_dev, "Device %d is not supported\n",
+		       adapter->pdev->device);
+		ret = -EINVAL;
+		goto bye;
+	}
+
+	ret = request_firmware(&cf, fw_config_file, adapter->pdev_dev);
 	if (ret < 0) {
 		using_flash = 1;
 		mtype = FW_MEMTYPE_CF_FLASH;
@@ -3877,6 +4534,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	if (ret < 0)
 		goto bye;
 
+	sprintf(fw_config_file_path, "/lib/firmware/%s", fw_config_file);
 	/*
 	 * Return successfully and note that we're operating with parameters
 	 * not supplied by the driver, rather than from hard-wired
@@ -3887,7 +4545,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		 "Configuration File %s, version %#x, computed checksum %#x\n",
 		 (using_flash
 		  ? "in device FLASH"
-		  : "/lib/firmware/" FW_CFNAME),
+		  : fw_config_file_path),
 		 finiver, cfcsum);
 	return 0;
 
@@ -4354,6 +5012,15 @@ static int adap_init0(struct adapter *adap)
 		adap->tids.aftid_end = val[1];
 	}
 
+	/* If we're running on newer firmware, let it know that we're
+	 * prepared to deal with encapsulated CPL messages.  Older
+	 * firmware won't understand this and we'll just get
+	 * unencapsulated messages ...
+	 */
+	params[0] = FW_PARAM_PFVF(CPLFW4MSG_ENCAP);
+	val[0] = 1;
+	(void) t4_set_params(adap, adap->mbox, adap->fn, 0, 1, params, val);
+
 	/*
 	 * Get device capabilities so we can determine what resources we need
 	 * to manage.
@@ -4537,7 +5204,7 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 
 	if (t4_wait_dev_ready(adap) < 0)
 		return PCI_ERS_RESULT_DISCONNECT;
-	if (t4_fw_hello(adap, adap->fn, adap->fn, MASTER_MUST, NULL))
+	if (t4_fw_hello(adap, adap->fn, adap->fn, MASTER_MUST, NULL) < 0)
 		return PCI_ERS_RESULT_DISCONNECT;
 	adap->flags |= FW_OK;
 	if (adap_init1(adap, &c))
@@ -4814,7 +5481,8 @@ static void print_port_info(const struct net_device *dev)
 	sprintf(bufp, "BASE-%s", base[pi->port_type]);
 
 	netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
-		    adap->params.vpd.id, adap->params.rev, buf,
+		    adap->params.vpd.id,
+		    CHELSIO_CHIP_RELEASE(adap->params.rev), buf,
 		    is_offload(adap) ? "R" : "", adap->params.pci.width, spd,
 		    (adap->flags & USING_MSIX) ? " MSI-X" :
 		    (adap->flags & USING_MSI) ? " MSI" : "");
@@ -4854,10 +5522,11 @@ static void free_some_resources(struct adapter *adapter)
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
+#define SEGMENT_SIZE 128
 
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	int func, i, err;
+	int func, i, err, s_qpp, qpp, num_seg;
 	struct port_info *pi;
 	bool highdma = false;
 	struct adapter *adapter = NULL;
@@ -4934,7 +5603,34 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = t4_prep_adapter(adapter);
 	if (err)
-		goto out_unmap_bar;
+		goto out_unmap_bar0;
+
+	if (!is_t4(adapter->chip)) {
+		s_qpp = QUEUESPERPAGEPF1 * adapter->fn;
+		qpp = 1 << QUEUESPERPAGEPF0_GET(t4_read_reg(adapter,
+		      SGE_EGRESS_QUEUES_PER_PAGE_PF) >> s_qpp);
+		num_seg = PAGE_SIZE / SEGMENT_SIZE;
+
+		/* Each segment size is 128B. Write coalescing is enabled only
+		 * when SGE_EGRESS_QUEUES_PER_PAGE_PF reg value for the
+		 * queue is less no of segments that can be accommodated in
+		 * a page size.
+		 */
+		if (qpp > num_seg) {
+			dev_err(&pdev->dev,
+				"Incorrect number of egress queues per page\n");
+			err = -EINVAL;
+			goto out_unmap_bar0;
+		}
+		adapter->bar2 = ioremap_wc(pci_resource_start(pdev, 2),
+		pci_resource_len(pdev, 2));
+		if (!adapter->bar2) {
+			dev_err(&pdev->dev, "cannot map device bar2 region\n");
+			err = -ENOMEM;
+			goto out_unmap_bar0;
+		}
+	}
+
 	setup_memwin(adapter);
 	err = adap_init0(adapter);
 	setup_memwin_rdma(adapter);
@@ -4963,7 +5659,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->hw_features = NETIF_F_SG | TSO_FLAGS |
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_RXCSUM | NETIF_F_RXHASH |
-			NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 		if (highdma)
 			netdev->hw_features |= NETIF_F_HIGHDMA;
 		netdev->features |= netdev->hw_features;
@@ -5063,6 +5759,9 @@ sriov:
  out_free_dev:
 	free_some_resources(adapter);
  out_unmap_bar:
+	if (!is_t4(adapter->chip))
+		iounmap(adapter->bar2);
+ out_unmap_bar0:
 	iounmap(adapter->regs);
  out_free_adapter:
 	kfree(adapter);
@@ -5113,6 +5812,8 @@ static void remove_one(struct pci_dev *pdev)
 
 		free_some_resources(adapter);
 		iounmap(adapter->regs);
+		if (!is_t4(adapter->chip))
+			iounmap(adapter->bar2);
 		kfree(adapter);
 		pci_disable_pcie_error_reporting(pdev);
 		pci_disable_device(pdev);

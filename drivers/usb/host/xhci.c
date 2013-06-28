@@ -350,7 +350,7 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 	 * generate interrupts.  Don't even try to enable MSI.
 	 */
 	if (xhci->quirks & XHCI_BROKEN_MSI)
-		return 0;
+		goto legacy_irq;
 
 	/* unregister the legacy interrupt */
 	if (hcd->irq)
@@ -371,6 +371,7 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 		return -EINVAL;
 	}
 
+ legacy_irq:
 	/* fall back to legacy interrupt*/
 	ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
 			hcd->irq_descr, hcd);
@@ -416,9 +417,9 @@ static void compliance_mode_recovery(unsigned long arg)
 			 * Compliance Mode Detected. Letting USB Core
 			 * handle the Warm Reset
 			 */
-			xhci_dbg(xhci, "Compliance Mode Detected->Port %d!\n",
+			xhci_dbg(xhci, "Compliance mode detected->port %d\n",
 					i + 1);
-			xhci_dbg(xhci, "Attempting Recovery routine!\n");
+			xhci_dbg(xhci, "Attempting compliance mode recovery\n");
 			hcd = xhci->shared_hcd;
 
 			if (hcd->state == HC_STATE_SUSPENDED)
@@ -456,7 +457,7 @@ static void compliance_mode_recovery_timer_init(struct xhci_hcd *xhci)
 	set_timer_slack(&xhci->comp_mode_recovery_timer,
 			msecs_to_jiffies(COMP_MODE_RCVRY_MSECS));
 	add_timer(&xhci->comp_mode_recovery_timer);
-	xhci_dbg(xhci, "Compliance Mode Recovery Timer Initialized.\n");
+	xhci_dbg(xhci, "Compliance mode recovery timer initialized\n");
 }
 
 /*
@@ -465,7 +466,7 @@ static void compliance_mode_recovery_timer_init(struct xhci_hcd *xhci)
  * Systems:
  * Vendor: Hewlett-Packard -> System Models: Z420, Z620 and Z820
  */
-static bool compliance_mode_recovery_timer_quirk_check(void)
+bool xhci_compliance_mode_recovery_timer_quirk_check(void)
 {
 	const char *dmi_product_name, *dmi_sys_vendor;
 
@@ -516,7 +517,7 @@ int xhci_init(struct usb_hcd *hcd)
 	xhci_dbg(xhci, "Finished xhci_init\n");
 
 	/* Initializing Compliance Mode Recovery Data If Needed */
-	if (compliance_mode_recovery_timer_quirk_check()) {
+	if (xhci_compliance_mode_recovery_timer_quirk_check()) {
 		xhci->quirks |= XHCI_COMP_MODE_QUIRK;
 		compliance_mode_recovery_timer_init(xhci);
 	}
@@ -732,8 +733,11 @@ void xhci_stop(struct usb_hcd *hcd)
 
 	/* Deleting Compliance Mode Recovery Timer */
 	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
-			(!(xhci_all_ports_seen_u0(xhci))))
+			(!(xhci_all_ports_seen_u0(xhci)))) {
 		del_timer_sync(&xhci->comp_mode_recovery_timer);
+		xhci_dbg(xhci, "%s: compliance mode recovery timer deleted\n",
+				__func__);
+	}
 
 	if (xhci->quirks & XHCI_AMD_PLL_FIX)
 		usb_amd_dev_put();
@@ -929,7 +933,8 @@ int xhci_suspend(struct xhci_hcd *xhci)
 	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 			(!(xhci_all_ports_seen_u0(xhci)))) {
 		del_timer_sync(&xhci->comp_mode_recovery_timer);
-		xhci_dbg(xhci, "Compliance Mode Recovery Timer Deleted!\n");
+		xhci_dbg(xhci, "%s: compliance mode recovery timer deleted\n",
+				__func__);
 	}
 
 	/* step 5: remove core well power */
@@ -951,6 +956,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	struct usb_hcd		*secondary_hcd;
 	int			retval = 0;
+	bool			comp_timer_running = false;
 
 	/* Wait a bit if either of the roothubs need to settle from the
 	 * transition into bus suspend.
@@ -988,6 +994,13 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 
 	/* If restore operation fails, re-initialize the HC during resume */
 	if ((temp & STS_SRE) || hibernated) {
+
+		if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
+				!(xhci_all_ports_seen_u0(xhci))) {
+			del_timer_sync(&xhci->comp_mode_recovery_timer);
+			xhci_dbg(xhci, "Compliance Mode Recovery Timer deleted!\n");
+		}
+
 		/* Let the USB core know _both_ roothubs lost power. */
 		usb_root_hub_lost_power(xhci->main_hcd->self.root_hub);
 		usb_root_hub_lost_power(xhci->shared_hcd->self.root_hub);
@@ -1030,6 +1043,8 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		retval = xhci_init(hcd->primary_hcd);
 		if (retval)
 			return retval;
+		comp_timer_running = true;
+
 		xhci_dbg(xhci, "Start the primary HCD\n");
 		retval = xhci_run(hcd->primary_hcd);
 		if (!retval) {
@@ -1071,7 +1086,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	 * to suffer the Compliance Mode issue again. It doesn't matter if
 	 * ports have entered previously to U0 before system's suspension.
 	 */
-	if (xhci->quirks & XHCI_COMP_MODE_QUIRK)
+	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) && !comp_timer_running)
 		compliance_mode_recovery_timer_init(xhci);
 
 	/* Re-enable port polling. */
@@ -3778,7 +3793,29 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	return 0;
 }
 
-#ifdef CONFIG_USB_SUSPEND
+/*
+ * Transfer the port index into real index in the HW port status
+ * registers. Caculate offset between the port's PORTSC register
+ * and port status base. Divide the number of per port register
+ * to get the real index. The raw port number bases 1.
+ */
+int xhci_find_raw_port_number(struct usb_hcd *hcd, int port1)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	__le32 __iomem *base_addr = &xhci->op_regs->port_status_base;
+	__le32 __iomem *addr;
+	int raw_port;
+
+	if (hcd->speed != HCD_USB3)
+		addr = xhci->usb2_ports[port1 - 1];
+	else
+		addr = xhci->usb3_ports[port1 - 1];
+
+	raw_port = (addr - base_addr)/NUM_PORT_REGS + 1;
+	return raw_port;
+}
+
+#ifdef CONFIG_PM_RUNTIME
 
 /* BESL to HIRD Encoding array for USB2 LPM */
 static int xhci_besl_encoding[16] = {125, 150, 200, 300, 400, 500, 1000, 2000,
@@ -4028,7 +4065,7 @@ int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 	return 0;
 }
 
-#endif /* CONFIG_USB_SUSPEND */
+#endif /* CONFIG_PM_RUNTIME */
 
 /*---------------------- USB 3.0 Link PM functions ------------------------*/
 
