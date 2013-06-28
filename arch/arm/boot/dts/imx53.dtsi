@@ -1086,6 +1086,16 @@
 				crtcs = <&ipu 1>;
 				status = "disabled";
 			};
+
+			vpu: vpu@63ff4000 {
+				compatible = "fsl,imx53-vpu";
+				reg = <0x63ff4000 0x1000>;
+				interrupts = <9>;
+				clocks = <&clks 63>, <&clks 63>;
+				clock-names = "per", "ahb";
+				iram = <&ocram>;
+				status = "disabled";
+			};
 		};
 
 		ocram: sram@f8000000 {

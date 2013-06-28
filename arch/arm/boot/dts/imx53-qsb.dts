@@ -297,6 +297,10 @@
 	status = "okay";
 };
 
+&vpu {
+	status = "okay";
+};
+
 &usbh1 {
        status = "okay";
 };
