@@ -63,8 +63,12 @@ typedef struct clk
 
 } __ccu_clk_t;
 
+static inline const char *clk_name(struct clk *clk)
+{
+	return clk->clk->name;
+}
+
 extern int clk_reset(struct clk *clk, int reset);
 cycle_t aw_clksrc_read(struct clocksource *cs);
 
 #endif  /* #ifndef __SW_CLOCK_H__ */
-

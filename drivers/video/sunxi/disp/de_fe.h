@@ -1340,14 +1340,9 @@ typedef union {
 		 * written to 1, Scaler will start a new frame process.
 		 */
 		u32 frm_start:1; /* Default: 0 */
-#ifdef CONFIG_ARCH_SUN4I
-		u32 res3:15;
-#else
 		u32 res3:6;
-		/* fir coef ram access control */
-		u32 coef_access_ctrl:1;
+		u32 coef_access_ctrl:1; /* sun5i fir coef ram access control */
 		u32 res4:8;
-#endif
 	} bits;
 } SCAL_FRM_CTRL_REG;
 
@@ -1645,14 +1640,10 @@ typedef union {
 		 * when this bit is 1, the byte sequence is ARGB.
 		 */
 		u32 byte_seq:1; /* Default: 0 */
-#ifdef CONFIG_ARCH_SUN4I
-		u32 res2:23;
-#else
 		u32 res2:7;
-		/* write back channel select */
+		/* write back channel select (sun5i only) */
 		u32 wb_chsel:2;
 		u32 res3:14;
-#endif
 	} bits;
 } SCAL_OUTPUT_FMT_REG;
 
@@ -1699,13 +1690,9 @@ typedef union {
 		 *  1: bottom field
 		 */
 		u32 lcd_field:1; /* Default: 0 */
-#ifdef CONFIG_ARCH_SUN4I
-		u32 res1:6;
-#else
 		u32 res1:5;
-		/* fir coef access status */
+		/* fir coef access status (sun5i only) */
 		u32 coef_access_status:1;
-#endif
 		/*
 		 * WB_ERR_STATUS: write-back error status.
 		 *  0: valid write back
@@ -2069,7 +2056,7 @@ typedef struct __DE_SCAL_DEV {
 	SCAL_VPP_BLE_REG vpp_ble;			/* 0xa14 */
 } __de_scal_dev_t;
 
-#ifdef CONFIG_ARCH_SUN4I
+#ifndef CONFIG_ARCH_SUN5I
 typedef struct __SCAL_MATRIX4X4 {
 	__s64 x00;
 	__s64 x01;
@@ -2117,6 +2104,6 @@ extern __s32 iDE_SCAL_Matrix_Mul(__scal_matrix4x4 in1, __scal_matrix4x4 in2,
 				 __scal_matrix4x4 *result);
 extern __s32 iDE_SCAL_Csc_Lmt(__s32 *value, __s32 min, __s32 max, __s32 shift,
 			      __s32 validbit);
-#endif /* CONFIG_ARCH_SUN4I */
+#endif /* not CONFIG_ARCH_SUN5I */
 
 #endif

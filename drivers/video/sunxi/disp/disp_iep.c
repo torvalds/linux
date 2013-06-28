@@ -24,9 +24,9 @@
 #include "disp_lcd.h"
 #include "OSAL_Clock.h"
 
-#ifndef CONFIG_ARCH_SUN5I
-#error IEP should only be used on sun5i
-#endif
+static __s32 Disp_drc_init(__u32 sel);
+static __s32 Disp_drc_proc(__u32 sel, __u32 tcon_index);
+static __s32 Disp_drc_close_proc(__u32 sel, __u32 tcon_index);
 
 static __hdle h_iepahbclk, h_iepdramclk, h_iepmclk;
 static __disp_iep_t giep[2]; /* IEP module parameters */
@@ -196,6 +196,9 @@ static inline __s32 PWRSAVE_CORE(__u32 sel)
  */
 __s32 BSP_disp_iep_drc_enable(__u32 sel, __bool en)
 {
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	if (sel == 0) {
 		if (en)
 			gdisp.screen[sel].iep_status |= DRC_REQUIRED;
@@ -213,6 +216,9 @@ __s32 BSP_disp_iep_drc_enable(__u32 sel, __bool en)
 __s32 BSP_disp_iep_get_drc_enable(__u32 sel)
 {
 	__u32 ret;
+
+	if (!sunxi_is_sun5i())
+		return 0;
 
 	if (sel == 0) {
 		if (gdisp.screen[sel].iep_status & DRC_USED) { /* used (ON) */
@@ -236,6 +242,9 @@ __s32 BSP_disp_iep_get_drc_enable(__u32 sel)
  */
 __s32 BSP_disp_iep_deflicker_enable(__u32 sel, __bool en)
 {
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	if (sel == 0) {
 		if (en)
 			gdisp.screen[sel].iep_status |= DE_FLICKER_REQUIRED;
@@ -253,6 +262,9 @@ __s32 BSP_disp_iep_deflicker_enable(__u32 sel, __bool en)
 __s32 BSP_disp_iep_get_deflicker_enable(__u32 sel)
 {
 	__u32 ret;
+
+	if (!sunxi_is_sun5i())
+		return 0;
 
 	if (sel == 0) {
 		if (gdisp.screen[sel].iep_status & DE_FLICKER_USED)
@@ -275,6 +287,9 @@ __s32 BSP_disp_iep_get_deflicker_enable(__u32 sel)
 __s32 BSP_disp_iep_set_demo_win(__u32 sel, __u32 mode, __disp_rect_t *regn)
 {
 	__u32 scn_width, scn_height;
+
+	if (!sunxi_is_sun5i())
+		return 0;
 
 	if (regn == NULL) {
 		DE_WRN("BSP_disp_iep_set_demo_win: parameters invalid!\n");
@@ -318,6 +333,9 @@ __s32 BSP_disp_iep_set_demo_win(__u32 sel, __u32 mode, __disp_rect_t *regn)
  */
 __s32 Disp_drc_enable(__u32 sel, __u32 en)
 {
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	if (sel)
 		return -1;
 
@@ -365,7 +383,7 @@ __s32 Disp_drc_enable(__u32 sel, __u32 en)
 	return 0;
 }
 
-__s32 Disp_drc_init(__u32 sel)
+static __s32 Disp_drc_init(__u32 sel)
 {
 	__u32 scn_width, scn_height;
 
@@ -442,6 +460,9 @@ __s32 Disp_de_flicker_enable(__u32 sel, __u32 en)
 	__disp_tv_mode_t tv_mode;
 	__u32 scan_mode;
 	__u32 scaler_index;
+
+	if (!sunxi_is_sun5i())
+		return 0;
 
 	tv_mode = gdisp.screen[sel].tv_mode;
 	scan_mode = gdisp.screen[sel].b_out_interlace;
@@ -557,6 +578,9 @@ __s32 Disp_de_flicker_init(__u32 sel)
 {
 	__u32 scn_width, scn_height;
 
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	scn_width = BSP_disp_get_screen_width(sel);
 	scn_height = BSP_disp_get_screen_height(sel);
 
@@ -582,6 +606,10 @@ __s32 Disp_de_flicker_init(__u32 sel)
 
 __s32 iep_clk_init(__u32 sel)
 {
+	if (!sunxi_is_sun5i())
+		return 0;
+
+#ifdef CONFIG_ARCH_SUN5I
 	h_iepahbclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_AHB_IEP);
 	h_iepdramclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_SDRAM_IEP);
 	h_iepmclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_IEP);
@@ -590,11 +618,15 @@ __s32 iep_clk_init(__u32 sel)
 	OSAL_CCMU_MclkOnOff(h_iepahbclk, CLK_ON);
 
 	g_clk_status |= CLK_IEP_AHB_ON;
+#endif
 	return DIS_SUCCESS;
 }
 
 __s32 iep_clk_exit(__u32 sel)
 {
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	OSAL_CCMU_MclkReset(h_iepmclk, RST_VALID);
 
 	if (g_clk_status & CLK_IEP_DRAM_ON)
@@ -615,6 +647,9 @@ __s32 iep_clk_exit(__u32 sel)
 
 __s32 iep_clk_open(__u32 sel)
 {
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	OSAL_CCMU_MclkOnOff(h_iepmclk, CLK_ON);
 	OSAL_CCMU_MclkOnOff(h_iepdramclk, CLK_ON);
 
@@ -624,6 +659,9 @@ __s32 iep_clk_open(__u32 sel)
 
 __s32 iep_clk_close(__u32 sel)
 {
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	OSAL_CCMU_MclkOnOff(h_iepmclk, CLK_OFF);
 	OSAL_CCMU_MclkOnOff(h_iepdramclk, CLK_OFF);
 
@@ -639,6 +677,9 @@ __s32 Disp_iep_init(__u32 sel)
 #ifdef DRC_DEFAULT_ENABLE
 	__disp_rect_t regn;
 #endif
+
+	if (!sunxi_is_sun5i())
+		return 0;
 
 	memset(giep, 0, sizeof(giep));
 	memset(gpwrsv, 0, sizeof(gpwrsv));
@@ -673,6 +714,9 @@ __s32 Disp_iep_init(__u32 sel)
 
 __s32 Disp_iep_exit(__u32 sel)
 {
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	if (sel == 0) {
 		iep_clk_exit(sel);
 		kfree(pttab);
@@ -686,6 +730,9 @@ __s32 Disp_iep_exit(__u32 sel)
 
 __s32 IEP_Operation_In_Vblanking(__u32 sel, __u32 tcon_index)
 {
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	/* if use DMA mode for LCD panel?? */
 	if (gpanel_info[sel].tcon_index == tcon_index) {
 		if (gdisp.screen[sel].iep_status & DRC_NEED_CLOSED)
@@ -702,7 +749,7 @@ __s32 IEP_Operation_In_Vblanking(__u32 sel, __u32 tcon_index)
 	return DIS_SUCCESS;
 }
 
-__s32 Disp_drc_proc(__u32 sel, __u32 tcon_index)
+static __s32 Disp_drc_proc(__u32 sel, __u32 tcon_index)
 {
 	__u32 top, bot, left, right;
 	__u32 lgcaddr;
@@ -759,7 +806,7 @@ __s32 Disp_drc_proc(__u32 sel, __u32 tcon_index)
 	}
 }
 
-__s32 Disp_drc_close_proc(__u32 sel, __u32 tcon_index)
+static __s32 Disp_drc_close_proc(__u32 sel, __u32 tcon_index)
 {
 	if (sel == 0) {
 		/* IEP module */
@@ -785,6 +832,9 @@ __s32 Disp_de_flicker_proc(__u32 sel, __u32 tcon_index)
 {
 	__u32 top, bot, left, right;
 
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	if (sel == 0) {
 		if (giep[sel].deflicker_win_en) {
 			top = giep[sel].deflicker_win.y;
@@ -808,6 +858,9 @@ __s32 Disp_de_flicker_proc(__u32 sel, __u32 tcon_index)
 
 __s32 Disp_de_flicker_close_proc(__u32 sel, __u32 tcon_index)
 {
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	if (sel == 0) {
 		/* IEP module */
 		DE_IEP_Disable(sel);

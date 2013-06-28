@@ -94,6 +94,30 @@ static void sun7i_fixup(struct tag *tags, char **from,
 	meminfo->nr_banks = 1;
 }
 
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+/* The FB block is used by:
+ *
+ * - the sun4i framebuffer driver, drivers/video/sun4i/disp.
+ *
+ * fb_start, fb_size are used in a vast number of other places but for
+ * for platform-specific drivers, so we don't have to worry about them.
+ */
+
+unsigned long fb_start = SW_FB_MEM_BASE;
+unsigned long fb_size = SW_FB_MEM_SIZE;
+EXPORT_SYMBOL(fb_start);
+EXPORT_SYMBOL(fb_size);
+
+static int __init reserve_fb_param(char *s)
+{
+	unsigned long size;
+	if (kstrtoul(s, 0, &size) == 0)
+		fb_size = size * SZ_1M;
+	return 0;
+}
+early_param("sunxi_fb_mem_reserve", reserve_fb_param);
+#endif
+
 static void __init sun7i_reserve(void)
 {
 	pr_info("memblock reserve %lx(%x) for sysconfig, ret=%d\n", SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE,
@@ -102,8 +126,10 @@ static void __init sun7i_reserve(void)
 	pr_info("memblock reserve %x(%x) for standby, ret=%d\n", SUPER_STANDBY_BASE, SUPER_STANDBY_SIZE,
 		memblock_reserve(SUPER_STANDBY_BASE, SUPER_STANDBY_SIZE));
 
-	pr_info("memblock remove %lx(%x) for fb, ret=%d\n", SW_FB_MEM_BASE, SW_FB_MEM_SIZE,
-		memblock_remove(SW_FB_MEM_BASE, SW_FB_MEM_SIZE));
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	pr_info("memblock reserve %lx(%lx) for fb, ret=%d\n", fb_start, fb_size,
+		memblock_reserve(fb_start, fb_size));
+#endif
 
 	/* Ensure this is set before any arch_init funcs call script_foo */
 	sunxi_script_init((void *)__va(SYS_CONFIG_MEMBASE));

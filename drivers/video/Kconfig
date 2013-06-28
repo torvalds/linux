@@ -286,7 +286,7 @@ config SUN3I_HDMI
 
 config FB_SUNXI
         tristate "DISP Driver Support(sunxi)"
-        depends on FB && (ARCH_SUN5I || ARCH_SUN4I)
+        depends on FB && (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I)
 	select FB_SUNXI_RESERVED_MEM if MALI
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT

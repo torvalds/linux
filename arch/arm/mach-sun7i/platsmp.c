@@ -30,6 +30,7 @@ extern void sun7i_secondary_startup(void);
 
 static DEFINE_SPINLOCK(boot_lock);
 
+#ifdef UNUSED
 /*
  * Initialise the CPU possible map early - this describes the CPUs
  * which may be present or become present in the system.
@@ -41,7 +42,7 @@ static void __iomem *scu_base_addr(void)
     pr_debug("[%s] enter\n", __FUNCTION__);
     return __io_address(SW_PA_SCU_IO_BASE);
 }
-
+#endif
 
 void __cpuinit enable_aw_cpu(int cpu)
 {

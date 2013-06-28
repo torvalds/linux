@@ -1355,8 +1355,10 @@ EXPORT_SYMBOL(disp_get_ump_secure_id);
 static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	long ret = 0;
-	int secure_id_buf_num = 0;
 	unsigned long layer_hdl = 0;
+#ifdef CONFIG_FB_SUNXI_UMP
+	int secure_id_buf_num = 0;
+#endif
 
 	switch (cmd) {
 	case FBIOGET_LAYER_HDL_0:

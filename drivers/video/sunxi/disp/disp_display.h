@@ -24,12 +24,8 @@
 #include "disp_layer.h"
 #include "disp_scaler.h"
 #include "disp_video.h"
-#include <asm/div64.h>
-
-#ifdef CONFIG_ARCH_SUN5I
 #include "disp_iep.h"
-#endif
-
+#include <asm/div64.h>
 
 #define IMAGE_USED	0x00000004
 #define YUV_CH_USED	0x00000010
@@ -105,16 +101,11 @@ typedef struct {
 	__u32 contrast;
 	__u32 saturation;
 	__u32 hue;
-#ifdef CONFIG_ARCH_SUN4I
 	__bool enhance_en;
-#endif
 	__u32 max_layers;
 	__layer_man_t layer_manage[4];
-#ifdef CONFIG_ARCH_SUN4I
 	__u32 de_flicker_status;
-#else
 	__u32 iep_status;
-#endif
 
 	/*
 	 * see macro definition IMAGE_OUTPUT_XXX above, it can be
@@ -137,16 +128,14 @@ typedef struct {
 	__u32 pll_use_status;	/* lcdc0/lcdc1 using which video pll(0 or 1) */
 
 	__u32 lcd_bright;
-#ifdef CONFIG_ARCH_SUN5I
 	/*
 	 * IEP-drc backlight dimming rate:
 	 * 0 -256 (256: no dimming; 0: the most dimming)
 	 */
 	__u32 lcd_bright_dimming;
-#else
+
 	__disp_color_range_t out_color_range;
 	__csc_t out_csc;
-#endif
 
 	__disp_lcd_cfg_t lcd_cfg;
 	__hdle gpio_hdl[4];

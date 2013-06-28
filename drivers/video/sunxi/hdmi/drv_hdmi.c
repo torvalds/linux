@@ -336,7 +336,11 @@ __s32 Hdmi_init(struct platform_device *dev)
 
 	audio_func.hdmi_audio_enable = Hdmi_Audio_Enable;
 	audio_func.hdmi_set_audio_para = Hdmi_Set_Audio_Para;
+#if defined CONFIG_SND_SUN4I_SOC_HDMIAUDIO || \
+    (defined CONFIG_SND_SUN4I_SOC_HDMIAUDIO_MODULE && \
+     defined CONFIG_FB_SUNXI_HDMI_MODULE)
 	audio_set_hdmi_func(&audio_func);
+#endif
 
 	disp_func.hdmi_wait_edid = hdmi_wait_edid;
 	disp_func.Hdmi_open = Hdmi_open;

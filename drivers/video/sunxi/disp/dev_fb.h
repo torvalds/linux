@@ -38,9 +38,7 @@ typedef struct {
 	__u32 base_sdram;
 	__u32 base_pioc;
 	__u32 base_pwm;
-#ifdef CONFIG_ARCH_SUN5I
 	__u32 base_iep;
-#endif
 	__disp_init_t disp_init;
 
 	__bool fb_enable[SUNXI_MAX_FB];

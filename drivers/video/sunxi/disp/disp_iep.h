@@ -24,10 +24,6 @@
 #include "de_iep.h"
 #include "disp_event.h"
 
-#ifndef CONFIG_ARCH_SUN5I
-#error IEP should only be used on sun5i
-#endif
-
 #define CLK_IEP_AHB_ON	0x00000008
 #define CLK_IEP_MOD_ON	0x00000080
 #define CLK_IEP_DRAM_ON	0x00000800
@@ -74,7 +70,6 @@ typedef struct {
 extern __s32 Disp_iep_init(__u32 sel);
 extern __s32 Disp_iep_exit(__u32 sel);
 extern __s32 Disp_drc_enable(__u32 sel, __u32 en);
-extern __s32 Disp_drc_init(__u32 sel);
 extern __s32 Disp_de_flicker_enable(__u32 sel, __u32 en);
 extern __s32 Disp_de_flicker_init(__u32 sel);
 extern __s32 iep_clk_init(__u32 sel);
@@ -82,8 +77,6 @@ extern __s32 iep_clk_exit(__u32 sel);
 extern __s32 iep_clk_open(__u32 sel);
 extern __s32 iep_clk_close(__u32 sel);
 extern __s32 IEP_Operation_In_Vblanking(__u32 sel, __u32 tcon_index);
-extern __s32 Disp_drc_proc(__u32 sel, __u32 tcon_index);
-extern __s32 Disp_drc_close_proc(__u32 sel, __u32 tcon_index);
 extern __s32 Disp_de_flicker_proc(__u32 sel, __u32 tcon_index);
 extern __s32 Disp_de_flicker_close_proc(__u32 sel, __u32 tcon_index);
 

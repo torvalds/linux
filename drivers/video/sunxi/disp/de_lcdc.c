@@ -378,11 +378,8 @@ void TCON0_cfg(__u32 sel, __panel_para_t *info)
 	if (info->lcd_gamma_correction_en) {
 		TCON1_set_gamma_table(sel, (__u32) (info->lcd_gamma_tbl), 1024);
 		TCON1_set_gamma_Enable(sel, 1);
-	}
-#ifdef CONFIG_ARCH_SUN4I
-	else
+	} else if (!sunxi_is_sun5i())
 		TCON1_set_gamma_Enable(sel, 0);
-#endif
 
 	LCDC_WUINT32(sel, LCDC_IOCTL0_OFF, info->lcd_io_cfg0);
 	LCDC_WUINT32(sel, LCDC_IOCTL1_OFF, info->lcd_io_cfg1);
@@ -457,9 +454,8 @@ __u32 TCON1_close(__u32 sel)
 
 	LCDC_WUINT32(sel, LCDC_IOCTL3_OFF, 0xffffffff);	/* ? */
 
-#ifdef CONFIG_ARCH_SUN5I
-	LCDC_CLR_BIT(sel, LCDC_MUX_CTRL, 1 << 0);
-#endif
+	if (sunxi_is_sun5i())
+		LCDC_CLR_BIT(sel, LCDC_MUX_CTRL, 1 << 0);
 
 	return 0;
 }
@@ -599,9 +595,8 @@ __u32 TCON1_set_hdmi_mode(__u32 sel, __u8 mode)
 	cfg.b_rgb_remap_io = 1;	/* rgb */
 	cfg.b_remap_if = 1;
 	TCON1_cfg(sel, &cfg);
-#ifdef CONFIG_ARCH_SUN4I
-	TCON_set_hdmi_src(sel);
-#endif
+	if (!sunxi_is_sun5i())
+		TCON_set_hdmi_src(sel);
 
 	return 0;
 }
@@ -789,11 +784,10 @@ __u32 TCON1_set_tv_mode(__u32 sel, __u8 mode)
 	cfg.b_remap_if = 0;
 	TCON1_cfg(sel, &cfg);
 
-#ifdef CONFIG_ARCH_SUN4I
-	TCON_set_tv_src(sel, sel);
-#else
-	LCDC_SET_BIT(sel, LCDC_MUX_CTRL, 1 << 0);
-#endif
+	if (!sunxi_is_sun5i())
+		TCON_set_tv_src(sel, sel);
+	else
+		LCDC_SET_BIT(sel, LCDC_MUX_CTRL, 1 << 0);
 
 	return 0;
 }
@@ -919,9 +913,8 @@ __s32 TCON1_set_vga_mode(__u32 sel, __u8 mode)
 	cfg.b_remap_if = 1;
 	TCON1_cfg(sel, &cfg);
 
-#ifdef CONFIG_ARCH_SUN4I
-	TCON_set_tv_src(sel, sel);
-#endif
+	if (!sunxi_is_sun5i())
+		TCON_set_tv_src(sel, sel);
 
 	return 0;
 }
@@ -1038,10 +1031,13 @@ LCD_CPU_Burst_Write(__u32 sel, int addr, int data1, int data2)
 static __u32
 LCD_CPU_Busy(__u32 sel)
 {
-#ifdef CONFIG_ARCH_SUN4I
 	volatile __u32 i;
 	__u32 counter = 0;
 	__u32 reg_val;
+
+	if (sunxi_is_sun5i())
+		return LCDC_RUINT32(sel, LCDC_CPUIF_OFF) &
+						(LCDC_BIT23 | LCDC_BIT22);
 
 	LCDC_SET_BIT(sel, LCDC_CPUIF_OFF, LCDC_BIT0);
 	for (i = 0; i < 80; i++)
@@ -1058,9 +1054,6 @@ LCD_CPU_Busy(__u32 sel)
 			return 0;
 		}
 	}
-#else
-	return LCDC_RUINT32(sel, LCDC_CPUIF_OFF) & (LCDC_BIT23 | LCDC_BIT22);
-#endif /* CONFIG_ARCH_SUN4I */
 }
 
 static void
@@ -1211,7 +1204,6 @@ __s32 LCD_LVDS_close(__u32 sel)
 	return 0;
 }
 
-#ifdef CONFIG_ARCH_SUN4I
 #define ____TCON_MUX_CTL____
 
 __u8 TCON_mux_init(void)
@@ -1237,7 +1229,6 @@ __u8 TCON_set_tv_src(__u32 tv_index, __u8 src)
 
 	return 0;
 }
-#endif /* CONFIG_ARCH_SUN4I */
 
 #ifdef UNUSED
 #define ____TCON_CEU____

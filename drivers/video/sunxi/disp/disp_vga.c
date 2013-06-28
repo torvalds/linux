@@ -45,9 +45,7 @@ __s32 BSP_disp_vga_open(__u32 sel)
 {
 	if (!(gdisp.screen[sel].status & VGA_ON)) {
 		__disp_vga_mode_t vga_mode;
-#ifdef CONFIG_ARCH_SUN4I
 		__u32 i = 0;
-#endif
 
 		vga_mode = gdisp.screen[sel].vga_mode;
 
@@ -62,13 +60,9 @@ __s32 BSP_disp_vga_open(__u32 sel)
 		disp_clk_cfg(sel, DISP_OUTPUT_TYPE_VGA, vga_mode);
 		Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_VGA, 1);
 
-#ifdef CONFIG_ARCH_SUN4I
-		BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_VGA);
-#else
 		BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_VGA,
 					gdisp.screen[sel].
 					iep_status & DRC_USED);
-#endif
 		DE_BE_set_display_size(sel, vga_mode_to_width(vga_mode),
 				       vga_mode_to_height(vga_mode));
 		DE_BE_Output_Select(sel, sel);
@@ -78,16 +72,16 @@ __s32 BSP_disp_vga_open(__u32 sel)
 		Disp_TVEC_Open(sel);
 		TCON1_open(sel);
 
-#ifdef CONFIG_ARCH_SUN4I
-		for (i = 0; i < 4; i++) {
-			if (gdisp.screen[sel].dac_source[i] ==
-			    DISP_TV_DAC_SRC_COMPOSITE) {
-				TVE_dac_set_source(1 - sel, i,
+		if (!sunxi_is_sun5i()) {
+			for (i = 0; i < 4; i++) {
+				if (gdisp.screen[sel].dac_source[i] ==
+				    DISP_TV_DAC_SRC_COMPOSITE) {
+					TVE_dac_set_source(1 - sel, i,
 						   DISP_TV_DAC_SRC_COMPOSITE);
-				TVE_dac_sel(1 - sel, i, i);
+					TVE_dac_sel(1 - sel, i, i);
+				}
 			}
 		}
-#endif
 
 		Disp_Switch_Dram_Mode(DISP_OUTPUT_TYPE_VGA, vga_mode);
 

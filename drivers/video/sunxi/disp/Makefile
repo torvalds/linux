@@ -9,11 +9,7 @@ disp-objs += de_be.o de_fe.o de_hwc.o\
 	disp_clk.o disp_combined.o disp_de.o disp_display.o\
 	disp_event.o disp_hdmi.o disp_hwc.o disp_layer.o\
 	disp_lcd.o disp_scaler.o disp_sprite.o disp_tv.o\
-	disp_vga.o disp_video.o
-
-ifeq ($(CONFIG_ARCH_SUN5I),y)
-disp-objs += de_iep.o disp_iep.o
-endif
+	disp_vga.o disp_video.o de_iep.o disp_iep.o
 
 ifeq ($(CONFIG_FB_SUNXI_UMP),y)
 obj-m += disp_ump.o

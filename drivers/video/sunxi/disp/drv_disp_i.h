@@ -40,11 +40,8 @@ typedef enum {
 #define HANDTOID(handle)  ((handle) - 100)
 #define IDTOHAND(ID)  ((ID) + 100)
 
-#ifdef CONFIG_ARCH_SUN5I
 #define DISP_IO_NUM	9
-#else
-#define DISP_IO_NUM	8
-#endif
+
 #define DISP_IO_SCALER0	0
 #define DISP_IO_SCALER1	1
 #define DISP_IO_IMAGE0	2
@@ -53,9 +50,6 @@ typedef enum {
 #define DISP_IO_LCDC1	5
 #define DISP_IO_TVEC0	6
 #define DISP_IO_TVEC1	7
-#ifdef CONFIG_ARCH_SUN5I
 #define DISP_IO_IEP	8
-#endif
-
 
 #endif

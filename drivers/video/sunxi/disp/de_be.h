@@ -123,14 +123,12 @@ extern __u32 image_reg_base[2];
 #define DE_BE_RUINT32IDX(sel, offset, index) \
 	readl(DE_BE_GET_REG_BASE(sel)+(offset)+4*index)
 
+#define FIR_TAB_SUN4I_SIZE 1792
+#define FIR_TAB_SUN5I_SIZE 672
+
 extern __u32 csc_tab[192];
 extern __u32 image_enhance_tab[224];
-
-#ifdef CONFIG_ARCH_SUN4I
-#define FIR_TAB_SIZE 1792
-#else
-#define FIR_TAB_SIZE 672
-#endif
-extern __u32 fir_tab[FIR_TAB_SIZE];
+extern __u32 fir_tab_sun4i[FIR_TAB_SUN4I_SIZE];
+extern __u32 fir_tab_sun5i[FIR_TAB_SUN5I_SIZE];
 
 #endif

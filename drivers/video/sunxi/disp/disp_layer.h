@@ -42,9 +42,7 @@ typedef struct layer_man_t {
 	 * used if scaler mode: 0/1
 	 */
 	__u32 scaler_index;
-#ifdef CONFIG_ARCH_SUN4I
 	__bool video_enhancement_en;
-#endif
 	__disp_layer_info_t para;
 } __layer_man_t;
 

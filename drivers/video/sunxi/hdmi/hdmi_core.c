@@ -18,10 +18,11 @@
  */
 
 #include <linux/module.h>
-#include <mach/aw_ccu.h>
-#include "hdmi_core.h"
+#include <plat/system.h>
 #include "../disp/sunxi_disp_regs.h"
+#include "../disp/OSAL_Clock.h"
 #include "hdmi_cec.h"
+#include "hdmi_core.h"
 
 static char *audio;
 module_param(audio, charp, 0444);
@@ -99,6 +100,8 @@ __s32 hdmi_core_initial(void)
 	memset(Device_Support_VIC, 0, HDMI_DEVICE_SUPPORT_VIC_SIZE);
 
 	writel(0x80000000, HDMI_CTRL); /* start hdmi controller */
+	if (sunxi_is_sun7i())
+		writel(0xe0000000, HDMI_TX_DRIVER); /* power enable */
 
 	return 0;
 }

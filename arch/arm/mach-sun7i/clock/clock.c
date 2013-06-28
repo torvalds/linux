@@ -293,3 +293,9 @@ int clk_reset(struct clk *clk, int reset)
     return 0;
 }
 EXPORT_SYMBOL(clk_reset);
+
+const char *clk_name(struct clk *clk)
+{
+	return clk->aw_clk->name;
+}
+EXPORT_SYMBOL(clk_name);

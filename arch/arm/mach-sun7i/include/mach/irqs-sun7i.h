@@ -106,11 +106,11 @@
 #define AW_IRQ_SCR       	(AW_IRQ_GIC_START + 41)    /* SCR   */
 #define AW_IRQ_CSI0       	(AW_IRQ_GIC_START + 42)    /* CSI0  */
 #define AW_IRQ_CSI1       	(AW_IRQ_GIC_START + 43)    /* CSI1  */
-#define AW_IRQ_LCDC0       	(AW_IRQ_GIC_START + 44)    /* LCDC0 */
-#define AW_IRQ_LCDC1       	(AW_IRQ_GIC_START + 45)    /* LCDC1 */
+#define SW_INT_IRQNO_LCDCTRL0	(AW_IRQ_GIC_START + 44)    /* LCDC0 */
+#define SW_INT_IRQNO_LCDCTRL1	(AW_IRQ_GIC_START + 45)    /* LCDC1 */
 #define AW_IRQ_MP       	(AW_IRQ_GIC_START + 46)    /* MP    */
-#define AW_IRQ_DE0       	(AW_IRQ_GIC_START + 47)    /* DE-FE0 / DE-BE0 */
-#define AW_IRQ_DE1       	(AW_IRQ_GIC_START + 48)    /* DE-FE1 / DE-BE1 */
+#define SW_INT_IRQNO_DEFEBE0	(AW_IRQ_GIC_START + 47)    /* DE-FE0 / DE-BE0 */
+#define SW_INT_IRQNO_DEFEBE1	(AW_IRQ_GIC_START + 48)    /* DE-FE1 / DE-BE1 */
 #define AW_IRQ_PMU       	(AW_IRQ_GIC_START + 49)    /* PMU   */
 #define AW_IRQ_SPI3       	(AW_IRQ_GIC_START + 50)    /* SPI3  */
 

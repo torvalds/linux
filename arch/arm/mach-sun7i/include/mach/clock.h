@@ -253,6 +253,7 @@ typedef struct clk {
 } __ccu_clk_t;
 
 int clk_reset(struct clk *clk, int reset);
+const char *clk_name(struct clk *clk);
 cycle_t aw_clksrc_read(struct clocksource *cs);
 
 #endif

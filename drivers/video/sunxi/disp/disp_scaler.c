@@ -276,9 +276,8 @@ __s32 Scaler_Request(__u32 sel)
 
 	DE_INF("Scaler_Request,%d\n", sel);
 
-#ifdef CONFIG_ARCH_SUN5I
-	sel = 0; /* only one scaler */
-#endif
+	if (sunxi_is_sun5i())
+		sel = 0; /* only one scaler */
 
 	if (sel == 0) { /* request scaler0 */
 		if (!(gdisp.scaler[0].status & SCALER_USED))
@@ -331,7 +330,7 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)
 	__scal_scan_mod_t in_scan;
 	__scal_scan_mod_t out_scan;
 	__disp_scaler_t *scaler;
-	__u32 screen_index;
+	__u32 screen_index, status;
 
 	scaler = &(gdisp.scaler[sel]);
 	screen_index = gdisp.scaler[sel].screen_index;
@@ -364,15 +363,13 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)
 	in_scan.field = FALSE;
 	in_scan.bottom = FALSE;
 
-#ifdef CONFIG_ARCH_SUN4I
-	out_scan.field = (gdisp.screen[screen_index].de_flicker_status &
-			  DE_FLICKER_USED) ?
+	if (sunxi_is_sun5i())
+		status = gdisp.screen[screen_index].iep_status;
+	else
+		status = gdisp.screen[screen_index].de_flicker_status;
+
+	out_scan.field = (status & DE_FLICKER_USED) ?
 		FALSE : gdisp.screen[screen_index].b_out_interlace;
-#else
-	out_scan.field = (gdisp.screen[screen_index].iep_status &
-			  DE_FLICKER_USED) ?
-		FALSE : gdisp.screen[screen_index].b_out_interlace;
-#endif
 
 	if (scaler->in_fb.cs_mode > DISP_VXYCC)
 		scaler->in_fb.cs_mode = DISP_BT601;
@@ -416,12 +413,11 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)
 				     DISP_FB_TYPE_RGB, scaler->in_fb.br_swap,
 				     0);
 
-#ifdef CONFIG_ARCH_SUN4I
-	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan,
-				 &out_size, &out_type, scaler->smooth_mode);
-#else
-	gdisp.scaler[sel].coef_change = 1;
-#endif
+	if (sunxi_is_sun5i())
+		gdisp.scaler[sel].coef_change = 1;
+	else
+		DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type,
+			&out_scan, &out_size, &out_type, scaler->smooth_mode);
 
 	return DIS_SUCCESS;
 }
@@ -451,7 +447,7 @@ __s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t *size)
 	__scal_out_type_t out_type;
 	__scal_scan_mod_t in_scan;
 	__scal_scan_mod_t out_scan;
-	__u32 screen_index;
+	__u32 screen_index, status;
 
 	scaler = &(gdisp.scaler[sel]);
 	screen_index = gdisp.scaler[sel].screen_index;
@@ -481,15 +477,13 @@ __s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t *size)
 	in_scan.field = FALSE;
 	in_scan.bottom = FALSE;
 
-#ifdef CONFIG_ARCH_SUN4I
-	out_scan.field = (gdisp.screen[screen_index].de_flicker_status &
-			  DE_FLICKER_USED) ?
+	if (sunxi_is_sun5i())
+		status = gdisp.screen[screen_index].iep_status;
+	else
+		status = gdisp.screen[screen_index].de_flicker_status;
+
+	out_scan.field = (status & DE_FLICKER_USED) ?
 		FALSE : gdisp.screen[screen_index].b_out_interlace;
-#else
-	out_scan.field = (gdisp.screen[screen_index].iep_status ==
-			  DE_FLICKER_USED) ?
-		FALSE : gdisp.screen[screen_index].b_out_interlace;
-#endif
 
 	DE_SCAL_Set_Scaling_Factor(sel, &in_scan, &in_size, &in_type, &out_scan,
 				   &out_size, &out_type);
@@ -502,12 +496,11 @@ __s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t *size)
 				     DISP_FB_TYPE_RGB, scaler->in_fb.br_swap,
 				     0);
 
-#ifdef CONFIG_ARCH_SUN4I
-	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan,
-				 &out_size, &out_type, scaler->smooth_mode);
-#else
-	gdisp.scaler[sel].coef_change = 1;
-#endif
+	if (sunxi_is_sun5i())
+		gdisp.scaler[sel].coef_change = 1;
+	else
+		DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type,
+			&out_scan, &out_size, &out_type, scaler->smooth_mode);
 
 	DE_SCAL_Set_Out_Size(sel, &out_scan, &out_type, &out_size);
 
@@ -524,7 +517,7 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 	__scal_out_type_t out_type;
 	__scal_scan_mod_t in_scan;
 	__scal_scan_mod_t out_scan;
-	__u32 screen_index;
+	__u32 screen_index, status;
 
 	scaler = &(gdisp.scaler[sel]);
 	screen_index = gdisp.scaler[sel].screen_index;
@@ -560,15 +553,13 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 	in_scan.field = FALSE;
 	in_scan.bottom = FALSE;
 
-#ifdef CONFIG_ARCH_SUN4I
-	out_scan.field = (gdisp.screen[screen_index].de_flicker_status &
-			  DE_FLICKER_USED) ?
+	if (sunxi_is_sun5i())
+		status = gdisp.screen[screen_index].iep_status;
+	else
+		status = gdisp.screen[screen_index].de_flicker_status;
+
+	out_scan.field = (status & DE_FLICKER_USED) ?
 		FALSE : gdisp.screen[screen_index].b_out_interlace;
-#else
-	out_scan.field = (gdisp.screen[screen_index].iep_status ==
-			  DE_FLICKER_USED) ?
-		FALSE : gdisp.screen[screen_index].b_out_interlace;
-#endif
 
 	if (scaler->in_fb.cs_mode > DISP_VXYCC)
 		scaler->in_fb.cs_mode = DISP_BT601;
@@ -603,12 +594,11 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 	DE_SCAL_Set_Scaling_Factor(sel, &in_scan, &in_size, &in_type, &out_scan,
 				   &out_size, &out_type);
 
-#ifdef CONFIG_ARCH_SUN4I
-	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan,
-				 &out_size, &out_type, scaler->smooth_mode);
-#else
-	gdisp.scaler[sel].coef_change = 1;
-#endif
+	if (sunxi_is_sun5i())
+		gdisp.scaler[sel].coef_change = 1;
+	else
+		DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type,
+			&out_scan, &out_size, &out_type, scaler->smooth_mode);
 
 	return DIS_SUCCESS;
 }
@@ -642,7 +632,7 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 	__scal_out_type_t out_type;
 	__scal_scan_mod_t in_scan;
 	__scal_scan_mod_t out_scan;
-	__u32 screen_index;
+	__u32 screen_index, status;
 
 	scaler = &(gdisp.scaler[sel]);
 	screen_index = gdisp.scaler[sel].screen_index;
@@ -677,15 +667,13 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 	in_scan.field = FALSE;
 	in_scan.bottom = FALSE;
 
-#ifdef CONFIG_ARCH_SUN4I
-	out_scan.field = (gdisp.screen[screen_index].de_flicker_status &
-			  DE_FLICKER_USED) ?
+	if (sunxi_is_sun5i())
+		status = gdisp.screen[screen_index].iep_status;
+	else
+		status = gdisp.screen[screen_index].de_flicker_status;
+
+	out_scan.field = (status & DE_FLICKER_USED) ?
 		FALSE : gdisp.screen[screen_index].b_out_interlace;
-#else
-	out_scan.field = (gdisp.screen[screen_index].iep_status &
-			  DE_FLICKER_USED) ?
-		FALSE : gdisp.screen[screen_index].b_out_interlace;
-#endif
 
 	if (scaler->in_fb.cs_mode > DISP_VXYCC)
 		scaler->in_fb.cs_mode = DISP_BT601;
@@ -731,12 +719,11 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 				     0);
 	}
 
-#ifdef CONFIG_ARCH_SUN4I
-	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan,
-				 &out_size, &out_type, scaler->smooth_mode);
-#else
-	gdisp.scaler[sel].coef_change = 1;
-#endif
+	if (sunxi_is_sun5i())
+		gdisp.scaler[sel].coef_change = 1;
+	else
+		DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type,
+			&out_scan, &out_size, &out_type, scaler->smooth_mode);
 
 	DE_SCAL_Set_Out_Format(sel, &out_type);
 	DE_SCAL_Set_Out_Size(sel, &out_scan, &out_type, &out_size);
@@ -785,12 +772,11 @@ __s32 Scaler_Set_Outitl(__u32 sel, __bool enable)
 	DE_SCAL_Set_Scaling_Factor(sel, &in_scan, &in_size, &in_type, &out_scan,
 				   &out_size, &out_type);
 
-#ifdef CONFIG_ARCH_SUN4I
-	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan,
-				 &out_size, &out_type, scaler->smooth_mode);
-#else
-	gdisp.scaler[sel].coef_change = 1;
-#endif
+	if (sunxi_is_sun5i())
+		gdisp.scaler[sel].coef_change = 1;
+	else
+		DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type,
+			&out_scan, &out_size, &out_type, scaler->smooth_mode);
 
 	DE_SCAL_Set_Out_Size(sel, &out_scan, &out_type, &out_size);
 
@@ -806,7 +792,7 @@ __s32 BSP_disp_scaler_set_smooth(__u32 sel, __disp_video_smooth_t mode)
 	__scal_out_type_t out_type;
 	__scal_scan_mod_t in_scan;
 	__scal_scan_mod_t out_scan;
-	__u32 screen_index;
+	__u32 screen_index, status;
 
 	scaler = &(gdisp.scaler[sel]);
 	screen_index = gdisp.scaler[sel].screen_index;
@@ -834,22 +820,19 @@ __s32 BSP_disp_scaler_set_smooth(__u32 sel, __disp_video_smooth_t mode)
 	in_scan.field = FALSE;
 	in_scan.bottom = FALSE;
 
-#ifdef CONFIG_ARCH_SUN4I
-	out_scan.field = (gdisp.screen[screen_index].de_flicker_status &
-			  DE_FLICKER_USED) ?
-		FALSE : gdisp.screen[screen_index].b_out_interlace;
-#else
-	out_scan.field = (gdisp.screen[screen_index].iep_status ==
-			  DE_FLICKER_USED) ?
-		FALSE : gdisp.screen[screen_index].b_out_interlace;
-#endif
+	if (sunxi_is_sun5i())
+		status = gdisp.screen[screen_index].iep_status;
+	else
+		status = gdisp.screen[screen_index].de_flicker_status;
 
-#ifdef CONFIG_ARCH_SUN4I
-	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan,
-				 &out_size, &out_type, scaler->smooth_mode);
-#else
-	gdisp.scaler[sel].coef_change = 1;
-#endif
+	out_scan.field = (status & DE_FLICKER_USED) ?
+		FALSE : gdisp.screen[screen_index].b_out_interlace;
+
+	if (sunxi_is_sun5i())
+		gdisp.scaler[sel].coef_change = 1;
+	else
+		DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type,
+			&out_scan, &out_size, &out_type, scaler->smooth_mode);
 
 	return DIS_SUCCESS;
 }
@@ -890,10 +873,8 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 	__scal_scan_mod_t out_scan;
 	__u32 sel = 0;
 	__s32 ret = 0;
-#ifdef CONFIG_ARCH_SUN5I
 	__u32 i = 0;
 	__u32 ch_num = 0;
-#endif
 
 	if (para == NULL) {
 		DE_WRN("input parameter can't be null!\n");
@@ -1004,16 +985,15 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 	DE_SCAL_Set_Out_Format(sel, &out_type);
 	DE_SCAL_Set_Out_Size(sel, &out_scan, &out_type, &out_size);
 
-#ifdef CONFIG_ARCH_SUN4I
-	DE_SCAL_Set_Writeback_Addr(sel, &out_addr);
-
-	DE_SCAL_Output_Select(sel, 3);
-	DE_SCAL_EnableINT(sel, DE_WB_END_IE);
-	DE_SCAL_Start(sel);
-	DE_SCAL_Set_Reg_Rdy(sel);
-
-	{
+	if (!sunxi_is_sun5i()) {
 		long timeout = (100 * HZ) / 1000; /* 100ms */
+
+		DE_SCAL_Set_Writeback_Addr(sel, &out_addr);
+
+		DE_SCAL_Output_Select(sel, 3);
+		DE_SCAL_EnableINT(sel, DE_WB_END_IE);
+		DE_SCAL_Start(sel);
+		DE_SCAL_Set_Reg_Rdy(sel);
 
 		init_waitqueue_head(&(gdisp.scaler[sel].scaler_queue));
 		gdisp.scaler[sel].b_scaler_finished = 1;
@@ -1030,41 +1010,37 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 			__wrn("wait scaler %d finished timeout\n", sel);
 			return -1;
 		}
-	}
+		DE_SCAL_Reset(sel);
+		DE_SCAL_Writeback_Disable(sel);
+	} else {
+		if (para->output_fb.mode == DISP_MOD_INTERLEAVED)
+			ch_num = 1;
+		else if (para->output_fb.mode == DISP_MOD_MB_UV_COMBINED ||
+			 para->output_fb.mode == DISP_MOD_NON_MB_UV_COMBINED)
+			ch_num = 2;
+		else if (para->output_fb.mode == DISP_MOD_MB_PLANAR ||
+			 para->output_fb.mode == DISP_MOD_NON_MB_PLANAR)
+			ch_num = 3;
 
-	DE_SCAL_Reset(sel);
-	DE_SCAL_Writeback_Disable(sel);
-#else
-	if (para->output_fb.mode == DISP_MOD_INTERLEAVED)
-		ch_num = 1;
-	else if (para->output_fb.mode == DISP_MOD_MB_UV_COMBINED ||
-		 para->output_fb.mode == DISP_MOD_NON_MB_UV_COMBINED)
-		ch_num = 2;
-	else if (para->output_fb.mode == DISP_MOD_MB_PLANAR ||
-		 para->output_fb.mode == DISP_MOD_NON_MB_PLANAR)
-		ch_num = 3;
-
-	for (i = 0; i < ch_num; i++) {
-		__scal_buf_addr_t addr;
-		ret = 0;
-
-		addr.ch0_addr = out_addr.ch0_addr;
-		if (i == 1)
-			addr.ch0_addr = out_addr.ch1_addr;
-		else if (i == 2)
-			addr.ch0_addr = out_addr.ch2_addr;
-		DE_SCAL_Enable(sel);
-
-		DE_SCAL_Set_Writeback_Addr(sel, &addr);
-		DE_SCAL_Set_Writeback_Chnl(sel, i);
-
-		DE_SCAL_Output_Select(sel, 3);
-		DE_SCAL_EnableINT(sel, DE_WB_END_IE);
-		DE_SCAL_Start(sel);
-		DE_SCAL_Set_Reg_Rdy(sel);
-
-		{
+		for (i = 0; i < ch_num; i++) {
 			long timeout = (100 * HZ) / 1000; /* 100ms */
+			__scal_buf_addr_t addr;
+			ret = 0;
+
+			addr.ch0_addr = out_addr.ch0_addr;
+			if (i == 1)
+				addr.ch0_addr = out_addr.ch1_addr;
+			else if (i == 2)
+				addr.ch0_addr = out_addr.ch2_addr;
+			DE_SCAL_Enable(sel);
+
+			DE_SCAL_Set_Writeback_Addr(sel, &addr);
+			DE_SCAL_Set_Writeback_Chnl(sel, i);
+
+			DE_SCAL_Output_Select(sel, 3);
+			DE_SCAL_EnableINT(sel, DE_WB_END_IE);
+			DE_SCAL_Start(sel);
+			DE_SCAL_Set_Reg_Rdy(sel);
 
 			init_waitqueue_head(&(gdisp.scaler[sel].scaler_queue));
 			gdisp.scaler[sel].b_scaler_finished = 1;
@@ -1091,7 +1067,6 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 		DE_SCAL_Reset(sel);
 		DE_SCAL_Disable(sel);
 	}
-#endif /* CONFIG_ARCH_SUN4I */
 
 	return ret;
 }

@@ -56,10 +56,7 @@ __s32 BSP_disp_init(__disp_bsp_init_para *para)
 		gdisp.scaler[screen_id].hue = 50;
 
 		gdisp.screen[screen_id].lcd_bright = 192;
-
-#ifdef CONFIG_ARCH_SUN5I
 		gdisp.screen[screen_id].lcd_bright_dimming = 256;
-#endif
 	}
 	memcpy(&gdisp.init_para, para, sizeof(__disp_bsp_init_para));
 	memset(g_video, 0, sizeof(g_video));
@@ -69,18 +66,15 @@ __s32 BSP_disp_init(__disp_bsp_init_para *para)
 	LCDC_set_reg_base(0, para->base_lcdc0);
 	TVE_set_reg_base(0, para->base_tvec0);
 
-#ifdef CONFIG_ARCH_SUN4I
-	DE_Set_Reg_Base(1, para->base_image1);
-	DE_SCAL_Set_Reg_Base(1, para->base_scaler1);
-	LCDC_set_reg_base(1, para->base_lcdc1);
-	TVE_set_reg_base(1, para->base_tvec1);
-#else
-	DE_IEP_Set_Reg_Base(0, para->base_iep);
-#endif
+	if (!sunxi_is_sun5i()) {
+		DE_Set_Reg_Base(1, para->base_image1);
+		DE_SCAL_Set_Reg_Base(1, para->base_scaler1);
+		LCDC_set_reg_base(1, para->base_lcdc1);
+		TVE_set_reg_base(1, para->base_tvec1);
+	} else
+		DE_IEP_Set_Reg_Base(0, para->base_iep);
 
-#ifdef CONFIG_ARCH_SUN5I
 	BSP_disp_close_lcd_backlight(0);
-#endif
 
 	disp_pll_init();
 
@@ -89,18 +83,16 @@ __s32 BSP_disp_init(__disp_bsp_init_para *para)
 	Disp_lcdc_init(0);
 	Disp_TVEC_Init(0);
 
-#ifdef CONFIG_ARCH_SUN4I
-	Scaler_Init(1);
-	Image_init(1);
-	Disp_lcdc_init(1);
-	Disp_TVEC_Init(1);
-#endif
+	if (!sunxi_is_sun5i()) {
+		Scaler_Init(1);
+		Image_init(1);
+		Disp_lcdc_init(1);
+		Disp_TVEC_Init(1);
+	}
 
 	Display_Hdmi_Init();
 
-#ifdef CONFIG_ARCH_SUN5I
 	Disp_iep_init(0);
-#endif
 
 	disp_initialised = true;
 
@@ -120,34 +112,32 @@ __s32 BSP_disp_exit(__u32 mode)
 		Disp_lcdc_exit(0);
 		Disp_TVEC_Exit(0);
 
-#ifdef CONFIG_ARCH_SUN4I
-		Scaler_Exit(1);
-		Image_exit(1);
-		Disp_lcdc_exit(1);
-		Disp_TVEC_Exit(1);
-#endif
+		if (!sunxi_is_sun5i()) {
+			Scaler_Exit(1);
+			Image_exit(1);
+			Disp_lcdc_exit(1);
+			Disp_TVEC_Exit(1);
+		}
 
 		Display_Hdmi_Exit();
-
-#ifdef CONFIG_ARCH_SUN5I
 		Disp_iep_exit(0);
-#endif
 	} else if (mode == DISP_EXIT_MODE_CLEAN_PARTLY) {
 		disable_irq(INTC_IRQNO_LCDC0);
 		free_irq(INTC_IRQNO_LCDC0, NULL);
 
-#ifdef CONFIG_ARCH_SUN4I
-		disable_irq(INTC_IRQNO_LCDC1);
-		free_irq(INTC_IRQNO_LCDC1, NULL);
-#endif
+
+		if (!sunxi_is_sun5i()) {
+			disable_irq(INTC_IRQNO_LCDC1);
+			free_irq(INTC_IRQNO_LCDC1, NULL);
+		}
 
 		disable_irq(INTC_IRQNO_SCALER0);
 		free_irq(INTC_IRQNO_SCALER0, NULL);
 
-#ifdef CONFIG_ARCH_SUN4I
-		disable_irq(INTC_IRQNO_SCALER1);
-		free_irq(INTC_IRQNO_SCALER1, NULL);
-#endif
+		if (!sunxi_is_sun5i()) {
+			disable_irq(INTC_IRQNO_SCALER1);
+			free_irq(INTC_IRQNO_SCALER1, NULL);
+		}
 	}
 
 	return DIS_SUCCESS;
@@ -247,11 +237,7 @@ __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id)
 
 	case DISP_REG_CCMU:
 		base = gdisp.init_para.base_ccmu;
-#ifdef CONFIG_ARCH_SUN4I
-		size = 0x158;
-#else
-		size = 0x164;
-#endif
+		size = sunxi_is_sun5i() ? 0x164 : 0x158;
 		sprintf(str, "ccmu:\n");
 		break;
 

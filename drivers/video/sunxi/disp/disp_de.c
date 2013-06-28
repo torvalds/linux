@@ -34,10 +34,9 @@ __s32 Image_init(__u32 sel)
 	DE_BE_Reg_Init(sel);
 
 	BSP_disp_sprite_init(sel);
-#ifdef CONFIG_ARCH_SUN5I
-	BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD,
+	if (sunxi_is_sun5i())
+		BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD,
 				gdisp.screen[sel].iep_status & DRC_USED);
-#endif
 
 	Image_open(sel);
 
@@ -76,7 +75,7 @@ __s32 BSP_disp_set_bright(__u32 sel, __u32 bright)
 {
 	gdisp.screen[sel].bright = bright;
 
-#ifdef CONFIG_ARCH_SUN4I
+#ifndef CONFIG_ARCH_SUN5I
 	DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc,
 			     gdisp.screen[sel].out_color_range,
 			     gdisp.screen[sel].enhance_en,
@@ -101,7 +100,7 @@ __s32 BSP_disp_set_contrast(__u32 sel, __u32 contrast)
 {
 	gdisp.screen[sel].contrast = contrast;
 
-#ifdef CONFIG_ARCH_SUN4I
+#ifndef CONFIG_ARCH_SUN5I
 	DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc,
 			     gdisp.screen[sel].out_color_range,
 			     gdisp.screen[sel].enhance_en,
@@ -126,7 +125,7 @@ __s32 BSP_disp_set_saturation(__u32 sel, __u32 saturation)
 {
 	gdisp.screen[sel].saturation = saturation;
 
-#ifdef CONFIG_ARCH_SUN4I
+#ifndef CONFIG_ARCH_SUN5I
 	DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc,
 			     gdisp.screen[sel].out_color_range,
 			     gdisp.screen[sel].enhance_en,
@@ -151,7 +150,7 @@ __s32 BSP_disp_set_hue(__u32 sel, __u32 hue)
 {
 	gdisp.screen[sel].hue = hue;
 
-#ifdef CONFIG_ARCH_SUN4I
+#ifndef CONFIG_ARCH_SUN5I
 	DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc,
 			     gdisp.screen[sel].out_color_range,
 			     gdisp.screen[sel].enhance_en,
@@ -172,9 +171,9 @@ __s32 BSP_disp_get_hue(__u32 sel)
 	return gdisp.screen[sel].hue;
 }
 
-#ifdef CONFIG_ARCH_SUN4I
 __s32 BSP_disp_enhance_enable(__u32 sel, __bool enable)
 {
+#ifndef CONFIG_ARCH_SUN5I
 	gdisp.screen[sel].enhance_en = enable;
 
 	DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc,
@@ -184,15 +183,18 @@ __s32 BSP_disp_enhance_enable(__u32 sel, __bool enable)
 			     gdisp.screen[sel].contrast,
 			     gdisp.screen[sel].saturation,
 			     gdisp.screen[sel].hue);
+#endif
 
 	return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_get_enhance_enable(__u32 sel)
 {
+        if (sunxi_is_sun5i())
+                return 0;
+
 	return gdisp.screen[sel].enhance_en;
 }
-#endif /* CONFIG_ARCH_SUN4I */
 
 __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t *size)
 {
@@ -204,8 +206,9 @@ __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t *size)
 	return DIS_SUCCESS;
 }
 
-#ifdef CONFIG_ARCH_SUN4I
-__s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
+#ifndef CONFIG_ARCH_SUN5I
+static __s32 BSP_disp_set_output_csc_sun4i(__u32 sel,
+					   __disp_output_type_t type)
 {
 	__disp_color_range_t out_color_range = DISP_COLOR_RANGE_0_255;
 	__csc_t out_csc = DE_RGB;
@@ -261,7 +264,9 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
 	return DIS_SUCCESS;
 }
 #else
-__s32 BSP_disp_set_output_csc(__u32 sel, __u32 out_type, __u32 drc_en)
+static __s32 BSP_disp_set_output_csc_sun5i(__u32 sel,
+					   __disp_output_type_t out_type,
+					   __u32 drc_en)
 {
 	__disp_color_range_t out_color_range = DISP_COLOR_RANGE_0_255;
 	__u32 out_csc = 0; /* out_csc: 0:rgb  1:yuv  2:igb */
@@ -297,11 +302,23 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __u32 out_type, __u32 drc_en)
 
 	return DIS_SUCCESS;
 }
-#endif /* CONFIG_ARCH_SUN4I */
+#endif /* not CONFIG_ARCH_SUN5I */
 
-#ifdef CONFIG_ARCH_SUN4I
+__s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type,
+			      __u32 drc_en)
+{
+#ifndef CONFIG_ARCH_SUN5I
+	return BSP_disp_set_output_csc_sun4i(sel, type);
+#else
+	return BSP_disp_set_output_csc_sun5i(sel, type, drc_en);
+#endif
+}
+
 __s32 BSP_disp_de_flicker_enable(__u32 sel, __bool b_en)
 {
+	if (sunxi_is_sun5i())
+		return BSP_disp_iep_deflicker_enable(sel, b_en);
+
 	if (b_en)
 		gdisp.screen[sel].de_flicker_status |= DE_FLICKER_REQUIRED;
 	else
@@ -315,6 +332,9 @@ __s32 Disp_set_out_interlace(__u32 sel)
 {
 	__u32 i;
 	__bool b_cvbs_out = 0;
+
+	if (sunxi_is_sun5i())
+		return 0;
 
 	if (gdisp.screen[sel].output_type == DISP_OUTPUT_TYPE_TV &&
 	    (gdisp.screen[sel].tv_mode == DISP_TV_MOD_PAL ||
@@ -357,4 +377,3 @@ __s32 Disp_set_out_interlace(__u32 sel)
 
 	return DIS_SUCCESS;
 }
-#endif /* CONFIG_ARCH_SUN4I */

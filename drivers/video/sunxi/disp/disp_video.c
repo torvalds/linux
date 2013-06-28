@@ -25,7 +25,6 @@
 
 frame_para_t g_video[2][4];
 
-#ifdef CONFIG_ARCH_SUN4I
 static __s32 video_enhancement_start(__u32 sel, __u32 id)
 {
 	__u32 scaleuprate;
@@ -64,6 +63,9 @@ static __s32 video_enhancement_start(__u32 sel, __u32 id)
 		0x00F6F6F6, 0x00F6F6F6, 0x00F7F7F7, 0x00F8F8F8, 0x00F8F8F8, 0x00F9F9F9, 0x00FAFAFA, 0x00FAFAFA,
 		0x00FBFBFB, 0x00FCFCFC, 0x00FCFCFC, 0x00FDFDFD, 0x00FDFDFD, 0x00FEFEFE, 0x00FEFEFE, 0x00FFFFFF
 	};
+
+	if (sunxi_is_sun5i())
+		return 0;
 
 	/* !!! assume open HDMI before video start */
 	if (gdisp.screen[sel].output_type == DISP_OUTPUT_TYPE_HDMI) {
@@ -109,6 +111,9 @@ static __s32 video_enhancement_stop(__u32 sel, __u32 id)
 {
 	__u32 scaler_index;
 
+	if (sunxi_is_sun5i())
+		return 0;
+
 	if (gdisp.screen[sel].layer_manage[id].video_enhancement_en) {
 		scaler_index = gdisp.screen[sel].layer_manage[id].scaler_index;
 
@@ -123,7 +128,6 @@ static __s32 video_enhancement_stop(__u32 sel, __u32 id)
 
 	return 0;
 }
-#endif /* CONFIG_ARCH_SUN4I */
 
 static inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 {
@@ -148,7 +152,7 @@ static inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 
 	if (gdisp.screen[sel].layer_manage[id].para.mode ==
 	    DISP_LAYER_WORK_MODE_SCALER) {
-		__u32 scaler_index;
+		__u32 status, scaler_index;
 		__scal_buf_addr_t scal_addr;
 		__scal_src_size_t in_size;
 		__scal_out_size_t out_size;
@@ -166,21 +170,20 @@ static inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 		scaler = &(gdisp.scaler[scaler_index]);
 
 		if (g_video[sel][id].video_cur.interlace == TRUE) {
-#ifdef CONFIG_ARCH_SUN4I
-			if ((!(gdisp.screen[sel].de_flicker_status &
+			if ((!sunxi_is_sun5i()) &&
+			    (!(gdisp.screen[sel].de_flicker_status &
 			       DE_FLICKER_USED)) &&
 			    (scaler->in_fb.format == DISP_FORMAT_YUV420 &&
 			     scaler->in_fb.mode == DISP_MOD_MB_UV_COMBINED))
 				g_video[sel][id].dit_enable = TRUE;
-#else
-			g_video[sel][id].dit_enable = FALSE;
-#endif
+			else
+				g_video[sel][id].dit_enable = FALSE;
 
-#ifdef CONFIG_ARCH_SUN4I
-			g_video[sel][id].fetch_field = FALSE;
-#else
-			g_video[sel][id].fetch_field = TRUE;
-#endif
+			if (!sunxi_is_sun5i())
+				g_video[sel][id].fetch_field = FALSE;
+			else
+				g_video[sel][id].fetch_field = TRUE;
+
 			if (g_video[sel][id].display_cnt == 0) {
 				g_video[sel][id].fetch_bot =
 					(g_video[sel][id].video_cur.
@@ -216,18 +219,17 @@ static inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 					g_video[sel][id].tempdiff_en = FALSE;
 				}
 				g_video[sel][id].diagintp_en = TRUE;
-#ifdef CONFIG_ARCH_SUN5I
-				g_video[sel][id].fetch_field = FALSE;	//todo
-				g_video[sel][id].fetch_bot = 0;	//todo
-				// todo
-				g_video[sel][id].dit_mode = DIT_MODE_MAF_BOB;
-				g_video[sel][id].diagintp_en = FALSE;	//todo
-#endif
+				if (sunxi_is_sun5i()) {
+					g_video[sel][id].fetch_field = FALSE;	//todo
+					g_video[sel][id].fetch_bot = 0;	//todo
+					// todo
+					g_video[sel][id].dit_mode = DIT_MODE_MAF_BOB;
+					g_video[sel][id].diagintp_en = FALSE;	//todo
+				}
 				g_video[sel][id].tempdiff_en = FALSE;	//todo
 			} else {
-#ifdef CONFIG_ARCH_SUN5I
-				g_video[sel][id].fetch_bot = FALSE;
-#endif
+				if (sunxi_is_sun5i())
+					g_video[sel][id].fetch_bot = FALSE;
 				g_video[sel][id].dit_mode = DIT_MODE_WEAVE;
 				g_video[sel][id].tempdiff_en = FALSE;
 				g_video[sel][id].diagintp_en = FALSE;
@@ -267,15 +269,13 @@ static inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 		in_scan.field = g_video[sel][id].fetch_field;
 		in_scan.bottom = g_video[sel][id].fetch_bot;
 
-#ifdef CONFIG_ARCH_SUN4I
-		out_scan.field = (gdisp.screen[sel].de_flicker_status &
-				  DE_FLICKER_USED) ?
-			0 : gdisp.screen[sel].b_out_interlace;
-#else
-		out_scan.field = (gdisp.screen[sel].iep_status ==
-				  DE_FLICKER_USED) ?
-			0 : gdisp.screen[sel].b_out_interlace;
-#endif
+		if (sunxi_is_sun5i())
+			status = gdisp.screen[sel].iep_status;
+		else
+			status = gdisp.screen[sel].de_flicker_status;
+
+		out_scan.field = (status & DE_FLICKER_USED) ?
+			FALSE : gdisp.screen[sel].b_out_interlace;
 
 		if (scaler->out_fb.cs_mode > DISP_VXYCC)
 			scaler->out_fb.cs_mode = DISP_BT601;
@@ -466,9 +466,8 @@ __s32 BSP_disp_video_start(__u32 sel, __u32 hid)
 		g_video[sel][hid].video_cur.id = -1;
 		g_video[sel][hid].enable = TRUE;
 
-#ifdef CONFIG_ARCH_SUN4I
 		video_enhancement_start(sel, hid);
-#endif
+
 		return DIS_SUCCESS;
 	} else {
 		return DIS_FAIL;
@@ -483,9 +482,8 @@ __s32 BSP_disp_video_stop(__u32 sel, __u32 hid)
 	if (g_video[sel][hid].enable) {
 		memset(&g_video[sel][hid], 0, sizeof(frame_para_t));
 
-#ifdef CONFIG_ARCH_SUN4I
 		video_enhancement_stop(sel, hid);
-#endif
+
 		return DIS_SUCCESS;
 	} else {
 		return DIS_FAIL;

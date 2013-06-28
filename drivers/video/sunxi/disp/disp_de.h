@@ -30,8 +30,6 @@ __s32 Image_init(__u32 sel);
 __s32 Image_exit(__u32 sel);
 __s32 Image_open(__u32 sel);
 __s32 Image_close(__u32 sel);
-#ifdef CONFIG_ARCH_SUN4I
 __s32 Disp_set_out_interlace(__u32 sel);
-#endif
 
 #endif

@@ -209,21 +209,18 @@ __s32 BSP_disp_tv_open(__u32 sel)
 		tve_clk_on(sel);
 		lcdc_clk_on(sel);
 
-#ifdef CONFIG_ARCH_SUN4I
-		BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_TV);
-#else
 		BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_TV,
 					gdisp.screen[sel].
 					iep_status & DRC_USED);
-#endif
 		DE_BE_set_display_size(sel, tv_mode_to_width(tv_mod),
 				       tv_mode_to_height(tv_mod));
 		DE_BE_Output_Select(sel, sel);
 
-#ifdef CONFIG_ARCH_SUN5I
-		DE_BE_Set_Outitl_enable(sel, Disp_get_screen_scan_mode(tv_mod));
-		{
+		if (sunxi_is_sun5i()) {
 			int scaler_index;
+
+			DE_BE_Set_Outitl_enable(sel,
+					Disp_get_screen_scan_mode(tv_mod));
 
 			for (scaler_index = 0; scaler_index < 2; scaler_index++)
 				if ((gdisp.scaler[scaler_index].
@@ -240,7 +237,6 @@ __s32 BSP_disp_tv_open(__u32 sel)
 								  FALSE);
 				}
 		}
-#endif /* CONFIG_ARCH_SUN5I */
 
 		TCON1_set_tv_mode(sel, tv_mod);
 		TVE_set_tv_mode(sel, tv_mod);
@@ -250,9 +246,8 @@ __s32 BSP_disp_tv_open(__u32 sel)
 		Disp_TVEC_Open(sel);
 
 		Disp_Switch_Dram_Mode(DISP_OUTPUT_TYPE_TV, tv_mod);
-#ifdef CONFIG_ARCH_SUN5I
 		Disp_de_flicker_enable(sel, TRUE);
-#endif
+
 		{
 			user_gpio_set_t gpio_info[1];
 			__hdle gpio_pa_shutdown;
@@ -286,10 +281,7 @@ __s32 BSP_disp_tv_open(__u32 sel)
 		gdisp.screen[sel].lcdc_status |= LCDC_TCON1_USED;
 		gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_TV;
 
-#ifdef CONFIG_ARCH_SUN4I
 		Disp_set_out_interlace(sel);
-#endif
-
 		Display_set_fb_timing(sel);
 	}
 	return DIS_SUCCESS;
@@ -306,13 +298,12 @@ __s32 BSP_disp_tv_close(__u32 sel)
 		image_clk_off(sel);
 		lcdc_clk_off(sel);
 
-#ifdef CONFIG_ARCH_SUN5I
-		/* must close immediately, because vbi may not come */
-		Disp_de_flicker_enable(sel, 2);
-		DE_BE_Set_Outitl_enable(sel, FALSE);
-		{
+		if (sunxi_is_sun5i()) {
 			int scaler_index;
 
+			Disp_de_flicker_enable(sel, 2);
+			/* must close immediately, because vbi may not come */
+			DE_BE_Set_Outitl_enable(sel, FALSE);
 			for (scaler_index = 0; scaler_index < 2; scaler_index++)
 				if ((gdisp.scaler[scaler_index].status &
 				     SCALER_USED) &&
@@ -320,7 +311,6 @@ __s32 BSP_disp_tv_close(__u32 sel)
 				     sel))
 					Scaler_Set_Outitl(scaler_index, FALSE);
 		}
-#endif /* CONFIG_ARCH_SUN5I */
 
 		{
 			user_gpio_set_t gpio_info[1];
@@ -358,9 +348,7 @@ __s32 BSP_disp_tv_close(__u32 sel)
 		    ((gdisp.screen[sel].pll_use_status == VIDEO_PLL0_USED) ?
 		     ~VIDEO_PLL0_USED : ~VIDEO_PLL1_USED);
 
-#ifdef CONFIG_ARCH_SUN4I
 		Disp_set_out_interlace(sel);
-#endif
 	}
 	return DIS_SUCCESS;
 }

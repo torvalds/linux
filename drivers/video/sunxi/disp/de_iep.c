@@ -19,10 +19,6 @@
 
 #include "de_iep.h"
 
-#ifndef CONFIG_ARCH_SUN5I
-#error IEP should only be used on sun5i
-#endif
-
 static __de_iep_dev_t *iep_dev;
 
 #define ____SEPARATOR_IEP____

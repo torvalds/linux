@@ -124,13 +124,11 @@ static struct resource disp_resource[DISP_IO_NUM] = {
 			   .end = 0x01c1bfff,
 			   .flags = IORESOURCE_MEM,
 			   },
-#ifdef CONFIG_ARCH_SUN5I
 	[DISP_IO_IEP] = {
 			 .start = 0x01e70000,
 			 .end = 0x01e703ff,
 			 .flags = IORESOURCE_MEM,
 			 },
-#endif
 };
 
 __s32 disp_create_heap(__u32 pHeapHead, __u32 nHeapSize)
@@ -221,16 +219,6 @@ void disp_free(void *p)
 	return;
 }
 
-int sunxi_is_version_A(void)
-{
-#ifdef CONFIG_ARCH_SUN4I
-	if (sw_get_ic_ver() == SUNXI_VER_A10A)
-		return 1;
-#endif
-
-	return 0;
-}
-
 __s32 DRV_lcd_open(__u32 sel)
 {
 	__u32 i = 0;
@@ -310,9 +298,7 @@ __s32 DRV_DISP_Init(void)
 	para.base_lcdc1 = (__u32) g_fbi.base_lcdc1;
 	para.base_tvec0 = (__u32) g_fbi.base_tvec0;
 	para.base_tvec1 = (__u32) g_fbi.base_tvec1;
-#ifdef CONFIG_ARCH_SUN5I
 	para.base_iep = (__u32) g_fbi.base_iep;
-#endif
 	para.base_ccmu = (__u32) g_fbi.base_ccmu;
 	para.base_sdram = (__u32) g_fbi.base_sdram;
 	para.base_pioc = (__u32) g_fbi.base_pioc;
@@ -513,9 +499,7 @@ static int __devinit disp_probe(struct platform_device *pdev)
 	info->base_sdram = 0xf1c01000;
 	info->base_pioc = 0xf1c20800;
 	info->base_pwm = 0xf1c20c00;
-#ifdef CONFIG_ARCH_SUN5I
 	info->base_iep = 0xf1e70000;
-#endif
 	__inf("SCALER0 base 0x%08x\n", info->base_scaler0);
 	__inf("SCALER1 base 0x%08x\n", info->base_scaler1);
 	__inf("IMAGE0 base 0x%08x\n", info->base_image0 + 0x800);
@@ -524,9 +508,8 @@ static int __devinit disp_probe(struct platform_device *pdev)
 	__inf("LCDC1 base 0x%08x\n", info->base_lcdc1);
 	__inf("TVEC0 base 0x%08x\n", info->base_tvec0);
 	__inf("TVEC1 base 0x%08x\n", info->base_tvec1);
-#ifdef CONFIG_ARCH_SUN5I
-	__inf("IEP base 0x%08x\n", info->base_iep);
-#endif
+	if (sunxi_is_sun5i())
+		__inf("IEP base 0x%08x\n", info->base_iep);
 	__inf("CCMU base 0x%08x\n", info->base_ccmu);
 	__inf("SDRAM base 0x%08x\n", info->base_sdram);
 	__inf("PIO base 0x%08x\n", info->base_pioc);
@@ -868,7 +851,6 @@ static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case DISP_CMD_GET_HUE:
 		ret = BSP_disp_get_hue(ubuffer[0]);
 		break;
-#ifdef CONFIG_ARCH_SUN4I
 	case DISP_CMD_ENHANCE_ON:
 		ret = BSP_disp_enhance_enable(ubuffer[0], 1);
 		break;
@@ -880,7 +862,6 @@ static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case DISP_CMD_GET_ENHANCE_EN:
 		ret = BSP_disp_get_enhance_enable(ubuffer[0]);
 		break;
-#endif
 
 	case DISP_CMD_CAPTURE_SCREEN:
 		ret = BSP_disp_capture_screen(ubuffer[0],
@@ -895,22 +876,13 @@ static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	/* ----iep---- */
 	case DISP_CMD_DE_FLICKER_ON:
-#ifdef CONFIG_ARCH_SUN4I
 		ret = BSP_disp_de_flicker_enable(ubuffer[0], 1);
-#else
-		ret = BSP_disp_iep_deflicker_enable(ubuffer[0], 1);
-#endif
 		break;
 
 	case DISP_CMD_DE_FLICKER_OFF:
-#ifdef CONFIG_ARCH_SUN4I
 		ret = BSP_disp_de_flicker_enable(ubuffer[0], 0);
-#else
-		ret = BSP_disp_iep_deflicker_enable(ubuffer[0], 0);
-#endif
 		break;
 
-#ifdef CONFIG_ARCH_SUN5I
 	case DISP_CMD_GET_DE_FLICKER_EN:
 		ret = BSP_disp_iep_get_deflicker_enable(ubuffer[0]);
 		break;
@@ -954,7 +926,7 @@ static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = BSP_disp_iep_set_demo_win(ubuffer[0], 2, &para);
 			break;
 		}
-#endif
+
 	/* ----layer---- */
 	case DISP_CMD_LAYER_REQUEST:
 		ret = BSP_disp_layer_request(ubuffer[0],
@@ -1426,11 +1398,7 @@ static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_LCD_SET_BRIGHTNESS:
-#ifdef CONFIG_ARCH_SUN4I
-		ret = BSP_disp_lcd_set_bright(ubuffer[0], ubuffer[1]);
-#else
 		ret = BSP_disp_lcd_set_bright(ubuffer[0], ubuffer[1], 0);
-#endif
 		break;
 
 	case DISP_CMD_LCD_GET_BRIGHTNESS:
@@ -1930,10 +1898,20 @@ static struct platform_driver disp_driver = {
 	},
 };
 
-static struct platform_device disp_device = {
+static struct platform_device disp_device_sun4i = {
 	.name = "disp",
 	.id = -1,
-	.num_resources = ARRAY_SIZE(disp_resource),
+	.num_resources = 8,
+	.resource = disp_resource,
+	.dev = {
+		.release = disp_device_release,
+	}
+};
+
+static struct platform_device disp_device_sun5i = {
+	.name = "disp",
+	.id = -1,
+	.num_resources = 9,
 	.resource = disp_resource,
 	.dev = {
 		.release = disp_device_release,
@@ -1964,7 +1942,10 @@ static int __init disp_module_init(void)
 
 	device_create(disp_class, NULL, devid, NULL, "disp");
 
-	ret = platform_device_register(&disp_device);
+	if (sunxi_is_sun5i())
+		ret = platform_device_register(&disp_device_sun5i);
+	else
+		ret = platform_device_register(&disp_device_sun4i);
 
 	if (ret == 0)
 		ret = platform_driver_register(&disp_driver);
@@ -1986,7 +1967,10 @@ static void __exit disp_module_exit(void)
 	DRV_DISP_Exit();
 
 	platform_driver_unregister(&disp_driver);
-	platform_device_unregister(&disp_device);
+	if (sunxi_is_sun5i())
+		platform_device_unregister(&disp_device_sun5i);
+	else
+		platform_device_unregister(&disp_device_sun4i);
 
 	device_destroy(disp_class, devid);
 	class_destroy(disp_class);

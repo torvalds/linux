@@ -222,7 +222,7 @@ __s32 OSAL_CCMU_SetSrcFreq(__u32 nSclkNo, __u32 nFreq)
 		return -1;
 	} else
 		__inf("OSAL_CCMU_SetSrcFreq<%s,%d>\n",
-				hSysClk->clk->name, nFreq);
+		      clk_name(hSysClk), nFreq);
 
 	if (nFreq == clk_get_rate(hSysClk)) {
 #if 0
@@ -293,8 +293,8 @@ __s32 OSAL_CCMU_SetMclkSrc(__hdle hMclk, __u32 nSclkNo)
 		__wrn("Fail to get handle for system clock [%d].\n", nSclkNo);
 		return -1;
 	} else
-		__inf("OSAL_CCMU_SetMclkSrc<%s,%s>\n", hModClk->clk->name,
-		      hSysClk->clk->name);
+		__inf("OSAL_CCMU_SetMclkSrc<%s,%s>\n", clk_name(hModClk),
+		      clk_name(hSysClk));
 
 	if (clk_get_parent(hModClk) == hSysClk) {
 		__inf("Parent is alreay %d, not need to set.\n", nSclkNo);
@@ -319,8 +319,8 @@ __s32 OSAL_CCMU_SetMclkDiv(__hdle hMclk, __s32 nDiv)
 	struct clk *hParentClk = clk_get_parent(hModClk);
 	u32 srcRate = clk_get_rate(hParentClk);
 
-	__inf("OSAL_CCMU_SetMclkDiv<p:%s,m:%s,%d>\n", hParentClk->clk->name,
-	      hModClk->clk->name, nDiv);
+	__inf("OSAL_CCMU_SetMclkDiv<p:%s,m:%s,%d>\n", clk_name(hParentClk),
+	      clk_name(hModClk), nDiv);
 
 	if (nDiv == 0)
 		return -1;
@@ -333,7 +333,7 @@ __s32 OSAL_CCMU_MclkOnOff(__hdle hMclk, __s32 bOnOff)
 	struct clk *hModClk = (struct clk *)hMclk;
 	__s32 ret = 0;
 
-	__inf("OSAL_CCMU_MclkOnOff<%s,%d>\n", hModClk->clk->name, bOnOff);
+	__inf("OSAL_CCMU_MclkOnOff<%s,%d>\n", clk_name(hModClk), bOnOff);
 
 	if (bOnOff) {
 		if (!hModClk->enable)
@@ -349,7 +349,7 @@ __s32 OSAL_CCMU_MclkReset(__hdle hMclk, __s32 bReset)
 {
 	struct clk *hModClk = (struct clk *)hMclk;
 
-	__inf("OSAL_CCMU_MclkReset<%s,%d>\n", hModClk->clk->name, bReset);
+	__inf("OSAL_CCMU_MclkReset<%s,%d>\n", clk_name(hModClk), bReset);
 
 	return clk_reset(hModClk, bReset);
 }

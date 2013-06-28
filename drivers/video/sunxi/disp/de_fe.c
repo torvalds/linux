@@ -17,6 +17,7 @@
  * MA 02111-1307 USA
  */
 
+#include <plat/system.h>
 #include "de_fe.h"
 
 static volatile __de_scal_dev_t *scal_dev[2];
@@ -701,52 +702,52 @@ __s32 DE_SCAL_Set_Scaling_Coef(__u8 sel, __scal_scan_mod_t *in_scan,
 	 * compute the fir coeficient address for each channel in horizontal and
 	 * vertical direction
 	 */
-#ifdef CONFIG_ARCH_SUN4I
-	ch0v_fir_coef_addr = (ch0v_fir_coef_ofst << 7);
-	ch0h_fir_coef_addr = ((al1_size) << 7) + (ch0h_fir_coef_ofst << 8);
-	ch1v_fir_coef_addr = (ch1v_fir_coef_ofst << 7);
-	ch1h_fir_coef_addr = ((al1_size) << 7) + (ch1h_fir_coef_ofst << 8);
+	if (!sunxi_is_sun5i()) {
+		ch0v_fir_coef_addr = (ch0v_fir_coef_ofst << 7);
+		ch0h_fir_coef_addr = ((al1_size) << 7) + (ch0h_fir_coef_ofst << 8);
+		ch1v_fir_coef_addr = (ch1v_fir_coef_ofst << 7);
+		ch1h_fir_coef_addr = ((al1_size) << 7) + (ch1h_fir_coef_ofst << 8);
 
-	for (i = 0; i < 32; i++) {
-		scal_dev[sel]->ch0_horzcoef0[i].dwval =
-			fir_tab[(ch0h_fir_coef_addr >> 2) + 2 * i];
-		scal_dev[sel]->ch0_horzcoef1[i].dwval =
-			fir_tab[(ch0h_fir_coef_addr >> 2) + 2 * i + 1];
-		scal_dev[sel]->ch0_vertcoef[i].dwval =
-			fir_tab[(ch0v_fir_coef_addr >> 2) + i];
-		scal_dev[sel]->ch1_horzcoef0[i].dwval =
-			fir_tab[(ch1h_fir_coef_addr >> 2) + 2 * i];
-		scal_dev[sel]->ch1_horzcoef1[i].dwval =
-			fir_tab[(ch1h_fir_coef_addr >> 2) + 2 * i + 1];
-		scal_dev[sel]->ch1_vertcoef[i].dwval =
-			fir_tab[(ch1v_fir_coef_addr >> 2) + i];
+		for (i = 0; i < 32; i++) {
+			scal_dev[sel]->ch0_horzcoef0[i].dwval =
+				fir_tab_sun4i[(ch0h_fir_coef_addr >> 2) + 2 * i];
+			scal_dev[sel]->ch0_horzcoef1[i].dwval =
+				fir_tab_sun4i[(ch0h_fir_coef_addr >> 2) + 2 * i + 1];
+			scal_dev[sel]->ch0_vertcoef[i].dwval =
+				fir_tab_sun4i[(ch0v_fir_coef_addr >> 2) + i];
+			scal_dev[sel]->ch1_horzcoef0[i].dwval =
+				fir_tab_sun4i[(ch1h_fir_coef_addr >> 2) + 2 * i];
+			scal_dev[sel]->ch1_horzcoef1[i].dwval =
+				fir_tab_sun4i[(ch1h_fir_coef_addr >> 2) + 2 * i + 1];
+			scal_dev[sel]->ch1_vertcoef[i].dwval =
+				fir_tab_sun4i[(ch1v_fir_coef_addr >> 2) + i];
+		}
+
+		scal_dev[sel]->frm_ctrl.bits.coef_rdy_en = 0x1;
+	} else {
+		ch0v_fir_coef_addr = (ch0v_fir_coef_ofst << 7);
+		ch0h_fir_coef_addr = (ch0h_fir_coef_ofst << 7);
+		ch1v_fir_coef_addr = (ch1v_fir_coef_ofst << 7);
+		ch1h_fir_coef_addr = (ch1h_fir_coef_ofst << 7);
+
+		/* added for aw1625, wait ceof access */
+		scal_dev[sel]->frm_ctrl.bits.coef_access_ctrl = 1;
+		while (scal_dev[sel]->status.bits.coef_access_status == 0)
+			;
+
+		for (i = 0; i < 32; i++) {
+			scal_dev[sel]->ch0_horzcoef0[i].dwval =
+				fir_tab_sun5i[(ch0h_fir_coef_addr >> 2) + i];
+			scal_dev[sel]->ch0_vertcoef[i].dwval =
+				fir_tab_sun5i[(ch0v_fir_coef_addr >> 2) + i];
+			scal_dev[sel]->ch1_horzcoef0[i].dwval =
+				fir_tab_sun5i[(ch1h_fir_coef_addr >> 2) + i];
+			scal_dev[sel]->ch1_vertcoef[i].dwval =
+				fir_tab_sun5i[(ch1v_fir_coef_addr >> 2) + i];
+		}
+
+		scal_dev[sel]->frm_ctrl.bits.coef_access_ctrl = 0;
 	}
-
-	scal_dev[sel]->frm_ctrl.bits.coef_rdy_en = 0x1;
-#else
-	ch0v_fir_coef_addr = (ch0v_fir_coef_ofst << 7);
-	ch0h_fir_coef_addr = (ch0h_fir_coef_ofst << 7);
-	ch1v_fir_coef_addr = (ch1v_fir_coef_ofst << 7);
-	ch1h_fir_coef_addr = (ch1h_fir_coef_ofst << 7);
-
-	/* added for aw1625, wait ceof access */
-	scal_dev[sel]->frm_ctrl.bits.coef_access_ctrl = 1;
-	while (scal_dev[sel]->status.bits.coef_access_status == 0)
-		;
-
-	for (i = 0; i < 32; i++) {
-		scal_dev[sel]->ch0_horzcoef0[i].dwval =
-			fir_tab[(ch0h_fir_coef_addr >> 2) + i];
-		scal_dev[sel]->ch0_vertcoef[i].dwval =
-			fir_tab[(ch0v_fir_coef_addr >> 2) + i];
-		scal_dev[sel]->ch1_horzcoef0[i].dwval =
-			fir_tab[(ch1h_fir_coef_addr >> 2) + i];
-		scal_dev[sel]->ch1_vertcoef[i].dwval =
-			fir_tab[(ch1v_fir_coef_addr >> 2) + i];
-	}
-
-	scal_dev[sel]->frm_ctrl.bits.coef_access_ctrl = 0;
-#endif /* CONFIG_ARCH_SUN4I */
 
 	return 0;
 }
@@ -962,9 +963,8 @@ __s32 DE_SCAL_Start(__u8 sel)
  */
 __s32 DE_SCAL_Set_Filtercoef_Ready(__u8 sel)
 {
-#ifdef CONFIG_ARCH_SUN4I
-	scal_dev[sel]->frm_ctrl.bits.coef_rdy_en = 0x1;
-#endif
+	if (!sunxi_is_sun5i())
+		scal_dev[sel]->frm_ctrl.bits.coef_rdy_en = 0x1;
 
 	return 0;
 }
@@ -1083,15 +1083,14 @@ __s32 DE_SCAL_Disable(__u8 sel)
 __s32 DE_SCAL_Set_Writeback_Addr(__u8 sel, __scal_buf_addr_t *addr)
 {
 	scal_dev[sel]->wb_addr0.dwval = addr->ch0_addr;
-#ifdef CONFIG_ARCH_SUN4I
-	scal_dev[sel]->wb_addr1.dwval = addr->ch1_addr;
-	scal_dev[sel]->wb_addr2.dwval = addr->ch2_addr;
-#endif
+	if (!sunxi_is_sun5i()) {
+		scal_dev[sel]->wb_addr1.dwval = addr->ch1_addr;
+		scal_dev[sel]->wb_addr2.dwval = addr->ch2_addr;
+	}
 
 	return 0;
 }
 
-#ifdef CONFIG_ARCH_SUN5I
 /*
  * scaler write back channel selection
  *
@@ -1102,6 +1101,9 @@ __s32 DE_SCAL_Set_Writeback_Addr(__u8 sel, __scal_buf_addr_t *addr)
  */
 __s32 DE_SCAL_Set_Writeback_Chnl(__u8 sel, __u32 channel)
 {
+	if (!sunxi_is_sun5i())
+		return 0;
+
 	if (channel == 0)
 		scal_dev[sel]->output_fmt.bits.wb_chsel = 0;
 	else if (channel == 1)
@@ -1111,7 +1113,6 @@ __s32 DE_SCAL_Set_Writeback_Chnl(__u8 sel, __u32 channel)
 
 	return 0;
 }
-#endif /* CONFIG_ARCH_SUN5I */
 
 #ifdef UNUSED
 /*
@@ -1309,7 +1310,7 @@ __s32 iDE_SCAL_Matrix_Mul(__scal_matrix4x4 in1, __scal_matrix4x4 in2,
 /*
  * csc coefficient and constant limited
  */
-#ifdef CONFIG_ARCH_SUN4I
+#ifndef CONFIG_ARCH_SUN5I
 __s32 iDE_SCAL_Csc_Lmt(__s64 *value, __s32 min, __s32 max, __s32 shift,
 		       __s32 validbit)
 {
@@ -1340,7 +1341,7 @@ __s32 iDE_SCAL_Csc_Lmt(__s32 *value, __s32 min, __s32 max, __s32 shift,
 
 	return 0;
 }
-#endif /* CONFIG_ARCH_SUN4I */
+#endif /* not CONFIG_ARCH_SUN5I */
 
 /*
  * set scaler input/output color space convert coefficients
@@ -1375,7 +1376,7 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode,
 	__scal_matrix4x4 matrixEn;
 	__scal_matrix4x4 matrixconv, *ptmatrix;
 	__scal_matrix4x4 matrixresult;
-#ifdef CONFIG_ARCH_SUN4I
+#ifndef CONFIG_ARCH_SUN5I
 	__scal_matrix4x4 tmpcoeff;
 #endif
 	__u32 i;
@@ -1406,7 +1407,7 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode,
 	matrixEn.x32 = 0;
 	matrixEn.x33 = 1024;
 
-#ifdef CONFIG_ARCH_SUN4I
+#ifndef CONFIG_ARCH_SUN5I
 	if ((incs == 0) && (outcs == 0)) { /* rgb to rgb */
 		for (i = 0; i < 16; i++) {
 			*((__s64 *) (&tmpcoeff.x00) + i) =
@@ -1629,11 +1630,11 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode,
 	iDE_SCAL_Csc_Lmt(&matrixresult.x21, -4095, 4095, 0, 8191);
 	iDE_SCAL_Csc_Lmt(&matrixresult.x22, -4095, 4095, 0, 8191);
 	iDE_SCAL_Csc_Lmt(&matrixresult.x23, -8191, 8191, 6, 16383);
-#endif /* CONFIG_ARCH_SUN4I */
+#endif /* not CONFIG_ARCH_SUN5I */
 
 	/* write csc register */
 	{
-#ifdef CONFIG_ARCH_SUN4I
+#ifndef CONFIG_ARCH_SUN5I
 		__s64 *pt = &(matrixresult.x00);
 #else
 		__s32 *pt = &(matrixresult.x00);

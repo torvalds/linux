@@ -171,11 +171,9 @@ __bool TCON1_in_valid_regn(__u32 sel, __u32 juststd);
 __s32 TCON1_set_gamma_table(__u32 sel, __u32 address, __u32 size);
 __s32 TCON1_set_gamma_Enable(__u32 sel, __bool enable);
 
-#ifdef CONFIG_ARCH_SUN4I
 __u8 TCON_mux_init(void);
 __u8 TCON_set_hdmi_src(__u8 src);
 __u8 TCON_set_tv_src(__u32 tv_index, __u8 src);
-#endif
 
 __s32 TVE_set_reg_base(__u32 sel, __u32 address);
 __u32 TVE_get_reg_base(__u32 sel);

@@ -17,10 +17,6 @@
  * MA 02111-1307 USA
  */
 
-#ifndef CONFIG_ARCH_SUN5I
-#error IEP should only be used on sun5i
-#endif
-
 static __u16 pwrsv_lgc_tab[128][256] = {
 	/* tab index : 128 */
 	{2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896, 2896,

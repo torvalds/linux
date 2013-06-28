@@ -47,7 +47,6 @@
 #include <linux/cdev.h>
 #include <plat/sys_config.h>
 #include <mach/clock.h>
-#include <mach/aw_ccu.h>
 #include <mach/system.h>
 #include <linux/types.h>
 
@@ -71,9 +70,7 @@ typedef struct {
 	__u32 base_sdram;
 	__u32 base_ccmu;
 	__u32 base_pwm;
-#ifdef CONFIG_ARCH_SUN5I
 	__u32 base_iep;
-#endif
 
 	void (*tve_interrup) (__u32 sel);
 	 __s32(*hdmi_set_mode) (__disp_tv_mode_t mode);
@@ -119,19 +116,14 @@ extern __s32 BSP_disp_set_saturation(__u32 sel, __u32 saturation);
 extern __s32 BSP_disp_get_saturation(__u32 sel);
 extern __s32 BSP_disp_set_hue(__u32 sel, __u32 hue);
 extern __s32 BSP_disp_get_hue(__u32 sel);
-#ifdef CONFIG_ARCH_SUN4I
 extern __s32 BSP_disp_enhance_enable(__u32 sel, __bool enable);
 extern __s32 BSP_disp_get_enhance_enable(__u32 sel);
-#endif
 extern __s32 BSP_disp_capture_screen(__u32 sel,
 				     __disp_capture_screen_para_t *para);
 extern __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t *size);
-#ifdef CONFIG_ARCH_SUN4I
-extern __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type);
+extern __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type,
+				     __u32 drc_en);
 extern __s32 BSP_disp_de_flicker_enable(__u32 sel, __bool b_en);
-#else
-extern __s32 BSP_disp_set_output_csc(__u32 sel, __u32 out_type, __u32 drc_en);
-#endif
 extern __s32 BSP_disp_layer_request(__u32 sel, __disp_layer_work_mode_t mode);
 extern __s32 BSP_disp_layer_release(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_layer_open(__u32 sel, __u32 hid);
@@ -225,11 +217,7 @@ extern __lcd_flow_t *BSP_disp_lcd_get_close_flow(__u32 sel);
 extern __s32 BSP_disp_lcd_xy_switch(__u32 sel, __s32 mode);
 extern __s32 BSP_disp_set_gamma_table(__u32 sel, __u32 *gamtbl_addr,
 				      __u32 gamtbl_size);
-#ifdef CONFIG_ARCH_SUN4I
-extern __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32 bright);
-#else
 extern __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32 bright, __u32 from_iep);
-#endif
 extern __s32 BSP_disp_lcd_get_bright(__u32 sel);
 extern __s32 BSP_disp_lcd_set_src(__u32 sel, __disp_lcdc_src_t src);
 extern __s32 LCD_PWM_EN(__u32 sel, __bool b_en);
@@ -238,9 +226,7 @@ extern __s32 BSP_disp_lcd_user_defined_func(__u32 sel, __u32 para1, __u32 para2,
 					    __u32 para3);
 extern __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode);
 extern __u32 BSP_disp_get_cur_line(__u32 sel);
-#ifdef CONFIG_ARCH_SUN5I
 extern __s32 BSP_disp_close_lcd_backlight(__u32 sel);
-#endif
 
 extern __s32 BSP_disp_tv_open(__u32 sel);
 extern __s32 BSP_disp_tv_close(__u32 sel);
@@ -316,18 +302,13 @@ extern __s32 BSP_disp_sprite_block_set_para(__u32 sel, __u32 hid,
 extern __s32 BSP_disp_sprite_block_get_para(__u32 sel, __u32 hid,
 					    __disp_sprite_block_para_t *para);
 
-#ifdef CONFIG_ARCH_SUN5I
 extern __s32 BSP_disp_iep_deflicker_enable(__u32 sel, __bool en);
 extern __s32 BSP_disp_iep_get_deflicker_enable(__u32 sel);
 extern __s32 BSP_disp_iep_drc_enable(__u32 sel, __bool en);
 extern __s32 BSP_disp_iep_get_drc_enable(__u32 sel);
 extern __s32 BSP_disp_iep_set_demo_win(__u32 sel, __u32 mode,
 				       __disp_rect_t *regn);
-#endif
 
 __s32 Display_set_fb_timing(__u32 sel);
-
-/* symbol exists in dev_disp.c */
-int sunxi_is_version_A(void);
 
 #endif

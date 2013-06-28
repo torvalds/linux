@@ -143,10 +143,10 @@ __s32 image_clk_init(__u32 sel)
 			OSAL_CCMU_SetMclkDiv(h_debe0mclk, 2);
 
 		OSAL_CCMU_MclkOnOff(h_debe0ahbclk, CLK_ON);
-#ifdef CONFIG_ARCH_SUN4I
-		OSAL_CCMU_MclkOnOff(h_debe0dramclk, CLK_ON);
-		OSAL_CCMU_MclkOnOff(h_debe0dramclk, CLK_OFF);
-#endif
+		if (sunxi_is_sun4i()) {
+			OSAL_CCMU_MclkOnOff(h_debe0dramclk, CLK_ON);
+			OSAL_CCMU_MclkOnOff(h_debe0dramclk, CLK_OFF);
+		}
 		OSAL_CCMU_MclkOnOff(h_debe0mclk, CLK_ON);
 
 		g_clk_status |= (CLK_DEBE0_AHB_ON | CLK_DEBE0_MOD_ON);
@@ -168,10 +168,10 @@ __s32 image_clk_init(__u32 sel)
 			OSAL_CCMU_SetMclkDiv(h_debe1mclk, 2);
 
 		OSAL_CCMU_MclkOnOff(h_debe1ahbclk, CLK_ON);
-#ifdef CONFIG_ARCH_SUN4I
-		OSAL_CCMU_MclkOnOff(h_debe1dramclk, CLK_ON);
-		OSAL_CCMU_MclkOnOff(h_debe1dramclk, CLK_OFF);
-#endif
+		if (sunxi_is_sun4i()) {
+			OSAL_CCMU_MclkOnOff(h_debe1dramclk, CLK_ON);
+			OSAL_CCMU_MclkOnOff(h_debe1dramclk, CLK_OFF);
+		}
 		OSAL_CCMU_MclkOnOff(h_debe1mclk, CLK_ON);
 
 		g_clk_status |= (CLK_DEBE1_AHB_ON | CLK_DEBE1_MOD_ON);
@@ -358,19 +358,19 @@ __s32 lcdc_clk_init(__u32 sel)
 		h_lcd0ch1mclk1 = OSAL_CCMU_OpenMclk(AW_MOD_CLK_LCD0CH1_S1);
 		h_lcd0ch1mclk2 = OSAL_CCMU_OpenMclk(AW_MOD_CLK_LCD0CH1_S2);
 
-#ifdef CONFIG_ARCH_SUN4I
-		/* Default to Video Pll0 */
-		OSAL_CCMU_SetMclkSrc(h_lcd0ch0mclk0, AW_SYS_CLK_PLL7);
-		/* Default to Video Pll0 */
-		OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk1, AW_SYS_CLK_PLL7);
-		/* Default to Video Pll0 */
-		//OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk2, AW_SYS_CLK_PLL7);
-#else
-		/* Default to Video Pll0 */
-		OSAL_CCMU_SetMclkSrc(h_lcd0ch0mclk0, AW_SYS_CLK_PLL3);
-		/* Default to Video Pll0 */
-		OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk1, AW_SYS_CLK_PLL3);
-#endif
+		if (!sunxi_is_sun5i()) {
+			/* Default to Video Pll0 */
+			OSAL_CCMU_SetMclkSrc(h_lcd0ch0mclk0, AW_SYS_CLK_PLL7);
+			/* Default to Video Pll0 */
+			OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk1, AW_SYS_CLK_PLL7);
+			/* Default to Video Pll0 */
+			//OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk2, AW_SYS_CLK_PLL7);
+		} else {
+			/* Default to Video Pll0 */
+			OSAL_CCMU_SetMclkSrc(h_lcd0ch0mclk0, AW_SYS_CLK_PLL3);
+			/* Default to Video Pll0 */
+			OSAL_CCMU_SetMclkSrc(h_lcd0ch1mclk1, AW_SYS_CLK_PLL3);
+		}
 
 		OSAL_CCMU_SetMclkDiv(h_lcd0ch1mclk2, 10);
 		OSAL_CCMU_SetMclkDiv(h_lcd0ch1mclk1, 10);
@@ -392,19 +392,19 @@ __s32 lcdc_clk_init(__u32 sel)
 		h_lcd1ch1mclk1 = OSAL_CCMU_OpenMclk(AW_MOD_CLK_LCD1CH1_S1);
 		h_lcd1ch1mclk2 = OSAL_CCMU_OpenMclk(AW_MOD_CLK_LCD1CH1_S2);
 
-#ifdef CONFIG_ARCH_SUN4I
-		/* Default to Video Pll0 */
-		OSAL_CCMU_SetMclkSrc(h_lcd1ch0mclk0, AW_SYS_CLK_PLL7);
-		/* Default to Video Pll0 */
-		OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk1, AW_SYS_CLK_PLL7);
-		/* Default to Video Pll0 */
-		//OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk2, AW_SYS_CLK_PLL7);
-#else
-		/* Default to Video Pll0 */
-		OSAL_CCMU_SetMclkSrc(h_lcd1ch0mclk0, AW_SYS_CLK_PLL3);
-		/* Default to Video Pll0 */
-		OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk1, AW_SYS_CLK_PLL3);
-#endif
+		if (!sunxi_is_sun5i()) {
+			/* Default to Video Pll0 */
+			OSAL_CCMU_SetMclkSrc(h_lcd1ch0mclk0, AW_SYS_CLK_PLL7);
+			/* Default to Video Pll0 */
+			OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk1, AW_SYS_CLK_PLL7);
+			/* Default to Video Pll0 */
+			//OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk2, AW_SYS_CLK_PLL7);
+		} else {
+			/* Default to Video Pll0 */
+			OSAL_CCMU_SetMclkSrc(h_lcd1ch0mclk0, AW_SYS_CLK_PLL3);
+			/* Default to Video Pll0 */
+			OSAL_CCMU_SetMclkSrc(h_lcd1ch1mclk1, AW_SYS_CLK_PLL3);
+		}
 
 		OSAL_CCMU_SetMclkDiv(h_lcd1ch1mclk2, 10);
 		OSAL_CCMU_SetMclkDiv(h_lcd1ch1mclk1, 10);
@@ -499,9 +499,8 @@ __s32 lcdc_clk_off(__u32 sel)
 __s32 tve_clk_init(__u32 sel)
 {
 	if (sel == 0) {
-#ifdef CONFIG_ARCH_SUN5I
-		OSAL_CCMU_MclkReset(h_lcd0ch1mclk2, RST_INVALID);
-#endif
+		if (sunxi_is_sun5i())
+			OSAL_CCMU_MclkReset(h_lcd0ch1mclk2, RST_INVALID);
 		h_tvenc0ahbclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_AHB_TVE0);
 		OSAL_CCMU_MclkOnOff(h_tvenc0ahbclk, CLK_ON);
 
@@ -520,9 +519,8 @@ __s32 tve_clk_exit(__u32 sel)
 	if (sel == 0) {
 		OSAL_CCMU_MclkOnOff(h_tvenc0ahbclk, CLK_OFF);
 		OSAL_CCMU_CloseMclk(h_tvenc0ahbclk);
-#ifdef CONFIG_ARCH_SUN5I
-		OSAL_CCMU_MclkReset(h_lcd0ch1mclk2, RST_VALID);
-#endif
+		if (sunxi_is_sun5i())
+			OSAL_CCMU_MclkReset(h_lcd0ch1mclk2, RST_VALID);
 
 		g_clk_status &= ~CLK_TVENC0_AHB_ON;
 	} else if (sel == 1) {
@@ -551,20 +549,21 @@ __s32 hdmi_clk_init(void)
 #ifdef RESET_OSAL
 	OSAL_CCMU_MclkReset(h_hdmimclk, RST_INVALID);
 #endif
-#ifdef CONFIG_ARCH_SUN4I
-	OSAL_CCMU_SetMclkSrc(h_hdmimclk, AW_SYS_CLK_PLL7);
-#else
-	OSAL_CCMU_SetMclkSrc(h_hdmimclk, AW_SYS_CLK_PLL3);
-#endif
+	if (!sunxi_is_sun5i())
+		OSAL_CCMU_SetMclkSrc(h_hdmimclk, AW_SYS_CLK_PLL7);
+	else
+		OSAL_CCMU_SetMclkSrc(h_hdmimclk, AW_SYS_CLK_PLL3);
 	OSAL_CCMU_SetMclkDiv(h_hdmimclk, 1);
 
 	OSAL_CCMU_MclkOnOff(h_hdmiahbclk, CLK_ON);
 	g_clk_status |= CLK_HDMI_AHB_ON;
 
-#ifdef CONFIG_ARCH_SUN5I
-	OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_ON);
-	g_clk_status |= CLK_HDMI_MOD_ON;
-#endif
+	/* We need to turn on the hdmi clk early for sun5i and sun7i
+	   (and make hdmi_clk_on a nop) */
+	if (!sunxi_is_sun4i()) {
+		OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_ON);
+		g_clk_status |= CLK_HDMI_MOD_ON;
+	}
 
 	return DIS_SUCCESS;
 }
@@ -578,10 +577,8 @@ __s32 hdmi_clk_exit(void)
 	OSAL_CCMU_MclkOnOff(h_hdmiahbclk, CLK_OFF);
 	OSAL_CCMU_CloseMclk(h_hdmiahbclk);
 	OSAL_CCMU_CloseMclk(h_hdmimclk);
-#ifdef CONFIG_ARCH_SUN5I
-	OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_OFF);
-#endif
-
+	if (!sunxi_is_sun4i())
+		OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_OFF);
 	g_clk_status &= ~(CLK_HDMI_AHB_ON | CLK_HDMI_MOD_ON);
 
 	return DIS_SUCCESS;
@@ -589,20 +586,20 @@ __s32 hdmi_clk_exit(void)
 
 __s32 hdmi_clk_on(void)
 {
-#ifdef CONFIG_ARCH_SUN4I
-	OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_ON);
-	g_clk_status |= CLK_HDMI_MOD_ON;
-#endif
+	if (sunxi_is_sun4i()) {
+		OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_ON);
+		g_clk_status |= CLK_HDMI_MOD_ON;
+	}
 
 	return DIS_SUCCESS;
 }
 
 __s32 hdmi_clk_off(void)
 {
-#ifdef CONFIG_ARCH_SUN4I
-	OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_OFF);
-	g_clk_status &= ~CLK_HDMI_MOD_ON;
-#endif
+	if (sunxi_is_sun4i()) {
+		OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_OFF);
+		g_clk_status &= ~CLK_HDMI_MOD_ON;
+	}
 
 	return DIS_SUCCESS;
 }
@@ -672,7 +669,7 @@ static __s32 LCD_PLL_Calc(__u32 sel, __panel_para_t *info, __u32 *divider)
 	} else if (info->lcd_if == 3) {	/* lvds panel */
 		__u32 clk_max;
 
-		if (!sunxi_is_version_A())
+		if (sw_get_ic_ver() != SUNXI_VER_A10A)
 			clk_max = 150000000;
 		else
 			/*
@@ -716,11 +713,19 @@ static __s32 LCD_PLL_Calc(__u32 sel, __panel_para_t *info, __u32 *divider)
  * 1.two lvds panel are both require a pll freq outside [250,300], and pll
  * freq are different, the second panel will fail to assign.
  */
-#ifdef CONFIG_ARCH_SUN4I
 static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
 {
 	__u32 another_lcdc, another_pll_use_status;
 	__s32 ret = -1;
+
+	if (sunxi_is_sun5i()) {
+		if (pll_clk <= (381000000 * 2))
+			ret = 0;
+		else
+			DE_WRN("Can't assign PLL for screen%d, pll_clk:%d\n",
+				sel, pll_clk);
+		return ret;
+	}
 
 	another_lcdc = (sel == 0) ? 1 : 0;
 	another_pll_use_status = gdisp.screen[another_lcdc].pll_use_status;
@@ -740,7 +745,7 @@ static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
 			 (OSAL_CCMU_GetSrcFreq(AW_SYS_CLK_PLL7) == pll_clk))
 			ret = 1;
 	} else if (pll_clk <= 1200000000) {
-		if (!sunxi_is_version_A())
+		if (sw_get_ic_ver() != SUNXI_VER_A10A)
 			ret = 2; /* sata pll */
 	}
 
@@ -753,20 +758,6 @@ static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
 
 	return ret;
 }
-#else
-static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
-{
-	__s32 ret = -1;
-
-	if (pll_clk <= (381000000 * 2))
-		ret = 0;
-	else
-		DE_WRN("Can't assign PLL for screen%d, pll_clk:%d\n", sel,
-		       pll_clk);
-
-	return ret;
-}
-#endif /* CONFIG_ARCH_SUN4I */
 
 /*
  * Set clock control module
@@ -1082,7 +1073,8 @@ __s32 BSP_disp_clk_on(__u32 type)
 			OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk1, CLK_ON);
 			OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk2, CLK_ON);
 		}
-		if ((g_clk_status & CLK_HDMI_MOD_ON) == CLK_HDMI_MOD_ON)
+		if (sunxi_is_sun4i() &&
+		    (g_clk_status & CLK_HDMI_MOD_ON) == CLK_HDMI_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_ON);
 	}
 
@@ -1174,7 +1166,8 @@ __s32 BSP_disp_clk_off(__u32 type)
 			OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk1, CLK_OFF);
 			OSAL_CCMU_MclkOnOff(h_lcd1ch1mclk2, CLK_OFF);
 		}
-		if ((g_clk_status & CLK_HDMI_MOD_ON) == CLK_HDMI_MOD_ON)
+		if (sunxi_is_sun4i() &&
+		    (g_clk_status & CLK_HDMI_MOD_ON) == CLK_HDMI_MOD_ON)
 			OSAL_CCMU_MclkOnOff(h_hdmimclk, CLK_OFF);
 	}
 
