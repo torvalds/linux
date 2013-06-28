@@ -45,13 +45,8 @@
 	dev_info(&(instance)->usb_intf->dev , format , ## arg)
 #define usb_warn(instance, format, arg...)	\
 	dev_warn(&(instance)->usb_intf->dev , format , ## arg)
-#ifdef DEBUG
 #define usb_dbg(instance, format, arg...)	\
-	dev_printk(KERN_DEBUG , &(instance)->usb_intf->dev , format , ## arg)
-#else
-#define usb_dbg(instance, format, arg...)	\
-	do {} while (0)
-#endif
+	dev_dbg(&(instance)->usb_intf->dev , format , ## arg)
 
 /* FIXME: move to dev_* once ATM is driver model aware */
 #define atm_printk(level, instance, format, arg...)	\
