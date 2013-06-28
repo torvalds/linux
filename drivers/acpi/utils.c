@@ -510,3 +510,15 @@ bool acpi_has_method(acpi_handle handle, char *name)
 	return ACPI_SUCCESS(acpi_get_handle(handle, name, &tmp));
 }
 EXPORT_SYMBOL(acpi_has_method);
+
+acpi_status acpi_execute_simple_method(acpi_handle handle, char *method,
+				       u64 arg)
+{
+	union acpi_object obj = { .type = ACPI_TYPE_INTEGER };
+	struct acpi_object_list arg_list = { .count = 1, .pointer = &obj, };
+
+	obj.integer.value = arg;
+
+	return acpi_evaluate_object(handle, method, &arg_list, NULL);
+}
+EXPORT_SYMBOL(acpi_execute_simple_method);

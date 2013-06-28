@@ -593,8 +593,6 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 static int __init acpi_bus_init_irq(void)
 {
 	acpi_status status;
-	union acpi_object arg = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &arg };
 	char *message = NULL;
 
 
@@ -623,9 +621,7 @@ static int __init acpi_bus_init_irq(void)
 
 	printk(KERN_INFO PREFIX "Using %s for interrupt routing\n", message);
 
-	arg.integer.value = acpi_irq_model;
-
-	status = acpi_evaluate_object(NULL, "\\_PIC", &arg_list, NULL);
+	status = acpi_execute_simple_method(NULL, "\\_PIC", acpi_irq_model);
 	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PIC"));
 		return -ENODEV;

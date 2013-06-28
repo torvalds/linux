@@ -525,18 +525,14 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 static int acpi_battery_set_alarm(struct acpi_battery *battery)
 {
 	acpi_status status = 0;
-	union acpi_object arg0 = { .type = ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &arg0 };
 
 	if (!acpi_battery_present(battery) ||
 	    !test_bit(ACPI_BATTERY_ALARM_PRESENT, &battery->flags))
 		return -ENODEV;
 
-	arg0.integer.value = battery->alarm;
-
 	mutex_lock(&battery->lock);
-	status = acpi_evaluate_object(battery->device->handle, "_BTP",
-				 &arg_list, NULL);
+	status = acpi_execute_simple_method(battery->device->handle, "_BTP",
+					    battery->alarm);
 	mutex_unlock(&battery->lock);
 
 	if (ACPI_FAILURE(status))

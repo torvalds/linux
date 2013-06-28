@@ -58,6 +58,8 @@ acpi_status
 acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld);
 
 bool acpi_has_method(acpi_handle handle, char *name);
+acpi_status acpi_execute_simple_method(acpi_handle handle, char *method,
+				       u64 arg);
 
 #ifdef CONFIG_ACPI
 

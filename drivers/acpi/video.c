@@ -353,14 +353,10 @@ static int
 acpi_video_device_lcd_set_level(struct acpi_video_device *device, int level)
 {
 	int status;
-	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list args = { 1, &arg0 };
 	int state;
 
-	arg0.integer.value = level;
-
-	status = acpi_evaluate_object(device->dev->handle, "_BCM",
-				      &args, NULL);
+	status = acpi_execute_simple_method(device->dev->handle,
+					    "_BCM", level);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO, "Evaluating _BCM failed"));
 		return -EIO;
@@ -628,18 +624,15 @@ static int
 acpi_video_bus_DOS(struct acpi_video_bus *video, int bios_flag, int lcd_flag)
 {
 	acpi_status status;
-	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list args = { 1, &arg0 };
 
 	if (!video->cap._DOS)
 		return 0;
 
 	if (bios_flag < 0 || bios_flag > 3 || lcd_flag < 0 || lcd_flag > 1)
 		return -EINVAL;
-	arg0.integer.value = (lcd_flag << 2) | bios_flag;
-	video->dos_setting = arg0.integer.value;
-	status = acpi_evaluate_object(video->device->handle, "_DOS",
-		&args, NULL);
+	video->dos_setting = (lcd_flag << 2) | bios_flag;
+	status = acpi_execute_simple_method(video->device->handle, "_DOS",
+					    (lcd_flag << 2) | bios_flag);
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
