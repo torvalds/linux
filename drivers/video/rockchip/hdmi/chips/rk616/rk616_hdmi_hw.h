@@ -280,14 +280,11 @@ enum {
 						g_rk616_hdmi->write_dev(g_rk616_hdmi,(RK616_HDMI_BASE + ((addr)<<2)),&temp); \
 					}while(0)
 
-#define HDMIMskReg(addr,Msk,val) 	do{ \
-						u32 tkv = 0;\
-						u32 temp=0; \
-						HDMIRdReg(addr,&temp); \
-						tkv = ((val)&(Msk))|(temp&(~Msk)); \
-						HDMIWrReg(addr,tkv); \
-					}while(0)
 					
+#define HDMIMskReg(addr,Msk,val) 	do{ \
+                                                u32 temp = val; \
+                                                g_rk616_hdmi->write_dev_bits(g_rk616_hdmi, (RK616_HDMI_BASE + ((addr)<<2)), Msk, &temp); \
+					}while(0)
 extern struct mfd_rk616 *g_rk616_hdmi;
 	
 extern int rk616_hdmi_initial(void);

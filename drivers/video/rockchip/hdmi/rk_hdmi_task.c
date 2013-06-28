@@ -234,7 +234,9 @@ void hdmi_work(struct work_struct *work)
 				}
 				break;
 			case SYSTEM_CONFIG:
-				// hdmi->remove();
+                                #ifdef ONFIG_HDMI_RK616
+                                hdmi->remove();
+                                #endif
 				if(hdmi->autoconfig)	
 					hdmi->vic = hdmi_find_best_mode(hdmi, 0);
 				else

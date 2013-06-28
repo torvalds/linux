@@ -113,7 +113,7 @@ int rk616_hdmi_detect_hotplug(void)
 #define DDC_BUS_FREQ_H 			0x4c
 #define EDID_BLOCK_SIZE 128
 
-int rk616_hdmi_read_edid(u8 block, u8 * buf)
+int rk616_hdmi_read_edid(int block, u8 * buf)
 {
 	u32 c = 0;
 	int ret = 0,i;
@@ -185,16 +185,57 @@ static void rk616_hdmi_config_avi(unsigned char vic, unsigned char output_color)
 		HDMIWrReg(CONTROL_PACKET_ADDR + i, info[i]);
 }
 
+
+static int rk616_set_polarity(struct mfd_rk616 * rk616, int vic)
+{
+        u32 val;
+        int ret;
+        u32 hdmi_polarity_mask = (3<<14);
+        switch(vic)
+        {
+                
+                case HDMI_1920x1080p_60Hz:
+                case HDMI_1920x1080p_50Hz:
+                case HDMI_1920x1080i_60Hz:
+                case HDMI_1920x1080i_50Hz:
+                case HDMI_1280x720p_60Hz:
+                case HDMI_1280x720p_50Hz:
+                        val = 0xc000;
+                        ret = rk616->write_dev_bits(rk616, CRU_CFGMISC_CON, hdmi_polarity_mask, &val);
+                        break;
+			
+                case HDMI_720x576p_50Hz_4_3:
+                case HDMI_720x576p_50Hz_16_9:
+                case HDMI_720x480p_60Hz_4_3:
+                case HDMI_720x480p_60Hz_16_9:
+                        val = 0x0;
+                        ret = rk616->write_dev_bits(rk616, CRU_CFGMISC_CON, hdmi_polarity_mask, &val);
+                        break;
+                default:
+                        val = 0x0;
+                        ret = rk616->write_dev_bits(rk616, CRU_CFGMISC_CON, hdmi_polarity_mask, &val);
+                        break;
+        }
+        return ret;
+}
+
 static int rk616_hdmi_config_video(struct hdmi_video_para *vpara)
 {
 	int value;
 	struct fb_videomode *mode;
 	
+
 	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
 	if(vpara == NULL) {
 		hdmi_err(hdmi->dev, "[%s] input parameter error\n", __FUNCTION__);
 		return -1;
 	}
+
+        if(hdmi->pwr_mode == LOWER_PWR) {
+                rk616_hdmi_set_pwr_mode(NORMAL);
+        }
+
+
 	vpara->output_color = VIDEO_OUTPUT_RGB444;
 	if(hdmi->hdcp_power_off_cb)
 		hdmi->hdcp_power_off_cb();
@@ -267,8 +308,9 @@ static int rk616_hdmi_config_video(struct hdmi_video_para *vpara)
 	value = mode->vsync_len;
 	HDMIWrReg(VIDEO_EXT_VDURATION, value & 0xFF);
 #endif
-	
-	if(vpara->output_mode == OUTPUT_HDMI) {
+        rk616_set_polarity(g_rk616_hdmi, vpara->vic); 
+
+        if(vpara->output_mode == OUTPUT_HDMI) {
 		rk616_hdmi_config_avi(vpara->vic, vpara->output_color);
 		hdmi_dbg(hdmi->dev, "[%s] sucess output HDMI.\n", __FUNCTION__);
 	}
@@ -426,7 +468,7 @@ int rk616_hdmi_removed(void)
 void rk616_hdmi_work(void)
 {		
 	u32 interrupt = 0;
-        int value = 0;
+        // int value = 0;
 
         HDMIRdReg(INTERRUPT_STATUS1,&interrupt);
         if(interrupt){
