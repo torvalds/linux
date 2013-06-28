@@ -170,16 +170,19 @@ static int lq035q1_spidev_remove(struct spi_device *spi)
 	return lq035q1_control(spi, LQ035_SHUT_CTL, LQ035_SHUT);
 }
 
-#ifdef CONFIG_PM
-static int lq035q1_spidev_suspend(struct spi_device *spi, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int lq035q1_spidev_suspend(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
+
 	return lq035q1_control(spi, LQ035_SHUT_CTL, LQ035_SHUT);
 }
 
-static int lq035q1_spidev_resume(struct spi_device *spi)
+static int lq035q1_spidev_resume(struct device *dev)
 {
-	int ret;
+	struct spi_device *spi = to_spi_device(dev);
 	struct spi_control *ctl = spi_get_drvdata(spi);
+	int ret;
 
 	ret = lq035q1_control(spi, LQ035_DRIVER_OUTPUT_CTL, ctl->mode);
 	if (ret)
@@ -187,9 +190,13 @@ static int lq035q1_spidev_resume(struct spi_device *spi)
 
 	return lq035q1_control(spi, LQ035_SHUT_CTL, LQ035_ON);
 }
+
+static SIMPLE_DEV_PM_OPS(lq035q1_spidev_pm_ops, lq035q1_spidev_suspend,
+	lq035q1_spidev_resume);
+#define LQ035Q1_SPIDEV_PM_OPS (&lq035q1_spidev_pm_ops)
+
 #else
-# define lq035q1_spidev_suspend NULL
-# define lq035q1_spidev_resume  NULL
+#define LQ035Q1_SPIDEV_PM_OPS NULL
 #endif
 
 /* Power down all displays on reboot, poweroff or halt */
@@ -708,8 +715,7 @@ static int bfin_lq035q1_probe(struct platform_device *pdev)
 	info->spidrv.probe    = lq035q1_spidev_probe;
 	info->spidrv.remove   = lq035q1_spidev_remove;
 	info->spidrv.shutdown = lq035q1_spidev_shutdown;
-	info->spidrv.suspend  = lq035q1_spidev_suspend;
-	info->spidrv.resume   = lq035q1_spidev_resume;
+	info->spidrv.driver.pm = LQ035Q1_SPIDEV_PM_OPS;
 
 	ret = spi_register_driver(&info->spidrv);
 	if (ret < 0) {
@@ -759,7 +765,6 @@ static int bfin_lq035q1_probe(struct platform_device *pdev)
  out2:
 	free_dma(CH_PPI);
  out1:
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
@@ -788,7 +793,6 @@ static int bfin_lq035q1_remove(struct platform_device *pdev)
 	bfin_lq035q1_free_ports(info->disp_info->ppi_mode ==
 				USE_RGB565_16_BIT_PPI);
 
-	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(fbinfo);
 
 	dev_info(&pdev->dev, "unregistered LCD driver\n");

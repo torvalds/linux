@@ -923,7 +923,6 @@ failed_getclock:
 failed_req:
 	kfree(info->pseudo_palette);
 failed_init:
-	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(info);
 	return ret;
 }
@@ -955,12 +954,10 @@ static int imxfb_remove(struct platform_device *pdev)
 	iounmap(fbi->regs);
 	release_mem_region(res->start, resource_size(res));
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
-void  imxfb_shutdown(struct platform_device * dev)
+static void imxfb_shutdown(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct imxfb_info *fbi = info->par;
@@ -999,7 +996,7 @@ static int imxfb_setup(void)
 	return 0;
 }
 
-int __init imxfb_init(void)
+static int __init imxfb_init(void)
 {
 	int ret = imxfb_setup();
 

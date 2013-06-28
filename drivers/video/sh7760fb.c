@@ -571,7 +571,6 @@ static int sh7760fb_remove(struct platform_device *dev)
 	iounmap(par->base);
 	release_mem_region(par->ioarea->start, resource_size(par->ioarea));
 	framebuffer_release(info);
-	platform_set_drvdata(dev, NULL);
 
 	return 0;
 }

@@ -819,8 +819,8 @@ static int uvesafb_vbe_init(struct fb_info *info)
 	if (par->pmi_setpal || par->ypan) {
 		if (__supported_pte_mask & _PAGE_NX) {
 			par->pmi_setpal = par->ypan = 0;
-			printk(KERN_WARNING "uvesafb: NX protection is actively."
-				"We have better not to use the PMI.\n");
+			printk(KERN_WARNING "uvesafb: NX protection is active, "
+					    "better not use the PMI.\n");
 		} else {
 			uvesafb_vbe_getpmi(task, par);
 		}

@@ -566,7 +566,6 @@ failed:
 		devm_kfree(ctrl->dev, ctrl);
 	}
 
-	platform_set_drvdata(pdev, NULL);
 	dev_err(&pdev->dev, "device init failed\n");
 
 	return ret;
