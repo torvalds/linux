@@ -776,6 +776,7 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 extern struct list_head ftrace_pids;
 
 #ifdef CONFIG_FUNCTION_TRACER
+extern bool ftrace_filter_param __initdata;
 static inline int ftrace_trace_task(struct task_struct *task)
 {
 	if (list_empty(&ftrace_pids))

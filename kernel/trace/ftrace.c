@@ -3537,8 +3537,12 @@ EXPORT_SYMBOL_GPL(ftrace_set_global_notrace);
 static char ftrace_notrace_buf[FTRACE_FILTER_SIZE] __initdata;
 static char ftrace_filter_buf[FTRACE_FILTER_SIZE] __initdata;
 
+/* Used by function selftest to not test if filter is set */
+bool ftrace_filter_param __initdata;
+
 static int __init set_ftrace_notrace(char *str)
 {
+	ftrace_filter_param = true;
 	strlcpy(ftrace_notrace_buf, str, FTRACE_FILTER_SIZE);
 	return 1;
 }
@@ -3546,6 +3550,7 @@ __setup("ftrace_notrace=", set_ftrace_notrace);
 
 static int __init set_ftrace_filter(char *str)
 {
+	ftrace_filter_param = true;
 	strlcpy(ftrace_filter_buf, str, FTRACE_FILTER_SIZE);
 	return 1;
 }
