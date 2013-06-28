@@ -1708,31 +1708,8 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_ISA_DMA_API
-	if (dev->irq && (dma_chan == 1 || dma_chan == 3)) {
-		void *dma_buffer = kmalloc(dma_buffer_size,
-					   GFP_KERNEL | GFP_DMA);
-
-		if (dma_buffer) {
-			ret = request_dma(dma_chan, dev->board_name);
-			if (ret == 0) {
-				unsigned long dma_flags;
-
-				devpriv->dma_buffer = dma_buffer;
-				devpriv->dma_chan = dma_chan;
-				devpriv->dma_addr =
-					virt_to_bus(devpriv->dma_buffer);
-
-				dma_flags = claim_dma_lock();
-				disable_dma(devpriv->dma_chan);
-				set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
-				release_dma_lock(dma_flags);
-			} else {
-				kfree(dma_buffer);
-			}
-		}
-	}
-#endif
+	if (dev->irq)
+		labpc_init_dma_chan(dev, dma_chan);
 
 	return 0;
 }
@@ -1741,11 +1718,9 @@ static void labpc_detach(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
 
-	if (devpriv) {
-		kfree(devpriv->dma_buffer);
-		if (devpriv->dma_chan)
-			free_dma(devpriv->dma_chan);
-	}
+	if (devpriv)
+		labpc_free_dma_chan(dev);
+
 	comedi_legacy_detach(dev);
 }
 
