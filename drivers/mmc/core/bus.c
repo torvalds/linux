@@ -164,7 +164,7 @@ static int mmc_runtime_resume(struct device *dev)
 
 static int mmc_runtime_idle(struct device *dev)
 {
-	return pm_runtime_suspend(dev);
+	return 0;
 }
 
 #endif /* !CONFIG_PM_RUNTIME */
