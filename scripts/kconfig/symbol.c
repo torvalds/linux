@@ -136,7 +136,7 @@ static struct property *sym_get_range_prop(struct symbol *sym)
 	return NULL;
 }
 
-static int sym_get_range_val(struct symbol *sym, int base)
+static long sym_get_range_val(struct symbol *sym, int base)
 {
 	sym_calc_value(sym);
 	switch (sym->type) {
@@ -155,7 +155,7 @@ static int sym_get_range_val(struct symbol *sym, int base)
 static void sym_validate_range(struct symbol *sym)
 {
 	struct property *prop;
-	int base, val, val2;
+	long base, val, val2;
 	char str[64];
 
 	switch (sym->type) {
@@ -179,9 +179,9 @@ static void sym_validate_range(struct symbol *sym)
 			return;
 	}
 	if (sym->type == S_INT)
-		sprintf(str, "%d", val2);
+		sprintf(str, "%ld", val2);
 	else
-		sprintf(str, "0x%x", val2);
+		sprintf(str, "0x%lx", val2);
 	sym->curr.val = strdup(str);
 }
 
@@ -594,7 +594,7 @@ bool sym_string_valid(struct symbol *sym, const char *str)
 bool sym_string_within_range(struct symbol *sym, const char *str)
 {
 	struct property *prop;
-	int val;
+	long val;
 
 	switch (sym->type) {
 	case S_STRING:
