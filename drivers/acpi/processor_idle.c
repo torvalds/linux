@@ -214,13 +214,13 @@ static void lapic_timer_state_broadcast(struct acpi_processor *pr,
 #ifdef CONFIG_PM_SLEEP
 static u32 saved_bm_rld;
 
-int acpi_processor_suspend(void)
+static int acpi_processor_suspend(void)
 {
 	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &saved_bm_rld);
 	return 0;
 }
 
-void acpi_processor_resume(void)
+static void acpi_processor_resume(void)
 {
 	u32 resumed_bm_rld;
 
