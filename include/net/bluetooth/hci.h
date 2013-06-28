@@ -296,6 +296,12 @@ enum {
 #define HCI_AT_GENERAL_BONDING		0x04
 #define HCI_AT_GENERAL_BONDING_MITM	0x05
 
+/* I/O capabilities */
+#define HCI_IO_DISPLAY_ONLY	0x00
+#define HCI_IO_DISPLAY_YESNO	0x01
+#define HCI_IO_KEYBOARD_ONLY	0x02
+#define HCI_IO_NO_INPUT_OUTPUT	0x03
+
 /* Link Key types */
 #define HCI_LK_COMBINATION		0x00
 #define HCI_LK_LOCAL_UNIT		0x01
