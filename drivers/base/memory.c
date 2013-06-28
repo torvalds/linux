@@ -37,9 +37,14 @@ static inline int base_memory_block_id(int section_nr)
 	return section_nr / sections_per_block;
 }
 
+static int memory_subsys_online(struct device *dev);
+static int memory_subsys_offline(struct device *dev);
+
 static struct bus_type memory_subsys = {
 	.name = MEMORY_CLASS_NAME,
 	.dev_name = MEMORY_CLASS_NAME,
+	.online = memory_subsys_online,
+	.offline = memory_subsys_offline,
 };
 
 static BLOCKING_NOTIFIER_HEAD(memory_chain);
@@ -88,6 +93,7 @@ int register_memory(struct memory_block *memory)
 	memory->dev.bus = &memory_subsys;
 	memory->dev.id = memory->start_section_nr / sections_per_block;
 	memory->dev.release = memory_block_release;
+	memory->dev.offline = memory->state == MEM_OFFLINE;
 
 	error = device_register(&memory->dev);
 	return error;
@@ -278,33 +284,64 @@ static int __memory_block_change_state(struct memory_block *mem,
 {
 	int ret = 0;
 
-	if (mem->state != from_state_req) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (mem->state != from_state_req)
+		return -EINVAL;
 
 	if (to_state == MEM_OFFLINE)
 		mem->state = MEM_GOING_OFFLINE;
 
 	ret = memory_block_action(mem->start_section_nr, to_state, online_type);
+	mem->state = ret ? from_state_req : to_state;
+	return ret;
+}
 
-	if (ret) {
-		mem->state = from_state_req;
-		goto out;
-	}
+static int memory_subsys_online(struct device *dev)
+{
+	struct memory_block *mem = container_of(dev, struct memory_block, dev);
+	int ret;
 
-	mem->state = to_state;
-	switch (mem->state) {
-	case MEM_OFFLINE:
-		kobject_uevent(&mem->dev.kobj, KOBJ_OFFLINE);
-		break;
-	case MEM_ONLINE:
-		kobject_uevent(&mem->dev.kobj, KOBJ_ONLINE);
-		break;
-	default:
-		break;
+	mutex_lock(&mem->state_mutex);
+
+	ret = mem->state == MEM_ONLINE ? 0 :
+		__memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE,
+					    ONLINE_KEEP);
+
+	mutex_unlock(&mem->state_mutex);
+	return ret;
+}
+
+static int memory_subsys_offline(struct device *dev)
+{
+	struct memory_block *mem = container_of(dev, struct memory_block, dev);
+	int ret;
+
+	mutex_lock(&mem->state_mutex);
+
+	ret = mem->state == MEM_OFFLINE ? 0 :
+		__memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
+
+	mutex_unlock(&mem->state_mutex);
+	return ret;
+}
+
+static int __memory_block_change_state_uevent(struct memory_block *mem,
+		unsigned long to_state, unsigned long from_state_req,
+		int online_type)
+{
+	int ret = __memory_block_change_state(mem, to_state, from_state_req,
+					      online_type);
+	if (!ret) {
+		switch (mem->state) {
+		case MEM_OFFLINE:
+			kobject_uevent(&mem->dev.kobj, KOBJ_OFFLINE);
+			break;
+		case MEM_ONLINE:
+			kobject_uevent(&mem->dev.kobj, KOBJ_ONLINE);
+			break;
+		default:
+			break;
+		}
 	}
-out:
 	return ret;
 }
 
@@ -315,8 +352,8 @@ static int memory_block_change_state(struct memory_block *mem,
 	int ret;
 
 	mutex_lock(&mem->state_mutex);
-	ret = __memory_block_change_state(mem, to_state, from_state_req,
-					  online_type);
+	ret = __memory_block_change_state_uevent(mem, to_state, from_state_req,
+						 online_type);
 	mutex_unlock(&mem->state_mutex);
 
 	return ret;
@@ -326,22 +363,34 @@ store_mem_state(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct memory_block *mem;
+	bool offline;
 	int ret = -EINVAL;
 
 	mem = container_of(dev, struct memory_block, dev);
 
-	if (!strncmp(buf, "online_kernel", min_t(int, count, 13)))
+	lock_device_hotplug();
+
+	if (!strncmp(buf, "online_kernel", min_t(int, count, 13))) {
+		offline = false;
 		ret = memory_block_change_state(mem, MEM_ONLINE,
 						MEM_OFFLINE, ONLINE_KERNEL);
-	else if (!strncmp(buf, "online_movable", min_t(int, count, 14)))
+	} else if (!strncmp(buf, "online_movable", min_t(int, count, 14))) {
+		offline = false;
 		ret = memory_block_change_state(mem, MEM_ONLINE,
 						MEM_OFFLINE, ONLINE_MOVABLE);
-	else if (!strncmp(buf, "online", min_t(int, count, 6)))
+	} else if (!strncmp(buf, "online", min_t(int, count, 6))) {
+		offline = false;
 		ret = memory_block_change_state(mem, MEM_ONLINE,
 						MEM_OFFLINE, ONLINE_KEEP);
-	else if(!strncmp(buf, "offline", min_t(int, count, 7)))
+	} else if(!strncmp(buf, "offline", min_t(int, count, 7))) {
+		offline = true;
 		ret = memory_block_change_state(mem, MEM_OFFLINE,
 						MEM_ONLINE, -1);
+	}
+	if (!ret)
+		dev->offline = offline;
+
+	unlock_device_hotplug();
 
 	if (ret)
 		return ret;
@@ -678,21 +727,6 @@ int unregister_memory_section(struct mem_section *section)
 	return remove_memory_block(0, section, 0);
 }
 #endif /* CONFIG_MEMORY_HOTREMOVE */
-
-/*
- * offline one memory block. If the memory block has been offlined, do nothing.
- */
-int offline_memory_block(struct memory_block *mem)
-{
-	int ret = 0;
-
-	mutex_lock(&mem->state_mutex);
-	if (mem->state != MEM_OFFLINE)
-		ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
-	mutex_unlock(&mem->state_mutex);
-
-	return ret;
-}
 
 /* return true if the memory block is offlined, otherwise, return false */
 bool is_memblock_offlined(struct memory_block *mem)
