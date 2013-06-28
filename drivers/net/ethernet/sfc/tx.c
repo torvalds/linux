@@ -17,11 +17,21 @@
 #include <net/ipv6.h>
 #include <linux/if_ether.h>
 #include <linux/highmem.h>
+#include <linux/cache.h>
 #include "net_driver.h"
 #include "efx.h"
+#include "io.h"
 #include "nic.h"
 #include "workarounds.h"
 #include "ef10_regs.h"
+
+#ifdef EFX_USE_PIO
+
+#define EFX_PIOBUF_SIZE_MAX ER_DZ_TX_PIOBUF_SIZE
+#define EFX_PIOBUF_SIZE_DEF ALIGN(256, L1_CACHE_BYTES)
+unsigned int efx_piobuf_size __read_mostly = EFX_PIOBUF_SIZE_DEF;
+
+#endif /* EFX_USE_PIO */
 
 static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 			       struct efx_tx_buffer *buffer,

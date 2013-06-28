@@ -182,6 +182,9 @@ struct efx_tx_buffer {
  * @tsoh_page: Array of pages of TSO header buffers
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
+ * @piobuf: PIO buffer region for this TX queue (shared with its partner).
+ *	Size of the region is efx_piobuf_size.
+ * @piobuf_offset: Buffer offset to be specified in PIO descriptors
  * @initialised: Has hardware queue been initialised?
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
@@ -223,6 +226,8 @@ struct efx_tx_queue {
 	struct efx_buffer *tsoh_page;
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
+	void __iomem *piobuf;
+	unsigned int piobuf_offset;
 	bool initialised;
 
 	/* Members used mainly on the completion path */

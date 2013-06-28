@@ -389,6 +389,12 @@ enum {
 	EF10_STAT_COUNT
 };
 
+/* Maximum number of TX PIO buffers we may allocate to a function.
+ * This matches the total number of buffers on each SFC9100-family
+ * controller.
+ */
+#define EF10_TX_PIOBUF_COUNT 16
+
 /**
  * struct efx_ef10_nic_data - EF10 architecture NIC state
  * @mcdi_buf: DMA buffer for MCDI
@@ -397,6 +403,13 @@ enum {
  * @n_allocated_vis: Number of VIs allocated to this function
  * @must_realloc_vis: Flag: VIs have yet to be reallocated after MC reboot
  * @must_restore_filters: Flag: filters have yet to be restored after MC reboot
+ * @n_piobufs: Number of PIO buffers allocated to this function
+ * @wc_membase: Base address of write-combining mapping of the memory BAR
+ * @pio_write_base: Base address for writing PIO buffers
+ * @pio_write_vi_base: Relative VI number for @pio_write_base
+ * @piobuf_handle: Handle of each PIO buffer allocated
+ * @must_restore_piobufs: Flag: PIO buffers have yet to be restored after MC
+ *	reboot
  * @rx_rss_context: Firmware handle for our RSS context
  * @stats: Hardware statistics
  * @workaround_35388: Flag: firmware supports workaround for bug 35388
@@ -412,6 +425,11 @@ struct efx_ef10_nic_data {
 	unsigned int n_allocated_vis;
 	bool must_realloc_vis;
 	bool must_restore_filters;
+	unsigned int n_piobufs;
+	void __iomem *wc_membase, *pio_write_base;
+	unsigned int pio_write_vi_base;
+	unsigned int piobuf_handle[EF10_TX_PIOBUF_COUNT];
+	bool must_restore_piobufs;
 	u32 rx_rss_context;
 	u64 stats[EF10_STAT_COUNT];
 	bool workaround_35388;
