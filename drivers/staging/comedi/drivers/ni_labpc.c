@@ -906,60 +906,6 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 
 #ifdef CONFIG_ISA_DMA_API
-static void labpc_drain_dma(struct comedi_device *dev)
-{
-	struct labpc_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async = s->async;
-	int status;
-	unsigned long flags;
-	unsigned int max_points, num_points, residue, leftover;
-	int i;
-
-	status = devpriv->stat1;
-
-	flags = claim_dma_lock();
-	disable_dma(devpriv->dma_chan);
-	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
-	clear_dma_ff(devpriv->dma_chan);
-
-	/*  figure out how many points to read */
-	max_points = devpriv->dma_transfer_size / sample_size;
-	/* residue is the number of points left to be done on the dma
-	 * transfer.  It should always be zero at this point unless
-	 * the stop_src is set to external triggering.
-	 */
-	residue = get_dma_residue(devpriv->dma_chan) / sample_size;
-	num_points = max_points - residue;
-	if (devpriv->count < num_points && async->cmd.stop_src == TRIG_COUNT)
-		num_points = devpriv->count;
-
-	/*  figure out how many points will be stored next time */
-	leftover = 0;
-	if (async->cmd.stop_src != TRIG_COUNT) {
-		leftover = devpriv->dma_transfer_size / sample_size;
-	} else if (devpriv->count > num_points) {
-		leftover = devpriv->count - num_points;
-		if (leftover > max_points)
-			leftover = max_points;
-	}
-
-	/* write data to comedi buffer */
-	for (i = 0; i < num_points; i++)
-		cfc_write_to_buffer(s, devpriv->dma_buffer[i]);
-
-	if (async->cmd.stop_src == TRIG_COUNT)
-		devpriv->count -= num_points;
-
-	/*  set address and count for next transfer */
-	set_dma_addr(devpriv->dma_chan, devpriv->dma_addr);
-	set_dma_count(devpriv->dma_chan, leftover * sample_size);
-	release_dma_lock(flags);
-
-	async->events |= COMEDI_CB_BLOCK;
-}
-
 static void handle_isa_dma(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
@@ -1009,12 +955,10 @@ static int labpc_drain_fifo(struct comedi_device *dev)
  * when acquisition is terminated by stop_src == TRIG_EXT). */
 static void labpc_drain_dregs(struct comedi_device *dev)
 {
-#ifdef CONFIG_ISA_DMA_API
 	struct labpc_private *devpriv = dev->private;
 
 	if (devpriv->current_transfer == isa_dma_transfer)
 		labpc_drain_dma(dev);
-#endif
 
 	labpc_drain_fifo(dev);
 }
