@@ -242,25 +242,8 @@ sl811_read_buf(struct sl811 *sl811, int addr, void *buf, size_t count)
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef DEBUG
-#define DBG(stuff...)		printk(KERN_DEBUG "sl811: " stuff)
-#else
-#define DBG(stuff...)		do{}while(0)
-#endif
-
-#ifdef VERBOSE
-#    define VDBG		DBG
-#else
-#    define VDBG(stuff...)	do{}while(0)
-#endif
-
 #ifdef PACKET_TRACE
-#    define PACKET		VDBG
+#    define PACKET		pr_debug("sl811: "stuff)
 #else
 #    define PACKET(stuff...)	do{}while(0)
 #endif
-
-#define ERR(stuff...)		printk(KERN_ERR "sl811: " stuff)
-#define WARNING(stuff...)	printk(KERN_WARNING "sl811: " stuff)
-#define INFO(stuff...)		printk(KERN_INFO "sl811: " stuff)
-
