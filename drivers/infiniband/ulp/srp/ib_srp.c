@@ -542,11 +542,11 @@ static void srp_remove_work(struct work_struct *work)
 
 	WARN_ON_ONCE(target->state != SRP_TARGET_REMOVED);
 
+	srp_remove_target(target);
+
 	spin_lock(&target->srp_host->target_lock);
 	list_del(&target->list);
 	spin_unlock(&target->srp_host->target_lock);
-
-	srp_remove_target(target);
 }
 
 static void srp_rport_delete(struct srp_rport *rport)
@@ -2009,6 +2009,36 @@ static struct class srp_class = {
 	.dev_release = srp_release_dev
 };
 
+/**
+ * srp_conn_unique() - check whether the connection to a target is unique
+ */
+static bool srp_conn_unique(struct srp_host *host,
+			    struct srp_target_port *target)
+{
+	struct srp_target_port *t;
+	bool ret = false;
+
+	if (target->state == SRP_TARGET_REMOVED)
+		goto out;
+
+	ret = true;
+
+	spin_lock(&host->target_lock);
+	list_for_each_entry(t, &host->target_list, list) {
+		if (t != target &&
+		    target->id_ext == t->id_ext &&
+		    target->ioc_guid == t->ioc_guid &&
+		    target->initiator_ext == t->initiator_ext) {
+			ret = false;
+			break;
+		}
+	}
+	spin_unlock(&host->target_lock);
+
+out:
+	return ret;
+}
+
 /*
  * Target ports are added by writing
  *
@@ -2264,6 +2294,16 @@ static ssize_t srp_create_target(struct device *dev,
 	ret = srp_parse_options(buf, target);
 	if (ret)
 		goto err;
+
+	if (!srp_conn_unique(target->srp_host, target)) {
+		shost_printk(KERN_INFO, target->scsi_host,
+			     PFX "Already connected to target port with id_ext=%016llx;ioc_guid=%016llx;initiator_ext=%016llx\n",
+			     be64_to_cpu(target->id_ext),
+			     be64_to_cpu(target->ioc_guid),
+			     be64_to_cpu(target->initiator_ext));
+		ret = -EEXIST;
+		goto err;
+	}
 
 	if (!host->srp_dev->fmr_pool && !target->allow_ext_sg &&
 				target->cmd_sg_cnt < target->sg_tablesize) {
