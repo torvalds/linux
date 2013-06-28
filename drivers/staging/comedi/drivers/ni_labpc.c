@@ -65,8 +65,6 @@
 
 #include "../comedidev.h"
 
-#include <asm/dma.h>
-
 #include "8253.h"
 #include "8255.h"
 #include "comedi_fc.h"
@@ -174,11 +172,6 @@ static const struct labpc_boardinfo labpc_boards[] = {
 	},
 };
 #endif
-
-/* size in bytes of dma buffer */
-static const int dma_buffer_size = 0xff00;
-/* 2 bytes per sample */
-static const int sample_size = 2;
 
 static int labpc_counter_load(struct comedi_device *dev,
 			      unsigned long base_address,
