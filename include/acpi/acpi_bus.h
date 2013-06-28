@@ -62,6 +62,9 @@ acpi_status acpi_execute_simple_method(acpi_handle handle, char *method,
 				       u64 arg);
 acpi_status acpi_evaluate_ej0(acpi_handle handle);
 acpi_status acpi_evaluate_lck(acpi_handle handle, int lock);
+bool acpi_ata_match(acpi_handle handle);
+bool acpi_bay_match(acpi_handle handle);
+bool acpi_dock_match(acpi_handle handle);
 
 #ifdef CONFIG_ACPI
 

@@ -1480,43 +1480,45 @@ static void acpi_device_get_busid(struct acpi_device *device)
 }
 
 /*
+ * acpi_ata_match - see if an acpi object is an ATA device
+ *
+ * If an acpi object has one of the ACPI ATA methods defined,
+ * then we can safely call it an ATA device.
+ */
+bool acpi_ata_match(acpi_handle handle)
+{
+	return acpi_has_method(handle, "_GTF") ||
+	       acpi_has_method(handle, "_GTM") ||
+	       acpi_has_method(handle, "_STM") ||
+	       acpi_has_method(handle, "_SDD");
+}
+
+/*
  * acpi_bay_match - see if an acpi object is an ejectable driver bay
  *
  * If an acpi object is ejectable and has one of the ACPI ATA methods defined,
  * then we can safely call it an ejectable drive bay
  */
-static int acpi_bay_match(acpi_handle handle)
+bool acpi_bay_match(acpi_handle handle)
 {
 	acpi_handle phandle;
 
 	if (!acpi_has_method(handle, "_EJ0"))
-		return -ENODEV;
+		return false;
+	if (acpi_ata_match(handle))
+		return true;
+	if (ACPI_FAILURE(acpi_get_parent(handle, &phandle)))
+		return false;
 
-	if (acpi_has_method(handle, "_GTF") ||
-	    acpi_has_method(handle, "_GTM") ||
-	    acpi_has_method(handle, "_STM") ||
-	    acpi_has_method(handle, "_SDD"))
-		return 0;
-
-	if (acpi_get_parent(handle, &phandle))
-		return -ENODEV;
-
-	if (acpi_has_method(phandle, "_GTF") ||
-	    acpi_has_method(phandle, "_GTM") ||
-	    acpi_has_method(phandle, "_STM") ||
-	    acpi_has_method(phandle, "_SDD"))
-                return 0;
-
-	return -ENODEV;
+	return acpi_ata_match(phandle);
 }
 
 /*
  * acpi_dock_match - see if an acpi object has a _DCK method
  */
-static int acpi_dock_match(acpi_handle handle)
+bool acpi_dock_match(acpi_handle handle)
 {
-	acpi_handle tmp;
-	return acpi_get_handle(handle, "_DCK", &tmp);
+	return acpi_has_method(handle, "_DCK");
 }
 
 const char *acpi_device_hid(struct acpi_device *device)
@@ -1554,33 +1556,26 @@ static void acpi_add_id(struct acpi_device_pnp *pnp, const char *dev_id)
  * lacks the SMBUS01 HID and the methods do not have the necessary "_"
  * prefix.  Work around this.
  */
-static int acpi_ibm_smbus_match(acpi_handle handle)
+static bool acpi_ibm_smbus_match(acpi_handle handle)
 {
-	struct acpi_buffer path = {ACPI_ALLOCATE_BUFFER, NULL};
-	int result;
+	char node_name[ACPI_PATH_SEGMENT_LENGTH];
+	struct acpi_buffer path = { sizeof(node_name), node_name };
 
 	if (!dmi_name_in_vendors("IBM"))
-		return -ENODEV;
+		return false;
 
 	/* Look for SMBS object */
-	result = acpi_get_name(handle, ACPI_SINGLE_NAME, &path);
-	if (result)
-		return result;
-
-	if (strcmp("SMBS", path.pointer)) {
-		result = -ENODEV;
-		goto out;
-	}
+	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_SINGLE_NAME, &path)) ||
+	    strcmp("SMBS", path.pointer))
+		return false;
 
 	/* Does it have the necessary (but misnamed) methods? */
-	result = -ENODEV;
 	if (acpi_has_method(handle, "SBI") &&
 	    acpi_has_method(handle, "SBR") &&
 	    acpi_has_method(handle, "SBW"))
-		result = 0;
-out:
-	kfree(path.pointer);
-	return result;
+		return true;
+
+	return false;
 }
 
 static void acpi_set_pnp_ids(acpi_handle handle, struct acpi_device_pnp *pnp,
@@ -1628,11 +1623,11 @@ static void acpi_set_pnp_ids(acpi_handle handle, struct acpi_device_pnp *pnp,
 		 */
 		if (acpi_is_video_device(handle))
 			acpi_add_id(pnp, ACPI_VIDEO_HID);
-		else if (ACPI_SUCCESS(acpi_bay_match(handle)))
+		else if (acpi_bay_match(handle))
 			acpi_add_id(pnp, ACPI_BAY_HID);
-		else if (ACPI_SUCCESS(acpi_dock_match(handle)))
+		else if (acpi_dock_match(handle))
 			acpi_add_id(pnp, ACPI_DOCK_HID);
-		else if (!acpi_ibm_smbus_match(handle))
+		else if (acpi_ibm_smbus_match(handle))
 			acpi_add_id(pnp, ACPI_SMBUS_IBM_HID);
 		else if (list_empty(&pnp->ids) && handle == ACPI_ROOT_OBJECT) {
 			acpi_add_id(pnp, ACPI_BUS_HID); /* \_SB, LNXSYBUS */
