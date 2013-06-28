@@ -1068,23 +1068,49 @@ static void omap_gpio_chip_init(struct gpio_bank *bank)
 
 	gpiochip_add(&bank->chip);
 
-	for (j = 0; j < bank->width; j++) {
-		int irq = irq_create_mapping(bank->domain, j);
-		irq_set_lockdep_class(irq, &gpio_lock_class);
-		irq_set_chip_data(irq, bank);
-		if (bank->is_mpuio) {
-			omap_mpuio_alloc_gc(bank, irq, bank->width);
-		} else {
-			irq_set_chip_and_handler(irq, &gpio_irq_chip,
-						 handle_simple_irq);
-			set_irq_flags(irq, IRQF_VALID);
-		}
-	}
+	/*
+	 * REVISIT these explicit calls to irq_create_mapping()
+	 * to do the GPIO to IRQ domain mapping for each GPIO in
+	 * the bank can be removed once all OMAP platforms have
+	 * been migrated to Device Tree boot only.
+	 * Since in DT boot irq_create_mapping() is called from
+	 * irq_create_of_mapping() only for the GPIO lines that
+	 * are used as interrupts.
+	 */
+	if (!bank->chip.of_node)
+		for (j = 0; j < bank->width; j++)
+			irq_create_mapping(bank->domain, j);
 	irq_set_chained_handler(bank->irq, gpio_irq_handler);
 	irq_set_handler_data(bank->irq, bank);
 }
 
 static const struct of_device_id omap_gpio_match[];
+
+static int omap_gpio_irq_map(struct irq_domain *d, unsigned int virq,
+			     irq_hw_number_t hwirq)
+{
+	struct gpio_bank *bank = d->host_data;
+
+	if (!bank)
+		return -EINVAL;
+
+	irq_set_lockdep_class(virq, &gpio_lock_class);
+	irq_set_chip_data(virq, bank);
+	if (bank->is_mpuio) {
+		omap_mpuio_alloc_gc(bank, virq, bank->width);
+	} else {
+		irq_set_chip_and_handler(virq, &gpio_irq_chip,
+					 handle_simple_irq);
+		set_irq_flags(virq, IRQF_VALID);
+	}
+
+	return 0;
+}
+
+static struct irq_domain_ops omap_gpio_irq_ops = {
+	.xlate  = irq_domain_xlate_onetwocell,
+	.map    = omap_gpio_irq_map,
+};
 
 static int omap_gpio_probe(struct platform_device *pdev)
 {
@@ -1151,10 +1177,10 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	}
 
 	bank->domain = irq_domain_add_legacy(node, bank->width, irq_base,
-					     0, &irq_domain_simple_ops, NULL);
+					     0, &omap_gpio_irq_ops, bank);
 #else
 	bank->domain = irq_domain_add_linear(node, bank->width,
-					     &irq_domain_simple_ops, NULL);
+					     &omap_gpio_irq_ops, bank);
 #endif
 	if (!bank->domain) {
 		dev_err(dev, "Couldn't register an IRQ domain\n");
