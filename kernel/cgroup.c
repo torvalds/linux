@@ -1362,8 +1362,11 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	removed_mask = root->subsys_mask & ~opts.subsys_mask;
 
 	/* Don't allow flags or name to change at remount */
-	if (opts.flags != root->flags ||
+	if (((opts.flags ^ root->flags) & CGRP_ROOT_OPTION_MASK) ||
 	    (opts.name && strcmp(opts.name, root->name))) {
+		pr_err("cgroup: option or name mismatch, new: 0x%lx \"%s\", old: 0x%lx \"%s\"\n",
+		       opts.flags & CGRP_ROOT_OPTION_MASK, opts.name ?: "",
+		       root->flags & CGRP_ROOT_OPTION_MASK, root->name);
 		ret = -EINVAL;
 		goto out_unlock;
 	}
