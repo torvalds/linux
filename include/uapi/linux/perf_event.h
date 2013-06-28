@@ -375,9 +375,11 @@ struct perf_event_mmap_page {
 	__u64	time_running;		/* time event on cpu */
 	union {
 		__u64	capabilities;
-		__u64	cap_usr_time  : 1,
-			cap_usr_rdpmc : 1,
-			cap_____res   : 62;
+		struct {
+			__u64	cap_usr_time		: 1,
+				cap_usr_rdpmc		: 1,
+				cap_____res		: 62;
+		};
 	};
 
 	/*
