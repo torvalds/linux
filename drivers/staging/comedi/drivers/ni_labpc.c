@@ -905,20 +905,6 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-#ifdef CONFIG_ISA_DMA_API
-static void handle_isa_dma(struct comedi_device *dev)
-{
-	struct labpc_private *devpriv = dev->private;
-
-	labpc_drain_dma(dev);
-
-	enable_dma(devpriv->dma_chan);
-
-	/*  clear dma tc interrupt */
-	devpriv->write_byte(0x1, dev->iobase + DMATC_CLEAR_REG);
-}
-#endif
-
 /* read all available samples from ai fifo */
 static int labpc_drain_fifo(struct comedi_device *dev)
 {
@@ -1003,18 +989,9 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-#ifdef CONFIG_ISA_DMA_API
-	if (devpriv->current_transfer == isa_dma_transfer) {
-		/*
-		 * if a dma terminal count of external stop trigger
-		 * has occurred
-		 */
-		if (devpriv->stat1 & STAT1_GATA0 ||
-		    (board->is_labpc1200 && devpriv->stat2 & STAT2_OUTA1)) {
-			handle_isa_dma(dev);
-		}
-	} else
-#endif
+	if (devpriv->current_transfer == isa_dma_transfer)
+		labpc_handle_dma_status(dev);
+	else
 		labpc_drain_fifo(dev);
 
 	if (devpriv->stat1 & STAT1_CNTINT) {

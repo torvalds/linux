@@ -137,6 +137,33 @@ void labpc_drain_dma(struct comedi_device *dev)
 }
 EXPORT_SYMBOL_GPL(labpc_drain_dma);
 
+static void handle_isa_dma(struct comedi_device *dev)
+{
+	struct labpc_private *devpriv = dev->private;
+
+	labpc_drain_dma(dev);
+
+	enable_dma(devpriv->dma_chan);
+
+	/* clear dma tc interrupt */
+	devpriv->write_byte(0x1, dev->iobase + DMATC_CLEAR_REG);
+}
+
+void labpc_handle_dma_status(struct comedi_device *dev)
+{
+	const struct labpc_boardinfo *board = comedi_board(dev);
+	struct labpc_private *devpriv = dev->private;
+
+	/*
+	 * if a dma terminal count of external stop trigger
+	 * has occurred
+	 */
+	if (devpriv->stat1 & STAT1_GATA0 ||
+	    (board->is_labpc1200 && devpriv->stat2 & STAT2_OUTA1))
+		handle_isa_dma(dev);
+}
+EXPORT_SYMBOL_GPL(labpc_handle_dma_status);
+
 int labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan)
 {
 	struct labpc_private *devpriv = dev->private;
