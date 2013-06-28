@@ -32,8 +32,8 @@
 		spi2 = &cspi3;
 	};
 
-	avic: avic-interrupt-controller@e0000000 {
-		compatible = "fsl,imx27-avic", "fsl,avic";
+	aitc: aitc-interrupt-controller@e0000000 {
+		compatible = "fsl,imx27-aitc", "fsl,avic";
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		reg = <0x10040000 0x1000>;
@@ -53,7 +53,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
-		interrupt-parent = <&avic>;
+		interrupt-parent = <&aitc>;
 		ranges;
 
 		aipi@10000000 { /* AIPI1 */
