@@ -37,6 +37,11 @@ extern unsigned int sysctl_net_ll_poll __read_mostly;
 #define LL_FLUSH_FAILED		-1
 #define LL_FLUSH_BUSY		-2
 
+static inline unsigned int ll_get_flag(void)
+{
+	return sysctl_net_ll_poll ? POLL_LL : 0;
+}
+
 /* a wrapper to make debug_smp_processor_id() happy
  * we can use sched_clock() because we don't care much about precision
  * we only care that the average is bounded
@@ -67,10 +72,14 @@ static inline u64 ll_sk_end_time(struct sock *sk)
 	return ((u64)ACCESS_ONCE(sk->sk_ll_usec) << 10) + ll_sched_clock();
 }
 
-/* in poll/select we use the global sysctl_net_ll_poll value */
+/* in poll/select we use the global sysctl_net_ll_poll value
+ * only call sched_clock() if enabled
+ */
 static inline u64 ll_end_time(void)
 {
-	return ((u64)ACCESS_ONCE(sysctl_net_ll_poll) << 10) + ll_sched_clock();
+	u64 end_time = ACCESS_ONCE(sysctl_net_ll_poll);
+
+	return end_time ? (end_time << 10) + ll_sched_clock() : 0;
 }
 
 static inline bool sk_valid_ll(struct sock *sk)
@@ -141,6 +150,10 @@ static inline void sk_mark_ll(struct sock *sk, struct sk_buff *skb)
 }
 
 #else /* CONFIG_NET_LL_RX_POLL */
+static inline unsigned long ll_get_flag(void)
+{
+	return 0;
+}
 
 static inline u64 sk_ll_end_time(struct sock *sk)
 {
