@@ -115,6 +115,7 @@ struct alc_spec {
 
 	int init_amp;
 	int codec_variant;	/* flag for other variants */
+	bool has_alc5505_dsp;
 
 	/* for PLL fix */
 	hda_nid_t pll_nid;
@@ -2580,7 +2581,96 @@ static void alc269_shutup(struct hda_codec *codec)
 	}
 }
 
+static void alc5505_coef_set(struct hda_codec *codec, unsigned int index_reg,
+			     unsigned int val)
+{
+	snd_hda_codec_write(codec, 0x51, 0, AC_VERB_SET_COEF_INDEX, index_reg >> 1);
+	snd_hda_codec_write(codec, 0x51, 0, AC_VERB_SET_PROC_COEF, val & 0xffff); /* LSB */
+	snd_hda_codec_write(codec, 0x51, 0, AC_VERB_SET_PROC_COEF, val >> 16); /* MSB */
+}
+
+static int alc5505_coef_get(struct hda_codec *codec, unsigned int index_reg)
+{
+	unsigned int val;
+
+	snd_hda_codec_write(codec, 0x51, 0, AC_VERB_SET_COEF_INDEX, index_reg >> 1);
+	val = snd_hda_codec_read(codec, 0x51, 0, AC_VERB_GET_PROC_COEF, 0)
+		& 0xffff;
+	val |= snd_hda_codec_read(codec, 0x51, 0, AC_VERB_GET_PROC_COEF, 0)
+		<< 16;
+	return val;
+}
+
+static void alc5505_dsp_halt(struct hda_codec *codec)
+{
+	unsigned int val;
+
+	alc5505_coef_set(codec, 0x3000, 0x000c); /* DSP CPU stop */
+	alc5505_coef_set(codec, 0x880c, 0x0008); /* DDR enter self refresh */
+	alc5505_coef_set(codec, 0x61c0, 0x11110080); /* Clock control for PLL and CPU */
+	alc5505_coef_set(codec, 0x6230, 0xfc0d4011); /* Disable Input OP */
+	alc5505_coef_set(codec, 0x61b4, 0x040a2b03); /* Stop PLL2 */
+	alc5505_coef_set(codec, 0x61b0, 0x00005b17); /* Stop PLL1 */
+	alc5505_coef_set(codec, 0x61b8, 0x04133303); /* Stop PLL3 */
+	val = alc5505_coef_get(codec, 0x6220);
+	alc5505_coef_set(codec, 0x6220, (val | 0x3000)); /* switch Ringbuffer clock to DBUS clock */
+}
+
+static void alc5505_dsp_back_from_halt(struct hda_codec *codec)
+{
+	alc5505_coef_set(codec, 0x61b8, 0x04133302);
+	alc5505_coef_set(codec, 0x61b0, 0x00005b16);
+	alc5505_coef_set(codec, 0x61b4, 0x040a2b02);
+	alc5505_coef_set(codec, 0x6230, 0xf80d4011);
+	alc5505_coef_set(codec, 0x6220, 0x2002010f);
+	alc5505_coef_set(codec, 0x880c, 0x00000004);
+}
+
+static void alc5505_dsp_init(struct hda_codec *codec)
+{
+	unsigned int val;
+
+	alc5505_dsp_halt(codec);
+	alc5505_dsp_back_from_halt(codec);
+	alc5505_coef_set(codec, 0x61b0, 0x5b14); /* PLL1 control */
+	alc5505_coef_set(codec, 0x61b0, 0x5b16);
+	alc5505_coef_set(codec, 0x61b4, 0x04132b00); /* PLL2 control */
+	alc5505_coef_set(codec, 0x61b4, 0x04132b02);
+	alc5505_coef_set(codec, 0x61b8, 0x041f3300); /* PLL3 control*/
+	alc5505_coef_set(codec, 0x61b8, 0x041f3302);
+	snd_hda_codec_write(codec, 0x51, 0, AC_VERB_SET_CODEC_RESET, 0); /* Function reset */
+	alc5505_coef_set(codec, 0x61b8, 0x041b3302);
+	alc5505_coef_set(codec, 0x61b8, 0x04173302);
+	alc5505_coef_set(codec, 0x61b8, 0x04163302);
+	alc5505_coef_set(codec, 0x8800, 0x348b328b); /* DRAM control */
+	alc5505_coef_set(codec, 0x8808, 0x00020022); /* DRAM control */
+	alc5505_coef_set(codec, 0x8818, 0x00000400); /* DRAM control */
+
+	val = alc5505_coef_get(codec, 0x6200) >> 16; /* Read revision ID */
+	if (val <= 3)
+		alc5505_coef_set(codec, 0x6220, 0x2002010f); /* I/O PAD Configuration */
+	else
+		alc5505_coef_set(codec, 0x6220, 0x6002018f);
+
+	alc5505_coef_set(codec, 0x61ac, 0x055525f0); /**/
+	alc5505_coef_set(codec, 0x61c0, 0x12230080); /* Clock control */
+	alc5505_coef_set(codec, 0x61b4, 0x040e2b02); /* PLL2 control */
+	alc5505_coef_set(codec, 0x61bc, 0x010234f8); /* OSC Control */
+	alc5505_coef_set(codec, 0x880c, 0x00000004); /* DRAM Function control */
+	alc5505_coef_set(codec, 0x880c, 0x00000003);
+	alc5505_coef_set(codec, 0x880c, 0x00000010);
+}
+
 #ifdef CONFIG_PM
+static int alc269_suspend(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (spec->has_alc5505_dsp)
+		alc5505_dsp_halt(codec);
+	return alc_suspend(codec);
+}
+
 static int alc269_resume(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -2605,6 +2695,8 @@ static int alc269_resume(struct hda_codec *codec)
 	snd_hda_codec_resume_cache(codec);
 	alc_inv_dmic_sync(codec, true);
 	hda_call_check_power_status(codec, 0x01);
+	if (spec->has_alc5505_dsp)
+		alc5505_dsp_back_from_halt(codec);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -3730,6 +3822,11 @@ static int patch_alc269(struct hda_codec *codec)
 		break;
 	}
 
+	if (snd_hda_codec_read(codec, 0x51, 0, AC_VERB_PARAMETERS, 0) == 0x10ec5505) {
+		spec->has_alc5505_dsp = true;
+		spec->init_hook = alc5505_dsp_init;
+	}
+
 	/* automatic parse from the BIOS config */
 	err = alc269_parse_auto_config(codec);
 	if (err < 0)
@@ -3740,6 +3837,7 @@ static int patch_alc269(struct hda_codec *codec)
 
 	codec->patch_ops = alc_patch_ops;
 #ifdef CONFIG_PM
+	codec->patch_ops.suspend = alc269_suspend;
 	codec->patch_ops.resume = alc269_resume;
 #endif
 	spec->shutup = alc269_shutup;
