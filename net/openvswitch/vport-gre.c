@@ -16,7 +16,7 @@
  * 02110-1301, USA
  */
 
-#if IS_ENABLED(CONFIG_NET_IPGRE_DEMUX)
+#ifdef CONFIG_OPENVSWITCH_GRE
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/if.h>
@@ -271,4 +271,5 @@ const struct vport_ops ovs_gre_vport_ops = {
 	.get_name	= gre_get_name,
 	.send		= gre_tnl_send,
 };
-#endif
+
+#endif /* OPENVSWITCH_GRE */

@@ -19,8 +19,6 @@ config OPENVSWITCH
 	  which is able to accept configuration from a variety of sources and
 	  translate it into packet processing rules.
 
-	  Open vSwitch GRE support depends on CONFIG_NET_IPGRE_DEMUX.
-
 	  See http://openvswitch.org for more information and userspace
 	  utilities.
 
@@ -28,3 +26,17 @@ config OPENVSWITCH
 	  called openvswitch.
 
 	  If unsure, say N.
+
+config OPENVSWITCH_GRE
+	bool "Open vSwitch GRE tunneling support"
+	depends on INET
+	depends on OPENVSWITCH
+	depends on NET_IPGRE_DEMUX && !(OPENVSWITCH=y && NET_IPGRE_DEMUX=m)
+	default y
+	---help---
+	  If you say Y here, then the Open vSwitch will be able create GRE
+	  vport.
+
+	  Say N to exclude this support and reduce the binary size.
+
+	  If unsure, say Y.
