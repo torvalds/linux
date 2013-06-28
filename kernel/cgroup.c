@@ -215,6 +215,8 @@ static u64 cgroup_serial_nr_next = 1;
  */
 static int need_forkexit_callback __read_mostly;
 
+static struct cftype cgroup_base_files[];
+
 static void cgroup_offline_fn(struct work_struct *work);
 static int cgroup_destroy_locked(struct cgroup *cgrp);
 static int cgroup_addrm_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
@@ -804,8 +806,7 @@ static struct cgroup *task_cgroup_from_root(struct task_struct *task,
 static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 static struct dentry *cgroup_lookup(struct inode *, struct dentry *, unsigned int);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
-static int cgroup_populate_dir(struct cgroup *cgrp, bool base_files,
-			       unsigned long subsys_mask);
+static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask);
 static const struct inode_operations cgroup_dir_inode_operations;
 static const struct file_operations proc_cgroupstats_operations;
 
@@ -957,13 +958,11 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 }
 
 /**
- * cgroup_clear_dir - selective removal of base and subsystem files
+ * cgroup_clear_dir - remove subsys files in a cgroup directory
  * @cgrp: target cgroup
- * @base_files: true if the base files should be removed
  * @subsys_mask: mask of the subsystem ids whose files should be removed
  */
-static void cgroup_clear_dir(struct cgroup *cgrp, bool base_files,
-			     unsigned long subsys_mask)
+static void cgroup_clear_dir(struct cgroup *cgrp, unsigned long subsys_mask)
 {
 	struct cgroup_subsys *ss;
 
@@ -973,10 +972,6 @@ static void cgroup_clear_dir(struct cgroup *cgrp, bool base_files,
 			continue;
 		list_for_each_entry(set, &ss->cftsets, node)
 			cgroup_addrm_files(cgrp, NULL, set->cfts, false);
-	}
-	if (base_files) {
-		while (!list_empty(&cgrp->files))
-			cgroup_rm_file(cgrp, NULL);
 	}
 }
 
@@ -1372,17 +1367,17 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	 * this before rebind_subsystems, since rebind_subsystems may
 	 * change this hierarchy's subsys_list.
 	 */
-	cgroup_clear_dir(cgrp, false, removed_mask);
+	cgroup_clear_dir(cgrp, removed_mask);
 
 	ret = rebind_subsystems(root, added_mask, removed_mask);
 	if (ret) {
 		/* rebind_subsystems failed, re-populate the removed files */
-		cgroup_populate_dir(cgrp, false, removed_mask);
+		cgroup_populate_dir(cgrp, removed_mask);
 		goto out_unlock;
 	}
 
 	/* re-populate subsystem files */
-	cgroup_populate_dir(cgrp, false, added_mask);
+	cgroup_populate_dir(cgrp, added_mask);
 
 	if (opts.release_agent)
 		strcpy(root->release_agent_path, opts.release_agent);
@@ -1687,7 +1682,8 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		BUG_ON(root->number_of_cgroups != 1);
 
 		cred = override_creds(&init_cred);
-		cgroup_populate_dir(root_cgrp, true, root->subsys_mask);
+		cgroup_addrm_files(root_cgrp, NULL, cgroup_base_files, true);
+		cgroup_populate_dir(root_cgrp, root->subsys_mask);
 		revert_creds(cred);
 		mutex_unlock(&cgroup_root_mutex);
 		mutex_unlock(&cgroup_mutex);
@@ -4172,22 +4168,13 @@ static struct cftype cgroup_base_files[] = {
 };
 
 /**
- * cgroup_populate_dir - selectively creation of files in a directory
+ * cgroup_populate_dir - create subsys files in a cgroup directory
  * @cgrp: target cgroup
- * @base_files: true if the base files should be added
  * @subsys_mask: mask of the subsystem ids whose files should be added
  */
-static int cgroup_populate_dir(struct cgroup *cgrp, bool base_files,
-			       unsigned long subsys_mask)
+static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask)
 {
-	int err;
 	struct cgroup_subsys *ss;
-
-	if (base_files) {
-		err = cgroup_addrm_files(cgrp, NULL, cgroup_base_files, true);
-		if (err < 0)
-			return err;
-	}
 
 	/* process cftsets of each subsystem */
 	for_each_root_subsys(cgrp->root, ss) {
@@ -4410,7 +4397,11 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		}
 	}
 
-	err = cgroup_populate_dir(cgrp, true, root->subsys_mask);
+	err = cgroup_addrm_files(cgrp, NULL, cgroup_base_files, true);
+	if (err)
+		goto err_destroy;
+
+	err = cgroup_populate_dir(cgrp, root->subsys_mask);
 	if (err)
 		goto err_destroy;
 
@@ -4566,7 +4557,8 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 * Clear and remove @cgrp directory.  The removal puts the base ref
 	 * but we aren't quite done with @cgrp yet, so hold onto it.
 	 */
-	cgroup_clear_dir(cgrp, true, cgrp->root->subsys_mask);
+	cgroup_clear_dir(cgrp, cgrp->root->subsys_mask);
+	cgroup_addrm_files(cgrp, NULL, cgroup_base_files, false);
 	dget(d);
 	cgroup_d_remove_dir(d);
 
