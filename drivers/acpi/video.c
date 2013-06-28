@@ -875,28 +875,21 @@ out:
 
 static void acpi_video_device_find_cap(struct acpi_video_device *device)
 {
-	acpi_handle h_dummy1;
-
-	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_ADR", &h_dummy1))) {
+	if (acpi_has_method(device->dev->handle, "_ADR"))
 		device->cap._ADR = 1;
-	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_BCL", &h_dummy1))) {
+	if (acpi_has_method(device->dev->handle, "_BCL"))
 		device->cap._BCL = 1;
-	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_BCM", &h_dummy1))) {
+	if (acpi_has_method(device->dev->handle, "_BCM"))
 		device->cap._BCM = 1;
-	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle,"_BQC",&h_dummy1)))
+	if (acpi_has_method(device->dev->handle, "_BQC")) {
 		device->cap._BQC = 1;
-	else if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_BCQ",
-				&h_dummy1))) {
+	} else if (acpi_has_method(device->dev->handle, "_BCQ")) {
 		printk(KERN_WARNING FW_BUG "_BCQ is used instead of _BQC\n");
 		device->cap._BCQ = 1;
 	}
 
-	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_DDC", &h_dummy1))) {
+	if (acpi_has_method(device->dev->handle, "_DDC"))
 		device->cap._DDC = 1;
-	}
 
 	if (acpi_video_backlight_support()) {
 		struct backlight_properties props;
@@ -984,26 +977,18 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 
 static void acpi_video_bus_find_cap(struct acpi_video_bus *video)
 {
-	acpi_handle h_dummy1;
-
-	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_DOS", &h_dummy1))) {
+	if (acpi_has_method(video->device->handle, "_DOS"))
 		video->cap._DOS = 1;
-	}
-	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_DOD", &h_dummy1))) {
+	if (acpi_has_method(video->device->handle, "_DOD"))
 		video->cap._DOD = 1;
-	}
-	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_ROM", &h_dummy1))) {
+	if (acpi_has_method(video->device->handle, "_ROM"))
 		video->cap._ROM = 1;
-	}
-	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_GPD", &h_dummy1))) {
+	if (acpi_has_method(video->device->handle, "_GPD"))
 		video->cap._GPD = 1;
-	}
-	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_SPD", &h_dummy1))) {
+	if (acpi_has_method(video->device->handle, "_SPD"))
 		video->cap._SPD = 1;
-	}
-	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_VPO", &h_dummy1))) {
+	if (acpi_has_method(video->device->handle, "_VPO"))
 		video->cap._VPO = 1;
-	}
 }
 
 /*

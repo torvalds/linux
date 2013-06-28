@@ -193,7 +193,6 @@ static acpi_status acpi_bus_online_companions(acpi_handle handle, u32 lvl,
 static int acpi_scan_hot_remove(struct acpi_device *device)
 {
 	acpi_handle handle = device->handle;
-	acpi_handle not_used;
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	struct device *errdev;
@@ -258,7 +257,7 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	put_device(&device->dev);
 	device = NULL;
 
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_LCK", &not_used))) {
+	if (acpi_has_method(handle, "_LCK")) {
 		arg_list.count = 1;
 		arg_list.pointer = &arg;
 		arg.type = ACPI_TYPE_INTEGER;
@@ -652,7 +651,6 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 {
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
-	acpi_handle temp;
 	unsigned long long sun;
 	int result = 0;
 
@@ -678,8 +676,7 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 	/*
 	 * If device has _STR, 'description' file is created
 	 */
-	status = acpi_get_handle(dev->handle, "_STR", &temp);
-	if (ACPI_SUCCESS(status)) {
+	if (acpi_has_method(dev->handle, "_STR")) {
 		status = acpi_evaluate_object(dev->handle, "_STR",
 					NULL, &buffer);
 		if (ACPI_FAILURE(status))
@@ -709,8 +706,7 @@ static int acpi_device_setup_files(struct acpi_device *dev)
          * If device has _EJ0, 'eject' file is created that is used to trigger
          * hot-removal function from userland.
          */
-	status = acpi_get_handle(dev->handle, "_EJ0", &temp);
-	if (ACPI_SUCCESS(status)) {
+	if (acpi_has_method(dev->handle, "_EJ0")) {
 		result = device_create_file(&dev->dev, &dev_attr_eject);
 		if (result)
 			return result;
@@ -732,9 +728,6 @@ end:
 
 static void acpi_device_remove_files(struct acpi_device *dev)
 {
-	acpi_status status;
-	acpi_handle temp;
-
 	if (dev->flags.power_manageable) {
 		device_remove_file(&dev->dev, &dev_attr_power_state);
 		if (dev->power.flags.power_resources)
@@ -745,20 +738,17 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 	/*
 	 * If device has _STR, remove 'description' file
 	 */
-	status = acpi_get_handle(dev->handle, "_STR", &temp);
-	if (ACPI_SUCCESS(status)) {
+	if (acpi_has_method(dev->handle, "_STR")) {
 		kfree(dev->pnp.str_obj);
 		device_remove_file(&dev->dev, &dev_attr_description);
 	}
 	/*
 	 * If device has _EJ0, remove 'eject' file.
 	 */
-	status = acpi_get_handle(dev->handle, "_EJ0", &temp);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(dev->handle, "_EJ0"))
 		device_remove_file(&dev->dev, &dev_attr_eject);
 
-	status = acpi_get_handle(dev->handle, "_SUN", &temp);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(dev->handle, "_SUN"))
 		device_remove_file(&dev->dev, &dev_attr_sun);
 
 	if (dev->pnp.unique_id)
@@ -1334,13 +1324,10 @@ static void acpi_bus_set_run_wake_flags(struct acpi_device *device)
 
 static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 {
-	acpi_handle temp;
-	acpi_status status = 0;
 	int err;
 
 	/* Presence of _PRW indicates wake capable */
-	status = acpi_get_handle(device->handle, "_PRW", &temp);
-	if (ACPI_FAILURE(status))
+	if (!acpi_has_method(device->handle, "_PRW"))
 		return;
 
 	err = acpi_bus_extract_wakeup_device_power_package(device->handle,
@@ -1370,7 +1357,6 @@ static void acpi_bus_init_power_state(struct acpi_device *device, int state)
 	struct acpi_device_power_state *ps = &device->power.states[state];
 	char pathname[5] = { '_', 'P', 'R', '0' + state, '\0' };
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	acpi_handle handle;
 	acpi_status status;
 
 	INIT_LIST_HEAD(&ps->resources);
@@ -1393,8 +1379,7 @@ static void acpi_bus_init_power_state(struct acpi_device *device, int state)
 
 	/* Evaluate "_PSx" to see if we can do explicit sets */
 	pathname[2] = 'S';
-	status = acpi_get_handle(device->handle, pathname, &handle);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(device->handle, pathname))
 		ps->flags.explicit_set = 1;
 
 	/*
@@ -1413,28 +1398,21 @@ static void acpi_bus_init_power_state(struct acpi_device *device, int state)
 
 static void acpi_bus_get_power_flags(struct acpi_device *device)
 {
-	acpi_status status;
-	acpi_handle handle;
 	u32 i;
 
 	/* Presence of _PS0|_PR0 indicates 'power manageable' */
-	status = acpi_get_handle(device->handle, "_PS0", &handle);
-	if (ACPI_FAILURE(status)) {
-		status = acpi_get_handle(device->handle, "_PR0", &handle);
-		if (ACPI_FAILURE(status))
-			return;
-	}
+	if (!acpi_has_method(device->handle, "_PS0") &&
+	    !acpi_has_method(device->handle, "_PR0"))
+		return;
 
 	device->flags.power_manageable = 1;
 
 	/*
 	 * Power Management Flags
 	 */
-	status = acpi_get_handle(device->handle, "_PSC", &handle);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(device->handle, "_PSC"))
 		device->power.flags.explicit_get = 1;
-	status = acpi_get_handle(device->handle, "_IRC", &handle);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(device->handle, "_IRC"))
 		device->power.flags.inrush_current = 1;
 
 	/*
@@ -1468,28 +1446,18 @@ static void acpi_bus_get_power_flags(struct acpi_device *device)
 
 static void acpi_bus_get_flags(struct acpi_device *device)
 {
-	acpi_status status = AE_OK;
-	acpi_handle temp = NULL;
-
 	/* Presence of _STA indicates 'dynamic_status' */
-	status = acpi_get_handle(device->handle, "_STA", &temp);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(device->handle, "_STA"))
 		device->flags.dynamic_status = 1;
 
 	/* Presence of _RMV indicates 'removable' */
-	status = acpi_get_handle(device->handle, "_RMV", &temp);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(device->handle, "_RMV"))
 		device->flags.removable = 1;
 
 	/* Presence of _EJD|_EJ0 indicates 'ejectable' */
-	status = acpi_get_handle(device->handle, "_EJD", &temp);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(device->handle, "_EJD") ||
+	    acpi_has_method(device->handle, "_EJ0"))
 		device->flags.ejectable = 1;
-	else {
-		status = acpi_get_handle(device->handle, "_EJ0", &temp);
-		if (ACPI_SUCCESS(status))
-			device->flags.ejectable = 1;
-	}
 }
 
 static void acpi_device_get_busid(struct acpi_device *device)
@@ -1538,27 +1506,24 @@ static void acpi_device_get_busid(struct acpi_device *device)
  */
 static int acpi_bay_match(acpi_handle handle)
 {
-	acpi_status status;
-	acpi_handle tmp;
 	acpi_handle phandle;
 
-	status = acpi_get_handle(handle, "_EJ0", &tmp);
-	if (ACPI_FAILURE(status))
+	if (!acpi_has_method(handle, "_EJ0"))
 		return -ENODEV;
 
-	if ((ACPI_SUCCESS(acpi_get_handle(handle, "_GTF", &tmp))) ||
-		(ACPI_SUCCESS(acpi_get_handle(handle, "_GTM", &tmp))) ||
-		(ACPI_SUCCESS(acpi_get_handle(handle, "_STM", &tmp))) ||
-		(ACPI_SUCCESS(acpi_get_handle(handle, "_SDD", &tmp))))
+	if (acpi_has_method(handle, "_GTF") ||
+	    acpi_has_method(handle, "_GTM") ||
+	    acpi_has_method(handle, "_STM") ||
+	    acpi_has_method(handle, "_SDD"))
 		return 0;
 
 	if (acpi_get_parent(handle, &phandle))
 		return -ENODEV;
 
-        if ((ACPI_SUCCESS(acpi_get_handle(phandle, "_GTF", &tmp))) ||
-                (ACPI_SUCCESS(acpi_get_handle(phandle, "_GTM", &tmp))) ||
-                (ACPI_SUCCESS(acpi_get_handle(phandle, "_STM", &tmp))) ||
-                (ACPI_SUCCESS(acpi_get_handle(phandle, "_SDD", &tmp))))
+	if (acpi_has_method(phandle, "_GTF") ||
+	    acpi_has_method(phandle, "_GTM") ||
+	    acpi_has_method(phandle, "_STM") ||
+	    acpi_has_method(phandle, "_SDD"))
                 return 0;
 
 	return -ENODEV;
@@ -1610,7 +1575,6 @@ static void acpi_add_id(struct acpi_device_pnp *pnp, const char *dev_id)
  */
 static int acpi_ibm_smbus_match(acpi_handle handle)
 {
-	acpi_handle h_dummy;
 	struct acpi_buffer path = {ACPI_ALLOCATE_BUFFER, NULL};
 	int result;
 
@@ -1629,9 +1593,9 @@ static int acpi_ibm_smbus_match(acpi_handle handle)
 
 	/* Does it have the necessary (but misnamed) methods? */
 	result = -ENODEV;
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "SBI", &h_dummy)) &&
-	    ACPI_SUCCESS(acpi_get_handle(handle, "SBR", &h_dummy)) &&
-	    ACPI_SUCCESS(acpi_get_handle(handle, "SBW", &h_dummy)))
+	if (acpi_has_method(handle, "SBI") &&
+	    acpi_has_method(handle, "SBR") &&
+	    acpi_has_method(handle, "SBW"))
 		result = 0;
 out:
 	kfree(path.pointer);
@@ -1898,7 +1862,6 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 	struct acpi_device *device = NULL;
 	int type;
 	unsigned long long sta;
-	acpi_status status;
 	int result;
 
 	acpi_bus_get_device(handle, &device);
@@ -1919,10 +1882,8 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 	if (!(sta & ACPI_STA_DEVICE_PRESENT) &&
 	    !(sta & ACPI_STA_DEVICE_FUNCTIONING)) {
 		struct acpi_device_wakeup wakeup;
-		acpi_handle temp;
 
-		status = acpi_get_handle(handle, "_PRW", &temp);
-		if (ACPI_SUCCESS(status)) {
+		if (acpi_has_method(handle, "_PRW")) {
 			acpi_bus_extract_wakeup_device_power_package(handle,
 								     &wakeup);
 			acpi_power_resources_list_free(&wakeup.resources);

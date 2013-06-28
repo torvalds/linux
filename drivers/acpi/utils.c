@@ -495,3 +495,18 @@ acpi_handle_printk(const char *level, acpi_handle handle, const char *fmt, ...)
 	kfree(buffer.pointer);
 }
 EXPORT_SYMBOL(acpi_handle_printk);
+
+/**
+ * acpi_has_method: Check whether @handle has a method named @name
+ * @handle: ACPI device handle
+ * @name: name of object or method
+ *
+ * Check whether @handle has a method named @name.
+ */
+bool acpi_has_method(acpi_handle handle, char *name)
+{
+	acpi_handle tmp;
+
+	return ACPI_SUCCESS(acpi_get_handle(handle, name, &tmp));
+}
+EXPORT_SYMBOL(acpi_has_method);

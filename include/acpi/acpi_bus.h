@@ -56,6 +56,9 @@ acpi_evaluate_hotplug_ost(acpi_handle handle, u32 source_event,
 
 acpi_status
 acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld);
+
+bool acpi_has_method(acpi_handle handle, char *name);
+
 #ifdef CONFIG_ACPI
 
 #include <linux/proc_fs.h>
