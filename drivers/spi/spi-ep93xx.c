@@ -708,38 +708,20 @@ static void ep93xx_spi_process_transfer(struct ep93xx_spi *espi,
 					struct spi_transfer *t)
 {
 	struct ep93xx_spi_chip *chip = spi_get_ctldata(msg->spi);
+	int err;
 
 	msg->state = t;
 
-	/*
-	 * Handle any transfer specific settings if needed. We use
-	 * temporary chip settings here and restore original later when
-	 * the transfer is finished.
-	 */
-	if (t->speed_hz || t->bits_per_word) {
-		struct ep93xx_spi_chip tmp_chip = *chip;
-
-		if (t->speed_hz) {
-			int err;
-
-			err = ep93xx_spi_calc_divisors(espi, &tmp_chip,
-						       t->speed_hz);
-			if (err) {
-				dev_err(&espi->pdev->dev,
-					"failed to adjust speed\n");
-				msg->status = err;
-				return;
-			}
-		}
-
-		if (t->bits_per_word)
-			tmp_chip.dss = bits_per_word_to_dss(t->bits_per_word);
-
-		/*
-		 * Set up temporary new hw settings for this transfer.
-		 */
-		ep93xx_spi_chip_setup(espi, &tmp_chip);
+	err = ep93xx_spi_calc_divisors(espi, chip, t->speed_hz);
+	if (err) {
+		dev_err(&espi->pdev->dev, "failed to adjust speed\n");
+		msg->status = err;
+		return;
 	}
+
+	chip->dss = bits_per_word_to_dss(t->bits_per_word);
+
+	ep93xx_spi_chip_setup(espi, chip);
 
 	espi->rx = 0;
 	espi->tx = 0;
@@ -783,9 +765,6 @@ static void ep93xx_spi_process_transfer(struct ep93xx_spi *espi,
 			ep93xx_spi_cs_control(msg->spi, true);
 		}
 	}
-
-	if (t->speed_hz || t->bits_per_word)
-		ep93xx_spi_chip_setup(espi, chip);
 }
 
 /*
@@ -838,10 +817,8 @@ static void ep93xx_spi_process_message(struct ep93xx_spi *espi,
 	espi->fifo_level = 0;
 
 	/*
-	 * Update SPI controller registers according to spi device and assert
-	 * the chipselect.
+	 * Assert the chipselect.
 	 */
-	ep93xx_spi_chip_setup(espi, spi_get_ctldata(msg->spi));
 	ep93xx_spi_cs_control(msg->spi, true);
 
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
