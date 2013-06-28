@@ -677,6 +677,8 @@ int si_dpm_set_power_state(struct radeon_device *rdev);
 void si_dpm_post_set_power_state(struct radeon_device *rdev);
 void si_dpm_fini(struct radeon_device *rdev);
 void si_dpm_display_configuration_changed(struct radeon_device *rdev);
+void si_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						    struct seq_file *m);
 
 /* DCE8 - CIK */
 void dce8_bandwidth_update(struct radeon_device *rdev);

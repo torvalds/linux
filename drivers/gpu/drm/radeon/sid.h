@@ -220,6 +220,10 @@
 #       define GFX_CLK_OFF_ACPI_D3                        (1 << 13)
 #       define DYN_LIGHT_SLEEP_EN                         (1 << 14)
 
+#define TARGET_AND_CURRENT_PROFILE_INDEX                  0x798
+#       define CURRENT_STATE_INDEX_MASK                   (0xf << 4)
+#       define CURRENT_STATE_INDEX_SHIFT                  4
+
 #define CG_FTV                                            0x7bc
 
 #define CG_FFCT_0                                         0x7c0

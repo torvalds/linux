@@ -6385,3 +6385,22 @@ void si_dpm_fini(struct radeon_device *rdev)
 	r600_free_extended_power_table(rdev);
 }
 
+void si_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						    struct seq_file *m)
+{
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct ni_ps *ps = ni_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_STATE_INDEX_MASK) >>
+		CURRENT_STATE_INDEX_SHIFT;
+
+	if (current_index >= ps->performance_level_count) {
+		seq_printf(m, "invalid dpm profile %d\n", current_index);
+	} else {
+		pl = &ps->performance_levels[current_index];
+		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+		seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
+			   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci, pl->pcie_gen + 1);
+	}
+}
