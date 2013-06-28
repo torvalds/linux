@@ -1004,7 +1004,7 @@ static const struct da850_opp da850_opp_96 = {
 
 #define OPP(freq) 		\
 	{				\
-		.index = (unsigned int) &da850_opp_##freq,	\
+		.driver_data = (unsigned int) &da850_opp_##freq,	\
 		.frequency = freq * 1000, \
 	}
 
@@ -1016,7 +1016,7 @@ static struct cpufreq_frequency_table da850_freq_table[] = {
 	OPP(200),
 	OPP(96),
 	{
-		.index		= 0,
+		.driver_data		= 0,
 		.frequency	= CPUFREQ_TABLE_END,
 	},
 };
@@ -1044,7 +1044,7 @@ static int da850_set_voltage(unsigned int index)
 	if (!cvdd)
 		return -ENODEV;
 
-	opp = (struct da850_opp *) cpufreq_info.freq_table[index].index;
+	opp = (struct da850_opp *) cpufreq_info.freq_table[index].driver_data;
 
 	return regulator_set_voltage(cvdd, opp->cvdd_min, opp->cvdd_max);
 }
@@ -1125,7 +1125,7 @@ static int da850_set_pll0rate(struct clk *clk, unsigned long index)
 	struct pll_data *pll = clk->pll_data;
 	int ret;
 
-	opp = (struct da850_opp *) cpufreq_info.freq_table[index].index;
+	opp = (struct da850_opp *) cpufreq_info.freq_table[index].driver_data;
 	prediv = opp->prediv;
 	mult = opp->mult;
 	postdiv = opp->postdiv;

@@ -420,7 +420,7 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	/* Generate pxa25x the run cpufreq_frequency_table struct */
 	for (i = 0; i < NUM_PXA25x_RUN_FREQS; i++) {
 		pxa255_run_freq_table[i].frequency = pxa255_run_freqs[i].khz;
-		pxa255_run_freq_table[i].index = i;
+		pxa255_run_freq_table[i].driver_data = i;
 	}
 	pxa255_run_freq_table[i].frequency = CPUFREQ_TABLE_END;
 
@@ -428,7 +428,7 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	for (i = 0; i < NUM_PXA25x_TURBO_FREQS; i++) {
 		pxa255_turbo_freq_table[i].frequency =
 			pxa255_turbo_freqs[i].khz;
-		pxa255_turbo_freq_table[i].index = i;
+		pxa255_turbo_freq_table[i].driver_data = i;
 	}
 	pxa255_turbo_freq_table[i].frequency = CPUFREQ_TABLE_END;
 
@@ -440,9 +440,9 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 		if (freq > pxa27x_maxfreq)
 			break;
 		pxa27x_freq_table[i].frequency = freq;
-		pxa27x_freq_table[i].index = i;
+		pxa27x_freq_table[i].driver_data = i;
 	}
-	pxa27x_freq_table[i].index = i;
+	pxa27x_freq_table[i].driver_data = i;
 	pxa27x_freq_table[i].frequency = CPUFREQ_TABLE_END;
 
 	/*

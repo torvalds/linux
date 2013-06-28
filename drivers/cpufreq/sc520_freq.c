@@ -71,7 +71,7 @@ static void sc520_freq_set_cpu_state(struct cpufreq_policy *policy,
 	local_irq_disable();
 
 	clockspeed_reg = *cpuctl & ~0x03;
-	*cpuctl = clockspeed_reg | sc520_freq_table[state].index;
+	*cpuctl = clockspeed_reg | sc520_freq_table[state].driver_data;
 
 	local_irq_enable();
 
