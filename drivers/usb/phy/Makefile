@@ -1,9 +1,6 @@
 #
 # Makefile for physical layer USB drivers
 #
-
-ccflags-$(CONFIG_USB_DEBUG) := -DDEBUG
-
 obj-$(CONFIG_USB_PHY)			+= phy.o
 obj-$(CONFIG_OF)			+= of.o
 
