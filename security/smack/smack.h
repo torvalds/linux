@@ -168,9 +168,13 @@ struct smk_port_label {
 #define SMACK_CIPSO_DOI_INVALID		-1	/* Not a DOI */
 #define SMACK_CIPSO_DIRECT_DEFAULT	250	/* Arbitrary */
 #define SMACK_CIPSO_MAPPED_DEFAULT	251	/* Also arbitrary */
-#define SMACK_CIPSO_MAXCATVAL		63	/* Bigger gets harder */
 #define SMACK_CIPSO_MAXLEVEL            255     /* CIPSO 2.2 standard */
-#define SMACK_CIPSO_MAXCATNUM           239     /* CIPSO 2.2 standard */
+/*
+ * CIPSO 2.2 standard is 239, but Smack wants to use the
+ * categories in a structured way that limits the value to
+ * the bits in 23 bytes, hence the unusual number.
+ */
+#define SMACK_CIPSO_MAXCATNUM           184     /* 23 * 8 */
 
 /*
  * Flag for transmute access

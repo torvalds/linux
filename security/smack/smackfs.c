@@ -890,7 +890,7 @@ static ssize_t smk_set_cipso(struct file *file, const char __user *buf,
 	for (i = 0; i < catlen; i++) {
 		rule += SMK_DIGITLEN;
 		ret = sscanf(rule, "%u", &cat);
-		if (ret != 1 || cat > SMACK_CIPSO_MAXCATVAL)
+		if (ret != 1 || cat > SMACK_CIPSO_MAXCATNUM)
 			goto out;
 
 		smack_catset_bit(cat, mapcatset);
