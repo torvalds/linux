@@ -24,6 +24,7 @@
 #include <asm/dma.h>
 
 #include "ni_labpc.h"
+#include "ni_labpc_regs.h"
 #include "ni_labpc_isadma.h"
 
 /* size in bytes of dma buffer */
