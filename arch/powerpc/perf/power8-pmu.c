@@ -391,6 +391,10 @@ static int power8_compute_mmcr(u64 event[], int n_ev,
 	if (pmc_inuse & 0x7c)
 		mmcr[0] |= MMCR0_PMCjCE;
 
+	/* If we're not using PMC 5 or 6, freeze them */
+	if (!(pmc_inuse & 0x60))
+		mmcr[0] |= MMCR0_FC56;
+
 	mmcr[1] = mmcr1;
 	mmcr[2] = mmcra;
 
