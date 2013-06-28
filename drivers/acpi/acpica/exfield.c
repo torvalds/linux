@@ -331,21 +331,25 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 
 	switch (source_desc->common.type) {
 	case ACPI_TYPE_INTEGER:
+
 		buffer = &source_desc->integer.value;
 		length = sizeof(source_desc->integer.value);
 		break;
 
 	case ACPI_TYPE_BUFFER:
+
 		buffer = source_desc->buffer.pointer;
 		length = source_desc->buffer.length;
 		break;
 
 	case ACPI_TYPE_STRING:
+
 		buffer = source_desc->string.pointer;
 		length = source_desc->string.length;
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 

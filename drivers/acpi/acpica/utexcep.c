@@ -146,6 +146,7 @@ const struct acpi_exception_info *acpi_ut_validate_exception(acpi_status status)
 		break;
 
 	default:
+
 		break;
 	}
 

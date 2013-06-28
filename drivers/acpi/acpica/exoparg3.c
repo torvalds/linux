@@ -155,7 +155,6 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 
 	switch (walk_state->opcode) {
 	case AML_MID_OP:	/* Mid (Source[0], Index[1], Length[2], Result[3]) */
-
 		/*
 		 * Create the return object. The Source operand is guaranteed to be
 		 * either a String or a Buffer, so just use its type.

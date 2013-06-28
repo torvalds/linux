@@ -114,6 +114,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 
 	switch (dest_desc->common.type) {
 	case ACPI_TYPE_LOCAL_REFERENCE:
+
 		break;
 
 	case ACPI_TYPE_INTEGER:
@@ -178,7 +179,6 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 		break;
 
 	case ACPI_REFCLASS_DEBUG:
-
 		/*
 		 * Storing to the Debug object causes the value stored to be
 		 * displayed and otherwise has no effect -- see ACPI Specification
@@ -291,7 +291,6 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 		break;
 
 	case ACPI_TYPE_BUFFER_FIELD:
-
 		/*
 		 * Store into a Buffer or String (not actually a real buffer_field)
 		 * at a location defined by an Index.
@@ -447,7 +446,6 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 	case ACPI_TYPE_INTEGER:
 	case ACPI_TYPE_STRING:
 	case ACPI_TYPE_BUFFER:
-
 		/*
 		 * These target types are all of type Integer/String/Buffer, and
 		 * therefore support implicit conversion before the store.

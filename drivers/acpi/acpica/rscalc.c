@@ -352,6 +352,7 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 			break;
 
 		default:
+
 			break;
 		}
 
@@ -539,6 +540,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			break;
 
 		default:
+
 			break;
 		}
 
@@ -650,8 +652,9 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 
 		name_found = FALSE;
 
-		for (table_index = 0; table_index < 4 && !name_found;
-		     table_index++) {
+		for (table_index = 0;
+		     table_index < package_element->package.count
+		     && !name_found; table_index++) {
 			if (*sub_object_list &&	/* Null object allowed */
 			    ((ACPI_TYPE_STRING ==
 			      (*sub_object_list)->common.type) ||
