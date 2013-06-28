@@ -588,14 +588,8 @@ static inline struct usb_hcd *isp1362_hcd_to_hcd(struct isp1362_hcd *isp1362_hcd
 		if (dbg_level > level) \
 			pr_debug(fmt); \
 	} while (0)
-#define _DBG(level, fmt...)	\
-	do { \
-		if (dbg_level > level) \
-			printk(fmt); \
-	} while (0)
 #else
 #define DBG(fmt...)		do {} while (0)
-#define _DBG DBG
 #endif
 
 #ifdef VERBOSE

@@ -1573,12 +1573,12 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		DBG(0, "ClearHubFeature: ");
 		switch (wValue) {
 		case C_HUB_OVER_CURRENT:
-			_DBG(0, "C_HUB_OVER_CURRENT\n");
+			DBG(0, "C_HUB_OVER_CURRENT\n");
 			spin_lock_irqsave(&isp1362_hcd->lock, flags);
 			isp1362_write_reg32(isp1362_hcd, HCRHSTATUS, RH_HS_OCIC);
 			spin_unlock_irqrestore(&isp1362_hcd->lock, flags);
 		case C_HUB_LOCAL_POWER:
-			_DBG(0, "C_HUB_LOCAL_POWER\n");
+			DBG(0, "C_HUB_LOCAL_POWER\n");
 			break;
 		default:
 			goto error;
@@ -1589,7 +1589,7 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		switch (wValue) {
 		case C_HUB_OVER_CURRENT:
 		case C_HUB_LOCAL_POWER:
-			_DBG(0, "C_HUB_OVER_CURRENT or C_HUB_LOCAL_POWER\n");
+			DBG(0, "C_HUB_OVER_CURRENT or C_HUB_LOCAL_POWER\n");
 			break;
 		default:
 			goto error;
@@ -1620,36 +1620,36 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		switch (wValue) {
 		case USB_PORT_FEAT_ENABLE:
-			_DBG(0, "USB_PORT_FEAT_ENABLE\n");
+			DBG(0, "USB_PORT_FEAT_ENABLE\n");
 			tmp = RH_PS_CCS;
 			break;
 		case USB_PORT_FEAT_C_ENABLE:
-			_DBG(0, "USB_PORT_FEAT_C_ENABLE\n");
+			DBG(0, "USB_PORT_FEAT_C_ENABLE\n");
 			tmp = RH_PS_PESC;
 			break;
 		case USB_PORT_FEAT_SUSPEND:
-			_DBG(0, "USB_PORT_FEAT_SUSPEND\n");
+			DBG(0, "USB_PORT_FEAT_SUSPEND\n");
 			tmp = RH_PS_POCI;
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
-			_DBG(0, "USB_PORT_FEAT_C_SUSPEND\n");
+			DBG(0, "USB_PORT_FEAT_C_SUSPEND\n");
 			tmp = RH_PS_PSSC;
 			break;
 		case USB_PORT_FEAT_POWER:
-			_DBG(0, "USB_PORT_FEAT_POWER\n");
+			DBG(0, "USB_PORT_FEAT_POWER\n");
 			tmp = RH_PS_LSDA;
 
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
-			_DBG(0, "USB_PORT_FEAT_C_CONNECTION\n");
+			DBG(0, "USB_PORT_FEAT_C_CONNECTION\n");
 			tmp = RH_PS_CSC;
 			break;
 		case USB_PORT_FEAT_C_OVER_CURRENT:
-			_DBG(0, "USB_PORT_FEAT_C_OVER_CURRENT\n");
+			DBG(0, "USB_PORT_FEAT_C_OVER_CURRENT\n");
 			tmp = RH_PS_OCIC;
 			break;
 		case USB_PORT_FEAT_C_RESET:
-			_DBG(0, "USB_PORT_FEAT_C_RESET\n");
+			DBG(0, "USB_PORT_FEAT_C_RESET\n");
 			tmp = RH_PS_PRSC;
 			break;
 		default:
@@ -1669,7 +1669,7 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		wIndex--;
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
-			_DBG(0, "USB_PORT_FEAT_SUSPEND\n");
+			DBG(0, "USB_PORT_FEAT_SUSPEND\n");
 			spin_lock_irqsave(&isp1362_hcd->lock, flags);
 			isp1362_write_reg32(isp1362_hcd, HCRHPORT1 + wIndex, RH_PS_PSS);
 			isp1362_hcd->rhport[wIndex] =
@@ -1677,7 +1677,7 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			spin_unlock_irqrestore(&isp1362_hcd->lock, flags);
 			break;
 		case USB_PORT_FEAT_POWER:
-			_DBG(0, "USB_PORT_FEAT_POWER\n");
+			DBG(0, "USB_PORT_FEAT_POWER\n");
 			spin_lock_irqsave(&isp1362_hcd->lock, flags);
 			isp1362_write_reg32(isp1362_hcd, HCRHPORT1 + wIndex, RH_PS_PPS);
 			isp1362_hcd->rhport[wIndex] =
@@ -1685,7 +1685,7 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			spin_unlock_irqrestore(&isp1362_hcd->lock, flags);
 			break;
 		case USB_PORT_FEAT_RESET:
-			_DBG(0, "USB_PORT_FEAT_RESET\n");
+			DBG(0, "USB_PORT_FEAT_RESET\n");
 			spin_lock_irqsave(&isp1362_hcd->lock, flags);
 
 			t1 = jiffies + msecs_to_jiffies(USB_RESET_WIDTH);
@@ -1719,7 +1719,7 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	default:
  error:
 		/* "protocol stall" on error */
-		_DBG(0, "PROTOCOL STALL\n");
+		DBG(0, "PROTOCOL STALL\n");
 		retval = -EPIPE;
 	}
 
