@@ -2573,9 +2573,6 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	/* Get and dump the chip ID */
 	priv->synopsys_id = stmmac_get_synopsys_id(priv);
 
-	/* To use alternate (extended) or normal descriptor structures */
-	stmmac_selec_desc_mode(priv);
-
 	/* To use the chained or ring mode */
 	if (chain_mode) {
 		priv->hw->chain = &chain_mode_ops;
@@ -2609,6 +2606,9 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 
 	} else
 		pr_info(" No HW DMA feature register supported");
+
+	/* To use alternate (extended) or normal descriptor structures */
+	stmmac_selec_desc_mode(priv);
 
 	ret = priv->hw->mac->rx_ipc(priv->ioaddr);
 	if (!ret) {
