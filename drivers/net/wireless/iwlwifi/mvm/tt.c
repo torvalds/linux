@@ -391,8 +391,7 @@ static void iwl_mvm_tt_tx_protection(struct iwl_mvm *mvm, bool enable)
 		mvmsta = (void *)sta->drv_priv;
 		if (enable == mvmsta->tt_tx_protection)
 			continue;
-		err = iwl_mvm_tx_protection(mvm, &mvmsta->lq_sta.lq,
-					    mvmsta, enable);
+		err = iwl_mvm_tx_protection(mvm, mvmsta, enable);
 		if (err) {
 			IWL_ERR(mvm, "Failed to %s Tx protection\n",
 				enable ? "enable" : "disable");

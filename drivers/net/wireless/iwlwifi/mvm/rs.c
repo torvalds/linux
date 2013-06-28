@@ -3193,13 +3193,14 @@ void iwl_mvm_rate_control_unregister(void)
  * iwl_mvm_tx_protection - Gets LQ command, change it to enable/disable
  * Tx protection, according to this rquest and previous requests,
  * and send the LQ command.
- * @lq: The LQ command
  * @mvmsta: The station
  * @enable: Enable Tx protection?
  */
-int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
-			  struct iwl_mvm_sta *mvmsta, bool enable)
+int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
+			  bool enable)
 {
+	struct iwl_lq_cmd *lq = &mvmsta->lq_sta.lq;
+
 	lockdep_assert_held(&mvm->mutex);
 
 	if (enable) {
