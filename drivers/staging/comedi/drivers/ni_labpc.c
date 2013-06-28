@@ -976,8 +976,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		release_dma_lock(irq_flags);
 		/*  enable board's dma */
 		devpriv->cmd3 |= (CMD3_DMAEN | CMD3_DMATCINTEN);
-	} else
-		devpriv->cmd3 &= ~(CMD3_DMAEN | CMD3_DMATCINTEN);
+	}
 #endif
 
 	/*  enable error interrupts */
@@ -985,8 +984,6 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  enable fifo not empty interrupt? */
 	if (xfer == fifo_not_empty_transfer)
 		devpriv->cmd3 |= CMD3_FIFOINTEN;
-	else
-		devpriv->cmd3 &= ~CMD3_FIFOINTEN;
 	devpriv->write_byte(devpriv->cmd3, dev->iobase + CMD3_REG);
 
 	/*  setup any external triggering/pacing (cmd4 register) */
