@@ -64,6 +64,7 @@ void irq_gc_mask_set_bit(struct irq_data *d)
 	irq_reg_writel(gc->mask_cache, gc->reg_base + cur_regs(d)->mask);
 	irq_gc_unlock(gc);
 }
+EXPORT_SYMBOL_GPL(irq_gc_mask_set_bit);
 
 /**
  * irq_gc_mask_set_mask_bit - Mask chip via clearing bit in mask register
@@ -82,6 +83,7 @@ void irq_gc_mask_clr_bit(struct irq_data *d)
 	irq_reg_writel(gc->mask_cache, gc->reg_base + cur_regs(d)->mask);
 	irq_gc_unlock(gc);
 }
+EXPORT_SYMBOL_GPL(irq_gc_mask_clr_bit);
 
 /**
  * irq_gc_unmask_enable_reg - Unmask chip via enable register
@@ -114,6 +116,7 @@ void irq_gc_ack_set_bit(struct irq_data *d)
 	irq_reg_writel(mask, gc->reg_base + cur_regs(d)->ack);
 	irq_gc_unlock(gc);
 }
+EXPORT_SYMBOL_GPL(irq_gc_ack_set_bit);
 
 /**
  * irq_gc_ack_clr_bit - Ack pending interrupt via clearing bit
