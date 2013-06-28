@@ -961,9 +961,9 @@ static int ads7846_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(ads7846_pm, ads7846_suspend, ads7846_resume);
 
 static int ads7846_setup_pendown(struct spi_device *spi,
-					   struct ads7846 *ts)
+				 struct ads7846 *ts,
+				 const struct ads7846_platform_data *pdata)
 {
-	struct ads7846_platform_data *pdata = spi->dev.platform_data;
 	int err;
 
 	/*
@@ -1003,7 +1003,7 @@ static int ads7846_setup_pendown(struct spi_device *spi,
  * use formula #2 for pressure, not #3.
  */
 static void ads7846_setup_spi_msg(struct ads7846 *ts,
-				const struct ads7846_platform_data *pdata)
+				  const struct ads7846_platform_data *pdata)
 {
 	struct spi_message *m = &ts->msg[0];
 	struct spi_transfer *x = ts->xfer;
@@ -1203,10 +1203,10 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 
 static int ads7846_probe(struct spi_device *spi)
 {
+	const struct ads7846_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct ads7846 *ts;
 	struct ads7846_packet *packet;
 	struct input_dev *input_dev;
-	struct ads7846_platform_data *pdata = spi->dev.platform_data;
 	unsigned long irq_flags;
 	int err;
 
@@ -1281,7 +1281,7 @@ static int ads7846_probe(struct spi_device *spi)
 		ts->filter = ads7846_no_filter;
 	}
 
-	err = ads7846_setup_pendown(spi, ts);
+	err = ads7846_setup_pendown(spi, ts, pdata);
 	if (err)
 		goto err_cleanup_filter;
 
