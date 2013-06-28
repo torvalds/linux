@@ -2919,7 +2919,7 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 	if (tuner_lock == 0)
 		return FE_367CAB_NOTUNER;
 #endif
-	/* Relase the TRL to start demodulator acquisition */
+	/* Release the TRL to start demodulator acquisition */
 	/* Wait for QAM lock */
 	LockTime = 0;
 	stv0367_writereg(state, R367CAB_CTRL_1, 0x00);

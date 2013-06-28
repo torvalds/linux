@@ -315,7 +315,7 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
 
 	/*
 	 * Wait for any running method to finish, of course including
-	 * ->release if it was run by mmu_notifier_relase instead of us.
+	 * ->release if it was run by mmu_notifier_release instead of us.
 	 */
 	synchronize_srcu(&srcu);
 
