@@ -9,10 +9,22 @@
 
 #if NI_LABPC_HAVE_ISA_DMA
 
+static inline bool labpc_have_dma_chan(struct comedi_device *dev)
+{
+	struct labpc_private *devpriv = dev->private;
+
+	return (bool)devpriv->dma_chan;
+}
+
 int labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan);
 void labpc_free_dma_chan(struct comedi_device *dev);
 
 #else
+
+static inline bool labpc_have_dma_chan(struct comedi_device *dev)
+{
+	return false;
+}
 
 static inline int labpc_init_dma_chan(struct comedi_device *dev,
 				      unsigned int dma_chan)
