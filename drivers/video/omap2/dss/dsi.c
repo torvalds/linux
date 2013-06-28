@@ -383,6 +383,15 @@ static inline struct dsi_data *dsi_get_dsidrv_data(struct platform_device *dside
 
 static inline struct platform_device *dsi_get_dsidev_from_dssdev(struct omap_dss_device *dssdev)
 {
+	/* HACK: dssdev can be either the panel device, when using old API, or
+	 * the dsi device itself, when using the new API. So we solve this for
+	 * now by checking the dssdev->id. This will be removed when the old API
+	 * is removed.
+	 */
+	if (dssdev->id == OMAP_DSS_OUTPUT_DSI1 ||
+			dssdev->id == OMAP_DSS_OUTPUT_DSI2)
+		return to_platform_device(dssdev->dev);
+
 	return to_platform_device(dssdev->output->dev);
 }
 
@@ -5412,6 +5421,89 @@ static int dsi_probe_pdata(struct platform_device *dsidev)
 	return 0;
 }
 
+static int dsi_connect(struct omap_dss_device *dssdev,
+		struct omap_dss_device *dst)
+{
+	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	struct omap_overlay_manager *mgr;
+	int r;
+
+	r = dsi_regulator_init(dsidev);
+	if (r)
+		return r;
+
+	mgr = omap_dss_get_overlay_manager(dssdev->dispc_channel);
+	if (!mgr)
+		return -ENODEV;
+
+	r = dss_mgr_connect(mgr, dssdev);
+	if (r)
+		return r;
+
+	r = omapdss_output_set_device(dssdev, dst);
+	if (r) {
+		DSSERR("failed to connect output to new device: %s\n",
+				dssdev->name);
+		dss_mgr_disconnect(mgr, dssdev);
+		return r;
+	}
+
+	return 0;
+}
+
+static void dsi_disconnect(struct omap_dss_device *dssdev,
+		struct omap_dss_device *dst)
+{
+	WARN_ON(dst != dssdev->device);
+
+	if (dst != dssdev->device)
+		return;
+
+	omapdss_output_unset_device(dssdev);
+
+	if (dssdev->manager)
+		dss_mgr_disconnect(dssdev->manager, dssdev);
+}
+
+static const struct omapdss_dsi_ops dsi_ops = {
+	.connect = dsi_connect,
+	.disconnect = dsi_disconnect,
+
+	.bus_lock = dsi_bus_lock,
+	.bus_unlock = dsi_bus_unlock,
+
+	.enable = omapdss_dsi_display_enable,
+	.disable = omapdss_dsi_display_disable,
+
+	.enable_hs = omapdss_dsi_vc_enable_hs,
+
+	.configure_pins = omapdss_dsi_configure_pins,
+	.set_config = omapdss_dsi_set_config,
+
+	.enable_video_output = dsi_enable_video_output,
+	.disable_video_output = dsi_disable_video_output,
+
+	.update = omap_dsi_update,
+
+	.enable_te = omapdss_dsi_enable_te,
+
+	.request_vc = omap_dsi_request_vc,
+	.set_vc_id = omap_dsi_set_vc_id,
+	.release_vc = omap_dsi_release_vc,
+
+	.dcs_write = dsi_vc_dcs_write,
+	.dcs_write_nosync = dsi_vc_dcs_write_nosync,
+	.dcs_read = dsi_vc_dcs_read,
+
+	.gen_write = dsi_vc_generic_write,
+	.gen_write_nosync = dsi_vc_generic_write_nosync,
+	.gen_read = dsi_vc_generic_read,
+
+	.bta_sync = dsi_vc_send_bta_sync,
+
+	.set_max_rx_packet_size = dsi_vc_set_max_rx_packet_size,
+};
+
 static void dsi_init_output(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -5424,9 +5516,10 @@ static void dsi_init_output(struct platform_device *dsidev)
 	out->output_type = OMAP_DISPLAY_TYPE_DSI;
 	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
 	out->dispc_channel = dsi_get_channel(dsi->module_id);
+	out->ops.dsi = &dsi_ops;
 	out->owner = THIS_MODULE;
 
-	dss_register_output(out);
+	omapdss_register_output(out);
 }
 
 static void dsi_uninit_output(struct platform_device *dsidev)
@@ -5434,7 +5527,7 @@ static void dsi_uninit_output(struct platform_device *dsidev)
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct omap_dss_device *out = &dsi->output;
 
-	dss_unregister_output(out);
+	omapdss_unregister_output(out);
 }
 
 /* DSI1 HW IP initialisation */

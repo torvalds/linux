@@ -70,6 +70,7 @@ enum omap_display_type {
 	OMAP_DISPLAY_TYPE_DSI		= 1 << 3,
 	OMAP_DISPLAY_TYPE_VENC		= 1 << 4,
 	OMAP_DISPLAY_TYPE_HDMI		= 1 << 5,
+	OMAP_DISPLAY_TYPE_DVI		= 1 << 6,
 };
 
 enum omap_plane {
@@ -169,6 +170,11 @@ enum omap_dss_audio_state {
 	OMAP_DSS_AUDIO_ENABLED,
 	OMAP_DSS_AUDIO_CONFIGURED,
 	OMAP_DSS_AUDIO_PLAYING,
+};
+
+struct omap_dss_audio {
+	struct snd_aes_iec958 *iec;
+	struct snd_cea_861_aud_if *cea;
 };
 
 enum omap_dss_rotation_type {
@@ -572,6 +578,176 @@ struct omap_dss_writeback_info {
 	u8 pre_mult_alpha;
 };
 
+struct omapdss_dpi_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev);
+
+	int (*check_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*set_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*get_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+
+	void (*set_data_lines)(struct omap_dss_device *dssdev, int data_lines);
+};
+
+struct omapdss_sdi_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev);
+
+	int (*check_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*set_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*get_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+
+	void (*set_datapairs)(struct omap_dss_device *dssdev, int datapairs);
+};
+
+struct omapdss_dvi_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev);
+
+	int (*check_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*set_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*get_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+};
+
+struct omapdss_atv_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev);
+
+	int (*check_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*set_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*get_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+
+	void (*set_type)(struct omap_dss_device *dssdev,
+		enum omap_dss_venc_type type);
+	void (*invert_vid_out_polarity)(struct omap_dss_device *dssdev,
+		bool invert_polarity);
+
+	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
+	u32 (*get_wss)(struct omap_dss_device *dssdev);
+};
+
+struct omapdss_hdmi_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev);
+
+	int (*check_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*set_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*get_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+
+	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
+	bool (*detect)(struct omap_dss_device *dssdev);
+
+	/*
+	 * Note: These functions might sleep. Do not call while
+	 * holding a spinlock/readlock.
+	 */
+	int (*audio_enable)(struct omap_dss_device *dssdev);
+	void (*audio_disable)(struct omap_dss_device *dssdev);
+	bool (*audio_supported)(struct omap_dss_device *dssdev);
+	int (*audio_config)(struct omap_dss_device *dssdev,
+		struct omap_dss_audio *audio);
+	/* Note: These functions may not sleep */
+	int (*audio_start)(struct omap_dss_device *dssdev);
+	void (*audio_stop)(struct omap_dss_device *dssdev);
+};
+
+struct omapdss_dsi_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev, bool disconnect_lanes,
+			bool enter_ulps);
+
+	/* bus configuration */
+	int (*set_config)(struct omap_dss_device *dssdev,
+			const struct omap_dss_dsi_config *cfg);
+	int (*configure_pins)(struct omap_dss_device *dssdev,
+			const struct omap_dsi_pin_config *pin_cfg);
+
+	void (*enable_hs)(struct omap_dss_device *dssdev, int channel,
+			bool enable);
+	int (*enable_te)(struct omap_dss_device *dssdev, bool enable);
+
+	int (*update)(struct omap_dss_device *dssdev, int channel,
+			void (*callback)(int, void *), void *data);
+
+	void (*bus_lock)(struct omap_dss_device *dssdev);
+	void (*bus_unlock)(struct omap_dss_device *dssdev);
+
+	int (*enable_video_output)(struct omap_dss_device *dssdev, int channel);
+	void (*disable_video_output)(struct omap_dss_device *dssdev,
+			int channel);
+
+	int (*request_vc)(struct omap_dss_device *dssdev, int *channel);
+	int (*set_vc_id)(struct omap_dss_device *dssdev, int channel,
+			int vc_id);
+	void (*release_vc)(struct omap_dss_device *dssdev, int channel);
+
+	/* data transfer */
+	int (*dcs_write)(struct omap_dss_device *dssdev, int channel,
+			u8 *data, int len);
+	int (*dcs_write_nosync)(struct omap_dss_device *dssdev, int channel,
+			u8 *data, int len);
+	int (*dcs_read)(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
+			u8 *data, int len);
+
+	int (*gen_write)(struct omap_dss_device *dssdev, int channel,
+			u8 *data, int len);
+	int (*gen_write_nosync)(struct omap_dss_device *dssdev, int channel,
+			u8 *data, int len);
+	int (*gen_read)(struct omap_dss_device *dssdev, int channel,
+			u8 *reqdata, int reqlen,
+			u8 *data, int len);
+
+	int (*bta_sync)(struct omap_dss_device *dssdev, int channel);
+
+	int (*set_max_rx_packet_size)(struct omap_dss_device *dssdev,
+			int channel, u16 plen);
+};
+
 struct omap_dss_device {
 	/* old device, to be removed */
 	struct device old_dev;
@@ -637,6 +813,15 @@ struct omap_dss_device {
 
 	struct omap_dss_driver *driver;
 
+	union {
+		const struct omapdss_dpi_ops *dpi;
+		const struct omapdss_sdi_ops *sdi;
+		const struct omapdss_dvi_ops *dvi;
+		const struct omapdss_hdmi_ops *hdmi;
+		const struct omapdss_atv_ops *atv;
+		const struct omapdss_dsi_ops *dsi;
+	} ops;
+
 	/* helper variable for driver suspend/resume */
 	bool activate_after_resume;
 
@@ -669,11 +854,6 @@ struct omap_dss_hdmi_data
 	int ct_cp_hpd_gpio;
 	int ls_oe_gpio;
 	int hpd_gpio;
-};
-
-struct omap_dss_audio {
-	struct snd_aes_iec958 *iec;
-	struct snd_cea_861_aud_if *cea;
 };
 
 struct omap_dss_driver {
@@ -780,6 +960,8 @@ struct omap_overlay_manager *omap_dss_get_overlay_manager(int num);
 int omap_dss_get_num_overlays(void);
 struct omap_overlay *omap_dss_get_overlay(int num);
 
+int omapdss_register_output(struct omap_dss_device *output);
+void omapdss_unregister_output(struct omap_dss_device *output);
 struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id);
 struct omap_dss_device *omap_dss_find_output(const char *name);
 struct omap_dss_device *omap_dss_find_output_by_node(struct device_node *node);

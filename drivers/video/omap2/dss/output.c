@@ -92,15 +92,18 @@ err:
 }
 EXPORT_SYMBOL(omapdss_output_unset_device);
 
-void dss_register_output(struct omap_dss_device *out)
+int omapdss_register_output(struct omap_dss_device *out)
 {
 	list_add_tail(&out->list, &output_list);
+	return 0;
 }
+EXPORT_SYMBOL(omapdss_register_output);
 
-void dss_unregister_output(struct omap_dss_device *out)
+void omapdss_unregister_output(struct omap_dss_device *out)
 {
 	list_del(&out->list);
 }
+EXPORT_SYMBOL(omapdss_unregister_output);
 
 struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id)
 {
@@ -143,7 +146,13 @@ EXPORT_SYMBOL(omap_dss_find_output_by_node);
 
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {
-	return omap_dss_get_device(dssdev->output);
+	while (dssdev->output)
+		dssdev = dssdev->output;
+
+	if (dssdev->id != 0)
+		return omap_dss_get_device(dssdev);
+
+	return NULL;
 }
 EXPORT_SYMBOL(omapdss_find_output_from_display);
 

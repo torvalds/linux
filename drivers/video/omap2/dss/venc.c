@@ -564,6 +564,16 @@ int omapdss_venc_check_timings(struct omap_dss_device *dssdev,
 	return -EINVAL;
 }
 
+static void venc_get_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	mutex_lock(&venc.venc_lock);
+
+	*timings = venc.timings;
+
+	mutex_unlock(&venc.venc_lock);
+}
+
 u32 omapdss_venc_get_wss(struct omap_dss_device *dssdev)
 {
 	/* Invert due to VENC_L21_WC_CTL:INV=1 */
@@ -779,6 +789,67 @@ static int venc_probe_pdata(struct platform_device *vencdev)
 	return 0;
 }
 
+static int venc_connect(struct omap_dss_device *dssdev,
+		struct omap_dss_device *dst)
+{
+	struct omap_overlay_manager *mgr;
+	int r;
+
+	r = venc_init_regulator();
+	if (r)
+		return r;
+
+	mgr = omap_dss_get_overlay_manager(dssdev->dispc_channel);
+	if (!mgr)
+		return -ENODEV;
+
+	r = dss_mgr_connect(mgr, dssdev);
+	if (r)
+		return r;
+
+	r = omapdss_output_set_device(dssdev, dst);
+	if (r) {
+		DSSERR("failed to connect output to new device: %s\n",
+				dst->name);
+		dss_mgr_disconnect(mgr, dssdev);
+		return r;
+	}
+
+	return 0;
+}
+
+static void venc_disconnect(struct omap_dss_device *dssdev,
+		struct omap_dss_device *dst)
+{
+	WARN_ON(dst != dssdev->device);
+
+	if (dst != dssdev->device)
+		return;
+
+	omapdss_output_unset_device(dssdev);
+
+	if (dssdev->manager)
+		dss_mgr_disconnect(dssdev->manager, dssdev);
+}
+
+static const struct omapdss_atv_ops venc_ops = {
+	.connect = venc_connect,
+	.disconnect = venc_disconnect,
+
+	.enable = omapdss_venc_display_enable,
+	.disable = omapdss_venc_display_disable,
+
+	.check_timings = omapdss_venc_check_timings,
+	.set_timings = omapdss_venc_set_timings,
+	.get_timings = venc_get_timings,
+
+	.set_type = omapdss_venc_set_type,
+	.invert_vid_out_polarity = omapdss_venc_invert_vid_out_polarity,
+
+	.set_wss = omapdss_venc_set_wss,
+	.get_wss = omapdss_venc_get_wss,
+};
+
 static void venc_init_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &venc.output;
@@ -788,16 +859,17 @@ static void venc_init_output(struct platform_device *pdev)
 	out->output_type = OMAP_DISPLAY_TYPE_VENC;
 	out->name = "venc.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
+	out->ops.atv = &venc_ops;
 	out->owner = THIS_MODULE;
 
-	dss_register_output(out);
+	omapdss_register_output(out);
 }
 
 static void __exit venc_uninit_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &venc.output;
 
-	dss_unregister_output(out);
+	omapdss_unregister_output(out);
 }
 
 /* VENC HW IP initialisation */

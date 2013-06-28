@@ -461,6 +461,16 @@ void omapdss_dpi_set_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_dpi_set_timings);
 
+static void dpi_get_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	mutex_lock(&dpi.lock);
+
+	*timings = dpi.timings;
+
+	mutex_unlock(&dpi.lock);
+}
+
 int dpi_check_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
@@ -678,6 +688,65 @@ static int dpi_probe_pdata(struct platform_device *dpidev)
 	return 0;
 }
 
+static int dpi_connect(struct omap_dss_device *dssdev,
+		struct omap_dss_device *dst)
+{
+	struct omap_overlay_manager *mgr;
+	int r;
+
+	r = dpi_init_regulator();
+	if (r)
+		return r;
+
+	dpi_init_pll();
+
+	mgr = omap_dss_get_overlay_manager(dssdev->dispc_channel);
+	if (!mgr)
+		return -ENODEV;
+
+	r = dss_mgr_connect(mgr, dssdev);
+	if (r)
+		return r;
+
+	r = omapdss_output_set_device(dssdev, dst);
+	if (r) {
+		DSSERR("failed to connect output to new device: %s\n",
+				dst->name);
+		dss_mgr_disconnect(mgr, dssdev);
+		return r;
+	}
+
+	return 0;
+}
+
+static void dpi_disconnect(struct omap_dss_device *dssdev,
+		struct omap_dss_device *dst)
+{
+	WARN_ON(dst != dssdev->device);
+
+	if (dst != dssdev->device)
+		return;
+
+	omapdss_output_unset_device(dssdev);
+
+	if (dssdev->manager)
+		dss_mgr_disconnect(dssdev->manager, dssdev);
+}
+
+static const struct omapdss_dpi_ops dpi_ops = {
+	.connect = dpi_connect,
+	.disconnect = dpi_disconnect,
+
+	.enable = omapdss_dpi_display_enable,
+	.disable = omapdss_dpi_display_disable,
+
+	.check_timings = dpi_check_timings,
+	.set_timings = omapdss_dpi_set_timings,
+	.get_timings = dpi_get_timings,
+
+	.set_data_lines = omapdss_dpi_set_data_lines,
+};
+
 static void dpi_init_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &dpi.output;
@@ -687,16 +756,17 @@ static void dpi_init_output(struct platform_device *pdev)
 	out->output_type = OMAP_DISPLAY_TYPE_DPI;
 	out->name = "dpi.0";
 	out->dispc_channel = dpi_get_channel();
+	out->ops.dpi = &dpi_ops;
 	out->owner = THIS_MODULE;
 
-	dss_register_output(out);
+	omapdss_register_output(out);
 }
 
 static void __exit dpi_uninit_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &dpi.output;
 
-	dss_unregister_output(out);
+	omapdss_unregister_output(out);
 }
 
 static int omap_dpi_probe(struct platform_device *pdev)

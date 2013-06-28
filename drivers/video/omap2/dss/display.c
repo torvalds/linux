@@ -61,6 +61,7 @@ int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 	case OMAP_DISPLAY_TYPE_VENC:
 	case OMAP_DISPLAY_TYPE_SDI:
 	case OMAP_DISPLAY_TYPE_HDMI:
+	case OMAP_DISPLAY_TYPE_DVI:
 		return 24;
 	default:
 		BUG();

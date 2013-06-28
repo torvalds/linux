@@ -422,7 +422,19 @@ static void wait_pending_extra_info_updates(void)
 
 static struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_manager *mgr)
 {
-	return mgr->output ? mgr->output->device : NULL;
+	struct omap_dss_device *dssdev;
+
+	dssdev = mgr->output;
+	if (dssdev == NULL)
+		return NULL;
+
+	while (dssdev->device)
+		dssdev = dssdev->device;
+
+	if (dssdev->driver)
+		return dssdev;
+	else
+		return NULL;
 }
 
 static struct omap_dss_device *dss_ovl_get_device(struct omap_overlay *ovl)
