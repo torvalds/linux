@@ -344,7 +344,6 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 				__func__, sarb->len, vcc);
 		/* discard cells already received */
 		skb_trim(sarb, 0);
-		UDSL_ASSERT(instance, sarb->tail + ATM_CELL_PAYLOAD <= sarb->end);
 	}
 
 	memcpy(skb_tail_pointer(sarb), source + ATM_CELL_HEADER, ATM_CELL_PAYLOAD);
@@ -437,8 +436,6 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 		unsigned char *cell_buf = instance->cell_buf;
 		unsigned int space_left = stride - buf_usage;
 
-		UDSL_ASSERT(instance, buf_usage <= stride);
-
 		if (avail_data >= space_left) {
 			/* add new data and process cell */
 			memcpy(cell_buf + buf_usage, source, space_left);
@@ -481,7 +478,6 @@ static unsigned int usbatm_write_cells(struct usbatm_data *instance,
 
 	vdbg(&instance->usb_intf->dev, "%s: skb->len=%d, avail_space=%u",
 	     __func__, skb->len, avail_space);
-	UDSL_ASSERT(instance, !(avail_space % stride));
 
 	for (bytes_written = 0; bytes_written < avail_space && ctrl->len;
 	     bytes_written += stride, target += stride) {
@@ -552,8 +548,6 @@ static void usbatm_rx_process(unsigned long data)
 			for (i = 0; i < urb->number_of_packets; i++) {
 				if (!urb->iso_frame_desc[i].status) {
 					unsigned int actual_length = urb->iso_frame_desc[i].actual_length;
-
-					UDSL_ASSERT(instance, actual_length <= packet_size);
 
 					if (!merge_length)
 						merge_start = (unsigned char *)urb->transfer_buffer + urb->iso_frame_desc[i].offset;
@@ -1175,8 +1169,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 			&instance->rx_channel : &instance->tx_channel;
 		struct urb *urb;
 		unsigned int iso_packets = usb_pipeisoc(channel->endpoint) ? channel->buf_size / channel->packet_size : 0;
-
-		UDSL_ASSERT(instance, !usb_pipeisoc(channel->endpoint) || usb_pipein(channel->endpoint));
 
 		urb = usb_alloc_urb(iso_packets, GFP_KERNEL);
 		if (!urb) {
