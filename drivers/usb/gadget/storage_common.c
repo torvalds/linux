@@ -172,7 +172,7 @@ MODULE_PARM_DESC(num_buffers, "Number of pipeline buffers");
  */
 #define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
 
-#endif /* CONFIG_USB_DEBUG */
+#endif /* CONFIG_USB_GADGET_DEBUG_FILES */
 
 /* check if fsg_num_buffers is within a valid range */
 static inline int fsg_num_buffers_validate(void)
