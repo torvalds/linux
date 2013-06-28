@@ -30,7 +30,7 @@ static void __iomem *timer_cpu_base = 0;
 static spinlock_t timer0_spin_lock;
 static DEFINE_SPINLOCK(clksrc_lock);
 
-static cycle_t aw_clksrc_read(struct clocksource *cs)
+cycle_t aw_clksrc_read(struct clocksource *cs)
 {
 	unsigned long flags;
 	u32 lower, upper, temp, cnt = 0x0fffff;
@@ -54,6 +54,7 @@ static cycle_t aw_clksrc_read(struct clocksource *cs)
 //	pr_info("%s(%d)\n", __func__, __LINE__);
 	return (((u64)upper)<<32) | lower;
 }
+EXPORT_SYMBOL(aw_clksrc_read);
 
 static struct clocksource aw_clocksrc =
 {

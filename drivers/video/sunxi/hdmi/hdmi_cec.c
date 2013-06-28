@@ -17,6 +17,7 @@
  * MA 02111-1307 USA
  */
 
+#include <mach/clock.h>
 #include "hdmi_cec.h"
 #include "hdmi_core.h"
 #include "../disp/sunxi_disp_regs.h"
@@ -28,16 +29,6 @@ __u32 cec_phy_addr;
 __u32 cec_logical_addr;
 __u8 cec_count = 30;
 
-static unsigned long long _startTime;
-static unsigned long long hdmi_get_cur_time(void) /* 1/24us */
-{
-	TIME_LATCH();
-	_startTime = (((unsigned long long) readl(_TIME_HIGH)) << 32)
-			| readl(_TIME_LOW);
-
-	return _startTime;
-}
-
 /* return us */
 static __s32 hdmi_time_diff(unsigned long long time_before,
 		unsigned long long time_after)
@@ -45,31 +36,6 @@ static __s32 hdmi_time_diff(unsigned long long time_before,
 	__u32 time_diff = (__u32)(time_after - time_before);
 	return (__u32)(time_diff / 24);
 }
-
-#if 0 /* Not used */
-static __s32 hdmi_start_timer(void)
-{
-	TIME_LATCH();
-	_startTime = (((unsigned long long) readl(_TIME_HIGH)) << 32)
-			| readl(_TIME_LOW);
-
-	return 0;
-}
-
-static unsigned long long _endTime;
-static __u32 hdmi_calc_time(void) /* us */
-{
-	__u32 interval;
-
-	TIME_LATCH();
-	_endTime = (((unsigned long long) readl(_TIME_HIGH)) << 32)
-			| readl(_TIME_LOW);
-	interval = (__u32)(_endTime - _startTime);
-
-	return interval / 24;
-
-}
-#endif
 
 static void hdmi_delay_us(__u32 us)
 {
@@ -85,9 +51,9 @@ static void hdmi_delay_us(__u32 us)
 #else
 	unsigned long long t0, t1;
 	pr_debug("==delay %d\n", us);
-	t1 = t0 = hdmi_get_cur_time();
+	t1 = t0 = aw_clksrc_read(NULL);
 	while (hdmi_time_diff(t0, t1) < us)
-		t1 = hdmi_get_cur_time();
+		t1 = aw_clksrc_read(NULL);
 
 	pr_debug("t0=%d,%d\n", (__u32)(t0>>32), (__u32)t0);
 	pr_debug("t1=%d,%d\n", (__u32)(t1>>32), (__u32)t1);

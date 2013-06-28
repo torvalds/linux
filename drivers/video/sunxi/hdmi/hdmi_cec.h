@@ -19,12 +19,6 @@
 
 #include "drv_hdmi_i.h"
 
-/* For 64 bits high-precision timer === */
-#define _TIME_LOW   (0xf1c20c00 + 0xa4)
-#define _TIME_HIGH  (0xf1c20c00 + 0xa8)
-#define _TIME_CTL   (0xf1c20c00 + 0xa0)
-#define TIME_LATCH()  (writel(readl(_TIME_CTL) | (((__u32)0x1)<<1), _TIME_CTL))
-
 /* time us */
 #define HDMI_CEC_START_BIT_LOW_TIME 3700
 #define HDMI_CEC_START_BIT_WHOLE_TIME 4500

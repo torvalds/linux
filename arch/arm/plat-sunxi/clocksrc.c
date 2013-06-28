@@ -21,8 +21,10 @@
  * MA 02111-1307 USA
  */
 
+#include <mach/clock.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
@@ -43,7 +45,6 @@
     #define CLKSRC_ERR(...)
 #endif
 
-static cycle_t aw_clksrc_read(struct clocksource *cs);
 #ifdef CONFIG_HIGH_RES_TIMERS
 static irqreturn_t aw_clkevt_irq(int irq, void *handle);
 static spinlock_t timer1_spin_lock;
@@ -108,7 +109,7 @@ static struct irqaction aw_clkevt_irqact =
 *
 *********************************************************************************************************
 */
-static cycle_t aw_clksrc_read(struct clocksource *cs)
+cycle_t aw_clksrc_read(struct clocksource *cs)
 {
     unsigned long   flags;
     __u32           lower, upper;
@@ -129,7 +130,7 @@ static cycle_t aw_clksrc_read(struct clocksource *cs)
 
     return (((__u64)upper)<<32) | lower;
 }
-
+EXPORT_SYMBOL(aw_clksrc_read);
 
 /*
 *********************************************************************************************************
