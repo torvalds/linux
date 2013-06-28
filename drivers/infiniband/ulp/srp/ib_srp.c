@@ -1754,6 +1754,8 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 			      SRP_TSK_ABORT_TASK) == 0 ||
 	    target->transport_offline)
 		ret = SUCCESS;
+	else if (target->transport_offline)
+		ret = FAST_IO_FAIL;
 	else
 		ret = FAILED;
 	srp_free_req(target, req, scmnd, 0);
