@@ -132,6 +132,7 @@ obj-$(CONFIG_COMEDI_MITE)		+= mite.o
 obj-$(CONFIG_COMEDI_NI_TIO)		+= ni_tio.o
 obj-$(CONFIG_COMEDI_NI_TIOCMD)		+= ni_tiocmd.o
 obj-$(CONFIG_COMEDI_NI_LABPC)		+= ni_labpc.o
+obj-$(CONFIG_COMEDI_NI_LABPC_ISADMA)	+= ni_labpc_isadma.o
 
 obj-$(CONFIG_COMEDI_8255)		+= 8255.o
 obj-$(CONFIG_COMEDI_AMPLC_DIO200)	+= amplc_dio200_common.o

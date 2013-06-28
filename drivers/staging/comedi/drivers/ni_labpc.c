@@ -71,6 +71,7 @@
 #include "8255.h"
 #include "comedi_fc.h"
 #include "ni_labpc.h"
+#include "ni_labpc_isadma.h"
 
 /*
  * Register map (all registers are 8-bit)
