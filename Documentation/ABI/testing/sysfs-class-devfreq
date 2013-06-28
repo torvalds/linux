@@ -78,3 +78,23 @@ Contact:	Nishanth Menon <nm@ti.com>
 Description:
 		The /sys/class/devfreq/.../available_governors shows
 		currently available governors in the system.
+
+What:		/sys/class/devfreq/.../min_freq
+Date:		January 2013
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/devfreq/.../min_freq shows and stores
+		the minimum frequency requested by users. It is 0 if
+		the user does not care. min_freq overrides the
+		frequency requested by governors.
+
+What:		/sys/class/devfreq/.../max_freq
+Date:		January 2013
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/devfreq/.../max_freq shows and stores
+		the maximum frequency requested by users. It is 0 if
+		the user does not care. max_freq overrides the
+		frequency requested by governors and min_freq.
+		The max_freq overrides min_freq because max_freq may be
+		used to throttle devices to avoid overheating.
