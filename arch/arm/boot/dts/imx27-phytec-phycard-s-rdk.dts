@@ -1,0 +1,62 @@
+/*
+ * Copyright 2012 Markus Pargmann, Pengutronix
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include "imx27-phytec-phycard-s-som.dts"
+
+/ {
+	model = "Phytec pca100 rapid development kit";
+	compatible = "phytec,imx27-pca100-rdk", "phytec,imx27-pca100", "fsl,imx27";
+
+	display: display {
+		model = "Primeview-PD050VL1";
+		native-mode = <&timing0>;
+		bits-per-pixel = <16>;  /* non-standard but required */
+		fsl,pcr = <0xf0c88080>;	/* non-standard but required */
+		display-timings {
+			timing0: 640x480 {
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <112>;
+				hfront-porch = <36>;
+				hsync-len = <32>;
+				vback-porch = <33>;
+				vfront-porch = <33>;
+				vsync-len = <2>;
+				clock-frequency = <25000000>;
+			};
+		};
+	};
+};
+
+&fb {
+	display = <&display>;
+	status = "okay";
+};
+
+&sdhci2 {
+	cd-gpios = <&gpio3 29 0>;
+	status = "okay";
+};
+
+&uart1 {
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&uart2 {
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&uart3 {
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
