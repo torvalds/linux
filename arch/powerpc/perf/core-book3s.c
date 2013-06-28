@@ -919,12 +919,13 @@ static void power_pmu_enable(struct pmu *pmu)
 
 	if (!ppmu)
 		return;
+
 	local_irq_save(flags);
+
 	cpuhw = &__get_cpu_var(cpu_hw_events);
-	if (!cpuhw->disabled) {
-		local_irq_restore(flags);
-		return;
-	}
+	if (!cpuhw->disabled)
+		goto out;
+
 	cpuhw->disabled = 0;
 
 	/*
