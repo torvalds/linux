@@ -71,6 +71,9 @@ void vpa_init(int cpu)
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		lppaca_of(cpu).vmxregs_in_use = 1;
 
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		lppaca_of(cpu).ebb_regs_in_use = 1;
+
 	addr = __pa(&lppaca_of(cpu));
 	ret = register_vpa(hwcpu, addr);
 
