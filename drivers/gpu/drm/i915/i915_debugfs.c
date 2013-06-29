@@ -647,41 +647,44 @@ static const char *purgeable_flag(int purgeable)
 	return purgeable ? " purgeable" : "";
 }
 
-static void i915_error_vprintf(struct drm_i915_error_state_buf *e,
-			       const char *f, va_list args)
+static bool __i915_error_ok(struct drm_i915_error_state_buf *e)
 {
-	unsigned len;
 
 	if (!e->err && WARN(e->bytes > (e->size - 1), "overflow")) {
 		e->err = -ENOSPC;
-		return;
+		return false;
 	}
 
 	if (e->bytes == e->size - 1 || e->err)
-		return;
+		return false;
 
-	/* Seek the first printf which is hits start position */
-	if (e->pos < e->start) {
-		len = vsnprintf(NULL, 0, f, args);
-		if (e->pos + len <= e->start) {
-			e->pos += len;
-			return;
-		}
+	return true;
+}
 
-		/* First vsnprintf needs to fit in full for memmove*/
-		if (len >= e->size) {
-			e->err = -EIO;
-			return;
-		}
+static bool __i915_error_seek(struct drm_i915_error_state_buf *e,
+			      unsigned len)
+{
+	if (e->pos + len <= e->start) {
+		e->pos += len;
+		return false;
 	}
 
-	len = vsnprintf(e->buf + e->bytes, e->size - e->bytes, f, args);
-	if (len >= e->size - e->bytes)
-		len = e->size - e->bytes - 1;
+	/* First vsnprintf needs to fit in its entirety for memmove */
+	if (len >= e->size) {
+		e->err = -EIO;
+		return false;
+	}
 
+	return true;
+}
+
+static void __i915_error_advance(struct drm_i915_error_state_buf *e,
+				 unsigned len)
+{
 	/* If this is first printf in this window, adjust it so that
 	 * start position matches start of the buffer
 	 */
+
 	if (e->pos < e->start) {
 		const size_t off = e->start - e->pos;
 
@@ -701,6 +704,51 @@ static void i915_error_vprintf(struct drm_i915_error_state_buf *e,
 	e->pos += len;
 }
 
+static void i915_error_vprintf(struct drm_i915_error_state_buf *e,
+			       const char *f, va_list args)
+{
+	unsigned len;
+
+	if (!__i915_error_ok(e))
+		return;
+
+	/* Seek the first printf which is hits start position */
+	if (e->pos < e->start) {
+		len = vsnprintf(NULL, 0, f, args);
+		if (!__i915_error_seek(e, len))
+			return;
+	}
+
+	len = vsnprintf(e->buf + e->bytes, e->size - e->bytes, f, args);
+	if (len >= e->size - e->bytes)
+		len = e->size - e->bytes - 1;
+
+	__i915_error_advance(e, len);
+}
+
+static void i915_error_puts(struct drm_i915_error_state_buf *e,
+			    const char *str)
+{
+	unsigned len;
+
+	if (!__i915_error_ok(e))
+		return;
+
+	len = strlen(str);
+
+	/* Seek the first printf which is hits start position */
+	if (e->pos < e->start) {
+		if (!__i915_error_seek(e, len))
+			return;
+	}
+
+	if (len >= e->size - e->bytes)
+		len = e->size - e->bytes - 1;
+	memcpy(e->buf + e->bytes, str, len);
+
+	__i915_error_advance(e, len);
+}
+
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
 {
 	va_list args;
@@ -711,6 +759,7 @@ void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
 }
 
 #define err_printf(e, ...) i915_error_printf(e, __VA_ARGS__)
+#define err_puts(e, s) i915_error_puts(e, s)
 
 static void print_error_buffers(struct drm_i915_error_state_buf *m,
 				const char *name,
@@ -720,26 +769,26 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 	err_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
-		err_printf(m, "  %08x %8u %02x %02x %x %x%s%s%s%s%s%s%s",
+		err_printf(m, "  %08x %8u %02x %02x %x %x",
 			   err->gtt_offset,
 			   err->size,
 			   err->read_domains,
 			   err->write_domain,
-			   err->rseqno, err->wseqno,
-			   pin_flag(err->pinned),
-			   tiling_flag(err->tiling),
-			   dirty_flag(err->dirty),
-			   purgeable_flag(err->purgeable),
-			   err->ring != -1 ? " " : "",
-			   ring_str(err->ring),
-			   cache_level_str(err->cache_level));
+			   err->rseqno, err->wseqno);
+		err_puts(m, pin_flag(err->pinned));
+		err_puts(m, tiling_flag(err->tiling));
+		err_puts(m, dirty_flag(err->dirty));
+		err_puts(m, purgeable_flag(err->purgeable));
+		err_puts(m, err->ring != -1 ? " " : "");
+		err_puts(m, ring_str(err->ring));
+		err_puts(m, cache_level_str(err->cache_level));
 
 		if (err->name)
 			err_printf(m, " (name: %d)", err->name);
 		if (err->fence_reg != I915_FENCE_REG_NONE)
 			err_printf(m, " (fence: %d)", err->fence_reg);
 
-		err_printf(m, "\n");
+		err_puts(m, "\n");
 		err++;
 	}
 }
