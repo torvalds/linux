@@ -190,9 +190,7 @@ static int max77693_pmic_dt_parse_rdata(struct device *dev,
 
 	tmp = *rdata;
 
-	for (i = 0; i < ARRAY_SIZE(regulators); i++) {
-		if (!rmatch[i].init_data)
-			continue;
+	for (i = 0; i < matched; i++) {
 		tmp->initdata = rmatch[i].init_data;
 		tmp->of_node = rmatch[i].of_node;
 		tmp->id = regulators[i].id;
