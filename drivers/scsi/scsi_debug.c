@@ -2064,6 +2064,11 @@ static void unmap_region(sector_t lba, unsigned int len)
 				       scsi_debug_sector_size *
 				       scsi_debug_unmap_granularity);
 			}
+			if (dif_storep) {
+				memset(dif_storep + lba, 0xff,
+				       sizeof(*dif_storep) *
+				       scsi_debug_unmap_granularity);
+			}
 		}
 		lba = map_index_to_lba(index + 1);
 	}
