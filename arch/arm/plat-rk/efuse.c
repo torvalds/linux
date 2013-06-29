@@ -12,7 +12,7 @@
 #include <linux/spinlock.h>
 #include <plat/efuse.h>
 
-#if defined(CONFIG_ARCH_RK3188)
+#if defined(CONFIG_ARCH_RK3188) || defined(CONFIG_SOC_RK3028)
 #define efuse_readl(offset)		readl_relaxed(RK30_EFUSE_BASE + offset)
 #define efuse_writel(val, offset)	writel_relaxed(val, RK30_EFUSE_BASE + offset)
 #endif
