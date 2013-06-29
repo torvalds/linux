@@ -97,7 +97,7 @@ static int max77693_chg_set_current_limit(struct regulator_dev *rdev,
 	while (chg_min_uA + CHGIN_ILIM_STEP_20mA * sel < min_uA)
 		sel++;
 
-	if (chg_min_uA * CHGIN_ILIM_STEP_20mA * sel > max_uA)
+	if (chg_min_uA + CHGIN_ILIM_STEP_20mA * sel > max_uA)
 		return -EINVAL;
 
 	/* the first four codes for charger current are all 60mA */
