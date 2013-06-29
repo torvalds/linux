@@ -3050,6 +3050,8 @@ static void __init rk30_init_enable_clocks(void)
 		clk_enable_nolock(&clk_aclk_lcdc1);
 		clk_enable_nolock(&aclk_lcdc0_pre);
 		clk_enable_nolock(&aclk_lcdc1_pre);
+		clk_enable_nolock(&pd_lcdc0);
+		clk_enable_nolock(&pd_lcdc1);
 	}
 	#if 0
 	 clk_enable_nolock(&clk_gpu);
