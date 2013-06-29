@@ -1899,7 +1899,7 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 		daddr = kmap_atomic(sg_page(dsgl)) + dsgl->offset;
 
 		/* For each sector-sized chunk in data page */
-		for (j = 0 ; j < dsgl->length ; j += scsi_debug_sector_size) {
+		for (j = 0; j < dsgl->length; j += scsi_debug_sector_size) {
 
 			/* If we're at the end of the current
 			 * protection page advance to the next one
@@ -1917,11 +1917,11 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 
 			switch (scsi_debug_guard) {
 			case 1:
-				csum = ip_compute_csum(daddr,
+				csum = ip_compute_csum(daddr + j,
 						       scsi_debug_sector_size);
 				break;
 			case 0:
-				csum = cpu_to_be16(crc_t10dif(daddr,
+				csum = cpu_to_be16(crc_t10dif(daddr + j,
 						      scsi_debug_sector_size));
 				break;
 			default:
@@ -1938,7 +1938,7 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 				       be16_to_cpu(sdt->guard_tag),
 				       be16_to_cpu(csum));
 				ret = 0x01;
-				dump_sector(daddr, scsi_debug_sector_size);
+				dump_sector(daddr + j, scsi_debug_sector_size);
 				goto out;
 			}
 
@@ -1949,7 +1949,7 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 				       "%s: REF check failed on sector %lu\n",
 				       __func__, (unsigned long)sector);
 				ret = 0x03;
-				dump_sector(daddr, scsi_debug_sector_size);
+				dump_sector(daddr + j, scsi_debug_sector_size);
 				goto out;
 			}
 
@@ -1959,7 +1959,7 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 				       "%s: REF check failed on sector %lu\n",
 				       __func__, (unsigned long)sector);
 				ret = 0x03;
-				dump_sector(daddr, scsi_debug_sector_size);
+				dump_sector(daddr + j, scsi_debug_sector_size);
 				goto out;
 			}
 
@@ -1977,7 +1977,6 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 
 			start_sec++;
 			ei_lba++;
-			daddr += scsi_debug_sector_size;
 			ppage_offset += sizeof(struct sd_dif_tuple);
 		}
 
