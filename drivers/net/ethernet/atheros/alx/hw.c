@@ -624,12 +624,12 @@ void alx_start_mac(struct alx_hw *hw)
 	alx_write_mem32(hw, ALX_TXQ0, txq | ALX_TXQ0_EN);
 
 	mac = hw->rx_ctrl;
-	if (hw->link_speed % 10 == DUPLEX_FULL)
+	if (hw->duplex == DUPLEX_FULL)
 		mac |= ALX_MAC_CTRL_FULLD;
 	else
 		mac &= ~ALX_MAC_CTRL_FULLD;
 	ALX_SET_FIELD(mac, ALX_MAC_CTRL_SPEED,
-		      hw->link_speed >= SPEED_1000 ? ALX_MAC_CTRL_SPEED_1000 :
+		      hw->link_speed == SPEED_1000 ? ALX_MAC_CTRL_SPEED_1000 :
 						     ALX_MAC_CTRL_SPEED_10_100);
 	mac |= ALX_MAC_CTRL_TX_EN | ALX_MAC_CTRL_RX_EN;
 	hw->rx_ctrl = mac;
@@ -790,28 +790,22 @@ void alx_post_phy_link(struct alx_hw *hw)
 	u16 phy_val, len, agc;
 	u8 revid = alx_hw_revision(hw);
 	bool adj_th = revid == ALX_REV_B0;
-	int speed;
-
-	if (hw->link_speed == SPEED_UNKNOWN)
-		speed = SPEED_UNKNOWN;
-	else
-		speed = hw->link_speed - hw->link_speed % 10;
 
 	if (revid != ALX_REV_B0 && !alx_is_rev_a(revid))
 		return;
 
 	/* 1000BT/AZ, wrong cable length */
-	if (speed != SPEED_UNKNOWN) {
+	if (hw->link_speed != SPEED_UNKNOWN) {
 		alx_read_phy_ext(hw, ALX_MIIEXT_PCS, ALX_MIIEXT_CLDCTRL6,
 				 &phy_val);
 		len = ALX_GET_FIELD(phy_val, ALX_CLDCTRL6_CAB_LEN);
 		alx_read_phy_dbg(hw, ALX_MIIDBG_AGC, &phy_val);
 		agc = ALX_GET_FIELD(phy_val, ALX_AGC_2_VGA);
 
-		if ((speed == SPEED_1000 &&
+		if ((hw->link_speed == SPEED_1000 &&
 		     (len > ALX_CLDCTRL6_CAB_LEN_SHORT1G ||
 		      (len == 0 && agc > ALX_AGC_LONG1G_LIMT))) ||
-		    (speed == SPEED_100 &&
+		    (hw->link_speed == SPEED_100 &&
 		     (len > ALX_CLDCTRL6_CAB_LEN_SHORT100M ||
 		      (len == 0 && agc > ALX_AGC_LONG100M_LIMT)))) {
 			alx_write_phy_dbg(hw, ALX_MIIDBG_AZ_ANADECT,
@@ -831,10 +825,10 @@ void alx_post_phy_link(struct alx_hw *hw)
 
 		/* threshold adjust */
 		if (adj_th && hw->lnk_patch) {
-			if (speed == SPEED_100) {
+			if (hw->link_speed == SPEED_100) {
 				alx_write_phy_dbg(hw, ALX_MIIDBG_MSE16DB,
 						  ALX_MSE16DB_UP);
-			} else if (speed == SPEED_1000) {
+			} else if (hw->link_speed == SPEED_1000) {
 				/*
 				 * Giga link threshold, raise the tolerance of
 				 * noise 50%
@@ -869,7 +863,7 @@ void alx_post_phy_link(struct alx_hw *hw)
  *    1. phy link must be established before calling this function
  *    2. wol option (pattern,magic,link,etc.) is configed before call it.
  */
-int alx_pre_suspend(struct alx_hw *hw, int speed)
+int alx_pre_suspend(struct alx_hw *hw, int speed, u8 duplex)
 {
 	u32 master, mac, phy, val;
 	int err = 0;
@@ -897,9 +891,9 @@ int alx_pre_suspend(struct alx_hw *hw, int speed)
 			mac |= ALX_MAC_CTRL_RX_EN | ALX_MAC_CTRL_BRD_EN;
 		if (hw->sleep_ctrl & ALX_SLEEP_CIFS)
 			mac |= ALX_MAC_CTRL_TX_EN;
-		if (speed % 10 == DUPLEX_FULL)
+		if (duplex == DUPLEX_FULL)
 			mac |= ALX_MAC_CTRL_FULLD;
-		if (speed >= SPEED_1000)
+		if (speed == SPEED_1000)
 			ALX_SET_FIELD(mac, ALX_MAC_CTRL_SPEED,
 				      ALX_MAC_CTRL_SPEED_1000);
 		phy |= ALX_PHY_CTRL_DSPRST_OUT;
@@ -938,7 +932,7 @@ bool alx_phy_configured(struct alx_hw *hw)
 	return cfg == hw_cfg;
 }
 
-int alx_get_phy_link(struct alx_hw *hw, int *speed)
+int alx_read_phy_link(struct alx_hw *hw)
 {
 	struct pci_dev *pdev = hw->pdev;
 	u16 bmsr, giga;
@@ -953,7 +947,8 @@ int alx_get_phy_link(struct alx_hw *hw, int *speed)
 		return err;
 
 	if (!(bmsr & BMSR_LSTATUS)) {
-		*speed = SPEED_UNKNOWN;
+		hw->link_speed = SPEED_UNKNOWN;
+		hw->duplex = DUPLEX_UNKNOWN;
 		return 0;
 	}
 
@@ -967,20 +962,20 @@ int alx_get_phy_link(struct alx_hw *hw, int *speed)
 
 	switch (giga & ALX_GIGA_PSSR_SPEED) {
 	case ALX_GIGA_PSSR_1000MBS:
-		*speed = SPEED_1000;
+		hw->link_speed = SPEED_1000;
 		break;
 	case ALX_GIGA_PSSR_100MBS:
-		*speed = SPEED_100;
+		hw->link_speed = SPEED_100;
 		break;
 	case ALX_GIGA_PSSR_10MBS:
-		*speed = SPEED_10;
+		hw->link_speed = SPEED_10;
 		break;
 	default:
 		goto wrong_speed;
 	}
 
-	*speed += (giga & ALX_GIGA_PSSR_DPLX) ? DUPLEX_FULL : DUPLEX_HALF;
-	return 1;
+	hw->duplex = (giga & ALX_GIGA_PSSR_DPLX) ? DUPLEX_FULL : DUPLEX_HALF;
+	return 0;
 
 wrong_speed:
 	dev_err(&pdev->dev, "invalid PHY speed/duplex: 0x%x\n", giga);
@@ -1126,81 +1121,67 @@ void alx_configure_basic(struct alx_hw *hw)
 	alx_write_mem32(hw, ALX_WRR, val);
 }
 
-static inline u32 alx_speed_to_ethadv(int speed)
+int alx_select_powersaving_speed(struct alx_hw *hw, int *speed, u8 *duplex)
 {
-	switch (speed) {
-	case SPEED_1000 + DUPLEX_FULL:
-		return ADVERTISED_1000baseT_Full;
-	case SPEED_100 + DUPLEX_FULL:
-		return ADVERTISED_100baseT_Full;
-	case SPEED_100 + DUPLEX_HALF:
-		return ADVERTISED_100baseT_Half;
-	case SPEED_10 + DUPLEX_FULL:
-		return ADVERTISED_10baseT_Full;
-	case SPEED_10 + DUPLEX_HALF:
-		return ADVERTISED_10baseT_Half;
-	default:
-		return 0;
-	}
-}
-
-int alx_select_powersaving_speed(struct alx_hw *hw, int *speed)
-{
-	int i, err, spd;
+	int i, err;
 	u16 lpa;
 
-	err = alx_get_phy_link(hw, &spd);
-	if (err < 0)
+	err = alx_read_phy_link(hw);
+	if (err)
 		return err;
 
-	if (spd == SPEED_UNKNOWN)
+	if (hw->link_speed == SPEED_UNKNOWN) {
+		*speed = SPEED_UNKNOWN;
+		*duplex = DUPLEX_UNKNOWN;
 		return 0;
+	}
 
 	err = alx_read_phy_reg(hw, MII_LPA, &lpa);
 	if (err)
 		return err;
 
 	if (!(lpa & LPA_LPACK)) {
-		*speed = spd;
+		*speed = hw->link_speed;
 		return 0;
 	}
 
-	if (lpa & LPA_10FULL)
-		*speed = SPEED_10 + DUPLEX_FULL;
-	else if (lpa & LPA_10HALF)
-		*speed = SPEED_10 + DUPLEX_HALF;
-	else if (lpa & LPA_100FULL)
-		*speed = SPEED_100 + DUPLEX_FULL;
-	else
-		*speed = SPEED_100 + DUPLEX_HALF;
-
-	if (*speed != spd) {
-		err = alx_write_phy_reg(hw, ALX_MII_IER, 0);
-		if (err)
-			return err;
-		err = alx_setup_speed_duplex(hw,
-					     alx_speed_to_ethadv(*speed) |
-					     ADVERTISED_Autoneg,
-					     ALX_FC_ANEG | ALX_FC_RX |
-					     ALX_FC_TX);
-		if (err)
-			return err;
-
-		/* wait for linkup */
-		for (i = 0; i < ALX_MAX_SETUP_LNK_CYCLE; i++) {
-			int speed2;
-
-			msleep(100);
-
-			err = alx_get_phy_link(hw, &speed2);
-			if (err < 0)
-				return err;
-			if (speed2 != SPEED_UNKNOWN)
-				break;
-		}
-		if (i == ALX_MAX_SETUP_LNK_CYCLE)
-			return -ETIMEDOUT;
+	if (lpa & LPA_10FULL) {
+		*speed = SPEED_10;
+		*duplex = DUPLEX_FULL;
+	} else if (lpa & LPA_10HALF) {
+		*speed = SPEED_10;
+		*duplex = DUPLEX_HALF;
+	} else if (lpa & LPA_100FULL) {
+		*speed = SPEED_100;
+		*duplex = DUPLEX_FULL;
+	} else {
+		*speed = SPEED_100;
+		*duplex = DUPLEX_HALF;
 	}
+
+	if (*speed == hw->link_speed && *duplex == hw->duplex)
+		return 0;
+	err = alx_write_phy_reg(hw, ALX_MII_IER, 0);
+	if (err)
+		return err;
+	err = alx_setup_speed_duplex(hw, alx_speed_to_ethadv(*speed, *duplex) |
+					 ADVERTISED_Autoneg, ALX_FC_ANEG |
+					 ALX_FC_RX | ALX_FC_TX);
+	if (err)
+		return err;
+
+	/* wait for linkup */
+	for (i = 0; i < ALX_MAX_SETUP_LNK_CYCLE; i++) {
+		msleep(100);
+
+		err = alx_read_phy_link(hw);
+		if (err < 0)
+			return err;
+		if (hw->link_speed != SPEED_UNKNOWN)
+			break;
+	}
+	if (i == ALX_MAX_SETUP_LNK_CYCLE)
+		return -ETIMEDOUT;
 
 	return 0;
 }

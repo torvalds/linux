@@ -85,14 +85,8 @@ static int alx_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		}
 	}
 
-	if (hw->link_speed != SPEED_UNKNOWN) {
-		ethtool_cmd_speed_set(ecmd,
-				      hw->link_speed - hw->link_speed % 10);
-		ecmd->duplex = hw->link_speed % 10;
-	} else {
-		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
-		ecmd->duplex = DUPLEX_UNKNOWN;
-	}
+	ethtool_cmd_speed_set(ecmd, hw->link_speed);
+	ecmd->duplex = hw->duplex;
 
 	return 0;
 }
@@ -110,24 +104,11 @@ static int alx_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			return -EINVAL;
 		adv_cfg = ecmd->advertising | ADVERTISED_Autoneg;
 	} else {
-		int speed = ethtool_cmd_speed(ecmd);
+		adv_cfg = alx_speed_to_ethadv(ethtool_cmd_speed(ecmd),
+					      ecmd->duplex);
 
-		switch (speed + ecmd->duplex) {
-		case SPEED_10 + DUPLEX_HALF:
-			adv_cfg = ADVERTISED_10baseT_Half;
-			break;
-		case SPEED_10 + DUPLEX_FULL:
-			adv_cfg = ADVERTISED_10baseT_Full;
-			break;
-		case SPEED_100 + DUPLEX_HALF:
-			adv_cfg = ADVERTISED_100baseT_Half;
-			break;
-		case SPEED_100 + DUPLEX_FULL:
-			adv_cfg = ADVERTISED_100baseT_Full;
-			break;
-		default:
+		if (!adv_cfg || adv_cfg == ADVERTISED_1000baseT_Full)
 			return -EINVAL;
-		}
 	}
 
 	hw->adv_cfg = adv_cfg;
