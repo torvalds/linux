@@ -4684,11 +4684,11 @@ static void e1000_phy_read_status(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_phy_regs *phy = &adapter->phy_regs;
 
-	if ((er32(STATUS) & E1000_STATUS_LU) &&
+	if (!pm_runtime_suspended((&adapter->pdev->dev)->parent) &&
+	    (er32(STATUS) & E1000_STATUS_LU) &&
 	    (adapter->hw.phy.media_type == e1000_media_type_copper)) {
 		int ret_val;
 
-		pm_runtime_get_sync(&adapter->pdev->dev);
 		ret_val = e1e_rphy(hw, MII_BMCR, &phy->bmcr);
 		ret_val |= e1e_rphy(hw, MII_BMSR, &phy->bmsr);
 		ret_val |= e1e_rphy(hw, MII_ADVERTISE, &phy->advertise);
@@ -4699,7 +4699,6 @@ static void e1000_phy_read_status(struct e1000_adapter *adapter)
 		ret_val |= e1e_rphy(hw, MII_ESTATUS, &phy->estatus);
 		if (ret_val)
 			e_warn("Error reading PHY register\n");
-		pm_runtime_put_sync(&adapter->pdev->dev);
 	} else {
 		/* Do not read PHY registers if link is not up
 		 * Set values to typical power-on defaults
