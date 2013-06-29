@@ -1087,6 +1087,25 @@ i915_wait_seqno(struct intel_ring_buffer *ring, uint32_t seqno)
 			    interruptible, NULL);
 }
 
+static int
+i915_gem_object_wait_rendering__tail(struct drm_i915_gem_object *obj,
+				     struct intel_ring_buffer *ring)
+{
+	i915_gem_retire_requests_ring(ring);
+
+	/* Manually manage the write flush as we may have not yet
+	 * retired the buffer.
+	 *
+	 * Note that the last_write_seqno is always the earlier of
+	 * the two (read/write) seqno, so if we haved successfully waited,
+	 * we know we have passed the last write.
+	 */
+	obj->last_write_seqno = 0;
+	obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
+
+	return 0;
+}
+
 /**
  * Ensures that all rendering to the object has completed and the object is
  * safe to unbind from the GTT or access from the CPU.
@@ -1107,18 +1126,7 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	i915_gem_retire_requests_ring(ring);
-
-	/* Manually manage the write flush as we may have not yet
-	 * retired the buffer.
-	 */
-	if (obj->last_write_seqno &&
-	    i915_seqno_passed(seqno, obj->last_write_seqno)) {
-		obj->last_write_seqno = 0;
-		obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
-	}
-
-	return 0;
+	return i915_gem_object_wait_rendering__tail(obj, ring);
 }
 
 /* A nonblocking variant of the above wait. This is a highly dangerous routine
@@ -1154,20 +1162,10 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	mutex_unlock(&dev->struct_mutex);
 	ret = __wait_seqno(ring, seqno, reset_counter, true, NULL);
 	mutex_lock(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
-	i915_gem_retire_requests_ring(ring);
-
-	/* Manually manage the write flush as we may have not yet
-	 * retired the buffer.
-	 */
-	if (ret == 0 &&
-	    obj->last_write_seqno &&
-	    i915_seqno_passed(seqno, obj->last_write_seqno)) {
-		obj->last_write_seqno = 0;
-		obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
-	}
-
-	return ret;
+	return i915_gem_object_wait_rendering__tail(obj, ring);
 }
 
 /**
