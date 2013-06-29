@@ -1042,6 +1042,7 @@ static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status)
 		}
 	}
 
+	OMAP_HSMMC_WRITE(host->base, STAT, status);
 	if (end_cmd || ((status & CC_EN) && host->cmd))
 		omap_hsmmc_cmd_done(host, host->cmd);
 	if ((end_trans || (status & TC_EN)) && host->mrq)
@@ -1061,7 +1062,6 @@ static irqreturn_t omap_hsmmc_irq(int irq, void *dev_id)
 		omap_hsmmc_do_irq(host, status);
 
 		/* Flush posted write */
-		OMAP_HSMMC_WRITE(host->base, STAT, status);
 		status = OMAP_HSMMC_READ(host->base, STAT);
 	}
 
