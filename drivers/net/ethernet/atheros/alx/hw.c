@@ -282,8 +282,8 @@ static bool alx_read_macaddr(struct alx_hw *hw, u8 *addr)
 	mac1 = alx_read_mem32(hw, ALX_STAD1);
 
 	/* addr should be big-endian */
-	*(__be32 *)(addr + 2) = cpu_to_be32(mac0);
-	*(__be16 *)addr = cpu_to_be16(mac1);
+	put_unaligned(cpu_to_be32(mac0), (__be32 *)(addr + 2));
+	put_unaligned(cpu_to_be16(mac1), (__be16 *)addr);
 
 	return is_valid_ether_addr(addr);
 }
@@ -326,9 +326,9 @@ void alx_set_macaddr(struct alx_hw *hw, const u8 *addr)
 	u32 val;
 
 	/* for example: 00-0B-6A-F6-00-DC * STAD0=6AF600DC, STAD1=000B */
-	val = be32_to_cpu(*(__be32 *)(addr + 2));
+	val = be32_to_cpu(get_unaligned((__be32 *)(addr + 2)));
 	alx_write_mem32(hw, ALX_STAD0, val);
-	val = be16_to_cpu(*(__be16 *)addr);
+	val = be16_to_cpu(get_unaligned((__be16 *)addr));
 	alx_write_mem32(hw, ALX_STAD1, val);
 }
 
