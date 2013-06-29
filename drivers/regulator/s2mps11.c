@@ -36,11 +36,6 @@ struct s2mps11_info {
 	int ramp_delay16;
 	int ramp_delay7810;
 	int ramp_delay9;
-
-	bool buck6_ramp;
-	bool buck2_ramp;
-	bool buck3_ramp;
-	bool buck4_ramp;
 };
 
 static int get_ramp_delay(int ramp_delay)
@@ -68,26 +63,18 @@ static int s2mps11_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 
 	switch (rdev->desc->id) {
 	case S2MPS11_BUCK2:
-		if (!s2mps11->buck2_ramp)
-			return 0;
 		ramp_delay = s2mps11->ramp_delay2;
 		break;
 	case S2MPS11_BUCK3:
-		if (!s2mps11->buck3_ramp)
-			return 0;
 		ramp_delay = s2mps11->ramp_delay34;
 		break;
 	case S2MPS11_BUCK4:
-		if (!s2mps11->buck4_ramp)
-			return 0;
 		ramp_delay = s2mps11->ramp_delay34;
 		break;
 	case S2MPS11_BUCK5:
 		ramp_delay = s2mps11->ramp_delay5;
 		break;
 	case S2MPS11_BUCK6:
-		if (!s2mps11->buck6_ramp)
-			return 0;
 	case S2MPS11_BUCK1:
 		ramp_delay = s2mps11->ramp_delay16;
 		break;
@@ -416,15 +403,21 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	struct s2mps11_info *s2mps11;
 	int i, ret;
-	unsigned char ramp_enable, ramp_reg = 0;
 
 	s2mps11 = devm_kzalloc(&pdev->dev, sizeof(struct s2mps11_info),
 				GFP_KERNEL);
 	if (!s2mps11)
 		return -ENOMEM;
 
-	if (!iodev->dev->of_node)
-		goto p_data;
+	if (!iodev->dev->of_node) {
+		if (pdata) {
+			goto common_reg;
+		} else {
+			dev_err(pdev->dev.parent,
+				"Platform data or DT node not supplied\n");
+			return -ENODEV;
+		}
+	}
 
 	for (i = 0; i < S2MPS11_REGULATOR_CNT; i++)
 		rdata[i].name = regulators[i].name;
@@ -436,43 +429,6 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	}
 
 	of_regulator_match(&pdev->dev, reg_np, rdata, S2MPS11_REGULATOR_MAX);
-
-	goto common_reg;
-p_data:
-	if (!pdata) {
-		dev_err(pdev->dev.parent, "Platform data not supplied\n");
-		return -ENODEV;
-	}
-
-	s2mps11->ramp_delay2 = pdata->buck2_ramp_delay;
-	s2mps11->ramp_delay34 = pdata->buck34_ramp_delay;
-	s2mps11->ramp_delay5 = pdata->buck5_ramp_delay;
-	s2mps11->ramp_delay16 = pdata->buck16_ramp_delay;
-	s2mps11->ramp_delay7810 = pdata->buck7810_ramp_delay;
-	s2mps11->ramp_delay9 = pdata->buck9_ramp_delay;
-
-	s2mps11->buck6_ramp = pdata->buck6_ramp_enable;
-	s2mps11->buck2_ramp = pdata->buck2_ramp_enable;
-	s2mps11->buck3_ramp = pdata->buck3_ramp_enable;
-	s2mps11->buck4_ramp = pdata->buck4_ramp_enable;
-
-	ramp_enable = (s2mps11->buck2_ramp << 3) | (s2mps11->buck3_ramp << 2) |
-		(s2mps11->buck4_ramp << 1) | s2mps11->buck6_ramp ;
-
-	if (ramp_enable) {
-		if (s2mps11->buck2_ramp)
-			ramp_reg |= get_ramp_delay(s2mps11->ramp_delay2) << 6;
-		if (s2mps11->buck3_ramp || s2mps11->buck4_ramp)
-			ramp_reg |= get_ramp_delay(s2mps11->ramp_delay34) << 4;
-		sec_reg_write(iodev, S2MPS11_REG_RAMP, ramp_reg | ramp_enable);
-	}
-
-	ramp_reg &= 0x00;
-	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay5) << 6;
-	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay16) << 4;
-	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay7810) << 2;
-	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay9);
-	sec_reg_write(iodev, S2MPS11_REG_RAMP_BUCK, ramp_reg);
 
 common_reg:
 	platform_set_drvdata(pdev, s2mps11);
