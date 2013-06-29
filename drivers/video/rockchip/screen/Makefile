@@ -65,7 +65,7 @@ obj-$(CONFIG_LCD_LD089WU1_MIPI)   += lcd_LD089WU1_mipi.o
 
 
 quiet_cmd_gen = GEN     $@
-      cmd_gen = cp -a $< $@
+      cmd_gen = cmp -s $< $@ || cp $< $@
 
 lcd-obj := $(filter lcd_%.o,$(obj-y))
 lcd-cfile := $(patsubst %.o,%.c,$(lcd-obj))
