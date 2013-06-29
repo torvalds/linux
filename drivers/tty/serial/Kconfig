@@ -291,9 +291,9 @@ config SERIAL_MAX3100
 
 config SERIAL_MAX310X
 	bool "MAX310X support"
-	depends on SPI
+	depends on SPI_MASTER
 	select SERIAL_CORE
-	select REGMAP_SPI if SPI
+	select REGMAP_SPI if SPI_MASTER
 	default n
 	help
 	  This selects support for an advanced UART from Maxim (Dallas).
