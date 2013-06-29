@@ -108,8 +108,9 @@ static int __init weim_probe(struct platform_device *pdev)
 
 static struct platform_driver weim_driver = {
 	.driver = {
-		.name = "imx-weim",
-		.of_match_table = weim_id_table,
+		.name		= "imx-weim",
+		.owner		= THIS_MODULE,
+		.of_match_table	= weim_id_table,
 	},
 };
 module_platform_driver_probe(weim_driver, weim_probe);
