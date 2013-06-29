@@ -16,12 +16,16 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/mfd/samsung/core.h>
 #include <linux/mfd/samsung/s2mps11.h>
+
+#define S2MPS11_REGULATOR_CNT ARRAY_SIZE(regulators)
 
 struct s2mps11_info {
 	struct regulator_dev *rdev[S2MPS11_REGULATOR_MAX];
@@ -407,22 +411,38 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct sec_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct of_regulator_match rdata[S2MPS11_REGULATOR_MAX];
+	struct device_node *reg_np = NULL;
 	struct regulator_config config = { };
 	struct s2mps11_info *s2mps11;
 	int i, ret;
 	unsigned char ramp_enable, ramp_reg = 0;
-
-	if (!pdata) {
-		dev_err(pdev->dev.parent, "Platform data not supplied\n");
-		return -ENODEV;
-	}
 
 	s2mps11 = devm_kzalloc(&pdev->dev, sizeof(struct s2mps11_info),
 				GFP_KERNEL);
 	if (!s2mps11)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, s2mps11);
+	if (!iodev->dev->of_node)
+		goto p_data;
+
+	for (i = 0; i < S2MPS11_REGULATOR_CNT; i++)
+		rdata[i].name = regulators[i].name;
+
+	reg_np = of_find_node_by_name(iodev->dev->of_node, "regulators");
+	if (!reg_np) {
+		dev_err(&pdev->dev, "could not find regulators sub-node\n");
+		return -EINVAL;
+	}
+
+	of_regulator_match(&pdev->dev, reg_np, rdata, S2MPS11_REGULATOR_MAX);
+
+	goto common_reg;
+p_data:
+	if (!pdata) {
+		dev_err(pdev->dev.parent, "Platform data not supplied\n");
+		return -ENODEV;
+	}
 
 	s2mps11->ramp_delay2 = pdata->buck2_ramp_delay;
 	s2mps11->ramp_delay34 = pdata->buck34_ramp_delay;
@@ -454,12 +474,19 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay9);
 	sec_reg_write(iodev, S2MPS11_REG_RAMP_BUCK, ramp_reg);
 
-	for (i = 0; i < S2MPS11_REGULATOR_MAX; i++) {
+common_reg:
+	platform_set_drvdata(pdev, s2mps11);
 
-		config.dev = &pdev->dev;
-		config.regmap = iodev->regmap;
-		config.init_data = pdata->regulators[i].initdata;
-		config.driver_data = s2mps11;
+	config.dev = &pdev->dev;
+	config.regmap = iodev->regmap;
+	config.driver_data = s2mps11;
+	for (i = 0; i < S2MPS11_REGULATOR_MAX; i++) {
+		if (!reg_np) {
+			config.init_data = pdata->regulators[i].initdata;
+		} else {
+			config.init_data = rdata[i].init_data;
+			config.of_node = rdata[i].of_node;
+		}
 
 		s2mps11->rdev[i] = regulator_register(&regulators[i], &config);
 		if (IS_ERR(s2mps11->rdev[i])) {
