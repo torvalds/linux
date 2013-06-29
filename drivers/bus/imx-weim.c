@@ -12,11 +12,6 @@
 #include <linux/io.h>
 #include <linux/of_device.h>
 
-struct imx_weim {
-	void __iomem *base;
-	struct clk *clk;
-};
-
 static const struct of_device_id weim_id_table[] = {
 	{ .compatible = "fsl,imx6q-weim", },
 	{}
@@ -27,10 +22,8 @@ MODULE_DEVICE_TABLE(of, weim_id_table);
 #define CS_REG_RANGE  0x18
 
 /* Parse and set the timing for this device. */
-static int
-weim_timing_setup(struct platform_device *pdev, struct device_node *np)
+static int weim_timing_setup(struct device_node *np, void __iomem *base)
 {
-	struct imx_weim *weim = platform_get_drvdata(pdev);
 	u32 value[CS_TIMING_LEN];
 	u32 cs_idx;
 	int ret;
@@ -52,11 +45,11 @@ weim_timing_setup(struct platform_device *pdev, struct device_node *np)
 
 	/* set the timing for WEIM */
 	for (i = 0; i < CS_TIMING_LEN; i++)
-		writel(value[i], weim->base + cs_idx * CS_REG_RANGE + i * 4);
+		writel(value[i], base + cs_idx * CS_REG_RANGE + i * 4);
 	return 0;
 }
 
-static int weim_parse_dt(struct platform_device *pdev)
+static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 {
 	struct device_node *child;
 	int ret;
@@ -65,7 +58,7 @@ static int weim_parse_dt(struct platform_device *pdev)
 		if (!child->name)
 			continue;
 
-		ret = weim_timing_setup(pdev, child);
+		ret = weim_timing_setup(child, base);
 		if (ret) {
 			dev_err(&pdev->dev, "%s set timing failed.\n",
 				child->full_name);
@@ -82,38 +75,32 @@ static int weim_parse_dt(struct platform_device *pdev)
 
 static int weim_probe(struct platform_device *pdev)
 {
-	struct imx_weim *weim;
 	struct resource *res;
+	struct clk *clk;
+	void __iomem *base;
 	int ret = -EINVAL;
-
-	weim = devm_kzalloc(&pdev->dev, sizeof(*weim), GFP_KERNEL);
-	if (!weim) {
-		ret = -ENOMEM;
-		goto weim_err;
-	}
-	platform_set_drvdata(pdev, weim);
 
 	/* get the resource */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	weim->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(weim->base)) {
-		ret = PTR_ERR(weim->base);
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base)) {
+		ret = PTR_ERR(base);
 		goto weim_err;
 	}
 
 	/* get the clock */
-	weim->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(weim->clk))
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk))
 		goto weim_err;
 
-	ret = clk_prepare_enable(weim->clk);
+	ret = clk_prepare_enable(clk);
 	if (ret)
 		goto weim_err;
 
 	/* parse the device node */
-	ret = weim_parse_dt(pdev);
+	ret = weim_parse_dt(pdev, base);
 	if (ret) {
-		clk_disable_unprepare(weim->clk);
+		clk_disable_unprepare(clk);
 		goto weim_err;
 	}
 
