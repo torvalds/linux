@@ -1003,7 +1003,7 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 {
 	struct cgroup *cgrp = &root->top_cgroup;
 	struct cgroup_subsys *ss;
-	int i;
+	int i, ret;
 
 	BUG_ON(!mutex_is_locked(&cgroup_mutex));
 	BUG_ON(!mutex_is_locked(&cgroup_root_mutex));
@@ -1028,7 +1028,16 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 	if (root->number_of_cgroups > 1)
 		return -EBUSY;
 
-	/* Process each subsystem */
+	ret = cgroup_populate_dir(cgrp, added_mask);
+	if (ret)
+		return ret;
+
+	/*
+	 * Nothing can fail from this point on.  Remove files for the
+	 * removed subsystems and rebind each subsystem.
+	 */
+	cgroup_clear_dir(cgrp, removed_mask);
+
 	for_each_subsys(ss, i) {
 		unsigned long bit = 1UL << i;
 
@@ -1364,22 +1373,9 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 		goto out_unlock;
 	}
 
-	/*
-	 * Clear out the files of subsystems that should be removed, do
-	 * this before rebind_subsystems, since rebind_subsystems may
-	 * change this hierarchy's subsys_list.
-	 */
-	cgroup_clear_dir(cgrp, removed_mask);
-
 	ret = rebind_subsystems(root, added_mask, removed_mask);
-	if (ret) {
-		/* rebind_subsystems failed, re-populate the removed files */
-		cgroup_populate_dir(cgrp, removed_mask);
+	if (ret)
 		goto out_unlock;
-	}
-
-	/* re-populate subsystem files */
-	cgroup_populate_dir(cgrp, added_mask);
 
 	if (opts.release_agent)
 		strcpy(root->release_agent_path, opts.release_agent);
@@ -1578,7 +1574,9 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	int ret = 0;
 	struct super_block *sb;
 	struct cgroupfs_root *new_root;
+	struct list_head tmp_links;
 	struct inode *inode;
+	const struct cred *cred;
 
 	/* First find the desired set of subsystems */
 	mutex_lock(&cgroup_mutex);
@@ -1610,10 +1608,8 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	BUG_ON(!root);
 	if (root == opts.new_root) {
 		/* We used the new root structure, so this is a new hierarchy */
-		struct list_head tmp_links;
 		struct cgroup *root_cgrp = &root->top_cgroup;
 		struct cgroupfs_root *existing_root;
-		const struct cred *cred;
 		int i;
 		struct css_set *cset;
 
@@ -1651,25 +1647,36 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		if (ret)
 			goto unlock_drop;
 
+		sb->s_root->d_fsdata = root_cgrp;
+		root_cgrp->dentry = sb->s_root;
+
+		/*
+		 * We're inside get_sb() and will call lookup_one_len() to
+		 * create the root files, which doesn't work if SELinux is
+		 * in use.  The following cred dancing somehow works around
+		 * it.  See 2ce9738ba ("cgroupfs: use init_cred when
+		 * populating new cgroupfs mount") for more details.
+		 */
+		cred = override_creds(&init_cred);
+
+		ret = cgroup_addrm_files(root_cgrp, NULL, cgroup_base_files, true);
+		if (ret)
+			goto rm_base_files;
+
 		ret = rebind_subsystems(root, root->subsys_mask, 0);
-		if (ret == -EBUSY) {
-			free_cgrp_cset_links(&tmp_links);
-			goto unlock_drop;
-		}
+		if (ret)
+			goto rm_base_files;
+
+		revert_creds(cred);
+
 		/*
 		 * There must be no failure case after here, since rebinding
 		 * takes care of subsystems' refcounts, which are explicitly
 		 * dropped in the failure exit path.
 		 */
 
-		/* EBUSY should be the only error here */
-		BUG_ON(ret);
-
 		list_add(&root->root_list, &cgroup_roots);
 		cgroup_root_count++;
-
-		sb->s_root->d_fsdata = root_cgrp;
-		root->top_cgroup.dentry = sb->s_root;
 
 		/* Link the top cgroup in this hierarchy into all
 		 * the css_set objects */
@@ -1683,10 +1690,6 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		BUG_ON(!list_empty(&root_cgrp->children));
 		BUG_ON(root->number_of_cgroups != 1);
 
-		cred = override_creds(&init_cred);
-		cgroup_addrm_files(root_cgrp, NULL, cgroup_base_files, true);
-		cgroup_populate_dir(root_cgrp, root->subsys_mask);
-		revert_creds(cred);
 		mutex_unlock(&cgroup_root_mutex);
 		mutex_unlock(&cgroup_mutex);
 		mutex_unlock(&inode->i_mutex);
@@ -1715,6 +1718,10 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	kfree(opts.name);
 	return dget(sb->s_root);
 
+ rm_base_files:
+	free_cgrp_cset_links(&tmp_links);
+	cgroup_addrm_files(&root->top_cgroup, NULL, cgroup_base_files, false);
+	revert_creds(cred);
  unlock_drop:
 	cgroup_exit_root_id(root);
 	mutex_unlock(&cgroup_root_mutex);
@@ -1741,6 +1748,7 @@ static void cgroup_kill_sb(struct super_block *sb) {
 	BUG_ON(root->number_of_cgroups != 1);
 	BUG_ON(!list_empty(&cgrp->children));
 
+	mutex_lock(&cgrp->dentry->d_inode->i_mutex);
 	mutex_lock(&cgroup_mutex);
 	mutex_lock(&cgroup_root_mutex);
 
@@ -1773,6 +1781,7 @@ static void cgroup_kill_sb(struct super_block *sb) {
 
 	mutex_unlock(&cgroup_root_mutex);
 	mutex_unlock(&cgroup_mutex);
+	mutex_unlock(&cgrp->dentry->d_inode->i_mutex);
 
 	simple_xattrs_free(&cgrp->xattrs);
 
