@@ -1021,13 +1021,6 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 		}
 	}
 
-	/* Currently we don't handle adding/removing subsystems when
-	 * any child cgroups exist. This is theoretically supportable
-	 * but involves complex error handling, so it's being left until
-	 * later */
-	if (root->number_of_cgroups > 1)
-		return -EBUSY;
-
 	ret = cgroup_populate_dir(cgrp, added_mask);
 	if (ret)
 		return ret;
@@ -1370,6 +1363,12 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 		       opts.flags & CGRP_ROOT_OPTION_MASK, opts.name ?: "",
 		       root->flags & CGRP_ROOT_OPTION_MASK, root->name);
 		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	/* remounting is not allowed for populated hierarchies */
+	if (root->number_of_cgroups > 1) {
+		ret = -EBUSY;
 		goto out_unlock;
 	}
 
