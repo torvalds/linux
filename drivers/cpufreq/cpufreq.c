@@ -312,6 +312,12 @@ static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
 	switch (state) {
 
 	case CPUFREQ_PRECHANGE:
+		if (WARN(policy->transition_ongoing,
+				"In middle of another frequency transition\n"))
+			return;
+
+		policy->transition_ongoing = true;
+
 		/* detect if the driver reported a value as "old frequency"
 		 * which is not equal to what the cpufreq core thinks is
 		 * "old frequency".
@@ -331,6 +337,12 @@ static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
 		break;
 
 	case CPUFREQ_POSTCHANGE:
+		if (WARN(!policy->transition_ongoing,
+				"No frequency transition in progress\n"))
+			return;
+
+		policy->transition_ongoing = false;
+
 		adjust_jiffies(CPUFREQ_POSTCHANGE, freqs);
 		pr_debug("FREQ: %lu - CPU: %lu", (unsigned long)freqs->new,
 			(unsigned long)freqs->cpu);
@@ -573,7 +585,7 @@ out:
 	return i;
 }
 
-static ssize_t show_cpus(const struct cpumask *mask, char *buf)
+ssize_t cpufreq_show_cpus(const struct cpumask *mask, char *buf)
 {
 	ssize_t i = 0;
 	unsigned int cpu;
@@ -588,6 +600,7 @@ static ssize_t show_cpus(const struct cpumask *mask, char *buf)
 	i += sprintf(&buf[i], "\n");
 	return i;
 }
+EXPORT_SYMBOL_GPL(cpufreq_show_cpus);
 
 /**
  * show_related_cpus - show the CPUs affected by each transition even if
@@ -595,7 +608,7 @@ static ssize_t show_cpus(const struct cpumask *mask, char *buf)
  */
 static ssize_t show_related_cpus(struct cpufreq_policy *policy, char *buf)
 {
-	return show_cpus(policy->related_cpus, buf);
+	return cpufreq_show_cpus(policy->related_cpus, buf);
 }
 
 /**
@@ -603,7 +616,7 @@ static ssize_t show_related_cpus(struct cpufreq_policy *policy, char *buf)
  */
 static ssize_t show_affected_cpus(struct cpufreq_policy *policy, char *buf)
 {
-	return show_cpus(policy->cpus, buf);
+	return cpufreq_show_cpus(policy->cpus, buf);
 }
 
 static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
@@ -1539,6 +1552,8 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 
 	if (cpufreq_disabled())
 		return -ENODEV;
+	if (policy->transition_ongoing)
+		return -EBUSY;
 
 	/* Make sure that target_freq is within supported range */
 	if (target_freq > policy->max)
