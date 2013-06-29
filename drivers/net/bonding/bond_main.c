@@ -843,9 +843,8 @@ static void bond_hw_addr_swap(struct bonding *bond, struct slave *new_active,
 static void bond_set_dev_addr(struct net_device *bond_dev,
 			      struct net_device *slave_dev)
 {
-	pr_debug("bond_dev=%p\n", bond_dev);
-	pr_debug("slave_dev=%p\n", slave_dev);
-	pr_debug("slave_dev->addr_len=%d\n", slave_dev->addr_len);
+	pr_debug("bond_dev=%p slave_dev=%p slave_dev->addr_len=%d\n",
+		 bond_dev, slave_dev, slave_dev->addr_len);
 	memcpy(bond_dev->dev_addr, slave_dev->dev_addr, slave_dev->addr_len);
 	bond_dev->addr_assign_type = NET_ADDR_STOLEN;
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, bond_dev);
