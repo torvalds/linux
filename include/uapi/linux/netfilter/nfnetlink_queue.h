@@ -105,5 +105,7 @@ enum nfqnl_attr_config {
 #define NFQA_SKB_CSUMNOTREADY (1 << 0)
 /* packet is GSO (i.e., exceeds device mtu) */
 #define NFQA_SKB_GSO (1 << 1)
+/* csum not validated (incoming device doesn't support hw checksum, etc.) */
+#define NFQA_SKB_CSUM_NOTVERIFIED (1 << 2)
 
 #endif /* _NFNETLINK_QUEUE_H */
