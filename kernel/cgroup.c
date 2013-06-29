@@ -1077,15 +1077,6 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 			/* subsystem is now free - drop reference on module */
 			module_put(ss->module);
 			root->subsys_mask &= ~bit;
-		} else if (bit & root->subsys_mask) {
-			/* Subsystem state should already exist */
-			BUG_ON(!cgrp->subsys[i]);
-#ifdef CONFIG_MODULE_UNLOAD
-			BUG_ON(ss->module && !module_refcount(ss->module));
-#endif
-		} else {
-			/* Subsystem state shouldn't exist */
-			BUG_ON(cgrp->subsys[i]);
 		}
 	}
 
