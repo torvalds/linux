@@ -67,7 +67,6 @@ config ALX
 	tristate "Qualcomm Atheros AR816x/AR817x support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MDIO
 	help
 	  This driver supports the Qualcomm Atheros L1F ethernet adapter,
