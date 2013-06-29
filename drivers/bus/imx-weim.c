@@ -78,36 +78,30 @@ static int weim_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct clk *clk;
 	void __iomem *base;
-	int ret = -EINVAL;
+	int ret;
 
 	/* get the resource */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base)) {
-		ret = PTR_ERR(base);
-		goto weim_err;
-	}
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	/* get the clock */
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk))
-		goto weim_err;
+		return PTR_ERR(clk);
 
 	ret = clk_prepare_enable(clk);
 	if (ret)
-		goto weim_err;
+		return ret;
 
 	/* parse the device node */
 	ret = weim_parse_dt(pdev, base);
-	if (ret) {
+	if (ret)
 		clk_disable_unprepare(clk);
-		goto weim_err;
-	}
+	else
+		dev_info(&pdev->dev, "Driver registered.\n");
 
-	dev_info(&pdev->dev, "WEIM driver registered.\n");
-	return 0;
-
-weim_err:
 	return ret;
 }
 
