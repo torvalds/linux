@@ -98,9 +98,11 @@ ENTRY(cpu_v7_do_suspend)
 	mrc	p15, 0, r4, c13, c0, 0	@ FCSE/PID
 	mrc	p15, 0, r5, c13, c0, 3	@ User r/o thread ID
 	stmia	r0!, {r4 - r5}
+#ifdef CONFIG_MMU
 	mrc	p15, 0, r6, c3, c0, 0	@ Domain ID
 	mrc	p15, 0, r7, c2, c0, 1	@ TTB 1
 	mrc	p15, 0, r11, c2, c0, 2	@ TTB control register
+#endif
 	mrc	p15, 0, r8, c1, c0, 0	@ Control register
 	mrc	p15, 0, r9, c1, c0, 1	@ Auxiliary control register
 	mrc	p15, 0, r10, c1, c0, 2	@ Co-processor access control
@@ -110,13 +112,14 @@ ENDPROC(cpu_v7_do_suspend)
 
 ENTRY(cpu_v7_do_resume)
 	mov	ip, #0
-	mcr	p15, 0, ip, c8, c7, 0	@ invalidate TLBs
 	mcr	p15, 0, ip, c7, c5, 0	@ invalidate I cache
 	mcr	p15, 0, ip, c13, c0, 1	@ set reserved context ID
 	ldmia	r0!, {r4 - r5}
 	mcr	p15, 0, r4, c13, c0, 0	@ FCSE/PID
 	mcr	p15, 0, r5, c13, c0, 3	@ User r/o thread ID
 	ldmia	r0, {r6 - r11}
+#ifdef CONFIG_MMU
+	mcr	p15, 0, ip, c8, c7, 0	@ invalidate TLBs
 	mcr	p15, 0, r6, c3, c0, 0	@ Domain ID
 #ifndef CONFIG_ARM_LPAE
 	ALT_SMP(orr	r1, r1, #TTB_FLAGS_SMP)
@@ -125,14 +128,15 @@ ENTRY(cpu_v7_do_resume)
 	mcr	p15, 0, r1, c2, c0, 0	@ TTB 0
 	mcr	p15, 0, r7, c2, c0, 1	@ TTB 1
 	mcr	p15, 0, r11, c2, c0, 2	@ TTB control register
-	mrc	p15, 0, r4, c1, c0, 1	@ Read Auxiliary control register
-	teq	r4, r9			@ Is it already set?
-	mcrne	p15, 0, r9, c1, c0, 1	@ No, so write it
-	mcr	p15, 0, r10, c1, c0, 2	@ Co-processor access control
 	ldr	r4, =PRRR		@ PRRR
 	ldr	r5, =NMRR		@ NMRR
 	mcr	p15, 0, r4, c10, c2, 0	@ write PRRR
 	mcr	p15, 0, r5, c10, c2, 1	@ write NMRR
+#endif	/* CONFIG_MMU */
+	mrc	p15, 0, r4, c1, c0, 1	@ Read Auxiliary control register
+	teq	r4, r9			@ Is it already set?
+	mcrne	p15, 0, r9, c1, c0, 1	@ No, so write it
+	mcr	p15, 0, r10, c1, c0, 2	@ Co-processor access control
 	isb
 	dsb
 	mov	r0, r8			@ control register
@@ -178,7 +182,8 @@ ENDPROC(cpu_pj4b_do_idle)
  */
 __v7_ca5mp_setup:
 __v7_ca9mp_setup:
-	mov	r10, #(1 << 0)			@ TLB ops broadcasting
+__v7_cr7mp_setup:
+	mov	r10, #(1 << 0)			@ Cache/TLB ops broadcasting
 	b	1f
 __v7_ca7mp_setup:
 __v7_ca15mp_setup:
@@ -441,6 +446,16 @@ __v7_pj4b_proc_info:
 	__v7_proc __v7_pj4b_setup, proc_fns = pj4b_processor_functions
 	.size	__v7_pj4b_proc_info, . - __v7_pj4b_proc_info
 #endif
+
+	/*
+	 * ARM Ltd. Cortex R7 processor.
+	 */
+	.type	__v7_cr7mp_proc_info, #object
+__v7_cr7mp_proc_info:
+	.long	0x410fc170
+	.long	0xff0ffff0
+	__v7_proc __v7_cr7mp_setup
+	.size	__v7_cr7mp_proc_info, . - __v7_cr7mp_proc_info
 
 	/*
 	 * ARM Ltd. Cortex A7 processor.

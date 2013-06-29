@@ -30,6 +30,7 @@
 #define PMD_TYPE_FAULT		(_AT(pmdval_t, 0) << 0)
 #define PMD_TYPE_TABLE		(_AT(pmdval_t, 3) << 0)
 #define PMD_TYPE_SECT		(_AT(pmdval_t, 1) << 0)
+#define PMD_TABLE_BIT		(_AT(pmdval_t, 1) << 1)
 #define PMD_BIT4		(_AT(pmdval_t, 0))
 #define PMD_DOMAIN(x)		(_AT(pmdval_t, 0))
 #define PMD_APTABLE_SHIFT	(61)
@@ -41,6 +42,8 @@
  */
 #define PMD_SECT_BUFFERABLE	(_AT(pmdval_t, 1) << 2)
 #define PMD_SECT_CACHEABLE	(_AT(pmdval_t, 1) << 3)
+#define PMD_SECT_USER		(_AT(pmdval_t, 1) << 6)		/* AP[1] */
+#define PMD_SECT_RDONLY		(_AT(pmdval_t, 1) << 7)		/* AP[2] */
 #define PMD_SECT_S		(_AT(pmdval_t, 3) << 8)
 #define PMD_SECT_AF		(_AT(pmdval_t, 1) << 10)
 #define PMD_SECT_nG		(_AT(pmdval_t, 1) << 11)
@@ -66,6 +69,7 @@
 #define PTE_TYPE_MASK		(_AT(pteval_t, 3) << 0)
 #define PTE_TYPE_FAULT		(_AT(pteval_t, 0) << 0)
 #define PTE_TYPE_PAGE		(_AT(pteval_t, 3) << 0)
+#define PTE_TABLE_BIT		(_AT(pteval_t, 1) << 1)
 #define PTE_BUFFERABLE		(_AT(pteval_t, 1) << 2)		/* AttrIndx[0] */
 #define PTE_CACHEABLE		(_AT(pteval_t, 1) << 3)		/* AttrIndx[1] */
 #define PTE_EXT_SHARED		(_AT(pteval_t, 3) << 8)		/* SH[1:0], inner shareable */
@@ -78,5 +82,25 @@
  */
 #define PHYS_MASK_SHIFT		(40)
 #define PHYS_MASK		((1ULL << PHYS_MASK_SHIFT) - 1)
+
+/*
+ * TTBR0/TTBR1 split (PAGE_OFFSET):
+ *   0x40000000: T0SZ = 2, T1SZ = 0 (not used)
+ *   0x80000000: T0SZ = 0, T1SZ = 1
+ *   0xc0000000: T0SZ = 0, T1SZ = 2
+ *
+ * Only use this feature if PHYS_OFFSET <= PAGE_OFFSET, otherwise
+ * booting secondary CPUs would end up using TTBR1 for the identity
+ * mapping set up in TTBR0.
+ */
+#if defined CONFIG_VMSPLIT_2G
+#define TTBR1_OFFSET	16			/* skip two L1 entries */
+#elif defined CONFIG_VMSPLIT_3G
+#define TTBR1_OFFSET	(4096 * (1 + 3))	/* only L2, skip pgd + 3*pmd */
+#else
+#define TTBR1_OFFSET	0
+#endif
+
+#define TTBR1_SIZE	(((PAGE_OFFSET >> 30) - 1) << 16)
 
 #endif

@@ -9,7 +9,7 @@ config ARM
 	select BUILDTIME_EXTABLE_SORT if MMU
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select DCACHE_WORD_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && !CPU_BIG_ENDIAN && MMU
-	select GENERIC_ATOMIC64 if (CPU_V6 || !CPU_32v6K || !AEABI)
+	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -1441,7 +1441,7 @@ config SMP
 	depends on CPU_V6K || CPU_V7
 	depends on GENERIC_CLOCKEVENTS
 	depends on HAVE_SMP
-	depends on MMU
+	depends on MMU || ARM_MPU
 	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one CPU. If you have
@@ -1462,7 +1462,7 @@ config SMP
 
 config SMP_ON_UP
 	bool "Allow booting SMP kernel on uniprocessor systems (EXPERIMENTAL)"
-	depends on SMP && !XIP_KERNEL
+	depends on SMP && !XIP_KERNEL && MMU
 	default y
 	help
 	  SMP kernels contain instructions which fail on non-SMP processors.
@@ -1612,7 +1612,7 @@ config SCHED_HRTICK
 
 config THUMB2_KERNEL
 	bool "Compile the kernel in Thumb-2 mode" if !CPU_THUMBONLY
-	depends on CPU_V7 && !CPU_V6 && !CPU_V6K
+	depends on (CPU_V7 || CPU_V7M) && !CPU_V6 && !CPU_V6K
 	default y if CPU_THUMBONLY
 	select AEABI
 	select ARM_ASM_UNIFIED
@@ -1733,6 +1733,14 @@ config HW_PERF_EVENTS
 	help
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
+
+config SYS_SUPPORTS_HUGETLBFS
+       def_bool y
+       depends on ARM_LPAE
+
+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+       def_bool y
+       depends on ARM_LPAE
 
 source "mm/Kconfig"
 
