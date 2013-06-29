@@ -22,7 +22,7 @@ MODULE_DEVICE_TABLE(of, weim_id_table);
 #define CS_REG_RANGE  0x18
 
 /* Parse and set the timing for this device. */
-static int weim_timing_setup(struct device_node *np, void __iomem *base)
+static int __init weim_timing_setup(struct device_node *np, void __iomem *base)
 {
 	u32 value[CS_TIMING_LEN];
 	u32 cs_idx;
@@ -49,7 +49,8 @@ static int weim_timing_setup(struct device_node *np, void __iomem *base)
 	return 0;
 }
 
-static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
+static int __init weim_parse_dt(struct platform_device *pdev,
+				void __iomem *base)
 {
 	struct device_node *child;
 	int ret;
@@ -73,7 +74,7 @@ static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 	return ret;
 }
 
-static int weim_probe(struct platform_device *pdev)
+static int __init weim_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct clk *clk;
@@ -110,10 +111,9 @@ static struct platform_driver weim_driver = {
 		.name = "imx-weim",
 		.of_match_table = weim_id_table,
 	},
-	.probe   = weim_probe,
 };
+module_platform_driver_probe(weim_driver, weim_probe);
 
-module_platform_driver(weim_driver);
 MODULE_AUTHOR("Freescale Semiconductor Inc.");
 MODULE_DESCRIPTION("i.MX EIM Controller Driver");
 MODULE_LICENSE("GPL");
