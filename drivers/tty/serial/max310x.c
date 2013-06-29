@@ -1,5 +1,5 @@
 /*
- *  Maxim (Dallas) MAX3107/8/9 serial driver
+ *  Maxim (Dallas) MAX3107/8/9, MAX14830 serial driver
  *
  *  Copyright (C) 2012-2013 Alexander Shiyan <shc_work@mail.ru>
  *
@@ -269,6 +269,10 @@
 /* MAX3109 specific */
 #define MAX3109_REV_ID			(0xc0)
 
+/* MAX14830 specific */
+#define MAX14830_BRGCFG_CLKDIS_BIT	(1 << 6) /* Clock Disable */
+#define MAX14830_REV_ID			(0xb0)
+
 struct max310x_devtype {
 	char	name[9];
 	int	nr;
@@ -387,6 +391,37 @@ static void max310x_power(struct uart_port *port, int on)
 		msleep(50);
 }
 
+static int max14830_detect(struct device *dev)
+{
+	struct max310x_port *s = dev_get_drvdata(dev);
+	unsigned int val = 0;
+	int ret;
+
+	ret = regmap_write(s->regmap, MAX310X_GLOBALCMD_REG,
+			   MAX310X_EXTREG_ENBL);
+	if (ret)
+		return ret;
+	
+	regmap_read(s->regmap, MAX310X_REVID_EXTREG, &val);
+	regmap_write(s->regmap, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
+	if (((val & MAX310x_REV_MASK) != MAX14830_REV_ID)) {
+		dev_err(dev,
+			"%s ID 0x%02x does not match\n", s->devtype->name, val);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static void max14830_power(struct uart_port *port, int on)
+{
+	max310x_port_update(port, MAX310X_BRGCFG_REG,
+			    MAX14830_BRGCFG_CLKDIS_BIT,
+			    on ? 0 : MAX14830_BRGCFG_CLKDIS_BIT);
+	if (on)
+		msleep(50);
+}
+
 static const struct max310x_devtype max3107_devtype = {
 	.name	= "MAX3107",
 	.nr	= 1,
@@ -406,6 +441,13 @@ static const struct max310x_devtype max3109_devtype = {
 	.nr	= 2,
 	.detect	= max3109_detect,
 	.power	= max310x_power,
+};
+
+static const struct max310x_devtype max14830_devtype = {
+	.name	= "MAX14830",
+	.nr	= 4,
+	.detect	= max14830_detect,
+	.power	= max14830_power,
 };
 
 static bool max310x_reg_writeable(struct device *dev, unsigned int reg)
@@ -1253,6 +1295,7 @@ static const struct spi_device_id max310x_id_table[] = {
 	{ "max3107",	(kernel_ulong_t)&max3107_devtype, },
 	{ "max3108",	(kernel_ulong_t)&max3108_devtype, },
 	{ "max3109",	(kernel_ulong_t)&max3109_devtype, },
+	{ "max14830",	(kernel_ulong_t)&max14830_devtype, },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, max310x_id_table);

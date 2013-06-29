@@ -297,7 +297,7 @@ config SERIAL_MAX310X
 	default n
 	help
 	  This selects support for an advanced UART from Maxim (Dallas).
-	  Supported ICs are MAX3107, MAX3108, MAX3109.
+	  Supported ICs are MAX3107, MAX3108, MAX3109, MAX14830.
 	  Each IC contains 128 words each of receive and transmit FIFO
 	  that can be controlled through I2C or high-speed SPI.
 
