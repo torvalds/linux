@@ -1,5 +1,5 @@
 /*
- *  Maxim (Dallas) MAX3107/8 serial driver
+ *  Maxim (Dallas) MAX3107/8/9 serial driver
  *
  *  Copyright (C) 2012-2013 Alexander Shiyan <shc_work@mail.ru>
  *
@@ -12,9 +12,6 @@
  *  the Free Software Foundation; either version 2 of the License, or
  *  (at your option) any later version.
  */
-
-/* TODO: MAX3109 support (Dual) */
-/* TODO: MAX14830 support (Quad) */
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -269,6 +266,9 @@
 /* MAX3107 specific */
 #define MAX3107_REV_ID			(0xa0)
 
+/* MAX3109 specific */
+#define MAX3109_REV_ID			(0xc0)
+
 struct max310x_devtype {
 	char	name[9];
 	int	nr;
@@ -359,6 +359,25 @@ static int max3108_detect(struct device *dev)
 	return 0;
 }
 
+static int max3109_detect(struct device *dev)
+{
+	struct max310x_port *s = dev_get_drvdata(dev);
+	unsigned int val = 0;
+	int ret;
+
+	ret = regmap_read(s->regmap, MAX310X_REVID_REG, &val);
+	if (ret)
+		return ret;
+
+	if (((val & MAX310x_REV_MASK) != MAX3109_REV_ID)) {
+		dev_err(dev,
+			"%s ID 0x%02x does not match\n", s->devtype->name, val);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static void max310x_power(struct uart_port *port, int on)
 {
 	max310x_port_update(port, MAX310X_MODE1_REG,
@@ -379,6 +398,13 @@ static const struct max310x_devtype max3108_devtype = {
 	.name	= "MAX3108",
 	.nr	= 1,
 	.detect	= max3108_detect,
+	.power	= max310x_power,
+};
+
+static const struct max310x_devtype max3109_devtype = {
+	.name	= "MAX3109",
+	.nr	= 2,
+	.detect	= max3109_detect,
 	.power	= max310x_power,
 };
 
@@ -1226,6 +1252,7 @@ static SIMPLE_DEV_PM_OPS(max310x_pm_ops, max310x_suspend, max310x_resume);
 static const struct spi_device_id max310x_id_table[] = {
 	{ "max3107",	(kernel_ulong_t)&max3107_devtype, },
 	{ "max3108",	(kernel_ulong_t)&max3108_devtype, },
+	{ "max3109",	(kernel_ulong_t)&max3109_devtype, },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, max310x_id_table);

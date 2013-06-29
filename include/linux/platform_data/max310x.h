@@ -1,5 +1,5 @@
 /*
- *  Maxim (Dallas) MAX3107/8 serial driver
+ *  Maxim (Dallas) MAX3107/8/9 serial driver
  *
  *  Copyright (C) 2012 Alexander Shiyan <shc_work@mail.ru>
  *
@@ -37,7 +37,7 @@
  * };
  */
 
-#define MAX310X_MAX_UARTS	1
+#define MAX310X_MAX_UARTS	2
 
 /* MAX310X platform data structure */
 struct max310x_pdata {
