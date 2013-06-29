@@ -1891,12 +1891,12 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 	BUG_ON(scsi_sg_count(SCpnt) == 0);
 	BUG_ON(scsi_prot_sg_count(SCpnt) == 0);
 
-	paddr = kmap_atomic(sg_page(psgl)) + psgl->offset;
 	ppage_offset = 0;
 
 	/* For each data page */
 	scsi_for_each_sg(SCpnt, dsgl, scsi_sg_count(SCpnt), i) {
 		daddr = kmap_atomic(sg_page(dsgl)) + dsgl->offset;
+		paddr = kmap_atomic(sg_page(psgl)) + psgl->offset;
 
 		/* For each sector-sized chunk in data page */
 		for (j = 0; j < dsgl->length; j += scsi_debug_sector_size) {
@@ -1980,10 +1980,9 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 			ppage_offset += sizeof(struct sd_dif_tuple);
 		}
 
+		kunmap_atomic(paddr);
 		kunmap_atomic(daddr);
 	}
-
-	kunmap_atomic(paddr);
 
 	dix_writes++;
 
@@ -1991,8 +1990,8 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 
 out:
 	dif_errors++;
-	kunmap_atomic(daddr);
 	kunmap_atomic(paddr);
+	kunmap_atomic(daddr);
 	return ret;
 }
 
