@@ -1134,7 +1134,7 @@ static inline u32 alx_speed_to_ethadv(int speed)
 	case SPEED_100 + DUPLEX_FULL:
 		return ADVERTISED_100baseT_Full;
 	case SPEED_100 + DUPLEX_HALF:
-		return ADVERTISED_10baseT_Half;
+		return ADVERTISED_100baseT_Half;
 	case SPEED_10 + DUPLEX_FULL:
 		return ADVERTISED_10baseT_Full;
 	case SPEED_10 + DUPLEX_HALF:
