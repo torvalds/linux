@@ -308,7 +308,7 @@ extern int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id);
 extern int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id);
 extern int rkfb_create_sysfs(struct fb_info *fbi);
 extern char * get_format_string(enum data_format,char *fmt);
-
+extern int support_uboot_display(void);
 static int inline rk_fb_calc_fps(rk_screen *screen,u32 pixclock)
 {
 	int x, y;
