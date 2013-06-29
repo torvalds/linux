@@ -34,7 +34,6 @@ extern int zynq_cpun_start(u32 address, int cpu);
 extern struct smp_operations zynq_smp_ops __initdata;
 #endif
 
-extern void __iomem *zynq_slcr_base;
 extern void __iomem *zynq_scu_base;
 
 /* Hotplug */

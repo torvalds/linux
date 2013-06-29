@@ -31,7 +31,7 @@
 #define SLCR_A9_CPU_CLKSTOP		0x10
 #define SLCR_A9_CPU_RST			0x1
 
-void __iomem *zynq_slcr_base;
+static void __iomem *zynq_slcr_base;
 static struct regmap *zynq_slcr_regmap;
 
 /**
