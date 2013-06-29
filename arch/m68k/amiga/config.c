@@ -174,12 +174,12 @@ int __init amiga_parse_bootinfo(const struct bi_record *record)
 #ifdef CONFIG_ZORRO
 		if (zorro_num_autocon < ZORRO_NUM_AUTO) {
 			const struct ConfigDev *cd = (struct ConfigDev *)data;
-			struct zorro_dev *dev = &zorro_autocon[zorro_num_autocon++];
+			struct zorro_dev_init *dev = &zorro_autocon_init[zorro_num_autocon++];
 			dev->rom = cd->cd_Rom;
 			dev->slotaddr = cd->cd_SlotAddr;
 			dev->slotsize = cd->cd_SlotSize;
-			dev->resource.start = (unsigned long)cd->cd_BoardAddr;
-			dev->resource.end = dev->resource.start + cd->cd_BoardSize - 1;
+			dev->boardaddr = (u32)cd->cd_BoardAddr;
+			dev->boardsize = cd->cd_BoardSize;
 		} else
 			printk("amiga_parse_bootinfo: too many AutoConfig devices\n");
 #endif /* CONFIG_ZORRO */

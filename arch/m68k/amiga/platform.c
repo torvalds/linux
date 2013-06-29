@@ -67,8 +67,8 @@ static int __init z_dev_present(zorro_id id)
 	unsigned int i;
 
 	for (i = 0; i < zorro_num_autocon; i++)
-		if (zorro_autocon[i].rom.er_Manufacturer == ZORRO_MANUF(id) &&
-		    zorro_autocon[i].rom.er_Product == ZORRO_PROD(id))
+		if (zorro_autocon_init[i].rom.er_Manufacturer == ZORRO_MANUF(id) &&
+		    zorro_autocon_init[i].rom.er_Product == ZORRO_PROD(id))
 			return 1;
 
 	return 0;
