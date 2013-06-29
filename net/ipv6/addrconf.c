@@ -1444,8 +1444,8 @@ try_nextdev:
 }
 EXPORT_SYMBOL(ipv6_dev_get_saddr);
 
-static int __ipv6_get_lladdr(struct inet6_dev *idev, struct in6_addr *addr,
-			     unsigned char banned_flags)
+int __ipv6_get_lladdr(struct inet6_dev *idev, struct in6_addr *addr,
+		      unsigned char banned_flags)
 {
 	struct inet6_ifaddr *ifp;
 	int err = -EADDRNOTAVAIL;
