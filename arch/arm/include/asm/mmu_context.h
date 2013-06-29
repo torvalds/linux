@@ -18,6 +18,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cachetype.h>
 #include <asm/proc-fns.h>
+#include <asm/smp_plat.h>
 #include <asm-generic/mm_hooks.h>
 
 void __check_vmalloc_seq(struct mm_struct *mm);
@@ -27,7 +28,15 @@ void __check_vmalloc_seq(struct mm_struct *mm);
 void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk);
 #define init_new_context(tsk,mm)	({ atomic64_set(&mm->context.id, 0); 0; })
 
-DECLARE_PER_CPU(atomic64_t, active_asids);
+#ifdef CONFIG_ARM_ERRATA_798181
+void a15_erratum_get_cpumask(int this_cpu, struct mm_struct *mm,
+			     cpumask_t *mask);
+#else  /* !CONFIG_ARM_ERRATA_798181 */
+static inline void a15_erratum_get_cpumask(int this_cpu, struct mm_struct *mm,
+					   cpumask_t *mask)
+{
+}
+#endif /* CONFIG_ARM_ERRATA_798181 */
 
 #else	/* !CONFIG_CPU_HAS_ASID */
 
@@ -98,12 +107,16 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 #ifdef CONFIG_MMU
 	unsigned int cpu = smp_processor_id();
 
-#ifdef CONFIG_SMP
-	/* check for possible thread migration */
-	if (!cpumask_empty(mm_cpumask(next)) &&
+	/*
+	 * __sync_icache_dcache doesn't broadcast the I-cache invalidation,
+	 * so check for possible thread migration and invalidate the I-cache
+	 * if we're new to this CPU.
+	 */
+	if (cache_ops_need_broadcast() &&
+	    !cpumask_empty(mm_cpumask(next)) &&
 	    !cpumask_test_cpu(cpu, mm_cpumask(next)))
 		__flush_icache_all();
-#endif
+
 	if (!cpumask_test_and_set_cpu(cpu, mm_cpumask(next)) || prev != next) {
 		check_and_switch_context(next, tsk);
 		if (cache_is_vivt())

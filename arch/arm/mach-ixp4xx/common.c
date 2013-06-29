@@ -559,7 +559,7 @@ void ixp4xx_restart(char mode, const char *cmd)
  * fallback to the default.
  */
 
-static void __iomem *ixp4xx_ioremap_caller(unsigned long addr, size_t size,
+static void __iomem *ixp4xx_ioremap_caller(phys_addr_t addr, size_t size,
 					   unsigned int mtype, void *caller)
 {
 	if (!is_pci_memory(addr))

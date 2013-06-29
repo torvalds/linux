@@ -23,7 +23,7 @@
 
 #include "pci.h"
 
-static void __iomem *__iop13xx_ioremap_caller(unsigned long cookie,
+static void __iomem *__iop13xx_ioremap_caller(phys_addr_t cookie,
 	size_t size, unsigned int mtype, void *caller)
 {
 	void __iomem * retval;
