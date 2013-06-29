@@ -16,6 +16,7 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/regmap.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -104,6 +105,121 @@ static int s2mps11_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 	return DIV_ROUND_UP(abs(new_volt - old_volt), ramp_delay);
 }
 
+static int s2mps11_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
+{
+	struct s2mps11_info *s2mps11 = rdev_get_drvdata(rdev);
+	unsigned int ramp_val, ramp_shift, ramp_reg = S2MPS11_REG_RAMP_BUCK;
+	unsigned int ramp_enable = 1, enable_shift = 0;
+	int ret;
+
+	switch (rdev->desc->id) {
+	case S2MPS11_BUCK1:
+		if (ramp_delay > s2mps11->ramp_delay16)
+			s2mps11->ramp_delay16 = ramp_delay;
+		else
+			ramp_delay = s2mps11->ramp_delay16;
+
+		ramp_shift = S2MPS11_BUCK16_RAMP_SHIFT;
+		break;
+	case S2MPS11_BUCK2:
+		enable_shift = S2MPS11_BUCK2_RAMP_EN_SHIFT;
+		if (!ramp_delay) {
+			ramp_enable = 0;
+			break;
+		}
+
+		s2mps11->ramp_delay2 = ramp_delay;
+		ramp_shift = S2MPS11_BUCK2_RAMP_SHIFT;
+		ramp_reg = S2MPS11_REG_RAMP;
+		break;
+	case S2MPS11_BUCK3:
+		enable_shift = S2MPS11_BUCK3_RAMP_EN_SHIFT;
+		if (!ramp_delay) {
+			ramp_enable = 0;
+			break;
+		}
+
+		if (ramp_delay > s2mps11->ramp_delay34)
+			s2mps11->ramp_delay34 = ramp_delay;
+		else
+			ramp_delay = s2mps11->ramp_delay34;
+
+		ramp_shift = S2MPS11_BUCK34_RAMP_SHIFT;
+		ramp_reg = S2MPS11_REG_RAMP;
+		break;
+	case S2MPS11_BUCK4:
+		enable_shift = S2MPS11_BUCK4_RAMP_EN_SHIFT;
+		if (!ramp_delay) {
+			ramp_enable = 0;
+			break;
+		}
+
+		if (ramp_delay > s2mps11->ramp_delay34)
+			s2mps11->ramp_delay34 = ramp_delay;
+		else
+			ramp_delay = s2mps11->ramp_delay34;
+
+		ramp_shift = S2MPS11_BUCK34_RAMP_SHIFT;
+		ramp_reg = S2MPS11_REG_RAMP;
+		break;
+	case S2MPS11_BUCK5:
+		s2mps11->ramp_delay5 = ramp_delay;
+		ramp_shift = S2MPS11_BUCK5_RAMP_SHIFT;
+		break;
+	case S2MPS11_BUCK6:
+		enable_shift = S2MPS11_BUCK6_RAMP_EN_SHIFT;
+		if (!ramp_delay) {
+			ramp_enable = 0;
+			break;
+		}
+
+		if (ramp_delay > s2mps11->ramp_delay16)
+			s2mps11->ramp_delay16 = ramp_delay;
+		else
+			ramp_delay = s2mps11->ramp_delay16;
+
+		ramp_shift = S2MPS11_BUCK16_RAMP_SHIFT;
+		break;
+	case S2MPS11_BUCK7:
+	case S2MPS11_BUCK8:
+	case S2MPS11_BUCK10:
+		if (ramp_delay > s2mps11->ramp_delay7810)
+			s2mps11->ramp_delay7810 = ramp_delay;
+		else
+			ramp_delay = s2mps11->ramp_delay7810;
+
+		ramp_shift = S2MPS11_BUCK7810_RAMP_SHIFT;
+		break;
+	case S2MPS11_BUCK9:
+		s2mps11->ramp_delay9 = ramp_delay;
+		ramp_shift = S2MPS11_BUCK9_RAMP_SHIFT;
+		break;
+	default:
+		return 0;
+	}
+
+	if (!ramp_enable)
+		goto ramp_disable;
+
+	if (enable_shift) {
+		ret = regmap_update_bits(rdev->regmap, S2MPS11_REG_RAMP,
+					1 << enable_shift, 1 << enable_shift);
+		if (ret) {
+			dev_err(&rdev->dev, "failed to enable ramp rate\n");
+			return ret;
+		}
+	}
+
+	ramp_val = get_ramp_delay(ramp_delay);
+
+	return regmap_update_bits(rdev->regmap, ramp_reg,
+				  ramp_val << ramp_shift, 1 << ramp_shift);
+
+ramp_disable:
+	return regmap_update_bits(rdev->regmap, S2MPS11_REG_RAMP, 0,
+				  1 << enable_shift);
+}
+
 static struct regulator_ops s2mps11_ldo_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
@@ -124,6 +240,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= s2mps11_regulator_set_voltage_time_sel,
+	.set_ramp_delay		= s2mps11_set_ramp_delay,
 };
 
 #define regulator_desc_ldo1(num)	{		\
