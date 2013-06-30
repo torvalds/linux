@@ -32,10 +32,12 @@
 
 #include <asm/irq.h>
 
-#include <plat/sys_config.h>
+#include <mach/clock.h>
 #include <mach/irqs.h>
 #include <plat/i2c.h>
-
+#include <plat/platform.h>
+#include <plat/sys_config.h>
+#include <plat/system.h>
 
 
 #define SUNXI_I2C_DEBUG
@@ -116,6 +118,8 @@ static void* __iomem gpio_addr = NULL;
 #define _Pn_PUL1(n) ( (n)*0x24 + 0x20 + gpio_addr )
 
 #endif
+
+static int twi_used_mask = 0;
 
 /* clear the interrupt flag */
 static inline void aw_twi_clear_irq_flag(void *base_addr)
@@ -349,12 +353,21 @@ static int aw_twi_enable_sys_clk(struct sunxi_i2c *i2c)
 		return result;
 	}
 
-	return clk_enable(i2c->clk);
+	result = clk_enable(i2c->clk);
+	if (result)
+		return result;
+
+	if (sunxi_is_sun7i())
+		result = clk_reset(i2c->clk, 0);
+
+	return result;
 }
 
 static void aw_twi_disable_sys_clk(struct sunxi_i2c *i2c)
 {
 	clk_disable(i2c->clk);
+	if (sunxi_is_sun7i())
+		clk_reset(i2c->clk, 1);
 	clk_disable(i2c->pclk);
 }
 
@@ -449,7 +462,10 @@ static int aw_twi_stop(void *base_addr)
 		return AWXX_I2C_FAIL;
 	}
 
-	timeout = 0xff;
+	if (sunxi_is_sun7i())
+		timeout = 0xffff;
+	else
+		timeout = 0xff;
 	while((TWI_STAT_IDLE != readl(base_addr + TWI_STAT_REG))&&(--timeout));
 	if(timeout == 0)
 	{
@@ -465,6 +481,90 @@ static int aw_twi_stop(void *base_addr)
 	}
 
 	return AWXX_I2C_OK;
+}
+
+/* get SDA state */
+static unsigned int twi_get_sda(void *base_addr)
+{
+	unsigned int status = 0;
+	status = TWI_LCR_SDA_STATE_MASK & readl(base_addr + TWI_LCR_REG);
+	status >>= 4;
+	return (status & 0x1);
+}
+
+/* set SCL level(high/low), only when SCL enable */
+static void twi_set_scl(void *base_addr, unsigned int hi_lo)
+{
+	unsigned int reg_val = readl(base_addr + TWI_LCR_REG);
+	reg_val &= ~TWI_LCR_SCL_CTL;
+	hi_lo   &= 0x01;
+	reg_val |= (hi_lo << 3);
+	writel(reg_val, base_addr + TWI_LCR_REG);
+}
+
+/* enable SDA or SCL */
+static void twi_enable_lcr(void *base_addr, unsigned int sda_scl)
+{
+	unsigned int reg_val = readl(base_addr + TWI_LCR_REG);
+	sda_scl &= 0x01;
+
+	if(sda_scl) {
+		reg_val |= TWI_LCR_SCL_EN;/* enable scl line control */
+	} else {
+		reg_val |= TWI_LCR_SDA_EN;/* enable sda line control */
+	}
+	writel(reg_val, base_addr + TWI_LCR_REG);
+}
+
+/* disable SDA or SCL */
+static void twi_disable_lcr(void *base_addr, unsigned int sda_scl)
+{
+	unsigned int reg_val = readl(base_addr + TWI_LCR_REG);
+	sda_scl &= 0x01;
+
+	if(sda_scl) {
+		reg_val &= ~TWI_LCR_SCL_EN;/* disable scl line control */
+	} else {
+		reg_val &= ~TWI_LCR_SDA_EN;/* disable sda line control */
+	}
+	writel(reg_val, base_addr + TWI_LCR_REG);
+}
+
+/* send 9 clock to release sda */
+static int twi_send_clk_9pulse(void *base_addr, int bus_num)
+{
+	int twi_scl = 1;
+	int low = 0;
+	int high = 1;
+	int cycle = 0;
+
+	/* enable scl control */
+	twi_enable_lcr(base_addr, twi_scl);
+
+	while(cycle < 10) {
+		if( twi_get_sda(base_addr)
+		&& twi_get_sda(base_addr)
+		&& twi_get_sda(base_addr) ) {
+			break;
+		}
+		/* twi_scl -> low */
+		twi_set_scl(base_addr, low);
+		udelay(1000);
+
+		/* twi_scl -> high */
+		twi_set_scl(base_addr, high);
+		udelay(1000);
+		cycle++;
+	}
+
+	if(twi_get_sda(base_addr)){
+		twi_disable_lcr(base_addr, twi_scl);
+		return AWXX_I2C_OK;
+	} else {
+		i2c_dbg("[i2c%d] SDA is still Stuck Low, failed. \n", bus_num);
+		twi_disable_lcr(base_addr, twi_scl);
+		return AWXX_I2C_FAIL;
+	}
 }
 
 /*
@@ -761,6 +861,10 @@ static int i2c_sunxi_do_xfer(struct sunxi_i2c *i2c, struct i2c_msg *msgs, int nu
 	       TWI_STAT_BUS_ERR != aw_twi_query_irq_status(i2c->base_addr) &&
 	       TWI_STAT_ARBLOST_SLAR_ACK != aw_twi_query_irq_status(i2c->base_addr) ) {
 		i2c_dbg("bus is busy, status = %x\n", aw_twi_query_irq_status(i2c->base_addr));
+		if (sunxi_is_sun7i() && AWXX_I2C_OK ==
+			  twi_send_clk_9pulse(i2c->base_addr, i2c->bus_num)) {
+			break;
+		}
 		ret = AWXX_I2C_RETRY;
 		goto out;
 	}
@@ -795,6 +899,8 @@ static int i2c_sunxi_do_xfer(struct sunxi_i2c *i2c, struct i2c_msg *msgs, int nu
 		ret = AWXX_I2C_RETRY;
 		goto out;
 	}
+
+	i2c->status  = I2C_XFER_RUNNING;
 	/* sleep and wait, do the transfer at interrupt handler ,timeout = 5*HZ */
 	timeout = wait_event_timeout(i2c->wait, i2c->msg_num == 0, i2c->adap.timeout);
 	/* return code,if(msg_idx == num) succeed */
@@ -1126,16 +1232,213 @@ static struct platform_driver i2c_sunxi_driver = {
 	},
 };
 
+/* twi0 */
+static struct sunxi_i2c_platform_data sunxi_twi0_pdata[] = {
+	{
+		.bus_num   = 0,
+		.frequency = I2C0_TRANSFER_SPEED,
+	},
+};
+
+static struct resource sunxi_twi0_resources[] = {
+	{
+		.start	= TWI0_BASE_ADDR_START,
+		.end	= TWI0_BASE_ADDR_END,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= SW_INT_IRQNO_TWI0,
+		.end	= SW_INT_IRQNO_TWI0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device sunxi_twi0_device = {
+	.name		= "sunxi-i2c",
+	.id		    = 0,
+	.resource	= sunxi_twi0_resources,
+	.num_resources	= ARRAY_SIZE(sunxi_twi0_resources),
+	.dev = {
+		.platform_data = sunxi_twi0_pdata,
+	},
+};
+
+/* twi1 */
+static struct sunxi_i2c_platform_data sunxi_twi1_pdata[] = {
+	{
+		.bus_num   = 1,
+	    	.frequency = I2C1_TRANSFER_SPEED,
+	},
+};
+
+static struct resource sunxi_twi1_resources[] = {
+	{
+		.start	= TWI1_BASE_ADDR_START,
+		.end	= TWI1_BASE_ADDR_END,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= SW_INT_IRQNO_TWI1,
+		.end	= SW_INT_IRQNO_TWI1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device sunxi_twi1_device = {
+	.name		= "sunxi-i2c",
+	.id		    = 1,
+	.resource	= sunxi_twi1_resources,
+	.num_resources	= ARRAY_SIZE(sunxi_twi1_resources),
+	.dev = {
+		.platform_data = sunxi_twi1_pdata,
+	},
+};
+
+/* twi2 */
+static struct sunxi_i2c_platform_data sunxi_twi2_pdata[] = {
+	{
+		.bus_num   = 2,
+	    	.frequency = I2C2_TRANSFER_SPEED,
+	},
+};
+
+static struct resource sunxi_twi2_resources[] = {
+	{
+		.start	= TWI2_BASE_ADDR_START,
+		.end	= TWI2_BASE_ADDR_END,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= SW_INT_IRQNO_TWI2,
+		.end	= SW_INT_IRQNO_TWI2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device sunxi_twi2_device = {
+	.name		= "sunxi-i2c",
+	.id		    = 2,
+	.resource	= sunxi_twi2_resources,
+	.num_resources	= ARRAY_SIZE(sunxi_twi2_resources),
+	.dev = {
+		.platform_data = sunxi_twi2_pdata,
+	},
+};
+
+/* twi3 */
+static struct sunxi_i2c_platform_data sunxi_twi3_pdata[] = {
+	{
+		.bus_num   = 3,
+    		.frequency = I2C3_TRANSFER_SPEED,
+	},
+};
+
+static struct resource sunxi_twi3_resources[] = {
+	{
+		.start	= TWI3_BASE_ADDR_START,
+		.end	= TWI3_BASE_ADDR_END,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= SW_INT_IRQNO_TWI3,
+		.end	= SW_INT_IRQNO_TWI3,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device sunxi_twi3_device = {
+	.name		= "sunxi-i2c",
+	.id		= 3,
+	.resource	= sunxi_twi3_resources,
+	.num_resources	= ARRAY_SIZE(sunxi_twi3_resources),
+	.dev = {
+		.platform_data = sunxi_twi3_pdata,
+	},
+};
+
+/* twi4 */
+static struct sunxi_i2c_platform_data sunxi_twi4_pdata[] = {
+	{
+		.bus_num   = 4,
+    		.frequency = I2C4_TRANSFER_SPEED,
+	},
+};
+
+static struct resource sunxi_twi4_resources[] = {
+	{
+		.start	= TWI4_BASE_ADDR_START,
+		.end	= TWI4_BASE_ADDR_END,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= SW_INT_IRQNO_TWI4,
+		.end	= SW_INT_IRQNO_TWI4,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device sunxi_twi4_device = {
+	.name		= "sunxi-i2c",
+	.id		= 4,
+	.resource	= sunxi_twi4_resources,
+	.num_resources	= ARRAY_SIZE(sunxi_twi4_resources),
+	.dev = {
+		.platform_data = sunxi_twi4_pdata,
+	},
+};
+
 static int __init i2c_adap_sunxi_init(void)
 {
-	return platform_driver_register(&i2c_sunxi_driver);
+	int i, twi_num, used;
+	char twi_para[16];
+	char twi_used[16];
+
+	twi_num = sunxi_is_sun7i() ? 5 : 3;
+	for (i = 0; i < twi_num; i++) {
+		sprintf(twi_para, "twi%d_para", i);
+		sprintf(twi_used, "twi%d_used", i);
+		if (script_parser_fetch(twi_para, twi_used, &used,
+					sizeof(int)) == 0 && used)
+			twi_used_mask |= 1 << i;
+	}
+
+	if (twi_used_mask & 0x01)
+		platform_device_register(&sunxi_twi0_device);
+
+	if (twi_used_mask & 0x02)
+		platform_device_register(&sunxi_twi1_device);
+
+	if (twi_used_mask & 0x04)
+		platform_device_register(&sunxi_twi2_device);
+
+	if (twi_used_mask & 0x08)
+		platform_device_register(&sunxi_twi3_device);
+		
+	if (twi_used_mask & 0x10)
+		platform_device_register(&sunxi_twi4_device);
+
+	if (twi_used_mask)
+		return platform_driver_register(&i2c_sunxi_driver);
+
+	return 0;
 }
 
 module_init(i2c_adap_sunxi_init);
 
 static void __exit i2c_adap_sunxi_exit(void)
 {
-	platform_driver_unregister(&i2c_sunxi_driver);
+	if (twi_used_mask)
+		platform_driver_unregister(&i2c_sunxi_driver);
+
+	if (twi_used_mask & 0x01)
+		platform_device_unregister(&sunxi_twi0_device);
+
+	if (twi_used_mask & 0x02)
+		platform_device_unregister(&sunxi_twi1_device);
+
+	if (twi_used_mask & 0x04)
+		platform_device_unregister(&sunxi_twi2_device);
+
+	if (twi_used_mask & 0x08)
+		platform_device_unregister(&sunxi_twi3_device);
+		
+	if (twi_used_mask & 0x10)
+		platform_device_unregister(&sunxi_twi4_device);
 }
 
 module_exit(i2c_adap_sunxi_exit);

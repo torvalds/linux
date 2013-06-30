@@ -69,9 +69,9 @@
 #define SW_INT_IRQNO_UART3	(AW_IRQ_GIC_START + 4 )    /* UART3  */
 #define AW_IRQ_IR0       	(AW_IRQ_GIC_START + 5 )    /* IR0    */
 #define AW_IRQ_IR1       	(AW_IRQ_GIC_START + 6 )    /* IR1    */
-#define AW_IRQ_TWI0       	(AW_IRQ_GIC_START + 7 )    /* TWI0   */
-#define AW_IRQ_TWI1       	(AW_IRQ_GIC_START + 8 )    /* TWI1   */
-#define AW_IRQ_TWI2       	(AW_IRQ_GIC_START + 9 )    /* TWI2   */
+#define SW_INT_IRQNO_TWI0	(AW_IRQ_GIC_START + 7 )    /* TWI0   */
+#define SW_INT_IRQNO_TWI1	(AW_IRQ_GIC_START + 8 )    /* TWI1   */
+#define SW_INT_IRQNO_TWI2	(AW_IRQ_GIC_START + 9 )    /* TWI2   */
 #define AW_IRQ_SPI0       	(AW_IRQ_GIC_START + 10)    /* SPI0   */
 #define AW_IRQ_SPI1       	(AW_IRQ_GIC_START + 11)    /* SPI1   */
 #define AW_IRQ_SPI2       	(AW_IRQ_GIC_START + 12)    /* SPI2   */
@@ -148,8 +148,8 @@
 #define AW_IRQ_HSTIMER2  	(AW_IRQ_GIC_START + 83)    /* hr-timer2 */
 #define AW_IRQ_HSTIMER3  	(AW_IRQ_GIC_START + 84)    /* hr-timer3 */
 #define AW_IRQ_GMAC       	(AW_IRQ_GIC_START + 85)    /* GMAC  */
-#define AW_IRQ_TWI3       	(AW_IRQ_GIC_START + 88 )   /* TWI3   */
-#define AW_IRQ_TWI4       	(AW_IRQ_GIC_START + 89)    /* TWI4   */
+#define SW_INT_IRQNO_TWI3	(AW_IRQ_GIC_START + 88 )   /* TWI3   */
+#define SW_INT_IRQNO_TWI4	(AW_IRQ_GIC_START + 89)    /* TWI4   */
 
 /*
  * GIC

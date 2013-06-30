@@ -37,6 +37,7 @@
 #define TWI_SRST_REG    	(0x18) 	/*  31:1bit reserved;0bit,write 1 to clear 0. */
 #define TWI_EFR_REG     	(0x1C) 	/*  31:2bit reserved,1:0 bit data byte follow read comand */
 #define TWI_LCR_REG     	(0x20) 	/*  31:6bits reserved  5:0bit for sda&scl control*/
+#define TWI_DVFS_REG		(0x24)  /*  31:3bits reserved  2:0bit for dvfs control */
 
 /* TWI address register */
 #define TWI_GCE_EN      	(0x1 <<0) /* general call address enable for slave mode */
@@ -177,16 +178,26 @@ Foscl is clock SCL;standard mode:100KHz or fast mode:400KHz
 
 #define AW_TWI_ADDR_SIZE		0x3ff
 
-#define TWI0_BASE_ADDR_START  (0x01C2ac00)
+#define TWI0_BASE_ADDR_START  (SW_PA_TWI0_IO_BASE )
 #define TWI0_BASE_ADDR_END    (TWI0_BASE_ADDR_START + AW_TWI_ADDR_SIZE)
-#define TWI1_BASE_ADDR_START  (0x01C2b000)
+
+#define TWI1_BASE_ADDR_START  (SW_PA_TWI1_IO_BASE )
 #define TWI1_BASE_ADDR_END    (TWI1_BASE_ADDR_START + AW_TWI_ADDR_SIZE)
-#define TWI2_BASE_ADDR_START  (0x01C2b400)
+
+#define TWI2_BASE_ADDR_START  (SW_PA_TWI2_IO_BASE )
 #define TWI2_BASE_ADDR_END    (TWI2_BASE_ADDR_START + AW_TWI_ADDR_SIZE)
+
+#define TWI3_BASE_ADDR_START  (SW_PA_TWI3_IO_BASE )
+#define TWI3_BASE_ADDR_END    (TWI3_BASE_ADDR_START + AW_TWI_ADDR_SIZE)
+
+#define TWI4_BASE_ADDR_START  (SW_PA_TWI4_IO_BASE )
+#define TWI4_BASE_ADDR_END    (TWI4_BASE_ADDR_START + AW_TWI_ADDR_SIZE)
 
 #define I2C0_TRANSFER_SPEED     (400000)
 #define I2C1_TRANSFER_SPEED     (200000)
 #define I2C2_TRANSFER_SPEED     (200000)
+#define I2C3_TRANSFER_SPEED     (200000)
+#define I2C4_TRANSFER_SPEED     (200000)
 
 struct sunxi_i2c_platform_data {
 	int 		 bus_num;

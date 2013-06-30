@@ -130,6 +130,10 @@
 #define SW_INT_IRQNO_SYNC_TIMER1	83
 #endif
 
+/* sun7i only */
+#define SW_INT_IRQNO_TWI3		88
+#define SW_INT_IRQNO_TWI4		89
+
 #define SW_INT_END		                  95
 
 #endif

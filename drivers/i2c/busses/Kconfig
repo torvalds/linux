@@ -675,30 +675,20 @@ config I2C_STU300
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-stu300.
 
-config I2C_SUN4I
-        tristate "Allwinner Technology SUN4I I2C interface"
-        depends on ARCH_SUN4I
-        default y if MACH_SUN4I
+config I2C_SUNXI
+        tristate "Allwinner Technology SUNXI I2C interface"
+        depends on ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I
+        default y if (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I)
         help
           If you say yes to this option, support will be included for the
-          I2C interface from Allwinner Technology sun4i platform.
+          I2C interface from Allwinner Technology sunxi platform.
 
           This driver can also be built as a module. If so, the module
-          will be called i2c-sun4i.
-
-config I2C_SUN5I
-        tristate "Allwinner Technology SUN5I I2C interface"
-        depends on ARCH_SUN5I
-        default y if MACH_SUN5I
-        help
-          If you say yes to this option, support will be included for the
-          I2C interface from Allwinner Technology sun5i platform.
-
-          This driver can also be built as a module. If so, the module
-          will be called i2c-sun5i.
+          will be called i2c-sunxi.
 
 config SUNXI_IIC_PRINT_TRANSFER_INFO
 	boolean "SUNXI_IIC_PRINT_TRANSFER_INFO"
+	depends on I2C_SUNXI
 	help
 	  "SUNXI i2c bus driver print transfer information"
 

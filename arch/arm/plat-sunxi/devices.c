@@ -85,96 +85,6 @@ struct platform_device sw_pdev_nand =
 	.dev = {}
 };
 
-/* twi0 */
-static struct sunxi_i2c_platform_data sunxi_twi0_pdata[] = {
-	{
-		.bus_num   = 0,
-		.frequency = I2C0_TRANSFER_SPEED,
-	},
-};
-
-static struct resource sunxi_twi0_resources[] = {
-	{
-		.start	= TWI0_BASE_ADDR_START,
-		.end	= TWI0_BASE_ADDR_END,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= SW_INT_IRQNO_TWI0,
-		.end	= SW_INT_IRQNO_TWI0,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device sunxi_twi0_device = {
-	.name		= "sunxi-i2c",
-	.id		    = 0,
-	.resource	= sunxi_twi0_resources,
-	.num_resources	= ARRAY_SIZE(sunxi_twi0_resources),
-	.dev = {
-		.platform_data = sunxi_twi0_pdata,
-	},
-};
-
-/* twi1 */
-static struct sunxi_i2c_platform_data sunxi_twi1_pdata[] = {
-	{
-		.bus_num   = 1,
-    	.frequency = I2C1_TRANSFER_SPEED,
-	},
-};
-
-static struct resource sunxi_twi1_resources[] = {
-	{
-		.start	= TWI1_BASE_ADDR_START,
-		.end	= TWI1_BASE_ADDR_END,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= SW_INT_IRQNO_TWI1,
-		.end	= SW_INT_IRQNO_TWI1,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device sunxi_twi1_device = {
-	.name		= "sunxi-i2c",
-	.id		    = 1,
-	.resource	= sunxi_twi1_resources,
-	.num_resources	= ARRAY_SIZE(sunxi_twi1_resources),
-	.dev = {
-		.platform_data = sunxi_twi1_pdata,
-	},
-};
-
-/* twi2 */
-static struct sunxi_i2c_platform_data sunxi_twi2_pdata[] = {
-	{
-		.bus_num   = 2,
-    	.frequency = I2C2_TRANSFER_SPEED,
-	},
-};
-
-static struct resource sunxi_twi2_resources[] = {
-	{
-		.start	= TWI2_BASE_ADDR_START,
-		.end	= TWI2_BASE_ADDR_END,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= SW_INT_IRQNO_TWI2,
-		.end	= SW_INT_IRQNO_TWI2,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device sunxi_twi2_device = {
-	.name		= "sunxi-i2c",
-	.id		    = 2,
-	.resource	= sunxi_twi2_resources,
-	.num_resources	= ARRAY_SIZE(sunxi_twi2_resources),
-	.dev = {
-		.platform_data = sunxi_twi2_pdata,
-	},
-};
-
 static struct resource sunxi_pmu_resources[] = {
 	{
 		.start	= SW_INT_IRQNO_PLE_PFM,
@@ -204,9 +114,6 @@ static struct platform_device *sw_pdevs[] __initdata = {
 #endif
 	&sw_pdev_dmac,
 	&sw_pdev_nand,
-	&sunxi_twi0_device,
-	&sunxi_twi1_device,
-	&sunxi_twi2_device,
 	&sunxi_pmu_device,
 #if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
 	&sunxi_device_mali_drm,
