@@ -815,18 +815,17 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	}
 
 	rproc->bootaddr = rproc_get_boot_addr(rproc, fw);
+	ret = -EINVAL;
 
 	/* look for the resource table */
 	table = rproc_find_rsc_table(rproc, fw, &tablesz);
 	if (!table) {
-		ret = -EINVAL;
 		goto clean_up;
 	}
 
 	/* Verify that resource table in loaded fw is unchanged */
 	if (rproc->table_csum != crc32(0, table, tablesz)) {
 		dev_err(dev, "resource checksum failed, fw changed?\n");
-		ret = -EINVAL;
 		goto clean_up;
 	}
 
@@ -852,8 +851,10 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	 * copy this information to device memory.
 	 */
 	loaded_table = rproc_find_loaded_rsc_table(rproc, fw);
-	if (!loaded_table)
+	if (!loaded_table) {
+		ret = -EINVAL;
 		goto clean_up;
+	}
 
 	memcpy(loaded_table, rproc->cached_table, tablesz);
 
