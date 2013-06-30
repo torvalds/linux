@@ -282,7 +282,7 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_mvm *mvm,
 	 * Don't create TX aggregation sessions when in high
 	 * BT traffic, as they would just be disrupted by BT.
 	 */
-	if (BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >= 2) {
+	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) >= 2) {
 		IWL_DEBUG_COEX(mvm, "BT traffic (%d), no aggregation allowed\n",
 			       BT_MBOX_MSG(&mvm->last_bt_notif,
 					   3, TRAFFIC_LOAD));
@@ -1322,7 +1322,7 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
-	switch (BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+	switch (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading)) {
 	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
 		/* nothing */
 		break;
@@ -1342,7 +1342,7 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 		break;
 	default:
 		IWL_ERR(mvm, "Invalid BT load %d",
-			BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD));
+			le32_to_cpu(mvm->last_bt_notif.bt_activity_grading));
 		break;
 	}
 
@@ -1453,7 +1453,7 @@ static int rs_move_mimo2_to_other(struct iwl_mvm *mvm,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
-	switch (BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+	switch (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading)) {
 	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
 		/* nothing */
 		break;
@@ -1470,7 +1470,7 @@ static int rs_move_mimo2_to_other(struct iwl_mvm *mvm,
 		break;
 	default:
 		IWL_ERR(mvm, "Invalid BT load %d",
-			BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD));
+			le32_to_cpu(mvm->last_bt_notif.bt_activity_grading));
 		break;
 	}
 
@@ -1955,24 +1955,24 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	     (current_tpt > (100 * tbl->expected_tpt[low]))))
 		scale_action = 0;
 
-	if ((BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >=
+	if ((le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) >=
 	     IWL_BT_COEX_TRAFFIC_LOAD_HIGH) && (is_mimo(tbl->lq_type))) {
 		if (lq_sta->last_bt_traffic >
-		    BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+		    le32_to_cpu(mvm->last_bt_notif.bt_activity_grading)) {
 			/*
 			 * don't set scale_action, don't want to scale up if
 			 * the rate scale doesn't otherwise think that is a
 			 * good idea.
 			 */
 		} else if (lq_sta->last_bt_traffic <=
-			   BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+			   le32_to_cpu(mvm->last_bt_notif.bt_activity_grading)) {
 			scale_action = -1;
 		}
 	}
 	lq_sta->last_bt_traffic =
-		BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD);
+		le32_to_cpu(mvm->last_bt_notif.bt_activity_grading);
 
-	if ((BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >=
+	if ((le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) >=
 	     IWL_BT_COEX_TRAFFIC_LOAD_HIGH) && is_mimo(tbl->lq_type)) {
 		/* search for a new modulation */
 		rs_stay_in_table(lq_sta, true);
@@ -2455,7 +2455,7 @@ static void rs_fill_link_cmd(struct iwl_mvm *mvm,
 	 * overwrite if needed, pass aggregation time limit
 	 * to uCode in uSec - This is racy - but heh, at least it helps...
 	 */
-	if (mvm && BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >= 2)
+	if (mvm && le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) >= 2)
 		lq_cmd->agg_time_limit = cpu_to_le16(1200);
 }
 

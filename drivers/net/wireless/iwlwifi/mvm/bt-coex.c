@@ -98,17 +98,9 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 
 #undef EVENT_PRIO_ANT
 
-#define IWL_BT_LOAD_FORCE_SISO_THRESHOLD	(3)
-
 #define BT_ENABLE_REDUCED_TXPOWER_THRESHOLD	(-62)
 #define BT_DISABLE_REDUCED_TXPOWER_THRESHOLD	(-65)
 #define BT_ANTENNA_COUPLING_THRESHOLD		(30)
-
-static inline bool is_loose_coex(void)
-{
-	return iwlwifi_mod_params.ant_coupling >
-		BT_ANTENNA_COUPLING_THRESHOLD;
-}
 
 int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 {
@@ -274,6 +266,40 @@ static const __le32 iwl_bt_mprio_lut[BT_COEX_MULTI_PRIO_LUT_SIZE] = {
 	cpu_to_le32(0x22002200),
 	cpu_to_le32(0x33113311),
 };
+
+static enum iwl_bt_coex_lut_type
+iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	enum iwl_bt_coex_lut_type ret;
+	u16 phy_ctx_id;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	rcu_read_lock();
+
+	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+
+	if (!chanctx_conf ||
+	     chanctx_conf->def.chan->band != IEEE80211_BAND_2GHZ) {
+		rcu_read_unlock();
+		return BT_COEX_LOOSE_LUT;
+	}
+
+	ret = BT_COEX_TX_DIS_LUT;
+
+	phy_ctx_id = *((u16 *)chanctx_conf->drv_priv);
+
+	if (mvm->last_bt_ci_cmd.primary_ch_phy_id == phy_ctx_id)
+		ret = le32_to_cpu(mvm->last_bt_notif.primary_ch_lut);
+	else if (mvm->last_bt_ci_cmd.secondary_ch_phy_id == phy_ctx_id)
+		ret = le32_to_cpu(mvm->last_bt_notif.secondary_ch_lut);
+	/* else - default = TX TX disallowed */
+
+	rcu_read_unlock();
+
+	return ret;
+}
 
 int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 {
@@ -528,8 +554,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (data->notif->bt_status)
 		smps_mode = IEEE80211_SMPS_DYNAMIC;
 
-	if (le32_to_cpu(data->notif->bt_activity_grading) >=
-	    IWL_BT_LOAD_FORCE_SISO_THRESHOLD)
+	if (le32_to_cpu(data->notif->bt_activity_grading) >= BT_LOW_TRAFFIC)
 		smps_mode = IEEE80211_SMPS_STATIC;
 
 	IWL_DEBUG_COEX(data->mvm,
@@ -540,13 +565,13 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX, smps_mode);
 
 	/* don't reduce the Tx power if in loose scheme */
-	if (is_loose_coex())
+	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT)
 		return;
 
 	data->num_bss_ifaces++;
 
-	/* reduced Txpower only if there are open BT connections, so ...*/
-	if (!BT_MBOX_MSG(data->notif, 3, OPEN_CON_2)) {
+	/* reduced Txpower only if BT is on, so ...*/
+	if (le32_to_cpu(data->notif->bt_activity_grading) == BT_OFF) {
 		/* ... cancel reduced Tx power ... */
 		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false))
 			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
@@ -761,8 +786,8 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (WARN_ON_ONCE(mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT))
 		return;
 
-	/* No open connection - reports should be disabled */
-	if (!BT_MBOX_MSG(&mvm->last_bt_notif, 3, OPEN_CON_2))
+	/* No BT - reports should be disabled */
+	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF)
 		return;
 
 	IWL_DEBUG_COEX(mvm, "RSSI for %pM is now %s\n", vif->bss_conf.bssid,
@@ -772,7 +797,8 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * Check if rssi is good enough for reduced Tx power, but not in loose
 	 * scheme.
 	 */
-	if (rssi_event == RSSI_EVENT_LOW || is_loose_coex())
+	if (rssi_event == RSSI_EVENT_LOW ||
+	    iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT)
 		ret = iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id,
 						  false);
 	else
