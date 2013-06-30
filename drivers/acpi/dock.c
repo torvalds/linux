@@ -337,9 +337,29 @@ static void dock_remove_acpi_device(acpi_handle handle)
 }
 
 /**
- * hotplug_dock_devices - insert or remove devices on the dock station
+ * hot_remove_dock_devices - Remove dock station devices.
+ * @ds: Dock station.
+ */
+static void hot_remove_dock_devices(struct dock_station *ds)
+{
+	struct dock_dependent_device *dd;
+
+	/*
+	 * Walk the list in reverse order so that devices that have been added
+	 * last are removed first (in case there are some indirect dependencies
+	 * between them).
+	 */
+	list_for_each_entry_reverse(dd, &ds->dependent_devices, list)
+		dock_hotplug_event(dd, ACPI_NOTIFY_EJECT_REQUEST, false);
+
+	list_for_each_entry_reverse(dd, &ds->dependent_devices, list)
+		dock_remove_acpi_device(dd->handle);
+}
+
+/**
+ * hotplug_dock_devices - Insert devices on a dock station.
  * @ds: the dock station
- * @event: either bus check or eject request
+ * @event: either bus check or device check request
  *
  * Some devices on the dock station need to have drivers called
  * to perform hotplug operations after a dock event has occurred.
@@ -350,24 +370,17 @@ static void hotplug_dock_devices(struct dock_station *ds, u32 event)
 {
 	struct dock_dependent_device *dd;
 
-	/*
-	 * First call driver specific hotplug functions
-	 */
+	/* Call driver specific hotplug functions. */
 	list_for_each_entry(dd, &ds->dependent_devices, list)
 		dock_hotplug_event(dd, event, false);
 
 	/*
-	 * Now make sure that an acpi_device is created for each
-	 * dependent device, or removed if this is an eject request.
-	 * This will cause acpi_drivers to be stopped/started if they
-	 * exist
+	 * Now make sure that an acpi_device is created for each dependent
+	 * device.  That will cause scan handlers to be attached to device
+	 * objects or acpi_drivers to be stopped/started if they are present.
 	 */
-	list_for_each_entry(dd, &ds->dependent_devices, list) {
-		if (event == ACPI_NOTIFY_EJECT_REQUEST)
-			dock_remove_acpi_device(dd->handle);
-		else
-			dock_create_acpi_device(dd->handle);
-	}
+	list_for_each_entry(dd, &ds->dependent_devices, list)
+		dock_create_acpi_device(dd->handle);
 }
 
 static void dock_event(struct dock_station *ds, u32 event, int num)
@@ -588,7 +601,7 @@ static int handle_eject_request(struct dock_station *ds, u32 event)
 	 */
 	dock_event(ds, event, UNDOCK_EVENT);
 
-	hotplug_dock_devices(ds, ACPI_NOTIFY_EJECT_REQUEST);
+	hot_remove_dock_devices(ds);
 	undock(ds);
 	acpi_evaluate_lck(ds->handle, 0);
 	acpi_evaluate_ej0(ds->handle);
