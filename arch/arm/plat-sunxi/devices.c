@@ -38,6 +38,7 @@
 #include <asm/pmu.h>
 #include <mach/hardware.h>
 #include <plat/i2c.h>
+#include <plat/platform.h>
 
 #if 0
 /* uart */
@@ -65,8 +66,35 @@ static struct platform_device debug_uart = {
 #endif
 
 /* dma */
+#ifdef CONFIG_ARCH_SUN7I
+static u64 sw_dmac_dmamask = DMA_BIT_MASK(32);
+
+static struct resource sw_dmac_resources[] = {
+	[0] = {
+		.start 	= SW_PA_DMAC_IO_BASE,
+		.end 	= SW_PA_DMAC_IO_BASE + 0xfff,
+		.flags 	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start 	= AW_IRQ_DMA,
+		.end 	= AW_IRQ_DMA,
+		.flags 	= IORESOURCE_IRQ
+	}
+};
+#endif
+
 static struct platform_device sw_pdev_dmac = {
-	.name = "sw_dmac",
+	.name		= "sw_dmac",
+	.id 		= 0,
+#ifdef CONFIG_ARCH_SUN7I
+	.num_resources 	= ARRAY_SIZE(sw_dmac_resources),
+	.resource 	= sw_dmac_resources,
+	.dev 		= {
+		.dma_mask = &sw_dmac_dmamask,
+		/* validate dma_pool_alloc */
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+#endif
 };
 
 static struct resource sw_res_nand =
@@ -85,6 +113,7 @@ struct platform_device sw_pdev_nand =
 	.dev = {}
 };
 
+#ifndef CONFIG_ARCH_SUN7I
 static struct resource sunxi_pmu_resources[] = {
 	{
 		.start	= SW_INT_IRQNO_PLE_PFM,
@@ -99,7 +128,7 @@ struct platform_device sunxi_pmu_device = {
 	.resource	= sunxi_pmu_resources,
 	.num_resources	= ARRAY_SIZE(sunxi_pmu_resources),
 };
-
+#endif
 
 #if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
 static struct platform_device sunxi_device_mali_drm = {
@@ -114,7 +143,9 @@ static struct platform_device *sw_pdevs[] __initdata = {
 #endif
 	&sw_pdev_dmac,
 	&sw_pdev_nand,
+#ifndef CONFIG_ARCH_SUN7I
 	&sunxi_pmu_device,
+#endif
 #if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
 	&sunxi_device_mali_drm,
 #endif
