@@ -30,43 +30,10 @@
 #include "power.h"
 #include "cdv_device.h"
 
+static bool cdv_intel_find_dp_pll(const struct gma_limit_t *limit,
+				  struct drm_crtc *crtc, int target,
+				  int refclk, struct gma_clock_t *best_clock);
 
-struct cdv_intel_range_t {
-	int min, max;
-};
-
-struct cdv_intel_p2_t {
-	int dot_limit;
-	int p2_slow, p2_fast;
-};
-
-struct cdv_intel_clock_t {
-	/* given values */
-	int n;
-	int m1, m2;
-	int p1, p2;
-	/* derived values */
-	int dot;
-	int vco;
-	int m;
-	int p;
-};
-
-#define INTEL_P2_NUM		      2
-
-struct cdv_intel_limit_t {
-	struct cdv_intel_range_t dot, vco, n, m, m1, m2, p, p1;
-	struct cdv_intel_p2_t p2;
-	bool (*find_pll)(const struct cdv_intel_limit_t *, struct drm_crtc *,
-			int, int, struct cdv_intel_clock_t *);
-};
-
-static bool cdv_intel_find_best_PLL(const struct cdv_intel_limit_t *limit,
-	struct drm_crtc *crtc, int target, int refclk,
-	struct cdv_intel_clock_t *best_clock);
-static bool cdv_intel_find_dp_pll(const struct cdv_intel_limit_t *limit, struct drm_crtc *crtc, int target,
-				int refclk,
-				struct cdv_intel_clock_t *best_clock);
 
 #define CDV_LIMIT_SINGLE_LVDS_96	0
 #define CDV_LIMIT_SINGLE_LVDS_100	1
@@ -75,7 +42,7 @@ static bool cdv_intel_find_dp_pll(const struct cdv_intel_limit_t *limit, struct 
 #define CDV_LIMIT_DP_27			4
 #define CDV_LIMIT_DP_100		5
 
-static const struct cdv_intel_limit_t cdv_intel_limits[] = {
+static const struct gma_limit_t cdv_intel_limits[] = {
 	{			/* CDV_SINGLE_LVDS_96MHz */
 	 .dot = {.min = 20000, .max = 115500},
 	 .vco = {.min = 1800000, .max = 3600000},
@@ -85,9 +52,8 @@ static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 	 .m2 = {.min = 58, .max = 158},
 	 .p = {.min = 28, .max = 140},
 	 .p1 = {.min = 2, .max = 10},
-	 .p2 = {.dot_limit = 200000,
-		.p2_slow = 14, .p2_fast = 14},
-		.find_pll = cdv_intel_find_best_PLL,
+	 .p2 = {.dot_limit = 200000, .p2_slow = 14, .p2_fast = 14},
+	 .find_pll = gma_find_best_pll,
 	 },
 	{			/* CDV_SINGLE_LVDS_100MHz */
 	 .dot = {.min = 20000, .max = 115500},
@@ -102,7 +68,7 @@ static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 	  * is 80-224Mhz.  Prefer single channel as much as possible.
 	  */
 	 .p2 = {.dot_limit = 200000, .p2_slow = 14, .p2_fast = 14},
-	.find_pll = cdv_intel_find_best_PLL,
+	 .find_pll = gma_find_best_pll,
 	 },
 	{			/* CDV_DAC_HDMI_27MHz */
 	 .dot = {.min = 20000, .max = 400000},
@@ -114,7 +80,7 @@ static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 	 .p = {.min = 5, .max = 90},
 	 .p1 = {.min = 1, .max = 9},
 	 .p2 = {.dot_limit = 225000, .p2_slow = 10, .p2_fast = 5},
-	.find_pll = cdv_intel_find_best_PLL,
+	 .find_pll = gma_find_best_pll,
 	 },
 	{			/* CDV_DAC_HDMI_96MHz */
 	 .dot = {.min = 20000, .max = 400000},
@@ -126,7 +92,7 @@ static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 	 .p = {.min = 5, .max = 100},
 	 .p1 = {.min = 1, .max = 10},
 	 .p2 = {.dot_limit = 225000, .p2_slow = 10, .p2_fast = 5},
-	.find_pll = cdv_intel_find_best_PLL,
+	 .find_pll = gma_find_best_pll,
 	 },
 	{			/* CDV_DP_27MHz */
 	 .dot = {.min = 160000, .max = 272000},
@@ -255,7 +221,7 @@ void cdv_sb_reset(struct drm_device *dev)
  */
 static int
 cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
-			       struct cdv_intel_clock_t *clock, bool is_lvds, u32 ddi_select)
+		       struct gma_clock_t *clock, bool is_lvds, u32 ddi_select)
 {
 	struct psb_intel_crtc *psb_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_crtc->pipe;
@@ -405,31 +371,11 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 	return 0;
 }
 
-/*
- * Returns whether any encoder on the specified pipe is of the specified type
- */
-static bool cdv_intel_pipe_has_type(struct drm_crtc *crtc, int type)
+static const struct gma_limit_t *cdv_intel_limit(struct drm_crtc *crtc,
+						 int refclk)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_connector *l_entry;
-
-	list_for_each_entry(l_entry, &mode_config->connector_list, head) {
-		if (l_entry->encoder && l_entry->encoder->crtc == crtc) {
-			struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(l_entry);
-			if (psb_intel_encoder->type == type)
-				return true;
-		}
-	}
-	return false;
-}
-
-static const struct cdv_intel_limit_t *cdv_intel_limit(struct drm_crtc *crtc,
-							int refclk)
-{
-	const struct cdv_intel_limit_t *limit;
-	if (cdv_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+	const struct gma_limit_t *limit;
+	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
 		/*
 		 * Now only single-channel LVDS is supported on CDV. If it is
 		 * incorrect, please add the dual-channel LVDS.
@@ -454,8 +400,7 @@ static const struct cdv_intel_limit_t *cdv_intel_limit(struct drm_crtc *crtc,
 }
 
 /* m1 is reserved as 0 in CDV, n is a ring counter */
-static void cdv_intel_clock(struct drm_device *dev,
-			int refclk, struct cdv_intel_clock_t *clock)
+static void cdv_intel_clock(int refclk, struct gma_clock_t *clock)
 {
 	clock->m = clock->m2 + 2;
 	clock->p = clock->p1 * clock->p2;
@@ -463,93 +408,12 @@ static void cdv_intel_clock(struct drm_device *dev,
 	clock->dot = clock->vco / clock->p;
 }
 
-
-#define INTELPllInvalid(s)   { /* ErrorF (s) */; return false; }
-static bool cdv_intel_PLL_is_valid(struct drm_crtc *crtc,
-				const struct cdv_intel_limit_t *limit,
-			       struct cdv_intel_clock_t *clock)
+static bool cdv_intel_find_dp_pll(const struct gma_limit_t *limit,
+				  struct drm_crtc *crtc, int target,
+				  int refclk,
+				  struct gma_clock_t *best_clock)
 {
-	if (clock->p1 < limit->p1.min || limit->p1.max < clock->p1)
-		INTELPllInvalid("p1 out of range\n");
-	if (clock->p < limit->p.min || limit->p.max < clock->p)
-		INTELPllInvalid("p out of range\n");
-	/* unnecessary to check the range of m(m1/M2)/n again */
-	if (clock->vco < limit->vco.min || limit->vco.max < clock->vco)
-		INTELPllInvalid("vco out of range\n");
-	/* XXX: We may need to be checking "Dot clock"
-	 * depending on the multiplier, connector, etc.,
-	 * rather than just a single range.
-	 */
-	if (clock->dot < limit->dot.min || limit->dot.max < clock->dot)
-		INTELPllInvalid("dot out of range\n");
-
-	return true;
-}
-
-static bool cdv_intel_find_best_PLL(const struct cdv_intel_limit_t *limit,
-	struct drm_crtc *crtc, int target, int refclk,
-	struct cdv_intel_clock_t *best_clock)
-{
-	struct drm_device *dev = crtc->dev;
-	struct cdv_intel_clock_t clock;
-	int err = target;
-
-
-	if (cdv_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
-	    (REG_READ(LVDS) & LVDS_PORT_EN) != 0) {
-		/*
-		 * For LVDS, if the panel is on, just rely on its current
-		 * settings for dual-channel.  We haven't figured out how to
-		 * reliably set up different single/dual channel state, if we
-		 * even can.
-		 */
-		if ((REG_READ(LVDS) & LVDS_CLKB_POWER_MASK) ==
-		    LVDS_CLKB_POWER_UP)
-			clock.p2 = limit->p2.p2_fast;
-		else
-			clock.p2 = limit->p2.p2_slow;
-	} else {
-		if (target < limit->p2.dot_limit)
-			clock.p2 = limit->p2.p2_slow;
-		else
-			clock.p2 = limit->p2.p2_fast;
-	}
-
-	memset(best_clock, 0, sizeof(*best_clock));
-	clock.m1 = 0;
-	/* m1 is reserved as 0 in CDV, n is a ring counter.
-	   So skip the m1 loop */
-	for (clock.n = limit->n.min; clock.n <= limit->n.max; clock.n++) {
-		for (clock.m2 = limit->m2.min; clock.m2 <= limit->m2.max;
-					     clock.m2++) {
-			for (clock.p1 = limit->p1.min;
-					clock.p1 <= limit->p1.max;
-					clock.p1++) {
-				int this_err;
-
-				cdv_intel_clock(dev, refclk, &clock);
-
-				if (!cdv_intel_PLL_is_valid(crtc,
-								limit, &clock))
-						continue;
-
-				this_err = abs(clock.dot - target);
-				if (this_err < err) {
-					*best_clock = clock;
-					err = this_err;
-				}
-			}
-		}
-	}
-
-	return err != target;
-}
-
-static bool cdv_intel_find_dp_pll(const struct cdv_intel_limit_t *limit, struct drm_crtc *crtc, int target,
-				int refclk,
-				struct cdv_intel_clock_t *best_clock)
-{
-	struct cdv_intel_clock_t clock;
+	struct gma_clock_t clock;
 	if (refclk == 27000) {
 		if (target < 200000) {
 			clock.p1 = 2;
@@ -584,7 +448,7 @@ static bool cdv_intel_find_dp_pll(const struct cdv_intel_limit_t *limit, struct 
 	clock.p = clock.p1 * clock.p2;
 	clock.vco = (refclk * clock.m) / clock.n;
 	clock.dot = clock.vco / clock.p;
-	memcpy(best_clock, &clock, sizeof(struct cdv_intel_clock_t));
+	memcpy(best_clock, &clock, sizeof(struct gma_clock_t));
 	return true;
 }
 
@@ -1035,14 +899,14 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	int pipe = psb_intel_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk;
-	struct cdv_intel_clock_t clock;
+	struct gma_clock_t clock;
 	u32 dpll = 0, dspcntr, pipeconf;
 	bool ok;
 	bool is_crt = false, is_lvds = false, is_tv = false;
 	bool is_hdmi = false, is_dp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
-	const struct cdv_intel_limit_t *limit;
+	const struct gma_limit_t *limit;
 	u32 ddi_select = 0;
 	bool is_edp = false;
 
@@ -1108,12 +972,13 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	drm_mode_debug_printmodeline(adjusted_mode);
 	
-	limit = cdv_intel_limit(crtc, refclk);
+	limit = psb_intel_crtc->clock_funcs->limit(crtc, refclk);
 
 	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk,
 				 &clock);
 	if (!ok) {
-		dev_err(dev->dev, "Couldn't find PLL settings for mode!\n");
+		DRM_ERROR("Couldn't find PLL settings for mode! target: %d, actual: %d",
+			  adjusted_mode->clock, clock.dot);
 		return 0;
 	}
 
@@ -1612,7 +1477,7 @@ static int cdv_crtc_set_config(struct drm_mode_set *set)
 
 /* FIXME: why are we using this, should it be cdv_ in this tree ? */
 
-static void i8xx_clock(int refclk, struct cdv_intel_clock_t *clock)
+static void i8xx_clock(int refclk, struct gma_clock_t *clock)
 {
 	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
 	clock->p = clock->p1 * clock->p2;
@@ -1630,7 +1495,7 @@ static int cdv_intel_crtc_clock_get(struct drm_device *dev,
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 dpll;
 	u32 fp;
-	struct cdv_intel_clock_t clock;
+	struct gma_clock_t clock;
 	bool is_lvds;
 	struct psb_pipe *p = &dev_priv->regs.pipe[pipe];
 
@@ -1787,4 +1652,10 @@ const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
 	.gamma_set = cdv_intel_crtc_gamma_set,
 	.set_config = cdv_crtc_set_config,
 	.destroy = cdv_intel_crtc_destroy,
+};
+
+const struct gma_clock_funcs cdv_clock_funcs = {
+	.clock = cdv_intel_clock,
+	.limit = cdv_intel_limit,
+	.pll_is_valid = gma_pll_is_valid,
 };
