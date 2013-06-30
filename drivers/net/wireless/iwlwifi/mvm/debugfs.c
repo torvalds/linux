@@ -584,15 +584,21 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 	BT_MBOX_PRINT(3, UPDATE_REQUEST, true);
 
 	pos += scnprintf(buf+pos, bufsz-pos, "bt_status = %d\n",
-					 notif->bt_status);
+			 notif->bt_status);
 	pos += scnprintf(buf+pos, bufsz-pos, "bt_open_conn = %d\n",
-					 notif->bt_open_conn);
+			 notif->bt_open_conn);
 	pos += scnprintf(buf+pos, bufsz-pos, "bt_traffic_load = %d\n",
-					 notif->bt_traffic_load);
+			 notif->bt_traffic_load);
 	pos += scnprintf(buf+pos, bufsz-pos, "bt_agg_traffic_load = %d\n",
-					 notif->bt_agg_traffic_load);
+			 notif->bt_agg_traffic_load);
 	pos += scnprintf(buf+pos, bufsz-pos, "bt_ci_compliance = %d\n",
-					 notif->bt_ci_compliance);
+			 notif->bt_ci_compliance);
+	pos += scnprintf(buf+pos, bufsz-pos, "primary_ch_lut = %d\n",
+			 le32_to_cpu(notif->primary_ch_lut));
+	pos += scnprintf(buf+pos, bufsz-pos, "secondary_ch_lut = %d\n",
+			 le32_to_cpu(notif->secondary_ch_lut));
+	pos += scnprintf(buf+pos, bufsz-pos, "bt_activity_grading = %d\n",
+			 le32_to_cpu(notif->bt_activity_grading));
 
 	mutex_unlock(&mvm->mutex);
 
@@ -602,6 +608,38 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 #undef BT_MBOX_PRINT
+
+static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	struct iwl_bt_coex_ci_cmd *cmd = &mvm->last_bt_ci_cmd;
+	char buf[256];
+	int bufsz = sizeof(buf);
+	int pos = 0;
+
+	mutex_lock(&mvm->mutex);
+
+	pos += scnprintf(buf+pos, bufsz-pos, "Channel inhibition CMD\n");
+	pos += scnprintf(buf+pos, bufsz-pos,
+		       "\tPrimary Channel Bitmap 0x%016llx Fat: %d\n",
+		       le64_to_cpu(cmd->bt_primary_ci),
+		       !!cmd->co_run_bw_primary);
+	pos += scnprintf(buf+pos, bufsz-pos,
+		       "\tSecondary Channel Bitmap 0x%016llx Fat: %d\n",
+		       le64_to_cpu(cmd->bt_secondary_ci),
+		       !!cmd->co_run_bw_secondary);
+
+	pos += scnprintf(buf+pos, bufsz-pos, "BT Configuration CMD\n");
+	pos += scnprintf(buf+pos, bufsz-pos, "\tACK Kill Mask 0x%08x\n",
+			 iwl_bt_ack_kill_msk[mvm->bt_kill_msk]);
+	pos += scnprintf(buf+pos, bufsz-pos, "\tCTS Kill Mask 0x%08x\n",
+			 iwl_bt_cts_kill_msk[mvm->bt_kill_msk]);
+
+	mutex_unlock(&mvm->mutex);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
 
 #define PRINT_STATS_LE32(_str, _val)					\
 			 pos += scnprintf(buf + pos, bufsz - pos,	\
@@ -1120,6 +1158,7 @@ MVM_DEBUGFS_WRITE_FILE_OPS(sta_drain);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(sram);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
 MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
+MVM_DEBUGFS_READ_FILE_OPS(bt_cmd);
 MVM_DEBUGFS_WRITE_FILE_OPS(power_down_allow);
 MVM_DEBUGFS_WRITE_FILE_OPS(power_down_d3_allow);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
@@ -1146,6 +1185,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(sram, mvm->debugfs_dir, S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(power_down_allow, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(power_down_d3_allow, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, S_IRUSR);

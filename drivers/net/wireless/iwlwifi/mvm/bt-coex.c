@@ -112,20 +112,13 @@ int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 				    &iwl_bt_prio_tbl);
 }
 
-enum iwl_bt_kill_msk {
-	BT_KILL_MSK_DEFAULT,
-	BT_KILL_MSK_SCO_HID_A2DP,
-	BT_KILL_MSK_REDUCED_TXPOW,
-	BT_KILL_MSK_MAX,
-};
-
-static const u32 iwl_bt_ack_kill_msk[BT_KILL_MSK_MAX] = {
+const u32 iwl_bt_ack_kill_msk[BT_KILL_MSK_MAX] = {
 	[BT_KILL_MSK_DEFAULT] = 0xffff0000,
 	[BT_KILL_MSK_SCO_HID_A2DP] = 0xffffffff,
 	[BT_KILL_MSK_REDUCED_TXPOW] = 0,
 };
 
-static const u32 iwl_bt_cts_kill_msk[BT_KILL_MSK_MAX] = {
+const u32 iwl_bt_cts_kill_msk[BT_KILL_MSK_MAX] = {
 	[BT_KILL_MSK_DEFAULT] = 0xffff0000,
 	[BT_KILL_MSK_SCO_HID_A2DP] = 0xffffffff,
 	[BT_KILL_MSK_REDUCED_TXPOW] = 0,
