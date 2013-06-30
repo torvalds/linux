@@ -953,7 +953,6 @@ static int i2c_sunxi_clk_init(struct sunxi_i2c *i2c)
 		i2c_dbg("get i2c source clock frequency failed!\n");
 		return -1;
 	}
-	i2c_dbg("twi%d, apb clock = %d \n",i2c->bus_num, apb_clk);
 	aw_twi_set_clock(apb_clk, i2c->bus_freq, i2c->base_addr);
 
 	return 0;
@@ -1068,7 +1067,6 @@ static int i2c_sunxi_probe(struct platform_device *dev)
 		ret = -EIO;
 		goto eremap;
 	}
-	i2c_dbg("!!! base_Addr = 0x%x \n", (unsigned int)i2c->base_addr );
 
 
 #ifndef SYS_I2C_PIN
