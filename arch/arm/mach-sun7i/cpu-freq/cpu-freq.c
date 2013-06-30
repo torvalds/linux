@@ -130,12 +130,12 @@ static void sunxi_cpufreq_show(const char *pfx, struct sunxi_cpu_freq_t *cfg)
 */
 static int __init_vftable_syscfg(void)
 {
-	int i, ret, level_freq, level_volt;
+	int i, level_freq, level_volt, ret = 0;
 	char name[16] = {0};
 
 	if (script_parser_fetch("dvfs_table", "LV_count", &table_length_syscfg,
 				sizeof(int)) != 0) {
-		CPUFREQ_ERR("get LV_count from sysconfig failed\n");
+		CPUFREQ_DBG("get LV_count from sysconfig failed\n");
 		use_default_table = 1;
 		ret = -1;
 		goto fail;
@@ -319,7 +319,7 @@ static int __set_cpufreq_target(struct sunxi_cpu_freq_t *old, struct sunxi_cpu_f
     old_freq = *old;
     new_freq = *new;
 
-    CPUFREQ_INF("cpu: %dMhz->%dMhz\n", old_freq.pll/1000000, new_freq.pll/1000000);
+    CPUFREQ_DBG("cpu: %dMhz->%dMhz\n", old_freq.pll/1000000, new_freq.pll/1000000);
 
     if(new_freq.pll > old_freq.pll) {
         if((old_freq.pll <= 204000000) && (new_freq.pll >= 204000000)) {
@@ -473,7 +473,7 @@ static int __set_cpufreq_target(struct sunxi_cpu_freq_t *old, struct sunxi_cpu_f
         clk_set_rate(clk_apb, frequency);
 #endif
 
-        CPUFREQ_ERR(KERN_ERR "no compatible settings cpu freq for %d\n", new_freq.pll);
+        CPUFREQ_ERR("no compatible settings cpu freq for %d\n", new_freq.pll);
         return -1;
     }
 
@@ -534,9 +534,9 @@ static int sunxi_cpufreq_settarget(struct cpufreq_policy *policy, struct sunxi_c
     new_vdd = __get_vdd_value(cpu_new.pll);
 
     if(corevdd && (new_vdd > last_vdd)) {
-        CPUFREQ_INF("set core vdd to %d\n", new_vdd);
+        CPUFREQ_DBG("set core vdd to %d\n", new_vdd);
         if(regulator_set_voltage(corevdd, new_vdd*1000, new_vdd*1000)) {
-            CPUFREQ_INF("try to set voltage failed!\n");
+            CPUFREQ_ERR("try to set voltage failed!\n");
 
             /* notify everyone that clock transition finish */
     	    if (policy) {
@@ -556,9 +556,9 @@ static int sunxi_cpufreq_settarget(struct cpufreq_policy *policy, struct sunxi_c
 
         #ifdef CONFIG_CPU_FREQ_DVFS
         if(corevdd && (new_vdd > last_vdd)) {
-            CPUFREQ_INF("set core vdd to %d\n", last_vdd);
+            CPUFREQ_DBG("set core vdd to %d\n", last_vdd);
             if(regulator_set_voltage(corevdd, last_vdd*1000, last_vdd*1000)){
-                CPUFREQ_INF("try to set voltage failed!\n");
+                CPUFREQ_ERR("try to set voltage failed!\n");
                 last_vdd = new_vdd;
             }
         }
@@ -585,9 +585,9 @@ static int sunxi_cpufreq_settarget(struct cpufreq_policy *policy, struct sunxi_c
 
     #ifdef CONFIG_CPU_FREQ_DVFS
     if(corevdd && (new_vdd < last_vdd)) {
-        CPUFREQ_INF("set core vdd to %d\n", new_vdd);
+        CPUFREQ_DBG("set core vdd to %d\n", new_vdd);
         if(regulator_set_voltage(corevdd, new_vdd*1000, new_vdd*1000)) {
-            CPUFREQ_INF("try to set voltage failed!\n");
+            CPUFREQ_ERR("try to set voltage failed!\n");
             new_vdd = last_vdd;
         }
     }
@@ -954,15 +954,15 @@ static int __init sunxi_cpufreq_initcall(void)
 
 	if (IS_ERR(clk_pll) || IS_ERR(clk_cpu) || IS_ERR(clk_axi) ||
 	    IS_ERR(clk_ahb) || IS_ERR(clk_apb)) {
-		CPUFREQ_INF(KERN_ERR "%s: could not get clock(s)\n", __func__);
+		CPUFREQ_ERR("%s: could not get clock(s)\n", __func__);
 		return -ENOENT;
 	}
 
 #ifdef AHB_APB_CLK_ASYNC
-    CPUFREQ_INF("set ahb apb clock async\n");
+    CPUFREQ_DBG("set ahb apb clock async\n");
     clk_sata_pll = clk_get(NULL, "sata_pll");
     if (IS_ERR(clk_sata_pll)) {
-        CPUFREQ_INF(KERN_ERR "%s: could not get clock(s)\n", __func__);
+        CPUFREQ_ERR("%s: could not get clock(s)\n", __func__);
 		return -ENOENT;
     }
     clk_set_parent(clk_ahb, clk_sata_pll);
@@ -970,25 +970,25 @@ static int __init sunxi_cpufreq_initcall(void)
     clk_set_rate(clk_apb,  75000000);
 #endif
 
-	CPUFREQ_INF("%s: clocks pll=%lu,cpu=%lu,axi=%lu,ahp=%lu,apb=%lu\n", __func__,
+	CPUFREQ_DBG("%s: clocks pll=%lu,cpu=%lu,axi=%lu,ahp=%lu,apb=%lu\n", __func__,
 	       clk_get_rate(clk_pll), clk_get_rate(clk_cpu), clk_get_rate(clk_axi),
 	       clk_get_rate(clk_ahb), clk_get_rate(clk_apb));
 
 #ifdef CONFIG_CPU_FREQ_DVFS
     corevdd = regulator_get(NULL, "Vcore");
     if(IS_ERR(corevdd)) {
-        CPUFREQ_INF("try to get regulator failed, core vdd will not changed!\n");
+        CPUFREQ_ERR("try to get regulator failed, core vdd will not changed!\n");
         corevdd = NULL;
     }
     else {
-        CPUFREQ_INF("try to get regulator(0x%x) successed.\n", (__u32)corevdd);
+        CPUFREQ_DBG("try to get regulator(0x%x) successed.\n", (__u32)corevdd);
         last_vdd = regulator_get_voltage(corevdd) / 1000;
     }
 	ret = __init_vftable_syscfg();
-	if(ret) {
-		CPUFREQ_ERR("use default V-F Table\n");
-	}
-	__vftable_show();
+	if (ret)
+		CPUFREQ_INF("use default V-F Table\n");
+	else
+		__vftable_show();
 #endif
 
     /* init cpu frequency from sysconfig */

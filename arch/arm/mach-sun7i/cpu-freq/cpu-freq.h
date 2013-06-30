@@ -27,15 +27,14 @@
 
 #undef CPUFREQ_DBG
 #undef CPUFREQ_ERR
-#if (1)
+#if (0)
     #define CPUFREQ_DBG(format,args...)   printk("[cpu_freq] DBG:"format,##args)
-    #define CPUFREQ_INF(format,args...)   printk("[cpu_freq] INF:"format,##args)
 #else
     #define CPUFREQ_DBG(format,args...)   do{}while(0)
-    #define CPUFREQ_INF(format,args...)   do{}while(0)
 #endif
 
-#define CPUFREQ_ERR(format,args...)   printk("[cpu_freq] ERR:"format,##args)
+#define CPUFREQ_INF(format,args...)   pr_info("[cpu_freq] INF:"format,##args)
+#define CPUFREQ_ERR(format,args...)   pr_err("[cpu_freq] ERR:"format,##args)
 
 
 #define SUNXI_CPUFREQ_MAX       (1008000000)    /* config the maximum frequency of sunxi core */
