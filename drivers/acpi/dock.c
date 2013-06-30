@@ -63,7 +63,6 @@ struct dock_station {
 	acpi_handle handle;
 	unsigned long last_dock_time;
 	u32 flags;
-	struct mutex hp_lock;
 	struct list_head dependent_devices;
 
 	struct list_head sibling;
@@ -351,8 +350,6 @@ static void hotplug_dock_devices(struct dock_station *ds, u32 event)
 {
 	struct dock_dependent_device *dd;
 
-	mutex_lock(&ds->hp_lock);
-
 	/*
 	 * First call driver specific hotplug functions
 	 */
@@ -371,7 +368,6 @@ static void hotplug_dock_devices(struct dock_station *ds, u32 event)
 		else
 			dock_create_acpi_device(dd->handle);
 	}
-	mutex_unlock(&ds->hp_lock);
 }
 
 static void dock_event(struct dock_station *ds, u32 event, int num)
@@ -893,7 +889,6 @@ static int __init dock_add(acpi_handle handle)
 	dock_station->dock_device = dd;
 	dock_station->last_dock_time = jiffies - HZ;
 
-	mutex_init(&dock_station->hp_lock);
 	INIT_LIST_HEAD(&dock_station->sibling);
 	INIT_LIST_HEAD(&dock_station->dependent_devices);
 
