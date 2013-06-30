@@ -29,6 +29,15 @@
 #define SW_PA_BROM_END                    0xffff7fff   /* 32KB */
 
 #define SW_PA_SRAM_BASE                   0x00000000
+
+/* sun7i sram addresses */
+#define SW_PA_SRAM_A1_BASE                0x00000000
+#define SW_PA_SRAM_A2_BASE                0x00004000
+#define SW_PA_SRAM_A3_BASE                0x00008000
+#define SW_PA_SRAM_A4_BASE                0x0000b400
+#define SW_PA_SRAM_D_BASE                 0x00010000
+#define SW_PA_SRAM_B_BASE                 0x00020000
+
 #define SW_PA_SDRAM_START                 0x40000000
 #define SW_PA_IO_BASE                     0x01c00000
 #define SW_PA_SRAM_IO_BASE                0x01c00000   /* 4KB */
@@ -71,6 +80,7 @@
 #define SW_PA_AC97_IO_BASE                0x01c21400
 #define SW_PA_IR0_IO_BASE                 0x01c21800
 #define SW_PA_IR1_IO_BASE                 0x01c21c00
+#define SW_PA_IIS1_IO_BASE                0x01c22000
 #define SW_PA_IIS_IO_BASE                 0x01c22400
 #define SW_PA_LRADC_IO_BASE               0x01c22800
 #define SW_PA_ADDA_IO_BASE                0x01c22c00
@@ -78,8 +88,10 @@
 #define SW_PA_TZPC_IO_BASE                0x01c23400
 #define SW_PA_SID_IO_BASE                 0x01c23800
 #define SW_PA_SJTAG_IO_BASE               0x01c23c00
+#define SW_PA_IIS2_IO_BASE                0x01c24400
 #define SW_PA_TP_IO_BASE                  0x01c25000
 #define SW_PA_PMU_IO_BASE                 0x01c25400
+#define SW_PA_CPUCFG_IO_BASE              0x01c25c00
 #define SW_PA_UART0_IO_BASE               0x01c28000
 #define SW_PA_UART1_IO_BASE               0x01c28400
 #define SW_PA_UART2_IO_BASE               0x01c28800
@@ -93,24 +105,46 @@
 #define SW_PA_TWI0_IO_BASE                0x01c2ac00
 #define SW_PA_TWI1_IO_BASE                0x01c2b000
 #define SW_PA_TWI2_IO_BASE                0x01c2b400
+#define SW_PA_TWI3_IO_BASE                0x01c2b800
 #define SW_PA_CAN0_IO_BASE                0x01c2bc00
-#define SW_PA_CAN1_IO_BASE                0x01c2c000
+#define SW_PA_CAN1_IO_BASE                0x01c2c000 /* sun4i */
+#define SW_PA_TWI4_IO_BASE                0x01c2c000 /* sun7i */
 #define SW_PA_SCR_IO_BASE                 0x01c2c400
 #define SW_PA_GPS_IO_BASE                 0x01c30000
 #define SW_PA_MALI_IO_BASE                0x01c40000
+#define SW_PA_GMAC_IO_BASE                0x01c50000
+#define SW_PA_HSTIMER_IO_BASE             0x01c60000
+#define SW_PA_GIC_IO_BASE                 0x01c80000
+#define SW_PA_GIC_DIST_IO_BASE            0x01c81000
+#define SW_PA_GIC_CPU_IO_BASE             0x01c82000
+#define SW_PA_SCU_IO_BASE                 0x01c80000
+#define SW_PA_TIMER_G_IO_BASE             0x01c80200 /* CPU global timer, not used */
+#define SW_PA_TIMER_P_IO_BASE             0x01c80600 /* CPU private timer, not used */
+#define SW_PA_HDMI1_IO_BASE               0x01ce0000
+#define SW_PA_SRAM_C_IO_BASE              0x01d00000
 #define SW_PA_DEFE0_IO_BASE               0x01e00000
 #define SW_PA_DEFE1_IO_BASE               0x01e20000
 #define SW_PA_DEBE0_IO_BASE               0x01e60000
 #define SW_PA_DEBE1_IO_BASE               0x01e40000
 #define SW_PA_MP_IO_BASE                  0x01e80000
 #define SW_PA_AVG_IO_BASE                 0x01ea0000
+#define SW_PA_CPUBIST_IO_BASE             0x3f501000
 #define SW_PA_BROM_BASE                   0xffff0000
-
-
 
 /* Virtual Address */
 #define SW_VA_SRAM_BASE                   0xf0000000	/*16KB*/
+
+/* sun7i sram addresses */
+#define SW_VA_SRAM_A1_BASE                0xf0000000
+#define SW_VA_SRAM_A2_BASE                0xf0004000
+#define SW_VA_SRAM_A3_BASE                0xf0008000
+#define SW_VA_SRAM_A4_BASE                0xf000b400
+#define SW_VA_SRAM_D_BASE                 0xf0010000
+#define SW_VA_SRAM_B_BASE                 0xf0020000
+
 #define SW_VA_BROM_BASE                   0xf0100000	/*64KB*/
+#define SW_VA_BROM_START                  0xf0100000
+#define SW_VA_BROM_END                    0xf0107fff
 
 #define SW_VA_IO_BASE                     0xf1c00000
 #define SW_VA_SRAM_IO_BASE                0xf1c00000   /* 4KB */
@@ -153,6 +187,7 @@
 #define SW_VA_AC97_IO_BASE                0xf1c21400
 #define SW_VA_IR0_IO_BASE                 0xf1c21800
 #define SW_VA_IR1_IO_BASE                 0xf1c21c00
+#define SW_VA_IIS1_IO_BASE                0xf1c22000
 #define SW_VA_IIS_IO_BASE                 0xf1c22400
 #define SW_VA_LRADC_IO_BASE               0xf1c22800
 #define SW_VA_ADDA_IO_BASE                0xf1c22c00
@@ -160,8 +195,10 @@
 #define SW_VA_TZPC_IO_BASE                0xf1c23400
 #define SW_VA_SID_IO_BASE                 0xf1c23800
 #define SW_VA_SJTAG_IO_BASE               0xf1c23c00
+#define SW_VA_IIS2_IO_BASE                0xf1c24400
 #define SW_VA_TP_IO_BASE                  0xf1c25000
 #define SW_VA_PMU_IO_BASE                 0xf1c25400
+#define SW_VA_CPUCFG_IO_BASE              0xf1c25c00
 #define SW_VA_UART0_IO_BASE               0xf1c28000
 #define SW_VA_UART1_IO_BASE               0xf1c28400
 #define SW_VA_UART2_IO_BASE               0xf1c28800
@@ -175,11 +212,23 @@
 #define SW_VA_TWI0_IO_BASE                0xf1c2ac00
 #define SW_VA_TWI1_IO_BASE                0xf1c2b000
 #define SW_VA_TWI2_IO_BASE                0xf1c2b400
+#define SW_VA_TWI3_IO_BASE                0xf1c2b800
 #define SW_VA_CAN0_IO_BASE                0xf1c2bc00
-#define SW_VA_CAN1_IO_BASE                0xf1c2c000
+#define SW_VA_CAN1_IO_BASE                0xf1c2c000 /* sun4i */
+#define SW_VA_TWI4_IO_BASE                0xf1c2c000 /* sun7i */
 #define SW_VA_SCR_IO_BASE                 0xf1c2c400
 #define SW_VA_GPS_IO_BASE                 0xf1c30000
 #define SW_VA_MALI_IO_BASE                0xf1c40000
+#define SW_VA_GMAC_IO_BASE                0xf1c50000
+#define SW_VA_HSTIMER_IO_BASE             0xf1c60000
+#define SW_VA_GIC_IO_BASE                 0xf1c80000
+#define SW_VA_GIC_DIST_IO_BASE            0xf1c81000
+#define SW_VA_GIC_CPU_IO_BASE             0xf1c82000
+#define SW_VA_SCU_IO_BASE                 0xf1c80000
+#define SW_VA_TIMER_G_IO_BASE             0xf1c80200 /* CPU global timer, not used */
+#define SW_VA_TIMER_P_IO_BASE             0xf1c80600 /* CPU private timer, not used */
+#define SW_VA_HDMI1_IO_BASE               0xf1ce0000
+#define SW_VA_SRAM_C_IO_BASE              0xf1d00000
 #define SW_VA_DEFE0_IO_BASE               0xf1e00000
 #define SW_VA_DEFE1_IO_BASE               0xf1e20000
 #define SW_VA_DEBE0_IO_BASE               0xf1e60000
@@ -187,7 +236,15 @@
 #define SW_VA_MP_IO_BASE                  0xf1e80000
 #define SW_VA_AVG_IO_BASE                 0xf1ea0000
 
-
+/* memory size */
+#define SW_IO_SIZE                        0x00400000 /* 4MB(Max) */
+#define SW_SRAM_A1_SIZE                   0x00004000 /* 16k */
+#define SW_SRAM_A2_SIZE                   0x00004000 /* 16k */
+#define SW_SRAM_A3_SIZE                   0x00003400 /* 13k */
+#define SW_SRAM_A4_SIZE                   0x00000c00 /* 3k */
+#define SW_SRAM_D_SIZE                    0x00001000 /* 4k */
+#define SW_SRAM_B_SIZE                    0x00010000 /* 64k */
+#define SW_BROM_SIZE                      0x00008000 /* 32k */
 
 /**
  * Timer registers addr
@@ -270,6 +327,26 @@
 #define SW_DRAM_SDR_CTL_REG               (SW_VA_DRAM_IO_BASE + 0x0C)
 #define SW_DRAM_SDR_DCR                   (SW_VA_DRAM_IO_BASE + 0x04)
 
+/*
+ * other reg defination, not found in spec
+ */
+#define AW_GIC_DIST_BASE                  0x01c81000
+#define AW_GIC_CPU_BASE                   0x01c82000
+#define AW_TIMER_G_BASE                   0x01c80200 /* CPU global timer, not used */
+#define AW_TIMER_P_BASE                   0x01c80600 /* CPU private timer, not used */
+
+/*
+ * CPUCFG
+ */
+#define AW_CPUCFG_P_REG0            0x01a4
+#define CPUX_RESET_CTL(x) (0x40 + (x)*0x40)
+#define CPUX_CONTROL(x)   (0x44 + (x)*0x40)
+#define CPUX_STATUS(x)    (0x48 + (x)*0x40)
+#define AW_CPUCFG_GENCTL            0x0184
+#define AW_CPUCFG_DBGCTL0           0x01e0
+#define AW_CPUCFG_DBGCTL1           0x01e4
+
+#define AW_CPU1_PWR_CLAMP         0x01b0
+#define AW_CPU1_PWROFF_REG        0x01b4
 
 #endif
-

@@ -27,7 +27,6 @@
 #define IO_SPACE_LIMIT 0x1ffffff
 
 #define SW_IO_PHYS      0x01c00000
-#define SW_IO_SIZE      (SZ_1M * 3)
 #define SW_IO_VIRT      0xf1c00000
 
 #define __mem_pci(a) (a)

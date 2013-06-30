@@ -1,1 +1,1 @@
-../mach/platform.h
+../../../plat-sunxi/include/plat/platform.h
