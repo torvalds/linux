@@ -11,6 +11,7 @@
  */
 
 #include <stdarg.h>
+#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -140,7 +141,7 @@ _bsc1(char *, getbenv, char *, a)
 #endif
 
 
-void config_BSP(char *command, int len)
+void __init config_BSP(char *command, int len)
 {
   unsigned char *p;
 
