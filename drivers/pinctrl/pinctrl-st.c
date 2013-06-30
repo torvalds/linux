@@ -1391,7 +1391,7 @@ static struct platform_driver st_pctl_driver = {
 	.driver = {
 		.name = "st-pinctrl",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(st_pctl_of_match),
+		.of_match_table = st_pctl_of_match,
 	},
 	.probe = st_pctl_probe,
 };
