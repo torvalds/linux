@@ -130,19 +130,16 @@ static int dock_init_hotplug(struct dock_dependent_device *dd,
 	int ret = 0;
 
 	mutex_lock(&hotplug_lock);
-
-	if (dd->hp_context) {
+	if (WARN_ON(dd->hp_context)) {
 		ret = -EEXIST;
 	} else {
 		dd->hp_refcount = 1;
 		dd->hp_ops = ops;
 		dd->hp_context = context;
 		dd->hp_release = release;
+		if (init)
+			init(context);
 	}
-
-	if (!WARN_ON(ret) && init)
-		init(context);
-
 	mutex_unlock(&hotplug_lock);
 	return ret;
 }
@@ -157,22 +154,17 @@ static int dock_init_hotplug(struct dock_dependent_device *dd,
  */
 static void dock_release_hotplug(struct dock_dependent_device *dd)
 {
-	void (*release)(void *) = NULL;
-	void *context = NULL;
-
 	mutex_lock(&hotplug_lock);
-
 	if (dd->hp_context && !--dd->hp_refcount) {
+		void (*release)(void *) = dd->hp_release;
+		void *context = dd->hp_context;
+
 		dd->hp_ops = NULL;
-		context = dd->hp_context;
 		dd->hp_context = NULL;
-		release = dd->hp_release;
 		dd->hp_release = NULL;
+		if (release)
+			release(context);
 	}
-
-	if (release && context)
-		release(context);
-
 	mutex_unlock(&hotplug_lock);
 }
 
