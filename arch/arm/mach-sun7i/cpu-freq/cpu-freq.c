@@ -20,7 +20,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/cpufreq.h>
 #include <linux/cpu.h>
@@ -131,20 +130,16 @@ static void sunxi_cpufreq_show(const char *pfx, struct sunxi_cpu_freq_t *cfg)
 */
 static int __init_vftable_syscfg(void)
 {
-	int ret = 0;
+	int i, ret, level_freq, level_volt;
 	char name[16] = {0};
-    script_item_u level_freq, level_volt, level_count;
-    script_item_value_type_e type;
-	int i;
 
-    type = script_get_item("dvfs_table", "LV_count", &level_count);
-    if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        CPUFREQ_ERR("get LV_count from sysconfig failed\n");
+	if (script_parser_fetch("dvfs_table", "LV_count", &table_length_syscfg,
+				sizeof(int)) != 0) {
+		CPUFREQ_ERR("get LV_count from sysconfig failed\n");
 		use_default_table = 1;
-        ret = -1;
-        goto fail;
-    }
-    table_length_syscfg = level_count.val;
+		ret = -1;
+		goto fail;
+	}
 
 	/* table_length_syscfg must be < TABLE_LENGTH */
 	if(table_length_syscfg >= TABLE_LENGTH){
@@ -156,25 +151,25 @@ static int __init_vftable_syscfg(void)
 
 	for (i = 1; i <= table_length_syscfg; i++){
 		sprintf(name, "LV%d_freq", i);
-        type = script_get_item("dvfs_table", name, &level_freq);
-        if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		if (script_parser_fetch("dvfs_table", name, &level_freq,
+					sizeof(int)) != 0) {
 			CPUFREQ_ERR("get LV%d_freq from sysconfig failed\n", i);
-            use_default_table = 1;
-            ret = -1;
-            goto fail;
-        }
+			use_default_table = 1;
+			ret = -1;
+			goto fail;
+		}
 
 		sprintf(name, "LV%d_volt", i);
-        type = script_get_item("dvfs_table", name, &level_volt);
-        if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-			CPUFREQ_ERR("get LV%d_volt from sysconfig failed\n", i);
-            use_default_table = 1;
-            ret = -1;
-            goto fail;
-        }
+		if (script_parser_fetch("dvfs_table", name, &level_volt,
+					sizeof(int)) != 0) {
+			CPUFREQ_ERR("get LV%d_freq from sysconfig failed\n", i);
+			use_default_table = 1;
+			ret = -1;
+			goto fail;
+		}
 
-		dvfs_table_syscfg[i-1].freq = level_freq.val;
-		dvfs_table_syscfg[i-1].volt = level_volt.val;
+		dvfs_table_syscfg[i-1].freq = level_freq;
+		dvfs_table_syscfg[i-1].volt = level_volt;
 	}
 
 	/* end of cpu dvfs table */
@@ -980,7 +975,7 @@ static int __init sunxi_cpufreq_initcall(void)
 	       clk_get_rate(clk_ahb), clk_get_rate(clk_apb));
 
 #ifdef CONFIG_CPU_FREQ_DVFS
-    corevdd = regulator_get(NULL, "axp20_core");
+    corevdd = regulator_get(NULL, "Vcore");
     if(IS_ERR(corevdd)) {
         CPUFREQ_INF("try to get regulator failed, core vdd will not changed!\n");
         corevdd = NULL;
@@ -1014,34 +1009,4 @@ static int __init sunxi_cpufreq_initcall(void)
 
     return ret;
 }
-
-
-/*
- * cpu frequency driver exit
- */
-static void __exit sunxi_cpufreq_exitcall(void)
-{
-    clk_put(clk_pll);
-    clk_put(clk_cpu);
-    clk_put(clk_axi);
-    clk_put(clk_ahb);
-    clk_put(clk_apb);
-#ifdef AHB_APB_CLK_ASYNC
-    clk_put(clk_sata_pll);
-#endif
-    
-#ifdef CONFIG_CPU_FREQ_DVFS
-    if(corevdd == NULL) {
-    regulator_put(corevdd);
-    corevdd = NULL;
-    }
-#endif
-    cpufreq_unregister_driver(&sunxi_cpufreq_driver);
-}
-
-
-MODULE_DESCRIPTION("cpufreq driver for sunxi SOCs");
-MODULE_LICENSE("GPL");
-module_init(sunxi_cpufreq_initcall);
-module_exit(sunxi_cpufreq_exitcall);
-
+late_initcall(sunxi_cpufreq_initcall);
