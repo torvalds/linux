@@ -1251,6 +1251,9 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	/* Set the CRTC operations from the chip specific data */
 	drm_crtc_init(dev, &psb_intel_crtc->base, dev_priv->ops->crtc_funcs);
 
+	/* Set the CRTC clock functions from chip specific data */
+	psb_intel_crtc->clock_funcs = dev_priv->ops->clock_funcs;
+
 	drm_mode_crtc_set_gamma_size(&psb_intel_crtc->base, 256);
 	psb_intel_crtc->pipe = pipe;
 	psb_intel_crtc->plane = pipe;
