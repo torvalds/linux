@@ -741,29 +741,16 @@ static struct notifier_block dock_acpi_notifier = {
  * check to see if an object has an _EJD method.  If it does, then it
  * will see if it is dependent on the dock station.
  */
-static acpi_status __init
-find_dock_devices(acpi_handle handle, u32 lvl, void *context, void **rv)
+static acpi_status __init find_dock_devices(acpi_handle handle, u32 lvl,
+					    void *context, void **rv)
 {
-	acpi_status status;
-	acpi_handle tmp, parent;
 	struct dock_station *ds = context;
+	acpi_handle ejd = NULL;
 
-	status = acpi_bus_get_ejd(handle, &tmp);
-	if (ACPI_FAILURE(status)) {
-		/* try the parent device as well */
-		status = acpi_get_parent(handle, &parent);
-		if (ACPI_FAILURE(status))
-			goto fdd_out;
-		/* see if parent is dependent on dock */
-		status = acpi_bus_get_ejd(parent, &tmp);
-		if (ACPI_FAILURE(status))
-			goto fdd_out;
-	}
-
-	if (tmp == ds->handle)
+	acpi_bus_get_ejd(handle, &ejd);
+	if (ejd == ds->handle)
 		add_dock_dependent_device(ds, handle);
 
-fdd_out:
 	return AE_OK;
 }
 
