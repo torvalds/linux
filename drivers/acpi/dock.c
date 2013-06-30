@@ -607,18 +607,17 @@ static int handle_eject_request(struct dock_station *ds, u32 event)
 
 /**
  * dock_notify - act upon an acpi dock notification
- * @handle: the dock station handle
+ * @ds: dock station
  * @event: the acpi event
- * @data: our driver data struct
  *
  * If we are notified to dock, then check to see if the dock is
  * present and then dock.  Notify all drivers of the dock event,
  * and then hotplug and devices that may need hotplugging.
  */
-static void dock_notify(acpi_handle handle, u32 event, void *data)
+static void dock_notify(struct dock_station *ds, u32 event)
 {
-	struct dock_station *ds = data;
-	struct acpi_device *tmp;
+	acpi_handle handle = ds->handle;
+	struct acpi_device *ad;
 	int surprise_removal = 0;
 
 	/*
@@ -641,8 +640,7 @@ static void dock_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		if (!dock_in_progress(ds) && acpi_bus_get_device(ds->handle,
-		   &tmp)) {
+		if (!dock_in_progress(ds) && acpi_bus_get_device(handle, &ad)) {
 			begin_dock(ds);
 			dock(ds);
 			if (!dock_present(ds)) {
@@ -679,9 +677,8 @@ static void dock_notify(acpi_handle handle, u32 event, void *data)
 }
 
 struct dock_data {
-	acpi_handle handle;
-	unsigned long event;
 	struct dock_station *ds;
+	u32 event;
 };
 
 static void acpi_dock_deferred_cb(void *context)
@@ -689,51 +686,30 @@ static void acpi_dock_deferred_cb(void *context)
 	struct dock_data *data = context;
 
 	acpi_scan_lock_acquire();
-	dock_notify(data->handle, data->event, data->ds);
+	dock_notify(data->ds, data->event);
 	acpi_scan_lock_release();
 	kfree(data);
 }
 
-static int acpi_dock_notifier_call(struct notifier_block *this,
-	unsigned long event, void *data)
+static void dock_notify_handler(acpi_handle handle, u32 event, void *data)
 {
-	struct dock_station *dock_station;
-	acpi_handle handle = data;
+	struct dock_data *dd;
 
 	if (event != ACPI_NOTIFY_BUS_CHECK && event != ACPI_NOTIFY_DEVICE_CHECK
 	   && event != ACPI_NOTIFY_EJECT_REQUEST)
-		return 0;
+		return;
 
-	acpi_scan_lock_acquire();
+	dd = kmalloc(sizeof(*dd), GFP_KERNEL);
+	if (dd) {
+		acpi_status status;
 
-	list_for_each_entry(dock_station, &dock_stations, sibling) {
-		if (dock_station->handle == handle) {
-			struct dock_data *dd;
-			acpi_status status;
-
-			dd = kmalloc(sizeof(*dd), GFP_KERNEL);
-			if (!dd)
-				break;
-
-			dd->handle = handle;
-			dd->event = event;
-			dd->ds = dock_station;
-			status = acpi_os_hotplug_execute(acpi_dock_deferred_cb,
-							 dd);
-			if (ACPI_FAILURE(status))
-				kfree(dd);
-
-			break;
-		}
+		dd->ds = data;
+		dd->event = event;
+		status = acpi_os_hotplug_execute(acpi_dock_deferred_cb, dd);
+		if (ACPI_FAILURE(status))
+			kfree(dd);
 	}
-
-	acpi_scan_lock_release();
-	return 0;
 }
-
-static struct notifier_block dock_acpi_notifier = {
-	.notifier_call = acpi_dock_notifier_call,
-};
 
 /**
  * find_dock_devices - find devices on the dock station
@@ -868,6 +844,7 @@ static int __init dock_add(acpi_handle handle)
 	int ret, id;
 	struct dock_station ds, *dock_station;
 	struct platform_device *dd;
+	acpi_status status;
 
 	id = dock_station_count;
 	memset(&ds, 0, sizeof(ds));
@@ -906,6 +883,11 @@ static int __init dock_add(acpi_handle handle)
 	/* add the dock station as a device dependent on itself */
 	ret = add_dock_dependent_device(dock_station, handle);
 	if (ret)
+		goto err_rmgroup;
+
+	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+					     dock_notify_handler, dock_station);
+	if (ACPI_FAILURE(status))
 		goto err_rmgroup;
 
 	dock_station_count++;
@@ -953,7 +935,6 @@ void __init acpi_dock_init(void)
 	}
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&dock_notifier_list);
-	register_acpi_bus_notifier(&dock_acpi_notifier);
 	pr_info(PREFIX "%s: %d docks/bays found\n",
 		ACPI_DOCK_DRIVER_DESCRIPTION, dock_station_count);
 }
