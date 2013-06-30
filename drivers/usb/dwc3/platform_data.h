@@ -17,6 +17,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/usb/ch9.h>
+
 struct dwc3_platform_data {
+	enum usb_device_speed maximum_speed;
 	bool tx_fifo_resize;
 };

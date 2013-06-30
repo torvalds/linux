@@ -36,6 +36,7 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/of.h>
 
 #include "platform_data.h"
 #include "core.h"
@@ -43,10 +44,6 @@
 #include "io.h"
 
 #include "debug.h"
-
-static char *maximum_speed = "super";
-module_param(maximum_speed, charp, 0);
-MODULE_PARM_DESC(maximum_speed, "Maximum supported speed.");
 
 /* -------------------------------------------------------------------------- */
 
@@ -412,16 +409,24 @@ static int dwc3_probe(struct platform_device *pdev)
 	}
 
 	if (node) {
+		dwc->maximum_speed = of_usb_get_maximum_speed(node);
+
 		dwc->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 		dwc->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
 
 		dwc->needs_fifo_resize = of_property_read_bool(node, "tx-fifo-resize");
 	} else {
+		dwc->maximum_speed = pdata->maximum_speed;
+
 		dwc->usb2_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 		dwc->usb3_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB3);
 
 		dwc->needs_fifo_resize = pdata->tx_fifo_resize;
 	}
+
+	/* default to superspeed if no maximum_speed passed */
+	if (dwc->maximum_speed == USB_SPEED_UNKNOWN)
+		dwc->maximum_speed = USB_SPEED_SUPER;
 
 	if (IS_ERR(dwc->usb2_phy)) {
 		ret = PTR_ERR(dwc->usb2_phy);
@@ -466,17 +471,6 @@ static int dwc3_probe(struct platform_device *pdev)
 	dev->dma_mask	= dev->parent->dma_mask;
 	dev->dma_parms	= dev->parent->dma_parms;
 	dma_set_coherent_mask(dev, dev->parent->coherent_dma_mask);
-
-	if (!strncmp("super", maximum_speed, 5))
-		dwc->maximum_speed = DWC3_DCFG_SUPERSPEED;
-	else if (!strncmp("high", maximum_speed, 4))
-		dwc->maximum_speed = DWC3_DCFG_HIGHSPEED;
-	else if (!strncmp("full", maximum_speed, 4))
-		dwc->maximum_speed = DWC3_DCFG_FULLSPEED1;
-	else if (!strncmp("low", maximum_speed, 3))
-		dwc->maximum_speed = DWC3_DCFG_LOWSPEED;
-	else
-		dwc->maximum_speed = DWC3_DCFG_SUPERSPEED;
 
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
