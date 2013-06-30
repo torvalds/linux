@@ -6,10 +6,14 @@
  *
  * Author: Anton Tikhomirov <av.tikhomirov@samsung.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2  of
+ * the License as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -228,5 +232,5 @@ module_platform_driver(dwc3_exynos_driver);
 
 MODULE_ALIAS("platform:exynos-dwc3");
 MODULE_AUTHOR("Anton Tikhomirov <av.tikhomirov@samsung.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DesignWare USB3 EXYNOS Glue Layer");
