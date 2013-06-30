@@ -27,6 +27,7 @@
 #include <drm/gma_drm.h>
 #include "psb_reg.h"
 #include "psb_intel_drv.h"
+#include "gma_display.h"
 #include "intel_bios.h"
 #include "gtt.h"
 #include "power.h"
@@ -676,6 +677,7 @@ struct psb_ops {
 	/* Sub functions */
 	struct drm_crtc_helper_funcs const *crtc_helper;
 	struct drm_crtc_funcs const *crtc_funcs;
+	const struct gma_clock_funcs *clock_funcs;
 
 	/* Setup hooks */
 	int (*chip_setup)(struct drm_device *dev);

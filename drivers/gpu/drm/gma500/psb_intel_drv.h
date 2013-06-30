@@ -24,6 +24,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/gpio.h>
+#include "gma_display.h"
 
 /*
  * Display related stuff
@@ -188,6 +189,8 @@ struct psb_intel_crtc {
 
 	/* Saved Crtc HW states */
 	struct psb_intel_crtc_state *crtc_state;
+
+	const struct gma_clock_funcs *clock_funcs;
 };
 
 #define to_psb_intel_crtc(x)	\
