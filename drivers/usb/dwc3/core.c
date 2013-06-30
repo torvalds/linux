@@ -37,6 +37,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
+#include "platform_data.h"
 #include "core.h"
 #include "gadget.h"
 #include "io.h"
@@ -350,6 +351,7 @@ static void dwc3_core_exit(struct dwc3 *dwc)
 
 static int dwc3_probe(struct platform_device *pdev)
 {
+	struct dwc3_platform_data *pdata = pdev->dev.platform_data;
 	struct device_node	*node = pdev->dev.of_node;
 	struct resource		*res;
 	struct dwc3		*dwc;
@@ -412,9 +414,13 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (node) {
 		dwc->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 		dwc->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
+
+		dwc->needs_fifo_resize = of_property_read_bool(node, "tx-fifo-resize");
 	} else {
 		dwc->usb2_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 		dwc->usb3_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB3);
+
+		dwc->needs_fifo_resize = pdata->tx_fifo_resize;
 	}
 
 	if (IS_ERR(dwc->usb2_phy)) {
@@ -471,8 +477,6 @@ static int dwc3_probe(struct platform_device *pdev)
 		dwc->maximum_speed = DWC3_DCFG_LOWSPEED;
 	else
 		dwc->maximum_speed = DWC3_DCFG_SUPERSPEED;
-
-	dwc->needs_fifo_resize = of_property_read_bool(node, "tx-fifo-resize");
 
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
