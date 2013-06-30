@@ -65,9 +65,8 @@ bool regmap_reg_in_ranges(unsigned int reg,
 }
 EXPORT_SYMBOL_GPL(regmap_reg_in_ranges);
 
-static bool _regmap_check_range_table(struct regmap *map,
-				      unsigned int reg,
-				      const struct regmap_access_table *table)
+bool regmap_check_range_table(struct regmap *map, unsigned int reg,
+			      const struct regmap_access_table *table)
 {
 	/* Check "no ranges" first */
 	if (regmap_reg_in_ranges(reg, table->no_ranges, table->n_no_ranges))
@@ -80,6 +79,7 @@ static bool _regmap_check_range_table(struct regmap *map,
 	return regmap_reg_in_ranges(reg, table->yes_ranges,
 				    table->n_yes_ranges);
 }
+EXPORT_SYMBOL_GPL(regmap_check_range_table);
 
 bool regmap_writeable(struct regmap *map, unsigned int reg)
 {
@@ -90,7 +90,7 @@ bool regmap_writeable(struct regmap *map, unsigned int reg)
 		return map->writeable_reg(map->dev, reg);
 
 	if (map->wr_table)
-		return _regmap_check_range_table(map, reg, map->wr_table);
+		return regmap_check_range_table(map, reg, map->wr_table);
 
 	return true;
 }
@@ -107,7 +107,7 @@ bool regmap_readable(struct regmap *map, unsigned int reg)
 		return map->readable_reg(map->dev, reg);
 
 	if (map->rd_table)
-		return _regmap_check_range_table(map, reg, map->rd_table);
+		return regmap_check_range_table(map, reg, map->rd_table);
 
 	return true;
 }
@@ -121,7 +121,7 @@ bool regmap_volatile(struct regmap *map, unsigned int reg)
 		return map->volatile_reg(map->dev, reg);
 
 	if (map->volatile_table)
-		return _regmap_check_range_table(map, reg, map->volatile_table);
+		return regmap_check_range_table(map, reg, map->volatile_table);
 
 	return true;
 }
@@ -135,7 +135,7 @@ bool regmap_precious(struct regmap *map, unsigned int reg)
 		return map->precious_reg(map->dev, reg);
 
 	if (map->precious_table)
-		return _regmap_check_range_table(map, reg, map->precious_table);
+		return regmap_check_range_table(map, reg, map->precious_table);
 
 	return false;
 }
@@ -302,13 +302,16 @@ static void regmap_unlock_mutex(void *__map)
 static void regmap_lock_spinlock(void *__map)
 {
 	struct regmap *map = __map;
-	spin_lock(&map->spinlock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&map->spinlock, flags);
+	map->spinlock_flags = flags;
 }
 
 static void regmap_unlock_spinlock(void *__map)
 {
 	struct regmap *map = __map;
-	spin_unlock(&map->spinlock);
+	spin_unlock_irqrestore(&map->spinlock, map->spinlock_flags);
 }
 
 static void dev_get_regmap_release(struct device *dev, void *res)

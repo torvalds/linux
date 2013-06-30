@@ -304,6 +304,48 @@ static int regcache_rbtree_insert_to_block(struct regmap *map,
 	return 0;
 }
 
+static struct regcache_rbtree_node *
+regcache_rbtree_node_alloc(struct regmap *map, unsigned int reg)
+{
+	struct regcache_rbtree_node *rbnode;
+	const struct regmap_range *range;
+	int i;
+
+	rbnode = kzalloc(sizeof(*rbnode), GFP_KERNEL);
+	if (!rbnode)
+		return NULL;
+
+	/* If there is a read table then use it to guess at an allocation */
+	if (map->rd_table) {
+		for (i = 0; i < map->rd_table->n_yes_ranges; i++) {
+			if (regmap_reg_in_range(reg,
+						&map->rd_table->yes_ranges[i]))
+				break;
+		}
+
+		if (i != map->rd_table->n_yes_ranges) {
+			range = &map->rd_table->yes_ranges[i];
+			rbnode->blklen = range->range_max - range->range_min
+				+ 1;
+			rbnode->base_reg = range->range_min;
+		}
+	}
+
+	if (!rbnode->blklen) {
+		rbnode->blklen = sizeof(*rbnode);
+		rbnode->base_reg = reg;
+	}
+
+	rbnode->block = kmalloc(rbnode->blklen * map->cache_word_size,
+				GFP_KERNEL);
+	if (!rbnode->block) {
+		kfree(rbnode);
+		return NULL;
+	}
+
+	return rbnode;
+}
+
 static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 				 unsigned int value)
 {
@@ -354,23 +396,15 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 				return 0;
 			}
 		}
-		/* we did not manage to find a place to insert it in an existing
-		 * block so create a new rbnode with a single register in its block.
-		 * This block will get populated further if any other adjacent
-		 * registers get modified in the future.
+
+		/* We did not manage to find a place to insert it in
+		 * an existing block so create a new rbnode.
 		 */
-		rbnode = kzalloc(sizeof *rbnode, GFP_KERNEL);
+		rbnode = regcache_rbtree_node_alloc(map, reg);
 		if (!rbnode)
 			return -ENOMEM;
-		rbnode->blklen = sizeof(*rbnode);
-		rbnode->base_reg = reg;
-		rbnode->block = kmalloc(rbnode->blklen * map->cache_word_size,
-					GFP_KERNEL);
-		if (!rbnode->block) {
-			kfree(rbnode);
-			return -ENOMEM;
-		}
-		regcache_rbtree_set_register(map, rbnode, 0, value);
+		regcache_rbtree_set_register(map, rbnode,
+					     reg - rbnode->base_reg, value);
 		regcache_rbtree_insert(map, &rbtree_ctx->root, rbnode);
 		rbtree_ctx->cached_rbnode = rbnode;
 	}

@@ -394,9 +394,14 @@ bool regmap_can_raw_write(struct regmap *map);
 int regcache_sync(struct regmap *map);
 int regcache_sync_region(struct regmap *map, unsigned int min,
 			 unsigned int max);
+int regcache_drop_region(struct regmap *map, unsigned int min,
+			 unsigned int max);
 void regcache_cache_only(struct regmap *map, bool enable);
 void regcache_cache_bypass(struct regmap *map, bool enable);
 void regcache_mark_dirty(struct regmap *map);
+
+bool regmap_check_range_table(struct regmap *map, unsigned int reg,
+			      const struct regmap_access_table *table);
 
 int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 			  int num_regs);
@@ -556,6 +561,13 @@ static inline int regcache_sync(struct regmap *map)
 }
 
 static inline int regcache_sync_region(struct regmap *map, unsigned int min,
+				       unsigned int max)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regcache_drop_region(struct regmap *map, unsigned int min,
 				       unsigned int max)
 {
 	WARN_ONCE(1, "regmap API is disabled");
