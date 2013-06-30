@@ -262,6 +262,7 @@ header-y += net_dropmon.h
 header-y += net_tstamp.h
 header-y += netconf.h
 header-y += netdevice.h
+header-y += netlink_diag.h
 header-y += netfilter.h
 header-y += netfilter_arp.h
 header-y += netfilter_bridge.h

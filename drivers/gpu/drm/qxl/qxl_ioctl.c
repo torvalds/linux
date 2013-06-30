@@ -171,6 +171,11 @@ static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 		if (user_cmd.command_size > PAGE_SIZE - sizeof(union qxl_release_info))
 			return -EINVAL;
 
+		if (!access_ok(VERIFY_READ,
+			       (void *)(unsigned long)user_cmd.command,
+			       user_cmd.command_size))
+			return -EFAULT;
+
 		ret = qxl_alloc_release_reserved(qdev,
 						 sizeof(union qxl_release_info) +
 						 user_cmd.command_size,

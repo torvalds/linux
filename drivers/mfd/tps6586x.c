@@ -107,7 +107,7 @@ static struct mfd_cell tps6586x_cell[] = {
 		.name = "tps6586x-gpio",
 	},
 	{
-		.name = "tps6586x-pmic",
+		.name = "tps6586x-regulator",
 	},
 	{
 		.name = "tps6586x-rtc",

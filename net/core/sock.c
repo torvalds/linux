@@ -571,9 +571,7 @@ static int sock_getbindtodevice(struct sock *sk, char __user *optval,
 	int ret = -ENOPROTOOPT;
 #ifdef CONFIG_NETDEVICES
 	struct net *net = sock_net(sk);
-	struct net_device *dev;
 	char devname[IFNAMSIZ];
-	unsigned seq;
 
 	if (sk->sk_bound_dev_if == 0) {
 		len = 0;
@@ -584,20 +582,9 @@ static int sock_getbindtodevice(struct sock *sk, char __user *optval,
 	if (len < IFNAMSIZ)
 		goto out;
 
-retry:
-	seq = read_seqcount_begin(&devnet_rename_seq);
-	rcu_read_lock();
-	dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
-	ret = -ENODEV;
-	if (!dev) {
-		rcu_read_unlock();
+	ret = netdev_get_name(net, devname, sk->sk_bound_dev_if);
+	if (ret)
 		goto out;
-	}
-
-	strcpy(devname, dev->name);
-	rcu_read_unlock();
-	if (read_seqcount_retry(&devnet_rename_seq, seq))
-		goto retry;
 
 	len = strlen(devname) + 1;
 

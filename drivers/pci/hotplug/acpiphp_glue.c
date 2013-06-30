@@ -61,6 +61,7 @@ static DEFINE_MUTEX(bridge_mutex);
 static void handle_hotplug_event_bridge (acpi_handle, u32, void *);
 static void acpiphp_sanitize_bus(struct pci_bus *bus);
 static void acpiphp_set_hpp_values(struct pci_bus *bus);
+static void hotplug_event_func(acpi_handle handle, u32 type, void *context);
 static void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context);
 static void free_bridge(struct kref *kref);
 
@@ -147,7 +148,7 @@ static int post_dock_fixups(struct notifier_block *nb, unsigned long val,
 
 
 static const struct acpi_dock_ops acpiphp_dock_ops = {
-	.handler = handle_hotplug_event_func,
+	.handler = hotplug_event_func,
 };
 
 /* Check whether the PCI device is managed by native PCIe hotplug driver */
@@ -177,6 +178,20 @@ static bool device_is_managed_by_native_pciehp(struct pci_dev *pdev)
 		return false;
 
 	return true;
+}
+
+static void acpiphp_dock_init(void *data)
+{
+	struct acpiphp_func *func = data;
+
+	get_bridge(func->slot->bridge);
+}
+
+static void acpiphp_dock_release(void *data)
+{
+	struct acpiphp_func *func = data;
+
+	put_bridge(func->slot->bridge);
 }
 
 /* callback routine to register each ACPI PCI slot object */
@@ -298,7 +313,8 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		 */
 		newfunc->flags &= ~FUNC_HAS_EJ0;
 		if (register_hotplug_dock_device(handle,
-			&acpiphp_dock_ops, newfunc))
+			&acpiphp_dock_ops, newfunc,
+			acpiphp_dock_init, acpiphp_dock_release))
 			dbg("failed to register dock device\n");
 
 		/* we need to be notified when dock events happen
@@ -670,6 +686,7 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 	struct pci_bus *bus = slot->bridge->pci_bus;
 	struct acpiphp_func *func;
 	int num, max, pass;
+	LIST_HEAD(add_list);
 
 	if (slot->flags & SLOT_ENABLED)
 		goto err_exit;
@@ -694,13 +711,15 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 				max = pci_scan_bridge(bus, dev, max, pass);
 				if (pass && dev->subordinate) {
 					check_hotplug_bridge(slot, dev);
-					pci_bus_size_bridges(dev->subordinate);
+					pcibios_resource_survey_bus(dev->subordinate);
+					__pci_bus_size_bridges(dev->subordinate,
+							       &add_list);
 				}
 			}
 		}
 	}
 
-	pci_bus_assign_resources(bus);
+	__pci_bus_assign_resources(bus, &add_list, NULL);
 	acpiphp_sanitize_bus(bus);
 	acpiphp_set_hpp_values(bus);
 	acpiphp_set_acpi_region(slot);
@@ -1065,22 +1084,12 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type,
 	alloc_acpi_hp_work(handle, type, context, _handle_hotplug_event_bridge);
 }
 
-static void _handle_hotplug_event_func(struct work_struct *work)
+static void hotplug_event_func(acpi_handle handle, u32 type, void *context)
 {
-	struct acpiphp_func *func;
+	struct acpiphp_func *func = context;
 	char objname[64];
 	struct acpi_buffer buffer = { .length = sizeof(objname),
 				      .pointer = objname };
-	struct acpi_hp_work *hp_work;
-	acpi_handle handle;
-	u32 type;
-
-	hp_work = container_of(work, struct acpi_hp_work, work);
-	handle = hp_work->handle;
-	type = hp_work->type;
-	func = (struct acpiphp_func *)hp_work->context;
-
-	acpi_scan_lock_acquire();
 
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 
@@ -1113,6 +1122,18 @@ static void _handle_hotplug_event_func(struct work_struct *work)
 		warn("notify_handler: unknown event type 0x%x for %s\n", type, objname);
 		break;
 	}
+}
+
+static void _handle_hotplug_event_func(struct work_struct *work)
+{
+	struct acpi_hp_work *hp_work;
+	struct acpiphp_func *func;
+
+	hp_work = container_of(work, struct acpi_hp_work, work);
+	func = hp_work->context;
+	acpi_scan_lock_acquire();
+
+	hotplug_event_func(hp_work->handle, hp_work->type, func);
 
 	acpi_scan_lock_release();
 	kfree(hp_work); /* allocated in handle_hotplug_event_func */

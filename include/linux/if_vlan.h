@@ -44,7 +44,7 @@ struct vlan_hdr {
  *	struct vlan_ethhdr - vlan ethernet header (ethhdr + vlan_hdr)
  *	@h_dest: destination ethernet address
  *	@h_source: source ethernet address
- *	@h_vlan_proto: ethernet protocol (always 0x8100)
+ *	@h_vlan_proto: ethernet protocol
  *	@h_vlan_TCI: priority and VLAN ID
  *	@h_vlan_encapsulated_proto: packet type ID or len
  */
