@@ -176,10 +176,6 @@ void __init r8a7790_timer_init(void)
 }
 
 #ifdef CONFIG_USE_OF
-void __init r8a7790_add_standard_devices_dt(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
 
 static const char *r8a7790_boards_compat_dt[] __initdata = {
 	"renesas,r8a7790",
@@ -187,7 +183,6 @@ static const char *r8a7790_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(R8A7790_DT, "Generic R8A7790 (Flattened Device Tree)")
-	.init_machine	= r8a7790_add_standard_devices_dt,
 	.init_time	= r8a7790_timer_init,
 	.dt_compat	= r8a7790_boards_compat_dt,
 MACHINE_END
