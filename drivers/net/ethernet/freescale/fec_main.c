@@ -606,11 +606,8 @@ fec_restart(struct net_device *ndev, int duplex)
 		ecntl |= (1 << 4);
 
 #ifndef CONFIG_M5272
-	/* Disable, clear, and enable the MIB */
-	writel(1 << 31, fep->hwp + FEC_MIB_CTRLSTAT);
-	for (i = RMON_T_DROP; i < IEEE_R_OCTETS_OK; i++)
-		writel(0, fep->hwp + i);
-	writel(0, fep->hwp + FEC_MIB_CTRLSTAT);
+	/* Enable the MIB statistic event counters */
+	writel(0 << 31, fep->hwp + FEC_MIB_CTRLSTAT);
 #endif
 
 	/* And last, enable the transmit and receive processing */
