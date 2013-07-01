@@ -985,8 +985,6 @@ static int bnx2x_get_dump_data(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 	struct dump_header dump_hdr = {0};
 
-	memset(p, 0, dump->len);
-
 	/* Disable parity attentions as long as following dump may
 	 * cause false alarms by reading never written registers. We
 	 * will re-enable parity attentions right after the dump.
