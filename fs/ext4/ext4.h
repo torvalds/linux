@@ -2169,42 +2169,96 @@ extern int ext4_alloc_flex_bg_array(struct super_block *sb,
 				    ext4_group_t ngroup);
 extern const char *ext4_decode_error(struct super_block *sb, int errno,
 				     char nbuf[16]);
+
 extern __printf(4, 5)
 void __ext4_error(struct super_block *, const char *, unsigned int,
 		  const char *, ...);
-#define ext4_error(sb, message...)	__ext4_error(sb, __func__,	\
-						     __LINE__, ## message)
 extern __printf(5, 6)
-void ext4_error_inode(struct inode *, const char *, unsigned int, ext4_fsblk_t,
+void __ext4_error_inode(struct inode *, const char *, unsigned int, ext4_fsblk_t,
 		      const char *, ...);
 extern __printf(5, 6)
-void ext4_error_file(struct file *, const char *, unsigned int, ext4_fsblk_t,
+void __ext4_error_file(struct file *, const char *, unsigned int, ext4_fsblk_t,
 		     const char *, ...);
 extern void __ext4_std_error(struct super_block *, const char *,
 			     unsigned int, int);
 extern __printf(4, 5)
 void __ext4_abort(struct super_block *, const char *, unsigned int,
 		  const char *, ...);
-#define ext4_abort(sb, message...)	__ext4_abort(sb, __func__, \
-						       __LINE__, ## message)
 extern __printf(4, 5)
 void __ext4_warning(struct super_block *, const char *, unsigned int,
 		    const char *, ...);
-#define ext4_warning(sb, message...)	__ext4_warning(sb, __func__, \
-						       __LINE__, ## message)
 extern __printf(3, 4)
-void ext4_msg(struct super_block *, const char *, const char *, ...);
+void __ext4_msg(struct super_block *, const char *, const char *, ...);
 extern void __dump_mmp_msg(struct super_block *, struct mmp_struct *mmp,
 			   const char *, unsigned int, const char *);
-#define dump_mmp_msg(sb, mmp, msg)	__dump_mmp_msg(sb, mmp, __func__, \
-						       __LINE__, msg)
 extern __printf(7, 8)
 void __ext4_grp_locked_error(const char *, unsigned int,
 			     struct super_block *, ext4_group_t,
 			     unsigned long, ext4_fsblk_t,
 			     const char *, ...);
-#define ext4_grp_locked_error(sb, grp, message...) \
-	__ext4_grp_locked_error(__func__, __LINE__, (sb), (grp), ## message)
+
+#ifdef CONFIG_PRINTK
+
+#define ext4_error_inode(inode, func, line, block, fmt, ...)		\
+	__ext4_error_inode(inode, func, line, block, fmt, ##__VA_ARGS__)
+#define ext4_error_file(file, func, line, block, fmt, ...)		\
+	__ext4_error_file(file, func, line, block, fmt, ##__VA_ARGS__)
+#define ext4_error(sb, fmt, ...)					\
+	__ext4_error(sb, __func__, __LINE__, fmt, ##__VA_ARGS__)
+#define ext4_abort(sb, fmt, ...)					\
+	__ext4_abort(sb, __func__, __LINE__, fmt, ##__VA_ARGS__)
+#define ext4_warning(sb, fmt, ...)					\
+	__ext4_warning(sb, __func__, __LINE__, fmt, ##__VA_ARGS__)
+#define ext4_msg(sb, level, fmt, ...)				\
+	__ext4_msg(sb, level, fmt, ##__VA_ARGS__)
+#define dump_mmp_msg(sb, mmp, msg)					\
+	__dump_mmp_msg(sb, mmp, __func__, __LINE__, msg)
+#define ext4_grp_locked_error(sb, grp, ino, block, fmt, ...)		\
+	__ext4_grp_locked_error(__func__, __LINE__, sb, grp, ino, block, \
+				fmt, ##__VA_ARGS__)
+
+#else
+
+#define ext4_error_inode(inode, func, line, block, fmt, ...)		\
+do {									\
+	no_printk(fmt, ##__VA_ARGS__);					\
+	__ext4_error_inode(inode, "", 0, block, " ");			\
+} while (0)
+#define ext4_error_file(file, func, line, block, fmt, ...)		\
+do {									\
+	no_printk(fmt, ##__VA_ARGS__);					\
+	__ext4_error_file(file, "", 0, block, " ");			\
+} while (0)
+#define ext4_error(sb, fmt, ...)					\
+do {									\
+	no_printk(fmt, ##__VA_ARGS__);					\
+	__ext4_error(sb, "", 0, " ");					\
+} while (0)
+#define ext4_abort(sb, fmt, ...)					\
+do {									\
+	no_printk(fmt, ##__VA_ARGS__);					\
+	__ext4_abort(sb, "", 0, " ");					\
+} while (0)
+#define ext4_warning(sb, fmt, ...)					\
+do {									\
+	no_printk(fmt, ##__VA_ARGS__);					\
+	__ext4_warning(sb, "", 0, " ");					\
+} while (0)
+#define ext4_msg(sb, level, fmt, ...)					\
+do {									\
+	no_printk(fmt, ##__VA_ARGS__);					\
+	__ext4_msg(sb, "", " ");					\
+} while (0)
+#define dump_mmp_msg(sb, mmp, msg)					\
+	__dump_mmp_msg(sb, mmp, "", 0, "")
+#define ext4_grp_locked_error(sb, grp, ino, block, fmt, ...)		\
+do {									\
+	no_printk(fmt, ##__VA_ARGS__);				\
+	__ext4_grp_locked_error("", 0, sb, grp, ino, block, " ");	\
+} while (0)
+
+#endif
+
 extern void ext4_update_dynamic_rev(struct super_block *sb);
 extern int ext4_update_compat_feature(handle_t *handle, struct super_block *sb,
 					__u32 compat);

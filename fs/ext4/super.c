@@ -428,9 +428,9 @@ void __ext4_error(struct super_block *sb, const char *function,
 	ext4_handle_error(sb);
 }
 
-void ext4_error_inode(struct inode *inode, const char *function,
-		      unsigned int line, ext4_fsblk_t block,
-		      const char *fmt, ...)
+void __ext4_error_inode(struct inode *inode, const char *function,
+			unsigned int line, ext4_fsblk_t block,
+			const char *fmt, ...)
 {
 	va_list args;
 	struct va_format vaf;
@@ -457,9 +457,9 @@ void ext4_error_inode(struct inode *inode, const char *function,
 	ext4_handle_error(inode->i_sb);
 }
 
-void ext4_error_file(struct file *file, const char *function,
-		     unsigned int line, ext4_fsblk_t block,
-		     const char *fmt, ...)
+void __ext4_error_file(struct file *file, const char *function,
+		       unsigned int line, ext4_fsblk_t block,
+		       const char *fmt, ...)
 {
 	va_list args;
 	struct va_format vaf;
@@ -591,7 +591,8 @@ void __ext4_abort(struct super_block *sb, const char *function,
 		panic("EXT4-fs panic from previous error\n");
 }
 
-void ext4_msg(struct super_block *sb, const char *prefix, const char *fmt, ...)
+void __ext4_msg(struct super_block *sb,
+		const char *prefix, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
