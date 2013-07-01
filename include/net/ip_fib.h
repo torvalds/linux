@@ -291,7 +291,6 @@ static inline int fib_num_tclassid_users(struct net *net)
 extern int ip_fib_check_default(__be32 gw, struct net_device *dev);
 extern int fib_sync_down_dev(struct net_device *dev, int force);
 extern int fib_sync_down_addr(struct net *net, __be32 local);
-extern void fib_update_nh_saddrs(struct net_device *dev);
 extern int fib_sync_up(struct net_device *dev);
 extern void fib_select_multipath(struct fib_result *res);
 
