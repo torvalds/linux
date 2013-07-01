@@ -673,7 +673,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		ret = s;
 		goto out;
 	}
-	kvmppc_lazy_ee_enable();
 
 	kvm_guest_enter();
 
@@ -698,6 +697,8 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	kvmppc_load_guest_fp(vcpu);
 #endif
+
+	kvmppc_lazy_ee_enable();
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 

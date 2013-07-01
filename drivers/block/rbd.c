@@ -1036,12 +1036,16 @@ static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 	char *name;
 	u64 segment;
 	int ret;
+	char *name_format;
 
 	name = kmem_cache_alloc(rbd_segment_name_cache, GFP_NOIO);
 	if (!name)
 		return NULL;
 	segment = offset >> rbd_dev->header.obj_order;
-	ret = snprintf(name, MAX_OBJ_NAME_SIZE + 1, "%s.%012llx",
+	name_format = "%s.%012llx";
+	if (rbd_dev->image_format == 2)
+		name_format = "%s.%016llx";
+	ret = snprintf(name, MAX_OBJ_NAME_SIZE + 1, name_format,
 			rbd_dev->header.object_prefix, segment);
 	if (ret < 0 || ret > MAX_OBJ_NAME_SIZE) {
 		pr_err("error formatting segment name for #%llu (%d)\n",

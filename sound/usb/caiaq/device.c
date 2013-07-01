@@ -39,25 +39,24 @@
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("caiaq USB audio");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
-			 "{Native Instruments, RigKontrol3},"
-			 "{Native Instruments, Kore Controller},"
-			 "{Native Instruments, Kore Controller 2},"
-			 "{Native Instruments, Audio Kontrol 1},"
-			 "{Native Instruments, Audio 2 DJ},"
-			 "{Native Instruments, Audio 4 DJ},"
-			 "{Native Instruments, Audio 8 DJ},"
-			 "{Native Instruments, Traktor Audio 2},"
-			 "{Native Instruments, Session I/O},"
-			 "{Native Instruments, GuitarRig mobile},"
-			 "{Native Instruments, Traktor Kontrol X1},"
-			 "{Native Instruments, Traktor Kontrol S4},"
-			 "{Native Instruments, Maschine Controller}}");
+MODULE_SUPPORTED_DEVICE("{{Native Instruments,RigKontrol2},"
+			 "{Native Instruments,RigKontrol3},"
+			 "{Native Instruments,Kore Controller},"
+			 "{Native Instruments,Kore Controller 2},"
+			 "{Native Instruments,Audio Kontrol 1},"
+			 "{Native Instruments,Audio 2 DJ},"
+			 "{Native Instruments,Audio 4 DJ},"
+			 "{Native Instruments,Audio 8 DJ},"
+			 "{Native Instruments,Traktor Audio 2},"
+			 "{Native Instruments,Session I/O},"
+			 "{Native Instruments,GuitarRig mobile},"
+			 "{Native Instruments,Traktor Kontrol X1},"
+			 "{Native Instruments,Traktor Kontrol S4},"
+			 "{Native Instruments,Maschine Controller}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX; /* Index 0-max */
 static char* id[SNDRV_CARDS] = SNDRV_DEFAULT_STR; /* Id for this card */
 static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP; /* Enable this card */
-static int snd_card_used[SNDRV_CARDS];
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the caiaq sound device");
@@ -388,7 +387,7 @@ static int create_card(struct usb_device *usb_dev,
 	struct snd_usb_caiaqdev *cdev;
 
 	for (devnum = 0; devnum < SNDRV_CARDS; devnum++)
-		if (enable[devnum] && !snd_card_used[devnum])
+		if (enable[devnum])
 			break;
 
 	if (devnum >= SNDRV_CARDS)
