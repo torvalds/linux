@@ -116,6 +116,8 @@ config SERIAL_8250_PCI
 	  This builds standard PCI serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
 	  Saves about 9K.
+	  Note that serial ports on NetMos 9835 Multi-I/O cards are handled
+	  by the parport_serial driver, enabled with CONFIG_PARPORT_SERIAL.
 
 config SERIAL_8250_HP300
 	tristate
