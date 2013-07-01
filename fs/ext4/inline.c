@@ -72,7 +72,7 @@ static int get_max_inline_xattr_value_size(struct inode *inode,
 		entry = (struct ext4_xattr_entry *)
 			((void *)raw_inode + EXT4_I(inode)->i_inline_off);
 
-		free += le32_to_cpu(entry->e_value_size);
+		free += EXT4_XATTR_SIZE(le32_to_cpu(entry->e_value_size));
 		goto out;
 	}
 
