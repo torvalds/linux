@@ -4380,7 +4380,7 @@ out2:
 	}
 
 out3:
-	trace_ext4_ext_map_blocks_exit(inode, map, err ? err : allocated);
+	trace_ext4_ext_map_blocks_exit(inode, flags, map, err ? err : allocated);
 
 	return err ? err : allocated;
 }
