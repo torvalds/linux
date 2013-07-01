@@ -1118,10 +1118,13 @@ static int ext4_write_end(struct file *file,
 		}
 	}
 
-	if (ext4_has_inline_data(inode))
-		copied = ext4_write_inline_data_end(inode, pos, len,
-						    copied, page);
-	else
+	if (ext4_has_inline_data(inode)) {
+		ret = ext4_write_inline_data_end(inode, pos, len,
+						 copied, page);
+		if (ret < 0)
+			goto errout;
+		copied = ret;
+	} else
 		copied = block_write_end(file, mapping, pos,
 					 len, copied, page, fsdata);
 
