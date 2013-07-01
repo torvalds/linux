@@ -8380,13 +8380,12 @@ check_crtc_state(struct drm_device *dev)
 			if (encoder->base.crtc != &crtc->base)
 				continue;
 			if (encoder->get_config &&
-			    encoder->get_hw_state(encoder, &pipe) &&
-			    dev_priv->display.get_clock) {
+			    encoder->get_hw_state(encoder, &pipe))
 				encoder->get_config(encoder, &pipe_config);
-				dev_priv->display.get_clock(crtc,
-							    &pipe_config);
-			}
 		}
+
+		if (dev_priv->display.get_clock)
+			dev_priv->display.get_clock(crtc, &pipe_config);
 
 		WARN(crtc->active != active,
 		     "crtc active state doesn't match with hw state "
@@ -9980,12 +9979,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		if (encoder->get_hw_state(encoder, &pipe)) {
 			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 			encoder->base.crtc = &crtc->base;
-			if (encoder->get_config &&
-			    dev_priv->display.get_clock) {
+			if (encoder->get_config)
 				encoder->get_config(encoder, &crtc->config);
-				dev_priv->display.get_clock(crtc,
-							    &crtc->config);
-			}
 		} else {
 			encoder->base.crtc = NULL;
 		}
@@ -9996,6 +9991,15 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			      drm_get_encoder_name(&encoder->base),
 			      encoder->base.crtc ? "enabled" : "disabled",
 			      pipe);
+	}
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
+			    base.head) {
+		if (!crtc->active)
+			continue;
+		if (dev_priv->display.get_clock)
+			dev_priv->display.get_clock(crtc,
+						    &crtc->config);
 	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
