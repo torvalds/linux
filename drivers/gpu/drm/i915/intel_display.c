@@ -8170,7 +8170,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 
 #define PIPE_CONF_CHECK_FLAGS(name, mask)	\
 	if ((current_config->name ^ pipe_config->name) & (mask)) { \
-		DRM_ERROR("mismatch in " #name " " \
+		DRM_ERROR("mismatch in " #name "(" #mask ") "	   \
 			  "(expected %i, found %i)\n", \
 			  current_config->name & (mask), \
 			  pipe_config->name & (mask)); \
@@ -8246,7 +8246,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 
 	if (!IS_HASWELL(dev)) {
 		if (!intel_fuzzy_clock_check(current_config, pipe_config)) {
-			DRM_ERROR("mismatch in clock (expected %d, found %d\n",
+			DRM_ERROR("mismatch in clock (expected %d, found %d)\n",
 				  current_config->adjusted_mode.clock,
 				  pipe_config->adjusted_mode.clock);
 			return false;
