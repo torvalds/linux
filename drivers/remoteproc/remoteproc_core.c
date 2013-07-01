@@ -762,13 +762,6 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 		kfree(entry);
 	}
 
-	/* clean up carveout allocations */
-	list_for_each_entry_safe(entry, tmp, &rproc->carveouts, node) {
-		dma_free_coherent(dev->parent, entry->len, entry->va, entry->dma);
-		list_del(&entry->node);
-		kfree(entry);
-	}
-
 	/* clean up iommu mapping entries */
 	list_for_each_entry_safe(entry, tmp, &rproc->mappings, node) {
 		size_t unmapped;
@@ -780,6 +773,13 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 								unmapped);
 		}
 
+		list_del(&entry->node);
+		kfree(entry);
+	}
+
+	/* clean up carveout allocations */
+	list_for_each_entry_safe(entry, tmp, &rproc->carveouts, node) {
+		dma_free_coherent(dev->parent, entry->len, entry->va, entry->dma);
 		list_del(&entry->node);
 		kfree(entry);
 	}
