@@ -275,9 +275,9 @@ static inline  struct drm_mm_node *drm_mm_search_free_in_range_color(
 	return drm_mm_search_free_in_range_generic(mm, size, alignment, color,
 						   start, end, best_match);
 }
-extern int drm_mm_init(struct drm_mm *mm,
-		       unsigned long start,
-		       unsigned long size);
+extern void drm_mm_init(struct drm_mm *mm,
+			unsigned long start,
+			unsigned long size);
 extern void drm_mm_takedown(struct drm_mm *mm);
 extern int drm_mm_clean(struct drm_mm *mm);
 extern int drm_mm_pre_get(struct drm_mm *mm);

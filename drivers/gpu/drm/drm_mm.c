@@ -669,7 +669,7 @@ int drm_mm_clean(struct drm_mm * mm)
 }
 EXPORT_SYMBOL(drm_mm_clean);
 
-int drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
+void drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 {
 	INIT_LIST_HEAD(&mm->hole_stack);
 	INIT_LIST_HEAD(&mm->unused_nodes);
@@ -690,8 +690,6 @@ int drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 	list_add_tail(&mm->head_node.hole_stack, &mm->hole_stack);
 
 	mm->color_adjust = NULL;
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_mm_init);
 
