@@ -30,55 +30,6 @@
 #include "qxl_object.h"
 #include "drm_crtc_helper.h"
 
-static void qxl_crtc_set_to_mode(struct qxl_device *qdev,
-				 struct drm_connector *connector,
-				 struct qxl_head *head)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_display_mode *mode, *t;
-	int width = head->width;
-	int height = head->height;
-
-	if (width < 320 || height < 240) {
-		qxl_io_log(qdev, "%s: bad head: %dx%d", width, height);
-		width = 1024;
-		height = 768;
-	}
-	if (width * height * 4 > 16*1024*1024) {
-		width = 1024;
-		height = 768;
-	}
-	/* TODO: go over regular modes and removed preferred? */
-	list_for_each_entry_safe(mode, t, &connector->probed_modes, head)
-		drm_mode_remove(connector, mode);
-	mode = drm_cvt_mode(dev, width, height, 60, false, false, false);
-	mode->type |= DRM_MODE_TYPE_PREFERRED;
-	mode->status = MODE_OK;
-	drm_mode_probed_add(connector, mode);
-	qxl_io_log(qdev, "%s: %d x %d\n", __func__, width, height);
-}
-
-void qxl_crtc_set_from_monitors_config(struct qxl_device *qdev)
-{
-	struct drm_connector *connector;
-	int i;
-	struct drm_device *dev = qdev->ddev;
-
-	i = 0;
-	qxl_io_log(qdev, "%s: %d, %d\n", __func__,
-		   dev->mode_config.num_connector,
-		   qdev->monitors_config->count);
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (i > qdev->monitors_config->count) {
-			/* crtc will be reported as disabled */
-			continue;
-		}
-		qxl_crtc_set_to_mode(qdev, connector,
-				     &qdev->monitors_config->heads[i]);
-		++i;
-	}
-}
-
 void qxl_alloc_client_monitors_config(struct qxl_device *qdev, unsigned count)
 {
 	if (qdev->client_monitors_config &&
@@ -117,8 +68,8 @@ static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
 		return 1;
 	}
 	if (num_monitors > qdev->monitors_config->max_allowed) {
-		DRM_INFO("client monitors list will be truncated: %d < %d\n",
-			 qdev->monitors_config->max_allowed, num_monitors);
+		DRM_DEBUG_KMS("client monitors list will be truncated: %d < %d\n",
+			      qdev->monitors_config->max_allowed, num_monitors);
 		num_monitors = qdev->monitors_config->max_allowed;
 	} else {
 		num_monitors = qdev->rom->client_monitors_config.count;
@@ -142,7 +93,7 @@ static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
 		client_head->surface_id = head->surface_id = 0;
 		client_head->id = head->id = i;
 		client_head->flags = head->flags = 0;
-		QXL_DEBUG(qdev, "read %dx%d+%d+%d\n", head->width, head->height,
+		DRM_DEBUG_KMS("read %dx%d+%d+%d\n", head->width, head->height,
 			  head->x, head->y);
 	}
 	return 0;
@@ -155,9 +106,6 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 		qxl_io_log(qdev, "failed crc check for client_monitors_config,"
 				 " retrying\n");
 	}
-	qxl_crtc_set_from_monitors_config(qdev);
-	/* fire off a uevent and let userspace tell us what to do */
-	qxl_io_log(qdev, "calling drm_sysfs_hotplug_event\n");
 	drm_sysfs_hotplug_event(qdev->ddev);
 }
 
