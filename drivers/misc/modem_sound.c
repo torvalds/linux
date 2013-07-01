@@ -23,9 +23,15 @@
 #define DISABLE            0
 
 static struct modem_sound_data *modem_sound;
+int (*set_codec_for_pcm_modem)(int cmd) = NULL; /* Set the codec used only for PCM modem */
+void (*set_codec_spk)(int on) = NULL;
 #if defined(CONFIG_SND_RK_SOC_RK2928)|| defined(CONFIG_SND_RK29_SOC_RK610)
 extern void call_set_spk(int on);
 #endif
+#ifdef CONFIG_SND_SOC_ES8323_PCM
+extern int set_es8323(int cmd);
+#endif
+
 #define HP_MIC 0
 #define MAIN_MIC 1
 #if defined(CONFIG_MODEM_MIC_SWITCH)
@@ -86,14 +92,14 @@ static ssize_t modem_sound_read(struct file *filp, char __user *ptr, size_t size
 
 static long modem_sound_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	long ret = 0;
+	int ret = 0, codec_pcm_cmd = -1, codec_cmd = -1, modem_spk_enable = -1;
 	struct modem_sound_data *pdata = modem_sound;
 
 	DBG("modem_sound_ioctl: cmd = %d arg = %ld\n",cmd, arg);
 
 	ret = down_interruptible(&pdata->power_sem);
 	if (ret < 0) {
-		printk("%s: down power_sem error ret = %ld\n", __func__, ret);
+		printk("%s: down power_sem error ret = %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -101,45 +107,68 @@ static long modem_sound_ioctl(struct file *filp, unsigned int cmd, unsigned long
 		case IOCTL_MODEM_EAR_PHOEN:
 			DBG("modem_sound_ioctl: MODEM_EAR_PHONE\n");
 			Modem_Sound_Mic_switch(MAIN_MIC);
-			call_set_spk(3);
-			modem_sound_spkctl(DISABLE);
+			codec_cmd = 3;
+			codec_pcm_cmd = RCV;
+			modem_spk_enable = DISABLE;
 			break;
 		case IOCTL_MODEM_SPK_PHONE:
 			DBG("modem_sound_ioctl: MODEM_SPK_PHONE\n");
 			Modem_Sound_Mic_switch(MAIN_MIC);
-			call_set_spk(1);
-			modem_sound_spkctl(ENABLE);
+			codec_cmd = 1;
+			codec_pcm_cmd = SPK_PATH;
+			modem_spk_enable = ENABLE;
 			break;
 	  	case IOCTL_MODEM_HP_WITHMIC_PHONE:
 	  		DBG("modem_sound_ioctl: MODEM_HP_WITHMIC_PHONE\n");
 			Modem_Sound_Mic_switch(HP_MIC);
-	  		call_set_spk(2);
-			modem_sound_spkctl(DISABLE);
+			codec_cmd = 2;
+			codec_pcm_cmd = HP_PATH;
+			modem_spk_enable = DISABLE;
 			break;
-			
 		case IOCTL_MODEM_BT_PHONE:
-			call_set_spk(3);
-			modem_sound_spkctl(DISABLE);
+			codec_cmd = 3;
+			codec_pcm_cmd = BT;
+			modem_spk_enable = DISABLE;
 			DBG("modem_sound_ioctl: MODEM_BT_PHONE\n");
 			break;
 		case IOCTL_MODEM_STOP_PHONE:
 		  	DBG("modem_sound_ioctl: MODEM_STOP_PHONE\n");
 			Modem_Sound_Mic_release();
-			call_set_spk(0);
-			modem_sound_spkctl(ENABLE);
+			codec_cmd = 0;
+			codec_pcm_cmd = OFF;
+			modem_spk_enable = ENABLE;
 			break;
 	        case IOCTL_MODEM_HP_NOMIC_PHONE:
                         DBG("modem_sound_ioctl: MODEM_HP_NOMIC_PHONE\n");
 			Modem_Sound_Mic_switch(MAIN_MIC);
-                        call_set_spk(2);
-                        modem_sound_spkctl(DISABLE);
+			codec_cmd = 2;
+			codec_pcm_cmd = HP_NO_MIC;
+			modem_spk_enable = DISABLE;
                         break;
-
-
 		default:
 			printk("unknown ioctl cmd!\n");
 			ret = -EINVAL;
 			break;
+	}
+
+	if (set_codec_spk == NULL || set_codec_for_pcm_modem == NULL)
+		printk("modem_sound_ioctl(), %s %s\n",
+			set_codec_for_pcm_modem ? "" : "set_codec_for_pcm_modem is NULL",
+			set_codec_spk ? "" : "set_codec_spk is NULL");
+
+	if (ret >= 0) {
+		// close codec firstly for pop noise
+		if (codec_cmd == 0 && set_codec_spk)
+			set_codec_spk(codec_cmd);
+
+		if (set_codec_for_pcm_modem)
+			set_codec_for_pcm_modem(codec_pcm_cmd);
+
+		modem_sound_spkctl(modem_spk_enable);
+
+		// open codec lastly for pop noise
+		if (codec_cmd != 0 && set_codec_spk)
+			set_codec_spk(codec_cmd);
 	}
 
 	up(&pdata->power_sem);
@@ -175,7 +204,7 @@ static int modem_sound_probe(struct platform_device *pdev)
 	struct modem_sound_data *pdata = pdev->dev.platform_data;
 	if(!pdata)
 		return -1;
-		
+
 	ret = misc_register(&modem_sound_dev);
 	if (ret < 0){
 		printk("modem register err!\n");
@@ -187,6 +216,13 @@ static int modem_sound_probe(struct platform_device *pdev)
 	INIT_WORK(&pdata->work, modem_sound_delay_power_downup);
 	modem_sound = pdata;
 	printk("%s:modem sound initialized\n",__FUNCTION__);
+
+#if defined(CONFIG_SND_RK_SOC_RK2928)|| defined(CONFIG_SND_RK29_SOC_RK610)
+	set_codec_spk = call_set_spk;
+#endif
+#ifdef CONFIG_SND_SOC_ES8323_PCM
+	set_codec_for_pcm_modem = set_es8323;
+#endif
 
 	return ret;
 }

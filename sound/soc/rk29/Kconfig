@@ -95,6 +95,13 @@ config SND_RK29_SOC_ES8323
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the ES8323.
 
+config SND_SOC_ES8323_PCM
+	tristate "SoC I2S Audio support for rockchip - ES8323 for PCM modem"
+	depends on SND_RK29_SOC
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the ES8323 for PCM modem.
+
 config SND_RK29_SOC_WM8988
 	tristate "SoC I2S Audio support for rockchip - WM8988"
 	depends on SND_RK29_SOC
