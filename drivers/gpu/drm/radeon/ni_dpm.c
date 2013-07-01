@@ -1036,7 +1036,6 @@ static int ni_restrict_performance_levels_before_switch(struct radeon_device *rd
 		0 : -EINVAL;
 }
 
-#if 0
 static int ni_unrestrict_performance_levels_after_switch(struct radeon_device *rdev)
 {
 	if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
@@ -1045,7 +1044,6 @@ static int ni_unrestrict_performance_levels_after_switch(struct radeon_device *r
 	return (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) == PPSMC_Result_OK) ?
 		0 : -EINVAL;
 }
-#endif
 
 static void ni_stop_smc(struct radeon_device *rdev)
 {
@@ -3832,14 +3830,11 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 
-#if 0
-	/* XXX */
 	ret = ni_unrestrict_performance_levels_after_switch(rdev);
 	if (ret) {
 		DRM_ERROR("ni_unrestrict_performance_levels_after_switch failed\n");
 		return ret;
 	}
-#endif
 
 	return 0;
 }
