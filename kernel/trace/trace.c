@@ -4391,6 +4391,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 					size_t cnt, loff_t *fpos)
 {
 	unsigned long addr = (unsigned long)ubuf;
+	struct trace_array *tr = filp->private_data;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
 	struct print_entry *entry;
@@ -4450,7 +4451,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 
 	local_save_flags(irq_flags);
 	size = sizeof(*entry) + cnt + 2; /* possible \n added */
-	buffer = global_trace.trace_buffer.buffer;
+	buffer = tr->trace_buffer.buffer;
 	event = trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
 					  irq_flags, preempt_count());
 	if (!event) {
