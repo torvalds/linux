@@ -726,6 +726,7 @@ EXPORT_SYMBOL(scsi_release_buffers);
  * -ENOLINK	temporary transport failure
  * -EREMOTEIO	permanent target failure, do not retry
  * -EBADE	permanent nexus failure, retry on other path
+ * -ENOSPC	No write space available
  * -EIO		unspecified I/O error
  */
 static int __scsi_error_from_host_byte(struct scsi_cmnd *cmd, int result)
@@ -743,6 +744,10 @@ static int __scsi_error_from_host_byte(struct scsi_cmnd *cmd, int result)
 	case DID_NEXUS_FAILURE:
 		set_host_byte(cmd, DID_OK);
 		error = -EBADE;
+		break;
+	case DID_ALLOC_FAILURE:
+		set_host_byte(cmd, DID_OK);
+		error = -ENOSPC;
 		break;
 	default:
 		error = -EIO;
