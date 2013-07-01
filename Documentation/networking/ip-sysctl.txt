@@ -420,10 +420,10 @@ tcp_synack_retries - INTEGER
 	for a passive TCP connection will happen after 63seconds.
 
 tcp_syncookies - BOOLEAN
-	Only valid when the kernel was compiled with CONFIG_SYNCOOKIES
+	Only valid when the kernel was compiled with CONFIG_SYN_COOKIES
 	Send out syncookies when the syn backlog queue of a socket
 	overflows. This is to prevent against the common 'SYN flood attack'
-	Default: FALSE
+	Default: 1
 
 	Note, that syncookies is fallback facility.
 	It MUST NOT be used to help highly loaded servers to stand

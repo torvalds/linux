@@ -642,7 +642,7 @@ void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter)
 				qlcnic_83xx_config_intrpt(adapter, 0);
 		}
 		/* Allow dma queues to drain after context reset */
-		msleep(20);
+		mdelay(20);
 	}
 }
 

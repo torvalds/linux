@@ -1036,12 +1036,16 @@ static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 	char *name;
 	u64 segment;
 	int ret;
+	char *name_format;
 
 	name = kmem_cache_alloc(rbd_segment_name_cache, GFP_NOIO);
 	if (!name)
 		return NULL;
 	segment = offset >> rbd_dev->header.obj_order;
-	ret = snprintf(name, MAX_OBJ_NAME_SIZE + 1, "%s.%012llx",
+	name_format = "%s.%012llx";
+	if (rbd_dev->image_format == 2)
+		name_format = "%s.%016llx";
+	ret = snprintf(name, MAX_OBJ_NAME_SIZE + 1, name_format,
 			rbd_dev->header.object_prefix, segment);
 	if (ret < 0 || ret > MAX_OBJ_NAME_SIZE) {
 		pr_err("error formatting segment name for #%llu (%d)\n",
@@ -2248,13 +2252,17 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 					obj_request->pages, length,
 					offset & ~PAGE_MASK, false, false);
 
+		/*
+		 * set obj_request->img_request before formatting
+		 * the osd_request so that it gets the right snapc
+		 */
+		rbd_img_obj_request_add(img_request, obj_request);
 		if (write_request)
 			rbd_osd_req_format_write(obj_request);
 		else
 			rbd_osd_req_format_read(obj_request);
 
 		obj_request->img_offset = img_offset;
-		rbd_img_obj_request_add(img_request, obj_request);
 
 		img_offset += length;
 		resid -= length;
@@ -4239,6 +4247,10 @@ static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev)
 
 	down_write(&rbd_dev->header_rwsem);
 
+	ret = rbd_dev_v2_image_size(rbd_dev);
+	if (ret)
+		goto out;
+
 	if (first_time) {
 		ret = rbd_dev_v2_header_onetime(rbd_dev);
 		if (ret)
@@ -4271,10 +4283,6 @@ static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev)
 			rbd_warn(rbd_dev, "WARNING: kernel layering "
 					"is EXPERIMENTAL!");
 	}
-
-	ret = rbd_dev_v2_image_size(rbd_dev);
-	if (ret)
-		goto out;
 
 	if (rbd_dev->spec->snap_id == CEPH_NOSNAP)
 		if (rbd_dev->mapping.size != rbd_dev->header.image_size)

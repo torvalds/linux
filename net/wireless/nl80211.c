@@ -1564,12 +1564,17 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 	struct cfg80211_registered_device *dev;
 	s64 filter_wiphy = -1;
 	bool split = false;
-	struct nlattr **tb = nl80211_fam.attrbuf;
+	struct nlattr **tb;
 	int res;
+
+	/* will be zeroed in nlmsg_parse() */
+	tb = kmalloc(sizeof(*tb) * (NL80211_ATTR_MAX + 1), GFP_KERNEL);
+	if (!tb)
+		return -ENOMEM;
 
 	mutex_lock(&cfg80211_mutex);
 	res = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
-			  tb, nl80211_fam.maxattr, nl80211_policy);
+			  tb, NL80211_ATTR_MAX, nl80211_policy);
 	if (res == 0) {
 		split = tb[NL80211_ATTR_SPLIT_WIPHY_DUMP];
 		if (tb[NL80211_ATTR_WIPHY])
@@ -1583,6 +1588,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 			netdev = dev_get_by_index(sock_net(skb->sk), ifidx);
 			if (!netdev) {
 				mutex_unlock(&cfg80211_mutex);
+				kfree(tb);
 				return -ENODEV;
 			}
 			if (netdev->ieee80211_ptr) {
@@ -1593,6 +1599,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 			dev_put(netdev);
 		}
 	}
+	kfree(tb);
 
 	list_for_each_entry(dev, &cfg80211_rdev_list, list) {
 		if (!net_eq(wiphy_net(&dev->wiphy), sock_net(skb->sk)))

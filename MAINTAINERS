@@ -3227,7 +3227,7 @@ F:	lib/fault-inject.c
 
 FCOE SUBSYSTEM (libfc, libfcoe, fcoe)
 M:	Robert Love <robert.w.love@intel.com>
-L:	devel@open-fcoe.org
+L:	fcoe-devel@open-fcoe.org
 W:	www.Open-FCoE.org
 S:	Supported
 F:	drivers/scsi/libfc/

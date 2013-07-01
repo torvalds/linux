@@ -294,8 +294,6 @@ void eeh_addr_cache_build(void)
 	spin_lock_init(&pci_io_addr_cache_root.piar_lock);
 
 	for_each_pci_dev(dev) {
-		eeh_addr_cache_insert_dev(dev);
-
 		dn = pci_device_to_OF_node(dev);
 		if (!dn)
 			continue;
@@ -307,6 +305,8 @@ void eeh_addr_cache_build(void)
 		pci_dev_get(dev);  /* matching put is in eeh_remove_device() */
 		dev->dev.archdata.edev = edev;
 		edev->pdev = dev;
+
+		eeh_addr_cache_insert_dev(dev);
 
 		eeh_sysfs_add_device(dev);
 	}

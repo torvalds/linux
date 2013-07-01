@@ -130,7 +130,7 @@ static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 static int eee_timer = STMMAC_DEFAULT_LPI_TIMER;
 module_param(eee_timer, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(eee_timer, "LPI tx expiration time in msec");
-#define STMMAC_LPI_TIMER(x) (jiffies + msecs_to_jiffies(x))
+#define STMMAC_LPI_T(x) (jiffies + msecs_to_jiffies(x))
 
 /* By default the driver will use the ring mode to manage tx and rx descriptors
  * but passing this value so user can force to use the chain instead of the ring
@@ -288,7 +288,7 @@ static void stmmac_eee_ctrl_timer(unsigned long arg)
 	struct stmmac_priv *priv = (struct stmmac_priv *)arg;
 
 	stmmac_enable_eee_mode(priv);
-	mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_TIMER(eee_timer));
+	mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(eee_timer));
 }
 
 /**
@@ -304,22 +304,34 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 {
 	bool ret = false;
 
+	/* Using PCS we cannot dial with the phy registers at this stage
+	 * so we do not support extra feature like EEE.
+	 */
+	if ((priv->pcs == STMMAC_PCS_RGMII) || (priv->pcs == STMMAC_PCS_TBI) ||
+	    (priv->pcs == STMMAC_PCS_RTBI))
+		goto out;
+
 	/* MAC core supports the EEE feature. */
 	if (priv->dma_cap.eee) {
 		/* Check if the PHY supports EEE */
 		if (phy_init_eee(priv->phydev, 1))
 			goto out;
 
-		priv->eee_active = 1;
-		init_timer(&priv->eee_ctrl_timer);
-		priv->eee_ctrl_timer.function = stmmac_eee_ctrl_timer;
-		priv->eee_ctrl_timer.data = (unsigned long)priv;
-		priv->eee_ctrl_timer.expires = STMMAC_LPI_TIMER(eee_timer);
-		add_timer(&priv->eee_ctrl_timer);
+		if (!priv->eee_active) {
+			priv->eee_active = 1;
+			init_timer(&priv->eee_ctrl_timer);
+			priv->eee_ctrl_timer.function = stmmac_eee_ctrl_timer;
+			priv->eee_ctrl_timer.data = (unsigned long)priv;
+			priv->eee_ctrl_timer.expires = STMMAC_LPI_T(eee_timer);
+			add_timer(&priv->eee_ctrl_timer);
 
-		priv->hw->mac->set_eee_timer(priv->ioaddr,
-					     STMMAC_DEFAULT_LIT_LS_TIMER,
-					     priv->tx_lpi_timer);
+			priv->hw->mac->set_eee_timer(priv->ioaddr,
+						     STMMAC_DEFAULT_LIT_LS,
+						     priv->tx_lpi_timer);
+		} else
+			/* Set HW EEE according to the speed */
+			priv->hw->mac->set_eee_pls(priv->ioaddr,
+						   priv->phydev->link);
 
 		pr_info("stmmac: Energy-Efficient Ethernet initialized\n");
 
@@ -327,20 +339,6 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 	}
 out:
 	return ret;
-}
-
-/**
- * stmmac_eee_adjust: adjust HW EEE according to the speed
- * @priv: driver private structure
- * Description:
- *	When the EEE has been already initialised we have to
- *	modify the PLS bit in the LPI ctrl & status reg according
- *	to the PHY link status. For this reason.
- */
-static void stmmac_eee_adjust(struct stmmac_priv *priv)
-{
-	if (priv->eee_enabled)
-		priv->hw->mac->set_eee_pls(priv->ioaddr, priv->phydev->link);
 }
 
 /* stmmac_get_tx_hwtstamp: get HW TX timestamps
@@ -769,7 +767,10 @@ static void stmmac_adjust_link(struct net_device *dev)
 	if (new_state && netif_msg_link(priv))
 		phy_print_status(phydev);
 
-	stmmac_eee_adjust(priv);
+	/* At this stage, it could be needed to setup the EEE or adjust some
+	 * MAC related HW registers.
+	 */
+	priv->eee_enabled = stmmac_eee_init(priv);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -1277,7 +1278,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 
 	if ((priv->eee_enabled) && (!priv->tx_path_in_lpi_mode)) {
 		stmmac_enable_eee_mode(priv);
-		mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_TIMER(eee_timer));
+		mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(eee_timer));
 	}
 	spin_unlock(&priv->tx_lock);
 }
@@ -1671,14 +1672,9 @@ static int stmmac_open(struct net_device *dev)
 	if (priv->phydev)
 		phy_start(priv->phydev);
 
-	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS_TIMER;
+	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
 
-	/* Using PCS we cannot dial with the phy registers at this stage
-	 * so we do not support extra feature like EEE.
-	 */
-	if (priv->pcs != STMMAC_PCS_RGMII && priv->pcs != STMMAC_PCS_TBI &&
-	    priv->pcs != STMMAC_PCS_RTBI)
-		priv->eee_enabled = stmmac_eee_init(priv);
+	priv->eee_enabled = stmmac_eee_init(priv);
 
 	stmmac_init_tx_coalesce(priv);
 
@@ -1899,7 +1895,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 #ifdef STMMAC_XMIT_DEBUG
 	if (netif_msg_pktdata(priv)) {
-		pr_info("%s: curr %d dirty=%d entry=%d, first=%p, nfrags=%d"
+		pr_info("%s: curr %d dirty=%d entry=%d, first=%p, nfrags=%d",
 			__func__, (priv->cur_tx % txsize),
 			(priv->dirty_tx % txsize), entry, first, nfrags);
 		if (priv->extend_desc)

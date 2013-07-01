@@ -764,8 +764,8 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 	struct net_device *bond_dev, *vlan_dev, *upper_dev;
 	struct vlan_entry *vlan;
 
-	rcu_read_lock();
 	read_lock(&bond->lock);
+	rcu_read_lock();
 
 	bond_dev = bond->dev;
 
@@ -787,12 +787,19 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 		if (vlan_dev)
 			__bond_resend_igmp_join_requests(vlan_dev);
 	}
-
-	if (--bond->igmp_retrans > 0)
-		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
-
-	read_unlock(&bond->lock);
 	rcu_read_unlock();
+
+	/* We use curr_slave_lock to protect against concurrent access to
+	 * igmp_retrans from multiple running instances of this function and
+	 * bond_change_active_slave
+	 */
+	write_lock_bh(&bond->curr_slave_lock);
+	if (bond->igmp_retrans > 1) {
+		bond->igmp_retrans--;
+		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
+	}
+	write_unlock_bh(&bond->curr_slave_lock);
+	read_unlock(&bond->lock);
 }
 
 static void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
@@ -1957,6 +1964,10 @@ err_free:
 
 err_undo_flags:
 	bond_compute_features(bond);
+	/* Enslave of first slave has failed and we need to fix master's mac */
+	if (bond->slave_cnt == 0 &&
+	    ether_addr_equal(bond_dev->dev_addr, slave_dev->dev_addr))
+		eth_hw_addr_random(bond_dev);
 
 	return res;
 }
@@ -2402,7 +2413,8 @@ static void bond_miimon_commit(struct bonding *bond)
 
 			pr_info("%s: link status definitely up for interface %s, %u Mbps %s duplex.\n",
 				bond->dev->name, slave->dev->name,
-				slave->speed, slave->duplex ? "full" : "half");
+				slave->speed == SPEED_UNKNOWN ? 0 : slave->speed,
+				slave->duplex ? "full" : "half");
 
 			/* notify ad that the link status has changed */
 			if (bond->params.mode == BOND_MODE_8023AD)

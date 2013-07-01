@@ -297,8 +297,8 @@ struct dma_features {
 #define MAC_RNABLE_RX		0x00000004	/* Receiver Enable */
 
 /* Default LPI timers */
-#define STMMAC_DEFAULT_LIT_LS_TIMER	0x3E8
-#define STMMAC_DEFAULT_TWT_LS_TIMER	0x0
+#define STMMAC_DEFAULT_LIT_LS	0x3E8
+#define STMMAC_DEFAULT_TWT_LS	0x0
 
 #define STMMAC_CHAIN_MODE	0x1
 #define STMMAC_RING_MODE	0x2

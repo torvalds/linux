@@ -174,7 +174,7 @@ static loff_t fnic_trace_debugfs_lseek(struct file *file,
 		pos = file->f_pos + offset;
 		break;
 	case 2:
-		pos = fnic_dbg_prt->buffer_len - offset;
+		pos = fnic_dbg_prt->buffer_len + offset;
 	}
 	return (pos < 0 || pos > fnic_dbg_prt->buffer_len) ?
 			  -EINVAL : (file->f_pos = pos);
