@@ -1487,6 +1487,7 @@ isert_cq_tx_work(struct work_struct *work)
 		} else {
 			pr_debug("TX wc.status != IB_WC_SUCCESS >>>>>>>>>>>>>>\n");
 			pr_debug("TX wc.status: 0x%08x\n", wc.status);
+			pr_debug("TX wc.vendor_err: 0x%08x\n", wc.vendor_err);
 			atomic_dec(&isert_conn->post_send_buf_count);
 			isert_cq_comp_err(tx_desc, isert_conn);
 		}
@@ -1526,9 +1527,11 @@ isert_cq_rx_work(struct work_struct *work)
 			isert_rx_completion(rx_desc, isert_conn, xfer_len);
 		} else {
 			pr_debug("RX wc.status != IB_WC_SUCCESS >>>>>>>>>>>>>>\n");
-			if (wc.status != IB_WC_WR_FLUSH_ERR)
+			if (wc.status != IB_WC_WR_FLUSH_ERR) {
 				pr_debug("RX wc.status: 0x%08x\n", wc.status);
-
+				pr_debug("RX wc.vendor_err: 0x%08x\n",
+					 wc.vendor_err);
+			}
 			isert_conn->post_recv_buf_count--;
 			isert_cq_comp_err(NULL, isert_conn);
 		}
