@@ -205,6 +205,7 @@ config SERIO_XILINX_XPS_PS2
 
 config SERIO_ALTERA_PS2
 	tristate "Altera UP PS/2 controller"
+	depends on HAS_IOMEM
 	help
 	  Say Y here if you have Altera University Program PS/2 ports.
 

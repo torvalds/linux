@@ -363,6 +363,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		case 0x140802: /* Intuos4/5 13HD/24HD Classic Pen */
 		case 0x160802: /* Cintiq 13HD Pro Pen */
 		case 0x180802: /* DTH2242 Pen */
+		case 0x100802: /* Intuos4/5 13HD/24HD General Pen */
 			wacom->tool[idx] = BTN_TOOL_PEN;
 			break;
 
@@ -401,6 +402,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		case 0x10080c: /* Intuos4/5 13HD/24HD Art Pen Eraser */
 		case 0x16080a: /* Cintiq 13HD Pro Pen Eraser */
 		case 0x18080a: /* DTH2242 Eraser */
+		case 0x10080a: /* Intuos4/5 13HD/24HD General Pen Eraser */
 			wacom->tool[idx] = BTN_TOOL_RUBBER;
 			break;
 
