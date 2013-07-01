@@ -914,11 +914,10 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 	 * will be stored in the cached_table. Before the device is started,
 	 * cached_table will be copied into devic memory.
 	 */
-	rproc->cached_table = kmalloc(tablesz, GFP_KERNEL);
+	rproc->cached_table = kmemdup(table, tablesz, GFP_KERNEL);
 	if (!rproc->cached_table)
 		goto out;
 
-	memcpy(rproc->cached_table, table, tablesz);
 	rproc->table_ptr = rproc->cached_table;
 
 	/* count the number of notify-ids */
