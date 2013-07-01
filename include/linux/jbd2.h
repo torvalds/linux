@@ -1266,7 +1266,7 @@ static inline int is_journal_aborted(journal_t *journal)
 
 static inline int is_handle_aborted(handle_t *handle)
 {
-	if (handle->h_aborted)
+	if (handle->h_aborted || !handle->h_transaction)
 		return 1;
 	return is_journal_aborted(handle->h_transaction->t_journal);
 }
