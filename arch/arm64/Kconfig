@@ -188,6 +188,18 @@ config HW_PERF_EVENTS
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
 
+config SYS_SUPPORTS_HUGETLBFS
+	def_bool y
+
+config ARCH_WANT_GENERAL_HUGETLB
+	def_bool y
+
+config ARCH_WANT_HUGE_PMD_SHARE
+	def_bool y if !ARM64_64K_PAGES
+
+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	def_bool y
+
 source "mm/Kconfig"
 
 config XEN_DOM0
@@ -199,6 +211,11 @@ config XEN
 	depends on ARM64 && OF
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM64.
+
+config FORCE_MAX_ZONEORDER
+	int
+	default "14" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
+	default "11"
 
 endmenu
 

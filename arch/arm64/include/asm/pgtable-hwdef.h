@@ -25,17 +25,27 @@
 /*
  * Hardware page table definitions.
  *
+ * Level 1 descriptor (PUD).
+ */
+
+#define PUD_TABLE_BIT		(_AT(pgdval_t, 1) << 1)
+
+/*
  * Level 2 descriptor (PMD).
  */
 #define PMD_TYPE_MASK		(_AT(pmdval_t, 3) << 0)
 #define PMD_TYPE_FAULT		(_AT(pmdval_t, 0) << 0)
 #define PMD_TYPE_TABLE		(_AT(pmdval_t, 3) << 0)
 #define PMD_TYPE_SECT		(_AT(pmdval_t, 1) << 0)
+#define PMD_TABLE_BIT		(_AT(pmdval_t, 1) << 1)
 
 /*
  * Section
  */
-#define PMD_SECT_USER		(_AT(pteval_t, 1) << 6)		/* AP[1] */
+#define PMD_SECT_VALID		(_AT(pmdval_t, 1) << 0)
+#define PMD_SECT_PROT_NONE	(_AT(pmdval_t, 1) << 2)
+#define PMD_SECT_USER		(_AT(pmdval_t, 1) << 6)		/* AP[1] */
+#define PMD_SECT_RDONLY		(_AT(pmdval_t, 1) << 7)		/* AP[2] */
 #define PMD_SECT_S		(_AT(pmdval_t, 3) << 8)
 #define PMD_SECT_AF		(_AT(pmdval_t, 1) << 10)
 #define PMD_SECT_NG		(_AT(pmdval_t, 1) << 11)
@@ -54,6 +64,7 @@
 #define PTE_TYPE_MASK		(_AT(pteval_t, 3) << 0)
 #define PTE_TYPE_FAULT		(_AT(pteval_t, 0) << 0)
 #define PTE_TYPE_PAGE		(_AT(pteval_t, 3) << 0)
+#define PTE_TABLE_BIT		(_AT(pteval_t, 1) << 1)
 #define PTE_USER		(_AT(pteval_t, 1) << 6)		/* AP[1] */
 #define PTE_RDONLY		(_AT(pteval_t, 1) << 7)		/* AP[2] */
 #define PTE_SHARED		(_AT(pteval_t, 3) << 8)		/* SH[1:0], inner shareable */
