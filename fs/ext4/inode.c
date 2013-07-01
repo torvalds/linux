@@ -1100,8 +1100,6 @@ static int ext4_write_end(struct file *file,
 	if (i_size_changed)
 		ext4_mark_inode_dirty(handle, inode);
 
-	if (copied < 0)
-		ret = copied;
 	if (pos + len > inode->i_size && ext4_can_truncate(inode))
 		/* if we have allocated more blocks and copied
 		 * less. We will have blocks allocated outside
@@ -3368,13 +3366,10 @@ int ext4_block_zero_page_range(handle_t *handle,
 		iblock++;
 		pos += blocksize;
 	}
-
-	err = 0;
 	if (buffer_freed(bh)) {
 		BUFFER_TRACE(bh, "freed: skip");
 		goto unlock;
 	}
-
 	if (!buffer_mapped(bh)) {
 		BUFFER_TRACE(bh, "unmapped");
 		ext4_get_block(inode, iblock, bh, 0);
@@ -3397,22 +3392,19 @@ int ext4_block_zero_page_range(handle_t *handle,
 		if (!buffer_uptodate(bh))
 			goto unlock;
 	}
-
 	if (ext4_should_journal_data(inode)) {
 		BUFFER_TRACE(bh, "get write access");
 		err = ext4_journal_get_write_access(handle, bh);
 		if (err)
 			goto unlock;
 	}
-
 	zero_user(page, offset, length);
-
 	BUFFER_TRACE(bh, "zeroed end of block");
 
-	err = 0;
 	if (ext4_should_journal_data(inode)) {
 		err = ext4_handle_dirty_metadata(handle, inode, bh);
 	} else {
+		err = 0;
 		mark_buffer_dirty(bh);
 		if (ext4_test_inode_state(inode, EXT4_STATE_ORDERED_MODE))
 			err = ext4_jbd2_file_inode(handle, inode);
