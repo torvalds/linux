@@ -152,7 +152,7 @@ struct nvc0_grctx_oclass {
 	void  (*mods)(struct nvc0_graph_priv *, struct nvc0_grctx *);
 	/* mmio context data */
 	struct nvc0_graph_init **mmio;
-	struct nvc0_graph_init *gpc;
+	struct nvc0_graph_init **gpc;
 	struct nvc0_graph_init *tpc;
 	/* indirect context data, generated with icmds/mthds */
 	struct nvc0_graph_init *icmd;
@@ -223,7 +223,9 @@ extern struct nvc0_graph_init nvc0_grctx_init_unk60xx[];
 extern struct nvc0_graph_init nvc0_grctx_init_unk64xx[];
 extern struct nvc0_graph_init nvc0_grctx_init_unk78xx[];
 extern struct nvc0_graph_init nvc0_grctx_init_unk80xx[];
-extern struct nvc0_graph_init nvc0_grctx_init_gpc[];
+extern struct nvc0_graph_init nvc0_grctx_init_gpc_0[];
+extern struct nvc0_graph_init nvc0_grctx_init_gpc_1[];
+extern struct nvc0_graph_init *nvc0_grctx_init_gpc[];
 extern struct nvc0_graph_init nvc0_grctx_init_tpc[];
 extern struct nvc0_graph_init nvc0_grctx_init_icmd[];
 extern struct nvc0_graph_init nvd9_grctx_init_icmd[]; //

@@ -699,7 +699,7 @@ nve4_grctx_init_rop[] = {
 };
 
 static struct nvc0_graph_init
-nve4_grctx_init_gpc[] = {
+nve4_grctx_init_gpc_0[] = {
 	{ 0x418380,   1, 0x04, 0x00000016 },
 	{ 0x418400,   1, 0x04, 0x38004e00 },
 	{ 0x418404,   1, 0x04, 0x71e0ffff },
@@ -726,30 +726,6 @@ nve4_grctx_init_gpc[] = {
 	{ 0x418924,   1, 0x04, 0x00000000 },
 	{ 0x418928,   1, 0x04, 0x00ffff00 },
 	{ 0x41892c,   1, 0x04, 0x0000ff00 },
-	{ 0x418a00,   3, 0x04, 0x00000000 },
-	{ 0x418a0c,   1, 0x04, 0x00010000 },
-	{ 0x418a10,   3, 0x04, 0x00000000 },
-	{ 0x418a20,   3, 0x04, 0x00000000 },
-	{ 0x418a2c,   1, 0x04, 0x00010000 },
-	{ 0x418a30,   3, 0x04, 0x00000000 },
-	{ 0x418a40,   3, 0x04, 0x00000000 },
-	{ 0x418a4c,   1, 0x04, 0x00010000 },
-	{ 0x418a50,   3, 0x04, 0x00000000 },
-	{ 0x418a60,   3, 0x04, 0x00000000 },
-	{ 0x418a6c,   1, 0x04, 0x00010000 },
-	{ 0x418a70,   3, 0x04, 0x00000000 },
-	{ 0x418a80,   3, 0x04, 0x00000000 },
-	{ 0x418a8c,   1, 0x04, 0x00010000 },
-	{ 0x418a90,   3, 0x04, 0x00000000 },
-	{ 0x418aa0,   3, 0x04, 0x00000000 },
-	{ 0x418aac,   1, 0x04, 0x00010000 },
-	{ 0x418ab0,   3, 0x04, 0x00000000 },
-	{ 0x418ac0,   3, 0x04, 0x00000000 },
-	{ 0x418acc,   1, 0x04, 0x00010000 },
-	{ 0x418ad0,   3, 0x04, 0x00000000 },
-	{ 0x418ae0,   3, 0x04, 0x00000000 },
-	{ 0x418aec,   1, 0x04, 0x00010000 },
-	{ 0x418af0,   3, 0x04, 0x00000000 },
 	{ 0x418b00,   1, 0x04, 0x00000006 },
 	{ 0x418b08,   1, 0x04, 0x0a418820 },
 	{ 0x418b0c,   1, 0x04, 0x062080e6 },
@@ -937,7 +913,8 @@ nve4_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 
 	for (i = 0; oclass->mmio[i]; i++)
 		nvc0_graph_mmio(priv, oclass->mmio[i]);
-	nvc0_graph_mmio(priv, oclass->gpc);
+	for (i = 0; oclass->gpc[i]; i++)
+		nvc0_graph_mmio(priv, oclass->gpc[i]);
 	nvc0_graph_mmio(priv, oclass->tpc);
 
 	nv_wr32(priv, 0x404154, 0x00000000);
@@ -1001,6 +978,13 @@ nve4_grctx_init_mmio[] = {
 	nvc0_grctx_init_unk78xx,
 	nve4_grctx_init_unk80xx,
 	nve4_grctx_init_rop,
+	NULL
+};
+
+struct nvc0_graph_init *
+nve4_grctx_init_gpc[] = {
+	nve4_grctx_init_gpc_0,
+	nvc0_grctx_init_gpc_1,
 	NULL
 };
 

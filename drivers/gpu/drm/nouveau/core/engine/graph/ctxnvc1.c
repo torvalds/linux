@@ -601,7 +601,7 @@ nvc1_grctx_init_rop[] = {
 };
 
 static struct nvc0_graph_init
-nvc1_grctx_init_gpc[] = {
+nvc1_grctx_init_gpc_0[] = {
 	{ 0x418380,   1, 0x04, 0x00000016 },
 	{ 0x418400,   1, 0x04, 0x38004e00 },
 	{ 0x418404,   1, 0x04, 0x71e0ffff },
@@ -769,6 +769,13 @@ nvc1_grctx_init_mmio[] = {
 	nvc0_grctx_init_unk78xx,
 	nvc0_grctx_init_unk80xx,
 	nvc1_grctx_init_rop,
+	NULL
+};
+
+struct nvc0_graph_init *
+nvc1_grctx_init_gpc[] = {
+	nvc1_grctx_init_gpc_0,
+	nvc0_grctx_init_gpc_1,
 	NULL
 };
 
