@@ -168,8 +168,9 @@ struct pn533_fw_version {
 #define PN533_CFGITEM_MAX_RETRIES 0x05
 #define PN533_CFGITEM_PASORI      0x82
 
-#define PN533_CFGITEM_RF_FIELD_ON  0x1
-#define PN533_CFGITEM_RF_FIELD_OFF 0x0
+#define PN533_CFGITEM_RF_FIELD_AUTO_RFCA 0x2
+#define PN533_CFGITEM_RF_FIELD_ON        0x1
+#define PN533_CFGITEM_RF_FIELD_OFF       0x0
 
 #define PN533_CONFIG_TIMING_102 0xb
 #define PN533_CONFIG_TIMING_204 0xc
@@ -1696,7 +1697,7 @@ static void pn533_wq_rf(struct work_struct *work)
 		return;
 
 	*skb_put(skb, 1) = PN533_CFGITEM_RF_FIELD;
-	*skb_put(skb, 1) = 0;
+	*skb_put(skb, 1) = PN533_CFGITEM_RF_FIELD_AUTO_RFCA;
 
 	rc = pn533_send_cmd_async(dev, PN533_CMD_RF_CONFIGURATION, skb,
 				  pn533_rf_complete, NULL);
@@ -2597,6 +2598,8 @@ static int pn533_rf_field(struct nfc_dev *nfc_dev, u8 rf)
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	u8 rf_field = !!rf;
 	int rc;
+
+	rf_field |= PN533_CFGITEM_RF_FIELD_AUTO_RFCA;
 
 	rc = pn533_set_configuration(dev, PN533_CFGITEM_RF_FIELD,
 				     (u8 *)&rf_field, 1);
