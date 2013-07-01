@@ -120,6 +120,13 @@
 				status = "disabled";
 			};
 
+			owire: owire@10009000 {
+				compatible = "fsl,imx27-owire", "fsl,imx21-owire";
+				reg = <0x10009000 0x1000>;
+				clocks = <&clks 35>;
+				status = "disabled";
+			};
+
 			uart1: serial@1000a000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1000a000 0x1000>;
