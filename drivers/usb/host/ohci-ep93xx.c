@@ -69,9 +69,8 @@ static int usb_hcd_ep93xx_probe(const struct hc_driver *driver,
 		goto err_put_hcd;
 	}
 
-	usb_host_clock = clk_get(&pdev->dev, NULL);
+	usb_host_clock = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usb_host_clock)) {
-		dev_dbg(&pdev->dev, "clk_get failed\n");
 		retval = PTR_ERR(usb_host_clock);
 		goto err_put_hcd;
 	}
@@ -96,7 +95,6 @@ static void usb_hcd_ep93xx_remove(struct usb_hcd *hcd,
 {
 	usb_remove_hcd(hcd);
 	ep93xx_stop_hc(&pdev->dev);
-	clk_put(usb_host_clock);
 	usb_put_hcd(hcd);
 }
 
