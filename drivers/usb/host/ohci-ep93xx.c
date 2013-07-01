@@ -30,74 +30,6 @@
 
 static struct clk *usb_host_clock;
 
-static void ep93xx_start_hc(struct device *dev)
-{
-	clk_enable(usb_host_clock);
-}
-
-static void ep93xx_stop_hc(struct device *dev)
-{
-	clk_disable(usb_host_clock);
-}
-
-static int usb_hcd_ep93xx_probe(const struct hc_driver *driver,
-			 struct platform_device *pdev)
-{
-	struct usb_hcd *hcd;
-	struct resource *res;
-	int irq;
-	int retval;
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENXIO;
-
-	hcd = usb_create_hcd(driver, &pdev->dev, "ep93xx");
-	if (hcd == NULL)
-		return -ENOMEM;
-
-	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = resource_size(res);
-
-	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(hcd->regs)) {
-		retval = PTR_ERR(hcd->regs);
-		goto err_put_hcd;
-	}
-
-	usb_host_clock = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(usb_host_clock)) {
-		retval = PTR_ERR(usb_host_clock);
-		goto err_put_hcd;
-	}
-
-	ep93xx_start_hc(&pdev->dev);
-
-	ohci_hcd_init(hcd_to_ohci(hcd));
-
-	retval = usb_add_hcd(hcd, irq, 0);
-	if (retval == 0)
-		return retval;
-
-	ep93xx_stop_hc(&pdev->dev);
-err_put_hcd:
-	usb_put_hcd(hcd);
-
-	return retval;
-}
-
-static void usb_hcd_ep93xx_remove(struct usb_hcd *hcd,
-			struct platform_device *pdev)
-{
-	usb_remove_hcd(hcd);
-	ep93xx_stop_hc(&pdev->dev);
-	usb_put_hcd(hcd);
-}
-
 static int ohci_ep93xx_start(struct usb_hcd *hcd)
 {
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
@@ -138,15 +70,57 @@ static struct hc_driver ohci_ep93xx_hc_driver = {
 	.start_port_reset	= ohci_start_port_reset,
 };
 
-extern int usb_disabled(void);
-
 static int ohci_hcd_ep93xx_drv_probe(struct platform_device *pdev)
 {
+	struct usb_hcd *hcd;
+	struct resource *res;
+	int irq;
 	int ret;
 
-	ret = -ENODEV;
-	if (!usb_disabled())
-		ret = usb_hcd_ep93xx_probe(&ohci_ep93xx_hc_driver, pdev);
+	if (usb_disabled())
+		return -ENODEV;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENXIO;
+
+	hcd = usb_create_hcd(&ohci_ep93xx_hc_driver, &pdev->dev, "ep93xx");
+	if (!hcd)
+		return -ENOMEM;
+
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
+
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		ret = PTR_ERR(hcd->regs);
+		goto err_put_hcd;
+	}
+
+	usb_host_clock = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(usb_host_clock)) {
+		ret = PTR_ERR(usb_host_clock);
+		goto err_put_hcd;
+	}
+
+	clk_enable(usb_host_clock);
+
+	ohci_hcd_init(hcd_to_ohci(hcd));
+
+	ret = usb_add_hcd(hcd, irq, 0);
+	if (ret)
+		goto err_clk_disable;
+
+	return 0;
+
+err_clk_disable:
+	clk_disable(usb_host_clock);
+err_put_hcd:
+	usb_put_hcd(hcd);
 
 	return ret;
 }
@@ -155,7 +129,9 @@ static int ohci_hcd_ep93xx_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
-	usb_hcd_ep93xx_remove(hcd, pdev);
+	usb_remove_hcd(hcd);
+	clk_disable(usb_host_clock);
+	usb_put_hcd(hcd);
 
 	return 0;
 }
@@ -170,7 +146,7 @@ static int ohci_hcd_ep93xx_drv_suspend(struct platform_device *pdev, pm_message_
 		msleep(5);
 	ohci->next_statechange = jiffies;
 
-	ep93xx_stop_hc(&pdev->dev);
+	clk_disable(usb_host_clock);
 	return 0;
 }
 
@@ -183,7 +159,7 @@ static int ohci_hcd_ep93xx_drv_resume(struct platform_device *pdev)
 		msleep(5);
 	ohci->next_statechange = jiffies;
 
-	ep93xx_start_hc(&pdev->dev);
+	clk_enable(usb_host_clock);
 
 	ohci_resume(hcd, false);
 	return 0;
