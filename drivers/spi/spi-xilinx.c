@@ -378,14 +378,10 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 	xspi->bitbang.master->setup = xilinx_spi_setup;
 	init_completion(&xspi->done);
 
-	if (!request_mem_region(mem->start, resource_size(mem),
-		XILINX_SPI_NAME))
+	xspi->regs = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(xspi->regs)) {
+		ret = PTR_ERR(xspi->regs);
 		goto put_master;
-
-	xspi->regs = ioremap(mem->start, resource_size(mem));
-	if (xspi->regs == NULL) {
-		dev_warn(dev, "ioremap failure\n");
-		goto map_failed;
 	}
 
 	master->bus_num = bus_num;
@@ -424,7 +420,7 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 		xspi->tx_fn = xspi_tx32;
 		xspi->rx_fn = xspi_rx32;
 	} else
-		goto unmap_io;
+		goto put_master;
 
 
 	/* SPI controller initializations */
@@ -433,7 +429,7 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 	/* Register for SPI Interrupt */
 	ret = request_irq(xspi->irq, xilinx_spi_irq, 0, XILINX_SPI_NAME, xspi);
 	if (ret)
-		goto unmap_io;
+		goto put_master;
 
 	ret = spi_bitbang_start(&xspi->bitbang);
 	if (ret) {
@@ -447,10 +443,6 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 
 free_irq:
 	free_irq(xspi->irq, xspi);
-unmap_io:
-	iounmap(xspi->regs);
-map_failed:
-	release_mem_region(mem->start, resource_size(mem));
 put_master:
 	spi_master_put(master);
 	return NULL;
@@ -465,9 +457,7 @@ void xilinx_spi_deinit(struct spi_master *master)
 
 	spi_bitbang_stop(&xspi->bitbang);
 	free_irq(xspi->irq, xspi);
-	iounmap(xspi->regs);
 
-	release_mem_region(xspi->mem.start, resource_size(&xspi->mem));
 	spi_master_put(xspi->bitbang.master);
 }
 EXPORT_SYMBOL(xilinx_spi_deinit);
