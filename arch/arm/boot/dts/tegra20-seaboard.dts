@@ -828,6 +828,7 @@
 			regulator-name = "vdd_vbus_wup1";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
+			enable-active-high;
 			gpio = <&gpio 24 0>; /* PD0 */
 		};
 	};
