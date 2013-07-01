@@ -486,7 +486,6 @@ static inline int scsi_is_wlun(unsigned int lun)
 #define TIMEOUT_ERROR   0x2007
 #define SCSI_RETURN_NOT_HANDLED   0x2008
 #define FAST_IO_FAIL	0x2009
-#define TARGET_ERROR    0x200A
 
 /*
  * Midlevel queue return values.
