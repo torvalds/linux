@@ -917,10 +917,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 				dev_drv->screen0->sscreen_get(dev_drv->screen0,
 					dev_drv->cur_screen->hdmi_resolution);
 			}
-			if(dev_drv->screen0->sscreen_set)
-			{
-				dev_drv->screen0->sscreen_set(dev_drv->screen0,enable);
-			}
+			
 			
 		}
 		else
@@ -930,10 +927,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 			dev_drv->cur_screen = dev_drv->screen0;
 			dev_drv->screen_ctr_info->set_screen_info(dev_drv->cur_screen,
 			dev_drv->screen_ctr_info->lcd_info);
-			if(dev_drv->screen0->sscreen_set)
-			{
-				dev_drv->screen0->sscreen_set(dev_drv->screen0,0);
-			}
+			
 			
 		}
 	}
@@ -1006,6 +1000,13 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		info->fbops->fb_pan_display(hdmi_var,info);
 	#endif 
 	info->fbops->fb_ioctl(info,RK_FBIOSET_CONFIG_DONE,0);
+	if(dev_drv->screen1) //for one lcdc use  scaler for dual dispaly
+	{
+		if(dev_drv->screen0->sscreen_set)
+		{
+			dev_drv->screen0->sscreen_set(dev_drv->screen0,enable);
+		}
+	}
 #if defined(CONFIG_NO_DUAL_DISP)  //close backlight for device whic do not support dual display
 	if(!enable)
 		rk29_backlight_set(1);

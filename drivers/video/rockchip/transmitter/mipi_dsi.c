@@ -129,6 +129,49 @@ int dsi_init(void *array, u32 n) {
 }
 EXPORT_SYMBOL(dsi_init);
 
+int dsi_enable_video_mode(u32 enable) {
+	if(!cur_dsi_ops)
+		return -1;
+	if(cur_dsi_ops->dsi_enable_video_mode)
+		cur_dsi_ops->dsi_enable_video_mode(enable);
+	return 0;
+
+}
+EXPORT_SYMBOL(dsi_enable_video_mode);
+
+int dsi_enable_command_mode(u32 enable) {
+
+	if(!cur_dsi_ops)
+		return -1;
+	if(cur_dsi_ops->dsi_enable_command_mode)
+		cur_dsi_ops->dsi_enable_command_mode(enable);
+	return 0;
+
+}
+EXPORT_SYMBOL(dsi_enable_command_mode);
+
+int dsi_enable_hs_clk(u32 enable) {
+
+	if(!cur_dsi_ops)
+		return -1;
+	if(cur_dsi_ops->dsi_enable_hs_clk)
+		cur_dsi_ops->dsi_enable_hs_clk(enable);
+	return 0;
+
+}
+EXPORT_SYMBOL(dsi_enable_hs_clk);
+
+int dsi_is_active(void) {
+
+	if(!cur_dsi_ops)
+		return -1;
+	if(cur_dsi_ops->dsi_is_active)
+		return cur_dsi_ops->dsi_is_active();
+	else
+		return -1;
+}
+EXPORT_SYMBOL(dsi_is_active);
+
 
 int dsi_send_dcs_packet(unsigned char *packet, u32 n) {
 

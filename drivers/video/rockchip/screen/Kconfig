@@ -1,90 +1,121 @@
 choice
 	depends on FB_ROCKCHIP
 	prompt  "LCD Panel Select"
+
 config LCD_NULL
 	bool "NULL"
+
 config LCD_RK2928
 	bool "RK2928 LCD"
         depends on MACH_RK2928
+
 config LCD_LG_LP097X02
 	bool "RGB LCD_LG_LP097X02 1024X768"
+
 config LCD_TD043MGEA1
 	bool "RGB TD043MGEA1"
+
 config LCD_HX8357
 	bool "RGB HX8357"	
+
 config LCD_TJ048NC01CA
-    bool "RGB TJ048NC01CA"
+	bool "RGB TJ048NC01CA"
+
 config LCD_HL070VM4AU
-    bool "RGB_HL070VM4AU"
+	bool "RGB_HL070VM4AU"
+
 config LCD_HSD070IDW1
-    bool "RGB Hannstar800x480"
+	bool "RGB Hannstar800x480"
+
 config LCD_RGB_TFT480800_25_E
-    bool "RGB TFT480800_25_E"
+	bool "RGB TFT480800_25_E"
+
 config LCD_HSD100PXN
-	  bool "RGB Hannstar HSD100PXN(1024X768)"
+	bool "RGB Hannstar HSD100PXN(1024X768)"
 
 config LCD_BYD8688FTGF
 	bool "RGB BYD 1024X600 8688FTGF"
+
 config LCD_B101AW06
-	  bool "RGB Hannstar B101AW06(1024X600)"
+	bool "RGB Hannstar B101AW06(1024X600)"
+
 config LCD_RGB_TFT480800_25_E
-	  bool "RGB TFT480800_25_E(480X800)"
+	bool "RGB TFT480800_25_E(480X800)"
+
 config LCD_LS035Y8DX02A
-	  bool "RGB LS035Y8DX02A(480X800)"
+	bool "RGB LS035Y8DX02A(480X800)"
+
 config LCD_LS035Y8DX04A
-	  bool "RGB LS035Y8DX04A(480X800)"
+	bool "RGB LS035Y8DX04A(480X800)"
+
 config LCD_HSD100PXN_FOR_TDW851
-	  bool "RGB Hannstar HSD100PXN(800X480)"	
+	bool "RGB Hannstar HSD100PXN(800X480)"	
+
 config LCD_CPTCLAA038LA31XE
-	  bool "RGB LCD_CPTCLAA038LA31XE(480X800)"	  
+	bool "RGB LCD_CPTCLAA038LA31XE(480X800)"	  
+
 config LCD_A060SE02
-    bool "MCU A060SE02"
+	bool "MCU A060SE02"
+
 config LCD_S1D13521
-    bool "MCU S1D13521"
+	bool "MCU S1D13521"
+
 config LCD_NT35582
 	bool "MCU NT35582"
+
 config LCD_NT35580
 	bool "MCU NT35580"
+
 config LCD_IPS1P5680_V1_E
 	bool "MCU IPS1P5680_V1_E"
+
 config LCD_MCU_TFT480800_25_E
 	bool "MCU TFT480800_25_E"
+
 config LCD_NT35510
 	bool "RGB lcd_nt35510"	
+
 config LCD_ILI9803_CPT4_3
 	bool "RGB lcd_ILI9803_CPT4_3"	
+
 config LCD_IPS1P5680_V1_E
-    bool "MCU IPS1P5680_V1_E"
+	bool "MCU IPS1P5680_V1_E"
+
 config LCD_MCU_TFT480800_25_E
-    bool "MCU TFT480800_25_E"
+	bool "MCU TFT480800_25_E"
+
 config LCD_AT070TNA2
 	bool "RGB AT070TNA2"
+
 config LCD_AT070TN93
 	bool "RGB AT070TN93"
+
 config LCD_TX23D88VM
 	bool "HITACHI LVDS TX23D88VM (1200x800)"
+
 config LCD_A050VL01
 	bool "RGB A050VL01"
+
 config LCD_B101EW05
 	bool "RGB lcd  panel B101EW05"
+
 config LCD_RK3168M_B101EW05
-        bool "RGB lcd  panel LCD_RK3168M_B101EW05"
+	bool "RGB lcd  panel LCD_RK3168M_B101EW05"
+
 config LCD_HJ050NA_06A
 	bool "RGB lcd  panel HJ050NA-06A"
 	
 config LCD_HDMI_1366x768
-	depends on MFD_RK610
 	bool "RK610 LCD_HDMI_1366X768"
 	---help---
 	if support RK610, this setting can support dual screen output
 
 config LCD_HDMI_1280x800
-	depends on MFD_RK610
 	bool "RGB Hannstar LCD_HDMI_1280X800"
 	---help---
 	if support RK610, this setting can support dual screen output
+
 config LCD_HDMI_1024x768
-	depends on MFD_RK610
 	bool "RGB Hannstar LCD_HDMI_1024X768"
 	---help---
 	if support RK610, this setting can support dual screen output
@@ -94,19 +125,22 @@ config LCD_HSD07PFW1
         bool "RGB Hannstar LCD_HDMI_1024X600"
 
 config LCD_HDMI_800x480
-	depends on MFD_RK610
 	bool "RGB Hannstar LCD_HDMI_800x480"
 	---help---
 	if support RK610, this setting can support dual screen output
+
 config LCD_HV070WSA100
 	bool "HV070WSA-100 1024X600"
+
 config LCD_COMMON
 	bool "LCD COMMON"
+
 config LCD_RK3168_AUO_A080SN03
        bool "RK3168  auo panel 800x480"
 
 config LCD_RK2928_A720
        bool "RK2928 A720 panel 800x480"
+
 config LCD_RK2926_V86
 	bool "RK2926 v86 panel 800x480"
 
@@ -120,30 +154,36 @@ config LCD_HJ101NA
         bool "HJ101NA_4J 1280X800"
 
 config LCD_AUTO
-        bool "auto select lcd"
+	bool "auto select lcd"
 
 config LCD_HSD07PFW1
-	depends on MFD_RK610
 	bool "RGB lcd panel HSD07PFW1"
 
 config LCD_I30_800X480
         bool "lcd I30"
+
 config LCD_TL5001_MIPI
 	bool "TL5001 720X1280"
 
 config LCD_LP097QX1
-          bool "Display Port screen LP097QX1"
+	bool "Display Port screen LP097QX1"
+
 config LCD_DS1006H
-          bool "Lvds screen for ds1006h(RK3168)"
+	bool "Lvds screen for ds1006h(RK3168)"
+
 config LCD_B101UANO_1920x1200
-          bool "Lvds screen B101UANO for u30gt2"
+	bool "Lvds screen B101UANO for u30gt2"
+
 config LCD_E242868_1024X600
-          bool "RK3168 86v RGB 1024*600 "
+	bool "RK3168 86v RGB 1024*600 "
+
 config LCD_WY_800X480
 	bool "lcd for 760"
+
 config LCD_HH070D_LVDS
 	bool "lcd lvds for 760"
-
+config LCD_LD089WU1_MIPI
+	bool "mipi dsi lcd LD089WU1 1920X1200"
 endchoice
 
 

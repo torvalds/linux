@@ -208,6 +208,7 @@ struct sensor_platform_data {
 	int irq;
 	int power_pin;
 	int reset_pin;
+	int standby_pin;
 	int irq_enable;         //if irq_enable=1 then use irq else use polling  
 	int poll_delay_ms;      //polling
 	int x_min;              //filter
@@ -467,6 +468,13 @@ struct rk610_codec_platform_data {
 	unsigned int spk_ctl_io;
 	int (*io_init)(void);
 	int boot_depop;//if found boot pop,set boot_depop 1 test
+	/*
+		Some amplifiers enable a longer time.
+		config after pa_enable_io delay pa_enable_time(ms)
+		default = 0,preferably not more than 1000ms
+		so value range is 0 - 1000.
+	*/
+	unsigned int pa_enable_time;
 };
 
 struct rk_hdmi_platform_data {

@@ -378,9 +378,11 @@ static int clksel_set_rate_shift_2(struct clk *clk, unsigned long rate)
 //for div 1 2 4 2*n
 static int clksel_set_rate_even(struct clk *clk, unsigned long rate)
 {
-	u32 div;
-	for (div = 2; div < clk->div_max; div += 2) {
-		u32 new_rate = clk->parent->rate / div;
+	u32 div = 0, new_rate = 0;
+	for (div = 1; div < clk->div_max; div++) {
+		if (div >= 3 && div % 2 != 0)
+			continue;
+		new_rate = clk->parent->rate / div;
 		if (new_rate <= rate) {
 			set_cru_bits_w_msk(div - 1, clk->div_mask, clk->div_shift, clk->clksel_con);
 			clk->rate = new_rate;

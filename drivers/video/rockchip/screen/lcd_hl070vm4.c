@@ -1,15 +1,17 @@
-
+#ifndef _LCD_HL070VM_
+#define _LCD_HL070VM_
 #include <linux/delay.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/board.h>
-#include <linux/rk_fb.h>
+
 
 
 /* Base */
-#define OUT_TYPE		SCREEN_RGB
+#define SCREEN_TYPE		SCREEN_RGB
+#define LVDS_FORMAT		LVDS_8BIT_1
 #define OUT_FACE		OUT_P888
-#define OUT_CLK			 27000000
+#define DCLK			 27000000
 #define LCDC_ACLK       150000000     //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
@@ -28,8 +30,14 @@
 #define LCD_HEIGHT      480
 
 /* Other */
-#define DCLK_POL		1 ///0
+#define DCLK_POL                1
+#define DEN_POL			0
+#define VSYNC_POL		0
+#define HSYNC_POL		0
+
 #define SWAP_RB			0
+#define SWAP_RG			0
+#define SWAP_GB			0 
 
 #define TXD_PORT        gLcd_info->txd_pin
 #define CLK_PORT        gLcd_info->clk_pin
@@ -48,52 +56,9 @@
 static struct rk29lcd_info *gLcd_info = NULL;
 
 #define DRVDelayUs(i)   udelay(i*2)
-
-int init(void);
-int standby(u8 enable);
-
-void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
-{
-    /* screen type & face */
-    screen->type = OUT_TYPE;
-    screen->face = OUT_FACE;
-
-    /* Screen size */
-    screen->x_res = H_VD;
-    screen->y_res = V_VD;
-
-    screen->width = LCD_WIDTH;
-    screen->height = LCD_HEIGHT;
-
-    /* Timing */
-    screen->lcdc_aclk = LCDC_ACLK;
-    screen->pixclock = OUT_CLK;
-	screen->left_margin = H_BP;
-	screen->right_margin = H_FP;
-	screen->hsync_len = H_PW;
-	screen->upper_margin = V_BP;
-	screen->lower_margin = V_FP;
-	screen->vsync_len = V_PW;
-
-	/* Pin polarity */
-	screen->pin_hsync = 0;
-	screen->pin_vsync = 0;
-	screen->pin_den = 0;
-	screen->pin_dclk = DCLK_POL;
-
-	/* Swap rule */
-    screen->swap_rb = SWAP_RB;
-    screen->swap_rg = 0;
-    screen->swap_gb = 0;
-    screen->swap_delta = 0;
-    screen->swap_dumy = 0;
-
-    /* Operation function*/
-    screen->init = init;
-    screen->standby = standby;
-    if(lcd_info)
-        gLcd_info = lcd_info;
-}
+#define RK_SCREEN_INIT
+int rk_lcd_init(void);
+int rk_lcd_standby(u8 enable);
 
 
 //void spi_screenreg_set(uint32 Addr, uint32 Data)
@@ -167,7 +132,7 @@ void spi_screenreg_set(u32 Data)
 }
 
 
-int init(void)
+int rk_lcd_init(void)
 {
     if(gLcd_info)
         gLcd_info->io_init();
@@ -190,12 +155,12 @@ r5 01100001 11001110
     return 0;
 }
 
-int standby(u8 enable)
+int rk_lcd_standby(u8 enable)
 {
     if(gLcd_info)
         gLcd_info->io_init();
 	if(!enable) {
-		init();
+		rk_lcd_init();
 	} //else {
 //		spi_screenreg_set(0x03, 0x5f);
 //	}
@@ -203,4 +168,4 @@ int standby(u8 enable)
         gLcd_info->io_deinit();
     return 0;
 }
-
+#endif

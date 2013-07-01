@@ -72,7 +72,7 @@
 #define DRIVER_DESC		"RGA Device Driver"
 #define DRIVER_NAME		"rga"
 
-#define RGA_VERSION   "1.002"
+#define RGA_VERSION   "1.003"
 
 ktime_t rga_start;
 ktime_t rga_end;
@@ -187,6 +187,8 @@ static void rga_dump(void)
     /* Dump waiting list info */
     if (!list_empty(&rga_service.waiting))
     {
+        list_head	*next;
+
         next = &rga_service.waiting;
 
         printk("rga_service dump waiting list\n");
@@ -206,6 +208,8 @@ static void rga_dump(void)
     if (!list_empty(&rga_service.running))
     {
         printk("rga_service dump running list\n");
+
+        list_head	*next;
 
         next = &rga_service.running;
         do
@@ -311,14 +315,14 @@ static int rga_flush(rga_session *session, unsigned long arg)
     ret_timeout = wait_event_timeout(session->wait, atomic_read(&session->done), RGA_TIMEOUT_DELAY);
 
 	if (unlikely(ret_timeout < 0)) {
-		pr_err("flush pid %d wait task ret %d\n", session->pid, ret);
+		//pr_err("flush pid %d wait task ret %d\n", session->pid, ret);
         mutex_lock(&rga_service.lock);
         rga_del_running_list();
         mutex_unlock(&rga_service.lock);
         ret = ret_timeout;
 	} else if (0 == ret_timeout) {
-		pr_err("flush pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
-        printk("bus  = %.8x\n", rga_read(RGA_INT));
+		//pr_err("flush pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
+        //printk("bus  = %.8x\n", rga_read(RGA_INT));
         mutex_lock(&rga_service.lock);
         rga_del_running_list_timeout();
         rga_try_set_reg();
@@ -707,7 +711,7 @@ static void rga_del_running_list_timeout(void)
         atomic_sub(1, &reg->session->task_running);
         atomic_sub(1, &rga_service.total_running);
 
-        printk("RGA soft reset for timeout process\n");
+        //printk("RGA soft reset for timeout process\n");
         rga_soft_reset();
 
 
@@ -865,7 +869,7 @@ static int rga_blit_async(rga_session *session, struct rga_req *req)
     printk("*** rga_blit_async proc ***\n");
     print_info(req);
     #endif
-
+    atomic_set(&session->done, 0);
     ret = rga_blit(session, req);
 
     return ret;
@@ -893,7 +897,7 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
 
     if (unlikely(ret_timeout< 0))
     {
-		pr_err("sync pid %d wait task ret %d\n", session->pid, ret_timeout);
+		//pr_err("sync pid %d wait task ret %d\n", session->pid, ret_timeout);
         mutex_lock(&rga_service.lock);
         rga_del_running_list();
         mutex_unlock(&rga_service.lock);
@@ -901,7 +905,7 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
 	}
     else if (0 == ret_timeout)
     {
-		pr_err("sync pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
+		//pr_err("sync pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
         mutex_lock(&rga_service.lock);
         rga_del_running_list_timeout();
         rga_try_set_reg();
@@ -1324,8 +1328,9 @@ EXPORT_SYMBOL(rk_get_fb);
 extern void rk_direct_fb_show(struct fb_info * fbi);
 EXPORT_SYMBOL(rk_direct_fb_show);
 
-unsigned int src_buf[1920*1080 * 2];
-unsigned int dst_buf[1920*1080 * 2];
+unsigned int src_buf[1920*1080];
+unsigned int dst_buf[1920*1080];
+//unsigned int tmp_buf[1920*1080 * 2];
 
 void rga_test_0(void)
 {
@@ -1356,10 +1361,10 @@ void rga_test_0(void)
     src = src_buf;
     dst = dst_buf;
 
-    memset(src_buf, 0x55, 800*4*300);
+    memset(src_buf, 0x80, 1024*600*4);
 
-    dmac_flush_range(&src_buf[0], &src_buf[800*600]);
-    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[800*600]));
+    dmac_flush_range(&src_buf[0], &src_buf[1024*600]);
+    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1024*600]));
 
 
     #if 0
@@ -1371,8 +1376,8 @@ void rga_test_0(void)
     #endif
 
     dst0 = &dst_buf[0];
-    dst1 = &dst_buf[800*600*4];
-    dst2 = &dst_buf[800*600*4*2];
+    //dst1 = &dst_buf[1280*800*4];
+    //dst2 = &dst_buf[1280*800*4*2];
 
     i = j = 0;
 
@@ -1380,98 +1385,88 @@ void rga_test_0(void)
     printk("************ RGA_TEST ************\n");
     printk("********************************\n\n");
 
-    while( j < 1000)
-    {
-        req.src.act_w = 800;
-        req.src.act_h = 600;
+    req.src.act_w = 1024;
+    req.src.act_h = 600;
 
-        req.src.vir_w = 800;
-        req.src.vir_h = 600;
-        req.src.yrgb_addr = (uint32_t)virt_to_phys(src);
-        req.src.uv_addr = (uint32_t)(req.src.yrgb_addr + 1080*1920);
-        req.src.v_addr = (uint32_t)virt_to_phys(src);
-        req.src.format = RK_FORMAT_RGBA_8888;
+    req.src.vir_w = 1024;
+    req.src.vir_h = 600;
+    req.src.yrgb_addr = (uint32_t)virt_to_phys(src);
+    req.src.uv_addr = (uint32_t)(req.src.yrgb_addr + 1080*1920);
+    req.src.v_addr = (uint32_t)virt_to_phys(src);
+    req.src.format = RK_FORMAT_RGBA_8888;
 
-        req.dst.act_w = 800;
-        req.dst.act_h = 600;
+    req.dst.act_w = 600;
+    req.dst.act_h = 352;
 
-        req.dst.vir_w = 800;
-        req.dst.vir_h = 600;
-        req.dst.x_offset = 0;
-        req.dst.y_offset = 0;
+    req.dst.vir_w = 1280;
+    req.dst.vir_h = 800;
+    req.dst.x_offset = 600;
+    req.dst.y_offset = 0;
 
-        if((i&3) == 0)
-            dst = dst0;
-        else if ((i&3) == 1)
-            dst = dst1;
-        else
-            dst = dst2;
+    dst = dst0;
 
-        req.dst.yrgb_addr = ((uint32_t)virt_to_phys(dst));
+    req.dst.yrgb_addr = ((uint32_t)virt_to_phys(dst));
 
-        //req.dst.format = RK_FORMAT_RGB_565;
+    //req.dst.format = RK_FORMAT_RGB_565;
 
-        req.clip.xmin = 0;
-        req.clip.xmax = 799;
-        req.clip.ymin = 0;
-        req.clip.ymax = 599;
+    req.clip.xmin = 0;
+    req.clip.xmax = 1279;
+    req.clip.ymin = 0;
+    req.clip.ymax = 799;
 
-        //req.render_mode = color_fill_mode;
-        //req.fg_color = 0x80ffffff;
+    //req.render_mode = color_fill_mode;
+    //req.fg_color = 0x80ffffff;
 
-        //req.rotate_mode = 1;
-        //req.scale_mode = 2;
+    req.rotate_mode = 1;
+    //req.scale_mode = 2;
 
-        //req.alpha_rop_flag = 0;
-        //req.alpha_rop_mode = 0x19;
-        //req.PD_mode = 3;
+    //req.alpha_rop_flag = 0;
+    //req.alpha_rop_mode = 0x19;
+    //req.PD_mode = 3;
 
-        //req.sina = 0;
-        //req.cosa = 65536;
+    req.sina = 65536;
+    req.cosa = 0;
 
-        //req.mmu_info.mmu_flag = 0x21;
-        //req.mmu_info.mmu_en = 1;
+    //req.mmu_info.mmu_flag = 0x21;
+    //req.mmu_info.mmu_en = 1;
 
-        printk("src = %.8x\n", req.src.yrgb_addr);
-        printk("src = %.8x\n", req.src.uv_addr);
-        printk("dst = %.8x\n", req.dst.yrgb_addr);
+    //printk("src = %.8x\n", req.src.yrgb_addr);
+    //printk("src = %.8x\n", req.src.uv_addr);
+    //printk("dst = %.8x\n", req.dst.yrgb_addr);
 
-        rga_blit_sync(&session, &req);
 
-        #if 1
-        fb->var.bits_per_pixel = 32;
+    rga_blit_sync(&session, &req);
 
-        fb->var.xres = 800;
-        fb->var.yres = 600;
+    #if 1
+    fb->var.bits_per_pixel = 32;
 
-        fb->var.red.length = 8;
-        fb->var.red.offset = 0;
-        fb->var.red.msb_right = 0;
+    fb->var.xres = 1280;
+    fb->var.yres = 800;
 
-        fb->var.green.length = 8;
-        fb->var.green.offset = 8;
-        fb->var.green.msb_right = 0;
+    fb->var.red.length = 8;
+    fb->var.red.offset = 0;
+    fb->var.red.msb_right = 0;
 
-        fb->var.blue.length = 8;
+    fb->var.green.length = 8;
+    fb->var.green.offset = 8;
+    fb->var.green.msb_right = 0;
 
-        fb->var.blue.offset = 16;
-        fb->var.blue.msb_right = 0;
+    fb->var.blue.length = 8;
 
-        fb->var.transp.length = 8;
-        fb->var.transp.offset = 24;
-        fb->var.transp.msb_right = 0;
+    fb->var.blue.offset = 16;
+    fb->var.blue.msb_right = 0;
 
-        fb->var.nonstd &= (~0xff);
-        fb->var.nonstd |= 1;
+    fb->var.transp.length = 8;
+    fb->var.transp.offset = 24;
+    fb->var.transp.msb_right = 0;
 
-        fb->fix.smem_start = virt_to_phys(dst);
+    fb->var.nonstd &= (~0xff);
+    fb->var.nonstd |= 1;
 
-        rk_direct_fb_show(fb);
+    fb->fix.smem_start = virt_to_phys(dst);
 
-        i++;
-        j++;
-        #endif
-    }
+    rk_direct_fb_show(fb);
+    #endif
 
 }
 

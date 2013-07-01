@@ -747,6 +747,27 @@ enum {
 	RK616_STEREO,
 };
 
+enum {
+	OFF,
+	RCV,
+	SPK_PATH,
+	HP_PATH,
+	HP_NO_MIC,
+	BT,
+	SPK_HP,
+	RING_SPK,
+	RING_HP,
+	RING_HP_NO_MIC,
+	RING_SPK_HP,
+};
+
+enum {
+	MIC_OFF,
+	Main_Mic,
+	Hands_Free_Mic,
+	BT_Sco_Mic,
+};
+
 struct rk616_reg_val_typ {
 	unsigned int reg;
 	unsigned int value;

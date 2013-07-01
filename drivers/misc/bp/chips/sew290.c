@@ -214,7 +214,7 @@ struct bp_operate bp_sew290_ops = {
 	.resume			= bp_resume,
 	.misc_name		= NULL,
 	.private_miscdev	= NULL,
-#elif defined(CONFIG_ARCH_RK30)
+#elif defined(CONFIG_SOC_RK3066)
 	.name			= "sew290",
 	.bp_id			= BP_ID_SEW290,
 	.bp_bus			= BP_BUS_TYPE_USB_UART,		

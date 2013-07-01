@@ -36,7 +36,7 @@
 #define CLK_LOOPS_RATE_REF (1200UL) //Mhz
 #define CLK_LOOPS_RECALC(new_rate)  div_u64(CLK_LOOPS_JIFFY_REF*(new_rate),CLK_LOOPS_RATE_REF*MHZ)
 void rk30_clk_dump_regs(void);
-
+static int flag_uboot_display = 0;
 //flags bit
 //has extern 27mhz
 #define CLK_FLG_EXT_27MHZ 			(1<<0)
@@ -304,9 +304,11 @@ static int clksel_set_rate_shift_2(struct clk *clk, unsigned long rate)
 //for div 1 2 4 2*n
 static int clksel_set_rate_even(struct clk *clk, unsigned long rate)
 {
-	u32 div;
-	for (div = 2; div < clk->div_max; div += 2) {
-		u32 new_rate = clk->parent->rate / div;
+	u32 div = 0, new_rate = 0;
+	for (div = 1; div < clk->div_max; div++) {
+		if (div >= 3 && div % 2 != 0)
+			continue;
+		new_rate = clk->parent->rate / div;
 		if (new_rate <= rate) {
 			set_cru_bits_w_msk(div - 1, clk->div_mask, clk->div_shift, clk->clksel_con);
 			clk->rate = new_rate;
@@ -1936,12 +1938,19 @@ static struct clk clk_spdif_div = {
 static int clk_i2s_fracdiv_set_rate(struct clk *clk, unsigned long rate)
 {
 	u32 numerator, denominator;
+	int i = 10;
 	//clk_i2s_div->clk_i2s_pll->gpll/cpll
 	//clk->parent->parent
 	if(frac_div_get_seting(rate, clk->parent->parent->rate,
 				&numerator, &denominator) == 0) {
 		clk_set_rate_nolock(clk->parent, clk->parent->parent->rate); //PLL:DIV 1:
-		cru_writel_frac(numerator << 16 | denominator, clk->clksel_con);
+
+		while (i--) {
+			cru_writel_frac((numerator - 1) << 16 | denominator, clk->clksel_con);
+			mdelay(1);
+			cru_writel_frac(numerator << 16 | denominator, clk->clksel_con);
+			mdelay(1);
+		}
 		CLKDATA_DBG("%s set rate=%lu,is ok\n", clk->name, rate);
 	} else {
 		CLKDATA_ERR("clk_frac_div can't get rate=%lu,%s\n", rate, clk->name);
@@ -3022,6 +3031,7 @@ static void __init rk30_init_enable_clocks(void)
 	//clk_enable_nolock(&clk_core);
 	clk_enable_nolock(&clk_cpu_div);
 	clk_enable_nolock(&clk_core_gpll_path);
+	clk_enable_nolock(&clk_ddr_gpll_path);
 	clk_enable_nolock(&clk_l2c);
 	clk_enable_nolock(&clk_core_dbg);
 	clk_enable_nolock(&core_periph);
@@ -3031,6 +3041,18 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&atclk_cpu);
 	//clk_enable_nolock(&hclk_cpu);
 	clk_enable_nolock(&ahb2apb_cpu);
+	if (flag_uboot_display) {
+		clk_enable_nolock(&dclk_lcdc0);
+		clk_enable_nolock(&dclk_lcdc1);
+		clk_enable_nolock(&clk_hclk_lcdc0);
+		clk_enable_nolock(&clk_hclk_lcdc1);
+		clk_enable_nolock(&clk_aclk_lcdc0);
+		clk_enable_nolock(&clk_aclk_lcdc1);
+		clk_enable_nolock(&aclk_lcdc0_pre);
+		clk_enable_nolock(&aclk_lcdc1_pre);
+		clk_enable_nolock(&pd_lcdc0);
+		clk_enable_nolock(&pd_lcdc1);
+	}
 	#if 0
 	 clk_enable_nolock(&clk_gpu);
 	 clk_enable_nolock(&aclk_gpu);
@@ -3042,17 +3064,12 @@ static void __init rk30_init_enable_clocks(void)
 	 clk_enable_nolock(&aclk_vdpu);
 	 clk_enable_nolock(&hclk_vdpu);
 
-	 clk_enable_nolock(&aclk_lcdc0_pre);
-	 clk_enable_nolock(&aclk_lcdc1_pre);
 
 	 clk_enable_nolock(&aclk_periph);
 	clk_enable_nolock(&pclk_periph);
 	clk_enable_nolock(&hclk_periph);
 	#endif
 	#if 0
-	 clk_enable_nolock(&dclk_lcdc0);
-	 clk_enable_nolock(&dclk_lcdc1);
-	
 	 clk_enable_nolock(&cif_out_pll);
 	 clk_enable_nolock(&cif0_out_div);
 
@@ -3168,8 +3185,6 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&clk_hclk_ahb2apb);
 	clk_enable_nolock(&clk_hclk_vio_bus);
 	#if 0
-	clk_enable_nolock(&clk_hclk_lcdc0);
-	clk_enable_nolock(&clk_hclk_lcdc1);
 	clk_enable_nolock(&clk_hclk_cif0);
 	clk_enable_nolock(&clk_hclk_ipp);
 	clk_enable_nolock(&clk_hclk_rga);
@@ -3245,14 +3260,12 @@ static void __init rk30_init_enable_clocks(void)
 	/*************************aclk_lcdc0***********************/
 #if 1
 	//clk_enable_nolock(&clk_aclk_vio0);
-	//clk_enable_nolock(&clk_aclk_lcdc0);
 	//clk_enable_nolock(&clk_aclk_cif0);
 	//clk_enable_nolock(&clk_aclk_ipp);
 #endif
 	/*************************aclk_lcdc1***********************/
 #if 1
 	//clk_enable_nolock(&clk_aclk_vio1);
-	//clk_enable_nolock(&clk_aclk_lcdc1);
 	//clk_enable_nolock(&clk_aclk_rga);
 #endif
 	/************************power domain**********************/
@@ -3470,11 +3483,13 @@ static void div_clk_for_pll_init(void)
 	clock_set_max_div(&aclk_vdpu);
 	clock_set_max_div(&aclk_vepu);
 	clock_set_max_div(&aclk_gpu);
-	clock_set_max_div(&aclk_lcdc0_pre);
-	clock_set_max_div(&aclk_lcdc1_pre);
+	if (!flag_uboot_display) {
+		clock_set_max_div(&aclk_lcdc0_pre);
+		clock_set_max_div(&aclk_lcdc1_pre);
+		clock_set_max_div(&dclk_lcdc0);
+		clock_set_max_div(&dclk_lcdc1);
+	}
 	clock_set_max_div(&aclk_periph);
-	clock_set_max_div(&dclk_lcdc0);
-	clock_set_max_div(&dclk_lcdc1);
 	clock_set_max_div(&cif0_out_div);
 	clock_set_max_div(&clk_i2s0_div);
 	clock_set_max_div(&clk_spdif_div);
@@ -3492,11 +3507,13 @@ static u8 pll_flag = 0;
 static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long cpll_rate)
 {
 	//general
-	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
+	if (!flag_uboot_display)
+		clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	lpj_gpll = CLK_LOOPS_RECALC(general_pll_clk.rate);
 
 	//code pll
-	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
+	if (!flag_uboot_display)
+		clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
 
 	cpu_axi_init();
 	clk_set_rate_nolock(&clk_core, 816 * MHZ);
@@ -3529,18 +3546,19 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	//auto pll sel
 	//clk_set_parent_nolock(&clk_hsadc_pll_div, &general_pll_clk);
 
-	//lcdc0 lcd auto sel pll
-	clk_set_parent_nolock(&dclk_lcdc0, &general_pll_clk);
-	clk_set_parent_nolock(&dclk_lcdc1, &general_pll_clk);
+	if (!flag_uboot_display) {
+		//lcdc0 lcd auto sel pll
+		clk_set_parent_nolock(&dclk_lcdc0, &general_pll_clk);
+		clk_set_parent_nolock(&dclk_lcdc1, &general_pll_clk);
 
+		//axi lcdc auto sel
+		clk_set_parent_nolock(&aclk_lcdc0_pre, &general_pll_clk);
+		clk_set_parent_nolock(&aclk_lcdc1_pre, &general_pll_clk);
+		clk_set_rate_nolock(&aclk_lcdc0_pre, 300 * MHZ);
+		clk_set_rate_nolock(&aclk_lcdc1_pre, 300 * MHZ);
+	}
 	//cif
 	clk_set_parent_nolock(&cif_out_pll, &general_pll_clk);
-
-	//axi lcdc auto sel
-	clk_set_parent_nolock(&aclk_lcdc0_pre, &general_pll_clk);
-	clk_set_parent_nolock(&aclk_lcdc1_pre, &general_pll_clk);
-	clk_set_rate_nolock(&aclk_lcdc0_pre, 300 * MHZ);
-	clk_set_rate_nolock(&aclk_lcdc1_pre, 300 * MHZ);
 
 	//axi vepu auto sel
 	//clk_set_parent_nolock(&aclk_vepu, &general_pll_clk);
@@ -3552,7 +3570,7 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_parent_nolock(&aclk_gpu, &general_pll_clk);
 	clk_set_rate_nolock(&aclk_gpu, 200 * MHZ);
 	
-	clk_set_rate_nolock(&clk_uart0, 49500000);
+	clk_set_rate_nolock(&clk_uart0, 48000000);
 	clk_set_rate_nolock(&clk_sdmmc, 24750000);
 	clk_set_rate_nolock(&clk_sdio, 24750000);
 }
@@ -3631,6 +3649,7 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 	rk30_clock_common_init(gpll, cpll);
 	preset_lpj = loops_per_jiffy;
 
+
 	//gpio6_b7
 	//regfile_writel(0xc0004000,0x10c);
 	//cru_writel(0x07000000,CRU_MISC_CON);
@@ -3645,7 +3664,21 @@ void __init rk30_clock_data_init(unsigned long gpll, unsigned long cpll, u32 fla
 	_rk30_clock_data_init(gpll, cpll, flags);
 	rk3188_dvfs_init();
 }
+#define STR_UBOOT_DISPLAY	"fastboot"
+static int __init bootloader_setup(char *str)
+{
+	if (0 == strncmp(str, STR_UBOOT_DISPLAY, strlen(STR_UBOOT_DISPLAY))) {
+		printk("CLKDATA_MSG: get uboot display\n");
+		flag_uboot_display = 1;
+	}
+	return 0;
+}
+early_param("androidboot.bootloader", bootloader_setup);
 
+int support_uboot_display(void)
+{
+	return flag_uboot_display;
+}
 /*
  * You can override arm_clk rate with armclk= cmdline option.
  */

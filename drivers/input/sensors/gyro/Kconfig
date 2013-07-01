@@ -20,5 +20,7 @@ config GYRO_L3G20D
   bool "gyroscope l3g20d"
 	default n
 
-
+config GYRO_EWTSA
+  bool "gyroscope ewtsa"
+	default n
 endif

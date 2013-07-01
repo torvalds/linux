@@ -5,6 +5,9 @@ choice
 config SOC_RK3188
 	bool "RK3188"
 
+config SOC_RK3188M
+	bool "RK3188M"
+
 endchoice
 
 choice
@@ -36,11 +39,16 @@ config MACH_RK3188_JETTAB
 config MACH_RK3188_RK618
         bool "RK3188 RK618 sdk"
 
+config MACH_RK3188_FT
+	bool "RK3188 FT Board"
+
+endchoice
+
+choice
+	prompt "RK3188M Board Type"
+	depends on SOC_RK3188M
 
 config MACH_RK3188M_TB
 	bool "RK3188m Top Board"
-
-config MACH_RK3188_FT
-	bool "RK3188 FT Board"
 
 endchoice

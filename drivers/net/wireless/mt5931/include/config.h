@@ -1456,7 +1456,7 @@
 #define CFG_SUPPORT_UAPSD           1
 #define CFG_SUPPORT_UL_PSMP         0
 
-#define CFG_SUPPORT_ROAMING         1  /* Roaming System */
+#define CFG_SUPPORT_ROAMING         0  /* Roaming System */
 #define CFG_SUPPORT_SWCR            1
 
 #define CFG_SUPPORT_ANTI_PIRACY     1

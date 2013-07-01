@@ -107,6 +107,10 @@ int hdmi_set_info(struct rk29fb_screen *screen, unsigned int vic)
 	screen->hdmi_resolution = hdmi_mode[i].flag;
 
 	/* Pin polarity */
+#ifdef CONFIG_HDMI_RK616
+	screen->pin_hsync = 0;
+	screen->pin_vsync = 0;
+#else 
 	if(FB_SYNC_HOR_HIGH_ACT & hdmi_mode[i].sync)
 		screen->pin_hsync = 1;
 	else
@@ -115,6 +119,7 @@ int hdmi_set_info(struct rk29fb_screen *screen, unsigned int vic)
 		screen->pin_vsync = 1;
 	else
 		screen->pin_vsync = 0;
+#endif
 	screen->pin_den = 0;
 	screen->pin_dclk = DCLK_POL;
 
@@ -509,6 +514,8 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 	rc = hdmi_set_info(screen, hdmi->vic);
 
 	if(rc == 0) {
+                if(hdmi->set_vif)
+                        hdmi->set_vif(screen,0); //turn off vif for jettab
 		rk_fb_switch_screen(screen, 1, hdmi->lcdc->id);
 		rk_fb_disp_scale(hdmi->xscale, hdmi->yscale, hdmi->lcdc->id);
 		if(hdmi->set_vif)

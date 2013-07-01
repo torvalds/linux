@@ -725,8 +725,8 @@ static void rt5616_pmu_depop(struct snd_soc_codec *codec)
 		RT5616_HP_R_SMT_MASK, RT5616_HP_SG_DIS |
 		RT5616_HP_L_SMT_DIS | RT5616_HP_R_SMT_DIS);
 	msleep(20);
-	snd_soc_update_bits(codec, RT5616_HP_CALIB_AMP_DET,
-		RT5616_HPD_PS_MASK, RT5616_HPD_PS_EN);
+//	snd_soc_update_bits(codec, RT5616_HP_CALIB_AMP_DET,
+//		RT5616_HPD_PS_MASK, RT5616_HPD_PS_EN);
 }
 
 static void rt5616_pmd_depop(struct snd_soc_codec *codec)
@@ -746,8 +746,8 @@ static void rt5616_pmd_depop(struct snd_soc_codec *codec)
 		RT5616_RSTP_MASK | RT5616_HP_L_SMT_MASK |
 		RT5616_HP_R_SMT_MASK, RT5616_RSTP_DIS |
 		RT5616_HP_L_SMT_EN | RT5616_HP_R_SMT_EN);
-	snd_soc_update_bits(codec, RT5616_HP_CALIB_AMP_DET,
-		RT5616_HPD_PS_MASK, RT5616_HPD_PS_DIS);
+//	snd_soc_update_bits(codec, RT5616_HP_CALIB_AMP_DET,
+//		RT5616_HPD_PS_MASK, RT5616_HPD_PS_DIS);
 	msleep(90);
 	snd_soc_update_bits(codec, RT5616_HP_VOL,
 		RT5616_L_MUTE | RT5616_R_MUTE, RT5616_L_MUTE | RT5616_R_MUTE);

@@ -28,6 +28,7 @@
 #include <mach/dvfs.h>
 #include <mach/ddr.h>
 #include <mach/board.h>
+#include <plat/efuse.h>
 
 #define MHZ			(1000*1000)
 #define KHZ			(1000)
@@ -300,9 +301,11 @@ static int clksel_set_rate_shift_2(struct clk *clk, unsigned long rate)
 //for div 1 2 4 2*n
 static int clksel_set_rate_even(struct clk *clk, unsigned long rate)
 {
-	u32 div;
-	for (div = 2; div < clk->div_max; div += 2) {
-		u32 new_rate = clk->parent->rate / div;
+	u32 div = 0, new_rate = 0;
+	for (div = 1; div < clk->div_max; div++) {
+		if (div >= 3 && div % 2 != 0)
+			continue;
+		new_rate = clk->parent->rate / div;
 		if (new_rate <= rate) {
 			set_cru_bits_w_msk(div - 1, clk->div_mask, clk->div_shift, clk->clksel_con);
 			clk->rate = new_rate;
@@ -1660,6 +1663,13 @@ static int clksel_set_rate_hdmi(struct clk *clk, unsigned long rate)
 
 static int dclk_lcdc_set_rate(struct clk *clk, unsigned long rate)
 {
+	if (rate == 27 * MHZ)
+		return clkset_rate_freediv_autosel_parents(clk, rate);
+	else
+		return clkset_rate_evendiv_autosel_parents(clk, rate);
+
+#if 0
+
 	int ret = 0;
 	struct clk *parent;
 
@@ -1687,13 +1697,14 @@ static int dclk_lcdc_set_rate(struct clk *clk, unsigned long rate)
 		}
 	}
 	return ret;
+#endif
 }
 
 static struct clk *dclk_lcdc0_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc0 = {
 	.name		= "dclk_lcdc0",
 	.mode		= gate_mode,
-	.set_rate	= clkset_rate_evendiv_autosel_parents,
+	.set_rate	= dclk_lcdc_set_rate,
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC0_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(27),
@@ -1706,7 +1717,7 @@ static struct clk *dclk_lcdc1_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc1 = {
 	.name		= "dclk_lcdc1",
 	.mode		= gate_mode,
-	.set_rate	= clkset_rate_evendiv_autosel_parents,
+	.set_rate	= dclk_lcdc_set_rate,
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC1_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(28),
@@ -3406,6 +3417,7 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 {
 	struct clk_lookup *lk;
 
+	rk_efuse_init();
 	clk_register_dump_ops(&dump_ops);
 	clk_register_default_ops_clk(&def_ops_clk);
 	rk30_clock_flags = flags;

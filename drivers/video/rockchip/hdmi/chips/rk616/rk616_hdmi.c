@@ -355,9 +355,19 @@ static void rk616_hdmi_shutdown(struct platform_device *pdev)
 	if(hdmi) {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 		unregister_early_suspend(&hdmi->early_suspend);
-#endif
-	}
-	printk(KERN_INFO "rk616 hdmi shut down.\n");
+#endif 
+                flush_delayed_work(&hdmi->delay_work);
+                mutex_lock(&hdmi->enable_mutex);
+                hdmi->suspend = 1;
+                if(!hdmi->enable) {
+                        mutex_unlock(&hdmi->enable_mutex);
+                        return;
+                }
+                if (hdmi->irq)
+                        disable_irq(hdmi->irq);
+                mutex_unlock(&hdmi->enable_mutex);
+        }
+        printk(KERN_INFO "rk616 hdmi shut down.\n");
 }
 
 static struct platform_driver rk616_hdmi_driver = {

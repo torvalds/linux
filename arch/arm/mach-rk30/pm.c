@@ -514,13 +514,13 @@ static void __sramfunc rk_pm_soc_sram_volt_resume(void)
 }
 
 #define CLK_GATE_W_MSK0 (0xffff)
-#define CLK_GATE_W_MSK1 (0xffff)
+#define CLK_GATE_W_MSK1 (0xff9f)	//defult:(0xffff); ignore usb:(0xff9f) G1_[6:5]
 #define CLK_GATE_W_MSK2 (0xffff)
-#define CLK_GATE_W_MSK3 (0xff9f)
+#define CLK_GATE_W_MSK3 (0xff9f)	//defult:(0xff9f); ignore use:(0xff9f) G3_[6]
 #define CLK_GATE_W_MSK4 (0xffff)
-#define CLK_GATE_W_MSK5 (0xffff)
+#define CLK_GATE_W_MSK5 (0xdfff)	//defult:(0xffff); ignore usb:(0xdfff) G5_[13]
 #define CLK_GATE_W_MSK6 (0xffff)
-#define CLK_GATE_W_MSK7 (0xffff)
+#define CLK_GATE_W_MSK7 (0xffe7)	//defult:(0xffff); ignore usb:(0xffe7) G7_[4:3]
 #define CLK_GATE_W_MSK8 (0x01ff)
 #define CLK_GATE_W_MSK9 (0x07ff)
 static u32 __sramdata clkgt_regs_sram[CRU_CLKGATES_CON_CNT];

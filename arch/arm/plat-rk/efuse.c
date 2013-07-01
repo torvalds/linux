@@ -12,7 +12,7 @@
 #include <linux/spinlock.h>
 #include <plat/efuse.h>
 
-#if defined(CONFIG_ARCH_RK3188)
+#if defined(CONFIG_ARCH_RK3188) || defined(CONFIG_SOC_RK3028)
 #define efuse_readl(offset)		readl_relaxed(RK30_EFUSE_BASE + offset)
 #define efuse_writel(val, offset)	writel_relaxed(val, RK30_EFUSE_BASE + offset)
 #endif
@@ -69,5 +69,19 @@ int rk_pll_flag(void)
 
 int rk_leakage_val(void)
 {
-	return (efuse_buf[22] >> 4) & 0x0f;
+	/*
+	 * efuse_buf[22]
+	 * bit[3]:
+	 * 	0:enable leakage level auto voltage scale
+	 * 	1:disalbe leakage level avs
+	 */
+	if ((efuse_buf[22] >> 2) & 0x1)
+		return 0;
+	else
+		return  (efuse_buf[22] >> 4) & 0x0f;
+}
+
+int rk3028_version_val(void)
+{
+	return efuse_buf[5];
 }

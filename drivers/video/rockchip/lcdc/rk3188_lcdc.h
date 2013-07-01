@@ -225,6 +225,8 @@
 #define WIN_VIR			(0x30)
 #define m_WIN0_VIR   		(0x1fff << 0)
 #define m_WIN1_VIR   		(0x1fff << 16)
+#define v_WIN0_VIR_VAL(x)       ((x)<<0)
+#define v_WIN1_VIR_VAL(x)       ((x)<<16)
 #define v_ARGB888_VIRWIDTH(x) 	(((x)&0x1fff)<<0)
 #define v_RGB888_VIRWIDTH(x) 	(((((x*3)>>2)+((x)%3))&0x1fff)<<0)
 #define v_RGB565_VIRWIDTH(x) 	 ((DIV_ROUND_UP(x,2)&0x1fff)<<0)
@@ -330,7 +332,12 @@ static inline void lcdc_writel(struct rk3188_lcdc_device *lcdc_dev,u32 offset,u3
 
 static inline u32 lcdc_readl(struct rk3188_lcdc_device *lcdc_dev,u32 offset)
 {
-	return readl_relaxed(lcdc_dev->regs+offset);
+	u32 v;
+	u32 *_pv = (u32*)lcdc_dev->regsbak;
+	_pv += (offset >> 2);
+	v = readl_relaxed(lcdc_dev->regs+offset);
+	*_pv = v;
+	return v;
 }
 
 static inline u32 lcdc_read_bit(struct rk3188_lcdc_device *lcdc_dev,u32 offset,u32 msk) 

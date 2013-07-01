@@ -421,7 +421,7 @@ static inline struct sensor_v4l2ctrl_info_s* sensor_find_ctrl(
 {
 	int i;
 
-	for (i = 0; i < ops[i].num_ctrls; i++)
+	for (i = 0; i < ops[0].num_ctrls; i++)
 		if (ops[i].qctrl->id == id)
 			return &ops[i];
 

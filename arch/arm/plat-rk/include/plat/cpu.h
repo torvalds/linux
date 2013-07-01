@@ -101,6 +101,12 @@ static inline bool cpu_is_rk3188(void)
 	return soc_is_rk3188plus() || soc_is_rk3188();
 }
 
+#ifdef CONFIG_SOC_RK3188M
+static inline bool soc_is_rk3188m(void) { return true; }
+#else
+static inline bool soc_is_rk3188m(void) { return false; }
+#endif
+
 static inline bool soc_is_rk3028(void) { return soc_is_rk3168m(); }
 static inline bool soc_is_rk3168(void) { return soc_is_rk3108(); }
 

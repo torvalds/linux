@@ -853,6 +853,7 @@ int dvfs_scale_volt(struct vd_node *vd_clk, struct vd_node *vd_dep,
 {
 	struct regulator *regulator, *regulator_dep;
 	int volt = 0, volt_dep = 0, step = 0, step_dep = 0;
+	int volt_tmp = 0, volt_dep_tmp = 0;
 	int volt_pre = 0, volt_dep_pre = 0;
 	int ret = 0;
 
@@ -888,51 +889,21 @@ int dvfs_scale_volt(struct vd_node *vd_clk, struct vd_node *vd_dep,
 		} else if (step > 0) {
 			// up voltage
 			DVFS_DBG("step > 0\n");
+			volt_tmp = volt_dep + clk_biger_than_dep;
+			volt_dep_tmp = volt + dep_biger_than_clk;
 
-			if (volt > volt_dep) {
-				if (volt_dep == volt_dep_new) {
-					volt = volt_dep + clk_biger_than_dep;
-				} else {
-					volt_dep = volt + dep_biger_than_clk;
-				}
-			} else if (volt < volt_dep){
-				if (volt == volt_new) {
-					volt_dep = volt + dep_biger_than_clk;
-				} else {
-					volt = volt_dep + clk_biger_than_dep;
-				}
-			} else {
-				if (volt != volt_new)
-					volt = volt_dep + clk_biger_than_dep;
-				if (volt_dep != volt_dep_new)
-					volt_dep = volt + dep_biger_than_clk;
-			}
-			volt = volt > volt_new ? volt_new : volt;
-			volt_dep = volt_dep > volt_dep_new ? volt_dep_new : volt_dep;
+			volt = volt_tmp > volt_new ? volt_new : volt_tmp;
+			volt_dep = volt_dep_tmp > volt_dep_new ? volt_dep_new : volt_dep_tmp;
 
 		} else if (step < 0) {
 			// down voltage
 			DVFS_DBG("step < 0\n");
-			if (volt > volt_dep) {
-				if (volt == volt_new) {
-					volt_dep = volt - clk_biger_than_dep;
-				} else {
-					volt = volt_dep - dep_biger_than_clk;
-				}
-			} else if (volt < volt_dep){
-				if (volt_dep == volt_dep_new) {
-					volt = volt_dep - dep_biger_than_clk;
-				} else {
-					volt_dep = volt - clk_biger_than_dep;
-				}
-			} else {
-				if (volt != volt_new)
-					volt = volt_dep - dep_biger_than_clk;
-				if (volt_dep != volt_dep_new)
-					volt_dep = volt - clk_biger_than_dep;
-			}
-			volt = volt < volt_new ? volt_new : volt;
-			volt_dep = volt_dep < volt_dep_new ? volt_dep_new : volt_dep;
+
+			volt_tmp = volt_dep - dep_biger_than_clk;
+			volt_dep_tmp = volt - clk_biger_than_dep;
+
+			volt = volt_tmp < volt_new ? volt_new : volt_tmp;
+			volt_dep = volt_dep_tmp < volt_dep_new ? volt_dep_new : volt_dep_tmp;
 
 		} else {
 			DVFS_ERR("Oops, some bugs here:Volt_new=%d(old=%d), volt_dep_new=%d(dep_old=%d)\n",

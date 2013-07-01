@@ -213,6 +213,7 @@ typedef struct vpu_service_info {
 	VPU_HW_INFO_E		*hw_info;
 	unsigned long		reg_size;
 	bool			auto_freq;
+	bool			bug_dec_addr;
 	atomic_t		freq_status;
 } vpu_service_info;
 
@@ -598,12 +599,13 @@ static void reg_copy_to_hw(vpu_reg *reg)
 	case VPU_ENC : {
 		int enc_count = service.hw_info->enc_reg_num;
 		u32 *dst = (u32 *)enc_dev.hwregs;
-#if defined(CONFIG_ARCH_RK30)
-		cru_set_soft_reset(SOFT_RST_CPU_VCODEC, true);
-		cru_set_soft_reset(SOFT_RST_VCODEC_AHB, true);
-		cru_set_soft_reset(SOFT_RST_VCODEC_AHB, false);
-		cru_set_soft_reset(SOFT_RST_CPU_VCODEC, false);
-#endif
+		if (service.bug_dec_addr) {
+			cru_set_soft_reset(SOFT_RST_CPU_VCODEC, true);
+			cru_set_soft_reset(SOFT_RST_VCODEC_AHB, true);
+			cru_set_soft_reset(SOFT_RST_VCODEC_AHB, false);
+			cru_set_soft_reset(SOFT_RST_CPU_VCODEC, false);
+		}
+
 		service.reg_codec = reg;
 
 		dst[VPU_REG_EN_ENC] = src[VPU_REG_EN_ENC] & 0x6;
@@ -1214,6 +1216,8 @@ static void get_hw_info(void)
 		printk("vpu_service set to auto frequency mode\n");
 		atomic_set(&service.freq_status, VPU_FREQ_BUT);
 	}
+	service.bug_dec_addr = cpu_is_rk30xx();
+	//printk("cpu 3066b bug %d\n", service.bug_dec_addr);
 }
 
 static irqreturn_t vdpu_irq(int irq, void *dev_id)

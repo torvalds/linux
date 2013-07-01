@@ -7,6 +7,13 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 
+#if defined(CONFIG_RK616_DEBUG)
+#define rk616_dbg(dev, format, arg...)		\
+	dev_info(dev , format , ## arg)
+#else
+#define rk616_dbg(dev, format, arg...)	do{}while(0)
+#endif
+
 #define VIF0_REG0 		0x0000
 #define VIF0_DDR_CLK_EN		(1<<3)
 #define VIF0_DDR_PHASEN_EN	(1<<2)  //negative edge first en
@@ -93,10 +100,10 @@
 #define DITHER_SEL_VIF0		0
 #define DITHER_SEL_SCL		1
 
-#define HDMI_IN_SEL(x)		(((x)&3)<<12)
-#define HDMI_CLK_SEL_VIF1	0
-#define HDMI_CLK_SEL_SCL	1
-#define HDMI_CLK_SEL_VIF0	2
+#define HDMI_IN_SEL(x)		(((x)&3)<<12)  //hdmi data in select
+#define HDMI_IN_SEL_VIF1	0
+#define HDMI_IN_SEL_SCL		1
+#define HDMI_IN_SEL_VIF0	2
 #define VIF1_CLK_DIV(x) 	(((x)&7)<<9)
 #define VIF1_CLK_GATE		(1<<8)
 #define VIF1_CLK_BYPASS		(1<<7)
@@ -178,6 +185,8 @@
 
 
 #define CRU_IO_CON0    		0x0088
+#define VIF1_SYNC_EN		(1<<15)
+#define VIF0_SYNC_EN		(1<<14)
 #define I2S1_OUT_DISABLE	(1<<13)
 #define I2S0_OUT_DISABLE	(1<<12)
 #define LVDS_OUT_EN		(1<<11)
@@ -209,6 +218,11 @@
 #define CRU_PCM2IS2_CON1	0x0094
 #define CRU_PCM2IS2_CON2	0x0098
 #define CRU_CFGMISC_CON		0x009C
+#define HDMI_CLK_SEL_MASK	(3<<12)
+#define HDMI_CLK_SEL(x)		(((x)&3)<<12)  //hdmi data in select
+#define HDMI_CLK_SEL_VIF1	0
+#define HDMI_CLK_SEL_SCL	1
+#define HDMI_CLK_SEL_VIF0	2
 
 
 enum lcd_port_func{       // the function of lcd ports(lcd0,lcd1),the lcd0 only can be used as input or unused
@@ -245,6 +259,7 @@ struct rk616_route {
 	u8  scl_bypass;
 	u16 dither_sel;
 	u16 hdmi_sel;
+	u16 hdmi_clk_sel;
 	u16 pll0_clk_sel;
 	u16 pll1_clk_sel;
 	u16 sclk_sel;
@@ -268,6 +283,7 @@ struct mfd_rk616 {
 	struct dentry *debugfs_dir;
 	int (*read_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
 	int (*write_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
+	int (*write_dev_bits)(struct mfd_rk616 *rk616,u16 reg,u32 mask,u32 *pval);
 };
 
 extern int rk616_set_vif(struct mfd_rk616 * rk616,rk_screen * screen,bool connect);

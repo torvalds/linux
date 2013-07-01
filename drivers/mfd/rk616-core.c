@@ -1,4 +1,3 @@
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -95,6 +94,42 @@ static int rk616_i2c_write_reg(struct mfd_rk616 *rk616, u16 reg,u32 *pval)
 }
 
 
+static int rk616_i2c_write_bits(struct mfd_rk616 *rk616, u16 reg,u32 mask,u32 *pval)
+{
+	
+	struct i2c_client *client = rk616->client;
+	struct i2c_adapter *adap = client->adapter;
+	struct i2c_msg msg;
+	int ret;
+	u32 reg_val;
+	char *tx_buf = NULL;
+	
+	tx_buf = (char *)kmalloc(6, GFP_KERNEL);
+	if(!tx_buf)
+		return -ENOMEM;
+	
+	mutex_lock(&rk616->reg_lock);
+	rk616->read_dev(rk616,reg,&reg_val);
+	reg_val &= ~mask;
+	*pval &= mask;
+	reg_val |= *pval;
+	*pval = reg_val;
+	memcpy(tx_buf, &reg, 2); 
+	memcpy(tx_buf+2, (char *)pval, 4); 
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.len = 6;
+	msg.buf = (char *)tx_buf;
+	msg.scl_rate = rk616->pdata->scl_rate;
+	msg.udelay = client->udelay;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	kfree(tx_buf);
+	mutex_unlock(&rk616->reg_lock);
+	
+	return (ret == 1) ? 4 : ret;
+}
 #if defined(CONFIG_DEBUG_FS)
 static int rk616_reg_show(struct seq_file *s, void *v)
 {
@@ -129,7 +164,6 @@ static ssize_t rk616_reg_write (struct file *file, const char __user *buf, size_
 	if (copy_from_user(kbuf, buf, count))
 		return -EFAULT;
 	sscanf(kbuf, "%x%x", &reg,&val);
-	dev_dbg(rk616->dev,"%s:reg:0x%04x val:0x%08x\n",__func__,reg,val);
 	rk616->write_dev(rk616,reg,&val);
 	return count;
 }
@@ -244,7 +278,7 @@ static  int  rk616_pll_wait_lock(struct mfd_rk616 *rk616,int id)
 		ret = rk616->read_dev(rk616,CRU_PLL0_CON1 + offset,&val);
 		if (val&PLL0_LOCK)
 		{
-			dev_info(rk616->dev,"PLL%d locked\n",id);
+			rk616_dbg(rk616->dev,"PLL%d locked\n",id);
 			break;
 		}
 		msleep(1);
@@ -252,7 +286,7 @@ static  int  rk616_pll_wait_lock(struct mfd_rk616 *rk616,int id)
 	}
 	if (delay == 0)
 	{
-		printk(KERN_ALERT "rk616 wait PLL%d lock time out!\n",id);
+		dev_err(rk616->dev,"rk616 wait PLL%d lock time out!\n",id);
 	}
 
 	return 0;
@@ -385,7 +419,17 @@ static int rk616_clk_common_init(struct mfd_rk616 *rk616)
 	return 0;
 }
 
+static int rk616_core_suspend(struct device *dev, pm_message_t state)
+{
+	return 0;	
+}
 
+static int rk616_core_resume(struct device* dev)
+{
+	struct mfd_rk616 *rk616 = dev_get_drvdata(dev);
+	rk616_clk_common_init(rk616);
+	return 0;
+}
 static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
 	int ret;
@@ -436,12 +480,14 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 		//clk_put(iis_clk);
 	}
 
+	mutex_init(&rk616->reg_lock);
 	
 	if(rk616->pdata->power_init)
 		rk616->pdata->power_init();
 	
 	rk616->read_dev = rk616_i2c_read_reg;
 	rk616->write_dev = rk616_i2c_write_reg;
+	rk616->write_dev_bits = rk616_i2c_write_bits;
 	
 #if defined(CONFIG_DEBUG_FS)
 	rk616->debugfs_dir = debugfs_create_dir("rk616", NULL);
@@ -456,7 +502,6 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 	ret = mfd_add_devices(rk616->dev, -1,
 				      rk616_devs, ARRAY_SIZE(rk616_devs),
 				      NULL, rk616->irq_base);
-	
 	dev_info(&client->dev,"rk616 core probe success!\n");
 	return 0;
 }
@@ -483,6 +528,8 @@ static struct i2c_driver rk616_i2c_driver  = {
 	.driver = {
 		.name  = "rk616",
 		.owner = THIS_MODULE,
+		.suspend        = &rk616_core_suspend,
+		.resume         = &rk616_core_resume,
 	},
 	.probe		= &rk616_i2c_probe,
 	.remove     	= &rk616_i2c_remove,

@@ -42,7 +42,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM3008
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SN95031 if INTEL_SCU_IPC
-	select SND_SOC_SPDIF
+	select SND_SOC_HDMI_I2S
+	select SND_SOC_HDMI_SPDIF
 	select SND_SOC_SSM2602 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
 	select SND_SOC_TLV320AIC23 if I2C
@@ -230,7 +231,10 @@ config SND_SOC_SGTL5000
 config SND_SOC_SN95031
 	tristate
 
-config SND_SOC_SPDIF
+config SND_SOC_HDMI_I2S
+	tristate
+
+config SND_SOC_HDMI_SPDIF
 	tristate
 
 config SND_SOC_SSM2602

@@ -38,7 +38,7 @@
 #include <mach/ddr.h>
 #include <mach/dvfs.h>
 
-#define VERSION "2.0"
+#define VERSION "2.1"
 
 #ifdef DEBUG
 #define FREQ_DBG(fmt, args...) pr_debug(fmt, ## args)
@@ -70,7 +70,6 @@ static unsigned int suspend_freq = 816 * 1000;
 static unsigned int suspend_volt = 1000000; // 1V
 static unsigned int low_battery_freq = 600 * 1000;
 static unsigned int low_battery_capacity = 5; // 5%
-static unsigned int nr_cpus = NR_CPUS;
 static bool is_booting = true;
 
 static struct workqueue_struct *freq_wq;
@@ -87,13 +86,7 @@ static int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs
 /*******************************************************/
 static unsigned int rk3188_cpufreq_get(unsigned int cpu)
 {
-	unsigned long freq;
-
-	if (cpu >= nr_cpus)
-		return 0;
-
-	freq = clk_get_rate(cpu_clk) / 1000;
-	return freq;
+	return clk_get_rate(cpu_clk) / 1000;
 }
 
 static bool cpufreq_is_ondemand(struct cpufreq_policy *policy)
@@ -126,27 +119,61 @@ static unsigned int get_freq_from_table(unsigned int max_freq)
 static unsigned int temp_limit_freq = -1;
 module_param(temp_limit_freq, uint, 0444);
 
+#if defined(CONFIG_SOC_RK3188M)
 static struct cpufreq_frequency_table temp_limits[4][4] = {
-	{
+	{	// 1 CPU busy
+		{.frequency =          -1, .index = 50},
+		{.frequency =          -1, .index = 55},
+		{.frequency = 1416 * 1000, .index = 60},
+		{.frequency = 1200 * 1000, .index = 75},
+	}, {	// 2 CPUs busy
+		{.frequency = 1416 * 1000, .index = 50},
+		{.frequency = 1200 * 1000, .index = 55},
+		{.frequency = 1008 * 1000, .index = 60},
+		{.frequency =  816 * 1000, .index = 75},
+	}, {	// 3 CPUs busy
+		{.frequency = 1296 * 1000, .index = 50},
+		{.frequency = 1104 * 1000, .index = 55},
+		{.frequency =  912 * 1000, .index = 60},
+		{.frequency =  696 * 1000, .index = 75},
+	}, {	// 4 CPUs busy
+		{.frequency = 1200 * 1000, .index = 50},
+		{.frequency = 1008 * 1000, .index = 55},
+		{.frequency =  816 * 1000, .index = 60},
+		{.frequency =  600 * 1000, .index = 75},
+	}
+};
+
+static struct cpufreq_frequency_table temp_limits_cpu_perf[] = {
+	{.frequency = 1200 * 1000, .index =  60},
+	{.frequency = 1008 * 1000, .index = 100},
+};
+
+static struct cpufreq_frequency_table temp_limits_gpu_perf[] = {
+	{.frequency = 1008 * 1000, .index = 0},
+};
+#else /* 3188/3168 etc */
+static struct cpufreq_frequency_table temp_limits[4][4] = {
+	{	// 1 CPU busy
 		{.frequency =          -1, .index = 50},
 		{.frequency =          -1, .index = 55},
 		{.frequency =          -1, .index = 60},
 		{.frequency = 1608 * 1000, .index = 75},
-	}, {
+	}, {	// 2 CPUs busy
 		{.frequency = 1800 * 1000, .index = 50},
 		{.frequency = 1608 * 1000, .index = 55},
 		{.frequency = 1416 * 1000, .index = 60},
 		{.frequency = 1200 * 1000, .index = 75},
-	}, {
-		{.frequency = 1704 * 1000, .index = 50},
-		{.frequency = 1512 * 1000, .index = 55},
-		{.frequency = 1296 * 1000, .index = 60},
-		{.frequency = 1104 * 1000, .index = 75},
-	}, {
+	}, {	// 3 CPUs busy
 		{.frequency = 1608 * 1000, .index = 50},
 		{.frequency = 1416 * 1000, .index = 55},
 		{.frequency = 1200 * 1000, .index = 60},
 		{.frequency = 1008 * 1000, .index = 75},
+	}, {	// 4 CPUs busy
+		{.frequency = 1416 * 1000, .index = 50},
+		{.frequency = 1200 * 1000, .index = 55},
+		{.frequency = 1008 * 1000, .index = 60},
+		{.frequency =  816 * 1000, .index = 75},
 	}
 };
 
@@ -157,6 +184,7 @@ static struct cpufreq_frequency_table temp_limits_cpu_perf[] = {
 static struct cpufreq_frequency_table temp_limits_gpu_perf[] = {
 	{.frequency = 1008 * 1000, .index = 0},
 };
+#endif
 
 static int rk3188_get_temp(void)
 {
@@ -196,6 +224,7 @@ static void rk3188_cpufreq_temp_limit_work_func(struct work_struct *work)
 	int temp, i;
 	unsigned int new_freq = -1;
 	unsigned long delay = HZ / 10; // 100ms
+	unsigned int nr_cpus = num_online_cpus();
 	const struct cpufreq_frequency_table *limits_table = temp_limits[nr_cpus - 1];
 	size_t limits_size = ARRAY_SIZE(temp_limits[nr_cpus - 1]);
 
@@ -231,8 +260,9 @@ static void rk3188_cpufreq_temp_limit_work_func(struct work_struct *work)
 		u32 delta_time;
 		unsigned cpu;
 
-		for (cpu = 0; cpu < nr_cpus; cpu++)
+		for_each_online_cpu(cpu) {
 			time_in_idle += get_cpu_idle_time_us(cpu, &now);
+		}
 		delta_time = now - last_time_in_idle_timestamp;
 		delta_idle = time_in_idle - last_time_in_idle;
 		last_time_in_idle = time_in_idle;
@@ -244,7 +274,7 @@ static void rk3188_cpufreq_temp_limit_work_func(struct work_struct *work)
 			limits_table = temp_limits[1];
 		else if (delta_idle > (nr_cpus - 3) * delta_time)
 			limits_table = temp_limits[2];
-		FREQ_DBG("delta time %6u us idle %6u us\n", delta_time, delta_idle);
+		FREQ_DBG("delta time %6u us idle %6u us %u cpus select table %d\n", delta_time, delta_idle, nr_cpus, (limits_table - temp_limits[0]) / ARRAY_SIZE(temp_limits[0]));
 	}
 
 	for (i = 0; i < limits_size; i++) {
@@ -291,6 +321,40 @@ static int rk3188_cpufreq_notifier_policy(struct notifier_block *nb, unsigned lo
 static struct notifier_block notifier_policy_block = {
 	.notifier_call = rk3188_cpufreq_notifier_policy
 };
+
+static void rk3188_cpufreq_temp_limit_init(struct cpufreq_policy *policy)
+{
+	unsigned int i;
+	struct cpufreq_frequency_table *table;
+
+	table = temp_limits[0];
+	for (i = 0; i < sizeof(temp_limits) / sizeof(struct cpufreq_frequency_table); i++) {
+		table[i].frequency = get_freq_from_table(table[i].frequency);
+	}
+	table = temp_limits_cpu_perf;
+	for (i = 0; i < sizeof(temp_limits_cpu_perf) / sizeof(struct cpufreq_frequency_table); i++) {
+		table[i].frequency = get_freq_from_table(table[i].frequency);
+	}
+	table = temp_limits_gpu_perf;
+	for (i = 0; i < sizeof(temp_limits_gpu_perf) / sizeof(struct cpufreq_frequency_table); i++) {
+		table[i].frequency = get_freq_from_table(table[i].frequency);
+	}
+	misc_register(&sys_state_dev);
+	if (cpufreq_is_ondemand(policy)) {
+		queue_delayed_work_on(0, freq_wq, &rk3188_cpufreq_temp_limit_work, 0*HZ);
+	}
+	cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
+}
+
+static void rk3188_cpufreq_temp_limit_exit(void)
+{
+	cpufreq_unregister_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
+	if (freq_wq)
+		cancel_delayed_work(&rk3188_cpufreq_temp_limit_work);
+}
+#else
+static inline void rk3188_cpufreq_temp_limit_init(struct cpufreq_policy *policy) {}
+static inline void rk3188_cpufreq_temp_limit_exit(void) {}
 #endif
 
 /************************************dvfs tst************************************/
@@ -349,19 +413,32 @@ static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 
 	gpu_is_mali400 = cpu_is_rk3188();
 	gpu_clk = clk_get(NULL, "gpu");
-	if (!IS_ERR(gpu_clk)) {
-		clk_enable_dvfs(gpu_clk);
-		if (gpu_is_mali400)
-			dvfs_clk_enable_limit(gpu_clk, 133000000, 600000000);
-	}
+	if (IS_ERR(gpu_clk))
+		return PTR_ERR(gpu_clk);
 
 	ddr_clk = clk_get(NULL, "ddr");
-	if (!IS_ERR(ddr_clk))
-		clk_enable_dvfs(ddr_clk);
+	if (IS_ERR(ddr_clk))
+		return PTR_ERR(ddr_clk);
 
 	cpu_clk = clk_get(NULL, "cpu");
 	if (IS_ERR(cpu_clk))
 		return PTR_ERR(cpu_clk);
+
+#if defined(CONFIG_ARCH_RK3188)
+	if (soc_is_rk3188()) {
+		struct cpufreq_frequency_table *table_adjust;
+		/* Adjust dvfs table avoid overheat */
+		table_adjust = dvfs_get_freq_volt_table(cpu_clk);
+		dvfs_adjust_table_lmtvolt(cpu_clk, table_adjust);
+		table_adjust = dvfs_get_freq_volt_table(gpu_clk);
+		dvfs_adjust_table_lmtvolt(gpu_clk, table_adjust);
+	}
+#endif
+	clk_enable_dvfs(gpu_clk);
+	if (gpu_is_mali400)
+		dvfs_clk_enable_limit(gpu_clk, 133000000, 600000000);
+
+	clk_enable_dvfs(ddr_clk);
 
 	dvfs_clk_register_set_rate_callback(cpu_clk, cpufreq_scale_rate_for_dvfs);
 	freq_table = dvfs_get_freq_volt_table(cpu_clk);
@@ -379,29 +456,8 @@ static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 	low_battery_freq = get_freq_from_table(low_battery_freq);
 	clk_enable_dvfs(cpu_clk);
 
-	nr_cpus = num_possible_cpus();
 	freq_wq = alloc_workqueue("rk3188_cpufreqd", WQ_NON_REENTRANT | WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_FREEZABLE, 1);
-#ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
-	{
-		struct cpufreq_frequency_table *table = temp_limits[0];
-		for (i = 0; i < sizeof(temp_limits) / sizeof(struct cpufreq_frequency_table); i++) {
-			table[i].frequency = get_freq_from_table(table[i].frequency);
-		}
-		table = temp_limits_cpu_perf;
-		for (i = 0; i < sizeof(temp_limits_cpu_perf) / sizeof(struct cpufreq_frequency_table); i++) {
-			table[i].frequency = get_freq_from_table(table[i].frequency);
-		}
-		table = temp_limits_gpu_perf;
-		for (i = 0; i < sizeof(temp_limits_gpu_perf) / sizeof(struct cpufreq_frequency_table); i++) {
-			table[i].frequency = get_freq_from_table(table[i].frequency);
-		}
-	}
-	misc_register(&sys_state_dev);
-	if (cpufreq_is_ondemand(policy)) {
-		queue_delayed_work_on(0, freq_wq, &rk3188_cpufreq_temp_limit_work, 0*HZ);
-	}
-	cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
-#endif
+	rk3188_cpufreq_temp_limit_init(policy);
 #ifdef CPU_FREQ_DVFS_TST
 	queue_delayed_work(freq_wq, &rk3188_cpufreq_dvsf_tst_work, msecs_to_jiffies(20 * 1000));
 #endif
@@ -447,11 +503,7 @@ static int rk3188_cpufreq_exit(struct cpufreq_policy *policy)
 
 	cpufreq_frequency_table_cpuinfo(policy, freq_table);
 	clk_put(cpu_clk);
-#ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
-	cpufreq_unregister_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
-	if (freq_wq)
-		cancel_delayed_work(&rk3188_cpufreq_temp_limit_work);
-#endif
+	rk3188_cpufreq_temp_limit_exit();
 	if (freq_wq) {
 		flush_workqueue(freq_wq);
 		destroy_workqueue(freq_wq);
