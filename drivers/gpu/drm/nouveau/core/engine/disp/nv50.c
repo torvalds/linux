@@ -34,9 +34,9 @@
 #include <subdev/bios/disp.h>
 #include <subdev/bios/init.h>
 #include <subdev/bios/pll.h>
+#include <subdev/devinit.h>
 #include <subdev/timer.h>
 #include <subdev/fb.h>
-#include <subdev/clock.h>
 
 #include "nv50.h"
 
@@ -987,10 +987,10 @@ nv50_disp_intr_unk20_0(struct nv50_disp_priv *priv, int head)
 static void
 nv50_disp_intr_unk20_1(struct nv50_disp_priv *priv, int head)
 {
-	struct nouveau_clock *clk = nouveau_clock(priv);
+	struct nouveau_devinit *devinit = nouveau_devinit(priv);
 	u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
 	if (pclk)
-		clk->pll_set(clk, PLL_VPLL0 + head, pclk);
+		devinit->pll_set(devinit, PLL_VPLL0 + head, pclk);
 }
 
 static void

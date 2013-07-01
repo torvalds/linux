@@ -389,12 +389,12 @@ mclk_mrs(struct nouveau_mem_exec_func *exec, int mr, u32 data)
 	struct nouveau_device *device = nouveau_dev(exec->dev);
 	struct nouveau_fb *pfb = nouveau_fb(device);
 	if (mr <= 1) {
-		if (pfb->ram.ranks > 1)
+		if (pfb->ram->ranks > 1)
 			nv_wr32(device, 0x1002c8 + ((mr - 0) * 4), data);
 		nv_wr32(device, 0x1002c0 + ((mr - 0) * 4), data);
 	} else
 	if (mr <= 3) {
-		if (pfb->ram.ranks > 1)
+		if (pfb->ram->ranks > 1)
 			nv_wr32(device, 0x1002e8 + ((mr - 2) * 4), data);
 		nv_wr32(device, 0x1002e0 + ((mr - 2) * 4), data);
 	}

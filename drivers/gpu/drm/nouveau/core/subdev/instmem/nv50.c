@@ -56,7 +56,7 @@ nv50_instobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = pfb->ram.get(pfb, size, align, 0, 0x800, &node->mem);
+	ret = pfb->ram->get(pfb, size, align, 0, 0x800, &node->mem);
 	if (ret)
 		return ret;
 
@@ -71,7 +71,7 @@ nv50_instobj_dtor(struct nouveau_object *object)
 {
 	struct nv50_instobj_priv *node = (void *)object;
 	struct nouveau_fb *pfb = nouveau_fb(object);
-	pfb->ram.put(pfb, &node->mem);
+	pfb->ram->put(pfb, &node->mem);
 	nouveau_instobj_destroy(&node->base);
 }
 

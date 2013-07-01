@@ -38,8 +38,8 @@
 #include <engine/fifo.h>
 #include <engine/graph.h>
 
-#define GPC_MAX 4
-#define TPC_MAX 32
+#define GPC_MAX 32
+#define TPC_MAX (GPC_MAX * 8)
 
 #define ROP_BCAST(r)      (0x408800 + (r))
 #define ROP_UNIT(u, r)    (0x410000 + (u) * 0x400 + (r))
@@ -124,6 +124,8 @@ nvc0_graph_class(void *obj)
 	case 0xe7:
 	case 0xe6:
 		return 0xa097;
+	case 0xf0:
+		return 0xa197;
 	default:
 		return 0;
 	}

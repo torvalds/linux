@@ -41,7 +41,6 @@ nv40_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.pll_set = nv04_clock_pll_set;
 	priv->base.pll_calc = nv04_clock_pll_calc;
 	priv->base.pll_prog = nv04_clock_pll_prog;
 	return 0;

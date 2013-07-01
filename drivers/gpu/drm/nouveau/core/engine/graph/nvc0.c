@@ -237,6 +237,43 @@ nvc0_graph_ctxctl_isr(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x409c20, ustat);
 }
 
+static const struct nouveau_enum nvc0_mp_warp_error[] = {
+	{ 0x00, "NO_ERROR" },
+	{ 0x01, "STACK_MISMATCH" },
+	{ 0x05, "MISALIGNED_PC" },
+	{ 0x08, "MISALIGNED_GPR" },
+	{ 0x09, "INVALID_OPCODE" },
+	{ 0x0d, "GPR_OUT_OF_BOUNDS" },
+	{ 0x0e, "MEM_OUT_OF_BOUNDS" },
+	{ 0x0f, "UNALIGNED_MEM_ACCESS" },
+	{ 0x11, "INVALID_PARAM" },
+	{}
+};
+
+static const struct nouveau_bitfield nvc0_mp_global_error[] = {
+	{ 0x00000004, "MULTIPLE_WARP_ERRORS" },
+	{ 0x00000008, "OUT_OF_STACK_SPACE" },
+	{}
+};
+
+static void
+nvc0_graph_trap_mp(struct nvc0_graph_priv *priv, int gpc, int tpc)
+{
+	u32 werr = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x648));
+	u32 gerr = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x650));
+
+	nv_error(priv, "GPC%i/TPC%i/MP trap:", gpc, tpc);
+	nouveau_bitfield_print(nvc0_mp_global_error, gerr);
+	if (werr) {
+		pr_cont(" ");
+		nouveau_enum_print(nvc0_mp_warp_error, werr & 0xffff);
+	}
+	pr_cont("\n");
+
+	nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x648), 0x00000000);
+	nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x650), gerr);
+}
+
 static void
 nvc0_graph_trap_tpc(struct nvc0_graph_priv *priv, int gpc, int tpc)
 {
@@ -251,12 +288,7 @@ nvc0_graph_trap_tpc(struct nvc0_graph_priv *priv, int gpc, int tpc)
 	}
 
 	if (stat & 0x00000002) {
-		u32 trap0 = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x0644));
-		u32 trap1 = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x064c));
-		nv_error(priv, "GPC%d/TPC%d/MP: 0x%08x 0x%08x\n",
-			       gpc, tpc, trap0, trap1);
-		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0644), 0x001ffffe);
-		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x064c), 0x0000000f);
+		nvc0_graph_trap_mp(priv, gpc, tpc);
 		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0508), 0x00000002);
 		stat &= ~0x00000002;
 	}
@@ -685,6 +717,544 @@ nvc0_graph_init_regs(struct nvc0_graph_priv *priv)
 }
 
 static void
+nvc0_graph_init_unk40xx(struct nvc0_graph_priv *priv)
+{
+	nv_wr32(priv, 0x40415c, 0x00000000);
+	nv_wr32(priv, 0x404170, 0x00000000);
+}
+
+static void
+nvc0_graph_init_unk44xx(struct nvc0_graph_priv *priv)
+{
+	nv_wr32(priv, 0x404488, 0x00000000);
+	nv_wr32(priv, 0x40448c, 0x00000000);
+}
+
+static void
+nvc0_graph_init_unk78xx(struct nvc0_graph_priv *priv)
+{
+	nv_wr32(priv, 0x407808, 0x00000000);
+}
+
+static void
+nvc0_graph_init_unk60xx(struct nvc0_graph_priv *priv)
+{
+	nv_wr32(priv, 0x406024, 0x00000000);
+}
+
+static void
+nvc0_graph_init_unk64xx(struct nvc0_graph_priv *priv)
+{
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x4064f0, 0x00000000);
+		nv_wr32(priv, 0x4064f4, 0x00000000);
+		nv_wr32(priv, 0x4064f8, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+}
+
+static void
+nvc0_graph_init_unk58xx(struct nvc0_graph_priv *priv)
+{
+	nv_wr32(priv, 0x405844, 0x00ffffff);
+	nv_wr32(priv, 0x405850, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xce:
+	case 0xcf:
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x405900, 0x00002834);
+		break;
+	case 0xc0:
+	case 0xc8:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x405908, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x405928, 0x00000000);
+		nv_wr32(priv, 0x40592c, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+}
+
+static void
+nvc0_graph_init_unk80xx(struct nvc0_graph_priv *priv)
+{
+	nv_wr32(priv, 0x40803c, 0x00000000);
+}
+
+static void
+nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
+{
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x418408, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x4184a0, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x4184a4, 0x00000000);
+		nv_wr32(priv, 0x4184a8, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x418604, 0x00000000);
+	nv_wr32(priv, 0x418680, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+	case 0xc1:
+		nv_wr32(priv, 0x418714, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		nv_wr32(priv, 0x418714, 0x80000000);
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x418384, 0x00000000);
+	nv_wr32(priv, 0x418814, 0x00000000);
+	nv_wr32(priv, 0x418818, 0x00000000);
+	nv_wr32(priv, 0x41881c, 0x00000000);
+	nv_wr32(priv, 0x418b04, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+	case 0xc1:
+	case 0xc8:
+		nv_wr32(priv, 0x4188c8, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xce:
+	case 0xcf:
+		nv_wr32(priv, 0x4188c8, 0x80000000);
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x4188cc, 0x00000000);
+	nv_wr32(priv, 0x4188d0, 0x00010000);
+	nv_wr32(priv, 0x4188d4, 0x00000001);
+	nv_wr32(priv, 0x418910, 0x00010001);
+	nv_wr32(priv, 0x418914, 0x00000301);
+	nv_wr32(priv, 0x418918, 0x00800000);
+	nv_wr32(priv, 0x418980, 0x77777770);
+	nv_wr32(priv, 0x418984, 0x77777777);
+	nv_wr32(priv, 0x418988, 0x77777777);
+	nv_wr32(priv, 0x41898c, 0x77777777);
+	nv_wr32(priv, 0x418c04, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x418c64, 0x00000000);
+		nv_wr32(priv, 0x418c68, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x418c88, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x418cb4, 0x00000000);
+		nv_wr32(priv, 0x418cb8, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x418d00, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x418d28, 0x00000000);
+		nv_wr32(priv, 0x418d2c, 0x00000000);
+		nv_wr32(priv, 0x418f00, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x418f08, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x418f20, 0x00000000);
+		nv_wr32(priv, 0x418f24, 0x00000000);
+		/*fall-through*/
+	case 0xc1:
+		nv_wr32(priv, 0x418e00, 0x00000003);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		nv_wr32(priv, 0x418e00, 0x00000050);
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x418e08, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x418e1c, 0x00000000);
+		nv_wr32(priv, 0x418e20, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x41900c, 0x00000000);
+	nv_wr32(priv, 0x419018, 0x00000000);
+}
+
+static void
+nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
+{
+	nv_wr32(priv, 0x419d08, 0x00000000);
+	nv_wr32(priv, 0x419d0c, 0x00000000);
+	nv_wr32(priv, 0x419d10, 0x00000014);
+	nv_wr32(priv, 0x419ab0, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xce:
+	case 0xcf:
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x419ac8, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc8:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x419ab8, 0x000000e7);
+	nv_wr32(priv, 0x419abc, 0x00000000);
+	nv_wr32(priv, 0x419ac0, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x419ab4, 0x00000000);
+		nv_wr32(priv, 0x41980c, 0x00000010);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		nv_wr32(priv, 0x41980c, 0x00000000);
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x419810, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+	case 0xc1:
+		nv_wr32(priv, 0x419814, 0x00000004);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		nv_wr32(priv, 0x419814, 0x00000000);
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x419844, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x41984c, 0x0000a918);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		nv_wr32(priv, 0x41984c, 0x00005bc5);
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x419850, 0x00000000);
+	nv_wr32(priv, 0x419854, 0x00000000);
+	nv_wr32(priv, 0x419858, 0x00000000);
+	nv_wr32(priv, 0x41985c, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xce:
+	case 0xcf:
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x419880, 0x00000002);
+		break;
+	case 0xc0:
+	case 0xc8:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x419c98, 0x00000000);
+	nv_wr32(priv, 0x419ca8, 0x80000000);
+	nv_wr32(priv, 0x419cb4, 0x00000000);
+	nv_wr32(priv, 0x419cb8, 0x00008bf4);
+	nv_wr32(priv, 0x419cbc, 0x28137606);
+	nv_wr32(priv, 0x419cc0, 0x00000000);
+	nv_wr32(priv, 0x419cc4, 0x00000000);
+	nv_wr32(priv, 0x419bd4, 0x00800000);
+	nv_wr32(priv, 0x419bdc, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x419bf8, 0x00000000);
+		nv_wr32(priv, 0x419bfc, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x419d2c, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x419d48, 0x00000000);
+		nv_wr32(priv, 0x419d4c, 0x00000000);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x419c0c, 0x00000000);
+	nv_wr32(priv, 0x419e00, 0x00000000);
+	nv_wr32(priv, 0x419ea0, 0x00000000);
+	nv_wr32(priv, 0x419ea4, 0x00000100);
+	switch (nv_device(priv)->chipset) {
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x419ea8, 0x02001100);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		nv_wr32(priv, 0x419ea8, 0x00001100);
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+
+	switch (nv_device(priv)->chipset) {
+	case 0xc8:
+		nv_wr32(priv, 0x419eac, 0x11100f02);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xce:
+	case 0xcf:
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x419eac, 0x11100702);
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x419eb0, 0x00000003);
+	nv_wr32(priv, 0x419eb4, 0x00000000);
+	nv_wr32(priv, 0x419eb8, 0x00000000);
+	nv_wr32(priv, 0x419ebc, 0x00000000);
+	nv_wr32(priv, 0x419ec0, 0x00000000);
+	switch (nv_device(priv)->chipset) {
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xce:
+	case 0xcf:
+	case 0xd9:
+	case 0xd7:
+		nv_wr32(priv, 0x419ec8, 0x0e063818);
+		nv_wr32(priv, 0x419ecc, 0x0e060e06);
+		nv_wr32(priv, 0x419ed0, 0x00003818);
+		break;
+	case 0xc0:
+	case 0xc8:
+		nv_wr32(priv, 0x419ec8, 0x06060618);
+		nv_wr32(priv, 0x419ed0, 0x0eff0e38);
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+	nv_wr32(priv, 0x419ed4, 0x011104f1);
+	nv_wr32(priv, 0x419edc, 0x00000000);
+	nv_wr32(priv, 0x419f00, 0x00000000);
+	nv_wr32(priv, 0x419f2c, 0x00000000);
+}
+
+static void
+nvc0_graph_init_unk88xx(struct nvc0_graph_priv *priv)
+{
+	nv_wr32(priv, 0x40880c, 0x00000000);
+	nv_wr32(priv, 0x408910, 0x00000000);
+	nv_wr32(priv, 0x408914, 0x00000000);
+	nv_wr32(priv, 0x408918, 0x00000000);
+	nv_wr32(priv, 0x40891c, 0x00000000);
+	nv_wr32(priv, 0x408920, 0x00000000);
+	nv_wr32(priv, 0x408924, 0x00000000);
+	nv_wr32(priv, 0x408928, 0x00000000);
+	nv_wr32(priv, 0x40892c, 0x00000000);
+	nv_wr32(priv, 0x408930, 0x00000000);
+	nv_wr32(priv, 0x408950, 0x00000000);
+	nv_wr32(priv, 0x408954, 0x0000ffff);
+	nv_wr32(priv, 0x408984, 0x00000000);
+	nv_wr32(priv, 0x408988, 0x08040201);
+	nv_wr32(priv, 0x40898c, 0x80402010);
+}
+
+static void
 nvc0_graph_init_gpc_0(struct nvc0_graph_priv *priv)
 {
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, priv->tpc_total);
@@ -925,7 +1495,16 @@ nvc0_graph_init(struct nouveau_object *object)
 
 	nvc0_graph_init_obj418880(priv);
 	nvc0_graph_init_regs(priv);
-	/*nvc0_graph_init_unitplemented_magics(priv);*/
+	nvc0_graph_init_unk40xx(priv);
+	nvc0_graph_init_unk44xx(priv);
+	nvc0_graph_init_unk78xx(priv);
+	nvc0_graph_init_unk60xx(priv);
+	nvc0_graph_init_unk64xx(priv);
+	nvc0_graph_init_unk58xx(priv);
+	nvc0_graph_init_unk80xx(priv);
+	nvc0_graph_init_gpc(priv);
+	nvc0_graph_init_tpc(priv);
+	nvc0_graph_init_unk88xx(priv);
 	nvc0_graph_init_gpc_0(priv);
 	/*nvc0_graph_init_unitplemented_c242(priv);*/
 

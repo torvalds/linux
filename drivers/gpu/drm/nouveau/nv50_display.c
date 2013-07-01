@@ -159,7 +159,7 @@ nv50_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
 					.flags = NV_DMA_TARGET_VRAM |
 						 NV_DMA_ACCESS_RDWR,
 					.start = 0,
-					.limit = pfb->ram.size - 1,
+					.limit = pfb->ram->size - 1,
 					.conf0 = NV50_DMA_CONF0_ENABLE |
 					         NV50_DMA_CONF0_PART_256,
 				     }, sizeof(struct nv_dma_class), &object);
@@ -172,7 +172,7 @@ nv50_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
 					.flags = NV_DMA_TARGET_VRAM |
 						 NV_DMA_ACCESS_RDWR,
 					.start = 0,
-					.limit = pfb->ram.size - 1,
+					.limit = pfb->ram->size - 1,
 					.conf0 = NV50_DMA_CONF0_ENABLE | 0x70 |
 					         NV50_DMA_CONF0_PART_256,
 				 }, sizeof(struct nv_dma_class), &object);
@@ -185,7 +185,7 @@ nv50_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
 					.flags = NV_DMA_TARGET_VRAM |
 						 NV_DMA_ACCESS_RDWR,
 					.start = 0,
-					.limit = pfb->ram.size - 1,
+					.limit = pfb->ram->size - 1,
 					.conf0 = NV50_DMA_CONF0_ENABLE | 0x7a |
 					         NV50_DMA_CONF0_PART_256,
 				 }, sizeof(struct nv_dma_class), &object);
@@ -204,7 +204,7 @@ nvc0_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
 					.flags = NV_DMA_TARGET_VRAM |
 						 NV_DMA_ACCESS_RDWR,
 					.start = 0,
-					.limit = pfb->ram.size - 1,
+					.limit = pfb->ram->size - 1,
 					.conf0 = NVC0_DMA_CONF0_ENABLE,
 				     }, sizeof(struct nv_dma_class), &object);
 	if (ret)
@@ -216,7 +216,7 @@ nvc0_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
 					.flags = NV_DMA_TARGET_VRAM |
 						 NV_DMA_ACCESS_RDWR,
 					.start = 0,
-					.limit = pfb->ram.size - 1,
+					.limit = pfb->ram->size - 1,
 					.conf0 = NVC0_DMA_CONF0_ENABLE | 0xfe,
 				 }, sizeof(struct nv_dma_class), &object);
 	if (ret)
@@ -228,7 +228,7 @@ nvc0_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
 					.flags = NV_DMA_TARGET_VRAM |
 						 NV_DMA_ACCESS_RDWR,
 					.start = 0,
-					.limit = pfb->ram.size - 1,
+					.limit = pfb->ram->size - 1,
 					.conf0 = NVC0_DMA_CONF0_ENABLE | 0xfe,
 				 }, sizeof(struct nv_dma_class), &object);
 	return ret;
@@ -246,7 +246,7 @@ nvd0_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
 					.flags = NV_DMA_TARGET_VRAM |
 						 NV_DMA_ACCESS_RDWR,
 					.start = 0,
-					.limit = pfb->ram.size - 1,
+					.limit = pfb->ram->size - 1,
 					.conf0 = NVD0_DMA_CONF0_ENABLE |
 						 NVD0_DMA_CONF0_PAGE_LP,
 				     }, sizeof(struct nv_dma_class), &object);
@@ -259,7 +259,7 @@ nvd0_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
 					.flags = NV_DMA_TARGET_VRAM |
 						 NV_DMA_ACCESS_RDWR,
 					.start = 0,
-					.limit = pfb->ram.size - 1,
+					.limit = pfb->ram->size - 1,
 					.conf0 = NVD0_DMA_CONF0_ENABLE | 0xfe |
 						 NVD0_DMA_CONF0_PAGE_LP,
 				 }, sizeof(struct nv_dma_class), &object);
@@ -316,7 +316,7 @@ nv50_dmac_create(struct nouveau_object *core, u32 bclass, u8 head,
 					.flags = NV_DMA_TARGET_VRAM |
 						 NV_DMA_ACCESS_RDWR,
 					.start = 0,
-					.limit = pfb->ram.size - 1,
+					.limit = pfb->ram->size - 1,
 				 }, sizeof(struct nv_dma_class), &object);
 	if (ret)
 		return ret;

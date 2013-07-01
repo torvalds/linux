@@ -27,11 +27,11 @@
 
 #include <subdev/timer.h>
 #include <subdev/fb.h>
+#include <subdev/bar.h>
 #include <subdev/vm.h>
 
 struct nv50_vmmgr_priv {
 	struct nouveau_vmmgr base;
-	spinlock_t lock;
 };
 
 static void
@@ -86,8 +86,8 @@ nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 
 	/* IGPs don't have real VRAM, re-target to stolen system memory */
 	target = 0;
-	if (nouveau_fb(vma->vm->vmm)->ram.stolen) {
-		phys += nouveau_fb(vma->vm->vmm)->ram.stolen;
+	if (nouveau_fb(vma->vm->vmm)->ram->stolen) {
+		phys += nouveau_fb(vma->vm->vmm)->ram->stolen;
 		target = 3;
 	}
 
@@ -151,29 +151,42 @@ nv50_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 static void
 nv50_vm_flush(struct nouveau_vm *vm)
 {
+	struct nv50_vmmgr_priv *priv = (void *)vm->vmm;
+	struct nouveau_bar *bar = nouveau_bar(priv);
 	struct nouveau_engine *engine;
-	int i;
+	int i, vme;
 
+	bar->flush(bar);
+
+	mutex_lock(&nv_subdev(priv)->mutex);
 	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
-		if (atomic_read(&vm->engref[i])) {
-			engine = nouveau_engine(vm->vmm, i);
-			if (engine && engine->tlb_flush)
-				engine->tlb_flush(engine);
+		if (!atomic_read(&vm->engref[i]))
+			continue;
+
+		/* unfortunate hw bug workaround... */
+		engine = nouveau_engine(priv, i);
+		if (engine && engine->tlb_flush) {
+			engine->tlb_flush(engine);
+			continue;
 		}
+
+		switch (i) {
+		case NVDEV_ENGINE_GR   : vme = 0x00; break;
+		case NVDEV_ENGINE_VP   : vme = 0x01; break;
+		case NVDEV_SUBDEV_BAR  : vme = 0x06; break;
+		case NVDEV_ENGINE_MPEG : vme = 0x08; break;
+		case NVDEV_ENGINE_BSP  : vme = 0x09; break;
+		case NVDEV_ENGINE_CRYPT: vme = 0x0a; break;
+		case NVDEV_ENGINE_COPY0: vme = 0x0d; break;
+		default:
+			continue;
+		}
+
+		nv_wr32(priv, 0x100c80, (vme << 16) | 1);
+		if (!nv_wait(priv, 0x100c80, 0x00000001, 0x00000000))
+			nv_error(priv, "vm flush timeout: engine %d\n", vme);
 	}
-}
-
-void
-nv50_vm_flush_engine(struct nouveau_subdev *subdev, int engine)
-{
-	struct nv50_vmmgr_priv *priv = (void *)nouveau_vmmgr(subdev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	nv_wr32(subdev, 0x100c80, (engine << 16) | 1);
-	if (!nv_wait(subdev, 0x100c80, 0x00000001, 0x00000000))
-		nv_error(subdev, "vm flush timeout: engine %d\n", engine);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	mutex_unlock(&nv_subdev(priv)->mutex);
 }
 
 static int
@@ -211,7 +224,6 @@ nv50_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.map_sg = nv50_vm_map_sg;
 	priv->base.unmap = nv50_vm_unmap;
 	priv->base.flush = nv50_vm_flush;
-	spin_lock_init(&priv->lock);
 	return 0;
 }
 

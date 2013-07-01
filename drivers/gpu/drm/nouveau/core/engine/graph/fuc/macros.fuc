@@ -1,0 +1,53 @@
+/*
+ * Copyright 2013 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
+ */
+
+#include "os.h"
+
+#define mmctx_data(r,c) .b32 (((c - 1) << 26) | r)
+#define queue_init      .skip 72 // (2 * 4) + ((8 * 4) * 2)
+
+#define T_WAIT    0
+#define T_MMCTX   1
+#define T_STRWAIT 2
+#define T_STRINIT 3
+#define T_AUTO    4
+#define T_CHAN    5
+#define T_LOAD    6
+#define T_SAVE    7
+#define T_LCHAN   8
+#define T_LCTXH   9
+
+#define trace_set(bit) /*
+*/	mov $r8 0x83c /*
+*/	shl b32 $r8 6 /*
+*/	clear b32 $r9 /*
+*/	bset $r9 bit /*
+*/	iowr I[$r8 + 0x000] $r9
+
+#define trace_clr(bit) /*
+*/	mov $r8 0x85c /*
+*/	shl b32 $r8 6 /*
+*/	clear b32 $r9 /*
+*/	bset $r9 bit /*
+*/	iowr I[$r8 + 0x000] $r9

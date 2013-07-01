@@ -122,7 +122,7 @@ nvc0_ltcg_init_tag_ram(struct nouveau_fb *pfb, struct nvc0_ltcg_priv *priv)
 		nv_wr32(priv, 0x17e000, priv->part_nr);
 
 	/* tags for 1/4 of VRAM should be enough (8192/4 per GiB of VRAM) */
-	priv->num_tags = (pfb->ram.size >> 17) / 4;
+	priv->num_tags = (pfb->ram->size >> 17) / 4;
 	if (priv->num_tags > (1 << 17))
 		priv->num_tags = 1 << 17; /* we have 17 bits in PTE */
 	priv->num_tags = (priv->num_tags + 63) & ~63; /* round up to 64 */

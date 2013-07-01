@@ -333,10 +333,15 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (nouveau_modeset == 1 ||
 	    (nouveau_modeset < 0 && pclass == PCI_CLASS_DISPLAY_VGA)) {
-		if (nv_device(drm->device)->card_type < NV_50)
-			ret = nv04_display_create(dev);
-		else
-			ret = nv50_display_create(dev);
+		if (drm->vbios.dcb.entries) {
+			if (nv_device(drm->device)->card_type < NV_50)
+				ret = nv04_display_create(dev);
+			else
+				ret = nv50_display_create(dev);
+		} else {
+			ret = 0;
+		}
+
 		if (ret)
 			goto disp_create_err;
 
