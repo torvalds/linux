@@ -1256,6 +1256,7 @@
 			interrupts = <5 IRQ_TYPE_LEVEL_HIGH 6>;
 			atmel,nand-addr-offset = <21>;
 			atmel,nand-cmd-offset = <22>;
+			atmel,nand-has-dma;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand0_ale_cle>;
 			atmel,pmecc-lookup-table-offset = <0x0 0x8000>;
