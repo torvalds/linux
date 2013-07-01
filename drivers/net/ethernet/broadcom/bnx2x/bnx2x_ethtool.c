@@ -971,12 +971,12 @@ static int bnx2x_get_dump_flag(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
+	dump->version = BNX2X_DUMP_VERSION;
+	dump->flag = bp->dump_preset_idx;
 	/* Calculate the requested preset idx length */
 	dump->len = bnx2x_get_preset_regs_len(dev, bp->dump_preset_idx);
 	DP(BNX2X_MSG_ETHTOOL, "Get dump preset %d length=%d\n",
 	   bp->dump_preset_idx, dump->len);
-
-	dump->flag = ETHTOOL_GET_DUMP_DATA;
 	return 0;
 }
 
