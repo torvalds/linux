@@ -45,12 +45,12 @@ static int usb_hcd_ep93xx_probe(const struct hc_driver *driver,
 {
 	struct usb_hcd *hcd;
 	struct resource *res;
+	int irq;
 	int retval;
 
-	if (pdev->resource[1].flags != IORESOURCE_IRQ) {
-		dev_dbg(&pdev->dev, "resource[1] is not IORESOURCE_IRQ\n");
-		return -ENOMEM;
-	}
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -80,7 +80,7 @@ static int usb_hcd_ep93xx_probe(const struct hc_driver *driver,
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
-	retval = usb_add_hcd(hcd, pdev->resource[1].start, 0);
+	retval = usb_add_hcd(hcd, irq, 0);
 	if (retval == 0)
 		return retval;
 
