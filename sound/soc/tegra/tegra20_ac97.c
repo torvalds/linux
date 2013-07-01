@@ -312,7 +312,7 @@ static const struct regmap_config tegra20_ac97_regmap_config = {
 static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 {
 	struct tegra20_ac97 *ac97;
-	struct resource *mem, *memregion;
+	struct resource *mem;
 	u32 of_dma[2];
 	void __iomem *regs;
 	int ret = 0;
@@ -343,7 +343,6 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	regs = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(regs)) {
 		ret = PTR_ERR(regs);
-		dev_err(&pdev->dev, "ioremap failed: %d\n", ret);
 		goto err_clk_put;
 	}
 
