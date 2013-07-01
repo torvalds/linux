@@ -379,7 +379,7 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	unsigned long flags;
 	struct hdmi_win_data *win_data;
 	unsigned int x_ratio, y_ratio;
-	unsigned int buf_num;
+	unsigned int buf_num = 1;
 	dma_addr_t luma_addr[2], chroma_addr[2];
 	bool tiled_mode = false;
 	bool crcb_mode = false;
