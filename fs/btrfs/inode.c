@@ -2166,16 +2166,23 @@ static noinline int record_one_backref(u64 inum, u64 offset, u64 root_id,
 		if (btrfs_file_extent_disk_bytenr(leaf, extent) != old->bytenr)
 			continue;
 
-		extent_offset = btrfs_file_extent_offset(leaf, extent);
-		if (key.offset - extent_offset != offset)
+		/*
+		 * 'offset' refers to the exact key.offset,
+		 * NOT the 'offset' field in btrfs_extent_data_ref, ie.
+		 * (key.offset - extent_offset).
+		 */
+		if (key.offset != offset)
 			continue;
 
+		extent_offset = btrfs_file_extent_offset(leaf, extent);
 		num_bytes = btrfs_file_extent_num_bytes(leaf, extent);
+
 		if (extent_offset >= old->extent_offset + old->offset +
 		    old->len || extent_offset + num_bytes <=
 		    old->extent_offset + old->offset)
 			continue;
 
+		ret = 0;
 		break;
 	}
 
@@ -2187,7 +2194,7 @@ static noinline int record_one_backref(u64 inum, u64 offset, u64 root_id,
 
 	backref->root_id = root_id;
 	backref->inum = inum;
-	backref->file_pos = offset + extent_offset;
+	backref->file_pos = offset;
 	backref->num_bytes = num_bytes;
 	backref->extent_offset = extent_offset;
 	backref->generation = btrfs_file_extent_generation(leaf, extent);
@@ -2210,7 +2217,8 @@ static noinline bool record_extent_backrefs(struct btrfs_path *path,
 	new->path = path;
 
 	list_for_each_entry_safe(old, tmp, &new->head, list) {
-		ret = iterate_inodes_from_logical(old->bytenr, fs_info,
+		ret = iterate_inodes_from_logical(old->bytenr +
+						  old->extent_offset, fs_info,
 						  path, record_one_backref,
 						  old);
 		BUG_ON(ret < 0 && ret != -ENOENT);
