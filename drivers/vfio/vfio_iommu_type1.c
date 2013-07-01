@@ -436,6 +436,12 @@ static int vfio_remove_dma_overlap(struct vfio_iommu *iommu, dma_addr_t start,
 	}
 
 	/* Split existing */
+
+	/*
+	 * Allocate our tracking structure early even though it may not
+	 * be used.  An Allocation failure later loses track of pages and
+	 * is more difficult to unwind.
+	 */
 	split = kzalloc(sizeof(*split), GFP_KERNEL);
 	if (!split)
 		return -ENOMEM;
@@ -443,12 +449,9 @@ static int vfio_remove_dma_overlap(struct vfio_iommu *iommu, dma_addr_t start,
 	offset = start - dma->iova;
 
 	ret = vfio_unmap_unpin(iommu, dma, start, size);
-	if (ret)
-		return ret;
-
-	if (!*size) {
+	if (ret || !*size) {
 		kfree(split);
-		return -EINVAL;
+		return ret;
 	}
 
 	tmp = dma->size;
