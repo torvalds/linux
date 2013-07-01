@@ -3732,7 +3732,8 @@ int radeon_atom_init_mc_reg_table(struct radeon_device *rdev,
 							}
 							num_ranges++;
 						}
-						reg_data += le16_to_cpu(reg_block->usRegDataBlkSize);
+						reg_data = (ATOM_MEMORY_SETTING_DATA_BLOCK *)
+							((u8 *)reg_data + le16_to_cpu(reg_block->usRegDataBlkSize));
 					}
 					if (*(u32 *)reg_data != END_OF_REG_DATA_BLOCK)
 						return -EINVAL;
