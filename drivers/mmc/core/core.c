@@ -1691,7 +1691,11 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
         mmc_go_idle(host);
     }
 #else
+#if defined(CONFIG_RTL8723AS)
+    sdio_reset(host); //make no sense; noteed by xbw at 2011-12-14
+#else
     //sdio_reset(host); //make no sense; noteed by xbw at 2011-12-14
+#endif
 	mmc_go_idle(host);
 
 	if (!(init_ret=mmc_attach_sdio(host)))
