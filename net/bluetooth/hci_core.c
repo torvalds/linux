@@ -605,7 +605,7 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	 * as supported send it. If not supported assume that the controller
 	 * does not have actual support for stored link keys which makes this
 	 * command redundant anyway.
-         */
+	 */
 	if (hdev->commands[6] & 0x80) {
 		struct hci_cp_delete_stored_link_key cp;
 
