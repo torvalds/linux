@@ -52,6 +52,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/bug.h>
 #include <asm/arcregs.h>
 #include <asm/setup.h>
 #include <asm/mmu_context.h>
@@ -109,15 +110,25 @@ struct mm_struct *asid_mm_map[NUM_ASID + 1];
 
 /*
  * Utility Routine to erase a J-TLB entry
- * The procedure is to look it up in the MMU. If found, ERASE it by
- *  issuing a TlbWrite CMD with PD0 = PD1 = 0
+ * Caller needs to setup Index Reg (manually or via getIndex)
  */
-
-static void __tlb_entry_erase(void)
+static inline void __tlb_entry_erase(void)
 {
 	write_aux_reg(ARC_REG_TLBPD1, 0);
 	write_aux_reg(ARC_REG_TLBPD0, 0);
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+}
+
+static inline unsigned int tlb_entry_lkup(unsigned long vaddr_n_asid)
+{
+	unsigned int idx;
+
+	write_aux_reg(ARC_REG_TLBPD0, vaddr_n_asid);
+
+	write_aux_reg(ARC_REG_TLBCOMMAND, TLBProbe);
+	idx = read_aux_reg(ARC_REG_TLBINDEX);
+
+	return idx;
 }
 
 static void tlb_entry_erase(unsigned int vaddr_n_asid)
@@ -125,22 +136,15 @@ static void tlb_entry_erase(unsigned int vaddr_n_asid)
 	unsigned int idx;
 
 	/* Locate the TLB entry for this vaddr + ASID */
-	write_aux_reg(ARC_REG_TLBPD0, vaddr_n_asid);
-	write_aux_reg(ARC_REG_TLBCOMMAND, TLBProbe);
-	idx = read_aux_reg(ARC_REG_TLBINDEX);
+	idx = tlb_entry_lkup(vaddr_n_asid);
 
 	/* No error means entry found, zero it out */
 	if (likely(!(idx & TLB_LKUP_ERR))) {
 		__tlb_entry_erase();
-	} else {		/* Some sort of Error */
-
+	} else {
 		/* Duplicate entry error */
-		if (idx & 0x1) {
-			/* TODO we need to handle this case too */
-			pr_emerg("unhandled Duplicate flush for %x\n",
-			       vaddr_n_asid);
-		}
-		/* else entry not found so nothing to do */
+		WARN(idx == TLB_DUP_ERR, "Probe returned Dup PD for %x\n",
+					   vaddr_n_asid);
 	}
 }
 
@@ -159,7 +163,7 @@ static void utlb_invalidate(void)
 {
 #if (CONFIG_ARC_MMU_VER >= 2)
 
-#if (CONFIG_ARC_MMU_VER < 3)
+#if (CONFIG_ARC_MMU_VER == 2)
 	/* MMU v2 introduced the uTLB Flush command.
 	 * There was however an obscure hardware bug, where uTLB flush would
 	 * fail when a prior probe for J-TLB (both totally unrelated) would
@@ -180,6 +184,36 @@ static void utlb_invalidate(void)
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBIVUTLB);
 #endif
 
+}
+
+static void tlb_entry_insert(unsigned int pd0, unsigned int pd1)
+{
+	unsigned int idx;
+
+	/*
+	 * First verify if entry for this vaddr+ASID already exists
+	 * This also sets up PD0 (vaddr, ASID..) for final commit
+	 */
+	idx = tlb_entry_lkup(pd0);
+
+	/*
+	 * If Not already present get a free slot from MMU.
+	 * Otherwise, Probe would have located the entry and set INDEX Reg
+	 * with existing location. This will cause Write CMD to over-write
+	 * existing entry with new PD0 and PD1
+	 */
+	if (likely(idx & TLB_LKUP_ERR))
+		write_aux_reg(ARC_REG_TLBCOMMAND, TLBGetIndex);
+
+	/* setup the other half of TLB entry (pfn, rwx..) */
+	write_aux_reg(ARC_REG_TLBPD1, pd1);
+
+	/*
+	 * Commit the Entry to MMU
+	 * It doesnt sound safe to use the TLBWriteNI cmd here
+	 * which doesn't flush uTLBs. I'd rather be safe than sorry.
+	 */
+	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
 }
 
 /*
@@ -341,7 +375,8 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	unsigned long flags;
-	unsigned int idx, asid_or_sasid, rwx;
+	unsigned int asid_or_sasid, rwx;
+	unsigned long pd0, pd1;
 
 	/*
 	 * create_tlb() assumes that current->mm == vma->mm, since
@@ -385,8 +420,7 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 	/* ASID for this task */
 	asid_or_sasid = read_aux_reg(ARC_REG_PID) & 0xff;
 
-	write_aux_reg(ARC_REG_TLBPD0, address | asid_or_sasid |
-				      (pte_val(*ptep) & PTE_BITS_IN_PD0));
+	pd0 = address | asid_or_sasid | (pte_val(*ptep) & PTE_BITS_IN_PD0);
 
 	/*
 	 * ARC MMU provides fully orthogonal access bits for K/U mode,
@@ -402,29 +436,9 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 	else
 		rwx |= (rwx << 3);	/* r w x => Kr Kw Kx Ur Uw Ux */
 
-	/* Load remaining info in PD1 (Page Frame Addr and Kx/Kw/Kr Flags) */
-	write_aux_reg(ARC_REG_TLBPD1,
-		      rwx | (pte_val(*ptep) & PTE_BITS_NON_RWX_IN_PD1));
+	pd1 = rwx | (pte_val(*ptep) & PTE_BITS_NON_RWX_IN_PD1);
 
-	/* First verify if entry for this vaddr+ASID already exists */
-	write_aux_reg(ARC_REG_TLBCOMMAND, TLBProbe);
-	idx = read_aux_reg(ARC_REG_TLBINDEX);
-
-	/*
-	 * If Not already present get a free slot from MMU.
-	 * Otherwise, Probe would have located the entry and set INDEX Reg
-	 * with existing location. This will cause Write CMD to over-write
-	 * existing entry with new PD0 and PD1
-	 */
-	if (likely(idx & TLB_LKUP_ERR))
-		write_aux_reg(ARC_REG_TLBCOMMAND, TLBGetIndex);
-
-	/*
-	 * Commit the Entry to MMU
-	 * It doesnt sound safe to use the TLBWriteNI cmd here
-	 * which doesn't flush uTLBs. I'd rather be safe than sorry.
-	 */
-	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+	tlb_entry_insert(pd0, pd1);
 
 	local_irq_restore(flags);
 }

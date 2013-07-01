@@ -32,6 +32,8 @@
 /* Error code if probe fails */
 #define TLB_LKUP_ERR		0x80000000
 
+#define TLB_DUP_ERR	(TLB_LKUP_ERR | 0x00000001)
+
 /* TLB Commands */
 #define TLBWrite    0x1
 #define TLBRead     0x2
