@@ -703,6 +703,8 @@ config DEBUG_PREEMPT
 	  if kernel code uses it in a preemption-unsafe way. Also, the kernel
 	  will detect preemption count underflows.
 
+menu "Lock Debugging (spinlocks, mutexes, etc...)"
+
 config DEBUG_RT_MUTEXES
 	bool "RT Mutex debugging, deadlock detection"
 	depends on DEBUG_KERNEL && RT_MUTEXES
@@ -832,12 +834,6 @@ config DEBUG_LOCKDEP
 	  additional runtime checks to debug itself, at the price
 	  of more runtime overhead.
 
-config TRACE_IRQFLAGS
-	bool
-	help
-	  Enables hooks to interrupt enabling and disabling for
-	  either tracing or lock debugging.
-
 config DEBUG_ATOMIC_SLEEP
 	bool "Sleep inside atomic section checking"
 	select PREEMPT_COUNT
@@ -858,6 +854,14 @@ config DEBUG_LOCKING_API_SELFTESTS
 	  lock debugging then those bugs wont be detected of course.)
 	  The following locking APIs are covered: spinlocks, rwlocks,
 	  mutexes and rwsems.
+
+endmenu # lock debugging
+
+config TRACE_IRQFLAGS
+	bool
+	help
+	  Enables hooks to interrupt enabling and disabling for
+	  either tracing or lock debugging.
 
 config STACKTRACE
 	bool
