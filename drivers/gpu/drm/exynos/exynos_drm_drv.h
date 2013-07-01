@@ -142,7 +142,7 @@ struct exynos_drm_overlay {
  * @is_connected: check for that display is connected or not.
  * @get_edid: get edid modes from display driver.
  * @get_panel: get panel object from display driver.
- * @check_timing: check if timing is valid or not.
+ * @check_mode: check if mode is valid or not.
  * @power_on: display device on or off.
  */
 struct exynos_drm_display_ops {
@@ -151,7 +151,7 @@ struct exynos_drm_display_ops {
 	struct edid *(*get_edid)(struct device *dev,
 			struct drm_connector *connector);
 	void *(*get_panel)(struct device *dev);
-	int (*check_timing)(struct device *dev, void *timing);
+	int (*check_mode)(struct device *dev, struct drm_display_mode *mode);
 	int (*power_on)(struct device *dev, int mode);
 };
 
