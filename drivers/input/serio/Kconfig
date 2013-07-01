@@ -255,4 +255,14 @@ config SERIO_APBPS2
 	  To compile this driver as a module, choose M here: the module will
 	  be called apbps2.
 
+config SERIO_OLPC_APSP
+	tristate "OLPC AP-SP input support"
+	depends on OF
+	help
+	  Say Y here if you want support for the keyboard and touchpad included
+	  in the OLPC XO-1.75 and XO-4 laptops.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called olpc_apsp.
+
 endif
