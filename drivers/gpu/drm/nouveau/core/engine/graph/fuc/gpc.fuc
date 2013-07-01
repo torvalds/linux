@@ -29,23 +29,26 @@
  */
 
 #ifdef INCLUDE_DATA
+gpc_mmio_list_head:	.b32 #mmio_list_base
+gpc_mmio_list_tail:
+tpc_mmio_list_head:	.b32 #mmio_list_base
+tpc_mmio_list_tail:
+unk_mmio_list_head:	.b32 #mmio_list_base
+unk_mmio_list_tail:	.b32 #mmio_list_base
+
 gpc_id:			.b32 0
-gpc_mmio_list_head:	.b32 0
-gpc_mmio_list_tail:	.b32 0
 
 tpc_count:		.b32 0
 tpc_mask:		.b32 0
-tpc_mmio_list_head:	.b32 0
-tpc_mmio_list_tail:	.b32 0
 
 #ifdef NVGK
 unk_count:		.b32 1
 unk_mask:		.b32 1
-unk_mmio_list_head:	.b32 #nve4_unk_mmio_head
-unk_mmio_list_tail:	.b32 #nve4_unk_mmio_tail
 #endif
 
 cmd_queue:		queue_init
+
+mmio_list_base:
 #endif
 
 #ifdef INCLUDE_CODE
@@ -68,7 +71,6 @@ error:
 // fall through to main loop after completion.
 //
 // Input:
-//   CC_SCRATCH[0]: chipset (PMC_BOOT_0 read returns 0x0bad0bad... sigh)
 //   CC_SCRATCH[1]: context base
 //
 // Output:
@@ -113,23 +115,7 @@ init:
 	iord $r2 I[$r1 + 0x000]		// MYINDEX
 	st b32 D[$r0 + #gpc_id] $r2
 
-	// find context data for this chipset
-	mov $r2 0x800
-	shl b32 $r2 6
-	iord $r2 I[$r2 + 0x000]		// CC_SCRATCH[0]
-	mov $r1 #chipsets - 12
-	init_find_chipset:
-		add b32 $r1 12
-		ld b32 $r3 D[$r1 + 0x00]
-		cmpu b32 $r3 $r2
-		bra e #init_context
-		cmpu b32 $r3 0
-		bra ne #init_find_chipset
-		// unknown chipset
-		ret
-
 	// initialise context base, and size tracking
-	init_context:
 	mov $r2 0x800
 	shl b32 $r2 6
 	iord $r2 I[$r2 + 0x100]	// CC_SCRATCH[1], initial base
@@ -143,24 +129,16 @@ init:
 	iowr I[$r4 + 0x000] $r5		// MMCTX_SAVE_SWBASE
 	iowr I[$r4 + 0x100] $r5		// MMCTX_LOAD_SWBASE
 
-	// calculate GPC mmio context size, store the chipset-specific
-	// mmio list pointers somewhere we can get at them later without
-	// re-parsing the chipset list
-	clear b32 $r14
-	clear b32 $r15
-	ld b16 $r14 D[$r1 + 4]
-	ld b16 $r15 D[$r1 + 6]
-	st b16 D[$r0 + #gpc_mmio_list_head] $r14
-	st b16 D[$r0 + #gpc_mmio_list_tail] $r15
+	// calculate GPC mmio context size
+	ld b32 $r14 D[$r0 + #gpc_mmio_list_head]
+	ld b32 $r15 D[$r0 + #gpc_mmio_list_tail]
 	call #mmctx_size
 	add b32 $r2 $r15
 	add b32 $r3 $r15
 
-	// calculate per-TPC mmio context size, store the list pointers
-	ld b16 $r14 D[$r1 + 8]
-	ld b16 $r15 D[$r1 + 10]
-	st b16 D[$r0 + #tpc_mmio_list_head] $r14
-	st b16 D[$r0 + #tpc_mmio_list_tail] $r15
+	// calculate per-TPC mmio context size
+	ld b32 $r14 D[$r0 + #tpc_mmio_list_head]
+	ld b32 $r15 D[$r0 + #tpc_mmio_list_tail]
 	call #mmctx_size
 	ld b32 $r14 D[$r0 + #tpc_count]
 	mulu $r14 $r15

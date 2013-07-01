@@ -24,11 +24,12 @@
  */
 
 #ifdef INCLUDE_DATA
+hub_mmio_list_head:	.b32 #hub_mmio_list_base
+hub_mmio_list_tail:	.b32 #hub_mmio_list_next
+
 gpc_count:		.b32 0
 rop_count:		.b32 0
 cmd_queue:		queue_init
-hub_mmio_list_head:	.b32 0
-hub_mmio_list_tail:	.b32 0
 
 ctx_current:		.b32 0
 
@@ -40,6 +41,9 @@ chan_mmio_address:	.b32 0
 .align 256
 xfer_data: 		.skip 256
 
+hub_mmio_list_base:
+.b32 0x0417e91c // 0x17e91c, 2
+hub_mmio_list_next:
 #endif
 
 #ifdef INCLUDE_CODE
@@ -61,9 +65,6 @@ error:
 
 // HUB fuc initialisation, executed by triggering ucode start, will
 // fall through to main loop after completion.
-//
-// Input:
-//   CC_SCRATCH[0]: chipset (PMC_BOOT_0 read returns 0x0bad0bad... sigh)
 //
 // Output:
 //   CC_SCRATCH[0]:
@@ -141,31 +142,12 @@ init:
 	iowr I[$r2 + 0x000] $r1
 	iowr I[$r2 + 0x100] $r1
 
-	// find context data for this chipset
-	mov $r2 0x800
-	shl b32 $r2 6
-	iord $r2 I[$r2 + 0x000]		// CC_SCRATCH[0]
-	mov $r15 #chipsets - 8
-	init_find_chipset:
-		add b32 $r15 8
-		ld b32 $r3 D[$r15 + 0x00]
-		cmpu b32 $r3 $r2
-		bra e #init_context
-		cmpu b32 $r3 0
-		bra ne #init_find_chipset
-		// unknown chipset
-		ret
-
 	// context size calculation, reserve first 256 bytes for use by fuc
-	init_context:
 	mov $r1 256
 
 	// calculate size of mmio context data
-	ld b16 $r14 D[$r15 + 4]
-	ld b16 $r15 D[$r15 + 6]
-	sethi $r14 0
-	st b32 D[$r0 + #hub_mmio_list_head] $r14
-	st b32 D[$r0 + #hub_mmio_list_tail] $r15
+	ld b32 $r14 D[$r0 + #hub_mmio_list_head]
+	ld b32 $r15 D[$r0 + #hub_mmio_list_tail]
 	call #mmctx_size
 
 	// set mmctx base addresses now so we don't have to do it later,
@@ -204,9 +186,6 @@ init:
 		add b32 $r14 $r4 0x804
 		mov b32 $r15 $r1
 		call #nv_wr32			// CC_SCRATCH[1] = ctx offset
-		add b32 $r14 $r4 0x800
-		mov b32 $r15 $r2
-		call #nv_wr32			// CC_SCRATCH[0] = chipset
 		add b32 $r14 $r4 0x10c
 		clear b32 $r15
 		call #nv_wr32

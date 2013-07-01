@@ -764,10 +764,46 @@ nvc0_graph_init_fw(struct nvc0_graph_priv *priv, u32 fuc_base,
 	}
 }
 
+static void
+nvc0_graph_init_csdata(struct nvc0_graph_priv *priv,
+		       struct nvc0_graph_init *init,
+		       u32 falcon, u32 starstar, u32 base)
+{
+	u32 addr = init->addr;
+	u32 next = addr;
+	u32 star, temp;
+
+	nv_wr32(priv, falcon + 0x01c0, 0x02000000 + starstar);
+	star = nv_rd32(priv, falcon + 0x01c4);
+	temp = nv_rd32(priv, falcon + 0x01c4);
+	if (temp > star)
+		star = temp;
+	nv_wr32(priv, falcon + 0x01c0, 0x01000000 + star);
+
+	do {
+		if (init->addr != next) {
+			while (addr < next) {
+				u32 nr = min((int)(next - addr) / 4, 32);
+				nv_wr32(priv, falcon + 0x01c4,
+					((nr - 1) << 26) | (addr - base));
+				addr += nr * 4;
+				star += 4;
+			}
+			addr = next = init->addr;
+		}
+		next += init->count * 4;
+	} while ((init++)->count);
+
+	nv_wr32(priv, falcon + 0x01c0, 0x01000004 + starstar);
+	nv_wr32(priv, falcon + 0x01c4, star);
+}
+
 int
 nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 {
 	struct nvc0_graph_oclass *oclass = (void *)nv_object(priv)->oclass;
+	struct nvc0_grctx_oclass *cclass = (void *)nv_engine(priv)->cclass;
+	struct nvc0_graph_init *init;
 	u32 r000260;
 	int i;
 
@@ -874,6 +910,10 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 		nv_wr32(priv, 0x409184, oclass->fecs.ucode->code.data[i]);
 	}
 
+	for (i = 0; (init = cclass->hub[i]); i++) {
+		nvc0_graph_init_csdata(priv, init, 0x409000, 0x000, 0x000000);
+	}
+
 	/* load GPC microcode */
 	nv_wr32(priv, 0x41a1c0, 0x01000000);
 	for (i = 0; i < oclass->gpccs.ucode->data.size / 4; i++)
@@ -887,8 +927,14 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 	}
 	nv_wr32(priv, 0x000260, r000260);
 
+	if ((init = cclass->gpc[0]))
+		nvc0_graph_init_csdata(priv, init, 0x41a000, 0x000, 0x418000);
+	if ((init = cclass->gpc[2]))
+		nvc0_graph_init_csdata(priv, init, 0x41a000, 0x004, 0x419800);
+	if ((init = cclass->gpc[3]))
+		nvc0_graph_init_csdata(priv, init, 0x41a000, 0x008, 0x41be00);
+
 	/* start HUB ucode running, it'll init the GPCs */
-	nv_wr32(priv, 0x409800, nv_device(priv)->chipset);
 	nv_wr32(priv, 0x40910c, 0x00000000);
 	nv_wr32(priv, 0x409100, 0x00000002);
 	if (!nv_wait(priv, 0x409800, 0x80000000, 0x80000000)) {
