@@ -2153,7 +2153,8 @@ static int mpage_map_one_extent(handle_t *handle, struct mpage_da_data *mpd)
  * guaranteed). After mapping we submit all mapped pages for IO.
  */
 static int mpage_map_and_submit_extent(handle_t *handle,
-				       struct mpage_da_data *mpd)
+				       struct mpage_da_data *mpd,
+				       bool *give_up_on_write)
 {
 	struct inode *inode = mpd->inode;
 	struct ext4_map_blocks *map = &mpd->map;
@@ -2167,29 +2168,30 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 		if (err < 0) {
 			struct super_block *sb = inode->i_sb;
 
+			if (EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED)
+				goto invalidate_dirty_pages;
 			/*
-			 * Need to commit transaction to free blocks. Let upper
-			 * layers sort it out.
+			 * Let the uper layers retry transient errors.
+			 * In the case of ENOSPC, if ext4_count_free_blocks()
+			 * is non-zero, a commit should free up blocks.
 			 */
-			if (err == -ENOSPC && ext4_count_free_clusters(sb))
-				return -ENOSPC;
-
-			if (!(EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED)) {
-				ext4_msg(sb, KERN_CRIT,
-					 "Delayed block allocation failed for "
-					 "inode %lu at logical offset %llu with"
-					 " max blocks %u with error %d",
-					 inode->i_ino,
-					 (unsigned long long)map->m_lblk,
-					 (unsigned)map->m_len, err);
-				ext4_msg(sb, KERN_CRIT,
-					 "This should not happen!! Data will "
-					 "be lost\n");
-				if (err == -ENOSPC)
-					ext4_print_free_blocks(inode);
-			}
-			/* invalidate all the pages */
-			mpage_release_unused_pages(mpd, true);
+			if ((err == -ENOMEM) ||
+			    (err == -ENOSPC && ext4_count_free_clusters(sb)))
+				return err;
+			ext4_msg(sb, KERN_CRIT,
+				 "Delayed block allocation failed for "
+				 "inode %lu at logical offset %llu with"
+				 " max blocks %u with error %d",
+				 inode->i_ino,
+				 (unsigned long long)map->m_lblk,
+				 (unsigned)map->m_len, -err);
+			ext4_msg(sb, KERN_CRIT,
+				 "This should not happen!! Data will "
+				 "be lost\n");
+			if (err == -ENOSPC)
+				ext4_print_free_blocks(inode);
+		invalidate_dirty_pages:
+			*give_up_on_write = true;
 			return err;
 		}
 		/*
@@ -2377,6 +2379,7 @@ static int ext4_writepages(struct address_space *mapping,
 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
 	bool done;
 	struct blk_plug plug;
+	bool give_up_on_write = false;
 
 	trace_ext4_writepages(inode, wbc);
 
@@ -2494,7 +2497,8 @@ retry:
 		ret = mpage_prepare_extent_to_map(&mpd);
 		if (!ret) {
 			if (mpd.map.m_len)
-				ret = mpage_map_and_submit_extent(handle, &mpd);
+				ret = mpage_map_and_submit_extent(handle, &mpd,
+					&give_up_on_write);
 			else {
 				/*
 				 * We scanned the whole range (or exhausted
@@ -2509,7 +2513,7 @@ retry:
 		/* Submit prepared bio */
 		ext4_io_submit(&mpd.io_submit);
 		/* Unlock pages we didn't use */
-		mpage_release_unused_pages(&mpd, false);
+		mpage_release_unused_pages(&mpd, give_up_on_write);
 		/* Drop our io_end reference we got from init */
 		ext4_put_io_end(mpd.io_submit.io_end);
 
