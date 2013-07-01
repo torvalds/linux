@@ -221,7 +221,6 @@ xfs_bulkstat(
 	char			__user *ubufp;	/* pointer into user's buffer */
 	int			ubelem;	/* spaces used in user's buffer */
 	int			ubused;	/* bytes used by formatter */
-	xfs_buf_t		*bp;	/* ptr to on-disk inode cluster buf */
 
 	/*
 	 * Get the last inode value, see if there's nothing to do.
@@ -263,7 +262,6 @@ xfs_bulkstat(
 	rval = 0;
 	while (XFS_BULKSTAT_UBLEFT(ubleft) && agno < mp->m_sb.sb_agcount) {
 		cond_resched();
-		bp = NULL;
 		error = xfs_ialloc_read_agi(mp, NULL, agno, &agbp);
 		if (error) {
 			/*
@@ -436,27 +434,7 @@ xfs_bulkstat(
 				irbp->ir_freecount < XFS_INODES_PER_CHUNK;
 			     chunkidx++, clustidx++, agino++) {
 				ASSERT(chunkidx < XFS_INODES_PER_CHUNK);
-				/*
-				 * Recompute agbno if this is the
-				 * first inode of the cluster.
-				 *
-				 * Careful with clustidx.   There can be
-				 * multiple clusters per chunk, a single
-				 * cluster per chunk or a cluster that has
-				 * inodes represented from several different
-				 * chunks (if blocksize is large).
-				 *
-				 * Because of this, the starting clustidx is
-				 * initialized to zero in this loop but must
-				 * later be reset after reading in the cluster
-				 * buffer.
-				 */
-				if ((chunkidx & (nicluster - 1)) == 0) {
-					agbno = XFS_AGINO_TO_AGBNO(mp,
-							irbp->ir_startino) +
-						((chunkidx & nimask) >>
-						 mp->m_sb.sb_inopblog);
-				}
+
 				ino = XFS_AGINO_TO_INO(mp, agno, agino);
 				/*
 				 * Skip if this inode is free.
@@ -502,10 +480,6 @@ xfs_bulkstat(
 
 			cond_resched();
 		}
-
-		if (bp)
-			xfs_buf_relse(bp);
-
 		/*
 		 * Set up for the next loop iteration.
 		 */
