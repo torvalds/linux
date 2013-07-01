@@ -2321,6 +2321,9 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 		case -ENOSPC:
 			error_type = "critical space allocation";
 			break;
+		case -ENODATA:
+			error_type = "critical medium";
+			break;
 		case -EIO:
 		default:
 			error_type = "I/O";

@@ -727,6 +727,7 @@ EXPORT_SYMBOL(scsi_release_buffers);
  * -EREMOTEIO	permanent target failure, do not retry
  * -EBADE	permanent nexus failure, retry on other path
  * -ENOSPC	No write space available
+ * -ENODATA	Medium error
  * -EIO		unspecified I/O error
  */
 static int __scsi_error_from_host_byte(struct scsi_cmnd *cmd, int result)
@@ -748,6 +749,10 @@ static int __scsi_error_from_host_byte(struct scsi_cmnd *cmd, int result)
 	case DID_ALLOC_FAILURE:
 		set_host_byte(cmd, DID_OK);
 		error = -ENOSPC;
+		break;
+	case DID_MEDIUM_ERROR:
+		set_host_byte(cmd, DID_OK);
+		error = -ENODATA;
 		break;
 	default:
 		error = -EIO;
