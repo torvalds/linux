@@ -68,6 +68,12 @@ extern unsigned long __cmpxchg_called_with_bad_pointer(void);
 
 #define tas(ptr) (xchg((ptr), 1))
 
+#define cmpxchg64(ptr, o, n)						\
+({									\
+	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	cmpxchg((ptr), (o), (n));					\
+})
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_TILE_CMPXCHG_H */
