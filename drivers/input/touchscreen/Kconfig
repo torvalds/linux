@@ -188,6 +188,15 @@ config TOUCHSCREEN_CYTTSP4_I2C
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyttsp4_i2c.
 
+config TOUCHSCREEN_CYTTSP4_SPI
+	tristate "support SPI bus connection"
+	depends on TOUCHSCREEN_CYTTSP4_CORE && SPI_MASTER
+	help
+	  Say Y here if the touchscreen is connected via SPI bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp4_spi.
+
 config TOUCHSCREEN_DA9034
 	tristate "Touchscreen support for Dialog Semiconductor DA9034"
 	depends on PMIC_DA903X
