@@ -279,11 +279,12 @@ static void route_irq(struct irq_data *data, unsigned int irq, unsigned int cpu)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
+	unsigned long flags;
 
-	raw_spin_lock_irq(&desc->lock);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	if (chip->irq_set_affinity)
 		chip->irq_set_affinity(data, cpumask_of(cpu), false);
-	raw_spin_unlock_irq(&desc->lock);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 /*
