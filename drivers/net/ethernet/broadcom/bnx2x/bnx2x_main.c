@@ -11636,6 +11636,8 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 		bp->min_msix_vec_cnt = 2;
 	BNX2X_DEV_INFO("bp->min_msix_vec_cnt %d", bp->min_msix_vec_cnt);
 
+	bp->dump_preset_idx = 1;
+
 	return rc;
 }
 
