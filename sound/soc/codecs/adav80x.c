@@ -868,6 +868,12 @@ static int adav80x_bus_remove(struct device *dev)
 }
 
 #if defined(CONFIG_SPI_MASTER)
+static const struct spi_device_id adav80x_spi_id[] = {
+	{ "adav801", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, adav80x_spi_id);
+
 static int adav80x_spi_probe(struct spi_device *spi)
 {
 	return adav80x_bus_probe(&spi->dev, SND_SOC_SPI);
@@ -885,15 +891,16 @@ static struct spi_driver adav80x_spi_driver = {
 	},
 	.probe		= adav80x_spi_probe,
 	.remove		= adav80x_spi_remove,
+	.id_table	= adav80x_spi_id,
 };
 #endif
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static const struct i2c_device_id adav80x_id[] = {
+static const struct i2c_device_id adav80x_i2c_id[] = {
 	{ "adav803", 0 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, adav80x_id);
+MODULE_DEVICE_TABLE(i2c, adav80x_i2c_id);
 
 static int adav80x_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
@@ -913,7 +920,7 @@ static struct i2c_driver adav80x_i2c_driver = {
 	},
 	.probe = adav80x_i2c_probe,
 	.remove = adav80x_i2c_remove,
-	.id_table = adav80x_id,
+	.id_table = adav80x_i2c_id,
 };
 #endif
 
