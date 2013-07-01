@@ -262,7 +262,8 @@ void __init acpi_hest_init(void)
 		goto err;
 	}
 
-	apei_hest_parse(hest_parse_cmc, NULL);
+	if (!acpi_disable_cmcff)
+		apei_hest_parse(hest_parse_cmc, NULL);
 
 	if (!ghes_disable) {
 		rc = apei_hest_parse(hest_parse_ghes_count, &ghes_count);
