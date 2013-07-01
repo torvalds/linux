@@ -87,21 +87,26 @@ static DECLARE_DELAYED_WORK(capture_delayed_work, rk616_codec_capture_work);
 static int rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
 static bool rk616_for_mid = 1, is_hdmi_in = false;
 
-static int board_for_mid(char *str)
+static int board_for_mid(void)
 {
 	int val;
+	char *command_line = strstr(saved_command_line, "ap_has_alsa=") + 12;
 
-	val = simple_strtol(str,NULL,10);
+	if (command_line == NULL) {
+		printk("%s : Can not get ap_has_alsa from kernel command line!\n", __func__);
+		return 0;
+	}
+
+	val = simple_strtol(command_line, NULL, 10);
 	if (val == 0 || val == 1) {
 		rk616_for_mid = (val ? 0 : 1);
-		printk("%s : THIS IS FOR %s\n", __func__, rk616_for_mid ? "mid":"phone");
+		printk("%s : THIS IS FOR %s\n", __func__, rk616_for_mid ? "mid" : "phone");
 	} else {
-		printk("%s : get board_ap_has_alsa error, val = %d\n", __func__, val);
+		printk("%s : get ap_has_alsa error, val = %d\n", __func__, val);
 	}
 
 	return 0;
 }
-__setup("board_ap_has_alsa=",board_for_mid);
 
 static const unsigned int rk616_reg_defaults[RK616_PGAR_AGC_CTL5 + 1] = {
 	[RK616_RESET] = 0x0003,
@@ -2462,6 +2467,7 @@ static struct platform_driver rk616_codec_driver = {
 
 static __init int rk616_modinit(void)
 {
+	board_for_mid();
 	return platform_driver_register(&rk616_codec_driver);
 }
 module_init(rk616_modinit);
