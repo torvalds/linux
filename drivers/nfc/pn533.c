@@ -2086,20 +2086,6 @@ error:
 	return rc;
 }
 
-static int pn533_mod_to_baud(struct pn533 *dev)
-{
-	switch (dev->poll_mod_curr) {
-	case PN533_POLL_MOD_106KBPS_A:
-		return 0;
-	case PN533_POLL_MOD_212KBPS_FELICA:
-		return 1;
-	case PN533_POLL_MOD_424KBPS_FELICA:
-		return 2;
-	default:
-		return -EINVAL;
-	}
-}
-
 static int pn533_rf_field(struct nfc_dev *nfc_dev, u8 rf);
 #define PASSIVE_DATA_LEN 5
 static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
@@ -2107,8 +2093,8 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	struct sk_buff *skb;
-	int rc, baud, skb_len;
-	u8 *next, *arg;
+	int rc, skb_len;
+	u8 *next, *arg, nfcid3[NFC_NFCID3_MAXSIZE];
 
 	u8 passive_data[PASSIVE_DATA_LEN] = {0x00, 0xff, 0xff, 0x00, 0x3};
 
@@ -2126,41 +2112,39 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 		return -EBUSY;
 	}
 
-	baud = pn533_mod_to_baud(dev);
-	if (baud < 0) {
-		nfc_dev_err(&dev->interface->dev,
-			    "Invalid curr modulation %d", dev->poll_mod_curr);
-		return baud;
-	}
-
 	skb_len = 3 + gb_len; /* ActPass + BR + Next */
-	if (comm_mode == NFC_COMM_PASSIVE)
-		skb_len += PASSIVE_DATA_LEN;
+	skb_len += PASSIVE_DATA_LEN;
 
-	if (target && target->nfcid2_len)
-		skb_len += NFC_NFCID3_MAXSIZE;
+	/* NFCID3 */
+	skb_len += NFC_NFCID3_MAXSIZE;
+	if (target && !target->nfcid2_len) {
+		nfcid3[0] = 0x1;
+		nfcid3[1] = 0xfe;
+		get_random_bytes(nfcid3 + 2, 6);
+	}
 
 	skb = pn533_alloc_skb(dev, skb_len);
 	if (!skb)
 		return -ENOMEM;
 
 	*skb_put(skb, 1) = !comm_mode;  /* ActPass */
-	*skb_put(skb, 1) = baud;  /* Baud rate */
+	*skb_put(skb, 1) = 0x02;  /* 424 kbps */
 
 	next = skb_put(skb, 1);  /* Next */
 	*next = 0;
 
-	if (comm_mode == NFC_COMM_PASSIVE && baud > 0) {
-		memcpy(skb_put(skb, PASSIVE_DATA_LEN), passive_data,
-		       PASSIVE_DATA_LEN);
-		*next |= 1;
-	}
+	/* Copy passive data */
+	memcpy(skb_put(skb, PASSIVE_DATA_LEN), passive_data, PASSIVE_DATA_LEN);
+	*next |= 1;
 
-	if (target && target->nfcid2_len) {
+	/* Copy NFCID3 (which is NFCID2 from SENSF_RES) */
+	if (target && target->nfcid2_len)
 		memcpy(skb_put(skb, NFC_NFCID3_MAXSIZE), target->nfcid2,
 		       target->nfcid2_len);
-		*next |= 2;
-	}
+	else
+		memcpy(skb_put(skb, NFC_NFCID3_MAXSIZE), nfcid3,
+		       NFC_NFCID3_MAXSIZE);
+	*next |= 2;
 
 	if (gb != NULL && gb_len > 0) {
 		memcpy(skb_put(skb, gb_len), gb, gb_len);
