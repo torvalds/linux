@@ -130,7 +130,7 @@ static int netback_probe(struct xenbus_device *dev,
 			    "feature-split-event-channels",
 			    "%u", separate_tx_rx_irq);
 	if (err)
-		pr_debug("Error writing feature-split-event-channels");
+		pr_debug("Error writing feature-split-event-channels\n");
 
 	err = xenbus_switch_state(dev, XenbusStateInitWait);
 	if (err)
@@ -145,7 +145,7 @@ abort_transaction:
 	xenbus_transaction_end(xbt, 1);
 	xenbus_dev_fatal(dev, err, "%s", message);
 fail:
-	pr_debug("failed");
+	pr_debug("failed\n");
 	netback_remove(dev);
 	return err;
 }
@@ -228,15 +228,14 @@ static void frontend_changed(struct xenbus_device *dev,
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
-	pr_debug("frontend state %s", xenbus_strstate(frontend_state));
+	pr_debug("frontend state %s\n", xenbus_strstate(frontend_state));
 
 	be->frontend_state = frontend_state;
 
 	switch (frontend_state) {
 	case XenbusStateInitialising:
 		if (dev->state == XenbusStateClosed) {
-			printk(KERN_INFO "%s: %s: prepare for reconnect\n",
-			       __func__, dev->nodename);
+			pr_info("%s: prepare for reconnect\n", dev->nodename);
 			xenbus_switch_state(dev, XenbusStateInitWait);
 		}
 		break;
