@@ -255,7 +255,7 @@ static int portmux_group_check(unsigned short per)
 	u16 ident = P_IDENT(per);
 	u16 function = P_FUNCT2MUX(per);
 	s8 offset = port_mux[ident];
-	u16 m, pmux, pfunc;
+	u16 m, pmux, pfunc, mask;
 
 	if (offset < 0)
 		return 0;
@@ -270,10 +270,12 @@ static int portmux_group_check(unsigned short per)
 			continue;
 
 		if (offset == 1)
-			pfunc = (pmux >> offset) & 3;
+			mask = 3;
 		else
-			pfunc = (pmux >> offset) & 1;
-		if (pfunc != function) {
+			mask = 1;
+
+		pfunc = (pmux >> offset) & mask;
+		if (pfunc != (function & mask)) {
 			pr_err("pin group conflict! request pin %d func %d conflict with pin %d func %d\n",
 				ident, function, m, pfunc);
 			return -EINVAL;
@@ -288,17 +290,20 @@ static void portmux_setup(unsigned short per)
 	u16 ident = P_IDENT(per);
 	u16 function = P_FUNCT2MUX(per);
 	s8 offset = port_mux[ident];
-	u16 pmux;
+	u16 pmux, mask;
 
 	if (offset == -1)
 		return;
 
 	pmux = bfin_read_PORT_MUX();
-	if (offset != 1)
-		pmux &= ~(1 << offset);
+	if (offset == 1)
+		mask = 3;
 	else
-		pmux &= ~(3 << 1);
-	pmux |= (function << offset);
+		mask = 1;
+
+	pmux &= ~(mask << offset);
+	pmux |= ((function & mask) << offset);
+
 	bfin_write_PORT_MUX(pmux);
 }
 #elif defined(CONFIG_BF54x) || defined(CONFIG_BF60x)
