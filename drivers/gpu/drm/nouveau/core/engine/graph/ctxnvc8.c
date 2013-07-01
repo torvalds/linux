@@ -341,6 +341,14 @@ nvc8_grctx_init_mthd[] = {
 	{}
 };
 
+static struct nvc0_graph_init *
+nvc8_grctx_init_gpc[] = {
+	nvc0_grctx_init_gpc_0,
+	nvc0_grctx_init_gpc_1,
+	nvc8_grctx_init_tpc,
+	NULL
+};
+
 struct nouveau_oclass *
 nvc8_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.base.handle = NV_ENGCTX(GR, 0xc8),
@@ -354,9 +362,8 @@ nvc8_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	},
 	.main = nvc0_grctx_generate_main,
 	.mods = nvc0_grctx_generate_mods,
-	.mmio = nvc0_grctx_init_mmio,
-	.gpc  = nvc0_grctx_init_gpc,
-	.tpc  = nvc8_grctx_init_tpc,
+	.hub  = nvc0_grctx_init_hub,
+	.gpc  = nvc8_grctx_init_gpc,
 	.icmd = nvc8_grctx_init_icmd,
 	.mthd = nvc8_grctx_init_mthd,
 }.base;

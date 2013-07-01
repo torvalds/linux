@@ -454,7 +454,7 @@ nvd9_grctx_init_tpc[] = {
 };
 
 static struct nvc0_graph_init *
-nvd9_grctx_init_mmio[] = {
+nvd9_grctx_init_hub[] = {
 	nvc0_grctx_init_base,
 	nvd9_grctx_init_unk40xx,
 	nvc0_grctx_init_unk44xx,
@@ -472,6 +472,7 @@ struct nvc0_graph_init *
 nvd9_grctx_init_gpc[] = {
 	nvd9_grctx_init_gpc_0,
 	nvc0_grctx_init_gpc_1,
+	nvd9_grctx_init_tpc,
 	NULL
 };
 
@@ -506,9 +507,8 @@ nvd9_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	},
 	.main = nvc0_grctx_generate_main,
 	.mods = nvc1_grctx_generate_mods,
-	.mmio = nvd9_grctx_init_mmio,
+	.hub  = nvd9_grctx_init_hub,
 	.gpc  = nvd9_grctx_init_gpc,
-	.tpc  = nvd9_grctx_init_tpc,
 	.icmd = nvd9_grctx_init_icmd,
 	.mthd = nvd9_grctx_init_mthd,
 }.base;

@@ -1047,11 +1047,10 @@ nvc0_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 
 	nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
 
-	for (i = 0; oclass->mmio[i]; i++)
-		nvc0_graph_mmio(priv, oclass->mmio[i]);
+	for (i = 0; oclass->hub[i]; i++)
+		nvc0_graph_mmio(priv, oclass->hub[i]);
 	for (i = 0; oclass->gpc[i]; i++)
 		nvc0_graph_mmio(priv, oclass->gpc[i]);
-	nvc0_graph_mmio(priv, oclass->tpc);
 
 	nv_wr32(priv, 0x404154, 0x00000000);
 
@@ -1179,7 +1178,7 @@ done:
 }
 
 struct nvc0_graph_init *
-nvc0_grctx_init_mmio[] = {
+nvc0_grctx_init_hub[] = {
 	nvc0_grctx_init_base,
 	nvc0_grctx_init_unk40xx,
 	nvc0_grctx_init_unk44xx,
@@ -1194,10 +1193,11 @@ nvc0_grctx_init_mmio[] = {
 	NULL
 };
 
-struct nvc0_graph_init *
+static struct nvc0_graph_init *
 nvc0_grctx_init_gpc[] = {
 	nvc0_grctx_init_gpc_0,
 	nvc0_grctx_init_gpc_1,
+	nvc0_grctx_init_tpc,
 	NULL
 };
 
@@ -1230,9 +1230,8 @@ nvc0_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	},
 	.main = nvc0_grctx_generate_main,
 	.mods = nvc0_grctx_generate_mods,
-	.mmio = nvc0_grctx_init_mmio,
+	.hub  = nvc0_grctx_init_hub,
 	.gpc  = nvc0_grctx_init_gpc,
-	.tpc  = nvc0_grctx_init_tpc,
 	.icmd = nvc0_grctx_init_icmd,
 	.mthd = nvc0_grctx_init_mthd,
 }.base;

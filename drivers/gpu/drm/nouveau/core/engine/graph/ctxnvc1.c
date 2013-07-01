@@ -757,7 +757,7 @@ nvc1_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 }
 
 static struct nvc0_graph_init *
-nvc1_grctx_init_mmio[] = {
+nvc1_grctx_init_hub[] = {
 	nvc0_grctx_init_base,
 	nvc0_grctx_init_unk40xx,
 	nvc0_grctx_init_unk44xx,
@@ -776,6 +776,7 @@ struct nvc0_graph_init *
 nvc1_grctx_init_gpc[] = {
 	nvc1_grctx_init_gpc_0,
 	nvc0_grctx_init_gpc_1,
+	nvc1_grctx_init_tpc,
 	NULL
 };
 
@@ -803,9 +804,8 @@ nvc1_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	},
 	.main = nvc0_grctx_generate_main,
 	.mods = nvc1_grctx_generate_mods,
-	.mmio = nvc1_grctx_init_mmio,
+	.hub  = nvc1_grctx_init_hub,
 	.gpc  = nvc1_grctx_init_gpc,
-	.tpc  = nvc1_grctx_init_tpc,
 	.icmd = nvc1_grctx_init_icmd,
 	.mthd = nvc1_grctx_init_mthd,
 }.base;

@@ -70,6 +70,14 @@ nvc3_grctx_init_tpc[] = {
 	{}
 };
 
+struct nvc0_graph_init *
+nvc3_grctx_init_gpc[] = {
+	nvc0_grctx_init_gpc_0,
+	nvc0_grctx_init_gpc_1,
+	nvc3_grctx_init_tpc,
+	NULL
+};
+
 struct nouveau_oclass *
 nvc3_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.base.handle = NV_ENGCTX(GR, 0xc3),
@@ -83,9 +91,8 @@ nvc3_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	},
 	.main = nvc0_grctx_generate_main,
 	.mods = nvc0_grctx_generate_mods,
-	.mmio = nvc0_grctx_init_mmio,
-	.gpc  = nvc0_grctx_init_gpc,
-	.tpc  = nvc3_grctx_init_tpc,
+	.hub  = nvc0_grctx_init_hub,
+	.gpc  = nvc3_grctx_init_gpc,
 	.icmd = nvc0_grctx_init_icmd,
 	.mthd = nvc0_grctx_init_mthd,
 }.base;
