@@ -43,38 +43,37 @@ static void ep93xx_stop_hc(struct device *dev)
 static int usb_hcd_ep93xx_probe(const struct hc_driver *driver,
 			 struct platform_device *pdev)
 {
-	int retval;
 	struct usb_hcd *hcd;
+	struct resource *res;
+	int retval;
 
 	if (pdev->resource[1].flags != IORESOURCE_IRQ) {
 		dev_dbg(&pdev->dev, "resource[1] is not IORESOURCE_IRQ\n");
 		return -ENOMEM;
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENXIO;
+
 	hcd = usb_create_hcd(driver, &pdev->dev, "ep93xx");
 	if (hcd == NULL)
 		return -ENOMEM;
 
-	hcd->rsrc_start = pdev->resource[0].start;
-	hcd->rsrc_len = pdev->resource[0].end - pdev->resource[0].start + 1;
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		usb_put_hcd(hcd);
-		retval = -EBUSY;
-		goto err1;
-	}
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
 
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
-	if (hcd->regs == NULL) {
-		dev_dbg(&pdev->dev, "ioremap failed\n");
-		retval = -ENOMEM;
-		goto err2;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		retval = PTR_ERR(hcd->regs);
+		goto err_put_hcd;
 	}
 
 	usb_host_clock = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usb_host_clock)) {
 		dev_dbg(&pdev->dev, "clk_get failed\n");
 		retval = PTR_ERR(usb_host_clock);
-		goto err3;
+		goto err_put_hcd;
 	}
 
 	ep93xx_start_hc(&pdev->dev);
@@ -86,11 +85,7 @@ static int usb_hcd_ep93xx_probe(const struct hc_driver *driver,
 		return retval;
 
 	ep93xx_stop_hc(&pdev->dev);
-err3:
-	iounmap(hcd->regs);
-err2:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-err1:
+err_put_hcd:
 	usb_put_hcd(hcd);
 
 	return retval;
@@ -102,8 +97,6 @@ static void usb_hcd_ep93xx_remove(struct usb_hcd *hcd,
 	usb_remove_hcd(hcd);
 	ep93xx_stop_hc(&pdev->dev);
 	clk_put(usb_host_clock);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 }
 
