@@ -38,6 +38,13 @@ tpc_mask:		.b32 0
 tpc_mmio_list_head:	.b32 0
 tpc_mmio_list_tail:	.b32 0
 
+#ifdef NVGK
+unk_count:		.b32 1
+unk_mask:		.b32 1
+unk_mmio_list_head:	.b32 #nve4_unk_mmio_head
+unk_mmio_list_tail:	.b32 #nve4_unk_mmio_tail
+#endif
+
 cmd_queue:		queue_init
 #endif
 
@@ -159,6 +166,17 @@ init:
 	mulu $r14 $r15
 	add b32 $r2 $r14
 	add b32 $r3 $r14
+
+#ifdef NVGK
+	// calculate per-UNK mmio context size
+	ld b32 $r14 D[$r0 + #unk_mmio_list_head]
+	ld b32 $r15 D[$r0 + #unk_mmio_list_tail]
+	call #mmctx_size
+	ld b32 $r14 D[$r0 + #unk_count]
+	mulu $r14 $r15
+	add b32 $r2 $r14
+	add b32 $r3 $r14
+#endif
 
 	// round up base/size to 256 byte boundary (for strand SWBASE)
 	add b32 $r4 0x1300
@@ -335,7 +353,6 @@ ctx_xfer:
 
 	// per-TPC mmio context
 	xbit $r10 $flags $p1	// direction
-	or $r10 4		// last
 	mov $r11 0x4000
 	sethi $r11 0x500000	// base = NV_PGRAPH_GPC0_TPC0
 	ld b32 $r12 D[$r0 + #gpc_id]
@@ -346,6 +363,22 @@ ctx_xfer:
 	ld b32 $r15 D[$r0 + #tpc_mask]
 	mov $r14 0x800		// stride = 0x800
 	call #mmctx_xfer
+
+#ifdef NVGK
+	// per-UNK mmio context
+	xbit $r10 $flags $p1	// direction
+	or $r10 4		// last
+	mov $r11 0x3000
+	sethi $r11 0x500000	// base = NV_PGRAPH_GPC0_UNK0
+	ld b32 $r12 D[$r0 + #gpc_id]
+	shl b32 $r12 15
+	add b32 $r11 $r12	// base = NV_PGRAPH_GPCn_UNK0
+	ld b32 $r12 D[$r0 + #unk_mmio_list_head]
+	ld b32 $r13 D[$r0 + #unk_mmio_list_tail]
+	ld b32 $r15 D[$r0 + #unk_mask]
+	mov $r14 0x200		// stride = 0x200
+	call #mmctx_xfer
+#endif
 
 	// wait for strands to finish
 	call #strand_wait
