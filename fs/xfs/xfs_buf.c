@@ -513,6 +513,7 @@ _xfs_buf_find(
 		xfs_alert(btp->bt_mount,
 			  "%s: Block out of range: block 0x%llx, EOFS 0x%llx ",
 			  __func__, blkno, eofs);
+		WARN_ON(1);
 		return NULL;
 	}
 

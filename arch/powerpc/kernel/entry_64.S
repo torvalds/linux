@@ -465,20 +465,6 @@ BEGIN_FTR_SECTION
 	std	r0, THREAD_EBBHR(r3)
 	mfspr	r0, SPRN_EBBRR
 	std	r0, THREAD_EBBRR(r3)
-
-	/* PMU registers made user read/(write) by EBB */
-	mfspr	r0, SPRN_SIAR
-	std	r0, THREAD_SIAR(r3)
-	mfspr	r0, SPRN_SDAR
-	std	r0, THREAD_SDAR(r3)
-	mfspr	r0, SPRN_SIER
-	std	r0, THREAD_SIER(r3)
-	mfspr	r0, SPRN_MMCR0
-	std	r0, THREAD_MMCR0(r3)
-	mfspr	r0, SPRN_MMCR2
-	std	r0, THREAD_MMCR2(r3)
-	mfspr	r0, SPRN_MMCRA
-	std	r0, THREAD_MMCRA(r3)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 #endif
 
@@ -500,6 +486,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 BEGIN_FTR_SECTION
 	ldarx	r6,0,r1
 END_FTR_SECTION_IFSET(CPU_FTR_STCX_CHECKS_ADDRESS)
+
+#ifdef CONFIG_PPC_BOOK3S
+/* Cancel all explict user streams as they will have no use after context
+ * switch and will stop the HW from creating streams itself
+ */
+	DCBT_STOP_ALL_STREAM_IDS(r6)
+#endif
 
 	addi	r6,r4,-THREAD	/* Convert THREAD to 'current' */
 	std	r6,PACACURRENT(r13)	/* Set new 'current' */
@@ -573,20 +566,6 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_EBBHR, r0
 	ld	r0, THREAD_EBBRR(r4)
 	mtspr	SPRN_EBBRR, r0
-
-	/* PMU registers made user read/(write) by EBB */
-	ld	r0, THREAD_SIAR(r4)
-	mtspr	SPRN_SIAR, r0
-	ld	r0, THREAD_SDAR(r4)
-	mtspr	SPRN_SDAR, r0
-	ld	r0, THREAD_SIER(r4)
-	mtspr	SPRN_SIER, r0
-	ld	r0, THREAD_MMCR0(r4)
-	mtspr	SPRN_MMCR0, r0
-	ld	r0, THREAD_MMCR2(r4)
-	mtspr	SPRN_MMCR2, r0
-	ld	r0, THREAD_MMCRA(r4)
-	mtspr	SPRN_MMCRA, r0
 
 	ld	r0,THREAD_TAR(r4)
 	mtspr	SPRN_TAR,r0

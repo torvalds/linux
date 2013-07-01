@@ -363,6 +363,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		case 0x140802: /* Intuos4/5 13HD/24HD Classic Pen */
 		case 0x160802: /* Cintiq 13HD Pro Pen */
 		case 0x180802: /* DTH2242 Pen */
+		case 0x100802: /* Intuos4/5 13HD/24HD General Pen */
 			wacom->tool[idx] = BTN_TOOL_PEN;
 			break;
 
@@ -401,6 +402,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		case 0x10080c: /* Intuos4/5 13HD/24HD Art Pen Eraser */
 		case 0x16080a: /* Cintiq 13HD Pro Pen Eraser */
 		case 0x18080a: /* DTH2242 Eraser */
+		case 0x10080a: /* Intuos4/5 13HD/24HD General Pen Eraser */
 			wacom->tool[idx] = BTN_TOOL_RUBBER;
 			break;
 
@@ -1966,7 +1968,8 @@ static const struct wacom_features wacom_features_0xF4 =
 	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xF8 =
 	{ "Wacom Cintiq 24HD touch", WACOM_PKGLEN_INTUOS,   104480, 65600, 2047, /* Pen */
-	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf6 };
+	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf6 };
 static const struct wacom_features wacom_features_0xF6 =
 	{ "Wacom Cintiq 24HD touch", .type = WACOM_24HDT, /* Touch */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf8, .touch_max = 10 };
@@ -2009,7 +2012,8 @@ static const struct wacom_features wacom_features_0xFA =
 	  63, WACOM_22HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0x5B =
 	{ "Wacom Cintiq 22HDT", WACOM_PKGLEN_INTUOS,      95840, 54260, 2047,
-	  63, WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5e };
+	  63, WACOM_22HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5e };
 static const struct wacom_features wacom_features_0x5E =
 	{ "Wacom Cintiq 22HDT", .type = WACOM_24HDT,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5b, .touch_max = 10 };
@@ -2042,7 +2046,7 @@ static const struct wacom_features wacom_features_0xE5 =
 static const struct wacom_features wacom_features_0xE6 =
 	{ "Wacom ISDv4 E6",       WACOM_PKGLEN_TPC2FG,    27760, 15694,  255,
 	  0, TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
-	.touch_max = 2 };
+	  .touch_max = 2 };
 static const struct wacom_features wacom_features_0xEC =
 	{ "Wacom ISDv4 EC",       WACOM_PKGLEN_GRAPHIRE,  25710, 14500,  255,
 	  0, TABLETPC,    WACOM_INTUOS_RES, WACOM_INTUOS_RES };

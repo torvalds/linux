@@ -703,7 +703,7 @@ static int hp_wmi_rfkill_setup(struct platform_device *device)
 		}
 		rfkill_init_sw_state(gps_rfkill,
 				     hp_wmi_get_sw_state(HPWMI_GPS));
-		rfkill_set_hw_state(bluetooth_rfkill,
+		rfkill_set_hw_state(gps_rfkill,
 				    hp_wmi_get_hw_state(HPWMI_GPS));
 		err = rfkill_register(gps_rfkill);
 		if (err)

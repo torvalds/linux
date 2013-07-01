@@ -40,6 +40,7 @@
 #include <asm/processor.h>
 #include <asm/vpe.h>
 #include <asm/rtlx.h>
+#include <asm/setup.h>
 
 static struct rtlx_info *rtlx;
 static int major;

@@ -863,7 +863,7 @@ static struct of_device_id sahara_dt_ids[] = {
 	{ .compatible = "fsl,imx27-sahara" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(platform, sahara_dt_ids);
+MODULE_DEVICE_TABLE(of, sahara_dt_ids);
 
 static int sahara_probe(struct platform_device *pdev)
 {

@@ -27,8 +27,9 @@
 	};
 
 	soc {
-		ranges = <0          0 0xd0000000 0x100000
-			  0xf0000000 0 0xf0000000 0x8000000>;
+		ranges = <0          0 0xd0000000 0x100000	/* Internal registers 1MiB */
+			  0xe0000000 0 0xe0000000 0x8100000     /* PCIe */
+			  0xf0000000 0 0xf0000000 0x8000000     /* Device Bus, NOR 128MiB   */>;
 
 		internal-regs {
 			serial@12000 {

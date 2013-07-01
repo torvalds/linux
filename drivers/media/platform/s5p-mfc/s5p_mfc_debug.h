@@ -30,8 +30,8 @@ extern int debug;
 #define mfc_debug(level, fmt, args...)
 #endif
 
-#define mfc_debug_enter() mfc_debug(5, "enter")
-#define mfc_debug_leave() mfc_debug(5, "leave")
+#define mfc_debug_enter() mfc_debug(5, "enter\n")
+#define mfc_debug_leave() mfc_debug(5, "leave\n")
 
 #define mfc_err(fmt, args...)				\
 	do {						\

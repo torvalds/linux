@@ -373,8 +373,10 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
 {
 	int index;
 
-	if (WARN_ON_ONCE(size > KMALLOC_MAX_SIZE))
+	if (size > KMALLOC_MAX_SIZE) {
+		WARN_ON_ONCE(!(flags & __GFP_NOWARN));
 		return NULL;
+	}
 
 	if (size <= 192) {
 		if (!size)

@@ -197,6 +197,8 @@ void mei_stop(struct mei_device *dev)
 {
 	dev_dbg(&dev->pdev->dev, "stopping the device.\n");
 
+	flush_scheduled_work();
+
 	mutex_lock(&dev->device_lock);
 
 	cancel_delayed_work(&dev->timer_work);
@@ -209,8 +211,6 @@ void mei_stop(struct mei_device *dev)
 	mei_reset(dev, 0);
 
 	mutex_unlock(&dev->device_lock);
-
-	flush_scheduled_work();
 
 	mei_watchdog_unregister(dev);
 }

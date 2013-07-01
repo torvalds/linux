@@ -302,15 +302,6 @@ static int zpci_cfg_store(struct zpci_dev *zdev, int offset, u32 val, u8 len)
 	return rc;
 }
 
-void synchronize_irq(unsigned int irq)
-{
-	/*
-	 * Not needed, the handler is protected by a lock and IRQs that occur
-	 * after the handler is deleted are just NOPs.
-	 */
-}
-EXPORT_SYMBOL_GPL(synchronize_irq);
-
 void enable_irq(unsigned int irq)
 {
 	struct msi_desc *msi = irq_get_msi_desc(irq);
@@ -326,30 +317,6 @@ void disable_irq(unsigned int irq)
 	zpci_msi_set_mask_bits(msi, 1, 1);
 }
 EXPORT_SYMBOL_GPL(disable_irq);
-
-void disable_irq_nosync(unsigned int irq)
-{
-	disable_irq(irq);
-}
-EXPORT_SYMBOL_GPL(disable_irq_nosync);
-
-unsigned long probe_irq_on(void)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(probe_irq_on);
-
-int probe_irq_off(unsigned long val)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(probe_irq_off);
-
-unsigned int probe_irq_mask(unsigned long val)
-{
-	return val;
-}
-EXPORT_SYMBOL_GPL(probe_irq_mask);
 
 void pcibios_fixup_bus(struct pci_bus *bus)
 {

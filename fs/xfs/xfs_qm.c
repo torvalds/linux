@@ -41,6 +41,7 @@
 #include "xfs_qm.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
+#include "xfs_cksum.h"
 
 /*
  * The global quota manager. There is only one of these for the entire
@@ -839,7 +840,7 @@ xfs_qm_reset_dqcounts(
 	xfs_dqid_t	id,
 	uint		type)
 {
-	xfs_disk_dquot_t	*ddq;
+	struct xfs_dqblk	*dqb;
 	int			j;
 
 	trace_xfs_reset_dqcounts(bp, _RET_IP_);
@@ -853,8 +854,12 @@ xfs_qm_reset_dqcounts(
 	do_div(j, sizeof(xfs_dqblk_t));
 	ASSERT(mp->m_quotainfo->qi_dqperchunk == j);
 #endif
-	ddq = bp->b_addr;
+	dqb = bp->b_addr;
 	for (j = 0; j < mp->m_quotainfo->qi_dqperchunk; j++) {
+		struct xfs_disk_dquot	*ddq;
+
+		ddq = (struct xfs_disk_dquot *)&dqb[j];
+
 		/*
 		 * Do a sanity check, and if needed, repair the dqblk. Don't
 		 * output any warnings because it's perfectly possible to
@@ -871,7 +876,12 @@ xfs_qm_reset_dqcounts(
 		ddq->d_bwarns = 0;
 		ddq->d_iwarns = 0;
 		ddq->d_rtbwarns = 0;
-		ddq = (xfs_disk_dquot_t *) ((xfs_dqblk_t *)ddq + 1);
+
+		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+			xfs_update_cksum((char *)&dqb[j],
+					 sizeof(struct xfs_dqblk),
+					 XFS_DQUOT_CRC_OFF);
+		}
 	}
 }
 
@@ -907,19 +917,29 @@ xfs_qm_dqiter_bufs(
 			      XFS_FSB_TO_DADDR(mp, bno),
 			      mp->m_quotainfo->qi_dqchunklen, 0, &bp,
 			      &xfs_dquot_buf_ops);
+
+		/*
+		 * CRC and validation errors will return a EFSCORRUPTED here. If
+		 * this occurs, re-read without CRC validation so that we can
+		 * repair the damage via xfs_qm_reset_dqcounts(). This process
+		 * will leave a trace in the log indicating corruption has
+		 * been detected.
+		 */
+		if (error == EFSCORRUPTED) {
+			error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp,
+				      XFS_FSB_TO_DADDR(mp, bno),
+				      mp->m_quotainfo->qi_dqchunklen, 0, &bp,
+				      NULL);
+		}
+
 		if (error)
 			break;
 
-		/*
-		 * XXX(hch): need to figure out if it makes sense to validate
-		 *	     the CRC here.
-		 */
 		xfs_qm_reset_dqcounts(mp, bp, firstid, type);
 		xfs_buf_delwri_queue(bp, buffer_list);
 		xfs_buf_relse(bp);
-		/*
-		 * goto the next block.
-		 */
+
+		/* goto the next block. */
 		bno++;
 		firstid += mp->m_quotainfo->qi_dqperchunk;
 	}

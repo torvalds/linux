@@ -562,7 +562,7 @@ int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
 
 	resource_error = lancer_provisioning_error(adapter);
 	if (resource_error)
-		return -1;
+		return -EAGAIN;
 
 	status = lancer_wait_ready(adapter);
 	if (!status) {
@@ -590,8 +590,8 @@ int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
 	 * when PF provisions resources.
 	 */
 	resource_error = lancer_provisioning_error(adapter);
-	if (status == -1 && !resource_error)
-		adapter->eeh_error = true;
+	if (resource_error)
+		status = -EAGAIN;
 
 	return status;
 }

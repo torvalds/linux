@@ -278,14 +278,36 @@ int acpi_bus_init_power(struct acpi_device *device)
 		if (result)
 			return result;
 	} else if (state == ACPI_STATE_UNKNOWN) {
-		/* No power resources and missing _PSC? Try to force D0. */
+		/*
+		 * No power resources and missing _PSC?  Cross fingers and make
+		 * it D0 in hope that this is what the BIOS put the device into.
+		 * [We tried to force D0 here by executing _PS0, but that broke
+		 * Toshiba P870-303 in a nasty way.]
+		 */
 		state = ACPI_STATE_D0;
-		result = acpi_dev_pm_explicit_set(device, state);
-		if (result)
-			return result;
 	}
 	device->power.state = state;
 	return 0;
+}
+
+/**
+ * acpi_device_fix_up_power - Force device with missing _PSC into D0.
+ * @device: Device object whose power state is to be fixed up.
+ *
+ * Devices without power resources and _PSC, but having _PS0 and _PS3 defined,
+ * are assumed to be put into D0 by the BIOS.  However, in some cases that may
+ * not be the case and this function should be used then.
+ */
+int acpi_device_fix_up_power(struct acpi_device *device)
+{
+	int ret = 0;
+
+	if (!device->power.flags.power_resources
+	    && !device->power.flags.explicit_get
+	    && device->power.state == ACPI_STATE_D0)
+		ret = acpi_dev_pm_explicit_set(device, ACPI_STATE_D0);
+
+	return ret;
 }
 
 int acpi_bus_update_power(acpi_handle handle, int *state_p)

@@ -251,10 +251,9 @@ struct ath_atx_tid {
 	int tidno;
 	int baw_head;   /* first un-acked tx buffer */
 	int baw_tail;   /* next unused tx buffer slot */
-	int sched;
-	int paused;
-	u8 state;
-	bool stop_cb;
+	bool sched;
+	bool paused;
+	bool active;
 };
 
 struct ath_node {
@@ -274,10 +273,6 @@ struct ath_node {
 	struct dentry *node_stat;
 #endif
 };
-
-#define AGGR_CLEANUP         BIT(1)
-#define AGGR_ADDBA_COMPLETE  BIT(2)
-#define AGGR_ADDBA_PROGRESS  BIT(3)
 
 struct ath_tx_control {
 	struct ath_txq *txq;
@@ -352,8 +347,7 @@ void ath_tx_tasklet(struct ath_softc *sc);
 void ath_tx_edma_tasklet(struct ath_softc *sc);
 int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 		      u16 tid, u16 *ssn);
-bool ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid,
-		      bool flush);
+void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 
 void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an);

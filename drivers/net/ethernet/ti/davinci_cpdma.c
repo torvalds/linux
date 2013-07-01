@@ -705,6 +705,13 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 	}
 
 	buffer = dma_map_single(ctlr->dev, data, len, chan->dir);
+	ret = dma_mapping_error(ctlr->dev, buffer);
+	if (ret) {
+		cpdma_desc_free(ctlr->pool, desc, 1);
+		ret = -EINVAL;
+		goto unlock_ret;
+	}
+
 	mode = CPDMA_DESC_OWNER | CPDMA_DESC_SOP | CPDMA_DESC_EOP;
 	cpdma_desc_to_port(chan, mode, directed);
 

@@ -73,7 +73,6 @@ enum {
 	ISS_CLK_LITE0,
 	ISS_CLK_LITE1,
 	ISS_CLK_MPLL,
-	ISS_CLK_SYSREG,
 	ISS_CLK_ISP,
 	ISS_CLK_DRC,
 	ISS_CLK_FD,
@@ -265,7 +264,6 @@ struct fimc_is {
 	spinlock_t			slock;
 
 	struct clk			*clocks[ISS_CLKS_MAX];
-	bool				clk_init;
 	void __iomem			*regs;
 	void __iomem			*pmu_regs;
 	int				irq;

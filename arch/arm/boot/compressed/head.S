@@ -11,6 +11,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
+	.arch	armv7-a
 /*
  * Debugging stuff
  *
@@ -805,8 +806,8 @@ call_cache_fn:	adr	r12, proc_types
 		.align	2
 		.type	proc_types,#object
 proc_types:
-		.word	0x00000000		@ old ARM ID
-		.word	0x0000f000
+		.word	0x41000000		@ old ARM ID
+		.word	0xff00f000
 		mov	pc, lr
  THUMB(		nop				)
 		mov	pc, lr

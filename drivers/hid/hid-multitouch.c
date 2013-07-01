@@ -264,9 +264,12 @@ static struct mt_class mt_classes[] = {
 static void mt_free_input_name(struct hid_input *hi)
 {
 	struct hid_device *hdev = hi->report->device;
+	const char *name = hi->input->name;
 
-	if (hi->input->name != hdev->name)
-		kfree(hi->input->name);
+	if (name != hdev->name) {
+		hi->input->name = hdev->name;
+		kfree(name);
+	}
 }
 
 static ssize_t mt_show_quirks(struct device *dev,
@@ -1040,10 +1043,10 @@ static void mt_remove(struct hid_device *hdev)
 	struct hid_input *hi;
 
 	sysfs_remove_group(&hdev->dev.kobj, &mt_attribute_group);
-	hid_hw_stop(hdev);
-
 	list_for_each_entry(hi, &hdev->inputs, list)
 		mt_free_input_name(hi);
+
+	hid_hw_stop(hdev);
 
 	kfree(td);
 	hid_set_drvdata(hdev, NULL);

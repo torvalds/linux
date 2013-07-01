@@ -384,6 +384,7 @@ int i915_restore_state(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 
+	i915_gem_restore_fences(dev);
 	i915_restore_display(dev);
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {

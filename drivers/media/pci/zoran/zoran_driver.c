@@ -2803,8 +2803,7 @@ static void
 zoran_vm_open (struct vm_area_struct *vma)
 {
 	struct zoran_mapping *map = vma->vm_private_data;
-
-	map->count++;
+	atomic_inc(&map->count);
 }
 
 static void
@@ -2815,7 +2814,7 @@ zoran_vm_close (struct vm_area_struct *vma)
 	struct zoran *zr = fh->zr;
 	int i;
 
-	if (--map->count > 0)
+	if (!atomic_dec_and_mutex_lock(&map->count, &zr->resource_lock))
 		return;
 
 	dprintk(3, KERN_INFO "%s: %s - munmap(%s)\n", ZR_DEVNAME(zr),
@@ -2828,14 +2827,16 @@ zoran_vm_close (struct vm_area_struct *vma)
 	kfree(map);
 
 	/* Any buffers still mapped? */
-	for (i = 0; i < fh->buffers.num_buffers; i++)
-		if (fh->buffers.buffer[i].map)
+	for (i = 0; i < fh->buffers.num_buffers; i++) {
+		if (fh->buffers.buffer[i].map) {
+			mutex_unlock(&zr->resource_lock);
 			return;
+		}
+	}
 
 	dprintk(3, KERN_INFO "%s: %s - free %s buffers\n", ZR_DEVNAME(zr),
 		__func__, mode_name(fh->map_mode));
 
-	mutex_lock(&zr->resource_lock);
 
 	if (fh->map_mode == ZORAN_MAP_MODE_RAW) {
 		if (fh->buffers.active != ZORAN_FREE) {
@@ -2939,7 +2940,7 @@ zoran_mmap (struct file           *file,
 		goto mmap_unlock_and_return;
 	}
 	map->fh = fh;
-	map->count = 1;
+	atomic_set(&map->count, 1);
 
 	vma->vm_ops = &zoran_vm_ops;
 	vma->vm_flags |= VM_DONTEXPAND;

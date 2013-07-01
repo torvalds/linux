@@ -2859,8 +2859,8 @@ fail_qgroup:
 	btrfs_free_qgroup_config(fs_info);
 fail_trans_kthread:
 	kthread_stop(fs_info->transaction_kthread);
-	del_fs_roots(fs_info);
 	btrfs_cleanup_transaction(fs_info->tree_root);
+	del_fs_roots(fs_info);
 fail_cleaner:
 	kthread_stop(fs_info->cleaner_kthread);
 
@@ -3512,15 +3512,15 @@ int close_ctree(struct btrfs_root *root)
 		       percpu_counter_sum(&fs_info->delalloc_bytes));
 	}
 
-	free_root_pointers(fs_info, 1);
-
 	btrfs_free_block_groups(fs_info);
+
+	btrfs_stop_all_workers(fs_info);
 
 	del_fs_roots(fs_info);
 
-	iput(fs_info->btree_inode);
+	free_root_pointers(fs_info, 1);
 
-	btrfs_stop_all_workers(fs_info);
+	iput(fs_info->btree_inode);
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	if (btrfs_test_opt(root, CHECK_INTEGRITY))

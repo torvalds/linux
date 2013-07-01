@@ -519,8 +519,8 @@ static const struct block_device_operations rbd_bd_ops = {
 };
 
 /*
- * Initialize an rbd client instance.
- * We own *ceph_opts.
+ * Initialize an rbd client instance.  Success or not, this function
+ * consumes ceph_opts.
  */
 static struct rbd_client *rbd_client_create(struct ceph_options *ceph_opts)
 {
@@ -675,7 +675,8 @@ static int parse_rbd_opts_token(char *c, void *private)
 
 /*
  * Get a ceph client with specific addr and configuration, if one does
- * not exist create it.
+ * not exist create it.  Either way, ceph_opts is consumed by this
+ * function.
  */
 static struct rbd_client *rbd_get_client(struct ceph_options *ceph_opts)
 {
@@ -1035,12 +1036,16 @@ static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 	char *name;
 	u64 segment;
 	int ret;
+	char *name_format;
 
 	name = kmem_cache_alloc(rbd_segment_name_cache, GFP_NOIO);
 	if (!name)
 		return NULL;
 	segment = offset >> rbd_dev->header.obj_order;
-	ret = snprintf(name, MAX_OBJ_NAME_SIZE + 1, "%s.%012llx",
+	name_format = "%s.%012llx";
+	if (rbd_dev->image_format == 2)
+		name_format = "%s.%016llx";
+	ret = snprintf(name, MAX_OBJ_NAME_SIZE + 1, name_format,
 			rbd_dev->header.object_prefix, segment);
 	if (ret < 0 || ret > MAX_OBJ_NAME_SIZE) {
 		pr_err("error formatting segment name for #%llu (%d)\n",
@@ -2247,13 +2252,17 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 					obj_request->pages, length,
 					offset & ~PAGE_MASK, false, false);
 
+		/*
+		 * set obj_request->img_request before formatting
+		 * the osd_request so that it gets the right snapc
+		 */
+		rbd_img_obj_request_add(img_request, obj_request);
 		if (write_request)
 			rbd_osd_req_format_write(obj_request);
 		else
 			rbd_osd_req_format_read(obj_request);
 
 		obj_request->img_offset = img_offset;
-		rbd_img_obj_request_add(img_request, obj_request);
 
 		img_offset += length;
 		resid -= length;
@@ -4238,6 +4247,10 @@ static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev)
 
 	down_write(&rbd_dev->header_rwsem);
 
+	ret = rbd_dev_v2_image_size(rbd_dev);
+	if (ret)
+		goto out;
+
 	if (first_time) {
 		ret = rbd_dev_v2_header_onetime(rbd_dev);
 		if (ret)
@@ -4270,10 +4283,6 @@ static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev)
 			rbd_warn(rbd_dev, "WARNING: kernel layering "
 					"is EXPERIMENTAL!");
 	}
-
-	ret = rbd_dev_v2_image_size(rbd_dev);
-	if (ret)
-		goto out;
 
 	if (rbd_dev->spec->snap_id == CEPH_NOSNAP)
 		if (rbd_dev->mapping.size != rbd_dev->header.image_size)
@@ -4697,8 +4706,10 @@ out:
 	return ret;
 }
 
-/* Undo whatever state changes are made by v1 or v2 image probe */
-
+/*
+ * Undo whatever state changes are made by v1 or v2 header info
+ * call.
+ */
 static void rbd_dev_unprobe(struct rbd_device *rbd_dev)
 {
 	struct rbd_image_header	*header;
@@ -4902,9 +4913,10 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 	int tmp;
 
 	/*
-	 * Get the id from the image id object.  If it's not a
-	 * format 2 image, we'll get ENOENT back, and we'll assume
-	 * it's a format 1 image.
+	 * Get the id from the image id object.  Unless there's an
+	 * error, rbd_dev->spec->image_id will be filled in with
+	 * a dynamically-allocated string, and rbd_dev->image_format
+	 * will be set to either 1 or 2.
 	 */
 	ret = rbd_dev_image_id(rbd_dev);
 	if (ret)
@@ -4992,7 +5004,6 @@ static ssize_t rbd_add(struct bus_type *bus,
 		rc = PTR_ERR(rbdc);
 		goto err_out_args;
 	}
-	ceph_opts = NULL;	/* rbd_dev client now owns this */
 
 	/* pick the pool */
 	osdc = &rbdc->client->osdc;
@@ -5027,18 +5038,18 @@ static ssize_t rbd_add(struct bus_type *bus,
 	rbd_dev->mapping.read_only = read_only;
 
 	rc = rbd_dev_device_setup(rbd_dev);
-	if (!rc)
-		return count;
+	if (rc) {
+		rbd_dev_image_release(rbd_dev);
+		goto err_out_module;
+	}
 
-	rbd_dev_image_release(rbd_dev);
+	return count;
+
 err_out_rbd_dev:
 	rbd_dev_destroy(rbd_dev);
 err_out_client:
 	rbd_put_client(rbdc);
 err_out_args:
-	if (ceph_opts)
-		ceph_destroy_options(ceph_opts);
-	kfree(rbd_opts);
 	rbd_spec_put(spec);
 err_out_module:
 	module_put(THIS_MODULE);
