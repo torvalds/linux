@@ -930,6 +930,10 @@ fail:
 			brcmf_fws_del_interface(ifp);
 			brcmf_fws_deinit(drvr);
 		}
+		if (drvr->iflist[0]) {
+			free_netdev(ifp->ndev);
+			drvr->iflist[0] = NULL;
+		}
 		if (p2p_ifp) {
 			free_netdev(p2p_ifp->ndev);
 			drvr->iflist[1] = NULL;

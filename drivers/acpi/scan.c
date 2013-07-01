@@ -2042,6 +2042,7 @@ int __init acpi_scan_init(void)
 	acpi_lpss_init();
 	acpi_container_init();
 	acpi_memory_hotplug_init();
+	acpi_dock_init();
 
 	mutex_lock(&acpi_scan_lock);
 	/*

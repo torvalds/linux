@@ -116,6 +116,15 @@ static int ttsp_send_command(struct cyttsp *ts, u8 cmd)
 	return ttsp_write_block_data(ts, CY_REG_BASE, sizeof(cmd), &cmd);
 }
 
+static int cyttsp_handshake(struct cyttsp *ts)
+{
+	if (ts->pdata->use_hndshk)
+		return ttsp_send_command(ts,
+				ts->xy_data.hst_mode ^ CY_HNDSHK_BIT);
+
+	return 0;
+}
+
 static int cyttsp_load_bl_regs(struct cyttsp *ts)
 {
 	memset(&ts->bl_data, 0, sizeof(ts->bl_data));
@@ -133,7 +142,7 @@ static int cyttsp_exit_bl_mode(struct cyttsp *ts)
 	memcpy(bl_cmd, bl_command, sizeof(bl_command));
 	if (ts->pdata->bl_keys)
 		memcpy(&bl_cmd[sizeof(bl_command) - CY_NUM_BL_KEYS],
-			ts->pdata->bl_keys, sizeof(bl_command));
+			ts->pdata->bl_keys, CY_NUM_BL_KEYS);
 
 	error = ttsp_write_block_data(ts, CY_REG_BASE,
 				      sizeof(bl_cmd), bl_cmd);
@@ -167,6 +176,10 @@ static int cyttsp_set_operational_mode(struct cyttsp *ts)
 	if (error)
 		return error;
 
+	error = cyttsp_handshake(ts);
+	if (error)
+		return error;
+
 	return ts->xy_data.act_dist == CY_ACT_DIST_DFLT ? -EIO : 0;
 }
 
@@ -185,6 +198,10 @@ static int cyttsp_set_sysinfo_mode(struct cyttsp *ts)
 	msleep(CY_DELAY_DFLT);
 	error = ttsp_read_block_data(ts, CY_REG_BASE, sizeof(ts->sysinfo_data),
 				      &ts->sysinfo_data);
+	if (error)
+		return error;
+
+	error = cyttsp_handshake(ts);
 	if (error)
 		return error;
 
@@ -344,12 +361,9 @@ static irqreturn_t cyttsp_irq(int irq, void *handle)
 		goto out;
 
 	/* provide flow control handshake */
-	if (ts->pdata->use_hndshk) {
-		error = ttsp_send_command(ts,
-				ts->xy_data.hst_mode ^ CY_HNDSHK_BIT);
-		if (error)
-			goto out;
-	}
+	error = cyttsp_handshake(ts);
+	if (error)
+		goto out;
 
 	if (unlikely(ts->state == CY_IDLE_STATE))
 		goto out;

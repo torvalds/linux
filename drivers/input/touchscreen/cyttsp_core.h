@@ -67,8 +67,8 @@ struct cyttsp_xydata {
 /* TTSP System Information interface definition */
 struct cyttsp_sysinfo_data {
 	u8 hst_mode;
-	u8 mfg_cmd;
 	u8 mfg_stat;
+	u8 mfg_cmd;
 	u8 cid[3];
 	u8 tt_undef1;
 	u8 uid[8];

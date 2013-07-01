@@ -47,6 +47,8 @@ static struct od_ops od_ops;
 static struct cpufreq_governor cpufreq_gov_ondemand;
 #endif
 
+static unsigned int default_powersave_bias;
+
 static void ondemand_powersave_bias_init_cpu(int cpu)
 {
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
@@ -543,7 +545,7 @@ static int od_init(struct dbs_data *dbs_data)
 
 	tuners->sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR;
 	tuners->ignore_nice = 0;
-	tuners->powersave_bias = 0;
+	tuners->powersave_bias = default_powersave_bias;
 	tuners->io_is_busy = should_io_be_busy();
 
 	dbs_data->tuners = tuners;
@@ -585,6 +587,7 @@ static void od_set_powersave_bias(unsigned int powersave_bias)
 	unsigned int cpu;
 	cpumask_t done;
 
+	default_powersave_bias = powersave_bias;
 	cpumask_clear(&done);
 
 	get_online_cpus();
@@ -593,11 +596,17 @@ static void od_set_powersave_bias(unsigned int powersave_bias)
 			continue;
 
 		policy = per_cpu(od_cpu_dbs_info, cpu).cdbs.cur_policy;
-		dbs_data = policy->governor_data;
-		od_tuners = dbs_data->tuners;
-		od_tuners->powersave_bias = powersave_bias;
+		if (!policy)
+			continue;
 
 		cpumask_or(&done, &done, policy->cpus);
+
+		if (policy->governor != &cpufreq_gov_ondemand)
+			continue;
+
+		dbs_data = policy->governor_data;
+		od_tuners = dbs_data->tuners;
+		od_tuners->powersave_bias = default_powersave_bias;
 	}
 	put_online_cpus();
 }
