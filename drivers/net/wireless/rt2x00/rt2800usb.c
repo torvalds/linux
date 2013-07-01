@@ -855,11 +855,11 @@ static void rt2800usb_queue_init(struct data_queue *queue)
 	unsigned short txwi_size, rxwi_size;
 
 	if (rt2x00_rt(rt2x00dev, RT5592)) {
-		txwi_size = TXWI_DESC_SIZE_5592;
-		rxwi_size = RXWI_DESC_SIZE_5592;
+		txwi_size = TXWI_DESC_SIZE_5WORDS;
+		rxwi_size = RXWI_DESC_SIZE_6WORDS;
 	} else {
-		txwi_size = TXWI_DESC_SIZE;
-		rxwi_size = RXWI_DESC_SIZE;
+		txwi_size = TXWI_DESC_SIZE_4WORDS;
+		rxwi_size = RXWI_DESC_SIZE_4WORDS;
 	}
 
 	switch (queue->qid) {

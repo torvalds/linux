@@ -933,6 +933,12 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 * freed.
 		 */
 		cfg80211_process_wdev_events(wdev);
+
+		if (WARN_ON(wdev->current_bss)) {
+			cfg80211_unhold_bss(wdev->current_bss);
+			cfg80211_put_bss(wdev->wiphy, &wdev->current_bss->pub);
+			wdev->current_bss = NULL;
+		}
 		break;
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))

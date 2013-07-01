@@ -61,7 +61,7 @@ static int cw1200_spi_memcpy_fromio(struct hwbus_priv *self,
 				     void *dst, int count)
 {
 	int ret, i;
-	uint16_t regaddr;
+	u16 regaddr;
 	struct spi_message      m;
 
 	struct spi_transfer     t_addr = {
@@ -76,15 +76,18 @@ static int cw1200_spi_memcpy_fromio(struct hwbus_priv *self,
 	regaddr = (SDIO_TO_SPI_ADDR(addr))<<12;
 	regaddr |= SET_READ;
 	regaddr |= (count>>1);
-	regaddr = cpu_to_le16(regaddr);
 
 #ifdef SPI_DEBUG
-	pr_info("READ : %04d from 0x%02x (%04x)\n", count, addr,
-		le16_to_cpu(regaddr));
+	pr_info("READ : %04d from 0x%02x (%04x)\n", count, addr, regaddr);
 #endif
 
+	/* Header is LE16 */
+	regaddr = cpu_to_le16(regaddr);
+
+	/* We have to byteswap if the SPI bus is limited to 8b operation
+	   or we are running on a Big Endian system
+	*/
 #if defined(__LITTLE_ENDIAN)
-	/* We have to byteswap if the SPI bus is limited to 8b operation */
 	if (self->func->bits_per_word == 8)
 #endif
 		regaddr = swab16(regaddr);
@@ -104,8 +107,10 @@ static int cw1200_spi_memcpy_fromio(struct hwbus_priv *self,
 	printk("\n");
 #endif
 
+	/* We have to byteswap if the SPI bus is limited to 8b operation
+	   or we are running on a Big Endian system
+	*/
 #if defined(__LITTLE_ENDIAN)
-	/* We have to byteswap if the SPI bus is limited to 8b operation */
 	if (self->func->bits_per_word == 8)
 #endif
 	{
@@ -122,7 +127,7 @@ static int cw1200_spi_memcpy_toio(struct hwbus_priv *self,
 				   const void *src, int count)
 {
 	int rval, i;
-	uint16_t regaddr;
+	u16 regaddr;
 	struct spi_transfer     t_addr = {
 		.tx_buf         = &regaddr,
 		.len            = sizeof(regaddr),
@@ -136,20 +141,23 @@ static int cw1200_spi_memcpy_toio(struct hwbus_priv *self,
 	regaddr = (SDIO_TO_SPI_ADDR(addr))<<12;
 	regaddr &= SET_WRITE;
 	regaddr |= (count>>1);
-	regaddr = cpu_to_le16(regaddr);
 
 #ifdef SPI_DEBUG
-	pr_info("WRITE: %04d  to  0x%02x (%04x)\n", count, addr,
-		le16_to_cpu(regaddr));
+	pr_info("WRITE: %04d  to  0x%02x (%04x)\n", count, addr, regaddr);
 #endif
 
+	/* Header is LE16 */
+	regaddr = cpu_to_le16(regaddr);
+
+	/* We have to byteswap if the SPI bus is limited to 8b operation
+	   or we are running on a Big Endian system
+	*/
 #if defined(__LITTLE_ENDIAN)
-	/* We have to byteswap if the SPI bus is limited to 8b operation */
 	if (self->func->bits_per_word == 8)
 #endif
 	{
 		uint16_t *buf = (uint16_t *)src;
-		regaddr = swab16(regaddr);
+	        regaddr = swab16(regaddr);
 		for (i = 0; i < ((count + 1) >> 1); i++)
 			buf[i] = swab16(buf[i]);
 	}

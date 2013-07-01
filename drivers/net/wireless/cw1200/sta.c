@@ -621,7 +621,7 @@ int cw1200_conf_tx(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
 	mutex_lock(&priv->conf_mutex);
 
 	if (queue < dev->queues) {
-		old_uapsd_flags = priv->uapsd_info.uapsd_flags;
+		old_uapsd_flags = le16_to_cpu(priv->uapsd_info.uapsd_flags);
 
 		WSM_TX_QUEUE_SET(&priv->tx_queue_params, queue, 0, 0, 0);
 		ret = wsm_set_tx_queue_params(priv,
@@ -645,7 +645,7 @@ int cw1200_conf_tx(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
 			ret = cw1200_set_uapsd_param(priv, &priv->edca);
 			if (!ret && priv->setbssparams_done &&
 			    (priv->join_status == CW1200_JOIN_STATUS_STA) &&
-			    (old_uapsd_flags != priv->uapsd_info.uapsd_flags))
+			    (old_uapsd_flags != le16_to_cpu(priv->uapsd_info.uapsd_flags)))
 				ret = cw1200_set_pm(priv, &priv->powersave_mode);
 		}
 	} else {
@@ -1089,18 +1089,18 @@ static int cw1200_parse_sdd_file(struct cw1200_common *priv)
 				ret = -1;
 				break;
 			}
-			v = le16_to_cpu(*((u16 *)(p + 2)));
+			v = le16_to_cpu(*((__le16 *)(p + 2)));
 			if (!v)  /* non-zero means this is enabled */
 				break;
 
-			v = le16_to_cpu(*((u16 *)(p + 4)));
+			v = le16_to_cpu(*((__le16 *)(p + 4)));
 			priv->conf_listen_interval = (v >> 7) & 0x1F;
 			pr_debug("PTA found; Listen Interval %d\n",
 				 priv->conf_listen_interval);
 			break;
 		}
 		case SDD_REFERENCE_FREQUENCY_ELT_ID: {
-			u16 clk = le16_to_cpu(*((u16 *)(p + 2)));
+			u16 clk = le16_to_cpu(*((__le16 *)(p + 2)));
 			if (clk != priv->hw_refclk)
 				pr_warn("SDD file doesn't match configured refclk (%d vs %d)\n",
 					clk, priv->hw_refclk);
@@ -1785,9 +1785,9 @@ static int cw1200_set_btcoexinfo(struct cw1200_common *priv)
 		} else {
 			pr_debug("[STA] STA has non ERP rates\n");
 			/* B only mode */
-			arg.internalTxRate = (__ffs(priv->association_mode.basic_rate_set));
+			arg.internalTxRate = (__ffs(le32_to_cpu(priv->association_mode.basic_rate_set)));
 		}
-		arg.nonErpInternalTxRate = (__ffs(priv->association_mode.basic_rate_set));
+		arg.nonErpInternalTxRate = (__ffs(le32_to_cpu(priv->association_mode.basic_rate_set)));
 	} else {
 		/* P2P mode */
 		arg.internalTxRate = (__ffs(priv->bss_params.operational_rate_set & ~0xF));
@@ -1908,7 +1908,7 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 
 		if (info->assoc || info->ibss_joined) {
 			struct ieee80211_sta *sta = NULL;
-			u32 val = 0;
+			__le32 htprot = 0;
 
 			if (info->dtim_period)
 				priv->join_dtim_period = info->dtim_period;
@@ -1935,19 +1935,18 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 			/* Non Greenfield stations present */
 			if (priv->ht_info.operation_mode &
 			    IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT)
-				val |= WSM_NON_GREENFIELD_STA_PRESENT;
+				htprot |= cpu_to_le32(WSM_NON_GREENFIELD_STA_PRESENT);
 
 			/* Set HT protection method */
-			val |= (priv->ht_info.operation_mode & IEEE80211_HT_OP_MODE_PROTECTION) << 2;
+			htprot |= cpu_to_le32((priv->ht_info.operation_mode & IEEE80211_HT_OP_MODE_PROTECTION) << 2);
 
 			/* TODO:
 			 * STBC_param.dual_cts
 			 *  STBC_param.LSIG_TXOP_FILL
 			 */
 
-			val = cpu_to_le32(val);
 			wsm_write_mib(priv, WSM_MIB_ID_SET_HT_PROTECTION,
-				      &val, sizeof(val));
+				      &htprot, sizeof(htprot));
 
 			priv->association_mode.greenfield =
 				cw1200_ht_greenfield(&priv->ht_info);

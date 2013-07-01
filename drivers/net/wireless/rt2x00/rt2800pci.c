@@ -637,6 +637,7 @@ static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 	struct queue_entry_priv_mmio *entry_priv = entry->priv_data;
 	__le32 *txd = entry_priv->desc;
 	u32 word;
+	const unsigned int txwi_size = entry->queue->winfo_size;
 
 	/*
 	 * The buffers pointed by SD_PTR0/SD_LEN0 and SD_PTR1/SD_LEN1
@@ -659,14 +660,14 @@ static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 			   !test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W1_BURST,
 			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W1_SD_LEN0, TXWI_DESC_SIZE);
+	rt2x00_set_field32(&word, TXD_W1_SD_LEN0, txwi_size);
 	rt2x00_set_field32(&word, TXD_W1_LAST_SEC0, 0);
 	rt2x00_set_field32(&word, TXD_W1_DMA_DONE, 0);
 	rt2x00_desc_write(txd, 1, word);
 
 	word = 0;
 	rt2x00_set_field32(&word, TXD_W2_SD_PTR1,
-			   skbdesc->skb_dma + TXWI_DESC_SIZE);
+			   skbdesc->skb_dma + txwi_size);
 	rt2x00_desc_write(txd, 2, word);
 
 	word = 0;
@@ -1193,7 +1194,7 @@ static void rt2800pci_queue_init(struct data_queue *queue)
 		queue->limit = 128;
 		queue->data_size = AGGREGATION_SIZE;
 		queue->desc_size = RXD_DESC_SIZE;
-		queue->winfo_size = RXWI_DESC_SIZE;
+		queue->winfo_size = RXWI_DESC_SIZE_4WORDS;
 		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
 		break;
 
@@ -1204,7 +1205,7 @@ static void rt2800pci_queue_init(struct data_queue *queue)
 		queue->limit = 64;
 		queue->data_size = AGGREGATION_SIZE;
 		queue->desc_size = TXD_DESC_SIZE;
-		queue->winfo_size = TXWI_DESC_SIZE;
+		queue->winfo_size = TXWI_DESC_SIZE_4WORDS;
 		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
 		break;
 
@@ -1212,7 +1213,7 @@ static void rt2800pci_queue_init(struct data_queue *queue)
 		queue->limit = 8;
 		queue->data_size = 0; /* No DMA required for beacons */
 		queue->desc_size = TXD_DESC_SIZE;
-		queue->winfo_size = TXWI_DESC_SIZE;
+		queue->winfo_size = TXWI_DESC_SIZE_4WORDS;
 		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
 		break;
 

@@ -1105,8 +1105,6 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;
 	priv->agg_tids_count = 0;
 
-	priv->ucode_owner = IWL_OWNERSHIP_DRIVER;
-
 	priv->rx_statistics_jiffies = jiffies;
 
 	/* Choose which receivers/antennas to use */
@@ -1170,12 +1168,6 @@ static void iwl_option_config(struct iwl_priv *priv)
 	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TRACING enabled\n");
 #else
 	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TRACING disabled\n");
-#endif
-
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TESTMODE enabled\n");
-#else
-	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TESTMODE disabled\n");
 #endif
 
 #ifdef CONFIG_IWLWIFI_P2P
@@ -1355,8 +1347,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 			IWL_BT_ANTENNA_COUPLING_THRESHOLD) ?
 			true : false;
 
-	/* enable/disable bt channel inhibition */
-	priv->bt_ch_announce = iwlwifi_mod_params.bt_ch_announce;
+	/* bt channel inhibition enabled*/
+	priv->bt_ch_announce = true;
 	IWL_DEBUG_INFO(priv, "BT channel inhibition is %s\n",
 		       (priv->bt_ch_announce) ? "On" : "Off");
 
@@ -1451,7 +1443,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 ********************/
 	iwl_setup_deferred_work(priv);
 	iwl_setup_rx_handlers(priv);
-	iwl_testmode_init(priv);
 
 	iwl_power_initialize(priv);
 	iwl_tt_initialize(priv);
@@ -1488,7 +1479,6 @@ out_mac80211_unregister:
 	iwlagn_mac_unregister(priv);
 out_destroy_workqueue:
 	iwl_tt_exit(priv);
-	iwl_testmode_free(priv);
 	iwl_cancel_deferred_work(priv);
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
@@ -1510,7 +1500,6 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 
 	IWL_DEBUG_INFO(priv, "*** UNLOAD DRIVER ***\n");
 
-	iwl_testmode_free(priv);
 	iwlagn_mac_unregister(priv);
 
 	iwl_tt_exit(priv);

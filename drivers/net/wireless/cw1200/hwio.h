@@ -169,35 +169,34 @@ int cw1200_reg_write(struct cw1200_common *priv, u16 addr,
 static inline int cw1200_reg_read_16(struct cw1200_common *priv,
 				     u16 addr, u16 *val)
 {
-	u32 tmp;
+	__le32 tmp;
 	int i;
 	i = cw1200_reg_read(priv, addr, &tmp, sizeof(tmp));
-	tmp = le32_to_cpu(tmp);
-	*val = tmp & 0xffff;
+	*val = le32_to_cpu(tmp) & 0xfffff;
 	return i;
 }
 
 static inline int cw1200_reg_write_16(struct cw1200_common *priv,
 				      u16 addr, u16 val)
 {
-	u32 tmp = val;
-	tmp = cpu_to_le32(tmp);
+	__le32 tmp = cpu_to_le32((u32)val);
 	return cw1200_reg_write(priv, addr, &tmp, sizeof(tmp));
 }
 
 static inline int cw1200_reg_read_32(struct cw1200_common *priv,
 				     u16 addr, u32 *val)
 {
-	int i = cw1200_reg_read(priv, addr, val, sizeof(*val));
-	*val = le32_to_cpu(*val);
+	__le32 tmp;
+	int i = cw1200_reg_read(priv, addr, &tmp, sizeof(tmp));
+	*val = le32_to_cpu(tmp);
 	return i;
 }
 
 static inline int cw1200_reg_write_32(struct cw1200_common *priv,
 				      u16 addr, u32 val)
 {
-	val = cpu_to_le32(val);
-	return cw1200_reg_write(priv, addr, &val, sizeof(val));
+	__le32 tmp = cpu_to_le32(val);
+	return cw1200_reg_write(priv, addr, &tmp, sizeof(val));
 }
 
 int cw1200_indirect_read(struct cw1200_common *priv, u32 addr, void *buf,
@@ -224,22 +223,24 @@ static inline int cw1200_ahb_read(struct cw1200_common *priv, u32 addr,
 static inline int cw1200_apb_read_32(struct cw1200_common *priv,
 				     u32 addr, u32 *val)
 {
-	int i = cw1200_apb_read(priv, addr, val, sizeof(*val));
-	*val = le32_to_cpu(*val);
+	__le32 tmp;
+	int i = cw1200_apb_read(priv, addr, &tmp, sizeof(tmp));
+	*val = le32_to_cpu(tmp);
 	return i;
 }
 
 static inline int cw1200_apb_write_32(struct cw1200_common *priv,
 				      u32 addr, u32 val)
 {
-	val = cpu_to_le32(val);
-	return cw1200_apb_write(priv, addr, &val, sizeof(val));
+	__le32 tmp = cpu_to_le32(val);
+	return cw1200_apb_write(priv, addr, &tmp, sizeof(val));
 }
 static inline int cw1200_ahb_read_32(struct cw1200_common *priv,
 				     u32 addr, u32 *val)
 {
-	int i = cw1200_ahb_read(priv, addr, val, sizeof(*val));
-	*val = le32_to_cpu(*val);
+	__le32 tmp;
+	int i = cw1200_ahb_read(priv, addr, &tmp, sizeof(tmp));
+	*val = le32_to_cpu(tmp);
 	return i;
 }
 

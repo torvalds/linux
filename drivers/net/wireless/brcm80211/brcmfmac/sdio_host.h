@@ -229,8 +229,6 @@ brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 #define SDIO_REQ_4BYTE	0x1
 /* Fixed address (FIFO) (vs. incrementing address) */
 #define SDIO_REQ_FIXED	0x2
-/* Async request (vs. sync request) */
-#define SDIO_REQ_ASYNC	0x4
 
 /* Read/write to memory block (F1, no FIFO) via CMD53 (sync only).
  *   rw:       read or write (0/1)
@@ -250,9 +248,6 @@ extern int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
 /* platform specific/high level functions */
 extern int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
 extern int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
-
-extern int brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev,
-					  u32 address);
 
 /* attach, return handler on success, NULL if failed.
  *  The handler shall be provided by all subsequent calls. No local cache

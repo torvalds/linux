@@ -1026,6 +1026,12 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (mvm->d3_wake_sysassert)
+		d3_cfg_cmd_data.wakeup_flags |=
+			cpu_to_le32(IWL_WAKEUP_D3_CONFIG_FW_ERROR);
+#endif
+
 	/* must be last -- this switches firmware state */
 	ret = iwl_mvm_send_cmd(mvm, &d3_cfg_cmd);
 	if (ret)

@@ -281,13 +281,14 @@ void ieee80211_ba_session_work(struct work_struct *work)
 				sta, tid, WLAN_BACK_RECIPIENT,
 				WLAN_REASON_UNSPECIFIED, true);
 
+		spin_lock_bh(&sta->lock);
+
 		tid_tx = sta->ampdu_mlme.tid_start_tx[tid];
 		if (tid_tx) {
 			/*
 			 * Assign it over to the normal tid_tx array
 			 * where it "goes live".
 			 */
-			spin_lock_bh(&sta->lock);
 
 			sta->ampdu_mlme.tid_start_tx[tid] = NULL;
 			/* could there be a race? */
@@ -300,6 +301,7 @@ void ieee80211_ba_session_work(struct work_struct *work)
 			ieee80211_tx_ba_session_handle_start(sta, tid);
 			continue;
 		}
+		spin_unlock_bh(&sta->lock);
 
 		tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 		if (tid_tx && test_and_clear_bit(HT_AGG_STATE_WANT_STOP,

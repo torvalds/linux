@@ -137,11 +137,12 @@ static void iwl_mvm_power_log(struct iwl_mvm *mvm,
 				le32_to_cpu(cmd->rx_data_timeout));
 		IWL_DEBUG_POWER(mvm, "Tx timeout = %u usec\n",
 				le32_to_cpu(cmd->tx_data_timeout));
-		IWL_DEBUG_POWER(mvm, "LP RX RSSI threshold = %u\n",
-				cmd->lprx_rssi_threshold);
 		if (cmd->flags & cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK))
 			IWL_DEBUG_POWER(mvm, "DTIM periods to skip = %u\n",
 					le32_to_cpu(cmd->skip_dtim_periods));
+		if (cmd->flags & cpu_to_le16(POWER_FLAGS_LPRX_ENA_MSK))
+			IWL_DEBUG_POWER(mvm, "LP RX RSSI threshold = %u\n",
+					le32_to_cpu(cmd->lprx_rssi_threshold));
 	}
 }
 
@@ -180,6 +181,14 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
+
+	if (vif->bss_conf.beacon_rate &&
+	    (vif->bss_conf.beacon_rate->bitrate == 10 ||
+	     vif->bss_conf.beacon_rate->bitrate == 60)) {
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_LPRX_ENA_MSK);
+		cmd->lprx_rssi_threshold =
+			cpu_to_le32(POWER_LPRX_RSSI_THRESHOLD);
+	}
 
 	dtimper = hw->conf.ps_dtim_period ?: 1;
 
@@ -236,6 +245,15 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_SKIP_DTIM_PERIODS)
 		cmd->skip_dtim_periods =
 			cpu_to_le32(mvmvif->dbgfs_pm.skip_dtim_periods);
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_LPRX_ENA) {
+		if (mvmvif->dbgfs_pm.lprx_ena)
+			cmd->flags |= cpu_to_le16(POWER_FLAGS_LPRX_ENA_MSK);
+		else
+			cmd->flags &= cpu_to_le16(~POWER_FLAGS_LPRX_ENA_MSK);
+	}
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD)
+		cmd->lprx_rssi_threshold =
+			cpu_to_le32(mvmvif->dbgfs_pm.lprx_rssi_threshold);
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 }
 

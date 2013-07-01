@@ -355,7 +355,7 @@ int cw1200_queue_get(struct cw1200_queue *queue,
 		*tx = (struct wsm_tx *)item->skb->data;
 		*tx_info = IEEE80211_SKB_CB(item->skb);
 		*txpriv = &item->txpriv;
-		(*tx)->packet_id = __cpu_to_le32(item->packet_id);
+		(*tx)->packet_id = item->packet_id;
 		list_move_tail(&item->head, &queue->pending);
 		++queue->num_pending;
 		--queue->link_map_cache[item->txpriv.link_id];
