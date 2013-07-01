@@ -280,12 +280,17 @@ nfqnl_zcopy(struct sk_buff *to, const struct sk_buff *from, int len, int hlen)
 	skb_shinfo(to)->nr_frags = j;
 }
 
-static int nfqnl_put_packet_info(struct sk_buff *nlskb, struct sk_buff *packet)
+static int
+nfqnl_put_packet_info(struct sk_buff *nlskb, struct sk_buff *packet,
+		      bool csum_verify)
 {
 	__u32 flags = 0;
 
 	if (packet->ip_summed == CHECKSUM_PARTIAL)
 		flags = NFQA_SKB_CSUMNOTREADY;
+	else if (csum_verify)
+		flags = NFQA_SKB_CSUM_NOTVERIFIED;
+
 	if (skb_is_gso(packet))
 		flags |= NFQA_SKB_GSO;
 
@@ -310,6 +315,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	struct net_device *outdev;
 	struct nf_conn *ct = NULL;
 	enum ip_conntrack_info uninitialized_var(ctinfo);
+	bool csum_verify;
 
 	size =    nlmsg_total_size(sizeof(struct nfgenmsg))
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hdr))
@@ -326,6 +332,12 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 
 	if (entskb->tstamp.tv64)
 		size += nla_total_size(sizeof(struct nfqnl_msg_packet_timestamp));
+
+	if (entry->hook <= NF_INET_FORWARD ||
+	   (entry->hook == NF_INET_POST_ROUTING && entskb->sk == NULL))
+		csum_verify = !skb_csum_unnecessary(entskb);
+	else
+		csum_verify = false;
 
 	outdev = entry->outdev;
 
@@ -476,7 +488,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	    nla_put_be32(skb, NFQA_CAP_LEN, htonl(cap_len)))
 		goto nla_put_failure;
 
-	if (nfqnl_put_packet_info(skb, entskb))
+	if (nfqnl_put_packet_info(skb, entskb, csum_verify))
 		goto nla_put_failure;
 
 	if (data_len) {

@@ -1231,6 +1231,18 @@ void ip_vs_random_dropentry(struct net *net)
 				default:
 					continue;
 				}
+			} else if (cp->protocol == IPPROTO_SCTP) {
+				switch (cp->state) {
+				case IP_VS_SCTP_S_INIT1:
+				case IP_VS_SCTP_S_INIT:
+					break;
+				case IP_VS_SCTP_S_ESTABLISHED:
+					if (todrop_entry(cp))
+						break;
+					continue;
+				default:
+					continue;
+				}
 			} else {
 				if (!todrop_entry(cp))
 					continue;

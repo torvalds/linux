@@ -1715,6 +1715,12 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_do_sync_ports,
 	},
 	{
+		.procname	= "sync_persist_mode",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
 		.procname	= "sync_qlen_max",
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
@@ -1734,6 +1740,18 @@ static struct ctl_table vs_vars[] = {
 	},
 	{
 		.procname	= "expire_nodest_conn",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "sloppy_tcp",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "sloppy_sctp",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -3717,12 +3735,15 @@ static int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 	tbl[idx++].data = &ipvs->sysctl_sync_ver;
 	ipvs->sysctl_sync_ports = 1;
 	tbl[idx++].data = &ipvs->sysctl_sync_ports;
+	tbl[idx++].data = &ipvs->sysctl_sync_persist_mode;
 	ipvs->sysctl_sync_qlen_max = nr_free_buffer_pages() / 32;
 	tbl[idx++].data = &ipvs->sysctl_sync_qlen_max;
 	ipvs->sysctl_sync_sock_size = 0;
 	tbl[idx++].data = &ipvs->sysctl_sync_sock_size;
 	tbl[idx++].data = &ipvs->sysctl_cache_bypass;
 	tbl[idx++].data = &ipvs->sysctl_expire_nodest_conn;
+	tbl[idx++].data = &ipvs->sysctl_sloppy_tcp;
+	tbl[idx++].data = &ipvs->sysctl_sloppy_sctp;
 	tbl[idx++].data = &ipvs->sysctl_expire_quiescent_template;
 	ipvs->sysctl_sync_threshold[0] = DEFAULT_SYNC_THRESHOLD;
 	ipvs->sysctl_sync_threshold[1] = DEFAULT_SYNC_PERIOD;
