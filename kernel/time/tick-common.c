@@ -194,7 +194,8 @@ static void tick_setup_device(struct tick_device *td,
 	 * When global broadcasting is active, check if the current
 	 * device is registered as a placeholder for broadcast mode.
 	 * This allows us to handle this x86 misfeature in a generic
-	 * way.
+	 * way. This function also returns !=0 when we keep the
+	 * current active broadcast state for this CPU.
 	 */
 	if (tick_device_uses_broadcast(newdev, cpu))
 		return;
