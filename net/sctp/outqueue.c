@@ -1335,21 +1335,6 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 	int bytes_acked = 0;
 	int migrate_bytes = 0;
 
-	/* These state variables are for coherent debug output. --xguo */
-
-#ifdef CONFIG_SCTP_DBG_TSNS
-	__u32 dbg_ack_tsn = 0;	/* An ACKed TSN range starts here... */
-	__u32 dbg_last_ack_tsn = 0;  /* ...and finishes here.	     */
-	__u32 dbg_kept_tsn = 0;	/* An un-ACKed range starts here...  */
-	__u32 dbg_last_kept_tsn = 0; /* ...and finishes here.	     */
-
-	/* 0 : The last TSN was ACKed.
-	 * 1 : The last TSN was NOT ACKed (i.e. KEPT).
-	 * -1: We need to initialize.
-	 */
-	int dbg_prt_state = -1;
-#endif /* CONFIG_SCTP_DBG_TSNS */
-
 	sack_ctsn = ntohl(sack->cum_tsn_ack);
 
 	INIT_LIST_HEAD(&tlist);
@@ -1471,49 +1456,6 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				 */
 				list_add_tail(lchunk, &tlist);
 			}
-
-#ifdef CONFIG_SCTP_DBG_TSNS
-			switch (dbg_prt_state) {
-			case 0:	/* last TSN was ACKed */
-				if (dbg_last_ack_tsn + 1 == tsn) {
-					/* This TSN belongs to the
-					 * current ACK range.
-					 */
-					break;
-				}
-
-				if (dbg_last_ack_tsn != dbg_ack_tsn) {
-					/* Display the end of the
-					 * current range.
-					 */
-					pr_cont("-%08x", dbg_last_ack_tsn);
-				}
-
-				/* Start a new range.  */
-				pr_cont(",%08x", tsn);
-				dbg_ack_tsn = tsn;
-				break;
-
-			case 1:	/* The last TSN was NOT ACKed. */
-				if (dbg_last_kept_tsn != dbg_kept_tsn) {
-					/* Display the end of current range. */
-					pr_cont("-%08x", dbg_last_kept_tsn);
-				}
-
-				pr_cont("\n");
-				/* FALL THROUGH... */
-			default:
-				/* This is the first-ever TSN we examined.  */
-				/* Start a new range of ACK-ed TSNs.  */
-				pr_debug("ACKed: %08x", tsn);
-
-				dbg_prt_state = 0;
-				dbg_ack_tsn = tsn;
-			}
-
-			dbg_last_ack_tsn = tsn;
-#endif /* CONFIG_SCTP_DBG_TSNS */
-
 		} else {
 			if (tchunk->tsn_gap_acked) {
 				pr_debug("%s: receiver reneged on data TSN:0x%x\n",
@@ -1537,56 +1479,9 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			}
 
 			list_add_tail(lchunk, &tlist);
-
-#ifdef CONFIG_SCTP_DBG_TSNS
-			/* See the above comments on ACK-ed TSNs. */
-			switch (dbg_prt_state) {
-			case 1:
-				if (dbg_last_kept_tsn + 1 == tsn)
-					break;
-
-				if (dbg_last_kept_tsn != dbg_kept_tsn)
-					pr_cont("-%08x", dbg_last_kept_tsn);
-
-				pr_cont(",%08x", tsn);
-				dbg_kept_tsn = tsn;
-				break;
-
-			case 0:
-				if (dbg_last_ack_tsn != dbg_ack_tsn)
-					pr_cont("-%08x", dbg_last_ack_tsn);
-
-				pr_cont("\n");
-				/* FALL THROUGH... */
-			default:
-				pr_debug("KEPT: %08x", tsn);
-
-				dbg_prt_state = 1;
-				dbg_kept_tsn = tsn;
-			}
-
-			dbg_last_kept_tsn = tsn;
-#endif /* CONFIG_SCTP_DBG_TSNS */
 		}
 	}
 
-#ifdef CONFIG_SCTP_DBG_TSNS
-	/* Finish off the last range, displaying its ending TSN.  */
-	switch (dbg_prt_state) {
-	case 0:
-		if (dbg_last_ack_tsn != dbg_ack_tsn)
-			pr_cont("-%08x\n", dbg_last_ack_tsn);
-		else
-			pr_cont("\n");
-		break;
-	case 1:
-		if (dbg_last_kept_tsn != dbg_kept_tsn)
-			pr_cont("-%08x\n", dbg_last_kept_tsn);
-		else
-			pr_cont("\n");
-		break;
-	}
-#endif /* CONFIG_SCTP_DBG_TSNS */
 	if (transport) {
 		if (bytes_acked) {
 			struct sctp_association *asoc = transport->asoc;
