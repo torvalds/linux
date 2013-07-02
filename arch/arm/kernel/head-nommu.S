@@ -19,6 +19,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/cp15.h>
 #include <asm/thread_info.h>
+#include <asm/v7m.h>
 
 /*
  * Kernel startup entry point.
@@ -50,10 +51,13 @@ ENTRY(stext)
 
 	setmode	PSR_F_BIT | PSR_I_BIT | SVC_MODE, r9 @ ensure svc mode
 						@ and irqs disabled
-#ifndef CONFIG_CPU_CP15
-	ldr	r9, =CONFIG_PROCESSOR_ID
-#else
+#if defined(CONFIG_CPU_CP15)
 	mrc	p15, 0, r9, c0, c0		@ get processor id
+#elif defined(CONFIG_CPU_V7M)
+	ldr	r9, =BASEADDR_V7M_SCB
+	ldr	r9, [r9, V7M_SCB_CPUID]
+#else
+	ldr	r9, =CONFIG_PROCESSOR_ID
 #endif
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?

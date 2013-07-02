@@ -17,6 +17,7 @@ config ARCH_OMAP2PLUS
 	select PROC_DEVICETREE if PROC_FS
 	select SOC_BUS
 	select SPARSE_IRQ
+	select TI_PRIV_EDMA
 	select USE_OF
 	help
 	  Systems based on OMAP2, OMAP3, OMAP4 or OMAP5
@@ -148,6 +149,14 @@ config SOC_AM33XX
 	select CPU_V7
 	select MULTI_IRQ_HANDLER
 	select COMMON_CLK
+
+config SOC_AM43XX
+	bool "TI AM43x"
+	select CPU_V7
+	select MULTI_IRQ_HANDLER
+	select ARM_GIC
+	select COMMON_CLK
+	select MACH_OMAP_GENERIC
 
 config OMAP_PACKAGE_ZAF
        bool

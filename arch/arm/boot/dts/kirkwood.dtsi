@@ -19,6 +19,7 @@
 	ocp@f1000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0xf1000000 0x4000000
+		          0xe0000000 0xe0000000 0x8100000 /* PCIE */
 		          0xf5000000 0xf5000000 0x0000400>;
 		#address-cells = <1>;
 		#size-cells = <1>;

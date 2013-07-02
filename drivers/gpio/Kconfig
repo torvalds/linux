@@ -109,8 +109,11 @@ config GPIO_MAX730X
 comment "Memory mapped GPIO drivers:"
 
 config GPIO_CLPS711X
-	def_bool y
+	tristate "CLPS711X GPIO support"
 	depends on ARCH_CLPS711X
+	select GPIO_GENERIC
+	help
+	  Say yes here to support GPIO on CLPS711X SoCs.
 
 config GPIO_GENERIC_PLATFORM
 	tristate "Generic memory-mapped GPIO controller support (MMIO platform device)"
@@ -208,6 +211,13 @@ config GPIO_RCAR
 	depends on ARM
 	help
 	  Say yes here to support GPIO on Renesas R-Car SoCs.
+
+config GPIO_SAMSUNG
+	bool
+	depends on PLAT_SAMSUNG
+	help
+	  Legacy GPIO support. Use only for platforms without support for
+	  pinctrl.
 
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"

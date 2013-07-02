@@ -11,7 +11,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/dw_apb_timer.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -80,7 +79,6 @@ static void picoxcell_wdt_restart(char mode, const char *cmd)
 
 DT_MACHINE_START(PICOXCELL, "Picochip picoXcell")
 	.map_io		= picoxcell_map_io,
-	.init_time	= dw_apb_timer_init,
 	.init_machine	= picoxcell_init_machine,
 	.dt_compat	= picoxcell_dt_match,
 	.restart	= picoxcell_wdt_restart,

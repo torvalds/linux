@@ -139,6 +139,14 @@
 			cd-gpios = <&gpio1 15 0>;
 			/* No WP GPIO */
 		};
+
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
 	};
 
 	gpio-leds {
