@@ -540,7 +540,7 @@ static void update_domain_attr_tree(struct sched_domain_attr *dattr,
  * This function builds a partial partition of the systems CPUs
  * A 'partial partition' is a set of non-overlapping subsets whose
  * union is a subset of that set.
- * The output of this function needs to be passed to kernel/sched.c
+ * The output of this function needs to be passed to kernel/sched/core.c
  * partition_sched_domains() routine, which will rebuild the scheduler's
  * load balancing domains (sched domains) as specified by that partial
  * partition.
@@ -569,7 +569,7 @@ static void update_domain_attr_tree(struct sched_domain_attr *dattr,
  *	   is a subset of one of these domains, while there are as
  *	   many such domains as possible, each as small as possible.
  * doms  - Conversion of 'csa' to an array of cpumasks, for passing to
- *	   the kernel/sched.c routine partition_sched_domains() in a
+ *	   the kernel/sched/core.c routine partition_sched_domains() in a
  *	   convenient format, that can be easily compared to the prior
  *	   value to determine what partition elements (sched domains)
  *	   were changed (added or removed.)

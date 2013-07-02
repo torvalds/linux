@@ -384,7 +384,7 @@ priority back.
 __rt_mutex_adjust_prio examines the result of rt_mutex_getprio, and if the
 result does not equal the task's current priority, then rt_mutex_setprio
 is called to adjust the priority of the task to the new priority.
-Note that rt_mutex_setprio is defined in kernel/sched.c to implement the
+Note that rt_mutex_setprio is defined in kernel/sched/core.c to implement the
 actual change in priority.
 
 It is interesting to note that __rt_mutex_adjust_prio can either increase
