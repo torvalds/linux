@@ -1004,10 +1004,8 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*espi));
-	if (!master) {
-		dev_err(&pdev->dev, "failed to allocate spi master\n");
+	if (!master)
 		return -ENOMEM;
-	}
 
 	master->setup = ep93xx_spi_setup;
 	master->transfer = ep93xx_spi_transfer;
