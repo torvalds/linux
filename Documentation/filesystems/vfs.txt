@@ -549,7 +549,7 @@ struct address_space_operations
 -------------------------------
 
 This describes how the VFS can manipulate mapping of a file to page cache in
-your filesystem. As of kernel 2.6.22, the following members are defined:
+your filesystem. The following members are defined:
 
 struct address_space_operations {
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
@@ -566,7 +566,7 @@ struct address_space_operations {
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
-	int (*invalidatepage) (struct page *, unsigned long);
+	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
 	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
@@ -685,14 +685,14 @@ struct address_space_operations {
   invalidatepage: If a page has PagePrivate set, then invalidatepage
         will be called when part or all of the page is to be removed
 	from the address space.  This generally corresponds to either a
-	truncation or a complete invalidation of the address space
-	(in the latter case 'offset' will always be 0).
-	Any private data associated with the page should be updated
-	to reflect this truncation.  If offset is 0, then
-	the private data should be released, because the page
-	must be able to be completely discarded.  This may be done by
-        calling the ->releasepage function, but in this case the
-        release MUST succeed.
+	truncation, punch hole  or a complete invalidation of the address
+	space (in the latter case 'offset' will always be 0 and 'length'
+	will be PAGE_CACHE_SIZE). Any private data associated with the page
+	should be updated to reflect this truncation.  If offset is 0 and
+	length is PAGE_CACHE_SIZE, then the private data should be released,
+	because the page must be able to be completely discarded.  This may
+	be done by calling the ->releasepage function, but in this case the
+	release MUST succeed.
 
   releasepage: releasepage is called on PagePrivate pages to indicate
         that the page should be freed if possible.  ->releasepage
