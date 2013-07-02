@@ -54,22 +54,22 @@ static void channel_clear(struct sh_dmae_chan *sh_dc)
 	struct sh_dmae_device *shdev = to_sh_dev(sh_dc);
 
 	__raw_writel(0, shdev->chan_reg +
-		shdev->pdata->channel[sh_dc->shdma_chan.id].chclr_offset / sizeof(u32));
+		shdev->pdata->channel[sh_dc->shdma_chan.id].chclr_offset);
 }
 
 static void sh_dmae_writel(struct sh_dmae_chan *sh_dc, u32 data, u32 reg)
 {
-	__raw_writel(data, sh_dc->base + reg / sizeof(u32));
+	__raw_writel(data, sh_dc->base + reg);
 }
 
 static u32 sh_dmae_readl(struct sh_dmae_chan *sh_dc, u32 reg)
 {
-	return __raw_readl(sh_dc->base + reg / sizeof(u32));
+	return __raw_readl(sh_dc->base + reg);
 }
 
 static u16 dmaor_read(struct sh_dmae_device *shdev)
 {
-	u32 __iomem *addr = shdev->chan_reg + DMAOR / sizeof(u32);
+	void __iomem *addr = shdev->chan_reg + DMAOR;
 
 	if (shdev->pdata->dmaor_is_32bit)
 		return __raw_readl(addr);
@@ -79,7 +79,7 @@ static u16 dmaor_read(struct sh_dmae_device *shdev)
 
 static void dmaor_write(struct sh_dmae_device *shdev, u16 data)
 {
-	u32 __iomem *addr = shdev->chan_reg + DMAOR / sizeof(u32);
+	void __iomem *addr = shdev->chan_reg + DMAOR;
 
 	if (shdev->pdata->dmaor_is_32bit)
 		__raw_writel(data, addr);
@@ -91,14 +91,14 @@ static void chcr_write(struct sh_dmae_chan *sh_dc, u32 data)
 {
 	struct sh_dmae_device *shdev = to_sh_dev(sh_dc);
 
-	__raw_writel(data, sh_dc->base + shdev->chcr_offset / sizeof(u32));
+	__raw_writel(data, sh_dc->base + shdev->chcr_offset);
 }
 
 static u32 chcr_read(struct sh_dmae_chan *sh_dc)
 {
 	struct sh_dmae_device *shdev = to_sh_dev(sh_dc);
 
-	return __raw_readl(sh_dc->base + shdev->chcr_offset / sizeof(u32));
+	return __raw_readl(sh_dc->base + shdev->chcr_offset);
 }
 
 /*
@@ -242,7 +242,7 @@ static int dmae_set_dmars(struct sh_dmae_chan *sh_chan, u16 val)
 	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	const struct sh_dmae_channel *chan_pdata = &pdata->channel[sh_chan->shdma_chan.id];
-	u16 __iomem *addr = shdev->dmars;
+	void __iomem *addr = shdev->dmars;
 	unsigned int shift = chan_pdata->dmars_bit;
 
 	if (dmae_is_busy(sh_chan))
@@ -253,8 +253,8 @@ static int dmae_set_dmars(struct sh_dmae_chan *sh_chan, u16 val)
 
 	/* in the case of a missing DMARS resource use first memory window */
 	if (!addr)
-		addr = (u16 __iomem *)shdev->chan_reg;
-	addr += chan_pdata->dmars / sizeof(u16);
+		addr = shdev->chan_reg;
+	addr += chan_pdata->dmars;
 
 	__raw_writew((__raw_readw(addr) & (0xff00 >> shift)) | (val << shift),
 		     addr);
@@ -517,7 +517,7 @@ static int sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 
 	shdma_chan_probe(sdev, schan, id);
 
-	sh_chan->base = shdev->chan_reg + chan_pdata->offset / sizeof(u32);
+	sh_chan->base = shdev->chan_reg + chan_pdata->offset;
 
 	/* set up channel irq */
 	if (pdev->id >= 0)
