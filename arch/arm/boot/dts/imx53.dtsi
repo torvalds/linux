@@ -1000,6 +1000,7 @@
 				interrupts = <6>;
 				clocks = <&clks 56>, <&clks 56>;
 				clock-names = "ipg", "ahb";
+				#dma-cells = <3>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx53.bin";
 			};
 

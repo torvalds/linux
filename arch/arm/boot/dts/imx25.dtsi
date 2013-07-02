@@ -430,6 +430,7 @@
 				reg = <0x53fd4000 0x4000>;
 				clocks = <&clks 112>, <&clks 68>;
 				clock-names = "ipg", "ahb";
+				#dma-cells = <3>;
 				interrupts = <34>;
 			};
 
