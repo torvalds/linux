@@ -394,9 +394,6 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
  * remap a physical page `pfn' of size `size' with page protection `prot'
  * into virtual address `from'
  */
-#define io_remap_pfn_range(vma, from, pfn, size, prot) \
-			remap_pfn_range(vma, from, pfn, size, prot)
-
 #include <asm-generic/pgtable.h>
 
 /* to cope with aliasing VIPT cache */

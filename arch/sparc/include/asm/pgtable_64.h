@@ -914,6 +914,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 
 	return remap_pfn_range(vma, from, phys_base >> PAGE_SHIFT, size, prot);
 }
+#define io_remap_pfn_range io_remap_pfn_range 
 
 #include <asm/tlbflush.h>
 #include <asm-generic/pgtable.h>

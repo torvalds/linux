@@ -17,47 +17,43 @@
 static DEFINE_RWLOCK(adfs_dir_lock);
 
 static int
-adfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
+adfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
 	struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
 	struct object_info obj;
 	struct adfs_dir dir;
 	int ret = 0;
 
-	if (filp->f_pos >> 32)
-		goto out;
+	if (ctx->pos >> 32)
+		return 0;
 
 	ret = ops->read(sb, inode->i_ino, inode->i_size, &dir);
 	if (ret)
-		goto out;
+		return ret;
 
-	switch ((unsigned long)filp->f_pos) {
-	case 0:
-		if (filldir(dirent, ".", 1, 0, inode->i_ino, DT_DIR) < 0)
+	if (ctx->pos == 0) {
+		if (!dir_emit_dot(file, ctx))
 			goto free_out;
-		filp->f_pos += 1;
-
-	case 1:
-		if (filldir(dirent, "..", 2, 1, dir.parent_id, DT_DIR) < 0)
+		ctx->pos = 1;
+	}
+	if (ctx->pos == 1) {
+		if (!dir_emit(ctx, "..", 2, dir.parent_id, DT_DIR))
 			goto free_out;
-		filp->f_pos += 1;
-
-	default:
-		break;
+		ctx->pos = 2;
 	}
 
 	read_lock(&adfs_dir_lock);
 
-	ret = ops->setpos(&dir, filp->f_pos - 2);
+	ret = ops->setpos(&dir, ctx->pos - 2);
 	if (ret)
 		goto unlock_out;
 	while (ops->getnext(&dir, &obj) == 0) {
-		if (filldir(dirent, obj.name, obj.name_len,
-			    filp->f_pos, obj.file_id, DT_UNKNOWN) < 0)
-			goto unlock_out;
-		filp->f_pos += 1;
+		if (!dir_emit(ctx, obj.name, obj.name_len,
+			    obj.file_id, DT_UNKNOWN))
+			break;
+		ctx->pos++;
 	}
 
 unlock_out:
@@ -65,8 +61,6 @@ unlock_out:
 
 free_out:
 	ops->free(&dir);
-
-out:
 	return ret;
 }
 
@@ -192,7 +186,7 @@ out:
 const struct file_operations adfs_dir_operations = {
 	.read		= generic_read_dir,
 	.llseek		= generic_file_llseek,
-	.readdir	= adfs_readdir,
+	.iterate	= adfs_readdir,
 	.fsync		= generic_file_fsync,
 };
 

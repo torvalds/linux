@@ -2515,7 +2515,7 @@ extern int ext4_try_create_inline_dir(handle_t *handle,
 				      struct inode *parent,
 				      struct inode *inode);
 extern int ext4_read_inline_dir(struct file *filp,
-				void *dirent, filldir_t filldir,
+				struct dir_context *ctx,
 				int *has_inline_data);
 extern int htree_inlinedir_to_tree(struct file *dir_file,
 				   struct inode *dir, ext4_lblk_t block,

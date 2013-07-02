@@ -1529,7 +1529,7 @@ const struct inode_operations jfs_dir_inode_operations = {
 
 const struct file_operations jfs_dir_operations = {
 	.read		= generic_read_dir,
-	.readdir	= jfs_readdir,
+	.iterate	= jfs_readdir,
 	.fsync		= jfs_fsync,
 	.unlocked_ioctl = jfs_ioctl,
 #ifdef CONFIG_COMPAT
