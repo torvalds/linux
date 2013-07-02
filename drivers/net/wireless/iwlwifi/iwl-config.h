@@ -152,6 +152,7 @@ struct iwl_base_params {
 	unsigned int wd_timeout;
 	u32 max_event_log_size;
 	const bool shadow_reg_enable;
+	const bool pcie_l1_allowed;
 };
 
 /*
