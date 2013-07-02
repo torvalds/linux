@@ -965,26 +965,18 @@ int aufs_rename(struct inode *_src_dir, struct dentry *_src_dentry,
 
 	/* cpup src */
 	if (a->src_bstart != a->btgt) {
-		struct file *h_file;
 		struct au_pin pin;
 
 		err = au_pin(&pin, a->src_dentry, a->btgt,
 			     au_opt_udba(a->src_dentry->d_sb),
 			     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
-		if (unlikely(err))
-			goto out_children;
-
-		AuDebugOn(au_dbstart(a->src_dentry) != a->src_bstart);
-		h_file = au_h_open_pre(a->src_dentry, a->src_bstart);
-		if (IS_ERR(h_file)) {
-			err = PTR_ERR(h_file);
-			h_file = NULL;
-		} else {
-			err = au_sio_cpup_simple(a->src_dentry, a->btgt, -1,
-						 AuCpup_DTIME, &pin);
-			au_h_open_post(a->src_dentry, a->src_bstart, h_file);
+		if (!err) {
+			AuDebugOn(au_dbstart(a->src_dentry) != a->src_bstart);
+			err = au_sio_cpup_simple_h_open(a->src_dentry, a->btgt,
+							-1, AuCpup_DTIME, &pin,
+							a->src_bstart);
+			au_unpin(&pin);
 		}
-		au_unpin(&pin);
 		if (unlikely(err))
 			goto out_children;
 		a->src_bstart = a->btgt;
