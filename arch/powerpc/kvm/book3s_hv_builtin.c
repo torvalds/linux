@@ -13,10 +13,14 @@
 #include <linux/spinlock.h>
 #include <linux/bootmem.h>
 #include <linux/init.h>
+#include <linux/memblock.h>
+#include <linux/sizes.h>
 
 #include <asm/cputable.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
+
+#include "book3s_hv_cma.h"
 
 #define KVM_LINEAR_RMA		0
 #define KVM_LINEAR_HPT		1
@@ -24,9 +28,15 @@
 static void __init kvm_linear_init_one(ulong size, int count, int type);
 static struct kvmppc_linear_info *kvm_alloc_linear(int type);
 static void kvm_release_linear(struct kvmppc_linear_info *ri);
-
-int kvm_hpt_order = KVM_DEFAULT_HPT_ORDER;
-EXPORT_SYMBOL_GPL(kvm_hpt_order);
+/*
+ * Hash page table alignment on newer cpus(CPU_FTR_ARCH_206)
+ * should be power of 2.
+ */
+#define HPT_ALIGN_PAGES		((1 << 18) >> PAGE_SHIFT) /* 256k */
+/*
+ * By default we reserve 5% of memory for hash pagetable allocation.
+ */
+static unsigned long kvm_cma_resv_ratio = 5;
 
 /*************** RMA *************/
 
@@ -101,36 +111,29 @@ void kvm_release_rma(struct kvmppc_linear_info *ri)
 }
 EXPORT_SYMBOL_GPL(kvm_release_rma);
 
-/*************** HPT *************/
-
-/*
- * This maintains a list of big linear HPT tables that contain the GVA->HPA
- * memory mappings. If we don't reserve those early on, we might not be able
- * to get a big (usually 16MB) linear memory region from the kernel anymore.
- */
-
-static unsigned long kvm_hpt_count;
-
-static int __init early_parse_hpt_count(char *p)
+static int __init early_parse_kvm_cma_resv(char *p)
 {
+	pr_debug("%s(%s)\n", __func__, p);
 	if (!p)
-		return 1;
-
-	kvm_hpt_count = simple_strtoul(p, NULL, 0);
-
-	return 0;
+		return -EINVAL;
+	return kstrtoul(p, 0, &kvm_cma_resv_ratio);
 }
-early_param("kvm_hpt_count", early_parse_hpt_count);
+early_param("kvm_cma_resv_ratio", early_parse_kvm_cma_resv);
 
-struct kvmppc_linear_info *kvm_alloc_hpt(void)
+struct page *kvm_alloc_hpt(unsigned long nr_pages)
 {
-	return kvm_alloc_linear(KVM_LINEAR_HPT);
+	unsigned long align_pages = HPT_ALIGN_PAGES;
+
+	/* Old CPUs require HPT aligned on a multiple of its size */
+	if (!cpu_has_feature(CPU_FTR_ARCH_206))
+		align_pages = nr_pages;
+	return kvm_alloc_cma(nr_pages, align_pages);
 }
 EXPORT_SYMBOL_GPL(kvm_alloc_hpt);
 
-void kvm_release_hpt(struct kvmppc_linear_info *li)
+void kvm_release_hpt(struct page *page, unsigned long nr_pages)
 {
-	kvm_release_linear(li);
+	kvm_release_cma(page, nr_pages);
 }
 EXPORT_SYMBOL_GPL(kvm_release_hpt);
 
@@ -211,9 +214,6 @@ static void kvm_release_linear(struct kvmppc_linear_info *ri)
  */
 void __init kvm_linear_init(void)
 {
-	/* HPT */
-	kvm_linear_init_one(1 << kvm_hpt_order, kvm_hpt_count, KVM_LINEAR_HPT);
-
 	/* RMA */
 	/* Only do this on PPC970 in HV mode */
 	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
@@ -230,4 +230,41 @@ void __init kvm_linear_init(void)
 	}
 
 	kvm_linear_init_one(kvm_rma_size, kvm_rma_count, KVM_LINEAR_RMA);
+}
+
+/**
+ * kvm_cma_reserve() - reserve area for kvm hash pagetable
+ *
+ * This function reserves memory from early allocator. It should be
+ * called by arch specific code once the early allocator (memblock or bootmem)
+ * has been activated and all other subsystems have already allocated/reserved
+ * memory.
+ */
+void __init kvm_cma_reserve(void)
+{
+	unsigned long align_size;
+	struct memblock_region *reg;
+	phys_addr_t selected_size = 0;
+	/*
+	 * We cannot use memblock_phys_mem_size() here, because
+	 * memblock_analyze() has not been called yet.
+	 */
+	for_each_memblock(memory, reg)
+		selected_size += memblock_region_memory_end_pfn(reg) -
+				 memblock_region_memory_base_pfn(reg);
+
+	selected_size = (selected_size * kvm_cma_resv_ratio / 100) << PAGE_SHIFT;
+	if (selected_size) {
+		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
+			 (unsigned long)selected_size / SZ_1M);
+		/*
+		 * Old CPUs require HPT aligned on a multiple of its size. So for them
+		 * make the alignment as max size we could request.
+		 */
+		if (!cpu_has_feature(CPU_FTR_ARCH_206))
+			align_size = __rounddown_pow_of_two(selected_size);
+		else
+			align_size = HPT_ALIGN_PAGES << PAGE_SHIFT;
+		kvm_cma_declare_contiguous(selected_size, align_size);
+	}
 }

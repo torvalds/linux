@@ -37,7 +37,6 @@ static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 #define KVM_DEFAULT_HPT_ORDER	24	/* 16MB HPT by default */
-extern int kvm_hpt_order;		/* order of preallocated HPTs */
 #endif
 
 #define VRMA_VSID	0x1ffffffUL	/* 1TB VSID reserved for VRMA */

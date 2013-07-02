@@ -139,8 +139,8 @@ extern long kvm_vm_ioctl_allocate_rma(struct kvm *kvm,
 				struct kvm_allocate_rma *rma);
 extern struct kvmppc_linear_info *kvm_alloc_rma(void);
 extern void kvm_release_rma(struct kvmppc_linear_info *ri);
-extern struct kvmppc_linear_info *kvm_alloc_hpt(void);
-extern void kvm_release_hpt(struct kvmppc_linear_info *li);
+extern struct page *kvm_alloc_hpt(unsigned long nr_pages);
+extern void kvm_release_hpt(struct page *page, unsigned long nr_pages);
 extern int kvmppc_core_init_vm(struct kvm *kvm);
 extern void kvmppc_core_destroy_vm(struct kvm *kvm);
 extern void kvmppc_core_free_memslot(struct kvm_memory_slot *free,
@@ -261,6 +261,7 @@ void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid);
 struct openpic;
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
+extern void kvm_cma_reserve(void) __init;
 static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 {
 	paca[cpu].kvm_hstate.xics_phys = addr;
@@ -284,6 +285,9 @@ extern void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu);
 extern void kvm_linear_init(void);
 
 #else
+static inline void __init kvm_cma_reserve(void)
+{}
+
 static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 {}
 

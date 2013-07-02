@@ -259,7 +259,7 @@ struct kvm_arch {
 	spinlock_t slot_phys_lock;
 	cpumask_t need_tlb_flush;
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
-	struct kvmppc_linear_info *hpt_li;
+	int hpt_cma_alloc;
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct list_head spapr_tce_tables;
