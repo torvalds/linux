@@ -822,7 +822,7 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 	int ret;
 
 	mutex_lock(&inode->i_mutex);
-	__ceph_do_pending_vmtruncate(inode, false);
+	__ceph_do_pending_vmtruncate(inode);
 
 	if (whence == SEEK_END || whence == SEEK_DATA || whence == SEEK_HOLE) {
 		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE);
