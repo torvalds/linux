@@ -47,9 +47,13 @@ static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static int qxl_modeset = -1;
+int qxl_num_crtc = 4;
 
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, qxl_modeset, int, 0400);
+
+MODULE_PARM_DESC(num_heads, "Number of virtual crtcs to expose (default 4)");
+module_param_named(num_heads, qxl_num_crtc, int, 0400);
 
 static struct drm_driver qxl_driver;
 static struct pci_driver qxl_pci_driver;

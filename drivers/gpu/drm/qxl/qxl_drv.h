@@ -55,11 +55,10 @@
 #define DRIVER_MINOR 1
 #define DRIVER_PATCHLEVEL 0
 
-#define QXL_NUM_OUTPUTS 1
-
 #define QXL_DEBUGFS_MAX_COMPONENTS		32
 
 extern int qxl_log_level;
+extern int qxl_num_crtc;
 
 enum {
 	QXL_INFO_LEVEL = 1,
@@ -139,6 +138,7 @@ struct qxl_reloc_list {
 
 struct qxl_crtc {
 	struct drm_crtc base;
+	int index;
 	int cur_x;
 	int cur_y;
 };
@@ -156,7 +156,7 @@ struct qxl_framebuffer {
 
 #define to_qxl_crtc(x) container_of(x, struct qxl_crtc, base)
 #define drm_connector_to_qxl_output(x) container_of(x, struct qxl_output, base)
-#define drm_encoder_to_qxl_output(x) container_of(x, struct qxl_output, base)
+#define drm_encoder_to_qxl_output(x) container_of(x, struct qxl_output, enc)
 #define to_qxl_framebuffer(x) container_of(x, struct qxl_framebuffer, base)
 
 struct qxl_mman {
@@ -435,7 +435,7 @@ void qxl_update_screen(struct qxl_device *qxl);
 /* qxl io operations (qxl_cmd.c) */
 
 void qxl_io_create_primary(struct qxl_device *qdev,
-			   unsigned width, unsigned height, unsigned offset,
+			   unsigned offset,
 			   struct qxl_bo *bo);
 void qxl_io_destroy_primary(struct qxl_device *qdev);
 void qxl_io_memslot_add(struct qxl_device *qdev, uint8_t id);

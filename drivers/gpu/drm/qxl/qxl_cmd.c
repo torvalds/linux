@@ -375,8 +375,8 @@ void qxl_io_destroy_primary(struct qxl_device *qdev)
 	wait_for_io_cmd(qdev, 0, QXL_IO_DESTROY_PRIMARY_ASYNC);
 }
 
-void qxl_io_create_primary(struct qxl_device *qdev, unsigned width,
-			   unsigned height, unsigned offset, struct qxl_bo *bo)
+void qxl_io_create_primary(struct qxl_device *qdev,
+			   unsigned offset, struct qxl_bo *bo)
 {
 	struct qxl_surface_create *create;
 
@@ -384,8 +384,8 @@ void qxl_io_create_primary(struct qxl_device *qdev, unsigned width,
 		 qdev->ram_header);
 	create = &qdev->ram_header->create_surface;
 	create->format = bo->surf.format;
-	create->width = width;
-	create->height = height;
+	create->width = bo->surf.width;
+	create->height = bo->surf.height;
 	create->stride = bo->surf.stride;
 	create->mem = qxl_bo_physical_address(qdev, bo, offset);
 
