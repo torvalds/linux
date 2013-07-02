@@ -158,28 +158,26 @@ struct ep93xx_spi_chip {
 /* converts bits per word to CR0.DSS value */
 #define bits_per_word_to_dss(bpw)	((bpw) - 1)
 
-static inline void
-ep93xx_spi_write_u8(const struct ep93xx_spi *espi, u16 reg, u8 value)
+static void ep93xx_spi_write_u8(const struct ep93xx_spi *espi,
+				u16 reg, u8 value)
 {
-	__raw_writeb(value, espi->regs_base + reg);
+	writeb(value, espi->regs_base + reg);
 }
 
-static inline u8
-ep93xx_spi_read_u8(const struct ep93xx_spi *spi, u16 reg)
+static u8 ep93xx_spi_read_u8(const struct ep93xx_spi *spi, u16 reg)
 {
-	return __raw_readb(spi->regs_base + reg);
+	return readb(spi->regs_base + reg);
 }
 
-static inline void
-ep93xx_spi_write_u16(const struct ep93xx_spi *espi, u16 reg, u16 value)
+static void ep93xx_spi_write_u16(const struct ep93xx_spi *espi,
+				 u16 reg, u16 value)
 {
-	__raw_writew(value, espi->regs_base + reg);
+	writew(value, espi->regs_base + reg);
 }
 
-static inline u16
-ep93xx_spi_read_u16(const struct ep93xx_spi *spi, u16 reg)
+static u16 ep93xx_spi_read_u16(const struct ep93xx_spi *spi, u16 reg)
 {
-	return __raw_readw(spi->regs_base + reg);
+	return readw(spi->regs_base + reg);
 }
 
 static int ep93xx_spi_enable(const struct ep93xx_spi *espi)
