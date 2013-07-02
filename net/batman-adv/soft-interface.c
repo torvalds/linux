@@ -393,6 +393,166 @@ out:
 	return;
 }
 
+/**
+ * batadv_softif_vlan_free_ref - decrease the vlan object refcounter and
+ *  possibly free it
+ * @softif_vlan: the vlan object to release
+ */
+static void batadv_softif_vlan_free_ref(struct batadv_softif_vlan *softif_vlan)
+{
+	if (atomic_dec_and_test(&softif_vlan->refcount))
+		kfree_rcu(softif_vlan, rcu);
+}
+
+/**
+ * batadv_softif_vlan_get - get the vlan object for a specific vid
+ * @bat_priv: the bat priv with all the soft interface information
+ * @vid: the identifier of the vlan object to retrieve
+ *
+ * Returns the private data of the vlan matching the vid passed as argument or
+ * NULL otherwise. The refcounter of the returned object is incremented by 1.
+ */
+static struct batadv_softif_vlan *
+batadv_softif_vlan_get(struct batadv_priv *bat_priv, unsigned short vid)
+{
+	struct batadv_softif_vlan *vlan_tmp, *vlan = NULL;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(vlan_tmp, &bat_priv->softif_vlan_list, list) {
+		if (vlan_tmp->vid != vid)
+			continue;
+
+		if (!atomic_inc_not_zero(&vlan_tmp->refcount))
+			continue;
+
+		vlan = vlan_tmp;
+		break;
+	}
+	rcu_read_unlock();
+
+	return vlan;
+}
+
+/**
+ * batadv_create_vlan - allocate the needed resources for a new vlan
+ * @bat_priv: the bat priv with all the soft interface information
+ * @vid: the VLAN identifier
+ *
+ * Returns 0 on success, a negative error otherwise.
+ */
+int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
+{
+	struct batadv_softif_vlan *vlan;
+
+	vlan = batadv_softif_vlan_get(bat_priv, vid);
+	if (vlan) {
+		batadv_softif_vlan_free_ref(vlan);
+		return -EEXIST;
+	}
+
+	vlan = kzalloc(sizeof(*vlan), GFP_ATOMIC);
+	if (!vlan)
+		return -ENOMEM;
+
+	vlan->vid = vid;
+	atomic_set(&vlan->refcount, 1);
+
+	/* add a new TT local entry. This one will be marked with the NOPURGE
+	 * flag
+	 */
+	batadv_tt_local_add(bat_priv->soft_iface,
+			    bat_priv->soft_iface->dev_addr, vid,
+			    BATADV_NULL_IFINDEX);
+
+	spin_lock_bh(&bat_priv->softif_vlan_list_lock);
+	hlist_add_head_rcu(&vlan->list, &bat_priv->softif_vlan_list);
+	spin_unlock_bh(&bat_priv->softif_vlan_list_lock);
+
+	return 0;
+}
+
+/**
+ * batadv_softif_destroy_vlan - remove and destroy a softif_vlan object
+ * @bat_priv: the bat priv with all the soft interface information
+ * @vlan: the object to remove
+ */
+static void batadv_softif_destroy_vlan(struct batadv_priv *bat_priv,
+				       struct batadv_softif_vlan *vlan)
+{
+	spin_lock_bh(&bat_priv->softif_vlan_list_lock);
+	hlist_del_rcu(&vlan->list);
+	spin_unlock_bh(&bat_priv->softif_vlan_list_lock);
+
+	/* explicitly remove the associated TT local entry because it is marked
+	 * with the NOPURGE flag
+	 */
+	batadv_tt_local_remove(bat_priv, bat_priv->soft_iface->dev_addr,
+			       vlan->vid, "vlan interface destroyed", false);
+
+	batadv_softif_vlan_free_ref(vlan);
+}
+
+/**
+ * batadv_interface_add_vid - ndo_add_vid API implementation
+ * @dev: the netdev of the mesh interface
+ * @vid: identifier of the new vlan
+ *
+ * Set up all the internal structures for handling the new vlan on top of the
+ * mesh interface
+ *
+ * Returns 0 on success or a negative error code in case of failure.
+ */
+static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
+				    unsigned short vid)
+{
+	struct batadv_priv *bat_priv = netdev_priv(dev);
+
+	/* only 802.1Q vlans are supported.
+	 * batman-adv does not know how to handle other types
+	 */
+	if (proto != htons(ETH_P_8021Q))
+		return -EINVAL;
+
+	vid |= BATADV_VLAN_HAS_TAG;
+
+	return batadv_softif_create_vlan(bat_priv, vid);
+}
+
+/**
+ * batadv_interface_kill_vid - ndo_kill_vid API implementation
+ * @dev: the netdev of the mesh interface
+ * @vid: identifier of the deleted vlan
+ *
+ * Destroy all the internal structures used to handle the vlan identified by vid
+ * on top of the mesh interface
+ *
+ * Returns 0 on success, -EINVAL if the specified prototype is not ETH_P_8021Q
+ * or -ENOENT if the specified vlan id wasn't registered.
+ */
+static int batadv_interface_kill_vid(struct net_device *dev, __be16 proto,
+				     unsigned short vid)
+{
+	struct batadv_priv *bat_priv = netdev_priv(dev);
+	struct batadv_softif_vlan *vlan;
+
+	/* only 802.1Q vlans are supported. batman-adv does not know how to
+	 * handle other types
+	 */
+	if (proto != htons(ETH_P_8021Q))
+		return -EINVAL;
+
+	vlan = batadv_softif_vlan_get(bat_priv, vid | BATADV_VLAN_HAS_TAG);
+	if (!vlan)
+		return -ENOENT;
+
+	batadv_softif_destroy_vlan(bat_priv, vlan);
+
+	/* finally free the vlan object */
+	batadv_softif_vlan_free_ref(vlan);
+
+	return 0;
+}
+
 /* batman-adv network devices have devices nesting below it and are a special
  * "super class" of normal network devices; split their locks off into a
  * separate class since they always nest.
@@ -432,12 +592,20 @@ static void batadv_set_lockdep_class(struct net_device *dev)
  */
 static void batadv_softif_destroy_finish(struct work_struct *work)
 {
+	struct batadv_softif_vlan *vlan;
 	struct batadv_priv *bat_priv;
 	struct net_device *soft_iface;
 
 	bat_priv = container_of(work, struct batadv_priv,
 				cleanup_work);
 	soft_iface = bat_priv->soft_iface;
+
+	/* destroy the "untagged" VLAN */
+	vlan = batadv_softif_vlan_get(bat_priv, BATADV_NO_FLAGS);
+	if (vlan) {
+		batadv_softif_destroy_vlan(bat_priv, vlan);
+		batadv_softif_vlan_free_ref(vlan);
+	}
 
 	batadv_sysfs_del_meshif(soft_iface);
 
@@ -594,6 +762,8 @@ static const struct net_device_ops batadv_netdev_ops = {
 	.ndo_open = batadv_interface_open,
 	.ndo_stop = batadv_interface_release,
 	.ndo_get_stats = batadv_interface_stats,
+	.ndo_vlan_rx_add_vid = batadv_interface_add_vid,
+	.ndo_vlan_rx_kill_vid = batadv_interface_kill_vid,
 	.ndo_set_mac_address = batadv_interface_set_mac_addr,
 	.ndo_change_mtu = batadv_interface_change_mtu,
 	.ndo_set_rx_mode = batadv_interface_set_rx_mode,
@@ -633,6 +803,7 @@ static void batadv_softif_init_early(struct net_device *dev)
 
 	dev->netdev_ops = &batadv_netdev_ops;
 	dev->destructor = batadv_softif_free;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	dev->tx_queue_len = 0;
 
 	/* can't call min_mtu, because the needed variables

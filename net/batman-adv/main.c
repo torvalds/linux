@@ -113,6 +113,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	spin_lock_init(&bat_priv->gw.list_lock);
 	spin_lock_init(&bat_priv->tvlv.container_list_lock);
 	spin_lock_init(&bat_priv->tvlv.handler_list_lock);
+	spin_lock_init(&bat_priv->softif_vlan_list_lock);
 
 	INIT_HLIST_HEAD(&bat_priv->forw_bat_list);
 	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
@@ -122,6 +123,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	INIT_LIST_HEAD(&bat_priv->tt.roam_list);
 	INIT_HLIST_HEAD(&bat_priv->tvlv.container_list);
 	INIT_HLIST_HEAD(&bat_priv->tvlv.handler_list);
+	INIT_HLIST_HEAD(&bat_priv->softif_vlan_list);
 
 	ret = batadv_originator_init(bat_priv);
 	if (ret < 0)
@@ -130,9 +132,6 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	ret = batadv_tt_init(bat_priv);
 	if (ret < 0)
 		goto err;
-
-	batadv_tt_local_add(soft_iface, soft_iface->dev_addr,
-			    BATADV_NO_FLAGS, BATADV_NULL_IFINDEX);
 
 	ret = batadv_bla_init(bat_priv);
 	if (ret < 0)
