@@ -414,10 +414,7 @@ static void l2tp_recv_dequeue_skb(struct l2tp_session *session, struct sk_buff *
 	if (L2TP_SKB_CB(skb)->has_seq) {
 		/* Bump our Nr */
 		session->nr++;
-		if (tunnel->version == L2TP_HDR_VER_2)
-			session->nr &= 0xffff;
-		else
-			session->nr &= 0xffffff;
+		session->nr &= session->nr_max;
 
 		l2tp_dbg(session, L2TP_MSG_SEQ, "%s: updated nr to %hu\n",
 			 session->name, session->nr);
@@ -542,11 +539,34 @@ static inline int l2tp_verify_udp_checksum(struct sock *sk,
 	return __skb_checksum_complete(skb);
 }
 
+static int l2tp_seq_check_rx_window(struct l2tp_session *session, u32 nr)
+{
+	u32 nws;
+
+	if (nr >= session->nr)
+		nws = nr - session->nr;
+	else
+		nws = (session->nr_max + 1) - (session->nr - nr);
+
+	return nws < session->nr_window_size;
+}
+
 /* If packet has sequence numbers, queue it if acceptable. Returns 0 if
  * acceptable, else non-zero.
  */
 static int l2tp_recv_data_seq(struct l2tp_session *session, struct sk_buff *skb)
 {
+	if (!l2tp_seq_check_rx_window(session, L2TP_SKB_CB(skb)->ns)) {
+		/* Packet sequence number is outside allowed window.
+		 * Discard it.
+		 */
+		l2tp_dbg(session, L2TP_MSG_SEQ,
+			 "%s: pkt %u len %d discarded, outside window, nr=%u\n",
+			 session->name, L2TP_SKB_CB(skb)->ns,
+			 L2TP_SKB_CB(skb)->length, session->nr);
+		goto discard;
+	}
+
 	if (session->reorder_timeout != 0) {
 		/* Packet reordering enabled. Add skb to session's
 		 * reorder queue, in order of ns.
@@ -556,7 +576,8 @@ static int l2tp_recv_data_seq(struct l2tp_session *session, struct sk_buff *skb)
 		/* Packet reordering disabled. Discard out-of-sequence
 		 * packets
 		 */
-		if (L2TP_SKB_CB(skb)->ns != session->nr) {
+		if ((L2TP_SKB_CB(skb)->ns != session->nr) &&
+		    (!session->reorder_skip)) {
 			atomic_long_inc(&session->stats.rx_seq_discards);
 			l2tp_dbg(session, L2TP_MSG_SEQ,
 				 "%s: oos pkt %u len %d discarded, waiting for %u, reorder_q_len=%d\n",
@@ -1826,6 +1847,11 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 		session->session_id = session_id;
 		session->peer_session_id = peer_session_id;
 		session->nr = 0;
+		if (tunnel->version == L2TP_HDR_VER_2)
+			session->nr_max = 0xffff;
+		else
+			session->nr_max = 0xffffff;
+		session->nr_window_size = session->nr_max / 2;
 
 		sprintf(&session->name[0], "sess %u/%u",
 			tunnel->tunnel_id, session->session_id);
