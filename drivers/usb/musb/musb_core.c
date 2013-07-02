@@ -99,7 +99,6 @@
 #include <linux/prefetch.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/idr.h>
 #include <linux/dma-mapping.h>
 
 #include "musb_core.h"
