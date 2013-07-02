@@ -403,7 +403,8 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 	int retval, i, timed_out = 0;
 	unsigned long slack = 0;
 	unsigned int ll_flag = ll_get_flag();
-	u64 ll_time = ll_end_time();
+	u64 ll_start = ll_start_time(ll_flag);
+	u64 ll_time = ll_run_time();
 
 	rcu_read_lock();
 	retval = max_select_fd(n, fds);
@@ -498,7 +499,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 		}
 
 		/* only if on, have sockets with POLL_LL and not out of time */
-		if (ll_flag && can_ll && can_poll_ll(ll_time))
+		if (ll_flag && can_ll && can_poll_ll(ll_start, ll_time))
 			continue;
 
 		/*
@@ -770,7 +771,8 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 	int timed_out = 0, count = 0;
 	unsigned long slack = 0;
 	unsigned int ll_flag = ll_get_flag();
-	u64 ll_time = ll_end_time();
+	u64 ll_start = ll_start_time(ll_flag);
+	u64 ll_time = ll_run_time();
 
 	/* Optimise the no-wait case */
 	if (end_time && !end_time->tv_sec && !end_time->tv_nsec) {
@@ -819,7 +821,7 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 			break;
 
 		/* only if on, have sockets with POLL_LL and not out of time */
-		if (ll_flag && can_ll && can_poll_ll(ll_time))
+		if (ll_flag && can_ll && can_poll_ll(ll_start, ll_time))
 			continue;
 
 		/*

@@ -67,19 +67,23 @@ static inline u64 ll_sched_clock(void)
 /* we don't mind a ~2.5% imprecision so <<10 instead of *1000
  * sk->sk_ll_usec is a u_int so this can't overflow
  */
-static inline u64 ll_sk_end_time(struct sock *sk)
+static inline u64 ll_sk_run_time(struct sock *sk)
 {
-	return ((u64)ACCESS_ONCE(sk->sk_ll_usec) << 10) + ll_sched_clock();
+	return (u64)ACCESS_ONCE(sk->sk_ll_usec) << 10;
 }
 
 /* in poll/select we use the global sysctl_net_ll_poll value
  * only call sched_clock() if enabled
  */
-static inline u64 ll_end_time(void)
+static inline u64 ll_run_time(void)
 {
-	u64 end_time = ACCESS_ONCE(sysctl_net_ll_poll);
+	return (u64)ACCESS_ONCE(sysctl_net_ll_poll) << 10;
+}
 
-	return end_time ? (end_time << 10) + ll_sched_clock() : 0;
+/* if flag is not set we don't need to know the time */
+static inline u64 ll_start_time(unsigned int flag)
+{
+	return flag ? ll_sched_clock() : 0;
 }
 
 static inline bool sk_valid_ll(struct sock *sk)
@@ -88,9 +92,12 @@ static inline bool sk_valid_ll(struct sock *sk)
 	       !need_resched() && !signal_pending(current);
 }
 
-static inline bool can_poll_ll(u64 end_time)
+/* careful! time_in_range64 will evaluate now twice */
+static inline bool can_poll_ll(u64 start_time, u64 run_time)
 {
-	return !time_after64(ll_sched_clock(), end_time);
+	u64 now = ll_sched_clock();
+
+	return time_in_range64(now, start_time, start_time + run_time);
 }
 
 /* when used in sock_poll() nonblock is known at compile time to be true
@@ -98,7 +105,8 @@ static inline bool can_poll_ll(u64 end_time)
  */
 static inline bool sk_poll_ll(struct sock *sk, int nonblock)
 {
-	u64 end_time = nonblock ? 0 : ll_sk_end_time(sk);
+	u64 start_time = ll_start_time(!nonblock);
+	u64 run_time = ll_sk_run_time(sk);
 	const struct net_device_ops *ops;
 	struct napi_struct *napi;
 	int rc = false;
@@ -129,7 +137,7 @@ static inline bool sk_poll_ll(struct sock *sk, int nonblock)
 					 LINUX_MIB_LOWLATENCYRXPACKETS, rc);
 
 	} while (!nonblock && skb_queue_empty(&sk->sk_receive_queue) &&
-		 can_poll_ll(end_time));
+		 can_poll_ll(start_time, run_time));
 
 	rc = !skb_queue_empty(&sk->sk_receive_queue);
 out:
