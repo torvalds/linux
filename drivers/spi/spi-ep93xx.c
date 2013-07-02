@@ -1016,7 +1016,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 
 	espi = spi_master_get_devdata(master);
 
-	espi->clk = clk_get(&pdev->dev, NULL);
+	espi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(espi->clk)) {
 		dev_err(&pdev->dev, "unable to get spi clock\n");
 		error = PTR_ERR(espi->clk);
@@ -1039,14 +1039,14 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	espi->regs_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(espi->regs_base)) {
 		error = PTR_ERR(espi->regs_base);
-		goto fail_put_clock;
+		goto fail_release_master;
 	}
 
 	error = devm_request_irq(&pdev->dev, irq, ep93xx_spi_interrupt,
 				0, "ep93xx-spi", espi);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request irq\n");
-		goto fail_put_clock;
+		goto fail_release_master;
 	}
 
 	if (info->use_dma && ep93xx_spi_setup_dma(espi))
@@ -1080,8 +1080,6 @@ fail_free_queue:
 	destroy_workqueue(espi->wq);
 fail_free_dma:
 	ep93xx_spi_release_dma(espi);
-fail_put_clock:
-	clk_put(espi->clk);
 fail_release_master:
 	spi_master_put(master);
 
@@ -1117,7 +1115,6 @@ static int ep93xx_spi_remove(struct platform_device *pdev)
 	spin_unlock_irq(&espi->lock);
 
 	ep93xx_spi_release_dma(espi);
-	clk_put(espi->clk);
 
 	spi_unregister_master(master);
 	return 0;
