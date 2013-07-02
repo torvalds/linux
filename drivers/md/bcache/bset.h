@@ -353,11 +353,29 @@ void bch_bset_fix_lookup_table(struct btree *, struct bkey *);
 struct bkey *__bch_bset_search(struct btree *, struct bset_tree *,
 			   const struct bkey *);
 
+/*
+ * Returns the first key that is strictly greater than search
+ */
 static inline struct bkey *bch_bset_search(struct btree *b, struct bset_tree *t,
 					   const struct bkey *search)
 {
 	return search ? __bch_bset_search(b, t, search) : t->data->start;
 }
+
+#define PRECEDING_KEY(_k)					\
+({								\
+	struct bkey *_ret = NULL;				\
+								\
+	if (KEY_INODE(_k) || KEY_OFFSET(_k)) {			\
+		_ret = &KEY(KEY_INODE(_k), KEY_OFFSET(_k), 0);	\
+								\
+		if (!_ret->low)					\
+			_ret->high--;				\
+		_ret->low--;					\
+	}							\
+								\
+	_ret;							\
+})
 
 bool bch_bkey_try_merge(struct btree *, struct bkey *, struct bkey *);
 void bch_btree_sort_lazy(struct btree *);

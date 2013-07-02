@@ -1844,19 +1844,14 @@ static bool btree_insert_key(struct btree *b, struct btree_op *op,
 
 	if (!b->level) {
 		struct btree_iter iter;
-		struct bkey search = KEY(KEY_INODE(k), KEY_START(k), 0);
 
 		/*
 		 * bset_search() returns the first key that is strictly greater
 		 * than the search key - but for back merging, we want to find
-		 * the first key that is greater than or equal to KEY_START(k) -
-		 * unless KEY_START(k) is 0.
+		 * the previous key.
 		 */
-		if (KEY_OFFSET(&search))
-			SET_KEY_OFFSET(&search, KEY_OFFSET(&search) - 1);
-
 		prev = NULL;
-		m = bch_btree_iter_init(b, &iter, &search);
+		m = bch_btree_iter_init(b, &iter, PRECEDING_KEY(&START_KEY(k)));
 
 		if (fix_overlapping_extents(b, k, &iter, replace_key)) {
 			op->insert_collision = true;
