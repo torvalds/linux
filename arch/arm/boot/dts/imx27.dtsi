@@ -375,13 +375,6 @@
 				clocks = <&clks 41>, <&clks 61>;
 				clock-names = "ipg", "per";
 			};
-
-			iim: iim@10028000 {
-				compatible = "fsl,imx27-iim";
-				reg = <0x10028000 0x1000>;
-				interrupts = <62>;
-				clocks = <&clks 38>;
-			};
 		};
 
 		aipi@10020000 { /* AIPI2 */
@@ -421,6 +414,13 @@
 				compatible = "fsl,imx27-ccm";
 				reg = <0x10027000 0x1000>;
 				#clock-cells = <1>;
+			};
+
+			iim: iim@10028000 {
+				compatible = "fsl,imx27-iim";
+				reg = <0x10028000 0x1000>;
+				interrupts = <62>;
+				clocks = <&clks 38>;
 			};
 
 			fec: ethernet@1002b000 {
