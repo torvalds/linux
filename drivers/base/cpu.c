@@ -85,17 +85,20 @@ static ssize_t __ref store_online(struct device *dev,
 }
 static DEVICE_ATTR(online, 0644, show_online, store_online);
 
-static void __cpuinit register_cpu_control(struct cpu *cpu)
-{
-	device_create_file(&cpu->dev, &dev_attr_online);
-}
+static struct attribute *hotplug_cpu_attrs[] = {
+	&dev_attr_online.attr,
+	NULL
+};
+
+static struct attribute_group hotplug_cpu_attr_group = {
+	.attrs = hotplug_cpu_attrs,
+};
+
 void unregister_cpu(struct cpu *cpu)
 {
 	int logical_cpu = cpu->dev.id;
 
 	unregister_cpu_under_node(logical_cpu, cpu_to_node(logical_cpu));
-
-	device_remove_file(&cpu->dev, &dev_attr_online);
 
 	device_unregister(&cpu->dev);
 	per_cpu(cpu_sys_devices, logical_cpu) = NULL;
@@ -122,11 +125,6 @@ static ssize_t cpu_release_store(struct device *dev,
 static DEVICE_ATTR(probe, S_IWUSR, NULL, cpu_probe_store);
 static DEVICE_ATTR(release, S_IWUSR, NULL, cpu_release_store);
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
-
-#else /* ... !CONFIG_HOTPLUG_CPU */
-static inline void register_cpu_control(struct cpu *cpu)
-{
-}
 #endif /* CONFIG_HOTPLUG_CPU */
 
 #ifdef CONFIG_KEXEC
@@ -164,7 +162,34 @@ static ssize_t show_crash_notes_size(struct device *dev,
 	return rc;
 }
 static DEVICE_ATTR(crash_notes_size, 0400, show_crash_notes_size, NULL);
+
+static struct attribute *crash_note_cpu_attrs[] = {
+	&dev_attr_crash_notes.attr,
+	&dev_attr_crash_notes_size.attr,
+	NULL
+};
+
+static struct attribute_group crash_note_cpu_attr_group = {
+	.attrs = crash_note_cpu_attrs,
+};
 #endif
+
+static const struct attribute_group *common_cpu_attr_groups[] = {
+#ifdef CONFIG_KEXEC
+	&crash_note_cpu_attr_group,
+#endif
+	NULL
+};
+
+static const struct attribute_group *hotplugable_cpu_attr_groups[] = {
+#ifdef CONFIG_KEXEC
+	&crash_note_cpu_attr_group,
+#endif
+#ifdef CONFIG_HOTPLUG_CPU
+	&hotplug_cpu_attr_group,
+#endif
+	NULL
+};
 
 /*
  * Print cpu online, possible, present, and system maps
@@ -280,21 +305,15 @@ int __cpuinit register_cpu(struct cpu *cpu, int num)
 #ifdef CONFIG_ARCH_HAS_CPU_AUTOPROBE
 	cpu->dev.bus->uevent = arch_cpu_uevent;
 #endif
+	cpu->dev.groups = common_cpu_attr_groups;
+	if (cpu->hotpluggable)
+		cpu->dev.groups = hotplugable_cpu_attr_groups;
 	error = device_register(&cpu->dev);
-	if (!error && cpu->hotpluggable)
-		register_cpu_control(cpu);
 	if (!error)
 		per_cpu(cpu_sys_devices, num) = &cpu->dev;
 	if (!error)
 		register_cpu_under_node(num, cpu_to_node(num));
 
-#ifdef CONFIG_KEXEC
-	if (!error)
-		error = device_create_file(&cpu->dev, &dev_attr_crash_notes);
-	if (!error)
-		error = device_create_file(&cpu->dev,
-					   &dev_attr_crash_notes_size);
-#endif
 	return error;
 }
 

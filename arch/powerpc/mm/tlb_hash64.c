@@ -183,8 +183,8 @@ void tlb_flush(struct mmu_gather *tlb)
  * since 64K pages may overlap with other bridges when using 64K pages
  * with 4K HW pages on IO space.
  *
- * Because of that usage pattern, it's only available with CONFIG_HOTPLUG
- * and is implemented for small size rather than speed.
+ * Because of that usage pattern, it is implemented for small size rather
+ * than speed.
  */
 void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 			      unsigned long end)

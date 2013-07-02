@@ -128,7 +128,7 @@ A: When doing make defconfig, Enable CPU hotplug support
 
    "Processor type and Features" -> Support for Hotpluggable CPUs
 
-Make sure that you have CONFIG_HOTPLUG, and CONFIG_SMP turned on as well.
+Make sure that you have CONFIG_SMP turned on as well.
 
 You would need to enable CONFIG_HOTPLUG_CPU for SMP suspend/resume support
 as well.

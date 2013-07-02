@@ -74,7 +74,7 @@ static int sysfs_sd_compare(const struct sysfs_dirent *left,
 }
 
 /**
- *	sysfs_link_subling - link sysfs_dirent into sibling rbtree
+ *	sysfs_link_sibling - link sysfs_dirent into sibling rbtree
  *	@sd: sysfs_dirent of interest
  *
  *	Link @sd into its sibling rbtree which starts from
