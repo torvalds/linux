@@ -38,13 +38,6 @@
 
 static struct map_desc emev2_io_desc[] __initdata = {
 #ifdef CONFIG_SMP
-	/* 128K entity map for 0xe0100000 (SMU) */
-	{
-		.virtual	= 0xe0100000,
-		.pfn		= __phys_to_pfn(0xe0100000),
-		.length		= SZ_128K,
-		.type		= MT_DEVICE
-	},
 	/* 2M mapping for SCU + L2 controller */
 	{
 		.virtual	= 0xf0000000,
@@ -211,6 +204,7 @@ static const char *emev2_boards_compat_dt[] __initdata = {
 
 DT_MACHINE_START(EMEV2_DT, "Generic Emma Mobile EV2 (Flattened Device Tree)")
 	.smp		= smp_ops(emev2_smp_ops),
+	.map_io		= emev2_map_io,
 	.init_early	= emev2_init_delay,
 	.dt_compat	= emev2_boards_compat_dt,
 MACHINE_END
