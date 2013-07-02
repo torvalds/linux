@@ -1870,7 +1870,6 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	priv->emac_base_phys = res->start + pdata->ctrl_reg_offset;
 	priv->remap_addr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->remap_addr)) {
-		dev_err(&pdev->dev, "unable to map IO\n");
 		rc = PTR_ERR(priv->remap_addr);
 		goto no_pdata;
 	}
