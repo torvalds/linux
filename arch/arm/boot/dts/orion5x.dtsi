@@ -16,11 +16,12 @@
 	aliases {
 		gpio0 = &gpio0;
 	};
+
 	intc: interrupt-controller {
-		compatible = "marvell,orion-intc", "marvell,intc";
+		compatible = "marvell,orion-intc";
 		interrupt-controller;
 		#interrupt-cells = <1>;
-		reg = <0xf1020204 0x04>;
+		reg = <0xf1020200 0x08>;
 	};
 
 	ocp@f1000000 {
