@@ -528,57 +528,6 @@ int xhci_init(struct usb_hcd *hcd)
 /*-------------------------------------------------------------------------*/
 
 
-#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
-static void xhci_event_ring_work(unsigned long arg)
-{
-	unsigned long flags;
-	int temp;
-	u64 temp_64;
-	struct xhci_hcd *xhci = (struct xhci_hcd *) arg;
-	int i, j;
-
-	xhci_dbg(xhci, "Poll event ring: %lu\n", jiffies);
-
-	spin_lock_irqsave(&xhci->lock, flags);
-	temp = xhci_readl(xhci, &xhci->op_regs->status);
-	xhci_dbg(xhci, "op reg status = 0x%x\n", temp);
-	if (temp == 0xffffffff || (xhci->xhc_state & XHCI_STATE_DYING) ||
-			(xhci->xhc_state & XHCI_STATE_HALTED)) {
-		xhci_dbg(xhci, "HW died, polling stopped.\n");
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		return;
-	}
-
-	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
-	xhci_dbg(xhci, "ir_set 0 pending = 0x%x\n", temp);
-	xhci_dbg(xhci, "HC error bitmask = 0x%x\n", xhci->error_bitmask);
-	xhci->error_bitmask = 0;
-	xhci_dbg(xhci, "Event ring:\n");
-	xhci_debug_segment(xhci, xhci->event_ring->deq_seg);
-	xhci_dbg_ring_ptrs(xhci, xhci->event_ring);
-	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
-	temp_64 &= ~ERST_PTR_MASK;
-	xhci_dbg(xhci, "ERST deq = 64'h%0lx\n", (long unsigned int) temp_64);
-	xhci_dbg(xhci, "Command ring:\n");
-	xhci_debug_segment(xhci, xhci->cmd_ring->deq_seg);
-	xhci_dbg_ring_ptrs(xhci, xhci->cmd_ring);
-	xhci_dbg_cmd_ptrs(xhci);
-	for (i = 0; i < MAX_HC_SLOTS; ++i) {
-		if (!xhci->devs[i])
-			continue;
-		for (j = 0; j < 31; ++j) {
-			xhci_dbg_ep_rings(xhci, i, j, &xhci->devs[i]->eps[j]);
-		}
-	}
-	spin_unlock_irqrestore(&xhci->lock, flags);
-
-	if (!xhci->zombie)
-		mod_timer(&xhci->event_ring_timer, jiffies + POLL_TIMEOUT * HZ);
-	else
-		xhci_dbg(xhci, "Quit polling the event ring.\n");
-}
-#endif
-
 static int xhci_run_finished(struct xhci_hcd *xhci)
 {
 	if (xhci_start(xhci)) {
@@ -627,17 +576,6 @@ int xhci_run(struct usb_hcd *hcd)
 	ret = xhci_try_enable_msi(hcd);
 	if (ret)
 		return ret;
-
-#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
-	init_timer(&xhci->event_ring_timer);
-	xhci->event_ring_timer.data = (unsigned long) xhci;
-	xhci->event_ring_timer.function = xhci_event_ring_work;
-	/* Poll the event ring */
-	xhci->event_ring_timer.expires = jiffies + POLL_TIMEOUT * HZ;
-	xhci->zombie = 0;
-	xhci_dbg(xhci, "Setting event ring polling timer\n");
-	add_timer(&xhci->event_ring_timer);
-#endif
 
 	xhci_dbg(xhci, "Command ring memory map follows:\n");
 	xhci_debug_ring(xhci, xhci->cmd_ring);
@@ -724,12 +662,6 @@ void xhci_stop(struct usb_hcd *hcd)
 	spin_unlock_irq(&xhci->lock);
 
 	xhci_cleanup_msix(xhci);
-
-#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
-	/* Tell the event ring poll function not to reschedule */
-	xhci->zombie = 1;
-	del_timer_sync(&xhci->event_ring_timer);
-#endif
 
 	/* Deleting Compliance Mode Recovery Timer */
 	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
@@ -1010,12 +942,6 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		xhci_reset(xhci);
 		spin_unlock_irq(&xhci->lock);
 		xhci_cleanup_msix(xhci);
-
-#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
-		/* Tell the event ring poll function not to reschedule */
-		xhci->zombie = 1;
-		del_timer_sync(&xhci->event_ring_timer);
-#endif
 
 		xhci_dbg(xhci, "// Disabling event ring interrupts\n");
 		temp = xhci_readl(xhci, &xhci->op_regs->status);

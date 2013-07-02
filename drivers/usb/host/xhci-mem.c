@@ -481,17 +481,6 @@ struct xhci_ring *xhci_dma_to_transfer_ring(
 	return ep->ring;
 }
 
-/* Only use this when you know stream_info is valid */
-#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
-static struct xhci_ring *dma_to_stream_ring(
-		struct xhci_stream_info *stream_info,
-		u64 address)
-{
-	return radix_tree_lookup(&stream_info->trb_address_map,
-			address >> TRB_SEGMENT_SHIFT);
-}
-#endif	/* CONFIG_USB_XHCI_HCD_DEBUGGING */
-
 struct xhci_ring *xhci_stream_id_to_ring(
 		struct xhci_virt_device *dev,
 		unsigned int ep_index,
@@ -508,58 +497,6 @@ struct xhci_ring *xhci_stream_id_to_ring(
 		return NULL;
 	return ep->stream_info->stream_rings[stream_id];
 }
-
-#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
-static int xhci_test_radix_tree(struct xhci_hcd *xhci,
-		unsigned int num_streams,
-		struct xhci_stream_info *stream_info)
-{
-	u32 cur_stream;
-	struct xhci_ring *cur_ring;
-	u64 addr;
-
-	for (cur_stream = 1; cur_stream < num_streams; cur_stream++) {
-		struct xhci_ring *mapped_ring;
-		int trb_size = sizeof(union xhci_trb);
-
-		cur_ring = stream_info->stream_rings[cur_stream];
-		for (addr = cur_ring->first_seg->dma;
-				addr < cur_ring->first_seg->dma + TRB_SEGMENT_SIZE;
-				addr += trb_size) {
-			mapped_ring = dma_to_stream_ring(stream_info, addr);
-			if (cur_ring != mapped_ring) {
-				xhci_warn(xhci, "WARN: DMA address 0x%08llx "
-						"didn't map to stream ID %u; "
-						"mapped to ring %p\n",
-						(unsigned long long) addr,
-						cur_stream,
-						mapped_ring);
-				return -EINVAL;
-			}
-		}
-		/* One TRB after the end of the ring segment shouldn't return a
-		 * pointer to the current ring (although it may be a part of a
-		 * different ring).
-		 */
-		mapped_ring = dma_to_stream_ring(stream_info, addr);
-		if (mapped_ring != cur_ring) {
-			/* One TRB before should also fail */
-			addr = cur_ring->first_seg->dma - trb_size;
-			mapped_ring = dma_to_stream_ring(stream_info, addr);
-		}
-		if (mapped_ring == cur_ring) {
-			xhci_warn(xhci, "WARN: Bad DMA address 0x%08llx "
-					"mapped to valid stream ID %u; "
-					"mapped ring = %p\n",
-					(unsigned long long) addr,
-					cur_stream,
-					mapped_ring);
-			return -EINVAL;
-		}
-	}
-	return 0;
-}
-#endif	/* CONFIG_USB_XHCI_HCD_DEBUGGING */
 
 /*
  * Change an endpoint's internal structure so it supports stream IDs.  The
@@ -687,13 +624,6 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 	 * was any other way, the host controller would assume the ring is
 	 * "empty" and wait forever for data to be queued to that stream ID).
 	 */
-#if XHCI_DEBUG
-	/* Do a little test on the radix tree to make sure it returns the
-	 * correct values.
-	 */
-	if (xhci_test_radix_tree(xhci, num_streams, stream_info))
-		goto cleanup_rings;
-#endif
 
 	return stream_info;
 
