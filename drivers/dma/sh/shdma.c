@@ -49,12 +49,12 @@
 static DEFINE_SPINLOCK(sh_dmae_lock);
 static LIST_HEAD(sh_dmae_devices);
 
-static void chclr_write(struct sh_dmae_chan *sh_dc, u32 data)
+static void channel_clear(struct sh_dmae_chan *sh_dc)
 {
 	struct sh_dmae_device *shdev = to_sh_dev(sh_dc);
 
-	__raw_writel(data, shdev->chan_reg +
-		     shdev->pdata->channel[sh_dc->shdma_chan.id].chclr_offset);
+	__raw_writel(0, shdev->chan_reg +
+		shdev->pdata->channel[sh_dc->shdma_chan.id].chclr_offset / sizeof(u32));
 }
 
 static void sh_dmae_writel(struct sh_dmae_chan *sh_dc, u32 data, u32 reg)
@@ -133,7 +133,7 @@ static int sh_dmae_rst(struct sh_dmae_device *shdev)
 		for (i = 0; i < shdev->pdata->channel_num; i++) {
 			struct sh_dmae_chan *sh_chan = shdev->chan[i];
 			if (sh_chan)
-				chclr_write(sh_chan, 0);
+				channel_clear(sh_chan);
 		}
 	}
 
