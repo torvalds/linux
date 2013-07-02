@@ -181,4 +181,14 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
+
+	sram: sram@c8000000 {
+		compatible = "mtd-ram";
+		reg = <1 0x00000000 0x00800000>;
+		bank-width = <2>;
+		linux,mtd-name = "mtd-ram.0";
+		fsl,weim-cs-timing = <0x0000d843 0x22252521 0x22220a00>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
 };
