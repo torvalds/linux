@@ -104,6 +104,9 @@ struct l2tp_session {
 	struct sk_buff_head	reorder_q;	/* receive reorder queue */
 	u32			nr_max;		/* max NR. Depends on tunnel */
 	u32			nr_window_size;	/* NR window size */
+	u32			nr_oos;		/* NR of last OOS packet */
+	int			nr_oos_count;	/* For OOS recovery */
+	int			nr_oos_count_max;
 	struct hlist_node	hlist;		/* Hash list node */
 	atomic_t		ref_count;
 

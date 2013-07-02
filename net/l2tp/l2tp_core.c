@@ -572,12 +572,33 @@ static int l2tp_recv_data_seq(struct l2tp_session *session, struct sk_buff *skb)
 		 * reorder queue, in order of ns.
 		 */
 		l2tp_recv_queue_skb(session, skb);
+		goto out;
+	}
+
+	/* Packet reordering disabled. Discard out-of-sequence packets, while
+	 * tracking the number if in-sequence packets after the first OOS packet
+	 * is seen. After nr_oos_count_max in-sequence packets, reset the
+	 * sequence number to re-enable packet reception.
+	 */
+	if (L2TP_SKB_CB(skb)->ns == session->nr) {
+		skb_queue_tail(&session->reorder_q, skb);
 	} else {
-		/* Packet reordering disabled. Discard out-of-sequence
-		 * packets
-		 */
-		if ((L2TP_SKB_CB(skb)->ns != session->nr) &&
-		    (!session->reorder_skip)) {
+		u32 nr_oos = L2TP_SKB_CB(skb)->ns;
+		u32 nr_next = (session->nr_oos + 1) & session->nr_max;
+
+		if (nr_oos == nr_next)
+			session->nr_oos_count++;
+		else
+			session->nr_oos_count = 0;
+
+		session->nr_oos = nr_oos;
+		if (session->nr_oos_count > session->nr_oos_count_max) {
+			session->reorder_skip = 1;
+			l2tp_dbg(session, L2TP_MSG_SEQ,
+				 "%s: %d oos packets received. Resetting sequence numbers\n",
+				 session->name, session->nr_oos_count);
+		}
+		if (!session->reorder_skip) {
 			atomic_long_inc(&session->stats.rx_seq_discards);
 			l2tp_dbg(session, L2TP_MSG_SEQ,
 				 "%s: oos pkt %u len %d discarded, waiting for %u, reorder_q_len=%d\n",
@@ -589,6 +610,7 @@ static int l2tp_recv_data_seq(struct l2tp_session *session, struct sk_buff *skb)
 		skb_queue_tail(&session->reorder_q, skb);
 	}
 
+out:
 	return 0;
 
 discard:
@@ -1852,6 +1874,10 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 		else
 			session->nr_max = 0xffffff;
 		session->nr_window_size = session->nr_max / 2;
+		session->nr_oos_count_max = 4;
+
+		/* Use NR of first received packet */
+		session->reorder_skip = 1;
 
 		sprintf(&session->name[0], "sess %u/%u",
 			tunnel->tunnel_id, session->session_id);
