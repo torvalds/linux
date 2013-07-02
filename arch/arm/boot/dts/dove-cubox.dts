@@ -57,6 +57,13 @@
 
 &uart0 { status = "okay"; };
 &sata0 { status = "okay"; };
+&mdio { status = "okay"; };
+&eth { status = "okay"; };
+
+&ethphy {
+	compatible = "marvell,88e1310";
+	reg = <1>;
+};
 
 &i2c0 {
 	status = "okay";
