@@ -57,6 +57,9 @@ int au_sio_cpup_single(struct dentry *dentry, aufs_bindex_t bdst,
 		       struct dentry *dst_parent, struct au_pin *pin);
 int au_sio_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 		       unsigned int flags, struct au_pin *pin);
+int au_sio_cpup_simple_h_open(struct dentry *dentry, aufs_bindex_t bdst,
+			      loff_t len, unsigned int flags,
+			      struct au_pin *pin, aufs_bindex_t bsrc);
 int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 		   struct file *file, struct au_pin *pin);
 
