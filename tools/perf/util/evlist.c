@@ -838,7 +838,7 @@ out_close_ready_pipe:
 int perf_evlist__start_workload(struct perf_evlist *evlist)
 {
 	if (evlist->workload.cork_fd > 0) {
-		char bf;
+		char bf = 0;
 		int ret;
 		/*
 		 * Remove the cork, let it rip!
