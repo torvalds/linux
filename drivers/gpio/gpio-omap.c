@@ -1037,6 +1037,18 @@ omap_mpuio_alloc_gc(struct gpio_bank *bank, unsigned int irq_start,
 			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
+#if defined(CONFIG_OF_GPIO)
+static inline bool omap_gpio_chip_boot_dt(struct gpio_chip *chip)
+{
+	return chip->of_node != NULL;
+}
+#else
+static inline bool omap_gpio_chip_boot_dt(struct gpio_chip *chip)
+{
+	return false;
+}
+#endif
+
 static void omap_gpio_chip_init(struct gpio_bank *bank)
 {
 	int j;
@@ -1077,7 +1089,7 @@ static void omap_gpio_chip_init(struct gpio_bank *bank)
 	 * irq_create_of_mapping() only for the GPIO lines that
 	 * are used as interrupts.
 	 */
-	if (!bank->chip.of_node)
+	if (!omap_gpio_chip_boot_dt(&bank->chip))
 		for (j = 0; j < bank->width; j++)
 			irq_create_mapping(bank->domain, j);
 	irq_set_chained_handler(bank->irq, gpio_irq_handler);
@@ -1113,7 +1125,7 @@ static int omap_gpio_irq_map(struct irq_domain *d, unsigned int virq,
 	 * but until then this has to be done on a per driver
 	 * basis. Remove this once this is managed by the core.
 	 */
-	if (bank->chip.of_node) {
+	if (omap_gpio_chip_boot_dt(&bank->chip)) {
 		gpio = irq_to_gpio(bank, hwirq);
 		ret = gpio_request_one(gpio, GPIOF_IN, NULL);
 		if (ret) {
