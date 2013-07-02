@@ -78,6 +78,8 @@
 #include <linux/io.h>
 #include <linux/bitmap.h>
 #include <linux/prefetch.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 
 #include <asm/irq.h>
 #include <asm/byteorder.h>
@@ -88,7 +90,6 @@ static int dbg_level;
 module_param(dbg_level, int, 0644);
 #else
 module_param(dbg_level, int, 0);
-#define	STUB_DEBUG_FILE
 #endif
 
 #include "../core/usb.h"
@@ -1907,20 +1908,6 @@ static int isp1362_bus_resume(struct usb_hcd *hcd)
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef STUB_DEBUG_FILE
-
-static inline void create_debug_file(struct isp1362_hcd *isp1362_hcd)
-{
-}
-static inline void remove_debug_file(struct isp1362_hcd *isp1362_hcd)
-{
-}
-
-#else
-
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-
 static void dump_irq(struct seq_file *s, char *label, u16 mask)
 {
 	seq_printf(s, "%-15s %04x%s%s%s%s%s%s\n", label, mask,
@@ -2063,7 +2050,7 @@ static void dump_regs(struct seq_file *s, struct isp1362_hcd *isp1362_hcd)
 		   isp1362_read_reg16(isp1362_hcd, HCATLDTCTO));
 }
 
-static int proc_isp1362_show(struct seq_file *s, void *unused)
+static int isp1362_show(struct seq_file *s, void *unused)
 {
 	struct isp1362_hcd *isp1362_hcd = s->private;
 	struct isp1362_ep *ep;
@@ -2167,40 +2154,30 @@ static int proc_isp1362_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int proc_isp1362_open(struct inode *inode, struct file *file)
+static int isp1362_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, proc_isp1362_show, PDE_DATA(inode));
+	return single_open(file, isp1362_show, inode);
 }
 
-static const struct file_operations proc_ops = {
-	.open = proc_isp1362_open,
+static const struct file_operations debug_ops = {
+	.open = isp1362_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
 /* expect just one isp1362_hcd per system */
-static const char proc_filename[] = "driver/isp1362";
-
 static void create_debug_file(struct isp1362_hcd *isp1362_hcd)
 {
-	struct proc_dir_entry *pde;
-
-	pde = proc_create_data(proc_filename, 0, NULL, &proc_ops, isp1362_hcd);
-	if (pde == NULL) {
-		pr_warning("%s: Failed to create debug file '%s'\n", __func__, proc_filename);
-		return;
-	}
-	isp1362_hcd->pde = pde;
+	isp1362_hcd->debug_file = debugfs_create_file("isp1362", S_IRUGO,
+						      usb_debug_root,
+						      isp1362_hcd, &debug_ops);
 }
 
 static void remove_debug_file(struct isp1362_hcd *isp1362_hcd)
 {
-	if (isp1362_hcd->pde)
-		remove_proc_entry(proc_filename, NULL);
+	debugfs_remove(isp1362_hcd->debug_file);
 }
-
-#endif
 
 /*-------------------------------------------------------------------------*/
 
