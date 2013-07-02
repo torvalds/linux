@@ -1068,7 +1068,6 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	tspi->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(tspi->base)) {
 		ret = PTR_ERR(tspi->base);
-		dev_err(&pdev->dev, "ioremap failed: err = %d\n", ret);
 		goto exit_free_master;
 	}
 
