@@ -735,6 +735,9 @@ static const struct dev_pm_ops dwc3_dev_pm_ops = {
 #ifdef CONFIG_OF
 static const struct of_device_id of_dwc3_match[] = {
 	{
+		.compatible = "snps,dwc3"
+	},
+	{
 		.compatible = "synopsys,dwc3"
 	},
 	{ },

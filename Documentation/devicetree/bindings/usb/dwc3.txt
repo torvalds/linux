@@ -3,7 +3,7 @@ synopsys DWC3 CORE
 DWC3- USB3 CONTROLLER
 
 Required properties:
- - compatible: must be "synopsys,dwc3"
+ - compatible: must be "snps,dwc3"
  - reg : Address and length of the register set for the device
  - interrupts: Interrupts used by the dwc3 controller.
  - usb-phy : array of phandle for the PHY device
@@ -14,7 +14,7 @@ Optional properties:
 This is usually a subnode to DWC3 glue to which it is connected.
 
 dwc3@4a030000 {
-	compatible = "synopsys,dwc3";
+	compatible = "snps,dwc3";
 	reg = <0x4a030000 0xcfff>;
 	interrupts = <0 92 4>
 	usb-phy = <&usb2_phy>, <&usb3,phy>;
