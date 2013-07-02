@@ -23,7 +23,7 @@
 
 #include <drm/drmP.h>
 #include "psb_intel_reg.h"
-#include "psb_intel_display.h"
+#include "gma_display.h"
 #include "framebuffer.h"
 #include "mdfld_output.h"
 #include "mdfld_dsi_output.h"
@@ -611,8 +611,8 @@ static const struct mrst_limit_t *mdfld_limit(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)
-	    || psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_MIPI2)) {
+	if (gma_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)
+	    || gma_pipe_has_type(crtc, INTEL_OUTPUT_MIPI2)) {
 		if ((ksel == KSEL_CRYSTAL_19) || (ksel == KSEL_BYPASS_19))
 			limit = &mdfld_limits[MDFLD_LIMT_DSIPLL_19];
 		else if (ksel == KSEL_BYPASS_25)
@@ -624,7 +624,7 @@ static const struct mrst_limit_t *mdfld_limit(struct drm_crtc *crtc)
 			 (dev_priv->core_freq == 100 ||
 				dev_priv->core_freq == 200))
 			limit = &mdfld_limits[MDFLD_LIMT_DSIPLL_100];
-	} else if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_HDMI)) {
+	} else if (gma_pipe_has_type(crtc, INTEL_OUTPUT_HDMI)) {
 		if ((ksel == KSEL_CRYSTAL_19) || (ksel == KSEL_BYPASS_19))
 			limit = &mdfld_limits[MDFLD_LIMT_DPLL_19];
 		else if (ksel == KSEL_BYPASS_25)
