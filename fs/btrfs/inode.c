@@ -7270,8 +7270,16 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	atomic_inc(&inode->i_dio_count);
 	smp_mb__after_atomic_inc();
 
+	/*
+	 * The generic stuff only does filemap_write_and_wait_range, which isn't
+	 * enough if we've written compressed pages to this area, so we need to
+	 * call btrfs_wait_ordered_range to make absolutely sure that any
+	 * outstanding dirty pages are on disk.
+	 */
+	count = iov_length(iov, nr_segs);
+	btrfs_wait_ordered_range(inode, offset, count);
+
 	if (rw & WRITE) {
-		count = iov_length(iov, nr_segs);
 		/*
 		 * If the write DIO is beyond the EOF, we need update
 		 * the isize, but it is protected by i_mutex. So we can
