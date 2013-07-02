@@ -37,6 +37,8 @@
 #include <asm/ppc-opcode.h>
 #include <asm/cputable.h>
 
+#include "book3s_hv_cma.h"
+
 /* POWER7 has 10-bit LPIDs, PPC970 has 6-bit LPIDs */
 #define MAX_LPID_970	63
 
@@ -71,6 +73,7 @@ long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
 
 	/* Next try to allocate from the preallocated pool */
 	if (!hpt) {
+		VM_BUG_ON(order < KVM_CMA_CHUNK_ORDER);
 		page = kvm_alloc_hpt(1 << (order - PAGE_SHIFT));
 		if (page) {
 			hpt = (unsigned long)pfn_to_kaddr(page_to_pfn(page));

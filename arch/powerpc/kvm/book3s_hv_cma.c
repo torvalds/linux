@@ -24,6 +24,8 @@
 #include <linux/sizes.h>
 #include <linux/slab.h>
 
+#include "book3s_hv_cma.h"
+
 struct kvm_cma {
 	unsigned long	base_pfn;
 	unsigned long	count;
@@ -96,6 +98,7 @@ struct page *kvm_alloc_cma(unsigned long nr_pages, unsigned long align_pages)
 	int ret;
 	struct page *page = NULL;
 	struct kvm_cma *cma = &kvm_cma_area;
+	unsigned long chunk_count, nr_chunk;
 	unsigned long mask, pfn, pageno, start = 0;
 
 
@@ -107,21 +110,27 @@ struct page *kvm_alloc_cma(unsigned long nr_pages, unsigned long align_pages)
 
 	if (!nr_pages)
 		return NULL;
-
+	/*
+	 * align mask with chunk size. The bit tracks pages in chunk size
+	 */
 	VM_BUG_ON(!is_power_of_2(align_pages));
-	mask = align_pages - 1;
+	mask = (align_pages >> (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT)) - 1;
+	BUILD_BUG_ON(PAGE_SHIFT > KVM_CMA_CHUNK_ORDER);
+
+	chunk_count = cma->count >>  (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
+	nr_chunk = nr_pages >> (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
 
 	mutex_lock(&kvm_cma_mutex);
 	for (;;) {
-		pageno = bitmap_find_next_zero_area(cma->bitmap, cma->count,
-						    start, nr_pages, mask);
-		if (pageno >= cma->count)
+		pageno = bitmap_find_next_zero_area(cma->bitmap, chunk_count,
+						    start, nr_chunk, mask);
+		if (pageno >= chunk_count)
 			break;
 
-		pfn = cma->base_pfn + pageno;
+		pfn = cma->base_pfn + (pageno << (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT));
 		ret = alloc_contig_range(pfn, pfn + nr_pages, MIGRATE_CMA);
 		if (ret == 0) {
-			bitmap_set(cma->bitmap, pageno, nr_pages);
+			bitmap_set(cma->bitmap, pageno, nr_chunk);
 			page = pfn_to_page(pfn);
 			memset(pfn_to_kaddr(pfn), 0, nr_pages << PAGE_SHIFT);
 			break;
@@ -150,8 +159,8 @@ struct page *kvm_alloc_cma(unsigned long nr_pages, unsigned long align_pages)
 bool kvm_release_cma(struct page *pages, unsigned long nr_pages)
 {
 	unsigned long pfn;
+	unsigned long nr_chunk;
 	struct kvm_cma *cma = &kvm_cma_area;
-
 
 	if (!cma || !pages)
 		return false;
@@ -164,9 +173,12 @@ bool kvm_release_cma(struct page *pages, unsigned long nr_pages)
 		return false;
 
 	VM_BUG_ON(pfn + nr_pages > cma->base_pfn + cma->count);
+	nr_chunk = nr_pages >>  (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
 
 	mutex_lock(&kvm_cma_mutex);
-	bitmap_clear(cma->bitmap, pfn - cma->base_pfn, nr_pages);
+	bitmap_clear(cma->bitmap,
+		     (pfn - cma->base_pfn) >> (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT),
+		     nr_chunk);
 	free_contig_range(pfn, nr_pages);
 	mutex_unlock(&kvm_cma_mutex);
 
@@ -204,13 +216,14 @@ static int __init kvm_cma_activate_area(unsigned long base_pfn,
 static int __init kvm_cma_init_reserved_areas(void)
 {
 	int bitmap_size, ret;
+	unsigned long chunk_count;
 	struct kvm_cma *cma = &kvm_cma_area;
 
 	pr_debug("%s()\n", __func__);
 	if (!cma->count)
 		return 0;
-
-	bitmap_size = BITS_TO_LONGS(cma->count) * sizeof(long);
+	chunk_count = cma->count >> (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
+	bitmap_size = BITS_TO_LONGS(chunk_count) * sizeof(long);
 	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
 	if (!cma->bitmap)
 		return -ENOMEM;

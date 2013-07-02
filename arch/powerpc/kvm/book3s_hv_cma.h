@@ -14,6 +14,11 @@
 
 #ifndef __POWERPC_KVM_CMA_ALLOC_H__
 #define __POWERPC_KVM_CMA_ALLOC_H__
+/*
+ * Both RMA and Hash page allocation will be multiple of 256K.
+ */
+#define KVM_CMA_CHUNK_ORDER	18
+
 extern struct page *kvm_alloc_cma(unsigned long nr_pages,
 				  unsigned long align_pages);
 extern bool kvm_release_cma(struct page *pages, unsigned long nr_pages);
