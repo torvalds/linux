@@ -1641,6 +1641,7 @@ static struct radeon_asic sumo_asic = {
 		.get_mclk = &sumo_dpm_get_mclk,
 		.print_power_state = &sumo_dpm_print_power_state,
 		.debugfs_print_current_performance_level = &sumo_dpm_debugfs_print_current_performance_level,
+		.force_performance_level = &sumo_dpm_force_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
