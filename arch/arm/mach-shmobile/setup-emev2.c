@@ -62,102 +62,40 @@ void __init emev2_map_io(void)
 
 /* UART */
 static struct resource uart0_resources[] = {
-	[0]	= {
-		.start	= 0xe1020000,
-		.end	= 0xe1020037,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1]	= {
-		.start	= 40,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device uart0_device = {
-	.name		= "serial8250-em",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(uart0_resources),
-	.resource	= uart0_resources,
+	DEFINE_RES_MEM(0xe1020000, 0x38),
+	DEFINE_RES_IRQ(40),
 };
 
 static struct resource uart1_resources[] = {
-	[0]	= {
-		.start	= 0xe1030000,
-		.end	= 0xe1030037,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1]	= {
-		.start	= 41,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device uart1_device = {
-	.name		= "serial8250-em",
-	.id		= 1,
-	.num_resources	= ARRAY_SIZE(uart1_resources),
-	.resource	= uart1_resources,
+	DEFINE_RES_MEM(0xe1030000, 0x38),
+	DEFINE_RES_IRQ(41),
 };
 
 static struct resource uart2_resources[] = {
-	[0]	= {
-		.start	= 0xe1040000,
-		.end	= 0xe1040037,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1]	= {
-		.start	= 42,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device uart2_device = {
-	.name		= "serial8250-em",
-	.id		= 2,
-	.num_resources	= ARRAY_SIZE(uart2_resources),
-	.resource	= uart2_resources,
+	DEFINE_RES_MEM(0xe1040000, 0x38),
+	DEFINE_RES_IRQ(42),
 };
 
 static struct resource uart3_resources[] = {
-	[0]	= {
-		.start	= 0xe1050000,
-		.end	= 0xe1050037,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1]	= {
-		.start	= 43,
-		.flags	= IORESOURCE_IRQ,
-	}
+	DEFINE_RES_MEM(0xe1050000, 0x38),
+	DEFINE_RES_IRQ(43),
 };
 
-static struct platform_device uart3_device = {
-	.name		= "serial8250-em",
-	.id		= 3,
-	.num_resources	= ARRAY_SIZE(uart3_resources),
-	.resource	= uart3_resources,
-};
+#define emev2_register_uart(idx)					\
+	platform_device_register_simple("serial8250-em", idx,		\
+					uart##idx##_resources,		\
+					ARRAY_SIZE(uart##idx##_resources))
 
 /* STI */
 static struct resource sti_resources[] = {
-	[0] = {
-		.name	= "STI",
-		.start	= 0xe0180000,
-		.end	= 0xe0180053,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 157,
-		.flags	= IORESOURCE_IRQ,
-	},
+	DEFINE_RES_MEM(0xe0180000, 0x54),
+	DEFINE_RES_IRQ(157),
 };
 
-static struct platform_device sti_device = {
-	.name		= "em_sti",
-	.id		= 0,
-	.resource	= sti_resources,
-	.num_resources	= ARRAY_SIZE(sti_resources),
-};
-
+#define emev2_register_sti()					\
+	platform_device_register_simple("em_sti", 0,		\
+					sti_resources,		\
+					ARRAY_SIZE(sti_resources))
 
 /* GIO */
 static struct gpio_em_config gio0_config = {
@@ -167,36 +105,10 @@ static struct gpio_em_config gio0_config = {
 };
 
 static struct resource gio0_resources[] = {
-	[0] = {
-		.name	= "GIO_000",
-		.start	= 0xe0050000,
-		.end	= 0xe005002b,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.name	= "GIO_000",
-		.start	= 0xe0050040,
-		.end	= 0xe005005f,
-		.flags	= IORESOURCE_MEM,
-	},
-	[2] = {
-		.start	= 99,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[3] = {
-		.start	= 100,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device gio0_device = {
-	.name		= "em_gio",
-	.id		= 0,
-	.resource	= gio0_resources,
-	.num_resources	= ARRAY_SIZE(gio0_resources),
-	.dev		= {
-		.platform_data	= &gio0_config,
-	},
+	DEFINE_RES_MEM(0xe0050000, 0x2c),
+	DEFINE_RES_MEM(0xe0050040, 0x20),
+	DEFINE_RES_IRQ(99),
+	DEFINE_RES_IRQ(100),
 };
 
 static struct gpio_em_config gio1_config = {
@@ -206,36 +118,10 @@ static struct gpio_em_config gio1_config = {
 };
 
 static struct resource gio1_resources[] = {
-	[0] = {
-		.name	= "GIO_032",
-		.start	= 0xe0050080,
-		.end	= 0xe00500ab,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.name	= "GIO_032",
-		.start	= 0xe00500c0,
-		.end	= 0xe00500df,
-		.flags	= IORESOURCE_MEM,
-	},
-	[2] = {
-		.start	= 101,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[3] = {
-		.start	= 102,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device gio1_device = {
-	.name		= "em_gio",
-	.id		= 1,
-	.resource	= gio1_resources,
-	.num_resources	= ARRAY_SIZE(gio1_resources),
-	.dev		= {
-		.platform_data	= &gio1_config,
-	},
+	DEFINE_RES_MEM(0xe0050080, 0x2c),
+	DEFINE_RES_MEM(0xe00500c0, 0x20),
+	DEFINE_RES_IRQ(101),
+	DEFINE_RES_IRQ(102),
 };
 
 static struct gpio_em_config gio2_config = {
@@ -245,36 +131,10 @@ static struct gpio_em_config gio2_config = {
 };
 
 static struct resource gio2_resources[] = {
-	[0] = {
-		.name	= "GIO_064",
-		.start	= 0xe0050100,
-		.end	= 0xe005012b,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.name	= "GIO_064",
-		.start	= 0xe0050140,
-		.end	= 0xe005015f,
-		.flags	= IORESOURCE_MEM,
-	},
-	[2] = {
-		.start	= 103,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[3] = {
-		.start	= 104,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device gio2_device = {
-	.name		= "em_gio",
-	.id		= 2,
-	.resource	= gio2_resources,
-	.num_resources	= ARRAY_SIZE(gio2_resources),
-	.dev		= {
-		.platform_data	= &gio2_config,
-	},
+	DEFINE_RES_MEM(0xe0050100, 0x2c),
+	DEFINE_RES_MEM(0xe0050140, 0x20),
+	DEFINE_RES_IRQ(103),
+	DEFINE_RES_IRQ(104),
 };
 
 static struct gpio_em_config gio3_config = {
@@ -284,36 +144,10 @@ static struct gpio_em_config gio3_config = {
 };
 
 static struct resource gio3_resources[] = {
-	[0] = {
-		.name	= "GIO_096",
-		.start	= 0xe0050180,
-		.end	= 0xe00501ab,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.name	= "GIO_096",
-		.start	= 0xe00501c0,
-		.end	= 0xe00501df,
-		.flags	= IORESOURCE_MEM,
-	},
-	[2] = {
-		.start	= 105,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[3] = {
-		.start	= 106,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device gio3_device = {
-	.name		= "em_gio",
-	.id		= 3,
-	.resource	= gio3_resources,
-	.num_resources	= ARRAY_SIZE(gio3_resources),
-	.dev		= {
-		.platform_data	= &gio3_config,
-	},
+	DEFINE_RES_MEM(0xe0050180, 0x2c),
+	DEFINE_RES_MEM(0xe00501c0, 0x20),
+	DEFINE_RES_IRQ(105),
+	DEFINE_RES_IRQ(106),
 };
 
 static struct gpio_em_config gio4_config = {
@@ -323,77 +157,44 @@ static struct gpio_em_config gio4_config = {
 };
 
 static struct resource gio4_resources[] = {
-	[0] = {
-		.name	= "GIO_128",
-		.start	= 0xe0050200,
-		.end	= 0xe005022b,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.name	= "GIO_128",
-		.start	= 0xe0050240,
-		.end	= 0xe005025f,
-		.flags	= IORESOURCE_MEM,
-	},
-	[2] = {
-		.start	= 107,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[3] = {
-		.start	= 108,
-		.flags	= IORESOURCE_IRQ,
-	},
+	DEFINE_RES_MEM(0xe0050200, 0x2c),
+	DEFINE_RES_MEM(0xe0050240, 0x20),
+	DEFINE_RES_IRQ(107),
+	DEFINE_RES_IRQ(108),
 };
 
-static struct platform_device gio4_device = {
-	.name		= "em_gio",
-	.id		= 4,
-	.resource	= gio4_resources,
-	.num_resources	= ARRAY_SIZE(gio4_resources),
-	.dev		= {
-		.platform_data	= &gio4_config,
-	},
-};
+#define emev2_register_gio(idx)						\
+	platform_device_register_resndata(&platform_bus, "em_gio",	\
+					  idx, gio##idx##_resources,	\
+					  ARRAY_SIZE(gio##idx##_resources), \
+					  &gio##idx##_config,		\
+					  sizeof(struct gpio_em_config))
 
 static struct resource pmu_resources[] = {
-	[0] = {
-		.start	= 152,
-		.end	= 152,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[1] = {
-		.start	= 153,
-		.end	= 153,
-		.flags	= IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ(152),
+	DEFINE_RES_IRQ(153),
 };
 
-static struct platform_device pmu_device = {
-	.name		= "arm-pmu",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(pmu_resources),
-	.resource	= pmu_resources,
-};
-
-static struct platform_device *emev2_devices[] __initdata = {
-	&uart0_device,
-	&uart1_device,
-	&uart2_device,
-	&uart3_device,
-	&sti_device,
-	&gio0_device,
-	&gio1_device,
-	&gio2_device,
-	&gio3_device,
-	&gio4_device,
-	&pmu_device,
-};
+#define emev2_register_pmu()					\
+	platform_device_register_simple("arm-pmu", -1,		\
+					pmu_resources,		\
+					ARRAY_SIZE(pmu_resources))
 
 void __init emev2_add_standard_devices(void)
 {
 	emev2_clock_init();
 
-	platform_add_devices(emev2_devices, ARRAY_SIZE(emev2_devices));
+	emev2_register_uart(0);
+	emev2_register_uart(1);
+	emev2_register_uart(2);
+	emev2_register_uart(3);
+	emev2_register_sti();
+	emev2_register_gio(0);
+	emev2_register_gio(1);
+	emev2_register_gio(2);
+	emev2_register_gio(3);
+	emev2_register_gio(4);
+	emev2_register_pmu();
 }
 
 void __init emev2_init_delay(void)
