@@ -28,7 +28,7 @@ struct sh_dmae_chan {
 	struct shdma_chan shdma_chan;
 	const struct sh_dmae_slave_config *config; /* Slave DMA configuration */
 	int xmit_shift;			/* log_2(bytes_per_xfer) */
-	u32 __iomem *base;
+	void __iomem *base;
 	char dev_id[16];		/* unique name per DMAC of channel */
 	int pm_error;
 };
@@ -38,8 +38,8 @@ struct sh_dmae_device {
 	struct sh_dmae_chan *chan[SH_DMAE_MAX_CHANNELS];
 	struct sh_dmae_pdata *pdata;
 	struct list_head node;
-	u32 __iomem *chan_reg;
-	u16 __iomem *dmars;
+	void __iomem *chan_reg;
+	void __iomem *dmars;
 	unsigned int chcr_offset;
 	u32 chcr_ie_bit;
 };
