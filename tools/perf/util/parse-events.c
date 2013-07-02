@@ -1260,6 +1260,4 @@ void parse_events__free_terms(struct list_head *terms)
 
 	list_for_each_entry_safe(term, h, terms, list)
 		free(term);
-
-	free(terms);
 }
