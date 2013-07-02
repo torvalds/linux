@@ -387,7 +387,7 @@ unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
 	TRACE_ITER_GRAPH_TIME | TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE |
 	TRACE_ITER_IRQ_INFO | TRACE_ITER_MARKERS | TRACE_ITER_FUNCTION;
 
-void tracer_tracing_on(struct trace_array *tr)
+static void tracer_tracing_on(struct trace_array *tr)
 {
 	if (tr->trace_buffer.buffer)
 		ring_buffer_record_on(tr->trace_buffer.buffer);
@@ -606,7 +606,7 @@ void tracing_snapshot_alloc(void)
 EXPORT_SYMBOL_GPL(tracing_snapshot_alloc);
 #endif /* CONFIG_TRACER_SNAPSHOT */
 
-void tracer_tracing_off(struct trace_array *tr)
+static void tracer_tracing_off(struct trace_array *tr)
 {
 	if (tr->trace_buffer.buffer)
 		ring_buffer_record_off(tr->trace_buffer.buffer);
@@ -649,7 +649,7 @@ void disable_trace_on_warning(void)
  *
  * Shows real state of the ring buffer if it is enabled or not.
  */
-int tracer_tracing_is_on(struct trace_array *tr)
+static int tracer_tracing_is_on(struct trace_array *tr)
 {
 	if (tr->trace_buffer.buffer)
 		return ring_buffer_record_is_on(tr->trace_buffer.buffer);
