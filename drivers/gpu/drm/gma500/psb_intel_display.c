@@ -26,39 +26,13 @@
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "psb_intel_display.h"
+#include "gma_display.h"
 #include "power.h"
-
-struct psb_intel_clock_t {
-	/* given values */
-	int n;
-	int m1, m2;
-	int p1, p2;
-	/* derived values */
-	int dot;
-	int vco;
-	int m;
-	int p;
-};
-
-struct psb_intel_range_t {
-	int min, max;
-};
-
-struct psb_intel_p2_t {
-	int dot_limit;
-	int p2_slow, p2_fast;
-};
-
-struct psb_intel_limit_t {
-	struct psb_intel_range_t dot, vco, n, m, m1, m2, p, p1;
-	struct psb_intel_p2_t p2;
-};
 
 #define INTEL_LIMIT_I9XX_SDVO_DAC   0
 #define INTEL_LIMIT_I9XX_LVDS	    1
 
-static const struct psb_intel_limit_t psb_intel_limits[] = {
+static const struct gma_limit_t psb_intel_limits[] = {
 	{			/* INTEL_LIMIT_I9XX_SDVO_DAC */
 	 .dot = {.min = 20000, .max = 400000},
 	 .vco = {.min = 1400000, .max = 2800000},
@@ -68,8 +42,8 @@ static const struct psb_intel_limit_t psb_intel_limits[] = {
 	 .m2 = {.min = 3, .max = 7},
 	 .p = {.min = 5, .max = 80},
 	 .p1 = {.min = 1, .max = 8},
-	 .p2 = {.dot_limit = 200000,
-		.p2_slow = 10, .p2_fast = 5},
+	 .p2 = {.dot_limit = 200000, .p2_slow = 10, .p2_fast = 5},
+	 .find_pll = gma_find_best_pll,
 	 },
 	{			/* INTEL_LIMIT_I9XX_LVDS */
 	 .dot = {.min = 20000, .max = 400000},
@@ -83,152 +57,29 @@ static const struct psb_intel_limit_t psb_intel_limits[] = {
 	 /* The single-channel range is 25-112Mhz, and dual-channel
 	  * is 80-224Mhz.  Prefer single channel as much as possible.
 	  */
-	 .p2 = {.dot_limit = 112000,
-		.p2_slow = 14, .p2_fast = 7},
+	 .p2 = {.dot_limit = 112000, .p2_slow = 14, .p2_fast = 7},
+	 .find_pll = gma_find_best_pll,
 	 },
 };
 
-static const struct psb_intel_limit_t *psb_intel_limit(struct drm_crtc *crtc)
+static const struct gma_limit_t *psb_intel_limit(struct drm_crtc *crtc,
+						 int refclk)
 {
-	const struct psb_intel_limit_t *limit;
+	const struct gma_limit_t *limit;
 
-	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
+	if (gma_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 		limit = &psb_intel_limits[INTEL_LIMIT_I9XX_LVDS];
 	else
 		limit = &psb_intel_limits[INTEL_LIMIT_I9XX_SDVO_DAC];
 	return limit;
 }
 
-static void psb_intel_clock(int refclk, struct psb_intel_clock_t *clock)
+static void psb_intel_clock(int refclk, struct gma_clock_t *clock)
 {
 	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
 	clock->p = clock->p1 * clock->p2;
 	clock->vco = refclk * clock->m / (clock->n + 2);
 	clock->dot = clock->vco / clock->p;
-}
-
-/**
- * Returns whether any output on the specified pipe is of the specified type
- */
-bool psb_intel_pipe_has_type(struct drm_crtc *crtc, int type)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_connector *l_entry;
-
-	list_for_each_entry(l_entry, &mode_config->connector_list, head) {
-		if (l_entry->encoder && l_entry->encoder->crtc == crtc) {
-			struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(l_entry);
-			if (psb_intel_encoder->type == type)
-				return true;
-		}
-	}
-	return false;
-}
-
-#define INTELPllInvalid(s)   { /* ErrorF (s) */; return false; }
-/**
- * Returns whether the given set of divisors are valid for a given refclk with
- * the given connectors.
- */
-
-static bool psb_intel_PLL_is_valid(struct drm_crtc *crtc,
-			       struct psb_intel_clock_t *clock)
-{
-	const struct psb_intel_limit_t *limit = psb_intel_limit(crtc);
-
-	if (clock->p1 < limit->p1.min || limit->p1.max < clock->p1)
-		INTELPllInvalid("p1 out of range\n");
-	if (clock->p < limit->p.min || limit->p.max < clock->p)
-		INTELPllInvalid("p out of range\n");
-	if (clock->m2 < limit->m2.min || limit->m2.max < clock->m2)
-		INTELPllInvalid("m2 out of range\n");
-	if (clock->m1 < limit->m1.min || limit->m1.max < clock->m1)
-		INTELPllInvalid("m1 out of range\n");
-	if (clock->m1 <= clock->m2)
-		INTELPllInvalid("m1 <= m2\n");
-	if (clock->m < limit->m.min || limit->m.max < clock->m)
-		INTELPllInvalid("m out of range\n");
-	if (clock->n < limit->n.min || limit->n.max < clock->n)
-		INTELPllInvalid("n out of range\n");
-	if (clock->vco < limit->vco.min || limit->vco.max < clock->vco)
-		INTELPllInvalid("vco out of range\n");
-	/* XXX: We may need to be checking "Dot clock"
-	 * depending on the multiplier, connector, etc.,
-	 * rather than just a single range.
-	 */
-	if (clock->dot < limit->dot.min || limit->dot.max < clock->dot)
-		INTELPllInvalid("dot out of range\n");
-
-	return true;
-}
-
-/**
- * Returns a set of divisors for the desired target clock with the given
- * refclk, or FALSE.  The returned values represent the clock equation:
- * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
- */
-static bool psb_intel_find_best_PLL(struct drm_crtc *crtc, int target,
-				int refclk,
-				struct psb_intel_clock_t *best_clock)
-{
-	struct drm_device *dev = crtc->dev;
-	struct psb_intel_clock_t clock;
-	const struct psb_intel_limit_t *limit = psb_intel_limit(crtc);
-	int err = target;
-
-	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
-	    (REG_READ(LVDS) & LVDS_PORT_EN) != 0) {
-		/*
-		 * For LVDS, if the panel is on, just rely on its current
-		 * settings for dual-channel.  We haven't figured out how to
-		 * reliably set up different single/dual channel state, if we
-		 * even can.
-		 */
-		if ((REG_READ(LVDS) & LVDS_CLKB_POWER_MASK) ==
-		    LVDS_CLKB_POWER_UP)
-			clock.p2 = limit->p2.p2_fast;
-		else
-			clock.p2 = limit->p2.p2_slow;
-	} else {
-		if (target < limit->p2.dot_limit)
-			clock.p2 = limit->p2.p2_slow;
-		else
-			clock.p2 = limit->p2.p2_fast;
-	}
-
-	memset(best_clock, 0, sizeof(*best_clock));
-
-	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max;
-	     clock.m1++) {
-		for (clock.m2 = limit->m2.min;
-		     clock.m2 < clock.m1 && clock.m2 <= limit->m2.max;
-		     clock.m2++) {
-			for (clock.n = limit->n.min;
-			     clock.n <= limit->n.max; clock.n++) {
-				for (clock.p1 = limit->p1.min;
-				     clock.p1 <= limit->p1.max;
-				     clock.p1++) {
-					int this_err;
-
-					psb_intel_clock(refclk, &clock);
-
-					if (!psb_intel_PLL_is_valid
-					    (crtc, &clock))
-						continue;
-
-					this_err = abs(clock.dot - target);
-					if (this_err < err) {
-						*best_clock = clock;
-						err = this_err;
-					}
-				}
-			}
-		}
-	}
-
-	return err != target;
 }
 
 void psb_intel_wait_for_vblank(struct drm_device *dev)
@@ -484,12 +335,13 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	int pipe = psb_intel_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk;
-	struct psb_intel_clock_t clock;
+	struct gma_clock_t clock;
 	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
 	bool ok, is_sdvo = false;
 	bool is_lvds = false, is_tv = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
+	const struct gma_limit_t *limit;
 
 	/* No scan out no play */
 	if (crtc->fb == NULL) {
@@ -520,10 +372,13 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	refclk = 96000;
 
-	ok = psb_intel_find_best_PLL(crtc, adjusted_mode->clock, refclk,
+	limit = psb_intel_crtc->clock_funcs->limit(crtc, refclk);
+
+	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk,
 				 &clock);
 	if (!ok) {
-		dev_err(dev->dev, "Couldn't find PLL settings for mode!\n");
+		DRM_ERROR("Couldn't find PLL settings for mode! target: %d, actual: %d",
+			  adjusted_mode->clock, clock.dot);
 		return 0;
 	}
 
@@ -1022,7 +877,7 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 dpll;
 	u32 fp;
-	struct psb_intel_clock_t clock;
+	struct gma_clock_t clock;
 	bool is_lvds;
 	struct psb_pipe *p = &dev_priv->regs.pipe[pipe];
 
@@ -1188,6 +1043,12 @@ const struct drm_crtc_funcs psb_intel_crtc_funcs = {
 	.gamma_set = psb_intel_crtc_gamma_set,
 	.set_config = psb_crtc_set_config,
 	.destroy = psb_intel_crtc_destroy,
+};
+
+const struct gma_clock_funcs psb_clock_funcs = {
+	.clock = psb_intel_clock,
+	.limit = psb_intel_limit,
+	.pll_is_valid = gma_pll_is_valid,
 };
 
 /*
