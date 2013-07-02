@@ -177,8 +177,8 @@ static struct termios orig_term;
  * in precise order.
  */
 #define wmb() __asm__ __volatile__("" : : : "memory")
-#define rmb() __asm__ __volatile__("" : : : "memory")
-#define mb() __asm__ __volatile__("" : : : "memory")
+#define rmb() __asm__ __volatile__("lock; addl $0,0(%%esp)" : : : "memory")
+#define mb() __asm__ __volatile__("lock; addl $0,0(%%esp)" : : : "memory")
 
 /* Wrapper for the last available index.  Makes it easier to change. */
 #define lg_last_avail(vq)	((vq)->last_avail_idx)
