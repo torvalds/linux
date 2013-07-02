@@ -66,6 +66,10 @@ struct irq_domain_ops {
 		     unsigned long *out_hwirq, unsigned int *out_type);
 };
 
+extern struct irq_domain_ops irq_generic_chip_ops;
+
+struct irq_domain_chip_generic;
+
 /**
  * struct irq_domain - Hardware interrupt number translation object
  * @link: Element in global irq_domain list.
@@ -109,7 +113,15 @@ struct irq_domain {
 
 	/* Optional device node pointer */
 	struct device_node *of_node;
+	/* Optional pointer to generic interrupt chips */
+	struct irq_domain_chip_generic *gc;
 };
+
+#define IRQ_DOMAIN_MAP_LEGACY 0 /* driver allocated fixed range of irqs.
+				 * ie. legacy 8259, gets irqs 1..15 */
+#define IRQ_DOMAIN_MAP_NOMAP 1 /* no fast reverse mapping */
+#define IRQ_DOMAIN_MAP_LINEAR 2 /* linear map of interrupts */
+#define IRQ_DOMAIN_MAP_TREE 3 /* radix tree */
 
 #ifdef CONFIG_IRQ_DOMAIN
 struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
