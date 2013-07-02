@@ -2326,14 +2326,11 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 
-#if 0
-	/* XXX */
 	ret = rv770_unrestrict_performance_levels_after_switch(rdev);
 	if (ret) {
 		DRM_ERROR("rv770_unrestrict_performance_levels_after_switch failed\n");
 		return ret;
 	}
-#endif
 
 	return 0;
 }

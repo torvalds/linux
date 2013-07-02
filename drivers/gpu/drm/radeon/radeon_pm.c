@@ -1062,6 +1062,11 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 		ret = device_create_file(rdev->dev, &dev_attr_power_method);
 		if (ret)
 			DRM_ERROR("failed to create device file for power method\n");
+
+		if (radeon_debugfs_pm_init(rdev)) {
+			DRM_ERROR("Failed to register debugfs file for dpm!\n");
+		}
+
 		DRM_INFO("radeon: dpm initialized\n");
 	}
 
@@ -1389,19 +1394,28 @@ static int radeon_debugfs_pm_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
-	seq_printf(m, "default engine clock: %u0 kHz\n", rdev->pm.default_sclk);
-	/* radeon_get_engine_clock is not reliable on APUs so just print the current clock */
-	if ((rdev->family >= CHIP_PALM) && (rdev->flags & RADEON_IS_IGP))
-		seq_printf(m, "current engine clock: %u0 kHz\n", rdev->pm.current_sclk);
-	else
-		seq_printf(m, "current engine clock: %u0 kHz\n", radeon_get_engine_clock(rdev));
-	seq_printf(m, "default memory clock: %u0 kHz\n", rdev->pm.default_mclk);
-	if (rdev->asic->pm.get_memory_clock)
-		seq_printf(m, "current memory clock: %u0 kHz\n", radeon_get_memory_clock(rdev));
-	if (rdev->pm.current_vddc)
-		seq_printf(m, "voltage: %u mV\n", rdev->pm.current_vddc);
-	if (rdev->asic->pm.get_pcie_lanes)
-		seq_printf(m, "PCIE lanes: %d\n", radeon_get_pcie_lanes(rdev));
+	if (rdev->pm.dpm_enabled) {
+		mutex_lock(&rdev->pm.mutex);
+		if (rdev->asic->dpm.debugfs_print_current_performance_level)
+			radeon_dpm_debugfs_print_current_performance_level(rdev, m);
+		else
+			seq_printf(m, "Unsupported\n");
+		mutex_unlock(&rdev->pm.mutex);
+	} else {
+		seq_printf(m, "default engine clock: %u0 kHz\n", rdev->pm.default_sclk);
+		/* radeon_get_engine_clock is not reliable on APUs so just print the current clock */
+		if ((rdev->family >= CHIP_PALM) && (rdev->flags & RADEON_IS_IGP))
+			seq_printf(m, "current engine clock: %u0 kHz\n", rdev->pm.current_sclk);
+		else
+			seq_printf(m, "current engine clock: %u0 kHz\n", radeon_get_engine_clock(rdev));
+		seq_printf(m, "default memory clock: %u0 kHz\n", rdev->pm.default_mclk);
+		if (rdev->asic->pm.get_memory_clock)
+			seq_printf(m, "current memory clock: %u0 kHz\n", radeon_get_memory_clock(rdev));
+		if (rdev->pm.current_vddc)
+			seq_printf(m, "voltage: %u mV\n", rdev->pm.current_vddc);
+		if (rdev->asic->pm.get_pcie_lanes)
+			seq_printf(m, "PCIE lanes: %d\n", radeon_get_pcie_lanes(rdev));
+	}
 
 	return 0;
 }

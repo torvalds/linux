@@ -416,6 +416,8 @@ u32 rv6xx_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 rv6xx_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void rv6xx_dpm_print_power_state(struct radeon_device *rdev,
 				 struct radeon_ps *ps);
+void rv6xx_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						       struct seq_file *m);
 /* rs780 dpm */
 int rs780_dpm_init(struct radeon_device *rdev);
 int rs780_dpm_enable(struct radeon_device *rdev);
@@ -474,6 +476,8 @@ u32 rv770_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 rv770_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void rv770_dpm_print_power_state(struct radeon_device *rdev,
 				 struct radeon_ps *ps);
+void rv770_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						       struct seq_file *m);
 
 /*
  * evergreen
@@ -561,6 +565,8 @@ u32 sumo_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 sumo_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void sumo_dpm_print_power_state(struct radeon_device *rdev,
 				struct radeon_ps *ps);
+void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						      struct seq_file *m);
 
 /*
  * cayman
@@ -607,6 +613,8 @@ u32 ni_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 ni_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void ni_dpm_print_power_state(struct radeon_device *rdev,
 			      struct radeon_ps *ps);
+void ni_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						    struct seq_file *m);
 int trinity_dpm_init(struct radeon_device *rdev);
 int trinity_dpm_enable(struct radeon_device *rdev);
 void trinity_dpm_disable(struct radeon_device *rdev);
@@ -620,6 +628,8 @@ u32 trinity_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 trinity_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void trinity_dpm_print_power_state(struct radeon_device *rdev,
 				   struct radeon_ps *ps);
+void trinity_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+							 struct seq_file *m);
 
 /* DCE6 - SI */
 void dce6_bandwidth_update(struct radeon_device *rdev);
@@ -667,6 +677,8 @@ int si_dpm_set_power_state(struct radeon_device *rdev);
 void si_dpm_post_set_power_state(struct radeon_device *rdev);
 void si_dpm_fini(struct radeon_device *rdev);
 void si_dpm_display_configuration_changed(struct radeon_device *rdev);
+void si_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						    struct seq_file *m);
 
 /* DCE8 - CIK */
 void dce8_bandwidth_update(struct radeon_device *rdev);

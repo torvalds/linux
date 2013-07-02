@@ -1160,6 +1160,7 @@ static struct radeon_asic rv6xx_asic = {
 		.get_sclk = &rv6xx_dpm_get_sclk,
 		.get_mclk = &rv6xx_dpm_get_mclk,
 		.print_power_state = &rv6xx_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &rv6xx_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &rs600_pre_page_flip,
@@ -1391,6 +1392,7 @@ static struct radeon_asic rv770_asic = {
 		.get_sclk = &rv770_dpm_get_sclk,
 		.get_mclk = &rv770_dpm_get_mclk,
 		.print_power_state = &rv770_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &rv770_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &rs600_pre_page_flip,
@@ -1513,6 +1515,7 @@ static struct radeon_asic evergreen_asic = {
 		.get_sclk = &rv770_dpm_get_sclk,
 		.get_mclk = &rv770_dpm_get_mclk,
 		.print_power_state = &rv770_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &rv770_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -1635,6 +1638,7 @@ static struct radeon_asic sumo_asic = {
 		.get_sclk = &sumo_dpm_get_sclk,
 		.get_mclk = &sumo_dpm_get_mclk,
 		.print_power_state = &sumo_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &sumo_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -1757,6 +1761,7 @@ static struct radeon_asic btc_asic = {
 		.get_sclk = &btc_dpm_get_sclk,
 		.get_mclk = &btc_dpm_get_mclk,
 		.print_power_state = &rv770_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &rv770_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -1931,6 +1936,7 @@ static struct radeon_asic cayman_asic = {
 		.get_sclk = &ni_dpm_get_sclk,
 		.get_mclk = &ni_dpm_get_mclk,
 		.print_power_state = &ni_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &ni_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -2103,6 +2109,7 @@ static struct radeon_asic trinity_asic = {
 		.get_sclk = &trinity_dpm_get_sclk,
 		.get_mclk = &trinity_dpm_get_mclk,
 		.print_power_state = &trinity_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &trinity_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -2275,6 +2282,7 @@ static struct radeon_asic si_asic = {
 		.get_sclk = &ni_dpm_get_sclk,
 		.get_mclk = &ni_dpm_get_mclk,
 		.print_power_state = &ni_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &si_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
