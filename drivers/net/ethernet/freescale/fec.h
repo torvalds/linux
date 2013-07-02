@@ -203,6 +203,9 @@ struct bufdesc_ex {
 #define BD_ENET_RX_CL           ((ushort)0x0001)
 #define BD_ENET_RX_STATS        ((ushort)0x013f)        /* All status bits */
 
+/* Enhanced buffer descriptor control/status used by Ethernet receive */
+#define BD_ENET_RX_VLAN         0x00000004
+
 /* Buffer descriptor control/status used by Ethernet transmit.
 */
 #define BD_ENET_TX_READY        ((ushort)0x8000)
