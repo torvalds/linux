@@ -185,26 +185,6 @@ static ssize_t cable_state_show(struct device *dev,
 					       cable->cable_index));
 }
 
-static ssize_t cable_state_store(struct device *dev,
-				 struct device_attribute *attr, const char *buf,
-				 size_t count)
-{
-	struct extcon_cable *cable = container_of(attr, struct extcon_cable,
-						  attr_state);
-	int ret, state;
-
-	ret = sscanf(buf, "%d", &state);
-	if (ret == 0)
-		ret = -EINVAL;
-	else
-		ret = extcon_set_cable_state_(cable->edev, cable->cable_index,
-					      state);
-
-	if (ret < 0)
-		return ret;
-	return count;
-}
-
 /**
  * extcon_update_state() - Update the cable attach states of the extcon device
  *			only for the masked bits.
@@ -501,6 +481,7 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 		return -ENODEV;
 	}
 }
+EXPORT_SYMBOL_GPL(extcon_register_interest);
 
 /**
  * extcon_unregister_interest() - Unregister the notifier registered by
@@ -515,6 +496,7 @@ int extcon_unregister_interest(struct extcon_specific_cable_nb *obj)
 
 	return raw_notifier_chain_unregister(&obj->edev->nh, &obj->internal_nb);
 }
+EXPORT_SYMBOL_GPL(extcon_unregister_interest);
 
 /**
  * extcon_register_notifier() - Register a notifiee to get notified by
@@ -665,9 +647,8 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 
 			sysfs_attr_init(&cable->attr_state.attr);
 			cable->attr_state.attr.name = "state";
-			cable->attr_state.attr.mode = 0644;
+			cable->attr_state.attr.mode = 0444;
 			cable->attr_state.show = cable_state_show;
-			cable->attr_state.store = cable_state_store;
 		}
 	}
 

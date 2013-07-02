@@ -208,7 +208,11 @@ static ssize_t isl29003_store_range(struct device *dev,
 	unsigned long val;
 	int ret;
 
-	if ((strict_strtoul(buf, 10, &val) < 0) || (val > 3))
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 3)
 		return -EINVAL;
 
 	ret = isl29003_set_range(client, val);
@@ -239,7 +243,11 @@ static ssize_t isl29003_store_resolution(struct device *dev,
 	unsigned long val;
 	int ret;
 
-	if ((strict_strtoul(buf, 10, &val) < 0) || (val > 3))
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 3)
 		return -EINVAL;
 
 	ret = isl29003_set_resolution(client, val);
@@ -267,7 +275,11 @@ static ssize_t isl29003_store_mode(struct device *dev,
 	unsigned long val;
 	int ret;
 
-	if ((strict_strtoul(buf, 10, &val) < 0) || (val > 2))
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 2)
 		return -EINVAL;
 
 	ret = isl29003_set_mode(client, val);
@@ -298,7 +310,11 @@ static ssize_t isl29003_store_power_state(struct device *dev,
 	unsigned long val;
 	int ret;
 
-	if ((strict_strtoul(buf, 10, &val) < 0) || (val > 1))
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1)
 		return -EINVAL;
 
 	ret = isl29003_set_power_state(client, val);

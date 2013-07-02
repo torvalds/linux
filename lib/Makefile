@@ -137,6 +137,8 @@ obj-$(CONFIG_DDR) += jedec_ddr_data.o
 obj-$(CONFIG_GENERIC_STRNCPY_FROM_USER) += strncpy_from_user.o
 obj-$(CONFIG_GENERIC_STRNLEN_USER) += strnlen_user.o
 
+obj-$(CONFIG_GENERIC_NET_UTILS) += net_utils.o
+
 obj-$(CONFIG_STMP_DEVICE) += stmp_device.o
 
 libfdt_files = fdt.o fdt_ro.o fdt_wip.o fdt_rw.o fdt_sw.o fdt_strerror.o
