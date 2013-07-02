@@ -1037,13 +1037,37 @@ static int ni_restrict_performance_levels_before_switch(struct radeon_device *rd
 		0 : -EINVAL;
 }
 
-static int ni_unrestrict_performance_levels_after_switch(struct radeon_device *rdev)
+int ni_dpm_force_performance_level(struct radeon_device *rdev,
+				   enum radeon_dpm_forced_level level)
 {
-	if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
-		return -EINVAL;
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct ni_ps *ps = ni_get_ps(rps);
+	u32 levels;
 
-	return (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) == PPSMC_Result_OK) ?
-		0 : -EINVAL;
+	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 1) != PPSMC_Result_OK)
+			return -EINVAL;
+	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+
+		levels = ps->performance_level_count - 1;
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, levels) != PPSMC_Result_OK)
+			return -EINVAL;
+	} else if (level == RADEON_DPM_FORCED_LEVEL_AUTO) {
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+	}
+
+	rdev->pm.dpm.forced_level = level;
+
+	return 0;
 }
 
 static void ni_stop_smc(struct radeon_device *rdev)
@@ -3831,9 +3855,9 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 
-	ret = ni_unrestrict_performance_levels_after_switch(rdev);
+	ret = ni_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
 	if (ret) {
-		DRM_ERROR("ni_unrestrict_performance_levels_after_switch failed\n");
+		DRM_ERROR("ni_dpm_force_performance_level failed\n");
 		return ret;
 	}
 
