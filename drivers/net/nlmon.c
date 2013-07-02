@@ -4,6 +4,7 @@
 #include <linux/netlink.h>
 #include <net/net_namespace.h>
 #include <linux/if_arp.h>
+#include <net/rtnetlink.h>
 
 struct pcpu_lstats {
 	u64 packets;
@@ -56,16 +57,24 @@ static void nlmon_dev_uninit(struct net_device *dev)
 	free_percpu(dev->lstats);
 }
 
-static struct netlink_tap nlmon_tap;
+struct nlmon {
+	struct netlink_tap nt;
+};
 
 static int nlmon_open(struct net_device *dev)
 {
-	return netlink_add_tap(&nlmon_tap);
+	struct nlmon *nlmon = netdev_priv(dev);
+
+	nlmon->nt.dev = dev;
+	nlmon->nt.module = THIS_MODULE;
+	return netlink_add_tap(&nlmon->nt);
 }
 
 static int nlmon_close(struct net_device *dev)
 {
-	return netlink_remove_tap(&nlmon_tap);
+	struct nlmon *nlmon = netdev_priv(dev);
+
+	return netlink_remove_tap(&nlmon->nt);
 }
 
 static struct rtnl_link_stats64 *
@@ -119,10 +128,6 @@ static const struct net_device_ops nlmon_ops = {
 	.ndo_change_mtu = nlmon_change_mtu,
 };
 
-static struct netlink_tap nlmon_tap __read_mostly = {
-	.module = THIS_MODULE,
-};
-
 static void nlmon_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_NETLINK;
@@ -142,27 +147,28 @@ static void nlmon_setup(struct net_device *dev)
 	dev->mtu = NLMSG_GOODSIZE;
 }
 
+static int nlmon_validate(struct nlattr *tb[], struct nlattr *data[])
+{
+	if (tb[IFLA_ADDRESS])
+		return -EINVAL;
+	return 0;
+}
+
+static struct rtnl_link_ops nlmon_link_ops __read_mostly = {
+	.kind			= "nlmon",
+	.priv_size		= sizeof(struct nlmon),
+	.setup			= nlmon_setup,
+	.validate		= nlmon_validate,
+};
+
 static __init int nlmon_register(void)
 {
-	int err;
-	struct net_device *nldev;
-
-	nldev = nlmon_tap.dev = alloc_netdev(0, "netlink", nlmon_setup);
-	if (unlikely(nldev == NULL))
-		return -ENOMEM;
-
-	err = register_netdev(nldev);
-	if (unlikely(err))
-		free_netdev(nldev);
-
-	return err;
+	return rtnl_link_register(&nlmon_link_ops);
 }
 
 static __exit void nlmon_unregister(void)
 {
-	struct net_device *nldev = nlmon_tap.dev;
-
-	unregister_netdev(nldev);
+	rtnl_link_unregister(&nlmon_link_ops);
 }
 
 module_init(nlmon_register);
@@ -172,3 +178,4 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Daniel Borkmann <dborkman@redhat.com>");
 MODULE_AUTHOR("Mathieu Geli <geli@enseirb.fr>");
 MODULE_DESCRIPTION("Netlink monitoring device");
+MODULE_ALIAS_RTNL_LINK("nlmon");
