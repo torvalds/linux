@@ -948,6 +948,25 @@ int au_sio_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 	return err;
 }
 
+/* generalized cpup_simple() with h_open_pre/post() calls */
+int au_sio_cpup_simple_h_open(struct dentry *dentry, aufs_bindex_t bdst,
+			      loff_t len, unsigned int flags,
+			      struct au_pin *pin, aufs_bindex_t bsrc)
+{
+	int err;
+	struct file *h_file;
+
+	h_file = au_h_open_pre(dentry, bsrc);
+	if (IS_ERR(h_file))
+		err = PTR_ERR(h_file);
+	else {
+		err = au_sio_cpup_simple(dentry, bdst, len, flags, pin);
+		au_h_open_post(dentry, bsrc, h_file);
+	}
+
+	return err;
+}
+
 /* ---------------------------------------------------------------------- */
 
 /*
