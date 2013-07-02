@@ -991,6 +991,18 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 
 	info = pdev->dev.platform_data;
 
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "failed to get irq resources\n");
+		return -EBUSY;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "unable to get iomem resource\n");
+		return -ENODEV;
+	}
+
 	master = spi_alloc_master(&pdev->dev, sizeof(*espi));
 	if (!master) {
 		dev_err(&pdev->dev, "failed to allocate spi master\n");
@@ -1026,20 +1038,6 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	espi->max_rate = clk_get_rate(espi->clk) / 2;
 	espi->min_rate = clk_get_rate(espi->clk) / (254 * 256);
 	espi->pdev = pdev;
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		error = -EBUSY;
-		dev_err(&pdev->dev, "failed to get irq resources\n");
-		goto fail_put_clock;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "unable to get iomem resource\n");
-		error = -ENODEV;
-		goto fail_put_clock;
-	}
 
 	espi->sspdr_phys = res->start + SSPDR;
 
