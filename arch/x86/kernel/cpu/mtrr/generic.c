@@ -701,7 +701,7 @@ static void post_set(void) __releases(set_atomicity_lock)
 	mtrr_wrmsr(MSR_MTRRdefType, deftype_lo, deftype_hi);
 
 	/* Enable caches */
-	write_cr0(read_cr0() & 0xbfffffff);
+	write_cr0(read_cr0() & ~X86_CR0_CD);
 
 	/* Restore value of CR4 */
 	if (cpu_has_pge)
