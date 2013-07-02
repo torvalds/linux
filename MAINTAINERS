@@ -1621,7 +1621,7 @@ S:	Maintained
 F:	drivers/net/hamradio/baycom*
 
 BCACHE (BLOCK LAYER CACHE)
-M:	Kent Overstreet <koverstreet@google.com>
+M:	Kent Overstreet <kmo@daterainc.com>
 L:	linux-bcache@vger.kernel.org
 W:	http://bcache.evilpiepirate.org
 S:	Maintained:
