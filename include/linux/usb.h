@@ -1547,10 +1547,16 @@ static inline void usb_fill_int_urb(struct urb *urb,
 	urb->transfer_buffer_length = buffer_length;
 	urb->complete = complete_fn;
 	urb->context = context;
-	if (dev->speed == USB_SPEED_HIGH || dev->speed == USB_SPEED_SUPER)
+
+	if (dev->speed == USB_SPEED_HIGH || dev->speed == USB_SPEED_SUPER) {
+		/* make sure interval is within allowed range */
+		interval = clamp(interval, 1, 16);
+
 		urb->interval = 1 << (interval - 1);
-	else
+	} else {
 		urb->interval = interval;
+	}
+
 	urb->start_frame = -1;
 }
 
