@@ -608,6 +608,8 @@ int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *bsta)
 	return ret;
 }
 
+#define IWL_MAX_RX_BA_SESSIONS 16
+
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		       int tid, u16 ssn, bool start)
 {
@@ -617,6 +619,11 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	u32 status;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (start && mvm->rx_ba_sessions >= IWL_MAX_RX_BA_SESSIONS) {
+		IWL_WARN(mvm, "Not enough RX BA SESSIONS\n");
+		return -ENOSPC;
+	}
 
 	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
 	cmd.sta_id = mvm_sta->sta_id;
@@ -650,6 +657,14 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		IWL_ERR(mvm, "RX BA Session failed %sing, status 0x%x\n",
 			start ? "start" : "stopp", status);
 		break;
+	}
+
+	if (!ret) {
+		if (start)
+			mvm->rx_ba_sessions++;
+		else if (mvm->rx_ba_sessions > 0)
+			/* check that restart flow didn't zero the counter */
+			mvm->rx_ba_sessions--;
 	}
 
 	return ret;

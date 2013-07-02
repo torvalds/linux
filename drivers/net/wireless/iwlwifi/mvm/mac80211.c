@@ -389,6 +389,7 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	ieee80211_wake_queues(mvm->hw);
 
 	mvm->vif_count = 0;
+	mvm->rx_ba_sessions = 0;
 }
 
 static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
