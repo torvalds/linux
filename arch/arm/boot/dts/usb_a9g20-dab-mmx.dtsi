@@ -28,39 +28,39 @@
 
 		user_led1 {
 			label = "user_led1";
-			gpios = <&pioB 20 1>;
+			gpios = <&pioB 20 GPIO_ACTIVE_LOW>;
 		};
 
 /*
 * led already used by mother board but active as high
 *		user_led2 {
 *			label = "user_led2";
-*			gpios = <&pioB 21 1>;
+*			gpios = <&pioB 21 GPIO_ACTIVE_LOW>;
 *		};
 */
 		user_led3 {
 			label = "user_led3";
-			gpios = <&pioB 22 1>;
+			gpios = <&pioB 22 GPIO_ACTIVE_LOW>;
 		};
 
 		user_led4 {
 			label = "user_led4";
-			gpios = <&pioB 23 1>;
+			gpios = <&pioB 23 GPIO_ACTIVE_LOW>;
 		};
 
 		red {
 			label = "red";
-			gpios = <&pioB 24 1>;
+			gpios = <&pioB 24 GPIO_ACTIVE_LOW>;
 		};
 
 		orange {
 			label = "orange";
-			gpios = <&pioB 30 1>;
+			gpios = <&pioB 30 GPIO_ACTIVE_LOW>;
 		};
 
 		green {
 			label = "green";
-			gpios = <&pioB 31 1>;
+			gpios = <&pioB 31 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -71,25 +71,25 @@
 
 		user_pb1 {
 			label = "user_pb1";
-			gpios = <&pioB 25 1>;
+			gpios = <&pioB 25 GPIO_ACTIVE_LOW>;
 			linux,code = <0x100>;
 		};
 
 		user_pb2 {
 			label = "user_pb2";
-			gpios = <&pioB 13 1>;
+			gpios = <&pioB 13 GPIO_ACTIVE_LOW>;
 			linux,code = <0x101>;
 		};
 
 		user_pb3 {
 			label = "user_pb3";
-			gpios = <&pioA 26 1>;
+			gpios = <&pioA 26 GPIO_ACTIVE_LOW>;
 			linux,code = <0x102>;
 		};
 
 		user_pb4 {
 			label = "user_pb4";
-			gpios = <&pioC 9 1>;
+			gpios = <&pioC 9 GPIO_ACTIVE_LOW>;
 			linux,code = <0x103>;
 		};
 	};

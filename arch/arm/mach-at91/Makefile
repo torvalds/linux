@@ -27,16 +27,13 @@ obj-$(CONFIG_SOC_SAMA5D3)	+= sama5d3.o
 obj-$(CONFIG_ARCH_AT91RM9200)	+= at91rm9200_devices.o
 obj-$(CONFIG_ARCH_AT91SAM9260)	+= at91sam9260_devices.o
 obj-$(CONFIG_ARCH_AT91SAM9261)	+= at91sam9261_devices.o
-obj-$(CONFIG_ARCH_AT91SAM9G10)	+= at91sam9261_devices.o
 obj-$(CONFIG_ARCH_AT91SAM9263)	+= at91sam9263_devices.o
 obj-$(CONFIG_ARCH_AT91SAM9RL)	+= at91sam9rl_devices.o
-obj-$(CONFIG_ARCH_AT91SAM9G20)	+= at91sam9260_devices.o
 obj-$(CONFIG_ARCH_AT91SAM9G45)	+= at91sam9g45_devices.o
 obj-$(CONFIG_ARCH_AT91X40)	+= at91x40.o at91x40_time.o
 
 # AT91RM9200 board-specific support
 obj-$(CONFIG_MACH_ONEARM)	+= board-1arm.o
-obj-$(CONFIG_ARCH_AT91RM9200DK)	+= board-rm9200dk.o
 obj-$(CONFIG_MACH_AT91RM9200EK)	+= board-rm9200ek.o
 obj-$(CONFIG_MACH_CSB337)	+= board-csb337.o
 obj-$(CONFIG_MACH_CSB637)	+= board-csb637.o

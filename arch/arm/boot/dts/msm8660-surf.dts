@@ -26,6 +26,17 @@
 		cpu-offset = <0x40000>;
 	};
 
+	msmgpio: gpio@800000 {
+		compatible = "qcom,msm-gpio";
+		reg = <0x00800000 0x1000>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpio = <173>;
+		interrupts = <0 32 0x4>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
 	serial@19c40000 {
 		compatible = "qcom,msm-hsuart", "qcom,msm-uart";
 		reg = <0x19c40000 0x1000>,
