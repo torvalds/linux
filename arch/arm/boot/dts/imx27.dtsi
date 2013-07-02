@@ -443,6 +443,23 @@
 			status = "disabled";
 		};
 
+		weim: weim@d8002000 {
+			#address-cells = <2>;
+			#size-cells = <1>;
+			compatible = "fsl,imx27-weim";
+			reg = <0xd8002000 0x1000>;
+			clocks = <&clks 0>;
+			ranges = <
+				0 0 0xc0000000 0x08000000
+				1 0 0xc8000000 0x08000000
+				2 0 0xd0000000 0x02000000
+				3 0 0xd2000000 0x02000000
+				4 0 0xd4000000 0x02000000
+				5 0 0xd6000000 0x02000000
+			>;
+			status = "disabled";
+		};
+
 		iram: iram@ffff4c00 {
 			compatible = "mmio-sram";
 			reg = <0xffff4c00 0xb400>;
