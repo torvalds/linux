@@ -137,8 +137,8 @@ extern long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 			     unsigned long ioba, unsigned long tce);
 extern long kvm_vm_ioctl_allocate_rma(struct kvm *kvm,
 				struct kvm_allocate_rma *rma);
-extern struct kvmppc_linear_info *kvm_alloc_rma(void);
-extern void kvm_release_rma(struct kvmppc_linear_info *ri);
+extern struct kvm_rma_info *kvm_alloc_rma(void);
+extern void kvm_release_rma(struct kvm_rma_info *ri);
 extern struct page *kvm_alloc_hpt(unsigned long nr_pages);
 extern void kvm_release_hpt(struct page *page, unsigned long nr_pages);
 extern int kvmppc_core_init_vm(struct kvm *kvm);
@@ -282,16 +282,12 @@ static inline void kvmppc_set_host_ipi(int cpu, u8 host_ipi)
 }
 
 extern void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu);
-extern void kvm_linear_init(void);
 
 #else
 static inline void __init kvm_cma_reserve(void)
 {}
 
 static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
-{}
-
-static inline void kvm_linear_init(void)
 {}
 
 static inline u32 kvmppc_get_xics_latch(void)
