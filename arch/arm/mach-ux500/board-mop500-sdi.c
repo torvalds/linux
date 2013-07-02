@@ -52,11 +52,13 @@ static struct stedma40_chan_cfg mop500_sdi0_dma_cfg_tx = {
 #endif
 
 struct mmci_platform_data mop500_sdi0_data = {
-	.ocr_mask	= MMC_VDD_29_30,
-	.f_max		= 50000000,
+	.f_max		= 100000000,
 	.capabilities	= MMC_CAP_4_BIT_DATA |
 				MMC_CAP_SD_HIGHSPEED |
-				MMC_CAP_MMC_HIGHSPEED,
+				MMC_CAP_MMC_HIGHSPEED |
+				MMC_CAP_ERASE |
+				MMC_CAP_UHS_SDR12 |
+				MMC_CAP_UHS_SDR25,
 	.gpio_wp	= -1,
 	.sigdir		= MCI_ST_FBCLKEN |
 				MCI_ST_CMDDIREN |
@@ -106,8 +108,9 @@ static struct stedma40_chan_cfg sdi1_dma_cfg_tx = {
 
 struct mmci_platform_data mop500_sdi1_data = {
 	.ocr_mask	= MMC_VDD_29_30,
-	.f_max		= 50000000,
-	.capabilities	= MMC_CAP_4_BIT_DATA,
+	.f_max		= 100000000,
+	.capabilities	= MMC_CAP_4_BIT_DATA |
+				MMC_CAP_NONREMOVABLE,
 	.gpio_cd	= -1,
 	.gpio_wp	= -1,
 #ifdef CONFIG_STE_DMA40
@@ -143,9 +146,13 @@ static struct stedma40_chan_cfg mop500_sdi2_dma_cfg_tx = {
 
 struct mmci_platform_data mop500_sdi2_data = {
 	.ocr_mask	= MMC_VDD_165_195,
-	.f_max		= 50000000,
-	.capabilities	= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA |
-			  MMC_CAP_MMC_HIGHSPEED,
+	.f_max		= 100000000,
+	.capabilities	= MMC_CAP_4_BIT_DATA |
+				MMC_CAP_8_BIT_DATA |
+				MMC_CAP_NONREMOVABLE |
+				MMC_CAP_MMC_HIGHSPEED |
+				MMC_CAP_ERASE |
+				MMC_CAP_CMD23,
 	.gpio_cd	= -1,
 	.gpio_wp	= -1,
 #ifdef CONFIG_STE_DMA40
@@ -180,10 +187,13 @@ static struct stedma40_chan_cfg mop500_sdi4_dma_cfg_tx = {
 #endif
 
 struct mmci_platform_data mop500_sdi4_data = {
-	.ocr_mask	= MMC_VDD_29_30,
-	.f_max		= 50000000,
-	.capabilities	= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA |
-			  MMC_CAP_MMC_HIGHSPEED,
+	.f_max		= 100000000,
+	.capabilities	= MMC_CAP_4_BIT_DATA |
+				MMC_CAP_8_BIT_DATA |
+				MMC_CAP_NONREMOVABLE |
+				MMC_CAP_MMC_HIGHSPEED |
+				MMC_CAP_ERASE |
+				MMC_CAP_CMD23,
 	.gpio_cd	= -1,
 	.gpio_wp	= -1,
 #ifdef CONFIG_STE_DMA40
