@@ -52,10 +52,6 @@ static void __init kirkwood_legacy_clk_init(void)
 	orion_clkdev_add("1", "pcie",
 			 of_clk_get_from_provider(&clkspec));
 
-	clkspec.args[0] = CGC_BIT_SDIO;
-	orion_clkdev_add(NULL, "mvsdio",
-			 of_clk_get_from_provider(&clkspec));
-
 	/*
 	 * The ethernet interfaces forget the MAC address assigned by
 	 * u-boot if the clocks are turned off. Until proper DT support
