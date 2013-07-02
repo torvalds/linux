@@ -26,7 +26,7 @@
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "psb_intel_display.h"
+#include "gma_display.h"
 #include "power.h"
 #include "cdv_device.h"
 
@@ -375,7 +375,7 @@ static const struct gma_limit_t *cdv_intel_limit(struct drm_crtc *crtc,
 						 int refclk)
 {
 	const struct gma_limit_t *limit;
-	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+	if (gma_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
 		/*
 		 * Now only single-channel LVDS is supported on CDV. If it is
 		 * incorrect, please add the dual-channel LVDS.
@@ -384,8 +384,8 @@ static const struct gma_limit_t *cdv_intel_limit(struct drm_crtc *crtc,
 			limit = &cdv_intel_limits[CDV_LIMIT_SINGLE_LVDS_96];
 		else
 			limit = &cdv_intel_limits[CDV_LIMIT_SINGLE_LVDS_100];
-	} else if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
-			psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP)) {
+	} else if (gma_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
+			gma_pipe_has_type(crtc, INTEL_OUTPUT_EDP)) {
 		if (refclk == 27000)
 			limit = &cdv_intel_limits[CDV_LIMIT_DP_27];
 		else

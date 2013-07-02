@@ -23,7 +23,7 @@
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "psb_intel_display.h"
+#include "gma_display.h"
 #include "power.h"
 
 struct psb_intel_range_t {
@@ -88,8 +88,8 @@ static const struct oaktrail_limit_t *oaktrail_limit(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
-	    || psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)) {
+	if (gma_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
+	    || gma_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)) {
 		switch (dev_priv->core_freq) {
 		case 100:
 			limit = &oaktrail_limits[MRST_LIMIT_LVDS_100L];
