@@ -147,7 +147,7 @@ int i915_gem_stolen_setup_compression(struct drm_device *dev, int size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->mm.stolen_base == 0)
+	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return -ENODEV;
 
 	if (size < dev_priv->cfb_size)
@@ -178,6 +178,9 @@ void i915_gem_stolen_cleanup_compression(struct drm_device *dev)
 void i915_gem_cleanup_stolen(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!drm_mm_initialized(&dev_priv->mm.stolen))
+		return;
 
 	i915_gem_stolen_cleanup_compression(dev);
 	drm_mm_takedown(&dev_priv->mm.stolen);
@@ -300,7 +303,7 @@ i915_gem_object_create_stolen(struct drm_device *dev, u32 size)
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
 
-	if (dev_priv->mm.stolen_base == 0)
+	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return NULL;
 
 	DRM_DEBUG_KMS("creating stolen object: size=%x\n", size);
@@ -331,7 +334,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
 
-	if (dev_priv->mm.stolen_base == 0)
+	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return NULL;
 
 	DRM_DEBUG_KMS("creating preallocated stolen object: stolen_offset=%x, gtt_offset=%x, size=%x\n",
