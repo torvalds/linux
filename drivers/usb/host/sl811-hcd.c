@@ -48,6 +48,8 @@
 #include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/prefetch.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -62,11 +64,6 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:sl811-hcd");
 
 #define DRIVER_VERSION	"19 May 2005"
-
-
-#ifndef DEBUG
-#	define	STUB_DEBUG_FILE
-#endif
 
 /* for now, use only one transfer register bank */
 #undef	USE_B
@@ -1373,16 +1370,6 @@ sl811h_bus_resume(struct usb_hcd *hcd)
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef STUB_DEBUG_FILE
-
-static inline void create_debug_file(struct sl811 *sl811) { }
-static inline void remove_debug_file(struct sl811 *sl811) { }
-
-#else
-
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-
 static void dump_irq(struct seq_file *s, char *label, u8 mask)
 {
 	seq_printf(s, "%s %02x%s%s%s%s%s%s\n", label, mask,
@@ -1394,7 +1381,7 @@ static void dump_irq(struct seq_file *s, char *label, u8 mask)
 		(mask & SL11H_INTMASK_DP) ? " dp" : "");
 }
 
-static int proc_sl811h_show(struct seq_file *s, void *unused)
+static int sl811h_show(struct seq_file *s, void *unused)
 {
 	struct sl811		*sl811 = s->private;
 	struct sl811h_ep	*ep;
@@ -1505,33 +1492,30 @@ static int proc_sl811h_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int proc_sl811h_open(struct inode *inode, struct file *file)
+static int sl811h_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, proc_sl811h_show, PDE_DATA(inode));
+	return single_open(file, sl811h_show, inode->i_private);
 }
 
-static const struct file_operations proc_ops = {
-	.open		= proc_sl811h_open,
+static const struct file_operations debug_ops = {
+	.open		= sl811h_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
 /* expect just one sl811 per system */
-static const char proc_filename[] = "driver/sl811h";
-
 static void create_debug_file(struct sl811 *sl811)
 {
-	sl811->pde = proc_create_data(proc_filename, 0, NULL, &proc_ops, sl811);
+	sl811->debug_file = debugfs_create_file("sl811h", S_IRUGO,
+						usb_debug_root, sl811,
+						&debug_ops);
 }
 
 static void remove_debug_file(struct sl811 *sl811)
 {
-	if (sl811->pde)
-		remove_proc_entry(proc_filename, NULL);
+	debugfs_remove(sl811->debug_file);
 }
-
-#endif
 
 /*-------------------------------------------------------------------------*/
 

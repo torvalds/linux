@@ -122,7 +122,7 @@ struct sl811 {
 	void __iomem		*addr_reg;
 	void __iomem		*data_reg;
 	struct sl811_platform_data	*board;
-	struct proc_dir_entry	*pde;
+	struct dentry 		*debug_file;
 
 	unsigned long		stat_insrmv;
 	unsigned long		stat_wake;
