@@ -9,6 +9,8 @@
 #include <asm/processor.h>
 #include <asm/desc.h>
 
+#ifdef CONFIG_X86_32
+
 #define DOUBLEFAULT_STACKSIZE (1024)
 static unsigned long doublefault_stack[DOUBLEFAULT_STACKSIZE];
 #define STACK_START (unsigned long)(doublefault_stack+DOUBLEFAULT_STACKSIZE)
@@ -67,3 +69,16 @@ struct tss_struct doublefault_tss __cacheline_aligned = {
 		.__cr3		= __pa_nodebug(swapper_pg_dir),
 	}
 };
+
+/* dummy for do_double_fault() call */
+void df_debug(struct pt_regs *regs, long error_code) {}
+
+#else /* !CONFIG_X86_32 */
+
+void df_debug(struct pt_regs *regs, long error_code)
+{
+	pr_emerg("PANIC: double fault, error_code: 0x%lx\n", error_code);
+	show_regs(regs);
+	panic("Machine halted.");
+}
+#endif
