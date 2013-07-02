@@ -589,9 +589,10 @@ INT __init rtusb_init(void)
 		return ret;
 	}
 
+#ifdef CONFIG_USB_SW_SUNXI_USB
 	printk("sw_usb_enable_hcd: usbc_num = %d\n", usb_wifi_host);
-
 	sw_usb_enable_hcd(usb_wifi_host);
+#endif
 	
 #ifdef RESOURCE_BOOT_ALLOC
 {
@@ -617,8 +618,10 @@ VOID __exit rtusb_exit(void)
 	rtusb_resource_exit();
 #endif /* RESOURCE_BOOT_ALLOC */	
 
+#ifdef CONFIG_USB_SW_SUNXI_USB
 	printk("sw_usb_disable_hcd: usbc_num = %d\n", usb_wifi_host);
 	sw_usb_disable_hcd(usb_wifi_host);
+#endif
 
 	printk("<--- rtusb exit\n");
 }

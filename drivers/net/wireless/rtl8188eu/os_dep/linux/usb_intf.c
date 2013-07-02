@@ -1524,8 +1524,10 @@ static int __init rtw_drv_entry(void)
 		ret = -ENOMEM;		
 		return ret;	
 	}	
+#ifdef CONFIG_USB_SW_SUNXI_USB
 	printk("sw_usb_enable_hcd: usbc_num = %d\n", usb_wifi_host);	
 	sw_usb_enable_hcd(usb_wifi_host);
+#endif
 #endif //CONFIG_RTL8723A	
 #endif //CONFIG_PLATFORM_ARM_SUN4I
 
@@ -1573,8 +1575,10 @@ static void __exit rtw_drv_halt(void)
 
 #ifdef CONFIG_PLATFORM_ARM_SUN4I
 #ifndef CONFIG_RTL8723A
+#ifdef CONFIG_USB_SW_SUNXI_USB
 	printk("sw_usb_disable_hcd: usbc_num = %d\n", usb_wifi_host);
 	sw_usb_disable_hcd(usb_wifi_host);
+#endif
 #endif //ifndef CONFIG_RTL8723A	
 #endif	//CONFIG_PLATFORM_ARM_SUN4I
 }

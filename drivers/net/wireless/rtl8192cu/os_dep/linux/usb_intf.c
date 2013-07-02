@@ -1439,10 +1439,11 @@ static int __init rtw_drv_entry(void)
 		return ret;
 	}
 
+#ifdef CONFIG_USB_SW_SUNXI_USB
 	MSG_8192C("sw_usb_enable_hcd: usbc_num = %d\n", usb_wifi_host);
-
 	sw_usb_enable_hcd(usb_wifi_host);
-	
+#endif
+
 	DBG_8192C("\nrtw driver version=%s\n", DRIVERVERSION);		
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)) 
 	//console_suspend_enabled=0;
@@ -1465,8 +1466,10 @@ static void __exit rtw_drv_halt(void)
 	usb_deregister(&drvpriv.rtw_usb_drv);
 	DBG_8192C("-rtw_drv_halt\n");
 
+#ifdef CONFIG_USB_SW_SUNXI_USB
 	MSG_8192C("sw_usb_disable_hcd: usbc_num = %d\n", usb_wifi_host);
 	sw_usb_disable_hcd(usb_wifi_host);
+#endif
 }
 
 
