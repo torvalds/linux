@@ -627,7 +627,6 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 	aufs_bindex_t bstart, ibstart;
 	struct dentry *hi_wh, *parent;
 	struct inode *inode;
-	struct file *h_file;
 	struct au_wr_dir_args wr_dir_args = {
 		.force_btgt	= -1,
 		.flags		= 0
@@ -669,7 +668,6 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 		sz = ia->ia_size;
 	mutex_unlock(&a->h_inode->i_mutex);
 
-	h_file = NULL;
 	hi_wh = NULL;
 	if (au_ftest_icpup(a->flags, DID_CPUP) && d_unlinked(dentry)) {
 		hi_wh = au_hi_wh(inode, a->btgt);
@@ -693,14 +691,8 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 		goto out; /* success */
 
 	if (!d_unhashed(dentry)) {
-		h_file = au_h_open_pre(dentry, bstart);
-		if (IS_ERR(h_file))
-			err = PTR_ERR(h_file);
-		else {
-			err = au_sio_cpup_simple(dentry, a->btgt, sz,
-						 AuCpup_DTIME, &a->pin);
-			au_h_open_post(dentry, bstart, h_file);
-		}
+		err = au_sio_cpup_simple_h_open(dentry, a->btgt, sz,
+						AuCpup_DTIME, &a->pin, bstart);
 		if (!err)
 			a->h_path.dentry = au_h_dptr(dentry, a->btgt);
 	} else if (!hi_wh)
