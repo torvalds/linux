@@ -71,6 +71,8 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_SwitchToSwState           ((uint8_t)0x20)
 #define PPSMC_MSG_SwitchToInitialState      ((uint8_t)0x40)
 #define PPSMC_MSG_NoForcedLevel             ((uint8_t)0x41)
+#define PPSMC_MSG_ForceHigh                 ((uint8_t)0x42)
+#define PPSMC_MSG_ForceMediumOrHigh         ((uint8_t)0x43)
 #define PPSMC_MSG_SwitchToMinimumPower      ((uint8_t)0x51)
 #define PPSMC_MSG_ResumeFromMinimumPower    ((uint8_t)0x52)
 #define PPSMC_MSG_EnableCac                 ((uint8_t)0x53)

@@ -1471,13 +1471,29 @@ int rv770_restrict_performance_levels_before_switch(struct radeon_device *rdev)
 	return 0;
 }
 
-int rv770_unrestrict_performance_levels_after_switch(struct radeon_device *rdev)
+int rv770_dpm_force_performance_level(struct radeon_device *rdev,
+				      enum radeon_dpm_forced_level level)
 {
-	if (rv770_send_msg_to_smc(rdev, (PPSMC_Msg)(PPSMC_MSG_NoForcedLevel)) != PPSMC_Result_OK)
+	PPSMC_Msg msg;
+
+	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		if (rv770_send_msg_to_smc(rdev, PPSMC_MSG_ZeroLevelsDisabled) != PPSMC_Result_OK)
+			return -EINVAL;
+		msg = PPSMC_MSG_ForceHigh;
+	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		if (rv770_send_msg_to_smc(rdev, PPSMC_MSG_NoForcedLevel) != PPSMC_Result_OK)
+			return -EINVAL;
+		msg = (PPSMC_Msg)(PPSMC_MSG_TwoLevelsDisabled);
+	} else {
+		if (rv770_send_msg_to_smc(rdev, PPSMC_MSG_NoForcedLevel) != PPSMC_Result_OK)
+			return -EINVAL;
+		msg = (PPSMC_Msg)(PPSMC_MSG_ZeroLevelsDisabled);
+	}
+
+	if (rv770_send_msg_to_smc(rdev, msg) != PPSMC_Result_OK)
 		return -EINVAL;
 
-	if (rv770_send_msg_to_smc(rdev, (PPSMC_Msg)(PPSMC_MSG_ZeroLevelsDisabled)) != PPSMC_Result_OK)
-		return -EINVAL;
+	rdev->pm.dpm.forced_level = level;
 
 	return 0;
 }
@@ -2047,9 +2063,10 @@ int rv770_dpm_set_power_state(struct radeon_device *rdev)
 	if (pi->dcodt)
 		rv770_program_dcodt_after_state_switch(rdev, new_ps, old_ps);
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
-	ret = rv770_unrestrict_performance_levels_after_switch(rdev);
+
+	ret = rv770_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
 	if (ret) {
-		DRM_ERROR("rv770_unrestrict_performance_levels_after_switch failed\n");
+		DRM_ERROR("rv770_dpm_force_performance_level failed\n");
 		return ret;
 	}
 

@@ -2326,9 +2326,9 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 
-	ret = rv770_unrestrict_performance_levels_after_switch(rdev);
+	ret = rv770_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
 	if (ret) {
-		DRM_ERROR("rv770_unrestrict_performance_levels_after_switch failed\n");
+		DRM_ERROR("rv770_dpm_force_performance_level failed\n");
 		return ret;
 	}
 

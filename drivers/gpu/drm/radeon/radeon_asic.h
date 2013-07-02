@@ -478,6 +478,8 @@ void rv770_dpm_print_power_state(struct radeon_device *rdev,
 				 struct radeon_ps *ps);
 void rv770_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m);
+int rv770_dpm_force_performance_level(struct radeon_device *rdev,
+				      enum radeon_dpm_forced_level level);
 
 /*
  * evergreen
