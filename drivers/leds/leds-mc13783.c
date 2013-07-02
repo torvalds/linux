@@ -208,7 +208,7 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 	struct mc13xxx_led_devtype *devtype =
 		(struct mc13xxx_led_devtype *)pdev->id_entry->driver_data;
 	struct mc13xxx_leds *leds;
-	int i, id, num_leds, ret;
+	int i, id, num_leds, ret = -ENODATA;
 	u32 reg, init_led = 0;
 
 	if (!pdata) {
