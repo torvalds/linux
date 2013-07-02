@@ -224,6 +224,8 @@ enum {
 
 extern struct list_head ftrace_trace_arrays;
 
+extern struct mutex trace_types_lock;
+
 /*
  * The global tracer (top) should be the first trace array added,
  * but we check the flag anyway.
