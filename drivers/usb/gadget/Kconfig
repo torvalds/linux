@@ -113,14 +113,6 @@ config USB_GADGET_STORAGE_NUM_BUFFERS
 	   a module parameter as well.
 	   If unsure, say 2.
 
-
-config USB_SW_SUNXI_UDC0
-	boolean
-	depends on ARCH_SUN4I || ARCH_SUN5I
-	depends on USB_SW_SUNXI_USB_MANAGER
-	select USB_GADGET_DUALSPEED
-	select USB_GADGET_SELECTED
-
 #
 # USB Peripheral Controller Support
 #
@@ -514,20 +506,12 @@ config USB_SW_SUN3I_UDC0
 	   Note: Even if selected to build as module, this driver will be
 	   built in to kernel image.
 
-config USB_SW_SUN4I_UDC0
-	tristate "SoftWinner SUN4I USB Peripheral Controller"
-	select USB_SW_SUNXI_UDC0
-	select USB_SW_SUN4I_UDC0_BUILTIN
-	help
-	   USB device only or USB OTG
-
-	   Note: Even if selected to build as module, this driver will be
-	   built in to kernel image.
-
-config USB_SW_SUN5I_UDC0
-	tristate "SoftWinner SUN5I USB Peripheral Controller"
-	select USB_SW_SUNXI_UDC0
-	select USB_SW_SUN5I_UDC0_BUILTIN
+config USB_SW_SUNXI_UDC0
+	tristate "SoftWinner SUNXI USB Peripheral Controller"
+	depends on USB_SW_SUNXI_USB_MANAGER
+	select USB_GADGET_DUALSPEED
+	select USB_GADGET_SELECTED
+	select USB_SW_SUNXI_UDC0_BUILTIN
 	help
 	   USB device only or USB OTG
 
@@ -575,15 +559,10 @@ config USB_SW_SUN3I_UDC0_BUILTIN
 	prompt "SoftWinner SUN3I USB Peripheral Controller (as built-in driver)" if USB_SW_SUN3I_UDC0
 	depends on USB_SW_SUN3I_USB_MANAGER
 
-config USB_SW_SUN4I_UDC0_BUILTIN
+config USB_SW_SUNXI_UDC0_BUILTIN
 	bool
-	prompt "SoftWinner SUN4I USB Peripheral Controller (as built-in driver)" if USB_SW_SUN4I_UDC0
-	depends on USB_SW_SUN4I_USB_MANAGER
-
-config USB_SW_SUN5I_UDC0_BUILTIN
-	bool
-	prompt "SoftWinner SUN5I USB Peripheral Controller (as built-in driver)" if USB_SW_SUN5I_UDC0
-	depends on USB_SW_SUN5I_USB_MANAGER
+	prompt "SoftWinner SUNXI USB Peripheral Controller (as built-in driver)" if USB_SW_SUNXI_UDC0
+	depends on USB_SW_SUNXI_USB_MANAGER
 
 
 # Selected by UDC drivers that support high-speed operation.
