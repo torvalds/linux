@@ -241,7 +241,11 @@ static struct snd_soc_dai_link rk_dai[] = {
 		.stream_name = "RK616 PCM",
 		.codec_name = "rk616-codec.4-0050",
 		.platform_name = "rockchip-audio",
+#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)
+		.cpu_dai_name = "rk29_i2s.0",
+#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
 		.cpu_dai_name = "rk29_i2s.1",
+#endif
 		.codec_dai_name = "rk616-hifi",
 		.init = rk616_init,
 		.ops = &rk616_hifi_ops,
@@ -251,7 +255,11 @@ static struct snd_soc_dai_link rk_dai[] = {
 		.stream_name = "RK616 PCM",
 		.codec_name = "rk616-codec.4-0050",
 		.platform_name = "rockchip-audio",
+#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)
+		.cpu_dai_name = "rk29_i2s.0",
+#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
 		.cpu_dai_name = "rk29_i2s.1",
+#endif
 		.codec_dai_name = "rk616-voice",
 		.ops = &rk616_voice_ops,
 	},

@@ -82,7 +82,11 @@ static struct snd_soc_dai_link hdmi_i2s_dai = {
 	.stream_name = "HDMI PCM",
 	.codec_name = "hdmi-i2s",
 	.platform_name = "rockchip-audio",
+#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)
+	.cpu_dai_name = "rk29_i2s.0",
+#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
 	.cpu_dai_name = "rk29_i2s.1",
+#endif
 	.codec_dai_name = "rk-hdmi-i2s-hifi",
 	.ops = &hdmi_i2s_hifi_ops,
 };
@@ -116,7 +120,7 @@ static int __init audio_card_init(void)
 		platform_device_put(hdmi_i2s_device);
 		return ret;
 	}
-	DBG("Enter::%s----%d 1\n",__FUNCTION__,__LINE__);
+
 	hdmi_i2s_snd_device = platform_device_alloc("soc-audio", -3);
 	if (!hdmi_i2s_snd_device) {
 		printk("platform device allocation failed\n");
