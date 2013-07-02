@@ -72,7 +72,6 @@ void perf_event__attr_swap(struct perf_event_attr *attr);
 int perf_session__create_kernel_maps(struct perf_session *self);
 
 void perf_session__set_id_hdr_size(struct perf_session *session);
-void perf_session__remove_thread(struct perf_session *self, struct thread *th);
 
 static inline
 struct machine *perf_session__find_machine(struct perf_session *self, pid_t pid)

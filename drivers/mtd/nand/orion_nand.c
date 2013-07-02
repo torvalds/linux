@@ -231,18 +231,7 @@ static struct platform_driver orion_nand_driver = {
 	},
 };
 
-static int __init orion_nand_init(void)
-{
-	return platform_driver_probe(&orion_nand_driver, orion_nand_probe);
-}
-
-static void __exit orion_nand_exit(void)
-{
-	platform_driver_unregister(&orion_nand_driver);
-}
-
-module_init(orion_nand_init);
-module_exit(orion_nand_exit);
+module_platform_driver_probe(orion_nand_driver, orion_nand_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tzachi Perelstein");

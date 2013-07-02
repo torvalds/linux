@@ -87,7 +87,7 @@ static int tda9840_status(struct v4l2_subdev *sd)
 	return byte & 0x60;
 }
 
-static int tda9840_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *t)
+static int tda9840_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *t)
 {
 	int stat = tda9840_status(sd);
 	int byte;

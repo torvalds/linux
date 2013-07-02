@@ -550,7 +550,7 @@ static struct iommu_table *cell_get_iommu_table(struct device *dev)
 	 */
 	iommu = cell_iommu_for_node(dev_to_node(dev));
 	if (iommu == NULL || list_empty(&iommu->windows)) {
-		printk(KERN_ERR "iommu: missing iommu for %s (node %d)\n",
+		dev_err(dev, "iommu: missing iommu for %s (node %d)\n",
 		       of_node_full_name(dev->of_node), dev_to_node(dev));
 		return NULL;
 	}

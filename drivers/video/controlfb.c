@@ -285,36 +285,26 @@ static int controlfb_pan_display(struct fb_var_screeninfo *var,
 static int controlfb_mmap(struct fb_info *info,
                        struct vm_area_struct *vma)
 {
-       unsigned long off, start;
-       u32 len;
+	unsigned long mmio_pgoff;
+	unsigned long start;
+	u32 len;
 
-       off = vma->vm_pgoff << PAGE_SHIFT;
+	start = info->fix.smem_start;
+	len = info->fix.smem_len;
+	mmio_pgoff = PAGE_ALIGN((start & ~PAGE_MASK) + len) >> PAGE_SHIFT;
+	if (vma->vm_pgoff >= mmio_pgoff) {
+		if (info->var.accel_flags)
+			return -EINVAL;
+		vma->vm_pgoff -= mmio_pgoff;
+		start = info->fix.mmio_start;
+		len = info->fix.mmio_len;
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	} else {
+		/* framebuffer */
+		vma->vm_page_prot = pgprot_cached_wthru(vma->vm_page_prot);
+	}
 
-       /* frame buffer memory */
-       start = info->fix.smem_start;
-       len = PAGE_ALIGN((start & ~PAGE_MASK)+info->fix.smem_len);
-       if (off >= len) {
-               /* memory mapped io */
-               off -= len;
-               if (info->var.accel_flags)
-                       return -EINVAL;
-               start = info->fix.mmio_start;
-               len = PAGE_ALIGN((start & ~PAGE_MASK)+info->fix.mmio_len);
-	       vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-       } else {
-               /* framebuffer */
-	       vma->vm_page_prot = pgprot_cached_wthru(vma->vm_page_prot);
-       }
-       start &= PAGE_MASK;
-       if ((vma->vm_end - vma->vm_start + off) > len)
-       		return -EINVAL;
-       off += start;
-       vma->vm_pgoff = off >> PAGE_SHIFT;
-       if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
-           vma->vm_end - vma->vm_start, vma->vm_page_prot))
-               return -EAGAIN;
-
-       return 0;
+	return vm_iomap_memory(vma, start, len);
 }
 
 static int controlfb_blank(int blank_mode, struct fb_info *info)

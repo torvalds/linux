@@ -1,9 +1,6 @@
 /*
  * Copyright (C) 2011 Instituto Nokia de Tecnologia
- *
- * Authors:
- *    Lauro Ramos Venancio <lauro.venancio@openbossa.org>
- *    Aloisio Almeida Jr <aloisio.almeida@openbossa.org>
+ * Copyright (C) 2012-2013 Tieto Poland
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +27,7 @@
 #include <linux/netdevice.h>
 #include <net/nfc/nfc.h>
 
-#define VERSION "0.1"
+#define VERSION "0.2"
 
 #define PN533_VENDOR_ID 0x4CC
 #define PN533_PRODUCT_ID 0x2533
@@ -41,8 +38,12 @@
 #define SONY_VENDOR_ID         0x054c
 #define PASORI_PRODUCT_ID      0x02e1
 
-#define PN533_DEVICE_STD    0x1
-#define PN533_DEVICE_PASORI 0x2
+#define ACS_VENDOR_ID 0x072f
+#define ACR122U_PRODUCT_ID 0x2200
+
+#define PN533_DEVICE_STD     0x1
+#define PN533_DEVICE_PASORI  0x2
+#define PN533_DEVICE_ACR122U 0x3
 
 #define PN533_ALL_PROTOCOLS (NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK |\
 			     NFC_PROTO_FELICA_MASK | NFC_PROTO_ISO14443_MASK |\
@@ -71,6 +72,11 @@ static const struct usb_device_id pn533_table[] = {
 	  .idProduct		= PASORI_PRODUCT_ID,
 	  .driver_info		= PN533_DEVICE_PASORI,
 	},
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
+	  .idVendor		= ACS_VENDOR_ID,
+	  .idProduct		= ACR122U_PRODUCT_ID,
+	  .driver_info		= PN533_DEVICE_ACR122U,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, pn533_table);
@@ -78,32 +84,47 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 /* How much time we spend listening for initiators */
 #define PN533_LISTEN_TIME 2
 
-/* frame definitions */
-#define PN533_FRAME_HEADER_LEN (sizeof(struct pn533_frame) \
+/* Standard pn533 frame definitions */
+#define PN533_STD_FRAME_HEADER_LEN (sizeof(struct pn533_std_frame) \
 					+ 2) /* data[0] TFI, data[1] CC */
-#define PN533_FRAME_TAIL_LEN 2 /* data[len] DCS, data[len + 1] postamble*/
+#define PN533_STD_FRAME_TAIL_LEN 2 /* data[len] DCS, data[len + 1] postamble*/
 
 /*
  * Max extended frame payload len, excluding TFI and CC
  * which are already in PN533_FRAME_HEADER_LEN.
  */
-#define PN533_FRAME_MAX_PAYLOAD_LEN 263
+#define PN533_STD_FRAME_MAX_PAYLOAD_LEN 263
 
-#define PN533_FRAME_ACK_SIZE 6 /* Preamble (1), SoPC (2), ACK Code (2),
+#define PN533_STD_FRAME_ACK_SIZE 6 /* Preamble (1), SoPC (2), ACK Code (2),
 				  Postamble (1) */
-#define PN533_FRAME_CHECKSUM(f) (f->data[f->datalen])
-#define PN533_FRAME_POSTAMBLE(f) (f->data[f->datalen + 1])
+#define PN533_STD_FRAME_CHECKSUM(f) (f->data[f->datalen])
+#define PN533_STD_FRAME_POSTAMBLE(f) (f->data[f->datalen + 1])
 
 /* start of frame */
-#define PN533_SOF 0x00FF
+#define PN533_STD_FRAME_SOF 0x00FF
 
-/* frame identifier: in/out/error */
-#define PN533_FRAME_IDENTIFIER(f) (f->data[0])
-#define PN533_DIR_OUT 0xD4
-#define PN533_DIR_IN 0xD5
+/* standard frame identifier: in/out/error */
+#define PN533_STD_FRAME_IDENTIFIER(f) (f->data[0]) /* TFI */
+#define PN533_STD_FRAME_DIR_OUT 0xD4
+#define PN533_STD_FRAME_DIR_IN 0xD5
+
+/* ACS ACR122 pn533 frame definitions */
+#define PN533_ACR122_TX_FRAME_HEADER_LEN (sizeof(struct pn533_acr122_tx_frame) \
+					  + 2)
+#define PN533_ACR122_TX_FRAME_TAIL_LEN 0
+#define PN533_ACR122_RX_FRAME_HEADER_LEN (sizeof(struct pn533_acr122_rx_frame) \
+					  + 2)
+#define PN533_ACR122_RX_FRAME_TAIL_LEN 2
+#define PN533_ACR122_FRAME_MAX_PAYLOAD_LEN PN533_STD_FRAME_MAX_PAYLOAD_LEN
+
+/* CCID messages types */
+#define PN533_ACR122_PC_TO_RDR_ICCPOWERON 0x62
+#define PN533_ACR122_PC_TO_RDR_ESCAPE 0x6B
+
+#define PN533_ACR122_RDR_TO_PC_ESCAPE 0x83
 
 /* PN533 Commands */
-#define PN533_FRAME_CMD(f) (f->data[1])
+#define PN533_STD_FRAME_CMD(f) (f->data[1])
 
 #define PN533_CMD_GET_FIRMWARE_VERSION 0x02
 #define PN533_CMD_RF_CONFIGURATION 0x32
@@ -128,8 +149,6 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 
 struct pn533;
 
-typedef int (*pn533_cmd_complete_t) (struct pn533 *dev, void *arg, int status);
-
 typedef int (*pn533_send_async_complete_t) (struct pn533 *dev, void *arg,
 					struct sk_buff *resp);
 
@@ -144,9 +163,13 @@ struct pn533_fw_version {
 };
 
 /* PN533_CMD_RF_CONFIGURATION */
-#define PN533_CFGITEM_TIMING 0x02
+#define PN533_CFGITEM_RF_FIELD    0x01
+#define PN533_CFGITEM_TIMING      0x02
 #define PN533_CFGITEM_MAX_RETRIES 0x05
-#define PN533_CFGITEM_PASORI 0x82
+#define PN533_CFGITEM_PASORI      0x82
+
+#define PN533_CFGITEM_RF_FIELD_ON  0x1
+#define PN533_CFGITEM_RF_FIELD_OFF 0x0
 
 #define PN533_CONFIG_TIMING_102 0xb
 #define PN533_CONFIG_TIMING_204 0xc
@@ -313,10 +336,17 @@ struct pn533_cmd_jump_dep_response {
 #define PN533_INIT_TARGET_RESP_ACTIVE     0x1
 #define PN533_INIT_TARGET_RESP_DEP        0x4
 
+enum  pn533_protocol_type {
+	PN533_PROTO_REQ_ACK_RESP = 0,
+	PN533_PROTO_REQ_RESP
+};
+
 struct pn533 {
 	struct usb_device *udev;
 	struct usb_interface *interface;
 	struct nfc_dev *nfc_dev;
+	u32 device_type;
+	enum pn533_protocol_type protocol_type;
 
 	struct urb *out_urb;
 	struct urb *in_urb;
@@ -329,21 +359,21 @@ struct pn533 {
 	struct work_struct poll_work;
 	struct work_struct mi_work;
 	struct work_struct tg_work;
-	struct timer_list listen_timer;
-	int wq_in_error;
-	int cancel_listen;
 
-	pn533_cmd_complete_t cmd_complete;
-	void *cmd_complete_arg;
+	struct list_head cmd_queue;
+	struct pn533_cmd *cmd;
+	u8 cmd_pending;
+	struct mutex cmd_lock;  /* protects cmd queue */
+
 	void *cmd_complete_mi_arg;
-	struct mutex cmd_lock;
-	u8 cmd;
 
 	struct pn533_poll_modulations *poll_mod_active[PN533_POLL_MOD_MAX + 1];
 	u8 poll_mod_count;
 	u8 poll_mod_curr;
 	u32 poll_protocols;
 	u32 listen_protocols;
+	struct timer_list listen_timer;
+	int cancel_listen;
 
 	u8 *gb;
 	size_t gb_len;
@@ -352,24 +382,21 @@ struct pn533 {
 	u8 tgt_active_prot;
 	u8 tgt_mode;
 
-	u32 device_type;
-
-	struct list_head cmd_queue;
-	u8 cmd_pending;
-
 	struct pn533_frame_ops *ops;
 };
 
 struct pn533_cmd {
 	struct list_head queue;
-	u8 cmd_code;
+	u8 code;
+	int status;
 	struct sk_buff *req;
 	struct sk_buff *resp;
 	int resp_len;
-	void *arg;
+	pn533_send_async_complete_t  complete_cb;
+	void *complete_cb_context;
 };
 
-struct pn533_frame {
+struct pn533_std_frame {
 	u8 preamble;
 	__be16 start_frame;
 	u8 datalen;
@@ -393,14 +420,124 @@ struct pn533_frame_ops {
 	u8 (*get_cmd_code)(void *frame);
 };
 
+struct pn533_acr122_ccid_hdr {
+	u8 type;
+	u32 datalen;
+	u8 slot;
+	u8 seq;
+	u8 params[3]; /* 3 msg specific bytes or status, error and 1 specific
+			 byte for reposnse msg */
+	u8 data[]; /* payload */
+} __packed;
+
+struct pn533_acr122_apdu_hdr {
+	u8 class;
+	u8 ins;
+	u8 p1;
+	u8 p2;
+} __packed;
+
+struct pn533_acr122_tx_frame {
+	struct pn533_acr122_ccid_hdr ccid;
+	struct pn533_acr122_apdu_hdr apdu;
+	u8 datalen;
+	u8 data[]; /* pn533 frame: TFI ... */
+} __packed;
+
+struct pn533_acr122_rx_frame {
+	struct pn533_acr122_ccid_hdr ccid;
+	u8 data[]; /* pn533 frame : TFI ... */
+} __packed;
+
+static void pn533_acr122_tx_frame_init(void *_frame, u8 cmd_code)
+{
+	struct pn533_acr122_tx_frame *frame = _frame;
+
+	frame->ccid.type = PN533_ACR122_PC_TO_RDR_ESCAPE;
+	frame->ccid.datalen = sizeof(frame->apdu) + 1; /* sizeof(apdu_hdr) +
+							  sizeof(datalen) */
+	frame->ccid.slot = 0;
+	frame->ccid.seq = 0;
+	frame->ccid.params[0] = 0;
+	frame->ccid.params[1] = 0;
+	frame->ccid.params[2] = 0;
+
+	frame->data[0] = PN533_STD_FRAME_DIR_OUT;
+	frame->data[1] = cmd_code;
+	frame->datalen = 2;  /* data[0] + data[1] */
+
+	frame->apdu.class = 0xFF;
+	frame->apdu.ins = 0;
+	frame->apdu.p1 = 0;
+	frame->apdu.p2 = 0;
+}
+
+static void pn533_acr122_tx_frame_finish(void *_frame)
+{
+	struct pn533_acr122_tx_frame *frame = _frame;
+
+	frame->ccid.datalen += frame->datalen;
+}
+
+static void pn533_acr122_tx_update_payload_len(void *_frame, int len)
+{
+	struct pn533_acr122_tx_frame *frame = _frame;
+
+	frame->datalen += len;
+}
+
+static bool pn533_acr122_is_rx_frame_valid(void *_frame)
+{
+	struct pn533_acr122_rx_frame *frame = _frame;
+
+	if (frame->ccid.type != 0x83)
+		return false;
+
+	if (frame->data[frame->ccid.datalen - 2] == 0x63)
+		return false;
+
+	return true;
+}
+
+static int pn533_acr122_rx_frame_size(void *frame)
+{
+	struct pn533_acr122_rx_frame *f = frame;
+
+	/* f->ccid.datalen already includes tail length */
+	return sizeof(struct pn533_acr122_rx_frame) + f->ccid.datalen;
+}
+
+static u8 pn533_acr122_get_cmd_code(void *frame)
+{
+	struct pn533_acr122_rx_frame *f = frame;
+
+	return PN533_STD_FRAME_CMD(f);
+}
+
+static struct pn533_frame_ops pn533_acr122_frame_ops = {
+	.tx_frame_init = pn533_acr122_tx_frame_init,
+	.tx_frame_finish = pn533_acr122_tx_frame_finish,
+	.tx_update_payload_len = pn533_acr122_tx_update_payload_len,
+	.tx_header_len = PN533_ACR122_TX_FRAME_HEADER_LEN,
+	.tx_tail_len = PN533_ACR122_TX_FRAME_TAIL_LEN,
+
+	.rx_is_frame_valid = pn533_acr122_is_rx_frame_valid,
+	.rx_header_len = PN533_ACR122_RX_FRAME_HEADER_LEN,
+	.rx_tail_len = PN533_ACR122_RX_FRAME_TAIL_LEN,
+	.rx_frame_size = pn533_acr122_rx_frame_size,
+
+	.max_payload_len = PN533_ACR122_FRAME_MAX_PAYLOAD_LEN,
+	.get_cmd_code = pn533_acr122_get_cmd_code,
+};
+
 /* The rule: value + checksum = 0 */
-static inline u8 pn533_checksum(u8 value)
+static inline u8 pn533_std_checksum(u8 value)
 {
 	return ~value + 1;
 }
 
 /* The rule: sum(data elements) + checksum = 0 */
-static u8 pn533_data_checksum(u8 *data, int datalen)
+static u8 pn533_std_data_checksum(u8 *data, int datalen)
 {
 	u8 sum = 0;
 	int i;
@@ -408,61 +545,61 @@ static u8 pn533_data_checksum(u8 *data, int datalen)
 	for (i = 0; i < datalen; i++)
 		sum += data[i];
 
-	return pn533_checksum(sum);
+	return pn533_std_checksum(sum);
 }
 
-static void pn533_tx_frame_init(void *_frame, u8 cmd_code)
+static void pn533_std_tx_frame_init(void *_frame, u8 cmd_code)
 {
-	struct pn533_frame *frame = _frame;
+	struct pn533_std_frame *frame = _frame;
 
 	frame->preamble = 0;
-	frame->start_frame = cpu_to_be16(PN533_SOF);
-	PN533_FRAME_IDENTIFIER(frame) = PN533_DIR_OUT;
-	PN533_FRAME_CMD(frame) = cmd_code;
+	frame->start_frame = cpu_to_be16(PN533_STD_FRAME_SOF);
+	PN533_STD_FRAME_IDENTIFIER(frame) = PN533_STD_FRAME_DIR_OUT;
+	PN533_STD_FRAME_CMD(frame) = cmd_code;
 	frame->datalen = 2;
 }
 
-static void pn533_tx_frame_finish(void *_frame)
+static void pn533_std_tx_frame_finish(void *_frame)
 {
-	struct pn533_frame *frame = _frame;
+	struct pn533_std_frame *frame = _frame;
 
-	frame->datalen_checksum = pn533_checksum(frame->datalen);
+	frame->datalen_checksum = pn533_std_checksum(frame->datalen);
 
-	PN533_FRAME_CHECKSUM(frame) =
-		pn533_data_checksum(frame->data, frame->datalen);
+	PN533_STD_FRAME_CHECKSUM(frame) =
+		pn533_std_data_checksum(frame->data, frame->datalen);
 
-	PN533_FRAME_POSTAMBLE(frame) = 0;
+	PN533_STD_FRAME_POSTAMBLE(frame) = 0;
 }
 
-static void pn533_tx_update_payload_len(void *_frame, int len)
+static void pn533_std_tx_update_payload_len(void *_frame, int len)
 {
-	struct pn533_frame *frame = _frame;
+	struct pn533_std_frame *frame = _frame;
 
 	frame->datalen += len;
 }
 
-static bool pn533_rx_frame_is_valid(void *_frame)
+static bool pn533_std_rx_frame_is_valid(void *_frame)
 {
 	u8 checksum;
-	struct pn533_frame *frame = _frame;
+	struct pn533_std_frame *frame = _frame;
 
-	if (frame->start_frame != cpu_to_be16(PN533_SOF))
+	if (frame->start_frame != cpu_to_be16(PN533_STD_FRAME_SOF))
 		return false;
 
-	checksum = pn533_checksum(frame->datalen);
+	checksum = pn533_std_checksum(frame->datalen);
 	if (checksum != frame->datalen_checksum)
 		return false;
 
-	checksum = pn533_data_checksum(frame->data, frame->datalen);
-	if (checksum != PN533_FRAME_CHECKSUM(frame))
+	checksum = pn533_std_data_checksum(frame->data, frame->datalen);
+	if (checksum != PN533_STD_FRAME_CHECKSUM(frame))
 		return false;
 
 	return true;
 }
 
-static bool pn533_rx_frame_is_ack(struct pn533_frame *frame)
+static bool pn533_std_rx_frame_is_ack(struct pn533_std_frame *frame)
 {
-	if (frame->start_frame != cpu_to_be16(PN533_SOF))
+	if (frame->start_frame != cpu_to_be16(PN533_STD_FRAME_SOF))
 		return false;
 
 	if (frame->datalen != 0 || frame->datalen_checksum != 0xFF)
@@ -471,56 +608,50 @@ static bool pn533_rx_frame_is_ack(struct pn533_frame *frame)
 	return true;
 }
 
-static inline int pn533_rx_frame_size(void *frame)
+static inline int pn533_std_rx_frame_size(void *frame)
 {
-	struct pn533_frame *f = frame;
+	struct pn533_std_frame *f = frame;
 
-	return sizeof(struct pn533_frame) + f->datalen + PN533_FRAME_TAIL_LEN;
+	return sizeof(struct pn533_std_frame) + f->datalen +
+	       PN533_STD_FRAME_TAIL_LEN;
 }
 
-static u8 pn533_get_cmd_code(void *frame)
+static u8 pn533_std_get_cmd_code(void *frame)
 {
-	struct pn533_frame *f = frame;
+	struct pn533_std_frame *f = frame;
 
-	return PN533_FRAME_CMD(f);
+	return PN533_STD_FRAME_CMD(f);
 }
 
 static struct pn533_frame_ops pn533_std_frame_ops = {
-	.tx_frame_init = pn533_tx_frame_init,
-	.tx_frame_finish = pn533_tx_frame_finish,
-	.tx_update_payload_len = pn533_tx_update_payload_len,
-	.tx_header_len = PN533_FRAME_HEADER_LEN,
-	.tx_tail_len = PN533_FRAME_TAIL_LEN,
+	.tx_frame_init = pn533_std_tx_frame_init,
+	.tx_frame_finish = pn533_std_tx_frame_finish,
+	.tx_update_payload_len = pn533_std_tx_update_payload_len,
+	.tx_header_len = PN533_STD_FRAME_HEADER_LEN,
+	.tx_tail_len = PN533_STD_FRAME_TAIL_LEN,
 
-	.rx_is_frame_valid = pn533_rx_frame_is_valid,
-	.rx_frame_size = pn533_rx_frame_size,
-	.rx_header_len = PN533_FRAME_HEADER_LEN,
-	.rx_tail_len = PN533_FRAME_TAIL_LEN,
+	.rx_is_frame_valid = pn533_std_rx_frame_is_valid,
+	.rx_frame_size = pn533_std_rx_frame_size,
+	.rx_header_len = PN533_STD_FRAME_HEADER_LEN,
+	.rx_tail_len = PN533_STD_FRAME_TAIL_LEN,
 
-	.max_payload_len =  PN533_FRAME_MAX_PAYLOAD_LEN,
-	.get_cmd_code = pn533_get_cmd_code,
+	.max_payload_len =  PN533_STD_FRAME_MAX_PAYLOAD_LEN,
+	.get_cmd_code = pn533_std_get_cmd_code,
 };
 
 static bool pn533_rx_frame_is_cmd_response(struct pn533 *dev, void *frame)
 {
-	return (dev->ops->get_cmd_code(frame) == PN533_CMD_RESPONSE(dev->cmd));
-}
-
-
-static void pn533_wq_cmd_complete(struct work_struct *work)
-{
-	struct pn533 *dev = container_of(work, struct pn533, cmd_complete_work);
-	int rc;
-
-	rc = dev->cmd_complete(dev, dev->cmd_complete_arg, dev->wq_in_error);
-	if (rc != -EINPROGRESS)
-		queue_work(dev->wq, &dev->cmd_work);
+	return (dev->ops->get_cmd_code(frame) ==
+				PN533_CMD_RESPONSE(dev->cmd->code));
 }
 
 static void pn533_recv_response(struct urb *urb)
 {
 	struct pn533 *dev = urb->context;
+	struct pn533_cmd *cmd = dev->cmd;
 	u8 *in_frame;
+
+	cmd->status = urb->status;
 
 	switch (urb->status) {
 	case 0:
@@ -530,36 +661,32 @@ static void pn533_recv_response(struct urb *urb)
 		nfc_dev_dbg(&dev->interface->dev,
 			    "The urb has been canceled (status %d)",
 			    urb->status);
-		dev->wq_in_error = urb->status;
 		goto sched_wq;
 	case -ESHUTDOWN:
 	default:
 		nfc_dev_err(&dev->interface->dev,
 			    "Urb failure (status %d)", urb->status);
-		dev->wq_in_error = urb->status;
 		goto sched_wq;
 	}
 
 	in_frame = dev->in_urb->transfer_buffer;
 
 	nfc_dev_dbg(&dev->interface->dev, "Received a frame.");
-	print_hex_dump(KERN_DEBUG, "PN533 RX: ", DUMP_PREFIX_NONE, 16, 1,
-		       in_frame, dev->ops->rx_frame_size(in_frame), false);
+	print_hex_dump_debug("PN533 RX: ", DUMP_PREFIX_NONE, 16, 1, in_frame,
+			     dev->ops->rx_frame_size(in_frame), false);
 
 	if (!dev->ops->rx_is_frame_valid(in_frame)) {
 		nfc_dev_err(&dev->interface->dev, "Received an invalid frame");
-		dev->wq_in_error = -EIO;
+		cmd->status = -EIO;
 		goto sched_wq;
 	}
 
 	if (!pn533_rx_frame_is_cmd_response(dev, in_frame)) {
 		nfc_dev_err(&dev->interface->dev,
 			    "It it not the response to the last command");
-		dev->wq_in_error = -EIO;
+		cmd->status = -EIO;
 		goto sched_wq;
 	}
-
-	dev->wq_in_error = 0;
 
 sched_wq:
 	queue_work(dev->wq, &dev->cmd_complete_work);
@@ -575,8 +702,11 @@ static int pn533_submit_urb_for_response(struct pn533 *dev, gfp_t flags)
 static void pn533_recv_ack(struct urb *urb)
 {
 	struct pn533 *dev = urb->context;
-	struct pn533_frame *in_frame;
+	struct pn533_cmd *cmd = dev->cmd;
+	struct pn533_std_frame *in_frame;
 	int rc;
+
+	cmd->status = urb->status;
 
 	switch (urb->status) {
 	case 0:
@@ -586,21 +716,19 @@ static void pn533_recv_ack(struct urb *urb)
 		nfc_dev_dbg(&dev->interface->dev,
 			    "The urb has been stopped (status %d)",
 			    urb->status);
-		dev->wq_in_error = urb->status;
 		goto sched_wq;
 	case -ESHUTDOWN:
 	default:
 		nfc_dev_err(&dev->interface->dev,
 			    "Urb failure (status %d)", urb->status);
-		dev->wq_in_error = urb->status;
 		goto sched_wq;
 	}
 
 	in_frame = dev->in_urb->transfer_buffer;
 
-	if (!pn533_rx_frame_is_ack(in_frame)) {
+	if (!pn533_std_rx_frame_is_ack(in_frame)) {
 		nfc_dev_err(&dev->interface->dev, "Received an invalid ack");
-		dev->wq_in_error = -EIO;
+		cmd->status = -EIO;
 		goto sched_wq;
 	}
 
@@ -608,7 +736,7 @@ static void pn533_recv_ack(struct urb *urb)
 	if (rc) {
 		nfc_dev_err(&dev->interface->dev,
 			    "usb_submit_urb failed with result %d", rc);
-		dev->wq_in_error = rc;
+		cmd->status = rc;
 		goto sched_wq;
 	}
 
@@ -627,7 +755,7 @@ static int pn533_submit_urb_for_ack(struct pn533 *dev, gfp_t flags)
 
 static int pn533_send_ack(struct pn533 *dev, gfp_t flags)
 {
-	u8 ack[PN533_FRAME_ACK_SIZE] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
+	u8 ack[PN533_STD_FRAME_ACK_SIZE] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
 	/* spec 7.1.1.3:  Preamble, SoPC (2), ACK Code (2), Postamble */
 	int rc;
 
@@ -643,15 +771,9 @@ static int pn533_send_ack(struct pn533 *dev, gfp_t flags)
 static int __pn533_send_frame_async(struct pn533 *dev,
 					struct sk_buff *out,
 					struct sk_buff *in,
-					int in_len,
-					pn533_cmd_complete_t cmd_complete,
-					void *arg)
+					int in_len)
 {
 	int rc;
-
-	dev->cmd = dev->ops->get_cmd_code(out->data);
-	dev->cmd_complete = cmd_complete;
-	dev->cmd_complete_arg = arg;
 
 	dev->out_urb->transfer_buffer = out->data;
 	dev->out_urb->transfer_buffer_length = out->len;
@@ -659,16 +781,24 @@ static int __pn533_send_frame_async(struct pn533 *dev,
 	dev->in_urb->transfer_buffer = in->data;
 	dev->in_urb->transfer_buffer_length = in_len;
 
-	print_hex_dump(KERN_DEBUG, "PN533 TX: ", DUMP_PREFIX_NONE, 16, 1,
-		       out->data, out->len, false);
+	print_hex_dump_debug("PN533 TX: ", DUMP_PREFIX_NONE, 16, 1,
+			     out->data, out->len, false);
 
 	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
 	if (rc)
 		return rc;
 
-	rc = pn533_submit_urb_for_ack(dev, GFP_KERNEL);
-	if (rc)
-		goto error;
+	if (dev->protocol_type == PN533_PROTO_REQ_RESP) {
+		/* request for response for sent packet directly */
+		rc = pn533_submit_urb_for_response(dev, GFP_ATOMIC);
+		if (rc)
+			goto error;
+	} else if (dev->protocol_type == PN533_PROTO_REQ_ACK_RESP) {
+		/* request for ACK if that's the case */
+		rc = pn533_submit_urb_for_ack(dev, GFP_KERNEL);
+		if (rc)
+			goto error;
+	}
 
 	return 0;
 
@@ -693,39 +823,34 @@ static void pn533_build_cmd_frame(struct pn533 *dev, u8 cmd_code,
 	ops->tx_frame_finish(skb->data);
 }
 
-struct pn533_send_async_complete_arg {
-	pn533_send_async_complete_t  complete_cb;
-	void *complete_cb_context;
-	struct sk_buff *resp;
-	struct sk_buff *req;
-};
-
-static int pn533_send_async_complete(struct pn533 *dev, void *_arg, int status)
+static int pn533_send_async_complete(struct pn533 *dev)
 {
-	struct pn533_send_async_complete_arg *arg = _arg;
+	struct pn533_cmd *cmd = dev->cmd;
+	int status = cmd->status;
 
-	struct sk_buff *req = arg->req;
-	struct sk_buff *resp = arg->resp;
+	struct sk_buff *req = cmd->req;
+	struct sk_buff *resp = cmd->resp;
 
 	int rc;
 
 	dev_kfree_skb(req);
 
 	if (status < 0) {
-		arg->complete_cb(dev, arg->complete_cb_context,
-				 ERR_PTR(status));
+		rc = cmd->complete_cb(dev, cmd->complete_cb_context,
+				      ERR_PTR(status));
 		dev_kfree_skb(resp);
-		kfree(arg);
-		return status;
+		goto done;
 	}
 
 	skb_put(resp, dev->ops->rx_frame_size(resp->data));
 	skb_pull(resp, dev->ops->rx_header_len);
 	skb_trim(resp, resp->len - dev->ops->rx_tail_len);
 
-	rc = arg->complete_cb(dev, arg->complete_cb_context, resp);
+	rc = cmd->complete_cb(dev, cmd->complete_cb_context, resp);
 
-	kfree(arg);
+done:
+	kfree(cmd);
+	dev->cmd = NULL;
 	return rc;
 }
 
@@ -736,56 +861,45 @@ static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 			      void *complete_cb_context)
 {
 	struct pn533_cmd *cmd;
-	struct pn533_send_async_complete_arg *arg;
 	int rc = 0;
 
 	nfc_dev_dbg(&dev->interface->dev, "Sending command 0x%x", cmd_code);
 
-	arg = kzalloc(sizeof(*arg), GFP_KERNEL);
-	if (!arg)
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd)
 		return -ENOMEM;
 
-	arg->complete_cb = complete_cb;
-	arg->complete_cb_context = complete_cb_context;
-	arg->resp = resp;
-	arg->req = req;
+	cmd->code = cmd_code;
+	cmd->req = req;
+	cmd->resp = resp;
+	cmd->resp_len = resp_len;
+	cmd->complete_cb = complete_cb;
+	cmd->complete_cb_context = complete_cb_context;
 
 	pn533_build_cmd_frame(dev, cmd_code, req);
 
 	mutex_lock(&dev->cmd_lock);
 
 	if (!dev->cmd_pending) {
-		rc = __pn533_send_frame_async(dev, req, resp, resp_len,
-					      pn533_send_async_complete, arg);
+		rc = __pn533_send_frame_async(dev, req, resp, resp_len);
 		if (rc)
 			goto error;
 
 		dev->cmd_pending = 1;
+		dev->cmd = cmd;
 		goto unlock;
 	}
 
 	nfc_dev_dbg(&dev->interface->dev, "%s Queueing command 0x%x", __func__,
 		    cmd_code);
 
-	cmd = kzalloc(sizeof(struct pn533_cmd), GFP_KERNEL);
-	if (!cmd) {
-		rc = -ENOMEM;
-		goto error;
-	}
-
 	INIT_LIST_HEAD(&cmd->queue);
-	cmd->cmd_code = cmd_code;
-	cmd->req = req;
-	cmd->resp = resp;
-	cmd->resp_len = resp_len;
-	cmd->arg = arg;
-
 	list_add_tail(&cmd->queue, &dev->cmd_queue);
 
 	goto unlock;
 
 error:
-	kfree(arg);
+	kfree(cmd);
 unlock:
 	mutex_unlock(&dev->cmd_lock);
 	return rc;
@@ -850,8 +964,8 @@ static int pn533_send_cmd_direct_async(struct pn533 *dev, u8 cmd_code,
 				       pn533_send_async_complete_t complete_cb,
 				       void *complete_cb_context)
 {
-	struct pn533_send_async_complete_arg *arg;
 	struct sk_buff *resp;
+	struct pn533_cmd *cmd;
 	int rc;
 	int resp_len = dev->ops->rx_header_len +
 		       dev->ops->max_payload_len +
@@ -861,33 +975,47 @@ static int pn533_send_cmd_direct_async(struct pn533 *dev, u8 cmd_code,
 	if (!resp)
 		return -ENOMEM;
 
-	arg = kzalloc(sizeof(*arg), GFP_KERNEL);
-	if (!arg) {
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
 		dev_kfree_skb(resp);
 		return -ENOMEM;
 	}
 
-	arg->complete_cb = complete_cb;
-	arg->complete_cb_context = complete_cb_context;
-	arg->resp = resp;
-	arg->req = req;
+	cmd->code = cmd_code;
+	cmd->req = req;
+	cmd->resp = resp;
+	cmd->resp_len = resp_len;
+	cmd->complete_cb = complete_cb;
+	cmd->complete_cb_context = complete_cb_context;
 
 	pn533_build_cmd_frame(dev, cmd_code, req);
 
-	rc = __pn533_send_frame_async(dev, req, resp, resp_len,
-				      pn533_send_async_complete, arg);
+	rc = __pn533_send_frame_async(dev, req, resp, resp_len);
 	if (rc < 0) {
 		dev_kfree_skb(resp);
-		kfree(arg);
+		kfree(cmd);
+	} else {
+		dev->cmd = cmd;
 	}
 
 	return rc;
+}
+
+static void pn533_wq_cmd_complete(struct work_struct *work)
+{
+	struct pn533 *dev = container_of(work, struct pn533, cmd_complete_work);
+	int rc;
+
+	rc = pn533_send_async_complete(dev);
+	if (rc != -EINPROGRESS)
+		queue_work(dev->wq, &dev->cmd_work);
 }
 
 static void pn533_wq_cmd(struct work_struct *work)
 {
 	struct pn533 *dev = container_of(work, struct pn533, cmd_work);
 	struct pn533_cmd *cmd;
+	int rc;
 
 	mutex_lock(&dev->cmd_lock);
 
@@ -903,10 +1031,15 @@ static void pn533_wq_cmd(struct work_struct *work)
 
 	mutex_unlock(&dev->cmd_lock);
 
-	__pn533_send_frame_async(dev, cmd->req, cmd->resp, cmd->resp_len,
-				 pn533_send_async_complete, cmd->arg);
+	rc = __pn533_send_frame_async(dev, cmd->req, cmd->resp, cmd->resp_len);
+	if (rc < 0) {
+		dev_kfree_skb(cmd->req);
+		dev_kfree_skb(cmd->resp);
+		kfree(cmd);
+		return;
+	}
 
-	kfree(cmd);
+	dev->cmd = cmd;
 }
 
 struct pn533_sync_cmd_response {
@@ -980,6 +1113,23 @@ static void pn533_send_complete(struct urb *urb)
 		nfc_dev_err(&dev->interface->dev,
 			    "Urb failure (status %d)", urb->status);
 	}
+}
+
+static void pn533_abort_cmd(struct pn533 *dev, gfp_t flags)
+{
+	/* ACR122U does not support any command which aborts last
+	 * issued command i.e. as ACK for standard PN533. Additionally,
+	 * it behaves stange, sending broken or incorrect responses,
+	 * when we cancel urb before the chip will send response.
+	 */
+	if (dev->device_type == PN533_DEVICE_ACR122U)
+		return;
+
+	/* An ack will cancel the last issued command */
+	pn533_send_ack(dev, flags);
+
+	/* cancel the urb request */
+	usb_kill_urb(dev->in_urb);
 }
 
 static struct sk_buff *pn533_alloc_skb(struct pn533 *dev, unsigned int size)
@@ -1500,9 +1650,6 @@ static void pn533_listen_mode_timer(unsigned long data)
 
 	nfc_dev_dbg(&dev->interface->dev, "Listen mode timeout");
 
-	/* An ack will cancel the last issued command (poll) */
-	pn533_send_ack(dev, GFP_ATOMIC);
-
 	dev->cancel_listen = 1;
 
 	pn533_poll_next_mod(dev);
@@ -1548,6 +1695,11 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 	rc = pn533_start_poll_complete(dev, resp);
 	if (!rc)
 		goto done;
+
+	if (!dev->poll_mod_count) {
+		nfc_dev_dbg(&dev->interface->dev, "Polling has been stoped.");
+		goto done;
+	}
 
 	pn533_poll_next_mod(dev);
 	queue_work(dev->wq, &dev->poll_work);
@@ -1627,7 +1779,7 @@ static void pn533_wq_poll(struct work_struct *work)
 
 	if (dev->cancel_listen == 1) {
 		dev->cancel_listen = 0;
-		usb_kill_urb(dev->in_urb);
+		pn533_abort_cmd(dev, GFP_ATOMIC);
 	}
 
 	rc = pn533_send_poll_frame(dev);
@@ -1689,12 +1841,7 @@ static void pn533_stop_poll(struct nfc_dev *nfc_dev)
 		return;
 	}
 
-	/* An ack will cancel the last issued command (poll) */
-	pn533_send_ack(dev, GFP_KERNEL);
-
-	/* prevent pn533_start_poll_complete to issue a new poll meanwhile */
-	usb_kill_urb(dev->in_urb);
-
+	pn533_abort_cmd(dev, GFP_KERNEL);
 	pn533_poll_reset_mod_list(dev);
 }
 
@@ -1723,6 +1870,8 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 	rsp = (struct pn533_cmd_activate_response *)resp->data;
 	rc = rsp->status & PN533_CMD_RET_MASK;
 	if (rc != PN533_CMD_RET_SUCCESS) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Target activation failed (error 0x%x)", rc);
 		dev_kfree_skb(resp);
 		return -EIO;
 	}
@@ -1850,7 +1999,7 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 	rc = rsp->status & PN533_CMD_RET_MASK;
 	if (rc != PN533_CMD_RET_SUCCESS) {
 		nfc_dev_err(&dev->interface->dev,
-			    "Bringing DEP link up failed %d", rc);
+			    "Bringing DEP link up failed (error 0x%x)", rc);
 		goto error;
 	}
 
@@ -1985,10 +2134,8 @@ static int pn533_dep_link_down(struct nfc_dev *nfc_dev)
 
 	pn533_poll_reset_mod_list(dev);
 
-	if (dev->tgt_mode || dev->tgt_active_prot) {
-		pn533_send_ack(dev, GFP_KERNEL);
-		usb_kill_urb(dev->in_urb);
-	}
+	if (dev->tgt_mode || dev->tgt_active_prot)
+		pn533_abort_cmd(dev, GFP_KERNEL);
 
 	dev->tgt_active_prot = 0;
 	dev->tgt_mode = 0;
@@ -2064,8 +2211,7 @@ static int pn533_data_exchange_complete(struct pn533 *dev, void *_arg,
 
 	if (ret != PN533_CMD_RET_SUCCESS) {
 		nfc_dev_err(&dev->interface->dev,
-			    "PN533 reported error %d when exchanging data",
-			    ret);
+			    "Exchanging data failed (error 0x%x)", ret);
 		rc = -EIO;
 		goto error;
 	}
@@ -2253,7 +2399,7 @@ static void pn533_wq_mi_recv(struct work_struct *work)
 		    "Error %d when trying to perform data_exchange", rc);
 
 	dev_kfree_skb(skb);
-	kfree(dev->cmd_complete_arg);
+	kfree(dev->cmd_complete_mi_arg);
 
 error:
 	pn533_send_ack(dev, GFP_KERNEL);
@@ -2310,7 +2456,7 @@ static int pn533_get_firmware_version(struct pn533 *dev,
 	return 0;
 }
 
-static int pn533_fw_reset(struct pn533 *dev)
+static int pn533_pasori_fw_reset(struct pn533 *dev)
 {
 	struct sk_buff *skb;
 	struct sk_buff *resp;
@@ -2332,9 +2478,102 @@ static int pn533_fw_reset(struct pn533 *dev)
 	return 0;
 }
 
+struct pn533_acr122_poweron_rdr_arg {
+	int rc;
+	struct completion done;
+};
+
+static void pn533_acr122_poweron_rdr_resp(struct urb *urb)
+{
+	struct pn533_acr122_poweron_rdr_arg *arg = urb->context;
+
+	nfc_dev_dbg(&urb->dev->dev, "%s", __func__);
+
+	print_hex_dump(KERN_ERR, "ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
+		       urb->transfer_buffer, urb->transfer_buffer_length,
+		       false);
+
+	arg->rc = urb->status;
+	complete(&arg->done);
+}
+
+static int pn533_acr122_poweron_rdr(struct pn533 *dev)
+{
+	/* Power on th reader (CCID cmd) */
+	u8 cmd[10] = {PN533_ACR122_PC_TO_RDR_ICCPOWERON,
+		      0, 0, 0, 0, 0, 0, 3, 0, 0};
+	u8 buf[255];
+	int rc;
+	void *cntx;
+	struct pn533_acr122_poweron_rdr_arg arg;
+
+	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	init_completion(&arg.done);
+	cntx = dev->in_urb->context;  /* backup context */
+
+	dev->in_urb->transfer_buffer = buf;
+	dev->in_urb->transfer_buffer_length = 255;
+	dev->in_urb->complete = pn533_acr122_poweron_rdr_resp;
+	dev->in_urb->context = &arg;
+
+	dev->out_urb->transfer_buffer = cmd;
+	dev->out_urb->transfer_buffer_length = sizeof(cmd);
+
+	print_hex_dump(KERN_ERR, "ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
+		       cmd, sizeof(cmd), false);
+
+	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
+	if (rc) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Reader power on cmd error %d", rc);
+		return rc;
+	}
+
+	rc =  usb_submit_urb(dev->in_urb, GFP_KERNEL);
+	if (rc) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Can't submit for reader power on cmd response %d",
+			    rc);
+		return rc;
+	}
+
+	wait_for_completion(&arg.done);
+	dev->in_urb->context = cntx; /* restore context */
+
+	return arg.rc;
+}
+
+static int pn533_rf_field(struct nfc_dev *nfc_dev, u8 rf)
+{
+	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+	u8 rf_field = !!rf;
+	int rc;
+
+	rc = pn533_set_configuration(dev, PN533_CFGITEM_RF_FIELD,
+				     (u8 *)&rf_field, 1);
+	if (rc) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Error on setting RF field");
+		return rc;
+	}
+
+	return rc;
+}
+
+int pn533_dev_up(struct nfc_dev *nfc_dev)
+{
+	return pn533_rf_field(nfc_dev, 1);
+}
+
+int pn533_dev_down(struct nfc_dev *nfc_dev)
+{
+	return pn533_rf_field(nfc_dev, 0);
+}
+
 static struct nfc_ops pn533_nfc_ops = {
-	.dev_up = NULL,
-	.dev_down = NULL,
+	.dev_up = pn533_dev_up,
+	.dev_down = pn533_dev_down,
 	.dep_link_up = pn533_dep_link_up,
 	.dep_link_down = pn533_dep_link_down,
 	.start_poll = pn533_start_poll,
@@ -2366,6 +2605,7 @@ static int pn533_setup(struct pn533 *dev)
 		break;
 
 	case PN533_DEVICE_PASORI:
+	case PN533_DEVICE_ACR122U:
 		max_retries.mx_rty_atr = 0x2;
 		max_retries.mx_rty_psl = 0x1;
 		max_retries.mx_rty_passive_act =
@@ -2405,7 +2645,7 @@ static int pn533_setup(struct pn533 *dev)
 		break;
 
 	case PN533_DEVICE_PASORI:
-		pn533_fw_reset(dev);
+		pn533_pasori_fw_reset(dev);
 
 		rc = pn533_set_configuration(dev, PN533_CFGITEM_PASORI,
 					     pasori_cfg, 3);
@@ -2415,7 +2655,7 @@ static int pn533_setup(struct pn533 *dev)
 			return rc;
 		}
 
-		pn533_fw_reset(dev);
+		pn533_pasori_fw_reset(dev);
 
 		break;
 	}
@@ -2496,6 +2736,7 @@ static int pn533_probe(struct usb_interface *interface,
 
 	dev->ops = &pn533_std_frame_ops;
 
+	dev->protocol_type = PN533_PROTO_REQ_ACK_RESP;
 	dev->device_type = id->driver_info;
 	switch (dev->device_type) {
 	case PN533_DEVICE_STD:
@@ -2504,6 +2745,20 @@ static int pn533_probe(struct usb_interface *interface,
 
 	case PN533_DEVICE_PASORI:
 		protocols = PN533_NO_TYPE_B_PROTOCOLS;
+		break;
+
+	case PN533_DEVICE_ACR122U:
+		protocols = PN533_NO_TYPE_B_PROTOCOLS;
+		dev->ops = &pn533_acr122_frame_ops;
+		dev->protocol_type = PN533_PROTO_REQ_RESP,
+
+		rc = pn533_acr122_poweron_rdr(dev);
+		if (rc < 0) {
+			nfc_dev_err(&dev->interface->dev,
+				    "Couldn't poweron the reader (error %d)",
+				    rc);
+			goto destroy_wq;
+		}
 		break;
 
 	default:
@@ -2555,6 +2810,7 @@ destroy_wq:
 error:
 	usb_free_urb(dev->in_urb);
 	usb_free_urb(dev->out_urb);
+	usb_put_dev(dev->udev);
 	kfree(dev);
 	return rc;
 }
@@ -2600,8 +2856,9 @@ static struct usb_driver pn533_driver = {
 
 module_usb_driver(pn533_driver);
 
-MODULE_AUTHOR("Lauro Ramos Venancio <lauro.venancio@openbossa.org>,"
-			" Aloisio Almeida Jr <aloisio.almeida@openbossa.org>");
+MODULE_AUTHOR("Lauro Ramos Venancio <lauro.venancio@openbossa.org>");
+MODULE_AUTHOR("Aloisio Almeida Jr <aloisio.almeida@openbossa.org>");
+MODULE_AUTHOR("Waldemar Rymarkiewicz <waldemar.rymarkiewicz@tieto.com>");
 MODULE_DESCRIPTION("PN533 usb driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");

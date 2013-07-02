@@ -153,8 +153,8 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 	pdev->dev.platform_data = ep93xx_rtc;
 	platform_set_drvdata(pdev, ep93xx_rtc);
 
-	ep93xx_rtc->rtc = rtc_device_register(pdev->name,
-				&pdev->dev, &ep93xx_rtc_ops, THIS_MODULE);
+	ep93xx_rtc->rtc = devm_rtc_device_register(&pdev->dev,
+				pdev->name, &ep93xx_rtc_ops, THIS_MODULE);
 	if (IS_ERR(ep93xx_rtc->rtc)) {
 		err = PTR_ERR(ep93xx_rtc->rtc);
 		goto exit;
@@ -162,12 +162,10 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 
 	err = sysfs_create_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
 	if (err)
-		goto fail;
+		goto exit;
 
 	return 0;
 
-fail:
-	rtc_device_unregister(ep93xx_rtc->rtc);
 exit:
 	platform_set_drvdata(pdev, NULL);
 	pdev->dev.platform_data = NULL;
@@ -176,11 +174,8 @@ exit:
 
 static int ep93xx_rtc_remove(struct platform_device *pdev)
 {
-	struct ep93xx_rtc *ep93xx_rtc = platform_get_drvdata(pdev);
-
 	sysfs_remove_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
 	platform_set_drvdata(pdev, NULL);
-	rtc_device_unregister(ep93xx_rtc->rtc);
 	pdev->dev.platform_data = NULL;
 
 	return 0;

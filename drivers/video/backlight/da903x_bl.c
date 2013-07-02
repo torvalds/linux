@@ -88,16 +88,21 @@ static int da903x_backlight_update_status(struct backlight_device *bl)
 	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
 		brightness = 0;
 
+	if (bl->props.state & BL_CORE_SUSPENDED)
+		brightness = 0;
+
 	return da903x_backlight_set(bl, brightness);
 }
 
 static int da903x_backlight_get_brightness(struct backlight_device *bl)
 {
 	struct da903x_backlight_data *data = bl_get_data(bl);
+
 	return data->current_brightness;
 }
 
 static const struct backlight_ops da903x_backlight_ops = {
+	.options	= BL_CORE_SUSPENDRESUME,
 	.update_status	= da903x_backlight_update_status,
 	.get_brightness	= da903x_backlight_get_brightness,
 };
@@ -161,35 +166,10 @@ static int da903x_backlight_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int da903x_backlight_suspend(struct device *dev)
-{
-	struct backlight_device *bl = dev_get_drvdata(dev);
-
-	return da903x_backlight_set(bl, 0);
-}
-
-static int da903x_backlight_resume(struct device *dev)
-{
-	struct backlight_device *bl = dev_get_drvdata(dev);
-
-	backlight_update_status(bl);
-	return 0;
-}
-
-static const struct dev_pm_ops da903x_backlight_pm_ops = {
-	.suspend	= da903x_backlight_suspend,
-	.resume		= da903x_backlight_resume,
-};
-#endif
-
 static struct platform_driver da903x_backlight_driver = {
 	.driver		= {
 		.name	= "da903x-backlight",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
-		.pm	= &da903x_backlight_pm_ops,
-#endif
 	},
 	.probe		= da903x_backlight_probe,
 	.remove		= da903x_backlight_remove,

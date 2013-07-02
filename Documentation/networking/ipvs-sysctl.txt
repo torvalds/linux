@@ -15,6 +15,13 @@ amemthresh - INTEGER
         enabled and the variable is automatically set to 2, otherwise
         the strategy is disabled and the variable is  set  to 1.
 
+backup_only - BOOLEAN
+	0 - disabled (default)
+	not 0 - enabled
+
+	If set, disable the director function while the server is
+	in backup mode to avoid packet loops for DR/TUN methods.
+
 conntrack - BOOLEAN
 	0 - disabled (default)
 	not 0 - enabled

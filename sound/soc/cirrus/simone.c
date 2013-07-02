@@ -21,8 +21,6 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 
-#include "ep93xx-pcm.h"
-
 static struct snd_soc_dai_link simone_dai = {
 	.name		= "AC97",
 	.stream_name	= "AC97 HiFi",

@@ -251,14 +251,13 @@ static unsigned int gx_validate_speed(unsigned int khz, u8 *on_duration,
  * set cpu speed in khz.
  **/
 
-static void gx_set_cpuspeed(unsigned int khz)
+static void gx_set_cpuspeed(struct cpufreq_policy *policy, unsigned int khz)
 {
 	u8 suscfg, pmer1;
 	unsigned int new_khz;
 	unsigned long flags;
 	struct cpufreq_freqs freqs;
 
-	freqs.cpu = 0;
 	freqs.old = gx_get_cpuspeed(0);
 
 	new_khz = gx_validate_speed(khz, &gx_params->on_duration,
@@ -266,10 +265,8 @@ static void gx_set_cpuspeed(unsigned int khz)
 
 	freqs.new = new_khz;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 	local_irq_save(flags);
-
-
 
 	if (new_khz != stock_freq) {
 		/* if new khz == 100% of CPU speed, it is special case */
@@ -317,7 +314,7 @@ static void gx_set_cpuspeed(unsigned int khz)
 
 	gx_params->pci_suscfg = suscfg;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	pr_debug("suspend modulation w/ duration of ON:%d us, OFF:%d us\n",
 		gx_params->on_duration * 32, gx_params->off_duration * 32);
@@ -397,7 +394,7 @@ static int cpufreq_gx_target(struct cpufreq_policy *policy,
 		tmp_freq = gx_validate_speed(tmp_freq, &tmp1, &tmp2);
 	}
 
-	gx_set_cpuspeed(tmp_freq);
+	gx_set_cpuspeed(policy, tmp_freq);
 
 	return 0;
 }

@@ -2120,11 +2120,12 @@ static void w83795_check_dynamic_in_limits(struct i2c_client *client)
 					   &w83795_in[i][3].dev_attr.attr,
 					   S_IRUGO);
 		if (err_max || err_min)
-			dev_warn(&client->dev, "Failed to set in%d limits "
-				 "read-only (%d, %d)\n", i, err_max, err_min);
+			dev_warn(&client->dev,
+				 "Failed to set in%d limits read-only (%d, %d)\n",
+				 i, err_max, err_min);
 		else
-			dev_info(&client->dev, "in%d limits set dynamically "
-				 "from VID\n", i);
+			dev_info(&client->dev,
+				 "in%d limits set dynamically from VID\n", i);
 	}
 }
 

@@ -2024,7 +2024,7 @@ rrd_ok:
 					((rrd->vlan_tag & 7) << 13) |
 					((rrd->vlan_tag & 8) << 9);
 
-			__vlan_hwaccel_put_tag(skb, vlan_tag);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 		}
 		netif_receive_skb(skb);
 
@@ -2774,7 +2774,7 @@ static int atl1_close(struct net_device *netdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int atl1_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -2876,23 +2876,18 @@ static int atl1_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(atl1_pm_ops, atl1_suspend, atl1_resume);
-#define ATL1_PM_OPS	(&atl1_pm_ops)
-
-#else
-
-static int atl1_suspend(struct device *dev) { return 0; }
-
-#define ATL1_PM_OPS	NULL
-#endif
 
 static void atl1_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 
+#ifdef CONFIG_PM_SLEEP
 	atl1_suspend(&pdev->dev);
+#endif
 	pci_wake_from_d3(pdev, adapter->wol);
 	pci_set_power_state(pdev, PCI_D3hot);
 }
@@ -3023,10 +3018,10 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev->features = NETIF_F_HW_CSUM;
 	netdev->features |= NETIF_F_SG;
-	netdev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
+	netdev->features |= (NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX);
 
 	netdev->hw_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO |
-			      NETIF_F_HW_VLAN_RX;
+			      NETIF_F_HW_VLAN_CTAG_RX;
 
 	/* is this valid? see atl1_setup_mac_ctrl() */
 	netdev->features |= NETIF_F_RXCSUM;
@@ -3147,7 +3142,7 @@ static struct pci_driver atl1_driver = {
 	.probe = atl1_probe,
 	.remove = atl1_remove,
 	.shutdown = atl1_shutdown,
-	.driver.pm = ATL1_PM_OPS,
+	.driver.pm = &atl1_pm_ops,
 };
 
 /**

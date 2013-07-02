@@ -231,7 +231,7 @@ int ili9320_probe_spi(struct spi_device *spi,
 	ili->power = FB_BLANK_POWERDOWN;
 	ili->platdata = cfg;
 
-	dev_set_drvdata(&spi->dev, ili);
+	spi_set_drvdata(spi, ili);
 
 	ili9320_setup_spi(ili, spi);
 
@@ -270,27 +270,21 @@ int ili9320_remove(struct ili9320 *ili)
 }
 EXPORT_SYMBOL_GPL(ili9320_remove);
 
-#ifdef CONFIG_PM
-int ili9320_suspend(struct ili9320 *lcd, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+int ili9320_suspend(struct ili9320 *lcd)
 {
 	int ret;
 
-	dev_dbg(lcd->dev, "%s: event %d\n", __func__, state.event);
+	ret = ili9320_power(lcd, FB_BLANK_POWERDOWN);
 
-	if (state.event == PM_EVENT_SUSPEND) {
-		ret = ili9320_power(lcd, FB_BLANK_POWERDOWN);
-
-		if (lcd->platdata->suspend == ILI9320_SUSPEND_DEEP) {
-			ili9320_write(lcd, ILI9320_POWER1, lcd->power1 |
-				      ILI9320_POWER1_SLP |
-				      ILI9320_POWER1_DSTB);
-			lcd->initialised = 0;
-		}
-
-		return ret;
+	if (lcd->platdata->suspend == ILI9320_SUSPEND_DEEP) {
+		ili9320_write(lcd, ILI9320_POWER1, lcd->power1 |
+			      ILI9320_POWER1_SLP |
+			      ILI9320_POWER1_DSTB);
+		lcd->initialised = 0;
 	}
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(ili9320_suspend);
 

@@ -101,13 +101,6 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 	if (!S_ISDIR(inode->i_mode))
 		flags &= ~OCFS2_DIRSYNC_FL;
 
-	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
-	if (IS_ERR(handle)) {
-		status = PTR_ERR(handle);
-		mlog_errno(status);
-		goto bail_unlock;
-	}
-
 	oldflags = ocfs2_inode->ip_attr;
 	flags = flags & mask;
 	flags |= oldflags & ~mask;
@@ -120,7 +113,14 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 	if ((oldflags & OCFS2_IMMUTABLE_FL) || ((flags ^ oldflags) &
 		(OCFS2_APPEND_FL | OCFS2_IMMUTABLE_FL))) {
 		if (!capable(CAP_LINUX_IMMUTABLE))
-			goto bail_commit;
+			goto bail_unlock;
+	}
+
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
+	if (IS_ERR(handle)) {
+		status = PTR_ERR(handle);
+		mlog_errno(status);
+		goto bail_unlock;
 	}
 
 	ocfs2_inode->ip_attr = flags;
@@ -130,8 +130,8 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 	if (status < 0)
 		mlog_errno(status);
 
-bail_commit:
 	ocfs2_commit_trans(osb, handle);
+
 bail_unlock:
 	ocfs2_inode_unlock(inode, 1);
 bail:
@@ -706,8 +706,10 @@ int ocfs2_info_handle_freefrag(struct inode *inode,
 
 	o2info_set_request_filled(&oiff->iff_req);
 
-	if (o2info_to_user(*oiff, req))
+	if (o2info_to_user(*oiff, req)) {
+		status = -EFAULT;
 		goto bail;
+	}
 
 	status = 0;
 bail:

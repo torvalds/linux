@@ -425,6 +425,10 @@ static struct snd_soc_dai_driver jz4740_i2s_dai = {
 	.resume = jz4740_i2s_resume,
 };
 
+static const struct snd_soc_component_driver jz4740_i2s_component = {
+	.name		= "jz4740-i2s",
+};
+
 static int jz4740_i2s_dev_probe(struct platform_device *pdev)
 {
 	struct jz4740_i2s *i2s;
@@ -469,7 +473,8 @@ static int jz4740_i2s_dev_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, i2s);
-	ret = snd_soc_register_dai(&pdev->dev, &jz4740_i2s_dai);
+	ret = snd_soc_register_component(&pdev->dev, &jz4740_i2s_component,
+					 &jz4740_i2s_dai, 1);
 
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register DAI\n");
@@ -496,7 +501,7 @@ static int jz4740_i2s_dev_remove(struct platform_device *pdev)
 {
 	struct jz4740_i2s *i2s = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	clk_put(i2s->clk_i2s);
 	clk_put(i2s->clk_aic);

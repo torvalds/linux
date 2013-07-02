@@ -775,12 +775,12 @@ static int ld9040_remove(struct spi_device *spi)
 	return 0;
 }
 
-#if defined(CONFIG_PM)
-static int ld9040_suspend(struct spi_device *spi, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int ld9040_suspend(struct device *dev)
 {
-	struct ld9040 *lcd = spi_get_drvdata(spi);
+	struct ld9040 *lcd = dev_get_drvdata(dev);
 
-	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
+	dev_dbg(dev, "lcd->power = %d\n", lcd->power);
 
 	/*
 	 * when lcd panel is suspend, lcd panel becomes off
@@ -789,18 +789,17 @@ static int ld9040_suspend(struct spi_device *spi, pm_message_t mesg)
 	return ld9040_power(lcd, FB_BLANK_POWERDOWN);
 }
 
-static int ld9040_resume(struct spi_device *spi)
+static int ld9040_resume(struct device *dev)
 {
-	struct ld9040 *lcd = spi_get_drvdata(spi);
+	struct ld9040 *lcd = dev_get_drvdata(dev);
 
 	lcd->power = FB_BLANK_POWERDOWN;
 
 	return ld9040_power(lcd, FB_BLANK_UNBLANK);
 }
-#else
-#define ld9040_suspend		NULL
-#define ld9040_resume		NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(ld9040_pm_ops, ld9040_suspend, ld9040_resume);
 
 /* Power down all displays on reboot, poweroff or halt. */
 static void ld9040_shutdown(struct spi_device *spi)
@@ -814,12 +813,11 @@ static struct spi_driver ld9040_driver = {
 	.driver = {
 		.name	= "ld9040",
 		.owner	= THIS_MODULE,
+		.pm	= &ld9040_pm_ops,
 	},
 	.probe		= ld9040_probe,
 	.remove		= ld9040_remove,
 	.shutdown	= ld9040_shutdown,
-	.suspend	= ld9040_suspend,
-	.resume		= ld9040_resume,
 };
 
 module_spi_driver(ld9040_driver);

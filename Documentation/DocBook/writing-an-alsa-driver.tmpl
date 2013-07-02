@@ -6164,14 +6164,12 @@ struct _snd_pcm_runtime {
 
       <para>
         The macro takes an conditional expression to evaluate.
-	When <constant>CONFIG_SND_DEBUG</constant>, is set, the
-	expression is actually evaluated. If it's non-zero, it shows
-	the warning message such as
+	When <constant>CONFIG_SND_DEBUG</constant>, is set, if the
+	expression is non-zero, it shows the warning message such as
 	<computeroutput>BUG? (xxx)</computeroutput>
-	normally followed by stack trace.  It returns the evaluated
-	value.
-	When no <constant>CONFIG_SND_DEBUG</constant> is set, this
-	macro always returns zero.
+	normally followed by stack trace.
+
+	In both cases it returns the evaluated value.
       </para>
 
     </section>

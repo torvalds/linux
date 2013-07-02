@@ -45,18 +45,11 @@ static int pcl725_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: pcl725: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, PCL725_SIZE, "pcl725")) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->board_name = "pcl725";
-	dev->iobase = iobase;
-	dev->irq = 0;
+	ret = comedi_request_region(dev, it->options[0], PCL725_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -85,17 +78,11 @@ static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void pcl725_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, PCL725_SIZE);
-}
-
 static struct comedi_driver pcl725_driver = {
 	.driver_name	= "pcl725",
 	.module		= THIS_MODULE,
 	.attach		= pcl725_attach,
-	.detach		= pcl725_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(pcl725_driver);
 

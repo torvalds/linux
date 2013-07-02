@@ -393,12 +393,14 @@ ARC_ENTRY EV_TLBProtV
 #ifdef  CONFIG_ARC_MISALIGN_ACCESS
 	SAVE_CALLEE_SAVED_USER
 	mov r3, sp              ; callee_regs
-#endif
 
 	bl  do_misaligned_access
 
-#ifdef  CONFIG_ARC_MISALIGN_ACCESS
-	DISCARD_CALLEE_SAVED_USER
+	; TBD: optimize - do this only if a callee reg was involved
+	; either a dst of emulated LD/ST or src with address-writeback
+	RESTORE_CALLEE_SAVED_USER
+#else
+	bl  do_misaligned_error
 #endif
 
 	b   ret_from_exception
@@ -452,7 +454,7 @@ tracesys:
 	; using ERET won't work since next-PC has already committed
 	lr  r12, [efa]
 	GET_CURR_TASK_FIELD_PTR   TASK_THREAD, r11
-	st  r12, [r11, THREAD_FAULT_ADDR]
+	st  r12, [r11, THREAD_FAULT_ADDR]	; thread.fault_address
 
 	; PRE Sys Call Ptrace hook
 	mov r0, sp			; pt_regs needed
@@ -791,31 +793,6 @@ ARC_ENTRY ret_from_fork
 ARC_EXIT ret_from_fork
 
 ;################### Special Sys Call Wrappers ##########################
-
-; TBD: call do_fork directly from here
-ARC_ENTRY sys_fork_wrapper
-	SAVE_CALLEE_SAVED_USER
-	bl  @sys_fork
-	DISCARD_CALLEE_SAVED_USER
-
-	GET_CURR_THR_INFO_FLAGS   r10
-	btst r10, TIF_SYSCALL_TRACE
-	bnz  tracesys_exit
-
-	b ret_from_system_call
-ARC_EXIT sys_fork_wrapper
-
-ARC_ENTRY sys_vfork_wrapper
-	SAVE_CALLEE_SAVED_USER
-	bl  @sys_vfork
-	DISCARD_CALLEE_SAVED_USER
-
-	GET_CURR_THR_INFO_FLAGS   r10
-	btst r10, TIF_SYSCALL_TRACE
-	bnz  tracesys_exit
-
-	b ret_from_system_call
-ARC_EXIT sys_vfork_wrapper
 
 ARC_ENTRY sys_clone_wrapper
 	SAVE_CALLEE_SAVED_USER

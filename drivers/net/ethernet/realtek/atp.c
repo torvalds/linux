@@ -782,8 +782,6 @@ static void net_rx(struct net_device *dev)
 
 		skb = netdev_alloc_skb(dev, pkt_len + 2);
 		if (skb == NULL) {
-			printk(KERN_ERR "%s: Memory squeeze, dropping packet.\n",
-				   dev->name);
 			dev->stats.rx_dropped++;
 			goto done;
 		}

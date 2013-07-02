@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -205,7 +205,7 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(rate_idx);
 
 	mvm->mgmt_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, mvm->nvm_data->valid_tx_ant,
+		iwl_mvm_next_antenna(mvm, iwl_fw_valid_tx_ant(mvm->fw),
 				     mvm->mgmt_last_antenna_idx);
 	rate_flags = BIT(mvm->mgmt_last_antenna_idx) << RATE_MCS_ANT_POS;
 
@@ -365,7 +365,7 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (WARN_ON_ONCE(!mvmsta))
 		return -1;
 
-	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_INVALID_STATION))
+	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
 		return -1;
 
 	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, sta, mvmsta->sta_id);
@@ -416,9 +416,8 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	spin_unlock(&mvmsta->lock);
 
-	if (mvmsta->vif->type == NL80211_IFTYPE_AP &&
-	    txq_id < IWL_FIRST_AMPDU_QUEUE)
-		atomic_inc(&mvmsta->pending_frames);
+	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE)
+		atomic_inc(&mvm->pending_frames[mvmsta->sta_id]);
 
 	return 0;
 
@@ -606,7 +605,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 					     info);
 
 		/* Single frame failure in an AMPDU queue => send BAR */
-		if (txq_id >= IWL_FIRST_AMPDU_QUEUE &&
+		if (txq_id >= IWL_MVM_FIRST_AGG_QUEUE &&
 		    !(info->flags & IEEE80211_TX_STAT_ACK))
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
@@ -619,7 +618,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		ieee80211_tx_status_ni(mvm->hw, skb);
 	}
 
-	if (txq_id >= IWL_FIRST_AMPDU_QUEUE) {
+	if (txq_id >= IWL_MVM_FIRST_AGG_QUEUE) {
 		/* If this is an aggregation queue, we use the ssn since:
 		 * ssn = wifi seq_num % 256.
 		 * The seq_ctl is the sequence control of the packet to which
@@ -637,14 +636,16 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		next_reclaimed = ssn;
 	} else {
 		/* The next packet to be reclaimed is the one after this one */
-		next_reclaimed = SEQ_TO_SN(seq_ctl + 0x10);
+		next_reclaimed = IEEE80211_SEQ_TO_SN(seq_ctl + 0x10);
 	}
 
 	IWL_DEBUG_TX_REPLY(mvm,
-			   "TXQ %d status %s (0x%08x)\n\t\t\t\tinitial_rate 0x%x "
-			    "retries %d, idx=%d ssn=%d next_reclaimed=0x%x seq_ctl=0x%x\n",
-			   txq_id, iwl_mvm_get_tx_fail_reason(status),
-			   status, le32_to_cpu(tx_resp->initial_rate),
+			   "TXQ %d status %s (0x%08x)\n",
+			   txq_id, iwl_mvm_get_tx_fail_reason(status), status);
+
+	IWL_DEBUG_TX_REPLY(mvm,
+			   "\t\t\t\tinitial_rate 0x%x retries %d, idx=%d ssn=%d next_reclaimed=0x%x seq_ctl=0x%x\n",
+			   le32_to_cpu(tx_resp->initial_rate),
 			   tx_resp->failure_frame, SEQ_TO_INDEX(sequence),
 			   ssn, next_reclaimed, seq_ctl);
 
@@ -678,16 +679,41 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	/*
 	 * If the txq is not an AMPDU queue, there is no chance we freed
 	 * several skbs. Check that out...
-	 * If there are no pending frames for this STA, notify mac80211 that
-	 * this station can go to sleep in its STA table.
 	 */
-	if (txq_id < IWL_FIRST_AMPDU_QUEUE && mvmsta &&
-	    !WARN_ON(skb_freed > 1) &&
-	    mvmsta->vif->type == NL80211_IFTYPE_AP &&
-	    atomic_sub_and_test(skb_freed, &mvmsta->pending_frames)) {
-		ieee80211_sta_block_awake(mvm->hw, sta, false);
-		set_bit(sta_id, mvm->sta_drained);
-		schedule_work(&mvm->sta_drained_wk);
+	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE && !WARN_ON(skb_freed > 1) &&
+	    atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id])) {
+		if (mvmsta) {
+			/*
+			 * If there are no pending frames for this STA, notify
+			 * mac80211 that this station can go to sleep in its
+			 * STA table.
+			 */
+			if (mvmsta->vif->type == NL80211_IFTYPE_AP)
+				ieee80211_sta_block_awake(mvm->hw, sta, false);
+			/*
+			 * We might very well have taken mvmsta pointer while
+			 * the station was being removed. The remove flow might
+			 * have seen a pending_frame (because we didn't take
+			 * the lock) even if now the queues are drained. So make
+			 * really sure now that this the station is not being
+			 * removed. If it is, run the drain worker to remove it.
+			 */
+			spin_lock_bh(&mvmsta->lock);
+			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
+			if (IS_ERR_OR_NULL(sta)) {
+				/*
+				 * Station disappeared in the meantime:
+				 * so we are draining.
+				 */
+				set_bit(sta_id, mvm->sta_drained);
+				schedule_work(&mvm->sta_drained_wk);
+			}
+			spin_unlock_bh(&mvmsta->lock);
+		} else if (!mvmsta) {
+			/* Tx response without STA, so we are draining */
+			set_bit(sta_id, mvm->sta_drained);
+			schedule_work(&mvm->sta_drained_wk);
+		}
 	}
 
 	rcu_read_unlock();
@@ -750,7 +776,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	struct ieee80211_sta *sta;
 
-	if (WARN_ON_ONCE(SEQ_TO_QUEUE(sequence) < IWL_FIRST_AMPDU_QUEUE))
+	if (WARN_ON_ONCE(SEQ_TO_QUEUE(sequence) < IWL_MVM_FIRST_AGG_QUEUE))
 		return;
 
 	if (WARN_ON_ONCE(tid == IWL_TID_NON_QOS))

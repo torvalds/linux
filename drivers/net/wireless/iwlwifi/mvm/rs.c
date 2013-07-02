@@ -680,12 +680,14 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
  */
 static bool rs_use_green(struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_sta *sta_priv = (void *)sta->drv_priv;
-
-	bool use_green = !(sta_priv->vif->bss_conf.ht_operation_mode &
-				IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
-
-	return (sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) && use_green;
+	/*
+	 * There's a bug somewhere in this code that causes the
+	 * scaling to get stuck because GF+SGI can't be combined
+	 * in SISO rates. Until we find that bug, disable GF, it
+	 * has only limited benefit and we still interoperate with
+	 * GF APs since we can always receive GF transmissions.
+	 */
+	return false;
 }
 
 /**
@@ -791,7 +793,7 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 
 		if (num_of_ant(tbl->ant_type) > 1)
 			tbl->ant_type =
-			    first_antenna(mvm->nvm_data->valid_tx_ant);
+			    first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
 
 		tbl->is_ht40 = 0;
 		tbl->is_SGI = 0;
@@ -1233,7 +1235,7 @@ static int rs_switch_to_mimo2(struct iwl_mvm *mvm,
 		return -1;
 
 	/* Need both Tx chains/antennas to support MIMO */
-	if (num_of_ant(mvm->nvm_data->valid_tx_ant) < 2)
+	if (num_of_ant(iwl_fw_valid_tx_ant(mvm->fw)) < 2)
 		return -1;
 
 	IWL_DEBUG_RATE(mvm, "LQ: try to switch to MIMO2\n");
@@ -1285,7 +1287,7 @@ static int rs_switch_to_mimo3(struct iwl_mvm *mvm,
 		return -1;
 
 	/* Need both Tx chains/antennas to support MIMO */
-	if (num_of_ant(mvm->nvm_data->valid_tx_ant) < 3)
+	if (num_of_ant(iwl_fw_valid_tx_ant(mvm->fw)) < 3)
 		return -1;
 
 	IWL_DEBUG_RATE(mvm, "LQ: try to switch to MIMO3\n");
@@ -1379,7 +1381,7 @@ static int rs_move_legacy_other(struct iwl_mvm *mvm,
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action;
-	u8 valid_tx_ant = mvm->nvm_data->valid_tx_ant;
+	u8 valid_tx_ant = iwl_fw_valid_tx_ant(mvm->fw);
 	u8 tx_chains_num = num_of_ant(valid_tx_ant);
 	int ret;
 	u8 update_search_tbl_counter = 0;
@@ -1512,7 +1514,7 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action;
-	u8 valid_tx_ant = mvm->nvm_data->valid_tx_ant;
+	u8 valid_tx_ant = iwl_fw_valid_tx_ant(mvm->fw);
 	u8 tx_chains_num = num_of_ant(valid_tx_ant);
 	u8 update_search_tbl_counter = 0;
 	int ret;
@@ -1647,7 +1649,7 @@ static int rs_move_mimo2_to_other(struct iwl_mvm *mvm,
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action;
-	u8 valid_tx_ant = mvm->nvm_data->valid_tx_ant;
+	u8 valid_tx_ant = iwl_fw_valid_tx_ant(mvm->fw);
 	u8 tx_chains_num = num_of_ant(valid_tx_ant);
 	u8 update_search_tbl_counter = 0;
 	int ret;
@@ -1784,7 +1786,7 @@ static int rs_move_mimo3_to_other(struct iwl_mvm *mvm,
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action;
-	u8 valid_tx_ant = mvm->nvm_data->valid_tx_ant;
+	u8 valid_tx_ant = iwl_fw_valid_tx_ant(mvm->fw);
 	u8 tx_chains_num = num_of_ant(valid_tx_ant);
 	int ret;
 	u8 update_search_tbl_counter = 0;
@@ -2447,7 +2449,7 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 
 	i = lq_sta->last_txrate_idx;
 
-	valid_tx_ant = mvm->nvm_data->valid_tx_ant;
+	valid_tx_ant = iwl_fw_valid_tx_ant(mvm->fw);
 
 	if (!lq_sta->search_better_tbl)
 		active_tbl = lq_sta->active_tbl;
@@ -2637,15 +2639,15 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	/* These values will be overridden later */
 	lq_sta->lq.single_stream_ant_msk =
-		first_antenna(mvm->nvm_data->valid_tx_ant);
+		first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
 	lq_sta->lq.dual_stream_ant_msk =
-		mvm->nvm_data->valid_tx_ant &
-		~first_antenna(mvm->nvm_data->valid_tx_ant);
+		iwl_fw_valid_tx_ant(mvm->fw) &
+		~first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
 	if (!lq_sta->lq.dual_stream_ant_msk) {
 		lq_sta->lq.dual_stream_ant_msk = ANT_AB;
-	} else if (num_of_ant(mvm->nvm_data->valid_tx_ant) == 2) {
+	} else if (num_of_ant(iwl_fw_valid_tx_ant(mvm->fw)) == 2) {
 		lq_sta->lq.dual_stream_ant_msk =
-			mvm->nvm_data->valid_tx_ant;
+			iwl_fw_valid_tx_ant(mvm->fw);
 	}
 
 	/* as default allow aggregation for all tids */
@@ -2706,7 +2708,7 @@ static void rs_fill_link_cmd(struct iwl_mvm *mvm,
 	index++;
 	repeat_rate--;
 	if (mvm)
-		valid_tx_ant = mvm->nvm_data->valid_tx_ant;
+		valid_tx_ant = iwl_fw_valid_tx_ant(mvm->fw);
 
 	/* Fill rest of rate table */
 	while (index < LINK_QUAL_MAX_RETRY_NUM) {
@@ -2811,7 +2813,7 @@ static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
 	u8 ant_sel_tx;
 
 	mvm = lq_sta->drv;
-	valid_tx_ant = mvm->nvm_data->valid_tx_ant;
+	valid_tx_ant = iwl_fw_valid_tx_ant(mvm->fw);
 	if (lq_sta->dbg_fixed_rate) {
 		ant_sel_tx =
 		  ((lq_sta->dbg_fixed_rate & RATE_MCS_ANT_ABC_MSK)
@@ -2882,9 +2884,9 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	desc += sprintf(buff+desc, "fixed rate 0x%X\n",
 			lq_sta->dbg_fixed_rate);
 	desc += sprintf(buff+desc, "valid_tx_ant %s%s%s\n",
-	    (mvm->nvm_data->valid_tx_ant & ANT_A) ? "ANT_A," : "",
-	    (mvm->nvm_data->valid_tx_ant & ANT_B) ? "ANT_B," : "",
-	    (mvm->nvm_data->valid_tx_ant & ANT_C) ? "ANT_C" : "");
+	    (iwl_fw_valid_tx_ant(mvm->fw) & ANT_A) ? "ANT_A," : "",
+	    (iwl_fw_valid_tx_ant(mvm->fw) & ANT_B) ? "ANT_B," : "",
+	    (iwl_fw_valid_tx_ant(mvm->fw) & ANT_C) ? "ANT_C" : "");
 	desc += sprintf(buff+desc, "lq type %s\n",
 	   (is_legacy(tbl->lq_type)) ? "legacy" : "HT");
 	if (is_Ht(tbl->lq_type)) {

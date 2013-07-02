@@ -924,6 +924,13 @@ static void restore_default_window(struct pci_dev *dev,
 	__restore_default_window(pci_dev_to_eeh_dev(dev), ddw_restore_token);
 }
 
+struct failed_ddw_pdn {
+	struct device_node *pdn;
+	struct list_head list;
+};
+
+static LIST_HEAD(failed_ddw_pdn_list);
+
 /*
  * If the PE supports dynamic dma windows, and there is space for a table
  * that can map all pages in a linear offset, then setup such a table,
@@ -951,12 +958,25 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	struct dynamic_dma_window_prop *ddwprop;
 	const void *dma_window = NULL;
 	unsigned long liobn, offset, size;
+	struct failed_ddw_pdn *fpdn;
 
 	mutex_lock(&direct_window_init_mutex);
 
 	dma_addr = find_existing_ddw(pdn);
 	if (dma_addr != 0)
 		goto out_unlock;
+
+	/*
+	 * If we already went through this for a previous function of
+	 * the same device and failed, we don't want to muck with the
+	 * DMA window again, as it will race with in-flight operations
+	 * and can lead to EEHs. The above mutex protects access to the
+	 * list.
+	 */
+	list_for_each_entry(fpdn, &failed_ddw_pdn_list, list) {
+		if (!strcmp(fpdn->pdn->full_name, pdn->full_name))
+			goto out_unlock;
+	}
 
 	/*
 	 * the ibm,ddw-applicable property holds the tokens for:
@@ -1113,6 +1133,12 @@ out_free_prop:
 out_restore_window:
 	if (ddw_restore_token)
 		restore_default_window(dev, ddw_restore_token);
+
+	fpdn = kzalloc(sizeof(*fpdn), GFP_KERNEL);
+	if (!fpdn)
+		goto out_unlock;
+	fpdn->pdn = pdn;
+	list_add(&fpdn->list, &failed_ddw_pdn_list);
 
 out_unlock:
 	mutex_unlock(&direct_window_init_mutex);

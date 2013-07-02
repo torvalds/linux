@@ -132,7 +132,7 @@ struct tuner {
 	bool                standby;	/* Standby mode */
 
 	unsigned int        type; /* chip type id */
-	unsigned int        config;
+	void                *config;
 	const char          *name;
 };
 
@@ -218,26 +218,6 @@ static void fe_standby(struct dvb_frontend *fe)
 		fe_tuner_ops->sleep(fe);
 }
 
-static int fe_has_signal(struct dvb_frontend *fe)
-{
-	u16 strength = 0;
-
-	if (fe->ops.tuner_ops.get_rf_strength)
-		fe->ops.tuner_ops.get_rf_strength(fe, &strength);
-
-	return strength;
-}
-
-static int fe_get_afc(struct dvb_frontend *fe)
-{
-	s32 afc = 0;
-
-	if (fe->ops.tuner_ops.get_afc)
-		fe->ops.tuner_ops.get_afc(fe, &afc);
-
-	return 0;
-}
-
 static int fe_set_config(struct dvb_frontend *fe, void *priv_cfg)
 {
 	struct dvb_tuner_ops *fe_tuner_ops = &fe->ops.tuner_ops;
@@ -253,11 +233,9 @@ static int fe_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 static void tuner_status(struct dvb_frontend *fe);
 
-static struct analog_demod_ops tuner_analog_ops = {
+static const struct analog_demod_ops tuner_analog_ops = {
 	.set_params     = fe_set_params,
 	.standby        = fe_standby,
-	.has_signal     = fe_has_signal,
-	.get_afc        = fe_get_afc,
 	.set_config     = fe_set_config,
 	.tuner_status   = tuner_status
 };
@@ -272,9 +250,8 @@ static struct analog_demod_ops tuner_analog_ops = {
  * @c:			i2c_client descriptoy
  * @type:		type of the tuner (e. g. tuner number)
  * @new_mode_mask:	Indicates if tuner supports TV and/or Radio
- * @new_config:		an optional parameter ranging from 0-255 used by
-			a few tuners to adjust an internal parameter,
-			like LNA mode
+ * @new_config:		an optional parameter used by a few tuners to adjust
+			internal parameters, like LNA mode
  * @tuner_callback:	an optional function to be called when switching
  *			to analog mode
  *
@@ -282,7 +259,7 @@ static struct analog_demod_ops tuner_analog_ops = {
  * by tun_setup structure. It contains several per-tuner initialization "magic"
  */
 static void set_type(struct i2c_client *c, unsigned int type,
-		     unsigned int new_mode_mask, unsigned int new_config,
+		     unsigned int new_mode_mask, void *new_config,
 		     int (*tuner_callback) (void *dev, int component, int cmd, int arg))
 {
 	struct tuner *t = to_tuner(i2c_get_clientdata(c));
@@ -297,8 +274,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	}
 
 	t->type = type;
-	/* prevent invalid config values */
-	t->config = new_config < 256 ? new_config : 0;
+	t->config = new_config;
 	if (tuner_callback != NULL) {
 		tuner_dbg("defining GPIO callback\n");
 		t->fe.callback = tuner_callback;
@@ -316,11 +292,8 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	case TUNER_PHILIPS_TDA8290:
 	{
-		struct tda829x_config cfg = {
-			.lna_cfg        = t->config,
-		};
 		if (!dvb_attach(tda829x_attach, &t->fe, t->i2c->adapter,
-				t->i2c->addr, &cfg))
+				t->i2c->addr, t->config))
 			goto attach_failed;
 		break;
 	}
@@ -409,7 +382,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	case TUNER_NXP_TDA18271:
 	{
 		struct tda18271_config cfg = {
-			.config = t->config,
 			.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
 		};
 
@@ -452,6 +424,11 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		t->fe.analog_demod_priv = t;
 		memcpy(analog_ops, &tuner_analog_ops,
 		       sizeof(struct analog_demod_ops));
+
+		if (fe_tuner_ops->get_rf_strength)
+			analog_ops->has_signal = fe_tuner_ops->get_rf_strength;
+		if (fe_tuner_ops->get_afc)
+			analog_ops->get_afc = fe_tuner_ops->get_afc;
 
 	} else {
 		t->name = analog_ops->info.name;
@@ -506,7 +483,7 @@ static int tuner_s_type_addr(struct v4l2_subdev *sd,
 	struct tuner *t = to_tuner(sd);
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
 
-	tuner_dbg("Calling set_type_addr for type=%d, addr=0x%02x, mode=0x%02x, config=0x%02x\n",
+	tuner_dbg("Calling set_type_addr for type=%d, addr=0x%02x, mode=0x%02x, config=%p\n",
 			tun_setup->type,
 			tun_setup->addr,
 			tun_setup->mode_mask,
@@ -1073,9 +1050,12 @@ static void tuner_status(struct dvb_frontend *fe)
 		if (tuner_status & TUNER_STATUS_STEREO)
 			tuner_info("Stereo:          yes\n");
 	}
-	if (analog_ops->has_signal)
-		tuner_info("Signal strength: %d\n",
-			   analog_ops->has_signal(fe));
+	if (analog_ops->has_signal) {
+		u16 signal;
+
+		if (!analog_ops->has_signal(fe, &signal))
+			tuner_info("Signal strength: %hu\n", signal);
+	}
 }
 
 /*
@@ -1134,7 +1114,7 @@ static int tuner_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-static int tuner_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
+static int tuner_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *f)
 {
 	struct tuner *t = to_tuner(sd);
 
@@ -1193,9 +1173,13 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	if (check_mode(t, vt->type) == -EINVAL)
 		return 0;
 	if (vt->type == t->mode && analog_ops->get_afc)
-		vt->afc = analog_ops->get_afc(&t->fe);
-	if (analog_ops->has_signal)
-		vt->signal = analog_ops->has_signal(&t->fe);
+		analog_ops->get_afc(&t->fe, &vt->afc);
+	if (vt->type == t->mode && analog_ops->has_signal) {
+		u16 signal = (u16)vt->signal;
+
+		if (!analog_ops->has_signal(&t->fe, &signal))
+			vt->signal = signal;
+	}
 	if (vt->type != V4L2_TUNER_RADIO) {
 		vt->capability |= V4L2_TUNER_CAP_NORM;
 		vt->rangelow = tv_range[0] * 16;
@@ -1233,7 +1217,7 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
  * Note: vt->type should be initialized before calling it.
  * This is done by either video_ioctl2 or by the bridge driver.
  */
-static int tuner_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+static int tuner_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 {
 	struct tuner *t = to_tuner(sd);
 

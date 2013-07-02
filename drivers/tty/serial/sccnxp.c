@@ -27,6 +27,7 @@
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/serial-sccnxp.h>
+#include <linux/regulator/consumer.h>
 
 #define SCCNXP_NAME			"uart-sccnxp"
 #define SCCNXP_MAJOR			204
@@ -131,6 +132,8 @@ struct sccnxp_port {
 	struct timer_list	timer;
 
 	struct sccnxp_pdata	pdata;
+
+	struct regulator	*regulator;
 };
 
 static inline u8 sccnxp_raw_read(void __iomem *base, u8 reg, u8 shift)
@@ -789,8 +792,6 @@ static int sccnxp_probe(struct platform_device *pdev)
 		return -EADDRNOTAVAIL;
 	}
 
-	dev_set_name(&pdev->dev, SCCNXP_NAME);
-
 	s = devm_kzalloc(&pdev->dev, sizeof(struct sccnxp_port), GFP_KERNEL);
 	if (!s) {
 		dev_err(&pdev->dev, "Error allocating port structure\n");
@@ -918,6 +919,16 @@ static int sccnxp_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
+	s->regulator = devm_regulator_get(&pdev->dev, "VCC");
+	if (!IS_ERR(s->regulator)) {
+		ret = regulator_enable(s->regulator);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Failed to enable regulator: %i\n", ret);
+			return ret;
+		}
+	}
+
 	membase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(membase)) {
 		ret = PTR_ERR(membase);
@@ -967,10 +978,6 @@ static int sccnxp_probe(struct platform_device *pdev)
 	s->imr = 0;
 	sccnxp_write(&s->port[0], SCCNXP_IMR_REG, 0);
 
-	/* Board specific configure */
-	if (s->pdata.init)
-		s->pdata.init();
-
 	if (!s->poll) {
 		ret = devm_request_threaded_irq(&pdev->dev, s->irq, NULL,
 						sccnxp_ist,
@@ -1011,8 +1018,8 @@ static int sccnxp_remove(struct platform_device *pdev)
 	uart_unregister_driver(&s->uart);
 	platform_set_drvdata(pdev, NULL);
 
-	if (s->pdata.exit)
-		s->pdata.exit();
+	if (!IS_ERR(s->regulator))
+		return regulator_disable(s->regulator);
 
 	return 0;
 }

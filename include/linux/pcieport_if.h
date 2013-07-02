@@ -62,7 +62,7 @@ struct pcie_port_service_driver {
 #define to_service_driver(d) \
 	container_of(d, struct pcie_port_service_driver, driver)
 
-extern int pcie_port_service_register(struct pcie_port_service_driver *new);
-extern void pcie_port_service_unregister(struct pcie_port_service_driver *new);
+int pcie_port_service_register(struct pcie_port_service_driver *new);
+void pcie_port_service_unregister(struct pcie_port_service_driver *new);
 
 #endif /* _PCIEPORT_IF_H_ */

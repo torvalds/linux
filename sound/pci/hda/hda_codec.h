@@ -757,6 +757,9 @@ struct hda_pcm_ops {
 		       struct snd_pcm_substream *substream);
 	int (*cleanup)(struct hda_pcm_stream *info, struct hda_codec *codec,
 		       struct snd_pcm_substream *substream);
+	unsigned int (*get_delay)(struct hda_pcm_stream *info,
+				  struct hda_codec *codec,
+				  struct snd_pcm_substream *substream);
 };
 
 /* PCM information for each substream */

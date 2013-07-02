@@ -294,8 +294,8 @@ static void __init lschl_init(void)
 	orion5x_uart0_init();
 	orion5x_xor_init();
 
-	orion5x_setup_dev_boot_win(LSCHL_NOR_BOOT_BASE,
-				   LSCHL_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window("devbus-boot", LSCHL_NOR_BOOT_BASE,
+			      LSCHL_NOR_BOOT_SIZE);
 	platform_device_register(&lschl_nor_flash);
 
 	platform_device_register(&lschl_leds);

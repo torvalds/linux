@@ -413,9 +413,11 @@ static void ipu_di_sync_config_noninterlaced(struct ipu_di *di,
 		sig->v_end_width;
 	struct di_sync_config cfg[] = {
 		{
+			/* 1: INT_HSYNC */
 			.run_count = h_total - 1,
 			.run_src = DI_SYNC_CLK,
 		} , {
+			/* PIN2: HSYNC */
 			.run_count = h_total - 1,
 			.run_src = DI_SYNC_CLK,
 			.offset_count = div * sig->v_to_h_sync,
@@ -424,23 +426,26 @@ static void ipu_di_sync_config_noninterlaced(struct ipu_di *di,
 			.cnt_polarity_trigger_src = DI_SYNC_CLK,
 			.cnt_down = sig->h_sync_width * 2,
 		} , {
+			/* PIN3: VSYNC */
 			.run_count = v_total - 1,
 			.run_src = DI_SYNC_INT_HSYNC,
 			.cnt_polarity_gen_en = 1,
 			.cnt_polarity_trigger_src = DI_SYNC_INT_HSYNC,
 			.cnt_down = sig->v_sync_width * 2,
 		} , {
+			/* 4: Line Active */
 			.run_src = DI_SYNC_HSYNC,
 			.offset_count = sig->v_sync_width + sig->v_start_width,
 			.offset_src = DI_SYNC_HSYNC,
 			.repeat_count = sig->height,
 			.cnt_clr_src = DI_SYNC_VSYNC,
 		} , {
+			/* 5: Pixel Active, referenced by DC */
 			.run_src = DI_SYNC_CLK,
 			.offset_count = sig->h_sync_width + sig->h_start_width,
 			.offset_src = DI_SYNC_CLK,
 			.repeat_count = sig->width,
-			.cnt_clr_src = 5,
+			.cnt_clr_src = 5, /* Line Active */
 		} , {
 			/* unused */
 		} , {
@@ -451,9 +456,76 @@ static void ipu_di_sync_config_noninterlaced(struct ipu_di *di,
 			/* unused */
 		},
 	};
+	/* can't use #7 and #8 for line active and pixel active counters */
+	struct di_sync_config cfg_vga[] = {
+		{
+			/* 1: INT_HSYNC */
+			.run_count = h_total - 1,
+			.run_src = DI_SYNC_CLK,
+		} , {
+			/* 2: VSYNC */
+			.run_count = v_total - 1,
+			.run_src = DI_SYNC_INT_HSYNC,
+		} , {
+			/* 3: Line Active */
+			.run_src = DI_SYNC_INT_HSYNC,
+			.offset_count = sig->v_sync_width + sig->v_start_width,
+			.offset_src = DI_SYNC_INT_HSYNC,
+			.repeat_count = sig->height,
+			.cnt_clr_src = 3 /* VSYNC */,
+		} , {
+			/* PIN4: HSYNC for VGA via TVEv2 on TQ MBa53 */
+			.run_count = h_total - 1,
+			.run_src = DI_SYNC_CLK,
+			.offset_count = div * sig->v_to_h_sync + 18, /* magic value from Freescale TVE driver */
+			.offset_src = DI_SYNC_CLK,
+			.cnt_polarity_gen_en = 1,
+			.cnt_polarity_trigger_src = DI_SYNC_CLK,
+			.cnt_down = sig->h_sync_width * 2,
+		} , {
+			/* 5: Pixel Active signal to DC */
+			.run_src = DI_SYNC_CLK,
+			.offset_count = sig->h_sync_width + sig->h_start_width,
+			.offset_src = DI_SYNC_CLK,
+			.repeat_count = sig->width,
+			.cnt_clr_src = 4, /* Line Active */
+		} , {
+			/* PIN6: VSYNC for VGA via TVEv2 on TQ MBa53 */
+			.run_count = v_total - 1,
+			.run_src = DI_SYNC_INT_HSYNC,
+			.offset_count = 1, /* magic value from Freescale TVE driver */
+			.offset_src = DI_SYNC_INT_HSYNC,
+			.cnt_polarity_gen_en = 1,
+			.cnt_polarity_trigger_src = DI_SYNC_INT_HSYNC,
+			.cnt_down = sig->v_sync_width * 2,
+		} , {
+			/* PIN4: HSYNC for VGA via TVEv2 on i.MX53-QSB */
+			.run_count = h_total - 1,
+			.run_src = DI_SYNC_CLK,
+			.offset_count = div * sig->v_to_h_sync + 18, /* magic value from Freescale TVE driver */
+			.offset_src = DI_SYNC_CLK,
+			.cnt_polarity_gen_en = 1,
+			.cnt_polarity_trigger_src = DI_SYNC_CLK,
+			.cnt_down = sig->h_sync_width * 2,
+		} , {
+			/* PIN6: VSYNC for VGA via TVEv2 on i.MX53-QSB */
+			.run_count = v_total - 1,
+			.run_src = DI_SYNC_INT_HSYNC,
+			.offset_count = 1, /* magic value from Freescale TVE driver */
+			.offset_src = DI_SYNC_INT_HSYNC,
+			.cnt_polarity_gen_en = 1,
+			.cnt_polarity_trigger_src = DI_SYNC_INT_HSYNC,
+			.cnt_down = sig->v_sync_width * 2,
+		} , {
+			/* unused */
+		},
+	};
 
 	ipu_di_write(di, v_total - 1, DI_SCR_CONF);
-	ipu_di_sync_config(di, cfg, 0, ARRAY_SIZE(cfg));
+	if (sig->hsync_pin == 2 && sig->vsync_pin == 3)
+		ipu_di_sync_config(di, cfg, 0, ARRAY_SIZE(cfg));
+	else
+		ipu_di_sync_config(di, cfg_vga, 0, ARRAY_SIZE(cfg_vga));
 }
 
 int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
@@ -530,11 +602,25 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 		ipu_di_sync_config_noninterlaced(di, sig, div);
 
 		vsync_cnt = 3;
+		if (di->id == 1)
+			vsync_cnt = 6;
 
-		if (sig->Hsync_pol)
-			di_gen |= DI_GEN_POLARITY_2;
-		if (sig->Vsync_pol)
-			di_gen |= DI_GEN_POLARITY_3;
+		if (sig->Hsync_pol) {
+			if (sig->hsync_pin == 2)
+				di_gen |= DI_GEN_POLARITY_2;
+			else if (sig->hsync_pin == 4)
+				di_gen |= DI_GEN_POLARITY_4;
+			else if (sig->hsync_pin == 7)
+				di_gen |= DI_GEN_POLARITY_7;
+		}
+		if (sig->Vsync_pol) {
+			if (sig->hsync_pin == 3)
+				di_gen |= DI_GEN_POLARITY_3;
+			else if (sig->hsync_pin == 6)
+				di_gen |= DI_GEN_POLARITY_6;
+			else if (sig->hsync_pin == 8)
+				di_gen |= DI_GEN_POLARITY_8;
+		}
 	}
 
 	if (!sig->clk_pol)

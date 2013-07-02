@@ -137,7 +137,7 @@ static inline u16 davinci_i2c_read_reg(struct davinci_i2c_dev *i2c_dev, int reg)
 }
 
 /* Generate a pulse on the i2c clock pin. */
-static void generic_i2c_clock_pulse(unsigned int scl_pin)
+static void davinci_i2c_clock_pulse(unsigned int scl_pin)
 {
 	u16 i;
 
@@ -155,7 +155,7 @@ static void generic_i2c_clock_pulse(unsigned int scl_pin)
 /* This routine does i2c bus recovery as specified in the
  * i2c protocol Rev. 03 section 3.16 titled "Bus clear"
  */
-static void i2c_recover_bus(struct davinci_i2c_dev *dev)
+static void davinci_i2c_recover_bus(struct davinci_i2c_dev *dev)
 {
 	u32 flag = 0;
 	struct davinci_i2c_platform_data *pdata = dev->pdata;
@@ -166,7 +166,7 @@ static void i2c_recover_bus(struct davinci_i2c_dev *dev)
 	flag |=  DAVINCI_I2C_MDR_NACK;
 	/* write the data into mode register */
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
-	generic_i2c_clock_pulse(pdata->scl_pin);
+	davinci_i2c_clock_pulse(pdata->scl_pin);
 	/* Send STOP */
 	flag = davinci_i2c_read_reg(dev, DAVINCI_I2C_MDR_REG);
 	flag |= DAVINCI_I2C_MDR_STP;
@@ -289,7 +289,7 @@ static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev,
 				return -ETIMEDOUT;
 			} else {
 				to_cnt = 0;
-				i2c_recover_bus(dev);
+				davinci_i2c_recover_bus(dev);
 				i2c_davinci_init(dev);
 			}
 		}
@@ -379,7 +379,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 						      dev->adapter.timeout);
 	if (r == 0) {
 		dev_err(dev->dev, "controller timed out\n");
-		i2c_recover_bus(dev);
+		davinci_i2c_recover_bus(dev);
 		i2c_davinci_init(dev);
 		dev->buf_len = 0;
 		return -ETIMEDOUT;
@@ -643,7 +643,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 {
 	struct davinci_i2c_dev *dev;
 	struct i2c_adapter *adap;
-	struct resource *mem, *irq, *ioarea;
+	struct resource *mem, *irq;
 	int r;
 
 	/* NOTE: driver uses the static register mapping */
@@ -659,24 +659,18 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ioarea = request_mem_region(mem->start, resource_size(mem),
-				    pdev->name);
-	if (!ioarea) {
-		dev_err(&pdev->dev, "I2C region already claimed\n");
-		return -EBUSY;
-	}
-
-	dev = kzalloc(sizeof(struct davinci_i2c_dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(struct davinci_i2c_dev),
+			GFP_KERNEL);
 	if (!dev) {
-		r = -ENOMEM;
-		goto err_release_region;
+		dev_err(&pdev->dev, "Memory allocation failed\n");
+		return -ENOMEM;
 	}
 
 	init_completion(&dev->cmd_complete);
 #ifdef CONFIG_CPU_FREQ
 	init_completion(&dev->xfr_complete);
 #endif
-	dev->dev = get_device(&pdev->dev);
+	dev->dev = &pdev->dev;
 	dev->irq = irq->start;
 	dev->pdata = dev->dev->platform_data;
 	platform_set_drvdata(pdev, dev);
@@ -686,10 +680,9 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 
 		dev->pdata = devm_kzalloc(&pdev->dev,
 			sizeof(struct davinci_i2c_platform_data), GFP_KERNEL);
-		if (!dev->pdata) {
-			r = -ENOMEM;
-			goto err_free_mem;
-		}
+		if (!dev->pdata)
+			return -ENOMEM;
+
 		memcpy(dev->pdata, &davinci_i2c_platform_data_default,
 			sizeof(struct davinci_i2c_platform_data));
 		if (!of_property_read_u32(pdev->dev.of_node, "clock-frequency",
@@ -699,22 +692,21 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 		dev->pdata = &davinci_i2c_platform_data_default;
 	}
 
-	dev->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(dev->clk)) {
-		r = -ENODEV;
-		goto err_free_mem;
-	}
+	dev->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(dev->clk))
+		return -ENODEV;
 	clk_prepare_enable(dev->clk);
 
-	dev->base = ioremap(mem->start, resource_size(mem));
-	if (!dev->base) {
-		r = -EBUSY;
-		goto err_mem_ioremap;
+	dev->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(dev->base)) {
+		r = PTR_ERR(dev->base);
+		goto err_unuse_clocks;
 	}
 
 	i2c_davinci_init(dev);
 
-	r = request_irq(dev->irq, i2c_davinci_isr, 0, pdev->name, dev);
+	r = devm_request_irq(&pdev->dev, dev->irq, i2c_davinci_isr, 0,
+			pdev->name, dev);
 	if (r) {
 		dev_err(&pdev->dev, "failure requesting irq %i\n", dev->irq);
 		goto err_unuse_clocks;
@@ -723,7 +715,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	r = i2c_davinci_cpufreq_register(dev);
 	if (r) {
 		dev_err(&pdev->dev, "failed to register cpufreq\n");
-		goto err_free_irq;
+		goto err_unuse_clocks;
 	}
 
 	adap = &dev->adapter;
@@ -740,50 +732,31 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	r = i2c_add_numbered_adapter(adap);
 	if (r) {
 		dev_err(&pdev->dev, "failure adding adapter\n");
-		goto err_free_irq;
+		goto err_unuse_clocks;
 	}
 	of_i2c_register_devices(adap);
 
 	return 0;
 
-err_free_irq:
-	free_irq(dev->irq, dev);
 err_unuse_clocks:
-	iounmap(dev->base);
-err_mem_ioremap:
 	clk_disable_unprepare(dev->clk);
-	clk_put(dev->clk);
 	dev->clk = NULL;
-err_free_mem:
-	put_device(&pdev->dev);
-	kfree(dev);
-err_release_region:
-	release_mem_region(mem->start, resource_size(mem));
-
 	return r;
 }
 
 static int davinci_i2c_remove(struct platform_device *pdev)
 {
 	struct davinci_i2c_dev *dev = platform_get_drvdata(pdev);
-	struct resource *mem;
 
 	i2c_davinci_cpufreq_deregister(dev);
 
 	i2c_del_adapter(&dev->adapter);
-	put_device(&pdev->dev);
 
 	clk_disable_unprepare(dev->clk);
-	clk_put(dev->clk);
 	dev->clk = NULL;
 
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, 0);
-	free_irq(dev->irq, dev);
-	iounmap(dev->base);
-	kfree(dev);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem->start, resource_size(mem));
 	return 0;
 }
 

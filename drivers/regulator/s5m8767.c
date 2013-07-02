@@ -549,7 +549,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 
 	rmode = devm_kzalloc(&pdev->dev, sizeof(*rmode) *
 				pdata->num_regulators, GFP_KERNEL);
-	if (!rdata) {
+	if (!rmode) {
 		dev_err(iodev->dev,
 			"could not allocate memory for regulator mode\n");
 		return -ENOMEM;
@@ -923,8 +923,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 	return 0;
 err:
 	for (i = 0; i < s5m8767->num_regulators; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
+		regulator_unregister(rdev[i]);
 
 	return ret;
 }
@@ -936,8 +935,7 @@ static int s5m8767_pmic_remove(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < s5m8767->num_regulators; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
+		regulator_unregister(rdev[i]);
 
 	return 0;
 }

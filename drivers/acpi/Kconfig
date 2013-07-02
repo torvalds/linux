@@ -298,14 +298,6 @@ config ACPI_DEBUG
 	  Documentation/kernel-parameters.txt to control the type and
 	  amount of debug output.
 
-config ACPI_DEBUG_FUNC_TRACE
-	bool "Additionally enable ACPI function tracing"
-	default n
-	depends on ACPI_DEBUG
-	help
-	  ACPI Debug Statements slow down ACPI processing. Function trace
-	  is about half of the penalty and is rarely useful.
-
 config ACPI_PCI_SLOT
 	bool "PCI slot detection driver"
 	depends on SYSFS
@@ -334,7 +326,7 @@ config X86_PM_TIMER
 
 config ACPI_CONTAINER
 	bool "Container and Module Devices"
-	default (ACPI_HOTPLUG_MEMORY || ACPI_HOTPLUG_CPU || ACPI_HOTPLUG_IO)
+	default (ACPI_HOTPLUG_MEMORY || ACPI_HOTPLUG_CPU)
 	help
 	  This driver supports ACPI Container and Module devices (IDs
 	  ACPI0004, PNP0A05, and PNP0A06).
@@ -345,9 +337,8 @@ config ACPI_CONTAINER
 	  the module will be called container.
 
 config ACPI_HOTPLUG_MEMORY
-	tristate "Memory Hotplug"
+	bool "Memory Hotplug"
 	depends on MEMORY_HOTPLUG
-	default n
 	help
 	  This driver supports ACPI memory hotplug.  The driver
 	  fields notifications on ACPI memory devices (PNP0C80),
@@ -396,7 +387,7 @@ config ACPI_CUSTOM_METHOD
 
 config ACPI_BGRT
 	bool "Boottime Graphics Resource Table support"
-	depends on EFI
+	depends on EFI && X86
         help
 	  This driver adds support for exposing the ACPI Boottime Graphics
 	  Resource Table, which allows the operating system to obtain

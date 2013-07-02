@@ -78,7 +78,7 @@ struct timblogiw_buffer {
 	struct timblogiw_fh	*fh;
 };
 
-const struct timblogiw_tvnorm timblogiw_tvnorms[] = {
+static const struct timblogiw_tvnorm timblogiw_tvnorms[] = {
 	{
 		.std			= V4L2_STD_PAL,
 		.width			= 720,
@@ -336,7 +336,7 @@ static int timblogiw_g_std(struct file *file, void  *priv, v4l2_std_id *std)
 	return 0;
 }
 
-static int timblogiw_s_std(struct file *file, void  *priv, v4l2_std_id *std)
+static int timblogiw_s_std(struct file *file, void  *priv, v4l2_std_id std)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct timblogiw *lw = video_get_drvdata(vdev);
@@ -348,10 +348,10 @@ static int timblogiw_s_std(struct file *file, void  *priv, v4l2_std_id *std)
 	mutex_lock(&lw->lock);
 
 	if (TIMBLOGIW_HAS_DECODER(lw))
-		err = v4l2_subdev_call(lw->sd_enc, core, s_std, *std);
+		err = v4l2_subdev_call(lw->sd_enc, core, s_std, std);
 
 	if (!err)
-		fh->cur_norm = timblogiw_get_norm(*std);
+		fh->cur_norm = timblogiw_get_norm(std);
 
 	mutex_unlock(&lw->lock);
 

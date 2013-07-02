@@ -1,0 +1,431 @@
+Say you've got a big slow raid 6, and an X-25E or three. Wouldn't it be
+nice if you could use them as cache... Hence bcache.
+
+Wiki and git repositories are at:
+  http://bcache.evilpiepirate.org
+  http://evilpiepirate.org/git/linux-bcache.git
+  http://evilpiepirate.org/git/bcache-tools.git
+
+It's designed around the performance characteristics of SSDs - it only allocates
+in erase block sized buckets, and it uses a hybrid btree/log to track cached
+extants (which can be anywhere from a single sector to the bucket size). It's
+designed to avoid random writes at all costs; it fills up an erase block
+sequentially, then issues a discard before reusing it.
+
+Both writethrough and writeback caching are supported. Writeback defaults to
+off, but can be switched on and off arbitrarily at runtime. Bcache goes to
+great lengths to protect your data - it reliably handles unclean shutdown. (It
+doesn't even have a notion of a clean shutdown; bcache simply doesn't return
+writes as completed until they're on stable storage).
+
+Writeback caching can use most of the cache for buffering writes - writing
+dirty data to the backing device is always done sequentially, scanning from the
+start to the end of the index.
+
+Since random IO is what SSDs excel at, there generally won't be much benefit
+to caching large sequential IO. Bcache detects sequential IO and skips it;
+it also keeps a rolling average of the IO sizes per task, and as long as the
+average is above the cutoff it will skip all IO from that task - instead of
+caching the first 512k after every seek. Backups and large file copies should
+thus entirely bypass the cache.
+
+In the event of a data IO error on the flash it will try to recover by reading
+from disk or invalidating cache entries.  For unrecoverable errors (meta data
+or dirty data), caching is automatically disabled; if dirty data was present
+in the cache it first disables writeback caching and waits for all dirty data
+to be flushed.
+
+Getting started:
+You'll need make-bcache from the bcache-tools repository. Both the cache device
+and backing device must be formatted before use.
+  make-bcache -B /dev/sdb
+  make-bcache -C /dev/sdc
+
+make-bcache has the ability to format multiple devices at the same time - if
+you format your backing devices and cache device at the same time, you won't
+have to manually attach:
+  make-bcache -B /dev/sda /dev/sdb -C /dev/sdc
+
+To make bcache devices known to the kernel, echo them to /sys/fs/bcache/register:
+
+  echo /dev/sdb > /sys/fs/bcache/register
+  echo /dev/sdc > /sys/fs/bcache/register
+
+To register your bcache devices automatically, you could add something like
+this to an init script:
+
+  echo /dev/sd* > /sys/fs/bcache/register_quiet
+
+It'll look for bcache superblocks and ignore everything that doesn't have one.
+
+Registering the backing device makes the bcache show up in /dev; you can now
+format it and use it as normal. But the first time using a new bcache device,
+it'll be running in passthrough mode until you attach it to a cache. See the
+section on attaching.
+
+The devices show up at /dev/bcacheN, and can be controlled via sysfs from
+/sys/block/bcacheN/bcache:
+
+  mkfs.ext4 /dev/bcache0
+  mount /dev/bcache0 /mnt
+
+Cache devices are managed as sets; multiple caches per set isn't supported yet
+but will allow for mirroring of metadata and dirty data in the future. Your new
+cache set shows up as /sys/fs/bcache/<UUID>
+
+ATTACHING:
+
+After your cache device and backing device are registered, the backing device
+must be attached to your cache set to enable caching. Attaching a backing
+device to a cache set is done thusly, with the UUID of the cache set in
+/sys/fs/bcache:
+
+  echo <UUID> > /sys/block/bcache0/bcache/attach
+
+This only has to be done once. The next time you reboot, just reregister all
+your bcache devices. If a backing device has data in a cache somewhere, the
+/dev/bcache# device won't be created until the cache shows up - particularly
+important if you have writeback caching turned on.
+
+If you're booting up and your cache device is gone and never coming back, you
+can force run the backing device:
+
+  echo 1 > /sys/block/sdb/bcache/running
+
+(You need to use /sys/block/sdb (or whatever your backing device is called), not
+/sys/block/bcache0, because bcache0 doesn't exist yet. If you're using a
+partition, the bcache directory would be at /sys/block/sdb/sdb2/bcache)
+
+The backing device will still use that cache set if it shows up in the future,
+but all the cached data will be invalidated. If there was dirty data in the
+cache, don't expect the filesystem to be recoverable - you will have massive
+filesystem corruption, though ext4's fsck does work miracles.
+
+ERROR HANDLING:
+
+Bcache tries to transparently handle IO errors to/from the cache device without
+affecting normal operation; if it sees too many errors (the threshold is
+configurable, and defaults to 0) it shuts down the cache device and switches all
+the backing devices to passthrough mode.
+
+ - For reads from the cache, if they error we just retry the read from the
+   backing device.
+
+ - For writethrough writes, if the write to the cache errors we just switch to
+   invalidating the data at that lba in the cache (i.e. the same thing we do for
+   a write that bypasses the cache)
+
+ - For writeback writes, we currently pass that error back up to the
+   filesystem/userspace. This could be improved - we could retry it as a write
+   that skips the cache so we don't have to error the write.
+
+ - When we detach, we first try to flush any dirty data (if we were running in
+   writeback mode). It currently doesn't do anything intelligent if it fails to
+   read some of the dirty data, though.
+
+TROUBLESHOOTING PERFORMANCE:
+
+Bcache has a bunch of config options and tunables. The defaults are intended to
+be reasonable for typical desktop and server workloads, but they're not what you
+want for getting the best possible numbers when benchmarking.
+
+ - Bad write performance
+
+   If write performance is not what you expected, you probably wanted to be
+   running in writeback mode, which isn't the default (not due to a lack of
+   maturity, but simply because in writeback mode you'll lose data if something
+   happens to your SSD)
+
+   # echo writeback > /sys/block/bcache0/cache_mode
+
+ - Bad performance, or traffic not going to the SSD that you'd expect
+
+   By default, bcache doesn't cache everything. It tries to skip sequential IO -
+   because you really want to be caching the random IO, and if you copy a 10
+   gigabyte file you probably don't want that pushing 10 gigabytes of randomly
+   accessed data out of your cache.
+
+   But if you want to benchmark reads from cache, and you start out with fio
+   writing an 8 gigabyte test file - so you want to disable that.
+
+   # echo 0 > /sys/block/bcache0/bcache/sequential_cutoff
+
+   To set it back to the default (4 mb), do
+
+   # echo 4M > /sys/block/bcache0/bcache/sequential_cutoff
+
+ - Traffic's still going to the spindle/still getting cache misses
+
+   In the real world, SSDs don't always keep up with disks - particularly with
+   slower SSDs, many disks being cached by one SSD, or mostly sequential IO. So
+   you want to avoid being bottlenecked by the SSD and having it slow everything
+   down.
+
+   To avoid that bcache tracks latency to the cache device, and gradually
+   throttles traffic if the latency exceeds a threshold (it does this by
+   cranking down the sequential bypass).
+
+   You can disable this if you need to by setting the thresholds to 0:
+
+   # echo 0 > /sys/fs/bcache/<cache set>/congested_read_threshold_us
+   # echo 0 > /sys/fs/bcache/<cache set>/congested_write_threshold_us
+
+   The default is 2000 us (2 milliseconds) for reads, and 20000 for writes.
+
+ - Still getting cache misses, of the same data
+
+   One last issue that sometimes trips people up is actually an old bug, due to
+   the way cache coherency is handled for cache misses. If a btree node is full,
+   a cache miss won't be able to insert a key for the new data and the data
+   won't be written to the cache.
+
+   In practice this isn't an issue because as soon as a write comes along it'll
+   cause the btree node to be split, and you need almost no write traffic for
+   this to not show up enough to be noticable (especially since bcache's btree
+   nodes are huge and index large regions of the device). But when you're
+   benchmarking, if you're trying to warm the cache by reading a bunch of data
+   and there's no other traffic - that can be a problem.
+
+   Solution: warm the cache by doing writes, or use the testing branch (there's
+   a fix for the issue there).
+
+SYSFS - BACKING DEVICE:
+
+attach
+  Echo the UUID of a cache set to this file to enable caching.
+
+cache_mode
+  Can be one of either writethrough, writeback, writearound or none.
+
+clear_stats
+  Writing to this file resets the running total stats (not the day/hour/5 minute
+  decaying versions).
+
+detach
+  Write to this file to detach from a cache set. If there is dirty data in the
+  cache, it will be flushed first.
+
+dirty_data
+  Amount of dirty data for this backing device in the cache. Continuously
+  updated unlike the cache set's version, but may be slightly off.
+
+label
+  Name of underlying device.
+
+readahead
+  Size of readahead that should be performed.  Defaults to 0.  If set to e.g.
+  1M, it will round cache miss reads up to that size, but without overlapping
+  existing cache entries.
+
+running
+  1 if bcache is running (i.e. whether the /dev/bcache device exists, whether
+  it's in passthrough mode or caching).
+
+sequential_cutoff
+  A sequential IO will bypass the cache once it passes this threshhold; the
+  most recent 128 IOs are tracked so sequential IO can be detected even when
+  it isn't all done at once.
+
+sequential_merge
+  If non zero, bcache keeps a list of the last 128 requests submitted to compare
+  against all new requests to determine which new requests are sequential
+  continuations of previous requests for the purpose of determining sequential
+  cutoff. This is necessary if the sequential cutoff value is greater than the
+  maximum acceptable sequential size for any single request. 
+
+state
+  The backing device can be in one of four different states:
+
+  no cache: Has never been attached to a cache set.
+
+  clean: Part of a cache set, and there is no cached dirty data.
+
+  dirty: Part of a cache set, and there is cached dirty data.
+
+  inconsistent: The backing device was forcibly run by the user when there was
+  dirty data cached but the cache set was unavailable; whatever data was on the
+  backing device has likely been corrupted.
+
+stop
+  Write to this file to shut down the bcache device and close the backing
+  device.
+
+writeback_delay
+  When dirty data is written to the cache and it previously did not contain
+  any, waits some number of seconds before initiating writeback. Defaults to
+  30.
+
+writeback_percent
+  If nonzero, bcache tries to keep around this percentage of the cache dirty by
+  throttling background writeback and using a PD controller to smoothly adjust
+  the rate.
+
+writeback_rate
+  Rate in sectors per second - if writeback_percent is nonzero, background
+  writeback is throttled to this rate. Continuously adjusted by bcache but may
+  also be set by the user.
+
+writeback_running
+  If off, writeback of dirty data will not take place at all. Dirty data will
+  still be added to the cache until it is mostly full; only meant for
+  benchmarking. Defaults to on.
+
+SYSFS - BACKING DEVICE STATS:
+
+There are directories with these numbers for a running total, as well as
+versions that decay over the past day, hour and 5 minutes; they're also
+aggregated in the cache set directory as well.
+
+bypassed
+  Amount of IO (both reads and writes) that has bypassed the cache
+
+cache_hits
+cache_misses
+cache_hit_ratio
+  Hits and misses are counted per individual IO as bcache sees them; a
+  partial hit is counted as a miss.
+
+cache_bypass_hits
+cache_bypass_misses
+  Hits and misses for IO that is intended to skip the cache are still counted,
+  but broken out here.
+
+cache_miss_collisions
+  Counts instances where data was going to be inserted into the cache from a
+  cache miss, but raced with a write and data was already present (usually 0
+  since the synchronization for cache misses was rewritten)
+
+cache_readaheads
+  Count of times readahead occured.
+
+SYSFS - CACHE SET:
+
+average_key_size
+  Average data per key in the btree.
+
+bdev<0..n>
+  Symlink to each of the attached backing devices.
+
+block_size
+  Block size of the cache devices.
+
+btree_cache_size
+  Amount of memory currently used by the btree cache
+
+bucket_size
+  Size of buckets
+
+cache<0..n>
+  Symlink to each of the cache devices comprising this cache set. 
+
+cache_available_percent
+  Percentage of cache device free.
+
+clear_stats
+  Clears the statistics associated with this cache
+
+dirty_data
+  Amount of dirty data is in the cache (updated when garbage collection runs).
+
+flash_vol_create
+  Echoing a size to this file (in human readable units, k/M/G) creates a thinly
+  provisioned volume backed by the cache set.
+
+io_error_halflife
+io_error_limit
+  These determines how many errors we accept before disabling the cache.
+  Each error is decayed by the half life (in # ios).  If the decaying count
+  reaches io_error_limit dirty data is written out and the cache is disabled.
+
+journal_delay_ms
+  Journal writes will delay for up to this many milliseconds, unless a cache
+  flush happens sooner. Defaults to 100.
+
+root_usage_percent
+  Percentage of the root btree node in use.  If this gets too high the node
+  will split, increasing the tree depth.
+
+stop
+  Write to this file to shut down the cache set - waits until all attached
+  backing devices have been shut down.
+
+tree_depth
+  Depth of the btree (A single node btree has depth 0).
+
+unregister
+  Detaches all backing devices and closes the cache devices; if dirty data is
+  present it will disable writeback caching and wait for it to be flushed.
+
+SYSFS - CACHE SET INTERNAL:
+
+This directory also exposes timings for a number of internal operations, with
+separate files for average duration, average frequency, last occurence and max
+duration: garbage collection, btree read, btree node sorts and btree splits.
+
+active_journal_entries
+  Number of journal entries that are newer than the index.
+
+btree_nodes
+  Total nodes in the btree.
+
+btree_used_percent
+  Average fraction of btree in use.
+
+bset_tree_stats
+  Statistics about the auxiliary search trees
+
+btree_cache_max_chain
+  Longest chain in the btree node cache's hash table
+
+cache_read_races
+  Counts instances where while data was being read from the cache, the bucket
+  was reused and invalidated - i.e. where the pointer was stale after the read
+  completed. When this occurs the data is reread from the backing device.
+
+trigger_gc
+  Writing to this file forces garbage collection to run.
+
+SYSFS - CACHE DEVICE:
+
+block_size
+  Minimum granularity of writes - should match hardware sector size.
+
+btree_written
+  Sum of all btree writes, in (kilo/mega/giga) bytes
+
+bucket_size
+  Size of buckets
+
+cache_replacement_policy
+  One of either lru, fifo or random.
+
+discard
+  Boolean; if on a discard/TRIM will be issued to each bucket before it is
+  reused. Defaults to off, since SATA TRIM is an unqueued command (and thus
+  slow).
+
+freelist_percent
+  Size of the freelist as a percentage of nbuckets. Can be written to to
+  increase the number of buckets kept on the freelist, which lets you
+  artificially reduce the size of the cache at runtime. Mostly for testing
+  purposes (i.e. testing how different size caches affect your hit rate), but
+  since buckets are discarded when they move on to the freelist will also make
+  the SSD's garbage collection easier by effectively giving it more reserved
+  space.
+
+io_errors
+  Number of errors that have occured, decayed by io_error_halflife.
+
+metadata_written
+  Sum of all non data writes (btree writes and all other metadata).
+
+nbuckets
+  Total buckets in this cache
+
+priority_stats
+  Statistics about how recently data in the cache has been accessed.  This can
+  reveal your working set size.
+
+written
+  Sum of all data that has been written to the cache; comparison with
+  btree_written gives the amount of write inflation in bcache.

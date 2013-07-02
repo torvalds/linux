@@ -334,6 +334,70 @@ static void xfrm_replay_notify_bmp(struct xfrm_state *x, int event)
 		x->xflags &= ~XFRM_TIME_DEFER;
 }
 
+static void xfrm_replay_notify_esn(struct xfrm_state *x, int event)
+{
+	u32 seq_diff, oseq_diff;
+	struct km_event c;
+	struct xfrm_replay_state_esn *replay_esn = x->replay_esn;
+	struct xfrm_replay_state_esn *preplay_esn = x->preplay_esn;
+
+	/* we send notify messages in case
+	 *  1. we updated on of the sequence numbers, and the seqno difference
+	 *     is at least x->replay_maxdiff, in this case we also update the
+	 *     timeout of our timer function
+	 *  2. if x->replay_maxage has elapsed since last update,
+	 *     and there were changes
+	 *
+	 *  The state structure must be locked!
+	 */
+
+	switch (event) {
+	case XFRM_REPLAY_UPDATE:
+		if (!x->replay_maxdiff)
+			break;
+
+		if (replay_esn->seq_hi == preplay_esn->seq_hi)
+			seq_diff = replay_esn->seq - preplay_esn->seq;
+		else
+			seq_diff = ~preplay_esn->seq + replay_esn->seq + 1;
+
+		if (replay_esn->oseq_hi == preplay_esn->oseq_hi)
+			oseq_diff = replay_esn->oseq - preplay_esn->oseq;
+		else
+			oseq_diff = ~preplay_esn->oseq + replay_esn->oseq + 1;
+
+		if (seq_diff < x->replay_maxdiff &&
+		    oseq_diff < x->replay_maxdiff) {
+
+			if (x->xflags & XFRM_TIME_DEFER)
+				event = XFRM_REPLAY_TIMEOUT;
+			else
+				return;
+		}
+
+		break;
+
+	case XFRM_REPLAY_TIMEOUT:
+		if (memcmp(x->replay_esn, x->preplay_esn,
+			   xfrm_replay_state_esn_len(replay_esn)) == 0) {
+			x->xflags |= XFRM_TIME_DEFER;
+			return;
+		}
+
+		break;
+	}
+
+	memcpy(x->preplay_esn, x->replay_esn,
+	       xfrm_replay_state_esn_len(replay_esn));
+	c.event = XFRM_MSG_NEWAE;
+	c.data.aevent = event;
+	km_state_notify(x, &c);
+
+	if (x->replay_maxage &&
+	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
+		x->xflags &= ~XFRM_TIME_DEFER;
+}
+
 static int xfrm_replay_overflow_esn(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err = 0;
@@ -510,7 +574,7 @@ static struct xfrm_replay xfrm_replay_esn = {
 	.advance	= xfrm_replay_advance_esn,
 	.check		= xfrm_replay_check_esn,
 	.recheck	= xfrm_replay_recheck_esn,
-	.notify		= xfrm_replay_notify_bmp,
+	.notify		= xfrm_replay_notify_esn,
 	.overflow	= xfrm_replay_overflow_esn,
 };
 

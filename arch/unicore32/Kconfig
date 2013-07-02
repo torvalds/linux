@@ -23,9 +23,6 @@ config UNICORE32
 	  designs licensed by PKUnity Ltd.
 	  Please see web page at <http://www.pkunity.com/>.
 
-config GENERIC_GPIO
-	def_bool y
-
 config GENERIC_CSUM
 	def_bool y
 
@@ -156,7 +153,7 @@ source "mm/Kconfig"
 
 config LEDS
 	def_bool y
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 
 config ALIGNMENT_TRAP
 	def_bool y
@@ -219,7 +216,6 @@ if ARCH_PUV3
 config PUV3_GPIO
 	bool
 	depends on !ARCH_FPGA
-	select GENERIC_GPIO
 	select GPIO_SYSFS
 	default y
 

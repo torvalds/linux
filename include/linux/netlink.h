@@ -15,11 +15,18 @@ static inline struct nlmsghdr *nlmsg_hdr(const struct sk_buff *skb)
 	return (struct nlmsghdr *)skb->data;
 }
 
+enum netlink_skb_flags {
+	NETLINK_SKB_MMAPED	= 0x1,		/* Packet data is mmaped */
+	NETLINK_SKB_TX		= 0x2,		/* Packet was sent by userspace */
+	NETLINK_SKB_DELIVERED	= 0x4,		/* Packet was delivered */
+};
+
 struct netlink_skb_parms {
 	struct scm_creds	creds;		/* Skb credentials	*/
 	__u32			portid;
 	__u32			dst_group;
-	struct sock		*ssk;
+	__u32			flags;
+	struct sock		*sk;
 };
 
 #define NETLINK_CB(skb)		(*(struct netlink_skb_parms*)&((skb)->cb))
@@ -57,6 +64,8 @@ extern void __netlink_clear_multicast_users(struct sock *sk, unsigned int group)
 extern void netlink_clear_multicast_users(struct sock *sk, unsigned int group);
 extern void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err);
 extern int netlink_has_listeners(struct sock *sk, unsigned int group);
+extern struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
+					 u32 dst_portid, gfp_t gfp_mask);
 extern int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int nonblock);
 extern int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, __u32 portid,
 			     __u32 group, gfp_t allocation);

@@ -26,9 +26,6 @@ config AVR32
 	  There is an AVR32 Linux project with a web page at
 	  http://avr32linux.org/.
 
-config GENERIC_GPIO
-	def_bool y
-
 config STACKTRACE_SUPPORT
 	def_bool y
 
@@ -208,6 +205,11 @@ config ARCH_DISCONTIGMEM_ENABLE
 config ARCH_SPARSEMEM_ENABLE
 	def_bool n
 
+config NODES_SHIFT
+	int
+	default "2"
+	depends on NEED_MULTIPLE_NODES
+
 source "mm/Kconfig"
 
 config OWNERSHIP_TRACE
@@ -250,20 +252,7 @@ config ARCH_SUSPEND_POSSIBLE
 	def_bool y
 
 menu "CPU Frequency scaling"
-
 source "drivers/cpufreq/Kconfig"
-
-config CPU_FREQ_AT32AP
-	bool "CPU frequency driver for AT32AP"
-	depends on CPU_FREQ && PLATFORM_AT32AP
-	default n
-	help
-	  This enables the CPU frequency driver for AT32AP processors.
-
-	  For details, take a look in <file:Documentation/cpu-freq>.
-
-	  If in doubt, say N.
-
 endmenu
 
 endmenu

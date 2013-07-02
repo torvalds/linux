@@ -198,7 +198,7 @@
 	ENTRY_SAME(madvise)
 	ENTRY_SAME(clone_wrapper)	/* 120 */
 	ENTRY_SAME(setdomainname)
-	ENTRY_DIFF(sendfile)
+	ENTRY_COMP(sendfile)
 	/* struct sockaddr... */
 	ENTRY_SAME(recvfrom)
 	/* struct timex contains longs */
@@ -282,7 +282,7 @@
 	ENTRY_COMP(recvmsg)
 	ENTRY_SAME(semop)		/* 185 */
 	ENTRY_SAME(semget)
-	ENTRY_DIFF(semctl)
+	ENTRY_COMP(semctl)
 	ENTRY_COMP(msgsnd)
 	ENTRY_COMP(msgrcv)
 	ENTRY_SAME(msgget)		/* 190 */
@@ -304,7 +304,7 @@
 	ENTRY_SAME(gettid)
 	ENTRY_OURS(readahead)
 	ENTRY_SAME(tkill)
-	ENTRY_DIFF(sendfile64)
+	ENTRY_COMP(sendfile64)
 	ENTRY_COMP(futex)		/* 210 */
 	ENTRY_COMP(sched_setaffinity)
 	ENTRY_COMP(sched_getaffinity)
@@ -318,7 +318,7 @@
 	ENTRY_SAME(alloc_hugepages)	/* 220 */
 	ENTRY_SAME(free_hugepages)
 	ENTRY_SAME(exit_group)
-	ENTRY_DIFF(lookup_dcookie)
+	ENTRY_COMP(lookup_dcookie)
 	ENTRY_SAME(epoll_create)
 	ENTRY_SAME(epoll_ctl)		/* 225 */
 	ENTRY_SAME(epoll_wait)

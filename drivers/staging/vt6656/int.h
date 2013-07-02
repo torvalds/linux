@@ -30,39 +30,31 @@
 #ifndef __INT_H__
 #define __INT_H__
 
-#include "ttype.h"
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
 typedef struct tagSINTData {
-	BYTE byTSR0;
-	BYTE byPkt0;
-	WORD wTime0;
-	BYTE byTSR1;
-	BYTE byPkt1;
-	WORD wTime1;
-	BYTE byTSR2;
-	BYTE byPkt2;
-	WORD wTime2;
-	BYTE byTSR3;
-	BYTE byPkt3;
-	WORD wTime3;
+	u8 byTSR0;
+	u8 byPkt0;
+	u16 wTime0;
+	u8 byTSR1;
+	u8 byPkt1;
+	u16 wTime1;
+	u8 byTSR2;
+	u8 byPkt2;
+	u16 wTime2;
+	u8 byTSR3;
+	u8 byPkt3;
+	u16 wTime3;
 	u64 qwTSF;
-	BYTE byISR0;
-	BYTE byISR1;
-	BYTE byRTSSuccess;
-	BYTE byRTSFail;
-	BYTE byACKFail;
-	BYTE byFCSErr;
-	BYTE abySW[2];
+	u8 byISR0;
+	u8 byISR1;
+	u8 byRTSSuccess;
+	u8 byRTSFail;
+	u8 byACKFail;
+	u8 byFCSErr;
+	u8 abySW[2];
 } __attribute__ ((__packed__))
 SINTData, *PSINTData;
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 void INTvWorkItem(struct vnt_private *);
 void INTnsProcessData(struct vnt_private *);

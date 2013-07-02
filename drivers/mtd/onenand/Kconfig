@@ -40,7 +40,6 @@ config MTD_ONENAND_SAMSUNG
 
 config MTD_ONENAND_OTP
 	bool "OneNAND OTP Support"
-	select HAVE_MTD_OTP
 	help
 	  One Block of the NAND Flash Array memory is reserved as
 	  a One-Time Programmable Block memory area.
@@ -67,11 +66,5 @@ config MTD_ONENAND_2X_PROGRAM
 	    Mux:   KFM2G16Q2M, KFN4G16Q2M,
 
 	  And more recent chips
-
-config MTD_ONENAND_SIM
-	tristate "OneNAND simulator support"
-	help
-	  The simulator may simulate various OneNAND flash chips for the
-	  OneNAND MTD layer.
 
 endif # MTD_ONENAND

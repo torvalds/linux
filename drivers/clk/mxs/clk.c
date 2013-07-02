@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/spinlock.h>
+#include "clk.h"
 
 DEFINE_SPINLOCK(mxs_lock);
 

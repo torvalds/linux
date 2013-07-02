@@ -95,43 +95,47 @@ static void ieee80211_reconfig_filter(struct work_struct *work)
 static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_channel *chan;
+	struct cfg80211_chan_def chandef = {};
 	u32 changed = 0;
 	int power;
-	enum nl80211_channel_type channel_type;
 	u32 offchannel_flag;
-	bool scanning = false;
 
 	offchannel_flag = local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
+
 	if (local->scan_channel) {
-		chan = local->scan_channel;
+		chandef.chan = local->scan_channel;
 		/* If scanning on oper channel, use whatever channel-type
 		 * is currently in use.
 		 */
-		if (chan == local->_oper_channel)
-			channel_type = local->_oper_channel_type;
-		else
-			channel_type = NL80211_CHAN_NO_HT;
+		if (chandef.chan == local->_oper_chandef.chan) {
+			chandef = local->_oper_chandef;
+		} else {
+			chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+			chandef.center_freq1 = chandef.chan->center_freq;
+		}
 	} else if (local->tmp_channel) {
-		chan = local->tmp_channel;
-		channel_type = NL80211_CHAN_NO_HT;
-	} else {
-		chan = local->_oper_channel;
-		channel_type = local->_oper_channel_type;
-	}
+		chandef.chan = local->tmp_channel;
+		chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+		chandef.center_freq1 = chandef.chan->center_freq;
+	} else
+		chandef = local->_oper_chandef;
 
-	if (chan != local->_oper_channel ||
-	    channel_type != local->_oper_channel_type)
+	WARN(!cfg80211_chandef_valid(&chandef),
+	     "control:%d MHz width:%d center: %d/%d MHz",
+	     chandef.chan->center_freq, chandef.width,
+	     chandef.center_freq1, chandef.center_freq2);
+
+	if (!cfg80211_chandef_identical(&chandef, &local->_oper_chandef))
 		local->hw.conf.flags |= IEEE80211_CONF_OFFCHANNEL;
 	else
 		local->hw.conf.flags &= ~IEEE80211_CONF_OFFCHANNEL;
 
 	offchannel_flag ^= local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 
-	if (offchannel_flag || chan != local->hw.conf.channel ||
-	    channel_type != local->hw.conf.channel_type) {
-		local->hw.conf.channel = chan;
-		local->hw.conf.channel_type = channel_type;
+	if (offchannel_flag ||
+	    !cfg80211_chandef_identical(&local->hw.conf.chandef,
+					&local->_oper_chandef)) {
+		local->hw.conf.chandef = chandef;
 		changed |= IEEE80211_CONF_CHANGE_CHANNEL;
 	}
 
@@ -147,10 +151,7 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 		changed |= IEEE80211_CONF_CHANGE_SMPS;
 	}
 
-	scanning = test_bit(SCAN_SW_SCANNING, &local->scanning) ||
-		   test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
-		   test_bit(SCAN_HW_SCANNING, &local->scanning);
-	power = chan->max_power;
+	power = chandef.chan->max_power;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
@@ -226,8 +227,6 @@ u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata)
 static void ieee80211_tasklet_handler(unsigned long data)
 {
 	struct ieee80211_local *local = (struct ieee80211_local *) data;
-	struct sta_info *sta, *tmp;
-	struct skb_eosp_msg_data *eosp_data;
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&local->skb_queue)) ||
@@ -242,18 +241,6 @@ static void ieee80211_tasklet_handler(unsigned long data)
 		case IEEE80211_TX_STATUS_MSG:
 			skb->pkt_type = 0;
 			ieee80211_tx_status(&local->hw, skb);
-			break;
-		case IEEE80211_EOSP_MSG:
-			eosp_data = (void *)skb->cb;
-			for_each_sta_info(local, eosp_data->sta, sta, tmp) {
-				/* skip wrong virtual interface */
-				if (memcmp(eosp_data->iface,
-					   sta->sdata->vif.addr, ETH_ALEN))
-					continue;
-				clear_sta_flag(sta, WLAN_STA_SP);
-				break;
-			}
-			dev_kfree_skb(skb);
 			break;
 		default:
 			WARN(1, "mac80211: Packet is of unknown type %d\n",
@@ -295,8 +282,8 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw)
 		   "Hardware restart was requested\n");
 
 	/* use this reason, ieee80211_reconfig will unblock it */
-	ieee80211_stop_queues_by_reason(hw,
-		IEEE80211_QUEUE_STOP_REASON_SUSPEND);
+	ieee80211_stop_queues_by_reason(hw, IEEE80211_MAX_QUEUE_MAP,
+					IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
 	/*
 	 * Stop all Rx during the reconfig. We don't want state changes
@@ -399,30 +386,6 @@ static int ieee80211_ifa6_changed(struct notifier_block *nb,
 }
 #endif
 
-static int ieee80211_napi_poll(struct napi_struct *napi, int budget)
-{
-	struct ieee80211_local *local =
-		container_of(napi, struct ieee80211_local, napi);
-
-	return local->ops->napi_poll(&local->hw, budget);
-}
-
-void ieee80211_napi_schedule(struct ieee80211_hw *hw)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-
-	napi_schedule(&local->napi);
-}
-EXPORT_SYMBOL(ieee80211_napi_schedule);
-
-void ieee80211_napi_complete(struct ieee80211_hw *hw)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-
-	napi_complete(&local->napi);
-}
-EXPORT_SYMBOL(ieee80211_napi_complete);
-
 /* There isn't a lot of sense in it, but you can transmit anything you like */
 static const struct ieee80211_txrx_stypes
 ieee80211_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
@@ -501,6 +464,27 @@ static const struct ieee80211_ht_cap mac80211_ht_capa_mod_mask = {
 	},
 };
 
+static const struct ieee80211_vht_cap mac80211_vht_capa_mod_mask = {
+	.vht_cap_info =
+		cpu_to_le32(IEEE80211_VHT_CAP_RXLDPC |
+			    IEEE80211_VHT_CAP_SHORT_GI_80 |
+			    IEEE80211_VHT_CAP_SHORT_GI_160 |
+			    IEEE80211_VHT_CAP_RXSTBC_1 |
+			    IEEE80211_VHT_CAP_RXSTBC_2 |
+			    IEEE80211_VHT_CAP_RXSTBC_3 |
+			    IEEE80211_VHT_CAP_RXSTBC_4 |
+			    IEEE80211_VHT_CAP_TXSTBC |
+			    IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
+			    IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
+			    IEEE80211_VHT_CAP_TX_ANTENNA_PATTERN |
+			    IEEE80211_VHT_CAP_RX_ANTENNA_PATTERN |
+			    IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK),
+	.supp_mcs = {
+		.rx_mcs_map = cpu_to_le16(~0),
+		.tx_mcs_map = cpu_to_le16(~0),
+	},
+};
+
 static const u8 extended_capabilities[] = {
 	0, 0, 0, 0, 0, 0, 0,
 	WLAN_EXT_CAPA8_OPMODE_NOTIF,
@@ -572,7 +556,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	wiphy->features |= NL80211_FEATURE_SK_TX_STATUS |
 			   NL80211_FEATURE_SAE |
 			   NL80211_FEATURE_HT_IBSS |
-			   NL80211_FEATURE_VIF_TXPOWER;
+			   NL80211_FEATURE_VIF_TXPOWER |
+			   NL80211_FEATURE_USERSPACE_MPM;
 
 	if (!ops->hw_scan)
 		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN |
@@ -607,8 +592,11 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					 IEEE80211_RADIOTAP_MCS_HAVE_BW;
 	local->hw.radiotap_vht_details = IEEE80211_RADIOTAP_VHT_KNOWN_GI |
 					 IEEE80211_RADIOTAP_VHT_KNOWN_BANDWIDTH;
+	local->hw.uapsd_queues = IEEE80211_DEFAULT_UAPSD_QUEUES;
+	local->hw.uapsd_max_sp_len = IEEE80211_DEFAULT_MAX_SP_LEN;
 	local->user_power_level = IEEE80211_UNSET_POWER_LEVEL;
 	wiphy->ht_capa_mod_mask = &mac80211_ht_capa_mod_mask;
+	wiphy->vht_capa_mod_mask = &mac80211_vht_capa_mod_mask;
 
 	INIT_LIST_HEAD(&local->interfaces);
 
@@ -664,9 +652,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	skb_queue_head_init(&local->skb_queue);
 	skb_queue_head_init(&local->skb_queue_unreliable);
 
-	/* init dummy netdev for use w/ NAPI */
-	init_dummy_netdev(&local->napi_dev);
-
 	ieee80211_led_names(local);
 
 	ieee80211_roc_setup(local);
@@ -683,6 +668,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	int channels, max_bitrates;
 	bool supp_ht, supp_vht;
 	netdev_features_t feature_whitelist;
+	struct cfg80211_chan_def dflt_chandef = {};
 	static const u32 cipher_suites[] = {
 		/* keep WEP first, it may be removed below */
 		WLAN_CIPHER_SUITE_WEP40,
@@ -760,15 +746,19 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		sband = local->hw.wiphy->bands[band];
 		if (!sband)
 			continue;
-		if (!local->use_chanctx && !local->_oper_channel) {
+
+		if (!dflt_chandef.chan) {
+			cfg80211_chandef_create(&dflt_chandef,
+						&sband->channels[0],
+						NL80211_CHAN_NO_HT);
 			/* init channel we're on */
-			local->hw.conf.channel =
-			local->_oper_channel = &sband->channels[0];
-			local->hw.conf.channel_type = NL80211_CHAN_NO_HT;
+			if (!local->use_chanctx && !local->_oper_chandef.chan) {
+				local->hw.conf.chandef = dflt_chandef;
+				local->_oper_chandef = dflt_chandef;
+			}
+			local->monitor_chandef = dflt_chandef;
 		}
-		cfg80211_chandef_create(&local->monitor_chandef,
-					&sband->channels[0],
-					NL80211_CHAN_NO_HT);
+
 		channels += sband->n_channels;
 
 		if (max_bitrates < sband->n_bitrates)
@@ -851,21 +841,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (supp_ht)
 		local->scan_ies_len += 2 + sizeof(struct ieee80211_ht_cap);
 
-	if (supp_vht) {
+	if (supp_vht)
 		local->scan_ies_len +=
 			2 + sizeof(struct ieee80211_vht_cap);
-
-		/*
-		 * (for now at least), drivers wanting to use VHT must
-		 * support channel contexts, as they contain all the
-		 * necessary VHT information and the global hw config
-		 * doesn't (yet)
-		 */
-		if (WARN_ON(!local->use_chanctx)) {
-			result = -EINVAL;
-			goto fail_wiphy_register;
-		}
-	}
 
 	if (!local->ops->hw_scan) {
 		/* For hw_scan, driver needs to set these up. */
@@ -1020,9 +998,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (result)
 		goto fail_ifa6;
 #endif
-
-	netif_napi_add(&local->napi_dev, &local->napi, ieee80211_napi_poll,
-			local->hw.napi_weight);
 
 	return 0;
 

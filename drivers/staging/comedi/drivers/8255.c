@@ -129,7 +129,7 @@ void subdev_8255_interrupt(struct comedi_device *dev,
 
 	comedi_event(dev, s);
 }
-EXPORT_SYMBOL(subdev_8255_interrupt);
+EXPORT_SYMBOL_GPL(subdev_8255_interrupt);
 
 static int subdev_8255_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
@@ -314,7 +314,7 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return 0;
 }
-EXPORT_SYMBOL(subdev_8255_init);
+EXPORT_SYMBOL_GPL(subdev_8255_init);
 
 int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 			 int (*io) (int, int, int, unsigned long),
@@ -332,13 +332,7 @@ int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return 0;
 }
-EXPORT_SYMBOL(subdev_8255_init_irq);
-
-void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	kfree(s->private);
-}
-EXPORT_SYMBOL(subdev_8255_cleanup);
+EXPORT_SYMBOL_GPL(subdev_8255_init_irq);
 
 /*
 
@@ -353,8 +347,6 @@ static int dev_8255_attach(struct comedi_device *dev,
 	int ret;
 	unsigned long iobase;
 	int i;
-
-	dev->board_name = "8255";
 
 	for (i = 0; i < COMEDI_NDEVCONFOPTS; i++) {
 		iobase = it->options[i];
@@ -374,16 +366,13 @@ static int dev_8255_attach(struct comedi_device *dev,
 		s = &dev->subdevices[i];
 		iobase = it->options[i];
 
-		if (!request_region(iobase, _8255_SIZE, "8255")) {
-			dev_warn(dev->class_dev,
-				"0x%04lx (I/O port conflict)\n", iobase);
-
+		ret = __comedi_request_region(dev, iobase, _8255_SIZE);
+		if (ret) {
 			s->type = COMEDI_SUBD_UNUSED;
 		} else {
 			ret = subdev_8255_init(dev, s, NULL, iobase);
 			if (ret)
 				return ret;
-			dev_info(dev->class_dev, "0x%04lx\n", iobase);
 		}
 	}
 
@@ -402,7 +391,7 @@ static void dev_8255_detach(struct comedi_device *dev)
 			spriv = s->private;
 			release_region(spriv->iobase, _8255_SIZE);
 		}
-		subdev_8255_cleanup(dev, s);
+		comedi_spriv_free(dev, i);
 	}
 }
 

@@ -394,10 +394,13 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 	u32			wIndex;
 	u32			reg;
 	int			ret;
+	enum usb_device_state	state;
 
 	wValue = le16_to_cpu(ctrl->wValue);
 	wIndex = le16_to_cpu(ctrl->wIndex);
 	recip = ctrl->bRequestType & USB_RECIP_MASK;
+	state = dwc->gadget.state;
+
 	switch (recip) {
 	case USB_RECIP_DEVICE:
 
@@ -409,7 +412,7 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 		 * default control pipe
 		 */
 		case USB_DEVICE_U1_ENABLE:
-			if (dwc->dev_state != DWC3_CONFIGURED_STATE)
+			if (state != USB_STATE_CONFIGURED)
 				return -EINVAL;
 			if (dwc->speed != DWC3_DSTS_SUPERSPEED)
 				return -EINVAL;
@@ -423,7 +426,7 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 			break;
 
 		case USB_DEVICE_U2_ENABLE:
-			if (dwc->dev_state != DWC3_CONFIGURED_STATE)
+			if (state != USB_STATE_CONFIGURED)
 				return -EINVAL;
 			if (dwc->speed != DWC3_DSTS_SUPERSPEED)
 				return -EINVAL;
@@ -493,6 +496,7 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 
 static int dwc3_ep0_set_address(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 {
+	enum usb_device_state state = dwc->gadget.state;
 	u32 addr;
 	u32 reg;
 
@@ -502,7 +506,7 @@ static int dwc3_ep0_set_address(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 		return -EINVAL;
 	}
 
-	if (dwc->dev_state == DWC3_CONFIGURED_STATE) {
+	if (state == USB_STATE_CONFIGURED) {
 		dev_dbg(dwc->dev, "trying to set address when configured\n");
 		return -EINVAL;
 	}
@@ -513,9 +517,9 @@ static int dwc3_ep0_set_address(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	dwc3_writel(dwc->regs, DWC3_DCFG, reg);
 
 	if (addr)
-		dwc->dev_state = DWC3_ADDRESS_STATE;
+		usb_gadget_set_state(&dwc->gadget, USB_STATE_ADDRESS);
 	else
-		dwc->dev_state = DWC3_DEFAULT_STATE;
+		usb_gadget_set_state(&dwc->gadget, USB_STATE_DEFAULT);
 
 	return 0;
 }
@@ -532,6 +536,7 @@ static int dwc3_ep0_delegate_req(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 
 static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 {
+	enum usb_device_state state = dwc->gadget.state;
 	u32 cfg;
 	int ret;
 	u32 reg;
@@ -539,16 +544,18 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	dwc->start_config_issued = false;
 	cfg = le16_to_cpu(ctrl->wValue);
 
-	switch (dwc->dev_state) {
-	case DWC3_DEFAULT_STATE:
+	switch (state) {
+	case USB_STATE_DEFAULT:
 		return -EINVAL;
 		break;
 
-	case DWC3_ADDRESS_STATE:
+	case USB_STATE_ADDRESS:
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
 		/* if the cfg matches and the cfg is non zero */
 		if (cfg && (!ret || (ret == USB_GADGET_DELAYED_STATUS))) {
-			dwc->dev_state = DWC3_CONFIGURED_STATE;
+			usb_gadget_set_state(&dwc->gadget,
+					USB_STATE_CONFIGURED);
+
 			/*
 			 * Enable transition to U1/U2 state when
 			 * nothing is pending from application.
@@ -562,10 +569,11 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 		}
 		break;
 
-	case DWC3_CONFIGURED_STATE:
+	case USB_STATE_CONFIGURED:
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
 		if (!cfg)
-			dwc->dev_state = DWC3_ADDRESS_STATE;
+			usb_gadget_set_state(&dwc->gadget,
+					USB_STATE_ADDRESS);
 		break;
 	default:
 		ret = -EINVAL;
@@ -620,10 +628,11 @@ static void dwc3_ep0_set_sel_cmpl(struct usb_ep *ep, struct usb_request *req)
 static int dwc3_ep0_set_sel(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 {
 	struct dwc3_ep	*dep;
+	enum usb_device_state state = dwc->gadget.state;
 	u16		wLength;
 	u16		wValue;
 
-	if (dwc->dev_state == DWC3_DEFAULT_STATE)
+	if (state == USB_STATE_DEFAULT)
 		return -EINVAL;
 
 	wValue = le16_to_cpu(ctrl->wValue);

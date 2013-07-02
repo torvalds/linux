@@ -101,9 +101,8 @@
  *      uint crc32_pclmul_le_16(unsigned char const *buffer,
  *	                     size_t len, uint crc32)
  */
-.globl crc32_pclmul_le_16
-.align 4, 0x90
-crc32_pclmul_le_16:/* buffer and buffer size are 16 bytes aligned */
+
+ENTRY(crc32_pclmul_le_16) /* buffer and buffer size are 16 bytes aligned */
 	movdqa  (BUF), %xmm1
 	movdqa  0x10(BUF), %xmm2
 	movdqa  0x20(BUF), %xmm3
@@ -241,6 +240,7 @@ fold_64:
 	pand    %xmm3, %xmm1
 	PCLMULQDQ 0x00, CONSTANT, %xmm1
 	pxor    %xmm2, %xmm1
-	pextrd  $0x01, %xmm1, %eax
+	PEXTRD  0x01, %xmm1, %eax
 
 	ret
+ENDPROC(crc32_pclmul_le_16)

@@ -17,8 +17,6 @@
 
 #include <linux/platform_device.h>
 
-#include <mach/msp.h>
-
 #define MSP_INPUT_FREQ_APB 48000000
 
 /*** Stereo mode. Used for APB data accesses as 16 bits accesses (mono),
@@ -543,6 +541,7 @@ struct ux500_msp_dma_params {
 	struct stedma40_chan_cfg *dma_cfg;
 };
 
+struct msp_i2s_platform_data;
 int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 			struct ux500_msp **msp_p,
 			struct msp_i2s_platform_data *platform_data);

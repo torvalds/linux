@@ -66,7 +66,9 @@ ENTRY(tegra30_cpu_shutdown)
 		FLOW_CTRL_CSR_INTR_FLAG | FLOW_CTRL_CSR_EVENT_FLAG | \
 		FLOW_CTRL_CSR_ENABLE
 	mov	r4, #(1 << 4)
-	orr	r12, r12, r4, lsl r3
+ ARM(	orr	r12, r12, r4, lsl r3	)
+ THUMB(	lsl	r4, r4, r3		)
+ THUMB(	orr	r12, r12, r4		)
 	str	r12, [r1]
 
 	/* Halt this CPU. */

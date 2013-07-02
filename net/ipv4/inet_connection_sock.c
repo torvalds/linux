@@ -559,7 +559,7 @@ static inline void syn_ack_recalc(struct request_sock *req, const int thresh,
 
 int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req)
 {
-	int err = req->rsk_ops->rtx_syn_ack(parent, req, NULL);
+	int err = req->rsk_ops->rtx_syn_ack(parent, req);
 
 	if (!err)
 		req->num_retrans++;

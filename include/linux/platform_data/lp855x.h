@@ -69,11 +69,6 @@ enum lp855x_chip_id {
 	LP8557,
 };
 
-enum lp855x_brightness_ctrl_mode {
-	PWM_BASED = 1,
-	REGISTER_BASED,
-};
-
 enum lp8550_brighntess_source {
 	LP8550_PWM_ONLY,
 	LP8550_I2C_ONLY = 2,
@@ -116,24 +111,18 @@ struct lp855x_rom_data {
 /**
  * struct lp855x_platform_data
  * @name : Backlight driver name. If it is not defined, default name is set.
- * @mode : brightness control by pwm or lp855x register
  * @device_control : value of DEVICE CONTROL register
  * @initial_brightness : initial value of backlight brightness
  * @period_ns : platform specific pwm period value. unit is nano.
 		Only valid when mode is PWM_BASED.
- * @load_new_rom_data :
-	0 : use default configuration data
-	1 : update values of eeprom or eprom registers on loading driver
  * @size_program : total size of lp855x_rom_data
  * @rom_data : list of new eeprom/eprom registers
  */
 struct lp855x_platform_data {
-	char *name;
-	enum lp855x_brightness_ctrl_mode mode;
+	const char *name;
 	u8 device_control;
-	int initial_brightness;
+	u8 initial_brightness;
 	unsigned int period_ns;
-	u8 load_new_rom_data;
 	int size_program;
 	struct lp855x_rom_data *rom_data;
 };

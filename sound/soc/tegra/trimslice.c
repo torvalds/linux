@@ -97,9 +97,6 @@ static const struct snd_soc_dapm_route trimslice_audio_map[] = {
 static struct snd_soc_dai_link trimslice_tlv320aic23_dai = {
 	.name = "TLV320AIC23",
 	.stream_name = "AIC23",
-	.codec_name = "tlv320aic23-codec.2-001a",
-	.platform_name = "tegra20-i2s.0",
-	.cpu_dai_name = "tegra20-i2s.0",
 	.codec_dai_name = "tlv320aic23-hifi",
 	.ops = &trimslice_asoc_ops,
 	.dai_fmt = SND_SOC_DAIFMT_I2S |
@@ -122,6 +119,7 @@ static struct snd_soc_card snd_soc_trimslice = {
 
 static int tegra_snd_trimslice_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct snd_soc_card *card = &snd_soc_trimslice;
 	struct tegra_trimslice *trimslice;
 	int ret;
@@ -130,43 +128,37 @@ static int tegra_snd_trimslice_probe(struct platform_device *pdev)
 				 GFP_KERNEL);
 	if (!trimslice) {
 		dev_err(&pdev->dev, "Can't allocate tegra_trimslice\n");
-		ret = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
-
-	if (pdev->dev.of_node) {
-		trimslice_tlv320aic23_dai.codec_name = NULL;
-		trimslice_tlv320aic23_dai.codec_of_node = of_parse_phandle(
-				pdev->dev.of_node, "nvidia,audio-codec", 0);
-		if (!trimslice_tlv320aic23_dai.codec_of_node) {
-			dev_err(&pdev->dev,
-				"Property 'nvidia,audio-codec' missing or invalid\n");
-			ret = -EINVAL;
-			goto err;
-		}
-
-		trimslice_tlv320aic23_dai.cpu_dai_name = NULL;
-		trimslice_tlv320aic23_dai.cpu_of_node = of_parse_phandle(
-				pdev->dev.of_node, "nvidia,i2s-controller", 0);
-		if (!trimslice_tlv320aic23_dai.cpu_of_node) {
-			dev_err(&pdev->dev,
-				"Property 'nvidia,i2s-controller' missing or invalid\n");
-			ret = -EINVAL;
-			goto err;
-		}
-
-		trimslice_tlv320aic23_dai.platform_name = NULL;
-		trimslice_tlv320aic23_dai.platform_of_node =
-				trimslice_tlv320aic23_dai.cpu_of_node;
-	}
-
-	ret = tegra_asoc_utils_init(&trimslice->util_data, &pdev->dev);
-	if (ret)
-		goto err;
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, trimslice);
+
+	trimslice_tlv320aic23_dai.codec_of_node = of_parse_phandle(np,
+			"nvidia,audio-codec", 0);
+	if (!trimslice_tlv320aic23_dai.codec_of_node) {
+		dev_err(&pdev->dev,
+			"Property 'nvidia,audio-codec' missing or invalid\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	trimslice_tlv320aic23_dai.cpu_of_node = of_parse_phandle(np,
+			"nvidia,i2s-controller", 0);
+	if (!trimslice_tlv320aic23_dai.cpu_of_node) {
+		dev_err(&pdev->dev,
+			"Property 'nvidia,i2s-controller' missing or invalid\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	trimslice_tlv320aic23_dai.platform_of_node =
+			trimslice_tlv320aic23_dai.cpu_of_node;
+
+	ret = tegra_asoc_utils_init(&trimslice->util_data, &pdev->dev);
+	if (ret)
+		goto err;
 
 	ret = snd_soc_register_card(card);
 	if (ret) {

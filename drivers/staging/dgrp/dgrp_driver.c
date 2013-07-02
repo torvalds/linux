@@ -66,6 +66,8 @@ module_exit(dgrp_cleanup_module);
  */
 static int dgrp_init_module(void)
 {
+	int ret;
+
 	INIT_LIST_HEAD(&nd_struct_list);
 
 	spin_lock_init(&dgrp_poll_data.poll_lock);
@@ -74,7 +76,9 @@ static int dgrp_init_module(void)
 	dgrp_poll_data.timer.function = dgrp_poll_handler;
 	dgrp_poll_data.timer.data = (unsigned long) &dgrp_poll_data;
 
-	dgrp_create_class_sysfs_files();
+	ret = dgrp_create_class_sysfs_files();
+	if (ret)
+		return ret;
 
 	dgrp_register_proc();
 

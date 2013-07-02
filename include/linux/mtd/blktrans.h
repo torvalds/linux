@@ -74,7 +74,7 @@ struct mtd_blktrans_ops {
 
 	/* Called with mtd_table_mutex held; no race with add/remove */
 	int (*open)(struct mtd_blktrans_dev *dev);
-	int (*release)(struct mtd_blktrans_dev *dev);
+	void (*release)(struct mtd_blktrans_dev *dev);
 
 	/* Called on {de,}registration and on subsequent addition/removal
 	   of devices, with mtd_table_mutex held. */

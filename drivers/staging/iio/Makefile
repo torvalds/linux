@@ -9,8 +9,6 @@ iio_dummy-$(CONFIG_IIO_SIMPLE_DUMMY_BUFFER) += iio_simple_dummy_buffer.o
 
 obj-$(CONFIG_IIO_DUMMY_EVGEN) += iio_dummy_evgen.o
 
-obj-$(CONFIG_IIO_ST_HWMON) += iio_hwmon.o
-
 obj-y += accel/
 obj-y += adc/
 obj-y += addac/

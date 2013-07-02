@@ -41,14 +41,10 @@ STATUS/OWNERSHIP
     for 3.9, see https://lkml.org/lkml/2013/2/6/437;
 7. PROTOTYPED as part of "new" zcache; in staging/zcache for 3.9;
     needs more review (plan to discuss at LSF/MM 2013)
-8. IN PROGRESS; owned by Konrad Wilk; v2 recently posted
-   http://lkml.org/lkml/2013/2/1/542
 9. IN PROGRESS; owned by Konrad Wilk; Mel Gorman provided
    great feedback in August 2012 (unfortunately of "old"
    zcache)
-10. Konrad posted series of fixes (that now need rebasing)
-    https://lkml.org/lkml/2013/2/1/566 
-11. NOT DONE; owned by Konrad Wilk
+11. NOT DONE; owned by Konrad Wilk and Bob Liu
 12. TBD (depends on quantity of feedback)
 13. PROPOSED; one suggestion proposed by Dan; needs more ideas/feedback
 14. TBD (depends on feedback)
@@ -65,5 +61,4 @@ ZCACHE FUTURE NEW FUNCTIONALITY
 
 A. Support zsmalloc as an alternative high-density allocator
     (See https://lkml.org/lkml/2013/1/23/511)
-B. Support zero-filled pages more efficiently
-C. Possibly support three zbuds per pageframe when space allows
+B. Possibly support three zbuds per pageframe when space allows

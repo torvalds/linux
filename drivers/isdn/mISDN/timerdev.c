@@ -64,7 +64,6 @@ mISDN_open(struct inode *ino, struct file *filep)
 	dev->work = 0;
 	init_waitqueue_head(&dev->wait);
 	filep->private_data = dev;
-	__module_get(THIS_MODULE);
 	return nonseekable_open(ino, filep);
 }
 
@@ -72,19 +71,28 @@ static int
 mISDN_close(struct inode *ino, struct file *filep)
 {
 	struct mISDNtimerdev	*dev = filep->private_data;
+	struct list_head	*list = &dev->pending;
 	struct mISDNtimer	*timer, *next;
 
 	if (*debug & DEBUG_TIMER)
 		printk(KERN_DEBUG "%s(%p,%p)\n", __func__, ino, filep);
-	list_for_each_entry_safe(timer, next, &dev->pending, list) {
-		del_timer(&timer->tl);
+
+	spin_lock_irq(&dev->lock);
+	while (!list_empty(list)) {
+		timer = list_first_entry(list, struct mISDNtimer, list);
+		spin_unlock_irq(&dev->lock);
+		del_timer_sync(&timer->tl);
+		spin_lock_irq(&dev->lock);
+		/* it might have been moved to ->expired */
+		list_del(&timer->list);
 		kfree(timer);
 	}
+	spin_unlock_irq(&dev->lock);
+
 	list_for_each_entry_safe(timer, next, &dev->expired, list) {
 		kfree(timer);
 	}
 	kfree(dev);
-	module_put(THIS_MODULE);
 	return 0;
 }
 
@@ -92,36 +100,41 @@ static ssize_t
 mISDN_read(struct file *filep, char __user *buf, size_t count, loff_t *off)
 {
 	struct mISDNtimerdev	*dev = filep->private_data;
+	struct list_head *list = &dev->expired;
 	struct mISDNtimer	*timer;
-	u_long	flags;
 	int	ret = 0;
 
 	if (*debug & DEBUG_TIMER)
 		printk(KERN_DEBUG "%s(%p, %p, %d, %p)\n", __func__,
 		       filep, buf, (int)count, off);
 
-	if (list_empty(&dev->expired) && (dev->work == 0)) {
+	if (count < sizeof(int))
+		return -ENOSPC;
+
+	spin_lock_irq(&dev->lock);
+	while (list_empty(list) && (dev->work == 0)) {
+		spin_unlock_irq(&dev->lock);
 		if (filep->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 		wait_event_interruptible(dev->wait, (dev->work ||
-						     !list_empty(&dev->expired)));
+						     !list_empty(list)));
 		if (signal_pending(current))
 			return -ERESTARTSYS;
+		spin_lock_irq(&dev->lock);
 	}
-	if (count < sizeof(int))
-		return -ENOSPC;
 	if (dev->work)
 		dev->work = 0;
-	if (!list_empty(&dev->expired)) {
-		spin_lock_irqsave(&dev->lock, flags);
-		timer = (struct mISDNtimer *)dev->expired.next;
+	if (!list_empty(list)) {
+		timer = list_first_entry(list, struct mISDNtimer, list);
 		list_del(&timer->list);
-		spin_unlock_irqrestore(&dev->lock, flags);
+		spin_unlock_irq(&dev->lock);
 		if (put_user(timer->id, (int __user *)buf))
 			ret = -EFAULT;
 		else
 			ret = sizeof(int);
 		kfree(timer);
+	} else {
+		spin_unlock_irq(&dev->lock);
 	}
 	return ret;
 }
@@ -153,7 +166,8 @@ dev_expire_timer(unsigned long data)
 	u_long			flags;
 
 	spin_lock_irqsave(&timer->dev->lock, flags);
-	list_move_tail(&timer->list, &timer->dev->expired);
+	if (timer->id >= 0)
+		list_move_tail(&timer->list, &timer->dev->expired);
 	spin_unlock_irqrestore(&timer->dev->lock, flags);
 	wake_up_interruptible(&timer->dev->wait);
 }
@@ -162,7 +176,6 @@ static int
 misdn_add_timer(struct mISDNtimerdev *dev, int timeout)
 {
 	int			id;
-	u_long			flags;
 	struct mISDNtimer	*timer;
 
 	if (!timeout) {
@@ -173,19 +186,16 @@ misdn_add_timer(struct mISDNtimerdev *dev, int timeout)
 		timer = kzalloc(sizeof(struct mISDNtimer), GFP_KERNEL);
 		if (!timer)
 			return -ENOMEM;
-		spin_lock_irqsave(&dev->lock, flags);
-		timer->id = dev->next_id++;
+		timer->dev = dev;
+		setup_timer(&timer->tl, dev_expire_timer, (long)timer);
+		spin_lock_irq(&dev->lock);
+		id = timer->id = dev->next_id++;
 		if (dev->next_id < 0)
 			dev->next_id = 1;
 		list_add_tail(&timer->list, &dev->pending);
-		spin_unlock_irqrestore(&dev->lock, flags);
-		timer->dev = dev;
-		timer->tl.data = (long)timer;
-		timer->tl.function = dev_expire_timer;
-		init_timer(&timer->tl);
 		timer->tl.expires = jiffies + ((HZ * (u_long)timeout) / 1000);
 		add_timer(&timer->tl);
-		id = timer->id;
+		spin_unlock_irq(&dev->lock);
 	}
 	return id;
 }
@@ -193,26 +203,21 @@ misdn_add_timer(struct mISDNtimerdev *dev, int timeout)
 static int
 misdn_del_timer(struct mISDNtimerdev *dev, int id)
 {
-	u_long			flags;
 	struct mISDNtimer	*timer;
-	int			ret = 0;
 
-	spin_lock_irqsave(&dev->lock, flags);
+	spin_lock_irq(&dev->lock);
 	list_for_each_entry(timer, &dev->pending, list) {
 		if (timer->id == id) {
 			list_del_init(&timer->list);
-			/* RED-PEN AK: race -- timer can be still running on
-			 * other CPU. Needs reference count I think
-			 */
-			del_timer(&timer->tl);
-			ret = timer->id;
+			timer->id = -1;
+			spin_unlock_irq(&dev->lock);
+			del_timer_sync(&timer->tl);
 			kfree(timer);
-			goto unlock;
+			return id;
 		}
 	}
-unlock:
-	spin_unlock_irqrestore(&dev->lock, flags);
-	return ret;
+	spin_unlock_irq(&dev->lock);
+	return 0;
 }
 
 static long
@@ -262,6 +267,7 @@ mISDN_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations mISDN_fops = {
+	.owner		= THIS_MODULE,
 	.read		= mISDN_read,
 	.poll		= mISDN_poll,
 	.unlocked_ioctl	= mISDN_ioctl,

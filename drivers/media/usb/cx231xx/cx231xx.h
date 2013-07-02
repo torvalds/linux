@@ -33,6 +33,8 @@
 
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
 #include <media/rc-core.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/videobuf-dvb.h>
@@ -69,6 +71,7 @@
 #define CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL 14
 #define CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC 15
 #define CX231XX_BOARD_ELGATO_VIDEO_CAPTURE_V2 16
+#define CX231XX_BOARD_OTG102 17
 
 /* Limits minimum and default number of buffers */
 #define CX231XX_MIN_BUF                 4
@@ -428,27 +431,12 @@ struct cx231xx_audio {
 struct cx231xx;
 
 struct cx231xx_fh {
+	struct v4l2_fh fh;
 	struct cx231xx *dev;
 	unsigned int stream_on:1;	/* Locks streams */
-	int radio;
-
-	struct videobuf_queue vb_vidq;
-
 	enum v4l2_buf_type type;
 
-
-
-/*following is copyed from cx23885.h*/
-	u32                        resources;
-
-	/* video overlay */
-	struct v4l2_window         win;
-	struct v4l2_clip           *clips;
-	unsigned int               nclips;
-
-	/* video capture */
-	struct cx23417_fmt         *fmt;
-	unsigned int               width, height;
+	struct videobuf_queue vb_vidq;
 
 	/* vbi capture */
 	struct videobuf_queue      vidq;
@@ -514,14 +502,6 @@ struct cx231xx_tvnorm {
 	v4l2_std_id	id;
 	u32		cxiformat;
 	u32		cxoformat;
-};
-
-struct cx231xx_ctrl {
-	struct v4l2_queryctrl v;
-	u32 off;
-	u32 reg;
-	u32 mask;
-	u32 shift;
 };
 
 enum TRANSFER_TYPE {
@@ -631,6 +611,9 @@ struct cx231xx {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_subdev *sd_cx25840;
 	struct v4l2_subdev *sd_tuner;
+	struct v4l2_ctrl_handler ctrl_handler;
+	struct v4l2_ctrl_handler radio_ctrl_handler;
+	struct cx2341x_handler mpeg_ctrl_handler;
 
 	struct work_struct wq_trigger;		/* Trigger to start/stop audio for alsa module */
 	atomic_t	   stream_started;	/* stream should be running if true */
@@ -653,8 +636,6 @@ struct cx231xx {
 	v4l2_std_id norm;	/* selected tv norm */
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_ainput;	/* selected audio input */
-	int mute;
-	int volume;
 
 	/* frame properties */
 	int width;		/* current frame width */
@@ -736,7 +717,6 @@ struct cx231xx {
 	u8 USE_ISO;
 	struct cx231xx_tvnorm      encodernorm;
 	struct cx231xx_tsport      ts1, ts2;
-	struct cx2341x_mpeg_params mpeg_params;
 	struct video_device        *v4l_device;
 	atomic_t                   v4l_reader_count;
 	u32                        freq;
@@ -866,8 +846,6 @@ int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 /* Gpio related functions */
 int cx231xx_send_gpio_cmd(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val,
 			  u8 len, u8 request, u8 direction);
-int cx231xx_set_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val);
-int cx231xx_get_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val);
 int cx231xx_set_gpio_value(struct cx231xx *dev, int pin_number, int pin_value);
 int cx231xx_set_gpio_direction(struct cx231xx *dev, int pin_number,
 			       int pin_value);
@@ -955,6 +933,23 @@ int cx231xx_register_extension(struct cx231xx_ops *dev);
 void cx231xx_unregister_extension(struct cx231xx_ops *dev);
 void cx231xx_init_extension(struct cx231xx *dev);
 void cx231xx_close_extension(struct cx231xx *dev);
+int cx231xx_querycap(struct file *file, void *priv,
+			   struct v4l2_capability *cap);
+int cx231xx_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t);
+int cx231xx_s_tuner(struct file *file, void *priv, const struct v4l2_tuner *t);
+int cx231xx_g_frequency(struct file *file, void *priv,
+			      struct v4l2_frequency *f);
+int cx231xx_s_frequency(struct file *file, void *priv,
+			      const struct v4l2_frequency *f);
+int cx231xx_enum_input(struct file *file, void *priv,
+			     struct v4l2_input *i);
+int cx231xx_g_input(struct file *file, void *priv, unsigned int *i);
+int cx231xx_s_input(struct file *file, void *priv, unsigned int i);
+int cx231xx_g_chip_ident(struct file *file, void *fh, struct v4l2_dbg_chip_ident *chip);
+int cx231xx_g_register(struct file *file, void *priv,
+			     struct v4l2_dbg_register *reg);
+int cx231xx_s_register(struct file *file, void *priv,
+			     const struct v4l2_dbg_register *reg);
 
 /* Provided by cx231xx-cards.c */
 extern void cx231xx_pre_card_setup(struct cx231xx *dev);

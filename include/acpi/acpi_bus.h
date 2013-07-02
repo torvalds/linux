@@ -88,11 +88,30 @@ struct acpi_device;
  * -----------------
  */
 
+enum acpi_hotplug_mode {
+	AHM_GENERIC = 0,
+	AHM_CONTAINER,
+	AHM_COUNT
+};
+
+struct acpi_hotplug_profile {
+	struct kobject kobj;
+	bool enabled:1;
+	enum acpi_hotplug_mode mode;
+};
+
+static inline struct acpi_hotplug_profile *to_acpi_hotplug_profile(
+						struct kobject *kobj)
+{
+	return container_of(kobj, struct acpi_hotplug_profile, kobj);
+}
+
 struct acpi_scan_handler {
 	const struct acpi_device_id *ids;
 	struct list_head list_node;
 	int (*attach)(struct acpi_device *dev, const struct acpi_device_id *id);
 	void (*detach)(struct acpi_device *dev);
+	struct acpi_hotplug_profile hotplug;
 };
 
 /*
@@ -142,7 +161,6 @@ struct acpi_device_status {
 
 struct acpi_device_flags {
 	u32 dynamic_status:1;
-	u32 bus_address:1;
 	u32 removable:1;
 	u32 ejectable:1;
 	u32 suprise_removal_ok:1;
@@ -150,7 +168,7 @@ struct acpi_device_flags {
 	u32 performance_manageable:1;
 	u32 eject_pending:1;
 	u32 match_driver:1;
-	u32 reserved:23;
+	u32 reserved:24;
 };
 
 /* File System */
@@ -173,10 +191,17 @@ struct acpi_hardware_id {
 	char *id;
 };
 
+struct acpi_pnp_type {
+	u32 hardware_id:1;
+	u32 bus_address:1;
+	u32 reserved:30;
+};
+
 struct acpi_device_pnp {
-	acpi_bus_id bus_id;	/* Object name */
+	acpi_bus_id bus_id;		/* Object name */
+	struct acpi_pnp_type type;	/* ID type */
 	acpi_bus_address bus_address;	/* _ADR */
-	char *unique_id;	/* _UID */
+	char *unique_id;		/* _UID */
 	struct list_head ids;		/* _HID and _CIDs */
 	acpi_device_name device_name;	/* Driver-determined */
 	acpi_device_class device_class;	/*        "          */
@@ -352,7 +377,6 @@ acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);
 int acpi_bus_get_status(struct acpi_device *device);
 
-#ifdef CONFIG_PM
 int acpi_bus_set_power(acpi_handle handle, int state);
 const char *acpi_power_state_string(int state);
 int acpi_device_get_power(struct acpi_device *device, int *state);
@@ -360,41 +384,12 @@ int acpi_device_set_power(struct acpi_device *device, int state);
 int acpi_bus_init_power(struct acpi_device *device);
 int acpi_bus_update_power(acpi_handle handle, int *state_p);
 bool acpi_bus_power_manageable(acpi_handle handle);
+
+#ifdef CONFIG_PM
 bool acpi_bus_can_wakeup(acpi_handle handle);
-#else /* !CONFIG_PM */
-static inline int acpi_bus_set_power(acpi_handle handle, int state)
-{
-	return 0;
-}
-static inline const char *acpi_power_state_string(int state)
-{
-	return "D0";
-}
-static inline int acpi_device_get_power(struct acpi_device *device, int *state)
-{
-	return 0;
-}
-static inline int acpi_device_set_power(struct acpi_device *device, int state)
-{
-	return 0;
-}
-static inline int acpi_bus_init_power(struct acpi_device *device)
-{
-	return 0;
-}
-static inline int acpi_bus_update_power(acpi_handle handle, int *state_p)
-{
-	return 0;
-}
-static inline bool acpi_bus_power_manageable(acpi_handle handle)
-{
-	return false;
-}
-static inline bool acpi_bus_can_wakeup(acpi_handle handle)
-{
-	return false;
-}
-#endif /* !CONFIG_PM */
+#else
+static inline bool acpi_bus_can_wakeup(acpi_handle handle) { return false; }
+#endif
 
 #ifdef CONFIG_ACPI_PROC_EVENT
 int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data);

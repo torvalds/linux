@@ -470,8 +470,10 @@ static void netvsc_send_completion(struct hv_device *device,
 			packet->trans_id;
 
 		/* Notify the layer above us */
-		nvsc_packet->completion.send.send_completion(
-			nvsc_packet->completion.send.send_completion_ctx);
+		if (nvsc_packet)
+			nvsc_packet->completion.send.send_completion(
+				nvsc_packet->completion.send.
+				send_completion_ctx);
 
 		num_outstanding_sends =
 			atomic_dec_return(&net_device->num_outstanding_sends);
@@ -498,6 +500,7 @@ int netvsc_send(struct hv_device *device,
 	int ret = 0;
 	struct nvsp_message sendMessage;
 	struct net_device *ndev;
+	u64 req_id;
 
 	net_device = get_outbound_net_device(device);
 	if (!net_device)
@@ -518,20 +521,24 @@ int netvsc_send(struct hv_device *device,
 		0xFFFFFFFF;
 	sendMessage.msg.v1_msg.send_rndis_pkt.send_buf_section_size = 0;
 
+	if (packet->completion.send.send_completion)
+		req_id = (ulong)packet;
+	else
+		req_id = 0;
+
 	if (packet->page_buf_cnt) {
 		ret = vmbus_sendpacket_pagebuffer(device->channel,
 						  packet->page_buf,
 						  packet->page_buf_cnt,
 						  &sendMessage,
 						  sizeof(struct nvsp_message),
-						  (unsigned long)packet);
+						  req_id);
 	} else {
 		ret = vmbus_sendpacket(device->channel, &sendMessage,
 				sizeof(struct nvsp_message),
-				(unsigned long)packet,
+				req_id,
 				VM_PKT_DATA_INBAND,
 				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-
 	}
 
 	if (ret == 0) {

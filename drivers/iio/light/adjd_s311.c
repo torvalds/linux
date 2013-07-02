@@ -207,8 +207,8 @@ static const struct iio_chan_spec_ext_info adjd_s311_ext_info[] = {
 	.type = IIO_INTENSITY, \
 	.modified = 1, \
 	.address = (IDX_##_color), \
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT | \
-		IIO_CHAN_INFO_HARDWAREGAIN_SEPARATE_BIT, \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
+		BIT(IIO_CHAN_INFO_HARDWAREGAIN), \
 	.channel2 = (IIO_MOD_LIGHT_##_color), \
 	.scan_index = (_scan_idx), \
 	.scan_type = IIO_ST('u', 10, 16, 0), \

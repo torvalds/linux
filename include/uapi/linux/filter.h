@@ -129,7 +129,8 @@ struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
 #define SKF_AD_ALU_XOR_X	40
 #define SKF_AD_VLAN_TAG	44
 #define SKF_AD_VLAN_TAG_PRESENT 48
-#define SKF_AD_MAX	52
+#define SKF_AD_PAY_OFFSET	52
+#define SKF_AD_MAX	56
 #define SKF_NET_OFF   (-0x100000)
 #define SKF_LL_OFF    (-0x200000)
 

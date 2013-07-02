@@ -294,17 +294,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 }
 
 /*
- * the architecture-independent dump_stack generator
- */
-void dump_stack(void)
-{
-	unsigned long stack;
-
-	show_stack(current, &stack);
-}
-EXPORT_SYMBOL(dump_stack);
-
-/*
  * dump the register file in the specified exception frame
  */
 void show_registers_only(struct pt_regs *regs)

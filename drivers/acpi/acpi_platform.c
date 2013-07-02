@@ -22,9 +22,6 @@
 
 ACPI_MODULE_NAME("platform");
 
-/* Flags for acpi_create_platform_device */
-#define ACPI_PLATFORM_CLK	BIT(0)
-
 /*
  * The following ACPI IDs are known to be suitable for representing as
  * platform devices.
@@ -33,32 +30,8 @@ static const struct acpi_device_id acpi_platform_device_ids[] = {
 
 	{ "PNP0D40" },
 
-	/* Haswell LPSS devices */
-	{ "INT33C0", ACPI_PLATFORM_CLK },
-	{ "INT33C1", ACPI_PLATFORM_CLK },
-	{ "INT33C2", ACPI_PLATFORM_CLK },
-	{ "INT33C3", ACPI_PLATFORM_CLK },
-	{ "INT33C4", ACPI_PLATFORM_CLK },
-	{ "INT33C5", ACPI_PLATFORM_CLK },
-	{ "INT33C6", ACPI_PLATFORM_CLK },
-	{ "INT33C7", ACPI_PLATFORM_CLK },
-
 	{ }
 };
-
-static int acpi_create_platform_clks(struct acpi_device *adev)
-{
-	static struct platform_device *pdev;
-
-	/* Create Lynxpoint LPSS clocks */
-	if (!pdev && !strncmp(acpi_device_hid(adev), "INT33C", 6)) {
-		pdev = platform_device_register_simple("clk-lpt", -1, NULL, 0);
-		if (IS_ERR(pdev))
-			return PTR_ERR(pdev);
-	}
-
-	return 0;
-}
 
 /**
  * acpi_create_platform_device - Create platform device for ACPI device node
@@ -71,10 +44,9 @@ static int acpi_create_platform_clks(struct acpi_device *adev)
  *
  * Name of the platform device will be the same as @adev's.
  */
-static int acpi_create_platform_device(struct acpi_device *adev,
-				       const struct acpi_device_id *id)
+int acpi_create_platform_device(struct acpi_device *adev,
+				const struct acpi_device_id *id)
 {
-	unsigned long flags = id->driver_data;
 	struct platform_device *pdev = NULL;
 	struct acpi_device *acpi_parent;
 	struct platform_device_info pdevinfo;
@@ -82,14 +54,6 @@ static int acpi_create_platform_device(struct acpi_device *adev,
 	struct list_head resource_list;
 	struct resource *resources;
 	int count;
-
-	if (flags & ACPI_PLATFORM_CLK) {
-		int ret = acpi_create_platform_clks(adev);
-		if (ret) {
-			dev_err(&adev->dev, "failed to create clocks\n");
-			return ret;
-		}
-	}
 
 	/* If the ACPI node already has a physical device attached, skip it. */
 	if (adev->physical_node_count)

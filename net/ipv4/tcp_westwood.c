@@ -236,7 +236,7 @@ static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
 		tp->snd_cwnd = tp->snd_ssthresh = tcp_westwood_bw_rttmin(sk);
 		break;
 
-	case CA_EVENT_FRTO:
+	case CA_EVENT_LOSS:
 		tp->snd_ssthresh = tcp_westwood_bw_rttmin(sk);
 		/* Update RTT_min when next ack arrives */
 		w->reset_rtt_min = 1;

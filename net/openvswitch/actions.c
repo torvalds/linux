@@ -58,7 +58,7 @@ static int __pop_vlan_tci(struct sk_buff *skb, __be16 *current_tci)
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = csum_sub(skb->csum, csum_partial(skb->data
-					+ ETH_HLEN, VLAN_HLEN, 0));
+					+ (2 * ETH_ALEN), VLAN_HLEN, 0));
 
 	vhdr = (struct vlan_hdr *)(skb->data + ETH_HLEN);
 	*current_tci = vhdr->h_vlan_TCI;
@@ -98,7 +98,7 @@ static int pop_vlan(struct sk_buff *skb)
 	if (unlikely(err))
 		return err;
 
-	__vlan_hwaccel_put_tag(skb, ntohs(tci));
+	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(tci));
 	return 0;
 }
 
@@ -110,15 +110,15 @@ static int push_vlan(struct sk_buff *skb, const struct ovs_action_push_vlan *vla
 		/* push down current VLAN tag */
 		current_tag = vlan_tx_tag_get(skb);
 
-		if (!__vlan_put_tag(skb, current_tag))
+		if (!__vlan_put_tag(skb, skb->vlan_proto, current_tag))
 			return -ENOMEM;
 
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
 			skb->csum = csum_add(skb->csum, csum_partial(skb->data
-					+ ETH_HLEN, VLAN_HLEN, 0));
+					+ (2 * ETH_ALEN), VLAN_HLEN, 0));
 
 	}
-	__vlan_hwaccel_put_tag(skb, ntohs(vlan->vlan_tci) & ~VLAN_TAG_PRESENT);
+	__vlan_hwaccel_put_tag(skb, vlan->vlan_tpid, ntohs(vlan->vlan_tci) & ~VLAN_TAG_PRESENT);
 	return 0;
 }
 

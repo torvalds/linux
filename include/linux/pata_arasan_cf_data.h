@@ -37,8 +37,6 @@ struct arasan_cf_pdata {
 	#define CF_BROKEN_PIO			(1)
 	#define CF_BROKEN_MWDMA			(1 << 1)
 	#define CF_BROKEN_UDMA			(1 << 2)
-	/* This is platform specific data for the DMA controller */
-	void *dma_priv;
 };
 
 static inline void

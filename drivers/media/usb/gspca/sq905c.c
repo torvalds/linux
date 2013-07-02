@@ -215,13 +215,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	ret = sq905c_command(gspca_dev, SQ905C_GET_ID, 0);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "Get version command failed");
+		PERR("Get version command failed");
 		return ret;
 	}
 
 	ret = sq905c_read(gspca_dev, 0xf5, 0, 20);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "Reading version command failed");
+		PERR("Reading version command failed");
 		return ret;
 	}
 	/* Note we leave out the usb id and the manufacturing date */
@@ -286,7 +286,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	if (ret < 0) {
-		PDEBUG(D_ERR, "Start streaming command failed");
+		PERR("Start streaming command failed");
 		return ret;
 	}
 	/* Start the workqueue function to do the streaming */

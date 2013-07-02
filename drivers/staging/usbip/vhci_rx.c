@@ -31,33 +31,37 @@ struct urb *pickup_urb_and_free_priv(struct vhci_device *vdev, __u32 seqnum)
 	int status;
 
 	list_for_each_entry_safe(priv, tmp, &vdev->priv_rx, list) {
-		if (priv->seqnum == seqnum) {
-			urb = priv->urb;
-			status = urb->status;
+		if (priv->seqnum != seqnum)
+			continue;
 
-			usbip_dbg_vhci_rx("find urb %p vurb %p seqnum %u\n",
-					  urb, priv, seqnum);
+		urb = priv->urb;
+		status = urb->status;
 
-			/* TODO: fix logic here to improve indent situtation */
-			if (status != -EINPROGRESS) {
-				if (status == -ENOENT ||
-				    status == -ECONNRESET)
-					dev_info(&urb->dev->dev,
-						 "urb %p was unlinked "
-						 "%ssynchronuously.\n", urb,
-						 status == -ENOENT ? "" : "a");
-				else
-					dev_info(&urb->dev->dev,
-						 "urb %p may be in a error, "
-						 "status %d\n", urb, status);
-			}
+		usbip_dbg_vhci_rx("find urb %p vurb %p seqnum %u\n",
+				urb, priv, seqnum);
 
-			list_del(&priv->list);
-			kfree(priv);
-			urb->hcpriv = NULL;
-
+		switch (status) {
+		case -ENOENT:
+			/* fall through */
+		case -ECONNRESET:
+			dev_info(&urb->dev->dev,
+				 "urb %p was unlinked %ssynchronuously.\n", urb,
+				 status == -ENOENT ? "" : "a");
 			break;
+		case -EINPROGRESS:
+			/* no info output */
+			break;
+		default:
+			dev_info(&urb->dev->dev,
+				 "urb %p may be in a error, status %d\n", urb,
+				 status);
 		}
+
+		list_del(&priv->list);
+		kfree(priv);
+		urb->hcpriv = NULL;
+
+		break;
 	}
 
 	return urb;
@@ -202,7 +206,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 
 	memset(&pdu, 0, sizeof(pdu));
 
-	/* 1. receive a pdu header */
+	/* receive a pdu header */
 	ret = usbip_recv(ud->tcp_socket, &pdu, sizeof(pdu));
 	if (ret < 0) {
 		if (ret == -ECONNRESET)

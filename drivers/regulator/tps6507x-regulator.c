@@ -356,6 +356,7 @@ static struct regulator_ops tps6507x_pmic_ops = {
 	.get_voltage_sel = tps6507x_pmic_get_voltage_sel,
 	.set_voltage_sel = tps6507x_pmic_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 };
 
 #ifdef CONFIG_OF

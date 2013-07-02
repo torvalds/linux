@@ -89,7 +89,7 @@ typedef int (*load_mapping_fn)(void *context, dm_oblock_t oblock,
 			       dm_cblock_t cblock, bool dirty,
 			       uint32_t hint, bool hint_valid);
 int dm_cache_load_mappings(struct dm_cache_metadata *cmd,
-			   const char *policy_name,
+			   struct dm_cache_policy *policy,
 			   load_mapping_fn fn,
 			   void *context);
 

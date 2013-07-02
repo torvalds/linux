@@ -69,7 +69,7 @@ static const struct ecp3_dev ecp3_dev[] = {
 static void firmware_load(const struct firmware *fw, void *context)
 {
 	struct spi_device *spi = (struct spi_device *)context;
-	struct fpga_data *data = dev_get_drvdata(&spi->dev);
+	struct fpga_data *data = spi_get_drvdata(spi);
 	u8 *buffer;
 	int ret;
 	u8 txbuf[8];

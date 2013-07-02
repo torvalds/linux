@@ -113,6 +113,34 @@
 #define IEEE80211_CTL_EXT_SSW_FBACK	0x9000
 #define IEEE80211_CTL_EXT_SSW_ACK	0xa000
 
+
+#define IEEE80211_SN_MASK		((IEEE80211_SCTL_SEQ) >> 4)
+#define IEEE80211_MAX_SN		IEEE80211_SN_MASK
+#define IEEE80211_SN_MODULO		(IEEE80211_MAX_SN + 1)
+
+static inline int ieee80211_sn_less(u16 sn1, u16 sn2)
+{
+	return ((sn1 - sn2) & IEEE80211_SN_MASK) > (IEEE80211_SN_MODULO >> 1);
+}
+
+static inline u16 ieee80211_sn_add(u16 sn1, u16 sn2)
+{
+	return (sn1 + sn2) & IEEE80211_SN_MASK;
+}
+
+static inline u16 ieee80211_sn_inc(u16 sn)
+{
+	return ieee80211_sn_add(sn, 1);
+}
+
+static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
+{
+	return (sn1 - sn2) & IEEE80211_SN_MASK;
+}
+
+#define IEEE80211_SEQ_TO_SN(seq)	(((seq) & IEEE80211_SCTL_SEQ) >> 4)
+#define IEEE80211_SN_TO_SEQ(ssn)	(((ssn) << 4) & IEEE80211_SCTL_SEQ)
+
 /* miscellaneous IEEE 802.11 constants */
 #define IEEE80211_MAX_FRAG_THRESHOLD	2352
 #define IEEE80211_MAX_RTS_THRESHOLD	2353
@@ -185,7 +213,7 @@ struct ieee80211_hdr {
 	u8 addr3[6];
 	__le16 seq_ctrl;
 	u8 addr4[6];
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_hdr_3addr {
 	__le16 frame_control;
@@ -194,7 +222,7 @@ struct ieee80211_hdr_3addr {
 	u8 addr2[6];
 	u8 addr3[6];
 	__le16 seq_ctrl;
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_qos_hdr {
 	__le16 frame_control;
@@ -204,7 +232,7 @@ struct ieee80211_qos_hdr {
 	u8 addr3[6];
 	__le16 seq_ctrl;
 	__le16 qos_ctrl;
-} __packed;
+} __packed __aligned(2);
 
 /**
  * ieee80211_has_tods - check if IEEE80211_FCTL_TODS is set
@@ -581,7 +609,7 @@ struct ieee80211s_hdr {
 	__le32 seqnum;
 	u8 eaddr1[6];
 	u8 eaddr2[6];
-} __packed;
+} __packed __aligned(2);
 
 /* Mesh flags */
 #define MESH_FLAGS_AE_A4 	0x1
@@ -642,6 +670,36 @@ struct ieee80211_channel_sw_ie {
 	u8 mode;
 	u8 new_ch_num;
 	u8 count;
+} __packed;
+
+/**
+ * struct ieee80211_ext_chansw_ie
+ *
+ * This structure represents the "Extended Channel Switch Announcement element"
+ */
+struct ieee80211_ext_chansw_ie {
+	u8 mode;
+	u8 new_operating_class;
+	u8 new_ch_num;
+	u8 count;
+} __packed;
+
+/**
+ * struct ieee80211_sec_chan_offs_ie - secondary channel offset IE
+ * @sec_chan_offs: secondary channel offset, uses IEEE80211_HT_PARAM_CHA_SEC_*
+ *	values here
+ * This structure represents the "Secondary Channel Offset element"
+ */
+struct ieee80211_sec_chan_offs_ie {
+	u8 sec_chan_offs;
+} __packed;
+
+/**
+ * struct ieee80211_wide_bw_chansw_ie - wide bandwidth channel switch IE
+ */
+struct ieee80211_wide_bw_chansw_ie {
+	u8 new_channel_width;
+	u8 new_center_freq_seg0, new_center_freq_seg1;
 } __packed;
 
 /**
@@ -812,10 +870,13 @@ struct ieee80211_mgmt {
 				} __packed wme_action;
 				struct{
 					u8 action_code;
-					u8 element_id;
-					u8 length;
-					struct ieee80211_channel_sw_ie sw_elem;
+					u8 variable[0];
 				} __packed chan_switch;
+				struct{
+					u8 action_code;
+					struct ieee80211_ext_chansw_ie data;
+					u8 variable[0];
+				} __packed ext_chan_switch;
 				struct{
 					u8 action_code;
 					u8 dialog_token;
@@ -875,7 +936,7 @@ struct ieee80211_mgmt {
 			} u;
 		} __packed action;
 	} u;
-} __packed;
+} __packed __aligned(2);
 
 /* Supported Rates value encodings in 802.11n-2009 7.3.2.2 */
 #define BSS_MEMBERSHIP_SELECTOR_HT_PHY	127
@@ -906,20 +967,20 @@ struct ieee80211_rts {
 	__le16 duration;
 	u8 ra[6];
 	u8 ta[6];
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_cts {
 	__le16 frame_control;
 	__le16 duration;
 	u8 ra[6];
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_pspoll {
 	__le16 frame_control;
 	__le16 aid;
 	u8 bssid[6];
 	u8 ta[6];
-} __packed;
+} __packed __aligned(2);
 
 /* TDLS */
 
@@ -998,6 +1059,26 @@ enum ieee80211_p2p_attr_id {
 
 	IEEE80211_P2P_ATTR_MAX
 };
+
+/* Notice of Absence attribute - described in P2P spec 4.1.14 */
+/* Typical max value used here */
+#define IEEE80211_P2P_NOA_DESC_MAX	4
+
+struct ieee80211_p2p_noa_desc {
+	u8 count;
+	__le32 duration;
+	__le32 interval;
+	__le32 start_time;
+} __packed;
+
+struct ieee80211_p2p_noa_attr {
+	u8 index;
+	u8 oppps_ctwindow;
+	struct ieee80211_p2p_noa_desc desc[IEEE80211_P2P_NOA_DESC_MAX];
+} __packed;
+
+#define IEEE80211_P2P_OPPPS_ENABLE_BIT		BIT(7)
+#define IEEE80211_P2P_OPPPS_CTWINDOW_MASK	0x7F
 
 /**
  * struct ieee80211_bar - HT Block Ack Request
@@ -1290,11 +1371,6 @@ struct ieee80211_vht_operation {
 } __packed;
 
 
-#define IEEE80211_VHT_MCS_ZERO_TO_SEVEN_SUPPORT 0
-#define IEEE80211_VHT_MCS_ZERO_TO_EIGHT_SUPPORT 1
-#define IEEE80211_VHT_MCS_ZERO_TO_NINE_SUPPORT  2
-#define IEEE80211_VHT_MCS_NOT_SUPPORTED 3
-
 /* 802.11ac VHT Capabilities */
 #define IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895			0x00000000
 #define IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991			0x00000001
@@ -1310,10 +1386,11 @@ struct ieee80211_vht_operation {
 #define IEEE80211_VHT_CAP_RXSTBC_2				0x00000200
 #define IEEE80211_VHT_CAP_RXSTBC_3				0x00000300
 #define IEEE80211_VHT_CAP_RXSTBC_4				0x00000400
+#define IEEE80211_VHT_CAP_RXSTBC_MASK				0x00000700
 #define IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE			0x00000800
 #define IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE			0x00001000
 #define IEEE80211_VHT_CAP_BEAMFORMER_ANTENNAS_MAX		0x00006000
-#define IEEE80211_VHT_CAP_SOUNDING_DIMENTION_MAX		0x00030000
+#define IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MAX		0x00030000
 #define IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE			0x00080000
 #define IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE			0x00100000
 #define IEEE80211_VHT_CAP_VHT_TXOP_PS				0x00200000
@@ -1594,6 +1671,7 @@ enum ieee80211_eid {
 
 	WLAN_EID_HT_CAPABILITY = 45,
 	WLAN_EID_HT_OPERATION = 61,
+	WLAN_EID_SECONDARY_CHANNEL_OFFSET = 62,
 
 	WLAN_EID_RSN = 48,
 	WLAN_EID_MMIE = 76,
@@ -1628,6 +1706,8 @@ enum ieee80211_eid {
 	WLAN_EID_VHT_CAPABILITY = 191,
 	WLAN_EID_VHT_OPERATION = 192,
 	WLAN_EID_OPMODE_NOTIF = 199,
+	WLAN_EID_WIDE_BW_CHANNEL_SWITCH = 194,
+	WLAN_EID_CHANNEL_SWITCH_WRAPPER = 196,
 
 	/* 802.11ad */
 	WLAN_EID_NON_TX_BSSID_CAP =  83,
@@ -1751,6 +1831,7 @@ enum ieee80211_key_len {
 
 /* Public action codes */
 enum ieee80211_pub_actioncode {
+	WLAN_PUB_ACTION_EXT_CHANSW_ANN = 4,
 	WLAN_PUB_ACTION_TDLS_DISCOVER_RES = 14,
 };
 
@@ -1910,6 +1991,16 @@ enum ieee80211_timeout_interval_type {
 	WLAN_TIMEOUT_KEY_LIFETIME = 2 /* 802.11r */,
 	WLAN_TIMEOUT_ASSOC_COMEBACK = 3 /* 802.11w */,
 };
+
+/**
+ * struct ieee80211_timeout_interval_ie - Timeout Interval element
+ * @type: type, see &enum ieee80211_timeout_interval_type
+ * @value: timeout interval value
+ */
+struct ieee80211_timeout_interval_ie {
+	u8 type;
+	__le32 value;
+} __packed;
 
 /* BACK action code */
 enum ieee80211_back_actioncode {

@@ -1,0 +1,73 @@
+AS3711 is an I2C PMIC from Austria MicroSystems with multiple DCDC and LDO power
+supplies, a battery charger and an RTC. So far only bindings for the two stepup
+DCDC converters are defined. Other DCDC and LDO supplies are configured, using
+standard regulator properties, they must belong to a sub-node, called
+"regulators" and be called "sd1" to "sd4" and "ldo1" to "ldo8." Stepup converter
+configuration should be placed in a subnode, called "backlight."
+
+Compulsory properties:
+- compatible		: must be "ams,as3711"
+- reg			: specifies the I2C address
+
+To use the SU1 converter as a backlight source the following two properties must
+be provided:
+- su1-dev		: framebuffer phandle
+- su1-max-uA		: maximum current
+
+To use the SU2 converter as a backlight source the following two properties must
+be provided:
+- su2-dev		: framebuffer phandle
+- su1-max-uA		: maximum current
+
+Additionally one of these properties must be provided to select the type of
+feedback used:
+- su2-feedback-voltage	: voltage feedback is used
+- su2-feedback-curr1	: CURR1 input used for current feedback
+- su2-feedback-curr2	: CURR2 input used for current feedback
+- su2-feedback-curr3	: CURR3 input used for current feedback
+- su2-feedback-curr-auto: automatic current feedback selection
+
+and one of these to select the over-voltage protection pin
+- su2-fbprot-lx-sd4	: LX_SD4 is used for over-voltage protection
+- su2-fbprot-gpio2	: GPIO2 is used for over-voltage protection
+- su2-fbprot-gpio3	: GPIO3 is used for over-voltage protection
+- su2-fbprot-gpio4	: GPIO4 is used for over-voltage protection
+
+If "su2-feedback-curr-auto" is selected, one or more of the following properties
+have to be specified:
+- su2-auto-curr1	: use CURR1 input for current feedback
+- su2-auto-curr2	: use CURR2 input for current feedback
+- su2-auto-curr3	: use CURR3 input for current feedback
+
+Example:
+
+as3711@40 {
+	compatible = "ams,as3711";
+	reg = <0x40>;
+
+	regulators {
+		sd4 {
+			regulator-name = "1.215V";
+			regulator-min-microvolt = <1215000>;
+			regulator-max-microvolt = <1235000>;
+		};
+		ldo2 {
+			regulator-name = "2.8V CPU";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+	};
+
+	backlight {
+		compatible = "ams,as3711-bl";
+		su2-dev = <&lcdc>;
+		su2-max-uA = <36000>;
+		su2-feedback-curr-auto;
+		su2-fbprot-gpio4;
+		su2-auto-curr1;
+		su2-auto-curr2;
+		su2-auto-curr3;
+	};
+};

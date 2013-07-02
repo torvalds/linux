@@ -207,8 +207,6 @@ static inline bool test_and_clear_restore_sigmask(void)
 	return true;
 }
 
-#define tsk_is_polling(t) test_tsk_thread_flag(t, TIF_POLLING_NRFLAG)
-
 #endif	/* !__ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

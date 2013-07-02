@@ -101,7 +101,7 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 	while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C0S)
 		msleep(1);
 
-	rtcdev = rtc_device_register("rtc-au1xxx", &pdev->dev,
+	rtcdev = devm_rtc_device_register(&pdev->dev, "rtc-au1xxx",
 				     &au1xtoy_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtcdev)) {
 		ret = PTR_ERR(rtcdev);
@@ -118,9 +118,6 @@ out_err:
 
 static int au1xtoy_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_device *rtcdev = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtcdev);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
@@ -134,18 +131,7 @@ static struct platform_driver au1xrtc_driver = {
 	.remove		= au1xtoy_rtc_remove,
 };
 
-static int __init au1xtoy_rtc_init(void)
-{
-	return platform_driver_probe(&au1xrtc_driver, au1xtoy_rtc_probe);
-}
-
-static void __exit au1xtoy_rtc_exit(void)
-{
-	platform_driver_unregister(&au1xrtc_driver);
-}
-
-module_init(au1xtoy_rtc_init);
-module_exit(au1xtoy_rtc_exit);
+module_platform_driver_probe(au1xrtc_driver, au1xtoy_rtc_probe);
 
 MODULE_DESCRIPTION("Au1xxx TOY-counter-based RTC driver");
 MODULE_AUTHOR("Manuel Lauss <manuel.lauss@gmail.com>");

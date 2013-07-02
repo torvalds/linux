@@ -28,6 +28,7 @@
 #include "prm-regbits-33xx.h"
 #include "i2c.h"
 #include "mmc.h"
+#include "wd_timer.h"
 
 /*
  * IP blocks
@@ -417,8 +418,6 @@ static struct omap_hwmod am33xx_adc_tsc_hwmod = {
  *    - clkdiv32k
  *    - debugss
  *    - ocp watch point
- *    - aes0
- *    - sha0
  */
 #if 0
 /*
@@ -499,25 +498,41 @@ static struct omap_hwmod am33xx_ocpwp_hwmod = {
 		},
 	},
 };
+#endif
 
 /*
- * 'aes' class
+ * 'aes0' class
  */
-static struct omap_hwmod_class am33xx_aes_hwmod_class = {
-	.name		= "aes",
+static struct omap_hwmod_class_sysconfig am33xx_aes0_sysc = {
+	.rev_offs	= 0x80,
+	.sysc_offs	= 0x84,
+	.syss_offs	= 0x88,
+	.sysc_flags	= SYSS_HAS_RESET_STATUS,
+};
+
+static struct omap_hwmod_class am33xx_aes0_hwmod_class = {
+	.name		= "aes0",
+	.sysc		= &am33xx_aes0_sysc,
 };
 
 static struct omap_hwmod_irq_info am33xx_aes0_irqs[] = {
-	{ .irq = 102 + OMAP_INTC_START, },
+	{ .irq = 103 + OMAP_INTC_START, },
 	{ .irq = -1 },
 };
 
+static struct omap_hwmod_dma_info am33xx_aes0_edma_reqs[] = {
+	{ .name = "tx", .dma_req = 6, },
+	{ .name = "rx", .dma_req = 5, },
+	{ .dma_req = -1 }
+};
+
 static struct omap_hwmod am33xx_aes0_hwmod = {
-	.name		= "aes0",
-	.class		= &am33xx_aes_hwmod_class,
+	.name		= "aes",
+	.class		= &am33xx_aes0_hwmod_class,
 	.clkdm_name	= "l3_clkdm",
 	.mpu_irqs	= am33xx_aes0_irqs,
-	.main_clk	= "l3_gclk",
+	.sdma_reqs	= am33xx_aes0_edma_reqs,
+	.main_clk	= "aes0_fck",
 	.prcm		= {
 		.omap4	= {
 			.clkctrl_offs	= AM33XX_CM_PER_AES0_CLKCTRL_OFFSET,
@@ -526,21 +541,35 @@ static struct omap_hwmod am33xx_aes0_hwmod = {
 	},
 };
 
-/* sha0 */
+/* sha0 HIB2 (the 'P' (public) device) */
+static struct omap_hwmod_class_sysconfig am33xx_sha0_sysc = {
+	.rev_offs	= 0x100,
+	.sysc_offs	= 0x110,
+	.syss_offs	= 0x114,
+	.sysc_flags	= SYSS_HAS_RESET_STATUS,
+};
+
 static struct omap_hwmod_class am33xx_sha0_hwmod_class = {
 	.name		= "sha0",
+	.sysc		= &am33xx_sha0_sysc,
 };
 
 static struct omap_hwmod_irq_info am33xx_sha0_irqs[] = {
-	{ .irq = 108 + OMAP_INTC_START, },
+	{ .irq = 109 + OMAP_INTC_START, },
 	{ .irq = -1 },
 };
 
+static struct omap_hwmod_dma_info am33xx_sha0_edma_reqs[] = {
+	{ .name = "rx", .dma_req = 36, },
+	{ .dma_req = -1 }
+};
+
 static struct omap_hwmod am33xx_sha0_hwmod = {
-	.name		= "sha0",
+	.name		= "sham",
 	.class		= &am33xx_sha0_hwmod_class,
 	.clkdm_name	= "l3_clkdm",
 	.mpu_irqs	= am33xx_sha0_irqs,
+	.sdma_reqs	= am33xx_sha0_edma_reqs,
 	.main_clk	= "l3_gclk",
 	.prcm		= {
 		.omap4	= {
@@ -549,8 +578,6 @@ static struct omap_hwmod am33xx_sha0_hwmod = {
 		},
 	},
 };
-
-#endif
 
 /* ocmcram */
 static struct omap_hwmod_class am33xx_ocmcram_hwmod_class = {
@@ -1968,6 +1995,7 @@ static struct omap_hwmod am33xx_uart1_hwmod = {
 	.name		= "uart1",
 	.class		= &uart_class,
 	.clkdm_name	= "l4_wkup_clkdm",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
 	.mpu_irqs	= am33xx_uart1_irqs,
 	.sdma_reqs	= uart1_edma_reqs,
 	.main_clk	= "dpll_per_m2_div4_wkupdm_ck",
@@ -1988,6 +2016,7 @@ static struct omap_hwmod am33xx_uart2_hwmod = {
 	.name		= "uart2",
 	.class		= &uart_class,
 	.clkdm_name	= "l4ls_clkdm",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
 	.mpu_irqs	= am33xx_uart2_irqs,
 	.sdma_reqs	= uart1_edma_reqs,
 	.main_clk	= "dpll_per_m2_div4_ck",
@@ -2015,6 +2044,7 @@ static struct omap_hwmod am33xx_uart3_hwmod = {
 	.name		= "uart3",
 	.class		= &uart_class,
 	.clkdm_name	= "l4ls_clkdm",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
 	.mpu_irqs	= am33xx_uart3_irqs,
 	.sdma_reqs	= uart3_edma_reqs,
 	.main_clk	= "dpll_per_m2_div4_ck",
@@ -2035,6 +2065,7 @@ static struct omap_hwmod am33xx_uart4_hwmod = {
 	.name		= "uart4",
 	.class		= &uart_class,
 	.clkdm_name	= "l4ls_clkdm",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
 	.mpu_irqs	= am33xx_uart4_irqs,
 	.sdma_reqs	= uart1_edma_reqs,
 	.main_clk	= "dpll_per_m2_div4_ck",
@@ -2055,6 +2086,7 @@ static struct omap_hwmod am33xx_uart5_hwmod = {
 	.name		= "uart5",
 	.class		= &uart_class,
 	.clkdm_name	= "l4ls_clkdm",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
 	.mpu_irqs	= am33xx_uart5_irqs,
 	.sdma_reqs	= uart1_edma_reqs,
 	.main_clk	= "dpll_per_m2_div4_ck",
@@ -2075,6 +2107,7 @@ static struct omap_hwmod am33xx_uart6_hwmod = {
 	.name		= "uart6",
 	.class		= &uart_class,
 	.clkdm_name	= "l4ls_clkdm",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
 	.mpu_irqs	= am33xx_uart6_irqs,
 	.sdma_reqs	= uart1_edma_reqs,
 	.main_clk	= "dpll_per_m2_div4_ck",
@@ -2087,8 +2120,21 @@ static struct omap_hwmod am33xx_uart6_hwmod = {
 };
 
 /* 'wd_timer' class */
+static struct omap_hwmod_class_sysconfig wdt_sysc = {
+	.rev_offs	= 0x0,
+	.sysc_offs	= 0x10,
+	.syss_offs	= 0x14,
+	.sysc_flags	= (SYSC_HAS_EMUFREE | SYSC_HAS_SIDLEMODE |
+			SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+			SIDLE_SMART_WKUP),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
 static struct omap_hwmod_class am33xx_wd_timer_hwmod_class = {
 	.name		= "wd_timer",
+	.sysc		= &wdt_sysc,
+	.pre_shutdown	= &omap2_wd_timer_disable,
 };
 
 /*
@@ -2099,6 +2145,7 @@ static struct omap_hwmod am33xx_wd_timer1_hwmod = {
 	.name		= "wd_timer2",
 	.class		= &am33xx_wd_timer_hwmod_class,
 	.clkdm_name	= "l4_wkup_clkdm",
+	.flags		= HWMOD_SWSUP_SIDLE,
 	.main_clk	= "wdt1_fck",
 	.prcm		= {
 		.omap4	= {
@@ -3434,6 +3481,42 @@ static struct omap_hwmod_ocp_if am33xx_l3_main__ocmc = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* l3 main -> sha0 HIB2 */
+static struct omap_hwmod_addr_space am33xx_sha0_addrs[] = {
+	{
+		.pa_start	= 0x53100000,
+		.pa_end		= 0x53100000 + SZ_512 - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+static struct omap_hwmod_ocp_if am33xx_l3_main__sha0 = {
+	.master		= &am33xx_l3_main_hwmod,
+	.slave		= &am33xx_sha0_hwmod,
+	.clk		= "sha0_fck",
+	.addr		= am33xx_sha0_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* l3 main -> AES0 HIB2 */
+static struct omap_hwmod_addr_space am33xx_aes0_addrs[] = {
+	{
+		.pa_start	= 0x53500000,
+		.pa_end		= 0x53500000 + SZ_1M - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+static struct omap_hwmod_ocp_if am33xx_l3_main__aes0 = {
+	.master		= &am33xx_l3_main_hwmod,
+	.slave		= &am33xx_aes0_hwmod,
+	.clk		= "aes0_fck",
+	.addr		= am33xx_aes0_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_fw__emif_fw,
 	&am33xx_l3_main__emif,
@@ -3514,6 +3597,8 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_s__usbss,
 	&am33xx_l4_hs__cpgmac0,
 	&am33xx_cpgmac0__mdio,
+	&am33xx_l3_main__sha0,
+	&am33xx_l3_main__aes0,
 	NULL,
 };
 

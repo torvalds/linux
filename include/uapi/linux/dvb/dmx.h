@@ -51,7 +51,7 @@ typedef enum
 } dmx_input_t;
 
 
-typedef enum
+typedef enum dmx_ts_pes
 {
 	DMX_PES_AUDIO0,
 	DMX_PES_VIDEO0,

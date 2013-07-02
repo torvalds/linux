@@ -29,9 +29,10 @@
 #include <asm/cacheflush.h>
 #include <asm/traps.h>
 
-#include <asm/mips-boards/prom.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mach-powertv/asic.h>
+
+#include "init.h"
 
 static int *_prom_envp;
 unsigned long _prom_memsize;

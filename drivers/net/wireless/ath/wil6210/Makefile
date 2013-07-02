@@ -9,5 +9,7 @@ wil6210-objs += wmi.o
 wil6210-objs += interrupt.o
 wil6210-objs += txrx.o
 
-subdir-ccflags-y += -Werror
+ifeq (, $(findstring -W,$(EXTRA_CFLAGS)))
+	subdir-ccflags-y += -Werror
+endif
 subdir-ccflags-y += -D__CHECK_ENDIAN__

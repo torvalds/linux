@@ -29,7 +29,8 @@ struct xfs_mount;
 /*
  * There is a btree for the inode map per allocation group.
  */
-#define	XFS_IBT_MAGIC	0x49414254	/* 'IABT' */
+#define	XFS_IBT_MAGIC		0x49414254	/* 'IABT' */
+#define	XFS_IBT_CRC_MAGIC	0x49414233	/* 'IAB3' */
 
 typedef	__uint64_t	xfs_inofree_t;
 #define	XFS_INODES_PER_CHUNK		(NBBY * sizeof(xfs_inofree_t))
@@ -76,10 +77,10 @@ typedef __be32 xfs_inobt_ptr_t;
 
 /*
  * Btree block header size depends on a superblock flag.
- *
- * (not quite yet, but soon)
  */
-#define XFS_INOBT_BLOCK_LEN(mp)	XFS_BTREE_SBLOCK_LEN
+#define XFS_INOBT_BLOCK_LEN(mp) \
+	(xfs_sb_version_hascrc(&((mp)->m_sb)) ? \
+		XFS_BTREE_SBLOCK_CRC_LEN : XFS_BTREE_SBLOCK_LEN)
 
 /*
  * Record, key, and pointer address macros for btree blocks.

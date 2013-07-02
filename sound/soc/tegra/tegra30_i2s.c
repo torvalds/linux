@@ -38,6 +38,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
 #include "tegra30_ahub.h"
 #include "tegra30_i2s.h"
@@ -80,17 +81,17 @@ static int tegra30_i2s_startup(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ret = tegra30_ahub_allocate_tx_fifo(&i2s->playback_fifo_cif,
 					&i2s->playback_dma_data.addr,
-					&i2s->playback_dma_data.req_sel);
-		i2s->playback_dma_data.wrap = 4;
-		i2s->playback_dma_data.width = 32;
+					&i2s->playback_dma_data.slave_id);
+		i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		i2s->playback_dma_data.maxburst = 4;
 		tegra30_ahub_set_rx_cif_source(i2s->playback_i2s_cif,
 					       i2s->playback_fifo_cif);
 	} else {
 		ret = tegra30_ahub_allocate_rx_fifo(&i2s->capture_fifo_cif,
 					&i2s->capture_dma_data.addr,
-					&i2s->capture_dma_data.req_sel);
-		i2s->capture_dma_data.wrap = 4;
-		i2s->capture_dma_data.width = 32;
+					&i2s->capture_dma_data.slave_id);
+		i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		i2s->capture_dma_data.maxburst = 4;
 		tegra30_ahub_set_rx_cif_source(i2s->capture_fifo_cif,
 					       i2s->capture_i2s_cif);
 	}
@@ -336,6 +337,10 @@ static const struct snd_soc_dai_driver tegra30_i2s_dai_template = {
 	.symmetric_rates = 1,
 };
 
+static const struct snd_soc_component_driver tegra30_i2s_component = {
+	.name		= DRV_NAME,
+};
+
 static bool tegra30_i2s_wr_rd_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -464,7 +469,8 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	ret = snd_soc_register_dai(&pdev->dev, &i2s->dai);
+	ret = snd_soc_register_component(&pdev->dev, &tegra30_i2s_component,
+				   &i2s->dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
 		ret = -ENOMEM;
@@ -474,13 +480,13 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 	ret = tegra_pcm_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
-		goto err_unregister_dai;
+		goto err_unregister_component;
 	}
 
 	return 0;
 
-err_unregister_dai:
-	snd_soc_unregister_dai(&pdev->dev);
+err_unregister_component:
+	snd_soc_unregister_component(&pdev->dev);
 err_suspend:
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		tegra30_i2s_runtime_suspend(&pdev->dev);
@@ -501,7 +507,7 @@ static int tegra30_i2s_platform_remove(struct platform_device *pdev)
 		tegra30_i2s_runtime_suspend(&pdev->dev);
 
 	tegra_pcm_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	clk_put(i2s->clk_i2s);
 

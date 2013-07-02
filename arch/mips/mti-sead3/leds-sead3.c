@@ -34,32 +34,14 @@ static void sead3_fled_set(struct led_classdev *led_cdev,
 static struct led_classdev sead3_pled = {
 	.name		= "sead3::pled",
 	.brightness_set = sead3_pled_set,
+	.flags		= LED_CORE_SUSPENDRESUME,
 };
 
 static struct led_classdev sead3_fled = {
 	.name		= "sead3::fled",
 	.brightness_set = sead3_fled_set,
+	.flags		= LED_CORE_SUSPENDRESUME,
 };
-
-#ifdef CONFIG_PM
-static int sead3_led_suspend(struct platform_device *dev,
-		pm_message_t state)
-{
-	led_classdev_suspend(&sead3_pled);
-	led_classdev_suspend(&sead3_fled);
-	return 0;
-}
-
-static int sead3_led_resume(struct platform_device *dev)
-{
-	led_classdev_resume(&sead3_pled);
-	led_classdev_resume(&sead3_fled);
-	return 0;
-}
-#else
-#define sead3_led_suspend NULL
-#define sead3_led_resume NULL
-#endif
 
 static int sead3_led_probe(struct platform_device *pdev)
 {
@@ -86,8 +68,6 @@ static int sead3_led_remove(struct platform_device *pdev)
 static struct platform_driver sead3_led_driver = {
 	.probe		= sead3_led_probe,
 	.remove		= sead3_led_remove,
-	.suspend	= sead3_led_suspend,
-	.resume		= sead3_led_resume,
 	.driver		= {
 		.name		= DRVNAME,
 		.owner		= THIS_MODULE,

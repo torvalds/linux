@@ -46,6 +46,9 @@ extern struct hppa_dma_ops pcx_dma_ops;
 
 extern struct hppa_dma_ops *hppa_dma_ops;
 
+#define dma_alloc_attrs(d, s, h, f, a) dma_alloc_coherent(d, s, h, f)
+#define dma_free_attrs(d, s, h, f, a) dma_free_coherent(d, s, h, f)
+
 static inline void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		   gfp_t flag)

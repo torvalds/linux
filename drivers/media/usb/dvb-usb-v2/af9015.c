@@ -30,22 +30,22 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 {
-#define BUF_LEN 63
 #define REQ_HDR_LEN 8 /* send header size */
 #define ACK_HDR_LEN 2 /* rece header size */
 	struct af9015_state *state = d_to_priv(d);
 	int ret, wlen, rlen;
-	u8 buf[BUF_LEN];
 	u8 write = 1;
 
-	buf[0] = req->cmd;
-	buf[1] = state->seq++;
-	buf[2] = req->i2c_addr;
-	buf[3] = req->addr >> 8;
-	buf[4] = req->addr & 0xff;
-	buf[5] = req->mbox;
-	buf[6] = req->addr_len;
-	buf[7] = req->data_len;
+	mutex_lock(&d->usb_mutex);
+
+	state->buf[0] = req->cmd;
+	state->buf[1] = state->seq++;
+	state->buf[2] = req->i2c_addr;
+	state->buf[3] = req->addr >> 8;
+	state->buf[4] = req->addr & 0xff;
+	state->buf[5] = req->mbox;
+	state->buf[6] = req->addr_len;
+	state->buf[7] = req->data_len;
 
 	switch (req->cmd) {
 	case GET_CONFIG:
@@ -55,14 +55,14 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 		break;
 	case READ_I2C:
 		write = 0;
-		buf[2] |= 0x01; /* set I2C direction */
+		state->buf[2] |= 0x01; /* set I2C direction */
 	case WRITE_I2C:
-		buf[0] = READ_WRITE_I2C;
+		state->buf[0] = READ_WRITE_I2C;
 		break;
 	case WRITE_MEMORY:
 		if (((req->addr & 0xff00) == 0xff00) ||
 		    ((req->addr & 0xff00) == 0xae00))
-			buf[0] = WRITE_VIRTUAL_MEMORY;
+			state->buf[0] = WRITE_VIRTUAL_MEMORY;
 	case WRITE_VIRTUAL_MEMORY:
 	case COPY_FIRMWARE:
 	case DOWNLOAD_FIRMWARE:
@@ -90,7 +90,7 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 	rlen = ACK_HDR_LEN;
 	if (write) {
 		wlen += req->data_len;
-		memcpy(&buf[REQ_HDR_LEN], req->data, req->data_len);
+		memcpy(&state->buf[REQ_HDR_LEN], req->data, req->data_len);
 	} else {
 		rlen += req->data_len;
 	}
@@ -99,22 +99,25 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 	if (req->cmd == DOWNLOAD_FIRMWARE || req->cmd == RECONNECT_USB)
 		rlen = 0;
 
-	ret = dvb_usbv2_generic_rw(d, buf, wlen, buf, rlen);
+	ret = dvb_usbv2_generic_rw_locked(d,
+			state->buf, wlen, state->buf, rlen);
 	if (ret)
 		goto error;
 
 	/* check status */
-	if (rlen && buf[1]) {
+	if (rlen && state->buf[1]) {
 		dev_err(&d->udev->dev, "%s: command failed=%d\n",
-				KBUILD_MODNAME, buf[1]);
+				KBUILD_MODNAME, state->buf[1]);
 		ret = -EIO;
 		goto error;
 	}
 
 	/* read request, copy returned data to return buf */
 	if (!write)
-		memcpy(req->data, &buf[ACK_HDR_LEN], req->data_len);
+		memcpy(req->data, &state->buf[ACK_HDR_LEN], req->data_len);
 error:
+	mutex_unlock(&d->usb_mutex);
+
 	return ret;
 }
 
@@ -1317,6 +1320,43 @@ static int af9015_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 	#define af9015_get_rc_config NULL
 #endif
 
+static int af9015_probe(struct usb_interface *intf,
+		const struct usb_device_id *id)
+{
+	struct usb_device *udev = interface_to_usbdev(intf);
+	char manufacturer[sizeof("ITE Technologies, Inc.")];
+
+	memset(manufacturer, 0, sizeof(manufacturer));
+	usb_string(udev, udev->descriptor.iManufacturer,
+			manufacturer, sizeof(manufacturer));
+	/*
+	 * There is two devices having same ID but different chipset. One uses
+	 * AF9015 and the other IT9135 chipset. Only difference seen on lsusb
+	 * is iManufacturer string.
+	 *
+	 * idVendor           0x0ccd TerraTec Electronic GmbH
+	 * idProduct          0x0099
+	 * bcdDevice            2.00
+	 * iManufacturer           1 Afatech
+	 * iProduct                2 DVB-T 2
+	 *
+	 * idVendor           0x0ccd TerraTec Electronic GmbH
+	 * idProduct          0x0099
+	 * bcdDevice            2.00
+	 * iManufacturer           1 ITE Technologies, Inc.
+	 * iProduct                2 DVB-T TV Stick
+	 */
+	if ((le16_to_cpu(udev->descriptor.idVendor) == USB_VID_TERRATEC) &&
+			(le16_to_cpu(udev->descriptor.idProduct) == 0x0099)) {
+		if (!strcmp("ITE Technologies, Inc.", manufacturer)) {
+			dev_dbg(&udev->dev, "%s: rejecting device\n", __func__);
+			return -ENODEV;
+		}
+	}
+
+	return dvb_usbv2_probe(intf, id);
+}
+
 /* interface 0 is used by DVB-T receiver and
    interface 1 is for remote controller (HID) */
 static struct dvb_usb_device_properties af9015_props = {
@@ -1425,6 +1465,7 @@ static const struct usb_device_id af9015_id_table[] = {
 		&af9015_props, "AverMedia AVerTV Volar M (A815Mac)", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_T_STICK_RC,
 		&af9015_props, "TerraTec Cinergy T Stick RC", RC_MAP_TERRATEC_SLIM_2) },
+	/* XXX: that same ID [0ccd:0099] is used by af9035 driver too */
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC,
 		&af9015_props, "TerraTec Cinergy T Stick Dual RC", RC_MAP_TERRATEC_SLIM) },
 	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850T,
@@ -1441,7 +1482,7 @@ MODULE_DEVICE_TABLE(usb, af9015_id_table);
 static struct usb_driver af9015_usb_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = af9015_id_table,
-	.probe = dvb_usbv2_probe,
+	.probe = af9015_probe,
 	.disconnect = dvb_usbv2_disconnect,
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,

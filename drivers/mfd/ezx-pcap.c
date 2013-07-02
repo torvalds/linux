@@ -393,7 +393,7 @@ static int pcap_add_subdev(struct pcap_chip *pcap,
 
 static int ezx_pcap_remove(struct spi_device *spi)
 {
-	struct pcap_chip *pcap = dev_get_drvdata(&spi->dev);
+	struct pcap_chip *pcap = spi_get_drvdata(spi);
 	struct pcap_platform_data *pdata = spi->dev.platform_data;
 	int i, adc_irq;
 
@@ -403,7 +403,7 @@ static int ezx_pcap_remove(struct spi_device *spi)
 	/* cleanup ADC */
 	adc_irq = pcap_to_irq(pcap, (pdata->config & PCAP_SECOND_PORT) ?
 				PCAP_IRQ_ADCDONE2 : PCAP_IRQ_ADCDONE);
-	free_irq(adc_irq, pcap);
+	devm_free_irq(&spi->dev, adc_irq, pcap);
 	mutex_lock(&pcap->adc_mutex);
 	for (i = 0; i < PCAP_ADC_MAXQ; i++)
 		kfree(pcap->adc_queue[i]);
@@ -414,8 +414,6 @@ static int ezx_pcap_remove(struct spi_device *spi)
 		irq_set_chip_and_handler(i, NULL, NULL);
 
 	destroy_workqueue(pcap->workqueue);
-
-	kfree(pcap);
 
 	return 0;
 }
@@ -431,7 +429,7 @@ static int ezx_pcap_probe(struct spi_device *spi)
 	if (!pdata)
 		goto ret;
 
-	pcap = kzalloc(sizeof(*pcap), GFP_KERNEL);
+	pcap = devm_kzalloc(&spi->dev, sizeof(*pcap), GFP_KERNEL);
 	if (!pcap) {
 		ret = -ENOMEM;
 		goto ret;
@@ -441,14 +439,14 @@ static int ezx_pcap_probe(struct spi_device *spi)
 	mutex_init(&pcap->adc_mutex);
 	INIT_WORK(&pcap->isr_work, pcap_isr_work);
 	INIT_WORK(&pcap->msr_work, pcap_msr_work);
-	dev_set_drvdata(&spi->dev, pcap);
+	spi_set_drvdata(spi, pcap);
 
 	/* setup spi */
 	spi->bits_per_word = 32;
 	spi->mode = SPI_MODE_0 | (pdata->config & PCAP_CS_AH ? SPI_CS_HIGH : 0);
 	ret = spi_setup(spi);
 	if (ret)
-		goto free_pcap;
+		goto ret;
 
 	pcap->spi = spi;
 
@@ -458,7 +456,7 @@ static int ezx_pcap_probe(struct spi_device *spi)
 	if (!pcap->workqueue) {
 		ret = -ENOMEM;
 		dev_err(&spi->dev, "can't create pcap thread\n");
-		goto free_pcap;
+		goto ret;
 	}
 
 	/* redirect interrupts to AP, except adcdone2 */
@@ -491,7 +489,8 @@ static int ezx_pcap_probe(struct spi_device *spi)
 	adc_irq = pcap_to_irq(pcap, (pdata->config & PCAP_SECOND_PORT) ?
 					PCAP_IRQ_ADCDONE2 : PCAP_IRQ_ADCDONE);
 
-	ret = request_irq(adc_irq, pcap_adc_irq, 0, "ADC", pcap);
+	ret = devm_request_irq(&spi->dev, adc_irq, pcap_adc_irq, 0, "ADC",
+				pcap);
 	if (ret)
 		goto free_irqchip;
 
@@ -511,14 +510,12 @@ static int ezx_pcap_probe(struct spi_device *spi)
 remove_subdevs:
 	device_for_each_child(&spi->dev, NULL, pcap_remove_subdev);
 /* free_adc: */
-	free_irq(adc_irq, pcap);
+	devm_free_irq(&spi->dev, adc_irq, pcap);
 free_irqchip:
 	for (i = pcap->irq_base; i < (pcap->irq_base + PCAP_NIRQS); i++)
 		irq_set_chip_and_handler(i, NULL, NULL);
 /* destroy_workqueue: */
 	destroy_workqueue(pcap->workqueue);
-free_pcap:
-	kfree(pcap);
 ret:
 	return ret;
 }

@@ -22,13 +22,22 @@ struct ralink_pinmux {
 	struct ralink_pinmux_grp *mode;
 	struct ralink_pinmux_grp *uart;
 	int uart_shift;
+	u32 uart_mask;
 	void (*wdt_reset)(void);
+	struct ralink_pinmux_grp *pci;
+	int pci_shift;
+	u32 pci_mask;
 };
-extern struct ralink_pinmux gpio_pinmux;
+extern struct ralink_pinmux rt_gpio_pinmux;
 
 struct ralink_soc_info {
 	unsigned char sys_type[RAMIPS_SYS_TYPE_LEN];
 	unsigned char *compatible;
+
+	unsigned long mem_base;
+	unsigned long mem_size;
+	unsigned long mem_size_min;
+	unsigned long mem_size_max;
 };
 extern struct ralink_soc_info soc_info;
 

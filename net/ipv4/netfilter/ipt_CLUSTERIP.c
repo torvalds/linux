@@ -105,7 +105,7 @@ clusterip_config_entry_put(struct clusterip_config *c)
 		 * functions are also incrementing the refcount on their own,
 		 * so it's safe to remove the entry even if it's in use. */
 #ifdef CONFIG_PROC_FS
-		remove_proc_entry(c->pde->name, c->pde->parent);
+		proc_remove(c->pde);
 #endif
 		return;
 	}
@@ -631,7 +631,7 @@ static int clusterip_proc_open(struct inode *inode, struct file *file)
 
 	if (!ret) {
 		struct seq_file *sf = file->private_data;
-		struct clusterip_config *c = PDE(inode)->data;
+		struct clusterip_config *c = PDE_DATA(inode);
 
 		sf->private = c;
 
@@ -643,7 +643,7 @@ static int clusterip_proc_open(struct inode *inode, struct file *file)
 
 static int clusterip_proc_release(struct inode *inode, struct file *file)
 {
-	struct clusterip_config *c = PDE(inode)->data;
+	struct clusterip_config *c = PDE_DATA(inode);
 	int ret;
 
 	ret = seq_release(inode, file);
@@ -657,7 +657,7 @@ static int clusterip_proc_release(struct inode *inode, struct file *file)
 static ssize_t clusterip_proc_write(struct file *file, const char __user *input,
 				size_t size, loff_t *ofs)
 {
-	struct clusterip_config *c = PDE(file_inode(file))->data;
+	struct clusterip_config *c = PDE_DATA(file_inode(file));
 #define PROC_WRITELEN	10
 	char buffer[PROC_WRITELEN+1];
 	unsigned long nodenum;
@@ -736,7 +736,7 @@ static void __exit clusterip_tg_exit(void)
 {
 	pr_info("ClusterIP Version %s unloading\n", CLUSTERIP_VERSION);
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry(clusterip_procdir->name, clusterip_procdir->parent);
+	proc_remove(clusterip_procdir);
 #endif
 	nf_unregister_hook(&cip_arp_ops);
 	xt_unregister_target(&clusterip_tg_reg);

@@ -189,8 +189,8 @@ static void fam15h_power_init_data(struct pci_dev *f4,
 
 	/* result not allowed to be >= 256W */
 	if ((tmp >> 16) >= 256)
-		dev_warn(&f4->dev, "Bogus value for ProcessorPwrWatts "
-			 "(processor_pwr_watts>=%u)\n",
+		dev_warn(&f4->dev,
+			 "Bogus value for ProcessorPwrWatts (processor_pwr_watts>=%u)\n",
 			 (unsigned int) (tmp >> 16));
 
 	/* convert to microWatt */

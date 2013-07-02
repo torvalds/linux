@@ -36,6 +36,8 @@ void __init prom_init(void)
 		mask = CKCTL_6348_ALL_SAFE_EN;
 	else if (BCMCPU_IS_6358())
 		mask = CKCTL_6358_ALL_SAFE_EN;
+	else if (BCMCPU_IS_6362())
+		mask = CKCTL_6362_ALL_SAFE_EN;
 	else if (BCMCPU_IS_6368())
 		mask = CKCTL_6368_ALL_SAFE_EN;
 	else

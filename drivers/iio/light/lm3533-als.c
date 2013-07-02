@@ -231,7 +231,7 @@ static int lm3533_als_read_raw(struct iio_dev *indio_dev,
 		.channel	= _channel,				\
 		.indexed	= true,					\
 		.output		= true,					\
-		.info_mask	= IIO_CHAN_INFO_RAW_SEPARATE_BIT,	\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 	}
 
 static const struct iio_chan_spec lm3533_als_channels[] = {
@@ -239,8 +239,8 @@ static const struct iio_chan_spec lm3533_als_channels[] = {
 		.type		= IIO_LIGHT,
 		.channel	= 0,
 		.indexed	= true,
-		.info_mask	= (IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT |
-				   IIO_CHAN_INFO_RAW_SEPARATE_BIT),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_AVERAGE_RAW) |
+				   BIT(IIO_CHAN_INFO_RAW),
 	},
 	CHANNEL_CURRENT(0),
 	CHANNEL_CURRENT(1),

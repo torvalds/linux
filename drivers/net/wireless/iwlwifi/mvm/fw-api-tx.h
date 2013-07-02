@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -535,6 +535,12 @@ struct iwl_mac_beacon_cmd {
 	__le32 tim_idx;
 	__le32 tim_size;
 	struct ieee80211_hdr frame[0];
+} __packed;
+
+struct iwl_beacon_notif {
+	struct iwl_mvm_tx_resp beacon_notify_hdr;
+	__le64 tsf;
+	__le32 ibss_mgr_status;
 } __packed;
 
 /**

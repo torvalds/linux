@@ -35,7 +35,7 @@ static unsigned int nr_ports;
 
 static struct sh7786_pcie_hwops {
 	int (*core_init)(void);
-	async_func_ptr *port_init_hw;
+	async_func_t port_init_hw;
 } *sh7786_pcie_hwops;
 
 static struct resource sh7786_pci0_resources[] = {

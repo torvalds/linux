@@ -111,30 +111,17 @@ static int fl512_ao_insn_readback(struct comedi_device *dev,
 static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct fl512_private *devpriv;
-	unsigned long iobase;
+	struct comedi_subdevice *s;
 	int ret;
 
-	/* pointer to the subdevice: Analog in, Analog out,
-	   (not made ->and Digital IO) */
-	struct comedi_subdevice *s;
-
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi:%d fl512: 0x%04lx", dev->minor, iobase);
-	if (!request_region(iobase, FL512_SIZE, "fl512")) {
-		printk(KERN_WARNING " I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-	dev->board_name = "fl512";
+	ret = comedi_request_region(dev, it->options[0], FL512_SIZE);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
-
-#if DEBUG
-	printk(KERN_DEBUG "malloc ok\n");
-#endif
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -157,7 +144,6 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_fl512;
 	/* function to call when read AD */
 	s->insn_read = fl512_ai_insn;
-	printk(KERN_INFO "comedi: fl512: subdevice 0 initialized\n");
 
 	/* Analog output */
 	s = &dev->subdevices[1];
@@ -175,22 +161,15 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = fl512_ao_insn;
 	/* function to call when reading DA */
 	s->insn_read = fl512_ao_insn_readback;
-	printk(KERN_INFO "comedi: fl512: subdevice 1 initialized\n");
 
 	return 1;
-}
-
-static void fl512_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, FL512_SIZE);
 }
 
 static struct comedi_driver fl512_driver = {
 	.driver_name	= "fl512",
 	.module		= THIS_MODULE,
 	.attach		= fl512_attach,
-	.detach		= fl512_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(fl512_driver);
 

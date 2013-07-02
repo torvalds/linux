@@ -258,11 +258,6 @@ ENTRY(sys32_mmap2_wrapper)
 	llgtr	%r2,%r2			# struct mmap_arg_struct_emu31 *
 	jg	sys32_mmap2			# branch to system call
 
-ENTRY(compat_sys_getrusage_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# struct rusage_emu31 *
-	jg	compat_sys_getrusage	# branch to system call
-
 ENTRY(compat_sys_gettimeofday_wrapper)
 	llgtr	%r2,%r2			# struct timeval_emu31 *
 	llgtr	%r3,%r3			# struct timezone *
@@ -392,14 +387,6 @@ ENTRY(sys32_swapoff_wrapper)
 ENTRY(compat_sys_sysinfo_wrapper)
 	llgtr	%r2,%r2			# struct sysinfo_emu31 *
 	jg	compat_sys_sysinfo	# branch to system call
-
-ENTRY(sys32_ipc_wrapper)
-	llgfr	%r2,%r2			# uint
-	lgfr	%r3,%r3			# int
-	lgfr	%r4,%r4			# int
-	lgfr	%r5,%r5			# int
-	llgfr	%r6,%r6			# u32
-	jg	sys32_ipc		# branch to system call
 
 ENTRY(sys32_fsync_wrapper)
 	llgfr	%r2,%r2			# unsigned int
@@ -666,13 +653,6 @@ ENTRY(sys32_capset_wrapper)
 	llgtr	%r3,%r3			# const cap_user_data_t
 	jg	sys_capset		# branch to system call
 
-ENTRY(sys32_sendfile_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	llgtr	%r4,%r4			# __kernel_off_emu31_t *
-	llgfr	%r5,%r5			# size_t
-	jg	sys32_sendfile		# branch to system call
-
 #sys32_vfork_wrapper			# done in vfork_glue
 
 ENTRY(sys32_truncate64_wrapper)
@@ -813,10 +793,6 @@ ENTRY(sys32_stime_wrapper)
 	llgtr	%r2,%r2			# long *
 	jg	compat_sys_stime	# branch to system call
 
-ENTRY(sys32_sysctl_wrapper)
-	llgtr	%r2,%r2 		# struct compat_sysctl_args *
-	jg	compat_sys_sysctl
-
 ENTRY(sys32_fstat64_wrapper)
 	llgfr	%r2,%r2			# unsigned long
 	llgtr	%r3,%r3			# struct stat64 *
@@ -937,13 +913,6 @@ ENTRY(sys_epoll_wait_wrapper)
 	lgfr	%r4,%r4			# int
 	lgfr	%r5,%r5			# int
 	jg	sys_epoll_wait		# branch to system call
-
-ENTRY(sys32_lookup_dcookie_wrapper)
-	sllg	%r2,%r2,32		# get high word of 64bit dcookie
-	or	%r2,%r3			# get low word of 64bit dcookie
-	llgtr	%r3,%r4			# char *
-	llgfr	%r4,%r5			# size_t
-	jg	sys_lookup_dcookie
 
 ENTRY(sys32_fadvise64_wrapper)
 	lgfr	%r2,%r2			# int
@@ -1264,28 +1233,11 @@ ENTRY(sys_tee_wrapper)
 	llgfr	%r5,%r5			# unsigned int
 	jg	sys_tee
 
-ENTRY(compat_sys_vmsplice_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# compat_iovec *
-	llgfr	%r4,%r4			# unsigned int
-	llgfr	%r5,%r5			# unsigned int
-	jg	compat_sys_vmsplice
-
 ENTRY(sys_getcpu_wrapper)
 	llgtr	%r2,%r2			# unsigned *
 	llgtr	%r3,%r3			# unsigned *
 	llgtr	%r4,%r4			# struct getcpu_cache *
 	jg	sys_getcpu
-
-ENTRY(compat_sys_epoll_pwait_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# struct compat_epoll_event *
-	lgfr	%r4,%r4			# int
-	lgfr	%r5,%r5			# int
-	llgtr	%r6,%r6			# compat_sigset_t *
-	llgf	%r0,164(%r15)		# compat_size_t
-	stg	%r0,160(%r15)
-	jg	compat_sys_epoll_pwait
 
 ENTRY(compat_sys_utimes_wrapper)
 	llgtr	%r2,%r2			# char *
@@ -1298,12 +1250,6 @@ ENTRY(compat_sys_utimensat_wrapper)
 	llgtr	%r4,%r4			# struct compat_timespec *
 	lgfr	%r5,%r5			# int
 	jg	compat_sys_utimensat
-
-ENTRY(compat_sys_signalfd_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# compat_sigset_t *
-	llgfr	%r4,%r4			# compat_size_t
-	jg	compat_sys_signalfd
 
 ENTRY(sys_eventfd_wrapper)
 	llgfr	%r2,%r2			# unsigned int
@@ -1322,13 +1268,6 @@ ENTRY(sys_timerfd_create_wrapper)
 	lgfr	%r2,%r2			# int
 	lgfr	%r3,%r3			# int
 	jg	sys_timerfd_create
-
-ENTRY(compat_sys_signalfd4_wrapper)
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# compat_sigset_t *
-	llgfr	%r4,%r4			# compat_size_t
-	lgfr	%r5,%r5			# int
-	jg	compat_sys_signalfd4
 
 ENTRY(sys_eventfd2_wrapper)
 	llgfr	%r2,%r2			# unsigned int
@@ -1361,13 +1300,6 @@ ENTRY(sys32_readahead_wrapper)
 	lgfr	%r5,%r5			# s32
 	jg	sys32_readahead		# branch to system call
 
-ENTRY(sys32_sendfile64_wrapper)
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	llgtr	%r4,%r4			# compat_loff_t *
-	lgfr	%r5,%r5			# s32
-	jg	sys32_sendfile64	# branch to system call
-
 ENTRY(sys_tkill_wrapper)
 	lgfr	%r2,%r2			# pid_t
 	lgfr	%r3,%r3			# int
@@ -1386,22 +1318,6 @@ ENTRY(compat_sys_keyctl_wrapper)
 	llgfr	%r5,%r5			# u32
 	llgfr	%r6,%r6			# u32
 	jg	compat_sys_keyctl	# branch to system call
-
-ENTRY(compat_sys_preadv_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	llgtr	%r3,%r3			# compat_iovec *
-	llgfr	%r4,%r4			# unsigned long
-	llgfr	%r5,%r5			# u32
-	llgfr	%r6,%r6			# u32
-	jg	compat_sys_preadv	# branch to system call
-
-ENTRY(compat_sys_pwritev_wrapper)
-	llgfr	%r2,%r2			# unsigned long
-	llgtr	%r3,%r3			# compat_iovec *
-	llgfr	%r4,%r4			# unsigned long
-	llgfr	%r5,%r5			# u32
-	llgfr	%r6,%r6			# u32
-	jg	compat_sys_pwritev	# branch to system call
 
 ENTRY(sys_perf_event_open_wrapper)
 	llgtr	%r2,%r2			# const struct perf_event_attr *
@@ -1428,15 +1344,6 @@ ENTRY(sys_fanotify_init_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgfr	%r3,%r3			# unsigned int
 	jg	sys_fanotify_init	# branch to system call
-
-ENTRY(sys_fanotify_mark_wrapper)
-	lgfr	%r2,%r2			# int
-	llgfr	%r3,%r3			# unsigned int
-	sllg	%r4,%r4,32		# get high word of 64bit mask
-	lr	%r4,%r5			# get low word of 64bit mask
-	llgfr	%r5,%r6			# unsigned int
-	llgt	%r6,164(%r15)		# char *
-	jg	sys_fanotify_mark	# branch to system call
 
 ENTRY(sys_prlimit64_wrapper)
 	lgfr	%r2,%r2			# pid_t

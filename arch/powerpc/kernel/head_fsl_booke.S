@@ -605,6 +605,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 	/* Embedded Hypervisor Privilege */
 	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception, EXC_XFER_EE)
 
+interrupt_end:
+
 /*
  * Local functions
  */

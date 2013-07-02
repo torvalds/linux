@@ -44,7 +44,6 @@
 #include <plat/pm.h>
 #include <plat/regs-serial.h>
 #include <plat/regs-spi.h>
-#include <plat/s3c2412.h>
 
 #include "common.h"
 #include "regs-dsc.h"

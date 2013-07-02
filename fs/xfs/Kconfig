@@ -69,6 +69,19 @@ config XFS_RT
 
 	  If unsure, say N.
 
+config XFS_WARN
+	bool "XFS Verbose Warnings"
+	depends on XFS_FS && !XFS_DEBUG
+	help
+	  Say Y here to get an XFS build with many additional warnings.
+	  It converts ASSERT checks to WARN, so will log any out-of-bounds
+	  conditions that occur that would otherwise be missed. It is much
+	  lighter weight than XFS_DEBUG and does not modify algorithms and will
+	  not cause the kernel to panic on non-fatal errors.
+
+	  However, similar to XFS_DEBUG, it is only advisable to use this if you
+	  are debugging a particular problem.
+
 config XFS_DEBUG
 	bool "XFS Debugging support"
 	depends on XFS_FS

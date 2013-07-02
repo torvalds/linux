@@ -157,7 +157,7 @@ static int vt8500_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
 	divisor =  parent_rate / rate;
 
 	/* If prate / rate would be decimal, incr the divisor */
-	if (rate * divisor < *prate)
+	if (rate * divisor < parent_rate)
 		divisor++;
 
 	if (divisor == cdev->div_mask + 1)
@@ -183,7 +183,7 @@ static int vt8500_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
 	writel(divisor, cdev->div_reg);
 	vt8500_pmc_wait_busy();
 
-	spin_lock_irqsave(cdev->lock, flags);
+	spin_unlock_irqrestore(cdev->lock, flags);
 
 	return 0;
 }
@@ -488,6 +488,7 @@ static int vtwm_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	case PLL_TYPE_WM8750:
 		wm8750_find_pll_bits(rate, parent_rate, &filter, &mul, &div1, &div2);
 		pll_val = WM8750_BITS_TO_VAL(filter, mul, div1, div2);
+		break;
 	default:
 		pr_err("%s: invalid pll type\n", __func__);
 		return 0;
@@ -523,6 +524,7 @@ static long vtwm_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	case PLL_TYPE_WM8750:
 		wm8750_find_pll_bits(rate, *prate, &filter, &mul, &div1, &div2);
 		round_rate = WM8750_BITS_TO_FREQ(*prate, mul, div1, div2);
+		break;
 	default:
 		round_rate = 0;
 	}

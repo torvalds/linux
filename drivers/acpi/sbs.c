@@ -521,19 +521,6 @@ acpi_sbs_add_fs(struct proc_dir_entry **dir,
 	return 0;
 }
 
-static void
-acpi_sbs_remove_fs(struct proc_dir_entry **dir,
-			   struct proc_dir_entry *parent_dir)
-{
-	if (*dir) {
-		remove_proc_entry(ACPI_SBS_FILE_INFO, *dir);
-		remove_proc_entry(ACPI_SBS_FILE_STATE, *dir);
-		remove_proc_entry(ACPI_SBS_FILE_ALARM, *dir);
-		remove_proc_entry((*dir)->name, parent_dir);
-		*dir = NULL;
-	}
-}
-
 /* Smart Battery Interface */
 static struct proc_dir_entry *acpi_battery_dir = NULL;
 
@@ -584,7 +571,7 @@ static int acpi_battery_read_info(struct seq_file *seq, void *offset)
 
 static int acpi_battery_info_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_battery_read_info, PDE(inode)->data);
+	return single_open(file, acpi_battery_read_info, PDE_DATA(inode));
 }
 
 static int acpi_battery_read_state(struct seq_file *seq, void *offset)
@@ -623,7 +610,7 @@ static int acpi_battery_read_state(struct seq_file *seq, void *offset)
 
 static int acpi_battery_state_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_battery_read_state, PDE(inode)->data);
+	return single_open(file, acpi_battery_read_state, PDE_DATA(inode));
 }
 
 static int acpi_battery_read_alarm(struct seq_file *seq, void *offset)
@@ -688,7 +675,7 @@ acpi_battery_write_alarm(struct file *file, const char __user * buffer,
 
 static int acpi_battery_alarm_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_battery_read_alarm, PDE(inode)->data);
+	return single_open(file, acpi_battery_read_alarm, PDE_DATA(inode));
 }
 
 static const struct file_operations acpi_battery_info_fops = {
@@ -736,7 +723,7 @@ static int acpi_ac_read_state(struct seq_file *seq, void *offset)
 
 static int acpi_ac_state_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_ac_read_state, PDE(inode)->data);
+	return single_open(file, acpi_ac_read_state, PDE_DATA(inode));
 }
 
 static const struct file_operations acpi_ac_state_fops = {
@@ -836,8 +823,8 @@ static void acpi_battery_remove(struct acpi_sbs *sbs, int id)
 		power_supply_unregister(&battery->bat);
 	}
 #ifdef CONFIG_ACPI_PROCFS_POWER
-	if (battery->proc_entry)
-		acpi_sbs_remove_fs(&battery->proc_entry, acpi_battery_dir);
+	proc_remove(battery->proc_entry);
+	battery->proc_entry = NULL;
 #endif
 }
 
@@ -873,8 +860,8 @@ static void acpi_charger_remove(struct acpi_sbs *sbs)
 	if (sbs->charger.dev)
 		power_supply_unregister(&sbs->charger);
 #ifdef CONFIG_ACPI_PROCFS_POWER
-	if (sbs->charger_entry)
-		acpi_sbs_remove_fs(&sbs->charger_entry, acpi_ac_dir);
+	proc_remove(sbs->charger_entry);
+	sbs->charger_entry = NULL;
 #endif
 }
 

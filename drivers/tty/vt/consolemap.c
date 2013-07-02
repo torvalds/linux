@@ -194,8 +194,7 @@ static void set_inverse_transl(struct vc_data *conp, struct uni_pagedir *p, int 
 	q = p->inverse_translations[i];
 
 	if (!q) {
-		q = p->inverse_translations[i] = (unsigned char *) 
-			kmalloc(MAX_GLYPH, GFP_KERNEL);
+		q = p->inverse_translations[i] = kmalloc(MAX_GLYPH, GFP_KERNEL);
 		if (!q) return;
 	}
 	memset(q, 0, MAX_GLYPH);

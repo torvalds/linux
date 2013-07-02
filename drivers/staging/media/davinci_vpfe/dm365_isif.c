@@ -685,7 +685,7 @@ static void isif_config_bclamp(struct vpfe_isif_device *isif,
 	val = (bc->bc_mode_color & ISIF_BC_MODE_COLOR_MASK) <<
 		ISIF_BC_MODE_COLOR_SHIFT;
 
-	/* Enable BC and horizontal clamp caculation paramaters */
+	/* Enable BC and horizontal clamp calculation paramaters */
 	val = val | 1 | ((bc->horz.mode & ISIF_HORZ_BC_MODE_MASK) <<
 	      ISIF_HORZ_BC_MODE_SHIFT);
 
@@ -722,7 +722,7 @@ static void isif_config_bclamp(struct vpfe_isif_device *isif,
 		isif_write(isif->isif_cfg.base_addr, val, CLHWIN2);
 	}
 
-	/* vertical clamp caculation paramaters */
+	/* vertical clamp calculation paramaters */
 	/* OB H Valid */
 	val = bc->vert.ob_h_sz_calc & ISIF_VERT_BC_OB_H_SZ_MASK;
 
@@ -1569,7 +1569,7 @@ isif_pad_set_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 		crop->rect.width = format->width;
 		crop->rect.height = format->height;
 	}
-	/* adjust the width to 16 pixel boundry */
+	/* adjust the width to 16 pixel boundary */
 	crop->rect.width = ((crop->rect.width + 15) & ~0xf);
 	vpfe_isif->crop = crop->rect;
 	if (crop->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
@@ -1953,7 +1953,7 @@ static void isif_remove(struct vpfe_isif_device *isif,
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (res)
 			release_mem_region(res->start,
-					   res->end - res->start + 1);
+					   resource_size(res));
 		i++;
 	}
 }
@@ -2003,7 +2003,7 @@ int vpfe_isif_init(struct vpfe_isif_device *isif, struct platform_device *pdev)
 			status = -ENOENT;
 			goto fail_nobase_res;
 		}
-		res_len = res->end - res->start + 1;
+		res_len = resource_size(res);
 		res = request_mem_region(res->start, res_len, res->name);
 		if (!res) {
 			status = -EBUSY;

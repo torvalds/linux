@@ -2030,7 +2030,7 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 
 	if (p->vlan_valid) {
 		qs->port_stats[SGE_PSTAT_VLANEX]++;
-		__vlan_hwaccel_put_tag(skb, ntohs(p->vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(p->vlan));
 	}
 	if (rq->polling) {
 		if (lro)
@@ -2132,7 +2132,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 
 	if (cpl->vlan_valid) {
 		qs->port_stats[SGE_PSTAT_VLANEX]++;
-		__vlan_hwaccel_put_tag(skb, ntohs(cpl->vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(cpl->vlan));
 	}
 	napi_gro_frags(&qs->napi);
 }

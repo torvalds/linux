@@ -177,10 +177,7 @@ static void metrousb_cleanup(struct usb_serial_port *port)
 	usb_unlink_urb(port->interrupt_in_urb);
 	usb_kill_urb(port->interrupt_in_urb);
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (!port->serial->disconnected)
-		metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
-	mutex_unlock(&port->serial->disc_mutex);
+	metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
 }
 
 static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)

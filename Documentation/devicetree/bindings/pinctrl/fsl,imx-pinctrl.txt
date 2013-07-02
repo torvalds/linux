@@ -24,9 +24,9 @@ Required properties for iomux controller:
 Required properties for pin configuration node:
 - fsl,pins: two integers array, represents a group of pins mux and config
   setting. The format is fsl,pins = <PIN_FUNC_ID CONFIG>, PIN_FUNC_ID is a
-  pin working on a specific function, CONFIG is the pad setting value like
-  pull-up on this pin. Please refer to fsl,<soc>-pinctrl.txt for the valid
-  pins and functions of each SoC.
+  pin working on a specific function, which consists of a tuple of
+  <mux_reg conf_reg input_reg mux_val input_val>.  CONFIG is the pad setting
+  value like pull-up on this pin.
 
 Bits used for CONFIG:
 NO_PAD_CTL(1 << 31): indicate this pin does not need config.

@@ -41,9 +41,8 @@ uvc_send_response(struct uvc_device *uvc, struct uvc_request_data *data)
 
 	req->length = min_t(unsigned int, uvc->event_length, data->length);
 	req->zero = data->length < uvc->event_length;
-	req->dma = DMA_ADDR_INVALID;
 
-	memcpy(req->buf, data->data, data->length);
+	memcpy(req->buf, data->data, req->length);
 
 	return usb_ep_queue(cdev->gadget->ep0, req, GFP_KERNEL);
 }
@@ -148,16 +147,13 @@ uvc_v4l2_release(struct file *file)
 	uvc_function_disconnect(uvc);
 
 	uvc_video_enable(video, 0);
-	mutex_lock(&video->queue.mutex);
-	if (uvc_free_buffers(&video->queue) < 0)
-		printk(KERN_ERR "uvc_v4l2_release: Unable to free "
-				"buffers.\n");
-	mutex_unlock(&video->queue.mutex);
+	uvc_free_buffers(&video->queue);
 
 	file->private_data = NULL;
 	v4l2_fh_del(&handle->vfh);
 	v4l2_fh_exit(&handle->vfh);
 	kfree(handle);
+
 	return 0;
 }
 
@@ -178,9 +174,9 @@ uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_capability *cap = arg;
 
 		memset(cap, 0, sizeof *cap);
-		strncpy(cap->driver, "g_uvc", sizeof(cap->driver));
-		strncpy(cap->card, cdev->gadget->name, sizeof(cap->card));
-		strncpy(cap->bus_info, dev_name(&cdev->gadget->dev),
+		strlcpy(cap->driver, "g_uvc", sizeof(cap->driver));
+		strlcpy(cap->card, cdev->gadget->name, sizeof(cap->card));
+		strlcpy(cap->bus_info, dev_name(&cdev->gadget->dev),
 			sizeof cap->bus_info);
 		cap->version = DRIVER_VERSION_NUMBER;
 		cap->capabilities = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
@@ -192,7 +188,7 @@ uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		struct v4l2_format *fmt = arg;
 
-		if (fmt->type != video->queue.type)
+		if (fmt->type != video->queue.queue.type)
 			return -EINVAL;
 
 		return uvc_v4l2_get_format(video, fmt);
@@ -202,7 +198,7 @@ uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		struct v4l2_format *fmt = arg;
 
-		if (fmt->type != video->queue.type)
+		if (fmt->type != video->queue.queue.type)
 			return -EINVAL;
 
 		return uvc_v4l2_set_format(video, fmt);
@@ -213,16 +209,13 @@ uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		struct v4l2_requestbuffers *rb = arg;
 
-		if (rb->type != video->queue.type ||
-		    rb->memory != V4L2_MEMORY_MMAP)
+		if (rb->type != video->queue.queue.type)
 			return -EINVAL;
 
-		ret = uvc_alloc_buffers(&video->queue, rb->count,
-					video->imagesize);
+		ret = uvc_alloc_buffers(&video->queue, rb);
 		if (ret < 0)
 			return ret;
 
-		rb->count = ret;
 		ret = 0;
 		break;
 	}
@@ -230,9 +223,6 @@ uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_QUERYBUF:
 	{
 		struct v4l2_buffer *buf = arg;
-
-		if (buf->type != video->queue.type)
-			return -EINVAL;
 
 		return uvc_query_buffer(&video->queue, buf);
 	}
@@ -251,24 +241,36 @@ uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		int *type = arg;
 
-		if (*type != video->queue.type)
+		if (*type != video->queue.queue.type)
 			return -EINVAL;
 
-		return uvc_video_enable(video, 1);
+		/* Enable UVC video. */
+		ret = uvc_video_enable(video, 1);
+		if (ret < 0)
+			return ret;
+
+		/*
+		 * Complete the alternate setting selection setup phase now that
+		 * userspace is ready to provide video frames.
+		 */
+		uvc_function_setup_continue(uvc);
+		uvc->state = UVC_STATE_STREAMING;
+
+		return 0;
 	}
 
 	case VIDIOC_STREAMOFF:
 	{
 		int *type = arg;
 
-		if (*type != video->queue.type)
+		if (*type != video->queue.queue.type)
 			return -EINVAL;
 
 		return uvc_video_enable(video, 0);
 	}
 
 	/* Events */
-        case VIDIOC_DQEVENT:
+	case VIDIOC_DQEVENT:
 	{
 		struct v4l2_event *event = arg;
 
@@ -333,17 +335,21 @@ uvc_v4l2_poll(struct file *file, poll_table *wait)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct uvc_device *uvc = video_get_drvdata(vdev);
-	struct uvc_file_handle *handle = to_uvc_file_handle(file->private_data);
-	unsigned int mask = 0;
 
-	poll_wait(file, &handle->vfh.wait, wait);
-	if (v4l2_event_pending(&handle->vfh))
-		mask |= POLLPRI;
-
-	mask |= uvc_queue_poll(&uvc->video.queue, file, wait);
-
-	return mask;
+	return uvc_queue_poll(&uvc->video.queue, file, wait);
 }
+
+#ifndef CONFIG_MMU
+static unsigned long uvc_v4l2_get_unmapped_area(struct file *file,
+		unsigned long addr, unsigned long len, unsigned long pgoff,
+		unsigned long flags)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct uvc_device *uvc = video_get_drvdata(vdev);
+
+	return uvc_queue_get_unmapped_area(&uvc->video.queue, pgoff);
+}
+#endif
 
 static struct v4l2_file_operations uvc_v4l2_fops = {
 	.owner		= THIS_MODULE,
@@ -352,5 +358,8 @@ static struct v4l2_file_operations uvc_v4l2_fops = {
 	.ioctl		= uvc_v4l2_ioctl,
 	.mmap		= uvc_v4l2_mmap,
 	.poll		= uvc_v4l2_poll,
+#ifndef CONFIG_MMU
+	.get_unmapped_area = uvc_v4l2_get_unmapped_area,
+#endif
 };
 

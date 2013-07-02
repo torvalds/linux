@@ -571,7 +571,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 		chan->conn = NULL;
 
 		if (chan->chan_type != L2CAP_CHAN_CONN_FIX_A2MP)
-			hci_conn_put(conn->hcon);
+			hci_conn_drop(conn->hcon);
 
 		if (mgr && mgr->bredr_chan == chan)
 			mgr->bredr_chan = NULL;
@@ -1446,6 +1446,89 @@ static void l2cap_info_timeout(struct work_struct *work)
 	l2cap_conn_start(conn);
 }
 
+/*
+ * l2cap_user
+ * External modules can register l2cap_user objects on l2cap_conn. The ->probe
+ * callback is called during registration. The ->remove callback is called
+ * during unregistration.
+ * An l2cap_user object can either be explicitly unregistered or when the
+ * underlying l2cap_conn object is deleted. This guarantees that l2cap->hcon,
+ * l2cap->hchan, .. are valid as long as the remove callback hasn't been called.
+ * External modules must own a reference to the l2cap_conn object if they intend
+ * to call l2cap_unregister_user(). The l2cap_conn object might get destroyed at
+ * any time if they don't.
+ */
+
+int l2cap_register_user(struct l2cap_conn *conn, struct l2cap_user *user)
+{
+	struct hci_dev *hdev = conn->hcon->hdev;
+	int ret;
+
+	/* We need to check whether l2cap_conn is registered. If it is not, we
+	 * must not register the l2cap_user. l2cap_conn_del() is unregisters
+	 * l2cap_conn objects, but doesn't provide its own locking. Instead, it
+	 * relies on the parent hci_conn object to be locked. This itself relies
+	 * on the hci_dev object to be locked. So we must lock the hci device
+	 * here, too. */
+
+	hci_dev_lock(hdev);
+
+	if (user->list.next || user->list.prev) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	/* conn->hchan is NULL after l2cap_conn_del() was called */
+	if (!conn->hchan) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	ret = user->probe(conn, user);
+	if (ret)
+		goto out_unlock;
+
+	list_add(&user->list, &conn->users);
+	ret = 0;
+
+out_unlock:
+	hci_dev_unlock(hdev);
+	return ret;
+}
+EXPORT_SYMBOL(l2cap_register_user);
+
+void l2cap_unregister_user(struct l2cap_conn *conn, struct l2cap_user *user)
+{
+	struct hci_dev *hdev = conn->hcon->hdev;
+
+	hci_dev_lock(hdev);
+
+	if (!user->list.next || !user->list.prev)
+		goto out_unlock;
+
+	list_del(&user->list);
+	user->list.next = NULL;
+	user->list.prev = NULL;
+	user->remove(conn, user);
+
+out_unlock:
+	hci_dev_unlock(hdev);
+}
+EXPORT_SYMBOL(l2cap_unregister_user);
+
+static void l2cap_unregister_all_users(struct l2cap_conn *conn)
+{
+	struct l2cap_user *user;
+
+	while (!list_empty(&conn->users)) {
+		user = list_first_entry(&conn->users, struct l2cap_user, list);
+		list_del(&user->list);
+		user->list.next = NULL;
+		user->list.prev = NULL;
+		user->remove(conn, user);
+	}
+}
+
 static void l2cap_conn_del(struct hci_conn *hcon, int err)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
@@ -1457,6 +1540,8 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	BT_DBG("hcon %p conn %p, err %d", hcon, conn, err);
 
 	kfree_skb(conn->rx_skb);
+
+	l2cap_unregister_all_users(conn);
 
 	mutex_lock(&conn->chan_lock);
 
@@ -1486,7 +1571,8 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	}
 
 	hcon->l2cap_data = NULL;
-	kfree(conn);
+	conn->hchan = NULL;
+	l2cap_conn_put(conn);
 }
 
 static void security_timeout(struct work_struct *work)
@@ -1502,12 +1588,12 @@ static void security_timeout(struct work_struct *work)
 	}
 }
 
-static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
+static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct hci_chan *hchan;
 
-	if (conn || status)
+	if (conn)
 		return conn;
 
 	hchan = hci_chan_create(hcon);
@@ -1520,8 +1606,10 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 		return NULL;
 	}
 
+	kref_init(&conn->ref);
 	hcon->l2cap_data = conn;
 	conn->hcon = hcon;
+	hci_conn_get(conn->hcon);
 	conn->hchan = hchan;
 
 	BT_DBG("hcon %p conn %p hchan %p", hcon, conn, hchan);
@@ -1547,6 +1635,7 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 	mutex_init(&conn->chan_lock);
 
 	INIT_LIST_HEAD(&conn->chan_l);
+	INIT_LIST_HEAD(&conn->users);
 
 	if (hcon->type == LE_LINK)
 		INIT_DELAYED_WORK(&conn->security_timer, security_timeout);
@@ -1557,6 +1646,26 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 
 	return conn;
 }
+
+static void l2cap_conn_free(struct kref *ref)
+{
+	struct l2cap_conn *conn = container_of(ref, struct l2cap_conn, ref);
+
+	hci_conn_put(conn->hcon);
+	kfree(conn);
+}
+
+void l2cap_conn_get(struct l2cap_conn *conn)
+{
+	kref_get(&conn->ref);
+}
+EXPORT_SYMBOL(l2cap_conn_get);
+
+void l2cap_conn_put(struct l2cap_conn *conn)
+{
+	kref_put(&conn->ref, l2cap_conn_free);
+}
+EXPORT_SYMBOL(l2cap_conn_put);
 
 /* ---- Socket interface ---- */
 
@@ -1695,9 +1804,9 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		goto done;
 	}
 
-	conn = l2cap_conn_add(hcon, 0);
+	conn = l2cap_conn_add(hcon);
 	if (!conn) {
-		hci_conn_put(hcon);
+		hci_conn_drop(hcon);
 		err = -ENOMEM;
 		goto done;
 	}
@@ -1707,7 +1816,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 		if (!list_empty(&conn->chan_l)) {
 			err = -EBUSY;
-			hci_conn_put(hcon);
+			hci_conn_drop(hcon);
 		}
 
 		if (err)
@@ -6205,12 +6314,13 @@ drop:
 	kfree_skb(skb);
 }
 
-static void l2cap_att_channel(struct l2cap_conn *conn, u16 cid,
+static void l2cap_att_channel(struct l2cap_conn *conn,
 			      struct sk_buff *skb)
 {
 	struct l2cap_chan *chan;
 
-	chan = l2cap_global_chan_by_scid(0, cid, conn->src, conn->dst);
+	chan = l2cap_global_chan_by_scid(0, L2CAP_CID_LE_DATA,
+					 conn->src, conn->dst);
 	if (!chan)
 		goto drop;
 
@@ -6259,7 +6369,7 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 		break;
 
 	case L2CAP_CID_LE_DATA:
-		l2cap_att_channel(conn, cid, skb);
+		l2cap_att_channel(conn, skb);
 		break;
 
 	case L2CAP_CID_SMP:
@@ -6313,7 +6423,7 @@ void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 	BT_DBG("hcon %p bdaddr %pMR status %d", hcon, &hcon->dst, status);
 
 	if (!status) {
-		conn = l2cap_conn_add(hcon, status);
+		conn = l2cap_conn_add(hcon);
 		if (conn)
 			l2cap_conn_ready(conn);
 	} else {
@@ -6482,7 +6592,7 @@ int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 		goto drop;
 
 	if (!conn)
-		conn = l2cap_conn_add(hcon, 0);
+		conn = l2cap_conn_add(hcon);
 
 	if (!conn)
 		goto drop;

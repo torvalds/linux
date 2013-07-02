@@ -63,11 +63,10 @@ cifs_idmap_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 		key->datalen = prep->datalen;
 		return 0;
 	}
-	payload = kmalloc(prep->datalen, GFP_KERNEL);
+	payload = kmemdup(prep->data, prep->datalen, GFP_KERNEL);
 	if (!payload)
 		return -ENOMEM;
 
-	memcpy(payload, prep->data, prep->datalen);
 	key->payload.data = payload;
 	key->datalen = prep->datalen;
 	return 0;
@@ -219,13 +218,13 @@ id_to_sid(unsigned int cid, uint sidtype, struct cifs_sid *ssid)
 	sidkey = request_key(&cifs_idmap_key_type, desc, "");
 	if (IS_ERR(sidkey)) {
 		rc = -EINVAL;
-		cFYI(1, "%s: Can't map %cid %u to a SID", __func__,
-			sidtype == SIDOWNER ? 'u' : 'g', cid);
+		cifs_dbg(FYI, "%s: Can't map %cid %u to a SID\n",
+			 __func__, sidtype == SIDOWNER ? 'u' : 'g', cid);
 		goto out_revert_creds;
 	} else if (sidkey->datalen < CIFS_SID_BASE_SIZE) {
 		rc = -EIO;
-		cFYI(1, "%s: Downcall contained malformed key "
-			"(datalen=%hu)", __func__, sidkey->datalen);
+		cifs_dbg(FYI, "%s: Downcall contained malformed key (datalen=%hu)\n",
+			 __func__, sidkey->datalen);
 		goto invalidate_key;
 	}
 
@@ -241,8 +240,8 @@ id_to_sid(unsigned int cid, uint sidtype, struct cifs_sid *ssid)
 	ksid_size = CIFS_SID_BASE_SIZE + (ksid->num_subauth * sizeof(__le32));
 	if (ksid_size > sidkey->datalen) {
 		rc = -EIO;
-		cFYI(1, "%s: Downcall contained malformed key (datalen=%hu, "
-			"ksid_size=%u)", __func__, sidkey->datalen, ksid_size);
+		cifs_dbg(FYI, "%s: Downcall contained malformed key (datalen=%hu, ksid_size=%u)\n",
+			 __func__, sidkey->datalen, ksid_size);
 		goto invalidate_key;
 	}
 
@@ -274,8 +273,8 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 	 * Just return an error.
 	 */
 	if (unlikely(psid->num_subauth > SID_MAX_SUB_AUTHORITIES)) {
-		cFYI(1, "%s: %u subauthorities is too many!", __func__,
-			psid->num_subauth);
+		cifs_dbg(FYI, "%s: %u subauthorities is too many!\n",
+			 __func__, psid->num_subauth);
 		return -EIO;
 	}
 
@@ -287,8 +286,8 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 	sidkey = request_key(&cifs_idmap_key_type, sidstr, "");
 	if (IS_ERR(sidkey)) {
 		rc = -EINVAL;
-		cFYI(1, "%s: Can't map SID %s to a %cid", __func__, sidstr,
-			sidtype == SIDOWNER ? 'u' : 'g');
+		cifs_dbg(FYI, "%s: Can't map SID %s to a %cid\n",
+			 __func__, sidstr, sidtype == SIDOWNER ? 'u' : 'g');
 		goto out_revert_creds;
 	}
 
@@ -300,8 +299,8 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 	BUILD_BUG_ON(sizeof(uid_t) != sizeof(gid_t));
 	if (sidkey->datalen != sizeof(uid_t)) {
 		rc = -EIO;
-		cFYI(1, "%s: Downcall contained malformed key "
-			"(datalen=%hu)", __func__, sidkey->datalen);
+		cifs_dbg(FYI, "%s: Downcall contained malformed key (datalen=%hu)\n",
+			 __func__, sidkey->datalen);
 		key_invalidate(sidkey);
 		goto out_key_put;
 	}
@@ -346,7 +345,8 @@ init_cifs_idmap(void)
 	struct key *keyring;
 	int ret;
 
-	cFYI(1, "Registering the %s key type", cifs_idmap_key_type.name);
+	cifs_dbg(FYI, "Registering the %s key type\n",
+		 cifs_idmap_key_type.name);
 
 	/* create an override credential set with a special thread keyring in
 	 * which requests are cached
@@ -379,7 +379,7 @@ init_cifs_idmap(void)
 	cred->jit_keyring = KEY_REQKEY_DEFL_THREAD_KEYRING;
 	root_cred = cred;
 
-	cFYI(1, "cifs idmap keyring: %d", key_serial(keyring));
+	cifs_dbg(FYI, "cifs idmap keyring: %d\n", key_serial(keyring));
 	return 0;
 
 failed_put_key:
@@ -395,7 +395,7 @@ exit_cifs_idmap(void)
 	key_revoke(root_cred->thread_keyring);
 	unregister_key_type(&cifs_idmap_key_type);
 	put_cred(root_cred);
-	cFYI(1, "Unregistered %s key type", cifs_idmap_key_type.name);
+	cifs_dbg(FYI, "Unregistered %s key type\n", cifs_idmap_key_type.name);
 }
 
 /* copy ntsd, owner sid, and group sid from a security descriptor to another */
@@ -462,14 +462,14 @@ static void access_flags_to_mode(__le32 ace_flags, int type, umode_t *pmode,
 			*pbits_to_set &= ~S_IXUGO;
 		return;
 	} else if (type != ACCESS_ALLOWED) {
-		cERROR(1, "unknown access control type %d", type);
+		cifs_dbg(VFS, "unknown access control type %d\n", type);
 		return;
 	}
 	/* else ACCESS_ALLOWED type */
 
 	if (flags & GENERIC_ALL) {
 		*pmode |= (S_IRWXUGO & (*pbits_to_set));
-		cFYI(DBG2, "all perms");
+		cifs_dbg(NOISY, "all perms\n");
 		return;
 	}
 	if ((flags & GENERIC_WRITE) ||
@@ -482,7 +482,7 @@ static void access_flags_to_mode(__le32 ace_flags, int type, umode_t *pmode,
 			((flags & FILE_EXEC_RIGHTS) == FILE_EXEC_RIGHTS))
 		*pmode |= (S_IXUGO & (*pbits_to_set));
 
-	cFYI(DBG2, "access flags 0x%x mode now 0x%x", flags, *pmode);
+	cifs_dbg(NOISY, "access flags 0x%x mode now 0x%x\n", flags, *pmode);
 	return;
 }
 
@@ -511,7 +511,8 @@ static void mode_to_access_flags(umode_t mode, umode_t bits_to_use,
 	if (mode & S_IXUGO)
 		*pace_flags |= SET_FILE_EXEC_RIGHTS;
 
-	cFYI(DBG2, "mode: 0x%x, access flags now 0x%x", mode, *pace_flags);
+	cifs_dbg(NOISY, "mode: 0x%x, access flags now 0x%x\n",
+		 mode, *pace_flags);
 	return;
 }
 
@@ -551,24 +552,24 @@ static void dump_ace(struct cifs_ace *pace, char *end_of_acl)
 	/* validate that we do not go past end of acl */
 
 	if (le16_to_cpu(pace->size) < 16) {
-		cERROR(1, "ACE too small %d", le16_to_cpu(pace->size));
+		cifs_dbg(VFS, "ACE too small %d\n", le16_to_cpu(pace->size));
 		return;
 	}
 
 	if (end_of_acl < (char *)pace + le16_to_cpu(pace->size)) {
-		cERROR(1, "ACL too small to parse ACE");
+		cifs_dbg(VFS, "ACL too small to parse ACE\n");
 		return;
 	}
 
 	num_subauth = pace->sid.num_subauth;
 	if (num_subauth) {
 		int i;
-		cFYI(1, "ACE revision %d num_auth %d type %d flags %d size %d",
-			pace->sid.revision, pace->sid.num_subauth, pace->type,
-			pace->flags, le16_to_cpu(pace->size));
+		cifs_dbg(FYI, "ACE revision %d num_auth %d type %d flags %d size %d\n",
+			 pace->sid.revision, pace->sid.num_subauth, pace->type,
+			 pace->flags, le16_to_cpu(pace->size));
 		for (i = 0; i < num_subauth; ++i) {
-			cFYI(1, "ACE sub_auth[%d]: 0x%x", i,
-				le32_to_cpu(pace->sid.sub_auth[i]));
+			cifs_dbg(FYI, "ACE sub_auth[%d]: 0x%x\n",
+				 i, le32_to_cpu(pace->sid.sub_auth[i]));
 		}
 
 		/* BB add length check to make sure that we do not have huge
@@ -601,13 +602,13 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 
 	/* validate that we do not go past end of acl */
 	if (end_of_acl < (char *)pdacl + le16_to_cpu(pdacl->size)) {
-		cERROR(1, "ACL too small to parse DACL");
+		cifs_dbg(VFS, "ACL too small to parse DACL\n");
 		return;
 	}
 
-	cFYI(DBG2, "DACL revision %d size %d num aces %d",
-		le16_to_cpu(pdacl->revision), le16_to_cpu(pdacl->size),
-		le32_to_cpu(pdacl->num_aces));
+	cifs_dbg(NOISY, "DACL revision %d size %d num aces %d\n",
+		 le16_to_cpu(pdacl->revision), le16_to_cpu(pdacl->size),
+		 le32_to_cpu(pdacl->num_aces));
 
 	/* reset rwx permissions for user/group/other.
 	   Also, if num_aces is 0 i.e. DACL has no ACEs,
@@ -627,10 +628,8 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 			return;
 		ppace = kmalloc(num_aces * sizeof(struct cifs_ace *),
 				GFP_KERNEL);
-		if (!ppace) {
-			cERROR(1, "DACL memory allocation error");
+		if (!ppace)
 			return;
-		}
 
 		for (i = 0; i < num_aces; ++i) {
 			ppace[i] = (struct cifs_ace *) (acl_base + acl_size);
@@ -703,25 +702,25 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 	/* validate that we do not go past end of ACL - sid must be at least 8
 	   bytes long (assuming no sub-auths - e.g. the null SID */
 	if (end_of_acl < (char *)psid + 8) {
-		cERROR(1, "ACL too small to parse SID %p", psid);
+		cifs_dbg(VFS, "ACL too small to parse SID %p\n", psid);
 		return -EINVAL;
 	}
 
 #ifdef CONFIG_CIFS_DEBUG2
 	if (psid->num_subauth) {
 		int i;
-		cFYI(1, "SID revision %d num_auth %d",
-			psid->revision, psid->num_subauth);
+		cifs_dbg(FYI, "SID revision %d num_auth %d\n",
+			 psid->revision, psid->num_subauth);
 
 		for (i = 0; i < psid->num_subauth; i++) {
-			cFYI(1, "SID sub_auth[%d]: 0x%x ", i,
-				le32_to_cpu(psid->sub_auth[i]));
+			cifs_dbg(FYI, "SID sub_auth[%d]: 0x%x\n",
+				 i, le32_to_cpu(psid->sub_auth[i]));
 		}
 
 		/* BB add length check to make sure that we do not have huge
 			num auths and therefore go off the end */
-		cFYI(1, "RID 0x%x",
-			le32_to_cpu(psid->sub_auth[psid->num_subauth-1]));
+		cifs_dbg(FYI, "RID 0x%x\n",
+			 le32_to_cpu(psid->sub_auth[psid->num_subauth-1]));
 	}
 #endif
 
@@ -748,31 +747,33 @@ static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
 				le32_to_cpu(pntsd->gsidoffset));
 	dacloffset = le32_to_cpu(pntsd->dacloffset);
 	dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
-	cFYI(DBG2, "revision %d type 0x%x ooffset 0x%x goffset 0x%x "
-		 "sacloffset 0x%x dacloffset 0x%x",
+	cifs_dbg(NOISY, "revision %d type 0x%x ooffset 0x%x goffset 0x%x sacloffset 0x%x dacloffset 0x%x\n",
 		 pntsd->revision, pntsd->type, le32_to_cpu(pntsd->osidoffset),
 		 le32_to_cpu(pntsd->gsidoffset),
 		 le32_to_cpu(pntsd->sacloffset), dacloffset);
 /*	cifs_dump_mem("owner_sid: ", owner_sid_ptr, 64); */
 	rc = parse_sid(owner_sid_ptr, end_of_acl);
 	if (rc) {
-		cFYI(1, "%s: Error %d parsing Owner SID", __func__, rc);
+		cifs_dbg(FYI, "%s: Error %d parsing Owner SID\n", __func__, rc);
 		return rc;
 	}
 	rc = sid_to_id(cifs_sb, owner_sid_ptr, fattr, SIDOWNER);
 	if (rc) {
-		cFYI(1, "%s: Error %d mapping Owner SID to uid", __func__, rc);
+		cifs_dbg(FYI, "%s: Error %d mapping Owner SID to uid\n",
+			 __func__, rc);
 		return rc;
 	}
 
 	rc = parse_sid(group_sid_ptr, end_of_acl);
 	if (rc) {
-		cFYI(1, "%s: Error %d mapping Owner SID to gid", __func__, rc);
+		cifs_dbg(FYI, "%s: Error %d mapping Owner SID to gid\n",
+			 __func__, rc);
 		return rc;
 	}
 	rc = sid_to_id(cifs_sb, group_sid_ptr, fattr, SIDGROUP);
 	if (rc) {
-		cFYI(1, "%s: Error %d mapping Group SID to gid", __func__, rc);
+		cifs_dbg(FYI, "%s: Error %d mapping Group SID to gid\n",
+			 __func__, rc);
 		return rc;
 	}
 
@@ -780,7 +781,7 @@ static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
 		parse_dacl(dacl_ptr, end_of_acl, owner_sid_ptr,
 			   group_sid_ptr, fattr);
 	else
-		cFYI(1, "no ACL"); /* BB grant all or default perms? */
+		cifs_dbg(FYI, "no ACL\n"); /* BB grant all or default perms? */
 
 	return rc;
 }
@@ -830,8 +831,8 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 			id = from_kuid(&init_user_ns, uid);
 			rc = id_to_sid(id, SIDOWNER, nowner_sid_ptr);
 			if (rc) {
-				cFYI(1, "%s: Mapping error %d for owner id %d",
-						__func__, rc, id);
+				cifs_dbg(FYI, "%s: Mapping error %d for owner id %d\n",
+					 __func__, rc, id);
 				kfree(nowner_sid_ptr);
 				return rc;
 			}
@@ -850,8 +851,8 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 			id = from_kgid(&init_user_ns, gid);
 			rc = id_to_sid(id, SIDGROUP, ngroup_sid_ptr);
 			if (rc) {
-				cFYI(1, "%s: Mapping error %d for group id %d",
-						__func__, rc, id);
+				cifs_dbg(FYI, "%s: Mapping error %d for group id %d\n",
+					 __func__, rc, id);
 				kfree(ngroup_sid_ptr);
 				return rc;
 			}
@@ -881,7 +882,7 @@ static struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb,
 
 	cifs_put_tlink(tlink);
 
-	cFYI(1, "%s: rc = %d ACL len %d", __func__, rc, *pacllen);
+	cifs_dbg(FYI, "%s: rc = %d ACL len %d\n", __func__, rc, *pacllen);
 	if (rc)
 		return ERR_PTR(rc);
 	return pntsd;
@@ -918,7 +919,7 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 	cifs_put_tlink(tlink);
 	free_xid(xid);
 
-	cFYI(1, "%s: rc = %d ACL len %d", __func__, rc, *pacllen);
+	cifs_dbg(FYI, "%s: rc = %d ACL len %d\n", __func__, rc, *pacllen);
 	if (rc)
 		return ERR_PTR(rc);
 	return pntsd;
@@ -972,12 +973,12 @@ int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 			create_options, &fid, &oplock, NULL, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
-		cERROR(1, "Unable to open file to set ACL");
+		cifs_dbg(VFS, "Unable to open file to set ACL\n");
 		goto out;
 	}
 
 	rc = CIFSSMBSetCIFSACL(xid, tcon, fid, pnntsd, acllen, aclflag);
-	cFYI(DBG2, "SetCIFSACL rc = %d", rc);
+	cifs_dbg(NOISY, "SetCIFSACL rc = %d\n", rc);
 
 	CIFSSMBClose(xid, tcon, fid);
 out:
@@ -995,7 +996,7 @@ cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 	u32 acllen = 0;
 	int rc = 0;
 
-	cFYI(DBG2, "converting ACL to mode for %s", path);
+	cifs_dbg(NOISY, "converting ACL to mode for %s\n", path);
 
 	if (pfid)
 		pntsd = get_cifs_acl_by_fid(cifs_sb, *pfid, &acllen);
@@ -1005,12 +1006,12 @@ cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 	/* if we can retrieve the ACL, now parse Access Control Entries, ACEs */
 	if (IS_ERR(pntsd)) {
 		rc = PTR_ERR(pntsd);
-		cERROR(1, "%s: error %d getting sec desc", __func__, rc);
+		cifs_dbg(VFS, "%s: error %d getting sec desc\n", __func__, rc);
 	} else {
 		rc = parse_sec_desc(cifs_sb, pntsd, acllen, fattr);
 		kfree(pntsd);
 		if (rc)
-			cERROR(1, "parse sec desc failed rc = %d", rc);
+			cifs_dbg(VFS, "parse sec desc failed rc = %d\n", rc);
 	}
 
 	return rc;
@@ -1027,13 +1028,13 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 	struct cifs_ntsd *pntsd = NULL; /* acl obtained from server */
 	struct cifs_ntsd *pnntsd = NULL; /* modified acl to be sent to server */
 
-	cFYI(DBG2, "set ACL from mode for %s", path);
+	cifs_dbg(NOISY, "set ACL from mode for %s\n", path);
 
 	/* Get the security descriptor */
 	pntsd = get_cifs_acl(CIFS_SB(inode->i_sb), inode, path, &secdesclen);
 	if (IS_ERR(pntsd)) {
 		rc = PTR_ERR(pntsd);
-		cERROR(1, "%s: error %d getting sec desc", __func__, rc);
+		cifs_dbg(VFS, "%s: error %d getting sec desc\n", __func__, rc);
 		goto out;
 	}
 
@@ -1046,7 +1047,6 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 	secdesclen = max_t(u32, secdesclen, DEFAULT_SEC_DESC_LEN);
 	pnntsd = kmalloc(secdesclen, GFP_KERNEL);
 	if (!pnntsd) {
-		cERROR(1, "Unable to allocate security descriptor");
 		kfree(pntsd);
 		return -ENOMEM;
 	}
@@ -1054,12 +1054,12 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 	rc = build_sec_desc(pntsd, pnntsd, secdesclen, nmode, uid, gid,
 				&aclflag);
 
-	cFYI(DBG2, "build_sec_desc rc: %d", rc);
+	cifs_dbg(NOISY, "build_sec_desc rc: %d\n", rc);
 
 	if (!rc) {
 		/* Set the security descriptor */
 		rc = set_cifs_acl(pnntsd, secdesclen, inode, path, aclflag);
-		cFYI(DBG2, "set_cifs_acl rc: %d", rc);
+		cifs_dbg(NOISY, "set_cifs_acl rc: %d\n", rc);
 	}
 
 	kfree(pnntsd);

@@ -64,6 +64,11 @@ checking of rcu_dereference() primitives:
 		but retain the compiler constraints that prevent duplicating
 		or coalescsing.  This is useful when when testing the
 		value of the pointer itself, for example, against NULL.
+	rcu_access_index(idx):
+		Return the value of the index and omit all barriers, but
+		retain the compiler constraints that prevent duplicating
+		or coalescsing.  This is useful when when testing the
+		value of the index itself, for example, against -1.
 
 The rcu_dereference_check() check expression can be any boolean
 expression, but would normally include a lockdep expression.  However,

@@ -214,7 +214,7 @@ int aac_send_shutdown(struct aac_dev * dev)
 	cmd = (struct aac_close *) fib_data(fibctx);
 
 	cmd->command = cpu_to_le32(VM_CloseAll);
-	cmd->cid = cpu_to_le32(0xffffffff);
+	cmd->cid = cpu_to_le32(0xfffffffe);
 
 	status = aac_fib_send(ContainerCommand,
 			  fibctx,

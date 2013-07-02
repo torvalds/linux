@@ -249,6 +249,7 @@ extern long long virt_phys_offset;
 #define is_kernel_addr(x)	((x) >= PAGE_OFFSET)
 #endif
 
+#ifndef CONFIG_PPC_BOOK3S_64
 /*
  * Use the top bit of the higher-level page table entries to indicate whether
  * the entries we point to contain hugepages.  This works because we know that
@@ -260,6 +261,7 @@ extern long long virt_phys_offset;
 #else
 #define PD_HUGE 0x80000000
 #endif
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 /*
  * Some number of bits at the level of the page table that points to
@@ -354,14 +356,27 @@ typedef unsigned long pgprot_t;
 typedef struct { signed long pd; } hugepd_t;
 
 #ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_PPC_BOOK3S_64
+static inline int hugepd_ok(hugepd_t hpd)
+{
+	/*
+	 * hugepd pointer, bottom two bits == 00 and next 4 bits
+	 * indicate size of table
+	 */
+	return (((hpd.pd & 0x3) == 0x0) && ((hpd.pd & HUGEPD_SHIFT_MASK) != 0));
+}
+#else
 static inline int hugepd_ok(hugepd_t hpd)
 {
 	return (hpd.pd > 0);
 }
+#endif
 
 #define is_hugepd(pdep)               (hugepd_ok(*((hugepd_t *)(pdep))))
+int pgd_huge(pgd_t pgd);
 #else /* CONFIG_HUGETLB_PAGE */
 #define is_hugepd(pdep)			0
+#define pgd_huge(pgd)			0
 #endif /* CONFIG_HUGETLB_PAGE */
 
 struct page;
@@ -378,7 +393,11 @@ void arch_free_page(struct page *page, int order);
 
 struct vm_area_struct;
 
+#ifdef CONFIG_PPC_64K_PAGES
+typedef pte_t *pgtable_t;
+#else
 typedef struct page *pgtable_t;
+#endif
 
 #include <asm-generic/memory_model.h>
 #endif /* __ASSEMBLY__ */

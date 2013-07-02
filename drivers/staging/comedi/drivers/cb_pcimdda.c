@@ -161,14 +161,12 @@ static int cb_pcimdda_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 3);
@@ -201,14 +199,8 @@ static int cb_pcimdda_auto_attach(struct comedi_device *dev,
 
 static void cb_pcimdda_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[1]);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_spriv_free(dev, 1);
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver cb_pcimdda_driver = {
@@ -219,9 +211,10 @@ static struct comedi_driver cb_pcimdda_driver = {
 };
 
 static int cb_pcimdda_pci_probe(struct pci_dev *dev,
-					  const struct pci_device_id *ent)
+				const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &cb_pcimdda_driver);
+	return comedi_pci_auto_config(dev, &cb_pcimdda_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcimdda_pci_table) = {

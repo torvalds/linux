@@ -139,8 +139,8 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 		if (smb_command != SMB_COM_WRITE_ANDX &&
 		    smb_command != SMB_COM_OPEN_ANDX &&
 		    smb_command != SMB_COM_TREE_DISCONNECT) {
-			cFYI(1, "can not send cmd %d while umounting",
-				smb_command);
+			cifs_dbg(FYI, "can not send cmd %d while umounting\n",
+				 smb_command);
 			return -ENODEV;
 		}
 	}
@@ -163,7 +163,7 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 		 * back on-line
 		 */
 		if (!tcon->retry) {
-			cFYI(1, "gave up waiting on reconnect in smb_init");
+			cifs_dbg(FYI, "gave up waiting on reconnect in smb_init\n");
 			return -EHOSTDOWN;
 		}
 	}
@@ -191,7 +191,7 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	cifs_mark_open_files_invalid(tcon);
 	rc = CIFSTCon(0, ses, tcon->treeName, tcon, nls_codepage);
 	mutex_unlock(&ses->session_mutex);
-	cFYI(1, "reconnect tcon rc = %d", rc);
+	cifs_dbg(FYI, "reconnect tcon rc = %d\n", rc);
 
 	if (rc)
 		goto out;
@@ -396,7 +396,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	else /* if override flags set only sign/seal OR them with global auth */
 		secFlags = global_secflags | ses->overrideSecFlg;
 
-	cFYI(1, "secFlags 0x%x", secFlags);
+	cifs_dbg(FYI, "secFlags 0x%x\n", secFlags);
 
 	pSMB->hdr.Mid = get_next_mid(server);
 	pSMB->hdr.Flags2 |= (SMBFLG2_UNICODE | SMBFLG2_ERR_STATUS);
@@ -404,12 +404,12 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	if ((secFlags & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_KRB5) {
-		cFYI(1, "Kerberos only mechanism, enable extended security");
+		cifs_dbg(FYI, "Kerberos only mechanism, enable extended security\n");
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	} else if ((secFlags & CIFSSEC_MUST_NTLMSSP) == CIFSSEC_MUST_NTLMSSP)
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_NTLMSSP) {
-		cFYI(1, "NTLMSSP only mechanism, enable extended security");
+		cifs_dbg(FYI, "NTLMSSP only mechanism, enable extended security\n");
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	}
 
@@ -428,7 +428,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 		goto neg_err_exit;
 
 	server->dialect = le16_to_cpu(pSMBr->DialectIndex);
-	cFYI(1, "Dialect: %d", server->dialect);
+	cifs_dbg(FYI, "Dialect: %d\n", server->dialect);
 	/* Check wct = 1 error case */
 	if ((pSMBr->hdr.WordCount < 13) || (server->dialect == BAD_PROT)) {
 		/* core returns wct = 1, but we do not ask for core - otherwise
@@ -447,8 +447,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 			(secFlags & CIFSSEC_MAY_PLNTXT))
 			server->secType = LANMAN;
 		else {
-			cERROR(1, "mount failed weak security disabled"
-				   " in /proc/fs/cifs/SecurityFlags");
+			cifs_dbg(VFS, "mount failed weak security disabled in /proc/fs/cifs/SecurityFlags\n");
 			rc = -EOPNOTSUPP;
 			goto neg_err_exit;
 		}
@@ -482,9 +481,9 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 			utc = CURRENT_TIME;
 			ts = cnvrtDosUnixTm(rsp->SrvTime.Date,
 					    rsp->SrvTime.Time, 0);
-			cFYI(1, "SrvTime %d sec since 1970 (utc: %d) diff: %d",
-				(int)ts.tv_sec, (int)utc.tv_sec,
-				(int)(utc.tv_sec - ts.tv_sec));
+			cifs_dbg(FYI, "SrvTime %d sec since 1970 (utc: %d) diff: %d\n",
+				 (int)ts.tv_sec, (int)utc.tv_sec,
+				 (int)(utc.tv_sec - ts.tv_sec));
 			val = (int)(utc.tv_sec - ts.tv_sec);
 			seconds = abs(val);
 			result = (seconds / MIN_TZ_ADJ) * MIN_TZ_ADJ;
@@ -498,7 +497,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 			server->timeAdj = (int)tmp;
 			server->timeAdj *= 60; /* also in seconds */
 		}
-		cFYI(1, "server->timeAdj: %d seconds", server->timeAdj);
+		cifs_dbg(FYI, "server->timeAdj: %d seconds\n", server->timeAdj);
 
 
 		/* BB get server time for time conversions and add
@@ -513,14 +512,13 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 			goto neg_err_exit;
 		}
 
-		cFYI(1, "LANMAN negotiated");
+		cifs_dbg(FYI, "LANMAN negotiated\n");
 		/* we will not end up setting signing flags - as no signing
 		was in LANMAN and server did not return the flags on */
 		goto signing_check;
 #else /* weak security disabled */
 	} else if (pSMBr->hdr.WordCount == 13) {
-		cERROR(1, "mount failed, cifs module not built "
-			  "with CIFS_WEAK_PW_HASH support");
+		cifs_dbg(VFS, "mount failed, cifs module not built with CIFS_WEAK_PW_HASH support\n");
 		rc = -EOPNOTSUPP;
 #endif /* WEAK_PW_HASH */
 		goto neg_err_exit;
@@ -532,14 +530,13 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	/* else wct == 17 NTLM */
 	server->sec_mode = pSMBr->SecurityMode;
 	if ((server->sec_mode & SECMODE_USER) == 0)
-		cFYI(1, "share mode security");
+		cifs_dbg(FYI, "share mode security\n");
 
 	if ((server->sec_mode & SECMODE_PW_ENCRYPT) == 0)
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 		if ((secFlags & CIFSSEC_MAY_PLNTXT) == 0)
 #endif /* CIFS_WEAK_PW_HASH */
-			cERROR(1, "Server requests plain text password"
-				  " but client support disabled");
+			cifs_dbg(VFS, "Server requests plain text password but client support disabled\n");
 
 	if ((secFlags & CIFSSEC_MUST_NTLMV2) == CIFSSEC_MUST_NTLMV2)
 		server->secType = NTLMv2;
@@ -555,7 +552,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 		server->secType = LANMAN;
 	else {
 		rc = -EOPNOTSUPP;
-		cERROR(1, "Invalid security type");
+		cifs_dbg(VFS, "Invalid security type\n");
 		goto neg_err_exit;
 	}
 	/* else ... any others ...? */
@@ -568,7 +565,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	/* probably no need to store and check maxvcs */
 	server->maxBuf = le32_to_cpu(pSMBr->MaxBufferSize);
 	server->max_rw = le32_to_cpu(pSMBr->MaxRawSize);
-	cFYI(DBG2, "Max buf = %d", ses->server->maxBuf);
+	cifs_dbg(NOISY, "Max buf = %d\n", ses->server->maxBuf);
 	server->capabilities = le32_to_cpu(pSMBr->Capabilities);
 	server->timeAdj = (int)(__s16)le16_to_cpu(pSMBr->ServerTimeZone);
 	server->timeAdj *= 60;
@@ -590,7 +587,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 			if (memcmp(server->server_GUID,
 				   pSMBr->u.extended_response.
 				   GUID, 16) != 0) {
-				cFYI(1, "server UID changed");
+				cifs_dbg(FYI, "server UID changed\n");
 				memcpy(server->server_GUID,
 					pSMBr->u.extended_response.GUID,
 					16);
@@ -633,21 +630,19 @@ signing_check:
 	if ((secFlags & CIFSSEC_MAY_SIGN) == 0) {
 		/* MUST_SIGN already includes the MAY_SIGN FLAG
 		   so if this is zero it means that signing is disabled */
-		cFYI(1, "Signing disabled");
+		cifs_dbg(FYI, "Signing disabled\n");
 		if (server->sec_mode & SECMODE_SIGN_REQUIRED) {
-			cERROR(1, "Server requires "
-				   "packet signing to be enabled in "
-				   "/proc/fs/cifs/SecurityFlags.");
+			cifs_dbg(VFS, "Server requires packet signing to be enabled in /proc/fs/cifs/SecurityFlags\n");
 			rc = -EOPNOTSUPP;
 		}
 		server->sec_mode &=
 			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
 	} else if ((secFlags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) {
 		/* signing required */
-		cFYI(1, "Must sign - secFlags 0x%x", secFlags);
+		cifs_dbg(FYI, "Must sign - secFlags 0x%x\n", secFlags);
 		if ((server->sec_mode &
 			(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED)) == 0) {
-			cERROR(1, "signing required but server lacks support");
+			cifs_dbg(VFS, "signing required but server lacks support\n");
 			rc = -EOPNOTSUPP;
 		} else
 			server->sec_mode |= SECMODE_SIGN_REQUIRED;
@@ -661,7 +656,7 @@ signing_check:
 neg_err_exit:
 	cifs_buf_release(pSMB);
 
-	cFYI(1, "negprot rc %d", rc);
+	cifs_dbg(FYI, "negprot rc %d\n", rc);
 	return rc;
 }
 
@@ -671,7 +666,7 @@ CIFSSMBTDis(const unsigned int xid, struct cifs_tcon *tcon)
 	struct smb_hdr *smb_buffer;
 	int rc = 0;
 
-	cFYI(1, "In tree disconnect");
+	cifs_dbg(FYI, "In tree disconnect\n");
 
 	/* BB: do we need to check this? These should never be NULL. */
 	if ((tcon->ses == NULL) || (tcon->ses->server == NULL))
@@ -693,7 +688,7 @@ CIFSSMBTDis(const unsigned int xid, struct cifs_tcon *tcon)
 
 	rc = SendReceiveNoRsp(xid, tcon->ses, (char *)smb_buffer, 0);
 	if (rc)
-		cFYI(1, "Tree disconnect failed %d", rc);
+		cifs_dbg(FYI, "Tree disconnect failed %d\n", rc);
 
 	/* No need to return error on this operation if tid invalidated and
 	   closed on server already e.g. due to tcp session crashing */
@@ -728,7 +723,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	struct smb_rqst rqst = { .rq_iov = &iov,
 				 .rq_nvec = 1 };
 
-	cFYI(1, "In echo request");
+	cifs_dbg(FYI, "In echo request\n");
 
 	rc = small_smb_init(SMB_COM_ECHO, 0, NULL, (void **)&smb);
 	if (rc)
@@ -747,7 +742,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	rc = cifs_call_async(server, &rqst, NULL, cifs_echo_callback,
 			     server, CIFS_ASYNC_OP | CIFS_ECHO_OP);
 	if (rc)
-		cFYI(1, "Echo request failed: %d", rc);
+		cifs_dbg(FYI, "Echo request failed: %d\n", rc);
 
 	cifs_small_buf_release(smb);
 
@@ -760,7 +755,7 @@ CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses)
 	LOGOFF_ANDX_REQ *pSMB;
 	int rc = 0;
 
-	cFYI(1, "In SMBLogoff for session disconnect");
+	cifs_dbg(FYI, "In SMBLogoff for session disconnect\n");
 
 	/*
 	 * BB: do we need to check validity of ses and server? They should
@@ -814,7 +809,7 @@ CIFSPOSIXDelFile(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned = 0;
 	__u16 params, param_offset, offset, byte_count;
 
-	cFYI(1, "In POSIX delete");
+	cifs_dbg(FYI, "In POSIX delete\n");
 PsxDelete:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -866,7 +861,7 @@ PsxDelete:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc)
-		cFYI(1, "Posix delete returned %d", rc);
+		cifs_dbg(FYI, "Posix delete returned %d\n", rc);
 	cifs_buf_release(pSMB);
 
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_deletes);
@@ -914,7 +909,7 @@ DelFileRetry:
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_deletes);
 	if (rc)
-		cFYI(1, "Error in RMFile = %d", rc);
+		cifs_dbg(FYI, "Error in RMFile = %d\n", rc);
 
 	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
@@ -934,7 +929,7 @@ CIFSSMBRmDir(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 	int name_len;
 	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
 
-	cFYI(1, "In CIFSSMBRmDir");
+	cifs_dbg(FYI, "In CIFSSMBRmDir\n");
 RmDirRetry:
 	rc = smb_init(SMB_COM_DELETE_DIRECTORY, 0, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -960,7 +955,7 @@ RmDirRetry:
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_rmdirs);
 	if (rc)
-		cFYI(1, "Error in RMDir = %d", rc);
+		cifs_dbg(FYI, "Error in RMDir = %d\n", rc);
 
 	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
@@ -979,7 +974,7 @@ CIFSSMBMkDir(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 	int name_len;
 	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
 
-	cFYI(1, "In CIFSSMBMkDir");
+	cifs_dbg(FYI, "In CIFSSMBMkDir\n");
 MkDirRetry:
 	rc = smb_init(SMB_COM_CREATE_DIRECTORY, 0, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -1005,7 +1000,7 @@ MkDirRetry:
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_mkdirs);
 	if (rc)
-		cFYI(1, "Error in Mkdir = %d", rc);
+		cifs_dbg(FYI, "Error in Mkdir = %d\n", rc);
 
 	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
@@ -1029,7 +1024,7 @@ CIFSPOSIXCreate(const unsigned int xid, struct cifs_tcon *tcon,
 	OPEN_PSX_REQ *pdata;
 	OPEN_PSX_RSP *psx_rsp;
 
-	cFYI(1, "In POSIX Create");
+	cifs_dbg(FYI, "In POSIX Create\n");
 PsxCreat:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -1083,11 +1078,11 @@ PsxCreat:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Posix create returned %d", rc);
+		cifs_dbg(FYI, "Posix create returned %d\n", rc);
 		goto psx_create_err;
 	}
 
-	cFYI(1, "copying inode info");
+	cifs_dbg(FYI, "copying inode info\n");
 	rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 	if (rc || get_bcc(&pSMBr->hdr) < sizeof(OPEN_PSX_RSP)) {
@@ -1109,11 +1104,11 @@ PsxCreat:
 	/* check to make sure response data is there */
 	if (psx_rsp->ReturnedLevel != cpu_to_le16(SMB_QUERY_FILE_UNIX_BASIC)) {
 		pRetData->Type = cpu_to_le32(-1); /* unknown */
-		cFYI(DBG2, "unknown type");
+		cifs_dbg(NOISY, "unknown type\n");
 	} else {
 		if (get_bcc(&pSMBr->hdr) < sizeof(OPEN_PSX_RSP)
 					+ sizeof(FILE_UNIX_BASIC_INFO)) {
-			cERROR(1, "Open response data too small");
+			cifs_dbg(VFS, "Open response data too small\n");
 			pRetData->Type = cpu_to_le32(-1);
 			goto psx_create_err;
 		}
@@ -1160,7 +1155,7 @@ static __u16 convert_disposition(int disposition)
 			ofun = SMBOPEN_OCREATE | SMBOPEN_OTRUNC;
 			break;
 		default:
-			cFYI(1, "unknown disposition %d", disposition);
+			cifs_dbg(FYI, "unknown disposition %d\n", disposition);
 			ofun =  SMBOPEN_OAPPEND; /* regular open */
 	}
 	return ofun;
@@ -1251,7 +1246,7 @@ OldOpenRetry:
 			(struct smb_hdr *)pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_opens);
 	if (rc) {
-		cFYI(1, "Error in Open = %d", rc);
+		cifs_dbg(FYI, "Error in Open = %d\n", rc);
 	} else {
 	/* BB verify if wct == 15 */
 
@@ -1364,7 +1359,7 @@ openRetry:
 			(struct smb_hdr *)pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_opens);
 	if (rc) {
-		cFYI(1, "Error in Open = %d", rc);
+		cifs_dbg(FYI, "Error in Open = %d\n", rc);
 	} else {
 		*pOplock = pSMBr->OplockLevel; /* 1 byte no need to le_to_cpu */
 		*netfid = pSMBr->Fid;	/* cifs fid stays in le */
@@ -1425,8 +1420,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	char *buf = server->smallbuf;
 	unsigned int buflen = get_rfc1002_length(buf) + 4;
 
-	cFYI(1, "%s: mid=%llu offset=%llu bytes=%u", __func__,
-		mid->mid, rdata->offset, rdata->bytes);
+	cifs_dbg(FYI, "%s: mid=%llu offset=%llu bytes=%u\n",
+		 __func__, mid->mid, rdata->offset, rdata->bytes);
 
 	/*
 	 * read the rest of READ_RSP header (sans Data array), or whatever we
@@ -1447,16 +1442,16 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	/* Was the SMB read successful? */
 	rdata->result = server->ops->map_error(buf, false);
 	if (rdata->result != 0) {
-		cFYI(1, "%s: server returned error %d", __func__,
-			rdata->result);
+		cifs_dbg(FYI, "%s: server returned error %d\n",
+			 __func__, rdata->result);
 		return cifs_readv_discard(server, mid);
 	}
 
 	/* Is there enough to get to the rest of the READ_RSP header? */
 	if (server->total_read < server->vals->read_rsp_size) {
-		cFYI(1, "%s: server returned short header. got=%u expected=%zu",
-			__func__, server->total_read,
-			server->vals->read_rsp_size);
+		cifs_dbg(FYI, "%s: server returned short header. got=%u expected=%zu\n",
+			 __func__, server->total_read,
+			 server->vals->read_rsp_size);
 		rdata->result = -EIO;
 		return cifs_readv_discard(server, mid);
 	}
@@ -1468,19 +1463,19 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		 * is beyond the EOF. Treat it as if the data starts just after
 		 * the header.
 		 */
-		cFYI(1, "%s: data offset (%u) inside read response header",
-			__func__, data_offset);
+		cifs_dbg(FYI, "%s: data offset (%u) inside read response header\n",
+			 __func__, data_offset);
 		data_offset = server->total_read;
 	} else if (data_offset > MAX_CIFS_SMALL_BUFFER_SIZE) {
 		/* data_offset is beyond the end of smallbuf */
-		cFYI(1, "%s: data offset (%u) beyond end of smallbuf",
-			__func__, data_offset);
+		cifs_dbg(FYI, "%s: data offset (%u) beyond end of smallbuf\n",
+			 __func__, data_offset);
 		rdata->result = -EIO;
 		return cifs_readv_discard(server, mid);
 	}
 
-	cFYI(1, "%s: total_read=%u data_offset=%u", __func__,
-		server->total_read, data_offset);
+	cifs_dbg(FYI, "%s: total_read=%u data_offset=%u\n",
+		 __func__, server->total_read, data_offset);
 
 	len = data_offset - server->total_read;
 	if (len > 0) {
@@ -1496,8 +1491,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	/* set up first iov for signature check */
 	rdata->iov.iov_base = buf;
 	rdata->iov.iov_len = server->total_read;
-	cFYI(1, "0: iov_base=%p iov_len=%zu",
-		rdata->iov.iov_base, rdata->iov.iov_len);
+	cifs_dbg(FYI, "0: iov_base=%p iov_len=%zu\n",
+		 rdata->iov.iov_base, rdata->iov.iov_len);
 
 	/* how much data is in the response? */
 	data_len = server->ops->read_data_length(buf);
@@ -1514,8 +1509,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	server->total_read += length;
 	rdata->bytes = length;
 
-	cFYI(1, "total_read=%u buflen=%u remaining=%u", server->total_read,
-		buflen, data_len);
+	cifs_dbg(FYI, "total_read=%u buflen=%u remaining=%u\n",
+		 server->total_read, buflen, data_len);
 
 	/* discard anything left over */
 	if (server->total_read < buflen)
@@ -1538,8 +1533,9 @@ cifs_readv_callback(struct mid_q_entry *mid)
 				 .rq_pagesz = rdata->pagesz,
 				 .rq_tailsz = rdata->tailsz };
 
-	cFYI(1, "%s: mid=%llu state=%d result=%d bytes=%u", __func__,
-		mid->mid, mid->mid_state, rdata->result, rdata->bytes);
+	cifs_dbg(FYI, "%s: mid=%llu state=%d result=%d bytes=%u\n",
+		 __func__, mid->mid, mid->mid_state, rdata->result,
+		 rdata->bytes);
 
 	switch (mid->mid_state) {
 	case MID_RESPONSE_RECEIVED:
@@ -1549,10 +1545,10 @@ cifs_readv_callback(struct mid_q_entry *mid)
 			int rc = 0;
 
 			rc = cifs_verify_signature(&rqst, server,
-						  mid->sequence_number + 1);
+						  mid->sequence_number);
 			if (rc)
-				cERROR(1, "SMB signature verification returned "
-				       "error = %d", rc);
+				cifs_dbg(VFS, "SMB signature verification returned error = %d\n",
+					 rc);
 		}
 		/* FIXME: should this be counted toward the initiating task? */
 		task_io_account_read(rdata->bytes);
@@ -1582,8 +1578,8 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	struct smb_rqst rqst = { .rq_iov = &rdata->iov,
 				 .rq_nvec = 1 };
 
-	cFYI(1, "%s: offset=%llu bytes=%u", __func__,
-		rdata->offset, rdata->bytes);
+	cifs_dbg(FYI, "%s: offset=%llu bytes=%u\n",
+		 __func__, rdata->offset, rdata->bytes);
 
 	if (tcon->ses->capabilities & CAP_LARGE_FILES)
 		wct = 12;
@@ -1653,7 +1649,7 @@ CIFSSMBRead(const unsigned int xid, struct cifs_io_parms *io_parms,
 	struct cifs_tcon *tcon = io_parms->tcon;
 	unsigned int count = io_parms->length;
 
-	cFYI(1, "Reading %d bytes on fid %d", count, netfid);
+	cifs_dbg(FYI, "Reading %d bytes on fid %d\n", count, netfid);
 	if (tcon->ses->capabilities & CAP_LARGE_FILES)
 		wct = 12;
 	else {
@@ -1701,7 +1697,7 @@ CIFSSMBRead(const unsigned int xid, struct cifs_io_parms *io_parms,
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_reads);
 	pSMBr = (READ_RSP *)iov[0].iov_base;
 	if (rc) {
-		cERROR(1, "Send error in read = %d", rc);
+		cifs_dbg(VFS, "Send error in read = %d\n", rc);
 	} else {
 		int data_length = le16_to_cpu(pSMBr->DataLengthHigh);
 		data_length = data_length << 16;
@@ -1711,7 +1707,7 @@ CIFSSMBRead(const unsigned int xid, struct cifs_io_parms *io_parms,
 		/*check that DataLength would not go beyond end of SMB */
 		if ((data_length > CIFSMaxBufSize)
 				|| (data_length > count)) {
-			cFYI(1, "bad length %d for count %d",
+			cifs_dbg(FYI, "bad length %d for count %d\n",
 				 data_length, count);
 			rc = -EIO;
 			*nbytes = 0;
@@ -1719,7 +1715,7 @@ CIFSSMBRead(const unsigned int xid, struct cifs_io_parms *io_parms,
 			pReadData = (char *) (&pSMBr->hdr.Protocol) +
 					le16_to_cpu(pSMBr->DataOffset);
 /*			if (rc = copy_to_user(buf, pReadData, data_length)) {
-				cERROR(1, "Faulting on read rc = %d",rc);
+				cifs_dbg(VFS, "Faulting on read rc = %d\n",rc);
 				rc = -EFAULT;
 			}*/ /* can not use copy_to_user when using page cache*/
 			if (*buf)
@@ -1767,7 +1763,7 @@ CIFSSMBWrite(const unsigned int xid, struct cifs_io_parms *io_parms,
 
 	*nbytes = 0;
 
-	/* cFYI(1, "write at %lld %d bytes", offset, count);*/
+	/* cifs_dbg(FYI, "write at %lld %d bytes\n", offset, count);*/
 	if (tcon->ses == NULL)
 		return -ECONNABORTED;
 
@@ -1852,7 +1848,7 @@ CIFSSMBWrite(const unsigned int xid, struct cifs_io_parms *io_parms,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, long_op);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_writes);
 	if (rc) {
-		cFYI(1, "Send error in write = %d", rc);
+		cifs_dbg(FYI, "Send error in write = %d\n", rc);
 	} else {
 		*nbytes = le16_to_cpu(pSMBr->CountHigh);
 		*nbytes = (*nbytes) << 16;
@@ -1959,7 +1955,7 @@ cifs_writedata_alloc(unsigned int nr_pages, work_func_t complete)
 
 	/* this would overflow */
 	if (nr_pages == 0) {
-		cERROR(1, "%s: called with nr_pages == 0!", __func__);
+		cifs_dbg(VFS, "%s: called with nr_pages == 0!\n", __func__);
 		return NULL;
 	}
 
@@ -2075,7 +2071,8 @@ cifs_async_writev(struct cifs_writedata *wdata)
 	rqst.rq_pagesz = wdata->pagesz;
 	rqst.rq_tailsz = wdata->tailsz;
 
-	cFYI(1, "async write at %llu %u bytes", wdata->offset, wdata->bytes);
+	cifs_dbg(FYI, "async write at %llu %u bytes\n",
+		 wdata->offset, wdata->bytes);
 
 	smb->DataLengthLow = cpu_to_le16(wdata->bytes & 0xFFFF);
 	smb->DataLengthHigh = cpu_to_le16(wdata->bytes >> 16);
@@ -2123,7 +2120,7 @@ CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 
 	*nbytes = 0;
 
-	cFYI(1, "write2 at %lld %d bytes", (long long)offset, count);
+	cifs_dbg(FYI, "write2 at %lld %d bytes\n", (long long)offset, count);
 
 	if (tcon->ses->capabilities & CAP_LARGE_FILES) {
 		wct = 14;
@@ -2182,7 +2179,7 @@ CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 	rc = SendReceive2(xid, tcon->ses, iov, n_vec + 1, &resp_buf_type, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_writes);
 	if (rc) {
-		cFYI(1, "Send error Write2 = %d", rc);
+		cifs_dbg(FYI, "Send error Write2 = %d\n", rc);
 	} else if (resp_buf_type == 0) {
 		/* presumably this can not happen, but best to be safe */
 		rc = -EIO;
@@ -2223,7 +2220,8 @@ int cifs_lockv(const unsigned int xid, struct cifs_tcon *tcon,
 	int resp_buf_type;
 	__u16 count;
 
-	cFYI(1, "cifs_lockv num lock %d num unlock %d", num_lock, num_unlock);
+	cifs_dbg(FYI, "cifs_lockv num lock %d num unlock %d\n",
+		 num_lock, num_unlock);
 
 	rc = small_smb_init(SMB_COM_LOCKING_ANDX, 8, tcon, (void **) &pSMB);
 	if (rc)
@@ -2249,7 +2247,7 @@ int cifs_lockv(const unsigned int xid, struct cifs_tcon *tcon,
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_locks);
 	rc = SendReceive2(xid, tcon->ses, iov, 2, &resp_buf_type, CIFS_NO_RESP);
 	if (rc)
-		cFYI(1, "Send error in cifs_lockv = %d", rc);
+		cifs_dbg(FYI, "Send error in cifs_lockv = %d\n", rc);
 
 	return rc;
 }
@@ -2268,7 +2266,8 @@ CIFSSMBLock(const unsigned int xid, struct cifs_tcon *tcon,
 	int flags = 0;
 	__u16 count;
 
-	cFYI(1, "CIFSSMBLock timeout %d numLock %d", (int)waitFlag, numLock);
+	cifs_dbg(FYI, "CIFSSMBLock timeout %d numLock %d\n",
+		 (int)waitFlag, numLock);
 	rc = small_smb_init(SMB_COM_LOCKING_ANDX, 8, tcon, (void **) &pSMB);
 
 	if (rc)
@@ -2317,7 +2316,7 @@ CIFSSMBLock(const unsigned int xid, struct cifs_tcon *tcon,
 	}
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_locks);
 	if (rc)
-		cFYI(1, "Send error in Lock = %d", rc);
+		cifs_dbg(FYI, "Send error in Lock = %d\n", rc);
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls
 	since file handle passed in no longer valid */
@@ -2341,7 +2340,7 @@ CIFSSMBPosixLock(const unsigned int xid, struct cifs_tcon *tcon,
 	__u16 params, param_offset, offset, byte_count, count;
 	struct kvec iov[1];
 
-	cFYI(1, "Posix Lock");
+	cifs_dbg(FYI, "Posix Lock\n");
 
 	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
 
@@ -2408,7 +2407,7 @@ CIFSSMBPosixLock(const unsigned int xid, struct cifs_tcon *tcon,
 	}
 
 	if (rc) {
-		cFYI(1, "Send error in Posix Lock = %d", rc);
+		cifs_dbg(FYI, "Send error in Posix Lock = %d\n", rc);
 	} else if (pLockData) {
 		/* lock structure can be returned on get */
 		__u16 data_offset;
@@ -2465,7 +2464,7 @@ CIFSSMBClose(const unsigned int xid, struct cifs_tcon *tcon, int smb_file_id)
 {
 	int rc = 0;
 	CLOSE_REQ *pSMB = NULL;
-	cFYI(1, "In CIFSSMBClose");
+	cifs_dbg(FYI, "In CIFSSMBClose\n");
 
 /* do not retry on dead session on close */
 	rc = small_smb_init(SMB_COM_CLOSE, 3, tcon, (void **) &pSMB);
@@ -2482,7 +2481,7 @@ CIFSSMBClose(const unsigned int xid, struct cifs_tcon *tcon, int smb_file_id)
 	if (rc) {
 		if (rc != -EINTR) {
 			/* EINTR is expected when user ctl-c to kill app */
-			cERROR(1, "Send error in Close = %d", rc);
+			cifs_dbg(VFS, "Send error in Close = %d\n", rc);
 		}
 	}
 
@@ -2498,7 +2497,7 @@ CIFSSMBFlush(const unsigned int xid, struct cifs_tcon *tcon, int smb_file_id)
 {
 	int rc = 0;
 	FLUSH_REQ *pSMB = NULL;
-	cFYI(1, "In CIFSSMBFlush");
+	cifs_dbg(FYI, "In CIFSSMBFlush\n");
 
 	rc = small_smb_init(SMB_COM_FLUSH, 1, tcon, (void **) &pSMB);
 	if (rc)
@@ -2509,7 +2508,7 @@ CIFSSMBFlush(const unsigned int xid, struct cifs_tcon *tcon, int smb_file_id)
 	rc = SendReceiveNoRsp(xid, tcon->ses, (char *) pSMB, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_flushes);
 	if (rc)
-		cERROR(1, "Send error in Flush = %d", rc);
+		cifs_dbg(VFS, "Send error in Flush = %d\n", rc);
 
 	return rc;
 }
@@ -2527,7 +2526,7 @@ CIFSSMBRename(const unsigned int xid, struct cifs_tcon *tcon,
 	__u16 count;
 	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
 
-	cFYI(1, "In CIFSSMBRename");
+	cifs_dbg(FYI, "In CIFSSMBRename\n");
 renameRetry:
 	rc = smb_init(SMB_COM_RENAME, 1, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -2574,7 +2573,7 @@ renameRetry:
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_renames);
 	if (rc)
-		cFYI(1, "Send error in rename = %d", rc);
+		cifs_dbg(FYI, "Send error in rename = %d\n", rc);
 
 	cifs_buf_release(pSMB);
 
@@ -2598,7 +2597,7 @@ int CIFSSMBRenameOpenFile(const unsigned int xid, struct cifs_tcon *pTcon,
 	int len_of_str;
 	__u16 params, param_offset, offset, count, byte_count;
 
-	cFYI(1, "Rename to File by handle");
+	cifs_dbg(FYI, "Rename to File by handle\n");
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, pTcon, (void **) &pSMB,
 			(void **) &pSMBr);
 	if (rc)
@@ -2655,7 +2654,8 @@ int CIFSSMBRenameOpenFile(const unsigned int xid, struct cifs_tcon *pTcon,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&pTcon->stats.cifs_stats.num_t2renames);
 	if (rc)
-		cFYI(1, "Send error in Rename (by file handle) = %d", rc);
+		cifs_dbg(FYI, "Send error in Rename (by file handle) = %d\n",
+			 rc);
 
 	cifs_buf_release(pSMB);
 
@@ -2677,7 +2677,7 @@ CIFSSMBCopy(const unsigned int xid, struct cifs_tcon *tcon,
 	int name_len, name_len2;
 	__u16 count;
 
-	cFYI(1, "In CIFSSMBCopy");
+	cifs_dbg(FYI, "In CIFSSMBCopy\n");
 copyRetry:
 	rc = smb_init(SMB_COM_COPY, 1, tcon, (void **) &pSMB,
 			(void **) &pSMBr);
@@ -2722,8 +2722,8 @@ copyRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 		(struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in copy = %d with %d files copied",
-			rc, le16_to_cpu(pSMBr->CopyCount));
+		cifs_dbg(FYI, "Send error in copy = %d with %d files copied\n",
+			 rc, le16_to_cpu(pSMBr->CopyCount));
 	}
 	cifs_buf_release(pSMB);
 
@@ -2747,7 +2747,7 @@ CIFSUnixCreateSymLink(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned = 0;
 	__u16 params, param_offset, offset, byte_count;
 
-	cFYI(1, "In Symlink Unix style");
+	cifs_dbg(FYI, "In Symlink Unix style\n");
 createSymLinkRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -2812,7 +2812,8 @@ createSymLinkRetry:
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_symlinks);
 	if (rc)
-		cFYI(1, "Send error in SetPathInfo create symlink = %d", rc);
+		cifs_dbg(FYI, "Send error in SetPathInfo create symlink = %d\n",
+			 rc);
 
 	cifs_buf_release(pSMB);
 
@@ -2836,7 +2837,7 @@ CIFSUnixCreateHardLink(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned = 0;
 	__u16 params, param_offset, offset, byte_count;
 
-	cFYI(1, "In Create Hard link Unix style");
+	cifs_dbg(FYI, "In Create Hard link Unix style\n");
 createHardLinkRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -2898,7 +2899,8 @@ createHardLinkRetry:
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_hardlinks);
 	if (rc)
-		cFYI(1, "Send error in SetPathInfo (hard link) = %d", rc);
+		cifs_dbg(FYI, "Send error in SetPathInfo (hard link) = %d\n",
+			 rc);
 
 	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
@@ -2920,7 +2922,7 @@ CIFSCreateHardLink(const unsigned int xid, struct cifs_tcon *tcon,
 	__u16 count;
 	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
 
-	cFYI(1, "In CIFSCreateHardLink");
+	cifs_dbg(FYI, "In CIFSCreateHardLink\n");
 winCreateHardLinkRetry:
 
 	rc = smb_init(SMB_COM_NT_RENAME, 4, tcon, (void **) &pSMB,
@@ -2972,7 +2974,7 @@ winCreateHardLinkRetry:
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_hardlinks);
 	if (rc)
-		cFYI(1, "Send error in hard link (NT rename) = %d", rc);
+		cifs_dbg(FYI, "Send error in hard link (NT rename) = %d\n", rc);
 
 	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
@@ -2995,7 +2997,7 @@ CIFSSMBUnixQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
 	__u16 params, byte_count;
 	char *data_start;
 
-	cFYI(1, "In QPathSymLinkInfo (Unix) for path %s", searchName);
+	cifs_dbg(FYI, "In QPathSymLinkInfo (Unix) for path %s\n", searchName);
 
 querySymLinkRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
@@ -3042,7 +3044,7 @@ querySymLinkRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QuerySymLinkInfo = %d", rc);
+		cifs_dbg(FYI, "Send error in QuerySymLinkInfo = %d\n", rc);
 	} else {
 		/* decode response */
 
@@ -3097,7 +3099,8 @@ CIFSSMBQueryReparseLinkInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	struct smb_com_transaction_ioctl_req *pSMB;
 	struct smb_com_transaction_ioctl_rsp *pSMBr;
 
-	cFYI(1, "In Windows reparse style QueryLink for path %s", searchName);
+	cifs_dbg(FYI, "In Windows reparse style QueryLink for path %s\n",
+		 searchName);
 	rc = smb_init(SMB_COM_NT_TRANSACT, 23, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
 	if (rc)
@@ -3125,7 +3128,7 @@ CIFSSMBQueryReparseLinkInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QueryReparseLinkInfo = %d", rc);
+		cifs_dbg(FYI, "Send error in QueryReparseLinkInfo = %d\n", rc);
 	} else {		/* decode response */
 		__u32 data_offset = le32_to_cpu(pSMBr->DataOffset);
 		__u32 data_count = le32_to_cpu(pSMBr->DataCount);
@@ -3149,7 +3152,7 @@ CIFSSMBQueryReparseLinkInfo(const unsigned int xid, struct cifs_tcon *tcon,
 			if ((reparse_buf->LinkNamesBuf +
 				reparse_buf->TargetNameOffset +
 				reparse_buf->TargetNameLen) > end_of_smb) {
-				cFYI(1, "reparse buf beyond SMB");
+				cifs_dbg(FYI, "reparse buf beyond SMB\n");
 				rc = -EIO;
 				goto qreparse_out;
 			}
@@ -3170,12 +3173,11 @@ CIFSSMBQueryReparseLinkInfo(const unsigned int xid, struct cifs_tcon *tcon,
 			}
 		} else {
 			rc = -EIO;
-			cFYI(1, "Invalid return data count on "
-				 "get reparse info ioctl");
+			cifs_dbg(FYI, "Invalid return data count on get reparse info ioctl\n");
 		}
 		symlinkinfo[buflen] = 0; /* just in case so the caller
 					does not go off the end of the buffer */
-		cFYI(1, "readlink result - %s", symlinkinfo);
+		cifs_dbg(FYI, "readlink result - %s\n", symlinkinfo);
 	}
 
 qreparse_out:
@@ -3198,7 +3200,10 @@ static void cifs_convert_ace(posix_acl_xattr_entry *ace,
 	ace->e_perm = cpu_to_le16(cifs_ace->cifs_e_perm);
 	ace->e_tag  = cpu_to_le16(cifs_ace->cifs_e_tag);
 	ace->e_id   = cpu_to_le32(le64_to_cpu(cifs_ace->cifs_uid));
-	/* cFYI(1, "perm %d tag %d id %d",ace->e_perm,ace->e_tag,ace->e_id); */
+/*
+	cifs_dbg(FYI, "perm %d tag %d id %d\n",
+		 ace->e_perm, ace->e_tag, ace->e_id);
+*/
 
 	return;
 }
@@ -3224,8 +3229,8 @@ static int cifs_copy_posix_acl(char *trgt, char *src, const int buflen,
 		size += sizeof(struct cifs_posix_ace) * count;
 		/* check if we would go beyond end of SMB */
 		if (size_of_data_area < size) {
-			cFYI(1, "bad CIFS POSIX ACL size %d vs. %d",
-				size_of_data_area, size);
+			cifs_dbg(FYI, "bad CIFS POSIX ACL size %d vs. %d\n",
+				 size_of_data_area, size);
 			return -EINVAL;
 		}
 	} else if (acl_type & ACL_TYPE_DEFAULT) {
@@ -3272,7 +3277,10 @@ static __u16 convert_ace_to_cifs_ace(struct cifs_posix_ace *cifs_ace,
 		cifs_ace->cifs_uid = cpu_to_le64(-1);
 	} else
 		cifs_ace->cifs_uid = cpu_to_le64(le32_to_cpu(local_ace->e_id));
-	/*cFYI(1, "perm %d tag %d id %d",ace->e_perm,ace->e_tag,ace->e_id);*/
+/*
+	cifs_dbg(FYI, "perm %d tag %d id %d\n",
+		 ace->e_perm, ace->e_tag, ace->e_id);
+*/
 	return rc;
 }
 
@@ -3290,12 +3298,11 @@ static __u16 ACL_to_cifs_posix(char *parm_data, const char *pACL,
 		return 0;
 
 	count = posix_acl_xattr_count((size_t)buflen);
-	cFYI(1, "setting acl with %d entries from buf of length %d and "
-		"version of %d",
-		count, buflen, le32_to_cpu(local_acl->a_version));
+	cifs_dbg(FYI, "setting acl with %d entries from buf of length %d and version of %d\n",
+		 count, buflen, le32_to_cpu(local_acl->a_version));
 	if (le32_to_cpu(local_acl->a_version) != 2) {
-		cFYI(1, "unknown POSIX ACL version %d",
-		     le32_to_cpu(local_acl->a_version));
+		cifs_dbg(FYI, "unknown POSIX ACL version %d\n",
+			 le32_to_cpu(local_acl->a_version));
 		return 0;
 	}
 	cifs_acl->version = cpu_to_le16(1);
@@ -3304,7 +3311,7 @@ static __u16 ACL_to_cifs_posix(char *parm_data, const char *pACL,
 	else if (acl_type == ACL_TYPE_DEFAULT)
 		cifs_acl->default_entry_count = cpu_to_le16(count);
 	else {
-		cFYI(1, "unknown ACL type %d", acl_type);
+		cifs_dbg(FYI, "unknown ACL type %d\n", acl_type);
 		return 0;
 	}
 	for (i = 0; i < count; i++) {
@@ -3337,7 +3344,7 @@ CIFSSMBGetPosixACL(const unsigned int xid, struct cifs_tcon *tcon,
 	int name_len;
 	__u16 params, byte_count;
 
-	cFYI(1, "In GetPosixACL (Unix) for path %s", searchName);
+	cifs_dbg(FYI, "In GetPosixACL (Unix) for path %s\n", searchName);
 
 queryAclRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
@@ -3390,7 +3397,7 @@ queryAclRetry:
 		(struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_acl_get);
 	if (rc) {
-		cFYI(1, "Send error in Query POSIX ACL = %d", rc);
+		cifs_dbg(FYI, "Send error in Query POSIX ACL = %d\n", rc);
 	} else {
 		/* decode response */
 
@@ -3427,7 +3434,7 @@ CIFSSMBSetPosixACL(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned = 0;
 	__u16 params, byte_count, data_count, param_offset, offset;
 
-	cFYI(1, "In SetPosixACL (Unix) for path %s", fileName);
+	cifs_dbg(FYI, "In SetPosixACL (Unix) for path %s\n", fileName);
 setAclRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -3482,7 +3489,7 @@ setAclRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc)
-		cFYI(1, "Set POSIX ACL returned %d", rc);
+		cifs_dbg(FYI, "Set POSIX ACL returned %d\n", rc);
 
 setACLerrorExit:
 	cifs_buf_release(pSMB);
@@ -3502,7 +3509,7 @@ CIFSGetExtAttr(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned;
 	__u16 params, byte_count;
 
-	cFYI(1, "In GetExtAttr");
+	cifs_dbg(FYI, "In GetExtAttr\n");
 	if (tcon == NULL)
 		return -ENODEV;
 
@@ -3541,7 +3548,7 @@ GetExtAttrRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "error %d in GetExtAttr", rc);
+		cifs_dbg(FYI, "error %d in GetExtAttr\n", rc);
 	} else {
 		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
@@ -3556,7 +3563,7 @@ GetExtAttrRetry:
 			struct file_chattr_info *pfinfo;
 			/* BB Do we need a cast or hash here ? */
 			if (count != 16) {
-				cFYI(1, "Illegal size ret in GetExtAttr");
+				cifs_dbg(FYI, "Illegal size ret in GetExtAttr\n");
 				rc = -EIO;
 				goto GetExtAttrOut;
 			}
@@ -3644,21 +3651,21 @@ validate_ntransact(char *buf, char **ppparm, char **ppdata,
 
 	/* should we also check that parm and data areas do not overlap? */
 	if (*ppparm > end_of_smb) {
-		cFYI(1, "parms start after end of smb");
+		cifs_dbg(FYI, "parms start after end of smb\n");
 		return -EINVAL;
 	} else if (parm_count + *ppparm > end_of_smb) {
-		cFYI(1, "parm end after end of smb");
+		cifs_dbg(FYI, "parm end after end of smb\n");
 		return -EINVAL;
 	} else if (*ppdata > end_of_smb) {
-		cFYI(1, "data starts after end of smb");
+		cifs_dbg(FYI, "data starts after end of smb\n");
 		return -EINVAL;
 	} else if (data_count + *ppdata > end_of_smb) {
-		cFYI(1, "data %p + count %d (%p) past smb end %p start %p",
-			*ppdata, data_count, (data_count + *ppdata),
-			end_of_smb, pSMBr);
+		cifs_dbg(FYI, "data %p + count %d (%p) past smb end %p start %p\n",
+			 *ppdata, data_count, (data_count + *ppdata),
+			 end_of_smb, pSMBr);
 		return -EINVAL;
 	} else if (parm_count + data_count > bcc) {
-		cFYI(1, "parm count and data count larger than SMB");
+		cifs_dbg(FYI, "parm count and data count larger than SMB\n");
 		return -EINVAL;
 	}
 	*pdatalen = data_count;
@@ -3676,7 +3683,7 @@ CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon, __u16 fid,
 	QUERY_SEC_DESC_REQ *pSMB;
 	struct kvec iov[1];
 
-	cFYI(1, "GetCifsACL");
+	cifs_dbg(FYI, "GetCifsACL\n");
 
 	*pbuflen = 0;
 	*acl_inf = NULL;
@@ -3701,7 +3708,7 @@ CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon, __u16 fid,
 			 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_acl_get);
 	if (rc) {
-		cFYI(1, "Send error in QuerySecDesc = %d", rc);
+		cifs_dbg(FYI, "Send error in QuerySecDesc = %d\n", rc);
 	} else {                /* decode response */
 		__le32 *parm;
 		__u32 parm_len;
@@ -3716,7 +3723,8 @@ CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon, __u16 fid,
 			goto qsec_out;
 		pSMBr = (struct smb_com_ntransact_rsp *)iov[0].iov_base;
 
-		cFYI(1, "smb %p parm %p data %p", pSMBr, parm, *acl_inf);
+		cifs_dbg(FYI, "smb %p parm %p data %p\n",
+			 pSMBr, parm, *acl_inf);
 
 		if (le32_to_cpu(pSMBr->ParameterCount) != 4) {
 			rc = -EIO;      /* bad smb */
@@ -3728,8 +3736,8 @@ CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon, __u16 fid,
 
 		acl_len = le32_to_cpu(*parm);
 		if (acl_len != *pbuflen) {
-			cERROR(1, "acl length %d does not match %d",
-				   acl_len, *pbuflen);
+			cifs_dbg(VFS, "acl length %d does not match %d\n",
+				 acl_len, *pbuflen);
 			if (*pbuflen > acl_len)
 				*pbuflen = acl_len;
 		}
@@ -3738,16 +3746,15 @@ CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon, __u16 fid,
 		   header followed by the smallest SID */
 		if ((*pbuflen < sizeof(struct cifs_ntsd) + 8) ||
 		    (*pbuflen >= 64 * 1024)) {
-			cERROR(1, "bad acl length %d", *pbuflen);
+			cifs_dbg(VFS, "bad acl length %d\n", *pbuflen);
 			rc = -EINVAL;
 			*pbuflen = 0;
 		} else {
-			*acl_inf = kmalloc(*pbuflen, GFP_KERNEL);
+			*acl_inf = kmemdup(pdata, *pbuflen, GFP_KERNEL);
 			if (*acl_inf == NULL) {
 				*pbuflen = 0;
 				rc = -ENOMEM;
 			}
-			memcpy(*acl_inf, pdata, *pbuflen);
 		}
 	}
 qsec_out:
@@ -3809,9 +3816,10 @@ setCifsAclRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 		(struct smb_hdr *) pSMBr, &bytes_returned, 0);
 
-	cFYI(1, "SetCIFSACL bytes_returned: %d, rc: %d", bytes_returned, rc);
+	cifs_dbg(FYI, "SetCIFSACL bytes_returned: %d, rc: %d\n",
+		 bytes_returned, rc);
 	if (rc)
-		cFYI(1, "Set CIFS ACL returned %d", rc);
+		cifs_dbg(FYI, "Set CIFS ACL returned %d\n", rc);
 	cifs_buf_release(pSMB);
 
 	if (rc == -EAGAIN)
@@ -3835,7 +3843,7 @@ SMBQueryInformation(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned;
 	int name_len;
 
-	cFYI(1, "In SMBQPath path %s", search_name);
+	cifs_dbg(FYI, "In SMBQPath path %s\n", search_name);
 QInfRetry:
 	rc = smb_init(SMB_COM_QUERY_INFORMATION, 0, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -3862,7 +3870,7 @@ QInfRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QueryInfo = %d", rc);
+		cifs_dbg(FYI, "Send error in QueryInfo = %d\n", rc);
 	} else if (data) {
 		struct timespec ts;
 		__u32 time = le32_to_cpu(pSMBr->last_write_time);
@@ -3936,7 +3944,7 @@ QFileInfoRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QPathInfo = %d", rc);
+		cifs_dbg(FYI, "Send error in QPathInfo = %d\n", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -3973,7 +3981,7 @@ CIFSSMBQPathInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	int name_len;
 	__u16 params, byte_count;
 
-	/* cFYI(1, "In QPathInfo path %s", search_name); */
+	/* cifs_dbg(FYI, "In QPathInfo path %s\n", search_name); */
 QPathInfoRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -4023,7 +4031,7 @@ QPathInfoRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QPathInfo = %d", rc);
+		cifs_dbg(FYI, "Send error in QPathInfo = %d\n", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -4104,14 +4112,12 @@ UnixQFileInfoRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QPathInfo = %d", rc);
+		cifs_dbg(FYI, "Send error in QPathInfo = %d\n", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc || get_bcc(&pSMBr->hdr) < sizeof(FILE_UNIX_BASIC_INFO)) {
-			cERROR(1, "Malformed FILE_UNIX_BASIC_INFO response. "
-				   "Unix Extensions can be disabled on mount "
-				   "by specifying the nosfu mount option.");
+			cifs_dbg(VFS, "Malformed FILE_UNIX_BASIC_INFO response. Unix Extensions can be disabled on mount by specifying the nosfu mount option.\n");
 			rc = -EIO;	/* bad smb */
 		} else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
@@ -4143,7 +4149,7 @@ CIFSSMBUnixQPathInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	int name_len;
 	__u16 params, byte_count;
 
-	cFYI(1, "In QPathInfo (Unix) the path %s", searchName);
+	cifs_dbg(FYI, "In QPathInfo (Unix) the path %s\n", searchName);
 UnixQPathInfoRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -4190,14 +4196,12 @@ UnixQPathInfoRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QPathInfo = %d", rc);
+		cifs_dbg(FYI, "Send error in QPathInfo = %d\n", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc || get_bcc(&pSMBr->hdr) < sizeof(FILE_UNIX_BASIC_INFO)) {
-			cERROR(1, "Malformed FILE_UNIX_BASIC_INFO response. "
-				   "Unix Extensions can be disabled on mount "
-				   "by specifying the nosfu mount option.");
+			cifs_dbg(VFS, "Malformed FILE_UNIX_BASIC_INFO response. Unix Extensions can be disabled on mount by specifying the nosfu mount option.\n");
 			rc = -EIO;	/* bad smb */
 		} else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
@@ -4231,7 +4235,7 @@ CIFSFindFirst(const unsigned int xid, struct cifs_tcon *tcon,
 	__u16 params, byte_count;
 	struct nls_table *nls_codepage;
 
-	cFYI(1, "In FindFirst for %s", searchName);
+	cifs_dbg(FYI, "In FindFirst for %s\n", searchName);
 
 findFirstRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
@@ -4314,7 +4318,7 @@ findFirstRetry:
 	if (rc) {/* BB add logic to retry regular search if Unix search
 			rejected unexpectedly by server */
 		/* BB Add code to handle unsupported level rc */
-		cFYI(1, "Error in FindFirst = %d", rc);
+		cifs_dbg(FYI, "Error in FindFirst = %d\n", rc);
 
 		cifs_buf_release(pSMB);
 
@@ -4352,7 +4356,7 @@ findFirstRetry:
 				psrch_inf->entries_in_buffer;
 			lnoff = le16_to_cpu(parms->LastNameOffset);
 			if (CIFSMaxBufSize < lnoff) {
-				cERROR(1, "ignoring corrupt resume name");
+				cifs_dbg(VFS, "ignoring corrupt resume name\n");
 				psrch_inf->last_entry = NULL;
 				return rc;
 			}
@@ -4383,7 +4387,7 @@ int CIFSFindNext(const unsigned int xid, struct cifs_tcon *tcon,
 	unsigned int name_len;
 	__u16 params, byte_count;
 
-	cFYI(1, "In FindNext");
+	cifs_dbg(FYI, "In FindNext\n");
 
 	if (psrch_inf->endOfSearch)
 		return -ENOENT;
@@ -4444,7 +4448,7 @@ int CIFSFindNext(const unsigned int xid, struct cifs_tcon *tcon,
 			cifs_buf_release(pSMB);
 			rc = 0; /* search probably was closed at end of search*/
 		} else
-			cFYI(1, "FindNext returned = %d", rc);
+			cifs_dbg(FYI, "FindNext returned = %d\n", rc);
 	} else {                /* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -4479,15 +4483,15 @@ int CIFSFindNext(const unsigned int xid, struct cifs_tcon *tcon,
 				psrch_inf->entries_in_buffer;
 			lnoff = le16_to_cpu(parms->LastNameOffset);
 			if (CIFSMaxBufSize < lnoff) {
-				cERROR(1, "ignoring corrupt resume name");
+				cifs_dbg(VFS, "ignoring corrupt resume name\n");
 				psrch_inf->last_entry = NULL;
 				return rc;
 			} else
 				psrch_inf->last_entry =
 					psrch_inf->srch_entries_start + lnoff;
 
-/*  cFYI(1, "fnxt2 entries in buf %d index_of_last %d",
-	    psrch_inf->entries_in_buffer, psrch_inf->index_of_last_entry); */
+/*  cifs_dbg(FYI, "fnxt2 entries in buf %d index_of_last %d\n",
+    psrch_inf->entries_in_buffer, psrch_inf->index_of_last_entry); */
 
 			/* BB fixme add unlock here */
 		}
@@ -4512,7 +4516,7 @@ CIFSFindClose(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	FINDCLOSE_REQ *pSMB = NULL;
 
-	cFYI(1, "In CIFSSMBFindClose");
+	cifs_dbg(FYI, "In CIFSSMBFindClose\n");
 	rc = small_smb_init(SMB_COM_FIND_CLOSE2, 1, tcon, (void **)&pSMB);
 
 	/* no sense returning error if session restarted
@@ -4526,7 +4530,7 @@ CIFSFindClose(const unsigned int xid, struct cifs_tcon *tcon,
 	pSMB->ByteCount = 0;
 	rc = SendReceiveNoRsp(xid, tcon->ses, (char *) pSMB, 0);
 	if (rc)
-		cERROR(1, "Send error in FindClose = %d", rc);
+		cifs_dbg(VFS, "Send error in FindClose = %d\n", rc);
 
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_fclose);
 
@@ -4548,7 +4552,7 @@ CIFSGetSrvInodeNumber(const unsigned int xid, struct cifs_tcon *tcon,
 	int name_len, bytes_returned;
 	__u16 params, byte_count;
 
-	cFYI(1, "In GetSrvInodeNum for %s", search_name);
+	cifs_dbg(FYI, "In GetSrvInodeNum for %s\n", search_name);
 	if (tcon == NULL)
 		return -ENODEV;
 
@@ -4599,7 +4603,7 @@ GetInodeNumberRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 		(struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "error %d in QueryInternalInfo", rc);
+		cifs_dbg(FYI, "error %d in QueryInternalInfo\n", rc);
 	} else {
 		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
@@ -4614,7 +4618,7 @@ GetInodeNumberRetry:
 			struct file_internal_info *pfinfo;
 			/* BB Do we need a cast or hash here ? */
 			if (count < 8) {
-				cFYI(1, "Illegal size ret in QryIntrnlInf");
+				cifs_dbg(FYI, "Illegal size ret in QryIntrnlInf\n");
 				rc = -EIO;
 				goto GetInodeNumOut;
 			}
@@ -4655,16 +4659,16 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 	*num_of_nodes = le16_to_cpu(pSMBr->NumberOfReferrals);
 
 	if (*num_of_nodes < 1) {
-		cERROR(1, "num_referrals: must be at least > 0,"
-			"but we get num_referrals = %d", *num_of_nodes);
+		cifs_dbg(VFS, "num_referrals: must be at least > 0, but we get num_referrals = %d\n",
+			 *num_of_nodes);
 		rc = -EINVAL;
 		goto parse_DFS_referrals_exit;
 	}
 
 	ref = (struct dfs_referral_level_3 *) &(pSMBr->referrals);
 	if (ref->VersionNumber != cpu_to_le16(3)) {
-		cERROR(1, "Referrals of V%d version are not supported,"
-			"should be V3", le16_to_cpu(ref->VersionNumber));
+		cifs_dbg(VFS, "Referrals of V%d version are not supported, should be V3\n",
+			 le16_to_cpu(ref->VersionNumber));
 		rc = -EINVAL;
 		goto parse_DFS_referrals_exit;
 	}
@@ -4673,14 +4677,12 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 	data_end = (char *)(&(pSMBr->PathConsumed)) +
 				le16_to_cpu(pSMBr->t2.DataCount);
 
-	cFYI(1, "num_referrals: %d dfs flags: 0x%x ...",
-			*num_of_nodes,
-			le32_to_cpu(pSMBr->DFSFlags));
+	cifs_dbg(FYI, "num_referrals: %d dfs flags: 0x%x ...\n",
+		 *num_of_nodes, le32_to_cpu(pSMBr->DFSFlags));
 
-	*target_nodes = kzalloc(sizeof(struct dfs_info3_param) *
-			*num_of_nodes, GFP_KERNEL);
+	*target_nodes = kcalloc(*num_of_nodes, sizeof(struct dfs_info3_param),
+				GFP_KERNEL);
 	if (*target_nodes == NULL) {
-		cERROR(1, "Failed to allocate buffer for target_nodes");
 		rc = -ENOMEM;
 		goto parse_DFS_referrals_exit;
 	}
@@ -4759,7 +4761,7 @@ CIFSGetDFSRefer(const unsigned int xid, struct cifs_ses *ses,
 	*num_of_nodes = 0;
 	*target_nodes = NULL;
 
-	cFYI(1, "In GetDFSRefer the path %s", search_name);
+	cifs_dbg(FYI, "In GetDFSRefer the path %s\n", search_name);
 	if (ses == NULL)
 		return -ENODEV;
 getDFSRetry:
@@ -4827,7 +4829,7 @@ getDFSRetry:
 	rc = SendReceive(xid, ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in GetDFSRefer = %d", rc);
+		cifs_dbg(FYI, "Send error in GetDFSRefer = %d\n", rc);
 		goto GetDFSRefExit;
 	}
 	rc = validate_t2((struct smb_t2_rsp *)pSMBr);
@@ -4838,9 +4840,8 @@ getDFSRetry:
 		goto GetDFSRefExit;
 	}
 
-	cFYI(1, "Decoding GetDFSRefer response BCC: %d  Offset %d",
-				get_bcc(&pSMBr->hdr),
-				le16_to_cpu(pSMBr->t2.DataOffset));
+	cifs_dbg(FYI, "Decoding GetDFSRefer response BCC: %d  Offset %d\n",
+		 get_bcc(&pSMBr->hdr), le16_to_cpu(pSMBr->t2.DataOffset));
 
 	/* parse returned result into more usable form */
 	rc = parse_DFS_referrals(pSMBr, num_of_nodes,
@@ -4869,7 +4870,7 @@ SMBOldQFSInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned = 0;
 	__u16 params, byte_count;
 
-	cFYI(1, "OldQFSInfo");
+	cifs_dbg(FYI, "OldQFSInfo\n");
 oldQFSInfoRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		(void **) &pSMBr);
@@ -4902,7 +4903,7 @@ oldQFSInfoRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 		(struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QFSInfo = %d", rc);
+		cifs_dbg(FYI, "Send error in QFSInfo = %d\n", rc);
 	} else {                /* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -4910,7 +4911,7 @@ oldQFSInfoRetry:
 			rc = -EIO;      /* bad smb */
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
-			cFYI(1, "qfsinf resp BCC: %d  Offset %d",
+			cifs_dbg(FYI, "qfsinf resp BCC: %d  Offset %d\n",
 				 get_bcc(&pSMBr->hdr), data_offset);
 
 			response_data = (FILE_SYSTEM_ALLOC_INFO *)
@@ -4923,10 +4924,10 @@ oldQFSInfoRetry:
 			       le32_to_cpu(response_data->TotalAllocationUnits);
 			FSData->f_bfree = FSData->f_bavail =
 				le32_to_cpu(response_data->FreeAllocationUnits);
-			cFYI(1, "Blocks: %lld  Free: %lld Block size %ld",
-			     (unsigned long long)FSData->f_blocks,
-			     (unsigned long long)FSData->f_bfree,
-			     FSData->f_bsize);
+			cifs_dbg(FYI, "Blocks: %lld  Free: %lld Block size %ld\n",
+				 (unsigned long long)FSData->f_blocks,
+				 (unsigned long long)FSData->f_bfree,
+				 FSData->f_bsize);
 		}
 	}
 	cifs_buf_release(pSMB);
@@ -4949,7 +4950,7 @@ CIFSSMBQFSInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned = 0;
 	__u16 params, byte_count;
 
-	cFYI(1, "In QFSInfo");
+	cifs_dbg(FYI, "In QFSInfo\n");
 QFSInfoRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -4982,7 +4983,7 @@ QFSInfoRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QFSInfo = %d", rc);
+		cifs_dbg(FYI, "Send error in QFSInfo = %d\n", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -5003,10 +5004,10 @@ QFSInfoRetry:
 			    le64_to_cpu(response_data->TotalAllocationUnits);
 			FSData->f_bfree = FSData->f_bavail =
 			    le64_to_cpu(response_data->FreeAllocationUnits);
-			cFYI(1, "Blocks: %lld  Free: %lld Block size %ld",
-			     (unsigned long long)FSData->f_blocks,
-			     (unsigned long long)FSData->f_bfree,
-			     FSData->f_bsize);
+			cifs_dbg(FYI, "Blocks: %lld  Free: %lld Block size %ld\n",
+				 (unsigned long long)FSData->f_blocks,
+				 (unsigned long long)FSData->f_bfree,
+				 FSData->f_bsize);
 		}
 	}
 	cifs_buf_release(pSMB);
@@ -5028,7 +5029,7 @@ CIFSSMBQFSAttributeInfo(const unsigned int xid, struct cifs_tcon *tcon)
 	int bytes_returned = 0;
 	__u16 params, byte_count;
 
-	cFYI(1, "In QFSAttributeInfo");
+	cifs_dbg(FYI, "In QFSAttributeInfo\n");
 QFSAttributeRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -5062,7 +5063,7 @@ QFSAttributeRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cERROR(1, "Send error in QFSAttributeInfo = %d", rc);
+		cifs_dbg(VFS, "Send error in QFSAttributeInfo = %d\n", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -5098,7 +5099,7 @@ CIFSSMBQFSDeviceInfo(const unsigned int xid, struct cifs_tcon *tcon)
 	int bytes_returned = 0;
 	__u16 params, byte_count;
 
-	cFYI(1, "In QFSDeviceInfo");
+	cifs_dbg(FYI, "In QFSDeviceInfo\n");
 QFSDeviceRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -5133,7 +5134,7 @@ QFSDeviceRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QFSDeviceInfo = %d", rc);
+		cifs_dbg(FYI, "Send error in QFSDeviceInfo = %d\n", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -5169,7 +5170,7 @@ CIFSSMBQFSUnixInfo(const unsigned int xid, struct cifs_tcon *tcon)
 	int bytes_returned = 0;
 	__u16 params, byte_count;
 
-	cFYI(1, "In QFSUnixInfo");
+	cifs_dbg(FYI, "In QFSUnixInfo\n");
 QFSUnixRetry:
 	rc = smb_init_no_reconnect(SMB_COM_TRANSACTION2, 15, tcon,
 				   (void **) &pSMB, (void **) &pSMBr);
@@ -5203,7 +5204,7 @@ QFSUnixRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cERROR(1, "Send error in QFSUnixInfo = %d", rc);
+		cifs_dbg(VFS, "Send error in QFSUnixInfo = %d\n", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -5238,7 +5239,7 @@ CIFSSMBSetFSUnixInfo(const unsigned int xid, struct cifs_tcon *tcon, __u64 cap)
 	int bytes_returned = 0;
 	__u16 params, param_offset, offset, byte_count;
 
-	cFYI(1, "In SETFSUnixInfo");
+	cifs_dbg(FYI, "In SETFSUnixInfo\n");
 SETFSUnixRetry:
 	/* BB switch to small buf init to save memory */
 	rc = smb_init_no_reconnect(SMB_COM_TRANSACTION2, 15, tcon,
@@ -5286,7 +5287,7 @@ SETFSUnixRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cERROR(1, "Send error in SETFSUnixInfo = %d", rc);
+		cifs_dbg(VFS, "Send error in SETFSUnixInfo = %d\n", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 		if (rc)
@@ -5314,7 +5315,7 @@ CIFSSMBQFSPosixInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned = 0;
 	__u16 params, byte_count;
 
-	cFYI(1, "In QFSPosixInfo");
+	cifs_dbg(FYI, "In QFSPosixInfo\n");
 QFSPosixRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -5348,7 +5349,7 @@ QFSPosixRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QFSUnixInfo = %d", rc);
+		cifs_dbg(FYI, "Send error in QFSUnixInfo = %d\n", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -5410,7 +5411,7 @@ CIFSSMBSetEOF(const unsigned int xid, struct cifs_tcon *tcon,
 
 	__u16 params, byte_count, data_count, param_offset, offset;
 
-	cFYI(1, "In SetEOF");
+	cifs_dbg(FYI, "In SetEOF\n");
 SetEOFRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -5476,7 +5477,7 @@ SetEOFRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc)
-		cFYI(1, "SetPathInfo (file size) returned %d", rc);
+		cifs_dbg(FYI, "SetPathInfo (file size) returned %d\n", rc);
 
 	cifs_buf_release(pSMB);
 
@@ -5495,8 +5496,8 @@ CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	__u16 params, param_offset, offset, byte_count, count;
 
-	cFYI(1, "SetFileSize (via SetFileInfo) %lld",
-			(long long)size);
+	cifs_dbg(FYI, "SetFileSize (via SetFileInfo) %lld\n",
+		 (long long)size);
 	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
 
 	if (rc)
@@ -5553,7 +5554,8 @@ CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon,
 	pSMB->ByteCount = cpu_to_le16(byte_count);
 	rc = SendReceiveNoRsp(xid, tcon->ses, (char *) pSMB, 0);
 	if (rc) {
-		cFYI(1, "Send error in SetFileInfo (SetFileSize) = %d", rc);
+		cifs_dbg(FYI, "Send error in SetFileInfo (SetFileSize) = %d\n",
+			 rc);
 	}
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls
@@ -5577,7 +5579,7 @@ CIFSSMBSetFileInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	__u16 params, param_offset, offset, byte_count, count;
 
-	cFYI(1, "Set Times (via SetFileInfo)");
+	cifs_dbg(FYI, "Set Times (via SetFileInfo)\n");
 	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
 
 	if (rc)
@@ -5623,7 +5625,8 @@ CIFSSMBSetFileInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	memcpy(data_offset, data, sizeof(FILE_BASIC_INFO));
 	rc = SendReceiveNoRsp(xid, tcon->ses, (char *) pSMB, 0);
 	if (rc)
-		cFYI(1, "Send error in Set Time (SetFileInfo) = %d", rc);
+		cifs_dbg(FYI, "Send error in Set Time (SetFileInfo) = %d\n",
+			 rc);
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls
 		since file handle passed in no longer valid */
@@ -5640,7 +5643,7 @@ CIFSSMBSetFileDisposition(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	__u16 params, param_offset, offset, byte_count, count;
 
-	cFYI(1, "Set File Disposition (via SetFileInfo)");
+	cifs_dbg(FYI, "Set File Disposition (via SetFileInfo)\n");
 	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
 
 	if (rc)
@@ -5682,7 +5685,7 @@ CIFSSMBSetFileDisposition(const unsigned int xid, struct cifs_tcon *tcon,
 	*data_offset = delete_file ? 1 : 0;
 	rc = SendReceiveNoRsp(xid, tcon->ses, (char *) pSMB, 0);
 	if (rc)
-		cFYI(1, "Send error in SetFileDisposition = %d", rc);
+		cifs_dbg(FYI, "Send error in SetFileDisposition = %d\n", rc);
 
 	return rc;
 }
@@ -5700,7 +5703,7 @@ CIFSSMBSetPathInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	char *data_offset;
 	__u16 params, param_offset, offset, byte_count, count;
 
-	cFYI(1, "In SetTimes");
+	cifs_dbg(FYI, "In SetTimes\n");
 
 SetTimesRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
@@ -5756,7 +5759,7 @@ SetTimesRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc)
-		cFYI(1, "SetPathInfo (times) returned %d", rc);
+		cifs_dbg(FYI, "SetPathInfo (times) returned %d\n", rc);
 
 	cifs_buf_release(pSMB);
 
@@ -5781,7 +5784,7 @@ CIFSSMBSetAttrLegacy(unsigned int xid, struct cifs_tcon *tcon, char *fileName,
 	int bytes_returned;
 	int name_len;
 
-	cFYI(1, "In SetAttrLegacy");
+	cifs_dbg(FYI, "In SetAttrLegacy\n");
 
 SetAttrLgcyRetry:
 	rc = smb_init(SMB_COM_SETATTR, 8, tcon, (void **) &pSMB,
@@ -5807,7 +5810,7 @@ SetAttrLgcyRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc)
-		cFYI(1, "Error in LegacySetAttr = %d", rc);
+		cifs_dbg(FYI, "Error in LegacySetAttr = %d\n", rc);
 
 	cifs_buf_release(pSMB);
 
@@ -5875,7 +5878,7 @@ CIFSSMBUnixSetFileInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	u16 params, param_offset, offset, byte_count, count;
 
-	cFYI(1, "Set Unix Info (via SetFileInfo)");
+	cifs_dbg(FYI, "Set Unix Info (via SetFileInfo)\n");
 	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
 
 	if (rc)
@@ -5921,7 +5924,8 @@ CIFSSMBUnixSetFileInfo(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = SendReceiveNoRsp(xid, tcon->ses, (char *) pSMB, 0);
 	if (rc)
-		cFYI(1, "Send error in Set Time (SetFileInfo) = %d", rc);
+		cifs_dbg(FYI, "Send error in Set Time (SetFileInfo) = %d\n",
+			 rc);
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls
 		since file handle passed in no longer valid */
@@ -5943,7 +5947,7 @@ CIFSSMBUnixSetPathInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	FILE_UNIX_BASIC_INFO *data_offset;
 	__u16 params, param_offset, offset, count, byte_count;
 
-	cFYI(1, "In SetUID/GID/Mode");
+	cifs_dbg(FYI, "In SetUID/GID/Mode\n");
 setPermsRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -5999,7 +6003,7 @@ setPermsRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc)
-		cFYI(1, "SetPathInfo (perms) returned %d", rc);
+		cifs_dbg(FYI, "SetPathInfo (perms) returned %d\n", rc);
 
 	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
@@ -6036,7 +6040,7 @@ CIFSSMBQAllEAs(const unsigned int xid, struct cifs_tcon *tcon,
 	__u16 params, byte_count, data_offset;
 	unsigned int ea_name_len = ea_name ? strlen(ea_name) : 0;
 
-	cFYI(1, "In Query All EAs path %s", searchName);
+	cifs_dbg(FYI, "In Query All EAs path %s\n", searchName);
 QAllEAsRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -6083,7 +6087,7 @@ QAllEAsRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, "Send error in QueryAllEAs = %d", rc);
+		cifs_dbg(FYI, "Send error in QueryAllEAs = %d\n", rc);
 		goto QAllEAsOut;
 	}
 
@@ -6111,16 +6115,16 @@ QAllEAsRetry:
 				(((char *) &pSMBr->hdr.Protocol) + data_offset);
 
 	list_len = le32_to_cpu(ea_response_data->list_len);
-	cFYI(1, "ea length %d", list_len);
+	cifs_dbg(FYI, "ea length %d\n", list_len);
 	if (list_len <= 8) {
-		cFYI(1, "empty EA list returned from server");
+		cifs_dbg(FYI, "empty EA list returned from server\n");
 		goto QAllEAsOut;
 	}
 
 	/* make sure list_len doesn't go past end of SMB */
 	end_of_smb = (char *)pByteArea(&pSMBr->hdr) + get_bcc(&pSMBr->hdr);
 	if ((char *)ea_response_data + list_len > end_of_smb) {
-		cFYI(1, "EA list appears to go beyond SMB");
+		cifs_dbg(FYI, "EA list appears to go beyond SMB\n");
 		rc = -EIO;
 		goto QAllEAsOut;
 	}
@@ -6137,7 +6141,7 @@ QAllEAsRetry:
 		temp_ptr += 4;
 		/* make sure we can read name_len and value_len */
 		if (list_len < 0) {
-			cFYI(1, "EA entry goes beyond length of list");
+			cifs_dbg(FYI, "EA entry goes beyond length of list\n");
 			rc = -EIO;
 			goto QAllEAsOut;
 		}
@@ -6146,7 +6150,7 @@ QAllEAsRetry:
 		value_len = le16_to_cpu(temp_fea->value_len);
 		list_len -= name_len + 1 + value_len;
 		if (list_len < 0) {
-			cFYI(1, "EA entry goes beyond length of list");
+			cifs_dbg(FYI, "EA entry goes beyond length of list\n");
 			rc = -EIO;
 			goto QAllEAsOut;
 		}
@@ -6214,7 +6218,7 @@ CIFSSMBSetEA(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned = 0;
 	__u16 params, param_offset, byte_count, offset, count;
 
-	cFYI(1, "In SetEA");
+	cifs_dbg(FYI, "In SetEA\n");
 SetEARetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -6296,7 +6300,7 @@ SetEARetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc)
-		cFYI(1, "SetPathInfo (EA) returned %d", rc);
+		cifs_dbg(FYI, "SetPathInfo (EA) returned %d\n", rc);
 
 	cifs_buf_release(pSMB);
 
@@ -6339,7 +6343,7 @@ int CIFSSMBNotify(const unsigned int xid, struct cifs_tcon *tcon,
 	struct dir_notify_req *dnotify_req;
 	int bytes_returned;
 
-	cFYI(1, "In CIFSSMBNotify for file handle %d", (int)netfid);
+	cifs_dbg(FYI, "In CIFSSMBNotify for file handle %d\n", (int)netfid);
 	rc = smb_init(SMB_COM_NT_TRANSACT, 23, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
 	if (rc)
@@ -6368,7 +6372,7 @@ int CIFSSMBNotify(const unsigned int xid, struct cifs_tcon *tcon,
 			 (struct smb_hdr *)pSMBr, &bytes_returned,
 			 CIFS_ASYNC_OP);
 	if (rc) {
-		cFYI(1, "Error in Notify = %d", rc);
+		cifs_dbg(FYI, "Error in Notify = %d\n", rc);
 	} else {
 		/* Add file to outstanding requests */
 		/* BB change to kmem cache alloc */

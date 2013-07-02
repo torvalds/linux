@@ -176,35 +176,9 @@ static inline struct hdmiphy_ctx *sd_to_ctx(struct v4l2_subdev *sd)
 	return container_of(sd, struct hdmiphy_ctx, sd);
 }
 
-static unsigned long hdmiphy_preset_to_pixclk(u32 preset)
+static const u8 *hdmiphy_find_conf(unsigned long pixclk,
+		const struct hdmiphy_conf *conf)
 {
-	static const unsigned long pixclk[] = {
-		[V4L2_DV_480P59_94] =  27000000,
-		[V4L2_DV_576P50]    =  27000000,
-		[V4L2_DV_720P59_94] =  74176000,
-		[V4L2_DV_720P50]    =  74250000,
-		[V4L2_DV_720P60]    =  74250000,
-		[V4L2_DV_1080P24]   =  74250000,
-		[V4L2_DV_1080P30]   =  74250000,
-		[V4L2_DV_1080I50]   =  74250000,
-		[V4L2_DV_1080I60]   =  74250000,
-		[V4L2_DV_1080P50]   = 148500000,
-		[V4L2_DV_1080P60]   = 148500000,
-	};
-	if (preset < ARRAY_SIZE(pixclk))
-		return pixclk[preset];
-	else
-		return 0;
-}
-
-static const u8 *hdmiphy_find_conf(u32 preset, const struct hdmiphy_conf *conf)
-{
-	unsigned long pixclk;
-
-	pixclk = hdmiphy_preset_to_pixclk(preset);
-	if (!pixclk)
-		return NULL;
-
 	for (; conf->pixclk; ++conf)
 		if (conf->pixclk == pixclk)
 			return conf->data;
@@ -217,8 +191,8 @@ static int hdmiphy_s_power(struct v4l2_subdev *sd, int on)
 	return 0;
 }
 
-static int hdmiphy_s_dv_preset(struct v4l2_subdev *sd,
-	struct v4l2_dv_preset *preset)
+static int hdmiphy_s_dv_timings(struct v4l2_subdev *sd,
+	struct v4l2_dv_timings *timings)
 {
 	const u8 *data;
 	u8 buffer[32];
@@ -226,9 +200,12 @@ static int hdmiphy_s_dv_preset(struct v4l2_subdev *sd,
 	struct hdmiphy_ctx *ctx = sd_to_ctx(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct device *dev = &client->dev;
+	unsigned long pixclk = timings->bt.pixelclock;
 
-	dev_info(dev, "s_dv_preset(preset = %d)\n", preset->preset);
-	data = hdmiphy_find_conf(preset->preset, ctx->conf_tab);
+	dev_info(dev, "s_dv_timings\n");
+	if ((timings->bt.flags & V4L2_DV_FL_REDUCED_FPS) && pixclk == 74250000)
+		pixclk = 74176000;
+	data = hdmiphy_find_conf(pixclk, ctx->conf_tab);
 	if (!data) {
 		dev_err(dev, "format not supported\n");
 		return -EINVAL;
@@ -242,6 +219,17 @@ static int hdmiphy_s_dv_preset(struct v4l2_subdev *sd,
 		return -EIO;
 	}
 
+	return 0;
+}
+
+static int hdmiphy_dv_timings_cap(struct v4l2_subdev *sd,
+	struct v4l2_dv_timings_cap *cap)
+{
+	cap->type = V4L2_DV_BT_656_1120;
+	/* The phy only determines the pixelclock, leave the other values
+	 * at 0 to signify that we have no information for them. */
+	cap->bt.min_pixelclock = 27000000;
+	cap->bt.max_pixelclock = 148500000;
 	return 0;
 }
 
@@ -270,7 +258,8 @@ static const struct v4l2_subdev_core_ops hdmiphy_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops hdmiphy_video_ops = {
-	.s_dv_preset = hdmiphy_s_dv_preset,
+	.s_dv_timings = hdmiphy_s_dv_timings,
+	.dv_timings_cap = hdmiphy_dv_timings_cap,
 	.s_stream =  hdmiphy_s_stream,
 };
 

@@ -124,6 +124,7 @@ static struct snd_soc_card snd_soc_tegra_wm8753 = {
 
 static int tegra_wm8753_driver_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct snd_soc_card *card = &snd_soc_tegra_wm8753;
 	struct tegra_wm8753 *machine;
 	int ret;
@@ -132,8 +133,7 @@ static int tegra_wm8753_driver_probe(struct platform_device *pdev)
 			       GFP_KERNEL);
 	if (!machine) {
 		dev_err(&pdev->dev, "Can't allocate tegra_wm8753 struct\n");
-		ret = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	card->dev = &pdev->dev;
@@ -148,8 +148,8 @@ static int tegra_wm8753_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	tegra_wm8753_dai.codec_of_node = of_parse_phandle(
-			pdev->dev.of_node, "nvidia,audio-codec", 0);
+	tegra_wm8753_dai.codec_of_node = of_parse_phandle(np,
+			"nvidia,audio-codec", 0);
 	if (!tegra_wm8753_dai.codec_of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,audio-codec' missing or invalid\n");
@@ -157,8 +157,8 @@ static int tegra_wm8753_driver_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	tegra_wm8753_dai.cpu_of_node = of_parse_phandle(
-			pdev->dev.of_node, "nvidia,i2s-controller", 0);
+	tegra_wm8753_dai.cpu_of_node = of_parse_phandle(np,
+			"nvidia,i2s-controller", 0);
 	if (!tegra_wm8753_dai.cpu_of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,i2s-controller' missing or invalid\n");
@@ -166,8 +166,7 @@ static int tegra_wm8753_driver_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	tegra_wm8753_dai.platform_of_node =
-				tegra_wm8753_dai.cpu_of_node;
+	tegra_wm8753_dai.platform_of_node = tegra_wm8753_dai.cpu_of_node;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)

@@ -9,7 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	aliases {
@@ -99,6 +99,22 @@
 				reg = <0x53f80000 0x4000>;
 				interrupts = <0 31 0x04 0 53 0x04>;
 				#clock-cells = <1>;
+			};
+		};
+
+		aips@53f00000 { /* AIPS2 */
+			compatible = "fsl,aips-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x53f00000 0x100000>;
+			ranges;
+
+			gpt: timer@53f90000 {
+				compatible = "fsl,imx31-gpt";
+				reg = <0x53f90000 0x4000>;
+				interrupts = <29>;
+				clocks = <&clks 10>, <&clks 22>;
+				clock-names = "ipg", "per";
 			};
 		};
 	};

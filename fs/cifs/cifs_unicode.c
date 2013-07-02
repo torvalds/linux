@@ -227,8 +227,8 @@ cifs_strtoUTF16(__le16 *to, const char *from, int len,
 	for (i = 0; len && *from; i++, from += charlen, len -= charlen) {
 		charlen = codepage->char2uni(from, len, &wchar_to);
 		if (charlen < 1) {
-			cERROR(1, "strtoUTF16: char2uni of 0x%x returned %d",
-				*from, charlen);
+			cifs_dbg(VFS, "strtoUTF16: char2uni of 0x%x returned %d\n",
+				 *from, charlen);
 			/* A question mark */
 			wchar_to = 0x003f;
 			charlen = 1;

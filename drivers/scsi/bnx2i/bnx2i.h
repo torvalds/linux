@@ -580,8 +580,8 @@ struct bnx2i_5771x_dbell {
  * @sq_mem_size:        SQ size
  * @sq_prod_qe:         SQ producer entry pointer
  * @sq_cons_qe:         SQ consumer entry pointer
- * @sq_first_qe:        virtaul address of first entry in SQ
- * @sq_last_qe:         virtaul address of last entry in SQ
+ * @sq_first_qe:        virtual address of first entry in SQ
+ * @sq_last_qe:         virtual address of last entry in SQ
  * @sq_prod_idx:        SQ producer index
  * @sq_cons_idx:        SQ consumer index
  * @sqe_left:           number sq entry left
@@ -593,8 +593,8 @@ struct bnx2i_5771x_dbell {
  * @cq_mem_size:        CQ size
  * @cq_prod_qe:         CQ producer entry pointer
  * @cq_cons_qe:         CQ consumer entry pointer
- * @cq_first_qe:        virtaul address of first entry in CQ
- * @cq_last_qe:         virtaul address of last entry in CQ
+ * @cq_first_qe:        virtual address of first entry in CQ
+ * @cq_last_qe:         virtual address of last entry in CQ
  * @cq_prod_idx:        CQ producer index
  * @cq_cons_idx:        CQ consumer index
  * @cqe_left:           number cq entry left
@@ -608,8 +608,8 @@ struct bnx2i_5771x_dbell {
  * @rq_mem_size:        RQ size
  * @rq_prod_qe:         RQ producer entry pointer
  * @rq_cons_qe:         RQ consumer entry pointer
- * @rq_first_qe:        virtaul address of first entry in RQ
- * @rq_last_qe:         virtaul address of last entry in RQ
+ * @rq_first_qe:        virtual address of first entry in RQ
+ * @rq_last_qe:         virtual address of last entry in RQ
  * @rq_prod_idx:        RQ producer index
  * @rq_cons_idx:        RQ consumer index
  * @rqe_left:           number rq entry left

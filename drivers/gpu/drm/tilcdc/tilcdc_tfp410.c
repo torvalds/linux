@@ -396,7 +396,6 @@ static struct of_device_id tfp410_of_match[] = {
 		{ .compatible = "ti,tilcdc,tfp410", },
 		{ },
 };
-MODULE_DEVICE_TABLE(of, tfp410_of_match);
 
 struct platform_driver tfp410_driver = {
 	.probe = tfp410_probe,

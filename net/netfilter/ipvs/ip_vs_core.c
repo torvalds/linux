@@ -69,10 +69,7 @@ EXPORT_SYMBOL(ip_vs_conn_put);
 EXPORT_SYMBOL(ip_vs_get_debug_level);
 #endif
 
-int ip_vs_net_id __read_mostly;
-#ifdef IP_VS_GENERIC_NETNS
-EXPORT_SYMBOL(ip_vs_net_id);
-#endif
+static int ip_vs_net_id __read_mostly;
 /* netns cnt used for uniqueness */
 static atomic_t ipvs_netns_cnt = ATOMIC_INIT(0);
 
@@ -206,7 +203,7 @@ ip_vs_conn_fill_param_persist(const struct ip_vs_service *svc,
 {
 	ip_vs_conn_fill_param(svc->net, svc->af, protocol, caddr, cport, vaddr,
 			      vport, p);
-	p->pe = svc->pe;
+	p->pe = rcu_dereference(svc->pe);
 	if (p->pe && p->pe->fill_param)
 		return p->pe->fill_param(p, skb);
 
@@ -238,7 +235,8 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	/* Mask saddr with the netmask to adjust template granularity */
 #ifdef CONFIG_IP_VS_IPV6
 	if (svc->af == AF_INET6)
-		ipv6_addr_prefix(&snet.in6, &iph->saddr.in6, svc->netmask);
+		ipv6_addr_prefix(&snet.in6, &iph->saddr.in6,
+				 (__force __u32) svc->netmask);
 	else
 #endif
 		snet.ip = iph->saddr.ip & svc->netmask;
@@ -299,12 +297,15 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	/* Check if a template already exists */
 	ct = ip_vs_ct_in_get(&param);
 	if (!ct || !ip_vs_check_template(ct)) {
+		struct ip_vs_scheduler *sched;
+
 		/*
 		 * No template found or the dest of the connection
 		 * template is not available.
 		 * return *ignored=0 i.e. ICMP and NF_DROP
 		 */
-		dest = svc->scheduler->schedule(svc, skb);
+		sched = rcu_dereference(svc->scheduler);
+		dest = sched->schedule(svc, skb);
 		if (!dest) {
 			IP_VS_DBG(1, "p-schedule: no dest found.\n");
 			kfree(param.pe_data);
@@ -394,6 +395,7 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 {
 	struct ip_vs_protocol *pp = pd->pp;
 	struct ip_vs_conn *cp = NULL;
+	struct ip_vs_scheduler *sched;
 	struct ip_vs_dest *dest;
 	__be16 _ports[2], *pptr;
 	unsigned int flags;
@@ -449,7 +451,8 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 		return NULL;
 	}
 
-	dest = svc->scheduler->schedule(svc, skb);
+	sched = rcu_dereference(svc->scheduler);
+	dest = sched->schedule(svc, skb);
 	if (dest == NULL) {
 		IP_VS_DBG(1, "Schedule: no dest found.\n");
 		return NULL;
@@ -507,7 +510,6 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 
 	pptr = frag_safe_skb_hp(skb, iph->len, sizeof(_ports), _ports, iph);
 	if (pptr == NULL) {
-		ip_vs_service_put(svc);
 		return NF_DROP;
 	}
 
@@ -532,8 +534,6 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 				      iph->protocol == IPPROTO_UDP) ?
 				      IP_VS_CONN_F_ONE_PACKET : 0;
 		union nf_inet_addr daddr =  { .all = { 0, 0, 0, 0 } };
-
-		ip_vs_service_put(svc);
 
 		/* create a new connection entry */
 		IP_VS_DBG(6, "%s(): create a cache_bypass entry\n", __func__);
@@ -571,12 +571,8 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	 * listed in the ipvs table), pass the packets, because it is
 	 * not ipvs job to decide to drop the packets.
 	 */
-	if ((svc->port == FTPPORT) && (pptr[1] != FTPPORT)) {
-		ip_vs_service_put(svc);
+	if ((svc->port == FTPPORT) && (pptr[1] != FTPPORT))
 		return NF_ACCEPT;
-	}
-
-	ip_vs_service_put(svc);
 
 	/*
 	 * Notify the client that the destination is unreachable, and
@@ -588,9 +584,9 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 #ifdef CONFIG_IP_VS_IPV6
 	if (svc->af == AF_INET6) {
 		if (!skb->dev) {
-			struct net *net = dev_net(skb_dst(skb)->dev);
+			struct net *net_ = dev_net(skb_dst(skb)->dev);
 
-			skb->dev = net->loopback_dev;
+			skb->dev = net_->loopback_dev;
 		}
 		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 	} else
@@ -643,8 +639,11 @@ static inline enum ip_defrag_users ip_vs_defrag_user(unsigned int hooknum)
 
 static inline int ip_vs_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
-	int err = ip_defrag(skb, user);
+	int err;
 
+	local_bh_disable();
+	err = ip_defrag(skb, user);
+	local_bh_enable();
 	if (!err)
 		ip_send_check(ip_hdr(skb));
 
@@ -1002,6 +1001,32 @@ static inline int is_tcp_reset(const struct sk_buff *skb, int nh_len)
 	return th->rst;
 }
 
+static inline bool is_new_conn(const struct sk_buff *skb,
+			       struct ip_vs_iphdr *iph)
+{
+	switch (iph->protocol) {
+	case IPPROTO_TCP: {
+		struct tcphdr _tcph, *th;
+
+		th = skb_header_pointer(skb, iph->len, sizeof(_tcph), &_tcph);
+		if (th == NULL)
+			return false;
+		return th->syn;
+	}
+	case IPPROTO_SCTP: {
+		sctp_chunkhdr_t *sch, schunk;
+
+		sch = skb_header_pointer(skb, iph->len + sizeof(sctp_sctphdr_t),
+					 sizeof(schunk), &schunk);
+		if (sch == NULL)
+			return false;
+		return sch->type == SCTP_CID_INIT;
+	}
+	default:
+		return false;
+	}
+}
+
 /* Handle response packets: rewrite addresses and send away...
  */
 static unsigned int
@@ -1164,9 +1189,8 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 					 sizeof(_ports), _ports, &iph);
 		if (pptr == NULL)
 			return NF_ACCEPT;	/* Not for me */
-		if (ip_vs_lookup_real_service(net, af, iph.protocol,
-					      &iph.saddr,
-					      pptr[0])) {
+		if (ip_vs_has_real_service(net, af, iph.protocol, &iph.saddr,
+					   pptr[0])) {
 			/*
 			 * Notify the real server: there is no
 			 * existing entry if it is not RST
@@ -1181,9 +1205,6 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 						iph.len)))) {
 #ifdef CONFIG_IP_VS_IPV6
 				if (af == AF_INET6) {
-					struct net *net =
-						dev_net(skb_dst(skb)->dev);
-
 					if (!skb->dev)
 						skb->dev = net->loopback_dev;
 					icmpv6_send(skb,
@@ -1226,13 +1247,7 @@ ip_vs_local_reply4(unsigned int hooknum, struct sk_buff *skb,
 		   const struct net_device *in, const struct net_device *out,
 		   int (*okfn)(struct sk_buff *))
 {
-	unsigned int verdict;
-
-	/* Disable BH in LOCAL_OUT until all places are fixed */
-	local_bh_disable();
-	verdict = ip_vs_out(hooknum, skb, AF_INET);
-	local_bh_enable();
-	return verdict;
+	return ip_vs_out(hooknum, skb, AF_INET);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1259,13 +1274,7 @@ ip_vs_local_reply6(unsigned int hooknum, struct sk_buff *skb,
 		   const struct net_device *in, const struct net_device *out,
 		   int (*okfn)(struct sk_buff *))
 {
-	unsigned int verdict;
-
-	/* Disable BH in LOCAL_OUT until all places are fixed */
-	local_bh_disable();
-	verdict = ip_vs_out(hooknum, skb, AF_INET6);
-	local_bh_enable();
-	return verdict;
+	return ip_vs_out(hooknum, skb, AF_INET6);
 }
 
 #endif
@@ -1394,19 +1403,20 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 			skb_reset_network_header(skb);
 			IP_VS_DBG(12, "ICMP for IPIP %pI4->%pI4: mtu=%u\n",
 				&ip_hdr(skb)->saddr, &ip_hdr(skb)->daddr, mtu);
-			rcu_read_lock();
 			ipv4_update_pmtu(skb, dev_net(skb->dev),
 					 mtu, 0, 0, 0, 0);
-			rcu_read_unlock();
 			/* Client uses PMTUD? */
 			if (!(cih->frag_off & htons(IP_DF)))
 				goto ignore_ipip;
 			/* Prefer the resulting PMTU */
 			if (dest) {
-				spin_lock(&dest->dst_lock);
-				if (dest->dst_cache)
-					mtu = dst_mtu(dest->dst_cache);
-				spin_unlock(&dest->dst_lock);
+				struct ip_vs_dest_dst *dest_dst;
+
+				rcu_read_lock();
+				dest_dst = rcu_dereference(dest->dest_dst);
+				if (dest_dst)
+					mtu = dst_mtu(dest_dst->dst_cache);
+				rcu_read_unlock();
 			}
 			if (mtu > 68 + sizeof(struct iphdr))
 				mtu -= sizeof(struct iphdr);
@@ -1577,7 +1587,8 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	}
 	/* ipvs enabled in this netns ? */
 	net = skb_net(skb);
-	if (!net_ipvs(net)->enable)
+	ipvs = net_ipvs(net);
+	if (unlikely(sysctl_backup_only(ipvs) || !ipvs->enable))
 		return NF_ACCEPT;
 
 	ip_vs_fill_iph_skb(af, skb, &iph);
@@ -1627,6 +1638,15 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	 * Check if the packet belongs to an existing connection entry
 	 */
 	cp = pp->conn_in_get(af, skb, &iph, 0);
+
+	if (unlikely(sysctl_expire_nodest_conn(ipvs)) && cp && cp->dest &&
+	    unlikely(!atomic_read(&cp->dest->weight)) && !iph.fragoffs &&
+	    is_new_conn(skb, &iph)) {
+		ip_vs_conn_expire_now(cp);
+		__ip_vs_conn_put(cp);
+		cp = NULL;
+	}
+
 	if (unlikely(!cp) && !iph.fragoffs) {
 		/* No (second) fragments need to enter here, as nf_defrag_ipv6
 		 * replayed fragment zero will already have created the cp
@@ -1654,7 +1674,6 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	}
 
 	IP_VS_DBG_PKT(11, af, pp, skb, 0, "Incoming packet");
-	ipvs = net_ipvs(net);
 	/* Check the server status */
 	if (cp->dest && !(cp->dest->flags & IP_VS_DEST_F_AVAILABLE)) {
 		/* the destination server is not available */
@@ -1722,13 +1741,7 @@ ip_vs_local_request4(unsigned int hooknum, struct sk_buff *skb,
 		     const struct net_device *in, const struct net_device *out,
 		     int (*okfn)(struct sk_buff *))
 {
-	unsigned int verdict;
-
-	/* Disable BH in LOCAL_OUT until all places are fixed */
-	local_bh_disable();
-	verdict = ip_vs_in(hooknum, skb, AF_INET);
-	local_bh_enable();
-	return verdict;
+	return ip_vs_in(hooknum, skb, AF_INET);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1787,13 +1800,7 @@ ip_vs_local_request6(unsigned int hooknum, struct sk_buff *skb,
 		     const struct net_device *in, const struct net_device *out,
 		     int (*okfn)(struct sk_buff *))
 {
-	unsigned int verdict;
-
-	/* Disable BH in LOCAL_OUT until all places are fixed */
-	local_bh_disable();
-	verdict = ip_vs_in(hooknum, skb, AF_INET6);
-	local_bh_enable();
-	return verdict;
+	return ip_vs_in(hooknum, skb, AF_INET6);
 }
 
 #endif
@@ -1815,13 +1822,15 @@ ip_vs_forward_icmp(unsigned int hooknum, struct sk_buff *skb,
 {
 	int r;
 	struct net *net;
+	struct netns_ipvs *ipvs;
 
 	if (ip_hdr(skb)->protocol != IPPROTO_ICMP)
 		return NF_ACCEPT;
 
 	/* ipvs enabled in this netns ? */
 	net = skb_net(skb);
-	if (!net_ipvs(net)->enable)
+	ipvs = net_ipvs(net);
+	if (unlikely(sysctl_backup_only(ipvs) || !ipvs->enable))
 		return NF_ACCEPT;
 
 	return ip_vs_in_icmp(skb, &r, hooknum);
@@ -1835,6 +1844,7 @@ ip_vs_forward_icmp_v6(unsigned int hooknum, struct sk_buff *skb,
 {
 	int r;
 	struct net *net;
+	struct netns_ipvs *ipvs;
 	struct ip_vs_iphdr iphdr;
 
 	ip_vs_fill_iph_skb(AF_INET6, skb, &iphdr);
@@ -1843,7 +1853,8 @@ ip_vs_forward_icmp_v6(unsigned int hooknum, struct sk_buff *skb,
 
 	/* ipvs enabled in this netns ? */
 	net = skb_net(skb);
-	if (!net_ipvs(net)->enable)
+	ipvs = net_ipvs(net);
+	if (unlikely(sysctl_backup_only(ipvs) || !ipvs->enable))
 		return NF_ACCEPT;
 
 	return ip_vs_in_icmp_v6(skb, &r, hooknum, &iphdr);

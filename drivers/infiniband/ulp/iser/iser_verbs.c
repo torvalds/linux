@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004, 2005, 2006 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2013 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -74,8 +75,9 @@ static int iser_create_device_ib_res(struct iser_device *device)
 	struct iser_cq_desc *cq_desc;
 
 	device->cqs_used = min(ISER_MAX_CQ, device->ib_device->num_comp_vectors);
-	iser_err("using %d CQs, device %s supports %d vectors\n", device->cqs_used,
-		 device->ib_device->name, device->ib_device->num_comp_vectors);
+	iser_info("using %d CQs, device %s supports %d vectors\n",
+		  device->cqs_used, device->ib_device->name,
+		  device->ib_device->num_comp_vectors);
 
 	device->cq_desc = kmalloc(sizeof(struct iser_cq_desc) * device->cqs_used,
 				  GFP_KERNEL);
@@ -262,7 +264,7 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 			min_index = index;
 	device->cq_active_qps[min_index]++;
 	mutex_unlock(&ig.connlist_mutex);
-	iser_err("cq index %d used for ib_conn %p\n", min_index, ib_conn);
+	iser_info("cq index %d used for ib_conn %p\n", min_index, ib_conn);
 
 	init_attr.event_handler = iser_qp_event_callback;
 	init_attr.qp_context	= (void *)ib_conn;
@@ -280,9 +282,9 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 		goto out_err;
 
 	ib_conn->qp = ib_conn->cma_id->qp;
-	iser_err("setting conn %p cma_id %p: fmr_pool %p qp %p\n",
-		 ib_conn, ib_conn->cma_id,
-		 ib_conn->fmr_pool, ib_conn->cma_id->qp);
+	iser_info("setting conn %p cma_id %p: fmr_pool %p qp %p\n",
+		  ib_conn, ib_conn->cma_id,
+		  ib_conn->fmr_pool, ib_conn->cma_id->qp);
 	return ret;
 
 out_err:
@@ -291,17 +293,17 @@ out_err:
 }
 
 /**
- * releases the FMR pool, QP and CMA ID objects, returns 0 on success,
+ * releases the FMR pool and QP objects, returns 0 on success,
  * -1 on failure
  */
-static int iser_free_ib_conn_res(struct iser_conn *ib_conn, int can_destroy_id)
+static int iser_free_ib_conn_res(struct iser_conn *ib_conn)
 {
 	int cq_index;
 	BUG_ON(ib_conn == NULL);
 
-	iser_err("freeing conn %p cma_id %p fmr pool %p qp %p\n",
-		 ib_conn, ib_conn->cma_id,
-		 ib_conn->fmr_pool, ib_conn->qp);
+	iser_info("freeing conn %p cma_id %p fmr pool %p qp %p\n",
+		  ib_conn, ib_conn->cma_id,
+		  ib_conn->fmr_pool, ib_conn->qp);
 
 	/* qp is created only once both addr & route are resolved */
 	if (ib_conn->fmr_pool != NULL)
@@ -313,13 +315,9 @@ static int iser_free_ib_conn_res(struct iser_conn *ib_conn, int can_destroy_id)
 
 		rdma_destroy_qp(ib_conn->cma_id);
 	}
-	/* if cma handler context, the caller acts s.t the cma destroy the id */
-	if (ib_conn->cma_id != NULL && can_destroy_id)
-		rdma_destroy_id(ib_conn->cma_id);
 
 	ib_conn->fmr_pool = NULL;
 	ib_conn->qp	  = NULL;
-	ib_conn->cma_id   = NULL;
 	kfree(ib_conn->page_vec);
 
 	if (ib_conn->login_buf) {
@@ -379,7 +377,7 @@ static void iser_device_try_release(struct iser_device *device)
 {
 	mutex_lock(&ig.device_list_mutex);
 	device->refcount--;
-	iser_err("device %p refcount %d\n",device,device->refcount);
+	iser_info("device %p refcount %d\n", device, device->refcount);
 	if (!device->refcount) {
 		iser_free_device_ib_res(device);
 		list_del(&device->ig_list);
@@ -414,11 +412,16 @@ static void iser_conn_release(struct iser_conn *ib_conn, int can_destroy_id)
 	list_del(&ib_conn->conn_list);
 	mutex_unlock(&ig.connlist_mutex);
 	iser_free_rx_descriptors(ib_conn);
-	iser_free_ib_conn_res(ib_conn, can_destroy_id);
+	iser_free_ib_conn_res(ib_conn);
 	ib_conn->device = NULL;
 	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
 	if (device != NULL)
 		iser_device_try_release(device);
+	/* if cma handler context, the caller actually destroy the id */
+	if (ib_conn->cma_id != NULL && can_destroy_id) {
+		rdma_destroy_id(ib_conn->cma_id);
+		ib_conn->cma_id = NULL;
+	}
 	iscsi_destroy_endpoint(ib_conn->ep);
 }
 
@@ -498,6 +501,7 @@ static int iser_route_handler(struct rdma_cm_id *cma_id)
 {
 	struct rdma_conn_param conn_param;
 	int    ret;
+	struct iser_cm_hdr req_hdr;
 
 	ret = iser_create_ib_conn_res((struct iser_conn *)cma_id->context);
 	if (ret)
@@ -508,6 +512,12 @@ static int iser_route_handler(struct rdma_cm_id *cma_id)
 	conn_param.initiator_depth     = 1;
 	conn_param.retry_count	       = 7;
 	conn_param.rnr_retry_count     = 6;
+
+	memset(&req_hdr, 0, sizeof(req_hdr));
+	req_hdr.flags = (ISER_ZBVA_NOT_SUPPORTED |
+			ISER_SEND_W_INV_NOT_SUPPORTED);
+	conn_param.private_data		= (void *)&req_hdr;
+	conn_param.private_data_len	= sizeof(struct iser_cm_hdr);
 
 	ret = rdma_connect(cma_id, &conn_param);
 	if (ret) {
@@ -558,8 +568,8 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 {
 	int ret = 0;
 
-	iser_err("event %d status %d conn %p id %p\n",
-		event->event, event->status, cma_id->context, cma_id);
+	iser_info("event %d status %d conn %p id %p\n",
+		  event->event, event->status, cma_id->context, cma_id);
 
 	switch (event->event) {
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
@@ -619,8 +629,8 @@ int iser_connect(struct iser_conn   *ib_conn,
 	/* the device is known only --after-- address resolution */
 	ib_conn->device = NULL;
 
-	iser_err("connecting to: %pI4, port 0x%x\n",
-		 &dst_addr->sin_addr, dst_addr->sin_port);
+	iser_info("connecting to: %pI4, port 0x%x\n",
+		  &dst_addr->sin_addr, dst_addr->sin_port);
 
 	ib_conn->state = ISER_CONN_PENDING;
 

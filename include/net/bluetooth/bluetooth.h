@@ -193,11 +193,11 @@ static inline bool bdaddr_type_is_le(__u8 type)
 #define BDADDR_LOCAL (&(bdaddr_t) {{0, 0, 0, 0xff, 0xff, 0xff} })
 
 /* Copy, swap, convert BD Address */
-static inline int bacmp(bdaddr_t *ba1, bdaddr_t *ba2)
+static inline int bacmp(const bdaddr_t *ba1, const bdaddr_t *ba2)
 {
 	return memcmp(ba1, ba2, sizeof(bdaddr_t));
 }
-static inline void bacpy(bdaddr_t *dst, bdaddr_t *src)
+static inline void bacpy(bdaddr_t *dst, const bdaddr_t *src)
 {
 	memcpy(dst, src, sizeof(bdaddr_t));
 }
@@ -226,13 +226,12 @@ struct bt_sock_list {
 	struct hlist_head head;
 	rwlock_t          lock;
 #ifdef CONFIG_PROC_FS
-        struct file_operations   fops;
         int (* custom_seq_show)(struct seq_file *, void *);
 #endif
 };
 
 int  bt_sock_register(int proto, const struct net_proto_family *ops);
-int  bt_sock_unregister(int proto);
+void bt_sock_unregister(int proto);
 void bt_sock_link(struct bt_sock_list *l, struct sock *s);
 void bt_sock_unlink(struct bt_sock_list *l, struct sock *s);
 int  bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
@@ -260,12 +259,23 @@ struct l2cap_ctrl {
 	__u8		retries;
 };
 
+struct hci_dev;
+
+typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status);
+
+struct hci_req_ctrl {
+	bool			start;
+	u8			event;
+	hci_req_complete_t	complete;
+};
+
 struct bt_skb_cb {
 	__u8 pkt_type;
 	__u8 incoming;
 	__u16 expect;
 	__u8 force_active;
 	struct l2cap_ctrl control;
+	struct hci_req_ctrl req;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
@@ -319,7 +329,7 @@ extern void hci_sock_cleanup(void);
 extern int bt_sysfs_init(void);
 extern void bt_sysfs_cleanup(void);
 
-extern int  bt_procfs_init(struct module* module, struct net *net, const char *name,
+extern int  bt_procfs_init(struct net *net, const char *name,
 			   struct bt_sock_list* sk_list,
 			   int (* seq_show)(struct seq_file *, void *));
 extern void bt_procfs_cleanup(struct net *net, const char *name);

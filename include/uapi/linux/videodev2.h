@@ -72,27 +72,6 @@
 #define VIDEO_MAX_FRAME               32
 #define VIDEO_MAX_PLANES               8
 
-#ifndef __KERNEL__
-
-/* These defines are V4L1 specific and should not be used with the V4L2 API!
-   They will be removed from this header in the future. */
-
-#define VID_TYPE_CAPTURE	1	/* Can capture */
-#define VID_TYPE_TUNER		2	/* Can tune */
-#define VID_TYPE_TELETEXT	4	/* Does teletext */
-#define VID_TYPE_OVERLAY	8	/* Overlay onto frame buffer */
-#define VID_TYPE_CHROMAKEY	16	/* Overlay by chromakey */
-#define VID_TYPE_CLIPPING	32	/* Can clip */
-#define VID_TYPE_FRAMERAM	64	/* Uses the frame buffer memory */
-#define VID_TYPE_SCALES		128	/* Scalable */
-#define VID_TYPE_MONOCHROME	256	/* Monochrome only */
-#define VID_TYPE_SUBCAPTURE	512	/* Can capture subareas of the image */
-#define VID_TYPE_MPEG_DECODER	1024	/* Can decode MPEG streams */
-#define VID_TYPE_MPEG_ENCODER	2048	/* Can encode MPEG streams */
-#define VID_TYPE_MJPEG_DECODER	4096	/* Can decode MJPEG streams */
-#define VID_TYPE_MJPEG_ENCODER	8192	/* Can encode MJPEG streams */
-#endif
-
 /*
  *	M I S C E L L A N E O U S
  */
@@ -705,6 +684,7 @@ struct v4l2_buffer {
 #define V4L2_BUF_FLAG_TIMESTAMP_MASK		0xe000
 #define V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN		0x0000
 #define V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC	0x2000
+#define V4L2_BUF_FLAG_TIMESTAMP_COPY		0x4000
 
 /**
  * struct v4l2_exportbuffer - export of video buffer as DMABUF file descriptor
@@ -980,52 +960,6 @@ struct v4l2_standard {
 	__u32		     reserved[4];
 };
 
-/* The DV Preset API is deprecated in favor of the DV Timings API.
-   New drivers shouldn't use this anymore! */
-
-/*
- *	V I D E O	T I M I N G S	D V	P R E S E T
- */
-struct v4l2_dv_preset {
-	__u32	preset;
-	__u32	reserved[4];
-};
-
-/*
- *	D V	P R E S E T S	E N U M E R A T I O N
- */
-struct v4l2_dv_enum_preset {
-	__u32	index;
-	__u32	preset;
-	__u8	name[32]; /* Name of the preset timing */
-	__u32	width;
-	__u32	height;
-	__u32	reserved[4];
-};
-
-/*
- * 	D V	P R E S E T	V A L U E S
- */
-#define		V4L2_DV_INVALID		0
-#define		V4L2_DV_480P59_94	1 /* BT.1362 */
-#define		V4L2_DV_576P50		2 /* BT.1362 */
-#define		V4L2_DV_720P24		3 /* SMPTE 296M */
-#define		V4L2_DV_720P25		4 /* SMPTE 296M */
-#define		V4L2_DV_720P30		5 /* SMPTE 296M */
-#define		V4L2_DV_720P50		6 /* SMPTE 296M */
-#define		V4L2_DV_720P59_94	7 /* SMPTE 274M */
-#define		V4L2_DV_720P60		8 /* SMPTE 274M/296M */
-#define		V4L2_DV_1080I29_97	9 /* BT.1120/ SMPTE 274M */
-#define		V4L2_DV_1080I30		10 /* BT.1120/ SMPTE 274M */
-#define		V4L2_DV_1080I25		11 /* BT.1120 */
-#define		V4L2_DV_1080I50		12 /* SMPTE 296M */
-#define		V4L2_DV_1080I60		13 /* SMPTE 296M */
-#define		V4L2_DV_1080P24		14 /* SMPTE 296M */
-#define		V4L2_DV_1080P25		15 /* SMPTE 296M */
-#define		V4L2_DV_1080P30		16 /* SMPTE 296M */
-#define		V4L2_DV_1080P50		17 /* BT.1120 */
-#define		V4L2_DV_1080P60		18 /* BT.1120 */
-
 /*
  *	D V 	B T	T I M I N G S
  */
@@ -1119,7 +1053,7 @@ struct v4l2_bt_timings {
    longer and field 2 is really one half-line shorter, so each field has
    exactly the same number of half-lines. Whether half-lines can be detected
    or used depends on the hardware. */
-#define V4L2_DV_FL_HALF_LINE			(1 << 0)
+#define V4L2_DV_FL_HALF_LINE			(1 << 3)
 
 
 /** struct v4l2_dv_timings - DV timings
@@ -1239,7 +1173,6 @@ struct v4l2_input {
 #define V4L2_IN_ST_VTR         0x04000000  /* VTR time constant */
 
 /* capabilities flags */
-#define V4L2_IN_CAP_PRESETS		0x00000001 /* Supports S_DV_PRESET */
 #define V4L2_IN_CAP_DV_TIMINGS		0x00000002 /* Supports S_DV_TIMINGS */
 #define V4L2_IN_CAP_CUSTOM_TIMINGS	V4L2_IN_CAP_DV_TIMINGS /* For compatibility */
 #define V4L2_IN_CAP_STD			0x00000004 /* Supports S_STD */
@@ -1263,7 +1196,6 @@ struct v4l2_output {
 #define V4L2_OUTPUT_TYPE_ANALOGVGAOVERLAY	3
 
 /* capabilities flags */
-#define V4L2_OUT_CAP_PRESETS		0x00000001 /* Supports S_DV_PRESET */
 #define V4L2_OUT_CAP_DV_TIMINGS		0x00000002 /* Supports S_DV_TIMINGS */
 #define V4L2_OUT_CAP_CUSTOM_TIMINGS	V4L2_OUT_CAP_DV_TIMINGS /* For compatibility */
 #define V4L2_OUT_CAP_STD		0x00000004 /* Supports S_STD */
@@ -1854,10 +1786,12 @@ struct v4l2_event_subscription {
 
 /* VIDIOC_DBG_G_REGISTER and VIDIOC_DBG_S_REGISTER */
 
-#define V4L2_CHIP_MATCH_HOST       0  /* Match against chip ID on host (0 for the host) */
-#define V4L2_CHIP_MATCH_I2C_DRIVER 1  /* Match against I2C driver name */
-#define V4L2_CHIP_MATCH_I2C_ADDR   2  /* Match against I2C 7-bit address */
-#define V4L2_CHIP_MATCH_AC97       3  /* Match against anciliary AC97 chip */
+#define V4L2_CHIP_MATCH_BRIDGE      0  /* Match against chip ID on the bridge (0 for the bridge) */
+#define V4L2_CHIP_MATCH_HOST V4L2_CHIP_MATCH_BRIDGE
+#define V4L2_CHIP_MATCH_I2C_DRIVER  1  /* Match against I2C driver name */
+#define V4L2_CHIP_MATCH_I2C_ADDR    2  /* Match against I2C 7-bit address */
+#define V4L2_CHIP_MATCH_AC97        3  /* Match against anciliary AC97 chip */
+#define V4L2_CHIP_MATCH_SUBDEV      4  /* Match against subdev index */
 
 struct v4l2_dbg_match {
 	__u32 type; /* Match type */
@@ -1879,6 +1813,17 @@ struct v4l2_dbg_chip_ident {
 	struct v4l2_dbg_match match;
 	__u32 ident;       /* chip identifier as specified in <media/v4l2-chip-ident.h> */
 	__u32 revision;    /* chip revision, chip specific */
+} __attribute__ ((packed));
+
+#define V4L2_CHIP_FL_READABLE (1 << 0)
+#define V4L2_CHIP_FL_WRITABLE (1 << 1)
+
+/* VIDIOC_DBG_G_CHIP_INFO */
+struct v4l2_dbg_chip_info {
+	struct v4l2_dbg_match match;
+	char name[32];
+	__u32 flags;
+	__u32 reserved[32];
 } __attribute__ ((packed));
 
 /**
@@ -1958,15 +1903,12 @@ struct v4l2_create_buffers {
 #define VIDIOC_G_EXT_CTRLS	_IOWR('V', 71, struct v4l2_ext_controls)
 #define VIDIOC_S_EXT_CTRLS	_IOWR('V', 72, struct v4l2_ext_controls)
 #define VIDIOC_TRY_EXT_CTRLS	_IOWR('V', 73, struct v4l2_ext_controls)
-#if 1
 #define VIDIOC_ENUM_FRAMESIZES	_IOWR('V', 74, struct v4l2_frmsizeenum)
 #define VIDIOC_ENUM_FRAMEINTERVALS _IOWR('V', 75, struct v4l2_frmivalenum)
 #define VIDIOC_G_ENC_INDEX       _IOR('V', 76, struct v4l2_enc_idx)
 #define VIDIOC_ENCODER_CMD      _IOWR('V', 77, struct v4l2_encoder_cmd)
 #define VIDIOC_TRY_ENCODER_CMD  _IOWR('V', 78, struct v4l2_encoder_cmd)
-#endif
 
-#if 1
 /* Experimental, meant for debugging, testing and internal use.
    Only implemented if CONFIG_VIDEO_ADV_DEBUG is defined.
    You must be root to use these ioctls. Never use these in applications! */
@@ -1974,18 +1916,13 @@ struct v4l2_create_buffers {
 #define	VIDIOC_DBG_G_REGISTER 	_IOWR('V', 80, struct v4l2_dbg_register)
 
 /* Experimental, meant for debugging, testing and internal use.
-   Never use this ioctl in applications! */
+   Never use this ioctl in applications!
+   Note: this ioctl is deprecated in favor of VIDIOC_DBG_G_CHIP_INFO and
+   will go away in the future. */
 #define VIDIOC_DBG_G_CHIP_IDENT _IOWR('V', 81, struct v4l2_dbg_chip_ident)
-#endif
 
 #define VIDIOC_S_HW_FREQ_SEEK	 _IOW('V', 82, struct v4l2_hw_freq_seek)
 
-/* These four DV Preset ioctls are deprecated in favor of the DV Timings
-   ioctls. */
-#define	VIDIOC_ENUM_DV_PRESETS	_IOWR('V', 83, struct v4l2_dv_enum_preset)
-#define	VIDIOC_S_DV_PRESET	_IOWR('V', 84, struct v4l2_dv_preset)
-#define	VIDIOC_G_DV_PRESET	_IOWR('V', 85, struct v4l2_dv_preset)
-#define	VIDIOC_QUERY_DV_PRESET	_IOR('V',  86, struct v4l2_dv_preset)
 #define	VIDIOC_S_DV_TIMINGS	_IOWR('V', 87, struct v4l2_dv_timings)
 #define	VIDIOC_G_DV_TIMINGS	_IOWR('V', 88, struct v4l2_dv_timings)
 #define	VIDIOC_DQEVENT		 _IOR('V', 89, struct v4l2_event)
@@ -2015,6 +1952,10 @@ struct v4l2_create_buffers {
 /* Experimental, this ioctl may change over the next couple of kernel
    versions. */
 #define VIDIOC_ENUM_FREQ_BANDS	_IOWR('V', 101, struct v4l2_frequency_band)
+
+/* Experimental, meant for debugging, testing and internal use.
+   Never use these in applications! */
+#define VIDIOC_DBG_G_CHIP_INFO  _IOWR('V', 102, struct v4l2_dbg_chip_info)
 
 /* Reminder: when adding new ioctls please add support for them to
    drivers/media/video/v4l2-compat-ioctl32.c as well! */

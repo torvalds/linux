@@ -35,13 +35,6 @@ static bool __init ms_hyperv_platform(void)
 	if (!boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		return false;
 
-	/*
-	 * Xen emulates Hyper-V to support enlightened Windows.
-	 * Check to see first if we are on a Xen Hypervisor.
-	 */
-	if (xen_cpuid_base())
-		return false;
-
 	cpuid(HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS,
 	      &eax, &hyp_signature[0], &hyp_signature[1], &hyp_signature[2]);
 
@@ -82,12 +75,6 @@ static void __init ms_hyperv_init_platform(void)
 
 	if (ms_hyperv.features & HV_X64_MSR_TIME_REF_COUNT_AVAILABLE)
 		clocksource_register_hz(&hyperv_cs, NSEC_PER_SEC/100);
-#if IS_ENABLED(CONFIG_HYPERV)
-	/*
-	 * Setup the IDT for hypervisor callback.
-	 */
-	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
-#endif
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
@@ -103,6 +90,11 @@ static irq_handler_t vmbus_isr;
 
 void hv_register_vmbus_handler(int irq, irq_handler_t handler)
 {
+	/*
+	 * Setup the IDT for hypervisor callback.
+	 */
+	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
+
 	vmbus_irq = irq;
 	vmbus_isr = handler;
 }

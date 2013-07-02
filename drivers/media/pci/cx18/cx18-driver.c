@@ -1243,7 +1243,7 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	   in one place. */
 	cx->std++;		/* Force full standard initialization */
 	std = (cx->tuner_std == V4L2_STD_ALL) ? V4L2_STD_NTSC_M : cx->tuner_std;
-	cx18_s_std(NULL, &fh, &std);
+	cx18_s_std(NULL, &fh, std);
 	cx18_s_frequency(NULL, &fh, &vf);
 	return 0;
 }

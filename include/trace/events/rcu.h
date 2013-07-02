@@ -72,6 +72,58 @@ TRACE_EVENT(rcu_grace_period,
 );
 
 /*
+ * Tracepoint for future grace-period events, including those for no-callbacks
+ * CPUs.  The caller should pull the data from the rcu_node structure,
+ * other than rcuname, which comes from the rcu_state structure, and event,
+ * which is one of the following:
+ *
+ * "Startleaf": Request a nocb grace period based on leaf-node data.
+ * "Startedleaf": Leaf-node start proved sufficient.
+ * "Startedleafroot": Leaf-node start proved sufficient after checking root.
+ * "Startedroot": Requested a nocb grace period based on root-node data.
+ * "StartWait": Start waiting for the requested grace period.
+ * "ResumeWait": Resume waiting after signal.
+ * "EndWait": Complete wait.
+ * "Cleanup": Clean up rcu_node structure after previous GP.
+ * "CleanupMore": Clean up, and another no-CB GP is needed.
+ */
+TRACE_EVENT(rcu_future_grace_period,
+
+	TP_PROTO(char *rcuname, unsigned long gpnum, unsigned long completed,
+		 unsigned long c, u8 level, int grplo, int grphi,
+		 char *gpevent),
+
+	TP_ARGS(rcuname, gpnum, completed, c, level, grplo, grphi, gpevent),
+
+	TP_STRUCT__entry(
+		__field(char *, rcuname)
+		__field(unsigned long, gpnum)
+		__field(unsigned long, completed)
+		__field(unsigned long, c)
+		__field(u8, level)
+		__field(int, grplo)
+		__field(int, grphi)
+		__field(char *, gpevent)
+	),
+
+	TP_fast_assign(
+		__entry->rcuname = rcuname;
+		__entry->gpnum = gpnum;
+		__entry->completed = completed;
+		__entry->c = c;
+		__entry->level = level;
+		__entry->grplo = grplo;
+		__entry->grphi = grphi;
+		__entry->gpevent = gpevent;
+	),
+
+	TP_printk("%s %lu %lu %lu %u %d %d %s",
+		  __entry->rcuname, __entry->gpnum, __entry->completed,
+		  __entry->c, __entry->level, __entry->grplo, __entry->grphi,
+		  __entry->gpevent)
+);
+
+/*
  * Tracepoint for grace-period-initialization events.  These are
  * distinguished by the type of RCU, the new grace-period number, the
  * rcu_node structure level, the starting and ending CPU covered by the
@@ -601,6 +653,9 @@ TRACE_EVENT(rcu_barrier,
 #define trace_rcu_grace_period(rcuname, gpnum, gpevent) do { } while (0)
 #define trace_rcu_grace_period_init(rcuname, gpnum, level, grplo, grphi, \
 				    qsmask) do { } while (0)
+#define trace_rcu_future_grace_period(rcuname, gpnum, completed, c, \
+				      level, grplo, grphi, event) \
+				      do { } while (0)
 #define trace_rcu_preempt_task(rcuname, pid, gpnum) do { } while (0)
 #define trace_rcu_unlock_preempted_task(rcuname, gpnum, pid) do { } while (0)
 #define trace_rcu_quiescent_state_report(rcuname, gpnum, mask, qsmask, level, \

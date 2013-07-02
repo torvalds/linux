@@ -77,8 +77,17 @@ typedef struct	xfs_disk_dquot {
  */
 typedef struct xfs_dqblk {
 	xfs_disk_dquot_t  dd_diskdq;	/* portion that lives incore as well */
-	char		  dd_fill[32];	/* filling for posterity */
+	char		  dd_fill[4];	/* filling for posterity */
+
+	/*
+	 * These two are only present on filesystems with the CRC bits set.
+	 */
+	__be32		  dd_crc;	/* checksum */
+	__be64		  dd_lsn;	/* last modification in log */
+	uuid_t		  dd_uuid;	/* location information */
 } xfs_dqblk_t;
+
+#define XFS_DQUOT_CRC_OFF	offsetof(struct xfs_dqblk, dd_crc)
 
 /*
  * flags for q_flags field in the dquot.
@@ -379,6 +388,8 @@ static inline int xfs_trans_reserve_quota_bydquots(struct xfs_trans *tp,
 extern int xfs_qm_dqcheck(struct xfs_mount *, xfs_disk_dquot_t *,
 				xfs_dqid_t, uint, uint, char *);
 extern int xfs_mount_reset_sbqflags(struct xfs_mount *);
+
+extern const struct xfs_buf_ops xfs_dquot_buf_ops;
 
 #endif	/* __KERNEL__ */
 #endif	/* __XFS_QUOTA_H__ */

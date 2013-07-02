@@ -30,7 +30,6 @@
 #define NCR5380_write(reg, value)	cumanascsi_write(_instance, reg, value)
 #define NCR5380_intr			cumanascsi_intr
 #define NCR5380_queue_command		cumanascsi_queue_command
-#define NCR5380_proc_info		cumanascsi_proc_info
 
 #define NCR5380_implementation_fields	\
 	unsigned ctrl;			\

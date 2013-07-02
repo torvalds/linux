@@ -1,7 +1,7 @@
 /*
  * Copyright 2012 Calxeda, Inc.
  *
- * Based on arch/arm/plat-mxc/cpuidle.c:
+ * Based on arch/arm/plat-mxc/cpuidle.c: #v3.7
  * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright 2012 Linaro Ltd.
  *
@@ -16,6 +16,8 @@
  *
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Maintainer: Rob Herring <rob.herring@calxeda.com>
  */
 
 #include <linux/cpuidle.h>
@@ -34,8 +36,6 @@
 
 extern void highbank_set_cpu_jump(int cpu, void *jump_addr);
 extern void *scu_base_addr;
-
-static struct cpuidle_device __percpu *calxeda_idle_cpuidle_devices;
 
 static inline unsigned int get_auxcr(void)
 {
@@ -85,22 +85,8 @@ static int calxeda_pwrdown_idle(struct cpuidle_device *dev,
 	return index;
 }
 
-static void calxeda_idle_cpuidle_devices_uninit(void)
-{
-	int i;
-	struct cpuidle_device *dev;
-
-	for_each_possible_cpu(i) {
-		dev = per_cpu_ptr(calxeda_idle_cpuidle_devices, i);
-		cpuidle_unregister_device(dev);
-	}
-
-	free_percpu(calxeda_idle_cpuidle_devices);
-}
-
 static struct cpuidle_driver calxeda_idle_driver = {
 	.name = "calxeda_idle",
-	.en_core_tk_irqen = 1,
 	.states = {
 		ARM_CPUIDLE_WFI_STATE,
 		{
@@ -118,44 +104,9 @@ static struct cpuidle_driver calxeda_idle_driver = {
 
 static int __init calxeda_cpuidle_init(void)
 {
-	int cpu_id;
-	int ret;
-	struct cpuidle_device *dev;
-	struct cpuidle_driver *drv = &calxeda_idle_driver;
-
 	if (!of_machine_is_compatible("calxeda,highbank"))
 		return -ENODEV;
 
-	ret = cpuidle_register_driver(drv);
-	if (ret)
-		return ret;
-
-	calxeda_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
-	if (calxeda_idle_cpuidle_devices == NULL) {
-		ret = -ENOMEM;
-		goto unregister_drv;
-	}
-
-	/* initialize state data for each cpuidle_device */
-	for_each_possible_cpu(cpu_id) {
-		dev = per_cpu_ptr(calxeda_idle_cpuidle_devices, cpu_id);
-		dev->cpu = cpu_id;
-		dev->state_count = drv->state_count;
-
-		ret = cpuidle_register_device(dev);
-		if (ret) {
-			pr_err("Failed to register cpu %u, error: %d\n",
-			       cpu_id, ret);
-			goto uninit;
-		}
-	}
-
-	return 0;
-
-uninit:
-	calxeda_idle_cpuidle_devices_uninit();
-unregister_drv:
-	cpuidle_unregister_driver(drv);
-	return ret;
+	return cpuidle_register(&calxeda_idle_driver, NULL);
 }
 module_init(calxeda_cpuidle_init);

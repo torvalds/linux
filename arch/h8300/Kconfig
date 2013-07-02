@@ -12,10 +12,7 @@ config H8300
 	select MODULES_USE_ELF_RELA
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
-
-config SYMBOL_PREFIX
-	string
-	default "_"
+	select HAVE_UNDERSCORE_SYMBOL_PREFIX
 
 config MMU
 	bool

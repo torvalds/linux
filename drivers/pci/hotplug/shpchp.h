@@ -168,19 +168,19 @@ struct controller {
 #define WRONG_BUS_FREQUENCY		0x0000000D
 #define POWER_FAILURE			0x0000000E
 
-extern int __must_check shpchp_create_ctrl_files(struct controller *ctrl);
-extern void shpchp_remove_ctrl_files(struct controller *ctrl);
-extern int shpchp_sysfs_enable_slot(struct slot *slot);
-extern int shpchp_sysfs_disable_slot(struct slot *slot);
-extern u8 shpchp_handle_attention_button(u8 hp_slot, struct controller *ctrl);
-extern u8 shpchp_handle_switch_change(u8 hp_slot, struct controller *ctrl);
-extern u8 shpchp_handle_presence_change(u8 hp_slot, struct controller *ctrl);
-extern u8 shpchp_handle_power_fault(u8 hp_slot, struct controller *ctrl);
-extern int shpchp_configure_device(struct slot *p_slot);
-extern int shpchp_unconfigure_device(struct slot *p_slot);
-extern void cleanup_slots(struct controller *ctrl);
-extern void shpchp_queue_pushbutton_work(struct work_struct *work);
-extern int shpc_init( struct controller *ctrl, struct pci_dev *pdev);
+int __must_check shpchp_create_ctrl_files(struct controller *ctrl);
+void shpchp_remove_ctrl_files(struct controller *ctrl);
+int shpchp_sysfs_enable_slot(struct slot *slot);
+int shpchp_sysfs_disable_slot(struct slot *slot);
+u8 shpchp_handle_attention_button(u8 hp_slot, struct controller *ctrl);
+u8 shpchp_handle_switch_change(u8 hp_slot, struct controller *ctrl);
+u8 shpchp_handle_presence_change(u8 hp_slot, struct controller *ctrl);
+u8 shpchp_handle_power_fault(u8 hp_slot, struct controller *ctrl);
+int shpchp_configure_device(struct slot *p_slot);
+int shpchp_unconfigure_device(struct slot *p_slot);
+void cleanup_slots(struct controller *ctrl);
+void shpchp_queue_pushbutton_work(struct work_struct *work);
+int shpc_init( struct controller *ctrl, struct pci_dev *pdev);
 
 static inline const char *slot_name(struct slot *slot)
 {

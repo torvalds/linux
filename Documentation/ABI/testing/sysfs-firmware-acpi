@@ -18,6 +18,32 @@ Description:
 		yoffset: The number of pixels between the top of the screen
 			 and the top edge of the image.
 
+What:		/sys/firmware/acpi/hotplug/
+Date:		February 2013
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		There are separate hotplug profiles for different classes of
+		devices supported by ACPI, such as containers, memory modules,
+		processors, PCI root bridges etc.  A hotplug profile for a given
+		class of devices is a collection of settings defining the way
+		that class of devices will be handled by the ACPI core hotplug
+		code.  Those profiles are represented in sysfs as subdirectories
+		of /sys/firmware/acpi/hotplug/.
+
+		The following setting is available to user space for each
+		hotplug profile:
+
+		enabled: If set, the ACPI core will handle notifications of
+			hotplug events associated with the given class of
+			devices and will allow those devices to be ejected with
+			the help of the _EJ0 control method.  Unsetting it
+			effectively disables hotplug for the correspoinding
+			class of devices.
+
+		The value of the above attribute is an integer number: 1 (set)
+		or 0 (unset).  Attempts to write any other values to it will
+		cause -EINVAL to be returned.
+
 What:		/sys/firmware/acpi/interrupts/
 Date:		February 2008
 Contact:	Len Brown <lenb@kernel.org>

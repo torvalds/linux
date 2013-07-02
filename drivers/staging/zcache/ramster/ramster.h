@@ -147,7 +147,7 @@ extern int r2net_register_handlers(void);
 extern int r2net_remote_target_node_set(int);
 
 extern int ramster_remotify_pageframe(bool);
-extern void ramster_init(bool, bool, bool);
+extern void ramster_init(bool, bool, bool, bool);
 extern void ramster_register_pamops(struct tmem_pamops *);
 extern int ramster_localify(int, struct tmem_oid *oidp, uint32_t, char *,
 				unsigned int, void *);

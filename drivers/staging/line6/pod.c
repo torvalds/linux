@@ -148,9 +148,8 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 	    buf[0] != (LINE6_SYSEX_BEGIN | LINE6_CHANNEL_UNKNOWN)) {
 		return;
 	}
-	if (memcmp(buf + 1, line6_midi_id, sizeof(line6_midi_id)) != 0) {
+	if (memcmp(buf + 1, line6_midi_id, sizeof(line6_midi_id)) != 0)
 		return;
-	}
 
 	if (buf[5] == POD_SYSEX_SYSTEM && buf[6] == POD_MONITOR_LEVEL) {
 		short value = ((int)buf[7] << 12) | ((int)buf[8] << 8) |

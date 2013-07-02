@@ -89,8 +89,8 @@ static struct tda18271_std_map cnxt_rde253s_tda18271_std_map = {
 };
 
 static struct tda18271_std_map mb86a20s_tda18271_config = {
-	.dvbt_6   = { .if_freq = 3300, .agc_mode = 3, .std = 4,
-		      .if_lvl = 7, .rfagc_top = 0x37, },
+	.dvbt_6   = { .if_freq = 4000, .agc_mode = 3, .std = 4,
+		      .if_lvl = 0, .rfagc_top = 0x37, },
 };
 
 static struct tda18271_config cnxt_rde253s_tunerconfig = {

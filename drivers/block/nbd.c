@@ -856,6 +856,8 @@ static int __init nbd_init(void)
 		disk->queue->limits.discard_granularity = 512;
 		disk->queue->limits.max_discard_sectors = UINT_MAX;
 		disk->queue->limits.discard_zeroes_data = 0;
+		blk_queue_max_hw_sectors(disk->queue, 65536);
+		disk->queue->limits.max_sectors = 256;
 	}
 
 	if (register_blkdev(NBD_MAJOR, "nbd")) {

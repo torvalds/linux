@@ -122,18 +122,20 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x20000, 0, NVOBJ_FLAG_HEAP,
-				&priv->mem);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x20000, 0,
+				 NVOBJ_FLAG_HEAP, &priv->mem);
 	heap = nv_object(priv->mem);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, heap, (device->chipset == 0x50) ?
-				 0x1400 : 0x0200, 0, 0, &priv->pad);
+	ret = nouveau_gpuobj_new(nv_object(priv), heap,
+				(device->chipset == 0x50) ? 0x1400 : 0x0200,
+				 0, 0, &priv->pad);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, heap, 0x4000, 0, 0, &priv->pgd);
+	ret = nouveau_gpuobj_new(nv_object(priv), heap, 0x4000, 0,
+				 0, &priv->pgd);
 	if (ret)
 		return ret;
 
@@ -145,9 +147,9 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, heap, ((limit-- - start) >> 12) * 8,
-				 0x1000, NVOBJ_FLAG_ZERO_ALLOC,
-				 &vm->pgt[0].obj[0]);
+	ret = nouveau_gpuobj_new(nv_object(priv), heap,
+				 ((limit-- - start) >> 12) * 8, 0x1000,
+				 NVOBJ_FLAG_ZERO_ALLOC, &vm->pgt[0].obj[0]);
 	vm->pgt[0].refcount[0] = 1;
 	if (ret)
 		return ret;
@@ -157,7 +159,7 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, heap, 24, 16, 0, &priv->bar3);
+	ret = nouveau_gpuobj_new(nv_object(priv), heap, 24, 16, 0, &priv->bar3);
 	if (ret)
 		return ret;
 
@@ -182,7 +184,7 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, heap, 24, 16, 0, &priv->bar1);
+	ret = nouveau_gpuobj_new(nv_object(priv), heap, 24, 16, 0, &priv->bar1);
 	if (ret)
 		return ret;
 

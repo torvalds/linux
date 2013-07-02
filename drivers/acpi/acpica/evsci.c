@@ -89,7 +89,7 @@ static u32 ACPI_SYSTEM_XFACE acpi_ev_sci_xrupt_handler(void *context)
 	 */
 	interrupt_handled |= acpi_ev_gpe_detect(gpe_xrupt_list);
 
-	return_VALUE(interrupt_handled);
+	return_UINT32(interrupt_handled);
 }
 
 /*******************************************************************************
@@ -120,7 +120,7 @@ u32 ACPI_SYSTEM_XFACE acpi_ev_gpe_xrupt_handler(void *context)
 
 	interrupt_handled |= acpi_ev_gpe_detect(gpe_xrupt_list);
 
-	return_VALUE(interrupt_handled);
+	return_UINT32(interrupt_handled);
 }
 
 /******************************************************************************

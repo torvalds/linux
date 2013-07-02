@@ -376,10 +376,16 @@ struct btrfs_ioctl_get_dev_stats {
 
 #define BTRFS_QUOTA_CTL_ENABLE	1
 #define BTRFS_QUOTA_CTL_DISABLE	2
-#define BTRFS_QUOTA_CTL_RESCAN	3
+#define BTRFS_QUOTA_CTL_RESCAN__NOTUSED	3
 struct btrfs_ioctl_quota_ctl_args {
 	__u64 cmd;
 	__u64 status;
+};
+
+struct btrfs_ioctl_quota_rescan_args {
+	__u64	flags;
+	__u64   progress;
+	__u64   reserved[6];
 };
 
 struct btrfs_ioctl_qgroup_assign_args {
@@ -412,7 +418,25 @@ struct btrfs_ioctl_received_subvol_args {
  * search of clone sources doesn't find an extent. UPDATE_EXTENT
  * commands will be sent instead of WRITE commands.
  */
-#define BTRFS_SEND_FLAG_NO_FILE_DATA     0x1
+#define BTRFS_SEND_FLAG_NO_FILE_DATA		0x1
+
+/*
+ * Do not add the leading stream header. Used when multiple snapshots
+ * are sent back to back.
+ */
+#define BTRFS_SEND_FLAG_OMIT_STREAM_HEADER	0x2
+
+/*
+ * Omit the command at the end of the stream that indicated the end
+ * of the stream. This option is used when multiple snapshots are
+ * sent back to back.
+ */
+#define BTRFS_SEND_FLAG_OMIT_END_CMD		0x4
+
+#define BTRFS_SEND_FLAG_MASK \
+	(BTRFS_SEND_FLAG_NO_FILE_DATA | \
+	 BTRFS_SEND_FLAG_OMIT_STREAM_HEADER | \
+	 BTRFS_SEND_FLAG_OMIT_END_CMD)
 
 struct btrfs_ioctl_send_args {
 	__s64 send_fd;			/* in */
@@ -502,6 +526,10 @@ struct btrfs_ioctl_send_args {
 			       struct btrfs_ioctl_qgroup_create_args)
 #define BTRFS_IOC_QGROUP_LIMIT _IOR(BTRFS_IOCTL_MAGIC, 43, \
 			       struct btrfs_ioctl_qgroup_limit_args)
+#define BTRFS_IOC_QUOTA_RESCAN _IOW(BTRFS_IOCTL_MAGIC, 44, \
+			       struct btrfs_ioctl_quota_rescan_args)
+#define BTRFS_IOC_QUOTA_RESCAN_STATUS _IOR(BTRFS_IOCTL_MAGIC, 45, \
+			       struct btrfs_ioctl_quota_rescan_args)
 #define BTRFS_IOC_GET_FSLABEL _IOR(BTRFS_IOCTL_MAGIC, 49, \
 				   char[BTRFS_LABEL_SIZE])
 #define BTRFS_IOC_SET_FSLABEL _IOW(BTRFS_IOCTL_MAGIC, 50, \

@@ -1970,12 +1970,9 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	u16 u16w;
 
 	dev->board_name = this_board->name;
-	ret = comedi_pci_enable(pcidev, dev->board_name);
-	if (ret) {
-		dev_err(dev->class_dev,
-			"cannot enable PCI device %s\n", pci_name(pcidev));
+	ret = comedi_pci_enable(dev);
+	if (ret)
 		return ret;
-	}
 	if (master)
 		pci_set_master(pcidev);
 
@@ -2202,12 +2199,9 @@ static void pci9118_detach(struct comedi_device *dev)
 			free_pages((unsigned long)devpriv->dmabuf_virt[1],
 				   devpriv->dmabuf_pages[1]);
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-
+	comedi_pci_disable(dev);
+	if (pcidev)
 		pci_dev_put(pcidev);
-	}
 }
 
 static struct comedi_driver adl_pci9118_driver = {
@@ -2222,9 +2216,10 @@ static struct comedi_driver adl_pci9118_driver = {
 };
 
 static int adl_pci9118_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &adl_pci9118_driver);
+	return comedi_pci_auto_config(dev, &adl_pci9118_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci9118_pci_table) = {

@@ -1223,9 +1223,7 @@ static void smc_rcv(struct net_device *dev)
 			dev->stats.multicast++;
 
 		skb = netdev_alloc_skb(dev, packet_length + 5);
-
 		if ( skb == NULL ) {
-			printk(KERN_NOTICE CARDNAME ": Low memory, packet dropped.\n");
 			dev->stats.rx_dropped++;
 			goto done;
 		}

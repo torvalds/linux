@@ -115,7 +115,6 @@ static void pcibios_scanbus(struct pci_controller *hose)
 			pci_bus_assign_resources(bus);
 			pci_enable_bridges(bus);
 		}
-		bus->dev.of_node = hose->of_node;
 	}
 }
 
@@ -168,6 +167,13 @@ void pci_load_of_ranges(struct pci_controller *hose, struct device_node *node)
 			res->child = NULL;
 		}
 	}
+}
+
+struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus)
+{
+	struct pci_controller *hose = bus->sysdata;
+
+	return of_node_get(hose->of_node);
 }
 #endif
 

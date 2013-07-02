@@ -273,20 +273,17 @@ static int rx4581_probe(struct spi_device *spi)
 	if (res != 0)
 		return res;
 
-	rtc = rtc_device_register("rx4581",
-				&spi->dev, &rx4581_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&spi->dev, "rx4581",
+				&rx4581_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	dev_set_drvdata(&spi->dev, rtc);
+	spi_set_drvdata(spi, rtc);
 	return 0;
 }
 
 static int rx4581_remove(struct spi_device *spi)
 {
-	struct rtc_device *rtc = dev_get_drvdata(&spi->dev);
-
-	rtc_device_unregister(rtc);
 	return 0;
 }
 

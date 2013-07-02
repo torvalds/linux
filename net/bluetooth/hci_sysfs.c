@@ -48,10 +48,10 @@ static ssize_t show_link_features(struct device *dev,
 	struct hci_conn *conn = to_hci_conn(dev);
 
 	return sprintf(buf, "0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-		       conn->features[0], conn->features[1],
-		       conn->features[2], conn->features[3],
-		       conn->features[4], conn->features[5],
-		       conn->features[6], conn->features[7]);
+		       conn->features[0][0], conn->features[0][1],
+		       conn->features[0][2], conn->features[0][3],
+		       conn->features[0][4], conn->features[0][5],
+		       conn->features[0][6], conn->features[0][7]);
 }
 
 #define LINK_ATTR(_name, _mode, _show, _store) \
@@ -146,7 +146,6 @@ void hci_conn_del_sysfs(struct hci_conn *conn)
 	}
 
 	device_del(&conn->dev);
-	put_device(&conn->dev);
 
 	hci_dev_put(hdev);
 }
@@ -234,10 +233,10 @@ static ssize_t show_features(struct device *dev,
 	struct hci_dev *hdev = to_hci_dev(dev);
 
 	return sprintf(buf, "0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-		       hdev->features[0], hdev->features[1],
-		       hdev->features[2], hdev->features[3],
-		       hdev->features[4], hdev->features[5],
-		       hdev->features[6], hdev->features[7]);
+		       hdev->features[0][0], hdev->features[0][1],
+		       hdev->features[0][2], hdev->features[0][3],
+		       hdev->features[0][4], hdev->features[0][5],
+		       hdev->features[0][6], hdev->features[0][7]);
 }
 
 static ssize_t show_manufacturer(struct device *dev,
@@ -590,10 +589,8 @@ int __init bt_sysfs_init(void)
 	bt_debugfs = debugfs_create_dir("bluetooth", NULL);
 
 	bt_class = class_create(THIS_MODULE, "bluetooth");
-	if (IS_ERR(bt_class))
-		return PTR_ERR(bt_class);
 
-	return 0;
+	return PTR_RET(bt_class);
 }
 
 void bt_sysfs_cleanup(void)

@@ -26,13 +26,37 @@
 		bootargs = "earlyprintk console=ttyS0,115200";
 	};
 
-	soc {
-		uart0: uart@01c28000 {
-			status = "okay";
+	soc@01c20000 {
+		pinctrl@01c20800 {
+			led_pins_cubieboard: led_pins@0 {
+				allwinner,pins = "PH20", "PH21";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <1>;
+				allwinner,pull = <0>;
+			};
 		};
 
-		uart1: uart@01c28400 {
+		uart0: serial@01c28000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_pins_a>;
 			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins_cubieboard>;
+
+		blue {
+			label = "cubieboard::blue";
+			gpios = <&pio 7 21 0>; /* LED1 */
+		};
+
+		green {
+			label = "cubieboard::green";
+			gpios = <&pio 7 20 0>; /* LED2 */
+			linux,default-trigger = "heartbeat";
 		};
 	};
 };

@@ -5,6 +5,7 @@
 		      Markus Rechberger <mrechberger@gmail.com>
 		      Mauro Carvalho Chehab <mchehab@infradead.org>
 		      Sascha Sommer <saschasommer@freenet.de>
+   Copyright (C) 2013 Frank Schäfer <fschaefer.oss@googlemail.com>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,14 +42,6 @@ static unsigned int i2c_debug;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
-#define dprintk2(lvl, fmt, args...)			\
-do {							\
-	if (i2c_debug >= lvl) {				\
-		printk(KERN_DEBUG "%s at %s: " fmt,	\
-		       dev->name, __func__ , ##args);	\
-      } 						\
-} while (0)
-
 /*
  * em2800_i2c_send_bytes()
  * send up to 4 bytes to the em2800 i2c device
@@ -76,8 +69,8 @@ static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 	/* trigger write */
 	ret = dev->em28xx_write_regs(dev, 4 - len, &b2[4 - len], 2 + len);
 	if (ret != 2 + len) {
-		em28xx_warn("failed to trigger write to i2c address 0x%x "
-			    "(error=%i)\n", addr, ret);
+		em28xx_warn("failed to trigger write to i2c address 0x%x (error=%i)\n",
+			    addr, ret);
 		return (ret < 0) ? ret : -EIO;
 	}
 	/* wait for completion */
@@ -89,8 +82,8 @@ static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 		} else if (ret == 0x94 + len - 1) {
 			return -ENODEV;
 		} else if (ret < 0) {
-			em28xx_warn("failed to get i2c transfer status from "
-				    "bridge register (error=%i)\n", ret);
+			em28xx_warn("failed to get i2c transfer status from bridge register (error=%i)\n",
+				    ret);
 			return ret;
 		}
 		msleep(5);
@@ -118,8 +111,8 @@ static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 	buf2[0] = addr;
 	ret = dev->em28xx_write_regs(dev, 0x04, buf2, 2);
 	if (ret != 2) {
-		em28xx_warn("failed to trigger read from i2c address 0x%x "
-			    "(error=%i)\n", addr, ret);
+		em28xx_warn("failed to trigger read from i2c address 0x%x (error=%i)\n",
+			    addr, ret);
 		return (ret < 0) ? ret : -EIO;
 	}
 
@@ -132,8 +125,8 @@ static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 		} else if (ret == 0x94 + len - 1) {
 			return -ENODEV;
 		} else if (ret < 0) {
-			em28xx_warn("failed to get i2c transfer status from "
-				    "bridge register (error=%i)\n", ret);
+			em28xx_warn("failed to get i2c transfer status from bridge register (error=%i)\n",
+				    ret);
 			return ret;
 		}
 		msleep(5);
@@ -144,9 +137,8 @@ static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 	/* get the received message */
 	ret = dev->em28xx_read_reg_req_len(dev, 0x00, 4-len, buf2, len);
 	if (ret != len) {
-		em28xx_warn("reading from i2c device at 0x%x failed: "
-			    "couldn't get the received message from the bridge "
-			    "(error=%i)\n", addr, ret);
+		em28xx_warn("reading from i2c device at 0x%x failed: couldn't get the received message from the bridge (error=%i)\n",
+			    addr, ret);
 		return (ret < 0) ? ret : -EIO;
 	}
 	for (i = 0; i < len; i++)
@@ -180,19 +172,20 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 
 	if (len < 1 || len > 64)
 		return -EOPNOTSUPP;
-	/* NOTE: limited by the USB ctrl message constraints
-	 * Zero length reads always succeed, even if no device is connected */
+	/*
+	 * NOTE: limited by the USB ctrl message constraints
+	 * Zero length reads always succeed, even if no device is connected
+	 */
 
 	/* Write to i2c device */
 	ret = dev->em28xx_write_regs_req(dev, stop ? 2 : 3, addr, buf, len);
 	if (ret != len) {
 		if (ret < 0) {
-			em28xx_warn("writing to i2c device at 0x%x failed "
-				    "(error=%i)\n", addr, ret);
+			em28xx_warn("writing to i2c device at 0x%x failed (error=%i)\n",
+				    addr, ret);
 			return ret;
 		} else {
-			em28xx_warn("%i bytes write to i2c device at 0x%x "
-				    "requested, but %i bytes written\n",
+			em28xx_warn("%i bytes write to i2c device at 0x%x requested, but %i bytes written\n",
 				    len, addr, ret);
 			return -EIO;
 		}
@@ -207,14 +200,16 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		} else if (ret == 0x10) {
 			return -ENODEV;
 		} else if (ret < 0) {
-			em28xx_warn("failed to read i2c transfer status from "
-				    "bridge (error=%i)\n", ret);
+			em28xx_warn("failed to read i2c transfer status from bridge (error=%i)\n",
+				    ret);
 			return ret;
 		}
 		msleep(5);
-		/* NOTE: do we really have to wait for success ?
-		   Never seen anything else than 0x00 or 0x10
-		   (even with high payload) ...			*/
+		/*
+		 * NOTE: do we really have to wait for success ?
+		 * Never seen anything else than 0x00 or 0x10
+		 * (even with high payload) ...
+		 */
 	}
 	em28xx_warn("write to i2c device at 0x%x timed out\n", addr);
 	return -EIO;
@@ -230,29 +225,32 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 
 	if (len < 1 || len > 64)
 		return -EOPNOTSUPP;
-	/* NOTE: limited by the USB ctrl message constraints
-	 * Zero length reads always succeed, even if no device is connected */
+	/*
+	 * NOTE: limited by the USB ctrl message constraints
+	 * Zero length reads always succeed, even if no device is connected
+	 */
 
 	/* Read data from i2c device */
 	ret = dev->em28xx_read_reg_req_len(dev, 2, addr, buf, len);
-	if (ret != len) {
-		if (ret < 0) {
-			em28xx_warn("reading from i2c device at 0x%x failed "
-				    "(error=%i)\n", addr, ret);
-			return ret;
-		} else {
-			em28xx_warn("%i bytes requested from i2c device at "
-				    "0x%x, but %i bytes received\n",
-				    len, addr, ret);
-			return -EIO;
-		}
+	if (ret < 0) {
+		em28xx_warn("reading from i2c device at 0x%x failed (error=%i)\n",
+			    addr, ret);
+		return ret;
 	}
+	/*
+	 * NOTE: some devices with two i2c busses have the bad habit to return 0
+	 * bytes if we are on bus B AND there was no write attempt to the
+	 * specified slave address before AND no device is present at the
+	 * requested slave address.
+	 * Anyway, the next check will fail with -ENODEV in this case, so avoid
+	 * spamming the system log on device probing and do nothing here.
+	 */
 
 	/* Check success of the i2c operation */
 	ret = dev->em28xx_read_reg(dev, 0x05);
 	if (ret < 0) {
-		em28xx_warn("failed to read i2c transfer status from "
-			    "bridge (error=%i)\n", ret);
+		em28xx_warn("failed to read i2c transfer status from bridge (error=%i)\n",
+			    ret);
 		return ret;
 	}
 	if (ret > 0) {
@@ -282,77 +280,254 @@ static int em28xx_i2c_check_for_device(struct em28xx *dev, u16 addr)
 }
 
 /*
+ * em25xx_bus_B_send_bytes
+ * write bytes to the i2c device
+ */
+static int em25xx_bus_B_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
+				   u16 len)
+{
+	int ret;
+
+	if (len < 1 || len > 64)
+		return -EOPNOTSUPP;
+	/*
+	 * NOTE: limited by the USB ctrl message constraints
+	 * Zero length reads always succeed, even if no device is connected
+	 */
+
+	/* Set register and write value */
+	ret = dev->em28xx_write_regs_req(dev, 0x06, addr, buf, len);
+	if (ret != len) {
+		if (ret < 0) {
+			em28xx_warn("writing to i2c device at 0x%x failed (error=%i)\n",
+				    addr, ret);
+			return ret;
+		} else {
+			em28xx_warn("%i bytes write to i2c device at 0x%x requested, but %i bytes written\n",
+				    len, addr, ret);
+			return -EIO;
+		}
+	}
+	/* Check success */
+	ret = dev->em28xx_read_reg_req(dev, 0x08, 0x0000);
+	/*
+	 * NOTE: the only error we've seen so far is
+	 * 0x01 when the slave device is not present
+	 */
+	if (!ret)
+		return len;
+	else if (ret > 0)
+		return -ENODEV;
+
+	return ret;
+	/*
+	 * NOTE: With chip types (other chip IDs) which actually don't support
+	 * this operation, it seems to succeed ALWAYS ! (even if there is no
+	 * slave device or even no second i2c bus provided)
+	 */
+}
+
+/*
+ * em25xx_bus_B_recv_bytes
+ * read bytes from the i2c device
+ */
+static int em25xx_bus_B_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf,
+				   u16 len)
+{
+	int ret;
+
+	if (len < 1 || len > 64)
+		return -EOPNOTSUPP;
+	/*
+	 * NOTE: limited by the USB ctrl message constraints
+	 * Zero length reads always succeed, even if no device is connected
+	 */
+
+	/* Read value */
+	ret = dev->em28xx_read_reg_req_len(dev, 0x06, addr, buf, len);
+	if (ret < 0) {
+		em28xx_warn("reading from i2c device at 0x%x failed (error=%i)\n",
+			    addr, ret);
+		return ret;
+	}
+	/*
+	 * NOTE: some devices with two i2c busses have the bad habit to return 0
+	 * bytes if we are on bus B AND there was no write attempt to the
+	 * specified slave address before AND no device is present at the
+	 * requested slave address.
+	 * Anyway, the next check will fail with -ENODEV in this case, so avoid
+	 * spamming the system log on device probing and do nothing here.
+	 */
+
+	/* Check success */
+	ret = dev->em28xx_read_reg_req(dev, 0x08, 0x0000);
+	/*
+	 * NOTE: the only error we've seen so far is
+	 * 0x01 when the slave device is not present
+	 */
+	if (!ret)
+		return len;
+	else if (ret > 0)
+		return -ENODEV;
+
+	return ret;
+	/*
+	 * NOTE: With chip types (other chip IDs) which actually don't support
+	 * this operation, it seems to succeed ALWAYS ! (even if there is no
+	 * slave device or even no second i2c bus provided)
+	 */
+}
+
+/*
+ * em25xx_bus_B_check_for_device()
+ * check if there is a i2c device at the supplied address
+ */
+static int em25xx_bus_B_check_for_device(struct em28xx *dev, u16 addr)
+{
+	u8 buf;
+	int ret;
+
+	ret = em25xx_bus_B_recv_bytes(dev, addr, &buf, 1);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+	/*
+	 * NOTE: With chips which do not support this operation,
+	 * it seems to succeed ALWAYS ! (even if no device connected)
+	 */
+}
+
+static inline int i2c_check_for_device(struct em28xx_i2c_bus *i2c_bus, u16 addr)
+{
+	struct em28xx *dev = i2c_bus->dev;
+	int rc = -EOPNOTSUPP;
+
+	if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM28XX)
+		rc = em28xx_i2c_check_for_device(dev, addr);
+	else if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM2800)
+		rc = em2800_i2c_check_for_device(dev, addr);
+	else if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM25XX_BUS_B)
+		rc = em25xx_bus_B_check_for_device(dev, addr);
+	if (rc == -ENODEV) {
+		if (i2c_debug)
+			printk(" no device\n");
+	}
+	return rc;
+}
+
+static inline int i2c_recv_bytes(struct em28xx_i2c_bus *i2c_bus,
+				 struct i2c_msg msg)
+{
+	struct em28xx *dev = i2c_bus->dev;
+	u16 addr = msg.addr << 1;
+	int byte, rc = -EOPNOTSUPP;
+
+	if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM28XX)
+		rc = em28xx_i2c_recv_bytes(dev, addr, msg.buf, msg.len);
+	else if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM2800)
+		rc = em2800_i2c_recv_bytes(dev, addr, msg.buf, msg.len);
+	else if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM25XX_BUS_B)
+		rc = em25xx_bus_B_recv_bytes(dev, addr, msg.buf, msg.len);
+	if (i2c_debug) {
+		for (byte = 0; byte < msg.len; byte++)
+			printk(" %02x", msg.buf[byte]);
+	}
+	return rc;
+}
+
+static inline int i2c_send_bytes(struct em28xx_i2c_bus *i2c_bus,
+				 struct i2c_msg msg, int stop)
+{
+	struct em28xx *dev = i2c_bus->dev;
+	u16 addr = msg.addr << 1;
+	int byte, rc = -EOPNOTSUPP;
+
+	if (i2c_debug) {
+		for (byte = 0; byte < msg.len; byte++)
+			printk(" %02x", msg.buf[byte]);
+	}
+	if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM28XX)
+		rc = em28xx_i2c_send_bytes(dev, addr, msg.buf, msg.len, stop);
+	else if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM2800)
+		rc = em2800_i2c_send_bytes(dev, addr, msg.buf, msg.len);
+	else if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM25XX_BUS_B)
+		rc = em25xx_bus_B_send_bytes(dev, addr, msg.buf, msg.len);
+	return rc;
+}
+
+/*
  * em28xx_i2c_xfer()
  * the main i2c transfer function
  */
 static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 			   struct i2c_msg msgs[], int num)
 {
-	struct em28xx *dev = i2c_adap->algo_data;
-	int addr, rc, i, byte;
+	struct em28xx_i2c_bus *i2c_bus = i2c_adap->algo_data;
+	struct em28xx *dev = i2c_bus->dev;
+	unsigned bus = i2c_bus->bus;
+	int addr, rc, i;
+	u8 reg;
 
-	if (num <= 0)
+	rc = rt_mutex_trylock(&dev->i2c_bus_lock);
+	if (rc < 0)
+		return rc;
+
+	/* Switch I2C bus if needed */
+	if (bus != dev->cur_i2c_bus &&
+	    i2c_bus->algo_type == EM28XX_I2C_ALGO_EM28XX) {
+		if (bus == 1)
+			reg = EM2874_I2C_SECONDARY_BUS_SELECT;
+		else
+			reg = 0;
+		em28xx_write_reg_bits(dev, EM28XX_R06_I2C_CLK, reg,
+				      EM2874_I2C_SECONDARY_BUS_SELECT);
+		dev->cur_i2c_bus = bus;
+	}
+
+	if (num <= 0) {
+		rt_mutex_unlock(&dev->i2c_bus_lock);
 		return 0;
+	}
 	for (i = 0; i < num; i++) {
 		addr = msgs[i].addr << 1;
-		dprintk2(2, "%s %s addr=%x len=%d:",
-			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
-			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
+		if (i2c_debug)
+			printk(KERN_DEBUG "%s at %s: %s %s addr=%02x len=%d:",
+			       dev->name, __func__ ,
+			       (msgs[i].flags & I2C_M_RD) ? "read" : "write",
+			       i == num - 1 ? "stop" : "nonstop",
+			       addr, msgs[i].len);
 		if (!msgs[i].len) { /* no len: check only for device presence */
-			if (dev->board.is_em2800)
-				rc = em2800_i2c_check_for_device(dev, addr);
-			else
-				rc = em28xx_i2c_check_for_device(dev, addr);
+			rc = i2c_check_for_device(i2c_bus, addr);
 			if (rc == -ENODEV) {
-				if (i2c_debug >= 2)
-					printk(" no device\n");
+				rt_mutex_unlock(&dev->i2c_bus_lock);
 				return rc;
 			}
 		} else if (msgs[i].flags & I2C_M_RD) {
 			/* read bytes */
-			if (dev->board.is_em2800)
-				rc = em2800_i2c_recv_bytes(dev, addr,
-							   msgs[i].buf,
-							   msgs[i].len);
-			else
-				rc = em28xx_i2c_recv_bytes(dev, addr,
-							   msgs[i].buf,
-							   msgs[i].len);
-			if (i2c_debug >= 2) {
-				for (byte = 0; byte < msgs[i].len; byte++)
-					printk(" %02x", msgs[i].buf[byte]);
-			}
+			rc = i2c_recv_bytes(i2c_bus, msgs[i]);
 		} else {
 			/* write bytes */
-			if (i2c_debug >= 2) {
-				for (byte = 0; byte < msgs[i].len; byte++)
-					printk(" %02x", msgs[i].buf[byte]);
-			}
-			if (dev->board.is_em2800)
-				rc = em2800_i2c_send_bytes(dev, addr,
-							   msgs[i].buf,
-							   msgs[i].len);
-			else
-				rc = em28xx_i2c_send_bytes(dev, addr,
-							   msgs[i].buf,
-							   msgs[i].len,
-							   i == num - 1);
+			rc = i2c_send_bytes(i2c_bus, msgs[i], i == num - 1);
 		}
 		if (rc < 0) {
-			if (i2c_debug >= 2)
+			if (i2c_debug)
 				printk(" ERROR: %i\n", rc);
+			rt_mutex_unlock(&dev->i2c_bus_lock);
 			return rc;
 		}
-		if (i2c_debug >= 2)
+		if (i2c_debug)
 			printk("\n");
 	}
 
+	rt_mutex_unlock(&dev->i2c_bus_lock);
 	return num;
 }
 
-/* based on linux/sunrpc/svcauth.h and linux/hash.h
+/*
+ * based on linux/sunrpc/svcauth.h and linux/hash.h
  * The original hash function returns a different value, if arch is x86_64
- *  or i386.
+ * or i386.
  */
 static inline unsigned long em28xx_hash_mem(char *buf, int length, int bits)
 {
@@ -375,127 +550,230 @@ static inline unsigned long em28xx_hash_mem(char *buf, int length, int bits)
 	return (hash >> (32 - bits)) & 0xffffffffUL;
 }
 
-static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
+/*
+ * Helper function to read data blocks from i2c clients with 8 or 16 bit
+ * address width, 8 bit register width and auto incrementation been activated
+ */
+static int em28xx_i2c_read_block(struct em28xx *dev, unsigned bus, u16 addr,
+				 bool addr_w16, u16 len, u8 *data)
 {
-	unsigned char buf, *p = eedata;
-	struct em28xx_eeprom *em_eeprom = (void *)eedata;
-	int i, err, size = len, block, block_max;
+	int remain = len, rsize, rsize_max, ret;
+	u8 buf[2];
 
-	if (dev->chip_id == CHIP_ID_EM2874 ||
-	    dev->chip_id == CHIP_ID_EM28174 ||
-	    dev->chip_id == CHIP_ID_EM2884) {
-		/* Empia switched to a 16-bit addressable eeprom in newer
-		   devices.  While we could certainly write a routine to read
-		   the eeprom, there is nothing of use in there that cannot be
-		   accessed through registers, and there is the risk that we
-		   could corrupt the eeprom (since a 16-bit read call is
-		   interpreted as a write call by 8-bit eeproms).
-		*/
-		return 0;
+	/* Sanity check */
+	if (addr + remain > (addr_w16 * 0xff00 + 0xff + 1))
+		return -EINVAL;
+	/* Select address */
+	buf[0] = addr >> 8;
+	buf[1] = addr & 0xff;
+	ret = i2c_master_send(&dev->i2c_client[bus], buf + !addr_w16, 1 + addr_w16);
+	if (ret < 0)
+		return ret;
+	/* Read data */
+	if (dev->board.is_em2800)
+		rsize_max = 4;
+	else
+		rsize_max = 64;
+	while (remain > 0) {
+		if (remain > rsize_max)
+			rsize = rsize_max;
+		else
+			rsize = remain;
+
+		ret = i2c_master_recv(&dev->i2c_client[bus], data, rsize);
+		if (ret < 0)
+			return ret;
+
+		remain -= rsize;
+		data += rsize;
 	}
 
-	dev->i2c_client.addr = 0xa0 >> 1;
+	return len;
+}
+
+static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned bus,
+			     u8 **eedata, u16 *eedata_len)
+{
+	const u16 len = 256;
+	/*
+	 * FIXME common length/size for bytes to read, to display, hash
+	 * calculation and returned device dataset. Simplifies the code a lot,
+	 * but we might have to deal with multiple sizes in the future !
+	 */
+	int i, err;
+	struct em28xx_eeprom *dev_config;
+	u8 buf, *data;
+
+	*eedata = NULL;
+	*eedata_len = 0;
+
+	/* EEPROM is always on i2c bus 0 on all known devices. */
+
+	dev->i2c_client[bus].addr = 0xa0 >> 1;
 
 	/* Check if board has eeprom */
-	err = i2c_master_recv(&dev->i2c_client, &buf, 0);
+	err = i2c_master_recv(&dev->i2c_client[bus], &buf, 0);
 	if (err < 0) {
-		em28xx_errdev("board has no eeprom\n");
-		memset(eedata, 0, len);
+		em28xx_info("board has no eeprom\n");
 		return -ENODEV;
 	}
 
-	buf = 0;
+	data = kzalloc(len, GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
 
-	err = i2c_master_send(&dev->i2c_client, &buf, 1);
-	if (err != 1) {
-		printk(KERN_INFO "%s: Huh, no eeprom present (err=%d)?\n",
-		       dev->name, err);
-		return err;
+	/* Read EEPROM content */
+	err = em28xx_i2c_read_block(dev, bus, 0x0000,
+				    dev->eeprom_addrwidth_16bit,
+				    len, data);
+	if (err != len) {
+		em28xx_errdev("failed to read eeprom (err=%d)\n", err);
+		goto error;
 	}
 
-	if (dev->board.is_em2800)
-		block_max = 4;
-	else
-		block_max = 64;
-
-	while (size > 0) {
-		if (size > block_max)
-			block = block_max;
-		else
-			block = size;
-
-		if (block !=
-		    (err = i2c_master_recv(&dev->i2c_client, p, block))) {
-			printk(KERN_WARNING
-			       "%s: i2c eeprom read error (err=%d)\n",
-			       dev->name, err);
-			return err;
-		}
-		size -= block;
-		p += block;
-	}
+	/* Display eeprom content */
 	for (i = 0; i < len; i++) {
-		if (0 == (i % 16))
-			printk(KERN_INFO "%s: i2c eeprom %02x:", dev->name, i);
-		printk(" %02x", eedata[i]);
+		if (0 == (i % 16)) {
+			if (dev->eeprom_addrwidth_16bit)
+				em28xx_info("i2c eeprom %04x:", i);
+			else
+				em28xx_info("i2c eeprom %02x:", i);
+		}
+		printk(" %02x", data[i]);
 		if (15 == (i % 16))
 			printk("\n");
 	}
+	if (dev->eeprom_addrwidth_16bit)
+		em28xx_info("i2c eeprom %04x: ... (skipped)\n", i);
 
-	if (em_eeprom->id == 0x9567eb1a)
-		dev->hash = em28xx_hash_mem(eedata, len, 32);
+	if (dev->eeprom_addrwidth_16bit &&
+	    data[0] == 0x26 && data[3] == 0x00) {
+		/* new eeprom format; size 4-64kb */
+		u16 mc_start;
+		u16 hwconf_offset;
 
-	printk(KERN_INFO "%s: EEPROM ID= 0x%08x, EEPROM hash = 0x%08lx\n",
-	       dev->name, em_eeprom->id, dev->hash);
+		dev->hash = em28xx_hash_mem(data, len, 32);
+		mc_start = (data[1] << 8) + 4;	/* usually 0x0004 */
 
-	printk(KERN_INFO "%s: EEPROM info:\n", dev->name);
+		em28xx_info("EEPROM ID = %02x %02x %02x %02x, EEPROM hash = 0x%08lx\n",
+			    data[0], data[1], data[2], data[3], dev->hash);
+		em28xx_info("EEPROM info:\n");
+		em28xx_info("\tmicrocode start address = 0x%04x, boot configuration = 0x%02x\n",
+			    mc_start, data[2]);
+		/*
+		 * boot configuration (address 0x0002):
+		 * [0]   microcode download speed: 1 = 400 kHz; 0 = 100 kHz
+		 * [1]   always selects 12 kb RAM
+		 * [2]   USB device speed: 1 = force Full Speed; 0 = auto detect
+		 * [4]   1 = force fast mode and no suspend for device testing
+		 * [5:7] USB PHY tuning registers; determined by device
+		 *       characterization
+		 */
 
-	switch (em_eeprom->chip_conf >> 4 & 0x3) {
+		/*
+		 * Read hardware config dataset offset from address
+		 * (microcode start + 46)
+		 */
+		err = em28xx_i2c_read_block(dev, bus, mc_start + 46, 1, 2,
+					    data);
+		if (err != 2) {
+			em28xx_errdev("failed to read hardware configuration data from eeprom (err=%d)\n",
+				      err);
+			goto error;
+		}
+
+		/* Calculate hardware config dataset start address */
+		hwconf_offset = mc_start + data[0] + (data[1] << 8);
+
+		/* Read hardware config dataset */
+		/*
+		 * NOTE: the microcode copy can be multiple pages long, but
+		 * we assume the hardware config dataset is the same as in
+		 * the old eeprom and not longer than 256 bytes.
+		 * tveeprom is currently also limited to 256 bytes.
+		 */
+		err = em28xx_i2c_read_block(dev, bus, hwconf_offset, 1, len,
+					    data);
+		if (err != len) {
+			em28xx_errdev("failed to read hardware configuration data from eeprom (err=%d)\n",
+				      err);
+			goto error;
+		}
+
+		/* Verify hardware config dataset */
+		/* NOTE: not all devices provide this type of dataset */
+		if (data[0] != 0x1a || data[1] != 0xeb ||
+		    data[2] != 0x67 || data[3] != 0x95) {
+			em28xx_info("\tno hardware configuration dataset found in eeprom\n");
+			kfree(data);
+			return 0;
+		}
+
+		/* TODO: decrypt eeprom data for camera bridges (em25xx, em276x+) */
+
+	} else if (!dev->eeprom_addrwidth_16bit &&
+		   data[0] == 0x1a && data[1] == 0xeb &&
+		   data[2] == 0x67 && data[3] == 0x95) {
+		dev->hash = em28xx_hash_mem(data, len, 32);
+		em28xx_info("EEPROM ID = %02x %02x %02x %02x, EEPROM hash = 0x%08lx\n",
+			    data[0], data[1], data[2], data[3], dev->hash);
+		em28xx_info("EEPROM info:\n");
+	} else {
+		em28xx_info("unknown eeprom format or eeprom corrupted !\n");
+		err = -ENODEV;
+		goto error;
+	}
+
+	*eedata = data;
+	*eedata_len = len;
+	dev_config = (void *)eedata;
+
+	switch (le16_to_cpu(dev_config->chip_conf) >> 4 & 0x3) {
 	case 0:
-		printk(KERN_INFO "%s:\tNo audio on board.\n", dev->name);
+		em28xx_info("\tNo audio on board.\n");
 		break;
 	case 1:
-		printk(KERN_INFO "%s:\tAC97 audio (5 sample rates)\n",
-				 dev->name);
+		em28xx_info("\tAC97 audio (5 sample rates)\n");
 		break;
 	case 2:
-		printk(KERN_INFO "%s:\tI2S audio, sample rate=32k\n",
-				 dev->name);
+		em28xx_info("\tI2S audio, sample rate=32k\n");
 		break;
 	case 3:
-		printk(KERN_INFO "%s:\tI2S audio, 3 sample rates\n",
-				 dev->name);
+		em28xx_info("\tI2S audio, 3 sample rates\n");
 		break;
 	}
 
-	if (em_eeprom->chip_conf & 1 << 3)
-		printk(KERN_INFO "%s:\tUSB Remote wakeup capable\n", dev->name);
+	if (le16_to_cpu(dev_config->chip_conf) & 1 << 3)
+		em28xx_info("\tUSB Remote wakeup capable\n");
 
-	if (em_eeprom->chip_conf & 1 << 2)
-		printk(KERN_INFO "%s:\tUSB Self power capable\n", dev->name);
+	if (le16_to_cpu(dev_config->chip_conf) & 1 << 2)
+		em28xx_info("\tUSB Self power capable\n");
 
-	switch (em_eeprom->chip_conf & 0x3) {
+	switch (le16_to_cpu(dev_config->chip_conf) & 0x3) {
 	case 0:
-		printk(KERN_INFO "%s:\t500mA max power\n", dev->name);
+		em28xx_info("\t500mA max power\n");
 		break;
 	case 1:
-		printk(KERN_INFO "%s:\t400mA max power\n", dev->name);
+		em28xx_info("\t400mA max power\n");
 		break;
 	case 2:
-		printk(KERN_INFO "%s:\t300mA max power\n", dev->name);
+		em28xx_info("\t300mA max power\n");
 		break;
 	case 3:
-		printk(KERN_INFO "%s:\t200mA max power\n", dev->name);
+		em28xx_info("\t200mA max power\n");
 		break;
 	}
-	printk(KERN_INFO "%s:\tTable at 0x%02x, strings=0x%04x, 0x%04x, 0x%04x\n",
-				dev->name,
-				em_eeprom->string_idx_table,
-				em_eeprom->string1,
-				em_eeprom->string2,
-				em_eeprom->string3);
+	em28xx_info("\tTable at offset 0x%02x, strings=0x%04x, 0x%04x, 0x%04x\n",
+		    dev_config->string_idx_table,
+		    le16_to_cpu(dev_config->string1),
+		    le16_to_cpu(dev_config->string2),
+		    le16_to_cpu(dev_config->string3));
 
 	return 0;
+
+error:
+	kfree(data);
+	return err;
 }
 
 /* ----------------------------------------------------------- */
@@ -503,13 +781,20 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 /*
  * functionality()
  */
-static u32 functionality(struct i2c_adapter *adap)
+static u32 functionality(struct i2c_adapter *i2c_adap)
 {
-	struct em28xx *dev = adap->algo_data;
-	u32 func_flags = I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
-	if (dev->board.is_em2800)
-		func_flags &= ~I2C_FUNC_SMBUS_WRITE_BLOCK_DATA;
-	return func_flags;
+	struct em28xx_i2c_bus *i2c_bus = i2c_adap->algo_data;
+
+	if ((i2c_bus->algo_type == EM28XX_I2C_ALGO_EM28XX) ||
+	    (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM25XX_BUS_B)) {
+		return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+	} else if (i2c_bus->algo_type == EM28XX_I2C_ALGO_EM2800)  {
+		return (I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL) &
+			~I2C_FUNC_SMBUS_WRITE_BLOCK_DATA;
+	}
+
+	WARN(1, "Unknown i2c bus algorithm.\n");
+	return 0;
 }
 
 static struct i2c_algorithm em28xx_algo = {
@@ -556,7 +841,7 @@ static char *i2c_devs[128] = {
  * do_i2c_scan()
  * check i2c address range for devices
  */
-void em28xx_do_i2c_scan(struct em28xx *dev)
+void em28xx_do_i2c_scan(struct em28xx *dev, unsigned bus)
 {
 	u8 i2c_devicelist[128];
 	unsigned char buf;
@@ -565,55 +850,68 @@ void em28xx_do_i2c_scan(struct em28xx *dev)
 	memset(i2c_devicelist, 0, ARRAY_SIZE(i2c_devicelist));
 
 	for (i = 0; i < ARRAY_SIZE(i2c_devs); i++) {
-		dev->i2c_client.addr = i;
-		rc = i2c_master_recv(&dev->i2c_client, &buf, 0);
+		dev->i2c_client[bus].addr = i;
+		rc = i2c_master_recv(&dev->i2c_client[bus], &buf, 0);
 		if (rc < 0)
 			continue;
 		i2c_devicelist[i] = i;
-		printk(KERN_INFO "%s: found i2c device @ 0x%x [%s]\n",
-		       dev->name, i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
+		em28xx_info("found i2c device @ 0x%x on bus %d [%s]\n",
+			    i << 1, bus, i2c_devs[i] ? i2c_devs[i] : "???");
 	}
 
-	dev->i2c_hash = em28xx_hash_mem(i2c_devicelist,
-					ARRAY_SIZE(i2c_devicelist), 32);
+	if (bus == dev->def_i2c_bus)
+		dev->i2c_hash = em28xx_hash_mem(i2c_devicelist,
+						ARRAY_SIZE(i2c_devicelist), 32);
 }
 
 /*
  * em28xx_i2c_register()
  * register i2c bus
  */
-int em28xx_i2c_register(struct em28xx *dev)
+int em28xx_i2c_register(struct em28xx *dev, unsigned bus,
+			enum em28xx_i2c_algo_type algo_type)
 {
 	int retval;
 
 	BUG_ON(!dev->em28xx_write_regs || !dev->em28xx_read_reg);
 	BUG_ON(!dev->em28xx_write_regs_req || !dev->em28xx_read_reg_req);
-	dev->i2c_adap = em28xx_adap_template;
-	dev->i2c_adap.dev.parent = &dev->udev->dev;
-	strcpy(dev->i2c_adap.name, dev->name);
-	dev->i2c_adap.algo_data = dev;
-	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
 
-	retval = i2c_add_adapter(&dev->i2c_adap);
+	if (bus >= NUM_I2C_BUSES)
+		return -ENODEV;
+
+	dev->i2c_adap[bus] = em28xx_adap_template;
+	dev->i2c_adap[bus].dev.parent = &dev->udev->dev;
+	strcpy(dev->i2c_adap[bus].name, dev->name);
+
+	dev->i2c_bus[bus].bus = bus;
+	dev->i2c_bus[bus].algo_type = algo_type;
+	dev->i2c_bus[bus].dev = dev;
+	dev->i2c_adap[bus].algo_data = &dev->i2c_bus[bus];
+	i2c_set_adapdata(&dev->i2c_adap[bus], &dev->v4l2_dev);
+
+	retval = i2c_add_adapter(&dev->i2c_adap[bus]);
 	if (retval < 0) {
 		em28xx_errdev("%s: i2c_add_adapter failed! retval [%d]\n",
 			__func__, retval);
 		return retval;
 	}
 
-	dev->i2c_client = em28xx_client_template;
-	dev->i2c_client.adapter = &dev->i2c_adap;
+	dev->i2c_client[bus] = em28xx_client_template;
+	dev->i2c_client[bus].adapter = &dev->i2c_adap[bus];
 
-	retval = em28xx_i2c_eeprom(dev, dev->eedata, sizeof(dev->eedata));
-	if ((retval < 0) && (retval != -ENODEV)) {
-		em28xx_errdev("%s: em28xx_i2_eeprom failed! retval [%d]\n",
-			__func__, retval);
+	/* Up to now, all eeproms are at bus 0 */
+	if (!bus) {
+		retval = em28xx_i2c_eeprom(dev, bus, &dev->eedata, &dev->eedata_len);
+		if ((retval < 0) && (retval != -ENODEV)) {
+			em28xx_errdev("%s: em28xx_i2_eeprom failed! retval [%d]\n",
+				__func__, retval);
 
-		return retval;
+			return retval;
+		}
 	}
 
 	if (i2c_scan)
-		em28xx_do_i2c_scan(dev);
+		em28xx_do_i2c_scan(dev, bus);
 
 	return 0;
 }
@@ -622,8 +920,11 @@ int em28xx_i2c_register(struct em28xx *dev)
  * em28xx_i2c_unregister()
  * unregister i2c_bus
  */
-int em28xx_i2c_unregister(struct em28xx *dev)
+int em28xx_i2c_unregister(struct em28xx *dev, unsigned bus)
 {
-	i2c_del_adapter(&dev->i2c_adap);
+	if (bus >= NUM_I2C_BUSES)
+		return -ENODEV;
+
+	i2c_del_adapter(&dev->i2c_adap[bus]);
 	return 0;
 }

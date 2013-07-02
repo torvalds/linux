@@ -2310,6 +2310,9 @@ more information.</para>
 	<listitem>
 	  <para>Added FM Modulator (FM TX) Extended Control Class: <constant>V4L2_CTRL_CLASS_FM_TX</constant> and their Control IDs.</para>
 	</listitem>
+<listitem>
+	  <para>Added FM Receiver (FM RX) Extended Control Class: <constant>V4L2_CTRL_CLASS_FM_RX</constant> and their Control IDs.</para>
+	</listitem>
 	<listitem>
 	  <para>Added Remote Controller chapter, describing the default Remote Controller mapping for media devices.</para>
 	</listitem>
@@ -2493,6 +2496,23 @@ that used it. It was originally scheduled for removal in 2.6.35.
       </orderedlist>
     </section>
 
+    <section>
+      <title>V4L2 in Linux 3.10</title>
+      <orderedlist>
+        <listitem>
+	  <para>Removed obsolete and unused DV_PRESET ioctls
+	  VIDIOC_G_DV_PRESET, VIDIOC_S_DV_PRESET, VIDIOC_QUERY_DV_PRESET and
+	  VIDIOC_ENUM_DV_PRESET. Remove the related v4l2_input/output capability
+	  flags V4L2_IN_CAP_PRESETS and V4L2_OUT_CAP_PRESETS.
+	  </para>
+        </listitem>
+        <listitem>
+	  <para>Added new debugging ioctl &VIDIOC-DBG-G-CHIP-INFO;.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
 
@@ -2625,8 +2645,8 @@ interfaces and should not be implemented in new drivers.</para>
 <xref linkend="extended-controls" />.</para>
         </listitem>
         <listitem>
-	  <para>&VIDIOC-G-DV-PRESET;, &VIDIOC-S-DV-PRESET;, &VIDIOC-ENUM-DV-PRESETS; and
-	  &VIDIOC-QUERY-DV-PRESET; ioctls. Use the DV Timings API (<xref linkend="dv-timings" />).</para>
+	  <para>VIDIOC_G_DV_PRESET, VIDIOC_S_DV_PRESET, VIDIOC_ENUM_DV_PRESETS and
+	  VIDIOC_QUERY_DV_PRESET ioctls. Use the DV Timings API (<xref linkend="dv-timings" />).</para>
         </listitem>
         <listitem>
 	  <para><constant>VIDIOC_SUBDEV_G_CROP</constant> and

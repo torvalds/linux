@@ -606,11 +606,17 @@ static int __init init_ceph_lib(void)
 	if (ret < 0)
 		goto out_crypto;
 
+	ret = ceph_osdc_setup();
+	if (ret < 0)
+		goto out_msgr;
+
 	pr_info("loaded (mon/osd proto %d/%d)\n",
 		CEPH_MONC_PROTOCOL, CEPH_OSDC_PROTOCOL);
 
 	return 0;
 
+out_msgr:
+	ceph_msgr_exit();
 out_crypto:
 	ceph_crypto_shutdown();
 out_debugfs:
@@ -622,6 +628,7 @@ out:
 static void __exit exit_ceph_lib(void)
 {
 	dout("exit_ceph_lib\n");
+	ceph_osdc_cleanup();
 	ceph_msgr_exit();
 	ceph_crypto_shutdown();
 	ceph_debugfs_cleanup();

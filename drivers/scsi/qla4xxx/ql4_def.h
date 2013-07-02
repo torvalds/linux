@@ -159,6 +159,22 @@
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
 
+#define DEV_DB_NON_PERSISTENT	0
+#define DEV_DB_PERSISTENT	1
+
+#define COPY_ISID(dst_isid, src_isid) {			\
+	int i, j;					\
+	for (i = 0, j = ISID_SIZE - 1; i < ISID_SIZE;)	\
+		dst_isid[i++] = src_isid[j--];		\
+}
+
+#define SET_BITVAL(o, n, v) {	\
+	if (o)			\
+		n |= v;		\
+	else			\
+		n &= ~v;	\
+}
+
 /*
  * Retry & Timeout Values
  */
@@ -363,6 +379,8 @@ struct ql82xx_hw_data {
 	uint32_t flt_iscsi_param;
 	uint32_t flt_region_chap;
 	uint32_t flt_chap_size;
+	uint32_t flt_region_ddb;
+	uint32_t flt_ddb_size;
 };
 
 struct qla4_8xxx_legacy_intr_set {
@@ -501,6 +519,7 @@ struct scsi_qla_host {
 #define AF_INIT_DONE			1 /* 0x00000002 */
 #define AF_MBOX_COMMAND			2 /* 0x00000004 */
 #define AF_MBOX_COMMAND_DONE		3 /* 0x00000008 */
+#define AF_ST_DISCOVERY_IN_PROGRESS	4 /* 0x00000010 */
 #define AF_INTERRUPTS_ON		6 /* 0x00000040 */
 #define AF_GET_CRASH_RECORD		7 /* 0x00000080 */
 #define AF_LINK_UP			8 /* 0x00000100 */

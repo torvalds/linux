@@ -34,6 +34,7 @@
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/mips_mt.h>
+#include <asm/gic.h>
 
 static void __init smvp_copy_vpe_config(void)
 {
@@ -151,8 +152,6 @@ static void vsmp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 static void __cpuinit vsmp_init_secondary(void)
 {
 #ifdef CONFIG_IRQ_GIC
-	extern int gic_present;
-
 	/* This is Malta specific: IPI,performance and timer interrupts */
 	if (gic_present)
 		change_c0_status(ST0_IM, STATUSF_IP3 | STATUSF_IP4 |

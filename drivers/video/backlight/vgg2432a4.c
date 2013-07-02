@@ -205,18 +205,15 @@ static int vgg2432a4_lcd_init(struct ili9320 *lcd,
 	return ret;
 }
 
-#ifdef CONFIG_PM
-static int vgg2432a4_suspend(struct spi_device *spi, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int vgg2432a4_suspend(struct device *dev)
 {
-	return ili9320_suspend(spi_get_drvdata(spi), state);
+	return ili9320_suspend(dev_get_drvdata(dev));
 }
-static int vgg2432a4_resume(struct spi_device *spi)
+static int vgg2432a4_resume(struct device *dev)
 {
-	return ili9320_resume(spi_get_drvdata(spi));
+	return ili9320_resume(dev_get_drvdata(dev));
 }
-#else
-#define vgg2432a4_suspend	NULL
-#define vgg2432a4_resume	NULL
 #endif
 
 static struct ili9320_client vgg2432a4_client = {
@@ -249,16 +246,17 @@ static void vgg2432a4_shutdown(struct spi_device *spi)
 	ili9320_shutdown(spi_get_drvdata(spi));
 }
 
+static SIMPLE_DEV_PM_OPS(vgg2432a4_pm_ops, vgg2432a4_suspend, vgg2432a4_resume);
+
 static struct spi_driver vgg2432a4_driver = {
 	.driver = {
 		.name		= "VGG2432A4",
 		.owner		= THIS_MODULE,
+		.pm		= &vgg2432a4_pm_ops,
 	},
 	.probe		= vgg2432a4_probe,
 	.remove		= vgg2432a4_remove,
 	.shutdown	= vgg2432a4_shutdown,
-	.suspend	= vgg2432a4_suspend,
-	.resume		= vgg2432a4_resume,
 };
 
 module_spi_driver(vgg2432a4_driver);

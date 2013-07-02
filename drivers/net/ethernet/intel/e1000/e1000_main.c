@@ -166,8 +166,10 @@ static void e1000_vlan_mode(struct net_device *netdev,
 			    netdev_features_t features);
 static void e1000_vlan_filter_on_off(struct e1000_adapter *adapter,
 				     bool filter_on);
-static int e1000_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
-static int e1000_vlan_rx_kill_vid(struct net_device *netdev, u16 vid);
+static int e1000_vlan_rx_add_vid(struct net_device *netdev,
+				 __be16 proto, u16 vid);
+static int e1000_vlan_rx_kill_vid(struct net_device *netdev,
+				  __be16 proto, u16 vid);
 static void e1000_restore_vlan(struct e1000_adapter *adapter);
 
 #ifdef CONFIG_PM
@@ -333,7 +335,7 @@ static void e1000_update_mng_vlan(struct e1000_adapter *adapter)
 	if (!test_bit(vid, adapter->active_vlans)) {
 		if (hw->mng_cookie.status &
 		    E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT) {
-			e1000_vlan_rx_add_vid(netdev, vid);
+			e1000_vlan_rx_add_vid(netdev, htons(ETH_P_8021Q), vid);
 			adapter->mng_vlan_id = vid;
 		} else {
 			adapter->mng_vlan_id = E1000_MNG_VLAN_NONE;
@@ -341,7 +343,8 @@ static void e1000_update_mng_vlan(struct e1000_adapter *adapter)
 		if ((old_vid != (u16)E1000_MNG_VLAN_NONE) &&
 		    (vid != old_vid) &&
 		    !test_bit(old_vid, adapter->active_vlans))
-			e1000_vlan_rx_kill_vid(netdev, old_vid);
+			e1000_vlan_rx_kill_vid(netdev, htons(ETH_P_8021Q),
+					       old_vid);
 	} else {
 		adapter->mng_vlan_id = vid;
 	}
@@ -809,10 +812,10 @@ static netdev_features_t e1000_fix_features(struct net_device *netdev,
 	/* Since there is no support for separate Rx/Tx vlan accel
 	 * enable/disable make sure Tx flag is always in same state as Rx.
 	 */
-	if (features & NETIF_F_HW_VLAN_RX)
-		features |= NETIF_F_HW_VLAN_TX;
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
 	else
-		features &= ~NETIF_F_HW_VLAN_TX;
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -823,7 +826,7 @@ static int e1000_set_features(struct net_device *netdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	netdev_features_t changed = features ^ netdev->features;
 
-	if (changed & NETIF_F_HW_VLAN_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		e1000_vlan_mode(netdev, features);
 
 	if (!(changed & (NETIF_F_RXCSUM | NETIF_F_RXALL)))
@@ -1058,9 +1061,9 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (hw->mac_type >= e1000_82543) {
 		netdev->hw_features = NETIF_F_SG |
 				   NETIF_F_HW_CSUM |
-				   NETIF_F_HW_VLAN_RX;
-		netdev->features = NETIF_F_HW_VLAN_TX |
-				   NETIF_F_HW_VLAN_FILTER;
+				   NETIF_F_HW_VLAN_CTAG_RX;
+		netdev->features = NETIF_F_HW_VLAN_CTAG_TX |
+				   NETIF_F_HW_VLAN_CTAG_FILTER;
 	}
 
 	if ((hw->mac_type >= e1000_82544) &&
@@ -1457,7 +1460,8 @@ static int e1000_close(struct net_device *netdev)
 	if ((hw->mng_cookie.status &
 	     E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT) &&
 	    !test_bit(adapter->mng_vlan_id, adapter->active_vlans)) {
-		e1000_vlan_rx_kill_vid(netdev, adapter->mng_vlan_id);
+		e1000_vlan_rx_kill_vid(netdev, htons(ETH_P_8021Q),
+				       adapter->mng_vlan_id);
 	}
 
 	return 0;
@@ -1516,8 +1520,6 @@ static int e1000_setup_tx_resources(struct e1000_adapter *adapter,
 	if (!txdr->desc) {
 setup_tx_desc_die:
 		vfree(txdr->buffer_info);
-		e_err(probe, "Unable to allocate memory for the Tx descriptor "
-		      "ring\n");
 		return -ENOMEM;
 	}
 
@@ -1707,10 +1709,7 @@ static int e1000_setup_rx_resources(struct e1000_adapter *adapter,
 
 	rxdr->desc = dma_alloc_coherent(&pdev->dev, rxdr->size, &rxdr->dma,
 					GFP_KERNEL);
-
 	if (!rxdr->desc) {
-		e_err(probe, "Unable to allocate memory for the Rx descriptor "
-		      "ring\n");
 setup_rx_desc_die:
 		vfree(rxdr->buffer_info);
 		return -ENOMEM;
@@ -1729,8 +1728,6 @@ setup_rx_desc_die:
 		if (!rxdr->desc) {
 			dma_free_coherent(&pdev->dev, rxdr->size, olddesc,
 					  olddma);
-			e_err(probe, "Unable to allocate memory for the Rx "
-			      "descriptor ring\n");
 			goto setup_rx_desc_die;
 		}
 
@@ -4006,7 +4003,7 @@ static void e1000_receive_skb(struct e1000_adapter *adapter, u8 status,
 	if (status & E1000_RXD_STAT_VP) {
 		u16 vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
 
-		__vlan_hwaccel_put_tag(skb, vid);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 	}
 	napi_gro_receive(&adapter->napi, skb);
 }
@@ -4792,7 +4789,7 @@ static void __e1000_vlan_mode(struct e1000_adapter *adapter,
 	u32 ctrl;
 
 	ctrl = er32(CTRL);
-	if (features & NETIF_F_HW_VLAN_RX) {
+	if (features & NETIF_F_HW_VLAN_CTAG_RX) {
 		/* enable VLAN tag insert/strip */
 		ctrl |= E1000_CTRL_VME;
 	} else {
@@ -4844,7 +4841,8 @@ static void e1000_vlan_mode(struct net_device *netdev,
 		e1000_irq_enable(adapter);
 }
 
-static int e1000_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+static int e1000_vlan_rx_add_vid(struct net_device *netdev,
+				 __be16 proto, u16 vid)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -4869,7 +4867,8 @@ static int e1000_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	return 0;
 }
 
-static int e1000_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+static int e1000_vlan_rx_kill_vid(struct net_device *netdev,
+				  __be16 proto, u16 vid)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -4903,7 +4902,7 @@ static void e1000_restore_vlan(struct e1000_adapter *adapter)
 
 	e1000_vlan_filter_on_off(adapter, true);
 	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
-		e1000_vlan_rx_add_vid(adapter->netdev, vid);
+		e1000_vlan_rx_add_vid(adapter->netdev, htons(ETH_P_8021Q), vid);
 }
 
 int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx)

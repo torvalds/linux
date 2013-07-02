@@ -19,8 +19,6 @@
 
 #include <linux/hid.h>
 #include <linux/hid-debug.h>
-#include "usbhid/usbhid.h"
-#include <linux/usb.h>
 
 #include <linux/fb.h>
 #include <linux/seq_file.h>

@@ -1032,9 +1032,8 @@ static int octeon_irq_gpio_map_common(struct irq_domain *d,
 	if (!octeon_irq_virq_in_range(virq))
 		return -EINVAL;
 
-	hw += gpiod->base_hwirq;
-	line = hw >> 6;
-	bit = hw & 63;
+	line = (hw + gpiod->base_hwirq) >> 6;
+	bit = (hw + gpiod->base_hwirq) & 63;
 	if (line > line_limit || octeon_irq_ciu_to_irq[line][bit] != 0)
 		return -EINVAL;
 

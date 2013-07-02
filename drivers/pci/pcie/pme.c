@@ -19,8 +19,6 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/pcieport_if.h>
-#include <linux/acpi.h>
-#include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
 
 #include "../pci.h"

@@ -695,33 +695,35 @@ static void NCR5380_print_status(struct Scsi_Host *instance)
  * Return the number of bytes read from or written
  */
 
-#undef SPRINTF
-#define SPRINTF(args...) do { if(pos < buffer + length-80) pos += sprintf(pos, ## args); } while(0)
-static
-char *lprint_Scsi_Cmnd(Scsi_Cmnd * cmd, char *pos, char *buffer, int length);
-static
-char *lprint_command(unsigned char *cmd, char *pos, char *buffer, int len);
-static
-char *lprint_opcode(int opcode, char *pos, char *buffer, int length);
-
-static int __maybe_unused NCR5380_proc_info(struct Scsi_Host *instance,
-	char *buffer, char **start, off_t offset, int length, int inout)
+static int __maybe_unused NCR5380_write_info(struct Scsi_Host *instance,
+	char *buffer, int length)
 {
-	char *pos = buffer;
+#ifdef DTC_PUBLIC_RELEASE
+	dtc_wmaxi = dtc_maxi = 0;
+#endif
+#ifdef PAS16_PUBLIC_RELEASE
+	pas_wmaxi = pas_maxi = 0;
+#endif
+	return (-ENOSYS);	/* Currently this is a no-op */
+}
+
+#undef SPRINTF
+#define SPRINTF(args...) seq_printf(m, ## args)
+static
+void lprint_Scsi_Cmnd(Scsi_Cmnd * cmd, struct seq_file *m);
+static
+void lprint_command(unsigned char *cmd, struct seq_file *m);
+static
+void lprint_opcode(int opcode, struct seq_file *m);
+
+static int __maybe_unused NCR5380_show_info(struct seq_file *m,
+	struct Scsi_Host *instance)
+{
 	struct NCR5380_hostdata *hostdata;
 	Scsi_Cmnd *ptr;
 
 	hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 
-	if (inout) {		/* Has data been written to the file ? */
-#ifdef DTC_PUBLIC_RELEASE
-		dtc_wmaxi = dtc_maxi = 0;
-#endif
-#ifdef PAS16_PUBLIC_RELEASE
-		pas_wmaxi = pas_maxi = 0;
-#endif
-		return (-ENOSYS);	/* Currently this is a no-op */
-	}
 	SPRINTF("NCR5380 core release=%d.   ", NCR5380_PUBLIC_RELEASE);
 	if (((struct NCR5380_hostdata *) instance->hostdata)->flags & FLAG_NCR53C400)
 		SPRINTF("ncr53c400 release=%d.  ", NCR53C400_PUBLIC_RELEASE);
@@ -755,46 +757,37 @@ static int __maybe_unused NCR5380_proc_info(struct Scsi_Host *instance,
 	if (!hostdata->connected)
 		SPRINTF("scsi%d: no currently connected command\n", instance->host_no);
 	else
-		pos = lprint_Scsi_Cmnd((Scsi_Cmnd *) hostdata->connected, pos, buffer, length);
+		lprint_Scsi_Cmnd((Scsi_Cmnd *) hostdata->connected, m);
 	SPRINTF("scsi%d: issue_queue\n", instance->host_no);
 	for (ptr = (Scsi_Cmnd *) hostdata->issue_queue; ptr; ptr = (Scsi_Cmnd *) ptr->host_scribble)
-		pos = lprint_Scsi_Cmnd(ptr, pos, buffer, length);
+		lprint_Scsi_Cmnd(ptr, m);
 
 	SPRINTF("scsi%d: disconnected_queue\n", instance->host_no);
 	for (ptr = (Scsi_Cmnd *) hostdata->disconnected_queue; ptr; ptr = (Scsi_Cmnd *) ptr->host_scribble)
-		pos = lprint_Scsi_Cmnd(ptr, pos, buffer, length);
+		lprint_Scsi_Cmnd(ptr, m);
 	spin_unlock_irq(instance->host_lock);
-	
-	*start = buffer;
-	if (pos - buffer < offset)
-		return 0;
-	else if (pos - buffer - offset < length)
-		return pos - buffer - offset;
-	return length;
+	return 0;
 }
 
-static char *lprint_Scsi_Cmnd(Scsi_Cmnd * cmd, char *pos, char *buffer, int length)
+static void lprint_Scsi_Cmnd(Scsi_Cmnd * cmd, struct seq_file *m)
 {
 	SPRINTF("scsi%d : destination target %d, lun %d\n", cmd->device->host->host_no, cmd->device->id, cmd->device->lun);
 	SPRINTF("        command = ");
-	pos = lprint_command(cmd->cmnd, pos, buffer, length);
-	return (pos);
+	lprint_command(cmd->cmnd, m);
 }
 
-static char *lprint_command(unsigned char *command, char *pos, char *buffer, int length)
+static void lprint_command(unsigned char *command, struct seq_file *m)
 {
 	int i, s;
-	pos = lprint_opcode(command[0], pos, buffer, length);
+	lprint_opcode(command[0], m);
 	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
 		SPRINTF("%02x ", command[i]);
 	SPRINTF("\n");
-	return (pos);
 }
 
-static char *lprint_opcode(int opcode, char *pos, char *buffer, int length)
+static void lprint_opcode(int opcode, struct seq_file *m)
 {
 	SPRINTF("%2d (0x%02x)", opcode, opcode);
-	return (pos);
 }
 
 

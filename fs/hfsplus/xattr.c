@@ -107,19 +107,19 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 
 	err = hfs_find_init(HFSPLUS_SB(inode->i_sb)->cat_tree, &cat_fd);
 	if (err) {
-		printk(KERN_ERR "hfs: can't init xattr find struct\n");
+		pr_err("can't init xattr find struct\n");
 		return err;
 	}
 
 	err = hfsplus_find_cat(inode->i_sb, inode->i_ino, &cat_fd);
 	if (err) {
-		printk(KERN_ERR "hfs: catalog searching failed\n");
+		pr_err("catalog searching failed\n");
 		goto end_setxattr;
 	}
 
 	if (!strcmp_xattr_finder_info(name)) {
 		if (flags & XATTR_CREATE) {
-			printk(KERN_ERR "hfs: xattr exists yet\n");
+			pr_err("xattr exists yet\n");
 			err = -EOPNOTSUPP;
 			goto end_setxattr;
 		}
@@ -165,7 +165,7 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 
 	if (hfsplus_attr_exists(inode, name)) {
 		if (flags & XATTR_CREATE) {
-			printk(KERN_ERR "hfs: xattr exists yet\n");
+			pr_err("xattr exists yet\n");
 			err = -EOPNOTSUPP;
 			goto end_setxattr;
 		}
@@ -177,7 +177,7 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 			goto end_setxattr;
 	} else {
 		if (flags & XATTR_REPLACE) {
-			printk(KERN_ERR "hfs: cannot replace xattr\n");
+			pr_err("cannot replace xattr\n");
 			err = -EOPNOTSUPP;
 			goto end_setxattr;
 		}
@@ -210,7 +210,7 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 				    cat_entry_flags);
 		hfsplus_mark_inode_dirty(inode, HFSPLUS_I_CAT_DIRTY);
 	} else {
-		printk(KERN_ERR "hfs: invalid catalog entry type\n");
+		pr_err("invalid catalog entry type\n");
 		err = -EIO;
 		goto end_setxattr;
 	}
@@ -269,7 +269,7 @@ static ssize_t hfsplus_getxattr_finder_info(struct dentry *dentry,
 	if (size >= record_len) {
 		res = hfs_find_init(HFSPLUS_SB(inode->i_sb)->cat_tree, &fd);
 		if (res) {
-			printk(KERN_ERR "hfs: can't init xattr find struct\n");
+			pr_err("can't init xattr find struct\n");
 			return res;
 		}
 		res = hfsplus_find_cat(inode->i_sb, inode->i_ino, &fd);
@@ -340,13 +340,13 @@ ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
 
 	entry = hfsplus_alloc_attr_entry();
 	if (!entry) {
-		printk(KERN_ERR "hfs: can't allocate xattr entry\n");
+		pr_err("can't allocate xattr entry\n");
 		return -ENOMEM;
 	}
 
 	res = hfs_find_init(HFSPLUS_SB(inode->i_sb)->attr_tree, &fd);
 	if (res) {
-		printk(KERN_ERR "hfs: can't init xattr find struct\n");
+		pr_err("can't init xattr find struct\n");
 		goto failed_getxattr_init;
 	}
 
@@ -355,7 +355,7 @@ ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
 		if (res == -ENOENT)
 			res = -ENODATA;
 		else
-			printk(KERN_ERR "hfs: xattr searching failed\n");
+			pr_err("xattr searching failed\n");
 		goto out;
 	}
 
@@ -368,17 +368,17 @@ ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
 				offsetof(struct hfsplus_attr_inline_data,
 				length));
 		if (record_length > HFSPLUS_MAX_INLINE_DATA_SIZE) {
-			printk(KERN_ERR "hfs: invalid xattr record size\n");
+			pr_err("invalid xattr record size\n");
 			res = -EIO;
 			goto out;
 		}
 	} else if (record_type == HFSPLUS_ATTR_FORK_DATA ||
 			record_type == HFSPLUS_ATTR_EXTENTS) {
-		printk(KERN_ERR "hfs: only inline data xattr are supported\n");
+		pr_err("only inline data xattr are supported\n");
 		res = -EOPNOTSUPP;
 		goto out;
 	} else {
-		printk(KERN_ERR "hfs: invalid xattr record\n");
+		pr_err("invalid xattr record\n");
 		res = -EIO;
 		goto out;
 	}
@@ -427,7 +427,7 @@ static ssize_t hfsplus_listxattr_finder_info(struct dentry *dentry,
 
 	res = hfs_find_init(HFSPLUS_SB(inode->i_sb)->cat_tree, &fd);
 	if (res) {
-		printk(KERN_ERR "hfs: can't init xattr find struct\n");
+		pr_err("can't init xattr find struct\n");
 		return res;
 	}
 
@@ -506,7 +506,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 	err = hfs_find_init(HFSPLUS_SB(inode->i_sb)->attr_tree, &fd);
 	if (err) {
-		printk(KERN_ERR "hfs: can't init xattr find struct\n");
+		pr_err("can't init xattr find struct\n");
 		return err;
 	}
 
@@ -525,8 +525,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	for (;;) {
 		key_len = hfs_bnode_read_u16(fd.bnode, fd.keyoffset);
 		if (key_len == 0 || key_len > fd.tree->max_key_len) {
-			printk(KERN_ERR "hfs: invalid xattr key length: %d\n",
-							key_len);
+			pr_err("invalid xattr key length: %d\n", key_len);
 			res = -EIO;
 			goto end_listxattr;
 		}
@@ -541,7 +540,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		if (hfsplus_uni2asc(inode->i_sb,
 			(const struct hfsplus_unistr *)&fd.key->attr.key_name,
 					strbuf, &xattr_name_len)) {
-			printk(KERN_ERR "hfs: unicode conversion failed\n");
+			pr_err("unicode conversion failed\n");
 			res = -EIO;
 			goto end_listxattr;
 		}
@@ -598,13 +597,13 @@ int hfsplus_removexattr(struct dentry *dentry, const char *name)
 
 	err = hfs_find_init(HFSPLUS_SB(inode->i_sb)->cat_tree, &cat_fd);
 	if (err) {
-		printk(KERN_ERR "hfs: can't init xattr find struct\n");
+		pr_err("can't init xattr find struct\n");
 		return err;
 	}
 
 	err = hfsplus_find_cat(inode->i_sb, inode->i_ino, &cat_fd);
 	if (err) {
-		printk(KERN_ERR "hfs: catalog searching failed\n");
+		pr_err("catalog searching failed\n");
 		goto end_removexattr;
 	}
 
@@ -643,7 +642,7 @@ int hfsplus_removexattr(struct dentry *dentry, const char *name)
 				flags);
 		hfsplus_mark_inode_dirty(inode, HFSPLUS_I_CAT_DIRTY);
 	} else {
-		printk(KERN_ERR "hfs: invalid catalog entry type\n");
+		pr_err("invalid catalog entry type\n");
 		err = -EIO;
 		goto end_removexattr;
 	}

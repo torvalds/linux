@@ -75,6 +75,15 @@ struct uprobe {
 	struct arch_uprobe	arch;
 };
 
+struct return_instance {
+	struct uprobe		*uprobe;
+	unsigned long		func;
+	unsigned long		orig_ret_vaddr; /* original return address */
+	bool			chained;	/* true, if instance is nested */
+
+	struct return_instance	*next;		/* keep as stack */
+};
+
 /*
  * valid_vma: Verify if the specified vma is an executable vma
  * Relax restrictions while unregistering: vm_flags might have
@@ -173,10 +182,31 @@ bool __weak is_swbp_insn(uprobe_opcode_t *insn)
 	return *insn == UPROBE_SWBP_INSN;
 }
 
-static void copy_opcode(struct page *page, unsigned long vaddr, uprobe_opcode_t *opcode)
+/**
+ * is_trap_insn - check if instruction is breakpoint instruction.
+ * @insn: instruction to be checked.
+ * Default implementation of is_trap_insn
+ * Returns true if @insn is a breakpoint instruction.
+ *
+ * This function is needed for the case where an architecture has multiple
+ * trap instructions (like powerpc).
+ */
+bool __weak is_trap_insn(uprobe_opcode_t *insn)
+{
+	return is_swbp_insn(insn);
+}
+
+static void copy_from_page(struct page *page, unsigned long vaddr, void *dst, int len)
 {
 	void *kaddr = kmap_atomic(page);
-	memcpy(opcode, kaddr + (vaddr & ~PAGE_MASK), UPROBE_SWBP_INSN_SIZE);
+	memcpy(dst, kaddr + (vaddr & ~PAGE_MASK), len);
+	kunmap_atomic(kaddr);
+}
+
+static void copy_to_page(struct page *page, unsigned long vaddr, const void *src, int len)
+{
+	void *kaddr = kmap_atomic(page);
+	memcpy(kaddr + (vaddr & ~PAGE_MASK), src, len);
 	kunmap_atomic(kaddr);
 }
 
@@ -185,7 +215,16 @@ static int verify_opcode(struct page *page, unsigned long vaddr, uprobe_opcode_t
 	uprobe_opcode_t old_opcode;
 	bool is_swbp;
 
-	copy_opcode(page, vaddr, &old_opcode);
+	/*
+	 * Note: We only check if the old_opcode is UPROBE_SWBP_INSN here.
+	 * We do not check if it is any other 'trap variant' which could
+	 * be conditional trap instruction such as the one powerpc supports.
+	 *
+	 * The logic is that we do not care if the underlying instruction
+	 * is a trap variant; uprobes always wins over any other (gdb)
+	 * breakpoint.
+	 */
+	copy_from_page(page, vaddr, &old_opcode, UPROBE_SWBP_INSN_SIZE);
 	is_swbp = is_swbp_insn(&old_opcode);
 
 	if (is_swbp_insn(new_opcode)) {
@@ -204,7 +243,7 @@ static int verify_opcode(struct page *page, unsigned long vaddr, uprobe_opcode_t
  * Expect the breakpoint instruction to be the smallest size instruction for
  * the architecture. If an arch has variable length instruction and the
  * breakpoint instruction is not of the smallest length instruction
- * supported by that architecture then we need to modify is_swbp_at_addr and
+ * supported by that architecture then we need to modify is_trap_at_addr and
  * write_opcode accordingly. This would never be a problem for archs that
  * have fixed length instructions.
  */
@@ -225,7 +264,6 @@ static int write_opcode(struct mm_struct *mm, unsigned long vaddr,
 			uprobe_opcode_t opcode)
 {
 	struct page *old_page, *new_page;
-	void *vaddr_old, *vaddr_new;
 	struct vm_area_struct *vma;
 	int ret;
 
@@ -246,15 +284,8 @@ retry:
 
 	__SetPageUptodate(new_page);
 
-	/* copy the page now that we've got it stable */
-	vaddr_old = kmap_atomic(old_page);
-	vaddr_new = kmap_atomic(new_page);
-
-	memcpy(vaddr_new, vaddr_old, PAGE_SIZE);
-	memcpy(vaddr_new + (vaddr & ~PAGE_MASK), &opcode, UPROBE_SWBP_INSN_SIZE);
-
-	kunmap_atomic(vaddr_new);
-	kunmap_atomic(vaddr_old);
+	copy_highpage(new_page, old_page);
+	copy_to_page(new_page, vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
 
 	ret = anon_vma_prepare(vma);
 	if (ret)
@@ -477,30 +508,18 @@ __copy_insn(struct address_space *mapping, struct file *filp, char *insn,
 			unsigned long nbytes, loff_t offset)
 {
 	struct page *page;
-	void *vaddr;
-	unsigned long off;
-	pgoff_t idx;
-
-	if (!filp)
-		return -EINVAL;
 
 	if (!mapping->a_ops->readpage)
 		return -EIO;
-
-	idx = offset >> PAGE_CACHE_SHIFT;
-	off = offset & ~PAGE_MASK;
-
 	/*
 	 * Ensure that the page that has the original instruction is
 	 * populated and in page-cache.
 	 */
-	page = read_mapping_page(mapping, idx, filp);
+	page = read_mapping_page(mapping, offset >> PAGE_CACHE_SHIFT, filp);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 
-	vaddr = kmap_atomic(page);
-	memcpy(insn, vaddr + off, nbytes);
-	kunmap_atomic(vaddr);
+	copy_from_page(page, offset, insn, nbytes);
 	page_cache_release(page);
 
 	return 0;
@@ -550,7 +569,7 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 		goto out;
 
 	ret = -ENOTSUPP;
-	if (is_swbp_insn((uprobe_opcode_t *)uprobe->arch.insn))
+	if (is_trap_insn((uprobe_opcode_t *)uprobe->arch.insn))
 		goto out;
 
 	ret = arch_uprobe_analyze_insn(&uprobe->arch, mm, vaddr);
@@ -758,7 +777,7 @@ register_for_each_vma(struct uprobe *uprobe, struct uprobe_consumer *new)
 		down_write(&mm->mmap_sem);
 		vma = find_vma(mm, info->vaddr);
 		if (!vma || !valid_vma(vma, is_register) ||
-		    vma->vm_file->f_mapping->host != uprobe->inode)
+		    file_inode(vma->vm_file) != uprobe->inode)
 			goto unlock;
 
 		if (vma->vm_start > info->vaddr ||
@@ -827,6 +846,10 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 {
 	struct uprobe *uprobe;
 	int ret;
+
+	/* Uprobe must have at least one set consumer */
+	if (!uc->handler && !uc->ret_handler)
+		return -EINVAL;
 
 	/* Racy, just to catch the obvious mistakes */
 	if (offset > i_size_read(inode))
@@ -917,7 +940,7 @@ static int unapply_uprobe(struct uprobe *uprobe, struct mm_struct *mm)
 		loff_t offset;
 
 		if (!valid_vma(vma, false) ||
-		    vma->vm_file->f_mapping->host != uprobe->inode)
+		    file_inode(vma->vm_file) != uprobe->inode)
 			continue;
 
 		offset = (loff_t)vma->vm_pgoff << PAGE_SHIFT;
@@ -1010,7 +1033,7 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	if (no_uprobe_events() || !valid_vma(vma, true))
 		return 0;
 
-	inode = vma->vm_file->f_mapping->host;
+	inode = file_inode(vma->vm_file);
 	if (!inode)
 		return 0;
 
@@ -1041,7 +1064,7 @@ vma_has_uprobes(struct vm_area_struct *vma, unsigned long start, unsigned long e
 	struct inode *inode;
 	struct rb_node *n;
 
-	inode = vma->vm_file->f_mapping->host;
+	inode = file_inode(vma->vm_file);
 
 	min = vaddr_to_offset(vma, start);
 	max = min + (end - start) - 1;
@@ -1114,6 +1137,7 @@ static struct xol_area *get_xol_area(void)
 {
 	struct mm_struct *mm = current->mm;
 	struct xol_area *area;
+	uprobe_opcode_t insn = UPROBE_SWBP_INSN;
 
 	area = mm->uprobes_state.xol_area;
 	if (area)
@@ -1131,7 +1155,12 @@ static struct xol_area *get_xol_area(void)
 	if (!area->page)
 		goto free_bitmap;
 
+	/* allocate first slot of task's xol_area for the return probes */
+	set_bit(0, area->bitmap);
+	copy_to_page(area->page, 0, &insn, UPROBE_SWBP_INSN_SIZE);
+	atomic_set(&area->slot_count, 1);
 	init_waitqueue_head(&area->wq);
+
 	if (!xol_add_vma(area))
 		return area;
 
@@ -1216,9 +1245,7 @@ static unsigned long xol_take_insn_slot(struct xol_area *area)
 static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
 {
 	struct xol_area *area;
-	unsigned long offset;
 	unsigned long xol_vaddr;
-	void *vaddr;
 
 	area = get_xol_area();
 	if (!area)
@@ -1229,10 +1256,7 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
 		return 0;
 
 	/* Initialize the slot */
-	offset = xol_vaddr & ~PAGE_MASK;
-	vaddr = kmap_atomic(area->page);
-	memcpy(vaddr + offset, uprobe->arch.insn, MAX_UINSN_BYTES);
-	kunmap_atomic(vaddr);
+	copy_to_page(area->page, xol_vaddr, uprobe->arch.insn, MAX_UINSN_BYTES);
 	/*
 	 * We probably need flush_icache_user_range() but it needs vma.
 	 * This should work on supported architectures too.
@@ -1298,12 +1322,22 @@ unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs)
 void uprobe_free_utask(struct task_struct *t)
 {
 	struct uprobe_task *utask = t->utask;
+	struct return_instance *ri, *tmp;
 
 	if (!utask)
 		return;
 
 	if (utask->active_uprobe)
 		put_uprobe(utask->active_uprobe);
+
+	ri = utask->return_instances;
+	while (ri) {
+		tmp = ri;
+		ri = ri->next;
+
+		put_uprobe(tmp->uprobe);
+		kfree(tmp);
+	}
 
 	xol_free_insn_slot(t);
 	kfree(utask);
@@ -1331,6 +1365,93 @@ static struct uprobe_task *get_utask(void)
 	if (!current->utask)
 		current->utask = kzalloc(sizeof(struct uprobe_task), GFP_KERNEL);
 	return current->utask;
+}
+
+/*
+ * Current area->vaddr notion assume the trampoline address is always
+ * equal area->vaddr.
+ *
+ * Returns -1 in case the xol_area is not allocated.
+ */
+static unsigned long get_trampoline_vaddr(void)
+{
+	struct xol_area *area;
+	unsigned long trampoline_vaddr = -1;
+
+	area = current->mm->uprobes_state.xol_area;
+	smp_read_barrier_depends();
+	if (area)
+		trampoline_vaddr = area->vaddr;
+
+	return trampoline_vaddr;
+}
+
+static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
+{
+	struct return_instance *ri;
+	struct uprobe_task *utask;
+	unsigned long orig_ret_vaddr, trampoline_vaddr;
+	bool chained = false;
+
+	if (!get_xol_area())
+		return;
+
+	utask = get_utask();
+	if (!utask)
+		return;
+
+	if (utask->depth >= MAX_URETPROBE_DEPTH) {
+		printk_ratelimited(KERN_INFO "uprobe: omit uretprobe due to"
+				" nestedness limit pid/tgid=%d/%d\n",
+				current->pid, current->tgid);
+		return;
+	}
+
+	ri = kzalloc(sizeof(struct return_instance), GFP_KERNEL);
+	if (!ri)
+		goto fail;
+
+	trampoline_vaddr = get_trampoline_vaddr();
+	orig_ret_vaddr = arch_uretprobe_hijack_return_addr(trampoline_vaddr, regs);
+	if (orig_ret_vaddr == -1)
+		goto fail;
+
+	/*
+	 * We don't want to keep trampoline address in stack, rather keep the
+	 * original return address of first caller thru all the consequent
+	 * instances. This also makes breakpoint unwrapping easier.
+	 */
+	if (orig_ret_vaddr == trampoline_vaddr) {
+		if (!utask->return_instances) {
+			/*
+			 * This situation is not possible. Likely we have an
+			 * attack from user-space.
+			 */
+			pr_warn("uprobe: unable to set uretprobe pid/tgid=%d/%d\n",
+						current->pid, current->tgid);
+			goto fail;
+		}
+
+		chained = true;
+		orig_ret_vaddr = utask->return_instances->orig_ret_vaddr;
+	}
+
+	atomic_inc(&uprobe->ref);
+	ri->uprobe = uprobe;
+	ri->func = instruction_pointer(regs);
+	ri->orig_ret_vaddr = orig_ret_vaddr;
+	ri->chained = chained;
+
+	utask->depth++;
+
+	/* add instance to the stack */
+	ri->next = utask->return_instances;
+	utask->return_instances = ri;
+
+	return;
+
+ fail:
+	kfree(ri);
 }
 
 /* Prepare to single-step probed instruction out of line. */
@@ -1431,7 +1552,7 @@ static void mmf_recalc_uprobes(struct mm_struct *mm)
 	clear_bit(MMF_HAS_UPROBES, &mm->flags);
 }
 
-static int is_swbp_at_addr(struct mm_struct *mm, unsigned long vaddr)
+static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 {
 	struct page *page;
 	uprobe_opcode_t opcode;
@@ -1449,10 +1570,11 @@ static int is_swbp_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	if (result < 0)
 		return result;
 
-	copy_opcode(page, vaddr, &opcode);
+	copy_from_page(page, vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
 	put_page(page);
  out:
-	return is_swbp_insn(&opcode);
+	/* This needs to return true for any variant of the trap insn */
+	return is_trap_insn(&opcode);
 }
 
 static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
@@ -1465,14 +1587,14 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	vma = find_vma(mm, bp_vaddr);
 	if (vma && vma->vm_start <= bp_vaddr) {
 		if (valid_vma(vma, false)) {
-			struct inode *inode = vma->vm_file->f_mapping->host;
+			struct inode *inode = file_inode(vma->vm_file);
 			loff_t offset = vaddr_to_offset(vma, bp_vaddr);
 
 			uprobe = find_uprobe(inode, offset);
 		}
 
 		if (!uprobe)
-			*is_swbp = is_swbp_at_addr(mm, bp_vaddr);
+			*is_swbp = is_trap_at_addr(mm, bp_vaddr);
 	} else {
 		*is_swbp = -EFAULT;
 	}
@@ -1488,21 +1610,90 @@ static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
 {
 	struct uprobe_consumer *uc;
 	int remove = UPROBE_HANDLER_REMOVE;
+	bool need_prep = false; /* prepare return uprobe, when needed */
 
 	down_read(&uprobe->register_rwsem);
 	for (uc = uprobe->consumers; uc; uc = uc->next) {
-		int rc = uc->handler(uc, regs);
+		int rc = 0;
 
-		WARN(rc & ~UPROBE_HANDLER_MASK,
-			"bad rc=0x%x from %pf()\n", rc, uc->handler);
+		if (uc->handler) {
+			rc = uc->handler(uc, regs);
+			WARN(rc & ~UPROBE_HANDLER_MASK,
+				"bad rc=0x%x from %pf()\n", rc, uc->handler);
+		}
+
+		if (uc->ret_handler)
+			need_prep = true;
+
 		remove &= rc;
 	}
+
+	if (need_prep && !remove)
+		prepare_uretprobe(uprobe, regs); /* put bp at return */
 
 	if (remove && uprobe->consumers) {
 		WARN_ON(!uprobe_is_active(uprobe));
 		unapply_uprobe(uprobe, current->mm);
 	}
 	up_read(&uprobe->register_rwsem);
+}
+
+static void
+handle_uretprobe_chain(struct return_instance *ri, struct pt_regs *regs)
+{
+	struct uprobe *uprobe = ri->uprobe;
+	struct uprobe_consumer *uc;
+
+	down_read(&uprobe->register_rwsem);
+	for (uc = uprobe->consumers; uc; uc = uc->next) {
+		if (uc->ret_handler)
+			uc->ret_handler(uc, ri->func, regs);
+	}
+	up_read(&uprobe->register_rwsem);
+}
+
+static bool handle_trampoline(struct pt_regs *regs)
+{
+	struct uprobe_task *utask;
+	struct return_instance *ri, *tmp;
+	bool chained;
+
+	utask = current->utask;
+	if (!utask)
+		return false;
+
+	ri = utask->return_instances;
+	if (!ri)
+		return false;
+
+	/*
+	 * TODO: we should throw out return_instance's invalidated by
+	 * longjmp(), currently we assume that the probed function always
+	 * returns.
+	 */
+	instruction_pointer_set(regs, ri->orig_ret_vaddr);
+
+	for (;;) {
+		handle_uretprobe_chain(ri, regs);
+
+		chained = ri->chained;
+		put_uprobe(ri->uprobe);
+
+		tmp = ri;
+		ri = ri->next;
+		kfree(tmp);
+
+		if (!chained)
+			break;
+
+		utask->depth--;
+
+		BUG_ON(!ri);
+	}
+
+	utask->return_instances = ri;
+
+	return true;
 }
 
 /*
@@ -1516,8 +1707,15 @@ static void handle_swbp(struct pt_regs *regs)
 	int uninitialized_var(is_swbp);
 
 	bp_vaddr = uprobe_get_swbp_addr(regs);
-	uprobe = find_active_uprobe(bp_vaddr, &is_swbp);
+	if (bp_vaddr == get_trampoline_vaddr()) {
+		if (handle_trampoline(regs))
+			return;
 
+		pr_warn("uprobe: unable to handle uretprobe pid/tgid=%d/%d\n",
+						current->pid, current->tgid);
+	}
+
+	uprobe = find_active_uprobe(bp_vaddr, &is_swbp);
 	if (!uprobe) {
 		if (is_swbp > 0) {
 			/* No matching uprobe; signal SIGTRAP. */
@@ -1616,7 +1814,11 @@ void uprobe_notify_resume(struct pt_regs *regs)
  */
 int uprobe_pre_sstep_notifier(struct pt_regs *regs)
 {
-	if (!current->mm || !test_bit(MMF_HAS_UPROBES, &current->mm->flags))
+	if (!current->mm)
+		return 0;
+
+	if (!test_bit(MMF_HAS_UPROBES, &current->mm->flags) &&
+	    (!current->utask || !current->utask->return_instances))
 		return 0;
 
 	set_thread_flag(TIF_UPROBE);

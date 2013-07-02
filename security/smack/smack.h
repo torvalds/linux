@@ -149,11 +149,6 @@ struct smack_known {
 #define SMACK_CIPSO_SOCKET	1
 
 /*
- * smackfs magic number
- */
-#define SMACK_MAGIC	0x43415d53 /* "SMAC" */
-
-/*
  * CIPSO defaults.
  */
 #define SMACK_CIPSO_DOI_DEFAULT		3	/* Historical */

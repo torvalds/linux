@@ -452,7 +452,7 @@ static int proc_ppc64_create_ofdt(void)
 
 	ent = proc_create("powerpc/ofdt", S_IWUSR, NULL, &ofdt_fops);
 	if (ent)
-		ent->size = 0;
+		proc_set_size(ent, 0);
 
 	return 0;
 }

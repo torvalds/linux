@@ -136,20 +136,40 @@ config KVM_E500V2
 	  If unsure, say N.
 
 config KVM_E500MC
-	bool "KVM support for PowerPC E500MC/E5500 processors"
+	bool "KVM support for PowerPC E500MC/E5500/E6500 processors"
 	depends on PPC_E500MC
 	select KVM
 	select KVM_MMIO
 	select KVM_BOOKE_HV
 	select MMU_NOTIFIER
 	---help---
-	  Support running unmodified E500MC/E5500 (32-bit) guest kernels in
-	  virtual machines on E500MC/E5500 host processors.
+	  Support running unmodified E500MC/E5500/E6500 guest kernels in
+	  virtual machines on E500MC/E5500/E6500 host processors.
 
 	  This module provides access to the hardware capabilities through
 	  a character device node named /dev/kvm.
 
 	  If unsure, say N.
+
+config KVM_MPIC
+	bool "KVM in-kernel MPIC emulation"
+	depends on KVM && E500
+	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_IRQ_ROUTING
+	select HAVE_KVM_MSI
+	help
+	  Enable support for emulating MPIC devices inside the
+          host kernel, rather than relying on userspace to emulate.
+          Currently, support is limited to certain versions of
+          Freescale's MPIC implementation.
+
+config KVM_XICS
+	bool "KVM in-kernel XICS emulation"
+	depends on KVM_BOOK3S_64 && !KVM_MPIC
+	---help---
+	  Include support for the XICS (eXternal Interrupt Controller
+	  Specification) interrupt controller architecture used on
+	  IBM POWER (pSeries) servers.
 
 source drivers/vhost/Kconfig
 

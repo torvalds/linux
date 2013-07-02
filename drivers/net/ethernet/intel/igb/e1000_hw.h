@@ -38,38 +38,39 @@
 
 struct e1000_hw;
 
-#define E1000_DEV_ID_82576                    0x10C9
-#define E1000_DEV_ID_82576_FIBER              0x10E6
-#define E1000_DEV_ID_82576_SERDES             0x10E7
-#define E1000_DEV_ID_82576_QUAD_COPPER        0x10E8
-#define E1000_DEV_ID_82576_QUAD_COPPER_ET2    0x1526
-#define E1000_DEV_ID_82576_NS                 0x150A
-#define E1000_DEV_ID_82576_NS_SERDES          0x1518
-#define E1000_DEV_ID_82576_SERDES_QUAD        0x150D
-#define E1000_DEV_ID_82575EB_COPPER           0x10A7
-#define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
-#define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
-#define E1000_DEV_ID_82580_COPPER             0x150E
-#define E1000_DEV_ID_82580_FIBER              0x150F
-#define E1000_DEV_ID_82580_SERDES             0x1510
-#define E1000_DEV_ID_82580_SGMII              0x1511
-#define E1000_DEV_ID_82580_COPPER_DUAL        0x1516
-#define E1000_DEV_ID_82580_QUAD_FIBER         0x1527
-#define E1000_DEV_ID_DH89XXCC_SGMII           0x0438
-#define E1000_DEV_ID_DH89XXCC_SERDES          0x043A
-#define E1000_DEV_ID_DH89XXCC_BACKPLANE       0x043C
-#define E1000_DEV_ID_DH89XXCC_SFP             0x0440
-#define E1000_DEV_ID_I350_COPPER              0x1521
-#define E1000_DEV_ID_I350_FIBER               0x1522
-#define E1000_DEV_ID_I350_SERDES              0x1523
-#define E1000_DEV_ID_I350_SGMII               0x1524
+#define E1000_DEV_ID_82576			0x10C9
+#define E1000_DEV_ID_82576_FIBER		0x10E6
+#define E1000_DEV_ID_82576_SERDES		0x10E7
+#define E1000_DEV_ID_82576_QUAD_COPPER		0x10E8
+#define E1000_DEV_ID_82576_QUAD_COPPER_ET2	0x1526
+#define E1000_DEV_ID_82576_NS			0x150A
+#define E1000_DEV_ID_82576_NS_SERDES		0x1518
+#define E1000_DEV_ID_82576_SERDES_QUAD		0x150D
+#define E1000_DEV_ID_82575EB_COPPER		0x10A7
+#define E1000_DEV_ID_82575EB_FIBER_SERDES	0x10A9
+#define E1000_DEV_ID_82575GB_QUAD_COPPER	0x10D6
+#define E1000_DEV_ID_82580_COPPER		0x150E
+#define E1000_DEV_ID_82580_FIBER		0x150F
+#define E1000_DEV_ID_82580_SERDES		0x1510
+#define E1000_DEV_ID_82580_SGMII		0x1511
+#define E1000_DEV_ID_82580_COPPER_DUAL		0x1516
+#define E1000_DEV_ID_82580_QUAD_FIBER		0x1527
+#define E1000_DEV_ID_DH89XXCC_SGMII		0x0438
+#define E1000_DEV_ID_DH89XXCC_SERDES		0x043A
+#define E1000_DEV_ID_DH89XXCC_BACKPLANE		0x043C
+#define E1000_DEV_ID_DH89XXCC_SFP		0x0440
+#define E1000_DEV_ID_I350_COPPER		0x1521
+#define E1000_DEV_ID_I350_FIBER			0x1522
+#define E1000_DEV_ID_I350_SERDES		0x1523
+#define E1000_DEV_ID_I350_SGMII			0x1524
 #define E1000_DEV_ID_I210_COPPER		0x1533
-#define E1000_DEV_ID_I210_COPPER_OEM1		0x1534
-#define E1000_DEV_ID_I210_COPPER_IT		0x1535
 #define E1000_DEV_ID_I210_FIBER			0x1536
 #define E1000_DEV_ID_I210_SERDES		0x1537
 #define E1000_DEV_ID_I210_SGMII			0x1538
 #define E1000_DEV_ID_I211_COPPER		0x1539
+#define E1000_DEV_ID_I354_BACKPLANE_1GBPS	0x1F40
+#define E1000_DEV_ID_I354_SGMII			0x1F41
+#define E1000_DEV_ID_I354_BACKPLANE_2_5GBPS	0x1F45
 
 #define E1000_REVISION_2 2
 #define E1000_REVISION_4 4
@@ -90,6 +91,7 @@ enum e1000_mac_type {
 	e1000_82576,
 	e1000_82580,
 	e1000_i350,
+	e1000_i354,
 	e1000_i210,
 	e1000_i211,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
@@ -98,7 +100,8 @@ enum e1000_mac_type {
 enum e1000_media_type {
 	e1000_media_type_unknown = 0,
 	e1000_media_type_copper = 1,
-	e1000_media_type_internal_serdes = 2,
+	e1000_media_type_fiber = 2,
+	e1000_media_type_internal_serdes = 3,
 	e1000_num_media_types
 };
 
@@ -524,6 +527,7 @@ struct e1000_dev_spec_82575 {
 	bool sgmii_active;
 	bool global_device_reset;
 	bool eee_disable;
+	bool clear_semaphore_once;
 };
 
 struct e1000_hw {

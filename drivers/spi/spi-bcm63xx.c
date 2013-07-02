@@ -46,7 +46,6 @@ struct bcm63xx_spi {
 	int			irq;
 
 	/* Platform data */
-	u32			speed_hz;
 	unsigned		fifo_size;
 	unsigned int		msg_type_shift;
 	unsigned int		msg_ctl_width;
@@ -93,40 +92,16 @@ static const unsigned bcm63xx_spi_freq_table[SPI_CLK_MASK][2] = {
 	{   391000, SPI_CLK_0_391MHZ }
 };
 
-static int bcm63xx_spi_check_transfer(struct spi_device *spi,
-					struct spi_transfer *t)
-{
-	u8 bits_per_word;
-
-	bits_per_word = (t) ? t->bits_per_word : spi->bits_per_word;
-	if (bits_per_word != 8) {
-		dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
-			__func__, bits_per_word);
-		return -EINVAL;
-	}
-
-	if (spi->chip_select > spi->master->num_chipselect) {
-		dev_err(&spi->dev, "%s, unsupported slave %d\n",
-			__func__, spi->chip_select);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 				      struct spi_transfer *t)
 {
 	struct bcm63xx_spi *bs = spi_master_get_devdata(spi->master);
-	u32 hz;
 	u8 clk_cfg, reg;
 	int i;
 
-	hz = (t) ? t->speed_hz : spi->max_speed_hz;
-
 	/* Find the closest clock configuration */
 	for (i = 0; i < SPI_CLK_MASK; i++) {
-		if (hz >= bcm63xx_spi_freq_table[i][0]) {
+		if (t->speed_hz >= bcm63xx_spi_freq_table[i][0]) {
 			clk_cfg = bcm63xx_spi_freq_table[i][1];
 			break;
 		}
@@ -143,7 +118,7 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 
 	bcm_spi_writeb(bs, reg, SPI_CLK_CFG);
 	dev_dbg(&spi->dev, "Setting clock register to %02x (hz %d)\n",
-		clk_cfg, hz);
+		clk_cfg, t->speed_hz);
 }
 
 /* the spi->mode bits understood by this driver: */
@@ -151,22 +126,11 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 
 static int bcm63xx_spi_setup(struct spi_device *spi)
 {
-	struct bcm63xx_spi *bs;
-	int ret;
-
-	bs = spi_master_get_devdata(spi->master);
-
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
-	if (spi->mode & ~MODEBITS) {
-		dev_err(&spi->dev, "%s, unsupported mode bits %x\n",
-			__func__, spi->mode & ~MODEBITS);
+	if (spi->bits_per_word != 8) {
+		dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
+			__func__, spi->bits_per_word);
 		return -EINVAL;
 	}
-
-	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u nsec/bit\n",
-		__func__, spi->mode & MODEBITS, spi->bits_per_word, 0);
 
 	return 0;
 }
@@ -313,9 +277,12 @@ static int bcm63xx_spi_transfer_one(struct spi_master *master,
 	 * full-duplex transfers.
 	 */
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		status = bcm63xx_spi_check_transfer(spi, t);
-		if (status < 0)
+		if (t->bits_per_word != 8) {
+			dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
+				__func__, t->bits_per_word);
+			status = -EINVAL;
 			goto exit;
+		}
 
 		if (!first)
 			first = t;
@@ -444,18 +411,9 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 	bs->pdev = pdev;
 
-	if (!devm_request_mem_region(&pdev->dev, r->start,
-					resource_size(r), PFX)) {
-		dev_err(dev, "iomem request failed\n");
-		ret = -ENXIO;
-		goto out_err;
-	}
-
-	bs->regs = devm_ioremap_nocache(&pdev->dev, r->start,
-							resource_size(r));
-	if (!bs->regs) {
-		dev_err(dev, "unable to ioremap regs\n");
-		ret = -ENOMEM;
+	bs->regs = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(bs->regs)) {
+		ret = PTR_ERR(bs->regs);
 		goto out_err;
 	}
 
@@ -477,7 +435,6 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	master->unprepare_transfer_hardware = bcm63xx_spi_unprepare_transfer;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	master->mode_bits = MODEBITS;
-	bs->speed_hz = pdata->speed_hz;
 	bs->msg_type_shift = pdata->msg_type_shift;
 	bs->msg_ctl_width = pdata->msg_ctl_width;
 	bs->tx_io = (u8 *)(bs->regs + bcm63xx_spireg(SPI_MSG_DATA));
@@ -490,11 +447,11 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	default:
 		dev_err(dev, "unsupported MSG_CTL width: %d\n",
 			 bs->msg_ctl_width);
-		goto out_clk_disable;
+		goto out_err;
 	}
 
 	/* Initialize hardware */
-	clk_enable(bs->clk);
+	clk_prepare_enable(bs->clk);
 	bcm_spi_writeb(bs, SPI_INTR_CLEAR_ALL, SPI_INT_STATUS);
 
 	/* register and we are done */
@@ -510,7 +467,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	return 0;
 
 out_clk_disable:
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 out_err:
 	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
@@ -531,7 +488,7 @@ static int bcm63xx_spi_remove(struct platform_device *pdev)
 	bcm_spi_writeb(bs, 0, SPI_INT_MASK);
 
 	/* HW shutdown */
-	clk_disable(bs->clk);
+	clk_disable_unprepare(bs->clk);
 	clk_put(bs->clk);
 
 	platform_set_drvdata(pdev, 0);
@@ -550,7 +507,7 @@ static int bcm63xx_spi_suspend(struct device *dev)
 
 	spi_master_suspend(master);
 
-	clk_disable(bs->clk);
+	clk_disable_unprepare(bs->clk);
 
 	return 0;
 }
@@ -561,7 +518,7 @@ static int bcm63xx_spi_resume(struct device *dev)
 			platform_get_drvdata(to_platform_device(dev));
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
-	clk_enable(bs->clk);
+	clk_prepare_enable(bs->clk);
 
 	spi_master_resume(master);
 

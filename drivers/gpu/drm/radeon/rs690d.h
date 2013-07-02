@@ -29,6 +29,9 @@
 #define __RS690D_H__
 
 /* Registers */
+#define R_00001E_K8_FB_LOCATION                      0x00001E
+#define R_00005F_MC_MISC_UMA_CNTL                    0x00005F
+#define   G_00005F_K8_ADDR_EXT(x)                      (((x) >> 0) & 0xFF)
 #define R_000078_MC_INDEX                            0x000078
 #define   S_000078_MC_IND_ADDR(x)                      (((x) & 0x1FF) << 0)
 #define   G_000078_MC_IND_ADDR(x)                      (((x) >> 0) & 0x1FF)

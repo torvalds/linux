@@ -376,7 +376,7 @@ static void chsc_process_sei_chp_avail(struct chsc_sei_nt0_area *sei_area)
 			continue;
 		}
 		mutex_lock(&chp->lock);
-		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+		chp_update_desc(chp);
 		mutex_unlock(&chp->lock);
 	}
 }
@@ -433,6 +433,20 @@ static void chsc_process_sei_scm_change(struct chsc_sei_nt0_area *sei_area)
 			      " failed (rc=%d).\n", ret);
 }
 
+static void chsc_process_sei_scm_avail(struct chsc_sei_nt0_area *sei_area)
+{
+	int ret;
+
+	CIO_CRW_EVENT(4, "chsc: scm available information\n");
+	if (sei_area->rs != 7)
+		return;
+
+	ret = scm_process_availability_information();
+	if (ret)
+		CIO_CRW_EVENT(0, "chsc: process availability information"
+			      " failed (rc=%d).\n", ret);
+}
+
 static void chsc_process_sei_nt2(struct chsc_sei_nt2_area *sei_area)
 {
 	switch (sei_area->cc) {
@@ -467,6 +481,9 @@ static void chsc_process_sei_nt0(struct chsc_sei_nt0_area *sei_area)
 		break;
 	case 12: /* scm change notification */
 		chsc_process_sei_scm_change(sei_area);
+		break;
+	case 14: /* scm available notification */
+		chsc_process_sei_scm_avail(sei_area);
 		break;
 	default: /* other stuff */
 		CIO_CRW_EVENT(2, "chsc: sei nt0 unhandled cc=%d\n",
@@ -614,8 +631,8 @@ int chsc_chp_vary(struct chp_id chpid, int on)
 	 * Redo PathVerification on the devices the chpid connects to
 	 */
 	if (on) {
-		/* Try to update the channel path descritor. */
-		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+		/* Try to update the channel path description. */
+		chp_update_desc(chp);
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_on,
 					   __s390_vary_chpid_on, &chpid);
 	} else
@@ -808,9 +825,10 @@ int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 {
 	struct chsc_response_struct *chsc_resp;
 	struct chsc_scpd *scpd_area;
+	unsigned long flags;
 	int ret;
 
-	spin_lock_irq(&chsc_page_lock);
+	spin_lock_irqsave(&chsc_page_lock, flags);
 	scpd_area = chsc_page;
 	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 1, 0, scpd_area);
 	if (ret)
@@ -818,7 +836,7 @@ int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 	chsc_resp = (void *)&scpd_area->response;
 	memcpy(desc, &chsc_resp->data, sizeof(*desc));
 out:
-	spin_unlock_irq(&chsc_page_lock);
+	spin_unlock_irqrestore(&chsc_page_lock, flags);
 	return ret;
 }
 

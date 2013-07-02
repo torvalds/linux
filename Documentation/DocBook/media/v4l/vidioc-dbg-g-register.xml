@@ -87,7 +87,7 @@ written into the register.</para>
 
     <para>To read a register applications must initialize the
 <structfield>match.type</structfield>,
-<structfield>match.chip</structfield> or <structfield>match.name</structfield> and
+<structfield>match.addr</structfield> or <structfield>match.name</structfield> and
 <structfield>reg</structfield> fields, and call
 <constant>VIDIOC_DBG_G_REGISTER</constant> with a pointer to this
 structure. On success the driver stores the register value in the
@@ -95,11 +95,11 @@ structure. On success the driver stores the register value in the
 unchanged.</para>
 
     <para>When <structfield>match.type</structfield> is
-<constant>V4L2_CHIP_MATCH_HOST</constant>,
-<structfield>match.addr</structfield> selects the nth non-&i2c; chip
+<constant>V4L2_CHIP_MATCH_BRIDGE</constant>,
+<structfield>match.addr</structfield> selects the nth non-sub-device chip
 on the TV card.  The number zero always selects the host chip, &eg; the
 chip connected to the PCI or USB bus. You can find out which chips are
-present with the &VIDIOC-DBG-G-CHIP-IDENT; ioctl.</para>
+present with the &VIDIOC-DBG-G-CHIP-INFO; ioctl.</para>
 
     <para>When <structfield>match.type</structfield> is
 <constant>V4L2_CHIP_MATCH_I2C_DRIVER</constant>,
@@ -109,7 +109,7 @@ For instance
 supported by the saa7127 driver, regardless of its &i2c; bus address.
 When multiple chips supported by the same driver are present, the
 effect of these ioctls is undefined. Again with the
-&VIDIOC-DBG-G-CHIP-IDENT; ioctl you can find out which &i2c; chips are
+&VIDIOC-DBG-G-CHIP-INFO; ioctl you can find out which &i2c; chips are
 present.</para>
 
     <para>When <structfield>match.type</structfield> is
@@ -122,19 +122,23 @@ bus address.</para>
 <structfield>match.addr</structfield> selects the nth AC97 chip
 on the TV card.</para>
 
+    <para>When <structfield>match.type</structfield> is
+<constant>V4L2_CHIP_MATCH_SUBDEV</constant>,
+<structfield>match.addr</structfield> selects the nth sub-device.</para>
+
     <note>
       <title>Success not guaranteed</title>
 
       <para>Due to a flaw in the Linux &i2c; bus driver these ioctls may
 return successfully without actually reading or writing a register. To
-catch the most likely failure we recommend a &VIDIOC-DBG-G-CHIP-IDENT;
+catch the most likely failure we recommend a &VIDIOC-DBG-G-CHIP-INFO;
 call confirming the presence of the selected &i2c; chip.</para>
     </note>
 
     <para>These ioctls are optional, not all drivers may support them.
 However when a driver supports these ioctls it must also support
-&VIDIOC-DBG-G-CHIP-IDENT;. Conversely it may support
-<constant>VIDIOC_DBG_G_CHIP_IDENT</constant> but not these ioctls.</para>
+&VIDIOC-DBG-G-CHIP-INFO;. Conversely it may support
+<constant>VIDIOC_DBG_G_CHIP_INFO</constant> but not these ioctls.</para>
 
     <para><constant>VIDIOC_DBG_G_REGISTER</constant> and
 <constant>VIDIOC_DBG_S_REGISTER</constant> were introduced in Linux
@@ -217,10 +221,10 @@ register.</entry>
 	&cs-def;
 	<tbody valign="top">
 	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_HOST</constant></entry>
+	    <entry><constant>V4L2_CHIP_MATCH_BRIDGE</constant></entry>
 	    <entry>0</entry>
 	    <entry>Match the nth chip on the card, zero for the
-	    host chip. Does not match &i2c; chips.</entry>
+	    bridge chip. Does not match sub-devices.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CHIP_MATCH_I2C_DRIVER</constant></entry>
@@ -236,6 +240,11 @@ register.</entry>
 	    <entry><constant>V4L2_CHIP_MATCH_AC97</constant></entry>
 	    <entry>3</entry>
 	    <entry>Match the nth anciliary AC97 chip.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV</constant></entry>
+	    <entry>4</entry>
+	    <entry>Match the nth sub-device.</entry>
 	  </row>
 	</tbody>
       </tgroup>

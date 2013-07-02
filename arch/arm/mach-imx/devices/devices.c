@@ -37,7 +37,7 @@ int __init mxc_device_init(void)
 	int ret;
 
 	ret = device_register(&mxc_aips_bus);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto done;
 
 	ret = device_register(&mxc_ahb_bus);

@@ -136,6 +136,7 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 		spec->codec_type = VT1708S;
 	spec->no_pin_power_ctl = 1;
 	spec->gen.indep_hp = 1;
+	spec->gen.keep_eapd_on = 1;
 	spec->gen.pcm_playback_hook = via_playback_pcm_hook;
 	return spec;
 }
@@ -231,9 +232,14 @@ static void vt1708_update_hp_work(struct hda_codec *codec)
 
 static void set_widgets_power_state(struct hda_codec *codec)
 {
+#if 0 /* FIXME: the assumed connections don't match always with the
+       * actual routes by the generic parser, so better to disable
+       * the control for safety.
+       */
 	struct via_spec *spec = codec->spec;
 	if (spec->set_widgets_power_state)
 		spec->set_widgets_power_state(codec);
+#endif
 }
 
 static void update_power_state(struct hda_codec *codec, hda_nid_t nid,
@@ -478,7 +484,9 @@ static int via_suspend(struct hda_codec *codec)
 		/* Fix pop noise on headphones */
 		int i;
 		for (i = 0; i < spec->gen.autocfg.hp_outs; i++)
-			snd_hda_set_pin_ctl(codec, spec->gen.autocfg.hp_pins[i], 0);
+			snd_hda_codec_write(codec, spec->gen.autocfg.hp_pins[i],
+					    0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    0x00);
 	}
 
 	return 0;
@@ -626,10 +634,30 @@ static void via_set_jack_unsol_events(struct hda_codec *codec)
 	}
 }
 
+static const struct badness_table via_main_out_badness = {
+	.no_primary_dac = 0x10000,
+	.no_dac = 0x4000,
+	.shared_primary = 0x10000,
+	.shared_surr = 0x20,
+	.shared_clfe = 0x20,
+	.shared_surr_main = 0x20,
+};
+static const struct badness_table via_extra_out_badness = {
+	.no_primary_dac = 0x4000,
+	.no_dac = 0x4000,
+	.shared_primary = 0x12,
+	.shared_surr = 0x20,
+	.shared_clfe = 0x20,
+	.shared_surr_main = 0x10,
+};
+
 static int via_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	int err;
+
+	spec->gen.main_out_badness = &via_main_out_badness;
+	spec->gen.extra_out_badness = &via_extra_out_badness;
 
 	err = snd_hda_parse_pin_defcfg(codec, &spec->gen.autocfg, NULL, 0);
 	if (err < 0)

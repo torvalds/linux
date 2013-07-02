@@ -8,7 +8,6 @@
 #include <linux/timer.h>
 #include <linux/io.h>
 #include <asm/mips-boards/generic.h>
-#include <asm/mips-boards/prom.h>
 
 static unsigned int display_count;
 static unsigned int max_display_count;

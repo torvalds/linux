@@ -57,6 +57,8 @@ static int w1_bq27000_add_slave(struct w1_slave *sl)
 	ret = platform_device_add_data(pdev,
 				       &bq27000_battery_info,
 				       sizeof(bq27000_battery_info));
+	if (ret)
+		goto pdev_add_failed;
 	pdev->dev.parent = &sl->dev;
 
 	ret = platform_device_add(pdev);
@@ -68,7 +70,7 @@ static int w1_bq27000_add_slave(struct w1_slave *sl)
 	goto success;
 
 pdev_add_failed:
-	platform_device_unregister(pdev);
+	platform_device_put(pdev);
 success:
 	return ret;
 }

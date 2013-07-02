@@ -24,7 +24,7 @@ struct cgroup_cls_state
 	u32 classid;
 };
 
-extern void sock_update_classid(struct sock *sk, struct task_struct *task);
+extern void sock_update_classid(struct sock *sk);
 
 #if IS_BUILTIN(CONFIG_NET_CLS_CGROUP)
 static inline u32 task_cls_classid(struct task_struct *p)
@@ -61,7 +61,7 @@ static inline u32 task_cls_classid(struct task_struct *p)
 }
 #endif
 #else /* !CGROUP_NET_CLS_CGROUP */
-static inline void sock_update_classid(struct sock *sk, struct task_struct *task)
+static inline void sock_update_classid(struct sock *sk)
 {
 }
 

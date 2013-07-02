@@ -15,10 +15,10 @@
 #include <linux/platform_data/dma-ste-dma40.h>
 #include <linux/mfd/dbx500-prcmu.h>
 
-#include <mach/hardware.h>
-#include <mach/setup.h>
-#include <mach/irqs.h>
+#include "setup.h"
+#include "irqs.h"
 
+#include "db8500-regs.h"
 #include "devices-db8500.h"
 #include "ste-dma40-db8500.h"
 
@@ -199,6 +199,8 @@ struct platform_device u8500_ske_keypad_device = {
 
 struct prcmu_pdata db8500_prcmu_pdata = {
 	.ab_platdata	= &ab8500_platdata,
+	.ab_irq		= IRQ_DB8500_AB8500,
+	.irq_base	= IRQ_PRCMU_BASE,
 	.version_offset	= DB8500_PRCMU_FW_VERSION_OFFSET,
 	.legacy_offset	= DB8500_PRCMU_LEGACY_OFFSET,
 };

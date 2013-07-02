@@ -130,12 +130,13 @@ int omap_irq_wait(struct drm_device *dev, struct omap_irq_wait *wait,
  * Zero on success, appropriate errno if the given @crtc's vblank
  * interrupt cannot be enabled.
  */
-int omap_irq_enable_vblank(struct drm_device *dev, int crtc)
+int omap_irq_enable_vblank(struct drm_device *dev, int crtc_id)
 {
 	struct omap_drm_private *priv = dev->dev_private;
+	struct drm_crtc *crtc = priv->crtcs[crtc_id];
 	unsigned long flags;
 
-	DBG("dev=%p, crtc=%d", dev, crtc);
+	DBG("dev=%p, crtc=%d", dev, crtc_id);
 
 	dispc_runtime_get();
 	spin_lock_irqsave(&list_lock, flags);
@@ -156,12 +157,13 @@ int omap_irq_enable_vblank(struct drm_device *dev, int crtc)
  * a hardware vblank counter, this routine should be a no-op, since
  * interrupts will have to stay on to keep the count accurate.
  */
-void omap_irq_disable_vblank(struct drm_device *dev, int crtc)
+void omap_irq_disable_vblank(struct drm_device *dev, int crtc_id)
 {
 	struct omap_drm_private *priv = dev->dev_private;
+	struct drm_crtc *crtc = priv->crtcs[crtc_id];
 	unsigned long flags;
 
-	DBG("dev=%p, crtc=%d", dev, crtc);
+	DBG("dev=%p, crtc=%d", dev, crtc_id);
 
 	dispc_runtime_get();
 	spin_lock_irqsave(&list_lock, flags);
@@ -186,9 +188,12 @@ irqreturn_t omap_irq_handler(DRM_IRQ_ARGS)
 
 	VERB("irqs: %08x", irqstatus);
 
-	for (id = 0; id < priv->num_crtcs; id++)
-		if (irqstatus & pipe2vbl(id))
+	for (id = 0; id < priv->num_crtcs; id++) {
+		struct drm_crtc *crtc = priv->crtcs[id];
+
+		if (irqstatus & pipe2vbl(crtc))
 			drm_handle_vblank(dev, id);
+	}
 
 	spin_lock_irqsave(&list_lock, flags);
 	list_for_each_entry_safe(handler, n, &priv->irq_list, node) {

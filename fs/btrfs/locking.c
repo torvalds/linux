@@ -24,7 +24,7 @@
 #include "extent_io.h"
 #include "locking.h"
 
-void btrfs_assert_tree_read_locked(struct extent_buffer *eb);
+static void btrfs_assert_tree_read_locked(struct extent_buffer *eb);
 
 /*
  * if we currently have a spinning reader or writer lock
@@ -264,7 +264,7 @@ void btrfs_assert_tree_locked(struct extent_buffer *eb)
 	BUG_ON(!atomic_read(&eb->write_locks));
 }
 
-void btrfs_assert_tree_read_locked(struct extent_buffer *eb)
+static void btrfs_assert_tree_read_locked(struct extent_buffer *eb)
 {
 	BUG_ON(!atomic_read(&eb->read_locks));
 }

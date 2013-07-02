@@ -17,6 +17,9 @@
 #ifndef _wl_cfg80211_h_
 #define _wl_cfg80211_h_
 
+/* for brcmu_d11inf */
+#include <brcmu_d11.h>
+
 #define WL_NUM_SCAN_MAX			10
 #define WL_NUM_PMKIDS_MAX		MAXPMKID
 #define WL_TLV_INFO_MAX			1024
@@ -74,14 +77,16 @@
 
 
 /**
- * enum brcmf_scan_status - dongle scan status
+ * enum brcmf_scan_status - scan engine status
  *
  * @BRCMF_SCAN_STATUS_BUSY: scanning in progress on dongle.
  * @BRCMF_SCAN_STATUS_ABORT: scan being aborted on dongle.
+ * @BRCMF_SCAN_STATUS_SUPPRESS: scanning is suppressed in driver.
  */
 enum brcmf_scan_status {
 	BRCMF_SCAN_STATUS_BUSY,
 	BRCMF_SCAN_STATUS_ABORT,
+	BRCMF_SCAN_STATUS_SUPPRESS,
 };
 
 /**
@@ -238,9 +243,8 @@ struct escan_info {
 	u32 escan_state;
 	u8 escan_buf[WL_ESCAN_BUF_SIZE];
 	struct wiphy *wiphy;
-	struct net_device *ndev;
-	s32 (*run)(struct brcmf_cfg80211_info *cfg,
-		   struct net_device *ndev,
+	struct brcmf_if *ifp;
+	s32 (*run)(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
 		   struct cfg80211_scan_request *request, u16 action);
 };
 
@@ -347,6 +351,7 @@ struct brcmf_cfg80211_vif_event {
  * @wiphy: wiphy object for cfg80211 interface.
  * @conf: dongle configuration.
  * @p2p: peer-to-peer specific information.
+ * @btcoex: Bluetooth coexistence information.
  * @scan_request: cfg80211 scan request object.
  * @usr_sync: mainly for dongle up/down synchronization.
  * @bss_list: bss_list holding scanned ap information.
@@ -380,6 +385,7 @@ struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
 	struct brcmf_cfg80211_conf *conf;
 	struct brcmf_p2p_info p2p;
+	struct brcmf_btcoex_info *btcoex;
 	struct cfg80211_scan_request *scan_request;
 	struct mutex usr_sync;
 	struct brcmf_scan_results *bss_list;
@@ -409,6 +415,7 @@ struct brcmf_cfg80211_info {
 	u8 vif_cnt;
 	struct brcmf_cfg80211_vif_event vif_event;
 	struct completion vif_disabled;
+	struct brcmu_d11inf d11inf;
 };
 
 /**
@@ -475,17 +482,20 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg);
 s32 brcmf_cfg80211_up(struct net_device *ndev);
 s32 brcmf_cfg80211_down(struct net_device *ndev);
+enum nl80211_iftype brcmf_cfg80211_get_iftype(struct brcmf_if *ifp);
 
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 					   enum nl80211_iftype type,
 					   bool pm_block);
-void brcmf_free_vif(struct brcmf_cfg80211_vif *vif);
+void brcmf_free_vif(struct brcmf_cfg80211_info *cfg,
+	            struct brcmf_cfg80211_vif *vif);
 
 s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 			  const u8 *vndr_ie_buf, u32 vndr_ie_len);
 s32 brcmf_vif_clear_mgmt_ies(struct brcmf_cfg80211_vif *vif);
 struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key);
-u16 channel_to_chanspec(struct ieee80211_channel *ch);
+u16 channel_to_chanspec(struct brcmu_d11inf *d11inf,
+			struct ieee80211_channel *ch);
 u32 wl_get_vif_state_all(struct brcmf_cfg80211_info *cfg, unsigned long state);
 void brcmf_cfg80211_arm_vif_event(struct brcmf_cfg80211_info *cfg,
 				  struct brcmf_cfg80211_vif *vif);
@@ -493,9 +503,9 @@ bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg);
 int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
 					  u8 action, ulong timeout);
 s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
-				struct net_device *ndev,
-				bool aborted, bool fw_abort);
-void brcmf_set_mpc(struct net_device *ndev, int mpc);
+				struct brcmf_if *ifp, bool aborted,
+				bool fw_abort);
+void brcmf_set_mpc(struct brcmf_if *ndev, int mpc);
 void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg);
 
 #endif				/* _wl_cfg80211_h_ */

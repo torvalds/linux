@@ -31,7 +31,6 @@
 #include <asm/bootinfo.h>
 #include <asm/irq.h>
 #include <asm/mips-boards/generic.h>
-#include <asm/mips-boards/prom.h>
 #include <asm/dma.h>
 #include <asm/asm.h>
 #include <asm/traps.h>

@@ -552,7 +552,7 @@ struct ipr_ioarcb_ata_regs {	/* 22 bytes */
 	u8 hob_lbam;
 	u8 hob_lbah;
 	u8 ctl;
-}__attribute__ ((packed, aligned(4)));
+}__attribute__ ((packed, aligned(2)));
 
 struct ipr_ioadl_desc {
 	__be32 flags_and_data_len;

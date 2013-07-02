@@ -57,6 +57,9 @@ struct realtek_pci_sdmmc {
 	bool			eject;
 	bool			initial_mode;
 	bool			ddr_mode;
+	int			power_state;
+#define SDMMC_POWER_ON		1
+#define SDMMC_POWER_OFF		0
 };
 
 static inline struct device *sdmmc_dev(struct realtek_pci_sdmmc *host)
@@ -765,6 +768,9 @@ static int sd_power_on(struct realtek_pci_sdmmc *host)
 	struct rtsx_pcr *pcr = host->pcr;
 	int err;
 
+	if (host->power_state == SDMMC_POWER_ON)
+		return 0;
+
 	rtsx_pci_init_cmd(pcr);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_SELECT, 0x07, SD_MOD_SEL);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_SHARE_MODE,
@@ -787,6 +793,7 @@ static int sd_power_on(struct realtek_pci_sdmmc *host)
 	if (err < 0)
 		return err;
 
+	host->power_state = SDMMC_POWER_ON;
 	return 0;
 }
 
@@ -794,6 +801,8 @@ static int sd_power_off(struct realtek_pci_sdmmc *host)
 {
 	struct rtsx_pcr *pcr = host->pcr;
 	int err;
+
+	host->power_state = SDMMC_POWER_OFF;
 
 	rtsx_pci_init_cmd(pcr);
 
@@ -1260,6 +1269,7 @@ static int rtsx_pci_sdmmc_drv_probe(struct platform_device *pdev)
 	host->pcr = pcr;
 	host->mmc = mmc;
 	host->pdev = pdev;
+	host->power_state = SDMMC_POWER_OFF;
 	platform_set_drvdata(pdev, host);
 	pcr->slots[RTSX_SD_CARD].p_dev = pdev;
 	pcr->slots[RTSX_SD_CARD].card_event = rtsx_pci_sdmmc_card_event;

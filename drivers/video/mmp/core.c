@@ -252,7 +252,5 @@ void mmp_unregister_path(struct mmp_path *path)
 
 	kfree(path);
 	mutex_unlock(&disp_lock);
-
-	dev_info(path->dev, "de-register %s\n", path->name);
 }
 EXPORT_SYMBOL_GPL(mmp_unregister_path);

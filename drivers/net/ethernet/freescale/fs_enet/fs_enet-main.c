@@ -177,8 +177,6 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 				received++;
 				netif_receive_skb(skb);
 			} else {
-				dev_warn(fep->dev,
-					 "Memory squeeze, dropping packet.\n");
 				fep->stats.rx_dropped++;
 				skbn = skb;
 			}
@@ -309,8 +307,6 @@ static int fs_enet_rx_non_napi(struct net_device *dev)
 				received++;
 				netif_rx(skb);
 			} else {
-				dev_warn(fep->dev,
-					 "Memory squeeze, dropping packet.\n");
 				fep->stats.rx_dropped++;
 				skbn = skb;
 			}
@@ -505,11 +501,9 @@ void fs_init_bds(struct net_device *dev)
 	 */
 	for (i = 0, bdp = fep->rx_bd_base; i < fep->rx_ring; i++, bdp++) {
 		skb = netdev_alloc_skb(dev, ENET_RX_FRSIZE);
-		if (skb == NULL) {
-			dev_warn(fep->dev,
-				 "Memory squeeze, unable to allocate skb\n");
+		if (skb == NULL)
 			break;
-		}
+
 		skb_align(skb, ENET_RX_ALIGN);
 		fep->rx_skbuff[i] = skb;
 		CBDW_BUFADDR(bdp,
@@ -593,13 +587,8 @@ static struct sk_buff *tx_skb_align_workaround(struct net_device *dev,
 
 	/* Alloc new skb */
 	new_skb = netdev_alloc_skb(dev, skb->len + 4);
-	if (!new_skb) {
-		if (net_ratelimit()) {
-			dev_warn(fep->dev,
-				 "Memory squeeze, dropping tx packet.\n");
-		}
+	if (!new_skb)
 		return NULL;
-	}
 
 	/* Make sure new skb is properly aligned */
 	skb_align(new_skb, 4);

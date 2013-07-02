@@ -485,6 +485,9 @@ static void macb_tx_interrupt(struct macb *bp)
 	status = macb_readl(bp, TSR);
 	macb_writel(bp, TSR, status);
 
+	if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
+		macb_writel(bp, ISR, MACB_BIT(TCOMP));
+
 	netdev_vdbg(bp->dev, "macb_tx_interrupt status = 0x%03lx\n",
 		(unsigned long)status);
 
@@ -736,6 +739,8 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			 * now.
 			 */
 			macb_writel(bp, IDR, MACB_RX_INT_FLAGS);
+			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
+				macb_writel(bp, ISR, MACB_BIT(RCOMP));
 
 			if (napi_schedule_prep(&bp->napi)) {
 				netdev_vdbg(bp->dev, "scheduling RX softirq\n");
@@ -1054,7 +1059,19 @@ static void macb_configure_dma(struct macb *bp)
 		dmacfg |= GEM_BF(RXBS, RX_BUFFER_SIZE / 64);
 		dmacfg |= GEM_BF(FBLDO, 16);
 		dmacfg |= GEM_BIT(TXPBMS) | GEM_BF(RXBMS, -1L);
+		dmacfg &= ~GEM_BIT(ENDIA);
 		gem_writel(bp, DMACFG, dmacfg);
+	}
+}
+
+/*
+ * Configure peripheral capacities according to integration options used
+ */
+static void macb_configure_caps(struct macb *bp)
+{
+	if (macb_is_gem(bp)) {
+		if (GEM_BF(IRQCOR, gem_readl(bp, DCFG1)) == 0)
+			bp->caps |= MACB_CAPS_ISR_CLEAR_ON_WRITE;
 	}
 }
 
@@ -1080,6 +1097,7 @@ static void macb_init_hw(struct macb *bp)
 	bp->duplex = DUPLEX_HALF;
 
 	macb_configure_dma(bp);
+	macb_configure_caps(bp);
 
 	/* Initialize TX and RX buffers */
 	macb_writel(bp, RBQP, bp->rx_ring_dma);
@@ -1472,41 +1490,7 @@ static const struct of_device_id macb_dt_ids[] = {
 	{ .compatible = "cdns,gem" },
 	{ /* sentinel */ }
 };
-
 MODULE_DEVICE_TABLE(of, macb_dt_ids);
-
-static int macb_get_phy_mode_dt(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-
-	if (np)
-		return of_get_phy_mode(np);
-
-	return -ENODEV;
-}
-
-static int macb_get_hwaddr_dt(struct macb *bp)
-{
-	struct device_node *np = bp->pdev->dev.of_node;
-	if (np) {
-		const char *mac = of_get_mac_address(np);
-		if (mac) {
-			memcpy(bp->dev->dev_addr, mac, ETH_ALEN);
-			return 0;
-		}
-	}
-
-	return -ENODEV;
-}
-#else
-static int macb_get_phy_mode_dt(struct platform_device *pdev)
-{
-	return -ENODEV;
-}
-static int macb_get_hwaddr_dt(struct macb *bp)
-{
-	return -ENODEV;
-}
 #endif
 
 static int __init macb_probe(struct platform_device *pdev)
@@ -1519,6 +1503,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	u32 config;
 	int err = -ENXIO;
 	struct pinctrl *pinctrl;
+	const char *mac;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
@@ -1557,14 +1542,14 @@ static int __init macb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get macb_clk\n");
 		goto err_out_free_dev;
 	}
-	clk_enable(bp->pclk);
+	clk_prepare_enable(bp->pclk);
 
 	bp->hclk = clk_get(&pdev->dev, "hclk");
 	if (IS_ERR(bp->hclk)) {
 		dev_err(&pdev->dev, "failed to get hclk\n");
 		goto err_out_put_pclk;
 	}
-	clk_enable(bp->hclk);
+	clk_prepare_enable(bp->hclk);
 
 	bp->regs = ioremap(regs->start, resource_size(regs));
 	if (!bp->regs) {
@@ -1592,11 +1577,13 @@ static int __init macb_probe(struct platform_device *pdev)
 	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
 
-	err = macb_get_hwaddr_dt(bp);
-	if (err < 0)
+	mac = of_get_mac_address(pdev->dev.of_node);
+	if (mac)
+		memcpy(bp->dev->dev_addr, mac, ETH_ALEN);
+	else
 		macb_get_hwaddr(bp);
 
-	err = macb_get_phy_mode_dt(pdev);
+	err = of_get_phy_mode(pdev->dev.of_node);
 	if (err < 0) {
 		pdata = pdev->dev.platform_data;
 		if (pdata && pdata->is_rmii)
@@ -1629,9 +1616,9 @@ static int __init macb_probe(struct platform_device *pdev)
 		goto err_out_free_irq;
 	}
 
-	if (macb_mii_init(bp) != 0) {
+	err = macb_mii_init(bp);
+	if (err)
 		goto err_out_unregister_netdev;
-	}
 
 	platform_set_drvdata(pdev, dev);
 
@@ -1654,9 +1641,9 @@ err_out_free_irq:
 err_out_iounmap:
 	iounmap(bp->regs);
 err_out_disable_clocks:
-	clk_disable(bp->hclk);
+	clk_disable_unprepare(bp->hclk);
 	clk_put(bp->hclk);
-	clk_disable(bp->pclk);
+	clk_disable_unprepare(bp->pclk);
 err_out_put_pclk:
 	clk_put(bp->pclk);
 err_out_free_dev:
@@ -1683,9 +1670,9 @@ static int __exit macb_remove(struct platform_device *pdev)
 		unregister_netdev(dev);
 		free_irq(dev->irq, dev);
 		iounmap(bp->regs);
-		clk_disable(bp->hclk);
+		clk_disable_unprepare(bp->hclk);
 		clk_put(bp->hclk);
-		clk_disable(bp->pclk);
+		clk_disable_unprepare(bp->pclk);
 		clk_put(bp->pclk);
 		free_netdev(dev);
 		platform_set_drvdata(pdev, NULL);
@@ -1703,8 +1690,8 @@ static int macb_suspend(struct platform_device *pdev, pm_message_t state)
 	netif_carrier_off(netdev);
 	netif_device_detach(netdev);
 
-	clk_disable(bp->hclk);
-	clk_disable(bp->pclk);
+	clk_disable_unprepare(bp->hclk);
+	clk_disable_unprepare(bp->pclk);
 
 	return 0;
 }
@@ -1714,8 +1701,8 @@ static int macb_resume(struct platform_device *pdev)
 	struct net_device *netdev = platform_get_drvdata(pdev);
 	struct macb *bp = netdev_priv(netdev);
 
-	clk_enable(bp->pclk);
-	clk_enable(bp->hclk);
+	clk_prepare_enable(bp->pclk);
+	clk_prepare_enable(bp->hclk);
 
 	netif_device_attach(netdev);
 
@@ -1737,18 +1724,7 @@ static struct platform_driver macb_driver = {
 	},
 };
 
-static int __init macb_init(void)
-{
-	return platform_driver_probe(&macb_driver, macb_probe);
-}
-
-static void __exit macb_exit(void)
-{
-	platform_driver_unregister(&macb_driver);
-}
-
-module_init(macb_init);
-module_exit(macb_exit);
+module_platform_driver_probe(macb_driver, macb_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cadence MACB/GEM Ethernet driver");

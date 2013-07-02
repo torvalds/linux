@@ -576,7 +576,7 @@ load_ind:
 			/* x = ((*(frame + k)) & 0xf) << 2; */
 			ctx->seen |= SEEN_X | SEEN_DATA | SEEN_CALL;
 			/* the interpreter should deal with the negative K */
-			if (k < 0)
+			if ((int)k < 0)
 				return -1;
 			/* offset in r1: we might have to take the slow path */
 			emit_mov_i(r_off, k, ctx);
@@ -918,9 +918,8 @@ void bpf_jit_compile(struct sk_filter *fp)
 #endif
 
 	if (bpf_jit_enable > 1)
-		print_hex_dump(KERN_INFO, "BPF JIT code: ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, ctx.target,
-			       alloc_size, false);
+		/* there are 2 passes here */
+		bpf_jit_dump(fp->len, alloc_size, 2, ctx.target);
 
 	fp->bpf_func = (void *)ctx.target;
 out:

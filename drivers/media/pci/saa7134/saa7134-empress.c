@@ -428,7 +428,7 @@ static int empress_g_chip_ident(struct file *file, void *fh,
 	return -EINVAL;
 }
 
-static int empress_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int empress_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct saa7134_dev *dev = file->private_data;
 

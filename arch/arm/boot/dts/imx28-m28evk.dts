@@ -119,7 +119,32 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_24bit_pins_a
 					     &lcdif_pins_m28>;
+				display = <&display>;
 				status = "okay";
+
+				display: display {
+					bits-per-pixel = <16>;
+					bus-width = <18>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: timing0 {
+							clock-frequency = <33260000>;
+							hactive = <800>;
+							vactive = <480>;
+							hback-porch = <0>;
+							hfront-porch = <256>;
+							vback-porch = <0>;
+							vfront-porch = <45>;
+							hsync-len = <1>;
+							vsync-len = <1>;
+							hsync-active = <0>;
+							vsync-active = <0>;
+							de-active = <1>;
+							pixelclk-active = <1>;
+						};
+					};
+				};
 			};
 
 			can0: can@80032000 {
@@ -152,7 +177,6 @@
 			i2c0: i2c@80058000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins_a>;
-				clock-frequency = <400000>;
 				status = "okay";
 
 				sgtl5000: codec@0a {
@@ -221,6 +245,8 @@
 			phy-mode = "rmii";
 			pinctrl-names = "default";
 			pinctrl-0 = <&mac0_pins_a>;
+			clocks = <&clks 57>, <&clks 57>;
+			clock-names = "ipg", "ahb";
 			status = "okay";
 		};
 

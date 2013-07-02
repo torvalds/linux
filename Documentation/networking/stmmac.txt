@@ -1,6 +1,6 @@
        STMicroelectronics 10/100/1000 Synopsys Ethernet driver
 
-Copyright (C) 2007-2010  STMicroelectronics Ltd
+Copyright (C) 2007-2013  STMicroelectronics Ltd
 Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 
 This is the driver for the MAC 10/100/1000 on-chip Ethernet controllers
@@ -10,7 +10,7 @@ Currently this network device driver is for all STM embedded MAC/GMAC
 (i.e. 7xxx/5xxx SoCs), SPEAr (arm), Loongson1B (mips) and XLINX XC2V3000
 FF1152AMT0221 D1215994A VIRTEX FPGA board.
 
-DWC Ether MAC 10/100/1000 Universal version 3.60a (and older) and DWC Ether
+DWC Ether MAC 10/100/1000 Universal version 3.70a (and older) and DWC Ether
 MAC 10/100 Universal version 4.0 have been used for developing this driver.
 
 This driver supports both the platform bus and PCI.
@@ -32,6 +32,8 @@ The kernel configuration option is STMMAC_ETH:
 	watchdog: transmit timeout (in milliseconds);
 	flow_ctrl: Flow control ability [on/off];
 	pause: Flow Control Pause Time;
+	eee_timer: tx EEE timer;
+	chain_mode: select chain mode instead of ring.
 
 3) Command line options
 Driver parameters can be also passed in command line by using:
@@ -164,12 +166,12 @@ Where:
  o bus_setup: perform HW setup of the bus. For example, on some ST platforms
 	     this field is used to configure the AMBA  bridge to generate more
 	     efficient STBus traffic.
- o init/exit: callbacks used for calling a custom initialisation;
+ o init/exit: callbacks used for calling a custom initialization;
 	     this is sometime necessary on some platforms (e.g. ST boxes)
 	     where the HW needs to have set some PIO lines or system cfg
 	     registers.
  o custom_cfg/custom_data: this is a custom configuration that can be passed
-			   while initialising the resources.
+			   while initializing the resources.
  o bsp_priv: another private poiter.
 
 For MDIO bus The we have:
@@ -273,6 +275,8 @@ reset procedure etc).
  o norm_desc.c: functions for handling normal descriptors;
  o chain_mode.c/ring_mode.c:: functions to manage RING/CHAINED modes;
  o mmc_core.c/mmc.h: Management MAC Counters;
+ o stmmac_hwtstamp.c: HW timestamp support for PTP
+ o stmmac_ptp.c: PTP 1588 clock
 
 5) Debug Information
 
@@ -326,6 +330,35 @@ To enter in Tx LPI mode the driver needs to have a software timer
 that enable and disable the LPI mode when there is nothing to be
 transmitted.
 
-7) TODO:
+7) Extended descriptors
+The extended descriptors give us information about the receive Ethernet payload
+when it is carrying PTP packets or TCP/UDP/ICMP over IP.
+These are not available on GMAC Synopsys chips older than the 3.50.
+At probe time the driver will decide if these can be actually used.
+This support also is mandatory for PTPv2 because the extra descriptors 6 and 7
+are used for saving the hardware timestamps.
+
+8) Precision Time Protocol (PTP)
+The driver supports the IEEE 1588-2002, Precision Time Protocol (PTP),
+which enables precise synchronization of clocks in measurement and
+control systems implemented with technologies such as network
+communication.
+
+In addition to the basic timestamp features mentioned in IEEE 1588-2002
+Timestamps, new GMAC cores support the advanced timestamp features.
+IEEE 1588-2008 that can be enabled when configure the Kernel.
+
+9) SGMII/RGMII supports
+New GMAC devices provide own way to manage RGMII/SGMII.
+This information is available at run-time by looking at the
+HW capability register. This means that the stmmac can manage
+auto-negotiation and link status w/o using the PHYLIB stuff
+In fact, the HW provides a subset of extended registers to
+restart the ANE, verify Full/Half duplex mode and Speed.
+Also thanks to these registers it is possible to look at the
+Auto-negotiated Link Parter Ability.
+
+10) TODO:
  o XGMAC is not supported.
- o Add the PTP - precision time protocol
+ o Complete the TBI & RTBI support.
+ o extened VLAN support for 3.70a SYNP GMAC.

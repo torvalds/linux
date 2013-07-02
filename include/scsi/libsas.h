@@ -118,7 +118,7 @@ struct ex_phy {
 
 	enum ex_phy_state phy_state;
 
-	enum sas_dev_type attached_dev_type;
+	enum sas_device_type attached_dev_type;
 	enum sas_linkrate linkrate;
 
 	u8   attached_sata_host:1;
@@ -195,7 +195,7 @@ enum {
 
 struct domain_device {
 	spinlock_t done_lock;
-        enum sas_dev_type dev_type;
+	enum sas_device_type dev_type;
 
         enum sas_linkrate linkrate;
         enum sas_linkrate min_linkrate;

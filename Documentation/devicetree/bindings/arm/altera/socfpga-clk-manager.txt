@@ -1,0 +1,11 @@
+Altera SOCFPGA Clock Manager
+
+Required properties:
+- compatible : "altr,clk-mgr"
+- reg : Should contain base address and length for Clock Manager
+
+Example:
+	 clkmgr@ffd04000 {
+		compatible = "altr,clk-mgr";
+		reg = <0xffd04000 0x1000>;
+	};

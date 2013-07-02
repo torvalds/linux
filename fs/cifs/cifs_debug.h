@@ -25,18 +25,20 @@
 void cifs_dump_mem(char *label, void *data, int length);
 void cifs_dump_detail(void *);
 void cifs_dump_mids(struct TCP_Server_Info *);
-#ifdef CONFIG_CIFS_DEBUG2
-#define DBG2 2
-#else
-#define DBG2 0
-#endif
 extern int traceSMB;		/* flag which enables the function below */
 void dump_smb(void *, int);
 #define CIFS_INFO	0x01
 #define CIFS_RC		0x02
 #define CIFS_TIMER	0x04
 
+#define VFS 1
+#define FYI 2
 extern int cifsFYI;
+#ifdef CONFIG_CIFS_DEBUG2
+#define NOISY 4
+#else
+#define NOISY 0
+#endif
 
 /*
  *	debug ON
@@ -44,31 +46,21 @@ extern int cifsFYI;
  */
 #ifdef CONFIG_CIFS_DEBUG
 
+__printf(1, 2) void cifs_vfs_err(const char *fmt, ...);
+
 /* information message: e.g., configuration, major event */
-#define cifsfyi(fmt, ...)						\
+#define cifs_dbg(type, fmt, ...)					\
 do {									\
-	if (cifsFYI & CIFS_INFO)					\
-		printk(KERN_DEBUG "%s: " fmt "\n",			\
-		       __FILE__, ##__VA_ARGS__);			\
-} while (0)
-
-#define cFYI(set, fmt, ...)						\
-do {									\
-	if (set)							\
-		cifsfyi(fmt, ##__VA_ARGS__);				\
-} while (0)
-
-#define cifswarn(fmt, ...)						\
-	printk(KERN_WARNING fmt "\n", ##__VA_ARGS__)
-
-/* error event message: e.g., i/o error */
-#define cifserror(fmt, ...)						\
-	printk(KERN_ERR "CIFS VFS: " fmt "\n", ##__VA_ARGS__);		\
-
-#define cERROR(set, fmt, ...)						\
-do {									\
-	if (set)							\
-		cifserror(fmt, ##__VA_ARGS__);				\
+	if (type == FYI) {						\
+		if (cifsFYI & CIFS_INFO) {				\
+			printk(KERN_DEBUG "%s: " fmt,			\
+			       __FILE__, ##__VA_ARGS__);		\
+		}							\
+	} else if (type == VFS) {					\
+		cifs_vfs_err(fmt, ##__VA_ARGS__);			\
+	} else if (type == NOISY && type != 0) {			\
+		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
+	}								\
 } while (0)
 
 /*
@@ -76,27 +68,11 @@ do {									\
  *	---------
  */
 #else		/* _CIFS_DEBUG */
-#define cifsfyi(fmt, ...)						\
+#define cifs_dbg(type, fmt, ...)					\
 do {									\
 	if (0)								\
-		printk(KERN_DEBUG "%s: " fmt "\n",			\
-		       __FILE__, ##__VA_ARGS__);			\
+		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
 } while (0)
-#define cFYI(set, fmt, ...)						\
-do {									\
-	if (0 && set)							\
-		cifsfyi(fmt, ##__VA_ARGS__);				\
-} while (0)
-#define cifserror(fmt, ...)						\
-do {									\
-	if (0)								\
-		printk(KERN_ERR "CIFS VFS: " fmt "\n", ##__VA_ARGS__);	\
-} while (0)
-#define cERROR(set, fmt, ...)						\
-do {									\
-	if (0 && set)							\
-		cifserror(fmt, ##__VA_ARGS__);				\
-} while (0)
-#endif		/* _CIFS_DEBUG */
+#endif
 
 #endif				/* _H_CIFS_DEBUG */

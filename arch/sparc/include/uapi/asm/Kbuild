@@ -44,7 +44,6 @@ header-y += swab.h
 header-y += termbits.h
 header-y += termios.h
 header-y += traps.h
-header-y += types.h
 header-y += uctx.h
 header-y += unistd.h
 header-y += utrap.h

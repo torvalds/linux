@@ -1,7 +1,7 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Authors:	Sjur Brendeland/sjur.brandeland@stericsson.com
- *		Daniel Martensson / Daniel.Martensson@stericsson.com
+ * Authors:	Sjur Brendeland
+ *		Daniel Martensson
  * License terms: GNU General Public License (GPL) version 2
  */
 
@@ -167,7 +167,7 @@ static void chnl_put(struct cflayer *lyr)
 }
 
 static void chnl_flowctrl_cb(struct cflayer *layr, enum caif_ctrlcmd flow,
-				int phyid)
+			     int phyid)
 {
 	struct chnl_net *priv = container_of(layr, struct chnl_net, chnl);
 	pr_debug("NET flowctrl func called flow: %s\n",
@@ -443,7 +443,7 @@ nla_put_failure:
 }
 
 static void caif_netlink_parms(struct nlattr *data[],
-				struct caif_connect_request *conn_req)
+			       struct caif_connect_request *conn_req)
 {
 	if (!data) {
 		pr_warn("no params data found\n");
@@ -488,7 +488,7 @@ static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
 }
 
 static int ipcaif_changelink(struct net_device *dev, struct nlattr *tb[],
-				struct nlattr *data[])
+			     struct nlattr *data[])
 {
 	struct chnl_net *caifdev;
 	ASSERT_RTNL();

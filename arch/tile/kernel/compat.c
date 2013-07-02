@@ -56,12 +56,6 @@ COMPAT_SYSCALL_DEFINE6(pwrite64, unsigned int, fd, char __user *, ubuf,
 	return sys_pwrite64(fd, ubuf, count, ((loff_t)high << 32) | low);
 }
 
-COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, low, u32, high,
-                       char __user *, buf, size_t, len)
-{
-	return sys_lookup_dcookie(((loff_t)high << 32) | low, buf, len);
-}
-
 COMPAT_SYSCALL_DEFINE6(sync_file_range2, int, fd, unsigned int, flags,
                        u32, offset_lo, u32, offset_hi,
                        u32, nbytes_lo, u32, nbytes_hi)

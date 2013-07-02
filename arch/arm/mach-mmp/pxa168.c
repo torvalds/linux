@@ -125,7 +125,7 @@ struct resource pxa168_resource_gpio[] = {
 };
 
 struct platform_device pxa168_device_gpio = {
-	.name		= "pxa-gpio",
+	.name		= "mmp-gpio",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(pxa168_resource_gpio),
 	.resource	= pxa168_resource_gpio,

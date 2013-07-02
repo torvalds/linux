@@ -83,6 +83,8 @@ struct cache_disk_superblock {
 	__le32 read_misses;
 	__le32 write_hits;
 	__le32 write_misses;
+
+	__le32 policy_version[CACHE_POLICY_VERSION_SIZE];
 } __packed;
 
 struct dm_cache_metadata {
@@ -109,6 +111,7 @@ struct dm_cache_metadata {
 	bool clean_when_opened:1;
 
 	char policy_name[CACHE_POLICY_NAME_SIZE];
+	unsigned policy_version[CACHE_POLICY_VERSION_SIZE];
 	size_t policy_hint_size;
 	struct dm_cache_statistics stats;
 };
@@ -268,7 +271,8 @@ static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 	memset(disk_super->uuid, 0, sizeof(disk_super->uuid));
 	disk_super->magic = cpu_to_le64(CACHE_SUPERBLOCK_MAGIC);
 	disk_super->version = cpu_to_le32(CACHE_VERSION);
-	memset(disk_super->policy_name, 0, CACHE_POLICY_NAME_SIZE);
+	memset(disk_super->policy_name, 0, sizeof(disk_super->policy_name));
+	memset(disk_super->policy_version, 0, sizeof(disk_super->policy_version));
 	disk_super->policy_hint_size = 0;
 
 	r = dm_sm_copy_root(cmd->metadata_sm, &disk_super->metadata_space_map_root,
@@ -284,7 +288,6 @@ static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 	disk_super->metadata_block_size = cpu_to_le32(DM_CACHE_METADATA_BLOCK_SIZE >> SECTOR_SHIFT);
 	disk_super->data_block_size = cpu_to_le32(cmd->data_block_size);
 	disk_super->cache_blocks = cpu_to_le32(0);
-	memset(disk_super->policy_name, 0, sizeof(disk_super->policy_name));
 
 	disk_super->read_hits = cpu_to_le32(0);
 	disk_super->read_misses = cpu_to_le32(0);
@@ -478,6 +481,9 @@ static void read_superblock_fields(struct dm_cache_metadata *cmd,
 	cmd->data_block_size = le32_to_cpu(disk_super->data_block_size);
 	cmd->cache_blocks = to_cblock(le32_to_cpu(disk_super->cache_blocks));
 	strncpy(cmd->policy_name, disk_super->policy_name, sizeof(cmd->policy_name));
+	cmd->policy_version[0] = le32_to_cpu(disk_super->policy_version[0]);
+	cmd->policy_version[1] = le32_to_cpu(disk_super->policy_version[1]);
+	cmd->policy_version[2] = le32_to_cpu(disk_super->policy_version[2]);
 	cmd->policy_hint_size = le32_to_cpu(disk_super->policy_hint_size);
 
 	cmd->stats.read_hits = le32_to_cpu(disk_super->read_hits);
@@ -572,6 +578,9 @@ static int __commit_transaction(struct dm_cache_metadata *cmd,
 	disk_super->discard_nr_blocks = cpu_to_le64(from_dblock(cmd->discard_nr_blocks));
 	disk_super->cache_blocks = cpu_to_le32(from_cblock(cmd->cache_blocks));
 	strncpy(disk_super->policy_name, cmd->policy_name, sizeof(disk_super->policy_name));
+	disk_super->policy_version[0] = cpu_to_le32(cmd->policy_version[0]);
+	disk_super->policy_version[1] = cpu_to_le32(cmd->policy_version[1]);
+	disk_super->policy_version[2] = cpu_to_le32(cmd->policy_version[2]);
 
 	disk_super->read_hits = cpu_to_le32(cmd->stats.read_hits);
 	disk_super->read_misses = cpu_to_le32(cmd->stats.read_misses);
@@ -854,18 +863,43 @@ struct thunk {
 	bool hints_valid;
 };
 
+static bool policy_unchanged(struct dm_cache_metadata *cmd,
+			     struct dm_cache_policy *policy)
+{
+	const char *policy_name = dm_cache_policy_get_name(policy);
+	const unsigned *policy_version = dm_cache_policy_get_version(policy);
+	size_t policy_hint_size = dm_cache_policy_get_hint_size(policy);
+
+	/*
+	 * Ensure policy names match.
+	 */
+	if (strncmp(cmd->policy_name, policy_name, sizeof(cmd->policy_name)))
+		return false;
+
+	/*
+	 * Ensure policy major versions match.
+	 */
+	if (cmd->policy_version[0] != policy_version[0])
+		return false;
+
+	/*
+	 * Ensure policy hint sizes match.
+	 */
+	if (cmd->policy_hint_size != policy_hint_size)
+		return false;
+
+	return true;
+}
+
 static bool hints_array_initialized(struct dm_cache_metadata *cmd)
 {
 	return cmd->hint_root && cmd->policy_hint_size;
 }
 
 static bool hints_array_available(struct dm_cache_metadata *cmd,
-				  const char *policy_name)
+				  struct dm_cache_policy *policy)
 {
-	bool policy_names_match = !strncmp(cmd->policy_name, policy_name,
-					   sizeof(cmd->policy_name));
-
-	return cmd->clean_when_opened && policy_names_match &&
+	return cmd->clean_when_opened && policy_unchanged(cmd, policy) &&
 		hints_array_initialized(cmd);
 }
 
@@ -899,7 +933,8 @@ static int __load_mapping(void *context, uint64_t cblock, void *leaf)
 	return r;
 }
 
-static int __load_mappings(struct dm_cache_metadata *cmd, const char *policy_name,
+static int __load_mappings(struct dm_cache_metadata *cmd,
+			   struct dm_cache_policy *policy,
 			   load_mapping_fn fn, void *context)
 {
 	struct thunk thunk;
@@ -909,18 +944,19 @@ static int __load_mappings(struct dm_cache_metadata *cmd, const char *policy_nam
 
 	thunk.cmd = cmd;
 	thunk.respect_dirty_flags = cmd->clean_when_opened;
-	thunk.hints_valid = hints_array_available(cmd, policy_name);
+	thunk.hints_valid = hints_array_available(cmd, policy);
 
 	return dm_array_walk(&cmd->info, cmd->root, __load_mapping, &thunk);
 }
 
-int dm_cache_load_mappings(struct dm_cache_metadata *cmd, const char *policy_name,
+int dm_cache_load_mappings(struct dm_cache_metadata *cmd,
+			   struct dm_cache_policy *policy,
 			   load_mapping_fn fn, void *context)
 {
 	int r;
 
 	down_read(&cmd->root_lock);
-	r = __load_mappings(cmd, policy_name, fn, context);
+	r = __load_mappings(cmd, policy, fn, context);
 	up_read(&cmd->root_lock);
 
 	return r;
@@ -979,7 +1015,7 @@ static int __dirty(struct dm_cache_metadata *cmd, dm_cblock_t cblock, bool dirty
 		/* nothing to be done */
 		return 0;
 
-	value = pack_value(oblock, flags | (dirty ? M_DIRTY : 0));
+	value = pack_value(oblock, (flags & ~M_DIRTY) | (dirty ? M_DIRTY : 0));
 	__dm_bless_for_disk(&value);
 
 	r = dm_array_set_value(&cmd->info, cmd->root, from_cblock(cblock),
@@ -1008,7 +1044,7 @@ void dm_cache_metadata_get_stats(struct dm_cache_metadata *cmd,
 				 struct dm_cache_statistics *stats)
 {
 	down_read(&cmd->root_lock);
-	memcpy(stats, &cmd->stats, sizeof(*stats));
+	*stats = cmd->stats;
 	up_read(&cmd->root_lock);
 }
 
@@ -1016,7 +1052,7 @@ void dm_cache_metadata_set_stats(struct dm_cache_metadata *cmd,
 				 struct dm_cache_statistics *stats)
 {
 	down_write(&cmd->root_lock);
-	memcpy(&cmd->stats, stats, sizeof(*stats));
+	cmd->stats = *stats;
 	up_write(&cmd->root_lock);
 }
 
@@ -1070,13 +1106,15 @@ static int begin_hints(struct dm_cache_metadata *cmd, struct dm_cache_policy *po
 	__le32 value;
 	size_t hint_size;
 	const char *policy_name = dm_cache_policy_get_name(policy);
+	const unsigned *policy_version = dm_cache_policy_get_version(policy);
 
 	if (!policy_name[0] ||
 	    (strlen(policy_name) > sizeof(cmd->policy_name) - 1))
 		return -EINVAL;
 
-	if (strcmp(cmd->policy_name, policy_name)) {
+	if (!policy_unchanged(cmd, policy)) {
 		strncpy(cmd->policy_name, policy_name, sizeof(cmd->policy_name));
+		memcpy(cmd->policy_version, policy_version, sizeof(cmd->policy_version));
 
 		hint_size = dm_cache_policy_get_hint_size(policy);
 		if (!hint_size)

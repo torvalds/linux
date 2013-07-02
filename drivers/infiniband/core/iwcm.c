@@ -878,6 +878,8 @@ static void cm_work_handler(struct work_struct *_work)
 			}
 			return;
 		}
+		if (empty)
+			return;
 		spin_lock_irqsave(&cm_id_priv->lock, flags);
 	}
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);

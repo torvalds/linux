@@ -130,14 +130,14 @@ static ssize_t isku_sysfs_read(struct file *fp, struct kobject *kobj,
 	if (off >= real_size)
 		return 0;
 
-	if (off != 0 || count != real_size)
+	if (off != 0 || count > real_size)
 		return -EINVAL;
 
 	mutex_lock(&isku->isku_lock);
-	retval = isku_receive(usb_dev, command, buf, real_size);
+	retval = isku_receive(usb_dev, command, buf, count);
 	mutex_unlock(&isku->isku_lock);
 
-	return retval ? retval : real_size;
+	return retval ? retval : count;
 }
 
 static ssize_t isku_sysfs_write(struct file *fp, struct kobject *kobj,
@@ -150,15 +150,15 @@ static ssize_t isku_sysfs_write(struct file *fp, struct kobject *kobj,
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	int retval;
 
-	if (off != 0 || count != real_size)
+	if (off != 0 || count > real_size)
 		return -EINVAL;
 
 	mutex_lock(&isku->isku_lock);
 	retval = roccat_common2_send_with_status(usb_dev, command,
-			(void *)buf, real_size);
+			(void *)buf, count);
 	mutex_unlock(&isku->isku_lock);
 
-	return retval ? retval : real_size;
+	return retval ? retval : count;
 }
 
 #define ISKU_SYSFS_W(thingy, THINGY) \
@@ -216,6 +216,7 @@ ISKU_SYSFS_RW(light, LIGHT)
 ISKU_SYSFS_RW(key_mask, KEY_MASK)
 ISKU_SYSFS_RW(last_set, LAST_SET)
 ISKU_SYSFS_W(talk, TALK)
+ISKU_SYSFS_W(talkfx, TALKFX)
 ISKU_SYSFS_R(info, INFO)
 ISKU_SYSFS_W(control, CONTROL)
 ISKU_SYSFS_W(reset, RESET)
@@ -232,6 +233,7 @@ static struct bin_attribute isku_bin_attributes[] = {
 	ISKU_BIN_ATTR_RW(key_mask, KEY_MASK),
 	ISKU_BIN_ATTR_RW(last_set, LAST_SET),
 	ISKU_BIN_ATTR_W(talk, TALK),
+	ISKU_BIN_ATTR_W(talkfx, TALKFX),
 	ISKU_BIN_ATTR_R(info, INFO),
 	ISKU_BIN_ATTR_W(control, CONTROL),
 	ISKU_BIN_ATTR_W(reset, RESET),
@@ -405,6 +407,7 @@ static int isku_raw_event(struct hid_device *hdev,
 
 static const struct hid_device_id isku_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ROCCAT, USB_DEVICE_ID_ROCCAT_ISKU) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ROCCAT, USB_DEVICE_ID_ROCCAT_ISKUFX) },
 	{ }
 };
 
@@ -443,5 +446,5 @@ module_init(isku_init);
 module_exit(isku_exit);
 
 MODULE_AUTHOR("Stefan Achatz");
-MODULE_DESCRIPTION("USB Roccat Isku driver");
+MODULE_DESCRIPTION("USB Roccat Isku/FX driver");
 MODULE_LICENSE("GPL v2");

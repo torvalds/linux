@@ -9,6 +9,10 @@ Required properties:
 - compatible: "marvell,orion-mdio"
 - reg: address and length of the SMI register
 
+Optional properties:
+- interrupts: interrupt line number for the SMI error/done interrupt
+- clocks: Phandle to the clock control device and gate bit
+
 The child nodes of the MDIO driver are the individual PHY devices
 connected to this MDIO bus. They must have a "reg" property given the
 PHY address on the MDIO bus.

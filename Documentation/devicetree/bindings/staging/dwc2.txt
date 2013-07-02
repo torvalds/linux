@@ -1,0 +1,15 @@
+Platform DesignWare HS OTG USB 2.0 controller
+-----------------------------------------------------
+
+Required properties:
+- compatible : "snps,dwc2"
+- reg : Should contain 1 register range (address and length)
+- interrupts : Should contain 1 interrupt
+
+Example:
+
+        usb@101c0000 {
+                compatible = "ralink,rt3050-usb, snps,dwc2";
+                reg = <0x101c0000 40000>;
+                interrupts = <18>;
+        };

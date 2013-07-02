@@ -98,4 +98,4 @@
 
 /* include the reset of the code which will do the work */
 
-#include <plat/debug-macro.S>
+#include <debug/samsung.S>

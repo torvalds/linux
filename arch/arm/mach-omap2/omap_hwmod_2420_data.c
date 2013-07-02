@@ -610,6 +610,8 @@ static struct omap_hwmod_ocp_if *omap2420_hwmod_ocp_ifs[] __initdata = {
 	&omap2420_l4_core__mcbsp2,
 	&omap2420_l4_core__msdi1,
 	&omap2xxx_l4_core__rng,
+	&omap2xxx_l4_core__sham,
+	&omap2xxx_l4_core__aes,
 	&omap2420_l4_core__hdq1w,
 	&omap2420_l4_wkup__counter_32k,
 	&omap2420_l3__gpmc,

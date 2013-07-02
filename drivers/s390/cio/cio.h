@@ -121,23 +121,18 @@ extern int cio_commit_config(struct subchannel *sch);
 int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key);
 int cio_tm_intrg(struct subchannel *sch);
 
-int cio_create_sch_lock(struct subchannel *);
 void do_adapter_IO(u8 isc);
 void do_IRQ(struct pt_regs *);
 
 /* Use with care. */
 #ifdef CONFIG_CCW_CONSOLE
 extern struct subchannel *cio_probe_console(void);
-extern void cio_release_console(void);
 extern int cio_is_console(struct subchannel_id);
-extern struct subchannel *cio_get_console_subchannel(void);
-extern spinlock_t * cio_get_console_lock(void);
-extern void *cio_get_console_priv(void);
+extern void cio_register_early_subchannels(void);
+extern void cio_tsch(struct subchannel *sch);
 #else
 #define cio_is_console(schid) 0
-#define cio_get_console_subchannel() NULL
-#define cio_get_console_lock() NULL
-#define cio_get_console_priv() NULL
+static inline void cio_register_early_subchannels(void) {}
 #endif
 
 #endif

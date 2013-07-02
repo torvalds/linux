@@ -1,0 +1,31 @@
+/*
+ * Device Tree Source for the Lager board
+ *
+ * Copyright (C) 2013 Renesas Solutions Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/dts-v1/;
+/include/ "r8a7790.dtsi"
+
+/ {
+	model = "Lager";
+	compatible = "renesas,lager", "renesas,r8a7790";
+
+	chosen {
+		bootargs = "console=ttySC6,115200 ignore_loglevel";
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0 0x40000000 0 0x80000000>;
+	};
+
+	lbsc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+};

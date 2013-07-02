@@ -460,7 +460,6 @@ static int setup_power_button(struct platform_device *pdev)
 static void free_power_button(void)
 {
 	input_unregister_device(power_button_idev);
-	input_free_device(power_button_idev);
 }
 
 static int setup_ebook_switch(struct platform_device *pdev)
@@ -491,7 +490,6 @@ static int setup_ebook_switch(struct platform_device *pdev)
 static void free_ebook_switch(void)
 {
 	input_unregister_device(ebook_switch_idev);
-	input_free_device(ebook_switch_idev);
 }
 
 static int setup_lid_switch(struct platform_device *pdev)
@@ -526,6 +524,7 @@ static int setup_lid_switch(struct platform_device *pdev)
 
 err_create_attr:
 	input_unregister_device(lid_switch_idev);
+	lid_switch_idev = NULL;
 err_register:
 	input_free_device(lid_switch_idev);
 	return r;
@@ -535,7 +534,6 @@ static void free_lid_switch(void)
 {
 	device_remove_file(&lid_switch_idev->dev, &dev_attr_lid_wake_mode);
 	input_unregister_device(lid_switch_idev);
-	input_free_device(lid_switch_idev);
 }
 
 static int xo1_sci_probe(struct platform_device *pdev)

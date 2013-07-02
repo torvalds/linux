@@ -507,6 +507,7 @@ static int qla4xxx_send_mbox_iocb(struct scsi_qla_host *ha, struct mrb *mrb,
 	mrb->mbox_cmd = in_mbox[0];
 	wmb();
 
+	ha->iocb_cnt += mrb->iocb_cnt;
 	ha->isp_ops->queue_iocb(ha);
 exit_mbox_iocb:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);

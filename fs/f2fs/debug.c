@@ -13,7 +13,6 @@
 
 #include <linux/fs.h>
 #include <linux/backing-dev.h>
-#include <linux/proc_fs.h>
 #include <linux/f2fs_fs.h>
 #include <linux/blkdev.h>
 #include <linux/debugfs.h>
@@ -106,7 +105,7 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 		}
 	}
 	mutex_unlock(&sit_i->sentry_lock);
-	dist = sbi->total_sections * hblks_per_sec * hblks_per_sec / 100;
+	dist = TOTAL_SECS(sbi) * hblks_per_sec * hblks_per_sec / 100;
 	si->bimodal = bimodal / dist;
 	if (si->dirty_count)
 		si->avg_vblocks = total_vblocks / ndirty;
@@ -138,14 +137,13 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 	si->base_mem += f2fs_bitmap_size(TOTAL_SEGS(sbi));
 	si->base_mem += 2 * SIT_VBLOCK_MAP_SIZE * TOTAL_SEGS(sbi);
 	if (sbi->segs_per_sec > 1)
-		si->base_mem += sbi->total_sections *
-			sizeof(struct sec_entry);
+		si->base_mem += TOTAL_SECS(sbi) * sizeof(struct sec_entry);
 	si->base_mem += __bitmap_size(sbi, SIT_BITMAP);
 
 	/* build free segmap */
 	si->base_mem += sizeof(struct free_segmap_info);
 	si->base_mem += f2fs_bitmap_size(TOTAL_SEGS(sbi));
-	si->base_mem += f2fs_bitmap_size(sbi->total_sections);
+	si->base_mem += f2fs_bitmap_size(TOTAL_SECS(sbi));
 
 	/* build curseg */
 	si->base_mem += sizeof(struct curseg_info) * NR_CURSEG_TYPE;
@@ -154,7 +152,7 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 	/* build dirty segmap */
 	si->base_mem += sizeof(struct dirty_seglist_info);
 	si->base_mem += NR_DIRTY_TYPE * f2fs_bitmap_size(TOTAL_SEGS(sbi));
-	si->base_mem += 2 * f2fs_bitmap_size(TOTAL_SEGS(sbi));
+	si->base_mem += f2fs_bitmap_size(TOTAL_SECS(sbi));
 
 	/* buld nm */
 	si->base_mem += sizeof(struct f2fs_nm_info);

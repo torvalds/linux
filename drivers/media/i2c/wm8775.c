@@ -174,7 +174,7 @@ static int wm8775_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int wm8775_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *freq)
+static int wm8775_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *freq)
 {
 	wm8775_set_audio(sd, 0);
 	return 0;

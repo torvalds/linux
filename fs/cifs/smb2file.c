@@ -43,13 +43,13 @@ smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
 	if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
 		cinode->clientCanCacheAll = true;
 		cinode->clientCanCacheRead = true;
-		cFYI(1, "Exclusive Oplock granted on inode %p",
-		     &cinode->vfs_inode);
+		cifs_dbg(FYI, "Exclusive Oplock granted on inode %p\n",
+			 &cinode->vfs_inode);
 	} else if (oplock == SMB2_OPLOCK_LEVEL_II) {
 		cinode->clientCanCacheAll = false;
 		cinode->clientCanCacheRead = true;
-		cFYI(1, "Level II Oplock granted on inode %p",
-		    &cinode->vfs_inode);
+		cifs_dbg(FYI, "Level II Oplock granted on inode %p\n",
+			 &cinode->vfs_inode);
 	} else {
 		cinode->clientCanCacheAll = false;
 		cinode->clientCanCacheRead = false;

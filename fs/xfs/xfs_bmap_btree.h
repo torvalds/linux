@@ -18,7 +18,8 @@
 #ifndef __XFS_BMAP_BTREE_H__
 #define __XFS_BMAP_BTREE_H__
 
-#define XFS_BMAP_MAGIC	0x424d4150	/* 'BMAP' */
+#define XFS_BMAP_MAGIC		0x424d4150	/* 'BMAP' */
+#define XFS_BMAP_CRC_MAGIC	0x424d4133	/* 'BMA3' */
 
 struct xfs_btree_cur;
 struct xfs_btree_block;
@@ -136,10 +137,10 @@ typedef __be64 xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
 
 /*
  * Btree block header size depends on a superblock flag.
- *
- * (not quite yet, but soon)
  */
-#define XFS_BMBT_BLOCK_LEN(mp)	XFS_BTREE_LBLOCK_LEN
+#define XFS_BMBT_BLOCK_LEN(mp) \
+	(xfs_sb_version_hascrc(&((mp)->m_sb)) ? \
+		XFS_BTREE_LBLOCK_CRC_LEN : XFS_BTREE_LBLOCK_LEN)
 
 #define XFS_BMBT_REC_ADDR(mp, block, index) \
 	((xfs_bmbt_rec_t *) \
@@ -186,12 +187,12 @@ typedef __be64 xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
 #define XFS_BMAP_BROOT_PTR_ADDR(mp, bb, i, sz) \
 	XFS_BMBT_PTR_ADDR(mp, bb, i, xfs_bmbt_maxrecs(mp, sz, 0))
 
-#define XFS_BMAP_BROOT_SPACE_CALC(nrecs) \
-	(int)(XFS_BTREE_LBLOCK_LEN + \
+#define XFS_BMAP_BROOT_SPACE_CALC(mp, nrecs) \
+	(int)(XFS_BMBT_BLOCK_LEN(mp) + \
 	       ((nrecs) * (sizeof(xfs_bmbt_key_t) + sizeof(xfs_bmbt_ptr_t))))
 
-#define XFS_BMAP_BROOT_SPACE(bb) \
-	(XFS_BMAP_BROOT_SPACE_CALC(be16_to_cpu((bb)->bb_numrecs)))
+#define XFS_BMAP_BROOT_SPACE(mp, bb) \
+	(XFS_BMAP_BROOT_SPACE_CALC(mp, be16_to_cpu((bb)->bb_numrecs)))
 #define XFS_BMDR_SPACE_CALC(nrecs) \
 	(int)(sizeof(xfs_bmdr_block_t) + \
 	       ((nrecs) * (sizeof(xfs_bmbt_key_t) + sizeof(xfs_bmbt_ptr_t))))
@@ -204,7 +205,7 @@ typedef __be64 xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
 /*
  * Prototypes for xfs_bmap.c to call.
  */
-extern void xfs_bmdr_to_bmbt(struct xfs_mount *, xfs_bmdr_block_t *, int,
+extern void xfs_bmdr_to_bmbt(struct xfs_inode *, xfs_bmdr_block_t *, int,
 			struct xfs_btree_block *, int);
 extern void xfs_bmbt_get_all(xfs_bmbt_rec_host_t *r, xfs_bmbt_irec_t *s);
 extern xfs_filblks_t xfs_bmbt_get_blockcount(xfs_bmbt_rec_host_t *r);

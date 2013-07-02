@@ -34,6 +34,7 @@
 #include <linux/sched.h>       /* need_resched() */
 #include <linux/clockchips.h>
 #include <linux/cpuidle.h>
+#include <linux/syscore_ops.h>
 
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
@@ -66,7 +67,8 @@ module_param(latency_factor, uint, 0644);
 
 static DEFINE_PER_CPU(struct cpuidle_device *, acpi_cpuidle_device);
 
-static struct acpi_processor_cx *acpi_cstate[CPUIDLE_STATE_MAX];
+static DEFINE_PER_CPU(struct acpi_processor_cx * [CPUIDLE_STATE_MAX],
+								acpi_cstate);
 
 static int disabled_by_idle_boot_param(void)
 {
@@ -209,33 +211,41 @@ static void lapic_timer_state_broadcast(struct acpi_processor *pr,
 
 #endif
 
+#ifdef CONFIG_PM_SLEEP
 static u32 saved_bm_rld;
 
-static void acpi_idle_bm_rld_save(void)
+int acpi_processor_suspend(void)
 {
 	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &saved_bm_rld);
+	return 0;
 }
-static void acpi_idle_bm_rld_restore(void)
+
+void acpi_processor_resume(void)
 {
 	u32 resumed_bm_rld;
 
 	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &resumed_bm_rld);
+	if (resumed_bm_rld == saved_bm_rld)
+		return;
 
-	if (resumed_bm_rld != saved_bm_rld)
-		acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, saved_bm_rld);
+	acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, saved_bm_rld);
 }
 
-int acpi_processor_suspend(struct device *dev)
+static struct syscore_ops acpi_processor_syscore_ops = {
+	.suspend = acpi_processor_suspend,
+	.resume = acpi_processor_resume,
+};
+
+void acpi_processor_syscore_init(void)
 {
-	acpi_idle_bm_rld_save();
-	return 0;
+	register_syscore_ops(&acpi_processor_syscore_ops);
 }
 
-int acpi_processor_resume(struct device *dev)
+void acpi_processor_syscore_exit(void)
 {
-	acpi_idle_bm_rld_restore();
-	return 0;
+	unregister_syscore_ops(&acpi_processor_syscore_ops);
 }
+#endif /* CONFIG_PM_SLEEP */
 
 #if defined(CONFIG_X86)
 static void tsc_check_state(int state)
@@ -722,7 +732,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	pr = __this_cpu_read(processors);
 
@@ -745,7 +755,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
  */
 static int acpi_idle_play_dead(struct cpuidle_device *dev, int index)
 {
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	ACPI_FLUSH_CPU_CACHE();
 
@@ -775,7 +785,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	pr = __this_cpu_read(processors);
 
@@ -833,7 +843,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	pr = __this_cpu_read(processors);
 
@@ -917,7 +927,6 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 struct cpuidle_driver acpi_idle_driver = {
 	.name =		"acpi_idle",
 	.owner =	THIS_MODULE,
-	.en_core_tk_irqen = 1,
 };
 
 /**
@@ -960,7 +969,7 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
 		    !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
 			continue;
 #endif
-		acpi_cstate[count] = cx;
+		per_cpu(acpi_cstate[count], dev->cpu) = cx;
 
 		count++;
 		if (count == CPUIDLE_STATE_MAX)

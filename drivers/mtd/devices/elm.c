@@ -81,14 +81,21 @@ static u32 elm_read_reg(struct elm_info *info, int offset)
  * @dev:	ELM device
  * @bch_type:	Type of BCH ecc
  */
-void elm_config(struct device *dev, enum bch_ecc bch_type)
+int elm_config(struct device *dev, enum bch_ecc bch_type)
 {
 	u32 reg_val;
 	struct elm_info *info = dev_get_drvdata(dev);
 
+	if (!info) {
+		dev_err(dev, "Unable to configure elm - device not probed?\n");
+		return -ENODEV;
+	}
+
 	reg_val = (bch_type & ECC_BCH_LEVEL_MASK) | (ELM_ECC_SIZE << 16);
 	elm_write_reg(info, ELM_LOCATION_CONFIG, reg_val);
 	info->bch_type = bch_type;
+
+	return 0;
 }
 EXPORT_SYMBOL(elm_config);
 

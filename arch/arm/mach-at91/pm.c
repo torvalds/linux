@@ -201,7 +201,10 @@ extern u32 at91_slow_clock_sz;
 
 static int at91_pm_enter(suspend_state_t state)
 {
-	at91_gpio_suspend();
+	if (of_have_populated_dt())
+		at91_pinctrl_gpio_suspend();
+	else
+		at91_gpio_suspend();
 	at91_irq_suspend();
 
 	pr_debug("AT91: PM - wake mask %08x, pm state %d\n",
@@ -267,6 +270,8 @@ static int at91_pm_enter(suspend_state_t state)
 				at91rm9200_standby();
 			else if (cpu_is_at91sam9g45())
 				at91sam9g45_standby();
+			else if (cpu_is_at91sam9263())
+				at91sam9263_standby();
 			else
 				at91sam9_standby();
 			break;
@@ -286,7 +291,10 @@ static int at91_pm_enter(suspend_state_t state)
 error:
 	target_state = PM_SUSPEND_ON;
 	at91_irq_resume();
-	at91_gpio_resume();
+	if (of_have_populated_dt())
+		at91_pinctrl_gpio_resume();
+	else
+		at91_gpio_resume();
 	return 0;
 }
 

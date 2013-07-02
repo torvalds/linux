@@ -1042,7 +1042,7 @@ static int dvb_register(struct cx8802_dev *dev)
 			if (!dvb_attach(isl6421_attach,
 					fe0->dvb.frontend,
 					&dev->core->i2c_adap,
-					0x08, ISL6421_DCL, 0x00))
+					0x08, ISL6421_DCL, 0x00, false))
 				goto frontend_detach;
 		}
 		/* MFE frontend 2 */
@@ -1279,8 +1279,16 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &hauppauge_novas_config,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
+			bool override_tone;
+
+			if (core->model == 92001)
+				override_tone = true;
+			else
+				override_tone = false;
+
 			if (!dvb_attach(isl6421_attach, fe0->dvb.frontend,
-					&core->i2c_adap, 0x08, ISL6421_DCL, 0x00))
+					&core->i2c_adap, 0x08, ISL6421_DCL, 0x00,
+					override_tone))
 				goto frontend_detach;
 		}
 		break;
@@ -1403,7 +1411,7 @@ static int dvb_register(struct cx8802_dev *dev)
 			if (!dvb_attach(isl6421_attach,
 					fe0->dvb.frontend,
 					&dev->core->i2c_adap,
-					0x08, ISL6421_DCL, 0x00))
+					0x08, ISL6421_DCL, 0x00, false))
 				goto frontend_detach;
 		}
 		/* MFE frontend 2 */
@@ -1431,7 +1439,7 @@ static int dvb_register(struct cx8802_dev *dev)
 			if (!dvb_attach(isl6421_attach,
 					fe0->dvb.frontend,
 					&dev->core->i2c_adap,
-					0x08, ISL6421_DCL, 0x00))
+					0x08, ISL6421_DCL, 0x00, false))
 				goto frontend_detach;
 		}
 		break;

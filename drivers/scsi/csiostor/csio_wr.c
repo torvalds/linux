@@ -85,8 +85,8 @@ csio_wr_ring_fldb(struct csio_hw *hw, struct csio_q *flq)
 	 */
 	if (flq->inc_idx >= 8) {
 		csio_wr_reg32(hw, DBPRIO(1) | QID(flq->un.fl.flid) |
-			      PIDX(flq->inc_idx / 8),
-			      MYPF_REG(SGE_PF_KDOORBELL));
+				  CSIO_HW_PIDX(hw, flq->inc_idx / 8),
+				  MYPF_REG(SGE_PF_KDOORBELL));
 		flq->inc_idx &= 7;
 	}
 }
@@ -989,7 +989,8 @@ csio_wr_issue(struct csio_hw *hw, int qidx, bool prio)
 	wmb();
 	/* Ring SGE Doorbell writing q->pidx into it */
 	csio_wr_reg32(hw, DBPRIO(prio) | QID(q->un.eq.physeqid) |
-		      PIDX(q->inc_idx), MYPF_REG(SGE_PF_KDOORBELL));
+			  CSIO_HW_PIDX(hw, q->inc_idx),
+			  MYPF_REG(SGE_PF_KDOORBELL));
 	q->inc_idx = 0;
 
 	return 0;
@@ -1331,20 +1332,30 @@ csio_wr_fixup_host_params(struct csio_hw *hw)
 
 	/* FL BUFFER SIZE#0 is Page size i,e already aligned to cache line */
 	csio_wr_reg32(hw, PAGE_SIZE, SGE_FL_BUFFER_SIZE0);
-	csio_wr_reg32(hw,
-		      (csio_rd_reg32(hw, SGE_FL_BUFFER_SIZE2) +
-		      sge->csio_fl_align - 1) & ~(sge->csio_fl_align - 1),
-		      SGE_FL_BUFFER_SIZE2);
-	csio_wr_reg32(hw,
-		      (csio_rd_reg32(hw, SGE_FL_BUFFER_SIZE3) +
-		      sge->csio_fl_align - 1) & ~(sge->csio_fl_align - 1),
-		      SGE_FL_BUFFER_SIZE3);
+
+	/*
+	 * If using hard params, the following will get set correctly
+	 * in csio_wr_set_sge().
+	 */
+	if (hw->flags & CSIO_HWF_USING_SOFT_PARAMS) {
+		csio_wr_reg32(hw,
+			(csio_rd_reg32(hw, SGE_FL_BUFFER_SIZE2) +
+			sge->csio_fl_align - 1) & ~(sge->csio_fl_align - 1),
+			SGE_FL_BUFFER_SIZE2);
+		csio_wr_reg32(hw,
+			(csio_rd_reg32(hw, SGE_FL_BUFFER_SIZE3) +
+			sge->csio_fl_align - 1) & ~(sge->csio_fl_align - 1),
+			SGE_FL_BUFFER_SIZE3);
+	}
 
 	csio_wr_reg32(hw, HPZ0(PAGE_SHIFT - 12), ULP_RX_TDDP_PSZ);
 
 	/* default value of rx_dma_offset of the NIC driver */
 	csio_set_reg_field(hw, SGE_CONTROL, PKTSHIFT_MASK,
 			   PKTSHIFT(CSIO_SGE_RX_DMA_OFFSET));
+
+	csio_hw_tp_wr_bits_indirect(hw, TP_INGRESS_CONFIG,
+				    CSUM_HAS_PSEUDO_HDR, 0);
 }
 
 static void
@@ -1460,18 +1471,21 @@ csio_wr_set_sge(struct csio_hw *hw)
 	 * and generate an interrupt when this occurs so we can recover.
 	 */
 	csio_set_reg_field(hw, SGE_DBFIFO_STATUS,
-			   HP_INT_THRESH(HP_INT_THRESH_MASK) |
-			   LP_INT_THRESH(LP_INT_THRESH_MASK),
-			   HP_INT_THRESH(CSIO_SGE_DBFIFO_INT_THRESH) |
-			   LP_INT_THRESH(CSIO_SGE_DBFIFO_INT_THRESH));
+		   HP_INT_THRESH(HP_INT_THRESH_MASK) |
+		   CSIO_HW_LP_INT_THRESH(hw, CSIO_HW_M_LP_INT_THRESH(hw)),
+		   HP_INT_THRESH(CSIO_SGE_DBFIFO_INT_THRESH) |
+		   CSIO_HW_LP_INT_THRESH(hw, CSIO_SGE_DBFIFO_INT_THRESH));
+
 	csio_set_reg_field(hw, SGE_DOORBELL_CONTROL, ENABLE_DROP,
 			   ENABLE_DROP);
 
 	/* SGE_FL_BUFFER_SIZE0 is set up by csio_wr_fixup_host_params(). */
 
 	CSIO_SET_FLBUF_SIZE(hw, 1, CSIO_SGE_FLBUF_SIZE1);
-	CSIO_SET_FLBUF_SIZE(hw, 2, CSIO_SGE_FLBUF_SIZE2);
-	CSIO_SET_FLBUF_SIZE(hw, 3, CSIO_SGE_FLBUF_SIZE3);
+	csio_wr_reg32(hw, (CSIO_SGE_FLBUF_SIZE2 + sge->csio_fl_align - 1)
+		      & ~(sge->csio_fl_align - 1), SGE_FL_BUFFER_SIZE2);
+	csio_wr_reg32(hw, (CSIO_SGE_FLBUF_SIZE3 + sge->csio_fl_align - 1)
+		      & ~(sge->csio_fl_align - 1), SGE_FL_BUFFER_SIZE3);
 	CSIO_SET_FLBUF_SIZE(hw, 4, CSIO_SGE_FLBUF_SIZE4);
 	CSIO_SET_FLBUF_SIZE(hw, 5, CSIO_SGE_FLBUF_SIZE5);
 	CSIO_SET_FLBUF_SIZE(hw, 6, CSIO_SGE_FLBUF_SIZE6);
@@ -1522,22 +1536,24 @@ void
 csio_wr_sge_init(struct csio_hw *hw)
 {
 	/*
-	 * If we are master:
+	 * If we are master and chip is not initialized:
 	 *    - If we plan to use the config file, we need to fixup some
 	 *      host specific registers, and read the rest of the SGE
 	 *      configuration.
 	 *    - If we dont plan to use the config file, we need to initialize
 	 *      SGE entirely, including fixing the host specific registers.
+	 * If we are master and chip is initialized, just read and work off of
+	 *	the already initialized SGE values.
 	 * If we arent the master, we are only allowed to read and work off of
 	 *      the already initialized SGE values.
 	 *
 	 * Therefore, before calling this function, we assume that the master-
-	 * ship of the card, and whether to use config file or not, have
-	 * already been decided. In other words, CSIO_HWF_USING_SOFT_PARAMS and
-	 * CSIO_HWF_MASTER should be set/unset.
+	 * ship of the card, state and whether to use config file or not, have
+	 * already been decided.
 	 */
 	if (csio_is_hw_master(hw)) {
-		csio_wr_fixup_host_params(hw);
+		if (hw->fw_state != CSIO_DEV_STATE_INIT)
+			csio_wr_fixup_host_params(hw);
 
 		if (hw->flags & CSIO_HWF_USING_SOFT_PARAMS)
 			csio_wr_get_sge(hw);

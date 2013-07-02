@@ -506,10 +506,14 @@ static void unmap_rx_buf(struct adapter *adap, struct sge_fl *q)
 
 static inline void ring_fl_db(struct adapter *adap, struct sge_fl *q)
 {
+	u32 val;
 	if (q->pend_cred >= 8) {
+		val = PIDX(q->pend_cred / 8);
+		if (!is_t4(adap->chip))
+			val |= DBTYPE(1);
 		wmb();
 		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL), DBPRIO(1) |
-			     QID(q->cntxt_id) | PIDX(q->pend_cred / 8));
+			     QID(q->cntxt_id) | val);
 		q->pend_cred &= 7;
 	}
 }
@@ -812,6 +816,22 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 		*end = 0;
 }
 
+/* This function copies 64 byte coalesced work request to
+ * memory mapped BAR2 space(user space writes).
+ * For coalesced WR SGE, fetches data from the FIFO instead of from Host.
+ */
+static void cxgb_pio_copy(u64 __iomem *dst, u64 *src)
+{
+	int count = 8;
+
+	while (count) {
+		writeq(*src, dst);
+		src++;
+		dst++;
+		count--;
+	}
+}
+
 /**
  *	ring_tx_db - check and potentially ring a Tx queue's doorbell
  *	@adap: the adapter
@@ -822,11 +842,25 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
  */
 static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 {
+	unsigned int *wr, index;
+
 	wmb();            /* write descriptors before telling HW */
 	spin_lock(&q->db_lock);
 	if (!q->db_disabled) {
-		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
-			     QID(q->cntxt_id) | PIDX(n));
+		if (is_t4(adap->chip)) {
+			t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
+				     QID(q->cntxt_id) | PIDX(n));
+		} else {
+			if (n == 1) {
+				index = q->pidx ? (q->pidx - 1) : (q->size - 1);
+				wr = (unsigned int *)&q->desc[index];
+				cxgb_pio_copy((u64 __iomem *)
+					      (adap->bar2 + q->udb + 64),
+					      (u64 *)wr);
+			} else
+				writel(n,  adap->bar2 + q->udb + 8);
+			wmb();
+		}
 	}
 	q->db_pidx = q->pidx;
 	spin_unlock(&q->db_lock);
@@ -1555,7 +1589,6 @@ static noinline int handle_trace_pkt(struct adapter *adap,
 				     const struct pkt_gl *gl)
 {
 	struct sk_buff *skb;
-	struct cpl_trace_pkt *p;
 
 	skb = cxgb4_pktgl_to_skb(gl, RX_PULL_LEN, RX_PULL_LEN);
 	if (unlikely(!skb)) {
@@ -1563,8 +1596,11 @@ static noinline int handle_trace_pkt(struct adapter *adap,
 		return 0;
 	}
 
-	p = (struct cpl_trace_pkt *)skb->data;
-	__skb_pull(skb, sizeof(*p));
+	if (is_t4(adap->chip))
+		__skb_pull(skb, sizeof(struct cpl_trace_pkt));
+	else
+		__skb_pull(skb, sizeof(struct cpl_t5_trace_pkt));
+
 	skb_reset_mac_header(skb);
 	skb->protocol = htons(0xffff);
 	skb->dev = adap->port[0];
@@ -1597,7 +1633,7 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 		skb->rxhash = (__force u32)pkt->rsshdr.hash_val;
 
 	if (unlikely(pkt->vlan_ex)) {
-		__vlan_hwaccel_put_tag(skb, ntohs(pkt->vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(pkt->vlan));
 		rxq->stats.vlan_ex++;
 	}
 	ret = napi_gro_frags(&rxq->rspq.napi);
@@ -1625,8 +1661,10 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	const struct cpl_rx_pkt *pkt;
 	struct sge_eth_rxq *rxq = container_of(q, struct sge_eth_rxq, rspq);
 	struct sge *s = &q->adap->sge;
+	int cpl_trace_pkt = is_t4(q->adap->chip) ?
+			    CPL_TRACE_PKT : CPL_TRACE_PKT_T5;
 
-	if (unlikely(*(u8 *)rsp == CPL_TRACE_PKT))
+	if (unlikely(*(u8 *)rsp == cpl_trace_pkt))
 		return handle_trace_pkt(q->adap, si);
 
 	pkt = (const struct cpl_rx_pkt *)rsp;
@@ -1667,7 +1705,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 		skb_checksum_none_assert(skb);
 
 	if (unlikely(pkt->vlan_ex)) {
-		__vlan_hwaccel_put_tag(skb, ntohs(pkt->vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(pkt->vlan));
 		rxq->stats.vlan_ex++;
 	}
 	netif_receive_skb(skb);
@@ -2143,11 +2181,27 @@ err:
 
 static void init_txq(struct adapter *adap, struct sge_txq *q, unsigned int id)
 {
+	q->cntxt_id = id;
+	if (!is_t4(adap->chip)) {
+		unsigned int s_qpp;
+		unsigned short udb_density;
+		unsigned long qpshift;
+		int page;
+
+		s_qpp = QUEUESPERPAGEPF1 * adap->fn;
+		udb_density = 1 << QUEUESPERPAGEPF0_GET((t4_read_reg(adap,
+				SGE_EGRESS_QUEUES_PER_PAGE_PF) >> s_qpp));
+		qpshift = PAGE_SHIFT - ilog2(udb_density);
+		q->udb = q->cntxt_id << qpshift;
+		q->udb &= PAGE_MASK;
+		page = q->udb / PAGE_SIZE;
+		q->udb += (q->cntxt_id - (page * udb_density)) * 128;
+	}
+
 	q->in_use = 0;
 	q->cidx = q->pidx = 0;
 	q->stops = q->restarts = 0;
 	q->stat = (void *)&q->desc[q->size];
-	q->cntxt_id = id;
 	spin_lock_init(&q->db_lock);
 	adap->sge.egr_map[id - adap->sge.egr_start] = q;
 }
@@ -2587,11 +2641,20 @@ static int t4_sge_init_hard(struct adapter *adap)
 	 * Set up to drop DOORBELL writes when the DOORBELL FIFO overflows
 	 * and generate an interrupt when this occurs so we can recover.
 	 */
-	t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
-			V_HP_INT_THRESH(M_HP_INT_THRESH) |
-			V_LP_INT_THRESH(M_LP_INT_THRESH),
-			V_HP_INT_THRESH(dbfifo_int_thresh) |
-			V_LP_INT_THRESH(dbfifo_int_thresh));
+	if (is_t4(adap->chip)) {
+		t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
+				 V_HP_INT_THRESH(M_HP_INT_THRESH) |
+				 V_LP_INT_THRESH(M_LP_INT_THRESH),
+				 V_HP_INT_THRESH(dbfifo_int_thresh) |
+				 V_LP_INT_THRESH(dbfifo_int_thresh));
+	} else {
+		t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
+				 V_LP_INT_THRESH_T5(M_LP_INT_THRESH_T5),
+				 V_LP_INT_THRESH_T5(dbfifo_int_thresh));
+		t4_set_reg_field(adap, SGE_DBFIFO_STATUS2,
+				 V_HP_INT_THRESH_T5(M_HP_INT_THRESH_T5),
+				 V_HP_INT_THRESH_T5(dbfifo_int_thresh));
+	}
 	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_ENABLE_DROP,
 			F_ENABLE_DROP);
 

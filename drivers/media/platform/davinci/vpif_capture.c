@@ -563,7 +563,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	vpif_dbg(2, debug, "vpif_update_std_info\n");
 
 	for (index = 0; index < vpif_ch_params_count; index++) {
-		config = &ch_params[index];
+		config = &vpif_ch_params[index];
 		if (config->hd_sd == 0) {
 			vpif_dbg(2, debug, "SD format\n");
 			if (config->stdid & vid_ch->stdid) {
@@ -1035,6 +1035,7 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	q->ops = &video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct vpif_cap_buffer);
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	ret = vb2_queue_init(q);
 	if (ret) {
@@ -1394,7 +1395,7 @@ static int vpif_g_std(struct file *file, void *priv, v4l2_std_id *std)
  * @priv: file handle
  * @std_id: ptr to std id
  */
-static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
+static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
@@ -1423,7 +1424,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	fh->initialized = 1;
 
 	/* Call encoder subdevice function to set the standard */
-	ch->video.stdid = *std_id;
+	ch->video.stdid = std_id;
 	memset(&ch->video.dv_timings, 0, sizeof(ch->video.dv_timings));
 
 	/* Get the information about the standard */
@@ -1436,7 +1437,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	vpif_config_format(ch);
 
 	/* set standard in the sub device */
-	ret = v4l2_subdev_call(ch->sd, core, s_std, *std_id);
+	ret = v4l2_subdev_call(ch->sd, core, s_std, std_id);
 	if (ret && ret != -ENOIOCTLCMD && ret != -ENODEV) {
 		vpif_dbg(1, debug, "Failed to set standard for sub devices\n");
 		return ret;
@@ -1923,7 +1924,8 @@ static int vpif_dbg_g_register(struct file *file, void *priv,
  * Returns zero or -EINVAL if write operations fails.
  */
 static int vpif_dbg_s_register(struct file *file, void *priv,
-		struct v4l2_dbg_register *reg){
+		const struct v4l2_dbg_register *reg)
+{
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 

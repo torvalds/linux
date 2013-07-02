@@ -358,6 +358,13 @@ config COBRA5329
 	help
 	  Support for the senTec COBRA5329 board.
 
+config M5373EVB
+	bool "Freescale M5373EVB board support"
+	depends on M537x
+	select FREESCALE
+	help
+	  Support for the Freescale M5373EVB board.
+
 config M5407C3
 	bool "Motorola M5407C3 board support"
 	depends on M5407
@@ -538,15 +545,6 @@ config ROMVEC
 	  This is almost always the same as the base of the ROM. Since on all
 	  68000 type variants the vectors are at the base of the boot device
 	  on system startup.
-
-config ROMVECSIZE
-	hex "Size of ROM vector region (in bytes)"
-	default "0x400"
-	depends on ROM
-	help
-	  Define the size of the vector region in ROM. For most 68000
-	  variants this would be 0x400 bytes in size. Set to 0 if you do
-	  not want a vector region at the start of the ROM.
 
 config ROMSTART
 	hex "Address of the base of system image in ROM"

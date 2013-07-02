@@ -169,6 +169,8 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 	if (!status) {
 		priv->stats.tx_packets++;
 		priv->stats.tx_bytes += skb->len;
+		if (priv->tx_timeout_cnt)
+			priv->tx_timeout_cnt = 0;
 	} else {
 		priv->stats.tx_errors++;
 	}

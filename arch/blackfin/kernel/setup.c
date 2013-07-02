@@ -1314,7 +1314,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			seq_printf(m, "(Compiled for Rev %d)", bfin_compiled_revid());
 	}
 
-	seq_printf(m, "\ncpu MHz\t\t: %lu.%03lu/%lu.%03lu\n",
+	seq_printf(m, "\ncpu MHz\t\t: %lu.%06lu/%lu.%06lu\n",
 		cclk/1000000, cclk%1000000,
 		sclk/1000000, sclk%1000000);
 	seq_printf(m, "bogomips\t: %lu.%02lu\n"

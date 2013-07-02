@@ -34,8 +34,10 @@ struct mpc8xxx_spi {
 
 	int subblock;
 	struct spi_pram __iomem *pram;
+#ifdef CONFIG_FSL_SOC
 	struct cpm_buf_desc __iomem *tx_bd;
 	struct cpm_buf_desc __iomem *rx_bd;
+#endif
 
 	struct spi_transfer *xfer_in_progress;
 
@@ -67,6 +69,15 @@ struct mpc8xxx_spi {
 
 	unsigned int flags;
 
+#ifdef CONFIG_SPI_FSL_SPI
+	int type;
+	int native_chipselects;
+	u8 max_bits_per_word;
+
+	void (*set_shifts)(u32 *rx_shift, u32 *tx_shift,
+			   int bits_per_word, int msb_first);
+#endif
+
 	struct workqueue_struct *workqueue;
 	struct work_struct work;
 
@@ -87,12 +98,12 @@ struct spi_mpc8xxx_cs {
 
 static inline void mpc8xxx_spi_write_reg(__be32 __iomem *reg, u32 val)
 {
-	out_be32(reg, val);
+	iowrite32be(val, reg);
 }
 
 static inline u32 mpc8xxx_spi_read_reg(__be32 __iomem *reg)
 {
-	return in_be32(reg);
+	return ioread32be(reg);
 }
 
 struct mpc8xxx_spi_probe_info {

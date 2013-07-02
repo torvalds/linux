@@ -351,12 +351,14 @@ parse_general_features(struct drm_i915_private *dev_priv,
 		dev_priv->lvds_ssc_freq =
 			intel_bios_ssc_frequency(dev, general->ssc_freq);
 		dev_priv->display_clock_mode = general->display_clock_mode;
-		DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d\n",
+		dev_priv->fdi_rx_polarity_inverted = general->fdi_rx_polarity_inverted;
+		DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d fdi_rx_polarity_inverted %d\n",
 			      dev_priv->int_tv_support,
 			      dev_priv->int_crt_support,
 			      dev_priv->lvds_use_ssc,
 			      dev_priv->lvds_ssc_freq,
-			      dev_priv->display_clock_mode);
+			      dev_priv->display_clock_mode,
+			      dev_priv->fdi_rx_polarity_inverted);
 	}
 }
 
@@ -691,6 +693,9 @@ intel_parse_bios(struct drm_device *dev)
 	struct pci_dev *pdev = dev->pdev;
 	struct bdb_header *bdb = NULL;
 	u8 __iomem *bios = NULL;
+
+	if (HAS_PCH_NOP(dev))
+		return -ENODEV;
 
 	init_vbt_defaults(dev_priv);
 

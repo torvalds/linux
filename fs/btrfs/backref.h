@@ -59,9 +59,6 @@ int paths_from_inode(u64 inum, struct inode_fs_paths *ipath);
 int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 				struct btrfs_fs_info *fs_info, u64 bytenr,
 				u64 time_seq, struct ulist **roots);
-char *btrfs_iref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
-			 struct btrfs_inode_ref *iref, struct extent_buffer *eb,
-			 u64 parent, char *dest, u32 size);
 char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 			u32 name_len, unsigned long name_off,
 			struct extent_buffer *eb_in, u64 parent,

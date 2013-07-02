@@ -117,13 +117,12 @@ static struct edid *vidi_get_edid(struct device *dev,
 	}
 
 	edid_len = (1 + ctx->raw_edid->extensions) * EDID_LENGTH;
-	edid = kzalloc(edid_len, GFP_KERNEL);
+	edid = kmemdup(ctx->raw_edid, edid_len, GFP_KERNEL);
 	if (!edid) {
 		DRM_DEBUG_KMS("failed to allocate edid\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
-	memcpy(edid, ctx->raw_edid, edid_len);
 	return edid;
 }
 
@@ -563,12 +562,11 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 			return -EINVAL;
 		}
 		edid_len = (1 + raw_edid->extensions) * EDID_LENGTH;
-		ctx->raw_edid = kzalloc(edid_len, GFP_KERNEL);
+		ctx->raw_edid = kmemdup(raw_edid, edid_len, GFP_KERNEL);
 		if (!ctx->raw_edid) {
 			DRM_DEBUG_KMS("failed to allocate raw_edid.\n");
 			return -ENOMEM;
 		}
-		memcpy(ctx->raw_edid, raw_edid, edid_len);
 	} else {
 		/*
 		 * with connection = 0, free raw_edid
@@ -596,7 +594,7 @@ static int vidi_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -614,7 +612,7 @@ static int vidi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ret = device_create_file(&pdev->dev, &dev_attr_connection);
+	ret = device_create_file(dev, &dev_attr_connection);
 	if (ret < 0)
 		DRM_INFO("failed to create connection sysfs.\n");
 

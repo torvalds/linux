@@ -352,14 +352,14 @@ static int bfin_rtc_probe(struct platform_device *pdev)
 	dev_dbg_stamp(dev);
 
 	/* Allocate memory for our RTC struct */
-	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc(dev, sizeof(*rtc), GFP_KERNEL);
 	if (unlikely(!rtc))
 		return -ENOMEM;
 	platform_set_drvdata(pdev, rtc);
 	device_init_wakeup(dev, 1);
 
 	/* Register our RTC with the RTC framework */
-	rtc->rtc_dev = rtc_device_register(pdev->name, dev, &bfin_rtc_ops,
+	rtc->rtc_dev = devm_rtc_device_register(dev, pdev->name, &bfin_rtc_ops,
 						THIS_MODULE);
 	if (unlikely(IS_ERR(rtc->rtc_dev))) {
 		ret = PTR_ERR(rtc->rtc_dev);
@@ -367,9 +367,10 @@ static int bfin_rtc_probe(struct platform_device *pdev)
 	}
 
 	/* Grab the IRQ and init the hardware */
-	ret = request_irq(IRQ_RTC, bfin_rtc_interrupt, 0, pdev->name, dev);
+	ret = devm_request_irq(dev, IRQ_RTC, bfin_rtc_interrupt, 0,
+				pdev->name, dev);
 	if (unlikely(ret))
-		goto err_reg;
+		goto err;
 	/* sometimes the bootloader touched things, but the write complete was not
 	 * enabled, so let's just do a quick timeout here since the IRQ will not fire ...
 	 */
@@ -381,32 +382,23 @@ static int bfin_rtc_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_reg:
-	rtc_device_unregister(rtc->rtc_dev);
 err:
-	kfree(rtc);
 	return ret;
 }
 
 static int bfin_rtc_remove(struct platform_device *pdev)
 {
-	struct bfin_rtc *rtc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
 	bfin_rtc_reset(dev, 0);
-	free_irq(IRQ_RTC, dev);
-	rtc_device_unregister(rtc->rtc_dev);
 	platform_set_drvdata(pdev, NULL);
-	kfree(rtc);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int bfin_rtc_suspend(struct device *dev)
 {
-	struct device *dev = &pdev->dev;
-
 	dev_dbg_stamp(dev);
 
 	if (device_may_wakeup(dev)) {
@@ -418,10 +410,8 @@ static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int bfin_rtc_resume(struct platform_device *pdev)
+static int bfin_rtc_resume(struct device *dev)
 {
-	struct device *dev = &pdev->dev;
-
 	dev_dbg_stamp(dev);
 
 	if (device_may_wakeup(dev))
@@ -440,20 +430,18 @@ static int bfin_rtc_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-# define bfin_rtc_suspend NULL
-# define bfin_rtc_resume  NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(bfin_rtc_pm_ops, bfin_rtc_suspend, bfin_rtc_resume);
 
 static struct platform_driver bfin_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-bfin",
 		.owner	= THIS_MODULE,
+		.pm	= &bfin_rtc_pm_ops,
 	},
 	.probe		= bfin_rtc_probe,
 	.remove		= bfin_rtc_remove,
-	.suspend	= bfin_rtc_suspend,
-	.resume		= bfin_rtc_resume,
 };
 
 module_platform_driver(bfin_rtc_driver);

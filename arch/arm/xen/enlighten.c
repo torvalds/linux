@@ -2,6 +2,7 @@
 #include <xen/events.h>
 #include <xen/grant_table.h>
 #include <xen/hvm.h>
+#include <xen/interface/vcpu.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/memory.h>
 #include <xen/interface/hvm/params.h>
@@ -9,9 +10,11 @@
 #include <xen/platform_pci.h>
 #include <xen/xenbus.h>
 #include <xen/page.h>
+#include <xen/interface/sched.h>
 #include <xen/xen-ops.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
+#include <asm/system_misc.h>
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/module.h>
@@ -32,6 +35,7 @@ struct shared_info xen_dummy_shared_info;
 struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
 
 DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
+static struct vcpu_info __percpu *xen_vcpu_info;
 
 /* These are unused until we support booting "pre-ballooned" */
 unsigned long xen_released_pages;
@@ -148,6 +152,44 @@ int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL_GPL(xen_unmap_domain_mfn_range);
 
+static void __init xen_percpu_init(void *unused)
+{
+	struct vcpu_register_vcpu_info info;
+	struct vcpu_info *vcpup;
+	int err;
+	int cpu = get_cpu();
+
+	pr_info("Xen: initializing cpu%d\n", cpu);
+	vcpup = per_cpu_ptr(xen_vcpu_info, cpu);
+
+	info.mfn = __pa(vcpup) >> PAGE_SHIFT;
+	info.offset = offset_in_page(vcpup);
+
+	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
+	BUG_ON(err);
+	per_cpu(xen_vcpu, cpu) = vcpup;
+
+	enable_percpu_irq(xen_events_irq, 0);
+}
+
+static void xen_restart(char str, const char *cmd)
+{
+	struct sched_shutdown r = { .reason = SHUTDOWN_reboot };
+	int rc;
+	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
+	if (rc)
+		BUG();
+}
+
+static void xen_power_off(void)
+{
+	struct sched_shutdown r = { .reason = SHUTDOWN_poweroff };
+	int rc;
+	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
+	if (rc)
+		BUG();
+}
+
 /*
  * see Documentation/devicetree/bindings/arm/xen.txt for the
  * documentation of the Xen Device Tree format.
@@ -209,13 +251,16 @@ static int __init xen_guest_init(void)
 
 	/* xen_vcpu is a pointer to the vcpu_info struct in the shared_info
 	 * page, we use it in the event channel upcall and in some pvclock
-	 * related functions. We don't need the vcpu_info placement
-	 * optimizations because we don't use any pv_mmu or pv_irq op on
-	 * HVM.
+	 * related functions. 
 	 * The shared info contains exactly 1 CPU (the boot CPU). The guest
 	 * is required to use VCPUOP_register_vcpu_info to place vcpu info
-	 * for secondary CPUs as they are brought up. */
-	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
+	 * for secondary CPUs as they are brought up.
+	 * For uniformity we use VCPUOP_register_vcpu_info even on cpu0.
+	 */
+	xen_vcpu_info = __alloc_percpu(sizeof(struct vcpu_info),
+			                       sizeof(struct vcpu_info));
+	if (xen_vcpu_info == NULL)
+		return -ENOMEM;
 
 	gnttab_init();
 	if (!xen_initial_domain())
@@ -224,6 +269,15 @@ static int __init xen_guest_init(void)
 	return 0;
 }
 core_initcall(xen_guest_init);
+
+static int __init xen_pm_init(void)
+{
+	pm_power_off = xen_power_off;
+	arm_pm_restart = xen_restart;
+
+	return 0;
+}
+subsys_initcall(xen_pm_init);
 
 static irqreturn_t xen_arm_callback(int irq, void *arg)
 {
@@ -239,12 +293,12 @@ static int __init xen_init_events(void)
 	xen_init_IRQ();
 
 	if (request_percpu_irq(xen_events_irq, xen_arm_callback,
-			"events", xen_vcpu)) {
+			"events", &xen_vcpu)) {
 		pr_err("Error requesting IRQ %d\n", xen_events_irq);
 		return -EINVAL;
 	}
 
-	enable_percpu_irq(xen_events_irq, 0);
+	on_each_cpu(xen_percpu_init, NULL, 0);
 
 	return 0;
 }
@@ -259,4 +313,5 @@ EXPORT_SYMBOL_GPL(HYPERVISOR_sched_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_hvm_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_memory_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_physdev_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_vcpu_op);
 EXPORT_SYMBOL_GPL(privcmd_call);

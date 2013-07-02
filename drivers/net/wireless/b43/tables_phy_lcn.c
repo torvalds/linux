@@ -313,7 +313,7 @@ static const u32 b43_lcntab_0x18[] = {
  * TX gain.
  **************************************************/
 
-const struct b43_lcntab_tx_gain_tbl_entry
+static const struct b43_lcntab_tx_gain_tbl_entry
 	b43_lcntab_tx_gain_tbl_2ghz_ext_pa_rev0[B43_LCNTAB_TX_GAIN_SIZE] = {
 	{ 0x03, 0x00, 0x1f, 0x0, 0x48 },
 	{ 0x03, 0x00, 0x1f, 0x0, 0x46 },
@@ -449,7 +449,7 @@ const struct b43_lcntab_tx_gain_tbl_entry
  * SW control.
  **************************************************/
 
-const u16 b43_lcntab_sw_ctl_4313_epa_rev0[] = {
+static const u16 b43_lcntab_sw_ctl_4313_epa_rev0[] = {
 	0x0002, 0x0008, 0x0004, 0x0001, 0x0002, 0x0008,
 	0x0004, 0x0001, 0x0002, 0x0008, 0x0004, 0x0001,
 	0x0002, 0x0008, 0x0004, 0x0001, 0x0002, 0x0008,
@@ -631,7 +631,7 @@ static void b43_phy_lcn_upload_static_tables(struct b43_wldev *dev)
 	lcntab_upload(dev, B43_LCNTAB32(0x18, 0), b43_lcntab_0x18);
 }
 
-void b43_phy_lcn_load_tx_gain_tab(struct b43_wldev *dev,
+static void b43_phy_lcn_load_tx_gain_tab(struct b43_wldev *dev,
 			const struct b43_lcntab_tx_gain_tbl_entry *gain_table)
 {
 	u32 i;

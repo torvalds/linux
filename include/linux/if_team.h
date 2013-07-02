@@ -112,6 +112,10 @@ struct team_mode_ops {
 	void (*port_disabled)(struct team *team, struct team_port *port);
 };
 
+extern int team_modeop_port_enter(struct team *team, struct team_port *port);
+extern void team_modeop_port_change_dev_addr(struct team *team,
+					     struct team_port *port);
+
 enum team_option_type {
 	TEAM_OPTION_TYPE_U32,
 	TEAM_OPTION_TYPE_STRING,
@@ -236,7 +240,26 @@ static inline struct team_port *team_get_port_by_index_rcu(struct team *team,
 	return NULL;
 }
 
-extern int team_port_set_team_dev_addr(struct team_port *port);
+static inline struct team_port *
+team_get_first_port_txable_rcu(struct team *team, struct team_port *port)
+{
+	struct team_port *cur;
+
+	if (likely(team_port_txable(port)))
+		return port;
+	cur = port;
+	list_for_each_entry_continue_rcu(cur, &team->port_list, list)
+		if (team_port_txable(port))
+			return cur;
+	list_for_each_entry_rcu(cur, &team->port_list, list) {
+		if (cur == port)
+			break;
+		if (team_port_txable(port))
+			return cur;
+	}
+	return NULL;
+}
+
 extern int team_options_register(struct team *team,
 				 const struct team_option *option,
 				 size_t option_count);

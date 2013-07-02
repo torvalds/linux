@@ -244,7 +244,7 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 	return ERR_PTR(ret);
 }
 
-static const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
+static const char * const part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 
 static int sa1100_mtd_probe(struct platform_device *pdev)
 {

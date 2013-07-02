@@ -114,7 +114,7 @@ config I2C_I801
 
 config I2C_ISCH
 	tristate "Intel SCH SMBus 1.0"
-	depends on PCI
+	depends on PCI && GENERIC_HARDIRQS
 	select LPC_SCH
 	help
 	  Say Y here if you want to use SMBus controller on the Intel SCH
@@ -363,7 +363,7 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 
 config I2C_CBUS_GPIO
 	tristate "CBUS I2C driver"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  Support for CBUS access using I2C API. Mostly relevant for Nokia
 	  Internet Tablets (770, N800 and N810).
@@ -436,7 +436,7 @@ config I2C_EG20T
 
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select I2C_ALGOBIT
 	help
 	  This is a very simple bitbanging I2C driver utilizing the
@@ -543,6 +543,7 @@ config I2C_NUC900
 
 config I2C_OCORES
 	tristate "OpenCores I2C Controller"
+	depends on GENERIC_HARDIRQS
 	help
 	  If you say yes to this option, support will be included for the
 	  OpenCores I2C controller. For details see
@@ -777,7 +778,7 @@ config I2C_DIOLAN_U2C
 
 config I2C_PARPORT
 	tristate "Parallel port adapter"
-	depends on PARPORT
+	depends on PARPORT && GENERIC_HARDIRQS
 	select I2C_ALGOBIT
 	select I2C_SMBUS
 	help
@@ -802,6 +803,7 @@ config I2C_PARPORT
 
 config I2C_PARPORT_LIGHT
 	tristate "Parallel port adapter (light)"
+	depends on GENERIC_HARDIRQS
 	select I2C_ALGOBIT
 	select I2C_SMBUS
 	help

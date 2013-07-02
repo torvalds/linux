@@ -30,18 +30,9 @@ EXPORT_SYMBOL(pm_power_off);
  * This file handles the architecture-dependent parts of process handling..
  */
 
-void cpu_idle(void)
+void arch_cpu_idle(void)
 {
-	/* endless idle loop with no priority at all */
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		while (!need_resched())
-			cpu_idle_sleep();
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-		schedule_preempt_disabled();
-	}
+	cpu_enter_idle();
 }
 
 void machine_halt(void)
@@ -213,14 +204,6 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	show_stack_log_lvl(tsk, (unsigned long)stack, NULL, "");
 }
 
-void dump_stack(void)
-{
-	unsigned long stack;
-
-	show_trace_log_lvl(current, &stack, NULL, "");
-}
-EXPORT_SYMBOL(dump_stack);
-
 static const char *cpu_modes[] = {
 	"Application", "Supervisor", "Interrupt level 0", "Interrupt level 1",
 	"Interrupt level 2", "Interrupt level 3", "Exception", "NMI"
@@ -231,6 +214,8 @@ void show_regs_log_lvl(struct pt_regs *regs, const char *log_lvl)
 	unsigned long sp = regs->sp;
 	unsigned long lr = regs->lr;
 	unsigned long mode = (regs->sr & MODE_MASK) >> MODE_SHIFT;
+
+	show_regs_print_info(log_lvl);
 
 	if (!user_mode(regs)) {
 		sp = (unsigned long)regs + FRAME_SIZE_FULL;
@@ -269,9 +254,6 @@ void show_regs_log_lvl(struct pt_regs *regs, const char *log_lvl)
 	       regs->sr & SR_I0M ? '0' : '.',
 	       regs->sr & SR_GM ? 'G' : 'g');
 	printk("%sCPU Mode: %s\n", log_lvl, cpu_modes[mode]);
-	printk("%sProcess: %s [%d] (task: %p thread: %p)\n",
-	       log_lvl, current->comm, current->pid, current,
-	       task_thread_info(current));
 }
 
 void show_regs(struct pt_regs *regs)

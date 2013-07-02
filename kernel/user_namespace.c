@@ -9,7 +9,7 @@
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
 #include <linux/user_namespace.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 #include <linux/highuid.h>
 #include <linux/cred.h>
 #include <linux/securebits.h>
@@ -25,7 +25,8 @@
 
 static struct kmem_cache *user_ns_cachep __read_mostly;
 
-static bool new_idmap_permitted(struct user_namespace *ns, int cap_setid,
+static bool new_idmap_permitted(const struct file *file,
+				struct user_namespace *ns, int cap_setid,
 				struct uid_gid_map *map);
 
 static void set_cred_user_ns(struct cred *cred, struct user_namespace *user_ns)
@@ -61,6 +62,15 @@ int create_user_ns(struct cred *new)
 	kgid_t group = new->egid;
 	int ret;
 
+	/*
+	 * Verify that we can not violate the policy of which files
+	 * may be accessed that is specified by the root directory,
+	 * by verifing that the root directory is at the root of the
+	 * mount namespace which allows all files to be accessed.
+	 */
+	if (current_chrooted())
+		return -EPERM;
+
 	/* The creator needs a mapping in the parent user namespace
 	 * or else we won't be able to reasonably tell userspace who
 	 * created a user_namespace.
@@ -86,6 +96,8 @@ int create_user_ns(struct cred *new)
 	ns->group = group;
 
 	set_cred_user_ns(new, ns);
+
+	update_mnt_policy(ns);
 
 	return 0;
 }
@@ -601,10 +613,10 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	if (map->nr_extents != 0)
 		goto out;
 
-	/* Require the appropriate privilege CAP_SETUID or CAP_SETGID
-	 * over the user namespace in order to set the id mapping.
+	/*
+	 * Adjusting namespace settings requires capabilities on the target.
 	 */
-	if (cap_valid(cap_setid) && !ns_capable(ns, cap_setid))
+	if (cap_valid(cap_setid) && !file_ns_capable(file, ns, CAP_SYS_ADMIN))
 		goto out;
 
 	/* Get a buffer */
@@ -689,7 +701,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 
 	ret = -EPERM;
 	/* Validate the user is allowed to use user id's mapped to. */
-	if (!new_idmap_permitted(ns, cap_setid, &new_map))
+	if (!new_idmap_permitted(file, ns, cap_setid, &new_map))
 		goto out;
 
 	/* Map the lower ids from the parent user namespace to the
@@ -776,7 +788,8 @@ ssize_t proc_projid_map_write(struct file *file, const char __user *buf, size_t 
 			 &ns->projid_map, &ns->parent->projid_map);
 }
 
-static bool new_idmap_permitted(struct user_namespace *ns, int cap_setid,
+static bool new_idmap_permitted(const struct file *file, 
+				struct user_namespace *ns, int cap_setid,
 				struct uid_gid_map *new_map)
 {
 	/* Allow mapping to your own filesystem ids */
@@ -784,12 +797,12 @@ static bool new_idmap_permitted(struct user_namespace *ns, int cap_setid,
 		u32 id = new_map->extent[0].lower_first;
 		if (cap_setid == CAP_SETUID) {
 			kuid_t uid = make_kuid(ns->parent, id);
-			if (uid_eq(uid, current_fsuid()))
+			if (uid_eq(uid, file->f_cred->fsuid))
 				return true;
 		}
 		else if (cap_setid == CAP_SETGID) {
 			kgid_t gid = make_kgid(ns->parent, id);
-			if (gid_eq(gid, current_fsgid()))
+			if (gid_eq(gid, file->f_cred->fsgid))
 				return true;
 		}
 	}
@@ -800,8 +813,10 @@ static bool new_idmap_permitted(struct user_namespace *ns, int cap_setid,
 
 	/* Allow the specified ids if we have the appropriate capability
 	 * (CAP_SETUID or CAP_SETGID) over the parent user namespace.
+	 * And the opener of the id file also had the approprpiate capability.
 	 */
-	if (ns_capable(ns->parent, cap_setid))
+	if (ns_capable(ns->parent, cap_setid) &&
+	    file_ns_capable(file, ns->parent, cap_setid))
 		return true;
 
 	return false;

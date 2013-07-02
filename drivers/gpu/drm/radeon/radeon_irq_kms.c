@@ -270,7 +270,7 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 }
 
 /**
- * radeon_irq_kms_fini - tear down driver interrrupt info
+ * radeon_irq_kms_fini - tear down driver interrupt info
  *
  * @rdev: radeon device pointer
  *

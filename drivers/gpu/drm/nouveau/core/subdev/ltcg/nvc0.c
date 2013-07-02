@@ -23,10 +23,16 @@
  */
 
 #include <subdev/ltcg.h>
+#include <subdev/fb.h>
+#include <subdev/timer.h>
 
 struct nvc0_ltcg_priv {
 	struct nouveau_ltcg base;
+	u32 part_nr;
 	u32 subp_nr;
+	struct nouveau_mm tags;
+	u32 num_tags;
+	struct nouveau_mm_node *tag_ram;
 };
 
 static void
@@ -62,23 +68,145 @@ nvc0_ltcg_intr(struct nouveau_subdev *subdev)
 }
 
 static int
+nvc0_ltcg_tags_alloc(struct nouveau_ltcg *ltcg, u32 n,
+		     struct nouveau_mm_node **pnode)
+{
+	struct nvc0_ltcg_priv *priv = (struct nvc0_ltcg_priv *)ltcg;
+	int ret;
+
+	ret = nouveau_mm_head(&priv->tags, 1, n, n, 1, pnode);
+	if (ret)
+		*pnode = NULL;
+
+	return ret;
+}
+
+static void
+nvc0_ltcg_tags_free(struct nouveau_ltcg *ltcg, struct nouveau_mm_node **pnode)
+{
+	struct nvc0_ltcg_priv *priv = (struct nvc0_ltcg_priv *)ltcg;
+
+	nouveau_mm_free(&priv->tags, pnode);
+}
+
+static void
+nvc0_ltcg_tags_clear(struct nouveau_ltcg *ltcg, u32 first, u32 count)
+{
+	struct nvc0_ltcg_priv *priv = (struct nvc0_ltcg_priv *)ltcg;
+	u32 last = first + count - 1;
+	int p, i;
+
+	BUG_ON((first > last) || (last >= priv->num_tags));
+
+	nv_wr32(priv, 0x17e8cc, first);
+	nv_wr32(priv, 0x17e8d0, last);
+	nv_wr32(priv, 0x17e8c8, 0x4); /* trigger clear */
+
+	/* wait until it's finished with clearing */
+	for (p = 0; p < priv->part_nr; ++p) {
+		for (i = 0; i < priv->subp_nr; ++i)
+			nv_wait(priv, 0x1410c8 + p * 0x2000 + i * 0x400, ~0, 0);
+	}
+}
+
+/* TODO: Figure out tag memory details and drop the over-cautious allocation.
+ */
+static int
+nvc0_ltcg_init_tag_ram(struct nouveau_fb *pfb, struct nvc0_ltcg_priv *priv)
+{
+	u32 tag_size, tag_margin, tag_align;
+	int ret;
+
+	nv_wr32(priv, 0x17e8d8, priv->part_nr);
+	if (nv_device(pfb)->card_type >= NV_E0)
+		nv_wr32(priv, 0x17e000, priv->part_nr);
+
+	/* tags for 1/4 of VRAM should be enough (8192/4 per GiB of VRAM) */
+	priv->num_tags = (pfb->ram.size >> 17) / 4;
+	if (priv->num_tags > (1 << 17))
+		priv->num_tags = 1 << 17; /* we have 17 bits in PTE */
+	priv->num_tags = (priv->num_tags + 63) & ~63; /* round up to 64 */
+
+	tag_align = priv->part_nr * 0x800;
+	tag_margin = (tag_align < 0x6000) ? 0x6000 : tag_align;
+
+	/* 4 part 4 sub: 0x2000 bytes for 56 tags */
+	/* 3 part 4 sub: 0x6000 bytes for 168 tags */
+	/*
+	 * About 147 bytes per tag. Let's be safe and allocate x2, which makes
+	 * 0x4980 bytes for 64 tags, and round up to 0x6000 bytes for 64 tags.
+	 *
+	 * For 4 GiB of memory we'll have 8192 tags which makes 3 MiB, < 0.1 %.
+	 */
+	tag_size  = (priv->num_tags / 64) * 0x6000 + tag_margin;
+	tag_size += tag_align;
+	tag_size  = (tag_size + 0xfff) >> 12; /* round up */
+
+	ret = nouveau_mm_tail(&pfb->vram, 0, tag_size, tag_size, 1,
+	                      &priv->tag_ram);
+	if (ret) {
+		priv->num_tags = 0;
+	} else {
+		u64 tag_base = (priv->tag_ram->offset << 12) + tag_margin;
+
+		tag_base += tag_align - 1;
+		ret = do_div(tag_base, tag_align);
+
+		nv_wr32(priv, 0x17e8d4, tag_base);
+	}
+	ret = nouveau_mm_init(&priv->tags, 0, priv->num_tags, 1);
+
+	return ret;
+}
+
+static int
 nvc0_ltcg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
 	       struct nouveau_object **pobject)
 {
 	struct nvc0_ltcg_priv *priv;
-	int ret;
+	struct nouveau_fb *pfb = nouveau_fb(parent);
+	u32 parts, mask;
+	int ret, i;
 
 	ret = nouveau_ltcg_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->subp_nr = nv_rd32(priv, 0x17e8dc) >> 24;
+	parts = nv_rd32(priv, 0x022438);
+	mask = nv_rd32(priv, 0x022554);
+	for (i = 0; i < parts; i++) {
+		if (!(mask & (1 << i)))
+			priv->part_nr++;
+	}
+	priv->subp_nr = nv_rd32(priv, 0x17e8dc) >> 28;
+
 	nv_mask(priv, 0x17e820, 0x00100000, 0x00000000); /* INTR_EN &= ~0x10 */
+
+	ret = nvc0_ltcg_init_tag_ram(pfb, priv);
+	if (ret)
+		return ret;
+
+	priv->base.tags_alloc = nvc0_ltcg_tags_alloc;
+	priv->base.tags_free  = nvc0_ltcg_tags_free;
+	priv->base.tags_clear = nvc0_ltcg_tags_clear;
 
 	nv_subdev(priv)->intr = nvc0_ltcg_intr;
 	return 0;
+}
+
+static void
+nvc0_ltcg_dtor(struct nouveau_object *object)
+{
+	struct nouveau_ltcg *ltcg = (struct nouveau_ltcg *)object;
+	struct nvc0_ltcg_priv *priv = (struct nvc0_ltcg_priv *)ltcg;
+	struct nouveau_fb *pfb = nouveau_fb(ltcg->base.base.parent);
+
+	nouveau_mm_fini(&priv->tags);
+	nouveau_mm_free(&pfb->vram, &priv->tag_ram);
+
+	nouveau_ltcg_destroy(ltcg);
 }
 
 struct nouveau_oclass
@@ -86,7 +214,7 @@ nvc0_ltcg_oclass = {
 	.handle = NV_SUBDEV(LTCG, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvc0_ltcg_ctor,
-		.dtor = _nouveau_ltcg_dtor,
+		.dtor = nvc0_ltcg_dtor,
 		.init = _nouveau_ltcg_init,
 		.fini = _nouveau_ltcg_fini,
 	},

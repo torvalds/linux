@@ -48,13 +48,13 @@ static int ad799x_i2c_read16(struct ad799x_state *st, u8 reg, u16 *data)
 	struct i2c_client *client = st->client;
 	int ret = 0;
 
-	ret = i2c_smbus_read_word_data(client, reg);
+	ret = i2c_smbus_read_word_swapped(client, reg);
 	if (ret < 0) {
 		dev_err(&client->dev, "I2C read error\n");
 		return ret;
 	}
 
-	*data = swab16((u16)ret);
+	*data = (u16)ret;
 
 	return 0;
 }
@@ -80,7 +80,7 @@ static int ad799x_i2c_write16(struct ad799x_state *st, u8 reg, u16 data)
 	struct i2c_client *client = st->client;
 	int ret = 0;
 
-	ret = i2c_smbus_write_word_data(client, reg, swab16(data));
+	ret = i2c_smbus_write_word_swapped(client, reg, data);
 	if (ret < 0)
 		dev_err(&client->dev, "I2C write error\n");
 
@@ -103,6 +103,13 @@ static int ad7997_8_update_scan_mode(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask)
 {
 	struct ad799x_state *st = iio_priv(indio_dev);
+
+	kfree(st->rx_buf);
+	st->rx_buf = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
+	if (!st->rx_buf)
+		return -ENOMEM;
+
+	st->transfer_size = bitmap_weight(scan_mask, indio_dev->masklength) * 2;
 
 	switch (st->id) {
 	case ad7997:
@@ -460,395 +467,114 @@ static const struct iio_info ad7993_4_7_8_info = {
 #define AD799X_EV_MASK (IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) | \
 			IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
 
+#define AD799X_CHANNEL(_index, _realbits, _evmask) { \
+	.type = IIO_VOLTAGE, \
+	.indexed = 1, \
+	.channel = (_index), \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
+	.scan_index = (_index), \
+	.scan_type = IIO_ST('u', _realbits, 16, 12 - (_realbits)), \
+	.event_mask = (_evmask), \
+}
+
 static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7991] = {
 		.channel = {
-			[0] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 0,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 0,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-			},
-			[1] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 1,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 1,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-			},
-			[2] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 2,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 2,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-			},
-			[3] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 3,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 3,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-			},
-			[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
+			AD799X_CHANNEL(0, 12, 0),
+			AD799X_CHANNEL(1, 12, 0),
+			AD799X_CHANNEL(2, 12, 0),
+			AD799X_CHANNEL(3, 12, 0),
+			IIO_CHAN_SOFT_TIMESTAMP(4),
 		},
 		.num_channels = 5,
-		.int_vref_mv = 4096,
 		.info = &ad7991_info,
 	},
 	[ad7995] = {
 		.channel = {
-			[0] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 0,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 0,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-			},
-			[1] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 1,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 1,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-			},
-			[2] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 2,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 2,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-			},
-			[3] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 3,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 3,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-			},
-			[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
+			AD799X_CHANNEL(0, 10, 0),
+			AD799X_CHANNEL(1, 10, 0),
+			AD799X_CHANNEL(2, 10, 0),
+			AD799X_CHANNEL(3, 10, 0),
+			IIO_CHAN_SOFT_TIMESTAMP(4),
 		},
 		.num_channels = 5,
-		.int_vref_mv = 1024,
 		.info = &ad7991_info,
 	},
 	[ad7999] = {
 		.channel = {
-			[0] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 0,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 0,
-				.scan_type = IIO_ST('u', 8, 16, 4),
-			},
-			[1] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 1,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 1,
-				.scan_type = IIO_ST('u', 8, 16, 4),
-			},
-			[2] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 2,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 2,
-				.scan_type = IIO_ST('u', 8, 16, 4),
-			},
-			[3] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 3,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 3,
-				.scan_type = IIO_ST('u', 8, 16, 4),
-			},
-			[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
+			AD799X_CHANNEL(0, 8, 0),
+			AD799X_CHANNEL(1, 8, 0),
+			AD799X_CHANNEL(2, 8, 0),
+			AD799X_CHANNEL(3, 8, 0),
+			IIO_CHAN_SOFT_TIMESTAMP(4),
 		},
 		.num_channels = 5,
-		.int_vref_mv = 1024,
 		.info = &ad7991_info,
 	},
 	[ad7992] = {
 		.channel = {
-			[0] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 0,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 0,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[1] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 1,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 1,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[2] = IIO_CHAN_SOFT_TIMESTAMP(2),
+			AD799X_CHANNEL(0, 12, AD799X_EV_MASK),
+			AD799X_CHANNEL(1, 12, AD799X_EV_MASK),
+			IIO_CHAN_SOFT_TIMESTAMP(3),
 		},
 		.num_channels = 3,
-		.int_vref_mv = 4096,
 		.default_config = AD7998_ALERT_EN,
 		.info = &ad7992_info,
 	},
 	[ad7993] = {
 		.channel = {
-			[0] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 0,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 0,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[1] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 1,
-				.scan_index = 1,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[2] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 2,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 2,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[3] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 3,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 3,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
+			AD799X_CHANNEL(0, 10, AD799X_EV_MASK),
+			AD799X_CHANNEL(1, 10, AD799X_EV_MASK),
+			AD799X_CHANNEL(2, 10, AD799X_EV_MASK),
+			AD799X_CHANNEL(3, 10, AD799X_EV_MASK),
+			IIO_CHAN_SOFT_TIMESTAMP(4),
 		},
 		.num_channels = 5,
-		.int_vref_mv = 1024,
 		.default_config = AD7998_ALERT_EN,
 		.info = &ad7993_4_7_8_info,
 	},
 	[ad7994] = {
 		.channel = {
-			[0] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 0,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 0,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[1] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 1,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 1,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[2] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 2,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 2,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[3] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 3,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 3,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
+			AD799X_CHANNEL(0, 12, AD799X_EV_MASK),
+			AD799X_CHANNEL(1, 12, AD799X_EV_MASK),
+			AD799X_CHANNEL(2, 12, AD799X_EV_MASK),
+			AD799X_CHANNEL(3, 12, AD799X_EV_MASK),
+			IIO_CHAN_SOFT_TIMESTAMP(4),
 		},
 		.num_channels = 5,
-		.int_vref_mv = 4096,
 		.default_config = AD7998_ALERT_EN,
 		.info = &ad7993_4_7_8_info,
 	},
 	[ad7997] = {
 		.channel = {
-			[0] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 0,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 0,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[1] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 1,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 1,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[2] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 2,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 2,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[3] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 3,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 3,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[4] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 4,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 4,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-			},
-			[5] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 5,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 5,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-			},
-			[6] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 6,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 6,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-			},
-			[7] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 7,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 7,
-				.scan_type = IIO_ST('u', 10, 16, 2),
-			},
-			[8] = IIO_CHAN_SOFT_TIMESTAMP(8),
+			AD799X_CHANNEL(0, 10, AD799X_EV_MASK),
+			AD799X_CHANNEL(1, 10, AD799X_EV_MASK),
+			AD799X_CHANNEL(2, 10, AD799X_EV_MASK),
+			AD799X_CHANNEL(3, 10, AD799X_EV_MASK),
+			AD799X_CHANNEL(4, 10, 0),
+			AD799X_CHANNEL(5, 10, 0),
+			AD799X_CHANNEL(6, 10, 0),
+			AD799X_CHANNEL(7, 10, 0),
+			IIO_CHAN_SOFT_TIMESTAMP(8),
 		},
 		.num_channels = 9,
-		.int_vref_mv = 1024,
 		.default_config = AD7998_ALERT_EN,
 		.info = &ad7993_4_7_8_info,
 	},
 	[ad7998] = {
 		.channel = {
-			[0] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 0,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 0,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[1] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 1,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 1,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[2] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 2,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 2,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[3] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 3,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 3,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-				.event_mask = AD799X_EV_MASK,
-			},
-			[4] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 4,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 4,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-			},
-			[5] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 5,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 5,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-			},
-			[6] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 6,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 6,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-			},
-			[7] = {
-				.type = IIO_VOLTAGE,
-				.indexed = 1,
-				.channel = 7,
-				.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
-				.scan_index = 7,
-				.scan_type = IIO_ST('u', 12, 16, 0),
-			},
-			[8] = IIO_CHAN_SOFT_TIMESTAMP(8),
+			AD799X_CHANNEL(0, 12, AD799X_EV_MASK),
+			AD799X_CHANNEL(1, 12, AD799X_EV_MASK),
+			AD799X_CHANNEL(2, 12, AD799X_EV_MASK),
+			AD799X_CHANNEL(3, 12, AD799X_EV_MASK),
+			AD799X_CHANNEL(4, 12, 0),
+			AD799X_CHANNEL(5, 12, 0),
+			AD799X_CHANNEL(6, 12, 0),
+			AD799X_CHANNEL(7, 12, 0),
+			IIO_CHAN_SOFT_TIMESTAMP(8),
 		},
 		.num_channels = 9,
-		.int_vref_mv = 4096,
 		.default_config = AD7998_ALERT_EN,
 		.info = &ad7993_4_7_8_info,
 	},
@@ -875,10 +601,10 @@ static int ad799x_probe(struct i2c_client *client,
 
 	/* TODO: Add pdata options for filtering and bit delay */
 
-	if (pdata)
-		st->int_vref_mv = pdata->vref_mv;
-	else
-		st->int_vref_mv = st->chip_info->int_vref_mv;
+	if (!pdata)
+		return -EINVAL;
+
+	st->int_vref_mv = pdata->vref_mv;
 
 	st->reg = regulator_get(&client->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
@@ -946,6 +672,7 @@ static int ad799x_remove(struct i2c_client *client)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
+	kfree(st->rx_buf);
 	iio_device_free(indio_dev);
 
 	return 0;

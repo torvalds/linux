@@ -416,7 +416,7 @@ static int bnx2_unregister_cnic(struct net_device *dev)
 	return 0;
 }
 
-struct cnic_eth_dev *bnx2_cnic_probe(struct net_device *dev)
+static struct cnic_eth_dev *bnx2_cnic_probe(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
@@ -854,11 +854,10 @@ bnx2_alloc_mem(struct bnx2 *bp)
 				sizeof(struct statistics_block);
 
 	status_blk = dma_alloc_coherent(&bp->pdev->dev, bp->status_stats_size,
-					&bp->status_blk_mapping, GFP_KERNEL);
+					&bp->status_blk_mapping,
+					GFP_KERNEL | __GFP_ZERO);
 	if (status_blk == NULL)
 		goto alloc_mem_err;
-
-	memset(status_blk, 0, bp->status_stats_size);
 
 	bnapi = &bp->bnx2_napi[0];
 	bnapi->status_blk.msi = status_blk;
@@ -3212,7 +3211,7 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		}
 		if ((status & L2_FHDR_STATUS_L2_VLAN_TAG) &&
 		    !(bp->rx_mode & BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG))
-			__vlan_hwaccel_put_tag(skb, rx_hdr->l2_fhdr_vlan_tag);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), rx_hdr->l2_fhdr_vlan_tag);
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 
@@ -3554,7 +3553,7 @@ bnx2_set_rx_mode(struct net_device *dev)
 	rx_mode = bp->rx_mode & ~(BNX2_EMAC_RX_MODE_PROMISCUOUS |
 				  BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG);
 	sort_mode = 1 | BNX2_RPM_SORT_USER0_BC_EN;
-	if (!(dev->features & NETIF_F_HW_VLAN_RX) &&
+	if (!(dev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	     (bp->flags & BNX2_FLAG_CAN_KEEP_VLAN))
 		rx_mode |= BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG;
 	if (dev->flags & IFF_PROMISC) {
@@ -7696,7 +7695,7 @@ bnx2_fix_features(struct net_device *dev, netdev_features_t features)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	if (!(bp->flags & BNX2_FLAG_CAN_KEEP_VLAN))
-		features |= NETIF_F_HW_VLAN_RX;
+		features |= NETIF_F_HW_VLAN_CTAG_RX;
 
 	return features;
 }
@@ -7707,12 +7706,12 @@ bnx2_set_features(struct net_device *dev, netdev_features_t features)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	/* TSO with VLAN tag won't work with current firmware */
-	if (features & NETIF_F_HW_VLAN_TX)
+	if (features & NETIF_F_HW_VLAN_CTAG_TX)
 		dev->vlan_features |= (dev->hw_features & NETIF_F_ALL_TSO);
 	else
 		dev->vlan_features &= ~NETIF_F_ALL_TSO;
 
-	if ((!!(features & NETIF_F_HW_VLAN_RX) !=
+	if ((!!(features & NETIF_F_HW_VLAN_CTAG_RX) !=
 	    !!(bp->rx_mode & BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG)) &&
 	    netif_running(dev)) {
 		bnx2_netif_stop(bp, false);
@@ -8552,7 +8551,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev->hw_features |= NETIF_F_IPV6_CSUM | NETIF_F_TSO6;
 
 	dev->vlan_features = dev->hw_features;
-	dev->hw_features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 	dev->features |= dev->hw_features;
 	dev->priv_flags |= IFF_UNICAST_FLT;
 

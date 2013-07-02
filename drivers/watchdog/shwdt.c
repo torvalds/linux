@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <asm/watchdog.h>
 
 #define DRV_NAME "sh-wdt"
@@ -249,9 +250,9 @@ static int sh_wdt_probe(struct platform_device *pdev)
 		wdt->clk = NULL;
 	}
 
-	wdt->base = devm_request_and_ioremap(wdt->dev, res);
-	if (unlikely(!wdt->base)) {
-		rc = -EADDRNOTAVAIL;
+	wdt->base = devm_ioremap_resource(wdt->dev, res);
+	if (IS_ERR(wdt->base)) {
+		rc = PTR_ERR(wdt->base);
 		goto err;
 	}
 

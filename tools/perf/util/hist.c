@@ -67,12 +67,16 @@ static void hists__set_unres_dso_col_len(struct hists *hists, int dso)
 void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 {
 	const unsigned int unresolved_col_width = BITS_PER_LONG / 4;
+	int symlen;
 	u16 len;
 
 	if (h->ms.sym)
 		hists__new_col_len(hists, HISTC_SYMBOL, h->ms.sym->namelen + 4);
-	else
+	else {
+		symlen = unresolved_col_width + 4 + 2;
+		hists__new_col_len(hists, HISTC_SYMBOL, symlen);
 		hists__set_unres_dso_col_len(hists, HISTC_DSO);
+	}
 
 	len = thread__comm_len(h->thread);
 	if (hists__new_col_len(hists, HISTC_COMM, len))
@@ -87,7 +91,6 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 		hists__new_col_len(hists, HISTC_PARENT, h->parent->namelen);
 
 	if (h->branch_info) {
-		int symlen;
 		/*
 		 * +4 accounts for '[x] ' priv level info
 		 * +2 account of 0x prefix on raw addresses
@@ -116,6 +119,42 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 			hists__set_unres_dso_col_len(hists, HISTC_DSO_TO);
 		}
 	}
+
+	if (h->mem_info) {
+		/*
+		 * +4 accounts for '[x] ' priv level info
+		 * +2 account of 0x prefix on raw addresses
+		 */
+		if (h->mem_info->daddr.sym) {
+			symlen = (int)h->mem_info->daddr.sym->namelen + 4
+			       + unresolved_col_width + 2;
+			hists__new_col_len(hists, HISTC_MEM_DADDR_SYMBOL,
+					   symlen);
+		} else {
+			symlen = unresolved_col_width + 4 + 2;
+			hists__new_col_len(hists, HISTC_MEM_DADDR_SYMBOL,
+					   symlen);
+		}
+		if (h->mem_info->daddr.map) {
+			symlen = dso__name_len(h->mem_info->daddr.map->dso);
+			hists__new_col_len(hists, HISTC_MEM_DADDR_DSO,
+					   symlen);
+		} else {
+			symlen = unresolved_col_width + 4 + 2;
+			hists__set_unres_dso_col_len(hists, HISTC_MEM_DADDR_DSO);
+		}
+	} else {
+		symlen = unresolved_col_width + 4 + 2;
+		hists__new_col_len(hists, HISTC_MEM_DADDR_SYMBOL, symlen);
+		hists__set_unres_dso_col_len(hists, HISTC_MEM_DADDR_DSO);
+	}
+
+	hists__new_col_len(hists, HISTC_MEM_LOCKED, 6);
+	hists__new_col_len(hists, HISTC_MEM_TLB, 22);
+	hists__new_col_len(hists, HISTC_MEM_SNOOP, 12);
+	hists__new_col_len(hists, HISTC_MEM_LVL, 21 + 3);
+	hists__new_col_len(hists, HISTC_LOCAL_WEIGHT, 12);
+	hists__new_col_len(hists, HISTC_GLOBAL_WEIGHT, 12);
 }
 
 void hists__output_recalc_col_len(struct hists *hists, int max_rows)
@@ -155,9 +194,12 @@ static void hist_entry__add_cpumode_period(struct hist_entry *he,
 	}
 }
 
-static void he_stat__add_period(struct he_stat *he_stat, u64 period)
+static void he_stat__add_period(struct he_stat *he_stat, u64 period,
+				u64 weight)
 {
+
 	he_stat->period		+= period;
+	he_stat->weight		+= weight;
 	he_stat->nr_events	+= 1;
 }
 
@@ -169,12 +211,14 @@ static void he_stat__add_stat(struct he_stat *dest, struct he_stat *src)
 	dest->period_guest_sys	+= src->period_guest_sys;
 	dest->period_guest_us	+= src->period_guest_us;
 	dest->nr_events		+= src->nr_events;
+	dest->weight		+= src->weight;
 }
 
 static void hist_entry__decay(struct hist_entry *he)
 {
 	he->stat.period = (he->stat.period * 7) / 8;
 	he->stat.nr_events = (he->stat.nr_events * 7) / 8;
+	/* XXX need decay for weight too? */
 }
 
 static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
@@ -239,7 +283,7 @@ void hists__decay_entries_threaded(struct hists *hists,
 static struct hist_entry *hist_entry__new(struct hist_entry *template)
 {
 	size_t callchain_size = symbol_conf.use_callchain ? sizeof(struct callchain_root) : 0;
-	struct hist_entry *he = malloc(sizeof(*he) + callchain_size);
+	struct hist_entry *he = zalloc(sizeof(*he) + callchain_size);
 
 	if (he != NULL) {
 		*he = *template;
@@ -252,6 +296,13 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template)
 				he->branch_info->from.map->referenced = true;
 			if (he->branch_info->to.map)
 				he->branch_info->to.map->referenced = true;
+		}
+
+		if (he->mem_info) {
+			if (he->mem_info->iaddr.map)
+				he->mem_info->iaddr.map->referenced = true;
+			if (he->mem_info->daddr.map)
+				he->mem_info->daddr.map->referenced = true;
 		}
 
 		if (symbol_conf.use_callchain)
@@ -282,7 +333,8 @@ static u8 symbol__parent_filter(const struct symbol *parent)
 static struct hist_entry *add_hist_entry(struct hists *hists,
 				      struct hist_entry *entry,
 				      struct addr_location *al,
-				      u64 period)
+				      u64 period,
+				      u64 weight)
 {
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
@@ -306,7 +358,7 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 		cmp = hist_entry__cmp(he, entry);
 
 		if (!cmp) {
-			he_stat__add_period(&he->stat, period);
+			he_stat__add_period(&he->stat, period, weight);
 
 			/* If the map of an existing hist_entry has
 			 * become out-of-date due to an exec() or
@@ -341,11 +393,42 @@ out_unlock:
 	return he;
 }
 
+struct hist_entry *__hists__add_mem_entry(struct hists *self,
+					  struct addr_location *al,
+					  struct symbol *sym_parent,
+					  struct mem_info *mi,
+					  u64 period,
+					  u64 weight)
+{
+	struct hist_entry entry = {
+		.thread	= al->thread,
+		.ms = {
+			.map	= al->map,
+			.sym	= al->sym,
+		},
+		.stat = {
+			.period	= period,
+			.weight = weight,
+			.nr_events = 1,
+		},
+		.cpu	= al->cpu,
+		.ip	= al->addr,
+		.level	= al->level,
+		.parent = sym_parent,
+		.filtered = symbol__parent_filter(sym_parent),
+		.hists = self,
+		.mem_info = mi,
+		.branch_info = NULL,
+	};
+	return add_hist_entry(self, &entry, al, period, weight);
+}
+
 struct hist_entry *__hists__add_branch_entry(struct hists *self,
 					     struct addr_location *al,
 					     struct symbol *sym_parent,
 					     struct branch_info *bi,
-					     u64 period)
+					     u64 period,
+					     u64 weight)
 {
 	struct hist_entry entry = {
 		.thread	= al->thread,
@@ -359,19 +442,22 @@ struct hist_entry *__hists__add_branch_entry(struct hists *self,
 		.stat = {
 			.period	= period,
 			.nr_events = 1,
+			.weight = weight,
 		},
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent),
 		.branch_info = bi,
 		.hists	= self,
+		.mem_info = NULL,
 	};
 
-	return add_hist_entry(self, &entry, al, period);
+	return add_hist_entry(self, &entry, al, period, weight);
 }
 
 struct hist_entry *__hists__add_entry(struct hists *self,
 				      struct addr_location *al,
-				      struct symbol *sym_parent, u64 period)
+				      struct symbol *sym_parent, u64 period,
+				      u64 weight)
 {
 	struct hist_entry entry = {
 		.thread	= al->thread,
@@ -385,13 +471,16 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 		.stat = {
 			.period	= period,
 			.nr_events = 1,
+			.weight = weight,
 		},
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent),
 		.hists	= self,
+		.branch_info = NULL,
+		.mem_info = NULL,
 	};
 
-	return add_hist_entry(self, &entry, al, period);
+	return add_hist_entry(self, &entry, al, period, weight);
 }
 
 int64_t
@@ -431,6 +520,7 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 void hist_entry__free(struct hist_entry *he)
 {
 	free(he->branch_info);
+	free(he->mem_info);
 	free(he);
 }
 

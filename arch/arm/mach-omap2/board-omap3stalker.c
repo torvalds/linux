@@ -44,8 +44,7 @@
 #include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
@@ -95,15 +94,6 @@ static void __init omap3_stalker_display_init(void)
 	return;
 }
 
-static int omap3_stalker_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void omap3_stalker_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
 static struct omap_dss_device omap3_stalker_tv_device = {
 	.name			= "tv",
 	.driver_name		= "venc",
@@ -113,8 +103,6 @@ static struct omap_dss_device omap3_stalker_tv_device = {
 #elif defined(CONFIG_OMAP2_VENC_OUT_TYPE_COMPOSITE)
 	.u.venc.type		= OMAP_DSS_VENC_TYPE_COMPOSITE,
 #endif
-	.platform_enable	= omap3_stalker_enable_tv,
-	.platform_disable	= omap3_stalker_disable_tv,
 };
 
 static struct tfp410_platform_data dvi_panel = {
@@ -358,19 +346,20 @@ static int __init omap3_stalker_i2c_init(void)
 
 #define OMAP3_STALKER_TS_GPIO	175
 
+static struct usbhs_phy_data phy_data[] __initdata = {
+	{
+		.port = 2,
+		.reset_gpio = 21,
+		.vcc_gpio = -EINVAL,
+	},
+};
+
 static struct platform_device *omap3_stalker_devices[] __initdata = {
 	&keys_gpio,
 };
 
 static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
-	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
-	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
-
-	.phy_reset = true,
-	.reset_gpio_port[0] = -EINVAL,
-	.reset_gpio_port[1] = 21,
-	.reset_gpio_port[2] = -EINVAL,
 };
 
 #ifdef CONFIG_OMAP_MUX
@@ -407,6 +396,8 @@ static void __init omap3_stalker_init(void)
 	omap_sdrc_init(mt46h32m32lf6_sdrc_params, NULL);
 	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
+
+	usbhs_init_phys(phy_data, ARRAY_SIZE(phy_data));
 	usbhs_init(&usbhs_bdata);
 	omap_ads7846_init(1, OMAP3_STALKER_TS_GPIO, 310, NULL);
 

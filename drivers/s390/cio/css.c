@@ -137,37 +137,53 @@ out:
 
 static void css_sch_todo(struct work_struct *work);
 
-static struct subchannel *
-css_alloc_subchannel(struct subchannel_id schid)
+static int css_sch_create_locks(struct subchannel *sch)
+{
+	sch->lock = kmalloc(sizeof(*sch->lock), GFP_KERNEL);
+	if (!sch->lock)
+		return -ENOMEM;
+
+	spin_lock_init(sch->lock);
+	mutex_init(&sch->reg_mutex);
+
+	return 0;
+}
+
+static void css_subchannel_release(struct device *dev)
+{
+	struct subchannel *sch = to_subchannel(dev);
+
+	sch->config.intparm = 0;
+	cio_commit_config(sch);
+	kfree(sch->lock);
+	kfree(sch);
+}
+
+struct subchannel *css_alloc_subchannel(struct subchannel_id schid)
 {
 	struct subchannel *sch;
 	int ret;
 
-	sch = kmalloc (sizeof (*sch), GFP_KERNEL | GFP_DMA);
-	if (sch == NULL)
+	sch = kzalloc(sizeof(*sch), GFP_KERNEL | GFP_DMA);
+	if (!sch)
 		return ERR_PTR(-ENOMEM);
-	ret = cio_validate_subchannel (sch, schid);
-	if (ret < 0) {
-		kfree(sch);
-		return ERR_PTR(ret);
-	}
+
+	ret = cio_validate_subchannel(sch, schid);
+	if (ret < 0)
+		goto err;
+
+	ret = css_sch_create_locks(sch);
+	if (ret)
+		goto err;
+
 	INIT_WORK(&sch->todo_work, css_sch_todo);
+	sch->dev.release = &css_subchannel_release;
+	device_initialize(&sch->dev);
 	return sch;
-}
 
-static void
-css_subchannel_release(struct device *dev)
-{
-	struct subchannel *sch;
-
-	sch = to_subchannel(dev);
-	if (!cio_is_console(sch->schid)) {
-		/* Reset intparm to zeroes. */
-		sch->config.intparm = 0;
-		cio_commit_config(sch);
-		kfree(sch->lock);
-		kfree(sch);
-	}
+err:
+	kfree(sch);
+	return ERR_PTR(ret);
 }
 
 static int css_sch_device_register(struct subchannel *sch)
@@ -177,7 +193,7 @@ static int css_sch_device_register(struct subchannel *sch)
 	mutex_lock(&sch->reg_mutex);
 	dev_set_name(&sch->dev, "0.%x.%04x", sch->schid.ssid,
 		     sch->schid.sch_no);
-	ret = device_register(&sch->dev);
+	ret = device_add(&sch->dev);
 	mutex_unlock(&sch->reg_mutex);
 	return ret;
 }
@@ -228,16 +244,11 @@ void css_update_ssd_info(struct subchannel *sch)
 {
 	int ret;
 
-	if (cio_is_console(sch->schid)) {
-		/* Console is initialized too early for functions requiring
-		 * memory allocation. */
+	ret = chsc_get_ssd_info(sch->schid, &sch->ssd_info);
+	if (ret)
 		ssd_from_pmcw(&sch->ssd_info, &sch->schib.pmcw);
-	} else {
-		ret = chsc_get_ssd_info(sch->schid, &sch->ssd_info);
-		if (ret)
-			ssd_from_pmcw(&sch->ssd_info, &sch->schib.pmcw);
-		ssd_register_chpids(&sch->ssd_info);
-	}
+
+	ssd_register_chpids(&sch->ssd_info);
 }
 
 static ssize_t type_show(struct device *dev, struct device_attribute *attr,
@@ -275,14 +286,13 @@ static const struct attribute_group *default_subch_attr_groups[] = {
 	NULL,
 };
 
-static int css_register_subchannel(struct subchannel *sch)
+int css_register_subchannel(struct subchannel *sch)
 {
 	int ret;
 
 	/* Initialize the subchannel structure */
 	sch->dev.parent = &channel_subsystems[0]->device;
 	sch->dev.bus = &css_bus_type;
-	sch->dev.release = &css_subchannel_release;
 	sch->dev.groups = default_subch_attr_groups;
 	/*
 	 * We don't want to generate uevents for I/O subchannels that don't
@@ -314,23 +324,19 @@ static int css_register_subchannel(struct subchannel *sch)
 	return ret;
 }
 
-int css_probe_device(struct subchannel_id schid)
+static int css_probe_device(struct subchannel_id schid)
 {
-	int ret;
 	struct subchannel *sch;
+	int ret;
 
-	if (cio_is_console(schid))
-		sch = cio_get_console_subchannel();
-	else {
-		sch = css_alloc_subchannel(schid);
-		if (IS_ERR(sch))
-			return PTR_ERR(sch);
-	}
+	sch = css_alloc_subchannel(schid);
+	if (IS_ERR(sch))
+		return PTR_ERR(sch);
+
 	ret = css_register_subchannel(sch);
-	if (ret) {
-		if (!cio_is_console(schid))
-			put_device(&sch->dev);
-	}
+	if (ret)
+		put_device(&sch->dev);
+
 	return ret;
 }
 
@@ -770,7 +776,7 @@ static int __init setup_css(int nr)
 	css->pseudo_subchannel->dev.release = css_subchannel_release;
 	dev_set_name(&css->pseudo_subchannel->dev, "defunct");
 	mutex_init(&css->pseudo_subchannel->reg_mutex);
-	ret = cio_create_sch_lock(css->pseudo_subchannel);
+	ret = css_sch_create_locks(css->pseudo_subchannel);
 	if (ret) {
 		kfree(css->pseudo_subchannel);
 		return ret;
@@ -870,8 +876,7 @@ static struct notifier_block css_power_notifier = {
 
 /*
  * Now that the driver core is running, we can setup our channel subsystem.
- * The struct subchannel's are created during probing (except for the
- * static console subchannel).
+ * The struct subchannel's are created during probing.
  */
 static int __init css_bus_init(void)
 {
@@ -1050,6 +1055,8 @@ int css_complete_work(void)
  */
 static int __init channel_subsystem_init_sync(void)
 {
+	/* Register subchannels which are already in use. */
+	cio_register_early_subchannels();
 	/* Start initial subchannel evaluation. */
 	css_schedule_eval_all();
 	css_complete_work();
@@ -1065,9 +1072,8 @@ void channel_subsystem_reinit(void)
 	chsc_enable_facility(CHSC_SDA_OC_MSS);
 	chp_id_for_each(&chpid) {
 		chp = chpid_to_chp(chpid);
-		if (!chp)
-			continue;
-		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+		if (chp)
+			chp_update_desc(chp);
 	}
 }
 

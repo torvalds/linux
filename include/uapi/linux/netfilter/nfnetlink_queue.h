@@ -45,6 +45,7 @@ enum nfqnl_attr_type {
 	NFQA_CT,			/* nf_conntrack_netlink.h */
 	NFQA_CT_INFO,			/* enum ip_conntrack_info */
 	NFQA_CAP_LEN,			/* __u32 length of captured packet */
+	NFQA_SKB_INFO,			/* __u32 skb meta information */
 
 	__NFQA_MAX
 };
@@ -96,6 +97,13 @@ enum nfqnl_attr_config {
 /* Flags for NFQA_CFG_FLAGS */
 #define NFQA_CFG_F_FAIL_OPEN			(1 << 0)
 #define NFQA_CFG_F_CONNTRACK			(1 << 1)
-#define NFQA_CFG_F_MAX				(1 << 2)
+#define NFQA_CFG_F_GSO				(1 << 2)
+#define NFQA_CFG_F_MAX				(1 << 3)
+
+/* flags for NFQA_SKB_INFO */
+/* packet appears to have wrong checksums, but they are ok */
+#define NFQA_SKB_CSUMNOTREADY (1 << 0)
+/* packet is GSO (i.e., exceeds device mtu) */
+#define NFQA_SKB_GSO (1 << 1)
 
 #endif /* _NFNETLINK_QUEUE_H */

@@ -84,7 +84,6 @@ static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 	if (ret != 0)
 		return ret;
 
-	freqs.cpu = 0;
 	freqs.old = clk_get_rate(armclk) / 1000;
 	freqs.new = s3c64xx_freq_table[i].frequency;
 	freqs.flags = 0;
@@ -95,7 +94,7 @@ static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	pr_debug("Transition %d-%dkHz\n", freqs.old, freqs.new);
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 #ifdef CONFIG_REGULATOR
 	if (vddarm && freqs.new > freqs.old) {
@@ -117,7 +116,7 @@ static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 		goto err;
 	}
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 #ifdef CONFIG_REGULATOR
 	if (vddarm && freqs.new < freqs.old) {
@@ -141,7 +140,7 @@ err_clk:
 	if (clk_set_rate(armclk, freqs.old * 1000) < 0)
 		pr_err("Failed to restore original clock rate\n");
 err:
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return ret;
 }

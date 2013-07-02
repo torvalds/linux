@@ -146,7 +146,6 @@ config MTD_CFI_I8
 config MTD_OTP
 	bool "Protection Registers aka one-time programmable (OTP) bits"
 	depends on MTD_CFI_ADV_OPTIONS
-	select HAVE_MTD_OTP
 	default n
 	help
 	  This enables support for reading, writing and locking so called

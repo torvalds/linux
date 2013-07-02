@@ -641,7 +641,7 @@ static int mt9m111_g_register(struct v4l2_subdev *sd,
 }
 
 static int mt9m111_s_register(struct v4l2_subdev *sd,
-			      struct v4l2_dbg_register *reg)
+			      const struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
@@ -701,11 +701,11 @@ static int mt9m111_set_global_gain(struct mt9m111 *mt9m111, int gain)
 	return reg_write(GLOBAL_GAIN, val);
 }
 
-static int mt9m111_set_autoexposure(struct mt9m111 *mt9m111, int on)
+static int mt9m111_set_autoexposure(struct mt9m111 *mt9m111, int val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9m111->subdev);
 
-	if (on)
+	if (val == V4L2_EXPOSURE_AUTO)
 		return reg_set(OPER_MODE_CTRL, MT9M111_OPMODE_AUTOEXPO_EN);
 	return reg_clear(OPER_MODE_CTRL, MT9M111_OPMODE_AUTOEXPO_EN);
 }
@@ -785,8 +785,6 @@ static int mt9m111_init(struct mt9m111 *mt9m111)
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9m111->subdev);
 	int ret;
 
-	/* Default HIGHPOWER context */
-	mt9m111->ctx = &context_b;
 	ret = mt9m111_enable(mt9m111);
 	if (!ret)
 		ret = mt9m111_reset(mt9m111);
@@ -974,6 +972,9 @@ static int mt9m111_probe(struct i2c_client *client,
 	mt9m111 = devm_kzalloc(&client->dev, sizeof(struct mt9m111), GFP_KERNEL);
 	if (!mt9m111)
 		return -ENOMEM;
+
+	/* Default HIGHPOWER context */
+	mt9m111->ctx = &context_b;
 
 	v4l2_i2c_subdev_init(&mt9m111->subdev, client, &mt9m111_subdev_ops);
 	v4l2_ctrl_handler_init(&mt9m111->hdl, 5);

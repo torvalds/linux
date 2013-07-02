@@ -92,7 +92,7 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 				      (FILE_BASIC_INFO *)data);
 		break;
 	default:
-		cERROR(1, "Invalid command");
+		cifs_dbg(VFS, "Invalid command\n");
 		break;
 	}
 

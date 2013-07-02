@@ -25,6 +25,12 @@
 
 static DEFINE_MUTEX(devcgroup_mutex);
 
+enum devcg_behavior {
+	DEVCG_DEFAULT_NONE,
+	DEVCG_DEFAULT_ALLOW,
+	DEVCG_DEFAULT_DENY,
+};
+
 /*
  * exception list locking rules:
  * hold devcgroup_mutex for update/read.
@@ -42,10 +48,9 @@ struct dev_exception_item {
 struct dev_cgroup {
 	struct cgroup_subsys_state css;
 	struct list_head exceptions;
-	enum {
-		DEVCG_DEFAULT_ALLOW,
-		DEVCG_DEFAULT_DENY,
-	} behavior;
+	enum devcg_behavior behavior;
+	/* temporary list for pending propagation operations */
+	struct list_head propagate_pending;
 };
 
 static inline struct dev_cgroup *css_to_devcgroup(struct cgroup_subsys_state *s)
@@ -182,35 +187,62 @@ static void dev_exception_clean(struct dev_cgroup *dev_cgroup)
 	__dev_exception_clean(dev_cgroup);
 }
 
+static inline bool is_devcg_online(const struct dev_cgroup *devcg)
+{
+	return (devcg->behavior != DEVCG_DEFAULT_NONE);
+}
+
+/**
+ * devcgroup_online - initializes devcgroup's behavior and exceptions based on
+ * 		      parent's
+ * @cgroup: cgroup getting online
+ * returns 0 in case of success, error code otherwise
+ */
+static int devcgroup_online(struct cgroup *cgroup)
+{
+	struct dev_cgroup *dev_cgroup, *parent_dev_cgroup = NULL;
+	int ret = 0;
+
+	mutex_lock(&devcgroup_mutex);
+	dev_cgroup = cgroup_to_devcgroup(cgroup);
+	if (cgroup->parent)
+		parent_dev_cgroup = cgroup_to_devcgroup(cgroup->parent);
+
+	if (parent_dev_cgroup == NULL)
+		dev_cgroup->behavior = DEVCG_DEFAULT_ALLOW;
+	else {
+		ret = dev_exceptions_copy(&dev_cgroup->exceptions,
+					  &parent_dev_cgroup->exceptions);
+		if (!ret)
+			dev_cgroup->behavior = parent_dev_cgroup->behavior;
+	}
+	mutex_unlock(&devcgroup_mutex);
+
+	return ret;
+}
+
+static void devcgroup_offline(struct cgroup *cgroup)
+{
+	struct dev_cgroup *dev_cgroup = cgroup_to_devcgroup(cgroup);
+
+	mutex_lock(&devcgroup_mutex);
+	dev_cgroup->behavior = DEVCG_DEFAULT_NONE;
+	mutex_unlock(&devcgroup_mutex);
+}
+
 /*
  * called from kernel/cgroup.c with cgroup_lock() held.
  */
 static struct cgroup_subsys_state *devcgroup_css_alloc(struct cgroup *cgroup)
 {
-	struct dev_cgroup *dev_cgroup, *parent_dev_cgroup;
-	struct cgroup *parent_cgroup;
-	int ret;
+	struct dev_cgroup *dev_cgroup;
 
 	dev_cgroup = kzalloc(sizeof(*dev_cgroup), GFP_KERNEL);
 	if (!dev_cgroup)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&dev_cgroup->exceptions);
-	parent_cgroup = cgroup->parent;
-
-	if (parent_cgroup == NULL)
-		dev_cgroup->behavior = DEVCG_DEFAULT_ALLOW;
-	else {
-		parent_dev_cgroup = cgroup_to_devcgroup(parent_cgroup);
-		mutex_lock(&devcgroup_mutex);
-		ret = dev_exceptions_copy(&dev_cgroup->exceptions,
-					  &parent_dev_cgroup->exceptions);
-		dev_cgroup->behavior = parent_dev_cgroup->behavior;
-		mutex_unlock(&devcgroup_mutex);
-		if (ret) {
-			kfree(dev_cgroup);
-			return ERR_PTR(ret);
-		}
-	}
+	INIT_LIST_HEAD(&dev_cgroup->propagate_pending);
+	dev_cgroup->behavior = DEVCG_DEFAULT_NONE;
 
 	return &dev_cgroup->css;
 }
@@ -304,9 +336,11 @@ static int devcgroup_seq_read(struct cgroup *cgroup, struct cftype *cft,
  *		verify if a certain access is allowed.
  * @dev_cgroup: dev cgroup to be tested against
  * @refex: new exception
+ * @behavior: behavior of the exception
  */
-static int may_access(struct dev_cgroup *dev_cgroup,
-		      struct dev_exception_item *refex)
+static bool may_access(struct dev_cgroup *dev_cgroup,
+		       struct dev_exception_item *refex,
+		       enum devcg_behavior behavior)
 {
 	struct dev_exception_item *ex;
 	bool match = false;
@@ -330,18 +364,29 @@ static int may_access(struct dev_cgroup *dev_cgroup,
 		break;
 	}
 
-	/*
-	 * In two cases we'll consider this new exception valid:
-	 * - the dev cgroup has its default policy to allow + exception list:
-	 *   the new exception should *not* match any of the exceptions
-	 *   (behavior == DEVCG_DEFAULT_ALLOW, !match)
-	 * - the dev cgroup has its default policy to deny + exception list:
-	 *   the new exception *should* match the exceptions
-	 *   (behavior == DEVCG_DEFAULT_DENY, match)
-	 */
-	if ((dev_cgroup->behavior == DEVCG_DEFAULT_DENY) == match)
-		return 1;
-	return 0;
+	if (dev_cgroup->behavior == DEVCG_DEFAULT_ALLOW) {
+		if (behavior == DEVCG_DEFAULT_ALLOW) {
+			/* the exception will deny access to certain devices */
+			return true;
+		} else {
+			/* the exception will allow access to certain devices */
+			if (match)
+				/*
+				 * a new exception allowing access shouldn't
+				 * match an parent's exception
+				 */
+				return false;
+			return true;
+		}
+	} else {
+		/* only behavior == DEVCG_DEFAULT_DENY allowed here */
+		if (match)
+			/* parent has an exception that matches the proposed */
+			return true;
+		else
+			return false;
+	}
+	return false;
 }
 
 /*
@@ -358,7 +403,7 @@ static int parent_has_perm(struct dev_cgroup *childcg,
 	if (!pcg)
 		return 1;
 	parent = cgroup_to_devcgroup(pcg);
-	return may_access(parent, ex);
+	return may_access(parent, ex, childcg->behavior);
 }
 
 /**
@@ -372,6 +417,111 @@ static inline int may_allow_all(struct dev_cgroup *parent)
 	if (!parent)
 		return 1;
 	return parent->behavior == DEVCG_DEFAULT_ALLOW;
+}
+
+/**
+ * revalidate_active_exceptions - walks through the active exception list and
+ * 				  revalidates the exceptions based on parent's
+ * 				  behavior and exceptions. The exceptions that
+ * 				  are no longer valid will be removed.
+ * 				  Called with devcgroup_mutex held.
+ * @devcg: cgroup which exceptions will be checked
+ *
+ * This is one of the three key functions for hierarchy implementation.
+ * This function is responsible for re-evaluating all the cgroup's active
+ * exceptions due to a parent's exception change.
+ * Refer to Documentation/cgroups/devices.txt for more details.
+ */
+static void revalidate_active_exceptions(struct dev_cgroup *devcg)
+{
+	struct dev_exception_item *ex;
+	struct list_head *this, *tmp;
+
+	list_for_each_safe(this, tmp, &devcg->exceptions) {
+		ex = container_of(this, struct dev_exception_item, list);
+		if (!parent_has_perm(devcg, ex))
+			dev_exception_rm(devcg, ex);
+	}
+}
+
+/**
+ * get_online_devcg - walks the cgroup tree and fills a list with the online
+ * 		      groups
+ * @root: cgroup used as starting point
+ * @online: list that will be filled with online groups
+ *
+ * Must be called with devcgroup_mutex held. Grabs RCU lock.
+ * Because devcgroup_mutex is held, no devcg will become online or offline
+ * during the tree walk (see devcgroup_online, devcgroup_offline)
+ * A separated list is needed because propagate_behavior() and
+ * propagate_exception() need to allocate memory and can block.
+ */
+static void get_online_devcg(struct cgroup *root, struct list_head *online)
+{
+	struct cgroup *pos;
+	struct dev_cgroup *devcg;
+
+	lockdep_assert_held(&devcgroup_mutex);
+
+	rcu_read_lock();
+	cgroup_for_each_descendant_pre(pos, root) {
+		devcg = cgroup_to_devcgroup(pos);
+		if (is_devcg_online(devcg))
+			list_add_tail(&devcg->propagate_pending, online);
+	}
+	rcu_read_unlock();
+}
+
+/**
+ * propagate_exception - propagates a new exception to the children
+ * @devcg_root: device cgroup that added a new exception
+ * @ex: new exception to be propagated
+ *
+ * returns: 0 in case of success, != 0 in case of error
+ */
+static int propagate_exception(struct dev_cgroup *devcg_root,
+			       struct dev_exception_item *ex)
+{
+	struct cgroup *root = devcg_root->css.cgroup;
+	struct dev_cgroup *devcg, *parent, *tmp;
+	int rc = 0;
+	LIST_HEAD(pending);
+
+	get_online_devcg(root, &pending);
+
+	list_for_each_entry_safe(devcg, tmp, &pending, propagate_pending) {
+		parent = cgroup_to_devcgroup(devcg->css.cgroup->parent);
+
+		/*
+		 * in case both root's behavior and devcg is allow, a new
+		 * restriction means adding to the exception list
+		 */
+		if (devcg_root->behavior == DEVCG_DEFAULT_ALLOW &&
+		    devcg->behavior == DEVCG_DEFAULT_ALLOW) {
+			rc = dev_exception_add(devcg, ex);
+			if (rc)
+				break;
+		} else {
+			/*
+			 * in the other possible cases:
+			 * root's behavior: allow, devcg's: deny
+			 * root's behavior: deny, devcg's: deny
+			 * the exception will be removed
+			 */
+			dev_exception_rm(devcg, ex);
+		}
+		revalidate_active_exceptions(devcg);
+
+		list_del_init(&devcg->propagate_pending);
+	}
+	return rc;
+}
+
+static inline bool has_children(struct dev_cgroup *devcgroup)
+{
+	struct cgroup *cgrp = devcgroup->css.cgroup;
+
+	return !list_empty(&cgrp->children);
 }
 
 /*
@@ -392,7 +542,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 {
 	const char *b;
 	char temp[12];		/* 11 + 1 characters needed for a u32 */
-	int count, rc;
+	int count, rc = 0;
 	struct dev_exception_item ex;
 	struct cgroup *p = devcgroup->css.cgroup;
 	struct dev_cgroup *parent = NULL;
@@ -410,6 +560,9 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	case 'a':
 		switch (filetype) {
 		case DEVCG_ALLOW:
+			if (has_children(devcgroup))
+				return -EINVAL;
+
 			if (!may_allow_all(parent))
 				return -EPERM;
 			dev_exception_clean(devcgroup);
@@ -423,6 +576,9 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 				return rc;
 			break;
 		case DEVCG_DENY:
+			if (has_children(devcgroup))
+				return -EINVAL;
+
 			dev_exception_clean(devcgroup);
 			devcgroup->behavior = DEVCG_DEFAULT_DENY;
 			break;
@@ -517,22 +673,28 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 			dev_exception_rm(devcgroup, &ex);
 			return 0;
 		}
-		return dev_exception_add(devcgroup, &ex);
+		rc = dev_exception_add(devcgroup, &ex);
+		break;
 	case DEVCG_DENY:
 		/*
 		 * If the default policy is to deny by default, try to remove
 		 * an matching exception instead. And be silent about it: we
 		 * don't want to break compatibility
 		 */
-		if (devcgroup->behavior == DEVCG_DEFAULT_DENY) {
+		if (devcgroup->behavior == DEVCG_DEFAULT_DENY)
 			dev_exception_rm(devcgroup, &ex);
-			return 0;
-		}
-		return dev_exception_add(devcgroup, &ex);
+		else
+			rc = dev_exception_add(devcgroup, &ex);
+
+		if (rc)
+			break;
+		/* we only propagate new restrictions */
+		rc = propagate_exception(devcgroup, &ex);
+		break;
 	default:
-		return -EINVAL;
+		rc = -EINVAL;
 	}
-	return 0;
+	return rc;
 }
 
 static int devcgroup_access_write(struct cgroup *cgrp, struct cftype *cft,
@@ -571,17 +733,10 @@ struct cgroup_subsys devices_subsys = {
 	.can_attach = devcgroup_can_attach,
 	.css_alloc = devcgroup_css_alloc,
 	.css_free = devcgroup_css_free,
+	.css_online = devcgroup_online,
+	.css_offline = devcgroup_offline,
 	.subsys_id = devices_subsys_id,
 	.base_cftypes = dev_cgroup_files,
-
-	/*
-	 * While devices cgroup has the rudimentary hierarchy support which
-	 * checks the parent's restriction, it doesn't properly propagates
-	 * config changes in ancestors to their descendents.  A child
-	 * should only be allowed to add more restrictions to the parent's
-	 * configuration.  Fix it and remove the following.
-	 */
-	.broken_hierarchy = true,
 };
 
 /**
@@ -609,7 +764,7 @@ static int __devcgroup_check_permission(short type, u32 major, u32 minor,
 
 	rcu_read_lock();
 	dev_cgroup = task_devcgroup(current);
-	rc = may_access(dev_cgroup, &ex);
+	rc = may_access(dev_cgroup, &ex, dev_cgroup->behavior);
 	rcu_read_unlock();
 
 	if (!rc)

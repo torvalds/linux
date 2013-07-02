@@ -1995,5 +1995,5 @@ vpfe_resizer_cleanup(struct vpfe_resizer_device *vpfe_rsz,
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 5);
 	if (res)
 		release_mem_region(res->start,
-					res->end - res->start + 1);
+					resource_size(res));
 }

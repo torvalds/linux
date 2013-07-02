@@ -44,7 +44,7 @@ Split key generation-----------------------------------------------
 [06] 0x64260028    fifostr: class2 mdsplit-jdk len=40
 			@0xffe04000
 */
-u32 gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
+int gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 		  int split_key_pad_len, const u8 *key_in, u32 keylen,
 		  u32 alg_op)
 {

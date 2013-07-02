@@ -112,10 +112,10 @@ acpi_object_type acpi_ns_get_type(struct acpi_namespace_node * node)
 
 	if (!node) {
 		ACPI_WARNING((AE_INFO, "Null Node parameter"));
-		return_VALUE(ACPI_TYPE_ANY);
+		return_UINT8(ACPI_TYPE_ANY);
 	}
 
-	return_VALUE(node->type);
+	return_UINT8(node->type);
 }
 
 /*******************************************************************************
@@ -140,10 +140,10 @@ u32 acpi_ns_local(acpi_object_type type)
 		/* Type code out of range  */
 
 		ACPI_WARNING((AE_INFO, "Invalid Object Type 0x%X", type));
-		return_VALUE(ACPI_NS_NORMAL);
+		return_UINT32(ACPI_NS_NORMAL);
 	}
 
-	return_VALUE(acpi_gbl_ns_properties[type] & ACPI_NS_LOCAL);
+	return_UINT32(acpi_gbl_ns_properties[type] & ACPI_NS_LOCAL);
 }
 
 /*******************************************************************************

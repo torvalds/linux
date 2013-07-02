@@ -68,6 +68,7 @@ enum {
 enum {
 	CS421X_CDB4210,
 	CS421X_SENSE_B,
+	CS421X_STUMPY,
 };
 
 /* Vendor-specific processing widget */
@@ -168,10 +169,10 @@ static void cs_automute(struct hda_codec *codec)
 	snd_hda_gen_update_outputs(codec);
 
 	if (spec->gpio_eapd_hp) {
-		unsigned int gpio = spec->gen.hp_jack_present ?
+		spec->gpio_data = spec->gen.hp_jack_present ?
 			spec->gpio_eapd_hp : spec->gpio_eapd_speaker;
 		snd_hda_codec_write(codec, 0x01, 0,
-				    AC_VERB_SET_GPIO_DATA, gpio);
+				    AC_VERB_SET_GPIO_DATA, spec->gpio_data);
 	}
 }
 
@@ -538,6 +539,7 @@ static int patch_cs420x(struct hda_codec *codec)
 /* CS4210 board names */
 static const struct hda_model_fixup cs421x_models[] = {
 	{ .id = CS421X_CDB4210, .name = "cdb4210" },
+	{ .id = CS421X_STUMPY, .name = "stumpy" },
 	{}
 };
 
@@ -556,6 +558,17 @@ static const struct hda_pintbl cdb4210_pincfgs[] = {
 	{ 0x08, 0xb7a70037 },
 	{ 0x09, 0xb7a6003e },
 	{ 0x0a, 0x034510f0 },
+	{} /* terminator */
+};
+
+/* Stumpy ChromeBox */
+static const struct hda_pintbl stumpy_pincfgs[] = {
+	{ 0x05, 0x022120f0 },
+	{ 0x06, 0x901700f0 },
+	{ 0x07, 0x02a120f0 },
+	{ 0x08, 0x77a70037 },
+	{ 0x09, 0x77a6003e },
+	{ 0x0a, 0x434510f0 },
 	{} /* terminator */
 };
 
@@ -578,7 +591,11 @@ static const struct hda_fixup cs421x_fixups[] = {
 	[CS421X_SENSE_B] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cs421x_fixup_sense_b,
-	}
+	},
+	[CS421X_STUMPY] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = stumpy_pincfgs,
+	},
 };
 
 static const struct hda_verb cs421x_coef_init_verbs[] = {

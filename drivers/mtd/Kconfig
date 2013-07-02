@@ -157,19 +157,6 @@ config MTD_BCM47XX_PARTS
 
 comment "User Modules And Translation Layers"
 
-config MTD_CHAR
-	tristate "Direct char device access to MTD devices"
-	help
-	  This provides a character device for each MTD device present in
-	  the system, allowing the user to read and write directly to the
-	  memory chips, and also use ioctl() to obtain information about
-	  the device, or to erase parts of it.
-
-config HAVE_MTD_OTP
-	bool
-	help
-	  Enable access to OTP regions using MTD_CHAR.
-
 config MTD_BLKDEVS
 	tristate "Common interface to block layer for MTD 'translation layers'"
 	depends on BLOCK

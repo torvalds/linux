@@ -246,7 +246,6 @@ static int __exit amikbd_remove(struct platform_device *pdev)
 {
 	struct input_dev *dev = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	free_irq(IRQ_AMIGA_CIAA_SP, dev);
 	input_unregister_device(dev);
 	return 0;

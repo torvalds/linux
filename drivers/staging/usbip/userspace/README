@@ -54,7 +54,7 @@
     client:# usbip list --remote <host>
 	- List exported USB devices on the <host>.
 
-    client:# usbip attach --host <host> --busid 1-2
+    client:# usbip attach --remote <host> --busid 1-2
 	- Connect the remote USB device.
 
     client:# usbip port
@@ -163,7 +163,7 @@ exportable on the host.
 
 Attach a remote USB device:
 
-    deux:# usbip attach --host 10.0.0.3 --busid 1-1
+    deux:# usbip attach --remote 10.0.0.3 --busid 1-1
     port 0 attached
 
 Show the devices attached to this client:

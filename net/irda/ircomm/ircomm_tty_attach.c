@@ -997,12 +997,8 @@ static int ircomm_tty_state_ready(struct ircomm_tty_cb *self,
 			self->settings.dce = IRCOMM_DELTA_CD;
 			ircomm_tty_check_modem_status(self);
 		} else {
-			struct tty_struct *tty = tty_port_tty_get(&self->port);
 			IRDA_DEBUG(0, "%s(), hanging up!\n", __func__ );
-			if (tty) {
-				tty_hangup(tty);
-				tty_kref_put(tty);
-			}
+			tty_port_tty_hangup(&self->port, false);
 		}
 		break;
 	default:

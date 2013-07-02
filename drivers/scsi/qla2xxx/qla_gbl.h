@@ -86,6 +86,7 @@ extern int qla2xxx_mctp_dump(scsi_qla_host_t *);
 
 extern int
 qla2x00_alloc_outstanding_cmds(struct qla_hw_data *, struct req_que *);
+extern int qla2x00_init_rings(scsi_qla_host_t *);
 
 /*
  * Global Data in qla_os.c source file.
@@ -134,7 +135,6 @@ extern int qla2x00_post_async_adisc_work(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_post_async_adisc_done_work(struct scsi_qla_host *,
     fc_port_t *, uint16_t *);
-extern int qla2x00_post_uevent_work(struct scsi_qla_host *, u32);
 
 extern int qla81xx_restart_mpi_firmware(scsi_qla_host_t *);
 
@@ -158,6 +158,7 @@ extern int qla83xx_set_drv_presence(scsi_qla_host_t *vha);
 extern int __qla83xx_set_drv_presence(scsi_qla_host_t *vha);
 extern int qla83xx_clear_drv_presence(scsi_qla_host_t *vha);
 extern int __qla83xx_clear_drv_presence(scsi_qla_host_t *vha);
+extern int qla2x00_post_uevent_work(struct scsi_qla_host *, u32);
 
 /*
  * Global Functions in qla_mid.c source file.
@@ -211,8 +212,6 @@ extern int qla24xx_start_scsi(srb_t *sp);
 int qla2x00_marker(struct scsi_qla_host *, struct req_que *, struct rsp_que *,
 						uint16_t, uint16_t, uint8_t);
 extern int qla2x00_start_sp(srb_t *);
-extern uint16_t qla24xx_calc_iocbs(scsi_qla_host_t *, uint16_t);
-extern void qla24xx_build_scsi_iocbs(srb_t *, struct cmd_type_7 *, uint16_t);
 extern int qla24xx_dif_start_scsi(srb_t *);
 extern int qla2x00_start_bidir(srb_t *, struct scsi_qla_host *, uint32_t);
 extern unsigned long qla2x00_get_async_timeout(struct scsi_qla_host *);
@@ -358,9 +357,6 @@ extern int
 qla2x00_disable_fce_trace(scsi_qla_host_t *, uint64_t *, uint64_t *);
 
 extern int
-qla2x00_set_driver_version(scsi_qla_host_t *, char *);
-
-extern int
 qla2x00_read_sfp(scsi_qla_host_t *, dma_addr_t, uint8_t *,
 	uint16_t, uint16_t, uint16_t, uint16_t);
 
@@ -427,6 +423,12 @@ extern void qla2x00_free_irqs(scsi_qla_host_t *);
 
 extern int qla2x00_get_data_rate(scsi_qla_host_t *);
 extern const char *qla2x00_get_link_speed_str(struct qla_hw_data *, uint16_t);
+extern srb_t *
+qla2x00_get_sp_from_handle(scsi_qla_host_t *, const char *, struct req_que *,
+	void *);
+extern void
+qla2x00_process_completed_request(struct scsi_qla_host *, struct req_que *,
+	uint32_t);
 
 /*
  * Global Function Prototypes in qla_sup.c source file.
@@ -563,6 +565,42 @@ extern void qla24xx_wrt_req_reg(struct qla_hw_data *, uint16_t, uint16_t);
 extern void qla25xx_wrt_req_reg(struct qla_hw_data *, uint16_t, uint16_t);
 extern void qla25xx_wrt_rsp_reg(struct qla_hw_data *, uint16_t, uint16_t);
 extern void qla24xx_wrt_rsp_reg(struct qla_hw_data *, uint16_t, uint16_t);
+
+/* qlafx00 related functions */
+extern int qlafx00_pci_config(struct scsi_qla_host *);
+extern int qlafx00_initialize_adapter(struct scsi_qla_host *);
+extern void qlafx00_soft_reset(scsi_qla_host_t *);
+extern int qlafx00_chip_diag(scsi_qla_host_t *);
+extern void qlafx00_config_rings(struct scsi_qla_host *);
+extern char *qlafx00_pci_info_str(struct scsi_qla_host *, char *);
+extern char *qlafx00_fw_version_str(struct scsi_qla_host *, char *);
+extern irqreturn_t qlafx00_intr_handler(int, void *);
+extern void qlafx00_enable_intrs(struct qla_hw_data *);
+extern void qlafx00_disable_intrs(struct qla_hw_data *);
+extern int qlafx00_abort_command(srb_t *);
+extern int qlafx00_abort_target(fc_port_t *, unsigned int, int);
+extern int qlafx00_lun_reset(fc_port_t *, unsigned int, int);
+extern int qlafx00_start_scsi(srb_t *);
+extern int qlafx00_abort_isp(scsi_qla_host_t *);
+extern int qlafx00_iospace_config(struct qla_hw_data *);
+extern int qlafx00_init_firmware(scsi_qla_host_t *, uint16_t);
+extern int qlafx00_fw_ready(scsi_qla_host_t *);
+extern int qlafx00_configure_devices(scsi_qla_host_t *);
+extern int qlafx00_reset_initialize(scsi_qla_host_t *);
+extern int qlafx00_fx_disc(scsi_qla_host_t *, fc_port_t *, uint8_t);
+extern int qlafx00_process_aen(struct scsi_qla_host *, struct qla_work_evt *);
+extern int qlafx00_post_aenfx_work(struct scsi_qla_host *,  uint32_t,
+				   uint32_t *, int);
+extern uint32_t qlafx00_fw_state_show(struct device *,
+				      struct device_attribute *, char *);
+extern void qlafx00_get_host_speed(struct Scsi_Host *);
+extern void qlafx00_init_response_q_entries(struct rsp_que *);
+
+extern void qlafx00_tm_iocb(srb_t *, struct tsk_mgmt_entry_fx00 *);
+extern void qlafx00_abort_iocb(srb_t *, struct abort_iocb_entry_fx00 *);
+extern void qlafx00_fxdisc_iocb(srb_t *, struct fxdisc_entry_fx00 *);
+extern void qlafx00_timer_routine(scsi_qla_host_t *);
+extern int qlafx00_rescan_isp(scsi_qla_host_t *);
 
 /* qla82xx related functions */
 

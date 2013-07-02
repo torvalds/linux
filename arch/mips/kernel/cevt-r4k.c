@@ -23,7 +23,6 @@
  */
 
 #ifndef CONFIG_MIPS_MT_SMTC
-
 static int mips_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
 {
@@ -49,7 +48,6 @@ DEFINE_PER_CPU(struct clock_event_device, mips_clockevent_device);
 int cp0_timer_irq_installed;
 
 #ifndef CONFIG_MIPS_MT_SMTC
-
 irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 {
 	const int r2 = cpu_has_mips_r2;
@@ -74,6 +72,9 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 		/* Clear Count/Compare Interrupt */
 		write_c0_compare(read_c0_compare());
 		cd = &per_cpu(mips_clockevent_device, cpu);
+#ifdef CONFIG_CEVT_GIC
+		if (!gic_present)
+#endif
 		cd->event_handler(cd);
 	}
 
@@ -117,6 +118,10 @@ int c0_compare_int_usable(void)
 {
 	unsigned int delta;
 	unsigned int cnt;
+
+#ifdef CONFIG_KVM_GUEST
+    return 1;
+#endif
 
 	/*
 	 * IP7 already pending?	 Try to clear it by acking the timer.
@@ -166,7 +171,6 @@ int c0_compare_int_usable(void)
 }
 
 #ifndef CONFIG_MIPS_MT_SMTC
-
 int __cpuinit r4k_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -206,6 +210,9 @@ int __cpuinit r4k_clockevent_init(void)
 	cd->set_mode		= mips_set_clock_mode;
 	cd->event_handler	= mips_event_handler;
 
+#ifdef CONFIG_CEVT_GIC
+	if (!gic_present)
+#endif
 	clockevents_register_device(cd);
 
 	if (cp0_timer_irq_installed)

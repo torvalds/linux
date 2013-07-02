@@ -115,60 +115,6 @@ u16 si_pmu_fast_pwrup_delay(struct si_pub *sih)
 	return (u16) delay;
 }
 
-/* Read/write a chipcontrol reg */
-u32 si_pmu_chipcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
-{
-	ai_cc_reg(sih, offsetof(struct chipcregs, chipcontrol_addr), ~0, reg);
-	return ai_cc_reg(sih, offsetof(struct chipcregs, chipcontrol_data),
-			 mask, val);
-}
-
-/* Read/write a regcontrol reg */
-u32 si_pmu_regcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
-{
-	ai_cc_reg(sih, offsetof(struct chipcregs, regcontrol_addr), ~0, reg);
-	return ai_cc_reg(sih, offsetof(struct chipcregs, regcontrol_data),
-			 mask, val);
-}
-
-/* Read/write a pllcontrol reg */
-u32 si_pmu_pllcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
-{
-	ai_cc_reg(sih, offsetof(struct chipcregs, pllcontrol_addr), ~0, reg);
-	return ai_cc_reg(sih, offsetof(struct chipcregs, pllcontrol_data),
-			 mask, val);
-}
-
-/* PMU PLL update */
-void si_pmu_pllupd(struct si_pub *sih)
-{
-	ai_cc_reg(sih, offsetof(struct chipcregs, pmucontrol),
-		  PCTL_PLL_PLLCTL_UPD, PCTL_PLL_PLLCTL_UPD);
-}
-
-/* query alp/xtal clock frequency */
-u32 si_pmu_alp_clock(struct si_pub *sih)
-{
-	u32 clock = ALP_CLOCK;
-
-	/* bail out with default */
-	if (!(ai_get_cccaps(sih) & CC_CAP_PMU))
-		return clock;
-
-	switch (ai_get_chip_id(sih)) {
-	case BCMA_CHIP_ID_BCM43224:
-	case BCMA_CHIP_ID_BCM43225:
-	case BCMA_CHIP_ID_BCM4313:
-		/* always 20Mhz */
-		clock = 20000 * 1000;
-		break;
-	default:
-		break;
-	}
-
-	return clock;
-}
-
 u32 si_pmu_measure_alpclk(struct si_pub *sih)
 {
 	struct si_info *sii = container_of(sih, struct si_info, pub);

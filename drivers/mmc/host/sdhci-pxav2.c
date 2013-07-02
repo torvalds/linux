@@ -111,7 +111,7 @@ static int pxav2_mmc_set_width(struct sdhci_host *host, int width)
 	return 0;
 }
 
-static struct sdhci_ops pxav2_sdhci_ops = {
+static const struct sdhci_ops pxav2_sdhci_ops = {
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.platform_reset_exit = pxav2_set_private_registers,
 	.platform_bus_width = pxav2_mmc_set_width,

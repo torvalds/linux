@@ -29,10 +29,6 @@
 #ifndef __IOCMD_H__
 #define __IOCMD_H__
 
-#include "ttype.h"
-
-/*---------------------  Export Definitions -------------------------*/
-
 // ioctl Command code
 #define MAGIC_CODE	                 0x3142
 #define IOCTL_CMD_TEST	            (SIOCDEVPRIVATE + 0)
@@ -181,13 +177,11 @@ typedef struct tagSBSSIDItem {
 
 } __packed SBSSIDItem;
 
-
 typedef struct tagSBSSIDList {
 
 	u32		    uItem;
 	SBSSIDItem	sBSSIDList[0];
 } __packed SBSSIDList, *PSBSSIDList;
-
 
 typedef struct tagSNodeItem {
     // STA info
@@ -209,14 +203,12 @@ typedef struct tagSNodeItem {
 
 } __packed SNodeItem;
 
-
 typedef struct tagSNodeList {
 
 	u32		    uItem;
 	SNodeItem	sNodeList[0];
 
 } __packed SNodeList, *PSNodeList;
-
 
 typedef struct tagSCmdLinkStatus {
 
@@ -247,8 +239,6 @@ typedef struct tagSDot11MIBCount {
     u32 MulticastReceivedFrameCount;
     u32 FCSErrorCount;
 } __packed SDot11MIBCount, *PSDot11MIBCount;
-
-
 
 //
 // statistic counter
@@ -431,13 +421,5 @@ struct viawget_hostapd_param {
 		} scan_req;
 	} u;
 } __packed;
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Types  ------------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 #endif /* __IOCMD_H__ */

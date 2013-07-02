@@ -239,6 +239,9 @@ nouveau_backlight_init(struct drm_device *dev)
 		case NV_40:
 			return nv40_backlight_init(connector);
 		case NV_50:
+		case NV_C0:
+		case NV_D0:
+		case NV_E0:
 			return nv50_backlight_init(connector);
 		default:
 			break;

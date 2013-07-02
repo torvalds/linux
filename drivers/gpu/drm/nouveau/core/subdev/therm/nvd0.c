@@ -135,7 +135,7 @@ nvd0_therm_ctor(struct nouveau_object *parent,
 	priv->base.base.pwm_get = nvd0_fan_pwm_get;
 	priv->base.base.pwm_set = nvd0_fan_pwm_set;
 	priv->base.base.pwm_clock = nvd0_fan_pwm_clock;
-	priv->base.base.temp_get = nv50_temp_get;
+	priv->base.base.temp_get = nv84_temp_get;
 	priv->base.base.fan_sense = nva3_therm_fan_sense;
 	priv->base.sensor.program_alarms = nouveau_therm_program_alarms_polling;
 	return nouveau_therm_preinit(&priv->base.base);

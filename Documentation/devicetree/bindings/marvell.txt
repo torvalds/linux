@@ -115,6 +115,9 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
      - compatible : "marvell,mv64360-eth-block"
      - reg : Offset and length of the register set for this block
 
+   Optional properties:
+     - clocks : Phandle to the clock control device and gate bit
+
    Example Discovery Ethernet block node:
      ethernet-block@2000 {
 	     #address-cells = <1>;

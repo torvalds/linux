@@ -14,7 +14,6 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 
-#include <plat/s3c2416.h>
 #include <plat/clock.h>
 #include <plat/clock-clksrc.h>
 #include <plat/cpu.h>

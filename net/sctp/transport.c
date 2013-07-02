@@ -123,7 +123,6 @@ struct sctp_transport *sctp_transport_new(struct net *net,
 	if (!sctp_transport_init(net, transport, addr, gfp))
 		goto fail_init;
 
-	transport->malloced = 1;
 	SCTP_DBG_OBJCNT_INC(transport);
 
 	return transport;

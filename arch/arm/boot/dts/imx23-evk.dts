@@ -59,8 +59,33 @@
 			lcdif@80030000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_24bit_pins_a>;
-				panel-enable-gpios = <&gpio1 18 0>;
+				lcd-supply = <&reg_lcd_3v3>;
+				display = <&display>;
 				status = "okay";
+
+				display: display {
+					bits-per-pixel = <32>;
+					bus-width = <24>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: timing0 {
+							clock-frequency = <9200000>;
+							hactive = <480>;
+							vactive = <272>;
+							hback-porch = <15>;
+							hfront-porch = <8>;
+							vback-porch = <12>;
+							vfront-porch = <4>;
+							hsync-len = <1>;
+							vsync-len = <1>;
+							hsync-active = <0>;
+							vsync-active = <0>;
+							de-active = <1>;
+							pixelclk-active = <0>;
+						};
+					};
+				};
 			};
 		};
 
@@ -94,6 +119,15 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio1 29 0>;
+		};
+
+		reg_lcd_3v3: lcd-3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "lcd-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio1 18 0>;
+			enable-active-high;
 		};
 	};
 

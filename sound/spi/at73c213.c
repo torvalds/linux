@@ -1075,10 +1075,11 @@ out:
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int snd_at73c213_suspend(struct spi_device *spi, pm_message_t msg)
+#ifdef CONFIG_PM_SLEEP
+
+static int snd_at73c213_suspend(struct device *dev)
 {
-	struct snd_card *card = dev_get_drvdata(&spi->dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_at73c213 *chip = card->private_data;
 
 	ssc_writel(chip->ssc->regs, CR, SSC_BIT(CR_TXDIS));
@@ -1087,9 +1088,9 @@ static int snd_at73c213_suspend(struct spi_device *spi, pm_message_t msg)
 	return 0;
 }
 
-static int snd_at73c213_resume(struct spi_device *spi)
+static int snd_at73c213_resume(struct device *dev)
 {
-	struct snd_card *card = dev_get_drvdata(&spi->dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_at73c213 *chip = card->private_data;
 
 	clk_enable(chip->board->dac_clk);
@@ -1097,18 +1098,21 @@ static int snd_at73c213_resume(struct spi_device *spi)
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(at73c213_pm_ops, snd_at73c213_suspend,
+		snd_at73c213_resume);
+#define AT73C213_PM_OPS (&at73c213_pm_ops)
+
 #else
-#define snd_at73c213_suspend NULL
-#define snd_at73c213_resume NULL
+#define AT73C213_PM_OPS NULL
 #endif
 
 static struct spi_driver at73c213_driver = {
 	.driver		= {
 		.name	= "at73c213",
+		.pm	= AT73C213_PM_OPS,
 	},
 	.probe		= snd_at73c213_probe,
-	.suspend	= snd_at73c213_suspend,
-	.resume		= snd_at73c213_resume,
 	.remove		= snd_at73c213_remove,
 };
 

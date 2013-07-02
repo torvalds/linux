@@ -295,7 +295,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 	}
 	if (bd) {
 		spin_lock(&sdp->sd_ail_lock);
-		if (bd->bd_ail) {
+		if (bd->bd_tr) {
 			gfs2_remove_from_ail(bd);
 			bh->b_private = NULL;
 			bd->bd_bh = NULL;

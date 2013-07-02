@@ -17,6 +17,7 @@
 #include <xen/events.h>
 #include <asm/xen/pci.h>
 #include <asm/xen/hypervisor.h>
+#include <xen/interface/physdev.h>
 #include "pciback.h"
 #include "conf_space.h"
 #include "conf_space_quirks.h"
@@ -85,37 +86,52 @@ static struct pcistub_device *pcistub_device_alloc(struct pci_dev *dev)
 static void pcistub_device_release(struct kref *kref)
 {
 	struct pcistub_device *psdev;
+	struct pci_dev *dev;
 	struct xen_pcibk_dev_data *dev_data;
 
 	psdev = container_of(kref, struct pcistub_device, kref);
-	dev_data = pci_get_drvdata(psdev->dev);
+	dev = psdev->dev;
+	dev_data = pci_get_drvdata(dev);
 
-	dev_dbg(&psdev->dev->dev, "pcistub_device_release\n");
+	dev_dbg(&dev->dev, "pcistub_device_release\n");
 
-	xen_unregister_device_domain_owner(psdev->dev);
+	xen_unregister_device_domain_owner(dev);
 
 	/* Call the reset function which does not take lock as this
 	 * is called from "unbind" which takes a device_lock mutex.
 	 */
-	__pci_reset_function_locked(psdev->dev);
-	if (pci_load_and_free_saved_state(psdev->dev,
-					  &dev_data->pci_saved_state)) {
-		dev_dbg(&psdev->dev->dev, "Could not reload PCI state\n");
-	} else
-		pci_restore_state(psdev->dev);
+	__pci_reset_function_locked(dev);
+	if (pci_load_and_free_saved_state(dev, &dev_data->pci_saved_state))
+		dev_dbg(&dev->dev, "Could not reload PCI state\n");
+	else
+		pci_restore_state(dev);
+
+	if (dev->msix_cap) {
+		struct physdev_pci_device ppdev = {
+			.seg = pci_domain_nr(dev->bus),
+			.bus = dev->bus->number,
+			.devfn = dev->devfn
+		};
+		int err = HYPERVISOR_physdev_op(PHYSDEVOP_release_msix,
+						&ppdev);
+
+		if (err)
+			dev_warn(&dev->dev, "MSI-X release failed (%d)\n",
+				 err);
+	}
 
 	/* Disable the device */
-	xen_pcibk_reset_device(psdev->dev);
+	xen_pcibk_reset_device(dev);
 
 	kfree(dev_data);
-	pci_set_drvdata(psdev->dev, NULL);
+	pci_set_drvdata(dev, NULL);
 
 	/* Clean-up the device */
-	xen_pcibk_config_free_dyn_fields(psdev->dev);
-	xen_pcibk_config_free_dev(psdev->dev);
+	xen_pcibk_config_free_dyn_fields(dev);
+	xen_pcibk_config_free_dev(dev);
 
-	psdev->dev->dev_flags &= ~PCI_DEV_FLAGS_ASSIGNED;
-	pci_dev_put(psdev->dev);
+	dev->dev_flags &= ~PCI_DEV_FLAGS_ASSIGNED;
+	pci_dev_put(dev);
 
 	kfree(psdev);
 }
@@ -354,6 +370,19 @@ static int pcistub_init_device(struct pci_dev *dev)
 	err = pci_enable_device(dev);
 	if (err)
 		goto config_release;
+
+	if (dev->msix_cap) {
+		struct physdev_pci_device ppdev = {
+			.seg = pci_domain_nr(dev->bus),
+			.bus = dev->bus->number,
+			.devfn = dev->devfn
+		};
+
+		err = HYPERVISOR_physdev_op(PHYSDEVOP_prepare_msix, &ppdev);
+		if (err)
+			dev_err(&dev->dev, "MSI-X preparation failed (%d)\n",
+				err);
+	}
 
 	/* We need the device active to save the state. */
 	dev_dbg(&dev->dev, "save state of device\n");

@@ -9,12 +9,17 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
+#include <linux/module.h>
 #include <linux/export.h>
 #include <linux/oid_registry.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/bug.h>
 #include "oid_registry_data.c"
+
+MODULE_DESCRIPTION("OID Registry");
+MODULE_AUTHOR("Red Hat, Inc.");
+MODULE_LICENSE("GPL");
 
 /**
  * look_up_OID - Find an OID registration for the specified data

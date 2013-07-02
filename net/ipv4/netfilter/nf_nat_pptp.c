@@ -13,6 +13,8 @@
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  *
+ * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
+ *
  * TODO: - NAT to a unique tuple, not to TCP source port
  * 	   (needs netfilter tuple reservation)
  */

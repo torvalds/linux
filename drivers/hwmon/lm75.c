@@ -38,6 +38,7 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 	adt75,
 	ds1775,
 	ds75,
+	ds7505,
 	lm75,
 	lm75a,
 	max6625,
@@ -71,9 +72,12 @@ struct lm75_data {
 	struct device		*hwmon_dev;
 	struct mutex		update_lock;
 	u8			orig_conf;
+	u8			resolution;	/* In bits, between 9 and 12 */
+	u8			resolution_limits;
 	char			valid;		/* !=0 if registers are valid */
 	unsigned long		last_updated;	/* In jiffies */
-	u16			temp[3];	/* Register values,
+	unsigned long		sample_time;	/* In jiffies */
+	s16			temp[3];	/* Register values,
 						   0 = input
 						   1 = max
 						   2 = hyst */
@@ -93,12 +97,15 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *da,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct lm75_data *data = lm75_update_device(dev);
+	long temp;
 
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n",
-		       LM75_TEMP_FROM_REG(data->temp[attr->index]));
+	temp = ((data->temp[attr->index] >> (16 - data->resolution)) * 1000)
+	       >> (data->resolution - 8);
+
+	return sprintf(buf, "%ld\n", temp);
 }
 
 static ssize_t set_temp(struct device *dev, struct device_attribute *da,
@@ -110,13 +117,25 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 	int nr = attr->index;
 	long temp;
 	int error;
+	u8 resolution;
 
 	error = kstrtol(buf, 10, &temp);
 	if (error)
 		return error;
 
+	/*
+	 * Resolution of limit registers is assumed to be the same as the
+	 * temperature input register resolution unless given explicitly.
+	 */
+	if (attr->index && data->resolution_limits)
+		resolution = data->resolution_limits;
+	else
+		resolution = data->resolution;
+
 	mutex_lock(&data->update_lock);
-	data->temp[nr] = LM75_TEMP_TO_REG(temp);
+	temp = clamp_val(temp, LM75_TEMP_MIN, LM75_TEMP_MAX);
+	data->temp[nr] = DIV_ROUND_CLOSEST(temp  << (resolution - 8),
+					   1000) << (16 - resolution);
 	lm75_write_value(client, LM75_REG_TEMP[nr], data->temp[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -151,6 +170,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int status;
 	u8 set_mask, clr_mask;
 	int new;
+	enum lm75_type kind = id->driver_data;
 
 	if (!i2c_check_functionality(client->adapter,
 			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
@@ -167,8 +187,65 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 * Then tweak to be more precise when appropriate.
 	 */
 	set_mask = 0;
-	clr_mask = (1 << 0)			/* continuous conversions */
-		| (1 << 6) | (1 << 5);		/* 9-bit mode */
+	clr_mask = LM75_SHUTDOWN;		/* continuous conversions */
+
+	switch (kind) {
+	case adt75:
+		clr_mask |= 1 << 5;		/* not one-shot mode */
+		data->resolution = 12;
+		data->sample_time = HZ / 8;
+		break;
+	case ds1775:
+	case ds75:
+	case stds75:
+		clr_mask |= 3 << 5;
+		set_mask |= 2 << 5;		/* 11-bit mode */
+		data->resolution = 11;
+		data->sample_time = HZ;
+		break;
+	case ds7505:
+		set_mask |= 3 << 5;		/* 12-bit mode */
+		data->resolution = 12;
+		data->sample_time = HZ / 4;
+		break;
+	case lm75:
+	case lm75a:
+		data->resolution = 9;
+		data->sample_time = HZ / 2;
+		break;
+	case max6625:
+		data->resolution = 9;
+		data->sample_time = HZ / 4;
+		break;
+	case max6626:
+		data->resolution = 12;
+		data->resolution_limits = 9;
+		data->sample_time = HZ / 4;
+		break;
+	case tcn75:
+		data->resolution = 9;
+		data->sample_time = HZ / 8;
+		break;
+	case mcp980x:
+		data->resolution_limits = 9;
+		/* fall through */
+	case tmp100:
+	case tmp101:
+		set_mask |= 3 << 5;		/* 12-bit mode */
+		data->resolution = 12;
+		data->sample_time = HZ;
+		clr_mask |= 1 << 7;		/* not one-shot mode */
+		break;
+	case tmp105:
+	case tmp175:
+	case tmp275:
+	case tmp75:
+		set_mask |= 3 << 5;		/* 12-bit mode */
+		clr_mask |= 1 << 7;		/* not one-shot mode */
+		data->resolution = 12;
+		data->sample_time = HZ / 2;
+		break;
+	}
 
 	/* configure as specified */
 	status = lm75_read_value(client, LM75_REG_CONF);
@@ -218,6 +295,7 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ "adt75", adt75, },
 	{ "ds1775", ds1775, },
 	{ "ds75", ds75, },
+	{ "ds7505", ds7505, },
 	{ "lm75", lm75, },
 	{ "lm75a", lm75a, },
 	{ "max6625", max6625, },
@@ -407,7 +485,7 @@ static struct lm75_data *lm75_update_device(struct device *dev)
 
 	mutex_lock(&data->update_lock);
 
-	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
+	if (time_after(jiffies, data->last_updated + data->sample_time)
 	    || !data->valid) {
 		int i;
 		dev_dbg(&client->dev, "Starting lm75 update\n");

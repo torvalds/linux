@@ -667,6 +667,7 @@ enum sock_flags {
 		     * user-space instead.
 		     */
 	SOCK_FILTER_LOCKED, /* Filter cannot be changed anymore */
+	SOCK_SELECT_ERR_QUEUE, /* Wake select on error queue */
 };
 
 static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
@@ -864,6 +865,18 @@ struct timewait_sock_ops;
 struct inet_hashinfo;
 struct raw_hashinfo;
 struct module;
+
+/*
+ * caches using SLAB_DESTROY_BY_RCU should let .next pointer from nulls nodes
+ * un-modified. Special care is taken when initializing object to zero.
+ */
+static inline void sk_prot_clear_nulls(struct sock *sk, int size)
+{
+	if (offsetof(struct sock, sk_node.next) != 0)
+		memset(sk, 0, offsetof(struct sock, sk_node.next));
+	memset(&sk->sk_node.pprev, 0,
+	       size - offsetof(struct sock, sk_node.pprev));
+}
 
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
@@ -2158,10 +2171,9 @@ static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
  * @sk:		socket sending this packet
  * @tx_flags:	filled with instructions for time stamping
  *
- * Currently only depends on SOCK_TIMESTAMPING* flags. Returns error code if
- * parameters are invalid.
+ * Currently only depends on SOCK_TIMESTAMPING* flags.
  */
-extern int sock_tx_timestamp(struct sock *sk, __u8 *tx_flags);
+extern void sock_tx_timestamp(struct sock *sk, __u8 *tx_flags);
 
 /**
  * sk_eat_skb - Release a skb if it is no longer needed

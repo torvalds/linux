@@ -36,6 +36,7 @@ static inline void * phys_to_virt(unsigned long address)
 }
 
 void *xlate_dev_mem_ptr(unsigned long phys);
+#define xlate_dev_mem_ptr xlate_dev_mem_ptr
 void unxlate_dev_mem_ptr(unsigned long phys, void *addr);
 
 /*
@@ -49,10 +50,6 @@ void unxlate_dev_mem_ptr(unsigned long phys, void *addr);
 
 #define ioremap_nocache(addr, size)	ioremap(addr, size)
 #define ioremap_wc			ioremap_nocache
-
-/* TODO: s390 cannot support io_remap_pfn_range... */
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot) 	       \
-	remap_pfn_range(vma, vaddr, pfn, size, prot)
 
 static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {

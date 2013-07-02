@@ -92,7 +92,7 @@ static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations kvm_spapr_tce_fops = {
+static const struct file_operations kvm_spapr_tce_fops = {
 	.mmap           = kvm_spapr_tce_mmap,
 	.release	= kvm_spapr_tce_release,
 };

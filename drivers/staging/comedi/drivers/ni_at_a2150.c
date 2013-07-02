@@ -154,11 +154,6 @@ static const struct a2150_board a2150_boards[] = {
 	 },
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct a2150_board *)dev->board_ptr)
-
 struct a2150_private {
 
 	volatile unsigned int count;	/* number of data points left to be taken */
@@ -204,7 +199,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	short dpnt;
 	static const int sample_size = sizeof(devpriv->dma_buffer[0]);
 
-	if (dev->attached == 0) {
+	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
 		return IRQ_HANDLED;
 	}
@@ -319,6 +314,7 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static int a2150_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	const struct a2150_board *thisboard = comedi_board(dev);
 	int err = 0;
 	int tmp;
 	int startChan;
@@ -604,6 +600,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			    int flags)
 {
+	const struct a2150_board *thisboard = comedi_board(dev);
 	struct a2150_private *devpriv = dev->private;
 	int lub, glb, temp;
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
@@ -719,45 +716,23 @@ static int a2150_probe(struct comedi_device *dev)
 
 static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct a2150_board *thisboard = comedi_board(dev);
 	struct a2150_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase = it->options[0];
 	unsigned int irq = it->options[1];
 	unsigned int dma = it->options[2];
 	static const int timeout = 2000;
 	int i;
 	int ret;
 
-	printk("comedi%d: %s: io 0x%lx", dev->minor, dev->driver->driver_name,
-	       iobase);
-	if (irq) {
-		printk(", irq %u", irq);
-	} else {
-		printk(", no irq");
-	}
-	if (dma) {
-		printk(", dma %u", dma);
-	} else {
-		printk(", no dma");
-	}
-	printk("\n");
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	if (iobase == 0) {
-		printk(" io base address required\n");
-		return -EINVAL;
-	}
-
-	/* check if io addresses are available */
-	if (!request_region(iobase, A2150_SIZE, dev->driver->driver_name)) {
-		printk(" I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], A2150_SIZE);
+	if (ret)
+		return ret;
 
 	/* grab our IRQ */
 	if (irq) {
@@ -797,6 +772,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	dev->board_ptr = a2150_boards + a2150_probe(dev);
+	thisboard = comedi_board(dev);
 	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, 1);
@@ -851,17 +827,14 @@ static void a2150_detach(struct comedi_device *dev)
 {
 	struct a2150_private *devpriv = dev->private;
 
-	if (dev->iobase) {
+	if (dev->iobase)
 		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
-		release_region(dev->iobase, A2150_SIZE);
-	}
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	if (devpriv) {
 		if (devpriv->dma)
 			free_dma(devpriv->dma);
 		kfree(devpriv->dma_buffer);
 	}
+	comedi_legacy_detach(dev);
 };
 
 static struct comedi_driver ni_at_a2150_driver = {

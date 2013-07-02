@@ -299,7 +299,8 @@ static const struct abx500_function ab8540_functions[] = {
  *
  */
 
-struct alternate_functions ab8540_alternate_functions[AB8540_GPIO_MAX_NUMBER + 1] = {
+static struct
+alternate_functions ab8540_alternate_functions[AB8540_GPIO_MAX_NUMBER + 1] = {
 	/* GPIOSEL1 - bit 4-7 reserved */
 	ALTERNATE_FUNCTIONS(0, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO0 */
 	ALTERNATE_FUNCTIONS(1,	    0, UNUSED, UNUSED, 0, 0, 0), /* GPIO1, altA controlled by bit 0 */
@@ -376,7 +377,7 @@ static struct pullud ab8540_pullud = {
  *	GPIO43 to GPIO44
  *	GPIO51 to GPIO54
  */
-struct abx500_gpio_irq_cluster ab8540_gpio_irq_cluster[] = {
+static struct abx500_gpio_irq_cluster ab8540_gpio_irq_cluster[] = {
 	GPIO_IRQ_CLUSTER(43, 43, AB8540_INT_GPIO43F),
 	GPIO_IRQ_CLUSTER(44, 44, AB8540_INT_GPIO44F),
 	GPIO_IRQ_CLUSTER(51, 54, AB9540_INT_GPIO51R),

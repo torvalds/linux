@@ -307,18 +307,7 @@ static struct i2c_driver usb3503_driver = {
 	.id_table	= usb3503_id,
 };
 
-static int __init usb3503_init(void)
-{
-	return i2c_add_driver(&usb3503_driver);
-}
-
-static void __exit usb3503_exit(void)
-{
-	i2c_del_driver(&usb3503_driver);
-}
-
-module_init(usb3503_init);
-module_exit(usb3503_exit);
+module_i2c_driver(usb3503_driver);
 
 MODULE_AUTHOR("Dongjin Kim <tobetter@gmail.com>");
 MODULE_DESCRIPTION("USB3503 USB HUB driver");

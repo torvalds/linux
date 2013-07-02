@@ -342,6 +342,11 @@ static int zbud_debugfs_init(void)
 }
 #undef	zdfs
 #undef	zdfs64
+#else
+static inline int zbud_debugfs_init(void)
+{
+	return 0;
+}
 #endif
 
 /* protects the buddied list and all unbuddied lists */
@@ -1051,9 +1056,7 @@ void zbud_init(void)
 {
 	int i;
 
-#ifdef CONFIG_DEBUG_FS
 	zbud_debugfs_init();
-#endif
 	BUG_ON((sizeof(struct tmem_handle) * 2 > CHUNK_SIZE));
 	BUG_ON(sizeof(struct zbudpage) > sizeof(struct page));
 	for (i = 0; i < NCHUNKS; i++) {

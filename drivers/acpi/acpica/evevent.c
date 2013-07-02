@@ -257,6 +257,8 @@ u32 acpi_ev_fixed_event_detect(void)
  *
  * DESCRIPTION: Clears the status bit for the requested event, calls the
  *              handler that previously registered for the event.
+ *              NOTE: If there is no handler for the event, the event is
+ *              disabled to prevent further interrupts.
  *
  ******************************************************************************/
 
@@ -271,17 +273,17 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 				      status_register_id, ACPI_CLEAR_STATUS);
 
 	/*
-	 * Make sure we've got a handler. If not, report an error. The event is
-	 * disabled to prevent further interrupts.
+	 * Make sure that a handler exists. If not, report an error
+	 * and disable the event to prevent further interrupts.
 	 */
-	if (NULL == acpi_gbl_fixed_event_handlers[event].handler) {
+	if (!acpi_gbl_fixed_event_handlers[event].handler) {
 		(void)acpi_write_bit_register(acpi_gbl_fixed_event_info[event].
 					      enable_register_id,
 					      ACPI_DISABLE_EVENT);
 
 		ACPI_ERROR((AE_INFO,
-			    "No installed handler for fixed event [0x%08X]",
-			    event));
+			    "No installed handler for fixed event - %s (%u), disabling",
+			    acpi_ut_get_event_name(event), event));
 
 		return (ACPI_INTERRUPT_NOT_HANDLED);
 	}

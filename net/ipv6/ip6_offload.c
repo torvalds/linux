@@ -92,14 +92,12 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	u8 *prevhdr;
 	int offset = 0;
 
-	if (!(features & NETIF_F_V6_CSUM))
-		features &= ~NETIF_F_SG;
-
 	if (unlikely(skb_shinfo(skb)->gso_type &
 		     ~(SKB_GSO_UDP |
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
 		       SKB_GSO_GRE |
+		       SKB_GSO_UDP_TUNNEL |
 		       SKB_GSO_TCPV6 |
 		       0)))
 		goto out;

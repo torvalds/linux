@@ -28,6 +28,8 @@
 #ifndef _LNBP22_H
 #define _LNBP22_H
 
+#include <linux/kconfig.h>
+
 /* Enable */
 #define LNBP22_EN	  0x10
 /* Voltage selection */
@@ -37,8 +39,7 @@
 
 #include <linux/dvb/frontend.h>
 
-#if defined(CONFIG_DVB_LNBP22) || \
-		(defined(CONFIG_DVB_LNBP22_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_LNBP22)
 /*
  * override_set and override_clear control which system register bits (above)
  * to always set & clear

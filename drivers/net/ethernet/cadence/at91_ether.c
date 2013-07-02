@@ -47,22 +47,19 @@ static int at91ether_start(struct net_device *dev)
 	int i;
 
 	lp->rx_ring = dma_alloc_coherent(&lp->pdev->dev,
-					MAX_RX_DESCR * sizeof(struct macb_dma_desc),
-					&lp->rx_ring_dma, GFP_KERNEL);
-	if (!lp->rx_ring) {
-		netdev_err(dev, "unable to alloc rx ring DMA buffer\n");
+					 (MAX_RX_DESCR *
+					  sizeof(struct macb_dma_desc)),
+					 &lp->rx_ring_dma, GFP_KERNEL);
+	if (!lp->rx_ring)
 		return -ENOMEM;
-	}
 
 	lp->rx_buffers = dma_alloc_coherent(&lp->pdev->dev,
-					MAX_RX_DESCR * MAX_RBUFF_SZ,
-					&lp->rx_buffers_dma, GFP_KERNEL);
+					    MAX_RX_DESCR * MAX_RBUFF_SZ,
+					    &lp->rx_buffers_dma, GFP_KERNEL);
 	if (!lp->rx_buffers) {
-		netdev_err(dev, "unable to alloc rx data DMA buffer\n");
-
 		dma_free_coherent(&lp->pdev->dev,
-					MAX_RX_DESCR * sizeof(struct macb_dma_desc),
-					lp->rx_ring, lp->rx_ring_dma);
+				  MAX_RX_DESCR * sizeof(struct macb_dma_desc),
+				  lp->rx_ring, lp->rx_ring_dma);
 		lp->rx_ring = NULL;
 		return -ENOMEM;
 	}
@@ -209,7 +206,6 @@ static void at91ether_rx(struct net_device *dev)
 			netif_rx(skb);
 		} else {
 			lp->stats.rx_dropped++;
-			netdev_notice(dev, "Memory squeeze, dropping packet.\n");
 		}
 
 		if (lp->rx_ring[lp->rx_tail].ctrl & MACB_BIT(RX_MHASH_MATCH))
@@ -303,42 +299,7 @@ static const struct of_device_id at91ether_dt_ids[] = {
 	{ .compatible = "cdns,emac" },
 	{ /* sentinel */ }
 };
-
 MODULE_DEVICE_TABLE(of, at91ether_dt_ids);
-
-static int at91ether_get_phy_mode_dt(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-
-	if (np)
-		return of_get_phy_mode(np);
-
-	return -ENODEV;
-}
-
-static int at91ether_get_hwaddr_dt(struct macb *bp)
-{
-	struct device_node *np = bp->pdev->dev.of_node;
-
-	if (np) {
-		const char *mac = of_get_mac_address(np);
-		if (mac) {
-			memcpy(bp->dev->dev_addr, mac, ETH_ALEN);
-			return 0;
-		}
-	}
-
-	return -ENODEV;
-}
-#else
-static int at91ether_get_phy_mode_dt(struct platform_device *pdev)
-{
-	return -ENODEV;
-}
-static int at91ether_get_hwaddr_dt(struct macb *bp)
-{
-	return -ENODEV;
-}
 #endif
 
 /* Detect MAC & PHY and perform ethernet interface initialization */
@@ -352,6 +313,7 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	struct macb *lp;
 	int res;
 	u32 reg;
+	const char *mac;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
@@ -403,11 +365,13 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	res = at91ether_get_hwaddr_dt(lp);
-	if (res < 0)
+	mac = of_get_mac_address(pdev->dev.of_node);
+	if (mac)
+		memcpy(lp->dev->dev_addr, mac, ETH_ALEN);
+	else
 		macb_get_hwaddr(lp);
 
-	res = at91ether_get_phy_mode_dt(pdev);
+	res = of_get_phy_mode(pdev->dev.of_node);
 	if (res < 0) {
 		if (board_data && board_data->is_rmii)
 			lp->phy_interface = PHY_INTERFACE_MODE_RMII;
@@ -430,7 +394,8 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	if (res)
 		goto err_disable_clock;
 
-	if (macb_mii_init(lp) != 0)
+	res = macb_mii_init(lp);
+	if (res)
 		goto err_out_unregister_netdev;
 
 	/* will be enabled in open() */
@@ -519,18 +484,7 @@ static struct platform_driver at91ether_driver = {
 	},
 };
 
-static int __init at91ether_init(void)
-{
-	return platform_driver_probe(&at91ether_driver, at91ether_probe);
-}
-
-static void __exit at91ether_exit(void)
-{
-	platform_driver_unregister(&at91ether_driver);
-}
-
-module_init(at91ether_init)
-module_exit(at91ether_exit)
+module_platform_driver_probe(at91ether_driver, at91ether_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("AT91RM9200 EMAC Ethernet driver");

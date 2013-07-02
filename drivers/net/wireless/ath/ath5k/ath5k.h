@@ -1523,7 +1523,8 @@ int ath5k_hw_dma_stop(struct ath5k_hw *ah);
 /* EEPROM access functions */
 int ath5k_eeprom_init(struct ath5k_hw *ah);
 void ath5k_eeprom_detach(struct ath5k_hw *ah);
-
+int ath5k_eeprom_mode_from_channel(struct ath5k_hw *ah,
+		struct ieee80211_channel *channel);
 
 /* Protocol Control Unit Functions */
 /* Helpers */

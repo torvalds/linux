@@ -86,15 +86,15 @@ static inline int is_vlan_dev(struct net_device *dev)
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 
 extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
-					       u16 vlan_id);
+					       __be16 vlan_proto, u16 vlan_id);
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 
 extern bool vlan_do_receive(struct sk_buff **skb);
 extern struct sk_buff *vlan_untag(struct sk_buff *skb);
 
-extern int vlan_vid_add(struct net_device *dev, unsigned short vid);
-extern void vlan_vid_del(struct net_device *dev, unsigned short vid);
+extern int vlan_vid_add(struct net_device *dev, __be16 proto, u16 vid);
+extern void vlan_vid_del(struct net_device *dev, __be16 proto, u16 vid);
 
 extern int vlan_vids_add_by_dev(struct net_device *dev,
 				const struct net_device *by_dev);
@@ -104,7 +104,8 @@ extern void vlan_vids_del_by_dev(struct net_device *dev,
 extern bool vlan_uses_dev(const struct net_device *dev);
 #else
 static inline struct net_device *
-__vlan_find_dev_deep(struct net_device *real_dev, u16 vlan_id)
+__vlan_find_dev_deep(struct net_device *real_dev,
+		     __be16 vlan_proto, u16 vlan_id)
 {
 	return NULL;
 }
@@ -131,12 +132,12 @@ static inline struct sk_buff *vlan_untag(struct sk_buff *skb)
 	return skb;
 }
 
-static inline int vlan_vid_add(struct net_device *dev, unsigned short vid)
+static inline int vlan_vid_add(struct net_device *dev, __be16 proto, u16 vid)
 {
 	return 0;
 }
 
-static inline void vlan_vid_del(struct net_device *dev, unsigned short vid)
+static inline void vlan_vid_del(struct net_device *dev, __be16 proto, u16 vid)
 {
 }
 
@@ -157,9 +158,20 @@ static inline bool vlan_uses_dev(const struct net_device *dev)
 }
 #endif
 
+static inline bool vlan_hw_offload_capable(netdev_features_t features,
+					   __be16 proto)
+{
+	if (proto == htons(ETH_P_8021Q) && features & NETIF_F_HW_VLAN_CTAG_TX)
+		return true;
+	if (proto == htons(ETH_P_8021AD) && features & NETIF_F_HW_VLAN_STAG_TX)
+		return true;
+	return false;
+}
+
 /**
  * vlan_insert_tag - regular VLAN tag inserting
  * @skb: skbuff to tag
+ * @vlan_proto: VLAN encapsulation protocol
  * @vlan_tci: VLAN TCI to insert
  *
  * Inserts the VLAN tag into @skb as part of the payload
@@ -170,7 +182,8 @@ static inline bool vlan_uses_dev(const struct net_device *dev)
  *
  * Does not change skb->protocol so this function can be used during receive.
  */
-static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb, u16 vlan_tci)
+static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb,
+					      __be16 vlan_proto, u16 vlan_tci)
 {
 	struct vlan_ethhdr *veth;
 
@@ -185,7 +198,7 @@ static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb, u16 vlan_tci)
 	skb->mac_header -= VLAN_HLEN;
 
 	/* first, the ethernet type */
-	veth->h_vlan_proto = htons(ETH_P_8021Q);
+	veth->h_vlan_proto = vlan_proto;
 
 	/* now, the TCI */
 	veth->h_vlan_TCI = htons(vlan_tci);
@@ -204,24 +217,28 @@ static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb, u16 vlan_tci)
  * Following the skb_unshare() example, in case of error, the calling function
  * doesn't have to worry about freeing the original skb.
  */
-static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb, u16 vlan_tci)
+static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb,
+					     __be16 vlan_proto, u16 vlan_tci)
 {
-	skb = vlan_insert_tag(skb, vlan_tci);
+	skb = vlan_insert_tag(skb, vlan_proto, vlan_tci);
 	if (skb)
-		skb->protocol = htons(ETH_P_8021Q);
+		skb->protocol = vlan_proto;
 	return skb;
 }
 
 /**
  * __vlan_hwaccel_put_tag - hardware accelerated VLAN inserting
  * @skb: skbuff to tag
+ * @vlan_proto: VLAN encapsulation protocol
  * @vlan_tci: VLAN TCI to insert
  *
  * Puts the VLAN TCI in @skb->vlan_tci and lets the device do the rest
  */
 static inline struct sk_buff *__vlan_hwaccel_put_tag(struct sk_buff *skb,
+						     __be16 vlan_proto,
 						     u16 vlan_tci)
 {
+	skb->vlan_proto = vlan_proto;
 	skb->vlan_tci = VLAN_TAG_PRESENT | vlan_tci;
 	return skb;
 }
@@ -236,12 +253,13 @@ static inline struct sk_buff *__vlan_hwaccel_put_tag(struct sk_buff *skb,
  * Assumes skb->dev is the target that will xmit this frame.
  * Returns a VLAN tagged skb.
  */
-static inline struct sk_buff *vlan_put_tag(struct sk_buff *skb, u16 vlan_tci)
+static inline struct sk_buff *vlan_put_tag(struct sk_buff *skb,
+					   __be16 vlan_proto, u16 vlan_tci)
 {
-	if (skb->dev->features & NETIF_F_HW_VLAN_TX) {
-		return __vlan_hwaccel_put_tag(skb, vlan_tci);
+	if (vlan_hw_offload_capable(skb->dev->features, vlan_proto)) {
+		return __vlan_hwaccel_put_tag(skb, vlan_proto, vlan_tci);
 	} else {
-		return __vlan_put_tag(skb, vlan_tci);
+		return __vlan_put_tag(skb, vlan_proto, vlan_tci);
 	}
 }
 
@@ -256,9 +274,9 @@ static inline int __vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb->data;
 
-	if (veth->h_vlan_proto != htons(ETH_P_8021Q)) {
+	if (veth->h_vlan_proto != htons(ETH_P_8021Q) &&
+	    veth->h_vlan_proto != htons(ETH_P_8021AD))
 		return -EINVAL;
-	}
 
 	*vlan_tci = ntohs(veth->h_vlan_TCI);
 	return 0;
@@ -294,7 +312,7 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
  */
 static inline int vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 {
-	if (skb->dev->features & NETIF_F_HW_VLAN_TX) {
+	if (skb->dev->features & NETIF_F_HW_VLAN_CTAG_TX) {
 		return __vlan_hwaccel_get_tag(skb, vlan_tci);
 	} else {
 		return __vlan_get_tag(skb, vlan_tci);
@@ -339,7 +357,7 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
 	 */
 
 	proto = vhdr->h_vlan_encapsulated_proto;
-	if (ntohs(proto) >= 1536) {
+	if (ntohs(proto) >= ETH_P_802_3_MIN) {
 		skb->protocol = proto;
 		return;
 	}

@@ -1,7 +1,7 @@
 /*
  * Page management definitions for the Hexagon architecture
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -96,8 +96,8 @@ typedef struct page *pgtable_t;
  * MIPS says they're only used during mem_init.
  * also, check if we need a PHYS_OFFSET.
  */
-#define __pa(x) ((unsigned long)(x) - PAGE_OFFSET)
-#define __va(x) ((void *)((unsigned long)(x) + PAGE_OFFSET))
+#define __pa(x) ((unsigned long)(x) - PAGE_OFFSET + PHYS_OFFSET)
+#define __va(x) ((void *)((unsigned long)(x) - PHYS_OFFSET + PAGE_OFFSET))
 
 /* The "page frame" descriptor is defined in linux/mm.h */
 struct page;
@@ -140,6 +140,11 @@ static inline void clear_page(void *page)
  */
 #define page_to_phys(page)      (page_to_pfn(page) << PAGE_SHIFT)
 
+#define virt_to_pfn(kaddr)      (__pa(kaddr) >> PAGE_SHIFT)
+#define pfn_to_virt(pfn)        __va((pfn) << PAGE_SHIFT)
+
+#define page_to_virt(page)	__va(page_to_phys(page))
+
 /*
  * For port to Hexagon Virtual Machine, MAYBE we check for attempts
  * to reference reserved HVM space, but in any case, the VM will be
@@ -147,6 +152,7 @@ static inline void clear_page(void *page)
  */
 #define kern_addr_valid(addr)   (1)
 
+#include <asm/mem-layout.h>
 #include <asm-generic/memory_model.h>
 /* XXX Todo: implement assembly-optimized version of getorder. */
 #include <asm-generic/getorder.h>

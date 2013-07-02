@@ -33,17 +33,11 @@
 #include "device.h"
 #include "80211hdr.h"
 
-/*---------------------  Static Definitions -------------------------*/
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
-
 /*
  * SBOX Table
  */
 
-BYTE sbox_table[256] = {
+u8 sbox_table[256] = {
 	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
 	0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
 	0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
@@ -62,7 +56,7 @@ BYTE sbox_table[256] = {
 	0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 };
 
-BYTE dot2_table[256] = {
+u8 dot2_table[256] = {
 	0x00, 0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e, 0x10, 0x12, 0x14, 0x16, 0x18, 0x1a, 0x1c, 0x1e,
 	0x20, 0x22, 0x24, 0x26, 0x28, 0x2a, 0x2c, 0x2e, 0x30, 0x32, 0x34, 0x36, 0x38, 0x3a, 0x3c, 0x3e,
 	0x40, 0x42, 0x44, 0x46, 0x48, 0x4a, 0x4c, 0x4e, 0x50, 0x52, 0x54, 0x56, 0x58, 0x5a, 0x5c, 0x5e,
@@ -81,7 +75,7 @@ BYTE dot2_table[256] = {
 	0xfb, 0xf9, 0xff, 0xfd, 0xf3, 0xf1, 0xf7, 0xf5, 0xeb, 0xe9, 0xef, 0xed, 0xe3, 0xe1, 0xe7, 0xe5
 };
 
-BYTE dot3_table[256] = {
+u8 dot3_table[256] = {
 	0x00, 0x03, 0x06, 0x05, 0x0c, 0x0f, 0x0a, 0x09, 0x18, 0x1b, 0x1e, 0x1d, 0x14, 0x17, 0x12, 0x11,
 	0x30, 0x33, 0x36, 0x35, 0x3c, 0x3f, 0x3a, 0x39, 0x28, 0x2b, 0x2e, 0x2d, 0x24, 0x27, 0x22, 0x21,
 	0x60, 0x63, 0x66, 0x65, 0x6c, 0x6f, 0x6a, 0x69, 0x78, 0x7b, 0x7e, 0x7d, 0x74, 0x77, 0x72, 0x71,
@@ -100,17 +94,11 @@ BYTE dot3_table[256] = {
 	0x0b, 0x08, 0x0d, 0x0e, 0x07, 0x04, 0x01, 0x02, 0x13, 0x10, 0x15, 0x16, 0x1f, 0x1c, 0x19, 0x1a
 };
 
-/*---------------------  Static Functions  --------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
-static void xor_128(BYTE *a, BYTE *b, BYTE *out)
+static void xor_128(u8 *a, u8 *b, u8 *out)
 {
-	PDWORD dwPtrA = (PDWORD) a;
-	PDWORD dwPtrB = (PDWORD) b;
-	PDWORD dwPtrOut = (PDWORD) out;
+	u32 * dwPtrA = (u32 *) a;
+	u32 * dwPtrB = (u32 *) b;
+	u32 * dwPtrOut = (u32 *) out;
 
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
@@ -118,20 +106,19 @@ static void xor_128(BYTE *a, BYTE *b, BYTE *out)
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
 }
 
-
-static void xor_32(BYTE *a, BYTE *b, BYTE *out)
+static void xor_32(u8 *a, u8 *b, u8 *out)
 {
-	PDWORD dwPtrA = (PDWORD) a;
-	PDWORD dwPtrB = (PDWORD) b;
-	PDWORD dwPtrOut = (PDWORD) out;
+	u32 * dwPtrA = (u32 *) a;
+	u32 * dwPtrB = (u32 *) b;
+	u32 * dwPtrOut = (u32 *) out;
 
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
 }
 
-void AddRoundKey(BYTE *key, int round)
+void AddRoundKey(u8 *key, int round)
 {
-	BYTE sbox_key[4];
-	BYTE rcon_table[10] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36};
+	u8 sbox_key[4];
+	u8 rcon_table[10] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36};
 
 	sbox_key[0] = sbox_table[key[13]];
 	sbox_key[1] = sbox_table[key[14]];
@@ -146,7 +133,7 @@ void AddRoundKey(BYTE *key, int round)
 	xor_32(&key[12], &key[8], &key[12]);
 }
 
-void SubBytes(BYTE *in, BYTE *out)
+void SubBytes(u8 *in, u8 *out)
 {
 	int i;
 
@@ -154,7 +141,7 @@ void SubBytes(BYTE *in, BYTE *out)
 		out[i] = sbox_table[in[i]];
 }
 
-void ShiftRows(BYTE *in, BYTE *out)
+void ShiftRows(u8 *in, u8 *out)
 {
 	out[0]  = in[0];
 	out[1]  = in[5];
@@ -174,7 +161,7 @@ void ShiftRows(BYTE *in, BYTE *out)
 	out[15] = in[11];
 }
 
-void MixColumns(BYTE *in, BYTE *out)
+void MixColumns(u8 *in, u8 *out)
 {
 
 	out[0] = dot2_table[in[0]] ^ dot3_table[in[1]] ^ in[2] ^ in[3];
@@ -183,13 +170,13 @@ void MixColumns(BYTE *in, BYTE *out)
 	out[3] = dot3_table[in[0]] ^ in[1] ^ in[2] ^ dot2_table[in[3]];
 }
 
-void AESv128(BYTE *key, BYTE *data, BYTE *ciphertext)
+void AESv128(u8 *key, u8 *data, u8 *ciphertext)
 {
 	int  i;
 	int  round;
-	BYTE TmpdataA[16];
-	BYTE TmpdataB[16];
-	BYTE abyRoundKey[16];
+	u8 TmpdataA[16];
+	u8 TmpdataB[16];
+	u8 abyRoundKey[16];
 
 	for (i = 0; i < 16; i++)
 		abyRoundKey[i] = key[i];
@@ -231,32 +218,32 @@ void AESv128(BYTE *key, BYTE *data, BYTE *ciphertext)
  *
  */
 
-bool AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize)
+bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, u16 wFrameSize)
 {
-	BYTE            abyNonce[13];
-	BYTE            MIC_IV[16];
-	BYTE            MIC_HDR1[16];
-	BYTE            MIC_HDR2[16];
-	BYTE            abyMIC[16];
-	BYTE            abyCTRPLD[16];
-	BYTE            abyTmp[16];
-	BYTE            abyPlainText[16];
-	BYTE            abyLastCipher[16];
+	u8            abyNonce[13];
+	u8            MIC_IV[16];
+	u8            MIC_HDR1[16];
+	u8            MIC_HDR2[16];
+	u8            abyMIC[16];
+	u8            abyCTRPLD[16];
+	u8            abyTmp[16];
+	u8            abyPlainText[16];
+	u8            abyLastCipher[16];
 
-	PS802_11Header  pMACHeader = (PS802_11Header) pbyFrame;
-	PBYTE           pbyIV;
-	PBYTE           pbyPayload;
-	WORD            wHLen = 22;
+	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *) pbyFrame;
+	u8 *           pbyIV;
+	u8 *           pbyPayload;
+	u16            wHLen = 22;
 	/* 8 is IV, 8 is MIC, 4 is CRC */
-	WORD            wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;
+	u16            wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;
 	bool            bA4 = false;
-	BYTE            byTmp;
-	WORD            wCnt;
+	u8            byTmp;
+	u16            wCnt;
 	int             ii, jj, kk;
 
 	pbyIV = pbyFrame + WLAN_HDR_ADDR3_LEN;
-	if (WLAN_GET_FC_TODS(*(PWORD) pbyFrame) &&
-	    WLAN_GET_FC_FROMDS(*(PWORD) pbyFrame)) {
+	if (WLAN_GET_FC_TODS(*(u16 *) pbyFrame) &&
+	    WLAN_GET_FC_FROMDS(*(u16 *) pbyFrame)) {
 		bA4 = true;
 		pbyIV += 6;             /* 6 is 802.11 address4 */
 		wHLen += 6;
@@ -265,7 +252,7 @@ bool AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize)
 	pbyPayload = pbyIV + 8; /* IV-length */
 
 	abyNonce[0]  = 0x00; /* now is 0, if Qos here will be priority */
-	memcpy(&(abyNonce[1]), pMACHeader->abyAddr2, ETH_ALEN);
+	memcpy(&(abyNonce[1]), pMACHeader->addr2, ETH_ALEN);
 	abyNonce[7]  = pbyIV[7];
 	abyNonce[8]  = pbyIV[6];
 	abyNonce[9]  = pbyIV[5];
@@ -276,28 +263,28 @@ bool AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize)
 	/* MIC_IV */
 	MIC_IV[0] = 0x59;
 	memcpy(&(MIC_IV[1]), &(abyNonce[0]), 13);
-	MIC_IV[14] = (BYTE)(wPayloadSize >> 8);
-	MIC_IV[15] = (BYTE)(wPayloadSize & 0xff);
+	MIC_IV[14] = (u8)(wPayloadSize >> 8);
+	MIC_IV[15] = (u8)(wPayloadSize & 0xff);
 
 	/* MIC_HDR1 */
-	MIC_HDR1[0] = (BYTE)(wHLen >> 8);
-	MIC_HDR1[1] = (BYTE)(wHLen & 0xff);
-	byTmp = (BYTE)(pMACHeader->wFrameCtl & 0xff);
+	MIC_HDR1[0] = (u8)(wHLen >> 8);
+	MIC_HDR1[1] = (u8)(wHLen & 0xff);
+	byTmp = (u8)(pMACHeader->frame_control & 0xff);
 	MIC_HDR1[2] = byTmp & 0x8f;
-	byTmp = (BYTE)(pMACHeader->wFrameCtl >> 8);
+	byTmp = (u8)(pMACHeader->frame_control >> 8);
 	byTmp &= 0x87;
 	MIC_HDR1[3] = byTmp | 0x40;
-	memcpy(&(MIC_HDR1[4]), pMACHeader->abyAddr1, ETH_ALEN);
-	memcpy(&(MIC_HDR1[10]), pMACHeader->abyAddr2, ETH_ALEN);
+	memcpy(&(MIC_HDR1[4]), pMACHeader->addr1, ETH_ALEN);
+	memcpy(&(MIC_HDR1[10]), pMACHeader->addr2, ETH_ALEN);
 
 	/* MIC_HDR2 */
-	memcpy(&(MIC_HDR2[0]), pMACHeader->abyAddr3, ETH_ALEN);
-	byTmp = (BYTE)(pMACHeader->wSeqCtl & 0xff);
+	memcpy(&(MIC_HDR2[0]), pMACHeader->addr3, ETH_ALEN);
+	byTmp = (u8)(pMACHeader->seq_ctrl & 0xff);
 	MIC_HDR2[6] = byTmp & 0x0f;
 	MIC_HDR2[7] = 0;
 
 	if (bA4) {
-		memcpy(&(MIC_HDR2[8]), pMACHeader->abyAddr4, ETH_ALEN);
+		memcpy(&(MIC_HDR2[8]), pMACHeader->addr4, ETH_ALEN);
 	} else {
 		MIC_HDR2[8]  = 0x00;
 		MIC_HDR2[9]  = 0x00;
@@ -326,8 +313,8 @@ bool AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize)
 
 	for (jj = wPayloadSize; jj > 16; jj = jj-16) {
 
-		abyCTRPLD[14] = (BYTE) (wCnt >> 8);
-		abyCTRPLD[15] = (BYTE) (wCnt & 0xff);
+		abyCTRPLD[14] = (u8) (wCnt >> 8);
+		abyCTRPLD[15] = (u8) (wCnt & 0xff);
 
 		AESv128(pbyRxKey, abyCTRPLD, abyTmp);
 
@@ -349,8 +336,8 @@ bool AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize)
 	for (ii = jj; ii < 16; ii++)
 		abyLastCipher[ii] = 0x00;
 
-	abyCTRPLD[14] = (BYTE) (wCnt >> 8);
-	abyCTRPLD[15] = (BYTE) (wCnt & 0xff);
+	abyCTRPLD[14] = (u8) (wCnt >> 8);
+	abyCTRPLD[15] = (u8) (wCnt & 0xff);
 
 	AESv128(pbyRxKey, abyCTRPLD, abyTmp);
 	for (kk = 0; kk < 16; kk++)
@@ -370,8 +357,8 @@ bool AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize)
 	/* => above is the calculated MIC */
 
 	wCnt = 0;
-	abyCTRPLD[14] = (BYTE) (wCnt >> 8);
-	abyCTRPLD[15] = (BYTE) (wCnt & 0xff);
+	abyCTRPLD[14] = (u8) (wCnt >> 8);
+	abyCTRPLD[15] = (u8) (wCnt & 0xff);
 	AESv128(pbyRxKey, abyCTRPLD, abyTmp);
 
 	for (kk = 0; kk < 8; kk++)

@@ -27,6 +27,7 @@
 #include "vis.h"
 #include "gateway_common.h"
 #include "originator.h"
+#include "network-coding.h"
 
 #include <linux/if_ether.h>
 
@@ -39,6 +40,7 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 			   struct batadv_hard_iface *hard_iface,
 			   const uint8_t *dst_addr)
 {
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct ethhdr *ethhdr;
 
 	if (hard_iface->if_status != BATADV_IF_ACTIVE)
@@ -69,6 +71,9 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 	skb->protocol = __constant_htons(ETH_P_BATMAN);
 
 	skb->dev = hard_iface->net_dev;
+
+	/* Save a clone of the skb to use when decoding coded packets */
+	batadv_nc_skb_store_for_decoding(bat_priv, skb);
 
 	/* dev_queue_xmit() returns a negative result on error.	 However on
 	 * congestion and traffic shaping, it drops and returns NET_XMIT_DROP

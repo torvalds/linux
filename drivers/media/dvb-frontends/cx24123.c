@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <asm/div64.h>
 
 #include "dvb_frontend.h"
 #include "cx24123.h"
@@ -452,7 +453,8 @@ static u32 cx24123_int_log2(u32 a, u32 b)
 
 static int cx24123_set_symbolrate(struct cx24123_state *state, u32 srate)
 {
-	u32 tmp, sample_rate, ratio, sample_gain;
+	u64 tmp;
+	u32 sample_rate, ratio, sample_gain;
 	u8 pll_mult;
 
 	/*  check if symbol rate is within limits */
@@ -482,27 +484,11 @@ static int cx24123_set_symbolrate(struct cx24123_state *state, u32 srate)
 
 	sample_rate = pll_mult * XTAL;
 
-	/*
-	    SYSSymbolRate[21:0] = (srate << 23) / sample_rate
+	/* SYSSymbolRate[21:0] = (srate << 23) / sample_rate */
 
-	    We have to use 32 bit unsigned arithmetic without precision loss.
-	    The maximum srate is 45000000 or 0x02AEA540. This number has
-	    only 6 clear bits on top, hence we can shift it left only 6 bits
-	    at a time. Borrowed from cx24110.c
-	*/
-
-	tmp = srate << 6;
-	ratio = tmp / sample_rate;
-
-	tmp = (tmp % sample_rate) << 6;
-	ratio = (ratio << 6) + (tmp / sample_rate);
-
-	tmp = (tmp % sample_rate) << 6;
-	ratio = (ratio << 6) + (tmp / sample_rate);
-
-	tmp = (tmp % sample_rate) << 5;
-	ratio = (ratio << 5) + (tmp / sample_rate);
-
+	tmp = ((u64)srate) << 23;
+	do_div(tmp, sample_rate);
+	ratio = (u32) tmp;
 
 	cx24123_writereg(state, 0x01, pll_mult * 6);
 

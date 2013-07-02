@@ -25,10 +25,13 @@ config DW_APB_TIMER_OF
 config ARMADA_370_XP_TIMER
 	bool
 
-config SUNXI_TIMER
+config SUN4I_TIMER
 	bool
 
 config VT8500_TIMER
+	bool
+
+config CADENCE_TTC_TIMER
 	bool
 
 config CLKSRC_NOMADIK_MTU
@@ -62,8 +65,23 @@ config CLKSRC_DBX500_PRCMU_SCHED_CLOCK
 
 config ARM_ARCH_TIMER
 	bool
+	select CLKSRC_OF if OF
 
 config CLKSRC_METAG_GENERIC
 	def_bool y if METAG
 	help
 	  This option enables support for the Meta per-thread timers.
+
+config CLKSRC_EXYNOS_MCT
+	def_bool y if ARCH_EXYNOS
+	help
+	  Support for Multi Core Timer controller on Exynos SoCs.
+
+config CLKSRC_SAMSUNG_PWM
+	bool
+	select CLKSRC_MMIO
+	help
+	  This is a new clocksource driver for the PWM timer found in
+	  Samsung S3C, S5P and Exynos SoCs, replacing an earlier driver
+	  for all devicetree enabled platforms. This driver will be
+	  needed only on systems that do not have the Exynos MCT available.

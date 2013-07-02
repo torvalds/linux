@@ -201,10 +201,21 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 
 	for (i = 0; i < mux->data.n_gpios; i++) {
 		ret = gpio_request(gpio_base + mux->data.gpios[i], "i2c-mux-gpio");
-		if (ret)
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to request GPIO %d\n",
+				mux->data.gpios[i]);
 			goto err_request_gpio;
-		gpio_direction_output(gpio_base + mux->data.gpios[i],
-				      initial_state & (1 << i));
+		}
+
+		ret = gpio_direction_output(gpio_base + mux->data.gpios[i],
+					    initial_state & (1 << i));
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Failed to set direction of GPIO %d to output\n",
+				mux->data.gpios[i]);
+			i++;	/* gpio_request above succeeded, so must free */
+			goto err_request_gpio;
+		}
 	}
 
 	for (i = 0; i < mux->data.n_values; i++) {

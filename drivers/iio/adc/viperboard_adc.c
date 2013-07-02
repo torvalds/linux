@@ -41,7 +41,7 @@ struct vprbrd_adc {
 	.type = IIO_VOLTAGE,				\
 	.indexed = 1,					\
 	.channel = _index,				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 	.scan_index = _index,				\
 	.scan_type = {					\
 		.sign = 'u',				\

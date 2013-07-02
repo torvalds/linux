@@ -22,7 +22,7 @@
 
 enum rt305x_soc_type rt305x_soc;
 
-struct ralink_pinmux_grp mode_mux[] = {
+static struct ralink_pinmux_grp mode_mux[] = {
 	{
 		.name = "i2c",
 		.mask = RT305X_GPIO_MODE_I2C,
@@ -61,7 +61,7 @@ struct ralink_pinmux_grp mode_mux[] = {
 	}, {0}
 };
 
-struct ralink_pinmux_grp uart_mux[] = {
+static struct ralink_pinmux_grp uart_mux[] = {
 	{
 		.name = "uartf",
 		.mask = RT305X_GPIO_MODE_UARTF,
@@ -91,19 +91,19 @@ struct ralink_pinmux_grp uart_mux[] = {
 		.name = "gpio uartf",
 		.mask = RT305X_GPIO_MODE_GPIO_UARTF,
 		.gpio_first = RT305X_GPIO_7,
-		.gpio_last = RT305X_GPIO_14,
+		.gpio_last = RT305X_GPIO_10,
 	}, {
 		.name = "gpio i2s",
 		.mask = RT305X_GPIO_MODE_GPIO_I2S,
 		.gpio_first = RT305X_GPIO_7,
-		.gpio_last = RT305X_GPIO_14,
+		.gpio_last = RT305X_GPIO_10,
 	}, {
 		.name = "gpio",
 		.mask = RT305X_GPIO_MODE_GPIO,
 	}, {0}
 };
 
-void rt305x_wdt_reset(void)
+static void rt305x_wdt_reset(void)
 {
 	u32 t;
 
@@ -114,16 +114,53 @@ void rt305x_wdt_reset(void)
 	rt_sysc_w32(t, SYSC_REG_SYSTEM_CONFIG);
 }
 
-struct ralink_pinmux gpio_pinmux = {
+struct ralink_pinmux rt_gpio_pinmux = {
 	.mode = mode_mux,
 	.uart = uart_mux,
 	.uart_shift = RT305X_GPIO_MODE_UART0_SHIFT,
+	.uart_mask = RT305X_GPIO_MODE_UART0_MASK,
 	.wdt_reset = rt305x_wdt_reset,
 };
+
+static unsigned long rt5350_get_mem_size(void)
+{
+	void __iomem *sysc = (void __iomem *) KSEG1ADDR(RT305X_SYSC_BASE);
+	unsigned long ret;
+	u32 t;
+
+	t = __raw_readl(sysc + SYSC_REG_SYSTEM_CONFIG);
+	t = (t >> RT5350_SYSCFG0_DRAM_SIZE_SHIFT) &
+		RT5350_SYSCFG0_DRAM_SIZE_MASK;
+
+	switch (t) {
+	case RT5350_SYSCFG0_DRAM_SIZE_2M:
+		ret = 2;
+		break;
+	case RT5350_SYSCFG0_DRAM_SIZE_8M:
+		ret = 8;
+		break;
+	case RT5350_SYSCFG0_DRAM_SIZE_16M:
+		ret = 16;
+		break;
+	case RT5350_SYSCFG0_DRAM_SIZE_32M:
+		ret = 32;
+		break;
+	case RT5350_SYSCFG0_DRAM_SIZE_64M:
+		ret = 64;
+		break;
+	default:
+		panic("rt5350: invalid DRAM size: %u", t);
+		break;
+	}
+
+	return ret;
+}
 
 void __init ralink_clk_init(void)
 {
 	unsigned long cpu_rate, sys_rate, wdt_rate, uart_rate;
+	unsigned long wmac_rate = 40000000;
+
 	u32 t = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG);
 
 	if (soc_is_rt305x() || soc_is_rt3350()) {
@@ -176,11 +213,21 @@ void __init ralink_clk_init(void)
 		BUG();
 	}
 
+	if (soc_is_rt3352() || soc_is_rt5350()) {
+		u32 val = rt_sysc_r32(RT3352_SYSC_REG_SYSCFG0);
+
+		if (!(val & RT3352_CLKCFG0_XTAL_SEL))
+			wmac_rate = 20000000;
+	}
+
 	ralink_clk_add("cpu", cpu_rate);
 	ralink_clk_add("10000b00.spi", sys_rate);
 	ralink_clk_add("10000100.timer", wdt_rate);
+	ralink_clk_add("10000120.watchdog", wdt_rate);
 	ralink_clk_add("10000500.uart", uart_rate);
 	ralink_clk_add("10000c00.uartlite", uart_rate);
+	ralink_clk_add("10100000.ethernet", sys_rate);
+	ralink_clk_add("10180000.wmac", wmac_rate);
 }
 
 void __init ralink_of_remap(void)
@@ -239,4 +286,15 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		name,
 		(id >> CHIP_ID_ID_SHIFT) & CHIP_ID_ID_MASK,
 		(id & CHIP_ID_REV_MASK));
+
+	soc_info->mem_base = RT305X_SDRAM_BASE;
+	if (soc_is_rt5350()) {
+		soc_info->mem_size = rt5350_get_mem_size();
+	} else if (soc_is_rt305x() || soc_is_rt3350()) {
+		soc_info->mem_size_min = RT305X_MEM_SIZE_MIN;
+		soc_info->mem_size_max = RT305X_MEM_SIZE_MAX;
+	} else if (soc_is_rt3352()) {
+		soc_info->mem_size_min = RT3352_MEM_SIZE_MIN;
+		soc_info->mem_size_max = RT3352_MEM_SIZE_MAX;
+	}
 }

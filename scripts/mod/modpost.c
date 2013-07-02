@@ -15,17 +15,12 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <limits.h>
+#include <stdbool.h>
 #include "modpost.h"
 #include "../../include/generated/autoconf.h"
 #include "../../include/linux/license.h"
-
-/* Some toolchains use a `_' prefix for all user symbols. */
-#ifdef CONFIG_SYMBOL_PREFIX
-#define MODULE_SYMBOL_PREFIX CONFIG_SYMBOL_PREFIX
-#else
-#define MODULE_SYMBOL_PREFIX ""
-#endif
-
+#include "../../include/linux/export.h"
 
 /* Are we using CONFIG_MODVERSIONS? */
 int modversions = 0;
@@ -85,6 +80,14 @@ PRINTF void merror(const char *fmt, ...)
 	va_end(arglist);
 }
 
+static inline bool strends(const char *str, const char *postfix)
+{
+	if (strlen(str) < strlen(postfix))
+		return false;
+
+	return strcmp(str + strlen(str) - strlen(postfix), postfix) == 0;
+}
+
 static int is_vmlinux(const char *modname)
 {
 	const char *myname;
@@ -120,22 +123,20 @@ static struct module *find_module(char *modname)
 	return mod;
 }
 
-static struct module *new_module(char *modname)
+static struct module *new_module(const char *modname)
 {
 	struct module *mod;
-	char *p, *s;
+	char *p;
 
 	mod = NOFAIL(malloc(sizeof(*mod)));
 	memset(mod, 0, sizeof(*mod));
 	p = NOFAIL(strdup(modname));
 
 	/* strip trailing .o */
-	s = strrchr(p, '.');
-	if (s != NULL)
-		if (strcmp(s, ".o") == 0) {
-			*s = '\0';
-			mod->is_dot_o = 1;
-		}
+	if (strends(p, ".o")) {
+		p[strlen(p) - 2] = '\0';
+		mod->is_dot_o = 1;
+	}
 
 	/* add to list */
 	mod->name = p;
@@ -562,7 +563,7 @@ static void parse_elf_finish(struct elf_info *info)
 static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 {
 	/* ignore __this_module, it will be resolved shortly */
-	if (strcmp(symname, MODULE_SYMBOL_PREFIX "__this_module") == 0)
+	if (strcmp(symname, VMLINUX_SYMBOL_STR(__this_module)) == 0)
 		return 1;
 	/* ignore global offset table */
 	if (strcmp(symname, "_GLOBAL_OFFSET_TABLE_") == 0)
@@ -583,8 +584,8 @@ static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 	return 0;
 }
 
-#define CRC_PFX     MODULE_SYMBOL_PREFIX "__crc_"
-#define KSYMTAB_PFX MODULE_SYMBOL_PREFIX "__ksymtab_"
+#define CRC_PFX     VMLINUX_SYMBOL_STR(__crc_)
+#define KSYMTAB_PFX VMLINUX_SYMBOL_STR(__ksymtab_)
 
 static void handle_modversions(struct module *mod, struct elf_info *info,
 			       Elf_Sym *sym, const char *symname)
@@ -637,14 +638,15 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 		}
 #endif
 
-		if (memcmp(symname, MODULE_SYMBOL_PREFIX,
-			   strlen(MODULE_SYMBOL_PREFIX)) == 0) {
-			mod->unres =
-			  alloc_symbol(symname +
-			               strlen(MODULE_SYMBOL_PREFIX),
-			               ELF_ST_BIND(sym->st_info) == STB_WEAK,
-			               mod->unres);
-		}
+#ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
+		if (symname[0] != '_')
+			break;
+		else
+			symname++;
+#endif
+		mod->unres = alloc_symbol(symname,
+					  ELF_ST_BIND(sym->st_info) == STB_WEAK,
+					  mod->unres);
 		break;
 	default:
 		/* All exported symbols */
@@ -652,9 +654,9 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 			sym_add_exported(symname + strlen(KSYMTAB_PFX), mod,
 					export);
 		}
-		if (strcmp(symname, MODULE_SYMBOL_PREFIX "init_module") == 0)
+		if (strcmp(symname, VMLINUX_SYMBOL_STR(init_module)) == 0)
 			mod->has_init = 1;
-		if (strcmp(symname, MODULE_SYMBOL_PREFIX "cleanup_module") == 0)
+		if (strcmp(symname, VMLINUX_SYMBOL_STR(cleanup_module)) == 0)
 			mod->has_cleanup = 1;
 		break;
 	}
@@ -1762,6 +1764,27 @@ static void read_symbols(char *modname)
 		mod->unres = alloc_symbol("module_layout", 0, mod->unres);
 }
 
+static void read_symbols_from_files(const char *filename)
+{
+	FILE *in = stdin;
+	char fname[PATH_MAX];
+
+	if (strcmp(filename, "-") != 0) {
+		in = fopen(filename, "r");
+		if (!in)
+			fatal("Can't open filenames file %s: %m", filename);
+	}
+
+	while (fgets(fname, PATH_MAX, in) != NULL) {
+		if (strends(fname, "\n"))
+			fname[strlen(fname)-1] = '\0';
+		read_symbols(fname);
+	}
+
+	if (in != stdin)
+		fclose(in);
+}
+
 #define SZ 500
 
 /* We first write the generated file into memory using the
@@ -1934,7 +1957,8 @@ static int add_versions(struct buffer *b, struct module *mod)
 				s->name, mod->name);
 			continue;
 		}
-		buf_printf(b, "\t{ %#8x, \"%s\" },\n", s->crc, s->name);
+		buf_printf(b, "\t{ %#8x, __VMLINUX_SYMBOL_STR(%s) },\n",
+			   s->crc, s->name);
 	}
 
 	buf_printf(b, "};\n");
@@ -2122,13 +2146,13 @@ int main(int argc, char **argv)
 	struct module *mod;
 	struct buffer buf = { };
 	char *kernel_read = NULL, *module_read = NULL;
-	char *dump_write = NULL;
+	char *dump_write = NULL, *files_source = NULL;
 	int opt;
 	int err;
 	struct ext_sym_list *extsym_iter;
 	struct ext_sym_list *extsym_start = NULL;
 
-	while ((opt = getopt(argc, argv, "i:I:e:msSo:awM:K:")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:e:msST:o:awM:K:")) != -1) {
 		switch (opt) {
 		case 'i':
 			kernel_read = optarg;
@@ -2160,6 +2184,9 @@ int main(int argc, char **argv)
 		case 'S':
 			sec_mismatch_verbose = 0;
 			break;
+		case 'T':
+			files_source = optarg;
+			break;
 		case 'w':
 			warn_unresolved = 1;
 			break;
@@ -2181,6 +2208,9 @@ int main(int argc, char **argv)
 
 	while (optind < argc)
 		read_symbols(argv[optind++]);
+
+	if (files_source)
+		read_symbols_from_files(files_source);
 
 	for (mod = modules; mod; mod = mod->next) {
 		if (mod->skip)

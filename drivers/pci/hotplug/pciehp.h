@@ -127,15 +127,15 @@ struct controller {
 #define NO_CMD_CMPL(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_NCCS)
 #define PSN(ctrl)		((ctrl)->slot_cap >> 19)
 
-extern int pciehp_sysfs_enable_slot(struct slot *slot);
-extern int pciehp_sysfs_disable_slot(struct slot *slot);
-extern u8 pciehp_handle_attention_button(struct slot *p_slot);
-extern u8 pciehp_handle_switch_change(struct slot *p_slot);
-extern u8 pciehp_handle_presence_change(struct slot *p_slot);
-extern u8 pciehp_handle_power_fault(struct slot *p_slot);
-extern int pciehp_configure_device(struct slot *p_slot);
-extern int pciehp_unconfigure_device(struct slot *p_slot);
-extern void pciehp_queue_pushbutton_work(struct work_struct *work);
+int pciehp_sysfs_enable_slot(struct slot *slot);
+int pciehp_sysfs_disable_slot(struct slot *slot);
+u8 pciehp_handle_attention_button(struct slot *p_slot);
+u8 pciehp_handle_switch_change(struct slot *p_slot);
+u8 pciehp_handle_presence_change(struct slot *p_slot);
+u8 pciehp_handle_power_fault(struct slot *p_slot);
+int pciehp_configure_device(struct slot *p_slot);
+int pciehp_unconfigure_device(struct slot *p_slot);
+void pciehp_queue_pushbutton_work(struct work_struct *work);
 struct controller *pcie_init(struct pcie_device *dev);
 int pcie_init_notification(struct controller *ctrl);
 int pciehp_enable_slot(struct slot *p_slot);
@@ -166,8 +166,8 @@ static inline const char *slot_name(struct slot *slot)
 #include <acpi/acpi_bus.h>
 #include <linux/pci-acpi.h>
 
-extern void __init pciehp_acpi_slot_detection_init(void);
-extern int pciehp_acpi_slot_detection_check(struct pci_dev *dev);
+void __init pciehp_acpi_slot_detection_init(void);
+int pciehp_acpi_slot_detection_check(struct pci_dev *dev);
 
 static inline void pciehp_firmware_init(void)
 {

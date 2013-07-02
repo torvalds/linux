@@ -833,21 +833,25 @@ static inline void em_x270_init_ac97(void) {}
 #endif
 
 #if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
-static unsigned int em_x270_module_matrix_keys[] = {
+static const unsigned int em_x270_module_matrix_keys[] = {
 	KEY(0, 0, KEY_A), KEY(1, 0, KEY_UP), KEY(2, 1, KEY_B),
 	KEY(0, 2, KEY_LEFT), KEY(1, 1, KEY_ENTER), KEY(2, 0, KEY_RIGHT),
 	KEY(0, 1, KEY_C), KEY(1, 2, KEY_DOWN), KEY(2, 2, KEY_D),
+};
+
+static struct matrix_keymap_data em_x270_matrix_keymap_data = {
+	.keymap			= em_x270_module_matrix_keys,
+	.keymap_size		= ARRAY_SIZE(em_x270_module_matrix_keys),
 };
 
 struct pxa27x_keypad_platform_data em_x270_module_keypad_info = {
 	/* code map for the matrix keys */
 	.matrix_key_rows	= 3,
 	.matrix_key_cols	= 3,
-	.matrix_key_map		= em_x270_module_matrix_keys,
-	.matrix_key_map_size	= ARRAY_SIZE(em_x270_module_matrix_keys),
+	.matrix_keymap_data	= &em_x270_matrix_keymap_data,
 };
 
-static unsigned int em_x270_exeda_matrix_keys[] = {
+static const unsigned int em_x270_exeda_matrix_keys[] = {
 	KEY(0, 0, KEY_RIGHTSHIFT), KEY(0, 1, KEY_RIGHTCTRL),
 	KEY(0, 2, KEY_RIGHTALT), KEY(0, 3, KEY_SPACE),
 	KEY(0, 4, KEY_LEFTALT), KEY(0, 5, KEY_LEFTCTRL),
@@ -889,12 +893,16 @@ static unsigned int em_x270_exeda_matrix_keys[] = {
 	KEY(7, 6, 0), KEY(7, 7, 0),
 };
 
+static struct matrix_keymap_data em_x270_exeda_matrix_keymap_data = {
+	.keymap			= em_x270_exeda_matrix_keys,
+	.keymap_size		= ARRAY_SIZE(em_x270_exeda_matrix_keys),
+};
+
 struct pxa27x_keypad_platform_data em_x270_exeda_keypad_info = {
 	/* code map for the matrix keys */
 	.matrix_key_rows	= 8,
 	.matrix_key_cols	= 8,
-	.matrix_key_map		= em_x270_exeda_matrix_keys,
-	.matrix_key_map_size	= ARRAY_SIZE(em_x270_exeda_matrix_keys),
+	.matrix_keymap_data	= &em_x270_exeda_matrix_keymap_data,
 };
 
 static void __init em_x270_init_keypad(void)

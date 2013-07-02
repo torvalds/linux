@@ -31,17 +31,15 @@
 #include "comedidev.h"
 #include "comedi_internal.h"
 #include <linux/proc_fs.h>
-#include <linux/string.h>
+#include <linux/seq_file.h>
 
-static int comedi_read(char *buf, char **start, off_t offset, int len,
-		       int *eof, void *data)
+static int comedi_read(struct seq_file *m, void *v)
 {
 	int i;
 	int devices_q = 0;
-	int l = 0;
 	struct comedi_driver *driv;
 
-	l += sprintf(buf + l,
+	seq_printf(m,
 		     "comedi version " COMEDI_RELEASE "\n"
 		     "format string: %s\n",
 		     "\"%2d: %-20s %-20s %4d\", i, "
@@ -49,42 +47,51 @@ static int comedi_read(char *buf, char **start, off_t offset, int len,
 
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
 		struct comedi_device *dev = comedi_dev_from_minor(i);
-
 		if (!dev)
 			continue;
 
 		if (dev->attached) {
 			devices_q = 1;
-			l += sprintf(buf + l, "%2d: %-20s %-20s %4d\n",
-				     i,
-				     dev->driver->driver_name,
-				     dev->board_name, dev->n_subdevices);
+			seq_printf(m, "%2d: %-20s %-20s %4d\n",
+				   i, dev->driver->driver_name,
+				   dev->board_name, dev->n_subdevices);
 		}
 	}
 	if (!devices_q)
-		l += sprintf(buf + l, "no devices\n");
+		seq_puts(m, "no devices\n");
 
 	for (driv = comedi_drivers; driv; driv = driv->next) {
-		l += sprintf(buf + l, "%s:\n", driv->driver_name);
-		for (i = 0; i < driv->num_names; i++) {
-			l += sprintf(buf + l, " %s\n",
-				     *(char **)((char *)driv->board_name +
-						i * driv->offset));
-		}
+		seq_printf(m, "%s:\n", driv->driver_name);
+		for (i = 0; i < driv->num_names; i++)
+			seq_printf(m, " %s\n",
+				   *(char **)((char *)driv->board_name +
+					      i * driv->offset));
+
 		if (!driv->num_names)
-			l += sprintf(buf + l, " %s\n", driv->driver_name);
+			seq_printf(m, " %s\n", driv->driver_name);
 	}
 
-	return l;
+	return 0;
 }
+
+/*
+ * seq_file wrappers for procfile show routines.
+ */
+static int comedi_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, comedi_read, NULL);
+}
+
+static const struct file_operations comedi_proc_fops = {
+	.open		= comedi_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 void comedi_proc_init(void)
 {
-	struct proc_dir_entry *comedi_proc;
-
-	comedi_proc = create_proc_entry("comedi", S_IFREG | S_IRUGO, NULL);
-	if (comedi_proc)
-		comedi_proc->read_proc = comedi_read;
+	proc_create("comedi", 0644, NULL, &comedi_proc_fops);
 }
 
 void comedi_proc_cleanup(void)

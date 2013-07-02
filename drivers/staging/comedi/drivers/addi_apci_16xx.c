@@ -34,35 +34,29 @@
 #include "../comedidev.h"
 
 /*
- * PCI device ids supported by this driver
- */
-#define PCI_DEVICE_ID_APCI1648		0x1009
-#define PCI_DEVICE_ID_APCI1696		0x100a
-
-/*
  * Register I/O map
  */
 #define APCI16XX_IN_REG(x)		(((x) * 4) + 0x08)
 #define APCI16XX_OUT_REG(x)		(((x) * 4) + 0x14)
 #define APCI16XX_DIR_REG(x)		(((x) * 4) + 0x20)
 
+enum apci16xx_boardid {
+	BOARD_APCI1648,
+	BOARD_APCI1696,
+};
+
 struct apci16xx_boardinfo {
 	const char *name;
-	unsigned short vendor;
-	unsigned short device;
 	int n_chan;
 };
 
 static const struct apci16xx_boardinfo apci16xx_boardtypes[] = {
-	{
+	[BOARD_APCI1648] = {
 		.name		= "apci1648",
-		.vendor		= PCI_VENDOR_ID_ADDIDATA,
-		.device		= PCI_DEVICE_ID_APCI1648,
 		.n_chan		= 48,		/* 2 subdevices */
-	}, {
+	},
+	[BOARD_APCI1696] = {
 		.name		= "apci1696",
-		.vendor		= PCI_VENDOR_ID_ADDIDATA,
-		.device		= PCI_DEVICE_ID_APCI1696,
 		.n_chan		= 96,		/* 3 subdevices */
 	},
 };
@@ -130,39 +124,25 @@ static int apci16xx_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static const void *apci16xx_find_boardinfo(struct comedi_device *dev,
-					   struct pci_dev *pcidev)
-{
-	const struct apci16xx_boardinfo *board;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(apci16xx_boardtypes); i++) {
-		board = &apci16xx_boardtypes[i];
-		if (board->vendor == pcidev->vendor &&
-		    board->device == pcidev->device)
-			return board;
-	}
-	return NULL;
-}
-
 static int apci16xx_auto_attach(struct comedi_device *dev,
-				unsigned long context_unused)
+				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct apci16xx_boardinfo *board;
+	const struct apci16xx_boardinfo *board = NULL;
 	struct comedi_subdevice *s;
 	unsigned int n_subdevs;
 	unsigned int last;
 	int i;
 	int ret;
 
-	board = apci16xx_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(apci16xx_boardtypes))
+		board = &apci16xx_boardtypes[context];
 	if (!board)
 		return -ENODEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 
@@ -204,35 +184,22 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void apci16xx_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
-}
-
 static struct comedi_driver apci16xx_driver = {
 	.driver_name	= "addi_apci_16xx",
 	.module		= THIS_MODULE,
 	.auto_attach	= apci16xx_auto_attach,
-	.detach		= apci16xx_detach,
-	.num_names	= ARRAY_SIZE(apci16xx_boardtypes),
-	.board_name	= &apci16xx_boardtypes[0].name,
-	.offset		= sizeof(struct apci16xx_boardinfo),
+	.detach		= comedi_pci_disable,
 };
 
 static int apci16xx_pci_probe(struct pci_dev *dev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &apci16xx_driver);
+	return comedi_pci_auto_config(dev, &apci16xx_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci16xx_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, PCI_DEVICE_ID_APCI1648) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, PCI_DEVICE_ID_APCI1696) },
+	{ PCI_VDEVICE(ADDIDATA, 0x1009), BOARD_APCI1648 },
+	{ PCI_VDEVICE(ADDIDATA, 0x100a), BOARD_APCI1696 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, apci16xx_pci_table);

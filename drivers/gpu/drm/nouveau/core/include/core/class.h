@@ -169,6 +169,7 @@ struct nv04_display_class {
  * 8570: NVA3_DISP
  * 9070: NVD0_DISP
  * 9170: NVE0_DISP
+ * 9270: NVF0_DISP
  */
 
 #define NV50_DISP_CLASS                                              0x00005070
@@ -178,6 +179,7 @@ struct nv04_display_class {
 #define NVA3_DISP_CLASS                                              0x00008570
 #define NVD0_DISP_CLASS                                              0x00009070
 #define NVE0_DISP_CLASS                                              0x00009170
+#define NVF0_DISP_CLASS                                              0x00009270
 
 #define NV50_DISP_SOR_MTHD                                           0x00010000
 #define NV50_DISP_SOR_MTHD_TYPE                                      0x0000f000
@@ -216,7 +218,7 @@ struct nv04_display_class {
 #define NV50_DISP_DAC_PWR_STATE                                      0x00000040
 #define NV50_DISP_DAC_PWR_STATE_ON                                   0x00000000
 #define NV50_DISP_DAC_PWR_STATE_OFF                                  0x00000040
-#define NV50_DISP_DAC_LOAD                                           0x0002000c
+#define NV50_DISP_DAC_LOAD                                           0x00020100
 #define NV50_DISP_DAC_LOAD_VALUE                                     0x00000007
 
 #define NV50_DISP_PIOR_MTHD                                          0x00030000
@@ -246,6 +248,7 @@ struct nv50_display_class {
  * 857a: NVA3_DISP_CURS
  * 907a: NVD0_DISP_CURS
  * 917a: NVE0_DISP_CURS
+ * 927a: NVF0_DISP_CURS
  */
 
 #define NV50_DISP_CURS_CLASS                                         0x0000507a
@@ -255,6 +258,7 @@ struct nv50_display_class {
 #define NVA3_DISP_CURS_CLASS                                         0x0000857a
 #define NVD0_DISP_CURS_CLASS                                         0x0000907a
 #define NVE0_DISP_CURS_CLASS                                         0x0000917a
+#define NVF0_DISP_CURS_CLASS                                         0x0000927a
 
 struct nv50_display_curs_class {
 	u32 head;
@@ -267,6 +271,7 @@ struct nv50_display_curs_class {
  * 857b: NVA3_DISP_OIMM
  * 907b: NVD0_DISP_OIMM
  * 917b: NVE0_DISP_OIMM
+ * 927b: NVE0_DISP_OIMM
  */
 
 #define NV50_DISP_OIMM_CLASS                                         0x0000507b
@@ -276,6 +281,7 @@ struct nv50_display_curs_class {
 #define NVA3_DISP_OIMM_CLASS                                         0x0000857b
 #define NVD0_DISP_OIMM_CLASS                                         0x0000907b
 #define NVE0_DISP_OIMM_CLASS                                         0x0000917b
+#define NVF0_DISP_OIMM_CLASS                                         0x0000927b
 
 struct nv50_display_oimm_class {
 	u32 head;
@@ -288,6 +294,7 @@ struct nv50_display_oimm_class {
  * 857c: NVA3_DISP_SYNC
  * 907c: NVD0_DISP_SYNC
  * 917c: NVE0_DISP_SYNC
+ * 927c: NVF0_DISP_SYNC
  */
 
 #define NV50_DISP_SYNC_CLASS                                         0x0000507c
@@ -297,6 +304,7 @@ struct nv50_display_oimm_class {
 #define NVA3_DISP_SYNC_CLASS                                         0x0000857c
 #define NVD0_DISP_SYNC_CLASS                                         0x0000907c
 #define NVE0_DISP_SYNC_CLASS                                         0x0000917c
+#define NVF0_DISP_SYNC_CLASS                                         0x0000927c
 
 struct nv50_display_sync_class {
 	u32 pushbuf;
@@ -310,6 +318,7 @@ struct nv50_display_sync_class {
  * 857d: NVA3_DISP_MAST
  * 907d: NVD0_DISP_MAST
  * 917d: NVE0_DISP_MAST
+ * 927d: NVF0_DISP_MAST
  */
 
 #define NV50_DISP_MAST_CLASS                                         0x0000507d
@@ -319,6 +328,7 @@ struct nv50_display_sync_class {
 #define NVA3_DISP_MAST_CLASS                                         0x0000857d
 #define NVD0_DISP_MAST_CLASS                                         0x0000907d
 #define NVE0_DISP_MAST_CLASS                                         0x0000917d
+#define NVF0_DISP_MAST_CLASS                                         0x0000927d
 
 struct nv50_display_mast_class {
 	u32 pushbuf;
@@ -331,6 +341,7 @@ struct nv50_display_mast_class {
  * 857e: NVA3_DISP_OVLY
  * 907e: NVD0_DISP_OVLY
  * 917e: NVE0_DISP_OVLY
+ * 927e: NVF0_DISP_OVLY
  */
 
 #define NV50_DISP_OVLY_CLASS                                         0x0000507e
@@ -340,6 +351,7 @@ struct nv50_display_mast_class {
 #define NVA3_DISP_OVLY_CLASS                                         0x0000857e
 #define NVD0_DISP_OVLY_CLASS                                         0x0000907e
 #define NVE0_DISP_OVLY_CLASS                                         0x0000917e
+#define NVF0_DISP_OVLY_CLASS                                         0x0000927e
 
 struct nv50_display_ovly_class {
 	u32 pushbuf;

@@ -2152,7 +2152,7 @@ il4965_rs_initialize_lq(struct il_priv *il, struct ieee80211_conf *conf,
 	int rate_idx;
 	int i;
 	u32 rate;
-	u8 use_green = il4965_rs_use_green(il, sta);
+	u8 use_green;
 	u8 active_tbl = 0;
 	u8 valid_tx_ant;
 	struct il_station_priv *sta_priv;
@@ -2160,6 +2160,7 @@ il4965_rs_initialize_lq(struct il_priv *il, struct ieee80211_conf *conf,
 	if (!sta || !lq_sta)
 		return;
 
+	use_green = il4965_rs_use_green(il, sta);
 	sta_priv = (void *)sta->drv_priv;
 
 	i = lq_sta->last_txrate_idx;
@@ -2299,7 +2300,7 @@ il4965_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 
 	sta_priv = (struct il_station_priv *)sta->drv_priv;
 	lq_sta = &sta_priv->lq_sta;
-	sband = hw->wiphy->bands[conf->channel->band];
+	sband = hw->wiphy->bands[conf->chandef.chan->band];
 
 	lq_sta->lq.sta_id = sta_id;
 

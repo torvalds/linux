@@ -333,29 +333,23 @@ static int proc_output(char *buf)
 	return p - buf;
 }
 
-static int
-adv7393_read_proc(char *page, char **start, off_t off,
-		  int count, int *eof, void *data)
+static ssize_t
+adv7393_read_proc(struct file *file, char __user *buf,
+		  size_t size, loff_t *ppos)
 {
-	int len;
-
-	len = proc_output(page);
-	if (len <= off + count)
-		*eof = 1;
-	*start = page + off;
-	len -= off;
-	if (len > count)
-		len = count;
-	if (len < 0)
-		len = 0;
-	return len;
+	static const char message[] = "Usage:\n"
+		"echo 0x[REG][Value] > adv7393\n"
+		"example: echo 0x1234 >adv7393\n"
+		"writes 0x34 into Register 0x12\n";
+	return simple_read_from_buffer(buf, size, ppos, message,
+					sizeof(message));
 }
 
-static int
+static ssize_t
 adv7393_write_proc(struct file *file, const char __user * buffer,
-		   size_t count, void *data)
+		   size_t count, loff_t *ppos)
 {
-	struct adv7393fb_device *fbdev = data;
+	struct adv7393fb_device *fbdev = PDE_DATA(file_inode(file));
 	unsigned int val;
 	int ret;
 
@@ -367,6 +361,12 @@ adv7393_write_proc(struct file *file, const char __user * buffer,
 
 	return count;
 }
+
+static const struct file_operations fops = {
+	.read = adv7393_read_proc,
+	.write = adv7393_write_proc,
+	.llseek = default_llseek,
+};
 
 static int bfin_adv7393_fb_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
@@ -506,17 +506,12 @@ static int bfin_adv7393_fb_probe(struct i2c_client *client,
 	       fbdev->info.node, fbdev->info.fix.id);
 	dev_info(&client->dev, "fb memory address : 0x%p\n", fbdev->fb_mem);
 
-	entry = create_proc_entry("driver/adv7393", 0, NULL);
+	entry = proc_create_data("driver/adv7393", 0, NULL, &fops, fbdev);
 	if (!entry) {
 		dev_err(&client->dev, "unable to create /proc entry\n");
 		ret = -EFAULT;
 		goto free_fb;
 	}
-
-	entry->read_proc = adv7393_read_proc;
-	entry->write_proc = adv7393_write_proc;
-	entry->data = fbdev;
-
 	return 0;
 
 free_fb:

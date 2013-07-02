@@ -191,59 +191,6 @@
 #define PIC_IRT_PCIE_LINK_2_INDEX	80
 #define PIC_IRT_PCIE_LINK_3_INDEX	81
 #define PIC_IRT_PCIE_LINK_INDEX(num)	((num) + PIC_IRT_PCIE_LINK_0_INDEX)
-/* 78 to 81 */
-#define PIC_NUM_NA_IRTS			32
-/* 82 to 113 */
-#define PIC_IRT_NA_0_INDEX		82
-#define PIC_IRT_NA_INDEX(num)		((num) + PIC_IRT_NA_0_INDEX)
-#define PIC_IRT_POE_INDEX		114
-
-#define PIC_NUM_USB_IRTS		6
-#define PIC_IRT_USB_0_INDEX		115
-#define PIC_IRT_EHCI_0_INDEX		115
-#define PIC_IRT_OHCI_0_INDEX		116
-#define PIC_IRT_OHCI_1_INDEX		117
-#define PIC_IRT_EHCI_1_INDEX		118
-#define PIC_IRT_OHCI_2_INDEX		119
-#define PIC_IRT_OHCI_3_INDEX		120
-#define PIC_IRT_USB_INDEX(num)		((num) + PIC_IRT_USB_0_INDEX)
-/* 115 to 120 */
-#define PIC_IRT_GDX_INDEX		121
-#define PIC_IRT_SEC_INDEX		122
-#define PIC_IRT_RSA_INDEX		123
-
-#define PIC_NUM_COMP_IRTS		4
-#define PIC_IRT_COMP_0_INDEX		124
-#define PIC_IRT_COMP_INDEX(num)		((num) + PIC_IRT_COMP_0_INDEX)
-/* 124 to 127 */
-#define PIC_IRT_GBU_INDEX		128
-#define PIC_IRT_ICC_0_INDEX		129 /* ICC - Inter Chip Coherency */
-#define PIC_IRT_ICC_1_INDEX		130
-#define PIC_IRT_ICC_2_INDEX		131
-#define PIC_IRT_CAM_INDEX		132
-#define PIC_IRT_UART_0_INDEX		133
-#define PIC_IRT_UART_1_INDEX		134
-#define PIC_IRT_I2C_0_INDEX		135
-#define PIC_IRT_I2C_1_INDEX		136
-#define PIC_IRT_SYS_0_INDEX		137
-#define PIC_IRT_SYS_1_INDEX		138
-#define PIC_IRT_JTAG_INDEX		139
-#define PIC_IRT_PIC_INDEX		140
-#define PIC_IRT_NBU_INDEX		141
-#define PIC_IRT_TCU_INDEX		142
-#define PIC_IRT_GCU_INDEX		143 /* GBC - Global Coherency */
-#define PIC_IRT_DMC_0_INDEX		144
-#define PIC_IRT_DMC_1_INDEX		145
-
-#define PIC_NUM_GPIO_IRTS		4
-#define PIC_IRT_GPIO_0_INDEX		146
-#define PIC_IRT_GPIO_INDEX(num)		((num) + PIC_IRT_GPIO_0_INDEX)
-
-/* 146 to 149 */
-#define PIC_IRT_NOR_INDEX		150
-#define PIC_IRT_NAND_INDEX		151
-#define PIC_IRT_SPI_INDEX		152
-#define PIC_IRT_MMC_INDEX		153
 
 #define PIC_CLOCK_TIMER			7
 #define PIC_IRQ_BASE			8

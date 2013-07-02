@@ -439,7 +439,6 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 err_disable_runtime_pm:
 	pm_runtime_disable(&pdev->dev);
 	device_init_wakeup(&pdev->dev, 0);
-	platform_set_drvdata(pdev, NULL);
 err_unprepare_clk:
 	clk_unprepare(keypad->clk);
 	return error;
@@ -451,7 +450,6 @@ static int samsung_keypad_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	device_init_wakeup(&pdev->dev, 0);
-	platform_set_drvdata(pdev, NULL);
 
 	input_unregister_device(keypad->input_dev);
 

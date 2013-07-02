@@ -37,6 +37,8 @@ const struct cpu_ver_key cpu_ver_lookup[] = {
 	{"8.20.a", 0x15},
 	{"8.20.b", 0x16},
 	{"8.30.a", 0x17},
+	{"8.40.a", 0x18},
+	{"8.40.b", 0x19},
 	{NULL, 0},
 };
 
@@ -57,6 +59,9 @@ const struct family_string_key family_string_lookup[] = {
 	{"virtex6", 0xe},
 	/* FIXME There is no key code defined for spartan2 */
 	{"spartan2", 0xf0},
+	{"kintex7", 0x10},
+	{"artix7", 0x11},
+	{"zynq7000", 0x12},
 	{NULL, 0},
 };
 

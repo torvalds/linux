@@ -781,4 +781,12 @@ config APPLE_GMUX
 	  graphics as well as the backlight. Currently only backlight
 	  control is supported by the driver.
 
+config PVPANIC
+	tristate "pvpanic device support"
+	depends on ACPI
+	---help---
+	  This driver provides support for the pvpanic device.  pvpanic is
+	  a paravirtualized device provided by QEMU; it lets a virtual machine
+	  (guest) communicate panic events to the host.
+
 endif # X86_PLATFORM_DEVICES

@@ -513,6 +513,8 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 
 	mlx4_log_num_mgm_entry_size = hca_param.log_mc_entry_sz;
 
+	dev->caps.hca_core_clock = hca_param.hca_core_clock;
+
 	memset(&dev_cap, 0, sizeof(dev_cap));
 	dev->caps.max_qp_dest_rdma = 1 << hca_param.log_rd_per_qp;
 	err = mlx4_dev_cap(dev, &dev_cap);
@@ -1226,8 +1228,53 @@ static void unmap_bf_area(struct mlx4_dev *dev)
 		io_mapping_free(mlx4_priv(dev)->bf_mapping);
 }
 
+cycle_t mlx4_read_clock(struct mlx4_dev *dev)
+{
+	u32 clockhi, clocklo, clockhi1;
+	cycle_t cycles;
+	int i;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	for (i = 0; i < 10; i++) {
+		clockhi = swab32(readl(priv->clock_mapping));
+		clocklo = swab32(readl(priv->clock_mapping + 4));
+		clockhi1 = swab32(readl(priv->clock_mapping));
+		if (clockhi == clockhi1)
+			break;
+	}
+
+	cycles = (u64) clockhi << 32 | (u64) clocklo;
+
+	return cycles;
+}
+EXPORT_SYMBOL_GPL(mlx4_read_clock);
+
+
+static int map_internal_clock(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	priv->clock_mapping =
+		ioremap(pci_resource_start(dev->pdev, priv->fw.clock_bar) +
+			priv->fw.clock_offset, MLX4_CLOCK_SIZE);
+
+	if (!priv->clock_mapping)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void unmap_internal_clock(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (priv->clock_mapping)
+		iounmap(priv->clock_mapping);
+}
+
 static void mlx4_close_hca(struct mlx4_dev *dev)
 {
+	unmap_internal_clock(dev);
 	unmap_bf_area(dev);
 	if (mlx4_is_slave(dev))
 		mlx4_slave_exit(dev);
@@ -1243,7 +1290,6 @@ static int mlx4_init_slave(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	u64 dma = (u64) priv->mfunc.vhcr_dma;
-	int num_of_reset_retries = NUM_OF_RESET_RETRIES;
 	int ret_from_reset = 0;
 	u32 slave_read;
 	u32 cmd_channel_ver;
@@ -1257,18 +1303,10 @@ static int mlx4_init_slave(struct mlx4_dev *dev)
 	 * NUM_OF_RESET_RETRIES times before leaving.*/
 	if (ret_from_reset) {
 		if (MLX4_DELAY_RESET_SLAVE == ret_from_reset) {
-			msleep(SLEEP_TIME_IN_RESET);
-			while (ret_from_reset && num_of_reset_retries) {
-				mlx4_warn(dev, "slave is currently in the"
-					  "middle of FLR. retrying..."
-					  "(try num:%d)\n",
-					  (NUM_OF_RESET_RETRIES -
-					   num_of_reset_retries  + 1));
-				ret_from_reset =
-					mlx4_comm_cmd(dev, MLX4_COMM_CMD_RESET,
-						      0, MLX4_COMM_TIME);
-				num_of_reset_retries = num_of_reset_retries - 1;
-			}
+			mlx4_warn(dev, "slave is currently in the "
+				  "middle of FLR. Deferring probe.\n");
+			mutex_unlock(&priv->cmd.slave_cmd_mutex);
+			return -EPROBE_DEFER;
 		} else
 			goto err;
 	}
@@ -1445,10 +1483,42 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 			mlx4_err(dev, "INIT_HCA command failed, aborting.\n");
 			goto err_free_icm;
 		}
+		/*
+		 * If TS is supported by FW
+		 * read HCA frequency by QUERY_HCA command
+		 */
+		if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS) {
+			memset(&init_hca, 0, sizeof(init_hca));
+			err = mlx4_QUERY_HCA(dev, &init_hca);
+			if (err) {
+				mlx4_err(dev, "QUERY_HCA command failed, disable timestamp.\n");
+				dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_TS;
+			} else {
+				dev->caps.hca_core_clock =
+					init_hca.hca_core_clock;
+			}
+
+			/* In case we got HCA frequency 0 - disable timestamping
+			 * to avoid dividing by zero
+			 */
+			if (!dev->caps.hca_core_clock) {
+				dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_TS;
+				mlx4_err(dev,
+					 "HCA frequency is 0. Timestamping is not supported.");
+			} else if (map_internal_clock(dev)) {
+				/*
+				 * Map internal clock,
+				 * in case of failure disable timestamping
+				 */
+				dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_TS;
+				mlx4_err(dev, "Failed to map internal clock. Timestamping is not supported.\n");
+			}
+		}
 	} else {
 		err = mlx4_init_slave(dev);
 		if (err) {
-			mlx4_err(dev, "Failed to initialize slave\n");
+			if (err != -EPROBE_DEFER)
+				mlx4_err(dev, "Failed to initialize slave\n");
 			return err;
 		}
 
@@ -1478,6 +1548,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 	return 0;
 
 unmap_bf:
+	unmap_internal_clock(dev);
 	unmap_bf_area(dev);
 
 err_close:

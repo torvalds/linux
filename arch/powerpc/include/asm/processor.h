@@ -40,7 +40,7 @@
  * -- BenH.
  */
 
-/* PREP sub-platform types see residual.h for these */
+/* PREP sub-platform types. Unused */
 #define _PREP_Motorola	0x01	/* motorola prep */
 #define _PREP_Firm	0x02	/* firmworks prep */
 #define _PREP_IBM	0x00	/* ibm prep */
@@ -55,13 +55,6 @@
 #if defined(__KERNEL__) && defined(CONFIG_PPC32)
 
 extern int _chrp_type;
-
-#ifdef CONFIG_PPC_PREP
-
-/* what kind of prep workstation we are */
-extern int _prep_type;
-
-#endif /* CONFIG_PPC_PREP */
 
 #endif /* defined(__KERNEL__) && defined(CONFIG_PPC32) */
 
@@ -288,6 +281,15 @@ struct thread_struct {
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	unsigned long	tar;
+	unsigned long	ebbrr;
+	unsigned long	ebbhr;
+	unsigned long	bescr;
+	unsigned long	siar;
+	unsigned long	sdar;
+	unsigned long	sier;
+	unsigned long	mmcr0;
+	unsigned long	mmcr2;
+	unsigned long	mmcra;
 #endif
 };
 
@@ -407,21 +409,16 @@ static inline void prefetchw(const void *x)
 #endif
 
 #ifdef CONFIG_PPC64
-static inline unsigned long get_clean_sp(struct pt_regs *regs, int is_32)
+static inline unsigned long get_clean_sp(unsigned long sp, int is_32)
 {
-	unsigned long sp;
-
 	if (is_32)
-		sp = regs->gpr[1] & 0x0ffffffffUL;
-	else
-		sp = regs->gpr[1];
-
+		return sp & 0x0ffffffffUL;
 	return sp;
 }
 #else
-static inline unsigned long get_clean_sp(struct pt_regs *regs, int is_32)
+static inline unsigned long get_clean_sp(unsigned long sp, int is_32)
 {
-	return regs->gpr[1];
+	return sp;
 }
 #endif
 

@@ -55,12 +55,6 @@ ath9k_postprocess_radar_event(struct ath_softc *sc,
 	u8 rssi;
 	u16 dur;
 
-	ath_dbg(ath9k_hw_common(sc->sc_ah), DFS,
-		"pulse_bw_info=0x%x, pri,ext len/rssi=(%u/%u, %u/%u)\n",
-		ard->pulse_bw_info,
-		ard->pulse_length_pri, ard->rssi,
-		ard->pulse_length_ext, ard->ext_rssi);
-
 	/*
 	 * Only the last 2 bits of the BW info are relevant, they indicate
 	 * which channel the radar was detected in.
@@ -193,9 +187,7 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 		DFS_STAT_INC(sc, pulses_processed);
 		if (pd != NULL && pd->add_pulse(pd, &pe)) {
 			DFS_STAT_INC(sc, radar_detected);
-			/*
-			 * TODO: forward radar event to DFS management layer
-			 */
+			ieee80211_radar_detected(sc->hw);
 		}
 	}
 }

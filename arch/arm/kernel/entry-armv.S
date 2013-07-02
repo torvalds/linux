@@ -192,18 +192,6 @@ __dabt_svc:
 	svc_entry
 	mov	r2, sp
 	dabt_helper
-
-	@
-	@ IRQs off again before pulling preserved data off the stack
-	@
-	disable_irq_notrace
-
-#ifdef CONFIG_TRACE_IRQFLAGS
-	tst	r5, #PSR_I_BIT
-	bleq	trace_hardirqs_on
-	tst	r5, #PSR_I_BIT
-	blne	trace_hardirqs_off
-#endif
 	svc_exit r5				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__dabt_svc)
@@ -223,12 +211,7 @@ __irq_svc:
 	blne	svc_preempt
 #endif
 
-#ifdef CONFIG_TRACE_IRQFLAGS
-	@ The parent context IRQs must have been enabled to get here in
-	@ the first place, so there's no point checking the PSR I bit.
-	bl	trace_hardirqs_on
-#endif
-	svc_exit r5				@ return from exception
+	svc_exit r5, irq = 1			@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__irq_svc)
 
@@ -295,22 +278,8 @@ __und_svc_fault:
 	mov	r0, sp				@ struct pt_regs *regs
 	bl	__und_fault
 
-	@
-	@ IRQs off again before pulling preserved data off the stack
-	@
 __und_svc_finish:
-	disable_irq_notrace
-
-	@
-	@ restore SPSR and restart the instruction
-	@
 	ldr	r5, [sp, #S_PSR]		@ Get SVC cpsr
-#ifdef CONFIG_TRACE_IRQFLAGS
-	tst	r5, #PSR_I_BIT
-	bleq	trace_hardirqs_on
-	tst	r5, #PSR_I_BIT
-	blne	trace_hardirqs_off
-#endif
 	svc_exit r5				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__und_svc)
@@ -320,18 +289,6 @@ __pabt_svc:
 	svc_entry
 	mov	r2, sp				@ regs
 	pabt_helper
-
-	@
-	@ IRQs off again before pulling preserved data off the stack
-	@
-	disable_irq_notrace
-
-#ifdef CONFIG_TRACE_IRQFLAGS
-	tst	r5, #PSR_I_BIT
-	bleq	trace_hardirqs_on
-	tst	r5, #PSR_I_BIT
-	blne	trace_hardirqs_off
-#endif
 	svc_exit r5				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__pabt_svc)
@@ -396,6 +353,7 @@ ENDPROC(__pabt_svc)
 #ifdef CONFIG_IRQSOFF_TRACER
 	bl	trace_hardirqs_off
 #endif
+	ct_user_exit save = 0
 	.endm
 
 	.macro	kuser_cmpxchg_check
@@ -562,21 +520,21 @@ ENDPROC(__und_usr)
 	@ Fall-through from Thumb-2 __und_usr
 	@
 #ifdef CONFIG_NEON
+	get_thread_info r10			@ get current thread
 	adr	r6, .LCneon_thumb_opcodes
 	b	2f
 #endif
 call_fpe:
+	get_thread_info r10			@ get current thread
 #ifdef CONFIG_NEON
 	adr	r6, .LCneon_arm_opcodes
-2:
-	ldr	r7, [r6], #4			@ mask value
-	cmp	r7, #0				@ end mask?
-	beq	1f
-	and	r8, r0, r7
+2:	ldr	r5, [r6], #4			@ mask value
 	ldr	r7, [r6], #4			@ opcode bits matching in mask
+	cmp	r5, #0				@ end mask?
+	beq	1f
+	and	r8, r0, r5
 	cmp	r8, r7				@ NEON instruction?
 	bne	2b
-	get_thread_info r10
 	mov	r7, #1
 	strb	r7, [r10, #TI_USED_CP + 10]	@ mark CP#10 as used
 	strb	r7, [r10, #TI_USED_CP + 11]	@ mark CP#11 as used
@@ -586,7 +544,6 @@ call_fpe:
 	tst	r0, #0x08000000			@ only CDP/CPRT/LDC/STC have bit 27
 	tstne	r0, #0x04000000			@ bit 26 set on both ARM and Thumb-2
 	moveq	pc, lr
-	get_thread_info r10			@ get current thread
 	and	r8, r0, #0x00000f00		@ mask out CP number
  THUMB(	lsr	r8, r8, #8		)
 	mov	r7, #1

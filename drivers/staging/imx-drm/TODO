@@ -1,5 +1,8 @@
 TODO:
 - get DRM Maintainer review for this code
+- Wait for common display framework to hit mainline and update the IPU
+  driver to use it. This will most probably make changes to the devicetree
+  bindings necessary.
 - Factor out more code to common helper functions
 - decide where to put the base driver. It is not specific to a subsystem
   and would be used by DRM/KMS and media/V4L2

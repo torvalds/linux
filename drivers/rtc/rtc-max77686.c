@@ -24,7 +24,7 @@
 
 /* RTC Control Register */
 #define BCD_EN_SHIFT			0
-#define BCD_EN_MASK				(1 << BCD_EN_SHIFT)
+#define BCD_EN_MASK			(1 << BCD_EN_SHIFT)
 #define MODEL24_SHIFT			1
 #define MODEL24_MASK			(1 << MODEL24_SHIFT)
 /* RTC Update Register1 */
@@ -33,12 +33,12 @@
 #define RTC_RBUDR_SHIFT			4
 #define RTC_RBUDR_MASK			(1 << RTC_RBUDR_SHIFT)
 /* WTSR and SMPL Register */
-#define WTSRT_SHIFT				0
-#define SMPLT_SHIFT				2
+#define WTSRT_SHIFT			0
+#define SMPLT_SHIFT			2
 #define WTSR_EN_SHIFT			6
 #define SMPL_EN_SHIFT			7
-#define WTSRT_MASK				(3 << WTSRT_SHIFT)
-#define SMPLT_MASK				(3 << SMPLT_SHIFT)
+#define WTSRT_MASK			(3 << WTSRT_SHIFT)
+#define SMPLT_MASK			(3 << SMPLT_SHIFT)
 #define WTSR_EN_MASK			(1 << WTSR_EN_SHIFT)
 #define SMPL_EN_MASK			(1 << SMPL_EN_SHIFT)
 /* RTC Hour register */
@@ -466,7 +466,7 @@ static void max77686_rtc_enable_smpl(struct max77686_rtc_info *info, bool enable
 
 	val = 0;
 	regmap_read(info->max77686->rtc_regmap, MAX77686_WTSR_SMPL_CNTL, &val);
-	pr_info("%s: WTSR_SMPL(0x%02x)\n", __func__, val);
+	dev_info(info->dev, "%s: WTSR_SMPL(0x%02x)\n", __func__, val);
 }
 #endif /* MAX77686_RTC_WTSR_SMPL */
 
@@ -505,7 +505,8 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
-	info = kzalloc(sizeof(struct max77686_rtc_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct max77686_rtc_info),
+				GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -513,13 +514,12 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	info->max77686 = max77686;
 	info->rtc = max77686->rtc;
-	info->max77686->rtc_regmap = regmap_init_i2c(info->max77686->rtc,
+	info->max77686->rtc_regmap = devm_regmap_init_i2c(info->max77686->rtc,
 					 &max77686_rtc_regmap_config);
 	if (IS_ERR(info->max77686->rtc_regmap)) {
 		ret = PTR_ERR(info->max77686->rtc_regmap);
 		dev_err(info->max77686->dev, "Failed to allocate register map: %d\n",
 				ret);
-		kfree(info);
 		return ret;
 	}
 	platform_set_drvdata(pdev, info);
@@ -538,8 +538,8 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	info->rtc_dev = rtc_device_register("max77686-rtc", &pdev->dev,
-			&max77686_rtc_ops, THIS_MODULE);
+	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "max77686-rtc",
+					&max77686_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(info->rtc_dev)) {
 		dev_info(&pdev->dev, "%s: fail\n", __func__);
@@ -551,36 +551,24 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 		goto err_rtc;
 	}
 	virq = irq_create_mapping(max77686->irq_domain, MAX77686_RTCIRQ_RTCA1);
-	if (!virq)
-		goto err_rtc;
-	info->virq = virq;
-
-	ret = request_threaded_irq(virq, NULL, max77686_rtc_alarm_irq, 0,
-			"rtc-alarm0", info);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
-			info->virq, ret);
+	if (!virq) {
+		ret = -ENXIO;
 		goto err_rtc;
 	}
+	info->virq = virq;
 
-	goto out;
+	ret = devm_request_threaded_irq(&pdev->dev, virq, NULL,
+				max77686_rtc_alarm_irq, 0, "rtc-alarm0", info);
+	if (ret < 0)
+		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
+			info->virq, ret);
+
 err_rtc:
-	kfree(info);
-	return ret;
-out:
 	return ret;
 }
 
 static int max77686_rtc_remove(struct platform_device *pdev)
 {
-	struct max77686_rtc_info *info = platform_get_drvdata(pdev);
-
-	if (info) {
-		free_irq(info->virq, info);
-		rtc_device_unregister(info->rtc_dev);
-		kfree(info);
-	}
-
 	return 0;
 }
 
@@ -594,11 +582,14 @@ static void max77686_rtc_shutdown(struct platform_device *pdev)
 	for (i = 0; i < 3; i++) {
 		max77686_rtc_enable_wtsr(info, false);
 		regmap_read(info->max77686->rtc_regmap, MAX77686_WTSR_SMPL_CNTL, &val);
-		pr_info("%s: WTSR_SMPL reg(0x%02x)\n", __func__, val);
-		if (val & WTSR_EN_MASK)
-			pr_emerg("%s: fail to disable WTSR\n", __func__);
-		else {
-			pr_info("%s: success to disable WTSR\n", __func__);
+		dev_info(info->dev, "%s: WTSR_SMPL reg(0x%02x)\n", __func__,
+				val);
+		if (val & WTSR_EN_MASK) {
+			dev_emerg(info->dev, "%s: fail to disable WTSR\n",
+					__func__);
+		} else {
+			dev_info(info->dev, "%s: success to disable WTSR\n",
+					__func__);
 			break;
 		}
 	}
@@ -624,18 +615,8 @@ static struct platform_driver max77686_rtc_driver = {
 	.id_table	= rtc_id,
 };
 
-static int __init max77686_rtc_init(void)
-{
-	return platform_driver_register(&max77686_rtc_driver);
-}
-module_init(max77686_rtc_init);
-
-static void __exit max77686_rtc_exit(void)
-{
-	platform_driver_unregister(&max77686_rtc_driver);
-}
-module_exit(max77686_rtc_exit);
+module_platform_driver(max77686_rtc_driver);
 
 MODULE_DESCRIPTION("Maxim MAX77686 RTC driver");
-MODULE_AUTHOR("<woong.byun@samsung.com>");
+MODULE_AUTHOR("Chiwoong Byun <woong.byun@samsung.com>");
 MODULE_LICENSE("GPL");

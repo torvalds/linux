@@ -1147,7 +1147,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 			if (WARN_ON(np->cork.opt))
 				return -EINVAL;
 
-			np->cork.opt = kmalloc(opt->tot_len, sk->sk_allocation);
+			np->cork.opt = kzalloc(opt->tot_len, sk->sk_allocation);
 			if (unlikely(np->cork.opt == NULL))
 				return -ENOBUFS;
 
@@ -1224,11 +1224,8 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	}
 
 	/* For UDP, check if TX timestamp is enabled */
-	if (sk->sk_type == SOCK_DGRAM) {
-		err = sock_tx_timestamp(sk, &tx_flags);
-		if (err)
-			goto error;
-	}
+	if (sk->sk_type == SOCK_DGRAM)
+		sock_tx_timestamp(sk, &tx_flags);
 
 	/*
 	 * Let's try using as much space as possible.

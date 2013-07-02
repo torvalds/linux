@@ -121,11 +121,17 @@ void __iomem *pci_iospace_start;
 static void __init bcm63xx_reset_pcie(void)
 {
 	u32 val;
+	u32 reg;
 
 	/* enable SERDES */
-	val = bcm_misc_readl(MISC_SERDES_CTRL_REG);
+	if (BCMCPU_IS_6328())
+		reg = MISC_SERDES_CTRL_6328_REG;
+	else
+		reg = MISC_SERDES_CTRL_6362_REG;
+
+	val = bcm_misc_readl(reg);
 	val |= SERDES_PCIE_EN | SERDES_PCIE_EXD_EN;
-	bcm_misc_writel(val, MISC_SERDES_CTRL_REG);
+	bcm_misc_writel(val, reg);
 
 	/* reset the PCIe core */
 	bcm63xx_core_set_reset(BCM63XX_RESET_PCIE, 1);
@@ -330,6 +336,7 @@ static int __init bcm63xx_pci_init(void)
 
 	switch (bcm63xx_get_cpu_id()) {
 	case BCM6328_CPU_ID:
+	case BCM6362_CPU_ID:
 		return bcm63xx_register_pcie();
 	case BCM6348_CPU_ID:
 	case BCM6358_CPU_ID:

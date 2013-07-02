@@ -2,13 +2,22 @@ if NLM_XLP_BOARD || NLM_XLR_BOARD
 
 if NLM_XLP_BOARD
 config DT_XLP_EVP
-	bool "Built-in device tree for XLP EVP/SVP boards"
+	bool "Built-in device tree for XLP EVP boards"
 	default y
 	help
-	  Add an FDT blob for XLP EVP and SVP boards into the kernel.
+	  Add an FDT blob for XLP EVP boards into the kernel.
 	  This DTB will be used if the firmware does not pass in a DTB
-          pointer to the kernel.  The corresponding DTS file is at
-          arch/mips/netlogic/dts/xlp_evp.dts
+	  pointer to the kernel.  The corresponding DTS file is at
+	  arch/mips/netlogic/dts/xlp_evp.dts
+
+config DT_XLP_SVP
+	bool "Built-in device tree for XLP SVP boards"
+	default y
+	help
+	  Add an FDT blob for XLP VP boards into the kernel.
+	  This DTB will be used if the firmware does not pass in a DTB
+	  pointer to the kernel.  The corresponding DTS file is at
+	  arch/mips/netlogic/dts/xlp_svp.dts
 
 config NLM_MULTINODE
 	bool "Support for multi-chip boards"

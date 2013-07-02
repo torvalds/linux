@@ -1016,7 +1016,9 @@ static int gbefb_mmap(struct fb_info *info,
 	/* check range */
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
-	if (offset + size > gbe_mem_size)
+	if (size > gbe_mem_size)
+		return -EINVAL;
+	if (offset > gbe_mem_size - size)
 		return -EINVAL;
 
 	/* remap using the fastest write-through mode on architecture */

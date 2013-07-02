@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004, 2005, 2006 Voltaire, Inc. All rights reserved.
+ * Copyright (c) 2013 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -416,8 +417,9 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *iser_task,
 			for (i=0 ; i<ib_conn->page_vec->length ; i++)
 				iser_err("page_vec[%d] = 0x%llx\n", i,
 					 (unsigned long long) ib_conn->page_vec->pages[i]);
-			return err;
 		}
+		if (err)
+			return err;
 	}
 	return 0;
 }

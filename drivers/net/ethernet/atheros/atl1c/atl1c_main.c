@@ -417,7 +417,7 @@ static void atl1c_set_multi(struct net_device *netdev)
 
 static void __atl1c_vlan_mode(netdev_features_t features, u32 *mac_ctrl_data)
 {
-	if (features & NETIF_F_HW_VLAN_RX) {
+	if (features & NETIF_F_HW_VLAN_CTAG_RX) {
 		/* enable VLAN tag insert/strip */
 		*mac_ctrl_data |= MAC_CTRL_RMV_VLAN;
 	} else {
@@ -494,10 +494,10 @@ static netdev_features_t atl1c_fix_features(struct net_device *netdev,
 	 * Since there is no support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
-	if (features & NETIF_F_HW_VLAN_RX)
-		features |= NETIF_F_HW_VLAN_TX;
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
 	else
-		features &= ~NETIF_F_HW_VLAN_TX;
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	if (netdev->mtu > MAX_TSO_FRAME_SIZE)
 		features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
@@ -510,7 +510,7 @@ static int atl1c_set_features(struct net_device *netdev,
 {
 	netdev_features_t changed = netdev->features ^ features;
 
-	if (changed & NETIF_F_HW_VLAN_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		atl1c_vlan_mode(netdev, features);
 
 	return 0;
@@ -1809,7 +1809,7 @@ rrs_checked:
 
 			AT_TAG_TO_VLAN(rrs->vlan_tag, vlan);
 			vlan = le16_to_cpu(vlan);
-			__vlan_hwaccel_put_tag(skb, vlan);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
 		}
 		netif_receive_skb(skb);
 
@@ -2475,13 +2475,13 @@ static int atl1c_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 	atl1c_set_ethtool_ops(netdev);
 
 	/* TODO: add when ready */
-	netdev->hw_features =	NETIF_F_SG	   |
-				NETIF_F_HW_CSUM	   |
-				NETIF_F_HW_VLAN_RX |
-				NETIF_F_TSO	   |
+	netdev->hw_features =	NETIF_F_SG		|
+				NETIF_F_HW_CSUM		|
+				NETIF_F_HW_VLAN_CTAG_RX	|
+				NETIF_F_TSO		|
 				NETIF_F_TSO6;
-	netdev->features =	netdev->hw_features |
-				NETIF_F_HW_VLAN_TX;
+	netdev->features =	netdev->hw_features	|
+				NETIF_F_HW_VLAN_CTAG_TX;
 	return 0;
 }
 

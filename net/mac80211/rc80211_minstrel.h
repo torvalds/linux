@@ -9,6 +9,29 @@
 #ifndef __RC_MINSTREL_H
 #define __RC_MINSTREL_H
 
+#define EWMA_LEVEL	96	/* ewma weighting factor [/EWMA_DIV] */
+#define EWMA_DIV	128
+#define SAMPLE_COLUMNS	10	/* number of columns in sample table */
+
+
+/* scaled fraction values */
+#define MINSTREL_SCALE  16
+#define MINSTREL_FRAC(val, div) (((val) << MINSTREL_SCALE) / div)
+#define MINSTREL_TRUNC(val) ((val) >> MINSTREL_SCALE)
+
+/* number of highest throughput rates to consider*/
+#define MAX_THR_RATES 4
+
+/*
+ * Perform EWMA (Exponentially Weighted Moving Average) calculation
+  */
+static inline int
+minstrel_ewma(int old, int new, int weight)
+{
+	return (new * (EWMA_DIV - weight) + old * weight) / EWMA_DIV;
+}
+
+
 struct minstrel_rate {
 	int bitrate;
 	int rix;
@@ -26,6 +49,7 @@ struct minstrel_rate {
 	u32 attempts;
 	u32 last_attempts;
 	u32 last_success;
+	u8 sample_skipped;
 
 	/* parts per thousand */
 	u32 cur_prob;
@@ -39,20 +63,21 @@ struct minstrel_rate {
 };
 
 struct minstrel_sta_info {
+	struct ieee80211_sta *sta;
+
 	unsigned long stats_update;
 	unsigned int sp_ack_dur;
 	unsigned int rate_avg;
 
 	unsigned int lowest_rix;
 
-	unsigned int max_tp_rate;
-	unsigned int max_tp_rate2;
-	unsigned int max_prob_rate;
+	u8 max_tp_rate[MAX_THR_RATES];
+	u8 max_prob_rate;
 	unsigned int packet_count;
 	unsigned int sample_count;
 	int sample_deferred;
 
-	unsigned int sample_idx;
+	unsigned int sample_row;
 	unsigned int sample_column;
 
 	int n_rates;
@@ -73,7 +98,6 @@ struct minstrel_priv {
 	unsigned int cw_min;
 	unsigned int cw_max;
 	unsigned int max_retry;
-	unsigned int ewma_level;
 	unsigned int segment_size;
 	unsigned int update_interval;
 	unsigned int lookaround_rate;

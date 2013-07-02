@@ -375,7 +375,7 @@ int av7110_ir_init(struct av7110 *av7110)
 	if (av_cnt == 1) {
 		e = proc_create("av7110_ir", S_IWUSR, NULL, &av7110_ir_proc_fops);
 		if (e)
-			e->size = 4 + 256 * sizeof(u16);
+			proc_set_size(e, 4 + 256 * sizeof(u16));
 	}
 
 	tasklet_init(&av7110->ir.ir_tasklet, av7110_emit_key, (unsigned long) &av7110->ir);

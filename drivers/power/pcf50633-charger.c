@@ -373,7 +373,7 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	int i;
 	u8 mbcs1;
 
-	mbc = kzalloc(sizeof(*mbc), GFP_KERNEL);
+	mbc = devm_kzalloc(&pdev->dev, sizeof(*mbc), GFP_KERNEL);
 	if (!mbc)
 		return -ENOMEM;
 
@@ -413,7 +413,6 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	ret = power_supply_register(&pdev->dev, &mbc->adapter);
 	if (ret) {
 		dev_err(mbc->pcf->dev, "failed to register adapter\n");
-		kfree(mbc);
 		return ret;
 	}
 
@@ -421,7 +420,6 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(mbc->pcf->dev, "failed to register usb\n");
 		power_supply_unregister(&mbc->adapter);
-		kfree(mbc);
 		return ret;
 	}
 
@@ -430,7 +428,6 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 		dev_err(mbc->pcf->dev, "failed to register ac\n");
 		power_supply_unregister(&mbc->adapter);
 		power_supply_unregister(&mbc->usb);
-		kfree(mbc);
 		return ret;
 	}
 
@@ -460,8 +457,6 @@ static int pcf50633_mbc_remove(struct platform_device *pdev)
 	power_supply_unregister(&mbc->usb);
 	power_supply_unregister(&mbc->adapter);
 	power_supply_unregister(&mbc->ac);
-
-	kfree(mbc);
 
 	return 0;
 }

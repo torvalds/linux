@@ -252,14 +252,13 @@ static int speedstep_target(struct cpufreq_policy *policy,
 
 	freqs.old = speedstep_freqs[speedstep_get_state()].frequency;
 	freqs.new = speedstep_freqs[newstate].frequency;
-	freqs.cpu = 0; /* speedstep.c is UP only driver */
 
 	if (freqs.old == freqs.new)
 		return 0;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 	speedstep_set_state(newstate);
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }

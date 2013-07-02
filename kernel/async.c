@@ -73,7 +73,7 @@ struct async_entry {
 	struct list_head	global_list;
 	struct work_struct	work;
 	async_cookie_t		cookie;
-	async_func_ptr		*func;
+	async_func_t		func;
 	void			*data;
 	struct async_domain	*domain;
 };
@@ -84,24 +84,20 @@ static atomic_t entry_count;
 
 static async_cookie_t lowest_in_progress(struct async_domain *domain)
 {
-	struct async_entry *first = NULL;
+	struct list_head *pending;
 	async_cookie_t ret = ASYNC_COOKIE_MAX;
 	unsigned long flags;
 
 	spin_lock_irqsave(&async_lock, flags);
 
-	if (domain) {
-		if (!list_empty(&domain->pending))
-			first = list_first_entry(&domain->pending,
-					struct async_entry, domain_list);
-	} else {
-		if (!list_empty(&async_global_pending))
-			first = list_first_entry(&async_global_pending,
-					struct async_entry, global_list);
-	}
+	if (domain)
+		pending = &domain->pending;
+	else
+		pending = &async_global_pending;
 
-	if (first)
-		ret = first->cookie;
+	if (!list_empty(pending))
+		ret = list_first_entry(pending, struct async_entry,
+				       domain_list)->cookie;
 
 	spin_unlock_irqrestore(&async_lock, flags);
 	return ret;
@@ -149,7 +145,7 @@ static void async_run_entry_fn(struct work_struct *work)
 	wake_up(&async_done);
 }
 
-static async_cookie_t __async_schedule(async_func_ptr *ptr, void *data, struct async_domain *domain)
+static async_cookie_t __async_schedule(async_func_t func, void *data, struct async_domain *domain)
 {
 	struct async_entry *entry;
 	unsigned long flags;
@@ -169,13 +165,13 @@ static async_cookie_t __async_schedule(async_func_ptr *ptr, void *data, struct a
 		spin_unlock_irqrestore(&async_lock, flags);
 
 		/* low on memory.. run synchronously */
-		ptr(data, newcookie);
+		func(data, newcookie);
 		return newcookie;
 	}
 	INIT_LIST_HEAD(&entry->domain_list);
 	INIT_LIST_HEAD(&entry->global_list);
 	INIT_WORK(&entry->work, async_run_entry_fn);
-	entry->func = ptr;
+	entry->func = func;
 	entry->data = data;
 	entry->domain = domain;
 
@@ -202,21 +198,21 @@ static async_cookie_t __async_schedule(async_func_ptr *ptr, void *data, struct a
 
 /**
  * async_schedule - schedule a function for asynchronous execution
- * @ptr: function to execute asynchronously
+ * @func: function to execute asynchronously
  * @data: data pointer to pass to the function
  *
  * Returns an async_cookie_t that may be used for checkpointing later.
  * Note: This function may be called from atomic or non-atomic contexts.
  */
-async_cookie_t async_schedule(async_func_ptr *ptr, void *data)
+async_cookie_t async_schedule(async_func_t func, void *data)
 {
-	return __async_schedule(ptr, data, &async_dfl_domain);
+	return __async_schedule(func, data, &async_dfl_domain);
 }
 EXPORT_SYMBOL_GPL(async_schedule);
 
 /**
  * async_schedule_domain - schedule a function for asynchronous execution within a certain domain
- * @ptr: function to execute asynchronously
+ * @func: function to execute asynchronously
  * @data: data pointer to pass to the function
  * @domain: the domain
  *
@@ -226,10 +222,10 @@ EXPORT_SYMBOL_GPL(async_schedule);
  * synchronization domain is specified via @domain.  Note: This function
  * may be called from atomic or non-atomic contexts.
  */
-async_cookie_t async_schedule_domain(async_func_ptr *ptr, void *data,
+async_cookie_t async_schedule_domain(async_func_t func, void *data,
 				     struct async_domain *domain)
 {
-	return __async_schedule(ptr, data, domain);
+	return __async_schedule(func, data, domain);
 }
 EXPORT_SYMBOL_GPL(async_schedule_domain);
 

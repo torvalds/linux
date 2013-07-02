@@ -665,14 +665,16 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 	    gpio_is_valid(pdata->buck1_set2)) {
 		/* Check if SET1 is not equal to 0 */
 		if (!pdata->buck1_set1) {
-			printk(KERN_ERR "MAX8998 SET1 GPIO defined as 0 !\n");
+			dev_err(&pdev->dev,
+				"MAX8998 SET1 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck1_set1);
 			ret = -EIO;
 			goto err_out;
 		}
 		/* Check if SET2 is not equal to 0 */
 		if (!pdata->buck1_set2) {
-			printk(KERN_ERR "MAX8998 SET2 GPIO defined as 0 !\n");
+			dev_err(&pdev->dev,
+				"MAX8998 SET2 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck1_set2);
 			ret = -EIO;
 			goto err_out;
@@ -738,7 +740,8 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 	if (gpio_is_valid(pdata->buck2_set3)) {
 		/* Check if SET3 is not equal to 0 */
 		if (!pdata->buck2_set3) {
-			printk(KERN_ERR "MAX8998 SET3 GPIO defined as 0 !\n");
+			dev_err(&pdev->dev,
+				"MAX8998 SET3 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck2_set3);
 			ret = -EIO;
 			goto err_out;

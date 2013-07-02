@@ -561,7 +561,6 @@ struct csrow_info {
 
 	u32 ue_count;		/* Uncorrectable Errors for this csrow */
 	u32 ce_count;		/* Correctable Errors for this csrow */
-	u32 nr_pages;		/* combined pages count of all channels */
 
 	struct mem_ctl_info *mci;	/* the parent */
 
@@ -676,11 +675,11 @@ struct mem_ctl_info {
 	 * sees memory sticks ("dimms"), and the ones that sees memory ranks.
 	 * All old memory controllers enumerate memories per rank, but most
 	 * of the recent drivers enumerate memories per DIMM, instead.
-	 * When the memory controller is per rank, mem_is_per_rank is true.
+	 * When the memory controller is per rank, csbased is true.
 	 */
 	unsigned n_layers;
 	struct edac_mc_layer *layers;
-	bool mem_is_per_rank;
+	bool csbased;
 
 	/*
 	 * DIMM info. Will eventually remove the entire csrows_info some day
@@ -741,8 +740,6 @@ struct mem_ctl_info {
 	u32 fake_inject_ue;
 	u16 fake_inject_count;
 #endif
-	__u8 csbased : 1,	/* csrow-based memory controller */
-	     __resv  : 7;
 };
 
 #endif

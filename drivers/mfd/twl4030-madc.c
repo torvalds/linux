@@ -211,12 +211,14 @@ static int twl4030battery_current(int raw_volt)
  * @reg_base - Base address of the first channel
  * @Channels - 16 bit bitmap. If the bit is set, channel value is read
  * @buf - The channel values are stored here. if read fails error
+ * @raw - Return raw values without conversion
  * value is stored
  * Returns the number of successfully read channels.
  */
 static int twl4030_madc_read_channels(struct twl4030_madc_data *madc,
 				      u8 reg_base, unsigned
-						long channels, int *buf)
+				      long channels, int *buf,
+				      bool raw)
 {
 	int count = 0, count_req = 0, i;
 	u8 reg;
@@ -228,6 +230,10 @@ static int twl4030_madc_read_channels(struct twl4030_madc_data *madc,
 			dev_err(madc->dev,
 				"Unable to read register 0x%X\n", reg);
 			count_req++;
+			continue;
+		}
+		if (raw) {
+			count++;
 			continue;
 		}
 		switch (i) {
@@ -371,7 +377,7 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 		method = &twl4030_conversion_methods[r->method];
 		/* Read results */
 		len = twl4030_madc_read_channels(madc, method->rbase,
-						 r->channels, r->rbuf);
+						 r->channels, r->rbuf, r->raw);
 		/* Return results to caller */
 		if (r->func_cb != NULL) {
 			r->func_cb(len, r->channels, r->rbuf);
@@ -397,7 +403,7 @@ err_i2c:
 		method = &twl4030_conversion_methods[r->method];
 		/* Read results */
 		len = twl4030_madc_read_channels(madc, method->rbase,
-						 r->channels, r->rbuf);
+						 r->channels, r->rbuf, r->raw);
 		/* Return results to caller */
 		if (r->func_cb != NULL) {
 			r->func_cb(len, r->channels, r->rbuf);
@@ -585,7 +591,7 @@ int twl4030_madc_conversion(struct twl4030_madc_request *req)
 		goto out;
 	}
 	ret = twl4030_madc_read_channels(twl4030_madc, method->rbase,
-					 req->channels, req->rbuf);
+					 req->channels, req->rbuf, req->raw);
 	twl4030_madc->requests[req->method].active = 0;
 
 out:

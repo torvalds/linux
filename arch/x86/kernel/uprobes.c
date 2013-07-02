@@ -697,3 +697,32 @@ bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		send_sig(SIGTRAP, current, 0);
 	return ret;
 }
+
+unsigned long
+arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr, struct pt_regs *regs)
+{
+	int rasize, ncopied;
+	unsigned long orig_ret_vaddr = 0; /* clear high bits for 32-bit apps */
+
+	rasize = is_ia32_task() ? 4 : 8;
+	ncopied = copy_from_user(&orig_ret_vaddr, (void __user *)regs->sp, rasize);
+	if (unlikely(ncopied))
+		return -1;
+
+	/* check whether address has been already hijacked */
+	if (orig_ret_vaddr == trampoline_vaddr)
+		return orig_ret_vaddr;
+
+	ncopied = copy_to_user((void __user *)regs->sp, &trampoline_vaddr, rasize);
+	if (likely(!ncopied))
+		return orig_ret_vaddr;
+
+	if (ncopied != rasize) {
+		pr_err("uprobe: return address clobbered: pid=%d, %%sp=%#lx, "
+			"%%ip=%#lx\n", current->pid, regs->sp, regs->ip);
+
+		force_sig_info(SIGSEGV, SEND_SIG_FORCED, current);
+	}
+
+	return -1;
+}

@@ -482,7 +482,7 @@ static int udlfb_create(struct drm_fb_helper *helper,
 	struct udl_fbdev *ufbdev = (struct udl_fbdev *)helper;
 	struct drm_device *dev = ufbdev->helper.dev;
 	struct fb_info *info;
-	struct device *device = &dev->usbdev->dev;
+	struct device *device = dev->dev;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct udl_gem_object *obj;

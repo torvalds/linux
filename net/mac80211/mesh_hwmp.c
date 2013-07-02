@@ -144,7 +144,7 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 		*pos++ = WLAN_EID_PREQ;
 		break;
 	case MPATH_PREP:
-		mhwmp_dbg(sdata, "sending PREP to %pM\n", target);
+		mhwmp_dbg(sdata, "sending PREP to %pM\n", orig_addr);
 		ie_len = 31;
 		pos = skb_put(skb, 2 + ie_len);
 		*pos++ = WLAN_EID_PREP;
@@ -445,9 +445,8 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 				}
 			}
 		} else {
-			mesh_path_add(sdata, orig_addr);
-			mpath = mesh_path_lookup(sdata, orig_addr);
-			if (!mpath) {
+			mpath = mesh_path_add(sdata, orig_addr);
+			if (IS_ERR(mpath)) {
 				rcu_read_unlock();
 				return 0;
 			}
@@ -486,9 +485,8 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 					(last_hop_metric > mpath->metric)))
 				fresh_info = false;
 		} else {
-			mesh_path_add(sdata, ta);
-			mpath = mesh_path_lookup(sdata, ta);
-			if (!mpath) {
+			mpath = mesh_path_add(sdata, ta);
+			if (IS_ERR(mpath)) {
 				rcu_read_unlock();
 				return 0;
 			}
@@ -661,7 +659,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 	u32 target_sn, orig_sn, lifetime;
 
 	mhwmp_dbg(sdata, "received PREP from %pM\n",
-		  PREP_IE_ORIG_ADDR(prep_elem));
+		  PREP_IE_TARGET_ADDR(prep_elem));
 
 	orig_addr = PREP_IE_ORIG_ADDR(prep_elem);
 	if (ether_addr_equal(orig_addr, sdata->vif.addr))
@@ -804,9 +802,8 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 
 	mpath = mesh_path_lookup(sdata, orig_addr);
 	if (!mpath) {
-		mesh_path_add(sdata, orig_addr);
-		mpath = mesh_path_lookup(sdata, orig_addr);
-		if (!mpath) {
+		mpath = mesh_path_add(sdata, orig_addr);
+		if (IS_ERR(mpath)) {
 			rcu_read_unlock();
 			sdata->u.mesh.mshstats.dropped_frames_no_route++;
 			return;
@@ -883,7 +880,7 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 
 	baselen = (u8 *) mgmt->u.action.u.mesh_action.variable - (u8 *) mgmt;
 	ieee802_11_parse_elems(mgmt->u.action.u.mesh_action.variable,
-			len - baselen, &elems);
+			       len - baselen, false, &elems);
 
 	if (elems.preq) {
 		if (elems.preq_len != 37)
@@ -1098,11 +1095,10 @@ int mesh_nexthop_resolve(struct ieee80211_sub_if_data *sdata,
 	/* no nexthop found, start resolving */
 	mpath = mesh_path_lookup(sdata, target_addr);
 	if (!mpath) {
-		mesh_path_add(sdata, target_addr);
-		mpath = mesh_path_lookup(sdata, target_addr);
-		if (!mpath) {
+		mpath = mesh_path_add(sdata, target_addr);
+		if (IS_ERR(mpath)) {
 			mesh_path_discard_frame(sdata, skb);
-			err = -ENOSPC;
+			err = PTR_ERR(mpath);
 			goto endlookup;
 		}
 	}

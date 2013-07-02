@@ -54,6 +54,10 @@
 #include "core.h"
 #include "ohci.h"
 
+#define ohci_info(ohci, f, args...)	dev_info(ohci->card.device, f, ##args)
+#define ohci_notice(ohci, f, args...)	dev_notice(ohci->card.device, f, ##args)
+#define ohci_err(ohci, f, args...)	dev_err(ohci->card.device, f, ##args)
+
 #define DESCRIPTOR_OUTPUT_MORE		0
 #define DESCRIPTOR_OUTPUT_LAST		(1 << 12)
 #define DESCRIPTOR_INPUT_MORE		(2 << 12)
@@ -67,6 +71,8 @@
 #define DESCRIPTOR_IRQ_ALWAYS		(3 << 4)
 #define DESCRIPTOR_BRANCH_ALWAYS	(3 << 2)
 #define DESCRIPTOR_WAIT			(3 << 0)
+
+#define DESCRIPTOR_CMD			(0xf << 12)
 
 struct descriptor {
 	__le16 req_count;
@@ -149,10 +155,11 @@ struct context {
 	struct descriptor *last;
 
 	/*
-	 * The last descriptor in the DMA program.  It contains the branch
+	 * The last descriptor block in the DMA program. It contains the branch
 	 * address that must be updated upon appending a new descriptor.
 	 */
 	struct descriptor *prev;
+	int prev_z;
 
 	descriptor_callback_t callback;
 
@@ -270,7 +277,9 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 #define PCI_DEVICE_ID_TI_TSB12LV22	0x8009
 #define PCI_DEVICE_ID_TI_TSB12LV26	0x8020
 #define PCI_DEVICE_ID_TI_TSB82AA2	0x8025
+#define PCI_DEVICE_ID_VIA_VT630X	0x3044
 #define PCI_VENDOR_ID_PINNACLE_SYSTEMS	0x11bd
+#define PCI_REV_ID_VIA_VT6306		0x46
 
 #define QUIRK_CYCLE_TIMER		1
 #define QUIRK_RESET_PACKET		2
@@ -278,6 +287,8 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 #define QUIRK_NO_1394A			8
 #define QUIRK_NO_MSI			16
 #define QUIRK_TI_SLLZ059		32
+#define QUIRK_IR_WAKE			64
+#define QUIRK_PHY_LCTRL_TIMEOUT		128
 
 /* In case of multiple matches in ohci_quirks[], only the first one is used. */
 static const struct {
@@ -290,7 +301,10 @@ static const struct {
 		QUIRK_BE_HEADERS},
 
 	{PCI_VENDOR_ID_ATT, PCI_DEVICE_ID_AGERE_FW643, 6,
-		QUIRK_NO_MSI},
+		QUIRK_PHY_LCTRL_TIMEOUT | QUIRK_NO_MSI},
+
+	{PCI_VENDOR_ID_ATT, PCI_ANY_ID, PCI_ANY_ID,
+		QUIRK_PHY_LCTRL_TIMEOUT},
 
 	{PCI_VENDOR_ID_CREATIVE, PCI_DEVICE_ID_CREATIVE_SB1394, PCI_ANY_ID,
 		QUIRK_RESET_PACKET},
@@ -319,6 +333,9 @@ static const struct {
 	{PCI_VENDOR_ID_TI, PCI_ANY_ID, PCI_ANY_ID,
 		QUIRK_RESET_PACKET},
 
+	{PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VT630X, PCI_REV_ID_VIA_VT6306,
+		QUIRK_CYCLE_TIMER | QUIRK_IR_WAKE},
+
 	{PCI_VENDOR_ID_VIA, PCI_ANY_ID, PCI_ANY_ID,
 		QUIRK_CYCLE_TIMER | QUIRK_NO_MSI},
 };
@@ -333,6 +350,8 @@ MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 	", no 1394a enhancements = "	__stringify(QUIRK_NO_1394A)
 	", disable MSI = "		__stringify(QUIRK_NO_MSI)
 	", TI SLLZ059 erratum = "	__stringify(QUIRK_TI_SLLZ059)
+	", IR wake unreliable = "	__stringify(QUIRK_IR_WAKE)
+	", phy LCtrl timeout = "	__stringify(QUIRK_PHY_LCTRL_TIMEOUT)
 	")");
 
 #define OHCI_PARAM_DEBUG_AT_AR		1
@@ -359,8 +378,7 @@ static void log_irqs(struct fw_ohci *ohci, u32 evt)
 	    !(evt & OHCI1394_busReset))
 		return;
 
-	dev_notice(ohci->card.device,
-	    "IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
+	ohci_notice(ohci, "IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
 	    evt & OHCI1394_selfIDComplete	? " selfID"		: "",
 	    evt & OHCI1394_RQPkt		? " AR_req"		: "",
 	    evt & OHCI1394_RSPkt		? " AR_resp"		: "",
@@ -406,21 +424,19 @@ static void log_selfids(struct fw_ohci *ohci, int generation, int self_id_count)
 	if (likely(!(param_debug & OHCI_PARAM_DEBUG_SELFIDS)))
 		return;
 
-	dev_notice(ohci->card.device,
-		   "%d selfIDs, generation %d, local node ID %04x\n",
-		   self_id_count, generation, ohci->node_id);
+	ohci_notice(ohci, "%d selfIDs, generation %d, local node ID %04x\n",
+		    self_id_count, generation, ohci->node_id);
 
 	for (s = ohci->self_id_buffer; self_id_count--; ++s)
 		if ((*s & 1 << 23) == 0)
-			dev_notice(ohci->card.device,
-			    "selfID 0: %08x, phy %d [%c%c%c] "
-			    "%s gc=%d %s %s%s%s\n",
+			ohci_notice(ohci,
+			    "selfID 0: %08x, phy %d [%c%c%c] %s gc=%d %s %s%s%s\n",
 			    *s, *s >> 24 & 63, _p(s, 6), _p(s, 4), _p(s, 2),
 			    speed[*s >> 14 & 3], *s >> 16 & 63,
 			    power[*s >> 8 & 7], *s >> 22 & 1 ? "L" : "",
 			    *s >> 11 & 1 ? "c" : "", *s & 2 ? "i" : "");
 		else
-			dev_notice(ohci->card.device,
+			ohci_notice(ohci,
 			    "selfID n: %08x, phy %d [%c%c%c%c%c%c%c%c]\n",
 			    *s, *s >> 24 & 63,
 			    _p(s, 16), _p(s, 14), _p(s, 12), _p(s, 10),
@@ -470,9 +486,8 @@ static void log_ar_at_event(struct fw_ohci *ohci,
 			evt = 0x1f;
 
 	if (evt == OHCI1394_evt_bus_reset) {
-		dev_notice(ohci->card.device,
-			   "A%c evt_bus_reset, generation %d\n",
-			   dir, (header[2] >> 16) & 0xff);
+		ohci_notice(ohci, "A%c evt_bus_reset, generation %d\n",
+			    dir, (header[2] >> 16) & 0xff);
 		return;
 	}
 
@@ -491,32 +506,26 @@ static void log_ar_at_event(struct fw_ohci *ohci,
 
 	switch (tcode) {
 	case 0xa:
-		dev_notice(ohci->card.device,
-			   "A%c %s, %s\n",
-			   dir, evts[evt], tcodes[tcode]);
+		ohci_notice(ohci, "A%c %s, %s\n",
+			    dir, evts[evt], tcodes[tcode]);
 		break;
 	case 0xe:
-		dev_notice(ohci->card.device,
-			   "A%c %s, PHY %08x %08x\n",
-			   dir, evts[evt], header[1], header[2]);
+		ohci_notice(ohci, "A%c %s, PHY %08x %08x\n",
+			    dir, evts[evt], header[1], header[2]);
 		break;
 	case 0x0: case 0x1: case 0x4: case 0x5: case 0x9:
-		dev_notice(ohci->card.device,
-			   "A%c spd %x tl %02x, "
-			   "%04x -> %04x, %s, "
-			   "%s, %04x%08x%s\n",
-			   dir, speed, header[0] >> 10 & 0x3f,
-			   header[1] >> 16, header[0] >> 16, evts[evt],
-			   tcodes[tcode], header[1] & 0xffff, header[2], specific);
+		ohci_notice(ohci,
+			    "A%c spd %x tl %02x, %04x -> %04x, %s, %s, %04x%08x%s\n",
+			    dir, speed, header[0] >> 10 & 0x3f,
+			    header[1] >> 16, header[0] >> 16, evts[evt],
+			    tcodes[tcode], header[1] & 0xffff, header[2], specific);
 		break;
 	default:
-		dev_notice(ohci->card.device,
-			   "A%c spd %x tl %02x, "
-			   "%04x -> %04x, %s, "
-			   "%s%s\n",
-			   dir, speed, header[0] >> 10 & 0x3f,
-			   header[1] >> 16, header[0] >> 16, evts[evt],
-			   tcodes[tcode], specific);
+		ohci_notice(ohci,
+			    "A%c spd %x tl %02x, %04x -> %04x, %s, %s%s\n",
+			    dir, speed, header[0] >> 10 & 0x3f,
+			    header[1] >> 16, header[0] >> 16, evts[evt],
+			    tcodes[tcode], specific);
 	}
 }
 
@@ -563,7 +572,8 @@ static int read_phy_reg(struct fw_ohci *ohci, int addr)
 		if (i >= 3)
 			msleep(1);
 	}
-	dev_err(ohci->card.device, "failed to read phy reg\n");
+	ohci_err(ohci, "failed to read phy reg %d\n", addr);
+	dump_stack();
 
 	return -EBUSY;
 }
@@ -585,7 +595,8 @@ static int write_phy_reg(const struct fw_ohci *ohci, int addr, u32 val)
 		if (i >= 3)
 			msleep(1);
 	}
-	dev_err(ohci->card.device, "failed to write phy reg\n");
+	ohci_err(ohci, "failed to write phy reg %d, val %u\n", addr, val);
+	dump_stack();
 
 	return -EBUSY;
 }
@@ -690,8 +701,7 @@ static void ar_context_abort(struct ar_context *ctx, const char *error_msg)
 		reg_write(ohci, CONTROL_CLEAR(ctx->regs), CONTEXT_RUN);
 		flush_writes(ohci);
 
-		dev_err(ohci->card.device, "AR error: %s; DMA stopped\n",
-			error_msg);
+		ohci_err(ohci, "AR error: %s; DMA stopped\n", error_msg);
 	}
 	/* FIXME: restart? */
 }
@@ -1157,6 +1167,7 @@ static int context_init(struct context *ctx, struct fw_ohci *ohci,
 	ctx->buffer_tail->used += sizeof(*ctx->buffer_tail->buffer);
 	ctx->last = ctx->buffer_tail->buffer;
 	ctx->prev = ctx->buffer_tail->buffer;
+	ctx->prev_z = 1;
 
 	return 0;
 }
@@ -1221,14 +1232,35 @@ static void context_append(struct context *ctx,
 {
 	dma_addr_t d_bus;
 	struct descriptor_buffer *desc = ctx->buffer_tail;
+	struct descriptor *d_branch;
 
 	d_bus = desc->buffer_bus + (d - desc->buffer) * sizeof(*d);
 
 	desc->used += (z + extra) * sizeof(*d);
 
 	wmb(); /* finish init of new descriptors before branch_address update */
-	ctx->prev->branch_address = cpu_to_le32(d_bus | z);
-	ctx->prev = find_branch_descriptor(d, z);
+
+	d_branch = find_branch_descriptor(ctx->prev, ctx->prev_z);
+	d_branch->branch_address = cpu_to_le32(d_bus | z);
+
+	/*
+	 * VT6306 incorrectly checks only the single descriptor at the
+	 * CommandPtr when the wake bit is written, so if it's a
+	 * multi-descriptor block starting with an INPUT_MORE, put a copy of
+	 * the branch address in the first descriptor.
+	 *
+	 * Not doing this for transmit contexts since not sure how it interacts
+	 * with skip addresses.
+	 */
+	if (unlikely(ctx->ohci->quirks & QUIRK_IR_WAKE) &&
+	    d_branch != ctx->prev &&
+	    (ctx->prev->control & cpu_to_le16(DESCRIPTOR_CMD)) ==
+	     cpu_to_le16(DESCRIPTOR_INPUT_MORE)) {
+		ctx->prev->branch_address = cpu_to_le32(d_bus | z);
+	}
+
+	ctx->prev = d;
+	ctx->prev_z = z;
 }
 
 static void context_stop(struct context *ctx)
@@ -1248,7 +1280,7 @@ static void context_stop(struct context *ctx)
 		if (i)
 			udelay(10);
 	}
-	dev_err(ohci->card.device, "DMA context still active (0x%08x)\n", reg);
+	ohci_err(ohci, "DMA context still active (0x%08x)\n", reg);
 }
 
 struct driver_data {
@@ -1557,7 +1589,7 @@ static void handle_local_lock(struct fw_ohci *ohci,
 			goto out;
 		}
 
-	dev_err(ohci->card.device, "swap not done (CSR lock timeout)\n");
+	ohci_err(ohci, "swap not done (CSR lock timeout)\n");
 	fw_fill_response(&response, packet->header, RCODE_BUSY, NULL, 0);
 
  out:
@@ -1632,8 +1664,7 @@ static void detect_dead_context(struct fw_ohci *ohci,
 
 	ctl = reg_read(ohci, CONTROL_SET(regs));
 	if (ctl & CONTEXT_DEAD)
-		dev_err(ohci->card.device,
-			"DMA context %s has stopped, error code: %s\n",
+		ohci_err(ohci, "DMA context %s has stopped, error code: %s\n",
 			name, evts[ctl & 0x1f]);
 }
 
@@ -1815,8 +1846,8 @@ static int find_and_insert_self_id(struct fw_ohci *ohci, int self_id_count)
 
 	reg = reg_read(ohci, OHCI1394_NodeID);
 	if (!(reg & OHCI1394_NodeID_idValid)) {
-		dev_notice(ohci->card.device,
-			   "node ID not valid, new bus reset in progress\n");
+		ohci_notice(ohci,
+			    "node ID not valid, new bus reset in progress\n");
 		return -EBUSY;
 	}
 	self_id |= ((reg & 0x3f) << 24); /* phy ID */
@@ -1863,12 +1894,12 @@ static void bus_reset_work(struct work_struct *work)
 
 	reg = reg_read(ohci, OHCI1394_NodeID);
 	if (!(reg & OHCI1394_NodeID_idValid)) {
-		dev_notice(ohci->card.device,
-			   "node ID not valid, new bus reset in progress\n");
+		ohci_notice(ohci,
+			    "node ID not valid, new bus reset in progress\n");
 		return;
 	}
 	if ((reg & OHCI1394_NodeID_nodeNumber) == 63) {
-		dev_notice(ohci->card.device, "malconfigured bus\n");
+		ohci_notice(ohci, "malconfigured bus\n");
 		return;
 	}
 	ohci->node_id = reg & (OHCI1394_NodeID_busNumber |
@@ -1882,7 +1913,7 @@ static void bus_reset_work(struct work_struct *work)
 
 	reg = reg_read(ohci, OHCI1394_SelfIDCount);
 	if (reg & OHCI1394_SelfIDCount_selfIDError) {
-		dev_notice(ohci->card.device, "inconsistent self IDs\n");
+		ohci_notice(ohci, "self ID receive error\n");
 		return;
 	}
 	/*
@@ -1894,7 +1925,7 @@ static void bus_reset_work(struct work_struct *work)
 	self_id_count = (reg >> 3) & 0xff;
 
 	if (self_id_count > 252) {
-		dev_notice(ohci->card.device, "inconsistent self IDs\n");
+		ohci_notice(ohci, "bad selfIDSize (%08x)\n", reg);
 		return;
 	}
 
@@ -1902,7 +1933,10 @@ static void bus_reset_work(struct work_struct *work)
 	rmb();
 
 	for (i = 1, j = 0; j < self_id_count; i += 2, j++) {
-		if (ohci->self_id_cpu[i] != ~ohci->self_id_cpu[i + 1]) {
+		u32 id  = cond_le32_to_cpu(ohci->self_id_cpu[i]);
+		u32 id2 = cond_le32_to_cpu(ohci->self_id_cpu[i + 1]);
+
+		if (id != ~id2) {
 			/*
 			 * If the invalid data looks like a cycle start packet,
 			 * it's likely to be the result of the cycle master
@@ -1910,33 +1944,30 @@ static void bus_reset_work(struct work_struct *work)
 			 * so far are valid and should be processed so that the
 			 * bus manager can then correct the gap count.
 			 */
-			if (cond_le32_to_cpu(ohci->self_id_cpu[i])
-							== 0xffff008f) {
-				dev_notice(ohci->card.device,
-					   "ignoring spurious self IDs\n");
+			if (id == 0xffff008f) {
+				ohci_notice(ohci, "ignoring spurious self IDs\n");
 				self_id_count = j;
 				break;
-			} else {
-				dev_notice(ohci->card.device,
-					   "inconsistent self IDs\n");
-				return;
 			}
+
+			ohci_notice(ohci, "bad self ID %d/%d (%08x != ~%08x)\n",
+				    j, self_id_count, id, id2);
+			return;
 		}
-		ohci->self_id_buffer[j] =
-				cond_le32_to_cpu(ohci->self_id_cpu[i]);
+		ohci->self_id_buffer[j] = id;
 	}
 
 	if (ohci->quirks & QUIRK_TI_SLLZ059) {
 		self_id_count = find_and_insert_self_id(ohci, self_id_count);
 		if (self_id_count < 0) {
-			dev_notice(ohci->card.device,
-				   "could not construct local self ID\n");
+			ohci_notice(ohci,
+				    "could not construct local self ID\n");
 			return;
 		}
 	}
 
 	if (self_id_count == 0) {
-		dev_notice(ohci->card.device, "inconsistent self IDs\n");
+		ohci_notice(ohci, "no self IDs\n");
 		return;
 	}
 	rmb();
@@ -1957,8 +1988,7 @@ static void bus_reset_work(struct work_struct *work)
 
 	new_generation = (reg_read(ohci, OHCI1394_SelfIDCount) >> 16) & 0xff;
 	if (new_generation != generation) {
-		dev_notice(ohci->card.device,
-			   "new bus reset, discarding self ids\n");
+		ohci_notice(ohci, "new bus reset, discarding self ids\n");
 		return;
 	}
 
@@ -2096,7 +2126,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	}
 
 	if (unlikely(event & OHCI1394_regAccessFail))
-		dev_err(ohci->card.device, "register access failure\n");
+		ohci_err(ohci, "register access failure\n");
 
 	if (unlikely(event & OHCI1394_postedWriteErr)) {
 		reg_read(ohci, OHCI1394_PostedWriteAddressHi);
@@ -2104,13 +2134,12 @@ static irqreturn_t irq_handler(int irq, void *data)
 		reg_write(ohci, OHCI1394_IntEventClear,
 			  OHCI1394_postedWriteErr);
 		if (printk_ratelimit())
-			dev_err(ohci->card.device, "PCI posted write error\n");
+			ohci_err(ohci, "PCI posted write error\n");
 	}
 
 	if (unlikely(event & OHCI1394_cycleTooLong)) {
 		if (printk_ratelimit())
-			dev_notice(ohci->card.device,
-				   "isochronous cycle too long\n");
+			ohci_notice(ohci, "isochronous cycle too long\n");
 		reg_write(ohci, OHCI1394_LinkControlSet,
 			  OHCI1394_LinkControl_cycleMaster);
 	}
@@ -2123,8 +2152,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 		 * them at least two cycles later.  (FIXME?)
 		 */
 		if (printk_ratelimit())
-			dev_notice(ohci->card.device,
-				   "isochronous cycle inconsistent\n");
+			ohci_notice(ohci, "isochronous cycle inconsistent\n");
 	}
 
 	if (unlikely(event & OHCI1394_unrecoverableError))
@@ -2246,12 +2274,11 @@ static int ohci_enable(struct fw_card *card,
 		       const __be32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
-	struct pci_dev *dev = to_pci_dev(card->device);
 	u32 lps, version, irqs;
 	int i, ret;
 
 	if (software_reset(ohci)) {
-		dev_err(card->device, "failed to reset ohci card\n");
+		ohci_err(ohci, "failed to reset ohci card\n");
 		return -EBUSY;
 	}
 
@@ -2262,20 +2289,31 @@ static int ohci_enable(struct fw_card *card,
 	 * will lock up the machine.  Wait 50msec to make sure we have
 	 * full link enabled.  However, with some cards (well, at least
 	 * a JMicron PCIe card), we have to try again sometimes.
+	 *
+	 * TI TSB82AA2 + TSB81BA3(A) cards signal LPS enabled early but
+	 * cannot actually use the phy at that time.  These need tens of
+	 * millisecods pause between LPS write and first phy access too.
+	 *
+	 * But do not wait for 50msec on Agere/LSI cards.  Their phy
+	 * arbitration state machine may time out during such a long wait.
 	 */
+
 	reg_write(ohci, OHCI1394_HCControlSet,
 		  OHCI1394_HCControl_LPS |
 		  OHCI1394_HCControl_postedWriteEnable);
 	flush_writes(ohci);
 
-	for (lps = 0, i = 0; !lps && i < 3; i++) {
+	if (!(ohci->quirks & QUIRK_PHY_LCTRL_TIMEOUT))
 		msleep(50);
+
+	for (lps = 0, i = 0; !lps && i < 150; i++) {
+		msleep(1);
 		lps = reg_read(ohci, OHCI1394_HCControlSet) &
 		      OHCI1394_HCControl_LPS;
 	}
 
 	if (!lps) {
-		dev_err(card->device, "failed to set Link Power Status\n");
+		ohci_err(ohci, "failed to set Link Power Status\n");
 		return -EIO;
 	}
 
@@ -2284,7 +2322,7 @@ static int ohci_enable(struct fw_card *card,
 		if (ret < 0)
 			return ret;
 		if (ret)
-			dev_notice(card->device, "local TSB41BA3D phy\n");
+			ohci_notice(ohci, "local TSB41BA3D phy\n");
 		else
 			ohci->quirks &= ~QUIRK_TI_SLLZ059;
 	}
@@ -2381,24 +2419,6 @@ static int ohci_enable(struct fw_card *card,
 	reg_write(ohci, OHCI1394_ConfigROMmap, ohci->next_config_rom_bus);
 
 	reg_write(ohci, OHCI1394_AsReqFilterHiSet, 0x80000000);
-
-	if (!(ohci->quirks & QUIRK_NO_MSI))
-		pci_enable_msi(dev);
-	if (request_irq(dev->irq, irq_handler,
-			pci_dev_msi_enabled(dev) ? 0 : IRQF_SHARED,
-			ohci_driver_name, ohci)) {
-		dev_err(card->device, "failed to allocate interrupt %d\n",
-			dev->irq);
-		pci_disable_msi(dev);
-
-		if (config_rom) {
-			dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-					  ohci->next_config_rom,
-					  ohci->next_config_rom_bus);
-			ohci->next_config_rom = NULL;
-		}
-		return -EIO;
-	}
 
 	irqs =	OHCI1394_reqTxComplete | OHCI1394_respTxComplete |
 		OHCI1394_RQPkt | OHCI1394_RSPkt |
@@ -3578,20 +3598,20 @@ static int pci_probe(struct pci_dev *dev,
 
 	if (!(pci_resource_flags(dev, 0) & IORESOURCE_MEM) ||
 	    pci_resource_len(dev, 0) < OHCI1394_REGISTER_SIZE) {
-		dev_err(&dev->dev, "invalid MMIO resource\n");
+		ohci_err(ohci, "invalid MMIO resource\n");
 		err = -ENXIO;
 		goto fail_disable;
 	}
 
 	err = pci_request_region(dev, 0, ohci_driver_name);
 	if (err) {
-		dev_err(&dev->dev, "MMIO resource unavailable\n");
+		ohci_err(ohci, "MMIO resource unavailable\n");
 		goto fail_disable;
 	}
 
 	ohci->registers = pci_iomap(dev, 0, OHCI1394_REGISTER_SIZE);
 	if (ohci->registers == NULL) {
-		dev_err(&dev->dev, "failed to remap registers\n");
+		ohci_err(ohci, "failed to remap registers\n");
 		err = -ENXIO;
 		goto fail_iomem;
 	}
@@ -3675,19 +3695,33 @@ static int pci_probe(struct pci_dev *dev,
 	guid = ((u64) reg_read(ohci, OHCI1394_GUIDHi) << 32) |
 		reg_read(ohci, OHCI1394_GUIDLo);
 
+	if (!(ohci->quirks & QUIRK_NO_MSI))
+		pci_enable_msi(dev);
+	if (request_irq(dev->irq, irq_handler,
+			pci_dev_msi_enabled(dev) ? 0 : IRQF_SHARED,
+			ohci_driver_name, ohci)) {
+		ohci_err(ohci, "failed to allocate interrupt %d\n", dev->irq);
+		err = -EIO;
+		goto fail_msi;
+	}
+
 	err = fw_card_add(&ohci->card, max_receive, link_speed, guid);
 	if (err)
-		goto fail_contexts;
+		goto fail_irq;
 
 	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
-	dev_notice(&dev->dev,
-		  "added OHCI v%x.%x device as card %d, "
-		  "%d IR + %d IT contexts, quirks 0x%x\n",
-		  version >> 16, version & 0xff, ohci->card.index,
-		  ohci->n_ir, ohci->n_it, ohci->quirks);
+	ohci_notice(ohci,
+		    "added OHCI v%x.%x device as card %d, "
+		    "%d IR + %d IT contexts, quirks 0x%x\n",
+		    version >> 16, version & 0xff, ohci->card.index,
+		    ohci->n_ir, ohci->n_it, ohci->quirks);
 
 	return 0;
 
+ fail_irq:
+	free_irq(dev->irq, ohci);
+ fail_msi:
+	pci_disable_msi(dev);
  fail_contexts:
 	kfree(ohci->ir_context_list);
 	kfree(ohci->it_context_list);
@@ -3711,19 +3745,21 @@ static int pci_probe(struct pci_dev *dev,
 	kfree(ohci);
 	pmac_ohci_off(dev);
  fail:
-	if (err == -ENOMEM)
-		dev_err(&dev->dev, "out of memory\n");
-
 	return err;
 }
 
 static void pci_remove(struct pci_dev *dev)
 {
-	struct fw_ohci *ohci;
+	struct fw_ohci *ohci = pci_get_drvdata(dev);
 
-	ohci = pci_get_drvdata(dev);
-	reg_write(ohci, OHCI1394_IntMaskClear, ~0);
-	flush_writes(ohci);
+	/*
+	 * If the removal is happening from the suspend state, LPS won't be
+	 * enabled and host registers (eg., IntMaskClear) won't be accessible.
+	 */
+	if (reg_read(ohci, OHCI1394_HCControlSet) & OHCI1394_HCControl_LPS) {
+		reg_write(ohci, OHCI1394_IntMaskClear, ~0);
+		flush_writes(ohci);
+	}
 	cancel_work_sync(&ohci->bus_reset_work);
 	fw_core_remove_card(&ohci->card);
 
@@ -3766,16 +3802,14 @@ static int pci_suspend(struct pci_dev *dev, pm_message_t state)
 	int err;
 
 	software_reset(ohci);
-	free_irq(dev->irq, ohci);
-	pci_disable_msi(dev);
 	err = pci_save_state(dev);
 	if (err) {
-		dev_err(&dev->dev, "pci_save_state failed\n");
+		ohci_err(ohci, "pci_save_state failed\n");
 		return err;
 	}
 	err = pci_set_power_state(dev, pci_choose_state(dev, state));
 	if (err)
-		dev_err(&dev->dev, "pci_set_power_state failed with %d\n", err);
+		ohci_err(ohci, "pci_set_power_state failed with %d\n", err);
 	pmac_ohci_off(dev);
 
 	return 0;
@@ -3791,7 +3825,7 @@ static int pci_resume(struct pci_dev *dev)
 	pci_restore_state(dev);
 	err = pci_enable_device(dev);
 	if (err) {
-		dev_err(&dev->dev, "pci_enable_device failed\n");
+		ohci_err(ohci, "pci_enable_device failed\n");
 		return err;
 	}
 
@@ -3837,6 +3871,4 @@ MODULE_DESCRIPTION("Driver for PCI OHCI IEEE1394 controllers");
 MODULE_LICENSE("GPL");
 
 /* Provide a module alias so root-on-sbp2 initrds don't break. */
-#ifndef CONFIG_IEEE1394_OHCI1394_MODULE
 MODULE_ALIAS("ohci1394");
-#endif

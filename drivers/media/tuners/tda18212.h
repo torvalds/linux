@@ -21,6 +21,7 @@
 #ifndef TDA18212_H
 #define TDA18212_H
 
+#include <linux/kconfig.h>
 #include "dvb_frontend.h"
 
 struct tda18212_config {
@@ -36,8 +37,7 @@ struct tda18212_config {
 	u16 if_dvbc;
 };
 
-#if defined(CONFIG_MEDIA_TUNER_TDA18212) || \
-	(defined(CONFIG_MEDIA_TUNER_TDA18212_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_TDA18212)
 extern struct dvb_frontend *tda18212_attach(struct dvb_frontend *fe,
 	struct i2c_adapter *i2c, struct tda18212_config *cfg);
 #else

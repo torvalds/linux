@@ -478,6 +478,7 @@ static unsigned int lp872x_buck_get_mode(struct regulator_dev *rdev)
 
 static struct regulator_ops lp872x_ldo_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.enable = regulator_enable_regmap,
@@ -488,6 +489,7 @@ static struct regulator_ops lp872x_ldo_ops = {
 
 static struct regulator_ops lp8720_buck_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = lp872x_buck_set_voltage_sel,
 	.get_voltage_sel = lp872x_buck_get_voltage_sel,
 	.enable = regulator_enable_regmap,
@@ -500,6 +502,7 @@ static struct regulator_ops lp8720_buck_ops = {
 
 static struct regulator_ops lp8725_buck_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = lp872x_buck_set_voltage_sel,
 	.get_voltage_sel = lp872x_buck_get_voltage_sel,
 	.enable = regulator_enable_regmap,

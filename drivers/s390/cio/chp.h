@@ -44,6 +44,7 @@ struct channel_path {
 	struct mutex lock; /* Serialize access to below members. */
 	int state;
 	struct channel_path_desc desc;
+	struct channel_path_desc_fmt1 desc_fmt1;
 	/* Channel-measurement related stuff: */
 	int cmg;
 	int shared;
@@ -62,6 +63,7 @@ int chp_is_registered(struct chp_id chpid);
 void *chp_get_chp_desc(struct chp_id chpid);
 void chp_remove_cmg_attr(struct channel_path *chp);
 int chp_add_cmg_attr(struct channel_path *chp);
+int chp_update_desc(struct channel_path *chp);
 int chp_new(struct chp_id chpid);
 void chp_cfg_schedule(struct chp_id chpid, int configure);
 void chp_cfg_cancel_deconfigure(struct chp_id chpid);

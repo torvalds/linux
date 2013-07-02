@@ -84,7 +84,7 @@ struct t4_status_page {
 			sizeof(struct fw_ri_isgl)) / sizeof(struct fw_ri_sge))
 #define T4_MAX_FR_IMMD ((T4_SQ_NUM_BYTES - sizeof(struct fw_ri_fr_nsmr_wr) - \
 			sizeof(struct fw_ri_immd)) & ~31UL)
-#define T4_MAX_FR_DEPTH (T4_MAX_FR_IMMD / sizeof(u64))
+#define T4_MAX_FR_DEPTH (1024 / sizeof(u64))
 
 #define T4_RQ_NUM_SLOTS 2
 #define T4_RQ_NUM_BYTES (T4_EQ_ENTRY_SIZE * T4_RQ_NUM_SLOTS)
@@ -277,15 +277,6 @@ static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
 	return pgprot_writecombine(prot);
 #else
 	return pgprot_noncached(prot);
-#endif
-}
-
-static inline int t4_ocqp_supported(void)
-{
-#if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)
-	return 1;
-#else
-	return 0;
 #endif
 }
 

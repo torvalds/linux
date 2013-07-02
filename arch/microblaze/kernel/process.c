@@ -20,6 +20,8 @@
 
 void show_regs(struct pt_regs *regs)
 {
+	show_regs_print_info(KERN_INFO);
+
 	pr_info(" Registers dump: mode=%X\r\n", regs->pt_mode);
 	pr_info(" r1=%08lX, r2=%08lX, r3=%08lX, r4=%08lX\n",
 				regs->r1, regs->r2, regs->r3, regs->r4);
@@ -43,71 +45,6 @@ void show_regs(struct pt_regs *regs)
 
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
-
-static int hlt_counter = 1;
-
-void disable_hlt(void)
-{
-	hlt_counter++;
-}
-EXPORT_SYMBOL(disable_hlt);
-
-void enable_hlt(void)
-{
-	hlt_counter--;
-}
-EXPORT_SYMBOL(enable_hlt);
-
-static int __init nohlt_setup(char *__unused)
-{
-	hlt_counter = 1;
-	return 1;
-}
-__setup("nohlt", nohlt_setup);
-
-static int __init hlt_setup(char *__unused)
-{
-	hlt_counter = 0;
-	return 1;
-}
-__setup("hlt", hlt_setup);
-
-void default_idle(void)
-{
-	if (likely(hlt_counter)) {
-		local_irq_disable();
-		stop_critical_timings();
-		cpu_relax();
-		start_critical_timings();
-		local_irq_enable();
-	} else {
-		clear_thread_flag(TIF_POLLING_NRFLAG);
-		smp_mb__after_clear_bit();
-		local_irq_disable();
-		while (!need_resched())
-			cpu_sleep();
-		local_irq_enable();
-		set_thread_flag(TIF_POLLING_NRFLAG);
-	}
-}
-
-void cpu_idle(void)
-{
-	set_thread_flag(TIF_POLLING_NRFLAG);
-
-	/* endless idle loop with no priority at all */
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		while (!need_resched())
-			default_idle();
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-
-		schedule_preempt_disabled();
-		check_pgt_cache();
-	}
-}
 
 void flush_thread(void)
 {
@@ -223,3 +160,8 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpregs)
 	return 0; /* MicroBlaze has no separate FPU registers */
 }
 #endif /* CONFIG_MMU */
+
+void arch_cpu_idle(void)
+{
+       local_irq_enable();
+}

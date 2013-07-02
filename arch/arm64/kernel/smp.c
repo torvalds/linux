@@ -43,6 +43,7 @@
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/processor.h>
+#include <asm/smp_plat.h>
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
@@ -53,7 +54,7 @@
  * where to place its SVC stack
  */
 struct secondary_data secondary_data;
-volatile unsigned long secondary_holding_pen_release = -1;
+volatile unsigned long secondary_holding_pen_release = INVALID_HWID;
 
 enum ipi_msg_type {
 	IPI_RESCHEDULE,
@@ -70,7 +71,7 @@ static DEFINE_RAW_SPINLOCK(boot_lock);
  * in coherency or not.  This is necessary for the hotplug code to work
  * reliably.
  */
-static void __cpuinit write_pen_release(int val)
+static void __cpuinit write_pen_release(u64 val)
 {
 	void *start = (void *)&secondary_holding_pen_release;
 	unsigned long size = sizeof(secondary_holding_pen_release);
@@ -96,7 +97,7 @@ static int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	/*
 	 * Update the pen release flag.
 	 */
-	write_pen_release(cpu);
+	write_pen_release(cpu_logical_map(cpu));
 
 	/*
 	 * Send an event, causing the secondaries to read pen_release.
@@ -105,7 +106,7 @@ static int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
-		if (secondary_holding_pen_release == -1UL)
+		if (secondary_holding_pen_release == INVALID_HWID)
 			break;
 		udelay(10);
 	}
@@ -116,7 +117,7 @@ static int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 */
 	raw_spin_unlock(&boot_lock);
 
-	return secondary_holding_pen_release != -1 ? -ENOSYS : 0;
+	return secondary_holding_pen_release != INVALID_HWID ? -ENOSYS : 0;
 }
 
 static DECLARE_COMPLETION(cpu_running);
@@ -190,7 +191,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 * Let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
 	 */
-	write_pen_release(-1);
+	write_pen_release(INVALID_HWID);
 
 	/*
 	 * Synchronise with the boot thread.
@@ -216,7 +217,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	/*
 	 * OK, it's off to the idle thread for us
 	 */
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -244,11 +245,11 @@ static const struct smp_enable_ops *smp_enable_ops[NR_CPUS];
 
 static const struct smp_enable_ops * __init smp_get_enable_ops(const char *name)
 {
-	const struct smp_enable_ops *ops = enable_ops[0];
+	const struct smp_enable_ops **ops = enable_ops;
 
-	while (ops) {
-		if (!strcmp(name, ops->name))
-			return ops;
+	while (*ops) {
+		if (!strcmp(name, (*ops)->name))
+			return *ops;
 
 		ops++;
 	}
@@ -257,15 +258,80 @@ static const struct smp_enable_ops * __init smp_get_enable_ops(const char *name)
 }
 
 /*
- * Enumerate the possible CPU set from the device tree.
+ * Enumerate the possible CPU set from the device tree and build the
+ * cpu logical map array containing MPIDR values related to logical
+ * cpus. Assumes that cpu_logical_map(0) has already been initialized.
  */
 void __init smp_init_cpus(void)
 {
 	const char *enable_method;
 	struct device_node *dn = NULL;
-	int cpu = 0;
+	int i, cpu = 1;
+	bool bootcpu_valid = false;
 
 	while ((dn = of_find_node_by_type(dn, "cpu"))) {
+		const u32 *cell;
+		u64 hwid;
+
+		/*
+		 * A cpu node with missing "reg" property is
+		 * considered invalid to build a cpu_logical_map
+		 * entry.
+		 */
+		cell = of_get_property(dn, "reg", NULL);
+		if (!cell) {
+			pr_err("%s: missing reg property\n", dn->full_name);
+			goto next;
+		}
+		hwid = of_read_number(cell, of_n_addr_cells(dn));
+
+		/*
+		 * Non affinity bits must be set to 0 in the DT
+		 */
+		if (hwid & ~MPIDR_HWID_BITMASK) {
+			pr_err("%s: invalid reg property\n", dn->full_name);
+			goto next;
+		}
+
+		/*
+		 * Duplicate MPIDRs are a recipe for disaster. Scan
+		 * all initialized entries and check for
+		 * duplicates. If any is found just ignore the cpu.
+		 * cpu_logical_map was initialized to INVALID_HWID to
+		 * avoid matching valid MPIDR values.
+		 */
+		for (i = 1; (i < cpu) && (i < NR_CPUS); i++) {
+			if (cpu_logical_map(i) == hwid) {
+				pr_err("%s: duplicate cpu reg properties in the DT\n",
+					dn->full_name);
+				goto next;
+			}
+		}
+
+		/*
+		 * The numbering scheme requires that the boot CPU
+		 * must be assigned logical id 0. Record it so that
+		 * the logical map built from DT is validated and can
+		 * be used.
+		 */
+		if (hwid == cpu_logical_map(0)) {
+			if (bootcpu_valid) {
+				pr_err("%s: duplicate boot cpu reg property in DT\n",
+					dn->full_name);
+				goto next;
+			}
+
+			bootcpu_valid = true;
+
+			/*
+			 * cpu_logical_map has already been
+			 * initialized and the boot cpu doesn't need
+			 * the enable-method so continue without
+			 * incrementing cpu.
+			 */
+			continue;
+		}
+
 		if (cpu >= NR_CPUS)
 			goto next;
 
@@ -274,22 +340,24 @@ void __init smp_init_cpus(void)
 		 */
 		enable_method = of_get_property(dn, "enable-method", NULL);
 		if (!enable_method) {
-			pr_err("CPU %d: missing enable-method property\n", cpu);
+			pr_err("%s: missing enable-method property\n",
+				dn->full_name);
 			goto next;
 		}
 
 		smp_enable_ops[cpu] = smp_get_enable_ops(enable_method);
 
 		if (!smp_enable_ops[cpu]) {
-			pr_err("CPU %d: invalid enable-method property: %s\n",
-			       cpu, enable_method);
+			pr_err("%s: invalid enable-method property: %s\n",
+			       dn->full_name, enable_method);
 			goto next;
 		}
 
 		if (smp_enable_ops[cpu]->init_cpu(dn, cpu))
 			goto next;
 
-		set_cpu_possible(cpu, true);
+		pr_debug("cpu logical map 0x%llx\n", hwid);
+		cpu_logical_map(cpu) = hwid;
 next:
 		cpu++;
 	}
@@ -298,6 +366,19 @@ next:
 	if (cpu > NR_CPUS)
 		pr_warning("no. of cores (%d) greater than configured maximum of %d - clipping\n",
 			   cpu, NR_CPUS);
+
+	if (!bootcpu_valid) {
+		pr_err("DT missing boot CPU MPIDR, not enabling secondaries\n");
+		return;
+	}
+
+	/*
+	 * All the cpus that made it to the cpu_logical_map have been
+	 * validated so set them as possible cpus.
+	 */
+	for (i = 0; i < NR_CPUS; i++)
+		if (cpu_logical_map(i) != INVALID_HWID)
+			set_cpu_possible(i, true);
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)

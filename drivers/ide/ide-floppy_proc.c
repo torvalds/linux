@@ -15,7 +15,7 @@ static int idefloppy_capacity_proc_show(struct seq_file *m, void *v)
 
 static int idefloppy_capacity_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, idefloppy_capacity_proc_show, PDE(inode)->data);
+	return single_open(file, idefloppy_capacity_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations idefloppy_capacity_proc_fops = {

@@ -962,12 +962,14 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 			}
 
 			data = kmap(page);
+			file_start_write(file);
 			old_fs = get_fs();
 			set_fs(KERNEL_DS);
 			ret = file->f_op->write(
 				file, (const void __user *) data, len, &pos);
 			set_fs(old_fs);
 			kunmap(page);
+			file_end_write(file);
 			if (ret != len)
 				ret = -EIO;
 		}

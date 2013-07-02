@@ -184,7 +184,7 @@ void __cpuinit start_secondary(void)
 
 	local_irq_enable();
 
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 

@@ -28,7 +28,7 @@ Required properties:
     safe operating voltage).
 
     If either of the 'max8997,pmic-buck[1/2/5]-uses-gpio-dvs' optional
-    property is specified, then all the eigth voltage values for the
+    property is specified, then all the eight voltage values for the
     'max8997,pmic-buck[1/2/5]-dvs-voltage' should be specified.
 
 Optional properties:

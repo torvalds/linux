@@ -780,6 +780,7 @@ static const struct block_device_operations mg_disk_ops = {
 	.getgeo = mg_getgeo
 };
 
+#ifdef CONFIG_PM_SLEEP
 static int mg_suspend(struct device *dev)
 {
 	struct mg_drv_data *prv_data = dev->platform_data;
@@ -824,6 +825,7 @@ static int mg_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(mg_pm, mg_suspend, mg_resume);
 
@@ -890,8 +892,10 @@ static int mg_probe(struct platform_device *plat_dev)
 	gpio_direction_output(host->rst, 1);
 
 	/* reset out pin */
-	if (!(prv_data->dev_attr & MG_DEV_MASK))
+	if (!(prv_data->dev_attr & MG_DEV_MASK)) {
+		err = -EINVAL;
 		goto probe_err_3a;
+	}
 
 	if (prv_data->dev_attr != MG_BOOT_DEV) {
 		rsc = platform_get_resource_byname(plat_dev, IORESOURCE_IO,

@@ -78,7 +78,7 @@ config CRYPTO_DEV_FSL_CAAM_AHASH_API
 	tristate "Register hash algorithm implementations with Crypto API"
 	depends on CRYPTO_DEV_FSL_CAAM
 	default y
-	select CRYPTO_AHASH
+	select CRYPTO_HASH
 	help
 	  Selecting this will offload ahash for users of the
 	  scatterlist crypto API to the SEC4 via job ring.

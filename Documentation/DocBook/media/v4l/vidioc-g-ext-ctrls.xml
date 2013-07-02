@@ -319,6 +319,15 @@ These controls are described in <xref
 	    processing controls. These controls are described in <xref
 	    linkend="image-process-controls" />.</entry>
 	  </row>
+
+	  <row>
+	    <entry><constant>V4L2_CTRL_CLASS_FM_RX</constant></entry>
+	    <entry>0xa10000</entry>
+	    <entry>The class containing FM Receiver (FM RX) controls.
+These controls are described in <xref
+		linkend="fm-rx-controls" />.</entry>
+	  </row>
+
 	</tbody>
       </tgroup>
     </table>

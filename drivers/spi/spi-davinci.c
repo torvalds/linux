@@ -776,15 +776,15 @@ rx_dma_failed:
 #if defined(CONFIG_OF)
 static const struct of_device_id davinci_spi_of_match[] = {
 	{
-		.compatible = "ti,dm644x-spi",
+		.compatible = "ti,dm6441-spi",
 	},
 	{
-		.compatible = "ti,da8xx-spi",
+		.compatible = "ti,da830-spi",
 		.data = (void *)SPI_VERSION_2,
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, davini_spi_of_match);
+MODULE_DEVICE_TABLE(of, davinci_spi_of_match);
 
 /**
  * spi_davinci_get_pdata - Get platform data from DTS binding

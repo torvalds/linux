@@ -30,6 +30,7 @@ enum batadv_packettype {
 	BATADV_TT_QUERY		= 0x07,
 	BATADV_ROAM_ADV		= 0x08,
 	BATADV_UNICAST_4ADDR	= 0x09,
+	BATADV_CODED		= 0x0a,
 };
 
 /**
@@ -277,5 +278,37 @@ struct batadv_tt_change {
 	uint8_t flags;
 	uint8_t addr[ETH_ALEN];
 } __packed;
+
+/**
+ * struct batadv_coded_packet - network coded packet
+ * @header: common batman packet header and ttl of first included packet
+ * @reserved: Align following fields to 2-byte boundaries
+ * @first_source: original source of first included packet
+ * @first_orig_dest: original destinal of first included packet
+ * @first_crc: checksum of first included packet
+ * @first_ttvn: tt-version number of first included packet
+ * @second_ttl: ttl of second packet
+ * @second_dest: second receiver of this coded packet
+ * @second_source: original source of second included packet
+ * @second_orig_dest: original destination of second included packet
+ * @second_crc: checksum of second included packet
+ * @second_ttvn: tt version number of second included packet
+ * @coded_len: length of network coded part of the payload
+ */
+struct batadv_coded_packet {
+	struct batadv_header header;
+	uint8_t  first_ttvn;
+	/* uint8_t  first_dest[ETH_ALEN]; - saved in mac header destination */
+	uint8_t  first_source[ETH_ALEN];
+	uint8_t  first_orig_dest[ETH_ALEN];
+	__be32   first_crc;
+	uint8_t  second_ttl;
+	uint8_t  second_ttvn;
+	uint8_t  second_dest[ETH_ALEN];
+	uint8_t  second_source[ETH_ALEN];
+	uint8_t  second_orig_dest[ETH_ALEN];
+	__be32   second_crc;
+	__be16   coded_len;
+};
 
 #endif /* _NET_BATMAN_ADV_PACKET_H_ */

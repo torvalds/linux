@@ -59,8 +59,8 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
-MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
-		       "{bus, clientaddr, subclientaddr1, subclientaddr2}");
+MODULE_PARM_DESC(force_subclients,
+		 "List of subclient addresses: {bus, clientaddr, subclientaddr1, subclientaddr2}");
 
 static bool reset;
 module_param(reset, bool, 0);
@@ -1921,8 +1921,8 @@ static int w83793_probe(struct i2c_client *client,
 	}
 	if (i == ARRAY_SIZE(watchdog_minors)) {
 		data->watchdog_miscdev.minor = 0;
-		dev_warn(&client->dev, "Couldn't register watchdog chardev "
-			"(due to no free minor)\n");
+		dev_warn(&client->dev,
+			 "Couldn't register watchdog chardev (due to no free minor)\n");
 	}
 
 	mutex_unlock(&watchdog_data_mutex);

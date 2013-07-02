@@ -300,10 +300,11 @@ struct dasd_discipline {
 	 * Last things to do when a device is set online, and first things
 	 * when it is set offline.
 	 */
-	int (*ready_to_online) (struct dasd_device *);
+	int (*basic_to_ready) (struct dasd_device *);
 	int (*online_to_ready) (struct dasd_device *);
+	int (*ready_to_basic)  (struct dasd_device *);
 
-	/*
+	/* (struct dasd_device *);
 	 * Device operation functions. build_cp creates a ccw chain for
 	 * a block device request, start_io starts the request and
 	 * term_IO cancels it (e.g. in case of a timeout). format_device
@@ -317,8 +318,8 @@ struct dasd_discipline {
 	int (*start_IO) (struct dasd_ccw_req *);
 	int (*term_IO) (struct dasd_ccw_req *);
 	void (*handle_terminated_request) (struct dasd_ccw_req *);
-	struct dasd_ccw_req *(*format_device) (struct dasd_device *,
-					       struct format_data_t *);
+	int (*format_device) (struct dasd_device *,
+			      struct format_data_t *);
 	int (*free_cp) (struct dasd_ccw_req *, struct request *);
 
 	/*
@@ -672,6 +673,7 @@ int  dasd_term_IO(struct dasd_ccw_req *);
 void dasd_schedule_device_bh(struct dasd_device *);
 void dasd_schedule_block_bh(struct dasd_block *);
 int  dasd_sleep_on(struct dasd_ccw_req *);
+int  dasd_sleep_on_queue(struct list_head *);
 int  dasd_sleep_on_immediatly(struct dasd_ccw_req *);
 int  dasd_sleep_on_interruptible(struct dasd_ccw_req *);
 void dasd_device_set_timer(struct dasd_device *, int);

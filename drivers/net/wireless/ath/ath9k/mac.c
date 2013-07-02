@@ -410,7 +410,7 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 
 	REG_WRITE(ah, AR_QMISC(q), AR_Q_MISC_DCU_EARLY_TERM_REQ);
 
-	if (AR_SREV_9340(ah))
+	if (AR_SREV_9340(ah) && !AR_SREV_9340_13_OR_LATER(ah))
 		REG_WRITE(ah, AR_DMISC(q),
 			  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x1);
 	else
@@ -615,6 +615,14 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 			rs->rs_status |= ATH9K_RXERR_DECRYPT;
 		else if (ads.ds_rxstatus8 & AR_MichaelErr)
 			rs->rs_status |= ATH9K_RXERR_MIC;
+	} else {
+		if (ads.ds_rxstatus8 &
+		    (AR_CRCErr | AR_PHYErr | AR_DecryptCRCErr | AR_MichaelErr))
+			rs->rs_status |= ATH9K_RXERR_CORRUPT_DESC;
+
+		/* Only up to MCS16 supported, everything above is invalid */
+		if (rs->rs_rate >= 0x90)
+			rs->rs_status |= ATH9K_RXERR_CORRUPT_DESC;
 	}
 
 	if (ads.ds_rxstatus8 & AR_KeyMiss)

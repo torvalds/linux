@@ -13,6 +13,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/ioctl.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -644,6 +645,22 @@ static int wdm_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static long wdm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct wdm_device *desc = file->private_data;
+	int rv = 0;
+
+	switch (cmd) {
+	case IOCTL_WDM_MAX_COMMAND:
+		if (copy_to_user((void __user *)arg, &desc->wMaxCommand, sizeof(desc->wMaxCommand)))
+			rv = -EFAULT;
+		break;
+	default:
+		rv = -ENOTTY;
+	}
+	return rv;
+}
+
 static const struct file_operations wdm_fops = {
 	.owner =	THIS_MODULE,
 	.read =		wdm_read,
@@ -652,6 +669,8 @@ static const struct file_operations wdm_fops = {
 	.flush =	wdm_flush,
 	.release =	wdm_release,
 	.poll =		wdm_poll,
+	.unlocked_ioctl = wdm_ioctl,
+	.compat_ioctl = wdm_ioctl,
 	.llseek =	noop_llseek,
 };
 

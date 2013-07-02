@@ -439,7 +439,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	if (pdata->irq >=0)
 		device_init_wakeup(&pdev->dev, 1);
 
-	rtc = rtc_device_register(pdev->name, &pdev->dev, &mxc_rtc_ops,
+	rtc = devm_rtc_device_register(&pdev->dev, pdev->name, &mxc_rtc_ops,
 				  THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		ret = PTR_ERR(rtc);
@@ -464,15 +464,13 @@ static int mxc_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 
-	rtc_device_unregister(pdata->rtc);
-
 	clk_disable_unprepare(pdata->clk);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int mxc_rtc_suspend(struct device *dev)
 {
 	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
@@ -492,19 +490,14 @@ static int mxc_rtc_resume(struct device *dev)
 
 	return 0;
 }
-
-static struct dev_pm_ops mxc_rtc_pm_ops = {
-	.suspend	= mxc_rtc_suspend,
-	.resume		= mxc_rtc_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(mxc_rtc_pm_ops, mxc_rtc_suspend, mxc_rtc_resume);
 
 static struct platform_driver mxc_rtc_driver = {
 	.driver = {
 		   .name	= "mxc_rtc",
-#ifdef CONFIG_PM
 		   .pm		= &mxc_rtc_pm_ops,
-#endif
 		   .owner	= THIS_MODULE,
 	},
 	.id_table = imx_rtc_devtype,

@@ -104,6 +104,26 @@ static unsigned long bgpio_read64(void __iomem *reg)
 }
 #endif /* BITS_PER_LONG >= 64 */
 
+static void bgpio_write16be(void __iomem *reg, unsigned long data)
+{
+	iowrite16be(data, reg);
+}
+
+static unsigned long bgpio_read16be(void __iomem *reg)
+{
+	return ioread16be(reg);
+}
+
+static void bgpio_write32be(void __iomem *reg, unsigned long data)
+{
+	iowrite32be(data, reg);
+}
+
+static unsigned long bgpio_read32be(void __iomem *reg)
+{
+	return ioread32be(reg);
+}
+
 static unsigned long bgpio_pin2mask(struct bgpio_chip *bgc, unsigned int pin)
 {
 	return 1 << pin;
@@ -249,7 +269,8 @@ static int bgpio_dir_out_inv(struct gpio_chip *gc, unsigned int gpio, int val)
 
 static int bgpio_setup_accessors(struct device *dev,
 				 struct bgpio_chip *bgc,
-				 bool be)
+				 bool bit_be,
+				 bool byte_be)
 {
 
 	switch (bgc->bits) {
@@ -258,17 +279,33 @@ static int bgpio_setup_accessors(struct device *dev,
 		bgc->write_reg	= bgpio_write8;
 		break;
 	case 16:
-		bgc->read_reg	= bgpio_read16;
-		bgc->write_reg	= bgpio_write16;
+		if (byte_be) {
+			bgc->read_reg	= bgpio_read16be;
+			bgc->write_reg	= bgpio_write16be;
+		} else {
+			bgc->read_reg	= bgpio_read16;
+			bgc->write_reg	= bgpio_write16;
+		}
 		break;
 	case 32:
-		bgc->read_reg	= bgpio_read32;
-		bgc->write_reg	= bgpio_write32;
+		if (byte_be) {
+			bgc->read_reg	= bgpio_read32be;
+			bgc->write_reg	= bgpio_write32be;
+		} else {
+			bgc->read_reg	= bgpio_read32;
+			bgc->write_reg	= bgpio_write32;
+		}
 		break;
 #if BITS_PER_LONG >= 64
 	case 64:
-		bgc->read_reg	= bgpio_read64;
-		bgc->write_reg	= bgpio_write64;
+		if (byte_be) {
+			dev_err(dev,
+				"64 bit big endian byte order unsupported\n");
+			return -EINVAL;
+		} else {
+			bgc->read_reg	= bgpio_read64;
+			bgc->write_reg	= bgpio_write64;
+		}
 		break;
 #endif /* BITS_PER_LONG >= 64 */
 	default:
@@ -276,7 +313,7 @@ static int bgpio_setup_accessors(struct device *dev,
 		return -EINVAL;
 	}
 
-	bgc->pin2mask = be ? bgpio_pin2mask_be : bgpio_pin2mask;
+	bgc->pin2mask = bit_be ? bgpio_pin2mask_be : bgpio_pin2mask;
 
 	return 0;
 }
@@ -353,11 +390,7 @@ static int bgpio_setup_direction(struct bgpio_chip *bgc,
 
 int bgpio_remove(struct bgpio_chip *bgc)
 {
-	int err = gpiochip_remove(&bgc->gc);
-
-	kfree(bgc);
-
-	return err;
+	return gpiochip_remove(&bgc->gc);
 }
 EXPORT_SYMBOL_GPL(bgpio_remove);
 
@@ -385,7 +418,8 @@ int bgpio_init(struct bgpio_chip *bgc, struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = bgpio_setup_accessors(dev, bgc, flags & BGPIOF_BIG_ENDIAN);
+	ret = bgpio_setup_accessors(dev, bgc, flags & BGPIOF_BIG_ENDIAN,
+				    flags & BGPIOF_BIG_ENDIAN_BYTE_ORDER);
 	if (ret)
 		return ret;
 

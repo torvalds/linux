@@ -10,13 +10,10 @@
 #include <linux/errno.h>
 #include <linux/smp.h>
 
-#include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 
 static inline void platform_do_lowpower(unsigned int cpu)
 {
-	flush_cache_all();
-
 	/* we put the platform to just WFI */
 	for (;;) {
 		__asm__ __volatile__("dsb\n\t" "wfi\n\t"

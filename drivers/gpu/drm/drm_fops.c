@@ -123,6 +123,7 @@ int drm_open(struct inode *inode, struct file *filp)
 	int retcode = 0;
 	int need_setup = 0;
 	struct address_space *old_mapping;
+	struct address_space *old_imapping;
 
 	minor = idr_find(&drm_minors_idr, minor_id);
 	if (!minor)
@@ -137,6 +138,7 @@ int drm_open(struct inode *inode, struct file *filp)
 	if (!dev->open_count++)
 		need_setup = 1;
 	mutex_lock(&dev->struct_mutex);
+	old_imapping = inode->i_mapping;
 	old_mapping = dev->dev_mapping;
 	if (old_mapping == NULL)
 		dev->dev_mapping = &inode->i_data;
@@ -159,8 +161,8 @@ int drm_open(struct inode *inode, struct file *filp)
 
 err_undo:
 	mutex_lock(&dev->struct_mutex);
-	filp->f_mapping = old_mapping;
-	inode->i_mapping = old_mapping;
+	filp->f_mapping = old_imapping;
+	inode->i_mapping = old_imapping;
 	iput(container_of(dev->dev_mapping, struct inode, i_data));
 	dev->dev_mapping = old_mapping;
 	mutex_unlock(&dev->struct_mutex);

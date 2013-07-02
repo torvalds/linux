@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/types.h>
+#include <linux/ioport.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irmod.h>
@@ -882,12 +883,12 @@ static int au1k_irda_probe(struct platform_device *pdev)
 		goto out;
 
 	err = -EBUSY;
-	aup->ioarea = request_mem_region(r->start, r->end - r->start + 1,
+	aup->ioarea = request_mem_region(r->start, resource_size(r),
 					 pdev->name);
 	if (!aup->ioarea)
 		goto out;
 
-	aup->iobase = ioremap_nocache(r->start, r->end - r->start + 1);
+	aup->iobase = ioremap_nocache(r->start, resource_size(r));
 	if (!aup->iobase)
 		goto out2;
 
@@ -952,18 +953,7 @@ static struct platform_driver au1k_irda_driver = {
 	.remove		= au1k_irda_remove,
 };
 
-static int __init au1k_irda_load(void)
-{
-	return platform_driver_register(&au1k_irda_driver);
-}
-
-static void __exit au1k_irda_unload(void)
-{
-	return platform_driver_unregister(&au1k_irda_driver);
-}
+module_platform_driver(au1k_irda_driver);
 
 MODULE_AUTHOR("Pete Popov <ppopov@mvista.com>");
 MODULE_DESCRIPTION("Au1000 IrDA Device Driver");
-
-module_init(au1k_irda_load);
-module_exit(au1k_irda_unload);

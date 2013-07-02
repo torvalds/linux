@@ -91,13 +91,13 @@ config S390
 	select ARCH_INLINE_WRITE_UNLOCK_BH
 	select ARCH_INLINE_WRITE_UNLOCK_IRQ
 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
+	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS2
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_DEVICES if !SMP
-	select GENERIC_KERNEL_THREAD
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL_OLD
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
@@ -131,7 +131,6 @@ config S390
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_SYSCALL_WRAPPERS
 	select HAVE_UID16 if 32BIT
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select VIRT_TO_BUS
@@ -374,19 +373,6 @@ config PACK_STACK
 	  and 24 byte on 64 bit.
 
 	  Say Y if you are unsure.
-
-config SMALL_STACK
-	def_bool n
-	prompt "Use 8kb for kernel stack instead of 16kb"
-	depends on PACK_STACK && 64BIT && !LOCKDEP
-	help
-	  If you say Y here and the compiler supports the -mkernel-backchain
-	  option the kernel will use a smaller kernel stack size. The reduced
-	  size is 8kb instead of 16kb. This allows to run more threads on a
-	  system and reduces the pressure on the memory management for higher
-	  order page allocations.
-
-	  Say N if you are unsure.
 
 config CHECK_STACK
 	def_bool y

@@ -51,10 +51,8 @@
 
 #define AVIC_NUM_IRQS 64
 
-void __iomem *avic_base;
+static void __iomem *avic_base;
 static struct irq_domain *domain;
-
-static u32 avic_saved_mask_reg[2];
 
 #ifdef CONFIG_MXC_IRQ_PRIOR
 static int avic_irq_set_priority(unsigned char irq, unsigned char prio)
@@ -113,6 +111,8 @@ static struct mxc_extra_irq avic_extra_irq = {
 };
 
 #ifdef CONFIG_PM
+static u32 avic_saved_mask_reg[2];
+
 static void avic_irq_suspend(struct irq_data *d)
 {
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);

@@ -242,7 +242,8 @@ static void do_powersaver(int cx_address, unsigned int mults_index,
  * Sets a new clock ratio.
  */
 
-static void longhaul_setstate(unsigned int table_index)
+static void longhaul_setstate(struct cpufreq_policy *policy,
+		unsigned int table_index)
 {
 	unsigned int mults_index;
 	int speed, mult;
@@ -267,9 +268,8 @@ static void longhaul_setstate(unsigned int table_index)
 
 	freqs.old = calc_speed(longhaul_get_cpu_mult());
 	freqs.new = speed;
-	freqs.cpu = 0; /* longhaul.c is UP only driver */
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	pr_debug("Setting to FSB:%dMHz Mult:%d.%dx (%s)\n",
 			fsb, mult/10, mult%10, print_speed(speed/1000));
@@ -386,7 +386,7 @@ retry_loop:
 		}
 	}
 	/* Report true CPU frequency */
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	if (!bm_timeout)
 		printk(KERN_INFO PFX "Warning: Timeout while waiting for "
@@ -648,7 +648,7 @@ static int longhaul_target(struct cpufreq_policy *policy,
 		return 0;
 
 	if (!can_scale_voltage)
-		longhaul_setstate(table_index);
+		longhaul_setstate(policy, table_index);
 	else {
 		/* On test system voltage transitions exceeding single
 		 * step up or down were turning motherboard off. Both
@@ -663,7 +663,7 @@ static int longhaul_target(struct cpufreq_policy *policy,
 		while (i != table_index) {
 			vid = (longhaul_table[i].index >> 8) & 0x1f;
 			if (vid != current_vid) {
-				longhaul_setstate(i);
+				longhaul_setstate(policy, i);
 				current_vid = vid;
 				msleep(200);
 			}
@@ -672,7 +672,7 @@ static int longhaul_target(struct cpufreq_policy *policy,
 			else
 				i--;
 		}
-		longhaul_setstate(table_index);
+		longhaul_setstate(policy, table_index);
 	}
 	longhaul_index = table_index;
 	return 0;
@@ -998,15 +998,17 @@ static int __init longhaul_init(void)
 
 static void __exit longhaul_exit(void)
 {
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
 	int i;
 
 	for (i = 0; i < numscales; i++) {
 		if (mults[i] == maxmult) {
-			longhaul_setstate(i);
+			longhaul_setstate(policy, i);
 			break;
 		}
 	}
 
+	cpufreq_cpu_put(policy);
 	cpufreq_unregister_driver(&longhaul_driver);
 	kfree(longhaul_table);
 }

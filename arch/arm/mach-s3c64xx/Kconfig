@@ -17,11 +17,13 @@ config PLAT_S3C64XX
 # Configuration options for the S3C6410 CPU
 
 config CPU_S3C6400
+	select SAMSUNG_HRT
 	bool
 	help
 	  Enable S3C6400 CPU support
 
 config CPU_S3C6410
+	select SAMSUNG_HRT
 	bool
 	help
 	  Enable S3C6410 CPU support
@@ -198,10 +200,7 @@ endchoice
 config SMDK6410_WM1190_EV1
 	bool "Support Wolfson Microelectronics 1190-EV1 PMIC card"
 	depends on MACH_SMDK6410
-	select MFD_WM8350_CONFIG_MODE_0
-	select MFD_WM8350_CONFIG_MODE_3
 	select MFD_WM8350_I2C
-	select MFD_WM8352_CONFIG_MODE_0
 	select REGULATOR
 	select REGULATOR_WM8350
 	select SAMSUNG_GPIO_EXTRA64

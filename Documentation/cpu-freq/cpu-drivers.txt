@@ -108,8 +108,9 @@ policy->governor		must contain the "default policy" for
 				cpufreq_driver.target is called with
 				these values.
 
-For setting some of these values, the frequency table helpers might be
-helpful. See the section 2 for more information on them.
+For setting some of these values (cpuinfo.min[max]_freq, policy->min[max]), the
+frequency table helpers might be helpful. See the section 2 for more information
+on them.
 
 SMP systems normally have same clock source for a group of cpus. For these the
 .init() would be called only once for the first online cpu. Here the .init()
@@ -184,10 +185,10 @@ the reference implementation in drivers/cpufreq/longrun.c
 As most cpufreq processors only allow for being set to a few specific
 frequencies, a "frequency table" with some functions might assist in
 some work of the processor driver. Such a "frequency table" consists
-of an array of struct cpufreq_freq_table entries, with any value in
+of an array of struct cpufreq_frequency_table entries, with any value in
 "index" you want to use, and the corresponding frequency in
 "frequency". At the end of the table, you need to add a
-cpufreq_freq_table entry with frequency set to CPUFREQ_TABLE_END. And
+cpufreq_frequency_table entry with frequency set to CPUFREQ_TABLE_END. And
 if you want to skip one entry in the table, set the frequency to 
 CPUFREQ_ENTRY_INVALID. The entries don't need to be in ascending
 order.

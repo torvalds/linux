@@ -257,7 +257,7 @@ void CsrSdioFunctionDriverUnregister(CsrSdioFunctionDriver *functionDriver);
  *      CSR_RESULT_SUCCESS - The specified function was enabled/disabled.
  *      CSR_RESULT_FAILURE - Unspecified/unknown error.
  *      CSR_SDIO_RESULT_NO_DEVICE - The device does not exist anymore.
- *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occured. The state of the
+ *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occurred. The state of the
  *                                  related bit in the I/O Enable register is
  *                                  undefined.
  *      CSR_SDIO_RESULT_TIMEOUT - No response from the device, or the related
@@ -295,7 +295,7 @@ CsrResult CsrSdioFunctionDisable(CsrSdioFunction *function);
  *      CSR_RESULT_SUCCESS - The specified function was enabled/disabled.
  *      CSR_RESULT_FAILURE - Unspecified/unknown error.
  *      CSR_SDIO_RESULT_NO_DEVICE - The device does not exist anymore.
- *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occured. The state of the
+ *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occurred. The state of the
  *                                  related bit in the INT Enable register is
  *                                  unchanged.
  *      CSR_SDIO_RESULT_INVALID_VALUE - The specified function cannot be
@@ -408,7 +408,7 @@ void CsrSdioResumeAcknowledge(CsrSdioFunction *function, CsrResult result);
  *      CSR_RESULT_FAILURE - Unspecified/unknown error.
  *      CSR_SDIO_RESULT_INVALID_VALUE - One or more arguments were invalid.
  *      CSR_SDIO_RESULT_NO_DEVICE - The device does not exist anymore.
- *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occured. The configured block
+ *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occurred. The configured block
  *                                  size is undefined.
  *      CSR_SDIO_RESULT_TIMEOUT - No response from the device.
  *
@@ -456,7 +456,7 @@ CsrResult CsrSdioBlockSizeSet(CsrSdioFunction *function, u16 blockSize);
  *      maxFrequency - The maximum clock frequency for the function in Hertz.
  *
  *  RETURNS
- *      CSR_RESULT_SUCCESS - The maximum clock frequency was succesfully
+ *      CSR_RESULT_SUCCESS - The maximum clock frequency was successfully
  *                                set for the function.
  *      CSR_RESULT_FAILURE - Unspecified/unknown error.
  *      CSR_SDIO_RESULT_INVALID_VALUE - One or more arguments were invalid.
@@ -494,7 +494,7 @@ CsrResult CsrSdioMaxBusClockFrequencySet(CsrSdioFunction *function, u32 maxFrequ
  *      CSR_RESULT_FAILURE - Unspecified/unknown error.
  *      CSR_SDIO_RESULT_INVALID_VALUE - One or more arguments were invalid.
  *      CSR_SDIO_RESULT_NO_DEVICE - The device does not exist anymore.
- *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occured. No data read/written.
+ *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occurred. No data read/written.
  *      CSR_SDIO_RESULT_TIMEOUT - No response from the device.
  *
  *      NOTE: If the SDIO R5 response is available, and either of the
@@ -537,7 +537,7 @@ void CsrSdioWrite8Async(CsrSdioFunction *function, u32 address, u8 data, CsrSdio
  *      CSR_RESULT_FAILURE - Unspecified/unknown error.
  *      CSR_SDIO_RESULT_INVALID_VALUE - One or more arguments were invalid.
  *      CSR_SDIO_RESULT_NO_DEVICE - The device does not exist anymore.
- *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occured. Data may have been
+ *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occurred. Data may have been
  *                                  partially read/written.
  *      CSR_SDIO_RESULT_TIMEOUT - No response from the device.
  *
@@ -583,7 +583,7 @@ void CsrSdioWrite16Async(CsrSdioFunction *function, u32 address, u16 data, CsrSd
  *      CSR_RESULT_FAILURE - Unspecified/unknown error.
  *      CSR_SDIO_RESULT_INVALID_VALUE - One or more arguments were invalid.
  *      CSR_SDIO_RESULT_NO_DEVICE - The device does not exist anymore.
- *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occured. No data read/written.
+ *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occurred. No data read/written.
  *      CSR_SDIO_RESULT_TIMEOUT - No response from the device.
  *
  *      NOTE: If the SDIO R5 response is available, and either of the
@@ -628,7 +628,7 @@ void CsrSdioF0Write8Async(CsrSdioFunction *function, u32 address, u8 data, CsrSd
  *      CSR_RESULT_FAILURE - Unspecified/unknown error.
  *      CSR_SDIO_RESULT_INVALID_VALUE - One or more arguments were invalid.
  *      CSR_SDIO_RESULT_NO_DEVICE - The device does not exist anymore.
- *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occured. Data may have been
+ *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occurred. Data may have been
  *                                  partially read/written.
  *      CSR_SDIO_RESULT_TIMEOUT - No response from the device.
  *
@@ -666,11 +666,11 @@ void CsrSdioWriteAsync(CsrSdioFunction *function, u32 address, const void *data,
  *                 the device to power on/off.
  *
  *  RETURNS (only CsrSdioPowerOn)
- *      CSR_RESULT_SUCCESS - Power was succesfully reapplied and the device
+ *      CSR_RESULT_SUCCESS - Power was successfully reapplied and the device
  *                                has been reinitialised.
  *      CSR_RESULT_FAILURE - Unspecified/unknown error.
  *      CSR_SDIO_RESULT_NO_DEVICE - The device does not exist anymore.
- *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occured during reinitialisation.
+ *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occurred during reinitialisation.
  *      CSR_SDIO_RESULT_TIMEOUT - No response from the device during
  *                                reinitialisation.
  *      CSR_SDIO_RESULT_NOT_RESET - The power was not removed by the
@@ -693,11 +693,11 @@ void CsrSdioPowerOff(CsrSdioFunction *function);
  *                 the device to hard reset.
  *
  *  RETURNS
- *      CSR_RESULT_SUCCESS - Reset was succesfully performed and the device
+ *      CSR_RESULT_SUCCESS - Reset was successfully performed and the device
  *                                has been reinitialised.
  *      CSR_RESULT_FAILURE - Unspecified/unknown error.
  *      CSR_SDIO_RESULT_NO_DEVICE - The device does not exist anymore.
- *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occured during reinitialisation.
+ *      CSR_SDIO_RESULT_CRC_ERROR - A CRC error occurred during reinitialisation.
  *      CSR_SDIO_RESULT_TIMEOUT - No response from the device during
  *                                reinitialisation.
  *      CSR_SDIO_RESULT_NOT_RESET - The reset was not applied because it is not

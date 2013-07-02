@@ -148,8 +148,10 @@ static int m48t86_rtc_probe(struct platform_device *dev)
 {
 	unsigned char reg;
 	struct m48t86_ops *ops = dev->dev.platform_data;
-	struct rtc_device *rtc = rtc_device_register("m48t86",
-				&dev->dev, &m48t86_rtc_ops, THIS_MODULE);
+	struct rtc_device *rtc;
+
+	rtc = devm_rtc_device_register(&dev->dev, "m48t86",
+				&m48t86_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
@@ -166,11 +168,6 @@ static int m48t86_rtc_probe(struct platform_device *dev)
 
 static int m48t86_rtc_remove(struct platform_device *dev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(dev);
-
- 	if (rtc)
-		rtc_device_unregister(rtc);
-
 	platform_set_drvdata(dev, NULL);
 
 	return 0;

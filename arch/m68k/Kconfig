@@ -35,9 +35,6 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	bool
 
-config GENERIC_GPIO
-	bool
-
 config GENERIC_HWEIGHT
 	bool
 	default y

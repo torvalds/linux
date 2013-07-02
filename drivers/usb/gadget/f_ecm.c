@@ -816,6 +816,7 @@ ecm_unbind(struct usb_configuration *c, struct usb_function *f)
  * @c: the configuration to support the network link
  * @ethaddr: a buffer in which the ethernet address of the host side
  *	side of the link was recorded
+ * @dev: eth_dev structure
  * Context: single threaded during gadget setup
  *
  * Returns zero on success, else negative errno.
@@ -824,7 +825,8 @@ ecm_unbind(struct usb_configuration *c, struct usb_function *f)
  * for calling @gether_cleanup() before module unload.
  */
 int
-ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
+ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		struct eth_dev *dev)
 {
 	struct f_ecm	*ecm;
 	int		status;
@@ -852,6 +854,7 @@ ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	snprintf(ecm->ethaddr, sizeof ecm->ethaddr, "%pm", ethaddr);
 	ecm_string_defs[1].s = ecm->ethaddr;
 
+	ecm->port.ioport = dev;
 	ecm->port.cdc_filter = DEFAULT_FILTER;
 
 	ecm->port.func.name = "cdc_ethernet";

@@ -14,9 +14,9 @@ struct pci_ats {
 
 #ifdef CONFIG_PCI_ATS
 
-extern int pci_enable_ats(struct pci_dev *dev, int ps);
-extern void pci_disable_ats(struct pci_dev *dev);
-extern int pci_ats_queue_depth(struct pci_dev *dev);
+int pci_enable_ats(struct pci_dev *dev, int ps);
+void pci_disable_ats(struct pci_dev *dev);
+int pci_ats_queue_depth(struct pci_dev *dev);
 
 /**
  * pci_ats_enabled - query the ATS status
@@ -54,12 +54,12 @@ static inline int pci_ats_enabled(struct pci_dev *dev)
 
 #ifdef CONFIG_PCI_PRI
 
-extern int  pci_enable_pri(struct pci_dev *pdev, u32 reqs);
-extern void pci_disable_pri(struct pci_dev *pdev);
-extern bool pci_pri_enabled(struct pci_dev *pdev);
-extern int  pci_reset_pri(struct pci_dev *pdev);
-extern bool pci_pri_stopped(struct pci_dev *pdev);
-extern int  pci_pri_status(struct pci_dev *pdev);
+int pci_enable_pri(struct pci_dev *pdev, u32 reqs);
+void pci_disable_pri(struct pci_dev *pdev);
+bool pci_pri_enabled(struct pci_dev *pdev);
+int pci_reset_pri(struct pci_dev *pdev);
+bool pci_pri_stopped(struct pci_dev *pdev);
+int pci_pri_status(struct pci_dev *pdev);
 
 #else /* CONFIG_PCI_PRI */
 
@@ -95,10 +95,10 @@ static inline int pci_pri_status(struct pci_dev *pdev)
 
 #ifdef CONFIG_PCI_PASID
 
-extern int pci_enable_pasid(struct pci_dev *pdev, int features);
-extern void pci_disable_pasid(struct pci_dev *pdev);
-extern int pci_pasid_features(struct pci_dev *pdev);
-extern int pci_max_pasids(struct pci_dev *pdev);
+int pci_enable_pasid(struct pci_dev *pdev, int features);
+void pci_disable_pasid(struct pci_dev *pdev);
+int pci_pasid_features(struct pci_dev *pdev);
+int pci_max_pasids(struct pci_dev *pdev);
 
 #else  /* CONFIG_PCI_PASID */
 

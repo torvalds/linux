@@ -78,8 +78,8 @@ struct ports_driver_data {
 };
 static struct ports_driver_data pdrvdata;
 
-DEFINE_SPINLOCK(pdrvdata_lock);
-DECLARE_COMPLETION(early_console_added);
+static DEFINE_SPINLOCK(pdrvdata_lock);
+static DECLARE_COMPLETION(early_console_added);
 
 /* This struct holds information that's relevant only for console ports */
 struct console {
@@ -149,7 +149,8 @@ struct ports_device {
 	spinlock_t ports_lock;
 
 	/* To protect the vq operations for the control channel */
-	spinlock_t cvq_lock;
+	spinlock_t c_ivq_lock;
+	spinlock_t c_ovq_lock;
 
 	/* The current config space is stored here */
 	struct virtio_console_config config;
@@ -502,7 +503,7 @@ static int add_inbuf(struct virtqueue *vq, struct port_buffer *buf)
 
 	sg_init_one(sg, buf->buf, buf->size);
 
-	ret = virtqueue_add_buf(vq, sg, 0, 1, buf, GFP_ATOMIC);
+	ret = virtqueue_add_inbuf(vq, sg, 1, buf, GFP_ATOMIC);
 	virtqueue_kick(vq);
 	if (!ret)
 		ret = vq->num_free;
@@ -569,11 +570,14 @@ static ssize_t __send_control_msg(struct ports_device *portdev, u32 port_id,
 	vq = portdev->c_ovq;
 
 	sg_init_one(sg, &cpkt, sizeof(cpkt));
-	if (virtqueue_add_buf(vq, sg, 1, 0, &cpkt, GFP_ATOMIC) == 0) {
+
+	spin_lock(&portdev->c_ovq_lock);
+	if (virtqueue_add_outbuf(vq, sg, 1, &cpkt, GFP_ATOMIC) == 0) {
 		virtqueue_kick(vq);
 		while (!virtqueue_get_buf(vq, &len))
 			cpu_relax();
 	}
+	spin_unlock(&portdev->c_ovq_lock);
 	return 0;
 }
 
@@ -618,7 +622,7 @@ static ssize_t __send_to_port(struct port *port, struct scatterlist *sg,
 
 	reclaim_consumed_buffers(port);
 
-	err = virtqueue_add_buf(out_vq, sg, nents, 0, data, GFP_ATOMIC);
+	err = virtqueue_add_outbuf(out_vq, sg, nents, data, GFP_ATOMIC);
 
 	/* Tell Host to go! */
 	virtqueue_kick(out_vq);
@@ -1036,7 +1040,7 @@ static int port_fops_open(struct inode *inode, struct file *filp)
 	spin_lock_irq(&port->inbuf_lock);
 	if (port->guest_connected) {
 		spin_unlock_irq(&port->inbuf_lock);
-		ret = -EMFILE;
+		ret = -EBUSY;
 		goto out;
 	}
 
@@ -1198,7 +1202,7 @@ int __init virtio_cons_early_init(int (*put_chars)(u32, const char *, int))
 	return hvc_instantiate(0, 0, &hv_ops);
 }
 
-int init_port_console(struct port *port)
+static int init_port_console(struct port *port)
 {
 	int ret;
 
@@ -1436,7 +1440,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 		 * rproc_serial does not want the console port, only
 		 * the generic port implementation.
 		 */
-		port->host_connected = port->guest_connected = true;
+		port->host_connected = true;
 	else if (!use_multiport(port->portdev)) {
 		/*
 		 * If we're not using multiport support,
@@ -1709,23 +1713,23 @@ static void control_work_handler(struct work_struct *work)
 	portdev = container_of(work, struct ports_device, control_work);
 	vq = portdev->c_ivq;
 
-	spin_lock(&portdev->cvq_lock);
+	spin_lock(&portdev->c_ivq_lock);
 	while ((buf = virtqueue_get_buf(vq, &len))) {
-		spin_unlock(&portdev->cvq_lock);
+		spin_unlock(&portdev->c_ivq_lock);
 
 		buf->len = len;
 		buf->offset = 0;
 
 		handle_control_message(portdev, buf);
 
-		spin_lock(&portdev->cvq_lock);
+		spin_lock(&portdev->c_ivq_lock);
 		if (add_inbuf(portdev->c_ivq, buf) < 0) {
 			dev_warn(&portdev->vdev->dev,
 				 "Error adding buffer to queue\n");
 			free_buf(buf, false);
 		}
 	}
-	spin_unlock(&portdev->cvq_lock);
+	spin_unlock(&portdev->c_ivq_lock);
 }
 
 static void out_intr(struct virtqueue *vq)
@@ -1752,13 +1756,23 @@ static void in_intr(struct virtqueue *vq)
 	port->inbuf = get_inbuf(port);
 
 	/*
-	 * Don't queue up data when port is closed.  This condition
+	 * Normally the port should not accept data when the port is
+	 * closed. For generic serial ports, the host won't (shouldn't)
+	 * send data till the guest is connected. But this condition
 	 * can be reached when a console port is not yet connected (no
-	 * tty is spawned) and the host sends out data to console
-	 * ports.  For generic serial ports, the host won't
-	 * (shouldn't) send data till the guest is connected.
+	 * tty is spawned) and the other side sends out data over the
+	 * vring, or when a remote devices start sending data before
+	 * the ports are opened.
+	 *
+	 * A generic serial port will discard data if not connected,
+	 * while console ports and rproc-serial ports accepts data at
+	 * any time. rproc-serial is initiated with guest_connected to
+	 * false because port_fops_open expects this. Console ports are
+	 * hooked up with an HVC console and is initialized with
+	 * guest_connected to true.
 	 */
-	if (!port->guest_connected)
+
+	if (!port->guest_connected && !is_rproc_serial(port->portdev->vdev))
 		discard_port_data(port);
 
 	spin_unlock_irqrestore(&port->inbuf_lock, flags);
@@ -1986,10 +2000,12 @@ static int virtcons_probe(struct virtio_device *vdev)
 	if (multiport) {
 		unsigned int nr_added_bufs;
 
-		spin_lock_init(&portdev->cvq_lock);
+		spin_lock_init(&portdev->c_ivq_lock);
+		spin_lock_init(&portdev->c_ovq_lock);
 		INIT_WORK(&portdev->control_work, &control_work_handler);
 
-		nr_added_bufs = fill_queue(portdev->c_ivq, &portdev->cvq_lock);
+		nr_added_bufs = fill_queue(portdev->c_ivq,
+					   &portdev->c_ivq_lock);
 		if (!nr_added_bufs) {
 			dev_err(&vdev->dev,
 				"Error allocating buffers for control queue\n");
@@ -2140,7 +2156,7 @@ static int virtcons_restore(struct virtio_device *vdev)
 		return ret;
 
 	if (use_multiport(portdev))
-		fill_queue(portdev->c_ivq, &portdev->cvq_lock);
+		fill_queue(portdev->c_ivq, &portdev->c_ivq_lock);
 
 	list_for_each_entry(port, &portdev->ports, list) {
 		port->in_vq = portdev->in_vqs[port->id];

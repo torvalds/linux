@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/if_vlan.h>
 #include <linux/inet_lro.h>
+#include <net/checksum.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jan-Bernd Themann <themann@de.ibm.com>");
@@ -114,10 +115,8 @@ static void lro_update_tcp_ip_header(struct net_lro_desc *lro_desc)
 		*(p+2) = lro_desc->tcp_rcv_tsecr;
 	}
 
+	csum_replace2(&iph->check, iph->tot_len, htons(lro_desc->ip_tot_len));
 	iph->tot_len = htons(lro_desc->ip_tot_len);
-
-	iph->check = 0;
-	iph->check = ip_fast_csum((u8 *)lro_desc->iph, iph->ihl);
 
 	tcph->check = 0;
 	tcp_hdr_csum = csum_partial(tcph, TCP_HDR_LEN(tcph), 0);

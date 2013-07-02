@@ -41,6 +41,7 @@ MODULE_DEVICE_TABLE(usb, m5602_table);
 int m5602_read_bridge(struct sd *sd, const u8 address, u8 *i2c_data)
 {
 	int err;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *) sd;
 	struct usb_device *udev = sd->gspca_dev.dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
 
@@ -62,6 +63,7 @@ int m5602_read_bridge(struct sd *sd, const u8 address, u8 *i2c_data)
 int m5602_write_bridge(struct sd *sd, const u8 address, const u8 i2c_data)
 {
 	int err;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *) sd;
 	struct usb_device *udev = sd->gspca_dev.dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
 
@@ -98,6 +100,7 @@ int m5602_read_sensor(struct sd *sd, const u8 address,
 		       u8 *i2c_data, const u8 len)
 {
 	int err, i;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *) sd;
 
 	if (!len || len > sd->sensor->i2c_regW)
 		return -EINVAL;
@@ -147,6 +150,7 @@ int m5602_write_sensor(struct sd *sd, const u8 address,
 {
 	int err, i;
 	u8 *p;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *) sd;
 	struct usb_device *udev = sd->gspca_dev.dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
 
@@ -252,6 +256,16 @@ static int m5602_init(struct gspca_dev *gspca_dev)
 	return err;
 }
 
+static int m5602_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (!sd->sensor->init_controls)
+		return 0;
+
+	return sd->sensor->init_controls(sd);
+}
+
 static int m5602_start_transfer(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -336,11 +350,12 @@ static void m5602_stop_transfer(struct gspca_dev *gspca_dev)
 		sd->sensor->stop(sd);
 }
 
-/* sub-driver description, the ctrl and nctrl is filled at probe time */
-static struct sd_desc sd_desc = {
+/* sub-driver description */
+static const struct sd_desc sd_desc = {
 	.name		= MODULE_NAME,
 	.config		= m5602_configure,
 	.init		= m5602_init,
+	.init_controls	= m5602_init_controls,
 	.start		= m5602_start_transfer,
 	.stopN		= m5602_stop_transfer,
 	.pkt_scan	= m5602_urb_complete
@@ -355,7 +370,6 @@ static int m5602_configure(struct gspca_dev *gspca_dev,
 	int err;
 
 	cam = &gspca_dev->cam;
-	sd->desc = &sd_desc;
 
 	if (dump_bridge)
 		m5602_dump_bridge(sd);
@@ -368,7 +382,7 @@ static int m5602_configure(struct gspca_dev *gspca_dev,
 	return 0;
 
 fail:
-	PDEBUG(D_ERR, "ALi m5602 webcam failed");
+	PERR("ALi m5602 webcam failed");
 	cam->cam_mode = NULL;
 	cam->nmodes = 0;
 

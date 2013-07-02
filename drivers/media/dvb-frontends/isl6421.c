@@ -89,6 +89,30 @@ static int isl6421_enable_high_lnb_voltage(struct dvb_frontend *fe, long arg)
 	return (i2c_transfer(isl6421->i2c, &msg, 1) == 1) ? 0 : -EIO;
 }
 
+static int isl6421_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+{
+	struct isl6421 *isl6421 = (struct isl6421 *) fe->sec_priv;
+	struct i2c_msg msg = { .addr = isl6421->i2c_addr, .flags = 0,
+			       .buf = &isl6421->config,
+			       .len = sizeof(isl6421->config) };
+
+	switch (tone) {
+	case SEC_TONE_ON:
+		isl6421->config |= ISL6421_ENT1;
+		break;
+	case SEC_TONE_OFF:
+		isl6421->config &= ~ISL6421_ENT1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	isl6421->config |= isl6421->override_or;
+	isl6421->config &= isl6421->override_and;
+
+	return (i2c_transfer(isl6421->i2c, &msg, 1) == 1) ? 0 : -EIO;
+}
+
 static void isl6421_release(struct dvb_frontend *fe)
 {
 	/* power off */
@@ -100,7 +124,7 @@ static void isl6421_release(struct dvb_frontend *fe)
 }
 
 struct dvb_frontend *isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 i2c_addr,
-		   u8 override_set, u8 override_clear)
+		   u8 override_set, u8 override_clear, bool override_tone)
 {
 	struct isl6421 *isl6421 = kmalloc(sizeof(struct isl6421), GFP_KERNEL);
 	if (!isl6421)
@@ -131,6 +155,8 @@ struct dvb_frontend *isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	/* override frontend ops */
 	fe->ops.set_voltage = isl6421_set_voltage;
 	fe->ops.enable_high_lnb_voltage = isl6421_enable_high_lnb_voltage;
+	if (override_tone)
+		fe->ops.set_tone = isl6421_set_tone;
 
 	return fe;
 }

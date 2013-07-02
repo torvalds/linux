@@ -132,9 +132,7 @@ static void xtensa_backtrace_kernel(struct pt_regs *regs, unsigned int depth)
 		pc = MAKE_PC_FROM_RA(a0, pc);
 
 		/* Add the PC to the trace. */
-		if (kernel_text_address(pc))
-			oprofile_add_trace(pc);
-
+		oprofile_add_trace(pc);
 		if (pc == (unsigned long) &common_exception_return) {
 			regs = (struct pt_regs *)a1;
 			if (user_mode(regs)) {

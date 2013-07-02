@@ -62,7 +62,7 @@ static int __init sram_init(void)
 	phys_addr_t phys = davinci_soc_info.sram_dma;
 	unsigned len = davinci_soc_info.sram_len;
 	int status = 0;
-	void *addr;
+	void __iomem *addr;
 
 	if (len) {
 		len = min_t(unsigned, len, SRAM_SIZE);
@@ -75,7 +75,7 @@ static int __init sram_init(void)
 		addr = ioremap(phys, len);
 		if (!addr)
 			return -ENOMEM;
-		status = gen_pool_add_virt(sram_pool, (unsigned)addr,
+		status = gen_pool_add_virt(sram_pool, (unsigned long) addr,
 					   phys, len, -1);
 		if (status < 0)
 			iounmap(addr);

@@ -323,12 +323,30 @@ static void flow_cache_flush_tasklet(unsigned long data)
 		complete(&info->completion);
 }
 
+/*
+ * Return whether a cpu needs flushing.  Conservatively, we assume
+ * the presence of any entries means the core may require flushing,
+ * since the flow_cache_ops.check() function may assume it's running
+ * on the same core as the per-cpu cache component.
+ */
+static int flow_cache_percpu_empty(struct flow_cache *fc, int cpu)
+{
+	struct flow_cache_percpu *fcp;
+	int i;
+
+	fcp = per_cpu_ptr(fc->percpu, cpu);
+	for (i = 0; i < flow_cache_hash_size(fc); i++)
+		if (!hlist_empty(&fcp->hash_table[i]))
+			return 0;
+	return 1;
+}
+
 static void flow_cache_flush_per_cpu(void *data)
 {
 	struct flow_flush_info *info = data;
 	struct tasklet_struct *tasklet;
 
-	tasklet = this_cpu_ptr(&info->cache->percpu->flush_tasklet);
+	tasklet = &this_cpu_ptr(info->cache->percpu)->flush_tasklet;
 	tasklet->data = (unsigned long)info;
 	tasklet_schedule(tasklet);
 }
@@ -337,22 +355,40 @@ void flow_cache_flush(void)
 {
 	struct flow_flush_info info;
 	static DEFINE_MUTEX(flow_flush_sem);
+	cpumask_var_t mask;
+	int i, self;
+
+	/* Track which cpus need flushing to avoid disturbing all cores. */
+	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
+		return;
+	cpumask_clear(mask);
 
 	/* Don't want cpus going down or up during this. */
 	get_online_cpus();
 	mutex_lock(&flow_flush_sem);
 	info.cache = &flow_cache_global;
-	atomic_set(&info.cpuleft, num_online_cpus());
+	for_each_online_cpu(i)
+		if (!flow_cache_percpu_empty(info.cache, i))
+			cpumask_set_cpu(i, mask);
+	atomic_set(&info.cpuleft, cpumask_weight(mask));
+	if (atomic_read(&info.cpuleft) == 0)
+		goto done;
+
 	init_completion(&info.completion);
 
 	local_bh_disable();
-	smp_call_function(flow_cache_flush_per_cpu, &info, 0);
-	flow_cache_flush_tasklet((unsigned long)&info);
+	self = cpumask_test_and_clear_cpu(smp_processor_id(), mask);
+	on_each_cpu_mask(mask, flow_cache_flush_per_cpu, &info, 0);
+	if (self)
+		flow_cache_flush_tasklet((unsigned long)&info);
 	local_bh_enable();
 
 	wait_for_completion(&info.completion);
+
+done:
 	mutex_unlock(&flow_flush_sem);
 	put_online_cpus();
+	free_cpumask_var(mask);
 }
 
 static void flow_cache_flush_task(struct work_struct *work)

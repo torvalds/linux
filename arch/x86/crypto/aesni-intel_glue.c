@@ -39,6 +39,9 @@
 #include <crypto/internal/aead.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
+#ifdef CONFIG_X86_64
+#include <asm/crypto/glue_helper.h>
+#endif
 
 #if defined(CONFIG_CRYPTO_PCBC) || defined(CONFIG_CRYPTO_PCBC_MODULE)
 #define HAS_PCBC
@@ -101,6 +104,9 @@ void crypto_fpu_exit(void);
 #ifdef CONFIG_X86_64
 asmlinkage void aesni_ctr_enc(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
+
+asmlinkage void aesni_xts_crypt8(struct crypto_aes_ctx *ctx, u8 *out,
+				 const u8 *in, bool enc, u8 *iv);
 
 /* asmlinkage void aesni_gcm_enc()
  * void *ctx,  AES Key schedule. Starts on a 16 byte boundary.
@@ -510,6 +516,78 @@ static void aesni_xts_tweak(void *ctx, u8 *out, const u8 *in)
 	aesni_enc(ctx, out, in);
 }
 
+#ifdef CONFIG_X86_64
+
+static void aesni_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	glue_xts_crypt_128bit_one(ctx, dst, src, iv, GLUE_FUNC_CAST(aesni_enc));
+}
+
+static void aesni_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	glue_xts_crypt_128bit_one(ctx, dst, src, iv, GLUE_FUNC_CAST(aesni_dec));
+}
+
+static void aesni_xts_enc8(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	aesni_xts_crypt8(ctx, (u8 *)dst, (const u8 *)src, true, (u8 *)iv);
+}
+
+static void aesni_xts_dec8(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	aesni_xts_crypt8(ctx, (u8 *)dst, (const u8 *)src, false, (u8 *)iv);
+}
+
+static const struct common_glue_ctx aesni_enc_xts = {
+	.num_funcs = 2,
+	.fpu_blocks_limit = 1,
+
+	.funcs = { {
+		.num_blocks = 8,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(aesni_xts_enc8) }
+	}, {
+		.num_blocks = 1,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(aesni_xts_enc) }
+	} }
+};
+
+static const struct common_glue_ctx aesni_dec_xts = {
+	.num_funcs = 2,
+	.fpu_blocks_limit = 1,
+
+	.funcs = { {
+		.num_blocks = 8,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(aesni_xts_dec8) }
+	}, {
+		.num_blocks = 1,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(aesni_xts_dec) }
+	} }
+};
+
+static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes)
+{
+	struct aesni_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+
+	return glue_xts_crypt_128bit(&aesni_enc_xts, desc, dst, src, nbytes,
+				     XTS_TWEAK_CAST(aesni_xts_tweak),
+				     aes_ctx(ctx->raw_tweak_ctx),
+				     aes_ctx(ctx->raw_crypt_ctx));
+}
+
+static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes)
+{
+	struct aesni_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+
+	return glue_xts_crypt_128bit(&aesni_dec_xts, desc, dst, src, nbytes,
+				     XTS_TWEAK_CAST(aesni_xts_tweak),
+				     aes_ctx(ctx->raw_tweak_ctx),
+				     aes_ctx(ctx->raw_crypt_ctx));
+}
+
+#else
+
 static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
@@ -559,6 +637,8 @@ static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 
 	return ret;
 }
+
+#endif
 
 #ifdef CONFIG_X86_64
 static int rfc4106_init(struct crypto_tfm *tfm)

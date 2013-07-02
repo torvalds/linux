@@ -272,19 +272,8 @@ static int apds9802als_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int apds9802als_suspend(struct i2c_client *client, pm_message_t mesg)
-{
-	als_set_power_state(client, false);
-	return 0;
-}
 
-static int apds9802als_resume(struct i2c_client *client)
-{
-	als_set_default_config(client);
-	return 0;
-}
-
-static int apds9802als_runtime_suspend(struct device *dev)
+static int apds9802als_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
@@ -292,7 +281,7 @@ static int apds9802als_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int apds9802als_runtime_resume(struct device *dev)
+static int apds9802als_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
@@ -300,16 +289,12 @@ static int apds9802als_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops apds9802als_pm_ops = {
-	.runtime_suspend = apds9802als_runtime_suspend,
-	.runtime_resume = apds9802als_runtime_resume,
-};
+static UNIVERSAL_DEV_PM_OPS(apds9802als_pm_ops, apds9802als_suspend,
+	apds9802als_resume, NULL);
 
 #define APDS9802ALS_PM_OPS (&apds9802als_pm_ops)
 
 #else	/* CONFIG_PM */
-#define apds9802als_suspend NULL
-#define apds9802als_resume NULL
 #define APDS9802ALS_PM_OPS NULL
 #endif	/* CONFIG_PM */
 
@@ -327,8 +312,6 @@ static struct i2c_driver apds9802als_driver = {
 	},
 	.probe = apds9802als_probe,
 	.remove = apds9802als_remove,
-	.suspend = apds9802als_suspend,
-	.resume = apds9802als_resume,
 	.id_table = apds9802als_id,
 };
 

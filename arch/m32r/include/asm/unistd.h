@@ -48,14 +48,4 @@
 #define __IGNORE_getresgid
 #define __IGNORE_chown
 
-/*
- * "Conditional" syscalls
- *
- * What we want is __attribute__((weak,alias("sys_ni_syscall"))),
- * but it doesn't work on all toolchains, so we just do it by hand
- */
-#ifndef cond_syscall
-#define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
-#endif
-
 #endif /* _ASM_M32R_UNISTD_H */

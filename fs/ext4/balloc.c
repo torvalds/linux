@@ -30,6 +30,23 @@ static unsigned ext4_num_base_meta_clusters(struct super_block *sb,
  */
 
 /*
+ * Calculate block group number for a given block number
+ */
+ext4_group_t ext4_get_group_number(struct super_block *sb,
+				   ext4_fsblk_t block)
+{
+	ext4_group_t group;
+
+	if (test_opt2(sb, STD_GROUP_SIZE))
+		group = (le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block) +
+			 block) >>
+			(EXT4_BLOCK_SIZE_BITS(sb) + EXT4_CLUSTER_BITS(sb) + 3);
+	else
+		ext4_get_group_no_and_offset(sb, block, &group, NULL);
+	return group;
+}
+
+/*
  * Calculate the block group number and offset into the block/cluster
  * allocation bitmap, given a block number
  */
@@ -49,14 +66,18 @@ void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
 
 }
 
-static int ext4_block_in_group(struct super_block *sb, ext4_fsblk_t block,
-			ext4_group_t block_group)
+/*
+ * Check whether the 'block' lives within the 'block_group'. Returns 1 if so
+ * and 0 otherwise.
+ */
+static inline int ext4_block_in_group(struct super_block *sb,
+				      ext4_fsblk_t block,
+				      ext4_group_t block_group)
 {
 	ext4_group_t actual_group;
-	ext4_get_group_no_and_offset(sb, block, &actual_group, NULL);
-	if (actual_group == block_group)
-		return 1;
-	return 0;
+
+	actual_group = ext4_get_group_number(sb, block);
+	return (actual_group == block_group) ? 1 : 0;
 }
 
 /* Return the number of clusters used for file system metadata; this
@@ -420,7 +441,7 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 	trace_ext4_read_block_bitmap_load(sb, block_group);
 	bh->b_end_io = ext4_end_bitmap_read;
 	get_bh(bh);
-	submit_bh(READ, bh);
+	submit_bh(READ | REQ_META | REQ_PRIO, bh);
 	return bh;
 verify:
 	ext4_validate_block_bitmap(sb, desc, block_group, bh);
@@ -478,20 +499,22 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 static int ext4_has_free_clusters(struct ext4_sb_info *sbi,
 				  s64 nclusters, unsigned int flags)
 {
-	s64 free_clusters, dirty_clusters, root_clusters;
+	s64 free_clusters, dirty_clusters, rsv, resv_clusters;
 	struct percpu_counter *fcc = &sbi->s_freeclusters_counter;
 	struct percpu_counter *dcc = &sbi->s_dirtyclusters_counter;
 
 	free_clusters  = percpu_counter_read_positive(fcc);
 	dirty_clusters = percpu_counter_read_positive(dcc);
+	resv_clusters = atomic64_read(&sbi->s_resv_clusters);
 
 	/*
 	 * r_blocks_count should always be multiple of the cluster ratio so
 	 * we are safe to do a plane bit shift only.
 	 */
-	root_clusters = ext4_r_blocks_count(sbi->s_es) >> sbi->s_cluster_bits;
+	rsv = (ext4_r_blocks_count(sbi->s_es) >> sbi->s_cluster_bits) +
+	      resv_clusters;
 
-	if (free_clusters - (nclusters + root_clusters + dirty_clusters) <
+	if (free_clusters - (nclusters + rsv + dirty_clusters) <
 					EXT4_FREECLUSTERS_WATERMARK) {
 		free_clusters  = percpu_counter_sum_positive(fcc);
 		dirty_clusters = percpu_counter_sum_positive(dcc);
@@ -499,15 +522,21 @@ static int ext4_has_free_clusters(struct ext4_sb_info *sbi,
 	/* Check whether we have space after accounting for current
 	 * dirty clusters & root reserved clusters.
 	 */
-	if (free_clusters >= ((root_clusters + nclusters) + dirty_clusters))
+	if (free_clusters >= (rsv + nclusters + dirty_clusters))
 		return 1;
 
 	/* Hm, nope.  Are (enough) root reserved clusters available? */
 	if (uid_eq(sbi->s_resuid, current_fsuid()) ||
 	    (!gid_eq(sbi->s_resgid, GLOBAL_ROOT_GID) && in_group_p(sbi->s_resgid)) ||
 	    capable(CAP_SYS_RESOURCE) ||
-		(flags & EXT4_MB_USE_ROOT_BLOCKS)) {
+	    (flags & EXT4_MB_USE_ROOT_BLOCKS)) {
 
+		if (free_clusters >= (nclusters + dirty_clusters +
+				      resv_clusters))
+			return 1;
+	}
+	/* No free blocks. Let's see if we can dip into reserved pool */
+	if (flags & EXT4_MB_USE_RESERVED) {
 		if (free_clusters >= (nclusters + dirty_clusters))
 			return 1;
 	}

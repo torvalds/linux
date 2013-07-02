@@ -117,6 +117,8 @@ static void show_code(unsigned int *pc)
  */
 void show_regs(struct pt_regs *regs)
 {
+	show_regs_print_info(KERN_DEFAULT);
+
 	printk("r0 : %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
 		regs->regs[0], regs->regs[1], regs->regs[2], regs->regs[3],
 		regs->regs[4], regs->regs[5], regs->regs[6], regs->regs[7]);
@@ -148,16 +150,6 @@ static void show_registers(struct pt_regs *regs)
 	show_code((unsigned int *) regs->cp0_epc);
 	printk(KERN_NOTICE "\n");
 }
-
-/*
- * The architecture-independent dump_stack generator
- */
-void dump_stack(void)
-{
-	show_stack(current_thread_info()->task,
-		   (long *) get_irq_regs()->regs[0]);
-}
-EXPORT_SYMBOL(dump_stack);
 
 void __die(const char *str, struct pt_regs *regs, const char *file,
 	const char *func, unsigned long line)

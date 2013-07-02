@@ -1,0 +1,31 @@
+/*
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-sabreauto.dtsi"
+
+/ {
+	model = "Freescale i.MX6 DualLite/Solo SABRE Automotive Board";
+	compatible = "fsl,imx6dl-sabreauto", "fsl,imx6dl";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	hog {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX6DL_PAD_NANDF_CS2__GPIO6_IO15 0x80000000
+				MX6DL_PAD_SD2_DAT2__GPIO1_IO13  0x80000000
+			>;
+		};
+	};
+};

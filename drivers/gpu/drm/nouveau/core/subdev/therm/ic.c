@@ -32,6 +32,7 @@ probe_monitoring_device(struct nouveau_i2c_port *i2c,
 			struct i2c_board_info *info)
 {
 	struct nouveau_therm_priv *priv = (void *)nouveau_therm(i2c);
+	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
 	struct i2c_client *client;
 
 	request_module("%s%s", I2C_MODULE_PREFIX, info->type);
@@ -46,8 +47,9 @@ probe_monitoring_device(struct nouveau_i2c_port *i2c,
 	}
 
 	nv_info(priv,
-		"Found an %s at address 0x%x (controlled by lm_sensors)\n",
-		info->type, info->addr);
+		"Found an %s at address 0x%x (controlled by lm_sensors, "
+		"temp offset %+i C)\n",
+		info->type, info->addr, sensor->offset_constant);
 	priv->ic = client;
 
 	return true;

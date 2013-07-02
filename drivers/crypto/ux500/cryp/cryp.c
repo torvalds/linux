@@ -12,8 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-#include <mach/hardware.h>
-
 #include "cryp_p.h"
 #include "cryp.h"
 

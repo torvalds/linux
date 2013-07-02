@@ -1100,7 +1100,7 @@ static void atari_scsi_falcon_reg_write(unsigned char reg, unsigned char value)
 #include "atari_NCR5380.c"
 
 static struct scsi_host_template driver_template = {
-	.proc_info		= atari_scsi_proc_info,
+	.show_info		= atari_scsi_show_info,
 	.name			= "Atari native SCSI",
 	.detect			= atari_scsi_detect,
 	.release		= atari_scsi_release,

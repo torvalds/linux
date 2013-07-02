@@ -881,12 +881,14 @@ static struct uart_ops max310x_ops = {
 	.verify_port	= max310x_verify_port,
 };
 
-static int max310x_suspend(struct spi_device *spi, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+
+static int max310x_suspend(struct device *dev)
 {
 	int ret;
-	struct max310x_port *s = dev_get_drvdata(&spi->dev);
+	struct max310x_port *s = dev_get_drvdata(dev);
 
-	dev_dbg(&spi->dev, "Suspend\n");
+	dev_dbg(dev, "Suspend\n");
 
 	ret = uart_suspend_port(&s->uart, &s->port);
 
@@ -905,11 +907,11 @@ static int max310x_suspend(struct spi_device *spi, pm_message_t state)
 	return ret;
 }
 
-static int max310x_resume(struct spi_device *spi)
+static int max310x_resume(struct device *dev)
 {
-	struct max310x_port *s = dev_get_drvdata(&spi->dev);
+	struct max310x_port *s = dev_get_drvdata(dev);
 
-	dev_dbg(&spi->dev, "Resume\n");
+	dev_dbg(dev, "Resume\n");
 
 	if (s->pdata->suspend)
 		s->pdata->suspend(0);
@@ -927,6 +929,13 @@ static int max310x_resume(struct spi_device *spi)
 
 	return uart_resume_port(&s->uart, &s->port);
 }
+
+static SIMPLE_DEV_PM_OPS(max310x_pm_ops, max310x_suspend, max310x_resume);
+#define MAX310X_PM_OPS (&max310x_pm_ops)
+
+#else
+#define MAX310X_PM_OPS NULL
+#endif
 
 #ifdef CONFIG_GPIOLIB
 static int max310x_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -1242,11 +1251,10 @@ static struct spi_driver max310x_driver = {
 	.driver = {
 		.name	= "max310x",
 		.owner	= THIS_MODULE,
+		.pm	= MAX310X_PM_OPS,
 	},
 	.probe		= max310x_probe,
 	.remove		= max310x_remove,
-	.suspend	= max310x_suspend,
-	.resume		= max310x_resume,
 	.id_table	= max310x_id_table,
 };
 module_spi_driver(max310x_driver);

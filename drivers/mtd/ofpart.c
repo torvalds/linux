@@ -55,6 +55,7 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 	while ((pp = of_get_next_child(node, pp))) {
 		const __be32 *reg;
 		int len;
+		int a_cells, s_cells;
 
 		reg = of_get_property(pp, "reg", &len);
 		if (!reg) {
@@ -62,8 +63,10 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 			continue;
 		}
 
-		(*pparts)[i].offset = be32_to_cpu(reg[0]);
-		(*pparts)[i].size = be32_to_cpu(reg[1]);
+		a_cells = of_n_addr_cells(pp);
+		s_cells = of_n_size_cells(pp);
+		(*pparts)[i].offset = of_read_number(reg, a_cells);
+		(*pparts)[i].size = of_read_number(reg + a_cells, s_cells);
 
 		partname = of_get_property(pp, "label", &len);
 		if (!partname)

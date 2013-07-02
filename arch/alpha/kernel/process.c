@@ -46,25 +46,6 @@
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL(pm_power_off);
 
-void
-cpu_idle(void)
-{
-	current_thread_info()->status |= TS_POLLING;
-
-	while (1) {
-		/* FIXME -- EV6 and LCA45 know how to power down
-		   the CPU.  */
-
-		rcu_idle_enter();
-		while (!need_resched())
-			cpu_relax();
-
-		rcu_idle_exit();
-		schedule_preempt_disabled();
-	}
-}
-
-
 struct halt_info {
 	int mode;
 	char *restart_cmd;
@@ -194,6 +175,7 @@ machine_power_off(void)
 void
 show_regs(struct pt_regs *regs)
 {
+	show_regs_print_info(KERN_DEFAULT);
 	dik_show_regs(regs, NULL);
 }
 

@@ -19,11 +19,8 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 
-#include <asm/cacheflush.h>
 #include "omap-wakeupgen.h"
-
 #include "common.h"
-
 #include "powerdomain.h"
 
 /*
@@ -34,9 +31,6 @@ void __ref omap4_cpu_die(unsigned int cpu)
 {
 	unsigned int boot_cpu = 0;
 	void __iomem *base = omap_get_wakeupgen_base();
-
-	flush_cache_all();
-	dsb();
 
 	/*
 	 * we're ready for shutdown now, so do it

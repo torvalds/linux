@@ -913,16 +913,12 @@ static void moxa_board_deinit(struct moxa_board_conf *brd)
 
 	/* pci hot-un-plug support */
 	for (a = 0; a < brd->numPorts; a++)
-		if (brd->ports[a].port.flags & ASYNC_INITIALIZED) {
-			struct tty_struct *tty = tty_port_tty_get(
-						&brd->ports[a].port);
-			if (tty) {
-				tty_hangup(tty);
-				tty_kref_put(tty);
-			}
-		}
+		if (brd->ports[a].port.flags & ASYNC_INITIALIZED)
+			tty_port_tty_hangup(&brd->ports[a].port, false);
+
 	for (a = 0; a < MAX_PORTS_PER_BOARD; a++)
 		tty_port_destroy(&brd->ports[a].port);
+
 	while (1) {
 		opened = 0;
 		for (a = 0; a < brd->numPorts; a++)
@@ -1365,7 +1361,6 @@ static void moxa_hangup(struct tty_struct *tty)
 
 static void moxa_new_dcdstate(struct moxa_port *p, u8 dcd)
 {
-	struct tty_struct *tty;
 	unsigned long flags;
 	dcd = !!dcd;
 
@@ -1373,10 +1368,8 @@ static void moxa_new_dcdstate(struct moxa_port *p, u8 dcd)
 	if (dcd != p->DCDState) {
         	p->DCDState = dcd;
         	spin_unlock_irqrestore(&p->port.lock, flags);
-		tty = tty_port_tty_get(&p->port);
-		if (tty && !C_CLOCAL(tty) && !dcd)
-			tty_hangup(tty);
-		tty_kref_put(tty);
+		if (!dcd)
+			tty_port_tty_hangup(&p->port, true);
 	}
 	else
 		spin_unlock_irqrestore(&p->port.lock, flags);
