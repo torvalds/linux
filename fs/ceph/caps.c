@@ -806,22 +806,28 @@ int __ceph_caps_issued_mask(struct ceph_inode_info *ci, int mask, int touch)
 /*
  * Return true if mask caps are currently being revoked by an MDS.
  */
+int __ceph_caps_revoking_other(struct ceph_inode_info *ci,
+			       struct ceph_cap *ocap, int mask)
+{
+	struct ceph_cap *cap;
+	struct rb_node *p;
+
+	for (p = rb_first(&ci->i_caps); p; p = rb_next(p)) {
+		cap = rb_entry(p, struct ceph_cap, ci_node);
+		if (cap != ocap && __cap_is_valid(cap) &&
+		    (cap->implemented & ~cap->issued & mask))
+			return 1;
+	}
+	return 0;
+}
+
 int ceph_caps_revoking(struct ceph_inode_info *ci, int mask)
 {
 	struct inode *inode = &ci->vfs_inode;
-	struct ceph_cap *cap;
-	struct rb_node *p;
-	int ret = 0;
+	int ret;
 
 	spin_lock(&ci->i_ceph_lock);
-	for (p = rb_first(&ci->i_caps); p; p = rb_next(p)) {
-		cap = rb_entry(p, struct ceph_cap, ci_node);
-		if (__cap_is_valid(cap) &&
-		    (cap->implemented & ~cap->issued & mask)) {
-			ret = 1;
-			break;
-		}
-	}
+	ret = __ceph_caps_revoking_other(ci, NULL, mask);
 	spin_unlock(&ci->i_ceph_lock);
 	dout("ceph_caps_revoking %p %s = %d\n", inode,
 	     ceph_cap_string(mask), ret);
@@ -2488,6 +2494,11 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	} else {
 		dout("grant: %s -> %s\n", ceph_cap_string(cap->issued),
 		     ceph_cap_string(newcaps));
+		/* non-auth MDS is revoking the newly grant caps ? */
+		if (cap == ci->i_auth_cap &&
+		    __ceph_caps_revoking_other(ci, cap, newcaps))
+		    check_caps = 2;
+
 		cap->issued = newcaps;
 		cap->implemented |= newcaps; /* add bits only, to
 					      * avoid stepping on a
