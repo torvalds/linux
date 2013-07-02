@@ -441,14 +441,14 @@ static int tracing_release_generic_file(struct inode *inode, struct file *filp)
 /*
  * __ftrace_set_clr_event(NULL, NULL, NULL, set) will set/unset all events.
  */
-static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
-				  const char *sub, const char *event, int set)
+static int
+__ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
+			      const char *sub, const char *event, int set)
 {
 	struct ftrace_event_file *file;
 	struct ftrace_event_call *call;
 	int ret = -EINVAL;
 
-	mutex_lock(&event_mutex);
 	list_for_each_entry(file, &tr->events, list) {
 
 		call = file->event_call;
@@ -474,6 +474,17 @@ static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
 
 		ret = 0;
 	}
+
+	return ret;
+}
+
+static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
+				  const char *sub, const char *event, int set)
+{
+	int ret;
+
+	mutex_lock(&event_mutex);
+	ret = __ftrace_set_clr_event_nolock(tr, match, sub, event, set);
 	mutex_unlock(&event_mutex);
 
 	return ret;
@@ -2408,10 +2419,10 @@ early_event_add_tracer(struct dentry *parent, struct trace_array *tr)
 
 int event_trace_del_tracer(struct trace_array *tr)
 {
-	/* Disable any running events */
-	__ftrace_set_clr_event(tr, NULL, NULL, NULL, 0);
-
 	mutex_lock(&event_mutex);
+
+	/* Disable any running events */
+	__ftrace_set_clr_event_nolock(tr, NULL, NULL, NULL, 0);
 
 	down_write(&trace_event_sem);
 	__trace_remove_event_dirs(tr);
