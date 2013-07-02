@@ -336,6 +336,7 @@ config X86_EXTENDED_PLATFORM
 
 	  If you enable this option then you'll be able to select support
 	  for the following (non-PC) 32 bit x86 platforms:
+		Goldfish (Android emulator)
 		AMD Elan
 		NUMAQ (IBM/Sequent)
 		RDC R-321x SoC
@@ -410,6 +411,7 @@ config X86_UV
 config X86_GOLDFISH
        bool "Goldfish (Virtual Platform)"
        depends on X86_32
+       depends on X86_EXTENDED_PLATFORM
        ---help---
 	 Enable support for the Goldfish virtual platform used primarily
 	 for Android development. Unless you are building for the Android
