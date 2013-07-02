@@ -258,7 +258,7 @@ ul_log_config_ind(unifi_priv_t *priv, u8 *conf_param, int len)
         unifi_notice(priv, "ul_log_config_ind: wifi on in progress, suppress error\n");
     } else {
         /* wifi_off_ind (error or exit) */
-        CsrWifiRouterCtrlWifiOffIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0, (CsrWifiRouterCtrlControlIndication)(*conf_param));
+        CsrWifiRouterCtrlWifiOffIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, (CsrWifiRouterCtrlControlIndication)(*conf_param));
     }
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
     unifi_debug_buf_dump();

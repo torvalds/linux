@@ -133,7 +133,7 @@ sme_log_event(ul_client_t *pcli,
                     unicastPdu = FALSE;
 
                 CsrWifiRouterCtrlMicFailureIndSend (priv->CSR_WIFI_SME_IFACEQUEUE, 0,
-                        (ind->VirtualInterfaceIdentifier & 0xff),peerMacAddress,
+                        (ind->VirtualInterfaceIdentifier & 0xff), peerMacAddress,
                         unicastPdu);
                 return;
             }
@@ -143,10 +143,10 @@ sme_log_event(ul_client_t *pcli,
                 {
                     u8 pmBit = (frmCtrl & 0x1000)?0x01:0x00;
                     u16 interfaceTag = (ind->VirtualInterfaceIdentifier & 0xff);
-                    CsrWifiRouterCtrlStaInfo_t *srcStaInfo =  CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv,taddr,interfaceTag);
+                    CsrWifiRouterCtrlStaInfo_t *srcStaInfo =  CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv, taddr, interfaceTag);
                     if((srcStaInfo != NULL) && (uf_check_broadcast_bssid(priv, bulkdata)== FALSE))
                     {
-                        uf_process_pm_bit_for_peer(priv,srcStaInfo,pmBit,interfaceTag);
+                        uf_process_pm_bit_for_peer(priv, srcStaInfo, pmBit, interfaceTag);
 
                         /* Update station last activity flag */
                         srcStaInfo->activity_flag = TRUE;
@@ -169,7 +169,7 @@ sme_log_event(ul_client_t *pcli,
                 return;
             }
 
-            unifi_trace(priv,UDBG1,"MA-PACKET Confirm (%x, %x)\n", cfm->HostTag, cfm->TransmissionStatus);
+            unifi_trace(priv, UDBG1, "MA-PACKET Confirm (%x, %x)\n", cfm->HostTag, cfm->TransmissionStatus);
 
             interfacePriv = priv->interfacePriv[interfaceTag];
 #ifdef CSR_SUPPORT_SME
@@ -177,7 +177,7 @@ sme_log_event(ul_client_t *pcli,
                  interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_P2PGO) {
 
                 if(cfm->HostTag == interfacePriv->multicastPduHostTag){
-                    uf_process_ma_pkt_cfm_for_ap(priv ,interfaceTag, cfm);
+                    uf_process_ma_pkt_cfm_for_ap(priv, interfaceTag, cfm);
                 }
             }
 #endif
@@ -395,7 +395,7 @@ uf_multicast_list_wq(struct work_struct *work)
             interfacePriv->mc_list_count);
 
     /* Flush the current list */
-    CsrWifiRouterCtrlMulticastAddressIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0, interfaceTag, CSR_WIFI_SME_LIST_ACTION_FLUSH, 0, NULL);
+    CsrWifiRouterCtrlMulticastAddressIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, interfaceTag, CSR_WIFI_SME_LIST_ACTION_FLUSH, 0, NULL);
 
     mc_count = interfacePriv->mc_list_count;
     mc_list = interfacePriv->mc_list;
@@ -419,7 +419,7 @@ uf_multicast_list_wq(struct work_struct *work)
         return;
     }
 
-    CsrWifiRouterCtrlMulticastAddressIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0,
+    CsrWifiRouterCtrlMulticastAddressIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0,
             interfaceTag,
             CSR_WIFI_SME_LIST_ACTION_ADD,
             mc_count, multicast_address_list);
@@ -950,7 +950,7 @@ int
     }
     return i;
 }
-int unifi_cfg_set_ap_config(unifi_priv_t * priv,unsigned char* arg)
+int unifi_cfg_set_ap_config(unifi_priv_t * priv, unsigned char* arg)
 {
     uf_cfg_ap_config_t cfg_ap_config;
     char *buffer;
@@ -981,7 +981,7 @@ int unifi_cfg_set_ap_config(unifi_priv_t * priv,unsigned char* arg)
     priv->ap_mac_config.phySupportedBitmap = cfg_ap_config.phySupportedBitmap;
     priv->ap_mac_config.maxListenInterval=cfg_ap_config.maxListenInterval;
 
-    priv->ap_mac_config.supportedRatesCount=     uf_configure_supported_rates(priv->ap_mac_config.supportedRates,priv->ap_mac_config.phySupportedBitmap);
+    priv->ap_mac_config.supportedRatesCount=     uf_configure_supported_rates(priv->ap_mac_config.supportedRates, priv->ap_mac_config.phySupportedBitmap);
 
     return 0;
 }
@@ -1051,7 +1051,7 @@ uf_ta_ind_wq(struct work_struct *work)
     u16 interfaceTag = 0;
 
 
-    CsrWifiRouterCtrlTrafficProtocolIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0,
+    CsrWifiRouterCtrlTrafficProtocolIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0,
             interfaceTag,
             ind->packet_type,
             ind->direction,
@@ -1119,7 +1119,7 @@ uf_ta_sample_ind_wq(struct work_struct *work)
         }
     }
 
-    CsrWifiRouterCtrlTrafficSampleIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0, interfaceTag, ind->stats);
+    CsrWifiRouterCtrlTrafficSampleIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, interfaceTag, ind->stats);
 
     ind->in_use = 0;
 
@@ -1219,7 +1219,7 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
         kfree(pktBulkData); /* Would have been copied over by the SME Handler */
 
     } else {
-	    unifi_warning(priv, "uf_send_pkt_to_encrypt() is NOT applicable for interface mode - %d\n",interfacePriv->interfaceMode);
+	    unifi_warning(priv, "uf_send_pkt_to_encrypt() is NOT applicable for interface mode - %d\n", interfacePriv->interfaceMode);
     }
 }/* uf_send_pkt_to_encrypt() */
 #endif

@@ -1,10 +1,10 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2010
-            All rights reserved and confidential information of CSR
+		(c) Cambridge Silicon Radio Limited 2010
+		All rights reserved and confidential information of CSR
 
-            Refer to LICENSE.txt included with this source for details
-            on the license terms.
+		Refer to LICENSE.txt included with this source for details
+		on the license terms.
 
 *****************************************************************************/
 
@@ -31,10 +31,10 @@
  *----------------------------------------------------------------------------*/
 void CsrThreadSleep(u16 sleepTimeInMs)
 {
-    unsigned long t;
+	unsigned long t;
 
-    /* Convert t in ms to jiffies and round up */
-    t = ((sleepTimeInMs * HZ) + 999) / 1000;
-    schedule_timeout_uninterruptible(t);
+	/* Convert t in ms to jiffies and round up */
+	t = ((sleepTimeInMs * HZ) + 999) / 1000;
+	schedule_timeout_uninterruptible(t);
 }
 EXPORT_SYMBOL_GPL(CsrThreadSleep);

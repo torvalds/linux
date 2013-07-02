@@ -18,7 +18,6 @@ extern unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 extern unsigned char XGI_SearchModeID(unsigned short ModeNo,
 				      unsigned short *ModeIdIndex,
 				      struct vb_device_info *);
-extern unsigned char XGI_BridgeIsOn(struct vb_device_info *);
 extern unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 					 unsigned short ModeNo,
 					 unsigned short ModeIdIndex,

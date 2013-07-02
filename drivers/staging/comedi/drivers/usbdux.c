@@ -11,11 +11,6 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
  */
 /*
 Driver: usbdux
@@ -94,7 +89,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #include <linux/usb.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
-#include <linux/firmware.h>
 
 #include "../comedidev.h"
 
@@ -727,154 +721,82 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 	}
 }
 
-static int usbduxsub_start(struct usbduxsub *usbduxsub)
-{
-	int errcode = 0;
-	uint8_t *local_transfer_buffer;
-
-	local_transfer_buffer = kmalloc(1, GFP_KERNEL);
-	if (!local_transfer_buffer)
-		return -ENOMEM;
-
-	/* 7f92 to zero */
-	*local_transfer_buffer = 0;
-	errcode = usb_control_msg(usbduxsub->usbdev,
-				  /* create a pipe for a control transfer */
-				  usb_sndctrlpipe(usbduxsub->usbdev, 0),
-				  /* bRequest, "Firmware" */
-				  USBDUXSUB_FIRMWARE,
-				  /* bmRequestType */
-				  VENDOR_DIR_OUT,
-				  /* Value */
-				  USBDUXSUB_CPUCS,
-				  /* Index */
-				  0x0000,
-				  /* address of the transfer buffer */
-				  local_transfer_buffer,
-				  /* Length */
-				  1,
-				  /* Timeout */
-				  BULK_TIMEOUT);
-	if (errcode < 0)
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: control msg failed (start)\n");
-
-	kfree(local_transfer_buffer);
-	return errcode;
-}
-
-static int usbduxsub_stop(struct usbduxsub *usbduxsub)
-{
-	int errcode = 0;
-	uint8_t *local_transfer_buffer;
-
-	local_transfer_buffer = kmalloc(1, GFP_KERNEL);
-	if (!local_transfer_buffer)
-		return -ENOMEM;
-
-	/* 7f92 to one */
-	*local_transfer_buffer = 1;
-	errcode = usb_control_msg(usbduxsub->usbdev,
-				  usb_sndctrlpipe(usbduxsub->usbdev, 0),
-				  /* bRequest, "Firmware" */
-				  USBDUXSUB_FIRMWARE,
-				  /* bmRequestType */
-				  VENDOR_DIR_OUT,
-				  /* Value */
-				  USBDUXSUB_CPUCS,
-				  /* Index */
-				  0x0000, local_transfer_buffer,
-				  /* Length */
-				  1,
-				  /* Timeout */
-				  BULK_TIMEOUT);
-	if (errcode < 0)
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: control msg failed (stop)\n");
-
-	kfree(local_transfer_buffer);
-	return errcode;
-}
-
-static int usbduxsub_upload(struct usbduxsub *usbduxsub,
-			    uint8_t *local_transfer_buffer,
-			    unsigned int start_addr, unsigned int len)
-{
-	int errcode;
-
-	errcode = usb_control_msg(usbduxsub->usbdev,
-				  usb_sndctrlpipe(usbduxsub->usbdev, 0),
-				  /* brequest, firmware */
-				  USBDUXSUB_FIRMWARE,
-				  /* bmRequestType */
-				  VENDOR_DIR_OUT,
-				  /* value */
-				  start_addr,
-				  /* index */
-				  0x0000,
-				  /* our local safe buffer */
-				  local_transfer_buffer,
-				  /* length */
-				  len,
-				  /* timeout */
-				  BULK_TIMEOUT);
-	dev_dbg(&usbduxsub->interface->dev, "comedi_: result=%d\n", errcode);
-	if (errcode < 0) {
-		dev_err(&usbduxsub->interface->dev, "comedi_: upload failed\n");
-		return errcode;
-	}
-	return 0;
-}
-
 #define FIRMWARE_MAX_LEN 0x2000
 
-static int firmware_upload(struct usbduxsub *usbduxsub,
-			  const u8 *firmware_binary, int size_firmware)
+static int usbdux_firmware_upload(struct comedi_device *dev,
+				  const u8 *data, size_t size,
+				  unsigned long context)
 {
+	struct usbduxsub *usbduxsub = dev->private;
+	struct usb_device *usb = usbduxsub->usbdev;
+	uint8_t *buf;
+	uint8_t *tmp;
 	int ret;
-	uint8_t *fw_buf;
 
-	if (!firmware_binary)
+	if (!data)
 		return 0;
 
-	if (size_firmware > FIRMWARE_MAX_LEN) {
+	if (size > FIRMWARE_MAX_LEN) {
 		dev_err(&usbduxsub->interface->dev,
 			"usbdux firmware binary it too large for FX2.\n");
 		return -ENOMEM;
 	}
 
 	/* we generate a local buffer for the firmware */
-	fw_buf = kmemdup(firmware_binary, size_firmware, GFP_KERNEL);
-	if (!fw_buf) {
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: mem alloc for firmware failed\n");
+	buf = kmemdup(data, size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	/* we need a malloc'ed buffer for usb_control_msg() */
+	tmp = kmalloc(1, GFP_KERNEL);
+	if (!tmp) {
+		kfree(buf);
 		return -ENOMEM;
 	}
 
-	ret = usbduxsub_stop(usbduxsub);
+	/* stop the current firmware on the device */
+	*tmp = 1;	/* 7f92 to one */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      USBDUXSUB_CPUCS, 0x0000,
+			      tmp, 1,
+			      BULK_TIMEOUT);
 	if (ret < 0) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: can not stop firmware\n");
-		kfree(fw_buf);
-		return ret;
+		goto done;
 	}
 
-	ret = usbduxsub_upload(usbduxsub, fw_buf, 0, size_firmware);
+	/* upload the new firmware to the device */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      0, 0x0000,
+			      buf, size,
+			      BULK_TIMEOUT);
 	if (ret < 0) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: firmware upload failed\n");
-		kfree(fw_buf);
-		return ret;
+		goto done;
 	}
-	ret = usbduxsub_start(usbduxsub);
-	if (ret < 0) {
+
+	/* start the new firmware on the device */
+	*tmp = 0;	/* 7f92 to zero */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      USBDUXSUB_CPUCS, 0x0000,
+			      tmp, 1,
+			      BULK_TIMEOUT);
+	if (ret < 0)
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: can not start firmware\n");
-		kfree(fw_buf);
-		return ret;
-	}
-	kfree(fw_buf);
-	return 0;
+
+done:
+	kfree(tmp);
+	kfree(buf);
+	return ret;
 }
 
 static int usbduxsub_submit_inurbs(struct usbduxsub *usbduxsub)
@@ -2328,13 +2250,21 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 			      unsigned long context_unused)
 {
 	struct usb_interface *uinterf = comedi_to_usb_interface(dev);
+	struct usbduxsub *this_usbduxsub = usb_get_intfdata(uinterf);
+	struct usb_device *usb = usbduxsub->usbdev;
 	int ret;
-	struct usbduxsub *this_usbduxsub;
+
+	dev->private = this_usbduxsub;	/* This is temporary... */
+	ret = comedi_load_firmware(dev, &usb->dev, FIRMWARE,
+				   usbdux_firmware_upload, 0);
+	if (ret < 0) {
+		dev->private = NULL;
+		return ret;
+	}
 
 	dev->private = NULL;
 
 	down(&start_stop_sem);
-	this_usbduxsub = usb_get_intfdata(uinterf);
 	if (!this_usbduxsub || !this_usbduxsub->probed) {
 		dev_err(dev->class_dev,
 			"usbdux: error: auto_attach failed, not connected\n");
@@ -2369,35 +2299,6 @@ static struct comedi_driver usbdux_driver = {
 	.detach		= usbdux_detach,
 };
 
-static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
-						     void *context)
-{
-	struct usbduxsub *usbduxsub_tmp = context;
-	struct usb_interface *uinterf = usbduxsub_tmp->interface;
-	int ret;
-
-	if (fw == NULL) {
-		dev_err(&uinterf->dev,
-			"Firmware complete handler without firmware!\n");
-		return;
-	}
-
-	/*
-	 * we need to upload the firmware here because fw will be
-	 * freed once we've left this function
-	 */
-	ret = firmware_upload(usbduxsub_tmp, fw->data, fw->size);
-
-	if (ret) {
-		dev_err(&uinterf->dev,
-			"Could not upload firmware (err=%d)\n", ret);
-		goto out;
-	}
-	comedi_usb_auto_config(uinterf, &usbdux_driver, 0);
- out:
-	release_firmware(fw);
-}
-
 static int usbdux_usb_probe(struct usb_interface *uinterf,
 			    const struct usb_device_id *id)
 {
@@ -2405,7 +2306,6 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 	struct device *dev = &uinterf->dev;
 	int i;
 	int index;
-	int ret;
 
 	dev_dbg(dev, "comedi_: usbdux_: "
 		"finding a free structure for the usb-device\n");
@@ -2622,23 +2522,7 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 	usbduxsub[index].probed = 1;
 	up(&start_stop_sem);
 
-	ret = request_firmware_nowait(THIS_MODULE,
-				      FW_ACTION_HOTPLUG,
-				      FIRMWARE,
-				      &udev->dev,
-				      GFP_KERNEL,
-				      usbduxsub + index,
-				      usbdux_firmware_request_complete_handler);
-
-	if (ret) {
-		dev_err(dev, "Could not load firmware (err=%d)\n", ret);
-		return ret;
-	}
-
-	dev_info(dev, "comedi_: usbdux%d "
-		 "has been successfully initialised.\n", index);
-	/* success */
-	return 0;
+	return comedi_usb_auto_config(uinterf, &usbdux_driver, 0);
 }
 
 static void usbdux_usb_disconnect(struct usb_interface *intf)

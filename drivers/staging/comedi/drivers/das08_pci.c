@@ -16,10 +16,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -79,17 +75,11 @@ static int das08_pci_auto_attach(struct comedi_device *dev,
 	return das08_common_attach(dev, dev->iobase);
 }
 
-static void das08_pci_detach(struct comedi_device *dev)
-{
-	das08_common_detach(dev);
-	comedi_pci_disable(dev);
-}
-
 static struct comedi_driver das08_pci_comedi_driver = {
 	.driver_name	= "pci-das08",
 	.module		= THIS_MODULE,
 	.auto_attach	= das08_pci_auto_attach,
-	.detach		= das08_pci_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int das08_pci_probe(struct pci_dev *dev,

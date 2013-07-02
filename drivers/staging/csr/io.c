@@ -117,7 +117,7 @@ static CsrResult signal_buffer_init(unifi_priv_t * priv, int size)
          if (priv->rxSignalBuffer.rx_buff[i].bufptr == NULL)
          {
              int j;
-             unifi_error(priv,"signal_buffer_init:Failed to Allocate shared memory for T-H signals \n");
+             unifi_error(priv, "signal_buffer_init:Failed to Allocate shared memory for T-H signals \n");
              for(j=0;j<i;j++)
              {
                  priv->rxSignalBuffer.rx_buff[j].sig_len=0;
@@ -360,13 +360,13 @@ register_unifi_sdio(CsrSdioFunction *sdio_dev, int bus_id, struct device *dev)
 
         for(i=1;i<CSR_WIFI_NUM_INTERFACES;i++)
         {
-            if( !uf_alloc_netdevice_for_other_interfaces(priv,i) )
+            if( !uf_alloc_netdevice_for_other_interfaces(priv, i) )
             {
                 /* error occured while allocating the net_device for interface[i]. The net_device are
                  * allocated for the interfaces with id<i. Dont worry, all the allocated net_device will
                  * be releasing chen the control goes to the label failed0.
                  */
-                unifi_error(priv, "Failed to allocate driver private for interface[%d]\n",i);
+                unifi_error(priv, "Failed to allocate driver private for interface[%d]\n", i);
                 goto failed0;
             }
             else
@@ -391,12 +391,12 @@ register_unifi_sdio(CsrSdioFunction *sdio_dev, int bus_id, struct device *dev)
 #ifdef CSR_WIFI_RX_PATH_SPLIT
     if (signal_buffer_init(priv, CSR_WIFI_RX_SIGNAL_BUFFER_SIZE))
     {
-        unifi_error(priv,"Failed to allocate shared memory for T-H signals\n");
+        unifi_error(priv, "Failed to allocate shared memory for T-H signals\n");
         goto failed2;
     }
     priv->rx_workqueue = create_singlethread_workqueue("rx_workq");
     if (priv->rx_workqueue == NULL) {
-        unifi_error(priv,"create_singlethread_workqueue failed \n");
+        unifi_error(priv, "create_singlethread_workqueue failed \n");
         goto failed3;
     }
     INIT_WORK(&priv->rx_work_struct, rx_wq_handler);
@@ -442,7 +442,7 @@ if (log_hip_signals)
     flush_workqueue(priv->rx_workqueue);
     destroy_workqueue(priv->rx_workqueue);
 failed3:
-    signal_buffer_free(priv,CSR_WIFI_RX_SIGNAL_BUFFER_SIZE);
+    signal_buffer_free(priv, CSR_WIFI_RX_SIGNAL_BUFFER_SIZE);
 failed2:
 #endif
     /* Remove the device nodes */
@@ -558,8 +558,8 @@ cleanup_unifi_sdio(unifi_priv_t *priv)
     /* Free any packets left in the Rx queues */
     for(i=0;i<CSR_WIFI_NUM_INTERFACES;i++)
     {
-        uf_free_pending_rx_packets(priv, UF_UNCONTROLLED_PORT_Q, broadcast_address,i);
-        uf_free_pending_rx_packets(priv, UF_CONTROLLED_PORT_Q, broadcast_address,i);
+        uf_free_pending_rx_packets(priv, UF_UNCONTROLLED_PORT_Q, broadcast_address, i);
+        uf_free_pending_rx_packets(priv, UF_CONTROLLED_PORT_Q, broadcast_address, i);
     }
     /*
      * We need to free the resources held by the core, which include tx skbs,
@@ -595,7 +595,7 @@ cleanup_unifi_sdio(unifi_priv_t *priv)
 #ifdef CSR_WIFI_RX_PATH_SPLIT
     flush_workqueue(priv->rx_workqueue);
     destroy_workqueue(priv->rx_workqueue);
-    signal_buffer_free(priv,CSR_WIFI_RX_SIGNAL_BUFFER_SIZE);
+    signal_buffer_free(priv, CSR_WIFI_RX_SIGNAL_BUFFER_SIZE);
 #endif
 
     /* Priv is freed as part of the net_device */
