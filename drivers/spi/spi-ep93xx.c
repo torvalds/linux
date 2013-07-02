@@ -139,7 +139,6 @@ struct ep93xx_spi {
  * @rate: max rate in hz this chip supports
  * @div_cpsr: cpsr (pre-scaler) divider
  * @div_scr: scr divider
- * @dss: bits per word (4 - 16 bits)
  * @ops: private chip operations
  *
  * This structure is used to store hardware register specific settings for each
@@ -151,7 +150,6 @@ struct ep93xx_spi_chip {
 	unsigned long			rate;
 	u8				div_cpsr;
 	u8				div_scr;
-	u8				dss;
 	struct ep93xx_spi_chip_ops	*ops;
 };
 
@@ -329,8 +327,6 @@ static int ep93xx_spi_setup(struct spi_device *spi)
 		chip->rate = spi->max_speed_hz;
 	}
 
-	chip->dss = bits_per_word_to_dss(spi->bits_per_word);
-
 	ep93xx_spi_cs_control(spi, false);
 	return 0;
 }
@@ -407,22 +403,25 @@ static void ep93xx_spi_cleanup(struct spi_device *spi)
  * ep93xx_spi_chip_setup() - configures hardware according to given @chip
  * @espi: ep93xx SPI controller struct
  * @chip: chip specific settings
+ * @bits_per_word: transfer bits_per_word
  *
  * This function sets up the actual hardware registers with settings given in
  * @chip. Note that no validation is done so make sure that callers validate
  * settings before calling this.
  */
 static void ep93xx_spi_chip_setup(const struct ep93xx_spi *espi,
-				  const struct ep93xx_spi_chip *chip)
+				  const struct ep93xx_spi_chip *chip,
+				  u8 bits_per_word)
 {
+	u8 dss = bits_per_word_to_dss(bits_per_word);
 	u16 cr0;
 
 	cr0 = chip->div_scr << SSPCR0_SCR_SHIFT;
 	cr0 |= (chip->spi->mode & (SPI_CPHA|SPI_CPOL)) << SSPCR0_MODE_SHIFT;
-	cr0 |= chip->dss;
+	cr0 |= dss;
 
 	dev_dbg(&espi->pdev->dev, "setup: mode %d, cpsr %d, scr %d, dss %d\n",
-		chip->spi->mode, chip->div_cpsr, chip->div_scr, chip->dss);
+		chip->spi->mode, chip->div_cpsr, chip->div_scr, dss);
 	dev_dbg(&espi->pdev->dev, "setup: cr0 %#x", cr0);
 
 	ep93xx_spi_write_u8(espi, SSPCPSR, chip->div_cpsr);
@@ -709,9 +708,7 @@ static void ep93xx_spi_process_transfer(struct ep93xx_spi *espi,
 		return;
 	}
 
-	chip->dss = bits_per_word_to_dss(t->bits_per_word);
-
-	ep93xx_spi_chip_setup(espi, chip);
+	ep93xx_spi_chip_setup(espi, chip, t->bits_per_word);
 
 	espi->rx = 0;
 	espi->tx = 0;
