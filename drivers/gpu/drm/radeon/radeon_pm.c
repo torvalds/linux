@@ -468,9 +468,57 @@ fail:
 	return count;
 }
 
+static ssize_t radeon_get_dpm_forced_performance_level(struct device *dev,
+						       struct device_attribute *attr,
+						       char *buf)
+{
+	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct radeon_device *rdev = ddev->dev_private;
+	enum radeon_dpm_forced_level level = rdev->pm.dpm.forced_level;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			(level == RADEON_DPM_FORCED_LEVEL_AUTO) ? "auto" :
+			(level == RADEON_DPM_FORCED_LEVEL_LOW) ? "low" : "high");
+}
+
+static ssize_t radeon_set_dpm_forced_performance_level(struct device *dev,
+						       struct device_attribute *attr,
+						       const char *buf,
+						       size_t count)
+{
+	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct radeon_device *rdev = ddev->dev_private;
+	enum radeon_dpm_forced_level level;
+	int ret = 0;
+
+	mutex_lock(&rdev->pm.mutex);
+	if (strncmp("low", buf, strlen("low")) == 0) {
+		level = RADEON_DPM_FORCED_LEVEL_LOW;
+	} else if (strncmp("high", buf, strlen("high")) == 0) {
+		level = RADEON_DPM_FORCED_LEVEL_HIGH;
+	} else if (strncmp("auto", buf, strlen("auto")) == 0) {
+		level = RADEON_DPM_FORCED_LEVEL_AUTO;
+	} else {
+		mutex_unlock(&rdev->pm.mutex);
+		count = -EINVAL;
+		goto fail;
+	}
+	if (rdev->asic->dpm.force_performance_level) {
+		ret = radeon_dpm_force_performance_level(rdev, level);
+		if (ret)
+			count = -EINVAL;
+	}
+	mutex_unlock(&rdev->pm.mutex);
+fail:
+	return count;
+}
+
 static DEVICE_ATTR(power_profile, S_IRUGO | S_IWUSR, radeon_get_pm_profile, radeon_set_pm_profile);
 static DEVICE_ATTR(power_method, S_IRUGO | S_IWUSR, radeon_get_pm_method, radeon_set_pm_method);
 static DEVICE_ATTR(power_dpm_state, S_IRUGO | S_IWUSR, radeon_get_dpm_state, radeon_set_dpm_state);
+static DEVICE_ATTR(power_dpm_force_performance_level, S_IRUGO | S_IWUSR,
+		   radeon_get_dpm_forced_performance_level,
+		   radeon_set_dpm_forced_performance_level);
 
 static ssize_t radeon_hwmon_show_temp(struct device *dev,
 				      struct device_attribute *attr,
@@ -1066,6 +1114,9 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 		ret = device_create_file(rdev->dev, &dev_attr_power_dpm_state);
 		if (ret)
 			DRM_ERROR("failed to create device file for dpm state\n");
+		ret = device_create_file(rdev->dev, &dev_attr_power_dpm_force_performance_level);
+		if (ret)
+			DRM_ERROR("failed to create device file for dpm state\n");
 		/* XXX: these are noops for dpm but are here for backwards compat */
 		ret = device_create_file(rdev->dev, &dev_attr_power_profile);
 		if (ret)
@@ -1170,6 +1221,7 @@ static void radeon_pm_fini_dpm(struct radeon_device *rdev)
 		mutex_unlock(&rdev->pm.mutex);
 
 		device_remove_file(rdev->dev, &dev_attr_power_dpm_state);
+		device_remove_file(rdev->dev, &dev_attr_power_dpm_force_performance_level);
 		/* XXX backwards compat */
 		device_remove_file(rdev->dev, &dev_attr_power_profile);
 		device_remove_file(rdev->dev, &dev_attr_power_method);

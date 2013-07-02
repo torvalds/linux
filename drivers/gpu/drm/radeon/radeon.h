@@ -1335,6 +1335,12 @@ enum radeon_pcie_gen {
 	RADEON_PCIE_GEN_INVALID = 0xffff
 };
 
+enum radeon_dpm_forced_level {
+	RADEON_DPM_FORCED_LEVEL_AUTO = 0,
+	RADEON_DPM_FORCED_LEVEL_LOW = 1,
+	RADEON_DPM_FORCED_LEVEL_HIGH = 2,
+};
+
 struct radeon_dpm {
 	struct radeon_ps        *ps;
 	/* number of valid power states */
@@ -1374,6 +1380,8 @@ struct radeon_dpm {
 	bool                    uvd_active;
 	/* thermal handling */
 	struct radeon_dpm_thermal thermal;
+	/* forced levels */
+	enum radeon_dpm_forced_level forced_level;
 };
 
 void radeon_dpm_enable_power_state(struct radeon_device *rdev,
@@ -1669,6 +1677,7 @@ struct radeon_asic {
 		u32 (*get_mclk)(struct radeon_device *rdev, bool low);
 		void (*print_power_state)(struct radeon_device *rdev, struct radeon_ps *ps);
 		void (*debugfs_print_current_performance_level)(struct radeon_device *rdev, struct seq_file *m);
+		int (*force_performance_level)(struct radeon_device *rdev, enum radeon_dpm_forced_level level);
 	} dpm;
 	/* pageflipping */
 	struct {
@@ -2436,6 +2445,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_dpm_get_mclk(rdev, l) rdev->asic->dpm.get_mclk((rdev), (l))
 #define radeon_dpm_print_power_state(rdev, ps) rdev->asic->dpm.print_power_state((rdev), (ps))
 #define radeon_dpm_debugfs_print_current_performance_level(rdev, m) rdev->asic->dpm.debugfs_print_current_performance_level((rdev), (m))
+#define radeon_dpm_force_performance_level(rdev, l) rdev->asic->dpm.force_performance_level((rdev), (l))
 
 /* Common functions */
 /* AGP */
