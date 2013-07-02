@@ -1246,24 +1246,20 @@ static int test_events(struct evlist_test *events, unsigned cnt)
 
 static int test_term(struct terms_test *t)
 {
-	struct list_head *terms;
+	struct list_head terms;
 	int ret;
 
-	terms = malloc(sizeof(*terms));
-	if (!terms)
-		return -ENOMEM;
+	INIT_LIST_HEAD(&terms);
 
-	INIT_LIST_HEAD(terms);
-
-	ret = parse_events_terms(terms, t->str);
+	ret = parse_events_terms(&terms, t->str);
 	if (ret) {
 		pr_debug("failed to parse terms '%s', err %d\n",
 			 t->str , ret);
 		return ret;
 	}
 
-	ret = t->check(terms);
-	parse_events__free_terms(terms);
+	ret = t->check(&terms);
+	parse_events__free_terms(&terms);
 
 	return ret;
 }
