@@ -621,8 +621,12 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
 	cmd.sta_id = mvm_sta->sta_id;
 	cmd.add_modify = STA_MODE_MODIFY;
-	cmd.add_immediate_ba_tid = (u8) tid;
-	cmd.add_immediate_ba_ssn = cpu_to_le16(ssn);
+	if (start) {
+		cmd.add_immediate_ba_tid = (u8) tid;
+		cmd.add_immediate_ba_ssn = cpu_to_le16(ssn);
+	} else {
+		cmd.remove_immediate_ba_tid = (u8) tid;
+	}
 	cmd.modify_mask = start ? STA_MODIFY_ADD_BA_TID :
 				  STA_MODIFY_REMOVE_BA_TID;
 
