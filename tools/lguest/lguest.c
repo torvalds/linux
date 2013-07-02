@@ -177,6 +177,7 @@ static struct termios orig_term;
  * in precise order.
  */
 #define wmb() __asm__ __volatile__("" : : : "memory")
+#define rmb() __asm__ __volatile__("" : : : "memory")
 #define mb() __asm__ __volatile__("" : : : "memory")
 
 /* Wrapper for the last available index.  Makes it easier to change. */
@@ -676,6 +677,12 @@ static unsigned wait_for_vq_desc(struct virtqueue *vq,
 		errx(1, "Guest moved used index from %u to %u",
 		     last_avail, vq->vring.avail->idx);
 
+	/* 
+	 * Make sure we read the descriptor number *after* we read the ring
+	 * update; don't let the cpu or compiler change the order.
+	 */
+	rmb();
+
 	/*
 	 * Grab the next descriptor number they're advertising, and increment
 	 * the index we've seen.
@@ -693,6 +700,12 @@ static unsigned wait_for_vq_desc(struct virtqueue *vq,
 	max = vq->vring.num;
 	desc = vq->vring.desc;
 	i = head;
+
+	/*
+	 * We have to read the descriptor after we read the descriptor number,
+	 * but there's a data dependency there so the CPU shouldn't reorder
+	 * that: no rmb() required.
+	 */
 
 	/*
 	 * If this is an indirect entry, then this buffer contains a descriptor
