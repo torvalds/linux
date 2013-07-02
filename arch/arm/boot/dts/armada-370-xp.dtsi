@@ -80,7 +80,7 @@
 
 			sata@a0000 {
 				compatible = "marvell,orion-sata";
-				reg = <0xa0000 0x2400>;
+				reg = <0xa0000 0x5000>;
 				interrupts = <55>;
 				clocks = <&gateclk 15>, <&gateclk 30>;
 				clock-names = "0", "1";
@@ -96,7 +96,7 @@
 
 			ethernet@70000 {
 				compatible = "marvell,armada-370-neta";
-				reg = <0x70000 0x2500>;
+				reg = <0x70000 0x4000>;
 				interrupts = <8>;
 				clocks = <&gateclk 4>;
 				status = "disabled";
@@ -104,7 +104,7 @@
 
 			ethernet@74000 {
 				compatible = "marvell,armada-370-neta";
-				reg = <0x74000 0x2500>;
+				reg = <0x74000 0x4000>;
 				interrupts = <10>;
 				clocks = <&gateclk 3>;
 				status = "disabled";
