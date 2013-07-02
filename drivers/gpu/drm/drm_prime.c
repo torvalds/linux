@@ -347,10 +347,13 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 out_have_obj:
 	get_dma_buf(dmabuf);
 	ret = dma_buf_fd(dmabuf, flags);
-	if (ret < 0)
+	if (ret < 0) {
 		dma_buf_put(dmabuf);
-	else
+	} else {
 		*prime_fd = ret;
+		ret = 0;
+	}
+
 	goto out;
 
 fail_rm_handle:
