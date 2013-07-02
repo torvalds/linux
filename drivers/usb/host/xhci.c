@@ -3508,10 +3508,10 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	switch (ret) {
 	case COMP_EBADSLT: /* 0.95 completion code for bad slot ID */
 	case COMP_CTX_STATE: /* 0.96 completion code for same thing */
-		xhci_info(xhci, "Can't reset device (slot ID %u) in %s state\n",
+		xhci_dbg(xhci, "Can't reset device (slot ID %u) in %s state\n",
 				slot_id,
 				xhci_get_slot_state(xhci, virt_dev->out_ctx));
-		xhci_info(xhci, "Not freeing device rings.\n");
+		xhci_dbg(xhci, "Not freeing device rings.\n");
 		/* Don't treat this as an error.  May change my mind later. */
 		ret = 0;
 		goto command_cleanup;
