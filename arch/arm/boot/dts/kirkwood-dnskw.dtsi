@@ -9,6 +9,10 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_button_power &pmx_button_unmount
+			     &pmx_button_reset>;
+		pinctrl-names = "default";
+
 		button@1 {
 			label = "Power button";
 			linux,code = <116>;
@@ -29,6 +33,8 @@
 	gpio_fan {
 		/* Fan: ADDA AD045HB-G73 40mm 6000rpm@5v */
 		compatible = "gpio-fan";
+		pinctrl-0 = <&pmx_fan_high_speed &pmx_fan_low_speed>;
+		pinctrl-names = "default";
 		gpios = <&gpio1 14 1
 			 &gpio1 13 1>;
 		gpio-fan,speed-map = <0    0
@@ -38,27 +44,17 @@
 
 	gpio_poweroff {
 		compatible = "gpio-poweroff";
+		pinctrl-0 = <&pmx_power_off>;
+		pinctrl-names = "default";
 		gpios = <&gpio1 4 0>;
 	};
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
 
-			pinctrl-0 = < &pmx_nand &pmx_uart1
-				      &pmx_sata0 &pmx_sata1
-				      &pmx_led_power
-				      &pmx_led_red_right_hdd
-				      &pmx_led_red_left_hdd
-				      &pmx_led_red_usb_325
-				      &pmx_button_power
-				      &pmx_led_red_usb_320
-				      &pmx_power_off &pmx_power_back_on
-				      &pmx_power_sata0 &pmx_power_sata1
-				      &pmx_present_sata0 &pmx_present_sata1
-				      &pmx_led_white_usb &pmx_fan_tacho
-				      &pmx_fan_high_speed &pmx_fan_low_speed
-				      &pmx_button_unmount &pmx_button_reset
-				      &pmx_temp_alarm >;
+			pinctrl-0 = <&pmx_power_back_on &pmx_present_sata0
+				     &pmx_present_sata1 &pmx_fan_tacho
+				     &pmx_temp_alarm>;
 			pinctrl-names = "default";
 
 			pmx_sata0: pmx-sata0 {
@@ -147,11 +143,15 @@
 			};
 		};
 		sata@80000 {
+			pinctrl-0 = <&pmx_sata0 &pmx_sata1>;
+			pinctrl-names = "default";
 			status = "okay";
 			nr-ports = <2>;
 		};
 
 		nand@3000000 {
+			pinctrl-0 = <&pmx_nand>;
+			pinctrl-names = "default";
 			status = "okay";
 			chip-delay = <35>;
 
@@ -192,6 +192,8 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_power_sata0 &pmx_power_sata1>;
+		pinctrl-names = "default";
 
 		sata0_power: regulator@1 {
 			compatible = "regulator-fixed";

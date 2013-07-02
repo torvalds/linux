@@ -24,7 +24,11 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyPS1,115200 earlyprintk";
+		bootargs = "console=ttyPS0,115200 earlyprintk";
 	};
 
+};
+
+&uart1 {
+	status = "okay";
 };

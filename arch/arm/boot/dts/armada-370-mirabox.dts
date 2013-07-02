@@ -99,6 +99,7 @@
 				 * No CD or WP GPIOs: SDIO interface used for
 				 * Wifi/Bluetooth chip
 				 */
+				 broken-cd;
 			};
 
 			usb@50000 {

@@ -59,6 +59,10 @@
 				status = "okay";
 			};
 
+			watchdog@fffffd40 {
+				status = "okay";
+			};
+
 			mmc0: mmc@fff80000 {
 				pinctrl-0 = <
 					&pinctrl_board_mmc0
@@ -111,6 +115,11 @@
 					spi-max-frequency = <13000000>;
 					reg = <0>;
 				};
+			};
+
+			usb2: gadget@fff78000 {
+				atmel,vbus-gpio = <&pioB 19 GPIO_ACTIVE_HIGH>;
+				status = "okay";
 			};
 		};
 

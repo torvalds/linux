@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "tegra114.dtsi"
+#include "tegra114.dtsi"
 
 / {
 	model = "NVIDIA Tegra114 Pluto evaluation board";
