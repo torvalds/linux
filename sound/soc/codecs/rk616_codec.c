@@ -25,14 +25,6 @@
 #include "rk616_codec.h"
 #include <mach/board.h>
 
-
-#define RK616_PROC
-#ifdef RK616_PROC
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/vmalloc.h>
-#endif
-
 #ifdef CONFIG_RK_HEADSET_DET
 #include "../../../drivers/headset_observe/rk_headset.h"
 #endif
@@ -73,7 +65,7 @@ static struct rk616_codec_priv *rk616_priv = NULL;
 static struct mfd_rk616 *rk616_mfd = NULL;
 
 #define RK616_CODEC_ALL	0
-#define RK616_CODEC_PALYBACK	1
+#define RK616_CODEC_PLAYBACK	1
 #define RK616_CODEC_CAPTURE	2
 
 #define RK616_CODEC_WORK_NULL	0
@@ -87,15 +79,17 @@ static DECLARE_DELAYED_WORK(capture_delayed_work, rk616_codec_capture_work);
 static int rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
 static bool rk616_for_mid = 1, is_hdmi_in = false;
 
-static int board_for_mid(void)
+static int rk616_get_parameter(void)
 {
 	int val;
-	char *command_line = strstr(saved_command_line, "ap_has_alsa=") + 12;
+	char *command_line = strstr(saved_command_line, "ap_has_alsa=");
 
 	if (command_line == NULL) {
 		printk("%s : Can not get ap_has_alsa from kernel command line!\n", __func__);
 		return 0;
 	}
+
+	command_line += 12;
 
 	val = simple_strtol(command_line, NULL, 10);
 	if (val == 0 || val == 1) {
@@ -1876,7 +1870,7 @@ static int rk616_digital_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-static struct rk616_reg_val_typ palyback_power_up_list[] = {
+static struct rk616_reg_val_typ playback_power_up_list[] = {
 	{0x804, 0x46}, //DAC DSM, 0x06: x1, 0x26: x1.25, 0x46: x1.5, 0x66: x1.75
 	{0x868, 0x02}, //power up
 	{0x86c, 0x0f}, //DACL/R UN INIT
@@ -1893,9 +1887,9 @@ static struct rk616_reg_val_typ palyback_power_up_list[] = {
 	{0x894, HPOUT_VOLUME}, //unmute HPOUTL (bit 5), volume (bit 0-4)
 	{0x898, HPOUT_VOLUME}, //unmute HPOUTR (bit 5), volume (bit 0-4)
 };
-#define RK616_CODEC_PALYBACK_POWER_UP_LIST_LEN ARRAY_SIZE(palyback_power_up_list)
+#define RK616_CODEC_PLAYBACK_POWER_UP_LIST_LEN ARRAY_SIZE(playback_power_up_list)
 
-static struct rk616_reg_val_typ palyback_power_down_list[] = {
+static struct rk616_reg_val_typ playback_power_down_list[] = {
 	{0x898, 0xe0}, //mute HPOUTR (bit 5), volume (bit 0-4)
 	{0x894, 0xe0}, //mute HPOUTL (bit 5), volume (bit 0-4)
 	{0x890, 0xe0}, //mute SPKOUTR (bit 5), volume (bit 0-4)
@@ -1905,7 +1899,7 @@ static struct rk616_reg_val_typ palyback_power_down_list[] = {
 	{0x86c, 0x3f}, //DACL/R INIT
 	{0x868, 0xff}, //power down
 };
-#define RK616_CODEC_PALYBACK_POWER_DOWN_LIST_LEN ARRAY_SIZE(palyback_power_down_list)
+#define RK616_CODEC_PLAYBACK_POWER_DOWN_LIST_LEN ARRAY_SIZE(playback_power_down_list)
 
 static struct rk616_reg_val_typ capture_power_up_list[] = {
 	{0x828, 0x09}, //Set for Capture pop noise
@@ -1966,13 +1960,13 @@ static int rk616_codec_power_up(int type)
 	}
 
 	printk("%s : power up %s%s\n", __func__,
-		type == RK616_CODEC_PALYBACK ? "playback" : "",
+		type == RK616_CODEC_PLAYBACK ? "playback" : "",
 		type == RK616_CODEC_CAPTURE ? "capture" : "");
 
-	if (type == RK616_CODEC_PALYBACK) {
-		for (i = 0; i < RK616_CODEC_PALYBACK_POWER_UP_LIST_LEN; i++) {
-			snd_soc_write(codec, palyback_power_up_list[i].reg,
-				palyback_power_up_list[i].value);
+	if (type == RK616_CODEC_PLAYBACK) {
+		for (i = 0; i < RK616_CODEC_PLAYBACK_POWER_UP_LIST_LEN; i++) {
+			snd_soc_write(codec, playback_power_up_list[i].reg,
+				playback_power_up_list[i].value);
 		}
 		codec_set_spk(!get_hdmi_state());
 	} else if (type == RK616_CODEC_CAPTURE) {
@@ -2000,7 +1994,7 @@ static int rk616_codec_power_down(int type)
 		type = RK616_CODEC_ALL;
 
 	printk("%s : power down %s%s%s\n", __func__,
-		type == RK616_CODEC_PALYBACK ? "playback" : "",
+		type == RK616_CODEC_PLAYBACK ? "playback" : "",
 		type == RK616_CODEC_CAPTURE ? "capture" : "",
 		type == RK616_CODEC_ALL ? "all" : "");
 
@@ -2009,10 +2003,10 @@ static int rk616_codec_power_down(int type)
 			snd_soc_write(codec, capture_power_down_list[i].reg,
 				capture_power_down_list[i].value);
 		}
-	} else if (type == RK616_CODEC_PALYBACK) {
-		for (i = 0; i < RK616_CODEC_PALYBACK_POWER_DOWN_LIST_LEN; i++) {
-			snd_soc_write(codec, palyback_power_down_list[i].reg,
-				palyback_power_down_list[i].value);
+	} else if (type == RK616_CODEC_PLAYBACK) {
+		for (i = 0; i < RK616_CODEC_PLAYBACK_POWER_DOWN_LIST_LEN; i++) {
+			snd_soc_write(codec, playback_power_down_list[i].reg,
+				playback_power_down_list[i].value);
 		}
 	} else if (type == RK616_CODEC_ALL) {
 		rk616_reset(codec);
@@ -2070,7 +2064,7 @@ static int rk616_startup(struct snd_pcm_substream *substream,
 	if (playback) {
 		if (rk616->playback_active > 0) {
 			if (!is_codec_playback_running)
-				rk616_codec_power_up(RK616_CODEC_PALYBACK);
+				rk616_codec_power_up(RK616_CODEC_PLAYBACK);
 			else
 				DBG(" Warning : playback has been opened, so return! \n");
 		}
@@ -2123,7 +2117,7 @@ static void rk616_shutdown(struct snd_pcm_substream *substream,
 	if (playback) {
 		if (rk616->playback_active <= 0) {
 			if (is_codec_playback_running == true)
-				rk616_codec_power_down(RK616_CODEC_PALYBACK);
+				rk616_codec_power_down(RK616_CODEC_PLAYBACK);
 			else
 				DBG(" Warning : playback has been closed, so return !\n");
 		}
@@ -2249,9 +2243,10 @@ static int rk616_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-#ifdef RK616_PROC	
-static int rk616_proc_init(void);
-#endif
+static ssize_t h2w_print_name(struct switch_dev *sdev, char *buf)
+{
+	return sprintf(buf, "Headset\n");
+}
 
 static int rk616_probe(struct snd_soc_codec *codec)
 {
@@ -2328,9 +2323,7 @@ static int rk616_probe(struct snd_soc_codec *codec)
 		codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 		rk616_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	}
-#ifdef RK616_PROC
-	rk616_proc_init();
-#endif
+
 	return 0;
 
 err__:
@@ -2467,7 +2460,7 @@ static struct platform_driver rk616_codec_driver = {
 
 static __init int rk616_modinit(void)
 {
-	board_for_mid();
+	rk616_get_parameter();
 	return platform_driver_register(&rk616_codec_driver);
 }
 module_init(rk616_modinit);
@@ -2477,115 +2470,6 @@ static __exit void rk616_exit(void)
 	platform_driver_unregister(&rk616_codec_driver);
 }
 module_exit(rk616_exit);
-
-#ifdef RK616_PROC
-static ssize_t rk616_proc_write(struct file *file, const char __user *buffer,
-			   unsigned long len, void *data)
-{
-	struct snd_soc_codec *codec = rk616_priv->codec;
-	char *cookie_pot, *p, debug_write_read = 0;
-	int reg, value;
-
-	if (!rk616_priv || !rk616_priv->codec) {
-		printk("%s : rk616_priv or rk616_priv->codec is NULL\n", __func__);
-		return -EINVAL;
-	}
-
-	cookie_pot = (char *)vmalloc( len );
-	if (!cookie_pot) {
-		return -ENOMEM;
-	} else {
-		if (copy_from_user( cookie_pot, buffer, len )) 
-			return -EFAULT;
-	}
-
-	switch(cookie_pot[0]) {
-	case 'd':
-	case 'D':
-		debug_write_read ++;
-		debug_write_read %= 2;
-		if (debug_write_read != 0)
-			printk("Debug read and write reg on\n");
-		else	
-			printk("Debug read and write reg off\n");	
-		break;	
-	case 'r':
-	case 'R':
-		printk("Read reg debug\n");		
-		if (cookie_pot[1] ==':') {
-			debug_write_read = 1;
-			strsep(&cookie_pot,":");
-			while ((p = strsep(&cookie_pot, ","))) {
-				reg = simple_strtol(p, NULL, 16);
-				value = snd_soc_read(codec, reg);
-				if (value <= 0xffff)
-					printk("rk616_read:0x%04x = 0x%04x\n", reg, value);
-			}
-			debug_write_read = 0;
-			printk("\n");
-		} else {
-			printk("Error Read reg debug.\n");
-			printk("For example: echo r:22,23,24,25>rk616_ts\n");
-		}
-		break;
-	case 'w':
-	case 'W':
-		printk("Write reg debug\n");		
-		if (cookie_pot[1] ==':') {
-			debug_write_read = 1;
-			strsep(&cookie_pot, ":");
-			while ((p = strsep(&cookie_pot, "="))) {
-				reg = simple_strtol(p, NULL, 16);
-				p=strsep(&cookie_pot, ",");
-				value = simple_strtol(p, NULL, 16);
-				snd_soc_write(codec, reg, value);
-				printk("rk616_write:0x%04x = 0x%04x\n", reg, value);
-			}
-			debug_write_read = 0;
-			printk("\n");
-		} else {
-			printk("Error Write reg debug.\n");
-			printk("For example: w:22=0,23=0,24=0,25=0>rk616_ts\n");
-		}
-		break;	
-	case 'a':
-		printk("Dump reg \n");		
-
-		for (reg = 0; reg < 0x6e; reg += 2) {
-			value = snd_soc_read(codec, reg);
-			printk("rk616_read : 0x%04x = 0x%04x\n", reg, value);
-		}
-		break;
-	default:
-		printk("Help for rk616_ts .\n-->The Cmd list: \n");
-		printk("-->'d&&D' Open or Off the debug\n");
-		printk("-->'r&&R' Read reg debug,Example: echo 'r:22,23,24,25'>rk616_ts\n");
-		printk("-->'w&&W' Write reg debug,Example: echo 'w:22=0,23=0,24=0,25=0'>rk616_ts\n");
-		break;
-	}
-
-	return len;
-}
-
-static const struct file_operations rk616_proc_fops = {
-	.owner		= THIS_MODULE,
-};
-
-static int rk616_proc_init(void)
-{
-	struct proc_dir_entry *rk616_proc_entry;
-
-	rk616_proc_entry = create_proc_entry("driver/rk616_ts", 0777, NULL);
-
-	if(rk616_proc_entry != NULL) {
-		rk616_proc_entry->write_proc = rk616_proc_write;
-		return 0;
-	} else {
-		printk("create proc error !\n");
-		return -1;
-	}
-}
-#endif
 
 MODULE_DESCRIPTION("ASoC RK616 driver");
 MODULE_AUTHOR("chenjq <chenjq@rock-chips.com>");
