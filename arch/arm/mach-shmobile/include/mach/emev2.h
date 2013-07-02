@@ -2,7 +2,6 @@
 #define __ASM_EMEV2_H__
 
 extern void emev2_map_io(void);
-extern void emev2_init_irq(void);
 extern void emev2_init_delay(void);
 extern void emev2_add_standard_devices(void);
 extern void emev2_clock_init(void);
