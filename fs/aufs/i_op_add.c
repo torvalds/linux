@@ -357,7 +357,6 @@ static int au_cpup_before_link(struct dentry *src_dentry,
 {
 	int err;
 	struct dentry *h_src_dentry;
-	struct file *h_file;
 
 	di_read_lock_parent(a->src_parent, AuLock_IR);
 	err = au_test_and_cpup_dirs(src_dentry, a->bdst);
@@ -370,15 +369,10 @@ static int au_cpup_before_link(struct dentry *src_dentry,
 		     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
 	if (unlikely(err))
 		goto out;
-	h_file = au_h_open_pre(src_dentry, a->bsrc);
-	if (IS_ERR(h_file))
-		err = PTR_ERR(h_file);
-	else {
-		err = au_sio_cpup_simple(src_dentry, a->bdst, -1,
-					 AuCpup_DTIME /* | AuCpup_KEEPLINO */,
-					 &a->pin);
-		au_h_open_post(src_dentry, a->bsrc, h_file);
-	}
+
+	err = au_sio_cpup_simple_h_open(src_dentry, a->bdst, -1,
+					AuCpup_DTIME /* | AuCpup_KEEPLINO */,
+					&a->pin, a->bsrc);
 	au_unpin(&a->pin);
 
 out:
