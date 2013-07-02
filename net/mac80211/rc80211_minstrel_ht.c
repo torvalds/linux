@@ -439,12 +439,13 @@ minstrel_aggr_check(struct ieee80211_sta *pubsta, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	u16 tid;
 
 	if (unlikely(!ieee80211_is_data_qos(hdr->frame_control)))
 		return;
 
-	if (unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE)))
+	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		return;
 
 	tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
@@ -776,7 +777,7 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 	/* Don't use EAPOL frames for sampling on non-mrr hw */
 	if (mp->hw->max_rates == 1 &&
-	    txrc->skb->protocol == cpu_to_be16(ETH_P_PAE))
+	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		sample_idx = -1;
 	else
 		sample_idx = minstrel_get_sample_rate(mp, mi);

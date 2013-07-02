@@ -91,11 +91,10 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		tx_flags |= TX_CMD_FLG_ACK | TX_CMD_FLG_BAR;
 
 	/* High prio packet (wrt. BT coex) if it is EAPOL, MCAST or MGMT */
-	if (info->band == IEEE80211_BAND_2GHZ        &&
-	    (skb->protocol == cpu_to_be16(ETH_P_PAE)  ||
-	     is_multicast_ether_addr(hdr->addr1)      ||
-	     ieee80211_is_back_req(fc)                ||
-	     ieee80211_is_mgmt(fc)))
+	if (info->band == IEEE80211_BAND_2GHZ &&
+	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO ||
+	     is_multicast_ether_addr(hdr->addr1) ||
+	     ieee80211_is_back_req(fc) || ieee80211_is_mgmt(fc)))
 		tx_flags |= TX_CMD_FLG_BT_DIS;
 
 	if (ieee80211_has_morefrags(fc))

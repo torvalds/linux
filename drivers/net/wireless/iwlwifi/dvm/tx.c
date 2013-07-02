@@ -87,7 +87,7 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 		 priv->lib->bt_params->advanced_bt_coexist &&
 		 (ieee80211_is_auth(fc) || ieee80211_is_assoc_req(fc) ||
 		 ieee80211_is_reassoc_req(fc) ||
-		 skb->protocol == cpu_to_be16(ETH_P_PAE)))
+		 info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		tx_flags |= TX_CMD_FLG_IGNORE_BT;
 
 
