@@ -136,7 +136,6 @@ struct ep93xx_spi {
 /**
  * struct ep93xx_spi_chip - SPI device hardware settings
  * @spi: back pointer to the SPI device
- * @rate: max rate in hz this chip supports
  * @div_cpsr: cpsr (pre-scaler) divider
  * @div_scr: scr divider
  * @ops: private chip operations
@@ -147,7 +146,6 @@ struct ep93xx_spi {
  */
 struct ep93xx_spi_chip {
 	const struct spi_device		*spi;
-	unsigned long			rate;
 	u8				div_cpsr;
 	u8				div_scr;
 	struct ep93xx_spi_chip_ops	*ops;
@@ -313,18 +311,6 @@ static int ep93xx_spi_setup(struct spi_device *spi)
 		}
 
 		spi_set_ctldata(spi, chip);
-	}
-
-	if (spi->max_speed_hz != chip->rate) {
-		int err;
-
-		err = ep93xx_spi_calc_divisors(espi, chip, spi->max_speed_hz);
-		if (err != 0) {
-			spi_set_ctldata(spi, NULL);
-			kfree(chip);
-			return err;
-		}
-		chip->rate = spi->max_speed_hz;
 	}
 
 	ep93xx_spi_cs_control(spi, false);
