@@ -429,17 +429,9 @@ static void ep93xx_spi_chip_setup(const struct ep93xx_spi *espi,
 	ep93xx_spi_write_u16(espi, SSPCR0, cr0);
 }
 
-static inline int bits_per_word(const struct ep93xx_spi *espi)
-{
-	struct spi_message *msg = espi->current_msg;
-	struct spi_transfer *t = msg->state;
-
-	return t->bits_per_word;
-}
-
 static void ep93xx_do_write(struct ep93xx_spi *espi, struct spi_transfer *t)
 {
-	if (bits_per_word(espi) > 8) {
+	if (t->bits_per_word > 8) {
 		u16 tx_val = 0;
 
 		if (t->tx_buf)
@@ -458,7 +450,7 @@ static void ep93xx_do_write(struct ep93xx_spi *espi, struct spi_transfer *t)
 
 static void ep93xx_do_read(struct ep93xx_spi *espi, struct spi_transfer *t)
 {
-	if (bits_per_word(espi) > 8) {
+	if (t->bits_per_word > 8) {
 		u16 rx_val;
 
 		rx_val = ep93xx_spi_read_u16(espi, SSPDR);
@@ -544,7 +536,7 @@ ep93xx_spi_dma_prepare(struct ep93xx_spi *espi, enum dma_transfer_direction dir)
 	size_t len = t->len;
 	int i, ret, nents;
 
-	if (bits_per_word(espi) > 8)
+	if (t->bits_per_word > 8)
 		buswidth = DMA_SLAVE_BUSWIDTH_2_BYTES;
 	else
 		buswidth = DMA_SLAVE_BUSWIDTH_1_BYTE;
