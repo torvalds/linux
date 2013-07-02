@@ -11,15 +11,7 @@
  * sev and wfe are ARMv6K extensions.  Uniprocessor ARMv6 may not have the K
  * extensions, so when running on UP, we have to patch these instructions away.
  */
-#define ALT_SMP(smp, up)					\
-	"9998:	" smp "\n"					\
-	"	.pushsection \".alt.smp.init\", \"a\"\n"	\
-	"	.long	9998b\n"				\
-	"	" up "\n"					\
-	"	.popsection\n"
-
 #ifdef CONFIG_THUMB2_KERNEL
-#define SEV		ALT_SMP("sev.w", "nop.w")
 /*
  * For Thumb-2, special care is needed to ensure that the conditional WFE
  * instruction really does assemble to exactly 4 bytes (as required by
@@ -31,16 +23,17 @@
  * the assembler won't change IT instructions which are explicitly present
  * in the input.
  */
-#define WFE(cond)	ALT_SMP(		\
+#define WFE(cond)	__ALT_SMP_ASM(		\
 	"it " cond "\n\t"			\
 	"wfe" cond ".n",			\
 						\
 	"nop.w"					\
 )
 #else
-#define SEV		ALT_SMP("sev", "nop")
-#define WFE(cond)	ALT_SMP("wfe" cond, "nop")
+#define WFE(cond)	__ALT_SMP_ASM("wfe" cond, "nop")
 #endif
+
+#define SEV		__ALT_SMP_ASM(WASM(sev), WASM(nop))
 
 static inline void dsb_sev(void)
 {
