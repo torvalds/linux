@@ -52,15 +52,6 @@
 			};
 		};
 	};
-
-	nor_flash@c0000000 {
-		compatible = "cfi-flash";
-		bank-width = <2>;
-		reg = <0xc0000000 0x02000000>;
-		linux,mtd-name = "physmap-flash.0";
-		#address-cells = <1>;
-		#size-cells = <1>;
-	};
 };
 
 &cspi1 {
@@ -176,4 +167,18 @@
 	nand-bus-width = <8>;
 	nand-ecc-mode = "hw";
 	status = "okay";
+};
+
+&weim {
+	status = "okay";
+
+	nor: nor@c0000000 {
+		compatible = "cfi-flash";
+		reg = <0 0x00000000 0x02000000>;
+		bank-width = <2>;
+		linux,mtd-name = "physmap-flash.0";
+		fsl,weim-cs-timing = <0x22c2cf00 0x75000d01 0x00000900>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
 };
