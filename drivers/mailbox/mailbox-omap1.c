@@ -13,7 +13,8 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <plat/mailbox.h>
+
+#include "omap-mbox.h"
 
 #define MAILBOX_ARM2DSP1		0x00
 #define MAILBOX_ARM2DSP1b		0x04
@@ -86,21 +87,21 @@ static int omap1_mbox_fifo_full(struct omap_mbox *mbox)
 
 /* irq */
 static void
-omap1_mbox_enable_irq(struct omap_mbox *mbox, omap_mbox_type_t irq)
+omap1_mbox_enable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	if (irq == IRQ_RX)
 		enable_irq(mbox->irq);
 }
 
 static void
-omap1_mbox_disable_irq(struct omap_mbox *mbox, omap_mbox_type_t irq)
+omap1_mbox_disable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	if (irq == IRQ_RX)
 		disable_irq(mbox->irq);
 }
 
 static int
-omap1_mbox_is_irq(struct omap_mbox *mbox, omap_mbox_type_t irq)
+omap1_mbox_is_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	if (irq == IRQ_TX)
 		return 0;
@@ -152,6 +153,9 @@ static int omap1_mbox_probe(struct platform_device *pdev)
 	list[0]->irq = platform_get_irq_byname(pdev, "dsp");
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!mem)
+		return -ENOENT;
+
 	mbox_base = ioremap(mem->start, resource_size(mem));
 	if (!mbox_base)
 		return -ENOMEM;

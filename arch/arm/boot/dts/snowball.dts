@@ -22,12 +22,13 @@
 
 	en_3v3_reg: en_3v3 {
 		compatible = "regulator-fixed";
-                regulator-name = "en-3v3-fixed-supply";
-                regulator-min-microvolt = <3300000>;
-                regulator-max-microvolt = <3300000>;
-                gpios = <&gpio0 26  0x4>; // 26
-                startup-delay-us = <5000>;
-                enable-active-high;
+		regulator-name = "en-3v3-fixed-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		/* AB8500 GPIOs start from 1 - offset 25 is GPIO26. */
+		gpio = <&ab8500_gpio 25 0x4>;
+		startup-delay-us = <5000>;
+		enable-active-high;
 	};
 
 	gpio_keys {

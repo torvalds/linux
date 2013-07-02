@@ -933,67 +933,6 @@ static void __init samsung_gpiolib_add(struct samsung_gpio_chip *chip)
 		s3c_gpiolib_track(chip);
 }
 
-#if defined(CONFIG_PLAT_S3C24XX) && defined(CONFIG_OF)
-static int s3c24xx_gpio_xlate(struct gpio_chip *gc,
-			const struct of_phandle_args *gpiospec, u32 *flags)
-{
-	unsigned int pin;
-
-	if (WARN_ON(gc->of_gpio_n_cells < 3))
-		return -EINVAL;
-
-	if (WARN_ON(gpiospec->args_count < gc->of_gpio_n_cells))
-		return -EINVAL;
-
-	if (gpiospec->args[0] > gc->ngpio)
-		return -EINVAL;
-
-	pin = gc->base + gpiospec->args[0];
-
-	if (s3c_gpio_cfgpin(pin, S3C_GPIO_SFN(gpiospec->args[1])))
-		pr_warn("gpio_xlate: failed to set pin function\n");
-	if (s3c_gpio_setpull(pin, gpiospec->args[2] & 0xffff))
-		pr_warn("gpio_xlate: failed to set pin pull up/down\n");
-
-	if (flags)
-		*flags = gpiospec->args[2] >> 16;
-
-	return gpiospec->args[0];
-}
-
-static const struct of_device_id s3c24xx_gpio_dt_match[] __initdata = {
-	{ .compatible = "samsung,s3c24xx-gpio", },
-	{}
-};
-
-static __init void s3c24xx_gpiolib_attach_ofnode(struct samsung_gpio_chip *chip,
-						 u64 base, u64 offset)
-{
-	struct gpio_chip *gc =  &chip->chip;
-	u64 address;
-
-	if (!of_have_populated_dt())
-		return;
-
-	address = chip->base ? base + ((u32)chip->base & 0xfff) : base + offset;
-	gc->of_node = of_find_matching_node_by_address(NULL,
-			s3c24xx_gpio_dt_match, address);
-	if (!gc->of_node) {
-		pr_info("gpio: device tree node not found for gpio controller"
-			" with base address %08llx\n", address);
-		return;
-	}
-	gc->of_gpio_n_cells = 3;
-	gc->of_xlate = s3c24xx_gpio_xlate;
-}
-#else
-static __init void s3c24xx_gpiolib_attach_ofnode(struct samsung_gpio_chip *chip,
-						 u64 base, u64 offset)
-{
-	return;
-}
-#endif /* defined(CONFIG_PLAT_S3C24XX) && defined(CONFIG_OF) */
-
 static void __init s3c24xx_gpiolib_add_chips(struct samsung_gpio_chip *chip,
 					     int nr_chips, void __iomem *base)
 {
@@ -1018,8 +957,6 @@ static void __init s3c24xx_gpiolib_add_chips(struct samsung_gpio_chip *chip,
 			gc->direction_output = samsung_gpiolib_2bit_output;
 
 		samsung_gpiolib_add(chip);
-
-		s3c24xx_gpiolib_attach_ofnode(chip, S3C24XX_PA_GPIO, i * 0x10);
 	}
 }
 
@@ -3026,6 +2963,10 @@ static __init int samsung_gpiolib_init(void)
 	*/
 	struct device_node *pctrl_np;
 	static const struct of_device_id exynos_pinctrl_ids[] = {
+		{ .compatible = "samsung,s3c2412-pinctrl", },
+		{ .compatible = "samsung,s3c2416-pinctrl", },
+		{ .compatible = "samsung,s3c2440-pinctrl", },
+		{ .compatible = "samsung,s3c2450-pinctrl", },
 		{ .compatible = "samsung,exynos4210-pinctrl", },
 		{ .compatible = "samsung,exynos4x12-pinctrl", },
 		{ .compatible = "samsung,exynos5250-pinctrl", },
