@@ -284,8 +284,10 @@ static int erst_exec_move_data(struct apei_exec_context *ctx,
 	if (!src)
 		return -ENOMEM;
 	dst = ioremap(ctx->dst_base + offset, ctx->var2);
-	if (!dst)
+	if (!dst) {
+		iounmap(src);
 		return -ENOMEM;
+	}
 
 	memmove(dst, src, ctx->var2);
 
