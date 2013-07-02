@@ -831,21 +831,14 @@ static irqreturn_t chan_irqt(int irq, void *dev)
 int shdma_request_irq(struct shdma_chan *schan, int irq,
 			   unsigned long flags, const char *name)
 {
-	int ret = request_threaded_irq(irq, chan_irq, chan_irqt,
-				       flags, name, schan);
+	int ret = devm_request_threaded_irq(schan->dev, irq, chan_irq,
+					    chan_irqt, flags, name, schan);
 
 	schan->irq = ret < 0 ? ret : irq;
 
 	return ret;
 }
 EXPORT_SYMBOL(shdma_request_irq);
-
-void shdma_free_irq(struct shdma_chan *schan)
-{
-	if (schan->irq >= 0)
-		free_irq(schan->irq, schan);
-}
-EXPORT_SYMBOL(shdma_free_irq);
 
 void shdma_chan_probe(struct shdma_dev *sdev,
 			   struct shdma_chan *schan, int id)

@@ -302,7 +302,6 @@ static void sudmac_chan_remove(struct sudmac_device *su_dev)
 
 		BUG_ON(!schan);
 
-		shdma_free_irq(&sc->shdma_chan);
 		shdma_chan_remove(schan);
 	}
 	dma_dev->chancnt = 0;

@@ -515,7 +515,8 @@ static int sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 	struct shdma_chan *schan;
 	int err;
 
-	sh_chan = kzalloc(sizeof(struct sh_dmae_chan), GFP_KERNEL);
+	sh_chan = devm_kzalloc(sdev->dma_dev.dev, sizeof(struct sh_dmae_chan),
+			       GFP_KERNEL);
 	if (!sh_chan) {
 		dev_err(sdev->dma_dev.dev,
 			"No free memory for allocating dma channels!\n");
@@ -551,7 +552,6 @@ static int sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 err_no_irq:
 	/* remove from dmaengine device node */
 	shdma_chan_remove(schan);
-	kfree(sh_chan);
 	return err;
 }
 
@@ -562,14 +562,9 @@ static void sh_dmae_chan_remove(struct sh_dmae_device *shdev)
 	int i;
 
 	shdma_for_each_chan(schan, &shdev->shdma_dev, i) {
-		struct sh_dmae_chan *sh_chan = container_of(schan,
-					struct sh_dmae_chan, shdma_chan);
 		BUG_ON(!schan);
 
-		shdma_free_irq(&sh_chan->shdma_chan);
-
 		shdma_chan_remove(schan);
-		kfree(sh_chan);
 	}
 	dma_dev->chancnt = 0;
 }
@@ -706,33 +701,22 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	if (!chan || !errirq_res)
 		return -ENODEV;
 
-	if (!request_mem_region(chan->start, resource_size(chan), pdev->name)) {
-		dev_err(&pdev->dev, "DMAC register region already claimed\n");
-		return -EBUSY;
-	}
-
-	if (dmars && !request_mem_region(dmars->start, resource_size(dmars), pdev->name)) {
-		dev_err(&pdev->dev, "DMAC DMARS region already claimed\n");
-		err = -EBUSY;
-		goto ermrdmars;
-	}
-
-	err = -ENOMEM;
-	shdev = kzalloc(sizeof(struct sh_dmae_device), GFP_KERNEL);
+	shdev = devm_kzalloc(&pdev->dev, sizeof(struct sh_dmae_device),
+			     GFP_KERNEL);
 	if (!shdev) {
 		dev_err(&pdev->dev, "Not enough memory\n");
-		goto ealloc;
+		return -ENOMEM;
 	}
 
 	dma_dev = &shdev->shdma_dev.dma_dev;
 
-	shdev->chan_reg = ioremap(chan->start, resource_size(chan));
-	if (!shdev->chan_reg)
-		goto emapchan;
+	shdev->chan_reg = devm_ioremap_resource(&pdev->dev, chan);
+	if (IS_ERR(shdev->chan_reg))
+		return PTR_ERR(shdev->chan_reg);
 	if (dmars) {
-		shdev->dmars = ioremap(dmars->start, resource_size(dmars));
-		if (!shdev->dmars)
-			goto emapdmars;
+		shdev->dmars = devm_ioremap_resource(&pdev->dev, dmars);
+		if (IS_ERR(shdev->dmars))
+			return PTR_ERR(shdev->dmars);
 	}
 
 	if (!pdata->slave_only)
@@ -793,8 +777,8 @@ static int sh_dmae_probe(struct platform_device *pdev)
 
 	errirq = errirq_res->start;
 
-	err = request_irq(errirq, sh_dmae_err, irqflags,
-			  "DMAC Address Error", shdev);
+	err = devm_request_irq(&pdev->dev, errirq, sh_dmae_err, irqflags,
+			       "DMAC Address Error", shdev);
 	if (err) {
 		dev_err(&pdev->dev,
 			"DMA failed requesting irq #%d, error %d\n",
@@ -872,7 +856,6 @@ chan_probe_err:
 	sh_dmae_chan_remove(shdev);
 
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
-	free_irq(errirq, shdev);
 eirq_err:
 #endif
 rst_err:
@@ -886,18 +869,7 @@ rst_err:
 	platform_set_drvdata(pdev, NULL);
 	shdma_cleanup(&shdev->shdma_dev);
 eshdma:
-	if (dmars)
-		iounmap(shdev->dmars);
-emapdmars:
-	iounmap(shdev->chan_reg);
 	synchronize_rcu();
-emapchan:
-	kfree(shdev);
-ealloc:
-	if (dmars)
-		release_mem_region(dmars->start, resource_size(dmars));
-ermrdmars:
-	release_mem_region(chan->start, resource_size(chan));
 
 	return err;
 }
@@ -923,21 +895,9 @@ static int sh_dmae_remove(struct platform_device *pdev)
 	sh_dmae_chan_remove(shdev);
 	shdma_cleanup(&shdev->shdma_dev);
 
-	if (shdev->dmars)
-		iounmap(shdev->dmars);
-	iounmap(shdev->chan_reg);
-
 	platform_set_drvdata(pdev, NULL);
 
 	synchronize_rcu();
-	kfree(shdev);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
 
 	return 0;
 }

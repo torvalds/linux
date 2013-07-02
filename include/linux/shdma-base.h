@@ -116,7 +116,6 @@ struct shdma_dev {
 
 int shdma_request_irq(struct shdma_chan *, int,
 			   unsigned long, const char *);
-void shdma_free_irq(struct shdma_chan *);
 bool shdma_reset(struct shdma_dev *sdev);
 void shdma_chan_probe(struct shdma_dev *sdev,
 			   struct shdma_chan *schan, int id);
