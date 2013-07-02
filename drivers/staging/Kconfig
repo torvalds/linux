@@ -104,4 +104,6 @@ source "drivers/staging/ks7010/Kconfig"
 
 source "drivers/staging/greybus/Kconfig"
 
+source "drivers/staging/vc04_services/Kconfig"
+
 endif # STAGING
