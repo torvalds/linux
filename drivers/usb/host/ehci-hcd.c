@@ -139,7 +139,7 @@ static inline unsigned ehci_read_frame_index(struct ehci_hcd *ehci)
 /*-------------------------------------------------------------------------*/
 
 /*
- * handshake - spin reading hc until handshake completes or fails
+ * ehci_handshake - spin reading hc until handshake completes or fails
  * @ptr: address of hc register to be read
  * @mask: bits to look at in result of read
  * @done: value of those bits when handshake succeeds
@@ -155,8 +155,8 @@ static inline unsigned ehci_read_frame_index(struct ehci_hcd *ehci)
  * before driver shutdown. But it also seems to be caused by bugs in cardbus
  * bridge shutdown:  shutting down the bridge before the devices using it.
  */
-static int handshake (struct ehci_hcd *ehci, void __iomem *ptr,
-		      u32 mask, u32 done, int usec)
+int ehci_handshake(struct ehci_hcd *ehci, void __iomem *ptr,
+		   u32 mask, u32 done, int usec)
 {
 	u32	result;
 
@@ -172,6 +172,7 @@ static int handshake (struct ehci_hcd *ehci, void __iomem *ptr,
 	} while (usec > 0);
 	return -ETIMEDOUT;
 }
+EXPORT_SYMBOL_GPL(ehci_handshake);
 
 /* check TDI/ARC silicon is in host mode */
 static int tdi_in_host_mode (struct ehci_hcd *ehci)
@@ -212,7 +213,7 @@ static int ehci_halt (struct ehci_hcd *ehci)
 	spin_unlock_irq(&ehci->lock);
 	synchronize_irq(ehci_to_hcd(ehci)->irq);
 
-	return handshake(ehci, &ehci->regs->status,
+	return ehci_handshake(ehci, &ehci->regs->status,
 			  STS_HALT, STS_HALT, 16 * 125);
 }
 
@@ -251,7 +252,7 @@ static int ehci_reset (struct ehci_hcd *ehci)
 	ehci_writel(ehci, command, &ehci->regs->command);
 	ehci->rh_state = EHCI_RH_HALTED;
 	ehci->next_statechange = jiffies;
-	retval = handshake (ehci, &ehci->regs->command,
+	retval = ehci_handshake(ehci, &ehci->regs->command,
 			    CMD_RESET, 0, 250 * 1000);
 
 	if (ehci->has_hostpc) {
@@ -286,7 +287,8 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 
 	/* wait for any schedule enables/disables to take effect */
 	temp = (ehci->command << 10) & (STS_ASS | STS_PSS);
-	handshake(ehci, &ehci->regs->status, STS_ASS | STS_PSS, temp, 16 * 125);
+	ehci_handshake(ehci, &ehci->regs->status, STS_ASS | STS_PSS, temp,
+			16 * 125);
 
 	/* then disable anything that's still active */
 	spin_lock_irq(&ehci->lock);
@@ -295,7 +297,8 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 	spin_unlock_irq(&ehci->lock);
 
 	/* hardware can take 16 microframes to turn off ... */
-	handshake(ehci, &ehci->regs->status, STS_ASS | STS_PSS, 0, 16 * 125);
+	ehci_handshake(ehci, &ehci->regs->status, STS_ASS | STS_PSS, 0,
+			16 * 125);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1264,11 +1267,6 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_EHCI_HCD_PMC_MSP
 #include "ehci-pmcmsp.c"
 #define	PLATFORM_DRIVER		ehci_hcd_msp_driver
-#endif
-
-#ifdef CONFIG_USB_EHCI_TEGRA
-#include "ehci-tegra.c"
-#define PLATFORM_DRIVER		tegra_ehci_driver
 #endif
 
 #ifdef CONFIG_SPARC_LEON

@@ -166,14 +166,14 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	if (IS_ERR(ehci_mv->clk)) {
 		dev_err(&pdev->dev, "error getting clock\n");
 		retval = PTR_ERR(ehci_mv->clk);
-		goto err_clear_drvdata;
+		goto err_put_hcd;
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phyregs");
 	if (r == NULL) {
 		dev_err(&pdev->dev, "no phy I/O memory resource defined\n");
 		retval = -ENODEV;
-		goto err_clear_drvdata;
+		goto err_put_hcd;
 	}
 
 	ehci_mv->phy_regs = devm_ioremap(&pdev->dev, r->start,
@@ -181,14 +181,14 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	if (ehci_mv->phy_regs == 0) {
 		dev_err(&pdev->dev, "failed to map phy I/O memory\n");
 		retval = -EFAULT;
-		goto err_clear_drvdata;
+		goto err_put_hcd;
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "capregs");
 	if (!r) {
 		dev_err(&pdev->dev, "no I/O memory resource defined\n");
 		retval = -ENODEV;
-		goto err_clear_drvdata;
+		goto err_put_hcd;
 	}
 
 	ehci_mv->cap_regs = devm_ioremap(&pdev->dev, r->start,
@@ -196,13 +196,13 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	if (ehci_mv->cap_regs == NULL) {
 		dev_err(&pdev->dev, "failed to map I/O memory\n");
 		retval = -EFAULT;
-		goto err_clear_drvdata;
+		goto err_put_hcd;
 	}
 
 	retval = mv_ehci_enable(ehci_mv);
 	if (retval) {
 		dev_err(&pdev->dev, "init phy error %d\n", retval);
-		goto err_clear_drvdata;
+		goto err_put_hcd;
 	}
 
 	offset = readl(ehci_mv->cap_regs) & CAPLENGTH_MASK;
@@ -274,8 +274,6 @@ err_set_vbus:
 		pdata->set_vbus(0);
 err_disable_clk:
 	mv_ehci_disable(ehci_mv);
-err_clear_drvdata:
-	platform_set_drvdata(pdev, NULL);
 err_put_hcd:
 	usb_put_hcd(hcd);
 
@@ -299,8 +297,6 @@ static int mv_ehci_remove(struct platform_device *pdev)
 
 		mv_ehci_disable(ehci_mv);
 	}
-
-	platform_set_drvdata(pdev, NULL);
 
 	usb_put_hcd(hcd);
 

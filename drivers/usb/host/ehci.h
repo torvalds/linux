@@ -800,6 +800,8 @@ struct ehci_driver_overrides {
 extern void	ehci_init_driver(struct hc_driver *drv,
 				const struct ehci_driver_overrides *over);
 extern int	ehci_setup(struct usb_hcd *hcd);
+extern int	ehci_handshake(struct ehci_hcd *ehci, void __iomem *ptr,
+				u32 mask, u32 done, int usec);
 
 #ifdef CONFIG_PM
 extern int	ehci_suspend(struct usb_hcd *hcd, bool do_wakeup);

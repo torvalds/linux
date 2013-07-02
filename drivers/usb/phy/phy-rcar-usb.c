@@ -161,7 +161,7 @@ static int rcar_usb_phy_probe(struct platform_device *pdev)
 	 * CAUTION
 	 *
 	 * Because this phy address is also mapped under OHCI/EHCI address area,
-	 * this driver can't use devm_request_and_ioremap(dev, res) here
+	 * this driver can't use devm_ioremap_resource(dev, res) here
 	 */
 	reg0 = devm_ioremap_nocache(dev, res0->start, resource_size(res0));
 	reg1 = devm_ioremap_nocache(dev, res1->start, resource_size(res1));

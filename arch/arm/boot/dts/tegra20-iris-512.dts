@@ -38,10 +38,17 @@
 
 	usb@c5000000 {
 		status = "okay";
-		dr_mode = "otg";
+	};
+
+	usb-phy@c5000000 {
+		status = "okay";
 	};
 
 	usb@c5008000 {
+		status = "okay";
+	};
+
+	usb-phy@c5008000 {
 		status = "okay";
 	};
 

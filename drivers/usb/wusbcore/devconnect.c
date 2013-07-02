@@ -455,8 +455,8 @@ static void __wusbhc_keep_alive(struct wusbhc *wusbhc)
 			dev_err(dev, "KEEPALIVE: device %u timed out\n",
 				wusb_dev->addr);
 			__wusbhc_dev_disconnect(wusbhc, wusb_port);
-		} else if (time_after(jiffies, wusb_dev->entry_ts + tt/2)) {
-			/* Approaching timeout cut out, need to refresh */
+		} else if (time_after(jiffies, wusb_dev->entry_ts + tt/3)) {
+			/* Approaching timeout cut off, need to refresh */
 			ie->bDeviceAddress[keep_alives++] = wusb_dev->addr;
 		}
 	}
@@ -1062,7 +1062,7 @@ int wusbhc_devconnect_start(struct wusbhc *wusbhc)
 	wusbhc->wuie_host_info = hi;
 
 	queue_delayed_work(wusbd, &wusbhc->keep_alive_timer,
-			   (wusbhc->trust_timeout*CONFIG_HZ)/1000/2);
+			   msecs_to_jiffies(wusbhc->trust_timeout / 2));
 
 	return 0;
 
