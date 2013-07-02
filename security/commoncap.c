@@ -824,7 +824,7 @@ int cap_task_setnice(struct task_struct *p, int nice)
  */
 static long cap_prctl_drop(struct cred *new, unsigned long cap)
 {
-	if (!capable(CAP_SETPCAP))
+	if (!ns_capable(current_user_ns(), CAP_SETPCAP))
 		return -EPERM;
 	if (!cap_valid(cap))
 		return -EINVAL;
