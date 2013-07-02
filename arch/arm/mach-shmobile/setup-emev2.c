@@ -375,14 +375,11 @@ static struct platform_device pmu_device = {
 	.resource	= pmu_resources,
 };
 
-static struct platform_device *emev2_early_devices[] __initdata = {
+static struct platform_device *emev2_devices[] __initdata = {
 	&uart0_device,
 	&uart1_device,
 	&uart2_device,
 	&uart3_device,
-};
-
-static struct platform_device *emev2_late_devices[] __initdata = {
 	&sti_device,
 	&gio0_device,
 	&gio1_device,
@@ -396,27 +393,12 @@ void __init emev2_add_standard_devices(void)
 {
 	emev2_clock_init();
 
-	platform_add_devices(emev2_early_devices,
-			     ARRAY_SIZE(emev2_early_devices));
-
-	platform_add_devices(emev2_late_devices,
-			     ARRAY_SIZE(emev2_late_devices));
+	platform_add_devices(emev2_devices, ARRAY_SIZE(emev2_devices));
 }
 
-static void __init emev2_init_delay(void)
+void __init emev2_init_delay(void)
 {
 	shmobile_setup_delay(533, 1, 3); /* Cortex-A9 @ 533MHz */
-}
-
-void __init emev2_add_early_devices(void)
-{
-	emev2_init_delay();
-
-	early_platform_add_devices(emev2_early_devices,
-				   ARRAY_SIZE(emev2_early_devices));
-
-	/* setup early console here as well */
-	shmobile_setup_console();
 }
 
 void __init emev2_init_irq(void)
