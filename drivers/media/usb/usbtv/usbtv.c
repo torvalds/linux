@@ -88,6 +88,7 @@ struct usbtv {
 	/* Number of currently processed frame, useful find
 	 * out when a new one begins. */
 	u32 frame_id;
+	int chunks_done;
 
 	enum {
 		USBTV_COMPOSITE_INPUT,
@@ -299,8 +300,13 @@ static void usbtv_image_chunk(struct usbtv *usbtv, u32 *chunk)
 		return;
 
 	/* Beginning of a frame. */
-	if (chunk_no == 0)
+	if (chunk_no == 0) {
 		usbtv->frame_id = frame_id;
+		usbtv->chunks_done = 0;
+	}
+
+	if (usbtv->frame_id != frame_id)
+		return;
 
 	spin_lock_irqsave(&usbtv->buflock, flags);
 	if (list_empty(&usbtv->bufs)) {
@@ -315,16 +321,21 @@ static void usbtv_image_chunk(struct usbtv *usbtv, u32 *chunk)
 
 	/* Copy the chunk data. */
 	usbtv_chunk_to_vbuf(frame, &chunk[1], chunk_no, odd);
+	usbtv->chunks_done++;
 
 	/* Last chunk in a frame, signalling an end */
 	if (odd && chunk_no == USBTV_CHUNKS-1) {
 		int size = vb2_plane_size(&buf->vb, 0);
+		enum vb2_buffer_state state = usbtv->chunks_done ==
+						USBTV_CHUNKS ?
+						VB2_BUF_STATE_DONE :
+						VB2_BUF_STATE_ERROR;
 
 		buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
 		buf->vb.v4l2_buf.sequence = usbtv->sequence++;
 		v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
 		vb2_set_plane_payload(&buf->vb, 0, size);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+		vb2_buffer_done(&buf->vb, state);
 		list_del(&buf->list);
 	}
 
