@@ -202,20 +202,6 @@ void __init emev2_init_delay(void)
 	shmobile_setup_delay(533, 1, 3); /* Cortex-A9 @ 533MHz */
 }
 
-void __init emev2_init_irq(void)
-{
-	void __iomem *gic_dist_base;
-	void __iomem *gic_cpu_base;
-
-	/* Static mappings, never released */
-	gic_dist_base = ioremap(0xe0028000, PAGE_SIZE);
-	gic_cpu_base = ioremap(0xe0020000, PAGE_SIZE);
-	BUG_ON(!gic_dist_base || !gic_cpu_base);
-
-	/* Use GIC to handle interrupts */
-	gic_init(0, 29, gic_dist_base, gic_cpu_base);
-}
-
 #ifdef CONFIG_USE_OF
 
 static const char *emev2_boards_compat_dt[] __initdata = {
@@ -226,7 +212,6 @@ static const char *emev2_boards_compat_dt[] __initdata = {
 DT_MACHINE_START(EMEV2_DT, "Generic Emma Mobile EV2 (Flattened Device Tree)")
 	.smp		= smp_ops(emev2_smp_ops),
 	.init_early	= emev2_init_delay,
-	.nr_irqs	= NR_IRQS_LEGACY,
 	.dt_compat	= emev2_boards_compat_dt,
 MACHINE_END
 
