@@ -71,18 +71,68 @@ int pnv_smp_kick_cpu(int nr)
 
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
-	/* On OPAL v2 the CPU are still spinning inside OPAL itself,
-	 * get them back now
+	/*
+	 * If we already started or OPALv2 is not supported, we just
+	 * kick the CPU via the PACA
 	 */
-	if (!paca[nr].cpu_start && firmware_has_feature(FW_FEATURE_OPALv2)) {
-		pr_devel("OPAL: Starting CPU %d (HW 0x%x)...\n", nr, pcpu);
-		rc = opal_start_cpu(pcpu, start_here);
+	if (paca[nr].cpu_start || !firmware_has_feature(FW_FEATURE_OPALv2))
+		goto kick;
+
+	/*
+	 * At this point, the CPU can either be spinning on the way in
+	 * from kexec or be inside OPAL waiting to be started for the
+	 * first time. OPAL v3 allows us to query OPAL to know if it
+	 * has the CPUs, so we do that
+	 */
+	if (firmware_has_feature(FW_FEATURE_OPALv3)) {
+		uint8_t status;
+
+		rc = opal_query_cpu_status(pcpu, &status);
 		if (rc != OPAL_SUCCESS) {
-			pr_warn("OPAL Error %ld starting CPU %d\n",
+			pr_warn("OPAL Error %ld querying CPU %d state\n",
 				rc, nr);
 			return -ENODEV;
 		}
+
+		/*
+		 * Already started, just kick it, probably coming from
+		 * kexec and spinning
+		 */
+		if (status == OPAL_THREAD_STARTED)
+			goto kick;
+
+		/*
+		 * Available/inactive, let's kick it
+		 */
+		if (status == OPAL_THREAD_INACTIVE) {
+			pr_devel("OPAL: Starting CPU %d (HW 0x%x)...\n",
+				 nr, pcpu);
+			rc = opal_start_cpu(pcpu, start_here);
+			if (rc != OPAL_SUCCESS) {
+				pr_warn("OPAL Error %ld starting CPU %d\n",
+					rc, nr);
+				return -ENODEV;
+			}
+		} else {
+			/*
+			 * An unavailable CPU (or any other unknown status)
+			 * shouldn't be started. It should also
+			 * not be in the possible map but currently it can
+			 * happen
+			 */
+			pr_devel("OPAL: CPU %d (HW 0x%x) is unavailable"
+				 " (status %d)...\n", nr, pcpu, status);
+			return -ENODEV;
+		}
+	} else {
+		/*
+		 * On OPAL v2, we just kick it and hope for the best,
+		 * we must not test the error from opal_start_cpu() or
+		 * we would fail to get CPUs from kexec.
+		 */
+		opal_start_cpu(pcpu, start_here);
 	}
+ kick:
 	return smp_generic_kick_cpu(nr);
 }
 

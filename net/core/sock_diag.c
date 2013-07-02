@@ -73,8 +73,13 @@ int sock_diag_put_filterinfo(struct user_namespace *user_ns, struct sock *sk,
 		goto out;
 	}
 
-	if (filter)
-		memcpy(nla_data(attr), filter->insns, len);
+	if (filter) {
+		struct sock_filter *fb = (struct sock_filter *)nla_data(attr);
+		int i;
+
+		for (i = 0; i < filter->len; i++, fb++)
+			sk_decode_filter(&filter->insns[i], fb);
+	}
 
 out:
 	rcu_read_unlock();

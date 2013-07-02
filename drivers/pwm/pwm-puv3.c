@@ -117,11 +117,6 @@ static int pwm_probe(struct platform_device *pdev)
 		return PTR_ERR(puv3->clk);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
-		return -ENODEV;
-	}
-
 	puv3->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(puv3->base))
 		return PTR_ERR(puv3->base);

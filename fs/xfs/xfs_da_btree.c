@@ -270,6 +270,7 @@ xfs_da3_node_read_verify(
 				break;
 			return;
 		case XFS_ATTR_LEAF_MAGIC:
+		case XFS_ATTR3_LEAF_MAGIC:
 			bp->b_ops = &xfs_attr3_leaf_buf_ops;
 			bp->b_ops->verify_read(bp);
 			return;
@@ -2464,7 +2465,8 @@ xfs_buf_map_from_irec(
 	ASSERT(nirecs >= 1);
 
 	if (nirecs > 1) {
-		map = kmem_zalloc(nirecs * sizeof(struct xfs_buf_map), KM_SLEEP);
+		map = kmem_zalloc(nirecs * sizeof(struct xfs_buf_map),
+				  KM_SLEEP | KM_NOFS);
 		if (!map)
 			return ENOMEM;
 		*mapp = map;
@@ -2520,7 +2522,8 @@ xfs_dabuf_map(
 		 * Optimize the one-block case.
 		 */
 		if (nfsb != 1)
-			irecs = kmem_zalloc(sizeof(irec) * nfsb, KM_SLEEP);
+			irecs = kmem_zalloc(sizeof(irec) * nfsb,
+					    KM_SLEEP | KM_NOFS);
 
 		nirecs = nfsb;
 		error = xfs_bmapi_read(dp, (xfs_fileoff_t)bno, nfsb, irecs,

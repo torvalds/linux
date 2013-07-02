@@ -676,40 +676,56 @@ void iscsit_free_queue_reqs_for_conn(struct iscsi_conn *conn)
 
 void iscsit_release_cmd(struct iscsi_cmd *cmd)
 {
-	struct iscsi_conn *conn = cmd->conn;
-
-	iscsit_free_r2ts_from_list(cmd);
-	iscsit_free_all_datain_reqs(cmd);
-
 	kfree(cmd->buf_ptr);
 	kfree(cmd->pdu_list);
 	kfree(cmd->seq_list);
 	kfree(cmd->tmr_req);
 	kfree(cmd->iov_data);
 
-	if (conn) {
-		iscsit_remove_cmd_from_immediate_queue(cmd, conn);
-		iscsit_remove_cmd_from_response_queue(cmd, conn);
-	}
-
 	kmem_cache_free(lio_cmd_cache, cmd);
 }
 
-void iscsit_free_cmd(struct iscsi_cmd *cmd)
+static void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool scsi_cmd,
+			      bool check_queues)
 {
+	struct iscsi_conn *conn = cmd->conn;
+
+	if (scsi_cmd) {
+		if (cmd->data_direction == DMA_TO_DEVICE) {
+			iscsit_stop_dataout_timer(cmd);
+			iscsit_free_r2ts_from_list(cmd);
+		}
+		if (cmd->data_direction == DMA_FROM_DEVICE)
+			iscsit_free_all_datain_reqs(cmd);
+	}
+
+	if (conn && check_queues) {
+		iscsit_remove_cmd_from_immediate_queue(cmd, conn);
+		iscsit_remove_cmd_from_response_queue(cmd, conn);
+	}
+}
+
+void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
+{
+	struct se_cmd *se_cmd = NULL;
+	int rc;
 	/*
 	 * Determine if a struct se_cmd is associated with
 	 * this struct iscsi_cmd.
 	 */
 	switch (cmd->iscsi_opcode) {
 	case ISCSI_OP_SCSI_CMD:
-		if (cmd->data_direction == DMA_TO_DEVICE)
-			iscsit_stop_dataout_timer(cmd);
+		se_cmd = &cmd->se_cmd;
+		__iscsit_free_cmd(cmd, true, shutdown);
 		/*
 		 * Fallthrough
 		 */
 	case ISCSI_OP_SCSI_TMFUNC:
-		transport_generic_free_cmd(&cmd->se_cmd, 1);
+		rc = transport_generic_free_cmd(&cmd->se_cmd, 1);
+		if (!rc && shutdown && se_cmd && se_cmd->se_sess) {
+			__iscsit_free_cmd(cmd, true, shutdown);
+			target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+		}
 		break;
 	case ISCSI_OP_REJECT:
 		/*
@@ -718,11 +734,19 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd)
 		 * associated cmd->se_cmd needs to be released.
 		 */
 		if (cmd->se_cmd.se_tfo != NULL) {
-			transport_generic_free_cmd(&cmd->se_cmd, 1);
+			se_cmd = &cmd->se_cmd;
+			__iscsit_free_cmd(cmd, true, shutdown);
+
+			rc = transport_generic_free_cmd(&cmd->se_cmd, 1);
+			if (!rc && shutdown && se_cmd->se_sess) {
+				__iscsit_free_cmd(cmd, true, shutdown);
+				target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+			}
 			break;
 		}
 		/* Fall-through */
 	default:
+		__iscsit_free_cmd(cmd, false, shutdown);
 		cmd->release_cmd(cmd);
 		break;
 	}

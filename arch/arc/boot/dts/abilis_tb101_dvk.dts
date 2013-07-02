@@ -37,7 +37,7 @@
 
 	soc100 {
 		uart@FF100000 {
-			pinctrl-names = "abilis,simple-default";
+			pinctrl-names = "default";
 			pinctrl-0 = <&pctl_uart0>;
 		};
 		ethernet@FE100000 {

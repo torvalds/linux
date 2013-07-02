@@ -778,7 +778,7 @@ int sk_detach_filter(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(sk_detach_filter);
 
-static void sk_decode_filter(struct sock_filter *filt, struct sock_filter *to)
+void sk_decode_filter(struct sock_filter *filt, struct sock_filter *to)
 {
 	static const u16 decodes[] = {
 		[BPF_S_ALU_ADD_K]	= BPF_ALU|BPF_ADD|BPF_K,

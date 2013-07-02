@@ -276,8 +276,9 @@ static void ci_role_work(struct work_struct *work)
 
 		ci_role_stop(ci);
 		ci_role_start(ci, role);
-		enable_irq(ci->irq);
 	}
+
+	enable_irq(ci->irq);
 }
 
 static irqreturn_t ci_irq(int irq, void *data)
@@ -370,11 +371,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "missing resource\n");
-		return -ENODEV;
-	}
-
 	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);

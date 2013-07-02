@@ -390,6 +390,16 @@ el0_sync_compat:
 	b.eq	el0_fpsimd_exc
 	cmp	x24, #ESR_EL1_EC_UNKNOWN	// unknown exception in EL0
 	b.eq	el0_undef
+	cmp	x24, #ESR_EL1_EC_CP15_32	// CP15 MRC/MCR trap
+	b.eq	el0_undef
+	cmp	x24, #ESR_EL1_EC_CP15_64	// CP15 MRRC/MCRR trap
+	b.eq	el0_undef
+	cmp	x24, #ESR_EL1_EC_CP14_MR	// CP14 MRC/MCR trap
+	b.eq	el0_undef
+	cmp	x24, #ESR_EL1_EC_CP14_LS	// CP14 LDC/STC trap
+	b.eq	el0_undef
+	cmp	x24, #ESR_EL1_EC_CP14_64	// CP14 MRRC/MCRR trap
+	b.eq	el0_undef
 	cmp	x24, #ESR_EL1_EC_BREAKPT_EL0	// debug exception in EL0
 	b.ge	el0_dbg
 	b	el0_inv

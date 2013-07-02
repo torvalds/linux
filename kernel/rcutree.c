@@ -1451,9 +1451,9 @@ static int rcu_gp_init(struct rcu_state *rsp)
 					    rnp->grphi, rnp->qsmask);
 		raw_spin_unlock_irq(&rnp->lock);
 #ifdef CONFIG_PROVE_RCU_DELAY
-		if ((prandom_u32() % (rcu_num_nodes * 8)) == 0 &&
+		if ((prandom_u32() % (rcu_num_nodes + 1)) == 0 &&
 		    system_state == SYSTEM_RUNNING)
-			schedule_timeout_uninterruptible(2);
+			udelay(200);
 #endif /* #ifdef CONFIG_PROVE_RCU_DELAY */
 		cond_resched();
 	}
@@ -1613,6 +1613,14 @@ static int __noreturn rcu_gp_kthread(void *arg)
 	}
 }
 
+static void rsp_wakeup(struct irq_work *work)
+{
+	struct rcu_state *rsp = container_of(work, struct rcu_state, wakeup_work);
+
+	/* Wake up rcu_gp_kthread() to start the grace period. */
+	wake_up(&rsp->gp_wq);
+}
+
 /*
  * Start a new RCU grace period if warranted, re-initializing the hierarchy
  * in preparation for detecting the next grace period.  The caller must hold
@@ -1637,8 +1645,12 @@ rcu_start_gp_advanced(struct rcu_state *rsp, struct rcu_node *rnp,
 	}
 	rsp->gp_flags = RCU_GP_FLAG_INIT;
 
-	/* Wake up rcu_gp_kthread() to start the grace period. */
-	wake_up(&rsp->gp_wq);
+	/*
+	 * We can't do wakeups while holding the rnp->lock, as that
+	 * could cause possible deadlocks with the rq->lock. Deter
+	 * the wakeup to interrupt context.
+	 */
+	irq_work_queue(&rsp->wakeup_work);
 }
 
 /*
@@ -3235,6 +3247,7 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 
 	rsp->rda = rda;
 	init_waitqueue_head(&rsp->gp_wq);
+	init_irq_work(&rsp->wakeup_work, rsp_wakeup);
 	rnp = rsp->level[rcu_num_lvls - 1];
 	for_each_possible_cpu(i) {
 		while (i > rnp->grphi)

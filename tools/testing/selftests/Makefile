@@ -6,7 +6,6 @@ TARGETS += memory-hotplug
 TARGETS += mqueue
 TARGETS += net
 TARGETS += ptrace
-TARGETS += soft-dirty
 TARGETS += vm
 
 all:

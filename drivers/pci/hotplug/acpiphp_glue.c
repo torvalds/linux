@@ -950,6 +950,20 @@ check_sub_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK ;
 }
 
+void acpiphp_check_host_bridge(acpi_handle handle)
+{
+	struct acpiphp_bridge *bridge;
+
+	bridge = acpiphp_handle_to_bridge(handle);
+	if (bridge) {
+		acpiphp_check_bridge(bridge);
+		put_bridge(bridge);
+	}
+
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
+		ACPI_UINT32_MAX, check_sub_bridges, NULL, NULL, NULL);
+}
+
 static void _handle_hotplug_event_bridge(struct work_struct *work)
 {
 	struct acpiphp_bridge *bridge;

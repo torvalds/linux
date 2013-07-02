@@ -1265,6 +1265,8 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 		intel_dp_start_link_train(intel_dp);
 		intel_dp_complete_link_train(intel_dp);
+		if (port != PORT_A)
+			intel_dp_stop_link_train(intel_dp);
 	}
 }
 
@@ -1325,6 +1327,9 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 			   intel_dig_port->port_reversal | DDI_BUF_CTL_ENABLE);
 	} else if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		if (port == PORT_A)
+			intel_dp_stop_link_train(intel_dp);
 
 		ironlake_edp_backlight_on(intel_dp);
 	}

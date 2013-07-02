@@ -353,11 +353,6 @@ static int __init vrfb_probe(struct platform_device *pdev)
 	/* first resource is the register res, the rest are vrfb contexts */
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "can't get vrfb base address\n");
-		return -EINVAL;
-	}
-
 	vrfb_base = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(vrfb_base))
 		return PTR_ERR(vrfb_base);

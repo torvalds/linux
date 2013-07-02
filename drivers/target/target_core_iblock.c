@@ -615,6 +615,8 @@ iblock_execute_rw(struct se_cmd *cmd)
 				rw = WRITE_FUA;
 			else if (!(q->flush_flags & REQ_FLUSH))
 				rw = WRITE_FUA;
+			else
+				rw = WRITE;
 		} else {
 			rw = WRITE;
 		}

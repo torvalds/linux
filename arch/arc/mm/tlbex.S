@@ -277,7 +277,7 @@ ARC_ENTRY EV_TLBMissI
 	;----------------------------------------------------------------
 	; VERIFY_PTE: Check if PTE permissions approp for executing code
 	cmp_s   r2, VMALLOC_START
-	mov.lo  r2, (_PAGE_PRESENT | _PAGE_READ | _PAGE_EXECUTE)
+	mov.lo  r2, (_PAGE_PRESENT | _PAGE_U_READ | _PAGE_U_EXECUTE)
 	mov.hs  r2, (_PAGE_PRESENT | _PAGE_K_READ | _PAGE_K_EXECUTE)
 
 	and     r3, r0, r2  ; Mask out NON Flag bits from PTE
@@ -320,9 +320,9 @@ ARC_ENTRY EV_TLBMissD
 	mov_s   r2, 0
 	lr      r3, [ecr]
 	btst_s  r3, ECR_C_BIT_DTLB_LD_MISS	; Read Access
-	or.nz   r2, r2, _PAGE_READ      	; chk for Read flag in PTE
+	or.nz   r2, r2, _PAGE_U_READ      	; chk for Read flag in PTE
 	btst_s  r3, ECR_C_BIT_DTLB_ST_MISS	; Write Access
-	or.nz   r2, r2, _PAGE_WRITE     	; chk for Write flag in PTE
+	or.nz   r2, r2, _PAGE_U_WRITE     	; chk for Write flag in PTE
 	; Above laddering takes care of XCHG access
 	;   which is both Read and Write
 

@@ -95,8 +95,6 @@ static int dwc3_exynos_remove_child(struct device *dev, void *unused)
 	return 0;
 }
 
-static u64 dwc3_exynos_dma_mask = DMA_BIT_MASK(32);
-
 static int dwc3_exynos_probe(struct platform_device *pdev)
 {
 	struct dwc3_exynos	*exynos;
@@ -118,7 +116,9 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	 * Once we move to full device tree support this will vanish off.
 	 */
 	if (!dev->dma_mask)
-		dev->dma_mask = &dwc3_exynos_dma_mask;
+		dev->dma_mask = &dev->coherent_dma_mask;
+	if (!dev->coherent_dma_mask)
+		dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
 	platform_set_drvdata(pdev, exynos);
 
@@ -164,9 +164,9 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 {
 	struct dwc3_exynos	*exynos = platform_get_drvdata(pdev);
 
+	device_for_each_child(&pdev->dev, NULL, dwc3_exynos_remove_child);
 	platform_device_unregister(exynos->usb2_phy);
 	platform_device_unregister(exynos->usb3_phy);
-	device_for_each_child(&pdev->dev, NULL, dwc3_exynos_remove_child);
 
 	clk_disable_unprepare(exynos->clk);
 

@@ -402,16 +402,20 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/* Update file times before taking page lock */
 	file_update_time(vma->vm_file);
 
+	ret = get_write_access(inode);
+	if (ret)
+		goto out;
+
 	ret = gfs2_rs_alloc(ip);
 	if (ret)
-		return ret;
+		goto out_write_access;
 
 	gfs2_size_hint(vma->vm_file, pos, PAGE_CACHE_SIZE);
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	ret = gfs2_glock_nq(&gh);
 	if (ret)
-		goto out;
+		goto out_uninit;
 
 	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
@@ -480,12 +484,15 @@ out_quota_unlock:
 	gfs2_quota_unlock(ip);
 out_unlock:
 	gfs2_glock_dq(&gh);
-out:
+out_uninit:
 	gfs2_holder_uninit(&gh);
 	if (ret == 0) {
 		set_page_dirty(page);
 		wait_for_stable_page(page);
 	}
+out_write_access:
+	put_write_access(inode);
+out:
 	sb_end_pagefault(inode->i_sb);
 	return block_page_mkwrite_return(ret);
 }
@@ -594,10 +601,10 @@ static int gfs2_release(struct inode *inode, struct file *file)
 	kfree(file->private_data);
 	file->private_data = NULL;
 
-	if ((file->f_mode & FMODE_WRITE) &&
-	    (atomic_read(&inode->i_writecount) == 1))
-		gfs2_rs_delete(ip);
+	if (!(file->f_mode & FMODE_WRITE))
+		return 0;
 
+	gfs2_rs_delete(ip);
 	return 0;
 }
 

@@ -1,5 +1,6 @@
 config ARCH_SUNXI
 	bool "Allwinner A1X SOCs" if ARCH_MULTI_V7
+	select ARCH_REQUIRE_GPIOLIB
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 	select COMMON_CLK

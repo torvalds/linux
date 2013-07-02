@@ -84,6 +84,8 @@ static const struct bcma_device_id_name bcma_bcm_device_names[] = {
 	{ BCMA_CORE_I2S, "I2S" },
 	{ BCMA_CORE_SDR_DDR1_MEM_CTL, "SDR/DDR1 Memory Controller" },
 	{ BCMA_CORE_SHIM, "SHIM" },
+	{ BCMA_CORE_PCIE2, "PCIe Gen2" },
+	{ BCMA_CORE_ARM_CR4, "ARM CR4" },
 	{ BCMA_CORE_DEFAULT, "Default" },
 };
 
