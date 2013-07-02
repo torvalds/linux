@@ -19,39 +19,6 @@
 	memory {
 		reg = <0xa0000000 0x08000000>;
 	};
-
-	soc {
-		aipi@10000000 { /* aipi1 */
-			serial@1000a000 {
-				status = "okay";
-			};
-
-			i2c@1001d000 {
-				clock-frequency = <400000>;
-				status = "okay";
-				at24@52 {
-					compatible = "at,24c32";
-					pagesize = <32>;
-					reg = <0x52>;
-				};
-				pcf8563@51 {
-					compatible = "nxp,pcf8563";
-					reg = <0x51>;
-				};
-				lm75@4a {
-					compatible = "national,lm75";
-					reg = <0x4a>;
-				};
-			};
-		};
-
-		aipi@10020000 { /* aipi2 */
-			ethernet@1002b000 {
-				phy-reset-gpios = <&gpio3 30 0>;
-				status = "okay";
-			};
-		};
-	};
 };
 
 &cspi1 {
@@ -163,9 +130,39 @@
 	};
 };
 
+&fec {
+	phy-reset-gpios = <&gpio3 30 0>;
+	status = "okay";
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	at24@52 {
+		compatible = "at,24c32";
+		pagesize = <32>;
+		reg = <0x52>;
+	};
+
+	pcf8563@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+
+	lm75@4a {
+		compatible = "national,lm75";
+		reg = <0x4a>;
+	};
+};
+
 &nfc {
 	nand-bus-width = <8>;
 	nand-ecc-mode = "hw";
+	status = "okay";
+};
+
+&uart1 {
 	status = "okay";
 };
 
