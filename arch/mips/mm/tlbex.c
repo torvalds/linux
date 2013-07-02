@@ -1948,6 +1948,19 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 		uasm_i_nop(&p);
 
 		uasm_i_tlbr(&p);
+
+		switch (current_cpu_type()) {
+		default:
+			if (cpu_has_mips_r2) {
+				uasm_i_ehb(&p);
+
+		case CPU_CAVIUM_OCTEON:
+		case CPU_CAVIUM_OCTEON_PLUS:
+		case CPU_CAVIUM_OCTEON2:
+				break;
+			}
+		}
+
 		/* Examine  entrylo 0 or 1 based on ptr. */
 		if (use_bbit_insns()) {
 			uasm_i_bbit0(&p, wr.r2, ilog2(sizeof(pte_t)), 8);
@@ -2002,6 +2015,19 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 		uasm_i_nop(&p);
 
 		uasm_i_tlbr(&p);
+
+		switch (current_cpu_type()) {
+		default:
+			if (cpu_has_mips_r2) {
+				uasm_i_ehb(&p);
+
+		case CPU_CAVIUM_OCTEON:
+		case CPU_CAVIUM_OCTEON_PLUS:
+		case CPU_CAVIUM_OCTEON2:
+				break;
+			}
+		}
+
 		/* Examine  entrylo 0 or 1 based on ptr. */
 		if (use_bbit_insns()) {
 			uasm_i_bbit0(&p, wr.r2, ilog2(sizeof(pte_t)), 8);
@@ -2170,6 +2196,20 @@ static void __cpuinit build_r4000_tlb_modify_handler(void)
 	dump_handler("r4000_tlb_modify", handle_tlbm, handle_tlbm_size);
 }
 
+static void __cpuinit flush_tlb_handlers(void)
+{
+	local_flush_icache_range((unsigned long)handle_tlbl,
+			   (unsigned long)handle_tlbl_end);
+	local_flush_icache_range((unsigned long)handle_tlbs,
+			   (unsigned long)handle_tlbs_end);
+	local_flush_icache_range((unsigned long)handle_tlbm,
+			   (unsigned long)handle_tlbm_end);
+#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
+	local_flush_icache_range((unsigned long)tlbmiss_handler_setup_pgd,
+			   (unsigned long)tlbmiss_handler_setup_pgd_end);
+#endif
+}
+
 void __cpuinit build_tlb_refill_handler(void)
 {
 	/*
@@ -2202,6 +2242,7 @@ void __cpuinit build_tlb_refill_handler(void)
 			build_r3000_tlb_load_handler();
 			build_r3000_tlb_store_handler();
 			build_r3000_tlb_modify_handler();
+			flush_tlb_handlers();
 			run_once++;
 		}
 #else
@@ -2229,23 +2270,10 @@ void __cpuinit build_tlb_refill_handler(void)
 			build_r4000_tlb_modify_handler();
 			if (!cpu_has_local_ebase)
 				build_r4000_tlb_refill_handler();
+			flush_tlb_handlers();
 			run_once++;
 		}
 		if (cpu_has_local_ebase)
 			build_r4000_tlb_refill_handler();
 	}
-}
-
-void __cpuinit flush_tlb_handlers(void)
-{
-	local_flush_icache_range((unsigned long)handle_tlbl,
-			   (unsigned long)handle_tlbl_end);
-	local_flush_icache_range((unsigned long)handle_tlbs,
-			   (unsigned long)handle_tlbs_end);
-	local_flush_icache_range((unsigned long)handle_tlbm,
-			   (unsigned long)handle_tlbm_end);
-#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
-	local_flush_icache_range((unsigned long)tlbmiss_handler_setup_pgd,
-			   (unsigned long)tlbmiss_handler_setup_pgd_end);
-#endif
 }
