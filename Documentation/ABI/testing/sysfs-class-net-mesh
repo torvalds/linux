@@ -6,13 +6,14 @@ Description:
                 Indicates whether the batman protocol messages of the
                 mesh <mesh_iface> shall be aggregated or not.
 
-What:           /sys/class/net/<mesh_iface>/mesh/ap_isolation
+What:           /sys/class/net/<mesh_iface>/mesh/<vlan_subdir>/ap_isolation
 Date:           May 2011
 Contact:        Antonio Quartulli <antonio@meshcoding.com>
 Description:
                 Indicates whether the data traffic going from a
                 wireless client to another wireless client will be
-                silently dropped.
+                silently dropped. <vlan_subdir> is empty when referring
+		to the untagged lan.
 
 What:           /sys/class/net/<mesh_iface>/mesh/bonding
 Date:           June 2010
