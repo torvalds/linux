@@ -1129,11 +1129,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			The builtin appraise policy appraises all files
 			owned by uid=0.
 
-	ima_audit=	[IMA]
-			Format: { "0" | "1" }
-			0 -- integrity auditing messages. (Default)
-			1 -- enable informational integrity auditing messages.
-
 	ima_hash=	[IMA]
 			Format: { "sha1" | "md5" }
 			default: "sha1"
@@ -1159,6 +1154,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: <irq>
 
 	int_pln_enable  [x86] Enable power limit notification interrupt
+
+	integrity_audit=[IMA]
+			Format: { "0" | "1" }
+			0 -- basic integrity auditing messages. (Default)
+			1 -- additional integrity auditing messages.
 
 	intel_iommu=	[DMAR] Intel IOMMU driver (DMAR) option
 		on
