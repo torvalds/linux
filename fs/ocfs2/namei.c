@@ -522,7 +522,7 @@ static int __ocfs2_mknod_locked(struct inode *dir,
 
 	fe->i_last_eb_blk = 0;
 	strcpy(fe->i_signature, OCFS2_INODE_SIGNATURE);
-	le32_add_cpu(&fe->i_flags, OCFS2_VALID_FL);
+	fe->i_flags |= cpu_to_le32(OCFS2_VALID_FL);
 	fe->i_atime = fe->i_ctime = fe->i_mtime =
 		cpu_to_le64(CURRENT_TIME.tv_sec);
 	fe->i_mtime_nsec = fe->i_ctime_nsec = fe->i_atime_nsec =
@@ -2044,7 +2044,7 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 		goto leave;
 	}
 
-	le32_add_cpu(&fe->i_flags, OCFS2_ORPHANED_FL);
+	fe->i_flags |= cpu_to_le32(OCFS2_ORPHANED_FL);
 	OCFS2_I(inode)->ip_flags &= ~OCFS2_INODE_SKIP_ORPHAN_DIR;
 
 	/* Record which orphan dir our inode now resides
@@ -2434,7 +2434,7 @@ int ocfs2_mv_orphaned_inode_to_new(struct inode *dir,
 	}
 
 	di = (struct ocfs2_dinode *)di_bh->b_data;
-	le32_add_cpu(&di->i_flags, -OCFS2_ORPHANED_FL);
+	di->i_flags &= ~cpu_to_le32(OCFS2_ORPHANED_FL);
 	di->i_orphaned_slot = 0;
 	set_nlink(inode, 1);
 	ocfs2_set_links_count(di, inode->i_nlink);
