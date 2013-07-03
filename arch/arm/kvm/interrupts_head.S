@@ -497,6 +497,10 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 	add	r5, vcpu, r4
 	strd	r2, r3, [r5]
 
+	@ Ensure host CNTVCT == CNTPCT
+	mov	r2, #0
+	mcrr	p15, 4, r2, r2, c14	@ CNTVOFF
+
 1:
 #endif
 	@ Allow physical timer/counter access for the host
