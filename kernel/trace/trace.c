@@ -2960,7 +2960,7 @@ int tracing_open_generic(struct inode *inode, struct file *filp)
  * Open and update trace_array ref count.
  * Must have the current trace_array passed to it.
  */
-int tracing_open_generic_tr(struct inode *inode, struct file *filp)
+static int tracing_open_generic_tr(struct inode *inode, struct file *filp)
 {
 	struct trace_array *tr = inode->i_private;
 
@@ -2976,7 +2976,7 @@ int tracing_open_generic_tr(struct inode *inode, struct file *filp)
 	
 }
 
-int tracing_open_generic_tc(struct inode *inode, struct file *filp)
+static int tracing_open_generic_tc(struct inode *inode, struct file *filp)
 {
 	struct trace_cpu *tc = inode->i_private;
 	struct trace_array *tr = tc->tr;
