@@ -25,4 +25,13 @@ extern int rk616_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
 					 void (*hdcp_irq_cb)(int status),
 					 int  (*hdcp_power_on_cb)(void),
 					 void (*hdcp_power_off_cb)(void));
+
+struct rk616_hdmi {
+        struct hdmi             g_hdmi;
+        struct early_suspend    early_suspend;
+        struct delayed_work     rk616_delay_work;
+        struct work_struct      rk616_irq_work_struct;
+        struct mfd_rk616        *rk616_drv;
+};
+
 #endif /* __RK30_HDMI_H__ */

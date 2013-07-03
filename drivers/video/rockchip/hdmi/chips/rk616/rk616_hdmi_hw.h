@@ -273,20 +273,32 @@ enum {
 #define PHY_PRE_DIV_RATIO 		0xed
 	#define v_PRE_DIV_RATIO(n) 	(n&1f)
 
-#define HDMIRdReg(addr,val)		g_rk616_hdmi->read_dev(g_rk616_hdmi,(RK616_HDMI_BASE + ((addr)<<2)),(u32 *)val) 
+static inline void hdmi_readl(u16 offset, u32 *val)
+{
+        struct rk616_hdmi *rk616_hdmi;
+        rk616_hdmi = container_of(hdmi, struct rk616_hdmi, g_hdmi);
 
-#define HDMIWrReg(addr, val)         	do{ \
-						u32 temp = val; \
-						g_rk616_hdmi->write_dev(g_rk616_hdmi,(RK616_HDMI_BASE + ((addr)<<2)),&temp); \
-					}while(0)
+        rk616_hdmi->rk616_drv->read_dev(rk616_hdmi->rk616_drv, (RK616_HDMI_BASE + ((offset)<<2)), val);
+}
 
-					
-#define HDMIMskReg(addr,Msk,val) 	do{ \
-                                                u32 temp = val; \
-                                                g_rk616_hdmi->write_dev_bits(g_rk616_hdmi, (RK616_HDMI_BASE + ((addr)<<2)), Msk, &temp); \
-					}while(0)
-extern struct mfd_rk616 *g_rk616_hdmi;
-	
+static inline void hdmi_writel(u16 offset, u32 val)
+{
+        struct rk616_hdmi *rk616_hdmi;
+        rk616_hdmi = container_of(hdmi, struct rk616_hdmi, g_hdmi);
+
+        rk616_hdmi->rk616_drv->write_dev(rk616_hdmi->rk616_drv, (RK616_HDMI_BASE + ((offset)<<2)), &val);
+}
+
+static inline void hdmi_msk_reg(u16 offset, u32 msk, u32 val)
+{
+        struct rk616_hdmi *rk616_hdmi;
+        rk616_hdmi = container_of(hdmi, struct rk616_hdmi, g_hdmi);
+
+        rk616_hdmi->rk616_drv->write_dev_bits(rk616_hdmi->rk616_drv, (RK616_HDMI_BASE + ((offset)<<2)), msk, &val);
+}
+
 extern int rk616_hdmi_initial(void);
+extern void rk616_hdmi_work(void);
+
 
 #endif
