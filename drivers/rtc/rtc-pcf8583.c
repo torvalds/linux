@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/rtc.h>
 #include <linux/init.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/bcd.h>
 
@@ -284,10 +285,7 @@ static int pcf8583_probe(struct i2c_client *client,
 				pcf8583_driver.driver.name,
 				&pcf8583_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(pcf8583->rtc))
-		return PTR_ERR(pcf8583->rtc);
-
-	return 0;
+	return PTR_RET(pcf8583->rtc);
 }
 
 static const struct i2c_device_id pcf8583_id[] = {
