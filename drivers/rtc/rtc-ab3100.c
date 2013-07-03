@@ -242,7 +242,6 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 
 static int __exit ab3100_rtc_remove(struct platform_device *pdev)
 {
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
