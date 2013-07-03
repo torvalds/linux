@@ -126,7 +126,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 			continue;
 		pte = ptep_get_and_clear(mm, old_addr, old_pte);
 		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
-		set_pte_at(mm, new_addr, new_pte, pte);
+		set_pte_at(mm, new_addr, new_pte, pte_mksoft_dirty(pte));
 	}
 
 	arch_leave_lazy_mmu_mode();
