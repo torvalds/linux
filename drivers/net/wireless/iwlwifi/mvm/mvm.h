@@ -477,6 +477,9 @@ struct iwl_mvm {
 	 */
 	u8 vif_count;
 
+	/* -1 for always, 0 for never, >0 for that many times */
+	s8 restart_fw;
+
 	struct led_classdev led;
 
 	struct ieee80211_vif *p2p_device_vif;

@@ -597,19 +597,18 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	bool restart_fw = iwlwifi_mod_params.restart_fw;
 	int ret;
 
-	iwlwifi_mod_params.restart_fw = true;
-
 	mutex_lock(&mvm->mutex);
+
+	/* allow one more restart that we're provoking here */
+	if (mvm->restart_fw >= 0)
+		mvm->restart_fw++;
 
 	/* take the return value to make compiler happy - it will fail anyway */
 	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, CMD_SYNC, 0, NULL);
 
 	mutex_unlock(&mvm->mutex);
-
-	iwlwifi_mod_params.restart_fw = restart_fw;
 
 	return count;
 }

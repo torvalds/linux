@@ -342,6 +342,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->fw = fw;
 	mvm->hw = hw;
 
+	mvm->restart_fw = iwlwifi_mod_params.restart_fw ? -1 : 0;
+
 	mutex_init(&mvm->mutex);
 	spin_lock_init(&mvm->async_handlers_lock);
 	INIT_LIST_HEAD(&mvm->time_event_list);
@@ -695,8 +697,7 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 		reprobe->dev = mvm->trans->dev;
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
 		schedule_work(&reprobe->work);
-	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR &&
-		   iwlwifi_mod_params.restart_fw) {
+	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR && mvm->restart_fw) {
 		/*
 		 * This is a bit racy, but worst case we tell mac80211 about
 		 * a stopped/aborted (sched) scan when that was already done
@@ -714,6 +715,8 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 			break;
 		}
 
+		if (mvm->restart_fw > 0)
+			mvm->restart_fw--;
 		ieee80211_restart_hw(mvm->hw);
 	}
 }
@@ -723,7 +726,7 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
 	iwl_mvm_dump_nic_error_log(mvm);
-	if (!iwlwifi_mod_params.restart_fw)
+	if (!mvm->restart_fw)
 		iwl_mvm_dump_sram(mvm);
 
 	iwl_mvm_nic_restart(mvm);
