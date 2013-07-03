@@ -159,7 +159,7 @@ static struct spi_driver max6902_driver = {
 
 module_spi_driver(max6902_driver);
 
-MODULE_DESCRIPTION ("max6902 spi RTC driver");
-MODULE_AUTHOR ("Raphael Assenat");
-MODULE_LICENSE ("GPL");
+MODULE_DESCRIPTION("max6902 spi RTC driver");
+MODULE_AUTHOR("Raphael Assenat");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("spi:rtc-max6902");
