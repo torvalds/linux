@@ -1018,6 +1018,13 @@ static int emulate_instruction(struct pt_regs *regs)
 		return emulate_isel(regs, instword);
 	}
 
+	/* Emulate sync instruction variants */
+	if ((instword & PPC_INST_SYNC_MASK) == PPC_INST_SYNC) {
+		PPC_WARN_EMULATED(sync, regs);
+		asm volatile("sync");
+		return 0;
+	}
+
 #ifdef CONFIG_PPC64
 	/* Emulate the mfspr rD, DSCR. */
 	if ((((instword & PPC_INST_MFSPR_DSCR_USER_MASK) ==
