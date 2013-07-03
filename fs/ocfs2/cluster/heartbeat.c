@@ -2389,6 +2389,9 @@ static int o2hb_region_pin(const char *region_uuid)
 	assert_spin_locked(&o2hb_live_lock);
 
 	list_for_each_entry(reg, &o2hb_all_regions, hr_all_item) {
+		if (reg->hr_item_dropped)
+			continue;
+
 		uuid = config_item_name(&reg->hr_item);
 
 		/* local heartbeat */
@@ -2439,6 +2442,9 @@ static void o2hb_region_unpin(const char *region_uuid)
 	assert_spin_locked(&o2hb_live_lock);
 
 	list_for_each_entry(reg, &o2hb_all_regions, hr_all_item) {
+		if (reg->hr_item_dropped)
+			continue;
+
 		uuid = config_item_name(&reg->hr_item);
 		if (region_uuid) {
 			if (strcmp(region_uuid, uuid))
@@ -2654,6 +2660,9 @@ int o2hb_get_all_regions(char *region_uuids, u8 max_regions)
 
 	p = region_uuids;
 	list_for_each_entry(reg, &o2hb_all_regions, hr_all_item) {
+		if (reg->hr_item_dropped)
+			continue;
+
 		mlog(0, "Region: %s\n", config_item_name(&reg->hr_item));
 		if (numregs < max_regions) {
 			memcpy(p, config_item_name(&reg->hr_item),
