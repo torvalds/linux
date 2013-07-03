@@ -167,17 +167,11 @@ static int __init ds1216_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit ds1216_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver ds1216_rtc_platform_driver = {
 	.driver		= {
 		.name	= "rtc-ds1216",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(ds1216_rtc_remove),
 };
 
 static int __init ds1216_rtc_init(void)
