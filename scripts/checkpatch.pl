@@ -3299,6 +3299,12 @@ sub process {
 			}
 		}
 
+# check for comparisons of jiffies
+		if ($line =~ /\bjiffies\s*$Compare|$Compare\s*jiffies\b/) {
+			WARN("JIFFIES_COMPARISON",
+			     "Comparing jiffies is almost always wrong; prefer time_after, time_before and friends\n" . $herecurr);
+		}
+
 # warn about #ifdefs in C files
 #		if ($line =~ /^.\s*\#\s*if(|n)def/ && ($realfile =~ /\.c$/)) {
 #			print "#ifdef in C files should be avoided\n";
