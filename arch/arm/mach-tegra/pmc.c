@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
+#include "flowctrl.h"
 #include "fuse.h"
 #include "pm.h"
 #include "pmc.h"
@@ -195,12 +196,25 @@ enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
 
 void tegra_pmc_pm_set(enum tegra_suspend_mode mode)
 {
-	u32 reg;
+	u32 reg, csr_reg;
 	unsigned long rate = 0;
 
 	reg = tegra_pmc_readl(PMC_CTRL);
 	reg |= TEGRA_POWER_CPU_PWRREQ_OE;
 	reg &= ~TEGRA_POWER_EFFECT_LP0;
+
+	switch (tegra_chip_id) {
+	case TEGRA20:
+	case TEGRA30:
+		break;
+	default:
+		/* Turn off CRAIL */
+		csr_reg = flowctrl_read_cpu_csr(0);
+		csr_reg &= ~FLOW_CTRL_CSR_ENABLE_EXT_MASK;
+		csr_reg |= FLOW_CTRL_CSR_ENABLE_EXT_CRAIL;
+		flowctrl_write_cpu_csr(0, csr_reg);
+		break;
+	}
 
 	switch (mode) {
 	case TEGRA_SUSPEND_LP2:
