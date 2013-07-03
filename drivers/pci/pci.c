@@ -805,7 +805,7 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 {
 	pci_power_t ret;
 
-	if (!pci_find_capability(dev, PCI_CAP_ID_PM))
+	if (!dev->pm_cap)
 		return PCI_D0;
 
 	ret = platform_pci_choose_state(dev);
@@ -2431,7 +2431,7 @@ bool pci_acs_path_enabled(struct pci_dev *start,
 /**
  * pci_swizzle_interrupt_pin - swizzle INTx for device behind bridge
  * @dev: the PCI device
- * @pin: the INTx pin (1=INTA, 2=INTB, 3=INTD, 4=INTD)
+ * @pin: the INTx pin (1=INTA, 2=INTB, 3=INTC, 4=INTD)
  *
  * Perform INTx swizzling for a device behind one level of bridge.  This is
  * required by section 9.1 of the PCI-to-PCI bridge specification for devices
