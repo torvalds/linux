@@ -30,6 +30,7 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/gpio-em.h>
 
 struct em_gio_priv {
@@ -216,6 +217,21 @@ static int em_gio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return irq_create_mapping(gpio_to_priv(chip)->irq_domain, offset);
 }
 
+static int em_gio_request(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_request_gpio(chip->base + offset);
+}
+
+static void em_gio_free(struct gpio_chip *chip, unsigned offset)
+{
+	pinctrl_free_gpio(chip->base + offset);
+
+	/* Set the GPIO as an input to ensure that the next GPIO request won't
+	* drive the GPIO pin as an output.
+	*/
+	em_gio_direction_input(chip, offset);
+}
+
 static int em_gio_irq_domain_map(struct irq_domain *h, unsigned int virq,
 				 irq_hw_number_t hw)
 {
@@ -308,6 +324,8 @@ static int em_gio_probe(struct platform_device *pdev)
 	gpio_chip->direction_output = em_gio_direction_output;
 	gpio_chip->set = em_gio_set;
 	gpio_chip->to_irq = em_gio_to_irq;
+	gpio_chip->request = em_gio_request;
+	gpio_chip->free = em_gio_free;
 	gpio_chip->label = name;
 	gpio_chip->owner = THIS_MODULE;
 	gpio_chip->base = pdata->gpio_base;
@@ -350,6 +368,13 @@ static int em_gio_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add GPIO controller\n");
 		goto err1;
+	}
+
+	if (pdata->pctl_name) {
+		ret = gpiochip_add_pin_range(gpio_chip, pdata->pctl_name, 0,
+					     gpio_chip->base, gpio_chip->ngpio);
+		if (ret < 0)
+			dev_warn(&pdev->dev, "failed to add pin range\n");
 	}
 	return 0;
 
