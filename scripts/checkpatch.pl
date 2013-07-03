@@ -31,6 +31,7 @@ my $fix = 0;
 my $root;
 my %debug;
 my %ignore_type = ();
+my %camelcase = ();
 my @ignore = ();
 my $help = 0;
 my $configuration_file = ".checkpatch.conf";
@@ -349,7 +350,6 @@ sub build_types {
 }
 build_types();
 
-
 our $Typecast	= qr{\s*(\(\s*$NonptrType\s*\)){0,1}\s*};
 
 # Using $balanced_parens, $LvalOrFunc, or $FuncArg
@@ -367,6 +367,48 @@ sub deparenthesize {
 	$string =~ s@\s*\)\s*$@@g;
 	$string =~ s@\s+@ @g;
 	return $string;
+}
+
+sub seed_camelcase_file {
+	my ($file) = @_;
+
+	return if (!(-f $file));
+
+	local $/;
+
+	open(my $include_file, '<', "$file")
+	    or warn "$P: Can't read '$file' $!\n";
+	my $text = <$include_file>;
+	close($include_file);
+
+	my @lines = split('\n', $text);
+
+	foreach my $line (@lines) {
+		next if ($line !~ /(?:[A-Z][a-z]|[a-z][A-Z])/);
+		if ($line =~ /^[ \t]*(?:#[ \t]*define|typedef\s+$Type)\s+(\w*(?:[A-Z][a-z]|[a-z][A-Z])\w*)/) {
+			$camelcase{$1} = 1;
+		}
+	        elsif ($line =~ /^\s*$Declare\s+(\w*(?:[A-Z][a-z]|[a-z][A-Z])\w*)\s*\(/) {
+			$camelcase{$1} = 1;
+		}
+	}
+}
+
+my $camelcase_seeded = 0;
+sub seed_camelcase_includes {
+	return if ($camelcase_seeded);
+
+	my $files;
+	if (-d ".git") {
+		$files = `git ls-files include`;
+	} else {
+		$files = `find $root/include -name "*.h"`;
+	}
+	my @include_files = split('\n', $files);
+	foreach my $file (@include_files) {
+		seed_camelcase_file($file);
+	}
+	$camelcase_seeded = 1;
 }
 
 $chk_signoff = 0 if ($file);
@@ -1448,7 +1490,6 @@ sub process {
 	my %suppress_export;
 	my $suppress_statement = 0;
 
-	my %camelcase = ();
 
 	# Pre-scan the patch sanitizing the lines.
 	# Pre-scan the patch looking for any __setup documentation.
@@ -3198,11 +3239,13 @@ sub process {
 #Ignore Page<foo> variants
 			    $var !~ /^(?:Clear|Set|TestClear|TestSet|)Page[A-Z]/ &&
 #Ignore SI style variants like nS, mV and dB (ie: max_uV, regulator_min_uA_show)
-			    $var !~ /^(?:[a-z_]*?)_?[a-z][A-Z](?:_[a-z_]+)?$/ &&
-			    !defined $camelcase{$var}) {
-				$camelcase{$var} = 1;
-				CHK("CAMELCASE",
-				    "Avoid CamelCase: <$var>\n" . $herecurr);
+			    $var !~ /^(?:[a-z_]*?)_?[a-z][A-Z](?:_[a-z_]+)?$/) {
+				seed_camelcase_includes() if ($check);
+				if (!defined $camelcase{$var}) {
+					$camelcase{$var} = 1;
+					CHK("CAMELCASE",
+					    "Avoid CamelCase: <$var>\n" . $herecurr);
+				}
 			}
 		}
 
