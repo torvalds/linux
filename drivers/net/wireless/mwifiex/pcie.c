@@ -76,7 +76,7 @@ static bool mwifiex_pcie_ok_to_access_hw(struct mwifiex_adapter *adapter)
 	return false;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * Kernel needs to suspend all functions separately. Therefore all
  * registered functions must have drivers with suspend and resume
@@ -85,11 +85,12 @@ static bool mwifiex_pcie_ok_to_access_hw(struct mwifiex_adapter *adapter)
  * If already not suspended, this function allocates and sends a host
  * sleep activate request to the firmware and turns off the traffic.
  */
-static int mwifiex_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
+static int mwifiex_pcie_suspend(struct device *dev)
 {
 	struct mwifiex_adapter *adapter;
 	struct pcie_service_card *card;
 	int hs_actived;
+	struct pci_dev *pdev = to_pci_dev(dev);
 
 	if (pdev) {
 		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
@@ -120,10 +121,11 @@ static int mwifiex_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
  * If already not resumed, this function turns on the traffic and
  * sends a host sleep cancel request to the firmware.
  */
-static int mwifiex_pcie_resume(struct pci_dev *pdev)
+static int mwifiex_pcie_resume(struct device *dev)
 {
 	struct mwifiex_adapter *adapter;
 	struct pcie_service_card *card;
+	struct pci_dev *pdev = to_pci_dev(dev);
 
 	if (pdev) {
 		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
@@ -211,9 +213,9 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	wait_for_completion(&adapter->fw_load);
 
 	if (user_rmmod) {
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 		if (adapter->is_suspended)
-			mwifiex_pcie_resume(pdev);
+			mwifiex_pcie_resume(&pdev->dev);
 #endif
 
 		for (i = 0; i < adapter->priv_num; i++)
@@ -249,16 +251,22 @@ static DEFINE_PCI_DEVICE_TABLE(mwifiex_ids) = {
 
 MODULE_DEVICE_TABLE(pci, mwifiex_ids);
 
+#ifdef CONFIG_PM_SLEEP
+/* Power Management Hooks */
+static SIMPLE_DEV_PM_OPS(mwifiex_pcie_pm_ops, mwifiex_pcie_suspend,
+				mwifiex_pcie_resume);
+#endif
+
 /* PCI Device Driver */
 static struct pci_driver __refdata mwifiex_pcie = {
 	.name     = "mwifiex_pcie",
 	.id_table = mwifiex_ids,
 	.probe    = mwifiex_pcie_probe,
 	.remove   = mwifiex_pcie_remove,
-#ifdef CONFIG_PM
-	/* Power Management Hooks */
-	.suspend  = mwifiex_pcie_suspend,
-	.resume   = mwifiex_pcie_resume,
+#ifdef CONFIG_PM_SLEEP
+	.driver   = {
+		.pm = &mwifiex_pcie_pm_ops,
+	},
 #endif
 };
 
