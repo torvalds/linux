@@ -94,6 +94,9 @@ MODULE_PARM_DESC(buffer_mode,
 #define CF_CONFIG_NEEDED 4	/* Must configure hardware */
 #define CF_SINGLE_BUFFER 5	/* Running with a single buffer */
 #define CF_SG_RESTART	 6	/* SG restart needed */
+#define CF_FRAME_SOF0	 7	/* Frame 0 started */
+#define CF_FRAME_SOF1	 8
+#define CF_FRAME_SOF2	 9
 
 #define sensor_call(cam, o, f, args...) \
 	v4l2_subdev_call(cam->sensor, o, f, ##args)
@@ -260,8 +263,10 @@ static void mcam_reset_buffers(struct mcam_camera *cam)
 	int i;
 
 	cam->next_buf = -1;
-	for (i = 0; i < cam->nbufs; i++)
+	for (i = 0; i < cam->nbufs; i++) {
 		clear_bit(i, &cam->flags);
+		clear_bit(CF_FRAME_SOF0 + i, &cam->flags);
+	}
 }
 
 static inline int mcam_needs_config(struct mcam_camera *cam)
@@ -1122,6 +1127,7 @@ static void mcam_vb_wait_finish(struct vb2_queue *vq)
 static int mcam_vb_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct mcam_camera *cam = vb2_get_drv_priv(vq);
+	unsigned int frame;
 
 	if (cam->state != S_IDLE) {
 		INIT_LIST_HEAD(&cam->buffers);
@@ -1139,6 +1145,14 @@ static int mcam_vb_start_streaming(struct vb2_queue *vq, unsigned int count)
 		cam->state = S_BUFWAIT;
 		return 0;
 	}
+
+	/*
+	 * Ensure clear the left over frame flags
+	 * before every really start streaming
+	 */
+	for (frame = 0; frame < cam->nbufs; frame++)
+		clear_bit(CF_FRAME_SOF0 + frame, &cam->flags);
+
 	return mcam_read_setup(cam);
 }
 
@@ -1816,9 +1830,11 @@ int mccic_irq(struct mcam_camera *cam, unsigned int irqs)
 	 * each time.
 	 */
 	for (frame = 0; frame < cam->nbufs; frame++)
-		if (irqs & (IRQ_EOF0 << frame)) {
+		if (irqs & (IRQ_EOF0 << frame) &&
+			test_bit(CF_FRAME_SOF0 + frame, &cam->flags)) {
 			mcam_frame_complete(cam, frame);
 			handled = 1;
+			clear_bit(CF_FRAME_SOF0 + frame, &cam->flags);
 			if (cam->buffer_mode == B_DMA_sg)
 				break;
 		}
@@ -1827,9 +1843,15 @@ int mccic_irq(struct mcam_camera *cam, unsigned int irqs)
 	 * code assumes that we won't get multiple frame interrupts
 	 * at once; may want to rethink that.
 	 */
-	if (irqs & (IRQ_SOF0 | IRQ_SOF1 | IRQ_SOF2)) {
+	for (frame = 0; frame < cam->nbufs; frame++) {
+		if (irqs & (IRQ_SOF0 << frame)) {
+			set_bit(CF_FRAME_SOF0 + frame, &cam->flags);
+			handled = IRQ_HANDLED;
+		}
+	}
+
+	if (handled == IRQ_HANDLED) {
 		set_bit(CF_DMA_ACTIVE, &cam->flags);
-		handled = 1;
 		if (cam->buffer_mode == B_DMA_sg)
 			mcam_ctlr_stop(cam);
 	}
