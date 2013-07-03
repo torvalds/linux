@@ -287,7 +287,6 @@ err_free_irq:
 err_unregister_rtc:
 	rtc_device_unregister(rtc->rtc);
 err_iounmap:
-	platform_set_drvdata(pdev, NULL);
 	iounmap(rtc->base);
 err_release_mem_region:
 	release_mem_region(rtc->mem->start, resource_size(rtc->mem));
@@ -309,8 +308,6 @@ static int jz4740_rtc_remove(struct platform_device *pdev)
 	release_mem_region(rtc->mem->start, resource_size(rtc->mem));
 
 	kfree(rtc);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
