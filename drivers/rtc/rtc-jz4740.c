@@ -14,6 +14,7 @@
  *
  */
 
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -216,37 +217,34 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	struct jz4740_rtc *rtc;
 	uint32_t scratchpad;
 
-	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
 	rtc->irq = platform_get_irq(pdev, 0);
 	if (rtc->irq < 0) {
-		ret = -ENOENT;
 		dev_err(&pdev->dev, "Failed to get platform irq\n");
-		goto err_free;
+		return -ENOENT;
 	}
 
 	rtc->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!rtc->mem) {
-		ret = -ENOENT;
 		dev_err(&pdev->dev, "Failed to get platform mmio memory\n");
-		goto err_free;
+		return -ENOENT;
 	}
 
-	rtc->mem = request_mem_region(rtc->mem->start, resource_size(rtc->mem),
-					pdev->name);
+	rtc->mem = devm_request_mem_region(&pdev->dev, rtc->mem->start,
+					resource_size(rtc->mem), pdev->name);
 	if (!rtc->mem) {
-		ret = -EBUSY;
 		dev_err(&pdev->dev, "Failed to request mmio memory region\n");
-		goto err_free;
+		return -EBUSY;
 	}
 
-	rtc->base = ioremap_nocache(rtc->mem->start, resource_size(rtc->mem));
+	rtc->base = devm_ioremap_nocache(&pdev->dev, rtc->mem->start,
+					resource_size(rtc->mem));
 	if (!rtc->base) {
-		ret = -EBUSY;
 		dev_err(&pdev->dev, "Failed to ioremap mmio memory\n");
-		goto err_release_mem_region;
+		return -EBUSY;
 	}
 
 	spin_lock_init(&rtc->lock);
@@ -255,19 +253,19 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	rtc->rtc = rtc_device_register(pdev->name, &pdev->dev, &jz4740_rtc_ops,
-					THIS_MODULE);
+	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+					&jz4740_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc)) {
 		ret = PTR_ERR(rtc->rtc);
 		dev_err(&pdev->dev, "Failed to register rtc device: %d\n", ret);
-		goto err_iounmap;
+		return ret;
 	}
 
-	ret = request_irq(rtc->irq, jz4740_rtc_irq, 0,
+	ret = devm_request_irq(&pdev->dev, rtc->irq, jz4740_rtc_irq, 0,
 				pdev->name, rtc);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request rtc irq: %d\n", ret);
-		goto err_unregister_rtc;
+		return ret;
 	}
 
 	scratchpad = jz4740_rtc_reg_read(rtc, JZ_REG_RTC_SCRATCHPAD);
@@ -276,42 +274,12 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 		ret = jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SEC, 0);
 		if (ret) {
 			dev_err(&pdev->dev, "Could not write write to RTC registers\n");
-			goto err_free_irq;
+			return ret;
 		}
 	}
 
 	return 0;
-
-err_free_irq:
-	free_irq(rtc->irq, rtc);
-err_unregister_rtc:
-	rtc_device_unregister(rtc->rtc);
-err_iounmap:
-	iounmap(rtc->base);
-err_release_mem_region:
-	release_mem_region(rtc->mem->start, resource_size(rtc->mem));
-err_free:
-	kfree(rtc);
-
-	return ret;
 }
-
-static int jz4740_rtc_remove(struct platform_device *pdev)
-{
-	struct jz4740_rtc *rtc = platform_get_drvdata(pdev);
-
-	free_irq(rtc->irq, rtc);
-
-	rtc_device_unregister(rtc->rtc);
-
-	iounmap(rtc->base);
-	release_mem_region(rtc->mem->start, resource_size(rtc->mem));
-
-	kfree(rtc);
-
-	return 0;
-}
-
 
 #ifdef CONFIG_PM
 static int jz4740_rtc_suspend(struct device *dev)
@@ -344,7 +312,6 @@ static const struct dev_pm_ops jz4740_pm_ops = {
 
 static struct platform_driver jz4740_rtc_driver = {
 	.probe	 = jz4740_rtc_probe,
-	.remove	 = jz4740_rtc_remove,
 	.driver	 = {
 		.name  = "jz4740-rtc",
 		.owner = THIS_MODULE,
