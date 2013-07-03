@@ -234,17 +234,11 @@ static int __init ds1302_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit ds1302_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver ds1302_platform_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(ds1302_rtc_remove),
 };
 
 module_platform_driver_probe(ds1302_platform_driver, ds1302_rtc_probe);
