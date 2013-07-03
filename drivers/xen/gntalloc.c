@@ -48,6 +48,8 @@
  * grant operation.
  */
 
+#define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
+
 #include <linux/atomic.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>
@@ -507,7 +509,7 @@ static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 	int rv, i;
 
 	if (!(vma->vm_flags & VM_SHARED)) {
-		printk(KERN_ERR "%s: Mapping must be shared.\n", __func__);
+		pr_err("%s: Mapping must be shared\n", __func__);
 		return -EINVAL;
 	}
 
@@ -584,7 +586,7 @@ static int __init gntalloc_init(void)
 
 	err = misc_register(&gntalloc_miscdev);
 	if (err != 0) {
-		printk(KERN_ERR "Could not register misc gntalloc device\n");
+		pr_err("Could not register misc gntalloc device\n");
 		return err;
 	}
 
