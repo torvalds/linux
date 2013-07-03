@@ -111,28 +111,19 @@ void __init paging_init(void)
  *======================================================================*/
 void __init mem_init(void)
 {
-	int nid;
 #ifndef CONFIG_MMU
 	extern unsigned long memory_end;
-#endif
 
-#ifndef CONFIG_DISCONTIGMEM
-	max_mapnr = get_num_physpages();
-#endif	/* CONFIG_DISCONTIGMEM */
-
-#ifdef CONFIG_MMU
-	high_memory = (void *)__va(PFN_PHYS(MAX_LOW_PFN(0)));
-#else
 	high_memory = (void *)(memory_end & PAGE_MASK);
+#else
+	high_memory = (void *)__va(PFN_PHYS(MAX_LOW_PFN(0)));
 #endif /* CONFIG_MMU */
 
 	/* clear the zero-page */
 	memset(empty_zero_page, 0, PAGE_SIZE);
 
-	/* this will put all low memory onto the freelists */
-	for_each_online_node(nid)
-		free_all_bootmem_node(NODE_DATA(nid));
-
+	set_max_mapnr(get_num_physpages());
+	free_all_bootmem();
 	mem_init_print_info(NULL);
 }
 
