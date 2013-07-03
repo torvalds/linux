@@ -73,10 +73,8 @@ const struct inode_operations ncp_dir_inode_operations =
  * Dentry operations routines
  */
 static int ncp_lookup_validate(struct dentry *, unsigned int);
-static int ncp_hash_dentry(const struct dentry *, const struct inode *,
-		struct qstr *);
-static int ncp_compare_dentry(const struct dentry *, const struct inode *,
-		const struct dentry *, const struct inode *,
+static int ncp_hash_dentry(const struct dentry *, struct qstr *);
+static int ncp_compare_dentry(const struct dentry *, const struct dentry *,
 		unsigned int, const char *, const struct qstr *);
 static int ncp_delete_dentry(const struct dentry *);
 
@@ -119,11 +117,19 @@ static inline int ncp_case_sensitive(const struct inode *i)
 /*
  * Note: leave the hash unchanged if the directory
  * is case-sensitive.
+ *
+ * Accessing the parent inode can be racy under RCU pathwalking.
+ * Use ACCESS_ONCE() to make sure we use _one_ particular inode,
+ * the callers will handle races.
  */
 static int 
-ncp_hash_dentry(const struct dentry *dentry, const struct inode *inode,
-		struct qstr *this)
+ncp_hash_dentry(const struct dentry *dentry, struct qstr *this)
 {
+	struct inode *inode = ACCESS_ONCE(dentry->d_inode);
+
+	if (!inode)
+		return 0;
+
 	if (!ncp_case_sensitive(inode)) {
 		struct super_block *sb = dentry->d_sb;
 		struct nls_table *t;
@@ -140,12 +146,22 @@ ncp_hash_dentry(const struct dentry *dentry, const struct inode *inode,
 	return 0;
 }
 
+/*
+ * Accessing the parent inode can be racy under RCU pathwalking.
+ * Use ACCESS_ONCE() to make sure we use _one_ particular inode,
+ * the callers will handle races.
+ */
 static int
-ncp_compare_dentry(const struct dentry *parent, const struct inode *pinode,
-		const struct dentry *dentry, const struct inode *inode,
+ncp_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
+	struct inode *pinode;
+
 	if (len != name->len)
+		return 1;
+
+	pinode = ACCESS_ONCE(parent->d_inode);
+	if (!pinode)
 		return 1;
 
 	if (ncp_case_sensitive(pinode))
@@ -660,8 +676,6 @@ end_advance:
 		ctl.valid = 0;
 	if (!ctl.filled && (ctl.fpos == ctx->pos)) {
 		if (!ino)
-			ino = find_inode_number(dentry, &qname);
-		if (!ino)
 			ino = iunique(dir->i_sb, 2);
 		ctl.filled = !dir_emit(ctx, qname.name, qname.len,
 				     ino, DT_UNKNOWN);
@@ -1122,17 +1136,6 @@ static int ncp_rename(struct inode *old_dir, struct dentry *old_dentry,
 	DPRINTK("ncp_rename: %s/%s to %s/%s\n",
 		old_dentry->d_parent->d_name.name, old_dentry->d_name.name,
 		new_dentry->d_parent->d_name.name, new_dentry->d_name.name);
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode)) {
-		/*
-		 * fail with EBUSY if there are still references to this
-		 * directory.
-		 */
-		dentry_unhash(new_dentry);
-		error = -EBUSY;
-		if (!d_unhashed(new_dentry))
-			goto out;
-	}
 
 	ncp_age_dentry(server, old_dentry);
 	ncp_age_dentry(server, new_dentry);

@@ -1268,8 +1268,7 @@ xfs_seek_data(
 	}
 
 out:
-	if (offset != file->f_pos)
-		file->f_pos = offset;
+	offset = vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 
 out_unlock:
 	xfs_iunlock_map_shared(ip, lock);
@@ -1377,8 +1376,7 @@ out:
 	 * situation in particular.
 	 */
 	offset = min_t(loff_t, offset, isize);
-	if (offset != file->f_pos)
-		file->f_pos = offset;
+	offset = vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 
 out_unlock:
 	xfs_iunlock_map_shared(ip, lock);

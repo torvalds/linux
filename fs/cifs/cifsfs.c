@@ -765,7 +765,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
 
 static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 {
-	/* note that this is called by vfs setlease with lock_flocks held
+	/* note that this is called by vfs setlease with i_lock held
 	   to protect *lease from going away */
 	struct inode *inode = file_inode(file);
 	struct cifsFileInfo *cfile = file->private_data;

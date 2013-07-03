@@ -2645,13 +2645,13 @@ static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 
 	list_add_tail(&dp->dl_recall_lru, &nn->del_recall_lru);
 
-	/* only place dl_time is set. protected by lock_flocks*/
+	/* Only place dl_time is set; protected by i_lock: */
 	dp->dl_time = get_seconds();
 
 	nfsd4_cb_recall(dp);
 }
 
-/* Called from break_lease() with lock_flocks() held. */
+/* Called from break_lease() with i_lock held. */
 static void nfsd_break_deleg_cb(struct file_lock *fl)
 {
 	struct nfs4_file *fp = (struct nfs4_file *)fl->fl_owner;
@@ -4520,7 +4520,7 @@ check_for_locks(struct nfs4_file *filp, struct nfs4_lockowner *lowner)
 	struct inode *inode = filp->fi_inode;
 	int status = 0;
 
-	lock_flocks();
+	spin_lock(&inode->i_lock);
 	for (flpp = &inode->i_flock; *flpp != NULL; flpp = &(*flpp)->fl_next) {
 		if ((*flpp)->fl_owner == (fl_owner_t)lowner) {
 			status = 1;
@@ -4528,7 +4528,7 @@ check_for_locks(struct nfs4_file *filp, struct nfs4_lockowner *lowner)
 		}
 	}
 out:
-	unlock_flocks();
+	spin_unlock(&inode->i_lock);
 	return status;
 }
 
