@@ -378,18 +378,12 @@ static int rs5c313_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rs5c313_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver rs5c313_rtc_platform_driver = {
 	.driver         = {
 		.name   = DRV_NAME,
 		.owner  = THIS_MODULE,
 	},
 	.probe	= rs5c313_rtc_probe,
-	.remove = rs5c313_rtc_remove,
 };
 
 static int __init rs5c313_rtc_init(void)
