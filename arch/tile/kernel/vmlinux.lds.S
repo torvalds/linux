@@ -27,7 +27,6 @@ SECTIONS
   .intrpt1 (LOAD_OFFSET) : AT ( 0 )   /* put at the start of physical memory */
   {
     _text = .;
-    _stext = .;
     *(.intrpt1)
   } :intrpt1 =0
 
@@ -36,6 +35,7 @@ SECTIONS
 
   /* Now the real code */
   . = ALIGN(0x20000);
+  _stext = .;
   .text : AT (ADDR(.text) - LOAD_OFFSET) {
     HEAD_TEXT
     SCHED_TEXT
@@ -58,11 +58,13 @@ SECTIONS
   #define LOAD_OFFSET PAGE_OFFSET
 
   . = ALIGN(PAGE_SIZE);
+  __init_begin = .;
   VMLINUX_SYMBOL(_sinitdata) = .;
   INIT_DATA_SECTION(16) :data =0
   PERCPU_SECTION(L2_CACHE_BYTES)
   . = ALIGN(PAGE_SIZE);
   VMLINUX_SYMBOL(_einitdata) = .;
+  __init_end = .;
 
   _sdata = .;                   /* Start of data section */
 
