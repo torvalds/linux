@@ -756,7 +756,7 @@ static __init void kvm_free_tmp(void)
 	end = (ulong)&kvm_tmp[ARRAY_SIZE(kvm_tmp)] & PAGE_MASK;
 
 	/* Free the tmp space we don't need */
-	free_reserved_area(start, end, 0, NULL);
+	free_reserved_area((void *)start, (void *)end, 0, NULL);
 }
 
 static int __init kvm_guest_init(void)

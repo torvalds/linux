@@ -154,8 +154,7 @@ ia64_init_addr_space (void)
 void
 free_initmem (void)
 {
-	free_reserved_area((unsigned long)ia64_imva(__init_begin),
-			   (unsigned long)ia64_imva(__init_end),
+	free_reserved_area(ia64_imva(__init_begin), ia64_imva(__init_end),
 			   0, "unused kernel");
 }
 
