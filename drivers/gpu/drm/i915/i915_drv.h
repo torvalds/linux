@@ -1864,7 +1864,7 @@ static inline void i915_gem_context_unreference(struct i915_hw_context *ctx)
 }
 
 struct i915_ctx_hang_stats * __must_check
-i915_gem_context_get_hang_stats(struct intel_ring_buffer *ring,
+i915_gem_context_get_hang_stats(struct drm_device *dev,
 				struct drm_file *file,
 				u32 id);
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
