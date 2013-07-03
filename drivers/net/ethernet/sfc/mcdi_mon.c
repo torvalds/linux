@@ -54,6 +54,7 @@ static const char *const sensor_status_names[] = {
 	[MC_CMD_SENSOR_STATE_WARNING] = "Warning",
 	[MC_CMD_SENSOR_STATE_FATAL] = "Fatal",
 	[MC_CMD_SENSOR_STATE_BROKEN] = "Device failure",
+	[MC_CMD_SENSOR_STATE_NO_READING] = "No reading",
 };
 
 void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
@@ -144,12 +145,16 @@ static ssize_t efx_mcdi_mon_show_value(struct device *dev,
 	struct efx_mcdi_mon_attribute *mon_attr =
 		container_of(attr, struct efx_mcdi_mon_attribute, dev_attr);
 	efx_dword_t entry;
-	unsigned int value;
+	unsigned int value, state;
 	int rc;
 
 	rc = efx_mcdi_mon_get_entry(dev, mon_attr->index, &entry);
 	if (rc)
 		return rc;
+
+	state = EFX_DWORD_FIELD(entry, MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_STATE);
+	if (state == MC_CMD_SENSOR_STATE_NO_READING)
+		return -EBUSY;
 
 	value = EFX_DWORD_FIELD(entry, MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_VALUE);
 
