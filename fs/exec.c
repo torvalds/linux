@@ -1464,7 +1464,6 @@ static int do_execve_common(const char *filename,
 	struct files_struct *displaced;
 	bool clear_in_exec;
 	int retval;
-	const struct cred *cred = current_cred();
 
 	/*
 	 * We move the actual failure in case of RLIMIT_NPROC excess from
@@ -1473,7 +1472,7 @@ static int do_execve_common(const char *filename,
 	 * whether NPROC limit is still exceeded.
 	 */
 	if ((current->flags & PF_NPROC_EXCEEDED) &&
-	    atomic_read(&cred->user->processes) > rlimit(RLIMIT_NPROC)) {
+	    atomic_read(&current_user()->processes) > rlimit(RLIMIT_NPROC)) {
 		retval = -EAGAIN;
 		goto out_ret;
 	}
