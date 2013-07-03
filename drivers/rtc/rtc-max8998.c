@@ -294,11 +294,6 @@ static int max8998_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int max8998_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct platform_device_id max8998_rtc_id[] = {
 	{ "max8998-rtc", TYPE_MAX8998 },
 	{ "lp3974-rtc", TYPE_LP3974 },
@@ -311,7 +306,6 @@ static struct platform_driver max8998_rtc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max8998_rtc_probe,
-	.remove		= max8998_rtc_remove,
 	.id_table	= max8998_rtc_id,
 };
 
