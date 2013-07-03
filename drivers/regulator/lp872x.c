@@ -373,7 +373,7 @@ static int lp8725_buck_set_current_limit(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	for (i = ARRAY_SIZE(lp8725_buck_uA) - 1 ; i >= 0; i--) {
+	for (i = ARRAY_SIZE(lp8725_buck_uA) - 1; i >= 0; i--) {
 		if (lp8725_buck_uA[i] >= min_uA &&
 			lp8725_buck_uA[i] <= max_uA)
 			return lp872x_update_bits(lp, addr,
@@ -787,7 +787,7 @@ static int lp872x_regulator_register(struct lp872x *lp)
 	struct regulator_dev *rdev;
 	int i, ret;
 
-	for (i = 0 ; i < lp->num_regulators ; i++) {
+	for (i = 0; i < lp->num_regulators; i++) {
 		desc = (lp->chipid == LP8720) ? &lp8720_regulator_desc[i] :
 						&lp8725_regulator_desc[i];
 
@@ -820,7 +820,7 @@ static void lp872x_regulator_unregister(struct lp872x *lp)
 	struct regulator_dev *rdev;
 	int i;
 
-	for (i = 0 ; i < lp->num_regulators ; i++) {
+	for (i = 0; i < lp->num_regulators; i++) {
 		rdev = *(lp->regulators + i);
 		regulator_unregister(rdev);
 	}
@@ -907,7 +907,8 @@ static struct lp872x_platform_data
 		goto out;
 
 	for (i = 0; i < num_matches; i++) {
-		pdata->regulator_data[i].id = (int)match[i].driver_data;
+		pdata->regulator_data[i].id =
+				(enum lp872x_regulator_id)match[i].driver_data;
 		pdata->regulator_data[i].init_data = match[i].init_data;
 
 		/* Operation mode configuration for buck/buck1/buck2 */
