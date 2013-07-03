@@ -47,7 +47,7 @@
 #include <linux/platform_device.h>
 #include <linux/bcd.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define DRV_NAME	"rs5c313"
 #define DRV_VERSION 	"1.13"
