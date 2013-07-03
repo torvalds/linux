@@ -5,7 +5,7 @@
  * Copyright 2005 MontaVista Software, Inc.
  * Matt Porter <mporter@kernel.crashing.org>
  *
- * Copyright 2009 Integrated Device Technology, Inc.
+ * Copyright 2009 - 2013 Integrated Device Technology, Inc.
  * Alex Bounine <alexandre.bounine@idt.com>
  *
  * This program is free software; you can redistribute  it and/or modify it
@@ -29,6 +29,17 @@
 #include <linux/interrupt.h>
 
 #include "rio.h"
+
+MODULE_DESCRIPTION("RapidIO Subsystem Core");
+MODULE_AUTHOR("Matt Porter <mporter@kernel.crashing.org>");
+MODULE_AUTHOR("Alexandre Bounine <alexandre.bounine@idt.com>");
+MODULE_LICENSE("GPL");
+
+static int hdid[RIO_MAX_MPORTS];
+static int ids_num;
+module_param_array(hdid, int, &ids_num, 0);
+MODULE_PARM_DESC(hdid,
+	"Destination ID assignment to local RapidIO controllers");
 
 static LIST_HEAD(rio_devices);
 static DEFINE_SPINLOCK(rio_global_list_lock);
@@ -1860,23 +1871,13 @@ no_disc:
 	return 0;
 }
 
-static int hdids[RIO_MAX_MPORTS + 1];
-
 static int rio_get_hdid(int index)
 {
-	if (!hdids[0] || hdids[0] <= index || index >= RIO_MAX_MPORTS)
+	if (ids_num == 0 || ids_num <= index || index >= RIO_MAX_MPORTS)
 		return -1;
 
-	return hdids[index + 1];
+	return hdid[index];
 }
-
-static int rio_hdid_setup(char *str)
-{
-	(void)get_options(str, ARRAY_SIZE(hdids), hdids);
-	return 1;
-}
-
-__setup("riohdid=", rio_hdid_setup);
 
 int rio_register_mport(struct rio_mport *port)
 {
