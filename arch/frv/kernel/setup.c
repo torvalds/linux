@@ -735,7 +735,7 @@ static void __init parse_cmdline_early(char *cmdline)
 		/* "mem=XXX[kKmM]" sets SDRAM size to <mem>, overriding the value we worked
 		 * out from the SDRAM controller mask register
 		 */
-		if (!memcmp(cmdline, "mem=", 4)) {
+		if (!strncmp(cmdline, "mem=", 4)) {
 			unsigned long long mem_size;
 
 			mem_size = memparse(cmdline + 4, &cmdline);
