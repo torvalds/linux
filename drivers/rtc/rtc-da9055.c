@@ -317,8 +317,6 @@ err_rtc:
 
 static int da9055_rtc_remove(struct platform_device *pdev)
 {
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
