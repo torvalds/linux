@@ -556,7 +556,6 @@ static int twl_rtc_remove(struct platform_device *pdev)
 	free_irq(irq, rtc);
 
 	rtc_device_unregister(rtc);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
