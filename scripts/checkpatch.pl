@@ -2646,16 +2646,6 @@ sub process {
 			}
 		}
 
-# check for whitespace before a non-naked semicolon
-		if ($line =~ /^\+.*\S\s+;/) {
-			if (WARN("SPACING",
-				 "space prohibited before semicolon\n" . $herecurr) &&
-			    $fix) {
-				$fixed[$linenr - 1] =~
-				    s/^(\+.*\S)\s+;/$1;/;
-			}
-		}
-
 # Check operator spacing.
 		if (!($line=~/\#\s*include/)) {
 			my $fixed_line = "";
@@ -2918,6 +2908,16 @@ sub process {
 			}
 
 
+		}
+
+# check for whitespace before a non-naked semicolon
+		if ($line =~ /^\+.*\S\s+;/) {
+			if (WARN("SPACING",
+				 "space prohibited before semicolon\n" . $herecurr) &&
+			    $fix) {
+				1 while $fixed[$linenr - 1] =~
+				    s/^(\+.*\S)\s+;/$1;/;
+			}
 		}
 
 # check for multiple assignments
