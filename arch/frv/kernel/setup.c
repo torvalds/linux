@@ -876,6 +876,7 @@ late_initcall(setup_arch_serial);
 static void __init setup_linux_memory(void)
 {
 	unsigned long bootmap_size, low_top_pfn, kstart, kend, high_mem;
+	unsigned long physpages;
 
 	kstart	= (unsigned long) &__kernel_image_start - PAGE_OFFSET;
 	kend	= (unsigned long) &__kernel_image_end - PAGE_OFFSET;
@@ -893,19 +894,19 @@ static void __init setup_linux_memory(void)
 					 );
 
 	/* pass the memory that the kernel can immediately use over to the bootmem allocator */
-	max_mapnr = num_physpages = (memory_end - memory_start) >> PAGE_SHIFT;
+	max_mapnr = physpages = (memory_end - memory_start) >> PAGE_SHIFT;
 	low_top_pfn = (KERNEL_LOWMEM_END - KERNEL_LOWMEM_START) >> PAGE_SHIFT;
 	high_mem = 0;
 
-	if (num_physpages > low_top_pfn) {
+	if (physpages > low_top_pfn) {
 #ifdef CONFIG_HIGHMEM
-		high_mem = num_physpages - low_top_pfn;
+		high_mem = physpages - low_top_pfn;
 #else
-		max_mapnr = num_physpages = low_top_pfn;
+		max_mapnr = physpages = low_top_pfn;
 #endif
 	}
 	else {
-		low_top_pfn = num_physpages;
+		low_top_pfn = physpages;
 	}
 
 	min_low_pfn = memory_start >> PAGE_SHIFT;
@@ -979,7 +980,7 @@ static void __init setup_uclinux_memory(void)
 	free_bootmem(memory_start, memory_end - memory_start);
 
 	high_memory = (void *) (memory_end & PAGE_MASK);
-	max_mapnr = num_physpages = ((unsigned long) high_memory - PAGE_OFFSET) >> PAGE_SHIFT;
+	max_mapnr = ((unsigned long) high_memory - PAGE_OFFSET) >> PAGE_SHIFT;
 
 	min_low_pfn = memory_start >> PAGE_SHIFT;
 	max_low_pfn = memory_end >> PAGE_SHIFT;
