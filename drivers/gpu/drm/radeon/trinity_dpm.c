@@ -921,6 +921,10 @@ static void trinity_setup_uvd_clocks(struct radeon_device *rdev,
 {
 	struct trinity_power_info *pi = trinity_get_pi(rdev);
 
+	if (pi->enable_gfx_power_gating) {
+		trinity_gfx_powergating_enable(rdev, false);
+	}
+
 	if (pi->uvd_dpm) {
 		if (trinity_uvd_clocks_zero(new_rps) &&
 		    !trinity_uvd_clocks_zero(old_rps)) {
@@ -945,6 +949,10 @@ static void trinity_setup_uvd_clocks(struct radeon_device *rdev,
 			return;
 
 		radeon_set_uvd_clocks(rdev, new_rps->vclk, new_rps->dclk);
+	}
+
+	if (pi->enable_gfx_power_gating) {
+		trinity_gfx_powergating_enable(rdev, true);
 	}
 }
 
