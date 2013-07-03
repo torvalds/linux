@@ -156,18 +156,12 @@ static int ds3234_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ds3234_remove(struct spi_device *spi)
-{
-	return 0;
-}
-
 static struct spi_driver ds3234_driver = {
 	.driver = {
 		.name	 = "ds3234",
 		.owner	= THIS_MODULE,
 	},
 	.probe	 = ds3234_probe,
-	.remove = ds3234_remove,
 };
 
 module_spi_driver(ds3234_driver);
