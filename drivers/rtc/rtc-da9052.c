@@ -255,14 +255,8 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int da9052_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver da9052_rtc_driver = {
 	.probe	= da9052_rtc_probe,
-	.remove	= da9052_rtc_remove,
 	.driver = {
 		.name	= "da9052-rtc",
 		.owner	= THIS_MODULE,
