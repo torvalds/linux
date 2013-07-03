@@ -17,8 +17,17 @@ if THERMAL
 
 config THERMAL_HWMON
 	bool
+	prompt "Expose thermal sensors as hwmon device"
 	depends on HWMON=y || HWMON=THERMAL
 	default y
+	help
+	  In case a sensor is registered with the thermal
+	  framework, this option will also register it
+	  as a hwmon. The sensor will then have the common
+	  hwmon sysfs interface.
+
+	  Say 'Y' here if you want all thermal sensors to
+	  have hwmon sysfs interface too.
 
 choice
 	prompt "Default Thermal governor"
