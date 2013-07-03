@@ -494,14 +494,9 @@ EXPORT_SYMBOL(mark_page_accessed);
  * pagevec is drained. This gives a chance for the caller of __lru_cache_add()
  * have the page added to the active list using mark_page_accessed().
  */
-void __lru_cache_add(struct page *page, enum lru_list lru)
+void __lru_cache_add(struct page *page)
 {
 	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
-
-	if (is_active_lru(lru))
-		SetPageActive(page);
-	else
-		ClearPageActive(page);
 
 	page_cache_get(page);
 	if (!pagevec_space(pvec))
@@ -512,11 +507,10 @@ void __lru_cache_add(struct page *page, enum lru_list lru)
 EXPORT_SYMBOL(__lru_cache_add);
 
 /**
- * lru_cache_add_lru - add a page to a page list
+ * lru_cache_add - add a page to a page list
  * @page: the page to be added to the LRU.
- * @lru: the LRU list to which the page is added.
  */
-void lru_cache_add_lru(struct page *page, enum lru_list lru)
+void lru_cache_add(struct page *page)
 {
 	if (PageActive(page)) {
 		VM_BUG_ON(PageUnevictable(page));
@@ -525,7 +519,7 @@ void lru_cache_add_lru(struct page *page, enum lru_list lru)
 	}
 
 	VM_BUG_ON(PageLRU(page));
-	__lru_cache_add(page, lru);
+	__lru_cache_add(page);
 }
 
 /**
@@ -744,6 +738,9 @@ void release_pages(struct page **pages, int nr, int cold)
 			__ClearPageLRU(page);
 			del_page_from_lru_list(page, lruvec, page_off_lru(page));
 		}
+
+		/* Clear Active bit in case of parallel mark_page_accessed */
+		ClearPageActive(page);
 
 		list_add(&page->lru, &pages_to_free);
 	}
