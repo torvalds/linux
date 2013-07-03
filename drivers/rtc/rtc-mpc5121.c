@@ -312,15 +312,14 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 	struct mpc5121_rtc_data *rtc;
 	int err = 0;
 
-	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc(&op->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
 	rtc->regs = of_iomap(op->dev.of_node, 0);
 	if (!rtc->regs) {
 		dev_err(&op->dev, "%s: couldn't map io space\n", __func__);
-		err = -ENOSYS;
-		goto out_free;
+		return -ENOSYS;
 	}
 
 	device_init_wakeup(&op->dev, 1);
@@ -354,10 +353,10 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 			out_be32(&rtc->regs->keep_alive, ka);
 		}
 
-		rtc->rtc = rtc_device_register("mpc5121-rtc", &op->dev,
+		rtc->rtc = devm_rtc_device_register(&op->dev, "mpc5121-rtc",
 						&mpc5121_rtc_ops, THIS_MODULE);
 	} else {
-		rtc->rtc = rtc_device_register("mpc5200-rtc", &op->dev,
+		rtc->rtc = devm_rtc_device_register(&op->dev, "mpc5200-rtc",
 						&mpc5200_rtc_ops, THIS_MODULE);
 	}
 
@@ -377,8 +376,6 @@ out_dispose2:
 out_dispose:
 	irq_dispose_mapping(rtc->irq);
 	iounmap(rtc->regs);
-out_free:
-	kfree(rtc);
 
 	return err;
 }
@@ -392,14 +389,11 @@ static int mpc5121_rtc_remove(struct platform_device *op)
 	out_8(&regs->alm_enable, 0);
 	out_8(&regs->int_enable, in_8(&regs->int_enable) & ~0x1);
 
-	rtc_device_unregister(rtc->rtc);
 	iounmap(rtc->regs);
 	free_irq(rtc->irq, &op->dev);
 	free_irq(rtc->irq_periodic, &op->dev);
 	irq_dispose_mapping(rtc->irq);
 	irq_dispose_mapping(rtc->irq_periodic);
-	dev_set_drvdata(&op->dev, NULL);
-	kfree(rtc);
 
 	return 0;
 }
