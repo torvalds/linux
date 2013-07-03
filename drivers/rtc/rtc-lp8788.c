@@ -314,8 +314,6 @@ static int lp8788_rtc_probe(struct platform_device *pdev)
 
 static int lp8788_rtc_remove(struct platform_device *pdev)
 {
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
