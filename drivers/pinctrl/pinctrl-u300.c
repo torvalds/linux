@@ -1100,7 +1100,6 @@ static int u300_pmx_remove(struct platform_device *pdev)
 	struct u300_pmx *upmx = platform_get_drvdata(pdev);
 
 	pinctrl_unregister(upmx->pctl);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
