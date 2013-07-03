@@ -1322,13 +1322,6 @@ static void clear_vm_unlist(struct vm_struct *vm)
 	vm->flags &= ~VM_UNLIST;
 }
 
-static void insert_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
-			      unsigned long flags, const void *caller)
-{
-	setup_vmalloc_vm(vm, va, flags, caller);
-	clear_vm_unlist(vm);
-}
-
 static struct vm_struct *__get_vm_area_node(unsigned long size,
 		unsigned long align, unsigned long flags, unsigned long start,
 		unsigned long end, int node, gfp_t gfp_mask, const void *caller)
