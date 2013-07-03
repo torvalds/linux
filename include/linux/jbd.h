@@ -77,7 +77,7 @@ static inline void *jbd_alloc(size_t size, gfp_t flags)
 static inline void jbd_free(void *ptr, size_t size)
 {
 	free_pages((unsigned long)ptr, get_order(size));
-};
+}
 
 #define JFS_MIN_JOURNAL_BLOCKS 1024
 
