@@ -60,7 +60,7 @@ if(eint_handle_method == 0) {
         //BT_HWCTL_ALERT("hdev is NULL\n");
     }else{
         //BT_HWCTL_ALERT("EINT arrives! notify host wakeup\n");
-        printk("Send host wakeup command\n");
+        //printk("Send host wakeup command\n");
         hci_send_cmd(hdev, 0xFCC1, 0, NULL);
         /* enable irq after receiving host wakeup command's event */
     }
@@ -70,6 +70,7 @@ if(eint_handle_method == 0) {
     /* Maybe handle the interrupt in user space? */
     eint_gen = 1;
     wake_up_interruptible(&eint_wait);
+
     /* Send host wakeup command in user space, enable irq then */
 //#endif
 }

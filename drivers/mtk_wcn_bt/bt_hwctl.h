@@ -41,6 +41,7 @@
 #include <linux/types.h>
 #include <linux/irq.h>
 #include <linux/rfkill-rk.h>
+#include <linux/wakelock.h>
 
 struct gpio_set {
 	unsigned int gpio;

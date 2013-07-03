@@ -46,6 +46,8 @@
 
 #include "bt_hwctl.h"
 
+extern int mt6622_suspend_flag;
+
 /****************************************************************************
  *                           C O N S T A N T S                              *
 *****************************************************************************/
@@ -105,6 +107,7 @@ int mt6622_suspend(struct platform_device *pdev, pm_message_t state)
 {
     if(irq_num != -1) {
         printk(KERN_INFO MODULE_TAG "mt6622_suspend\n");
+        mt6622_suspend_flag = 1;
         enable_irq_wake(irq_num);
     }
 	return 0;

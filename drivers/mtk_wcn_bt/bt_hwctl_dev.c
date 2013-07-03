@@ -85,6 +85,8 @@ wait_queue_head_t eint_wait;
 int eint_gen;
 int eint_mask;
 int eint_handle_method = 0; // 0: for 4.1; 1: for 4.2 
+struct wake_lock mt6622_irq_wakelock;
+int mt6622_suspend_flag;
 
 struct bt_hwctl {
     bool powerup;
@@ -202,6 +204,12 @@ static unsigned int bt_hwctl_poll(struct file *file, poll_table *wait)
     wait_event_interruptible(eint_wait, (eint_gen == 1 || eint_mask == 1));
     BT_HWCTL_DEBUG("bt_hwctl_poll eint_gen %d, eint_mask %d --\n", eint_gen, eint_mask);
     
+    if(mt6622_suspend_flag == 1) {
+    	printk("mt6622 wake lock 5000ms\n");
+        mt6622_suspend_flag = 0;
+        wake_lock_timeout(&mt6622_irq_wakelock, msecs_to_jiffies(5000));
+    }
+    
     if(eint_gen == 1){
         mask = POLLIN|POLLRDNORM;
         eint_gen = 0;
@@ -310,8 +318,8 @@ static struct file_operations bt_hwctl_fops = {
 static struct platform_driver mt6622_driver = {
     .probe = mt6622_probe,
     .remove = mt6622_remove,
-    //.suspend = mt6622_suspend,
-    //.resume = mt6622_resume,
+    .suspend = mt6622_suspend,
+    .resume = mt6622_resume,
     .driver = {
         .name = "mt6622",
         .owner = THIS_MODULE,
@@ -365,6 +373,8 @@ static int __init bt_hwctl_init(void)
     
     init_waitqueue_head(&eint_wait);
     
+    wake_lock_init(&mt6622_irq_wakelock, WAKE_LOCK_SUSPEND, "mt6622_irq_wakelock");
+    
     /*INIT_WORK(&mtk_wcn_bt_event_work, mtk_wcn_bt_work_fun);
     mtk_wcn_bt_workqueue = create_singlethread_workqueue("mtk_wcn_bt");
     if (!mtk_wcn_bt_workqueue) {
@@ -397,6 +407,8 @@ ERR_EXIT:
 static void __exit bt_hwctl_exit(void)
 {
     BT_HWCTL_DEBUG("bt_hwctl_exit\n");
+    
+    wake_lock_destroy(&mt6622_irq_wakelock);
     
     platform_driver_unregister(&mt6622_driver);
     
