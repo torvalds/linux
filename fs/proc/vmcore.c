@@ -407,20 +407,27 @@ static int __init process_ptload_program_headers_elf64(char *elfptr,
 			phdr_ptr->p_memsz; /* Note sections */
 
 	for (i = 0; i < ehdr_ptr->e_phnum; i++, phdr_ptr++) {
+		u64 paddr, start, end, size;
+
 		if (phdr_ptr->p_type != PT_LOAD)
 			continue;
+
+		paddr = phdr_ptr->p_offset;
+		start = rounddown(paddr, PAGE_SIZE);
+		end = roundup(paddr + phdr_ptr->p_memsz, PAGE_SIZE);
+		size = end - start;
 
 		/* Add this contiguous chunk of memory to vmcore list.*/
 		new = get_new_element();
 		if (!new)
 			return -ENOMEM;
-		new->paddr = phdr_ptr->p_offset;
-		new->size = phdr_ptr->p_memsz;
+		new->paddr = start;
+		new->size = size;
 		list_add_tail(&new->list, vc_list);
 
 		/* Update the program header offset. */
-		phdr_ptr->p_offset = vmcore_off;
-		vmcore_off = vmcore_off + phdr_ptr->p_memsz;
+		phdr_ptr->p_offset = vmcore_off + (paddr - start);
+		vmcore_off = vmcore_off + size;
 	}
 	return 0;
 }
@@ -443,20 +450,27 @@ static int __init process_ptload_program_headers_elf32(char *elfptr,
 			phdr_ptr->p_memsz; /* Note sections */
 
 	for (i = 0; i < ehdr_ptr->e_phnum; i++, phdr_ptr++) {
+		u64 paddr, start, end, size;
+
 		if (phdr_ptr->p_type != PT_LOAD)
 			continue;
+
+		paddr = phdr_ptr->p_offset;
+		start = rounddown(paddr, PAGE_SIZE);
+		end = roundup(paddr + phdr_ptr->p_memsz, PAGE_SIZE);
+		size = end - start;
 
 		/* Add this contiguous chunk of memory to vmcore list.*/
 		new = get_new_element();
 		if (!new)
 			return -ENOMEM;
-		new->paddr = phdr_ptr->p_offset;
-		new->size = phdr_ptr->p_memsz;
+		new->paddr = start;
+		new->size = size;
 		list_add_tail(&new->list, vc_list);
 
 		/* Update the program header offset */
-		phdr_ptr->p_offset = vmcore_off;
-		vmcore_off = vmcore_off + phdr_ptr->p_memsz;
+		phdr_ptr->p_offset = vmcore_off + (paddr - start);
+		vmcore_off = vmcore_off + size;
 	}
 	return 0;
 }
