@@ -187,23 +187,7 @@ static struct platform_driver pps_gpio_driver = {
 	},
 };
 
-static int __init pps_gpio_init(void)
-{
-	int ret = platform_driver_register(&pps_gpio_driver);
-	if (ret < 0)
-		pr_err("failed to register platform driver\n");
-	return ret;
-}
-
-static void __exit pps_gpio_exit(void)
-{
-	platform_driver_unregister(&pps_gpio_driver);
-	pr_debug("unregistered platform driver\n");
-}
-
-module_init(pps_gpio_init);
-module_exit(pps_gpio_exit);
-
+module_platform_driver(pps_gpio_driver);
 MODULE_AUTHOR("Ricardo Martins <rasm@fe.up.pt>");
 MODULE_AUTHOR("James Nuss <jamesnuss@nanometrics.ca>");
 MODULE_DESCRIPTION("Use GPIO pin as PPS source");
