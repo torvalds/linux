@@ -1911,6 +1911,7 @@ int rio_register_mport(struct rio_mport *port)
 	pr_debug("RIO: %s %s id=%d\n", __func__, port->name, port->id);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rio_register_mport);
 
 EXPORT_SYMBOL_GPL(rio_local_get_device_id);
 EXPORT_SYMBOL_GPL(rio_get_device);
