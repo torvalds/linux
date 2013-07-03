@@ -444,7 +444,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	}
 
 	ret = pm_runtime_get_sync(&sdd->pdev->dev);
-	if (ret != 0) {
+	if (ret < 0) {
 		dev_err(dev, "Failed to enable device: %d\n", ret);
 		goto out_tx;
 	}

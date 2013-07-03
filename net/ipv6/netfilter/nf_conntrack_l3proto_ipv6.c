@@ -204,7 +204,7 @@ static unsigned int __ipv6_conntrack_in(struct net *net,
 		if (ct != NULL && !nf_ct_is_untracked(ct)) {
 			help = nfct_help(ct);
 			if ((help && help->helper) || !nf_ct_is_confirmed(ct)) {
-				nf_conntrack_get_reasm(skb);
+				nf_conntrack_get_reasm(reasm);
 				NF_HOOK_THRESH(NFPROTO_IPV6, hooknum, reasm,
 					       (struct net_device *)in,
 					       (struct net_device *)out,

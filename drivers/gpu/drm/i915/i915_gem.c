@@ -1801,7 +1801,14 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 			gfp |= __GFP_NORETRY | __GFP_NOWARN | __GFP_NO_KSWAPD;
 			gfp &= ~(__GFP_IO | __GFP_WAIT);
 		}
-
+#ifdef CONFIG_SWIOTLB
+		if (swiotlb_nr_tbl()) {
+			st->nents++;
+			sg_set_page(sg, page, PAGE_SIZE, 0);
+			sg = sg_next(sg);
+			continue;
+		}
+#endif
 		if (!i || page_to_pfn(page) != last_pfn + 1) {
 			if (i)
 				sg = sg_next(sg);
@@ -1812,8 +1819,10 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 		}
 		last_pfn = page_to_pfn(page);
 	}
-
-	sg_mark_end(sg);
+#ifdef CONFIG_SWIOTLB
+	if (!swiotlb_nr_tbl())
+#endif
+		sg_mark_end(sg);
 	obj->pages = st;
 
 	if (i915_gem_object_needs_bit17_swizzle(obj))
@@ -2117,25 +2126,15 @@ static void i915_gem_reset_ring_lists(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void i915_gem_reset_fences(struct drm_device *dev)
+void i915_gem_restore_fences(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
-
-		if (reg->obj)
-			i915_gem_object_fence_lost(reg->obj);
-
-		i915_gem_write_fence(dev, i, NULL);
-
-		reg->pin_count = 0;
-		reg->obj = NULL;
-		INIT_LIST_HEAD(&reg->lru_list);
+		i915_gem_write_fence(dev, i, reg->obj);
 	}
-
-	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 }
 
 void i915_gem_reset(struct drm_device *dev)
@@ -2158,8 +2157,7 @@ void i915_gem_reset(struct drm_device *dev)
 		obj->base.read_domains &= ~I915_GEM_GPU_DOMAINS;
 	}
 
-	/* The fence registers are invalidated so clear them out */
-	i915_gem_reset_fences(dev);
+	i915_gem_restore_fences(dev);
 }
 
 /**
@@ -3865,8 +3863,6 @@ i915_gem_idle(struct drm_device *dev)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_gem_evict_everything(dev);
 
-	i915_gem_reset_fences(dev);
-
 	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
 	 * We need to replace this with a semaphore, or something.
 	 * And not confound mm.suspended!
@@ -4193,7 +4189,8 @@ i915_gem_load(struct drm_device *dev)
 		dev_priv->num_fence_regs = 8;
 
 	/* Initialize fence registers to zero */
-	i915_gem_reset_fences(dev);
+	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
+	i915_gem_restore_fences(dev);
 
 	i915_gem_detect_bit_6_swizzle(dev);
 	init_waitqueue_head(&dev_priv->pending_flip_queue);
