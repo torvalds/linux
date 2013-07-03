@@ -618,7 +618,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		}
 	}
 
-	ssp->clk = clk_get(&pdev->dev, NULL);
+	ssp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ssp->clk)) {
 		ret = PTR_ERR(ssp->clk);
 		goto out_mmc_free;
@@ -632,7 +632,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		dev_err(mmc_dev(host->mmc),
 			"%s: failed to request dma\n", __func__);
 		ret = -ENODEV;
-		goto out_clk_put;
+		goto out_clk_disable;
 	}
 
 	/* set mmc core parameters */
@@ -685,9 +685,8 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 out_free_dma:
 	if (ssp->dmach)
 		dma_release_channel(ssp->dmach);
-out_clk_put:
+out_clk_disable:
 	clk_disable_unprepare(ssp->clk);
-	clk_put(ssp->clk);
 out_mmc_free:
 	mmc_free_host(mmc);
 	return ret;
@@ -705,7 +704,6 @@ static int mxs_mmc_remove(struct platform_device *pdev)
 		dma_release_channel(ssp->dmach);
 
 	clk_disable_unprepare(ssp->clk);
-	clk_put(ssp->clk);
 
 	mmc_free_host(mmc);
 
