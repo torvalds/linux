@@ -212,5 +212,8 @@ int ping_v6_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 						 len);
 	}
 
-	return err;
+	if (err)
+		return err;
+
+	return len;
 }
