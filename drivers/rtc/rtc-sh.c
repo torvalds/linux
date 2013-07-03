@@ -770,8 +770,6 @@ static int __exit sh_rtc_remove(struct platform_device *pdev)
 	clk_disable(rtc->clk);
 	clk_put(rtc->clk);
 
-	platform_set_drvdata(pdev, NULL);
-
 	kfree(rtc);
 
 	return 0;
