@@ -59,7 +59,7 @@ static int rk30_lcdc_clk_disable(struct rk30_lcdc_device *lcdc_dev)
 	spin_lock(&lcdc_dev->reg_lock);
 	lcdc_dev->clk_on = 0;
 	spin_unlock(&lcdc_dev->reg_lock);
-	
+	mdelay(30);
 	clk_disable(lcdc_dev->dclk);
 	clk_disable(lcdc_dev->hclk);
 	clk_disable(lcdc_dev->aclk);
@@ -1276,7 +1276,7 @@ static int rk30_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,bool 
 	    	dev_drv->pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
 			
 	}
-	
+
 	ft = (u64)(screen->upper_margin + screen->lower_margin + screen->y_res +screen->vsync_len)*
 	(screen->left_margin + screen->right_margin + screen->x_res + screen->hsync_len)*
 	(dev_drv->pixclock);       // one frame time ,(pico seconds)
@@ -1385,8 +1385,7 @@ int rk30_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 		spin_unlock(&lcdc_dev->reg_lock);
 		return 0;
 	}
-	
-	mdelay(30);	
+		
 	rk30_lcdc_clk_disable(lcdc_dev);
 
 	return 0;
