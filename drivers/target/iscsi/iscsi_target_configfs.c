@@ -20,6 +20,7 @@
  ****************************************************************************/
 
 #include <linux/configfs.h>
+#include <linux/ctype.h>
 #include <linux/export.h>
 #include <linux/inet.h>
 #include <target/target_core_base.h>
@@ -78,11 +79,12 @@ static ssize_t lio_target_np_store_sctp(
 	struct iscsi_tpg_np *tpg_np = container_of(se_tpg_np,
 				struct iscsi_tpg_np, se_tpg_np);
 	struct iscsi_tpg_np *tpg_np_sctp = NULL;
-	char *endptr;
 	u32 op;
 	int ret;
 
-	op = simple_strtoul(page, &endptr, 0);
+	ret = kstrtou32(page, 0, &op);
+	if (ret)
+		return ret;
 	if ((op != 1) && (op != 0)) {
 		pr_err("Illegal value for tpg_enable: %u\n", op);
 		return -EINVAL;
@@ -381,11 +383,12 @@ static ssize_t iscsi_nacl_attrib_store_##name(				\
 {									\
 	struct iscsi_node_acl *nacl = container_of(se_nacl, struct iscsi_node_acl, \
 					se_node_acl);			\
-	char *endptr;							\
 	u32 val;							\
 	int ret;							\
 									\
-	val = simple_strtoul(page, &endptr, 0);				\
+	ret = kstrtou32(page, 0, &val);					\
+	if (ret)							\
+		return ret;						\
 	ret = iscsit_na_##name(nacl, val);				\
 	if (ret < 0)							\
 		return ret;						\
@@ -788,11 +791,12 @@ static ssize_t lio_target_nacl_store_cmdsn_depth(
 	struct iscsi_portal_group *tpg = container_of(se_tpg,
 			struct iscsi_portal_group, tpg_se_tpg);
 	struct config_item *acl_ci, *tpg_ci, *wwn_ci;
-	char *endptr;
 	u32 cmdsn_depth = 0;
 	int ret;
 
-	cmdsn_depth = simple_strtoul(page, &endptr, 0);
+	ret = kstrtou32(page, 0, &cmdsn_depth);
+	if (ret)
+		return ret;
 	if (cmdsn_depth > TA_DEFAULT_CMDSN_DEPTH_MAX) {
 		pr_err("Passed cmdsn_depth: %u exceeds"
 			" TA_DEFAULT_CMDSN_DEPTH_MAX: %u\n", cmdsn_depth,
@@ -976,14 +980,15 @@ static ssize_t iscsi_tpg_attrib_store_##name(				\
 {									\
 	struct iscsi_portal_group *tpg = container_of(se_tpg,		\
 			struct iscsi_portal_group, tpg_se_tpg);	\
-	char *endptr;							\
 	u32 val;							\
 	int ret;							\
 									\
 	if (iscsit_get_tpg(tpg) < 0)					\
 		return -EINVAL;						\
 									\
-	val = simple_strtoul(page, &endptr, 0);				\
+	ret = kstrtou32(page, 0, &val);					\
+	if (ret)							\
+		goto out;						\
 	ret = iscsit_ta_##name(tpg, val);				\
 	if (ret < 0)							\
 		goto out;						\
@@ -1211,13 +1216,14 @@ static ssize_t iscsi_tpg_param_store_##name(				\
 	struct iscsi_portal_group *tpg = container_of(se_tpg,		\
 			struct iscsi_portal_group, tpg_se_tpg);		\
 	char *buf;							\
-	int ret;							\
+	int ret, len;							\
 									\
 	buf = kzalloc(PAGE_SIZE, GFP_KERNEL);				\
 	if (!buf)							\
 		return -ENOMEM;						\
-	snprintf(buf, PAGE_SIZE, "%s=%s", __stringify(name), page);	\
-	buf[strlen(buf)-1] = '\0'; /* Kill newline */			\
+	len = snprintf(buf, PAGE_SIZE, "%s=%s", __stringify(name), page);	\
+	if (isspace(buf[len-1]))					\
+		buf[len-1] = '\0'; /* Kill newline */			\
 									\
 	if (iscsit_get_tpg(tpg) < 0) {					\
 		kfree(buf);						\
@@ -1354,11 +1360,12 @@ static ssize_t lio_target_tpg_store_enable(
 {
 	struct iscsi_portal_group *tpg = container_of(se_tpg,
 			struct iscsi_portal_group, tpg_se_tpg);
-	char *endptr;
 	u32 op;
-	int ret = 0;
+	int ret;
 
-	op = simple_strtoul(page, &endptr, 0);
+	ret = kstrtou32(page, 0, &op);
+	if (ret)
+		return ret;
 	if ((op != 1) && (op != 0)) {
 		pr_err("Illegal value for tpg_enable: %u\n", op);
 		return -EINVAL;
@@ -1406,15 +1413,15 @@ static struct se_portal_group *lio_target_tiqn_addtpg(
 {
 	struct iscsi_portal_group *tpg;
 	struct iscsi_tiqn *tiqn;
-	char *tpgt_str, *end_ptr;
-	int ret = 0;
-	unsigned short int tpgt;
+	char *tpgt_str;
+	int ret;
+	u16 tpgt;
 
 	tiqn = container_of(wwn, struct iscsi_tiqn, tiqn_wwn);
 	/*
 	 * Only tpgt_# directory groups can be created below
 	 * target/iscsi/iqn.superturodiskarry/
-	*/
+	 */
 	tpgt_str = strstr(name, "tpgt_");
 	if (!tpgt_str) {
 		pr_err("Unable to locate \"tpgt_#\" directory"
@@ -1422,7 +1429,9 @@ static struct se_portal_group *lio_target_tiqn_addtpg(
 		return NULL;
 	}
 	tpgt_str += 5; /* Skip ahead of "tpgt_" */
-	tpgt = (unsigned short int) simple_strtoul(tpgt_str, &end_ptr, 0);
+	ret = kstrtou16(tpgt_str, 0, &tpgt);
+	if (ret)
+		return NULL;
 
 	tpg = iscsit_alloc_portal_group(tiqn, tpgt);
 	if (!tpg)
@@ -1630,10 +1639,12 @@ static ssize_t iscsi_disc_store_enforce_discovery_auth(
 {
 	struct iscsi_param *param;
 	struct iscsi_portal_group *discovery_tpg = iscsit_global->discovery_tpg;
-	char *endptr;
 	u32 op;
+	int err;
 
-	op = simple_strtoul(page, &endptr, 0);
+	err = kstrtou32(page, 0, &op);
+	if (err)
+		return -EINVAL;
 	if ((op != 1) && (op != 0)) {
 		pr_err("Illegal value for enforce_discovery_auth:"
 				" %u\n", op);
