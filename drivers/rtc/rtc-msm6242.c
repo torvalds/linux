@@ -111,8 +111,8 @@ static void msm6242_lock(struct msm6242_priv *priv)
 	}
 
 	if (!cnt)
-		pr_warning("msm6242: timed out waiting for RTC (0x%x)\n",
-			   msm6242_read(priv, MSM6242_CD));
+		pr_warn("msm6242: timed out waiting for RTC (0x%x)\n",
+			msm6242_read(priv, MSM6242_CD));
 }
 
 static void msm6242_unlock(struct msm6242_priv *priv)
