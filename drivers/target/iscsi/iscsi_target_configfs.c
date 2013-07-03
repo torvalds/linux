@@ -1790,13 +1790,12 @@ static int lio_queue_status(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int lio_queue_tm_rsp(struct se_cmd *se_cmd)
+static void lio_queue_tm_rsp(struct se_cmd *se_cmd)
 {
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
 
 	cmd->i_state = ISTATE_SEND_TASKMGTRSP;
 	iscsit_add_cmd_to_response_queue(cmd, cmd->conn, cmd->i_state);
-	return 0;
 }
 
 static char *lio_tpg_get_endpoint_wwn(struct se_portal_group *se_tpg)

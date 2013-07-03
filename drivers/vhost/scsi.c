@@ -528,9 +528,9 @@ static int tcm_vhost_queue_status(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int tcm_vhost_queue_tm_rsp(struct se_cmd *se_cmd)
+static void tcm_vhost_queue_tm_rsp(struct se_cmd *se_cmd)
 {
-	return 0;
+	return;
 }
 
 static void tcm_vhost_free_evt(struct vhost_scsi *vs, struct tcm_vhost_evt *evt)
