@@ -436,7 +436,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		pdata->irq = -1;
 	}
 
-	if (pdata->irq >=0)
+	if (pdata->irq >= 0)
 		device_init_wakeup(&pdev->dev, 1);
 
 	rtc = devm_rtc_device_register(&pdev->dev, pdev->name, &mxc_rtc_ops,
