@@ -1242,6 +1242,13 @@ config RTC_DRV_SNVS
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-snvs".
 
+config RTC_DRV_SIRFSOC
+	tristate "SiRFSOC RTC"
+	depends on ARCH_SIRF
+	help
+	  Say "yes" here to support the real time clock on SiRF SOC chips.
+	  This driver can also be built as a module called rtc-sirfsoc.
+
 comment "HID Sensor RTC drivers"
 
 config RTC_DRV_HID_SENSOR_TIME
