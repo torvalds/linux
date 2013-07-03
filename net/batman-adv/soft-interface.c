@@ -298,8 +298,12 @@ static int batadv_interface_tx(struct sk_buff *skb,
 
 		batadv_dat_snoop_outgoing_arp_reply(bat_priv, skb);
 
-		ret = batadv_send_skb_unicast(bat_priv, skb, vid);
-		if (ret != 0)
+		if (is_multicast_ether_addr(ethhdr->h_dest))
+			ret = batadv_send_skb_via_gw(bat_priv, skb, vid);
+		else
+			ret = batadv_send_skb_via_tt(bat_priv, skb, vid);
+
+		if (ret == NET_XMIT_DROP)
 			goto dropped_freed;
 	}
 
