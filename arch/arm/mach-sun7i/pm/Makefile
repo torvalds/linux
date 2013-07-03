@@ -1,36 +1,8 @@
+obj-y	 += pm.o standby.o mem_tmr.o mem_timing.o mem_divlibc.o
 
-obj-y	 += pm_tmp.o standby.o mem.o
-pm_tmp-y += ./mem_mapping.o
-pm_tmp-y += ./mem_divlibc.o
-pm_tmp-y += ./mem_cpu.o
-pm_tmp-y += ./mem_cpu_asm.o
-pm_tmp-y += ./mem_mmu_pc_asm.o
-pm_tmp-y += ./mem_mmu_pc.o
-pm_tmp-y += ./mem_int.o
-pm_tmp-y += ./mem_tmr.o
-pm_tmp-y += ./mem_twi.o
-pm_tmp-y += ./mem_gpio.o
-pm_tmp-y += ./mem_serial.o
-pm_tmp-y += ./mem_sram.o
-pm_tmp-y += ./mem_ccu.o
-pm_tmp-y += ./pm_debug.o
-pm_tmp-y += ./mem_timing.o
-pm_tmp-y += ./pm.o
-pm_tmp-y += ./super_power.o
-pm_tmp-y += ./super_twi.o
-pm_tmp-y += ./super_clock.o
-
-KBUILD_CFLAGS += -I$(srctree)/arch/arm/mach-sun7i/pm/standby/super
+KBUILD_CFLAGS += -I$(srctree)/arch/arm/mach-sun7i/pm/standby
 
 $(obj)/standby.o: $(obj)/standby/standby.bin
 
 $(obj)/standby/standby.bin: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/standby
-
-$(obj)/mem.o: $(obj)/standby/super/suspend.bin $(obj)/standby/super/resume0.bin
-
-$(obj)/standby/super/suspend.bin: FORCE
-	$(Q)$(MAKE) $(build)=$(obj)/standby/super
-
-$(obj)/standby/super/resume0.bin: FORCE
-	$(Q)$(MAKE) $(build)=$(obj)/standby/super

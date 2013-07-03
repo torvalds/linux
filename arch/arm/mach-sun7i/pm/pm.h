@@ -9,16 +9,11 @@
  * the Free Software Foundation.
  */
 
-//#include "pm_types.h" 
+#include "pm_types.h" 
 #include "pm_config.h"
 #include "pm_errcode.h"
-#include "pm_debug.h"
-#include "mem_cpu.h"
-#include "mem_serial.h"
-#include "mem_printk.h"
 #include "mach/platform.h"
 #include "mem_divlibc.h"
-#include "mem_int.h"
 #include "mem_tmr.h"
 #include <mach/ccmu.h>
 #include "mem_timing.h"

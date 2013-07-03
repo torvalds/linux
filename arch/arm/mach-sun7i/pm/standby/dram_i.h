@@ -14,7 +14,7 @@
 #include <mach/dram.h>
 #include "../pm_types.h" 
 #include "../pm.h"
-#include "../mem_int.h"
+#include "mem_int.h"
 
 #define DRAMC_IO_BASE       SW_PA_DRAM_IO_BASE
 #define DRAMC_MEM_SIZE      0x400

@@ -9,7 +9,6 @@ void __div0(void)
 
 #elif defined(__KERNEL__)
 #include <linux/module.h>
-#include "pm_i.h"
 #endif
 
 __u32 raw_lib_udiv(__u32 dividend, __u32 divisior)

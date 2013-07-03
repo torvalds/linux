@@ -186,58 +186,12 @@ static int __devexit dma_drv_remove(struct platform_device *dev)
 	return __dma_deinit();
 }
 
-#ifdef CONFIG_PM
-/**
- * dma_drv_suspend - dma driver suspend function.
- * @dev:	platform device pointer
- * @state:	power state
- *
- * Returns 0 if success, otherwise means err.
- */
-int dma_drv_suspend(struct device *dev)
-{
-	if(NORMAL_STANDBY == standby_type)
- 		DMA_INF("%s(%d): normal standby\n", __func__, __LINE__);
-	else if(SUPER_STANDBY == standby_type) {
- 		DMA_INF("%s(%d): super standby\n", __func__, __LINE__);
-		if(0 != dma_clk_deinit())
-			DMA_ERR("%s err, dma_clk_deinit failed\n", __func__);
-	}
-	return 0;
-}
-
-/**
- * dma_drv_resume - dma driver resume function.
- * @dev:	platform device pointer
- *
- * Returns 0 if success, otherwise means err.
- */
-int dma_drv_resume(struct device *dev)
-{
-	if(NORMAL_STANDBY == standby_type)
- 		DMA_INF("%s(%d): normal standby\n", __func__, __LINE__);
-	else if(SUPER_STANDBY == standby_type) {
- 		DMA_INF("%s(%d): super standby\n", __func__, __LINE__);
-		if(0 != dma_clk_init())
-			DMA_ERR("%s err, dma_clk_init failed\n", __func__);
-	}
-	return 0;
-}
-
-static const struct dev_pm_ops sw_dmac_pm = {
-	.suspend	= dma_drv_suspend,
-	.resume		= dma_drv_resume,
-};
-#endif
 static struct platform_driver sw_dmac_driver = {
 	.probe          = dma_drv_probe,
 	.remove         = __devexit_p(dma_drv_remove),
 	.driver         = {
 		.name   = "sw_dmac",
 		.owner  = THIS_MODULE,
-#ifdef CONFIG_PM
-		.pm 	= &sw_dmac_pm,
-#endif
 		},
 };
 

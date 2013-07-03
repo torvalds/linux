@@ -18,6 +18,9 @@
 #ifndef __MEM_TIMING_H__
 #define __MEM_TIMING_H__
 
+#include "pm_debug.h"
+#include "pm_types.h" 
+
 __u32 get_cyclecount (void);
 void backup_perfcounter(void);
 void init_perfcounters (__u32 do_reset, __u32 enable_divider);
@@ -32,4 +35,3 @@ void set_event_counter(enum counter_type_e type);
 int get_event_counter(enum counter_type_e type);
 
 #endif  /* __MEM_TIMING_H__ */
-

@@ -18,6 +18,8 @@
 #ifndef __MEM_TMR_H__
 #define __MEM_TMR_H__
 
+#include "pm_types.h" 
+
 typedef struct __MEM_TMR_REG
 {
 	// offset:0x00

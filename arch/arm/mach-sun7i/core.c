@@ -123,9 +123,6 @@ static void __init sun7i_reserve(void)
 	pr_info("memblock reserve %lx(%x) for sysconfig, ret=%d\n", SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE,
 		memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE));
 
-	pr_info("memblock reserve %x(%x) for standby, ret=%d\n", SUPER_STANDBY_BASE, SUPER_STANDBY_SIZE,
-		memblock_reserve(SUPER_STANDBY_BASE, SUPER_STANDBY_SIZE));
-
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 	pr_info("memblock reserve %lx(%lx) for fb, ret=%d\n", fb_start, fb_size,
 		memblock_reserve(fb_start, fb_size));

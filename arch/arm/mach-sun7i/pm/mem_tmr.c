@@ -1,6 +1,6 @@
-#include "pm_types.h"
-#include "pm_i.h"
-
+#include <plat/hardware.h>
+#include <plat/platform.h>
+#include "mem_tmr.h"
 
 /*
 *********************************************************************************************************

@@ -20,7 +20,7 @@
 
 #include "../pm_types.h" 
 #include "../pm.h"
-#include "../mem_int.h"
+#include "mem_int.h"
 
 #include <linux/power/aw_pm.h>
 #include <mach/platform.h>
