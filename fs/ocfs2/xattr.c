@@ -2751,20 +2751,12 @@ static int ocfs2_xattr_ibody_set(struct inode *inode,
 {
 	int ret;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *)xs->inode_bh->b_data;
 	struct ocfs2_xa_loc loc;
 
 	if (inode->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE)
 		return -ENOSPC;
 
 	down_write(&oi->ip_alloc_sem);
-	if (!(oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL)) {
-		if (!ocfs2_xattr_has_space_inline(inode, di)) {
-			ret = -ENOSPC;
-			goto out;
-		}
-	}
-
 	if (!(oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL)) {
 		ret = ocfs2_xattr_ibody_init(inode, xs->inode_bh, ctxt);
 		if (ret) {
