@@ -601,11 +601,28 @@ static void qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	list_del(&qh->intr_node);
 }
 
+static void cancel_unlink_wait_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
+{
+	if (qh->qh_state != QH_STATE_LINKED ||
+			list_empty(&qh->unlink_node))
+		return;
+
+	list_del_init(&qh->unlink_node);
+
+	/*
+	 * TODO: disable the event of EHCI_HRTIMER_START_UNLINK_INTR for
+	 * avoiding unnecessary CPU wakeup
+	 */
+}
+
 static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	/* If the QH isn't linked then there's nothing we can do. */
 	if (qh->qh_state != QH_STATE_LINKED)
 		return;
+
+	/* if the qh is waiting for unlink, cancel it now */
+	cancel_unlink_wait_intr(ehci, qh);
 
 	qh_unlink_periodic (ehci, qh);
 
@@ -629,6 +646,27 @@ static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	else if (ehci->intr_unlink.next == &qh->unlink_node) {
 		ehci_enable_event(ehci, EHCI_HRTIMER_UNLINK_INTR, true);
 		++ehci->intr_unlink_cycle;
+	}
+}
+
+/*
+ * It is common only one intr URB is scheduled on one qh, and
+ * given complete() is run in tasklet context, introduce a bit
+ * delay to avoid unlink qh too early.
+ */
+static void start_unlink_intr_wait(struct ehci_hcd *ehci,
+				   struct ehci_qh *qh)
+{
+	qh->unlink_cycle = ehci->intr_unlink_wait_cycle;
+
+	/* New entries go at the end of the intr_unlink_wait list */
+	list_add_tail(&qh->unlink_node, &ehci->intr_unlink_wait);
+
+	if (ehci->rh_state < EHCI_RH_RUNNING)
+		ehci_handle_start_intr_unlinks(ehci);
+	else if (ehci->intr_unlink_wait.next == &qh->unlink_node) {
+		ehci_enable_event(ehci, EHCI_HRTIMER_START_UNLINK_INTR, true);
+		++ehci->intr_unlink_wait_cycle;
 	}
 }
 
@@ -889,6 +927,9 @@ static int intr_submit (
 	if (qh->qh_state == QH_STATE_IDLE) {
 		qh_refresh(ehci, qh);
 		qh_link_periodic(ehci, qh);
+	} else {
+		/* cancel unlink wait for the qh */
+		cancel_unlink_wait_intr(ehci, qh);
 	}
 
 	/* ... update usbfs periodic stats */
@@ -924,9 +965,11 @@ static void scan_intr(struct ehci_hcd *ehci)
 			 * in qh_unlink_periodic().
 			 */
 			temp = qh_completions(ehci, qh);
-			if (unlikely(temp || (list_empty(&qh->qtd_list) &&
-					qh->qh_state == QH_STATE_LINKED)))
+			if (unlikely(temp))
 				start_unlink_intr(ehci, qh);
+			else if (unlikely(list_empty(&qh->qtd_list) &&
+					qh->qh_state == QH_STATE_LINKED))
+				start_unlink_intr_wait(ehci, qh);
 		}
 	}
 }
