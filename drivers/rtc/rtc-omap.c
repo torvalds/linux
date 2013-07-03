@@ -23,9 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
-
-#include <asm/io.h>
-
+#include <linux/io.h>
 
 /* The OMAP1 RTC is a year/month/day/hours/minutes/seconds BCD clock
  * with century-range alarm matching, driven by the 32kHz clock.
