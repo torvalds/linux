@@ -165,13 +165,15 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 	cn->corename = NULL;
 	if (expand_corename(cn, core_name_size))
 		return -ENOMEM;
+	cn->corename[0] = '\0';
+
+	if (ispipe)
+		++pat_ptr;
 
 	/* Repeat as long as we have more pattern to process and more output
 	   space */
 	while (*pat_ptr) {
 		if (*pat_ptr != '%') {
-			if (*pat_ptr == 0)
-				goto out;
 			err = cn_printf(cn, "%c", *pat_ptr++);
 		} else {
 			switch (*++pat_ptr) {
@@ -240,6 +242,7 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 			return err;
 	}
 
+out:
 	/* Backward compatibility with core_uses_pid:
 	 *
 	 * If core_pattern does not include a %p (as is the default)
@@ -250,7 +253,6 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 		if (err)
 			return err;
 	}
-out:
 	return ispipe;
 }
 
@@ -580,7 +582,7 @@ void do_coredump(siginfo_t *siginfo)
 			goto fail_dropcount;
 		}
 
-		helper_argv = argv_split(GFP_KERNEL, cn.corename+1, NULL);
+		helper_argv = argv_split(GFP_KERNEL, cn.corename, NULL);
 		if (!helper_argv) {
 			printk(KERN_WARNING "%s failed to allocate memory\n",
 			       __func__);
@@ -597,7 +599,7 @@ void do_coredump(siginfo_t *siginfo)
 
 		argv_free(helper_argv);
 		if (retval) {
-			printk(KERN_INFO "Core dump to %s pipe failed\n",
+			printk(KERN_INFO "Core dump to |%s pipe failed\n",
 			       cn.corename);
 			goto close_fail;
 		}
