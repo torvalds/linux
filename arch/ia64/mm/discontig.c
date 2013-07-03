@@ -593,7 +593,7 @@ void __init find_memory(void)
  * find_pernode_space() does most of this already, we just need to set
  * local_per_cpu_offset
  */
-void __cpuinit *per_cpu_init(void)
+void *per_cpu_init(void)
 {
 	int cpu;
 	static int first_time = 1;
