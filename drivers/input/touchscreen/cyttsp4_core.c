@@ -2025,7 +2025,7 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 	if (!cd->xfer_buf) {
 		dev_err(dev, "%s: Error, kzalloc\n", __func__);
 		rc = -ENOMEM;
-		goto error_alloc_data;
+		goto error_free_cd;
 	}
 
 	/* Initialize device info */
@@ -2049,7 +2049,7 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 	cd->irq = gpio_to_irq(cd->cpdata->irq_gpio);
 	if (cd->irq < 0) {
 		rc = -EINVAL;
-		goto error_gpio_irq;
+		goto error_free_cd;
 	}
 
 	dev_set_drvdata(dev, cd);
@@ -2117,7 +2117,7 @@ error_request_irq:
 	if (cd->cpdata->init)
 		cd->cpdata->init(cd->cpdata, 0, dev);
 	dev_set_drvdata(dev, NULL);
-error_gpio_irq:
+error_free_cd:
 	kfree(cd);
 error_alloc_data:
 error_no_pdata:
