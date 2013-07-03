@@ -438,7 +438,6 @@ static int __exit at91_rtc_remove(struct platform_device *pdev)
 
 	rtc_device_unregister(rtc);
 	iounmap(at91_rtc_regs);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
