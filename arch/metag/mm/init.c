@@ -376,31 +376,21 @@ void __init paging_init(unsigned long mem_end)
 
 void __init mem_init(void)
 {
-	int nid;
-
 #ifdef CONFIG_HIGHMEM
 	unsigned long tmp;
 
 	/*
 	 * Explicitly reset zone->managed_pages because highmem pages are
-	 * freed before calling free_all_bootmem_node();
+	 * freed before calling free_all_bootmem();
 	 */
 	reset_all_zones_managed_pages();
 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++)
 		free_highmem_page(pfn_to_page(tmp));
 #endif /* CONFIG_HIGHMEM */
 
-	for_each_online_node(nid) {
-		pg_data_t *pgdat = NODE_DATA(nid);
-
-		if (pgdat->node_spanned_pages)
-			free_all_bootmem_node(pgdat);
-	}
-
+	free_all_bootmem();
 	mem_init_print_info(NULL);
 	show_mem(0);
-
-	return;
 }
 
 void free_initmem(void)
