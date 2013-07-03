@@ -499,6 +499,9 @@ typedef enum {
 					 * many dirty file pages at the tail
 					 * of the LRU.
 					 */
+	ZONE_WRITEBACK,			/* reclaim scanning has recently found
+					 * many pages under writeback
+					 */
 } zone_flags_t;
 
 static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
@@ -524,6 +527,11 @@ static inline int zone_is_reclaim_congested(const struct zone *zone)
 static inline int zone_is_reclaim_dirty(const struct zone *zone)
 {
 	return test_bit(ZONE_TAIL_LRU_DIRTY, &zone->flags);
+}
+
+static inline int zone_is_reclaim_writeback(const struct zone *zone)
+{
+	return test_bit(ZONE_WRITEBACK, &zone->flags);
 }
 
 static inline int zone_is_reclaim_locked(const struct zone *zone)
