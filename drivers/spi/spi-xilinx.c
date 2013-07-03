@@ -355,17 +355,51 @@ static const struct of_device_id xilinx_spi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, xilinx_spi_of_match);
 
-struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
-	u32 irq, s16 bus_num, int num_cs, int bits_per_word)
+static int xilinx_spi_probe(struct platform_device *dev)
 {
-	struct spi_master *master;
 	struct xilinx_spi *xspi;
-	int ret;
+	struct xspi_platform_data *pdata;
+	struct resource *r;
+	int ret, irq, num_cs = 0, bits_per_word = 8;
+	struct spi_master *master;
 	u32 tmp;
+	u8 i;
 
-	master = spi_alloc_master(dev, sizeof(struct xilinx_spi));
+	pdata = dev->dev.platform_data;
+	if (pdata) {
+		num_cs = pdata->num_chipselect;
+		bits_per_word = pdata->bits_per_word;
+	}
+
+#ifdef CONFIG_OF
+	if (dev->dev.of_node) {
+		const __be32 *prop;
+		int len;
+
+		/* number of slave select bits is required */
+		prop = of_get_property(dev->dev.of_node, "xlnx,num-ss-bits",
+				       &len);
+		if (prop && len >= sizeof(*prop))
+			num_cs = __be32_to_cpup(prop);
+	}
+#endif
+
+	if (!num_cs) {
+		dev_err(&dev->dev, "Missing slave select configuration data\n");
+		return -EINVAL;
+	}
+
+	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	if (!r)
+		return -ENODEV;
+
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0)
+		return -ENXIO;
+
+	master = spi_alloc_master(&dev->dev, sizeof(struct xilinx_spi));
 	if (!master)
-		return NULL;
+		return -ENODEV;
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
@@ -378,17 +412,17 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 	xspi->bitbang.master->setup = xilinx_spi_setup;
 	init_completion(&xspi->done);
 
-	xspi->regs = devm_ioremap_resource(dev, mem);
+	xspi->regs = devm_ioremap_resource(&dev->dev, r);
 	if (IS_ERR(xspi->regs)) {
 		ret = PTR_ERR(xspi->regs);
 		goto put_master;
 	}
 
-	master->bus_num = bus_num;
+	master->bus_num = dev->dev.id;
 	master->num_chipselect = num_cs;
-	master->dev.of_node = dev->of_node;
+	master->dev.of_node = dev->dev.of_node;
 
-	xspi->mem = *mem;
+	xspi->mem = *r;
 	xspi->irq = irq;
 
 	/*
@@ -419,8 +453,10 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 	} else if (xspi->bits_per_word == 32) {
 		xspi->tx_fn = xspi_tx32;
 		xspi->rx_fn = xspi_rx32;
-	} else
+	} else {
+		ret = -EINVAL;
 		goto put_master;
+	}
 
 
 	/* SPI controller initializations */
@@ -433,80 +469,12 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 
 	ret = spi_bitbang_start(&xspi->bitbang);
 	if (ret) {
-		dev_err(dev, "spi_bitbang_start FAILED\n");
+		dev_err(&dev->dev, "spi_bitbang_start FAILED\n");
 		goto free_irq;
 	}
 
-	dev_info(dev, "at 0x%08llX mapped to 0x%p, irq=%d\n",
-		(unsigned long long)mem->start, xspi->regs, xspi->irq);
-	return master;
-
-free_irq:
-	free_irq(xspi->irq, xspi);
-put_master:
-	spi_master_put(master);
-	return NULL;
-}
-EXPORT_SYMBOL(xilinx_spi_init);
-
-void xilinx_spi_deinit(struct spi_master *master)
-{
-	struct xilinx_spi *xspi;
-
-	xspi = spi_master_get_devdata(master);
-
-	spi_bitbang_stop(&xspi->bitbang);
-	free_irq(xspi->irq, xspi);
-
-	spi_master_put(xspi->bitbang.master);
-}
-EXPORT_SYMBOL(xilinx_spi_deinit);
-
-static int xilinx_spi_probe(struct platform_device *dev)
-{
-	struct xspi_platform_data *pdata;
-	struct resource *r;
-	int irq, num_cs = 0, bits_per_word = 8;
-	struct spi_master *master;
-	u8 i;
-
-	pdata = dev->dev.platform_data;
-	if (pdata) {
-		num_cs = pdata->num_chipselect;
-		bits_per_word = pdata->bits_per_word;
-	}
-
-#ifdef CONFIG_OF
-	if (dev->dev.of_node) {
-		const __be32 *prop;
-		int len;
-
-		/* number of slave select bits is required */
-		prop = of_get_property(dev->dev.of_node, "xlnx,num-ss-bits",
-				       &len);
-		if (prop && len >= sizeof(*prop))
-			num_cs = __be32_to_cpup(prop);
-	}
-#endif
-
-	if (!num_cs) {
-		dev_err(&dev->dev, "Missing slave select configuration data\n");
-		return -EINVAL;
-	}
-
-
-	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!r)
-		return -ENODEV;
-
-	irq = platform_get_irq(dev, 0);
-	if (irq < 0)
-		return -ENXIO;
-
-	master = xilinx_spi_init(&dev->dev, r, irq, dev->id, num_cs,
-				 bits_per_word);
-	if (!master)
-		return -ENODEV;
+	dev_info(&dev->dev, "at 0x%08llX mapped to 0x%p, irq=%d\n",
+		(unsigned long long)r->start, xspi->regs, xspi->irq);
 
 	if (pdata) {
 		for (i = 0; i < pdata->num_devices; i++)
@@ -515,11 +483,24 @@ static int xilinx_spi_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, master);
 	return 0;
+
+free_irq:
+	free_irq(xspi->irq, xspi);
+put_master:
+	spi_master_put(master);
+
+	return ret;
 }
 
 static int xilinx_spi_remove(struct platform_device *dev)
 {
-	xilinx_spi_deinit(platform_get_drvdata(dev));
+	struct spi_master *master = platform_get_drvdata(dev);
+	struct xilinx_spi *xspi = spi_master_get_devdata(master);
+
+	spi_bitbang_stop(&xspi->bitbang);
+	free_irq(xspi->irq, xspi);
+
+	spi_master_put(xspi->bitbang.master);
 
 	return 0;
 }
