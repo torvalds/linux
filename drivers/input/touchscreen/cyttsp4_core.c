@@ -153,7 +153,7 @@ static int cyttsp4_hw_reset(struct cyttsp4 *cd)
  */
 static int cyttsp4_bits_2_bytes(unsigned int nbits, size_t *max)
 {
-	*max = 1 << nbits;
+	*max = 1UL << nbits;
 	return (nbits + 7) / 8;
 }
 
