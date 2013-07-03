@@ -513,7 +513,6 @@ static int m48t59_rtc_remove(struct platform_device *pdev)
 		iounmap(m48t59->ioaddr);
 	if (m48t59->irq != NO_IRQ)
 		free_irq(m48t59->irq, &pdev->dev);
-	platform_set_drvdata(pdev, NULL);
 	kfree(m48t59);
 	return 0;
 }
