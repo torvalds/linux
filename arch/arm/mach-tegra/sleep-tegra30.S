@@ -175,8 +175,12 @@ tegra30_enter_sleep:
 	orr	r0, r0, #FLOW_CTRL_CSR_ENABLE
 	str	r0, [r6, r2]
 
+	tegra_get_soc_id TEGRA_APB_MISC_BASE, r10
+	cmp	r10, #TEGRA30
 	mov	r0, #FLOW_CTRL_WAIT_FOR_INTERRUPT
-	orr	r0, r0, #FLOW_CTRL_HALT_CPU_IRQ | FLOW_CTRL_HALT_CPU_FIQ
+	orreq	r0, r0, #FLOW_CTRL_HALT_CPU_IRQ | FLOW_CTRL_HALT_CPU_FIQ
+	orrne   r0, r0, #FLOW_CTRL_HALT_LIC_IRQ | FLOW_CTRL_HALT_LIC_FIQ
+
 	cpu_to_halt_reg r2, r1
 	str	r0, [r6, r2]
 	dsb

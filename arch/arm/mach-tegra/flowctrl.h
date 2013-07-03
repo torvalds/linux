@@ -28,6 +28,8 @@
 #define FLOW_CTRL_SCLK_RESUME		(1 << 27)
 #define FLOW_CTRL_HALT_CPU_IRQ		(1 << 10)
 #define	FLOW_CTRL_HALT_CPU_FIQ		(1 << 8)
+#define FLOW_CTRL_HALT_LIC_IRQ		(1 << 11)
+#define FLOW_CTRL_HALT_LIC_FIQ		(1 << 10)
 #define FLOW_CTRL_HALT_GIC_IRQ		(1 << 9)
 #define FLOW_CTRL_HALT_GIC_FIQ		(1 << 8)
 #define FLOW_CTRL_CPU0_CSR		0x8
