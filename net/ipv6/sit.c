@@ -1426,9 +1426,9 @@ static int ipip6_newlink(struct net *src_net, struct net_device *dev,
 static int ipip6_changelink(struct net_device *dev, struct nlattr *tb[],
 			  struct nlattr *data[])
 {
-	struct ip_tunnel *t;
+	struct ip_tunnel *t = netdev_priv(dev);
 	struct ip_tunnel_parm p;
-	struct net *net = dev_net(dev);
+	struct net *net = t->net;
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 #ifdef CONFIG_IPV6_SIT_6RD
 	struct ip_tunnel_6rd ip6rd;
