@@ -551,6 +551,8 @@ static inline bool rt6_check_neigh(struct rt6_info *rt)
 			ret = true;
 #endif
 		read_unlock(&neigh->lock);
+	} else if (IS_ENABLED(CONFIG_IPV6_ROUTER_PREF)) {
+		ret = true;
 	}
 	rcu_read_unlock_bh();
 
