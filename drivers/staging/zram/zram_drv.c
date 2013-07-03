@@ -418,14 +418,6 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 			goto out;
 	}
 
-	/*
-	 * System overwrites unused sectors. Free memory associated
-	 * with this sector now.
-	 */
-	if (meta->table[index].handle ||
-	    zram_test_flag(meta, index, ZRAM_ZERO))
-		zram_free_page(zram, index);
-
 	user_mem = kmap_atomic(page);
 
 	if (is_partial_io(bvec)) {
@@ -439,6 +431,9 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 
 	if (page_zero_filled(uncmem)) {
 		kunmap_atomic(user_mem);
+		/* Free memory associated with this sector now. */
+		zram_free_page(zram, index);
+
 		zram->stats.pages_zero++;
 		zram_set_flag(meta, index, ZRAM_ZERO);
 		ret = 0;
@@ -485,6 +480,12 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 	}
 
 	zs_unmap_object(meta->mem_pool, handle);
+
+	/*
+	 * Free memory associated with this sector
+	 * before overwriting unused sectors.
+	 */
+	zram_free_page(zram, index);
 
 	meta->table[index].handle = handle;
 	meta->table[index].size = clen;
