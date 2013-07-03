@@ -1340,7 +1340,7 @@ aoe_ktstart(struct ktstate *k)
 	struct task_struct *task;
 
 	init_completion(&k->rendez);
-	task = kthread_run(kthread, k, k->name);
+	task = kthread_run(kthread, k, "%s", k->name);
 	if (task == NULL || IS_ERR(task))
 		return -ENOMEM;
 	k->task = task;
