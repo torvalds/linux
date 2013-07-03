@@ -13,6 +13,7 @@ config SND_ATMEL_SOC_PDC
 config SND_ATMEL_SOC_DMA
 	tristate
 	depends on SND_ATMEL_SOC
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 
 config SND_ATMEL_SOC_SSC
 	tristate
