@@ -480,7 +480,6 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 fail_req_irq:
 	rtc_device_unregister(rtc_dd->rtc);
 fail_rtc_enable:
-	platform_set_drvdata(pdev, NULL);
 	kfree(rtc_dd);
 	return rc;
 }
@@ -492,7 +491,6 @@ static int pm8xxx_rtc_remove(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 0);
 	free_irq(rtc_dd->rtc_alarm_irq, rtc_dd);
 	rtc_device_unregister(rtc_dd->rtc);
-	platform_set_drvdata(pdev, NULL);
 	kfree(rtc_dd);
 
 	return 0;
