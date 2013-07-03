@@ -320,7 +320,7 @@ static int rtc_probe(struct platform_device *pdev)
 
 	retval = chip->ops->map_io(chip, pdev, pdata);
 	if (retval)
-		goto err_chip;
+		return retval;
 
 	/* Make sure the v3020 expects a communication cycle
 	 * by reading 8 times */
@@ -364,7 +364,7 @@ static int rtc_probe(struct platform_device *pdev)
 
 err_io:
 	chip->ops->unmap_io(chip);
-err_chip:
+
 	return retval;
 }
 
