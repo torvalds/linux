@@ -45,26 +45,28 @@
 #include <trace/events/sched.h>
 
 int core_uses_pid;
-char core_pattern[CORENAME_MAX_SIZE] = "core";
 unsigned int core_pipe_limit;
+char core_pattern[CORENAME_MAX_SIZE] = "core";
+static int core_name_size = CORENAME_MAX_SIZE;
 
 struct core_name {
 	char *corename;
 	int used, size;
 };
-static atomic_t call_count = ATOMIC_INIT(1);
 
 /* The maximal length of core_pattern is also specified in sysctl.c */
 
-static int expand_corename(struct core_name *cn)
+static int expand_corename(struct core_name *cn, int size)
 {
-	int size = CORENAME_MAX_SIZE * atomic_inc_return(&call_count);
 	char *corename = krealloc(cn->corename, size, GFP_KERNEL);
 
 	if (!corename)
 		return -ENOMEM;
 
-	cn->size = size;
+	if (size > core_name_size) /* racy but harmless */
+		core_name_size = size;
+
+	cn->size = ksize(corename);
 	cn->corename = corename;
 	return 0;
 }
@@ -81,7 +83,7 @@ again:
 		return 0;
 	}
 
-	if (!expand_corename(cn))
+	if (!expand_corename(cn, cn->size + need - free + 1))
 		goto again;
 
 	return -ENOMEM;
@@ -160,9 +162,8 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 	int err = 0;
 
 	cn->used = 0;
-	cn->size = CORENAME_MAX_SIZE * atomic_read(&call_count);
-	cn->corename = kmalloc(cn->size, GFP_KERNEL);
-	if (!cn->corename)
+	cn->corename = NULL;
+	if (expand_corename(cn, core_name_size))
 		return -ENOMEM;
 
 	/* Repeat as long as we have more pattern to process and more output
