@@ -52,7 +52,7 @@ static struct sk_buff_head skbtxq;
 
 /* enters with txlock held */
 static int
-tx(void) __must_hold(&txlock)
+tx(int id) __must_hold(&txlock)
 {
 	struct sk_buff *skb;
 	struct net_device *ifp;
@@ -205,7 +205,8 @@ aoenet_init(void)
 	kts.lock = &txlock;
 	kts.fn = tx;
 	kts.waitq = &txwq;
-	kts.name = "aoe_tx";
+	kts.id = 0;
+	snprintf(kts.name, sizeof(kts.name), "aoe_tx%d", kts.id);
 	if (aoe_ktstart(&kts))
 		return -EAGAIN;
 	dev_add_pack(&aoe_pt);
