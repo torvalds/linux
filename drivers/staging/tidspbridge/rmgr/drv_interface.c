@@ -421,12 +421,11 @@ static int omap3_bridge_startup(struct platform_device *pdev)
 	drv_datap->tc_wordswapon = tc_wordswapon;
 
 	if (base_img) {
-		drv_datap->base_img = kmalloc(strlen(base_img) + 1, GFP_KERNEL);
+		drv_datap->base_img = kstrdup(base_img, GFP_KERNEL);
 		if (!drv_datap->base_img) {
 			err = -ENOMEM;
 			goto err2;
 		}
-		strncpy(drv_datap->base_img, base_img, strlen(base_img) + 1);
 	}
 
 	dev_set_drvdata(bridge, drv_datap);
