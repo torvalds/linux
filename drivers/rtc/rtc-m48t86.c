@@ -166,18 +166,12 @@ static int m48t86_rtc_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int m48t86_rtc_remove(struct platform_device *dev)
-{
-	return 0;
-}
-
 static struct platform_driver m48t86_rtc_platform_driver = {
 	.driver		= {
 		.name	= "rtc-m48t86",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= m48t86_rtc_probe,
-	.remove		= m48t86_rtc_remove,
 };
 
 module_platform_driver(m48t86_rtc_platform_driver);
