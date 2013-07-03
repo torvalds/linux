@@ -84,6 +84,15 @@ static ssize_t lnext_show(struct device *dev,
 	return str - buf;
 }
 
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct rio_dev *rdev = to_rio_dev(dev);
+
+	return sprintf(buf, "rapidio:v%04Xd%04Xav%04Xad%04X\n",
+		       rdev->vid, rdev->did, rdev->asm_vid, rdev->asm_did);
+}
+
 struct device_attribute rio_dev_attrs[] = {
 	__ATTR_RO(did),
 	__ATTR_RO(vid),
@@ -93,6 +102,7 @@ struct device_attribute rio_dev_attrs[] = {
 	__ATTR_RO(asm_rev),
 	__ATTR_RO(lprev),
 	__ATTR_RO(destid),
+	__ATTR_RO(modalias),
 	__ATTR_NULL,
 };
 

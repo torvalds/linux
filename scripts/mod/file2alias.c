@@ -1145,6 +1145,26 @@ static int do_mei_entry(const char *filename, void *symval,
 }
 ADD_TO_DEVTABLE("mei", mei_cl_device_id, do_mei_entry);
 
+/* Looks like: rapidio:vNdNavNadN */
+static int do_rio_entry(const char *filename,
+			void *symval, char *alias)
+{
+	DEF_FIELD(symval, rio_device_id, did);
+	DEF_FIELD(symval, rio_device_id, vid);
+	DEF_FIELD(symval, rio_device_id, asm_did);
+	DEF_FIELD(symval, rio_device_id, asm_vid);
+
+	strcpy(alias, "rapidio:");
+	ADD(alias, "v", vid != RIO_ANY_ID, vid);
+	ADD(alias, "d", did != RIO_ANY_ID, did);
+	ADD(alias, "av", asm_vid != RIO_ANY_ID, asm_vid);
+	ADD(alias, "ad", asm_did != RIO_ANY_ID, asm_did);
+
+	add_wildcard(alias);
+	return 1;
+}
+ADD_TO_DEVTABLE("rapidio", rio_device_id, do_rio_entry);
+
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 {

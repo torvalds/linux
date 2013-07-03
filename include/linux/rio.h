@@ -20,6 +20,7 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/rio_regs.h>
+#include <linux/mod_devicetable.h>
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
 #include <linux/dmaengine.h>
 #endif
@@ -395,21 +396,6 @@ struct rio_driver {
 };
 
 #define	to_rio_driver(drv) container_of(drv,struct rio_driver, driver)
-
-/**
- * struct rio_device_id - RIO device identifier
- * @did: RIO device ID
- * @vid: RIO vendor ID
- * @asm_did: RIO assembly device ID
- * @asm_vid: RIO assembly vendor ID
- *
- * Identifies a RIO device based on both the device/vendor IDs and
- * the assembly device/vendor IDs.
- */
-struct rio_device_id {
-	u16 did, vid;
-	u16 asm_did, asm_vid;
-};
 
 union rio_pw_msg {
 	struct {
