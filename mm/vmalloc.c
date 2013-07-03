@@ -2526,8 +2526,8 @@ found:
 
 	/* insert all vm's */
 	for (area = 0; area < nr_vms; area++)
-		insert_vmalloc_vm(vms[area], vas[area], VM_ALLOC,
-				  pcpu_get_vm_areas);
+		setup_vmalloc_vm(vms[area], vas[area], VM_ALLOC,
+				 pcpu_get_vm_areas);
 
 	kfree(vas);
 	return vms;
