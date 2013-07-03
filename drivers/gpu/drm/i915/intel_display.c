@@ -2199,7 +2199,9 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 
 	switch (obj->tiling_mode) {
 	case I915_TILING_NONE:
-		if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
+		if (INTEL_INFO(dev)->gen >= 9)
+			alignment = 256 * 1024;
+		else if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
 			alignment = 128 * 1024;
 		else if (INTEL_INFO(dev)->gen >= 4)
 			alignment = 4 * 1024;
@@ -2207,8 +2209,12 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 			alignment = 64 * 1024;
 		break;
 	case I915_TILING_X:
-		/* pin() will align the object as required by fence */
-		alignment = 0;
+		if (INTEL_INFO(dev)->gen >= 9)
+			alignment = 256 * 1024;
+		else {
+			/* pin() will align the object as required by fence */
+			alignment = 0;
+		}
 		break;
 	case I915_TILING_Y:
 		WARN(1, "Y tiled bo slipped through, driver bug!\n");
