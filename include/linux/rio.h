@@ -92,7 +92,6 @@ union rio_pw_msg;
 /**
  * struct rio_switch - RIO switch info
  * @node: Node in global list of switches
- * @switchid: Switch ID that is unique across a network
  * @route_table: Copy of switch routing table
  * @port_ok: Status of each port (one bit per port) - OK=1 or UNINIT=0
  * @ops: pointer to switch-specific operations
@@ -101,7 +100,6 @@ union rio_pw_msg;
  */
 struct rio_switch {
 	struct list_head node;
-	u16 switchid;
 	u8 *route_table;
 	u32 port_ok;
 	struct rio_switch_ops *ops;

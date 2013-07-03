@@ -433,7 +433,6 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 	/* If a PE has both switch and other functions, show it as a switch */
 	if (rio_is_switch(rdev)) {
 		rswitch = rdev->rswitch;
-		rswitch->switchid = rdev->comp_tag & RIO_CTAG_UDEVID;
 		rswitch->port_ok = 0;
 		spin_lock_init(&rswitch->lock);
 		rswitch->route_table = kzalloc(sizeof(u8)*
@@ -446,7 +445,7 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 				rdid++)
 			rswitch->route_table[rdid] = RIO_INVALID_ROUTE;
 		dev_set_name(&rdev->dev, "%02x:s:%04x", rdev->net->id,
-			     rswitch->switchid);
+			     rdev->comp_tag & RIO_CTAG_UDEVID);
 
 		if (do_enum)
 			rio_route_clr_table(rdev, RIO_GLOBAL_TABLE, 0);
@@ -459,7 +458,7 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 			rio_enable_rx_tx_port(port, 0, destid, hopcount, 0);
 
 		dev_set_name(&rdev->dev, "%02x:e:%04x", rdev->net->id,
-			     rdev->destid);
+			     rdev->comp_tag & RIO_CTAG_UDEVID);
 	}
 
 	rio_attach_device(rdev);
