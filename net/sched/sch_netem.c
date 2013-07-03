@@ -554,10 +554,13 @@ deliver:
 	}
 	p = rb_first(&q->t_root);
 	if (p) {
+		psched_time_t time_to_send;
+
 		skb = netem_rb_to_skb(p);
 
 		/* if more time remaining? */
-		if (netem_skb_cb(skb)->time_to_send <= psched_get_time()) {
+		time_to_send = netem_skb_cb(skb)->time_to_send;
+		if (time_to_send <= psched_get_time()) {
 			rb_erase(p, &q->t_root);
 
 			sch->q.qlen--;
@@ -593,8 +596,7 @@ deliver:
 			if (skb)
 				goto deliver;
 		}
-		qdisc_watchdog_schedule(&q->watchdog,
-					netem_skb_cb(skb)->time_to_send);
+		qdisc_watchdog_schedule(&q->watchdog, time_to_send);
 	}
 
 	if (q->qdisc) {
