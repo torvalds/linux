@@ -290,11 +290,6 @@ static int pcf8583_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int pcf8583_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static const struct i2c_device_id pcf8583_id[] = {
 	{ "pcf8583", 0 },
 	{ }
@@ -307,7 +302,6 @@ static struct i2c_driver pcf8583_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pcf8583_probe,
-	.remove		= pcf8583_remove,
 	.id_table	= pcf8583_id,
 };
 
