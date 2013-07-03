@@ -381,8 +381,6 @@ static int rtc_remove(struct platform_device *pdev)
 	if (rtc)
 		rtc_device_unregister(rtc);
 
-	platform_set_drvdata(pdev, NULL);
-
 	free_irq(aie_irq, pdev);
 	free_irq(pie_irq, pdev);
 	if (rtc1_base)
