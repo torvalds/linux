@@ -197,6 +197,7 @@ int ping_v6_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	if (hlimit < 0)
 		hlimit = ip6_dst_hoplimit(dst);
 
+	lock_sock(sk);
 	err = ip6_append_data(sk, ping_getfrag, &pfh, len,
 			      0, hlimit,
 			      np->tclass, NULL, &fl6, rt,
@@ -211,6 +212,7 @@ int ping_v6_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 						 (struct icmp6hdr *) &pfh.icmph,
 						 len);
 	}
+	release_sock(sk);
 
 	return err;
 }
