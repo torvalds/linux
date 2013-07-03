@@ -773,7 +773,7 @@ static int ocfs2_remote_dentry_delete(struct dentry *dentry)
 	return ret;
 }
 
-static inline int inode_is_unlinkable(struct inode *inode)
+static inline int ocfs2_inode_is_unlinkable(struct inode *inode)
 {
 	if (S_ISDIR(inode->i_mode)) {
 		if (inode->i_nlink == 2)
@@ -791,6 +791,7 @@ static int ocfs2_unlink(struct inode *dir,
 {
 	int status;
 	int child_locked = 0;
+	bool is_unlinkable = false;
 	struct inode *inode = dentry->d_inode;
 	struct inode *orphan_dir = NULL;
 	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
@@ -865,7 +866,7 @@ static int ocfs2_unlink(struct inode *dir,
 		goto leave;
 	}
 
-	if (inode_is_unlinkable(inode)) {
+	if (ocfs2_inode_is_unlinkable(inode)) {
 		status = ocfs2_prepare_orphan_dir(osb, &orphan_dir,
 						  OCFS2_I(inode)->ip_blkno,
 						  orphan_name, &orphan_insert);
@@ -873,6 +874,7 @@ static int ocfs2_unlink(struct inode *dir,
 			mlog_errno(status);
 			goto leave;
 		}
+		is_unlinkable = true;
 	}
 
 	handle = ocfs2_start_trans(osb, ocfs2_unlink_credits(osb->sb));
@@ -891,15 +893,6 @@ static int ocfs2_unlink(struct inode *dir,
 	}
 
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
-
-	if (inode_is_unlinkable(inode)) {
-		status = ocfs2_orphan_add(osb, handle, inode, fe_bh, orphan_name,
-					  &orphan_insert, orphan_dir);
-		if (status < 0) {
-			mlog_errno(status);
-			goto leave;
-		}
-	}
 
 	/* delete the name from the parent dir */
 	status = ocfs2_delete_entry(handle, dir, &lookup);
@@ -923,6 +916,14 @@ static int ocfs2_unlink(struct inode *dir,
 		mlog_errno(status);
 		if (S_ISDIR(inode->i_mode))
 			inc_nlink(dir);
+		goto leave;
+	}
+
+	if (is_unlinkable) {
+		status = ocfs2_orphan_add(osb, handle, inode, fe_bh,
+				orphan_name, &orphan_insert, orphan_dir);
+		if (status < 0)
+			mlog_errno(status);
 	}
 
 leave:
