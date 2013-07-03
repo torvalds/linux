@@ -369,6 +369,7 @@ static int __init merge_note_headers_elf64(char *elfptr, size_t *elfsz,
 	Elf64_Ehdr *ehdr_ptr;
 	Elf64_Phdr phdr;
 	u64 phdr_sz = 0, note_off;
+	struct vm_struct *vm;
 
 	ehdr_ptr = (Elf64_Ehdr *)elfptr;
 
@@ -384,6 +385,14 @@ static int __init merge_note_headers_elf64(char *elfptr, size_t *elfsz,
 	*notes_buf = vzalloc(*notes_sz);
 	if (!*notes_buf)
 		return -ENOMEM;
+
+	/*
+	 * Allow users to remap ELF note segment buffer on vmalloc memory using
+	 * remap_vmalloc_range.()
+	 */
+	vm = find_vm_area(*notes_buf);
+	BUG_ON(!vm);
+	vm->flags |= VM_USERMAP;
 
 	rc = copy_notes_elf64(ehdr_ptr, *notes_buf);
 	if (rc < 0)
@@ -548,6 +557,7 @@ static int __init merge_note_headers_elf32(char *elfptr, size_t *elfsz,
 	Elf32_Ehdr *ehdr_ptr;
 	Elf32_Phdr phdr;
 	u64 phdr_sz = 0, note_off;
+	struct vm_struct *vm;
 
 	ehdr_ptr = (Elf32_Ehdr *)elfptr;
 
@@ -563,6 +573,14 @@ static int __init merge_note_headers_elf32(char *elfptr, size_t *elfsz,
 	*notes_buf = vzalloc(*notes_sz);
 	if (!*notes_buf)
 		return -ENOMEM;
+
+	/*
+	 * Allow users to remap ELF note segment buffer on vmalloc memory using
+	 * remap_vmalloc_range()
+	 */
+	vm = find_vm_area(*notes_buf);
+	BUG_ON(!vm);
+	vm->flags |= VM_USERMAP;
 
 	rc = copy_notes_elf32(ehdr_ptr, *notes_buf);
 	if (rc < 0)
