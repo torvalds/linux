@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/err.h>
 
 #define DRV_VERSION "0.4.3"
 
@@ -263,10 +264,7 @@ static int pcf8563_probe(struct i2c_client *client,
 				pcf8563_driver.driver.name,
 				&pcf8563_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(pcf8563->rtc))
-		return PTR_ERR(pcf8563->rtc);
-
-	return 0;
+	return PTR_RET(pcf8563->rtc);
 }
 
 static const struct i2c_device_id pcf8563_id[] = {
