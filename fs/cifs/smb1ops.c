@@ -449,8 +449,7 @@ cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	 * WRITEX header, not including the 4 byte RFC1001 length.
 	 */
 	if (!(server->capabilities & CAP_LARGE_WRITE_X) ||
-	    (!(server->capabilities & CAP_UNIX) &&
-	     (server->sec_mode & (SECMODE_SIGN_ENABLED|SECMODE_SIGN_REQUIRED))))
+	    (!(server->capabilities & CAP_UNIX) && server->sign))
 		wsize = min_t(unsigned int, wsize,
 				server->maxBuf - sizeof(WRITE_REQ) + 4);
 
@@ -765,20 +764,14 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	}
 	tcon = tlink_tcon(tlink);
 
-	/*
-	 * NT4 apparently returns success on this call, but it doesn't really
-	 * work.
-	 */
-	if (!(tcon->ses->flags & CIFS_SES_NT4)) {
-		rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf,
-					cifs_sb->local_nls,
+	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf, cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc == 0) {
-			cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
-			goto out;
-		} else if (rc != -EOPNOTSUPP && rc != -EINVAL)
-			goto out;
+	if (rc == 0) {
+		cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
+		goto out;
+	} else if (rc != -EOPNOTSUPP && rc != -EINVAL) {
+		goto out;
 	}
 
 	cifs_dbg(FYI, "calling SetFileInfo since SetPathInfo for times not supported by this server\n");
@@ -964,4 +957,6 @@ struct smb_version_values smb1_values = {
 	.cap_nt_find = CAP_NT_SMBS | CAP_NT_FIND,
 	.cap_large_files = CAP_LARGE_FILES,
 	.oplock_read = OPLOCK_READ,
+	.signing_enabled = SECMODE_SIGN_ENABLED,
+	.signing_required = SECMODE_SIGN_REQUIRED,
 };

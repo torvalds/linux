@@ -281,6 +281,25 @@ smb2_clear_stats(struct cifs_tcon *tcon)
 }
 
 static void
+smb2_dump_share_caps(struct seq_file *m, struct cifs_tcon *tcon)
+{
+	seq_puts(m, "\n\tShare Capabilities:");
+	if (tcon->capabilities & SMB2_SHARE_CAP_DFS)
+		seq_puts(m, " DFS,");
+	if (tcon->capabilities & SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY)
+		seq_puts(m, " CONTINUOUS AVAILABILITY,");
+	if (tcon->capabilities & SMB2_SHARE_CAP_SCALEOUT)
+		seq_puts(m, " SCALEOUT,");
+	if (tcon->capabilities & SMB2_SHARE_CAP_CLUSTER)
+		seq_puts(m, " CLUSTER,");
+	if (tcon->capabilities & SMB2_SHARE_CAP_ASYMMETRIC)
+		seq_puts(m, " ASYMMETRIC,");
+	if (tcon->capabilities == 0)
+		seq_puts(m, " None");
+	seq_printf(m, "\tShare Flags: 0x%x", tcon->share_flags);
+}
+
+static void
 smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 {
 #ifdef CONFIG_CIFS_STATS
@@ -292,7 +311,6 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 	seq_printf(m, "\nSessionSetups: %d sent %d failed",
 		   atomic_read(&sent[SMB2_SESSION_SETUP_HE]),
 		   atomic_read(&failed[SMB2_SESSION_SETUP_HE]));
-#define SMB2LOGOFF		0x0002 /* trivial request/resp */
 	seq_printf(m, "\nLogoffs: %d sent %d failed",
 		   atomic_read(&sent[SMB2_LOGOFF_HE]),
 		   atomic_read(&failed[SMB2_LOGOFF_HE]));
@@ -645,6 +663,7 @@ struct smb_version_operations smb30_operations = {
 	.dump_detail = smb2_dump_detail,
 	.clear_stats = smb2_clear_stats,
 	.print_stats = smb2_print_stats,
+	.dump_share_caps = smb2_dump_share_caps,
 	.is_oplock_break = smb2_is_valid_oplock_break,
 	.need_neg = smb2_need_neg,
 	.negotiate = smb2_negotiate,
@@ -690,6 +709,7 @@ struct smb_version_operations smb30_operations = {
 	.get_lease_key = smb2_get_lease_key,
 	.set_lease_key = smb2_set_lease_key,
 	.new_lease_key = smb2_new_lease_key,
+	.generate_signingkey = generate_smb3signingkey,
 	.calc_signature = smb3_calc_signature,
 };
 
@@ -709,6 +729,8 @@ struct smb_version_values smb20_values = {
 	.cap_nt_find = SMB2_NT_FIND,
 	.cap_large_files = SMB2_LARGE_FILES,
 	.oplock_read = SMB2_OPLOCK_LEVEL_II,
+	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
 };
 
 struct smb_version_values smb21_values = {
@@ -727,6 +749,8 @@ struct smb_version_values smb21_values = {
 	.cap_nt_find = SMB2_NT_FIND,
 	.cap_large_files = SMB2_LARGE_FILES,
 	.oplock_read = SMB2_OPLOCK_LEVEL_II,
+	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
 };
 
 struct smb_version_values smb30_values = {
@@ -745,4 +769,26 @@ struct smb_version_values smb30_values = {
 	.cap_nt_find = SMB2_NT_FIND,
 	.cap_large_files = SMB2_LARGE_FILES,
 	.oplock_read = SMB2_OPLOCK_LEVEL_II,
+	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
+};
+
+struct smb_version_values smb302_values = {
+	.version_string = SMB302_VERSION_STRING,
+	.protocol_id = SMB302_PROT_ID,
+	.req_capabilities = SMB2_GLOBAL_CAP_DFS | SMB2_GLOBAL_CAP_LEASING | SMB2_GLOBAL_CAP_LARGE_MTU,
+	.large_lock_type = 0,
+	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
+	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
+	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
+	.header_size = sizeof(struct smb2_hdr),
+	.max_header_size = MAX_SMB2_HDR_SIZE,
+	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
+	.lock_cmd = SMB2_LOCK,
+	.cap_unix = 0,
+	.cap_nt_find = SMB2_NT_FIND,
+	.cap_large_files = SMB2_LARGE_FILES,
+	.oplock_read = SMB2_OPLOCK_LEVEL_II,
+	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
 };
