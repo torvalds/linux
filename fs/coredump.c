@@ -69,17 +69,13 @@ static int expand_corename(struct core_name *cn)
 	return 0;
 }
 
-static int cn_printf(struct core_name *cn, const char *fmt, ...)
+static int cn_vprintf(struct core_name *cn, const char *fmt, va_list arg)
 {
 	char *cur;
 	int need;
 	int ret;
-	va_list arg;
 
-	va_start(arg, fmt);
 	need = vsnprintf(NULL, 0, fmt, arg);
-	va_end(arg);
-
 	if (likely(need < cn->size - cn->used - 1))
 		goto out_printf;
 
@@ -89,13 +85,23 @@ static int cn_printf(struct core_name *cn, const char *fmt, ...)
 
 out_printf:
 	cur = cn->corename + cn->used;
-	va_start(arg, fmt);
 	vsnprintf(cur, need + 1, fmt, arg);
-	va_end(arg);
 	cn->used += need;
 	return 0;
 
 expand_fail:
+	return ret;
+}
+
+static int cn_printf(struct core_name *cn, const char *fmt, ...)
+{
+	va_list arg;
+	int ret;
+
+	va_start(arg, fmt);
+	ret = cn_vprintf(cn, fmt, arg);
+	va_end(arg);
+
 	return ret;
 }
 
