@@ -241,10 +241,11 @@ our $Float	= qr{$Float_hex|$Float_dec|$Float_int};
 our $Constant	= qr{$Float|$Binary|$Hex|$Int};
 our $Assignment	= qr{\*\=|/=|%=|\+=|-=|<<=|>>=|&=|\^=|\|=|=};
 our $Compare    = qr{<=|>=|==|!=|<|>};
+our $Arithmetic = qr{\+|-|\*|\/|%};
 our $Operators	= qr{
 			<=|>=|==|!=|
 			=>|->|<<|>>|<|>|!|~|
-			&&|\|\||,|\^|\+\+|--|&|\||\+|-|\*|\/|%
+			&&|\|\||,|\^|\+\+|--|&|\||$Arithmetic
 		  }x;
 
 our $NonptrType;
@@ -1885,7 +1886,7 @@ sub process {
 			}
 		}
 
-		if ($line =~ /^\+.*\*[ \t]*\)[ \t]+/) {
+		if ($line =~ /^\+.*\*[ \t]*\)[ \t]+(?!$Assignment|$Arithmetic)/) {
 			CHK("SPACING",
 			    "No space is necessary after a cast\n" . $hereprev);
 		}
