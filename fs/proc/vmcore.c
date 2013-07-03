@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/crash_dump.h>
 #include <linux/list.h>
+#include <linux/vmalloc.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include "internal.h"
@@ -194,9 +195,122 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
 	return acc;
 }
 
+/**
+ * alloc_elfnotes_buf - allocate buffer for ELF note segment in
+ *                      vmalloc memory
+ *
+ * @notes_sz: size of buffer
+ *
+ * If CONFIG_MMU is defined, use vmalloc_user() to allow users to mmap
+ * the buffer to user-space by means of remap_vmalloc_range().
+ *
+ * If CONFIG_MMU is not defined, use vzalloc() since mmap_vmcore() is
+ * disabled and there's no need to allow users to mmap the buffer.
+ */
+static inline char *alloc_elfnotes_buf(size_t notes_sz)
+{
+#ifdef CONFIG_MMU
+	return vmalloc_user(notes_sz);
+#else
+	return vzalloc(notes_sz);
+#endif
+}
+
+/*
+ * Disable mmap_vmcore() if CONFIG_MMU is not defined. MMU is
+ * essential for mmap_vmcore() in order to map physically
+ * non-contiguous objects (ELF header, ELF note segment and memory
+ * regions in the 1st kernel pointed to by PT_LOAD entries) into
+ * virtually contiguous user-space in ELF layout.
+ */
+#ifdef CONFIG_MMU
+static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
+{
+	size_t size = vma->vm_end - vma->vm_start;
+	u64 start, end, len, tsz;
+	struct vmcore *m;
+
+	start = (u64)vma->vm_pgoff << PAGE_SHIFT;
+	end = start + size;
+
+	if (size > vmcore_size || end > vmcore_size)
+		return -EINVAL;
+
+	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
+		return -EPERM;
+
+	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
+	vma->vm_flags |= VM_MIXEDMAP;
+
+	len = 0;
+
+	if (start < elfcorebuf_sz) {
+		u64 pfn;
+
+		tsz = min(elfcorebuf_sz - (size_t)start, size);
+		pfn = __pa(elfcorebuf + start) >> PAGE_SHIFT;
+		if (remap_pfn_range(vma, vma->vm_start, pfn, tsz,
+				    vma->vm_page_prot))
+			return -EAGAIN;
+		size -= tsz;
+		start += tsz;
+		len += tsz;
+
+		if (size == 0)
+			return 0;
+	}
+
+	if (start < elfcorebuf_sz + elfnotes_sz) {
+		void *kaddr;
+
+		tsz = min(elfcorebuf_sz + elfnotes_sz - (size_t)start, size);
+		kaddr = elfnotes_buf + start - elfcorebuf_sz;
+		if (remap_vmalloc_range_partial(vma, vma->vm_start + len,
+						kaddr, tsz))
+			goto fail;
+		size -= tsz;
+		start += tsz;
+		len += tsz;
+
+		if (size == 0)
+			return 0;
+	}
+
+	list_for_each_entry(m, &vmcore_list, list) {
+		if (start < m->offset + m->size) {
+			u64 paddr = 0;
+
+			tsz = min_t(size_t, m->offset + m->size - start, size);
+			paddr = m->paddr + start - m->offset;
+			if (remap_pfn_range(vma, vma->vm_start + len,
+					    paddr >> PAGE_SHIFT, tsz,
+					    vma->vm_page_prot))
+				goto fail;
+			size -= tsz;
+			start += tsz;
+			len += tsz;
+
+			if (size == 0)
+				return 0;
+		}
+	}
+
+	return 0;
+fail:
+	do_munmap(vma->vm_mm, vma->vm_start, len);
+	return -EAGAIN;
+}
+#else
+static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
+{
+	return -ENOSYS;
+}
+#endif
+
 static const struct file_operations proc_vmcore_operations = {
 	.read		= read_vmcore,
 	.llseek		= default_llseek,
+	.mmap		= mmap_vmcore,
 };
 
 static struct vmcore* __init get_new_element(void)
@@ -348,7 +462,6 @@ static int __init merge_note_headers_elf64(char *elfptr, size_t *elfsz,
 	Elf64_Ehdr *ehdr_ptr;
 	Elf64_Phdr phdr;
 	u64 phdr_sz = 0, note_off;
-	struct vm_struct *vm;
 
 	ehdr_ptr = (Elf64_Ehdr *)elfptr;
 
@@ -361,17 +474,9 @@ static int __init merge_note_headers_elf64(char *elfptr, size_t *elfsz,
 		return rc;
 
 	*notes_sz = roundup(phdr_sz, PAGE_SIZE);
-	*notes_buf = vzalloc(*notes_sz);
+	*notes_buf = alloc_elfnotes_buf(*notes_sz);
 	if (!*notes_buf)
 		return -ENOMEM;
-
-	/*
-	 * Allow users to remap ELF note segment buffer on vmalloc memory using
-	 * remap_vmalloc_range.()
-	 */
-	vm = find_vm_area(*notes_buf);
-	BUG_ON(!vm);
-	vm->flags |= VM_USERMAP;
 
 	rc = copy_notes_elf64(ehdr_ptr, *notes_buf);
 	if (rc < 0)
@@ -536,7 +641,6 @@ static int __init merge_note_headers_elf32(char *elfptr, size_t *elfsz,
 	Elf32_Ehdr *ehdr_ptr;
 	Elf32_Phdr phdr;
 	u64 phdr_sz = 0, note_off;
-	struct vm_struct *vm;
 
 	ehdr_ptr = (Elf32_Ehdr *)elfptr;
 
@@ -549,17 +653,9 @@ static int __init merge_note_headers_elf32(char *elfptr, size_t *elfsz,
 		return rc;
 
 	*notes_sz = roundup(phdr_sz, PAGE_SIZE);
-	*notes_buf = vzalloc(*notes_sz);
+	*notes_buf = alloc_elfnotes_buf(*notes_sz);
 	if (!*notes_buf)
 		return -ENOMEM;
-
-	/*
-	 * Allow users to remap ELF note segment buffer on vmalloc memory using
-	 * remap_vmalloc_range()
-	 */
-	vm = find_vm_area(*notes_buf);
-	BUG_ON(!vm);
-	vm->flags |= VM_USERMAP;
 
 	rc = copy_notes_elf32(ehdr_ptr, *notes_buf);
 	if (rc < 0)
