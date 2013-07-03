@@ -264,8 +264,10 @@
 /*
 *      Driver Version Note
 *v0.0.1: this driver is compatible with generic_sensor
+*v0.1.1:
+*        Cam_Power return success in rk_sensor_ioctrl when power io havn't config;
 */
-static int camio_version = KERNEL_VERSION(0,1,0);
+static int camio_version = KERNEL_VERSION(0,1,1);
 module_param(camio_version, int, S_IRUGO);
 
 
@@ -1387,7 +1389,8 @@ static int rk_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd, i
  		case Cam_Power:
 		{
 			if (sensor_ioctl_cb.sensor_power_cb) {
-                ret = sensor_ioctl_cb.sensor_power_cb(res, on);                
+                ret = sensor_ioctl_cb.sensor_power_cb(res, on);   
+                ret = (ret != RK29_CAM_EIO_INVALID)?ret:0;     /* ddl@rock-chips.com: v0.1.1 */ 
 			} else {
                 eprintk("sensor_ioctl_cb.sensor_power_cb is NULL");
                 WARN_ON(1);

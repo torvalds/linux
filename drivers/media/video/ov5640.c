@@ -5,8 +5,10 @@
 *v0.0.1: this driver is compatible with generic_sensor
 *v0.1.1:
 *        add sensor_focus_af_const_pause_usr_cb;
+*v0.1.3:
+*        config sensor io H-Z in sensor_deactive_cb;
 */
-static int version = KERNEL_VERSION(0,1,1);
+static int version = KERNEL_VERSION(0,1,3);
 module_param(version, int, S_IRUGO);
 
 
@@ -1087,10 +1089,15 @@ static int sensor_activate_cb(struct i2c_client *client)
 */
 static int sensor_deactivate_cb(struct i2c_client *client)
 {
-
+    struct generic_sensor *sensor = to_generic_sensor(client);
+    
 	SENSOR_DG("%s",__FUNCTION__);
-	
-	
+	if (sensor->info_priv.funmodule_state & SENSOR_INIT_IS_OK) {
+	    sensor_write(client, 0x3017, 0x00);  // FREX,VSYNC,HREF,PCLK,D9-D6
+        sensor_write(client, 0x3018, 0x03);  // D5-D0
+        sensor_write(client,0x3019,0x00);    // STROBE,SDA
+    }
+    
 	return 0;
 }
 /*
