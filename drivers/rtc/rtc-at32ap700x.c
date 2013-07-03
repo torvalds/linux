@@ -212,23 +212,20 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
 		dev_dbg(&pdev->dev, "no mmio resource defined\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_dbg(&pdev->dev, "could not get irq\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
 	rtc->irq = irq;
 	rtc->regs = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
 	if (!rtc->regs) {
-		ret = -ENOMEM;
 		dev_dbg(&pdev->dev, "could not map I/O memory\n");
-		goto out;
+		return -ENOMEM;
 	}
 	spin_lock_init(&rtc->lock);
 
@@ -249,7 +246,7 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 				"rtc", rtc);
 	if (ret) {
 		dev_dbg(&pdev->dev, "could not request irq %d\n", irq);
-		goto out;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, rtc);
@@ -258,8 +255,7 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 				&at32_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc)) {
 		dev_dbg(&pdev->dev, "could not register rtc device\n");
-		ret = PTR_ERR(rtc->rtc);
-		goto out;
+		return PTR_ERR(rtc->rtc);
 	}
 
 	device_init_wakeup(&pdev->dev, 1);
@@ -268,17 +264,11 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 			(unsigned long)rtc->regs, rtc->irq);
 
 	return 0;
-
-out:
-	platform_set_drvdata(pdev, NULL);
-	return ret;
 }
 
 static int __exit at32_rtc_remove(struct platform_device *pdev)
 {
 	device_init_wakeup(&pdev->dev, 0);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
