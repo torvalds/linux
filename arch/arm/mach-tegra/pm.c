@@ -52,7 +52,9 @@ static void tegra_tear_down_cpu_init(void)
 			tegra_tear_down_cpu = tegra20_tear_down_cpu;
 		break;
 	case TEGRA30:
-		if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC))
+	case TEGRA114:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC) ||
+		    IS_ENABLED(CONFIG_ARCH_TEGRA_114_SOC))
 			tegra_tear_down_cpu = tegra30_tear_down_cpu;
 		break;
 	}
