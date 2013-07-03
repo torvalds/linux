@@ -1450,11 +1450,6 @@ static void cyttsp4_watchdog_work(struct work_struct *work)
 	u8 *mode;
 	int retval;
 
-	if (cd == NULL) {
-		dev_err(cd->dev, "%s: NULL context pointer\n", __func__);
-		return;
-	}
-
 	mutex_lock(&cd->system_lock);
 	retval = cyttsp4_load_status_regs(cd);
 	if (retval < 0) {
