@@ -262,8 +262,6 @@ static int __init nuc900_rtc_probe(struct platform_device *pdev)
 
 static int __exit nuc900_rtc_remove(struct platform_device *pdev)
 {
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
