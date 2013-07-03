@@ -432,6 +432,33 @@ void activate_page(struct page *page)
 }
 #endif
 
+static void __lru_cache_activate_page(struct page *page)
+{
+	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
+	int i;
+
+	/*
+	 * Search backwards on the optimistic assumption that the page being
+	 * activated has just been added to this pagevec. Note that only
+	 * the local pagevec is examined as a !PageLRU page could be in the
+	 * process of being released, reclaimed, migrated or on a remote
+	 * pagevec that is currently being drained. Furthermore, marking
+	 * a remote pagevec's page PageActive potentially hits a race where
+	 * a page is marked PageActive just after it is added to the inactive
+	 * list causing accounting errors and BUG_ON checks to trigger.
+	 */
+	for (i = pagevec_count(pvec) - 1; i >= 0; i--) {
+		struct page *pagevec_page = pvec->pages[i];
+
+		if (pagevec_page == page) {
+			SetPageActive(page);
+			break;
+		}
+	}
+
+	put_cpu_var(lru_add_pvec);
+}
+
 /*
  * Mark a page as having seen activity.
  *
@@ -442,8 +469,18 @@ void activate_page(struct page *page)
 void mark_page_accessed(struct page *page)
 {
 	if (!PageActive(page) && !PageUnevictable(page) &&
-			PageReferenced(page) && PageLRU(page)) {
-		activate_page(page);
+			PageReferenced(page)) {
+
+		/*
+		 * If the page is on the LRU, queue it for activation via
+		 * activate_page_pvecs. Otherwise, assume the page is on a
+		 * pagevec, mark it active and it'll be moved to the active
+		 * LRU on the next drain.
+		 */
+		if (PageLRU(page))
+			activate_page(page);
+		else
+			__lru_cache_activate_page(page);
 		ClearPageReferenced(page);
 	} else if (!PageReferenced(page)) {
 		SetPageReferenced(page);
