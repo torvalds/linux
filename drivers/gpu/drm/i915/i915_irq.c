@@ -698,18 +698,13 @@ static void ironlake_rps_change_irq_handler(struct drm_device *dev)
 static void notify_ring(struct drm_device *dev,
 			struct intel_ring_buffer *ring)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	if (ring->obj == NULL)
 		return;
 
 	trace_i915_gem_request_complete(ring, ring->get_seqno(ring, false));
 
 	wake_up_all(&ring->irq_queue);
-	if (i915_enable_hangcheck) {
-		mod_timer(&dev_priv->gpu_error.hangcheck_timer,
-			  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
-	}
+	i915_queue_hangcheck(dev);
 }
 
 static void gen6_pm_rps_work(struct work_struct *work)
@@ -2076,9 +2071,17 @@ void i915_hangcheck_elapsed(unsigned long data)
 	if (busy_count)
 		/* Reset timer case chip hangs without another request
 		 * being added */
-		mod_timer(&dev_priv->gpu_error.hangcheck_timer,
-			  round_jiffies_up(jiffies +
-					   DRM_I915_HANGCHECK_JIFFIES));
+		i915_queue_hangcheck(dev);
+}
+
+void i915_queue_hangcheck(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	if (!i915_enable_hangcheck)
+		return;
+
+	mod_timer(&dev_priv->gpu_error.hangcheck_timer,
+		  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 }
 
 static void ibx_irq_preinstall(struct drm_device *dev)

@@ -2087,10 +2087,8 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 	ring->outstanding_lazy_request = 0;
 
 	if (!dev_priv->ums.mm_suspended) {
-		if (i915_enable_hangcheck) {
-			mod_timer(&dev_priv->gpu_error.hangcheck_timer,
-				  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
-		}
+		i915_queue_hangcheck(ring->dev);
+
 		if (was_empty) {
 			queue_delayed_work(dev_priv->wq,
 					   &dev_priv->mm.retire_work,
