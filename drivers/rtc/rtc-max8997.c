@@ -507,11 +507,6 @@ err_out:
 	return ret;
 }
 
-static int max8997_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static void max8997_rtc_shutdown(struct platform_device *pdev)
 {
 	struct max8997_rtc_info *info = platform_get_drvdata(pdev);
@@ -531,7 +526,6 @@ static struct platform_driver max8997_rtc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max8997_rtc_probe,
-	.remove		= max8997_rtc_remove,
 	.shutdown	= max8997_rtc_shutdown,
 	.id_table	= rtc_id,
 };
