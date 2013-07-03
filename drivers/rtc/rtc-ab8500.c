@@ -451,8 +451,6 @@ static int ab8500_rtc_remove(struct platform_device *pdev)
 {
 	ab8500_sysfs_rtc_unregister(&pdev->dev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
