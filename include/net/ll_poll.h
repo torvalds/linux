@@ -163,12 +163,12 @@ static inline unsigned long ll_get_flag(void)
 	return 0;
 }
 
-static inline u64 sk_ll_end_time(struct sock *sk)
+static inline u64 ll_start_time(unsigned int flag)
 {
 	return 0;
 }
 
-static inline u64 ll_end_time(void)
+static inline u64 ll_run_time(void)
 {
 	return 0;
 }
@@ -191,7 +191,7 @@ static inline void sk_mark_ll(struct sock *sk, struct sk_buff *skb)
 {
 }
 
-static inline bool can_poll_ll(u64 end_time)
+static inline bool can_poll_ll(u64 start_time, u64 run_time)
 {
 	return false;
 }
