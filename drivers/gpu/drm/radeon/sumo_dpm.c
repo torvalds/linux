@@ -824,7 +824,9 @@ static void sumo_setup_uvd_clocks(struct radeon_device *rdev,
 	radeon_set_uvd_clocks(rdev, new_rps->vclk, new_rps->dclk);
 
 	if (pi->enable_gfx_power_gating) {
-		sumo_gfx_powergating_enable(rdev, true);
+		if (!pi->disable_gfx_power_gating_in_uvd ||
+		    !r600_is_uvd_state(new_rps->class, new_rps->class2))
+			sumo_gfx_powergating_enable(rdev, true);
 	}
 }
 
