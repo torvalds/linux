@@ -240,7 +240,7 @@ struct bfin_spi_regs {
 #define MAX_CTRL_CS          8  /* cs in spi controller */
 
 /* device.platform_data for SSP controller devices */
-struct bfin6xx_spi_master {
+struct bfin_spi3_master {
 	u16 num_chipselect;
 	u16 pin_req[7];
 };
@@ -248,7 +248,7 @@ struct bfin6xx_spi_master {
 /* spi_board_info.controller_data for SPI slave devices,
  * copied to spi_device.platform_data ... mostly for dma tuning
  */
-struct bfin6xx_spi_chip {
+struct bfin_spi3_chip {
 	u32 control;
 	u16 cs_chg_udelay; /* Some devices require 16-bit delays */
 	u32 tx_dummy_val; /* tx value for rx only transfer */
