@@ -360,6 +360,8 @@ struct inode_operations {
 	int (*removexattr) (struct dentry *, const char *);
 	void (*update_time)(struct inode *, struct timespec *, int);
 	int (*atomic_open)(struct inode *, struct dentry *,
+	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+} ____cacheline_aligned;
 				struct file *, unsigned open_flag,
 				umode_t create_mode, int *opened);
 };
@@ -471,6 +473,9 @@ otherwise noted.
   	usual 0 or -ve .  This method is only called if the last
   	component is negative or needs lookup.  Cached positive dentries are
   	still handled by f_op->open().
+
+  tmpfile: called in the end of O_TMPFILE open().  Optional, equivalent to
+	atomically creating, opening and unlinking a file in given directory.
 
 The Address Space Object
 ========================
