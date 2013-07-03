@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -251,6 +252,45 @@ static void mcam_ctlr_start(struct mcam_camera *cam)
 static void mcam_ctlr_stop(struct mcam_camera *cam)
 {
 	mcam_reg_clear_bit(cam, REG_CTRL0, C0_ENABLE);
+}
+
+static void mcam_enable_mipi(struct mcam_camera *mcam)
+{
+	/* Using MIPI mode and enable MIPI */
+	cam_dbg(mcam, "camera: DPHY3=0x%x, DPHY5=0x%x, DPHY6=0x%x\n",
+			mcam->dphy[0], mcam->dphy[1], mcam->dphy[2]);
+	mcam_reg_write(mcam, REG_CSI2_DPHY3, mcam->dphy[0]);
+	mcam_reg_write(mcam, REG_CSI2_DPHY5, mcam->dphy[1]);
+	mcam_reg_write(mcam, REG_CSI2_DPHY6, mcam->dphy[2]);
+
+	if (!mcam->mipi_enabled) {
+		if (mcam->lane > 4 || mcam->lane <= 0) {
+			cam_warn(mcam, "lane number error\n");
+			mcam->lane = 1;	/* set the default value */
+		}
+		/*
+		 * 0x41 actives 1 lane
+		 * 0x43 actives 2 lanes
+		 * 0x45 actives 3 lanes (never happen)
+		 * 0x47 actives 4 lanes
+		 */
+		mcam_reg_write(mcam, REG_CSI2_CTRL0,
+			CSI2_C0_MIPI_EN | CSI2_C0_ACT_LANE(mcam->lane));
+		mcam_reg_write(mcam, REG_CLKCTRL,
+			(mcam->mclk_src << 29) | mcam->mclk_div);
+
+		mcam->mipi_enabled = true;
+	}
+}
+
+static void mcam_disable_mipi(struct mcam_camera *mcam)
+{
+	/* Using Parallel mode or disable MIPI */
+	mcam_reg_write(mcam, REG_CSI2_CTRL0, 0x0);
+	mcam_reg_write(mcam, REG_CSI2_DPHY3, 0x0);
+	mcam_reg_write(mcam, REG_CSI2_DPHY5, 0x0);
+	mcam_reg_write(mcam, REG_CSI2_DPHY6, 0x0);
+	mcam->mipi_enabled = false;
 }
 
 /* ------------------------------------------------------------------- */
@@ -656,6 +696,13 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 	 */
 	mcam_reg_write_mask(cam, REG_CTRL0, C0_SIF_HVSYNC,
 			C0_SIFM_MASK);
+
+	/*
+	 * This field controls the generation of EOF(DVP only)
+	 */
+	if (cam->bus_type != V4L2_MBUS_CSI2)
+		mcam_reg_set_bit(cam, REG_CTRL0,
+				C0_EOF_VSYNC | C0_VEDGE_CTRL);
 }
 
 
@@ -753,15 +800,21 @@ static void mcam_ctlr_stop_dma(struct mcam_camera *cam)
 /*
  * Power up and down.
  */
-static void mcam_ctlr_power_up(struct mcam_camera *cam)
+static int mcam_ctlr_power_up(struct mcam_camera *cam)
 {
 	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
-	cam->plat_power_up(cam);
+	ret = cam->plat_power_up(cam);
+	if (ret) {
+		spin_unlock_irqrestore(&cam->dev_lock, flags);
+		return ret;
+	}
 	mcam_reg_clear_bit(cam, REG_CTRL1, C1_PWRDWN);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 	msleep(5); /* Just to be sure */
+	return 0;
 }
 
 static void mcam_ctlr_power_down(struct mcam_camera *cam)
@@ -869,6 +922,17 @@ static int mcam_read_setup(struct mcam_camera *cam)
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	clear_bit(CF_DMA_ACTIVE, &cam->flags);
 	mcam_reset_buffers(cam);
+	/*
+	 * Update CSI2_DPHY value
+	 */
+	if (cam->calc_dphy)
+		cam->calc_dphy(cam);
+	cam_dbg(cam, "camera: DPHY sets: dphy3=0x%x, dphy5=0x%x, dphy6=0x%x\n",
+			cam->dphy[0], cam->dphy[1], cam->dphy[2]);
+	if (cam->bus_type == V4L2_MBUS_CSI2)
+		mcam_enable_mipi(cam);
+	else
+		mcam_disable_mipi(cam);
 	mcam_ctlr_irq_enable(cam);
 	cam->state = S_STREAMING;
 	if (!test_bit(CF_SG_RESTART, &cam->flags))
@@ -1475,7 +1539,9 @@ static int mcam_v4l_open(struct file *filp)
 		ret = mcam_setup_vb2(cam);
 		if (ret)
 			goto out;
-		mcam_ctlr_power_up(cam);
+		ret = mcam_ctlr_power_up(cam);
+		if (ret)
+			goto out;
 		__mcam_cam_reset(cam);
 		mcam_set_config_needed(cam, 1);
 	}
@@ -1498,10 +1564,12 @@ static int mcam_v4l_release(struct file *filp)
 	if (cam->users == 0) {
 		mcam_ctlr_stop_dma(cam);
 		mcam_cleanup_vb2(cam);
+		mcam_disable_mipi(cam);
 		mcam_ctlr_power_down(cam);
 		if (cam->buffer_mode == B_vmalloc && alloc_bufs_at_read)
 			mcam_free_dma_bufs(cam);
 	}
+
 	mutex_unlock(&cam->s_mutex);
 	return 0;
 }
@@ -1787,7 +1855,11 @@ int mccic_resume(struct mcam_camera *cam)
 
 	mutex_lock(&cam->s_mutex);
 	if (cam->users > 0) {
-		mcam_ctlr_power_up(cam);
+		ret = mcam_ctlr_power_up(cam);
+		if (ret) {
+			mutex_unlock(&cam->s_mutex);
+			return ret;
+		}
 		__mcam_cam_reset(cam);
 	} else {
 		mcam_ctlr_power_down(cam);

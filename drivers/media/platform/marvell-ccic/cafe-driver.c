@@ -399,7 +399,7 @@ static void cafe_ctlr_init(struct mcam_camera *mcam)
 }
 
 
-static void cafe_ctlr_power_up(struct mcam_camera *mcam)
+static int cafe_ctlr_power_up(struct mcam_camera *mcam)
 {
 	/*
 	 * Part one of the sensor dance: turn the global
@@ -414,6 +414,8 @@ static void cafe_ctlr_power_up(struct mcam_camera *mcam)
 	 */
 	mcam_reg_write(mcam, REG_GPR, GPR_C1EN|GPR_C0EN); /* pwr up, reset */
 	mcam_reg_write(mcam, REG_GPR, GPR_C1EN|GPR_C0EN|GPR_C0);
+
+	return 0;
 }
 
 static void cafe_ctlr_power_down(struct mcam_camera *mcam)
