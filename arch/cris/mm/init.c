@@ -33,7 +33,7 @@ mem_init(void)
 	max_mapnr = num_physpages = max_low_pfn - min_low_pfn;
  
 	/* this will put all memory onto the freelists */
-        totalram_pages = free_all_bootmem();
+        free_all_bootmem();
 
 	reservedpages = 0;
 	for (tmp = 0; tmp < max_mapnr; tmp++) {

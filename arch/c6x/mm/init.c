@@ -65,7 +65,7 @@ void __init mem_init(void)
 	high_memory = (void *)(memory_end & PAGE_MASK);
 
 	/* this will put all memory onto the freelists */
-	totalram_pages = free_all_bootmem();
+	free_all_bootmem();
 
 	codek = (_etext - _stext) >> 10;
 	datak = (_end - _sdata) >> 10;

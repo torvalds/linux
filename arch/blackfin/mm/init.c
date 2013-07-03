@@ -104,7 +104,7 @@ void __init mem_init(void)
 	printk(KERN_DEBUG "Kernel managed physical pages: %lu\n", num_physpages);
 
 	/* This will put all low memory onto the freelists. */
-	totalram_pages = free_all_bootmem();
+	free_all_bootmem();
 
 	reservedpages = 0;
 	for (tmp = ARCH_PFN_OFFSET; tmp < max_mapnr; tmp++)

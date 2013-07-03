@@ -144,7 +144,7 @@ void __init mem_init(void)
 	cmma_init();
 
 	/* this will put all low memory onto the freelists */
-	totalram_pages += free_all_bootmem();
+	free_all_bootmem();
 	setup_zero_pages();	/* Setup zeroed pages. */
 
 	reservedpages = 0;

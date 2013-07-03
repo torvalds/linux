@@ -2061,7 +2061,7 @@ void __init mem_init(void)
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
 
 	register_page_bootmem_info();
-	totalram_pages = free_all_bootmem();
+	free_all_bootmem();
 
 	/* We subtract one to account for the mem_map_zero page
 	 * allocated below.

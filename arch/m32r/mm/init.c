@@ -158,7 +158,7 @@ void __init mem_init(void)
 
 	/* this will put all low memory onto the freelists */
 	for_each_online_node(nid)
-		totalram_pages += free_all_bootmem_node(NODE_DATA(nid));
+		free_all_bootmem_node(NODE_DATA(nid));
 
 	reservedpages = reservedpages_count() - hole_pages;
 	codesize = (unsigned long) &_etext - (unsigned long)&_text;

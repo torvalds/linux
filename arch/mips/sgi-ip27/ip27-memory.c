@@ -489,7 +489,7 @@ void __init mem_init(void)
 		/*
 		 * This will free up the bootmem, ie, slot 0 memory.
 		 */
-		totalram_pages += free_all_bootmem_node(NODE_DATA(node));
+		free_all_bootmem_node(NODE_DATA(node));
 	}
 
 	setup_zero_pages();	/* This comes from node 0 */

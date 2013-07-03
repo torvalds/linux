@@ -123,7 +123,7 @@ void __init mem_init(void)
 	int codek = 0, datak = 0;
 
 	/* this will put all low memory onto the freelists */
-	totalram_pages = free_all_bootmem();
+	free_all_bootmem();
 
 #ifdef CONFIG_MMU
 	for (loop = 0 ; loop < npages ; loop++)

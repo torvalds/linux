@@ -117,8 +117,6 @@ void __init mem_init(void)
 		if (pgdat->node_spanned_pages != 0)
 			node_pages = free_all_bootmem_node(pgdat);
 
-		totalram_pages += node_pages;
-
 		for (i = 0; i < node_pages; i++)
 			if (PageReserved(pgdat->node_mem_map + i))
 				reservedpages++;

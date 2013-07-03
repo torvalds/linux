@@ -271,9 +271,14 @@ void __init reset_all_zones_managed_pages(void)
  */
 unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
 {
+	unsigned long pages;
+
 	register_page_bootmem_info_node(pgdat);
 	reset_node_managed_pages(pgdat);
-	return free_all_bootmem_core(pgdat->bdata);
+	pages = free_all_bootmem_core(pgdat->bdata);
+	totalram_pages += pages;
+
+	return pages;
 }
 
 /**
@@ -290,6 +295,8 @@ unsigned long __init free_all_bootmem(void)
 
 	list_for_each_entry(bdata, &bdata_list, list)
 		total_pages += free_all_bootmem_core(bdata);
+
+	totalram_pages += total_pages;
 
 	return total_pages;
 }

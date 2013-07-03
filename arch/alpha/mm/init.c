@@ -309,7 +309,7 @@ void __init
 mem_init(void)
 {
 	max_mapnr = num_physpages = max_low_pfn;
-	totalram_pages += free_all_bootmem();
+	free_all_bootmem();
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 
 	printk_memory_info();

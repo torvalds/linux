@@ -111,7 +111,7 @@ void __init mem_init(void)
 
 	high_memory = (void *)(CONFIG_LINUX_LINK_BASE + arc_mem_sz);
 
-	totalram_pages = free_all_bootmem();
+	free_all_bootmem();
 
 	/* count all reserved pages [kernel code/data/mem_map..] */
 	reserved_pages = 0;

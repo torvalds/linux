@@ -155,11 +155,11 @@ void __init mem_init(void)
 	int i;
 
 	/* this will put all memory onto the freelists */
-	totalram_pages = num_physpages = 0;
+	num_physpages = 0;
 	for_each_online_pgdat(pgdat) {
 		num_physpages += pgdat->node_present_pages;
 
-		totalram_pages += free_all_bootmem_node(pgdat);
+		free_all_bootmem_node(pgdat);
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
 			struct page *page = pgdat->node_mem_map + i;
 			char *addr = page_to_virt(page);

@@ -393,14 +393,11 @@ void __init mem_init(void)
 
 	for_each_online_node(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);
-		unsigned long node_pages = 0;
 
 		num_physpages += pgdat->node_present_pages;
 
 		if (pgdat->node_spanned_pages)
-			node_pages = free_all_bootmem_node(pgdat);
-
-		totalram_pages += node_pages;
+			free_all_bootmem_node(pgdat);
 	}
 
 	pr_info("Memory: %luk/%luk available\n",

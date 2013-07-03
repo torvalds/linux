@@ -593,13 +593,13 @@ void __init mem_init(void)
 
 #ifndef CONFIG_DISCONTIGMEM
 	max_mapnr = page_to_pfn(virt_to_page(high_memory - 1)) + 1;
-	totalram_pages += free_all_bootmem();
+	free_all_bootmem();
 #else
 	{
 		int i;
 
 		for (i = 0; i < npmem_ranges; i++)
-			totalram_pages += free_all_bootmem_node(NODE_DATA(i));
+			free_all_bootmem_node(NODE_DATA(i));
 	}
 #endif
 
